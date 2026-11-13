@@ -1,15 +1,15 @@
 id: honeypot           # trùng tên thư mục
 name: { vi: "Bẫy nội bộ", en: "Honeypot" }
-summary: { vi: "Bẫy giả (SMB/RDP/SSH/MSSQL/HTTP, vai thiết bị, honey token) trên IP phụ của hộp: ai chạm vào là biết ngay.", en: "Decoy services, device personalities and honey tokens on a secondary IP of the box: any touch is an alert." }
+summary: { vi: "Trap IP giống thiết bị thật (tên, MAC theo hãng, dịch vụ riêng SMB/RDP/SSH/MSSQL/HTTP) và honey token: ai chạm vào là biết ngay, chạm hai Trap IP trong một phút là quét.", en: "Trap IPs that look like real devices (name, vendor MAC, their own SMB/RDP/SSH/MSSQL/HTTP services) and honey tokens: any touch is an alert, touching two Trap IPs within a minute is a scan." }
 tier: optional
 needs_host: true      # D-381: chỉ chạy khi có vedette-host (appliance); bản chỉ container không bật được
 default: off
 depends: [core, inventory]
 soft_depends: [notify, response]   # notify: gửi cảnh báo; response: trigger "honeypot" (không có response thì hit vẫn lưu và báo)
-permissions: [net_bind_low, "host:net.decoy_ip"]   # cổng 22/80/445/1433/3389 trong container honeypot; IP phụ do vedette-host dựng (D-56)
-ports: ["tcp/445", "tcp/3389", "tcp/22", "tcp/1433", "tcp/80"]   # chỉ trên IP phụ/IP bẫy, không trên IP quản trị của hộp
+permissions: [net_bind_low, "host:net.decoy_ip"]   # cổng 22/80/445/1433/3389 trong container honeypot; địa chỉ Trap IP và danh sách cổng của từng địa chỉ do vedette-host dựng (D-56, D-466)
+ports: ["tcp/445", "tcp/3389", "tcp/22", "tcp/1433", "tcp/80"]   # chỉ trên Trap IP, mỗi Trap IP chỉ cổng của dịch vụ nó có (D-466); không trên IP quản trị của hộp
 container: honeypot    # D-55: OpenCanary (BSD-3) trong container riêng, macvlan trên IP phụ; API + bảng nằm trong `core`
 tables_prefix: hp_
-tables: [hp_config, hp_trap, hp_hits, hp_decoys, hp_tokens, hp_ignored_day]
+tables: [hp_config, hp_trap_ips, hp_hits, hp_tokens, hp_ignored_day]
 stories: [S-HP-1, S-HP-2]
 milestone: M5

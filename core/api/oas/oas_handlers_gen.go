@@ -21226,147 +21226,6 @@ func (s *Server) handleFindingsPostFindingsStatusRequest(args [0]string, argsEsc
 	}
 }
 
-// handleHoneypotDeleteHoneypotDecoysIDRequest handles honeypot_delete_honeypot_decoys_id operation.
-//
-// Delete a decoy.
-//
-// DELETE /honeypot/decoys/{id}
-func (s *Server) handleHoneypotDeleteHoneypotDecoysIDRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
-	statusWriter := &codeRecorder{ResponseWriter: w}
-	w = statusWriter
-	ctx := r.Context()
-
-	var (
-		err          error
-		opErrContext = ogenerrors.OperationContext{
-			Name: HoneypotDeleteHoneypotDecoysIDOperation,
-			ID:   "honeypot_delete_honeypot_decoys_id",
-		}
-	)
-	{
-		type bitset = [1]uint8
-		var satisfied bitset
-		{
-			sctx, ok, err := s.securitySession(ctx, HoneypotDeleteHoneypotDecoysIDOperation, r)
-			if err != nil {
-				err = &ogenerrors.SecurityError{
-					OperationContext: opErrContext,
-					Security:         "Session",
-					Err:              err,
-				}
-				if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
-					defer recordError("Security:Session", err)
-				}
-				return
-			}
-			if ok {
-				satisfied[0] |= 1 << 0
-				ctx = sctx
-			}
-		}
-
-		if ok := func() bool {
-		nextRequirement:
-			for _, requirement := range []bitset{
-				{0b00000001},
-			} {
-				for i, mask := range requirement {
-					if satisfied[i]&mask != mask {
-						continue nextRequirement
-					}
-				}
-				return true
-			}
-			return false
-		}(); !ok {
-			err = &ogenerrors.SecurityError{
-				OperationContext: opErrContext,
-				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
-			}
-			if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
-				defer recordError("Security", err)
-			}
-			return
-		}
-	}
-	params, err := decodeHoneypotDeleteHoneypotDecoysIDParams(args, argsEscaped, r)
-	if err != nil {
-		err = &ogenerrors.DecodeParamsError{
-			OperationContext: opErrContext,
-			Err:              err,
-		}
-		defer recordError("DecodeParams", err)
-		s.cfg.ErrorHandler(ctx, w, r, err)
-		return
-	}
-
-	var rawBody []byte
-
-	var response *HoneypotDeleteHoneypotDecoysIDNoContent
-	if m := s.cfg.Middleware; m != nil {
-		mreq := middleware.Request{
-			Context:          ctx,
-			OperationName:    HoneypotDeleteHoneypotDecoysIDOperation,
-			OperationSummary: "Delete a decoy",
-			OperationID:      "honeypot_delete_honeypot_decoys_id",
-			Body:             nil,
-			RawBody:          rawBody,
-			Params: middleware.Parameters{
-				{
-					Name: "id",
-					In:   "path",
-				}: params.ID,
-			},
-			Raw: r,
-		}
-
-		type (
-			Request  = struct{}
-			Params   = HoneypotDeleteHoneypotDecoysIDParams
-			Response = *HoneypotDeleteHoneypotDecoysIDNoContent
-		)
-		response, err = middleware.HookMiddleware[
-			Request,
-			Params,
-			Response,
-		](
-			m,
-			mreq,
-			unpackHoneypotDeleteHoneypotDecoysIDParams,
-			func(ctx context.Context, request Request, params Params) (response Response, err error) {
-				err = s.h.HoneypotDeleteHoneypotDecoysID(ctx, params)
-				return response, err
-			},
-		)
-	} else {
-		err = s.h.HoneypotDeleteHoneypotDecoysID(ctx, params)
-	}
-	if err != nil {
-		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
-			if err := encodeErrorResponse(errRes, w); err != nil {
-				defer recordError("Internal", err)
-			}
-			return
-		}
-		if errors.Is(err, ht.ErrNotImplemented) {
-			s.cfg.ErrorHandler(ctx, w, r, err)
-			return
-		}
-		if err := encodeErrorResponse(s.h.NewError(ctx, err), w); err != nil {
-			defer recordError("Internal", err)
-		}
-		return
-	}
-
-	if err := encodeHoneypotDeleteHoneypotDecoysIDResponse(response, w); err != nil {
-		defer recordError("EncodeResponse", err)
-		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
-			s.cfg.ErrorHandler(ctx, w, r, err)
-		}
-		return
-	}
-}
-
 // handleHoneypotDeleteHoneypotTokensIDRequest handles honeypot_delete_honeypot_tokens_id operation.
 //
 // Delete a honey token; the planted copy stops alerting.
@@ -21508,9 +21367,151 @@ func (s *Server) handleHoneypotDeleteHoneypotTokensIDRequest(args [1]string, arg
 	}
 }
 
+// handleHoneypotDeleteHoneypotTrapIpsIDRequest handles honeypot_delete_honeypot_trap_ips_id operation.
+//
+// Delete a Trap IP; the address stops answering, its hits stay.
+//
+// DELETE /honeypot/trap-ips/{id}
+func (s *Server) handleHoneypotDeleteHoneypotTrapIpsIDRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: HoneypotDeleteHoneypotTrapIpsIDOperation,
+			ID:   "honeypot_delete_honeypot_trap_ips_id",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securitySession(ctx, HoneypotDeleteHoneypotTrapIpsIDOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Session",
+					Err:              err,
+				}
+				if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
+					defer recordError("Security:Session", err)
+				}
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
+				defer recordError("Security", err)
+			}
+			return
+		}
+	}
+	params, err := decodeHoneypotDeleteHoneypotTrapIpsIDParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response *HoneypotDeleteHoneypotTrapIpsIDNoContent
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    HoneypotDeleteHoneypotTrapIpsIDOperation,
+			OperationSummary: "Delete a Trap IP; the address stops answering, its hits stay",
+			OperationID:      "honeypot_delete_honeypot_trap_ips_id",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "id",
+					In:   "path",
+				}: params.ID,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = HoneypotDeleteHoneypotTrapIpsIDParams
+			Response = *HoneypotDeleteHoneypotTrapIpsIDNoContent
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackHoneypotDeleteHoneypotTrapIpsIDParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				err = s.h.HoneypotDeleteHoneypotTrapIpsID(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		err = s.h.HoneypotDeleteHoneypotTrapIpsID(ctx, params)
+	}
+	if err != nil {
+		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
+			if err := encodeErrorResponse(errRes, w); err != nil {
+				defer recordError("Internal", err)
+			}
+			return
+		}
+		if errors.Is(err, ht.ErrNotImplemented) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+		if err := encodeErrorResponse(s.h.NewError(ctx, err), w); err != nil {
+			defer recordError("Internal", err)
+		}
+		return
+	}
+
+	if err := encodeHoneypotDeleteHoneypotTrapIpsIDResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleHoneypotGetHoneypotRequest handles honeypot_get_honeypot operation.
 //
-// The decoy machine, traps by service, hit summary and the excluded scanner.
+// Trap IP counts, services across the Trap IPs, the box-wide SMB name and HTTP page, hit summary and
+// the excluded scanner.
 //
 // GET /honeypot
 func (s *Server) handleHoneypotGetHoneypotRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -21579,7 +21580,7 @@ func (s *Server) handleHoneypotGetHoneypotRequest(args [0]string, argsEscaped bo
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    HoneypotGetHoneypotOperation,
-			OperationSummary: "The decoy machine, traps by service, hit summary and the excluded scanner",
+			OperationSummary: "Trap IP counts, services across the Trap IPs, the box-wide SMB name and HTTP page, hit summary and the excluded scanner",
 			OperationID:      "honeypot_get_honeypot",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -21626,132 +21627,6 @@ func (s *Server) handleHoneypotGetHoneypotRequest(args [0]string, argsEscaped bo
 	}
 
 	if err := encodeHoneypotGetHoneypotResponse(response, w); err != nil {
-		defer recordError("EncodeResponse", err)
-		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
-			s.cfg.ErrorHandler(ctx, w, r, err)
-		}
-		return
-	}
-}
-
-// handleHoneypotGetHoneypotDecoysRequest handles honeypot_get_honeypot_decoys operation.
-//
-// Decoy personalities in use, suggestions from the inventory and spare IPs.
-//
-// GET /honeypot/decoys
-func (s *Server) handleHoneypotGetHoneypotDecoysRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
-	statusWriter := &codeRecorder{ResponseWriter: w}
-	w = statusWriter
-	ctx := r.Context()
-
-	var (
-		err          error
-		opErrContext = ogenerrors.OperationContext{
-			Name: HoneypotGetHoneypotDecoysOperation,
-			ID:   "honeypot_get_honeypot_decoys",
-		}
-	)
-	{
-		type bitset = [1]uint8
-		var satisfied bitset
-		{
-			sctx, ok, err := s.securitySession(ctx, HoneypotGetHoneypotDecoysOperation, r)
-			if err != nil {
-				err = &ogenerrors.SecurityError{
-					OperationContext: opErrContext,
-					Security:         "Session",
-					Err:              err,
-				}
-				if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
-					defer recordError("Security:Session", err)
-				}
-				return
-			}
-			if ok {
-				satisfied[0] |= 1 << 0
-				ctx = sctx
-			}
-		}
-
-		if ok := func() bool {
-		nextRequirement:
-			for _, requirement := range []bitset{
-				{0b00000001},
-			} {
-				for i, mask := range requirement {
-					if satisfied[i]&mask != mask {
-						continue nextRequirement
-					}
-				}
-				return true
-			}
-			return false
-		}(); !ok {
-			err = &ogenerrors.SecurityError{
-				OperationContext: opErrContext,
-				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
-			}
-			if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
-				defer recordError("Security", err)
-			}
-			return
-		}
-	}
-
-	var rawBody []byte
-
-	var response *HoneypotGetHoneypotDecoysOK
-	if m := s.cfg.Middleware; m != nil {
-		mreq := middleware.Request{
-			Context:          ctx,
-			OperationName:    HoneypotGetHoneypotDecoysOperation,
-			OperationSummary: "Decoy personalities in use, suggestions from the inventory and spare IPs",
-			OperationID:      "honeypot_get_honeypot_decoys",
-			Body:             nil,
-			RawBody:          rawBody,
-			Params:           middleware.Parameters{},
-			Raw:              r,
-		}
-
-		type (
-			Request  = struct{}
-			Params   = struct{}
-			Response = *HoneypotGetHoneypotDecoysOK
-		)
-		response, err = middleware.HookMiddleware[
-			Request,
-			Params,
-			Response,
-		](
-			m,
-			mreq,
-			nil,
-			func(ctx context.Context, request Request, params Params) (response Response, err error) {
-				response, err = s.h.HoneypotGetHoneypotDecoys(ctx)
-				return response, err
-			},
-		)
-	} else {
-		response, err = s.h.HoneypotGetHoneypotDecoys(ctx)
-	}
-	if err != nil {
-		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
-			if err := encodeErrorResponse(errRes, w); err != nil {
-				defer recordError("Internal", err)
-			}
-			return
-		}
-		if errors.Is(err, ht.ErrNotImplemented) {
-			s.cfg.ErrorHandler(ctx, w, r, err)
-			return
-		}
-		if err := encodeErrorResponse(s.h.NewError(ctx, err), w); err != nil {
-			defer recordError("Internal", err)
-		}
-		return
-	}
-
-	if err := encodeHoneypotGetHoneypotDecoysResponse(response, w); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)
@@ -22168,12 +22043,12 @@ func (s *Server) handleHoneypotGetHoneypotTokensRequest(args [0]string, argsEsca
 	}
 }
 
-// handleHoneypotPatchHoneypotDecoysIDRequest handles honeypot_patch_honeypot_decoys_id operation.
+// handleHoneypotGetHoneypotTrapIpsRequest handles honeypot_get_honeypot_trap_ips operation.
 //
-// Turn a decoy on or off.
+// Trap IPs with their state, suggestions from the inventory and addresses not seen yet.
 //
-// PATCH /honeypot/decoys/{id}
-func (s *Server) handleHoneypotPatchHoneypotDecoysIDRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+// GET /honeypot/trap-ips
+func (s *Server) handleHoneypotGetHoneypotTrapIpsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
 	statusWriter := &codeRecorder{ResponseWriter: w}
 	w = statusWriter
 	ctx := r.Context()
@@ -22181,15 +22056,15 @@ func (s *Server) handleHoneypotPatchHoneypotDecoysIDRequest(args [1]string, args
 	var (
 		err          error
 		opErrContext = ogenerrors.OperationContext{
-			Name: HoneypotPatchHoneypotDecoysIDOperation,
-			ID:   "honeypot_patch_honeypot_decoys_id",
+			Name: HoneypotGetHoneypotTrapIpsOperation,
+			ID:   "honeypot_get_honeypot_trap_ips",
 		}
 	)
 	{
 		type bitset = [1]uint8
 		var satisfied bitset
 		{
-			sctx, ok, err := s.securitySession(ctx, HoneypotPatchHoneypotDecoysIDOperation, r)
+			sctx, ok, err := s.securitySession(ctx, HoneypotGetHoneypotTrapIpsOperation, r)
 			if err != nil {
 				err = &ogenerrors.SecurityError{
 					OperationContext: opErrContext,
@@ -22231,7 +22106,133 @@ func (s *Server) handleHoneypotPatchHoneypotDecoysIDRequest(args [1]string, args
 			return
 		}
 	}
-	params, err := decodeHoneypotPatchHoneypotDecoysIDParams(args, argsEscaped, r)
+
+	var rawBody []byte
+
+	var response *HoneypotGetHoneypotTrapIpsOK
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    HoneypotGetHoneypotTrapIpsOperation,
+			OperationSummary: "Trap IPs with their state, suggestions from the inventory and addresses not seen yet",
+			OperationID:      "honeypot_get_honeypot_trap_ips",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params:           middleware.Parameters{},
+			Raw:              r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = struct{}
+			Response = *HoneypotGetHoneypotTrapIpsOK
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			nil,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.HoneypotGetHoneypotTrapIps(ctx)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.HoneypotGetHoneypotTrapIps(ctx)
+	}
+	if err != nil {
+		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
+			if err := encodeErrorResponse(errRes, w); err != nil {
+				defer recordError("Internal", err)
+			}
+			return
+		}
+		if errors.Is(err, ht.ErrNotImplemented) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+		if err := encodeErrorResponse(s.h.NewError(ctx, err), w); err != nil {
+			defer recordError("Internal", err)
+		}
+		return
+	}
+
+	if err := encodeHoneypotGetHoneypotTrapIpsResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleHoneypotPatchHoneypotTrapIpsIDRequest handles honeypot_patch_honeypot_trap_ips_id operation.
+//
+// Turn a Trap IP on or off.
+//
+// PATCH /honeypot/trap-ips/{id}
+func (s *Server) handleHoneypotPatchHoneypotTrapIpsIDRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: HoneypotPatchHoneypotTrapIpsIDOperation,
+			ID:   "honeypot_patch_honeypot_trap_ips_id",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securitySession(ctx, HoneypotPatchHoneypotTrapIpsIDOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Session",
+					Err:              err,
+				}
+				if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
+					defer recordError("Security:Session", err)
+				}
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
+				defer recordError("Security", err)
+			}
+			return
+		}
+	}
+	params, err := decodeHoneypotPatchHoneypotTrapIpsIDParams(args, argsEscaped, r)
 	if err != nil {
 		err = &ogenerrors.DecodeParamsError{
 			OperationContext: opErrContext,
@@ -22243,7 +22244,7 @@ func (s *Server) handleHoneypotPatchHoneypotDecoysIDRequest(args [1]string, args
 	}
 
 	var rawBody []byte
-	request, rawBody, close, err := s.decodeHoneypotPatchHoneypotDecoysIDRequest(r)
+	request, rawBody, close, err := s.decodeHoneypotPatchHoneypotTrapIpsIDRequest(r)
 	if err != nil {
 		err = &ogenerrors.DecodeRequestError{
 			OperationContext: opErrContext,
@@ -22259,13 +22260,13 @@ func (s *Server) handleHoneypotPatchHoneypotDecoysIDRequest(args [1]string, args
 		}
 	}()
 
-	var response *HoneypotPatchHoneypotDecoysIDOK
+	var response *HoneypotPatchHoneypotTrapIpsIDOK
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
 			Context:          ctx,
-			OperationName:    HoneypotPatchHoneypotDecoysIDOperation,
-			OperationSummary: "Turn a decoy on or off",
-			OperationID:      "honeypot_patch_honeypot_decoys_id",
+			OperationName:    HoneypotPatchHoneypotTrapIpsIDOperation,
+			OperationSummary: "Turn a Trap IP on or off",
+			OperationID:      "honeypot_patch_honeypot_trap_ips_id",
 			Body:             request,
 			RawBody:          rawBody,
 			Params: middleware.Parameters{
@@ -22278,9 +22279,9 @@ func (s *Server) handleHoneypotPatchHoneypotDecoysIDRequest(args [1]string, args
 		}
 
 		type (
-			Request  = *HoneypotPatchHoneypotDecoysIDReq
-			Params   = HoneypotPatchHoneypotDecoysIDParams
-			Response = *HoneypotPatchHoneypotDecoysIDOK
+			Request  = *HoneypotPatchHoneypotTrapIpsIDReq
+			Params   = HoneypotPatchHoneypotTrapIpsIDParams
+			Response = *HoneypotPatchHoneypotTrapIpsIDOK
 		)
 		response, err = middleware.HookMiddleware[
 			Request,
@@ -22289,14 +22290,14 @@ func (s *Server) handleHoneypotPatchHoneypotDecoysIDRequest(args [1]string, args
 		](
 			m,
 			mreq,
-			unpackHoneypotPatchHoneypotDecoysIDParams,
+			unpackHoneypotPatchHoneypotTrapIpsIDParams,
 			func(ctx context.Context, request Request, params Params) (response Response, err error) {
-				response, err = s.h.HoneypotPatchHoneypotDecoysID(ctx, request, params)
+				response, err = s.h.HoneypotPatchHoneypotTrapIpsID(ctx, request, params)
 				return response, err
 			},
 		)
 	} else {
-		response, err = s.h.HoneypotPatchHoneypotDecoysID(ctx, request, params)
+		response, err = s.h.HoneypotPatchHoneypotTrapIpsID(ctx, request, params)
 	}
 	if err != nil {
 		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
@@ -22315,304 +22316,7 @@ func (s *Server) handleHoneypotPatchHoneypotDecoysIDRequest(args [1]string, args
 		return
 	}
 
-	if err := encodeHoneypotPatchHoneypotDecoysIDResponse(response, w); err != nil {
-		defer recordError("EncodeResponse", err)
-		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
-			s.cfg.ErrorHandler(ctx, w, r, err)
-		}
-		return
-	}
-}
-
-// handleHoneypotPatchHoneypotTrapsServiceRequest handles honeypot_patch_honeypot_traps_service operation.
-//
-// Turn the trap of one service on or off.
-//
-// PATCH /honeypot/traps/{service}
-func (s *Server) handleHoneypotPatchHoneypotTrapsServiceRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
-	statusWriter := &codeRecorder{ResponseWriter: w}
-	w = statusWriter
-	ctx := r.Context()
-
-	var (
-		err          error
-		opErrContext = ogenerrors.OperationContext{
-			Name: HoneypotPatchHoneypotTrapsServiceOperation,
-			ID:   "honeypot_patch_honeypot_traps_service",
-		}
-	)
-	{
-		type bitset = [1]uint8
-		var satisfied bitset
-		{
-			sctx, ok, err := s.securitySession(ctx, HoneypotPatchHoneypotTrapsServiceOperation, r)
-			if err != nil {
-				err = &ogenerrors.SecurityError{
-					OperationContext: opErrContext,
-					Security:         "Session",
-					Err:              err,
-				}
-				if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
-					defer recordError("Security:Session", err)
-				}
-				return
-			}
-			if ok {
-				satisfied[0] |= 1 << 0
-				ctx = sctx
-			}
-		}
-
-		if ok := func() bool {
-		nextRequirement:
-			for _, requirement := range []bitset{
-				{0b00000001},
-			} {
-				for i, mask := range requirement {
-					if satisfied[i]&mask != mask {
-						continue nextRequirement
-					}
-				}
-				return true
-			}
-			return false
-		}(); !ok {
-			err = &ogenerrors.SecurityError{
-				OperationContext: opErrContext,
-				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
-			}
-			if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
-				defer recordError("Security", err)
-			}
-			return
-		}
-	}
-	params, err := decodeHoneypotPatchHoneypotTrapsServiceParams(args, argsEscaped, r)
-	if err != nil {
-		err = &ogenerrors.DecodeParamsError{
-			OperationContext: opErrContext,
-			Err:              err,
-		}
-		defer recordError("DecodeParams", err)
-		s.cfg.ErrorHandler(ctx, w, r, err)
-		return
-	}
-
-	var rawBody []byte
-	request, rawBody, close, err := s.decodeHoneypotPatchHoneypotTrapsServiceRequest(r)
-	if err != nil {
-		err = &ogenerrors.DecodeRequestError{
-			OperationContext: opErrContext,
-			Err:              err,
-		}
-		defer recordError("DecodeRequest", err)
-		s.cfg.ErrorHandler(ctx, w, r, err)
-		return
-	}
-	defer func() {
-		if err := close(); err != nil {
-			recordError("CloseRequest", err)
-		}
-	}()
-
-	var response *HoneypotPatchHoneypotTrapsServiceOK
-	if m := s.cfg.Middleware; m != nil {
-		mreq := middleware.Request{
-			Context:          ctx,
-			OperationName:    HoneypotPatchHoneypotTrapsServiceOperation,
-			OperationSummary: "Turn the trap of one service on or off",
-			OperationID:      "honeypot_patch_honeypot_traps_service",
-			Body:             request,
-			RawBody:          rawBody,
-			Params: middleware.Parameters{
-				{
-					Name: "service",
-					In:   "path",
-				}: params.Service,
-			},
-			Raw: r,
-		}
-
-		type (
-			Request  = *HoneypotPatchHoneypotTrapsServiceReq
-			Params   = HoneypotPatchHoneypotTrapsServiceParams
-			Response = *HoneypotPatchHoneypotTrapsServiceOK
-		)
-		response, err = middleware.HookMiddleware[
-			Request,
-			Params,
-			Response,
-		](
-			m,
-			mreq,
-			unpackHoneypotPatchHoneypotTrapsServiceParams,
-			func(ctx context.Context, request Request, params Params) (response Response, err error) {
-				response, err = s.h.HoneypotPatchHoneypotTrapsService(ctx, request, params)
-				return response, err
-			},
-		)
-	} else {
-		response, err = s.h.HoneypotPatchHoneypotTrapsService(ctx, request, params)
-	}
-	if err != nil {
-		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
-			if err := encodeErrorResponse(errRes, w); err != nil {
-				defer recordError("Internal", err)
-			}
-			return
-		}
-		if errors.Is(err, ht.ErrNotImplemented) {
-			s.cfg.ErrorHandler(ctx, w, r, err)
-			return
-		}
-		if err := encodeErrorResponse(s.h.NewError(ctx, err), w); err != nil {
-			defer recordError("Internal", err)
-		}
-		return
-	}
-
-	if err := encodeHoneypotPatchHoneypotTrapsServiceResponse(response, w); err != nil {
-		defer recordError("EncodeResponse", err)
-		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
-			s.cfg.ErrorHandler(ctx, w, r, err)
-		}
-		return
-	}
-}
-
-// handleHoneypotPostHoneypotDecoysRequest handles honeypot_post_honeypot_decoys operation.
-//
-// Add a decoy with a personality on a spare IP.
-//
-// POST /honeypot/decoys
-func (s *Server) handleHoneypotPostHoneypotDecoysRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
-	statusWriter := &codeRecorder{ResponseWriter: w}
-	w = statusWriter
-	ctx := r.Context()
-
-	var (
-		err          error
-		opErrContext = ogenerrors.OperationContext{
-			Name: HoneypotPostHoneypotDecoysOperation,
-			ID:   "honeypot_post_honeypot_decoys",
-		}
-	)
-	{
-		type bitset = [1]uint8
-		var satisfied bitset
-		{
-			sctx, ok, err := s.securitySession(ctx, HoneypotPostHoneypotDecoysOperation, r)
-			if err != nil {
-				err = &ogenerrors.SecurityError{
-					OperationContext: opErrContext,
-					Security:         "Session",
-					Err:              err,
-				}
-				if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
-					defer recordError("Security:Session", err)
-				}
-				return
-			}
-			if ok {
-				satisfied[0] |= 1 << 0
-				ctx = sctx
-			}
-		}
-
-		if ok := func() bool {
-		nextRequirement:
-			for _, requirement := range []bitset{
-				{0b00000001},
-			} {
-				for i, mask := range requirement {
-					if satisfied[i]&mask != mask {
-						continue nextRequirement
-					}
-				}
-				return true
-			}
-			return false
-		}(); !ok {
-			err = &ogenerrors.SecurityError{
-				OperationContext: opErrContext,
-				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
-			}
-			if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
-				defer recordError("Security", err)
-			}
-			return
-		}
-	}
-
-	var rawBody []byte
-	request, rawBody, close, err := s.decodeHoneypotPostHoneypotDecoysRequest(r)
-	if err != nil {
-		err = &ogenerrors.DecodeRequestError{
-			OperationContext: opErrContext,
-			Err:              err,
-		}
-		defer recordError("DecodeRequest", err)
-		s.cfg.ErrorHandler(ctx, w, r, err)
-		return
-	}
-	defer func() {
-		if err := close(); err != nil {
-			recordError("CloseRequest", err)
-		}
-	}()
-
-	var response *HoneypotPostHoneypotDecoysCreated
-	if m := s.cfg.Middleware; m != nil {
-		mreq := middleware.Request{
-			Context:          ctx,
-			OperationName:    HoneypotPostHoneypotDecoysOperation,
-			OperationSummary: "Add a decoy with a personality on a spare IP",
-			OperationID:      "honeypot_post_honeypot_decoys",
-			Body:             request,
-			RawBody:          rawBody,
-			Params:           middleware.Parameters{},
-			Raw:              r,
-		}
-
-		type (
-			Request  = *HoneypotPostHoneypotDecoysReq
-			Params   = struct{}
-			Response = *HoneypotPostHoneypotDecoysCreated
-		)
-		response, err = middleware.HookMiddleware[
-			Request,
-			Params,
-			Response,
-		](
-			m,
-			mreq,
-			nil,
-			func(ctx context.Context, request Request, params Params) (response Response, err error) {
-				response, err = s.h.HoneypotPostHoneypotDecoys(ctx, request)
-				return response, err
-			},
-		)
-	} else {
-		response, err = s.h.HoneypotPostHoneypotDecoys(ctx, request)
-	}
-	if err != nil {
-		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
-			if err := encodeErrorResponse(errRes, w); err != nil {
-				defer recordError("Internal", err)
-			}
-			return
-		}
-		if errors.Is(err, ht.ErrNotImplemented) {
-			s.cfg.ErrorHandler(ctx, w, r, err)
-			return
-		}
-		if err := encodeErrorResponse(s.h.NewError(ctx, err), w); err != nil {
-			defer recordError("Internal", err)
-		}
-		return
-	}
-
-	if err := encodeHoneypotPostHoneypotDecoysResponse(response, w); err != nil {
+	if err := encodeHoneypotPatchHoneypotTrapIpsIDResponse(response, w); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)
@@ -22623,8 +22327,8 @@ func (s *Server) handleHoneypotPostHoneypotDecoysRequest(args [0]string, argsEsc
 
 // handleHoneypotPostHoneypotTestHitRequest handles honeypot_post_honeypot_test_hit operation.
 //
-// "Test trap": creates a hit labelled as a test from the box itself, not counted in statistics, no
-// alert sent.
+// "Test trap": creates a hit labelled as a test from the box itself, on the first enabled Trap IP with
+// that service; not counted in statistics, no alert sent.
 //
 // POST /honeypot/test-hit
 func (s *Server) handleHoneypotPostHoneypotTestHitRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -22708,7 +22412,7 @@ func (s *Server) handleHoneypotPostHoneypotTestHitRequest(args [0]string, argsEs
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    HoneypotPostHoneypotTestHitOperation,
-			OperationSummary: "\"Test trap\": creates a hit labelled as a test from the box itself, not counted in statistics, no alert sent",
+			OperationSummary: "\"Test trap\": creates a hit labelled as a test from the box itself, on the first enabled Trap IP with that service; not counted in statistics, no alert sent",
 			OperationID:      "honeypot_post_honeypot_test_hit",
 			Body:             request,
 			RawBody:          rawBody,
@@ -22765,8 +22469,7 @@ func (s *Server) handleHoneypotPostHoneypotTestHitRequest(args [0]string, argsEs
 
 // handleHoneypotPostHoneypotTestScanRequest handles honeypot_post_honeypot_test_scan operation.
 //
-// "Test scan": a labelled test scan alert from the box across the decoy IPs, not counted, no alert
-// sent.
+// "Test scan": a labelled test scan alert from the box across the Trap IPs, not counted, no alert sent.
 //
 // POST /honeypot/test-scan
 func (s *Server) handleHoneypotPostHoneypotTestScanRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -22835,7 +22538,7 @@ func (s *Server) handleHoneypotPostHoneypotTestScanRequest(args [0]string, argsE
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    HoneypotPostHoneypotTestScanOperation,
-			OperationSummary: "\"Test scan\": a labelled test scan alert from the box across the decoy IPs, not counted, no alert sent",
+			OperationSummary: "\"Test scan\": a labelled test scan alert from the box across the Trap IPs, not counted, no alert sent",
 			OperationID:      "honeypot_post_honeypot_test_scan",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -23172,14 +22875,13 @@ func (s *Server) handleHoneypotPostHoneypotTokensIDTestRequest(args [1]string, a
 	}
 }
 
-// handleHoneypotPutHoneypotConfigRequest handles honeypot_put_honeypot_config operation.
+// handleHoneypotPostHoneypotTrapIpsRequest handles honeypot_post_honeypot_trap_ips operation.
 //
-// Set the secondary IP and decoy hostname; an empty secondary_ip removes the decoy IP, only while
-// every trap is off (409 traps_on). Rejects an IP that matches a device, the IP of the box itself, or
-// an IP outside the network of the box.
+// Add a Trap IP: name, address, preset, vendor and services. Rejects an address of a device, of the
+// box or outside the box network, and a name in use.
 //
-// PUT /honeypot/config
-func (s *Server) handleHoneypotPutHoneypotConfigRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+// POST /honeypot/trap-ips
+func (s *Server) handleHoneypotPostHoneypotTrapIpsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
 	statusWriter := &codeRecorder{ResponseWriter: w}
 	w = statusWriter
 	ctx := r.Context()
@@ -23187,15 +22889,15 @@ func (s *Server) handleHoneypotPutHoneypotConfigRequest(args [0]string, argsEsca
 	var (
 		err          error
 		opErrContext = ogenerrors.OperationContext{
-			Name: HoneypotPutHoneypotConfigOperation,
-			ID:   "honeypot_put_honeypot_config",
+			Name: HoneypotPostHoneypotTrapIpsOperation,
+			ID:   "honeypot_post_honeypot_trap_ips",
 		}
 	)
 	{
 		type bitset = [1]uint8
 		var satisfied bitset
 		{
-			sctx, ok, err := s.securitySession(ctx, HoneypotPutHoneypotConfigOperation, r)
+			sctx, ok, err := s.securitySession(ctx, HoneypotPostHoneypotTrapIpsOperation, r)
 			if err != nil {
 				err = &ogenerrors.SecurityError{
 					OperationContext: opErrContext,
@@ -23239,7 +22941,7 @@ func (s *Server) handleHoneypotPutHoneypotConfigRequest(args [0]string, argsEsca
 	}
 
 	var rawBody []byte
-	request, rawBody, close, err := s.decodeHoneypotPutHoneypotConfigRequest(r)
+	request, rawBody, close, err := s.decodeHoneypotPostHoneypotTrapIpsRequest(r)
 	if err != nil {
 		err = &ogenerrors.DecodeRequestError{
 			OperationContext: opErrContext,
@@ -23255,13 +22957,13 @@ func (s *Server) handleHoneypotPutHoneypotConfigRequest(args [0]string, argsEsca
 		}
 	}()
 
-	var response *HoneypotPutHoneypotConfigOK
+	var response *HoneypotPostHoneypotTrapIpsCreated
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
 			Context:          ctx,
-			OperationName:    HoneypotPutHoneypotConfigOperation,
-			OperationSummary: "Set the secondary IP and decoy hostname; an empty secondary_ip removes the decoy IP, only while every trap is off (409 traps_on). Rejects an IP that matches a device, the IP of the box itself, or an IP outside the network of the box",
-			OperationID:      "honeypot_put_honeypot_config",
+			OperationName:    HoneypotPostHoneypotTrapIpsOperation,
+			OperationSummary: "Add a Trap IP: name, address, preset, vendor and services. Rejects an address of a device, of the box or outside the box network, and a name in use",
+			OperationID:      "honeypot_post_honeypot_trap_ips",
 			Body:             request,
 			RawBody:          rawBody,
 			Params:           middleware.Parameters{},
@@ -23269,9 +22971,9 @@ func (s *Server) handleHoneypotPutHoneypotConfigRequest(args [0]string, argsEsca
 		}
 
 		type (
-			Request  = *HoneypotPutHoneypotConfigReq
+			Request  = *HoneypotPostHoneypotTrapIpsReq
 			Params   = struct{}
-			Response = *HoneypotPutHoneypotConfigOK
+			Response = *HoneypotPostHoneypotTrapIpsCreated
 		)
 		response, err = middleware.HookMiddleware[
 			Request,
@@ -23282,12 +22984,12 @@ func (s *Server) handleHoneypotPutHoneypotConfigRequest(args [0]string, argsEsca
 			mreq,
 			nil,
 			func(ctx context.Context, request Request, params Params) (response Response, err error) {
-				response, err = s.h.HoneypotPutHoneypotConfig(ctx, request)
+				response, err = s.h.HoneypotPostHoneypotTrapIps(ctx, request)
 				return response, err
 			},
 		)
 	} else {
-		response, err = s.h.HoneypotPutHoneypotConfig(ctx, request)
+		response, err = s.h.HoneypotPostHoneypotTrapIps(ctx, request)
 	}
 	if err != nil {
 		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
@@ -23306,7 +23008,163 @@ func (s *Server) handleHoneypotPutHoneypotConfigRequest(args [0]string, argsEsca
 		return
 	}
 
-	if err := encodeHoneypotPutHoneypotConfigResponse(response, w); err != nil {
+	if err := encodeHoneypotPostHoneypotTrapIpsResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleHoneypotPutHoneypotTrapIpsIDRequest handles honeypot_put_honeypot_trap_ips_id operation.
+//
+// Change a Trap IP: name, address, preset, vendor and services, with the same checks as adding one.
+//
+// PUT /honeypot/trap-ips/{id}
+func (s *Server) handleHoneypotPutHoneypotTrapIpsIDRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: HoneypotPutHoneypotTrapIpsIDOperation,
+			ID:   "honeypot_put_honeypot_trap_ips_id",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securitySession(ctx, HoneypotPutHoneypotTrapIpsIDOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Session",
+					Err:              err,
+				}
+				if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
+					defer recordError("Security:Session", err)
+				}
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
+				defer recordError("Security", err)
+			}
+			return
+		}
+	}
+	params, err := decodeHoneypotPutHoneypotTrapIpsIDParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeHoneypotPutHoneypotTrapIpsIDRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response *HoneypotPutHoneypotTrapIpsIDOK
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    HoneypotPutHoneypotTrapIpsIDOperation,
+			OperationSummary: "Change a Trap IP: name, address, preset, vendor and services, with the same checks as adding one",
+			OperationID:      "honeypot_put_honeypot_trap_ips_id",
+			Body:             request,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "id",
+					In:   "path",
+				}: params.ID,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = *HoneypotPutHoneypotTrapIpsIDReq
+			Params   = HoneypotPutHoneypotTrapIpsIDParams
+			Response = *HoneypotPutHoneypotTrapIpsIDOK
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackHoneypotPutHoneypotTrapIpsIDParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.HoneypotPutHoneypotTrapIpsID(ctx, request, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.HoneypotPutHoneypotTrapIpsID(ctx, request, params)
+	}
+	if err != nil {
+		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
+			if err := encodeErrorResponse(errRes, w); err != nil {
+				defer recordError("Internal", err)
+			}
+			return
+		}
+		if errors.Is(err, ht.ErrNotImplemented) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+		if err := encodeErrorResponse(s.h.NewError(ctx, err), w); err != nil {
+			defer recordError("Internal", err)
+		}
+		return
+	}
+
+	if err := encodeHoneypotPutHoneypotTrapIpsIDResponse(response, w); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)

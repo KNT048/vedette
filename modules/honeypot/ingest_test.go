@@ -237,7 +237,7 @@ func TestIngestLinesOfATrapTurnedOffAreDropped(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	e.setup()
-	if _, err := e.svc.SetTrap(e.ctx(), "a", honeypot.SSH, false); err != nil {
+	if err := e.setServices(e.main, honeypot.SMB); err != nil {
 		t.Fatal(err)
 	}
 	e.appendLog(sshNew("192.168.10.157", 1, t0).json())

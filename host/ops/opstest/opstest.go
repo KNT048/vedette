@@ -553,7 +553,8 @@ func (m *Machine) Ops(now func() time.Time, mutate ...func(*ops.Config, *ops.Dep
 // table), a table exists once a route went into it, and "route flush table N" of a table that does not exist answers as
 // iproute2 6.19 does (exit 2, "Error: ipv4: FIB table does not exist." and "Flush terminated" on stderr; #475),
 // "ip -n vedette-hp -j addr show" prints the links as JSON, and "nft list ruleset" prints the
-// egress ruleset once "nft -f -" loaded it, "sysctl -n" reads back what "sysctl -w" set (the marker "sysctl-wrong" makes it read 9) (unless the marker "nft-noload" is set: the load then
+// ruleset "nft -f -" loaded last, the way nft prints it back, "nft -j list set … touched" prints the IP state "touched.json" (an empty
+// set when it is not set), the marker "nft-touch-odd" prints the touch rule in a form the effect check does not know, "sysctl -n" reads back what "sysctl -w" set (the marker "sysctl-wrong" makes it read 9) (unless the marker "nft-noload" is set: the load then
 // silently does nothing). Rules added with Rule fire before this and can make a call fail.
 func (m *Machine) StatefulIP() {
 	m.writeFakeWith(ops.BinIP, `S="$REC/ip"; ROOT='`+m.Root+`'
@@ -584,11 +585,18 @@ case "$mode:$args" in
     echo "$args" >> "$S/sysctl"; exit 0 ;;
   "host:netns exec vedette-hp /usr/sbin/nft -f -")
     cat > "$S/ruleset.in"
+    if [ -e "$REC/mark.nft-touch-refuse" ] && grep -q '@touched' "$S/ruleset.in"; then echo "Error: syntax error" >&2; exit 1; fi
     [ -e "$REC/mark.nft-noload" ] || cp "$S/ruleset.in" "$S/ruleset"
     exit 0 ;;
   "host:netns exec vedette-hp /usr/sbin/nft list ruleset")
-    if [ -e "$S/ruleset" ]; then
-      printf 'table inet vedette_hp {\n\tchain output {\n\t\ttype filter hook output priority filter; policy accept;\n\t\tct state established,related accept\n\t\toif "lo" accept\n\t\tct state new drop\n\t}\n\tchain forward {\n\t\ttype filter hook forward priority filter; policy drop;\n\t}\n}\n'
+    if [ -e "$S/ruleset" ]; then # what was loaded, as nft prints it back (no flush line, priority name, quoted interface)
+      sed -e '/^flush ruleset$/d' -e 's/priority 0;/priority filter;/' -e 's/oif lo /oif "lo" /' -e 's/iif lo /iif "lo" /' \
+        -e "$([ -e "$REC/mark.nft-touch-odd" ] && echo 's/ct state new add @touched/ct state new update @touched/' || echo 's/^$//')" "$S/ruleset"
+    fi
+    exit 0 ;;
+  "host:netns exec vedette-hp /usr/sbin/nft -j list set inet vedette_hp touched")
+    if [ -e "$S/touched.json" ]; then cat "$S/touched.json"; else
+      echo '{"nftables": [{"metainfo": {"version": "1.1.6"}}, {"set": {"family": "inet", "name": "touched", "table": "vedette_hp", "type": ["ipv4_addr", "ipv4_addr"], "size": 1024, "flags": ["timeout", "dynamic"], "timeout": 120}}]}'
     fi
     exit 0 ;;
   "host:link add link "*)
@@ -652,6 +660,11 @@ esac`)
 func (m *Machine) IPState(rel string) string {
 	b, _ := os.ReadFile(filepath.Join(m.Rec, ops.BinIP, rel)) //nolint:gosec // test support: a path under the fake rec dir
 	return string(b)
+}
+
+// SetIPState replaces a file of the stateful fake ip, as something outside the host would (a ruleset changed behind its back).
+func (m *Machine) SetIPState(rel, content string) {
+	m.must(os.WriteFile(filepath.Join(m.Rec, ops.BinIP, rel), []byte(content), 0o600))
 }
 
 // IPLinks lists the links of the namespace ("ns") or of the host ("host") in the stateful fake ip.

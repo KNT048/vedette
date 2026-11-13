@@ -11,8 +11,8 @@ Tên endpoint, mã lỗi, tên trường giữ tiếng Anh; văn xuôi tiếng V
 | Quy tắc | Chi tiết (đo từ `openapi.json`) |
 |---|---|
 | Phân nhóm theo module | Phần đầu đường dẫn = nhóm của module: `/ai`, `/core`, `/exposure`, `/feeds`, `/findings`, `/honeypot`, `/inventory`, `/logs`, `/notify`, `/reports`, `/response`, `/scans`. Ngoại lệ có chủ đích, đều thuộc `core` hoặc `inventory`: `/auth/*`, `/me`, `/modules`, `/setup` (core); `/install/*`, `/intake/*` (inventory, tệp cài và nhận dữ liệu agent). `/findings` thuộc module `mitigation` (README `features/findings`); `/scans` (số nhiều) thuộc module `scan`. |
-| Số thao tác mỗi nhóm | core 57 · ai 52 · response 39 · inventory 29 · honeypot 15 · feeds 13 · scan 13 · notify 12 · exposure 11 · reports 11 · logs 10 · findings 5 (GET 103, POST 97, PUT 33, DELETE 22, PATCH 12). |
-| Danh từ, kebab-case | Đường dẫn là danh từ số nhiều cho tập hợp (`/core/users`, `/inventory/devices`, `/honeypot/decoys`), số ít cho đối tượng cấu hình một-bản (`/core/general`, `/core/privacy`, `/scans/config`, `/logs/siem`, `/honeypot/config`). Đoạn đường dẫn kebab-case (`box-ip`, `chat-decision`, `sample-data`, `auth-options`). Tham số đường dẫn `{id}`, trừ khoá tự nhiên: `{type}` (kênh), `{service}` (bẫy), `{date}`, `{token}`. |
+| Số thao tác mỗi nhóm | core 57 · ai 52 · response 39 · inventory 29 · honeypot 14 · feeds 13 · scan 13 · notify 12 · exposure 11 · reports 11 · logs 10 · findings 5 (GET 103, POST 97, PUT 33, DELETE 22, PATCH 12). |
+| Danh từ, kebab-case | Đường dẫn là danh từ số nhiều cho tập hợp (`/core/users`, `/inventory/devices`, `/honeypot/trap-ips`), số ít cho đối tượng cấu hình một-bản (`/core/general`, `/core/privacy`, `/scans/config`, `/logs/siem`). Đoạn đường dẫn kebab-case (`box-ip`, `chat-decision`, `sample-data`, `auth-options`). Tham số đường dẫn `{id}`, trừ khoá tự nhiên: `{type}` (kênh), `{service}` (bẫy), `{date}`, `{token}`. |
 | Tên trường, tham số | JSON và query: `snake_case`. Định danh **của một thứ** (id module, kênh, việc AI, loại): kebab-case (`explain-finding`, `zalo-personal`, `sensor-passive`, `netconf-restconf`). **Trạng thái / enum trạng thái**: snake_case (`false_positive`, `auto_stopped`, `blocked_by_hook`). |
 | Hành động = POST vào tài nguyên con | `POST /{tài nguyên}/{id}/{động từ}`: `verify`, `scan`, `stop`, `approve`, `reject`, `rollback`, `test`, `resend`, `commitment`, `status`, `applied`, `suspicious`, `reset-password`, `2fa/reset`. Hành động trên cả tập hợp: `POST /scans/runs`, `/response/rules/run`, `/response/rules/simulate`, `/feeds/parse-test`, `/ai/hooks/test`, `/ai/profiles/test`, `/ai/profiles/models`. Không có động từ trong đường dẫn của GET/PUT/DELETE. |
 | GET | Đọc, không tác dụng phụ (kể cả `GET /response/approve/{token}`: chỉ hiện trạng thái). Tải tệp cũng là GET (mục 12). |
@@ -90,7 +90,7 @@ Trích **tĩnh** từ mọi lời gọi `fail(`/`refuse(`/hàm `bad(`/`{status, 
 
 Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCatalog`: `invalid`, `read_only`; `feeds/parsers.ts`: `too_large`, `bad_config`, `bad_sample`) đã được thêm tay.
 
-#### HTTP 400 (246 mã)
+#### HTTP 400 (248 mã)
 
 | Code | HTTP | Thông điệp mẫu (EN, từ mock) | Endpoint dùng |
 |---|---|---|---|
@@ -103,7 +103,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `bad_app_id` | 400 | App ID is the number of your Zalo app, shown in Zalo Developers next to the app name. | module notify (Zalo OA, D-483) |
 | `bad_app_token` | 400 | The app-level token starts with xapp- and needs the connections:write scope. Copy it again from Basic Information. | module notify (validator dùng chung) |
 | `bad_approver_address` | 400 | The approver address is not valid for this channel. | module notify (validator dùng chung) |
-| `bad_body` | 400 | enabled must be true or false. | `PATCH /honeypot/decoys/{id}`; `PATCH /honeypot/traps/{service}` |
+| `bad_body` | 400 | enabled must be true or false. | `PATCH /honeypot/trap-ips/{id}` |
 | `bad_bot_token` | 400 | The bot token starts with xoxb-. Copy it from OAuth & Permissions after installing the app. | module notify (validator dùng chung) |
 | `bad_channel_id` | 400 | A Slack channel ID looks like C04ABCDEF12. Open the channel details in Slack and copy the ID at the bottom. | module notify (validator dùng chung) |
 | `bad_chat_id` | 400 | Chat ID is a number (groups look like -1001234567890) or a public @channel_name. Send the bot a message, then open getUp | module notify (validator dùng chung) |
@@ -123,20 +123,19 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `bad_from` | 400 | The sender email is not valid, for example alerts@company.com. | module notify (validator dùng chung) |
 | `bad_header` | 400 | The first row must be column headers with at least a name or product column. Download the template to see the format. | `POST /inventory/import` |
 | `bad_host` | 400 | The SIEM server must be an IP address or a domain name, for example 192.168.10.50 or siem.company.com. | module logs, notify (validator dùng chung) |
-| `bad_hostname` | 400 | Enter a fake hostname, for example FILESRV-OLD. Pick a name that looks like an old file server in your company. | `POST /honeypot/decoys`; `PUT /honeypot/config` |
 | `bad_interface` | 400 | Network interface must be one of: ${s.interfaces.join(', ')}. Backend [ĐX]: cũng host `iface_unknown`. | `PATCH /inventory/sensors/{id}`; `PUT /core/network/span` |
 | `bad_interval` | 400 | Choose how often to sync: every 5, 15, 60, 360 or 1440 minutes. | module inventory (validator dùng chung) |
-| `bad_ip` | 400 | Enter a secondary IP for the decoy, for example 192.168.10.240. Pick an address no device uses. | `POST /honeypot/decoys`; `PUT /honeypot/config` |
+| `bad_ip` | 400 | Enter an address for the Trap IP, for example 192.168.10.240. Pick an address no device uses. | `POST /honeypot/trap-ips`; `PUT /honeypot/trap-ips/{id}` |
 | `bad_item` | 400 | Invalid item to apply. | `POST /findings/{id}/applied` |
 | `bad_key` | 400 | The SSH private key is not valid. | `POST /scans/credentialed` |
 | `bad_kind` | 400 | Device type must be one of: ${KINDS.join(', ')}. | `PATCH /inventory/devices/{id}`; `POST /inventory/agents/tokens` |
 | `bad_kinds` | 400 | The list of fragile device types is not valid. | `PUT /inventory/settings` |
 | `bad_label` | 400 | The channel label can be at most 80 characters. | module notify (validator dùng chung) |
-| `bad_name` | 400 | The name may only contain letters without accents, digits, spaces, hyphens, dots or underscores, start with a letter or  | `POST /honeypot/tokens`; `POST /inventory/agents/tokens` |
+| `bad_name` | 400 | The name may only contain letters without accents, digits, spaces, hyphens, dots or underscores, start with a letter or  | `POST /honeypot/tokens`; `POST /inventory/agents/tokens`; `POST /honeypot/trap-ips`, `PUT /honeypot/trap-ips/{id}` ("Enter a name for the Trap IP, for example FILESRV-OLD." / NetBIOS rule, D-466) |
 | `bad_notes` | 400 | Notes are at most 2000 characters. | `PATCH /inventory/devices/{id}` |
 | `bad_oa_id` | 400 | OA ID is a string of digits, shown in the Official Account management page. | module notify (validator dùng chung) |
 | `bad_password` | 400 | The password is too long (up to 200 characters). | module inventory (validator dùng chung) |
-| `bad_personality` | 400 | Choose what the decoy should look like. | `POST /honeypot/decoys` |
+| `bad_preset` | 400 | Choose what the Trap IP looks like. | `POST /honeypot/trap-ips`; `PUT /honeypot/trap-ips/{id}` |
 | `bad_plant_at` | 400 | Say where you will plant it, for example \\\\SRV-FILE\\HR or "Password manager". This reminds you where to look when it  | `POST /honeypot/tokens` |
 | `bad_port` | 400 | The port must be a number from 1 to 65535. Usually 514 (UDP or TCP) or 6514 (TLS). | `POST /scans/credentialed` |
 | `bad_product` | 400 | Vendor and product are at most 64 characters each and cannot contain < or >. | module inventory (validator dùng chung) |
@@ -152,6 +151,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `bad_secret_key` | 400 | Enter the Secret key of the Zalo app (Zalo Developers, your app, Settings). | module notify (Zalo OA, D-483) |
 | `bad_security` | 400 | Choose an encryption type: STARTTLS, SSL/TLS or none. | module notify (validator dùng chung) |
 | `bad_service` | 400 | Choose a service: SMB, RDP, SSH, MSSQL or HTTP. | `POST /honeypot/test-hit` |
+| `bad_services` | 400 | Pick at least one service for the Trap IP to answer on. | `POST /honeypot/trap-ips`; `PUT /honeypot/trap-ips/{id}` |
 | `bad_severity` | 400 | Choose a minimum severity: Critical, High, Medium or Low. | module notify (validator dùng chung) |
 | `bad_signature` | 400 | Invalid signature. The bundle was modified or not signed by the project. The box does not install unsigned packages. | `POST /core/updates/bundle` |
 | `bad_skill` | 400 | skill must be explain or mitigation-config. | `POST /findings/{id}/ai` |
@@ -168,6 +168,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `bad_username` | 400 | Enter the read-only API user name (letters, digits, dot, dash, underscore; up to 64 characters). | `POST /scans/credentialed` |
 | `bad_value` | 400 | Enter only a domain name, without http://, a path, a port or spaces. Example: example.com. | `POST /exposure/targets` |
 | `bad_version` | 400 | The version may only contain letters, digits, dots, hyphens and brackets, up to 40 characters. Example 7.2.5. | module inventory (validator dùng chung) |
+| `bad_vendor` | 400 | Choose a vendor from the list, or none. | `POST /honeypot/trap-ips`; `PUT /honeypot/trap-ips/{id}` |
 | `bad_webhook` | 400 | A Slack Incoming Webhook URL starts with https://hooks.slack.com/services/. Copy it again from your Slack app. | module notify (validator dùng chung) |
 | `bad_window` | 400 | window must be 24h or 7d. | 4 endpoint (/feeds, /inventory, /logs, /notify) |
 | `code_expired` | 400 | This code has expired. Ask for a new code. | module core (validator dùng chung) |
@@ -255,9 +256,10 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `invalid_volume` | 400 | Pick how many people\ | module reports (validator dùng chung) |
 | `invalid_when` | 400 | Pick when the hook runs: before sending to the AI, after the AI answers, or before a tool call. | `POST /ai/hooks/test`; `POST /core/updates/os/reboot` |
 | `invalid_window` | 400 | The maintenance window is "any time" or "only in a window". | `PATCH /core/updates/os/settings` |
-| `ip_is_box` | 400 | This is the Vedette box\ | `POST /honeypot/decoys`; `PUT /honeypot/config` |
+| `ip_is_box` | 400 | This is the Vedette box\ | `POST /honeypot/trap-ips`; `PUT /honeypot/trap-ips/{id}` |
+| `ip_is_gateway` | 400 | This is the address of your router (the box's default gateway). Pick an unused IP. | `POST /honeypot/trap-ips`; `PUT /honeypot/trap-ips/{id}`; `PATCH /honeypot/trap-ips/{id}` (the gateway as the host reports it, B2) |
 | `ip_not_allowed` | 400 | Public IPs are not typed in. Select "Verify this box\ | `POST /exposure/targets` |
-| `ip_outside_lan` | 400 | The secondary IP must be inside the box's network (${boxInfo().lan}), not the network or broadcast address. | `POST /honeypot/decoys`; `PUT /honeypot/config` |
+| `ip_outside_lan` | 400 | The Trap IP must be inside the box's network (${boxInfo().lan}), not the network or broadcast address. | `POST /honeypot/trap-ips`; `PUT /honeypot/trap-ips/{id}` |
 | `key_required` | 400 | The API key is required (changing the provider type needs the key again). | module ai (validator dùng chung) |
 | `kind_unsupported` | 400 | An MCP server that Vedette starts as a command is not supported. Use an MCP server that has a web address (kind "MCP server (URL)"). | `POST /core/connections`; `PUT /core/connections/{id}`; `POST /core/connections/{id}/test` (D-94) |
 | `last_admin` | 400 | At least one active administrator who signs in with a password must remain, so the box stays reachable when the identity provider is down. Add another administrator first. | `PATCH /core/users/{id}` (only password accounts count, D-196 (3)) |
@@ -267,7 +269,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `commitment_required` | 400 | (operator) ${t.value} has not been confirmed yet. An administrator must run the first scan: it records that your company owns ${t.value} and that the scan is authorized. (administrator, no `notice_version`) The first scan of ${t.value} records a confirmation, so the request must carry notice_version of the sentence shown next to Scan now. (`POST /scans/runs`: Vedette does not scan until the scope commitment is ticked. Do it under Devices, Scope and sensors.) | `POST /exposure/targets/{id}/scan` (D-473); `POST /scans/runs` |
 | `no_days` | 400 | Pick at least one day for the maintenance window. | `PATCH /core/updates/os/settings`; `PUT /inventory/settings` |
 | `no_index_profile` | 400 | Choose an AI profile for the index before adding documents. | `POST /ai/knowledge` |
-| `no_lan` | 400 | Add your LAN range first (Devices, Scope and sensors), so Vedette knows which network the box is on. | `POST /honeypot/decoys`; `PUT /honeypot/config` |
+| `no_lan` | 400 | Add your LAN range first (Devices, Scope and sensors), so Vedette knows which network the Trap IPs go on. | `POST /honeypot/trap-ips`; `PUT /honeypot/trap-ips/{id}` |
 | `no_pack` | 400 | This CVE has no confirmed recommendation yet, so there is nothing to mark as applied. | `POST /findings/{id}/applied` |
 | `no_prefix` | 400 | "${r}" has no prefix length. Add it so Vedette scans the right size of network, for example ${r}/24 or ${r}/25. | `PUT /inventory/settings` |
 | `no_ranges` | 400 | Active scanning needs at least one network range. | `PUT /inventory/settings` |
@@ -380,7 +382,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `unknown` | 404 | This link is not valid. | `POST /response/approve/{token}` |
 | `unknown_cve` | 404 | This CVE is not on the exploited list the box holds. The AI only explains CVEs the box has data for. | `POST /ai/cve/{id}/explain`; `POST /ai/cve/{id}/news` |
 
-#### HTTP 409 (94 mã)
+#### HTTP 409 (93 mã)
 
 | Code | HTTP | Thông điệp mẫu (EN, từ mock) | Endpoint dùng |
 |---|---|---|---|
@@ -410,18 +412,17 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `expired` | 409 | Verification of ${t.value} has expired. Verify it again first. | `POST /exposure/targets/{id}/scan` |
 | `feed_disabled` | 409 | Turn the feed on before fetching it. | `POST /feeds/sources/{id}/fetch` |
 | `finding_closed` | 409 | The finding is no longer an open critical finding. | `POST /response/proposals/{id}/request` |
-| `hostname_in_use` | 409 | The name ${hostname} belongs to device ${hostClash.ip} in the inventory. Pick another name. | `POST /honeypot/decoys`; `PUT /honeypot/config` |
+| `name_in_use` | 409 | The name ${name} is already used by a device or another Trap IP. Pick another name. | `POST /honeypot/trap-ips`; `PUT /honeypot/trap-ips/{id}` |
 | `in_use` | 409 | The rule "${user.name}" uses this action. Change or delete the rule first. / A change made through ${name} is still in force. Roll it back in Response, or wait until it expires, then delete the connection. | `DELETE /response/catalog/{id}`; `DELETE /core/connections/{id}` |
 | `ip_in_use` | 409 | IP ${ip} belongs to device ${assetName(clash)} in the inventory. Pick an unused IP. | 4 endpoint (/honeypot); `PUT /core/network/management` ("… is already used by a device in the inventory or by a decoy. Pick a free address.") |
 | `ip_not_current` | 409 | This box no longer reaches the Internet through ${ip}; it was last seen ${time}. Scans of it are paused until the box uses it again. | `POST /exposure/targets/{id}/scan`; `POST /scans/runs` (kiểm lúc quét của IP, `exposure` INV-13, D-79 (2)) |
 | `limit` | 409 | Up to 30 rules. | `POST /response/catalog`; `POST /response/rules`; `POST /response/templates/{id}/clone`; `POST /response/actions/{id}/approve` (a `blocklist_add` item refused when the block list already holds 10 000 entries) |
-| `limit_reached` | 409 | The box can hold 32 decoys. Delete one before adding another. | `POST /honeypot/decoys` |
+| `limit_reached` | 409 | The box can hold 32 Trap IPs. Delete one before adding another. | `POST /honeypot/trap-ips` |
 | `module_off` | 409 | The module for this role is off. / The Vulnerability scans module is off, so the box cannot scan. An admin can turn it on in Settings, Modules. / The External exposure module is off, so the box cannot scan. An admin can turn it on in Settings, Modules. | `POST /exposure/targets/{id}/scan` while the `scan` module, which does the scan, is off (D-229), or the exposure module was switched off while the gate ran (D-493); sensor link 8444 (`core/sensorlink`, D-141); `POST /response/me/identities/{channel}/code` on a chat channel while notify is off (D-414). `/core/mcp*` no longer uses it: off, they are 404 (D-230) |
-| `need_decoys` | 409 | Scan detection needs at least two decoy IPs. Add a decoy first. | `POST /honeypot/test-scan` |
+| `need_decoys` | 409 | Scan detection needs at least two Trap IPs that are on. Add a Trap IP first. | `POST /honeypot/test-scan` |
 | `no_devices` | 409 | No device in the inventory matches (agent sample data). | `POST /inventory/agents/tokens/{id}/sample-data`; `POST /inventory/agents/wazuh/sample-data` |
 | `no_pending` | 409 | No key is waiting for confirmation. Click "Turn on two-factor authentication" to create one. | `POST /core/account/2fa/confirm` |
 | `no_previous` | 409 | No previous version to go back to. | `POST /core/updates/rollback` |
-| `no_secondary_ip` | 409 | Set a secondary IP for the traps before turning one on. | `PATCH /honeypot/traps/{service}` |
 | `not_email_method` | 409 | This account does not use email codes. | `POST /auth/login/resend-code` |
 | `maintenance` | 409 | Held: maintenance window "…" is active. Nothing was changed. | `POST /response/actions/{id}/approve` (item refused right before it runs); `POST /response/proposals/{id}/request`; rule runs (resp_log) |
 | `never_touch` | 409 | … matches the never-touch list (…). Nothing was changed. Also: The never-touch list could not be read in full (the box's own addresses or the inventory are not available), so nothing was changed. | rule runs and `POST /response/proposals/{id}/request` (planning); `POST /response/actions/{id}/approve` (item refused right before it runs) |
@@ -445,7 +446,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `sso_user` | 409 | This account signs in through SSO. Its password, two-step sign-in and role come from the identity provider. | `PATCH /core/users/{id}` (role), `POST /core/users/{id}/reset-password`, `POST /core/account/password`, `POST /core/account/2fa/start`, `POST /core/account/2fa/email/start` (D-195 (2), (5)) |
 | `sso_wrong_address` | 409 | SSO sign-in works at ${address}. Open Vedette there to sign in with SSO. | `POST /auth/oidc/start` from an address other than the redirect URI saved in Settings, Users (D-194 (5)); `address` in the body |
 | `tool_unavailable` | 409 | The tool of the action is missing, disabled or its connection is off; or the write tool (or undo tool) of the action was changed after the request was made. | `POST /response/proposals/{id}/request`; `POST /response/actions/{id}/approve`; `POST /response/actions/{id}/rollback` |
-| `trap_off` | 409 | The ${LABEL[service]} trap is off. Turn it on before testing. | `POST /honeypot/test-hit` |
+| `trap_off` | 409 | No Trap IP that is on has ${LABEL[service]}. Add ${LABEL[service]} to a Trap IP, or turn one on, before testing. | `POST /honeypot/test-hit` |
 | `txt_missing` | 409 | The DNS TXT record vedette-verify=${t.token} is no longer on ${t.value}, so it cannot be scanned. Add the record back, t | `POST /exposure/targets/{id}/scan` |
 | `dpkg_locked` | 409 | Another package manager is running on the box (for example automatic updates). Try again in a minute. Backend [ĐX] (WP-07b phần 2): host `dpkg_locked`, kèm `retry_after`. | `POST /core/updates/os/check`; `POST /core/updates/os/install` |
 | `dpkg_inconsistent` | 409 | The package database on the box is in a broken state. Run dpkg --audit on the box and repair it before updating. Backend [ĐX]: host `dpkg_inconsistent`. | `POST /core/updates/os/install` |

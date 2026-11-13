@@ -1,7 +1,6 @@
 package honeypot
 
 import (
-	"cmp"
 	"context"
 	"crypto/sha256"
 	"database/sql"
@@ -9,6 +8,8 @@ import (
 	"fmt"
 	"log/slog"
 	"net/netip"
+	"slices"
+	"strings"
 	"sync"
 	"time"
 
@@ -75,6 +76,17 @@ type Service struct {
 	refusals map[netip.Addr]*refusal
 	sig      string
 	pollMu   sync.Mutex // one Poll at a time
+	// touches is when each source last touched each Trap IP, for the sweep detection (ingest.go sweep; guarded by pollMu).
+	touches map[netip.Addr]map[netip.Addr]time.Time
+	// fedTouches are the host's attempts already fed to sweep, by "src|dst", until they expire there (PollTouches; pollMu).
+	fedTouches map[string]time.Time
+	// touchHourStart and touchHourNew count the scan hits made from attempts in this clock hour (guarded by mu; B2 review M2).
+	touchHourStart time.Time
+	touchHourNew   int
+	// adding are the addresses handed to the host whose MAC is not known yet, since when (ExpectedMACs; guarded by mu).
+	adding map[netip.Addr]time.Time
+	// onSince is when Run last started, the module just switched on (TrapIPSince; guarded by mu).
+	onSince time.Time
 }
 
 // New returns the service.
@@ -153,13 +165,6 @@ func ptr(s string) *string { return &s }
 
 // ---- stored state ----
 
-type configRow struct {
-	SecondaryIP string `json:"secondary_ip"`
-	Hostname    string `json:"hostname"`
-}
-
-func (c configRow) has() bool { return c.SecondaryIP != "" }
-
 func loadJSON(ctx context.Context, q querier, key string, out any) error {
 	var raw string
 	err := q.QueryRowContext(ctx, `SELECT value FROM hp_config WHERE key = ?`, key).Scan(&raw)
@@ -192,53 +197,53 @@ func (s *Service) saveJSON(ctx context.Context, tx *sql.Tx, key string, v any, a
 	return nil
 }
 
-type trapRow struct {
-	enabled bool
-	since   *string
+type trapIPRow struct {
+	TrapIP
+	ip        netip.Addr
+	mac       string // hp_trap_ips.mac: the last MAC the host gave the address, "" while unknown
+	enabledAt string // hp_trap_ips.enabled_at: when the address last became a Trap IP that is on
 }
 
-func loadTraps(ctx context.Context, q querier) (map[ServiceName]trapRow, error) {
-	rows, err := q.QueryContext(ctx, `SELECT service, enabled, since FROM hp_trap`)
+func (d trapIPRow) has(svc ServiceName) bool { return slices.Contains(d.Services, svc) }
+
+// spec is how the host builds the address: the vendor's MAC prefix and the ports of its services (D-466).
+func (d trapIPRow) spec() DecoySpec {
+	var oui string
+	if d.Vendor != nil {
+		oui, _ = vendorOUI(*d.Vendor)
+	}
+	return DecoySpec{OUI: oui, Ports: ports(d.Services)}
+}
+
+const trapIPCols = `id, name, ip, preset, vendor, services, enabled, created_at`
+
+// loadTrapIPCols are trapIPCols and the remembered MAC (a column no write of the API touches).
+const loadTrapIPCols = trapIPCols + `, ifnull(mac, ''), ifnull(enabled_at, created_at)`
+
+// loadTrapIPs reads the Trap IPs in creation order, the order that decides which one names the SMB share (D-466 (4)).
+func loadTrapIPs(ctx context.Context, q querier) ([]trapIPRow, error) {
+	rows, err := q.QueryContext(ctx, `SELECT `+loadTrapIPCols+` FROM hp_trap_ips ORDER BY created_at, id`)
 	if err != nil {
-		return nil, fmt.Errorf("honeypot: read traps: %w", err)
+		return nil, fmt.Errorf("honeypot: read trap IPs: %w", err)
 	}
 	defer func() { _ = rows.Close() }()
-	out := map[ServiceName]trapRow{}
+	var out []trapIPRow
 	for rows.Next() {
-		var svc string
-		var en bool
-		var since sql.NullString
-		if err := rows.Scan(&svc, &en, &since); err != nil {
-			return nil, fmt.Errorf("honeypot: read traps: %w", err)
+		var d trapIPRow
+		var vendor sql.NullString
+		var services string
+		if err := rows.Scan(&d.ID, &d.Name, &d.IP, &d.Preset, &vendor, &services, &d.Enabled, &d.CreatedAt, &d.mac, &d.enabledAt); err != nil {
+			return nil, fmt.Errorf("honeypot: read trap IPs: %w", err)
 		}
-		t := trapRow{enabled: en}
-		if since.Valid {
-			t.since = ptr(since.String)
+		if vendor.Valid {
+			d.Vendor = ptr(vendor.String)
 		}
-		out[ServiceName(svc)] = t
-	}
-	return out, rows.Err()
-}
-
-type decoyRow struct {
-	Decoy
-	ip netip.Addr
-}
-
-func loadDecoys(ctx context.Context, q querier) ([]decoyRow, error) {
-	rows, err := q.QueryContext(ctx, `SELECT id, personality, name, ip, enabled, created_at FROM hp_decoys ORDER BY created_at, id`)
-	if err != nil {
-		return nil, fmt.Errorf("honeypot: read decoys: %w", err)
-	}
-	defer func() { _ = rows.Close() }()
-	var out []decoyRow
-	for rows.Next() {
-		var d decoyRow
-		if err := rows.Scan(&d.ID, &d.Personality, &d.Name, &d.IP, &d.Enabled, &d.CreatedAt); err != nil {
-			return nil, fmt.Errorf("honeypot: read decoys: %w", err)
+		var l []ServiceName
+		if err := jsonUnmarshal(services, &l); err != nil {
+			return nil, fmt.Errorf("honeypot: read trap IP services: %w", err)
 		}
+		d.Services = inOrder(l)
 		d.ip, _ = netip.ParseAddr(d.IP)
-		d.Services = personalityServices(d.Personality)
 		out = append(out, d)
 	}
 	return out, rows.Err()
@@ -246,27 +251,20 @@ func loadDecoys(ctx context.Context, q querier) ([]decoyRow, error) {
 
 // world is everything a decision reads: the module's own tables and the inventory.
 type world struct {
-	cfg     configRow
-	secIP   netip.Addr
-	traps   map[ServiceName]trapRow
-	decoys  []decoyRow
+	trapIPs []trapIPRow // creation order
 	devices []Device
 	lan     netip.Prefix // zero when no IPv4 range is declared
 	box     Box
+	// decoyMACs are the MACs the host gave the Trap IP addresses (last Apply): a device row carrying one is a ghost of our own
+	// decoy, recorded before the inventory knew it (B2 lab), not a machine on the address.
+	decoyMACs map[string]bool
 }
 
 func (s *Service) load(ctx context.Context) (*world, error) {
 	w := &world{}
 	db := s.db.Reader()
-	if err := loadJSON(ctx, db, "config", &w.cfg); err != nil {
-		return nil, err
-	}
-	w.secIP, _ = netip.ParseAddr(w.cfg.SecondaryIP)
 	var err error
-	if w.traps, err = loadTraps(ctx, db); err != nil {
-		return nil, err
-	}
-	if w.decoys, err = loadDecoys(ctx, db); err != nil {
+	if w.trapIPs, err = loadTrapIPs(ctx, db); err != nil {
 		return nil, err
 	}
 	if w.devices, err = s.cfg.Inventory.Devices(ctx); err != nil {
@@ -280,6 +278,17 @@ func (s *Service) load(ctx context.Context) (*world, error) {
 		return nil, fmt.Errorf("honeypot: read box: %w", err)
 	}
 	w.lan = pickLAN(ranges, w.box.IP)
+	w.decoyMACs = map[string]bool{}
+	for _, d := range w.trapIPs {
+		if d.mac != "" {
+			w.decoyMACs[d.mac] = true
+		}
+	}
+	for _, l := range s.hostView().links {
+		if l.MAC != "" {
+			w.decoyMACs[strings.ToLower(l.MAC)] = true
+		}
+	}
 	return w, nil
 }
 
@@ -301,13 +310,13 @@ func pickLAN(ranges []netip.Prefix, boxIP netip.Addr) netip.Prefix {
 	return first
 }
 
-// deviceAt is the inventory device (not the box) that has this IP.
+// deviceAt is the inventory device (not the box, not a row carrying one of our decoys' MACs) that has this IP.
 func (w *world) deviceAt(ip netip.Addr) *Device {
 	if !ip.IsValid() {
 		return nil
 	}
 	for i := range w.devices {
-		if d := &w.devices[i]; !d.IsBox && d.IP == ip {
+		if d := &w.devices[i]; !d.IsBox && d.IP == ip && (d.MAC == "" || !w.decoyMACs[d.MAC]) {
 			return d
 		}
 	}
@@ -323,7 +332,7 @@ func (w *world) byIP(ip string) *Device {
 	return w.deviceAt(a)
 }
 
-// ipProblem says why the box must not hand this secondary or decoy address to the host now, "" when it may (INV-5,
+// ipProblem says why the box must not hand this Trap IP address to the host now, "" when it may (INV-5,
 // FORBID-1). The state can change after the address was accepted: a device took it, the box got it, the LAN range
 // changed.
 func (w *world) ipProblem(ip netip.Addr) string {
@@ -343,11 +352,11 @@ func (w *world) ipProblem(ip netip.Addr) string {
 }
 
 func (w *world) usedIPs() map[netip.Addr]bool {
-	used := map[netip.Addr]bool{w.secIP: true, w.box.IP: true}
+	used := map[netip.Addr]bool{w.box.IP: true}
 	for _, d := range w.devices {
 		used[d.IP] = true
 	}
-	for _, d := range w.decoys {
+	for _, d := range w.trapIPs {
 		used[d.ip] = true
 	}
 	return used
@@ -393,18 +402,8 @@ func (s *Service) overview(ctx context.Context, w *world) (Overview, error) {
 	if err != nil {
 		return Overview{}, fmt.Errorf("honeypot: count hits: %w", err)
 	}
-	conflict := w.deviceAt(w.secIP)
 	hv := s.hostView()
-	why, hostFault := hv.conflicts[w.secIP], hv.hostFailed[w.secIP]
-	secConflict := w.secIP.IsValid() && (w.ipProblem(w.secIP) != "" || (why != "" && !hostFault))
-	secFailed := w.secIP.IsValid() && hostFault // the host could not set the secondary IP up: not listening, no clash
-	out := Overview{Hostname: w.cfg.Hostname, UpdatedAt: store.FormatTS(now), Traps: make([]Trap, 0, len(Services))}
-	if w.secIP.IsValid() {
-		out.SecondaryIP = ptr(w.secIP.String())
-		if m := hv.macs[w.secIP]; m != "" && hv.placed[w.secIP] {
-			out.SecondaryMAC = ptr(m)
-		}
-	}
+	out := Overview{UpdatedAt: store.FormatTS(now), Traps: make([]Trap, 0, len(Services))}
 	if w.lan.IsValid() {
 		out.LAN = ptr(w.lan.String())
 	}
@@ -412,45 +411,47 @@ func (s *Service) overview(ctx context.Context, w *world) (Overview, error) {
 	if w.box.IP.IsValid() {
 		out.Box.IP = ptr(w.box.IP.String())
 	}
-	if conflict != nil {
-		out.ConflictAsset = &AssetRef{ID: conflict.ID, Name: conflict.Name}
+	states := make(map[string]TrapIP, len(w.trapIPs))
+	for _, d := range w.trapIPs {
+		v := w.withState(d, hv)
+		states[d.ID] = v
+		out.TrapIPs.Total++
+		if d.Enabled {
+			out.TrapIPs.Enabled++
+		}
+		switch {
+		case v.State == StateListening:
+			out.TrapIPs.Listening++
+		case d.Enabled && (v.State == StateFailed || v.State == StateConflict):
+			out.TrapIPs.Failing++
+		}
+	}
+	smb, http := w.boxWide()
+	if smb != nil {
+		out.SMBName = ptr(smb.Name)
+	}
+	out.HTTPPage = httpPage(http)
+	// The traps cannot listen at all (the host, the container): one reason for the page. A Trap IP's own trouble is its reason.
+	if ips, _, _ := w.desired(); len(ips) > 0 && !hv.pending && (!hv.available || !hv.running) {
+		out.Problem = ptr(reasonOrDefault(hv.reason))
 	}
 	for _, svc := range Services {
-		tr := w.traps[svc]
-		t := Trap{Service: svc, Port: svc.Port(), Enabled: tr.enabled, Since: tr.since, Hits7d: per[svc].week}
+		t := Trap{Service: svc, Port: svc.Port(), TrapIPs: []string{}, Hits7d: per[svc].week, State: StateOff}
 		if l := per[svc].last; l != "" {
 			t.LastHitAt = ptr(l)
 		}
-		reason := hv.reason
-		switch up := hv.available && hv.running && hv.services[svc]; {
-		case !tr.enabled:
-			t.State = StateOff
-			if hv.pending && hv.services[svc] {
-				t.State = StateStopping // the container still runs with it until the host has been told
+		for _, d := range w.trapIPs {
+			if !d.Enabled || !d.has(svc) {
+				continue
 			}
-		case secConflict:
-			t.State = StateConflict
-			if conflict == nil && out.Problem == nil { // no inventory device to point at (the box's IP, outside the LAN, refused by the host): say why
-				out.Problem = ptr(reasonOrDefault(cmp.Or(w.ipProblem(w.secIP), why)))
+			t.Enabled = true
+			t.TrapIPs = append(t.TrapIPs, d.Name)
+			if st := states[d.ID].State; stateRank[st] > stateRank[t.State] {
+				t.State = st
 			}
-		case secFailed:
-			t.State, reason = StateFailed, why
-		case up && hv.placed[w.secIP]: // the host confirmed it holds the decoy IP, not only that the container runs (#475)
-			t.State = StateListening
-		case hv.pending:
-			t.State = StateStarting
-		case up:
-			// The container runs for the extra decoys the host holds, but the host did not confirm the decoy IP (its
-			// answer was lost, it was busy): asked again at the next Apply.
-			t.State, reason = StateFailed, notConfirmed
-		default:
-			t.State = StateFailed
 		}
-		if t.State == StateFailed && out.Problem == nil {
-			if !w.secIP.IsValid() {
-				reason = "no decoy IP is set"
-			}
-			out.Problem = ptr(reasonOrDefault(reason))
+		if !t.Enabled && hv.pending && hv.services[svc] {
+			t.State = StateStopping // the container still runs with it until the host has been told
 		}
 		out.Traps = append(out.Traps, t)
 	}
@@ -476,6 +477,39 @@ func (s *Service) overview(ctx context.Context, w *world) (Overview, error) {
 		return Overview{}, fmt.Errorf("honeypot: last hit: %w", err)
 	}
 	return out, nil
+}
+
+// stateRank orders the states for a service across its Trap IPs: it shows the best one (listening when one listens).
+var stateRank = map[string]int{StateOff: 0, StateConflict: 1, StateFailed: 2, StateStopping: 3, StateStarting: 4, StateListening: 5}
+
+// boxWide are the Trap IPs that decide what the whole box shows (D-466 (4)): of those handed to the host, in creation order,
+// the first with SMB names the share and the first with HTTP picks the login page. nil when none has it.
+func (w *world) boxWide() (smb, http *trapIPRow) {
+	ips, _, _ := w.desired()
+	for i := range w.trapIPs {
+		d := &w.trapIPs[i]
+		if !slices.Contains(ips, d.ip) {
+			continue
+		}
+		if smb == nil && d.has(SMB) {
+			smb = d
+		}
+		if http == nil && d.has(HTTP) {
+			http = d
+		}
+	}
+	return smb, http
+}
+
+// httpPage is the login page the box shows: "nas" when the Trap IP that decides it looks like a NAS.
+func httpPage(d *trapIPRow) *string {
+	switch {
+	case d == nil:
+		return nil
+	case d.Preset == NAS:
+		return ptr("nas")
+	}
+	return ptr("login")
 }
 
 // notConfirmed is the reason shown for an address the host has not confirmed it holds (an unknown outcome: no answer,

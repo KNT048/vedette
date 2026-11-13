@@ -117,7 +117,7 @@ func TestApplyWritesTheFilesOnlyWhenTheyChange(t *testing.T) {
 	if !os.SameFile(first, second) {
 		t.Fatal("an unchanged configuration was written again")
 	}
-	if _, err := e.svc.SetTrap(e.ctx(), "a", honeypot.HTTP, true); err != nil {
+	if err := e.setServices(e.main, honeypot.SSH, honeypot.SMB, honeypot.HTTP); err != nil {
 		t.Fatal(err)
 	}
 	if err := e.svc.Apply(e.ctx()); err != nil {
@@ -151,7 +151,7 @@ func TestApplyAsksForARestartOnlyAfterTheConfigurationChanged(t *testing.T) {
 	}
 	apply()
 	apply()
-	if _, err := e.svc.SetTrap(e.ctx(), "a", honeypot.HTTP, true); err != nil {
+	if err := e.setServices(e.main, honeypot.SSH, honeypot.SMB, honeypot.HTTP); err != nil {
 		t.Fatal(err)
 	}
 	e.host.mu.Lock()
@@ -186,8 +186,8 @@ func breakConfigFolder(t *testing.T, e *env) {
 	}
 }
 
-// The host is reconciled even when the files cannot be written: a device that takes the secondary IP still makes the host
-// drop it (FORBID-1) and turning every trap off still stops the container (POST-5).
+// The host is reconciled even when the files cannot be written: a device that takes the Trap IP's address still makes the
+// host drop it (FORBID-1) and turning every Trap IP off still stops the container (POST-5).
 func TestApplyReconcilesTheHostWhenTheFilesCannotBeWritten(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
@@ -201,10 +201,8 @@ func TestApplyReconcilesTheHostWhenTheFilesCannotBeWritten(t *testing.T) {
 	}
 	breakConfigFolder(t, e)
 	e.inv.add(dev("a-late", "192.168.10.240", "LATE", "pc"))
-	for _, s := range []honeypot.ServiceName{honeypot.SSH, honeypot.SMB} {
-		if _, err := e.svc.SetTrap(ctx, "admin@acme.example", s, false); err != nil {
-			t.Fatal(err)
-		}
+	if err := e.enable(e.main, false); err != nil {
+		t.Fatal(err)
 	}
 	err := e.svc.Apply(ctx)
 	if err == nil {
@@ -231,9 +229,9 @@ func TestApplyAddsNothingToTheHostWhenTheFilesCannotBeWritten(t *testing.T) {
 	}
 }
 
-// The box takes the secondary IP after it was accepted (a DHCP lease while the traps were off, a re-addressed box): it is
-// never handed to the host as a decoy and the traps cannot be turned on (FORBID-1).
-func TestSecondaryIPThatBecomesTheBoxIPIsAConflict(t *testing.T) {
+// The box takes a Trap IP's address after it was accepted (a DHCP lease while it was off, a re-addressed box): it is never
+// handed to the host as a decoy and the Trap IP cannot be turned on again (FORBID-1).
+func TestTrapIPThatBecomesTheBoxIPIsAConflict(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	e.setup()
@@ -242,10 +240,13 @@ func TestSecondaryIPThatBecomesTheBoxIPIsAConflict(t *testing.T) {
 	e.inv.box.IP = addr("192.168.10.240")
 	e.inv.devices[0].IP = addr("192.168.10.240") // the box record of the inventory
 	e.inv.mu.Unlock()
-	_, enableErr := e.svc.SetTrap(ctx, "admin@acme.example", honeypot.RDP, true)
-	if apiCode(t, enableErr) != "ip_is_box" {
-		t.Fatalf("enabling a trap on the box's own IP: %v", enableErr)
+	if err := e.enable(e.main, false); err != nil {
+		t.Fatal(err)
 	}
+	if enableErr := e.enable(e.main, true); apiCode(t, enableErr) != "ip_is_box" {
+		t.Fatalf("enabling a Trap IP on the box's own IP: %v", enableErr)
+	}
+	e.exec(`UPDATE hp_trap_ips SET enabled = 1`) // switched on before the box took it
 	if err := e.svc.Apply(ctx); err != nil {
 		t.Fatal(err)
 	}
@@ -266,17 +267,15 @@ func TestSecondaryIPThatBecomesTheBoxIPIsAConflict(t *testing.T) {
 	}
 }
 
-// A decoy IP that is the box's own now stays out of the host and the other traps go on; when the LAN range changes so that
-// the secondary IP is outside it, nothing is handed to the host at all.
+// A Trap IP that is the box's own now stays out of the host and the other traps go on; when the LAN range changes so that
+// every Trap IP is outside it, nothing is handed to the host at all.
 func TestDecoyIPThatCannotBeATrapAnyMoreStaysOutOfTheHost(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	e.setup()
 	ctx := e.ctx()
 	for i, ip := range []string{"192.168.10.241", "192.168.10.242"} {
-		if _, err := e.svc.AddDecoy(ctx, "a", honeypot.DecoyInput{Personality: honeypot.Linux, Name: fmt.Sprintf("LNX-%d", i), IP: ip}); err != nil {
-			t.Fatal(err)
-		}
+		e.addTrapIP(fmt.Sprintf("LNX-%d", i), ip, honeypot.Linux, honeypot.SSH)
 	}
 	e.inv.mu.Lock()
 	e.inv.box.IP = addr("192.168.10.241")
@@ -292,7 +291,7 @@ func TestDecoyIPThatCannotBeATrapAnyMoreStaysOutOfTheHost(t *testing.T) {
 		t.Fatalf("conflicts %v", c)
 	}
 	e.inv.mu.Lock()
-	e.inv.ranges = []netip.Prefix{netip.MustParsePrefix("192.168.10.0/25")} // the secondary IP, .240, is outside now
+	e.inv.ranges = []netip.Prefix{netip.MustParsePrefix("192.168.10.0/25")} // .240 to .242 are outside now
 	e.inv.mu.Unlock()
 	if err := e.svc.Apply(ctx); err != nil {
 		t.Fatal(err)
@@ -301,27 +300,27 @@ func TestDecoyIPThatCannotBeATrapAnyMoreStaysOutOfTheHost(t *testing.T) {
 		t.Fatalf("addresses outside the LAN went to the host: %v", e.host.ips)
 	}
 	if o, _ := e.svc.Overview(ctx); o.Traps[2].State != honeypot.StateConflict {
-		t.Fatalf("ssh trap %s with its secondary IP outside the LAN", o.Traps[2].State)
+		t.Fatalf("ssh trap %s with every Trap IP outside the LAN", o.Traps[2].State)
 	}
 }
 
-// The host holds 32 addresses, the secondary IP among them (host-api 6.6): the 32nd decoy is refused at creation.
-func TestDecoysAndSecondaryIPStayWithinTheHostLimit(t *testing.T) {
+// The host holds 32 addresses (host-api 6.6): the 33rd Trap IP is refused at creation.
+func TestTrapIPsStayWithinTheHostLimit(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	e.setup()
 	ctx := e.ctx()
 	add := func(i int) error {
-		_, err := e.svc.AddDecoy(ctx, "admin@acme.example", honeypot.DecoyInput{Personality: honeypot.Linux, Name: fmt.Sprintf("LNX-%02d", i), IP: fmt.Sprintf("192.168.10.%d", 150+i)})
+		_, err := e.tryAddTrapIP(fmt.Sprintf("LNX-%02d", i), fmt.Sprintf("192.168.10.%d", 150+i), honeypot.Linux, honeypot.SSH)
 		return err
 	}
 	for i := range 31 {
 		if err := add(i); err != nil {
-			t.Fatalf("decoy %d: %v", i, err)
+			t.Fatalf("trap IP %d: %v", i, err)
 		}
 	}
 	if err := add(31); apiCode(t, err) != "limit_reached" {
-		t.Fatalf("the 32nd decoy with the secondary IP makes 33 addresses: %v", err)
+		t.Fatalf("a 33rd Trap IP: %v", err)
 	}
 	if err := e.svc.Apply(ctx); err != nil {
 		t.Fatal(err)
@@ -331,23 +330,8 @@ func TestDecoysAndSecondaryIPStayWithinTheHostLimit(t *testing.T) {
 	}
 }
 
-// With no secondary IP set, 32 decoys fit; setting the secondary IP then would make 33.
-func TestSettingTheSecondaryIPCountsAgainstTheHostLimit(t *testing.T) {
-	t.Parallel()
-	e := newEnv(t)
-	ctx := e.ctx()
-	for i := range 32 {
-		if _, err := e.svc.AddDecoy(ctx, "a", honeypot.DecoyInput{Personality: honeypot.Linux, Name: fmt.Sprintf("LNX-%02d", i), IP: fmt.Sprintf("192.168.10.%d", 150+i)}); err != nil {
-			t.Fatal(err)
-		}
-	}
-	if _, err := e.svc.SetConfig(ctx, "a", "192.168.10.240", "FILESRV-OLD"); apiCode(t, err) != "limit_reached" {
-		t.Fatalf("%v", err)
-	}
-}
-
 // Past the limit in the database (rows written by an older version or by hand) Apply hands the host 32 addresses, the
-// secondary IP first, and says why it left the rest out.
+// oldest Trap IPs first, and says why it left the rest out.
 func TestApplyCapsTheAddressesAtTheHostLimit(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
@@ -355,7 +339,7 @@ func TestApplyCapsTheAddressesAtTheHostLimit(t *testing.T) {
 	ctx := e.ctx()
 	if err := e.db.Write(ctx, func(tx *sql.Tx) error {
 		for i := range 33 {
-			_, err := tx.ExecContext(ctx, `INSERT INTO hp_decoys (id, personality, name, ip, enabled, created_at) VALUES (?, 'linux', ?, ?, 1, ?)`,
+			_, err := tx.ExecContext(ctx, `INSERT INTO hp_trap_ips (id, name, ip, preset, services, enabled, created_at) VALUES (?, ?, ?, 'linux', '["ssh"]', 1, ?)`,
 				fmt.Sprintf("dec-%02d", i), fmt.Sprintf("LNX-%02d", i), fmt.Sprintf("192.168.10.%d", 150+i), fmt.Sprintf("2026-11-09T10:00:%02d.000Z", i))
 			if err != nil {
 				return err
@@ -369,7 +353,7 @@ func TestApplyCapsTheAddressesAtTheHostLimit(t *testing.T) {
 		t.Fatal(err)
 	}
 	if n := e.host.ipCount(); n != 32 || !e.host.ips[addr("192.168.10.240")] {
-		t.Fatalf("%d addresses, secondary IP present %v", n, e.host.ips[addr("192.168.10.240")])
+		t.Fatalf("%d addresses, the first Trap IP present %v", n, e.host.ips[addr("192.168.10.240")])
 	}
 	c := e.svc.TrapConflicts()
 	if len(c) != 2 || !strings.Contains(c[addr("192.168.10.182")], "32") {
@@ -378,15 +362,13 @@ func TestApplyCapsTheAddressesAtTheHostLimit(t *testing.T) {
 }
 
 // Two requests at the limit cannot both pass: the check is in the transaction that writes.
-func TestAddDecoyLimitHoldsUnderConcurrency(t *testing.T) {
+func TestAddTrapIPLimitHoldsUnderConcurrency(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	e.setup()
 	ctx := e.ctx()
 	for i := range 30 {
-		if _, err := e.svc.AddDecoy(ctx, "a", honeypot.DecoyInput{Personality: honeypot.Linux, Name: fmt.Sprintf("LNX-%02d", i), IP: fmt.Sprintf("192.168.10.%d", 150+i)}); err != nil {
-			t.Fatal(err)
-		}
+		e.addTrapIP(fmt.Sprintf("LNX-%02d", i), fmt.Sprintf("192.168.10.%d", 150+i), honeypot.Linux, honeypot.SSH)
 	}
 	var wg sync.WaitGroup
 	var mu sync.Mutex
@@ -395,7 +377,7 @@ func TestAddDecoyLimitHoldsUnderConcurrency(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			_, err := e.svc.AddDecoy(ctx, "a", honeypot.DecoyInput{Personality: honeypot.Linux, Name: fmt.Sprintf("NEW-%02d", i), IP: fmt.Sprintf("192.168.10.%d", 200+i)})
+			_, err := e.svc.AddTrapIP(ctx, "a", honeypot.TrapIPInput{Name: fmt.Sprintf("NEW-%02d", i), IP: fmt.Sprintf("192.168.10.%d", 200+i), Preset: honeypot.Linux, Services: []honeypot.ServiceName{honeypot.SSH}})
 			if err == nil {
 				mu.Lock()
 				ok++
@@ -407,8 +389,8 @@ func TestAddDecoyLimitHoldsUnderConcurrency(t *testing.T) {
 	if ok != 1 {
 		t.Fatalf("%d of 6 concurrent adds passed at one free slot", ok)
 	}
-	if n := e.count(`SELECT count(*) FROM hp_decoys`); n != 31 {
-		t.Fatalf("%d decoys", n)
+	if n := e.count(`SELECT count(*) FROM hp_trap_ips`); n != 32 {
+		t.Fatalf("%d trap IPs", n)
 	}
 }
 
@@ -417,11 +399,11 @@ type refuseOneIP struct {
 	bad netip.Addr
 }
 
-func (h refuseOneIP) AddDecoyIP(ctx context.Context, ip netip.Addr) error {
+func (h refuseOneIP) AddDecoyIP(ctx context.Context, ip netip.Addr, spec honeypot.DecoySpec) error {
 	if ip == h.bad {
 		return fmt.Errorf("ip_in_use: an ARP probe got an answer: %w", honeypot.ErrRefused)
 	}
-	return h.fakeHost.AddDecoyIP(ctx, ip)
+	return h.fakeHost.AddDecoyIP(ctx, ip, spec)
 }
 
 // One decoy IP the host refuses (an ARP probe answered by a device the inventory does not know yet) leaves the other
@@ -437,9 +419,7 @@ func TestOneRefusedDecoyIPDoesNotTakeTheOtherTrapsDown(t *testing.T) {
 	e.svc = svc
 	e.setup()
 	ctx := e.ctx()
-	if _, err := e.svc.AddDecoy(ctx, "admin@acme.example", honeypot.DecoyInput{Personality: honeypot.Printer, Name: "PRN-FLOOR2", IP: "192.168.10.241"}); err != nil {
-		t.Fatal(err)
-	}
+	e.addTrapIP("PRN-FLOOR2", "192.168.10.241", honeypot.Printer, honeypot.HTTP)
 	if err := e.svc.Apply(ctx); err != nil {
 		t.Fatalf("a refusal is not an Apply failure: %v", err)
 	}
@@ -461,8 +441,8 @@ func TestOneRefusedDecoyIPDoesNotTakeTheOtherTrapsDown(t *testing.T) {
 	}
 }
 
-// When the host refuses the secondary IP the traps are in conflict (INV-7) and the decoys that were accepted keep running.
-func TestRefusedSecondaryIPIsAConflict(t *testing.T) {
+// When the host refuses one Trap IP that one is in conflict (INV-7) and the Trap IPs that were accepted keep running.
+func TestRefusedTrapIPIsAConflict(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	e.cfg.Host = refuseOneIP{fakeHost: e.host, bad: addr("192.168.10.240")}
@@ -473,15 +453,16 @@ func TestRefusedSecondaryIPIsAConflict(t *testing.T) {
 	e.svc = svc
 	e.setup()
 	ctx := e.ctx()
-	if _, err := e.svc.AddDecoy(ctx, "a", honeypot.DecoyInput{Personality: honeypot.Printer, Name: "PRN-FLOOR2", IP: "192.168.10.241"}); err != nil {
-		t.Fatal(err)
-	}
+	e.addTrapIP("PRN-FLOOR2", "192.168.10.241", honeypot.Printer, honeypot.HTTP)
 	if err := e.svc.Apply(ctx); err != nil {
 		t.Fatal(err)
 	}
 	o, _ := e.svc.Overview(ctx)
-	if o.Traps[2].State != honeypot.StateConflict {
-		t.Fatalf("ssh trap %s", o.Traps[2].State)
+	if o.Traps[2].State != honeypot.StateConflict || o.Traps[4].State != honeypot.StateListening {
+		t.Fatalf("ssh trap %s (refused address), http trap %s", o.Traps[2].State, o.Traps[4].State)
+	}
+	if st := e.trapIP(e.main).State; st != honeypot.StateConflict {
+		t.Fatalf("refused Trap IP %s", st)
 	}
 	if !e.host.isRunning() || e.host.ipCount() != 1 {
 		t.Fatalf("running=%v ips=%v", e.host.isRunning(), e.host.ips)
@@ -517,10 +498,7 @@ func TestDecoyIPsAreTheAddressesTheHostHolds(t *testing.T) {
 		t.Fatalf("before anything: %v", got)
 	}
 	e.setup()
-	d, err := e.svc.AddDecoy(ctx, "a", honeypot.DecoyInput{Personality: honeypot.NAS, Name: "NAS-OLD", IP: "192.168.10.241"})
-	if err != nil {
-		t.Fatal(err)
-	}
+	d := e.addTrapIP("NAS-OLD", "192.168.10.241", honeypot.NAS, honeypot.HTTP, honeypot.SMB)
 	if got := e.svc.DecoyIPs(ctx); len(got) != 0 {
 		t.Fatalf("configured but not handed to the host yet: %v", got)
 	}
@@ -544,14 +522,14 @@ func TestDecoyIPsAreTheAddressesTheHostHolds(t *testing.T) {
 	if got := set(again); len(got) != 2 {
 		t.Fatalf("after a restart: %v", got)
 	}
-	if err := e.svc.DeleteDecoy(ctx, "a", d.ID); err != nil {
+	if err := e.svc.DeleteTrapIP(ctx, "a", d.ID); err != nil {
 		t.Fatal(err)
 	}
 	if err := e.svc.Apply(ctx); err != nil {
 		t.Fatal(err)
 	}
 	if got := set(e.svc); len(got) != 1 || !got[addr("192.168.10.240")] {
-		t.Fatalf("after the decoy was removed: %v", got)
+		t.Fatalf("after the Trap IP was removed: %v", got)
 	}
 	if err := e.svc.Disable(ctx); err != nil {
 		t.Fatal(err)

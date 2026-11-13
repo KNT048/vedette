@@ -1,7 +1,7 @@
 package honeypot_test
 
-// S-HP-1: the state of a trap or a decoy is what the host did, not what the switch says; the decoy IP can be removed; a
-// host that keeps refusing an address is not asked every minute.
+// S-HP-1: the state of a trap or a Trap IP is what the host did, not what the switch says; a host that keeps refusing an
+// address is not asked every minute.
 
 import (
 	"context"
@@ -23,12 +23,9 @@ func TestTrapsAreStartingUntilTheHostHasAnswered(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	e.setup()
-	d, err := e.svc.AddDecoy(e.ctx(), "a", honeypot.DecoyInput{Personality: honeypot.NAS, Name: "NAS-OLD", IP: "192.168.10.241"})
-	if err != nil {
-		t.Fatal(err)
-	}
+	d := e.addTrapIP("NAS-OLD", "192.168.10.241", honeypot.NAS, honeypot.HTTP, honeypot.SMB)
 	if d.State != honeypot.StateStarting {
-		t.Fatalf("decoy before Apply: %s", d.State)
+		t.Fatalf("trap IP before Apply: %s", d.State)
 	}
 	if got := overviewTraps(t, e)[2]; got.State != honeypot.StateStarting {
 		t.Fatalf("ssh before Apply: %s", got.State)
@@ -39,31 +36,27 @@ func TestTrapsAreStartingUntilTheHostHasAnswered(t *testing.T) {
 	if got := overviewTraps(t, e)[2]; got.State != honeypot.StateListening {
 		t.Fatalf("ssh after Apply: %s", got.State)
 	}
-	r, _ := e.svc.Decoys(e.ctx())
-	if r.Items[0].State != honeypot.StateListening || r.Items[0].Reason != nil {
-		t.Fatalf("decoy after Apply: %+v", r.Items[0])
+	if got := e.trapIP(d.ID); got.State != honeypot.StateListening || got.Reason != nil {
+		t.Fatalf("trap IP after Apply: %+v", got)
 	}
 }
 
-// A decoy whose host start failed is "failed" with the host's reason, whatever its switch says; so is a decoy the host
-// could not set up while the main decoy listens. A decoy is not listening while no trap is on.
-func TestDecoyStateComesFromTheHost(t *testing.T) {
+// A Trap IP whose host start failed is "failed" with the host's reason, whatever its switch says; so is a Trap IP the host
+// could not set up while another one listens. Switching one Trap IP off leaves the others listening (each has its own services).
+func TestTrapIPStateComesFromTheHost(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	e.setup()
 	e.host.failAdd = map[netip.Addr]error{addr("192.168.10.241"): fmt.Errorf("decoy_failed: %w %w", honeypot.ErrRefused, honeypot.ErrHostFailed)}
-	if _, err := e.svc.AddDecoy(e.ctx(), "a", honeypot.DecoyInput{Personality: honeypot.NAS, Name: "NAS-OLD", IP: "192.168.10.241"}); err != nil {
-		t.Fatal(err)
-	}
+	nas := e.addTrapIP("NAS-OLD", "192.168.10.241", honeypot.NAS, honeypot.HTTP, honeypot.SMB)
 	if err := e.svc.Apply(e.ctx()); err != nil {
 		t.Fatal(err)
 	}
-	r, _ := e.svc.Decoys(e.ctx())
-	if d := r.Items[0]; d.State != honeypot.StateFailed || d.Reason == nil || !strings.Contains(*d.Reason, "decoy_failed") {
+	if d := e.trapIP(nas.ID); d.State != honeypot.StateFailed || d.Reason == nil || !strings.Contains(*d.Reason, "decoy_failed") {
 		t.Fatalf("%+v", d)
 	}
 	if got := overviewTraps(t, e)[2]; got.State != honeypot.StateListening {
-		t.Fatalf("the main decoy goes on: %s", got.State)
+		t.Fatalf("the other Trap IP goes on: %s", got.State)
 	}
 	// the container does not start at all
 	e.host.mu.Lock()
@@ -72,22 +65,23 @@ func TestDecoyStateComesFromTheHost(t *testing.T) {
 	e.host.mu.Unlock()
 	e.svc.Kick()
 	_ = e.svc.Apply(e.ctx())
-	r, _ = e.svc.Decoys(e.ctx())
-	if d := r.Items[0]; d.State != honeypot.StateFailed || d.Reason == nil || !strings.Contains(*d.Reason, "did not start") {
+	if d := e.trapIP(nas.ID); d.State != honeypot.StateFailed || d.Reason == nil || !strings.Contains(*d.Reason, "did not start") {
 		t.Fatalf("%+v", d)
 	}
-	// all traps off: an enabled decoy listens nowhere, and says why
+	// the first Trap IP off: the NAS keeps listening on its own services
 	e.host.mu.Lock()
 	e.host.failStart = nil
 	e.host.mu.Unlock()
-	for _, s := range []honeypot.ServiceName{honeypot.SSH, honeypot.SMB} {
-		if _, err := e.svc.SetTrap(e.ctx(), "a", s, false); err != nil {
-			t.Fatal(err)
-		}
+	if err := e.enable(e.main, false); err != nil {
+		t.Fatal(err)
 	}
-	_ = e.svc.Apply(e.ctx())
-	r, _ = e.svc.Decoys(e.ctx())
-	if d := r.Items[0]; d.State != honeypot.StateOff || d.Reason == nil || !d.Enabled {
+	if err := e.svc.Apply(e.ctx()); err != nil {
+		t.Fatal(err)
+	}
+	if d := e.trapIP(nas.ID); d.State != honeypot.StateListening || d.Reason != nil {
+		t.Fatalf("%+v", d)
+	}
+	if d := e.trapIP(e.main); d.State != honeypot.StateOff || d.Enabled {
 		t.Fatalf("%+v", d)
 	}
 }
@@ -100,7 +94,7 @@ func TestTurningOffShowsStoppingUntilTheHostConfirms(t *testing.T) {
 	if err := e.svc.Apply(e.ctx()); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := e.svc.SetTrap(e.ctx(), "a", honeypot.SSH, false); err != nil {
+	if err := e.setServices(e.main, honeypot.SMB); err != nil {
 		t.Fatal(err)
 	}
 	if got := overviewTraps(t, e)[2]; got.State != honeypot.StateStopping {
@@ -114,55 +108,18 @@ func TestTurningOffShowsStoppingUntilTheHostConfirms(t *testing.T) {
 	}
 }
 
-// The decoy IP can be removed, only while every trap is off; the host then loses the address.
-func TestClearingTheSecondaryIP(t *testing.T) {
-	t.Parallel()
-	e := newEnv(t)
-	if _, err := e.svc.SetConfig(e.ctx(), "a", "", "FILESRV-OLD"); apiCode(t, err) != "bad_ip" {
-		t.Fatalf("nothing to clear: %v", err)
-	}
-	e.setup()
-	if err := e.svc.Apply(e.ctx()); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := e.svc.SetConfig(e.ctx(), "a", " ", "FILESRV-OLD"); apiCode(t, err) != "traps_on" {
-		t.Fatalf("traps on: %v", err)
-	}
-	for _, s := range []honeypot.ServiceName{honeypot.SSH, honeypot.SMB} {
-		if _, err := e.svc.SetTrap(e.ctx(), "a", s, false); err != nil {
-			t.Fatal(err)
-		}
-	}
-	o, err := e.svc.SetConfig(e.ctx(), "a", "", "FILESRV-OLD")
-	if err != nil || o.SecondaryIP != nil || o.Hostname != "FILESRV-OLD" {
-		t.Fatalf("%+v %v", o, err)
-	}
-	if err := e.svc.Apply(e.ctx()); err != nil {
-		t.Fatal(err)
-	}
-	if len(e.host.ips) != 0 || e.host.isRunning() {
-		t.Fatalf("host ips %v running %v", e.host.ips, e.host.isRunning())
-	}
-	if _, err := e.svc.SetTrap(e.ctx(), "a", honeypot.SSH, true); apiCode(t, err) != "no_secondary_ip" {
-		t.Fatalf("a trap needs an IP again: %v", err)
-	}
-	if e.count(`SELECT count(*) FROM core_audit WHERE action = 'honeypot.config' AND detail LIKE 'decoy IP removed%'`) != 1 {
-		t.Fatal("the removal is not in the audit log")
-	}
-}
-
 // Spare IPs are "unused" only once the inventory has seen a device in the network.
 func TestSpareIPsSayWhenNothingWasChecked(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
-	r, _ := e.svc.Decoys(e.ctx())
+	r, _ := e.svc.TrapIPs(e.ctx())
 	if !r.SpareChecked || len(r.SpareIPs) == 0 {
 		t.Fatalf("devices are known: %+v", r)
 	}
 	e.inv.mu.Lock()
 	e.inv.devices = []honeypot.Device{{ID: "a-box", IP: addr("192.168.10.2"), Name: "vedette-hq", IsBox: true}}
 	e.inv.mu.Unlock()
-	r, _ = e.svc.Decoys(e.ctx())
+	r, _ = e.svc.TrapIPs(e.ctx())
 	if r.SpareChecked || len(r.SpareIPs) == 0 {
 		t.Fatalf("only the box is known: %+v", r)
 	}
@@ -176,14 +133,14 @@ type refuseCounting struct {
 	mu  *sync.Mutex
 }
 
-func (h refuseCounting) AddDecoyIP(ctx context.Context, ip netip.Addr) error {
+func (h refuseCounting) AddDecoyIP(ctx context.Context, ip netip.Addr, spec honeypot.DecoySpec) error {
 	if ip == h.bad {
 		h.mu.Lock()
 		*h.n++
 		h.mu.Unlock()
 		return fmt.Errorf("decoy_failed: %w %w", honeypot.ErrRefused, honeypot.ErrHostFailed)
 	}
-	return h.fakeHost.AddDecoyIP(ctx, ip)
+	return h.fakeHost.AddDecoyIP(ctx, ip, spec)
 }
 
 // An address the host keeps refusing is asked for three times, then every ten minutes, and again when the configuration changes.
@@ -198,9 +155,7 @@ func TestRefusedAddressBacksOff(t *testing.T) {
 	}
 	e.svc = svc
 	e.setup()
-	if _, err := e.svc.AddDecoy(e.ctx(), "a", honeypot.DecoyInput{Personality: honeypot.NAS, Name: "NAS-OLD", IP: "192.168.10.241"}); err != nil {
-		t.Fatal(err)
-	}
+	nas := e.addTrapIP("NAS-OLD", "192.168.10.241", honeypot.NAS, honeypot.HTTP, honeypot.SMB)
 	apply := func() {
 		t.Helper()
 		if err := e.svc.Apply(e.ctx()); err != nil {
@@ -214,8 +169,7 @@ func TestRefusedAddressBacksOff(t *testing.T) {
 	if n != 3 {
 		t.Fatalf("asked %d times in 5 minutes, want 3", n)
 	}
-	r, _ := e.svc.Decoys(e.ctx())
-	if d := r.Items[0]; d.State != honeypot.StateFailed || d.Reason == nil {
+	if d := e.trapIP(nas.ID); d.State != honeypot.StateFailed || d.Reason == nil {
 		t.Fatalf("a backed-off address keeps its reason: %+v", d)
 	}
 	e.now = e.now.Add(10 * time.Minute)
@@ -223,42 +177,40 @@ func TestRefusedAddressBacksOff(t *testing.T) {
 	if n != 4 {
 		t.Fatalf("asked %d times after the back-off, want 4", n)
 	}
-	if _, err := e.svc.AddDecoy(e.ctx(), "a", honeypot.DecoyInput{Personality: honeypot.Printer, Name: "PRN-OLD", IP: "192.168.10.242"}); err != nil {
-		t.Fatal(err)
-	}
+	e.addTrapIP("PRN-OLD", "192.168.10.242", honeypot.Printer, honeypot.HTTP)
 	apply()
 	if n != 5 {
 		t.Fatalf("asked %d times after a configuration change, want 5", n)
 	}
 }
 
-// macHost is a host that knows the MAC of the addresses it holds.
-type macHost struct{ *fakeHost }
+// linkHost is a host that knows how it holds the addresses: their MACs, links and parent card.
+type linkHost struct{ *fakeHost }
 
-func (h macHost) DecoyMACs(context.Context) map[netip.Addr]string {
-	return map[netip.Addr]string{addr("192.168.10.240"): "06:b7:36:4f:54:67", addr("192.168.10.241"): "06:b7:36:4f:54:68"}
+func (h linkHost) DecoyLinks(context.Context) map[netip.Addr]honeypot.DecoyLink {
+	return map[netip.Addr]honeypot.DecoyLink{
+		addr("192.168.10.240"): {MAC: "06:b7:36:4f:54:67", Link: "vdhc0a80af0", Parent: "eno1"},
+		addr("192.168.10.241"): {MAC: "f8:bc:12:4f:54:68", Link: "vdhc0a80af1", Parent: "eno1"},
+	}
 }
 
 func TestDecoyMACsComeFromTheHost(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
-	e.cfg.Host = macHost{e.host}
+	e.cfg.Host = linkHost{e.host}
 	svc, err := honeypot.New(e.cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
 	e.svc = svc
 	e.setup()
-	if _, err := e.svc.AddDecoy(e.ctx(), "a", honeypot.DecoyInput{Personality: honeypot.NAS, Name: "NAS-OLD", IP: "192.168.10.241"}); err != nil {
-		t.Fatal(err)
-	}
+	nas := e.addTrapIP("NAS-OLD", "192.168.10.241", honeypot.NAS, honeypot.HTTP, honeypot.SMB)
 	if err := e.svc.Apply(e.ctx()); err != nil {
 		t.Fatal(err)
 	}
-	o, _ := e.svc.Overview(e.ctx())
-	r, _ := e.svc.Decoys(e.ctx())
-	if o.SecondaryMAC == nil || *o.SecondaryMAC != "06:b7:36:4f:54:67" || r.Items[0].MAC == nil || *r.Items[0].MAC != "06:b7:36:4f:54:68" {
-		t.Fatalf("%v %+v", o.SecondaryMAC, r.Items[0].MAC)
+	a, b := e.trapIP(e.main), e.trapIP(nas.ID)
+	if a.MAC == nil || *a.MAC != "06:b7:36:4f:54:67" || a.MACVendor != nil || b.MAC == nil || *b.MAC != "f8:bc:12:4f:54:68" {
+		t.Fatalf("%v %v %v", a.MAC, a.MACVendor, b.MAC)
 	}
 }
 
@@ -315,7 +267,7 @@ func TestSwitchingTheModuleOnShowsStarting(t *testing.T) {
 	}
 }
 
-// A trap is switched on at the moment the decoy IP is removed: the trap must not end up on with no IP (INV-6).
+// A Trap IP is switched on at the moment it is deleted: the switch-on is refused where it writes, nothing is left on (INV-6).
 type clearDuringRead struct {
 	*fakeInv
 	done atomic.Bool
@@ -330,10 +282,11 @@ func (c *clearDuringRead) Devices(ctx context.Context) ([]honeypot.Device, error
 	return d, err
 }
 
-func TestTrapCannotBeSwitchedOnAfterTheIPWasRemoved(t *testing.T) {
+func TestTrapIPCannotBeSwitchedOnAfterItWasDeleted(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
-	if _, err := e.svc.SetConfig(e.ctx(), "a", "192.168.10.240", "FILESRV-OLD"); err != nil {
+	e.setup()
+	if err := e.enable(e.main, false); err != nil {
 		t.Fatal(err)
 	}
 	hook := &clearDuringRead{fakeInv: e.inv}
@@ -343,44 +296,37 @@ func TestTrapCannotBeSwitchedOnAfterTheIPWasRemoved(t *testing.T) {
 		t.Fatal(err)
 	}
 	hook.do = func() {
-		if _, err := svc.SetConfig(e.ctx(), "a", "", "FILESRV-OLD"); err != nil {
+		if err := svc.DeleteTrapIP(e.ctx(), "a", e.main); err != nil {
 			t.Error(err)
 		}
 	}
-	// SetTrap reads the world (with the IP), the IP is removed, then SetTrap writes: refused where it writes.
-	if _, err := svc.SetTrap(e.ctx(), "a", honeypot.SSH, true); apiCode(t, err) != "no_secondary_ip" {
+	// SetTrapIPEnabled reads the world (with the Trap IP), the Trap IP is deleted, then it writes: refused where it writes.
+	if _, err := svc.SetTrapIPEnabled(e.ctx(), "a", e.main, true); apiCode(t, err) != "not_found" {
 		t.Fatalf("%v", err)
 	}
-	if n := e.count(`SELECT count(*) FROM hp_trap WHERE enabled = 1`); n != 0 {
-		t.Fatalf("%d traps on with no IP", n)
+	if n := e.count(`SELECT count(*) FROM hp_trap_ips`); n != 0 {
+		t.Fatalf("%d trap IPs left", n)
 	}
 }
 
-// With the decoy IP clashing, extra decoys say so instead of "no trap is on"; with the last trap just turned off they
-// are "stopping" as the trap rows are.
-func TestDecoyStateWhenTheMainIPIsUnusableAndWhenTheLastTrapGoesOff(t *testing.T) {
+// With the first Trap IP clashing with a device the other Trap IPs still listen (each address stands alone, D-466); a Trap
+// IP just switched off is "stopping" until the Apply that removes its address.
+func TestTrapIPStateWhenAnotherIsUnusableAndWhenOneGoesOff(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	e.setup()
-	if _, err := e.svc.AddDecoy(e.ctx(), "a", honeypot.DecoyInput{Personality: honeypot.NAS, Name: "NAS-OLD", IP: "192.168.10.241"}); err != nil {
-		t.Fatal(err)
-	}
+	nas := e.addTrapIP("NAS-OLD", "192.168.10.241", honeypot.NAS, honeypot.HTTP, honeypot.SMB)
 	if err := e.svc.Apply(e.ctx()); err != nil {
 		t.Fatal(err)
 	}
-	for _, s := range []honeypot.ServiceName{honeypot.SSH, honeypot.SMB} {
-		if _, err := e.svc.SetTrap(e.ctx(), "a", s, false); err != nil {
-			t.Fatal(err)
-		}
+	if err := e.enable(nas.ID, false); err != nil {
+		t.Fatal(err)
 	}
-	r, _ := e.svc.Decoys(e.ctx())
-	if r.Items[0].State != honeypot.StateStopping {
-		t.Fatalf("last trap just off: %+v", r.Items[0])
+	if d := e.trapIP(nas.ID); d.State != honeypot.StateStopping {
+		t.Fatalf("just off: %+v", d)
 	}
-	for _, s := range []honeypot.ServiceName{honeypot.SSH} {
-		if _, err := e.svc.SetTrap(e.ctx(), "a", s, true); err != nil {
-			t.Fatal(err)
-		}
+	if err := e.enable(nas.ID, true); err != nil {
+		t.Fatal(err)
 	}
 	e.inv.mu.Lock()
 	e.inv.devices = append(e.inv.devices, dev("a-new", "192.168.10.240", "NEW-PC", "pc"))
@@ -388,8 +334,10 @@ func TestDecoyStateWhenTheMainIPIsUnusableAndWhenTheLastTrapGoesOff(t *testing.T
 	if err := e.svc.Apply(e.ctx()); err != nil {
 		t.Fatal(err)
 	}
-	r, _ = e.svc.Decoys(e.ctx())
-	if d := r.Items[0]; d.State != honeypot.StateConflict || d.Reason == nil || !strings.Contains(*d.Reason, "no trap listens") {
+	if d := e.trapIP(e.main); d.State != honeypot.StateConflict || d.Reason == nil || !strings.Contains(*d.Reason, "device") {
+		t.Fatalf("%+v", d)
+	}
+	if d := e.trapIP(nas.ID); d.State != honeypot.StateListening {
 		t.Fatalf("%+v", d)
 	}
 }
@@ -406,12 +354,9 @@ func TestRefusalReasonIsThePlainSentence(t *testing.T) {
 	e := newEnv(t)
 	e.setup()
 	e.host.failAdd = map[netip.Addr]error{addr("192.168.10.241"): fmt.Errorf("honeypot: decoy address 192.168.10.241: %w", plainRefusal{})}
-	if _, err := e.svc.AddDecoy(e.ctx(), "a", honeypot.DecoyInput{Personality: honeypot.NAS, Name: "NAS-OLD", IP: "192.168.10.241"}); err != nil {
-		t.Fatal(err)
-	}
+	nas := e.addTrapIP("NAS-OLD", "192.168.10.241", honeypot.NAS, honeypot.HTTP, honeypot.SMB)
 	_ = e.svc.Apply(e.ctx())
-	r, _ := e.svc.Decoys(e.ctx())
-	if d := r.Items[0]; d.Reason == nil || *d.Reason != "the host could not do it" {
+	if d := e.trapIP(nas.ID); d.Reason == nil || *d.Reason != "the host could not do it" {
 		t.Fatalf("%+v", d)
 	}
 }
@@ -451,9 +396,9 @@ func TestTrapsAreStartingAfterTheModuleWasOff(t *testing.T) {
 	}
 }
 
-// "listening" needs the host to hold the address (#475): an extra decoy the host holds listens even when the host
-// refused or could not set up the main decoy IP (the container runs for it), and the traps of a main decoy IP whose
-// outcome is unknown are "failed" with a plain reason, not "listening" because the container runs for the extra decoy.
+// "listening" needs the host to hold the address (#475): a Trap IP the host holds listens even when the host refused or
+// could not set up another one (the container runs for it), and a Trap IP whose outcome is unknown is "failed" with a plain
+// reason, not "listening" because the container runs for the other one.
 func TestListeningNeedsTheHostToHoldTheAddress(t *testing.T) {
 	t.Parallel()
 	sec, extra := addr("192.168.10.240"), addr("192.168.10.241")
@@ -464,27 +409,26 @@ func TestListeningNeedsTheHostToHoldTheAddress(t *testing.T) {
 		e := newEnv(t)
 		e.setup()
 		e.host.failAdd = map[netip.Addr]error{sec: refusal}
-		if _, err := e.svc.AddDecoy(e.ctx(), "a", honeypot.DecoyInput{Personality: honeypot.NAS, Name: "NAS-OLD", IP: extra.String()}); err != nil {
-			t.Fatal(err)
-		}
+		nas := e.addTrapIP("NAS-OLD", extra.String(), honeypot.NAS, honeypot.HTTP, honeypot.SMB)
 		_ = e.svc.Apply(e.ctx())
 		if !e.host.isRunning() {
-			t.Fatalf("%s: the container does not run for the extra decoy", name)
+			t.Fatalf("%s: the container does not run for the other Trap IP", name)
 		}
-		r, _ := e.svc.Decoys(e.ctx())
-		if d := r.Items[0]; d.State != honeypot.StateListening || d.Reason != nil {
-			t.Fatalf("%s: the extra decoy the host holds: %+v", name, d)
+		if d := e.trapIP(nas.ID); d.State != honeypot.StateListening || d.Reason != nil {
+			t.Fatalf("%s: the Trap IP the host holds: %+v", name, d)
 		}
 		o, err := e.svc.Overview(e.ctx())
 		if err != nil {
 			t.Fatal(err)
 		}
-		if got := o.Traps[2]; got.State == honeypot.StateListening || o.Problem == nil || !strings.Contains(*o.Problem, strings.SplitN(refusal.Error(), ":", 2)[0]) {
-			t.Fatalf("%s: a trap on a refused decoy IP: %s, problem %v", name, got.State, o.Problem)
+		main := e.trapIP(e.main)
+		if got := o.Traps[2]; got.State == honeypot.StateListening || main.State == honeypot.StateListening || main.Reason == nil ||
+			!strings.Contains(*main.Reason, strings.SplitN(refusal.Error(), ":", 2)[0]) {
+			t.Fatalf("%s: a trap on a refused Trap IP: %s, %+v", name, got.State, main)
 		}
 
-		// The next Applies: no answer for the main decoy IP (twice: once on the record it is still not confirmed); the
-		// extra decoy the host took before stays up.
+		// The next Applies: no answer for the first Trap IP (twice: once on the record it is still not confirmed); the
+		// other one the host took before stays up.
 		e.host.mu.Lock()
 		e.host.failAdd = map[netip.Addr]error{sec: errors.New("the host is busy")}
 		e.host.mu.Unlock()
@@ -494,12 +438,12 @@ func TestListeningNeedsTheHostToHoldTheAddress(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if got := o.Traps[2]; got.State != honeypot.StateFailed || o.Problem == nil || !strings.Contains(*o.Problem, "not confirmed") {
-				t.Fatalf("%s, unknown outcome %d: %s, problem %v", name, i+1, got.State, o.Problem)
+			main := e.trapIP(e.main)
+			if got := o.Traps[2]; got.State != honeypot.StateFailed || main.Reason == nil || !strings.Contains(*main.Reason, "not confirmed") {
+				t.Fatalf("%s, unknown outcome %d: %s, %+v", name, i+1, got.State, main)
 			}
-			r, _ = e.svc.Decoys(e.ctx())
-			if d := r.Items[0]; d.State != honeypot.StateListening {
-				t.Fatalf("%s, unknown outcome %d: the extra decoy: %+v", name, i+1, d)
+			if d := e.trapIP(nas.ID); d.State != honeypot.StateListening {
+				t.Fatalf("%s, unknown outcome %d: the other Trap IP: %+v", name, i+1, d)
 			}
 		}
 	}
@@ -521,12 +465,12 @@ func TestListeningAfterARestartWaitsForTheHost(t *testing.T) {
 	e.host.failAdd = map[netip.Addr]error{addr("192.168.10.240"): errors.New("the host is busy")}
 	e.host.mu.Unlock()
 	_ = again.Apply(e.ctx())
-	o, err := again.Overview(e.ctx())
+	r, err := again.TrapIPs(e.ctx())
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := o.Traps[2]; got.State != honeypot.StateFailed || o.Problem == nil || !strings.Contains(*o.Problem, "not confirmed") {
-		t.Fatalf("after a restart, no answer: %s, problem %v", got.State, o.Problem)
+	if d := r.Items[0]; d.State != honeypot.StateFailed || d.Reason == nil || !strings.Contains(*d.Reason, "not confirmed") || overviewTrapsOf(t, e, again)[2].State != honeypot.StateFailed {
+		t.Fatalf("after a restart, no answer: %+v", d)
 	}
 	e.host.mu.Lock()
 	e.host.failAdd = nil

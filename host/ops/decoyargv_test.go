@@ -93,6 +93,12 @@ func TestValidateIPRefusesEverythingElse(t *testing.T) {
 		{"-b", "-"}, {"-batch", "/etc/passwd"}, {"-force", "link", "del", name}, {"-n", "vedette-hp", "-force", "link", "del", name},
 		{"addr", "show"}, {"route", "show"}, {"monitor"}, {"-n", "vedette-hp", "monitor"}, {"-n", "vedette-hp", "netns", "exec", "x"},
 		{"-n", "vedette-hp", "exec", "x"}, {"-n", "vedette-hp", "-n", "vedette-hp", "-j", "addr", "show"},
+		// kien's N100 rule (B2): nothing outside the namespace but the decoy's own link: never the management card's addresses,
+		// routes or state, never the box's own firewall.
+		{"addr", "add", "192.168.1.50/32", "dev", "eth0"}, {"addr", "del", "192.168.1.2/24", "dev", "eth0"}, {"addr", "flush", "dev", "eth0"},
+		{"route", "replace", "default", "via", "192.168.1.1", "dev", "eth0"}, {"route", "del", "default"}, {"rule", "add", "from", "192.168.1.50", "lookup", "100"},
+		{"link", "set", "eth0", "down"}, {"link", "set", "eth0", "address", "02:11:22:33:44:55"}, {"link", "set", name, "nomaster"},
+		{"netns", "exec", "vedette-hp", "/usr/sbin/nft", "-f", "-", "x"}, {"netns", "exec", "1", "/usr/sbin/nft", "-f", "-"},
 	}
 	for _, a := range bad {
 		if err := validateIP(a); err == nil {
@@ -224,11 +230,12 @@ func FuzzDecoyBuilders(f *testing.F) {
 func TestTheRulesetTextIsTheOneTheEffectCheckAccepts(t *testing.T) {
 	t.Parallel()
 	// The text sent to nft, as nft prints it back (quoted interface, priority name), must pass the check.
-	printed := strings.NewReplacer("priority 0", "priority filter", "oif lo", `oif "lo"`, "flush ruleset\n", "").Replace(hpRulesetText)
-	if !hasEgressDrop([]byte(printed)) {
+	text := renderRuleset(nil)
+	printed := strings.NewReplacer("priority 0", "priority filter", "oif lo", `oif "lo"`, "iif lo", `iif "lo"`, "flush ruleset\n", "").Replace(text)
+	if !hasEgressDrop([]byte(printed)) || !rulesetIs([]byte(printed), nil) {
 		t.Fatalf("the ruleset the host loads is not what its own check accepts:\n%s", printed)
 	}
-	lines := strings.Split(hpRulesetText, "\n")
+	lines := strings.Split(text, "\n")
 	acc, lo, drop := -1, -1, -1
 	for i, l := range lines {
 		switch strings.TrimSpace(l) {
@@ -243,7 +250,7 @@ func TestTheRulesetTextIsTheOneTheEffectCheckAccepts(t *testing.T) {
 	if acc < 0 || acc >= lo || lo >= drop {
 		t.Fatalf("order: established %d, lo %d, drop %d", acc, lo, drop)
 	}
-	if !strings.HasPrefix(hpRulesetText, "flush ruleset\n") || !strings.Contains(hpRulesetText, "hook forward priority 0; policy drop;") {
+	if !strings.HasPrefix(text, "flush ruleset\n") || !strings.Contains(text, "hook forward priority 0; policy drop;") {
 		t.Fatal("the load must replace what was there and drop forwarding")
 	}
 }

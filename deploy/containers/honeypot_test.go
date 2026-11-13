@@ -538,6 +538,47 @@ m.main()
 	}
 }
 
+// D-466: the share's NetBIOS name comes from honeytokens.json (the first Trap IP with SMB) and ends up as one line in Samba's include file;
+// init.py writes it only when it is a plain NetBIOS name, so a newline or a second parameter can never reach smb.conf.
+func TestHoneypotNetbiosNameIsOnePlainLine(t *testing.T) {
+	t.Parallel()
+	py := python(t)
+	cases := map[string]string{
+		"FILESRV-OLD": "netbios name = FILESRV-OLD\n", "NAS2": "netbios name = NAS2\n",
+		"": "", "1234": "", "-X": "", "X-": "", "A23456789012345X": "", "FILE SRV": "", "a\nlog level = 10": "", "a;b": "", "ÅBC": "",
+	}
+	names := make([]string, 0, len(cases))
+	for k := range cases {
+		names = append(names, k)
+	}
+	in, _ := json.Marshal(names)
+	code := "import importlib.util, json, sys\n" +
+		"s = importlib.util.spec_from_file_location('hpinit', sys.argv[1]); m = importlib.util.module_from_spec(s); s.loader.exec_module(m)\n" +
+		"print(json.dumps([m.netbios_conf(c) for c in json.load(sys.stdin)] + [m.netbios_conf(None), m.netbios_conf(7)]))\n"
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, py, "-I", "-B", "-c", code, "honeypot/init.py") //nolint:gosec // test: fixed argv, python3 from PATH
+	cmd.Stdin = bytes.NewReader(in)
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	out, err := cmd.Output()
+	if err != nil {
+		t.Fatalf("python3: %v\n%s", err, stderr.String())
+	}
+	var got []string
+	if err := json.Unmarshal(out, &got); err != nil || len(got) != len(names)+2 {
+		t.Fatalf("output %q: %v", out, err)
+	}
+	for i, n := range names {
+		if got[i] != cases[n] {
+			t.Errorf("netbios_conf(%q) = %q, want %q", n, got[i], cases[n])
+		}
+	}
+	if got[len(names)] != "" || got[len(names)+1] != "" {
+		t.Errorf("a name that is not a string must give no line: %q", got[len(names):])
+	}
+}
+
 // make honeypot-check runs the image with the files core's own code writes (honeypot.RenderConfig, RenderTokens, the log path of the unit's
 // mount): this writes them into VEDETTE_HP_OUT. Without the variable it does nothing.
 func TestHoneypotWriteFixture(t *testing.T) {
@@ -551,7 +592,7 @@ func TestHoneypotWriteFixture(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	tokens, err := honeypot.RenderTokens([]string{"passwords.txt", "Q4 payroll.xlsx"})
+	tokens, err := honeypot.RenderTokens([]string{"passwords.txt", "Q4 payroll.xlsx"}, "FILESRV-OLD") // D-466: the share takes this NetBIOS name
 	if err != nil {
 		t.Fatal(err)
 	}

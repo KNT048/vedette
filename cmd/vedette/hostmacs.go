@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"maps"
 	"net"
 	"net/netip"
 	"slices"
@@ -29,7 +30,8 @@ type hostMACs struct {
 	failedAt time.Time // the last failed ask: no new ask for hostNetBackoff, so a hung host costs one timeout, not one per caller
 	forcedAt time.Time // the last ask that skipped the TTL (Fresh)
 	last     []string
-	infra    []response.HostInfra // the trusted gateways (with their pinned MACs) and DNS servers of the same answer (D-325, D-450)
+	decoys   map[netip.Addr]string // the decoys of the same answer: address → MAC (lower case)
+	infra    []response.HostInfra  // the trusted gateways (with their pinned MACs) and DNS servers of the same answer (D-325, D-450)
 	vetted   map[netip.Addr]*infraVet
 	// report is told what an answer changed in the box's gateways and resolvers (action, address, detail; see vet and observe), at most
 	// once per infraSettle per address and event. It runs under mu and must not block. nil = nobody is told.
@@ -111,13 +113,30 @@ func (h *hostMACs) get(ctx context.Context, fresh bool) ([]string, error) {
 	for _, i := range st.Interfaces {
 		out = append(out, strings.ToLower(i.MAC))
 	}
+	decoys := map[netip.Addr]string{}
 	for _, d := range st.Decoys {
 		out = append(out, strings.ToLower(d.MAC))
+		if a, err := netip.ParseAddr(d.IP); err == nil {
+			decoys[a] = strings.ToLower(d.MAC)
+		}
 	}
 	t, first := h.now(), h.at.IsZero()
 	dynamic, saved := hostInfraOf(st)
-	h.at, h.failedAt, h.last, h.infra = t, time.Time{}, out, keepGateways(append(h.vet(dynamic, first, t), saved...), h.infra)
+	h.at, h.failedAt, h.last, h.decoys, h.infra = t, time.Time{}, out, decoys, keepGateways(append(h.vet(dynamic, first, t), saved...), h.infra)
 	return out, nil
+}
+
+// Decoys returns the decoy addresses of the same answer as Get (Fresh with fresh), each with its MAC (inventory.Config.BoxDecoyMACs).
+func (h *hostMACs) Decoys(ctx context.Context, fresh bool) (map[netip.Addr]string, error) {
+	if _, err := h.get(ctx, fresh); err != nil {
+		return nil, err
+	}
+	if h == nil || h.r == nil {
+		return nil, nil
+	}
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	return maps.Clone(h.decoys), nil
 }
 
 // Infra returns the gateway and DNS servers of the last answer (response's never-touch list, D-325), with the same freshness and the same

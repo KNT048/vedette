@@ -285,6 +285,8 @@ func TestContract_Decoy_AddBuildsTheLinkAndChecksTheEffect(t *testing.T) {
 		"-n vedette-hp -j addr show",
 		"link add link eth0 name vdhc0a80164 address " + mac + " type macvlan mode bridge",
 		"link set vdhc0a80164 netns vedette-hp",
+		"netns exec vedette-hp /usr/sbin/sysctl -w net.ipv6.conf.vdhc0a80164.disable_ipv6=1", // no IPv6 from the decoy's MAC (B2 lab)
+		"netns exec vedette-hp /usr/sbin/sysctl -n net.ipv6.conf.vdhc0a80164.disable_ipv6",   // read back
 		"-n vedette-hp addr add 192.168.1.100/24 dev vdhc0a80164",
 		"-n vedette-hp link set vdhc0a80164 up",
 		"-n vedette-hp route flush table 100",
@@ -292,10 +294,16 @@ func TestContract_Decoy_AddBuildsTheLinkAndChecksTheEffect(t *testing.T) {
 		"-n vedette-hp route replace default via 192.168.1.1 dev vdhc0a80164 table 100",
 		"-n vedette-hp rule del from 192.168.1.100 lookup 100",
 		"-n vedette-hp rule add from 192.168.1.100 lookup 100",
-		"-n vedette-hp -j addr show", // the effect check
+		"-n vedette-hp -j addr show",                       // the effect check
+		"netns exec vedette-hp /usr/sbin/nft -f -",         // the ruleset with the new address (D-466)
+		"netns exec vedette-hp /usr/sbin/nft list ruleset", // and its effect check
 	}
 	if got := d.since(n); !slices.Equal(got, want) {
 		t.Fatalf("ip calls:\n%q\nwant\n%q", got, want)
+	}
+	// No ports given (an older core): the address is in the open set and state/net says it is not filtered.
+	if rs := d.m.IPState("ruleset"); !strings.Contains(rs, "elements = { "+decoyIP1+" }") || strings.Contains(rs, decoyIP1+" . ") {
+		t.Fatalf("ruleset:\n%s", rs)
 	}
 	// The effect: the link is in the namespace with the MAC and the address, and not in the host's.
 	if !slices.Equal(d.m.IPLinks("ns"), []string{"vdhc0a80164"}) || len(d.m.IPLinks("host")) != 0 {
@@ -317,7 +325,7 @@ func TestContract_Decoy_AddBuildsTheLinkAndChecksTheEffect(t *testing.T) {
 	if st, err := os.Stat(filepath.Join(d.m.State, "hp", "mac.key")); err != nil || st.Mode().Perm() != 0o600 || st.Size() != 32 {
 		t.Fatalf("mac.key: %v %v", st, err)
 	}
-	if got := d.state(t).Decoys; len(got) != 1 || got[0].IP != decoyIP1 || got[0].MAC != mac {
+	if got := d.state(t).Decoys; len(got) != 1 || got[0].IP != decoyIP1 || got[0].MAC != mac || got[0].Ports != nil {
 		t.Fatalf("state/net decoys %+v", got)
 	}
 	// Every call is in the grammar.
@@ -639,12 +647,17 @@ func TestContract_Decoy_RemoveDeletesTheRuleTheRoutesAndTheLinkAndIsIdempotent(t
 		"-n vedette-hp route flush table 100",
 		"-n vedette-hp link del vdhc0a80164",
 		"-n vedette-hp -j addr show",
+		"netns exec vedette-hp /usr/sbin/nft -f -",         // its address leaves the sets (D-466)
+		"netns exec vedette-hp /usr/sbin/nft list ruleset", // proven
 	}
 	if got := d.since(n); !slices.Equal(got, want) {
 		t.Fatalf("calls:\n%q\nwant\n%q", got, want)
 	}
 	if !slices.Equal(d.m.IPLinks("ns"), []string{"vdhc0a80165"}) || strings.Contains(d.m.IPState("rules"), "192.168.1.100") {
 		t.Fatalf("ns %v rules %s", d.m.IPLinks("ns"), d.m.IPState("rules"))
+	}
+	if rs := d.m.IPState("ruleset"); strings.Contains(rs, decoyIP1) || !strings.Contains(rs, decoyIP2) {
+		t.Fatalf("ruleset after remove:\n%s", rs)
 	}
 	if got := d.state(t).Decoys; len(got) != 1 || got[0].IP != decoyIP2 {
 		t.Fatalf("decoys %+v", got)

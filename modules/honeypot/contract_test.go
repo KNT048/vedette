@@ -127,7 +127,7 @@ func TestRenderConfigGolden(t *testing.T) {
 		t.Fatal(err)
 	}
 	checkGolden(t, "opencanary.golden.json", got)
-	tok, err := honeypot.RenderTokens([]string{"b.xlsx", "a.docx", "b.xlsx"})
+	tok, err := honeypot.RenderTokens([]string{"b.xlsx", "a.docx", "b.xlsx"}, "FILESRV-OLD")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -271,9 +271,7 @@ func TestContract_INV4_TestHitsNotCounted(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	e.setup()
-	if _, err := e.svc.AddDecoy(e.ctx(), "a", honeypot.DecoyInput{Personality: honeypot.NAS, Name: "NAS-OLD", IP: "192.168.10.241"}); err != nil {
-		t.Fatal(err)
-	}
+	e.addTrapIP("NAS-OLD", "192.168.10.241", honeypot.NAS, honeypot.HTTP, honeypot.SMB)
 	tok, _ := e.svc.AddToken(e.ctx(), "a", honeypot.TokenInput{Type: honeypot.TokenFile, Name: "Payroll", PlantAt: "x", Ext: "xlsx"})
 	h1, err := e.svc.TestHit(e.ctx(), "op", honeypot.SSH)
 	if err != nil || !h1.IsTest || h1.SrcName != nil || h1.SrcAssetID != nil || h1.SrcIP != "192.168.10.2" {
@@ -320,7 +318,7 @@ func TestContract_INV4_TestHitsNotCounted(t *testing.T) {
 	}
 }
 
-// INV-5: the matrix of IPs for the secondary IP and for decoys.
+// INV-5: the matrix of addresses and names of a Trap IP; the checks of a Trap IP in the order the form shows its fields.
 func TestContract_INV5_IPValidation(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
@@ -332,48 +330,57 @@ func TestContract_INV5_IPValidation(t *testing.T) {
 		{"192.168.10.107", "ip_in_use"}, {"192.168.10.10", "ip_in_use"},
 	}
 	for _, c := range cases {
-		if _, err := e.svc.SetConfig(e.ctx(), "a", c.ip, "FILESRV-OLD"); apiCode(t, err) != c.code {
-			t.Errorf("config %q: %v, want %s", c.ip, err, c.code)
-		}
-		if _, err := e.svc.AddDecoy(e.ctx(), "a", honeypot.DecoyInput{Personality: honeypot.Linux, Name: "BUILD-01", IP: c.ip}); apiCode(t, err) != c.code {
-			t.Errorf("decoy %q: %v, want %s", c.ip, err, c.code)
+		if _, err := e.tryAddTrapIP("BUILD-01", c.ip, honeypot.Linux, honeypot.SSH); apiCode(t, err) != c.code {
+			t.Errorf("trap IP %q: %v, want %s", c.ip, err, c.code)
 		}
 	}
-	if _, err := e.svc.SetConfig(e.ctx(), "a", "192.168.10.240", "FILESRV-OLD"); err != nil {
-		t.Fatal(err)
+	d := e.addTrapIP("BUILD-01", "192.168.10.241", honeypot.Linux, honeypot.SSH)
+	if d.ID == "" || len(d.Services) != 1 || !d.Enabled {
+		t.Fatalf("%+v", d)
 	}
-	if _, err := e.svc.AddDecoy(e.ctx(), "a", honeypot.DecoyInput{Personality: honeypot.Linux, Name: "BUILD-01", IP: "192.168.10.240"}); apiCode(t, err) != "ip_in_use" {
-		t.Fatalf("decoy on the secondary IP: %v", err)
+	if _, err := e.tryAddTrapIP("BUILD-02", "192.168.10.241", honeypot.Linux, honeypot.SSH); apiCode(t, err) != "ip_in_use" {
+		t.Fatalf("second Trap IP on the same IP: %v", err)
 	}
-	d, err := e.svc.AddDecoy(e.ctx(), "a", honeypot.DecoyInput{Personality: honeypot.Linux, Name: "BUILD-01", IP: "192.168.10.241"})
-	if err != nil || d.ID == "" || len(d.Services) != 1 {
-		t.Fatalf("%+v %v", d, err)
-	}
-	if _, err := e.svc.AddDecoy(e.ctx(), "a", honeypot.DecoyInput{Personality: honeypot.Linux, Name: "BUILD-02", IP: "192.168.10.241"}); apiCode(t, err) != "ip_in_use" {
-		t.Fatalf("second decoy on the same IP: %v", err)
-	}
-	if _, err := e.svc.SetConfig(e.ctx(), "a", "192.168.10.241", "FILESRV-OLD"); apiCode(t, err) != "ip_in_use" {
-		t.Fatalf("secondary on a decoy IP: %v", err)
+	if _, err := e.tryAddTrapIP("build-01", "192.168.10.242", honeypot.Linux, honeypot.SSH); apiCode(t, err) != "name_in_use" {
+		t.Fatalf("a name another Trap IP has (any case): %v", err)
 	}
 	// names
 	for _, n := range []string{"", "x_y", "-AB", "AB-", "123456", "ABCDEFGHIJKLMNOP", "SRV-FILE"} {
-		_, err := e.svc.SetConfig(e.ctx(), "a", "192.168.10.242", n)
-		want := "bad_hostname"
+		_, err := e.tryAddTrapIP(n, "192.168.10.242", honeypot.Custom, honeypot.SSH)
+		want := "bad_name"
 		if n == "SRV-FILE" {
-			want = "hostname_in_use"
+			want = "name_in_use"
 		}
 		if apiCode(t, err) != want {
-			t.Errorf("hostname %q: %v", n, err)
+			t.Errorf("name %q: %v", n, err)
 		}
 	}
-	if _, err := e.svc.AddDecoy(e.ctx(), "a", honeypot.DecoyInput{Personality: "toaster", Name: "X1", IP: "192.168.10.243"}); apiCode(t, err) != "bad_personality" {
+	if _, err := e.tryAddTrapIP("X1", "192.168.10.243", "toaster", honeypot.SSH); apiCode(t, err) != "bad_preset" {
 		t.Fatal(err)
+	}
+	if _, err := e.svc.AddTrapIP(e.ctx(), "a", honeypot.TrapIPInput{Name: "X1", IP: "192.168.10.243", Preset: honeypot.Custom, Vendor: ptr("acme"), Services: []honeypot.ServiceName{honeypot.SSH}}); apiCode(t, err) != "bad_vendor" {
+		t.Fatal(err)
+	}
+	for _, svcs := range [][]honeypot.ServiceName{nil, {"telnet"}, {honeypot.SSH, honeypot.SSH}} {
+		if _, err := e.tryAddTrapIP("X1", "192.168.10.243", honeypot.Custom, svcs...); apiCode(t, err) != "bad_services" {
+			t.Errorf("services %v: %v", svcs, err)
+		}
+	}
+	// a change runs the same checks; the Trap IP may keep its own name and address
+	if _, err := e.svc.EditTrapIP(e.ctx(), "a", d.ID, honeypot.TrapIPInput{Name: "BUILD-01", IP: "192.168.10.241", Preset: honeypot.Linux, Services: []honeypot.ServiceName{honeypot.SSH, honeypot.HTTP}}); err != nil {
+		t.Fatalf("an edit that keeps the name and address: %v", err)
+	}
+	if _, err := e.svc.EditTrapIP(e.ctx(), "a", d.ID, honeypot.TrapIPInput{Name: "BUILD-01", IP: "192.168.10.107", Preset: honeypot.Linux, Services: []honeypot.ServiceName{honeypot.SSH}}); apiCode(t, err) != "ip_in_use" {
+		t.Fatalf("edit onto a device: %v", err)
+	}
+	if _, err := e.svc.EditTrapIP(e.ctx(), "a", "tip-nope", honeypot.TrapIPInput{Name: "X2", IP: "192.168.10.244", Preset: honeypot.Linux, Services: []honeypot.ServiceName{honeypot.SSH}}); apiCode(t, err) != "not_found" {
+		t.Fatalf("edit of a missing Trap IP: %v", err)
 	}
 	// no LAN declared (fresh install)
 	e.inv.mu.Lock()
 	e.inv.ranges = nil
 	e.inv.mu.Unlock()
-	if _, err := e.svc.SetConfig(e.ctx(), "a", "192.168.10.242", "FILESRV-OLD"); apiCode(t, err) != "no_lan" {
+	if _, err := e.tryAddTrapIP("X3", "192.168.10.242", honeypot.Linux, honeypot.SSH); apiCode(t, err) != "no_lan" {
 		t.Fatal(err)
 	}
 	if o, _ := e.svc.Overview(e.ctx()); o.LAN != nil {
@@ -381,13 +388,10 @@ func TestContract_INV5_IPValidation(t *testing.T) {
 	}
 }
 
-// INV-6, INV-7, FORBID-1: a trap needs a secondary IP; a device that later takes the IP makes it conflict and stop.
+// INV-6, INV-7, FORBID-1: a device that later takes a Trap IP's address makes it conflict and stop.
 func TestContract_INV6_INV7_ConflictStopsListening(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
-	if _, err := e.svc.SetTrap(e.ctx(), "a", honeypot.SSH, true); apiCode(t, err) != "no_secondary_ip" {
-		t.Fatalf("%v", err)
-	}
 	e.setup()
 	if err := e.svc.Apply(e.ctx()); err != nil {
 		t.Fatal(err)
@@ -407,14 +411,14 @@ func TestContract_INV6_INV7_ConflictStopsListening(t *testing.T) {
 	if !strings.Contains(string(conf), `"ssh.enabled": true`) || !strings.Contains(string(conf), `"rdp.enabled": false`) {
 		t.Fatalf("conf: %s", conf)
 	}
-	// a device appears on the secondary IP
+	// a device appears on the Trap IP's address
 	e.inv.add(dev("a-late", "192.168.10.240", "LATE-PC", "pc"))
 	if err := e.svc.Apply(e.ctx()); err != nil {
 		t.Fatal(err)
 	}
 	o, _ = e.svc.Overview(e.ctx())
-	if o.ConflictAsset == nil || o.ConflictAsset.ID != "a-late" {
-		t.Fatalf("conflict asset %+v", o.ConflictAsset)
+	if d := e.trapIP(e.main); d.State != honeypot.StateConflict || d.DeviceID == nil || *d.DeviceID != "a-late" || d.DeviceName == nil || *d.DeviceName != "LATE-PC" {
+		t.Fatalf("trap IP on a device: %+v", d)
 	}
 	for _, tr := range o.Traps {
 		if tr.Enabled && tr.State != "conflict" {
@@ -428,8 +432,11 @@ func TestContract_INV6_INV7_ConflictStopsListening(t *testing.T) {
 	if strings.Contains(string(conf), `": true`) {
 		t.Fatalf("config enables a service on a device IP: %s", conf)
 	}
-	if _, err := e.svc.SetTrap(e.ctx(), "a", honeypot.HTTP, true); apiCode(t, err) != "ip_in_use" {
-		t.Fatalf("%v", err)
+	if err := e.enable(e.main, false); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.enable(e.main, true); apiCode(t, err) != "ip_in_use" {
+		t.Fatalf("turning on a Trap IP a device sits on: %v", err)
 	}
 }
 
@@ -467,15 +474,15 @@ func TestApplyRemovesStaleIPsAndStopsWhenNothingIsOn(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	e.setup()
-	d, _ := e.svc.AddDecoy(e.ctx(), "a", honeypot.DecoyInput{Personality: honeypot.NAS, Name: "NAS-OLD", IP: "192.168.10.241"})
+	d := e.addTrapIP("NAS-OLD", "192.168.10.241", honeypot.NAS, honeypot.HTTP, honeypot.SMB)
 	if err := e.svc.Apply(e.ctx()); err != nil {
 		t.Fatal(err)
 	}
 	if !e.host.ips[addr("192.168.10.241")] || !e.host.ips[addr("192.168.10.240")] {
 		t.Fatalf("%v", e.host.ips)
 	}
-	// POST-5: delete a decoy, its IP goes
-	if err := e.svc.DeleteDecoy(e.ctx(), "a", d.ID); err != nil {
+	// POST-5: delete a Trap IP, its address goes
+	if err := e.svc.DeleteTrapIP(e.ctx(), "a", d.ID); err != nil {
 		t.Fatal(err)
 	}
 	// a new process only knows what the database says
@@ -487,12 +494,10 @@ func TestApplyRemovesStaleIPsAndStopsWhenNothingIsOn(t *testing.T) {
 		t.Fatal(err)
 	}
 	if e.host.ips[addr("192.168.10.241")] {
-		t.Fatal("deleted decoy still has its IP")
+		t.Fatal("deleted Trap IP still has its IP")
 	}
-	for _, s := range []honeypot.ServiceName{honeypot.SSH, honeypot.SMB} {
-		if _, err := e.svc.SetTrap(e.ctx(), "a", s, false); err != nil {
-			t.Fatal(err)
-		}
+	if err := e.enable(e.main, false); err != nil {
+		t.Fatal(err)
 	}
 	if err := svc2.Apply(e.ctx()); err != nil {
 		t.Fatal(err)
@@ -732,14 +737,21 @@ func TestContract_INV10_POST2_POST4_Tokens(t *testing.T) {
 func TestContract_INV11_Suggestions(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
-	e.setup()
-	r, err := e.svc.Decoys(e.ctx())
+	r, err := e.svc.TrapIPs(e.ctx())
 	if err != nil {
 		t.Fatal(err)
 	}
-	got := map[honeypot.Personality]honeypot.DecoySuggestion{}
+	raw, _ := json.Marshal(r)
+	if !strings.Contains(string(raw), `"items":[]`) {
+		t.Fatalf("%s", raw)
+	}
+	e.setup()
+	if r, err = e.svc.TrapIPs(e.ctx()); err != nil {
+		t.Fatal(err)
+	}
+	got := map[honeypot.Preset]honeypot.TrapSuggestion{}
 	for _, s := range r.Suggestions {
-		got[s.Personality] = s
+		got[s.Preset] = s
 	}
 	if _, ok := got[honeypot.Camera]; ok {
 		t.Fatal("camera suggested but the inventory has none")
@@ -747,20 +759,19 @@ func TestContract_INV11_Suggestions(t *testing.T) {
 	if _, ok := got[honeypot.Linux]; ok {
 		t.Fatal("linux suggested but no linux server")
 	}
-	if got[honeypot.WindowsFS].Count != 1 || got[honeypot.WindowsFS].Examples[0] != "SRV-FILE" || got[honeypot.NAS].Count != 1 || got[honeypot.Printer].Examples[0] != "PRN-LOBBY" {
+	if _, ok := got[honeypot.Custom]; ok {
+		t.Fatal("custom is no device type")
+	}
+	if got[honeypot.FileServer].Count != 1 || got[honeypot.FileServer].Examples[0] != "SRV-FILE" || got[honeypot.NAS].Count != 1 || got[honeypot.Printer].Examples[0] != "PRN-LOBBY" {
 		t.Fatalf("%+v", got)
 	}
-	if r.Items == nil || len(r.SpareIPs) != 5 || r.SpareIPs[0] != "192.168.10.230" {
+	if len(r.Items) != 1 || len(r.SpareIPs) != 5 || r.SpareIPs[0] != "192.168.10.230" || !r.SpareChecked {
 		t.Fatalf("%+v", r)
 	}
 	for _, ip := range r.SpareIPs {
 		if ip == "192.168.10.240" {
-			t.Fatal("secondary IP offered as spare")
+			t.Fatal("a Trap IP offered as spare")
 		}
-	}
-	raw, _ := json.Marshal(r)
-	if !strings.Contains(string(raw), `"items":[]`) {
-		t.Fatalf("%s", raw)
 	}
 }
 
@@ -831,15 +842,18 @@ func TestContract_INV13_EveryMutationAudited(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	ctx := e.ctx()
+	var first, second honeypot.TrapIP
 	steps := []struct {
 		action string
 		do     func() error
 	}{
-		{"honeypot.config", func() error { _, err := e.svc.SetConfig(ctx, "a@x", "192.168.10.240", "FILESRV-OLD"); return err }},
-		{"honeypot.trap_enable", func() error { _, err := e.svc.SetTrap(ctx, "a@x", honeypot.SSH, true); return err }},
+		{"honeypot.trap_ip_add", func() (err error) {
+			first, err = e.svc.AddTrapIP(ctx, "a@x", honeypot.TrapIPInput{Name: "FILESRV-OLD", IP: "192.168.10.240", Preset: honeypot.FileServer, Vendor: ptr("dell"), Services: []honeypot.ServiceName{honeypot.SMB, honeypot.SSH}})
+			return err
+		}},
 		{"honeypot.test_hit", func() error { _, err := e.svc.TestHit(ctx, "o@x", honeypot.SSH); return err }},
-		{"honeypot.decoy_add", func() error {
-			_, err := e.svc.AddDecoy(ctx, "a@x", honeypot.DecoyInput{Personality: honeypot.Printer, Name: "PRN-2", IP: "192.168.10.241"})
+		{"honeypot.trap_ip_add", func() (err error) {
+			second, err = e.svc.AddTrapIP(ctx, "a@x", honeypot.TrapIPInput{Name: "PRN-2", IP: "192.168.10.241", Preset: honeypot.Printer, Services: []honeypot.ServiceName{honeypot.HTTP}})
 			return err
 		}},
 		{"honeypot.test_scan", func() error { _, err := e.svc.TestScan(ctx, "o@x"); return err }},
@@ -856,17 +870,19 @@ func TestContract_INV13_EveryMutationAudited(t *testing.T) {
 			t.Fatalf("after %s the log ends with %v", s.action, a)
 		}
 	}
-	dec, _ := e.svc.Decoys(ctx)
 	tok, _ := e.svc.Tokens(ctx)
 	more := []struct {
 		action string
 		do     func() error
 	}{
-		{"honeypot.decoy_disable", func() error { _, err := e.svc.SetDecoyEnabled(ctx, "a@x", dec.Items[0].ID, false); return err }},
-		{"honeypot.decoy_enable", func() error { _, err := e.svc.SetDecoyEnabled(ctx, "a@x", dec.Items[0].ID, true); return err }},
+		{"honeypot.trap_ip_edit", func() error {
+			_, err := e.svc.EditTrapIP(ctx, "a@x", second.ID, honeypot.TrapIPInput{Name: "PRN-3", IP: "192.168.10.241", Preset: honeypot.Printer, Services: []honeypot.ServiceName{honeypot.HTTP}})
+			return err
+		}},
+		{"honeypot.trap_ip_disable", func() error { _, err := e.svc.SetTrapIPEnabled(ctx, "a@x", second.ID, false); return err }},
+		{"honeypot.trap_ip_enable", func() error { _, err := e.svc.SetTrapIPEnabled(ctx, "a@x", second.ID, true); return err }},
 		{"honeypot.test_token", func() error { _, err := e.svc.TestToken(ctx, "o@x", tok[0].ID); return err }},
-		{"honeypot.trap_disable", func() error { _, err := e.svc.SetTrap(ctx, "a@x", honeypot.SSH, false); return err }},
-		{"honeypot.decoy_delete", func() error { return e.svc.DeleteDecoy(ctx, "a@x", dec.Items[0].ID) }},
+		{"honeypot.trap_ip_delete", func() error { return e.svc.DeleteTrapIP(ctx, "a@x", second.ID) }},
 		{"honeypot.token_delete", func() error { return e.svc.DeleteToken(ctx, "a@x", tok[0].ID) }},
 	}
 	for _, s := range more {
@@ -877,15 +893,18 @@ func TestContract_INV13_EveryMutationAudited(t *testing.T) {
 			t.Fatalf("after %s the log ends with %v", s.action, a)
 		}
 	}
-	var user string
-	_ = e.db.Reader().QueryRowContext(ctx, `SELECT user FROM core_audit WHERE action = 'honeypot.config'`).Scan(&user)
-	if user != "a@x" {
-		t.Fatalf("actor %q", user)
+	var user, target, detail string
+	_ = e.db.Reader().QueryRowContext(ctx, `SELECT user, target, detail FROM core_audit WHERE action = 'honeypot.trap_ip_add' ORDER BY seq LIMIT 1`).Scan(&user, &target, &detail)
+	if user != "a@x" || target != first.IP || !strings.Contains(detail, "FILESRV-OLD") || !strings.Contains(detail, "smb") {
+		t.Fatalf("audit of the add: %q %q %q", user, target, detail)
 	}
 	// a refused mutation leaves no trace
 	n := len(e.auditActions())
-	if _, err := e.svc.SetConfig(ctx, "a@x", "10.9.9.9", "X1"); err == nil {
+	if _, err := e.tryAddTrapIP("X1", "10.9.9.9", honeypot.Linux, honeypot.SSH); err == nil {
 		t.Fatal("accepted")
+	}
+	if err := e.svc.DeleteTrapIP(ctx, "a@x", "tip-nope"); apiCode(t, err) != "not_found" {
+		t.Fatal(err)
 	}
 	if len(e.auditActions()) != n {
 		t.Fatal("refused change audited as done")
@@ -929,31 +948,33 @@ func TestOverviewFields(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if o.SecondaryIP != nil || o.Hostname != "" || o.LAN == nil || *o.LAN != "192.168.10.0/24" || o.Box.Name != "vedette-hq" || *o.Box.IP != "192.168.10.2" || len(o.Traps) != 5 || o.UpdatedAt == "" {
+	if o.TrapIPs.Total != 0 || o.SMBName != nil || o.HTTPPage != nil || o.LAN == nil || *o.LAN != "192.168.10.0/24" || o.Box.Name != "vedette-hq" || *o.Box.IP != "192.168.10.2" || len(o.Traps) != 5 || o.UpdatedAt == "" {
 		t.Fatalf("%+v", o)
 	}
 	if o.Traps[0].Service != "smb" || o.Traps[0].Port != 445 || o.Traps[4].Service != "http" {
 		t.Fatalf("%+v", o.Traps)
 	}
 	raw, _ := json.Marshal(o)
-	for _, want := range []string{`"secondary_ip":null`, `"conflict_asset":null`, `"since":null`, `"last_hit_at":null`, `"last_src":null`} {
+	for _, want := range []string{`"smb_name":null`, `"http_page":null`, `"problem":null`, `"last_hit_at":null`, `"last_src":null`, `"trap_ips":[]`} {
 		if !strings.Contains(string(raw), want) {
 			t.Errorf("missing %s in %s", want, raw)
 		}
 	}
+	// D-466 (4): the first Trap IP handed to the host with SMB names the share, the first with HTTP picks the page.
 	e.setup()
-	e.now = e.now.Add(time.Hour)
-	if o, _ = e.svc.Overview(e.ctx()); *o.Traps[2].Since != "2026-11-09T10:00:00.000Z" {
-		t.Fatalf("since %v", *o.Traps[2].Since)
-	}
-	// turning a trap on again keeps its start; off clears it
-	if _, err := e.svc.SetTrap(e.ctx(), "a", honeypot.SSH, true); err != nil {
+	e.addTrapIP("NAS-ARCHIVE", "192.168.10.241", honeypot.NAS, honeypot.HTTP, honeypot.SMB)
+	e.addTrapIP("PRN-FLOOR2", "192.168.10.242", honeypot.Printer, honeypot.HTTP)
+	if err := e.svc.Apply(e.ctx()); err != nil {
 		t.Fatal(err)
 	}
-	if o, _ = e.svc.Overview(e.ctx()); *o.Traps[2].Since != "2026-11-09T10:00:00.000Z" {
-		t.Fatal("since moved")
+	o, _ = e.svc.Overview(e.ctx())
+	if o.TrapIPs != (honeypot.TrapIPCounts{Total: 3, Enabled: 3, Listening: 3}) || o.SMBName == nil || *o.SMBName != "FILESRV-OLD" || o.HTTPPage == nil || *o.HTTPPage != "nas" {
+		t.Fatalf("counts %+v, smb %v, http %v", o.TrapIPs, deref(o.SMBName), deref(o.HTTPPage))
 	}
-	if _, err := e.svc.SetTrap(e.ctx(), "a", "nope", true); apiCode(t, err) != "not_found" {
-		t.Fatal(err)
+	if !slices.Equal(o.Traps[0].TrapIPs, []string{"FILESRV-OLD", "NAS-ARCHIVE"}) || !slices.Equal(o.Traps[4].TrapIPs, []string{"NAS-ARCHIVE", "PRN-FLOOR2"}) || o.Traps[1].Enabled {
+		t.Fatalf("traps %+v", o.Traps)
+	}
+	if b, _ := os.ReadFile(filepath.Join(e.dir, "config", honeypot.TokensFile)); !strings.Contains(string(b), `"netbios_name": "FILESRV-OLD"`) {
+		t.Fatalf("honeytokens.json: %s", b)
 	}
 }

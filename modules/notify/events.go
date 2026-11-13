@@ -276,12 +276,15 @@ func (s *Service) discoveryIncident(ctx context.Context, d Device) error {
 // network: it is cut to size and rendered as plain text by the adapters.
 func (s *Service) hitEvent(ctx context.Context, data any) error {
 	var e struct {
-		ID      string `json:"id"`
-		TS      string `json:"ts"`
-		Kind    string `json:"kind"`
-		Service string `json:"service"`
-		SrcIP   string `json:"src_ip"`
-		Label   string `json:"label"`
+		ID         string `json:"id"`
+		TS         string `json:"ts"`
+		Kind       string `json:"kind"`
+		Service    string `json:"service"`
+		SrcIP      string `json:"src_ip"`
+		Label      string `json:"label"`
+		Decoy      string `json:"decoy"`
+		SrcAssetID string `json:"src_asset_id"`
+		SrcName    string `json:"src_name"`
 	}
 	if err := decode(data, &e); err != nil {
 		return err
@@ -303,11 +306,22 @@ func (s *Service) hitEvent(ctx context.Context, data any) error {
 		title = src + " " + verb + " the " + label
 		what = src + " " + verb + " the " + label + ". It is bait nobody has a reason to touch, so someone is reading where it was planted, or a machine there is infected."
 	}
+	var devs []Device // W1-13: the incident names the source device the inventory knew when the hit was stored
+	if id, name := clip(strings.TrimSpace(e.SrcAssetID), 64), clip(strings.TrimSpace(e.SrcName), 120); id != "" && name != "" {
+		devs = []Device{{ID: id, Name: name}}
+	}
 	at, _ := time.Parse(time.RFC3339, e.TS) // zero = now
-	_, _, err := s.OpenIncident(ctx, IncidentInput{Kind: IncidentTrap, Source: src, Target: label + "|" + e.Service,
+	in := IncidentInput{Kind: IncidentTrap, Source: src, Target: label + "|" + e.Service,
 		Title: title, Severity: Critical, What: what,
 		Action: "Take the machine off the network (unplug the cable, turn off Wi-Fi), then ask its user what they were doing. Do not change passwords from that machine.",
-		Link:   "/honeypot/hits/" + e.ID, At: at})
+		Link:   "/honeypot/hits/" + e.ID, Devices: devs, At: at}
+	if e.Kind == "scan" { // W1-13: one High incident per scanning source while it is open; the touches themselves stay Critical
+		decoys := clip(strings.TrimSpace(e.Decoy), 120)
+		in.Target, in.Severity = "scan", High
+		in.Title = src + " scanned the Trap IPs"
+		in.What = src + " touched several Trap IPs within a minute (" + decoys + "). Nobody uses them, so a machine is mapping your network: often malware looking for its next target, or someone probing."
+	}
+	_, _, err := s.OpenIncident(ctx, in)
 	return err
 }
 

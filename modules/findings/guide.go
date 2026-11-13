@@ -224,6 +224,7 @@ type historyDoc struct {
 type Detail struct {
 	Row
 	Guide
+	FixedIn *FixedIn `json:"fixed_in"` // null when NVD's ranges do not say which release fixes it (D-488)
 }
 
 func newRow(r Record, a *AssetView, k *KevInfo) Row {

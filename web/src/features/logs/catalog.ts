@@ -31,6 +31,8 @@ export interface CatalogEntry {
   /** Giao thức thiết bị thật sự gửi được; phần tử đầu là mặc định. */
   protos: Proto[]
   reads: 'parsed' | 'stored'
+  /** Stored, but failed SSH/PAM logins are read (D-487, W3-10): the picker says so instead of "Stored only". */
+  logins?: true
   /** Vedette đọc gì từ nguồn này (parsed) hoặc vì sao chỉ lưu (stored). */
   readsNote: string
   intro: string
@@ -40,6 +42,8 @@ export interface CatalogEntry {
 }
 
 const STORED = 'Stored and searchable. The digest finds new and unusual lines with a generic pattern finder; it does not read the fields of this device yet, and the bad-connection check does not use these lines yet.'
+// The failed-login rule (D-487) reads the sshd and PAM lines of any stored source; these kinds are the machines that send them.
+const LOGINS = 'Failed logins: 5 failed SSH or PAM logins from one address within 10 minutes raise an incident, and a later accepted login from that address raises a high one. Every line is stored and searchable, and the digest finds new and unusual lines with a generic pattern finder; the bad-connection check does not use these lines yet.'
 const at = (c: Ctx) => `${c.ip}:${c.port}`
 const rsyslogTarget = (c: Ctx, selector = '*.*') => `${selector} action(type="omfwd" target="${c.ip}" port="${c.port}" protocol="${c.proto === 'tcp' ? 'tcp' : 'udp'}")`
 const restartRsyslog: Snippet = { label: 'Terminal', code: 'sudo systemctl restart rsyslog' }
@@ -347,7 +351,7 @@ const E: CatalogEntry[] = [
   },
   {
     // Nguồn: rsyslog documentation, "omfwd: syslog forwarding output module" (rsyslog.com/doc).
-    id: 'linux-rsyslog', group: 'server', name: 'Linux (rsyslog)', keywords: 'linux ubuntu debian centos rhel rocky alma rsyslog server', protos: ['udp', 'tcp'], reads: 'stored', readsNote: STORED,
+    id: 'linux-rsyslog', group: 'server', name: 'Linux (rsyslog)', keywords: 'linux ubuntu debian centos rhel rocky alma rsyslog server', protos: ['udp', 'tcp'], reads: 'stored', logins: true, readsNote: LOGINS,
     intro: 'Most Linux servers already run rsyslog. Add one forwarding rule and restart it.',
     steps: () => ['SSH to the server.', 'Create the file below.', 'Restart rsyslog, then send a test line.'],
     snippets: (c) => [{ label: '/etc/rsyslog.d/60-vedette.conf', code: rsyslogTarget(c) }, restartRsyslog, testLogger],
@@ -355,7 +359,7 @@ const E: CatalogEntry[] = [
   },
   {
     // Nguồn: systemd journald.conf(5) ForwardToSyslog và rsyslog imuxsock/imjournal.
-    id: 'linux-journald', group: 'server', name: 'Linux (systemd-journald via rsyslog)', keywords: 'journald journalctl systemd', protos: ['udp', 'tcp'], reads: 'stored', readsNote: STORED,
+    id: 'linux-journald', group: 'server', name: 'Linux (systemd-journald via rsyslog)', keywords: 'journald journalctl systemd', protos: ['udp', 'tcp'], reads: 'stored', logins: true, readsNote: LOGINS,
     intro: 'journald keeps logs in its own store. Forward them to rsyslog, and rsyslog sends them to the box.',
     steps: () => ['Install rsyslog if it is missing (sudo apt install rsyslog, or sudo dnf install rsyslog).', 'Create the two files below.', 'Restart journald and rsyslog.'],
     snippets: (c) => [
@@ -594,7 +598,7 @@ const E: CatalogEntry[] = [
 
   // ───────── Other and generic ─────────
   {
-    id: 'syslog-generic', group: 'other', name: 'Other device (standard syslog, RFC 3164 / 5424)', keywords: 'syslog generic other rfc 3164 5424 unknown', protos: ['udp', 'tcp', 'tls'], reads: 'stored', readsNote: STORED,
+    id: 'syslog-generic', group: 'other', name: 'Other device (standard syslog, RFC 3164 / 5424)', keywords: 'syslog generic other rfc 3164 5424 unknown', protos: ['udp', 'tcp', 'tls'], reads: 'stored', logins: true, readsNote: LOGINS,
     intro: 'Any device or program that can send standard syslog works. Point it at the address below.',
     steps: (c) => [`Find the remote syslog (or log server) setting in the device and enter ${c.ip}.`, `Set the port to ${c.port} and the protocol to ${c.proto.toUpperCase()}.`, 'Choose the log types to send and save.'],
     snippets: (c) => [{ label: 'Where to send', code: [`Server: ${c.ip}`, `Port: ${c.port}`, `Protocol: ${c.proto.toUpperCase()}`, 'Format: RFC 3164 or RFC 5424'].join('\n') }],

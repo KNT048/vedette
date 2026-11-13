@@ -27541,6 +27541,89 @@
                       ],
                       "description": "Read from KEV, not from the project recommendation pack"
                     },
+                    "fixed_in": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": {
+                              "type": "string",
+                              "enum": [
+                                "fixed",
+                                "up_to",
+                                "branches",
+                                "distro"
+                              ],
+                              "description": "fixed = the device version is inside a range that ends before `fixed`, and `fixed` is outside every range that applies; up_to = inside a range whose end `fixed` is itself affected (no fixed release named); branches = the version is unknown or unreadable, `branches` lists the fix of each release line; distro = the version is a distribution package's (marker such as ubuntu, +deb12, .el9), no number is named"
+                            },
+                            "version": {
+                              "type": "string",
+                              "description": "The device's version; for branches empty when it has none, else the text Vedette cannot read"
+                            },
+                            "fixed": {
+                              "type": "string",
+                              "description": "The fixed release (fixed), the last affected release (up_to); empty for branches"
+                            },
+                            "branches": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "branch": {
+                                    "type": "string",
+                                    "description": "Release line such as 7.4; empty when it cannot be told"
+                                  },
+                                  "fixed": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "branch",
+                                  "fixed"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "description": "At most 5, newest first"
+                            },
+                            "more": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991,
+                              "description": "Release lines with a fix left out of branches"
+                            },
+                            "no_fix": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991,
+                              "description": "Release lines NVD gives no fixed release for (a range that ends at an affected version)"
+                            },
+                            "distro": {
+                              "type": "string",
+                              "description": "\"Ubuntu\" or \"Debian\" when the device runs one and the version has no distribution marker: the page adds \"if you installed it from the distribution's packages, install its security updates instead\"; empty otherwise"
+                            },
+                            "source": {
+                              "type": "string",
+                              "description": "Where the versions come from: \"NVD affected versions\""
+                            }
+                          },
+                          "required": [
+                            "kind",
+                            "version",
+                            "fixed",
+                            "branches",
+                            "more",
+                            "no_fix",
+                            "distro",
+                            "source"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "The release that fixes this finding on this device, from the NVD affected versions (D-488); null = NVD gives none, the page shows CISA and the vendor advisory only"
+                    },
                     "pack": {
                       "anyOf": [
                         {
@@ -28159,6 +28242,7 @@
                     "history",
                     "asset",
                     "kev",
+                    "fixed_in",
                     "pack",
                     "compromise",
                     "recheck",
@@ -28508,6 +28592,89 @@
                       ],
                       "description": "Read from KEV, not from the project recommendation pack"
                     },
+                    "fixed_in": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": {
+                              "type": "string",
+                              "enum": [
+                                "fixed",
+                                "up_to",
+                                "branches",
+                                "distro"
+                              ],
+                              "description": "fixed = the device version is inside a range that ends before `fixed`, and `fixed` is outside every range that applies; up_to = inside a range whose end `fixed` is itself affected (no fixed release named); branches = the version is unknown or unreadable, `branches` lists the fix of each release line; distro = the version is a distribution package's (marker such as ubuntu, +deb12, .el9), no number is named"
+                            },
+                            "version": {
+                              "type": "string",
+                              "description": "The device's version; for branches empty when it has none, else the text Vedette cannot read"
+                            },
+                            "fixed": {
+                              "type": "string",
+                              "description": "The fixed release (fixed), the last affected release (up_to); empty for branches"
+                            },
+                            "branches": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "branch": {
+                                    "type": "string",
+                                    "description": "Release line such as 7.4; empty when it cannot be told"
+                                  },
+                                  "fixed": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "branch",
+                                  "fixed"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "description": "At most 5, newest first"
+                            },
+                            "more": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991,
+                              "description": "Release lines with a fix left out of branches"
+                            },
+                            "no_fix": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991,
+                              "description": "Release lines NVD gives no fixed release for (a range that ends at an affected version)"
+                            },
+                            "distro": {
+                              "type": "string",
+                              "description": "\"Ubuntu\" or \"Debian\" when the device runs one and the version has no distribution marker: the page adds \"if you installed it from the distribution's packages, install its security updates instead\"; empty otherwise"
+                            },
+                            "source": {
+                              "type": "string",
+                              "description": "Where the versions come from: \"NVD affected versions\""
+                            }
+                          },
+                          "required": [
+                            "kind",
+                            "version",
+                            "fixed",
+                            "branches",
+                            "more",
+                            "no_fix",
+                            "distro",
+                            "source"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "The release that fixes this finding on this device, from the NVD affected versions (D-488); null = NVD gives none, the page shows CISA and the vendor advisory only"
+                    },
                     "pack": {
                       "anyOf": [
                         {
@@ -29126,6 +29293,7 @@
                     "history",
                     "asset",
                     "kev",
+                    "fixed_in",
                     "pack",
                     "compromise",
                     "recheck",
@@ -29477,6 +29645,89 @@
                       ],
                       "description": "Read from KEV, not from the project recommendation pack"
                     },
+                    "fixed_in": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": {
+                              "type": "string",
+                              "enum": [
+                                "fixed",
+                                "up_to",
+                                "branches",
+                                "distro"
+                              ],
+                              "description": "fixed = the device version is inside a range that ends before `fixed`, and `fixed` is outside every range that applies; up_to = inside a range whose end `fixed` is itself affected (no fixed release named); branches = the version is unknown or unreadable, `branches` lists the fix of each release line; distro = the version is a distribution package's (marker such as ubuntu, +deb12, .el9), no number is named"
+                            },
+                            "version": {
+                              "type": "string",
+                              "description": "The device's version; for branches empty when it has none, else the text Vedette cannot read"
+                            },
+                            "fixed": {
+                              "type": "string",
+                              "description": "The fixed release (fixed), the last affected release (up_to); empty for branches"
+                            },
+                            "branches": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "branch": {
+                                    "type": "string",
+                                    "description": "Release line such as 7.4; empty when it cannot be told"
+                                  },
+                                  "fixed": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "branch",
+                                  "fixed"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "description": "At most 5, newest first"
+                            },
+                            "more": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991,
+                              "description": "Release lines with a fix left out of branches"
+                            },
+                            "no_fix": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991,
+                              "description": "Release lines NVD gives no fixed release for (a range that ends at an affected version)"
+                            },
+                            "distro": {
+                              "type": "string",
+                              "description": "\"Ubuntu\" or \"Debian\" when the device runs one and the version has no distribution marker: the page adds \"if you installed it from the distribution's packages, install its security updates instead\"; empty otherwise"
+                            },
+                            "source": {
+                              "type": "string",
+                              "description": "Where the versions come from: \"NVD affected versions\""
+                            }
+                          },
+                          "required": [
+                            "kind",
+                            "version",
+                            "fixed",
+                            "branches",
+                            "more",
+                            "no_fix",
+                            "distro",
+                            "source"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "The release that fixes this finding on this device, from the NVD affected versions (D-488); null = NVD gives none, the page shows CISA and the vendor advisory only"
+                    },
                     "pack": {
                       "anyOf": [
                         {
@@ -30095,6 +30346,7 @@
                     "history",
                     "asset",
                     "kev",
+                    "fixed_in",
                     "pack",
                     "compromise",
                     "recheck",
@@ -30451,6 +30703,89 @@
                       ],
                       "description": "Read from KEV, not from the project recommendation pack"
                     },
+                    "fixed_in": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": {
+                              "type": "string",
+                              "enum": [
+                                "fixed",
+                                "up_to",
+                                "branches",
+                                "distro"
+                              ],
+                              "description": "fixed = the device version is inside a range that ends before `fixed`, and `fixed` is outside every range that applies; up_to = inside a range whose end `fixed` is itself affected (no fixed release named); branches = the version is unknown or unreadable, `branches` lists the fix of each release line; distro = the version is a distribution package's (marker such as ubuntu, +deb12, .el9), no number is named"
+                            },
+                            "version": {
+                              "type": "string",
+                              "description": "The device's version; for branches empty when it has none, else the text Vedette cannot read"
+                            },
+                            "fixed": {
+                              "type": "string",
+                              "description": "The fixed release (fixed), the last affected release (up_to); empty for branches"
+                            },
+                            "branches": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "branch": {
+                                    "type": "string",
+                                    "description": "Release line such as 7.4; empty when it cannot be told"
+                                  },
+                                  "fixed": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "branch",
+                                  "fixed"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "description": "At most 5, newest first"
+                            },
+                            "more": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991,
+                              "description": "Release lines with a fix left out of branches"
+                            },
+                            "no_fix": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991,
+                              "description": "Release lines NVD gives no fixed release for (a range that ends at an affected version)"
+                            },
+                            "distro": {
+                              "type": "string",
+                              "description": "\"Ubuntu\" or \"Debian\" when the device runs one and the version has no distribution marker: the page adds \"if you installed it from the distribution's packages, install its security updates instead\"; empty otherwise"
+                            },
+                            "source": {
+                              "type": "string",
+                              "description": "Where the versions come from: \"NVD affected versions\""
+                            }
+                          },
+                          "required": [
+                            "kind",
+                            "version",
+                            "fixed",
+                            "branches",
+                            "more",
+                            "no_fix",
+                            "distro",
+                            "source"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "The release that fixes this finding on this device, from the NVD affected versions (D-488); null = NVD gives none, the page shows CISA and the vendor advisory only"
+                    },
                     "pack": {
                       "anyOf": [
                         {
@@ -31069,6 +31404,7 @@
                     "history",
                     "asset",
                     "kev",
+                    "fixed_in",
                     "pack",
                     "compromise",
                     "recheck",

@@ -243,3 +243,19 @@ func TestModuleOffMeansNoRoutes(t *testing.T) {
 		t.Fatal("data must stay")
 	}
 }
+
+// D-488: GET /findings/{id} says the fixed release for the device when NVD's range gives one, and null when it does not.
+func TestFindingDetail_FixedIn(t *testing.T) {
+	t.Parallel()
+	e := newHTTPEnv(t)
+	id := e.seed()
+	if _, b := e.call("GET", "/findings/"+id, "viewer", ""); b["fixed_in"] != nil {
+		t.Fatalf("no NVD range: fixed_in = %v", b["fixed_in"])
+	}
+	e.feeds.vulns = []Vuln{qnapVuln(Affected{CPE: "cpe:2.3:a:qnap:photo_station:*:*:*:*:*:*:*:*", Range: VersionRange{StartIncl: "6.0.0", EndExcl: "6.1.2"}})}
+	_, b := e.call("GET", "/findings/"+id, "viewer", "")
+	f, _ := b["fixed_in"].(map[string]any)
+	if f["kind"] != "fixed" || f["version"] != "6.1.1" || f["fixed"] != "6.1.2" || f["source"] != "NVD affected versions" {
+		t.Fatalf("fixed_in = %v", b["fixed_in"])
+	}
+}

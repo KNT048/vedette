@@ -263,7 +263,9 @@ type Config struct {
 	LinkSender  LinkSender  // nil = My account cannot ask for a new confirm link on a chat channel (400 chat_channel), D-414
 	// Critical lists the open critical findings with their device, for the plan job. nil = no plan is asked for.
 	Critical func(ctx context.Context) ([]PlanTarget, error)
-	Evidence EvidencePorts // a nil port means no such evidence exists: an AI proposal naming it is refused (422 evidence_invalid)
+	// Incidents reads an incident and its source for Respond (D-509); nil = no incident can be read (404).
+	Incidents IncidentReader
+	Evidence  EvidencePorts // a nil port means no such evidence exists: an AI proposal naming it is refused (422 evidence_invalid)
 
 	Clock func() time.Time
 	// BoxAddrs adds to the addresses of the network interfaces, which always count as never-touch and as forbidden webhook targets. An error

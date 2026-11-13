@@ -110,7 +110,8 @@
     "links": "Approval links that would be emailed",
     "linksHint": "Preview build only. On a real box each approver gets their own link by email. Opening a link shows the change and changes nothing: the approver must press a button on the page.",
     "linkUsed": "already used",
-    "linkUntil": "valid until {{time}}"
+    "linkUntil": "valid until {{time}}",
+    "fromPerson": "From an incident"
   },
   "stop": {
     "button": "Emergency stop",
@@ -772,5 +773,31 @@
     "already": "{{account}} is already linked to your account.",
     "toAccount": "Open My account",
     "namedBy": "Named \"{{name}}\" by your administrator."
+  },
+  "incident": {
+    "heading": "Respond to this incident",
+    "source": "Source",
+    "scope": {
+      "lan": "On your network",
+      "public": "Public address"
+    },
+    "noSource": "This incident names no single address Vedette can act on, so there is nothing to ask for here.",
+    "toRules": "Rule templates",
+    "on": "On {{connection}}",
+    "noConnection": "No connection chosen",
+    "undo": "Undone after {{hours}} hours",
+    "ask": "Ask for approval",
+    "requested": "Already asked for: see Requests",
+    "sent": "Sent for approval: {{title}}. Nothing changes until someone approves it.",
+    "sentToast": "Request sent for approval",
+    "toRequests": "Open Requests",
+    "lanNothing": "Vedette cannot cut this machine off for you yet.",
+    "doNow": "Do this now:",
+    "letVedette": "To let Vedette block it next time: connect your firewall or switch in",
+    "toConnections": "Settings, Connections",
+    "thenCatalog": ", choose that connection on its block action in",
+    "toCatalog": "the action catalog",
+    "thenRule": ", and turn on a trap rule from",
+    "noBlocklist": "The block list only carries public addresses, so it cannot hold {{ip}}: it is on your network."
   }
 }

@@ -2509,6 +2509,16 @@ func (UnimplementedHandler) ResponseGetResponseEvents(ctx context.Context) (r *R
 	return r, ht.ErrNotImplemented
 }
 
+// ResponseGetResponseIncidentsID implements response_get_response_incidents_id operation.
+//
+// Respond to an incident (D-509): its source address and device, LAN or public, and the actions that
+// can really be asked for it, each with why it is not ready.
+//
+// GET /response/incidents/{id}
+func (UnimplementedHandler) ResponseGetResponseIncidentsID(ctx context.Context, params ResponseGetResponseIncidentsIDParams) (r *ResponseGetResponseIncidentsIDOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // ResponseGetResponseLog implements response_get_response_log operation.
 //
 // Tamper-evident response log: every rule, dry run, simulation, proposal, request, decision,
@@ -2699,6 +2709,19 @@ func (UnimplementedHandler) ResponsePostResponseEmergencyStop(ctx context.Contex
 //
 // POST /response/execution
 func (UnimplementedHandler) ResponsePostResponseExecution(ctx context.Context, req *ResponsePostResponseExecutionReq) (r *ResponsePostResponseExecutionOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ResponsePostResponseIncidentsIDRequest implements response_post_response_incidents_id_request operation.
+//
+// Ask for approval of one offered action on the incident's source (D-509). The server reads the source
+// from the incident; the request waits for approval like any other (expiry, undo after 24 hours, log).
+// Refused when the action is not offered for this source, a device action while execution is off, a
+// request is already open, the incident is resolved (incident_resolved) or the source of a scan may be
+// forged (source_unconfirmed).
+//
+// POST /response/incidents/{id}/request
+func (UnimplementedHandler) ResponsePostResponseIncidentsIDRequest(ctx context.Context, req *ResponsePostResponseIncidentsIDRequestReq, params ResponsePostResponseIncidentsIDRequestParams) (r *ResponsePostResponseIncidentsIDRequestCreated, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

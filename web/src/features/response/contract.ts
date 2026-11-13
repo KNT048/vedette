@@ -91,8 +91,9 @@ export const AiMeta = z.object({
   second_check: z.object({ ok: z.boolean(), notes: z.string() }).nullable().describe('Deterministic second checker, only for high-risk actions'),
   in_app_only: z.boolean().describe('High risk: only an in-app approval with the two-step code counts'),
 })
+export const RequestSource = z.enum(['ai', 'rule', 'person']).describe('Who asked: the AI, a rule, or a person from an incident (D-509)')
 export const ActionRequest = z.object({
-  id, source: z.enum(['ai', 'rule']), proposal_id: z.string(), rule_id: z.string().nullable(), rule_name: z.string().nullable(),
+  id, source: RequestSource, proposal_id: z.string().describe('The AI plan proposal, rule:<rule>:<event> for a rule run, or incident:<id> for a request asked from an incident (D-509)'), rule_id: z.string().nullable(), rule_name: z.string().nullable(),
   trigger: TriggerKind.nullable(), trigger_summary: z.string().nullable(),
   finding_id: z.string().nullable(), cve: z.string().nullable(), asset_id: z.string().nullable(), asset_name: z.string(),
   title: z.string(), items: z.array(RequestItem), risk: Risk.describe('Highest risk among the actions'),
@@ -255,7 +256,29 @@ export const ProposeResult = z.object({ outcome: z.enum(['request', 'suggestion'
 export const Stat = z.object({ sent: z.number().int(), approved: z.number().int(), rejected: z.number().int(), expired: z.number().int(), pending: z.number().int(), acceptance_rate: z.number().nullable(), median_approve_min: z.number().nullable() })
 export const Metrics = z.object({
   ai: Stat, rules: Stat, suggestions: z.number().int(), digested: z.number().int(),
-  rejected: z.array(z.object({ id, title: z.string(), source: z.enum(['ai', 'rule']), reason: z.string(), at: iso })),
+  rejected: z.array(z.object({ id, title: z.string(), source: RequestSource, reason: z.string(), at: iso })),
+})
+
+// ---- Respond from an incident (D-509, S-RESP-3): the incident's source and what can really be asked for it ----
+export const IncidentSource = z.object({
+  ip: z.string().describe('Read by the server from the incident (a trap: the hit), never sent by the browser'),
+  device: z.string().nullable().describe('The inventory name of the source, when known'),
+  asset_id: z.string().nullable(),
+  scope: z.enum(['lan', 'public']).describe('lan: an address the block list never publishes (private, CGNAT, link-local…, D-469); public: any other'),
+})
+export const IncidentOption = z.object({
+  action_id: id, name: z.string().describe('The catalog action'), title: z.string().describe('What the request will say, for example "Add 203.0.113.9 to the block list"'),
+  connection: z.string().nullable().describe('The connection a device action runs on; null for the block list'),
+  device: z.boolean(), risk: Risk, ttl_min: z.number().int().describe('Undo time of the request: 1440 (24 hours)'),
+  ready: z.boolean(), why: z.string().nullable().describe('Why it cannot be asked for now, in plain words; null when ready'),
+  requested: z.boolean().describe('The same action on this address is already open or in force'),
+})
+export const IncidentPanel = z.object({
+  incident: z.object({ id: z.string(), kind: z.string(), title: z.string(), action: z.string().describe("The incident's own advice"), status: z.string().describe('new, acknowledged or resolved') }),
+  note: z.string().nullable().describe('Why nothing can be asked although the source is known: the incident is resolved (no options), or the source of a scan may be forged (every option not ready)'),
+  source: IncidentSource.nullable().describe('null: the incident names no single address Vedette can act on (another kind, a test hit, unreadable)'),
+  options: z.array(IncidentOption).describe('Device actions whose only parameter is {ip} that are on or have a connection, and the block list for a public source. The source of a scan that completed no connection may be forged: every option is then not ready'),
+  execution: z.boolean(),
 })
 
 const idParams = z.object({ id })
@@ -268,6 +291,9 @@ export const endpoints = defineEndpoints([
   R({ method: 'get', path: '/response/actions', summary: 'Requests (one bundled request per rule run or AI proposal) with items, approvals, status, exact changes, rollback and read-back result', stories: ['S-RESP-2', 'S-RESP-3'], role: 'viewer', response: ActionList }),
   R({ method: 'post', path: '/response/proposals/{id}/request', status: 201, summary: 'Ask for approval of one action proposed in an AI plan (refused when execution is off, the action is not enabled or a request is already open)', stories: ['S-RESP-2'], role: 'operator',
     params: idParams, response: ActionRequest }),
+  R({ method: 'get', path: '/response/incidents/{id}', summary: 'Respond to an incident (D-509): its source address and device, LAN or public, and the actions that can really be asked for it, each with why it is not ready', stories: ['S-RESP-3'], role: 'viewer', params: idParams, response: IncidentPanel }),
+  R({ method: 'post', path: '/response/incidents/{id}/request', status: 201, summary: "Ask for approval of one offered action on the incident's source (D-509). The server reads the source from the incident; the request waits for approval like any other (expiry, undo after 24 hours, log). Refused when the action is not offered for this source, a device action while execution is off, a request is already open, the incident is resolved (incident_resolved) or the source of a scan may be forged (source_unconfirmed)", stories: ['S-RESP-3'], role: 'operator',
+    params: idParams, body: z.object({ action_id: id }), response: ActionRequest }),
   R({ method: 'post', path: '/response/actions/{id}/approve', summary: 'Approve a request in the app: all actions or the ones picked. High-risk requests need a second, different approver; AI high-risk requests need the two-step code', stories: ['S-RESP-2'], role: 'operator',
     params: idParams, body: z.object({ items: z.array(z.string()).optional(), code: z.string().optional() }), response: ActionRequest }),
   R({ method: 'post', path: '/response/actions/{id}/reject', summary: 'Reject a pending request; for an AI request the reason can be saved as a rule or memory hint', stories: ['S-RESP-2'], role: 'operator',

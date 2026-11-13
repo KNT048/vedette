@@ -92936,6 +92936,51 @@ func (o NilResponseGetResponseCatalogOKItemsItemConnectionKind) Or(d ResponseGet
 	return d
 }
 
+// NewNilResponseGetResponseIncidentsIDOKSource returns new NilResponseGetResponseIncidentsIDOKSource with value set to v.
+func NewNilResponseGetResponseIncidentsIDOKSource(v ResponseGetResponseIncidentsIDOKSource) NilResponseGetResponseIncidentsIDOKSource {
+	return NilResponseGetResponseIncidentsIDOKSource{
+		Value: v,
+	}
+}
+
+// NilResponseGetResponseIncidentsIDOKSource is nullable ResponseGetResponseIncidentsIDOKSource.
+type NilResponseGetResponseIncidentsIDOKSource struct {
+	Value ResponseGetResponseIncidentsIDOKSource
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilResponseGetResponseIncidentsIDOKSource) SetTo(v ResponseGetResponseIncidentsIDOKSource) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilResponseGetResponseIncidentsIDOKSource) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilResponseGetResponseIncidentsIDOKSource) SetToNull() {
+	o.Null = true
+	var v ResponseGetResponseIncidentsIDOKSource
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilResponseGetResponseIncidentsIDOKSource) Get() (v ResponseGetResponseIncidentsIDOKSource, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilResponseGetResponseIncidentsIDOKSource) Or(d ResponseGetResponseIncidentsIDOKSource) ResponseGetResponseIncidentsIDOKSource {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilResponseGetResponsePlansOKItemsItemStepsItemProposal returns new NilResponseGetResponsePlansOKItemsItemStepsItemProposal with value set to v.
 func NewNilResponseGetResponsePlansOKItemsItemStepsItemProposal(v ResponseGetResponsePlansOKItemsItemStepsItemProposal) NilResponseGetResponsePlansOKItemsItemStepsItemProposal {
 	return NilResponseGetResponsePlansOKItemsItemStepsItemProposal{
@@ -94838,6 +94883,282 @@ func (o NilResponsePostResponseCatalogCreatedConnectionKind) Get() (v ResponsePo
 
 // Or returns value if set, or given parameter if does not.
 func (o NilResponsePostResponseCatalogCreatedConnectionKind) Or(d ResponsePostResponseCatalogCreatedConnectionKind) ResponsePostResponseCatalogCreatedConnectionKind {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilResponsePostResponseIncidentsIDRequestCreatedAi returns new NilResponsePostResponseIncidentsIDRequestCreatedAi with value set to v.
+func NewNilResponsePostResponseIncidentsIDRequestCreatedAi(v ResponsePostResponseIncidentsIDRequestCreatedAi) NilResponsePostResponseIncidentsIDRequestCreatedAi {
+	return NilResponsePostResponseIncidentsIDRequestCreatedAi{
+		Value: v,
+	}
+}
+
+// NilResponsePostResponseIncidentsIDRequestCreatedAi is nullable ResponsePostResponseIncidentsIDRequestCreatedAi.
+type NilResponsePostResponseIncidentsIDRequestCreatedAi struct {
+	Value ResponsePostResponseIncidentsIDRequestCreatedAi
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilResponsePostResponseIncidentsIDRequestCreatedAi) SetTo(v ResponsePostResponseIncidentsIDRequestCreatedAi) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilResponsePostResponseIncidentsIDRequestCreatedAi) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilResponsePostResponseIncidentsIDRequestCreatedAi) SetToNull() {
+	o.Null = true
+	var v ResponsePostResponseIncidentsIDRequestCreatedAi
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilResponsePostResponseIncidentsIDRequestCreatedAi) Get() (v ResponsePostResponseIncidentsIDRequestCreatedAi, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilResponsePostResponseIncidentsIDRequestCreatedAi) Or(d ResponsePostResponseIncidentsIDRequestCreatedAi) ResponsePostResponseIncidentsIDRequestCreatedAi {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilResponsePostResponseIncidentsIDRequestCreatedAiSecondCheck returns new NilResponsePostResponseIncidentsIDRequestCreatedAiSecondCheck with value set to v.
+func NewNilResponsePostResponseIncidentsIDRequestCreatedAiSecondCheck(v ResponsePostResponseIncidentsIDRequestCreatedAiSecondCheck) NilResponsePostResponseIncidentsIDRequestCreatedAiSecondCheck {
+	return NilResponsePostResponseIncidentsIDRequestCreatedAiSecondCheck{
+		Value: v,
+	}
+}
+
+// NilResponsePostResponseIncidentsIDRequestCreatedAiSecondCheck is nullable ResponsePostResponseIncidentsIDRequestCreatedAiSecondCheck.
+type NilResponsePostResponseIncidentsIDRequestCreatedAiSecondCheck struct {
+	Value ResponsePostResponseIncidentsIDRequestCreatedAiSecondCheck
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilResponsePostResponseIncidentsIDRequestCreatedAiSecondCheck) SetTo(v ResponsePostResponseIncidentsIDRequestCreatedAiSecondCheck) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilResponsePostResponseIncidentsIDRequestCreatedAiSecondCheck) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilResponsePostResponseIncidentsIDRequestCreatedAiSecondCheck) SetToNull() {
+	o.Null = true
+	var v ResponsePostResponseIncidentsIDRequestCreatedAiSecondCheck
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilResponsePostResponseIncidentsIDRequestCreatedAiSecondCheck) Get() (v ResponsePostResponseIncidentsIDRequestCreatedAiSecondCheck, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilResponsePostResponseIncidentsIDRequestCreatedAiSecondCheck) Or(d ResponsePostResponseIncidentsIDRequestCreatedAiSecondCheck) ResponsePostResponseIncidentsIDRequestCreatedAiSecondCheck {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRest returns new NilResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRest with value set to v.
+func NewNilResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRest(v ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRest) NilResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRest {
+	return NilResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRest{
+		Value: v,
+	}
+}
+
+// NilResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRest is nullable ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRest.
+type NilResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRest struct {
+	Value ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRest
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRest) SetTo(v ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRest) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRest) IsNull() bool {
+	return o.Null
+}
+
+// SetToNull sets value to null.
+func (o *NilResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRest) SetToNull() {
+	o.Null = true
+	var v ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRest
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRest) Get() (v ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRest, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRest) Or(d ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRest) ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRest {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRollbackRest returns new NilResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRollbackRest with value set to v.
+func NewNilResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRollbackRest(v ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRollbackRest) NilResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRollbackRest {
+	return NilResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRollbackRest{
+		Value: v,
+	}
+}
+
+// NilResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRollbackRest is nullable ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRollbackRest.
+type NilResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRollbackRest struct {
+	Value ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRollbackRest
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRollbackRest) SetTo(v ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRollbackRest) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRollbackRest) IsNull() bool {
+	return o.Null
+}
+
+// SetToNull sets value to null.
+func (o *NilResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRollbackRest) SetToNull() {
+	o.Null = true
+	var v ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRollbackRest
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRollbackRest) Get() (v ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRollbackRest, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRollbackRest) Or(d ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRollbackRest) ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRollbackRest {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilResponsePostResponseIncidentsIDRequestCreatedItemsItemVerified returns new NilResponsePostResponseIncidentsIDRequestCreatedItemsItemVerified with value set to v.
+func NewNilResponsePostResponseIncidentsIDRequestCreatedItemsItemVerified(v ResponsePostResponseIncidentsIDRequestCreatedItemsItemVerified) NilResponsePostResponseIncidentsIDRequestCreatedItemsItemVerified {
+	return NilResponsePostResponseIncidentsIDRequestCreatedItemsItemVerified{
+		Value: v,
+	}
+}
+
+// NilResponsePostResponseIncidentsIDRequestCreatedItemsItemVerified is nullable ResponsePostResponseIncidentsIDRequestCreatedItemsItemVerified.
+type NilResponsePostResponseIncidentsIDRequestCreatedItemsItemVerified struct {
+	Value ResponsePostResponseIncidentsIDRequestCreatedItemsItemVerified
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilResponsePostResponseIncidentsIDRequestCreatedItemsItemVerified) SetTo(v ResponsePostResponseIncidentsIDRequestCreatedItemsItemVerified) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilResponsePostResponseIncidentsIDRequestCreatedItemsItemVerified) IsNull() bool {
+	return o.Null
+}
+
+// SetToNull sets value to null.
+func (o *NilResponsePostResponseIncidentsIDRequestCreatedItemsItemVerified) SetToNull() {
+	o.Null = true
+	var v ResponsePostResponseIncidentsIDRequestCreatedItemsItemVerified
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilResponsePostResponseIncidentsIDRequestCreatedItemsItemVerified) Get() (v ResponsePostResponseIncidentsIDRequestCreatedItemsItemVerified, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilResponsePostResponseIncidentsIDRequestCreatedItemsItemVerified) Or(d ResponsePostResponseIncidentsIDRequestCreatedItemsItemVerified) ResponsePostResponseIncidentsIDRequestCreatedItemsItemVerified {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilResponsePostResponseIncidentsIDRequestCreatedTrigger returns new NilResponsePostResponseIncidentsIDRequestCreatedTrigger with value set to v.
+func NewNilResponsePostResponseIncidentsIDRequestCreatedTrigger(v ResponsePostResponseIncidentsIDRequestCreatedTrigger) NilResponsePostResponseIncidentsIDRequestCreatedTrigger {
+	return NilResponsePostResponseIncidentsIDRequestCreatedTrigger{
+		Value: v,
+	}
+}
+
+// NilResponsePostResponseIncidentsIDRequestCreatedTrigger is nullable ResponsePostResponseIncidentsIDRequestCreatedTrigger.
+type NilResponsePostResponseIncidentsIDRequestCreatedTrigger struct {
+	Value ResponsePostResponseIncidentsIDRequestCreatedTrigger
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilResponsePostResponseIncidentsIDRequestCreatedTrigger) SetTo(v ResponsePostResponseIncidentsIDRequestCreatedTrigger) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilResponsePostResponseIncidentsIDRequestCreatedTrigger) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilResponsePostResponseIncidentsIDRequestCreatedTrigger) SetToNull() {
+	o.Null = true
+	var v ResponsePostResponseIncidentsIDRequestCreatedTrigger
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilResponsePostResponseIncidentsIDRequestCreatedTrigger) Get() (v ResponsePostResponseIncidentsIDRequestCreatedTrigger, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilResponsePostResponseIncidentsIDRequestCreatedTrigger) Or(d ResponsePostResponseIncidentsIDRequestCreatedTrigger) ResponsePostResponseIncidentsIDRequestCreatedTrigger {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -112843,7 +113164,9 @@ type ResponseGetResponseActionsOKItemsItem struct {
 	Items      []ResponseGetResponseActionsOKItemsItemItemsItem      `json:"items"`
 	Note       NilString                                             `json:"note"`
 	// Carried out by the rule pre-approval option, without a person.
-	PreApproved       bool      `json:"pre_approved"`
+	PreApproved bool `json:"pre_approved"`
+	// The AI plan proposal, rule:: for a rule run, or incident: for a request asked from an incident
+	// (D-509).
 	ProposalID        string    `json:"proposal_id"`
 	RequestedAt       time.Time `json:"requested_at"`
 	RequiresApprovals int       `json:"requires_approvals"`
@@ -112852,7 +113175,8 @@ type ResponseGetResponseActionsOKItemsItem struct {
 	RuleID   NilString                                 `json:"rule_id"`
 	RuleName NilString                                 `json:"rule_name"`
 	// Channels that received the approval request.
-	SentTo         []string                                        `json:"sent_to"`
+	SentTo []string `json:"sent_to"`
+	// Who asked: the AI, a rule, or a person from an incident (D-509).
 	Source         ResponseGetResponseActionsOKItemsItemSource     `json:"source"`
 	Status         ResponseGetResponseActionsOKItemsItemStatus     `json:"status"`
 	Title          string                                          `json:"title"`
@@ -114284,11 +114608,13 @@ func (s *ResponseGetResponseActionsOKItemsItemRisk) UnmarshalText(data []byte) e
 	}
 }
 
+// Who asked: the AI, a rule, or a person from an incident (D-509).
 type ResponseGetResponseActionsOKItemsItemSource string
 
 const (
-	ResponseGetResponseActionsOKItemsItemSourceAi   ResponseGetResponseActionsOKItemsItemSource = "ai"
-	ResponseGetResponseActionsOKItemsItemSourceRule ResponseGetResponseActionsOKItemsItemSource = "rule"
+	ResponseGetResponseActionsOKItemsItemSourceAi     ResponseGetResponseActionsOKItemsItemSource = "ai"
+	ResponseGetResponseActionsOKItemsItemSourceRule   ResponseGetResponseActionsOKItemsItemSource = "rule"
+	ResponseGetResponseActionsOKItemsItemSourcePerson ResponseGetResponseActionsOKItemsItemSource = "person"
 )
 
 // AllValues returns all ResponseGetResponseActionsOKItemsItemSource values.
@@ -114296,6 +114622,7 @@ func (ResponseGetResponseActionsOKItemsItemSource) AllValues() []ResponseGetResp
 	return []ResponseGetResponseActionsOKItemsItemSource{
 		ResponseGetResponseActionsOKItemsItemSourceAi,
 		ResponseGetResponseActionsOKItemsItemSourceRule,
+		ResponseGetResponseActionsOKItemsItemSourcePerson,
 	}
 }
 
@@ -114305,6 +114632,8 @@ func (s ResponseGetResponseActionsOKItemsItemSource) MarshalText() ([]byte, erro
 	case ResponseGetResponseActionsOKItemsItemSourceAi:
 		return []byte(s), nil
 	case ResponseGetResponseActionsOKItemsItemSourceRule:
+		return []byte(s), nil
+	case ResponseGetResponseActionsOKItemsItemSourcePerson:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -114319,6 +114648,9 @@ func (s *ResponseGetResponseActionsOKItemsItemSource) UnmarshalText(data []byte)
 		return nil
 	case ResponseGetResponseActionsOKItemsItemSourceRule:
 		*s = ResponseGetResponseActionsOKItemsItemSourceRule
+		return nil
+	case ResponseGetResponseActionsOKItemsItemSourcePerson:
+		*s = ResponseGetResponseActionsOKItemsItemSourcePerson
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -117452,6 +117784,391 @@ func (s *ResponseGetResponseEventsOKItemsItemTrigger) UnmarshalText(data []byte)
 	}
 }
 
+type ResponseGetResponseIncidentsIDOK struct {
+	Execution bool                                     `json:"execution"`
+	Incident  ResponseGetResponseIncidentsIDOKIncident `json:"incident"`
+	// Why nothing can be asked although the source is known: the incident is resolved (no options), or the
+	// source of a scan may be forged (every option not ready).
+	Note NilString `json:"note"`
+	// Device actions whose only parameter is {ip} that are on or have a connection, and the block list for
+	// a public source. The source of a scan that completed no connection may be forged: every option is
+	// then not ready.
+	Options []ResponseGetResponseIncidentsIDOKOptionsItem `json:"options"`
+	// Null: the incident names no single address Vedette can act on (another kind, a test hit, unreadable).
+	Source NilResponseGetResponseIncidentsIDOKSource `json:"source"`
+}
+
+// GetExecution returns the value of Execution.
+func (s *ResponseGetResponseIncidentsIDOK) GetExecution() bool {
+	return s.Execution
+}
+
+// GetIncident returns the value of Incident.
+func (s *ResponseGetResponseIncidentsIDOK) GetIncident() ResponseGetResponseIncidentsIDOKIncident {
+	return s.Incident
+}
+
+// GetNote returns the value of Note.
+func (s *ResponseGetResponseIncidentsIDOK) GetNote() NilString {
+	return s.Note
+}
+
+// GetOptions returns the value of Options.
+func (s *ResponseGetResponseIncidentsIDOK) GetOptions() []ResponseGetResponseIncidentsIDOKOptionsItem {
+	return s.Options
+}
+
+// GetSource returns the value of Source.
+func (s *ResponseGetResponseIncidentsIDOK) GetSource() NilResponseGetResponseIncidentsIDOKSource {
+	return s.Source
+}
+
+// SetExecution sets the value of Execution.
+func (s *ResponseGetResponseIncidentsIDOK) SetExecution(val bool) {
+	s.Execution = val
+}
+
+// SetIncident sets the value of Incident.
+func (s *ResponseGetResponseIncidentsIDOK) SetIncident(val ResponseGetResponseIncidentsIDOKIncident) {
+	s.Incident = val
+}
+
+// SetNote sets the value of Note.
+func (s *ResponseGetResponseIncidentsIDOK) SetNote(val NilString) {
+	s.Note = val
+}
+
+// SetOptions sets the value of Options.
+func (s *ResponseGetResponseIncidentsIDOK) SetOptions(val []ResponseGetResponseIncidentsIDOKOptionsItem) {
+	s.Options = val
+}
+
+// SetSource sets the value of Source.
+func (s *ResponseGetResponseIncidentsIDOK) SetSource(val NilResponseGetResponseIncidentsIDOKSource) {
+	s.Source = val
+}
+
+type ResponseGetResponseIncidentsIDOKIncident struct {
+	// The incident's own advice.
+	Action string `json:"action"`
+	ID     string `json:"id"`
+	Kind   string `json:"kind"`
+	// New, acknowledged or resolved.
+	Status string `json:"status"`
+	Title  string `json:"title"`
+}
+
+// GetAction returns the value of Action.
+func (s *ResponseGetResponseIncidentsIDOKIncident) GetAction() string {
+	return s.Action
+}
+
+// GetID returns the value of ID.
+func (s *ResponseGetResponseIncidentsIDOKIncident) GetID() string {
+	return s.ID
+}
+
+// GetKind returns the value of Kind.
+func (s *ResponseGetResponseIncidentsIDOKIncident) GetKind() string {
+	return s.Kind
+}
+
+// GetStatus returns the value of Status.
+func (s *ResponseGetResponseIncidentsIDOKIncident) GetStatus() string {
+	return s.Status
+}
+
+// GetTitle returns the value of Title.
+func (s *ResponseGetResponseIncidentsIDOKIncident) GetTitle() string {
+	return s.Title
+}
+
+// SetAction sets the value of Action.
+func (s *ResponseGetResponseIncidentsIDOKIncident) SetAction(val string) {
+	s.Action = val
+}
+
+// SetID sets the value of ID.
+func (s *ResponseGetResponseIncidentsIDOKIncident) SetID(val string) {
+	s.ID = val
+}
+
+// SetKind sets the value of Kind.
+func (s *ResponseGetResponseIncidentsIDOKIncident) SetKind(val string) {
+	s.Kind = val
+}
+
+// SetStatus sets the value of Status.
+func (s *ResponseGetResponseIncidentsIDOKIncident) SetStatus(val string) {
+	s.Status = val
+}
+
+// SetTitle sets the value of Title.
+func (s *ResponseGetResponseIncidentsIDOKIncident) SetTitle(val string) {
+	s.Title = val
+}
+
+type ResponseGetResponseIncidentsIDOKOptionsItem struct {
+	ActionID string `json:"action_id"`
+	// The connection a device action runs on; null for the block list.
+	Connection NilString `json:"connection"`
+	Device     bool      `json:"device"`
+	// The catalog action.
+	Name  string `json:"name"`
+	Ready bool   `json:"ready"`
+	// The same action on this address is already open or in force.
+	Requested bool                                            `json:"requested"`
+	Risk      ResponseGetResponseIncidentsIDOKOptionsItemRisk `json:"risk"`
+	// What the request will say, for example "Add 203.0.113.9 to the block list".
+	Title string `json:"title"`
+	// Undo time of the request: 1440 (24 hours).
+	TTLMin int `json:"ttl_min"`
+	// Why it cannot be asked for now, in plain words; null when ready.
+	Why NilString `json:"why"`
+}
+
+// GetActionID returns the value of ActionID.
+func (s *ResponseGetResponseIncidentsIDOKOptionsItem) GetActionID() string {
+	return s.ActionID
+}
+
+// GetConnection returns the value of Connection.
+func (s *ResponseGetResponseIncidentsIDOKOptionsItem) GetConnection() NilString {
+	return s.Connection
+}
+
+// GetDevice returns the value of Device.
+func (s *ResponseGetResponseIncidentsIDOKOptionsItem) GetDevice() bool {
+	return s.Device
+}
+
+// GetName returns the value of Name.
+func (s *ResponseGetResponseIncidentsIDOKOptionsItem) GetName() string {
+	return s.Name
+}
+
+// GetReady returns the value of Ready.
+func (s *ResponseGetResponseIncidentsIDOKOptionsItem) GetReady() bool {
+	return s.Ready
+}
+
+// GetRequested returns the value of Requested.
+func (s *ResponseGetResponseIncidentsIDOKOptionsItem) GetRequested() bool {
+	return s.Requested
+}
+
+// GetRisk returns the value of Risk.
+func (s *ResponseGetResponseIncidentsIDOKOptionsItem) GetRisk() ResponseGetResponseIncidentsIDOKOptionsItemRisk {
+	return s.Risk
+}
+
+// GetTitle returns the value of Title.
+func (s *ResponseGetResponseIncidentsIDOKOptionsItem) GetTitle() string {
+	return s.Title
+}
+
+// GetTTLMin returns the value of TTLMin.
+func (s *ResponseGetResponseIncidentsIDOKOptionsItem) GetTTLMin() int {
+	return s.TTLMin
+}
+
+// GetWhy returns the value of Why.
+func (s *ResponseGetResponseIncidentsIDOKOptionsItem) GetWhy() NilString {
+	return s.Why
+}
+
+// SetActionID sets the value of ActionID.
+func (s *ResponseGetResponseIncidentsIDOKOptionsItem) SetActionID(val string) {
+	s.ActionID = val
+}
+
+// SetConnection sets the value of Connection.
+func (s *ResponseGetResponseIncidentsIDOKOptionsItem) SetConnection(val NilString) {
+	s.Connection = val
+}
+
+// SetDevice sets the value of Device.
+func (s *ResponseGetResponseIncidentsIDOKOptionsItem) SetDevice(val bool) {
+	s.Device = val
+}
+
+// SetName sets the value of Name.
+func (s *ResponseGetResponseIncidentsIDOKOptionsItem) SetName(val string) {
+	s.Name = val
+}
+
+// SetReady sets the value of Ready.
+func (s *ResponseGetResponseIncidentsIDOKOptionsItem) SetReady(val bool) {
+	s.Ready = val
+}
+
+// SetRequested sets the value of Requested.
+func (s *ResponseGetResponseIncidentsIDOKOptionsItem) SetRequested(val bool) {
+	s.Requested = val
+}
+
+// SetRisk sets the value of Risk.
+func (s *ResponseGetResponseIncidentsIDOKOptionsItem) SetRisk(val ResponseGetResponseIncidentsIDOKOptionsItemRisk) {
+	s.Risk = val
+}
+
+// SetTitle sets the value of Title.
+func (s *ResponseGetResponseIncidentsIDOKOptionsItem) SetTitle(val string) {
+	s.Title = val
+}
+
+// SetTTLMin sets the value of TTLMin.
+func (s *ResponseGetResponseIncidentsIDOKOptionsItem) SetTTLMin(val int) {
+	s.TTLMin = val
+}
+
+// SetWhy sets the value of Why.
+func (s *ResponseGetResponseIncidentsIDOKOptionsItem) SetWhy(val NilString) {
+	s.Why = val
+}
+
+type ResponseGetResponseIncidentsIDOKOptionsItemRisk string
+
+const (
+	ResponseGetResponseIncidentsIDOKOptionsItemRiskLow    ResponseGetResponseIncidentsIDOKOptionsItemRisk = "low"
+	ResponseGetResponseIncidentsIDOKOptionsItemRiskMedium ResponseGetResponseIncidentsIDOKOptionsItemRisk = "medium"
+	ResponseGetResponseIncidentsIDOKOptionsItemRiskHigh   ResponseGetResponseIncidentsIDOKOptionsItemRisk = "high"
+)
+
+// AllValues returns all ResponseGetResponseIncidentsIDOKOptionsItemRisk values.
+func (ResponseGetResponseIncidentsIDOKOptionsItemRisk) AllValues() []ResponseGetResponseIncidentsIDOKOptionsItemRisk {
+	return []ResponseGetResponseIncidentsIDOKOptionsItemRisk{
+		ResponseGetResponseIncidentsIDOKOptionsItemRiskLow,
+		ResponseGetResponseIncidentsIDOKOptionsItemRiskMedium,
+		ResponseGetResponseIncidentsIDOKOptionsItemRiskHigh,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ResponseGetResponseIncidentsIDOKOptionsItemRisk) MarshalText() ([]byte, error) {
+	switch s {
+	case ResponseGetResponseIncidentsIDOKOptionsItemRiskLow:
+		return []byte(s), nil
+	case ResponseGetResponseIncidentsIDOKOptionsItemRiskMedium:
+		return []byte(s), nil
+	case ResponseGetResponseIncidentsIDOKOptionsItemRiskHigh:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ResponseGetResponseIncidentsIDOKOptionsItemRisk) UnmarshalText(data []byte) error {
+	switch ResponseGetResponseIncidentsIDOKOptionsItemRisk(data) {
+	case ResponseGetResponseIncidentsIDOKOptionsItemRiskLow:
+		*s = ResponseGetResponseIncidentsIDOKOptionsItemRiskLow
+		return nil
+	case ResponseGetResponseIncidentsIDOKOptionsItemRiskMedium:
+		*s = ResponseGetResponseIncidentsIDOKOptionsItemRiskMedium
+		return nil
+	case ResponseGetResponseIncidentsIDOKOptionsItemRiskHigh:
+		*s = ResponseGetResponseIncidentsIDOKOptionsItemRiskHigh
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ResponseGetResponseIncidentsIDOKSource struct {
+	AssetID NilString `json:"asset_id"`
+	// The inventory name of the source, when known.
+	Device NilString `json:"device"`
+	// Read by the server from the incident (a trap: the hit), never sent by the browser.
+	IP string `json:"ip"`
+	// Lan: an address the block list never publishes (private, CGNAT, link-local…, D-469); public: any
+	// other.
+	Scope ResponseGetResponseIncidentsIDOKSourceScope `json:"scope"`
+}
+
+// GetAssetID returns the value of AssetID.
+func (s *ResponseGetResponseIncidentsIDOKSource) GetAssetID() NilString {
+	return s.AssetID
+}
+
+// GetDevice returns the value of Device.
+func (s *ResponseGetResponseIncidentsIDOKSource) GetDevice() NilString {
+	return s.Device
+}
+
+// GetIP returns the value of IP.
+func (s *ResponseGetResponseIncidentsIDOKSource) GetIP() string {
+	return s.IP
+}
+
+// GetScope returns the value of Scope.
+func (s *ResponseGetResponseIncidentsIDOKSource) GetScope() ResponseGetResponseIncidentsIDOKSourceScope {
+	return s.Scope
+}
+
+// SetAssetID sets the value of AssetID.
+func (s *ResponseGetResponseIncidentsIDOKSource) SetAssetID(val NilString) {
+	s.AssetID = val
+}
+
+// SetDevice sets the value of Device.
+func (s *ResponseGetResponseIncidentsIDOKSource) SetDevice(val NilString) {
+	s.Device = val
+}
+
+// SetIP sets the value of IP.
+func (s *ResponseGetResponseIncidentsIDOKSource) SetIP(val string) {
+	s.IP = val
+}
+
+// SetScope sets the value of Scope.
+func (s *ResponseGetResponseIncidentsIDOKSource) SetScope(val ResponseGetResponseIncidentsIDOKSourceScope) {
+	s.Scope = val
+}
+
+// Lan: an address the block list never publishes (private, CGNAT, link-local…, D-469); public: any
+// other.
+type ResponseGetResponseIncidentsIDOKSourceScope string
+
+const (
+	ResponseGetResponseIncidentsIDOKSourceScopeLan    ResponseGetResponseIncidentsIDOKSourceScope = "lan"
+	ResponseGetResponseIncidentsIDOKSourceScopePublic ResponseGetResponseIncidentsIDOKSourceScope = "public"
+)
+
+// AllValues returns all ResponseGetResponseIncidentsIDOKSourceScope values.
+func (ResponseGetResponseIncidentsIDOKSourceScope) AllValues() []ResponseGetResponseIncidentsIDOKSourceScope {
+	return []ResponseGetResponseIncidentsIDOKSourceScope{
+		ResponseGetResponseIncidentsIDOKSourceScopeLan,
+		ResponseGetResponseIncidentsIDOKSourceScopePublic,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ResponseGetResponseIncidentsIDOKSourceScope) MarshalText() ([]byte, error) {
+	switch s {
+	case ResponseGetResponseIncidentsIDOKSourceScopeLan:
+		return []byte(s), nil
+	case ResponseGetResponseIncidentsIDOKSourceScopePublic:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ResponseGetResponseIncidentsIDOKSourceScope) UnmarshalText(data []byte) error {
+	switch ResponseGetResponseIncidentsIDOKSourceScope(data) {
+	case ResponseGetResponseIncidentsIDOKSourceScopeLan:
+		*s = ResponseGetResponseIncidentsIDOKSourceScopeLan
+		return nil
+	case ResponseGetResponseIncidentsIDOKSourceScopePublic:
+		*s = ResponseGetResponseIncidentsIDOKSourceScopePublic
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type ResponseGetResponseLogOK struct {
 	// Oldest first, so the chain can be checked from the start.
 	Items []ResponseGetResponseLogOKItemsItem `json:"items"`
@@ -118015,9 +118732,10 @@ func (s *ResponseGetResponseMetricsOKAi) SetSent(val int) {
 }
 
 type ResponseGetResponseMetricsOKRejectedItem struct {
-	At     time.Time                                      `json:"at"`
-	ID     string                                         `json:"id"`
-	Reason string                                         `json:"reason"`
+	At     time.Time `json:"at"`
+	ID     string    `json:"id"`
+	Reason string    `json:"reason"`
+	// Who asked: the AI, a rule, or a person from an incident (D-509).
 	Source ResponseGetResponseMetricsOKRejectedItemSource `json:"source"`
 	Title  string                                         `json:"title"`
 }
@@ -118072,11 +118790,13 @@ func (s *ResponseGetResponseMetricsOKRejectedItem) SetTitle(val string) {
 	s.Title = val
 }
 
+// Who asked: the AI, a rule, or a person from an incident (D-509).
 type ResponseGetResponseMetricsOKRejectedItemSource string
 
 const (
-	ResponseGetResponseMetricsOKRejectedItemSourceAi   ResponseGetResponseMetricsOKRejectedItemSource = "ai"
-	ResponseGetResponseMetricsOKRejectedItemSourceRule ResponseGetResponseMetricsOKRejectedItemSource = "rule"
+	ResponseGetResponseMetricsOKRejectedItemSourceAi     ResponseGetResponseMetricsOKRejectedItemSource = "ai"
+	ResponseGetResponseMetricsOKRejectedItemSourceRule   ResponseGetResponseMetricsOKRejectedItemSource = "rule"
+	ResponseGetResponseMetricsOKRejectedItemSourcePerson ResponseGetResponseMetricsOKRejectedItemSource = "person"
 )
 
 // AllValues returns all ResponseGetResponseMetricsOKRejectedItemSource values.
@@ -118084,6 +118804,7 @@ func (ResponseGetResponseMetricsOKRejectedItemSource) AllValues() []ResponseGetR
 	return []ResponseGetResponseMetricsOKRejectedItemSource{
 		ResponseGetResponseMetricsOKRejectedItemSourceAi,
 		ResponseGetResponseMetricsOKRejectedItemSourceRule,
+		ResponseGetResponseMetricsOKRejectedItemSourcePerson,
 	}
 }
 
@@ -118093,6 +118814,8 @@ func (s ResponseGetResponseMetricsOKRejectedItemSource) MarshalText() ([]byte, e
 	case ResponseGetResponseMetricsOKRejectedItemSourceAi:
 		return []byte(s), nil
 	case ResponseGetResponseMetricsOKRejectedItemSourceRule:
+		return []byte(s), nil
+	case ResponseGetResponseMetricsOKRejectedItemSourcePerson:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -118107,6 +118830,9 @@ func (s *ResponseGetResponseMetricsOKRejectedItemSource) UnmarshalText(data []by
 		return nil
 	case ResponseGetResponseMetricsOKRejectedItemSourceRule:
 		*s = ResponseGetResponseMetricsOKRejectedItemSourceRule
+		return nil
+	case ResponseGetResponseMetricsOKRejectedItemSourcePerson:
+		*s = ResponseGetResponseMetricsOKRejectedItemSourcePerson
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -121039,7 +121765,9 @@ type ResponsePostResponseActionsIDApproveOK struct {
 	Items      []ResponsePostResponseActionsIDApproveOKItemsItem      `json:"items"`
 	Note       NilString                                              `json:"note"`
 	// Carried out by the rule pre-approval option, without a person.
-	PreApproved       bool      `json:"pre_approved"`
+	PreApproved bool `json:"pre_approved"`
+	// The AI plan proposal, rule:: for a rule run, or incident: for a request asked from an incident
+	// (D-509).
 	ProposalID        string    `json:"proposal_id"`
 	RequestedAt       time.Time `json:"requested_at"`
 	RequiresApprovals int       `json:"requires_approvals"`
@@ -121048,7 +121776,8 @@ type ResponsePostResponseActionsIDApproveOK struct {
 	RuleID   NilString                                  `json:"rule_id"`
 	RuleName NilString                                  `json:"rule_name"`
 	// Channels that received the approval request.
-	SentTo         []string                                         `json:"sent_to"`
+	SentTo []string `json:"sent_to"`
+	// Who asked: the AI, a rule, or a person from an incident (D-509).
 	Source         ResponsePostResponseActionsIDApproveOKSource     `json:"source"`
 	Status         ResponsePostResponseActionsIDApproveOKStatus     `json:"status"`
 	Title          string                                           `json:"title"`
@@ -122480,11 +123209,13 @@ func (s *ResponsePostResponseActionsIDApproveOKRisk) UnmarshalText(data []byte) 
 	}
 }
 
+// Who asked: the AI, a rule, or a person from an incident (D-509).
 type ResponsePostResponseActionsIDApproveOKSource string
 
 const (
-	ResponsePostResponseActionsIDApproveOKSourceAi   ResponsePostResponseActionsIDApproveOKSource = "ai"
-	ResponsePostResponseActionsIDApproveOKSourceRule ResponsePostResponseActionsIDApproveOKSource = "rule"
+	ResponsePostResponseActionsIDApproveOKSourceAi     ResponsePostResponseActionsIDApproveOKSource = "ai"
+	ResponsePostResponseActionsIDApproveOKSourceRule   ResponsePostResponseActionsIDApproveOKSource = "rule"
+	ResponsePostResponseActionsIDApproveOKSourcePerson ResponsePostResponseActionsIDApproveOKSource = "person"
 )
 
 // AllValues returns all ResponsePostResponseActionsIDApproveOKSource values.
@@ -122492,6 +123223,7 @@ func (ResponsePostResponseActionsIDApproveOKSource) AllValues() []ResponsePostRe
 	return []ResponsePostResponseActionsIDApproveOKSource{
 		ResponsePostResponseActionsIDApproveOKSourceAi,
 		ResponsePostResponseActionsIDApproveOKSourceRule,
+		ResponsePostResponseActionsIDApproveOKSourcePerson,
 	}
 }
 
@@ -122501,6 +123233,8 @@ func (s ResponsePostResponseActionsIDApproveOKSource) MarshalText() ([]byte, err
 	case ResponsePostResponseActionsIDApproveOKSourceAi:
 		return []byte(s), nil
 	case ResponsePostResponseActionsIDApproveOKSourceRule:
+		return []byte(s), nil
+	case ResponsePostResponseActionsIDApproveOKSourcePerson:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -122515,6 +123249,9 @@ func (s *ResponsePostResponseActionsIDApproveOKSource) UnmarshalText(data []byte
 		return nil
 	case ResponsePostResponseActionsIDApproveOKSourceRule:
 		*s = ResponsePostResponseActionsIDApproveOKSourceRule
+		return nil
+	case ResponsePostResponseActionsIDApproveOKSourcePerson:
+		*s = ResponsePostResponseActionsIDApproveOKSourcePerson
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -122720,7 +123457,9 @@ type ResponsePostResponseActionsIDChatDecisionOK struct {
 	Items      []ResponsePostResponseActionsIDChatDecisionOKItemsItem      `json:"items"`
 	Note       NilString                                                   `json:"note"`
 	// Carried out by the rule pre-approval option, without a person.
-	PreApproved       bool      `json:"pre_approved"`
+	PreApproved bool `json:"pre_approved"`
+	// The AI plan proposal, rule:: for a rule run, or incident: for a request asked from an incident
+	// (D-509).
 	ProposalID        string    `json:"proposal_id"`
 	RequestedAt       time.Time `json:"requested_at"`
 	RequiresApprovals int       `json:"requires_approvals"`
@@ -122729,7 +123468,8 @@ type ResponsePostResponseActionsIDChatDecisionOK struct {
 	RuleID   NilString                                       `json:"rule_id"`
 	RuleName NilString                                       `json:"rule_name"`
 	// Channels that received the approval request.
-	SentTo         []string                                              `json:"sent_to"`
+	SentTo []string `json:"sent_to"`
+	// Who asked: the AI, a rule, or a person from an incident (D-509).
 	Source         ResponsePostResponseActionsIDChatDecisionOKSource     `json:"source"`
 	Status         ResponsePostResponseActionsIDChatDecisionOKStatus     `json:"status"`
 	Title          string                                                `json:"title"`
@@ -124161,11 +124901,13 @@ func (s *ResponsePostResponseActionsIDChatDecisionOKRisk) UnmarshalText(data []b
 	}
 }
 
+// Who asked: the AI, a rule, or a person from an incident (D-509).
 type ResponsePostResponseActionsIDChatDecisionOKSource string
 
 const (
-	ResponsePostResponseActionsIDChatDecisionOKSourceAi   ResponsePostResponseActionsIDChatDecisionOKSource = "ai"
-	ResponsePostResponseActionsIDChatDecisionOKSourceRule ResponsePostResponseActionsIDChatDecisionOKSource = "rule"
+	ResponsePostResponseActionsIDChatDecisionOKSourceAi     ResponsePostResponseActionsIDChatDecisionOKSource = "ai"
+	ResponsePostResponseActionsIDChatDecisionOKSourceRule   ResponsePostResponseActionsIDChatDecisionOKSource = "rule"
+	ResponsePostResponseActionsIDChatDecisionOKSourcePerson ResponsePostResponseActionsIDChatDecisionOKSource = "person"
 )
 
 // AllValues returns all ResponsePostResponseActionsIDChatDecisionOKSource values.
@@ -124173,6 +124915,7 @@ func (ResponsePostResponseActionsIDChatDecisionOKSource) AllValues() []ResponseP
 	return []ResponsePostResponseActionsIDChatDecisionOKSource{
 		ResponsePostResponseActionsIDChatDecisionOKSourceAi,
 		ResponsePostResponseActionsIDChatDecisionOKSourceRule,
+		ResponsePostResponseActionsIDChatDecisionOKSourcePerson,
 	}
 }
 
@@ -124182,6 +124925,8 @@ func (s ResponsePostResponseActionsIDChatDecisionOKSource) MarshalText() ([]byte
 	case ResponsePostResponseActionsIDChatDecisionOKSourceAi:
 		return []byte(s), nil
 	case ResponsePostResponseActionsIDChatDecisionOKSourceRule:
+		return []byte(s), nil
+	case ResponsePostResponseActionsIDChatDecisionOKSourcePerson:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -124196,6 +124941,9 @@ func (s *ResponsePostResponseActionsIDChatDecisionOKSource) UnmarshalText(data [
 		return nil
 	case ResponsePostResponseActionsIDChatDecisionOKSourceRule:
 		*s = ResponsePostResponseActionsIDChatDecisionOKSourceRule
+		return nil
+	case ResponsePostResponseActionsIDChatDecisionOKSourcePerson:
+		*s = ResponsePostResponseActionsIDChatDecisionOKSourcePerson
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -124501,7 +125249,9 @@ type ResponsePostResponseActionsIDRejectOK struct {
 	Items      []ResponsePostResponseActionsIDRejectOKItemsItem      `json:"items"`
 	Note       NilString                                             `json:"note"`
 	// Carried out by the rule pre-approval option, without a person.
-	PreApproved       bool      `json:"pre_approved"`
+	PreApproved bool `json:"pre_approved"`
+	// The AI plan proposal, rule:: for a rule run, or incident: for a request asked from an incident
+	// (D-509).
 	ProposalID        string    `json:"proposal_id"`
 	RequestedAt       time.Time `json:"requested_at"`
 	RequiresApprovals int       `json:"requires_approvals"`
@@ -124510,7 +125260,8 @@ type ResponsePostResponseActionsIDRejectOK struct {
 	RuleID   NilString                                 `json:"rule_id"`
 	RuleName NilString                                 `json:"rule_name"`
 	// Channels that received the approval request.
-	SentTo         []string                                        `json:"sent_to"`
+	SentTo []string `json:"sent_to"`
+	// Who asked: the AI, a rule, or a person from an incident (D-509).
 	Source         ResponsePostResponseActionsIDRejectOKSource     `json:"source"`
 	Status         ResponsePostResponseActionsIDRejectOKStatus     `json:"status"`
 	Title          string                                          `json:"title"`
@@ -125942,11 +126693,13 @@ func (s *ResponsePostResponseActionsIDRejectOKRisk) UnmarshalText(data []byte) e
 	}
 }
 
+// Who asked: the AI, a rule, or a person from an incident (D-509).
 type ResponsePostResponseActionsIDRejectOKSource string
 
 const (
-	ResponsePostResponseActionsIDRejectOKSourceAi   ResponsePostResponseActionsIDRejectOKSource = "ai"
-	ResponsePostResponseActionsIDRejectOKSourceRule ResponsePostResponseActionsIDRejectOKSource = "rule"
+	ResponsePostResponseActionsIDRejectOKSourceAi     ResponsePostResponseActionsIDRejectOKSource = "ai"
+	ResponsePostResponseActionsIDRejectOKSourceRule   ResponsePostResponseActionsIDRejectOKSource = "rule"
+	ResponsePostResponseActionsIDRejectOKSourcePerson ResponsePostResponseActionsIDRejectOKSource = "person"
 )
 
 // AllValues returns all ResponsePostResponseActionsIDRejectOKSource values.
@@ -125954,6 +126707,7 @@ func (ResponsePostResponseActionsIDRejectOKSource) AllValues() []ResponsePostRes
 	return []ResponsePostResponseActionsIDRejectOKSource{
 		ResponsePostResponseActionsIDRejectOKSourceAi,
 		ResponsePostResponseActionsIDRejectOKSourceRule,
+		ResponsePostResponseActionsIDRejectOKSourcePerson,
 	}
 }
 
@@ -125963,6 +126717,8 @@ func (s ResponsePostResponseActionsIDRejectOKSource) MarshalText() ([]byte, erro
 	case ResponsePostResponseActionsIDRejectOKSourceAi:
 		return []byte(s), nil
 	case ResponsePostResponseActionsIDRejectOKSourceRule:
+		return []byte(s), nil
+	case ResponsePostResponseActionsIDRejectOKSourcePerson:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -125977,6 +126733,9 @@ func (s *ResponsePostResponseActionsIDRejectOKSource) UnmarshalText(data []byte)
 		return nil
 	case ResponsePostResponseActionsIDRejectOKSourceRule:
 		*s = ResponsePostResponseActionsIDRejectOKSourceRule
+		return nil
+	case ResponsePostResponseActionsIDRejectOKSourcePerson:
+		*s = ResponsePostResponseActionsIDRejectOKSourcePerson
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -126230,7 +126989,9 @@ type ResponsePostResponseActionsIDRollbackOK struct {
 	Items      []ResponsePostResponseActionsIDRollbackOKItemsItem      `json:"items"`
 	Note       NilString                                               `json:"note"`
 	// Carried out by the rule pre-approval option, without a person.
-	PreApproved       bool      `json:"pre_approved"`
+	PreApproved bool `json:"pre_approved"`
+	// The AI plan proposal, rule:: for a rule run, or incident: for a request asked from an incident
+	// (D-509).
 	ProposalID        string    `json:"proposal_id"`
 	RequestedAt       time.Time `json:"requested_at"`
 	RequiresApprovals int       `json:"requires_approvals"`
@@ -126239,7 +127000,8 @@ type ResponsePostResponseActionsIDRollbackOK struct {
 	RuleID   NilString                                   `json:"rule_id"`
 	RuleName NilString                                   `json:"rule_name"`
 	// Channels that received the approval request.
-	SentTo         []string                                          `json:"sent_to"`
+	SentTo []string `json:"sent_to"`
+	// Who asked: the AI, a rule, or a person from an incident (D-509).
 	Source         ResponsePostResponseActionsIDRollbackOKSource     `json:"source"`
 	Status         ResponsePostResponseActionsIDRollbackOKStatus     `json:"status"`
 	Title          string                                            `json:"title"`
@@ -127671,11 +128433,13 @@ func (s *ResponsePostResponseActionsIDRollbackOKRisk) UnmarshalText(data []byte)
 	}
 }
 
+// Who asked: the AI, a rule, or a person from an incident (D-509).
 type ResponsePostResponseActionsIDRollbackOKSource string
 
 const (
-	ResponsePostResponseActionsIDRollbackOKSourceAi   ResponsePostResponseActionsIDRollbackOKSource = "ai"
-	ResponsePostResponseActionsIDRollbackOKSourceRule ResponsePostResponseActionsIDRollbackOKSource = "rule"
+	ResponsePostResponseActionsIDRollbackOKSourceAi     ResponsePostResponseActionsIDRollbackOKSource = "ai"
+	ResponsePostResponseActionsIDRollbackOKSourceRule   ResponsePostResponseActionsIDRollbackOKSource = "rule"
+	ResponsePostResponseActionsIDRollbackOKSourcePerson ResponsePostResponseActionsIDRollbackOKSource = "person"
 )
 
 // AllValues returns all ResponsePostResponseActionsIDRollbackOKSource values.
@@ -127683,6 +128447,7 @@ func (ResponsePostResponseActionsIDRollbackOKSource) AllValues() []ResponsePostR
 	return []ResponsePostResponseActionsIDRollbackOKSource{
 		ResponsePostResponseActionsIDRollbackOKSourceAi,
 		ResponsePostResponseActionsIDRollbackOKSourceRule,
+		ResponsePostResponseActionsIDRollbackOKSourcePerson,
 	}
 }
 
@@ -127692,6 +128457,8 @@ func (s ResponsePostResponseActionsIDRollbackOKSource) MarshalText() ([]byte, er
 	case ResponsePostResponseActionsIDRollbackOKSourceAi:
 		return []byte(s), nil
 	case ResponsePostResponseActionsIDRollbackOKSourceRule:
+		return []byte(s), nil
+	case ResponsePostResponseActionsIDRollbackOKSourcePerson:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -127706,6 +128473,9 @@ func (s *ResponsePostResponseActionsIDRollbackOKSource) UnmarshalText(data []byt
 		return nil
 	case ResponsePostResponseActionsIDRollbackOKSourceRule:
 		*s = ResponsePostResponseActionsIDRollbackOKSourceRule
+		return nil
+	case ResponsePostResponseActionsIDRollbackOKSourcePerson:
+		*s = ResponsePostResponseActionsIDRollbackOKSourcePerson
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -127970,7 +128740,9 @@ type ResponsePostResponseAiProposalsOKRequest struct {
 	Items      []ResponsePostResponseAiProposalsOKRequestItemsItem      `json:"items"`
 	Note       NilString                                                `json:"note"`
 	// Carried out by the rule pre-approval option, without a person.
-	PreApproved       bool      `json:"pre_approved"`
+	PreApproved bool `json:"pre_approved"`
+	// The AI plan proposal, rule:: for a rule run, or incident: for a request asked from an incident
+	// (D-509).
 	ProposalID        string    `json:"proposal_id"`
 	RequestedAt       time.Time `json:"requested_at"`
 	RequiresApprovals int       `json:"requires_approvals"`
@@ -127979,7 +128751,8 @@ type ResponsePostResponseAiProposalsOKRequest struct {
 	RuleID   NilString                                    `json:"rule_id"`
 	RuleName NilString                                    `json:"rule_name"`
 	// Channels that received the approval request.
-	SentTo         []string                                           `json:"sent_to"`
+	SentTo []string `json:"sent_to"`
+	// Who asked: the AI, a rule, or a person from an incident (D-509).
 	Source         ResponsePostResponseAiProposalsOKRequestSource     `json:"source"`
 	Status         ResponsePostResponseAiProposalsOKRequestStatus     `json:"status"`
 	Title          string                                             `json:"title"`
@@ -129411,11 +130184,13 @@ func (s *ResponsePostResponseAiProposalsOKRequestRisk) UnmarshalText(data []byte
 	}
 }
 
+// Who asked: the AI, a rule, or a person from an incident (D-509).
 type ResponsePostResponseAiProposalsOKRequestSource string
 
 const (
-	ResponsePostResponseAiProposalsOKRequestSourceAi   ResponsePostResponseAiProposalsOKRequestSource = "ai"
-	ResponsePostResponseAiProposalsOKRequestSourceRule ResponsePostResponseAiProposalsOKRequestSource = "rule"
+	ResponsePostResponseAiProposalsOKRequestSourceAi     ResponsePostResponseAiProposalsOKRequestSource = "ai"
+	ResponsePostResponseAiProposalsOKRequestSourceRule   ResponsePostResponseAiProposalsOKRequestSource = "rule"
+	ResponsePostResponseAiProposalsOKRequestSourcePerson ResponsePostResponseAiProposalsOKRequestSource = "person"
 )
 
 // AllValues returns all ResponsePostResponseAiProposalsOKRequestSource values.
@@ -129423,6 +130198,7 @@ func (ResponsePostResponseAiProposalsOKRequestSource) AllValues() []ResponsePost
 	return []ResponsePostResponseAiProposalsOKRequestSource{
 		ResponsePostResponseAiProposalsOKRequestSourceAi,
 		ResponsePostResponseAiProposalsOKRequestSourceRule,
+		ResponsePostResponseAiProposalsOKRequestSourcePerson,
 	}
 }
 
@@ -129432,6 +130208,8 @@ func (s ResponsePostResponseAiProposalsOKRequestSource) MarshalText() ([]byte, e
 	case ResponsePostResponseAiProposalsOKRequestSourceAi:
 		return []byte(s), nil
 	case ResponsePostResponseAiProposalsOKRequestSourceRule:
+		return []byte(s), nil
+	case ResponsePostResponseAiProposalsOKRequestSourcePerson:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -129446,6 +130224,9 @@ func (s *ResponsePostResponseAiProposalsOKRequestSource) UnmarshalText(data []by
 		return nil
 	case ResponsePostResponseAiProposalsOKRequestSourceRule:
 		*s = ResponsePostResponseAiProposalsOKRequestSourceRule
+		return nil
+	case ResponsePostResponseAiProposalsOKRequestSourcePerson:
+		*s = ResponsePostResponseAiProposalsOKRequestSourcePerson
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -130476,7 +131257,9 @@ type ResponsePostResponseApproveTokenOK struct {
 	Items      []ResponsePostResponseApproveTokenOKItemsItem      `json:"items"`
 	Note       NilString                                          `json:"note"`
 	// Carried out by the rule pre-approval option, without a person.
-	PreApproved       bool      `json:"pre_approved"`
+	PreApproved bool `json:"pre_approved"`
+	// The AI plan proposal, rule:: for a rule run, or incident: for a request asked from an incident
+	// (D-509).
 	ProposalID        string    `json:"proposal_id"`
 	RequestedAt       time.Time `json:"requested_at"`
 	RequiresApprovals int       `json:"requires_approvals"`
@@ -130485,7 +131268,8 @@ type ResponsePostResponseApproveTokenOK struct {
 	RuleID   NilString                              `json:"rule_id"`
 	RuleName NilString                              `json:"rule_name"`
 	// Channels that received the approval request.
-	SentTo         []string                                     `json:"sent_to"`
+	SentTo []string `json:"sent_to"`
+	// Who asked: the AI, a rule, or a person from an incident (D-509).
 	Source         ResponsePostResponseApproveTokenOKSource     `json:"source"`
 	Status         ResponsePostResponseApproveTokenOKStatus     `json:"status"`
 	Title          string                                       `json:"title"`
@@ -131917,11 +132701,13 @@ func (s *ResponsePostResponseApproveTokenOKRisk) UnmarshalText(data []byte) erro
 	}
 }
 
+// Who asked: the AI, a rule, or a person from an incident (D-509).
 type ResponsePostResponseApproveTokenOKSource string
 
 const (
-	ResponsePostResponseApproveTokenOKSourceAi   ResponsePostResponseApproveTokenOKSource = "ai"
-	ResponsePostResponseApproveTokenOKSourceRule ResponsePostResponseApproveTokenOKSource = "rule"
+	ResponsePostResponseApproveTokenOKSourceAi     ResponsePostResponseApproveTokenOKSource = "ai"
+	ResponsePostResponseApproveTokenOKSourceRule   ResponsePostResponseApproveTokenOKSource = "rule"
+	ResponsePostResponseApproveTokenOKSourcePerson ResponsePostResponseApproveTokenOKSource = "person"
 )
 
 // AllValues returns all ResponsePostResponseApproveTokenOKSource values.
@@ -131929,6 +132715,7 @@ func (ResponsePostResponseApproveTokenOKSource) AllValues() []ResponsePostRespon
 	return []ResponsePostResponseApproveTokenOKSource{
 		ResponsePostResponseApproveTokenOKSourceAi,
 		ResponsePostResponseApproveTokenOKSourceRule,
+		ResponsePostResponseApproveTokenOKSourcePerson,
 	}
 }
 
@@ -131938,6 +132725,8 @@ func (s ResponsePostResponseApproveTokenOKSource) MarshalText() ([]byte, error) 
 	case ResponsePostResponseApproveTokenOKSourceAi:
 		return []byte(s), nil
 	case ResponsePostResponseApproveTokenOKSourceRule:
+		return []byte(s), nil
+	case ResponsePostResponseApproveTokenOKSourcePerson:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -131952,6 +132741,9 @@ func (s *ResponsePostResponseApproveTokenOKSource) UnmarshalText(data []byte) er
 		return nil
 	case ResponsePostResponseApproveTokenOKSourceRule:
 		*s = ResponsePostResponseApproveTokenOKSourceRule
+		return nil
+	case ResponsePostResponseApproveTokenOKSourcePerson:
+		*s = ResponsePostResponseApproveTokenOKSourcePerson
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -135129,6 +135921,1687 @@ func (s *ResponsePostResponseExecutionReq) SetPhrase(val OptString) {
 	s.Phrase = val
 }
 
+type ResponsePostResponseIncidentsIDRequestCreated struct {
+	Ai        NilResponsePostResponseIncidentsIDRequestCreatedAi           `json:"ai"`
+	Approvals []ResponsePostResponseIncidentsIDRequestCreatedApprovalsItem `json:"approvals"`
+	AssetID   NilString                                                    `json:"asset_id"`
+	AssetName string                                                       `json:"asset_name"`
+	Cve       NilString                                                    `json:"cve"`
+	DecidedAt NilDateTime                                                  `json:"decided_at"`
+	// Preview build only, admin only: the approval links that would be emailed.
+	EmailLinks []ResponsePostResponseIncidentsIDRequestCreatedEmailLinksItem `json:"email_links"`
+	ExpiresAt  time.Time                                                     `json:"expires_at"`
+	FindingID  NilString                                                     `json:"finding_id"`
+	ID         string                                                        `json:"id"`
+	Items      []ResponsePostResponseIncidentsIDRequestCreatedItemsItem      `json:"items"`
+	Note       NilString                                                     `json:"note"`
+	// Carried out by the rule pre-approval option, without a person.
+	PreApproved bool `json:"pre_approved"`
+	// The AI plan proposal, rule:: for a rule run, or incident: for a request asked from an incident
+	// (D-509).
+	ProposalID        string    `json:"proposal_id"`
+	RequestedAt       time.Time `json:"requested_at"`
+	RequiresApprovals int       `json:"requires_approvals"`
+	// Highest risk among the actions.
+	Risk     ResponsePostResponseIncidentsIDRequestCreatedRisk `json:"risk"`
+	RuleID   NilString                                         `json:"rule_id"`
+	RuleName NilString                                         `json:"rule_name"`
+	// Channels that received the approval request.
+	SentTo []string `json:"sent_to"`
+	// Who asked: the AI, a rule, or a person from an incident (D-509).
+	Source         ResponsePostResponseIncidentsIDRequestCreatedSource     `json:"source"`
+	Status         ResponsePostResponseIncidentsIDRequestCreatedStatus     `json:"status"`
+	Title          string                                                  `json:"title"`
+	Trigger        NilResponsePostResponseIncidentsIDRequestCreatedTrigger `json:"trigger"`
+	TriggerSummary NilString                                               `json:"trigger_summary"`
+	// Why two different approvers are needed.
+	TwoBecause NilString `json:"two_because"`
+}
+
+// GetAi returns the value of Ai.
+func (s *ResponsePostResponseIncidentsIDRequestCreated) GetAi() NilResponsePostResponseIncidentsIDRequestCreatedAi {
+	return s.Ai
+}
+
+// GetApprovals returns the value of Approvals.
+func (s *ResponsePostResponseIncidentsIDRequestCreated) GetApprovals() []ResponsePostResponseIncidentsIDRequestCreatedApprovalsItem {
+	return s.Approvals
+}
+
+// GetAssetID returns the value of AssetID.
+func (s *ResponsePostResponseIncidentsIDRequestCreated) GetAssetID() NilString {
+	return s.AssetID
+}
+
+// GetAssetName returns the value of AssetName.
+func (s *ResponsePostResponseIncidentsIDRequestCreated) GetAssetName() string {
+	return s.AssetName
+}
+
+// GetCve returns the value of Cve.
+func (s *ResponsePostResponseIncidentsIDRequestCreated) GetCve() NilString {
+	return s.Cve
+}
+
+// GetDecidedAt returns the value of DecidedAt.
+func (s *ResponsePostResponseIncidentsIDRequestCreated) GetDecidedAt() NilDateTime {
+	return s.DecidedAt
+}
+
+// GetEmailLinks returns the value of EmailLinks.
+func (s *ResponsePostResponseIncidentsIDRequestCreated) GetEmailLinks() []ResponsePostResponseIncidentsIDRequestCreatedEmailLinksItem {
+	return s.EmailLinks
+}
+
+// GetExpiresAt returns the value of ExpiresAt.
+func (s *ResponsePostResponseIncidentsIDRequestCreated) GetExpiresAt() time.Time {
+	return s.ExpiresAt
+}
+
+// GetFindingID returns the value of FindingID.
+func (s *ResponsePostResponseIncidentsIDRequestCreated) GetFindingID() NilString {
+	return s.FindingID
+}
+
+// GetID returns the value of ID.
+func (s *ResponsePostResponseIncidentsIDRequestCreated) GetID() string {
+	return s.ID
+}
+
+// GetItems returns the value of Items.
+func (s *ResponsePostResponseIncidentsIDRequestCreated) GetItems() []ResponsePostResponseIncidentsIDRequestCreatedItemsItem {
+	return s.Items
+}
+
+// GetNote returns the value of Note.
+func (s *ResponsePostResponseIncidentsIDRequestCreated) GetNote() NilString {
+	return s.Note
+}
+
+// GetPreApproved returns the value of PreApproved.
+func (s *ResponsePostResponseIncidentsIDRequestCreated) GetPreApproved() bool {
+	return s.PreApproved
+}
+
+// GetProposalID returns the value of ProposalID.
+func (s *ResponsePostResponseIncidentsIDRequestCreated) GetProposalID() string {
+	return s.ProposalID
+}
+
+// GetRequestedAt returns the value of RequestedAt.
+func (s *ResponsePostResponseIncidentsIDRequestCreated) GetRequestedAt() time.Time {
+	return s.RequestedAt
+}
+
+// GetRequiresApprovals returns the value of RequiresApprovals.
+func (s *ResponsePostResponseIncidentsIDRequestCreated) GetRequiresApprovals() int {
+	return s.RequiresApprovals
+}
+
+// GetRisk returns the value of Risk.
+func (s *ResponsePostResponseIncidentsIDRequestCreated) GetRisk() ResponsePostResponseIncidentsIDRequestCreatedRisk {
+	return s.Risk
+}
+
+// GetRuleID returns the value of RuleID.
+func (s *ResponsePostResponseIncidentsIDRequestCreated) GetRuleID() NilString {
+	return s.RuleID
+}
+
+// GetRuleName returns the value of RuleName.
+func (s *ResponsePostResponseIncidentsIDRequestCreated) GetRuleName() NilString {
+	return s.RuleName
+}
+
+// GetSentTo returns the value of SentTo.
+func (s *ResponsePostResponseIncidentsIDRequestCreated) GetSentTo() []string {
+	return s.SentTo
+}
+
+// GetSource returns the value of Source.
+func (s *ResponsePostResponseIncidentsIDRequestCreated) GetSource() ResponsePostResponseIncidentsIDRequestCreatedSource {
+	return s.Source
+}
+
+// GetStatus returns the value of Status.
+func (s *ResponsePostResponseIncidentsIDRequestCreated) GetStatus() ResponsePostResponseIncidentsIDRequestCreatedStatus {
+	return s.Status
+}
+
+// GetTitle returns the value of Title.
+func (s *ResponsePostResponseIncidentsIDRequestCreated) GetTitle() string {
+	return s.Title
+}
+
+// GetTrigger returns the value of Trigger.
+func (s *ResponsePostResponseIncidentsIDRequestCreated) GetTrigger() NilResponsePostResponseIncidentsIDRequestCreatedTrigger {
+	return s.Trigger
+}
+
+// GetTriggerSummary returns the value of TriggerSummary.
+func (s *ResponsePostResponseIncidentsIDRequestCreated) GetTriggerSummary() NilString {
+	return s.TriggerSummary
+}
+
+// GetTwoBecause returns the value of TwoBecause.
+func (s *ResponsePostResponseIncidentsIDRequestCreated) GetTwoBecause() NilString {
+	return s.TwoBecause
+}
+
+// SetAi sets the value of Ai.
+func (s *ResponsePostResponseIncidentsIDRequestCreated) SetAi(val NilResponsePostResponseIncidentsIDRequestCreatedAi) {
+	s.Ai = val
+}
+
+// SetApprovals sets the value of Approvals.
+func (s *ResponsePostResponseIncidentsIDRequestCreated) SetApprovals(val []ResponsePostResponseIncidentsIDRequestCreatedApprovalsItem) {
+	s.Approvals = val
+}
+
+// SetAssetID sets the value of AssetID.
+func (s *ResponsePostResponseIncidentsIDRequestCreated) SetAssetID(val NilString) {
+	s.AssetID = val
+}
+
+// SetAssetName sets the value of AssetName.
+func (s *ResponsePostResponseIncidentsIDRequestCreated) SetAssetName(val string) {
+	s.AssetName = val
+}
+
+// SetCve sets the value of Cve.
+func (s *ResponsePostResponseIncidentsIDRequestCreated) SetCve(val NilString) {
+	s.Cve = val
+}
+
+// SetDecidedAt sets the value of DecidedAt.
+func (s *ResponsePostResponseIncidentsIDRequestCreated) SetDecidedAt(val NilDateTime) {
+	s.DecidedAt = val
+}
+
+// SetEmailLinks sets the value of EmailLinks.
+func (s *ResponsePostResponseIncidentsIDRequestCreated) SetEmailLinks(val []ResponsePostResponseIncidentsIDRequestCreatedEmailLinksItem) {
+	s.EmailLinks = val
+}
+
+// SetExpiresAt sets the value of ExpiresAt.
+func (s *ResponsePostResponseIncidentsIDRequestCreated) SetExpiresAt(val time.Time) {
+	s.ExpiresAt = val
+}
+
+// SetFindingID sets the value of FindingID.
+func (s *ResponsePostResponseIncidentsIDRequestCreated) SetFindingID(val NilString) {
+	s.FindingID = val
+}
+
+// SetID sets the value of ID.
+func (s *ResponsePostResponseIncidentsIDRequestCreated) SetID(val string) {
+	s.ID = val
+}
+
+// SetItems sets the value of Items.
+func (s *ResponsePostResponseIncidentsIDRequestCreated) SetItems(val []ResponsePostResponseIncidentsIDRequestCreatedItemsItem) {
+	s.Items = val
+}
+
+// SetNote sets the value of Note.
+func (s *ResponsePostResponseIncidentsIDRequestCreated) SetNote(val NilString) {
+	s.Note = val
+}
+
+// SetPreApproved sets the value of PreApproved.
+func (s *ResponsePostResponseIncidentsIDRequestCreated) SetPreApproved(val bool) {
+	s.PreApproved = val
+}
+
+// SetProposalID sets the value of ProposalID.
+func (s *ResponsePostResponseIncidentsIDRequestCreated) SetProposalID(val string) {
+	s.ProposalID = val
+}
+
+// SetRequestedAt sets the value of RequestedAt.
+func (s *ResponsePostResponseIncidentsIDRequestCreated) SetRequestedAt(val time.Time) {
+	s.RequestedAt = val
+}
+
+// SetRequiresApprovals sets the value of RequiresApprovals.
+func (s *ResponsePostResponseIncidentsIDRequestCreated) SetRequiresApprovals(val int) {
+	s.RequiresApprovals = val
+}
+
+// SetRisk sets the value of Risk.
+func (s *ResponsePostResponseIncidentsIDRequestCreated) SetRisk(val ResponsePostResponseIncidentsIDRequestCreatedRisk) {
+	s.Risk = val
+}
+
+// SetRuleID sets the value of RuleID.
+func (s *ResponsePostResponseIncidentsIDRequestCreated) SetRuleID(val NilString) {
+	s.RuleID = val
+}
+
+// SetRuleName sets the value of RuleName.
+func (s *ResponsePostResponseIncidentsIDRequestCreated) SetRuleName(val NilString) {
+	s.RuleName = val
+}
+
+// SetSentTo sets the value of SentTo.
+func (s *ResponsePostResponseIncidentsIDRequestCreated) SetSentTo(val []string) {
+	s.SentTo = val
+}
+
+// SetSource sets the value of Source.
+func (s *ResponsePostResponseIncidentsIDRequestCreated) SetSource(val ResponsePostResponseIncidentsIDRequestCreatedSource) {
+	s.Source = val
+}
+
+// SetStatus sets the value of Status.
+func (s *ResponsePostResponseIncidentsIDRequestCreated) SetStatus(val ResponsePostResponseIncidentsIDRequestCreatedStatus) {
+	s.Status = val
+}
+
+// SetTitle sets the value of Title.
+func (s *ResponsePostResponseIncidentsIDRequestCreated) SetTitle(val string) {
+	s.Title = val
+}
+
+// SetTrigger sets the value of Trigger.
+func (s *ResponsePostResponseIncidentsIDRequestCreated) SetTrigger(val NilResponsePostResponseIncidentsIDRequestCreatedTrigger) {
+	s.Trigger = val
+}
+
+// SetTriggerSummary sets the value of TriggerSummary.
+func (s *ResponsePostResponseIncidentsIDRequestCreated) SetTriggerSummary(val NilString) {
+	s.TriggerSummary = val
+}
+
+// SetTwoBecause sets the value of TwoBecause.
+func (s *ResponsePostResponseIncidentsIDRequestCreated) SetTwoBecause(val NilString) {
+	s.TwoBecause = val
+}
+
+type ResponsePostResponseIncidentsIDRequestCreatedAi struct {
+	Confidence float64                                                       `json:"confidence"`
+	Evidence   []ResponsePostResponseIncidentsIDRequestCreatedAiEvidenceItem `json:"evidence"`
+	// High risk: only an in-app approval with the two-step code counts.
+	InAppOnly bool `json:"in_app_only"`
+	// Deterministic second checker, only for high-risk actions.
+	SecondCheck NilResponsePostResponseIncidentsIDRequestCreatedAiSecondCheck `json:"second_check"`
+	Why         string                                                        `json:"why"`
+}
+
+// GetConfidence returns the value of Confidence.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedAi) GetConfidence() float64 {
+	return s.Confidence
+}
+
+// GetEvidence returns the value of Evidence.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedAi) GetEvidence() []ResponsePostResponseIncidentsIDRequestCreatedAiEvidenceItem {
+	return s.Evidence
+}
+
+// GetInAppOnly returns the value of InAppOnly.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedAi) GetInAppOnly() bool {
+	return s.InAppOnly
+}
+
+// GetSecondCheck returns the value of SecondCheck.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedAi) GetSecondCheck() NilResponsePostResponseIncidentsIDRequestCreatedAiSecondCheck {
+	return s.SecondCheck
+}
+
+// GetWhy returns the value of Why.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedAi) GetWhy() string {
+	return s.Why
+}
+
+// SetConfidence sets the value of Confidence.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedAi) SetConfidence(val float64) {
+	s.Confidence = val
+}
+
+// SetEvidence sets the value of Evidence.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedAi) SetEvidence(val []ResponsePostResponseIncidentsIDRequestCreatedAiEvidenceItem) {
+	s.Evidence = val
+}
+
+// SetInAppOnly sets the value of InAppOnly.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedAi) SetInAppOnly(val bool) {
+	s.InAppOnly = val
+}
+
+// SetSecondCheck sets the value of SecondCheck.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedAi) SetSecondCheck(val NilResponsePostResponseIncidentsIDRequestCreatedAiSecondCheck) {
+	s.SecondCheck = val
+}
+
+// SetWhy sets the value of Why.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedAi) SetWhy(val string) {
+	s.Why = val
+}
+
+type ResponsePostResponseIncidentsIDRequestCreatedAiEvidenceItem struct {
+	ID      string                                                          `json:"id"`
+	Kind    ResponsePostResponseIncidentsIDRequestCreatedAiEvidenceItemKind `json:"kind"`
+	Summary string                                                          `json:"summary"`
+}
+
+// GetID returns the value of ID.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedAiEvidenceItem) GetID() string {
+	return s.ID
+}
+
+// GetKind returns the value of Kind.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedAiEvidenceItem) GetKind() ResponsePostResponseIncidentsIDRequestCreatedAiEvidenceItemKind {
+	return s.Kind
+}
+
+// GetSummary returns the value of Summary.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedAiEvidenceItem) GetSummary() string {
+	return s.Summary
+}
+
+// SetID sets the value of ID.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedAiEvidenceItem) SetID(val string) {
+	s.ID = val
+}
+
+// SetKind sets the value of Kind.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedAiEvidenceItem) SetKind(val ResponsePostResponseIncidentsIDRequestCreatedAiEvidenceItemKind) {
+	s.Kind = val
+}
+
+// SetSummary sets the value of Summary.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedAiEvidenceItem) SetSummary(val string) {
+	s.Summary = val
+}
+
+type ResponsePostResponseIncidentsIDRequestCreatedAiEvidenceItemKind string
+
+const (
+	ResponsePostResponseIncidentsIDRequestCreatedAiEvidenceItemKindFinding    ResponsePostResponseIncidentsIDRequestCreatedAiEvidenceItemKind = "finding"
+	ResponsePostResponseIncidentsIDRequestCreatedAiEvidenceItemKindIocHit     ResponsePostResponseIncidentsIDRequestCreatedAiEvidenceItemKind = "ioc_hit"
+	ResponsePostResponseIncidentsIDRequestCreatedAiEvidenceItemKindConfigRead ResponsePostResponseIncidentsIDRequestCreatedAiEvidenceItemKind = "config_read"
+)
+
+// AllValues returns all ResponsePostResponseIncidentsIDRequestCreatedAiEvidenceItemKind values.
+func (ResponsePostResponseIncidentsIDRequestCreatedAiEvidenceItemKind) AllValues() []ResponsePostResponseIncidentsIDRequestCreatedAiEvidenceItemKind {
+	return []ResponsePostResponseIncidentsIDRequestCreatedAiEvidenceItemKind{
+		ResponsePostResponseIncidentsIDRequestCreatedAiEvidenceItemKindFinding,
+		ResponsePostResponseIncidentsIDRequestCreatedAiEvidenceItemKindIocHit,
+		ResponsePostResponseIncidentsIDRequestCreatedAiEvidenceItemKindConfigRead,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ResponsePostResponseIncidentsIDRequestCreatedAiEvidenceItemKind) MarshalText() ([]byte, error) {
+	switch s {
+	case ResponsePostResponseIncidentsIDRequestCreatedAiEvidenceItemKindFinding:
+		return []byte(s), nil
+	case ResponsePostResponseIncidentsIDRequestCreatedAiEvidenceItemKindIocHit:
+		return []byte(s), nil
+	case ResponsePostResponseIncidentsIDRequestCreatedAiEvidenceItemKindConfigRead:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedAiEvidenceItemKind) UnmarshalText(data []byte) error {
+	switch ResponsePostResponseIncidentsIDRequestCreatedAiEvidenceItemKind(data) {
+	case ResponsePostResponseIncidentsIDRequestCreatedAiEvidenceItemKindFinding:
+		*s = ResponsePostResponseIncidentsIDRequestCreatedAiEvidenceItemKindFinding
+		return nil
+	case ResponsePostResponseIncidentsIDRequestCreatedAiEvidenceItemKindIocHit:
+		*s = ResponsePostResponseIncidentsIDRequestCreatedAiEvidenceItemKindIocHit
+		return nil
+	case ResponsePostResponseIncidentsIDRequestCreatedAiEvidenceItemKindConfigRead:
+		*s = ResponsePostResponseIncidentsIDRequestCreatedAiEvidenceItemKindConfigRead
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ResponsePostResponseIncidentsIDRequestCreatedAiSecondCheck struct {
+	Notes string `json:"notes"`
+	Ok    bool   `json:"ok"`
+}
+
+// GetNotes returns the value of Notes.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedAiSecondCheck) GetNotes() string {
+	return s.Notes
+}
+
+// GetOk returns the value of Ok.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedAiSecondCheck) GetOk() bool {
+	return s.Ok
+}
+
+// SetNotes sets the value of Notes.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedAiSecondCheck) SetNotes(val string) {
+	s.Notes = val
+}
+
+// SetOk sets the value of Ok.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedAiSecondCheck) SetOk(val bool) {
+	s.Ok = val
+}
+
+type ResponsePostResponseIncidentsIDRequestCreatedApprovalsItem struct {
+	At    time.Time `json:"at"`
+	Email string    `json:"email"`
+	// Item ids this person approved.
+	Items  []string                                                      `json:"items"`
+	Name   string                                                        `json:"name"`
+	UserID string                                                        `json:"user_id"`
+	Via    ResponsePostResponseIncidentsIDRequestCreatedApprovalsItemVia `json:"via"`
+}
+
+// GetAt returns the value of At.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedApprovalsItem) GetAt() time.Time {
+	return s.At
+}
+
+// GetEmail returns the value of Email.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedApprovalsItem) GetEmail() string {
+	return s.Email
+}
+
+// GetItems returns the value of Items.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedApprovalsItem) GetItems() []string {
+	return s.Items
+}
+
+// GetName returns the value of Name.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedApprovalsItem) GetName() string {
+	return s.Name
+}
+
+// GetUserID returns the value of UserID.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedApprovalsItem) GetUserID() string {
+	return s.UserID
+}
+
+// GetVia returns the value of Via.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedApprovalsItem) GetVia() ResponsePostResponseIncidentsIDRequestCreatedApprovalsItemVia {
+	return s.Via
+}
+
+// SetAt sets the value of At.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedApprovalsItem) SetAt(val time.Time) {
+	s.At = val
+}
+
+// SetEmail sets the value of Email.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedApprovalsItem) SetEmail(val string) {
+	s.Email = val
+}
+
+// SetItems sets the value of Items.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedApprovalsItem) SetItems(val []string) {
+	s.Items = val
+}
+
+// SetName sets the value of Name.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedApprovalsItem) SetName(val string) {
+	s.Name = val
+}
+
+// SetUserID sets the value of UserID.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedApprovalsItem) SetUserID(val string) {
+	s.UserID = val
+}
+
+// SetVia sets the value of Via.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedApprovalsItem) SetVia(val ResponsePostResponseIncidentsIDRequestCreatedApprovalsItemVia) {
+	s.Via = val
+}
+
+type ResponsePostResponseIncidentsIDRequestCreatedApprovalsItemVia string
+
+const (
+	ResponsePostResponseIncidentsIDRequestCreatedApprovalsItemViaApp          ResponsePostResponseIncidentsIDRequestCreatedApprovalsItemVia = "app"
+	ResponsePostResponseIncidentsIDRequestCreatedApprovalsItemViaSlack        ResponsePostResponseIncidentsIDRequestCreatedApprovalsItemVia = "slack"
+	ResponsePostResponseIncidentsIDRequestCreatedApprovalsItemViaTelegram     ResponsePostResponseIncidentsIDRequestCreatedApprovalsItemVia = "telegram"
+	ResponsePostResponseIncidentsIDRequestCreatedApprovalsItemViaEmail        ResponsePostResponseIncidentsIDRequestCreatedApprovalsItemVia = "email"
+	ResponsePostResponseIncidentsIDRequestCreatedApprovalsItemViaZalo         ResponsePostResponseIncidentsIDRequestCreatedApprovalsItemVia = "zalo"
+	ResponsePostResponseIncidentsIDRequestCreatedApprovalsItemViaZaloPersonal ResponsePostResponseIncidentsIDRequestCreatedApprovalsItemVia = "zalo-personal"
+	ResponsePostResponseIncidentsIDRequestCreatedApprovalsItemViaAuto         ResponsePostResponseIncidentsIDRequestCreatedApprovalsItemVia = "auto"
+)
+
+// AllValues returns all ResponsePostResponseIncidentsIDRequestCreatedApprovalsItemVia values.
+func (ResponsePostResponseIncidentsIDRequestCreatedApprovalsItemVia) AllValues() []ResponsePostResponseIncidentsIDRequestCreatedApprovalsItemVia {
+	return []ResponsePostResponseIncidentsIDRequestCreatedApprovalsItemVia{
+		ResponsePostResponseIncidentsIDRequestCreatedApprovalsItemViaApp,
+		ResponsePostResponseIncidentsIDRequestCreatedApprovalsItemViaSlack,
+		ResponsePostResponseIncidentsIDRequestCreatedApprovalsItemViaTelegram,
+		ResponsePostResponseIncidentsIDRequestCreatedApprovalsItemViaEmail,
+		ResponsePostResponseIncidentsIDRequestCreatedApprovalsItemViaZalo,
+		ResponsePostResponseIncidentsIDRequestCreatedApprovalsItemViaZaloPersonal,
+		ResponsePostResponseIncidentsIDRequestCreatedApprovalsItemViaAuto,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ResponsePostResponseIncidentsIDRequestCreatedApprovalsItemVia) MarshalText() ([]byte, error) {
+	switch s {
+	case ResponsePostResponseIncidentsIDRequestCreatedApprovalsItemViaApp:
+		return []byte(s), nil
+	case ResponsePostResponseIncidentsIDRequestCreatedApprovalsItemViaSlack:
+		return []byte(s), nil
+	case ResponsePostResponseIncidentsIDRequestCreatedApprovalsItemViaTelegram:
+		return []byte(s), nil
+	case ResponsePostResponseIncidentsIDRequestCreatedApprovalsItemViaEmail:
+		return []byte(s), nil
+	case ResponsePostResponseIncidentsIDRequestCreatedApprovalsItemViaZalo:
+		return []byte(s), nil
+	case ResponsePostResponseIncidentsIDRequestCreatedApprovalsItemViaZaloPersonal:
+		return []byte(s), nil
+	case ResponsePostResponseIncidentsIDRequestCreatedApprovalsItemViaAuto:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedApprovalsItemVia) UnmarshalText(data []byte) error {
+	switch ResponsePostResponseIncidentsIDRequestCreatedApprovalsItemVia(data) {
+	case ResponsePostResponseIncidentsIDRequestCreatedApprovalsItemViaApp:
+		*s = ResponsePostResponseIncidentsIDRequestCreatedApprovalsItemViaApp
+		return nil
+	case ResponsePostResponseIncidentsIDRequestCreatedApprovalsItemViaSlack:
+		*s = ResponsePostResponseIncidentsIDRequestCreatedApprovalsItemViaSlack
+		return nil
+	case ResponsePostResponseIncidentsIDRequestCreatedApprovalsItemViaTelegram:
+		*s = ResponsePostResponseIncidentsIDRequestCreatedApprovalsItemViaTelegram
+		return nil
+	case ResponsePostResponseIncidentsIDRequestCreatedApprovalsItemViaEmail:
+		*s = ResponsePostResponseIncidentsIDRequestCreatedApprovalsItemViaEmail
+		return nil
+	case ResponsePostResponseIncidentsIDRequestCreatedApprovalsItemViaZalo:
+		*s = ResponsePostResponseIncidentsIDRequestCreatedApprovalsItemViaZalo
+		return nil
+	case ResponsePostResponseIncidentsIDRequestCreatedApprovalsItemViaZaloPersonal:
+		*s = ResponsePostResponseIncidentsIDRequestCreatedApprovalsItemViaZaloPersonal
+		return nil
+	case ResponsePostResponseIncidentsIDRequestCreatedApprovalsItemViaAuto:
+		*s = ResponsePostResponseIncidentsIDRequestCreatedApprovalsItemViaAuto
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ResponsePostResponseIncidentsIDRequestCreatedEmailLinksItem struct {
+	Address   string    `json:"address"`
+	Approver  string    `json:"approver"`
+	ExpiresAt time.Time `json:"expires_at"`
+	URL       string    `json:"url"`
+	Used      bool      `json:"used"`
+}
+
+// GetAddress returns the value of Address.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedEmailLinksItem) GetAddress() string {
+	return s.Address
+}
+
+// GetApprover returns the value of Approver.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedEmailLinksItem) GetApprover() string {
+	return s.Approver
+}
+
+// GetExpiresAt returns the value of ExpiresAt.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedEmailLinksItem) GetExpiresAt() time.Time {
+	return s.ExpiresAt
+}
+
+// GetURL returns the value of URL.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedEmailLinksItem) GetURL() string {
+	return s.URL
+}
+
+// GetUsed returns the value of Used.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedEmailLinksItem) GetUsed() bool {
+	return s.Used
+}
+
+// SetAddress sets the value of Address.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedEmailLinksItem) SetAddress(val string) {
+	s.Address = val
+}
+
+// SetApprover sets the value of Approver.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedEmailLinksItem) SetApprover(val string) {
+	s.Approver = val
+}
+
+// SetExpiresAt sets the value of ExpiresAt.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedEmailLinksItem) SetExpiresAt(val time.Time) {
+	s.ExpiresAt = val
+}
+
+// SetURL sets the value of URL.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedEmailLinksItem) SetURL(val string) {
+	s.URL = val
+}
+
+// SetUsed sets the value of Used.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedEmailLinksItem) SetUsed(val bool) {
+	s.Used = val
+}
+
+type ResponsePostResponseIncidentsIDRequestCreatedItemsItem struct {
+	ActionID   string                                                       `json:"action_id"`
+	Change     ResponsePostResponseIncidentsIDRequestCreatedItemsItemChange `json:"change"`
+	Connection NilString                                                    `json:"connection"`
+	// Null = the action does not change another device (block list, message).
+	ConnectorID  NilString                                                  `json:"connector_id"`
+	ExecutedAt   NilDateTime                                                `json:"executed_at"`
+	ID           string                                                     `json:"id"`
+	RemoveAt     NilDateTime                                                `json:"remove_at"`
+	Result       NilString                                                  `json:"result"`
+	Reversible   bool                                                       `json:"reversible"`
+	Risk         ResponsePostResponseIncidentsIDRequestCreatedItemsItemRisk `json:"risk"`
+	RolledBackAt NilDateTime                                                `json:"rolled_back_at"`
+	// A failed item whose step was sent and whose outcome is not known: it may be in force, so it can be
+	// undone to be sure.
+	StateUnknown bool                                                         `json:"state_unknown"`
+	Status       ResponsePostResponseIncidentsIDRequestCreatedItemsItemStatus `json:"status"`
+	// How many addresses or objects the action touches.
+	Targets int    `json:"targets"`
+	Title   string `json:"title"`
+	Tool    string `json:"tool"`
+	// Minutes after execution until the change is undone automatically.
+	TTLMin NilInt `json:"ttl_min"`
+	// Result of the read-back after the action ran.
+	Verified NilResponsePostResponseIncidentsIDRequestCreatedItemsItemVerified `json:"verified"`
+}
+
+// GetActionID returns the value of ActionID.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedItemsItem) GetActionID() string {
+	return s.ActionID
+}
+
+// GetChange returns the value of Change.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedItemsItem) GetChange() ResponsePostResponseIncidentsIDRequestCreatedItemsItemChange {
+	return s.Change
+}
+
+// GetConnection returns the value of Connection.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedItemsItem) GetConnection() NilString {
+	return s.Connection
+}
+
+// GetConnectorID returns the value of ConnectorID.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedItemsItem) GetConnectorID() NilString {
+	return s.ConnectorID
+}
+
+// GetExecutedAt returns the value of ExecutedAt.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedItemsItem) GetExecutedAt() NilDateTime {
+	return s.ExecutedAt
+}
+
+// GetID returns the value of ID.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedItemsItem) GetID() string {
+	return s.ID
+}
+
+// GetRemoveAt returns the value of RemoveAt.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedItemsItem) GetRemoveAt() NilDateTime {
+	return s.RemoveAt
+}
+
+// GetResult returns the value of Result.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedItemsItem) GetResult() NilString {
+	return s.Result
+}
+
+// GetReversible returns the value of Reversible.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedItemsItem) GetReversible() bool {
+	return s.Reversible
+}
+
+// GetRisk returns the value of Risk.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedItemsItem) GetRisk() ResponsePostResponseIncidentsIDRequestCreatedItemsItemRisk {
+	return s.Risk
+}
+
+// GetRolledBackAt returns the value of RolledBackAt.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedItemsItem) GetRolledBackAt() NilDateTime {
+	return s.RolledBackAt
+}
+
+// GetStateUnknown returns the value of StateUnknown.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedItemsItem) GetStateUnknown() bool {
+	return s.StateUnknown
+}
+
+// GetStatus returns the value of Status.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedItemsItem) GetStatus() ResponsePostResponseIncidentsIDRequestCreatedItemsItemStatus {
+	return s.Status
+}
+
+// GetTargets returns the value of Targets.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedItemsItem) GetTargets() int {
+	return s.Targets
+}
+
+// GetTitle returns the value of Title.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedItemsItem) GetTitle() string {
+	return s.Title
+}
+
+// GetTool returns the value of Tool.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedItemsItem) GetTool() string {
+	return s.Tool
+}
+
+// GetTTLMin returns the value of TTLMin.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedItemsItem) GetTTLMin() NilInt {
+	return s.TTLMin
+}
+
+// GetVerified returns the value of Verified.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedItemsItem) GetVerified() NilResponsePostResponseIncidentsIDRequestCreatedItemsItemVerified {
+	return s.Verified
+}
+
+// SetActionID sets the value of ActionID.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedItemsItem) SetActionID(val string) {
+	s.ActionID = val
+}
+
+// SetChange sets the value of Change.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedItemsItem) SetChange(val ResponsePostResponseIncidentsIDRequestCreatedItemsItemChange) {
+	s.Change = val
+}
+
+// SetConnection sets the value of Connection.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedItemsItem) SetConnection(val NilString) {
+	s.Connection = val
+}
+
+// SetConnectorID sets the value of ConnectorID.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedItemsItem) SetConnectorID(val NilString) {
+	s.ConnectorID = val
+}
+
+// SetExecutedAt sets the value of ExecutedAt.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedItemsItem) SetExecutedAt(val NilDateTime) {
+	s.ExecutedAt = val
+}
+
+// SetID sets the value of ID.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedItemsItem) SetID(val string) {
+	s.ID = val
+}
+
+// SetRemoveAt sets the value of RemoveAt.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedItemsItem) SetRemoveAt(val NilDateTime) {
+	s.RemoveAt = val
+}
+
+// SetResult sets the value of Result.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedItemsItem) SetResult(val NilString) {
+	s.Result = val
+}
+
+// SetReversible sets the value of Reversible.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedItemsItem) SetReversible(val bool) {
+	s.Reversible = val
+}
+
+// SetRisk sets the value of Risk.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedItemsItem) SetRisk(val ResponsePostResponseIncidentsIDRequestCreatedItemsItemRisk) {
+	s.Risk = val
+}
+
+// SetRolledBackAt sets the value of RolledBackAt.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedItemsItem) SetRolledBackAt(val NilDateTime) {
+	s.RolledBackAt = val
+}
+
+// SetStateUnknown sets the value of StateUnknown.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedItemsItem) SetStateUnknown(val bool) {
+	s.StateUnknown = val
+}
+
+// SetStatus sets the value of Status.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedItemsItem) SetStatus(val ResponsePostResponseIncidentsIDRequestCreatedItemsItemStatus) {
+	s.Status = val
+}
+
+// SetTargets sets the value of Targets.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedItemsItem) SetTargets(val int) {
+	s.Targets = val
+}
+
+// SetTitle sets the value of Title.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedItemsItem) SetTitle(val string) {
+	s.Title = val
+}
+
+// SetTool sets the value of Tool.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedItemsItem) SetTool(val string) {
+	s.Tool = val
+}
+
+// SetTTLMin sets the value of TTLMin.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedItemsItem) SetTTLMin(val NilInt) {
+	s.TTLMin = val
+}
+
+// SetVerified sets the value of Verified.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedItemsItem) SetVerified(val NilResponsePostResponseIncidentsIDRequestCreatedItemsItemVerified) {
+	s.Verified = val
+}
+
+type ResponsePostResponseIncidentsIDRequestCreatedItemsItemChange struct {
+	// State of the target after the change, in plain words.
+	After string `json:"after"`
+	// State of the target before the change, in plain words.
+	Before string `json:"before"`
+	// The same change as a device command, for people who want to check it by hand (may be empty).
+	Cli string `json:"cli"`
+	// The check Vedette runs right before the change: the exact call or command lines (empty when there is
+	// none).
+	Precheck string `json:"precheck"`
+	// When the check refuses the change, in plain words (empty when there is no check).
+	PrecheckRules string `json:"precheck_rules"`
+	// The exact API call, or null when the action is a command only.
+	Rest     NilResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRest  `json:"rest"`
+	Rollback ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRollback `json:"rollback"`
+	// How Vedette reads the result back after running the change: the exact call (method and URL) or
+	// command lines (empty when the action cannot be read back).
+	Verify string `json:"verify"`
+	// What the read-back must contain after the change and must not contain after the undo (empty when
+	// there is none).
+	VerifyRule string `json:"verify_rule"`
+}
+
+// GetAfter returns the value of After.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedItemsItemChange) GetAfter() string {
+	return s.After
+}
+
+// GetBefore returns the value of Before.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedItemsItemChange) GetBefore() string {
+	return s.Before
+}
+
+// GetCli returns the value of Cli.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedItemsItemChange) GetCli() string {
+	return s.Cli
+}
+
+// GetPrecheck returns the value of Precheck.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedItemsItemChange) GetPrecheck() string {
+	return s.Precheck
+}
+
+// GetPrecheckRules returns the value of PrecheckRules.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedItemsItemChange) GetPrecheckRules() string {
+	return s.PrecheckRules
+}
+
+// GetRest returns the value of Rest.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedItemsItemChange) GetRest() NilResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRest {
+	return s.Rest
+}
+
+// GetRollback returns the value of Rollback.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedItemsItemChange) GetRollback() ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRollback {
+	return s.Rollback
+}
+
+// GetVerify returns the value of Verify.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedItemsItemChange) GetVerify() string {
+	return s.Verify
+}
+
+// GetVerifyRule returns the value of VerifyRule.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedItemsItemChange) GetVerifyRule() string {
+	return s.VerifyRule
+}
+
+// SetAfter sets the value of After.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedItemsItemChange) SetAfter(val string) {
+	s.After = val
+}
+
+// SetBefore sets the value of Before.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedItemsItemChange) SetBefore(val string) {
+	s.Before = val
+}
+
+// SetCli sets the value of Cli.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedItemsItemChange) SetCli(val string) {
+	s.Cli = val
+}
+
+// SetPrecheck sets the value of Precheck.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedItemsItemChange) SetPrecheck(val string) {
+	s.Precheck = val
+}
+
+// SetPrecheckRules sets the value of PrecheckRules.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedItemsItemChange) SetPrecheckRules(val string) {
+	s.PrecheckRules = val
+}
+
+// SetRest sets the value of Rest.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedItemsItemChange) SetRest(val NilResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRest) {
+	s.Rest = val
+}
+
+// SetRollback sets the value of Rollback.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedItemsItemChange) SetRollback(val ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRollback) {
+	s.Rollback = val
+}
+
+// SetVerify sets the value of Verify.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedItemsItemChange) SetVerify(val string) {
+	s.Verify = val
+}
+
+// SetVerifyRule sets the value of VerifyRule.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedItemsItemChange) SetVerifyRule(val string) {
+	s.VerifyRule = val
+}
+
+type ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRest struct {
+	Body NilString `json:"body"`
+	// The headers of the template with the typed values filled in, exactly as sent; the sign-in is the
+	// connection's and never listed.
+	Headers ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRestHeaders `json:"headers"`
+	Method  ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRestMethod  `json:"method"`
+	URL     string                                                                  `json:"url"`
+}
+
+// GetBody returns the value of Body.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRest) GetBody() NilString {
+	return s.Body
+}
+
+// GetHeaders returns the value of Headers.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRest) GetHeaders() ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRestHeaders {
+	return s.Headers
+}
+
+// GetMethod returns the value of Method.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRest) GetMethod() ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRestMethod {
+	return s.Method
+}
+
+// GetURL returns the value of URL.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRest) GetURL() string {
+	return s.URL
+}
+
+// SetBody sets the value of Body.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRest) SetBody(val NilString) {
+	s.Body = val
+}
+
+// SetHeaders sets the value of Headers.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRest) SetHeaders(val ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRestHeaders) {
+	s.Headers = val
+}
+
+// SetMethod sets the value of Method.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRest) SetMethod(val ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRestMethod) {
+	s.Method = val
+}
+
+// SetURL sets the value of URL.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRest) SetURL(val string) {
+	s.URL = val
+}
+
+// The headers of the template with the typed values filled in, exactly as sent; the sign-in is the
+// connection's and never listed.
+type ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRestHeaders map[string]string
+
+func (s *ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRestHeaders) init() ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRestHeaders {
+	m := *s
+	if m == nil {
+		m = map[string]string{}
+		*s = m
+	}
+	return m
+}
+
+type ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRestMethod string
+
+const (
+	ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRestMethodGET    ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRestMethod = "GET"
+	ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRestMethodPUT    ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRestMethod = "PUT"
+	ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRestMethodPATCH  ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRestMethod = "PATCH"
+	ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRestMethodPOST   ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRestMethod = "POST"
+	ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRestMethodDELETE ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRestMethod = "DELETE"
+)
+
+// AllValues returns all ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRestMethod values.
+func (ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRestMethod) AllValues() []ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRestMethod {
+	return []ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRestMethod{
+		ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRestMethodGET,
+		ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRestMethodPUT,
+		ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRestMethodPATCH,
+		ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRestMethodPOST,
+		ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRestMethodDELETE,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRestMethod) MarshalText() ([]byte, error) {
+	switch s {
+	case ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRestMethodGET:
+		return []byte(s), nil
+	case ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRestMethodPUT:
+		return []byte(s), nil
+	case ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRestMethodPATCH:
+		return []byte(s), nil
+	case ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRestMethodPOST:
+		return []byte(s), nil
+	case ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRestMethodDELETE:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRestMethod) UnmarshalText(data []byte) error {
+	switch ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRestMethod(data) {
+	case ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRestMethodGET:
+		*s = ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRestMethodGET
+		return nil
+	case ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRestMethodPUT:
+		*s = ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRestMethodPUT
+		return nil
+	case ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRestMethodPATCH:
+		*s = ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRestMethodPATCH
+		return nil
+	case ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRestMethodPOST:
+		*s = ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRestMethodPOST
+		return nil
+	case ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRestMethodDELETE:
+		*s = ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRestMethodDELETE
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRollback struct {
+	Cli string `json:"cli"`
+	// The exact API call, or null when the action is a command only.
+	Rest  NilResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRollbackRest `json:"rest"`
+	Title string                                                                      `json:"title"`
+}
+
+// GetCli returns the value of Cli.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRollback) GetCli() string {
+	return s.Cli
+}
+
+// GetRest returns the value of Rest.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRollback) GetRest() NilResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRollbackRest {
+	return s.Rest
+}
+
+// GetTitle returns the value of Title.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRollback) GetTitle() string {
+	return s.Title
+}
+
+// SetCli sets the value of Cli.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRollback) SetCli(val string) {
+	s.Cli = val
+}
+
+// SetRest sets the value of Rest.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRollback) SetRest(val NilResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRollbackRest) {
+	s.Rest = val
+}
+
+// SetTitle sets the value of Title.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRollback) SetTitle(val string) {
+	s.Title = val
+}
+
+type ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRollbackRest struct {
+	Body NilString `json:"body"`
+	// The headers of the template with the typed values filled in, exactly as sent; the sign-in is the
+	// connection's and never listed.
+	Headers ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRollbackRestHeaders `json:"headers"`
+	Method  ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRollbackRestMethod  `json:"method"`
+	URL     string                                                                          `json:"url"`
+}
+
+// GetBody returns the value of Body.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRollbackRest) GetBody() NilString {
+	return s.Body
+}
+
+// GetHeaders returns the value of Headers.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRollbackRest) GetHeaders() ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRollbackRestHeaders {
+	return s.Headers
+}
+
+// GetMethod returns the value of Method.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRollbackRest) GetMethod() ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRollbackRestMethod {
+	return s.Method
+}
+
+// GetURL returns the value of URL.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRollbackRest) GetURL() string {
+	return s.URL
+}
+
+// SetBody sets the value of Body.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRollbackRest) SetBody(val NilString) {
+	s.Body = val
+}
+
+// SetHeaders sets the value of Headers.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRollbackRest) SetHeaders(val ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRollbackRestHeaders) {
+	s.Headers = val
+}
+
+// SetMethod sets the value of Method.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRollbackRest) SetMethod(val ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRollbackRestMethod) {
+	s.Method = val
+}
+
+// SetURL sets the value of URL.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRollbackRest) SetURL(val string) {
+	s.URL = val
+}
+
+// The headers of the template with the typed values filled in, exactly as sent; the sign-in is the
+// connection's and never listed.
+type ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRollbackRestHeaders map[string]string
+
+func (s *ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRollbackRestHeaders) init() ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRollbackRestHeaders {
+	m := *s
+	if m == nil {
+		m = map[string]string{}
+		*s = m
+	}
+	return m
+}
+
+type ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRollbackRestMethod string
+
+const (
+	ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRollbackRestMethodGET    ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRollbackRestMethod = "GET"
+	ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRollbackRestMethodPUT    ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRollbackRestMethod = "PUT"
+	ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRollbackRestMethodPATCH  ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRollbackRestMethod = "PATCH"
+	ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRollbackRestMethodPOST   ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRollbackRestMethod = "POST"
+	ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRollbackRestMethodDELETE ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRollbackRestMethod = "DELETE"
+)
+
+// AllValues returns all ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRollbackRestMethod values.
+func (ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRollbackRestMethod) AllValues() []ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRollbackRestMethod {
+	return []ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRollbackRestMethod{
+		ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRollbackRestMethodGET,
+		ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRollbackRestMethodPUT,
+		ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRollbackRestMethodPATCH,
+		ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRollbackRestMethodPOST,
+		ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRollbackRestMethodDELETE,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRollbackRestMethod) MarshalText() ([]byte, error) {
+	switch s {
+	case ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRollbackRestMethodGET:
+		return []byte(s), nil
+	case ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRollbackRestMethodPUT:
+		return []byte(s), nil
+	case ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRollbackRestMethodPATCH:
+		return []byte(s), nil
+	case ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRollbackRestMethodPOST:
+		return []byte(s), nil
+	case ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRollbackRestMethodDELETE:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRollbackRestMethod) UnmarshalText(data []byte) error {
+	switch ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRollbackRestMethod(data) {
+	case ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRollbackRestMethodGET:
+		*s = ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRollbackRestMethodGET
+		return nil
+	case ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRollbackRestMethodPUT:
+		*s = ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRollbackRestMethodPUT
+		return nil
+	case ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRollbackRestMethodPATCH:
+		*s = ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRollbackRestMethodPATCH
+		return nil
+	case ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRollbackRestMethodPOST:
+		*s = ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRollbackRestMethodPOST
+		return nil
+	case ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRollbackRestMethodDELETE:
+		*s = ResponsePostResponseIncidentsIDRequestCreatedItemsItemChangeRollbackRestMethodDELETE
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ResponsePostResponseIncidentsIDRequestCreatedItemsItemRisk string
+
+const (
+	ResponsePostResponseIncidentsIDRequestCreatedItemsItemRiskLow    ResponsePostResponseIncidentsIDRequestCreatedItemsItemRisk = "low"
+	ResponsePostResponseIncidentsIDRequestCreatedItemsItemRiskMedium ResponsePostResponseIncidentsIDRequestCreatedItemsItemRisk = "medium"
+	ResponsePostResponseIncidentsIDRequestCreatedItemsItemRiskHigh   ResponsePostResponseIncidentsIDRequestCreatedItemsItemRisk = "high"
+)
+
+// AllValues returns all ResponsePostResponseIncidentsIDRequestCreatedItemsItemRisk values.
+func (ResponsePostResponseIncidentsIDRequestCreatedItemsItemRisk) AllValues() []ResponsePostResponseIncidentsIDRequestCreatedItemsItemRisk {
+	return []ResponsePostResponseIncidentsIDRequestCreatedItemsItemRisk{
+		ResponsePostResponseIncidentsIDRequestCreatedItemsItemRiskLow,
+		ResponsePostResponseIncidentsIDRequestCreatedItemsItemRiskMedium,
+		ResponsePostResponseIncidentsIDRequestCreatedItemsItemRiskHigh,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ResponsePostResponseIncidentsIDRequestCreatedItemsItemRisk) MarshalText() ([]byte, error) {
+	switch s {
+	case ResponsePostResponseIncidentsIDRequestCreatedItemsItemRiskLow:
+		return []byte(s), nil
+	case ResponsePostResponseIncidentsIDRequestCreatedItemsItemRiskMedium:
+		return []byte(s), nil
+	case ResponsePostResponseIncidentsIDRequestCreatedItemsItemRiskHigh:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedItemsItemRisk) UnmarshalText(data []byte) error {
+	switch ResponsePostResponseIncidentsIDRequestCreatedItemsItemRisk(data) {
+	case ResponsePostResponseIncidentsIDRequestCreatedItemsItemRiskLow:
+		*s = ResponsePostResponseIncidentsIDRequestCreatedItemsItemRiskLow
+		return nil
+	case ResponsePostResponseIncidentsIDRequestCreatedItemsItemRiskMedium:
+		*s = ResponsePostResponseIncidentsIDRequestCreatedItemsItemRiskMedium
+		return nil
+	case ResponsePostResponseIncidentsIDRequestCreatedItemsItemRiskHigh:
+		*s = ResponsePostResponseIncidentsIDRequestCreatedItemsItemRiskHigh
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ResponsePostResponseIncidentsIDRequestCreatedItemsItemStatus string
+
+const (
+	ResponsePostResponseIncidentsIDRequestCreatedItemsItemStatusPending    ResponsePostResponseIncidentsIDRequestCreatedItemsItemStatus = "pending"
+	ResponsePostResponseIncidentsIDRequestCreatedItemsItemStatusSkipped    ResponsePostResponseIncidentsIDRequestCreatedItemsItemStatus = "skipped"
+	ResponsePostResponseIncidentsIDRequestCreatedItemsItemStatusExecuted   ResponsePostResponseIncidentsIDRequestCreatedItemsItemStatus = "executed"
+	ResponsePostResponseIncidentsIDRequestCreatedItemsItemStatusFailed     ResponsePostResponseIncidentsIDRequestCreatedItemsItemStatus = "failed"
+	ResponsePostResponseIncidentsIDRequestCreatedItemsItemStatusRolledBack ResponsePostResponseIncidentsIDRequestCreatedItemsItemStatus = "rolled_back"
+)
+
+// AllValues returns all ResponsePostResponseIncidentsIDRequestCreatedItemsItemStatus values.
+func (ResponsePostResponseIncidentsIDRequestCreatedItemsItemStatus) AllValues() []ResponsePostResponseIncidentsIDRequestCreatedItemsItemStatus {
+	return []ResponsePostResponseIncidentsIDRequestCreatedItemsItemStatus{
+		ResponsePostResponseIncidentsIDRequestCreatedItemsItemStatusPending,
+		ResponsePostResponseIncidentsIDRequestCreatedItemsItemStatusSkipped,
+		ResponsePostResponseIncidentsIDRequestCreatedItemsItemStatusExecuted,
+		ResponsePostResponseIncidentsIDRequestCreatedItemsItemStatusFailed,
+		ResponsePostResponseIncidentsIDRequestCreatedItemsItemStatusRolledBack,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ResponsePostResponseIncidentsIDRequestCreatedItemsItemStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case ResponsePostResponseIncidentsIDRequestCreatedItemsItemStatusPending:
+		return []byte(s), nil
+	case ResponsePostResponseIncidentsIDRequestCreatedItemsItemStatusSkipped:
+		return []byte(s), nil
+	case ResponsePostResponseIncidentsIDRequestCreatedItemsItemStatusExecuted:
+		return []byte(s), nil
+	case ResponsePostResponseIncidentsIDRequestCreatedItemsItemStatusFailed:
+		return []byte(s), nil
+	case ResponsePostResponseIncidentsIDRequestCreatedItemsItemStatusRolledBack:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedItemsItemStatus) UnmarshalText(data []byte) error {
+	switch ResponsePostResponseIncidentsIDRequestCreatedItemsItemStatus(data) {
+	case ResponsePostResponseIncidentsIDRequestCreatedItemsItemStatusPending:
+		*s = ResponsePostResponseIncidentsIDRequestCreatedItemsItemStatusPending
+		return nil
+	case ResponsePostResponseIncidentsIDRequestCreatedItemsItemStatusSkipped:
+		*s = ResponsePostResponseIncidentsIDRequestCreatedItemsItemStatusSkipped
+		return nil
+	case ResponsePostResponseIncidentsIDRequestCreatedItemsItemStatusExecuted:
+		*s = ResponsePostResponseIncidentsIDRequestCreatedItemsItemStatusExecuted
+		return nil
+	case ResponsePostResponseIncidentsIDRequestCreatedItemsItemStatusFailed:
+		*s = ResponsePostResponseIncidentsIDRequestCreatedItemsItemStatusFailed
+		return nil
+	case ResponsePostResponseIncidentsIDRequestCreatedItemsItemStatusRolledBack:
+		*s = ResponsePostResponseIncidentsIDRequestCreatedItemsItemStatusRolledBack
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ResponsePostResponseIncidentsIDRequestCreatedItemsItemVerified struct {
+	Detail string `json:"detail"`
+	Ok     bool   `json:"ok"`
+}
+
+// GetDetail returns the value of Detail.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedItemsItemVerified) GetDetail() string {
+	return s.Detail
+}
+
+// GetOk returns the value of Ok.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedItemsItemVerified) GetOk() bool {
+	return s.Ok
+}
+
+// SetDetail sets the value of Detail.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedItemsItemVerified) SetDetail(val string) {
+	s.Detail = val
+}
+
+// SetOk sets the value of Ok.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedItemsItemVerified) SetOk(val bool) {
+	s.Ok = val
+}
+
+// Highest risk among the actions.
+type ResponsePostResponseIncidentsIDRequestCreatedRisk string
+
+const (
+	ResponsePostResponseIncidentsIDRequestCreatedRiskLow    ResponsePostResponseIncidentsIDRequestCreatedRisk = "low"
+	ResponsePostResponseIncidentsIDRequestCreatedRiskMedium ResponsePostResponseIncidentsIDRequestCreatedRisk = "medium"
+	ResponsePostResponseIncidentsIDRequestCreatedRiskHigh   ResponsePostResponseIncidentsIDRequestCreatedRisk = "high"
+)
+
+// AllValues returns all ResponsePostResponseIncidentsIDRequestCreatedRisk values.
+func (ResponsePostResponseIncidentsIDRequestCreatedRisk) AllValues() []ResponsePostResponseIncidentsIDRequestCreatedRisk {
+	return []ResponsePostResponseIncidentsIDRequestCreatedRisk{
+		ResponsePostResponseIncidentsIDRequestCreatedRiskLow,
+		ResponsePostResponseIncidentsIDRequestCreatedRiskMedium,
+		ResponsePostResponseIncidentsIDRequestCreatedRiskHigh,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ResponsePostResponseIncidentsIDRequestCreatedRisk) MarshalText() ([]byte, error) {
+	switch s {
+	case ResponsePostResponseIncidentsIDRequestCreatedRiskLow:
+		return []byte(s), nil
+	case ResponsePostResponseIncidentsIDRequestCreatedRiskMedium:
+		return []byte(s), nil
+	case ResponsePostResponseIncidentsIDRequestCreatedRiskHigh:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedRisk) UnmarshalText(data []byte) error {
+	switch ResponsePostResponseIncidentsIDRequestCreatedRisk(data) {
+	case ResponsePostResponseIncidentsIDRequestCreatedRiskLow:
+		*s = ResponsePostResponseIncidentsIDRequestCreatedRiskLow
+		return nil
+	case ResponsePostResponseIncidentsIDRequestCreatedRiskMedium:
+		*s = ResponsePostResponseIncidentsIDRequestCreatedRiskMedium
+		return nil
+	case ResponsePostResponseIncidentsIDRequestCreatedRiskHigh:
+		*s = ResponsePostResponseIncidentsIDRequestCreatedRiskHigh
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Who asked: the AI, a rule, or a person from an incident (D-509).
+type ResponsePostResponseIncidentsIDRequestCreatedSource string
+
+const (
+	ResponsePostResponseIncidentsIDRequestCreatedSourceAi     ResponsePostResponseIncidentsIDRequestCreatedSource = "ai"
+	ResponsePostResponseIncidentsIDRequestCreatedSourceRule   ResponsePostResponseIncidentsIDRequestCreatedSource = "rule"
+	ResponsePostResponseIncidentsIDRequestCreatedSourcePerson ResponsePostResponseIncidentsIDRequestCreatedSource = "person"
+)
+
+// AllValues returns all ResponsePostResponseIncidentsIDRequestCreatedSource values.
+func (ResponsePostResponseIncidentsIDRequestCreatedSource) AllValues() []ResponsePostResponseIncidentsIDRequestCreatedSource {
+	return []ResponsePostResponseIncidentsIDRequestCreatedSource{
+		ResponsePostResponseIncidentsIDRequestCreatedSourceAi,
+		ResponsePostResponseIncidentsIDRequestCreatedSourceRule,
+		ResponsePostResponseIncidentsIDRequestCreatedSourcePerson,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ResponsePostResponseIncidentsIDRequestCreatedSource) MarshalText() ([]byte, error) {
+	switch s {
+	case ResponsePostResponseIncidentsIDRequestCreatedSourceAi:
+		return []byte(s), nil
+	case ResponsePostResponseIncidentsIDRequestCreatedSourceRule:
+		return []byte(s), nil
+	case ResponsePostResponseIncidentsIDRequestCreatedSourcePerson:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedSource) UnmarshalText(data []byte) error {
+	switch ResponsePostResponseIncidentsIDRequestCreatedSource(data) {
+	case ResponsePostResponseIncidentsIDRequestCreatedSourceAi:
+		*s = ResponsePostResponseIncidentsIDRequestCreatedSourceAi
+		return nil
+	case ResponsePostResponseIncidentsIDRequestCreatedSourceRule:
+		*s = ResponsePostResponseIncidentsIDRequestCreatedSourceRule
+		return nil
+	case ResponsePostResponseIncidentsIDRequestCreatedSourcePerson:
+		*s = ResponsePostResponseIncidentsIDRequestCreatedSourcePerson
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ResponsePostResponseIncidentsIDRequestCreatedStatus string
+
+const (
+	ResponsePostResponseIncidentsIDRequestCreatedStatusPending    ResponsePostResponseIncidentsIDRequestCreatedStatus = "pending"
+	ResponsePostResponseIncidentsIDRequestCreatedStatusApproved   ResponsePostResponseIncidentsIDRequestCreatedStatus = "approved"
+	ResponsePostResponseIncidentsIDRequestCreatedStatusRejected   ResponsePostResponseIncidentsIDRequestCreatedStatus = "rejected"
+	ResponsePostResponseIncidentsIDRequestCreatedStatusExpired    ResponsePostResponseIncidentsIDRequestCreatedStatus = "expired"
+	ResponsePostResponseIncidentsIDRequestCreatedStatusExecuted   ResponsePostResponseIncidentsIDRequestCreatedStatus = "executed"
+	ResponsePostResponseIncidentsIDRequestCreatedStatusFailed     ResponsePostResponseIncidentsIDRequestCreatedStatus = "failed"
+	ResponsePostResponseIncidentsIDRequestCreatedStatusRolledBack ResponsePostResponseIncidentsIDRequestCreatedStatus = "rolled_back"
+)
+
+// AllValues returns all ResponsePostResponseIncidentsIDRequestCreatedStatus values.
+func (ResponsePostResponseIncidentsIDRequestCreatedStatus) AllValues() []ResponsePostResponseIncidentsIDRequestCreatedStatus {
+	return []ResponsePostResponseIncidentsIDRequestCreatedStatus{
+		ResponsePostResponseIncidentsIDRequestCreatedStatusPending,
+		ResponsePostResponseIncidentsIDRequestCreatedStatusApproved,
+		ResponsePostResponseIncidentsIDRequestCreatedStatusRejected,
+		ResponsePostResponseIncidentsIDRequestCreatedStatusExpired,
+		ResponsePostResponseIncidentsIDRequestCreatedStatusExecuted,
+		ResponsePostResponseIncidentsIDRequestCreatedStatusFailed,
+		ResponsePostResponseIncidentsIDRequestCreatedStatusRolledBack,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ResponsePostResponseIncidentsIDRequestCreatedStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case ResponsePostResponseIncidentsIDRequestCreatedStatusPending:
+		return []byte(s), nil
+	case ResponsePostResponseIncidentsIDRequestCreatedStatusApproved:
+		return []byte(s), nil
+	case ResponsePostResponseIncidentsIDRequestCreatedStatusRejected:
+		return []byte(s), nil
+	case ResponsePostResponseIncidentsIDRequestCreatedStatusExpired:
+		return []byte(s), nil
+	case ResponsePostResponseIncidentsIDRequestCreatedStatusExecuted:
+		return []byte(s), nil
+	case ResponsePostResponseIncidentsIDRequestCreatedStatusFailed:
+		return []byte(s), nil
+	case ResponsePostResponseIncidentsIDRequestCreatedStatusRolledBack:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedStatus) UnmarshalText(data []byte) error {
+	switch ResponsePostResponseIncidentsIDRequestCreatedStatus(data) {
+	case ResponsePostResponseIncidentsIDRequestCreatedStatusPending:
+		*s = ResponsePostResponseIncidentsIDRequestCreatedStatusPending
+		return nil
+	case ResponsePostResponseIncidentsIDRequestCreatedStatusApproved:
+		*s = ResponsePostResponseIncidentsIDRequestCreatedStatusApproved
+		return nil
+	case ResponsePostResponseIncidentsIDRequestCreatedStatusRejected:
+		*s = ResponsePostResponseIncidentsIDRequestCreatedStatusRejected
+		return nil
+	case ResponsePostResponseIncidentsIDRequestCreatedStatusExpired:
+		*s = ResponsePostResponseIncidentsIDRequestCreatedStatusExpired
+		return nil
+	case ResponsePostResponseIncidentsIDRequestCreatedStatusExecuted:
+		*s = ResponsePostResponseIncidentsIDRequestCreatedStatusExecuted
+		return nil
+	case ResponsePostResponseIncidentsIDRequestCreatedStatusFailed:
+		*s = ResponsePostResponseIncidentsIDRequestCreatedStatusFailed
+		return nil
+	case ResponsePostResponseIncidentsIDRequestCreatedStatusRolledBack:
+		*s = ResponsePostResponseIncidentsIDRequestCreatedStatusRolledBack
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ResponsePostResponseIncidentsIDRequestCreatedTrigger string
+
+const (
+	ResponsePostResponseIncidentsIDRequestCreatedTriggerHoneypot      ResponsePostResponseIncidentsIDRequestCreatedTrigger = "honeypot"
+	ResponsePostResponseIncidentsIDRequestCreatedTriggerIocConnection ResponsePostResponseIncidentsIDRequestCreatedTrigger = "ioc_connection"
+	ResponsePostResponseIncidentsIDRequestCreatedTriggerFinding       ResponsePostResponseIncidentsIDRequestCreatedTrigger = "finding"
+	ResponsePostResponseIncidentsIDRequestCreatedTriggerUnknownDevice ResponsePostResponseIncidentsIDRequestCreatedTrigger = "unknown_device"
+	ResponsePostResponseIncidentsIDRequestCreatedTriggerLogThreshold  ResponsePostResponseIncidentsIDRequestCreatedTrigger = "log_threshold"
+	ResponsePostResponseIncidentsIDRequestCreatedTriggerNewPort       ResponsePostResponseIncidentsIDRequestCreatedTrigger = "new_port"
+	ResponsePostResponseIncidentsIDRequestCreatedTriggerSchedule      ResponsePostResponseIncidentsIDRequestCreatedTrigger = "schedule"
+	ResponsePostResponseIncidentsIDRequestCreatedTriggerManual        ResponsePostResponseIncidentsIDRequestCreatedTrigger = "manual"
+)
+
+// AllValues returns all ResponsePostResponseIncidentsIDRequestCreatedTrigger values.
+func (ResponsePostResponseIncidentsIDRequestCreatedTrigger) AllValues() []ResponsePostResponseIncidentsIDRequestCreatedTrigger {
+	return []ResponsePostResponseIncidentsIDRequestCreatedTrigger{
+		ResponsePostResponseIncidentsIDRequestCreatedTriggerHoneypot,
+		ResponsePostResponseIncidentsIDRequestCreatedTriggerIocConnection,
+		ResponsePostResponseIncidentsIDRequestCreatedTriggerFinding,
+		ResponsePostResponseIncidentsIDRequestCreatedTriggerUnknownDevice,
+		ResponsePostResponseIncidentsIDRequestCreatedTriggerLogThreshold,
+		ResponsePostResponseIncidentsIDRequestCreatedTriggerNewPort,
+		ResponsePostResponseIncidentsIDRequestCreatedTriggerSchedule,
+		ResponsePostResponseIncidentsIDRequestCreatedTriggerManual,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ResponsePostResponseIncidentsIDRequestCreatedTrigger) MarshalText() ([]byte, error) {
+	switch s {
+	case ResponsePostResponseIncidentsIDRequestCreatedTriggerHoneypot:
+		return []byte(s), nil
+	case ResponsePostResponseIncidentsIDRequestCreatedTriggerIocConnection:
+		return []byte(s), nil
+	case ResponsePostResponseIncidentsIDRequestCreatedTriggerFinding:
+		return []byte(s), nil
+	case ResponsePostResponseIncidentsIDRequestCreatedTriggerUnknownDevice:
+		return []byte(s), nil
+	case ResponsePostResponseIncidentsIDRequestCreatedTriggerLogThreshold:
+		return []byte(s), nil
+	case ResponsePostResponseIncidentsIDRequestCreatedTriggerNewPort:
+		return []byte(s), nil
+	case ResponsePostResponseIncidentsIDRequestCreatedTriggerSchedule:
+		return []byte(s), nil
+	case ResponsePostResponseIncidentsIDRequestCreatedTriggerManual:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ResponsePostResponseIncidentsIDRequestCreatedTrigger) UnmarshalText(data []byte) error {
+	switch ResponsePostResponseIncidentsIDRequestCreatedTrigger(data) {
+	case ResponsePostResponseIncidentsIDRequestCreatedTriggerHoneypot:
+		*s = ResponsePostResponseIncidentsIDRequestCreatedTriggerHoneypot
+		return nil
+	case ResponsePostResponseIncidentsIDRequestCreatedTriggerIocConnection:
+		*s = ResponsePostResponseIncidentsIDRequestCreatedTriggerIocConnection
+		return nil
+	case ResponsePostResponseIncidentsIDRequestCreatedTriggerFinding:
+		*s = ResponsePostResponseIncidentsIDRequestCreatedTriggerFinding
+		return nil
+	case ResponsePostResponseIncidentsIDRequestCreatedTriggerUnknownDevice:
+		*s = ResponsePostResponseIncidentsIDRequestCreatedTriggerUnknownDevice
+		return nil
+	case ResponsePostResponseIncidentsIDRequestCreatedTriggerLogThreshold:
+		*s = ResponsePostResponseIncidentsIDRequestCreatedTriggerLogThreshold
+		return nil
+	case ResponsePostResponseIncidentsIDRequestCreatedTriggerNewPort:
+		*s = ResponsePostResponseIncidentsIDRequestCreatedTriggerNewPort
+		return nil
+	case ResponsePostResponseIncidentsIDRequestCreatedTriggerSchedule:
+		*s = ResponsePostResponseIncidentsIDRequestCreatedTriggerSchedule
+		return nil
+	case ResponsePostResponseIncidentsIDRequestCreatedTriggerManual:
+		*s = ResponsePostResponseIncidentsIDRequestCreatedTriggerManual
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ResponsePostResponseIncidentsIDRequestReq struct {
+	ActionID string `json:"action_id"`
+}
+
+// GetActionID returns the value of ActionID.
+func (s *ResponsePostResponseIncidentsIDRequestReq) GetActionID() string {
+	return s.ActionID
+}
+
+// SetActionID sets the value of ActionID.
+func (s *ResponsePostResponseIncidentsIDRequestReq) SetActionID(val string) {
+	s.ActionID = val
+}
+
 type ResponsePostResponseMeIdentitiesChannelCodeOK struct {
 	// Send_code channels only, when nothing was sent because you confirm in this session (your own row
 	// with the box's own Zalo account): the confirm page to open.
@@ -135358,7 +137831,9 @@ type ResponsePostResponseProposalsIDRequestCreated struct {
 	Items      []ResponsePostResponseProposalsIDRequestCreatedItemsItem      `json:"items"`
 	Note       NilString                                                     `json:"note"`
 	// Carried out by the rule pre-approval option, without a person.
-	PreApproved       bool      `json:"pre_approved"`
+	PreApproved bool `json:"pre_approved"`
+	// The AI plan proposal, rule:: for a rule run, or incident: for a request asked from an incident
+	// (D-509).
 	ProposalID        string    `json:"proposal_id"`
 	RequestedAt       time.Time `json:"requested_at"`
 	RequiresApprovals int       `json:"requires_approvals"`
@@ -135367,7 +137842,8 @@ type ResponsePostResponseProposalsIDRequestCreated struct {
 	RuleID   NilString                                         `json:"rule_id"`
 	RuleName NilString                                         `json:"rule_name"`
 	// Channels that received the approval request.
-	SentTo         []string                                                `json:"sent_to"`
+	SentTo []string `json:"sent_to"`
+	// Who asked: the AI, a rule, or a person from an incident (D-509).
 	Source         ResponsePostResponseProposalsIDRequestCreatedSource     `json:"source"`
 	Status         ResponsePostResponseProposalsIDRequestCreatedStatus     `json:"status"`
 	Title          string                                                  `json:"title"`
@@ -136799,11 +139275,13 @@ func (s *ResponsePostResponseProposalsIDRequestCreatedRisk) UnmarshalText(data [
 	}
 }
 
+// Who asked: the AI, a rule, or a person from an incident (D-509).
 type ResponsePostResponseProposalsIDRequestCreatedSource string
 
 const (
-	ResponsePostResponseProposalsIDRequestCreatedSourceAi   ResponsePostResponseProposalsIDRequestCreatedSource = "ai"
-	ResponsePostResponseProposalsIDRequestCreatedSourceRule ResponsePostResponseProposalsIDRequestCreatedSource = "rule"
+	ResponsePostResponseProposalsIDRequestCreatedSourceAi     ResponsePostResponseProposalsIDRequestCreatedSource = "ai"
+	ResponsePostResponseProposalsIDRequestCreatedSourceRule   ResponsePostResponseProposalsIDRequestCreatedSource = "rule"
+	ResponsePostResponseProposalsIDRequestCreatedSourcePerson ResponsePostResponseProposalsIDRequestCreatedSource = "person"
 )
 
 // AllValues returns all ResponsePostResponseProposalsIDRequestCreatedSource values.
@@ -136811,6 +139289,7 @@ func (ResponsePostResponseProposalsIDRequestCreatedSource) AllValues() []Respons
 	return []ResponsePostResponseProposalsIDRequestCreatedSource{
 		ResponsePostResponseProposalsIDRequestCreatedSourceAi,
 		ResponsePostResponseProposalsIDRequestCreatedSourceRule,
+		ResponsePostResponseProposalsIDRequestCreatedSourcePerson,
 	}
 }
 
@@ -136820,6 +139299,8 @@ func (s ResponsePostResponseProposalsIDRequestCreatedSource) MarshalText() ([]by
 	case ResponsePostResponseProposalsIDRequestCreatedSourceAi:
 		return []byte(s), nil
 	case ResponsePostResponseProposalsIDRequestCreatedSourceRule:
+		return []byte(s), nil
+	case ResponsePostResponseProposalsIDRequestCreatedSourcePerson:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -136834,6 +139315,9 @@ func (s *ResponsePostResponseProposalsIDRequestCreatedSource) UnmarshalText(data
 		return nil
 	case ResponsePostResponseProposalsIDRequestCreatedSourceRule:
 		*s = ResponsePostResponseProposalsIDRequestCreatedSourceRule
+		return nil
+	case ResponsePostResponseProposalsIDRequestCreatedSourcePerson:
+		*s = ResponsePostResponseProposalsIDRequestCreatedSourcePerson
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)

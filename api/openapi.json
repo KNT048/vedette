@@ -47279,11 +47279,14 @@
                             "type": "string",
                             "enum": [
                               "ai",
-                              "rule"
-                            ]
+                              "rule",
+                              "person"
+                            ],
+                            "description": "Who asked: the AI, a rule, or a person from an incident (D-509)"
                           },
                           "proposal_id": {
-                            "type": "string"
+                            "type": "string",
+                            "description": "The AI plan proposal, rule:<rule>:<event> for a rule run, or incident:<id> for a request asked from an incident (D-509)"
                           },
                           "rule_id": {
                             "type": [
@@ -48026,11 +48029,14 @@
                       "type": "string",
                       "enum": [
                         "ai",
-                        "rule"
-                      ]
+                        "rule",
+                        "person"
+                      ],
+                      "description": "Who asked: the AI, a rule, or a person from an incident (D-509)"
                     },
                     "proposal_id": {
-                      "type": "string"
+                      "type": "string",
+                      "description": "The AI plan proposal, rule:<rule>:<event> for a rule run, or incident:<id> for a request asked from an incident (D-509)"
                     },
                     "rule_id": {
                       "type": [
@@ -48781,11 +48787,14 @@
                       "type": "string",
                       "enum": [
                         "ai",
-                        "rule"
-                      ]
+                        "rule",
+                        "person"
+                      ],
+                      "description": "Who asked: the AI, a rule, or a person from an incident (D-509)"
                     },
                     "proposal_id": {
-                      "type": "string"
+                      "type": "string",
+                      "description": "The AI plan proposal, rule:<rule>:<event> for a rule run, or incident:<id> for a request asked from an incident (D-509)"
                     },
                     "rule_id": {
                       "type": [
@@ -49524,11 +49533,14 @@
                       "type": "string",
                       "enum": [
                         "ai",
-                        "rule"
-                      ]
+                        "rule",
+                        "person"
+                      ],
+                      "description": "Who asked: the AI, a rule, or a person from an incident (D-509)"
                     },
                     "proposal_id": {
-                      "type": "string"
+                      "type": "string",
+                      "description": "The AI plan proposal, rule:<rule>:<event> for a rule run, or incident:<id> for a request asked from an incident (D-509)"
                     },
                     "rule_id": {
                       "type": [
@@ -50242,11 +50254,14 @@
                       "type": "string",
                       "enum": [
                         "ai",
-                        "rule"
-                      ]
+                        "rule",
+                        "person"
+                      ],
+                      "description": "Who asked: the AI, a rule, or a person from an incident (D-509)"
                     },
                     "proposal_id": {
-                      "type": "string"
+                      "type": "string",
+                      "description": "The AI plan proposal, rule:<rule>:<event> for a rule run, or incident:<id> for a request asked from an incident (D-509)"
                     },
                     "rule_id": {
                       "type": [
@@ -51323,11 +51338,14 @@
                               "type": "string",
                               "enum": [
                                 "ai",
-                                "rule"
-                              ]
+                                "rule",
+                                "person"
+                              ],
+                              "description": "Who asked: the AI, a rule, or a person from an incident (D-509)"
                             },
                             "proposal_id": {
-                              "type": "string"
+                              "type": "string",
+                              "description": "The AI plan proposal, rule:<rule>:<event> for a rule run, or incident:<id> for a request asked from an incident (D-509)"
                             },
                             "rule_id": {
                               "type": [
@@ -52836,11 +52854,14 @@
                       "type": "string",
                       "enum": [
                         "ai",
-                        "rule"
-                      ]
+                        "rule",
+                        "person"
+                      ],
+                      "description": "Who asked: the AI, a rule, or a person from an incident (D-509)"
                     },
                     "proposal_id": {
-                      "type": "string"
+                      "type": "string",
+                      "description": "The AI plan proposal, rule:<rule>:<event> for a rule run, or incident:<id> for a request asked from an incident (D-509)"
                     },
                     "rule_id": {
                       "type": [
@@ -56346,6 +56367,960 @@
         }
       }
     },
+    "/response/incidents/{id}": {
+      "get": {
+        "operationId": "response_get_response_incidents_id",
+        "summary": "Respond to an incident (D-509): its source address and device, LAN or public, and the actions that can really be asked for it, each with why it is not ready",
+        "tags": [
+          "response"
+        ],
+        "x-stories": [
+          "S-RESP-3"
+        ],
+        "x-min-role": "viewer",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[\\w.-]{1,96}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "incident": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "kind": {
+                          "type": "string"
+                        },
+                        "title": {
+                          "type": "string"
+                        },
+                        "action": {
+                          "type": "string",
+                          "description": "The incident's own advice"
+                        },
+                        "status": {
+                          "type": "string",
+                          "description": "new, acknowledged or resolved"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "kind",
+                        "title",
+                        "action",
+                        "status"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "note": {
+                      "description": "Why nothing can be asked although the source is known: the incident is resolved (no options), or the source of a scan may be forged (every option not ready)",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "source": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "ip": {
+                              "type": "string",
+                              "description": "Read by the server from the incident (a trap: the hit), never sent by the browser"
+                            },
+                            "device": {
+                              "description": "The inventory name of the source, when known",
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "asset_id": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "scope": {
+                              "type": "string",
+                              "enum": [
+                                "lan",
+                                "public"
+                              ],
+                              "description": "lan: an address the block list never publishes (private, CGNAT, link-local…, D-469); public: any other"
+                            }
+                          },
+                          "required": [
+                            "ip",
+                            "device",
+                            "asset_id",
+                            "scope"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "null: the incident names no single address Vedette can act on (another kind, a test hit, unreadable)"
+                    },
+                    "options": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "action_id": {
+                            "type": "string",
+                            "pattern": "^[\\w.-]{1,96}$"
+                          },
+                          "name": {
+                            "type": "string",
+                            "description": "The catalog action"
+                          },
+                          "title": {
+                            "type": "string",
+                            "description": "What the request will say, for example \"Add 203.0.113.9 to the block list\""
+                          },
+                          "connection": {
+                            "description": "The connection a device action runs on; null for the block list",
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "device": {
+                            "type": "boolean"
+                          },
+                          "risk": {
+                            "type": "string",
+                            "enum": [
+                              "low",
+                              "medium",
+                              "high"
+                            ]
+                          },
+                          "ttl_min": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991,
+                            "description": "Undo time of the request: 1440 (24 hours)"
+                          },
+                          "ready": {
+                            "type": "boolean"
+                          },
+                          "why": {
+                            "description": "Why it cannot be asked for now, in plain words; null when ready",
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "requested": {
+                            "type": "boolean",
+                            "description": "The same action on this address is already open or in force"
+                          }
+                        },
+                        "required": [
+                          "action_id",
+                          "name",
+                          "title",
+                          "connection",
+                          "device",
+                          "risk",
+                          "ttl_min",
+                          "ready",
+                          "why",
+                          "requested"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "description": "Device actions whose only parameter is {ip} that are on or have a connection, and the block list for a public source. The source of a scan that completed no connection may be forged: every option is then not ready"
+                    },
+                    "execution": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "incident",
+                    "note",
+                    "source",
+                    "options",
+                    "execution"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/response/incidents/{id}/request": {
+      "post": {
+        "operationId": "response_post_response_incidents_id_request",
+        "summary": "Ask for approval of one offered action on the incident's source (D-509). The server reads the source from the incident; the request waits for approval like any other (expiry, undo after 24 hours, log). Refused when the action is not offered for this source, a device action while execution is off, a request is already open, the incident is resolved (incident_resolved) or the source of a scan may be forged (source_unconfirmed)",
+        "tags": [
+          "response"
+        ],
+        "x-stories": [
+          "S-RESP-3"
+        ],
+        "x-min-role": "operator",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[\\w.-]{1,96}$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "action_id": {
+                    "type": "string",
+                    "pattern": "^[\\w.-]{1,96}$"
+                  }
+                },
+                "required": [
+                  "action_id"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "pattern": "^[\\w.-]{1,96}$"
+                    },
+                    "source": {
+                      "type": "string",
+                      "enum": [
+                        "ai",
+                        "rule",
+                        "person"
+                      ],
+                      "description": "Who asked: the AI, a rule, or a person from an incident (D-509)"
+                    },
+                    "proposal_id": {
+                      "type": "string",
+                      "description": "The AI plan proposal, rule:<rule>:<event> for a rule run, or incident:<id> for a request asked from an incident (D-509)"
+                    },
+                    "rule_id": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "rule_name": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "trigger": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "honeypot",
+                            "ioc_connection",
+                            "finding",
+                            "unknown_device",
+                            "log_threshold",
+                            "new_port",
+                            "schedule",
+                            "manual"
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "trigger_summary": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "finding_id": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "cve": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "asset_id": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "asset_name": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "pattern": "^[\\w.-]{1,96}$"
+                          },
+                          "action_id": {
+                            "type": "string"
+                          },
+                          "title": {
+                            "type": "string"
+                          },
+                          "risk": {
+                            "type": "string",
+                            "enum": [
+                              "low",
+                              "medium",
+                              "high"
+                            ]
+                          },
+                          "reversible": {
+                            "type": "boolean"
+                          },
+                          "connector_id": {
+                            "description": "null = the action does not change another device (block list, message)",
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "connection": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "tool": {
+                            "type": "string"
+                          },
+                          "targets": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991,
+                            "description": "How many addresses or objects the action touches"
+                          },
+                          "change": {
+                            "type": "object",
+                            "properties": {
+                              "before": {
+                                "type": "string",
+                                "description": "State of the target before the change, in plain words"
+                              },
+                              "after": {
+                                "type": "string",
+                                "description": "State of the target after the change, in plain words"
+                              },
+                              "cli": {
+                                "type": "string",
+                                "description": "The same change as a device command, for people who want to check it by hand (may be empty)"
+                              },
+                              "rest": {
+                                "anyOf": [
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "method": {
+                                        "type": "string",
+                                        "enum": [
+                                          "GET",
+                                          "PUT",
+                                          "PATCH",
+                                          "POST",
+                                          "DELETE"
+                                        ]
+                                      },
+                                      "url": {
+                                        "type": "string"
+                                      },
+                                      "body": {
+                                        "type": [
+                                          "string",
+                                          "null"
+                                        ]
+                                      },
+                                      "headers": {
+                                        "type": "object",
+                                        "propertyNames": {
+                                          "type": "string"
+                                        },
+                                        "additionalProperties": {
+                                          "type": "string"
+                                        },
+                                        "description": "The headers of the template with the typed values filled in, exactly as sent; the sign-in is the connection's and never listed"
+                                      }
+                                    },
+                                    "required": [
+                                      "method",
+                                      "url",
+                                      "body",
+                                      "headers"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ],
+                                "description": "The exact API call, or null when the action is a command only"
+                              },
+                              "rollback": {
+                                "type": "object",
+                                "properties": {
+                                  "title": {
+                                    "type": "string"
+                                  },
+                                  "cli": {
+                                    "type": "string"
+                                  },
+                                  "rest": {
+                                    "anyOf": [
+                                      {
+                                        "type": "object",
+                                        "properties": {
+                                          "method": {
+                                            "type": "string",
+                                            "enum": [
+                                              "GET",
+                                              "PUT",
+                                              "PATCH",
+                                              "POST",
+                                              "DELETE"
+                                            ]
+                                          },
+                                          "url": {
+                                            "type": "string"
+                                          },
+                                          "body": {
+                                            "type": [
+                                              "string",
+                                              "null"
+                                            ]
+                                          },
+                                          "headers": {
+                                            "type": "object",
+                                            "propertyNames": {
+                                              "type": "string"
+                                            },
+                                            "additionalProperties": {
+                                              "type": "string"
+                                            },
+                                            "description": "The headers of the template with the typed values filled in, exactly as sent; the sign-in is the connection's and never listed"
+                                          }
+                                        },
+                                        "required": [
+                                          "method",
+                                          "url",
+                                          "body",
+                                          "headers"
+                                        ],
+                                        "additionalProperties": false
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ],
+                                    "description": "The exact API call, or null when the action is a command only"
+                                  }
+                                },
+                                "required": [
+                                  "title",
+                                  "cli",
+                                  "rest"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "verify": {
+                                "type": "string",
+                                "description": "How Vedette reads the result back after running the change: the exact call (method and URL) or command lines (empty when the action cannot be read back)"
+                              },
+                              "precheck": {
+                                "type": "string",
+                                "description": "The check Vedette runs right before the change: the exact call or command lines (empty when there is none)"
+                              },
+                              "precheck_rules": {
+                                "type": "string",
+                                "description": "When the check refuses the change, in plain words (empty when there is no check)"
+                              },
+                              "verify_rule": {
+                                "type": "string",
+                                "description": "What the read-back must contain after the change and must not contain after the undo (empty when there is none)"
+                              }
+                            },
+                            "required": [
+                              "before",
+                              "after",
+                              "cli",
+                              "rest",
+                              "rollback",
+                              "verify",
+                              "precheck",
+                              "precheck_rules",
+                              "verify_rule"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "ttl_min": {
+                            "anyOf": [
+                              {
+                                "type": "integer",
+                                "minimum": -9007199254740991,
+                                "maximum": 9007199254740991
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "description": "Minutes after execution until the change is undone automatically"
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "pending",
+                              "skipped",
+                              "executed",
+                              "failed",
+                              "rolled_back"
+                            ]
+                          },
+                          "executed_at": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "format": "date-time",
+                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "remove_at": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "format": "date-time",
+                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "rolled_back_at": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "format": "date-time",
+                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "result": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "verified": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "ok": {
+                                    "type": "boolean"
+                                  },
+                                  "detail": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "ok",
+                                  "detail"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "description": "Result of the read-back after the action ran"
+                          },
+                          "state_unknown": {
+                            "type": "boolean",
+                            "description": "A failed item whose step was sent and whose outcome is not known: it may be in force, so it can be undone to be sure"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "action_id",
+                          "title",
+                          "risk",
+                          "reversible",
+                          "connector_id",
+                          "connection",
+                          "tool",
+                          "targets",
+                          "change",
+                          "ttl_min",
+                          "status",
+                          "executed_at",
+                          "remove_at",
+                          "rolled_back_at",
+                          "result",
+                          "verified",
+                          "state_unknown"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "risk": {
+                      "type": "string",
+                      "enum": [
+                        "low",
+                        "medium",
+                        "high"
+                      ],
+                      "description": "Highest risk among the actions"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "pending",
+                        "approved",
+                        "rejected",
+                        "expired",
+                        "executed",
+                        "failed",
+                        "rolled_back"
+                      ]
+                    },
+                    "requested_at": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    "expires_at": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    "decided_at": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "requires_approvals": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 2
+                    },
+                    "two_because": {
+                      "description": "Why two different approvers are needed",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "approvals": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "user_id": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "email": {
+                            "type": "string"
+                          },
+                          "via": {
+                            "type": "string",
+                            "enum": [
+                              "app",
+                              "slack",
+                              "telegram",
+                              "email",
+                              "zalo",
+                              "zalo-personal",
+                              "auto"
+                            ]
+                          },
+                          "at": {
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                          },
+                          "items": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            },
+                            "description": "Item ids this person approved"
+                          }
+                        },
+                        "required": [
+                          "user_id",
+                          "name",
+                          "email",
+                          "via",
+                          "at",
+                          "items"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "sent_to": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "Channels that received the approval request"
+                    },
+                    "email_links": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "approver": {
+                            "type": "string"
+                          },
+                          "address": {
+                            "type": "string"
+                          },
+                          "url": {
+                            "type": "string"
+                          },
+                          "expires_at": {
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                          },
+                          "used": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "approver",
+                          "address",
+                          "url",
+                          "expires_at",
+                          "used"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "description": "Preview build only, admin only: the approval links that would be emailed"
+                    },
+                    "note": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "pre_approved": {
+                      "type": "boolean",
+                      "description": "Carried out by the rule pre-approval option, without a person"
+                    },
+                    "ai": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "confidence": {
+                              "type": "number",
+                              "minimum": 0,
+                              "maximum": 1
+                            },
+                            "evidence": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "kind": {
+                                    "type": "string",
+                                    "enum": [
+                                      "finding",
+                                      "ioc_hit",
+                                      "config_read"
+                                    ]
+                                  },
+                                  "id": {
+                                    "type": "string"
+                                  },
+                                  "summary": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "kind",
+                                  "id",
+                                  "summary"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "why": {
+                              "type": "string"
+                            },
+                            "second_check": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "ok": {
+                                      "type": "boolean"
+                                    },
+                                    "notes": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "ok",
+                                    "notes"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "description": "Deterministic second checker, only for high-risk actions"
+                            },
+                            "in_app_only": {
+                              "type": "boolean",
+                              "description": "High risk: only an in-app approval with the two-step code counts"
+                            }
+                          },
+                          "required": [
+                            "confidence",
+                            "evidence",
+                            "why",
+                            "second_check",
+                            "in_app_only"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "source",
+                    "proposal_id",
+                    "rule_id",
+                    "rule_name",
+                    "trigger",
+                    "trigger_summary",
+                    "finding_id",
+                    "cve",
+                    "asset_id",
+                    "asset_name",
+                    "title",
+                    "items",
+                    "risk",
+                    "status",
+                    "requested_at",
+                    "expires_at",
+                    "decided_at",
+                    "requires_approvals",
+                    "two_because",
+                    "approvals",
+                    "sent_to",
+                    "email_links",
+                    "note",
+                    "pre_approved",
+                    "ai"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/response/log": {
       "get": {
         "operationId": "response_get_response_log",
@@ -56935,8 +57910,10 @@
                             "type": "string",
                             "enum": [
                               "ai",
-                              "rule"
-                            ]
+                              "rule",
+                              "person"
+                            ],
+                            "description": "Who asked: the AI, a rule, or a person from an incident (D-509)"
                           },
                           "reason": {
                             "type": "string"
@@ -57424,11 +58401,14 @@
                       "type": "string",
                       "enum": [
                         "ai",
-                        "rule"
-                      ]
+                        "rule",
+                        "person"
+                      ],
+                      "description": "Who asked: the AI, a rule, or a person from an incident (D-509)"
                     },
                     "proposal_id": {
-                      "type": "string"
+                      "type": "string",
+                      "description": "The AI plan proposal, rule:<rule>:<event> for a rule run, or incident:<id> for a request asked from an incident (D-509)"
                     },
                     "rule_id": {
                       "type": [

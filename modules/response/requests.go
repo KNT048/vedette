@@ -1486,9 +1486,10 @@ func (s *Service) Metrics(ctx context.Context) (Metrics, error) {
 	}
 	var ai, rules, rejected []request
 	for _, r := range all {
-		if r.Source == "ai" {
+		switch r.Source { // a person's request from an incident is neither (D-509)
+		case "ai":
 			ai = append(ai, r)
-		} else {
+		case "rule":
 			rules = append(rules, r)
 		}
 		if r.Status == StatusRejected {

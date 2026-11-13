@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/netip"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/knt048/vedette/core/apierr"
@@ -15,6 +16,7 @@ import (
 	"github.com/knt048/vedette/core/modreg"
 	hostclient "github.com/knt048/vedette/host/client"
 	"github.com/knt048/vedette/modules/findings"
+	"github.com/knt048/vedette/modules/honeypot"
 	"github.com/knt048/vedette/modules/inventory"
 	"github.com/knt048/vedette/modules/logs"
 	"github.com/knt048/vedette/modules/notify"
@@ -418,12 +420,68 @@ func (r responseLinkSender) SendApproverLink(ctx context.Context, actor, ch, use
 	return r.n.SendApproverLink(ctx, actor, channel.Type(ch), userID)
 }
 
+// responseIncidents is response's Config.Incidents (D-509): Respond on an incident reads the incident through notify's public
+// IncidentDetail and, for a trap, the source of its hit through honeypot's HitDetail. A test hit, another kind or a link that is not
+// a hit names no source. With notify off there is no incident.
+// scanConfirmWindow is how near a scan hit a service hit of the same source must be to confirm it: the hour around a hit that the
+// honeypot shows with it (honeypot WindowMinutes).
+const scanConfirmWindow = time.Hour
+
+type responseIncidents struct {
+	n   *notify.Service
+	d   *deps
+	reg *modreg.Registry
+}
+
+func (r responseIncidents) Incident(ctx context.Context, id string) (response.IncidentInfo, bool, error) {
+	if r.reg != nil && !r.reg.Enabled(notify.ModuleID) {
+		return response.IncidentInfo{}, false, nil
+	}
+	det, err := r.n.IncidentDetail(ctx, id)
+	if ae, ok := apierr.As(err); ok && ae.Status == http.StatusNotFound {
+		return response.IncidentInfo{}, false, nil
+	}
+	if err != nil {
+		return response.IncidentInfo{}, false, err
+	}
+	i := det.Incident
+	out := response.IncidentInfo{ID: i.ID, Kind: string(i.Kind), Title: i.Title, Action: i.Action, Status: string(i.Status)}
+	hit, ok := strings.CutPrefix(i.Link, "/honeypot/hits/")
+	if i.Kind != notify.IncidentTrap || !ok || r.d.Honeypot == nil {
+		return out, true, nil
+	}
+	h, err := r.d.Honeypot.HitDetail(ctx, hit)
+	if ae, ok := apierr.As(err); ok && ae.Status == http.StatusNotFound {
+		return out, true, nil // the hit was cleaned up: no source
+	}
+	if err != nil {
+		return response.IncidentInfo{}, false, err
+	}
+	if h.IsTest {
+		return out, true, nil
+	}
+	out.SourceIP, out.HitKind = h.SrcIP, string(h.Kind)
+	if h.SrcAssetID != nil {
+		out.AssetID = *h.SrcAssetID
+	}
+	if h.Kind == honeypot.KindScan { // a scan's source may be forged: confirmed only by a completed connection near it (D-509)
+		confirmed := false // a time that does not parse confirms nothing
+		if at, err := time.Parse(time.RFC3339, h.TS); err == nil {
+			if confirmed, err = r.d.Honeypot.SourceConnected(ctx, h.SrcIP, at, scanConfirmWindow); err != nil {
+				return response.IncidentInfo{}, false, err
+			}
+		}
+		out.Unconfirmed = !confirmed
+	}
+	return out, true, nil
+}
+
 // responseConfig is the configuration of the response service: every port wired to the module that provides it.
 func responseConfig(d *deps) (response.Config, error) {
 	n := newNotify(d)
 	cfg := response.Config{DB: d.DB, Secrets: d.Secrets, Audit: d.Audit, Users: responseUsers{d}, TwoStep: responseTwoStep{d}, Log: d.Log, Clock: d.Clock,
 		Notifier: responseNotifier{n: n, now: d.Clock, reg: d.Reg}, Links: responseLinks{n}, Webhooks: responseWebhooks{n}, Directory: responseDirectory{inv: d.Inventory, fnd: d.Findings},
-		Mailer: responseMailer{n.CodeMailer()}, LinkSender: responseLinkSender{n: n, reg: d.Reg}, BaseURL: d.BaseURL} // the block list address a firewall pulls (empty on loopback: a relative path)
+		Mailer: responseMailer{n.CodeMailer()}, LinkSender: responseLinkSender{n: n, reg: d.Reg}, Incidents: responseIncidents{n: n, d: d, reg: d.Reg}, BaseURL: d.BaseURL} // the block list address a firewall pulls (empty on loopback: a relative path)
 	cfg.BoxAddrs = responseBoxAddrs(notifyBoxAddrs(d.HostNet), lateDecoys{d})        // D-179 (6), (8): the decoys and the host's addresses are the box too, so an action aimed at one is never_touch
 	cfg.MachineAddrs, cfg.SelfAddrs = machineAddrs(d), responseDecoys(lateDecoys{d}) // D-446 for webhook_call; an unreadable decoy record refuses (D-179 (8))
 	var hostState netStateReader

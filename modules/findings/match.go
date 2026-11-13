@@ -155,11 +155,13 @@ func ValidCVE(s string) bool {
 //
 // Per software: the KEV key must match (or, for "Multiple products", the vendor).
 // Then the NVD configurations decide (D-500): the version inside a range gives
-// basis version, outside every applicable range gives no finding, a usable
-// version that cannot be compared gives basis product at severity medium. A
-// software with no usable version (missing, a placeholder such as "0", or
-// unreadable) gives no finding for an undecided CVE: the CVE is counted in the
-// software's NeedVersion item instead.
+// basis version, outside every applicable range gives no finding, a given
+// version that cannot be compared (no NVD data, a scheme Vedette cannot read,
+// such as Cisco "15.2(4)M3") gives basis product at severity medium. A software
+// with no version at all (missing, a placeholder such as "0", or words without a
+// number such as "latest") gives no finding for an undecided CVE: the CVE is
+// counted in the software's NeedVersion item instead, unless NVD lists every
+// version of the product as affected (then basis product, medium).
 func MatchAsset(a Asset, vulns []Vuln, have map[string]bool, now time.Time) MatchResult {
 	var res MatchResult
 	seen := make(map[string]bool, len(vulns))
@@ -248,11 +250,11 @@ func matchOne(a Asset, s Software, in swInfo, v Vuln, now time.Time) (Match, out
 		return Match{}, outNone
 	}
 	multi := isMultiProduct(v.Product)
-	tri, within := decide(in, v, multi)
+	tri, within, every := decide(in, v, multi)
 	switch {
 	case tri == No:
 		return Match{}, outNone
-	case tri == Unknown && !in.usable:
+	case tri == Unknown && !in.given && !every:
 		return Match{}, outNeedVersion // D-500: one "add the version" item per software, not one finding per CVE
 	}
 	sw := clean(s.Display)
@@ -271,6 +273,8 @@ func matchOne(a Asset, s Software, in swInfo, v Vuln, now time.Time) (Match, out
 			m.Severity = SeverityCritical
 		}
 		m.Evidence.Summary = fmt.Sprintf("%s runs %s. Its version is inside the range affected by %s (%s); no scan has confirmed it yet, so this is only suspected.", name, sw, v.CVE, clean(within.String()))
+	case every && !in.given:
+		m.Evidence.Summary = fmt.Sprintf("%s runs %s. NVD lists every version of it as affected by %s; no scan has confirmed it yet, so this is only suspected.", name, sw, v.CVE)
 	case multi:
 		m.Confidence = ConfVendorOnly
 		m.Evidence.Summary = fmt.Sprintf("%s runs %s. CISA lists this flaw for several %s products; check the advisory to see whether yours is one of them.", name, sw, clean(v.Vendor))
@@ -285,14 +289,14 @@ func matchOne(a Asset, s Software, in swInfo, v Vuln, now time.Time) (Match, out
 // range that matched; No means every applicable configuration rules it out and
 // nothing was undecidable; Unknown covers "no applicable configuration", an
 // unparseable or unidentifiable entry, and anything not comparable. Only a
-// definite No drops a KEV match. usable says whether the software has a real,
-// comparable version (versionKnown); an Unknown without one is "add the version".
+// definite No drops a KEV match. given says whether the software has a version at
+// all (versionGiven); an Unknown without one is "add the version".
 // swInfo is what the matcher derives once per software.
 type swInfo struct {
 	cpe    CPE
 	hasCPE bool
 	ver    string     // the version, or the CPE's when the software has none
-	usable bool       // ver is a real, comparable version (versionKnown)
+	given  bool       // ver says something about the version (versionGiven); it may still be unreadable
 	ids    []identity // the software's own names: inventory vendor/product and its aliases (cpeAliases)
 	// named: an NVD configuration of a single-product KEV entry of this software names it (by its CPE, name or
 	// alias). Only then does a "Multiple Products" entry that names other products only rule it out.
@@ -314,7 +318,7 @@ func newSWInfo(s Software, vulns []Vuln, osName string) swInfo {
 	if in.ver == "" && in.hasCPE {
 		in.ver, _ = in.cpe.Version.Literal()
 	}
-	in.usable = versionKnown(in.ver)
+	in.given = versionGiven(in.ver)
 	if n := (identity{vendor: norm(s.Vendor), product: norm(s.Product)}); n.ok() {
 		in.ids = append(append(in.ids, n), cpeAliases[n]...)
 	}
@@ -334,8 +338,10 @@ func newSWInfo(s Software, vulns []Vuln, osName string) swInfo {
 	return in
 }
 
-// decide evaluates the NVD configurations of v for one software.
-func decide(in swInfo, v Vuln, multi bool) (Tri, VersionRange) {
+// decide evaluates the NVD configurations of v for one software. every is true when an applicable entry names every
+// version of the product (no range, version and update ANY, nothing pinned the software contradicts): then the answer
+// does not depend on the version, so a software without one is not sent to "add the version" (D-500).
+func decide(in swInfo, v Vuln, multi bool) (t Tri, within VersionRange, every bool) {
 	ids := in.ids
 	if !multi {
 		if n := (identity{vendor: norm(v.Vendor), product: norm(v.Product)}); n.ok() {
@@ -357,24 +363,39 @@ func decide(in swInfo, v Vuln, multi bool) (Tri, VersionRange) {
 		}
 		applicable = true
 		t, r := evalAffected(c, af.Range, in.ver, in.cpe, in.hasCPE)
+		if t != No && af.Range.IsZero() && everyVersion(c) {
+			every = true
+		}
 		switch t {
 		case Yes:
-			return Yes, r
+			return Yes, r, every
 		case Unknown:
 			result = Unknown
 		case No:
 		}
 	}
 	if !applicable && in.osVer != "" && osRulesOut(v, in) {
-		return No, VersionRange{} // the entry names only operating-system releases, and not this device's (D-500)
+		return No, VersionRange{}, false // the entry names only operating-system releases, and not this device's (D-500)
 	}
 	if !applicable && multi && in.named && !undecidable && len(v.Affected) > 0 {
-		return No, VersionRange{} // NVD names this software elsewhere and lists only other products of the vendor here (D-500)
+		return No, VersionRange{}, false // NVD names this software elsewhere and lists only other products of the vendor here (D-500)
 	}
 	if !applicable || undecidable && result == No {
-		return Unknown, VersionRange{}
+		return Unknown, VersionRange{}, every
 	}
-	return result, VersionRange{}
+	return result, VersionRange{}, every
+}
+
+// everyVersion reports whether configuration c names the product with nothing else pinned: every version, update,
+// edition, language and target.
+func everyVersion(c CPE) bool {
+	f := c.fields()
+	for _, a := range f[3:] { // version and everything after it
+		if a.Kind != Any {
+			return false
+		}
+	}
+	return true
 }
 
 // identity is a normalised vendor and product; prefix (aliases only) matches every product that starts with it.
@@ -431,6 +452,14 @@ func appliesTo(c, sw CPE, hasSW bool, ids []identity) (match, known bool) {
 func versionKnown(ver string) bool {
 	_, ok := parseVersion(ver)
 	return ok && !isPlaceholder(ver)
+}
+
+// versionGiven reports whether ver says anything about the version: not empty, not a placeholder ("0", "0.0.0") and
+// with at least one digit ("latest", "unknown", "n/a" say nothing). A given version may still be unreadable (Cisco
+// "15.2(4)M3"): that is "cannot compare" (a product finding, medium), not "add the version" (D-500, review H1).
+func versionGiven(ver string) bool {
+	ver = strings.TrimSpace(ver)
+	return strings.ContainsAny(ver, "0123456789") && !isPlaceholder(ver) && len(ver) <= maxVersionLen
 }
 
 // evalAffected evaluates one configuration CPE (with its NVD range) against the
@@ -534,10 +563,10 @@ func evalUpdate(c CPE, r VersionRange, ver string, sw CPE, hasSW bool) Tri {
 		return Unknown // a plain "8.9" may be "8.9p1": the patch level is often left out
 	}
 	if cq != pv.q {
-		if cq.class == pv.q.class && cq.sub == pv.q.sub {
-			return Unknown // same kind of update, numbers differ: "beta" may be "beta1"
+		if cq.class == pv.q.class && cq.sub == pv.q.sub && (cq.num == 0 || pv.q.num == 0) {
+			return Unknown // same kind of update, one without a number: "beta" may be "beta1"
 		}
-		return No
+		return No // "h1" is not "h2", Junos "r2-s1" is not "r2" (D-500)
 	}
 	return r.Contains(relString(pv))
 }

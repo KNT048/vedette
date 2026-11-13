@@ -1,8 +1,10 @@
 {
- "_about": "D-500: the NVD CPE products (vendor:product) that name the same thing as a product of the inventory (its vendor|product, as the catalog and the osquery package map store it). Without this the version of an iPhone (Apple|iOS = apple:iphone_os) is never compared with the affected ranges. Only products with one version scheme are listed. A trailing * matches a prefix. Read by modules/findings (aliases.go); checked by TestAliases_DataIsValid.",
+ "_about": "D-500: the NVD CPE products (vendor:product) that name the same thing as a product of the inventory (its vendor|product, as the catalog and the osquery package map store it). Without this the version of an iPhone (Apple|iOS = apple:iphone_os) is never compared with the affected ranges. Only products with one version scheme are listed; a product NVD renamed lists its old name too (apple:mac_os_x before apple:macos, pulsesecure:pulse_connect_secure before ivanti:connect_secure). A trailing * matches a prefix. Read by modules/findings (aliases.go); checked by TestAliases_DataIsValid.",
  "Apple|iOS": ["apple:iphone_os", "apple:ipados"],
+ "Apple|macOS": ["apple:macos", "apple:mac_os_x"],
  "WatchGuard|Firebox": ["watchguard:fireware"],
  "Juniper|Junos OS": ["juniper:junos"],
+ "Ivanti|Connect Secure": ["ivanti:connect_secure", "pulsesecure:pulse_connect_secure"],
  "Citrix|NetScaler": ["citrix:netscaler_application_delivery_controller", "citrix:netscaler_gateway", "citrix:application_delivery_controller", "citrix:application_delivery_controller_firmware", "citrix:netscaler_gateway_firmware", "citrix:gateway", "citrix:gateway_firmware"],
  "F5|BIG-IP": ["f5:big-ip_*"],
  "Microsoft|Office": ["microsoft:office", "microsoft:word", "microsoft:excel", "microsoft:powerpoint", "microsoft:outlook", "microsoft:access", "microsoft:publisher", "microsoft:onenote", "microsoft:office_powerpoint", "microsoft:365_apps", "microsoft:office_2016", "microsoft:office_2019", "microsoft:office_2021", "microsoft:office_2024", "microsoft:office_long_term_servicing_channel"],

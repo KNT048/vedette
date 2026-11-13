@@ -88,12 +88,13 @@ func schemeClash(r VersionRange, ver string) bool {
 }
 
 // osPatterns turn the operating system inventory folds from osquery ("Ubuntu 26.04.1 LTS", "Debian GNU/Linux 12
-// (bookworm)") into the NVD product and version of that release.
+// (bookworm)") into the NVD product and version of that release. NVD names an Ubuntu release by year.month
+// ("ubuntu_linux:20.04"), so the point release of "20.04.6 LTS" is left out: it is still 20.04 (review M1).
 var osPatterns = []struct {
 	re *regexp.Regexp
 	id identity
 }{
-	{regexp.MustCompile(`(?i)^ubuntu\s+(\d+\.\d+(?:\.\d+)?)`), identity{vendor: "canonical", product: "ubuntulinux"}},
+	{regexp.MustCompile(`(?i)^ubuntu\s+(\d+\.\d+)`), identity{vendor: "canonical", product: "ubuntulinux"}},
 	{regexp.MustCompile(`(?i)^debian(?:\s+gnu/linux)?\s+(\d+(?:\.\d+)?)`), identity{vendor: "debian", product: "debianlinux"}},
 }
 
@@ -110,13 +111,15 @@ func osIdentity(os string) (identity, string) {
 var distroVendors = map[string]bool{"canonical": true, "debian": true, "redhat": true, "fedoraproject": true, "opensuse": true, "suse": true}
 
 // osRulesOut reports whether an entry whose configurations are ALL operating-system releases (CVE-2021-3493 lists
-// only Ubuntu releases before 20.10 for a kernel bug) rules the device out: no listed release is its own, or its
-// own release is outside every range. These entries only ever rule out, never prove (the program's version is
-// what proves).
+// only Ubuntu releases before 20.10 for a kernel bug) rules the device out: it lists releases of the device's own
+// distribution and its release is outside every one of them. An entry that lists only another distribution's
+// releases says nothing about this device (Unknown, review M1). These entries only ever rule out, never prove (the
+// program's version is what proves).
 func osRulesOut(v Vuln, in swInfo) bool {
 	if len(v.Affected) == 0 {
 		return false
 	}
+	own := false
 	for _, af := range v.Affected {
 		c, err := ParseCPE(af.CPE)
 		if err != nil || c.Part.Kind != Value || c.Part.Value != "o" {
@@ -130,11 +133,12 @@ func osRulesOut(v Vuln, in swInfo) bool {
 		if !in.os.matches(norm(cv), norm(cp)) {
 			continue // another distribution's release
 		}
+		own = true
 		if t, _ := evalAffected(c, af.Range, in.osVer, CPE{}, false); t != No {
 			return false
 		}
 	}
-	return true
+	return own
 }
 
 // sameVersionText reports whether an exact configuration version and the software version are the same text,

@@ -1303,6 +1303,11 @@ describe('core: tài khoản', () => {
     expect(Math.min(...xs.map(([x]) => x))).toBeGreaterThanOrEqual(4)
     expect(Math.max(...xs.map(([x, y]) => Math.max(x, y)))).toBeLessThanOrEqual(size + 3)
     expect(screen.getByText('Scan this QR code with your authenticator app, or enter the key by hand.')).toBeInTheDocument()
+    // D-414: three steps recommending Google Authenticator, with both stores
+    expect(screen.getByRole('link', { name: 'App Store (iPhone)' })).toHaveAttribute('href', 'https://apps.apple.com/app/google-authenticator/id388497605')
+    expect(screen.getByRole('link', { name: 'Google Play (Android)' })).toHaveAttribute('href', 'https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2')
+    expect(screen.getByText(/tap \+ and choose Scan a QR code/)).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).toBeNull() // no error before anything is typed
     await u.type(screen.getByLabelText('6-digit code'), '000000')
     await u.click(screen.getByRole('button', { name: 'Confirm and turn on' }))
     expect(await screen.findByText(/Wrong code/)).toBeInTheDocument()

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/knt048/vedette/core/api/routes"
+	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/modules/notify"
 	"github.com/knt048/vedette/modules/notify/channel"
 	"github.com/knt048/vedette/modules/response"
@@ -18,7 +19,7 @@ import (
 
 func TestWiringChatDecisionsPort(t *testing.T) {
 	t.Parallel()
-	s, _, a, _ := linkSetup(t)
+	s, clock, a, _ := linkSetup(t)
 	ctx := t.Context()
 	svc := s.d.Response
 
@@ -54,14 +55,21 @@ func TestWiringChatDecisionsPort(t *testing.T) {
 	if s.count(`SELECT count(*) FROM resp_log WHERE kind = 'refused' AND actor = '999 via telegram'`) != 1 || s.count(`SELECT count(*) FROM resp_block_entries`) != 0 {
 		t.Fatal("the refusal is not logged, or something ran")
 	}
-	// D-191: the person on the list has not linked the ID yet: nothing is decided, the private answer holds a link code, which Bao types in
-	// My account.
+	// D-191, D-414: the person on the list has not linked the ID yet: nothing is decided and the answer holds no code; Bao confirms the
+	// link the bot sent (here: a token made the same way), signed in.
 	r, err = port.Decide(ctx, notify.Decision{Channel: channel.Telegram, ExternalID: "100200", RequestID: a.ID, Approve: true})
-	lc := regexp.MustCompile(`code (\d{6})`).FindStringSubmatch(r.Message)
-	if err != nil || r.Status != "approver_not_linked" || lc == nil {
+	if err != nil || r.Status != "approver_not_linked" || regexp.MustCompile(`\d{6}`).MatchString(r.Message) {
 		t.Fatalf("unlinked: %+v %v", r, err)
 	}
-	if _, err := svc.ConfirmLink(ctx, response.Actor{ID: bao.ID, Email: "bao@acme.example", Via: response.ViaApp}, "telegram", lc[1]); err != nil {
+	token, _, err := svc.ChatLinkToken(ctx, bao.ID, "telegram", "100200")
+	if ae, ok := apierr.As(err); ok && ae.Code == "resend_too_soon" { // the save's own send came first: a minute later a new one replaces it
+		clock.advance(61 * time.Second)
+		token, _, err = svc.ChatLinkToken(ctx, bao.ID, "telegram", "100200")
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.ConfirmLink(ctx, response.Actor{ID: bao.ID, Email: "bao@acme.example", Via: response.ViaApp}, "telegram", token); err != nil {
 		t.Fatal(err)
 	}
 	// The person on the list decides, once.

@@ -1,0 +1,156 @@
+package notify
+
+import (
+	"context"
+	"database/sql"
+	"errors"
+	"net/http"
+	"net/url"
+	"slices"
+	"time"
+
+	"github.com/knt048/vedette/core/apierr"
+	"github.com/knt048/vedette/modules/notify/channel"
+)
+
+// Telegram approvers are linked by the confirm link of D-447, sent by the channel's bot (D-414). It replaced the private code answered to
+// a press: a code shown in Telegram proves who holds the Telegram account, not which Vedette user they are. The token and the proof belong
+// to module response (Config.LinkCodes); only the person, signed in to Vedette as themself, confirms the link (response INV-24). The
+// state per approver is kept with Zalo's (zaloSetup.codes, codeKey).
+
+const tgLinkSendWait = 30 * time.Second
+
+func telegramLinkPath(token string) string { return "/link/telegram?c=" + url.QueryEscape(token) }
+
+// TelegramApprovers is GET /notify/telegram/approvers: each saved approver of the Telegram channel and whether their Telegram is linked;
+// who is the administrator asking (their own row is Self).
+func (s *Service) TelegramApprovers(ctx context.Context, who string) ([]ZaloApprover, error) {
+	list, err := loadApprovers(ctx, s.cfg.DB.Reader(), channel.Telegram)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]ZaloApprover, 0, len(list))
+	for _, a := range list {
+		out = append(out, s.approverState(ctx, channel.Telegram, a, who, ""))
+	}
+	return out, nil
+}
+
+// SendTelegramLink is POST /notify/telegram/approvers/{user_id}/code: a new confirm link for that approver (the old one stops working),
+// sent by the bot. An administrator's own row gets the message like everyone's; they confirm it in their session.
+func (s *Service) SendTelegramLink(ctx context.Context, actor, userID string) (ZaloApprover, error) {
+	c, err := loadChannel(ctx, s.cfg.DB.Reader(), channel.Telegram)
+	if err != nil {
+		return ZaloApprover{}, err
+	}
+	if !zaloReady(c) {
+		return ZaloApprover{}, apierr.New(http.StatusConflict, "channel_not_ready", `Save the Telegram channel turned on, with "Approve actions from this channel", first.`)
+	}
+	list, err := loadApprovers(ctx, s.cfg.DB.Reader(), channel.Telegram)
+	if err != nil {
+		return ZaloApprover{}, err
+	}
+	i := slices.IndexFunc(list, func(a Approver) bool { return a.UserID == userID })
+	if i < 0 {
+		return ZaloApprover{}, apierr.New(http.StatusNotFound, "not_listed", "This person is not an approver on the Telegram channel. Save the channel first.")
+	}
+	if err := s.sendTelegramLink(ctx, actor, c, list[i]); err != nil {
+		return ZaloApprover{}, err
+	}
+	return s.approverState(ctx, channel.Telegram, list[i], actor, ""), nil
+}
+
+// SendApproverLink sends the approver userID of a confirm-link channel a new confirm link: response's Send again in My account (D-414,
+// response Config.LinkSender), where actor is that person. link is set when nothing was sent because the person confirms in their session
+// (Zalo: their own row with the box's own account).
+func (s *Service) SendApproverLink(ctx context.Context, actor string, t channel.Type, userID string) (link string, err error) {
+	switch t {
+	case channel.Telegram:
+		_, err := s.SendTelegramLink(ctx, actor, userID)
+		return "", err
+	case channel.ZaloPersonal:
+		v, err := s.SendZaloCode(ctx, actor, userID)
+		return v.Link, err
+	}
+	return "", badRequest("chat_channel", "This channel is not linked by a confirm link.")
+}
+
+// sendTelegramLink asks response for a new token and sends the link: "<name>: open this link to link your Telegram account to Vedette".
+// The link needs the address people open Vedette at (Config.BaseURL). A failed send is kept as the approver's state. The token is never
+// logged nor audited.
+func (s *Service) sendTelegramLink(ctx context.Context, actor string, c channelRow, a Approver) error {
+	if s.cfg.LinkCodes == nil {
+		return apierr.New(http.StatusServiceUnavailable, "link_unavailable", "Approvers cannot be linked now: the Response module is off.")
+	}
+	if s.cfg.BaseURL == "" {
+		err := apierr.New(http.StatusServiceUnavailable, "no_base_url", "Vedette does not know the address people open it at, so no confirm link can be sent.")
+		s.markCode(channel.Telegram, a, zaloCodeSent{address: a.Address, errText: err.Message})
+		return err
+	}
+	s.markCode(channel.Telegram, a, zaloCodeSent{address: a.Address, sending: true})
+	token, name, err := s.cfg.LinkCodes.ChatLinkToken(ctx, a.UserID, channel.Telegram, a.Address)
+	if err != nil {
+		s.markCode(channel.Telegram, a, zaloCodeSent{address: a.Address, errText: "No link was made: " + refusalText(err)})
+		return err
+	}
+	sent, where := s.deliverTelegramLink(ctx, c, a, s.link(telegramLinkPath(token)), name)
+	s.markCode(channel.Telegram, a, sent)
+	detail := "a confirm link was sent to Telegram " + a.Address + " " + where
+	if sent.errText != "" {
+		detail = "a confirm link could not be sent to Telegram " + a.Address + ": " + sent.errText
+	}
+	if u, ok, uerr := s.cfg.Users.Lookup(ctx, a.UserID); uerr == nil && ok {
+		detail += " (approver " + u.Email + ")"
+	}
+	return s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
+		return s.record(ctx, tx, actor, "notify.telegram_link_code", string(channel.Telegram), clip(detail, 400))
+	})
+}
+
+// deliverTelegramLink sends the link privately to the approver's user ID, so that only that account receives it. A bot cannot write first
+// to someone who never wrote to it (Telegram answers 403, or 400 for an unknown chat): then the link goes to the approval chat, addressed
+// by name; it is of no use to anyone but that Vedette user, who must sign in to confirm it.
+func (s *Service) deliverTelegramLink(ctx context.Context, c channelRow, a Approver, link, name string) (zaloCodeSent, string) {
+	out := zaloCodeSent{address: a.Address, at: time.Now()}
+	who := clip(name, 64)
+	m := channel.Message{Kind: channel.KindReply, Severity: "info", Title: who + ": open this link to link your Telegram account to Vedette.",
+		What: "Sign in to Vedette as " + who + ", then press Confirm. It works once, within 10 minutes. If you are not " + who + ", ignore this message.",
+		Link: link}
+	sctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), tgLinkSendWait)
+	defer cancel()
+	where := "privately"
+	snd, err := s.savedSender(sctx, c, []string{a.Address})
+	if err == nil {
+		_, err = snd.Send(sctx, m)
+	}
+	var se *channel.StatusError
+	if errors.As(err, &se) && (se.Code == http.StatusForbidden || se.Code == http.StatusBadRequest) {
+		where = "in the approval chat"
+		if snd, err = s.savedSender(sctx, c, nil); err == nil {
+			_, err = snd.Send(sctx, m)
+		}
+	}
+	if err != nil {
+		out.errText = userText(err)
+	}
+	return out, where
+}
+
+// sendTelegramLinksLater sends the links of approvers a save added or gave a new Telegram ID, after the save, one after the other. The
+// dialog shows them as sending until each is done.
+func (s *Service) sendTelegramLinksLater(ctx context.Context, actor string, c channelRow, list []Approver) {
+	if len(list) == 0 || s.cfg.LinkCodes == nil {
+		return
+	}
+	for _, a := range list {
+		s.markCode(channel.Telegram, a, zaloCodeSent{address: a.Address, sending: true})
+	}
+	bg := context.WithoutCancel(ctx)
+	s.zalo.bg.Go(func() {
+		for _, a := range list {
+			if err := s.sendTelegramLink(bg, actor, c, a); err != nil {
+				s.cfg.Log.DebugContext(bg, "notify: telegram: a confirm link was not sent", "error", err.Error())
+			}
+		}
+	})
+}

@@ -174,3 +174,11 @@ Chưa có caller ngoài test; WP-22 nối vào `Service`. Đổi chữ ký dư�
 - Job `retention` (D-215, `retention.go`): Housekeeping, mỗi giờ; xoá `notify_send`, `notify_incident` đã resolved và `notify_notice` quá 1 năm (không bao giờ incident đang mở, hàng đợi, `notify_kev`); một mục kiểm toán `notify.retention` mỗi lượt có xoá, nhãn trong `web/src/locales/en/core.json`.
 - Nguồn nhật ký `alerts` (`exportalerts.go`): đăng ký trong `registerLogSources`; đọc `notify_send` theo khoảng ngày cho `core/logexport`, không `message`, không `recipient`, không token.
 - D-446 review: `Config.SelfAddrs` → `WebhookConfig.SelfAddrsFunc`, `EmailConfig.SelfAddrsFunc` (the honeypot's decoys, every port); `dialControl(allowLoopback, box, self, failClosed)`: webhooks fail closed while the machine's addresses are unknown, email only refuses Vedette's ports meanwhile.
+
+## Modifying: người duyệt Telegram liên kết bằng liên kết xác nhận (D-414; `tglink.go`, `channels.go`, `zalologin.go`, `handlers.go`)
+- `tglink.go` mới: `TelegramApprovers`, `SendTelegramLink`, `SendApproverLink` (cổng `Config.LinkSender` của `response`, nối ở `cmd/vedette/response.go` `responseLinkSender`), gửi riêng rồi rơi về chat duyệt. Hai route admin mới trong `contract.ts` (`/notify/telegram/approvers*`), mã sinh lại (`core/api/oas`, `routes_gen.go`).
+- `channels.go`: `newSender` nhận `toOverride` cho Telegram (một ID = chat của tin); `SaveChannel` bỏ bằng chứng và gửi liên kết sau commit cho **mọi** kênh liên kết bằng liên kết xác nhận (`unlinkAction`: Zalo cá nhân, Telegram), `zaloUnlinked` dùng cho cả hai, chữ kiểm toán theo `linkChannelName`.
+- `zalologin.go`: `approverState`/`markCode` nhận kênh, khoá `codeKey(kênh, user)`; hành vi Zalo không đổi.
+- GUI: `ApproverLinkState` (trước là `ZaloLinkState`, `ZaloPersonal.tsx`) nhận `kind` (`zalo` | `telegram`), hook `useLinkApprovers`/`useSendLink` (`api.ts`); hộp thoại Telegram hiện trạng thái dưới ô user ID. Trang xác nhận chuyển sang module `response` (`/link/telegram`, `/link/zalo`, `ChatLinkPage.tsx`); `ZaloLinkPage.tsx` và khoá i18n `zl.*` bỏ.
+- Mock: `sendTelegramLink`, `telegramMessagesForTest`, `linkApprover`, đăng ký `chatLinkSenders` của mock `response`; Save bỏ bằng chứng của người duyệt đã liên kết bị bỏ/đổi (Zalo và Telegram).
+

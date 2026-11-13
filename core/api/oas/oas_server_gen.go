@@ -1425,6 +1425,13 @@ type Handler interface {
 	//
 	// GET /notify/incidents/{id}
 	NotifyGetNotifyIncidentsID(ctx context.Context, params NotifyGetNotifyIncidentsIDParams) (*NotifyGetNotifyIncidentsIDOK, error)
+	// NotifyGetNotifyTelegramApprovers implements notify_get_notify_telegram_approvers operation.
+	//
+	// Approvers of the Telegram channel and whether each confirmed the link the bot sent them while signed
+	// in as themself (linked); box_account is always false (D-414).
+	//
+	// GET /notify/telegram/approvers
+	NotifyGetNotifyTelegramApprovers(ctx context.Context) (*NotifyGetNotifyTelegramApproversOK, error)
 	// NotifyGetNotifyZaloApprovers implements notify_get_notify_zalo_approvers operation.
 	//
 	// Approvers of the Zalo personal channel and whether each confirmed the link sent to their Zalo while
@@ -1476,6 +1483,13 @@ type Handler interface {
 	//
 	// POST /notify/history/{id}/resend
 	NotifyPostNotifyHistoryIDResend(ctx context.Context, params NotifyPostNotifyHistoryIDResendParams) (*NotifyPostNotifyHistoryIDResendOK, error)
+	// NotifyPostNotifyTelegramApproversUserIDCode implements notify_post_notify_telegram_approvers_user_id_code operation.
+	//
+	// Send an approver a new confirm link by the Telegram bot (the old one stops working): privately to
+	// their user ID when the bot can write to them, else in the approval chat addressed by name (D-414).
+	//
+	// POST /notify/telegram/approvers/{user_id}/code
+	NotifyPostNotifyTelegramApproversUserIDCode(ctx context.Context, params NotifyPostNotifyTelegramApproversUserIDCodeParams) (*NotifyPostNotifyTelegramApproversUserIDCodeOK, error)
 	// NotifyPostNotifyZaloApproversUserIDCode implements notify_post_notify_zalo_approvers_user_id_code operation.
 	//
 	// Send an approver a new confirm link to their Zalo (the old one stops working); for your own row,
@@ -1784,9 +1798,9 @@ type Handler interface {
 	ResponsePostResponseExecution(ctx context.Context, req *ResponsePostResponseExecutionReq) (*ResponsePostResponseExecutionOK, error)
 	// ResponsePostResponseMeIdentitiesChannelCode implements response_post_response_me_identities_channel_code operation.
 	//
-	// Mail a 6-digit link code to my address on the email approval channel (my sign-in email). 10 minutes,
-	// one at a time, a new one after 60 seconds, 5 an hour. Chat channels get their code by pressing a
-	// button on an approval message.
+	// Email: mail a 6-digit link code to my address on the email approval channel (my sign-in email).
+	// Telegram and Zalo personal (send_code): send a new confirm link to my listed chat ID (D-414; sent_to
+	// names it). 10 minutes, one at a time, a new one after 60 seconds, 5 an hour.
 	//
 	// POST /response/me/identities/{channel}/code
 	ResponsePostResponseMeIdentitiesChannelCode(ctx context.Context, params ResponsePostResponseMeIdentitiesChannelCodeParams) (*ResponsePostResponseMeIdentitiesChannelCodeOK, error)

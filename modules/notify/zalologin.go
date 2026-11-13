@@ -117,7 +117,8 @@ type zaloCodeSent struct {
 	errText string
 }
 
-// zaloSetup is the in-memory state of the set-up: the one sign-in, the rations, the codes sent per approver (user ID).
+// zaloSetup is the in-memory state of the set-up: the one sign-in, the rations, the confirm links sent per approver (codeKey: channel and
+// user ID; Telegram's are kept here too, D-414).
 type zaloSetup struct {
 	mu      sync.Mutex
 	cur     *zaloLoginRun
@@ -415,7 +416,7 @@ func (s *Service) ZaloApprovers(ctx context.Context, who string) ([]ZaloApprover
 	box := s.knownBoxAccount(ctx)
 	out := make([]ZaloApprover, 0, len(list))
 	for _, a := range list {
-		out = append(out, s.approverState(ctx, a, who, box))
+		out = append(out, s.approverState(ctx, channel.ZaloPersonal, a, who, box))
 	}
 	return out, nil
 }
@@ -449,16 +450,21 @@ func (s *Service) isUser(ctx context.Context, userID, who string) bool {
 	return err == nil && ok && strings.EqualFold(u.Email, who)
 }
 
-func (s *Service) approverState(ctx context.Context, a Approver, who, box string) ZaloApprover {
+// codeKey is the key of an approver's confirm-link state: the channel and the user ID.
+func codeKey(t channel.Type, userID string) string { return string(t) + "|" + userID }
+
+// approverState is the link state of one approver of a confirm-link channel (Zalo personal, D-447; Telegram, D-414). box is the box's own
+// account on Zalo ("" elsewhere).
+func (s *Service) approverState(ctx context.Context, t channel.Type, a Approver, who, box string) ZaloApprover {
 	v := ZaloApprover{UserID: a.UserID, Address: a.Address, Name: a.Name, State: "not_sent", Self: s.isUser(ctx, a.UserID, who), BoxAccount: box != "" && box == a.Address}
 	if s.cfg.ApproverLinks != nil {
-		if ok, err := s.cfg.ApproverLinks.Linked(ctx, a.UserID, channel.ZaloPersonal, a.Address); err == nil && ok {
+		if ok, err := s.cfg.ApproverLinks.Linked(ctx, a.UserID, t, a.Address); err == nil && ok {
 			v.State = "linked"
 			return v
 		}
 	}
 	s.zalo.mu.Lock()
-	rec, ok := s.zalo.codes[a.UserID]
+	rec, ok := s.zalo.codes[codeKey(t, a.UserID)]
 	s.zalo.mu.Unlock()
 	if !ok || rec.address != a.Address {
 		return v
@@ -511,14 +517,14 @@ func (s *Service) SendZaloCode(ctx context.Context, actor, userID string) (ZaloA
 		}); err != nil {
 			return ZaloApprover{}, err
 		}
-		v := s.approverState(ctx, a, actor, a.Address)
+		v := s.approverState(ctx, channel.ZaloPersonal, a, actor, a.Address)
 		v.Link = zaloLinkPath(token)
 		return v, nil
 	}
 	if err := s.sendLinkCode(ctx, actor, c, a); err != nil {
 		return ZaloApprover{}, err
 	}
-	return s.approverState(ctx, a, actor, s.knownBoxAccount(ctx)), nil
+	return s.approverState(ctx, channel.ZaloPersonal, a, actor, s.knownBoxAccount(ctx)), nil
 }
 
 func zaloLinkPath(token string) string { return "/link/zalo?c=" + url.QueryEscape(token) }
@@ -542,7 +548,7 @@ func (s *Service) sendLinkCode(ctx context.Context, actor string, c channelRow, 
 	}
 	if s.cfg.BaseURL == "" {
 		err := apierr.New(http.StatusServiceUnavailable, "no_base_url", "Vedette does not know the address people open it at, so no confirm link can be sent.")
-		s.markCode(a, zaloCodeSent{address: a.Address, errText: err.Message})
+		s.markCode(channel.ZaloPersonal, a, zaloCodeSent{address: a.Address, errText: err.Message})
 		return err
 	}
 	s.zalo.mu.Lock()
@@ -550,17 +556,17 @@ func (s *Service) sendLinkCode(ctx context.Context, actor string, c channelRow, 
 	s.zalo.mu.Unlock()
 	if !ok {
 		err := retryErr(http.StatusTooManyRequests, "too_many_codes", "Too many links were sent from this Zalo account in a short time (Zalo may lock it). Send again in %d minutes.", wait)
-		s.markCode(a, zaloCodeSent{address: a.Address, errText: refusalText(err)})
+		s.markCode(channel.ZaloPersonal, a, zaloCodeSent{address: a.Address, errText: refusalText(err)})
 		return err
 	}
-	s.markCode(a, zaloCodeSent{address: a.Address, sending: true})
+	s.markCode(channel.ZaloPersonal, a, zaloCodeSent{address: a.Address, sending: true})
 	token, name, err := s.cfg.LinkCodes.ChatLinkToken(ctx, a.UserID, channel.ZaloPersonal, a.Address)
 	if err != nil {
-		s.markCode(a, zaloCodeSent{address: a.Address, errText: "No link was made: " + refusalText(err)})
+		s.markCode(channel.ZaloPersonal, a, zaloCodeSent{address: a.Address, errText: "No link was made: " + refusalText(err)})
 		return err
 	}
 	sent := s.deliverLink(ctx, c, a, s.link(zaloLinkPath(token)), name)
-	s.markCode(a, sent)
+	s.markCode(channel.ZaloPersonal, a, sent)
 	detail := "a confirm link was sent to Zalo " + a.Address
 	if sent.errText != "" {
 		detail = "a confirm link could not be sent to Zalo " + a.Address + ": " + sent.errText
@@ -600,13 +606,13 @@ func refusalText(err error) string {
 	return "the link could not be made."
 }
 
-func (s *Service) markCode(a Approver, rec zaloCodeSent) {
+func (s *Service) markCode(t channel.Type, a Approver, rec zaloCodeSent) {
 	s.zalo.mu.Lock()
 	defer s.zalo.mu.Unlock()
 	if s.zalo.codes == nil {
 		s.zalo.codes = map[string]zaloCodeSent{}
 	}
-	s.zalo.codes[a.UserID] = rec
+	s.zalo.codes[codeKey(t, a.UserID)] = rec
 }
 
 // sendLinkCodesLater sends the codes of approvers a save added or gave a new Zalo, after the save, one after the other (each is a real
@@ -616,14 +622,14 @@ func (s *Service) sendLinkCodesLater(ctx context.Context, actor string, c channe
 		return
 	}
 	for _, a := range list {
-		s.markCode(a, zaloCodeSent{address: a.Address, sending: true})
+		s.markCode(channel.ZaloPersonal, a, zaloCodeSent{address: a.Address, sending: true})
 	}
 	bg := context.WithoutCancel(ctx)
 	s.zalo.bg.Go(func() {
 		for _, a := range list {
 			if s.isUser(bg, a.UserID, actor) && s.isBoxAccount(bg, c, a.Address) { // the box's own account: they confirm in their session
 				s.zalo.mu.Lock()
-				delete(s.zalo.codes, a.UserID)
+				delete(s.zalo.codes, codeKey(channel.ZaloPersonal, a.UserID))
 				s.zalo.mu.Unlock()
 				continue
 			}

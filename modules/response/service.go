@@ -260,6 +260,7 @@ type Config struct {
 	TwoStep     TwoStep     // nil = no code can be checked: a high-risk AI request cannot be approved (403 twofa_required)
 	Planner     Planner     // nil = no plan is ever written; ai_available is false (13b-11)
 	Mailer      LinkMailer  // nil = no link code can be mailed: an email approver cannot link (503 email_not_ready), D-191
+	LinkSender  LinkSender  // nil = My account cannot ask for a new confirm link on a chat channel (400 chat_channel), D-414
 	// Critical lists the open critical findings with their device, for the plan job. nil = no plan is asked for.
 	Critical func(ctx context.Context) ([]PlanTarget, error)
 	Evidence EvidencePorts // a nil port means no such evidence exists: an AI proposal naming it is refused (422 evidence_invalid)

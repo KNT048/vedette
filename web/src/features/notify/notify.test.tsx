@@ -805,7 +805,7 @@ describe('notify: channel form matrix (docs/QA.md §2)', () => {
     wrong.unmount()
     // the right person
     renderApp(path, { role: 'operator' })
-    expect(await screen.findByText(/^Link this Zalo account to your account, /)).toBeInTheDocument()
+    expect(await screen.findByText(/^Link Zalo account 3847561029384756102 to your Vedette user /)).toBeInTheDocument()
     expect(await screen.findByText('3847561029384756102')).toHaveClass('font-mono')
     expect(screen.getByText('Named "Lan Pham" by your administrator.')).toBeInTheDocument()
     expect(screen.getByText(/Confirm only if this Zalo account is yours/)).toBeInTheDocument()

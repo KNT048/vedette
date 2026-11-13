@@ -185,7 +185,7 @@ export const handlers = [
     const u = ap ? userCanApprove(ap.user_id) : undefined
     if (!ch || !ap || !u) return refuse(403, 'approver_not_listed', `Not counted: this ${b.channel} address is not on the approver list of that channel, or its user is not an operator or admin.`, a.id)
     if (!settings().approval_channels.includes(b.channel) || !chanReady(ch)) return refuse(403, 'channel_not_allowed', `Approvals from ${b.channel} are not turned on for response.`, a.id)
-    if (!isLinked(u.id, ch.type, ap.address)) return chatNotLinked(u.id, ch.type, ap.address, a.id) // D-191: the answer only the presser sees holds a link code
+    if (!isLinked(u.id, ch.type, ap.address)) return chatNotLinked(ch.type, ap.address, a.id) // D-191, D-414: the answer says how to link
     if (a.items.some((i) => i.connector_id !== null) && !settings().execution) return refuse(409, 'execution_off', OFF_MSG, a.id)
     const w = who(u, b.channel, b.external_id)
     const r = b.decision === 'approve' ? approve(a, w) : reject(a, w, `Rejected in ${b.channel} by ${u.name}`)

@@ -6,6 +6,8 @@ import (
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/knt048/vedette/core/netguard"
 )
 
 func TestCheckValue(t *testing.T) {
@@ -130,31 +132,27 @@ func TestLibraryMatchesTheMockExceptForShellCharacters(t *testing.T) {
 
 func TestForbiddenAddr(t *testing.T) {
 	t.Parallel()
-	box := []netip.Addr{netip.MustParseAddr("192.168.10.2")}
-	for _, a := range []string{"127.0.0.1", "::1", "0.0.0.0", "::", "169.254.169.254", "fe80::1", "224.0.0.1", "ff02::1", "192.168.10.2", "::ffff:127.0.0.1",
-		// D-411: the cloud metadata endpoints that are not link-local, and transition forms of a forbidden or box address (core/netguard)
-		"100.100.100.200", "192.0.0.192", "fd00:ec2::254", "fd20:ce::254", "64:ff9b::a9fe:a9fe", "2002:6464:64c8::1", "64:ff9b::c0a8:a02", "255.255.255.255"} {
-		if !forbiddenAddr(netip.MustParseAddr(a), false, box) {
+	for _, a := range []string{"127.0.0.1", "::1", "0.0.0.0", "::", "169.254.169.254", "fe80::1", "224.0.0.1", "ff02::1", "::ffff:127.0.0.1",
+		// D-411: the cloud metadata endpoints that are not link-local, and transition forms of a forbidden address (core/netguard)
+		"100.100.100.200", "192.0.0.192", "fd00:ec2::254", "fd20:ce::254", "64:ff9b::a9fe:a9fe", "2002:6464:64c8::1", "255.255.255.255"} {
+		if !forbiddenAddr(netip.MustParseAddr(a), false) {
 			t.Errorf("%s is allowed", a)
 		}
 	}
 	for _, a := range []string{"192.168.10.9", "10.1.1.1", "198.51.100.7", "2001:db8::1"} {
-		if forbiddenAddr(netip.MustParseAddr(a), false, box) {
+		if forbiddenAddr(netip.MustParseAddr(a), false) {
 			t.Errorf("%s is forbidden", a)
 		}
 	}
-	if !forbiddenAddr(netip.MustParseAddr("127.0.0.1"), false, nil) || forbiddenAddr(netip.MustParseAddr("127.0.0.1"), true, nil) {
-		t.Error("the loopback switch is wrong")
-	}
-	if !forbiddenAddr(netip.MustParseAddr("100.100.100.200"), true, nil) {
-		t.Error("the loopback switch opens the metadata endpoints")
+	if forbiddenAddr(netip.MustParseAddr("127.0.0.1"), true) || !forbiddenAddr(netip.MustParseAddr("100.100.100.200"), true) {
+		t.Error("the loopback switch must open loopback only")
 	}
 }
 
 // D-411: a webhook URL naming a cloud metadata service or endpoint is refused at save, before any lookup.
 func TestCheckWebhookURLRefusesMetadata(t *testing.T) {
 	t.Parallel()
-	s := &Service{} // the box addresses are this machine's interfaces
+	s := &Service{interfaceFn: func() ([]netip.Addr, error) { return nil, nil }}
 	for _, u := range []string{"https://metadata.google.internal/computeMetadata/v1/", "https://metadata/", "https://METADATA.GOOG./x", "https://100.100.100.200/latest", "https://[fd00:ec2::254]/latest", "https://[64:ff9b::a9fe:a9fe]/"} {
 		if _, err := s.checkWebhookURL(u); err == nil || !strings.Contains(err.Error(), "cloud metadata") {
 			t.Errorf("%s: %v", u, err)
@@ -162,6 +160,38 @@ func TestCheckWebhookURLRefusesMetadata(t *testing.T) {
 	}
 	if _, err := s.checkWebhookURL("https://hooks.example.com/x"); err != nil {
 		t.Errorf("a public name is refused: %v", err)
+	}
+}
+
+// D-446 for webhook_call: the machine's address only on Vedette's own ports, core's container and the decoys on every port, loopback
+// always; every target while the machine's addresses are not known; the dial-time check judges the same at the dialled port.
+func TestWebhookVedetteItself(t *testing.T) {
+	t.Parallel()
+	known := true
+	s := &Service{interfaceFn: func() ([]netip.Addr, error) {
+		return []netip.Addr{netip.MustParseAddr("127.0.0.1"), netip.MustParseAddr("10.88.0.5")}, nil
+	}, cfg: Config{
+		MachineAddrs: func() ([]netip.Addr, bool) { return []netip.Addr{netip.MustParseAddr("192.168.18.141")}, known },
+		SelfAddrs:    func() []netip.Addr { return []netip.Addr{netip.MustParseAddr("192.168.18.200")} },
+	}}
+	for u, own := range map[string]bool{
+		"https://192.168.18.141/hook": false, "https://192.168.18.141:5678/hook": false, // another program on the machine
+		"https://192.168.18.141:8443/api": true, "https://192.168.18.141:6514/": true,
+		"https://10.88.0.5:5678/": true, "https://192.168.18.200/": true, // core's container, a decoy
+		"https://127.0.0.1:5678/": true, "https://localhost/": true, "https://[::ffff:192.168.18.141]:8444/": true,
+	} {
+		_, err := s.checkWebhookURL(u)
+		if got := err != nil && err.Error() == netguard.OwnText; got != own || (!own && err != nil) {
+			t.Errorf("%s: %v", u, err)
+		}
+	}
+	dial := dialControl(s.refusedTarget)
+	if dial("tcp", "192.168.18.141:8443", nil) == nil || dial("tcp", "192.168.18.141:5678", nil) != nil || dial("tcp", "10.88.0.5:5678", nil) == nil {
+		t.Error("the dial-time check differs from the save-time check")
+	}
+	known = false
+	if _, err := s.checkWebhookURL("https://192.168.18.50:5678/"); err == nil || dial("tcp", "192.168.18.50:5678", nil) == nil {
+		t.Error("unknown machine addresses must refuse every webhook (fail closed, #157)")
 	}
 }
 

@@ -19,6 +19,7 @@ import (
 	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/conn/cliban"
 	"github.com/knt048/vedette/core/conn/internal/transport"
+	"github.com/knt048/vedette/core/netguard"
 	"github.com/knt048/vedette/core/secrets"
 )
 
@@ -316,6 +317,9 @@ func refusedHost(raw string, box []netip.Prefix) string {
 	if h == "localhost" || strings.HasSuffix(h, ".localhost") {
 		return "a loopback address"
 	}
+	if netguard.MetadataName(h) { // D-411: the metadata service's names, before any lookup
+		return "a cloud metadata service"
+	}
 	if strings.Contains(h, ":") {
 		a, err := netip.ParseAddr(h)
 		if err != nil {
@@ -380,6 +384,8 @@ func refusedAddr(a netip.Addr, box []netip.Prefix) string {
 		return "a link-local address"
 	case a.IsMulticast() || a.IsLinkLocalMulticast():
 		return "a multicast address"
+	case netguard.Metadata(a): // D-411: the endpoints that are not link-local (Alibaba, Oracle, AWS and Google over IPv6)
+		return "a cloud metadata service"
 	}
 	for _, b := range box {
 		if b.Contains(a) || b.Contains(a.Unmap()) {

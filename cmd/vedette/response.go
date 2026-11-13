@@ -415,6 +415,7 @@ func responseConfig(d *deps) (response.Config, error) {
 		Notifier: responseNotifier{n: n, now: d.Clock, reg: d.Reg}, Links: responseLinks{n}, Webhooks: responseWebhooks{n}, Directory: responseDirectory{inv: d.Inventory, fnd: d.Findings},
 		Mailer: responseMailer{n.CodeMailer()}, BaseURL: d.BaseURL} // the block list address a firewall pulls (empty on loopback: a relative path)
 	cfg.BoxAddrs = responseBoxAddrs(notifyBoxAddrs(d.HostNet), lateDecoys{d}) // D-179 (6), (8): the decoys and the host's addresses are the box too, so an action aimed at one is never_touch
+	cfg.MachineAddrs, cfg.SelfAddrs = machineAddrs(d), vedetteSelf(d)         // D-446 for webhook_call, as notify's webhook channel
 	var hostState netStateReader
 	if d.HostSocket != "" {
 		hostState = hostclient.New(d.HostSocket)

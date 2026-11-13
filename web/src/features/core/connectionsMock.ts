@@ -92,9 +92,14 @@ const canonicalV4 = (h: string): number[] | null => {
   return p.length === 4 && p.every((x) => /^(0|[1-9]\d{0,2})$/.test(x) && Number(x) <= 255) ? p.map(Number) : null
 }
 /** Why the host is refused (in plain words), or null when it may be used. */
+// The cloud metadata endpoints that are not link-local and the service's names (core/netguard, D-411).
+const METADATA_NAMES = ['metadata', 'metadata.google.internal', 'metadata.goog']
+const METADATA_V4 = ['100.100.100.200', '192.0.0.192']
+const METADATA_V6 = [[0xfd00, 0xec2, 0, 0, 0, 0, 0, 0x254], [0xfd20, 0xce, 0, 0, 0, 0, 0, 0x254]]
 export function refusedHost(raw: string): string | null {
   const h = raw.trim().toLowerCase().replace(/^\[|\]$/g, '').replace(/\.+$/, '')
   if (h === 'localhost' || h.endsWith('.localhost')) return 'a loopback address'
+  if (METADATA_NAMES.includes(h)) return 'a cloud metadata service' // D-411
   if (h.includes(':')) {
     if (h === '::1') return 'a loopback address'
     if (h === '::') return 'an unspecified address'
@@ -104,6 +109,7 @@ export function refusedHost(raw: string): string | null {
     if (!g) return 'an address that is not valid'
     if (g.slice(0, 7).every((x) => x === 0) && g[7]! <= 1) return g[7] === 1 ? 'a loopback address' : 'an unspecified address'
     if (carriesV4(g)) return EMBEDDED_V4
+    if (METADATA_V6.some((m) => m.every((x, i) => x === g[i]))) return 'a cloud metadata service'
     return null
   }
   if (NUMERIC_HOST.test(h)) {
@@ -113,6 +119,7 @@ export function refusedHost(raw: string): string | null {
     if (v[0] === 0) return 'an unspecified address'
     if (v[0] === 169 && v[1] === 254) return 'a link-local address (the cloud metadata service lives there)'
     if (v[0]! >= 224 && v[0]! <= 239) return 'a multicast address'
+    if (METADATA_V4.includes(v.join('.'))) return 'a cloud metadata service'
     if (h === networkStore.get().mgmt.address) return 'the box itself'
   }
   return null

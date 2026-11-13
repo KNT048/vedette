@@ -74,6 +74,19 @@ func TestIPv6FormsThatCarryAnIPv4AddressAreRefused(t *testing.T) {
 	}
 }
 
+// D-411: the cloud metadata endpoints that are not link-local and the metadata names are refused at save and at dial (core/netguard).
+func TestMetadataIsRefused(t *testing.T) {
+	t.Parallel()
+	for _, target := range []string{"https://100.100.100.200", "https://192.0.0.192", "https://[fd00:ec2::254]", "https://[fd20:ce::254]", "https://metadata.google.internal", "https://Metadata.Goog."} {
+		if e := checkTarget(target, false, nil); e == nil || !strings.Contains(e.Message, "a cloud metadata service") {
+			t.Errorf("%s: %v", target, e)
+		}
+	}
+	if why := RefusedAddr(netip.MustParseAddr("100.100.100.200"), nil); why != "a cloud metadata service" {
+		t.Errorf("RefusedAddr = %q", why)
+	}
+}
+
 // A subnet of the box is refused whole, and the dial-time check uses the same function.
 func TestBoxSubnetsAreRefusedWhole(t *testing.T) {
 	t.Parallel()

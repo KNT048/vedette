@@ -164,11 +164,11 @@ func TestBoxAddrsSources(t *testing.T) {
 		}
 	})
 	t.Run("the default gateway is the host", func(t *testing.T) {
-		b := &boxSources{gateway: func() (netip.Addr, bool) { return netip.MustParseAddr("10.88.0.1"), true }}
+		b := &boxSources{gateways: func() []netip.Addr { return []netip.Addr{netip.MustParseAddr("10.88.0.1")} }}
 		if got := b.BoxAddrs(ctx); !contains(got, "10.88.0.1") || contains(got, "10.88.0.2") {
 			t.Errorf("gateway: %v", got)
 		}
-		none := &boxSources{gateway: func() (netip.Addr, bool) { return netip.Addr{}, false }}
+		none := &boxSources{gateways: func() []netip.Addr { return nil }}
 		if got := none.BoxAddrs(ctx); len(got) != 0 {
 			t.Errorf("no gateway gave %v", got)
 		}
@@ -219,7 +219,7 @@ func TestBoxAddrsSources(t *testing.T) {
 	})
 	t.Run("no host is nil-safe and the union holds every source", func(t *testing.T) {
 		b := &boxSources{
-			ifaces: func() []netip.Prefix { return []netip.Prefix{pfx("10.88.0.5/16")} }, gateway: func() (netip.Addr, bool) { return netip.MustParseAddr("10.88.0.1"), true },
+			ifaces: func() []netip.Prefix { return []netip.Prefix{pfx("10.88.0.5/16")} }, gateways: func() []netip.Addr { return []netip.Addr{netip.MustParseAddr("10.88.0.1")} },
 			hosts: []string{"192.168.10.250"}, decoys: func(context.Context) []netip.Addr { return []netip.Addr{netip.MustParseAddr("192.168.10.201")} },
 		}
 		got := b.BoxAddrs(ctx)
@@ -245,6 +245,21 @@ func TestDefaultGatewayFromProcNetRoute(t *testing.T) {
 	}
 	if _, ok := defaultGateway(strings.NewReader("")); ok {
 		t.Error("an empty table gave a gateway")
+	}
+}
+
+// D-446 deferred line: the IPv6 default gateway of the container is the machine too.
+func TestDefaultGatewayFromProcNetIPv6Route(t *testing.T) {
+	t.Parallel()
+	const zero = "00000000000000000000000000000000"
+	route := "fd000000000000000000000000000000 40 " + zero + " 00 " + zero + " 00000100 00000001 00000000 00000001 eth0\n" + // the subnet, no next hop
+		zero + " 00 " + zero + " 00 fd000000000000000000000000000001 00000400 00000001 00000000 00000003 eth0\n" + // ::/0 via fd00::1
+		zero + " 00 " + zero + " 00 " + zero + " ffffffff 00000001 00000000 00200200 lo\n" // ::/0 unreachable, no next hop
+	if got := defaultGateway6(strings.NewReader(route)); len(got) != 1 || got[0] != netip.MustParseAddr("fd00::1") {
+		t.Fatalf("gateways = %v, want fd00::1", got)
+	}
+	if got := defaultGateway6(strings.NewReader("")); len(got) != 0 {
+		t.Errorf("an empty table gave %v", got)
 	}
 }
 

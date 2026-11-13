@@ -95,10 +95,9 @@ func logsNeverCount(d *deps) func(context.Context) ([]netip.Addr, error) {
 		for _, p := range containerAddrs() {
 			out = append(out, p.Addr())
 		}
-		if g, ok := procGateway(); ok { // the container's gateway: the bridge of the host
-			out = append(out, g)
-		}
-		if state != nil { // the LAN default gateway, which only the host can see (host-api state/net default_route)
+		out = append(out, procGateways()...) // the container's gateways: the bridge of the host
+		// the LAN default gateway, which only the host can see (host-api state/net default_route)
+		if state != nil {
 			if st, serr := state.StateNet(ctx); serr != nil {
 				err = serr
 			} else if st.DefaultRoute != nil {

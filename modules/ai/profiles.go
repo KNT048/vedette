@@ -100,9 +100,53 @@ func mapErr(err error) error {
 	return err
 }
 
-// sameConnection: a and b reach the same model at the same address with the same key, so a test of one holds for the other.
+// sameConnection: a and b reach the same model at the same address with the same key from the same place, so a test of one holds for
+// the other. The place counts: it decides the proxy and the addresses the client may reach (provider.Options.InternalOnly).
 func sameConnection(a, b Profile) bool {
-	return a.Kind == b.Kind && a.APIStyle == b.APIStyle && a.BaseURL == b.BaseURL && a.Model == b.Model && a.APIKey.Reveal() == b.APIKey.Reveal()
+	return a.Kind == b.Kind && a.APIStyle == b.APIStyle && a.BaseURL == b.BaseURL && a.Model == b.Model && a.Location == b.Location &&
+		a.APIKey.Reveal() == b.APIKey.Reveal()
+}
+
+// draftTestTTL is how long the test of settings not saved yet waits for the profile saved with them (D-445): the time to finish the
+// dialog, not a cache of results.
+const draftTestTTL = 15 * time.Minute
+
+// draftTest is a test the box made itself of settings not saved yet: the connection it reached (the key stays in memory only, as in
+// the snapshot) and its result.
+type draftTest struct {
+	conn Profile
+	test LastTest
+	at   time.Time
+}
+
+// draftTestOf is the test who made of exactly this connection in the last draftTestTTL; nil when there is none. The client cannot
+// claim one: only TestProfile records them, after the box ran the test. The caller holds s.mu.
+func (s *Service) draftTestOf(who string, p Profile) *LastTest {
+	d, ok := s.drafts[who]
+	if ok && s.cfg.Clock().Sub(d.at) > draftTestTTL {
+		delete(s.drafts, who) // its key is not held past the window
+		ok = false
+	}
+	if !ok || !sameConnection(d.conn, p) {
+		return nil
+	}
+	t := d.test
+	return &t
+}
+
+// recordDraftTest keeps the test of settings not saved yet for the profile saved with them; one per admin, the expired ones of other
+// admins dropped with their keys. The caller holds s.mu.
+func (s *Service) recordDraftTest(who string, p Profile, failure error) {
+	now := s.cfg.Clock()
+	if s.drafts == nil {
+		s.drafts = map[string]draftTest{}
+	}
+	for w, d := range s.drafts {
+		if now.Sub(d.at) > draftTestTTL {
+			delete(s.drafts, w)
+		}
+	}
+	s.drafts[who] = draftTest{conn: p, test: *s.lastTestOf(failure), at: now}
 }
 
 // saveTests writes the last tests of the profiles of sn (ai_setting `profile_tests`); a removed profile's goes with it.
@@ -179,7 +223,7 @@ func (s *Service) AddProfile(ctx context.Context, who string, in ProfileInput) (
 			taken = append(taken, j)
 		}
 	}
-	st := stored{Profile: p}
+	st := stored{Profile: p, lastTest: s.draftTestOf(who, p)} // the test made in the Add dialog of these settings is its first test
 	next := &snapshot{profiles: append(append([]stored(nil), cur.profiles...), st), assign: asg, cfg: cur.cfg}
 	if err := next.check(); err != nil {
 		return ProfileView{}, mapErr(err)
@@ -206,6 +250,11 @@ func (s *Service) AddProfile(ctx context.Context, who string, in ProfileInput) (
 				return fmt.Errorf("ai: assign new profile: %w", err)
 			}
 		}
+		if st.lastTest != nil {
+			if err := saveTests(ctx, tx, next, now, who); err != nil {
+				return err
+			}
+		}
 		detail := fmt.Sprintf("%s, %s, model=%s, host=%s", p.Kind, p.Location, p.Model, hostOf(p.BaseURL))
 		if p.APIKey.IsSet() {
 			detail += ", key set"
@@ -222,6 +271,7 @@ func (s *Service) AddProfile(ctx context.Context, who string, in ProfileInput) (
 	if err := s.apply(ctx, next); err != nil {
 		return ProfileView{}, err
 	}
+	delete(s.drafts, who) // the dialog is done; its key is not held for longer than the profile needs it
 	return s.view(st), nil
 }
 
@@ -262,7 +312,9 @@ func (s *Service) EditProfile(ctx context.Context, who, id string, in ProfileInp
 	keepSecret := key.IsSet() && secretID != ""
 	st := stored{Profile: p, secretID: secretID}
 	if sameConnection(old.Profile, p) {
-		st.lastTest = old.lastTest // a new name, place or cap does not change what the test reached; another address, model or key does
+		st.lastTest = old.lastTest // a new name or cap does not change what the test reached; another address, model, key or place does
+	} else {
+		st.lastTest = s.draftTestOf(who, p) // unless the dialog tested the new connection before Save
 	}
 	if !key.IsSet() {
 		st.secretID = ""
@@ -304,7 +356,7 @@ func (s *Service) EditProfile(ctx context.Context, who, id string, in ProfileInp
 				return fmt.Errorf("ai: delete key: %w", err)
 			}
 		}
-		if old.lastTest != nil && st.lastTest == nil {
+		if old.lastTest != st.lastTest {
 			if err := saveTests(ctx, tx, next, now, who); err != nil {
 				return err
 			}
@@ -329,6 +381,7 @@ func (s *Service) EditProfile(ctx context.Context, who, id string, in ProfileInp
 	if err := s.apply(ctx, next); err != nil {
 		return ProfileView{}, err
 	}
+	delete(s.drafts, who)
 	return s.view(st), nil
 }
 
@@ -413,6 +466,7 @@ const auditTimeout = 10 * time.Second
 // the profile is saved. The test is checked against the caps before it runs and counted after (L5), and it is audited with the host it went to
 // (never the key), also when the request is cancelled while the key is on its way (M2). A test of a saved profile exactly as saved
 // (same address, model and key) is kept as its last test (S-AI-1), unless the profile changed meanwhile or the request was cancelled.
+// A test of other settings becomes the last test of the profile the same admin adds or edits to exactly them within draftTestTTL (D-445).
 func (s *Service) TestProfile(ctx context.Context, who string, in ProfileInput) (TestResult, error) {
 	cur := s.snap.Load()
 	id, key := "draft", keyOf(in)
@@ -460,6 +514,7 @@ func (s *Service) TestProfile(ctx context.Context, who string, in ProfileInput) 
 		outcome, failure = "failed", probeFailure(probeErr, p.BaseURL)
 	}
 	keep := saved != nil && ctx.Err() == nil // a cancelled request did not find out whether the connection works
+	draft := saved == nil && ctx.Err() == nil
 	if keep {
 		// held while the result is written so that no edit of the profile slips between the check and the swap
 		s.mu.Lock()
@@ -496,6 +551,11 @@ func (s *Service) TestProfile(ctx context.Context, who string, in ProfileInput) 
 	}); err != nil {
 		return TestResult{}, err
 	}
+	if draft { // settings not saved yet, once the test is on record: kept for the profile the dialog then saves with exactly them (D-445)
+		s.mu.Lock()
+		s.recordDraftTest(who, p, failure)
+		s.mu.Unlock()
+	}
 	if next != nil {
 		s.snap.Store(next) // only a last test changed: the router's profiles are the same
 	}
@@ -517,13 +577,7 @@ func (s *Service) withTest(saved Profile, failure error) *snapshot {
 	if !ok || !sameConnection(now.Profile, saved) {
 		return nil
 	}
-	lt := &LastTest{At: store.FormatTS(s.cfg.Clock()), OK: failure == nil}
-	if failure != nil { // the box's own sentence: it may name the host, never the key or the provider's raw text
-		lt.Detail = "The test failed."
-		if ae, ok := apierr.As(failure); ok {
-			lt.Detail = clipRunes(ae.Message, 300)
-		}
-	}
+	lt := s.lastTestOf(failure)
 	next := &snapshot{profiles: append([]stored(nil), cur.profiles...), assign: cur.assign, cfg: cur.cfg}
 	for i := range next.profiles {
 		if next.profiles[i].ID == saved.ID {
@@ -531,6 +585,18 @@ func (s *Service) withTest(saved Profile, failure error) *snapshot {
 		}
 	}
 	return next
+}
+
+// lastTestOf is the record of a test that ended now with failure (nil = it worked).
+func (s *Service) lastTestOf(failure error) *LastTest {
+	lt := &LastTest{At: store.FormatTS(s.cfg.Clock()), OK: failure == nil}
+	if failure != nil { // the box's own sentence: it may name the host, never the key or the provider's raw text
+		lt.Detail = "The test failed."
+		if ae, ok := apierr.As(failure); ok {
+			lt.Detail = clipRunes(ae.Message, 300)
+		}
+	}
+	return lt
 }
 
 func clipRunes(s string, n int) string {

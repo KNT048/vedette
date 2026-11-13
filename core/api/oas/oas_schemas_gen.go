@@ -3339,7 +3339,8 @@ type AiGetAiProfilesOKItemsItem struct {
 	KeyLast4 NilString                      `json:"key_last4"`
 	Kind     AiGetAiProfilesOKItemsItemKind `json:"kind"`
 	// Last connection test of the profile as saved (S-AI-1). null = not tested since it was added or its
-	// address, model or key changed; a test of a draft or of a key not saved yet does not count.
+	// address, model, key or place changed. A test the same admin ran in the Add or Edit dialog of exactly
+	// the settings saved (within 15 minutes) counts (D-445); the request cannot carry one.
 	LastTest NilAiGetAiProfilesOKItemsItemLastTest `json:"last_test"`
 	// Internal = runs inside the company network, data never leaves it; cloud = cloud provider.
 	Location  AiGetAiProfilesOKItemsItemLocation `json:"location"`
@@ -7841,7 +7842,8 @@ type AiPostAiProfilesOK struct {
 	KeyLast4 NilString              `json:"key_last4"`
 	Kind     AiPostAiProfilesOKKind `json:"kind"`
 	// Last connection test of the profile as saved (S-AI-1). null = not tested since it was added or its
-	// address, model or key changed; a test of a draft or of a key not saved yet does not count.
+	// address, model, key or place changed. A test the same admin ran in the Add or Edit dialog of exactly
+	// the settings saved (within 15 minutes) counts (D-445); the request cannot carry one.
 	LastTest NilAiPostAiProfilesOKLastTest `json:"last_test"`
 	// Internal = runs inside the company network, data never leaves it; cloud = cloud provider.
 	Location  AiPostAiProfilesOKLocation `json:"location"`
@@ -10947,7 +10949,8 @@ type AiPutAiProfilesIDOK struct {
 	KeyLast4 NilString               `json:"key_last4"`
 	Kind     AiPutAiProfilesIDOKKind `json:"kind"`
 	// Last connection test of the profile as saved (S-AI-1). null = not tested since it was added or its
-	// address, model or key changed; a test of a draft or of a key not saved yet does not count.
+	// address, model, key or place changed. A test the same admin ran in the Add or Edit dialog of exactly
+	// the settings saved (within 15 minutes) counts (D-445); the request cannot carry one.
 	LastTest NilAiPutAiProfilesIDOKLastTest `json:"last_test"`
 	// Internal = runs inside the company network, data never leaves it; cloud = cloud provider.
 	Location  AiPutAiProfilesIDOKLocation `json:"location"`

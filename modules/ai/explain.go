@@ -407,7 +407,7 @@ func (s *Service) ExplainCVE(ctx context.Context, actor, id string) (ExplainResu
 		// The result is stored in the same transaction as the activity row of the call.
 		Store: func(ctx context.Context, tx *sql.Tx, r JobResult) error {
 			body = explainBody{Affected: affected, Why: answer.Why, PatchSteps: answer.PatchSteps, TempMitigations: answer.TempMitigations,
-				DetectionHints: answer.DetectionHints, Citations: citationsFor(facts, assets)}
+				DetectionHints: answer.DetectionHints, Citations: append(citationsFor(facts, assets), documentsCite(r.Documents)...)}
 			if affected == "no" { // nothing to patch or look for: the lists stay empty whatever the model wrote
 				body.PatchSteps, body.TempMitigations, body.DetectionHints = []string{}, []string{}, []string{}
 			}

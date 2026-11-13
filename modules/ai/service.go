@@ -176,6 +176,7 @@ type Service struct {
 	queued     atomic.Int64                    // uploads that hold their bytes in memory until they are read
 	indexing   sync.WaitGroup                  // the readers in flight: a test waits for them
 	snap       atomic.Pointer[snapshot]
+	drafts     map[string]draftTest   // per admin, the last test of settings not saved yet, kept for the profile saved with them (D-445); under mu
 	alerted    atomic.Pointer[string] // the break the last alert named (its first bad row, or "tail"): the same break is not raised again until a restart
 	news       *newsFetcher           // the box's own fetcher of public pages for CVE news (S-AI-3)
 }

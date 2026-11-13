@@ -629,6 +629,9 @@ func TestExplainCacheKeyFollowsTheDocuments(t *testing.T) {
 	if made["cached"] != false || a.fake.total() != calls+1 {
 		t.Fatalf("not asked again: %v", made)
 	}
+	if c := fmt.Sprint(made["citations"]); !strings.Contains(c, `Documents: "photo.md"`) || strings.Contains(fmt.Sprint(got["citations"]), "Documents") {
+		t.Fatalf("the sources do not name the document only when it was sent (D-445): %s / %v", c, got["citations"])
+	}
 	if user := a.fake.lastRequest(t).Messages[0].Text; !strings.Contains(user, "first Monday") {
 		t.Fatalf("the document did not reach the explanation: %s", user)
 	}

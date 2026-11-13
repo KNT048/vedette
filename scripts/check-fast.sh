@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# make check-fast — the pre-push gate (D-370): only what changed against origin/main, no -race, no reverse dependencies, no
-# Playwright, no test of scripts/ci/skip-tests.txt, so it needs no heavy-job slot and takes minutes. CI runs every package, the
-# merge queue on the merged tree (D-245, D-365), -race and the skip list in the daily run only (D-376), and is the merge gate. `make check` (scripts/check.sh) stays for reproducing a red CI locally.
+# make check-fast — optional since D-413 (agents only build and lint what they changed before pushing): only what changed against origin/main, no -race, no reverse dependencies, no
+# Playwright, no test of scripts/ci/skip-tests.txt, so it needs no heavy-job slot and takes minutes. CI runs the changed packages and
+# their direct importers on a pull request and every package on main (D-413), -race and the skip list in the daily run only (D-376), and is the merge gate. `make check` (scripts/check.sh) stays for reproducing a red CI locally.
 # Assumes macOS or Linux (the Makefile refuses native Windows; use WSL2).
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"

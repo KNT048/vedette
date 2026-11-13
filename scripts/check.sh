@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # make check — kiểm nhanh, chỉ phần đã đổi so với origin/main (D-62, rules/local-checks.md).
-# Kể cả khi đổi file dùng chung (D-199): bộ đầy đủ chạy trên CI, và merge queue chạy lại nó trên bản ghép với main
-# trước khi merge (D-245). Go test chỉ chạy gói có file đổi và gói import trực tiếp chúng (D-251).
+# Kể cả khi đổi file dùng chung (D-199): bộ đầy đủ chạy trên CI khi push lên main và hằng ngày (D-413, không còn merge queue).
+# Go test chỉ chạy gói có file đổi và gói import trực tiếp chúng (D-251).
 # Giả định OS: macOS hoặc Linux. Windows: chạy trong WSL2 (Makefile chặn Windows gốc).
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
@@ -28,7 +28,7 @@ if has "$go_paths"; then
 		make generate-check
 	fi
 	# Packages with a changed file (migrations, testdata, queries and the API spec count for their package tree),
-	# plus the packages that import them directly. CI and the merge queue run every package (D-251).
+	# plus the packages that import them directly. CI on main runs every package (D-251, D-413).
 	dirs=$( {
 		printf '%s\n' "$changed" | grep '\.go$' | xargs -n1 dirname 2>/dev/null
 		printf '%s\n' "$changed" | sed -En 's#^(modules/[^/]+)/(migrations|testdata)/.*#\1/...#p; s#^(modules/[^/]+)/MANIFEST\.yaml$#\1/...#p'

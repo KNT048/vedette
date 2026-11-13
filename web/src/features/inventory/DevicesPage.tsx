@@ -115,9 +115,10 @@ function Body() {
         actions={
           <>
             <Button variant="primary" disabled={!canOp} title={needRole} onClick={() => setAdding(true)}><Plus />{t('add.open')}</Button>
+            {/* Item 26b: next to "Add a device", and its name says the agents (osquery downloads, tokens) are there too. Admin only, like the page. */}
+            {canAdmin ? <Link to="/devices/setup" className={cn(buttonVariants({ variant: 'secondary' }))}><Settings2 />{t('setup.link')}</Link> : null}
             <Button disabled={!canOp} title={needRole} onClick={() => setImporting(true)}><Upload />{t('import.open')}</Button>
             <Button onClick={() => void download('/inventory/export.csv', 'vedette-devices.csv').catch((e: unknown) => toast.error(errMsg(e)))}><Download />{t('export')}</Button>
-            {canAdmin ? <Link to="/devices/setup" className={cn(buttonVariants({ variant: 'secondary' }))}><Settings2 />{t('setup.link')}</Link> : null}
           </>
         } />
       <QueryState query={q}>

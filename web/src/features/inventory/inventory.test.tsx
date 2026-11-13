@@ -197,7 +197,8 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
     await deviceTable()
     expect(screen.getByRole('button', { name: 'Add a device' })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Import CSV' })).toBeDisabled()
-    expect(screen.queryByRole('link', { name: 'Scope and sensors' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Scope, sensors and agents' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /sensors/ })).not.toBeInTheDocument()
     expect(screen.getAllByRole('button', { name: 'Approve' })[0]).toBeDisabled()
     expect(screen.getByRole('switch', { name: 'Notify me about new devices' })).toBeDisabled()
   })
@@ -206,7 +207,15 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
     renderApp('/devices', { role: 'operator' })
     await deviceTable()
     expect(screen.getByRole('button', { name: 'Add a device' })).toBeEnabled()
-    expect(screen.queryByRole('link', { name: 'Scope and sensors' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /sensors/ })).not.toBeInTheDocument()
+  })
+
+  it('the admin gets a link to the setup page (agents included) right after "Add a device" (item 26b)', async () => {
+    renderApp('/devices')
+    await deviceTable()
+    const link = screen.getByRole('link', { name: 'Scope, sensors and agents' })
+    expect(link).toHaveAttribute('href', '/devices/setup')
+    expect(screen.getByRole('button', { name: 'Add a device' }).nextElementSibling).toBe(link)
   })
 
   it('the viewer role is refused writes by the API (403), and anonymous gets 401', async () => {
@@ -1131,6 +1140,42 @@ describe('inventory: agents (S-INV-4)', () => {
     expect(screen.getByRole('button', { name: 'Connect Wazuh' })).toBeInTheDocument()
     expect(screen.queryByText(/Trivy/i)).not.toBeInTheDocument()
     expect(screen.queryByText(/macOS/i)).not.toBeInTheDocument()
+  })
+
+  it('the page itself lists every osquery package as step 1, without opening a dialog; the token is step 2 (item 26b, D-404)', async () => {
+    enableModule('agent-intake', true)
+    renderApp('/devices/setup')
+    const table = await screen.findByRole('table', { name: 'osquery packages this box serves' }, T)
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    const pkgs = (await call('GET', '/agents')).json!.install.packages as OsqueryPackage[]
+    expect(pkgs.map((p) => p.platform)).toEqual(expect.arrayContaining(['linux', 'windows']))
+    expect(within(table).getAllByRole('link').map((a) => [a.getAttribute('href'), a.getAttribute('download')])).toEqual(
+      pkgs.map((p) => [`/api/v1/install/osquery/${p.file}`, p.file])) // Linux and Windows together, no OS to pick first
+    const hint = { deb: 'sudo dpkg -i', rpm: 'sudo rpm -Uvh', msi: 'msiexec /i' } as const
+    for (const p of pkgs) {
+      const row = within(table).getByRole('link', { name: `Download ${p.file}` }).closest('tr')!
+      expect(row).toHaveTextContent(p.sha256)
+      expect(row).toHaveTextContent(`${(p.size / 1e6).toFixed(1)} MB`)
+      expect(row).toHaveTextContent(`${hint[p.format]} ${p.file}`)
+    }
+    expect(within(table).getByRole('link', { name: `Download osquery-${OSQUERY_VERSION}.msi` }).closest('tr')).toHaveTextContent('Windows Server · x64')
+    expect(screen.getByRole('heading', { level: 4, name: '1. Download osquery' })).toBeInTheDocument()
+    expect(screen.getByText(new RegExp(`official osquery ${OSQUERY_VERSION.replace(/\./g, '\\.')} packages`))).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 4, name: '2. Then create a token so the agent can report to this box' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Create agent token' })).toBeEnabled()
+    expect(document.body.textContent).not.toMatch(/osquery\.io|choco/)
+    await expectNoA11yViolations()
+  })
+
+  it('without the packages the page says so in step 1 and links nowhere else (item 26b, D-404)', async () => {
+    enableModule('agent-intake', true)
+    asAdmin()
+    const real = (await call('GET', '/agents')).json!
+    server.use(http.get('*/api/v1/inventory/agents', () => HttpResponse.json({ ...real, install: { ...real.install, packages: [] } })))
+    renderApp('/devices/setup')
+    expect(await screen.findByText(/This box has no copy of the osquery packages, so there is nothing to download here/, undefined, T)).toBeInTheDocument()
+    expect(screen.queryByRole('table', { name: 'osquery packages this box serves' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Create agent token' })).toBeInTheDocument()
   })
 
   it('creates a token: name + lifetime, token and install command shown once; the API never returns the full token again', async () => {

@@ -202,7 +202,7 @@ func TestEveryNoneRuleNamesARealPath(t *testing.T) {
 }
 
 // D-365: the go-test matrix of ci.yml is exactly shards 1..SHARDS of the Makefile, only main saves the Go test cache (pull requests
-// and merge_group refs only restore it), and nothing but the daily schedule turns the cache off (-count, -shuffle).
+// only restore it), and nothing but the daily schedule turns the cache off (-count, -shuffle).
 func TestTheWorkflowMatchesTheShardsAndTheCache(t *testing.T) {
 	t.Parallel()
 	read := func(p string) string {
@@ -234,7 +234,7 @@ func TestTheWorkflowMatchesTheShardsAndTheCache(t *testing.T) {
 		}
 		return strings.TrimSpace(m[1])
 	}
-	// D-365, D-372: every actions/cache cache is a restore step and a save step, and only main saves (a pull request or a merge_group ref
+	// D-365, D-372: every actions/cache cache is a restore step and a save step, and only main saves (a pull request
 	// would fill the repository's 10 GB with copies nobody else may read, pushing out main's).
 	var restore, save []string
 	for _, s := range steps {
@@ -282,7 +282,7 @@ func TestTheWorkflowMatchesTheShardsAndTheCache(t *testing.T) {
 	if !regexp.MustCompile(`setup-go@[0-9a-f]{40}[^\n]*\n(?: {8}.*\n)*? {10}cache: false`).MatchString(job) {
 		t.Error("go-test's setup-go must not keep a cache of its own (cache: false): a pull request would save it")
 	}
-	// The required check `go` (D-245) passes only if every Go job it needs passed: it must need and check each go-* job.
+	// The required check `go` (D-413) passes only if every Go job it needs passed: it must need and check each go-* job.
 	var goJobs []string
 	for _, m := range regexp.MustCompile(`(?m)^  (go-[a-z-]+):$`).FindAllStringSubmatch(code, -1) {
 		goJobs = append(goJobs, m[1])
@@ -325,7 +325,7 @@ func TestTheWorkflowMatchesTheShardsAndTheCache(t *testing.T) {
 		!strings.Contains(code, "GOTESTFLAGS: ${{ github.event_name == 'schedule' && '-count=2 -shuffle=on -timeout=40m' || '' }}") {
 		t.Errorf("-count and -shuffle (they turn the test cache off) must be set by the daily schedule only (%d settings)", got)
 	}
-	// D-371, D-376: only the daily run uses -race (main's no-race test cache then serves the merge queue). Only the daily run
+	// D-371, D-376: only the daily run uses -race (main's no-race test cache then serves pull requests). Only the daily run
 	// sets SKIPTESTS empty, so it alone runs the tests of skip-tests.txt.
 	if got := len(regexp.MustCompile(`\b(RACE|SKIPTESTS)\b`).FindAllString(code, -1)); got != 6 ||
 		!strings.Contains(code, "RACE: ${{ github.event_name == 'schedule' && '-race' || '' }}") ||

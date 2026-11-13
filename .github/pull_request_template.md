@@ -19,11 +19,11 @@
 - [ ] Every feature, screen and button traces to a story ID above (no imagined features).
 - [ ] `CONTRACT.md` and `IMPACT.md` read before, and updated after, any module change (or: no module touched).
 - [ ] Unit tests added or updated. For module changes: `go test ./modules/<id>/... -run Contract` is green.
-- [ ] Rebased on the latest `origin/main`, `make check` green on my machine (it runs the full `make verify` by itself when shared files changed); CI green before merge (D-63). Paste the `make check` result below.
+- [ ] `origin/main` merged in; the changed packages build and lint on my machine (gofmt/tsc included, D-413); CI green before merge (D-63). Paste the commands run below.
 
 ## Local checks
 
-<!-- Commit SHA checked, then the tail of `make check` output. New commits after this = run again. -->
+<!-- Commit SHA checked, then the build and lint commands run and their tail (D-413). -->
 - [ ] Deferred work recorded in `.ai/deferred/<session>.md` (or: none).
 - [ ] Build output cleaned (`make clean`); no `bin/`, `web/dist/`, or reports committed.
 - [ ] Nothing new in logs or UI exposes secrets; external input validated at the boundary.

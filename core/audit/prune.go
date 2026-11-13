@@ -23,7 +23,8 @@ const (
 // ErrClockSuspect is returned (with the count-based prune done) when the age cut would remove more than half of the lines in one run:
 // in steady use a run removes a tiny share, so this looks like a clock that jumped forward (a bad RTC, a wrong manual time, a spoofed
 // NTP answer), and nothing is removed by age until newer lines outnumber the older ones. A box that was off for a long time hits it
-// too; the count ceiling still holds, so the log stays bounded. The job reports it as a failed run.
+// too; the count ceiling still holds, so the log stays bounded. The job reports it as a failed run. It does not mean a rollback: what
+// the count cut removed in that run is committed, and Prune returns that number with it.
 var ErrClockSuspect = errors.New("audit: prune: the age cut would remove more than half of the lines; the clock may have jumped, nothing removed by age")
 
 // Prune removes the lines past the retention and returns how many it removed. Only the oldest run of lines goes: it stops at the first
@@ -84,6 +85,9 @@ func (l *Log) prune(ctx context.Context, db *store.DB, days int, maxRows int64) 
 			return fmt.Errorf("audit: prune: %w", err)
 		}
 		detail := fmt.Sprintf("%d lines: older than %d days (before %s) or beyond the newest %d", n, days, cutoff, maxRows)
+		if suspect {
+			detail = fmt.Sprintf("%d lines: beyond the newest %d (age cut skipped: the clock may have jumped)", n, maxRows)
+		}
 		if err := l.Append(ctx, tx, Entry{User: "system", Action: "audit.pruned", Target: "core_audit", Detail: detail}); err != nil {
 			return err
 		}

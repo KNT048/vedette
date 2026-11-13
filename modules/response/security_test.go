@@ -94,7 +94,7 @@ func (h hookExec) Execute(ctx context.Context, s response.DeviceStep) (response.
 func banAndBlock() []response.RuleAction {
 	return []response.RuleAction{
 		{ActionID: "fgt_ban_ip", Params: map[string]string{"ip": "{{trigger.dest_ip}}"}, TTLMin: intp(60)},
-		{ActionID: "blocklist_add", Params: map[string]string{"ip": "{{trigger.src_ip}}"}, TTLMin: intp(60)},
+		{ActionID: "blocklist_add", Params: map[string]string{"ip": "{{trigger.dest_ip}}"}, TTLMin: intp(60)}, // the destination: a LAN source would be refused (D-469)
 	}
 }
 
@@ -681,10 +681,7 @@ func TestContract_INV10_UnreadableNeverTouchListFailsClosed(t *testing.T) {
 func TestContract_INV17_BlocklistPublishesPublicAddressesOnly(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
-	e.rule("Block", "ioc_connection", blockAction(60), nil)
-	e.fire(e.iocEvent("e1", "192.168.10.1"))
-	_, err := e.svc.Approve(e.ctx(), oper, e.only().ID, nil, "")
-	e.must(err)
+	// Rows written straight into the table: a block on any of these is refused when it is planned (D-469), this is the last layer.
 	for i, v := range []string{"10.1.1.1", "172.16.0.1", "100.64.0.1", "100.127.255.254", "0.1.2.3", "127.0.0.1", "169.254.1.1", "224.0.0.1", "240.0.0.1", "255.255.255.255", "fc00::1", "fe80::1", "::1", "198.51.100.9", "2606:4700::7", "100.128.0.1"} {
 		e.exec1(`INSERT INTO resp_block_entries (value, request_id, item_id, source, reason, added_at) VALUES (?, 'x', ?, 's', 'r', '2026-11-09T10:00:00.000Z')`, v, "i"+strconv.Itoa(i))
 	}

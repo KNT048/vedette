@@ -13,7 +13,7 @@ import { aiState, afterReject, metrics, propose, resume } from './ai'
 import { RISK_PHRASE } from './contract'
 import { TRIGGERS } from './data'
 import { TEMPLATES } from './templates'
-import { checkRule, events, eventView, rulesStore, runRules, simulate, templates } from './engine'
+import { checkRule, events, eventView, ruleErrCode, rulesStore, runRules, simulate, templates } from './engine'
 import { isCidr, isDomain, isIpv4, TOKEN_RE, type Tpl } from './logic'
 import {
   actionsStore, actionsView, allowStore, approve, approversOf, isLinked, catalogStore, catById, catView, checkCatalog, chanLabel, chanList, chanReady, connById, connView, doneStore, findAction, isObj, isResp, logStore, notFound,
@@ -308,14 +308,14 @@ export const handlers = [
     const denied = guard('operator'); if (denied) return denied
     const b = await body<{ rule: Partial<RuleInput>; event_id: string }>(request)
     const c = checkRule({ ...(isObj(b.rule) ? b.rule : {}) })
-    if (typeof c === 'string') return refuse(400, 'invalid', c, 'response.simulate')
+    if (typeof c === 'string') return refuse(400, ruleErrCode(c), c, 'response.simulate')
     return HttpResponse.json(simulate(c, typeof b.event_id === 'string' ? b.event_id : undefined))
   }),
   http.post(`${API}/response/rules`, async ({ request }) => {
     const denied = guard('admin'); if (denied) return denied
     const raw = await body<RuleInput>(request)
     const c = checkRule({ ...raw, live: false }) // a new rule always starts in dry run
-    if (typeof c === 'string') return refuse(400, 'invalid', c, 'response.rule')
+    if (typeof c === 'string') return refuse(400, ruleErrCode(c), c, 'response.rule')
     if (rulesStore.get().length >= 30) return refuse(409, 'limit', 'Up to 30 rules.', 'response.rule')
     const r: Rule = { ...c, id: newId('rule'), template_id: null, last_fired: null }
     rulesStore.update((l) => [...l, r])
@@ -326,7 +326,7 @@ export const handlers = [
     const denied = guard('admin'); if (denied) return denied
     const old = rulesStore.get().find((r) => r.id === String(params.id)); if (!old) return fail(404, 'not_found', 'No such rule.')
     const c = checkRule(await body<RuleInput>(request))
-    if (typeof c === 'string') return refuse(400, 'invalid', c, old.id)
+    if (typeof c === 'string') return refuse(400, ruleErrCode(c), c, old.id)
     const r: Rule = { ...old, ...c }
     rulesStore.update((l) => l.map((x) => (x.id === r.id ? r : x)))
     step('response.rule.change', r.id, 'settings', `Rule changed: ${r.name} (${r.trigger}, ${r.live ? 'LIVE' : 'dry run'}, ${r.enabled ? 'on' : 'off'}${r.pre_approved ? ', PRE-APPROVED' : ''})`)

@@ -55698,6 +55698,8 @@ func (s ResponseGetResponsePlansOKItemsItemStepsItemProposalState) Validate() er
 		return nil
 	case "tool_unavailable":
 		return nil
+	case "not_publishable":
+		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}

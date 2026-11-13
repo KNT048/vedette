@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClientProvider } from '@tanstack/react-query'
-import { MemoryRouter } from 'react-router'
+import { createMemoryRouter, MemoryRouter, RouterProvider } from 'react-router'
 import { Toaster } from 'sonner'
 import { makeQueryClient } from '@/app/App'
 import { renderApp } from '@/test/render'
@@ -14,6 +14,7 @@ import { checkValues, evalCondition, resolveParam, validateTpl, verifyChain, EMP
 import type { Role } from '@/lib/session'
 import type { ActionRequest, AiState, Blocklist, Catalog, Condition, LogEntry, PlanList, ProposeResult, Rule, RuleInput, RunSummary, SettingsView, Simulation } from './types'
 import ResponseSettings from './ResponseSettings'
+import ResponsePage from './ResponsePage'
 import { ActionDialog } from './CatalogEditor'
 import { RequestCard } from './RequestCard'
 import { RuleDialog } from './RuleEditor'
@@ -888,11 +889,11 @@ describe('response: AI requests, server-side gates (D-51)', () => {
 
   it('only open findings count as evidence', async () => {
     await setup()
-    expect((await propose({ trigger: 'finding', params: { ip: '192.168.10.21' }, evidence: [{ kind: 'finding', id: 'f-1' }] })).status).toBe(201)
+    expect((await propose({ trigger: 'finding', action_id: 'fgt_addrgrp_add', params: { ip: '192.168.10.21' }, evidence: [{ kind: 'finding', id: 'f-1' }] })).status).toBe(201)
     await call('operator', 'POST', `/response/actions/${(await pendingOf())[0]!.id}/reject`, { reason: 'x' })
     const { findingsStore } = await import('@/mocks/stores')
     findingsStore.update((l) => l.map((f) => (f.id === 'f-1' ? { ...f, status: 'false_positive' as const } : f)))
-    expect((await propose({ trigger: 'finding', params: { ip: '192.168.10.21' }, evidence: [{ kind: 'finding', id: 'f-1' }] })).code).toBe('evidence_invalid')
+    expect((await propose({ trigger: 'finding', action_id: 'fgt_addrgrp_add', params: { ip: '192.168.10.21' }, evidence: [{ kind: 'finding', id: 'f-1' }] })).code).toBe('evidence_invalid')
   })
 
   it('a never-touch address is refused for the device of every cited finding; a port action needs a finding for its subject (D-119)', async () => {
@@ -1276,6 +1277,35 @@ describe('response: block list (pull)', () => {
     await call('admin', 'POST', '/response/blocklist/token')
     expect((await fetch(`${location.origin}${path}`)).status).toBe(404)
   })
+
+  it('a block on an address the list never publishes is refused when it is planned, with not_publishable and a refused line (D-469)', async () => {
+    iocHits(['192.168.1.5'])
+    const priv = { action_id: 'blocklist_add', params: { ip: '{{trigger.dest_ip}}' }, ttl_min: 60 }
+    const tell = { action_id: 'msg_send', params: { text: 'Bad connection from {{trigger.device}}' }, ttl_min: null }
+    // a fixed private address is refused when the rule is saved (or simulated); a trigger field only when it runs
+    const fixed = { ...RULE, actions: [{ ...priv, params: { ip: '192.168.1.5' } }] }
+    expect([(await addRule(fixed)).code, (await call('operator', 'POST', '/response/rules/simulate', { rule: fixed })).code]).toEqual(['not_publishable', 'not_publishable'])
+    const sim = await call<Simulation>('operator', 'POST', '/response/rules/simulate', { rule: { ...RULE, actions: [priv] } })
+    expect(sim.status).toBe(200)
+    expect(sim.json.steps[0]!.error).toMatch(/^192\.168\.1\.5 is not a public address .*Nothing was changed\.$/)
+    // a live rule "block + tell": the block is dropped with its refused line, the message is still asked for
+    const rule = await liveRule({ conditions: [{ field: 'dest_kind', op: 'eq', value: 'ip', n: null, window_min: null }], actions: [priv, tell] })
+    await onlyRule(rule.id)
+    const sum = await run()
+    expect(sum.refused).toBeGreaterThan(0)
+    const mine = (await list<ActionRequest>('operator', '/response/actions')).filter((a) => a.rule_id === rule.id)
+    expect(mine.length).toBeGreaterThan(0)
+    expect(mine.flatMap((a) => a.items.map((i) => i.action_id))).toEqual(mine.map(() => 'msg_send'))
+    expect((await logList()).some((e) => e.kind === 'refused' && /^not_publishable: .*192\.168\.1\.5 is not a public address/.test(e.detail))).toBe(true)
+    // an AI proposal, for the ranges the box's type check lets through to this gate; a public one still passes it
+    await saveSettings({ ai: { triggers: ['ioc_connection', 'finding'], budget_hour: 20, budget_day: 100 } })
+    for (const ip of ['10.0.0.5', '172.16.4.4', '100.64.0.1', '192.0.0.8', '198.18.0.1']) {
+      const r = await propose({ params: { ip } })
+      expect([r.status, r.code], ip).toEqual([409, 'not_publishable'])
+    }
+    expect((await propose({ params: { ip: '100.128.0.1' } })).code).not.toBe('not_publishable')
+    expect((await call<Blocklist>('admin', 'GET', '/response/blocklist')).json.entries.map((e) => e.value)).not.toContain('192.168.1.5')
+  })
 })
 
 describe('response: tamper-evident log (D-48)', () => {
@@ -1372,6 +1402,34 @@ describe('response: screens', () => {
     expect((await screen.findAllByText('Add 203.0.113.77 to the block list')).length).toBeGreaterThan(0)
   })
 
+  it('page frame (D-464): old #hash links open the tab through ?tab=, Requests carries the pending count, a tab the role may not see opens Rules', async () => {
+    // ResponsePage on its own router, so the test can read the address after the redirect.
+    const at = (url: string) => {
+      sessionStore.set({ userId: 'u-admin' })
+      const router = createMemoryRouter([{ path: '/response', element: <ResponsePage /> }], { initialEntries: [url] })
+      const view = render(<QueryClientProvider client={makeQueryClient()}><RouterProvider router={router} /></QueryClientProvider>)
+      const where = () => router.state.location.pathname + router.state.location.search + router.state.location.hash
+      return { view, where }
+    }
+    const log = at('/response?incident=al-4#log')
+    expect(await screen.findByRole('tab', { name: 'Log' })).toHaveAttribute('aria-selected', 'true')
+    expect(log.where()).toBe('/response?incident=al-4&tab=log')
+    expect(screen.getByRole('tab', { name: /^Requests \d+ waiting for a decision$/ })).toBeInTheDocument()
+    log.view.unmount()
+    const ai = at('/response#ai')
+    expect(await screen.findByRole('tab', { name: /^Requests/ })).toHaveAttribute('aria-selected', 'true')
+    expect(ai.where()).toBe('/response?tab=requests')
+    ai.view.unmount()
+    // any other hash (the skip link's #main) is not an old tab name: no redirect
+    const skip = at('/response?tab=metrics#main')
+    expect(await screen.findByRole('tab', { name: 'Metrics' })).toHaveAttribute('aria-selected', 'true')
+    expect(skip.where()).toBe('/response?tab=metrics#main')
+    skip.view.unmount()
+    renderApp('/response?tab=blocklist', { role: 'viewer' })
+    expect(await screen.findByRole('tab', { name: 'Rules' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.queryByRole('tab', { name: 'Block list' })).toBeNull()
+  })
+
   it('Metrics tab: acceptance, AI budget and the rejected requests with their reasons', async () => {
     renderApp('/response#metrics')
     expect((await screen.findAllByText('Acceptance')).length).toBeGreaterThan(0)
@@ -1389,10 +1447,30 @@ describe('response: screens', () => {
     expect(await screen.findByText('Chain verified')).toBeInTheDocument()
   })
 
+  it('an empty Block list says what fills it, that it holds public addresses only, and links to the template that is off (D-469)', async () => {
+    actionsDb.set([])
+    renderApp('/response#blocklist')
+    expect(await screen.findByText('Nothing is blocked right now.')).toBeInTheDocument()
+    expect(screen.getByText(/^Only approved "block" actions add addresses here/)).toBeInTheDocument()
+    expect(screen.getByText(/^Only public addresses are published\. A block on a private or reserved address/)).toBeInTheDocument()
+    expect(screen.getByText(/"Known-bad connection: add the destination to the block list" ships switched off/)).toBeInTheDocument()
+    expect((await screen.findAllByText(/:8443\/api\/v1\/response\/blocklist\//)).length).toBeGreaterThan(0) // the address row stays, so the firewall can be set up first
+    await userEvent.click(screen.getByRole('link', { name: 'Turn it on: Rules, Template gallery' }))
+    expect(await screen.findByRole('heading', { name: 'Template gallery' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Rules', selected: true })).toBeInTheDocument()
+  })
+
   it('finding page shows the response plan through the slot', async () => {
     renderApp('/findings/f-1')
     expect(await screen.findByRole('heading', { name: 'Response plan' })).toBeInTheDocument()
     expect(await screen.findByText(/Turn off virtual IP NAS-PHOTO-443 on FW-HQ/, { selector: 'p' })).toBeInTheDocument()
+  })
+
+  it('a requested proposal on the finding page links to the Requests tab (D-464: ?tab=, not #requests)', async () => {
+    await turnOn()
+    expect((await request()).status).toBe(201)
+    renderApp('/findings/f-1')
+    expect(await screen.findByRole('link', { name: 'Requested, see Action requests' })).toHaveAttribute('href', '/response?tab=requests')
   })
 
   it('the public approval page shows the change on load and decides only on the button', async () => {

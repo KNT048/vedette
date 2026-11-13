@@ -1,9 +1,8 @@
 import { lazy, Suspense } from 'react'
-import { useSearchParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { PageHeader } from '@/components/common/PageHeader'
+import { PageTabs } from '@/components/common/PageFrame'
 import { Loading, RequireModule, SampleDataNote } from '@/components/common/States'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useWeekly } from './api'
 
 const WeeklyTab = lazy(() => import('./WeeklyTab'))
@@ -11,8 +10,6 @@ const PdplTab = lazy(() => import('./PdplTab'))
 
 export default function ReportsPage() {
   const { t } = useTranslation('reports')
-  const [params, setParams] = useSearchParams()
-  const tab = params.get('tab') === 'pdpl' ? 'pdpl' : 'weekly'
   const weekly = useWeekly()
   const c = weekly.data?.report.counts
   const empty = !!c && c.devices === 0 && c.open_confirmed + c.open_suspected === 0 && c.new_findings === 0 && c.resolved === 0
@@ -21,16 +18,10 @@ export default function ReportsPage() {
     <>
       <PageHeader title={title} meta={<span className="flex flex-wrap items-center gap-2"><SampleDataNote />{t('page.meta')}</span>} stories={['S-REP-1', 'S-REP-2']} />
       <RequireModule module="reports">
-        <Tabs value={tab} onValueChange={(v) => setParams(v === 'pdpl' ? { tab: 'pdpl' } : {}, { replace: true })}>
-          <TabsList aria-label={t('page.tabs')}>
-            <TabsTrigger value="weekly">{t('page.weekly')}</TabsTrigger>
-            <TabsTrigger value="pdpl">{t('page.pdpl')}</TabsTrigger>
-          </TabsList>
-          <Suspense fallback={<Loading />}>
-            <TabsContent value="weekly"><WeeklyTab /></TabsContent>
-            <TabsContent value="pdpl"><PdplTab /></TabsContent>
-          </Suspense>
-        </Tabs>
+        <PageTabs label={t('page.tabs')} tabs={[
+          { id: 'weekly', label: t('page.weekly'), panel: <Suspense fallback={<Loading />}><WeeklyTab /></Suspense> },
+          { id: 'pdpl', label: t('page.pdpl'), panel: <Suspense fallback={<Loading />}><PdplTab /></Suspense> },
+        ]} />
       </RequireModule>
     </>
   )

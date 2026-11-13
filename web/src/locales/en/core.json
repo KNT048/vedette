@@ -393,6 +393,7 @@
       "response.allowlist": "Change never-touch list",
       "response.approve": "Approve response action",
       "response.blocklist.token": "Regenerate block list token",
+      "response.blocklist.cleanup": "Remove block list entries that are never published",
       "response.breaker": "Response circuit breaker opened",
       "response.breaker_reset": "Resume response after circuit breaker",
       "response.catalog": "Action catalog change refused",

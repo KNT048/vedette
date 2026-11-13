@@ -37,6 +37,7 @@ const IP1 = '203.0.113.9'
 const IP2 = '198.51.100.23'
 const IP3 = '198.51.100.24'
 const PRIVATE = '10.9.9.9'
+const DEVICE_IP = '192.168.10.77' // the test device: a LAN address, so a block on it is refused (D-469)
 
 const made = { rules: [] as string[], devices: [] as string[], names: new Set<string>() }
 let original: { modules: Record<string, boolean>; settings?: Settings; channel?: Chan } = { modules: {} }
@@ -123,7 +124,7 @@ test.beforeAll(async () => {
     const s = original.settings
     const put = await api(admin, 'PUT', '/response/settings', { max_per_hour: s.max_per_hour, expiry_min: 30, approval_channels: ['email'], breaker_max_per_hour: s.breaker_max_per_hour, multi_target_max: s.multi_target_max, maintenance: s.maintenance, ai: { triggers: s.ai.triggers, budget_hour: s.ai.budget_hour, budget_day: s.ai.budget_day } })
     expect(put.status, `response settings: ${JSON.stringify(put.body)}`).toBe(200)
-    const d = await api<{ id: string }>(admin, 'POST', '/inventory/devices', { vendor: 'Vend-chain', product: 'Laptop-chain', version: '1.0', name: uniq('chain-dev'), ip: '192.168.10.77' })
+    const d = await api<{ id: string }>(admin, 'POST', '/inventory/devices', { vendor: 'Vend-chain', product: 'Laptop-chain', version: '1.0', name: uniq('chain-dev'), ip: DEVICE_IP })
     expect(d.status, `device: ${JSON.stringify(d.body)}`).toBe(201)
     made.devices.push(d.body.id)
     device = { id: d.body.id, name: 'chain' }
@@ -263,25 +264,23 @@ test('an address that no firewall should ever be told to block is not published:
   const op = await as('operator')
   try {
     const outcomes: string[] = []
+    // a fixed address is refused when the rule is saved (D-469: not_publishable; loopback and link-local are not even an ip value)
     for (const ip of [PRIVATE, '127.0.0.1', '169.254.10.10']) {
-      const name = uniq('Block private')
-      const rule = await makeRule(admin, name, [ip], 'manual', [], true)
-      if (!rule) { // refused when the rule is saved (loopback is not a valid block-list address): nothing to approve, nothing to publish
-        outcomes.push(`${ip}: rule refused`)
-        expect(feedIPs(await feed(admin)), `${ip} never reaches the firewall`).not.toContain(ip)
-        continue
-      }
-      const run = await api<{ requests: number; refused: number }>(op, 'POST', `/response/rules/${rule.id}/manual`, { asset_id: device.id })
-      expect(run.status, JSON.stringify(run.body)).toBe(200)
-      if (run.body.requests > 0) { // the request was made: approving it must still not put the address on the feed
-        const req = await requestOf(admin, name)
-        const a = await api(op, 'POST', `/response/actions/${req.id}/approve`, {})
-        expect(a.status, `approve: ${JSON.stringify(a.body)}`).toBe(200)
-        await expect.poll(async () => (await requests(admin)).find((r) => r.id === req.id)?.items[0]?.status, { message: `the item of ${ip} left pending`, timeout: 20_000 }).not.toBe('pending')
-      }
-      outcomes.push(`${ip}: ${run.body.requests > 0 ? 'requested' : 'refused'}`)
+      const rule = await makeRule(admin, uniq('Block private'), [ip], 'manual', [], true)
+      expect(rule, `${ip}: the rule is refused when it is saved`).toBeNull()
+      outcomes.push(`${ip}: rule refused`)
       expect(feedIPs(await feed(admin)), `${ip} never reaches the firewall`).not.toContain(ip)
     }
+    // the device's own (LAN) address from the trigger is refused when the run plans it, and the log says why
+    const name = uniq('Block this device')
+    const rule = (await makeRule(admin, name, ['{{trigger.ip}}']))!
+    const run = await api<{ requests: number; refused: number }>(op, 'POST', `/response/rules/${rule.id}/manual`, { asset_id: device.id })
+    expect(run.status, JSON.stringify(run.body)).toBe(200)
+    expect([run.body.requests, run.body.refused], 'refused when the run plans it: nothing to approve, nothing says "Added"').toEqual([0, 1])
+    const log = (await get<{ items: { kind: string; detail: string }[] }>(admin, '/response/log')).items
+    expect(log.some((e) => e.kind === 'refused' && e.detail.startsWith(`not_publishable: ${name}: ${DEVICE_IP} is not a public address`)), 'the refused line gives the reason').toBe(true)
+    expect(feedIPs(await feed(admin))).not.toContain(DEVICE_IP)
+    outcomes.push(`${DEVICE_IP}: refused`)
     test.info().annotations.push({ type: 'outcomes', description: outcomes.join('; ') })
   } finally { await admin.dispose(); await op.dispose() }
 })

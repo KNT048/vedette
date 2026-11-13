@@ -182,7 +182,7 @@ func clip(s string, n int) string { return cleanLine(s, n) }
 // ---------- the tools of the box
 
 const (
-	searchAssetsDesc = "Search the devices in the inventory. All arguments are optional filters that are combined: free text (words must all appear in the name, IP, vendor, model, operating system, services or software), the device kind, an open TCP/UDP port, whether the device is approved, a word of the operating system. Returns the matching devices, at most limit of them."
+	searchAssetsDesc = "Search the devices in the inventory. All arguments are optional filters that are combined: free text (words must all appear in the name, IP, vendor, model, operating system, services or software), the device kind, an open TCP/UDP port, whether the device is approved, a word of the operating system. Returns the matching devices, at most limit of them, each with its vendor, model, operating system, when it was first and last seen, how it was added (found on the network or added by hand) and which source saw it (scan, sensor, agent)."
 	listFindingsDesc = "List findings: devices matched to an exploited vulnerability. Filters: status (open = confirmed or suspected, the default; any; or one status), severity, CVE id, asset_id of one device. Returns at most limit findings."
 	getFindingDesc   = "Get one finding by its id, with the scan evidence if a scan confirmed it."
 	lookupCVEDesc    = "Look a CVE up on the exploited-vulnerabilities list this box holds, and list the devices of this network that it matches."
@@ -327,7 +327,8 @@ func toolSearchAssets(ctx context.Context, d Data, raw map[string]any) (toolOut,
 			ports = ports[:12]
 		}
 		rows[i] = map[string]any{"id": clip(a.ID, 96), "name": clip(a.Name, 80), "ip": clip(a.IP, 45), "kind": clip(a.Kind, 32), "vendor": clip(a.Vendor, 60), "model": clip(a.Model, 60),
-			"os": clip(a.OS, 80), "approved": a.Approved, "last_seen": clip(a.LastSeen, 32), "ports": cleanAll(ports, 40), "software": cleanAll(sw, 80)}
+			"os": clip(a.OS, 80), "approved": a.Approved, "first_seen": clip(a.FirstSeen, 32), "last_seen": clip(a.LastSeen, 32), "added": addedHow(a.Origin), "seen_by": clip(a.SeenBy, 32),
+			"ports": cleanAll(ports, 40), "software": cleanAll(sw, 80)}
 	}
 	var matched []AssetRow
 	for _, a := range all {
@@ -350,6 +351,17 @@ func toolSearchAssets(ctx context.Context, d Data, raw map[string]any) (toolOut,
 		out.Table = t
 	}
 	return out, nil
+}
+
+// addedHow says how a device came into the inventory, in words the model repeats as they are.
+func addedHow(origin string) string {
+	switch origin {
+	case "manual":
+		return "added by hand"
+	case "discovered":
+		return "found on the network"
+	}
+	return "unknown"
 }
 
 func cleanAll(in []string, n int) []string {

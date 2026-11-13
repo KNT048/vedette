@@ -38,7 +38,7 @@ type toolSession struct {
 	// outcomes, read by the caller after the loop
 	calls []AskToolCall
 	acts  []ActivityTool
-	hits  []HookHit
+	hits  []AskHook // labelled with the step (tool call or tool result) and the tool
 	names []string
 	table *AskTable
 	cites []Citation
@@ -78,8 +78,8 @@ func (ts *toolSession) cite(title string) {
 	ts.cites = append(ts.cites, Citation{Title: title})
 }
 
-func (ts *toolSession) addHits(r HookResult) {
-	ts.hits = append(ts.hits, r.Hits...)
+func (ts *toolSession) addHits(r HookResult, step, tool string) {
+	ts.hits = append(ts.hits, stepHooks(step, tool, r.Hits)...)
 	ts.names = append(ts.names, r.Names()...)
 }
 
@@ -154,7 +154,7 @@ func (ts *toolSession) runCall(ctx context.Context, hooks *HookRunner, prompt Pr
 	}
 	cancel()
 	for _, r := range []HookResult{pii, pre} {
-		ts.addHits(r)
+		ts.addHits(r, StepToolCall, t.Name)
 	}
 	stopped := pii
 	if pii.Outcome != OutcomeBlocked && pii.Outcome != OutcomeHeld {
@@ -220,10 +220,10 @@ func (ts *toolSession) runCall(ctx context.Context, hooks *HookRunner, prompt Pr
 	case err != nil:
 		return ts.withheld(res, record, act, "could not be checked in time", "the hooks")
 	case chk.Outcome == OutcomeBlocked || chk.Outcome == OutcomeHeld:
-		ts.addHits(chk)
+		ts.addHits(chk, StepToolResult, t.Name)
 		return ts.withheld(res, record, act, "was stopped by a rule of the company", hookNameList(chk))
 	case chk.Outcome == OutcomeMasked:
-		ts.addHits(chk)
+		ts.addHits(chk, StepToolResult, t.Name)
 		outcome, summary = "masked", out.Summary+" (masked by a hook)"
 		text = chk.Text
 	}
@@ -231,10 +231,10 @@ func (ts *toolSession) runCall(ctx context.Context, hooks *HookRunner, prompt Pr
 	wrapped, wr, err := WrapToolResult(hctx, hooks, prompt, t.Name, text)
 	cancel()
 	if err != nil || wr.Outcome == OutcomeBlocked || wr.Outcome == OutcomeHeld {
-		ts.addHits(wr)
+		ts.addHits(wr, StepToolResult, t.Name)
 		return ts.withheld(res, record, act, "could not be passed on safely", "the hooks")
 	}
-	ts.addHits(wr)
+	ts.addHits(wr, StepToolResult, t.Name)
 	if ts.bytesSent+len(wrapped) > askTotalBytes {
 		record("size limit reached", act("skipped"))
 		return fail("The total size of tool results for this question was reached, so this result was not sent. Answer from what you have.")
@@ -348,6 +348,9 @@ func (s *Service) converse(ctx context.Context, spec JobSpec, hooks *HookRunner,
 		usage.OutputTokens += res.Response.Usage.OutputTokens
 		last = res
 		calls := res.Response.ToolCalls
+		if res.Response.Stop == provider.StopMaxTokens { // cut at the output limit even after the router's retry: the calls in it may be
+			return merged(), nil // half written, so none runs; RunJob names the cut answer
+		}
 		if len(calls) == 0 || (turn >= askMaxTurns-1 && strings.TrimSpace(res.Response.Text) != "") {
 			return merged(), nil
 		}

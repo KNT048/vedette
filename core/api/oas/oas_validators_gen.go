@@ -749,6 +749,17 @@ func (s *AiGetAiAsksOKItemsItemHooksItem) Validate() error {
 		})
 	}
 	if err := func() error {
+		if err := s.Step.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "step",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := s.When.Validate(); err != nil {
 			return err
 		}
@@ -783,6 +794,21 @@ func (s AiGetAiAsksOKItemsItemHooksItemKind) Validate() error {
 	case "builtin":
 		return nil
 	case "custom":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s AiGetAiAsksOKItemsItemHooksItemStep) Validate() error {
+	switch s {
+	case "question":
+		return nil
+	case "tool_call":
+		return nil
+	case "tool_result":
+		return nil
+	case "answer":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -3130,6 +3156,17 @@ func (s *AiPostAiAskOKHooksItem) Validate() error {
 		})
 	}
 	if err := func() error {
+		if err := s.Step.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "step",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := s.When.Validate(); err != nil {
 			return err
 		}
@@ -3164,6 +3201,21 @@ func (s AiPostAiAskOKHooksItemKind) Validate() error {
 	case "builtin":
 		return nil
 	case "custom":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s AiPostAiAskOKHooksItemStep) Validate() error {
+	switch s {
+	case "question":
+		return nil
+	case "tool_call":
+		return nil
+	case "tool_result":
+		return nil
+	case "answer":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)

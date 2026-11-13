@@ -9,6 +9,17 @@
 - **mitigation** (`mitigation-config`, "Hỏi AI của tôi"), **logs** (`log-digest`): đổi nhãn "AI tạo" → vi phạm S-AI-6.
 - Thêm việc mới: thêm vào `AiJob`, bảng phân việc, ghi `data: internal|public` (quyết định INV-3), cập nhật GUI.
 
+## Modifying: mã lỗi của lời gọi việc AI, trần token đầu ra, `ai_activity.stop` (D-481, POST-6)
+- **mitigation** (`POST /findings/{id}/ai`, qua `cmd/vedette` `aiMitigation.Run`): trả nguyên `*apierr.Error` của `ai`; đổi mã hay thông điệp = đổi điều trang finding hiện (`web/src/features/findings/findings.test.tsx` "Ask my AI failing with …").
+- **response** (`planError` ở `cmd/vedette/ai_plan.go`): chỉ `daily_cap` và "chưa dùng được" dừng vòng kế hoạch; mã mới khác chỉ lùi finding đó.
+- **reports** (`reportsAI.Summarize`): lỗi đi thẳng tới `POST /reports/*/ai-summary`.
+- **GUI**: trang chỉ hiện `message`; `docs/API_CONVENTIONS.md` §3.3 giữ các mã (`TestConnections_ErrorCodesAreCatalogued` đếm hàng mỗi mục). Trần mỗi việc nằm ở người gọi `RunJob` (`brief.go`, `explain.go`, `news.go`, `ask.go`, `logdigest.go`, `cmd/vedette/reports.go`, `cmd/vedette/ai_plan.go`); `MaxAnswerTokens` chặn lần hỏi lại. `estimateTokens` (giữ trần khi đang gọi) cộng trần này, nên trần lớn chỉ giữ chỗ lâu hơn, không tính tiền.
+- `ai_activity.stop` không vào hash: đổi nó không làm chuỗi cũ sai; xuất `ai_activity` không mang nó.
+
+## Modifying: `AskHook.step` / `notIDForms` (D-481, POST-7, INV-12a)
+- **GUI** `AssistantPage.tsx` đọc `hooks[].step`: chỉ `question` là "The AI was not asked", `answer` là "the answer was held back"; đổi giá trị = đổi `contract.ts` (`AskHookHit`), `api/openapi.json`, `core/api/oas`, mock.
+- `notIDForms` nới bộ tìm số định danh cho mọi lời gọi (câu hỏi, dữ liệu, kết quả công cụ, memory, kho tri thức): thêm một dạng = một dãy số định danh có thể lọt qua; giữ `TestContract_INV12_IDNumbersInEveryFormAreBlocked` và `TestIDNumbersAndTheFormsTheyAreNot` xanh.
+
 ## Modifying: `Profiles.Resolve(job) ([]Profile, error)` (chọn chính/dự phòng, INV-3)
 - Mọi `RunJob`. Đổi logic loại hồ sơ cloud → có thể rò dữ liệu nội bộ; test INV-3 bắt buộc xanh.
 

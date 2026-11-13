@@ -331,12 +331,63 @@ func isIDSep(b byte) bool {
 // first (blankIPs), so they are left alone and never join a digit run; dotted digits that are not an address are ID-shaped. (A list of numbers that happens to be nine digits in groups, such as three 3-digit ports with
 // spaces between them, is blocked too; the person can rephrase.)
 func findIDNumbers(s string) []span {
+	// The forms the box's own data is full of (a CVE id, a record id, a timestamp, a link, a hash) are blanked first: a digit run inside
+	// them is part of that form, not an ID number (beta 0.1.0-beta.1, item 19: a tool result was held back as "an ID number").
+	s = blankForms(s)
 	// Two readings, and an ID in either is an ID: one with every address blanked (an address is never part of a digit run), and one
 	// that keeps the addresses whose first or last group is only digits touching other digits (123 456 789::1, ::123 456 789: the
 	// group may be the ID's own).
 	out := append(idRuns(blankIPs(s, false, false)), idRuns(blankIPs(s, false, true))...)
 	sort.Slice(out, func(i, j int) bool { return out[i].start < out[j].start })
 	return dropInside(out, findPhones(s))
+}
+
+// notIDForms are the written forms whose digits are never an ID number. Each match is blanked (blankForms) before the digit runs are
+// read. A run of digits that is only an ID number, standing alone or after a label, is in none of them; an all-digit dotted
+// 0790.1234.5678 stays ID-shaped (a Cisco MAC address in that form has a letter in nearly every case, and then it is blanked).
+var notIDForms = []*regexp.Regexp{
+	regexp.MustCompile(`(?i)\b(?:https?|ftp)://[^\s"'<>\\]+`),                                                         // a link: the number in https://kb.example.com/s/article/000087042 is the article's
+	regexp.MustCompile(`(?i)\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b`),                        // a UUID
+	regexp.MustCompile(`\b[a-z][a-z0-9]{0,31}-[a-z2-7]{26}\b`),                                                        // a record id of this box (store.NewID: dev-…, fnd-…)
+	regexp.MustCompile(`(?i)(?:\bcve[-_ ]?)?\b(?:19|20)\d{2}-\d{4,7}\b`),                                              // a CVE id, also without "CVE-" (2023-36844)
+	regexp.MustCompile(`\b\d{4}-\d{2}-\d{2}(?:[T ]\d{2}:\d{2}(?::\d{2}(?:[.,]\d{1,9})?)?(?:Z|[+-]\d{2}:?\d{2})?)?\b`), // a date or a timestamp
+	regexp.MustCompile(`(?i)\b[0-9a-f]{16,}\b`),                                                                       // a hash or a long hex id
+	ciscoMAC, // a Cisco MAC address (kept when all digits: see above)
+	regexp.MustCompile(`\bASN?[ -]?\d{1,10}\b`), // an autonomous system number (AS13335, ASN 401234567)
+}
+
+var ciscoMAC = regexp.MustCompile(`(?i)\b[0-9a-f]{4}\.[0-9a-f]{4}\.[0-9a-f]{4}\b`)
+
+// blankForms replaces every match of notIDForms with letters, so offsets stay and a blanked form never joins a digit run.
+func blankForms(s string) string {
+	var b []byte
+	for _, re := range notIDForms {
+		for _, m := range re.FindAllStringIndex(s, -1) {
+			if re == ciscoMAC && allDigitsOrDots(s[m[0]:m[1]]) {
+				continue
+			}
+			if b == nil {
+				b = []byte(s)
+			}
+			for k := m[0]; k < m[1]; k++ {
+				b[k] = 'x'
+			}
+		}
+		if b != nil {
+			s = string(b)
+			b = nil
+		}
+	}
+	return s
+}
+
+func allDigitsOrDots(s string) bool {
+	for i := 0; i < len(s); i++ {
+		if !isDigitByte(s[i]) && s[i] != '.' {
+			return false
+		}
+	}
+	return true
 }
 
 func idRuns(s string) []span {

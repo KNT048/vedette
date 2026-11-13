@@ -65,11 +65,16 @@ export const AskTable = z.object({ columns: z.array(z.string()), rows: z.array(z
 export const HookWhen = z.enum(['before_ai', 'after_ai', 'before_tool']).describe('before_ai = on the text sent to the AI, after_ai = on the AI answer, before_tool = on a tool call the AI wants to make')
 export const HookAction = z.enum(['block', 'mask', 'approve']).describe('block = refuse, mask = replace the matching text, approve = hold until a person approves')
 export const HookHit = z.object({ id: z.string(), name: z.string(), kind: z.enum(['builtin', 'custom']), when: HookWhen, action: HookAction, message: z.string() })
+/** A hook that acted on one step of a question (beta 0.1.0-beta.1 item 19): a block of a tool result is not a refused question. */
+export const AskHookHit = HookHit.extend({
+  step: z.enum(['question', 'tool_call', 'tool_result', 'answer']).describe('Which step the hook acted on: the question (blocked = the AI was not asked), a tool call the AI made, a tool result before it went to the AI, or the answer'),
+  tool: z.string().optional().describe('The tool of a tool_call or tool_result step'),
+})
 export const AskResult = z.object({
   id: z.string(), question: z.string(), asked_at: iso, answer: z.array(z.string()), table: AskTable.nullable(),
   tool_calls: z.array(ToolCall), citations: z.array(Citation), model: z.string(), profile: z.string(), tokens: Tokens,
   downgraded: z.object({ from: AiTier, to: AiTier }).nullable(),
-  hooks: z.array(HookHit).describe('Hooks that acted on this question, answer or tool call; empty when none did'),
+  hooks: z.array(AskHookHit).describe('Hooks that acted on this question, a tool call, a tool result or the answer; empty when none did'),
   memories_suggested: z.number().int().min(0).describe('memories the AI suggested with this answer (0 when read back); they wait for an administrator (S-AI-7, D-225)'),
 })
 export const ExplainResult = z.object({

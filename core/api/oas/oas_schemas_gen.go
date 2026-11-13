@@ -707,7 +707,7 @@ type AiGetAiAsksOKItemsItem struct {
 	AskedAt    time.Time                             `json:"asked_at"`
 	Citations  []AiGetAiAsksOKItemsItemCitationsItem `json:"citations"`
 	Downgraded NilAiGetAiAsksOKItemsItemDowngraded   `json:"downgraded"`
-	// Hooks that acted on this question, answer or tool call; empty when none did.
+	// Hooks that acted on this question, a tool call, a tool result or the answer; empty when none did.
 	Hooks []AiGetAiAsksOKItemsItemHooksItem `json:"hooks"`
 	ID    string                            `json:"id"`
 	// Memories the AI suggested with this answer (0 when read back); they wait for an administrator
@@ -1004,6 +1004,11 @@ type AiGetAiAsksOKItemsItemHooksItem struct {
 	Kind    AiGetAiAsksOKItemsItemHooksItemKind   `json:"kind"`
 	Message string                                `json:"message"`
 	Name    string                                `json:"name"`
+	// Which step the hook acted on: the question (blocked = the AI was not asked), a tool call the AI
+	// made, a tool result before it went to the AI, or the answer.
+	Step AiGetAiAsksOKItemsItemHooksItemStep `json:"step"`
+	// The tool of a tool_call or tool_result step.
+	Tool OptString `json:"tool"`
 	// Before_ai = on the text sent to the AI, after_ai = on the AI answer, before_tool = on a tool call
 	// the AI wants to make.
 	When AiGetAiAsksOKItemsItemHooksItemWhen `json:"when"`
@@ -1034,6 +1039,16 @@ func (s *AiGetAiAsksOKItemsItemHooksItem) GetName() string {
 	return s.Name
 }
 
+// GetStep returns the value of Step.
+func (s *AiGetAiAsksOKItemsItemHooksItem) GetStep() AiGetAiAsksOKItemsItemHooksItemStep {
+	return s.Step
+}
+
+// GetTool returns the value of Tool.
+func (s *AiGetAiAsksOKItemsItemHooksItem) GetTool() OptString {
+	return s.Tool
+}
+
 // GetWhen returns the value of When.
 func (s *AiGetAiAsksOKItemsItemHooksItem) GetWhen() AiGetAiAsksOKItemsItemHooksItemWhen {
 	return s.When
@@ -1062,6 +1077,16 @@ func (s *AiGetAiAsksOKItemsItemHooksItem) SetMessage(val string) {
 // SetName sets the value of Name.
 func (s *AiGetAiAsksOKItemsItemHooksItem) SetName(val string) {
 	s.Name = val
+}
+
+// SetStep sets the value of Step.
+func (s *AiGetAiAsksOKItemsItemHooksItem) SetStep(val AiGetAiAsksOKItemsItemHooksItemStep) {
+	s.Step = val
+}
+
+// SetTool sets the value of Tool.
+func (s *AiGetAiAsksOKItemsItemHooksItem) SetTool(val OptString) {
+	s.Tool = val
 }
 
 // SetWhen sets the value of When.
@@ -1153,6 +1178,63 @@ func (s *AiGetAiAsksOKItemsItemHooksItemKind) UnmarshalText(data []byte) error {
 		return nil
 	case AiGetAiAsksOKItemsItemHooksItemKindCustom:
 		*s = AiGetAiAsksOKItemsItemHooksItemKindCustom
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Which step the hook acted on: the question (blocked = the AI was not asked), a tool call the AI
+// made, a tool result before it went to the AI, or the answer.
+type AiGetAiAsksOKItemsItemHooksItemStep string
+
+const (
+	AiGetAiAsksOKItemsItemHooksItemStepQuestion   AiGetAiAsksOKItemsItemHooksItemStep = "question"
+	AiGetAiAsksOKItemsItemHooksItemStepToolCall   AiGetAiAsksOKItemsItemHooksItemStep = "tool_call"
+	AiGetAiAsksOKItemsItemHooksItemStepToolResult AiGetAiAsksOKItemsItemHooksItemStep = "tool_result"
+	AiGetAiAsksOKItemsItemHooksItemStepAnswer     AiGetAiAsksOKItemsItemHooksItemStep = "answer"
+)
+
+// AllValues returns all AiGetAiAsksOKItemsItemHooksItemStep values.
+func (AiGetAiAsksOKItemsItemHooksItemStep) AllValues() []AiGetAiAsksOKItemsItemHooksItemStep {
+	return []AiGetAiAsksOKItemsItemHooksItemStep{
+		AiGetAiAsksOKItemsItemHooksItemStepQuestion,
+		AiGetAiAsksOKItemsItemHooksItemStepToolCall,
+		AiGetAiAsksOKItemsItemHooksItemStepToolResult,
+		AiGetAiAsksOKItemsItemHooksItemStepAnswer,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s AiGetAiAsksOKItemsItemHooksItemStep) MarshalText() ([]byte, error) {
+	switch s {
+	case AiGetAiAsksOKItemsItemHooksItemStepQuestion:
+		return []byte(s), nil
+	case AiGetAiAsksOKItemsItemHooksItemStepToolCall:
+		return []byte(s), nil
+	case AiGetAiAsksOKItemsItemHooksItemStepToolResult:
+		return []byte(s), nil
+	case AiGetAiAsksOKItemsItemHooksItemStepAnswer:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *AiGetAiAsksOKItemsItemHooksItemStep) UnmarshalText(data []byte) error {
+	switch AiGetAiAsksOKItemsItemHooksItemStep(data) {
+	case AiGetAiAsksOKItemsItemHooksItemStepQuestion:
+		*s = AiGetAiAsksOKItemsItemHooksItemStepQuestion
+		return nil
+	case AiGetAiAsksOKItemsItemHooksItemStepToolCall:
+		*s = AiGetAiAsksOKItemsItemHooksItemStepToolCall
+		return nil
+	case AiGetAiAsksOKItemsItemHooksItemStepToolResult:
+		*s = AiGetAiAsksOKItemsItemHooksItemStepToolResult
+		return nil
+	case AiGetAiAsksOKItemsItemHooksItemStepAnswer:
+		*s = AiGetAiAsksOKItemsItemHooksItemStepAnswer
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -4594,7 +4676,7 @@ type AiPostAiAskOK struct {
 	AskedAt    time.Time                    `json:"asked_at"`
 	Citations  []AiPostAiAskOKCitationsItem `json:"citations"`
 	Downgraded NilAiPostAiAskOKDowngraded   `json:"downgraded"`
-	// Hooks that acted on this question, answer or tool call; empty when none did.
+	// Hooks that acted on this question, a tool call, a tool result or the answer; empty when none did.
 	Hooks []AiPostAiAskOKHooksItem `json:"hooks"`
 	ID    string                   `json:"id"`
 	// Memories the AI suggested with this answer (0 when read back); they wait for an administrator
@@ -4891,6 +4973,11 @@ type AiPostAiAskOKHooksItem struct {
 	Kind    AiPostAiAskOKHooksItemKind   `json:"kind"`
 	Message string                       `json:"message"`
 	Name    string                       `json:"name"`
+	// Which step the hook acted on: the question (blocked = the AI was not asked), a tool call the AI
+	// made, a tool result before it went to the AI, or the answer.
+	Step AiPostAiAskOKHooksItemStep `json:"step"`
+	// The tool of a tool_call or tool_result step.
+	Tool OptString `json:"tool"`
 	// Before_ai = on the text sent to the AI, after_ai = on the AI answer, before_tool = on a tool call
 	// the AI wants to make.
 	When AiPostAiAskOKHooksItemWhen `json:"when"`
@@ -4921,6 +5008,16 @@ func (s *AiPostAiAskOKHooksItem) GetName() string {
 	return s.Name
 }
 
+// GetStep returns the value of Step.
+func (s *AiPostAiAskOKHooksItem) GetStep() AiPostAiAskOKHooksItemStep {
+	return s.Step
+}
+
+// GetTool returns the value of Tool.
+func (s *AiPostAiAskOKHooksItem) GetTool() OptString {
+	return s.Tool
+}
+
 // GetWhen returns the value of When.
 func (s *AiPostAiAskOKHooksItem) GetWhen() AiPostAiAskOKHooksItemWhen {
 	return s.When
@@ -4949,6 +5046,16 @@ func (s *AiPostAiAskOKHooksItem) SetMessage(val string) {
 // SetName sets the value of Name.
 func (s *AiPostAiAskOKHooksItem) SetName(val string) {
 	s.Name = val
+}
+
+// SetStep sets the value of Step.
+func (s *AiPostAiAskOKHooksItem) SetStep(val AiPostAiAskOKHooksItemStep) {
+	s.Step = val
+}
+
+// SetTool sets the value of Tool.
+func (s *AiPostAiAskOKHooksItem) SetTool(val OptString) {
+	s.Tool = val
 }
 
 // SetWhen sets the value of When.
@@ -5040,6 +5147,63 @@ func (s *AiPostAiAskOKHooksItemKind) UnmarshalText(data []byte) error {
 		return nil
 	case AiPostAiAskOKHooksItemKindCustom:
 		*s = AiPostAiAskOKHooksItemKindCustom
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Which step the hook acted on: the question (blocked = the AI was not asked), a tool call the AI
+// made, a tool result before it went to the AI, or the answer.
+type AiPostAiAskOKHooksItemStep string
+
+const (
+	AiPostAiAskOKHooksItemStepQuestion   AiPostAiAskOKHooksItemStep = "question"
+	AiPostAiAskOKHooksItemStepToolCall   AiPostAiAskOKHooksItemStep = "tool_call"
+	AiPostAiAskOKHooksItemStepToolResult AiPostAiAskOKHooksItemStep = "tool_result"
+	AiPostAiAskOKHooksItemStepAnswer     AiPostAiAskOKHooksItemStep = "answer"
+)
+
+// AllValues returns all AiPostAiAskOKHooksItemStep values.
+func (AiPostAiAskOKHooksItemStep) AllValues() []AiPostAiAskOKHooksItemStep {
+	return []AiPostAiAskOKHooksItemStep{
+		AiPostAiAskOKHooksItemStepQuestion,
+		AiPostAiAskOKHooksItemStepToolCall,
+		AiPostAiAskOKHooksItemStepToolResult,
+		AiPostAiAskOKHooksItemStepAnswer,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s AiPostAiAskOKHooksItemStep) MarshalText() ([]byte, error) {
+	switch s {
+	case AiPostAiAskOKHooksItemStepQuestion:
+		return []byte(s), nil
+	case AiPostAiAskOKHooksItemStepToolCall:
+		return []byte(s), nil
+	case AiPostAiAskOKHooksItemStepToolResult:
+		return []byte(s), nil
+	case AiPostAiAskOKHooksItemStepAnswer:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *AiPostAiAskOKHooksItemStep) UnmarshalText(data []byte) error {
+	switch AiPostAiAskOKHooksItemStep(data) {
+	case AiPostAiAskOKHooksItemStepQuestion:
+		*s = AiPostAiAskOKHooksItemStepQuestion
+		return nil
+	case AiPostAiAskOKHooksItemStepToolCall:
+		*s = AiPostAiAskOKHooksItemStepToolCall
+		return nil
+	case AiPostAiAskOKHooksItemStepToolResult:
+		*s = AiPostAiAskOKHooksItemStepToolResult
+		return nil
+	case AiPostAiAskOKHooksItemStepAnswer:
+		*s = AiPostAiAskOKHooksItemStepAnswer
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)

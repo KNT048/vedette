@@ -369,7 +369,7 @@ func TestContract_INV12_AfterAIBlocksAndMasksTheAnswer(t *testing.T) {
 		a := newAPI(t)
 		a.withProfile()
 		a.want("POST", "/ai/hooks", "admin", hookJSON("No removal advice", "after_ai", "keywords", "port forward", "block", "The answer mentioned a port forward."), 200, "")
-		m := a.explain("CVE-2022-27593", 409, "ai_unavailable")
+		m := a.explain("CVE-2022-27593", 409, "blocked_by_hook")
 		if msg := m["error"].(map[string]any)["message"].(string); !strings.Contains(msg, "The answer mentioned a port forward.") {
 			t.Fatalf("message = %q", msg)
 		}
@@ -415,7 +415,7 @@ func TestContract_INV12_AfterAIBlocksAndMasksTheAnswer(t *testing.T) {
 		a.explain("CVE-2022-27593", 200, "")
 		a.addCVEDescription(" Second variant.") // new inputs, so the stored result is not served
 		id := a.addBlockHook("Late", "after_ai", "NAS-PHOTOS")["id"].(string)
-		a.explain("CVE-2022-27593", 409, "ai_unavailable")
+		a.explain("CVE-2022-27593", 409, "blocked_by_hook")
 		a.want("DELETE", "/ai/hooks/"+id, "admin", "", 204, "")
 		a.explain("CVE-2022-27593", 200, "")
 	})
@@ -611,7 +611,7 @@ func TestContract_INV12_AfterAIBlockInAnyFieldBlocksTheAnswer(t *testing.T) {
 	a := newAPI(t)
 	a.withProfile()
 	a.want("POST", "/ai/hooks", "admin", hookJSON("No logs", "after_ai", "keywords", "access log", "block", "The answer named a log."), 200, "")
-	m := a.explain("CVE-2022-27593", 409, "ai_unavailable")
+	m := a.explain("CVE-2022-27593", 409, "blocked_by_hook")
 	if msg := m["error"].(map[string]any)["message"].(string); !strings.Contains(msg, "The answer named a log.") {
 		t.Fatalf("message = %q", msg)
 	}
@@ -630,7 +630,7 @@ func TestContract_INV12_AManyMatchHookIsABlockAndTheRowIsStillWritten(t *testing
 	// leftmost-first alternation: the scan restarts after every match and reads to the end each time, so the number of matches is capped
 	a.fake.setAnswer(`{"why":"` + strings.Repeat("a ", 1500) + `","patch_steps":[],"temp_mitigations":[],"detection_hints":[]}`)
 	a.want("POST", "/ai/hooks", "admin", hookJSON("Slow", "after_ai", "regex", `.*z|a`, "mask", "A is removed."), 200, "")
-	a.explain("CVE-2022-27593", 409, "ai_unavailable")
+	a.explain("CVE-2022-27593", 409, "blocked_by_hook")
 	rows := a.activity()
 	if len(rows) != 1 || rows[0].Result != ai.ResultBlockedByHook || rows[0].TokensIn == 0 || len(rows[0].Hooks) != 1 || !strings.Contains(rows[0].Summary, "too many matches") {
 		t.Fatalf("rows = %+v", rows)
@@ -650,7 +650,7 @@ func TestContract_INV17_HooksThatRunOutOfTimeBlockTheAnswerAndTheRowIsStillWritt
 	a.want("PUT", "/ai/hooks/builtin/block-pii", "admin", `{"enabled":false}`, 200, "")
 	a.want("PUT", "/ai/hooks/builtin/security-only", "admin", `{"enabled":false}`, 200, "")
 	a.want("POST", "/ai/hooks", "admin", hookJSON("Any", "after_ai", "keywords", "nomatch", "block", "abc"), 200, "")
-	m := a.explain("CVE-2022-27593", 409, "ai_unavailable")
+	m := a.explain("CVE-2022-27593", 409, "blocked_by_hook")
 	if msg := m["error"].(map[string]any)["message"].(string); !strings.Contains(msg, "could not be checked") {
 		t.Fatalf("message = %q", msg)
 	}
@@ -758,10 +758,10 @@ func TestContract_INV12_AfterAISeesWhatIsStored(t *testing.T) {
 	// the format check later removes the control character and turns the line break into a space: the hooks must see that form
 	a.fake.setAnswer(`{"why":"The secret is hunt\u0001er2 and the access\nlog.","patch_steps":["x"],"temp_mitigations":["y"],"detection_hints":["z"]}`)
 	a.want("POST", "/ai/hooks", "admin", hookJSON("Secret", "after_ai", "keywords", "hunter2", "block", "A secret was in the answer."), 200, "")
-	a.explain("CVE-2022-27593", 409, "ai_unavailable")
+	a.explain("CVE-2022-27593", 409, "blocked_by_hook")
 	a.want("DELETE", "/ai/hooks/"+a.firstHookID(), "admin", "", 204, "")
 	a.want("POST", "/ai/hooks", "admin", hookJSON("Log", "after_ai", "keywords", "access log", "block", "A log was in the answer."), 200, "")
-	a.explain("CVE-2022-27593", 409, "ai_unavailable")
+	a.explain("CVE-2022-27593", 409, "blocked_by_hook")
 	if rows := a.activity(); len(rows) != 2 || rows[0].Result != ai.ResultBlockedByHook || rows[1].Result != ai.ResultBlockedByHook {
 		t.Fatalf("rows = %+v", rows)
 	}
@@ -781,7 +781,7 @@ func TestContract_INV12_BeforeAIHooksHaveADeadlineToo(t *testing.T) {
 	a := &api{env: e, h: e.handler(servertest.NewGate())}
 	a.withProfile()
 	// the built-in personal-data hook is a before_ai hook: out of time is a block, and nothing goes to the provider
-	m := a.explain("CVE-2022-27593", 409, "ai_unavailable")
+	m := a.explain("CVE-2022-27593", 409, "blocked_by_hook")
 	if msg := m["error"].(map[string]any)["message"].(string); !strings.Contains(msg, "not sent") {
 		t.Fatalf("message = %q", msg)
 	}

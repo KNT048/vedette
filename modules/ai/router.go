@@ -54,7 +54,18 @@ type CallResult struct {
 	Fallback  bool   // true when the fallback profile answered
 	Downgrade *Downgrade
 	Attempts  []Attempt // filled on failure too
+	// Retried is set when the first answer was cut at the output limit and the call was sent once more with a higher limit
+	// (retryLimit); Response is then the second answer, Usage the tokens of both.
+	Retried bool
 }
+
+// MaxAnswerTokens is the ceiling of the output limit of one request, also after a retry: a request with a higher limit risks the
+// call timeout of a non-streaming request (CallTimeout) on a slow model.
+const MaxAnswerTokens = 16000
+
+// retryLimit is the output limit of the second request of a call whose first answer was cut at the limit: twice the first, up to
+// MaxAnswerTokens. It equals n when n is already at the ceiling (no retry then).
+func retryLimit(n int) int { return max(n, min(2*n, MaxAnswerTokens)) }
 
 // RouterConfig wires the router.
 type RouterConfig struct {
@@ -276,9 +287,45 @@ func (r *Router) Call(ctx context.Context, job Job, req provider.Request) (CallR
 		res.Attempts = append(res.Attempts, Attempt{ProfileID: p.ID, Profile: p.Name, Model: p.Model})
 		res.Response, res.ProfileID, res.Profile, res.Model, res.Fallback = resp, p.ID, p.Name, p.Model, c.fallback
 		res.Downgrade = firstDowngrade(res.Downgrade, hold.Settle(resp.Usage.InputTokens, resp.Usage.OutputTokens))
+		if resp.Stop == provider.StopMaxTokens {
+			r.retryCut(ctx, &res, cl, p, req, carries)
+		}
 		return res, nil
 	}
 	return res, &UnavailableError{Job: job, Reasons: reasons}
+}
+
+// retryCut sends a request whose answer was cut at the output limit once more to the same profile, with retryLimit (a model that
+// thinks before it answers can spend the first limit on thinking). It is held against the caps and checked against the privacy rule
+// like any request. The second answer replaces the first, whether or not it is cut too (RunJob refuses a cut answer); the tokens of both
+// are counted. When it cannot be sent, or fails, the first (cut) answer stays.
+func (r *Router) retryCut(ctx context.Context, res *CallResult, cl provider.Provider, p Profile, req provider.Request, carries bool) {
+	more := req
+	more.MaxTokens = retryLimit(req.MaxTokens)
+	if more.MaxTokens == req.MaxTokens || ctx.Err() != nil || !r.st.Load().assign.AllowedFor(carries, p) {
+		return
+	}
+	hold, err := r.meter.Reserve(p.ID, p.DailyCap, estimateTokens(more))
+	if err != nil {
+		return
+	}
+	actx, cancel := context.WithTimeout(ctx, r.timeout)
+	resp, err := cl.Complete(actx, more)
+	cancel()
+	first := res.Response.Usage
+	if err != nil {
+		var pe *provider.Error
+		if errors.As(err, &pe) {
+			res.Downgrade = firstDowngrade(res.Downgrade, hold.Settle(pe.Usage.InputTokens, pe.Usage.OutputTokens))
+			res.Response.Usage = provider.Usage{InputTokens: first.InputTokens + pe.Usage.InputTokens, OutputTokens: first.OutputTokens + pe.Usage.OutputTokens}
+		} else {
+			hold.Cancel()
+		}
+		return
+	}
+	res.Downgrade = firstDowngrade(res.Downgrade, hold.Settle(resp.Usage.InputTokens, resp.Usage.OutputTokens))
+	resp.Usage = provider.Usage{InputTokens: first.InputTokens + resp.Usage.InputTokens, OutputTokens: first.OutputTokens + resp.Usage.OutputTokens}
+	res.Response, res.Retried = resp, true
 }
 
 // firstDowngrade keeps the earliest record when several attempts of one call each lowered the level.

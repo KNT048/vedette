@@ -2097,18 +2097,30 @@ func (s *AiGetAiAsksOKItemsItemHooksItem) encodeFields(e *jx.Encoder) {
 		e.Str(s.Name)
 	}
 	{
+		e.FieldStart("step")
+		s.Step.Encode(e)
+	}
+	{
+		if s.Tool.Set {
+			e.FieldStart("tool")
+			s.Tool.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("when")
 		s.When.Encode(e)
 	}
 }
 
-var jsonFieldsNameOfAiGetAiAsksOKItemsItemHooksItem = [6]string{
+var jsonFieldsNameOfAiGetAiAsksOKItemsItemHooksItem = [8]string{
 	0: "action",
 	1: "id",
 	2: "kind",
 	3: "message",
 	4: "name",
-	5: "when",
+	5: "step",
+	6: "tool",
+	7: "when",
 }
 
 // Decode decodes AiGetAiAsksOKItemsItemHooksItem from json.
@@ -2176,8 +2188,28 @@ func (s *AiGetAiAsksOKItemsItemHooksItem) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"name\"")
 			}
-		case "when":
+		case "step":
 			requiredBitSet[0] |= 1 << 5
+			if err := func() error {
+				if err := s.Step.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"step\"")
+			}
+		case "tool":
+			if err := func() error {
+				s.Tool.Reset()
+				if err := s.Tool.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"tool\"")
+			}
+		case "when":
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				if err := s.When.Decode(d); err != nil {
 					return err
@@ -2196,7 +2228,7 @@ func (s *AiGetAiAsksOKItemsItemHooksItem) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00111111,
+		0b10111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -2320,6 +2352,50 @@ func (s AiGetAiAsksOKItemsItemHooksItemKind) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *AiGetAiAsksOKItemsItemHooksItemKind) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes AiGetAiAsksOKItemsItemHooksItemStep as json.
+func (s AiGetAiAsksOKItemsItemHooksItemStep) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes AiGetAiAsksOKItemsItemHooksItemStep from json.
+func (s *AiGetAiAsksOKItemsItemHooksItemStep) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode AiGetAiAsksOKItemsItemHooksItemStep to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch AiGetAiAsksOKItemsItemHooksItemStep(v) {
+	case AiGetAiAsksOKItemsItemHooksItemStepQuestion:
+		*s = AiGetAiAsksOKItemsItemHooksItemStepQuestion
+	case AiGetAiAsksOKItemsItemHooksItemStepToolCall:
+		*s = AiGetAiAsksOKItemsItemHooksItemStepToolCall
+	case AiGetAiAsksOKItemsItemHooksItemStepToolResult:
+		*s = AiGetAiAsksOKItemsItemHooksItemStepToolResult
+	case AiGetAiAsksOKItemsItemHooksItemStepAnswer:
+		*s = AiGetAiAsksOKItemsItemHooksItemStepAnswer
+	default:
+		*s = AiGetAiAsksOKItemsItemHooksItemStep(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s AiGetAiAsksOKItemsItemHooksItemStep) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *AiGetAiAsksOKItemsItemHooksItemStep) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -11074,18 +11150,30 @@ func (s *AiPostAiAskOKHooksItem) encodeFields(e *jx.Encoder) {
 		e.Str(s.Name)
 	}
 	{
+		e.FieldStart("step")
+		s.Step.Encode(e)
+	}
+	{
+		if s.Tool.Set {
+			e.FieldStart("tool")
+			s.Tool.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("when")
 		s.When.Encode(e)
 	}
 }
 
-var jsonFieldsNameOfAiPostAiAskOKHooksItem = [6]string{
+var jsonFieldsNameOfAiPostAiAskOKHooksItem = [8]string{
 	0: "action",
 	1: "id",
 	2: "kind",
 	3: "message",
 	4: "name",
-	5: "when",
+	5: "step",
+	6: "tool",
+	7: "when",
 }
 
 // Decode decodes AiPostAiAskOKHooksItem from json.
@@ -11153,8 +11241,28 @@ func (s *AiPostAiAskOKHooksItem) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"name\"")
 			}
-		case "when":
+		case "step":
 			requiredBitSet[0] |= 1 << 5
+			if err := func() error {
+				if err := s.Step.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"step\"")
+			}
+		case "tool":
+			if err := func() error {
+				s.Tool.Reset()
+				if err := s.Tool.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"tool\"")
+			}
+		case "when":
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				if err := s.When.Decode(d); err != nil {
 					return err
@@ -11173,7 +11281,7 @@ func (s *AiPostAiAskOKHooksItem) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00111111,
+		0b10111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -11297,6 +11405,50 @@ func (s AiPostAiAskOKHooksItemKind) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *AiPostAiAskOKHooksItemKind) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes AiPostAiAskOKHooksItemStep as json.
+func (s AiPostAiAskOKHooksItemStep) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes AiPostAiAskOKHooksItemStep from json.
+func (s *AiPostAiAskOKHooksItemStep) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode AiPostAiAskOKHooksItemStep to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch AiPostAiAskOKHooksItemStep(v) {
+	case AiPostAiAskOKHooksItemStepQuestion:
+		*s = AiPostAiAskOKHooksItemStepQuestion
+	case AiPostAiAskOKHooksItemStepToolCall:
+		*s = AiPostAiAskOKHooksItemStepToolCall
+	case AiPostAiAskOKHooksItemStepToolResult:
+		*s = AiPostAiAskOKHooksItemStepToolResult
+	case AiPostAiAskOKHooksItemStepAnswer:
+		*s = AiPostAiAskOKHooksItemStepAnswer
+	default:
+		*s = AiPostAiAskOKHooksItemStep(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s AiPostAiAskOKHooksItemStep) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *AiPostAiAskOKHooksItemStep) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }

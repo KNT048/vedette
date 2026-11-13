@@ -1,0 +1,5 @@
+# Deferred: fix/ai-output-limit-mlee (AI-Mlee, 2026-11-13)
+
+- [ ] 2026-11-13 — Run `TestLiveEveryAIJob` on kien's Mac: `VEDETTE_LIVE_AI=1 ANTHROPIC_API_KEY=$(security find-generic-password -s vedette-anthropic-test -w) go test -run '^TestLiveEveryAIJob$' -count=1 -v ./cmd/vedette/` — vì sao để sau: this box has no key (live AI tests are local to kien's Mac) — ở đâu: cmd/vedette/ai_live_all_test.go
+- [ ] 2026-11-13 — `GET /ai/runs` still shows a cut-off answer as `schema_error` (the activity row and the API error say "cut off"); a `cut_off` status needs the `AiRun.status` enum in contract.ts, OpenAPI, oas and the run-log label — vì sao để sau: the urgent fix is the error the person sees; the run log is the admin's second view and its enum change is a contract change of its own — ở đâu: modules/ai/usage.go Runs, web/src/features/ai/contract.ts AiRun
+- [ ] 2026-11-13 — GUI walkthrough of Ask (tool result held back, question blocked, answer held back) and of "Ask my AI" failures on the finding page per docs/QA.md — vì sao để sau: subagents run no Playwright; the lead does — ở đâu: web/src/features/ai/AssistantPage.tsx, web/src/features/findings/Recommendation.tsx

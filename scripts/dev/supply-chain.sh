@@ -6,10 +6,16 @@
 #                          with a fix that .trivyignore.yaml does not except (the file is checked by scripts/trivyignore before this runs)
 # Env (set by the Makefile): CONTAINER (podman|docker), IMAGE_TAG, PLATFORMS, TRIVY_IMAGE, TRIVY_CACHE_DIR (the vulnerability database, 1.7 GB, lives there: on disk, never /tmp, which is RAM),
 # RELEASE=1 keeps dist/sbom and dist/vuln for the release job. The image archives made for trivy are always removed (rules/build-artifacts.md).
-# Needs: podman or docker, jq (to pick one platform out of a manifest list), git.
+# Needs: podman or docker, jq (to pick one platform out of a manifest list), git; checked first. macOS: podman runs in a podman machine,
+# whose server cannot write an OCI layout on the Mac: podman-oci.sh runs that one export inside the machine (the checkout under $HOME).
 # The database download is this machine's own egress (ghcr.io); no image, source or SBOM leaves the machine. Linux or macOS.
 set -euo pipefail
+for t in git jq "${CONTAINER:-podman}"; do
+	command -v "$t" >/dev/null || { echo "supply-chain: FAIL needs $t (macOS: brew install $t; Debian/Ubuntu: apt-get install $t)" >&2; exit 1; }
+done
 cd "$(git rev-parse --show-toplevel)"
+# shellcheck source=scripts/dev/podman-oci.sh
+. scripts/dev/podman-oci.sh
 mode=${1:-}
 case $mode in sbom | scan) ;; *) echo "usage: supply-chain.sh sbom|scan" >&2; exit 2 ;; esac
 c=${CONTAINER:-podman}
@@ -47,14 +53,19 @@ trivy() {
 		-v "$TRIVY_CACHE_DIR:/cache" -v "$PWD:/src:ro" -v "$PWD/dist:/dist" -w /src "$TRIVY_IMAGE" "$@" --skip-version-check
 }
 
-# One archive per image, holding every platform that was built. podman: the manifest list written as an OCI layout folder. docker: the OCI
+# One archive per image, holding every platform that was built. podman: the manifest list written as an OCI layout folder (a plain
+# image, one platform, as an OCI archive; a list that fails to export stops here, never falls back to one platform). docker: the OCI
 # archive that `make images` made (a multi-platform buildx build), or the daemon's image when one platform was built and loaded.
 export_image() {
 	local n=$1 img=localhost/vedette-$1:$tag
 	case $c in
 	podman)
 		"$c" image exists "$img" || fail "$img is not in the local storage: run make images first (PLATFORMS=$platforms IMAGE_TAG=$tag)"
-		"$c" manifest push --all -q "$img" "oci:$work/$n" >/dev/null 2>&1 || "$c" save --format oci-archive -o "$work/$n.tar" "$img" || fail "cannot export $img"
+		if "$c" manifest exists "$img" 2>/dev/null; then
+			podman_oci_push "$c" manifest push --all -q "$img" "oci:$work/$n" >/dev/null || fail "cannot export $img"
+		else
+			"$c" save --format oci-archive -o "$work/$n.tar" "$img" || fail "cannot export $img"
+		fi
 		;;
 	docker)
 		if [ -f "dist/images/vedette-$n-$tag.tar" ]; then

@@ -3,10 +3,8 @@ package main
 import (
 	"context"
 	"errors"
-	"net"
 	"net/http"
 	"net/netip"
-	"strings"
 	"sync"
 	"time"
 
@@ -120,57 +118,6 @@ func orgZone(d *deps) func(context.Context) string {
 		}
 		return z
 	}
-}
-
-// baseURL is the address people open Vedette at: https://<first -hosts name, else the first certificate name>,
-// with the listen port when it is not 443. hosts is what transport returned (-hosts, else the certificate's
-// names). Wildcards and loopback names cannot be reached from another machine and are skipped. Empty when the
-// box listens on loopback only (dev) or has no usable name: notify then sends no links and refuses approval
-// requests (a link that approves an action must point at the real box).
-func baseURL(hosts []string, listen string) string {
-	if loop, err := isLoopback(listen); err != nil || loop {
-		return ""
-	}
-	_, port, err := net.SplitHostPort(listen)
-	if err != nil {
-		return ""
-	}
-	for _, h := range hosts {
-		if strings.HasPrefix(h, "*.") || strings.EqualFold(h, "localhost") {
-			continue
-		}
-		if a, err := netip.ParseAddr(h); err == nil && a.Unmap().IsLoopback() {
-			continue
-		}
-		if port == "443" {
-			return "https://" + hostForURL(h)
-		}
-		return "https://" + net.JoinHostPort(h, port)
-	}
-	return ""
-}
-
-// testBaseURL is the test seam of D-173 (WP-30 slice 9b): the end-to-end box listens on loopback, where baseURL answers "" and notify refuses
-// every approval request, so the box of `make e2e-real` answers http://127.0.0.1:<port> for its own listen address. Unexported, no flag, nil in the
-// shipped binary: only a _test.go file sets it, so the production derivation above is the only one a real box ever runs.
-var testBaseURL func(listen string) string
-
-// boxBaseURL is baseURL, unless a test box has said otherwise for this listen address.
-func boxBaseURL(hosts []string, listen string) string {
-	if testBaseURL != nil {
-		if u := testBaseURL(listen); u != "" {
-			return u
-		}
-	}
-	return baseURL(hosts, listen)
-}
-
-// hostForURL brackets an IPv6 literal.
-func hostForURL(h string) string {
-	if a, err := netip.ParseAddr(h); err == nil && a.Is6() {
-		return "[" + h + "]"
-	}
-	return h
 }
 
 // notifyApproverLinks is notify's Config.ApproverLinks (D-191, notify INV-13): whether the person proved this address in My account, as the

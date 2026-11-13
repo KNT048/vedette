@@ -40,6 +40,9 @@ type Config struct {
 	Clock    func() time.Time
 	Log      *slog.Logger
 	Location func(ctx context.Context) *time.Location // organization time zone for "today" and the daily ignored count; nil means UTC
+	// BoxURL is the Box address as https://host[:port] (D-465), the start of a URL token; asked at every create. nil or "": the
+	// box's IP from the inventory on port 8443; neither known: a URL token cannot be made (409 no_box_address).
+	BoxURL func() string
 
 	PollEvery time.Duration // log poll pace; default 1 s
 	MaxLine   int           // default MaxLine

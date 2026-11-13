@@ -186,8 +186,9 @@ func (a reportsAI) Summarize(ctx context.Context, actor, job, task string, data 
 	var paragraphs []string
 	res, err := a.svc.RunJob(ctx, ai.JobSpec{
 		Job: ai.Job(job), Actor: actor, Task: task, Question: "Write the commentary.", Data: blocks,
-		Schema:    &provider.Schema{Name: "report_commentary", JSON: json.RawMessage(reportsAISchema)},
-		MaxTokens: 900, Summary: fmt.Sprintf("Commentary on the %s", strings.ReplaceAll(job, "-", " ")),
+		Schema: &provider.Schema{Name: "report_commentary", JSON: json.RawMessage(reportsAISchema)},
+		// at most 4 paragraphs, about 1,200 tokens; the rest is room for what the model thinks first (a cut answer is asked again once)
+		MaxTokens: 4000, Summary: fmt.Sprintf("Commentary on the %s", strings.ReplaceAll(job, "-", " ")),
 		Check: func(text string) error {
 			var perr error
 			paragraphs, perr = parseParagraphs(text)

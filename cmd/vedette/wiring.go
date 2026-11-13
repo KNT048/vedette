@@ -265,6 +265,7 @@ func buildServices(ctx context.Context, d *deps) error {
 		return fmt.Errorf("os updates: %w", err)
 	}
 	sensor := &spanSensor{reg: d.Reg} // its service comes below: the Box network page needs the sensor and the sensor needs the page's settings
+	//nolint:contextcheck // AddressesChanged (core) has no context; Invalidate bounds its own read (boxAddrTimeout)
 	if d.Network, err = newNetworkHandlers(d, sensor); err != nil {
 		return fmt.Errorf("box network: %w", err)
 	}
@@ -533,9 +534,18 @@ func newNetworkHandlers(d *deps, sensor core.SpanSensor) (*core.NetworkHandlers,
 		AddressInUse: func(ctx context.Context, ip netip.Addr) (bool, error) {
 			return addressInUse(ctx, d.Inventory, d.Honeypot, ip)
 		},
-		// AddressesChanged: the cached addresses are dropped and the box's certificate follows its management address (D-139).
+		// AddressesChanged: the cached addresses are dropped and the box's certificate follows its management address (D-139) and its
+		// Box address (D-465: a save, or a new management address that is its default).
+		BoxLinks: func(context.Context) core.BoxLinks {
+			var base string
+			if d.BaseURL != nil {
+				base = d.BaseURL()
+			}
+			return core.BoxLinks{Base: base, SelfSigned: d.SelfSigned}
+		},
 		AddressesChanged: func() {
 			d.HostNet.Invalidate()
+			d.BoxAddr.Invalidate()
 			if d.CertKick != nil {
 				d.CertKick()
 			}

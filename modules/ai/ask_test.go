@@ -330,7 +330,7 @@ func TestAskAnswerWithoutToolsHasNoTable(t *testing.T) {
 		t.Fatalf("answer = %v", got)
 	}
 	a.fake.play(turn{text: " \n\n "})
-	a.ask("What is the weather today?", 409, "ai_unavailable") // an empty answer is not an answer
+	a.ask("What is the weather today?", 502, "ai_bad_format") // an empty answer is not an answer
 }
 
 func TestAskTablesAndCitationsComeFromTheToolsOnly(t *testing.T) {
@@ -591,7 +591,7 @@ func TestAskLoopIsBounded(t *testing.T) {
 	a := newAskAPI(t)
 	c := call("search_assets", `{"limit":1}`)
 	a.fake.play(turn{calls: []provider.ToolCall{c, c, c, c}}) // a model that never stops
-	a.ask("Keep going please", 409, "ai_unavailable")
+	a.ask("Keep going please", 502, "ai_bad_format")
 	reqs := a.fake.askRequests()
 	if len(reqs) != 8 { // 6 turns in which tools run, 2 that only take an answer
 		t.Fatalf("provider turns = %d", len(reqs))
@@ -632,7 +632,7 @@ func TestAskDeadline(t *testing.T) {
 		return provider.Response{}, &provider.Error{Kind: provider.ErrTimeout}
 	}
 	b.fake.mu.Unlock()
-	b.ask("Which machines still expose RDP?", 409, "ai_unavailable")
+	b.ask("Which machines still expose RDP?", 504, "ai_timeout")
 	rows := b.activity()
 	if len(rows) != 1 || rows[0].Result != ai.ResultError || len(rows[0].Tools) != 1 || rows[0].Profile != "Claude" || !strings.Contains(rows[0].Summary, "used up its time") || rows[0].TokensIn != 14 {
 		t.Fatalf("row = %+v", rows)
@@ -682,7 +682,7 @@ func TestContract_INV3_AskNeverGivesToolResultsToCloudUnderTheRule(t *testing.T)
 		return provider.Response{}, &provider.Error{Kind: provider.ErrNetwork}
 	}
 	a.fake.mu.Unlock()
-	a.ask("Which machines still expose RDP?", 409, "ai_unavailable")
+	a.ask("Which machines still expose RDP?", 502, "unreachable")
 	if a.fake.called("Claude") != 0 {
 		t.Fatal("the cloud profile was called with tool results")
 	}
@@ -720,7 +720,7 @@ func TestContract_INV3_TheRuleTurnedOnMidQuestionStopsTheNextTurn(t *testing.T) 
 		return provider.Response{}, &provider.Error{Kind: provider.ErrNetwork}
 	}
 	a.fake.mu.Unlock()
-	a.ask("Which machines still expose RDP?", 409, "ai_unavailable")
+	a.ask("Which machines still expose RDP?", 502, "unreachable")
 	if a.fake.called("Claude") != 0 {
 		t.Fatal("the cloud profile got the tool results after the rule was turned on")
 	}
@@ -746,6 +746,9 @@ func TestAskBlockedQuestionIsStoredHiddenAndCostsNothing(t *testing.T) {
 	hist := a.want("GET", "/ai/asks", "viewer", "", 200, "")
 	if items := list(hist["items"]); len(items) != 1 || items[0].(map[string]any)["question"] != ai.HiddenQuestion {
 		t.Fatalf("history = %v", hist)
+	}
+	if h := list(list(hist["items"])[0].(map[string]any)["hooks"]); len(h) != 1 || h[0].(map[string]any)["step"] != "question" { // the AI was not asked
+		t.Fatalf("hooks = %v", h)
 	}
 	// nowhere is the text kept: not in the result row, not in the activity row
 	rows, err := a.db.Reader().QueryContext(a.ctx(), `SELECT payload || key || coalesce(asked_by, '') FROM ai_result WHERE kind = 'ask'`)
@@ -821,6 +824,18 @@ func TestAskHooksActOnEachToolResult(t *testing.T) {
 	}
 	if fmt.Sprint(seen) != "[No router key/block Block personal data/mask]" && fmt.Sprint(seen) != "[Block personal data/mask No router key/block]" {
 		t.Fatalf("hooks = %v", seen)
+	}
+	// item 19 of beta 0.1.0-beta.1: each hit names its step and tool, and says what happened there (the AI was asked and answered;
+	// a held-back result is not a refused question)
+	for _, h := range list(got["hooks"]) {
+		m := h.(map[string]any)
+		msg := m["message"].(string)
+		if m["step"] != "tool_result" || m["tool"] != "search_assets" || !strings.Contains(msg, "The result of the tool search_assets contained") || strings.Contains(msg, "ask again") {
+			t.Fatalf("hook = %v", m)
+		}
+	}
+	if got["model"] == "" || len(list(got["answer"])) == 0 {
+		t.Fatalf("the answer = %v", got)
 	}
 	rows := a.activity()
 	if len(rows) != 1 || len(rows[0].Hooks) != 2 || len(rows[0].Tools) != 3 || !strings.Contains(rows[0].Tools[0].Args, "[withheld #") || !strings.Contains(rows[0].Tools[1].Args, "[masked #") {

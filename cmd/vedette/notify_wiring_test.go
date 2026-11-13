@@ -169,7 +169,7 @@ var codeRE = regexp.MustCompile(`sign-in code is (\d{6})`)
 func TestWiringEmailTwoStepCodeGoesThroughNotify(t *testing.T) {
 	t.Parallel()
 	clock := newManualClock(time.Date(2026, 11, 9, 9, 0, 0, 0, time.UTC))
-	s := newStackWith(t, func(d *deps) { d.Clock = clock.now; d.BaseURL = "https://box.example:8443" })
+	s := newStackWith(t, func(d *deps) { d.Clock = clock.now; d.BaseURL = func() string { return "https://box.example:8443" } })
 	s.enableNotify()
 	u := s.addUser("anh@acme.example", routes.Admin)
 	ctx := t.Context()
@@ -270,7 +270,7 @@ func TestWiringApprovalLinkCarriesBaseURL(t *testing.T) {
 	for _, tc := range []struct{ name, base string }{{"with", "https://192.168.10.2:8443"}, {"without", ""}} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			s := newStackWith(t, func(d *deps) { d.BaseURL = tc.base })
+			s := newStackWith(t, func(d *deps) { d.BaseURL = func() string { return tc.base } })
 			s.enableNotify()
 			op := s.addUser("op@acme.example", routes.Operator)
 			sink := newSMTPSink(t)
@@ -342,24 +342,36 @@ func TestWiringDeviceNoticeNamesTheDeviceFromInventory(t *testing.T) {
 	}
 }
 
-// baseURL: the first -hosts name, else the first certificate name; no link on loopback.
+// baseURL (D-465): https://<Box address>, with the listen port unless 443; no link on loopback or without an address. flagAddress (the
+// Box address of an install without a host) is the first -hosts entry another machine can reach.
 func TestBaseURL(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
-		hosts  []string
+		addr   string
 		listen string
 		want   string
 	}{
-		{[]string{"vedette.corp.example", "10.0.0.5"}, "0.0.0.0:443", "https://vedette.corp.example"},
-		{[]string{"192.168.10.2"}, ":8443", "https://192.168.10.2:8443"},
-		{[]string{"*.corp.example", "localhost", "127.0.0.1", "box.corp.example"}, "10.0.0.5:8443", "https://box.corp.example:8443"},
-		{[]string{"fd00::5"}, "[::]:443", "https://[fd00::5]"},
-		{[]string{"vedette.corp.example"}, "127.0.0.1:8080", ""},
-		{nil, ":8443", ""},
-		{[]string{"localhost"}, ":8443", ""},
+		{"vedette.corp.example", "0.0.0.0:443", "https://vedette.corp.example"},
+		{"192.168.10.2", ":8443", "https://192.168.10.2:8443"},
+		{"fd00::5", "[::]:443", "https://[fd00::5]"},
+		{"vedette.corp.example", "127.0.0.1:8080", ""},
+		{"", ":8443", ""},
 	} {
-		if got := baseURL(tc.hosts, tc.listen); got != tc.want {
-			t.Errorf("baseURL(%v, %q) = %q, want %q", tc.hosts, tc.listen, got, tc.want)
+		if got := baseURL(tc.addr, tc.listen); got != tc.want {
+			t.Errorf("baseURL(%q, %q) = %q, want %q", tc.addr, tc.listen, got, tc.want)
+		}
+	}
+	for _, tc := range []struct {
+		hosts []string
+		want  string
+	}{
+		{[]string{"*.corp.example", "localhost", "127.0.0.1", "::1", "box.corp.example", "10.0.0.5"}, "box.corp.example"},
+		{[]string{"192.168.10.2"}, "192.168.10.2"},
+		{[]string{"localhost"}, ""},
+		{nil, ""},
+	} {
+		if got := flagAddress(tc.hosts); got != tc.want {
+			t.Errorf("flagAddress(%v) = %q, want %q", tc.hosts, got, tc.want)
 		}
 	}
 }

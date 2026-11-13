@@ -508,6 +508,27 @@ func (s *Service) token(ctx context.Context, id string) (Token, error) {
 	return Token{}, notFound("No such token.")
 }
 
+// msgNoBoxAddress is the refusal of a URL token while the box knows no address other machines reach (D-465).
+const msgNoBoxAddress = "The box does not know an address other machines can reach yet. Set the Box address in Settings → Box network, then try again."
+
+// boxURL is the start of a URL token (D-465): the Box address (Config.BoxURL), else the box's IP from the inventory on 8443; never the
+// box's host name (before D-465 it was, and a box named "vedette" handed out https://vedette:8443 links nothing resolves).
+func (s *Service) boxURL(ctx context.Context) (string, error) {
+	if s.cfg.BoxURL != nil {
+		if u := strings.TrimRight(s.cfg.BoxURL(), "/"); u != "" {
+			return u, nil
+		}
+	}
+	box, err := s.cfg.Inventory.Box(ctx)
+	if err != nil {
+		return "", fmt.Errorf("honeypot: read box: %w", err)
+	}
+	if !box.IP.IsValid() || box.IP.IsUnspecified() || box.IP.IsLoopback() {
+		return "", conflictErr("no_box_address", msgNoBoxAddress)
+	}
+	return "https://" + netip.AddrPortFrom(box.IP.Unmap(), 8443).String(), nil
+}
+
 // AddToken is POST /honeypot/tokens (INV-10, POST-4, INV-13).
 func (s *Service) AddToken(ctx context.Context, actor string, in TokenInput) (Token, error) {
 	switch in.Type {
@@ -552,11 +573,11 @@ func (s *Service) AddToken(ctx context.Context, actor string, in TokenInput) (To
 		}
 		password = "Bk!" + a + "-" + b + "x9"
 	case TokenURL:
-		box, err := s.cfg.Inventory.Box(ctx)
+		base, err := s.boxURL(ctx)
 		if err != nil {
-			return Token{}, fmt.Errorf("honeypot: read box: %w", err)
+			return Token{}, err
 		}
-		value = "https://" + box.Name + ":8443/t/" + rnd
+		value = base + "/t/" + rnd
 	case TokenDNS:
 		sl := slug(name)
 		if sl == "" {

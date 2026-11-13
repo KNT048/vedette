@@ -76,6 +76,8 @@ type NetworkConfig struct {
 	// AddressesChanged is called after the box's own addresses may have changed (an apply, a confirm, a revert, a
 	// timeout): the caches of cmd/vedette that hold them (conn, sensor-active, honeypot) must read them again.
 	AddressesChanged func()
+	// BoxLinks says how links start now and who issues the certificate (D-465, cmd/vedette); nil: no link base shown, own certificate false.
+	BoxLinks func(ctx context.Context) BoxLinks
 	// AfterFunc runs f after d (nil: time.AfterFunc); the tests hold it back.
 	AfterFunc func(d time.Duration, f func())
 	Clock     func() time.Time // nil: time.Now
@@ -98,6 +100,7 @@ type NetworkHandlers struct {
 	sensor  SpanSensor
 	taken   func(ctx context.Context, ip netip.Addr) (bool, error)
 	changed func()
+	links   func(ctx context.Context) BoxLinks
 	now     func() time.Time
 
 	mu       sync.Mutex // one change at a time, from the first read to the host's answer; never taken by a read
@@ -143,7 +146,7 @@ func NewNetworkHandlers(c NetworkConfig) (*NetworkHandlers, error) {
 	if c.Clock == nil {
 		c.Clock = time.Now
 	}
-	h := &NetworkHandlers{gate: c.Gate, db: c.DB, auth: c.Auth, audit: c.Audit, log: c.Log, host: c.Host, sensor: c.Sensor, taken: c.AddressInUse, changed: c.AddressesChanged, now: c.Clock}
+	h := &NetworkHandlers{gate: c.Gate, db: c.DB, auth: c.Auth, audit: c.Audit, log: c.Log, host: c.Host, sensor: c.Sensor, taken: c.AddressInUse, changed: c.AddressesChanged, links: c.BoxLinks, now: c.Clock}
 	h.cache.pps, h.cache.prev = map[string]int{}, map[string]rxSample{}
 	h.after = func(d time.Duration, f func()) { time.AfterFunc(d, f) }
 	if c.AfterFunc != nil {
@@ -478,9 +481,21 @@ type netPendingView struct {
 	RebootAt        *string `json:"reboot_at"`
 }
 
+// netBoxAddrView is the Box address (D-465): what an administrator saved (nil: none, the default is used), the default (the management
+// IPv4 the host reports; nil while it has none), the earlier addresses the box still answers to, the start of every link now (nil: none)
+// and whether the box issues its own certificate.
+type netBoxAddrView struct {
+	Address    *string  `json:"address"`
+	Default    *string  `json:"default"`
+	Previous   []string `json:"previous"`
+	LinkBase   *string  `json:"link_base"`
+	SelfSigned bool     `json:"self_signed"`
+}
+
 type netView struct {
 	Interfaces []netIfaceView  `json:"interfaces"`
 	Management netMgmtView     `json:"management"`
+	BoxAddress netBoxAddrView  `json:"box_address"`
 	Span       netSpanView     `json:"span"`
 	SpanStatus spanStatusView  `json:"span_status"`
 	NTP        netNTPView      `json:"ntp"`
@@ -553,11 +568,18 @@ func dnsInUse(st api.NetState) []string {
 	return out
 }
 
-func (h *NetworkHandlers) composeNet(st api.NetState, rec *pendingRecord, sp SpanSettings, status spanStatusView) netView {
+func (h *NetworkHandlers) composeNet(st api.NetState, rec *pendingRecord, sp SpanSettings, status spanStatusView, box boxAddressSetting, links BoxLinks) netView {
 	m := mgmtViewOf(st)
 	mgmt := mgmtIface(st)
 	span := spanIface(st)
-	v := netView{Management: m, SpanStatus: status, DefaultNTP: defaultNTPPool, Interfaces: []netIfaceView{}, DecoyIPs: []string{}}
+	v := netView{Management: m, SpanStatus: status, DefaultNTP: defaultNTPPool, Interfaces: []netIfaceView{}, DecoyIPs: []string{},
+		BoxAddress: netBoxAddrView{Default: m.Address, Previous: append([]string{}, box.Previous...), SelfSigned: links.SelfSigned}}
+	if box.Address != "" {
+		v.BoxAddress.Address = refTo(box.Address)
+	}
+	if links.Base != "" {
+		v.BoxAddress.LinkBase = refTo(links.Base)
+	}
 	for _, c := range cardsOf(st) {
 		iv := netIfaceView{Name: c.Name, Role: "unused", Link: c.State == "up", Speed: speedText(c.SpeedMbps), MAC: c.MAC}
 		switch c.Name {
@@ -615,7 +637,15 @@ func (h *NetworkHandlers) view(ctx context.Context, fresh bool) (netView, error)
 	if err != nil {
 		return netView{}, err
 	}
-	return h.composeNet(st, rec, sp, h.spanStatus(ctx, st, sp)), nil
+	box, err := h.savedBoxAddress(ctx)
+	if err != nil {
+		return netView{}, err
+	}
+	var links BoxLinks
+	if h.links != nil {
+		links = h.links(ctx)
+	}
+	return h.composeNet(st, rec, sp, h.spanStatus(ctx, st, sp), box, links), nil
 }
 
 // spanStatus is the health of the mirrored traffic. What only a look at the traffic can say (other MACs, the last
@@ -1431,6 +1461,163 @@ func (h *NetworkHandlers) CorePutCoreNetworkNtp(ctx context.Context, req *oas.Co
 		return nil, err
 	}
 	return asOAS[oas.CorePutCoreNetworkNtpOK](v)
+}
+
+// ---- the Box address (D-465) ----
+
+const keyBoxAddress = "core_box_address"
+
+// maxPreviousBoxAddresses bounds the earlier Box addresses the box keeps answering to; a change past it drops the oldest (audited).
+const maxPreviousBoxAddresses = 8
+
+// boxAddressSetting is what core keeps of the Box address: Address "" = the default (the management IPv4). Previous are the addresses
+// saved before it that the box still answers to (Host allowlist, certificate) until an administrator stops it (review M1: osquery agents,
+// firewalls pulling the block list and links already sent use the old one), newest last.
+type boxAddressSetting struct {
+	Address  string   `json:"address"`
+	Previous []string `json:"previous,omitempty"`
+}
+
+// boxAddressSettingOf reads the setting through q (a transaction, or the reader).
+func boxAddressSettingOf(ctx context.Context, q interface {
+	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
+}) (boxAddressSetting, error) {
+	var s boxAddressSetting
+	var raw string
+	err := q.QueryRowContext(ctx, `SELECT value FROM core_setting WHERE key = ?`, keyBoxAddress).Scan(&raw)
+	if errors.Is(err, sql.ErrNoRows) {
+		return s, nil
+	}
+	if err != nil {
+		return s, fmt.Errorf("core: read setting %s: %w", keyBoxAddress, err)
+	}
+	return s, unmarshalSetting(keyBoxAddress, raw, &s)
+}
+
+// savedBoxAddress is the Box address setting as saved.
+func (h *NetworkHandlers) savedBoxAddress(ctx context.Context) (boxAddressSetting, error) {
+	return boxAddressSettingOf(ctx, h.db.Reader())
+}
+
+// BoxLinks is what cmd/vedette tells the Box network page about the links (NetworkConfig.BoxLinks): the start of every link now
+// ("" when the box makes none) and whether the box issues its own certificate (else the owner's -tls-cert, which the box never changes).
+type BoxLinks struct {
+	Base       string
+	SelfSigned bool
+}
+
+// changeBoxAddress runs one change of the setting in one transaction with its audit row, then tells cmd/vedette (AddressesChanged), which
+// reads the address again and re-issues the box's own certificate with it.
+func (h *NetworkHandlers) changeBoxAddress(ctx context.Context, action, detail string, change func(*boxAddressSetting) error) error {
+	c, err := callerOf(ctx, h.auth)
+	if err != nil {
+		return err
+	}
+	if err := h.needHost(); err != nil {
+		return err
+	}
+	leave, ok := h.gate.Enter()
+	if !ok { // a purge is running (N4)
+		return errPurging()
+	}
+	err = h.db.Write(ctx, func(tx *sql.Tx) error {
+		if err := h.auth.CheckAdmin(ctx, tx, c.ID, c.SessionID); err != nil {
+			return err
+		}
+		s, err := boxAddressSettingOf(ctx, tx)
+		if err != nil {
+			return err
+		}
+		if err := change(&s); err != nil {
+			return err
+		}
+		if err := h.audit.Append(ctx, tx, audit.Entry{User: c.Email, Action: action, Target: "box address", Detail: detail}); err != nil {
+			return err
+		}
+		return putSettingTx(ctx, tx, keyBoxAddress, s, h.now(), c.Email)
+	})
+	leave()
+	if err != nil {
+		return err
+	}
+	h.addressesChanged()
+	return nil
+}
+
+// CorePutCoreNetworkBoxAddress implements PUT /core/network/box-address (admin, D-465): the host name or IPv4 address the LAN reaches
+// the box at, which every link the box makes carries; "" goes back to the default, the management IPv4 the host reports. The address it
+// replaces (when one was saved) joins Previous, so what was set up with it keeps working (review M1). It touches nothing of the host.
+func (h *NetworkHandlers) CorePutCoreNetworkBoxAddress(ctx context.Context, req *oas.CorePutCoreNetworkBoxAddressReq) (*oas.CorePutCoreNetworkBoxAddressOK, error) {
+	addr, perr := checkBoxAddress(req.Address)
+	if perr != nil {
+		return nil, perr
+	}
+	detail := addr
+	if addr == "" {
+		detail = "default (the management address)"
+	}
+	err := h.changeBoxAddress(ctx, "network.box_address", detail, func(s *boxAddressSetting) error {
+		if s.Address != "" && s.Address != addr && !slices.Contains(s.Previous, s.Address) {
+			s.Previous = append(s.Previous, s.Address)
+		}
+		s.Previous = slices.DeleteFunc(s.Previous, func(p string) bool { return p == addr })
+		if n := len(s.Previous) - maxPreviousBoxAddresses; n > 0 {
+			s.Previous = s.Previous[n:]
+		}
+		s.Address = addr
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	v, err := h.view(ctx, false)
+	if err != nil {
+		return nil, err
+	}
+	return asOAS[oas.CorePutCoreNetworkBoxAddressOK](v)
+}
+
+// CorePostCoreNetworkBoxAddressForget implements POST /core/network/box-address/forget (admin, review M1): the box stops answering to an
+// earlier Box address (404 not_found when it is not one of them). The certificate drops it at its next re-issue.
+func (h *NetworkHandlers) CorePostCoreNetworkBoxAddressForget(ctx context.Context, req *oas.CorePostCoreNetworkBoxAddressForgetReq) (*oas.CorePostCoreNetworkBoxAddressForgetOK, error) {
+	addr := strings.TrimSuffix(strings.ToLower(strings.TrimSpace(req.Address)), ".")
+	err := h.changeBoxAddress(ctx, "network.box_address_forget", addr, func(s *boxAddressSetting) error {
+		if !slices.Contains(s.Previous, addr) {
+			return apierr.New(404, apierr.CodeNotFound, "The box does not answer to that earlier address.")
+		}
+		s.Previous = slices.DeleteFunc(s.Previous, func(p string) bool { return p == addr })
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	v, err := h.view(ctx, false)
+	if err != nil {
+		return nil, err
+	}
+	return asOAS[oas.CorePostCoreNetworkBoxAddressForgetOK](v)
+}
+
+// BoxAddress is the address every link of the box carries (D-465): the saved Box address, else the management IPv4 the host reports
+// (state/net, read through the page's cache, netReadTTL); "" when neither is known (no host, or a management card without an IPv4
+// address). previous are the earlier Box addresses the box still answers to. An error is a failed read of the setting or of the host: the
+// caller keeps what it had. Safe on nil ("").
+func (h *NetworkHandlers) BoxAddress(ctx context.Context) (addr string, previous []string, err error) {
+	if h == nil {
+		return "", nil, nil
+	}
+	s, err := h.savedBoxAddress(ctx)
+	if err != nil || s.Address != "" || h.host == nil {
+		return s.Address, s.Previous, err
+	}
+	st, err := h.state(ctx, false)
+	if err != nil {
+		return "", nil, err
+	}
+	if a := mgmtViewOf(st).Address; a != nil {
+		return *a, s.Previous, nil
+	}
+	return "", s.Previous, nil
 }
 
 // ---- what other modules read ----

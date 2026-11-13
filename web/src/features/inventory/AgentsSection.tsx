@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
+import { Link } from 'react-router'
 import { toast } from 'sonner'
 import { Download, Plus } from 'lucide-react'
 import { Section } from '@/components/common/PageHeader'
@@ -46,6 +47,27 @@ function NoBoxAddress() {
       <p className="font-medium">{t('agents.noAddress.title')}</p>
       <p>{t(install === 'container' ? 'agents.noAddress.container' : 'agents.noAddress.appliance')}</p>
       <p className="text-[13px] text-muted">{t('agents.noAddress.token')}</p>
+    </div>
+  )
+}
+
+/** D-465 (review M2): say which address the commands carry and where it is changed; when the page was opened at another host, say that
+ *  agents will not use that one. No lookup of the name is made. */
+function BoxAddressNote({ box }: { box: string }) {
+  const { t } = useTranslation('inventory')
+  const install = useInstallKind()
+  let host = box
+  try { host = new URL(box).hostname } catch { /* shown as given */ }
+  const here = window.location.hostname
+  return (
+    <div className="grid gap-1 text-[13px]">
+      <p>
+        {t('agents.boxAddress.uses', { url: box })}{' '}
+        {install === 'container'
+          ? t('agents.boxAddress.container')
+          : <Link to="/settings/network#box-address" className="text-accent underline-offset-4 hover:underline">{t('agents.boxAddress.change')}</Link>}
+      </p>
+      {here && host.toLowerCase() !== here.toLowerCase() ? <p className="text-muted">{t('agents.boxAddress.otherHost', { here, box: host })}</p> : null}
     </div>
   )
 }
@@ -117,6 +139,7 @@ function InstallPanel({ data, token }: { data: AgentsResponse; token: string }) 
   const one = platform === 'linux' ? linuxOneLiner : windowsOneLiner
   return (
     <div className="grid min-w-0 gap-4 [&>*]:min-w-0">
+      <BoxAddressNote box={box} />
       <div className="grid gap-1.5">
         <span className="text-sm font-medium">{t('agents.platform.label')}</span>
         <Segmented<Platform> label={t('agents.platform.label')} value={platform} onChange={setPlatform}

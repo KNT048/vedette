@@ -13,6 +13,7 @@
 - **tooling `vedette-author`** (S-MIT-4) và builder phát hành: schema chung; đổi trường = đổi cả công cụ lẫn bộ nạp. Gói đi cùng image `core` đã ký (D-36, D-345): đổi thư mục `/opt/vedette/content/mitigation` hay bố cục `ReadPackDir` phải đổi cùng `deploy/containers/core/Containerfile` và job `load-packs`.
 
 ## Modifying: gọi `ai.Run(skill, input)` (`explain`, `mitigation-config`)
+- Lỗi `*apierr.Error` từ `AI.Run` được handler trả nguyên (D-481): `cmd/vedette` `aiMitigation.Run` không bọc lại; đổi điều đó thì trang finding lại hiện sai lý do.
 - **ai** (nhóm B): đổi tên skill/schema đầu ra làm `ai_available` sai và kết quả mất nhãn.
 
 ## Modifying: `POST /findings/{id}/applied`

@@ -308,7 +308,7 @@ func newEnv(t *testing.T, opts ...func(*response.Config)) *env {
 		})
 	}
 	cfg := response.Config{DB: db, Secrets: sec, Audit: audit.New(e.clock.Now), Users: e.users, Log: log, Bus: e.bus, Directory: e.dir, Notifier: e.note, Connections: e.conns,
-		Executor: e.exec, Webhooks: e.hooks, Clock: e.clock.Now, BaseURL: "https://box.example:8443"}
+		Executor: e.exec, Webhooks: e.hooks, Clock: e.clock.Now, BaseURL: func() string { return "https://box.example:8443" }}
 	for _, o := range opts {
 		o(&cfg)
 	}

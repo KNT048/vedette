@@ -17,6 +17,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/knt048/vedette/core/egressip"
 	"github.com/knt048/vedette/core/sensorlink"
 	"github.com/knt048/vedette/modules/sensor-active/worker"
 )
@@ -101,9 +102,14 @@ func runActive(ctx context.Context, args []string, stdout io.Writer, logger *slo
 	if err != nil {
 		return err
 	}
+	// The own-IP fence of the external shape (D-514): the three public services of exposure, asked only when an external job comes.
+	egress, err := egressip.New(nil, nil, 0)
+	if err != nil {
+		return err
+	}
 	w, err := worker.New(worker.Config{
 		Link: withBeat(client, heartbeatPath, logger), NmapPath: *nmap, Version: version, Log: logger,
-		NucleiPath: *f.nuclei, NucleiIndex: *f.nucleiIndex, NucleiHome: *f.nucleiHome,
+		NucleiPath: *f.nuclei, NucleiIndex: *f.nucleiIndex, NucleiHome: *f.nucleiHome, Egress: egress,
 	})
 	if err != nil {
 		return err

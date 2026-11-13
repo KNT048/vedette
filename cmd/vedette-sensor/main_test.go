@@ -206,13 +206,15 @@ func TestBinaryDependencies(t *testing.T) {
 	allowed := []string{
 		"cmd/vedette-sensor",
 		"content/oui",
+		"core/egressip", // the worker's own-IP fence of the external shape and its public-address rule (D-514); standard library only, its own leaf test
 		"core/exec",
 		"core/localnet", // the local networks of nmapargv and nucleiargv (D-461); net/netip and slices only, its own leaf test
 		"core/observe",
 		"core/sensorlink",
 		"internal/jsonstrict",
-		"modules/scan/nucleiargv", // the leaves of scan the worker shares with core (D-125 (2), D-136 (3))
-		"modules/scan/nucleiout",  // the worker counts host errors from nuclei's error log with it (D-165); its own deps_test keeps it a leaf
+		"modules/scan/commonports", // the ports of nmapargv's external shape, the surface scan's list (D-514); it imports nothing
+		"modules/scan/nucleiargv",  // the leaves of scan the worker shares with core (D-125 (2), D-136 (3))
+		"modules/scan/nucleiout",   // the worker counts host errors from nuclei's error log with it (D-165); its own deps_test keeps it a leaf
 		"modules/scan/pack",
 		"modules/sensor-active/nmapargv",
 		"modules/sensor-active/worker",

@@ -23,6 +23,8 @@ import (
 	"testing"
 	"testing/synctest"
 	"time"
+
+	"github.com/knt048/vedette/modules/scan/commonports"
 )
 
 // The tests run in a synctest bubble on an in-memory network (net.Pipe): no real address is ever dialed and no real clock is waited
@@ -534,5 +536,16 @@ func TestPortList(t *testing.T) {
 	t.Parallel()
 	if len(portByNumber) != len(commonPorts) || len(commonPorts) < 80 || len(commonPorts) > 110 {
 		t.Fatalf("%d ports, %d distinct", len(commonPorts), len(portByNumber))
+	}
+}
+
+// The kinds of this package are commonports.Use value for value: the list is shared with sensor-active's external nmap shape (D-514).
+func TestPortKindsFollowTheList(t *testing.T) {
+	t.Parallel()
+	if plain != kind(commonports.Plain) || web != kind(commonports.Web) || webTLS != kind(commonports.WebTLS) || tlsOnly != kind(commonports.TLSOnly) {
+		t.Fatal("the kinds of surface and the uses of commonports differ")
+	}
+	if len(commonPorts) != len(commonports.List) || commonPorts[16].port != 443 || commonPorts[16].kind != webTLS {
+		t.Fatalf("commonPorts = %v", commonPorts[:17])
 	}
 }

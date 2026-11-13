@@ -128,6 +128,9 @@ type running struct {
 	// picked: the identification of a device a person picked in Scan now (IdentifyDevice, D-501). Like the vulnerability scan
 	// it is part of, it runs at once: the window does not apply (its deadline is maxRun). Every other rule does.
 	picked bool
+	// external: service identification on the box's own public IP for exposure (ScanExternal, D-514). Its consent is exposure's,
+	// so the LAN settings, window and scope do not bind it; only Stop (the module turned off) and its own context end it.
+	external bool
 }
 
 // New returns the service.
@@ -388,9 +391,18 @@ func (s *Service) probe(ctx context.Context, jobID string, kind nmapargv.Kind, r
 	rctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	res, runErr := s.prober.Probe(rctx, args)
+	hosts, result, err := runOutcome(ctx, rctx, res, runErr, targets)
+	s.finishProbe(ctx, probeID, result)
+	if err != nil {
+		return nil, err
+	}
+	return hosts, nil
+}
 
-	var hosts []host
-	var result string
+// runOutcome turns the end of one nmap run into the hosts that answered among targets, the result of its probe row, and the error
+// of the run: a stop (ctx or rctx over), a failure of nmap or the worker, output over the limit, or output that is not valid
+// (INV-7). It is shared by the LAN runs (probe) and the external one (ScanExternal, D-514).
+func runOutcome(ctx, rctx context.Context, res Output, runErr error, targets []netip.Addr) (hosts []host, result string, err error) {
 	switch {
 	case rctx.Err() != nil || ctx.Err() != nil:
 		result, err = stoppedText, ErrStopped
@@ -410,6 +422,8 @@ func (s *Service) probe(ctx context.Context, jobID string, kind nmapargv.Kind, r
 			result = "failed: nmap_missing"
 		case errors.Is(runErr, ErrWorkerLost):
 			result = "failed: worker_lost"
+		case errors.Is(runErr, ErrNotOwnIP):
+			result = "refused: the scan worker found the address is not the box's own public IP now; nmap did not run"
 		case errors.Is(runErr, ErrWorkerRefused):
 			result = "failed: the worker refused the job"
 		case errors.Is(runErr, ErrResultRejected):
@@ -429,11 +443,7 @@ func (s *Service) probe(ctx context.Context, jobID string, kind nmapargv.Kind, r
 			result = fmt.Sprintf("ok: %d hosts up", len(hosts))
 		}
 	}
-	s.finishProbe(ctx, probeID, result)
-	if err != nil {
-		return nil, err
-	}
-	return hosts, nil
+	return hosts, result, err
 }
 
 // Reasons of the inventory's ScanPolicy that are states of the box, not of the device.
@@ -1423,12 +1433,12 @@ func (s *Service) SettingsChanged(ctx context.Context) error {
 	var targets []netip.Addr
 	var rate int
 	var deadline time.Time
-	var picked bool
+	var picked, external bool
 	if cur != nil {
-		targets, rate, deadline, picked = slices.Clone(cur.targets), cur.rate, cur.deadline, cur.picked
+		targets, rate, deadline, picked, external = slices.Clone(cur.targets), cur.rate, cur.deadline, cur.picked, cur.external
 	}
 	s.mu.Unlock()
-	if cur == nil {
+	if cur == nil || external { // an external run is not under the LAN settings (D-514)
 		return nil
 	}
 	st, err := s.inv.Settings(ctx)

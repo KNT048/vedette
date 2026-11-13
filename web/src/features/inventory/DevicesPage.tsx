@@ -191,6 +191,7 @@ function Body() {
               <KpiStrip label={t('kpi.label')} items={[
                 { value: d.counts.all, label: t('kpi.devices'), to: '/devices?tab=all' },
                 { value: d.counts.pending, label: t('kpi.review'), to: '/devices?tab=review' },
+                // ponytail: counted from the listed rows (MaxListed = 2000); past that, add counts.recent on the server.
                 { value: d.items.filter((x) => recent(x, now)).length, label: t('kpi.recent'), to: '/devices?tab=all&show=recent' },
                 { value: d.counts.manual, label: t('kpi.manual'), to: '/devices?tab=all&show=manual' },
               ]} />

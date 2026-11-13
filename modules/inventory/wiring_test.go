@@ -144,7 +144,7 @@ func TestMatchInputAndDeviceRefs(t *testing.T) {
 	e := newEnv(t)
 	id := e.addDevice(inventory.AddInput{CatalogID: "fortigate", Version: "7.2.5", IP: "192.168.30.1"})
 	d, ok, err := e.svc.MatchInput(e.ctx(), id)
-	if err != nil || !ok || d.Name != "192.168.30.1" || len(d.Software) != 1 || d.Software[0].Version != "7.2.5" || !slices.Contains(d.Software[0].KevKeys, "fortinet|fortios") {
+	if err != nil || !ok || d.Name != "FortiGate" /* D-471: a hand-added device is named after its product */ || len(d.Software) != 1 || d.Software[0].Version != "7.2.5" || !slices.Contains(d.Software[0].KevKeys, "fortinet|fortios") {
 		t.Fatalf("MatchInput: %+v %v %v", d, ok, err)
 	}
 	if _, ok, err = e.svc.MatchInput(e.ctx(), "nope"); ok || err != nil {

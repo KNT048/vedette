@@ -18,6 +18,7 @@ import type {
 } from './types'
 import { KINDS } from './types'
 import { cidrRange, hasHostBits, isPrivateCidr, LOCAL_RANGE_NAMES, normalizeRange, overlapping } from './validate'
+import { nameOf } from './nameOf'
 
 // Địa chỉ hộp Vedette đưa vào cấu hình agent: Vedette phục vụ cả giao diện lẫn API trên https://<IP hộp>:8443 (TLS). Không biết IP thì để chỗ trống rõ ràng, không bịa.
 const serverUrl = () => `https://${boxAddress() ?? NO_BOX_ADDRESS}:8443` // D-465: the Box address
@@ -533,7 +534,7 @@ export const handlers = [
     if ((sw.version ?? '') === version) return HttpResponse.json({ ok: true })
     assetsStore.update((l) => l.map((x) => (x.id === a.id ? { ...x, software: x.software.map((s) => (s.id === sw.id ? { ...s, version: version || null } : s)) } : x)))
     matchAssetToKev(a.id)
-    audit('inventory.set_software_version', `${a.hostname ?? a.id}: ${sw.display}`, `${sw.version || 'no version'} → ${version || 'no version'}`)
+    audit('inventory.set_software_version', `${nameOf(a, a.kind)}: ${sw.display}`, `${sw.version || 'no version'} → ${version || 'no version'}`)
     return HttpResponse.json({ ok: true })
   }),
 

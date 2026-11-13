@@ -21,7 +21,7 @@ function Body() {
   // "Add devices" links to #agents (D-471): the router does not scroll to a hash, and the section moves down once the ranges load.
   useEffect(() => {
     if (!hash || !admin || !settings.isFetched) return
-    document.getElementById(decodeURIComponent(hash.slice(1)))?.scrollIntoView?.({ block: 'start' })
+    document.getElementById(hash.slice(1))?.scrollIntoView?.({ block: 'start' }) // section ids are plain ASCII (#agents): no decoding, so a malformed hash cannot throw
   }, [hash, admin, settings.isFetched])
   const back = <Link to="/devices" className={cn(buttonVariants({ variant: 'link', size: 'sm' }), 'mb-3 inline-flex')}><ArrowLeft />{t('detail.back')}</Link>
   if (me.isPending) return <>{back}<Loading /></>

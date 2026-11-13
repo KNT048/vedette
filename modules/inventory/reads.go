@@ -385,7 +385,7 @@ func assetExists(ctx context.Context, q querier, id string) (bool, error) {
 	return err == nil, err
 }
 
-// deviceName is how audit rows and messages name a device: the hostname, else the IP, else as the pages do
+// deviceName is how audit rows, the matcher's evidence (MatchInput) and messages name a device: as the pages do
 // (DisplayName, D-471), else the id.
 func deviceName(ctx context.Context, q querier, id string) string {
 	var host, vendor, model, ip, product sql.NullString
@@ -394,13 +394,7 @@ func deviceName(ctx context.Context, q querier, id string) string {
 		Scan(&host, &vendor, &model, &ip, &origin, &product); err != nil {
 		return id
 	}
-	switch {
-	case host.Valid:
-		return host.String
-	case ip.Valid:
-		return ip.String
-	}
-	if n := DisplayName("", vendor.String, model.String, "", origin, product.String); n != "" {
+	if n := DisplayName(host.String, vendor.String, model.String, ip.String, origin, product.String); n != "" {
 		return n
 	}
 	return id

@@ -72,7 +72,7 @@ type MatchSoftware struct {
 // MatchDevice is a device with its software, for the matcher of findings.
 type MatchDevice struct {
 	ID       string
-	Name     string // hostname, else the IP, else the id
+	Name     string // DisplayName (D-471), else the id
 	OS       string // the current operating system ("Ubuntu 26.04.1 LTS"), "" when unknown (D-500: OS-level NVD entries)
 	Software []MatchSoftware
 }

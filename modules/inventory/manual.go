@@ -302,7 +302,7 @@ func (s *Service) SetSoftwareVersion(ctx context.Context, actor, assetID, softwa
 			return nil // nothing changes: no audit row, no rematch
 		}
 		if _, err := tx.ExecContext(ctx, `UPDATE inv_software SET version = ?, seen_at = ? WHERE id = ?`, nullStr(version), s.now(), softwareID); err != nil {
-			if strings.Contains(err.Error(), "UNIQUE") {
+			if store.IsUniqueViolation(err) {
 				return conflict("duplicate_software", display+" "+version+" is already on this device.")
 			}
 			return fmt.Errorf("inventory: set software version: %w", err)

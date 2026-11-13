@@ -54752,11 +54752,15 @@ func (s *FindingsGetFindingsIDOKAppliedItem) SetUser(val string) {
 }
 
 type FindingsGetFindingsIDOKAsset struct {
-	Display  string                           `json:"display"`
-	Hostname NilString                        `json:"hostname"`
-	ID       string                           `json:"id"`
-	IP       string                           `json:"ip"`
-	Kind     FindingsGetFindingsIDOKAssetKind `json:"kind"`
+	Display  string    `json:"display"`
+	Hostname NilString `json:"hostname"`
+	ID       string    `json:"id"`
+	// "—" when the device has no IP address.
+	IP   string                           `json:"ip"`
+	Kind FindingsGetFindingsIDOKAssetKind `json:"kind"`
+	// The name the Devices page shows: hostname, else vendor and model, else the IP, else the software;
+	// never the internal id (D-484).
+	Name string `json:"name"`
 }
 
 // GetDisplay returns the value of Display.
@@ -54784,6 +54788,11 @@ func (s *FindingsGetFindingsIDOKAsset) GetKind() FindingsGetFindingsIDOKAssetKin
 	return s.Kind
 }
 
+// GetName returns the value of Name.
+func (s *FindingsGetFindingsIDOKAsset) GetName() string {
+	return s.Name
+}
+
 // SetDisplay sets the value of Display.
 func (s *FindingsGetFindingsIDOKAsset) SetDisplay(val string) {
 	s.Display = val
@@ -54807,6 +54816,11 @@ func (s *FindingsGetFindingsIDOKAsset) SetIP(val string) {
 // SetKind sets the value of Kind.
 func (s *FindingsGetFindingsIDOKAsset) SetKind(val FindingsGetFindingsIDOKAssetKind) {
 	s.Kind = val
+}
+
+// SetName sets the value of Name.
+func (s *FindingsGetFindingsIDOKAsset) SetName(val string) {
+	s.Name = val
 }
 
 type FindingsGetFindingsIDOKAssetKind string
@@ -56333,11 +56347,15 @@ func (s *FindingsGetFindingsOKItemsItem) SetStatus(val FindingsGetFindingsOKItem
 }
 
 type FindingsGetFindingsOKItemsItemAsset struct {
-	Display  string                                  `json:"display"`
-	Hostname NilString                               `json:"hostname"`
-	ID       string                                  `json:"id"`
-	IP       string                                  `json:"ip"`
-	Kind     FindingsGetFindingsOKItemsItemAssetKind `json:"kind"`
+	Display  string    `json:"display"`
+	Hostname NilString `json:"hostname"`
+	ID       string    `json:"id"`
+	// "—" when the device has no IP address.
+	IP   string                                  `json:"ip"`
+	Kind FindingsGetFindingsOKItemsItemAssetKind `json:"kind"`
+	// The name the Devices page shows: hostname, else vendor and model, else the IP, else the software;
+	// never the internal id (D-484).
+	Name string `json:"name"`
 }
 
 // GetDisplay returns the value of Display.
@@ -56365,6 +56383,11 @@ func (s *FindingsGetFindingsOKItemsItemAsset) GetKind() FindingsGetFindingsOKIte
 	return s.Kind
 }
 
+// GetName returns the value of Name.
+func (s *FindingsGetFindingsOKItemsItemAsset) GetName() string {
+	return s.Name
+}
+
 // SetDisplay sets the value of Display.
 func (s *FindingsGetFindingsOKItemsItemAsset) SetDisplay(val string) {
 	s.Display = val
@@ -56388,6 +56411,11 @@ func (s *FindingsGetFindingsOKItemsItemAsset) SetIP(val string) {
 // SetKind sets the value of Kind.
 func (s *FindingsGetFindingsOKItemsItemAsset) SetKind(val FindingsGetFindingsOKItemsItemAssetKind) {
 	s.Kind = val
+}
+
+// SetName sets the value of Name.
+func (s *FindingsGetFindingsOKItemsItemAsset) SetName(val string) {
+	s.Name = val
 }
 
 type FindingsGetFindingsOKItemsItemAssetKind string
@@ -56993,11 +57021,15 @@ func (s *FindingsGetFindingsOKVersionNeededItem) SetVersion(val NilString) {
 }
 
 type FindingsGetFindingsOKVersionNeededItemAsset struct {
-	Display  string                                          `json:"display"`
-	Hostname NilString                                       `json:"hostname"`
-	ID       string                                          `json:"id"`
-	IP       string                                          `json:"ip"`
-	Kind     FindingsGetFindingsOKVersionNeededItemAssetKind `json:"kind"`
+	Display  string    `json:"display"`
+	Hostname NilString `json:"hostname"`
+	ID       string    `json:"id"`
+	// "—" when the device has no IP address.
+	IP   string                                          `json:"ip"`
+	Kind FindingsGetFindingsOKVersionNeededItemAssetKind `json:"kind"`
+	// The name the Devices page shows: hostname, else vendor and model, else the IP, else the software;
+	// never the internal id (D-484).
+	Name string `json:"name"`
 }
 
 // GetDisplay returns the value of Display.
@@ -57025,6 +57057,11 @@ func (s *FindingsGetFindingsOKVersionNeededItemAsset) GetKind() FindingsGetFindi
 	return s.Kind
 }
 
+// GetName returns the value of Name.
+func (s *FindingsGetFindingsOKVersionNeededItemAsset) GetName() string {
+	return s.Name
+}
+
 // SetDisplay sets the value of Display.
 func (s *FindingsGetFindingsOKVersionNeededItemAsset) SetDisplay(val string) {
 	s.Display = val
@@ -57048,6 +57085,11 @@ func (s *FindingsGetFindingsOKVersionNeededItemAsset) SetIP(val string) {
 // SetKind sets the value of Kind.
 func (s *FindingsGetFindingsOKVersionNeededItemAsset) SetKind(val FindingsGetFindingsOKVersionNeededItemAssetKind) {
 	s.Kind = val
+}
+
+// SetName sets the value of Name.
+func (s *FindingsGetFindingsOKVersionNeededItemAsset) SetName(val string) {
+	s.Name = val
 }
 
 type FindingsGetFindingsOKVersionNeededItemAssetKind string
@@ -57872,11 +57914,15 @@ func (s *FindingsPostFindingsIDAiOKAppliedItem) SetUser(val string) {
 }
 
 type FindingsPostFindingsIDAiOKAsset struct {
-	Display  string                              `json:"display"`
-	Hostname NilString                           `json:"hostname"`
-	ID       string                              `json:"id"`
-	IP       string                              `json:"ip"`
-	Kind     FindingsPostFindingsIDAiOKAssetKind `json:"kind"`
+	Display  string    `json:"display"`
+	Hostname NilString `json:"hostname"`
+	ID       string    `json:"id"`
+	// "—" when the device has no IP address.
+	IP   string                              `json:"ip"`
+	Kind FindingsPostFindingsIDAiOKAssetKind `json:"kind"`
+	// The name the Devices page shows: hostname, else vendor and model, else the IP, else the software;
+	// never the internal id (D-484).
+	Name string `json:"name"`
 }
 
 // GetDisplay returns the value of Display.
@@ -57904,6 +57950,11 @@ func (s *FindingsPostFindingsIDAiOKAsset) GetKind() FindingsPostFindingsIDAiOKAs
 	return s.Kind
 }
 
+// GetName returns the value of Name.
+func (s *FindingsPostFindingsIDAiOKAsset) GetName() string {
+	return s.Name
+}
+
 // SetDisplay sets the value of Display.
 func (s *FindingsPostFindingsIDAiOKAsset) SetDisplay(val string) {
 	s.Display = val
@@ -57927,6 +57978,11 @@ func (s *FindingsPostFindingsIDAiOKAsset) SetIP(val string) {
 // SetKind sets the value of Kind.
 func (s *FindingsPostFindingsIDAiOKAsset) SetKind(val FindingsPostFindingsIDAiOKAssetKind) {
 	s.Kind = val
+}
+
+// SetName sets the value of Name.
+func (s *FindingsPostFindingsIDAiOKAsset) SetName(val string) {
+	s.Name = val
 }
 
 type FindingsPostFindingsIDAiOKAssetKind string
@@ -60004,11 +60060,15 @@ func (s *FindingsPostFindingsIDAppliedOKAppliedItem) SetUser(val string) {
 }
 
 type FindingsPostFindingsIDAppliedOKAsset struct {
-	Display  string                                   `json:"display"`
-	Hostname NilString                                `json:"hostname"`
-	ID       string                                   `json:"id"`
-	IP       string                                   `json:"ip"`
-	Kind     FindingsPostFindingsIDAppliedOKAssetKind `json:"kind"`
+	Display  string    `json:"display"`
+	Hostname NilString `json:"hostname"`
+	ID       string    `json:"id"`
+	// "—" when the device has no IP address.
+	IP   string                                   `json:"ip"`
+	Kind FindingsPostFindingsIDAppliedOKAssetKind `json:"kind"`
+	// The name the Devices page shows: hostname, else vendor and model, else the IP, else the software;
+	// never the internal id (D-484).
+	Name string `json:"name"`
 }
 
 // GetDisplay returns the value of Display.
@@ -60036,6 +60096,11 @@ func (s *FindingsPostFindingsIDAppliedOKAsset) GetKind() FindingsPostFindingsIDA
 	return s.Kind
 }
 
+// GetName returns the value of Name.
+func (s *FindingsPostFindingsIDAppliedOKAsset) GetName() string {
+	return s.Name
+}
+
 // SetDisplay sets the value of Display.
 func (s *FindingsPostFindingsIDAppliedOKAsset) SetDisplay(val string) {
 	s.Display = val
@@ -60059,6 +60124,11 @@ func (s *FindingsPostFindingsIDAppliedOKAsset) SetIP(val string) {
 // SetKind sets the value of Kind.
 func (s *FindingsPostFindingsIDAppliedOKAsset) SetKind(val FindingsPostFindingsIDAppliedOKAssetKind) {
 	s.Kind = val
+}
+
+// SetName sets the value of Name.
+func (s *FindingsPostFindingsIDAppliedOKAsset) SetName(val string) {
+	s.Name = val
 }
 
 type FindingsPostFindingsIDAppliedOKAssetKind string
@@ -62157,11 +62227,15 @@ func (s *FindingsPostFindingsIDStatusOKAppliedItem) SetUser(val string) {
 }
 
 type FindingsPostFindingsIDStatusOKAsset struct {
-	Display  string                                  `json:"display"`
-	Hostname NilString                               `json:"hostname"`
-	ID       string                                  `json:"id"`
-	IP       string                                  `json:"ip"`
-	Kind     FindingsPostFindingsIDStatusOKAssetKind `json:"kind"`
+	Display  string    `json:"display"`
+	Hostname NilString `json:"hostname"`
+	ID       string    `json:"id"`
+	// "—" when the device has no IP address.
+	IP   string                                  `json:"ip"`
+	Kind FindingsPostFindingsIDStatusOKAssetKind `json:"kind"`
+	// The name the Devices page shows: hostname, else vendor and model, else the IP, else the software;
+	// never the internal id (D-484).
+	Name string `json:"name"`
 }
 
 // GetDisplay returns the value of Display.
@@ -62189,6 +62263,11 @@ func (s *FindingsPostFindingsIDStatusOKAsset) GetKind() FindingsPostFindingsIDSt
 	return s.Kind
 }
 
+// GetName returns the value of Name.
+func (s *FindingsPostFindingsIDStatusOKAsset) GetName() string {
+	return s.Name
+}
+
 // SetDisplay sets the value of Display.
 func (s *FindingsPostFindingsIDStatusOKAsset) SetDisplay(val string) {
 	s.Display = val
@@ -62212,6 +62291,11 @@ func (s *FindingsPostFindingsIDStatusOKAsset) SetIP(val string) {
 // SetKind sets the value of Kind.
 func (s *FindingsPostFindingsIDStatusOKAsset) SetKind(val FindingsPostFindingsIDStatusOKAssetKind) {
 	s.Kind = val
+}
+
+// SetName sets the value of Name.
+func (s *FindingsPostFindingsIDStatusOKAsset) SetName(val string) {
+	s.Name = val
 }
 
 type FindingsPostFindingsIDStatusOKAssetKind string
@@ -63611,6 +63695,124 @@ func (s *FindingsPostFindingsIDStatusReqAction) UnmarshalText(data []byte) error
 		return nil
 	case FindingsPostFindingsIDStatusReqActionReopen:
 		*s = FindingsPostFindingsIDStatusReqActionReopen
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FindingsPostFindingsStatusOK struct {
+	// Findings already closed, left as they were.
+	Skipped int `json:"skipped"`
+	// Open findings changed.
+	Updated int `json:"updated"`
+}
+
+// GetSkipped returns the value of Skipped.
+func (s *FindingsPostFindingsStatusOK) GetSkipped() int {
+	return s.Skipped
+}
+
+// GetUpdated returns the value of Updated.
+func (s *FindingsPostFindingsStatusOK) GetUpdated() int {
+	return s.Updated
+}
+
+// SetSkipped sets the value of Skipped.
+func (s *FindingsPostFindingsStatusOK) SetSkipped(val int) {
+	s.Skipped = val
+}
+
+// SetUpdated sets the value of Updated.
+func (s *FindingsPostFindingsStatusOK) SetUpdated(val int) {
+	s.Updated = val
+}
+
+type FindingsPostFindingsStatusReq struct {
+	Action FindingsPostFindingsStatusReqAction `json:"action"`
+	Ids    []string                            `json:"ids"`
+	Note   string                              `json:"note"`
+}
+
+// GetAction returns the value of Action.
+func (s *FindingsPostFindingsStatusReq) GetAction() FindingsPostFindingsStatusReqAction {
+	return s.Action
+}
+
+// GetIds returns the value of Ids.
+func (s *FindingsPostFindingsStatusReq) GetIds() []string {
+	return s.Ids
+}
+
+// GetNote returns the value of Note.
+func (s *FindingsPostFindingsStatusReq) GetNote() string {
+	return s.Note
+}
+
+// SetAction sets the value of Action.
+func (s *FindingsPostFindingsStatusReq) SetAction(val FindingsPostFindingsStatusReqAction) {
+	s.Action = val
+}
+
+// SetIds sets the value of Ids.
+func (s *FindingsPostFindingsStatusReq) SetIds(val []string) {
+	s.Ids = val
+}
+
+// SetNote sets the value of Note.
+func (s *FindingsPostFindingsStatusReq) SetNote(val string) {
+	s.Note = val
+}
+
+type FindingsPostFindingsStatusReqAction string
+
+const (
+	FindingsPostFindingsStatusReqActionPatched       FindingsPostFindingsStatusReqAction = "patched"
+	FindingsPostFindingsStatusReqActionMitigated     FindingsPostFindingsStatusReqAction = "mitigated"
+	FindingsPostFindingsStatusReqActionFalsePositive FindingsPostFindingsStatusReqAction = "false_positive"
+	FindingsPostFindingsStatusReqActionNotRelevant   FindingsPostFindingsStatusReqAction = "not_relevant"
+)
+
+// AllValues returns all FindingsPostFindingsStatusReqAction values.
+func (FindingsPostFindingsStatusReqAction) AllValues() []FindingsPostFindingsStatusReqAction {
+	return []FindingsPostFindingsStatusReqAction{
+		FindingsPostFindingsStatusReqActionPatched,
+		FindingsPostFindingsStatusReqActionMitigated,
+		FindingsPostFindingsStatusReqActionFalsePositive,
+		FindingsPostFindingsStatusReqActionNotRelevant,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsStatusReqAction) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsStatusReqActionPatched:
+		return []byte(s), nil
+	case FindingsPostFindingsStatusReqActionMitigated:
+		return []byte(s), nil
+	case FindingsPostFindingsStatusReqActionFalsePositive:
+		return []byte(s), nil
+	case FindingsPostFindingsStatusReqActionNotRelevant:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsStatusReqAction) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsStatusReqAction(data) {
+	case FindingsPostFindingsStatusReqActionPatched:
+		*s = FindingsPostFindingsStatusReqActionPatched
+		return nil
+	case FindingsPostFindingsStatusReqActionMitigated:
+		*s = FindingsPostFindingsStatusReqActionMitigated
+		return nil
+	case FindingsPostFindingsStatusReqActionFalsePositive:
+		*s = FindingsPostFindingsStatusReqActionFalsePositive
+		return nil
+	case FindingsPostFindingsStatusReqActionNotRelevant:
+		*s = FindingsPostFindingsStatusReqActionNotRelevant
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -92087,10 +92289,11 @@ type NotifyGetNotifyChannelsOKChannelsItem struct {
 	Approvers  []NotifyGetNotifyChannelsOKChannelsItemApproversItem `json:"approvers"`
 	Configured bool                                                 `json:"configured"`
 	Enabled    bool                                                 `json:"enabled"`
-	// Non-secret fields: telegram chat_id · zalo oa_id, user_id · zalo-personal user_id (recipient user
-	// or group ID), group ("true" for a group), name (shown name of the recipient), account (shown name of
-	// the signed-in Zalo account; set by the box from the QR sign-in, D-447; the session is the secret) ·
-	// email provider (preset, D-449:
+	// Non-secret fields: telegram chat_id · zalo oa_id, user_id, app_id (the Zalo app of the
+	// refresh-token flow, D-483; absent for a channel with only an access token) · zalo-personal user_id
+	// (recipient user or group ID), group ("true" for a group), name (shown name of the recipient),
+	// account (shown name of the signed-in Zalo account; set by the box from the QR sign-in, D-447; the
+	// session is the secret) · email provider (preset, D-449:
 	// custom|gmail|yahoo|icloud|zoho|fastmail|sendgrid|mailgun|ses|postmark|brevo|microsoft365|google-workspace;
 	// D-480 user sign-ins: microsoft365-user|outlook|gmail-oauth, saved with signin; absent = custom),
 	// host, port, security (starttls|ssl|none), username (the mailbox for microsoft365 and
@@ -92273,10 +92476,11 @@ func (s *NotifyGetNotifyChannelsOKChannelsItemApproversItem) SetUserID(val strin
 	s.UserID = val
 }
 
-// Non-secret fields: telegram chat_id · zalo oa_id, user_id · zalo-personal user_id (recipient user
-// or group ID), group ("true" for a group), name (shown name of the recipient), account (shown name of
-// the signed-in Zalo account; set by the box from the QR sign-in, D-447; the session is the secret) ·
-// email provider (preset, D-449:
+// Non-secret fields: telegram chat_id · zalo oa_id, user_id, app_id (the Zalo app of the
+// refresh-token flow, D-483; absent for a channel with only an access token) · zalo-personal user_id
+// (recipient user or group ID), group ("true" for a group), name (shown name of the recipient),
+// account (shown name of the signed-in Zalo account; set by the box from the QR sign-in, D-447; the
+// session is the secret) · email provider (preset, D-449:
 // custom|gmail|yahoo|icloud|zoho|fastmail|sendgrid|mailgun|ses|postmark|brevo|microsoft365|google-workspace;
 // D-480 user sign-ins: microsoft365-user|outlook|gmail-oauth, saved with signin; absent = custom),
 // host, port, security (starttls|ssl|none), username (the mailbox for microsoft365 and
@@ -92563,10 +92767,13 @@ func (s *NotifyGetNotifyFindingsIDNoticesOK) SetSends(val []NotifyGetNotifyFindi
 type NotifyGetNotifyFindingsIDNoticesOKSendsItem struct {
 	At      time.Time                                          `json:"at"`
 	Channel NotifyGetNotifyFindingsIDNoticesOKSendsItemChannel `json:"channel"`
-	Error   OptString                                          `json:"error"`
-	ID      string                                             `json:"id"`
-	Ok      bool                                               `json:"ok"`
-	To      string                                             `json:"to"`
+	// The provider asked to slow down (HTTP 429, Zalo -32): the message waits in the queue and is sent
+	// again by itself; not a failure, no Resend (D-483).
+	Delayed bool      `json:"delayed"`
+	Error   OptString `json:"error"`
+	ID      string    `json:"id"`
+	Ok      bool      `json:"ok"`
+	To      string    `json:"to"`
 }
 
 // GetAt returns the value of At.
@@ -92577,6 +92784,11 @@ func (s *NotifyGetNotifyFindingsIDNoticesOKSendsItem) GetAt() time.Time {
 // GetChannel returns the value of Channel.
 func (s *NotifyGetNotifyFindingsIDNoticesOKSendsItem) GetChannel() NotifyGetNotifyFindingsIDNoticesOKSendsItemChannel {
 	return s.Channel
+}
+
+// GetDelayed returns the value of Delayed.
+func (s *NotifyGetNotifyFindingsIDNoticesOKSendsItem) GetDelayed() bool {
+	return s.Delayed
 }
 
 // GetError returns the value of Error.
@@ -92607,6 +92819,11 @@ func (s *NotifyGetNotifyFindingsIDNoticesOKSendsItem) SetAt(val time.Time) {
 // SetChannel sets the value of Channel.
 func (s *NotifyGetNotifyFindingsIDNoticesOKSendsItem) SetChannel(val NotifyGetNotifyFindingsIDNoticesOKSendsItemChannel) {
 	s.Channel = val
+}
+
+// SetDelayed sets the value of Delayed.
+func (s *NotifyGetNotifyFindingsIDNoticesOKSendsItem) SetDelayed(val bool) {
+	s.Delayed = val
 }
 
 // SetError sets the value of Error.
@@ -92726,13 +92943,16 @@ func (s *NotifyGetNotifyHistoryOK) SetSuppressed(val NotifyGetNotifyHistoryOKSup
 type NotifyGetNotifyHistoryOKItemsItem struct {
 	At      time.Time                                `json:"at"`
 	Channel NotifyGetNotifyHistoryOKItemsItemChannel `json:"channel"`
-	Error   OptString                                `json:"error"`
-	ID      string                                   `json:"id"`
-	Kind    NotifyGetNotifyHistoryOKItemsItemKind    `json:"kind"`
-	Link    string                                   `json:"link"`
-	Ok      bool                                     `json:"ok"`
-	To      string                                   `json:"to"`
-	What    string                                   `json:"what"`
+	// A "Delayed (rate limited)" row: the message is sent again by itself after the wait the provider
+	// asked for (D-483).
+	Delayed bool                                  `json:"delayed"`
+	Error   OptString                             `json:"error"`
+	ID      string                                `json:"id"`
+	Kind    NotifyGetNotifyHistoryOKItemsItemKind `json:"kind"`
+	Link    string                                `json:"link"`
+	Ok      bool                                  `json:"ok"`
+	To      string                                `json:"to"`
+	What    string                                `json:"what"`
 }
 
 // GetAt returns the value of At.
@@ -92743,6 +92963,11 @@ func (s *NotifyGetNotifyHistoryOKItemsItem) GetAt() time.Time {
 // GetChannel returns the value of Channel.
 func (s *NotifyGetNotifyHistoryOKItemsItem) GetChannel() NotifyGetNotifyHistoryOKItemsItemChannel {
 	return s.Channel
+}
+
+// GetDelayed returns the value of Delayed.
+func (s *NotifyGetNotifyHistoryOKItemsItem) GetDelayed() bool {
+	return s.Delayed
 }
 
 // GetError returns the value of Error.
@@ -92788,6 +93013,11 @@ func (s *NotifyGetNotifyHistoryOKItemsItem) SetAt(val time.Time) {
 // SetChannel sets the value of Channel.
 func (s *NotifyGetNotifyHistoryOKItemsItem) SetChannel(val NotifyGetNotifyHistoryOKItemsItemChannel) {
 	s.Channel = val
+}
+
+// SetDelayed sets the value of Delayed.
+func (s *NotifyGetNotifyHistoryOKItemsItem) SetDelayed(val bool) {
+	s.Delayed = val
 }
 
 // SetError sets the value of Error.
@@ -93272,10 +93502,13 @@ func (s *NotifyGetNotifyIncidentsIDOKIncidentKind) UnmarshalText(data []byte) er
 type NotifyGetNotifyIncidentsIDOKIncidentSendsItem struct {
 	At      time.Time                                            `json:"at"`
 	Channel NotifyGetNotifyIncidentsIDOKIncidentSendsItemChannel `json:"channel"`
-	Error   OptString                                            `json:"error"`
-	ID      string                                               `json:"id"`
-	Ok      bool                                                 `json:"ok"`
-	To      string                                               `json:"to"`
+	// The provider asked to slow down (HTTP 429, Zalo -32): the message waits in the queue and is sent
+	// again by itself; not a failure, no Resend (D-483).
+	Delayed bool      `json:"delayed"`
+	Error   OptString `json:"error"`
+	ID      string    `json:"id"`
+	Ok      bool      `json:"ok"`
+	To      string    `json:"to"`
 }
 
 // GetAt returns the value of At.
@@ -93286,6 +93519,11 @@ func (s *NotifyGetNotifyIncidentsIDOKIncidentSendsItem) GetAt() time.Time {
 // GetChannel returns the value of Channel.
 func (s *NotifyGetNotifyIncidentsIDOKIncidentSendsItem) GetChannel() NotifyGetNotifyIncidentsIDOKIncidentSendsItemChannel {
 	return s.Channel
+}
+
+// GetDelayed returns the value of Delayed.
+func (s *NotifyGetNotifyIncidentsIDOKIncidentSendsItem) GetDelayed() bool {
+	return s.Delayed
 }
 
 // GetError returns the value of Error.
@@ -93316,6 +93554,11 @@ func (s *NotifyGetNotifyIncidentsIDOKIncidentSendsItem) SetAt(val time.Time) {
 // SetChannel sets the value of Channel.
 func (s *NotifyGetNotifyIncidentsIDOKIncidentSendsItem) SetChannel(val NotifyGetNotifyIncidentsIDOKIncidentSendsItemChannel) {
 	s.Channel = val
+}
+
+// SetDelayed sets the value of Delayed.
+func (s *NotifyGetNotifyIncidentsIDOKIncidentSendsItem) SetDelayed(val bool) {
+	s.Delayed = val
 }
 
 // SetError sets the value of Error.
@@ -93916,10 +94159,13 @@ func (s *NotifyGetNotifyIncidentsOKIncidentsItemKind) UnmarshalText(data []byte)
 type NotifyGetNotifyIncidentsOKIncidentsItemSendsItem struct {
 	At      time.Time                                               `json:"at"`
 	Channel NotifyGetNotifyIncidentsOKIncidentsItemSendsItemChannel `json:"channel"`
-	Error   OptString                                               `json:"error"`
-	ID      string                                                  `json:"id"`
-	Ok      bool                                                    `json:"ok"`
-	To      string                                                  `json:"to"`
+	// The provider asked to slow down (HTTP 429, Zalo -32): the message waits in the queue and is sent
+	// again by itself; not a failure, no Resend (D-483).
+	Delayed bool      `json:"delayed"`
+	Error   OptString `json:"error"`
+	ID      string    `json:"id"`
+	Ok      bool      `json:"ok"`
+	To      string    `json:"to"`
 }
 
 // GetAt returns the value of At.
@@ -93930,6 +94176,11 @@ func (s *NotifyGetNotifyIncidentsOKIncidentsItemSendsItem) GetAt() time.Time {
 // GetChannel returns the value of Channel.
 func (s *NotifyGetNotifyIncidentsOKIncidentsItemSendsItem) GetChannel() NotifyGetNotifyIncidentsOKIncidentsItemSendsItemChannel {
 	return s.Channel
+}
+
+// GetDelayed returns the value of Delayed.
+func (s *NotifyGetNotifyIncidentsOKIncidentsItemSendsItem) GetDelayed() bool {
+	return s.Delayed
 }
 
 // GetError returns the value of Error.
@@ -93960,6 +94211,11 @@ func (s *NotifyGetNotifyIncidentsOKIncidentsItemSendsItem) SetAt(val time.Time) 
 // SetChannel sets the value of Channel.
 func (s *NotifyGetNotifyIncidentsOKIncidentsItemSendsItem) SetChannel(val NotifyGetNotifyIncidentsOKIncidentsItemSendsItemChannel) {
 	s.Channel = val
+}
+
+// SetDelayed sets the value of Delayed.
+func (s *NotifyGetNotifyIncidentsOKIncidentsItemSendsItem) SetDelayed(val bool) {
+	s.Delayed = val
 }
 
 // SetError sets the value of Error.
@@ -95107,10 +95363,13 @@ func (s *NotifyPatchNotifyIncidentsIDOKIncidentKind) UnmarshalText(data []byte) 
 type NotifyPatchNotifyIncidentsIDOKIncidentSendsItem struct {
 	At      time.Time                                              `json:"at"`
 	Channel NotifyPatchNotifyIncidentsIDOKIncidentSendsItemChannel `json:"channel"`
-	Error   OptString                                              `json:"error"`
-	ID      string                                                 `json:"id"`
-	Ok      bool                                                   `json:"ok"`
-	To      string                                                 `json:"to"`
+	// The provider asked to slow down (HTTP 429, Zalo -32): the message waits in the queue and is sent
+	// again by itself; not a failure, no Resend (D-483).
+	Delayed bool      `json:"delayed"`
+	Error   OptString `json:"error"`
+	ID      string    `json:"id"`
+	Ok      bool      `json:"ok"`
+	To      string    `json:"to"`
 }
 
 // GetAt returns the value of At.
@@ -95121,6 +95380,11 @@ func (s *NotifyPatchNotifyIncidentsIDOKIncidentSendsItem) GetAt() time.Time {
 // GetChannel returns the value of Channel.
 func (s *NotifyPatchNotifyIncidentsIDOKIncidentSendsItem) GetChannel() NotifyPatchNotifyIncidentsIDOKIncidentSendsItemChannel {
 	return s.Channel
+}
+
+// GetDelayed returns the value of Delayed.
+func (s *NotifyPatchNotifyIncidentsIDOKIncidentSendsItem) GetDelayed() bool {
+	return s.Delayed
 }
 
 // GetError returns the value of Error.
@@ -95151,6 +95415,11 @@ func (s *NotifyPatchNotifyIncidentsIDOKIncidentSendsItem) SetAt(val time.Time) {
 // SetChannel sets the value of Channel.
 func (s *NotifyPatchNotifyIncidentsIDOKIncidentSendsItem) SetChannel(val NotifyPatchNotifyIncidentsIDOKIncidentSendsItemChannel) {
 	s.Channel = val
+}
+
+// SetDelayed sets the value of Delayed.
+func (s *NotifyPatchNotifyIncidentsIDOKIncidentSendsItem) SetDelayed(val bool) {
+	s.Delayed = val
 }
 
 // SetError sets the value of Error.
@@ -96278,13 +96547,16 @@ func (s *NotifyPostNotifyEmailSigninReqProvider) UnmarshalText(data []byte) erro
 type NotifyPostNotifyHistoryIDResendOK struct {
 	At      time.Time                                `json:"at"`
 	Channel NotifyPostNotifyHistoryIDResendOKChannel `json:"channel"`
-	Error   OptString                                `json:"error"`
-	ID      string                                   `json:"id"`
-	Kind    NotifyPostNotifyHistoryIDResendOKKind    `json:"kind"`
-	Link    string                                   `json:"link"`
-	Ok      bool                                     `json:"ok"`
-	To      string                                   `json:"to"`
-	What    string                                   `json:"what"`
+	// A "Delayed (rate limited)" row: the message is sent again by itself after the wait the provider
+	// asked for (D-483).
+	Delayed bool                                  `json:"delayed"`
+	Error   OptString                             `json:"error"`
+	ID      string                                `json:"id"`
+	Kind    NotifyPostNotifyHistoryIDResendOKKind `json:"kind"`
+	Link    string                                `json:"link"`
+	Ok      bool                                  `json:"ok"`
+	To      string                                `json:"to"`
+	What    string                                `json:"what"`
 }
 
 // GetAt returns the value of At.
@@ -96295,6 +96567,11 @@ func (s *NotifyPostNotifyHistoryIDResendOK) GetAt() time.Time {
 // GetChannel returns the value of Channel.
 func (s *NotifyPostNotifyHistoryIDResendOK) GetChannel() NotifyPostNotifyHistoryIDResendOKChannel {
 	return s.Channel
+}
+
+// GetDelayed returns the value of Delayed.
+func (s *NotifyPostNotifyHistoryIDResendOK) GetDelayed() bool {
+	return s.Delayed
 }
 
 // GetError returns the value of Error.
@@ -96340,6 +96617,11 @@ func (s *NotifyPostNotifyHistoryIDResendOK) SetAt(val time.Time) {
 // SetChannel sets the value of Channel.
 func (s *NotifyPostNotifyHistoryIDResendOK) SetChannel(val NotifyPostNotifyHistoryIDResendOKChannel) {
 	s.Channel = val
+}
+
+// SetDelayed sets the value of Delayed.
+func (s *NotifyPostNotifyHistoryIDResendOK) SetDelayed(val bool) {
+	s.Delayed = val
 }
 
 // SetError sets the value of Error.
@@ -97069,10 +97351,11 @@ type NotifyPutNotifyChannelsTypeOK struct {
 	Approvers  []NotifyPutNotifyChannelsTypeOKApproversItem `json:"approvers"`
 	Configured bool                                         `json:"configured"`
 	Enabled    bool                                         `json:"enabled"`
-	// Non-secret fields: telegram chat_id · zalo oa_id, user_id · zalo-personal user_id (recipient user
-	// or group ID), group ("true" for a group), name (shown name of the recipient), account (shown name of
-	// the signed-in Zalo account; set by the box from the QR sign-in, D-447; the session is the secret) ·
-	// email provider (preset, D-449:
+	// Non-secret fields: telegram chat_id · zalo oa_id, user_id, app_id (the Zalo app of the
+	// refresh-token flow, D-483; absent for a channel with only an access token) · zalo-personal user_id
+	// (recipient user or group ID), group ("true" for a group), name (shown name of the recipient),
+	// account (shown name of the signed-in Zalo account; set by the box from the QR sign-in, D-447; the
+	// session is the secret) · email provider (preset, D-449:
 	// custom|gmail|yahoo|icloud|zoho|fastmail|sendgrid|mailgun|ses|postmark|brevo|microsoft365|google-workspace;
 	// D-480 user sign-ins: microsoft365-user|outlook|gmail-oauth, saved with signin; absent = custom),
 	// host, port, security (starttls|ssl|none), username (the mailbox for microsoft365 and
@@ -97255,10 +97538,11 @@ func (s *NotifyPutNotifyChannelsTypeOKApproversItem) SetUserID(val string) {
 	s.UserID = val
 }
 
-// Non-secret fields: telegram chat_id · zalo oa_id, user_id · zalo-personal user_id (recipient user
-// or group ID), group ("true" for a group), name (shown name of the recipient), account (shown name of
-// the signed-in Zalo account; set by the box from the QR sign-in, D-447; the session is the secret) ·
-// email provider (preset, D-449:
+// Non-secret fields: telegram chat_id · zalo oa_id, user_id, app_id (the Zalo app of the
+// refresh-token flow, D-483; absent for a channel with only an access token) · zalo-personal user_id
+// (recipient user or group ID), group ("true" for a group), name (shown name of the recipient),
+// account (shown name of the signed-in Zalo account; set by the box from the QR sign-in, D-447; the
+// session is the secret) · email provider (preset, D-449:
 // custom|gmail|yahoo|icloud|zoho|fastmail|sendgrid|mailgun|ses|postmark|brevo|microsoft365|google-workspace;
 // D-480 user sign-ins: microsoft365-user|outlook|gmail-oauth, saved with signin; absent = custom),
 // host, port, security (starttls|ssl|none), username (the mailbox for microsoft365 and
@@ -97451,10 +97735,16 @@ type NotifyPutNotifyChannelsTypeReq struct {
 	Enabled     bool                                      `json:"enabled"`
 	Fields      NotifyPutNotifyChannelsTypeReqFields      `json:"fields"`
 	MinSeverity NotifyPutNotifyChannelsTypeReqMinSeverity `json:"min_severity"`
+	// Zalo OA (D-483): the OA refresh token (about 3 months, single use; the box refreshes the access
+	// token and keeps the rotated refresh token); leave blank to keep the saved one. With it, secret is
+	// the current access token, optional.
+	RefreshToken OptString `json:"refresh_token"`
 	// Leave blank to keep the saved secret (email: only while the sign-in method of the provider stays the
 	// same). Email: password, app password or API key; the Microsoft 365 client secret; the Google
 	// Workspace service account key file (JSON).
 	Secret OptString `json:"secret"`
+	// Zalo OA (D-483): the Secret key of the Zalo app; leave blank to keep the saved one.
+	SecretKey OptString `json:"secret_key"`
 	// Email user sign-in (D-480): the id of a finished sign-in of the same admin; its refresh token
 	// becomes the secret and its mailbox the username.
 	Signin OptString `json:"signin"`
@@ -97498,9 +97788,19 @@ func (s *NotifyPutNotifyChannelsTypeReq) GetMinSeverity() NotifyPutNotifyChannel
 	return s.MinSeverity
 }
 
+// GetRefreshToken returns the value of RefreshToken.
+func (s *NotifyPutNotifyChannelsTypeReq) GetRefreshToken() OptString {
+	return s.RefreshToken
+}
+
 // GetSecret returns the value of Secret.
 func (s *NotifyPutNotifyChannelsTypeReq) GetSecret() OptString {
 	return s.Secret
+}
+
+// GetSecretKey returns the value of SecretKey.
+func (s *NotifyPutNotifyChannelsTypeReq) GetSecretKey() OptString {
+	return s.SecretKey
 }
 
 // GetSignin returns the value of Signin.
@@ -97548,9 +97848,19 @@ func (s *NotifyPutNotifyChannelsTypeReq) SetMinSeverity(val NotifyPutNotifyChann
 	s.MinSeverity = val
 }
 
+// SetRefreshToken sets the value of RefreshToken.
+func (s *NotifyPutNotifyChannelsTypeReq) SetRefreshToken(val OptString) {
+	s.RefreshToken = val
+}
+
 // SetSecret sets the value of Secret.
 func (s *NotifyPutNotifyChannelsTypeReq) SetSecret(val OptString) {
 	s.Secret = val
+}
+
+// SetSecretKey sets the value of SecretKey.
+func (s *NotifyPutNotifyChannelsTypeReq) SetSecretKey(val OptString) {
+	s.SecretKey = val
 }
 
 // SetSignin sets the value of Signin.
@@ -139397,6 +139707,7 @@ const (
 	ScanGetScansTargetsOKItemsItemReasonUnapproved       ScanGetScansTargetsOKItemsItemReason = "unapproved"
 	ScanGetScansTargetsOKItemsItemReasonExcluded         ScanGetScansTargetsOKItemsItemReason = "excluded"
 	ScanGetScansTargetsOKItemsItemReasonOutOfScope       ScanGetScansTargetsOKItemsItemReason = "out_of_scope"
+	ScanGetScansTargetsOKItemsItemReasonNoIP             ScanGetScansTargetsOKItemsItemReason = "no_ip"
 	ScanGetScansTargetsOKItemsItemReasonBox              ScanGetScansTargetsOKItemsItemReason = "box"
 	ScanGetScansTargetsOKItemsItemReasonRegularScanNever ScanGetScansTargetsOKItemsItemReason = "regular_scan_never"
 	ScanGetScansTargetsOKItemsItemReasonUnverified       ScanGetScansTargetsOKItemsItemReason = "unverified"
@@ -139410,6 +139721,7 @@ func (ScanGetScansTargetsOKItemsItemReason) AllValues() []ScanGetScansTargetsOKI
 		ScanGetScansTargetsOKItemsItemReasonUnapproved,
 		ScanGetScansTargetsOKItemsItemReasonExcluded,
 		ScanGetScansTargetsOKItemsItemReasonOutOfScope,
+		ScanGetScansTargetsOKItemsItemReasonNoIP,
 		ScanGetScansTargetsOKItemsItemReasonBox,
 		ScanGetScansTargetsOKItemsItemReasonRegularScanNever,
 		ScanGetScansTargetsOKItemsItemReasonUnverified,
@@ -139426,6 +139738,8 @@ func (s ScanGetScansTargetsOKItemsItemReason) MarshalText() ([]byte, error) {
 	case ScanGetScansTargetsOKItemsItemReasonExcluded:
 		return []byte(s), nil
 	case ScanGetScansTargetsOKItemsItemReasonOutOfScope:
+		return []byte(s), nil
+	case ScanGetScansTargetsOKItemsItemReasonNoIP:
 		return []byte(s), nil
 	case ScanGetScansTargetsOKItemsItemReasonBox:
 		return []byte(s), nil
@@ -139453,6 +139767,9 @@ func (s *ScanGetScansTargetsOKItemsItemReason) UnmarshalText(data []byte) error 
 		return nil
 	case ScanGetScansTargetsOKItemsItemReasonOutOfScope:
 		*s = ScanGetScansTargetsOKItemsItemReasonOutOfScope
+		return nil
+	case ScanGetScansTargetsOKItemsItemReasonNoIP:
+		*s = ScanGetScansTargetsOKItemsItemReasonNoIP
 		return nil
 	case ScanGetScansTargetsOKItemsItemReasonBox:
 		*s = ScanGetScansTargetsOKItemsItemReasonBox

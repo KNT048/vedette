@@ -50,7 +50,17 @@ const (
 	maxNoticeItems = 100
 
 	interruptedText = "The box was interrupted while this message was being sent, so it may or may not have been sent. It was not sent again. Use Resend if it is still needed."
+
+	// A provider that answers "too many requests" (HTTP 429, Zalo -32) is waited for, not given up on (D-483): the message goes back to
+	// the queue, due when the provider said, and the channel sends nothing else until then. defaultRateWait is the wait when the provider
+	// named none; after maxRateTries refusals in a row the message is recorded as failed, so a provider that never lets go cannot hold
+	// the queue for ever.
+	defaultRateWait = time.Minute
+	maxRateTries    = 5
 )
+
+// errRateLimited stops a channel's run after its provider asked to slow down; the rest of the run's messages go back to the queue.
+var errRateLimited = errors.New("notify: the channel is rate limited")
 
 // validate checks PRE-1 and the size limits of a notice. A notice may have no link: that is how it is when the
 // box address is not configured, and the adapters then say to open Vedette.
@@ -197,16 +207,18 @@ func (s *Service) enqueue(ctx context.Context, tx *sql.Tx, n Notice) error {
 
 // claim is one batch taken from the queue, ready to send.
 type claim struct {
-	channel channel.Type
-	batch   Batch
-	rows    []string // notify_pending ids
+	channel  channel.Type
+	batch    Batch
+	rows     []string // notify_pending ids
+	attempts int      // the most rate-limit refusals any of its rows had (D-483)
 }
 
 type pendingRow struct {
-	id     string
-	notice Notice
-	reason string
-	due    string
+	id       string
+	notice   Notice
+	reason   string
+	due      string
+	attempts int
 }
 
 // Flush delivers what is due: held notices when quiet hours have ended, grouped batches at their
@@ -263,7 +275,10 @@ func (s *Service) Flush(ctx context.Context) error {
 					s.release(ctx, list[i:]) // never attempted: the next run sends them
 					return
 				}
-				if err := s.deliver(ctx, cl); err != nil {
+				if err := s.deliver(ctx, cl); errors.Is(err, errRateLimited) {
+					s.release(ctx, list[i+1:]) // not attempted: they wait for the provider like the one it refused
+					return
+				} else if err != nil {
 					fail(err)
 				}
 			}
@@ -351,7 +366,7 @@ func (s *Service) claim(ctx context.Context, now time.Time) ([]claim, error) {
 			return err
 		}
 		quiet := rules.Quiet.Active(now.In(s.loc(ctx)))
-		rows, err := tx.QueryContext(ctx, `SELECT id, channel, notice, reason, due_at FROM notify_pending WHERE state = 'pending' ORDER BY channel, created_at, rowid`)
+		rows, err := tx.QueryContext(ctx, `SELECT id, channel, notice, reason, due_at, attempts FROM notify_pending WHERE state = 'pending' ORDER BY channel, created_at, rowid`)
 		if err != nil {
 			return fmt.Errorf("notify: read queue: %w", err)
 		}
@@ -360,7 +375,8 @@ func (s *Service) claim(ctx context.Context, now time.Time) ([]claim, error) {
 		var broken []string
 		for rows.Next() {
 			var id, ch, raw, reason, due string
-			if err := rows.Scan(&id, &ch, &raw, &reason, &due); err != nil {
+			var attempts int
+			if err := rows.Scan(&id, &ch, &raw, &reason, &due, &attempts); err != nil {
 				_ = rows.Close()
 				return fmt.Errorf("notify: read queue: %w", err)
 			}
@@ -373,7 +389,7 @@ func (s *Service) claim(ctx context.Context, now time.Time) ([]claim, error) {
 			if _, ok := byChannel[t]; !ok {
 				order = append(order, t)
 			}
-			byChannel[t] = append(byChannel[t], pendingRow{id, n, reason, due})
+			byChannel[t] = append(byChannel[t], pendingRow{id, n, reason, due, attempts})
 		}
 		if err := errors.Join(rows.Err(), rows.Close()); err != nil {
 			return fmt.Errorf("notify: read queue: %w", err)
@@ -391,20 +407,30 @@ func (s *Service) claim(ctx context.Context, now time.Time) ([]claim, error) {
 				}
 				continue
 			}
-			rowOf := map[string]string{}
+			nowTS := store.FormatTS(now)
+			held := false // a message the provider refused waits until its due_at, and the whole channel with it (D-483; lasts a restart)
+			for _, r := range list {
+				held = held || (r.attempts > 0 && r.due > nowTS)
+			}
+			if held {
+				continue
+			}
+			rowOf, triesOf := map[string]string{}, map[string]int{}
+			seen := map[string]bool{}
 			var nowN, heldN, grpN []Notice
 			for _, r := range list {
-				rowOf[r.notice.ID] = r.id
-				switch r.reason {
-				case "quiet":
+				rowOf[r.notice.ID], triesOf[r.notice.ID] = r.id, r.attempts
+				switch {
+				case r.reason == "quiet":
 					heldN = append(heldN, r.notice)
-				case "group":
+				case r.reason == "group":
 					grpN = append(grpN, r.notice)
+				case r.due > nowTS: // put back after a rate limit, due when the provider said
+					seen[r.notice.ID] = true
 				default:
 					nowN = append(nowN, r.notice)
 				}
 			}
-			seen := map[string]bool{}
 			var release []Batch
 			take := func(bs []Batch, due func(Batch) bool) {
 				for _, b := range bs {
@@ -430,6 +456,16 @@ func (s *Service) claim(ctx context.Context, now time.Time) ([]claim, error) {
 					drop = append(drop, r.id) // below the channel's minimum now: INV-4
 				}
 			}
+			// A message the provider already refused stays its own digest with its own refusal count; new notices do not join it.
+			var fresh, retried []Batch
+			for _, b := range release {
+				if slices.ContainsFunc(b.Notices, func(n Notice) bool { return triesOf[n.ID] > 0 }) {
+					retried = append(retried, b)
+				} else {
+					fresh = append(fresh, b)
+				}
+			}
+			release = append(digest(retried, s.link("/findings")), digest(fresh, s.link("/findings"))...)
 			// Critical first, then the order they were queued in; what does not fit in this run stays pending.
 			sort.SliceStable(release, func(i, j int) bool {
 				return release[i].Severity() == Critical && release[j].Severity() != Critical
@@ -441,6 +477,7 @@ func (s *Service) claim(ctx context.Context, now time.Time) ([]claim, error) {
 				cl := claim{channel: t, batch: b}
 				for _, n := range b.Notices {
 					cl.rows = append(cl.rows, rowOf[n.ID])
+					cl.attempts = max(cl.attempts, triesOf[n.ID])
 				}
 				for _, id := range cl.rows {
 					if _, err := tx.ExecContext(ctx, `UPDATE notify_pending SET state = 'claimed', claimed_at = ? WHERE id = ? AND state = 'pending'`, store.FormatTS(now), id); err != nil {
@@ -505,6 +542,12 @@ func (s *Service) deliver(ctx context.Context, cl claim) error {
 		if !rec.OK && ctx.Err() != nil {
 			rec.Error = interruptedText // the answer was cut off: the message may have gone out
 		}
+		if rec.Limited && ctx.Err() == nil {
+			if cl.attempts+1 < maxRateTries {
+				return s.delay(ctx, cl, rec, msg)
+			}
+			rec.Error = fmt.Sprintf("%s kept asking Vedette to send more slowly, so this message was not sent after %d tries. Use Resend.", channelName[cl.channel], maxRateTries)
+		}
 	}
 	kind, ref, link := refOf(first)
 	wctx, stop := detached(ctx) // the attempt is over: its record is written even if the run was cancelled
@@ -516,7 +559,11 @@ func (s *Service) deliver(ctx context.Context, cl claim) error {
 			return err
 		}
 		if kind == "vuln" {
-			for _, n := range cl.batch.Notices {
+			told := cl.batch.Listed() // a failure: the findings it would have named, so their page says "Not delivered"
+			if rec.OK {
+				told = cl.batch.Told(cl.channel, msg) // only the lines the channel sent whole: "Notified" must be true (W1-11)
+			}
+			for _, n := range told {
 				if _, err := tx.ExecContext(wctx, `INSERT INTO notify_send_notice (send_id, notice_id) VALUES (?, ?) ON CONFLICT DO NOTHING`, rec.ID, n.ID); err != nil {
 					return fmt.Errorf("notify: link send to notice: %w", err)
 				}
@@ -541,6 +588,40 @@ func (s *Service) deliver(ctx context.Context, cl claim) error {
 	return nil
 }
 
+// delay handles a send the provider refused with "too many requests" (D-483): the rows go back to the queue due when the provider
+// said (defaultRateWait when it did not), which holds the whole channel until then (claim), and the first time a message is held back the
+// history gets one "Delayed (rate limited)" row, not linked to the findings (nothing reached anyone yet). It returns errRateLimited.
+func (s *Service) delay(ctx context.Context, cl claim, rec SendRecord, msg channel.Message) error {
+	wait := rec.RetryAfter
+	if wait <= 0 {
+		wait = defaultRateWait
+	}
+	until := s.now().Add(wait) // the refused rows are due then, and they hold the channel's queue until then (claim): it lasts a restart
+	kind, ref, link := refOf(cl.batch.Notices[0])
+	rec.Delayed, rec.Error = true, fmt.Sprintf("Delayed (rate limited): %s asked Vedette to wait %s. It is sent again by itself after %s.",
+		channelName[cl.channel], wait.Round(time.Second), until.In(s.loc(ctx)).Format("15:04"))
+	wctx, stop := detached(ctx)
+	defer stop()
+	err := s.cfg.DB.Write(wctx, func(tx *sql.Tx) error {
+		if cl.attempts == 0 {
+			if err := insertSend(wctx, tx, rec, kind, ref, msg.Title, link, "", msg); err != nil {
+				return err
+			}
+		}
+		for _, id := range cl.rows { // reason "now": due_at is kept to, whatever window it waited for before
+			if _, err := tx.ExecContext(wctx, `UPDATE notify_pending SET state = 'pending', claimed_at = NULL, reason = 'now', due_at = ?, attempts = attempts + 1 WHERE id = ?`,
+				store.FormatTS(until), id); err != nil {
+				return fmt.Errorf("notify: put a rate-limited notice back: %w", err)
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+	return errRateLimited
+}
+
 // insertSend writes one notify_send row. msg must not carry a secret or an approval token. recipient is the one
 // person the message went to (an approver's address), or "" when it went to the channel's own destination.
 func insertSend(ctx context.Context, tx *sql.Tx, rec SendRecord, kind, ref, what, link, recipient string, msg channel.Message) error {
@@ -551,8 +632,8 @@ func insertSend(ctx context.Context, tx *sql.Tx, rec SendRecord, kind, ref, what
 	if len(raw) > 16000 {
 		return fmt.Errorf("notify: message of %s is too large to keep", rec.ID)
 	}
-	if _, err := tx.ExecContext(ctx, `INSERT INTO notify_send (id, kind, ref_id, channel, "to", at, ok, error, what, link, message, recipient) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		rec.ID, kind, ref, string(rec.Channel), clip(rec.To, 600), store.FormatTS(rec.At), boolInt(rec.OK), nullable(clip(rec.Error, 1000)), clip(what, 400), clip(link, 400), string(raw), nullable(recipient)); err != nil {
+	if _, err := tx.ExecContext(ctx, `INSERT INTO notify_send (id, kind, ref_id, channel, "to", at, ok, error, what, link, message, recipient, delayed) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		rec.ID, kind, ref, string(rec.Channel), clip(rec.To, 600), store.FormatTS(rec.At), boolInt(rec.OK), nullable(clip(rec.Error, 1000)), clip(what, 400), clip(link, 400), string(raw), nullable(recipient), boolInt(rec.Delayed)); err != nil {
 		return fmt.Errorf("notify: save send record: %w", err)
 	}
 	return nil

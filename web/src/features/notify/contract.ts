@@ -14,7 +14,7 @@ export const Channel = z.object({
   type: ChannelType,
   configured: z.boolean(),
   enabled: z.boolean(),
-  fields: z.record(z.string(), z.string()).describe('Non-secret fields: telegram chat_id · zalo oa_id, user_id · zalo-personal user_id (recipient user or group ID), group ("true" for a group), name (shown name of the recipient), account (shown name of the signed-in Zalo account; set by the box from the QR sign-in, D-447; the session is the secret) · email provider (preset, D-449: custom|gmail|yahoo|icloud|zoho|fastmail|sendgrid|mailgun|ses|postmark|brevo|microsoft365|google-workspace; D-480 user sign-ins: microsoft365-user|outlook|gmail-oauth, saved with signin; absent = custom), host, port, security (starttls|ssl|none), username (the mailbox for microsoft365 and google-workspace; none for postmark, whose server token is the secret), tenant_id (microsoft365, microsoft365-user, outlook) and client_id (those and gmail-oauth), from, to, secret_for (written by the box: the sign-in method, server and port the saved secret is for; changing one needs the secret again) · webhook url (a secret: sealed on save, returned only as scheme://host/… followed by its last 4 characters; send it empty, or as returned, to keep the saved one) · slack label (optional), channel_id (approvals only)'),
+  fields: z.record(z.string(), z.string()).describe('Non-secret fields: telegram chat_id · zalo oa_id, user_id, app_id (the Zalo app of the refresh-token flow, D-483; absent for a channel with only an access token) · zalo-personal user_id (recipient user or group ID), group ("true" for a group), name (shown name of the recipient), account (shown name of the signed-in Zalo account; set by the box from the QR sign-in, D-447; the session is the secret) · email provider (preset, D-449: custom|gmail|yahoo|icloud|zoho|fastmail|sendgrid|mailgun|ses|postmark|brevo|microsoft365|google-workspace; D-480 user sign-ins: microsoft365-user|outlook|gmail-oauth, saved with signin; absent = custom), host, port, security (starttls|ssl|none), username (the mailbox for microsoft365 and google-workspace; none for postmark, whose server token is the secret), tenant_id (microsoft365, microsoft365-user, outlook) and client_id (those and gmail-oauth), from, to, secret_for (written by the box: the sign-in method, server and port the saved secret is for; changing one needs the secret again) · webhook url (a secret: sealed on save, returned only as scheme://host/… followed by its last 4 characters; send it empty, or as returned, to keep the saved one) · slack label (optional), channel_id (approvals only)'),
   secret_last4: z.string().nullable().describe('Secrets (token, password, signing key) are never returned, only the last 4 characters (SYS-4)'),
   min_severity: RouteSeverity,
   last_test: TestResult.nullable(),
@@ -33,6 +33,8 @@ export const ChannelInput = z.object({
   bot_token: z.string().optional().describe('Slack bot token (xoxb-…); leave blank to keep the saved one'),
   zalo_login: z.boolean().optional().describe('Zalo personal: save the session of your finished QR sign-in (D-447); without it the saved session is kept. The session is never sent by the client'),
   signin: z.string().optional().describe('Email user sign-in (D-480): the id of a finished sign-in of the same admin; its refresh token becomes the secret and its mailbox the username'),
+  secret_key: z.string().optional().describe('Zalo OA (D-483): the Secret key of the Zalo app; leave blank to keep the saved one'),
+  refresh_token: z.string().optional().describe('Zalo OA (D-483): the OA refresh token (about 3 months, single use; the box refreshes the access token and keeps the rotated refresh token); leave blank to keep the saved one. With it, secret is the current access token, optional'),
 })
 export const EmailSigninStart = z.object({
   provider: z.enum(['microsoft365-user', 'outlook', 'gmail-oauth']),
@@ -59,7 +61,8 @@ export const ChannelsResponse = z.object({ channels: z.array(Channel), quiet: Qu
 
 export const IncidentKind = z.enum(['trap', 'bad_address', 'log_anomaly', 'unknown_device'])
 export const IncidentStatus = z.enum(['new', 'acknowledged', 'resolved'])
-export const SendRecord = z.object({ id: z.string(), channel: ChannelType, to: z.string(), at: iso, ok: z.boolean(), error: z.string().optional() })
+export const SendRecord = z.object({ id: z.string(), channel: ChannelType, to: z.string(), at: iso, ok: z.boolean(), error: z.string().optional(),
+  delayed: z.boolean().describe('The provider asked to slow down (HTTP 429, Zalo -32): the message waits in the queue and is sent again by itself; not a failure, no Resend (D-483)') })
 export const Incident = z.object({
   id: z.string(),
   kind: IncidentKind,
@@ -84,6 +87,7 @@ export const IncidentDetail = z.object({ incident: Incident, previews: z.array(P
 export const IncidentsResponse = z.object({ incidents: z.array(Incident) })
 export const HistoryItem = z.object({
   id: z.string(), at: iso, channel: ChannelType, to: z.string(), ok: z.boolean(), error: z.string().optional(),
+  delayed: z.boolean().describe('A "Delayed (rate limited)" row: the message is sent again by itself after the wait the provider asked for (D-483)'),
   kind: z.enum(['incident', 'vuln', 'approval']), what: z.string(), link: z.string(),
 })
 export const HistoryResponse = z.object({ items: z.array(HistoryItem), suppressed: z.object({ count: z.number().int(), days: z.number().int() }) })

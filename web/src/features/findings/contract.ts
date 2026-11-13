@@ -11,6 +11,9 @@ export const AssetKind = z.enum(['firewall', 'router', 'switch', 'ap', 'nas', 's
 export const FirewallVendor = z.enum(['fortigate', 'mikrotik', 'generic'])
 export const ApplyItem = z.enum(['patch', 'workaround', 'fortigate', 'mikrotik', 'generic'])
 export const StatusAction = z.enum(['patched', 'mitigated', 'false_positive', 'not_relevant', 'reopen'])
+export const BulkAction = z.enum(['patched', 'mitigated', 'false_positive', 'not_relevant'])
+/** Most findings one bulk status change may touch (INV-10 of findings, D-484). */
+export const MAX_BULK = 500
 
 export const Finding = z.object({
   id: z.string(),
@@ -33,7 +36,10 @@ export const KevInfo = z.object({
   name: z.string(), vendor: z.string(), product: z.string(), display: z.string(), required_action: z.string(), links: z.array(z.string()),
   date_added: z.string(), due_date: z.string().nullable(), ransomware: z.boolean(), epss: z.number().nullable(), has_template: z.boolean(),
 })
-export const FindingAsset = z.object({ id: z.string(), hostname: z.string().nullable(), ip: z.string(), kind: AssetKind, display: z.string() })
+export const FindingAsset = z.object({
+  id: z.string(), name: z.string().describe('The name the Devices page shows: hostname, else vendor and model, else the IP, else the software; never the internal id (D-484)'),
+  hostname: z.string().nullable(), ip: z.string().describe('"—" when the device has no IP address'), kind: AssetKind, display: z.string(),
+})
 export const FindingRow = Finding.extend({ asset: FindingAsset.nullable(), kev: KevInfo.nullable().describe('Read from KEV, not from the project recommendation pack') })
 
 export const CodeStep = z.object({
@@ -91,6 +97,9 @@ export const endpoints = defineEndpoints([
     params: idParams, response: FindingDetail, example: { params: { id: 'f-1' } } },
   { method: 'post', path: '/findings/{id}/status', summary: 'Change status (patched, mitigated, false positive, not relevant, reopen) with a note', stories: ['S-MIT-1'], role: 'operator',
     params: idParams, body: z.object({ action: StatusAction, note: z.string().max(500) }), response: FindingDetail },
+  { method: 'post', path: '/findings/status', summary: 'Change the status of the open findings among the ids (at most 500) with one note; one history and audit row per finding, all or nothing; closed findings are skipped', stories: ['S-MIT-1'], role: 'operator',
+    body: z.object({ ids: z.array(findingId).min(1).max(MAX_BULK), action: BulkAction, note: z.string().max(500) }),
+    response: z.object({ updated: z.number().int().describe('Open findings changed'), skipped: z.number().int().describe('Findings already closed, left as they were') }) },
   { method: 'post', path: '/findings/{id}/applied', summary: 'Log "Applied" for one recommendation item; does not change the status by itself', stories: ['S-MIT-1'], role: 'operator',
     params: idParams, body: z.object({ item: ApplyItem }), response: FindingDetail },
   { method: 'post', path: '/findings/{id}/ai', summary: 'Explain or draft a recommendation with the customer AI key (BYOK); fails if AI is off', stories: ['S-AI-2', 'S-MIT-1'], role: 'operator',

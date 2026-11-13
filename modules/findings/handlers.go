@@ -15,8 +15,8 @@ import (
 // MitigationModule is the id of the module whose Guidance fills the "What to do" fields.
 const MitigationModule = "mitigation"
 
-// FindingHandlers implements the findings operations: GET /findings, GET /findings/{id} and
-// POST /findings/{id}/status. Embed it in the composite handler. POST /findings/{id}/applied|ai belong
+// FindingHandlers implements the findings operations: GET /findings, GET /findings/{id}, POST /findings/{id}/status
+// and the bulk POST /findings/status. Embed it in the composite handler. POST /findings/{id}/applied|ai belong
 // to mitigation (core/server/modules.go).
 type FindingHandlers struct {
 	svc  *Service
@@ -216,6 +216,23 @@ func (h *FindingHandlers) FindingsPostFindingsIDStatus(ctx context.Context, req 
 		return nil, err
 	}
 	return Into[oas.FindingsPostFindingsIDStatusOK](d)
+}
+
+// FindingsPostFindingsStatus implements findings_post_findings_status (operator): one action and one note for the open
+// findings among up to MaxBulk ids, one history and audit row each, all or nothing; closed ones are skipped (INV-10).
+func (h *FindingHandlers) FindingsPostFindingsStatus(ctx context.Context, req *oas.FindingsPostFindingsStatusReq) (*oas.FindingsPostFindingsStatusOK, error) {
+	p, ok := server.PrincipalFrom(ctx)
+	if !ok {
+		return nil, apierr.Unauthenticated()
+	}
+	if strings.ContainsRune(req.Note, 0) {
+		return nil, apierr.Invalid("The note contains a character that is not allowed.")
+	}
+	n, skipped, err := h.svc.SetStatusMany(ctx, req.Ids, Action(req.Action), req.Note, p.Email)
+	if err != nil {
+		return nil, ToAPIError(err)
+	}
+	return &oas.FindingsPostFindingsStatusOK{Updated: n, Skipped: skipped}, nil
 }
 
 // Guidance is the optional "What to do" provider. mitigation registers one with FindingHandlers.SetGuidance

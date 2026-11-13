@@ -19,4 +19,5 @@ export type AiResult = z.infer<typeof C.AiResult>
 export type AppliedEntry = z.infer<typeof C.AppliedEntry>
 export type FindingDetail = z.infer<typeof C.FindingDetail>
 export type StatusAction = z.infer<typeof C.StatusAction>
+export type BulkAction = z.infer<typeof C.BulkAction>
 export type ApplyItem = z.infer<typeof C.ApplyItem>

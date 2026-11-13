@@ -62,8 +62,11 @@ func (a feedsInventory) MatchProducts(ctx context.Context, products []feeds.Prod
 	return out, nil
 }
 
-func (a feedsInventory) AddManualDevice(ctx context.Context, tx *sql.Tx, actor string, d feeds.ManualDevice) error {
-	return a.inv.AddManualDevice(ctx, tx, actor, inventory.ManualDevice{Kind: d.Kind, Vendor: d.Vendor, Product: d.Product, Display: d.Display, Key: d.Key})
+// AddManualDevice declares the "I have this" device. inventory does not return the new device's id yet, so the id is ""
+// and the "I have this" scope of findings (D-484, INV-11) stays off: no CVE is hidden on any device. Once
+// inventory.AddManualDevice returns the id (Kiên, .ai/deferred/fix-findings-walk1-mlee.md), return it here.
+func (a feedsInventory) AddManualDevice(ctx context.Context, tx *sql.Tx, actor string, d feeds.ManualDevice) (string, error) {
+	return "", a.inv.AddManualDevice(ctx, tx, actor, inventory.ManualDevice{Kind: d.Kind, Vendor: d.Vendor, Product: d.Product, Display: d.Display, Key: d.Key})
 }
 
 func (a feedsInventory) Settle(ctx context.Context, tx *sql.Tx, committed bool) {
@@ -124,9 +127,13 @@ func (a findingsInventory) Assets(ctx context.Context, ids []string) (map[string
 	if err != nil {
 		return nil, err
 	}
+	names, err := a.inv.Names(ctx) // the Devices page's name (hostname, else vendor and model, else IP), as notify and reports use it
+	if err != nil {
+		return nil, err
+	}
 	out := make(map[string]findings.AssetView, len(refs))
 	for id, r := range refs {
-		out[id] = findings.AssetView{ID: r.ID, Hostname: r.Hostname, IP: r.IP, Kind: r.Kind, Display: r.Display}
+		out[id] = findings.AssetView{ID: r.ID, Name: names[id], Hostname: r.Hostname, IP: r.IP, Kind: r.Kind, Display: r.Display}
 	}
 	return out, nil
 }
@@ -146,6 +153,15 @@ func (a findingsInventory) MatchInput(ctx context.Context, assetID string) (find
 		return findings.Asset{}, false, err
 	}
 	out := findings.Asset{ID: d.ID, Name: d.Name, OS: d.OS, Software: make([]findings.Software, len(d.Software))}
+	if d.Name == d.ID { // no hostname and no IP (hand-added, LLDP only): the evidence names it as the Devices page does, never by its id (D-484)
+		names, err := a.inv.Names(ctx)
+		if err != nil {
+			return findings.Asset{}, false, err
+		}
+		if n := names[d.ID]; n != "" && n != d.ID {
+			out.Name = n
+		}
+	}
 	for i, s := range d.Software {
 		out.Software[i] = findings.Software{ID: s.ID, Display: s.Display, Vendor: s.Vendor, Product: s.Product, Version: s.Version, KevKeys: s.KevKeys, CPE: s.CPE}
 	}
@@ -197,6 +213,21 @@ func (a findingsFeeds) Vulns(ctx context.Context) ([]findings.Vuln, error) {
 		}
 	}
 	return out, nil
+}
+
+// findingsHave is feeds' "I have this" scopes, by declared device, as findings reads them (INV-11, D-484).
+func findingsHave(st *feeds.Store) func(ctx context.Context) (map[string]findings.Have, error) {
+	return func(ctx context.Context) (map[string]findings.Have, error) {
+		got, err := st.HaveSince(ctx)
+		if err != nil {
+			return nil, err
+		}
+		out := make(map[string]findings.Have, len(got))
+		for id, h := range got {
+			out[id] = findings.Have{Key: h.Key, Since: h.Since}
+		}
+		return out, nil
+	}
 }
 
 // findingsPublisher puts findings events on the bus.
@@ -284,7 +315,8 @@ func buildServices(ctx context.Context, d *deps) error {
 	inv := findingsInventory{d.Inventory}
 	feed := findingsFeeds{fs.Store()}
 	// Backlog: findings the reconcile job creates for old KEV entries are D-78 backlog, silent for notify (findings does not import notify).
-	cfg := findings.ServiceConfig{DB: d.DB, Audit: d.Audit, Inventory: inv, Feeds: feed, Log: d.Log, Clock: d.Clock, Backlog: notify.WithBaseline}
+	cfg := findings.ServiceConfig{DB: d.DB, Audit: d.Audit, Inventory: inv, Feeds: feed, Log: d.Log, Clock: d.Clock, Backlog: notify.WithBaseline,
+		HaveSince: findingsHave(fs.Store())} // "I have this" on Home scopes the one device it declared (D-484)
 	if d.Bus != nil {
 		cfg.Publisher = findingsPublisher{d.Bus}
 	}

@@ -1,6 +1,7 @@
 # Feeds — Change Impact Map
 
-## Modifying: `feeds.Store` — `VulnByCVE(cve)`, `VulnsByProductKey(key)`, `HasTemplate(cve)`, `IOCLookup(value)`, `IOCListed()`, `IOCSubdomainsOn()`, `KevPairs()`
+## Modifying: `feeds.Store` — `VulnByCVE(cve)`, `VulnsByProductKey(key)`, `HasTemplate(cve)`, `IOCLookup(value)`, `IOCListed()`, `IOCSubdomainsOn()`, `KevPairs()`, `HaveSince()`
+- `HaveSince` (D-484): **findings** (`ServiceConfig.HaveSince`, INV-11 của findings) khớp phần mềm không phiên bản của sản phẩm đã trả lời "I have this", trên đúng thiết bị đã khai, chỉ từ `have_since`. `feeds.Inventory.AddManualDevice` nay trả id thiết bị ("" = không biết, phạm vi tắt). Đổi `have_since`/`device_id` = đổi số finding của thiết bị đó.
 - **inventory** (`catalog`, khớp sản phẩm↔KEV theo khoá `vendorproject|product` chữ thường): đổi cách chuẩn hoá khoá = mọi khớp "Do you have it?" lệch.
 - **mitigation** (`KevInfo` trong `FindingRow`), **scan** (`has_template`), **mcp-server** (`lookup_cve`, `lookup_ioc`), **ai** (slot `cve.panels`), **reports**.
 - **honeypot / logs / response** (nhóm B): `IOCLookup` quyết định cảnh báo và chặn; đổi `verdict` ảnh hưởng quy tắc phản ứng.

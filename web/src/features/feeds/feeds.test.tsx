@@ -23,7 +23,7 @@ describe('feeds: home (S-FEED-1, S-FEED-2)', () => {
     renderApp('/')
     const buttons = await screen.findAllByRole('button', { name: 'I have this' })
     await userEvent.click(buttons[0]!)
-    expect(await screen.findByText('Added to your devices')).toBeInTheDocument()
+    expect(await screen.findByText('Alerts on for this product')).toBeInTheDocument()
     expect(assetsStore.get().length).toBe(before + 1)
     expect(assetsStore.get()[0]!.origin).toBe('manual')
   })

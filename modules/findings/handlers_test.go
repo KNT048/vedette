@@ -196,6 +196,39 @@ func TestContract_POST4_StatusEndpoint(t *testing.T) {
 	}
 }
 
+// INV-10 (W1-12): the bulk route is the operator's, refuses what the one-finding route refuses, and says what it skipped.
+func TestBulkStatusEndpoint(t *testing.T) {
+	t.Parallel()
+	e := newHTTPEnv(t)
+	id := e.seed()
+	for _, c := range []struct {
+		name, user, body string
+		status           int
+		code             string
+	}{
+		{"viewer refused", "viewer", `{"ids":["` + id + `"],"action":"patched","note":""}`, 403, "forbidden"},
+		{"no session", "", `{"ids":["` + id + `"],"action":"patched","note":""}`, 401, ""},
+		{"nul in note", "operator", `{"ids":["` + id + `"],"action":"patched","note":"a\u0000b"}`, 400, "invalid"},
+		{"reopen is not bulk", "operator", `{"ids":["` + id + `"],"action":"reopen","note":""}`, 400, ""},
+		{"none", "operator", `{"ids":[],"action":"patched","note":""}`, 400, ""},
+		{"unknown id", "operator", `{"ids":["` + id + `","f-nope"],"action":"patched","note":""}`, 404, "not_found"},
+	} {
+		code, b := e.call("POST", "/findings/status", c.user, c.body)
+		if code != c.status || (c.code != "" && errCode(b) != c.code) {
+			t.Errorf("%s: %d %v", c.name, code, b)
+		}
+	}
+	if r, _ := e.svc.Get(t.Context(), id); r.Status != StatusSuspected {
+		t.Fatalf("a refused request changed the finding: %+v", r)
+	}
+	if code, b := e.call("POST", "/findings/status", "operator", `{"ids":["`+id+`"],"action":"mitigated","note":"proxy"}`); code != 200 || b["updated"] != 1.0 || b["skipped"] != 0.0 {
+		t.Fatalf("%d %v", code, b)
+	}
+	if code, b := e.call("POST", "/findings/status", "operator", `{"ids":["`+id+`"],"action":"patched","note":""}`); code != 200 || b["updated"] != 0.0 || b["skipped"] != 1.0 {
+		t.Fatalf("closed finding: %d %v", code, b)
+	}
+}
+
 func TestModuleOffMeansNoRoutes(t *testing.T) {
 	t.Parallel()
 	e := newHTTPEnv(t)

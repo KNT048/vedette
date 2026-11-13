@@ -94,6 +94,7 @@
     "unapproved": "Not approved in the inventory, so not scanned",
     "excluded": "In the exclusion list",
     "out_of_scope": "Outside the confirmed scope",
+    "no_ip": "No IP address, so it cannot be scanned. Add its IP on the device page",
     "box": "This is the Vedette box itself, never scanned",
     "regular_scan_never": "Set to never be scanned in the inventory",
     "unverified": "Ownership not verified, so not scanned",

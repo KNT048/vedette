@@ -226,14 +226,26 @@ func (s *Service) writeDeclaring(ctx context.Context, fn func(tx *sql.Tx) error)
 	return err
 }
 
-// declareDevice asks the inventory for the manual device of "I have it" (S-FEED-2, INV-14) inside tx.
+// declareDevice asks the inventory for the manual device of "I have it" (S-FEED-2, INV-14) inside tx and records the
+// device's id on the answer, once (D-484: the "I have this" scope is that device's only).
 func (s *Service) declareDevice(ctx context.Context, tx *sql.Tx, actor, key string, v VulnRow) error {
 	d := ManualDevice{Kind: KindOf(key), Vendor: v.Vendor, Product: v.Product, Display: DisplayOf(v.Vendor, v.Product), Key: key}
-	if err := s.Inventory.AddManualDevice(ctx, tx, actor, d); err != nil {
+	id, err := s.Inventory.AddManualDevice(ctx, tx, actor, d)
+	if err != nil {
 		return fmt.Errorf("feeds: add manual device: %w", err)
+	}
+	if id == "" {
+		return nil
+	}
+	if _, err := tx.ExecContext(ctx, `UPDATE feeds_weekly_answer SET device_id = ? WHERE key = ? AND device_id IS NULL`, id, key); err != nil {
+		return fmt.Errorf("feeds: record the declared device: %w", err)
 	}
 	return nil
 }
+
+// HaveWindow is how far before the answered entry "I have this" reaches back: the 7 days of "This week" on Home, so the
+// other entries of that product the same week also become findings (D-484).
+const HaveWindow = 7 * 24 * time.Hour
 
 // reconcileDevices adds the "I have it" devices that were answered while the inventory was off, once it is on
 // (INV-14). Called by every pull tick. A product no longer in the CISA list waits.

@@ -639,7 +639,7 @@ describe('notify: forbidden webhook hosts match the box (forbiddenAddr after Unm
 })
 
 describe('notify: channel form matrix (docs/QA.md §2)', () => {
-  const ALL = ['Chat ID', 'Bot token', 'OA ID', 'Access token', 'Recipient ID (user_id)', 'SMTP server', 'Port', 'Encryption', 'Username', 'Send from', 'Send to', 'SMTP password', 'Webhook URL', 'Signing key', 'Channel label (optional)', 'Incoming Webhook URL', 'Channel ID', 'App-level token (xapp-…)', 'Bot token (xoxb-…)', 'Recipient (user or group ID)']
+  const ALL = ['Chat ID', 'Bot token', 'OA ID', 'Access token', 'Recipient ID (user_id)', 'Provider', 'SMTP server', 'Port', 'Encryption', 'Username', 'Tenant ID', 'Client ID', 'Send from', 'Send to', 'SMTP password', 'Webhook URL', 'Signing key', 'Channel label (optional)', 'Incoming Webhook URL', 'Channel ID', 'App-level token (xapp-…)', 'Bot token (xoxb-…)', 'Recipient (user or group ID)']
   const only = (...keep: string[]) => ALL.filter((x) => !keep.includes(x))
   const APPROVE = 'Approve actions from this channel'
   const LINK_ONLY = /This channel cannot take approvals/
@@ -658,7 +658,7 @@ describe('notify: channel form matrix (docs/QA.md §2)', () => {
       { option: 'Slack', shown: ['Channel label (optional)', 'Incoming Webhook URL', APPROVE], hidden: [...only('Channel label (optional)', 'Incoming Webhook URL', 'Channel ID', 'App-level token (xapp-…)', 'Bot token (xoxb-…)'), LINK_ONLY] },
       { option: 'Zalo OA', shown: ['OA ID', 'Access token', 'Recipient ID (user_id)', LINK_ONLY], hidden: [...only('OA ID', 'Access token', 'Recipient ID (user_id)'), APPROVE] },
       { option: 'Zalo personal', shown: ['Recipient (user or group ID)', 'Zalo login', APPROVE, /Unofficial/], hidden: [...only('Recipient (user or group ID)'), LINK_ONLY, 'Bot token'] },
-      { option: 'Email', shown: ['SMTP server', 'Port', 'Encryption', 'Username', 'Send from', 'Send to', 'SMTP password', APPROVE], hidden: [...only('SMTP server', 'Port', 'Encryption', 'Username', 'Send from', 'Send to', 'SMTP password'), LINK_ONLY] },
+      { option: 'Email', shown: ['Provider', 'SMTP server', 'Port', 'Encryption', 'Username', 'Send from', 'Send to', 'SMTP password', APPROVE], hidden: [...only('Provider', 'SMTP server', 'Port', 'Encryption', 'Username', 'Send from', 'Send to', 'SMTP password'), LINK_ONLY] },
       { option: 'Webhook', shown: ['Webhook URL', 'Signing key', 'Generate random', LINK_ONLY], hidden: [...only('Webhook URL', 'Signing key'), APPROVE] },
       { option: 'Telegram', shown: ['Chat ID', 'Bot token'], hidden: [...only('Chat ID', 'Bot token')] }, // going back restores the same fields
     ], open)
@@ -750,3 +750,99 @@ describe('notify: channel form matrix (docs/QA.md §2)', () => {
   })
 })
 const APPROVE_LABEL = 'Approve actions from this channel'
+
+describe('notify: email providers (S-NOT-1, D-449)', () => {
+  const put = (b: unknown) => fetch(`${location.origin}/api/v1/notify/channels/email`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(b) })
+  const emailOf = async () => ((await getJson('/notify/channels')).channels as { type: string; fields: Record<string, string>; secret_last4: string | null }[]).find((c) => c.type === 'email')!
+  const openEmail = async () => {
+    renderChannels()
+    await press('Edit Email')
+    return screen.findByRole('dialog', { name: 'Channel Email' })
+  }
+  const KEY = JSON.stringify({ type: 'service_account', project_id: 'acme-alerts', private_key_id: 'ab12', private_key: '-----BEGIN PRIVATE KEY-----\nMIIEv…\n-----END PRIVATE KEY-----\n', client_email: 'vedette@acme-alerts.iam.gserviceaccount.com' }, null, 2)
+
+  it('each preset fills server, port and encryption, and shows only the fields its sign-in uses (form matrix)', async () => {
+    const dlg = await openEmail()
+    const provider = within(dlg).getByLabelText('Provider')
+    expect(provider).toHaveValue('custom') // a channel saved before the presets
+    const host = () => within(dlg).getByLabelText('SMTP server')
+    const pick = async (id: string) => { await userEvent.selectOptions(provider, id) }
+    const OAUTH = ['Tenant ID', 'Client ID', 'Client secret', 'Mailbox to send as', 'Service account key (JSON file)']
+    await eachOption([
+      { option: 'gmail', shown: ['Username', 'App password', /Create an app password|turn on 2-Step Verification/], hidden: OAUTH },
+      { option: 'sendgrid', shown: ['Username', 'API key'], hidden: OAUTH },
+      { option: 'postmark', shown: ['Server API token'], hidden: ['Username', ...OAUTH] },
+      { option: 'microsoft365', shown: ['Mailbox to send as', 'Tenant ID', 'Client ID', 'Client secret', /SMTP\.SendAsApp/, /New-ServicePrincipal/, /login\.microsoftonline\.com/], hidden: ['Username', 'App password', 'Service account key (JSON file)'] },
+      { option: 'google-workspace', shown: ['Mailbox to send as', 'Service account key (JSON file)', /Domain Wide Delegation/, /oauth2\.googleapis\.com/], hidden: ['Username', 'Tenant ID', 'Client ID', 'Client secret'] },
+      { option: 'custom', shown: ['Username', 'SMTP password'], hidden: OAUTH },
+    ], pick, dlg)
+    for (const [id, h, port, enc] of [['gmail', 'smtp.gmail.com', 587, 'starttls'], ['yahoo', 'smtp.mail.yahoo.com', 465, 'ssl'], ['fastmail', 'smtp.fastmail.com', 465, 'ssl'], ['ses', 'email-smtp.us-east-1.amazonaws.com', 587, 'starttls'], ['microsoft365', 'smtp.office365.com', 587, 'starttls']] as const) {
+      await pick(id)
+      expect(host()).toHaveValue(h)
+      expect(within(dlg).getByLabelText('Port')).toHaveValue(port)
+      expect(within(dlg).getByLabelText('Encryption')).toHaveValue(enc)
+    }
+    await pick('gmail')
+    expect(within(dlg).getByRole('link', { name: "Read Gmail (personal account)'s instructions" })).toHaveAttribute('href', 'https://support.google.com/accounts/answer/185833')
+    // SendGrid's fixed username comes and goes with the preset
+    await pick('sendgrid')
+    expect(within(dlg).getByLabelText('Username')).toHaveValue('apikey')
+    await pick('mailgun')
+    expect(within(dlg).getByLabelText('Username')).toHaveValue('')
+    await expectNoA11yViolations(dlg)
+  })
+
+  it('Microsoft 365: wrong IDs show under their fields; the saved password is not a client secret; a full form saves', async () => {
+    const dlg = await openEmail()
+    await userEvent.selectOptions(within(dlg).getByLabelText('Provider'), 'microsoft365')
+    const mailbox = within(dlg).getByLabelText('Mailbox to send as')
+    await userEvent.clear(mailbox)
+    await userEvent.type(mailbox, 'alerts@acme.example')
+    const tenant = within(dlg).getByLabelText('Tenant ID')
+    await userEvent.type(tenant, 'not a tenant')
+    await userEvent.type(within(dlg).getByLabelText('Client ID'), '0a1b2c3d-4e5f-6789-abcd-ef0123456789')
+    const save = () => userEvent.click(within(dlg).getByRole('button', { name: /^Save$/ }))
+    await save()
+    // the sign-in method changed: the saved SMTP password is not kept as the client secret
+    const secret = within(dlg).getByLabelText('Client secret')
+    await waitFor(() => expect(secret).toHaveAccessibleDescription(/^Enter the client secret: the sign-in method changed/))
+    await userEvent.type(secret, 'Abc8Q~client.secret_value-123')
+    await save()
+    await waitFor(() => expect(tenant).toHaveAccessibleDescription(/^The tenant ID is the Directory \(tenant\) ID/))
+    await userEvent.clear(tenant)
+    await userEvent.type(tenant, '72f988bf-86f1-41af-91ab-2d7cd011db47')
+    await save()
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    const em = await emailOf()
+    expect(em.fields).toMatchObject({ provider: 'microsoft365', host: 'smtp.office365.com', tenant_id: '72f988bf-86f1-41af-91ab-2d7cd011db47', username: 'alerts@acme.example' })
+    expect(em.secret_last4).toBe('-123')
+  })
+
+  it('Google Workspace: the key is a file; a file that is not a key is refused before saving; a key file saves', async () => {
+    const dlg = await openEmail()
+    await userEvent.selectOptions(within(dlg).getByLabelText('Provider'), 'google-workspace')
+    const mailbox = within(dlg).getByLabelText('Mailbox to send as')
+    await userEvent.clear(mailbox)
+    await userEvent.type(mailbox, 'alerts@acme.example')
+    const file = within(dlg).getByLabelText('Service account key (JSON file)')
+    await userEvent.upload(file, new File(['{"type":"authorized_user"}'], 'key.json', { type: 'application/json' }))
+    await waitFor(() => expect(file).toHaveAccessibleDescription('This file is not a service account key file from Google Cloud.'))
+    await userEvent.upload(file, new File([KEY], 'acme-alerts-ab12.json', { type: 'application/json' }))
+    await waitFor(() => expect(file).toHaveAccessibleDescription('Key of vedette@acme-alerts.iam.gserviceaccount.com chosen. Save to keep it.'))
+    await userEvent.click(within(dlg).getByRole('button', { name: /^Save$/ }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect((await emailOf()).fields.provider).toBe('google-workspace')
+  })
+
+  it('the mock refuses as the box does: unknown preset, bad key, OAuth without encryption; Postmark keeps no username', async () => {
+    await openEmail()
+    const base = { enabled: true, min_severity: 'high', fields: { host: 'smtp.gmail.com', port: '587', security: 'starttls', username: 'alerts@acme.example', from: 'alerts@acme.example', to: 'it@acme.example' } }
+    const code = async (b: unknown) => ((await (await put(b)).json()) as { error: { code: string } }).error.code
+    expect(await code({ ...base, fields: { ...base.fields, provider: 'hotmail' } })).toBe('bad_provider')
+    expect(await code({ ...base, fields: { ...base.fields, provider: 'google-workspace' }, secret: '{"type":"service_account"}' })).toBe('bad_secret')
+    expect(await code({ ...base, fields: { ...base.fields, provider: 'google-workspace', security: 'none', host: '192.168.1.5' }, secret: KEY })).toBe('bad_security')
+    const res = await put({ ...base, fields: { ...base.fields, provider: 'postmark', host: 'smtp.postmarkapp.com', username: 'secret-token-as-user' }, secret: '1a2b3c4d-5e6f-7a8b-9c0d-1e2f3a4b5c6d' })
+    expect(res.status).toBe(200)
+    expect((await emailOf()).fields.username).toBeUndefined()
+  })
+})

@@ -97,6 +97,58 @@
         }
       },
       "email": {
+        "provider": {
+          "label": "Provider",
+          "hint": "Choosing a provider fills in the server, the port and the encryption. You can still change them.",
+          "group": {
+            "password": "Mailbox with a password or app password",
+            "service": "Email sending service",
+            "oauth": "Sign in with OAuth (no password)"
+          },
+          "name": {
+            "custom": "Custom SMTP (your own mail server)",
+            "gmail": "Gmail (personal account)",
+            "yahoo": "Yahoo Mail",
+            "icloud": "iCloud Mail",
+            "zoho": "Zoho Mail",
+            "fastmail": "Fastmail",
+            "sendgrid": "SendGrid",
+            "mailgun": "Mailgun",
+            "ses": "Amazon SES",
+            "postmark": "Postmark",
+            "brevo": "Brevo",
+            "microsoft365": "Microsoft 365 (Exchange Online)",
+            "google-workspace": "Google Workspace (service account)"
+          },
+          "help": {
+            "gmail": "Gmail needs an app password: turn on 2-Step Verification for the Google account, create an app password, and paste it below. The normal Gmail password does not work.",
+            "yahoo": "Yahoo needs an app password: generate one in your Yahoo account under Account security. The username is your full Yahoo address.",
+            "icloud": "iCloud needs an app-specific password, made at account.apple.com under Sign-In and Security. The username is your full iCloud address.",
+            "zoho": "Use your Zoho address and password, or an app-specific password if two-factor sign-in is on. Paid organization domains use smtppro.zoho.com; accounts in another data center use the server shown in Zoho Mail settings.",
+            "fastmail": "Fastmail needs an app password with SMTP access (Settings, Privacy & Security, App passwords). The username is your full Fastmail address.",
+            "sendgrid": "The username is always apikey and the password is an API key with Mail Send permission. Send from a sender or domain verified in SendGrid.",
+            "mailgun": "Use the SMTP credentials of your sending domain (Sending, Domain settings, SMTP credentials), not the API key. Domains in the EU region use smtp.eu.mailgun.org.",
+            "ses": "Use Amazon SES SMTP credentials, not your AWS access keys. Change us-east-1 in the server name to your SES region: the credentials work in that region only.",
+            "postmark": "Paste the Server API token from the server's API Tokens tab. Postmark uses it as both username and password, so there is no username field.",
+            "brevo": "The username is the SMTP login shown in Brevo under SMTP & API, and the password is an SMTP key (not an API key). Send from a domain authenticated in Brevo.",
+            "microsoft365": "Vedette signs in as an app with OAuth2, without a user password. The box also contacts login.microsoftonline.com to get a sign-in token. Your Microsoft 365 administrator does this once:",
+            "google-workspace": "Vedette signs in as a service account with OAuth2, without a user password. The box also contacts oauth2.googleapis.com to get a sign-in token. A Google Workspace super administrator does this once:"
+          },
+          "steps": {
+            "microsoft365": {
+              "s1": "In Microsoft Entra, register an app. Under API permissions add Office 365 Exchange Online, application permission SMTP.SendAsApp, and grant admin consent.",
+              "s2": "Under Certificates & secrets create a client secret, and copy its Value.",
+              "s3": "In Exchange Online PowerShell, register the app: New-ServicePrincipal with the Application ID and the Object ID of the Enterprise application (not of the app registration).",
+              "s4": "Give it the mailbox: Add-MailboxPermission -Identity <mailbox> -User <service principal ID> -AccessRights FullAccess, and keep SMTP AUTH on for that mailbox."
+            },
+            "google-workspace": {
+              "s1": "In the Google Cloud console create a service account, then under Keys add a JSON key and download it.",
+              "s2": "In the Google Admin console open Security, Access and data control, API controls, Manage Domain Wide Delegation, and add the service account's client ID with the scope https://mail.google.com/.",
+              "s3": "The mailbox below must be a user of that Google Workspace domain; the service account sends as that user."
+            }
+          },
+          "doc": "Read {{name}}'s instructions"
+        },
         "host": {
           "label": "SMTP server",
           "hint": "For example smtp.company.com."
@@ -113,7 +165,22 @@
         },
         "username": {
           "label": "Username",
-          "hint": "Usually the sending email address."
+          "hint": "Usually the sending email address.",
+          "hint_oauth": "The mailbox Vedette sends as, for example alerts@company.com. Send from must be this address or one it may send as.",
+          "label_oauth": "Mailbox to send as",
+          "hint_sendgrid": "Always apikey for SendGrid.",
+          "hint_mailgun": "The SMTP login of the domain, for example postmaster@mg.company.com.",
+          "hint_ses": "The SMTP user name from the SES console, not an AWS access key.",
+          "hint_brevo": "The SMTP login from Brevo, for example 8a1b2c001@smtp-brevo.com.",
+          "hint_mailbox": "Your full email address."
+        },
+        "tenant_id": {
+          "label": "Tenant ID",
+          "hint": "The Directory (tenant) ID on the app registration's Overview page."
+        },
+        "client_id": {
+          "label": "Client ID",
+          "hint": "The Application (client) ID on the same page."
         },
         "from": {
           "label": "Send from",
@@ -125,7 +192,19 @@
         },
         "secret": {
           "label": "SMTP password",
-          "hint": "Gmail and Microsoft 365 require an app password instead of the normal password. Prefer a dedicated account for Vedette."
+          "hint": "The password of the account on your mail server. Prefer a dedicated account for Vedette.",
+          "label_app": "App password",
+          "label_zoho": "Password or app password",
+          "label_sendgrid": "API key",
+          "label_postmark": "Server API token",
+          "label_brevo": "SMTP key",
+          "label_microsoft_oauth": "Client secret",
+          "label_google_oauth": "Service account key (JSON file)",
+          "hint_service": "Stays on this box, encrypted. Only the last 4 characters show after saving.",
+          "hint_microsoft_oauth": "The Value of a client secret of the app registration (not its Secret ID). Client secrets expire: make a new one before then.",
+          "hint_google_oauth": "Choose the JSON key file you downloaded. It stays on this box, encrypted; Vedette never sends the key itself, only a token request signed with it.",
+          "loaded": "Key of {{email}} chosen. Save to keep it.",
+          "notKey": "This file is not a service account key file from Google Cloud."
         }
       },
       "webhook": {

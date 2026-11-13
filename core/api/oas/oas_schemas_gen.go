@@ -89048,10 +89048,13 @@ type NotifyGetNotifyChannelsOKChannelsItem struct {
 	Configured bool                                                 `json:"configured"`
 	Enabled    bool                                                 `json:"enabled"`
 	// Non-secret fields: telegram chat_id · zalo oa_id, user_id · zalo-personal user_id (recipient user
-	// or group ID; session is the secret) · email host, port, security (starttls|ssl|none), username,
-	// from, to · webhook url (a secret: sealed on save, returned only as scheme://host/… followed by
-	// its last 4 characters; send it empty, or as returned, to keep the saved one) · slack label
-	// (optional), channel_id (approvals only).
+	// or group ID; session is the secret) · email provider (preset, D-449:
+	// custom|gmail|yahoo|icloud|zoho|fastmail|sendgrid|mailgun|ses|postmark|brevo|microsoft365|google-workspace;
+	// absent = custom), host, port, security (starttls|ssl|none), username (the mailbox for microsoft365
+	// and google-workspace; none for postmark, whose server token is the secret), tenant_id and client_id
+	// (microsoft365 only), from, to · webhook url (a secret: sealed on save, returned only as
+	// scheme://host/… followed by its last 4 characters; send it empty, or as returned, to keep the
+	// saved one) · slack label (optional), channel_id (approvals only).
 	Fields      NotifyGetNotifyChannelsOKChannelsItemFields      `json:"fields"`
 	LastTest    NilNotifyGetNotifyChannelsOKChannelsItemLastTest `json:"last_test"`
 	MinSeverity NotifyGetNotifyChannelsOKChannelsItemMinSeverity `json:"min_severity"`
@@ -89214,10 +89217,13 @@ func (s *NotifyGetNotifyChannelsOKChannelsItemApproversItem) SetUserID(val strin
 }
 
 // Non-secret fields: telegram chat_id · zalo oa_id, user_id · zalo-personal user_id (recipient user
-// or group ID; session is the secret) · email host, port, security (starttls|ssl|none), username,
-// from, to · webhook url (a secret: sealed on save, returned only as scheme://host/… followed by
-// its last 4 characters; send it empty, or as returned, to keep the saved one) · slack label
-// (optional), channel_id (approvals only).
+// or group ID; session is the secret) · email provider (preset, D-449:
+// custom|gmail|yahoo|icloud|zoho|fastmail|sendgrid|mailgun|ses|postmark|brevo|microsoft365|google-workspace;
+// absent = custom), host, port, security (starttls|ssl|none), username (the mailbox for microsoft365
+// and google-workspace; none for postmark, whose server token is the secret), tenant_id and client_id
+// (microsoft365 only), from, to · webhook url (a secret: sealed on save, returned only as
+// scheme://host/… followed by its last 4 characters; send it empty, or as returned, to keep the
+// saved one) · slack label (optional), channel_id (approvals only).
 type NotifyGetNotifyChannelsOKChannelsItemFields map[string]string
 
 func (s *NotifyGetNotifyChannelsOKChannelsItemFields) init() NotifyGetNotifyChannelsOKChannelsItemFields {
@@ -92155,10 +92161,13 @@ type NotifyPutNotifyChannelsTypeOK struct {
 	Configured bool                                         `json:"configured"`
 	Enabled    bool                                         `json:"enabled"`
 	// Non-secret fields: telegram chat_id · zalo oa_id, user_id · zalo-personal user_id (recipient user
-	// or group ID; session is the secret) · email host, port, security (starttls|ssl|none), username,
-	// from, to · webhook url (a secret: sealed on save, returned only as scheme://host/… followed by
-	// its last 4 characters; send it empty, or as returned, to keep the saved one) · slack label
-	// (optional), channel_id (approvals only).
+	// or group ID; session is the secret) · email provider (preset, D-449:
+	// custom|gmail|yahoo|icloud|zoho|fastmail|sendgrid|mailgun|ses|postmark|brevo|microsoft365|google-workspace;
+	// absent = custom), host, port, security (starttls|ssl|none), username (the mailbox for microsoft365
+	// and google-workspace; none for postmark, whose server token is the secret), tenant_id and client_id
+	// (microsoft365 only), from, to · webhook url (a secret: sealed on save, returned only as
+	// scheme://host/… followed by its last 4 characters; send it empty, or as returned, to keep the
+	// saved one) · slack label (optional), channel_id (approvals only).
 	Fields      NotifyPutNotifyChannelsTypeOKFields      `json:"fields"`
 	LastTest    NilNotifyPutNotifyChannelsTypeOKLastTest `json:"last_test"`
 	MinSeverity NotifyPutNotifyChannelsTypeOKMinSeverity `json:"min_severity"`
@@ -92321,10 +92330,13 @@ func (s *NotifyPutNotifyChannelsTypeOKApproversItem) SetUserID(val string) {
 }
 
 // Non-secret fields: telegram chat_id · zalo oa_id, user_id · zalo-personal user_id (recipient user
-// or group ID; session is the secret) · email host, port, security (starttls|ssl|none), username,
-// from, to · webhook url (a secret: sealed on save, returned only as scheme://host/… followed by
-// its last 4 characters; send it empty, or as returned, to keep the saved one) · slack label
-// (optional), channel_id (approvals only).
+// or group ID; session is the secret) · email provider (preset, D-449:
+// custom|gmail|yahoo|icloud|zoho|fastmail|sendgrid|mailgun|ses|postmark|brevo|microsoft365|google-workspace;
+// absent = custom), host, port, security (starttls|ssl|none), username (the mailbox for microsoft365
+// and google-workspace; none for postmark, whose server token is the secret), tenant_id and client_id
+// (microsoft365 only), from, to · webhook url (a secret: sealed on save, returned only as
+// scheme://host/… followed by its last 4 characters; send it empty, or as returned, to keep the
+// saved one) · slack label (optional), channel_id (approvals only).
 type NotifyPutNotifyChannelsTypeOKFields map[string]string
 
 func (s *NotifyPutNotifyChannelsTypeOKFields) init() NotifyPutNotifyChannelsTypeOKFields {
@@ -92508,7 +92520,9 @@ type NotifyPutNotifyChannelsTypeReq struct {
 	Enabled     bool                                      `json:"enabled"`
 	Fields      NotifyPutNotifyChannelsTypeReqFields      `json:"fields"`
 	MinSeverity NotifyPutNotifyChannelsTypeReqMinSeverity `json:"min_severity"`
-	// Leave blank to keep the saved secret.
+	// Leave blank to keep the saved secret (email: only while the sign-in method of the provider stays the
+	// same). Email: password, app password or API key; the Microsoft 365 client secret; the Google
+	// Workspace service account key file (JSON).
 	Secret OptString `json:"secret"`
 }
 

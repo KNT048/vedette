@@ -32,7 +32,7 @@ export const FIELDS: Record<ChannelType, string[]> = {
   slack: ['label'], // channel_id chỉ hiện khi bật duyệt trong chat
   zalo: ['oa_id', 'user_id'],
   'zalo-personal': ['user_id'],
-  email: ['host', 'port', 'security', 'username', 'from', 'to'],
+  email: ['provider', 'host', 'port', 'security', 'username', 'tenant_id', 'client_id', 'from', 'to'], // provider: preset (D-449); tenant_id, client_id: Microsoft 365 only
   webhook: ['url'],
 }
 

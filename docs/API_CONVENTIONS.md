@@ -107,6 +107,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `bad_chat_id` | 400 | Chat ID is a number (groups look like -1001234567890) or a public @channel_name. Send the bot a message, then open getUp | module notify (validator dùng chung) |
 | `bad_cidr` | 400 | "${r.slice(0, 30)}" is not a valid network range. Enter something like 192.168.10.0/24. | `PUT /inventory/settings` |
 | `bad_client_cert` | 400 | Only a TLS source can have a client certificate, given as its SHA-256 fingerprint: 64 hexadecimal characters. | module logs (validator dùng chung) |
+| `bad_client_id` | 400 | The client ID is the Application (client) ID of the app registration, for example 0a1b2c3d-4e5f-6789-abcd-ef0123456789. | `PUT /notify/channels/email` (Microsoft 365, D-449) |
 | `bad_config` | 400 | Parser configuration is not valid (for example, JSONPath must start with $). | `POST /feeds/parse-test` |
 | `bad_cursor` | 400 | That search position is not valid. Search again from the start. | `GET /logs/events` (module logs, D-441): `cursor` not in the form of a `next_cursor`, or sent without `q`; GUI searches again from the start |
 | `bad_days` | 400 | Scan days must be Monday to Sunday. | `PUT /inventory/settings`; `PUT /logs/retention` |
@@ -138,12 +139,13 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `bad_port` | 400 | The port must be a number from 1 to 65535. Usually 514 (UDP or TCP) or 6514 (TLS). | `POST /scans/credentialed` |
 | `bad_product` | 400 | Vendor and product are at most 64 characters each and cannot contain < or >. | module inventory (validator dùng chung) |
 | `bad_proto` | 400 | This device type cannot send logs with the chosen protocol. Pick another protocol from the list. | module logs (validator dùng chung) |
+| `bad_provider` | 400 | Choose an email provider from the list, or Custom SMTP. | `PUT /notify/channels/email` (D-449) |
 | `bad_quiet` | 400 | The start and end times must not be the same. | `PUT /notify/rules` |
 | `bad_ranges` | 400 | The list of network ranges is missing. | `PUT /inventory/settings` |
 | `bad_rate` | 400 | Scan rate is 1 to 1000 packets per second. | `PUT /inventory/settings` |
 | `bad_regular_scan` | 400 | Regular scans must be: follow type setting, allow or never. | `PATCH /inventory/devices/{id}` |
 | `bad_sample` | 400 | The sample text could not be read with this parser. | `POST /feeds/parse-test` |
-| `bad_secret` | 400 | The signing key needs at least 16 characters. Press Generate random if you want a random one. | module logs, notify (validator dùng chung) |
+| `bad_secret` | 400 | The signing key needs at least 16 characters. Press Generate random if you want a random one. Also (email, D-449): a Google service account key file, a Microsoft 365 client secret or a Postmark server token of the wrong shape. | module logs, notify (validator dùng chung) |
 | `bad_security` | 400 | Choose an encryption type: STARTTLS, SSL/TLS or none. | module notify (validator dùng chung) |
 | `bad_service` | 400 | Choose a service: SMB, RDP, SSH, MSSQL or HTTP. | `POST /honeypot/test-hit` |
 | `bad_severity` | 400 | Choose a minimum severity: Critical, High, Medium or Low. | module notify (validator dùng chung) |
@@ -151,6 +153,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `bad_skill` | 400 | skill must be explain or mitigation-config. | `POST /findings/{id}/ai` |
 | `bad_span` | 400 | span must be true or false. | `PATCH /inventory/sensors/{id}` |
 | `bad_status` | 400 | Status must be new, acknowledged or resolved. | `PATCH /notify/incidents/{id}` |
+| `bad_tenant_id` | 400 | The tenant ID is the Directory (tenant) ID of the app registration, for example 72f988bf-86f1-41af-91ab-2d7cd011db47, or your domain such as company.onmicrosoft.com. | `PUT /notify/channels/email` (Microsoft 365, D-449) |
 | `bad_time` | 400 | Time must look like 23:00. | `PUT /inventory/settings`; `PUT /notify/rules` |
 | `bad_to` | 400 | not-an-email is not a valid email address. Separate several recipients with commas. | module notify (validator dùng chung) |
 | `bad_token` | 400 | A bot token looks like 123456789:AAH… and comes from @BotFather. Copy it again without extra spaces. | module notify (validator dùng chung) |

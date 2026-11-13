@@ -81,6 +81,7 @@ type Service struct {
 
 	mu        sync.Mutex
 	senders   map[channel.Type]cachedSender
+	tokens    *channel.TokenCache // OAuth2 tokens of the email channel (D-449), shared by every email sender
 	lastPrune time.Time
 	// webhookClient replaces the webhook adapter's own guarded client. Only export_test.go sets it: a client from Config
 	// would skip the connect-time address check, so no configuration can reach a webhook.
@@ -125,7 +126,7 @@ func New(c Config) (*Service, error) {
 	if c.Clock == nil {
 		c.Clock = time.Now
 	}
-	s := &Service{cfg: c, senders: map[channel.Type]cachedSender{}, zaloTo: channel.ZaloPersonalTo, zaloListen: openZaloInbox}
+	s := &Service{cfg: c, senders: map[channel.Type]cachedSender{}, tokens: channel.NewTokenCache(), zaloTo: channel.ZaloPersonalTo, zaloListen: openZaloInbox}
 	if cn, ok := c.Modules.(changeNotifier); ok { // the callback only sets a flag: it runs on the publisher's goroutine and must not block
 		cn.OnChange(func(id string, enabled bool) {
 			if id == ModuleID && enabled {

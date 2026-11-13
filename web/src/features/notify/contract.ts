@@ -14,7 +14,7 @@ export const Channel = z.object({
   type: ChannelType,
   configured: z.boolean(),
   enabled: z.boolean(),
-  fields: z.record(z.string(), z.string()).describe('Non-secret fields: telegram chat_id · zalo oa_id, user_id · zalo-personal user_id (recipient user or group ID; session is the secret) · email host, port, security (starttls|ssl|none), username, from, to · webhook url (a secret: sealed on save, returned only as scheme://host/… followed by its last 4 characters; send it empty, or as returned, to keep the saved one) · slack label (optional), channel_id (approvals only)'),
+  fields: z.record(z.string(), z.string()).describe('Non-secret fields: telegram chat_id · zalo oa_id, user_id · zalo-personal user_id (recipient user or group ID; session is the secret) · email provider (preset, D-449: custom|gmail|yahoo|icloud|zoho|fastmail|sendgrid|mailgun|ses|postmark|brevo|microsoft365|google-workspace; absent = custom), host, port, security (starttls|ssl|none), username (the mailbox for microsoft365 and google-workspace; none for postmark, whose server token is the secret), tenant_id and client_id (microsoft365 only), from, to · webhook url (a secret: sealed on save, returned only as scheme://host/… followed by its last 4 characters; send it empty, or as returned, to keep the saved one) · slack label (optional), channel_id (approvals only)'),
   secret_last4: z.string().nullable().describe('Secrets (token, password, signing key) are never returned, only the last 4 characters (SYS-4)'),
   min_severity: RouteSeverity,
   last_test: TestResult.nullable(),
@@ -25,7 +25,7 @@ export const Channel = z.object({
 export const ChannelInput = z.object({
   enabled: z.boolean(),
   fields: z.record(z.string(), z.string()),
-  secret: z.string().optional().describe('Leave blank to keep the saved secret'),
+  secret: z.string().optional().describe('Leave blank to keep the saved secret (email: only while the sign-in method of the provider stays the same). Email: password, app password or API key; the Microsoft 365 client secret; the Google Workspace service account key file (JSON)'),
   min_severity: RouteSeverity,
   approvals: z.boolean().optional().describe('Slack, Telegram, Email and Zalo personal only; Zalo OA and webhook reject it'),
   approvers: z.array(Approver).optional().describe('Required (at least one) when approvals is on'),

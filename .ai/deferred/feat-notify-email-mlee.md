@@ -1,0 +1,4 @@
+# Deferred: feat/notify-email-mlee
+
+- [ ] 2026-11-13 — Send one real test email through each OAuth preset (a Microsoft 365 tenant with the app registration + service principal + mailbox permission, a Google Workspace domain with a service account and domain-wide delegation) and one app-password preset (Gmail) from a lab box — vì sao để sau: the session may not call a real provider (fakes only); needs kien's test tenants and keys — ở đâu: Settings → Alert channels → Email on the lab appliance, `modules/notify/channel/smtpauth.go`
+- [ ] 2026-11-13 — The first-run setup wizard's email step still offers only plain SMTP (no provider presets, no OAuth); the box reads it as Custom SMTP, so it works, but a Gmail or Microsoft 365 user meets the presets only later in Settings — vì sao để sau: the wizard is Kiên's code (`core.json` `setup.channel`, web/src/features/core) — ở đâu: hand to Kiên's lead

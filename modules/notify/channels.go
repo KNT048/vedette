@@ -41,7 +41,7 @@ var savedFields = map[channel.Type][]string{
 	channel.Slack:        {"label", "channel_id"},
 	channel.Zalo:         {"oa_id", "user_id"},
 	channel.ZaloPersonal: {"user_id", "group"},
-	channel.Email:        {"host", "port", "security", "username", "from", "to"},
+	channel.Email:        {"provider", "host", "port", "security", "username", "tenant_id", "client_id", "from", "to"},
 	channel.Webhook:      {"url"},
 }
 
@@ -271,8 +271,9 @@ func (s *Service) newSender(t channel.Type, f map[string]string, secret string, 
 				return nil, err
 			}
 		}
-		ec := channel.EmailConfig{Host: f["host"], Port: port, Security: f["security"], Username: f["username"],
-			Password: sv, From: f["from"], To: to, Now: s.now, BoxAddrsFunc: s.boxAddrs, SelfAddrsFunc: s.cfg.SelfAddrs, AllowLoopback: s.cfg.SMTPLoopback}
+		ec := channel.EmailConfig{Host: f["host"], Port: port, Security: f["security"], Provider: f["provider"], Username: f["username"],
+			TenantID: f["tenant_id"], ClientID: f["client_id"], Password: sv, From: f["from"], To: to, Now: s.now, HTTPClient: hc, Tokens: s.tokens,
+			BoxAddrsFunc: s.boxAddrs, SelfAddrsFunc: s.cfg.SelfAddrs, AllowLoopback: s.cfg.SMTPLoopback}
 		if s.cfg.SMTPLoopback {
 			ec.BoxAddrsFunc = nil // the interface list holds 127.0.0.1
 		}
@@ -455,6 +456,33 @@ func (s *Service) checkApprovers(ctx context.Context, t channel.Type, in Channel
 	return nil
 }
 
+// emailFields keeps only the fields the email provider uses (D-449): the tenant and client IDs belong to Microsoft 365, and Postmark's
+// username is its server token, a secret, so it is never a field. A saved secret is kept only while the sign-in method stays the same:
+// a password is not a client secret, and a client secret is not a key file.
+func emailFields(fields map[string]string, cur channelRow, secret string) error {
+	if fields["provider"] == "" {
+		delete(fields, "provider") // a channel saved without the presets (the setup wizard): custom SMTP
+	}
+	auth, ok := channel.EmailAuth(fields["provider"])
+	if !ok {
+		return badRequest("bad_provider", "Choose an email provider from the list, or Custom SMTP.")
+	}
+	if auth != channel.AuthMicrosoft {
+		delete(fields, "tenant_id")
+		delete(fields, "client_id")
+	}
+	if auth == channel.AuthTokenAsUser {
+		delete(fields, "username")
+	}
+	if was, _ := channel.EmailAuth(cur.Fields["provider"]); secret == "" && cur.SecretID != "" && was != auth && fields["security"] != channel.SecurityNone {
+		return badRequest("secret_required", "Enter the "+emailSecretName[auth]+": the sign-in method changed, and a saved secret is only used with the method it was saved for.")
+	}
+	return nil
+}
+
+var emailSecretName = map[string]string{channel.AuthPassword: "password or API key", channel.AuthTokenAsUser: "server API token",
+	channel.AuthMicrosoft: "client secret", channel.AuthGoogle: "service account key"}
+
 // SaveChannel stores the configuration of one channel (PUT /notify/channels/{type}, PRE-3, INV-1, INV-7, INV-8).
 // An empty Secret, AppToken or BotToken keeps the saved one. Errors are *apierr.Error.
 func (s *Service) SaveChannel(ctx context.Context, actor string, t channel.Type, in ChannelInput) (Channel, error) {
@@ -482,6 +510,11 @@ func (s *Service) SaveChannel(ctx context.Context, actor string, t channel.Type,
 			delete(fields, "group")
 		}
 		secret := strings.TrimSpace(in.Secret)
+		if t == channel.Email {
+			if err := emailFields(fields, cur, secret); err != nil {
+				return err
+			}
+		}
 		effective := secret
 		if effective == "" {
 			if effective, err = s.openSecret(ctx, tx, cur.SecretID); err != nil {

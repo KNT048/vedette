@@ -29,11 +29,14 @@ type fakeSMTP struct {
 	starttls bool // advertise STARTTLS
 	user     string
 	pass     string
+	mechs    []string // AUTH mechanisms offered; nil = PLAIN
+	token    string   // the bearer token XOAUTH2 and OAUTHBEARER accept
 
 	mu        sync.Mutex
 	authPlain bool // AUTH arrived before TLS
 	authTLS   bool // AUTH arrived after TLS
 	sessions  int
+	mech      string // the last AUTH mechanism used
 	mailFrom  string
 	rcpts     []string
 	data      string
@@ -126,13 +129,17 @@ func (f *fakeSMTP) serve(raw net.Conn) {
 			if f.starttls && !encrypted {
 				say("250-STARTTLS")
 			}
-			say("250 AUTH PLAIN") // advertised even without TLS: the client must not use it
+			mechs := f.mechs
+			if mechs == nil {
+				mechs = []string{"PLAIN"}
+			}
+			say("250 AUTH " + strings.Join(mechs, " ")) // advertised even without TLS: the client must not use it
 		case up == "STARTTLS":
 			say("220 go ahead")
 			conn = tls.Server(raw, f.tlsConfig())
 			r = bufio.NewReader(conn)
 			encrypted = true
-		case strings.HasPrefix(up, "AUTH PLAIN"):
+		case strings.HasPrefix(up, "AUTH "):
 			f.mu.Lock()
 			if encrypted {
 				f.authTLS = true
@@ -140,12 +147,8 @@ func (f *fakeSMTP) serve(raw net.Conn) {
 				f.authPlain = true
 			}
 			f.mu.Unlock()
-			b, _ := base64.StdEncoding.DecodeString(strings.TrimSpace(line[len("AUTH PLAIN"):]))
-			parts := strings.Split(string(b), "\x00")
-			if len(parts) == 3 && parts[1] == f.user && parts[2] == f.pass {
-				say("235 2.7.0 authenticated")
-			} else {
-				say("535 5.7.8 bad credentials for " + string(b)) // echoes the secret on purpose
+			if !f.auth(line, r, say) {
+				return
 			}
 		case strings.HasPrefix(up, "MAIL FROM:"):
 			f.mu.Lock()
@@ -181,6 +184,91 @@ func (f *fakeSMTP) serve(raw net.Conn) {
 			say("502 not implemented")
 		}
 	}
+}
+
+// auth runs one AUTH exchange; false = the connection broke. A refusal echoes what the client sent, decoded, on purpose: the
+// client must scrub it.
+func (f *fakeSMTP) auth(line string, r *bufio.Reader, say func(string)) bool {
+	fields := strings.Fields(line)
+	mech := strings.ToUpper(fields[1])
+	f.mu.Lock()
+	f.mech = mech
+	f.mu.Unlock()
+	initial := func() string {
+		if len(fields) < 3 {
+			return ""
+		}
+		b, _ := base64.StdEncoding.DecodeString(fields[2])
+		return string(b)
+	}
+	read := func() (string, bool) {
+		l, err := r.ReadString('\n')
+		if err != nil {
+			return "", false
+		}
+		b, _ := base64.StdEncoding.DecodeString(strings.TrimRight(l, "\r\n"))
+		return string(b), true
+	}
+	oauthRefuse := func(want string) bool { // the server's JSON challenge, the client's answer, then 535 (Google's XOAUTH2 page)
+		say("334 " + base64.StdEncoding.EncodeToString([]byte(`{"status":"401","schemes":"bearer"}`)))
+		got, ok := read()
+		if !ok {
+			return false
+		}
+		if got != want {
+			say("501 5.5.2 bad answer to the challenge")
+			return true
+		}
+		say("535 5.7.8 token not accepted " + initial())
+		return true
+	}
+	switch mech {
+	case "PLAIN":
+		parts := strings.Split(initial(), "\x00")
+		if len(parts) == 3 && parts[1] == f.user && parts[2] == f.pass {
+			say("235 2.7.0 authenticated")
+		} else {
+			say("535 5.7.8 bad credentials for " + initial())
+		}
+	case "LOGIN":
+		say("334 VXNlcm5hbWU6")
+		u, ok := read()
+		if !ok {
+			return false
+		}
+		say("334 UGFzc3dvcmQ6")
+		p, ok := read()
+		if !ok {
+			return false
+		}
+		if u == f.user && p == f.pass {
+			say("235 2.7.0 authenticated")
+		} else {
+			say("535 5.7.8 bad credentials for " + u + " " + p)
+		}
+	case "XOAUTH2":
+		if initial() == "user="+f.user+"\x01auth=Bearer "+f.token+"\x01\x01" && f.token != "" {
+			say("235 2.7.0 accepted")
+			return true
+		}
+		return oauthRefuse("")
+	case "OAUTHBEARER":
+		in := initial()
+		if strings.HasPrefix(in, "n,a="+f.user+",\x01host=") && strings.HasSuffix(in, "\x01auth=Bearer "+f.token+"\x01\x01") && f.token != "" {
+			say("235 2.7.0 accepted")
+			return true
+		}
+		return oauthRefuse("\x01")
+	default:
+		say("504 5.5.4 unrecognized authentication type")
+	}
+	return true
+}
+
+func (f *fakeSMTP) usedMech() string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.mech
 }
 
 func (f *fakeSMTP) snapshot() (authPlain, authTLS bool, from string, rcpts []string, data string) {

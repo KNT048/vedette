@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"mime/quotedprintable"
 	"net"
+	"net/http"
 	"net/netip"
 	"net/smtp"
 	"net/textproto"
@@ -31,15 +32,25 @@ const (
 // EmailConfig configures the email channel (also used for two-step sign-in
 // codes, D-35). The server is the customer's own SMTP relay (PRIVACY flow 5).
 type EmailConfig struct {
-	Host     string         // domain name or IPv4 address
-	Port     int            // 587 goes with starttls, 465 with ssl
-	Security string         // starttls | ssl | none
-	Username string         // required unless Security is none
-	Password secrets.Value  // required unless Security is none
-	From     string         // sender address
-	To       []string       // recipients, at least one; see ParseRecipients
-	RootCAs  *x509.CertPool // nil = system roots; tests add their own CA
-	Now      func() time.Time
+	Host     string // domain name or IPv4 address
+	Port     int    // 587 goes with starttls, 465 with ssl
+	Security string // starttls | ssl | none
+	Provider string // the preset of the email dialog (D-449, EmailAuth); "" = custom
+	Username string // required unless Security is none; with OAuth2 the mailbox to send as; unused for Postmark
+	// Password is the secret: the password, app password or API key; the Microsoft 365 client secret; the Google service account
+	// key file (JSON). Required unless Security is none.
+	Password secrets.Value
+	TenantID string // Microsoft 365: Directory (tenant) ID, a GUID or a domain such as company.onmicrosoft.com
+	ClientID string // Microsoft 365: Application (client) ID, a GUID
+	// HTTPClient makes the OAuth2 token requests (login.microsoftonline.com, oauth2.googleapis.com); redirects are never followed.
+	// nil = a plain client with a timeout.
+	HTTPClient *http.Client
+	// Tokens is the OAuth2 token cache shared by the senders of one service; nil = this sender's own.
+	Tokens  *TokenCache
+	From    string         // sender address
+	To      []string       // recipients, at least one; see ParseRecipients
+	RootCAs *x509.CertPool // nil = system roots; tests add their own CA
+	Now     func() time.Time
 	// BoxAddrsFunc lists the machine's addresses, asked at save and at every connection: the server is never on Vedette's own ports
 	// there (D-446), as for a webhook. known=false refuses Vedette's own ports on every address and nothing more (loopback, link-local,
 	// multicast and unspecified are refused all the same): the email channel also carries the two-step sign-in codes, which must not
@@ -60,10 +71,14 @@ const (
 
 type emailSender struct {
 	noPrint
-	cfg  EmailConfig
-	addr string
-	tls  *tls.Config
-	box  func() ([]netip.Addr, bool) // EmailConfig.BoxAddrsFunc; unknown refuses only Vedette's ports (ownAddr), never the whole channel
+	cfg    EmailConfig
+	addr   string
+	tls    *tls.Config
+	box    func() ([]netip.Addr, bool) // EmailConfig.BoxAddrsFunc; unknown refuses only Vedette's ports (ownAddr), never the whole channel
+	auth   string                      // EmailAuth of the provider
+	gkey   googleKey                   // the parsed Google key (AuthGoogle)
+	client *http.Client                // token requests
+	tokens *TokenCache
 }
 
 // ParseRecipients splits a "a@x.com, b@y.com" field (commas or semicolons) and validates each address.
@@ -99,7 +114,9 @@ func badRecipient(a string) error {
 // Credentials are only ever sent after the connection is encrypted: with
 // starttls the adapter requires the STARTTLS extension and a completed
 // handshake before AUTH, with ssl the whole session is TLS. Security "none" is
-// accepted only for an internal host and then never authenticates.
+// accepted only for an internal host and then never authenticates. Sign-in
+// (D-449): AUTH PLAIN, else LOGIN, with a password; XOAUTH2, else OAUTHBEARER,
+// with an OAuth2 token for Microsoft 365 and Google Workspace (smtpauth.go).
 func NewEmail(cfg EmailConfig) (Sender, error) {
 	cfg.Host = strings.TrimSpace(cfg.Host)
 	if !validHost(cfg.Host) {
@@ -131,16 +148,55 @@ func NewEmail(cfg EmailConfig) (Sender, error) {
 	if cfg.Security == SecurityStartTLS && cfg.Port == 465 {
 		return nil, cfgErr("port_mismatch", "Port 465 uses SSL/TLS, not STARTTLS. Choose SSL/TLS, or change the port to 587 for STARTTLS.")
 	}
-	if cfg.Security == SecurityNone {
+	auth, ok := EmailAuth(cfg.Provider)
+	if !ok {
+		return nil, cfgErr("bad_provider", "Choose an email provider from the list, or Custom SMTP.")
+	}
+	var gkey googleKey
+	switch {
+	case cfg.Security == SecurityNone && auth != AuthPassword:
+		return nil, cfgErr("bad_security", "This provider signs in, so the connection must be encrypted. Choose STARTTLS or SSL/TLS.")
+	case cfg.Security == SecurityNone:
 		if !internalHost(cfg.Host) {
 			return nil, cfgErr("insecure_smtp", "Unencrypted SMTP is only allowed for a server on your internal network. Choose STARTTLS or SSL/TLS.")
 		}
-	} else {
-		if !validHeaderText(cfg.Username) {
+	case auth == AuthMicrosoft || auth == AuthGoogle:
+		if !validEmail(cfg.Username) {
+			return nil, cfgErr("bad_username", "Enter the mailbox Vedette sends as, for example alerts@company.com.")
+		}
+		if auth == AuthMicrosoft {
+			if !guidRE.MatchString(cfg.TenantID) && !validDomain(strings.ToLower(cfg.TenantID)) {
+				return nil, cfgErr("bad_tenant_id", "The tenant ID is the Directory (tenant) ID of the app registration, for example "+
+					"72f988bf-86f1-41af-91ab-2d7cd011db47, or your domain such as company.onmicrosoft.com.")
+			}
+			if !guidRE.MatchString(cfg.ClientID) {
+				return nil, cfgErr("bad_client_id", "The client ID is the Application (client) ID of the app registration, for example 0a1b2c3d-4e5f-6789-abcd-ef0123456789.")
+			}
+		}
+		if !isSet(cfg.Password) {
+			return nil, cfgErr("secret_required", map[string]string{AuthMicrosoft: "Enter the client secret of the app registration.",
+				AuthGoogle: "Choose the JSON key file of the service account."}[auth])
+		}
+		if auth == AuthGoogle {
+			k, err := parseGoogleKey(cfg.Password.Reveal())
+			if err != nil {
+				return nil, err
+			}
+			gkey = k
+		} else if p := cfg.Password.Reveal(); len(p) > 256 || !validHeaderText(p) {
+			return nil, cfgErr("bad_secret", "The client secret is the Value of a secret under Certificates & secrets of the app registration (not its Secret ID). Copy it again.")
+		}
+	default:
+		if auth == AuthTokenAsUser {
+			cfg.Username = "" // the server token is the username too; it is never stored as a field
+		} else if !validHeaderText(cfg.Username) {
 			return nil, cfgErr("bad_username", "Enter the SMTP username (usually the email address).")
 		}
 		if !isSet(cfg.Password) {
 			return nil, cfgErr("secret_required", "Enter the SMTP password. This channel has no saved key yet.")
+		}
+		if auth == AuthTokenAsUser && !validHeaderText(cfg.Password.Reveal()) {
+			return nil, cfgErr("bad_secret", "The server API token is one line of letters, digits and dashes. Copy it again from the server's API Tokens tab in Postmark.")
 		}
 	}
 	if !validEmail(cfg.From) {
@@ -158,11 +214,19 @@ func NewEmail(cfg EmailConfig) (Sender, error) {
 		cfg.Now = time.Now
 	}
 	cfg.To = append([]string(nil), cfg.To...)
+	tokens := cfg.Tokens
+	if tokens == nil {
+		tokens = NewTokenCache()
+	}
 	return &emailSender{
-		cfg:  cfg,
-		addr: net.JoinHostPort(cfg.Host, strconv.Itoa(cfg.Port)),
-		tls:  &tls.Config{ServerName: cfg.Host, MinVersion: tls.VersionTLS12, RootCAs: cfg.RootCAs},
-		box:  box,
+		cfg:    cfg,
+		addr:   net.JoinHostPort(cfg.Host, strconv.Itoa(cfg.Port)),
+		tls:    &tls.Config{ServerName: cfg.Host, MinVersion: tls.VersionTLS12, RootCAs: cfg.RootCAs},
+		box:    box,
+		auth:   auth,
+		gkey:   gkey,
+		client: tokenClient(cfg.HTTPClient),
+		tokens: tokens,
 	}, nil
 }
 
@@ -275,6 +339,15 @@ func (e *emailSender) deliver(ctx context.Context, raw []byte) error {
 	ctx, cancel := context.WithTimeout(ctx, emailTimeout)
 	defer cancel()
 	sec := []secrets.Value{e.cfg.Password}
+	var tok *oauthToken
+	if e.oauth() { // the token first: no SMTP session waits on the token service, and none is opened when it refuses
+		v, k, err := e.token(ctx)
+		if err != nil {
+			return err
+		}
+		tok = &oauthToken{v, k}
+		sec = append(sec, v)
+	}
 	fail := func(stage string, err error) error {
 		var te *textproto.Error
 		if errors.As(err, &te) {
@@ -319,7 +392,7 @@ func (e *emailSender) deliver(ctx context.Context, raw []byte) error {
 			if budget.left <= 0 {
 				return fail("starttls", errServerTooMuch)
 			}
-			return fmt.Errorf("notify: email: the server does not offer STARTTLS, so nothing was sent (credentials are never sent unencrypted)")
+			return &SignInError{Msg: "The mail server does not offer STARTTLS, so nothing was sent: credentials are never sent unencrypted. Check the port, or choose SSL/TLS on 465."}
 		}
 		if err := c.StartTLS(e.tls); err != nil {
 			return fail("starttls", err)
@@ -327,10 +400,10 @@ func (e *emailSender) deliver(ctx context.Context, raw []byte) error {
 	}
 	if e.cfg.Security != SecurityNone {
 		if _, encrypted := c.TLSConnectionState(); !encrypted {
-			return fmt.Errorf("notify: email: refusing to authenticate on an unencrypted connection")
+			return fmt.Errorf("notify: email: %w", errUnencryptedAuth)
 		}
-		if err := c.Auth(smtp.PlainAuth("", e.cfg.Username, e.cfg.Password.Reveal(), e.cfg.Host)); err != nil {
-			return fail("login", err)
+		if err := e.signIn(c, tok); err != nil {
+			return err
 		}
 	}
 	if err := c.Mail(e.cfg.From); err != nil {

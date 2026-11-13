@@ -17,6 +17,7 @@ import { useCan } from '@/lib/session'
 import { useUsers } from '@/features/core/api'
 import { checkFeedUrl } from '@/features/feeds/defaults'
 import History from './History'
+import { EMAIL_PROVIDERS, emailProvider, isOAuth, type EmailProvider } from './emailProviders'
 import { useChannels, useRemoveChannel, useSaveChannel, useSaveRules, useTestChannel } from './api'
 import { APPROVAL_CHANNELS, FIELDS, ROUTE_SEVERITIES, forbiddenHost, ownHost } from './types'
 import type { Approver, Channel, Grouping, Quiet, RouteSeverity } from './types'
@@ -31,8 +32,24 @@ const FIELD_OF: Record<Channel['type'], Record<string, string>> = {
   slack: { bad_label: 'label', bad_webhook: 'secret', bad_channel_id: 'channel_id', bad_app_token: 'app_token', bad_bot_token: 'bot_token' },
   zalo: { bad_oa_id: 'oa_id', bad_user_id: 'user_id', secret_required: 'secret', bad_token: 'secret' },
   'zalo-personal': { bad_user_id: 'user_id' }, // at save an approver's ID is `bad_approver_address`; `bad_user_id` is the recipient
-  email: { bad_host: 'host', bad_port: 'port', port_mismatch: 'port', bad_security: 'security', bad_username: 'username', secret_required: 'secret', bad_from: 'from', bad_to: 'to' },
+  email: { bad_provider: 'provider', bad_host: 'host', bad_port: 'port', port_mismatch: 'port', bad_security: 'security', bad_username: 'username', bad_tenant_id: 'tenant_id', bad_client_id: 'client_id', secret_required: 'secret', bad_secret: 'secret', bad_from: 'from', bad_to: 'to' },
   webhook: { bad_url: 'url', url_unreadable: 'url', secret_required: 'secret', bad_secret: 'secret' },
+}
+
+/** The service account of a Google key file, or null when the text is not one (the box checks the key itself, D-449). */
+function keyAccount(text: string): string | null {
+  try {
+    const j = JSON.parse(text) as { type?: unknown; client_email?: unknown; private_key?: unknown }
+    return j.type === 'service_account' && typeof j.client_email === 'string' && typeof j.private_key === 'string' ? j.client_email : null
+  } catch { return null }
+}
+
+/** Translation keys of an email field's label or hint, most specific first: the preset, its sign-in, its kind, then the plain one (D-449). */
+function emailKeys(p: EmailProvider, k: string, part: 'label' | 'hint') {
+  const mailbox = p.group === 'password' && p.id !== 'custom'
+  const variants = k === 'username' ? [p.id, isOAuth(p.auth) ? 'oauth' : mailbox ? 'mailbox' : '']
+    : k === 'secret' ? [p.id, p.auth, mailbox && p.id !== 'zoho' ? 'app' : '', p.id !== 'custom' ? 'service' : ''] : [p.id]
+  return [...variants.filter(Boolean).map((v) => `channels.f.email.${k}.${part}_${v}`), `channels.f.email.${k}.${part}`]
 }
 
 function randomKey() {
@@ -47,8 +64,13 @@ function ChannelDialog({ channel, codeUsers, onClose, onSaved }: { channel: Chan
   const type = channel.type
   const name = t(`ch.${type}`)
   const [enabled, setEnabled] = useState(channel.configured ? channel.enabled : true)
-  const [fields, setFields] = useState<Record<string, string>>(() => ({ ...(type === 'email' ? { port: '587', security: 'starttls' } : {}), ...(type === 'webhook' ? {} : channel.fields) })) // the webhook URL is a secret: only its masked form comes back, so the field starts empty (empty = keep)
+  const [fields, setFields] = useState<Record<string, string>>(() => ({ ...(type === 'email' ? { port: '587', security: 'starttls', provider: 'custom' } : {}), ...(type === 'webhook' ? {} : channel.fields) })) // the webhook URL is a secret: only its masked form comes back, so the field starts empty (empty = keep)
   const [secret, setSecret] = useState('')
+  const [keyOf, setKeyOf] = useState<string | null>(null) // the service account of a chosen Google key file
+  // Email presets (D-449): the preset decides which fields show and what the secret is; a saved secret counts only for the same sign-in.
+  const prov = emailProvider(fields.provider) ?? EMAIL_PROVIDERS[0]!
+  const savedAuth = emailProvider(channel.fields.provider)?.auth
+  const keepsSecret = !!channel.secret_last4 && (type !== 'email' || savedAuth === prov.auth)
   const [min, setMin] = useState<RouteSeverity>(channel.min_severity)
   const [approvals, setApprovals] = useState(channel.approvals)
   const [approvers, setApprovers] = useState<Approver[]>(channel.approvers)
@@ -110,15 +132,54 @@ function ChannelDialog({ channel, codeUsers, onClose, onSaved }: { channel: Chan
     const u = free.find((x) => x.id === pick) ?? free[0]
     if (u) { setApprovers((l) => [...l, { user_id: u.id, address: type === 'email' ? u.email : '' }]); setPick('') }
   }
-  const secretHint = channel.secret_last4 ? t('channels.secretSaved', { last4: channel.secret_last4 }) : t(`channels.f.${type}.secret.hint`)
+  const secretHint = type === 'email' && keyOf ? t('channels.f.email.secret.loaded', { email: keyOf }) : keepsSecret ? t('channels.secretSaved', { last4: channel.secret_last4 }) : type === 'email' ? t(emailKeys(prov, 'secret', 'hint')) : t(`channels.f.${type}.secret.hint`)
+  const shown = (k: string) => type !== 'email' || ((k !== 'tenant_id' && k !== 'client_id') || prov.auth === 'microsoft_oauth') && (k !== 'username' || prov.auth !== 'token_as_user')
+  const pickProvider = (id: string) => {
+    const p = emailProvider(id) ?? EMAIL_PROVIDERS[0]!
+    if (p.auth !== prov.auth) { setSecret(''); setKeyOf(null) } // a password is not a client secret, nor a key file
+    setFields((f) => ({ ...f, provider: p.id, ...(p.host ? { host: p.host, port: p.port, security: p.security } : {}), ...(p.username ? { username: p.username } : prov.username && f.username === prov.username ? { username: '' } : {}) }))
+    setFieldErr({})
+  }
+  async function chooseKey(file: File | undefined) {
+    if (!file) return
+    const text = file.size <= 16384 ? await file.text() : ''
+    const who = keyAccount(text)
+    setKeyOf(who)
+    setSecret(who ? text : '')
+    if (who) fixed('secret')
+    else showErrors({ secret: t('channels.f.email.secret.notKey') })
+  }
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose() }}>
       <DialogContent title={t('channels.dialogTitle', { name })} description={t('channels.dialogDesc')}>
         <form onSubmit={submit} className="grid gap-4" noValidate>
           {error ? <p role="alert" className="rounded-md border border-danger/40 bg-danger-soft px-3 py-2 text-sm">{error}</p> : null}
-          {FIELDS[type].map((k) => {
+          {FIELDS[type].filter(shown).map((k) => {
             const id = `ch-${type}-${k}`
-            const label = t(`channels.f.${type}.${k}.label`)
+            const label = type === 'email' ? t(emailKeys(prov, k, 'label')) : t(`channels.f.${type}.${k}.label`)
+            if (k === 'provider') {
+              const steps = t(`channels.f.email.provider.steps.${prov.id}`, { returnObjects: true, defaultValue: {} }) as Record<string, string>
+              return (
+                <div key={k} className="grid gap-2">
+                  <Field label={label} hint={t('channels.f.email.provider.hint')} htmlFor={id} error={fieldErr[k]}>
+                    <Select id={id} value={prov.id} {...aria(id, k)} onChange={(e) => pickProvider(e.target.value)}>
+                      {(['password', 'service', 'oauth'] as const).map((g) => (
+                        <optgroup key={g} label={t(`channels.f.email.provider.group.${g}`)}>
+                          {EMAIL_PROVIDERS.filter((p) => p.group === g).map((p) => <option key={p.id} value={p.id}>{t(`channels.f.email.provider.name.${p.id}`)}</option>)}
+                        </optgroup>
+                      ))}
+                    </Select>
+                  </Field>
+                  {prov.doc ? (
+                    <div role="note" aria-label={t(`channels.f.email.provider.name.${prov.id}`)} className="grid gap-1.5 rounded-md border border-rule bg-sunken px-3 py-2 text-[13px]">
+                      <p>{t(`channels.f.email.provider.help.${prov.id}`)}</p>
+                      {Object.keys(steps).length ? <ol className="list-decimal pl-5">{Object.entries(steps).map(([s, text]) => <li key={s}>{text}</li>)}</ol> : null}
+                      <a className="w-fit text-accent underline underline-offset-4" href={prov.doc} target="_blank" rel="noopener noreferrer">{t('channels.f.email.provider.doc', { name: t(`channels.f.email.provider.name.${prov.id}`) })}</a>
+                    </div>
+                  ) : null}
+                </div>
+              )
+            }
             if (k === 'security') {
               return (
                 <Field key={k} label={label} htmlFor={id} error={fieldErr[k]}>
@@ -133,7 +194,7 @@ function ChannelDialog({ channel, codeUsers, onClose, onSaved }: { channel: Chan
                 </Field>
               )
             }
-            const hint = type === 'webhook' && k === 'url' && channel.fields.url ? t('channels.urlSaved', { url: channel.fields.url }) : t(`channels.f.${type}.${k}.hint`)
+            const hint = type === 'webhook' && k === 'url' && channel.fields.url ? t('channels.urlSaved', { url: channel.fields.url }) : type === 'email' ? t(emailKeys(prov, k, 'hint')) : t(`channels.f.${type}.${k}.hint`)
             return (
               <Field key={k} label={label} hint={hint} htmlFor={id} error={fieldErr[k]}>
                 <Input id={id} value={fields[k] ?? ''} type={k === 'port' ? 'number' : 'text'} onChange={(e) => set(k, e.target.value)} autoComplete="off" {...aria(id, k)} />
@@ -155,8 +216,12 @@ function ChannelDialog({ channel, codeUsers, onClose, onSaved }: { channel: Chan
                 ) : <div><Button onClick={() => setQr(true)}><QrCode />{channel.secret_last4 || secret ? t('zp.relogin') : t('zp.show')}</Button></div>}
               </div>
             </div>
+          ) : type === 'email' && prov.auth === 'google_oauth' ? (
+            <Field label={t(emailKeys(prov, 'secret', 'label'))} hint={secretHint} htmlFor="ch-email-secret" error={fieldErr.secret}>
+              <Input id="ch-email-secret" type="file" accept=".json,application/json" onChange={(e) => void chooseKey(e.target.files?.[0])} {...aria('ch-email-secret', 'secret')} />
+            </Field>
           ) : (
-            <Field label={t(`channels.f.${type}.secret.label`)} hint={secretHint} htmlFor={`ch-${type}-secret`} error={fieldErr.secret}>
+            <Field label={type === 'email' ? t(emailKeys(prov, 'secret', 'label')) : t(`channels.f.${type}.secret.label`)} hint={secretHint} htmlFor={`ch-${type}-secret`} error={fieldErr.secret}>
               <div className="flex gap-2">
                 <Input id={`ch-${type}-secret`} type="password" value={secret} onChange={(e) => { setSecret(e.target.value); fixed('secret') }} autoComplete="new-password" {...aria(`ch-${type}-secret`, 'secret')} />
                 {type === 'webhook' ? <Button onClick={() => { setSecret(randomKey()); fixed('secret') }}>{t('channels.generate')}</Button> : null}

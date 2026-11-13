@@ -87,9 +87,12 @@ func friendlyError(err error) string {
 	var be *channel.BackoffError
 	var se *channel.StatusError
 	var pe *channel.ProviderError
+	var si *channel.SignInError
 	switch {
 	case errors.As(err, &ce):
 		return ce.Msg
+	case errors.As(err, &si): // before StatusError: a refused sign-in carries the SMTP code under our sentence (D-449)
+		return si.Msg
 	case errors.As(err, &be):
 		return "Zalo is pausing sign-in attempts after a failure. It will try again later."
 	case errors.As(err, &se):

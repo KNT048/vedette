@@ -1371,8 +1371,11 @@ do_uninstall() {
 	if [ -n "$KEEP_DATA" ]; then
 		# a kept podman and the packages it runs with stay on the lists, so that a later --uninstall without --keep-data decides about
 		# them again (D-508); every other line is done with
-		grep -xFf "$TMP/keep" "$STATE/asked-packages" >"$TMP/asked.kept" 2>/dev/null || true
-		grep -xFf "$TMP/keep" "$TMP/by-us" >"$TMP/by-us.kept" 2>/dev/null || true
+		# only packages still installed: a podman that is not there must not come back as ours if the administrator installs it later
+		: >"$TMP/keep.inst"
+		while read -r p; do if installed_pkg "$p"; then echo "$p"; fi; done <"$TMP/keep" >"$TMP/keep.inst"
+		grep -xFf "$TMP/keep.inst" "$STATE/asked-packages" >"$TMP/asked.kept" 2>/dev/null || true
+		grep -xFf "$TMP/keep.inst" "$TMP/by-us" >"$TMP/by-us.kept" 2>/dev/null || true
 		cat "$TMP/asked.kept" >"$STATE/asked-packages"
 		: >"$STATE/removed-packages"
 		cat "$TMP/by-us.kept" >"$STATE/installed-by-us"

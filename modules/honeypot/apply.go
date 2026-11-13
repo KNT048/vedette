@@ -322,8 +322,6 @@ func (s *Service) writeFiles(ctx context.Context, w *world, services []ServiceNa
 			return err
 		}
 		out = []file{{CertFile, append(append([]byte{}, key...), cert...)}, {ConfFile, conf}, {TokensFile, tok}}
-	} else if err := s.removeCert(); err != nil { // no Trap IP has HTTPS: its key does not stay on the shared folder (review L1)
-		s.cfg.Log.WarnContext(ctx, "honeypot: remove the HTTPS trap's key from the config folder", "error", err) // tried again next Apply
 	}
 	for _, f := range out {
 		sum := sha256.Sum256(f.data)
@@ -335,6 +333,11 @@ func (s *Service) writeFiles(ctx context.Context, w *world, services []ServiceNa
 			return err
 		}
 		s.written[f.name] = sum
+	}
+	if !slices.Contains(services, HTTPS) { // after the conf that no longer loads HTTPS is written: never a conf asking for a missing pem
+		if err := s.removeCert(); err != nil { // no Trap IP has HTTPS: its key does not stay on the shared folder (review L1)
+			s.cfg.Log.WarnContext(ctx, "honeypot: remove the HTTPS trap's key from the config folder", "error", err) // tried again next Apply
+		}
 	}
 	return nil
 }

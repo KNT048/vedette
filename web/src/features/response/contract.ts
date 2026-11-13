@@ -136,8 +136,9 @@ export const SettingsView = Settings.extend({
 export const IdentityMethod = z.enum(['email_code', 'chat_code', 'send_code', 'unavailable'])
 export const Identity = z.object({
   channel: z.string(), label: z.string(), address: z.string().describe('The address or ID on the approver list of the channel, as an administrator saved it'),
+  name: z.string().optional().describe('The shown name of that address where the channel knows it (Zalo personal, D-447)'),
   linked: z.boolean().describe('Proved by this person for exactly this address; a changed address or sign-in email is not linked'), linked_at: iso.nullable(),
-  method: IdentityMethod.describe('email_code: Vedette mails a code to this address. chat_code: press Approve or Reject on an approval message and Vedette answers you privately with a code. send_code: Vedette shows you a code and you send it from that chat account to the account of the box (Zalo personal). unavailable: this channel cannot answer privately yet, so it cannot be linked (approve in Vedette)'),
+  method: IdentityMethod.describe('email_code: Vedette mails a code to this address. chat_code: press Approve or Reject on an approval message and Vedette answers you privately with a code. send_code: the box sends a confirm link to that chat account and you confirm it while signed in to Vedette (Zalo personal, D-447). unavailable: this channel cannot answer privately yet, so it cannot be linked (approve in Vedette)'),
   code_waiting: z.boolean().describe('A code was sent or shown and can be entered now'),
 })
 export const IdentityList = z.object({ items: z.array(Identity) })

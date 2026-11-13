@@ -72,7 +72,7 @@ Pinned in `go.mod` and `go.sum`; licenses checked from the `LICENSE` files of ea
 
 | Source | License | How it is used |
 |---|---|---|
-| zca-js v2.2.0 (github.com/RFS-ADRENO/zca-js, copyright 2024-2025 RFS-ADRENO, truong9c2208, JustKemForFun) | MIT | The unofficial Zalo personal-account protocol (sign-in request, parameter encryption and signature, message send, and the WebSocket listener notes in `modules/notify/IMPACT.md`) was read from its source and re-implemented in Go in `modules/notify/channel/zalopersonal*.go` (D-46), the same protocol the n8n Zalo community node uses through that library. Not a dependency: no code or package is linked, the logic is rewritten with the Go standard library. The test vectors were produced by running its algorithms on crypto-js 4.2.0 (MIT) outside the repository. |
+| zca-js v2.2.0 (github.com/RFS-ADRENO/zca-js, copyright 2024-2025 RFS-ADRENO, truong9c2208, JustKemForFun) | MIT | The unofficial Zalo personal-account protocol (sign-in request, parameter encryption and signature, message send, and the WebSocket listener notes in `modules/notify/IMPACT.md`; since D-447 also the QR sign-in of `src/apis/loginQR.ts` and `loginQR` in `src/zalo.ts` with its device id, and `getAllFriends`, `getAllGroups`, `getGroupInfo`, `getGroupLinkInfo` and `findUser`) was read from its source and re-implemented in Go in `modules/notify/channel/zalopersonal*.go` (D-46, D-447), the same protocol the n8n Zalo community node uses through that library. Not a dependency: no code or package is linked, the logic is rewritten with the Go standard library. The test vectors were produced by running its algorithms on crypto-js 4.2.0 (MIT) outside the repository. |
 
 ## Tools run as separate processes (not embedded, not redistributed)
 

@@ -11,7 +11,7 @@ import (
 	"github.com/knt048/vedette/modules/notify/channel"
 )
 
-// NotifyHandlers implements the 12 operations of the notify module. Embed it in the composite handler of
+// NotifyHandlers implements the 19 operations of the notify module. Embed it in the composite handler of
 // cmd/vedette. The role of each route comes from the route table, so nothing here checks roles.
 //
 // ogen generates a separate struct per operation for the same schema, so answers are built from the
@@ -140,6 +140,7 @@ type channelBody struct {
 	Approvers   []Approver        `json:"approvers"`
 	AppToken    string            `json:"app_token"`
 	BotToken    string            `json:"bot_token"`
+	ZaloLogin   bool              `json:"zalo_login"`
 }
 
 // NotifyPutNotifyChannelsType implements PUT /notify/channels/{type} (admin).
@@ -153,7 +154,7 @@ func (h *NotifyHandlers) NotifyPutNotifyChannelsType(ctx context.Context, req *o
 		return nil, err
 	}
 	c, err := h.svc.SaveChannel(ctx, who, channel.Type(params.Type), ChannelInput{Enabled: b.Enabled, Fields: b.Fields, Secret: b.Secret, MinSeverity: b.MinSeverity,
-		Approvals: b.Approvals, Approvers: b.Approvers, AppToken: b.AppToken, BotToken: b.BotToken})
+		Approvals: b.Approvals, Approvers: b.Approvers, AppToken: b.AppToken, BotToken: b.BotToken, ZaloLogin: b.ZaloLogin})
 	if err != nil {
 		return nil, err
 	}
@@ -197,4 +198,90 @@ func (h *NotifyHandlers) NotifyPutNotifyRules(ctx context.Context, req *oas.Noti
 		return nil, err
 	}
 	return convert[oas.NotifyPutNotifyRulesOK](out)
+}
+
+// NotifyPostNotifyZaloLogin implements POST /notify/zalo/login (admin).
+func (h *NotifyHandlers) NotifyPostNotifyZaloLogin(ctx context.Context) (*oas.NotifyPostNotifyZaloLoginOK, error) {
+	who, err := actor(ctx)
+	if err != nil {
+		return nil, err
+	}
+	v, err := h.svc.StartZaloLogin(ctx, who)
+	if err != nil {
+		return nil, err
+	}
+	return convert[oas.NotifyPostNotifyZaloLoginOK](v)
+}
+
+// NotifyGetNotifyZaloLogin implements GET /notify/zalo/login (admin).
+func (h *NotifyHandlers) NotifyGetNotifyZaloLogin(ctx context.Context) (*oas.NotifyGetNotifyZaloLoginOK, error) {
+	who, err := actor(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return convert[oas.NotifyGetNotifyZaloLoginOK](h.svc.ZaloLoginState(who))
+}
+
+// NotifyDeleteNotifyZaloLogin implements DELETE /notify/zalo/login (admin).
+func (h *NotifyHandlers) NotifyDeleteNotifyZaloLogin(ctx context.Context) error {
+	who, err := actor(ctx)
+	if err != nil {
+		return err
+	}
+	h.svc.CancelZaloLogin(who)
+	return nil
+}
+
+// NotifyGetNotifyZaloContacts implements GET /notify/zalo/contacts (admin).
+func (h *NotifyHandlers) NotifyGetNotifyZaloContacts(ctx context.Context) (*oas.NotifyGetNotifyZaloContactsOK, error) {
+	who, err := actor(ctx)
+	if err != nil {
+		return nil, err
+	}
+	v, err := h.svc.ListZaloContacts(ctx, who)
+	if err != nil {
+		return nil, err
+	}
+	return convert[oas.NotifyGetNotifyZaloContactsOK](v)
+}
+
+// NotifyPostNotifyZaloResolve implements POST /notify/zalo/resolve (admin).
+func (h *NotifyHandlers) NotifyPostNotifyZaloResolve(ctx context.Context, req *oas.NotifyPostNotifyZaloResolveReq) (*oas.NotifyPostNotifyZaloResolveOK, error) {
+	who, err := actor(ctx)
+	if err != nil {
+		return nil, err
+	}
+	v, err := h.svc.ResolveZalo(ctx, who, req.Query)
+	if err != nil {
+		return nil, err
+	}
+	return convert[oas.NotifyPostNotifyZaloResolveOK](v)
+}
+
+// NotifyGetNotifyZaloApprovers implements GET /notify/zalo/approvers (admin).
+func (h *NotifyHandlers) NotifyGetNotifyZaloApprovers(ctx context.Context) (*oas.NotifyGetNotifyZaloApproversOK, error) {
+	who, err := actor(ctx)
+	if err != nil {
+		return nil, err
+	}
+	l, err := h.svc.ZaloApprovers(ctx, who)
+	if err != nil {
+		return nil, err
+	}
+	return convert[oas.NotifyGetNotifyZaloApproversOK](struct {
+		Items []ZaloApprover `json:"items"`
+	}{l})
+}
+
+// NotifyPostNotifyZaloApproversUserIDCode implements POST /notify/zalo/approvers/{user_id}/code (admin).
+func (h *NotifyHandlers) NotifyPostNotifyZaloApproversUserIDCode(ctx context.Context, params oas.NotifyPostNotifyZaloApproversUserIDCodeParams) (*oas.NotifyPostNotifyZaloApproversUserIDCodeOK, error) {
+	who, err := actor(ctx)
+	if err != nil {
+		return nil, err
+	}
+	v, err := h.svc.SendZaloCode(ctx, who, params.UserID)
+	if err != nil {
+		return nil, err
+	}
+	return convert[oas.NotifyPostNotifyZaloApproversUserIDCodeOK](v)
 }

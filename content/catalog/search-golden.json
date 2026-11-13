@@ -129,7 +129,7 @@
      ]
     },
     {
-     "id": "juniper-srx-junos",
+     "id": "juniper-junos-os",
      "kev_count": 7,
      "kev": [
       "juniper|junos os"
@@ -285,7 +285,7 @@
      ]
     },
     {
-     "id": "juniper-aruba-hpe-switch",
+     "id": "aruba-hpe-procurve-switch",
      "kev_count": 1,
      "kev": [
       "hewlett packard (hp)|procurve manager (pcm), pcm+, identity driven manager (idm), and application lifecycle management"
@@ -1951,6 +1951,13 @@
    "total": 358,
    "items": [
     {
+     "id": "aruba-hpe-procurve-switch",
+     "kev_count": 1,
+     "kev": [
+      "hewlett packard (hp)|procurve manager (pcm), pcm+, identity driven manager (idm), and application lifecycle management"
+     ]
+    },
+    {
      "id": "asustor-nas-adm",
      "kev_count": 0,
      "kev": [
@@ -2168,12 +2175,18 @@
       "adobe|commerce and magento",
       "adobe|commerce and magento"
      ]
-    },
+    }
+   ]
+  },
+  {
+   "q": "juniper ex",
+   "total": 1,
+   "items": [
     {
-     "id": "kev:android:pixel",
-     "kev_count": 4,
+     "id": "juniper-junos-os",
+     "kev_count": 7,
      "kev": [
-      "android|pixel"
+      "juniper|junos os"
      ]
     }
    ]

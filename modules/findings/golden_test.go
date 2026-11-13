@@ -16,11 +16,13 @@ import (
 
 type goldenFile struct {
 	Vulns []struct {
-		CVE        string `json:"cve"`
-		Vendor     string `json:"vendor"`
-		Product    string `json:"product"`
-		Ransomware bool   `json:"ransomware"`
-		DateAdded  string `json:"date_added"`
+		CVE        string  `json:"cve"`
+		Vendor     string  `json:"vendor"`
+		Product    string  `json:"product"`
+		Name       string  `json:"name"`
+		Ransomware bool    `json:"ransomware"`
+		EPSS       float64 `json:"epss"`
+		DateAdded  string  `json:"date_added"`
 		Affected   []struct {
 			CPE       string `json:"cpe"`
 			StartIncl string `json:"start_incl"`
@@ -48,7 +50,7 @@ func loadGolden(t *testing.T, path string) []Vuln {
 	}
 	out := make([]Vuln, 0, len(g.Vulns))
 	for _, v := range g.Vulns {
-		x := Vuln{CVE: v.CVE, Vendor: v.Vendor, Product: v.Product, Ransomware: v.Ransomware}
+		x := Vuln{CVE: v.CVE, Vendor: v.Vendor, Product: v.Product, Name: v.Name, Ransomware: v.Ransomware, EPSS: v.EPSS}
 		x.DateAdded, _ = time.Parse(time.DateOnly, v.DateAdded)
 		for _, a := range v.Affected {
 			x.Affected = append(x.Affected, Affected{CPE: a.CPE, Range: VersionRange{StartIncl: a.StartIncl, StartExcl: a.StartExcl, EndIncl: a.EndIncl, EndExcl: a.EndExcl}})

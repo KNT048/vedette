@@ -15,7 +15,8 @@ import (
 )
 
 // ReadError is what a Readers function returns to answer with a specific status and code
-// (spec section 11): 404 for an id the host does not know, 403 for a file that must not leave the box.
+// (spec section 11): 404 for an id the host does not know, 403 for a file that must not leave the box, 409 for a state
+// that is changing right now (read it again later).
 type ReadError struct {
 	Status  int
 	Code    string
@@ -24,9 +25,9 @@ type ReadError struct {
 
 func (e *ReadError) Error() string { return "read refused: " + e.Code }
 
-// NewReadError builds a ReadError. Programming error (panic) for a status outside 403 and 404 or a bad code.
+// NewReadError builds a ReadError. Programming error (panic) for a status outside 403, 404 and 409 or a bad code.
 func NewReadError(status int, code, message string) *ReadError {
-	if (status != http.StatusNotFound && status != http.StatusForbidden) || !codeRE.MatchString(code) {
+	if (status != http.StatusNotFound && status != http.StatusForbidden && status != http.StatusConflict) || !codeRE.MatchString(code) {
 		panic(fmt.Sprintf("host: bad read error %d %q", status, code))
 	}
 	return &ReadError{Status: status, Code: code, Message: message}
@@ -50,6 +51,7 @@ type Readers struct {
 	Net           func(ctx context.Context) (any, error) // GET /v1/state/net (WP-07b part 3, slice 3-3)
 	Containers    func(ctx context.Context) (any, error) // GET /v1/state/containers (slice 3-6)
 	Host          func(ctx context.Context) (any, error) // GET /v1/state/host (host.self_update, D-316)
+	Packages      func(ctx context.Context) (any, error) // GET /v1/state/packages (the box's dpkg list, D-470)
 	BackupContent func(id string) (File, error)          // GET /v1/backups/{id}/content
 	ExportContent func(id string) (File, error)          // GET /v1/exports/{id}/content
 }
@@ -71,6 +73,8 @@ func (s *Server) serveRead(w http.ResponseWriter, r *http.Request, kind routeKin
 		s.serveState(w, r, rd.Containers)
 	case routeStateHost:
 		s.serveState(w, r, rd.Host)
+	case routeStatePackages:
+		s.serveState(w, r, rd.Packages)
 	case routeBackupContent:
 		s.serveFile(w, rc, rd.BackupContent, arg)
 	case routeExportContent:

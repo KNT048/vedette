@@ -48,7 +48,7 @@ const MAX_TARGETS = 200
 function Setup({ cfg, internal }: { cfg: ScanConfigResponse; internal: ScanTarget[] }) {
   const { t } = useTranslation('scan')
   const scopeOk = cfg.can_scan && cfg.scope.networks.length > 0
-  const devOk = internal.some((x) => x.selectable)
+  const devOk = internal.some((x) => x.selectable && !x.box) // the box alone does not finish setup: it is pick-only (D-470)
   if (scopeOk && devOk) return null
   const steps = [
     { key: 'scope', ok: scopeOk, title: t('start.stepScope'), help: t('start.stepScopeHelp'), to: '/devices/setup', cta: t('start.openSetup') },

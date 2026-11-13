@@ -36,6 +36,7 @@ type TargetView struct {
 	Findings   int     `json:"findings"`
 	Selectable bool    `json:"selectable"`
 	PickOnly   bool    `json:"pick_only"` // only a person's tick picks it (D-126 (2)); the GUI never ticks it for them
+	Box        bool    `json:"box"`       // the Vedette box itself: pick-only (D-470), the GUI says so
 	Reason     *string `json:"reason"`
 	// For the picker's search and filters (D-472); nil (false for Approved) on an external target.
 	MAC      *string `json:"mac"`
@@ -57,7 +58,6 @@ var reasonText = map[string]string{
 	"excluded":           "is on the exclusion list",
 	"out_of_scope":       "is outside the confirmed network range",
 	"no_ip":              "has no IP address in the inventory; add its IP on the device page to scan it",
-	"box":                "is the Vedette box itself, which is never scanned",
 	"regular_scan_never": "is set to never be scanned in the inventory; change that setting first",
 	"unverified":         "has no verified ownership (do it on the External exposure page)",
 	"expired":            "verification expired, verify again (on the External exposure page)",
@@ -72,7 +72,7 @@ var skipNote = map[string]string{ //nolint:gosec // G101: notes shown to the use
 	"out_of_scope":              "Outside the confirmed scope now; not scanned.",
 	"no_ip":                     "The device has no IP address now; not scanned.",
 	"scope_not_confirmed":       "The scan scope commitment is not ticked any more; not scanned.",
-	"box":                       "This is the Vedette box itself; it is never scanned.",
+	"box":                       "The Vedette box itself: scanned only when you pick it in Scan now.",
 	"regular_scan_never":        "Set to never be scanned in the inventory; not scanned.",
 	"declared_by_hand":          "Added by hand: scanned only when you pick it in Scan now.",
 	"fragile_passive_only":      "Fragile device: scanned only when you pick it in Scan now.",
@@ -157,7 +157,7 @@ func targetReason(r string) string {
 	switch r {
 	case "", reasonNoScope:
 		return ""
-	case "unapproved", "excluded", reasonBox, reasonNever, reasonNoIP:
+	case "unapproved", "excluded", reasonNever, reasonNoIP: // the box is never a list reason: picked, it is allowed (D-470)
 		return r
 	}
 	return reasonOutOfScope
@@ -188,7 +188,7 @@ func (s *Service) Targets(ctx context.Context) ([]TargetView, error) {
 		if r == ReasonGone {
 			continue
 		}
-		v := TargetView{ID: d.ID, Kind: "internal", DeviceKind: ptr(d.Kind), Label: d.Label, IP: d.IP, Fragile: d.Fragile || d.Kind == "unknown",
+		v := TargetView{ID: d.ID, Kind: "internal", DeviceKind: ptr(d.Kind), Label: d.Label, IP: d.IP, Fragile: d.Fragile || d.Kind == "unknown", Box: d.Box,
 			MAC: orNil(d.MAC), Vendor: orNil(d.Vendor), Approved: d.Approved, LastSeen: orNil(d.LastSeen)}
 		if tr := targetReason(r); tr != "" {
 			v.Reason = ptr(tr)

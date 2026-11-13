@@ -140423,6 +140423,9 @@ func (s *ScanGetScansTargetsOK) SetItems(val []ScanGetScansTargetsOKItemsItem) {
 type ScanGetScansTargetsOKItemsItem struct {
 	// Approved in the inventory (picker filter, D-472); false for external targets.
 	Approved bool `json:"approved"`
+	// The Vedette box itself (D-470): pick_only, so it is scanned only when a person ticks it; sweeps,
+	// schedules, KEV rescans and Select all never include it.
+	Box bool `json:"box"`
 	// Device type in the inventory; null for external targets.
 	DeviceKind NilScanGetScansTargetsOKItemsItemDeviceKind `json:"device_kind"`
 	Findings   int                                         `json:"findings"`
@@ -140441,9 +140444,9 @@ type ScanGetScansTargetsOKItemsItem struct {
 	// Fragile, unclassified or added by hand: scanned only when a person ticks it in Scan now (D-126 (2)).
 	// The page never ticks it for you: not by default, not with Select all, not from a link.
 	PickOnly bool `json:"pick_only"`
-	// Null when the target can be scanned by picking it. box: the Vedette box itself is never scanned.
-	// regular_scan_never: a person set "never scan" on the device (D-126). not_supported: external targets
-	// are not scanned by this version yet.
+	// Null when the target can be scanned by picking it. no_ip: the device has no IP address in the
+	// inventory (D-484). regular_scan_never: a person set "never scan" on the device (D-126).
+	// not_supported: external targets are not scanned by this version yet.
 	Reason     NilScanGetScansTargetsOKItemsItemReason `json:"reason"`
 	Selectable bool                                    `json:"selectable"`
 	// For the picker search (D-472); null when unknown and for external targets.
@@ -140453,6 +140456,11 @@ type ScanGetScansTargetsOKItemsItem struct {
 // GetApproved returns the value of Approved.
 func (s *ScanGetScansTargetsOKItemsItem) GetApproved() bool {
 	return s.Approved
+}
+
+// GetBox returns the value of Box.
+func (s *ScanGetScansTargetsOKItemsItem) GetBox() bool {
+	return s.Box
 }
 
 // GetDeviceKind returns the value of DeviceKind.
@@ -140523,6 +140531,11 @@ func (s *ScanGetScansTargetsOKItemsItem) GetVendor() NilString {
 // SetApproved sets the value of Approved.
 func (s *ScanGetScansTargetsOKItemsItem) SetApproved(val bool) {
 	s.Approved = val
+}
+
+// SetBox sets the value of Box.
+func (s *ScanGetScansTargetsOKItemsItem) SetBox(val bool) {
+	s.Box = val
 }
 
 // SetDeviceKind sets the value of DeviceKind.
@@ -140756,7 +140769,6 @@ const (
 	ScanGetScansTargetsOKItemsItemReasonExcluded         ScanGetScansTargetsOKItemsItemReason = "excluded"
 	ScanGetScansTargetsOKItemsItemReasonOutOfScope       ScanGetScansTargetsOKItemsItemReason = "out_of_scope"
 	ScanGetScansTargetsOKItemsItemReasonNoIP             ScanGetScansTargetsOKItemsItemReason = "no_ip"
-	ScanGetScansTargetsOKItemsItemReasonBox              ScanGetScansTargetsOKItemsItemReason = "box"
 	ScanGetScansTargetsOKItemsItemReasonRegularScanNever ScanGetScansTargetsOKItemsItemReason = "regular_scan_never"
 	ScanGetScansTargetsOKItemsItemReasonUnverified       ScanGetScansTargetsOKItemsItemReason = "unverified"
 	ScanGetScansTargetsOKItemsItemReasonExpired          ScanGetScansTargetsOKItemsItemReason = "expired"
@@ -140770,7 +140782,6 @@ func (ScanGetScansTargetsOKItemsItemReason) AllValues() []ScanGetScansTargetsOKI
 		ScanGetScansTargetsOKItemsItemReasonExcluded,
 		ScanGetScansTargetsOKItemsItemReasonOutOfScope,
 		ScanGetScansTargetsOKItemsItemReasonNoIP,
-		ScanGetScansTargetsOKItemsItemReasonBox,
 		ScanGetScansTargetsOKItemsItemReasonRegularScanNever,
 		ScanGetScansTargetsOKItemsItemReasonUnverified,
 		ScanGetScansTargetsOKItemsItemReasonExpired,
@@ -140788,8 +140799,6 @@ func (s ScanGetScansTargetsOKItemsItemReason) MarshalText() ([]byte, error) {
 	case ScanGetScansTargetsOKItemsItemReasonOutOfScope:
 		return []byte(s), nil
 	case ScanGetScansTargetsOKItemsItemReasonNoIP:
-		return []byte(s), nil
-	case ScanGetScansTargetsOKItemsItemReasonBox:
 		return []byte(s), nil
 	case ScanGetScansTargetsOKItemsItemReasonRegularScanNever:
 		return []byte(s), nil
@@ -140818,9 +140827,6 @@ func (s *ScanGetScansTargetsOKItemsItemReason) UnmarshalText(data []byte) error 
 		return nil
 	case ScanGetScansTargetsOKItemsItemReasonNoIP:
 		*s = ScanGetScansTargetsOKItemsItemReasonNoIP
-		return nil
-	case ScanGetScansTargetsOKItemsItemReasonBox:
-		*s = ScanGetScansTargetsOKItemsItemReasonBox
 		return nil
 	case ScanGetScansTargetsOKItemsItemReasonRegularScanNever:
 		*s = ScanGetScansTargetsOKItemsItemReasonRegularScanNever

@@ -82,7 +82,7 @@ const tally = (list: ScanTarget[], key: (x: ScanTarget) => string): [string, num
   for (const x of list) m.set(key(x), (m.get(key(x)) ?? 0) + 1)
   return [...m].sort((a, b) => b[1] - a[1])
 }
-const tickCause = (x: ScanTarget) => (x.device_kind === 'unknown' ? 'unknown' : x.fragile ? 'fragile' : 'manual')
+const tickCause = (x: ScanTarget) => (x.box ? 'box' : x.device_kind === 'unknown' ? 'unknown' : x.fragile ? 'fragile' : 'manual')
 
 function reportOf(scope: ScanTarget[], selected: number, sel: ReadonlySet<string>, subnet?: string): Report {
   const tick = scope.filter((x) => x.selectable && x.pick_only && !sel.has(x.id))
@@ -104,7 +104,7 @@ function TargetRow({ t: target, checked, onChange }: { t: ScanTarget; checked: b
       {extra ? <span className="text-[12px] text-muted">{extra}</span> : null}
       {target.findings > 0 ? <Chip tone="warn">{t('start.findings', { count: target.findings })}</Chip> : null}
       {target.fragile && target.selectable ? <Chip tone="off" title={t('start.fragileHint')}>{t('start.fragile')}</Chip> : null}
-      {target.pick_only ? <span className="text-[13px] text-muted">{t(target.device_kind === 'unknown' ? 'start.pickUnknown' : target.fragile ? 'start.pickFragile' : 'start.pickManual')}</span> : null}
+      {target.pick_only ? <span className="text-[13px] text-muted">{t(target.box ? 'start.pickBox' : target.device_kind === 'unknown' ? 'start.pickUnknown' : target.fragile ? 'start.pickFragile' : 'start.pickManual')}</span> : null}
       {target.reason ? <span className="text-[13px] text-muted">{t(`reason.${target.reason}`)}</span> : null}
       {target.reason && target.kind === 'internal' ? (
         <Link to={`/devices/${encodeURIComponent(target.id)}`} aria-label={t('start.openDeviceAria', { label: target.label })} className="text-[13px] text-accent underline underline-offset-4">{t('start.openDevice')}</Link>

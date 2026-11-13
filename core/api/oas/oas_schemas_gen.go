@@ -54752,11 +54752,15 @@ func (s *FindingsGetFindingsIDOKAppliedItem) SetUser(val string) {
 }
 
 type FindingsGetFindingsIDOKAsset struct {
-	Display  string                           `json:"display"`
-	Hostname NilString                        `json:"hostname"`
-	ID       string                           `json:"id"`
-	IP       string                           `json:"ip"`
-	Kind     FindingsGetFindingsIDOKAssetKind `json:"kind"`
+	Display  string    `json:"display"`
+	Hostname NilString `json:"hostname"`
+	ID       string    `json:"id"`
+	// "—" when the device has no IP address.
+	IP   string                           `json:"ip"`
+	Kind FindingsGetFindingsIDOKAssetKind `json:"kind"`
+	// The name the Devices page shows: hostname, else vendor and model, else the IP, else the software;
+	// never the internal id (D-484).
+	Name string `json:"name"`
 }
 
 // GetDisplay returns the value of Display.
@@ -54784,6 +54788,11 @@ func (s *FindingsGetFindingsIDOKAsset) GetKind() FindingsGetFindingsIDOKAssetKin
 	return s.Kind
 }
 
+// GetName returns the value of Name.
+func (s *FindingsGetFindingsIDOKAsset) GetName() string {
+	return s.Name
+}
+
 // SetDisplay sets the value of Display.
 func (s *FindingsGetFindingsIDOKAsset) SetDisplay(val string) {
 	s.Display = val
@@ -54807,6 +54816,11 @@ func (s *FindingsGetFindingsIDOKAsset) SetIP(val string) {
 // SetKind sets the value of Kind.
 func (s *FindingsGetFindingsIDOKAsset) SetKind(val FindingsGetFindingsIDOKAssetKind) {
 	s.Kind = val
+}
+
+// SetName sets the value of Name.
+func (s *FindingsGetFindingsIDOKAsset) SetName(val string) {
+	s.Name = val
 }
 
 type FindingsGetFindingsIDOKAssetKind string
@@ -56322,11 +56336,15 @@ func (s *FindingsGetFindingsOKItemsItem) SetStatus(val FindingsGetFindingsOKItem
 }
 
 type FindingsGetFindingsOKItemsItemAsset struct {
-	Display  string                                  `json:"display"`
-	Hostname NilString                               `json:"hostname"`
-	ID       string                                  `json:"id"`
-	IP       string                                  `json:"ip"`
-	Kind     FindingsGetFindingsOKItemsItemAssetKind `json:"kind"`
+	Display  string    `json:"display"`
+	Hostname NilString `json:"hostname"`
+	ID       string    `json:"id"`
+	// "—" when the device has no IP address.
+	IP   string                                  `json:"ip"`
+	Kind FindingsGetFindingsOKItemsItemAssetKind `json:"kind"`
+	// The name the Devices page shows: hostname, else vendor and model, else the IP, else the software;
+	// never the internal id (D-484).
+	Name string `json:"name"`
 }
 
 // GetDisplay returns the value of Display.
@@ -56354,6 +56372,11 @@ func (s *FindingsGetFindingsOKItemsItemAsset) GetKind() FindingsGetFindingsOKIte
 	return s.Kind
 }
 
+// GetName returns the value of Name.
+func (s *FindingsGetFindingsOKItemsItemAsset) GetName() string {
+	return s.Name
+}
+
 // SetDisplay sets the value of Display.
 func (s *FindingsGetFindingsOKItemsItemAsset) SetDisplay(val string) {
 	s.Display = val
@@ -56377,6 +56400,11 @@ func (s *FindingsGetFindingsOKItemsItemAsset) SetIP(val string) {
 // SetKind sets the value of Kind.
 func (s *FindingsGetFindingsOKItemsItemAsset) SetKind(val FindingsGetFindingsOKItemsItemAssetKind) {
 	s.Kind = val
+}
+
+// SetName sets the value of Name.
+func (s *FindingsGetFindingsOKItemsItemAsset) SetName(val string) {
+	s.Name = val
 }
 
 type FindingsGetFindingsOKItemsItemAssetKind string
@@ -57611,11 +57639,15 @@ func (s *FindingsPostFindingsIDAiOKAppliedItem) SetUser(val string) {
 }
 
 type FindingsPostFindingsIDAiOKAsset struct {
-	Display  string                              `json:"display"`
-	Hostname NilString                           `json:"hostname"`
-	ID       string                              `json:"id"`
-	IP       string                              `json:"ip"`
-	Kind     FindingsPostFindingsIDAiOKAssetKind `json:"kind"`
+	Display  string    `json:"display"`
+	Hostname NilString `json:"hostname"`
+	ID       string    `json:"id"`
+	// "—" when the device has no IP address.
+	IP   string                              `json:"ip"`
+	Kind FindingsPostFindingsIDAiOKAssetKind `json:"kind"`
+	// The name the Devices page shows: hostname, else vendor and model, else the IP, else the software;
+	// never the internal id (D-484).
+	Name string `json:"name"`
 }
 
 // GetDisplay returns the value of Display.
@@ -57643,6 +57675,11 @@ func (s *FindingsPostFindingsIDAiOKAsset) GetKind() FindingsPostFindingsIDAiOKAs
 	return s.Kind
 }
 
+// GetName returns the value of Name.
+func (s *FindingsPostFindingsIDAiOKAsset) GetName() string {
+	return s.Name
+}
+
 // SetDisplay sets the value of Display.
 func (s *FindingsPostFindingsIDAiOKAsset) SetDisplay(val string) {
 	s.Display = val
@@ -57666,6 +57703,11 @@ func (s *FindingsPostFindingsIDAiOKAsset) SetIP(val string) {
 // SetKind sets the value of Kind.
 func (s *FindingsPostFindingsIDAiOKAsset) SetKind(val FindingsPostFindingsIDAiOKAssetKind) {
 	s.Kind = val
+}
+
+// SetName sets the value of Name.
+func (s *FindingsPostFindingsIDAiOKAsset) SetName(val string) {
+	s.Name = val
 }
 
 type FindingsPostFindingsIDAiOKAssetKind string
@@ -59743,11 +59785,15 @@ func (s *FindingsPostFindingsIDAppliedOKAppliedItem) SetUser(val string) {
 }
 
 type FindingsPostFindingsIDAppliedOKAsset struct {
-	Display  string                                   `json:"display"`
-	Hostname NilString                                `json:"hostname"`
-	ID       string                                   `json:"id"`
-	IP       string                                   `json:"ip"`
-	Kind     FindingsPostFindingsIDAppliedOKAssetKind `json:"kind"`
+	Display  string    `json:"display"`
+	Hostname NilString `json:"hostname"`
+	ID       string    `json:"id"`
+	// "—" when the device has no IP address.
+	IP   string                                   `json:"ip"`
+	Kind FindingsPostFindingsIDAppliedOKAssetKind `json:"kind"`
+	// The name the Devices page shows: hostname, else vendor and model, else the IP, else the software;
+	// never the internal id (D-484).
+	Name string `json:"name"`
 }
 
 // GetDisplay returns the value of Display.
@@ -59775,6 +59821,11 @@ func (s *FindingsPostFindingsIDAppliedOKAsset) GetKind() FindingsPostFindingsIDA
 	return s.Kind
 }
 
+// GetName returns the value of Name.
+func (s *FindingsPostFindingsIDAppliedOKAsset) GetName() string {
+	return s.Name
+}
+
 // SetDisplay sets the value of Display.
 func (s *FindingsPostFindingsIDAppliedOKAsset) SetDisplay(val string) {
 	s.Display = val
@@ -59798,6 +59849,11 @@ func (s *FindingsPostFindingsIDAppliedOKAsset) SetIP(val string) {
 // SetKind sets the value of Kind.
 func (s *FindingsPostFindingsIDAppliedOKAsset) SetKind(val FindingsPostFindingsIDAppliedOKAssetKind) {
 	s.Kind = val
+}
+
+// SetName sets the value of Name.
+func (s *FindingsPostFindingsIDAppliedOKAsset) SetName(val string) {
+	s.Name = val
 }
 
 type FindingsPostFindingsIDAppliedOKAssetKind string
@@ -61896,11 +61952,15 @@ func (s *FindingsPostFindingsIDStatusOKAppliedItem) SetUser(val string) {
 }
 
 type FindingsPostFindingsIDStatusOKAsset struct {
-	Display  string                                  `json:"display"`
-	Hostname NilString                               `json:"hostname"`
-	ID       string                                  `json:"id"`
-	IP       string                                  `json:"ip"`
-	Kind     FindingsPostFindingsIDStatusOKAssetKind `json:"kind"`
+	Display  string    `json:"display"`
+	Hostname NilString `json:"hostname"`
+	ID       string    `json:"id"`
+	// "—" when the device has no IP address.
+	IP   string                                  `json:"ip"`
+	Kind FindingsPostFindingsIDStatusOKAssetKind `json:"kind"`
+	// The name the Devices page shows: hostname, else vendor and model, else the IP, else the software;
+	// never the internal id (D-484).
+	Name string `json:"name"`
 }
 
 // GetDisplay returns the value of Display.
@@ -61928,6 +61988,11 @@ func (s *FindingsPostFindingsIDStatusOKAsset) GetKind() FindingsPostFindingsIDSt
 	return s.Kind
 }
 
+// GetName returns the value of Name.
+func (s *FindingsPostFindingsIDStatusOKAsset) GetName() string {
+	return s.Name
+}
+
 // SetDisplay sets the value of Display.
 func (s *FindingsPostFindingsIDStatusOKAsset) SetDisplay(val string) {
 	s.Display = val
@@ -61951,6 +62016,11 @@ func (s *FindingsPostFindingsIDStatusOKAsset) SetIP(val string) {
 // SetKind sets the value of Kind.
 func (s *FindingsPostFindingsIDStatusOKAsset) SetKind(val FindingsPostFindingsIDStatusOKAssetKind) {
 	s.Kind = val
+}
+
+// SetName sets the value of Name.
+func (s *FindingsPostFindingsIDStatusOKAsset) SetName(val string) {
+	s.Name = val
 }
 
 type FindingsPostFindingsIDStatusOKAssetKind string
@@ -63350,6 +63420,124 @@ func (s *FindingsPostFindingsIDStatusReqAction) UnmarshalText(data []byte) error
 		return nil
 	case FindingsPostFindingsIDStatusReqActionReopen:
 		*s = FindingsPostFindingsIDStatusReqActionReopen
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FindingsPostFindingsStatusOK struct {
+	// Findings already closed, left as they were.
+	Skipped int `json:"skipped"`
+	// Open findings changed.
+	Updated int `json:"updated"`
+}
+
+// GetSkipped returns the value of Skipped.
+func (s *FindingsPostFindingsStatusOK) GetSkipped() int {
+	return s.Skipped
+}
+
+// GetUpdated returns the value of Updated.
+func (s *FindingsPostFindingsStatusOK) GetUpdated() int {
+	return s.Updated
+}
+
+// SetSkipped sets the value of Skipped.
+func (s *FindingsPostFindingsStatusOK) SetSkipped(val int) {
+	s.Skipped = val
+}
+
+// SetUpdated sets the value of Updated.
+func (s *FindingsPostFindingsStatusOK) SetUpdated(val int) {
+	s.Updated = val
+}
+
+type FindingsPostFindingsStatusReq struct {
+	Action FindingsPostFindingsStatusReqAction `json:"action"`
+	Ids    []string                            `json:"ids"`
+	Note   string                              `json:"note"`
+}
+
+// GetAction returns the value of Action.
+func (s *FindingsPostFindingsStatusReq) GetAction() FindingsPostFindingsStatusReqAction {
+	return s.Action
+}
+
+// GetIds returns the value of Ids.
+func (s *FindingsPostFindingsStatusReq) GetIds() []string {
+	return s.Ids
+}
+
+// GetNote returns the value of Note.
+func (s *FindingsPostFindingsStatusReq) GetNote() string {
+	return s.Note
+}
+
+// SetAction sets the value of Action.
+func (s *FindingsPostFindingsStatusReq) SetAction(val FindingsPostFindingsStatusReqAction) {
+	s.Action = val
+}
+
+// SetIds sets the value of Ids.
+func (s *FindingsPostFindingsStatusReq) SetIds(val []string) {
+	s.Ids = val
+}
+
+// SetNote sets the value of Note.
+func (s *FindingsPostFindingsStatusReq) SetNote(val string) {
+	s.Note = val
+}
+
+type FindingsPostFindingsStatusReqAction string
+
+const (
+	FindingsPostFindingsStatusReqActionPatched       FindingsPostFindingsStatusReqAction = "patched"
+	FindingsPostFindingsStatusReqActionMitigated     FindingsPostFindingsStatusReqAction = "mitigated"
+	FindingsPostFindingsStatusReqActionFalsePositive FindingsPostFindingsStatusReqAction = "false_positive"
+	FindingsPostFindingsStatusReqActionNotRelevant   FindingsPostFindingsStatusReqAction = "not_relevant"
+)
+
+// AllValues returns all FindingsPostFindingsStatusReqAction values.
+func (FindingsPostFindingsStatusReqAction) AllValues() []FindingsPostFindingsStatusReqAction {
+	return []FindingsPostFindingsStatusReqAction{
+		FindingsPostFindingsStatusReqActionPatched,
+		FindingsPostFindingsStatusReqActionMitigated,
+		FindingsPostFindingsStatusReqActionFalsePositive,
+		FindingsPostFindingsStatusReqActionNotRelevant,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsStatusReqAction) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsStatusReqActionPatched:
+		return []byte(s), nil
+	case FindingsPostFindingsStatusReqActionMitigated:
+		return []byte(s), nil
+	case FindingsPostFindingsStatusReqActionFalsePositive:
+		return []byte(s), nil
+	case FindingsPostFindingsStatusReqActionNotRelevant:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsStatusReqAction) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsStatusReqAction(data) {
+	case FindingsPostFindingsStatusReqActionPatched:
+		*s = FindingsPostFindingsStatusReqActionPatched
+		return nil
+	case FindingsPostFindingsStatusReqActionMitigated:
+		*s = FindingsPostFindingsStatusReqActionMitigated
+		return nil
+	case FindingsPostFindingsStatusReqActionFalsePositive:
+		*s = FindingsPostFindingsStatusReqActionFalsePositive
+		return nil
+	case FindingsPostFindingsStatusReqActionNotRelevant:
+		*s = FindingsPostFindingsStatusReqActionNotRelevant
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -138822,8 +139010,9 @@ type ScanGetScansTargetsOKItemsItem struct {
 	// Fragile, unclassified or added by hand: scanned only when a person ticks it in Scan now (D-126 (2)).
 	// The page never ticks it for you: not by default, not with Select all, not from a link.
 	PickOnly bool `json:"pick_only"`
-	// Null when the target can be scanned by picking it. regular_scan_never: a person set "never scan" on
-	// the device (D-126). not_supported: external targets are not scanned by this version yet.
+	// Null when the target can be scanned by picking it. no_ip: the device has no IP address in the
+	// inventory (D-484). regular_scan_never: a person set "never scan" on the device (D-126).
+	// not_supported: external targets are not scanned by this version yet.
 	Reason     NilScanGetScansTargetsOKItemsItemReason `json:"reason"`
 	Selectable bool                                    `json:"selectable"`
 }
@@ -139103,6 +139292,7 @@ const (
 	ScanGetScansTargetsOKItemsItemReasonUnapproved       ScanGetScansTargetsOKItemsItemReason = "unapproved"
 	ScanGetScansTargetsOKItemsItemReasonExcluded         ScanGetScansTargetsOKItemsItemReason = "excluded"
 	ScanGetScansTargetsOKItemsItemReasonOutOfScope       ScanGetScansTargetsOKItemsItemReason = "out_of_scope"
+	ScanGetScansTargetsOKItemsItemReasonNoIP             ScanGetScansTargetsOKItemsItemReason = "no_ip"
 	ScanGetScansTargetsOKItemsItemReasonRegularScanNever ScanGetScansTargetsOKItemsItemReason = "regular_scan_never"
 	ScanGetScansTargetsOKItemsItemReasonUnverified       ScanGetScansTargetsOKItemsItemReason = "unverified"
 	ScanGetScansTargetsOKItemsItemReasonExpired          ScanGetScansTargetsOKItemsItemReason = "expired"
@@ -139115,6 +139305,7 @@ func (ScanGetScansTargetsOKItemsItemReason) AllValues() []ScanGetScansTargetsOKI
 		ScanGetScansTargetsOKItemsItemReasonUnapproved,
 		ScanGetScansTargetsOKItemsItemReasonExcluded,
 		ScanGetScansTargetsOKItemsItemReasonOutOfScope,
+		ScanGetScansTargetsOKItemsItemReasonNoIP,
 		ScanGetScansTargetsOKItemsItemReasonRegularScanNever,
 		ScanGetScansTargetsOKItemsItemReasonUnverified,
 		ScanGetScansTargetsOKItemsItemReasonExpired,
@@ -139130,6 +139321,8 @@ func (s ScanGetScansTargetsOKItemsItemReason) MarshalText() ([]byte, error) {
 	case ScanGetScansTargetsOKItemsItemReasonExcluded:
 		return []byte(s), nil
 	case ScanGetScansTargetsOKItemsItemReasonOutOfScope:
+		return []byte(s), nil
+	case ScanGetScansTargetsOKItemsItemReasonNoIP:
 		return []byte(s), nil
 	case ScanGetScansTargetsOKItemsItemReasonRegularScanNever:
 		return []byte(s), nil
@@ -139155,6 +139348,9 @@ func (s *ScanGetScansTargetsOKItemsItemReason) UnmarshalText(data []byte) error 
 		return nil
 	case ScanGetScansTargetsOKItemsItemReasonOutOfScope:
 		*s = ScanGetScansTargetsOKItemsItemReasonOutOfScope
+		return nil
+	case ScanGetScansTargetsOKItemsItemReasonNoIP:
+		*s = ScanGetScansTargetsOKItemsItemReasonNoIP
 		return nil
 	case ScanGetScansTargetsOKItemsItemReasonRegularScanNever:
 		*s = ScanGetScansTargetsOKItemsItemReasonRegularScanNever

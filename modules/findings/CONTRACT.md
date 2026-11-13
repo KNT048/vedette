@@ -1,6 +1,6 @@
 # Findings Contract
 
-> Tier: standard · Story: S-MIT-1 (danh sách, vòng đời), S-INV-2, S-SCAN-3, S-ALERT-1 · Last verified: 2026-11-09 (WP-21 + nối vào `cmd/vedette`: `Inventory`, `Feeds`, `Publisher` thật, nghe `inventory.match.changed`/`inventory.asset.deleted`; chưa nghe `scan.finding.confirmed`, `feeds.vuln.updated`; xem `.ai/deferred/feat-module-wiring-2.md`)
+> Tier: standard · Story: S-MIT-1 (danh sách, vòng đời), S-INV-2, S-SCAN-3, S-ALERT-1, S-FEED-2 (INV-11) · Last verified: 2026-11-13 (D-484); trước đó 2026-11-09 (WP-21 + nối vào `cmd/vedette`: `Inventory`, `Feeds`, `Publisher` thật, nghe `inventory.match.changed`/`inventory.asset.deleted`; chưa nghe `scan.finding.confirmed`, `feeds.vuln.updated`; xem `.ai/deferred/feat-module-wiring-2.md`)
 
 Tách từ `mitigation` theo D-57(6): phát hiện (finding) là module riêng, tắt `mitigation` không làm mất phát hiện hay cảnh báo (S-ALERT-1). GUI là `web/src/features/findings/` (danh sách, trang finding, panel Devices). Nguồn hành vi: `findings/{contract,mocks,basis}.ts` (phần `Finding`, `FindingRow`, `/findings`, `/findings/{id}/status`), `web/src/mocks/match.ts`. Phần "What to do" (gói, đã áp dụng, AI) thuộc `mitigation`.
 
@@ -14,6 +14,10 @@ Tách từ `mitigation` theo D-57(6): phát hiện (finding) là module riêng, 
 - **INV-7**: Xoá thiết bị xoá finding của nó (nhận `inventory.asset.deleted`).
 - **INV-8**: `FindingRow.kev` đọc từ `feeds`, không từ gói khuyến nghị của `mitigation`.
 - **INV-9** (D-144, issue #160): bus sự kiện là best-effort, nên `findings` tự bù. Job `reconcile` (`findings.Jobs`, chạy khi module bật rồi mỗi giờ) gọi `Service.Reconcile`: (a) khớp lại **mọi** thiết bị như `OnMatchChanged` (đọc qua `Inventory.AssetIDs` + `MatchInput`, `Feeds.Vulns`, không đọc `inv_*`/`feeds_*`), (b) xoá finding của thiết bị đã mất như `OnAssetDeleted`. Idempotent: cặp đã có (kể cả đã đóng) chỉ làm tươi `last_seen`, không tạo lại, không mở lại, không phát lại `findings.finding.created`; chỉ finding do reconcile **tạo mới** (vì sự kiện bị mất) mới phát `created`. Chặn việc xoá nhầm: `AssetIDs` lỗi thì dừng, không xoá gì; thiết bị vắng trong danh sách vẫn phải được `Inventory.Assets` xác nhận là không còn mới xoá. Mỗi thiết bị một giao dịch ghi (không giữ người ghi cả lượt), tôn trọng `ctx` (tắt module thì dừng), mỗi lần ghi tối đa `eventWriteTimeout`. Lỗi của một thiết bị được ghi log và bỏ qua, lượt chạy vẫn đi tiếp (cả bước dọn mồ côi) rồi trả lỗi tổng hợp ở cuối. **Im lặng cho tồn đọng (D-78)**: finding do reconcile tạo mới được ghi dưới `ServiceConfig.Backlog` (binary cài `notify.WithBaseline`), trừ khi mục KEV được CISA thêm trong `RecentKEV` (7 ngày) gần nhất (ngày thêm không rõ thì coi là tồn đọng); nhờ vậy một lượt đường cơ sở bị mất không thành hàng nghìn tin. `last_seen` là lần cuối bộ khớp thấy cặp, từ sự kiện hoặc reconcile. `TestContract_INV9_*`, `TestReconcile*`.
+
+- **INV-10** (D-484, W1-12): `POST /findings/status` (operator) áp **một** hành động (`patched | mitigated | false_positive | not_relevant`; `reopen` không có ở dạng hàng loạt → `bad_action`) và **một** ghi chú cho các finding **đang mở** trong 1…`MaxBulk` (500) id (trùng tính một; ngoài khoảng → 400 `invalid`, schema cũng chặn), trong **một** giao dịch: tất cả hoặc không gì (id lạ → 404 `not_found`, ghi chú thiếu → `note_required`, không ghi gì). Mỗi finding mở nhận đúng dòng `history`, dòng `core_audit` `findings.status` và sự kiện `status_changed` như `SetStatus`; finding đã đóng được đếm vào `skipped`, không đổi gì (không ghi đè lý do người khác đã viết). Trả `{updated, skipped}`. `TestSetStatusMany_OneRowEachAllOrNothing`, `TestBulkStatusEndpoint`.
+- **INV-11** (D-484, W1-3): "I have this" trên Home (feeds, S-FEED-2) nghĩa là "báo tôi về sản phẩm này". `ServiceConfig.HaveSince` (binary cài từ `feeds.Store.HaveSince`) cho mỗi **thiết bị** "I have this" đã khai khoá KEV đã trả lời và ngày bắt đầu (ngày của mục đã bấm trừ 7 ngày, đặt bởi lần "have" đầu). Trên **đúng thiết bị đó**, phần mềm **không có phiên bản** mang khoá đó chỉ khớp các mục có `DateAdded` ≥ ngày đó (mục không rõ ngày giữ lại); cùng sản phẩm trên thiết bị khác khớp như thường; có phiên bản thì luật phiên bản (INV-4) quyết. Lọc này nằm sau bộ khớp (`haveScope` trong `service.go`), không đổi `MatchAsset`; finding cũ ngoài phạm vi chỉ nhận dòng `no_longer_matches` (INV-6), không bị đóng (FORBID-2). Chưa có hiệu lực tới khi `inventory.AddManualDevice` trả id thiết bị (adapter ở `cmd/vedette` trả ""). `TestHaveScope_OnlyTheDeclaredDeviceIsScoped`.
+- **INV-12** (D-484, W1-2/W1-32): `FindingAsset.name` là tên như trang Devices (`inventory.Names`: tên máy, rồi hãng + model, rồi IP); trống hoặc bằng id thì dùng phần mềm đầu tiên, rồi loại. Không bao giờ hiện id nội bộ: bằng chứng cũ có id thiết bị được thay bằng tên lúc đọc. `ip` là `"—"` khi thiết bị không có IP (`AssetView.HasIP`). `TestRow_DeviceWithoutIPIsNamedNotByItsID`.
 
 ## Preconditions / Postconditions
 - **PRE-1** (`UpsertFromMatch(ctx, Asset, []Vuln)`, gọi từ `OnMatchChanged(ctx, assetID)` khi nhận `inventory.match.changed`): tài sản tồn tại (`ErrUnknownAsset`); `cve` không hợp lệ bị bộ khớp bỏ qua (`^CVE-\d{4}-\d{4,}$`). **POST-1**: mỗi cặp mới thành finding `suspected` kèm history `created`, `core_audit` và event; cặp đã có chỉ làm tươi `last_seen` (và nâng `basis` nếu đang mở); chỉ phát `findings.finding.created` khi mới. Mọi thứ trong một giao dịch; event phát sau commit.
@@ -29,7 +33,7 @@ Tách từ `mitigation` theo D-57(6): phát hiện (finding) là module riêng, 
 - **FORBID-5**: Module khác ghi `fnd_*` trực tiếp; đọc qua interface của `findings`.
 
 ## Dependencies
-- **DEPENDS ON**: `core`, `feeds` (KevInfo, khoảng phiên bản), `inventory` (tài sản, phần mềm, sự kiện khớp; `Inventory.AssetIDs` cho reconcile, `cmd/vedette` cài bằng `DevicesOfKind(inventory.Kinds)`: không giới hạn dòng). Tuỳ chọn: `scan` (xác nhận), `notify` (người được báo).
+- **DEPENDS ON**: `core`, `feeds` (KevInfo, khoảng phiên bản, `HaveSince` của "I have this" qua `ServiceConfig`), `inventory` (tài sản, phần mềm, sự kiện khớp; `Inventory.AssetIDs` cho reconcile, `cmd/vedette` cài bằng `DevicesOfKind(inventory.Kinds)`: không giới hạn dòng). Tuỳ chọn: `scan` (xác nhận), `notify` (người được báo).
 - **DEPENDED ON BY**: `mitigation` (gói theo finding), `notify` (tin lỗ hổng), `scan` (nối `finding_id`), `scan-credentialed`, `response`, `reports`, `ai` (giải thích finding), `mcp-server` (`get_finding`), SPA Devices (panel `device.panels`).
 
 ## Endpoints owned (role tối thiểu)
@@ -37,6 +41,7 @@ Tách từ `mitigation` theo D-57(6): phát hiện (finding) là module riêng, 
 |---|---|
 | `GET /findings`, `GET /findings/{id}` | viewer |
 | `POST /findings/{id}/status` | operator |
+| `POST /findings/status` (hàng loạt, INV-10) | operator |
 
 `POST /findings/{id}/applied|ai` nằm dưới cùng tiền tố `/findings` nhưng do `mitigation` định tuyến, mất khi `mitigation` tắt.
 

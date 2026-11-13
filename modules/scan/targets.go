@@ -45,6 +45,7 @@ var reasonText = map[string]string{
 	"unapproved":         "has not been approved in the inventory",
 	"excluded":           "is on the exclusion list",
 	"out_of_scope":       "is outside the confirmed network range",
+	"no_ip":              "has no IP address in the inventory; add its IP on the device page to scan it",
 	"regular_scan_never": "is set to never be scanned in the inventory; change that setting first",
 	"unverified":         "has no verified ownership (do it on the External exposure page)",
 	"expired":            "verification expired, verify again (on the External exposure page)",
@@ -115,7 +116,7 @@ func targetReason(r string) string {
 	switch r {
 	case "", reasonNoScope:
 		return ""
-	case "unapproved", "excluded", reasonNever: // the box is never a list reason: picked, it is allowed (D-470)
+	case "unapproved", "excluded", reasonNever, reasonNoIP: // the box is never a list reason: picked, it is allowed (D-470)
 		return r
 	}
 	return reasonOutOfScope

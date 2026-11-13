@@ -182,6 +182,7 @@ var contractRoutes = map[string][]string{
 	"findings": {
 		"GET /findings",
 		"GET /findings/{id}",
+		"POST /findings/status",
 		"POST /findings/{id}/status",
 	},
 	"honeypot": {

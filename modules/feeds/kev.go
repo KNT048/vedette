@@ -77,14 +77,16 @@ func clip(s string, runes int) string {
 	return string([]rune(s)[:runes])
 }
 
-// kevLinks splits the KEV "notes" field (URLs separated by ";") into valid http(s) links.
+// kevLinks splits the KEV "notes" field (URLs separated by ";") into valid https links. A plain http link is dropped:
+// the finding page offers these as the vendor advisory to act on (D-484), and a link anyone on the path can rewrite is no
+// advisory.
 func kevLinks(notes string) []string {
 	links := []string{}
 	for _, part := range strings.FieldsFunc(notes, func(r rune) bool { return r == ';' || jsIsSpace(r) }) {
 		if len(links) == maxLinks {
 			break
 		}
-		if !validIndicatorURL(part) || hasControl(part) {
+		if !validIndicatorURL(part) || hasControl(part) || !strings.HasPrefix(strings.ToLower(part), "https://") {
 			continue
 		}
 		dup := false

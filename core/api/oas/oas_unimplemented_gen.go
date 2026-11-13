@@ -1024,7 +1024,8 @@ func (UnimplementedHandler) CorePostCoreUpdatesBundle(ctx context.Context, req *
 
 // CorePostCoreUpdatesCheck implements core_post_core_updates_check operation.
 //
-// Check for updates now (409 when turned off under Privacy).
+// Check for updates now (409 when turned off under Privacy; 200 with nothing available when the source
+// publishes no release).
 //
 // POST /core/updates/check
 func (UnimplementedHandler) CorePostCoreUpdatesCheck(ctx context.Context) (r *CorePostCoreUpdatesCheckOK, _ error) {

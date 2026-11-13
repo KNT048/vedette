@@ -698,7 +698,8 @@ type Handler interface {
 	CorePostCoreUpdatesBundle(ctx context.Context, req *CorePostCoreUpdatesBundleReq) (*CorePostCoreUpdatesBundleOK, error)
 	// CorePostCoreUpdatesCheck implements core_post_core_updates_check operation.
 	//
-	// Check for updates now (409 when turned off under Privacy).
+	// Check for updates now (409 when turned off under Privacy; 200 with nothing available when the source
+	// publishes no release).
 	//
 	// POST /core/updates/check
 	CorePostCoreUpdatesCheck(ctx context.Context) (*CorePostCoreUpdatesCheckOK, error)

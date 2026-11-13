@@ -14268,7 +14268,8 @@ func (s *Server) handleCorePostCoreUpdatesBundleRequest(args [0]string, argsEsca
 
 // handleCorePostCoreUpdatesCheckRequest handles core_post_core_updates_check operation.
 //
-// Check for updates now (409 when turned off under Privacy).
+// Check for updates now (409 when turned off under Privacy; 200 with nothing available when the source
+// publishes no release).
 //
 // POST /core/updates/check
 func (s *Server) handleCorePostCoreUpdatesCheckRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -14337,7 +14338,7 @@ func (s *Server) handleCorePostCoreUpdatesCheckRequest(args [0]string, argsEscap
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    CorePostCoreUpdatesCheckOperation,
-			OperationSummary: "Check for updates now (409 when turned off under Privacy)",
+			OperationSummary: "Check for updates now (409 when turned off under Privacy; 200 with nothing available when the source publishes no release)",
 			OperationID:      "core_post_core_updates_check",
 			Body:             nil,
 			RawBody:          rawBody,

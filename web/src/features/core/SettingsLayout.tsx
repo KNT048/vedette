@@ -1,6 +1,5 @@
-import { Link, Navigate, NavLink, Outlet, useParams } from 'react-router'
+import { Link, Navigate, NavLink, Outlet, useLocation, useParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
-import { UserRound } from 'lucide-react'
 import { settingsSections } from '@/app/feature'
 import { EmptyState, Loading, ModuleOff } from '@/components/common/States'
 import { useModules } from '@/lib/modules'
@@ -28,7 +27,6 @@ export function SettingsLayout() {
         <nav aria-label={t('settings.nav')} className="flex flex-wrap gap-1 lg:grid lg:gap-0.5">
           {a.list.map((s) => <NavLink key={s.id} to={`/settings/${s.id}`} className={link}>{t(s.label)}</NavLink>)}
         </nav>
-        <Link to="/account" className="inline-flex items-center gap-2 text-sm text-accent underline-offset-4 hover:underline"><UserRound className="size-4" aria-hidden />{t('settings.myAccount')}</Link>
       </aside>
       <div className="min-w-0"><Outlet /></div>
     </div>
@@ -65,4 +63,10 @@ export function SettingsRoute() {
   }
   if (!a.on.has(s.module)) return <ModuleOff module={s.module} />
   return <>{s.element}</>
+}
+
+/** W1-26, D-540: My account is a Settings section; the old /account (links, bookmarks, SSO `next`) lands there with its ?query and #anchor. */
+export function AccountMoved() {
+  const l = useLocation()
+  return <Navigate to={{ pathname: '/settings/account', search: l.search, hash: l.hash }} replace />
 }

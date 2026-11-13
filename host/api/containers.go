@@ -1,5 +1,7 @@
 package api
 
+import "regexp"
+
 // container.start, container.stop and GET /v1/state/containers (docs/specs/host-api.md sections 5,
 // 6.8 and 6.9, D-104, D-105, D-123).
 
@@ -225,4 +227,19 @@ type ContainerState struct {
 // ContainersState is the body of GET /v1/state/containers.
 type ContainersState struct {
 	Services []ContainerState `json:"services"`
+}
+
+// portsInUseRE is the head of the port_in_use message (host/ops/hostports.go portsFree): "Port 8765/tcp (python3, pid 4242) is in
+// use by another program on this machine." or "Ports 8765/tcp (python3, pid 4242), 6514/tcp are in use ...".
+var portsInUseRE = regexp.MustCompile(`^(Ports?) ([0-9]{1,5}/(?:tcp|udp)[ -~]{0,480}?) (?:is|are) in use by another program on this machine\.`)
+
+// PortsInUse reads the ports, and the program holding each when the host found it in /proc (name from comm, printable ASCII,
+// at most 15 characters, and pid), out of a port_in_use message, for core to show (D-412). list is printable ASCII, plural
+// is true for more than one port, ok is false for a message of another shape.
+func PortsInUse(msg string) (list string, plural, ok bool) {
+	m := portsInUseRE.FindStringSubmatch(msg)
+	if m == nil {
+		return "", false, false
+	}
+	return m[2], m[1] == "Ports", true
 }

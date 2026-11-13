@@ -46,6 +46,19 @@ const v4Forbidden = (a: number, b: number, c: number, d: number) =>
 /** Names of the cloud metadata service (Google Cloud), refused by the box before any lookup (metadataName). */
 const METADATA_NAMES = ['metadata', 'metadata.google.internal', 'metadata.goog']
 
+/** The box's sentence for Vedette itself (modules/notify/channel OwnText, D-446): the same in feeds, notify, logs and ai. */
+export const OWN_TEXT = "That address is Vedette itself: loopback, Vedette's own container, or one of its ports (8443, 8444, 8765, 514, 6514) on the machine that runs it. For another program on that machine, enter the machine's LAN address and that program's port."
+
+/**
+ * Vedette itself as the page can judge it (channel ownAddr, D-446): loopback and *.localhost, also inside an IPv4-mapped IPv6 address.
+ * The machine's own addresses and the container's are the box's to judge (the page does not know them). forbiddenHost is true for
+ * these too; ask this first for the sentence.
+ */
+export const ownHost = (host: string) => {
+  const h = host.toLowerCase().replace(/\.$/, '')
+  return h === 'localhost' || h.endsWith('.localhost') || /^127\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(h) || h === '[::1]' || /^\[::ffff:7f[0-9a-f]{2}:[0-9a-f]{1,4}\]$/.test(h)
+}
+
 /**
  * A webhook or SMTP host the box never connects to, judged as the box judges a literal IP (modules/notify/channel forbiddenAddr,
  * after Unmap): loopback and *.localhost, link-local (cloud metadata 169.254.169.254), the other cloud metadata services

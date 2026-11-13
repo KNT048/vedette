@@ -449,11 +449,13 @@ describe('feeds: an address Vedette never pulls from is refused when the feed is
   it('loopback, the box itself and cloud metadata show the pull\'s sentence under the address; a copy of a built-in names it', async () => {
     const dlg = await openAdd()
     await userEvent.type(within(dlg).getByLabelText('Name'), 'Metadata')
-    for (const url of ['https://169.254.169.254/latest/meta-data', 'https://localhost:8443/x', 'https://127.0.0.1/list.txt']) {
+    for (const [url, text] of [['https://169.254.169.254/latest/meta-data', 'Vedette does not pull feeds from link-local, multicast, unspecified or cloud metadata addresses.'],
+      ['https://localhost:8443/x', "That address is Vedette itself: loopback, Vedette's own container, or one of its ports (8443, 8444, 8765, 514, 6514) on the machine that runs it. For another program on that machine, enter the machine's LAN address and that program's port."],
+      ['https://127.0.0.1/list.txt', 'That address is Vedette itself']] as const) { // D-446: Vedette itself has its own sentence
       await userEvent.clear(within(dlg).getByLabelText('Address')); await userEvent.type(within(dlg).getByLabelText('Address'), url)
       await add(dlg)
       expect(within(dlg).getByLabelText('Address')).toHaveFocus()
-      expect(dlg.querySelector('#cf-url-error')).toHaveTextContent('Vedette does not pull feeds from itself or from loopback, link-local or cloud metadata addresses.')
+      expect(dlg.querySelector('#cf-url-error')).toHaveTextContent(text)
     }
     await userEvent.clear(within(dlg).getByLabelText('Address')); await userEvent.type(within(dlg).getByLabelText('Address'), 'https://check.torproject.org/torbulkexitlist')
     await add(dlg)

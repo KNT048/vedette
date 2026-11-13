@@ -24,6 +24,7 @@ services:
     pids_limit: 512
     environment:
       GOMEMLIMIT: 1800MiB
+      VEDETTE_BIND_IP: "${VEDETTE_BIND_IP}" # D-446: the machine's address, so nothing Vedette sends reaches its own published ports
     # -hosts: the names and addresses the box answers to (anything else gets 421) and the names of its self-signed certificate.
     # -sensor-listen stays inside the bridge (8444 is published on 127.0.0.1 only); -host-socket "" says: no vedette-host.
     # -syslog-port 5514: the syslog listener of the logs module (only while that module is on); compose.syslog.yaml publishes it as 514.

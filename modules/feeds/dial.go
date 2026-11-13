@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/netip"
 	"slices"
+	"strconv"
 	"sync"
 	"syscall"
 	"time"
@@ -15,10 +16,9 @@ import (
 // ErrBlockedAddress is a connection the dialer refuses by address.
 var ErrBlockedAddress = errors.New("feeds: connection to this address is refused")
 
-// ErrOwnAddress is ErrBlockedAddress for an address of the box itself that is not loopback: one of its interfaces,
-// the address vedette-host reports, or the container's default gateway (on a container-only install, the machine
-// Docker runs on). userError says so in plain words (D-420 (7)).
-var ErrOwnAddress = fmt.Errorf("%w: it is the machine Vedette runs on", ErrBlockedAddress)
+// ErrOwnAddress is ErrBlockedAddress for Vedette itself (D-446): loopback, an address of core's own container, or one of
+// Vedette's own ports on the machine's addresses (vedette-host's, the container's gateway). userError says so in plain words.
+var ErrOwnAddress = fmt.Errorf("%w: it is Vedette itself", ErrBlockedAddress)
 
 // resolver turns a host name into addresses. Tests replace it.
 type resolver func(ctx context.Context, host string) ([]netip.Addr, error)
@@ -36,41 +36,69 @@ type guardKey struct{}
 // destination can be checked against them: the connection is refused, as notify does (D-86 (2), D-208). The next pull retries.
 var ErrBoxAddrsUnknown = errors.New("feeds: the box's own addresses are not known yet")
 
-// destGuard refuses the box itself (D-208): loopback, which in the shipped container is Vedette, and the box's own host
-// addresses (its interfaces plus what vedette-host reports), never the LAN subnets around them.
+// vedettePorts are the ports Vedette itself answers on at the machine's addresses (D-446): the interface 8443, the sensor link 8444,
+// MCP 8765, syslog 514 and syslog over TLS 6514 (install.sh preflight, the core unit's PublishPort lines, the container-only compose).
+// Same list in notify, logs and ai.
+var vedettePorts = []uint16{514, 6514, 8443, 8444, 8765}
+
+// ownAddrs is Vedette itself (D-446): self, the addresses of core's own container and the honeypot's decoys, on every port (loopback
+// is judged apart), and
+// machine, the addresses of the machine it runs on (what vedette-host reports, the container's default gateway), on vedettePorts only:
+// another program on the machine is a normal source. Every address is unmapped and without zone.
+type ownAddrs struct{ self, machine []netip.Addr }
+
+// destGuard refuses Vedette itself (D-208, D-446), never the LAN subnets around it.
 type destGuard struct {
-	box           func() ([]netip.Addr, bool)                                       // nil: the container's own interfaces only
-	gateway       func() (netip.Addr, bool)                                         // the container's default gateway, part of the box set (as in core/conn)
+	box           func() ([]netip.Addr, bool)                                       // the machine's addresses (vedette-host); nil: none
+	gateway       func() (netip.Addr, bool)                                         // the container's default gateway: the machine too
+	self          func() []netip.Addr                                               // Vedette itself beyond the interfaces (decoys); nil: none
 	allowLoopback bool                                                              // tests only: Fetcher.allowLoopback is unexported
 	dial          func(ctx context.Context, network, addr string) (net.Conn, error) // tests only: replaces the connect, after every check
 }
 
-// boxAddrs is every address that is the box itself; known is false while Fetcher.BoxAddrs says so.
-func (g *destGuard) boxAddrs() (out []netip.Addr, known bool) {
+// ownAddrs is Vedette itself as it is now; known is false while Fetcher.BoxAddrs says so.
+func (g *destGuard) ownAddrs() (out ownAddrs, known bool) {
 	known = true
 	if g != nil && g.box != nil {
-		out, known = g.box()
+		var m []netip.Addr
+		m, known = g.box()
+		for _, a := range m {
+			out.machine = append(out.machine, a.Unmap().WithZone(""))
+		}
 	}
 	if g != nil && g.gateway != nil {
 		if gw, ok := g.gateway(); ok {
-			out = append(out, gw.Unmap())
+			out.machine = append(out.machine, gw.Unmap().WithZone(""))
 		}
 	}
-	if ifs, err := net.InterfaceAddrs(); err == nil {
-		for _, a := range ifs {
-			if p, ok := a.(*net.IPNet); ok {
-				if ip, ok := netip.AddrFromSlice(p.IP); ok {
-					out = append(out, ip.Unmap())
-				}
-			}
+	out.self = selfAddrs()
+	if g != nil && g.self != nil {
+		for _, a := range g.self() {
+			out.self = append(out.self, a.Unmap().WithZone(""))
 		}
 	}
 	return out, known
 }
 
-// refused reports whether ip, or the IPv4 address embedded in it, is loopback or one of box. Loopback addresses follow
-// allowLoopback alone (the box list always holds them).
-func (g *destGuard) refused(ip netip.Addr, box []netip.Addr) bool {
+// selfAddrs are the addresses of this process's own interfaces (in the shipped container: core itself), loopback left out.
+func selfAddrs() []netip.Addr {
+	var out []netip.Addr
+	if ifs, err := net.InterfaceAddrs(); err == nil {
+		for _, a := range ifs {
+			if p, ok := a.(*net.IPNet); ok {
+				if ip, ok := netip.AddrFromSlice(p.IP); ok && !ip.Unmap().IsLoopback() {
+					out = append(out, ip.Unmap().WithZone(""))
+				}
+			}
+		}
+	}
+	return out
+}
+
+// refused reports whether ip at port, or the IPv4 address embedded in it, is Vedette itself: loopback (unless allowLoopback),
+// one of own.self, or one of own.machine on a port of vedettePorts.
+func (g *destGuard) refused(ip netip.Addr, port uint16, own ownAddrs) bool {
+	vport := slices.Contains(vedettePorts, port)
 	for _, f := range addrForms(ip) {
 		if f.IsLoopback() {
 			if g == nil || !g.allowLoopback {
@@ -78,23 +106,20 @@ func (g *destGuard) refused(ip netip.Addr, box []netip.Addr) bool {
 			}
 			continue
 		}
-		for _, b := range box {
-			if b.Unmap().WithZone("") == f {
-				return true
-			}
+		if slices.Contains(own.self, f) || vport && slices.Contains(own.machine, f) {
+			return true
 		}
 	}
 	return false
 }
 
-// own reports whether ip is refused as one of box rather than as loopback (refused is true for both).
-func (g *destGuard) own(ip netip.Addr, box []netip.Addr) bool {
-	for _, f := range addrForms(ip) {
-		if f.IsLoopback() {
-			return false
-		}
+// dialPort is the port of a host:port the dialer is given (0 when it has none).
+func dialPort(s string) uint16 {
+	n, err := strconv.ParseUint(s, 10, 16)
+	if err != nil {
+		return 0
 	}
-	return g.refused(ip, box)
+	return uint16(n)
 }
 
 // addrForms is ip plus the IPv4 address a transition form carries: NAT64 (64:ff9b::/96, 64:ff9b:1::/48), 6to4 (2002::/16)
@@ -354,11 +379,11 @@ func dialControl(_, address string, _ syscall.RawConn) error {
 	return destControl(nil, nil, false)("", address, nil)
 }
 
-// destControl is dialControl plus the box rule (D-208): the same check again on the socket, after resolution.
-// strict is the rule while the box's addresses are unknown: only global unicast (globalOnly).
-func destControl(g *destGuard, box []netip.Addr, strict bool) func(_, address string, _ syscall.RawConn) error {
+// destControl is dialControl plus the rule of Vedette itself (D-208, D-446): the same check again on the socket, after resolution.
+// strict is the rule while the box's addresses are unknown: only global unicast (globalOnly). own nil: dialControl, no own rule.
+func destControl(g *destGuard, own *ownAddrs, strict bool) func(_, address string, _ syscall.RawConn) error {
 	return func(_, address string, _ syscall.RawConn) error {
-		host, _, err := net.SplitHostPort(address)
+		host, port, err := net.SplitHostPort(address)
 		if err != nil {
 			return ErrBlockedAddress
 		}
@@ -369,11 +394,8 @@ func destControl(g *destGuard, box []netip.Addr, strict bool) func(_, address st
 		if strict && !globalOnly(ip) {
 			return ErrBoxAddrsUnknown
 		}
-		if box != nil && g.refused(ip, box) {
-			if g.own(ip, box) {
-				return ErrOwnAddress
-			}
-			return ErrBlockedAddress
+		if own != nil && g.refused(ip, dialPort(port), *own) {
+			return ErrOwnAddress
 		}
 		return nil
 	}
@@ -396,20 +418,17 @@ func guardedDial(res resolver) func(ctx context.Context, network, addr string) (
 		}
 		scheme, _ := ctx.Value(schemeKey{}).(string)
 		g, _ := ctx.Value(guardKey{}).(*destGuard)
-		box, known := g.boxAddrs()
+		own, known := g.ownAddrs()
 		strict := !known // D-208: unknown addresses: a public address only; the rest waits for the answer
-		if box == nil {
-			box = []netip.Addr{} // non-nil: the socket hook checks the box rule too
-		}
-		d := &net.Dialer{Timeout: 10 * time.Second, KeepAlive: 30 * time.Second, Control: destControl(g, box, strict)}
+		d := &net.Dialer{Timeout: 10 * time.Second, KeepAlive: 30 * time.Second, Control: destControl(g, &own, strict)}
 		var last error
-		waiting, own := false, false
+		waiting, self := false, false
 		for _, ip := range ips {
 			if !dialAllowed(ip, scheme) {
 				continue
 			}
-			if g.refused(ip, box) {
-				own = own || g.own(ip, box)
+			if g.refused(ip, dialPort(port), own) {
+				self = true
 				continue
 			}
 			if strict && !globalOnly(ip) {
@@ -430,7 +449,7 @@ func guardedDial(res resolver) func(ctx context.Context, network, addr string) (
 			if waiting {
 				return nil, ErrBoxAddrsUnknown
 			}
-			if own {
+			if self {
 				return nil, ErrOwnAddress
 			}
 			return nil, ErrBlockedAddress

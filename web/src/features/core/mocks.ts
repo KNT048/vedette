@@ -773,7 +773,7 @@ const updatesHandlers = [
   http.post(`${API}/core/updates/check`, () => {
     const denied = guard('operator')
     if (denied) return denied
-    if (!privacyStore.get().update_check) return fail(409, 'check_off', 'Update checks are off under Privacy. Turn them on or import an offline bundle.')
+    if (!privacyStore.get().update_check) return fail(409, 'check_off', 'Update checks are off under Privacy. Turn them on to look for Vedette releases.')
     const failed = checkScenario.get().code
     if (failed) {
       const f = CHECK_FAILURES[failed]

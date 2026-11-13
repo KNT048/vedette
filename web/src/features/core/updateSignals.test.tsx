@@ -2,9 +2,11 @@
 import { describe, expect, it } from 'vitest'
 import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { http, HttpResponse } from 'msw'
 import { renderApp } from '@/test/render'
+import { server } from '@/test/server'
 import { collection } from '@/mocks/db'
-import { installStore } from '@/mocks/stores'
+import { installStore, sessionStore } from '@/mocks/stores'
 import { updIndex } from './mocks'
 
 const SINCE = '2026-11-10T00:00:00Z'
@@ -46,11 +48,21 @@ describe('core: withdrawn running release and stale update information (S-CORE-2
     await expect.poll(() => screen.queryByText('The update information on this box is out of date')).toBeNull()
   })
 
-  it('stale information with update checks off: says to turn them on or import a bundle', async () => {
+  it('stale information with update checks off: says to turn them on, and no offline bundle in v1 (D-408)', async () => {
     updIndex.update((x) => ({ ...x, expires_at: SINCE }))
     collection<{ update_check: boolean }>('core_privacy', () => ({ update_check: true })).update((p) => ({ ...p, update_check: false }))
     renderApp('/settings/updates')
-    expect(await screen.findByText(/Update checks are off in Privacy: turn them on or import an offline bundle\./)).toBeInTheDocument()
+    expect(await screen.findByText(/Update checks are off in Privacy: turn them on\.$/)).toBeInTheDocument()
+    expect(screen.queryByText(/bundle/i)).toBeNull()
+  })
+
+  it('stale information and no advisory: does not say there is no known vulnerability (D-408)', async () => {
+    sessionStore.set({ userId: 'u-admin' })
+    const s = await (await fetch(`${location.origin}/api/v1/core/updates`)).json()
+    server.use(http.get('*/api/v1/core/updates', () => HttpResponse.json({ ...s, advisories: [], stale_since: SINCE })))
+    renderApp('/settings/updates')
+    expect(await screen.findByText('None in the update information this box holds, but that information is out of date: a newer advisory may be missing.')).toBeInTheDocument()
+    expect(screen.queryByText('None: no known vulnerability in Vedette.')).toBeNull()
   })
 
   it('container-only: the same notices, without the offline bundle', async () => {

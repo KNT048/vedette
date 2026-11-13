@@ -8,6 +8,7 @@ import (
 	"net/netip"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/jobs"
@@ -226,14 +227,20 @@ func newNotify(d *deps) *notify.Service {
 	return svc
 }
 
-// notifyBoxAddrs is notify's Config.BoxAddrs over the shared cache of what vedette-host reports. It reads the last known set and never
-// waits for the host (notify asks at every webhook connection and save); a stale set is refreshed in the background, and a host that does
-// not answer leaves the previous set in place. Before a configured host's first answer the set is unknown (known=false) and notify refuses
-// every webhook save and connection until it is known (fail closed, #157). Without a host (nil cache) the set is empty and known: the
-// container's own interfaces, which notify reads itself, are all the box has.
+// firstAnswerWait is how long a caller of notifyBoxAddrs waits for vedette-host's first answer since core started (D-408). The host
+// answers state/net in milliseconds; one that does not answer within it leaves the set unknown.
+const firstAnswerWait = 2 * time.Second
+
+// notifyBoxAddrs is notify's Config.BoxAddrs over the shared cache of what vedette-host reports (feeds and logs use it too). Once the
+// host has answered it reads the last known set and never waits for the host (notify asks at every webhook connection and save); a
+// stale set is refreshed in the background, and a host that does not answer leaves the previous set in place. Before a configured
+// host's first answer it waits up to firstAnswerWait for that answer (D-408: else the first webhook save after a start is a 503 only
+// because nothing had asked the host yet); still unknown (known=false), notify refuses every webhook save and connection until it is
+// known (fail closed, #157). Without a host (nil cache) the set is empty and known: the container's own interfaces, which notify
+// reads itself, are all the box has.
 func notifyBoxAddrs(c *hostNetCache) func() ([]netip.Addr, bool) {
 	return func() ([]netip.Addr, bool) {
-		ps, known := c.SnapshotKnown()
+		ps, known := c.SnapshotKnownWithin(firstAnswerWait)
 		var out []netip.Addr
 		for _, p := range ps {
 			out = append(out, p.Addr())

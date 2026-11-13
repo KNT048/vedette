@@ -26,6 +26,7 @@ const (
 	maxCPEs         = 8
 	maxText         = 200 // longest stored string, in runes
 	maxCPELen       = 300
+	maxElemLen      = 256 // longest <elem> text of an NTLM script that is read; a longer one is dropped
 )
 
 var (
@@ -46,6 +47,49 @@ type host struct {
 	// closed and filtered count the ports nmap found in those states (listed ports and <extraports>): with no open port they
 	// say whether the device refused the probes (closed) or something dropped them (filtered), D-501.
 	closed, filtered int
+	ntlm             ntlmInfo // what the device said about itself in an NTLM challenge (D-504); zero when no script answered
+}
+
+// ntlmInfo is the part of an NTLM CHALLENGE that nmap's rdp-ntlm-info or http-ntlm-info printed (nmapargv.Scripts, D-504): the
+// Windows version and build the device itself put in the challenge, and its computer name. Only values of the expected form are kept.
+type ntlmInfo struct {
+	version string // Product_Version, "10.0.22631": major.minor.build, without the monthly update revision
+	dnsName string // DNS_Computer_Name
+	nbName  string // NetBIOS_Computer_Name
+}
+
+// name is the device's own name: its DNS name, else its NetBIOS name.
+func (n ntlmInfo) name() string {
+	if n.dnsName != "" {
+		return n.dnsName
+	}
+	return n.nbName
+}
+
+// ntlmScripts are the scripts whose output is read; any other <script> is ignored.
+var ntlmScripts = map[string]bool{"rdp-ntlm-info": true, "http-ntlm-info": true}
+
+var (
+	ntlmVersionRE = regexp.MustCompile(`^(?:[1-9]|10)\.[0-9]{1,2}\.[0-9]{3,5}$`)
+	ntlmNameRE    = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$`)
+)
+
+// setNTLM keeps one <elem> of an NTLM script: the first well-formed value of each field wins (a host with RDP and HTTP answers twice).
+func (h *host) setNTLM(key, value string) {
+	switch key {
+	case "Product_Version":
+		if h.ntlm.version == "" && ntlmVersionRE.MatchString(value) {
+			h.ntlm.version = value
+		}
+	case "DNS_Computer_Name":
+		if h.ntlm.dnsName == "" && ntlmNameRE.MatchString(value) {
+			h.ntlm.dnsName = value
+		}
+	case "NetBIOS_Computer_Name":
+		if h.ntlm.nbName == "" && ntlmNameRE.MatchString(value) {
+			h.ntlm.nbName = value
+		}
+	}
 }
 
 type portInfo struct {
@@ -149,6 +193,9 @@ func parseNmapXML(data []byte) ([]host, error) {
 		cpeDst *[]string
 		cpeBuf strings.Builder
 		closed bool
+		ntlm    bool   // inside the <script> of an NTLM script of an open port
+		elemKey string // key of the <elem> being read; "" when none
+		elemBuf strings.Builder
 	)
 	for tokens := 0; ; tokens++ {
 		if tokens > maxXMLTokens {
@@ -237,6 +284,13 @@ func parseNmapXML(data []byte) ([]host, error) {
 					cpeDst = &port.cpes
 					cpeBuf.Reset()
 				}
+			case "nmaprun/host/ports/port/script":
+				ntlm = cur != nil && port != nil && ntlmScripts[a["id"]]
+			case "nmaprun/host/ports/port/script/elem":
+				if ntlm {
+					elemKey = a["key"]
+					elemBuf.Reset()
+				}
 			case "nmaprun/host/os/osmatch":
 				if cur != nil && len(cur.matches) < maxOSMatches {
 					cur.matches = append(cur.matches, osMatch{name: text(a["name"]), accuracy: num(a["accuracy"], 100)})
@@ -261,6 +315,9 @@ func parseNmapXML(data []byte) ([]host, error) {
 			if cpeDst != nil && cpeBuf.Len() <= maxCPELen {
 				cpeBuf.Write(t)
 			}
+			if elemKey != "" && elemBuf.Len() <= maxElemLen {
+				elemBuf.Write(t)
+			}
 		case xml.EndElement:
 			switch strings.Join(path, "/") {
 			case "nmaprun":
@@ -275,6 +332,14 @@ func parseNmapXML(data []byte) ([]host, error) {
 					cur.ports = append(cur.ports, *port)
 				}
 				port = nil
+			case "nmaprun/host/ports/port/script":
+				ntlm = false
+			case "nmaprun/host/ports/port/script/elem":
+				// The challenge is read only from an open port; a value longer than maxElemLen or of another form is dropped.
+				if elemKey != "" && cur != nil && portOK && elemBuf.Len() <= maxElemLen {
+					cur.setNTLM(elemKey, text(strings.TrimSpace(elemBuf.String())))
+				}
+				elemKey = ""
 			case "nmaprun/host/ports/port/service/cpe", "nmaprun/host/os/osmatch/osclass/cpe":
 				if cpeDst != nil {
 					if c := cpeText(strings.TrimSpace(cpeBuf.String())); c != "" {

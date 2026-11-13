@@ -27,14 +27,18 @@ func TestIdentifiedFromRealOutputShapes(t *testing.T) {
 		// The OS of a fingerprint is a guess: one row per OS without the generation (iOS 15 and 16 are one row), never a version.
 		{file: "iphone.xml", kind: "iot", cpes: []string{"cpe:/o:apple:iphone_os"},
 			found: []string{"Operating system: Apple iOS 15.0 - 16.1 (Darwin 21.0.0 - 22.1.0)", "Type: iot"}, why: WhyOSGuess},
-		{file: "windows.xml", kind: "pc", cpes: []string{"", "", "", "cpe:/o:microsoft:windows_10"},
-			found: []string{"Operating system: Microsoft Windows 10 1607", "Type: pc", "Software: Microsoft Windows RPC", "Software: Microsoft Windows netbios-ssn",
-				"Software: Microsoft Terminal Services"}, why: WhyOSGuess},
+		// W3-5: "Microsoft Windows RPC" and the other banners with no version are open services, not software.
+		{file: "windows.xml", kind: "pc", cpes: []string{"cpe:/o:microsoft:windows_10"},
+			found: []string{"Operating system: Microsoft Windows 10 1607", "Type: pc"}, why: WhyOSGuess},
+		// W3-4, D-504: the versions shape (no -O) on a Windows 11 PC: RDP's NTLM answer names the release and the build; the row
+		// carries that version but no match keys (Guess), as the monthly update level is not in it.
+		{file: "windows11.xml", kind: "pc", cpes: []string{"cpe:/o:microsoft:windows"},
+			found: []string{"Operating system: Microsoft Windows 11 23H2 (build 22631)", "Type: pc"}, why: WhyOSNoPatch},
 		// Linux "general purpose" gives no kind (review H2): Linux also runs embedded and OT devices.
 		{file: "device.xml", cpes: []string{"cpe:/a:openbsd:openssh:8.9p1", "cpe:/a:apache:http_server:2.4.52", "", "cpe:/o:linux:linux_kernel"},
 			found: []string{"Operating system: Linux 5.4 - 5.15", "Software: OpenSSH 8.9p1", "Software: Apache httpd 2.4.52", "Software: Squid http proxy 5.7"}},
-		{file: "fortigate.xml", kind: "firewall", cpes: []string{"", "cpe:/o:fortinet:fortios"},
-			found: []string{"Operating system: Fortinet FortiGate-60F firewall (FortiOS 7.2)", "Type: firewall", "Software: FortiGate firewall http config"}, why: WhyOSGuess},
+		{file: "fortigate.xml", kind: "firewall", cpes: []string{"cpe:/o:fortinet:fortios"},
+			found: []string{"Operating system: Fortinet FortiGate-60F firewall (FortiOS 7.2)", "Type: firewall"}, why: WhyOSGuess},
 		{file: "printer.xml", why: WhyOSUnsure},
 		{file: "noversion.xml", why: WhyNoVersion},
 		{file: "filtered.xml", why: WhyFiltered},
@@ -166,6 +170,130 @@ func TestPickedPlan(t *testing.T) {
 		kind, rate, why := pickedPlan(c.dec, 100)
 		if kind != c.kind || rate != c.rate || why != c.why {
 			t.Errorf("%s: %v %d %q, want %v %d %q", c.name, kind, rate, why, c.kind, c.rate, c.why)
+		}
+	}
+}
+
+// D-504: the NTLM answer is untrusted text from the device. Only the two NTLM scripts of an open port are read, only a version of the
+// form major.minor.build and a plain computer name are kept, a value longer than maxElemLen is dropped, and the parse never fails
+// the batch for a script.
+func TestNTLMAnswerIsReadFailClosed(t *testing.T) {
+	t.Parallel()
+	hosts, err := parseNmapXML(fixture(t, "windows11.xml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	// the closed port's http-ntlm-info (6.1.7601, "forged") and the open port's smb-os-discovery are ignored
+	if got := hosts[0].ntlm; got != (ntlmInfo{version: "10.0.22631", dnsName: "DESKTOP-K7Q2M1", nbName: "DESKTOP-K7Q2M1"}) {
+		t.Fatalf("ntlm = %+v", got)
+	}
+	doc := func(elems string) []byte {
+		return []byte(`<?xml version="1.0"?><nmaprun><host><status state="up"/><address addr="192.168.10.20" addrtype="ipv4"/><ports>` +
+			`<port protocol="tcp" portid="3389"><state state="open"/><service name="ms-wbt-server"/><script id="rdp-ntlm-info" output="">` +
+			elems + `</script></port></ports></host></nmaprun>`)
+	}
+	for name, c := range map[string]struct {
+		elems string
+		want  ntlmInfo
+	}{
+		"build with revision":   {`<elem key="Product_Version">10.0.22631.4317</elem>`, ntlmInfo{}},
+		"not a version":         {`<elem key="Product_Version">Windows 11</elem>`, ntlmInfo{}},
+		"leading text":          {`<elem key="Product_Version">x10.0.22631</elem>`, ntlmInfo{}},
+		"too long":              {`<elem key="Product_Version">10.0.` + strings.Repeat("1", 300) + `</elem>`, ntlmInfo{}},
+		"name with a space":     {`<elem key="DNS_Computer_Name">evil name</elem>`, ntlmInfo{}},
+		"name with a bidi mark": {"<elem key=\"NetBIOS_Computer_Name\">PC‮EXE</elem>", ntlmInfo{}},
+		"other key":             {`<elem key="OS">10.0.22631</elem>`, ntlmInfo{}},
+		"the first value wins":  {`<elem key="Product_Version">10.0.20348</elem><elem key="Product_Version">6.1.7601</elem>`, ntlmInfo{version: "10.0.20348"}},
+		"DNS name before NetBIOS": {`<elem key="NetBIOS_Computer_Name">SRV1</elem><elem key="DNS_Computer_Name">srv1.corp.example</elem>`,
+			ntlmInfo{dnsName: "srv1.corp.example", nbName: "SRV1"}},
+	} {
+		hosts, err := parseNmapXML(doc(c.elems))
+		if err != nil {
+			t.Errorf("%s: the batch failed: %v", name, err)
+			continue
+		}
+		if hosts[0].ntlm != c.want {
+			t.Errorf("%s: ntlm = %+v, want %+v", name, hosts[0].ntlm, c.want)
+		}
+	}
+}
+
+// D-504: the Windows release a build names, client or server, and what each records. A build only Windows Server has, or a domain
+// controller (88 and 389 open), is a server; a version with a build the table does not know still says Windows, never a guess.
+func TestWindowsFromNTLM(t *testing.T) {
+	t.Parallel()
+	ports := func(ns ...int) []portInfo {
+		var out []portInfo
+		for _, n := range ns {
+			out = append(out, portInfo{number: n, proto: "tcp", name: "x"})
+		}
+		return out
+	}
+	for _, c := range []struct {
+		version string
+		ports   []int
+		display string
+		kind    string
+	}{
+		{"10.0.22631", []int{3389}, "Microsoft Windows 11 23H2 (build 22631)", "pc"},
+		{"10.0.19045", []int{3389}, "Microsoft Windows 10 22H2 (build 19045)", "pc"},
+		{"10.0.26100", []int{3389}, "Microsoft Windows 11 24H2 (build 26100)", "pc"},
+		{"10.0.26100", []int{88, 389, 3389}, "Microsoft Windows Server 2025 (build 26100)", "server"},
+		{"10.0.20348", []int{3389}, "Microsoft Windows Server 2022 (build 20348)", "server"},
+		{"10.0.17763", []int{88, 389}, "Microsoft Windows Server 2019 (build 17763)", "server"},
+		{"10.0.27000", []int{3389}, "Microsoft Windows 11 (build 27000)", "pc"},
+		{"10.0.15000", []int{3389}, "Microsoft Windows (build 15000)", "pc"},
+		{"6.1.7601", []int{3389}, "Microsoft Windows 7 (build 7601)", "pc"},
+		{"6.3.9600", []int{88, 389}, "Microsoft Windows Server 2012 R2 (build 9600)", "server"},
+		{"5.1.2600", []int{3389}, "Microsoft Windows (build 2600)", "pc"},
+	} {
+		h := host{addr: netip.MustParseAddr("192.168.10.20"), ports: ports(c.ports...), ntlm: ntlmInfo{version: c.version, nbName: "PC1"}}
+		got := map[observe.Field]string{}
+		for _, o := range deviceObservations(h) {
+			got[o.Field] = o.Value
+		}
+		if got[observe.OS] != c.display || got[observe.Kind] != c.kind || got[observe.Hostname] != "PC1" {
+			t.Errorf("%s %v: observations %v, want %q %q", c.version, c.ports, got, c.display, c.kind)
+		}
+		sw := softwareOf(h)
+		if len(sw) != 1 || sw[0].Display != c.display || sw[0].Version != c.version || !sw[0].Guess || sw[0].Vendor != "microsoft" {
+			t.Errorf("%s: software %+v, want one Guess row with the version", c.version, sw)
+		}
+	}
+}
+
+// D-504: with no NTLM answer and no sure fingerprint, RPC (135) and SMB (445) together give the type at a passive hint's rank, and
+// never an OS: the walk's .49 without RDP. One of the two alone gives nothing.
+func TestWindowsPortRuleGivesOnlyTheType(t *testing.T) {
+	t.Parallel()
+	hosts, err := parseNmapXML(fixture(t, "windows11.xml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	h := hosts[0]
+	h.ntlm = ntlmInfo{}
+	var kinds []string
+	for _, o := range deviceObservations(h) {
+		switch o.Field {
+		case observe.Kind:
+			kinds = append(kinds, fmt.Sprintf("%s@%.2f", o.Value, o.Confidence))
+		case observe.OS:
+			t.Errorf("the port rule recorded an OS: %q", o.Value)
+		}
+	}
+	if !slices.Equal(kinds, []string{"pc@0.40"}) {
+		t.Errorf("kinds = %v, want pc at 0.4", kinds)
+	}
+	if sw := softwareOf(h); len(sw) != 0 {
+		t.Errorf("software from the port rule: %+v", sw)
+	}
+	if _, why := identified([]host{h}, h.addr, false); why != WhyNoVersion {
+		t.Errorf("why = %q, want %q", why, WhyNoVersion)
+	}
+	h.ports = slices.DeleteFunc(slices.Clone(h.ports), func(p portInfo) bool { return p.number == 135 })
+	for _, o := range deviceObservations(h) {
+		if o.Field == observe.Kind {
+			t.Errorf("445 alone gave the type %q", o.Value)
 		}
 	}
 }

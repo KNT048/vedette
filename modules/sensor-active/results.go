@@ -1,6 +1,7 @@
 package sensoractive
 
 import (
+	"cmp"
 	"fmt"
 	"net/netip"
 	"slices"
@@ -81,6 +82,90 @@ func generalKind(c osClass, name string) string {
 	return ""
 }
 
+// winRelease names the Windows release of an NTLM version (D-504): client and server releases can share one build (14393, 17763,
+// 26100), so both names are kept; "" when that build has no such release.
+type winRelease struct{ client, server string }
+
+// windowsBuilds maps the build of a Windows 10.0 version to its release: the feature updates and the Server releases Microsoft
+// publishes (https://learn.microsoft.com/en-us/windows/release-health/release-information,
+// https://learn.microsoft.com/en-us/windows/release-health/windows11-release-information,
+// https://learn.microsoft.com/en-us/windows-server/get-started/windows-server-release-info).
+var windowsBuilds = map[string]winRelease{
+	"10240": {"Windows 10 1507", ""}, "10586": {"Windows 10 1511", ""}, "14393": {"Windows 10 1607", "Windows Server 2016"},
+	"15063": {"Windows 10 1703", ""}, "16299": {"Windows 10 1709", ""}, "17134": {"Windows 10 1803", ""},
+	"17763": {"Windows 10 1809", "Windows Server 2019"}, "18362": {"Windows 10 1903", ""}, "18363": {"Windows 10 1909", ""},
+	"19041": {"Windows 10 2004", ""}, "19042": {"Windows 10 20H2", ""}, "19043": {"Windows 10 21H1", ""}, "19044": {"Windows 10 21H2", ""},
+	"19045": {"Windows 10 22H2", ""}, "20348": {"", "Windows Server 2022"}, "22000": {"Windows 11 21H2", ""},
+	"22621": {"Windows 11 22H2", ""}, "22631": {"Windows 11 23H2", ""}, "26100": {"Windows 11 24H2", "Windows Server 2025"},
+	"26200": {"Windows 11 25H2", ""},
+}
+
+// windowsMinor maps the major.minor of an older Windows version to its release.
+var windowsMinor = map[string]winRelease{
+	"6.0": {"Windows Vista", "Windows Server 2008"}, "6.1": {"Windows 7", "Windows Server 2008 R2"},
+	"6.2": {"Windows 8", "Windows Server 2012"}, "6.3": {"Windows 8.1", "Windows Server 2012 R2"},
+}
+
+// winOS is the Windows the device named in its NTLM challenge (D-504).
+type winOS struct {
+	display string // "Microsoft Windows 11 23H2 (build 22631)"
+	version string // "10.0.22631": the release, without the monthly update revision
+	server  bool
+}
+
+// windowsOf reads the Windows version a device put in its NTLM challenge (rdp-ntlm-info, http-ntlm-info). It is the device's own
+// answer, not a fingerprint guess, so it names the release (feature update) exactly; it never carries the monthly update revision
+// (UBR), so the patch level stays unknown. A server is a build only Windows Server has, or a domain controller (Kerberos 88 and
+// LDAP 389 open); otherwise a build shared by both is the client release.
+func windowsOf(h host) (winOS, bool) {
+	v := h.ntlm.version
+	if v == "" {
+		return winOS{}, false
+	}
+	parts := strings.Split(v, ".")
+	rel, ok := windowsMinor[parts[0]+"."+parts[1]]
+	if parts[0] == "10" && parts[1] == "0" {
+		rel, ok = windowsBuilds[parts[2]]
+		if !ok && len(parts[2]) == 5 && parts[2] >= "22000" {
+			rel, ok = winRelease{"Windows 11", ""}, true
+		}
+	}
+	server := rel.client == "" && rel.server != "" || openTCP(h, 88) && openTCP(h, 389)
+	name := rel.client
+	if server {
+		name = cmp.Or(rel.server, "Windows Server")
+	}
+	if !ok || name == "" {
+		name = "Windows"
+	}
+	return winOS{display: "Microsoft " + name + " (build " + parts[2] + ")", version: v, server: server}, true
+}
+
+// openTCP says whether TCP port n is open on the host.
+func openTCP(h host, n int) bool {
+	return slices.ContainsFunc(h.ports, func(p portInfo) bool { return p.proto == "tcp" && p.number == n })
+}
+
+// windowsByPorts is the port rule of D-504: RPC (135) and SMB (445) open together is a Windows computer. Without an NTLM answer or
+// a sure fingerprint it gives only the type, at the rank of a passive hint, never an OS or a version; a domain controller's
+// Kerberos and LDAP make it a server.
+func windowsByPorts(h host) (kind string, ok bool) {
+	if !openTCP(h, 135) || !openTCP(h, 445) {
+		return "", false
+	}
+	if openTCP(h, 88) && openTCP(h, 389) {
+		return "server", true
+	}
+	return "pc", true
+}
+
+// Confidences of what D-504 records: the device's own NTLM answer is as sure as nmap gets; its type below that, like a device type;
+// the port rule at the rank of a passive hint (a DHCP option 60 OS hint is 0.4).
+const (
+	ntlmKindConf = nmapCeiling * 0.8
+	portKindConf = 0.4
+)
+
 // best returns the OS match with the highest accuracy (the first on a tie).
 func (h host) best() (osMatch, bool) {
 	var b osMatch
@@ -122,11 +207,20 @@ func deviceObservations(h host) []observe.Observation {
 			out = append(out, observe.Observation{AssetHint: hint, Field: f, Value: v, Source: observe.Nmap, Confidence: c})
 		}
 	}
-	add(observe.Hostname, h.hostname, 0.6)
+	add(observe.Hostname, cmp.Or(h.hostname, h.ntlm.name()), 0.6)
 	add(observe.Vendor, h.vendor, 0.6)
+	if w, ok := windowsOf(h); ok { // the device's own answer outranks nmap's fingerprint guess (D-504)
+		add(observe.OS, w.display, nmapCeiling)
+		kind := "pc"
+		if w.server {
+			kind = "server"
+		}
+		add(observe.Kind, kind, ntlmKindConf)
+		return out
+	}
+	kind := ""
 	if m, ok := h.sure(); ok {
 		add(observe.OS, m.name, accuracyConf(m.accuracy))
-		kind := ""
 		for _, c := range m.classes {
 			if k := kindOf(c.typ); k != "" {
 				add(observe.Kind, k, accuracyConf(min(m.accuracy, c.accuracy))*0.8)
@@ -140,6 +234,9 @@ func deviceObservations(h host) []observe.Observation {
 				kind = k
 			}
 		}
+	}
+	if k, ok := windowsByPorts(h); ok && kind == "" {
+		add(observe.Kind, k, portKindConf)
 	}
 	return out
 }
@@ -158,9 +255,10 @@ func cpeParts(c string) (part, vendor, product, version string, ok bool) {
 	return f[0], clean(f[1]), clean(f[2]), version, true
 }
 
-// softwareOf lists what the scan says runs on the host: one entry per service (from its CPE, else from its
-// product name) and per OS CPE of the best match when it is sure (minOSAccuracy), else per OS CPE a service names. A service with
-// neither product nor CPE gives nothing.
+// softwareOf lists what the scan says runs on the host: one entry per service that -sV read a version of (from its CPE, else from
+// its product name), and the OS: the Windows of the device's NTLM answer (D-504), else per OS CPE of the best match when it is sure
+// (minOSAccuracy), else per OS CPE a service names with a version. A service with no version is a banner, not software ("Microsoft
+// Windows RPC"): it stays in the open services only (W3-5), so it never adds a row that has nothing to compare.
 func softwareOf(h host) []observe.Software {
 	var out []observe.Software
 	seen := map[string]bool{}
@@ -183,16 +281,31 @@ func softwareOf(h host) []observe.Software {
 			if p.version != "" {
 				version = p.version
 			}
+			if version == "" {
+				continue
+			}
 			display := strings.TrimSpace(p.product + " " + version)
 			if p.product == "" {
 				display = strings.TrimSpace(vendor + " " + product + " " + version)
 			}
 			add(observe.Software{Display: display, Vendor: vendor, Product: product, Version: version, CPE: c, Confidence: conf})
 		}
-		if !withCPE && p.product != "" {
+		if !withCPE && p.product != "" && p.version != "" {
 			// ponytail: no CPE, so the vendor is not known; the product name stands for both. A CPE-to-vendor table is the upgrade.
 			add(observe.Software{Display: strings.TrimSpace(p.product + " " + p.version), Vendor: p.product, Product: p.product, Version: p.version, Confidence: conf * 0.8})
 		}
+	}
+	if w, ok := windowsOf(h); ok {
+		// The release is the device's own answer, but the build without its monthly revision cannot be placed in a vendor range
+		// (NVD ends Windows ranges at a revision, 10.0.22631.4317): with match keys it would flag every Windows flaw of that release
+		// as affected. So it is stored with its version and no match keys (Guess) until a person adds Windows with its full
+		// version on the device page (D-504).
+		product, cpe := "windows", "cpe:/o:microsoft:windows"
+		if w.server {
+			product, cpe = "windows server", "cpe:/o:microsoft:windows_server"
+		}
+		add(observe.Software{Display: w.display, Vendor: "microsoft", Product: product, Version: w.version, CPE: cpe, Confidence: nmapCeiling, Guess: true})
+		return out
 	}
 	m, ok := h.sure()
 	if !ok { // no sure OS fingerprint: the OS a service names is the OS row, only with the version -sV read from that service (D-501)
@@ -265,6 +378,7 @@ const (
 	WhyNoVersion   = "no_version"        // open ports, but no service named its product and version, and no usable OS guess
 	WhyOSGuess     = "os_unconfirmed"    // only nmap's OS guess: recorded and shown, never matched until a person adds it
 	WhyOSUnsure    = "os_low_confidence" // as no_version, and nmap's OS guess was below minOSAccuracy
+	WhyOSNoPatch   = "os_no_patch_level" // the device named its Windows release (NTLM), not its monthly update level (D-504)
 	WhyGentleOnly  = "gentle_only"       // fragile: only the gentle scan ran (no -sV, no -O), which never records software
 	WhyTimedOut    = "timed_out"         // nmap's host timeout ended the scan before it printed ports
 	WhyBusy        = "busy"              // discovery was running nmap; one nmap at a time, so nothing ran
@@ -315,6 +429,8 @@ func identified(hosts []host, ip netip.Addr, gentle bool) (found []string, why s
 		return found, WhyFiltered
 	case len(h.ports) == 0:
 		return found, WhyNoOpenPorts
+	case h.ntlm.version != "":
+		return found, WhyOSNoPatch
 	case slices.ContainsFunc(sw, func(s observe.Software) bool { return s.Guess }):
 		return found, WhyOSGuess
 	}

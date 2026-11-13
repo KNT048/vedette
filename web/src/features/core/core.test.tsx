@@ -12,7 +12,7 @@ import { newSecret, totpAt } from './totp'
 import { collection } from '@/mocks/db'
 import { MOCK_SETUP_CODE } from './mocks'
 import { emailCodes } from './emailCode'
-import { checkScenario, mockSign, MOCK_IDP_USER } from './mocks'
+import { CHECK_FAILURES, checkScenario, mockSign, MOCK_IDP_USER } from './mocks'
 import { saveSsoFlow, takeSsoFlow } from './ssoFlow'
 import type { Role } from '@/lib/session'
 import { nav, compareVersion, toBase64 } from './util'
@@ -46,6 +46,10 @@ describe('core: cài đặt ban đầu', () => {
     await u.click(screen.getByRole('button', { name: 'Continue' }))
     // bước 2
     expect(await screen.findByRole('heading', { level: 2, name: 'Network to watch' })).toBeInTheDocument()
+    // D-405: the box's own network (GET /core/setup/modules lan) is the first row
+    expect(screen.getByLabelText('Range 1')).toHaveValue('192.168.10.0/24')
+    expect(screen.getByText(/The first row is the box's own network \(192.168.10.0\/24\)/)).toBeInTheDocument()
+    await u.clear(screen.getByLabelText('Range 1'))
     await u.type(screen.getByLabelText('Range 1'), '192.168.10.0/33')
     await u.click(screen.getByRole('button', { name: 'Continue' }))
     expect(await screen.findByText(/"192.168.10.0\/33" is not a valid range/)).toBeInTheDocument()
@@ -102,7 +106,8 @@ describe('core: cài đặt ban đầu', () => {
     await u.type(screen.getByLabelText('Password'), 'mot-cau-mat-khau-dai')
     await u.type(screen.getByLabelText('Repeat password'), 'mot-cau-mat-khau-dai')
     await u.click(screen.getByRole('button', { name: 'Continue' }))
-    await u.type(await screen.findByLabelText('Range 1'), '8.8.8.0/24')
+    await u.clear(await screen.findByLabelText('Range 1'))
+    await u.type(screen.getByLabelText('Range 1'), '8.8.8.0/24')
     await u.click(screen.getByRole('button', { name: 'Continue' }))
     expect(await screen.findByText(/8.8.8.0\/24 is not a private range/)).toBeInTheDocument()
     await u.clear(screen.getByLabelText('Range 1'))
@@ -143,7 +148,8 @@ describe('core: cài đặt ban đầu', () => {
     await u.type(screen.getByLabelText('Password'), 'mot-cau-mat-khau-dai')
     await u.type(screen.getByLabelText('Repeat password'), 'mot-cau-mat-khau-dai')
     await u.click(screen.getByRole('button', { name: 'Continue' }))
-    await u.type(await screen.findByLabelText('Range 1'), '10.0.0.0/24')
+    await u.clear(await screen.findByLabelText('Range 1'))
+    await u.type(screen.getByLabelText('Range 1'), '10.0.0.0/24')
     await u.click(screen.getByRole('button', { name: 'Continue' }))
     await u.click(await screen.findByRole('button', { name: 'Continue' }))
     await u.click(await screen.findByRole('button', { name: 'Skip and finish' }))
@@ -1035,11 +1041,28 @@ describe('core: cập nhật (S-CORE-2)', () => {
     checkScenario.set({ code: 'update_source_unreachable' })
     renderApp('/settings/updates')
     await u.click(await screen.findByRole('button', { name: 'Check for Vedette releases' }))
-    expect(await screen.findByText(/^Last check failed .+: Vedette could not download the update information from GitHub\./)).toBeInTheDocument()
-    expect(screen.getByText(/^Last checked /)).toBeInTheDocument() // the last good check stays
+    // One status line (D-407): the failure with its reason, then the last good check, which stays.
+    expect(await screen.findByText(/^Last check failed .+: Vedette could not download the update information from GitHub\..* Last successful check /)).toBeInTheDocument()
+    expect(screen.queryByText(/^Last checked |^Never checked/)).toBeNull()
     checkScenario.set({ code: null })
     await u.click(screen.getByRole('button', { name: 'Check for Vedette releases' }))
     await waitFor(() => expect(screen.queryByText(/^Last check failed/)).toBeNull())
+  })
+
+  it('a build with no release: one status line that does not blame the network, no empty tables, the version in the sidebar (D-407)', async () => {
+    sessionStore.set({ userId: 'u-admin' })
+    const s = await (await fetch(`${location.origin}/api/v1/core/updates`)).json()
+    const e = { at: new Date(Date.now() - 6 * 60_000).toISOString(), code: 'update_not_published', message: CHECK_FAILURES.update_not_published.message }
+    server.use(http.get('*/api/v1/core/updates', () => HttpResponse.json({ ...s, last_check: null, last_check_error: e, managed: [], advisories: [] })))
+    renderApp('/settings/updates')
+    const line = await screen.findByText(/^Last check failed 6 minutes ago: No release found yet/)
+    expect(line).not.toHaveTextContent(/github\.com|Never checked/)
+    expect(screen.queryByText(/^Never checked/)).toBeNull()
+    expect(screen.queryByText('No rows.')).toBeNull()
+    expect(screen.getByText(/^None listed\. This list comes from the signed release information/)).toBeInTheDocument()
+    expect(screen.getByText(/^None known yet\. Advisories arrive with the signed update information/)).toBeInTheDocument()
+    const running = s.components.find((c: { id: string }) => c.id === 'software').version
+    expect(screen.getAllByRole('link', { name: `Vedette ${running}` })[0]).toHaveAttribute('href', '/settings/updates')
   })
 
   it('bundle offline: chữ ký sai bị từ chối, chữ ký đúng được cài', async () => {
@@ -1563,6 +1586,9 @@ describe('core: operating system of the box (S-CORE-7, D-53)', () => {
 
   it('a box that has not checked yet shows its message and Check now, which loads the page (issue #231)', async () => {
     collection<{ on: boolean }>('core_os_never_checked', () => ({ on: false })).set({ on: true })
+    asAdmin()
+    const r = await fetch(BASE)
+    expect([r.status, (await r.json()).os]).toEqual([200, null]) // not a 409 in the console on every open (D-407)
     const u = user()
     renderApp('/settings/updates')
     expect(await screen.findByText('The box has not looked for operating system updates yet. Click Check now.', undefined, T)).toBeInTheDocument()

@@ -129,7 +129,7 @@ function TwoFactor({ a }: { a: Account }) {
   const busy = m.confirm2fa.isPending || m.confirmEmail2fa.isPending
   const reason = email.reason === 'module_off' ? t('account.twofa.email.moduleOff') : t('account.twofa.email.notReady')
   return (
-    <Section title={t('account.twofa.title')} description={t('account.twofa.desc')} actions={method ? <Chip tone="ok">{t('account.twofa.onWith', { method: t(`account.twofa.method.${method}`) })}</Chip> : <Chip tone="off">{t('account.twofa.off')}</Chip>}>
+    <Section id="two-step" title={t('account.twofa.title')} description={t('account.twofa.desc')} actions={method ? <Chip tone="ok">{t('account.twofa.onWith', { method: t(`account.twofa.method.${method}`) })}</Chip> : <Chip tone="off">{t('account.twofa.off')}</Chip>}>
       {method ? (
         <div className="grid max-w-xl gap-4">
           <p className="text-sm">{method === 'email' ? t('account.twofa.emailActive', { to: email.sent_to }) : t('account.twofa.appActive')}</p>

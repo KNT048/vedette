@@ -112,7 +112,7 @@ export const RunningRevoked = z.object({
   action: z.enum(['block_install', 'block_install_and_warn', 'rollback_if_possible']).describe('block_install: the Updates page only; block_install_and_warn and rollback_if_possible: a banner on every page (D-386)'),
 })
 export const UpdateCheckError = z.object({
-  at: ts, code: z.enum(['update_source_unreachable', 'update_check_failed']).describe('update_source_unreachable = the release source could not be reached (network, timeout, an answer other than 200); update_check_failed = what arrived did not pass the signature or shape checks, or this build cannot check'),
+  at: ts, code: z.enum(['update_source_unreachable', 'update_not_published', 'update_check_failed']).describe('update_source_unreachable = the release source could not be reached (network, timeout, an answer other than 200 or 404); update_not_published = the source answered 404 for the index: no release information is published there yet (D-407); update_check_failed = what arrived did not pass the signature or shape checks, or this build cannot check'),
   message: z.string().describe("The box's own fixed sentence for this failure (the message of the 503/502 answer); never text received from the network"),
 })
 export const UpdatesState = z.object({
@@ -140,7 +140,7 @@ export const OsInfo = z.object({
 })
 export const ReleaseUpgrade = z.object({ to: z.string(), steps: z.array(z.string()) }).describe('Guidance only; Vedette never runs a release upgrade')
 export const OsState = z.object({
-  os: OsInfo, pending: z.array(OsPackage),
+  os: OsInfo.nullable().describe('null until the box first looks for operating system updates (Check now): pending and reboot_reasons are then empty and the rest is core\'s own settings (D-407; before it, GET answered 409 no_check_yet)'), pending: z.array(OsPackage),
   reboot_required: z.boolean(), reboot_reasons: z.array(z.string()).describe('Packages that need a reboot to take effect'), reboot_scheduled_at: ts.nullable(),
   auto_security: z.boolean().describe('unattended-upgrades installs security updates by itself'), window: MaintenanceWindow,
   release_upgrade: ReleaseUpgrade.nullable(), busy: z.boolean().describe('An install run is in progress; only one at a time'),
@@ -255,7 +255,7 @@ export const endpoints = defineEndpoints([
   { method: 'patch', path: '/modules/{id}', summary: 'Turn a module on or off; turning on with missing dependencies gives 409 missing_dependencies; turning on a module this install cannot run (available false) gives 409 not_appliance (D-381)', stories: ['S-CORE-1'], role: 'admin',
     params: id, body: z.object({ enabled: z.boolean(), with_dependencies: z.boolean().optional() }), response: ToggleResponse },
   // cài đặt ban đầu
-  { method: 'get', path: '/core/setup/modules', summary: 'Modules and dependencies for the bundle step (does not reveal what is on), and the install kind for the setup code hint and the modules this install cannot run (D-381)', stories: ['S-CORE-1'], role: 'public', response: z.object({ modules: z.array(SetupModule), install: InstallKind }) },
+  { method: 'get', path: '/core/setup/modules', summary: 'Modules and dependencies for the bundle step (does not reveal what is on), and the install kind for the setup code hint and the modules this install cannot run (D-381)', stories: ['S-CORE-1'], role: 'public', response: z.object({ modules: z.array(SetupModule), install: InstallKind, lan: z.string().nullable().describe('The network of the box\'s management address (CIDR, like 192.168.18.0/24), offered as the first range of the network step (D-405); null when setup is done, on a container-only install, or when the box has no private IPv4 address') }) },
   { method: 'post', path: '/core/setup', summary: 'First-run setup: create the organization and administrator, choose a module bundle, or use sample data. A bundle leaves out the modules this install cannot run (available false, D-381); naming one under custom gives 409 not_appliance', stories: ['S-CORE-1'], role: 'public', body: SetupPayload, response: Ok },
   { method: 'get', path: '/core/auth-options', summary: 'Whether the sign-in page shows the SSO button', stories: ['S-CORE-3'], role: 'public', response: AuthOptions },
   { method: 'post', path: '/auth/oidc/start', summary: 'Start an SSO sign-in (D-194): returns the identity provider address to open, with state, nonce and a PKCE challenge, and a binding the page keeps until the callback. 400 oidc_off when SSO is off or not set up, 502 idp_unreachable when the discovery document cannot be read, 429 rate_limited', stories: ['S-CORE-3'], role: 'public', response: OidcStart },

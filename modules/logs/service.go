@@ -477,7 +477,7 @@ func pinned(in Input) string {
 }
 
 func duplicate() error {
-	return apierr.New(409, "duplicate", "There is already a log source with this IP address. Edit that one instead of adding a new one.")
+	return apierr.New(409, "duplicate", "There is already a log source with this IP address. Edit that one instead of adding a new one: a UDP source also takes lines from its IP over TCP.")
 }
 
 // AddSource declares a source (POST /logs/sources). One source per sender address.

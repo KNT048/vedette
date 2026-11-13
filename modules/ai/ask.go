@@ -138,16 +138,21 @@ func endsSentence(t string) bool {
 	return t != "" && strings.ContainsRune(".!?", rune(t[len(t)-1]))
 }
 
-// askEvidence names the question and the tools the fact came from (`From the question "…"; tools read: a, b`), at most evidenceMax
-// characters, without the invisible characters that SuggestMemory refuses (pasted questions often carry them).
-func askEvidence(question string, calls []AskToolCall) string {
+// askEvidence names the question, the tools and the knowledge documents the fact came from (`From the question "…"; tools read: a,
+// b; documents: "runbook.md"`, the documents as the answer's sources name them), at most evidenceMax characters, without the invisible
+// characters that SuggestMemory refuses (pasted questions often carry them).
+func askEvidence(question string, calls []AskToolCall, docs []string) string {
 	var tools []string
 	for _, c := range calls {
 		if !slices.Contains(tools, c.Tool) {
 			tools = append(tools, c.Tool)
 		}
 	}
-	tail := clipRunes(`"; tools read: `+strings.Join(tools, ", "), 80)
+	tail := `"; tools read: ` + strings.Join(tools, ", ")
+	if len(docs) > 0 {
+		tail += "; documents: " + docNames(docs)
+	}
+	tail = clipRunes(tail, 120)
 	q := strings.Map(func(r rune) rune {
 		if auth.HasInvisible(string(r)) {
 			return -1
@@ -231,7 +236,7 @@ func (s *Service) Ask(ctx context.Context, actor, question string) (AskResult, e
 	}
 
 	ts := s.newToolSession(ctx, JobAskMyData)
-	var answer, remember []string
+	var answer, remember, docs []string
 	var out AskResult
 	_, err = s.RunJob(ctx, JobSpec{
 		Job: JobAskMyData, Actor: actor, Task: task, Question: sent, tools: ts, AnswerWhenBlocked: true, MaxTokens: askMaxTokens,
@@ -245,7 +250,8 @@ func (s *Service) Ask(ctx context.Context, actor, question string) (AskResult, e
 			return perr
 		},
 		Store: func(ctx context.Context, tx *sql.Tx, r JobResult) error {
-			out = AskResult{ID: id, Question: sent, AskedAt: FormatTS(now), Answer: answer, Table: ts.table, ToolCalls: nonNilCalls(ts.calls), Citations: nonNilCites(ts.cites),
+			docs = r.Documents // the documents that went with the question are named first among the sources (D-445)
+			out = AskResult{ID: id, Question: sent, AskedAt: FormatTS(now), Answer: answer, Table: ts.table, ToolCalls: nonNilCalls(ts.calls), Citations: nonNilCites(append(documentsCite(docs), ts.cites...)),
 				Model: r.Model, Profile: r.Profile, Tokens: askTokens{r.TokensIn, r.TokensOut}, Hooks: askHooks(pre.Hits, ts.hits, r.Hits)}
 			if r.Downgrade != nil {
 				out.Downgraded = &askDowngrade{From: r.Downgrade.From, To: r.Downgrade.To}
@@ -262,7 +268,7 @@ func (s *Service) Ask(ctx context.Context, actor, question string) (AskResult, e
 	sctx, cancel := detached(ctx) // the tokens are spent: the suggestion is kept even if the person has gone
 	defer cancel()
 	if len(ts.calls) > 0 { // the fact must come from what the tools returned, not from the question alone (D-225)
-		out.MemoriesSuggested = s.suggestFrom(sctx, remember, askEvidence(sent, ts.calls), "a question")
+		out.MemoriesSuggested = s.suggestFrom(sctx, remember, askEvidence(sent, ts.calls, docs), "a question")
 	}
 	return out, nil
 }

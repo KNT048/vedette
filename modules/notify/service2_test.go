@@ -408,6 +408,10 @@ func (f fakeDevices) DeviceName(_ context.Context, id string) (string, bool, err
 	return n, ok, nil
 }
 
+func (f fakeDevices) DeviceLabel(ctx context.Context, id string) (string, bool, error) {
+	return f.DeviceName(ctx, id)
+}
+
 func TestSubscribeTurnsEventsIntoNoticesAndIncidents(t *testing.T) {
 	var on = true
 	e := newEnv(t, func(c *notify.Config) {

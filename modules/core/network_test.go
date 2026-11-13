@@ -107,6 +107,8 @@ func (p *nwProber) probes() int           { p.mu.Lock(); defer p.mu.Unlock(); re
 type nwBox struct {
 	m        *opstest.Machine
 	spanAddr atomic.Bool // eth1 holds an address
+	leased   atomic.Bool // eth0's 192.168.1.50 is a DHCP lease (D-405)
+	wifi     atomic.Bool // wlan0 is a card with a leased 192.168.1.40 (walk 4)
 }
 
 var nwAddrRE = regexp.MustCompile(`\d+\.\d+\.\d+\.\d+/\d+`)
@@ -127,13 +129,22 @@ func (b *nwBox) interfaces() ([]ops.HostIface, error) {
 	if b.spanAddr.Load() {
 		span = []netip.Prefix{netip.MustParsePrefix("10.9.9.9/24")}
 	}
-	return []ops.HostIface{
+	var dyn []netip.Prefix
+	if b.leased.Load() {
+		dyn = addrs[:1]
+	}
+	out := []ops.HostIface{
 		{Name: "lo", Loopback: true, Addrs: []netip.Prefix{netip.MustParsePrefix("127.0.0.1/8")}},
-		{Name: "eth0", MAC: "02:00:00:00:00:01", Addrs: addrs},
+		{Name: "eth0", MAC: "02:00:00:00:00:01", Addrs: addrs, Dynamic: dyn},
 		{Name: "eth1", MAC: "02:00:00:00:00:02", Addrs: span},
 		{Name: "eth2", MAC: "02:00:00:00:00:03", Addrs: []netip.Prefix{netip.MustParsePrefix("fe80::1/64")}},
 		{Name: "veth1234", MAC: "02:00:00:00:00:04", Addrs: []netip.Prefix{netip.MustParsePrefix("10.88.0.1/16")}},
-	}, nil
+	}
+	if b.wifi.Load() {
+		w := netip.MustParsePrefix("192.168.1.40/24")
+		out = append(out, ops.HostIface{Name: "wlan0", MAC: "02:00:00:00:00:05", Addrs: []netip.Prefix{w}, Dynamic: []netip.Prefix{w}})
+	}
+	return out, nil
 }
 
 // nwCard lays out one sysfs card under the machine's root the way the kernel does.
@@ -427,6 +438,38 @@ func TestNetworkPageShowsTheCardsOfTheHostAndNotTheVirtualLinks(t *testing.T) {
 	}
 	if jval(r, "span", "extract", "dns") != true || jval(r, "span", "cpu_percent") != float64(25) {
 		t.Errorf("span defaults: %v", r.JSON["span"])
+	}
+}
+
+// D-405, walk 4: a box the host has not configured whose management address is a DHCP lease shows "dhcp" with the DNS its
+// resolver uses, not "static" with no DNS (one Save would have made it static); an installer's fixed address stays "static"
+// and its form starts with those DNS servers. Every card with an address shows it (a Wi-Fi card's lease).
+func TestNetworkPageReadsDHCPAndTheDNSInUseFromTheHost(t *testing.T) {
+	t.Parallel()
+	for _, leased := range []bool{true, false} {
+		e := newNetEnv(t, netOpts{})
+		e.box.leased.Store(leased)
+		e.box.wifi.Store(true)
+		nwCard(t, e.m.Root, "wlan0", true)
+		e.m.WriteRoot("run/systemd/resolve/resolv.conf", "nameserver 192.168.1.1\nnameserver 2001:db8::53\nsearch lan\n")
+		r := e.viewer.get("/core/network")
+		wantOK(t, r, 200)
+		want := map[bool]string{true: "dhcp", false: "static"}[leased]
+		if got := jstr(r, "management", "mode"); got != want || jstr(r, "management", "address") != "192.168.1.50" || jstr(r, "management", "gateway") != "192.168.1.1" {
+			t.Errorf("leased=%v: management %v, want mode %s", leased, r.JSON["management"], want)
+		}
+		if got := asStrings(jval(r, "management", "dns")); strings.Join(got, ",") != "192.168.1.1" {
+			t.Errorf("leased=%v: dns %v, want the IPv4 resolver in use", leased, got)
+		}
+		var wifi map[string]any
+		for _, i := range getArr(r, "interfaces") {
+			if m := i.(map[string]any); m["name"] == "wlan0" {
+				wifi = m
+			}
+		}
+		if wifi == nil || wifi["address"] != "192.168.1.40/24" || wifi["role"] != "unused" {
+			t.Errorf("wlan0 = %v", wifi)
+		}
 	}
 }
 
@@ -1441,5 +1484,24 @@ func TestNetworkDemotedAdminIsRefusedBeforeTheHostIsCalled(t *testing.T) {
 	}
 	if jval(e.admin.get("/core/network"), "pending") != nil {
 		t.Error("the refused change must not wait")
+	}
+}
+
+// D-405: the network first-run setup offers is the management card's (host bits cleared); a second ask within the read window
+// does not read the host again, whatever the first answer was; no host → none.
+func TestNetworkManagementLANForSetup(t *testing.T) {
+	t.Parallel()
+	e := newNetEnv(t, netOpts{})
+	p, ok := e.nh.ManagementLAN(t.Context())
+	if !ok || p.String() != "192.168.1.0/24" {
+		t.Fatalf("ManagementLAN = %v %v, want 192.168.1.0/24", p, ok)
+	}
+	calls := e.fault.stateCalls.Load()
+	e.fault.stateErr.Store(errBox{context.DeadlineExceeded})
+	if p, ok := e.nh.ManagementLAN(t.Context()); !ok || p.String() != "192.168.1.0/24" || e.fault.stateCalls.Load() != calls {
+		t.Fatalf("second ask in the window = %v %v, host reads %d -> %d", p, ok, calls, e.fault.stateCalls.Load())
+	}
+	if _, ok := newNetEnv(t, netOpts{noHost: true}).nh.ManagementLAN(t.Context()); ok {
+		t.Fatal("ManagementLAN without a host")
 	}
 }

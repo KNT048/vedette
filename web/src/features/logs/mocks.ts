@@ -124,7 +124,7 @@ function validateSource(b: Partial<SourceInput>, selfId?: string) {
     if (b.proto !== 'tls') return fail(400, 'bad_client_cert', 'Only a TLS source can have a client certificate, given as its SHA-256 fingerprint: 64 hexadecimal characters.')
     if (!/^[0-9a-f]{64}$/.test(b.client_cert_sha256)) return fail(400, 'bad_client_cert', 'Only a TLS source can have a client certificate, given as its SHA-256 fingerprint: 64 hexadecimal characters.')
   }
-  if (sources.get().some((s) => s.id !== selfId && s.sender_ip === b.sender_ip)) return fail(409, 'duplicate', 'There is already a log source with this IP address. Edit that one instead of adding a new one.')
+  if (sources.get().some((s) => s.id !== selfId && s.sender_ip === b.sender_ip)) return fail(409, 'duplicate', 'There is already a log source with this IP address. Edit that one instead of adding a new one: a UDP source also takes lines from its IP over TCP.')
   return null
 }
 
@@ -223,9 +223,9 @@ export const handlers = [
 
   http.get(`${API}/logs/unknown-senders`, () => {
     const denied = guard('operator'); if (denied) return denied
-    // Like the box: a sender a source now declares with the protocol it used is left out; the 10 seen most recently.
+    // Like the box: a sender a source now takes over the protocol it used is left out (a UDP source takes TCP too, D-444); the 10 seen most recently.
     const declared = sources.get()
-    const items = unknownSenders.get().filter((u) => !declared.some((s) => s.sender_ip === u.ip && s.proto === u.proto)).sort((a, b) => b.last_seen.localeCompare(a.last_seen)).slice(0, 10)
+    const items = unknownSenders.get().filter((u) => !declared.some((s) => s.sender_ip === u.ip && (s.proto === u.proto || (s.proto === 'udp' && u.proto === 'tcp')))).sort((a, b) => b.last_seen.localeCompare(a.last_seen)).slice(0, 10)
     return HttpResponse.json({ items })
   }),
 

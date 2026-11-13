@@ -203,3 +203,10 @@ func TestLinkDevicesNamesWholeWordsAndOneDevice(t *testing.T) {
 		}
 	}
 }
+
+// D-445: each document name is quoted, so a name with a comma still reads as one.
+func TestDocNamesAreQuoted(t *testing.T) {
+	if got := docNames([]string{"a, b.md", `say "hi".txt`}); got != `"a, b.md", "say \"hi\".txt"` {
+		t.Fatalf("docNames = %s", got)
+	}
+}

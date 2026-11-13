@@ -34,3 +34,8 @@ export function fmtPercent(n: number | null | undefined, digits = 1) {
   if (n === null || n === undefined) return '–'
   return new Intl.NumberFormat(loc(), { style: 'percent', maximumFractionDigits: digits }).format(n)
 }
+/** The small "vendor product" line under a product's display name, or null when it only repeats that name (walk 4: "OpenBSD OpenSSH / OpenBSD OpenSSH"). */
+export function rawProductLine(display: string, vendor: string, product: string) {
+  const raw = `${vendor} ${product}`.trim()
+  return raw && raw.toLowerCase() !== display.trim().toLowerCase() ? raw : null
+}

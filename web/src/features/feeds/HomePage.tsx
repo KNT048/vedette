@@ -9,13 +9,14 @@ import { EmptyState, QueryState } from '@/components/common/States'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Segmented } from '@/components/ui/segmented'
-import { fmtPercent } from '@/lib/format'
+import { fmtPercent, rawProductLine } from '@/lib/format'
 import { fmtDay, fmtStamp } from './dates'
 import { useCan } from '@/lib/session'
 import { useSetup } from '@/app/RequireSession'
 import { ApiError } from '@/lib/api'
 import { useAnswerWeekly, useFeedStatus, useHot, useWeekly } from './api'
 import { YouHaveCell } from './YouHaveCell'
+import { TwoStepPrompt } from '@/features/core/TwoStepPrompt'
 import type { HotRow } from './types'
 
 function SearchBox() {
@@ -54,12 +55,15 @@ function HotBoard() {
   const [win, setWin] = useState<'24h' | '7d'>('7d')
   const hot = useHot(win)
   const columns: ColumnDef<HotRow>[] = [
-    { id: 'product', header: t('hot.col.product'), accessorFn: (r) => r.display, cell: ({ row }) => (
-      <div className="grid">
-        <span className="font-medium">{row.original.display}</span>
-        <span className="text-[12px] text-muted">{row.original.vendor} {row.original.product}</span>
-      </div>
-    ) },
+    { id: 'product', header: t('hot.col.product'), accessorFn: (r) => r.display, cell: ({ row }) => {
+      const raw = rawProductLine(row.original.display, row.original.vendor, row.original.product)
+      return (
+        <div className="grid">
+          <span className="font-medium">{row.original.display}</span>
+          {raw ? <span className="text-[12px] text-muted">{raw}</span> : null}
+        </div>
+      )
+    } },
     { id: 'cves', header: t('hot.col.cves'), accessorFn: (r) => r.cves.length, cell: ({ row }) => (
       <div className="flex flex-wrap gap-x-2">
         {row.original.cves.map((c) => <Link key={c.cve} to={`/cve/${c.cve}`} onClick={(e) => e.stopPropagation()} className="whitespace-nowrap text-accent underline-offset-4 hover:underline">{c.cve}</Link>)}
@@ -167,6 +171,7 @@ export default function HomePage() {
         meta={never ? t('home.metaNone') : status.data ? <>{t('home.meta', { time: fmtStamp(status.data.generated_at), sources: status.data.sources.map((s) => s.name).join(', ') })}{setup.data?.data_mode === 'sample' ? ` ${t('home.sampleInventory')}` : ''}</> : null}
         actions={<SearchBox />}
       />
+      <TwoStepPrompt />
       {matched > 0 ? (
         <p className="-mt-2 mb-6 text-sm"><Link to="/findings" className="text-accent underline-offset-4 hover:underline">{t('home.toFindings')}</Link></p>
       ) : null}

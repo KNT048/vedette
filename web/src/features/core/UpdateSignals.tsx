@@ -28,6 +28,18 @@ export function RevokedBanner() {
   )
 }
 
+/**
+ * S-CORE-2 criterion D-407: the running Vedette version under the account menu of every page (as Grafana and Home Assistant
+ * show theirs), from the same read as the banner; links to Settings → Updates. Nothing while it loads or fails.
+ */
+export function RunningVersion({ onNavigate }: { onNavigate?: () => void }) {
+  const { t } = useTranslation('core')
+  const { data } = useUpdatesBanner()
+  const version = data?.components.find((c) => c.id === 'software')?.version
+  if (!version) return null
+  return <Link to="/settings/updates" onClick={onNavigate} className="truncate px-2.5 text-[12px] text-muted underline-offset-4 hover:text-ink hover:underline">{t('updates.footerVersion', { version })}</Link>
+}
+
 /** D-386 (1b), (2): on the Updates page only, a withdrawn release with block_install and stale update information. `bundle`: the install can import an offline bundle (appliance). */
 export function UpdateNotices({ s, bundle = true }: { s: UpdatesState; bundle?: boolean }) {
   const { t } = useTranslation('core')

@@ -7115,8 +7115,15 @@ func (s *CoreDeleteCoreUpdatesOsRebootOK) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
-		if err := s.Os.Validate(); err != nil {
-			return err
+		if value, ok := s.Os.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
 		}
 		return nil
 	}(); err != nil {
@@ -9666,6 +9673,8 @@ func (s CoreGetCoreUpdatesOKLastCheckErrorCode) Validate() error {
 	switch s {
 	case "update_source_unreachable":
 		return nil
+	case "update_not_published":
+		return nil
 	case "update_check_failed":
 		return nil
 	default:
@@ -9901,8 +9910,15 @@ func (s *CoreGetCoreUpdatesOsOK) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
-		if err := s.Os.Validate(); err != nil {
-			return err
+		if value, ok := s.Os.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
 		}
 		return nil
 	}(); err != nil {
@@ -11361,6 +11377,8 @@ func (s CorePatchCoreUpdatesOKLastCheckErrorCode) Validate() error {
 	switch s {
 	case "update_source_unreachable":
 		return nil
+	case "update_not_published":
+		return nil
 	case "update_check_failed":
 		return nil
 	default:
@@ -11596,8 +11614,15 @@ func (s *CorePatchCoreUpdatesOsSettingsOK) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
-		if err := s.Os.Validate(); err != nil {
-			return err
+		if value, ok := s.Os.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
 		}
 		return nil
 	}(); err != nil {
@@ -15147,6 +15172,8 @@ func (s CorePostCoreUpdatesApplyOKLastCheckErrorCode) Validate() error {
 	switch s {
 	case "update_source_unreachable":
 		return nil
+	case "update_not_published":
+		return nil
 	case "update_check_failed":
 		return nil
 	default:
@@ -15873,6 +15900,8 @@ func (s *CorePostCoreUpdatesBundleOKStateLastCheckError) Validate() error {
 func (s CorePostCoreUpdatesBundleOKStateLastCheckErrorCode) Validate() error {
 	switch s {
 	case "update_source_unreachable":
+		return nil
+	case "update_not_published":
 		return nil
 	case "update_check_failed":
 		return nil
@@ -16601,6 +16630,8 @@ func (s CorePostCoreUpdatesCheckOKLastCheckErrorCode) Validate() error {
 	switch s {
 	case "update_source_unreachable":
 		return nil
+	case "update_not_published":
+		return nil
 	case "update_check_failed":
 		return nil
 	default:
@@ -16836,8 +16867,15 @@ func (s *CorePostCoreUpdatesOsCheckOK) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
-		if err := s.Os.Validate(); err != nil {
-			return err
+		if value, ok := s.Os.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
 		}
 		return nil
 	}(); err != nil {
@@ -17322,8 +17360,15 @@ func (s *CorePostCoreUpdatesOsRebootOK) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
-		if err := s.Os.Validate(); err != nil {
-			return err
+		if value, ok := s.Os.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
 		}
 		return nil
 	}(); err != nil {
@@ -18115,6 +18160,8 @@ func (s *CorePostCoreUpdatesRollbackOKLastCheckError) Validate() error {
 func (s CorePostCoreUpdatesRollbackOKLastCheckErrorCode) Validate() error {
 	switch s {
 	case "update_source_unreachable":
+		return nil
+	case "update_not_published":
 		return nil
 	case "update_check_failed":
 		return nil

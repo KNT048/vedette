@@ -53,7 +53,7 @@ export const SourcesResponse = z.object({
 // and returns the 10 seen most recently. A sender declared now with the protocol it used is left out.
 export const UnknownSender = z.object({
   ip: z.string().max(45).describe('The sender address as the socket saw it (IPv4, or IPv6 when the box listens on IPv6)'),
-  proto: Proto.describe('How the last message arrived'),
+  proto: Proto.describe('How these messages arrived: one item per address and protocol, so a sender that used two protocols is two items'),
   count: z.number().int().min(1).describe('Datagrams and connections dropped since the syslog listener last started'),
   last_seen: iso,
 })

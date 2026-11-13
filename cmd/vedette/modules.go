@@ -237,8 +237,12 @@ func startGuards(ctx context.Context, reg *modreg.Registry, log *slog.Logger, d 
 	on := modreg.NewOnGuard(gctx, reg, log, nil)
 	reg.OnChange(off.ModuleChanged)
 	reg.OnChange(on.ModuleChanged)
-	addOffGuards(off, d, wired)    //nolint:contextcheck // the guards run on gctx, the child of ctx made just above
-	addContainerGuards(on, off, d) //nolint:contextcheck // as above
+	addOffGuards(off, d, wired) //nolint:contextcheck // the guards run on gctx, the child of ctx made just above
+	var setupDone func(context.Context) (bool, error)
+	if d.Core != nil {
+		setupDone = d.Core.SetupDone
+	}
+	addContainerGuards(on, off, d, setupDone) //nolint:contextcheck // as above
 	return func() { cancel(); off.Wait(); on.Wait() }
 }
 

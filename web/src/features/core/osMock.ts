@@ -10,7 +10,7 @@ const STEP_MS = import.meta.env.MODE === 'test' ? 20 : 450
 const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/
 
 interface OsStore {
-  distro: OsState['os']['distro']; name: string; release: string; kernel: string; support_end: string; extended_end: string | null
+  distro: NonNullable<OsState['os']>['distro']; name: string; release: string; kernel: string; support_end: string; extended_end: string | null
   booted_at: string; last_check: string; pending: OsPackage[]; next_kernel: string | null
   reboot_required: boolean; reboot_reasons: string[]; reboot_scheduled_at: string | null
   auto_security: boolean; window: MaintenanceWindow
@@ -131,6 +131,8 @@ export const osHandlers = (deps: { updateCheckOn: () => boolean; addHistory: (e:
       audit('os.reboot_done', 'scheduled')
     }
     const { pending, reboot_required, reboot_reasons, reboot_scheduled_at, auto_security, window, ...info } = s // eslint-disable-line @typescript-eslint/no-unused-vars
+    // A box that has never run a check (D-407): no host part, only core's own settings, as the real box answers.
+    if (neverChecked.get().on) return { os: null, pending: [], reboot_required: false, reboot_reasons: [], reboot_scheduled_at: null, auto_security: false, window, release_upgrade: null, busy: false }
     return {
       os: { distro: info.distro, name: info.name, release: info.release, kernel: info.kernel, support_end: info.support_end, extended_end: info.extended_end, booted_at: info.booted_at, last_check: info.last_check, mirrors: MIRRORS[info.distro] },
       pending, reboot_required, reboot_reasons, reboot_scheduled_at, auto_security, window,
@@ -162,8 +164,7 @@ export const osHandlers = (deps: { updateCheckOn: () => boolean; addHistory: (e:
   return [
     http.get(`${API}/core/updates/os`, () => {
       const denied = guard('viewer'); if (denied) return denied
-      // A box that has never run a check (the real box answers 409 until the first one, issue #231). Off by default; a test turns it on.
-      if (neverChecked.get().on) return fail(409, 'no_check_yet', 'The box has not looked for operating system updates yet. Click Check now.')
+      // A box that has never run a check answers 200 with os null (D-407; it was 409 no_check_yet, issue #231). Off by default; a test turns it on.
       return HttpResponse.json(state())
     }),
     http.get(`${API}/core/updates/os/run`, () => {
@@ -187,6 +188,7 @@ export const osHandlers = (deps: { updateCheckOn: () => boolean; addHistory: (e:
       if (b.scope !== 'security' && b.scope !== 'all') return fail(400, 'invalid_scope', 'Choose security updates or all updates.')
       settle()
       if (running(runStore.get())) return fail(409, 'busy', 'Another update run is already in progress. Wait for it to finish; only one run can go at a time.')
+      if (neverChecked.get().on) return fail(409, 'no_check_yet', 'The box has not looked for operating system updates yet. Click Check now.')
       const pkgs = store.get().pending.filter((p) => b.scope === 'all' || p.security)
       if (!pkgs.length) return fail(409, 'nothing_to_install', b.scope === 'security' ? 'There are no security updates waiting. Click "Check now" to look again.' : 'There are no updates waiting. Click "Check now" to look again.')
       const backup = `vedette-pre-update-${stamp()}.db.gz (4.2 MB)`

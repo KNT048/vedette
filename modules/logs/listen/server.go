@@ -27,6 +27,7 @@ type Limits struct {
 	MaxFrame         int           // largest datagram, octet count or newline-less line read (64 KiB)
 	MaxConns         int           // TCP connections at once, all sources (1,000)
 	MaxConnsIP       int           // TCP connections at once from one source (256)
+	MaxConnsIPOther  int           // of those, the ones over a protocol the source was not declared with: TCP to a UDP source (8, D-444), so such a source cannot take the share of the others
 	Idle             time.Duration // a connection that sends nothing for this long is closed (5 min)
 	HandshakeTimeout time.Duration // a TLS connection must finish its handshake within this (10 s): a half-open or silent one cannot hold a slot
 	HandshakeRate    float64       // TLS connections a second one declared sender may start (20): a handshake costs the box CPU (about 0.5 ms with ECDSA, D-436); a connection above it is closed before any handshake and counted in ConnRejected
@@ -38,7 +39,7 @@ type Limits struct {
 	BatchBytes       int           // bytes of text in a batch (1 MiB)
 	BatchWait        time.Duration // the longest a line waits for its batch (2 s)
 	Queue            int           // lines waiting for a batch (4,096); a datagram is dropped and counted when it is full
-	UnknownKept      int           // senders remembered while counting the unknown ones (256, least recently seen out)
+	UnknownKept      int           // senders remembered while counting the unknown ones, one per address and protocol (256, least recently seen out)
 	FlushOnClose     time.Duration // the longest a Sink call may take once the server is stopping (5 s)
 	ErrorLogEvery    time.Duration // the least time between two log lines about a failing Sink (10 s)
 }
@@ -58,6 +59,7 @@ func (l Limits) withDefaults() Limits {
 	def(&l.MaxFrame, 64<<10)
 	def(&l.MaxConns, 1000)
 	def(&l.MaxConnsIP, 256)
+	def(&l.MaxConnsIPOther, 8)
 	defD(&l.Idle, 5*time.Minute)
 	defD(&l.FrameTimeout, 30*time.Second)
 	defD(&l.HandshakeTimeout, 10*time.Second)
@@ -117,8 +119,9 @@ type Config struct {
 	TLS *tls.Config
 }
 
-// Server owns the sockets. It opens a UDP socket only while a UDP source is declared, a TCP one only while a TCP source is and a TLS
-// one only while a TLS source is and Config.TLS is set (nothing listens on a box with no sources), and closes them when the last such source goes (SetSources).
+// Server owns the sockets. While it runs it keeps a UDP and a TCP socket open, and a TLS one when Config.TLS is set, whatever the sources
+// (D-443): a sender that is not declared is then counted (Stats.UnknownSender) and dropped, instead of meeting a closed port that leaves no
+// trace. The sources decide only whose messages are kept (lookup, Accepts).
 type Server struct {
 	cfg Config
 	lim Limits
@@ -183,10 +186,9 @@ func New(cfg Config) (*Server, error) {
 	return s, nil
 }
 
-// SetSources replaces the declared senders. While the server runs it opens or closes the sockets to match, and closes the
-// connections of a sender that is gone or declared with another protocol. It returns the error of a socket that could not be
-// opened (the joined errors of both protocols; the one that opened stays up, and Status says which one is down and why). The
-// sources are kept, and calling it again retries the bind of the socket that is missing.
+// SetSources replaces the declared senders. While the server runs it closes the connections of a sender that is gone or declared with
+// another protocol, and retries a socket that could not be opened; it returns that error (the joined errors of the protocols; the
+// sockets that opened stay up, and Status says which one is down and why). The sources are kept.
 func (s *Server) SetSources(m map[netip.Addr]Source) error {
 	cp := make(map[netip.Addr]Source, len(m))
 	for ip, src := range m {
@@ -220,10 +222,18 @@ func (s *Server) SetSources(m map[netip.Addr]Source) error {
 
 func (s *Server) lookup(ip netip.Addr, proto string) (Source, bool) {
 	src, ok := (*s.srcView.Load())[ip]
-	return src, ok && src.Proto == proto
+	return src, ok && Accepts(src.Proto, proto)
 }
 
-// Run serves until ctx ends: it opens the sockets the sources need, then closes everything and flushes the last batch. A socket
+// Accepts says whether a source declared with protocol declared takes a message that arrived over arrived (D-444): its own protocol, and a
+// UDP source also TCP from its address, so one device that sends over both is one source (TCP is no easier to forge than UDP, so nothing
+// gets in that the UDP source would not take anyway). A TCP source takes no UDP (a forged datagram cannot pass as it), and TLS takes only
+// TLS and is taken by nothing else: its certificate and its optional pin are the point of declaring it.
+func Accepts(declared, arrived string) bool {
+	return declared == arrived || (declared == "udp" && arrived == "tcp")
+}
+
+// Run serves until ctx ends: it opens the sockets (D-443), then closes everything and flushes the last batch. A socket
 // that cannot be opened does not end it: Status says why, and the caller retries with SetSources. It returns ctx.Err().
 func (s *Server) Run(ctx context.Context) error {
 	s.mu.Lock()
@@ -250,24 +260,19 @@ func (s *Server) Run(ctx context.Context) error {
 	return ctx.Err()
 }
 
-// applyLocked opens and closes sockets to match the sources.
+// applyLocked opens the sockets that are not open (all of them, D-443: UDP, TCP, and TLS when the box has a TLS configuration) and cuts
+// the connections whose sender is no longer a source of their protocol.
 func (s *Server) applyLocked() error {
-	var needUDP, needTCP, needTLS bool
-	for _, src := range s.sources {
-		needUDP = needUDP || src.Proto == "udp"
-		needTCP = needTCP || src.Proto == "tcp"
-		needTLS = needTLS || (src.Proto == "tls" && s.cfg.TLS != nil)
-	}
-	s.closeLocked(!needUDP, !needTCP, !needTLS)
+	needTLS := s.cfg.TLS != nil
 	for conn, ci := range s.conns { // a sender that is gone or changed protocol
-		if src, ok := s.sources[ci.ip]; !ok || src.Proto != ci.proto || src.ClientCertSHA256 != ci.pin { // gone, another protocol, or another pin
+		if src, ok := s.sources[ci.ip]; !ok || !Accepts(src.Proto, ci.proto) || src.ClientCertSHA256 != ci.pin { // gone, another protocol, or another pin
 			ci.cut = true
 			s.conns[conn] = ci
 			closeNow(conn)
 		}
 	}
 	var errs []error
-	if needUDP && s.udp == nil {
+	if s.udp == nil {
 		if sock, err := s.bind("udp"); err != nil {
 			errs = append(errs, fmt.Errorf("udp: %w", err))
 			s.noteBind(0, err)
@@ -277,7 +282,7 @@ func (s *Server) applyLocked() error {
 			go s.udpLoop(s.udp)
 		}
 	}
-	if needTCP && s.tcp == nil {
+	if s.tcp == nil {
 		if sock, err := s.bind("tcp"); err != nil {
 			errs = append(errs, fmt.Errorf("tcp: %w", err))
 			s.noteBind(1, err)
@@ -297,10 +302,10 @@ func (s *Server) applyLocked() error {
 			go s.acceptLoop(s.tlsL, "tls")
 		}
 	}
-	if s.udp != nil || !needUDP {
+	if s.udp != nil {
 		s.noteBind(0, nil)
 	}
-	if s.tcp != nil || !needTCP {
+	if s.tcp != nil {
 		s.noteBind(1, nil)
 	}
 	if s.tlsL != nil || !needTLS {
@@ -498,7 +503,7 @@ type Status struct {
 	UDP, TCP  bool // sockets open
 	TLS       bool // the TLS socket is open
 	TLSPort   int  // the port of the TLS socket, 0 until it has opened
-	// UDPErr, TCPErr and TLSErr are why a socket that is wanted (a source of that protocol exists) is not open; empty otherwise.
+	// UDPErr, TCPErr and TLSErr are why a socket is not open (TLS: only on a box with a TLS configuration); empty otherwise.
 	UDPErr, TCPErr, TLSErr string
 	Conns                  int // TCP and TLS connections open now
 }
@@ -510,10 +515,11 @@ func (s *Server) Status() Status {
 	return Status{Port: s.port, Preferred: s.cfg.Ports[0], FellBack: s.fellBack, UDP: s.udp != nil, TCP: s.tcp != nil, TLS: s.tlsL != nil, TLSPort: s.tlsPort, UDPErr: s.bindErr[0], TCPErr: s.bindErr[1], TLSErr: s.bindErr[2], Conns: len(s.conns)}
 }
 
-// UnknownSender is a sender that is not a declared source, with the lines it sent since the server started.
+// UnknownSender is a sender that is not a declared source of one protocol, with the lines it sent over it since the server started; a
+// sender that used two protocols is two of them.
 type UnknownSender struct {
 	IP    netip.Addr // from the socket, never from the text
-	Proto string     // how its last datagram or connection arrived: udp, tcp or tls
+	Proto string     // how these datagrams or connections arrived: udp, tcp or tls
 	Count int64
 	Last  time.Time
 }
@@ -692,10 +698,10 @@ func (s *Server) register(l net.Listener, conn net.Conn, ip netip.Addr, proto st
 	if l == nil || (proto == "tcp" && s.tcp != l) || (proto == "tls" && s.tlsL != l) {
 		return regGone
 	}
-	if src, ok := s.sources[ip]; !ok || src.Proto != proto {
+	if src, ok := s.sources[ip]; !ok || !Accepts(src.Proto, proto) {
 		return regStale
 	}
-	if len(s.conns) >= s.lim.MaxConns || s.perIP[ip] >= s.lim.MaxConnsIP {
+	if len(s.conns) >= s.lim.MaxConns || s.perIP[ip] >= s.lim.MaxConnsIP || (s.sources[ip].Proto != proto && s.perIP[ip] >= s.lim.MaxConnsIPOther) {
 		return regOverLimit
 	}
 	s.conns[conn] = connInfo{ip: ip, proto: proto, pin: s.sources[ip].ClientCertSHA256}
@@ -984,7 +990,13 @@ func (s *Server) sinkFailed(ctx context.Context, err error, n int) {
 type lru struct {
 	max int
 	ll  *list.List
-	idx map[netip.Addr]*list.Element
+	idx map[lruKey]*list.Element
+}
+
+// lruKey is one sender over one protocol: a sender that uses two protocols is two entries, so the page names both (not only the last).
+type lruKey struct {
+	ip    netip.Addr
+	proto string
 }
 
 type lruEntry struct {
@@ -995,21 +1007,23 @@ type lruEntry struct {
 }
 
 func newLRU(limit int) *lru {
-	return &lru{max: limit, ll: list.New(), idx: map[netip.Addr]*list.Element{}}
+	return &lru{max: limit, ll: list.New(), idx: map[lruKey]*list.Element{}}
 }
 
 func (l *lru) touch(ip netip.Addr, proto string, at time.Time) {
-	if e, ok := l.idx[ip]; ok {
+	k := lruKey{ip, proto}
+	if e, ok := l.idx[k]; ok {
 		en := e.Value.(*lruEntry)
 		en.count++
-		en.proto, en.last = proto, at
+		en.last = at
 		l.ll.MoveToFront(e)
 		return
 	}
-	l.idx[ip] = l.ll.PushFront(&lruEntry{ip: ip, proto: proto, count: 1, last: at})
+	l.idx[k] = l.ll.PushFront(&lruEntry{ip: ip, proto: proto, count: 1, last: at})
 	if l.ll.Len() > l.max {
 		old := l.ll.Back()
-		delete(l.idx, old.Value.(*lruEntry).ip)
+		oe := old.Value.(*lruEntry)
+		delete(l.idx, lruKey{oe.ip, oe.proto})
 		l.ll.Remove(old)
 	}
 }

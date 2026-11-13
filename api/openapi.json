@@ -4894,7 +4894,7 @@
                                 "type": "null"
                               }
                             ],
-                            "description": "Last connection test of the profile as saved (S-AI-1). null = not tested since it was added or its address, model or key changed; a test of a draft or of a key not saved yet does not count"
+                            "description": "Last connection test of the profile as saved (S-AI-1). null = not tested since it was added or its address, model, key or place changed. A test the same admin ran in the Add or Edit dialog of exactly the settings saved (within 15 minutes) counts (D-445); the request cannot carry one"
                           }
                         },
                         "required": [
@@ -5114,7 +5114,7 @@
                           "type": "null"
                         }
                       ],
-                      "description": "Last connection test of the profile as saved (S-AI-1). null = not tested since it was added or its address, model or key changed; a test of a draft or of a key not saved yet does not count"
+                      "description": "Last connection test of the profile as saved (S-AI-1). null = not tested since it was added or its address, model, key or place changed. A test the same admin ran in the Add or Edit dialog of exactly the settings saved (within 15 minutes) counts (D-445); the request cannot carry one"
                     }
                   },
                   "required": [
@@ -5406,7 +5406,7 @@
                           "type": "null"
                         }
                       ],
-                      "description": "Last connection test of the profile as saved (S-AI-1). null = not tested since it was added or its address, model or key changed; a test of a draft or of a key not saved yet does not count"
+                      "description": "Last connection test of the profile as saved (S-AI-1). null = not tested since it was added or its address, model, key or place changed. A test the same admin ran in the Add or Edit dialog of exactly the settings saved (within 15 minutes) counts (D-445); the request cannot carry one"
                     }
                   },
                   "required": [
@@ -13721,11 +13721,19 @@
                         "container"
                       ],
                       "description": "appliance: installed by install.sh, with the system helper vedette-host; container: container-only install on the customer's Docker or Podman, no helper (D-168). The one place the GUI learns it (D-381)"
+                    },
+                    "lan": {
+                      "description": "The network of the box's management address (CIDR, like 192.168.18.0/24), offered as the first range of the network step (D-405); null when setup is done, on a container-only install, or when the box has no private IPv4 address",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
                     }
                   },
                   "required": [
                     "modules",
-                    "install"
+                    "install",
+                    "lan"
                   ],
                   "additionalProperties": false
                 }
@@ -13808,9 +13816,10 @@
                               "type": "string",
                               "enum": [
                                 "update_source_unreachable",
+                                "update_not_published",
                                 "update_check_failed"
                               ],
-                              "description": "update_source_unreachable = the release source could not be reached (network, timeout, an answer other than 200); update_check_failed = what arrived did not pass the signature or shape checks, or this build cannot check"
+                              "description": "update_source_unreachable = the release source could not be reached (network, timeout, an answer other than 200 or 404); update_not_published = the source answered 404 for the index: no release information is published there yet (D-407); update_check_failed = what arrived did not pass the signature or shape checks, or this build cannot check"
                             },
                             "message": {
                               "type": "string",
@@ -14377,9 +14386,10 @@
                               "type": "string",
                               "enum": [
                                 "update_source_unreachable",
+                                "update_not_published",
                                 "update_check_failed"
                               ],
-                              "description": "update_source_unreachable = the release source could not be reached (network, timeout, an answer other than 200); update_check_failed = what arrived did not pass the signature or shape checks, or this build cannot check"
+                              "description": "update_source_unreachable = the release source could not be reached (network, timeout, an answer other than 200 or 404); update_not_published = the source answered 404 for the index: no release information is published there yet (D-407); update_check_failed = what arrived did not pass the signature or shape checks, or this build cannot check"
                             },
                             "message": {
                               "type": "string",
@@ -14940,9 +14950,10 @@
                               "type": "string",
                               "enum": [
                                 "update_source_unreachable",
+                                "update_not_published",
                                 "update_check_failed"
                               ],
-                              "description": "update_source_unreachable = the release source could not be reached (network, timeout, an answer other than 200); update_check_failed = what arrived did not pass the signature or shape checks, or this build cannot check"
+                              "description": "update_source_unreachable = the release source could not be reached (network, timeout, an answer other than 200 or 404); update_not_published = the source answered 404 for the index: no release information is published there yet (D-407); update_check_failed = what arrived did not pass the signature or shape checks, or this build cannot check"
                             },
                             "message": {
                               "type": "string",
@@ -15556,9 +15567,10 @@
                                   "type": "string",
                                   "enum": [
                                     "update_source_unreachable",
+                                    "update_not_published",
                                     "update_check_failed"
                                   ],
-                                  "description": "update_source_unreachable = the release source could not be reached (network, timeout, an answer other than 200); update_check_failed = what arrived did not pass the signature or shape checks, or this build cannot check"
+                                  "description": "update_source_unreachable = the release source could not be reached (network, timeout, an answer other than 200 or 404); update_not_published = the source answered 404 for the index: no release information is published there yet (D-407); update_check_failed = what arrived did not pass the signature or shape checks, or this build cannot check"
                                 },
                                 "message": {
                                   "type": "string",
@@ -16107,9 +16119,10 @@
                               "type": "string",
                               "enum": [
                                 "update_source_unreachable",
+                                "update_not_published",
                                 "update_check_failed"
                               ],
-                              "description": "update_source_unreachable = the release source could not be reached (network, timeout, an answer other than 200); update_check_failed = what arrived did not pass the signature or shape checks, or this build cannot check"
+                              "description": "update_source_unreachable = the release source could not be reached (network, timeout, an answer other than 200 or 404); update_not_published = the source answered 404 for the index: no release information is published there yet (D-407); update_check_failed = what arrived did not pass the signature or shape checks, or this build cannot check"
                             },
                             "message": {
                               "type": "string",
@@ -16613,66 +16626,74 @@
                   "type": "object",
                   "properties": {
                     "os": {
-                      "type": "object",
-                      "properties": {
-                        "distro": {
-                          "type": "string",
-                          "enum": [
-                            "ubuntu",
-                            "debian"
-                          ]
-                        },
-                        "name": {
-                          "type": "string",
-                          "description": "For example \"Ubuntu 24.04.3 LTS\""
-                        },
-                        "release": {
-                          "type": "string"
-                        },
-                        "kernel": {
-                          "type": "string"
-                        },
-                        "support_end": {
-                          "type": "string",
-                          "description": "End of standard support, YYYY-MM-DD"
-                        },
-                        "extended_end": {
-                          "description": "End of extended support (Debian LTS), YYYY-MM-DD",
-                          "type": [
-                            "string",
-                            "null"
-                          ]
-                        },
-                        "booted_at": {
-                          "type": "string",
-                          "format": "date-time",
-                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-                        },
-                        "last_check": {
-                          "type": "string",
-                          "format": "date-time",
-                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-                        },
-                        "mirrors": {
-                          "type": "array",
-                          "items": {
-                            "type": "string"
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "distro": {
+                              "type": "string",
+                              "enum": [
+                                "ubuntu",
+                                "debian"
+                              ]
+                            },
+                            "name": {
+                              "type": "string",
+                              "description": "For example \"Ubuntu 24.04.3 LTS\""
+                            },
+                            "release": {
+                              "type": "string"
+                            },
+                            "kernel": {
+                              "type": "string"
+                            },
+                            "support_end": {
+                              "type": "string",
+                              "description": "End of standard support, YYYY-MM-DD"
+                            },
+                            "extended_end": {
+                              "description": "End of extended support (Debian LTS), YYYY-MM-DD",
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "booted_at": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            "last_check": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            "mirrors": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              },
+                              "description": "Package mirror host names the box contacts"
+                            }
                           },
-                          "description": "Package mirror host names the box contacts"
+                          "required": [
+                            "distro",
+                            "name",
+                            "release",
+                            "kernel",
+                            "support_end",
+                            "extended_end",
+                            "booted_at",
+                            "last_check",
+                            "mirrors"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
                         }
-                      },
-                      "required": [
-                        "distro",
-                        "name",
-                        "release",
-                        "kernel",
-                        "support_end",
-                        "extended_end",
-                        "booted_at",
-                        "last_check",
-                        "mirrors"
                       ],
-                      "additionalProperties": false
+                      "description": "null until the box first looks for operating system updates (Check now): pending and reboot_reasons are then empty and the rest is core's own settings (D-407; before it, GET answered 409 no_check_yet)"
                     },
                     "pending": {
                       "type": "array",
@@ -16854,66 +16875,74 @@
                   "type": "object",
                   "properties": {
                     "os": {
-                      "type": "object",
-                      "properties": {
-                        "distro": {
-                          "type": "string",
-                          "enum": [
-                            "ubuntu",
-                            "debian"
-                          ]
-                        },
-                        "name": {
-                          "type": "string",
-                          "description": "For example \"Ubuntu 24.04.3 LTS\""
-                        },
-                        "release": {
-                          "type": "string"
-                        },
-                        "kernel": {
-                          "type": "string"
-                        },
-                        "support_end": {
-                          "type": "string",
-                          "description": "End of standard support, YYYY-MM-DD"
-                        },
-                        "extended_end": {
-                          "description": "End of extended support (Debian LTS), YYYY-MM-DD",
-                          "type": [
-                            "string",
-                            "null"
-                          ]
-                        },
-                        "booted_at": {
-                          "type": "string",
-                          "format": "date-time",
-                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-                        },
-                        "last_check": {
-                          "type": "string",
-                          "format": "date-time",
-                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-                        },
-                        "mirrors": {
-                          "type": "array",
-                          "items": {
-                            "type": "string"
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "distro": {
+                              "type": "string",
+                              "enum": [
+                                "ubuntu",
+                                "debian"
+                              ]
+                            },
+                            "name": {
+                              "type": "string",
+                              "description": "For example \"Ubuntu 24.04.3 LTS\""
+                            },
+                            "release": {
+                              "type": "string"
+                            },
+                            "kernel": {
+                              "type": "string"
+                            },
+                            "support_end": {
+                              "type": "string",
+                              "description": "End of standard support, YYYY-MM-DD"
+                            },
+                            "extended_end": {
+                              "description": "End of extended support (Debian LTS), YYYY-MM-DD",
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "booted_at": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            "last_check": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            "mirrors": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              },
+                              "description": "Package mirror host names the box contacts"
+                            }
                           },
-                          "description": "Package mirror host names the box contacts"
+                          "required": [
+                            "distro",
+                            "name",
+                            "release",
+                            "kernel",
+                            "support_end",
+                            "extended_end",
+                            "booted_at",
+                            "last_check",
+                            "mirrors"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
                         }
-                      },
-                      "required": [
-                        "distro",
-                        "name",
-                        "release",
-                        "kernel",
-                        "support_end",
-                        "extended_end",
-                        "booted_at",
-                        "last_check",
-                        "mirrors"
                       ],
-                      "additionalProperties": false
+                      "description": "null until the box first looks for operating system updates (Check now): pending and reboot_reasons are then empty and the rest is core's own settings (D-407; before it, GET answered 409 no_check_yet)"
                     },
                     "pending": {
                       "type": "array",
@@ -17276,66 +17305,74 @@
                   "type": "object",
                   "properties": {
                     "os": {
-                      "type": "object",
-                      "properties": {
-                        "distro": {
-                          "type": "string",
-                          "enum": [
-                            "ubuntu",
-                            "debian"
-                          ]
-                        },
-                        "name": {
-                          "type": "string",
-                          "description": "For example \"Ubuntu 24.04.3 LTS\""
-                        },
-                        "release": {
-                          "type": "string"
-                        },
-                        "kernel": {
-                          "type": "string"
-                        },
-                        "support_end": {
-                          "type": "string",
-                          "description": "End of standard support, YYYY-MM-DD"
-                        },
-                        "extended_end": {
-                          "description": "End of extended support (Debian LTS), YYYY-MM-DD",
-                          "type": [
-                            "string",
-                            "null"
-                          ]
-                        },
-                        "booted_at": {
-                          "type": "string",
-                          "format": "date-time",
-                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-                        },
-                        "last_check": {
-                          "type": "string",
-                          "format": "date-time",
-                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-                        },
-                        "mirrors": {
-                          "type": "array",
-                          "items": {
-                            "type": "string"
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "distro": {
+                              "type": "string",
+                              "enum": [
+                                "ubuntu",
+                                "debian"
+                              ]
+                            },
+                            "name": {
+                              "type": "string",
+                              "description": "For example \"Ubuntu 24.04.3 LTS\""
+                            },
+                            "release": {
+                              "type": "string"
+                            },
+                            "kernel": {
+                              "type": "string"
+                            },
+                            "support_end": {
+                              "type": "string",
+                              "description": "End of standard support, YYYY-MM-DD"
+                            },
+                            "extended_end": {
+                              "description": "End of extended support (Debian LTS), YYYY-MM-DD",
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "booted_at": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            "last_check": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            "mirrors": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              },
+                              "description": "Package mirror host names the box contacts"
+                            }
                           },
-                          "description": "Package mirror host names the box contacts"
+                          "required": [
+                            "distro",
+                            "name",
+                            "release",
+                            "kernel",
+                            "support_end",
+                            "extended_end",
+                            "booted_at",
+                            "last_check",
+                            "mirrors"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
                         }
-                      },
-                      "required": [
-                        "distro",
-                        "name",
-                        "release",
-                        "kernel",
-                        "support_end",
-                        "extended_end",
-                        "booted_at",
-                        "last_check",
-                        "mirrors"
                       ],
-                      "additionalProperties": false
+                      "description": "null until the box first looks for operating system updates (Check now): pending and reboot_reasons are then empty and the rest is core's own settings (D-407; before it, GET answered 409 no_check_yet)"
                     },
                     "pending": {
                       "type": "array",
@@ -17543,66 +17580,74 @@
                   "type": "object",
                   "properties": {
                     "os": {
-                      "type": "object",
-                      "properties": {
-                        "distro": {
-                          "type": "string",
-                          "enum": [
-                            "ubuntu",
-                            "debian"
-                          ]
-                        },
-                        "name": {
-                          "type": "string",
-                          "description": "For example \"Ubuntu 24.04.3 LTS\""
-                        },
-                        "release": {
-                          "type": "string"
-                        },
-                        "kernel": {
-                          "type": "string"
-                        },
-                        "support_end": {
-                          "type": "string",
-                          "description": "End of standard support, YYYY-MM-DD"
-                        },
-                        "extended_end": {
-                          "description": "End of extended support (Debian LTS), YYYY-MM-DD",
-                          "type": [
-                            "string",
-                            "null"
-                          ]
-                        },
-                        "booted_at": {
-                          "type": "string",
-                          "format": "date-time",
-                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-                        },
-                        "last_check": {
-                          "type": "string",
-                          "format": "date-time",
-                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-                        },
-                        "mirrors": {
-                          "type": "array",
-                          "items": {
-                            "type": "string"
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "distro": {
+                              "type": "string",
+                              "enum": [
+                                "ubuntu",
+                                "debian"
+                              ]
+                            },
+                            "name": {
+                              "type": "string",
+                              "description": "For example \"Ubuntu 24.04.3 LTS\""
+                            },
+                            "release": {
+                              "type": "string"
+                            },
+                            "kernel": {
+                              "type": "string"
+                            },
+                            "support_end": {
+                              "type": "string",
+                              "description": "End of standard support, YYYY-MM-DD"
+                            },
+                            "extended_end": {
+                              "description": "End of extended support (Debian LTS), YYYY-MM-DD",
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "booted_at": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            "last_check": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            "mirrors": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              },
+                              "description": "Package mirror host names the box contacts"
+                            }
                           },
-                          "description": "Package mirror host names the box contacts"
+                          "required": [
+                            "distro",
+                            "name",
+                            "release",
+                            "kernel",
+                            "support_end",
+                            "extended_end",
+                            "booted_at",
+                            "last_check",
+                            "mirrors"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
                         }
-                      },
-                      "required": [
-                        "distro",
-                        "name",
-                        "release",
-                        "kernel",
-                        "support_end",
-                        "extended_end",
-                        "booted_at",
-                        "last_check",
-                        "mirrors"
                       ],
-                      "additionalProperties": false
+                      "description": "null until the box first looks for operating system updates (Check now): pending and reboot_reasons are then empty and the rest is core's own settings (D-407; before it, GET answered 409 no_check_yet)"
                     },
                     "pending": {
                       "type": "array",
@@ -18003,66 +18048,74 @@
                   "type": "object",
                   "properties": {
                     "os": {
-                      "type": "object",
-                      "properties": {
-                        "distro": {
-                          "type": "string",
-                          "enum": [
-                            "ubuntu",
-                            "debian"
-                          ]
-                        },
-                        "name": {
-                          "type": "string",
-                          "description": "For example \"Ubuntu 24.04.3 LTS\""
-                        },
-                        "release": {
-                          "type": "string"
-                        },
-                        "kernel": {
-                          "type": "string"
-                        },
-                        "support_end": {
-                          "type": "string",
-                          "description": "End of standard support, YYYY-MM-DD"
-                        },
-                        "extended_end": {
-                          "description": "End of extended support (Debian LTS), YYYY-MM-DD",
-                          "type": [
-                            "string",
-                            "null"
-                          ]
-                        },
-                        "booted_at": {
-                          "type": "string",
-                          "format": "date-time",
-                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-                        },
-                        "last_check": {
-                          "type": "string",
-                          "format": "date-time",
-                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-                        },
-                        "mirrors": {
-                          "type": "array",
-                          "items": {
-                            "type": "string"
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "distro": {
+                              "type": "string",
+                              "enum": [
+                                "ubuntu",
+                                "debian"
+                              ]
+                            },
+                            "name": {
+                              "type": "string",
+                              "description": "For example \"Ubuntu 24.04.3 LTS\""
+                            },
+                            "release": {
+                              "type": "string"
+                            },
+                            "kernel": {
+                              "type": "string"
+                            },
+                            "support_end": {
+                              "type": "string",
+                              "description": "End of standard support, YYYY-MM-DD"
+                            },
+                            "extended_end": {
+                              "description": "End of extended support (Debian LTS), YYYY-MM-DD",
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "booted_at": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            "last_check": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            "mirrors": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              },
+                              "description": "Package mirror host names the box contacts"
+                            }
                           },
-                          "description": "Package mirror host names the box contacts"
+                          "required": [
+                            "distro",
+                            "name",
+                            "release",
+                            "kernel",
+                            "support_end",
+                            "extended_end",
+                            "booted_at",
+                            "last_check",
+                            "mirrors"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
                         }
-                      },
-                      "required": [
-                        "distro",
-                        "name",
-                        "release",
-                        "kernel",
-                        "support_end",
-                        "extended_end",
-                        "booted_at",
-                        "last_check",
-                        "mirrors"
                       ],
-                      "additionalProperties": false
+                      "description": "null until the box first looks for operating system updates (Check now): pending and reboot_reasons are then empty and the rest is core's own settings (D-407; before it, GET answered 409 no_check_yet)"
                     },
                     "pending": {
                       "type": "array",
@@ -18310,9 +18363,10 @@
                               "type": "string",
                               "enum": [
                                 "update_source_unreachable",
+                                "update_not_published",
                                 "update_check_failed"
                               ],
-                              "description": "update_source_unreachable = the release source could not be reached (network, timeout, an answer other than 200); update_check_failed = what arrived did not pass the signature or shape checks, or this build cannot check"
+                              "description": "update_source_unreachable = the release source could not be reached (network, timeout, an answer other than 200 or 404); update_not_published = the source answered 404 for the index: no release information is published there yet (D-407); update_check_failed = what arrived did not pass the signature or shape checks, or this build cannot check"
                             },
                             "message": {
                               "type": "string",
@@ -37714,7 +37768,7 @@
                               "tcp",
                               "tls"
                             ],
-                            "description": "How the last message arrived"
+                            "description": "How these messages arrived: one item per address and protocol, so a sender that used two protocols is two items"
                           },
                           "count": {
                             "type": "integer",

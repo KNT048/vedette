@@ -1,0 +1,46 @@
+{
+  "id": "cisco-asa",
+  "title": "Cisco ASA syslog: Built outbound connections (302013, 302015) and access-list denies (106023, 106100)",
+  "kinds": [
+    "cisco-asa"
+  ],
+  "rule": {
+    "type": "template",
+    "prefix": "^[^%]{0,80}(?P<head>%ASA-[1-7]-[0-9]{6}):",
+    "conn_patterns": [
+      {
+        "pattern": "^[^%]{0,80}%ASA-6-30201[35]: Built outbound (?:TCP|UDP) connection [0-9]{1,12} for [A-Za-z0-9_.-]{1,48}:(?P<dest>\\d{1,3}(?:\\.\\d{1,3}){3})/[0-9]{1,5} \\(\\d{1,3}(?:\\.\\d{1,3}){3}/[0-9]{1,5}\\) to [A-Za-z0-9_.-]{1,48}:(?P<local>\\d{1,3}(?:\\.\\d{1,3}){3})/[0-9]{1,5} \\(\\d{1,3}(?:\\.\\d{1,3}){3}/[0-9]{1,5}\\)(?: |$)"
+      },
+      {
+        "pattern": "^[^%]{0,80}%ASA-4-106023: Deny (?:tcp|udp|icmp|[0-9]{1,3}) src [A-Za-z0-9_.-]{1,48}:(?P<local>\\d{1,3}(?:\\.\\d{1,3}){3})/[0-9]{1,5} dst [A-Za-z0-9_.-]{1,48}:(?P<dest>\\d{1,3}(?:\\.\\d{1,3}){3})/[0-9]{1,5} (?:\\(type [0-9]{1,3}, code [0-9]{1,3}\\) )?by access-group ",
+        "blocked": true
+      },
+      {
+        "pattern": "^[^%]{0,80}%ASA-6-106100: access-list [^ ]{1,64} denied (?:tcp|udp|icmp|[0-9]{1,3}) [A-Za-z0-9_.-]{1,48}/(?P<local>\\d{1,3}(?:\\.\\d{1,3}){3})\\([0-9]{1,5}\\) -> [A-Za-z0-9_.-]{1,48}/(?P<dest>\\d{1,3}(?:\\.\\d{1,3}){3})\\([0-9]{1,5}\\)(?: |$)",
+        "blocked": true
+      },
+      {
+        "pattern": "^[^%]{0,80}%ASA-6-106100: access-list [^ ]{1,64} permitted (?:tcp|udp|icmp|[0-9]{1,3}) [A-Za-z0-9_.-]{1,48}/(?P<local>\\d{1,3}(?:\\.\\d{1,3}){3})\\([0-9]{1,5}\\) -> [A-Za-z0-9_.-]{1,48}/(?P<dest>\\d{1,3}(?:\\.\\d{1,3}){3})\\([0-9]{1,5}\\)(?: |$)"
+      }
+    ]
+  },
+  "samples": [
+    {
+      "line": "<166>Nov 09 2026 10:00:00 asa-1 : %ASA-6-302013: Built outbound TCP connection 8001 for outside:185.220.101.47/443 (185.220.101.47/443) to inside:192.168.10.113/51234 (203.0.113.5/51234)",
+      "signature": "%ASA-6-302013: Built outbound TCP connection <n> for <tok>/<n> (<ip>/<n>) to <tok>/<n> (<ip>/<n>)",
+      "local": "192.168.10.113",
+      "dests": [
+        "ip:185.220.101.47"
+      ]
+    },
+    {
+      "line": "<164>Nov 09 2026 10:00:01 asa-1 : %ASA-4-106023: Deny tcp src inside:192.168.10.113/51235 dst outside:185.220.101.47/23 by access-group \"inside_in\" [0x0, 0x0]",
+      "signature": "%ASA-4-106023: Deny tcp src <tok>/<n> dst <tok>/<n> by access-group inside_in [<hex>, <hex>]",
+      "blocked": true,
+      "local": "192.168.10.113",
+      "dests": [
+        "ip:185.220.101.47"
+      ]
+    }
+  ]
+}

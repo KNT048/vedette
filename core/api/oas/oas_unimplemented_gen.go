@@ -2215,6 +2215,17 @@ func (UnimplementedHandler) NotifyPostNotifyTelegramApproversUserIDCode(ctx cont
 	return r, ht.ErrNotImplemented
 }
 
+// NotifyPostNotifyTelegramChats implements notify_post_notify_telegram_chats operation.
+//
+// Find the chats a Telegram bot has seen, for the Chat ID picker (D-491): the token in the body, or
+// the saved one when empty; asks Telegram once without confirming any update. 400 bad_token (not
+// valid), 409 telegram_busy (approval buttons on, a webhook or another reader), 502 telegram_failed.
+//
+// POST /notify/telegram/chats
+func (UnimplementedHandler) NotifyPostNotifyTelegramChats(ctx context.Context, req *NotifyPostNotifyTelegramChatsReq) (r *NotifyPostNotifyTelegramChatsOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // NotifyPostNotifyZaloApproversUserIDCode implements notify_post_notify_zalo_approvers_user_id_code operation.
 //
 // Send an approver a new confirm link to their Zalo (the old one stops working); for your own row,

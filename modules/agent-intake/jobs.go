@@ -14,20 +14,25 @@ import (
 // ModuleID is the id of the module in MANIFEST.yaml.
 const ModuleID = "agent-intake"
 
-// pruneEvery is the pace of node-prune; a gap longer than pruneGap between two runs means the job did not run (module off, box down).
+// approveEvery is the pace of approve-enrolled (it matters at start; the daily run only retries). pruneEvery is the pace of node-prune; a
+// gap longer than pruneGap between two runs means the job did not run (module off, box down).
 const (
-	pruneEvery = time.Hour
-	pruneGap   = 3 * time.Hour
+	approveEvery = 24 * time.Hour
+	pruneEvery   = time.Hour
+	pruneGap     = 3 * time.Hour
 )
 
 // Jobs returns the jobs of the module. node-prune is a normal job, not Housekeeping: while the module is off every route is 404, so every
 // node is silent by construction, and silence must not count (a box left off for 90 days would otherwise cut every enrolled machine
 // for good, MEDIUM-1 of the round 1 review; modules.md: off keeps the data). wazuh-pull ticks every minute and pulls when the interval
-// of the saved connection is due (D-169 (13)); a normal job too, so nothing is pulled while the module is off (SYS-5).
+// of the saved connection is due (D-169 (13)); a normal job too, so nothing is pulled while the module is off (SYS-5). approve-enrolled
+// (D-503, the upgrade path) approves the device of every bound node not approved yet: a job runs at once at start and when the module is
+// turned on, so a machine enrolled before the upgrade is approved and typed at the first start after it; the daily run only retries.
 func (s *Service) Jobs() []jobs.Job {
 	return []jobs.Job{
 		{Module: ModuleID, Name: "node-prune", Every: pruneEvery, Run: s.Prune},
 		{Module: ModuleID, Name: "wazuh-pull", Every: wazuhPullEvery, Run: s.WazuhPull},
+		{Module: ModuleID, Name: "approve-enrolled", Every: approveEvery, Run: s.ApproveBound},
 	}
 }
 

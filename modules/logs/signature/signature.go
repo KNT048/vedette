@@ -33,7 +33,7 @@ const (
 	MaxProfiles       = 32
 	MaxFields         = 12
 	MaxPatterns       = 8
-	MaxPatternBytes   = 256
+	MaxPatternBytes   = 768 // anchored whole-line readers of CSV and fixed-phrase formats are long; RE2 keeps them linear
 	MaxTitles         = 256
 	MaxVocab          = 512
 	MaxSamples        = 8
@@ -101,14 +101,32 @@ type Rule struct {
 	DestIPField    string   `json:"dest_ip_field,omitempty"`
 	DestHostFields []string `json:"dest_host_fields,omitempty"`
 	ConnPattern    string   `json:"conn_pattern,omitempty"`
+	// ConnPatterns (template) are anchored (the loader wraps each in ^(?:...)), whole-line readers for formats with positional or fixed-phrase fields (a pfSense filterlog record, an ASA
+	// "Built outbound" message): has the named groups "local" and "dest", and says whether the device stopped the connection
+	// (Blocked). The first that matches, exactly once, gives the connection; the "->" and quote guards of ConnPattern do not apply because an
+	// anchored pattern with strict character classes cannot be fed by text that a user wrote further along the line.
+	ConnPatterns []ConnPattern `json:"conn_patterns,omitempty"`
+	// Apps (any type) lists the syslog programs whose lines the profile reads (lower case, such as "filterlog" or "kernel"): a line from another
+	// program, or with no program name, is not read by it. A device kind that also sends other programs (a Linux host) needs it so that
+	// text another program wrote at the start of its message is never taken for a firewall record.
+	Apps []string `json:"apps,omitempty"`
+	// Facilities (any type) lists the syslog facilities (0 to 23) the profile reads: kern is 0. A line from another facility, or with no PRI, is not
+	// read. The kernel's firewall log is facility 0; a user process that writes "kernel: [UFW BLOCK] ..." with logger is facility 1 or more.
+	Facilities []int `json:"facilities,omitempty"`
 	// ConnWhen (kv): a line has a connection only when each key listed is written once and holds one of the values (FortiGate: type traffic or utm, not event
 	// lines, whose fields an attacker partly writes). ConnRefuse (template): a line that matches it has none (MikroTik: a connection that is not new).
 	ConnWhen   map[string][]string `json:"conn_when,omitempty"`
 	ConnRefuse string              `json:"conn_refuse,omitempty"`
-	// ConnBlocked (kv): the connection of a line was stopped by the device that logged it (the line records an attempt) only when each key
+	// ConnBlocked (kv): the connection of a line was stopped by the device that logged it (the line records an attempt) when any key
 	// listed is written once and holds one of the values (FortiGate: action deny, dropped, blocked, block, reset). A line it does not settle
 	// is not blocked: "connected" is said unless the format says otherwise, never guessed (D-227).
 	ConnBlocked map[string][]string `json:"conn_blocked,omitempty"`
+}
+
+// ConnPattern is one anchored connection reader of a template rule.
+type ConnPattern struct {
+	Pattern string `json:"pattern"`
+	Blocked bool   `json:"blocked,omitempty"`
 }
 
 // Sample is a documented line and what the rule must make of it; Load runs every sample.
@@ -123,6 +141,11 @@ type Sample struct {
 	Blocked   bool     `json:"blocked,omitempty"` // the connection was stopped by the device (conn_blocked)
 }
 
+type compiledConn struct {
+	re      *regexp.Regexp
+	blocked bool
+}
+
 type profile struct {
 	File
 	patterns   []*regexp.Regexp
@@ -130,6 +153,9 @@ type profile struct {
 	src, dst   *regexp.Regexp
 	remote     []*regexp.Regexp
 	conn       *regexp.Regexp
+	connPats   []compiledConn
+	apps       map[string]bool
+	facilities map[int]bool
 	connRefuse *regexp.Regexp
 	connWanted map[string]bool
 	mined      map[string]bool
@@ -280,7 +306,7 @@ func compile(f File) (*profile, error) {
 		if len(r.Fields) == 0 || len(r.Fields) > MaxFields {
 			return nil, fmt.Errorf("a kv rule needs 1 to %d fields", MaxFields)
 		}
-		if len(r.Patterns)+len(r.Titles)+len(r.HeadVocab) != 0 || r.Prefix != "" || r.SrcPattern != "" || r.DstPattern != "" || r.ConnPattern != "" || r.ConnRefuse != "" {
+		if len(r.Patterns)+len(r.Titles)+len(r.HeadVocab) != 0 || r.Prefix != "" || r.SrcPattern != "" || r.DstPattern != "" || r.ConnPattern != "" || len(r.ConnPatterns) != 0 || r.ConnRefuse != "" {
 			return nil, errors.New("a kv rule takes only fields, mined, vocab, src_field, dst_field, remote_fields, remote_patterns, local_field, dest_ip_field and dest_host_fields")
 		}
 		if err := p.compileConnFields(r); err != nil {
@@ -341,7 +367,7 @@ func compile(f File) (*profile, error) {
 			return nil, fmt.Errorf("an event_id rule needs 1 to %d patterns", MaxPatterns)
 		}
 		if len(r.Fields)+len(r.Mined)+len(r.Vocab)+len(r.HeadVocab)+len(r.RemoteFields)+len(r.DestHostFields) != 0 || r.SrcField != "" || r.DstField != "" || r.Prefix != "" ||
-			r.LocalField != "" || r.DestIPField != "" || r.ConnPattern != "" || len(r.ConnWhen)+len(r.ConnBlocked) != 0 || r.ConnRefuse != "" {
+			r.LocalField != "" || r.DestIPField != "" || r.ConnPattern != "" || len(r.ConnPatterns) != 0 || len(r.ConnWhen)+len(r.ConnBlocked) != 0 || r.ConnRefuse != "" {
 			return nil, errors.New("an event_id rule takes only patterns, titles, src_pattern, dst_pattern and remote_patterns")
 		}
 		if len(r.Titles) == 0 || len(r.Titles) > MaxTitles {
@@ -365,9 +391,27 @@ func compile(f File) (*profile, error) {
 			r.LocalField != "" || r.DestIPField != "" || len(r.ConnWhen)+len(r.ConnBlocked) != 0 {
 			return nil, errors.New("a template rule takes only prefix, head_vocab, src_pattern, dst_pattern, remote_patterns and conn_pattern")
 		}
-		if r.ConnPattern != "" {
-			if p.conn, err = compileGroup(r.ConnPattern, "local"); err != nil {
+		if len(r.ConnPatterns) > MaxPatterns {
+			return nil, fmt.Errorf("conn_patterns takes at most %d patterns", MaxPatterns)
+		}
+		for _, cp := range r.ConnPatterns {
+			if len(cp.Pattern) > MaxPatternBytes {
+				return nil, fmt.Errorf("a pattern is 1 to %d bytes", MaxPatternBytes)
+			}
+			re, err := compileGroup("^(?:"+cp.Pattern+")", "local") // anchored whatever the pattern says (an alternation cannot escape it)
+			if err != nil {
 				return nil, err
+			}
+			if re.SubexpIndex("dest") < 0 {
+				return nil, errors.New("a conn_patterns pattern has the named groups \"local\" and \"dest\"")
+			}
+			p.connPats = append(p.connPats, compiledConn{re, cp.Blocked})
+		}
+		if r.ConnPattern != "" || len(r.ConnPatterns) != 0 {
+			if r.ConnPattern != "" {
+				if p.conn, err = compileGroup(r.ConnPattern, "local"); err != nil {
+					return nil, err
+				}
 			}
 			if r.ConnRefuse != "" {
 				if len(r.ConnRefuse) > MaxPatternBytes {
@@ -377,7 +421,7 @@ func compile(f File) (*profile, error) {
 					return nil, fmt.Errorf("conn_refuse: %w", err)
 				}
 			}
-			if p.conn.SubexpIndex("dest") < 0 {
+			if p.conn != nil && p.conn.SubexpIndex("dest") < 0 {
 				return nil, errors.New("conn_pattern needs the named groups \"local\" and \"dest\"")
 			}
 		}
@@ -398,6 +442,30 @@ func compile(f File) (*profile, error) {
 		}
 	default:
 		return nil, fmt.Errorf("unknown rule type %q", r.Type)
+	}
+	if len(r.Apps) > MaxFields {
+		return nil, fmt.Errorf("apps takes at most %d names", MaxFields)
+	}
+	for _, a := range r.Apps {
+		if !validKey(a) || a != strings.ToLower(a) {
+			return nil, fmt.Errorf("app %q is not a lower-case program name", a)
+		}
+		if p.apps == nil {
+			p.apps = map[string]bool{}
+		}
+		p.apps[a] = true
+	}
+	if len(r.Facilities) > 24 {
+		return nil, errors.New("facilities takes at most 24 numbers")
+	}
+	for _, n := range r.Facilities {
+		if n < 0 || n > 23 {
+			return nil, fmt.Errorf("facility %d is not 0 to 23", n)
+		}
+		if p.facilities == nil {
+			p.facilities = map[int]bool{}
+		}
+		p.facilities[n] = true
 	}
 	if len(r.RemotePatterns) > MaxPatterns {
 		return nil, fmt.Errorf("remote_patterns takes at most %d patterns", MaxPatterns)
@@ -476,9 +544,10 @@ func (s *Set) Kinds() []string {
 // Of returns the signature of a line from a device of the given kind. It never fails.
 func (s *Set) Of(kind, line string) Result {
 	line = strings.ToValidUTF8(clip(line, maxScan), "?")
-	msg := listen.ParseSyslog(line).Msg
+	env := listen.ParseSyslog(line)
+	msg := env.Msg
 	if p := s.byKind[kind]; p != nil {
-		if r, ok := p.read(msg); ok {
+		if r, ok := p.read(msg, env.App, env.Facility); ok {
 			if !r.Remote.IsValid() && !p.hasRemote() {
 				r.Remote = genericRemote(msg) // a profile with no rule for it: the layouts that daemons share
 			}
@@ -492,8 +561,11 @@ func (s *Set) Of(kind, line string) Result {
 }
 
 // read applies the rule; ok is false when the line is not in the format of the profile.
-func (p *profile) read(msg string) (Result, bool) {
+func (p *profile) read(msg, app string, facility int) (Result, bool) {
 	var r Result
+	if p.apps != nil && !p.apps[strings.ToLower(app)] || p.facilities != nil && !p.facilities[facility] {
+		return r, false
+	}
 	settled := false // the remote address is decided (found, or ambiguous): the patterns do not run
 	switch p.Rule.Type {
 	case TypeKV:
@@ -591,7 +663,7 @@ func (p *profile) read(msg string) (Result, bool) {
 	switch {
 	case p.connWanted != nil:
 		r.Conn = p.connByFields(msg)
-	case p.conn != nil:
+	case p.conn != nil || len(p.connPats) > 0:
 		r.Conn = p.connByPattern(msg)
 	}
 	r.Profile = p.ID

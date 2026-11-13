@@ -48360,6 +48360,126 @@ func (s NotifyPostNotifyTelegramApproversUserIDCodeOKState) Validate() error {
 	}
 }
 
+func (s *NotifyPostNotifyTelegramChatsOK) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if s.Items == nil {
+			return errors.New("nil is invalid value")
+		}
+		var failures []validate.FieldError
+		for i, elem := range s.Items {
+			if err := func() error {
+				if err := elem.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "items",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *NotifyPostNotifyTelegramChatsOKItemsItem) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.Kind.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "kind",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s NotifyPostNotifyTelegramChatsOKItemsItemKind) Validate() error {
+	switch s {
+	case "private":
+		return nil
+	case "group":
+		return nil
+	case "supergroup":
+		return nil
+	case "channel":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s *NotifyPostNotifyTelegramChatsReq) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if value, ok := s.Token.Get(); ok {
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:     0,
+					MinLengthSet:  false,
+					MaxLength:     200,
+					MaxLengthSet:  true,
+					Email:         false,
+					Hostname:      false,
+					Regex:         nil,
+					MinNumeric:    0,
+					MinNumericSet: false,
+					MaxNumeric:    0,
+					MaxNumericSet: false,
+				}).Validate(string(value)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "token",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
 func (s *NotifyPostNotifyZaloApproversUserIDCodeOK) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer

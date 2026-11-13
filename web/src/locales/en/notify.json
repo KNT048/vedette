@@ -75,7 +75,7 @@
       "telegram": {
         "chat_id": {
           "label": "Chat ID",
-          "hint": "Number of the chat or group that receives messages. To find it: send the bot a message (or add the bot to a group and post a message there), open https://api.telegram.org/bot<TOKEN>/getUpdates in a browser and read the number in \"chat\":{\"id\":…}. Groups usually look like -1001234567890; for a public channel enter @channelname."
+          "hint": "Number of the chat or group that receives messages. Easiest: type the bot token below, send any message to the bot (or add the bot to a group and post there), then press Find my chat and pick the chat. By hand: open https://api.telegram.org/bot<TOKEN>/getUpdates in a browser and read the number in \"chat\":{\"id\":…}. Groups usually look like -1001234567890; for a public channel enter @channelname."
         },
         "secret": {
           "label": "Bot token",
@@ -576,6 +576,15 @@
     "finish": "Finish sign-in",
     "clientSecret": "Client secret of the Desktop client",
     "clientSecretHint": "Used to sign in and kept on this box, encrypted. Enter it again when you sign in again."
+  },
+  "tgFind": {
+    "button": "Find my chat",
+    "needToken": "Enter the bot token first.",
+    "none": "No message yet: send any message to your bot (or post in the group after adding the bot), then press Find my chat again.",
+    "fresh": "Vedette has just told Telegram to keep this bot's messages. If you sent yours earlier, send it again now, then press Find my chat again.",
+    "pick": "Chats your bot has seen, newest first",
+    "option": "{{name}} - {{kind}}, ID {{id}}",
+    "kind": { "private": "private chat", "group": "group", "supergroup": "group", "channel": "channel" }
   },
   "tg": {
     "unsaved": "Save to send this person a confirm link on Telegram, privately. The bot can write to them only after they press Start once in a private chat with the bot; otherwise a note in this chat asks them to. They confirm the link while signed in to Vedette as themselves."

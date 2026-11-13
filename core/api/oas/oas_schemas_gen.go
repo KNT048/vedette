@@ -43805,6 +43805,9 @@ func (s *ExposureGetExposureTargetsIDSnapshotsOKItemsItemCounts) SetSubdomains(v
 
 type ExposureGetExposureTargetsOK struct {
 	BoxIP ExposureGetExposureTargetsOKBoxIP `json:"box_ip"`
+	// Null unless one of the box's own IPs has an open port in its newest scan; then who probably answers
+	// it (D-492).
+	Gateway NilExposureGetExposureTargetsOKGateway `json:"gateway"`
 	// The Ignored list, newest first.
 	Ignored []ExposureGetExposureTargetsOKIgnoredItem `json:"ignored"`
 	Items   []ExposureGetExposureTargetsOKItemsItem   `json:"items"`
@@ -43813,6 +43816,11 @@ type ExposureGetExposureTargetsOK struct {
 // GetBoxIP returns the value of BoxIP.
 func (s *ExposureGetExposureTargetsOK) GetBoxIP() ExposureGetExposureTargetsOKBoxIP {
 	return s.BoxIP
+}
+
+// GetGateway returns the value of Gateway.
+func (s *ExposureGetExposureTargetsOK) GetGateway() NilExposureGetExposureTargetsOKGateway {
+	return s.Gateway
 }
 
 // GetIgnored returns the value of Ignored.
@@ -43828,6 +43836,11 @@ func (s *ExposureGetExposureTargetsOK) GetItems() []ExposureGetExposureTargetsOK
 // SetBoxIP sets the value of BoxIP.
 func (s *ExposureGetExposureTargetsOK) SetBoxIP(val ExposureGetExposureTargetsOKBoxIP) {
 	s.BoxIP = val
+}
+
+// SetGateway sets the value of Gateway.
+func (s *ExposureGetExposureTargetsOK) SetGateway(val NilExposureGetExposureTargetsOKGateway) {
+	s.Gateway = val
 }
 
 // SetIgnored sets the value of Ignored.
@@ -43928,6 +43941,58 @@ func (s *ExposureGetExposureTargetsOKBoxIPLastRun) SetMessage(val string) {
 // SetOk sets the value of Ok.
 func (s *ExposureGetExposureTargetsOKBoxIPLastRun) SetOk(val bool) {
 	s.Ok = val
+}
+
+type ExposureGetExposureTargetsOKGateway struct {
+	// The inventory device with that IP; null when the gateway is not in the device list.
+	DeviceID NilString `json:"device_id"`
+	// The LAN default gateway the host reports; null when the box cannot tell.
+	IP NilString `json:"ip"`
+	// That device's name as the Devices page shows it (untrusted label, at most 80 characters).
+	Name NilString `json:"name"`
+	// Open findings (exploited vulnerabilities, confirmed or suspected) of that device; 0 when device_id
+	// is null.
+	OpenExploited int `json:"open_exploited"`
+}
+
+// GetDeviceID returns the value of DeviceID.
+func (s *ExposureGetExposureTargetsOKGateway) GetDeviceID() NilString {
+	return s.DeviceID
+}
+
+// GetIP returns the value of IP.
+func (s *ExposureGetExposureTargetsOKGateway) GetIP() NilString {
+	return s.IP
+}
+
+// GetName returns the value of Name.
+func (s *ExposureGetExposureTargetsOKGateway) GetName() NilString {
+	return s.Name
+}
+
+// GetOpenExploited returns the value of OpenExploited.
+func (s *ExposureGetExposureTargetsOKGateway) GetOpenExploited() int {
+	return s.OpenExploited
+}
+
+// SetDeviceID sets the value of DeviceID.
+func (s *ExposureGetExposureTargetsOKGateway) SetDeviceID(val NilString) {
+	s.DeviceID = val
+}
+
+// SetIP sets the value of IP.
+func (s *ExposureGetExposureTargetsOKGateway) SetIP(val NilString) {
+	s.IP = val
+}
+
+// SetName sets the value of Name.
+func (s *ExposureGetExposureTargetsOKGateway) SetName(val NilString) {
+	s.Name = val
+}
+
+// SetOpenExploited sets the value of OpenExploited.
+func (s *ExposureGetExposureTargetsOKGateway) SetOpenExploited(val int) {
+	s.OpenExploited = val
 }
 
 type ExposureGetExposureTargetsOKIgnoredItem struct {
@@ -85234,6 +85299,51 @@ func (o NilExposureGetExposureTargetsOKBoxIPLastRun) Get() (v ExposureGetExposur
 
 // Or returns value if set, or given parameter if does not.
 func (o NilExposureGetExposureTargetsOKBoxIPLastRun) Or(d ExposureGetExposureTargetsOKBoxIPLastRun) ExposureGetExposureTargetsOKBoxIPLastRun {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposureGetExposureTargetsOKGateway returns new NilExposureGetExposureTargetsOKGateway with value set to v.
+func NewNilExposureGetExposureTargetsOKGateway(v ExposureGetExposureTargetsOKGateway) NilExposureGetExposureTargetsOKGateway {
+	return NilExposureGetExposureTargetsOKGateway{
+		Value: v,
+	}
+}
+
+// NilExposureGetExposureTargetsOKGateway is nullable ExposureGetExposureTargetsOKGateway.
+type NilExposureGetExposureTargetsOKGateway struct {
+	Value ExposureGetExposureTargetsOKGateway
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposureGetExposureTargetsOKGateway) SetTo(v ExposureGetExposureTargetsOKGateway) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposureGetExposureTargetsOKGateway) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposureGetExposureTargetsOKGateway) SetToNull() {
+	o.Null = true
+	var v ExposureGetExposureTargetsOKGateway
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposureGetExposureTargetsOKGateway) Get() (v ExposureGetExposureTargetsOKGateway, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposureGetExposureTargetsOKGateway) Or(d ExposureGetExposureTargetsOKGateway) ExposureGetExposureTargetsOKGateway {
 	if v, ok := o.Get(); ok {
 		return v
 	}

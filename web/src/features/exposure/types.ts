@@ -9,6 +9,7 @@ export type VerifyMethod = z.infer<typeof C.VerifyMethod>
 export type Counts = z.infer<typeof C.Counts>
 export type Commitment = z.infer<typeof C.Commitment>
 export type Target = z.infer<typeof C.Target>
+export type Gateway = z.infer<typeof C.Gateway>
 export type HostRow = z.infer<typeof C.HostRow>
 export type PortRow = z.infer<typeof C.PortRow>
 export type AdminRow = z.infer<typeof C.AdminRow>

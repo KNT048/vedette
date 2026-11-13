@@ -59,3 +59,19 @@ type ScanTarget struct {
 type Runner interface {
 	Scan(ctx context.Context, t ScanTarget) (Content, error)
 }
+
+// Gateway tells the page which device probably answers the open ports of the box's public IP (S-EXP-1, D-492). cmd/vedette
+// implements it from the host's default route, the inventory and the findings; exposure reads no other module's tables.
+type Gateway interface {
+	Gateway(ctx context.Context) (GatewayDevice, error)
+}
+
+// GatewayDevice is the LAN default gateway and what Vedette knows of it. IP is the zero value when the box cannot tell its gateway;
+// DeviceID is empty when no inventory device has that IP. Name is an untrusted label. OpenExploited counts the open findings
+// (confirmed or suspected) of the device.
+type GatewayDevice struct {
+	IP            netip.Addr
+	DeviceID      string
+	Name          string
+	OpenExploited int
+}

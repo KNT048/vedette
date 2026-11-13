@@ -251,6 +251,58 @@ func (s *Service) DevicesOfKind(ctx context.Context, kinds []string) ([]KindDevi
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("inventory: read devices of a kind: %w", err)
 	}
+	return s.trustedKindUnion(ctx, kinds, out)
+}
+
+// trustedKindUnion is the union guard of the never-touch list (D-512, INV-20): a device is listed as one of the kinds while ANY trusted
+// observation (manual, agent, or snmp or nmap on an approved device) says so, whatever its current kind. A source that ranks higher can
+// change the current kind (SNMP outranks nmap, DATA_MODEL 5.1), but it can only ever add a device to the list, never take one off it: an
+// on-path host answering a router's SNMP read as a printer does not make the router blockable. A device whose current kind is in kinds
+// but not trusted gets the trusted observation's kind and source; a device whose current kind is another one is added with them.
+func (s *Service) trustedKindUnion(ctx context.Context, kinds []string, out []KindDevice) ([]KindDevice, error) {
+	args := make([]any, len(kinds))
+	for i, k := range kinds {
+		args[i] = k
+	}
+	rows, err := s.db.Reader().QueryContext(ctx, `SELECT a.id, a.hostname, a.ip, a.mac, a.approved, o.value, o.source FROM inv_asset a JOIN inv_observation o ON o.asset_id = a.id
+		WHERE o.field = 'kind' AND o.value IN (?`+strings.Repeat(`, ?`, len(kinds)-1)+`) AND (o.source IN ('manual', 'agent') OR (o.source IN ('snmp', 'nmap') AND a.approved = 1))
+		ORDER BY a.id, CASE o.source WHEN 'manual' THEN 0 WHEN 'agent' THEN 1 WHEN 'snmp' THEN 2 ELSE 3 END, o.seen_at DESC`, args...) // only "?" placeholders are concatenated; the kinds are bound
+	if err != nil {
+		return nil, fmt.Errorf("inventory: read trusted kinds: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	at := make(map[string]int, len(out))
+	for i, d := range out {
+		at[d.ID] = i
+	}
+	added := false
+	for rows.Next() {
+		var d KindDevice
+		var host, ip, mac sql.NullString
+		if err := rows.Scan(&d.ID, &host, &ip, &mac, &d.Approved, &d.Kind, &d.KindSource); err != nil {
+			return nil, fmt.Errorf("inventory: read trusted kinds: %w", err)
+		}
+		i, listed := at[d.ID]
+		switch {
+		case listed && out[i].TrustedKind():
+		case listed:
+			out[i].Kind, out[i].KindSource = d.Kind, d.KindSource
+		default:
+			d.Hostname, d.MAC, d.IP = ptr(host), ptr(mac), noIP
+			if ip.Valid {
+				d.IP = ip.String
+			}
+			at[d.ID] = len(out)
+			out = append(out, d)
+			added = true
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("inventory: read trusted kinds: %w", err)
+	}
+	if added {
+		slices.SortFunc(out, func(a, b KindDevice) int { return strings.Compare(a.ID, b.ID) })
+	}
 	return out, nil
 }
 

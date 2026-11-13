@@ -228,6 +228,38 @@ func afterScope(st Settings, kind string, fragile bool, regular string, hadFirst
 	return ScanDecision{Reason: ReasonRegularScanNever}
 }
 
+// BoxIPs lists the addresses that are the box: the IPv4 of its own device and the addresses of Config.BoxOwnedIPs (the decoys). It is
+// the part of ProtectedIPs nothing may ever probe, apart from the devices discovery leaves to the passive sensors (D-512: SNMP reads
+// fragile devices but never the box).
+func (s *Service) BoxIPs(ctx context.Context) ([]netip.Addr, error) {
+	rows, err := s.db.Reader().QueryContext(ctx, `SELECT ip FROM inv_asset WHERE is_box = 1 AND ip IS NOT NULL`)
+	if err != nil {
+		return nil, fmt.Errorf("inventory: read the box addresses: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	var out []netip.Addr
+	for rows.Next() {
+		var ip string
+		if err := rows.Scan(&ip); err != nil {
+			return nil, fmt.Errorf("inventory: read the box addresses: %w", err)
+		}
+		if a, err := netip.ParseAddr(ip); err == nil {
+			out = append(out, a)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("inventory: read the box addresses: %w", err)
+	}
+	if s.boxOwned != nil {
+		for _, a := range s.boxOwned(ctx) {
+			if !slices.Contains(out, a) {
+				out = append(out, a)
+			}
+		}
+	}
+	return out, nil
+}
+
 // ProtectedIPs lists the addresses a sweep must not probe, whatever MAC shows up there: the box itself,
 // devices declared by hand, devices with regular_scan=never, and devices that already had their gentle scan and
 // are fragile or unclassified without permission for regular scans (D-45, INV-5; D-84 (M2)). A fragile or

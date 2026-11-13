@@ -115,6 +115,13 @@ type fakeInv struct {
 	// protected is what ProtectedIPs lists (a device by hand, never, fragile after its gentle scan, the box)
 	protected []netip.Addr
 	approved  map[string]bool // Asset.Approved (SNMP, D-512)
+	box       []netip.Addr    // BoxIPs: the box and its decoys (a part of protected)
+}
+
+func (f *fakeInv) BoxIPs(context.Context) ([]netip.Addr, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return slices.Clone(f.box), nil
 }
 
 func (f *fakeInv) Settings(context.Context) (sa.Settings, error) {

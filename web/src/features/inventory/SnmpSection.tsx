@@ -74,7 +74,8 @@ function CredentialDialog({ current, onClose }: { current: SnmpCredential | null
       if (priv === 'aes128') e.priv_password = pw(privPassword, keepPriv)
     }
     const scope = parseScope(scopeText)
-    if (scope.length > SCOPE_MAX) e.scope = t('snmp.error.scopeTooMany')
+    if (scope.length === 0) e.scope = t('snmp.error.scopeRequired') // D-512 (review M3): a credential names its devices
+    else if (scope.length > SCOPE_MAX) e.scope = t('snmp.error.scopeTooMany')
     else {
       for (const s of scope) {
         const cidr = IPV4_RE_UI.test(s) ? `${s}/32` : CIDR_RE_UI.test(s) ? s : null
@@ -258,7 +259,7 @@ function CredentialRow({ c, index, onEdit, onDelete }: { c: SnmpCredential; inde
           </>
         )}
         <dt className="text-[13px] text-muted">{t('snmp.scopeLabel')}</dt>
-        <dd className="[overflow-wrap:anywhere]">{c.scope.length ? c.scope.join(', ') : <span className="text-muted">{t('snmp.scopeAll')}</span>}</dd>
+        <dd className="[overflow-wrap:anywhere]">{c.scope.join(', ')}</dd>
         <dt className="text-[13px] text-muted">{t('snmp.answersLabel')}</dt>
         <dd>{c.last_answer_at
           ? <><time dateTime={c.last_answer_at} title={fmtDateTime(c.last_answer_at)}>{t('snmp.lastAnswered', { when: fmtRelative(c.last_answer_at) })}</time>, {t('snmp.answeredBy', { count: c.answered })}</>

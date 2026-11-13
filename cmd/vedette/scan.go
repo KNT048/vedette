@@ -206,7 +206,7 @@ func (i scanIdentify) Identify(ctx context.Context, assetID string) (scan.Identi
 	if i.d.Reg != nil && !i.d.Reg.Enabled("sensor-active") {
 		return scan.Identification{Why: sensoractive.WhyUnavailable}, nil
 	}
-	svc, err := sensorActiveService(i.d) //nolint:contextcheck // built once per database; its zone lookup has its own short budget
+	svc, err := sensorActiveService(ctx, i.d) // built once per database; it keeps ctx's values, never its end
 	if err != nil {
 		return scan.Identification{}, err
 	}

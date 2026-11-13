@@ -158,7 +158,7 @@ export const SnmpCredential = z.object({
   auth: SnmpAuth.nullable().describe('null for v2c'), priv: SnmpPriv.nullable().describe('null for v2c'),
   secret_last4: z.string().describe('Last 4 characters of the community (v2c) or of the authentication password (v3); empty when it has fewer than 8 characters'),
   priv_last4: z.string().describe('Last 4 characters of the v3 privacy password; empty when there is none or it has fewer than 8 characters'),
-  scope: z.array(z.string()).describe('IPv4 addresses and CIDR ranges this credential is sent to; empty = every approved device of the scan scope'),
+  scope: z.array(z.string()).describe('IPv4 addresses and CIDR ranges this credential is sent to (1 to 16): only approved devices of the scan scope inside them'),
   created_at: dt, last_answer_at: dt.nullable().describe('When a device last answered with it (a round in the scan window, or a Test)'),
   answered: z.number().int().describe('Devices that answered with it in its latest round in the scan window; a Test that got an answer makes it at least 1'),
 })
@@ -169,7 +169,7 @@ export const SnmpCredentialInput = z.object({
   auth_password: z.string().max(64).optional().describe('v3: 8 to 64 printable ASCII characters; blank when editing keeps the saved one'),
   priv: SnmpPriv.optional().describe('v3; default aes128'),
   priv_password: z.string().max(64).optional().describe('v3 with aes128: 8 to 64 printable ASCII characters; blank when editing keeps the saved one'),
-  scope: z.array(z.string()).max(16).describe('IPv4 addresses or CIDR ranges of the local network; empty = every approved device of the scan scope'),
+  scope: z.array(z.string()).min(1).max(16).describe('Required: the IPv4 addresses or CIDR ranges of the local network this credential belongs to (400 scope_required when empty). A device someone plugs in later and gets approved never receives it (D-512)'),
 })
 export const SnmpResponse = z.object({
   credentials: z.array(SnmpCredential).describe('In the order they are tried (oldest first), at most 8'),

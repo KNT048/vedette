@@ -53,6 +53,9 @@ type Inventory interface {
 	// regular_scan=never, fragile or unclassified devices after their one gentle scan, and the box itself. It
 	// is by IP, so a new MAC at a protected address does not make it fair game.
 	ProtectedIPs(ctx context.Context) ([]netip.Addr, error)
+	// BoxIPs lists only the addresses that are the box (its own device, its cards, the decoys): never probed, not even by an SNMP read
+	// of a fragile device (D-512).
+	BoxIPs(ctx context.Context) ([]netip.Addr, error)
 }
 
 // Event is what Service publishes after a transaction commits; cmd/vedette adapts it to core/events.

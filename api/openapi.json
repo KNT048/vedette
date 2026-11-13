@@ -38688,7 +38688,7 @@
                             "items": {
                               "type": "string"
                             },
-                            "description": "IPv4 addresses and CIDR ranges this credential is sent to; empty = every approved device of the scan scope"
+                            "description": "IPv4 addresses and CIDR ranges this credential is sent to (1 to 16): only approved devices of the scan scope inside them"
                           },
                           "created_at": {
                             "type": "string",
@@ -38834,12 +38834,13 @@
                     "maxLength": 64
                   },
                   "scope": {
+                    "minItems": 1,
                     "maxItems": 16,
                     "type": "array",
                     "items": {
                       "type": "string"
                     },
-                    "description": "IPv4 addresses or CIDR ranges of the local network; empty = every approved device of the scan scope"
+                    "description": "Required: the IPv4 addresses or CIDR ranges of the local network this credential belongs to (400 scope_required when empty). A device someone plugs in later and gets approved never receives it (D-512)"
                   }
                 },
                 "required": [
@@ -38926,7 +38927,7 @@
                       "items": {
                         "type": "string"
                       },
-                      "description": "IPv4 addresses and CIDR ranges this credential is sent to; empty = every approved device of the scan scope"
+                      "description": "IPv4 addresses and CIDR ranges this credential is sent to (1 to 16): only approved devices of the scan scope inside them"
                     },
                     "created_at": {
                       "type": "string",
@@ -39099,12 +39100,13 @@
                     "maxLength": 64
                   },
                   "scope": {
+                    "minItems": 1,
                     "maxItems": 16,
                     "type": "array",
                     "items": {
                       "type": "string"
                     },
-                    "description": "IPv4 addresses or CIDR ranges of the local network; empty = every approved device of the scan scope"
+                    "description": "Required: the IPv4 addresses or CIDR ranges of the local network this credential belongs to (400 scope_required when empty). A device someone plugs in later and gets approved never receives it (D-512)"
                   }
                 },
                 "required": [
@@ -39191,7 +39193,7 @@
                       "items": {
                         "type": "string"
                       },
-                      "description": "IPv4 addresses and CIDR ranges this credential is sent to; empty = every approved device of the scan scope"
+                      "description": "IPv4 addresses and CIDR ranges this credential is sent to (1 to 16): only approved devices of the scan scope inside them"
                     },
                     "created_at": {
                       "type": "string",

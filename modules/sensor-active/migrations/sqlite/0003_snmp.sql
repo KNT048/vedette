@@ -2,7 +2,7 @@
 -- D-512: SNMP reads. (1) sa_snmp holds the SNMP credentials an administrator saved: their secrets are in core_secret (a v2c
 -- community or a v3 authentication password in secret_id, a v3 privacy password in priv_secret_id), never here; the last 4
 -- characters are kept for the GUI ("" when the secret is shorter than 8). scope is a JSON array of IPv4 addresses and CIDR ranges
--- the credential may be sent to, [] for every device in the scan scope. (2) A run of SNMP reads is a job of kind 'snmp' and each
+-- the credential may be sent to: 1 to 16, never empty (it is never sent anywhere else). (2) A run of SNMP reads is a job of kind 'snmp' and each
 -- job a probe row of shape 'snmp', so the probe log answers "which device got which credential when" as it does for nmap. SQLite
 -- cannot change a CHECK: sa_job and sa_probe are rebuilt with the same columns and ids. sa_probe refers to sa_job, so the new
 -- sa_probe is made against the new sa_job before the old tables go, and the renames carry the reference (SQLite 3.26+).
@@ -18,7 +18,7 @@ CREATE TABLE sa_snmp (
     secret_last4   TEXT    NOT NULL DEFAULT '' CHECK (length(secret_last4) <= 4),
     priv_secret_id TEXT    CHECK (priv_secret_id IS NULL OR length(priv_secret_id) BETWEEN 1 AND 96),
     priv_last4     TEXT    NOT NULL DEFAULT '' CHECK (length(priv_last4) <= 4),
-    scope          TEXT    NOT NULL DEFAULT '[]' CHECK (json_valid(scope) AND json_type(scope) = 'array' AND length(scope) <= 1000),
+    scope          TEXT    NOT NULL CHECK (json_valid(scope) AND json_type(scope) = 'array' AND json_array_length(scope) BETWEEN 1 AND 16 AND length(scope) <= 1000),
     created_at     TEXT    NOT NULL CHECK (created_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
     updated_at     TEXT    NOT NULL CHECK (updated_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
     last_answer_at TEXT    CHECK (last_answer_at IS NULL OR last_answer_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
@@ -55,6 +55,11 @@ CREATE TABLE sa_probe_new (
 );
 INSERT INTO sa_probe_new (id, time, job_id, shape, rate, hosts, flags, targets, result)
     SELECT id, time, job_id, shape, rate, hosts, flags, targets, result FROM sa_probe;
+-- The ids of probe rows that were pruned are never handed out again (an export of the probe log is keyed by them): the new
+-- table's AUTOINCREMENT counter goes on from the old one, not from the highest id left.
+INSERT INTO sqlite_sequence (name, seq)
+    SELECT 'sa_probe_new', 0 WHERE NOT EXISTS (SELECT 1 FROM sqlite_sequence WHERE name = 'sa_probe_new');
+UPDATE sqlite_sequence SET seq = max(seq, coalesce((SELECT seq FROM sqlite_sequence WHERE name = 'sa_probe'), 0)) WHERE name = 'sa_probe_new';
 
 DROP TABLE sa_probe;
 DROP TABLE sa_job;

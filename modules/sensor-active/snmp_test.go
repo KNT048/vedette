@@ -116,6 +116,7 @@ func newSNMPWorld(t *testing.T, reader sa.SNMPReader) *snmpWorld {
 		},
 		approved:  map[string]bool{"a-sw": true, "a-never": true, "a-printer": true, "a-box": true, "a-far": true},
 		protected: []netip.Addr{ip("192.168.10.2"), ip("192.168.10.23"), ip("192.168.10.24")},
+		box:       []netip.Addr{ip("192.168.10.2")},
 	}
 	w.inv.addrs = map[netip.Addr]string{}
 	for id, a := range w.inv.assets {
@@ -141,7 +142,13 @@ func (w *snmpWorld) count(q string) int {
 	return n
 }
 
+// worldScope is the scope a test credential gets when it names none: the devices of newSNMPWorld (a scope is required, review M3).
+const worldScope = "192.168.10.0/24"
+
 func v2cInput(name, community string, scope ...string) sa.SNMPCredentialInput {
+	if len(scope) == 0 {
+		scope = []string{worldScope}
+	}
 	return sa.SNMPCredentialInput{Name: name, Version: "v2c", Community: secrets.NewValue(community), Scope: scope}
 }
 
@@ -169,7 +176,7 @@ func TestSNMPCredentialsAreSealedAndShownByTheirLastFour(t *testing.T) {
 	w := newSNMPWorld(t, &fakeReader{})
 	ctx := t.Context()
 	c := w.add(v2cInput("Core switches", "s3cret-community"))
-	if c.SecretLast4 != "nity" || c.Version != "v2c" || len(c.Scope) != 0 || c.Username != "" {
+	if c.SecretLast4 != "nity" || c.Version != "v2c" || !slices.Equal(c.Scope, []string{worldScope}) || c.Username != "" {
 		t.Fatalf("added %+v", c)
 	}
 	short := w.add(v2cInput("Printers", "public", "192.168.10.24", "192.168.10.0/28"))
@@ -194,7 +201,7 @@ func TestSNMPCredentialsAreSealedAndShownByTheirLastFour(t *testing.T) {
 		t.Fatalf("same name: %v", err)
 	}
 	// To v3: the passwords are needed; then the privacy password is sealed too.
-	v3 := sa.SNMPCredentialInput{Name: "Core switches (HQ)", Version: "v3", Username: "vedette", Auth: "sha256", AuthPassword: secrets.NewValue("auth-pass-1"), Priv: "aes128"}
+	v3 := sa.SNMPCredentialInput{Name: "Core switches (HQ)", Version: "v3", Username: "vedette", Auth: "sha256", AuthPassword: secrets.NewValue("auth-pass-1"), Priv: "aes128", Scope: []string{worldScope}}
 	if _, err := w.svc.EditSNMP(ctx, "a", c.ID, v3); apiCode(err) != "secret_required" {
 		t.Fatalf("v3 without a privacy password: %v", err)
 	}
@@ -244,8 +251,20 @@ func TestSNMPFormIsChecked(t *testing.T) {
 	if _, err := w.svc.EditSNMP(ctx, "a", c.ID, v2cInput("narrow", "", "192.168.10.0/24")); apiCode(err) != "secret_required" {
 		t.Errorf("widened without the secret: %v", err)
 	}
-	if _, err := w.svc.EditSNMP(ctx, "a", c.ID, v2cInput("narrow", "")); apiCode(err) != "secret_required" {
-		t.Errorf("to every address without the secret: %v", err)
+	// Review M3: a credential always names its devices; no scope is refused, on add and on edit, secret typed or not.
+	noScope := sa.SNMPCredentialInput{Name: "everywhere", Version: "v2c", Community: secrets.NewValue("c0mmunity")}
+	if _, err := w.svc.AddSNMP(ctx, "a", noScope); apiCode(err) != "scope_required" {
+		t.Errorf("added with no scope: %v", err)
+	}
+	noScope.Name = "narrow"
+	if _, err := w.svc.EditSNMP(ctx, "a", c.ID, noScope); apiCode(err) != "scope_required" {
+		t.Errorf("edited to no scope: %v", err)
+	}
+	if err := w.db.Write(ctx, func(tx dbTx) error {
+		_, err := tx.ExecContext(ctx, `UPDATE sa_snmp SET scope = '[]' WHERE id = ?`, c.ID)
+		return err
+	}); err == nil {
+		t.Error("the table took an empty scope")
 	}
 	if _, err := w.svc.EditSNMP(ctx, "a", c.ID, v2cInput("narrow", "c0mmunity", "192.168.10.0/24")); err != nil {
 		t.Errorf("widened with the secret: %v", err)
@@ -425,7 +444,7 @@ func TestSNMPThroughTheWorker(t *testing.T) {
 
 	w := newSNMPWorld(t, d)
 	v2 := w.add(v2cInput("v2c", "s3cret-community"))
-	v3 := w.add(sa.SNMPCredentialInput{Name: "v3", Version: "v3", Username: "vedette", Auth: "sha", AuthPassword: secrets.NewValue("auth-pass-1"), Priv: "aes128", PrivPassword: secrets.NewValue("priv-pass-1")})
+	v3 := w.add(sa.SNMPCredentialInput{Name: "v3", Version: "v3", Username: "vedette", Auth: "sha", AuthPassword: secrets.NewValue("auth-pass-1"), Priv: "aes128", PrivPassword: secrets.NewValue("priv-pass-1"), Scope: []string{worldScope}})
 	wrong := w.add(v2cInput("wrong", "not-the-community"))
 	for _, id := range []string{v2.ID, v3.ID} {
 		res, err := w.svc.TestSNMP(t.Context(), "admin@example.com", id, "192.168.10.20")

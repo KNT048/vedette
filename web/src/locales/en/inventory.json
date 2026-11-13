@@ -671,7 +671,7 @@
   },
   "snmp": {
     "title": "SNMP credentials",
-    "description": "Vedette reads each approved device in the scan scope once per scan window with read-only SNMP GETs (system description, object ID, name, chassis model and firmware) to learn its vendor, model and OS. Credentials are sent only to approved devices, and only to the addresses you list here.",
+    "description": "Vedette reads each approved device in the scan scope once per scan window with read-only SNMP GETs (system description, object ID, name, chassis model and firmware) to learn its vendor, model and OS. A credential is sent only to the addresses you list with it, and only to approved devices there: a community is readable by any device it reaches, so a laptop someone plugs in and gets approved never receives it.",
     "add": "Add SNMP credential",
     "max": "At most 8 credentials: delete one to add another.",
     "order": "Vedette tries them in this order, oldest first, until a device answers.",
@@ -685,7 +685,6 @@
     "privLabel": "Privacy",
     "answersLabel": "Answers",
     "scopeLabel": "Sent to",
-    "scopeAll": "All approved devices in the scan scope",
     "lastAnswered": "Last answered {{when}}",
     "answeredBy_one": "answered by {{count}} device",
     "answeredBy_other": "answered by {{count}} devices",
@@ -713,8 +712,8 @@
       "privPassword": "Privacy password",
       "passwordHint": "8 to 64 characters.",
       "keep": "Leave blank to keep the saved one.",
-      "scope": "Send only to (optional)",
-      "scopeHint": "IPv4 addresses or CIDR ranges of your local network, one per line or separated by commas, at most 16. Leave empty to use it for every approved device in the scan scope.",
+      "scope": "Send only to",
+      "scopeHint": "The devices this credential belongs to: IPv4 addresses or CIDR ranges of your local network, one per line or separated by commas, at most 16. Required: it is never sent anywhere else, so a device someone plugs in later never receives it.",
       "insecure": "SNMPv1, MD5 and DES are not offered: they are not secure.",
       "create": "Add credential",
       "save": "Save",
@@ -732,7 +731,8 @@
       "password": "Use printable ASCII characters only (no accents or emoji), up to 64.",
       "scopeBad": "\"{{entry}}\" is not an IPv4 address or CIDR range, like 192.168.10.20 or 192.168.10.0/24.",
       "scopeNotLocal": "{{entry}} is not in a local network range ({{ranges}}).",
-      "scopeTooMany": "At most 16 addresses or ranges."
+      "scopeTooMany": "At most 16 addresses or ranges.",
+      "scopeRequired": "List the addresses or ranges of the devices this credential belongs to. It is sent only there, so a device someone plugs in later never receives it."
     },
     "deleteTitle": "Delete {{name}}?",
     "deleteBody": "Vedette deletes the credential and its secrets. What devices already said stays in the inventory.",

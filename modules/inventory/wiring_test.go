@@ -192,6 +192,65 @@ func TestSNMPStatedOSAndApproval(t *testing.T) {
 	}
 }
 
+// Review #715 M4, the union guard (D-512): a device is never-touch while ANY trusted observation says router or firewall. SNMP outranks
+// nmap and so can change the current kind, but it only ever adds a device to the list: (a) an on-path host answering a router's SNMP
+// read as a printer does not take the router off it; (b) an approved PC whose SNMP answer says firewall is added (more protection).
+func TestNeverTouchIsTheUnionOfTrustedKinds(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	rec := func(ip, mac, kind string, src observe.Source) {
+		h := observe.AssetHint{IP: netip.MustParseAddr(ip), MAC: mac}
+		if err := e.svc.Record(e.ctx(), []observe.Observation{
+			{AssetHint: h, Field: observe.MAC, Value: mac, Source: src, Confidence: 0.9},
+			{AssetHint: h, Field: observe.Kind, Value: kind, Source: src, Confidence: 0.9},
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	gateways := func() map[string]inventory.KindDevice {
+		l, err := e.svc.DevicesOfKind(e.ctx(), []string{"router", "firewall"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		out := map[string]inventory.KindDevice{}
+		for _, d := range l {
+			if d.TrustedKind() {
+				out[d.IP] = d
+			}
+		}
+		return out
+	}
+	approve := func(ip string) {
+		addrs, err := e.svc.AddressMap(e.ctx())
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := e.svc.Approve(e.ctx(), "emily@acme.example", addrs[ip]); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// (a) the inner router, approved, typed router by nmap; then an SNMP answer says printer and wins the current kind
+	rec("192.168.10.1", "02:01:01:01:01:01", "router", observe.Nmap)
+	approve("192.168.10.1")
+	rec("192.168.10.1", "02:01:01:01:01:01", "printer", observe.SNMP)
+	if d, ok := gateways()["192.168.10.1"]; !ok || d.Kind != "router" || d.KindSource != "nmap" {
+		t.Errorf("the router left the never-touch list when SNMP said printer: %+v %v", d, ok)
+	}
+	// (b) an approved PC (kind from osquery) whose SNMP answer says firewall: listed, the agent's kind stays current
+	rec("192.168.10.50", "02:50:50:50:50:50", "pc", observe.Agent)
+	approve("192.168.10.50")
+	rec("192.168.10.50", "02:50:50:50:50:50", "firewall", observe.SNMP)
+	if d, ok := gateways()["192.168.10.50"]; !ok || d.Kind != "firewall" || d.KindSource != "snmp" {
+		t.Errorf("an approved device SNMP calls a firewall is not never-touch: %+v %v", d, ok)
+	}
+	// an SNMP or nmap claim of a device nobody approved adds nothing
+	rec("192.168.10.60", "02:60:60:60:60:60", "pc", observe.Agent)
+	rec("192.168.10.60", "02:60:60:60:60:60", "router", observe.SNMP)
+	if d, ok := gateways()["192.168.10.60"]; ok {
+		t.Errorf("an unapproved device's SNMP router claim is trusted: %+v", d)
+	}
+}
+
 func TestHasDevice(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)

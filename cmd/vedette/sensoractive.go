@@ -24,7 +24,10 @@ var (
 
 // sensorActiveService builds the sensor-active service once per database, so its jobs and its event handlers
 // share one instance (and one "one nmap at a time" lock), like feedsService. The inventory must be built first.
-func sensorActiveService(d deps) (*sensoractive.Service, error) {
+//
+// ctx is the caller's: the service keeps only its values (context.WithoutCancel) for the time-zone reads of orgLocation, since it
+// outlives any one caller.
+func sensorActiveService(ctx context.Context, d deps) (*sensoractive.Service, error) {
 	saMu.Lock()
 	defer saMu.Unlock()
 	if s := saServices[d.DB]; s != nil {
@@ -36,7 +39,7 @@ func sensorActiveService(d deps) (*sensoractive.Service, error) {
 	// Production never runs nmap in this process (D-113, D-141): the Dispatcher hands the command to the worker in the scan
 	// container, and the service reads nmap's health from the worker's heartbeat (the Dispatcher is the Prober itself, so its
 	// NmapHealth is found by the service's type assertion).
-	s, err := newSensorActive(d, d.SensorDispatcher)
+	s, err := newSensorActive(ctx, d, d.SensorDispatcher)
 	if err != nil {
 		return nil, err
 	}
@@ -46,11 +49,11 @@ func sensorActiveService(d deps) (*sensoractive.Service, error) {
 
 // snmpService is the sensor-active service for the SNMP credential handlers (D-512): nil, so they answer 501, when it cannot be
 // built (no dispatcher or no inventory, as in some tests); the error is logged where the module's jobs are registered.
-func snmpService(d deps) *sensoractive.Service {
+func snmpService(ctx context.Context, d deps) *sensoractive.Service {
 	if d.SensorDispatcher == nil || d.Inventory == nil {
 		return nil
 	}
-	s, err := sensorActiveService(d)
+	s, err := sensorActiveService(ctx, d)
 	if err != nil {
 		return nil
 	}
@@ -63,7 +66,7 @@ func snmpService(d deps) *sensoractive.Service {
 //
 // Production passes the Dispatcher (sensorActiveService, the only non-test caller); the parameter exists so the tests can pass a
 // local Prober on a fake nmap. nil is refused: Config would then fall back to starting nmap in this process.
-func newSensorActive(d deps, prober sensoractive.Prober) (*sensoractive.Service, error) {
+func newSensorActive(ctx context.Context, d deps, prober sensoractive.Prober) (*sensoractive.Service, error) {
 	if d.Inventory == nil {
 		return nil, errors.New("sensor-active needs the inventory service")
 	}
@@ -71,7 +74,7 @@ func newSensorActive(d deps, prober sensoractive.Prober) (*sensoractive.Service,
 		return nil, errors.New("sensor-active needs a Prober")
 	}
 	cfg := sensoractive.Config{Prober: prober, DB: d.DB, Inventory: sensorInventory{inv: d.Inventory, hostNet: d.HostNet}, Observe: d.Inventory, Software: d.Inventory, Services: d.Inventory, Clock: d.Clock, Log: d.Log,
-		Location: orgLocation(d), Secrets: d.Secrets, Audit: d.Audit} // SNMP reads go through the same Dispatcher (D-512)
+		Location: orgLocation(ctx, d), Secrets: d.Secrets, Audit: d.Audit} // SNMP reads go through the same Dispatcher (D-512)
 	if d.Bus != nil {
 		cfg.Events = sensoractive.PublisherFunc(func(ctx context.Context, e sensoractive.Event) error {
 			return d.Bus.Publish(ctx, events.Event{Name: e.Name, Data: e.Data})
@@ -84,7 +87,7 @@ func newSensorActive(d deps, prober sensoractive.Prober) (*sensoractive.Service,
 	// A remote worker (the Dispatcher) cannot have reported this early, so only a local nmap is worth a warning at start; the
 	// status page says whether the worker reports.
 	_, remote := prober.(*sensoractive.Dispatcher)
-	if h := svc.Health(context.Background()); !remote && h.Status != "ok" && d.Log != nil {
+	if h := svc.Health(ctx); !remote && h.Status != "ok" && d.Log != nil {
 		d.Log.Warn("sensor-active is unavailable", "reason", h.Message)
 	}
 	if d.Reg != nil { // turning the module off stops the nmap run in progress, also an identification for Scan now (D-501)
@@ -131,13 +134,15 @@ func newSensorActive(d deps, prober sensoractive.Prober) (*sensoractive.Service,
 
 // orgLocation is sensor-active's Config.Location: the organization time zone of core's general settings, read at
 // every use so a change applies to the next window check without a restart (INV-3). nil (module falls back to
-// the process zone) when core is not built or the read fails or names an unknown zone.
-func orgLocation(d deps) func() *time.Location {
+// the process zone) when core is not built or the read fails or names an unknown zone. The reads keep parent's values but not its
+// end (the service outlives the caller that built it), each with its own 2 s budget.
+func orgLocation(parent context.Context, d deps) func() *time.Location {
+	base := context.WithoutCancel(parent)
 	return func() *time.Location {
 		if d.Core == nil {
 			return nil
 		}
-		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		ctx, cancel := context.WithTimeout(base, 2*time.Second)
 		defer cancel()
 		name, err := d.Core.OrgTimeZone(ctx)
 		if err != nil {
@@ -154,7 +159,7 @@ func orgLocation(d deps) func() *time.Location {
 // sensorActiveJobs is the Jobs func of the sensor-active entry in wiredModules: the window tick every minute and
 // the daily prune of the probe log.
 func sensorActiveJobs(d deps) []jobs.Job {
-	svc, err := sensorActiveService(d)
+	svc, err := sensorActiveService(context.Background(), d) // the Jobs func of wiredModules has no context; the service keeps none
 	if err != nil {
 		d.Log.Error("sensor-active: the module cannot start, its jobs are not registered", "error", err)
 		return nil
@@ -252,6 +257,20 @@ func (a sensorInventory) ProtectedIPs(ctx context.Context) ([]netip.Addr, error)
 	if err != nil {
 		return nil, err
 	}
+	return a.withBoxCards(ctx, out)
+}
+
+// BoxIPs is the inventory's box addresses (its device, the decoys) plus the box's cards, as in ProtectedIPs (D-512).
+func (a sensorInventory) BoxIPs(ctx context.Context) ([]netip.Addr, error) {
+	out, err := a.inv.BoxIPs(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return a.withBoxCards(ctx, out)
+}
+
+// withBoxCards adds the addresses of the box's own cards: the container's interfaces and the appliance's (vedette-host state/net).
+func (a sensorInventory) withBoxCards(ctx context.Context, out []netip.Addr) ([]netip.Addr, error) {
 	addrs, err := net.InterfaceAddrs()
 	if err != nil {
 		return nil, fmt.Errorf("sensor-active: read the box addresses: %w", err)

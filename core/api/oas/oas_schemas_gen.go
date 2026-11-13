@@ -76209,8 +76209,8 @@ type InventoryGetInventorySnmpOKCredentialsItem struct {
 	// Last 4 characters of the v3 privacy password; empty when there is none or it has fewer than 8
 	// characters.
 	PrivLast4 string `json:"priv_last4"`
-	// IPv4 addresses and CIDR ranges this credential is sent to; empty = every approved device of the scan
-	// scope.
+	// IPv4 addresses and CIDR ranges this credential is sent to (1 to 16): only approved devices of the
+	// scan scope inside them.
 	Scope []string `json:"scope"`
 	// Last 4 characters of the community (v2c) or of the authentication password (v3); empty when it has
 	// fewer than 8 characters.
@@ -78255,8 +78255,8 @@ type InventoryPostInventorySnmpCreated struct {
 	// Last 4 characters of the v3 privacy password; empty when there is none or it has fewer than 8
 	// characters.
 	PrivLast4 string `json:"priv_last4"`
-	// IPv4 addresses and CIDR ranges this credential is sent to; empty = every approved device of the scan
-	// scope.
+	// IPv4 addresses and CIDR ranges this credential is sent to (1 to 16): only approved devices of the
+	// scan scope inside them.
 	Scope []string `json:"scope"`
 	// Last 4 characters of the community (v2c) or of the authentication password (v3); empty when it has
 	// fewer than 8 characters.
@@ -78858,7 +78858,9 @@ type InventoryPostInventorySnmpReq struct {
 	Priv OptInventoryPostInventorySnmpReqPriv `json:"priv"`
 	// V3 with aes128: 8 to 64 printable ASCII characters; blank when editing keeps the saved one.
 	PrivPassword OptString `json:"priv_password"`
-	// IPv4 addresses or CIDR ranges of the local network; empty = every approved device of the scan scope.
+	// Required: the IPv4 addresses or CIDR ranges of the local network this credential belongs to (400
+	// scope_required when empty). A device someone plugs in later and gets approved never receives it
+	// (D-512).
 	Scope []string `json:"scope"`
 	// V3: letters, digits and . _ @ -.
 	Username OptString `json:"username"`
@@ -80138,8 +80140,8 @@ type InventoryPutInventorySnmpIDOK struct {
 	// Last 4 characters of the v3 privacy password; empty when there is none or it has fewer than 8
 	// characters.
 	PrivLast4 string `json:"priv_last4"`
-	// IPv4 addresses and CIDR ranges this credential is sent to; empty = every approved device of the scan
-	// scope.
+	// IPv4 addresses and CIDR ranges this credential is sent to (1 to 16): only approved devices of the
+	// scan scope inside them.
 	Scope []string `json:"scope"`
 	// Last 4 characters of the community (v2c) or of the authentication password (v3); empty when it has
 	// fewer than 8 characters.
@@ -80409,7 +80411,9 @@ type InventoryPutInventorySnmpIDReq struct {
 	Priv OptInventoryPutInventorySnmpIDReqPriv `json:"priv"`
 	// V3 with aes128: 8 to 64 printable ASCII characters; blank when editing keeps the saved one.
 	PrivPassword OptString `json:"priv_password"`
-	// IPv4 addresses or CIDR ranges of the local network; empty = every approved device of the scan scope.
+	// Required: the IPv4 addresses or CIDR ranges of the local network this credential belongs to (400
+	// scope_required when empty). A device someone plugs in later and gets approved never receives it
+	// (D-512).
 	Scope []string `json:"scope"`
 	// V3: letters, digits and . _ @ -.
 	Username OptString `json:"username"`

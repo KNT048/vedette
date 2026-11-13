@@ -515,7 +515,7 @@ func TestExport_PlantedSecretsNeverLeave(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
 	s := newStack(t)
-	api, err := server.New(server.Config{API: newHandler(*s.d), Auth: s.d.Auth.Sessions, Modules: s.d.Reg, Log: slog.New(slog.DiscardHandler)})
+	api, err := server.New(server.Config{API: newHandler(t.Context(), *s.d), Auth: s.d.Auth.Sessions, Modules: s.d.Reg, Log: slog.New(slog.DiscardHandler)})
 	if err != nil {
 		t.Fatal(err)
 	}

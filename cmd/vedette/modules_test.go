@@ -177,7 +177,7 @@ func TestNewHandlerSetsEveryModule(t *testing.T) {
 	if err := buildServices(t.Context(), &d); err != nil {
 		t.Fatal(err)
 	}
-	h := reflect.ValueOf(newHandler(d))
+	h := reflect.ValueOf(newHandler(t.Context(), d))
 	for i := range h.NumField() {
 		if f := h.Field(i); f.Kind() == reflect.Pointer && f.IsNil() {
 			t.Errorf("newHandler leaves %s nil", h.Type().Field(i).Name)

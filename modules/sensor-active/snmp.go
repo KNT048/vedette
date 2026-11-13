@@ -295,8 +295,11 @@ func checkSNMP(in SNMPCredentialInput, prev *snmpRow) (snmpForm, *apierr.Error) 
 			f.scopeText = append(f.scopeText, p.String())
 		}
 	}
-	if f.scopeText == nil {
-		f.scopeText = []string{}
+	// The scope is required (review M3, runZero's allow list): an operator can approve a device and osquery enrolment approves one,
+	// so "every approved device" would hand the community to a laptop someone plugged in and got approved. The admin names the
+	// devices a credential belongs to.
+	if len(f.scope) == 0 {
+		return f, bad("scope_required", "List the addresses or ranges of the devices this credential belongs to (for example 192.168.1.1 or 192.168.1.0/28). It is sent only there, so a device someone plugs in later never receives it.")
 	}
 	// A saved secret goes only where it was going when it was typed: an edit that sends it to more addresses asks for it again
 	// (as a changed Wazuh certificate does, D-308), so a person who can edit the form but never knew the secret cannot point it at
@@ -307,14 +310,8 @@ func checkSNMP(in SNMPCredentialInput, prev *snmpRow) (snmpForm, *apierr.Error) 
 	return f, nil
 }
 
-// widens reports whether the new scope reaches an address the old one did not: an empty scope is every address.
+// widens reports whether the new scope reaches an address the old one did not.
 func widens(old []string, next []netip.Prefix) bool {
-	if len(old) == 0 {
-		return false
-	}
-	if len(next) == 0 {
-		return true
-	}
 	olds := exclusionPrefixes(old) // an address or a range, as the scope is stored
 	for _, p := range next {
 		if !slices.ContainsFunc(olds, func(q netip.Prefix) bool { return q.Bits() <= p.Bits() && q.Contains(p.Addr()) }) {
@@ -338,9 +335,6 @@ func (f snmpForm) words() string {
 	w := f.version
 	if f.version == sensorlink.SNMPv3 {
 		w += " user " + f.user + ", " + f.auth + ", " + cmpOr(f.priv, "no privacy")
-	}
-	if len(f.scopeText) == 0 {
-		return w + ", every approved device of the scan scope"
 	}
 	return w + ", scope " + strings.Join(f.scopeText, " ")
 }
@@ -484,18 +478,16 @@ func (s *Service) DeleteSNMP(ctx context.Context, actor, id string) error {
 	})
 }
 
-// covers reports whether a credential may be sent to ip: its scope is empty (every address) or holds ip.
+// covers reports whether a credential may be sent to ip: its scope holds ip. An empty scope (no row can have one, checkSNMP) holds
+// nothing: fail closed.
 func (r snmpRow) covers(ip netip.Addr) bool {
-	if len(r.Scope) == 0 {
-		return true
-	}
 	return slices.ContainsFunc(exclusionPrefixes(r.Scope), func(p netip.Prefix) bool { return p.Contains(ip) }) // an address or a range
 }
 
 // snmpPolicy decides whether a device may be read with SNMP at all: "" when it may, else the reason. It is the inventory's
 // ScanPolicy without the fragile rule (a fragile or unclassified device is read), plus the device's approval and the box's own
-// addresses and decoys (protected, as IdentifyDevice treats them).
-func (s *Service) snmpPolicy(ctx context.Context, assetID string, protected []netip.Addr) (Asset, string, error) {
+// addresses and decoys (box, from Inventory.BoxIPs: always refused, fragile or not; review L1).
+func (s *Service) snmpPolicy(ctx context.Context, assetID string, box []netip.Addr) (Asset, string, error) {
 	dec, err := s.inv.ScanPolicy(ctx, assetID)
 	if err != nil {
 		return Asset{}, "", err
@@ -514,7 +506,7 @@ func (s *Service) snmpPolicy(ctx context.Context, assetID string, protected []ne
 	switch {
 	case !a.IP.IsValid():
 		return a, "no_ip", nil
-	case slices.Contains(protected, a.IP) && !passive:
+	case slices.Contains(box, a.IP):
 		return a, reasonBox, nil
 	case !a.Approved:
 		return a, SNMPNotApproved, nil
@@ -569,17 +561,17 @@ func (s *Service) testSNMP(ctx context.Context, cred snmpRow, ip netip.Addr) (SN
 		return SNMPTestResult{Reason: SNMPNotInInventory}, nil
 	}
 	res := SNMPTestResult{DeviceID: assetID}
-	protected, err := s.inv.ProtectedIPs(ctx)
+	box, err := s.inv.BoxIPs(ctx)
 	if err != nil {
 		return SNMPTestResult{}, err
 	}
-	_, why, err := s.snmpPolicy(ctx, assetID, protected)
+	a, why, err := s.snmpPolicy(ctx, assetID, box)
 	switch {
 	case errors.Is(err, ErrNotFound):
 		return SNMPTestResult{Reason: SNMPNotInInventory}, nil
 	case err != nil:
 		return SNMPTestResult{}, err
-	case why == "no_ip":
+	case why == "no_ip", why == "" && a.IP != ip: // the device moved to another address between the two reads (review L2)
 		res.Reason = SNMPNotInInventory
 		return res, nil
 	case why != "":
@@ -619,14 +611,13 @@ func (s *Service) testSNMP(ctx context.Context, cred snmpRow, ip netip.Addr) (SN
 		return res, nil
 	case err != nil:
 		return SNMPTestResult{}, err
-	case len(answers) == 0:
-		res.Reason = sensorlink.SNMPStatusNoAnswer
-		return res, nil
+	case len(answers) == 0: // the batch's own check dropped it: the device or the credential changed in between
+		return SNMPTestResult{}, apierr.New(409, "changed", "The device or the credential changed while the test started. Test again.")
 	}
-	a := answers[0]
-	res.Reason = a.Status
-	if a.Status == sensorlink.SNMPStatusOK {
-		f := identifySNMP(a.Values)
+	ans := answers[0]
+	res.Reason = ans.Status
+	if ans.Status == sensorlink.SNMPStatusOK {
+		f := identifySNMP(ans.Values)
 		res.Answer = &f
 	}
 	return res, nil
@@ -694,8 +685,29 @@ func (s *Service) snmpBatch(ctx context.Context, jobID string, creds []snmpRow, 
 	if err != nil {
 		return nil, s.stopFor(err)
 	}
-	if _, ok := s.windowNow(st); !ok && !picked {
+	end, ok := s.windowNow(st)
+	if !ok && !picked {
 		return nil, ErrStopped
+	}
+	if !picked { // a round's batch ends with the window, as an nmap run does (INV-3, review M2)
+		timeout := min(end.Sub(s.clock()), snmpRoundRun)
+		if timeout <= 0 {
+			return nil, ErrStopped
+		}
+		var stop context.CancelFunc
+		rctx, stop = context.WithTimeout(rctx, timeout)
+		defer stop()
+	}
+	// The round chose its devices and credentials when it started: read both again now, so a device set to never, no longer
+	// approved, moved or deleted, and a credential deleted or narrowed since, gets nothing (review M1, L3).
+	if creds, targets, err = s.recheckSNMP(rctx, creds, targets); err != nil {
+		if rctx.Err() != nil {
+			return nil, ErrStopped
+		}
+		return nil, err
+	}
+	if len(targets) == 0 {
+		return nil, nil
 	}
 	sc := newScope(st)
 	for _, t := range targets {
@@ -749,6 +761,53 @@ func (s *Service) snmpBatch(ctx context.Context, jobID string, creds []snmpRow, 
 		return nil, err
 	}
 	return answers, s.recordSNMP(ctx, creds, answers, picked)
+}
+
+// recheckSNMP reads the credentials and every target's policy again right before a batch: targets the policy now refuses (never, not
+// approved, the box, hand-added, out of scope), that moved to another address or are gone are dropped; credentials deleted since are
+// dropped, a narrowed scope is applied, and a credential no remaining target uses is left out of the job.
+func (s *Service) recheckSNMP(ctx context.Context, creds []snmpRow, targets []snmpTarget) ([]snmpRow, []snmpTarget, error) {
+	rows, err := s.snmpRows(ctx, s.db.Reader())
+	if err != nil {
+		return nil, nil, err
+	}
+	box, err := s.inv.BoxIPs(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	fresh := make([]*snmpRow, len(creds)) // the saved row of each credential of the batch, nil when deleted
+	for i, c := range creds {
+		if j := slices.IndexFunc(rows, func(r snmpRow) bool { return r.ID == c.ID }); j >= 0 {
+			fresh[i] = &rows[j]
+		}
+	}
+	var outCreds []snmpRow
+	at := map[int]int{} // index in creds -> index in outCreds
+	var out []snmpTarget
+	for _, t := range targets {
+		a, why, err := s.snmpPolicy(ctx, t.asset, box)
+		if errors.Is(err, ErrNotFound) || err == nil && (why != "" || a.IP != t.ip) {
+			continue
+		}
+		if err != nil {
+			return nil, nil, err
+		}
+		var use []int
+		for _, ci := range t.creds {
+			if fresh[ci] == nil || !fresh[ci].covers(t.ip) {
+				continue
+			}
+			if _, ok := at[ci]; !ok {
+				at[ci] = len(outCreds)
+				outCreds = append(outCreds, *fresh[ci])
+			}
+			use = append(use, at[ci])
+		}
+		if len(use) > 0 {
+			out = append(out, snmpTarget{asset: t.asset, ip: t.ip, creds: use})
+		}
+	}
+	return outCreds, out, nil
 }
 
 // snmpJob opens the secrets of the batch's credentials (only here, only for the job) and builds the job of the wire.
@@ -916,9 +975,7 @@ func (s *Service) snmpRound(ctx context.Context, windowStart time.Time) error {
 	done := 0
 	for batch := range slices.Chunk(targets, sensorlink.MaxSNMPTargets) {
 		s.snmpMu.Lock()
-		bctx, cancel := context.WithTimeout(ctx, snmpRoundRun)
-		_, err = s.snmpBatch(bctx, jobID, creds, batch, false)
-		cancel()
+		_, err = s.snmpBatch(ctx, jobID, creds, batch, false) // its deadline: the window's end or snmpRoundRun (INV-3, review M2)
 		s.snmpMu.Unlock()
 		if err != nil {
 			break
@@ -938,7 +995,7 @@ func (s *Service) snmpTargets(ctx context.Context, creds []snmpRow) ([]snmpTarge
 	if err != nil {
 		return nil, err
 	}
-	protected, err := s.inv.ProtectedIPs(ctx)
+	box, err := s.inv.BoxIPs(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -958,7 +1015,7 @@ func (s *Service) snmpTargets(ctx context.Context, creds []snmpRow) ([]snmpTarge
 		if len(use) == 0 || !localnet.Addr(ip) {
 			continue
 		}
-		a, why, err := s.snmpPolicy(ctx, addrs[ip], protected)
+		a, why, err := s.snmpPolicy(ctx, addrs[ip], box)
 		if errors.Is(err, ErrNotFound) || err == nil && (why != "" || a.IP != ip) {
 			continue
 		}

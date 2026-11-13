@@ -423,8 +423,10 @@ function checkSnmp(b: Partial<SnmpCredentialInput>, prev: StoredSnmp | null): { 
     if (!IPV4_RE.test(x) && !CIDR_RE.test(x)) return { err: bad(400, 'bad_scope', `"${x.slice(0, 30)}" is not an IPv4 address or CIDR range, like 192.168.10.20 or 192.168.10.0/24.`) }
     if (!isPrivateCidr(x.includes('/') ? x : `${x}/32`)) return { err: bad(400, 'bad_scope', `${x} is not in a local network range (${LOCAL_RANGE_NAMES}). SNMP credentials are sent only inside the local network.`) }
   }
+  // D-512 (review M3): a credential names the devices it belongs to; it is never sent anywhere else.
+  if (scope.length === 0) return { err: bad(400, 'scope_required', 'List the addresses or ranges of the devices this credential belongs to (for example 192.168.1.1 or 192.168.1.0/28). It is sent only there, so a device someone plugs in later never receives it.') }
   // A saved secret goes only where it went when it was typed: an edit that sends it to more addresses needs it again (backend checkSNMP).
-  const widens = !!prev && prev.scope.length > 0 && (scope.length === 0 || scope.some((x) => {
+  const widens = !!prev && (scope.some((x) => {
     const r = cidrRange(x.includes('/') ? x : `${x}/32`)
     const base = Math.floor(r.base / r.size) * r.size
     const at = (n: number) => [n >>> 24, (n >>> 16) & 255, (n >>> 8) & 255, n & 255].join('.')
@@ -975,7 +977,7 @@ export const handlers = [
     if (v.err) return fail(v.err.status, v.err.code, v.err.message)
     const c: StoredSnmp = { ...v.value, id: newId('snmp'), created_at: nowIso(), last_answer_at: null, answered: 0 }
     snmpStore.update((l) => [...l, c])
-    audit('inventory.snmp_add', c.name, `${c.version}${c.scope.length ? `, ${c.scope.length} addresses or ranges` : ''}`)
+    audit('inventory.snmp_add', c.name, `${c.version}, scope ${c.scope.join(' ')}`)
     return HttpResponse.json(publicSnmp(c), { status: 201 })
   }),
 
@@ -1021,7 +1023,7 @@ export const handlers = [
       : !a.approved ? 'not_approved'
       : !inList(ip, st.lan_ranges) || inList(ip, st.active.exclusions) ? 'out_of_scope'
       : metaStore.get()[a.id]?.regular_scan === 'never' ? 'regular_scan_never'
-      : c.scope.length && !inList(ip, c.scope) ? 'not_for_this_credential'
+      : !inList(ip, c.scope) ? 'not_for_this_credential'
       : c.version === 'v3' || c.community === 'public' ? 'ok' : 'no_answer'
     const res: SnmpTestResult = { ok: false, reason, message: '', device_id: a?.id ?? null, answer: null }
     if (reason === 'ok' && a) {

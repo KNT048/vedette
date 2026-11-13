@@ -43670,8 +43670,8 @@ func (s *InventoryPostInventorySnmpReq) Validate() error {
 			return errors.New("nil is invalid value")
 		}
 		if err := (validate.Array{
-			MinLength:    0,
-			MinLengthSet: false,
+			MinLength:    1,
+			MinLengthSet: true,
 			MaxLength:    16,
 			MaxLengthSet: true,
 		}).ValidateLength(len(s.Scope)); err != nil {
@@ -44851,8 +44851,8 @@ func (s *InventoryPutInventorySnmpIDReq) Validate() error {
 			return errors.New("nil is invalid value")
 		}
 		if err := (validate.Array{
-			MinLength:    0,
-			MinLengthSet: false,
+			MinLength:    1,
+			MinLengthSet: true,
 			MaxLength:    16,
 			MaxLengthSet: true,
 		}).ValidateLength(len(s.Scope)); err != nil {

@@ -506,6 +506,9 @@ func (d *Dispatcher) pollLocked(running []string) (rep sensorlink.JobsReply, rea
 		if s.pending == nil || s.running != nil || blocked[i] {
 			continue
 		}
+		if s == d.snmpSlot && !d.snmp {
+			continue // the latest heartbeat says this worker runs no snmp job (protocol 4, or a downgrade since RunSNMP checked): wait
+		}
 		j := s.pending
 		secs := s.maxSeconds
 		if !j.deadline.IsZero() {

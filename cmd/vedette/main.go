@@ -410,7 +410,7 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 	perMinute := publicPerMinute(o.hostSocket)
 	log.InfoContext(ctx, "per-address limit of public requests without a session (D-320)", "per_minute", perMinute, "on", perMinute > 0)
 	api, err := server.New(server.Config{
-		API:             newHandler(d),
+		API:             newHandler(ctx, d),
 		Auth:            d.Auth.Sessions,
 		Modules:         reg,
 		Log:             log,

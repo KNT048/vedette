@@ -1,6 +1,8 @@
 package main
 
 import (
+	"context"
+
 	"github.com/knt048/vedette/core/server"
 	agentintake "github.com/knt048/vedette/modules/agent-intake"
 	"github.com/knt048/vedette/modules/ai"
@@ -57,7 +59,8 @@ type handler struct {
 
 // newHandler builds every module's handlers from the shared deps. Adding a module = one field above
 // and one line here (issue #33).
-func newHandler(d deps) handler {
+// ctx is the caller's: services built here keep its values, never its end.
+func newHandler(ctx context.Context, d deps) handler {
 	return handler{
 		Fallback:        server.Fallback{Log: d.Log},
 		ModuleHandlers:  core.NewModuleHandlers(d.DB, d.Reg),
@@ -77,7 +80,7 @@ func newHandler(d deps) handler {
 		NotifyHandlers:   notify.NewNotifyHandlers(newNotify(&d)),
 		ResponseHandlers: response.NewResponseHandlers(d.Response),
 		SensorHandlers:   sensorpassive.NewSensorHandlers(d.SensorPassive),
-		SNMPHandlers:     sensoractive.NewSNMPHandlers(snmpService(d)),
+		SNMPHandlers:     sensoractive.NewSNMPHandlers(snmpService(ctx, d)),
 		HoneypotHandlers: honeypot.NewHoneypotHandlers(d.Honeypot),
 		ExposureHandlers: exposure.NewExposureHandlers(exposureService(d)),
 		LogsHandlers:     logs.NewLogsHandlers(logsService(d)),

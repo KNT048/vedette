@@ -328,6 +328,7 @@
       "logs.export": "Download logs",
       "ai.activity_retention": "Change AI activity log retention",
       "ai.downgrade": "AI request used a different model",
+      "ai.fuse": "AI job stopped by the runaway fuse",
       "audit.export": "Download audit log",
       "audit.pruned": "Lines past the retention removed",
       "connection.create": "Add connection",

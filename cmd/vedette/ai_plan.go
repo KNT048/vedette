@@ -171,11 +171,11 @@ func aiConfigRead(svc *ai.Service) func(ctx context.Context, id string) (respons
 	}
 }
 
-// planError sorts a failure of RunJob. The AI is unavailable (the run stops) when no profile can run the job (ready != nil) or the daily cap
-// is spent. Anything else (ai_cut_off, ai_bad_format, blocked_by_hook, provider_error, unreachable, ai_timeout) is about this finding
+// planError sorts a failure of RunJob. The AI is unavailable (the run stops) when no profile can run the job (ready != nil) or this
+// month's AI budget is spent (budget_reached), or the runaway fuse of the ai module tripped (rate_limited, D-531). Anything else (ai_cut_off, ai_bad_format, blocked_by_hook, provider_error, unreachable, ai_timeout) is about this finding
 // only: the caller backs the finding off and goes on.
 func planError(err, ready error) error {
-	if ae, ok := apierr.As(err); ok && (ready != nil || ae.Code == "daily_cap") {
+	if ae, ok := apierr.As(err); ok && (ready != nil || ae.Code == "budget_reached" || ae.Code == "rate_limited") {
 		return fmt.Errorf("%w: %s", response.ErrPlanUnavailable, ae.Message)
 	}
 	return err

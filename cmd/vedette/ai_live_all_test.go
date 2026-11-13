@@ -104,7 +104,7 @@ func TestLiveEveryAIJob(t *testing.T) {
 		t.Fatal(err)
 	}
 	p, err := svc.AddProfile(ctx, "test", ai.ProfileInput{Name: "Live", Kind: "anthropic", APIStyle: provider.StyleAnthropic, BaseURL: "https://api.anthropic.com",
-		Model: model, APIKey: key, Location: ai.LocationCloud, DailyCap: 500000})
+		Model: model, APIKey: key, Location: ai.LocationCloud, MonthlyBudget: 500000})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -116,7 +116,7 @@ func TestLiveEveryAIJob(t *testing.T) {
 		t.Fatal(err)
 	}
 	setTier := func(tier ai.Tier) {
-		if _, err := svc.SetConfig(ctx, "test", ai.Settings{Tier: tier, DailyCap: 500000, RedactPII: true}); err != nil {
+		if _, err := svc.SetConfig(ctx, "test", ai.Settings{Tier: tier, MonthlyBudget: 500000, RedactPII: true}); err != nil {
 			t.Fatal(err)
 		}
 	}

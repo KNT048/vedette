@@ -15,12 +15,12 @@ func (s *Service) dayStart(now time.Time) string {
 	return FormatTS(time.Date(y, m, d, 0, 0, 0, 0, s.loc))
 }
 
-// seedMeter loads today's tokens from ai_activity into the meter, per profile id, so the level in
-// force and the per-profile caps survive a restart. Usage of a profile that no longer exists counts in the shared total only.
+// seedMeter loads this month's tokens from ai_activity into the meter, per profile id, so the shared and the per-profile budgets
+// survive a restart (D-531). Usage of a profile that no longer exists counts in the shared total only.
 func (s *Service) seedMeter(ctx context.Context) error {
 	// By profile id: a rename does not reset a profile's cap, and a new profile that takes an old name does not inherit its usage. A row
 	// with no id (the test of a draft that was never saved) counts in the shared total only.
-	rows, err := s.cfg.DB.Reader().QueryContext(ctx, `SELECT COALESCE(profile_id, ''), SUM(tokens_in + tokens_out) FROM ai_activity WHERE ts >= ? AND tokens_in + tokens_out > 0 GROUP BY 1`, s.dayStart(s.cfg.Clock()))
+	rows, err := s.cfg.DB.Reader().QueryContext(ctx, `SELECT COALESCE(profile_id, ''), SUM(tokens_in + tokens_out) FROM ai_activity WHERE ts >= ? AND tokens_in + tokens_out > 0 GROUP BY 1`, FormatTS(MonthStart(s.cfg.Clock(), s.loc)))
 	if err != nil {
 		return err
 	}
@@ -67,14 +67,15 @@ type DowngradeView struct {
 	Reason string `json:"reason"`
 }
 
-// UsageView is the token meter: today, 30 days, per job, and the drops of the level.
+// UsageView is the token meter: today, this month (what the budget counts, D-531), per job this month, and the drops of the level
+// of earlier days (the budget lowers no level since D-531).
 type UsageView struct {
-	Tier       Tier            `json:"tier"`
-	DailyCap   int             `json:"daily_cap"`
-	Today      TokenSum        `json:"today"`
-	Month      TokenSum        `json:"month"`
-	BySkill    []SkillUsage    `json:"by_skill"`
-	Downgrades []DowngradeView `json:"downgrades"`
+	Tier          Tier            `json:"tier"`
+	MonthlyBudget int             `json:"monthly_budget"`
+	Today         TokenSum        `json:"today"`
+	Month         TokenSum        `json:"month"`
+	BySkill       []SkillUsage    `json:"by_skill"`
+	Downgrades    []DowngradeView `json:"downgrades"`
 }
 
 func (s *Service) sumSince(ctx context.Context, since string) (TokenSum, error) {
@@ -84,15 +85,15 @@ func (s *Service) sumSince(ctx context.Context, since string) (TokenSum, error) 
 	return t, err
 }
 
-// Usage returns the token meter. The tier is the level in force today.
+// Usage returns the token meter. The tier is the configured level.
 func (s *Service) Usage(ctx context.Context) (UsageView, error) {
 	now := s.cfg.Clock()
-	v := UsageView{Tier: s.meter.Tier(), DailyCap: s.snap.Load().cfg.DailyCap, BySkill: []SkillUsage{}, Downgrades: []DowngradeView{}}
+	v := UsageView{Tier: s.meter.Tier(), MonthlyBudget: s.snap.Load().cfg.MonthlyBudget, BySkill: []SkillUsage{}, Downgrades: []DowngradeView{}}
 	var err error
 	if v.Today, err = s.sumSince(ctx, s.dayStart(now)); err != nil {
 		return UsageView{}, fmt.Errorf("ai: usage: %w", err)
 	}
-	month := FormatTS(now.Add(-30 * 24 * time.Hour))
+	month := FormatTS(MonthStart(now, s.loc))
 	if v.Month, err = s.sumSince(ctx, month); err != nil {
 		return UsageView{}, fmt.Errorf("ai: usage: %w", err)
 	}
@@ -142,7 +143,7 @@ type RunView struct {
 }
 
 // Runs returns the last 200 calls, newest first. A call a hook stopped is not an AI call and is left out (it is in the activity log).
-// Status: a call that got an answer is ok; one the shared daily cap or the profile's own cap stopped (outcome capped, also partway
+// Status: a call that got an answer is ok; one the shared monthly budget or the profile's own cap stopped (outcome capped, also partway
 // through a question that had spent tokens) is capped; one that cost tokens but gave no usable answer otherwise is schema_error; one that spent nothing for any other reason (the provider was unreachable, or
 // no profile could take it and nothing was sent, outcome not_sent) is failed. The status comes from the outcome column, never the summary.
 func (s *Service) Runs(ctx context.Context) ([]RunView, error) {

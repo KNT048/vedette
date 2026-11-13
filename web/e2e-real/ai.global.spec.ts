@@ -18,7 +18,7 @@ import { FAIL, SAY, fakeAI, type FakeAI } from './fake-ai'
 test.use({ storageState: authFile('admin'), actionTimeout: 10_000 })
 test.describe.configure({ mode: 'serial' })
 
-interface Profile { id: string; name: string; kind: string; api_style: string; base_url: string; model: string; location: string; daily_cap: number; key_last4: string | null; usable: boolean; used_today: number }
+interface Profile { id: string; name: string; kind: string; api_style: string; base_url: string; model: string; location: string; monthly_budget: number; key_last4: string | null; usable: boolean; used_month: number }
 interface Entry { id: string; job: string; profile: string; model: string; trigger: string; hooks: unknown[]; tools: unknown[]; input_hash: string; output_hash: string; summary: string; tokens_in: number; tokens_out: number; result: string; prev_hash: string; hash: string; ts: string }
 interface Err { error: { code: string; message: string; field?: string } }
 const JOBS = ['explain-finding', 'mitigation-config', 'cve-news', 'log-digest', 'log-investigate', 'ask-my-data', 'weekly-report', 'pdpl-assessment', 'translate-advisory', 'response-plan']
@@ -45,7 +45,7 @@ async function deadPort(): Promise<number> {
   return (s.address() as { port: number }).port
 }
 const body = (name: string, port: number, over: Record<string, unknown> = {}) => ({
-  name, kind: 'openai-compatible', api_style: 'openai', base_url: `http://127.0.0.1:${port}/v1`, model: 'm-e2e', location: 'internal', daily_cap: 5000, api_key: KEY, ...over,
+  name, kind: 'openai-compatible', api_style: 'openai', base_url: `http://127.0.0.1:${port}/v1`, model: 'm-e2e', location: 'internal', monthly_budget: 5000, api_key: KEY, ...over,
 })
 
 /** A stand-in model on loopback (fake-ai.ts), closed in afterEach like the dead ports. */
@@ -61,7 +61,7 @@ const memory = async (c: APIRequestContext) => (await api<Memory>(c, 'GET', '/ai
 const skills = async (c: APIRequestContext) => (await api<{ items: { id: string; name: string; enabled: boolean }[] }>(c, 'GET', '/ai/skills')).body.items
 const docs = async (c: APIRequestContext) => (await api<{ index_profile: string | null; items: Doc[] }>(c, 'GET', '/ai/knowledge')).body
 
-let tier: { tier: string; daily_cap: number; redact_pii: boolean }
+let tier: { tier: string; monthly_budget: number; redact_pii: boolean }
 let assignments: unknown
 let retention = 365
 let suggestAtStart = false
@@ -76,8 +76,8 @@ test.beforeAll(async () => {
     suggestAtStart = mem.suggest_enabled
     skillsAtStart = Object.fromEntries((await skills(c)).map((s) => [s.id, s.enabled]))
     expect((await docs(c)).items, 'no knowledge document before this file').toEqual([])
-    const cfg = (await api<{ tier: string; daily_cap: number; redact_pii: boolean }>(c, 'GET', '/ai/config')).body
-    tier = { tier: cfg.tier, daily_cap: cfg.daily_cap, redact_pii: cfg.redact_pii }
+    const cfg = (await api<{ tier: string; monthly_budget: number; redact_pii: boolean }>(c, 'GET', '/ai/config')).body
+    tier = { tier: cfg.tier, monthly_budget: cfg.monthly_budget, redact_pii: cfg.redact_pii }
     retention = (await api<{ retention_days: number }>(c, 'GET', '/ai/activity/settings')).body.retention_days
     assignments = (await api(c, 'GET', '/ai/assignments')).body
   } finally { await c.dispose() }
@@ -141,7 +141,7 @@ test('every refusal of a profile carries its code and saves nothing; a cloud pro
     const n = uniq('ai')
     const cases: [string, Record<string, unknown>, number, string][] = [
       ['empty name', body('', port), 400, 'invalid'], ['name of 41 characters', body('x'.repeat(41), port), 400, 'invalid'],
-      ['cap 999', body(n, port, { daily_cap: 999 }), 400, 'invalid'], ['cap 5000001', body(n, port, { daily_cap: 5_000_001 }), 400, 'invalid'],
+      ['cap 999', body(n, port, { monthly_budget: 999 }), 400, 'invalid'], ['cap 150000001', body(n, port, { monthly_budget: 150_000_001 }), 400, 'invalid'],
       ['unknown provider type', body(n, port, { kind: 'nope' }), 400, 'invalid'],
       ['a cloud profile over plain http', body(n, port, { kind: 'openai-compatible', location: 'cloud' }), 400, 'invalid_base_url'],
       ['a cloud profile with no key', body(n, port, { location: 'cloud', base_url: 'https://llm.e2e.invalid/v1', api_key: undefined }), 400, 'key_required'],
@@ -179,16 +179,16 @@ test('add a profile in the page, with the key shown once and never again; the co
     await dlg.getByLabel('API key').fill(KEY)
     await dlg.getByRole('button', { name: 'Test connection' }).click()
     await expect(dlg.getByRole('alert')).toHaveText(`Could not connect to 127.0.0.1:${port}. Check the address, the box's network and the firewall.`)
-    await dlg.getByLabel('Daily token cap for this profile').fill('999')
+    await dlg.getByLabel('Monthly budget for this profile (tokens)').fill('999')
     await dlg.getByRole('button', { name: 'Add profile' }).click()
-    await expect(dlg.getByText('The cap must be a whole number from 1,000 to 5,000,000.')).toBeVisible()
+    await expect(dlg.getByText('The budget must be a whole number from 1,000 to 150,000,000.')).toBeVisible()
     expect(await profiles(c), 'a refused form saved nothing').toEqual([])
-    await dlg.getByLabel('Daily token cap for this profile').fill('5000')
+    await dlg.getByLabel('Monthly budget for this profile (tokens)').fill('5000')
     await dlg.getByLabel('API key').press('Enter')
     await expect(page.getByText('AI profile added').first()).toBeVisible()
 
     const [saved] = await profiles(c)
-    expect(saved).toMatchObject({ name, kind: 'openai-compatible', location: 'internal', model: 'm-e2e', daily_cap: 5000, key_last4: LAST4, usable: true, used_today: 0 })
+    expect(saved).toMatchObject({ name, kind: 'openai-compatible', location: 'internal', model: 'm-e2e', monthly_budget: 5000, key_last4: LAST4, usable: true, used_month: 0 })
     await expect(page.getByRole('region', { name: 'AI profiles' }).getByText(`Key ends in ${LAST4}`)).toBeVisible()
     await page.reload()
     await expect(page.getByRole('region', { name: 'AI profiles' }).getByText(`Key ends in ${LAST4}`)).toBeVisible()
@@ -260,24 +260,24 @@ test('the token level, the shared cap and the personal-data mask save, persist, 
   try {
     const port = await deadPort()
     await api(c, 'POST', '/ai/profiles', body(uniq('ai'), port))
-    for (const [what, b] of [['cap 999', { tier: 'med', daily_cap: 999, redact_pii: true }], ['cap 5000001', { tier: 'med', daily_cap: 5_000_001, redact_pii: true }], ['tier huge', { tier: 'huge', daily_cap: 60000, redact_pii: true }]] as const) {
+    for (const [what, b] of [['cap 999', { tier: 'med', monthly_budget: 999, redact_pii: true }], ['cap 150000001', { tier: 'med', monthly_budget: 150_000_001, redact_pii: true }], ['tier huge', { tier: 'huge', monthly_budget: 60000, redact_pii: true }]] as const) {
       const r = await api<Err>(c, 'PUT', '/ai/config', b)
       expect([r.status, r.body.error.code], what).toEqual([400, 'invalid'])
     }
-    expect((await api<{ tier: string; daily_cap: number }>(c, 'GET', '/ai/config')).body).toMatchObject(tier)
+    expect((await api<{ tier: string; monthly_budget: number }>(c, 'GET', '/ai/config')).body).toMatchObject(tier)
     await page.goto('/settings/ai')
     await page.getByRole('radio', { name: /Minimum/ }).check()
-    await page.getByLabel('Daily token cap for all profiles together').fill('999')
-    await page.getByLabel('Daily token cap for all profiles together').press('Enter')
-    await expect(page.getByText('The cap must be a whole number from 1,000 to 5,000,000.')).toBeVisible()
+    await page.getByLabel('Monthly AI budget for all profiles together (tokens)').fill('999')
+    await page.getByLabel('Monthly AI budget for all profiles together (tokens)').press('Enter')
+    await expect(page.getByText('The budget must be a whole number from 1,000 to 150,000,000.')).toBeVisible()
     expect((await api(c, 'GET', '/ai/config')).body, 'the refused form saved nothing').toMatchObject(tier)
-    await page.getByLabel('Daily token cap for all profiles together').fill('12000')
-    await page.getByLabel('Daily token cap for all profiles together').press('Enter')
+    await page.getByLabel('Monthly AI budget for all profiles together (tokens)').fill('12000')
+    await page.getByLabel('Monthly AI budget for all profiles together (tokens)').press('Enter')
     await expect(page.getByText('Token level saved').first()).toBeVisible()
-    expect((await api(c, 'GET', '/ai/config')).body).toMatchObject({ tier: 'min', daily_cap: 12000 })
-    expect((await api(c, 'GET', '/ai/usage')).body).toMatchObject({ tier: 'min', daily_cap: 12000 })
+    expect((await api(c, 'GET', '/ai/config')).body).toMatchObject({ tier: 'min', monthly_budget: 12000 })
+    expect((await api(c, 'GET', '/ai/usage')).body).toMatchObject({ tier: 'min', monthly_budget: 12000 })
     await page.reload()
-    await expect(page.getByLabel('Daily token cap for all profiles together')).toHaveValue('12000')
+    await expect(page.getByLabel('Monthly AI budget for all profiles together (tokens)')).toHaveValue('12000')
     // the activity log retention is a form of its own on the same page (INV-19)
     await page.getByLabel('Keep for (days)').fill('30')
     await page.getByLabel('Keep for (days)').press('Enter')
@@ -447,7 +447,7 @@ test('roles: a viewer reads, an operator reads the activity log, only an adminis
         expect((await api(c, 'GET', '/ai/activity')).status, `${role}: the activity log`).toBe(role === 'viewer' ? 403 : 200)
         for (const [method, path, b] of [
           ['POST', '/ai/profiles', body(uniq('ai'), port)], ['PUT', `/ai/profiles/${p.id}`, { ...body(p.name, port), id: p.id }], ['DELETE', `/ai/profiles/${p.id}`, undefined],
-          ['PUT', '/ai/config', { tier: 'min', daily_cap: 2000, redact_pii: false }], ['PUT', '/ai/activity/settings', { retention_days: 90 }],
+          ['PUT', '/ai/config', { tier: 'min', monthly_budget: 2000, redact_pii: false }], ['PUT', '/ai/activity/settings', { retention_days: 90 }],
           ['GET', '/ai/rules', undefined], ['POST', '/ai/rules', { text: 'A rule.', jobs: [], enabled: true }], ['GET', '/ai/hooks', undefined], ['PUT', '/ai/hooks/builtin/block-pii', { enabled: false }],
           ['POST', '/ai/profiles/test', { kind: 'openai-compatible', api_style: 'openai', base_url: `http://127.0.0.1:${port}/v1`, model: 'm', location: 'internal' }],
         ] as const) {

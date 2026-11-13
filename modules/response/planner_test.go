@@ -374,7 +374,7 @@ func TestPlanRefusedWhenTheActionIsNotAllowedOrTooBig(t *testing.T) {
 	}
 }
 
-func TestPlanBackoffAndDailyBudget(t *testing.T) {
+func TestPlanBackoffAndNoDailyCap(t *testing.T) {
 	t.Parallel()
 	e, fp, targets := aiPlanEnv(t)
 	*targets = (*targets)[1:2] // f2 alone
@@ -398,22 +398,29 @@ func TestPlanBackoffAndDailyBudget(t *testing.T) {
 	if step(1000*time.Hour) != 0 {
 		t.Fatal("a finding that failed four times is asked again")
 	}
-	// the day's budget: 20 calls, however many findings wait
+	// no daily cap of the job (D-531): every waiting finding is asked within the day, at most 3 a run (the burst fuse); the monthly
+	// AI budget of the ai module is the only limit on the total
 	e2, fp2, targets2 := aiPlanEnv(t)
 	fp2.err = errors.New("format")
 	for i := 0; i < 40; i++ {
 		*targets2 = append(*targets2, response.PlanTarget{FindingID: "g" + string(rune('A'+i%26)) + string(rune('a'+i/26)), CVE: "CVE-2024-0100", AssetID: "a1", AssetName: "NAS", AssetIP: "198.51.100.21"})
 	}
-	for i := 0; i < 15; i++ {
+	for i := 0; i < 20; i++ {
+		before := len(fp2.asked)
 		_, err := e2.svc.PlanOpen(e2.ctx())
 		e2.must(err)
+		if n := len(fp2.asked) - before; n > 3 {
+			t.Fatalf("run %d asked %d plans, more than the 3 of the burst fuse", i, n)
+		}
 	}
-	if len(fp2.asked) != 20 {
-		t.Fatalf("%d plan calls in one day, want 20", len(fp2.asked))
+	added := 0
+	for _, id := range fp2.asked {
+		if strings.HasPrefix(id, "g") {
+			added++
+		}
 	}
-	e2.clock.t = e2.clock.t.Add(24 * time.Hour)
-	if _, err := e2.svc.PlanOpen(e2.ctx()); err != nil || len(fp2.asked) <= 20 {
-		t.Fatalf("the next day starts a new budget: %d %v", len(fp2.asked), err)
+	if added != 40 {
+		t.Fatalf("%d of the 40 waiting findings asked within the day: a daily cap held some back", added)
 	}
 }
 

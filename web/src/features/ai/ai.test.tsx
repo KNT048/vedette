@@ -39,9 +39,9 @@ describe('ai: assistant (S-AI-5, S-AI-6)', () => {
   })
   it('first sentence says how many tokens were used; no a11y violations', async () => {
     renderApp('/assistant')
-    expect(await screen.findByRole('heading', { level: 1, name: /[\d,]+ of 60,000 tokens used today/ })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: /[\d,]+ of 1,800,000 tokens used this month/ })).toBeInTheDocument()
     expect(await screen.findByRole('table', { name: 'Log of AI calls' })).toBeInTheDocument()
-    expect(screen.getByRole('progressbar', { name: 'Tokens used today against the cap' })).toBeInTheDocument()
+    expect(screen.getByRole('progressbar', { name: 'Tokens used this month against the monthly budget' })).toBeInTheDocument()
     await expectNoA11yViolations()
   })
 
@@ -196,26 +196,56 @@ describe('ai: assistant (S-AI-5, S-AI-6)', () => {
   })
 })
 
-describe('ai: token meter, caps, fallback (S-AI-4)', () => {
-  it('past the global cap the level drops and is recorded; at minimum with no cap left it blocks', async () => {
+/** A call of this month that spent `tokens` (D-531: the budgets count the calendar month). */
+const spend = (tokens: number, profile = 'Claude Haiku') => aiRunsStore.update((l) => [{ id: `run-${l.length}`, ts: new Date().toISOString(), skill: 'ask-my-data', model: 'claude-haiku-5-5', tokens_in: tokens - 100, tokens_out: 100, status: 'ok', profile }, ...l])
+
+describe('ai: token meter, monthly budget, fallback (S-AI-4, D-531)', () => {
+  it('past the monthly budget every job stops with why and how to go on; the level never drops', async () => {
     sessionStore.set({ userId: 'u-admin' })
-    aiConfigStore.update((c) => ({ ...c, tier: 'max', daily_cap: 1000 }))
-    const ask = (q: string) => api('/ai/ask', { method: 'POST', body: JSON.stringify({ question: q }) })
-    const r1 = await (await ask('Which machines still expose RDP?')).json() as { downgraded: { from: string; to: string } | null }
-    expect(r1.downgraded).toEqual({ from: 'max', to: 'med' })
-    const r2 = await (await ask('Which devices are not approved yet?')).json() as { downgraded: { from: string; to: string } | null }
-    expect(r2.downgraded).toEqual({ from: 'med', to: 'min' })
-    const r3 = await ask('Which cameras are Hikvision?')
-    expect(r3.status).toBe(429)
-    expect(((await r3.json()) as { error: { message: string } }).error.message).toMatch(/cap is used up/)
+    aiConfigStore.update((c) => ({ ...c, tier: 'max', monthly_budget: 1000 }))
+    spend(1200)
+    const r = await api('/ai/ask', { method: 'POST', body: JSON.stringify({ question: 'Which machines still expose RDP?' }) })
+    expect(r.status).toBe(429)
+    const e = ((await r.json()) as { error: { code: string; message: string } }).error
+    expect(e.code).toBe('budget_reached')
+    expect(e.message).toMatch(/^This month's AI budget of 1,000 tokens is used up, so AI jobs are stopped until it renews on .+\. An administrator can raise the budget in Settings, AI assistant\.$/)
     expect(aiRunsStore.get()[0]).toMatchObject({ status: 'capped' })
+    expect(aiConfigStore.get().tier).toBe('max')
   })
 
-  it('meter says the cap is used up and lists the sample downgrade', async () => {
-    aiConfigStore.update((c) => ({ ...c, daily_cap: 1000 }))
+  it('meter says this month\'s budget is used up and keeps the earlier downgrade in the history', async () => {
+    aiConfigStore.update((c) => ({ ...c, monthly_budget: 1000 }))
+    spend(1200)
     renderApp('/assistant')
-    expect(await screen.findByText(/Today's cap is used up/)).toBeInTheDocument()
+    expect(await screen.findByText(/This month's budget is used up: every AI job is stopped until it renews on/)).toBeInTheDocument()
     expect(screen.getByText(/lowered from Medium to Minimum/)).toBeInTheDocument()
+  })
+
+  it('Home warns at 80 % and says when the budget is used up; a profile near its own budget is named (D-531)', async () => {
+    aiConfigStore.update((c) => ({ ...c, monthly_budget: 10_000_000 })) // the sample calls of this month add well under 1 %
+    aiRunsStore.set([])
+    spend(8_500_000)
+    const v = renderApp('/')
+    expect(await screen.findByText("This month's AI budget is at 85 %")).toBeInTheDocument()
+    expect(screen.getByText(/At 100 % every AI job .* stops until the budget renews on/)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Raise the AI budget' })).toHaveAttribute('href', '/settings/ai')
+    v.unmount()
+    spend(2_000_000)
+    aiProfilesStore.update((l) => l.map((p) => (p.id === 'p-sonnet' ? { ...p, monthly_budget: 100_000_000 } : p)))
+    spend(90_000_000, 'Claude Sonnet')
+    renderApp('/')
+    expect(await screen.findByText("This month's AI budget is used up")).toBeInTheDocument()
+    expect(screen.getByText(/Every AI job .* is stopped until the budget renews on/)).toBeInTheDocument()
+    expect(screen.getByText('The AI profile Claude Sonnet is at 90 % of its monthly budget')).toBeInTheDocument()
+  })
+
+  it('Home says nothing about the budget under 80 % or with the AI module off', async () => {
+    aiConfigStore.update((c) => ({ ...c, monthly_budget: 10_000_000 }))
+    aiRunsStore.set([])
+    spend(1_000_000)
+    renderApp('/')
+    expect(await screen.findByRole('search')).toBeInTheDocument()
+    expect(screen.queryByText(/This month's AI budget/)).not.toBeInTheDocument()
   })
 
   it('primary profile unreachable or out of its own cap: the fallback answers and the run is marked', async () => {
@@ -226,7 +256,7 @@ describe('ai: token meter, caps, fallback (S-AI-4)', () => {
     expect(a).toMatchObject({ profile: 'Company Ollama server', model: 'qwen3:8b' }) // dự phòng của "Ask your data"
     expect(aiRunsStore.get()[0]).toMatchObject({ skill: 'ask-my-data', profile: 'Company Ollama server', fallback: true })
     // hồ sơ hết trần riêng cũng chuyển
-    aiProfilesStore.update((l) => l.map((p) => (p.id === 'p-sonnet' ? { ...p, base_url: 'https://api.anthropic.com' } : p.id === 'p-haiku' ? { ...p, daily_cap: 1000 } : p)))
+    aiProfilesStore.update((l) => l.map((p) => (p.id === 'p-sonnet' ? { ...p, base_url: 'https://api.anthropic.com' } : p.id === 'p-haiku' ? { ...p, monthly_budget: 1000 } : p)))
     const r2 = await api('/ai/cve/CVE-2022-27593/news', { method: 'POST' })
     expect(((await r2.json()) as { profile: string }).profile).toBe('Company Ollama server') // chính Haiku hết trần, dự phòng Ollama
   })
@@ -236,10 +266,10 @@ describe('ai: token meter, caps, fallback (S-AI-4)', () => {
     aiAssignStore.update((a) => ({ ...a, jobs: { ...a.jobs, 'cve-news': { primary: 'p-haiku', fallback: null } } }))
     aiProfilesStore.update((l) => l.map((p) => (p.id === 'p-haiku' ? { ...p, base_url: 'https://timeout.example.com' } : p)))
     const none = await api('/ai/cve/CVE-2022-27593/news', { method: 'POST' })
-    expect(none.status).toBe(409) // as on the box: no profile answered is ai_unavailable, not the daily cap
+    expect(none.status).toBe(409) // as on the box: no profile answered is ai_unavailable, not the monthly budget
     expect(((await none.json()) as { error: { code: string } }).error.code).toBe('ai_unavailable')
     expect(aiRunsStore.get()[0]).toMatchObject({ skill: 'cve-news', status: 'failed' })
-    aiProfilesStore.update((l) => l.map((p) => (p.id === 'p-haiku' ? { ...p, base_url: 'https://api.anthropic.com', daily_cap: 1000 } : p)))
+    aiProfilesStore.update((l) => l.map((p) => (p.id === 'p-haiku' ? { ...p, base_url: 'https://api.anthropic.com', monthly_budget: 1000 } : p)))
     await api('/ai/cve/CVE-2022-27593/news', { method: 'POST' })
     expect(aiRunsStore.get()[0]).toMatchObject({ skill: 'cve-news', status: 'capped' })
   })
@@ -380,7 +410,7 @@ describe('ai: settings, profiles (S-AI-1)', () => {
     await userEvent.click(within(dlg).getByRole('radio', { name: /Cloud/ }))
     expect(within(dlg).getByLabelText('Server address')).toHaveValue('')
     expect(within(dlg).getByLabelText('Profile name')).toHaveValue('claude haiku')
-    const bad = await api('/ai/profiles', { method: 'POST', body: JSON.stringify({ name: 'X', kind: 'anthropic', api_style: 'anthropic', base_url: 'http://localhost:1/v1', model: 'm', location: 'internal', daily_cap: 5000 }) })
+    const bad = await api('/ai/profiles', { method: 'POST', body: JSON.stringify({ name: 'X', kind: 'anthropic', api_style: 'anthropic', base_url: 'http://localhost:1/v1', model: 'm', location: 'internal', monthly_budget: 5000 }) })
     expect(bad.status).toBe(400)
     expect(((await bad.json()) as { error: { code: string } }).error.code).toBe('invalid_location')
   })
@@ -447,7 +477,7 @@ describe('ai: settings, profiles (S-AI-1)', () => {
   })
 
   it('each row shows its last test as saved; a failed one says why, and when every profile failed the header says so (S-AI-1)', async () => {
-    aiProfilesStore.set([{ id: 'p-lab', name: 'Lab server', kind: 'openai-compatible', api_style: 'openai', base_url: 'http://unreachable.lan:11434/v1', model: 'qwen3:8b', key_last4: null, location: 'internal', daily_cap: 300000 }])
+    aiProfilesStore.set([{ id: 'p-lab', name: 'Lab server', kind: 'openai-compatible', api_style: 'openai', base_url: 'http://unreachable.lan:11434/v1', model: 'qwen3:8b', key_last4: null, location: 'internal', monthly_budget: 300000 }])
     aiConfigStore.update((c) => ({ ...c, configured: true }))
     const v = renderUi(<AiSettings />)
     await v.ready
@@ -461,7 +491,7 @@ describe('ai: settings, profiles (S-AI-1)', () => {
 
   it('the test made in the Add dialog becomes the last test of the profile added with exactly those settings (D-445)', async () => {
     sessionStore.set({ userId: 'u-admin' })
-    const draft = { kind: 'openai', api_style: 'openai', base_url: 'https://api.openai.com/v1', model: 'gpt-6-luna', location: 'cloud', api_key: 'sk-test-key-12345', daily_cap: 60000 }
+    const draft = { kind: 'openai', api_style: 'openai', base_url: 'https://api.openai.com/v1', model: 'gpt-6-luna', location: 'cloud', api_key: 'sk-test-key-12345', monthly_budget: 60000 }
     expect((await api('/ai/profiles/test', { method: 'POST', body: JSON.stringify(draft) })).status).toBe(200)
     const added = (await (await api('/ai/profiles', { method: 'POST', body: JSON.stringify({ ...draft, name: 'Luna' }) })).json()) as AiProfile
     expect(added.last_test?.ok).toBe(true)
@@ -621,18 +651,18 @@ describe('ai: settings, token level and global cap (S-AI-4)', () => {
   it('changes level and cap, saves; a cap outside the range is caught at the field', async () => {
     const v = renderUi(<AiSettings />)
     await v.ready
-    const cap = await screen.findByLabelText('Daily token cap for all profiles together')
+    const cap = await screen.findByLabelText('Monthly AI budget for all profiles together (tokens)')
     await userEvent.clear(cap)
     await userEvent.type(cap, '50')
     await userEvent.click(within(screen.getByRole('form', { name: 'Token level' })).getByRole('button', { name: 'Save' }))
-    expect(await screen.findByText('The cap must be a whole number from 1,000 to 5,000,000.')).toBeInTheDocument()
+    expect(await screen.findByText('The budget must be a whole number from 1,000 to 150,000,000.')).toBeInTheDocument()
     expect(cap).toBeInvalid()
     await userEvent.clear(cap)
     await userEvent.type(cap, '90000')
     await userEvent.click(screen.getByRole('radio', { name: /Maximum/ }))
     await userEvent.click(screen.getByRole('switch', { name: 'Mask personal information before sending' }))
     await userEvent.click(within(screen.getByRole('form', { name: 'Token level' })).getByRole('button', { name: 'Save' }))
-    await waitFor(() => expect(aiConfigStore.get()).toMatchObject({ tier: 'max', daily_cap: 90000, redact_pii: false }))
+    await waitFor(() => expect(aiConfigStore.get()).toMatchObject({ tier: 'max', monthly_budget: 90000, redact_pii: false }))
   })
 })
 
@@ -731,7 +761,7 @@ describe('ai: log digest panel (S-AI-4)', () => {
     expect(await screen.findByText('No AI profile yet')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Regenerate now' })).toBeDisabled()
     v.unmount()
-    aiProfilesStore.set([{ id: 'p-x', name: 'X', kind: 'anthropic', api_style: 'anthropic', base_url: 'https://api.anthropic.com', model: 'claude-haiku-5-5', key_last4: 'abcd', location: 'cloud', daily_cap: 5000 }])
+    aiProfilesStore.set([{ id: 'p-x', name: 'X', kind: 'anthropic', api_style: 'anthropic', base_url: 'https://api.anthropic.com', model: 'claude-haiku-5-5', key_last4: 'abcd', location: 'cloud', monthly_budget: 5000 }])
     aiConfigStore.update((c) => ({ ...c, configured: true }))
     renderUi(<LogsPanel />)
     expect(await screen.findByText('No AI profile is assigned to this task')).toBeInTheDocument()

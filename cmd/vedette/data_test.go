@@ -571,7 +571,7 @@ func TestExport_PlantedSecretsNeverLeave(t *testing.T) {
 				[]any{ts, `{"url":"https://hooks.slack.com/services/T0/B0/PLANT-SLACK-PATH","channel":"#ops","token":"PLANT-FIELDS-TOKEN","nested":{"password":"PLANT-NESTED-PW","note":"fine-note"},"inner":"{\"api_key\":\"PLANT-STRING-JSON\"}"}`, sealed, sealed, sealed}},
 			{`INSERT INTO notify_channel (type, updated_at, configured, fields) VALUES ('webhook', ?, 1, ?)`,
 				[]any{ts, `{"url":"https://user:PLANT-USERINFO@hooks.example.com:8443/path/PLANT-PATH?sig=PLANT-QUERY"}`}},
-			{`INSERT INTO ai_profile (id, name, name_key, kind, api_style, base_url, model, secret_id, key_last4, location, daily_cap, created_at, updated_at) VALUES ('ai1', 'Main', 'main', 'cloud', 'openai', ?, 'm', ?, 'abcd', 'cloud', 1, ?, ?)`,
+			{`INSERT INTO ai_profile (id, name, name_key, kind, api_style, base_url, model, secret_id, key_last4, location, monthly_budget, created_at, updated_at) VALUES ('ai1', 'Main', 'main', 'cloud', 'openai', ?, 'm', ?, 'abcd', 'cloud', 1, ?, ?)`,
 				[]any{"https://user:PLANT-AIURLPW@api.example.com/v1/PLANT-AIPATH", sealed, ts, ts}},
 			{`INSERT INTO resp_blocklist (id, token_hash, secret_id, token_last4) VALUES (1, 'PLANT-BLOCK-TOKENHASH', ?, 'abcd')`, []any{sealed}},
 			{`INSERT INTO hp_tokens (id, type, name, value, plant_at, created_at, secret_id) VALUES ('t1', 'credential', 'decoy', 'decoyuser', ?, ?, ?)`, []any{ts, ts, sealed}},

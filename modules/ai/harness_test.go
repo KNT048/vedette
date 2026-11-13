@@ -319,11 +319,11 @@ func TestContract_INV12_RedactPIIIsTheBlockPIIHook(t *testing.T) {
 	if cfg() != false {
 		t.Fatal("switching the hook off left redact_pii on")
 	}
-	a.want("PUT", "/ai/config", "admin", `{"tier":"med","daily_cap":60000,"redact_pii":true}`, 200, "")
+	a.want("PUT", "/ai/config", "admin", `{"tier":"med","monthly_budget":60000,"redact_pii":true}`, 200, "")
 	if h := a.want("GET", "/ai/hooks", "admin", "", 200, "")["builtin"].([]any)[0].(map[string]any); h["enabled"] != true {
 		t.Fatalf("setting redact_pii left the hook off: %v", h)
 	}
-	a.want("PUT", "/ai/config", "admin", `{"tier":"med","daily_cap":60000,"redact_pii":false}`, 200, "")
+	a.want("PUT", "/ai/config", "admin", `{"tier":"med","monthly_budget":60000,"redact_pii":false}`, 200, "")
 	if h := a.want("GET", "/ai/hooks", "admin", "", 200, "")["builtin"].([]any)[0].(map[string]any); h["enabled"] != false {
 		t.Fatalf("clearing redact_pii left the hook on: %v", h)
 	}
@@ -702,7 +702,7 @@ func TestUpgradeKeepsPersonalDataProtectionOnAndSaysSo(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := db.Write(ctx, func(tx *sql.Tx) error {
-		_, err := tx.ExecContext(ctx, `INSERT INTO ai_setting (key, value, updated_at, updated_by) VALUES ('config', '{"tier":"med","daily_cap":60000,"redact_pii":false}', '2026-11-01T00:00:00.000Z', 'admin@acme.example')`)
+		_, err := tx.ExecContext(ctx, `INSERT INTO ai_setting (key, value, updated_at, updated_by) VALUES ('config', '{"tier":"med","monthly_budget":60000,"redact_pii":false}', '2026-11-01T00:00:00.000Z', 'admin@acme.example')`)
 		return err
 	}); err != nil {
 		t.Fatal(err)
@@ -724,7 +724,7 @@ func TestUpgradeKeepsPersonalDataProtectionOnAndSaysSo(t *testing.T) {
 		t.Fatalf("log = %q", logs.String())
 	}
 	// once the admin saves the setting the stored value agrees, and the next start says nothing
-	if _, err := svc.SetConfig(ctx, "admin@acme.example", ai.Settings{Tier: ai.TierMed, DailyCap: 60000, RedactPII: true}); err != nil {
+	if _, err := svc.SetConfig(ctx, "admin@acme.example", ai.Settings{Tier: ai.TierMed, MonthlyBudget: 60000, RedactPII: true}); err != nil {
 		t.Fatal(err)
 	}
 	logs.Reset()
@@ -825,7 +825,7 @@ func TestHookSwitchRowsAreWrittenEvenWhenTheyAreMissing(t *testing.T) {
 	if err := a.exec(`DELETE FROM ai_hook_state WHERE builtin_id IN ('block-pii', 'security-only')`); err != nil {
 		t.Fatal(err)
 	}
-	a.want("PUT", "/ai/config", "admin", `{"tier":"med","daily_cap":60000,"redact_pii":false}`, 200, "")
+	a.want("PUT", "/ai/config", "admin", `{"tier":"med","monthly_budget":60000,"redact_pii":false}`, 200, "")
 	a.want("PUT", "/ai/hooks/builtin/security-only", "admin", `{"enabled":false}`, 200, "")
 	got := map[string]int{}
 	rows, err := a.db.Reader().QueryContext(a.ctx(), `SELECT builtin_id, enabled FROM ai_hook_state`)

@@ -64,7 +64,7 @@ func TestPlanErrorStopsTheRunOnlyWhenTheAIIsUnavailable(t *testing.T) {
 	if err := planError(perFinding, apierr.New(409, "ai_unavailable", "No AI profile is set up.")); !errors.Is(err, response.ErrPlanUnavailable) {
 		t.Fatal("no profile did not stop the run")
 	}
-	if err := planError(apierr.New(429, "daily_cap", "cap"), nil); !errors.Is(err, response.ErrPlanUnavailable) {
+	if err := planError(apierr.New(429, "budget_reached", "cap"), nil); !errors.Is(err, response.ErrPlanUnavailable) {
 		t.Fatal("the daily cap did not stop the run")
 	}
 	if err := planError(ai.ErrBadOutput, nil); errors.Is(err, response.ErrPlanUnavailable) {
@@ -104,11 +104,11 @@ func TestLiveResponsePlan(t *testing.T) {
 		t.Fatal(err)
 	}
 	p, err := svc.AddProfile(ctx, "test", ai.ProfileInput{Name: "Live Haiku", Kind: "anthropic", APIStyle: provider.StyleAnthropic, BaseURL: "https://api.anthropic.com",
-		Model: "claude-haiku-5-5", APIKey: key, Location: ai.LocationCloud, DailyCap: 60000})
+		Model: "claude-haiku-5-5", APIKey: key, Location: ai.LocationCloud, MonthlyBudget: 60000})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := svc.SetConfig(ctx, "test", ai.Settings{Tier: ai.TierMin, DailyCap: 60000, RedactPII: true}); err != nil { // low effort
+	if _, err := svc.SetConfig(ctx, "test", ai.Settings{Tier: ai.TierMin, MonthlyBudget: 60000, RedactPII: true}); err != nil { // low effort
 		t.Fatal(err)
 	}
 	asg := svc.Assignments()
@@ -169,7 +169,7 @@ func TestPlannerListsTheBoxReadsAndRecordsWhatWasSent(t *testing.T) {
 		t.Fatal(err)
 	}
 	p, err := svc.AddProfile(ctx, "test", ai.ProfileInput{Name: "Local", Kind: "openai-compatible", APIStyle: provider.StyleOpenAI, BaseURL: "http://192.168.10.5:11434/v1",
-		Model: "m", Location: ai.LocationInternal, DailyCap: 60000})
+		Model: "m", Location: ai.LocationInternal, MonthlyBudget: 60000})
 	if err != nil {
 		t.Fatal(err)
 	}

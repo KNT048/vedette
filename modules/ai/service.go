@@ -32,9 +32,9 @@ const MaxProfiles = 12
 
 // Settings are the shared token settings (`ai_setting` key config, INV-4).
 type Settings struct {
-	Tier      Tier `json:"tier"`
-	DailyCap  int  `json:"daily_cap"`
-	RedactPII bool `json:"redact_pii"`
+	Tier          Tier `json:"tier"`
+	MonthlyBudget int  `json:"monthly_budget"`
+	RedactPII     bool `json:"redact_pii"`
 }
 
 // hookTimeout is the time one after_ai pass or one hook test may take.
@@ -45,16 +45,18 @@ func (s *Service) hookTimeout() time.Duration {
 	return 5 * time.Second
 }
 
-// DefaultSettings is what a fresh box starts with. The cap is 200,000 tokens a day (D-482): a few cents with a Haiku-class model, well
-// under a dollar with a Sonnet-class one, and room for a day of questions and scheduled jobs; 60,000 was two questions of the old loop.
-func DefaultSettings() Settings { return Settings{Tier: TierMed, DailyCap: 200_000, RedactPII: true} }
+// DefaultSettings is what a fresh box starts with. The budget is 6,000,000 tokens a month (D-531: the 200,000 a day of D-482 times 30):
+// a few dollars with a Haiku-class model, and no single day of an incident is cut short by a daily cap.
+func DefaultSettings() Settings {
+	return Settings{Tier: TierMed, MonthlyBudget: DefaultMonthlyBudget, RedactPII: true}
+}
 
 func (s Settings) validate() error {
 	if !s.Tier.Valid() {
 		return perr("invalid_tier", "Pick a tier: minimum, medium or maximum.")
 	}
-	if !ValidDailyCap(s.DailyCap) {
-		return perr("invalid_cap", "The daily token cap must be a whole number from %d to %d.", MinDailyCap, MaxDailyCap)
+	if !ValidMonthlyBudget(s.MonthlyBudget) {
+		return perr("invalid_cap", "The monthly AI budget must be a whole number of tokens from %d to %d.", MinMonthlyBudget, MaxMonthlyBudget)
 	}
 	return nil
 }
@@ -102,8 +104,9 @@ type Config struct {
 	// nil = the tool is not offered.
 	LogAround func(ctx context.Context, ip netip.Addr, from, to time.Time) (LogAroundData, bool, error)
 	// Alert raises an incident notice (notify: every enabled channel whose minimum severity it meets). The daily verify of the
-	// activity log calls it when the chain is broken (S-AI-8, D-430); nil = no verify job is offered. The adapter is in cmd/vedette.
-	Alert func(ctx context.Context, id, title, text string) error
+	// activity log calls it when the chain is broken (S-AI-8, D-430), the budget watch at 80 % and 100 % of a monthly budget (D-531); high
+	// = severity high, otherwise medium. nil = neither job is offered. The adapter is in cmd/vedette.
+	Alert func(ctx context.Context, id, title, text string, high bool) error
 	// AskTimeout bounds one question in all: every model turn and every tool call. 0 = 2 minutes. Tests set a tiny one.
 	AskTimeout time.Duration
 	// HookTimeout bounds the after_ai hooks of one call and one hook test. 0 = 5 seconds. Tests set a tiny one to run out of time.
@@ -188,6 +191,9 @@ type Service struct {
 	drafts     map[string]draftTest   // per admin, the last test of settings not saved yet, kept for the profile saved with them (D-445); under mu
 	alerted    atomic.Pointer[string] // the break the last alert named (its first bad row, or "tail"): the same break is not raised again until a restart
 	news       *newsFetcher           // the box's own fetcher of public pages for CVE news (S-AI-3)
+	fuseMu     sync.Mutex             // guards fuse
+	fuse       map[Job]*fuseWindow    // calls of each job in the current minute (the runaway fuse, D-531)
+	pauseNoted string                 // the month and reason of the last scheduled-job pause logged (fuseMu): one line a month
 }
 
 // New loads the settings and builds the router and the meter. A saved state that the rules refuse is an error: the service does
@@ -277,7 +283,7 @@ func (s *Service) own() provider.OwnSources {
 
 // build makes the meter and the router of a snapshot and publishes it.
 func (s *Service) build(sn *snapshot, loc *time.Location) error {
-	meter, err := NewMeter(MeterConfig{Clock: s.cfg.Clock, Location: loc, GlobalCap: sn.cfg.DailyCap, Tier: sn.cfg.Tier})
+	meter, err := NewMeter(MeterConfig{Clock: s.cfg.Clock, Location: loc, GlobalCap: sn.cfg.MonthlyBudget, Tier: sn.cfg.Tier})
 	if err != nil {
 		return err
 	}
@@ -348,7 +354,7 @@ func (s *Service) load(ctx context.Context) (*snapshot, error) {
 		return nil, err
 	}
 
-	prof, err := q.QueryContext(ctx, `SELECT id, name, kind, api_style, base_url, model, secret_id, location, daily_cap FROM ai_profile ORDER BY rowid`)
+	prof, err := q.QueryContext(ctx, `SELECT id, name, kind, api_style, base_url, model, secret_id, location, monthly_budget FROM ai_profile ORDER BY rowid`)
 	if err != nil {
 		return nil, fmt.Errorf("profiles: %w", err)
 	}
@@ -360,7 +366,7 @@ func (s *Service) load(ctx context.Context) (*snapshot, error) {
 	for prof.Next() {
 		var r raw
 		var style, loc string
-		if err := prof.Scan(&r.p.ID, &r.p.Name, &r.p.Kind, &style, &r.p.BaseURL, &r.p.Model, &r.secretID, &loc, &r.p.DailyCap); err != nil {
+		if err := prof.Scan(&r.p.ID, &r.p.Name, &r.p.Kind, &style, &r.p.BaseURL, &r.p.Model, &r.secretID, &loc, &r.p.MonthlyBudget); err != nil {
 			_ = prof.Close()
 			return nil, fmt.Errorf("profiles: %w", err)
 		}

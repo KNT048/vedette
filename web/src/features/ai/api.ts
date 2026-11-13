@@ -15,7 +15,7 @@ export function useSaveConfig() {
   const done = useInvalidateAi()
   return useMutation({ mutationFn: (b: ConfigInput) => api.put<AiConfigView>('/ai/config', b), onSuccess: done })
 }
-export const useProfiles = () => useQuery({ queryKey: ['ai', 'profiles'], queryFn: () => api.get<{ items: AiProfile[] }>('/ai/profiles') })
+export const useProfiles = (enabled = true) => useQuery({ queryKey: ['ai', 'profiles'], queryFn: () => api.get<{ items: AiProfile[] }>('/ai/profiles'), enabled })
 export function useSaveProfile() {
   const done = useInvalidateAi()
   // gcTime 0: the variables hold the API key; nothing keeps them once the dialog is gone

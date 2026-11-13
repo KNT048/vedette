@@ -86,6 +86,7 @@ type zaloLogin struct {
 	self   string
 	ws     []string
 	ping   time.Duration
+	svc    map[string]string // the other services of the sign-in answer, checked: profile, friend, group_poll, group (ZaloContacts)
 }
 
 // NewZaloPersonal validates the stored configuration (INV-8) without touching the network.
@@ -127,6 +128,9 @@ func (z *zaloPersonalSender) Send(ctx context.Context, m Message) (Receipt, erro
 	}
 	if m.ReplyCodes != nil { // codes are for one approver: never to the configured user or group (ZaloPersonalTo)
 		return Receipt{}, fmt.Errorf("%w: reply codes go only to the approver they belong to", ErrInvalidMessage)
+	}
+	if z.user == "" { // an account without a recipient (NewZaloAccount): it reads contacts and makes direct senders only
+		return Receipt{}, fmt.Errorf("%w: this Zalo session has no recipient", ErrInvalidMessage)
 	}
 	return z.send(ctx, m, z.user, z.group, false)
 }
@@ -277,7 +281,7 @@ func (z *zaloPersonalSender) signIn(ctx context.Context) error {
 		}
 	}
 	self, ws := parseZaloListenInfo(data) // only the reply listener needs them: a send goes on without
-	z.li = &zaloLogin{key: key, keyB64: encodeB64(key), base: base, chat: chat, at: z.now(), self: self, ws: ws}
+	z.li = &zaloLogin{key: key, keyB64: encodeB64(key), base: base, chat: chat, at: z.now(), self: self, ws: ws, svc: parseZaloServices(data)}
 	infoCtx, cancel := context.WithTimeout(ctx, zaloInfoTimeout)
 	defer cancel()
 	if info, err := z.call(infoCtx, http.MethodGet, z.loginBase+"/api/login/getServerInfo?"+zaloServerInfoQuery(z.sess.imei).Encode(), nil); err == nil {
@@ -315,6 +319,11 @@ func (z *zaloPersonalSender) post(ctx context.Context, text, to string, group bo
 // URL and no secret (the secrets are listed after the cookies of the answer have
 // been kept).
 func (z *zaloPersonalSender) call(ctx context.Context, method, rawURL string, body io.Reader, more ...secrets.Value) ([]byte, error) {
+	return z.callN(ctx, method, rawURL, body, maxResponseBody, more...)
+}
+
+// callN is call with a limit of its own for the answer (a contact list is larger than a send's answer); more is an error, not a cut.
+func (z *zaloPersonalSender) callN(ctx context.Context, method, rawURL string, body io.Reader, limit int64, more ...secrets.Value) ([]byte, error) {
 	ctx, cancel := context.WithTimeout(ctx, defaultTimeout)
 	defer cancel()
 	req, err := http.NewRequestWithContext(ctx, method, rawURL, body)
@@ -342,9 +351,16 @@ func (z *zaloPersonalSender) call(ctx context.Context, method, rawURL string, bo
 	defer func() { _ = resp.Body.Close() }()
 	z.absorb(host, resp.Cookies(), z.now())
 	hide := append(z.hide(), more...) // after absorb: a rotated cookie echoed in the body is scrubbed too
-	ans, err := io.ReadAll(io.LimitReader(resp.Body, maxResponseBody))
+	ans, err := io.ReadAll(io.LimitReader(resp.Body, limit+1))
 	if err != nil {
 		return nil, fmt.Errorf("notify: zalo-personal: read answer: %s", transportReason(err, hide))
+	}
+	if int64(len(ans)) > limit {
+		if limit == maxResponseBody { // as before: a send's answer is read up to the limit and judged by its content
+			ans = ans[:limit]
+		} else {
+			return nil, badAnswer("the answer was too large")
+		}
 	}
 	if resp.StatusCode < 200 || resp.StatusCode > 299 {
 		return nil, statusErr(ZaloPersonal, resp.StatusCode, ans, hide...)

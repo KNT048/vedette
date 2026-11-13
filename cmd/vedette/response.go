@@ -100,7 +100,7 @@ func (r responseNotifier) Approvers(ctx context.Context, ch string) ([]response.
 			continue
 		}
 		for _, a := range c.Approvers {
-			out = append(out, response.Approver{UserID: a.UserID, Address: a.Address})
+			out = append(out, response.Approver{UserID: a.UserID, Address: a.Address, Name: a.Name})
 		}
 	}
 	return out, nil
@@ -215,21 +215,6 @@ func (r responseDecisions) Decide(ctx context.Context, c notify.Decision) (notif
 		return notify.DecisionResult{}, err
 	}
 	return notify.DecisionResult{Status: out.Status, Message: out.Message, RequestID: out.RequestID}, nil
-}
-
-// LinkChat hands response a link code that arrived from a chat ID (Zalo personal, D-243); refusals come back as Status/Message like Decide.
-func (r responseDecisions) LinkChat(ctx context.Context, c notify.Decision) (notify.DecisionResult, error) {
-	if r.d.Response == nil {
-		return notify.DecisionResult{}, errResponseNotReady
-	}
-	out, err := r.d.Response.LinkFromChat(ctx, response.ChatDecision{Channel: string(c.Channel), ExternalID: c.ExternalID, Code: c.Code})
-	if ae, ok := apierr.As(err); ok {
-		return notify.DecisionResult{Status: ae.Code, Message: ae.Message}, nil
-	}
-	if err != nil {
-		return notify.DecisionResult{}, err
-	}
-	return notify.DecisionResult{Status: out.Status, Message: out.Message}, nil
 }
 
 // Message queues a short text as an incident notice: every enabled channel whose minimum severity it meets gets it.

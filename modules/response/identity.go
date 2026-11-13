@@ -6,11 +6,13 @@ import (
 	"crypto/sha256"
 	"crypto/subtle"
 	"database/sql"
+	"encoding/base64"
 	"encoding/hex"
 	"errors"
 	"fmt"
 	"math/big"
 	"net/http"
+	"regexp"
 	"slices"
 	"strings"
 	"time"
@@ -37,6 +39,7 @@ type Identity struct {
 	Channel     string  `json:"channel"`
 	Label       string  `json:"label"`
 	Address     string  `json:"address"`
+	Name        string  `json:"name,omitempty"` // the shown name of the address (Zalo personal, D-447)
 	Linked      bool    `json:"linked"`
 	LinkedAt    *string `json:"linked_at"`
 	Method      string  `json:"method"` // email_code, chat_code, or unavailable (no private answer on this channel yet)
@@ -66,10 +69,29 @@ var chatNames = map[string]string{"slack": "Slack", "telegram": "Telegram", "zal
 // person link a stranger's mistyped ID (L7 again). A Slack listener is added here once notify guarantees the same (ephemeral).
 var privateAnswer = []string{"telegram"}
 
-// sendLink lists the chat channels linked the other way round (D-243): My account shows the person a code and they send it from their own
-// account; notify's listener hands it over with the sender's ID (LinkFromChat). Zalo personal: an answer from the box would stay in the
-// history of the box's account, which whoever holds that account can read, so the code must come FROM the ID, never go to it.
+// sendLink lists the chat channels linked by a confirm link (D-447, option A; it replaced D-243's code sent from the ID): when an
+// administrator lists the person with an ID, the box's account sends that ID a single-use link (ChatLinkToken), and only the person,
+// signed in to Vedette as themself, confirms it (ConfirmLink, POST). Opening the link proves the message reached that account; signing in
+// proves who the person is; a reply from the account proves nothing and links nothing. No administrator path links on someone's behalf.
 var sendLink = []string{"zalo-personal"}
+
+// linkTokenRE is a confirm link's token: the hint of the person it is for (linkHint), "-", 128 random bits in base64url.
+var linkTokenRE = regexp.MustCompile(`^[0-9a-f]{8}-[A-Za-z0-9_-]{22}$`)
+
+// linkHint tells, before anything is read, whether a token can be the signed-in person's: another person gets a clear refusal and the
+// token is not touched (the hint is not secret; the 128 random bits are).
+func linkHint(userID string) string {
+	sum := sha256.Sum256([]byte("vedette-link-hint-v1\n" + userID))
+	return hex.EncodeToString(sum[:4])
+}
+
+func newLinkToken(userID string) (string, error) {
+	var b [16]byte
+	if _, err := rand.Read(b[:]); err != nil {
+		return "", fmt.Errorf("response: link token: %w", err)
+	}
+	return linkHint(userID) + "-" + base64.RawURLEncoding.EncodeToString(b[:]), nil
+}
 
 // linkable says whether a person can prove an address on the channel at all: email by a mailed code, a chat channel by a press. The Zalo OA
 // channel has neither (its approvals are links, which notify makes for email only, D-124 (2)), so it is not listed.
@@ -221,7 +243,7 @@ func (s *Service) mine(ctx context.Context, u User) ([]Identity, error) {
 			if err != nil {
 				return nil, err
 			}
-			row := Identity{Channel: t, Label: chans[i].Label, Address: a.Address, Linked: linked, Method: "unavailable"}
+			row := Identity{Channel: t, Label: chans[i].Label, Address: a.Address, Name: a.Name, Linked: linked, Method: "unavailable"}
 			switch {
 			case t == "email":
 				row.Method = "email_code"
@@ -285,10 +307,8 @@ func (s *Service) SendLinkCode(ctx context.Context, who Actor, channel string) (
 		return CodeSent{}, fail(http.StatusNotFound, "not_listed", "You are not on the approver list of this channel.")
 	case rows[i].Method == "unavailable":
 		return CodeSent{}, fail(http.StatusBadRequest, "chat_channel", "This channel cannot be linked yet. Approve in Vedette.")
-	case rows[i].Method == "send_code" && rows[i].Linked:
-		return CodeSent{}, fail(http.StatusConflict, "already_linked", "This address is already linked.")
 	case rows[i].Method == "send_code":
-		return s.showLinkCode(ctx, u, channel, rows[i].Address)
+		return CodeSent{}, fail(http.StatusBadRequest, "chat_channel", "An administrator sends a link to your "+chatNames[channel]+" account when they list you; open it and confirm while signed in to Vedette.")
 	case rows[i].Method != "email_code":
 		return CodeSent{}, fail(http.StatusBadRequest, "chat_channel", "Press Approve or Reject on the next approval message in this channel; Vedette answers you privately with a code.")
 	case rows[i].Linked:
@@ -328,60 +348,40 @@ func (s *Service) SendLinkCode(ctx context.Context, who Actor, channel string) (
 }
 
 // ConfirmLink is POST /response/me/identities/{channel}/confirm (operator): the code proves the address it was made for, if that address is
-// still the person's on the channel's list. A sendLink channel is confirmed only by the code arriving from the ID (LinkFromChat).
+// still the person's on the channel's list. On a sendLink channel the code is the token of the confirm link the box sent to the ID (D-447):
+// a token for another person is refused before anything is read, so it stays valid for its person.
 func (s *Service) ConfirmLink(ctx context.Context, who Actor, channel, code string) (Identity, error) {
 	u, err := s.person(ctx, who)
 	if err != nil {
 		return Identity{}, err
 	}
-	if slices.Contains(sendLink, channel) {
-		return Identity{}, fail(http.StatusBadRequest, "chat_channel", "Send the code from your own "+chatNames[channel]+" account to the Vedette account; it cannot be typed here.")
+	if !slices.Contains(sendLink, channel) {
+		return s.confirmCode(ctx, u, channel, code)
 	}
-	return s.confirmCode(ctx, u, channel, "", code)
-}
-
-// LinkFromChat takes a link code that arrived in a sendLink channel (notify calls it through Config.Decisions.LinkChat, D-243): the sender
-// must be the one person listed with that ID on the channel (the gates of DecideFromChat), and the code the one My account showed that
-// person for that ID. The answer goes privately to the sender.
-func (s *Service) LinkFromChat(ctx context.Context, d ChatDecision) (ChatOutcome, error) {
-	if !s.on() {
-		return ChatOutcome{}, fail(http.StatusForbidden, "channel_not_allowed", "Response is turned off.")
+	c := strings.TrimSpace(code)
+	switch {
+	case !linkTokenRE.MatchString(c):
+		return Identity{}, fail(http.StatusBadRequest, "invalid_link", "This link is not complete. Open it again from the "+chatNames[channel]+" message.")
+	case subtle.ConstantTimeCompare([]byte(c[:8]), []byte(linkHint(u.ID))) != 1:
+		return Identity{}, fail(http.StatusForbidden, "other_account", "This link is for another Vedette account. Sign out, then sign in as the person the "+chatNames[channel]+" message names.")
 	}
-	if !slices.Contains(sendLink, d.Channel) {
-		return ChatOutcome{}, fail(http.StatusBadRequest, "chat_channel", "This channel is not linked by sending a code.")
-	}
-	st, err := loadSettings(ctx, s.cfg.DB.Reader())
-	if err != nil {
-		return ChatOutcome{}, err
-	}
-	u, gate, err := s.chatGate(ctx, st, d.Channel, d.ExternalID)
-	if err != nil {
-		return ChatOutcome{}, err
-	}
-	if gate != nil {
-		return ChatOutcome{}, gate
-	}
-	anon := d.ExternalID + " via " + d.Channel
-	if ok, _ := s.chatAllow("chat:"+d.Channel+"|"+d.ExternalID, true); !ok { // the same per-sender limit as a decision (D-135); listed, so let in
-		return ChatOutcome{}, errRateLimited()
-	}
-	if linked, err := s.isLinked(ctx, u, d.Channel, d.ExternalID); err != nil {
-		return ChatOutcome{}, err
-	} else if linked {
-		return ChatOutcome{Status: "already_linked", Message: "This " + chatNames[d.Channel] + " account is already linked to Vedette."}, nil
-	}
-	if _, err := s.confirmCode(ctx, u, d.Channel, d.ExternalID, d.Code); err != nil {
-		if ae, ok := apierr.As(err); ok && (ae.Code == "wrong_code" || ae.Code == "too_many_tries") {
-			return ChatOutcome{}, s.refuse(ctx, ae, "chat", anon) // a wrong link code from a chat ID is logged like a refused decision
+	id, err := s.confirmCode(ctx, u, channel, c)
+	if ae, ok := apierr.As(err); ok { // the words of a link, not of a typed code
+		switch ae.Code {
+		case "code_expired":
+			return Identity{}, fail(http.StatusBadRequest, "code_expired", "This link has expired. Ask your administrator to press Send again.")
+		case "no_code":
+			return Identity{}, fail(http.StatusBadRequest, "no_code", "This link was already used or was replaced by a newer one.")
+		case "wrong_code", "too_many_tries":
+			return Identity{}, fail(http.StatusBadRequest, ae.Code, "This link is not valid. Ask your administrator to press Send again.")
 		}
-		return ChatOutcome{}, err
 	}
-	return ChatOutcome{Status: "linked", Message: "Linked. Your " + chatNames[d.Channel] + " account now counts as you in Vedette: reply to approval messages with your codes."}, nil
+	return id, err
 }
 
-// confirmCode checks the person's waiting code for the channel and links the address it was made for. from, when set, is the ID the code
-// arrived from (sendLink): it must be that address.
-func (s *Service) confirmCode(ctx context.Context, u User, channel, from, code string) (Identity, error) {
+// confirmCode checks the person's waiting code (on a sendLink channel, the token of the confirm link) for the channel and links the address
+// it was made for.
+func (s *Service) confirmCode(ctx context.Context, u User, channel, code string) (Identity, error) {
 	rows, err := s.mine(ctx, u)
 	if err != nil {
 		return Identity{}, err
@@ -408,16 +408,12 @@ func (s *Service) confirmCode(ctx context.Context, u User, channel, from, code s
 			refused = noCode // the list changed after the code was made: it proves an address that is not the person's any more
 			return drop()
 		}
-		if from != "" && !sameAddress(channel, from, addr) {
-			refused = noCode // made for another ID of this person: it proves nothing about this one
-			return nil
-		}
 		if at, perr := time.Parse(time.RFC3339Nano, expires); perr != nil || !at.After(s.now()) {
 			refused = fail(http.StatusBadRequest, "code_expired", "This code has expired. Ask for a new code.")
 			return drop()
 		}
 		c := strings.TrimSpace(code)
-		if len(c) != 6 || strings.Trim(c, "0123456789") != "" {
+		if slices.Contains(sendLink, channel) != linkTokenRE.MatchString(c) || (!linkTokenRE.MatchString(c) && (len(c) != 6 || strings.Trim(c, "0123456789") != "")) {
 			refused = fail(http.StatusBadRequest, "invalid_code", "The code is 6 digits.")
 			return nil
 		}
@@ -458,31 +454,31 @@ func (s *Service) confirmCode(ctx context.Context, u User, channel, from, code s
 	return Identity{}, noCode
 }
 
-// showLinkCode makes a code for a sendLink channel and returns it to the signed-in person, who sends it from their own account (the same
-// limits as a mailed code: one a minute, five an hour).
-func (s *Service) showLinkCode(ctx context.Context, u User, channel, addr string) (CodeSent, error) {
+// issueLinkToken makes the token of a confirm link for a sendLink channel (the same limits as a mailed code: one a minute, five an hour);
+// it replaces any token waiting.
+func (s *Service) issueLinkToken(ctx context.Context, u User, channel, addr string) (string, error) {
 	var sent string
 	err := s.cfg.DB.Reader().QueryRowContext(ctx, `SELECT sent_at FROM resp_link_codes WHERE user_id = ? AND channel = ?`, u.ID, channel).Scan(&sent)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
-		return CodeSent{}, fmt.Errorf("response: read link code: %w", err)
+		return "", fmt.Errorf("response: read link code: %w", err)
 	}
 	if at, perr := time.Parse(time.RFC3339Nano, sent); err == nil && perr == nil {
 		if wait := linkCodeResend - s.now().Sub(at); wait > 0 {
 			secs := int((wait + time.Second - 1) / time.Second)
-			return CodeSent{}, fail(http.StatusTooManyRequests, "resend_too_soon", fmt.Sprintf("Wait %d seconds before asking for a new code.", secs)).With("retry_after", secs)
+			return "", fail(http.StatusTooManyRequests, "resend_too_soon", fmt.Sprintf("Wait %d seconds before sending a new link.", secs)).With("retry_after", secs)
 		}
 	}
 	if !s.noteLinkCode(u.ID, channel) {
-		return CodeSent{}, fail(http.StatusTooManyRequests, "too_many_codes", "Too many codes were made in the last hour. Try again later.")
+		return "", fail(http.StatusTooManyRequests, "too_many_codes", "Too many links were made for this person in the last hour. Try again later.")
 	}
-	code, err := newLinkCode()
+	token, err := newLinkToken(u.ID)
 	if err != nil {
-		return CodeSent{}, err
+		return "", err
 	}
-	if err := s.cfg.DB.Write(ctx, func(tx *sql.Tx) error { return s.putCode(ctx, tx, u.ID, channel, addr, code) }); err != nil {
-		return CodeSent{}, err
+	if err := s.cfg.DB.Write(ctx, func(tx *sql.Tx) error { return s.putCode(ctx, tx, u.ID, channel, addr, token) }); err != nil {
+		return "", err
 	}
-	return CodeSent{SentTo: addr, ResendAfter: int(linkCodeResend / time.Second), Code: code}, nil
+	return token, nil
 }
 
 // Unlink is DELETE /response/me/identities/{channel} (operator).
@@ -528,7 +524,7 @@ func (s *Service) chatNotLinked(ctx context.Context, u User, channel, ext, targe
 	name := chatNames[channel]
 	if slices.Contains(sendLink, channel) {
 		_ = s.refuse(ctx, fail(http.StatusForbidden, "approver_not_linked", name+" "+ext+" is not linked to a Vedette account yet"), target, actor)
-		return fail(http.StatusForbidden, "approver_not_linked", "Your "+name+" account is not linked to Vedette yet. Sign in to Vedette, open My account and get a code to send from this account.")
+		return fail(http.StatusForbidden, "approver_not_linked", "Your "+name+" account is not linked to Vedette yet. Open the link Vedette sent to this account and confirm it while signed in to Vedette, or ask your administrator to send it again.")
 	}
 	if !slices.Contains(privateAnswer, channel) {
 		_ = s.refuse(ctx, fail(http.StatusForbidden, "approver_not_linked", name+" "+ext+" is not linked to a Vedette account yet; no code is shown on this channel"), target, actor)
@@ -551,4 +547,73 @@ func (s *Service) chatNotLinked(ctx context.Context, u User, channel, ext, targe
 		return fail(http.StatusForbidden, "approver_not_linked", "Your "+name+" account is not linked to Vedette yet, and too many link codes were made this hour. Approve in Vedette, or try again later.")
 	}
 	return fail(http.StatusForbidden, "approver_not_linked", "Your "+name+" account is not linked to Vedette yet. Sign in to Vedette, open My account and enter code "+code+" within 10 minutes, then press again.")
+}
+
+// ChatLinkToken makes the token of a confirm link for a sendLink channel when an administrator lists the person with that ID (notify sends
+// https://<box>/link/zalo?c=<token> to the ID: Config.LinkCodes, D-447). The token is 128 random bits after the person's hint, single use,
+// valid 10 minutes, kept hashed with (person, channel, address), and only ConfirmLink by that person, signed in, uses it: making it links
+// nothing. The person must be an active operator or admin listed with exactly that address and not linked yet; one a minute and five an
+// hour; a new one replaces the one waiting. name is how the message names the person (their name, else their email).
+func (s *Service) ChatLinkToken(ctx context.Context, userID, channel, address string) (token, name string, err error) {
+	if !s.on() {
+		return "", "", fail(http.StatusServiceUnavailable, "link_unavailable", "Approvers cannot be linked now: the Response module is off.")
+	}
+	if !slices.Contains(sendLink, channel) {
+		return "", "", fail(http.StatusBadRequest, "chat_channel", "This channel is not linked by a confirm link.")
+	}
+	if s.cfg.Users == nil {
+		return "", "", fail(http.StatusNotFound, "not_listed", "This person is not an approver on this channel.")
+	}
+	u, ok, err := s.cfg.Users.Lookup(ctx, userID)
+	if err != nil {
+		return "", "", err
+	}
+	if !ok || u.Disabled || (u.Role != "operator" && u.Role != "admin") {
+		return "", "", fail(http.StatusNotFound, "not_listed", "This person is not an approver on this channel.")
+	}
+	rows, err := s.mine(ctx, u)
+	if err != nil {
+		return "", "", err
+	}
+	i := slices.IndexFunc(rows, func(r Identity) bool { return r.Channel == channel && sameAddress(channel, r.Address, address) })
+	switch {
+	case i < 0:
+		return "", "", fail(http.StatusNotFound, "not_listed", "This person is not listed with this address on the channel. Save the channel first.")
+	case rows[i].Linked:
+		return "", "", fail(http.StatusConflict, "already_linked", "This address is already linked.")
+	}
+	if token, err = s.issueLinkToken(ctx, u, channel, address); err != nil {
+		return "", "", err
+	}
+	if name = strings.TrimSpace(u.Name); name == "" {
+		name = u.Email
+	}
+	return token, name, nil
+}
+
+// DropChatLink ends the person's proof of exactly this address on the channel, and any code waiting for it, when an administrator removes
+// them as an approver or gives them another address (notify Config.LinkCodes, D-447): a proof held to an old address must not count again
+// if the list later names that address once more. Nothing linked is no error. The audit row is response.identity_unlink by the actor.
+func (s *Service) DropChatLink(ctx context.Context, actor, userID, channel, address string) error {
+	s.mu.Lock() // as Unlink: a decision that passed its re-check under the lock runs before the proof goes, never after
+	defer s.mu.Unlock()
+	return s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
+		var got string
+		err := tx.QueryRowContext(ctx, `SELECT address FROM resp_identity WHERE user_id = ? AND channel = ?`, userID, channel).Scan(&got)
+		if errors.Is(err, sql.ErrNoRows) || (err == nil && !sameAddress(channel, got, address)) {
+			_, err = tx.ExecContext(ctx, `DELETE FROM resp_link_codes WHERE user_id = ? AND channel = ? AND address = ?`, userID, channel, address)
+			return err
+		}
+		if err != nil {
+			return fmt.Errorf("response: read identity: %w", err)
+		}
+		if _, err := tx.ExecContext(ctx, `DELETE FROM resp_identity WHERE user_id = ? AND channel = ?`, userID, channel); err != nil {
+			return fmt.Errorf("response: delete identity: %w", err)
+		}
+		if _, err := tx.ExecContext(ctx, `DELETE FROM resp_link_codes WHERE user_id = ? AND channel = ?`, userID, channel); err != nil {
+			return fmt.Errorf("response: delete link code: %w", err)
+		}
+		return s.cfg.Audit.Append(ctx, tx, audit.Entry{User: actor, Action: "response.identity_unlink", Target: channel,
+			Detail: truncRunes(cleanLine(userID+" no longer linked "+address+": an administrator changed the approver list"), 400)})
+	})
 }

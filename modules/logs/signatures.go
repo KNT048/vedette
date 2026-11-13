@@ -114,7 +114,7 @@ func (s *Service) tally(kinds map[string]string, senders map[string]netip.Addr, 
 				b.addrs[bk] = g
 			}
 			g[r.Remote]++
-			if class, user, ok := authLine(r.Signature, l.Text); ok && len(b.auth) < MaxBatch {
+			if class, user, ok := authLine(r.Signature, r.Bounded, l.Text); ok && len(b.auth) < MaxBatch {
 				b.auth = append(b.auth, authObs{l.SourceID, r.Remote, l.At, class, user})
 			}
 		}

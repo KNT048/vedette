@@ -97,7 +97,9 @@ func TestAuthFail_OneAttemptThreeLinesIsOne(t *testing.T) {
 		e.ingest(src,
 			"Nov  9 10:00:00 web1 sshd[1]: Invalid user admin from "+attacker+" port 5",
 			"Nov  9 10:00:00 web1 sshd[1]: pam_unix(sshd:auth): authentication failure; logname= uid=0 euid=0 tty=ssh ruser= rhost="+attacker,
-			failedPassword("admin", attacker))
+			failedPassword("admin", attacker),
+			"Nov  9 10:00:00 web1 sshd[1]: Connection closed by invalid user admin "+attacker+" port 5 [preauth]",
+			"Nov  9 10:00:00 web1 sshd[1]: Disconnected from invalid user admin "+attacker+" port 5 [preauth]")
 	}
 	if len(p.summaries) != 0 {
 		t.Fatalf("3 attempts made %d incidents", len(p.summaries))
@@ -156,7 +158,7 @@ func TestAuthFail_Bounds(t *testing.T) {
 	if len(p.summaries) != AuthEventsPerHour {
 		t.Fatalf("hourly budget: %d incidents, want %d", len(p.summaries), AuthEventsPerHour)
 	}
-	if got := userAfter("Failed password for root from x", "failed password for root from x", "failed password for"); got != "root" {
+	if got := userAfter("Failed password for root from x", "Failed password for "); got != "root" {
 		t.Fatalf("userAfter = %q", got)
 	}
 }
@@ -167,10 +169,114 @@ func TestAuthFail_WindowsEventIDs(t *testing.T) {
 	e := newEnv(t)
 	line := "<14>Nov  9 10:00:00 SRV-AD Microsoft-Windows-Security-Auditing: 4625: An account failed to log on. Logon Type: 3 Source Network Address: 203.0.113.50"
 	r := e.svc.sigs.Of("windows", line)
-	if class, _, ok := authLine(r.Signature, line); !ok || class != authPassword {
+	if class, _, ok := authLine(r.Signature, r.Bounded, line); !ok || class != authPassword {
 		t.Fatalf("4625 = %q, class %d ok %v", r.Signature, class, ok)
 	}
-	if class, _, ok := authLine("4624: Successful logon", ""); !ok || class != -1 {
+	if class, _, ok := authLine("4624: Successful logon", true, ""); !ok || class != -1 {
 		t.Fatal("4624 is an accepted login")
+	}
+}
+
+// The phrases of a login line count only when sshd (or PAM's service) writes them at the start of the message: a visitor's User-Agent or an
+// account name can hold any words, and anyone on the Internet must not be able to make an incident, least of all an "accepted" one.
+func TestAuthFail_OnlySshdSaysItIsALogin(t *testing.T) {
+	t.Parallel()
+	e, src, p := authEnv(t)
+	const v = "203.0.113.7"
+	for range 6 {
+		e.ingest(src,
+			v+` - - [09/Nov/2026:10:00:00 +0000] "GET / HTTP/1.1" 200 5 "-" "Failed password for root"`,
+			`<190>Nov  9 10:00:00 web nginx: `+v+` - - [09/Nov/2026:10:00:00 +0000] "GET / HTTP/1.1" 200 5 "-" "Failed password for root"`,
+			`<190>Nov  9 10:00:00 web nginx: `+v+` - - [09/Nov/2026:10:00:00 +0000] "GET / HTTP/1.1" 200 5 "-" "Invalid user root"`,
+			`<38>Nov  9 10:00:00 web sudo: Failed password for root from `+v+` port 5 ssh2`)
+	}
+	e.ingest(src, `<190>Nov  9 10:00:00 web nginx: `+v+` - - [09/Nov/2026:10:00:00 +0000] "GET / HTTP/1.1" 200 5 "-" "Accepted password for root from `+v+`"`)
+	if len(p.summaries) != 0 {
+		t.Fatalf("a web log made %d incidents: %+v", len(p.summaries), p.summaries)
+	}
+	for range 5 { // the real thing, in an RFC 5424 header
+		e.ingest(src, "<38>1 2026-11-09T10:00:00Z web sshd 123 - - Failed password for root from "+v+" port 5 ssh2")
+	}
+	if len(p.summaries) != 1 {
+		t.Fatalf("sshd in RFC 5424: %d incidents, want 1", len(p.summaries))
+	}
+}
+
+// The hourly budget never cuts the incident that says a login was accepted; a medium one that it cut opens again at the next failure.
+func TestAuthFail_BudgetNeverCutsAnAcceptedLogin(t *testing.T) {
+	t.Parallel()
+	e, src, p := authEnv(t)
+	e.advance(55 * time.Minute) // five minutes to the next clock hour, inside the counting window
+	ips := make([]string, AuthEventsPerHour+1)
+	for i := range ips {
+		ips[i] = fmt.Sprintf("203.0.113.%d", i+10)
+		for range 5 {
+			e.ingest(src, failedPassword("x", ips[i]))
+		}
+	}
+	if len(p.summaries) != AuthEventsPerHour {
+		t.Fatalf("%d incidents, want %d", len(p.summaries), AuthEventsPerHour)
+	}
+	e.ingest(src, "Nov  9 10:01:00 web1 sshd[9]: Accepted password for root from "+ips[0]+" port 5 ssh2")
+	if n := len(p.summaries); n != AuthEventsPerHour+1 || p.summaries[n-1].Severity != "high" {
+		t.Fatalf("the accepted login was not announced: %d incidents", len(p.summaries))
+	}
+	e.advance(6 * time.Minute)
+	e.ingest(src, failedPassword("x", ips[AuthEventsPerHour]))
+	if n := len(p.summaries); n != AuthEventsPerHour+2 || !strings.Contains(p.summaries[n-1].Target, ips[AuthEventsPerHour]) {
+		t.Fatalf("the cut incident did not open again: %d incidents", len(p.summaries))
+	}
+}
+
+// A table full of one-line addresses does not blind the rule; a pair that never reached an incident goes after the window; an IPv6 host
+// is one pair by its /64.
+func TestAuthFail_TableFullQuietPairsAndIPv6(t *testing.T) {
+	t.Parallel()
+	e, src, p := authEnv(t)
+	for batch := range MaxAuthTracked/500 + 1 {
+		var texts []string
+		for i := range 500 {
+			n := batch*500 + i
+			texts = append(texts, failedPassword("x", fmt.Sprintf("100.%d.%d.%d", 64+n/65536, n/256%256, n%256)))
+		}
+		e.ingest(src, texts...)
+		e.advance(time.Second)
+	}
+	if got := len(e.svc.auth); got != MaxAuthTracked {
+		t.Fatalf("pairs followed = %d, want the table full (%d)", got, MaxAuthTracked)
+	}
+	for range 5 {
+		e.ingest(src, failedPassword("root", attacker))
+	}
+	if len(p.summaries) != 1 || p.summaries[0].Target != "auth:"+attacker {
+		t.Fatalf("a real attacker behind a full table: %+v", p.summaries)
+	}
+	e.advance(AuthFailWindow + time.Minute)
+	e.ingest(src, failedPassword("x", "198.51.100.1"))
+	if got := len(e.svc.auth); got != 2 { // the attacker (an incident is open) and the new line
+		t.Fatalf("quiet pairs after the window: %d followed, want 2", got)
+	}
+	for i := range 5 {
+		e.ingest(src, failedPassword("x", fmt.Sprintf("2001:db8:1:2::%x", i+1)))
+	}
+	if n := len(p.summaries); n != 2 || p.summaries[1].Target != "auth:2001:db8:1:2::/64" {
+		t.Fatalf("IPv6 per /64: %+v", p.summaries)
+	}
+}
+
+// An incident that opens with an accepted login in it has the "accepted" target: the target of the failures may be an open incident that
+// would absorb it.
+func TestAuthFail_AcceptedFirstIncidentHasItsOwnTarget(t *testing.T) {
+	t.Parallel()
+	e, src, p := authEnv(t)
+	for range 5 {
+		e.ingest(src, failedPassword("root", attacker))
+	}
+	e.advance(AuthDedupe)
+	e.ingest(src, failedPassword("root", attacker), failedPassword("root", attacker),
+		"Nov  9 11:00:00 web1 sshd[9]: Accepted password for root from "+attacker+" port 5 ssh2",
+		failedPassword("root", attacker), failedPassword("root", attacker), failedPassword("root", attacker))
+	if n := len(p.summaries); n != 2 || p.summaries[1].Severity != "high" || p.summaries[1].Target != "auth:"+attacker+" accepted" {
+		t.Fatalf("incidents: %+v", p.summaries)
 	}
 }

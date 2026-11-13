@@ -2,7 +2,6 @@ package feeds
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"strings"
 	"time"
@@ -102,27 +101,31 @@ func (s *Store) pendingDevices(ctx context.Context) ([]string, error) {
 	return out, rows.Err()
 }
 
-// HaveSince maps the product key of every "I have this" answer that declared a device (S-FEED-2) to the CISA date its alerts
-// start from: the date of the entry the person answered, that is the newest entry of the product added on or before the
-// answer. findings matches a version-less product of that key only against entries of that date or later, so "I have
-// this" means "alert me about this product", not "I have every flaw of it since 2009" (D-484).
-func (s *Store) HaveSince(ctx context.Context) (map[string]time.Time, error) {
-	rows, err := s.db.Reader().QueryContext(ctx, `SELECT a.key, max(v.date_added) FROM feeds_weekly_answer a
-		JOIN feeds_vuln v ON v.product_key = a.key AND v.source_id = 'cisa-kev' AND v.date_added <= substr(a.answered_at, 1, 10)
-		WHERE a.device_added = 1 GROUP BY a.key`)
+// Have is the "I have this" scope of one declared device (D-484): its version-less software of KEV key Key is matched
+// from the CISA date Since on.
+type Have struct {
+	Key   string
+	Since time.Time
+}
+
+// HaveSince maps each device an "I have this" answer declared (S-FEED-2) to its scope: the answered product and the date
+// a week before the answered entry (HaveWindow), set by the first "have". Only answers that are still "have" and whose
+// device the inventory named count; findings scopes that one device, never the product on other devices.
+func (s *Store) HaveSince(ctx context.Context) (map[string]Have, error) {
+	rows, err := s.db.Reader().QueryContext(ctx, `SELECT device_id, key, have_since FROM feeds_weekly_answer
+		WHERE answer = 'have' AND device_id IS NOT NULL AND have_since IS NOT NULL`)
 	if err != nil {
 		return nil, fmt.Errorf("feeds: read answered products: %w", err)
 	}
 	defer func() { _ = rows.Close() }()
-	out := map[string]time.Time{}
+	out := map[string]Have{}
 	for rows.Next() {
-		var k string
-		var d sql.NullString
-		if err := rows.Scan(&k, &d); err != nil {
+		var id, key, since string
+		if err := rows.Scan(&id, &key, &since); err != nil {
 			return nil, fmt.Errorf("feeds: read answered products: %w", err)
 		}
-		if t, err := time.Parse(time.DateOnly, d.String); err == nil {
-			out[k] = t
+		if t, err := time.Parse(time.DateOnly, since); err == nil {
+			out[id] = Have{Key: key, Since: t}
 		}
 	}
 	return out, rows.Err()

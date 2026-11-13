@@ -62,8 +62,11 @@ func (a feedsInventory) MatchProducts(ctx context.Context, products []feeds.Prod
 	return out, nil
 }
 
-func (a feedsInventory) AddManualDevice(ctx context.Context, tx *sql.Tx, actor string, d feeds.ManualDevice) error {
-	return a.inv.AddManualDevice(ctx, tx, actor, inventory.ManualDevice{Kind: d.Kind, Vendor: d.Vendor, Product: d.Product, Display: d.Display, Key: d.Key})
+// AddManualDevice declares the "I have this" device. inventory does not return the new device's id yet, so the id is ""
+// and the "I have this" scope of findings (D-484, INV-11) stays off: no CVE is hidden on any device. Once
+// inventory.AddManualDevice returns the id (Kiên, .ai/deferred/fix-findings-walk1-mlee.md), return it here.
+func (a feedsInventory) AddManualDevice(ctx context.Context, tx *sql.Tx, actor string, d feeds.ManualDevice) (string, error) {
+	return "", a.inv.AddManualDevice(ctx, tx, actor, inventory.ManualDevice{Kind: d.Kind, Vendor: d.Vendor, Product: d.Product, Display: d.Display, Key: d.Key})
 }
 
 func (a feedsInventory) Settle(ctx context.Context, tx *sql.Tx, committed bool) {
@@ -204,6 +207,21 @@ func (a findingsFeeds) Vulns(ctx context.Context) ([]findings.Vuln, error) {
 	return out, nil
 }
 
+// findingsHave is feeds' "I have this" scopes, by declared device, as findings reads them (INV-11, D-484).
+func findingsHave(st *feeds.Store) func(ctx context.Context) (map[string]findings.Have, error) {
+	return func(ctx context.Context) (map[string]findings.Have, error) {
+		got, err := st.HaveSince(ctx)
+		if err != nil {
+			return nil, err
+		}
+		out := make(map[string]findings.Have, len(got))
+		for id, h := range got {
+			out[id] = findings.Have{Key: h.Key, Since: h.Since}
+		}
+		return out, nil
+	}
+}
+
 // findingsPublisher puts findings events on the bus.
 type findingsPublisher struct{ bus *events.Bus }
 
@@ -287,7 +305,7 @@ func buildServices(ctx context.Context, d *deps) error {
 	feed := findingsFeeds{fs.Store()}
 	// Backlog: findings the reconcile job creates for old KEV entries are D-78 backlog, silent for notify (findings does not import notify).
 	cfg := findings.ServiceConfig{DB: d.DB, Audit: d.Audit, Inventory: inv, Feeds: feed, Log: d.Log, Clock: d.Clock, Backlog: notify.WithBaseline,
-		HaveSince: fs.Store().HaveSince} // "I have this" on Home alerts from the answered entry on (D-484)
+		HaveSince: findingsHave(fs.Store())} // "I have this" on Home scopes the one device it declared (D-484)
 	if d.Bus != nil {
 		cfg.Publisher = findingsPublisher{d.Bus}
 	}

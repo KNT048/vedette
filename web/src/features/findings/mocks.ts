@@ -184,7 +184,7 @@ export const handlers = [
     return HttpResponse.json(detail(find(f.id)!))
   }),
 
-  // Một hành động, một ghi chú cho nhiều phát hiện (W1-12, INV-10): tất cả hoặc không gì; mỗi phát hiện một dòng lịch sử và kiểm toán.
+  // Một hành động, một ghi chú cho các phát hiện đang mở (W1-12, INV-10): tất cả hoặc không gì; mỗi phát hiện một dòng lịch sử và kiểm toán; phát hiện đã đóng được đếm và bỏ qua.
   http.post(`${API}/findings/status`, async ({ request }) => {
     const denied = guard('operator'); if (denied) return denied
     const b = await body<{ ids: string[]; action: StatusAction; note: string }>(request)
@@ -197,12 +197,14 @@ export const handlers = [
     if (ids.some((id) => !find(id))) return fail(404, 'not_found', 'No such finding.')
     const ts = nowIso()
     const user = who()
+    let skipped = 0
     for (const id of ids) {
       const f = find(id)!
+      if (f.status !== 'confirmed' && f.status !== 'suspected') { skipped++; continue } // a closed finding keeps its reason
       patch(id, (x) => ({ ...x, status: b.action as Finding['status'], resolved_by: user, resolved_at: ts, resolution_note: note || null, history: [...x.history, { ts, user, action: b.action as string, note: note || undefined }] }))
       audit('findings.status', id, `${f.cve} → ${b.action}${note ? `: ${note}` : ''}`)
     }
-    return HttpResponse.json({ updated: ids.length })
+    return HttpResponse.json({ updated: ids.length - skipped, skipped })
   }),
 
   // "Đã áp dụng": ghi nhật ký, không tự đổi trạng thái; chỉ quét lại mới xác nhận đã hết.

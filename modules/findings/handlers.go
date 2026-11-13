@@ -176,8 +176,8 @@ func (h *FindingHandlers) FindingsPostFindingsIDStatus(ctx context.Context, req 
 	return Into[oas.FindingsPostFindingsIDStatusOK](d)
 }
 
-// FindingsPostFindingsStatus implements findings_post_findings_status (operator): one action and one note for up to
-// MaxBulk findings, one history and audit row each, all or nothing (INV-10).
+// FindingsPostFindingsStatus implements findings_post_findings_status (operator): one action and one note for the open
+// findings among up to MaxBulk ids, one history and audit row each, all or nothing; closed ones are skipped (INV-10).
 func (h *FindingHandlers) FindingsPostFindingsStatus(ctx context.Context, req *oas.FindingsPostFindingsStatusReq) (*oas.FindingsPostFindingsStatusOK, error) {
 	p, ok := server.PrincipalFrom(ctx)
 	if !ok {
@@ -186,11 +186,11 @@ func (h *FindingHandlers) FindingsPostFindingsStatus(ctx context.Context, req *o
 	if strings.ContainsRune(req.Note, 0) {
 		return nil, apierr.Invalid("The note contains a character that is not allowed.")
 	}
-	n, err := h.svc.SetStatusMany(ctx, req.Ids, Action(req.Action), req.Note, p.Email)
+	n, skipped, err := h.svc.SetStatusMany(ctx, req.Ids, Action(req.Action), req.Note, p.Email)
 	if err != nil {
 		return nil, ToAPIError(err)
 	}
-	return &oas.FindingsPostFindingsStatusOK{Updated: n}, nil
+	return &oas.FindingsPostFindingsStatusOK{Updated: n, Skipped: skipped}, nil
 }
 
 // Guidance is the optional "What to do" provider. mitigation registers one with FindingHandlers.SetGuidance

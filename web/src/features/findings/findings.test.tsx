@@ -365,6 +365,22 @@ describe('findings: customer walk 1 (D-484)', () => {
     expect(auditStore.get().filter((a) => a.action === 'findings.status')).toHaveLength(3)
   })
 
+  it('W1-12: a closed finding in the selection keeps its status and reason; the toast says so', async () => {
+    findingsStore.update((l) => l.map((f) => (f.id === 'f-1' ? { ...f, status: 'patched' as const, resolution_note: 'Updated to 6.1.2' } : f)))
+    renderApp('/findings')
+    await screen.findByRole('table', { name: 'Findings list' })
+    await userEvent.click(screen.getByRole('button', { name: 'All' }))
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Select all 3 findings shown' }))
+    await userEvent.click(within(screen.getByRole('region', { name: 'Selected findings' })).getByRole('button', { name: 'Mark as handled' }))
+    const dlg = await screen.findByRole('dialog', { name: 'Mark 3 findings as handled' })
+    await userEvent.click(within(dlg).getByRole('radio', { name: /Not relevant/ }))
+    await userEvent.type(within(dlg).getByLabelText('Note: why (required)'), 'Retired next month')
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Save status for 3 findings' }))
+    expect(await screen.findByText('Status saved for 2 findings. 1 was already closed and kept its status.')).toBeInTheDocument()
+    const f1 = findingsStore.get().find((f) => f.id === 'f-1')!
+    expect([f1.status, f1.resolution_note]).toEqual(['patched', 'Updated to 6.1.2'])
+  })
+
   it('W1-2, W1-32: a device with no IP is named, says "No IP address" and offers no rescan', async () => {
     assetsStore.update((l) => l.map((a) => (a.id === 'a-web01' ? { ...a, ip: '—', hostname: null } : a)))
     renderApp('/findings/f-2')

@@ -1,47 +1,67 @@
 package findings
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"testing"
 	"time"
 )
 
-// D-484 (customer walk 1, W1-3): "I have this" on Home means "alert me about this product": a version-less product of
-// the answered key matches the answered entry and newer ones, never the product's whole history.
-func TestHaveScope_VersionlessAnsweredProductMatchesFromTheAnsweredEntryOn(t *testing.T) {
+// D-484 (customer walk 1, W1-3): "I have this" on Home means "alert me about this product" for the ONE device it
+// declared: there a version-less row of the answered key matches entries from the scope's date on. The same product on
+// any other device (found by a scan, added from the catalog) is matched as before: nothing is hidden there.
+func TestHaveScope_OnlyTheDeclaredDeviceIsScoped(t *testing.T) {
 	t.Parallel()
 	day := func(s string) time.Time { d, _ := time.Parse(time.DateOnly, s); return d }
-	vulns := []Vuln{
+	e := newEnv(t)
+	e.feeds.vulns = []Vuln{
 		{CVE: "CVE-2009-0556", Vendor: "QNAP", Product: "Photo Station", DateAdded: day("2022-03-03")},
-		{CVE: "CVE-2026-21509", Vendor: "QNAP", Product: "Photo Station", DateAdded: day("2026-11-01")},
-		{CVE: "CVE-2026-30000", Vendor: "QNAP", Product: "Photo Station", DateAdded: day("2026-11-12")},
-		{CVE: "CVE-2026-30001", Vendor: "QNAP", Product: "Photo Station"}, // no date: kept
+		{CVE: "CVE-2026-21508", Vendor: "QNAP", Product: "Photo Station", DateAdded: day("2026-10-27")}, // same week, earlier
+		{CVE: "CVE-2026-21509", Vendor: "QNAP", Product: "Photo Station", DateAdded: day("2026-11-01")}, // the answered one
+		{CVE: "CVE-2026-30001", Vendor: "QNAP", Product: "Photo Station"},                               // no date: kept
 	}
-	since := map[string]time.Time{"qnap|photo station": day("2026-11-01")}
-	cves := func(ms []Match) []string {
-		var out []string
-		for _, m := range ms {
-			out = append(out, m.CVE)
+	declared := Asset{ID: "a-declared", Name: "QNAP", Software: nas("").Software}
+	e.inv.match["a-declared"] = declared
+	e.svc.cfg.HaveSince = func(context.Context) (map[string]Have, error) {
+		return map[string]Have{"a-declared": {Key: "QNAP|Photo Station", Since: day("2026-11-01").AddDate(0, 0, -7)}}, nil
+	}
+	cves := func(asset string) string {
+		t.Helper()
+		rows, err := e.db.Reader().QueryContext(t.Context(), `SELECT cve FROM fnd_finding WHERE asset_id = ? ORDER BY cve`, asset)
+		if err != nil {
+			t.Fatal(err)
 		}
-		return out
+		defer func() { _ = rows.Close() }()
+		var out []string
+		for rows.Next() {
+			var c string
+			if err := rows.Scan(&c); err != nil {
+				t.Fatal(err)
+			}
+			out = append(out, c)
+		}
+		return fmt.Sprint(out)
 	}
-	got := haveScope(nas(""), vulns, MatchAsset(nas(""), vulns, nil, t0), since)
-	if want := "[CVE-2026-21509 CVE-2026-30000 CVE-2026-30001]"; fmt.Sprint(cves(got.New)) != want {
-		t.Fatalf("version-less: %v, want %v", cves(got.New), want)
+	for _, id := range []string{"a-1", "a-declared"} {
+		if _, err := e.svc.OnMatchChanged(t.Context(), id); err != nil {
+			t.Fatal(err)
+		}
 	}
-	// An existing finding out of scope is no longer produced (the service then notes no_longer_matches, never closes it).
-	got = haveScope(nas(""), vulns, MatchAsset(nas(""), vulns, map[string]bool{"CVE-2009-0556": true}, t0), since)
-	if len(got.Existing) != 0 {
-		t.Fatalf("existing out of scope kept: %v", cves(got.Existing))
+	if got, want := cves("a-declared"), "[CVE-2026-21508 CVE-2026-21509 CVE-2026-30001]"; got != want {
+		t.Errorf("declared device: %s, want %s", got, want)
+	}
+	if got, want := cves("a-1"), "[CVE-2009-0556 CVE-2026-21508 CVE-2026-21509 CVE-2026-30001]"; got != want {
+		t.Errorf("the same product on another device was scoped: %s, want %s", got, want)
 	}
 	// With a version the version decides, not the answer on Home.
-	if got := haveScope(nas("6.1"), vulns, MatchAsset(nas("6.1"), vulns, nil, t0), since); len(got.New) != 4 {
-		t.Fatalf("with a version: %v", cves(got.New))
+	if got := haveScope(nas("6.1"), e.feeds.vulns, MatchAsset(nas("6.1"), e.feeds.vulns, nil, t0), map[string]Have{"a-1": {Key: "qnap|photo station", Since: day("2026-11-01")}}); len(got.New) != 4 {
+		t.Fatalf("with a version: %+v", got.New)
 	}
 }
 
-// W1-12: one action and one note for many findings; each gets its own history, audit row and event; all or nothing.
+// W1-12: one action and one note for the open findings among many; each gets its own history, audit row and event; a
+// closed one is skipped with its reason kept; all or nothing.
 func TestSetStatusMany_OneRowEachAllOrNothing(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
@@ -70,20 +90,25 @@ func TestSetStatusMany_OneRowEachAllOrNothing(t *testing.T) {
 				c.ids[i] = fmt.Sprintf("f-%d", i)
 			}
 		}
-		if _, err := e.svc.SetStatusMany(t.Context(), c.ids, c.action, c.note, "it@acme.example"); !errors.Is(err, c.want) {
+		if _, _, err := e.svc.SetStatusMany(t.Context(), c.ids, c.action, c.note, "it@acme.example"); !errors.Is(err, c.want) {
 			t.Errorf("%s: err = %v, want %v", c.name, err, c.want)
 		}
 	}
 	if e.count(`SELECT count(*) FROM core_audit`) != before || e.count(`SELECT count(*) FROM fnd_finding WHERE status = 'suspected'`) != 2 || len(e.pub.take()) != 0 {
 		t.Fatal("a refused bulk change wrote something")
 	}
-	n, err := e.svc.SetStatusMany(t.Context(), append(res.Created, res.Created[0]), ActionFalsePositive, "iPhone on guest Wi-Fi", "it@acme.example")
-	if err != nil || n != 2 {
-		t.Fatalf("bulk = %d %v", n, err)
+	if _, err := e.svc.SetStatus(t.Context(), res.Created[1], ActionPatched, "updated to 6.1.2", "it@acme.example"); err != nil {
+		t.Fatal(err)
 	}
-	if e.count(`SELECT count(*) FROM fnd_finding WHERE status = 'false_positive' AND resolution_note = 'iPhone on guest Wi-Fi'`) != 2 ||
-		e.count(`SELECT count(*) FROM core_audit WHERE action = 'findings.status'`) != 2 || len(e.pub.take()) != 2 {
-		t.Fatal("each finding needs its own status, audit row and event")
+	e.pub.take()
+	n, skipped, err := e.svc.SetStatusMany(t.Context(), append(res.Created, res.Created[0]), ActionFalsePositive, "iPhone on guest Wi-Fi", "it@acme.example")
+	if err != nil || n != 1 || skipped != 1 {
+		t.Fatalf("bulk = %d changed, %d skipped, %v", n, skipped, err)
+	}
+	if e.count(`SELECT count(*) FROM fnd_finding WHERE status = 'false_positive' AND resolution_note = 'iPhone on guest Wi-Fi'`) != 1 ||
+		e.count(`SELECT count(*) FROM fnd_finding WHERE status = 'patched' AND resolution_note = 'updated to 6.1.2'`) != 1 ||
+		e.count(`SELECT count(*) FROM core_audit WHERE action = 'findings.status'`) != 2 || len(e.pub.take()) != 1 {
+		t.Fatal("an open finding gets its own status, audit row and event; a closed one keeps its reason")
 	}
 }
 

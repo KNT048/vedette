@@ -217,11 +217,13 @@
     "clear": "Clear selection",
     "title_one": "Mark {{count}} finding as handled",
     "title_other": "Mark {{count}} findings as handled",
-    "description": "One status and one note for every selected finding. Each finding keeps its own history line, so others can see who changed it and why.",
+    "description": "One status and one note for every selected open finding. Findings already closed keep their status and note. Each finding keeps its own history line, so others can see who changed it and why.",
     "noteHint": "The same note is saved on each finding.",
     "submit_one": "Save status for {{count}} finding",
     "submit_other": "Save status for {{count}} findings",
     "done_one": "Status saved for {{count}} finding",
-    "done_other": "Status saved for {{count}} findings"
+    "done_other": "Status saved for {{count}} findings",
+    "skipped_one": "{{count}} was already closed and kept its status.",
+    "skipped_other": "{{count}} were already closed and kept their status."
   }
 }

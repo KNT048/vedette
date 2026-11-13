@@ -1,32 +1,49 @@
 package feeds
 
 import (
-	"database/sql"
 	"testing"
 	"time"
 )
 
-// D-484 (W1-3): "I have this" alerts from the entry the person answered: the newest CISA entry of the product added on or
-// before the answer. Later entries do not move it; an answer that declared no device gives no scope.
-func TestHaveSince_IsTheAnsweredEntrysDate(t *testing.T) {
+// D-484 (W1-3): "I have this" scopes the one device it declared, from a week before the answered entry (the "This week"
+// window, so that week's other entries of the product count). The first "have" sets the date; a later answer never moves
+// it, and while the answer is "not relevant" there is no scope.
+func TestHaveSince_FirstHaveScopesTheDeclaredDevice(t *testing.T) {
 	t.Parallel()
-	s, db := newStore(t)
-	write(t, db, func(tx *sql.Tx) error {
-		for _, v := range []struct{ cve, added string }{{"CVE-2009-0556", "2022-03-03"}, {"CVE-2026-21509", "2026-11-01"}, {"CVE-2026-30000", "2026-11-10"}} {
-			if _, err := tx.ExecContext(t.Context(), `INSERT INTO feeds_vuln (cve, vendor, product, product_key, name, description, required_action, links, date_added, due_date, ransomware, has_template, source_id, updated_at)
-				VALUES (?, 'Microsoft', 'Office', 'microsoft|office', 'n', 'd', 'a', '[]', ?, NULL, 0, 0, 'cisa-kev', '2026-11-12T00:00:00.000Z')`, v.cve, v.added); err != nil {
-				return err
-			}
+	e := newEnv(t)
+	e.loadKEV()
+	id := "synology%7Cdiskstation%20manager"
+	post := func(answer string) {
+		t.Helper()
+		if c, b, _ := e.do("POST", "/feeds/weekly/"+id, "operator", `{"answer":"`+answer+`"}`); c != 200 {
+			t.Fatalf("%s: %d %v", answer, c, b)
 		}
-		_, err := tx.ExecContext(t.Context(), `INSERT INTO feeds_weekly_answer (key, answer, user_id, answered_at, device_added) VALUES
-			('microsoft|office', 'have', 'u-1', '2026-11-05T09:00:00.000Z', 1), ('cisco|broadworks', 'have', 'u-1', '2026-11-05T09:00:00.000Z', 0)`)
-		return err
-	})
-	got, err := s.HaveSince(t.Context())
-	if err != nil {
+	}
+	var added string
+	if err := e.db.Reader().QueryRowContext(t.Context(), `SELECT max(date_added) FROM feeds_vuln WHERE product_key = 'synology|diskstation manager'`).Scan(&added); err != nil {
 		t.Fatal(err)
 	}
-	if want := time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC); len(got) != 1 || !got["microsoft|office"].Equal(want) {
-		t.Fatalf("HaveSince = %v, want microsoft|office from %v only", got, want)
+	d, _ := time.Parse(time.DateOnly, added)
+	want := Have{Key: "synology|diskstation manager", Since: d.Add(-HaveWindow)}
+	read := func() map[string]Have {
+		t.Helper()
+		got, err := e.svc.Store().HaveSince(t.Context())
+		if err != nil {
+			t.Fatal(err)
+		}
+		return got
+	}
+	post("have")
+	if got := read(); len(got) != 1 || got["a-declared-1"] != want {
+		t.Fatalf("after have: %v, want a-declared-1 %v", got, want)
+	}
+	e.setNow(e.clock().Add(30 * 24 * time.Hour))
+	post("not_relevant")
+	if got := read(); len(got) != 0 {
+		t.Fatalf("not relevant still scopes: %v", got)
+	}
+	post("have")
+	if got := read(); len(got) != 1 || got["a-declared-1"] != want || len(e.inv.added) != 1 {
+		t.Fatalf("a later have moved the scope: %v (%d devices)", got, len(e.inv.added))
 	}
 }

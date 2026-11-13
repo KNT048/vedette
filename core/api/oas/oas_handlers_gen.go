@@ -20815,8 +20815,8 @@ func (s *Server) handleFindingsPostFindingsIDStatusRequest(args [1]string, argsE
 
 // handleFindingsPostFindingsStatusRequest handles findings_post_findings_status operation.
 //
-// Change the status of several findings at once with one note (at most 500); one history and audit row
-// per finding, all or nothing.
+// Change the status of the open findings among the ids (at most 500) with one note; one history and
+// audit row per finding, all or nothing; closed findings are skipped.
 //
 // POST /findings/status
 func (s *Server) handleFindingsPostFindingsStatusRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -20900,7 +20900,7 @@ func (s *Server) handleFindingsPostFindingsStatusRequest(args [0]string, argsEsc
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    FindingsPostFindingsStatusOperation,
-			OperationSummary: "Change the status of several findings at once with one note (at most 500); one history and audit row per finding, all or nothing",
+			OperationSummary: "Change the status of the open findings among the ids (at most 500) with one note; one history and audit row per finding, all or nothing; closed findings are skipped",
 			OperationID:      "findings_post_findings_status",
 			Body:             request,
 			RawBody:          rawBody,

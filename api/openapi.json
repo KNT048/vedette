@@ -30739,7 +30739,7 @@
     "/findings/status": {
       "post": {
         "operationId": "findings_post_findings_status",
-        "summary": "Change the status of several findings at once with one note (at most 500); one history and audit row per finding, all or nothing",
+        "summary": "Change the status of the open findings among the ids (at most 500) with one note; one history and audit row per finding, all or nothing; closed findings are skipped",
         "tags": [
           "findings"
         ],
@@ -30799,11 +30799,19 @@
                     "updated": {
                       "type": "integer",
                       "minimum": -9007199254740991,
-                      "maximum": 9007199254740991
+                      "maximum": 9007199254740991,
+                      "description": "Open findings changed"
+                    },
+                    "skipped": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991,
+                      "description": "Findings already closed, left as they were"
                     }
                   },
                   "required": [
-                    "updated"
+                    "updated",
+                    "skipped"
                   ],
                   "additionalProperties": false
                 }

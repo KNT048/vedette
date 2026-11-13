@@ -137,7 +137,7 @@ function Aside({ f }: { f: FindingDetail }) {
         <h2 id="dev-title" className="text-base font-semibold">{t('aside.device')}</h2>
         {f.asset ? (
           <Panel className="grid gap-1 p-4 text-sm">
-            <Link to={`/devices/${f.asset.id}`} className="w-fit font-medium text-accent underline-offset-4 hover:underline">{deviceName(f.asset, t('removedDevice'))}</Link>
+            <Link to={`/devices/${f.asset.id}`} title={deviceName(f.asset, t('removedDevice'))} className="w-fit font-medium text-accent underline-offset-4 [overflow-wrap:anywhere] hover:underline">{deviceName(f.asset, t('removedDevice'))}</Link>
             <span className="text-muted">{hasIp(f.asset) ? f.asset.ip : t('noIp')}</span>
             <span>{f.asset.display}</span>
           </Panel>
@@ -172,7 +172,7 @@ function Detail({ f }: { f: FindingDetail }) {
   return (
     <>
       <PageHeader
-        title={t(`headline.${f.status}`, { device: name, cve: f.cve })}
+        title={<span className="[overflow-wrap:anywhere]">{t(`headline.${f.status}`, { device: name, cve: f.cve })}</span>}
         stories={['S-MIT-1', 'S-MIT-3', 'S-SCAN-3', 'S-AI-2']}
         meta={
           <span className="flex flex-wrap items-center gap-x-2 gap-y-1.5">

@@ -130325,13 +130325,18 @@ func (s *FindingsPostFindingsStatusOK) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *FindingsPostFindingsStatusOK) encodeFields(e *jx.Encoder) {
 	{
+		e.FieldStart("skipped")
+		e.Int(s.Skipped)
+	}
+	{
 		e.FieldStart("updated")
 		e.Int(s.Updated)
 	}
 }
 
-var jsonFieldsNameOfFindingsPostFindingsStatusOK = [1]string{
-	0: "updated",
+var jsonFieldsNameOfFindingsPostFindingsStatusOK = [2]string{
+	0: "skipped",
+	1: "updated",
 }
 
 // Decode decodes FindingsPostFindingsStatusOK from json.
@@ -130343,8 +130348,20 @@ func (s *FindingsPostFindingsStatusOK) Decode(d *jx.Decoder) error {
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "updated":
+		case "skipped":
 			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Int()
+				s.Skipped = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"skipped\"")
+			}
+		case "updated":
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				v, err := d.Int()
 				s.Updated = int(v)
@@ -130365,7 +130382,7 @@ func (s *FindingsPostFindingsStatusOK) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000001,
+		0b00000011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.

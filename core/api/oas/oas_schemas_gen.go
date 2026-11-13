@@ -63329,12 +63329,25 @@ func (s *FindingsPostFindingsIDStatusReqAction) UnmarshalText(data []byte) error
 }
 
 type FindingsPostFindingsStatusOK struct {
+	// Findings already closed, left as they were.
+	Skipped int `json:"skipped"`
+	// Open findings changed.
 	Updated int `json:"updated"`
+}
+
+// GetSkipped returns the value of Skipped.
+func (s *FindingsPostFindingsStatusOK) GetSkipped() int {
+	return s.Skipped
 }
 
 // GetUpdated returns the value of Updated.
 func (s *FindingsPostFindingsStatusOK) GetUpdated() int {
 	return s.Updated
+}
+
+// SetSkipped sets the value of Skipped.
+func (s *FindingsPostFindingsStatusOK) SetSkipped(val int) {
+	s.Skipped = val
 }
 
 // SetUpdated sets the value of Updated.

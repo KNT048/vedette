@@ -51,7 +51,7 @@
   },
   "weekly": {
     "title": "This week in plain words",
-    "description": "What is under attack, in plain words. Click \"I have this\" to get alerts for that product: this flaw and every new one from now on. Older flaws of the product are not listed unless you add the product with its version to a device.",
+    "description": "What is under attack, in plain words. Click \"I have this\" to get alerts for that product: this flaw and every new one from now on. Add the product with its version to the right device for an exact check.",
     "have": "I have this",
     "notRelevant": "Not relevant",
     "added": "Alerts on for this product",

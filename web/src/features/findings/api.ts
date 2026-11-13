@@ -33,7 +33,7 @@ export const useAskAi = (id: string) =>
 export function useBulkStatus() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (v: { ids: string[]; action: BulkAction; note: string }) => api.post<{ updated: number }>('/findings/status', v),
+    mutationFn: (v: { ids: string[]; action: BulkAction; note: string }) => api.post<{ updated: number; skipped: number }>('/findings/status', v),
     onSuccess: () => { void qc.invalidateQueries({ queryKey: ['findings'] }) },
   })
 }

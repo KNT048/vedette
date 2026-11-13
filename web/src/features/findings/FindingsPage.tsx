@@ -48,7 +48,7 @@ function BulkDialog({ ids, open, onOpenChange, opener, onDone }: { ids: string[]
     if (needNote && note.trim().length < 3) { setError(t('status.noteRequired')); return }
     setError(undefined)
     bulk.mutate({ ids, action, note: note.trim() }, {
-      onSuccess: (r) => { toast.success(t('bulk.done', { count: r.updated })); onOpenChange(false); onDone() },
+      onSuccess: (r) => { toast.success(r.skipped > 0 ? `${t('bulk.done', { count: r.updated })}. ${t('bulk.skipped', { count: r.skipped })}` : t('bulk.done', { count: r.updated })); onOpenChange(false); onDone() },
       onError: (e) => setError(errMsg(e)),
     })
   }
@@ -117,7 +117,7 @@ function List() {
     ...(can ? [{ id: 'select', enableSorting: false, header: () => <Checkbox checked={allShown ? true : shown.length > 0 ? 'indeterminate' : false} onCheckedChange={(v) => toggleAll(v === true)} aria-label={t('bulk.selectAll', { count: rows.length })} />, cell: ({ row: { original: r } }) => pick(r) } satisfies ColumnDef<FindingRow>] : []),
     { id: 'device', header: t('col.device'), accessorFn: (r) => name(r), cell: ({ row: { original: r } }) => (
       <div className="grid">
-        {r.asset ? <Link to={`/devices/${r.asset.id}`} className="w-fit font-medium text-accent underline-offset-4 hover:underline">{name(r)}</Link> : <span className="font-medium">{name(r)}</span>}
+        {r.asset ? <Link to={`/devices/${r.asset.id}`} title={name(r)} className="line-clamp-2 max-w-64 font-medium text-accent underline-offset-4 [overflow-wrap:anywhere] hover:underline">{name(r)}</Link> : <span className="font-medium">{name(r)}</span>}
         <span className="text-[12px] text-muted">{hasIp(r.asset) ? r.asset?.ip : r.asset ? t('noIp') : ''}</span>
       </div>
     ) },
@@ -185,7 +185,7 @@ function List() {
                     <Link to={`/findings/${r.id}`} className="font-medium text-accent underline-offset-4 hover:underline">{r.cve}</Link>
                     <StatusChip status={r.status} />
                   </div>
-                  <span className="text-sm">{name(r)}<span className="text-muted">{hasIp(r.asset) ? ` (${r.asset?.ip})` : r.asset ? ` (${t('noIp')})` : ''}</span></span>
+                  <span className="text-sm [overflow-wrap:anywhere]">{name(r)}<span className="text-muted">{hasIp(r.asset) ? ` (${r.asset?.ip})` : r.asset ? ` (${t('noIp')})` : ''}</span></span>
                   <span className="text-[13px] text-muted">{r.kev?.display ?? '–'}</span>
                   <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px]">
                     <RiskChip f={r} />

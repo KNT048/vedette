@@ -21,7 +21,7 @@ export const feature: Feature = {
         { path: ':section', lazy: () => import('./SettingsLayout').then((m) => ({ Component: m.SettingsRoute })) },
       ],
     },
-    { path: 'account', lazy: page(() => import('./AccountPage')) },
+    { path: 'account', lazy: () => import('./SettingsLayout').then((m) => ({ Component: m.AccountMoved })) },
   ],
   settings: [
     { id: 'general', label: 'core:settings.general', module: 'core', minRole: 'viewer', order: 10, element: section(() => import('./GeneralSection')) },
@@ -34,5 +34,6 @@ export const feature: Feature = {
     { id: 'privacy', label: 'core:settings.privacy', module: 'core', minRole: 'viewer', order: 90, element: section(() => import('./PrivacySection')) },
     { id: 'mcp', label: 'core:settings.mcp', module: 'core', minRole: 'admin', order: 100, element: section(() => import('./McpSection')) },
     { id: 'data', label: 'core:settings.data', module: 'core', minRole: 'admin', order: 110, element: section(() => import('./DataSection')) },
+    { id: 'account', label: 'core:settings.myAccount', module: 'core', minRole: 'viewer', order: 1000, element: section(() => import('./AccountPage')) }, // last, where the My account link was (S-CORE-3)
   ],
 }

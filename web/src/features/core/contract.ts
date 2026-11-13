@@ -114,8 +114,8 @@ export const RunningRevoked = z.object({
   action: z.enum(['block_install', 'block_install_and_warn', 'rollback_if_possible']).describe('block_install: the Updates page only; block_install_and_warn and rollback_if_possible: a banner on every page (D-386)'),
 })
 export const UpdateCheckError = z.object({
-  at: ts, code: z.enum(['update_source_unreachable', 'update_not_published', 'update_check_failed']).describe('update_source_unreachable = the release source could not be reached (network, timeout, an answer other than 200 or 404); update_not_published = the source answered 404 for the index: no release information is published there yet (D-407); update_check_failed = what arrived did not pass the signature or shape checks, or this build cannot check'),
-  message: z.string().describe("The box's own fixed sentence for this failure (the message of the 503/502 answer); never text received from the network"),
+  at: ts, code: z.enum(['update_source_unreachable', 'update_not_published', 'update_check_failed']).describe('update_source_unreachable = the release source could not be reached (network, timeout, an answer other than 200, a 404 for the index once one is stored or for its signature, or for a manifest the index names; the message names the host and the reason in fixed words, D-540); update_not_published = only in a record kept by an older version (D-407): since D-540 a 404 for the index on a box that never stored one is a good check with nothing offered; update_check_failed = what arrived did not pass the signature or shape checks, or this build cannot check'),
+  message: z.string().describe("The box's own sentence for this failure (the message of the 503/502 answer): fixed words and the configured source host; never text received from the network"),
 })
 export const UpdatesState = z.object({
   channel: UpdateChannel, mode: z.enum(['auto', 'manual']), check_enabled: z.boolean(), last_check: ts.nullable().describe('null until the first update check'),
@@ -300,7 +300,7 @@ export const endpoints = defineEndpoints([
   // cập nhật
   { method: 'get', path: '/core/updates', summary: 'Versions, new builds, history and security advisories of Vedette', stories: ['S-CORE-2'], role: 'viewer', response: UpdatesState },
   { method: 'patch', path: '/core/updates', summary: 'Change channel (stable/beta) and mode (automatic/manual)', stories: ['S-CORE-2'], role: 'admin', body: z.object({ channel: UpdateChannel.optional(), mode: z.enum(['auto', 'manual']).optional() }), response: UpdatesState },
-  { method: 'post', path: '/core/updates/check', summary: 'Check for updates now (409 when turned off under Privacy)', stories: ['S-CORE-2'], role: 'operator', response: UpdateCheck },
+  { method: 'post', path: '/core/updates/check', summary: 'Check for updates now (409 when turned off under Privacy; 200 with nothing available when the source publishes no release)', stories: ['S-CORE-2'], role: 'operator', response: UpdateCheck },
   { method: 'post', path: '/core/updates/apply', summary: 'Install the new version of one component; for the software it starts a run (UpdatesState.run, 409 busy while one runs)', stories: ['S-CORE-2'], role: 'admin', body: z.object({ component: z.string() }), response: UpdatesState },
   { method: 'post', path: '/core/updates/rollback', summary: 'Go back to the previous version of one component; 409 confirm_required when it restores the database and confirm_data_loss is not true', stories: ['S-CORE-2'], role: 'admin', body: z.object({ component: z.string(), confirm_data_loss: z.boolean().optional().describe('Required (true) when the component has rollback_restores_data') }), response: UpdatesState },
   { method: 'get', path: '/core/updates/os', summary: 'Operating system of the box: release, kernel, end of support, pending packages, reboot state, maintenance window', stories: ['S-CORE-7'], role: 'viewer', response: OsState },

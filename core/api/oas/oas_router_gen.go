@@ -11797,7 +11797,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 									switch method {
 									case "POST":
 										r.name = CorePostCoreUpdatesCheckOperation
-										r.summary = "Check for updates now (409 when turned off under Privacy)"
+										r.summary = "Check for updates now (409 when turned off under Privacy; 200 with nothing available when the source publishes no release)"
 										r.operationID = "core_post_core_updates_check"
 										r.operationGroup = ""
 										r.pathPattern = "/core/updates/check"

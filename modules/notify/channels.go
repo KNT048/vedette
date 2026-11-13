@@ -42,7 +42,7 @@ var savedFields = map[channel.Type][]string{
 	channel.Slack:        {"label", "channel_id"},
 	channel.Zalo:         {"oa_id", "user_id"},
 	channel.ZaloPersonal: {"user_id", "group", "name", "account"}, // name: the recipient's shown name; account: set from the sign-in only
-	channel.Email:        {"host", "port", "security", "username", "from", "to"},
+	channel.Email:        {"provider", "host", "port", "security", "username", "tenant_id", "client_id", "from", "to"},
 	channel.Webhook:      {"url"},
 }
 
@@ -272,8 +272,9 @@ func (s *Service) newSender(t channel.Type, f map[string]string, secret string, 
 				return nil, err
 			}
 		}
-		ec := channel.EmailConfig{Host: f["host"], Port: port, Security: f["security"], Username: f["username"],
-			Password: sv, From: f["from"], To: to, Now: s.now, BoxAddrsFunc: s.boxAddrs, SelfAddrsFunc: s.cfg.SelfAddrs, AllowLoopback: s.cfg.SMTPLoopback}
+		ec := channel.EmailConfig{Host: f["host"], Port: port, Security: f["security"], Provider: f["provider"], Username: f["username"],
+			TenantID: f["tenant_id"], ClientID: f["client_id"], Password: sv, From: f["from"], To: to, Now: s.now, HTTPClient: hc, Tokens: s.tokens, SaveSecret: s.rotateEmailSecret,
+			BoxAddrsFunc: s.boxAddrs, SelfAddrsFunc: s.cfg.SelfAddrs, AllowLoopback: s.cfg.SMTPLoopback}
 		if s.cfg.SMTPLoopback {
 			ec.BoxAddrsFunc = nil // the interface list holds 127.0.0.1
 		}
@@ -456,6 +457,56 @@ func (s *Service) checkApprovers(ctx context.Context, t channel.Type, in Channel
 	return nil
 }
 
+// emailFields keeps only the fields the email provider uses (D-449): the tenant and client IDs belong to Microsoft 365, and Postmark's
+// username is its server token, a secret, so it is never a field.
+func emailFields(fields map[string]string) error {
+	if fields["provider"] == "" {
+		delete(fields, "provider") // a channel saved before the presets, or a client that sends none: custom SMTP
+	}
+	auth, ok := channel.EmailAuth(fields["provider"])
+	if !ok {
+		return badRequest("bad_provider", "Choose an email provider from the list, or Custom SMTP.")
+	}
+	if auth != channel.AuthMicrosoft && auth != channel.AuthMicrosoftUser {
+		delete(fields, "tenant_id")
+	}
+	if auth != channel.AuthMicrosoft && auth != channel.AuthMicrosoftUser && auth != channel.AuthGoogleUser {
+		delete(fields, "client_id")
+	}
+	if auth == channel.AuthTokenAsUser {
+		delete(fields, "username")
+	}
+	return nil
+}
+
+// secretFor is the email field that says what the saved secret was saved for (emailBinding). The box writes it; a client cannot.
+const secretFor = "secret_for"
+
+// emailBinding is what an email secret is saved for: the sign-in method, the server and the port. A saved secret is only ever sent
+// there (D-449 review): a client secret is not a password, and a server it was not saved for never receives it, not even after a
+// save with "No encryption" in between.
+func emailBinding(f map[string]string) string {
+	auth, _ := channel.EmailAuth(f["provider"])
+	port := strings.TrimSpace(f["port"])
+	if n, err := strconv.Atoi(port); err == nil {
+		port = strconv.Itoa(n)
+	}
+	return auth + " " + strings.TrimSuffix(strings.ToLower(strings.TrimSpace(f["host"])), ".") + ":" + port
+}
+
+// savedFor is the binding of the saved email secret: the stored one, or for a row saved before it, what the row was saved with.
+func (c channelRow) savedFor() string {
+	if b := c.Fields[secretFor]; b != "" {
+		return b
+	}
+	return emailBinding(c.Fields)
+}
+
+// emailSecretName starts the sentence that asks for the secret again.
+var emailSecretName = map[string]string{channel.AuthPassword: "Enter the password or API key", channel.AuthTokenAsUser: "Enter the server API token",
+	channel.AuthMicrosoft: "Enter the client secret", channel.AuthGoogle: "Choose the service account key",
+	channel.AuthMicrosoftUser: "Sign in with Microsoft", channel.AuthGoogleUser: "Sign in with Google"}
+
 // SaveChannel stores the configuration of one channel (PUT /notify/channels/{type}, PRE-3, INV-1, INV-7, INV-8).
 // An empty Secret, AppToken or BotToken keeps the saved one. Errors are *apierr.Error.
 func (s *Service) SaveChannel(ctx context.Context, actor string, t channel.Type, in ChannelInput) (Channel, error) {
@@ -484,6 +535,7 @@ func (s *Service) SaveChannel(ctx context.Context, actor string, t channel.Type,
 	var out Channel
 	var before []Approver
 	ob := &events.Outbox{}
+	var releaseSignin func() // a sign-in this save took (D-480): given back if the save fails
 	err = s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
 		cur, err := loadChannel(ctx, tx, t)
 		if err != nil {
@@ -513,8 +565,22 @@ func (s *Service) SaveChannel(ctx context.Context, actor string, t channel.Type,
 			}
 		}
 		secret := strings.TrimSpace(in.Secret)
+		rebind := false // email: the saved secret was saved for another sign-in, server or port, and no new one came
+		if t == channel.Email {
+			if err := emailFields(fields); err != nil {
+				return err
+			}
+			if in.Signin != "" { // D-480: the refresh token of a finished sign-in, never seen by the browser
+				var release func()
+				if secret, release, err = s.takeSignin(actor, in.Signin, fields); err != nil {
+					return err
+				}
+				releaseSignin = release
+			}
+			rebind = secret == "" && cur.SecretID != "" && cur.savedFor() != emailBinding(fields)
+		}
 		effective := secret
-		if effective == "" {
+		if effective == "" && !rebind {
 			if effective, err = s.openSecret(ctx, tx, cur.SecretID); err != nil {
 				return badRequest("secret_required", "The saved key cannot be read. Enter it again and save.")
 			}
@@ -533,7 +599,17 @@ func (s *Service) SaveChannel(ctx context.Context, actor string, t channel.Type,
 			fields["url"] = plainURL
 		}
 		if _, err := s.newSender(t, fields, effective, nil); err != nil {
+			if ce := (*channel.ConfigError)(nil); rebind && errors.As(err, &ce) && ce.Code == "secret_required" {
+				auth, _ := channel.EmailAuth(fields["provider"])
+				return badRequest("secret_required", emailSecretName[auth]+" again: the sign-in method, the server or the port changed, and a saved secret is only sent where it was saved for.")
+			}
 			return configAPIError(err)
+		}
+		if t == channel.Email { // a rebind that passed needs no secret ("No encryption"): the old one is deleted below, never kept for later
+			delete(fields, secretFor)
+			if secret != "" || (cur.SecretID != "" && !rebind) {
+				fields[secretFor] = emailBinding(fields)
+			}
 		}
 		if t == channel.Webhook {
 			fields["url"] = maskURL(plainURL) // what is stored beside the sealed URL: never the URL itself
@@ -568,6 +644,8 @@ func (s *Service) SaveChannel(ctx context.Context, actor string, t channel.Type,
 			if next.SecretID, next.SecretLast4, err = s.putSecret(ctx, tx, purposeSecret, cur.SecretID, secret); err != nil {
 				return err
 			}
+		} else if rebind {
+			next.SecretID, next.SecretLast4 = "", "" // the row stops pointing at it here; it is deleted after the row is written
 		}
 		if t == channel.Webhook && (newURL != "" || cur.URLID == "") { // a row from before sealing is sealed by this save
 			if next.URLID, next.URLLast4, err = s.putSecret(ctx, tx, purposeURL, cur.URLID, plainURL); err != nil {
@@ -600,6 +678,11 @@ func (s *Service) SaveChannel(ctx context.Context, actor string, t channel.Type,
 			nullable(next.BotID), nullable(next.BotLast4), string(next.MinSeverity), boolInt(next.Approvals), cur.Rev+1, nullable(next.URLID), nullable(next.URLLast4), store.FormatTS(s.now()))
 		if err != nil {
 			return fmt.Errorf("notify: save channel %s: %w", t, err)
+		}
+		if rebind && secret == "" {
+			if err := s.cfg.Secrets.Delete(ctx, tx, cur.SecretID); err != nil {
+				return fmt.Errorf("notify: delete secret of %s: %w", t, err)
+			}
 		}
 		if before, err = loadApprovers(ctx, tx, t); err != nil {
 			return err
@@ -640,9 +723,18 @@ func (s *Service) SaveChannel(ctx context.Context, actor string, t channel.Type,
 		return nil
 	})
 	if err != nil {
+		if releaseSignin != nil {
+			releaseSignin()
+		}
 		return Channel{}, err
 	}
 	s.forget(t)
+	if t == channel.Email {
+		s.tokens.Clear()
+		if in.Signin != "" {
+			s.forgetSignin(in.Signin)
+		}
+	}
 	s.flush(ctx, ob)
 	if t == channel.ZaloPersonal {
 		if login != nil {
@@ -768,6 +860,9 @@ func (s *Service) DeleteChannel(ctx context.Context, actor string, t channel.Typ
 		return err
 	}
 	s.forget(t)
+	if t == channel.Email {
+		s.tokens.Clear()
+	}
 	s.flush(ctx, ob)
 	// D-447 review round 2: a recreated channel listing the same addresses must not show them linked without a new proof.
 	for _, a := range before {

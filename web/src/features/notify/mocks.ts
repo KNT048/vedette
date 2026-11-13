@@ -11,7 +11,8 @@ import { isInternalHost } from '@/features/feeds/defaults'
 import { newLinkToken } from '@/features/response/identity'
 import { identityStore, isLinked } from '@/features/response/state'
 import { CHANNEL_TYPES, FIELDS, OWN_TEXT, ROUTE_SEVERITIES, forbiddenHost, ownHost } from './types'
-import type { Approver, Channel, ChannelInput, ChannelType, Grouping, HistoryItem, Incident, IncidentDetail, IncidentStatus, Preview, Quiet, SendRecord, TestResult, ZaloApprover, ZaloContact, ZaloLogin } from './types'
+import { OAUTH_HOST, emailBinding, emailProvider, isOAuth, isUserSignin, savedFor } from './emailProviders'
+import type { Approver, Channel, ChannelInput, ChannelType, EmailSignin, Grouping, HistoryItem, Incident, IncidentDetail, IncidentStatus, Preview, Quiet, SendRecord, TestResult, ZaloApprover, ZaloContact, ZaloLogin } from './types'
 
 const SEV: Record<Severity, string> = { critical: 'Critical', high: 'High', medium: 'Medium', low: 'Low', info: 'Info' }
 
@@ -174,6 +175,105 @@ const shownRecipient = (x: string) => {
   return r.length > 60 ? `${r.slice(0, 59).join('')}…` : r.join('')
 }
 
+const GUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+const BAD_KEY = 'This is not a service account key file from Google Cloud. In the Google Cloud console open IAM & Admin, Service accounts, the account, Keys, Add key, JSON, and choose the downloaded file.'
+/** The box's reading of a Google service account key file (smtpauth.go parseGoogleKey), minus the RSA parse: the mock cannot read the key itself. */
+const googleKeyOk = (raw: string) => {
+  if (raw.length > 16384) return false
+  try {
+    const k = JSON.parse(raw) as Record<string, unknown>
+    return k.type === 'service_account' && typeof k.client_email === 'string' && EMAIL_RE.test(k.client_email) && typeof k.private_key === 'string' && /^-----BEGIN (RSA )?PRIVATE KEY-----/.test(k.private_key)
+  } catch { return false }
+}
+const SECRET_NAME: Record<string, string> = { password: 'Enter the password or API key', token_as_user: 'Enter the server API token', microsoft_oauth: 'Enter the client secret', google_oauth: 'Choose the service account key', microsoft_user: 'Sign in with Microsoft', google_user: 'Sign in with Google' }
+// eslint-disable-next-line no-control-regex
+const ONE_LINE = /^[^\u0000-\u001f\u007f]+$/
+
+const GOOGLE_CLIENT_RE = /^[0-9]{6,30}-[a-z0-9]{10,64}\.apps\.googleusercontent\.com$/
+const TENANT_OK = (t: string) => ['organizations', 'common', 'consumers'].includes(t) || GUID_RE.test(t) || DOMAIN_RE.test(t)
+/** The tenant and client checks of a user sign-in (smtpsignin.go StartMicrosoftDevice, StartGoogleConsent; smtp.go NewEmail). */
+function signinFieldError(provider: string, tenant: string, client: string) {
+  if (provider === 'microsoft365-user' && !TENANT_OK(tenant.trim())) return fail(400, 'bad_tenant_id', 'The tenant ID is the Directory (tenant) ID of the app registration, a domain such as company.onmicrosoft.com, organizations, or consumers for Outlook.com.')
+  if (provider !== 'gmail-oauth' && !GUID_RE.test(client.trim())) return fail(400, 'bad_client_id', 'The client ID is the Application (client) ID of the app registration, for example 0a1b2c3d-4e5f-6789-abcd-ef0123456789.')
+  if (provider === 'gmail-oauth' && !GOOGLE_CLIENT_RE.test(client.trim())) return fail(400, 'bad_client_id', 'The client ID of a Google OAuth client ends with .apps.googleusercontent.com. Copy it from Google Auth Platform, Clients.')
+  return null
+}
+
+// D-480 user sign-ins: in the mock, a device sign-in finishes at the second check; a Google one when a fitting address is pasted.
+interface MockSignin extends EmailSignin { by: string; client: string; tenant: string; checks: number; state?: string; redirect?: string }
+const signins = new Map<string, MockSignin>()
+const SIGNED_IN_AS = 'alerts@acme.example'
+const publicSignin = ({ by: _b, client: _c, tenant: _t, checks: _k, state: _s, redirect: _r, ...v }: MockSignin): EmailSignin => v
+
+/** The box's reading of the pasted address (smtpsignin.go pastedCode): loopback at this sign-in's port, its state, then code. */
+function pastedCode(si: MockSignin, pasted: string) {
+  const notOurs = fail(400, 'bad_url', `Paste the whole address your browser shows after you approved, starting with ${si.redirect}/?`)
+  let u: URL
+  try { u = new URL(pasted.trim()) } catch { return { err: notOurs } }
+  if (pasted.length > 4096 || u.protocol !== 'http:' || u.username || !['127.0.0.1', 'localhost'].includes(u.hostname) || `http://127.0.0.1:${u.port}` !== si.redirect || !['', '/'].includes(u.pathname)) return { err: notOurs }
+  if (u.searchParams.get('state') !== si.state) return { err: fail(400, 'bad_state', 'This address belongs to another sign-in. Press Sign in with Google again and paste the address of that sign-in.') }
+  if (u.searchParams.get('error')) return { declined: true }
+  if (!/^[\x21-\x7e]{1,2048}$/.test(u.searchParams.get('code') ?? '')) return { err: fail(400, 'bad_url', 'The address has no sign-in code. Paste the whole address from the browser after you approved.') }
+  return {}
+}
+
+/** The email checks of the box in its order (channels.go emailFields, newSender, then channel/smtp.go NewEmail; D-449 presets). */
+function validateEmail(f: Record<string, string>, secret: string, cur: StoredChannel) {
+  const prov = emailProvider(f.provider)
+  if (!prov) return fail(400, 'bad_provider', 'Choose an email provider from the list, or Custom SMTP.')
+  // a saved secret goes only where it was saved for (D-449 review): another method, server or port needs it again
+  const rebind = !secret && !!cur.secret && savedFor(cur.fields) !== emailBinding(f)
+  const needSecret = (msg: string) => fail(400, 'secret_required', rebind ? `${SECRET_NAME[prov.auth]} again: the sign-in method, the server or the port changed, and a saved secret is only sent where it was saved for.` : msg)
+  // SaveChannel reads the port and the recipients before the adapter checks the rest (channels.go newSender).
+  const portText = (f.port ?? '').trim()
+  if (!/^[+-]?\d+$/.test(portText)) return fail(400, 'bad_port', 'The SMTP port is a number from 1 to 65535 (usually 587 or 465).')
+  const to = (f.to ?? '').split(/[,;]/).map((x) => x.trim()).filter(Boolean)
+  if (!to.length || to.length > 20) return fail(400, 'bad_to', 'Enter between 1 and 20 recipient emails, separated by commas.')
+  const badTo = to.find((x) => !EMAIL_RE.test(x))
+  const named = badTo === undefined ? '' : shownRecipient(badTo)
+  if (badTo !== undefined) return fail(400, 'bad_to', named ? `${named} is not a valid email address. Separate several recipients with commas.` : 'A recipient email is not valid. Separate several recipients with commas.')
+  const host = (f.host ?? '').trim()
+  if (!(IPV4_RE.test(host) || DOMAIN_RE.test(host))) return fail(400, 'bad_host', 'The SMTP server must be a domain name or an IP address, for example smtp.company.com.')
+  const port = Number(portText)
+  if (port < 1 || port > 65535) return fail(400, 'bad_port', 'The SMTP port is a number from 1 to 65535 (usually 587 or 465).')
+  if (ownHost(host)) return fail(400, 'bad_host', OWN_TEXT) // D-446
+  if (forbiddenHost(host)) return fail(400, 'bad_host', 'The SMTP server cannot be a link-local or multicast address, a cloud metadata service, or an unspecified address.')
+  if (!['starttls', 'ssl', 'none'].includes(f.security ?? '')) return fail(400, 'bad_security', 'Choose an encryption type: STARTTLS, SSL/TLS or none.')
+  if (f.security === 'ssl' && port === 587) return fail(400, 'port_mismatch', 'Port 587 uses STARTTLS, not SSL/TLS. Choose STARTTLS, or change the port to 465 for SSL/TLS.')
+  if (f.security === 'starttls' && port === 465) return fail(400, 'port_mismatch', 'Port 465 uses SSL/TLS, not STARTTLS. Choose SSL/TLS, or change the port to 587 for STARTTLS.')
+  const has = !!secret || (!!cur.secret && !rebind)
+  const pinned = OAUTH_HOST[prov.id]
+  if (f.security === 'none') {
+    if (prov.auth !== 'password') return fail(400, 'bad_security', 'This provider signs in, so the connection must be encrypted. Choose STARTTLS or SSL/TLS.')
+    // the adapter's insecure_smtp, which the API answers as bad_security (channels.go apiConfigCode); no login without encryption
+    if (!isInternalHost(host)) return fail(400, 'bad_security', 'Unencrypted SMTP is only allowed for a server on your internal network. Choose STARTTLS or SSL/TLS.')
+  } else if (isUserSignin(prov.auth)) {
+    if (pinned && host.toLowerCase().replace(/\.$/, '') !== pinned) return fail(400, 'bad_host', `This sign-in sends its token only to ${pinned}. Enter ${pinned} as the SMTP server.`)
+    if (!EMAIL_RE.test((f.username ?? '').trim())) return fail(400, 'bad_username', 'Sign in first: the mailbox is the account that signs in.')
+    const bad = signinFieldError(prov.id, f.tenant_id ?? '', f.client_id ?? ''); if (bad) return bad
+    if (!has) return needSecret(prov.auth === 'google_user' ? 'Sign in with Google first.' : 'Sign in with Microsoft first.')
+  } else if (isOAuth(prov.auth)) {
+    if (pinned && host.toLowerCase().replace(/\.$/, '') !== pinned) return fail(400, 'bad_host', `This sign-in sends its token only to ${pinned}. Enter ${pinned} as the SMTP server.`)
+    if (!EMAIL_RE.test((f.username ?? '').trim())) return fail(400, 'bad_username', 'Enter the mailbox Vedette sends as, for example alerts@company.com.')
+    if (prov.auth === 'microsoft_oauth') {
+      const tenant = (f.tenant_id ?? '').trim()
+      if (!GUID_RE.test(tenant) && !DOMAIN_RE.test(tenant)) return fail(400, 'bad_tenant_id', 'The tenant ID is the Directory (tenant) ID of the app registration, for example 72f988bf-86f1-41af-91ab-2d7cd011db47, or your domain such as company.onmicrosoft.com.')
+      if (!GUID_RE.test((f.client_id ?? '').trim())) return fail(400, 'bad_client_id', 'The client ID is the Application (client) ID of the app registration, for example 0a1b2c3d-4e5f-6789-abcd-ef0123456789.')
+      if (!has) return needSecret('Enter the client secret of the app registration.')
+      if (secret && (secret.length > 256 || !ONE_LINE.test(secret))) return fail(400, 'bad_secret', 'The client secret is the Value of a secret under Certificates & secrets of the app registration (not its Secret ID). Copy it again.')
+    } else {
+      if (!has) return needSecret('Choose the JSON key file of the service account.')
+      if (secret && !googleKeyOk(secret)) return fail(400, 'bad_secret', BAD_KEY)
+    }
+  } else {
+    if (prov.auth !== 'token_as_user' && (!f.username?.trim() || !ONE_LINE.test(f.username))) return fail(400, 'bad_username', 'Enter the SMTP username (usually the email address).')
+    if (!has) return needSecret('Enter the SMTP password. This channel has no saved key yet.')
+    if (secret && (secret.length > 1024 || !ONE_LINE.test(secret))) return fail(400, 'bad_secret', prov.auth === 'token_as_user' ? "The server API token is one line of letters, digits and dashes. Copy it again from the server's API Tokens tab in Postmark." : 'The password has a control character (such as a line break) or is too long. Copy it again.')
+  }
+  if (!EMAIL_RE.test((f.from ?? '').trim())) return fail(400, 'bad_from', 'The sender email is not valid, for example alerts@company.com.')
+  return null
+}
+
 function validate(type: ChannelType, b: Partial<ChannelInput>, cur: StoredChannel) {
   const f = b.fields ?? {}
   const secret = (b.secret ?? '').trim()
@@ -215,34 +315,7 @@ function validate(type: ChannelType, b: Partial<ChannelInput>, cur: StoredChanne
     if (!/^\d{6,25}$/.test((f.user_id ?? '').trim())) return fail(400, 'bad_user_id', 'The recipient is the numeric Zalo ID of a user or a group (6 to 25 digits).')
     return !cur.secret && !secret && b.zalo_login !== true ? fail(400, 'secret_required', 'Scan the QR code with the Zalo app first. This channel has no saved session yet.') : null
   }
-  if (type === 'email') {
-    // SaveChannel reads the port and the recipients before the adapter checks the rest (channels.go newSender).
-    const portText = (f.port ?? '').trim()
-    if (!/^[+-]?\d+$/.test(portText)) return fail(400, 'bad_port', 'The SMTP port is a number from 1 to 65535 (usually 587 or 465).')
-    const to = (f.to ?? '').split(/[,;]/).map((x) => x.trim()).filter(Boolean)
-    if (!to.length || to.length > 20) return fail(400, 'bad_to', 'Enter between 1 and 20 recipient emails, separated by commas.')
-    const badTo = to.find((x) => !EMAIL_RE.test(x))
-    const named = badTo === undefined ? '' : shownRecipient(badTo)
-    if (badTo !== undefined) return fail(400, 'bad_to', named ? `${named} is not a valid email address. Separate several recipients with commas.` : 'A recipient email is not valid. Separate several recipients with commas.')
-    const host = (f.host ?? '').trim()
-    if (!(IPV4_RE.test(host) || DOMAIN_RE.test(host))) return fail(400, 'bad_host', 'The SMTP server must be a domain name or an IP address, for example smtp.company.com.')
-    const port = Number(portText)
-    if (port < 1 || port > 65535) return fail(400, 'bad_port', 'The SMTP port is a number from 1 to 65535 (usually 587 or 465).')
-    if (ownHost(host)) return fail(400, 'bad_host', OWN_TEXT) // D-446
-    if (forbiddenHost(host)) return fail(400, 'bad_host', 'The SMTP server cannot be a link-local or multicast address, a cloud metadata service, or an unspecified address.')
-    if (!['starttls', 'ssl', 'none'].includes(f.security ?? '')) return fail(400, 'bad_security', 'Choose an encryption type: STARTTLS, SSL/TLS or none.')
-    if (f.security === 'ssl' && port === 587) return fail(400, 'port_mismatch', 'Port 587 uses STARTTLS, not SSL/TLS. Choose STARTTLS, or change the port to 465 for SSL/TLS.')
-    if (f.security === 'starttls' && port === 465) return fail(400, 'port_mismatch', 'Port 465 uses SSL/TLS, not STARTTLS. Choose SSL/TLS, or change the port to 587 for STARTTLS.')
-    if (f.security === 'none') {
-      // the adapter's insecure_smtp, which the API answers as bad_security (channels.go apiConfigCode); no login without encryption
-      if (!isInternalHost(host)) return fail(400, 'bad_security', 'Unencrypted SMTP is only allowed for a server on your internal network. Choose STARTTLS or SSL/TLS.')
-    } else {
-      if (!f.username?.trim()) return fail(400, 'bad_username', 'Enter the SMTP username (usually the email address).')
-      const bad = need('SMTP password'); if (bad) return bad
-    }
-    if (!EMAIL_RE.test((f.from ?? '').trim())) return fail(400, 'bad_from', 'The sender email is not valid, for example alerts@company.com.')
-    return null
-  }
+  if (type === 'email') return validateEmail(f, secret, cur)
   let u: URL | null = null
   try { u = new URL(webhookUrl(f, cur)) } catch { /* không phải URL */ }
   if (!u || !/^https?:$/.test(u.protocol)) return fail(400, 'bad_url', 'The webhook URL must start with https:// (or http:// on an internal network). Example: https://hooks.company.com/vedette.')
@@ -461,9 +534,26 @@ export const handlers = [
     if (!isType(type)) return fail(404, 'not_found', 'No such channel type.')
     const b = await body<ChannelInput>(request)
     const cur = channels.get().find((c) => c.type === type) ?? blank(type)
+    if (type === 'email' && b.signin) { // D-480: the box takes the sign-in's refresh token and mailbox (channels.go takeSignin)
+      const si = signins.get(b.signin)
+      const f = b.fields ?? {}
+      if (!si || si.by !== (currentUser()?.email ?? '') || si.status !== 'signed_in' || si.provider !== f.provider || si.client !== (f.client_id ?? '').trim() ||
+        (si.provider === 'microsoft365-user' && si.tenant !== (f.tenant_id ?? '').trim())) return fail(400, 'secret_required', 'The sign-in is over or does not match these settings. Sign in again, then save.')
+      b.secret = `{"refresh_token":"mock-${si.id}"}`
+      b.fields = { ...f, username: si.mailbox!, ...(si.provider === 'outlook' ? { tenant_id: 'consumers' } : {}) }
+      signins.delete(si.id)
+    }
     const bad = validate(type, b, cur); if (bad) return bad
     const fields = Object.fromEntries(SAVED_FIELDS[type].filter((k) => !(type === 'slack' && k === 'channel_id' && b.approvals !== true)).map((k) => [k, String(b.fields?.[k] ?? '').trim()]))
-    if (type === 'email') fields.to = fields.to!.split(/[,;]/).map((x) => x.trim()).filter(Boolean).join(', ')
+    if (type === 'email') {
+      fields.to = fields.to!.split(/[,;]/).map((x) => x.trim()).filter(Boolean).join(', ')
+      // only the fields the provider uses (channels.go emailFields): tenant and client IDs are Microsoft 365's; Postmark's username is its token
+      const auth = emailProvider(fields.provider)!.auth
+      if (!fields.provider) delete fields.provider
+      if (auth !== 'microsoft_oauth' && auth !== 'microsoft_user') delete fields.tenant_id
+      if (!['microsoft_oauth', 'microsoft_user', 'google_user'].includes(auth)) delete fields.client_id
+      if (auth === 'token_as_user') delete fields.username
+    }
     const zalo = type === 'zalo-personal'
     if (zalo) {
       if (fields.group !== 'true') delete fields.group
@@ -475,8 +565,11 @@ export const handlers = [
     if (zalo && b.zalo_login === true) zaloLogin = null
     const approvals = b.approvals === true
     const approvers = approvals ? (b.approvers ?? []).map((a) => ({ user_id: a.user_id, address: a.address.trim(), ...(zalo && a.name ? { name: a.name } : {}) })) : []
+    // email: the saved secret stays only for the method, server and port it was saved for; a save that needs none deletes it (D-449 review)
+    const kept = type !== 'email' || savedFor(cur.fields) === emailBinding(fields) ? cur.secret : ''
+    if (type === 'email' && (secret || kept)) fields.secret_for = emailBinding(fields)
     const fresh = zalo ? approvers.filter((a) => !(cur.approvers ?? []).some((x) => x.user_id === a.user_id && x.address === a.address)) : []
-    const next: StoredChannel = { ...cur, configured: true, enabled: b.enabled === true, fields, secret: secret ? secret : cur.secret, ...(type === 'webhook' ? { url: webhookUrl(b.fields ?? {}, cur) } : {}), min_severity: b.min_severity!, last_test: null, approvals, approvers,
+    const next: StoredChannel = { ...cur, configured: true, enabled: b.enabled === true, fields, secret: secret ? secret : kept, ...(type === 'webhook' ? { url: webhookUrl(b.fields ?? {}, cur) } : {}), min_severity: b.min_severity!, last_test: null, approvals, approvers,
       app_token: type === 'slack' ? (b.app_token?.trim() || cur.app_token) : undefined, bot_token: type === 'slack' ? (b.bot_token?.trim() || cur.bot_token) : undefined }
     channels.update((l) => [...l.filter((c) => c.type !== type), next])
     // your own row with the box's own account confirms in your session; every other Zalo, yours too, gets the link by message
@@ -508,6 +601,45 @@ export const handlers = [
     channels.update((l) => l.map((x) => (x.type === type ? { ...x, last_test: result } : x)))
     audit('notify.channel_test', type, r.ok ? 'ok' : 'failed')
     return HttpResponse.json(result)
+  }),
+
+  http.post(`${API}/notify/email-signin`, async ({ request }) => {
+    const denied = guard('admin'); if (denied) return denied
+    const b = await body<{ provider: string; tenant_id?: string; client_id: string; client_secret?: string }>(request)
+    const provider = b.provider ?? '', client = (b.client_id ?? '').trim()
+    if (!['microsoft365-user', 'outlook', 'gmail-oauth'].includes(provider)) return fail(400, 'bad_provider', 'Only Microsoft 365, Outlook.com and Gmail sign in this way.')
+    const tenant = provider === 'outlook' ? 'consumers' : (b.tenant_id ?? '').trim()
+    const bad = signinFieldError(provider, tenant, client); if (bad) return bad
+    if (provider === 'gmail-oauth' && !(b.client_secret ?? '').trim()) return fail(400, 'bad_secret', 'Enter the client secret of the Desktop OAuth client (Google Auth Platform, Clients).')
+    const id = newId('si')
+    const base = { id, provider: provider as EmailSignin['provider'], status: 'waiting' as const, expires_at: new Date(Date.now() + 15 * 60_000).toISOString(), by: currentUser()?.email ?? '', client, tenant, checks: 0 }
+    let si: MockSignin
+    if (provider === 'gmail-oauth') {
+      const state = 'S'.repeat(43), redirect = 'http://127.0.0.1:53121'
+      si = { ...base, flow: 'paste', state, redirect, consent_url: `https://accounts.google.com/o/oauth2/v2/auth?${new URLSearchParams({ client_id: base.client, redirect_uri: redirect, response_type: 'code', scope: 'https://mail.google.com/ openid email', state, code_challenge_method: 'S256' })}` }
+    } else {
+      si = { ...base, flow: 'device', user_code: 'WDJB-MJHT', verification_uri: 'https://microsoft.com/devicelogin', interval: 5 }
+    }
+    for (const [k, o] of signins) if (o.by === si.by) signins.delete(k)
+    signins.set(id, si)
+    return HttpResponse.json(publicSignin(si))
+  }),
+
+  http.post(`${API}/notify/email-signin/:id`, async ({ params, request }) => {
+    const denied = guard('admin'); if (denied) return denied
+    const si = signins.get(String(params.id))
+    if (!si || si.by !== (currentUser()?.email ?? '')) return fail(404, 'not_found', 'This sign-in is over or belongs to another administrator. Start the sign-in again.')
+    if (si.status !== 'waiting') return HttpResponse.json(publicSignin(si))
+    if (si.flow === 'device') {
+      si.checks++
+      if (si.checks >= 2) { si.status = 'signed_in'; si.mailbox = SIGNED_IN_AS }
+      return HttpResponse.json(publicSignin(si))
+    }
+    const r = pastedCode(si, (await body<{ url?: string }>(request)).url ?? '')
+    if (r.err) return r.err
+    if (r.declined) si.status = 'declined'
+    else { si.status = 'signed_in'; si.mailbox = SIGNED_IN_AS }
+    return HttpResponse.json(publicSignin(si))
   }),
 
   http.put(`${API}/notify/rules`, async ({ request }) => {

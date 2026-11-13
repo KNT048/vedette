@@ -265,6 +265,8 @@ var contractRoutes = map[string][]string{
 		"GET /notify/zalo/login",
 		"PATCH /notify/incidents/{id}",
 		"POST /notify/channels/{type}/test",
+		"POST /notify/email-signin",
+		"POST /notify/email-signin/{id}",
 		"POST /notify/history/{id}/resend",
 		"POST /notify/zalo/approvers/{user_id}/code",
 		"POST /notify/zalo/login",

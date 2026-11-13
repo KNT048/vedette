@@ -38378,7 +38378,7 @@
                             "additionalProperties": {
                               "type": "string"
                             },
-                            "description": "Non-secret fields: telegram chat_id · zalo oa_id, user_id · zalo-personal user_id (recipient user or group ID), group (\"true\" for a group), name (shown name of the recipient), account (shown name of the signed-in Zalo account; set by the box from the QR sign-in, D-447; the session is the secret) · email host, port, security (starttls|ssl|none), username, from, to · webhook url (a secret: sealed on save, returned only as scheme://host/… followed by its last 4 characters; send it empty, or as returned, to keep the saved one) · slack label (optional), channel_id (approvals only)"
+                            "description": "Non-secret fields: telegram chat_id · zalo oa_id, user_id · zalo-personal user_id (recipient user or group ID), group (\"true\" for a group), name (shown name of the recipient), account (shown name of the signed-in Zalo account; set by the box from the QR sign-in, D-447; the session is the secret) · email provider (preset, D-449: custom|gmail|yahoo|icloud|zoho|fastmail|sendgrid|mailgun|ses|postmark|brevo|microsoft365|google-workspace; D-480 user sign-ins: microsoft365-user|outlook|gmail-oauth, saved with signin; absent = custom), host, port, security (starttls|ssl|none), username (the mailbox for microsoft365 and google-workspace; none for postmark, whose server token is the secret), tenant_id (microsoft365, microsoft365-user, outlook) and client_id (those and gmail-oauth), from, to, secret_for (written by the box: the sign-in method, server and port the saved secret is for; changing one needs the secret again) · webhook url (a secret: sealed on save, returned only as scheme://host/… followed by its last 4 characters; send it empty, or as returned, to keep the saved one) · slack label (optional), channel_id (approvals only)"
                           },
                           "secret_last4": {
                             "description": "Secrets (token, password, signing key) are never returned, only the last 4 characters (SYS-4)",
@@ -38674,7 +38674,7 @@
                     }
                   },
                   "secret": {
-                    "description": "Leave blank to keep the saved secret",
+                    "description": "Leave blank to keep the saved secret (email: only while the sign-in method of the provider stays the same). Email: password, app password or API key; the Microsoft 365 client secret; the Google Workspace service account key file (JSON)",
                     "type": "string"
                   },
                   "min_severity": {
@@ -38726,6 +38726,10 @@
                   "zalo_login": {
                     "description": "Zalo personal: save the session of your finished QR sign-in (D-447); without it the saved session is kept. The session is never sent by the client",
                     "type": "boolean"
+                  },
+                  "signin": {
+                    "description": "Email user sign-in (D-480): the id of a finished sign-in of the same admin; its refresh token becomes the secret and its mailbox the username",
+                    "type": "string"
                   }
                 },
                 "required": [
@@ -38771,7 +38775,7 @@
                       "additionalProperties": {
                         "type": "string"
                       },
-                      "description": "Non-secret fields: telegram chat_id · zalo oa_id, user_id · zalo-personal user_id (recipient user or group ID), group (\"true\" for a group), name (shown name of the recipient), account (shown name of the signed-in Zalo account; set by the box from the QR sign-in, D-447; the session is the secret) · email host, port, security (starttls|ssl|none), username, from, to · webhook url (a secret: sealed on save, returned only as scheme://host/… followed by its last 4 characters; send it empty, or as returned, to keep the saved one) · slack label (optional), channel_id (approvals only)"
+                      "description": "Non-secret fields: telegram chat_id · zalo oa_id, user_id · zalo-personal user_id (recipient user or group ID), group (\"true\" for a group), name (shown name of the recipient), account (shown name of the signed-in Zalo account; set by the box from the QR sign-in, D-447; the session is the secret) · email provider (preset, D-449: custom|gmail|yahoo|icloud|zoho|fastmail|sendgrid|mailgun|ses|postmark|brevo|microsoft365|google-workspace; D-480 user sign-ins: microsoft365-user|outlook|gmail-oauth, saved with signin; absent = custom), host, port, security (starttls|ssl|none), username (the mailbox for microsoft365 and google-workspace; none for postmark, whose server token is the secret), tenant_id (microsoft365, microsoft365-user, outlook) and client_id (those and gmail-oauth), from, to, secret_for (written by the box: the sign-in method, server and port the saved secret is for; changing one needs the secret again) · webhook url (a secret: sealed on save, returned only as scheme://host/… followed by its last 4 characters; send it empty, or as returned, to keep the saved one) · slack label (optional), channel_id (approvals only)"
                     },
                     "secret_last4": {
                       "description": "Secrets (token, password, signing key) are never returned, only the last 4 characters (SYS-4)",
@@ -38954,6 +38958,265 @@
                     "at",
                     "ok",
                     "detail"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/notify/email-signin": {
+      "post": {
+        "operationId": "notify_post_notify_email_signin",
+        "summary": "Start a user sign-in for the email channel (D-480): a Microsoft device code, or a Google consent address to open and paste back",
+        "tags": [
+          "notify"
+        ],
+        "x-stories": [
+          "S-NOT-1"
+        ],
+        "x-min-role": "admin",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "provider": {
+                    "type": "string",
+                    "enum": [
+                      "microsoft365-user",
+                      "outlook",
+                      "gmail-oauth"
+                    ]
+                  },
+                  "tenant_id": {
+                    "description": "Microsoft: Directory (tenant) ID, a domain, organizations, or consumers (Outlook.com)",
+                    "type": "string"
+                  },
+                  "client_id": {
+                    "type": "string",
+                    "description": "The customer's own app registration (Microsoft, public client flows on) or Desktop OAuth client (Google)"
+                  },
+                  "client_secret": {
+                    "description": "Google Desktop client secret; never returned",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "provider",
+                  "client_id"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "provider": {
+                      "type": "string",
+                      "enum": [
+                        "microsoft365-user",
+                        "outlook",
+                        "gmail-oauth"
+                      ]
+                    },
+                    "flow": {
+                      "type": "string",
+                      "enum": [
+                        "device",
+                        "paste"
+                      ],
+                      "description": "device: Microsoft device code, the box polls; paste: Google consent, the admin pastes the loopback address back"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "waiting",
+                        "signed_in",
+                        "expired",
+                        "declined"
+                      ]
+                    },
+                    "user_code": {
+                      "type": "string"
+                    },
+                    "verification_uri": {
+                      "type": "string"
+                    },
+                    "interval": {
+                      "description": "Seconds between checks of a device sign-in",
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "consent_url": {
+                      "type": "string"
+                    },
+                    "expires_at": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    "mailbox": {
+                      "description": "The account that signed in",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "provider",
+                    "flow",
+                    "status",
+                    "expires_at"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/notify/email-signin/{id}": {
+      "post": {
+        "operationId": "notify_post_notify_email_signin_id",
+        "summary": "Check a user sign-in: ask Microsoft once when the interval has passed, or finish a Google sign-in with the pasted address",
+        "tags": [
+          "notify"
+        ],
+        "x-stories": [
+          "S-NOT-1"
+        ],
+        "x-min-role": "admin",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "url": {
+                    "description": "Google: the whole address the browser showed after approving",
+                    "type": "string",
+                    "maxLength": 4096
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "provider": {
+                      "type": "string",
+                      "enum": [
+                        "microsoft365-user",
+                        "outlook",
+                        "gmail-oauth"
+                      ]
+                    },
+                    "flow": {
+                      "type": "string",
+                      "enum": [
+                        "device",
+                        "paste"
+                      ],
+                      "description": "device: Microsoft device code, the box polls; paste: Google consent, the admin pastes the loopback address back"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "waiting",
+                        "signed_in",
+                        "expired",
+                        "declined"
+                      ]
+                    },
+                    "user_code": {
+                      "type": "string"
+                    },
+                    "verification_uri": {
+                      "type": "string"
+                    },
+                    "interval": {
+                      "description": "Seconds between checks of a device sign-in",
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "consent_url": {
+                      "type": "string"
+                    },
+                    "expires_at": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    "mailbox": {
+                      "description": "The account that signed in",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "provider",
+                    "flow",
+                    "status",
+                    "expires_at"
                   ],
                   "additionalProperties": false
                 }

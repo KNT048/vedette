@@ -29,6 +29,17 @@ Người gọi duy nhất ở mọi mục là `response` (qua adapter ở `cmd/v
 ## Modifying: quy tắc địa chỉ của SMTP (`channel.EmailConfig.BoxAddrsFunc`, `AllowLoopback`; `notify.Config.SMTPLoopback`)
 - **core** (2FA email đi qua kênh này): địa chỉ hộp chưa biết không chặn email (khác webhook), nên mã đăng nhập không dừng khi host chưa trả lời. **cmd/vedette**: chỉ test đặt `notifySMTPLoopback` (`notify_wiring_test.go`), hộp e2e (`TestE2EBox`) và `web/e2e-real` email dựa vào đó; `main` không bao giờ đặt. Một hộp đã lưu SMTP `127.0.0.1` trước bản này (chưa bao giờ gửi được: core luôn chạy trong container, loopback là chính nó): lần gửi ghi "The SMTP server cannot be this machine, …" trong History, lưu lại kênh thì báo `bad_host` dưới ô SMTP server.
 
+## Modifying: đăng nhập email (`channel.EmailConfig.Provider`, `TenantID`, `ClientID`, `HTTPClient`, `Tokens`; `channel.EmailAuth`, `channel.SignInError`, `channel.TokenCache`; D-449)
+- **SPA** `emailProviders.ts` (preset: host, cổng, mã hoá, username cố định) phải khớp danh sách `emailProviders` trong `channel/smtpauth.go`; preset mới cần cả hai chỗ và một dòng D-449. Mock `validateEmail` (`mocks.ts`) theo đúng thứ tự kiểm và câu của hộp.
+- **core** (2FA email, mã duyệt hai bước): cùng đường gửi, nên dịch vụ token Microsoft/Google không trả lời thì mã đăng nhập cũng không đi; câu lỗi là `SignInError.Msg`. `notify.Config.HTTPClient` giờ cũng chở yêu cầu token (test đặt client giả; `cmd/vedette` để nil nên yêu cầu token dùng client riêng: hạn 30 s, không chuyển hướng, proxy theo môi trường).
+- **PRIVACY** luồng 5 + Settings → Privacy (`core.json` `privacy.flow.5`): đổi điểm cuối token hay thứ gửi đi = sửa cả hai cùng commit (`privacyFlows.test.ts` đòi mọi host của cột "Where to" có trong UI).
+- Kênh lưu trước D-449 (hay client không gửi `provider`) là custom: không cần migration.
+
+## Modifying: đăng nhập người dùng email (`StartEmailSignin`, `CheckEmailSignin`, `ChannelInput.Signin`; `channel.StartMicrosoftDevice`, `channel.StartGoogleConsent`, `EmailConfig.SaveSecret`; D-480)
+- **SPA** `EmailSignin.tsx` (mã thiết bị, tự hỏi theo `interval`, dán địa chỉ Google) và mock (`mocks.ts`: thiết bị xong ở lần kiểm thứ hai; `pastedCode` theo đúng quy tắc của hộp). Đổi trạng thái hay mã lỗi = sửa cả hai.
+- **PRIVACY** luồng 5 + `core.json` `privacy.flow.5`: device code, token, refresh token xoay vòng.
+- Bí mật của preset người dùng là JSON (`refresh_token`, `client_secret` của Google); xoay vòng ghi lại qua `rotateEmailSecret` (goroutine, `Service.rotations`).
+
 ## Modifying: `GET /notify/channels` `approvals`, `approvers`
 - **SPA** `ChannelsSettings`; module khác đọc cấu hình duyệt qua interface `ApprovalChannels()`, không đọc bảng `notify_*`.
 

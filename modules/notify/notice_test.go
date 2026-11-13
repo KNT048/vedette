@@ -423,6 +423,7 @@ func TestFriendlyErrorNeverRepeatsTheOtherSide(t *testing.T) {
 		"webhook":                           {&channel.StatusError{Channel: channel.Webhook, Code: 404, Reason: "no such path /internal"}, "The webhook server answered with an error, so it did not accept the message."},
 		"provider":                          {&channel.ProviderError{Channel: channel.Zalo, Code: -201, Reason: "secret detail"}, "Zalo refused the message (code -201)."},
 		"zalo personal keeps the bare code": {&channel.ProviderError{Channel: channel.ZaloPersonal, Code: -216, Reason: "secret detail"}, "Zalo refused the message (code -216)."},
+		"email sign-in":                     {&channel.SignInError{Msg: "The mail server refused the sign-in (SMTP code 535).", Err: &channel.StatusError{Channel: channel.Email, Code: 535, Reason: "secret detail"}}, "The mail server refused the sign-in (SMTP code 535)."},
 		"timeout":                           {errors.New("notify: slack: send failed: timed out"), "The server did not answer in time."},
 		"other":                             {errors.New("notify: slack: send failed: dial tcp 10.1.1.1:443: connect: connection refused"), "The message could not be sent. The server could not be reached or answered something unexpected."},
 	} {

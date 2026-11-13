@@ -225,6 +225,45 @@ func aboutBox(ctx context.Context, tx *sql.Tx, c cleanObs) (bool, error) {
 	return n > 0, nil
 }
 
+var _ observe.Approver = (*Service)(nil)
+
+// ApproveEnrolled implements observe.Approver (D-503, S-INV-4): the device an osquery agent reports on is approved by the enrolment,
+// because an admin made the token and ran the install. The device is found as Record finds it (MAC, then IP) and never created here.
+// A device a person marked suspicious keeps waiting (a person's flag wins); the box and an approved device are left as they are. One
+// audit row inventory.approve_enrolled by "system", reason naming the token and its maker, only when the flag changes.
+func (s *Service) ApproveEnrolled(ctx context.Context, hint observe.AssetHint, reason string) (bool, error) {
+	ip, mac, err := checkHint(hint)
+	if err != nil {
+		return false, err
+	}
+	ipS := ""
+	if ip.IsValid() {
+		ipS = ip.String()
+	}
+	found := false
+	err = s.write(ctx, func(tx *sql.Tx, o *outbox) error {
+		var id string
+		err := tx.QueryRowContext(ctx, `SELECT id FROM inv_asset WHERE (? <> '' AND mac = ?) OR (? <> '' AND ip = ?) ORDER BY (? <> '' AND mac = ?) DESC LIMIT 1`,
+			mac, mac, ipS, ipS, mac, mac).Scan(&id)
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil
+		} else if err != nil {
+			return fmt.Errorf("inventory: find enrolled device: %w", err)
+		}
+		found = true
+		res, err := tx.ExecContext(ctx, `UPDATE inv_asset SET approved = 1 WHERE id = ? AND approved = 0 AND suspicious = 0 AND is_box = 0`, id)
+		if err != nil {
+			return fmt.Errorf("inventory: approve enrolled device: %w", err)
+		}
+		if n, _ := res.RowsAffected(); n == 0 {
+			return nil
+		}
+		o.add(EventAssetUpdated, AssetEvent{AssetID: id})
+		return s.auditTx(ctx, tx, systemActor, "inventory.approve_enrolled", deviceName(ctx, tx, id), reason)
+	})
+	return found, err
+}
+
 // target names the device a hint points to, for the audit row.
 func (c cleanObs) target() string {
 	if c.mac != "" {

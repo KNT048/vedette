@@ -524,7 +524,7 @@
       "advanced": "Advanced: manual setup",
       "advancedBody": "The same result step by step, for locked-down servers or your own packaging. The package comes from this box and is installed only when its SHA-256 matches the table above. For a file you copied over (USB stick), leave out the download line: on Linux run the first and last lines in the folder that holds the file; on Windows set $f to the file's path, then run the last line.",
       "queries": "What Vedette asks osquery for",
-      "queriesBody": "Read-only queries, delivered through the config endpoint. Packages differ per distribution, so each machine runs only the ones that fit it. The interfaces query reports the machine's IPv4 addresses and MAC addresses so Vedette can match it to the right device."
+      "queriesBody": "Read-only queries, delivered through the config endpoint. Packages differ per distribution, so each machine runs only the ones that fit it. The interfaces query reports the machine's IPv4 addresses and MAC addresses so Vedette can match it to the right device. In its first hour after enrolling, a machine runs every minute each query whose answer Vedette has not received yet, so its operating system and packages show within a few minutes; it then follows the intervals below. Vedette marks the machine Approved, because whoever made the token vouched for it, and sets its type from its operating system (Windows Server and Linux: Server; other Windows and macOS: PC) unless a person has chosen one."
     },
     "download": {
       "title": "Or download the package",

@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	catalogdata "github.com/knt048/vedette/content/catalog"
+	"github.com/knt048/vedette/core/observe"
 )
 
 // catalogKeys is every lower(vendor)|lower(product) the inventory can match: the KEV pairs and the curated products and match keys.
@@ -168,5 +169,28 @@ func TestMapPackagesBoundsAndKeyLength(t *testing.T) {
 	items, _ = mapPackages(map[string][]row{"deb_packages": many})
 	if len(items) > maxRows {
 		t.Fatalf("%d items over the cap", len(items))
+	}
+}
+
+// D-503 (W2-12): the kind comes from the OS and stays within the inventory's kind list; an unknown platform gives none.
+func TestKindFromTheOS(t *testing.T) {
+	for _, c := range []struct{ platform, name, want string }{
+		{"ubuntu", "Ubuntu", "server"},
+		{"rhel", "Red Hat Enterprise Linux", "server"},
+		{"rocky", "Rocky Linux", "server"},
+		{"windows", "Microsoft Windows Server 2022 Datacenter", "server"},
+		{"windows", "Microsoft Windows 11 Pro", "pc"},
+		{"darwin", "macOS", "pc"},
+		{"Ubuntu", "Ubuntu", "server"},
+		{"linuxmint", "Linux Mint", ""},
+		{"", "", ""},
+	} {
+		if got := kindOf(row{"platform": c.platform, "name": c.name}); got != c.want {
+			t.Errorf("%s %q: %q, want %q", c.platform, c.name, got, c.want)
+		}
+	}
+	obs := observations(observe.AssetHint{}, map[string][]row{"os_version": {{"name": "Ubuntu", "version": "26.04.1 LTS", "platform": "ubuntu"}}}, "")
+	if len(obs) != 2 || obs[1].Field != observe.Kind || obs[1].Value != "server" || obs[1].Source != observe.Agent {
+		t.Fatalf("observations %+v", obs)
 	}
 }

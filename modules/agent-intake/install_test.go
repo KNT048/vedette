@@ -198,14 +198,18 @@ func TestInstall_LinuxScriptDoesNotShareNamesWithOsRelease(t *testing.T) {
 	}
 }
 
-// A normal first install exits 0 once the machine has enrolled: osquery's first report comes up to an hour later and is not waited for
-// (S-INV-4, supervisor decision 2026-11-13). The only non-zero end after the install is "did not enrol" (3); success is THIS machine's host_last_seen (status, by host_identifier) appearing or moving
-// past what it was before the restart, never the token-wide counts.
+// A normal first install exits 0 once the machine has enrolled: osquery's first report comes a few minutes later (D-503) and is not waited
+// for (S-INV-4, supervisor decision 2026-11-13). The only non-zero end after the install is "did not enrol" (3); success is THIS machine's host_last_seen (status, by host_identifier) appearing or moving
+// past what it was before the restart, never the token-wide counts. Both scripts set --config_refresh=300, without which osquery keeps
+// the first-hour schedule of every minute until it restarts (schedule.go).
 func TestInstall_ExitsZeroWhenEnrolledNotWhenFirstReportArrives(t *testing.T) {
-	const ok = "Installed and enrolled; the first report arrives within about an hour."
+	const ok = "Installed and enrolled; this machine's operating system and packages appear in Vedette within a few minutes."
 	sh, ps1 := readFile(t, "scripts/osquery.sh"), readFile(t, "scripts/osquery.ps1")
-	if !strings.Contains(sh, `echo "`+ok+`"; exit 0`) || !strings.Contains(ps1, `Write-Host '`+ok+`'; return`) {
+	if !strings.Contains(sh, `echo "`+ok+`"; exit 0`) || !strings.Contains(ps1, `Write-Host "`+ok+`"; return`) {
 		t.Error("a script does not end a first install with the enrolled message and success")
+	}
+	if !strings.Contains(sh, "\n--config_refresh=300\n") || !strings.Contains(ps1, "'--config_refresh=300'") {
+		t.Error("a script does not make osquery re-read its config every 300 s")
 	}
 	for name, body := range map[string]string{"sh": sh, "ps1": ps1} {
 		if !strings.Contains(body, `host_identifier`) || !strings.Contains(body, `host_last_seen`) || strings.Contains(body, `"hosts":`) || strings.Contains(body, `"enrolled":true`) {

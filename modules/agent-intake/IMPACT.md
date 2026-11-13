@@ -5,6 +5,7 @@
 ## Modifying: `IssueToken(ctx, actor, name, ttlDays) (Token, secret string, error)` — 1 người gọi: `AdminHandlers.InventoryPostInventoryAgentsTokens` (lát 3)
 - **web/features/inventory/AgentsSection**: `CreateTokenResult` hiện secret một lần; đổi định dạng token (`vdt_osquery_` + 32 ký tự) → regex trong `parse.go`, script cài và `/intake/osquery/status` vỡ.
 - Mã lỗi `bad_name`, `bad_expiry`, `too_many_tokens` (409) là của GUI tạo token.
+- `actor` được lưu ở `created_by` (D-503): dòng audit duyệt thiết bị của mọi máy đăng ký bằng token này ghi tên người đó.
 
 ## Modifying: `RevokeToken` — thu hồi xoá hàng token và (khoá ngoại) các máy của nó
 - Máy đã đăng ký nhận `node_invalid` ở lần gọi kế (POST-3); dữ liệu đã nhận ở `inv_*` giữ nguyên. Đổi sang "đánh dấu thu hồi" thì phải đổi tra cứu ở `service.go` và job `node-prune`.
@@ -12,6 +13,8 @@
 ## Modifying: giao thức osquery (`/intake/osquery/{enroll,config,log}`, D-169) — 1 người gọi: `osqueryd` trên máy chủ khách
 - **Script cài và cài tay** (`web/src/features/inventory/{scripts/*,agentConfig.ts}`): cờ `*_tls_endpoint` trỏ vào đúng ba đường này; đổi đường dẫn = SHA-256 script đổi và mọi máy đã cài phải cài lại.
 - **Lịch truy vấn** (`schedule.go` = `OSQUERY_SCHEDULE` trong `agentConfig.ts`; `schedule_test.go` so khớp từng truy vấn, khoảng, nền tảng): thêm/bớt truy vấn phải đổi `schedule.go`, bảng `columns` trong `parse.go`, GUI và mapper; `interfaces` là truy vấn định danh máy (INV-12), bỏ nó = không máy nào ghi được gì.
+- **Báo cáo đầu (D-503, INV-18)**: `nodeSchedule` đổi `interval` theo máy (60 s cho câu chưa nhận, giờ đầu); thêm truy vấn mới phải thêm nó vào `firstReport` (`schedule.go`) và `answers` (`ingest.go`), nếu không máy mới hỏi nó mỗi phút suốt giờ đầu. Bỏ `--config_refresh=300` khỏi script (`scripts/*`, `web/src/features/inventory/{scripts/*,agentConfig.ts}`) = máy giữ nhịp 60 s tới lần khởi động osqueryd sau (`TestInstall_ExitsZeroWhenEnrolledNotWhenFirstReportArrives` giữ cờ). Cờ này làm mỗi máy gọi `config` mỗi 5 phút (một lần ghi `last_seen` mỗi lượt; hạn 6/phút).
+- **Duyệt + loại (D-503)**: `Config.Approver` (inventory `ApproveEnrolled`, inventory INV-25) bắt buộc; `kindOf` (`mapper.go`) chỉ trả loại trong danh sách `inventory.Kinds` (kho từ chối loại lạ, cả lô quan sát mất một dòng). Wazuh dùng chung `observations` nên đổi `kindOf` đổi luôn loại của máy Wazuh.
 - **core/server**: bốn thao tác là `public`; cổng module (SYS-5) và `BodyLimits` áp theo `operationId` (`inventory_post_intake_osquery_*`); đổi `operationId` (đổi đường dẫn trong `contract.ts`) làm đổi khoá giới hạn thân (`cmd/vedette/modules.go` nhận `agentintake.BodyLimits`; `server.New` từ chối khoá không tồn tại).
 - **Đọc địa chỉ nguồn**: `Exchange.ClientAddr()` (`r.RemoteAddr`). Đặt hộp sau proxy/NAT ngược làm mọi máy "chưa khớp" (INV-12) và chung một hạn mức nguồn (INV-14).
 

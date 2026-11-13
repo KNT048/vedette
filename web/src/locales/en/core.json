@@ -478,6 +478,7 @@
       "inventory.add_manual": "Add device by hand",
       "inventory.add_software": "Add software to a device",
       "inventory.agent_enroll": "Agent enrolled",
+      "inventory.approve_enrolled": "Device approved by its agent enrolment",
       "inventory.agent_token_create": "Create agent enrolment token",
       "inventory.agent_token_revoke": "Revoke agent enrolment token",
       "inventory.wazuh_connect": "Connect Wazuh",

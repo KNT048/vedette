@@ -22,7 +22,8 @@ export interface ConfigStep { key: string; file: string; code: string }
 
 const hostOf = (serverUrl: string) => serverUrl.replace(/^https:\/\//, '')
 
-/** Lịch truy vấn Vedette cần (gửi qua config endpoint; hiện ở đây để người dùng biết thu thập gì). Chỉ đọc, không có truy vấn ghi hay chạy lệnh. */
+/** Lịch truy vấn Vedette cần (gửi qua config endpoint; hiện ở đây để người dùng biết thu thập gì). Chỉ đọc, không có truy vấn ghi hay chạy lệnh.
+ *  Giờ đầu sau khi đăng ký, câu nào kho chưa nhận thì hỏi mỗi phút (D-503, `queriesBody`); `--config_refresh=300` cho máy quay về lịch này. */
 export const OSQUERY_SCHEDULE = JSON.stringify({
   schedule: {
     os_version: { query: 'SELECT name, version, major, minor, patch, build, platform, arch FROM os_version;', interval: 3600, snapshot: true },
@@ -55,7 +56,7 @@ export function osquerySteps(platform: Platform, serverUrl: string, token: strin
       ...linuxGet('deb', `osquery_${OSQUERY_VERSION}-1.linux_$(dpkg --print-architecture).deb`, 'sudo dpkg -i'),
       ...linuxGet('rpm', `osquery-${OSQUERY_VERSION}-1.linux.$(uname -m).rpm`, 'sudo rpm -Uvh'),
       { key: 'secret', file: 'Shell', code: `sudo mkdir -p /etc/osquery\n(umask 077; echo '${token}' | sudo tee /etc/osquery/enroll.secret >/dev/null)\nsudo curl -fsSk ${serverUrl}/api/v1/intake/ca.pem -o ${ca}\nopenssl x509 -in ${ca} -noout -fingerprint -sha256` },
-      { key: 'flags', file: '/etc/osquery/osquery.flags', code: `--config_plugin=tls\n--logger_plugin=tls\n--host_identifier=hostname\n--enroll_secret_path=/etc/osquery/enroll.secret\n--tls_server_certs=${ca}\n--tls_hostname=${host}\n--enroll_tls_endpoint=/api/v1/intake/osquery/enroll\n--config_tls_endpoint=/api/v1/intake/osquery/config\n--logger_tls_endpoint=/api/v1/intake/osquery/log` },
+      { key: 'flags', file: '/etc/osquery/osquery.flags', code: `--config_plugin=tls\n--logger_plugin=tls\n--host_identifier=hostname\n--enroll_secret_path=/etc/osquery/enroll.secret\n--tls_server_certs=${ca}\n--tls_hostname=${host}\n--enroll_tls_endpoint=/api/v1/intake/osquery/enroll\n--config_tls_endpoint=/api/v1/intake/osquery/config\n--config_refresh=300\n--logger_tls_endpoint=/api/v1/intake/osquery/log` },
       { key: 'start', file: 'Shell', code: 'sudo systemctl enable --now osqueryd' },
     ]
   }
@@ -66,7 +67,7 @@ export function osquerySteps(platform: Platform, serverUrl: string, token: strin
       code: `$f = "$env:TEMP\\${p.file}"\ncurl.exe -fSLk ${mirror}/${p.file} -o $f\nif ((Get-FileHash $f -Algorithm SHA256).Hash -ieq '${p.sha256}') { $p = Start-Process msiexec.exe -Wait -PassThru -ArgumentList "/i \`"$f\`" /qn /norestart"; if ($p.ExitCode -notin 0, 3010) { throw "msiexec failed with exit code $($p.ExitCode)" } } else { throw 'Checksum mismatch: do not install this file' }`,
     })),
     { key: 'secret', file: 'PowerShell (Administrator)', code: `Set-Content -Path "${dir}\\enroll.secret" -Value '${token}' -NoNewline -Encoding ascii\ncurl.exe -fsSk ${serverUrl}/api/v1/intake/ca.pem -o "${dir}\\vedette-ca.pem"\ncertutil -dump "${dir}\\vedette-ca.pem"` },
-    { key: 'flags', file: `${dir}\\osquery.flags`, code: `--config_plugin=tls\n--logger_plugin=tls\n--host_identifier=hostname\n--enroll_secret_path=${dir}\\enroll.secret\n--tls_server_certs=${dir}\\vedette-ca.pem\n--tls_hostname=${host}\n--enroll_tls_endpoint=/api/v1/intake/osquery/enroll\n--config_tls_endpoint=/api/v1/intake/osquery/config\n--logger_tls_endpoint=/api/v1/intake/osquery/log` },
+    { key: 'flags', file: `${dir}\\osquery.flags`, code: `--config_plugin=tls\n--logger_plugin=tls\n--host_identifier=hostname\n--enroll_secret_path=${dir}\\enroll.secret\n--tls_server_certs=${dir}\\vedette-ca.pem\n--tls_hostname=${host}\n--enroll_tls_endpoint=/api/v1/intake/osquery/enroll\n--config_tls_endpoint=/api/v1/intake/osquery/config\n--config_refresh=300\n--logger_tls_endpoint=/api/v1/intake/osquery/log` },
     { key: 'service', file: 'PowerShell (Administrator)', code: `cd "${dir}"\n.\\manage-osqueryd.ps1 -install -startupArgs "--flagfile=\`"${dir}\\osquery.flags\`""\nSet-Service osqueryd -StartupType Automatic\nStart-Service osqueryd` },
   ]
 }

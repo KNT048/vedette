@@ -107,6 +107,13 @@ type Software struct {
 	Confidence float64
 }
 
+// Approver accepts the device an enrolled agent reports on (D-503): the person who made the enrolment token and ran the install
+// vouched for the machine. found says the hint points to a device at all; a device a person marked suspicious, the box, or one
+// already approved is left as it is. reason is the audit detail (which token, made by whom).
+type Approver interface {
+	ApproveEnrolled(ctx context.Context, hint AssetHint, reason string) (found bool, err error)
+}
+
 // SoftwareSink receives the full software list of one device from one source. The list replaces the
 // rows that source reported before (rows of other sources are untouched).
 type SoftwareSink interface {

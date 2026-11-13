@@ -314,8 +314,16 @@ type FindingDirectory interface {
 // DeviceDirectory names a device by inventory id. Without one, device events show the id.
 type DeviceDirectory interface {
 	DeviceName(ctx context.Context, assetID string) (string, bool, error)
-	// DeviceLabel is the name of a newly discovered device for its unknown_device incident: name, IP or MAC, with the vendor.
-	DeviceLabel(ctx context.Context, assetID string) (string, bool, error)
+	// DeviceState is the device as the Devices page shows it now, for its unknown_device incidents (D-552); ok is false when
+	// the inventory does not have it.
+	DeviceState(ctx context.Context, assetID string) (st DeviceState, ok bool, err error)
+}
+
+// DeviceState is a device as the Devices page shows it now (D-552).
+type DeviceState struct {
+	Name     string // inventory's one naming rule (D-471), else the MAC, else the kind; plain text, at most 160 characters
+	Address  string // the IP, else the MAC; "" when neither is known
+	Approved bool   // a person (or an osquery enrolment) approved it
 }
 
 // TokenRecorder stores an approval token record (spec approval-tokens.md 4.1: the record in the

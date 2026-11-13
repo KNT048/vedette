@@ -36,9 +36,60 @@ var quietWindows = []struct {
 func heldKind(k IncidentKind) bool { return k == IncidentBadAddress || k == IncidentLogAnomaly }
 
 // runAutoClose is the body of the "autoclose" job: the first-run summary first (an incident held in it may also be quiet), then the
-// quiet incidents.
+// quiet incidents, then the new-device incidents of devices approved or renamed in Devices (D-552).
 func (s *Service) runAutoClose(ctx context.Context) error {
-	return errors.Join(s.firstRunSummary(ctx), s.closeQuiet(ctx))
+	return errors.Join(s.firstRunSummary(ctx), s.closeQuiet(ctx), s.followDevices(ctx))
+}
+
+// followDevices is assetUpdated for the devices on open new-device incidents (D-552): a device approved before this version, or while
+// notify was off (events are not replayed), leaves its incidents on the next run, which is also the run at start, and a name Devices
+// learnt since shows. At most maxAutoClose devices a run, oldest incident first. The inventory is read before the one write.
+// ponytail: a box with more than 500 devices on open new-device incidents checks the 500 oldest each hour (an approval now closes
+// through its event); upgrade path: a cursor over the asset ids.
+func (s *Service) followDevices(ctx context.Context) error {
+	if s.cfg.Devices == nil {
+		return nil
+	}
+	rows, err := s.cfg.DB.Reader().QueryContext(ctx, `SELECT d.asset_id, MIN(i.first_seen) AS f FROM notify_incident i JOIN notify_incident_device d ON d.incident_id = i.id
+		WHERE i.kind = ? AND i.status <> 'resolved' GROUP BY d.asset_id ORDER BY f, d.asset_id LIMIT ?`, string(IncidentUnknownDevice), maxAutoClose)
+	if err != nil {
+		return fmt.Errorf("notify: find the devices of new-device incidents: %w", err)
+	}
+	var ids []string
+	for rows.Next() {
+		var id, first string
+		if err := rows.Scan(&id, &first); err != nil {
+			_ = rows.Close()
+			return fmt.Errorf("notify: find the devices of new-device incidents: %w", err)
+		}
+		ids = append(ids, id)
+	}
+	if err := errors.Join(rows.Err(), rows.Close()); err != nil {
+		return fmt.Errorf("notify: find the devices of new-device incidents: %w", err)
+	}
+	states := make(map[string]DeviceState, len(ids))
+	for _, id := range ids {
+		st, ok, err := s.cfg.Devices.DeviceState(ctx, id)
+		if err != nil {
+			return err
+		}
+		if ok { // a device the inventory no longer has is INV-20's
+			states[id] = st
+		}
+	}
+	if len(states) == 0 {
+		return nil
+	}
+	return s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
+		for _, id := range ids {
+			if st, ok := states[id]; ok {
+				if err := s.followDevice(ctx, tx, id, st); err != nil {
+					return err
+				}
+			}
+		}
+		return nil
+	})
 }
 
 // closeBySystem resolves an open incident on Vedette's behalf, like a person's resolve (handled_by system, one audit row

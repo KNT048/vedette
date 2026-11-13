@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -273,5 +274,128 @@ func TestFirstRunSummaryOfResolvedIncidentsIsDropped(t *testing.T) {
 	e.flush()
 	if n := len(e.net.to("api.telegram.org")); n != 0 || e.count(`SELECT COUNT(*) FROM notify_pending`) != 0 {
 		t.Fatalf("messages = %d: the summary of a resolved incident went out", n)
+	}
+}
+
+// stateDevices is a DeviceDirectory whose devices a test approves and renames.
+type stateDevices struct {
+	mu sync.Mutex
+	m  map[string]notify.DeviceState
+}
+
+func (f *stateDevices) set(id string, st notify.DeviceState) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.m[id] = st
+}
+
+func (f *stateDevices) DeviceName(_ context.Context, id string) (string, bool, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	st, ok := f.m[id]
+	return st.Name, ok, nil
+}
+
+func (f *stateDevices) DeviceState(_ context.Context, id string) (notify.DeviceState, bool, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	st, ok := f.m[id]
+	return st, ok, nil
+}
+
+// D-552 (W8-1, W8-2): a person's Approve publishes inventory.asset.updated, not B9's inventory.asset.approved. The update closes the
+// device's own new-device incident and takes it off the first-discovery summary; an update before that renames the incident to the
+// name Devices shows. B9's event afterwards names the approver in the reason, without a second close or audit row.
+func TestApprovedInDevicesClosesTheNewDeviceIncident(t *testing.T) {
+	devs := &stateDevices{m: map[string]notify.DeviceState{
+		"a1":  {Name: "PC-01", Address: "10.0.0.1"},
+		"a2":  {Name: "NAS-01", Address: "10.0.0.2"},
+		"181": {Name: "Hon Hai Precision Ind. Co.,Ltd.", Address: "192.168.18.181"},
+	}}
+	e := newEnv(t, func(c *notify.Config) { c.Devices = devs })
+	e.firstRunAt(e.clock.Now())
+	e.svc.Subscribe(e.bus)
+	publish := func(name string, data any) {
+		t.Helper()
+		if err := e.bus.Publish(e.ctx(), eventOf(name, data)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	publish(inventory.EventAssetDiscovered, inventory.AssetEvent{AssetID: "a1", Notify: true})
+	publish(inventory.EventAssetDiscovered, inventory.AssetEvent{AssetID: "a2", Notify: true})
+	devs.set("a1", notify.DeviceState{Name: "PC-01", Address: "10.0.0.1", Approved: true})
+	publish(inventory.EventAssetUpdated, inventory.AssetEvent{AssetID: "a1"})
+	l, _ := e.svc.Incidents(e.ctx())
+	if len(l) != 1 || l[0].Title != "1 device found on your network: approve it in Devices" || l[0].Status != notify.StatusNew ||
+		len(l[0].Devices) != 1 || l[0].Devices[0].Name != "NAS-01 (10.0.0.2)" {
+		t.Fatalf("summary after approving a1 = %+v", l)
+	}
+	e.clock.Add(37 * time.Hour) // past the first discovery: a device has its own incident
+	publish(inventory.EventAssetDiscovered, inventory.AssetEvent{AssetID: "181", Notify: true})
+	l, _ = e.svc.Incidents(e.ctx())
+	if l[0].Title != "A new unknown device appeared: Hon Hai Precision Ind. Co.,Ltd. (192.168.18.181)" {
+		t.Fatalf("title = %q", l[0].Title)
+	}
+	devs.set("181", notify.DeviceState{Name: "byn", Address: "192.168.18.181"}) // its host name arrived
+	publish(inventory.EventAssetUpdated, inventory.AssetEvent{AssetID: "181"})
+	own := e.detail(l[0].ID)
+	if own.Status != notify.StatusNew || own.Title != "A new unknown device appeared: byn (192.168.18.181)" ||
+		own.What != "A device that is not in your inventory joined the network: byn (192.168.18.181)." || own.Devices[0].Name != "byn (192.168.18.181)" {
+		t.Fatalf("renamed = %+v", own)
+	}
+	devs.set("181", notify.DeviceState{Name: "byn", Address: "192.168.18.181", Approved: true})
+	publish(inventory.EventAssetUpdated, inventory.AssetEvent{AssetID: "181"})
+	publish(notify.EventAssetApproved, map[string]string{"asset_id": "181", "actor": "an@acme.example"}) // B9, after the update
+	publish(inventory.EventAssetUpdated, inventory.AssetEvent{AssetID: "181"})
+	own = e.detail(own.ID)
+	if own.Status != notify.StatusResolved || own.HandledBy == nil || *own.HandledBy != "system" ||
+		own.ResolvedReason == nil || *own.ResolvedReason != "Closed by Vedette: the device was approved by an@acme.example." {
+		t.Fatalf("own incident = %+v", own)
+	}
+	if n := e.count(`SELECT COUNT(*) FROM core_audit WHERE action = 'notify.incident_status' AND target = ?`, own.Title); n != 1 {
+		t.Fatalf("audit rows of the closed incident = %d, want 1", n)
+	}
+}
+
+// D-552 (W8-1): devices approved before this version (no event will come) leave their new-device incidents on the next autoclose
+// run; a device not approved stays open with its current name, and a device the inventory no longer has is left to INV-20.
+func TestAutoCloseClosesNewDeviceIncidentsOfApprovedDevices(t *testing.T) {
+	devs := &stateDevices{m: map[string]notify.DeviceState{
+		"181":  {Name: "Hon Hai Precision Ind. Co.,Ltd.", Address: "192.168.18.181"},
+		"145":  {Name: "192.168.18.145", Address: "192.168.18.145"},
+		"gone": {Name: "old-phone"},
+	}}
+	e := newEnv(t, func(c *notify.Config) { c.Devices = devs })
+	e.firstRunAt(e.clock.Now().AddDate(0, -1, 0)) // not a fresh box
+	e.svc.Subscribe(e.bus)
+	for _, id := range []string{"181", "145", "gone"} {
+		if err := e.bus.Publish(e.ctx(), eventOf(inventory.EventAssetDiscovered, inventory.AssetEvent{AssetID: id, Notify: true})); err != nil {
+			t.Fatal(err)
+		}
+	}
+	devs.set("181", notify.DeviceState{Name: "byn", Address: "192.168.18.181", Approved: true}) // approved by the version before
+	devs.set("145", notify.DeviceState{Name: "kiens-macbook-air", Address: "192.168.18.145"})
+	devs.mu.Lock()
+	delete(devs.m, "gone")
+	devs.mu.Unlock()
+	e.autoClose()
+	got := map[string]notify.Incident{}
+	l, _ := e.svc.Incidents(e.ctx())
+	for _, i := range l {
+		got[i.Devices[0].ID] = i
+	}
+	if i := got["181"]; i.Status != notify.StatusResolved || i.ResolvedReason == nil || *i.ResolvedReason != "Closed by Vedette: the device was approved in Devices." ||
+		i.Title != "A new unknown device appeared: byn (192.168.18.181)" {
+		t.Fatalf("approved device = %+v", i)
+	}
+	if i := got["145"]; i.Status != notify.StatusNew || i.Title != "A new unknown device appeared: kiens-macbook-air (192.168.18.145)" {
+		t.Fatalf("device not approved = %+v", i)
+	}
+	if i := got["gone"]; i.Status != notify.StatusNew || i.Title != "A new unknown device appeared: old-phone" {
+		t.Fatalf("device no longer in the inventory = %+v", i)
+	}
+	e.autoClose() // nothing changed: no second close
+	if n := e.count(`SELECT COUNT(*) FROM core_audit WHERE action = 'notify.incident_status'`); n != 1 {
+		t.Fatalf("audit rows = %d, want 1", n)
 	}
 }

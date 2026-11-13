@@ -76,37 +76,33 @@ func (a notifyDevices) DeviceName(ctx context.Context, assetID string) (string, 
 	return r.Display, true, nil
 }
 
-// deviceVendorMax caps the vendor in a device label: notify refuses an incident title over 200 characters.
-const deviceVendorMax = 48
-
-// DeviceLabel names a newly discovered device for its unknown_device incident (walk 4: "A new unknown device appeared:
-// switch"): the hostname, else the IP or else the MAC followed by the vendor when one is known ("192.168.18.254 (Sichuan
-// AI-Link)"); the kind only when nothing else is known. The values come from the network: plainText cleans them.
-func (a notifyDevices) DeviceLabel(ctx context.Context, assetID string) (string, bool, error) {
-	refs, err := a.inv.DeviceRefs(ctx, []string{assetID})
+// DeviceState is notify's view of a device for its unknown_device incidents (D-552, W8-2): the name of the Devices page
+// (inventory.Device.Name, the one naming rule of D-471), else the MAC, else the kind; the IP, else the MAC, as the address; and
+// whether it is approved, which a person's Approve sets (notify closes the device's incident on it). The values come from the
+// network: plainText cleans them.
+func (a notifyDevices) DeviceState(ctx context.Context, assetID string) (notify.DeviceState, bool, error) {
+	d, err := a.inv.Device(ctx, assetID)
+	if errors.Is(err, inventory.ErrNotFound) {
+		return notify.DeviceState{}, false, nil
+	}
 	if err != nil {
-		return "", false, err
+		return notify.DeviceState{}, false, err
 	}
-	r, ok := refs[assetID]
-	if !ok {
-		return "", false, nil
+	var mac string
+	if d.MAC != nil {
+		mac = plainText(*d.MAC, 64)
 	}
-	if r.Hostname != nil {
-		if h := plainText(*r.Hostname, 160); h != "" {
-			return h, true, nil
-		}
+	st := notify.DeviceState{Name: plainText(d.Name(), 160), Address: mac, Approved: d.Approved}
+	if _, err := netip.ParseAddr(d.IP); err == nil { // the inventory shows an em dash when the IP is unknown
+		st.Address = d.IP
 	}
-	id := r.MAC
-	if _, err := netip.ParseAddr(r.IP); err == nil { // the inventory shows an em dash when the IP is unknown
-		id = r.IP
+	if st.Name == "" {
+		st.Name = mac
 	}
-	if id == "" {
-		return r.Display, true, nil
+	if st.Name == "" {
+		st.Name = plainText(d.Kind, 64)
 	}
-	if v := plainText(r.Vendor, deviceVendorMax); v != "" {
-		id += " (" + v + ")"
-	}
-	return id, true, nil
+	return st, true, nil
 }
 
 // orgZone is notify's Zone: the organization time zone of core's general settings, read at every use so a change

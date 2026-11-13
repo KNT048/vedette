@@ -50,6 +50,31 @@ function ApplyButton({ finding, item }: { finding: FindingDetail; item: ApplyIte
   )
 }
 
+/** Phiên bản vá cho đúng thiết bị này, từ khoảng phiên bản NVD (D-488): chỉ nói điều dữ liệu cho, luôn ghi nguồn. */
+export function FixedInNote({ finding }: { finding: FindingDetail }) {
+  const { t } = useTranslation('findings')
+  const f = finding.fixed_in
+  if (!f) return null
+  const device = finding.asset?.name || t('removedDevice')
+  let text: string
+  if (f.kind === 'fixed') text = t('rec.fixedIn', { fixed: f.fixed, device, version: f.version })
+  else if (f.kind === 'up_to') text = t('rec.fixedUpTo', { fixed: f.fixed, device, version: f.version })
+  else if (f.kind === 'distro') text = t('rec.fixedDistro', { device, version: f.version, distro: f.distro })
+  else {
+    const list = f.branches.map((b) => (b.branch ? t('rec.fixedBranch', { branch: b.branch, fixed: b.fixed }) : t('rec.fixedBranchPlain', { fixed: b.fixed })))
+    if (f.more > 0) list.push(t('rec.fixedMore', { count: f.more }))
+    if (f.no_fix > 0) list.push(t('rec.fixedNoFix', { count: f.no_fix }))
+    text = f.version ? t('rec.fixedUnreadable', { device, version: f.version, list: list.join(', ') }) : t('rec.fixedBranches', { device, list: list.join(', ') })
+  }
+  return (
+    <div className="grid max-w-3xl gap-1" data-testid="fixed-in">
+      <p className="text-sm font-medium">{text}</p>
+      {f.distro && f.kind !== 'distro' ? <p className="text-[13px]">{t('rec.fixedIfDistro', { distro: f.distro, product: finding.kev?.display || t('rec.theSoftware') })}</p> : null}
+      <p className="text-[12px] text-muted">{t('rec.fixedSource')}</p>
+    </div>
+  )
+}
+
 function H3({ children, id }: { children: ReactNode; id: string }) {
   return <h3 id={id} className="text-sm font-semibold">{children}</h3>
 }
@@ -125,6 +150,7 @@ export function PackView({ finding }: { finding: FindingDetail }) {
         <section aria-labelledby="rec-patch" className="grid gap-2">
           <H3 id="rec-patch">{t('rec.patchTitle')}</H3>
           <p>{p.patch.summary}</p>
+          <FixedInNote finding={finding} />
           <p className="text-[13px]"><span className="font-medium">{t('rec.fixedVersion')}</span> {p.patch.fixed}</p>
           <ol className="grid list-decimal gap-1 pl-5">{p.patch.steps.map((s) => <li key={s}>{s}</li>)}</ol>
           <SideEffect text={p.patch.side_effect} />
@@ -225,7 +251,7 @@ export function NoPack({ finding }: { finding: FindingDetail }) {
           </div>
           <div className="grid gap-2">
             <h3 className="text-sm font-semibold">{t('rec.fixTitle')}</h3>
-            <p className="max-w-3xl text-[13px] text-muted">{t('rec.noFixedVersion')}</p>
+            {finding.fixed_in ? <FixedInNote finding={finding} /> : <p className="max-w-3xl text-[13px] text-muted">{t('rec.noFixedVersion')}</p>}
             {vendor.length > 0 ? (
               <ul className="grid gap-1 text-sm">
                 {vendor.map((u) => <li key={u}><a className="break-all text-accent underline underline-offset-4" href={u} target="_blank" rel="noopener noreferrer">{t('rec.vendorLink', { host: hostOf(u) })}</a></li>)}

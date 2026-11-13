@@ -111,6 +111,15 @@ type Software struct {
 	Guess bool
 }
 
+// Approver accepts the device an enrolled agent reports on (D-503): the person who made the enrolment token and ran the install
+// vouched for the machine. mac is the MAC of the agent's card that holds hint.IP ("" when it reported none): the device is approved
+// only when it was never seen with another MAC, so an address DHCP gave to a new machine never approves the old machine's row.
+// found says the hint points to a device at all; a device a person marked suspicious, the box, one already approved or one seen with
+// another MAC is left as it is. reason is the audit detail (which token, made by whom).
+type Approver interface {
+	ApproveEnrolled(ctx context.Context, hint AssetHint, mac, reason string) (found bool, err error)
+}
+
 // SoftwareSink receives the full software list of one device from one source. The list replaces the
 // rows that source reported before (rows of other sources are untouched).
 type SoftwareSink interface {

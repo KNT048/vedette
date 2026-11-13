@@ -1329,7 +1329,7 @@ describe('inventory: agents (S-INV-4)', () => {
       expect(r.text).toContain(BOX)
       expect(r.text).toContain('BEGIN CERTIFICATE') // the box CA is embedded, so later downloads verify it
       expect(r.text).not.toMatch(/trivy|macos|vdt_osquery_/i)
-      for (const line of ['--config_plugin=tls', '--logger_plugin=tls', 'enroll_secret_path', 'tls_server_certs', 'tls_hostname', '--enroll_tls_endpoint=/api/v1/intake/osquery/enroll', '--config_tls_endpoint=/api/v1/intake/osquery/config', '--logger_tls_endpoint=/api/v1/intake/osquery/log']) expect(r.text, `${ext}: ${line}`).toContain(line)
+      for (const line of ['--config_plugin=tls', '--logger_plugin=tls', 'enroll_secret_path', 'tls_server_certs', 'tls_hostname', '--enroll_tls_endpoint=/api/v1/intake/osquery/enroll', '--config_tls_endpoint=/api/v1/intake/osquery/config', '--config_refresh=300', '--logger_tls_endpoint=/api/v1/intake/osquery/log']) expect(r.text, `${ext}: ${line}`).toContain(line)
     }
     const sh = (await raw('GET', '/install/osquery.sh')).text
     expect(sh).toContain('--token')
@@ -1619,7 +1619,7 @@ describe('inventory: agents (S-INV-4)', () => {
     for (const platform of ['linux', 'windows'] as const) {
       const steps = osquerySteps(platform, BOX, '<TOKEN>', pkgs)
       const flags = steps.find((s) => s.key === 'flags')!.code
-      for (const f of ['--config_plugin=tls', '--logger_plugin=tls', 'enroll_secret_path', 'tls_server_certs', `--tls_hostname=192.168.10.250:8443`, '--enroll_tls_endpoint=/api/v1/intake/osquery/enroll', '--config_tls_endpoint=/api/v1/intake/osquery/config', '--logger_tls_endpoint=/api/v1/intake/osquery/log']) expect(flags, `${platform}: ${f}`).toContain(f)
+      for (const f of ['--config_plugin=tls', '--logger_plugin=tls', 'enroll_secret_path', 'tls_server_certs', `--tls_hostname=192.168.10.250:8443`, '--enroll_tls_endpoint=/api/v1/intake/osquery/enroll', '--config_tls_endpoint=/api/v1/intake/osquery/config', '--config_refresh=300', '--logger_tls_endpoint=/api/v1/intake/osquery/log']) expect(flags, `${platform}: ${f}`).toContain(f)
       expect(flags).not.toContain('https://') // tls_hostname has the port and no scheme
       expect(steps.find((s) => s.key === 'secret')!.code).toContain('<TOKEN>')
       expect(steps.filter((s) => /-fsSk|-fsSLk/.test(s.code))).toHaveLength(1) // the certificate is fetched with -k once, to be checked by fingerprint

@@ -3,6 +3,7 @@ package agentintake
 import (
 	_ "embed"
 	"encoding/json"
+	"slices"
 	"strings"
 	"unicode/utf8"
 
@@ -166,6 +167,28 @@ func sourceName(s string) string {
 	return name
 }
 
+// linuxServer is the os_version platform of the Linux distributions the agent supports (INV-2) and their close kin; all are run here as
+// servers (the install is for servers only, D-34). Another Linux (a desktop distribution) gives no kind.
+var linuxServer = []string{"ubuntu", "debian", "rhel", "centos", "rocky", "almalinux", "ol", "amzn", "sles"}
+
+// kindOf is the device kind of an os_version row (D-503), within the inventory's kind list: Windows Server is a server and another
+// Windows a pc, a supported Linux a server, macOS a pc; anything else "" (no kind observation, the device keeps what it has). It goes in
+// with the agent's rank, so a person's choice still wins and a passive guess never overrides it.
+func kindOf(r row) string {
+	switch p := strings.ToLower(r["platform"]); {
+	case p == "windows":
+		if strings.Contains(strings.ToLower(r["name"]), "server") {
+			return "server"
+		}
+		return "pc"
+	case p == "darwin":
+		return "pc"
+	case slices.Contains(linuxServer, p):
+		return "server"
+	}
+	return ""
+}
+
 // observations makes the device observations of one request from os_version and system_info, for the device the node is bound to.
 func observations(hint observe.AssetHint, snaps map[string][]row, mac string) []observe.Observation {
 	var out []observe.Observation
@@ -181,6 +204,9 @@ func observations(hint observe.AssetHint, snaps map[string][]row, mac string) []
 			v += " build " + r["build"]
 		}
 		add(observe.OS, v)
+		if k := kindOf(r); k != "" {
+			add(observe.Kind, k)
+		}
 	}
 	if rows := snaps["system_info"]; len(rows) > 0 {
 		r := rows[0]

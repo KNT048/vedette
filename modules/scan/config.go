@@ -181,8 +181,8 @@ func isoDay(t time.Time) int {
 }
 
 // NextRun is the next scheduled run after now in loc, or nil when the schedule is off (POST-3; the mock's nextRun):
-// the first slot within two weeks that slotOK accepts. first is true while no scheduled slot was ever recorded (sched_last is
-// empty): the first run is then the next window day at the schedule time, whatever the weekday of a weekly schedule (W3-6).
+// the first slot within two weeks that slotOK accepts. first is true while no scheduled run has ever started (firstPending,
+// W3-9): the first run is then the next window day at the schedule time, whatever the weekday of a weekly schedule (W3-6).
 func (c Settings) NextRun(now time.Time, loc *time.Location, first bool) *time.Time {
 	if !c.Schedule.Enabled || !hhmmRE.MatchString(c.Schedule.At) {
 		return nil

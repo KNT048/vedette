@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/netip"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/knt048/vedette/core/observe"
@@ -40,7 +41,75 @@ func (s *Service) Log(ctx context.Context, src netip.Addr, in logIn) error {
 	// The hint is the TCP address only. The MAC is the node's own claim, and the inventory resolves a device by MAC first: with it in
 	// the hint a node could write onto any device whose MAC it names. It goes in as a 0.9 observation only, which the inventory
 	// refuses when another device owns that MAC (D-265 (4)).
-	return s.deliver(ctx, src.Unmap().WithZone(""), observe.AssetHint{IP: ip}, mac, n.id, in)
+	hint := observe.AssetHint{IP: ip}
+	taken, err := s.deliver(ctx, src.Unmap().WithZone(""), hint, mac, n.id, in)
+	if err != nil {
+		return err
+	}
+	return s.firstReport(ctx, n, hint, mac, taken)
+}
+
+// answers is the fixed order of the first report's answers (schedule.go firstReport), so the stored list is canonical.
+var answers = []string{"os_version", "system_info", "interfaces", "packages"}
+
+// firstReport records which answers of the first report the inventory took from this node (the config stops asking for them every
+// minute), and approves the device in the name of the token's maker once per node, as soon as the inventory has it (D-503). mac is the
+// node's card on the hint's address: the inventory approves the row only when it was never seen with another MAC (DHCP reuse).
+func (s *Service) firstReport(ctx context.Context, n nodeRow, hint observe.AssetHint, mac string, taken []string) error {
+	var list []string
+	for _, a := range answers {
+		if hasAnswer(n.reported, a) || slices.Contains(taken, a) {
+			list = append(list, a)
+		}
+	}
+	reported := strings.Join(list, ",")
+	approved := false
+	if !n.approved && len(taken) > 0 {
+		reason, err := s.enrolment(ctx, n.id)
+		if err != nil {
+			return err
+		}
+		found, err := s.cfg.Approver.ApproveEnrolled(ctx, hint, mac, reason)
+		switch {
+		case err != nil && transient(err):
+			return fmt.Errorf("agentintake: approve: %w", err)
+		case err != nil: // refused at the inventory's boundary: it would refuse it again; do not try at every report
+			s.cfg.Log.ErrorContext(ctx, "agent-intake: the inventory refused the enrolment's approval", "node", n.id, "error", err.Error())
+			approved = true
+		default:
+			// no device yet (only the interfaces arrived): the next report tries again. A row seen with another MAC (DHCP gave this
+			// address to a new machine and no sensor saw the move yet) is found and left for a person: done once, like a suspicious one.
+			approved = found
+		}
+	}
+	if reported == n.reported && !approved {
+		return nil
+	}
+	return s.db.Write(ctx, func(tx *sql.Tx) error {
+		if _, err := tx.ExecContext(ctx, `UPDATE intake_osquery_nodes SET reported = ?, approved_at = CASE WHEN ? THEN coalesce(approved_at, ?) ELSE approved_at END WHERE id = ?`,
+			reported, approved, store.FormatTS(s.now()), n.id); err != nil {
+			return fmt.Errorf("agentintake: mark first report: %w", err)
+		}
+		return nil
+	})
+}
+
+// enrolment is the audit detail of the enrolment's approval: the machine, the token and who made the token.
+func (s *Service) enrolment(ctx context.Context, node string) (string, error) {
+	var host, token string
+	var by sql.NullString
+	err := s.db.Reader().QueryRowContext(ctx, `SELECT n.host_identifier, t.name, t.created_by FROM intake_osquery_nodes n JOIN intake_agent_tokens t ON t.id = n.token_id WHERE n.id = ?`, node).Scan(&host, &token, &by)
+	switch {
+	case errors.Is(err, sql.ErrNoRows): // revoked since the key was read
+		return "", errNodeInvalid
+	case err != nil:
+		return "", fmt.Errorf("agentintake: read enrolment: %w", err)
+	}
+	maker := "made before Vedette recorded who makes tokens"
+	if by.Valid {
+		maker = "made by " + by.String
+	}
+	return fmt.Sprintf("osquery on %q enrolled with the token %q, %s", host, token, maker), nil
 }
 
 // sourceWindow is how often one source address may replace a software list (D-265 (2b)): one machine is one bound IPv4, so a
@@ -133,11 +202,22 @@ func (s *Service) markResult(ctx context.Context, n nodeRow, ip netip.Addr, mac 
 }
 
 // deliver hands the device facts and the package list to the inventory. An empty package list never replaces the stored one
-// (POST-2 of the plan): a node whose package table failed or is empty must not wipe what was known.
-func (s *Service) deliver(ctx context.Context, src netip.Addr, hint observe.AssetHint, mac, node string, in logIn) error {
+// (POST-2 of the plan): a node whose package table failed or is empty must not wipe what was known. taken is the answers of the first
+// report this request gave (schedule.go firstReport): the interfaces matched (deliver runs only then), os_version or system_info
+// with a row, a package list that was not empty and that the 5-minute window let through (the window is per source address, not per
+// node: a list it dropped was not taken from this node, so the first hour keeps asking for it).
+func (s *Service) deliver(ctx context.Context, src netip.Addr, hint observe.AssetHint, mac, node string, in logIn) (taken []string, err error) {
+	if _, ok := in.snaps["interfaces"]; ok {
+		taken = append(taken, "interfaces")
+	}
 	if obs := observations(hint, in.snaps, mac); len(obs) > 0 {
 		if err := s.record(ctx, obs); err != nil {
-			return err
+			return nil, err
+		}
+		for _, q := range []string{"os_version", "system_info"} {
+			if len(in.snaps[q]) > 0 {
+				taken = append(taken, q)
+			}
 		}
 	}
 	items, dropped := mapPackages(in.snaps, maxRows)
@@ -148,19 +228,20 @@ func (s *Service) deliver(ctx context.Context, src netip.Addr, hint observe.Asse
 		if hasPackageQuery(in) {
 			s.cfg.Log.InfoContext(ctx, "agent-intake: an empty package list kept the stored one", "node", node)
 		}
-		return nil
+		return taken, nil
 	}
 	if !s.allowReplace(ctx, src, node) {
-		return nil
+		return taken, nil
 	}
+	taken = append(taken, "packages")
 	if err := s.cfg.Software.ReplaceSoftware(ctx, hint, observe.Agent, items); err != nil {
 		if transient(err) {
-			return fmt.Errorf("agentintake: software: %w", err)
+			return nil, fmt.Errorf("agentintake: software: %w", err)
 		}
 		// The inventory refused this list. osquery would resend it for ever; the next snapshot is a whole new list, so drop it here.
 		s.cfg.Log.ErrorContext(ctx, "agent-intake: the inventory refused a software list", "node", node, "error", err.Error())
 	}
-	return nil
+	return taken, nil
 }
 
 func hasPackageQuery(in logIn) bool {

@@ -1,6 +1,7 @@
 package findings
 
 import (
+	"cmp"
 	"fmt"
 	"strings"
 	"time"
@@ -406,6 +407,7 @@ func decide(in swInfo, v Vuln, multi bool) (t Tri, within VersionRange, every bo
 	}
 	result := No
 	applicable, undecidable := false, false
+	var yes *VersionRange // the widest range the version is inside: the one that explains the finding and names its fix (D-488)
 	for _, af := range v.Affected {
 		c, err := ParseCPE(af.CPE)
 		if err != nil || c.Part.Kind == NA {
@@ -434,11 +436,16 @@ func decide(in swInfo, v Vuln, multi bool) (t Tri, within VersionRange, every bo
 		}
 		switch t {
 		case Yes:
-			return Yes, r, every, proofNone
+			if yes == nil || widerEnd(r, *yes) {
+				yes = &r
+			}
 		case Unknown:
 			result = Unknown
 		case No:
 		}
+	}
+	if yes != nil {
+		return Yes, *yes, every, proofNone
 	}
 	if !applicable && in.osVer != "" && osRulesOut(v, in) {
 		p := proofNone
@@ -711,4 +718,15 @@ func clean(s string) string {
 		sb.WriteRune(r)
 	}
 	return sb.String()
+}
+
+// widerEnd says range a ends later than b; a range with no end is the widest, and a tie keeps b.
+func widerEnd(a, b VersionRange) bool {
+	end := func(r VersionRange) string { return cmp.Or(r.EndExcl, r.EndIncl) }
+	ea, eb := end(a), end(b)
+	if ea == "" || eb == "" {
+		return ea == "" && eb != ""
+	}
+	c, ok := compareBound(ea, eb)
+	return ok && c > 0
 }

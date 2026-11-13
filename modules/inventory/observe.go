@@ -225,6 +225,71 @@ func aboutBox(ctx context.Context, tx *sql.Tx, c cleanObs) (bool, error) {
 	return n > 0, nil
 }
 
+var _ observe.Approver = (*Service)(nil)
+
+// ApproveEnrolled implements observe.Approver (D-503, S-INV-4): the device an osquery agent reports on is approved by the enrolment,
+// because an admin made the token and ran the install. The device is found as Record finds it (MAC, then IP) and never created here;
+// an address the box answers on is no device (ownedFilter, as in Record). The row must be this machine's: it is approved only when no
+// source ever saw it with a MAC other than nodeMAC (the agent's card on that address). An address DHCP gave to a new machine still
+// resolves to the old machine's row until a sensor sees the move, and the agent's own MAC observation has by then made nodeMAC the
+// row's MAC (agent outranks passive), so the column alone proves nothing: the old MAC's observations do. Such a row is found but
+// left waiting for a person, with a log line. A device a person marked suspicious keeps waiting (a person's flag wins); the box and
+// an approved device are left as they are. One audit row inventory.approve_enrolled by "system", reason naming the token and its
+// maker, only when the flag changes.
+func (s *Service) ApproveEnrolled(ctx context.Context, hint observe.AssetHint, nodeMAC, reason string) (bool, error) {
+	ip, mac, err := checkHint(hint)
+	if err != nil {
+		return false, err
+	}
+	if isBox := s.ownedFilter(ctx); isBox != nil && isBox(ip, mac) {
+		s.ownedHit.Add(1)
+		return false, nil
+	}
+	if nodeMAC != "" {
+		m, ok := normMAC(nodeMAC)
+		if !ok {
+			return false, invalid("enrolment: not a MAC address")
+		}
+		nodeMAC = m
+	}
+	ipS := ""
+	if ip.IsValid() {
+		ipS = ip.String()
+	}
+	found := false
+	err = s.write(ctx, func(tx *sql.Tx, o *outbox) error {
+		var id string
+		err := tx.QueryRowContext(ctx, `SELECT id FROM inv_asset WHERE (? <> '' AND mac = ?) OR (? <> '' AND ip = ?) ORDER BY (? <> '' AND mac = ?) DESC LIMIT 1`,
+			mac, mac, ipS, ipS, mac, mac).Scan(&id)
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil
+		} else if err != nil {
+			return fmt.Errorf("inventory: find enrolled device: %w", err)
+		}
+		found = true
+		var other sql.NullString
+		err = tx.QueryRowContext(ctx, `SELECT value FROM inv_observation WHERE asset_id = ? AND field = 'mac' AND value <> ? LIMIT 1`, id, nodeMAC).Scan(&other)
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			return fmt.Errorf("inventory: check the enrolled device's MAC: %w", err)
+		}
+		if other.Valid {
+			s.log.WarnContext(ctx, "inventory: the enrolment did not approve a device seen with another MAC; a person decides",
+				"device", id, "agent_mac", nodeMAC, "other_mac", other.String)
+			return nil
+		}
+		res, err := tx.ExecContext(ctx, `UPDATE inv_asset SET approved = 1 WHERE id = ? AND approved = 0 AND suspicious = 0 AND is_box = 0`, id)
+		if err != nil {
+			return fmt.Errorf("inventory: approve enrolled device: %w", err)
+		}
+		if n, _ := res.RowsAffected(); n == 0 {
+			return nil
+		}
+		o.add(EventAssetUpdated, AssetEvent{AssetID: id})
+		return s.auditTx(ctx, tx, systemActor, "inventory.approve_enrolled", deviceName(ctx, tx, id), reason)
+	})
+	return found, err
+}
+
 // target names the device a hint points to, for the audit row.
 func (c cleanObs) target() string {
 	if c.mac != "" {

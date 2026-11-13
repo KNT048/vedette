@@ -119,7 +119,30 @@ func (h *FindingHandlers) Detail(ctx context.Context, rec Record) (Detail, error
 	}
 	d.Normalize()
 	d.addAppliedToHistory()
+	d.FixedIn = h.fixedIn(ctx, rec)
 	return d, nil
+}
+
+// fixedIn is the release that fixes the finding on its device, from NVD's ranges (D-488). It only informs the page, so
+// a failed read gives nil, the text the page always had, and never an error. Closed findings have nothing to upgrade.
+func (h *FindingHandlers) fixedIn(ctx context.Context, rec Record) *FixedIn {
+	if !rec.Status.Open() {
+		return nil
+	}
+	a, ok, err := h.inv.MatchInput(ctx, rec.AssetID)
+	if err != nil || !ok {
+		return nil
+	}
+	vulns, err := h.feed.Vulns(ctx)
+	if err != nil {
+		return nil
+	}
+	for _, v := range vulns {
+		if v.CVE == rec.CVE {
+			return FixedInFor(a, v)
+		}
+	}
+	return nil
 }
 
 // DetailByID is Detail for a finding id; an unknown id is a 404 API error.

@@ -67,7 +67,7 @@ func TestApprovedDeviceClosesItsIncidentWithTheApprover(t *testing.T) {
 	}
 	e.clock.Add(37 * time.Hour) // past the first discovery: a device has its own incident
 	publish(inventory.EventAssetDiscovered, inventory.AssetEvent{AssetID: "a9", Notify: true})
-	publish(notify.EventAssetApproved, map[string]string{"asset_id": "a9", "actor": "an@acme.example\n"})
+	publish(notify.EventAssetApproved, map[string]string{"asset_id": "a9", "actor": "an@acme.example\n\u202e"})
 	l, _ = e.svc.Incidents(e.ctx())
 	own := l[0]
 	if own.Title != "A new unknown device appeared: LAPTOP-NEW" || own.Status != notify.StatusResolved || own.HandledBy == nil || *own.HandledBy != "system" ||
@@ -109,7 +109,7 @@ func TestQuietIncidentsCloseThemselves(t *testing.T) {
 	e.clock.Add(3*24*time.Hour + time.Minute)
 	open(notify.IncidentBadAddress, "logs", notify.High) // a repeat: the bad connection is still happening
 	e.autoClose()
-	if i := e.detail(logA); i.Status != notify.StatusResolved || i.ResolvedReason == nil || *i.ResolvedReason != "Closed by Vedette: no new activity for 3 days." || i.Note == nil || *i.Note != "looking" {
+	if i := e.detail(logA); i.Status != notify.StatusResolved || i.ResolvedReason == nil || *i.ResolvedReason != "Closed by Vedette: no new activity for 3 days after u-op acknowledged it." || i.Note == nil || *i.Note != "looking" {
 		t.Fatalf("log anomaly = %+v", i)
 	}
 	if e.detail(trap).Status != notify.StatusNew || e.detail(bad).Status != notify.StatusNew {
@@ -123,8 +123,32 @@ func TestQuietIncidentsCloseThemselves(t *testing.T) {
 	if e.detail(bad).Status != notify.StatusNew {
 		t.Fatal("the bad connection seen 4 days ago closed")
 	}
+	// a person reopens it: the quiet window starts over from the reopen, not from the last hit
+	if _, err := e.svc.HandleIncident(e.ctx(), "u-op", trap, notify.StatusNew, ""); err != nil {
+		t.Fatal(err)
+	}
+	e.clock.Add(time.Hour)
+	e.autoClose()
+	if e.detail(trap).Status != notify.StatusNew {
+		t.Fatal("a reopened incident closed again within the hour")
+	}
+	e.clock.Add(7 * 24 * time.Hour)
+	e.autoClose()
+	if e.detail(trap).Status != notify.StatusResolved {
+		t.Fatal("a reopened incident quiet for a week stayed open")
+	}
 	if id, created := open(notify.IncidentTrap, "10.0.0.5", notify.Critical); !created || id == trap {
 		t.Fatalf("a new hit after the close: id %s created %v", id, created)
+	}
+	// a hit that carries an old time (a sensor's buffer) is new to the box: not closed in the hour it opens
+	old, _, err := e.svc.OpenIncident(e.ctx(), notify.IncidentInput{Kind: notify.IncidentTrap, Source: "10.0.0.9", Title: "old", Severity: notify.Critical, What: "w", Action: "a", Link: "/logs",
+		At: e.clock.Now().AddDate(0, 0, -30)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	e.autoClose()
+	if e.detail(old).Status != notify.StatusNew {
+		t.Fatal("a hit with an old timestamp closed at once")
 	}
 }
 
@@ -170,5 +194,58 @@ func TestFirstRunHoldsLowAndMediumIncidentsForOneSummary(t *testing.T) {
 	e.clock.Add(36 * time.Hour) // the window is over: a medium incident is sent at once again
 	if i := e.detail(open(notify.IncidentLogAnomaly, "f", notify.Medium)); i.FirstRunSummary {
 		t.Fatalf("after the window = %+v", i)
+	}
+}
+
+// INV-23 (D-550, Opus r1 MED-3, LOW-4, LOW-7): a second run in the same hour tells the incidents held since, never colliding with the
+// first summary; a held incident that turns high is sent at once and leaves the summary; summaries waiting through quiet hours become
+// one.
+func TestFirstRunSummaryIsNeverLostAndWaitsAsOne(t *testing.T) {
+	e := newEnv(t)
+	e.firstRunAt(e.clock.Now())
+	e.telegram(notify.Low)
+	e.plain()
+	open := func(src string, sev notify.Severity) string {
+		t.Helper()
+		id, _, err := e.svc.OpenIncident(e.ctx(), notify.IncidentInput{Kind: notify.IncidentBadAddress, Source: src, Title: "bad " + src, Severity: sev, What: "w", Action: "a", Link: "/logs"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return id
+	}
+	sent := func() []string {
+		var out []string
+		for _, c := range e.net.to("api.telegram.org") {
+			out = append(out, c.Body)
+		}
+		return out
+	}
+	open("a", notify.Medium)
+	e.autoClose()
+	e.flush()
+	raised := open("b", notify.Medium)
+	open("c", notify.Low)
+	open("b", notify.High) // a repeat of b turns it high: sent now, out of the summary
+	e.autoClose()          // the same hour: a different set, a different summary
+	e.flush()
+	if m := sent(); len(m) != 3 || !strings.Contains(m[0], "First-run summary: 1 new incident") || !strings.Contains(m[1], "bad b") || !strings.Contains(m[2], "First-run summary: 1 new incident") {
+		t.Fatalf("messages = %q", m)
+	}
+	if i := e.detail(raised); i.FirstRunSummary || i.Severity != notify.High {
+		t.Fatalf("raised = %+v", i)
+	}
+	e.rules(notify.Quiet{Enabled: true, From: "09:00", To: "18:00"}, notify.Grouping{Enabled: false, WindowMin: 60}) // now is 10:00
+	open("d", notify.Medium)
+	e.autoClose()
+	e.clock.Add(time.Hour)
+	open("e", notify.Medium)
+	e.autoClose()
+	if n := e.count(`SELECT COUNT(*) FROM notify_pending WHERE notice_id GLOB 'fr-*'`); n != 1 {
+		t.Fatalf("waiting summaries = %d, want one", n)
+	}
+	e.clock.Add(8 * time.Hour) // quiet hours are over
+	e.flush()
+	if m := sent(); len(m) != 4 || !strings.Contains(m[3], "First-run summary: 2 new incidents") {
+		t.Fatalf("messages = %q", m)
 	}
 }

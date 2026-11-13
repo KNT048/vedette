@@ -98,21 +98,27 @@ func (s *Service) OpenIncident(ctx context.Context, in IncidentInput) (id string
 	ob := &events.Outbox{}
 	err = s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
 		ob = &events.Outbox{}
-		switch err := tx.QueryRowContext(ctx, `SELECT id FROM notify_incident WHERE dedupe_key IN (?, ?) AND status <> 'resolved' ORDER BY dedupe_key = ? DESC LIMIT 1`,
-			first, key, first).Scan(&id); {
+		var wasHeld bool
+		var cur string
+		switch err := tx.QueryRowContext(ctx, `SELECT id, first_run, severity FROM notify_incident WHERE dedupe_key IN (?, ?) AND status <> 'resolved' ORDER BY dedupe_key = ? DESC LIMIT 1`,
+			first, key, first).Scan(&id, &wasHeld, &cur); {
 		case err == nil:
 			created = false
-			_, err = tx.ExecContext(ctx, `UPDATE notify_incident SET count = count + 1, last_seen = CASE WHEN ? > last_seen THEN ? ELSE last_seen END WHERE id = ?`, ts, ts, id)
+			_, err = tx.ExecContext(ctx, `UPDATE notify_incident SET count = count + 1, last_seen = CASE WHEN ? > last_seen THEN ? ELSE last_seen END, active_at = ? WHERE id = ?`,
+				ts, ts, store.FormatTS(now), id)
 			if err != nil {
 				return fmt.Errorf("notify: count repeated incident: %w", err)
+			}
+			if wasHeld && in.Severity.rank() > Severity(cur).rank() {
+				return s.raiseHeld(ctx, tx, id, in.Severity, at) // INV-23: a held incident that turns high or critical is sent as usual
 			}
 			return nil
 		case !errors.Is(err, sql.ErrNoRows):
 			return fmt.Errorf("notify: find incident: %w", err)
 		}
 		created, id = true, store.NewID("in")
-		if _, err := tx.ExecContext(ctx, `INSERT INTO notify_incident (id, kind, attempt, title, link, severity, what, action, first_seen, last_seen, dedupe_key, first_run) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-			id, string(in.Kind), in.Attempt, strings.TrimSpace(in.Title), in.Link, string(in.Severity), in.What, in.Action, ts, ts, key, boolInt(held)); err != nil {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO notify_incident (id, kind, attempt, title, link, severity, what, action, first_seen, last_seen, dedupe_key, first_run, active_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			id, string(in.Kind), in.Attempt, strings.TrimSpace(in.Title), in.Link, string(in.Severity), in.What, in.Action, ts, ts, key, boolInt(held), store.FormatTS(now)); err != nil {
 			return fmt.Errorf("notify: save incident: %w", err)
 		}
 		names, ids := make([]string, 0, len(in.Devices)), make([]string, 0, len(in.Devices))
@@ -161,19 +167,19 @@ func scanSends(rows *sql.Rows) ([]SendView, error) {
 	return out, rows.Err()
 }
 
-const incidentCols = `id, kind, attempt, title, link, severity, what, action, first_seen, last_seen, count, status, handled_by, handled_at, note, resolved_reason, first_run`
+const incidentCols = `id, kind, attempt, title, link, severity, what, action, first_seen, last_seen, count, status, handled_by, handled_at, note, resolved_reason, first_run = 1`
 
 func scanIncident(r scanner) (Incident, error) {
 	var i Incident
 	var kind, sev, status string
 	var by, at, note, reason sql.NullString
-	var firstRun int
+	var firstRun bool
 	if err := r.Scan(&i.ID, &kind, &i.Attempt, &i.Title, &i.Link, &sev, &i.What, &i.Action, &i.FirstSeen, &i.LastSeen, &i.Count, &status, &by, &at, &note, &reason, &firstRun); err != nil {
 		return i, err
 	}
 	i.Kind, i.Severity, i.Status = IncidentKind(kind), Severity(sev), IncidentStatus(status)
 	i.HandledBy, i.HandledAt, i.Note, i.ResolvedReason = ptr(by.String), ptr(at.String), ptr(note.String), ptr(reason.String)
-	i.FirstRunSummary = firstRun > 0
+	i.FirstRunSummary = firstRun
 	i.Devices, i.Sends = []Device{}, []SendView{}
 	return i, nil
 }
@@ -459,12 +465,15 @@ func (s *Service) HandleIncident(ctx context.Context, actor, id string, status I
 				return fmt.Errorf("notify: look for an open incident: %w", err)
 			}
 		}
+		now := store.FormatTS(s.now())
 		var by, at, nt any
 		if status != StatusNew {
-			by, at, nt = actor, store.FormatTS(s.now()), nullable(note)
+			by, at, nt = actor, now, nullable(note)
 		}
-		// A person's action replaces Vedette's reason (INV-22): the incident is theirs now.
-		if _, err := tx.ExecContext(ctx, `UPDATE notify_incident SET status = ?, handled_by = ?, handled_at = ?, note = ?, resolved_reason = NULL WHERE id = ?`, string(status), by, at, nt, id); err != nil {
+		// A person's action replaces Vedette's reason (INV-22): the incident is theirs now. Reopening makes it active again, so the
+		// quiet window of autoclose starts over from now.
+		if _, err := tx.ExecContext(ctx, `UPDATE notify_incident SET status = ?, handled_by = ?, handled_at = ?, note = ?, resolved_reason = NULL,
+			active_at = CASE WHEN ? = 'new' THEN ? ELSE active_at END WHERE id = ?`, string(status), by, at, nt, string(status), now, id); err != nil {
 			return fmt.Errorf("notify: update incident: %w", err)
 		}
 		detail := string(status)

@@ -2,7 +2,9 @@ package notify
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"strings"
@@ -40,25 +42,41 @@ func (s *Service) runAutoClose(ctx context.Context) error {
 }
 
 // closeBySystem resolves an open incident on Vedette's behalf, like a person's resolve (handled_by system, one audit row
-// notify.incident_status), with reason in resolved_reason. A person's note stays. Nothing is sent.
+// notify.incident_status), with reason in resolved_reason. A person's note stays; who acknowledged it stays in the reason ("… after
+// an@x acknowledged it."), since handled_by becomes system. Nothing is sent.
 func (s *Service) closeBySystem(ctx context.Context, tx *sql.Tx, id, title, reason string) error {
-	r, err := tx.ExecContext(ctx, `UPDATE notify_incident SET status = 'resolved', handled_by = ?, handled_at = ?, resolved_reason = ? WHERE id = ? AND status <> 'resolved'`,
-		systemUser, store.FormatTS(s.now()), clip(reason, maxNote), id)
-	if err != nil {
-		return fmt.Errorf("notify: close an incident: %w", err)
-	}
-	if n, _ := r.RowsAffected(); n == 0 {
+	var status string
+	var by sql.NullString
+	switch err := tx.QueryRowContext(ctx, `SELECT status, handled_by FROM notify_incident WHERE id = ?`, id).Scan(&status, &by); {
+	case errors.Is(err, sql.ErrNoRows):
 		return nil
+	case err != nil:
+		return fmt.Errorf("notify: read an incident to close: %w", err)
+	}
+	if status == string(StatusResolved) {
+		return nil
+	}
+	if status == string(StatusAcknowledged) && by.String != "" && by.String != systemUser {
+		reason = strings.TrimSuffix(reason, ".") + " after " + by.String + " acknowledged it."
+	}
+	if _, err := tx.ExecContext(ctx, `UPDATE notify_incident SET status = 'resolved', handled_by = ?, handled_at = ?, resolved_reason = ? WHERE id = ?`,
+		systemUser, store.FormatTS(s.now()), clip(reason, maxNote), id); err != nil {
+		return fmt.Errorf("notify: close an incident: %w", err)
 	}
 	return s.record(ctx, tx, systemUser, "notify.incident_status", clip(title, 400), "resolved: "+reason)
 }
+
+// quietSince is when an incident last showed life (INV-22): the latest of when the box last received a hit of it or a person reopened
+// it (active_at, by the box's clock: a hit carrying an old time does not count as old) and a person's acknowledgement (handled_at).
+// Rows from before migration 0013 have no active_at: last_seen stands in.
+const quietSince = `MAX(COALESCE(active_at, last_seen), COALESCE(handled_at, ''))`
 
 // closeQuiet resolves the open incidents of quietWindows that have seen nothing new for their window (INV-22).
 func (s *Service) closeQuiet(ctx context.Context) error {
 	now := s.now()
 	return s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
 		for _, w := range quietWindows {
-			rows, err := tx.QueryContext(ctx, `SELECT id, title FROM notify_incident WHERE kind = ? AND status <> 'resolved' AND last_seen < ? ORDER BY last_seen LIMIT ?`,
+			rows, err := tx.QueryContext(ctx, `SELECT id, title FROM notify_incident WHERE kind = ? AND status <> 'resolved' AND `+quietSince+` < ? ORDER BY last_seen LIMIT ?`,
 				string(w.kind), store.FormatTS(now.AddDate(0, 0, -w.days)), maxAutoClose)
 			if err != nil {
 				return fmt.Errorf("notify: find quiet incidents: %w", err)
@@ -86,39 +104,80 @@ func (s *Service) closeQuiet(ctx context.Context) error {
 	})
 }
 
-// firstRunSummary sends one message for the incidents the first-run window held since the last summary (INV-23), at most one an
-// hour (the job's period): how many, of which kinds, the highest severity, a link to Incidents. Held incidents a person or Vedette
-// already resolved are marked told without a message. The id is per UTC hour, so a run repeated within the hour queues nothing new.
+// raiseHeld is a repeat of a held incident with a higher severity (INV-23): the incident takes it, and from high up it leaves the
+// summary and is queued as usual, as if it had been opened at that severity.
+func (s *Service) raiseHeld(ctx context.Context, tx *sql.Tx, id string, sev Severity, at time.Time) error {
+	release := sev.rank() >= High.rank()
+	if _, err := tx.ExecContext(ctx, `UPDATE notify_incident SET severity = ?, first_run = CASE WHEN ? THEN 0 ELSE first_run END,
+		summary_id = CASE WHEN ? THEN NULL ELSE summary_id END WHERE id = ?`, string(sev), release, release, id); err != nil {
+		return fmt.Errorf("notify: raise a held incident: %w", err)
+	}
+	if !release {
+		return nil
+	}
+	i, err := scanIncident(tx.QueryRowContext(ctx, `SELECT `+incidentCols+` FROM notify_incident WHERE id = ?`, id))
+	if err != nil {
+		return fmt.Errorf("notify: read a raised incident: %w", err)
+	}
+	if err := fillIncident(ctx, tx, &i); err != nil {
+		return err
+	}
+	names, ids := make([]string, 0, len(i.Devices)), make([]string, 0, len(i.Devices))
+	for _, d := range i.Devices {
+		names, ids = append(names, d.Name), append(ids, d.ID)
+	}
+	return s.enqueue(ctx, tx, Notice{ID: id, Kind: KindIncident, Severity: sev, Title: i.Title, What: i.What, Action: i.Action,
+		Devices: names, DeviceIDs: ids, IncidentKind: string(i.Kind), Link: s.link("/incidents/" + id), At: at})
+}
+
+// unsentSummaries are the first-run summaries still waiting in the queue on every channel they went to (quiet hours): none of their
+// rows is claimed or sent, and no channel has a send of them.
+const unsentSummaries = `SELECT DISTINCT p.notice_id FROM notify_pending p WHERE p.notice_id GLOB 'fr-*'
+	AND NOT EXISTS (SELECT 1 FROM notify_pending q WHERE q.notice_id = p.notice_id AND q.state <> 'pending')
+	AND NOT EXISTS (SELECT 1 FROM notify_send d WHERE d.ref_id = p.notice_id)`
+
+// heldOpen selects the held incidents a summary tells: open, and not yet in a summary that went out.
+const heldOpen = `first_run = 1 AND status <> 'resolved' AND (summary_id IS NULL OR summary_id IN (` + unsentSummaries + `))`
+
+// firstRunSummary sends one message for the incidents the first-run window held (INV-23), at most one an hour (the job's period): how
+// many, of which kinds, the highest current severity, a link to Incidents. The incidents of a summary that is still waiting in the
+// queue (quiet hours) are folded into the new one, which replaces it, so the night ends with one message, not one per hour. The id is
+// a hash of the incident ids it tells, and the incidents are marked told (summary_id) in the same transaction that queues it.
 func (s *Service) firstRunSummary(ctx context.Context) error {
 	now := s.now()
 	return s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
-		rows, err := tx.QueryContext(ctx, `SELECT kind, severity, COUNT(*) FROM notify_incident WHERE first_run = 1 AND status <> 'resolved' GROUP BY kind, severity`)
+		rows, err := tx.QueryContext(ctx, `SELECT id, kind, severity FROM notify_incident WHERE `+heldOpen+` ORDER BY id`)
 		if err != nil {
 			return fmt.Errorf("notify: read held incidents: %w", err)
 		}
 		byKind := map[IncidentKind]int{}
-		total, top := 0, Info
+		top, h := Info, sha256.New()
+		var total int
 		for rows.Next() {
-			var k, sev string
-			var n int
-			if err := rows.Scan(&k, &sev, &n); err != nil {
+			var id, k, sev string
+			if err := rows.Scan(&id, &k, &sev); err != nil {
 				_ = rows.Close()
 				return fmt.Errorf("notify: read held incidents: %w", err)
 			}
-			byKind[IncidentKind(k)] += n
-			total += n
+			byKind[IncidentKind(k)]++
+			total++
 			if Severity(sev).rank() > top.rank() {
 				top = Severity(sev)
 			}
+			_, _ = h.Write([]byte(id + "\n"))
 		}
 		if err := errors.Join(rows.Err(), rows.Close()); err != nil {
 			return fmt.Errorf("notify: read held incidents: %w", err)
 		}
-		if _, err := tx.ExecContext(ctx, `UPDATE notify_incident SET first_run = 2 WHERE first_run = 1`); err != nil {
-			return fmt.Errorf("notify: mark held incidents told: %w", err)
-		}
 		if total == 0 {
 			return nil
+		}
+		sid := "fr-" + hex.EncodeToString(h.Sum(nil)[:12])
+		if _, err := tx.ExecContext(ctx, `UPDATE notify_incident SET summary_id = ? WHERE `+heldOpen, sid); err != nil {
+			return fmt.Errorf("notify: mark held incidents told: %w", err)
+		}
+		if _, err := tx.ExecContext(ctx, `DELETE FROM notify_pending WHERE notice_id <> ? AND notice_id IN (`+unsentSummaries+`)`, sid); err != nil {
+			return fmt.Errorf("notify: replace a waiting summary: %w", err)
 		}
 		kind := IncidentBadAddress // the webhook's "kind": the one with more incidents
 		if byKind[IncidentLogAnomaly] > byKind[IncidentBadAddress] {
@@ -132,7 +191,7 @@ func (s *Service) firstRunSummary(ctx context.Context) error {
 			parts = append(parts, plural(n, "log anomaly", "log anomalies"))
 		}
 		title := "First-run summary: " + plural(total, "new incident", "new incidents")
-		return s.enqueue(ctx, tx, Notice{ID: "fr-" + now.UTC().Format("2006010215"), Kind: KindIncident, IncidentKind: string(kind), Severity: top, Title: title,
+		return s.enqueue(ctx, tx, Notice{ID: sid, Kind: KindIncident, IncidentKind: string(kind), Severity: top, Title: title,
 			What: "Vedette is new on this network, so what was already happening on it looks new too. Instead of one message each, the " +
 				"low and medium incidents of its first 36 hours are told together: " + strings.Join(parts, ", ") + ". High and critical incidents and trap touches are still sent at once.",
 			Action: "Open Incidents, look at each one, and resolve the ones you know about.", Link: s.link("/incidents"), At: now})

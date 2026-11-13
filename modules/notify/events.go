@@ -333,7 +333,7 @@ func (s *Service) assetApproved(ctx context.Context, data any) error {
 // characters; "" when there is none.
 func byActor(actor string) string {
 	who := strings.TrimSpace(strings.Map(func(r rune) rune {
-		if unicode.IsControl(r) {
+		if unicode.IsControl(r) || unicode.Is(unicode.Cf, r) { // Cf: bidi overrides (U+202E) and other invisible format characters
 			return -1
 		}
 		return r

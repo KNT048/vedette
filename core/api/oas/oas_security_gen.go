@@ -208,6 +208,7 @@ var operationRolesSession = map[string][]string{
 	InventoryGetInventorySensorsOperation:                   []string{},
 	InventoryGetInventorySettingsOperation:                  []string{},
 	InventoryPatchInventoryDevicesIDOperation:               []string{},
+	InventoryPatchInventoryDevicesIDSoftwareSidOperation:    []string{},
 	InventoryPatchInventorySensorsIDOperation:               []string{},
 	InventoryPostInventoryAgentsTokensOperation:             []string{},
 	InventoryPostInventoryAgentsTokensIDSampleDataOperation: []string{},

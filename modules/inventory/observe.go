@@ -290,7 +290,7 @@ func (s *Service) ApproveEnrolled(ctx context.Context, hint observe.AssetHint, n
 				"device", id, "agent_mac", nodeMAC, "other_mac", other.String)
 			return nil
 		}
-		res, err := tx.ExecContext(ctx, `UPDATE inv_asset SET approved = 1 WHERE id = ? AND approved = 0 AND suspicious = 0 AND is_box = 0`, id)
+		res, err := tx.ExecContext(ctx, `UPDATE inv_asset SET approved = 1, approved_at = ? WHERE id = ? AND approved = 0 AND suspicious = 0 AND is_box = 0`, s.now(), id)
 		if err != nil {
 			return fmt.Errorf("inventory: approve enrolled device: %w", err)
 		}

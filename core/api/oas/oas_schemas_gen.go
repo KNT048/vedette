@@ -70846,6 +70846,10 @@ func (s *InventoryGetInventoryDevicesIDOK) SetSuspicious(val bool) {
 
 type InventoryGetInventoryDevicesIDOKAsset struct {
 	Approved bool `json:"approved"`
+	// When a person approved the device, or osquery enrolment did (D-471: "Approved in the last 24 h");
+	// approving again does not move it; null = not approved, added by hand, or approved before this field
+	// existed.
+	ApprovedAt NilDateTime `json:"approved_at"`
 	// When the one gentle first scan happened; null = no gentle scan (declared by hand, the box itself, or
 	// a known kind that is not fragile and not set to never).
 	FirstScanAt NilDateTime `json:"first_scan_at"`
@@ -70876,6 +70880,11 @@ type InventoryGetInventoryDevicesIDOKAsset struct {
 // GetApproved returns the value of Approved.
 func (s *InventoryGetInventoryDevicesIDOKAsset) GetApproved() bool {
 	return s.Approved
+}
+
+// GetApprovedAt returns the value of ApprovedAt.
+func (s *InventoryGetInventoryDevicesIDOKAsset) GetApprovedAt() NilDateTime {
+	return s.ApprovedAt
 }
 
 // GetFirstScanAt returns the value of FirstScanAt.
@@ -70976,6 +70985,11 @@ func (s *InventoryGetInventoryDevicesIDOKAsset) GetVendor() NilInventoryGetInven
 // SetApproved sets the value of Approved.
 func (s *InventoryGetInventoryDevicesIDOKAsset) SetApproved(val bool) {
 	s.Approved = val
+}
+
+// SetApprovedAt sets the value of ApprovedAt.
+func (s *InventoryGetInventoryDevicesIDOKAsset) SetApprovedAt(val NilDateTime) {
+	s.ApprovedAt = val
 }
 
 // SetFirstScanAt sets the value of FirstScanAt.
@@ -72414,6 +72428,10 @@ func (s *InventoryGetInventoryDevicesOKCounts) SetPending(val int) {
 
 type InventoryGetInventoryDevicesOKItemsItem struct {
 	Approved bool `json:"approved"`
+	// When a person approved the device, or osquery enrolment did (D-471: "Approved in the last 24 h");
+	// approving again does not move it; null = not approved, added by hand, or approved before this field
+	// existed.
+	ApprovedAt NilDateTime `json:"approved_at"`
 	// Number of findings attached to the device; deleting the device also deletes these findings.
 	FindingsCount int `json:"findings_count"`
 	// When the one gentle first scan happened; null = no gentle scan (declared by hand, the box itself, or
@@ -72449,6 +72467,11 @@ type InventoryGetInventoryDevicesOKItemsItem struct {
 // GetApproved returns the value of Approved.
 func (s *InventoryGetInventoryDevicesOKItemsItem) GetApproved() bool {
 	return s.Approved
+}
+
+// GetApprovedAt returns the value of ApprovedAt.
+func (s *InventoryGetInventoryDevicesOKItemsItem) GetApprovedAt() NilDateTime {
+	return s.ApprovedAt
 }
 
 // GetFindingsCount returns the value of FindingsCount.
@@ -72564,6 +72587,11 @@ func (s *InventoryGetInventoryDevicesOKItemsItem) GetVendor() NilInventoryGetInv
 // SetApproved sets the value of Approved.
 func (s *InventoryGetInventoryDevicesOKItemsItem) SetApproved(val bool) {
 	s.Approved = val
+}
+
+// SetApprovedAt sets the value of ApprovedAt.
+func (s *InventoryGetInventoryDevicesOKItemsItem) SetApprovedAt(val NilDateTime) {
+	s.ApprovedAt = val
 }
 
 // SetFindingsCount sets the value of FindingsCount.
@@ -74697,6 +74725,35 @@ func (s *InventoryPatchInventoryDevicesIDReqRegularScan) UnmarshalText(data []by
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
+}
+
+type InventoryPatchInventoryDevicesIDSoftwareSidOK struct {
+	Ok bool `json:"ok"`
+}
+
+// GetOk returns the value of Ok.
+func (s *InventoryPatchInventoryDevicesIDSoftwareSidOK) GetOk() bool {
+	return s.Ok
+}
+
+// SetOk sets the value of Ok.
+func (s *InventoryPatchInventoryDevicesIDSoftwareSidOK) SetOk(val bool) {
+	s.Ok = val
+}
+
+type InventoryPatchInventoryDevicesIDSoftwareSidReq struct {
+	// Letters, digits, . - + ( ) and spaces; empty removes the version.
+	Version string `json:"version"`
+}
+
+// GetVersion returns the value of Version.
+func (s *InventoryPatchInventoryDevicesIDSoftwareSidReq) GetVersion() string {
+	return s.Version
+}
+
+// SetVersion sets the value of Version.
+func (s *InventoryPatchInventoryDevicesIDSoftwareSidReq) SetVersion(val string) {
+	s.Version = val
 }
 
 type InventoryPatchInventorySensorsIDOK struct {

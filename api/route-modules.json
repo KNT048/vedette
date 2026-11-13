@@ -147,6 +147,7 @@
   "PATCH /honeypot/decoys/{id}": "honeypot",
   "PATCH /honeypot/traps/{service}": "honeypot",
   "PATCH /inventory/devices/{id}": "inventory",
+  "PATCH /inventory/devices/{id}/software/{sid}": "inventory",
   "PATCH /inventory/sensors/{id}": "sensor-passive",
   "PATCH /modules/{id}": "core",
   "PATCH /notify/incidents/{id}": "notify",

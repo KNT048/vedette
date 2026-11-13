@@ -112,3 +112,18 @@ func pubLimited(wait time.Duration) *apierr.Error {
 	secs := max(1, int(math.Ceil(wait.Seconds())))
 	return apierr.New(http.StatusTooManyRequests, "rate_limited", fmt.Sprintf("Too many requests from this address. Try again in %d seconds.", secs)).With("retry_after", secs)
 }
+
+// AddrLimiter is the same per-address sliding window for a public handler outside the API: the URL honey token, /t/<id> (D-507),
+// which writes a hit per request and so must not be a way to make the box write or alert without end. Loopback is not counted.
+type AddrLimiter struct{ l *pubLimiter }
+
+// NewAddrLimiter allows perMinute requests per client address (IPv6 per /64) and minute; now is the clock (nil: time.Now).
+func NewAddrLimiter(perMinute int, now func() time.Time) *AddrLimiter {
+	return &AddrLimiter{l: newPubLimiter(perMinute, now)}
+}
+
+// Allow counts one request of r's peer and reports whether it is within the limit.
+func (a *AddrLimiter) Allow(r *http.Request) bool {
+	ok, _ := a.l.allow(r)
+	return ok
+}

@@ -196,7 +196,7 @@ func TestContract_INV4_OnlyPackTemplatesForTheDevicesCVEs(t *testing.T) {
 		t.Fatalf("argv: %v", err)
 	}
 	got := r.run(v.ID)
-	if row := rowOf(got, "a-web01", "no_template"); row == nil || row.Note != "CVE-2021-44228: no safe scan template yet, still suspected by version." || *row.FindingID != "f-3" {
+	if row := rowOf(got, "a-web01", "no_template"); row == nil || row.Note != "CVE-2021-44228: no safe scan template yet, still suspected; see the finding for how it was matched." || *row.FindingID != "f-3" {
 		t.Fatalf("no_template: %+v", got.Results)
 	}
 	if row := rowOf(got, "a-srv", "not_applicable"); row == nil || row.Note != "No scan template applies to the software on this device." {
@@ -455,5 +455,14 @@ func TestContract_INV8_RecheckLineIsTheJobsTarget(t *testing.T) {
 	}
 	if s := r.findings.confirmed[0].Summary; !strings.HasSuffix(s, "-u 192.168.10.21:22") || strings.Contains(s, "attacker") {
 		t.Fatalf("summary: %q", s)
+	}
+}
+
+func TestSuspectedNoteSaysWhatWasUsed(t *testing.T) {
+	t.Parallel()
+	for basis, want := range map[string]string{"product": "from the product alone", "version": "version is in the affected range", "": "see the finding"} {
+		if got := suspectedNote(basis); !strings.Contains(got, want) || strings.Contains(got, "by version") {
+			t.Errorf("suspectedNote(%q) = %q", basis, got)
+		}
 	}
 }

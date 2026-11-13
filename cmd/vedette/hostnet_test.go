@@ -463,7 +463,7 @@ func TestHostAllowlistAcceptsTheBoxsOwnAddressesAfterAChange(t *testing.T) {
 	t.Parallel()
 	f := lanBox()
 	cache := newHostNetCache(hostNetSource(f, nil), time.Now)
-	h := topHandler(slog.New(slog.DiscardHandler), okHandler(), server.HostMatcher([]string{"box.corp.example"}, boxOwnAddress(cache)), false)
+	h := topHandler(slog.New(slog.DiscardHandler), okHandler(), nil, server.HostMatcher([]string{"box.corp.example"}, boxOwnAddress(cache)), false)
 	status := func(host string) int {
 		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/setup", nil)
 		req.Host = host

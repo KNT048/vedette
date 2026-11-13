@@ -260,6 +260,9 @@ var (
 	rn251AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
 	}
+	rn219AllowedHeaders = map[string]string{
+		"PATCH": "Content-Type",
+	}
 	rn253AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
 	}
@@ -5587,12 +5590,17 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 														args[0],
 														args[1],
 													}, elemIsEscaped, w, r)
+												case "PATCH":
+													s.handleInventoryPatchInventoryDevicesIDSoftwareSidRequest([2]string{
+														args[0],
+														args[1],
+													}, elemIsEscaped, w, r)
 												default:
 													s.notAllowed(w, r, notAllowedParams{
-														allowedMethods: "DELETE",
-														allowedHeaders: nil,
+														allowedMethods: "DELETE,PATCH",
+														allowedHeaders: rn219AllowedHeaders,
 														acceptPost:     "",
-														acceptPatch:    "",
+														acceptPatch:    "application/json",
 													})
 												}
 
@@ -14236,6 +14244,15 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 													r.name = InventoryDeleteInventoryDevicesIDSoftwareSidOperation
 													r.summary = "Remove manually declared software from a device"
 													r.operationID = "inventory_delete_inventory_devices_id_software_sid"
+													r.operationGroup = ""
+													r.pathPattern = "/inventory/devices/{id}/software/{sid}"
+													r.args = args
+													r.count = 2
+													return r, true
+												case "PATCH":
+													r.name = InventoryPatchInventoryDevicesIDSoftwareSidOperation
+													r.summary = "Change the version of manually declared software (400 not_manual for software a sensor or agent saw); an empty version removes it; the device is matched again (D-471)"
+													r.operationID = "inventory_patch_inventory_devices_id_software_sid"
 													r.operationGroup = ""
 													r.pathPattern = "/inventory/devices/{id}/software/{sid}"
 													r.args = args

@@ -418,6 +418,8 @@ const (
 	// identifies it (pickedPlan, D-501).
 	reasonFragilePassive      = "fragile_passive_only"
 	reasonUnclassifiedPassive = "unclassified_passive_only"
+	reasonNever               = "regular_scan_never"
+	reasonBox                 = "box"
 )
 
 const stoppedText = "stopped: the window closed, the scope changed or the module was turned off"
@@ -436,6 +438,17 @@ func (s *Service) setTargets(t []netip.Addr, rate int) {
 	defer s.mu.Unlock()
 	if s.cur != nil {
 		s.cur.targets, s.cur.rate = t, rate
+	}
+}
+
+// Stop cancels the run in progress, whatever it is: the module was turned off (SYS-5). The scheduler stops the jobs it runs; an
+// identification for Scan now runs on the scan module's goroutine, so only this reaches it (D-501, review L3).
+func (s *Service) Stop() {
+	s.mu.Lock()
+	cur := s.cur
+	s.mu.Unlock()
+	if cur != nil {
+		cur.cancel()
 	}
 }
 
@@ -969,7 +982,7 @@ func (s *Service) recordDevice(ctx context.Context, ip netip.Addr, hosts []host,
 	}
 	if s.svc != nil {
 		write := s.svc.AddServices
-		if kind == nmapargv.Normal {
+		if kind == nmapargv.Normal || kind == nmapargv.Versions { // both read the top 1000 ports with -sV
 			write = s.svc.ReplaceServices
 		}
 		if err := write(ctx, observe.AssetHint{IP: ip}, observe.Nmap, servicesOf(h)); err != nil {
@@ -990,17 +1003,20 @@ type Identification struct {
 
 // pickedPlan is the scan a device a person picked in Scan now gets for identification (D-501), from the inventory's discovery
 // policy: a device discovery may scan normally gets the normal scan at the policy's rate; a fragile one only the gentle scan
-// (D-45); one whose kind is still unknown the normal scan at a quarter of the rate, since the pick is the consent (D-126 (2)) and
-// only -sV and -O can tell what it is. why is the inventory's reason when nothing may run.
+// (D-45); one whose kind is still unknown the versions scan (-sV, no -O) at a quarter of the rate, since the pick is the consent
+// (D-126 (2)) and only -sV can tell what runs on it, while OS detection is the riskiest probe for an OT stack (review M4);
+// regular_scan=never is refused (review M1). why is the inventory's reason when nothing may run.
 func pickedPlan(dec Decision, rate int) (kind nmapargv.Kind, r int, why string) {
 	switch {
+	case dec.Never: // "never scan" set by a person is absolute here too (D-126 (1)), even before its one gentle scan
+		return 0, 0, reasonNever
 	case dec.Allowed && !dec.FirstGentle:
 		return nmapargv.Normal, dec.Rate, ""
 	case dec.Fragile && (dec.FirstGentle || dec.Reason == reasonFragilePassive):
 		return nmapargv.Gentle, 1, ""
 	case dec.Unclassified && (dec.FirstGentle || dec.Reason == reasonUnclassifiedPassive):
-		return nmapargv.Normal, max(1, rate/4), ""
-	case dec.FirstGentle: // the one gentle scan of any other device (regular_scan never): no heavier than discovery's own
+		return nmapargv.Versions, max(1, rate/4), "" // -sV without -O: OS detection is the riskiest probe for an OT stack
+	case dec.FirstGentle:
 		return nmapargv.Gentle, 1, ""
 	}
 	return 0, 0, dec.Reason
@@ -1096,6 +1112,15 @@ func (s *Service) IdentifyDevice(ctx context.Context, assetID string) (Identific
 		return Identification{}, stopped(err)
 	} else if !in {
 		return refuse("out_of_scope")
+	}
+	// The box's own addresses and its decoys are never probed (review L1). The list also holds devices discovery leaves to the
+	// passive sensors after their gentle scan, which a pick may identify: only those are let through.
+	protected, err := s.inv.ProtectedIPs(jctx)
+	if err != nil {
+		return Identification{}, stopped(err)
+	}
+	if slices.Contains(protected, asset.IP) && dec.Reason != reasonFragilePassive && dec.Reason != reasonUnclassifiedPassive {
+		return refuse(reasonBox)
 	}
 	s.setGentle(kind == nmapargv.Gentle)
 	id, err := s.startJob(ctx, KindDevice, "scan_now", 1)
@@ -1235,22 +1260,45 @@ func (s *Service) Tick(ctx context.Context) error {
 	return s.drain(ctx)
 }
 
-// firstPassDue says no sweep has ever finished on this box (done or failed): active scanning was just turned on, at setup or later,
-// and the box has not looked at the network yet. A sweep that was stopped (settings changed, the worker went away) leaves it due.
+// firstPassDue says the first pass has never started (no sa_first_pass row) and no sweep ever finished on this box (a box from
+// before D-501 that has swept has had its first look). It runs exactly once: a pass that was stopped or cut by its deadline is not
+// run again; its sweep goes on from the cursor in the next window.
 func (s *Service) firstPassDue(ctx context.Context) (bool, error) {
 	var n int
-	if err := s.db.Reader().QueryRowContext(ctx, `SELECT count(*) FROM sa_job WHERE kind = 'sweep' AND status IN ('done', 'failed')`).Scan(&n); err != nil {
-		return false, fmt.Errorf("sensoractive: read jobs: %w", err)
+	err := s.db.Reader().QueryRowContext(ctx, `SELECT (SELECT count(*) FROM sa_first_pass) + (SELECT count(*) FROM sa_job WHERE kind = 'sweep' AND status IN ('done', 'failed'))`).Scan(&n)
+	if err != nil {
+		return false, fmt.Errorf("sensoractive: read the first pass: %w", err)
 	}
 	return n == 0, nil
+}
+
+// markFirstPass records that the first pass starts; false when another call recorded it first.
+func (s *Service) markFirstPass(ctx context.Context) (bool, error) {
+	var n int64
+	err := s.db.Write(ctx, func(tx *sql.Tx) error {
+		r, err := tx.ExecContext(ctx, `INSERT OR IGNORE INTO sa_first_pass (id, started_at) VALUES (1, ?)`, s.now())
+		if err != nil {
+			return err
+		}
+		n, err = r.RowsAffected()
+		return err
+	})
+	if err != nil {
+		return false, fmt.Errorf("sensoractive: record the first pass: %w", err)
+	}
+	return n == 1, nil
 }
 
 // firstPass is the one discovery pass of a box that has never swept, run at once instead of at the next window (D-501, walk 1
 // W1-6: a box set up at 11:00 identified nothing until 23:00). It is the window's own work, a sweep and then the queued devices'
 // scans (gentle first for fragile and unclassified ones, D-84 (1)), with the window counted open for at most firstPassFor. Every
-// other rule holds: scanning on, scope confirmed, exclusions, rate, the probe log, the stop on a change of settings.
+// other rule holds: scanning on, scope confirmed, exclusions, rate, the probe log, the stop on a change of settings. It runs once:
+// sa_first_pass is written before the sweep starts.
 func (s *Service) firstPass(ctx context.Context) error {
 	if err := s.available(ctx); err != nil {
+		return err // not started: the next Tick tries again
+	}
+	if first, err := s.markFirstPass(ctx); err != nil || !first {
 		return err
 	}
 	s.mu.Lock()

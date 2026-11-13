@@ -1,6 +1,7 @@
 package sensoractive
 
 import (
+	"fmt"
 	"net/netip"
 	"slices"
 	"strings"
@@ -23,15 +24,17 @@ func TestIdentifiedFromRealOutputShapes(t *testing.T) {
 		found  []string // lines of Found
 		why    string
 	}{
-		{file: "iphone.xml", kind: "iot", cpes: []string{"cpe:/o:apple:iphone_os:15", "cpe:/o:apple:iphone_os:16"},
-			found: []string{"Operating system: Apple iOS 15.0 - 16.1 (Darwin 21.0.0 - 22.1.0)", "Type: iot", "Software: Apple iOS 15.0 - 16.1 (Darwin 21.0.0 - 22.1.0)"}},
-		{file: "windows.xml", kind: "pc", cpes: []string{"", "", "", "cpe:/o:microsoft:windows_10:1607"},
+		// The OS of a fingerprint is a guess: one row per OS without the generation (iOS 15 and 16 are one row), never a version.
+		{file: "iphone.xml", kind: "iot", cpes: []string{"cpe:/o:apple:iphone_os"},
+			found: []string{"Operating system: Apple iOS 15.0 - 16.1 (Darwin 21.0.0 - 22.1.0)", "Type: iot"}, why: WhyOSGuess},
+		{file: "windows.xml", kind: "pc", cpes: []string{"", "", "", "cpe:/o:microsoft:windows_10"},
 			found: []string{"Operating system: Microsoft Windows 10 1607", "Type: pc", "Software: Microsoft Windows RPC", "Software: Microsoft Windows netbios-ssn",
-				"Software: Microsoft Terminal Services", "Software: Microsoft Windows 10 1607"}},
-		{file: "device.xml", kind: "server", cpes: []string{"cpe:/a:openbsd:openssh:8.9p1", "cpe:/a:apache:http_server:2.4.52", "", "cpe:/o:linux:linux_kernel:5"},
-			found: []string{"Operating system: Linux 5.4 - 5.15", "Type: server", "Software: OpenSSH 8.9p1", "Software: Apache httpd 2.4.52", "Software: Squid http proxy 5.7", "Software: Linux 5.4 - 5.15"}},
-		{file: "fortigate.xml", kind: "firewall", cpes: []string{"", "cpe:/o:fortinet:fortios:7.2"},
-			found: []string{"Operating system: Fortinet FortiGate-60F firewall (FortiOS 7.2)", "Type: firewall", "Software: FortiGate firewall http config", "Software: Fortinet FortiGate-60F firewall (FortiOS 7.2)"}},
+				"Software: Microsoft Terminal Services"}, why: WhyOSGuess},
+		// Linux "general purpose" gives no kind (review H2): Linux also runs embedded and OT devices.
+		{file: "device.xml", cpes: []string{"cpe:/a:openbsd:openssh:8.9p1", "cpe:/a:apache:http_server:2.4.52", "", "cpe:/o:linux:linux_kernel"},
+			found: []string{"Operating system: Linux 5.4 - 5.15", "Software: OpenSSH 8.9p1", "Software: Apache httpd 2.4.52", "Software: Squid http proxy 5.7"}},
+		{file: "fortigate.xml", kind: "firewall", cpes: []string{"", "cpe:/o:fortinet:fortios"},
+			found: []string{"Operating system: Fortinet FortiGate-60F firewall (FortiOS 7.2)", "Type: firewall", "Software: FortiGate firewall http config"}, why: WhyOSGuess},
 		{file: "printer.xml", why: WhyOSUnsure},
 		{file: "noversion.xml", why: WhyNoVersion},
 		{file: "filtered.xml", why: WhyFiltered},
@@ -91,25 +94,28 @@ func TestFortiGateIsIdentified(t *testing.T) {
 	if got[observe.Vendor] != "Fortinet" || got[observe.OS] != "Fortinet FortiGate-60F firewall (FortiOS 7.2)" || got[observe.Kind] != "firewall" {
 		t.Errorf("observations = %v", got)
 	}
-	var os []string
-	for _, s := range softwareOf(hosts[0]) {
-		if strings.HasPrefix(s.CPE, "cpe:/o:") {
-			os = append(os, s.Vendor+"|"+s.Product+"|"+s.Version)
+	osRows := func(h host) []string {
+		var out []string
+		for _, s := range softwareOf(h) {
+			if strings.HasPrefix(s.CPE, "cpe:/o:") {
+				out = append(out, fmt.Sprintf("%s|%s|%s|%s|guess=%v", s.Vendor, s.Product, s.Version, s.CPE, s.Guess))
+			}
 		}
+		return out
 	}
-	if !slices.Equal(os, []string{"fortinet|fortios|7.2"}) {
-		t.Errorf("OS software = %v, want fortinet|fortios|7.2", os)
+	// Review H1: "7.2" is the OS generation of the fingerprint, never a version; the row is a guess and gets no match keys.
+	if got := osRows(hosts[0]); !slices.Equal(got, []string{"fortinet|fortios||cpe:/o:fortinet:fortios|guess=true"}) {
+		t.Errorf("OS software = %v", got)
 	}
 	unsure := hosts[0]
-	unsure.matches = nil // the fingerprint failed: the service's OS CPE stands in, without a version
-	os = nil
-	for _, s := range softwareOf(unsure) {
-		if strings.HasPrefix(s.CPE, "cpe:/o:") {
-			os = append(os, s.Vendor+"|"+s.Product+"|"+s.Version)
-		}
+	unsure.matches = nil // the fingerprint failed and the service gave no version: no OS row at all
+	if got := osRows(unsure); len(got) != 0 {
+		t.Errorf("OS software without a fingerprint = %v, want none", got)
 	}
-	if !slices.Equal(os, []string{"fortinet|fortios|"}) {
-		t.Errorf("OS software without a fingerprint = %v", os)
+	unsure.ports = slices.Clone(unsure.ports)
+	unsure.ports[1].version = "7.2.5" // -sV read the version from the service: that row is real, and matched
+	if got := osRows(unsure); !slices.Equal(got, []string{"fortinet|fortios|7.2.5|cpe:/o:fortinet:fortios|guess=false"}) {
+		t.Errorf("OS software from a versioned service = %v", got)
 	}
 }
 
@@ -146,12 +152,14 @@ func TestPickedPlan(t *testing.T) {
 		why  string
 	}{
 		{"classified", Decision{Allowed: true, Rate: 100, Reason: "ok"}, nmapargv.Normal, 100, ""},
-		{"unknown, first scan", Decision{Allowed: true, Rate: 1, Reason: "first_gentle_scan", FirstGentle: true, Unclassified: true}, nmapargv.Normal, 25, ""},
-		{"unknown, after its gentle scan", Decision{Reason: reasonUnclassifiedPassive, Unclassified: true}, nmapargv.Normal, 25, ""},
+		{"unknown, first scan", Decision{Allowed: true, Rate: 1, Reason: "first_gentle_scan", FirstGentle: true, Unclassified: true}, nmapargv.Versions, 25, ""},
+		{"unknown, after its gentle scan", Decision{Reason: reasonUnclassifiedPassive, Unclassified: true}, nmapargv.Versions, 25, ""},
 		{"fragile, first scan", Decision{Allowed: true, Rate: 1, Reason: "first_gentle_scan", FirstGentle: true, Fragile: true}, nmapargv.Gentle, 1, ""},
 		{"fragile and unknown", Decision{Reason: reasonFragilePassive, Fragile: true, Unclassified: true}, nmapargv.Gentle, 1, ""},
-		{"never, first scan", Decision{Allowed: true, Rate: 1, Reason: "first_gentle_scan", FirstGentle: true}, nmapargv.Gentle, 1, ""},
-		{"never", Decision{Reason: "regular_scan_never"}, 0, 0, "regular_scan_never"},
+		{"never, before its gentle scan", Decision{Allowed: true, Rate: 1, Reason: "first_gentle_scan", FirstGentle: true, Unclassified: true, Never: true}, 0, 0, "regular_scan_never"},
+		{"never, fragile", Decision{Reason: reasonFragilePassive, Fragile: true, Never: true}, 0, 0, "regular_scan_never"},
+		{"never", Decision{Reason: "regular_scan_never", Never: true}, 0, 0, "regular_scan_never"},
+		{"another first gentle scan", Decision{Allowed: true, Rate: 1, Reason: "first_gentle_scan", FirstGentle: true}, nmapargv.Gentle, 1, ""},
 		{"by hand", Decision{Reason: "declared_by_hand", Unclassified: true}, 0, 0, "declared_by_hand"},
 		{"out of scope", Decision{Reason: "out_of_scope"}, 0, 0, "out_of_scope"},
 	} {

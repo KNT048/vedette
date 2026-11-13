@@ -20,9 +20,10 @@ type ScanDecision struct {
 	// side). IP: the address the decision was made for, from the same read; zero when the decision is a refusal.
 	Careful bool
 	IP      netip.Addr
-	// Fragile and Unclassified are set by ScanPolicy only, for every device that passed origin, address and scope: the device is
-	// fragile, or its kind is still unknown. sensor-active's identification for Scan now picks its scan shape from them (D-501).
-	Fragile, Unclassified bool
+	// Fragile, Unclassified and Never are set by ScanPolicy only, for every device that passed origin, address and scope: the device
+	// is fragile, its kind is still unknown, a person set regular_scan=never. sensor-active's identification for Scan now picks its
+	// scan shape from them, and refuses Never (D-501).
+	Fragile, Unclassified, Never bool
 }
 
 // Reasons of a ScanDecision.
@@ -71,7 +72,7 @@ func (s *Service) ScanPolicy(ctx context.Context, assetID string) (ScanDecision,
 		return deny(ReasonOutOfScope), nil
 	}
 	d := afterScope(st, f.kind, f.fragile, f.regular, f.firstScan)
-	d.Fragile, d.Unclassified = f.fragile, f.kind == "unknown"
+	d.Fragile, d.Unclassified, d.Never = f.fragile, f.kind == "unknown", f.regular == "never"
 	return d, nil
 }
 

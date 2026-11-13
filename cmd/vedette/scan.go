@@ -190,8 +190,10 @@ func (i scanIdentify) Identify(ctx context.Context, assetID string) (scan.Identi
 	}
 	got, err := svc.IdentifyDevice(ctx, assetID)
 	switch {
-	case errors.Is(err, sensoractive.ErrStopped):
+	case errors.Is(err, sensoractive.ErrStopped) && ctx.Err() != nil: // the run's context: the person's Stop now, or the run's end
 		return scan.Identification{}, scan.ErrIdentifyStopped
+	case errors.Is(err, sensoractive.ErrStopped): // sensor-active stopped it by itself: the device, the settings or the module changed
+		return scan.Identification{}, scan.ErrIdentifyInterrupted
 	case errors.Is(err, sensoractive.ErrNotFound):
 		return scan.Identification{Why: scan.ReasonGone}, nil
 	case err != nil:

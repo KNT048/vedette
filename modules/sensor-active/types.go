@@ -25,7 +25,8 @@ type Decision struct {
 	Reason      string // the inventory's reason, passed through in sensor.scan.blocked
 	FirstGentle bool   // the one gentle scan of a fragile device (D-45)
 	// Fragile and Unclassified describe the device (fragile, kind still unknown): IdentifyDevice picks its scan shape from them (D-501).
-	Fragile, Unclassified bool
+	// Never is regular_scan=never: IdentifyDevice refuses it outright (D-126 (1)).
+	Fragile, Unclassified, Never bool
 }
 
 // Asset is a device as the scanner needs it.

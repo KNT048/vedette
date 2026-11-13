@@ -138982,11 +138982,13 @@ type ScanGetScansRunsOKItemsItemIdentificationItem struct {
 	Label string   `json:"label"`
 	// The box's sentence for the reason, shown as is.
 	Note string `json:"note"`
-	// Null: software was recorded and compared with the KEV list. Otherwise why nothing was: host_down (no
-	// answer), no_open_ports (all closed), filtered (probes dropped), no_version (services gave no product
-	// or version), os_low_confidence (OS guess under 85%), gentle_only (fragile: gentle scan only),
-	// timed_out, busy (discovery was running nmap), unavailable (nmap not available or Active discovery
-	// off), declared_by_hand, scanning_off, not_approved, out_of_scope, no_ip, not_scanned (D-501).
+	// Null: software with a version was recorded and compared with the KEV list. Otherwise why nothing
+	// was: host_down (no answer), no_open_ports (all closed), filtered (probes dropped), no_version
+	// (services gave no product or version), os_unconfirmed (only an OS guess: shown, never matched until
+	// a person adds the OS with its version), os_low_confidence (OS guess under 85%), scope_not_confirmed,
+	// box (the box or a decoy), regular_scan_never, gentle_only (fragile: gentle scan only), timed_out,
+	// busy (discovery was running nmap), unavailable (nmap not available or Active discovery off),
+	// declared_by_hand, scanning_off, not_approved, out_of_scope, no_ip, not_scanned (D-501).
 	Reason   NilScanGetScansRunsOKItemsItemIdentificationItemReason `json:"reason"`
 	TargetID string                                                 `json:"target_id"`
 }
@@ -139054,21 +139056,25 @@ func (s *ScanGetScansRunsOKItemsItemIdentificationItem) SetTargetID(val string) 
 type ScanGetScansRunsOKItemsItemIdentificationItemReason string
 
 const (
-	ScanGetScansRunsOKItemsItemIdentificationItemReasonHostDown        ScanGetScansRunsOKItemsItemIdentificationItemReason = "host_down"
-	ScanGetScansRunsOKItemsItemIdentificationItemReasonNoOpenPorts     ScanGetScansRunsOKItemsItemIdentificationItemReason = "no_open_ports"
-	ScanGetScansRunsOKItemsItemIdentificationItemReasonFiltered        ScanGetScansRunsOKItemsItemIdentificationItemReason = "filtered"
-	ScanGetScansRunsOKItemsItemIdentificationItemReasonNoVersion       ScanGetScansRunsOKItemsItemIdentificationItemReason = "no_version"
-	ScanGetScansRunsOKItemsItemIdentificationItemReasonOsLowConfidence ScanGetScansRunsOKItemsItemIdentificationItemReason = "os_low_confidence"
-	ScanGetScansRunsOKItemsItemIdentificationItemReasonGentleOnly      ScanGetScansRunsOKItemsItemIdentificationItemReason = "gentle_only"
-	ScanGetScansRunsOKItemsItemIdentificationItemReasonTimedOut        ScanGetScansRunsOKItemsItemIdentificationItemReason = "timed_out"
-	ScanGetScansRunsOKItemsItemIdentificationItemReasonBusy            ScanGetScansRunsOKItemsItemIdentificationItemReason = "busy"
-	ScanGetScansRunsOKItemsItemIdentificationItemReasonUnavailable     ScanGetScansRunsOKItemsItemIdentificationItemReason = "unavailable"
-	ScanGetScansRunsOKItemsItemIdentificationItemReasonDeclaredByHand  ScanGetScansRunsOKItemsItemIdentificationItemReason = "declared_by_hand"
-	ScanGetScansRunsOKItemsItemIdentificationItemReasonScanningOff     ScanGetScansRunsOKItemsItemIdentificationItemReason = "scanning_off"
-	ScanGetScansRunsOKItemsItemIdentificationItemReasonNotApproved     ScanGetScansRunsOKItemsItemIdentificationItemReason = "not_approved"
-	ScanGetScansRunsOKItemsItemIdentificationItemReasonOutOfScope      ScanGetScansRunsOKItemsItemIdentificationItemReason = "out_of_scope"
-	ScanGetScansRunsOKItemsItemIdentificationItemReasonNoIP            ScanGetScansRunsOKItemsItemIdentificationItemReason = "no_ip"
-	ScanGetScansRunsOKItemsItemIdentificationItemReasonNotScanned      ScanGetScansRunsOKItemsItemIdentificationItemReason = "not_scanned"
+	ScanGetScansRunsOKItemsItemIdentificationItemReasonHostDown          ScanGetScansRunsOKItemsItemIdentificationItemReason = "host_down"
+	ScanGetScansRunsOKItemsItemIdentificationItemReasonNoOpenPorts       ScanGetScansRunsOKItemsItemIdentificationItemReason = "no_open_ports"
+	ScanGetScansRunsOKItemsItemIdentificationItemReasonFiltered          ScanGetScansRunsOKItemsItemIdentificationItemReason = "filtered"
+	ScanGetScansRunsOKItemsItemIdentificationItemReasonNoVersion         ScanGetScansRunsOKItemsItemIdentificationItemReason = "no_version"
+	ScanGetScansRunsOKItemsItemIdentificationItemReasonOsUnconfirmed     ScanGetScansRunsOKItemsItemIdentificationItemReason = "os_unconfirmed"
+	ScanGetScansRunsOKItemsItemIdentificationItemReasonOsLowConfidence   ScanGetScansRunsOKItemsItemIdentificationItemReason = "os_low_confidence"
+	ScanGetScansRunsOKItemsItemIdentificationItemReasonGentleOnly        ScanGetScansRunsOKItemsItemIdentificationItemReason = "gentle_only"
+	ScanGetScansRunsOKItemsItemIdentificationItemReasonTimedOut          ScanGetScansRunsOKItemsItemIdentificationItemReason = "timed_out"
+	ScanGetScansRunsOKItemsItemIdentificationItemReasonBusy              ScanGetScansRunsOKItemsItemIdentificationItemReason = "busy"
+	ScanGetScansRunsOKItemsItemIdentificationItemReasonUnavailable       ScanGetScansRunsOKItemsItemIdentificationItemReason = "unavailable"
+	ScanGetScansRunsOKItemsItemIdentificationItemReasonDeclaredByHand    ScanGetScansRunsOKItemsItemIdentificationItemReason = "declared_by_hand"
+	ScanGetScansRunsOKItemsItemIdentificationItemReasonScanningOff       ScanGetScansRunsOKItemsItemIdentificationItemReason = "scanning_off"
+	ScanGetScansRunsOKItemsItemIdentificationItemReasonNotApproved       ScanGetScansRunsOKItemsItemIdentificationItemReason = "not_approved"
+	ScanGetScansRunsOKItemsItemIdentificationItemReasonOutOfScope        ScanGetScansRunsOKItemsItemIdentificationItemReason = "out_of_scope"
+	ScanGetScansRunsOKItemsItemIdentificationItemReasonScopeNotConfirmed ScanGetScansRunsOKItemsItemIdentificationItemReason = "scope_not_confirmed"
+	ScanGetScansRunsOKItemsItemIdentificationItemReasonBox               ScanGetScansRunsOKItemsItemIdentificationItemReason = "box"
+	ScanGetScansRunsOKItemsItemIdentificationItemReasonRegularScanNever  ScanGetScansRunsOKItemsItemIdentificationItemReason = "regular_scan_never"
+	ScanGetScansRunsOKItemsItemIdentificationItemReasonNoIP              ScanGetScansRunsOKItemsItemIdentificationItemReason = "no_ip"
+	ScanGetScansRunsOKItemsItemIdentificationItemReasonNotScanned        ScanGetScansRunsOKItemsItemIdentificationItemReason = "not_scanned"
 )
 
 // AllValues returns all ScanGetScansRunsOKItemsItemIdentificationItemReason values.
@@ -139078,6 +139084,7 @@ func (ScanGetScansRunsOKItemsItemIdentificationItemReason) AllValues() []ScanGet
 		ScanGetScansRunsOKItemsItemIdentificationItemReasonNoOpenPorts,
 		ScanGetScansRunsOKItemsItemIdentificationItemReasonFiltered,
 		ScanGetScansRunsOKItemsItemIdentificationItemReasonNoVersion,
+		ScanGetScansRunsOKItemsItemIdentificationItemReasonOsUnconfirmed,
 		ScanGetScansRunsOKItemsItemIdentificationItemReasonOsLowConfidence,
 		ScanGetScansRunsOKItemsItemIdentificationItemReasonGentleOnly,
 		ScanGetScansRunsOKItemsItemIdentificationItemReasonTimedOut,
@@ -139087,6 +139094,9 @@ func (ScanGetScansRunsOKItemsItemIdentificationItemReason) AllValues() []ScanGet
 		ScanGetScansRunsOKItemsItemIdentificationItemReasonScanningOff,
 		ScanGetScansRunsOKItemsItemIdentificationItemReasonNotApproved,
 		ScanGetScansRunsOKItemsItemIdentificationItemReasonOutOfScope,
+		ScanGetScansRunsOKItemsItemIdentificationItemReasonScopeNotConfirmed,
+		ScanGetScansRunsOKItemsItemIdentificationItemReasonBox,
+		ScanGetScansRunsOKItemsItemIdentificationItemReasonRegularScanNever,
 		ScanGetScansRunsOKItemsItemIdentificationItemReasonNoIP,
 		ScanGetScansRunsOKItemsItemIdentificationItemReasonNotScanned,
 	}
@@ -139102,6 +139112,8 @@ func (s ScanGetScansRunsOKItemsItemIdentificationItemReason) MarshalText() ([]by
 	case ScanGetScansRunsOKItemsItemIdentificationItemReasonFiltered:
 		return []byte(s), nil
 	case ScanGetScansRunsOKItemsItemIdentificationItemReasonNoVersion:
+		return []byte(s), nil
+	case ScanGetScansRunsOKItemsItemIdentificationItemReasonOsUnconfirmed:
 		return []byte(s), nil
 	case ScanGetScansRunsOKItemsItemIdentificationItemReasonOsLowConfidence:
 		return []byte(s), nil
@@ -139120,6 +139132,12 @@ func (s ScanGetScansRunsOKItemsItemIdentificationItemReason) MarshalText() ([]by
 	case ScanGetScansRunsOKItemsItemIdentificationItemReasonNotApproved:
 		return []byte(s), nil
 	case ScanGetScansRunsOKItemsItemIdentificationItemReasonOutOfScope:
+		return []byte(s), nil
+	case ScanGetScansRunsOKItemsItemIdentificationItemReasonScopeNotConfirmed:
+		return []byte(s), nil
+	case ScanGetScansRunsOKItemsItemIdentificationItemReasonBox:
+		return []byte(s), nil
+	case ScanGetScansRunsOKItemsItemIdentificationItemReasonRegularScanNever:
 		return []byte(s), nil
 	case ScanGetScansRunsOKItemsItemIdentificationItemReasonNoIP:
 		return []byte(s), nil
@@ -139144,6 +139162,9 @@ func (s *ScanGetScansRunsOKItemsItemIdentificationItemReason) UnmarshalText(data
 		return nil
 	case ScanGetScansRunsOKItemsItemIdentificationItemReasonNoVersion:
 		*s = ScanGetScansRunsOKItemsItemIdentificationItemReasonNoVersion
+		return nil
+	case ScanGetScansRunsOKItemsItemIdentificationItemReasonOsUnconfirmed:
+		*s = ScanGetScansRunsOKItemsItemIdentificationItemReasonOsUnconfirmed
 		return nil
 	case ScanGetScansRunsOKItemsItemIdentificationItemReasonOsLowConfidence:
 		*s = ScanGetScansRunsOKItemsItemIdentificationItemReasonOsLowConfidence
@@ -139171,6 +139192,15 @@ func (s *ScanGetScansRunsOKItemsItemIdentificationItemReason) UnmarshalText(data
 		return nil
 	case ScanGetScansRunsOKItemsItemIdentificationItemReasonOutOfScope:
 		*s = ScanGetScansRunsOKItemsItemIdentificationItemReasonOutOfScope
+		return nil
+	case ScanGetScansRunsOKItemsItemIdentificationItemReasonScopeNotConfirmed:
+		*s = ScanGetScansRunsOKItemsItemIdentificationItemReasonScopeNotConfirmed
+		return nil
+	case ScanGetScansRunsOKItemsItemIdentificationItemReasonBox:
+		*s = ScanGetScansRunsOKItemsItemIdentificationItemReasonBox
+		return nil
+	case ScanGetScansRunsOKItemsItemIdentificationItemReasonRegularScanNever:
+		*s = ScanGetScansRunsOKItemsItemIdentificationItemReasonRegularScanNever
 		return nil
 	case ScanGetScansRunsOKItemsItemIdentificationItemReasonNoIP:
 		*s = ScanGetScansRunsOKItemsItemIdentificationItemReasonNoIP
@@ -140345,11 +140375,13 @@ type ScanPostScansRunsCreatedIdentificationItem struct {
 	Label string   `json:"label"`
 	// The box's sentence for the reason, shown as is.
 	Note string `json:"note"`
-	// Null: software was recorded and compared with the KEV list. Otherwise why nothing was: host_down (no
-	// answer), no_open_ports (all closed), filtered (probes dropped), no_version (services gave no product
-	// or version), os_low_confidence (OS guess under 85%), gentle_only (fragile: gentle scan only),
-	// timed_out, busy (discovery was running nmap), unavailable (nmap not available or Active discovery
-	// off), declared_by_hand, scanning_off, not_approved, out_of_scope, no_ip, not_scanned (D-501).
+	// Null: software with a version was recorded and compared with the KEV list. Otherwise why nothing
+	// was: host_down (no answer), no_open_ports (all closed), filtered (probes dropped), no_version
+	// (services gave no product or version), os_unconfirmed (only an OS guess: shown, never matched until
+	// a person adds the OS with its version), os_low_confidence (OS guess under 85%), scope_not_confirmed,
+	// box (the box or a decoy), regular_scan_never, gentle_only (fragile: gentle scan only), timed_out,
+	// busy (discovery was running nmap), unavailable (nmap not available or Active discovery off),
+	// declared_by_hand, scanning_off, not_approved, out_of_scope, no_ip, not_scanned (D-501).
 	Reason   NilScanPostScansRunsCreatedIdentificationItemReason `json:"reason"`
 	TargetID string                                              `json:"target_id"`
 }
@@ -140417,21 +140449,25 @@ func (s *ScanPostScansRunsCreatedIdentificationItem) SetTargetID(val string) {
 type ScanPostScansRunsCreatedIdentificationItemReason string
 
 const (
-	ScanPostScansRunsCreatedIdentificationItemReasonHostDown        ScanPostScansRunsCreatedIdentificationItemReason = "host_down"
-	ScanPostScansRunsCreatedIdentificationItemReasonNoOpenPorts     ScanPostScansRunsCreatedIdentificationItemReason = "no_open_ports"
-	ScanPostScansRunsCreatedIdentificationItemReasonFiltered        ScanPostScansRunsCreatedIdentificationItemReason = "filtered"
-	ScanPostScansRunsCreatedIdentificationItemReasonNoVersion       ScanPostScansRunsCreatedIdentificationItemReason = "no_version"
-	ScanPostScansRunsCreatedIdentificationItemReasonOsLowConfidence ScanPostScansRunsCreatedIdentificationItemReason = "os_low_confidence"
-	ScanPostScansRunsCreatedIdentificationItemReasonGentleOnly      ScanPostScansRunsCreatedIdentificationItemReason = "gentle_only"
-	ScanPostScansRunsCreatedIdentificationItemReasonTimedOut        ScanPostScansRunsCreatedIdentificationItemReason = "timed_out"
-	ScanPostScansRunsCreatedIdentificationItemReasonBusy            ScanPostScansRunsCreatedIdentificationItemReason = "busy"
-	ScanPostScansRunsCreatedIdentificationItemReasonUnavailable     ScanPostScansRunsCreatedIdentificationItemReason = "unavailable"
-	ScanPostScansRunsCreatedIdentificationItemReasonDeclaredByHand  ScanPostScansRunsCreatedIdentificationItemReason = "declared_by_hand"
-	ScanPostScansRunsCreatedIdentificationItemReasonScanningOff     ScanPostScansRunsCreatedIdentificationItemReason = "scanning_off"
-	ScanPostScansRunsCreatedIdentificationItemReasonNotApproved     ScanPostScansRunsCreatedIdentificationItemReason = "not_approved"
-	ScanPostScansRunsCreatedIdentificationItemReasonOutOfScope      ScanPostScansRunsCreatedIdentificationItemReason = "out_of_scope"
-	ScanPostScansRunsCreatedIdentificationItemReasonNoIP            ScanPostScansRunsCreatedIdentificationItemReason = "no_ip"
-	ScanPostScansRunsCreatedIdentificationItemReasonNotScanned      ScanPostScansRunsCreatedIdentificationItemReason = "not_scanned"
+	ScanPostScansRunsCreatedIdentificationItemReasonHostDown          ScanPostScansRunsCreatedIdentificationItemReason = "host_down"
+	ScanPostScansRunsCreatedIdentificationItemReasonNoOpenPorts       ScanPostScansRunsCreatedIdentificationItemReason = "no_open_ports"
+	ScanPostScansRunsCreatedIdentificationItemReasonFiltered          ScanPostScansRunsCreatedIdentificationItemReason = "filtered"
+	ScanPostScansRunsCreatedIdentificationItemReasonNoVersion         ScanPostScansRunsCreatedIdentificationItemReason = "no_version"
+	ScanPostScansRunsCreatedIdentificationItemReasonOsUnconfirmed     ScanPostScansRunsCreatedIdentificationItemReason = "os_unconfirmed"
+	ScanPostScansRunsCreatedIdentificationItemReasonOsLowConfidence   ScanPostScansRunsCreatedIdentificationItemReason = "os_low_confidence"
+	ScanPostScansRunsCreatedIdentificationItemReasonGentleOnly        ScanPostScansRunsCreatedIdentificationItemReason = "gentle_only"
+	ScanPostScansRunsCreatedIdentificationItemReasonTimedOut          ScanPostScansRunsCreatedIdentificationItemReason = "timed_out"
+	ScanPostScansRunsCreatedIdentificationItemReasonBusy              ScanPostScansRunsCreatedIdentificationItemReason = "busy"
+	ScanPostScansRunsCreatedIdentificationItemReasonUnavailable       ScanPostScansRunsCreatedIdentificationItemReason = "unavailable"
+	ScanPostScansRunsCreatedIdentificationItemReasonDeclaredByHand    ScanPostScansRunsCreatedIdentificationItemReason = "declared_by_hand"
+	ScanPostScansRunsCreatedIdentificationItemReasonScanningOff       ScanPostScansRunsCreatedIdentificationItemReason = "scanning_off"
+	ScanPostScansRunsCreatedIdentificationItemReasonNotApproved       ScanPostScansRunsCreatedIdentificationItemReason = "not_approved"
+	ScanPostScansRunsCreatedIdentificationItemReasonOutOfScope        ScanPostScansRunsCreatedIdentificationItemReason = "out_of_scope"
+	ScanPostScansRunsCreatedIdentificationItemReasonScopeNotConfirmed ScanPostScansRunsCreatedIdentificationItemReason = "scope_not_confirmed"
+	ScanPostScansRunsCreatedIdentificationItemReasonBox               ScanPostScansRunsCreatedIdentificationItemReason = "box"
+	ScanPostScansRunsCreatedIdentificationItemReasonRegularScanNever  ScanPostScansRunsCreatedIdentificationItemReason = "regular_scan_never"
+	ScanPostScansRunsCreatedIdentificationItemReasonNoIP              ScanPostScansRunsCreatedIdentificationItemReason = "no_ip"
+	ScanPostScansRunsCreatedIdentificationItemReasonNotScanned        ScanPostScansRunsCreatedIdentificationItemReason = "not_scanned"
 )
 
 // AllValues returns all ScanPostScansRunsCreatedIdentificationItemReason values.
@@ -140441,6 +140477,7 @@ func (ScanPostScansRunsCreatedIdentificationItemReason) AllValues() []ScanPostSc
 		ScanPostScansRunsCreatedIdentificationItemReasonNoOpenPorts,
 		ScanPostScansRunsCreatedIdentificationItemReasonFiltered,
 		ScanPostScansRunsCreatedIdentificationItemReasonNoVersion,
+		ScanPostScansRunsCreatedIdentificationItemReasonOsUnconfirmed,
 		ScanPostScansRunsCreatedIdentificationItemReasonOsLowConfidence,
 		ScanPostScansRunsCreatedIdentificationItemReasonGentleOnly,
 		ScanPostScansRunsCreatedIdentificationItemReasonTimedOut,
@@ -140450,6 +140487,9 @@ func (ScanPostScansRunsCreatedIdentificationItemReason) AllValues() []ScanPostSc
 		ScanPostScansRunsCreatedIdentificationItemReasonScanningOff,
 		ScanPostScansRunsCreatedIdentificationItemReasonNotApproved,
 		ScanPostScansRunsCreatedIdentificationItemReasonOutOfScope,
+		ScanPostScansRunsCreatedIdentificationItemReasonScopeNotConfirmed,
+		ScanPostScansRunsCreatedIdentificationItemReasonBox,
+		ScanPostScansRunsCreatedIdentificationItemReasonRegularScanNever,
 		ScanPostScansRunsCreatedIdentificationItemReasonNoIP,
 		ScanPostScansRunsCreatedIdentificationItemReasonNotScanned,
 	}
@@ -140465,6 +140505,8 @@ func (s ScanPostScansRunsCreatedIdentificationItemReason) MarshalText() ([]byte,
 	case ScanPostScansRunsCreatedIdentificationItemReasonFiltered:
 		return []byte(s), nil
 	case ScanPostScansRunsCreatedIdentificationItemReasonNoVersion:
+		return []byte(s), nil
+	case ScanPostScansRunsCreatedIdentificationItemReasonOsUnconfirmed:
 		return []byte(s), nil
 	case ScanPostScansRunsCreatedIdentificationItemReasonOsLowConfidence:
 		return []byte(s), nil
@@ -140483,6 +140525,12 @@ func (s ScanPostScansRunsCreatedIdentificationItemReason) MarshalText() ([]byte,
 	case ScanPostScansRunsCreatedIdentificationItemReasonNotApproved:
 		return []byte(s), nil
 	case ScanPostScansRunsCreatedIdentificationItemReasonOutOfScope:
+		return []byte(s), nil
+	case ScanPostScansRunsCreatedIdentificationItemReasonScopeNotConfirmed:
+		return []byte(s), nil
+	case ScanPostScansRunsCreatedIdentificationItemReasonBox:
+		return []byte(s), nil
+	case ScanPostScansRunsCreatedIdentificationItemReasonRegularScanNever:
 		return []byte(s), nil
 	case ScanPostScansRunsCreatedIdentificationItemReasonNoIP:
 		return []byte(s), nil
@@ -140507,6 +140555,9 @@ func (s *ScanPostScansRunsCreatedIdentificationItemReason) UnmarshalText(data []
 		return nil
 	case ScanPostScansRunsCreatedIdentificationItemReasonNoVersion:
 		*s = ScanPostScansRunsCreatedIdentificationItemReasonNoVersion
+		return nil
+	case ScanPostScansRunsCreatedIdentificationItemReasonOsUnconfirmed:
+		*s = ScanPostScansRunsCreatedIdentificationItemReasonOsUnconfirmed
 		return nil
 	case ScanPostScansRunsCreatedIdentificationItemReasonOsLowConfidence:
 		*s = ScanPostScansRunsCreatedIdentificationItemReasonOsLowConfidence
@@ -140534,6 +140585,15 @@ func (s *ScanPostScansRunsCreatedIdentificationItemReason) UnmarshalText(data []
 		return nil
 	case ScanPostScansRunsCreatedIdentificationItemReasonOutOfScope:
 		*s = ScanPostScansRunsCreatedIdentificationItemReasonOutOfScope
+		return nil
+	case ScanPostScansRunsCreatedIdentificationItemReasonScopeNotConfirmed:
+		*s = ScanPostScansRunsCreatedIdentificationItemReasonScopeNotConfirmed
+		return nil
+	case ScanPostScansRunsCreatedIdentificationItemReasonBox:
+		*s = ScanPostScansRunsCreatedIdentificationItemReasonBox
+		return nil
+	case ScanPostScansRunsCreatedIdentificationItemReasonRegularScanNever:
+		*s = ScanPostScansRunsCreatedIdentificationItemReasonRegularScanNever
 		return nil
 	case ScanPostScansRunsCreatedIdentificationItemReasonNoIP:
 		*s = ScanPostScansRunsCreatedIdentificationItemReasonNoIP
@@ -140996,11 +141056,13 @@ type ScanPostScansRunsIDStopOKIdentificationItem struct {
 	Label string   `json:"label"`
 	// The box's sentence for the reason, shown as is.
 	Note string `json:"note"`
-	// Null: software was recorded and compared with the KEV list. Otherwise why nothing was: host_down (no
-	// answer), no_open_ports (all closed), filtered (probes dropped), no_version (services gave no product
-	// or version), os_low_confidence (OS guess under 85%), gentle_only (fragile: gentle scan only),
-	// timed_out, busy (discovery was running nmap), unavailable (nmap not available or Active discovery
-	// off), declared_by_hand, scanning_off, not_approved, out_of_scope, no_ip, not_scanned (D-501).
+	// Null: software with a version was recorded and compared with the KEV list. Otherwise why nothing
+	// was: host_down (no answer), no_open_ports (all closed), filtered (probes dropped), no_version
+	// (services gave no product or version), os_unconfirmed (only an OS guess: shown, never matched until
+	// a person adds the OS with its version), os_low_confidence (OS guess under 85%), scope_not_confirmed,
+	// box (the box or a decoy), regular_scan_never, gentle_only (fragile: gentle scan only), timed_out,
+	// busy (discovery was running nmap), unavailable (nmap not available or Active discovery off),
+	// declared_by_hand, scanning_off, not_approved, out_of_scope, no_ip, not_scanned (D-501).
 	Reason   NilScanPostScansRunsIDStopOKIdentificationItemReason `json:"reason"`
 	TargetID string                                               `json:"target_id"`
 }
@@ -141068,21 +141130,25 @@ func (s *ScanPostScansRunsIDStopOKIdentificationItem) SetTargetID(val string) {
 type ScanPostScansRunsIDStopOKIdentificationItemReason string
 
 const (
-	ScanPostScansRunsIDStopOKIdentificationItemReasonHostDown        ScanPostScansRunsIDStopOKIdentificationItemReason = "host_down"
-	ScanPostScansRunsIDStopOKIdentificationItemReasonNoOpenPorts     ScanPostScansRunsIDStopOKIdentificationItemReason = "no_open_ports"
-	ScanPostScansRunsIDStopOKIdentificationItemReasonFiltered        ScanPostScansRunsIDStopOKIdentificationItemReason = "filtered"
-	ScanPostScansRunsIDStopOKIdentificationItemReasonNoVersion       ScanPostScansRunsIDStopOKIdentificationItemReason = "no_version"
-	ScanPostScansRunsIDStopOKIdentificationItemReasonOsLowConfidence ScanPostScansRunsIDStopOKIdentificationItemReason = "os_low_confidence"
-	ScanPostScansRunsIDStopOKIdentificationItemReasonGentleOnly      ScanPostScansRunsIDStopOKIdentificationItemReason = "gentle_only"
-	ScanPostScansRunsIDStopOKIdentificationItemReasonTimedOut        ScanPostScansRunsIDStopOKIdentificationItemReason = "timed_out"
-	ScanPostScansRunsIDStopOKIdentificationItemReasonBusy            ScanPostScansRunsIDStopOKIdentificationItemReason = "busy"
-	ScanPostScansRunsIDStopOKIdentificationItemReasonUnavailable     ScanPostScansRunsIDStopOKIdentificationItemReason = "unavailable"
-	ScanPostScansRunsIDStopOKIdentificationItemReasonDeclaredByHand  ScanPostScansRunsIDStopOKIdentificationItemReason = "declared_by_hand"
-	ScanPostScansRunsIDStopOKIdentificationItemReasonScanningOff     ScanPostScansRunsIDStopOKIdentificationItemReason = "scanning_off"
-	ScanPostScansRunsIDStopOKIdentificationItemReasonNotApproved     ScanPostScansRunsIDStopOKIdentificationItemReason = "not_approved"
-	ScanPostScansRunsIDStopOKIdentificationItemReasonOutOfScope      ScanPostScansRunsIDStopOKIdentificationItemReason = "out_of_scope"
-	ScanPostScansRunsIDStopOKIdentificationItemReasonNoIP            ScanPostScansRunsIDStopOKIdentificationItemReason = "no_ip"
-	ScanPostScansRunsIDStopOKIdentificationItemReasonNotScanned      ScanPostScansRunsIDStopOKIdentificationItemReason = "not_scanned"
+	ScanPostScansRunsIDStopOKIdentificationItemReasonHostDown          ScanPostScansRunsIDStopOKIdentificationItemReason = "host_down"
+	ScanPostScansRunsIDStopOKIdentificationItemReasonNoOpenPorts       ScanPostScansRunsIDStopOKIdentificationItemReason = "no_open_ports"
+	ScanPostScansRunsIDStopOKIdentificationItemReasonFiltered          ScanPostScansRunsIDStopOKIdentificationItemReason = "filtered"
+	ScanPostScansRunsIDStopOKIdentificationItemReasonNoVersion         ScanPostScansRunsIDStopOKIdentificationItemReason = "no_version"
+	ScanPostScansRunsIDStopOKIdentificationItemReasonOsUnconfirmed     ScanPostScansRunsIDStopOKIdentificationItemReason = "os_unconfirmed"
+	ScanPostScansRunsIDStopOKIdentificationItemReasonOsLowConfidence   ScanPostScansRunsIDStopOKIdentificationItemReason = "os_low_confidence"
+	ScanPostScansRunsIDStopOKIdentificationItemReasonGentleOnly        ScanPostScansRunsIDStopOKIdentificationItemReason = "gentle_only"
+	ScanPostScansRunsIDStopOKIdentificationItemReasonTimedOut          ScanPostScansRunsIDStopOKIdentificationItemReason = "timed_out"
+	ScanPostScansRunsIDStopOKIdentificationItemReasonBusy              ScanPostScansRunsIDStopOKIdentificationItemReason = "busy"
+	ScanPostScansRunsIDStopOKIdentificationItemReasonUnavailable       ScanPostScansRunsIDStopOKIdentificationItemReason = "unavailable"
+	ScanPostScansRunsIDStopOKIdentificationItemReasonDeclaredByHand    ScanPostScansRunsIDStopOKIdentificationItemReason = "declared_by_hand"
+	ScanPostScansRunsIDStopOKIdentificationItemReasonScanningOff       ScanPostScansRunsIDStopOKIdentificationItemReason = "scanning_off"
+	ScanPostScansRunsIDStopOKIdentificationItemReasonNotApproved       ScanPostScansRunsIDStopOKIdentificationItemReason = "not_approved"
+	ScanPostScansRunsIDStopOKIdentificationItemReasonOutOfScope        ScanPostScansRunsIDStopOKIdentificationItemReason = "out_of_scope"
+	ScanPostScansRunsIDStopOKIdentificationItemReasonScopeNotConfirmed ScanPostScansRunsIDStopOKIdentificationItemReason = "scope_not_confirmed"
+	ScanPostScansRunsIDStopOKIdentificationItemReasonBox               ScanPostScansRunsIDStopOKIdentificationItemReason = "box"
+	ScanPostScansRunsIDStopOKIdentificationItemReasonRegularScanNever  ScanPostScansRunsIDStopOKIdentificationItemReason = "regular_scan_never"
+	ScanPostScansRunsIDStopOKIdentificationItemReasonNoIP              ScanPostScansRunsIDStopOKIdentificationItemReason = "no_ip"
+	ScanPostScansRunsIDStopOKIdentificationItemReasonNotScanned        ScanPostScansRunsIDStopOKIdentificationItemReason = "not_scanned"
 )
 
 // AllValues returns all ScanPostScansRunsIDStopOKIdentificationItemReason values.
@@ -141092,6 +141158,7 @@ func (ScanPostScansRunsIDStopOKIdentificationItemReason) AllValues() []ScanPostS
 		ScanPostScansRunsIDStopOKIdentificationItemReasonNoOpenPorts,
 		ScanPostScansRunsIDStopOKIdentificationItemReasonFiltered,
 		ScanPostScansRunsIDStopOKIdentificationItemReasonNoVersion,
+		ScanPostScansRunsIDStopOKIdentificationItemReasonOsUnconfirmed,
 		ScanPostScansRunsIDStopOKIdentificationItemReasonOsLowConfidence,
 		ScanPostScansRunsIDStopOKIdentificationItemReasonGentleOnly,
 		ScanPostScansRunsIDStopOKIdentificationItemReasonTimedOut,
@@ -141101,6 +141168,9 @@ func (ScanPostScansRunsIDStopOKIdentificationItemReason) AllValues() []ScanPostS
 		ScanPostScansRunsIDStopOKIdentificationItemReasonScanningOff,
 		ScanPostScansRunsIDStopOKIdentificationItemReasonNotApproved,
 		ScanPostScansRunsIDStopOKIdentificationItemReasonOutOfScope,
+		ScanPostScansRunsIDStopOKIdentificationItemReasonScopeNotConfirmed,
+		ScanPostScansRunsIDStopOKIdentificationItemReasonBox,
+		ScanPostScansRunsIDStopOKIdentificationItemReasonRegularScanNever,
 		ScanPostScansRunsIDStopOKIdentificationItemReasonNoIP,
 		ScanPostScansRunsIDStopOKIdentificationItemReasonNotScanned,
 	}
@@ -141116,6 +141186,8 @@ func (s ScanPostScansRunsIDStopOKIdentificationItemReason) MarshalText() ([]byte
 	case ScanPostScansRunsIDStopOKIdentificationItemReasonFiltered:
 		return []byte(s), nil
 	case ScanPostScansRunsIDStopOKIdentificationItemReasonNoVersion:
+		return []byte(s), nil
+	case ScanPostScansRunsIDStopOKIdentificationItemReasonOsUnconfirmed:
 		return []byte(s), nil
 	case ScanPostScansRunsIDStopOKIdentificationItemReasonOsLowConfidence:
 		return []byte(s), nil
@@ -141134,6 +141206,12 @@ func (s ScanPostScansRunsIDStopOKIdentificationItemReason) MarshalText() ([]byte
 	case ScanPostScansRunsIDStopOKIdentificationItemReasonNotApproved:
 		return []byte(s), nil
 	case ScanPostScansRunsIDStopOKIdentificationItemReasonOutOfScope:
+		return []byte(s), nil
+	case ScanPostScansRunsIDStopOKIdentificationItemReasonScopeNotConfirmed:
+		return []byte(s), nil
+	case ScanPostScansRunsIDStopOKIdentificationItemReasonBox:
+		return []byte(s), nil
+	case ScanPostScansRunsIDStopOKIdentificationItemReasonRegularScanNever:
 		return []byte(s), nil
 	case ScanPostScansRunsIDStopOKIdentificationItemReasonNoIP:
 		return []byte(s), nil
@@ -141158,6 +141236,9 @@ func (s *ScanPostScansRunsIDStopOKIdentificationItemReason) UnmarshalText(data [
 		return nil
 	case ScanPostScansRunsIDStopOKIdentificationItemReasonNoVersion:
 		*s = ScanPostScansRunsIDStopOKIdentificationItemReasonNoVersion
+		return nil
+	case ScanPostScansRunsIDStopOKIdentificationItemReasonOsUnconfirmed:
+		*s = ScanPostScansRunsIDStopOKIdentificationItemReasonOsUnconfirmed
 		return nil
 	case ScanPostScansRunsIDStopOKIdentificationItemReasonOsLowConfidence:
 		*s = ScanPostScansRunsIDStopOKIdentificationItemReasonOsLowConfidence
@@ -141185,6 +141266,15 @@ func (s *ScanPostScansRunsIDStopOKIdentificationItemReason) UnmarshalText(data [
 		return nil
 	case ScanPostScansRunsIDStopOKIdentificationItemReasonOutOfScope:
 		*s = ScanPostScansRunsIDStopOKIdentificationItemReasonOutOfScope
+		return nil
+	case ScanPostScansRunsIDStopOKIdentificationItemReasonScopeNotConfirmed:
+		*s = ScanPostScansRunsIDStopOKIdentificationItemReasonScopeNotConfirmed
+		return nil
+	case ScanPostScansRunsIDStopOKIdentificationItemReasonBox:
+		*s = ScanPostScansRunsIDStopOKIdentificationItemReasonBox
+		return nil
+	case ScanPostScansRunsIDStopOKIdentificationItemReasonRegularScanNever:
+		*s = ScanPostScansRunsIDStopOKIdentificationItemReasonRegularScanNever
 		return nil
 	case ScanPostScansRunsIDStopOKIdentificationItemReasonNoIP:
 		*s = ScanPostScansRunsIDStopOKIdentificationItemReasonNoIP

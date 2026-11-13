@@ -1,9 +1,11 @@
 package sensoractive_test
 
 import (
+	"context"
 	"path/filepath"
 	"slices"
 	"testing"
+	"time"
 
 	sa "github.com/knt048/vedette/modules/sensor-active"
 )
@@ -18,28 +20,31 @@ func absFixture(t *testing.T, name string) string {
 }
 
 // D-501: a device known only by its address, picked in Scan now outside the discovery window, is identified at once with the
-// normal scan (-sV -O) at a quarter of the rate; what nmap found is recorded (software with its CPE) and said in words; the run
-// is in the probe log like any other.
+// versions scan (-sV, no -O: OS detection is the riskiest probe for an OT stack, review M4) at a quarter of the rate; what nmap
+// found is recorded (software with its CPE) and said in words; the run is in the probe log like any other.
 func TestIdentifyDevice_UnknownDeviceOutsideTheWindow(t *testing.T) {
 	t.Parallel()
-	e := newEnv(t, fakeOpts{always: absFixture(t, "iphone.xml")}, func(e *env) { e.base = local(9, 12, 0) }) // 12:00, the window is 01:00-05:00
+	e := newEnv(t, fakeOpts{always: absFixture(t, "device.xml")}, func(e *env) { e.base = local(9, 12, 0) }) // 12:00, the window is 01:00-05:00
 	e.inv.decision["a-web"] = sa.Decision{Reason: "unclassified_passive_only", Unclassified: true}
 	got, err := e.svc.IdentifyDevice(e.ctx(), "a-web")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.Why != "" || !slices.Contains(got.Found, "Type: iot") {
-		t.Fatalf("identification = %+v, want the phone identified", got)
+	if got.Why != "" || !slices.Contains(got.Found, "Software: OpenSSH 8.9p1") {
+		t.Fatalf("identification = %+v, want the server's software", got)
 	}
 	calls := e.nm.calls(t)
-	if len(calls) != 1 || !slices.Contains(calls[0], "-sV") || !slices.Contains(calls[0], "-O") || calls[0][slices.Index(calls[0], "--max-rate")+1] != "25" {
-		t.Fatalf("nmap argv = %v, want one normal scan at 25 packets/s", calls)
+	if len(calls) != 1 || !slices.Contains(calls[0], "-sV") || slices.Contains(calls[0], "-O") || calls[0][slices.Index(calls[0], "--max-rate")+1] != "25" {
+		t.Fatalf("nmap argv = %v, want one versions scan (no -O) at 25 packets/s", calls)
+	}
+	if shape := e.str(`SELECT shape FROM sa_probe`); shape != "versions" {
+		t.Fatalf("probe shape %q", shape)
 	}
 	e.sink.mu.Lock()
 	sw := e.sink.sw["192.168.10.20"]
 	e.sink.mu.Unlock()
-	if len(sw) == 0 || sw[0].CPE != "cpe:/o:apple:iphone_os:15" {
-		t.Fatalf("software = %+v, want the iOS row with its CPE", sw)
+	if len(sw) == 0 || sw[0].CPE != "cpe:/a:openbsd:openssh:8.9p1" {
+		t.Fatalf("software = %+v, want the OpenSSH row with its CPE", sw)
 	}
 	if n := e.count(`SELECT count(*) FROM sa_probe`); n != 1 {
 		t.Fatalf("%d probe rows, want 1", n)
@@ -99,6 +104,34 @@ func TestFirstPassOfANewBoxRunsOutsideTheWindow(t *testing.T) {
 	// Outside the first pass the window is shut again: a device scan asked now waits for it.
 	if err := e.svc.ScanDevice(e.ctx(), "a-web", "x"); err == nil {
 		t.Fatal("a device scan ran outside the window after the first pass")
+	}
+}
+
+// D-501 (review H3): the first pass runs exactly once. One cut short (here the job's context ends while nmap runs, as at its
+// deadline or on a stop) is not run again: the next Tick outside the window sends nothing; the sweep goes on from its cursor in the
+// next window.
+func TestFirstPassRunsOnceEvenWhenItWasCut(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t, fakeOpts{slowFrom: 1}, func(e *env) { e.base = local(9, 12, 0) }) // noon; every nmap call sleeps 30 s
+	ctx, cancel := context.WithCancel(e.ctx())
+	done := make(chan error, 1)
+	go func() { done <- e.svc.Tick(ctx) }()
+	waitFor(t, "the first sweep to start", func() bool { return len(e.nm.calls(t)) == 1 })
+	cancel()
+	select {
+	case err := <-done: // the cancelled context's error, from whichever step it was in
+		t.Logf("the cut first pass returned %v", err)
+	case <-time.After(30 * time.Second):
+		t.Fatal("the cut first pass did not return")
+	}
+	if n := e.count(`SELECT count(*) FROM sa_job WHERE kind = 'sweep' AND status = 'stopped'`); n != 1 {
+		t.Fatalf("%d stopped sweeps, want the cut first one", n)
+	}
+	if err := e.svc.Tick(e.ctx()); err != nil {
+		t.Fatal(err)
+	}
+	if n := len(e.nm.calls(t)); n != 1 {
+		t.Fatalf("%d nmap runs after the next Tick outside the window, want still 1: the first pass ran again", n)
 	}
 }
 

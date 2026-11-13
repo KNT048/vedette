@@ -142,7 +142,7 @@ func TestSoftwareAndObservations(t *testing.T) {
 		"openssh":          "openbsd|8.9p1|cpe:/a:openbsd:openssh:8.9p1",
 		"http server":      "apache|2.4.52|cpe:/a:apache:http_server:2.4.52", // underscore -> space: how the CISA list writes it
 		"Squid http proxy": "Squid http proxy|5.7|",                          // no CPE: the product name stands for the vendor
-		"linux kernel":     "linux|5|cpe:/o:linux:linux_kernel:5",
+		"linux kernel":     "linux||cpe:/o:linux:linux_kernel",               // the fingerprint's OS: a guess, without its generation (D-501)
 	} {
 		if byProduct[product] != want {
 			t.Errorf("software %q = %q, want %q (all: %v)", product, byProduct[product], want, byProduct)

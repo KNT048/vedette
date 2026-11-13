@@ -208,7 +208,8 @@ const reasonOf = (r: ScanTarget['reason']) => REASON[r ?? 'out_of_scope']
 
 // D-501: Scan now identifies each device first (nmap in the backend). The notes are the backend's words (modules/scan/identify.go identNote).
 const IDENT_NOTE: Record<IdentReason | 'identified', string> = {
-  identified: 'Recorded on the device page and compared with the CISA list of exploited flaws.',
+  identified: 'Recorded on the device page. Software with a version is compared with the CISA list of exploited flaws; an operating system nmap only guessed is not, until you add it with its version there.',
+  os_unconfirmed: 'nmap only guessed the operating system and no service gave a version, so nothing is compared with the CISA list yet: a guess would flag every flaw of that system. Add the operating system and its version on the device page to check it.',
   host_down: 'Did not answer: it may be switched off, asleep (phones often are) or off the network. Scan it again while it is in use.',
   no_open_ports: 'Answered, but every port tried was closed, so no service could be identified. Add its software on the device page, or install the osquery agent on it.',
   filtered: 'Answered, but a firewall dropped the probes (every port tried was filtered), so nothing could be identified. Add its software on the device page, or install the osquery agent on it.',
@@ -222,6 +223,9 @@ const IDENT_NOTE: Record<IdentReason | 'identified', string> = {
   scanning_off: 'Active scanning is off under Devices, Scope and sensors, so this device was not identified. Only what was already known was checked.',
   not_approved: 'Not approved in the inventory: not scanned, so not identified.',
   out_of_scope: 'Outside the confirmed scope now: not scanned, so not identified.',
+  scope_not_confirmed: 'The scan scope commitment is not ticked under Devices, Scope and sensors: not scanned, so not identified.',
+  box: 'This address is the Vedette box itself or one of its decoys: it is never scanned.',
+  regular_scan_never: 'Set to never be scanned on its device page: not identified. Change that setting to identify it.',
   no_ip: 'No IP address is known for this device, so it could not be scanned or identified.',
   not_scanned: 'Not scanned in this run, so not identified.',
 }
@@ -234,8 +238,8 @@ function identOne(t: ScanTarget): RunIdentRow {
   if (a.origin === 'manual') return identRow(t, [], 'declared_by_hand')
   if (a.fragile && a.kind !== 'unknown') return identRow(t, [], 'gentle_only')
   const found = [...(a.os ? [`Operating system: ${a.os.value}`] : []), ...(a.kind !== 'unknown' ? [`Type: ${a.kind}`] : []), ...a.software.slice(0, 18).map((s) => `Software: ${s.display}`)]
-  if (a.software.length) return identRow(t, found, null)
-  return identRow(t, found, a.services.length ? 'no_version' : 'no_open_ports')
+  if (a.software.some((s) => s.version)) return identRow(t, found, null)
+  return identRow(t, found, !a.services.length ? 'no_open_ports' : a.os ? 'os_unconfirmed' : 'no_version')
 }
 
 // ---- chạy quét ----

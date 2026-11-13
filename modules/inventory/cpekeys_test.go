@@ -53,4 +53,17 @@ func TestNmapCPEGetsTheCatalogKEVKeys(t *testing.T) {
 	if k := keys("openssh"); !slices.Equal(k, []string{"openbsd|openssh"}) {
 		t.Errorf("OpenSSH keys = %v, want its own vendor|product key", k)
 	}
+	// Review H1: an OS nmap only guessed is stored and shown, with no key at all: it raises no finding.
+	guess := observe.AssetHint{IP: netip.MustParseAddr("192.0.2.41")}
+	if err := e.svc.ReplaceSoftware(e.ctx(), guess, observe.Nmap, []observe.Software{
+		{Display: "Linux 5.4 - 5.15", Vendor: "linux", Product: "linux kernel", CPE: "cpe:/o:linux:linux_kernel", Confidence: 0.9, Guess: true},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if k := keys("linux kernel"); len(k) != 0 {
+		t.Errorf("guessed OS keys = %v, want none", k)
+	}
+	if n := e.count(`SELECT count(*) FROM inv_software WHERE product = 'linux kernel'`); n != 1 {
+		t.Errorf("%d guessed OS rows, want it stored", n)
+	}
 }

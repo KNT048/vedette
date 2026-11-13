@@ -190,6 +190,8 @@ type runSpec struct {
 	first    Current             // the device the run begins with: shown as current from the start (POST-1)
 	onlyCVEs map[string][]string // nil: every CVE of the devices' findings; else device id -> the only CVEs it is probed for (the KEV rescan, INV-9; a backlog in one run keeps each event's pairs, #189 review L2)
 	end      time.Time           // zero: none; else the run stops by itself then (the end of the window of a scheduled run)
+	// identBusy is set (by identify) once discovery was busy during this run: the rest of the run does not wait for it again.
+	identBusy *bool
 	// inTx, when set, runs in the transaction that writes the run row: what the run is for (the schedule slot, the
 	// KEV event) is recorded with it or not at all (#164 review L4).
 	inTx func(ctx context.Context, tx *sql.Tx, runID string) error
@@ -352,6 +354,7 @@ func (s *Service) StopRun(ctx context.Context, user, id string) (RunView, error)
 // sp.picked are the ids whose pick is their consent (M1): each other device is checked as for an automatic run.
 func (s *Service) execute(ctx context.Context, runID string, sp runSpec) {
 	ids := sp.ids
+	sp.identBusy = new(bool)
 	var rows []RunRow
 	idents := []IdentRow{}
 	status, reason := "done", ""
@@ -458,10 +461,13 @@ func (s *Service) scanTarget(ctx context.Context, runID, id string, index int, s
 		return []RunRow{s.skip(d, why)}, skipped(d, why), ""
 	}
 	if identifies(sp) {
-		row, stopped := s.identify(ctx, d)
+		row, how := s.identify(ctx, d, sp.identBusy)
 		ident = &row
-		if stopped {
+		switch how {
+		case "stopped":
 			return []RunRow{{TargetID: d.ID, Label: d.Label, IP: d.IP, Result: "skipped", Note: noteIdentStopped}}, ident, "stopped"
+		case "skip":
+			return []RunRow{{TargetID: d.ID, Label: d.Label, IP: d.IP, Result: "skipped", Note: noteIdentInterrupted}}, ident, ""
 		}
 		// What the identification recorded changed the device: its open ports (where nuclei goes) and, through the findings
 		// module, its findings (what plan reads). The address it was checked for stays the one consent decided on.

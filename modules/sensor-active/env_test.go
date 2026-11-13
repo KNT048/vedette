@@ -403,6 +403,7 @@ func (e *env) str(query string) string {
 type dbTx = *sql.Tx
 
 // sweptBefore records a sweep that finished a week ago: the box is not new, so no first pass runs outside the window (D-501).
+// The sa_first_pass row alone would do too; a finished sweep is how a box from before D-501 looks.
 func (e *env) sweptBefore() {
 	e.t.Helper()
 	err := e.db.Write(e.ctx(), func(tx *sql.Tx) error {

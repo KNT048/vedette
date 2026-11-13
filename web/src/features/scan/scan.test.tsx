@@ -73,7 +73,7 @@ describe('scan: trang chính và chọn mục tiêu (S-SCAN-1)', () => {
     expect(screen.getByRole('checkbox', { name: /SRV-AD/ })).toBeChecked()
     expect(screen.getAllByText('Fragile: pick it to scan at a quarter of the speed').length).toBeGreaterThan(0)
     expect(screen.getAllByText('Added by hand: pick it to scan').length).toBeGreaterThan(0)
-    expect(screen.getAllByText('Type unknown: pick it to scan at a quarter of the speed').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Type unknown: pick it to identify its services (no operating system probe) and scan it at a quarter of the speed').length).toBeGreaterThan(0)
     await userEvent.click(screen.getByRole('button', { name: 'Select all' }))
     expect(nas).not.toBeChecked()
     expect(screen.getByRole('checkbox', { name: /WEB01/ })).not.toBeChecked()

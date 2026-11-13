@@ -62,8 +62,9 @@ func kindOf(t string) string {
 	return ""
 }
 
-// generalKind is the kind a "general purpose" match suggests from its OS (D-501): Windows is a pc unless its name says server, macOS
-// a pc, iOS and Android a phone (iot), the Unix family a server. It is a hint: recorded below the confidence of a device type.
+// generalKind is the kind a "general purpose" match suggests from its OS (D-501): Windows is a pc (a server when its name says so),
+// iOS and Android a phone (iot). Nothing else: Linux, the BSDs and Unix also run embedded and OT devices, so such a guess must not
+// lift a device out of "unknown, careful"; macOS stays unknown too. It is a hint, recorded below the confidence of a device type.
 func generalKind(c osClass, name string) string {
 	if !strings.EqualFold(c.typ, "general purpose") {
 		return ""
@@ -74,12 +75,8 @@ func generalKind(c osClass, name string) string {
 			return "server"
 		}
 		return "pc"
-	case "mac os x", "macos":
-		return "pc"
 	case "ios", "android":
 		return "iot"
-	case "linux", "freebsd", "openbsd", "netbsd", "solaris", "unix", "aix", "hp-ux":
-		return "server"
 	}
 	return ""
 }
@@ -198,26 +195,40 @@ func softwareOf(h host) []observe.Software {
 		}
 	}
 	m, ok := h.sure()
-	if !ok { // no sure OS fingerprint: the OS a service names (FortiGate's admin page says cpe:/o:fortinet:fortios) is the OS row (D-501)
+	if !ok { // no sure OS fingerprint: the OS a service names is the OS row, only with the version -sV read from that service (D-501)
 		for _, p := range h.ports {
 			for _, c := range p.cpes {
-				if part, vendor, product, version, ok := cpeParts(c); ok && part == "o" {
-					add(observe.Software{Display: strings.TrimSpace(vendor + " " + product + " " + version), Vendor: vendor, Product: product, Version: version, CPE: c, Confidence: serviceConf(p.conf) * 0.8})
+				if part, vendor, product, _, ok := cpeParts(c); ok && part == "o" && p.version != "" {
+					add(observe.Software{Display: strings.TrimSpace(vendor + " " + product + " " + p.version), Vendor: vendor, Product: product, Version: p.version, CPE: cpeBase(c), Confidence: serviceConf(p.conf) * 0.8})
 				}
 			}
 		}
 	}
 	if ok {
+		// The OS of a fingerprint is a guess, and the version in its CPE is the OS generation (iphone_os:15, linux_kernel:5,
+		// fortios:7.2), not a release: the row keeps the name for display, has no version and no match keys (Guess), so it never
+		// becomes a flood of product-only findings (Windows: 175 CISA entries). A person confirms it by adding the OS with its
+		// version on the device page (D-501).
 		conf := accuracyConf(m.accuracy)
 		for _, c := range m.classes {
 			for _, cpe := range c.cpes {
-				if part, vendor, product, version, ok := cpeParts(cpe); ok && part == "o" {
-					add(observe.Software{Display: m.name, Vendor: vendor, Product: product, Version: version, CPE: cpe, Confidence: min(conf, accuracyConf(c.accuracy))})
+				if part, vendor, product, _, ok := cpeParts(cpe); ok && part == "o" {
+					add(observe.Software{Display: m.name, Vendor: vendor, Product: product, CPE: cpeBase(cpe), Confidence: min(conf, accuracyConf(c.accuracy)), Guess: true})
 				}
 			}
 		}
 	}
 	return out
+}
+
+// cpeBase is a CPE 2.2 URI cut to part, vendor and product ("cpe:/o:apple:iphone_os:15" -> "cpe:/o:apple:iphone_os"): what nmap
+// knows of an OS fingerprint without the generation, which is no version.
+func cpeBase(c string) string {
+	f := strings.SplitN(strings.TrimPrefix(c, "cpe:/"), ":", 4)
+	if len(f) < 3 {
+		return c
+	}
+	return "cpe:/" + f[0] + ":" + f[1] + ":" + f[2]
 }
 
 // servicesOf lists the open ports of the host for the inventory (D-350): tcp and udp only (the inventory has no other protocol),
@@ -244,14 +255,15 @@ func servicesOf(h host) []observe.Service {
 	return out
 }
 
-// Why a device scan recorded no software (Identification.Why, D-501), in nmap's terms. With no software the vulnerability scan
-// has nothing to compare with the KEV list. IdentifyDevice also passes the inventory's refusal reasons (box, declared_by_hand,
+// Why a device scan recorded no software with a version (Identification.Why, D-501), in nmap's terms. Without it the vulnerability
+// scan has nothing to compare with the KEV list. IdentifyDevice also passes the inventory's refusal reasons (box, declared_by_hand,
 // no_ip, out_of_scope, scope_not_confirmed, regular_scan_never, scanning_off) and its own WhyBusy and WhyUnavailable.
 const (
 	WhyHostDown    = "host_down"         // no answer at all: off, asleep, gone, or a firewall drops even the ARP/ping
 	WhyNoOpenPorts = "no_open_ports"     // answered, but every port tried was closed
 	WhyFiltered    = "filtered"          // answered, but the probes were dropped (every port filtered)
-	WhyNoVersion   = "no_version"        // open ports, but no service named its product, and no usable OS guess
+	WhyNoVersion   = "no_version"        // open ports, but no service named its product and version, and no usable OS guess
+	WhyOSGuess     = "os_unconfirmed"    // only nmap's OS guess: recorded and shown, never matched until a person adds it
 	WhyOSUnsure    = "os_low_confidence" // as no_version, and nmap's OS guess was below minOSAccuracy
 	WhyGentleOnly  = "gentle_only"       // fragile: only the gentle scan ran (no -sV, no -O), which never records software
 	WhyTimedOut    = "timed_out"         // nmap's host timeout ended the scan before it printed ports
@@ -288,7 +300,7 @@ func identified(hosts []host, ip netip.Addr, gentle bool) (found []string, why s
 	for j, s := range sw {
 		line := "Software: " + s.Display
 		switch {
-		case slices.Contains(found, line): // two CPEs of one OS match (iOS 15 and 16) are two rows with one name
+		case s.Guess, slices.Contains(found, line): // the guessed OS is the "Operating system" line already
 		case len(found) == maxFound-1 && j < len(sw)-1:
 			found = append(found, fmt.Sprintf("Software: %d more, on the device page", len(sw)-j))
 			return found, ""
@@ -297,12 +309,14 @@ func identified(hosts []host, ip netip.Addr, gentle bool) (found []string, why s
 		}
 	}
 	switch {
-	case len(sw) > 0:
+	case slices.ContainsFunc(sw, func(s observe.Software) bool { return !s.Guess && s.Version != "" }):
 		return found, ""
 	case len(h.ports) == 0 && h.filtered > 0 && h.filtered >= h.closed:
 		return found, WhyFiltered
 	case len(h.ports) == 0:
 		return found, WhyNoOpenPorts
+	case slices.ContainsFunc(sw, func(s observe.Software) bool { return s.Guess }):
+		return found, WhyOSGuess
 	}
 	if m, ok := h.best(); ok && m.accuracy < minOSAccuracy {
 		return found, WhyOSUnsure

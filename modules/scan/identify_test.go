@@ -2,6 +2,7 @@ package scan
 
 import (
 	"context"
+	"slices"
 	"sync"
 	"testing"
 )
@@ -11,6 +12,7 @@ import (
 type fakeIdentify struct {
 	mu     sync.Mutex
 	answer map[string]Identification
+	errs   map[string]error
 	then   func(assetID string)
 	asked  []string
 }
@@ -18,12 +20,47 @@ type fakeIdentify struct {
 func (f *fakeIdentify) Identify(_ context.Context, assetID string) (Identification, error) {
 	f.mu.Lock()
 	f.asked = append(f.asked, assetID)
-	a, then := f.answer[assetID], f.then
+	a, err, then := f.answer[assetID], f.errs[assetID], f.then
 	f.mu.Unlock()
 	if then != nil {
 		then(assetID)
 	}
-	return a, nil
+	return a, err
+}
+
+func (f *fakeIdentify) askedIDs() []string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return slices.Clone(f.asked)
+}
+
+// Review M2: sensor-active stopping an identification by itself (the device or the settings changed) skips that device with its
+// reason and the run goes on; review M3: once discovery was busy, the rest of the run says busy without asking again.
+func TestScanNowInterruptedAndBusyIdentification(t *testing.T) {
+	t.Parallel()
+	r := newRunEnv(t)
+	id := &fakeIdentify{errs: map[string]error{"a-web01": ErrIdentifyInterrupted}, answer: map[string]Identification{"a-srv": {Why: "busy"}}}
+	r.svc.cfg.Identify = id
+	v := r.start("a-web01", "a-srv", "a-nas02")
+	r.wait()
+	v = r.run(v.ID)
+	if v.Status != "done" {
+		t.Fatalf("status %s, want the run to go on after the interrupted device", v.Status)
+	}
+	if row := rowOf(v, "a-web01", ""); row == nil || row.Result != "skipped" || row.Note != noteIdentInterrupted {
+		t.Errorf("a-web01 result = %+v, want skipped with the interruption note", row)
+	}
+	if got := identOf(v, "a-web01"); got == nil || got.Reason == nil || *got.Reason != "not_scanned" || got.Note != noteIdentInterrupted {
+		t.Errorf("a-web01 identification = %+v", got)
+	}
+	for _, dev := range []string{"a-srv", "a-nas02"} {
+		if got := identOf(v, dev); got == nil || got.Reason == nil || *got.Reason != "busy" {
+			t.Errorf("%s identification = %+v, want busy", dev, got)
+		}
+	}
+	if asked := id.askedIDs(); !slices.Equal(asked, []string{"a-web01", "a-srv"}) {
+		t.Errorf("asked %v: after busy the run must not ask (and wait) again", asked)
+	}
 }
 
 func identOf(v RunView, id string) *IdentRow {
@@ -86,7 +123,7 @@ func TestScanNowWithoutIdentifierSaysWhy(t *testing.T) {
 		t.Errorf("a-web01 = %+v, want unavailable", got)
 	}
 	d := Device{ID: "a-x", Label: "X", IP: "192.168.10.9"}
-	for why, want := range map[string]string{"unapproved": "not_approved", "excluded": "out_of_scope", reasonNoScope: "out_of_scope", reasonBox: "not_scanned", ReasonGone: "not_scanned"} {
+	for why, want := range map[string]string{"unapproved": "not_approved", "excluded": "out_of_scope", reasonNoScope: "scope_not_confirmed", reasonBox: "box", reasonNever: "regular_scan_never", ReasonGone: "not_scanned"} {
 		if got := skippedRow(d, why); got.Reason == nil || *got.Reason != want || got.Note != skipNote[why] {
 			t.Errorf("skipped %s = %+v, want %s with the skip note", why, got, want)
 		}

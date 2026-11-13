@@ -41,11 +41,11 @@ export const RunResultKind = z.enum(['matched', 'not_matched', 'not_applicable',
 export const RunResultRow = z.object({
   target_id: z.string(), label: z.string(), ip: z.string(), template: z.string().nullable(), result: RunResultKind, finding_id: z.string().nullable(), note: z.string(),
 })
-export const IdentReason = z.enum(['host_down', 'no_open_ports', 'filtered', 'no_version', 'os_low_confidence', 'gentle_only', 'timed_out', 'busy', 'unavailable', 'declared_by_hand', 'scanning_off', 'not_approved', 'out_of_scope', 'no_ip', 'not_scanned'])
+export const IdentReason = z.enum(['host_down', 'no_open_ports', 'filtered', 'no_version', 'os_unconfirmed', 'os_low_confidence', 'gentle_only', 'timed_out', 'busy', 'unavailable', 'declared_by_hand', 'scanning_off', 'not_approved', 'out_of_scope', 'scope_not_confirmed', 'box', 'regular_scan_never', 'no_ip', 'not_scanned'])
 export const RunIdentRow = z.object({
   target_id: z.string(), label: z.string(), ip: z.string(),
   found: z.array(z.string()).max(20).describe('What the identification recorded, in words: "Operating system: …", "Type: …", "Software: …"'),
-  reason: IdentReason.nullable().describe('null: software was recorded and compared with the KEV list. Otherwise why nothing was: host_down (no answer), no_open_ports (all closed), filtered (probes dropped), no_version (services gave no product or version), os_low_confidence (OS guess under 85%), gentle_only (fragile: gentle scan only), timed_out, busy (discovery was running nmap), unavailable (nmap not available or Active discovery off), declared_by_hand, scanning_off, not_approved, out_of_scope, no_ip, not_scanned (D-501)'),
+  reason: IdentReason.nullable().describe('null: software with a version was recorded and compared with the KEV list. Otherwise why nothing was: host_down (no answer), no_open_ports (all closed), filtered (probes dropped), no_version (services gave no product or version), os_unconfirmed (only an OS guess: shown, never matched until a person adds the OS with its version), os_low_confidence (OS guess under 85%), scope_not_confirmed, box (the box or a decoy), regular_scan_never, gentle_only (fragile: gentle scan only), timed_out, busy (discovery was running nmap), unavailable (nmap not available or Active discovery off), declared_by_hand, scanning_off, not_approved, out_of_scope, no_ip, not_scanned (D-501)'),
   note: z.string().describe("The box's sentence for the reason, shown as is"),
 })
 export const ScanRun = z.object({

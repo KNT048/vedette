@@ -94,6 +94,9 @@ func checkItem(i int, it SoftwareItem) (SoftwareItem, error) {
 		if len(keys) == 0 {
 			keys = []string{kevKey(it.Vendor, it.Product)}
 		}
+		if it.Guess { // a guess is never matched (D-501): it waits for a person to add the software with its version
+			keys = nil
+		}
 		it.KevKeys = keys
 	}
 	return it, nil
@@ -276,8 +279,8 @@ func (s *Service) ReplaceSoftware(ctx context.Context, hint observe.AssetHint, s
 	conv := make([]SoftwareItem, len(items))
 	cat := s.cpeCatalog(ctx, items)
 	for i, it := range items {
-		conv[i] = SoftwareItem{Display: it.Display, Vendor: it.Vendor, Product: it.Product, Version: it.Version, CPE: it.CPE, KevKeys: it.KevKeys, Confidence: it.Confidence}
-		if len(it.KevKeys) == 0 && it.CPE != "" && cat != nil {
+		conv[i] = SoftwareItem{Display: it.Display, Vendor: it.Vendor, Product: it.Product, Version: it.Version, CPE: it.CPE, KevKeys: it.KevKeys, Confidence: it.Confidence, Guess: it.Guess}
+		if len(it.KevKeys) == 0 && it.CPE != "" && cat != nil && !it.Guess {
 			conv[i].KevKeys = cat.keysForCPE(it.CPE) // nmap's "apple:iphone_os" is CISA's "Apple|iOS" (D-501); nil keeps the vendor|product key
 		}
 	}
@@ -302,7 +305,7 @@ func (s *Service) ReplaceSoftware(ctx context.Context, hint observe.AssetHint, s
 // cpeCatalog is the catalog when an item of the list has a CPE, for its KEV keys (keysForCPE); nil otherwise, or when it cannot
 // be read: the items then keep their vendor|product key, as before D-501, and the failure is logged.
 func (s *Service) cpeCatalog(ctx context.Context, items []observe.Software) *Catalog {
-	if !slices.ContainsFunc(items, func(it observe.Software) bool { return it.CPE != "" && len(it.KevKeys) == 0 }) {
+	if !slices.ContainsFunc(items, func(it observe.Software) bool { return it.CPE != "" && len(it.KevKeys) == 0 && !it.Guess }) {
 		return nil
 	}
 	cat, err := s.Catalog(ctx)

@@ -257297,6 +257297,8 @@ func (s *ScanGetScansRunsOKItemsItemIdentificationItemReason) Decode(d *jx.Decod
 		*s = ScanGetScansRunsOKItemsItemIdentificationItemReasonFiltered
 	case ScanGetScansRunsOKItemsItemIdentificationItemReasonNoVersion:
 		*s = ScanGetScansRunsOKItemsItemIdentificationItemReasonNoVersion
+	case ScanGetScansRunsOKItemsItemIdentificationItemReasonOsUnconfirmed:
+		*s = ScanGetScansRunsOKItemsItemIdentificationItemReasonOsUnconfirmed
 	case ScanGetScansRunsOKItemsItemIdentificationItemReasonOsLowConfidence:
 		*s = ScanGetScansRunsOKItemsItemIdentificationItemReasonOsLowConfidence
 	case ScanGetScansRunsOKItemsItemIdentificationItemReasonGentleOnly:
@@ -257315,6 +257317,12 @@ func (s *ScanGetScansRunsOKItemsItemIdentificationItemReason) Decode(d *jx.Decod
 		*s = ScanGetScansRunsOKItemsItemIdentificationItemReasonNotApproved
 	case ScanGetScansRunsOKItemsItemIdentificationItemReasonOutOfScope:
 		*s = ScanGetScansRunsOKItemsItemIdentificationItemReasonOutOfScope
+	case ScanGetScansRunsOKItemsItemIdentificationItemReasonScopeNotConfirmed:
+		*s = ScanGetScansRunsOKItemsItemIdentificationItemReasonScopeNotConfirmed
+	case ScanGetScansRunsOKItemsItemIdentificationItemReasonBox:
+		*s = ScanGetScansRunsOKItemsItemIdentificationItemReasonBox
+	case ScanGetScansRunsOKItemsItemIdentificationItemReasonRegularScanNever:
+		*s = ScanGetScansRunsOKItemsItemIdentificationItemReasonRegularScanNever
 	case ScanGetScansRunsOKItemsItemIdentificationItemReasonNoIP:
 		*s = ScanGetScansRunsOKItemsItemIdentificationItemReasonNoIP
 	case ScanGetScansRunsOKItemsItemIdentificationItemReasonNotScanned:
@@ -259696,6 +259704,8 @@ func (s *ScanPostScansRunsCreatedIdentificationItemReason) Decode(d *jx.Decoder)
 		*s = ScanPostScansRunsCreatedIdentificationItemReasonFiltered
 	case ScanPostScansRunsCreatedIdentificationItemReasonNoVersion:
 		*s = ScanPostScansRunsCreatedIdentificationItemReasonNoVersion
+	case ScanPostScansRunsCreatedIdentificationItemReasonOsUnconfirmed:
+		*s = ScanPostScansRunsCreatedIdentificationItemReasonOsUnconfirmed
 	case ScanPostScansRunsCreatedIdentificationItemReasonOsLowConfidence:
 		*s = ScanPostScansRunsCreatedIdentificationItemReasonOsLowConfidence
 	case ScanPostScansRunsCreatedIdentificationItemReasonGentleOnly:
@@ -259714,6 +259724,12 @@ func (s *ScanPostScansRunsCreatedIdentificationItemReason) Decode(d *jx.Decoder)
 		*s = ScanPostScansRunsCreatedIdentificationItemReasonNotApproved
 	case ScanPostScansRunsCreatedIdentificationItemReasonOutOfScope:
 		*s = ScanPostScansRunsCreatedIdentificationItemReasonOutOfScope
+	case ScanPostScansRunsCreatedIdentificationItemReasonScopeNotConfirmed:
+		*s = ScanPostScansRunsCreatedIdentificationItemReasonScopeNotConfirmed
+	case ScanPostScansRunsCreatedIdentificationItemReasonBox:
+		*s = ScanPostScansRunsCreatedIdentificationItemReasonBox
+	case ScanPostScansRunsCreatedIdentificationItemReasonRegularScanNever:
+		*s = ScanPostScansRunsCreatedIdentificationItemReasonRegularScanNever
 	case ScanPostScansRunsCreatedIdentificationItemReasonNoIP:
 		*s = ScanPostScansRunsCreatedIdentificationItemReasonNoIP
 	case ScanPostScansRunsCreatedIdentificationItemReasonNotScanned:
@@ -260720,6 +260736,8 @@ func (s *ScanPostScansRunsIDStopOKIdentificationItemReason) Decode(d *jx.Decoder
 		*s = ScanPostScansRunsIDStopOKIdentificationItemReasonFiltered
 	case ScanPostScansRunsIDStopOKIdentificationItemReasonNoVersion:
 		*s = ScanPostScansRunsIDStopOKIdentificationItemReasonNoVersion
+	case ScanPostScansRunsIDStopOKIdentificationItemReasonOsUnconfirmed:
+		*s = ScanPostScansRunsIDStopOKIdentificationItemReasonOsUnconfirmed
 	case ScanPostScansRunsIDStopOKIdentificationItemReasonOsLowConfidence:
 		*s = ScanPostScansRunsIDStopOKIdentificationItemReasonOsLowConfidence
 	case ScanPostScansRunsIDStopOKIdentificationItemReasonGentleOnly:
@@ -260738,6 +260756,12 @@ func (s *ScanPostScansRunsIDStopOKIdentificationItemReason) Decode(d *jx.Decoder
 		*s = ScanPostScansRunsIDStopOKIdentificationItemReasonNotApproved
 	case ScanPostScansRunsIDStopOKIdentificationItemReasonOutOfScope:
 		*s = ScanPostScansRunsIDStopOKIdentificationItemReasonOutOfScope
+	case ScanPostScansRunsIDStopOKIdentificationItemReasonScopeNotConfirmed:
+		*s = ScanPostScansRunsIDStopOKIdentificationItemReasonScopeNotConfirmed
+	case ScanPostScansRunsIDStopOKIdentificationItemReasonBox:
+		*s = ScanPostScansRunsIDStopOKIdentificationItemReasonBox
+	case ScanPostScansRunsIDStopOKIdentificationItemReasonRegularScanNever:
+		*s = ScanPostScansRunsIDStopOKIdentificationItemReasonRegularScanNever
 	case ScanPostScansRunsIDStopOKIdentificationItemReasonNoIP:
 		*s = ScanPostScansRunsIDStopOKIdentificationItemReasonNoIP
 	case ScanPostScansRunsIDStopOKIdentificationItemReasonNotScanned:

@@ -73518,6 +73518,8 @@ func (s ScanGetScansRunsOKItemsItemIdentificationItemReason) Validate() error {
 		return nil
 	case "no_version":
 		return nil
+	case "os_unconfirmed":
+		return nil
 	case "os_low_confidence":
 		return nil
 	case "gentle_only":
@@ -73535,6 +73537,12 @@ func (s ScanGetScansRunsOKItemsItemIdentificationItemReason) Validate() error {
 	case "not_approved":
 		return nil
 	case "out_of_scope":
+		return nil
+	case "scope_not_confirmed":
+		return nil
+	case "box":
+		return nil
+	case "regular_scan_never":
 		return nil
 	case "no_ip":
 		return nil
@@ -74163,6 +74171,8 @@ func (s ScanPostScansRunsCreatedIdentificationItemReason) Validate() error {
 		return nil
 	case "no_version":
 		return nil
+	case "os_unconfirmed":
+		return nil
 	case "os_low_confidence":
 		return nil
 	case "gentle_only":
@@ -74180,6 +74190,12 @@ func (s ScanPostScansRunsCreatedIdentificationItemReason) Validate() error {
 	case "not_approved":
 		return nil
 	case "out_of_scope":
+		return nil
+	case "scope_not_confirmed":
+		return nil
+	case "box":
+		return nil
+	case "regular_scan_never":
 		return nil
 	case "no_ip":
 		return nil
@@ -74474,6 +74490,8 @@ func (s ScanPostScansRunsIDStopOKIdentificationItemReason) Validate() error {
 		return nil
 	case "no_version":
 		return nil
+	case "os_unconfirmed":
+		return nil
 	case "os_low_confidence":
 		return nil
 	case "gentle_only":
@@ -74491,6 +74509,12 @@ func (s ScanPostScansRunsIDStopOKIdentificationItemReason) Validate() error {
 	case "not_approved":
 		return nil
 	case "out_of_scope":
+		return nil
+	case "scope_not_confirmed":
+		return nil
+	case "box":
+		return nil
+	case "regular_scan_never":
 		return nil
 	case "no_ip":
 		return nil

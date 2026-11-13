@@ -431,7 +431,7 @@ func TestContract_INV8_ObservationsAndSoftwareFromTheScan(t *testing.T) {
 			t.Errorf("%s confidence %v", s.Product, s.Confidence)
 		}
 	}
-	for _, want := range []string{"cpe:/a:openbsd:openssh:8.9p1", "cpe:/a:apache:http_server:2.4.52", "cpe:/o:linux:linux_kernel:5"} {
+	for _, want := range []string{"cpe:/a:openbsd:openssh:8.9p1", "cpe:/a:apache:http_server:2.4.52", "cpe:/o:linux:linux_kernel"} {
 		if !slices.Contains(cpes, want) {
 			t.Errorf("software has no %s (got %v)", want, cpes)
 		}

@@ -917,9 +917,14 @@ describe('notify: email user sign-in (S-NOT-1, D-480)', () => {
     expect(await within(dlg).findByLabelText('Sign-in code')).toHaveTextContent('WDJB-MJHT')
     expect(within(dlg).getByRole('link', { name: 'https://microsoft.com/devicelogin' })).toHaveAttribute('href', 'https://microsoft.com/devicelogin')
     expect(within(dlg).getByText('Waiting for you to finish the sign-in with Microsoft.')).toBeInTheDocument()
-    await userEvent.click(within(dlg).getByRole('button', { name: 'I have signed in, check now' }))
-    await userEvent.click(await within(dlg).findByRole('button', { name: 'I have signed in, check now' }))
-    expect(await within(dlg).findByText('Signed in as alerts@acme.example. Save to keep this sign-in.')).toBeInTheDocument()
+    // The mock signs in at the second check. The page also checks on its own every 5 s, so on a slow machine a check may already
+    // have happened: press "check now" while it is there, until the page says signed in (a state wait, not a count of presses).
+    const SIGNED_IN = 'Signed in as alerts@acme.example. Save to keep this sign-in.'
+    await waitFor(async () => {
+      const b = within(dlg).queryByRole('button', { name: 'I have signed in, check now' })
+      if (b && !b.hasAttribute('disabled')) await userEvent.click(b)
+      expect(within(dlg).getByText(SIGNED_IN)).toBeInTheDocument()
+    }, { timeout: 5000 })
     expect(within(dlg).getByLabelText('Mailbox')).toHaveValue('alerts@acme.example')
     await userEvent.click(within(dlg).getByRole('button', { name: /^Save$/ }))
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())

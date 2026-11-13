@@ -264,7 +264,7 @@ function scanOne(t: ScanTarget, stopOnSlow: boolean): { rows: StoredRow[]; probe
   const out: Omit<ProbeEntry, 'id' | 'run_id'>[] = []
   for (const f of fs) {
     if (!hasTemplate(f.cve)) {
-      rows.push(row(t, null, 'no_template', f.id, `${f.cve}: no safe scan template yet, still suspected by version.`))
+      rows.push(row(t, null, 'no_template', f.id, `${f.cve}: no safe scan template yet, ${f.basis === 'version' ? "still suspected: the device's version is in the affected range." : f.basis === 'product' ? 'still suspected from the product alone; no version was checked.' : 'still suspected; see the finding for how it was matched.'}`))
       continue
     }
     const still = f.status === 'confirmed' || f.status === 'suspected'

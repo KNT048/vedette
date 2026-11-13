@@ -768,20 +768,20 @@ func (s *Service) SaveChannel(ctx context.Context, actor string, t channel.Type,
 		}
 	}
 	if _, ok := unlinkAction[t]; ok { // the confirm-link channels (D-447, D-414): new approvers get their link after the save
-		if c, err := loadChannel(ctx, s.cfg.DB.Reader(), t); err == nil && zaloReady(c) {
+		if c, err := loadChannel(ctx, s.cfg.DB.Reader(), t); err == nil && approvalsReady(c) {
 			if t == channel.ZaloPersonal {
-				s.sendLinkCodesLater(ctx, actor, c, newZaloApprovers(before, out.Approvers))
+				s.sendLinkCodesLater(ctx, actor, c, newLinkApprovers(before, out.Approvers))
 			} else {
-				s.sendTelegramLinksLater(ctx, actor, c, newZaloApprovers(before, out.Approvers))
+				s.sendTelegramLinksLater(ctx, actor, c, newLinkApprovers(before, out.Approvers))
 			}
 		}
 	}
 	return out, nil
 }
 
-// newZaloApprovers lists the approvers of now who were not in before with the same address: they get a confirm link after the save
+// newLinkApprovers lists the approvers of now who were not in before with the same address: they get a confirm link after the save
 // (D-447, D-414).
-func newZaloApprovers(before, now []Approver) []Approver {
+func newLinkApprovers(before, now []Approver) []Approver {
 	var out []Approver
 	for _, a := range now {
 		if !slices.ContainsFunc(before, func(b Approver) bool { return b.UserID == a.UserID && b.Address == a.Address }) {

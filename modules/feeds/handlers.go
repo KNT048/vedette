@@ -97,6 +97,87 @@ func (h *FeedHandlers) FeedsGetFeedsStatus(ctx context.Context) (*oas.FeedsGetFe
 	return convert[oas.FeedsGetFeedsStatusOK](out)
 }
 
+// hot is the newly exploited board of the last hours (Home, S-FEED-1): the CISA entries added in the window, grouped by
+// product, you_have=yes first, then the number of CVEs, then the top EPSS. A day counts until its last second.
+func (s *Service) hot(ctx context.Context, hours int) ([]*hotRow, error) {
+	now := s.now()
+	cutoff := now.Add(-time.Duration(hours) * time.Hour)
+	rows, err := s.st.vulnsNewestFirst(ctx, cutoff.AddDate(0, 0, -1).Format("2006-01-02"))
+	if err != nil {
+		return nil, err
+	}
+	var groups []*hotRow
+	byKey := map[string]*hotRow{}
+	var products []Product
+	for _, v := range rows {
+		// the day counts until its last second (the GUI mock does the same)
+		day, err := parseDate(v.DateAdded)
+		// a date in the future (a feed or box clock that is off) is not "newly exploited" yet (D-485)
+		if err != nil || day.Add(24*time.Hour-time.Second).Before(cutoff) || day.After(now) {
+			continue
+		}
+		k := v.Key()
+		g := byKey[k]
+		if g == nil {
+			g = &hotRow{Key: k, Vendor: v.Vendor, Product: v.Product, Display: DisplayOf(v.Vendor, v.Product), Cves: []hotCve{}, MatchedAssets: []string{}}
+			byKey[k] = g
+			groups = append(groups, g)
+			products = append(products, Product{v.Vendor, v.Product})
+		}
+		g.Cves = append(g.Cves, hotCve{v.CVE, v.DateAdded, v.Ransomware, v.EPSS, v.HasTemplate})
+		g.HasTemplate = g.HasTemplate || v.HasTemplate
+		g.Ransomware = g.Ransomware || v.Ransomware
+		if v.EPSS != nil && (g.MaxEPSS == nil || *v.EPSS > *g.MaxEPSS) {
+			e := *v.EPSS
+			g.MaxEPSS = &e
+		}
+		if v.EPSS != nil && v.EPSS7dAgo != nil { // a CVE without an old score is not "rising"
+			if d := *v.EPSS - *v.EPSS7dAgo; g.MaxEPSSDelta == nil || d > *g.MaxEPSSDelta {
+				g.MaxEPSSDelta = &d
+			}
+		}
+	}
+	match, on := s.matchOf(ctx, products)
+	if on {
+		for _, g := range groups {
+			m := match[g.Key]
+			yh := string(youHave(m))
+			g.YouHave = &yh
+			for _, a := range m {
+				g.MatchedAssets = append(g.MatchedAssets, a.ID)
+			}
+		}
+	}
+	sort.SliceStable(groups, func(i, j int) bool {
+		a, b := groups[i], groups[j]
+		if ay, by := a.YouHave != nil && *a.YouHave == "yes", b.YouHave != nil && *b.YouHave == "yes"; ay != by {
+			return ay
+		}
+		if len(a.Cves) != len(b.Cves) {
+			return len(a.Cves) > len(b.Cves)
+		}
+		return epssOr0(a.MaxEPSS) > epssOr0(b.MaxEPSS)
+	})
+	return groups, nil
+}
+
+// NewlyExploited is the Home headline as numbers, for the weekly report (W1-24, D-485): the CVEs newly exploited in the last
+// 7 days and how many of their products the inventory says are in use (you_have=yes; 0 while the inventory is off). One
+// definition for both pages: the same board as GET /feeds/hot?window=7d.
+func (s *Service) NewlyExploited(ctx context.Context) (cves, productsInUse int, err error) {
+	groups, err := s.hot(ctx, 24*7)
+	if err != nil {
+		return 0, 0, err
+	}
+	for _, g := range groups {
+		cves += len(g.Cves)
+		if g.YouHave != nil && *g.YouHave == string(HaveYes) {
+			productsInUse++
+		}
+	}
+	return cves, productsInUse, nil
+}
+
 // oneLine is an error text for a heading: whitespace runs become one space, valid UTF-8, at most limit runes (then "…"),
 // no trailing full stop (the sentence around it adds its own); nil when nothing is left.
 func oneLine(s string, limit int) *string {
@@ -156,62 +237,10 @@ func (h *FeedHandlers) FeedsGetFeedsHot(ctx context.Context, params oas.FeedsGet
 	default:
 		return nil, apierr.New(http.StatusBadRequest, "bad_window", "window must be 24h or 7d.")
 	}
-	cutoff := h.s.now().Add(-time.Duration(hours) * time.Hour)
-	rows, err := h.s.st.vulnsNewestFirst(ctx, cutoff.AddDate(0, 0, -1).Format("2006-01-02"))
+	groups, err := h.s.hot(ctx, hours)
 	if err != nil {
 		return nil, err
 	}
-	var groups []*hotRow
-	byKey := map[string]*hotRow{}
-	var products []Product
-	for _, v := range rows {
-		// the day counts until its last second (the GUI mock does the same)
-		day, err := parseDate(v.DateAdded)
-		if err != nil || day.Add(24*time.Hour-time.Second).Before(cutoff) {
-			continue
-		}
-		k := v.Key()
-		g := byKey[k]
-		if g == nil {
-			g = &hotRow{Key: k, Vendor: v.Vendor, Product: v.Product, Display: DisplayOf(v.Vendor, v.Product), Cves: []hotCve{}, MatchedAssets: []string{}}
-			byKey[k] = g
-			groups = append(groups, g)
-			products = append(products, Product{v.Vendor, v.Product})
-		}
-		g.Cves = append(g.Cves, hotCve{v.CVE, v.DateAdded, v.Ransomware, v.EPSS, v.HasTemplate})
-		g.HasTemplate = g.HasTemplate || v.HasTemplate
-		g.Ransomware = g.Ransomware || v.Ransomware
-		if v.EPSS != nil && (g.MaxEPSS == nil || *v.EPSS > *g.MaxEPSS) {
-			e := *v.EPSS
-			g.MaxEPSS = &e
-		}
-		if v.EPSS != nil && v.EPSS7dAgo != nil { // a CVE without an old score is not "rising"
-			if d := *v.EPSS - *v.EPSS7dAgo; g.MaxEPSSDelta == nil || d > *g.MaxEPSSDelta {
-				g.MaxEPSSDelta = &d
-			}
-		}
-	}
-	match, on := h.s.matchOf(ctx, products)
-	if on {
-		for _, g := range groups {
-			m := match[g.Key]
-			yh := string(youHave(m))
-			g.YouHave = &yh
-			for _, a := range m {
-				g.MatchedAssets = append(g.MatchedAssets, a.ID)
-			}
-		}
-	}
-	sort.SliceStable(groups, func(i, j int) bool {
-		a, b := groups[i], groups[j]
-		if ay, by := a.YouHave != nil && *a.YouHave == "yes", b.YouHave != nil && *b.YouHave == "yes"; ay != by {
-			return ay
-		}
-		if len(a.Cves) != len(b.Cves) {
-			return len(a.Cves) > len(b.Cves)
-		}
-		return epssOr0(a.MaxEPSS) > epssOr0(b.MaxEPSS)
-	})
 	out := struct {
 		Window string    `json:"window"`
 		Rows   []*hotRow `json:"rows"`
@@ -320,19 +349,28 @@ func (h *FeedHandlers) FeedsPostFeedsWeeklyID(ctx context.Context, req *oas.Feed
 		default:
 			return fmt.Errorf("feeds: read answer: %w", err)
 		}
+		// The scope of "I have this" starts a week before the answered entry (HaveWindow, D-484) and is set by the
+		// first "have" only: a later answer (not relevant, have again) never moves it.
+		var since any
+		if d, err := time.Parse(time.DateOnly, v.DateAdded); answer == "have" && err == nil {
+			since = d.Add(-HaveWindow).Format(time.DateOnly)
+		}
+		_, err := tx.ExecContext(ctx, `INSERT INTO feeds_weekly_answer (key, answer, user_id, answered_at, device_added, have_since) VALUES (?, ?, ?, ?, ?, ?)
+ON CONFLICT(key) DO UPDATE SET answer = excluded.answer, user_id = excluded.user_id, answered_at = excluded.answered_at,
+	have_since = coalesce(feeds_weekly_answer.have_since, excluded.have_since)`,
+			item.Key, answer, p.ID, h.s.now().Format(tsLayout), added, since)
+		if err != nil {
+			return fmt.Errorf("feeds: store answer: %w", err)
+		}
 		// The device is created once per product, whatever is answered later (have, not relevant, have again).
 		// With the inventory off the answer is stored and the pull job adds the device when it is back.
 		if answer == "have" && added == 0 && h.s.inventoryOn() {
 			if err := h.s.declareDevice(ctx, tx, p.Email, item.Key, v); err != nil {
 				return err
 			}
-			added = 1
-		}
-		_, err := tx.ExecContext(ctx, `INSERT INTO feeds_weekly_answer (key, answer, user_id, answered_at, device_added) VALUES (?, ?, ?, ?, ?)
-ON CONFLICT(key) DO UPDATE SET answer = excluded.answer, user_id = excluded.user_id, answered_at = excluded.answered_at, device_added = excluded.device_added`,
-			item.Key, answer, p.ID, h.s.now().Format(tsLayout), added)
-		if err != nil {
-			return fmt.Errorf("feeds: store answer: %w", err)
+			if _, err := tx.ExecContext(ctx, `UPDATE feeds_weekly_answer SET device_added = 1 WHERE key = ?`, item.Key); err != nil {
+				return fmt.Errorf("feeds: mark device added: %w", err)
+			}
 		}
 		return h.s.Audit.Append(ctx, tx, audit.Entry{User: p.Email, Action: "feeds.weekly_answer", Target: DisplayOf(v.Vendor, v.Product), Detail: answer})
 	})

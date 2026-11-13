@@ -152,18 +152,16 @@ func (p *Provider) aiOutputs(ctx context.Context, findingID string) (findings.AI
 	return out, rows.Err()
 }
 
-// genericRecheck is the "check again" text when the pack carries none (the mock's wording).
+// genericRecheck is the "check again" text when the pack carries none (the mock's wording). The device is named as the
+// Devices page names it, never by its id, and "Rescan this device" is only offered for a device with an IP (D-484).
 func genericRecheck(r findings.Row) findings.Recheck {
-	if r.Basis == findings.BasisScan {
+	reachable := r.Asset.HasIP()
+	if r.Basis == findings.BasisScan && reachable {
 		return findings.Recheck{Steps: []string{`Run the scan template again with the "Rescan this device" button.`}}
 	}
 	device, software, hasTemplate := "the device", "the software", false
-	if r.Asset != nil {
-		if r.Asset.Hostname != nil {
-			device = *r.Asset.Hostname
-		} else {
-			device = r.Asset.IP
-		}
+	if r.Asset != nil && r.Asset.Name != "" {
+		device = r.Asset.Name
 	}
 	if r.Kev != nil {
 		software, hasTemplate = r.Kev.Display, r.Kev.HasTemplate
@@ -172,11 +170,14 @@ func genericRecheck(r findings.Row) findings.Recheck {
 		}
 	}
 	last := "This CVE has no safe scan template yet, so Vedette can only conclude from the version. Check by hand as above."
-	if hasTemplate {
+	switch {
+	case hasTemplate && reachable:
 		last = `This CVE has a safe scan template: click "Rescan this device" to confirm.`
+	case hasTemplate:
+		last = "This CVE has a safe scan template, but this device has no IP address in your inventory, so it cannot be scanned. Add its IP on the device page to scan it, or check by hand as above."
 	}
 	return findings.Recheck{Steps: []string{
-		fmt.Sprintf("Open the admin page of %s and check which version of %s is running.", device, software),
+		fmt.Sprintf("Check which version of %s %s runs (in its settings, its admin page or its About screen).", software, device),
 		"Compare it with the fixed version in the vendor advisory (link in the source section). An older version means the flaw is still there.",
 		last,
 	}}

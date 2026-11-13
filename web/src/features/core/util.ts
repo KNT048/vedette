@@ -2,14 +2,10 @@
 /** Tách ra để test thay được (jsdom không cho đổi location.reload). */
 export const nav = { reload: () => window.location.reload(), toSetup: () => window.location.assign('/setup') }
 
-/** Dải LAN phải là địa chỉ nội bộ (khớp luật của module kiểm kê): 10/8, 172.16/12, 192.168/16. Tiền tố ngắn hơn
- * (ví dụ 10.0.0.0/0) bao trùm cả Internet nên bị từ chối. */
-export function isPrivateCidr(c: string): boolean {
-  const [ip = '', p = ''] = c.split('/')
-  const [a = 0, b = 0] = ip.split('.').map(Number)
-  const bits = Number(p)
-  return (a === 10 && bits >= 8) || (a === 172 && b >= 16 && b <= 31 && bits >= 12) || (a === 192 && b === 168 && bits >= 16)
-}
+/** Dải LAN phải là địa chỉ nội bộ: đúng luật của module kiểm kê (một bản duy nhất), 10/8, 172.16/12, 192.168/16 và 100.64/10
+ * (RFC 6598, D-461). Tiền tố rộng hơn (ví dụ 10.0.0.0/0, 100.0.0.0/8) bao trùm cả Internet nên bị từ chối. Đầu vào là CIDR đã
+ * qua CIDR_RE. */
+export { isPrivateCidr, LOCAL_RANGE_NAMES } from '@/features/inventory/validate'
 
 export const CIDR_RE = /^(25[0-5]|2[0-4]\d|1?\d?\d)(\.(25[0-5]|2[0-4]\d|1?\d?\d)){3}\/([0-9]|[12]\d|3[0-2])$/
 export const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/

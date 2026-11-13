@@ -3,6 +3,7 @@
 import { http, HttpResponse } from 'msw'
 import { API, audit, body, currentUser, fail, guard, IPV4_RE } from '@/mocks/http'
 import { assetsStore, boxInfo } from '@/mocks/stores'
+import { boxAddress } from '@/mocks/network'
 import { collection, daysAgo, newId, nowIso } from '@/mocks/db'
 import { personalityDef, PERSONALITIES } from './personalities'
 import { HP_SERVICES, type Decoy, type DecoySuggestion, type Hit, type HitDetail, type HitEvent, type HitKind, type HpOverview, type HpService, type Personality, type Token, type TokenType, type Trap } from './types'
@@ -91,7 +92,7 @@ const decoys = collection<StoredDecoy[]>('hp_decoys', () => [
 const tokens = collection<StoredToken[]>('hp_tokens', () => [
   { id: 'tok-1', type: 'file', name: 'Payroll-2026-Q4', value: 'Payroll-2026-Q4.xlsx', password: null, plant_at: '\\\\SRV-FILE\\HR', created_at: daysAgo(9) },
   { id: 'tok-2', type: 'credential', name: 'svc-backup-old', value: 'svc-backup-old', password: 'Bk!7mQ2xv-Lr9', plant_at: 'Password manager, shared folder "IT"', created_at: daysAgo(9) },
-  { id: 'tok-3', type: 'url', name: 'Wiki intranet link', value: 'https://vedette-hq:8443/t/q8f2k1m7xz', password: null, plant_at: 'Intranet wiki, page "Admin links"', created_at: daysAgo(9) },
+  { id: 'tok-3', type: 'url', name: 'Wiki intranet link', value: 'https://192.168.10.250:8443/t/q8f2k1m7xz', password: null, plant_at: 'Intranet wiki, page "Admin links"', created_at: daysAgo(9) },
   { id: 'tok-4', type: 'dns', name: 'Backup script host', value: 'backup-7k2q.vedette.internal', password: null, plant_at: 'Backup script config', created_at: daysAgo(9) },
 ], () => [])
 
@@ -374,7 +375,8 @@ export const handlers = [
     if (tokens.get().some((x) => x.type === b.type && x.name.toLowerCase() === name.toLowerCase())) return fail(409, 'duplicate', 'A token of this type with this name already exists.')
     const rnd = Math.random().toString(36).slice(2, 12).padEnd(10, 'x')
     const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 20) || 'token'
-    const box = boxInfo().hostname
+    const box = boxAddress() ?? boxInfo().ip // D-465: the Box address, else the box's IP (as the box does), never its host name
+    if (b.type === 'url' && !box) return fail(409, 'no_box_address', 'The box does not know an address other machines can reach yet. Set the Box address in Settings → Box network, then try again.')
     const value = b.type === 'file' ? `${name.replace(/\s+/g, '-')}.${b.ext}` : b.type === 'credential' ? name.replace(/\s+/g, '-').toLowerCase() : b.type === 'url' ? `https://${box}:8443/t/${rnd}` : `${slug}-${rnd.slice(0, 4)}.vedette.internal`
     const password = b.type === 'credential' ? `Bk!${rnd.slice(0, 4)}-${rnd.slice(4).toUpperCase()}x9` : null
     const t: StoredToken = { id: newId('tok'), type: b.type!, name, value, password, plant_at: plant, created_at: nowIso() }

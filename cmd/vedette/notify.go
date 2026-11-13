@@ -3,10 +3,8 @@ package main
 import (
 	"context"
 	"errors"
-	"net"
 	"net/http"
 	"net/netip"
-	"strings"
 	"sync"
 	"time"
 
@@ -122,57 +120,6 @@ func orgZone(d *deps) func(context.Context) string {
 	}
 }
 
-// baseURL is the address people open Vedette at: https://<first -hosts name, else the first certificate name>,
-// with the listen port when it is not 443. hosts is what transport returned (-hosts, else the certificate's
-// names). Wildcards and loopback names cannot be reached from another machine and are skipped. Empty when the
-// box listens on loopback only (dev) or has no usable name: notify then sends no links and refuses approval
-// requests (a link that approves an action must point at the real box).
-func baseURL(hosts []string, listen string) string {
-	if loop, err := isLoopback(listen); err != nil || loop {
-		return ""
-	}
-	_, port, err := net.SplitHostPort(listen)
-	if err != nil {
-		return ""
-	}
-	for _, h := range hosts {
-		if strings.HasPrefix(h, "*.") || strings.EqualFold(h, "localhost") {
-			continue
-		}
-		if a, err := netip.ParseAddr(h); err == nil && a.Unmap().IsLoopback() {
-			continue
-		}
-		if port == "443" {
-			return "https://" + hostForURL(h)
-		}
-		return "https://" + net.JoinHostPort(h, port)
-	}
-	return ""
-}
-
-// testBaseURL is the test seam of D-173 (WP-30 slice 9b): the end-to-end box listens on loopback, where baseURL answers "" and notify refuses
-// every approval request, so the box of `make e2e-real` answers http://127.0.0.1:<port> for its own listen address. Unexported, no flag, nil in the
-// shipped binary: only a _test.go file sets it, so the production derivation above is the only one a real box ever runs.
-var testBaseURL func(listen string) string
-
-// boxBaseURL is baseURL, unless a test box has said otherwise for this listen address.
-func boxBaseURL(hosts []string, listen string) string {
-	if testBaseURL != nil {
-		if u := testBaseURL(listen); u != "" {
-			return u
-		}
-	}
-	return baseURL(hosts, listen)
-}
-
-// hostForURL brackets an IPv6 literal.
-func hostForURL(h string) string {
-	if a, err := netip.ParseAddr(h); err == nil && a.Is6() {
-		return "[" + h + "]"
-	}
-	return h
-}
-
 // notifyApproverLinks is notify's Config.ApproverLinks (D-191, notify INV-13): whether the person proved this address in My account, as the
 // response module keeps it. d.Response is read when asked (response is built after notify); a response that does not exist yet is an error, so
 // notify skips the approver (fail closed). The error never holds the address.
@@ -183,6 +130,22 @@ func (l notifyApproverLinks) Linked(ctx context.Context, userID string, ch chann
 		return false, errResponseNotReady
 	}
 	return l.d.Response.Linked(ctx, userID, string(ch), address)
+}
+
+// ChatLinkToken is notify's Config.LinkCodes (D-447): response makes the token of the confirm link sent to a Zalo personal approver.
+func (l notifyApproverLinks) ChatLinkToken(ctx context.Context, userID string, ch channel.Type, address string) (token, name string, err error) {
+	if l.d.Response == nil {
+		return "", "", errResponseNotReady
+	}
+	return l.d.Response.ChatLinkToken(ctx, userID, string(ch), address)
+}
+
+// DropChatLink is the other half of notify's Config.LinkCodes (D-447): an approver removed or given another Zalo loses the old proof.
+func (l notifyApproverLinks) DropChatLink(ctx context.Context, actor, userID string, ch channel.Type, address string) error {
+	if l.d.Response == nil {
+		return errResponseNotReady
+	}
+	return l.d.Response.DropChatLink(ctx, actor, userID, string(ch), address)
 }
 
 // newNotify builds the notify service once per database, so the handlers, the deliver job, the event
@@ -205,7 +168,7 @@ func newNotify(d *deps) *notify.Service {
 	}
 	c := notify.Config{DB: d.DB, Secrets: d.Secrets, Audit: d.Audit, Users: notifyUsers{d}, Log: d.Log, Clock: d.Clock,
 		Zone: orgZone(d), BaseURL: d.BaseURL, Tokens: notifyTokens{d}, Decisions: responseDecisions{d}, BoxAddrs: machineAddrs(d), SelfAddrs: vedetteSelf(d),
-		ApproverLinks: notifyApproverLinks{d}, SMTPLoopback: notifySMTPLoopback} // unknown only while a configured vedette-host has never answered (#157)
+		ApproverLinks: notifyApproverLinks{d}, LinkCodes: notifyApproverLinks{d}, SMTPLoopback: notifySMTPLoopback} // unknown only while a configured vedette-host has never answered (#157)
 	if d.Inventory != nil {
 		c.Devices = notifyDevices{d.Inventory}
 	}

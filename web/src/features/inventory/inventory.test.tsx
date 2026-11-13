@@ -12,7 +12,7 @@ import { catalogPath, CATALOG_Q_MAX } from './api'
 import { CATALOG, customEntry, findCatalog, searchCatalog } from './catalog'
 import { sha256Hex } from './kinds'
 import { OSQUERY_VERSION } from './installScripts'
-import { BOX_ID, compareObs, ensureBox, inventorySettingsStore, markCurrent, type StoredObs } from './mocks'
+import { BOX_ID, compareObs, ensureBox, inventorySettingsStore, markCurrent, sensorsStore, type StoredObs } from './mocks'
 import type { OsqueryPackage } from './types'
 import { normalizeRange, rangeProblem } from './validate'
 
@@ -197,7 +197,8 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
     await deviceTable()
     expect(screen.getByRole('button', { name: 'Add a device' })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Import CSV' })).toBeDisabled()
-    expect(screen.queryByRole('link', { name: 'Scope and sensors' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Scope, sensors and agents' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /sensors/ })).not.toBeInTheDocument()
     expect(screen.getAllByRole('button', { name: 'Approve' })[0]).toBeDisabled()
     expect(screen.getByRole('switch', { name: 'Notify me about new devices' })).toBeDisabled()
   })
@@ -206,7 +207,15 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
     renderApp('/devices', { role: 'operator' })
     await deviceTable()
     expect(screen.getByRole('button', { name: 'Add a device' })).toBeEnabled()
-    expect(screen.queryByRole('link', { name: 'Scope and sensors' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /sensors/ })).not.toBeInTheDocument()
+  })
+
+  it('the admin gets a link to the setup page (agents included) right after "Add a device" (item 26b)', async () => {
+    renderApp('/devices')
+    await deviceTable()
+    const link = screen.getByRole('link', { name: 'Scope, sensors and agents' })
+    expect(link).toHaveAttribute('href', '/devices/setup')
+    expect(screen.getByRole('button', { name: 'Add a device' }).nextElementSibling).toBe(link)
   })
 
   it('the viewer role is refused writes by the API (403), and anonymous gets 401', async () => {
@@ -434,6 +443,12 @@ describe('inventory: CSV (S-INV-2)', () => {
     expect(r.notes).toHaveLength(2)
     expect(r.notes[0].message).toContain('public address')
     expect(r.notes[1].message).toContain('outside your saved network ranges')
+    // D-461, like import_test.go: a 100.64/10 device is on a local network (outside the saved ranges here), a 100.128 one is public
+    const c = (await call('POST', '/import', { text: 'name,ip\ncgnat,100.65.254.7\npub100,100.128.0.7\n' })).json!
+    expect(c.created).toBe(2)
+    expect(c.notes).toHaveLength(2)
+    expect(c.notes[0].message).toContain('outside your saved network ranges')
+    expect(c.notes[1].message).toContain('public address')
   })
 
   it('an oversized file is blocked in the browser and never sent', async () => {
@@ -711,6 +726,11 @@ describe('inventory: range validation helpers', () => {
     expect(rangeProblem('192.168.10.0/25', ['192.168.10.0/24', '192.168.10.0/25'])).toBe('overlap')
     expect(rangeProblem('192.168.10.0/24', ['192.168.10.0/24'])).toBeNull()
     expect(rangeProblem('172.16.0.0/12', [])).toBeNull()
+    // D-461: the RFC 6598 shared address space is internal, the rest of 100/8 is not.
+    expect(rangeProblem('100.65.254.0/24', [])).toBeNull()
+    expect(rangeProblem('100.64.0.0/10', [])).toBeNull()
+    expect(rangeProblem('100.128.0.0/24', [])).toBe('notPrivate')
+    expect(rangeProblem('100.0.0.0/8', [])).toBe('notPrivate')
   })
 })
 
@@ -935,6 +955,9 @@ describe('inventory: scope and sensors (S-INV-1, admin)', () => {
     const put = async (patch: Record<string, unknown>) => (await call('PUT', '/settings', { ...base, scope_confirmed: true, ...patch })).json?.error?.code
     expect(await put({ lan_ranges: ['8.8.8.0/24'] })).toBe('public_range')
     expect(await put({ lan_ranges: ['10.0.0.0/7'] })).toBe('public_range')
+    expect(await put({ lan_ranges: ['100.128.0.0/24'] })).toBe('public_range') // only 100.64/10 of 100/8 is internal (D-461)
+    expect((await call('PUT', '/settings', { ...base, scope_confirmed: true, lan_ranges: ['100.63.0.0/16'] })).json?.error?.message).toBe('100.63.0.0/16 is not an internal range (10.x, 172.16-31.x, 192.168.x, 100.64-127.x). To scan public addresses, add them under External exposure after verifying ownership.')
+    expect((await call('PUT', '/settings', { ...base, scope_confirmed: true, lan_ranges: ['100.65.254.0/24'] })).json?.error).toBeUndefined()
     expect(await put({ lan_ranges: ['8.8.8.8'] })).toBe('no_prefix') // a bare address is never guessed
     expect(await put({ lan_ranges: ['abc'] })).toBe('bad_cidr')
     expect(await put({ lan_ranges: ['10.0.0.0/24', '10.0.0.0/25'] })).toBe('overlap_range')
@@ -1014,6 +1037,22 @@ describe('inventory: scope and sensors (S-INV-1, admin)', () => {
     expect(within(dlg).queryByText('Mirrored traffic')).toBeNull()
     expect(dlg.textContent).not.toMatch(/SPAN|mirror/i)
     expect(within(dlg).getByRole('link', { name: 'Open Settings → Box network' })).toHaveAttribute('href', '/settings/network')
+  })
+
+  it('W2-6: while the box starts the sensor the row says Starting… with why; a sensor the box could not start says what to check', async () => {
+    asAdmin()
+    sensorsStore.update((l) => l.map((x) => ({ ...x, status: 'starting' as const, last_seen: null, version: null, devices_seen: 0 })))
+    const sec = () => document.getElementById('sensors')!
+    const first = renderApp('/devices/setup')
+    await waitFor(() => expect(sec()).toHaveTextContent('Starting…'), T)
+    expect(sec()).toHaveTextContent('The box is starting the sensor (after setup or after you turned it on).')
+    expect(sec()).not.toHaveTextContent('Not connected yet')
+    first.unmount()
+    sensorsStore.update((l) => l.map((x) => ({ ...x, status: 'never_connected' as const })))
+    renderApp('/devices/setup')
+    await waitFor(() => expect(sec()).toHaveTextContent('Not connected yet'), T)
+    expect(sec()).toHaveTextContent('The box could not get the sensor running. Turn Passive sensor off and on in Settings → Modules')
+    expect(sec().textContent).not.toContain('compose.sensors.yaml') // that hint is the container-only one
   })
 
   it('single-box only: one local sensor, no kind/site/enrollment fields, no "other site" button, no remote-sensor endpoints', async () => {
@@ -1119,6 +1158,42 @@ describe('inventory: agents (S-INV-4)', () => {
     expect(screen.queryByText(/macOS/i)).not.toBeInTheDocument()
   })
 
+  it('the page itself lists every osquery package as step 1, without opening a dialog; the token is step 2 (item 26b, D-404)', async () => {
+    enableModule('agent-intake', true)
+    renderApp('/devices/setup')
+    const table = await screen.findByRole('table', { name: 'osquery packages this box serves' }, T)
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    const pkgs = (await call('GET', '/agents')).json!.install.packages as OsqueryPackage[]
+    expect(pkgs.map((p) => p.platform)).toEqual(expect.arrayContaining(['linux', 'windows']))
+    expect(within(table).getAllByRole('link').map((a) => [a.getAttribute('href'), a.getAttribute('download')])).toEqual(
+      pkgs.map((p) => [`/api/v1/install/osquery/${p.file}`, p.file])) // Linux and Windows together, no OS to pick first
+    const hint = { deb: 'sudo dpkg -i', rpm: 'sudo rpm -Uvh', msi: 'msiexec /i' } as const
+    for (const p of pkgs) {
+      const row = within(table).getByRole('link', { name: `Download ${p.file}` }).closest('tr')!
+      expect(row).toHaveTextContent(p.sha256)
+      expect(row).toHaveTextContent(`${(p.size / 1e6).toFixed(1)} MB`)
+      expect(row).toHaveTextContent(`${hint[p.format]} ${p.file}`)
+    }
+    expect(within(table).getByRole('link', { name: `Download osquery-${OSQUERY_VERSION}.msi` }).closest('tr')).toHaveTextContent('Windows Server · x64')
+    expect(screen.getByRole('heading', { level: 4, name: '1. Download osquery' })).toBeInTheDocument()
+    expect(screen.getByText(new RegExp(`official osquery ${OSQUERY_VERSION.replace(/\./g, '\\.')} packages`))).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 4, name: '2. Then create a token so the agent can report to this box' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Create agent token' })).toBeEnabled()
+    expect(document.body.textContent).not.toMatch(/osquery\.io|choco/)
+    await expectNoA11yViolations()
+  })
+
+  it('without the packages the page says so in step 1 and links nowhere else (item 26b, D-404)', async () => {
+    enableModule('agent-intake', true)
+    asAdmin()
+    const real = (await call('GET', '/agents')).json!
+    server.use(http.get('*/api/v1/inventory/agents', () => HttpResponse.json({ ...real, install: { ...real.install, packages: [] } })))
+    renderApp('/devices/setup')
+    expect(await screen.findByText(/This box has no copy of the osquery packages, so there is nothing to download here/, undefined, T)).toBeInTheDocument()
+    expect(screen.queryByRole('table', { name: 'osquery packages this box serves' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Create agent token' })).toBeInTheDocument()
+  })
+
   it('creates a token: name + lifetime, token and install command shown once; the API never returns the full token again', async () => {
     enableModule('agent-intake', true)
     const user = userEvent.setup()
@@ -1140,7 +1215,7 @@ describe('inventory: agents (S-INV-4)', () => {
     const sha = (await call('GET', '/agents')).json!.install.linux.sha256 as string
     expect(sha).toMatch(/^[0-9a-f]{64}$/)
     expect(within(dialog).getByRole('button', { name: 'Linux' })).toHaveAttribute('aria-pressed', 'true')
-    expect(within(dialog).getByText(new RegExp(`sudo sh /tmp/vedette-osquery\\.sh --token ${secret}$`))).toBeInTheDocument()
+    expect(within(dialog).getByText(new RegExp(`sudo sh "\\$f" --token ${secret}; r=\\$\\?; rm -f "\\$f"; exit \\$r\\)$`))).toBeInTheDocument()
     expect(within(dialog).getByText('Expected SHA-256 of the script:').parentElement).toHaveTextContent(sha)
     expect(within(dialog).getByText('What this script does')).toBeInTheDocument()
     expect(within(dialog).getByText('Advanced: manual setup')).toBeInTheDocument()
@@ -1181,7 +1256,8 @@ describe('inventory: agents (S-INV-4)', () => {
     const dialog = await screen.findByRole('dialog', undefined, T)
     for (const platform of ['Linux', 'Windows Server']) {
       await user.click(within(dialog).getByRole('button', { name: platform }))
-      const text = dialog.textContent ?? ''
+      // the D-465 note may name the page's own host (jsdom: localhost) to say agents will NOT use it; every command and script must not
+      const text = (dialog.textContent ?? '').replace(/You opened Vedette at [^,]+, but agents will use [^.]+\./, '')
       expect(text).toContain(`${BOX}/api/v1/install/osquery.${platform === 'Linux' ? 'sh' : 'ps1'}`)
       expect(text, platform).not.toMatch(/localhost|127\.0\.0\.1/)
       expect(text.replace(/https:\/\//g, ''), `${platform}: only https`).not.toMatch(/http:\/\//)
@@ -1214,7 +1290,7 @@ describe('inventory: agents (S-INV-4)', () => {
     await screen.findByRole('table', { name: 'Enrollment tokens' }, T)
     await clickUntil(user, () => screen.getAllByRole('button', { name: `Show setup for ${OSQ}` })[0]!, () => screen.getByRole('dialog'))
     const dialog = await screen.findByRole('dialog', { name: `Set up ${OSQ}` }, T)
-    expect(within(dialog).getByText(/sudo sh \/tmp\/vedette-osquery\.sh --token <TOKEN>$/)).toBeInTheDocument()
+    expect(within(dialog).getByText(/sudo sh "\$f" --token <TOKEN>; r=\$\?; rm -f "\$f"; exit \$r\)$/)).toBeInTheDocument()
     expect(dialog.textContent).not.toMatch(/vdt_osquery_[a-z0-9]{32}/)
     await user.click(within(dialog).getAllByRole('button', { name: 'Close' })[0]!)
     await clickUntil(user, () => screen.getAllByRole('button', { name: `Revoke token ${OSQ}` })[0]!, () => screen.getByRole('dialog'))
@@ -1253,7 +1329,7 @@ describe('inventory: agents (S-INV-4)', () => {
       expect(r.text).toContain(BOX)
       expect(r.text).toContain('BEGIN CERTIFICATE') // the box CA is embedded, so later downloads verify it
       expect(r.text).not.toMatch(/trivy|macos|vdt_osquery_/i)
-      for (const line of ['--config_plugin=tls', '--logger_plugin=tls', 'enroll_secret_path', 'tls_server_certs', 'tls_hostname', '--enroll_tls_endpoint=/api/v1/intake/osquery/enroll', '--config_tls_endpoint=/api/v1/intake/osquery/config', '--logger_tls_endpoint=/api/v1/intake/osquery/log']) expect(r.text, `${ext}: ${line}`).toContain(line)
+      for (const line of ['--config_plugin=tls', '--logger_plugin=tls', 'enroll_secret_path', 'tls_server_certs', 'tls_hostname', '--enroll_tls_endpoint=/api/v1/intake/osquery/enroll', '--config_tls_endpoint=/api/v1/intake/osquery/config', '--config_refresh=300', '--logger_tls_endpoint=/api/v1/intake/osquery/log']) expect(r.text, `${ext}: ${line}`).toContain(line)
     }
     const sh = (await raw('GET', '/install/osquery.sh')).text
     expect(sh).toContain('--token')
@@ -1520,16 +1596,21 @@ describe('inventory: agents (S-INV-4)', () => {
     const sha = 'a'.repeat(64)
     const lin = linuxOneLiner(BOX, sha, 'vdt_osquery_x')
     expect(lin).toContain(`curl -fsSLk ${BOX}/api/v1/install/osquery.sh`) // -k exactly once, for the script itself
-    expect(lin).toContain(`echo "${sha}  /tmp/vedette-osquery.sh" | sha256sum -c -`)
-    expect(lin).toContain('sudo sh /tmp/vedette-osquery.sh --token vdt_osquery_x')
+    // W2-3: a new mktemp file every run (a fixed /tmp name left by another user cannot be overwritten), removed afterwards
+    expect(lin).toMatch(/^\(f=\$\(mktemp\) && curl /) // a subshell: the install's exit status survives the cleanup (review)
+    expect(lin).toContain(`-o "$f" && echo "${sha}  $f" | sha256sum -c -`)
+    expect(lin).toContain('sudo sh "$f" --token vdt_osquery_x; r=$?; rm -f "$f"; exit $r)')
+    expect(lin).not.toContain('/tmp/')
     expect(lin.match(/curl/g)).toHaveLength(1)
-    expect(linuxOneLiner(BOX, sha, 'vdt_osquery_x', 'uninstall')).toMatch(/--uninstall$/)
+    expect(linuxOneLiner(BOX, sha, 'vdt_osquery_x', 'uninstall')).toMatch(/sudo sh "\$f" --uninstall; r=\$\?; rm -f "\$f"; exit \$r\)$/)
     expect(linuxOneLiner(BOX, sha, 'vdt_osquery_x', 'uninstall')).not.toContain('vdt_osquery_x')
     const win = windowsOneLiner(BOX, sha, 'vdt_osquery_x')
     expect(win).toContain(`curl.exe -fsSLk ${BOX}/api/v1/install/osquery.ps1`)
     expect(win).toContain(`-ieq '${sha}'`)
     expect(win).toContain("-Token 'vdt_osquery_x'")
     expect(win).toContain("throw 'Checksum mismatch: do not run this file'")
+    expect(win).toContain("[guid]::NewGuid()")
+    expect(win.match(/Remove-Item -Force \$f/g)).toHaveLength(2)
     expect(windowsOneLiner(BOX, sha, 'vdt_osquery_x', 'uninstall')).toContain('-Uninstall')
     for (const s of [lin, win]) expect(s).not.toMatch(/http:\/\/|localhost/)
 
@@ -1538,7 +1619,7 @@ describe('inventory: agents (S-INV-4)', () => {
     for (const platform of ['linux', 'windows'] as const) {
       const steps = osquerySteps(platform, BOX, '<TOKEN>', pkgs)
       const flags = steps.find((s) => s.key === 'flags')!.code
-      for (const f of ['--config_plugin=tls', '--logger_plugin=tls', 'enroll_secret_path', 'tls_server_certs', `--tls_hostname=192.168.10.250:8443`, '--enroll_tls_endpoint=/api/v1/intake/osquery/enroll', '--config_tls_endpoint=/api/v1/intake/osquery/config', '--logger_tls_endpoint=/api/v1/intake/osquery/log']) expect(flags, `${platform}: ${f}`).toContain(f)
+      for (const f of ['--config_plugin=tls', '--logger_plugin=tls', 'enroll_secret_path', 'tls_server_certs', `--tls_hostname=192.168.10.250:8443`, '--enroll_tls_endpoint=/api/v1/intake/osquery/enroll', '--config_tls_endpoint=/api/v1/intake/osquery/config', '--config_refresh=300', '--logger_tls_endpoint=/api/v1/intake/osquery/log']) expect(flags, `${platform}: ${f}`).toContain(f)
       expect(flags).not.toContain('https://') // tls_hostname has the port and no scheme
       expect(steps.find((s) => s.key === 'secret')!.code).toContain('<TOKEN>')
       expect(steps.filter((s) => /-fsSk|-fsSLk/.test(s.code))).toHaveLength(1) // the certificate is fetched with -k once, to be checked by fingerprint

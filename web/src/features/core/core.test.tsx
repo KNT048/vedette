@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { fireEvent, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { renderApp, expectNoA11yViolations } from '@/test/render'
@@ -21,6 +21,9 @@ import { nav, compareVersion, toBase64 } from './util'
 // offered; one test runs the v1 page.
 const bundleFlag = vi.hoisted(() => ({ BUNDLE_IN_UI: true }))
 vi.mock('@/lib/bundle', () => bundleFlag)
+// D-417: same for the credentialed scan: this file lists it as offered (the deps dialog uses it); one test runs the v1 list.
+const credFlag = vi.hoisted(() => ({ CREDENTIALED_IN_UI: true }))
+vi.mock('@/lib/credentialed', () => credFlag)
 
 const setModule = (id: string, enabled: boolean) => modulesStore.update((l) => l.map((m) => (m.id === id ? { ...m, enabled } : m)))
 const user = () => userEvent.setup()
@@ -28,7 +31,7 @@ const user = () => userEvent.setup()
 const NOHASH = { prev_hash: '0'.repeat(64), hash: '0'.repeat(64) } // rows written straight into the store, the chain is not under test here
 
 describe('core: cài đặt ban đầu', () => {
-  it('đi hết 4 bước, tạo quản trị, đặt setup_complete và vào trang chủ', async () => {
+  it('đi hết 3 bước (D-462: không có bước kênh), tạo quản trị, đặt setup_complete và vào trang chủ', async () => {
     const u = user()
     renderApp('/setup', { role: null, setupComplete: false })
     expect(await screen.findByRole('heading', { level: 2, name: 'Organization and administrator account' })).toBeInTheDocument()
@@ -82,10 +85,10 @@ describe('core: cài đặt ban đầu', () => {
     await u.click(await screen.findByRole('checkbox', { name: /^Vulnerability scan/ }))
     expect(screen.getByRole('checkbox', { name: /^Inventory/ })).toBeChecked()
     expect(screen.getByRole('checkbox', { name: /^Vulnerability feeds/ })).toBeChecked()
-    await u.click(screen.getByRole('button', { name: 'Continue' }))
-    // bước 4: bỏ qua kênh
-    expect(await screen.findByRole('heading', { level: 2, name: 'Where alerts go' })).toBeInTheDocument()
-    await u.click(screen.getByRole('button', { name: 'Skip and finish' }))
+    // D-462: Modules is the last step; there is no Continue and no Alerts step
+    expect(within(screen.getByRole('list', { name: 'Setup steps' })).getAllByRole('listitem').map((li) => li.textContent)).toEqual(['Account', 'Network', '3Modules'])
+    expect(screen.queryByRole('button', { name: 'Continue' })).toBeNull()
+    await u.click(screen.getByRole('button', { name: 'Finish setup' }))
     expect(await screen.findByRole('heading', { level: 1, name: /^Today/ })).toBeInTheDocument()
     expect(orgStore.get().setup_complete).toBe(true)
     expect(orgStore.get().name).toBe('ABC Company')
@@ -101,7 +104,7 @@ describe('core: cài đặt ban đầu', () => {
     expect(auditStore.get().some((a) => a.action === 'core.setup' && a.detail?.includes('commitment confirmed'))).toBe(true)
   })
 
-  it('bước kênh lưu qua module thông báo; token sai báo lỗi và thử lại được', async () => {
+  it('D-462: xong cài đặt mới (chưa có kênh), Home nhắc "No alert channel yet" và dẫn tới Settings → Alert channels', async () => {
     const u = user()
     renderApp('/setup', { role: null, setupComplete: false })
     await u.type(await screen.findByLabelText('Setup code'), MOCK_SETUP_CODE)
@@ -120,24 +123,18 @@ describe('core: cài đặt ban đầu', () => {
     await u.click(screen.getByRole('button', { name: 'Continue' }))
     expect(await screen.findByText(/0.0.0.0\/0 is not a private range/)).toBeInTheDocument()
     await u.clear(screen.getByLabelText('Range 1'))
+    await u.type(screen.getByLabelText('Range 1'), '100.128.0.0/24') // 100/8 outside RFC 6598 is public (D-461)
+    await u.click(screen.getByRole('button', { name: 'Continue' }))
+    expect(await screen.findByText('100.128.0.0/24 is not a private range (10.x, 172.16-31.x, 192.168.x, 100.64-127.x). Add public addresses later under External exposure.')).toBeInTheDocument()
+    await u.clear(screen.getByLabelText('Range 1'))
     await u.type(screen.getByLabelText('Range 1'), '10.0.0.0/24')
     await u.click(screen.getByRole('button', { name: 'Continue' }))
-    await u.click(await screen.findByRole('button', { name: 'Continue' }))
     await u.click(await screen.findByRole('button', { name: 'Finish setup' }))
-    expect((await screen.findAllByText('Fill this in.')).length).toBe(2)
-    await u.type(screen.getByLabelText('Chat ID to send to'), '-1001234567890')
-    await u.type(screen.getByLabelText('Bot token'), 'token-sai')
-    await u.click(screen.getByRole('button', { name: 'Finish setup' }))
-    expect(await screen.findByText(/The account was created but the channel was not saved/)).toBeInTheDocument()
-    expect(orgStore.get().setup_complete).toBe(true)
-    await u.clear(screen.getByLabelText('Bot token'))
-    await u.type(screen.getByLabelText('Bot token'), '123456789:EXAMPLE_not_a_real_token_0000000000')
-    await u.click(screen.getByRole('button', { name: 'Finish setup' }))
     expect(await screen.findByRole('heading', { level: 1, name: /^Today/ })).toBeInTheDocument()
-    const ch = (await (await fetch(`${location.origin}/api/v1/notify/channels`)).json()) as { channels: { type: string; configured: boolean; enabled: boolean; fields: Record<string, string>; secret_last4: string }[] }
-    const tg = ch.channels.find((c) => c.type === 'telegram')!
-    expect(tg).toMatchObject({ configured: true, enabled: true, secret_last4: '0000' })
-    expect(tg.fields.chat_id).toBe('-1001234567890')
+    expect(orgStore.get().setup_complete).toBe(true)
+    expect(await screen.findByText('No alert channel yet')).toBeInTheDocument()
+    await u.click(screen.getByRole('link', { name: 'Set up an alert channel' }))
+    expect(await screen.findByRole('table', { name: 'Alert channels' })).toBeInTheDocument()
     const inv = (await (await fetch(`${location.origin}/api/v1/inventory/settings`)).json()) as { lan_ranges: string[]; active: { enabled: boolean } }
     expect(inv.lan_ranges).toEqual(['10.0.0.0/24'])
     expect(inv.active.enabled).toBe(false) // không tick xác nhận: chỉ nghe thụ động
@@ -156,8 +153,7 @@ describe('core: cài đặt ban đầu', () => {
     await u.clear(await screen.findByLabelText('Range 1'))
     await u.type(screen.getByLabelText('Range 1'), '10.0.0.0/24')
     await u.click(screen.getByRole('button', { name: 'Continue' }))
-    await u.click(await screen.findByRole('button', { name: 'Continue' }))
-    await u.click(await screen.findByRole('button', { name: 'Skip and finish' }))
+    await u.click(await screen.findByRole('button', { name: 'Finish setup' }))
     expect(await screen.findByRole('heading', { level: 2, name: 'Organization and administrator account' })).toBeInTheDocument()
     expect(screen.getByText(/The setup code is missing or wrong/)).toBeInTheDocument()
     expect(screen.getByLabelText('Setup code')).toHaveAttribute('aria-invalid', 'true')
@@ -169,10 +165,87 @@ describe('core: cài đặt ban đầu', () => {
     await u.type(screen.getByLabelText('Setup code'), MOCK_SETUP_CODE)
     await u.click(screen.getByRole('button', { name: 'Continue' }))
     await u.click(await screen.findByRole('button', { name: 'Continue' }))
-    await u.click(await screen.findByRole('button', { name: 'Continue' }))
-    await u.click(await screen.findByRole('button', { name: 'Skip and finish' }))
+    await u.click(await screen.findByRole('button', { name: 'Finish setup' }))
     expect(await screen.findByRole('heading', { level: 1, name: /^Today/ })).toBeInTheDocument()
     expect(orgStore.get().setup_complete).toBe(true)
+  })
+
+  it('D-462 review: a double-click on Continue moves one step and never finishes setup; a repeated click on Finish setup does not submit', async () => {
+    const u = user()
+    let posts = 0
+    const seen = ({ request }: { request: Request }) => { if (request.method === 'POST' && new URL(request.url).pathname.endsWith('/core/setup')) posts++ }
+    server.events.on('request:start', seen)
+    try {
+      renderApp('/setup', { role: null, setupComplete: false })
+      await u.type(await screen.findByLabelText('Setup code'), MOCK_SETUP_CODE)
+      await u.type(screen.getByLabelText('Organization name'), 'XYZ Company')
+      await u.type(screen.getByLabelText('Administrator name'), 'Nam')
+      await u.type(screen.getByLabelText('Sign-in email'), 'nam@xyz.vn')
+      await u.type(screen.getByLabelText('Password'), 'mot-cau-mat-khau-dai')
+      await u.type(screen.getByLabelText('Repeat password'), 'mot-cau-mat-khau-dai')
+      await u.dblClick(screen.getByRole('button', { name: 'Continue' }))
+      // one step only: Network (its first row is prefilled with the box's network, so a second submit would pass)
+      expect(await screen.findByRole('heading', { level: 2, name: 'Network to watch' })).toBeInTheDocument()
+      await u.dblClick(screen.getByRole('button', { name: 'Continue' }))
+      expect(await screen.findByRole('heading', { level: 2, name: 'Choose a module bundle' })).toBeInTheDocument()
+      // the second click of a double-click (the browser counts it in `detail`, whatever button is now under the pointer) does not submit
+      fireEvent.click(screen.getByRole('button', { name: 'Finish setup' }), { detail: 2 })
+      fireEvent.click(screen.getByRole('button', { name: 'Finish setup' }), { detail: 3 })
+      await act(async () => {})
+      expect(posts).toBe(0)
+      expect(orgStore.get().setup_complete).toBe(false)
+      expect(screen.getByRole('heading', { level: 2, name: 'Choose a module bundle' })).toBeInTheDocument()
+      // a single click finishes; Finish and Back are off while it saves, so it cannot be sent twice
+      await u.click(screen.getByRole('button', { name: 'Finish setup' }))
+      expect(await screen.findByRole('heading', { level: 1, name: /^Today/ })).toBeInTheDocument()
+      expect(posts).toBe(1)
+    } finally { server.events.removeListener('request:start', seen) }
+  })
+
+  it('D-462 review: Finish setup and Back are disabled while finishing', async () => {
+    const u = user()
+    let release!: () => void
+    const gate = new Promise<void>((r) => { release = r })
+    server.use(http.post('*/api/v1/core/setup', async () => { await gate; return HttpResponse.json({ error: { code: 'internal', message: 'Something failed on the box.' } }, { status: 500 }) }))
+    renderApp('/setup', { role: null, setupComplete: false })
+    await u.type(await screen.findByLabelText('Setup code'), MOCK_SETUP_CODE)
+    await u.type(screen.getByLabelText('Organization name'), 'XYZ Company')
+    await u.type(screen.getByLabelText('Administrator name'), 'Nam')
+    await u.type(screen.getByLabelText('Sign-in email'), 'nam@xyz.vn')
+    await u.type(screen.getByLabelText('Password'), 'mot-cau-mat-khau-dai')
+    await u.type(screen.getByLabelText('Repeat password'), 'mot-cau-mat-khau-dai')
+    await u.click(screen.getByRole('button', { name: 'Continue' }))
+    await u.click(await screen.findByRole('button', { name: 'Continue' }))
+    await u.click(await screen.findByRole('button', { name: 'Finish setup' }))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Finish setup' })).toBeDisabled())
+    expect(screen.getByRole('button', { name: 'Back' })).toBeDisabled()
+    release()
+    // a failure gives the buttons back, with the box's sentence
+    expect(await screen.findByText('Something failed on the box.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Finish setup' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Back' })).toBeEnabled()
+  })
+
+  it('D-462 review: ranges the box refuses on Finish send you back to the Network step with its sentence under the list', async () => {
+    const u = user()
+    renderApp('/setup', { role: null, setupComplete: false })
+    await u.type(await screen.findByLabelText('Setup code'), MOCK_SETUP_CODE)
+    await u.type(screen.getByLabelText('Organization name'), 'XYZ Company')
+    await u.type(screen.getByLabelText('Administrator name'), 'Nam')
+    await u.type(screen.getByLabelText('Sign-in email'), 'nam@xyz.vn')
+    await u.type(screen.getByLabelText('Password'), 'mot-cau-mat-khau-dai')
+    await u.type(screen.getByLabelText('Repeat password'), 'mot-cau-mat-khau-dai')
+    await u.click(screen.getByRole('button', { name: 'Continue' }))
+    await u.clear(await screen.findByLabelText('Range 1'))
+    await u.type(screen.getByLabelText('Range 1'), '192.168.0.0/16') // overlaps row 2: only the box checks that (overlap_range)
+    await u.click(screen.getByRole('button', { name: 'Add range' }))
+    await u.type(screen.getByLabelText('Range 2'), '192.168.18.0/24')
+    await u.click(screen.getByRole('button', { name: 'Continue' }))
+    await u.click(await screen.findByRole('button', { name: 'Finish setup' }))
+    expect(await screen.findByRole('heading', { level: 2, name: 'Network to watch' })).toBeInTheDocument()
+    expect(screen.getByRole('alert')).toHaveTextContent(/Range 192.168.0.0\/16 overlaps 192.168.18.0\/24/)
+    expect(screen.getByLabelText('Range 2')).toHaveValue('192.168.18.0/24') // what was typed is kept
+    expect(orgStore.get().setup_complete).toBe(false)
   })
 
   it('D-75 API: the code is judged before every other field and never needed for the sample path', async () => {
@@ -218,6 +291,18 @@ describe('core: cài đặt ban đầu', () => {
     expect(scan.scope.networks).toEqual(['192.168.18.0/24', '10.1.0.0/16'])
   })
 
+  it('setup takes a network in the RFC 6598 shared address space (100.64/10) and refuses the rest of 100/8, with the backend sentence (D-461)', async () => {
+    orgStore.update((o) => ({ ...o, setup_complete: false }))
+    const body = (lan: string[]) => JSON.stringify({ setup_code: MOCK_SETUP_CODE, org: 'ABC Company', admin: { name: 'Lan', email: 'lan@abc.vn', password: 'mat-khau-dai-123' }, lan, bundle: 'smb', commitment: true })
+    const pub = await fetch(`${location.origin}/api/v1/core/setup`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: body(['100.128.0.0/24']) })
+    expect(pub.status).toBe(400)
+    expect(((await pub.json()) as { error: { code: string; message: string } }).error).toEqual(expect.objectContaining({ code: 'public_range', message: '100.128.0.0/24 is not a private range (10.x, 172.16-31.x, 192.168.x, 100.64-127.x). Add public addresses later under External exposure.' }))
+    const res = await fetch(`${location.origin}/api/v1/core/setup`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: body(['100.65.254.0/24']) })
+    expect(res.status).toBe(200)
+    const st = (await (await fetch(`${location.origin}/api/v1/inventory/settings`)).json()) as { lan_ranges: string[] }
+    expect(st.lan_ranges).toEqual(['100.65.254.0/24'])
+  })
+
   it('setup refuses overlapping LAN ranges like Devices → Scope does, and nothing is set up (#350)', async () => {
     orgStore.update((o) => ({ ...o, setup_complete: false }))
     const res = await fetch(`${location.origin}/api/v1/core/setup`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ setup_code: MOCK_SETUP_CODE, org: 'ABC Company', admin: { name: 'Lan', email: 'lan@abc.vn', password: 'mat-khau-dai-123' }, lan: ['192.168.0.0/16', '192.168.18.0/24'], bundle: 'smb', commitment: true }) })
@@ -238,6 +323,19 @@ describe('core: cài đặt ban đầu', () => {
       ['lan@abc.vn', 'auth.login', 'lan@abc.vn'],
       ['lan@abc.vn', 'core.setup', 'ABC Company'],
     ])
+  })
+
+  it('W2-8: a box not set up never asks /me (its 401 would be logged by the browser) and step 1 has no Back', async () => {
+    const asked: string[] = []
+    const seen = ({ request }: { request: Request }) => { asked.push(new URL(request.url).pathname) }
+    server.events.on('request:start', seen)
+    try {
+      renderApp('/', { role: null, setupComplete: false })
+      expect(await screen.findByLabelText('Setup code')).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Back' })).toBeNull()
+      expect(screen.getByRole('button', { name: 'Continue' })).toBeInTheDocument()
+      expect(asked.some((p) => p.endsWith('/me'))).toBe(false)
+    } finally { server.events.removeListener('request:start', seen) }
   })
 
   it('đã cài xong thì /setup chuyển về đăng nhập', async () => {
@@ -307,6 +405,16 @@ describe('core: module (S-CORE-1)', () => {
     await u.click(within(dlg).getByRole('button', { name: 'Turn on together' }))
     await waitFor(() => expect(modulesStore.get().find((m) => m.id === 'scan-credentialed')!.enabled).toBe(true))
     expect(modulesStore.get().find((m) => m.id === 'scan')!.enabled).toBe(true)
+  })
+
+  it('v1 does not list the credentialed scan, which has no backend in this build (D-417, walk-1 W1-36)', async () => {
+    credFlag.CREDENTIALED_IN_UI = false
+    try {
+      renderApp('/settings/modules')
+      expect(await screen.findByRole('switch', { name: /module Vulnerability scan$/ })).toBeInTheDocument()
+      expect(screen.queryByText('Credentialed scan')).toBeNull()
+      expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(`of ${modulesStore.get().length - 1} modules`)
+    } finally { credFlag.CREDENTIALED_IN_UI = true }
   })
 
   it('tắt module: liệt kê module bị ảnh hưởng và nói dữ liệu được giữ', async () => {
@@ -914,11 +1022,32 @@ describe('core: nhật ký (S-CORE-3)', () => {
     renderApp('/settings/audit')
     expect(await screen.findByText('2 log lines match the filters', { exact: false })).toBeInTheDocument()
     await u.selectOptions(screen.getByLabelText('Kind of action'), 'user')
-    expect(await screen.findByRole('heading', { level: 1, name: /^1 log lines/ })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: /^1 log line matches/ })).toBeInTheDocument()
     const table = screen.getByRole('table', { name: 'Audit log' })
     expect(within(table).getByText('Create user')).toBeInTheDocument()
     await u.type(screen.getByLabelText('Search text'), 'khong-co-gi')
     expect((await screen.findAllByText(/No line matches the filters/)).length).toBeGreaterThan(0)
+    await expectNoA11yViolations()
+  })
+
+  it('names devices and findings by name with the id below, says the retention, and hides automatic lines on request (D-416)', async () => {
+    const u = user()
+    const asset = assetsStore.get().find((a) => a.hostname)!
+    auditStore.set([
+      { id: 'a1', ts: new Date().toISOString(), user: 'system', action: 'findings.created', target: 'f-gone', detail: `CVE-2026-0001 on ${asset.id}, basis product, high`, ...NOHASH },
+      { id: 'a2', ts: new Date().toISOString(), user: 'admin@acme.example', action: 'inventory.update', target: asset.id, detail: null, ...NOHASH },
+    ])
+    renderApp('/settings/audit')
+    expect(await screen.findByText(/keeps the lines of the last 365 days, at most 200,000/)).toBeInTheDocument()
+    const table = await screen.findByRole('table', { name: 'Audit log' })
+    await within(table).findByText(asset.hostname!)
+    expect(within(table).getByText(asset.hostname!)).toBeInTheDocument() // the target, by name
+    expect(within(table).getAllByText(asset.id).length).toBeGreaterThan(0) // the id, below it
+    expect(within(table).getByText(`CVE-2026-0001 on ${asset.hostname}, basis product, high`)).toBeInTheDocument()
+    expect(within(table).getByText('f-gone')).toBeInTheDocument() // an id the box no longer has stays as it is
+    await u.selectOptions(screen.getByLabelText('Who'), 'Not the system (people and tools)')
+    expect(await screen.findByRole('heading', { level: 1, name: /^1 log line matches/ })).toBeInTheDocument()
+    expect(within(screen.getByRole('table', { name: 'Audit log' })).queryByText('Finding created')).toBeNull()
     await expectNoA11yViolations()
   })
 
@@ -1221,6 +1350,11 @@ describe('core: tài khoản', () => {
     expect(Math.min(...xs.map(([x]) => x))).toBeGreaterThanOrEqual(4)
     expect(Math.max(...xs.map(([x, y]) => Math.max(x, y)))).toBeLessThanOrEqual(size + 3)
     expect(screen.getByText('Scan this QR code with your authenticator app, or enter the key by hand.')).toBeInTheDocument()
+    // D-414: three steps recommending Google Authenticator, with both stores
+    expect(screen.getByRole('link', { name: 'App Store (iPhone)' })).toHaveAttribute('href', 'https://apps.apple.com/app/google-authenticator/id388497605')
+    expect(screen.getByRole('link', { name: 'Google Play (Android)' })).toHaveAttribute('href', 'https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2')
+    expect(screen.getByText(/tap \+ and choose Scan a QR code/)).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).toBeNull() // no error before anything is typed
     await u.type(screen.getByLabelText('6-digit code'), '000000')
     await u.click(screen.getByRole('button', { name: 'Confirm and turn on' }))
     expect(await screen.findByText(/Wrong code/)).toBeInTheDocument()

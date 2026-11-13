@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"log/slog"
 	"net/netip"
+	"slices"
+	"strings"
 	"sync"
 	"time"
 
@@ -56,6 +58,7 @@ func scanService(d deps) *scan.Service {
 			panic("vedette: the embedded nuclei pack index: " + err.Error())
 		}
 		cfg.Engine, cfg.Pack = scanEngine{d.SensorDispatcher}, ix
+		cfg.Identify = scanIdentify{d} // D-501: Scan now identifies each device with sensor-active's nmap scan first
 	}
 	svc, err := scan.NewService(cfg)
 	if err != nil { // only a missing dependency: a programming error in serve
@@ -73,6 +76,7 @@ type scanInv interface {
 	Settings(ctx context.Context) (inventory.Settings, error)
 	Devices(ctx context.Context) (inventory.DeviceList, error)
 	VulnScanPolicy(ctx context.Context, assetID string, explicit bool) (inventory.ScanDecision, error)
+	VulnScanPolicies(ctx context.Context, assetIDs []string, explicit bool) (map[string]inventory.ScanDecision, error)
 }
 
 func (s scanInventory) Scope(ctx context.Context) (scan.Scope, error) {
@@ -93,6 +97,24 @@ func (s scanInventory) Scope(ctx context.Context) (scan.Scope, error) {
 	return sc, nil
 }
 
+// deviceLabel names a device as the Devices page does (inventory.Names): hostname, else vendor and model, else the IP. A
+// hand-added or LLDP-only device has no IP and must still show its name in the scan list and the reports (D-484).
+func deviceLabel(d inventory.AssetCore) string {
+	if d.Hostname != nil && *d.Hostname != "" {
+		return *d.Hostname
+	}
+	var hw []string
+	for _, o := range []*inventory.Observed{d.Vendor, d.Model} {
+		if o != nil && strings.TrimSpace(o.Value) != "" {
+			hw = append(hw, strings.TrimSpace(o.Value))
+		}
+	}
+	if len(hw) > 0 {
+		return strings.Join(hw, " ")
+	}
+	return d.IP
+}
+
 func (s scanInventory) Devices(ctx context.Context) ([]scan.Device, error) {
 	if s.inv == nil {
 		return nil, fmt.Errorf("vedette: scan: the inventory is not wired")
@@ -103,11 +125,13 @@ func (s scanInventory) Devices(ctx context.Context) ([]scan.Device, error) {
 	}
 	out := make([]scan.Device, 0, len(list.Items))
 	for _, d := range list.Items {
-		label := d.IP
-		if d.Hostname != nil && *d.Hostname != "" {
-			label = *d.Hostname
+		sd := scan.Device{ID: d.ID, Label: deviceLabel(d.AssetCore), IP: d.IP, Kind: d.Kind, Approved: d.Approved, Fragile: d.Fragile, LastSeen: d.LastSeen, Box: d.IsBox}
+		if d.MAC != nil {
+			sd.MAC = *d.MAC
 		}
-		sd := scan.Device{ID: d.ID, Label: label, IP: d.IP, Kind: d.Kind, Approved: d.Approved, Fragile: d.Fragile}
+		if d.Vendor != nil {
+			sd.Vendor = d.Vendor.Value
+		}
 		for _, sv := range d.Services {
 			if sv.Proto == "" || sv.Proto == "tcp" {
 				sd.Services = append(sd.Services, scan.OpenPort{Port: sv.Port, Name: sv.Name})
@@ -119,8 +143,8 @@ func (s scanInventory) Devices(ctx context.Context) ([]scan.Device, error) {
 }
 
 // VulnScanPolicy is inventory's D-126 policy; Careful (fragile or unclassified, slowed even when regular scans are
-// allowed: the safe side) and the IP come from the same read as the decision. ponytail: scan.Inventory has no
-// batch method, so this is one inventory read per device; inventory.VulnScanPolicies is there when it gets one.
+// allowed: the safe side) and the IP come from the same read as the decision. Used for the re-check of one device
+// right before its job leaves core (scan INV-1); lists use VulnScanPolicies.
 func (s scanInventory) VulnScanPolicy(ctx context.Context, assetID string, explicit bool) (scan.Decision, error) {
 	if s.inv == nil {
 		return scan.Decision{}, fmt.Errorf("vedette: scan: the inventory is not wired")
@@ -132,11 +156,34 @@ func (s scanInventory) VulnScanPolicy(ctx context.Context, assetID string, expli
 	if err != nil {
 		return scan.Decision{}, err
 	}
+	return scanDecision(dec), nil
+}
+
+// VulnScanPolicies is inventory.VulnScanPolicies in chunks of inventory.MaxPolicyBatch (D-472): one settings read and
+// one query per chunk instead of one read per device. A device deleted since the list was read is absent.
+func (s scanInventory) VulnScanPolicies(ctx context.Context, assetIDs []string, explicit bool) (map[string]scan.Decision, error) {
+	if s.inv == nil {
+		return nil, fmt.Errorf("vedette: scan: the inventory is not wired")
+	}
+	out := make(map[string]scan.Decision, len(assetIDs))
+	for c := range slices.Chunk(assetIDs, inventory.MaxPolicyBatch) {
+		m, err := s.inv.VulnScanPolicies(ctx, c, explicit)
+		if err != nil {
+			return nil, err
+		}
+		for id, dec := range m {
+			out[id] = scanDecision(dec)
+		}
+	}
+	return out, nil
+}
+
+func scanDecision(dec inventory.ScanDecision) scan.Decision {
 	out := scan.Decision{Allowed: dec.Allowed, Reason: dec.Reason}
 	if dec.Allowed {
 		out.Careful, out.IP = dec.Careful, dec.IP.String()
 	}
-	return out, nil
+	return out
 }
 
 // scanFindings is the findings module as scan needs it (scan.Findings).
@@ -157,6 +204,33 @@ func (f scanFindings) List(ctx context.Context, assetID string) ([]scan.FindingR
 func (f scanFindings) ConfirmFromScan(ctx context.Context, assetID, cve string, ev scan.Evidence) (string, error) {
 	r, err := f.svc.ConfirmFromScan(ctx, assetID, cve, findings.Evidence{Summary: ev.Summary, Template: ev.Template, Request: ev.Request, Response: ev.Response, CheckedAt: ev.CheckedAt})
 	return r.ID, err
+}
+
+// scanIdentify is sensor-active's identification as scan sees it (scan.Identifier, D-501): an nmap device scan of a device a person
+// picked in Scan now, recorded in the inventory. It runs only while sensor-active is on (SYS-5); off, every device says unavailable.
+// The service is looked up at each call: scanService and sensorActiveService are built in either order.
+type scanIdentify struct{ d deps }
+
+func (i scanIdentify) Identify(ctx context.Context, assetID string) (scan.Identification, error) {
+	if i.d.Reg != nil && !i.d.Reg.Enabled("sensor-active") {
+		return scan.Identification{Why: sensoractive.WhyUnavailable}, nil
+	}
+	svc, err := sensorActiveService(i.d) //nolint:contextcheck // built once per database; its zone lookup has its own short budget
+	if err != nil {
+		return scan.Identification{}, err
+	}
+	got, err := svc.IdentifyDevice(ctx, assetID)
+	switch {
+	case errors.Is(err, sensoractive.ErrStopped) && ctx.Err() != nil: // the run's context: the person's Stop now, or the run's end
+		return scan.Identification{}, scan.ErrIdentifyStopped
+	case errors.Is(err, sensoractive.ErrStopped): // sensor-active stopped it by itself: the device, the settings or the module changed
+		return scan.Identification{}, scan.ErrIdentifyInterrupted
+	case errors.Is(err, sensoractive.ErrNotFound):
+		return scan.Identification{Why: scan.ReasonGone}, nil
+	case err != nil:
+		return scan.Identification{}, err
+	}
+	return scan.Identification{Found: got.Found, Why: got.Why}, nil
 }
 
 // scanExternal lists the exposure targets for the scan list (listed, not scanned yet: D-126 (4)).

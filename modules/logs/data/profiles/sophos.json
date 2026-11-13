@@ -1,0 +1,117 @@
+{
+  "id": "sophos",
+  "title": "Sophos Firewall (SFOS) key=\"value\" logs: firewall rule and web filter traffic",
+  "kinds": [
+    "sophos"
+  ],
+  "rule": {
+    "type": "kv",
+    "fields": [
+      "log_type",
+      "log_component",
+      "log_subtype"
+    ],
+    "vocab": {
+      "log_type": [
+        "Firewall",
+        "Content Filtering",
+        "Event",
+        "Anti-Virus",
+        "Anti-Spam",
+        "IPS",
+        "ATP",
+        "Heartbeat",
+        "Web Application Firewall",
+        "Wireless Protection",
+        "Sandstorm"
+      ],
+      "log_component": [
+        "Firewall Rule",
+        "Invalid Traffic",
+        "Appliance Access",
+        "Local ACL",
+        "DoS Attack",
+        "ICMP Redirect",
+        "Source Route",
+        "Fragmented Traffic",
+        "MAC Filter",
+        "IP-MAC Pair Filter",
+        "SSL VPN",
+        "IPsec",
+        "HTTP",
+        "DNS",
+        "FTP",
+        "SMTP",
+        "POP3",
+        "IMAP4",
+        "Authentication",
+        "GUI",
+        "CLI",
+        "Gateway",
+        "DHCP Server",
+        "Interface",
+        "Reports",
+        "Update"
+      ],
+      "log_subtype": [
+        "Allowed",
+        "Denied",
+        "Detect",
+        "Drop",
+        "Deny",
+        "Authentication",
+        "System",
+        "Admin",
+        "Update",
+        "Security Policy",
+        "Content Filtering"
+      ]
+    },
+    "local_field": "src_ip",
+    "dest_ip_field": "dst_ip",
+    "dest_host_fields": [
+      "domain"
+    ],
+    "conn_when": {
+      "log_type": [
+        "Firewall",
+        "Content Filtering"
+      ],
+      "log_component": [
+        "Firewall Rule",
+        "HTTP",
+        "DNS"
+      ]
+    },
+    "conn_blocked": {
+      "status": [
+        "Deny",
+        "Drop"
+      ],
+      "log_subtype": [
+        "Denied"
+      ]
+    }
+  },
+  "samples": [
+    {
+      "line": "<30>device_name=\"SFW\" timestamp=2026-11-09T10:00:00 device_id=S4000 log_id=010101600001 log_type=\"Firewall\" log_component=\"Firewall Rule\" log_subtype=\"Allowed\" status=\"Allow\" priority=Information duration=12 fw_rule_id=3 user_name=\"\" in_interface=\"Port2\" out_interface=\"Port1\" src_mac=00:11:22:33:44:55 src_ip=192.168.10.113 src_country_code=R1 dst_ip=185.220.101.47 dst_country_code=DEU protocol=\"TCP\" src_port=51234 dst_port=443",
+      "signature": "log_type=Firewall log_component=Firewall Rule log_subtype=Allowed",
+      "remote": "192.168.10.113",
+      "local": "192.168.10.113",
+      "dests": [
+        "ip:185.220.101.47"
+      ]
+    },
+    {
+      "line": "<30>device_name=\"SFW\" timestamp=2026-11-09T10:00:01 device_id=S4000 log_id=010101600002 log_type=\"Firewall\" log_component=\"Firewall Rule\" log_subtype=\"Denied\" status=\"Deny\" priority=Information fw_rule_id=9 in_interface=\"Port2\" out_interface=\"Port1\" src_ip=192.168.10.113 dst_ip=185.220.101.47 protocol=\"TCP\" src_port=51235 dst_port=23",
+      "signature": "log_type=Firewall log_component=Firewall Rule log_subtype=Denied",
+      "blocked": true,
+      "remote": "192.168.10.113",
+      "local": "192.168.10.113",
+      "dests": [
+        "ip:185.220.101.47"
+      ]
+    }
+  ]
+}

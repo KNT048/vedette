@@ -6,13 +6,14 @@ import { http, HttpResponse } from 'msw'
 import { API, body, currentUser, fail, guard } from '@/mocks/http'
 import { collection, newId, nowIso } from '@/mocks/db'
 import { connectorsStore } from '@/mocks/connectors'
-import { aiAvailable, aiCandidates, assetsStore, boxInfo, findingsStore, recordAiRun, usersStore } from '@/mocks/stores'
+import { aiAvailable, aiCandidates, assetsStore, findingsStore, recordAiRun, usersStore } from '@/mocks/stores'
+import { boxAddress } from '@/mocks/network'
 import type { Finding } from '@/lib/types'
 import { aiState, afterReject, metrics, propose, resume } from './ai'
 import { RISK_PHRASE } from './contract'
 import { TRIGGERS } from './data'
 import { TEMPLATES } from './templates'
-import { checkRule, events, eventView, rulesStore, runRules, simulate, templates } from './engine'
+import { checkRule, events, eventView, ruleErrCode, rulesStore, runRules, simulate, templates } from './engine'
 import { isCidr, isDomain, isIpv4, TOKEN_RE, type Tpl } from './logic'
 import {
   actionsStore, actionsView, allowStore, approve, approversOf, isLinked, catalogStore, catById, catView, checkCatalog, chanLabel, chanList, chanReady, connById, connView, doneStore, findAction, isObj, isResp, logStore, notFound,
@@ -67,7 +68,7 @@ function blockEntries(): BlockEntry[] {
     return isIpv4(ip) ? [{ value: ip, source: a.rule_name ? `Rule: ${a.rule_name}` : a.source === 'ai' ? 'AI request' : 'AI plan', reason: i.change.after.split('Reason: ')[1] ?? a.title, added_at: i.executed_at ?? a.requested_at, expires_at: i.remove_at }] : []
   })).sort((x, y) => y.added_at.localeCompare(x.added_at))
 }
-const blockUrl = (token: string) => `https://${boxInfo().ip ?? '<box ip>'}:8443/api/v1/response/blocklist/${token}.txt`
+const blockUrl = (token: string) => `https://${boxAddress() ?? '<box ip>'}:8443/api/v1/response/blocklist/${token}.txt`
 const blockView = () => ({ url: blockUrl(blockMeta.get().token), token_last4: blockMeta.get().token.slice(-4), entries: blockEntries(), last_fetch: blockMeta.get().last_fetch })
 
 /** The approver of a link is still valid: on the channel's list with that address, the channel ready and one of the approval channels, an active operator or admin, and the person linked that address themselves (D-191). */
@@ -185,7 +186,7 @@ export const handlers = [
     const u = ap ? userCanApprove(ap.user_id) : undefined
     if (!ch || !ap || !u) return refuse(403, 'approver_not_listed', `Not counted: this ${b.channel} address is not on the approver list of that channel, or its user is not an operator or admin.`, a.id)
     if (!settings().approval_channels.includes(b.channel) || !chanReady(ch)) return refuse(403, 'channel_not_allowed', `Approvals from ${b.channel} are not turned on for response.`, a.id)
-    if (!isLinked(u.id, ch.type, ap.address)) return chatNotLinked(u.id, ch.type, ap.address, a.id) // D-191: the answer only the presser sees holds a link code
+    if (!isLinked(u.id, ch.type, ap.address)) return chatNotLinked(ch.type, ap.address, a.id) // D-191, D-414: the answer says how to link
     if (a.items.some((i) => i.connector_id !== null) && !settings().execution) return refuse(409, 'execution_off', OFF_MSG, a.id)
     const w = who(u, b.channel, b.external_id)
     const r = b.decision === 'approve' ? approve(a, w) : reject(a, w, `Rejected in ${b.channel} by ${u.name}`)
@@ -307,14 +308,14 @@ export const handlers = [
     const denied = guard('operator'); if (denied) return denied
     const b = await body<{ rule: Partial<RuleInput>; event_id: string }>(request)
     const c = checkRule({ ...(isObj(b.rule) ? b.rule : {}) })
-    if (typeof c === 'string') return refuse(400, 'invalid', c, 'response.simulate')
+    if (typeof c === 'string') return refuse(400, ruleErrCode(c), c, 'response.simulate')
     return HttpResponse.json(simulate(c, typeof b.event_id === 'string' ? b.event_id : undefined))
   }),
   http.post(`${API}/response/rules`, async ({ request }) => {
     const denied = guard('admin'); if (denied) return denied
     const raw = await body<RuleInput>(request)
     const c = checkRule({ ...raw, live: false }) // a new rule always starts in dry run
-    if (typeof c === 'string') return refuse(400, 'invalid', c, 'response.rule')
+    if (typeof c === 'string') return refuse(400, ruleErrCode(c), c, 'response.rule')
     if (rulesStore.get().length >= 30) return refuse(409, 'limit', 'Up to 30 rules.', 'response.rule')
     const r: Rule = { ...c, id: newId('rule'), template_id: null, last_fired: null }
     rulesStore.update((l) => [...l, r])
@@ -325,7 +326,7 @@ export const handlers = [
     const denied = guard('admin'); if (denied) return denied
     const old = rulesStore.get().find((r) => r.id === String(params.id)); if (!old) return fail(404, 'not_found', 'No such rule.')
     const c = checkRule(await body<RuleInput>(request))
-    if (typeof c === 'string') return refuse(400, 'invalid', c, old.id)
+    if (typeof c === 'string') return refuse(400, ruleErrCode(c), c, old.id)
     const r: Rule = { ...old, ...c }
     rulesStore.update((l) => l.map((x) => (x.id === r.id ? r : x)))
     step('response.rule.change', r.id, 'settings', `Rule changed: ${r.name} (${r.trigger}, ${r.live ? 'LIVE' : 'dry run'}, ${r.enabled ? 'on' : 'off'}${r.pre_approved ? ', PRE-APPROVED' : ''})`)

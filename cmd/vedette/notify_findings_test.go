@@ -74,8 +74,8 @@ func TestWiringKEVMatchQueuesOneNoticeWithRealTexts(t *testing.T) {
 	if !strings.Contains(n.What, "Fortinet FortiOS flaw") || n.Action != "Apply updates per vendor instructions. <b>now</b>" {
 		t.Fatalf("what/action: %q / %q", n.What, n.Action)
 	}
-	if n.Severity != notify.High {
-		t.Fatalf("severity %q, want the one findings computed (high: no ransomware, no EPSS)", n.Severity)
+	if n.Severity != notify.Medium {
+		t.Fatalf("severity %q, want the one findings computed (medium: no NVD versions, so the version was not compared, D-500)", n.Severity)
 	}
 }
 

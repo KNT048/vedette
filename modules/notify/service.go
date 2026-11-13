@@ -43,6 +43,9 @@ type Config struct {
 	// (D-191); an error from it skips the approver too (fail closed). nil = no link check, as before.
 	ApproverLinks ApproverLinks
 	Decisions     Decisions // module response: takes decisions made in chat (13b-8); nil = chat decisions are not taken
+	// LinkCodes makes the code a Zalo personal approver replies with to prove their Zalo account (D-447); nil = no code is sent and the
+	// approver stays not linked.
+	LinkCodes LinkCodes
 
 	Clock func() time.Time // nil = time.Now
 	// Zone returns the IANA name of the box time zone (core_org.timezone), asked at every use so a change applies at
@@ -51,10 +54,11 @@ type Config struct {
 	Zone func(context.Context) string
 	// Location, when set, is the box time zone and Zone is not asked (tests).
 	Location *time.Location
-	// BaseURL is the address people open Vedette at, e.g. https://192.168.10.2:8443 (links in messages). Empty: messages
+	// BaseURL is the address people open Vedette at, e.g. https://192.168.10.2:8443 (links in messages), asked at every use so a change
+	// of the box address applies at once (D-465: cmd/vedette gives the Box address of Settings → Box network). nil or "": messages
 	// carry no link and say to open Vedette, and approval requests are refused (ErrApprovalUnavailable): a link that
 	// approves an action is a credential and must point at the real box.
-	BaseURL string
+	BaseURL func() string
 	// BoxAddrs is the machine's addresses (vedette-host, the container's gateway): no webhook or SMTP server on Vedette's own ports
 	// there (D-446; the container's own interfaces are read by the channel package, never a target). known=false means the box does not know its own addresses yet (vedette-host has not answered since the start): saving a
 	// webhook is then 503 host_unreachable and no webhook connection is made (fail closed, #157). nil = only the interfaces,
@@ -81,7 +85,15 @@ type Service struct {
 
 	mu        sync.Mutex
 	senders   map[channel.Type]cachedSender
+	tokens    *channel.TokenCache // OAuth2 tokens of the email channel (D-449), shared by every email sender
+	signIns   signInSet           // user sign-ins of the email channel under way (D-480)
+	rotations sync.WaitGroup      // saves of rotated refresh tokens (rotateEmailSecret)
 	lastPrune time.Time
+	// zaloGrant is the last rotation of the Zalo OA grant (D-483): a refresh token works once, so a rotation whose save failed lives
+	// here until a save succeeds, and a sender built meanwhile, or a save of the channel, starts from it (NewerZaloGrant).
+	zaloGrant secrets.Value
+	// zaloSaveFault makes rotateZaloSecret fail before writing; only export_test.go sets it (a busy database cannot be staged cheaply).
+	zaloSaveFault func() error
 	// webhookClient replaces the webhook adapter's own guarded client. Only export_test.go sets it: a client from Config
 	// would skip the connect-time address check, so no configuration can reach a webhook.
 	webhookClient *http.Client
@@ -95,6 +107,11 @@ type Service struct {
 	// (only the listener's read loop uses it, and the job runs once at a time).
 	zaloAnswerBudget zaloBudget
 	zaloSeen         seenEnvelopes
+	// zalo is the Zalo personal set-up: the one QR sign-in, its rations, the link codes sent (zalologin.go); zaloStartQR starts a sign-in
+	// (channel.StartZaloQR), only export_test.go replaces it.
+	zalo        zaloSetup
+	zaloStartQR func(context.Context, *http.Client) (zaloQRFlow, error)
+	zaloSelf    func(context.Context, channel.Sender) (string, error) // the uid of the box's own Zalo account (channel.ZaloSelf)
 	// reenabled is set when the module is turned on (modreg tells us) and cleared by the next Flush, which then drops
 	// the queued notices that went stale while it was off (D-86 (7)).
 	reenabled atomic.Bool
@@ -104,6 +121,11 @@ type Service struct {
 	urlSealFailing atomic.Bool
 	// tgOffset is the next Telegram update the approval listener reads (tglisten.go).
 	tgOffset telegramOffset
+	// tgFound holds the bots whose update filter a Find my chat already reset (D-491): the first empty answer for a bot says so.
+	tgFound struct {
+		mu   sync.Mutex
+		seen map[string]bool
+	}
 }
 
 // changeNotifier is the part of core/modreg.Registry that tells when a module is switched (OnChange). Config.Modules
@@ -125,7 +147,7 @@ func New(c Config) (*Service, error) {
 	if c.Clock == nil {
 		c.Clock = time.Now
 	}
-	s := &Service{cfg: c, senders: map[channel.Type]cachedSender{}, zaloTo: channel.ZaloPersonalTo, zaloListen: openZaloInbox}
+	s := &Service{cfg: c, senders: map[channel.Type]cachedSender{}, tokens: channel.NewTokenCache(), zaloTo: channel.ZaloPersonalTo, zaloListen: openZaloInbox, zaloStartQR: startZaloQR, zaloSelf: channel.ZaloSelf}
 	if cn, ok := c.Modules.(changeNotifier); ok { // the callback only sets a flag: it runs on the publisher's goroutine and must not block
 		cn.OnChange(func(id string, enabled bool) {
 			if id == ModuleID && enabled {
@@ -145,10 +167,19 @@ func (s *Service) on() bool { return s.cfg.Modules == nil || s.cfg.Modules.Enabl
 // link makes an absolute URL inside Vedette from a path that starts with "/". Without a BaseURL it is empty: the
 // adapters then leave the link out and tell people to open Vedette.
 func (s *Service) link(path string) string {
-	if s.cfg.BaseURL == "" {
+	base := s.baseURL()
+	if base == "" {
 		return ""
 	}
-	return strings.TrimRight(s.cfg.BaseURL, "/") + path
+	return strings.TrimRight(base, "/") + path
+}
+
+// baseURL is Config.BaseURL now ("" when nil).
+func (s *Service) baseURL() string {
+	if s.cfg.BaseURL == nil {
+		return ""
+	}
+	return s.cfg.BaseURL()
 }
 
 // loc is the box time zone now.

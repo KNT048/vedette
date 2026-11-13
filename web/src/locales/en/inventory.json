@@ -233,7 +233,7 @@
     "name": "Service",
     "product": "Product and version",
     "empty": "No open port seen yet",
-    "emptyBody": "The active sensor has not scanned this device. Check the scan window in Scope and sensors.",
+    "emptyBody": "The active sensor has not scanned this device. Check the scan window in Scope and sensors, or pick the device under Vulnerability scans, Scan now, to identify it at once.",
     "emptyFragile": "This is a fragile device, so Vedette scanned it gently once and only listens after that. Allow regular scans in the settings above if you want it checked again."
   },
   "software": {
@@ -260,10 +260,10 @@
     "saved": "Notes saved."
   },
   "setup": {
-    "link": "Scope and sensors",
-    "titleLoading": "Scope and sensors",
+    "link": "Scope, sensors and agents",
+    "titleLoading": "Scope, sensors and agents",
     "meta": "Vedette only listens and lightly scans inside the scope you set here. Vedette does not block traffic.",
-    "forbiddenTitle": "Scope and sensors",
+    "forbiddenTitle": "Scope, sensors and agents",
     "forbidden": "You do not have access to this page",
     "forbiddenBody": "The {{role}} role is needed to change scan scope, sensors and agent tokens. Ask an administrator for access or to do it for you.",
     "title_one": "{{count}} network range to watch",
@@ -274,7 +274,7 @@
     "title": "LAN ranges",
     "description": "Internal network ranges Vedette may actively scan. The passive sensor still hears everything it can see.",
     "rangeLabel": "Add a network range",
-    "rangeHint": "Use CIDR format with the prefix length, for example 192.168.10.0/24 or 192.168.10.0/25. Internal addresses only (10.x, 172.16 to 172.31, 192.168.x).",
+    "rangeHint": "Use CIDR format with the prefix length, for example 192.168.10.0/24 or 192.168.10.0/25. Internal addresses only (10.x, 172.16 to 172.31, 192.168.x, 100.64 to 100.127).",
     "addRange": "Add range",
     "edit": "Edit",
     "remove": "Remove",
@@ -303,7 +303,7 @@
   },
   "active": {
     "title": "Active scanning",
-    "description": "A light scan to learn open ports and software versions. It runs only inside the time window below and only in the ranges above.",
+    "description": "A light scan to learn open ports and software versions, only in the ranges above. Automatic scans run inside the time window below; the first pass after active scanning is turned on runs at once, and Scan now under Vulnerability scans identifies the devices you pick at once.",
     "off": "Active scanning is off, so Vedette only listens passively. Turn on the Active sensor module to learn open ports and versions.",
     "enabled": "Turn on active scanning",
     "days": "Days it may scan",
@@ -318,7 +318,7 @@
     },
     "from": "From",
     "to": "To",
-    "crossMidnight": "If the end time is earlier than the start (for example 23:00 to 05:00) the window runs past midnight. Pick hours when few people use the network.",
+    "crossMidnight": "If the end time is earlier than the start (for example 22:00 to 05:00) the window runs past midnight. Pick hours when few people use the network.",
     "rate": "Scan speed",
     "rateHint": "Slower is safer for old devices.",
     "rateOption": "{{name}}, {{rate}} packets per second",
@@ -373,9 +373,12 @@
     "status": {
       "online": "Reporting",
       "offline": "Lost contact",
-      "never_connected": "Not connected yet"
+      "never_connected": "Not connected yet",
+      "starting": "Starting…"
     },
     "startHint": "Start it with compose.sensors.yaml on this machine.",
+    "startingHint": "The box is starting the sensor (after setup or after you turned it on). This can take a few minutes; the row updates by itself.",
+    "notStartedHint": "The box could not get the sensor running. Turn Passive sensor off and on in Settings → Modules to try again now; on the box, journalctl -u vedette-sensor and journalctl -u vedette-core say why.",
     "capture": {
       "label": "Capture",
       "notCapturing": "Reporting, not capturing",
@@ -427,6 +430,12 @@
     "description": "An agent tells Vedette exactly which software runs on a server, so alerts say \"confirmed\" instead of \"suspected\".",
     "recommendation": "Use osquery on your Linux and Windows servers. Already run Wazuh? Connect its API instead.",
     "serverOnly": "Vedette supports server operating systems only: Linux and Windows Server.",
+    "boxAddress": {
+      "uses": "Install commands use {{url}}.",
+      "change": "Change it in Settings → Box network",
+      "container": "It is the first name in VEDETTE_HOSTS.",
+      "otherHost": "You opened Vedette at {{here}}, but agents will use {{box}}."
+    },
     "off": "Agent intake is off. Turn this module on to create osquery tokens and connect Wazuh.",
     "osquery": {
       "title": "osquery on your servers",
@@ -448,6 +457,14 @@
     "expired": "Expired",
     "empty": "No enrollment tokens yet",
     "emptyBody": "Use \"Create agent token\", then run the one command it shows on each server.",
+    "page": {
+      "downloadTitle": "1. Download osquery",
+      "downloadBody": "The official osquery {{version}} packages, served by this box. The one command in step 2 downloads the right one by itself; download a package here to copy it to a server yourself (a USB stick works) or to install it with your own tools.",
+      "checkHint": "Before you install, check the file: sha256sum <file> on Linux or Get-FileHash <file> in PowerShell must print the SHA-256 in the table. The package alone reports nothing to Vedette: the agent also needs the token from step 2.",
+      "none": "This box has no copy of the osquery packages, so there is nothing to download here and the one command in step 2 stops at the package download. Update Vedette to the release, which ships them.",
+      "tokenTitle": "2. Then create a token so the agent can report to this box",
+      "tokenBody": "The token dialog shows the one command that installs osquery from this box and enrolls it, and the manual steps for a package you installed yourself."
+    },
     "config": "Show setup",
     "showConfig": "Show setup for {{name}}",
     "configTitle": "Set up {{name}}",
@@ -507,13 +524,13 @@
       "advanced": "Advanced: manual setup",
       "advancedBody": "The same result step by step, for locked-down servers or your own packaging. The package comes from this box and is installed only when its SHA-256 matches the table above. For a file you copied over (USB stick), leave out the download line: on Linux run the first and last lines in the folder that holds the file; on Windows set $f to the file's path, then run the last line.",
       "queries": "What Vedette asks osquery for",
-      "queriesBody": "Read-only queries, delivered through the config endpoint. Packages differ per distribution, so each machine runs only the ones that fit it. The interfaces query reports the machine's IPv4 addresses and MAC addresses so Vedette can match it to the right device."
+      "queriesBody": "Read-only queries, delivered through the config endpoint. Packages differ per distribution, so each machine runs only the ones that fit it. The interfaces query reports the machine's IPv4 addresses and MAC addresses so Vedette can match it to the right device. In its first hour after enrolling, a machine runs every minute each query whose answer Vedette has not received yet, so its operating system and packages show within a few minutes; it then follows the intervals below. Vedette marks the machine Approved, because whoever made the token vouched for it, and sets its type from its operating system (Windows Server and Linux: Server; other Windows and macOS: PC) unless a person has chosen one."
     },
     "download": {
       "title": "Or download the package",
       "body": "For a server without network access, or to install it your own way: download the official osquery package from this box, copy it to the server (a USB stick works), check its SHA-256 and install it. Then follow the enrollment steps under Advanced: manual setup.",
       "caption": "osquery packages this box serves",
-      "col": { "file": "File", "for": "For", "size": "Size", "sha": "SHA-256" },
+      "col": { "file": "File", "for": "For", "size": "Size", "sha": "SHA-256", "install": "Install it on the server" },
       "link": "Download {{file}}",
       "size": "{{mb}} MB",
       "format": { "deb": "Debian, Ubuntu", "rpm": "RHEL, Rocky, AlmaLinux", "msi": "Windows Server" },
@@ -590,7 +607,7 @@
     "badge": "This box",
     "title": "This is the Vedette box itself",
     "lead": "It is always the first device.",
-    "packagesAppliance": "Its packages are read from the box (dpkg), so the version list is exact.",
+    "packagesAppliance": "Its packages are read from the box (dpkg) every hour and right after an OS update, so the version list is exact. No osquery agent is needed on the box.",
     "packagesContainer": "The package list of this machine is not available in a container-only install.",
     "matched": "It is matched against exploited vulnerabilities like any other device.",
     "fix": "Fix by updating the operating system",

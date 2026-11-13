@@ -31,6 +31,8 @@ export interface CatalogEntry {
   /** Giao thức thiết bị thật sự gửi được; phần tử đầu là mặc định. */
   protos: Proto[]
   reads: 'parsed' | 'stored'
+  /** Failed SSH/PAM logins are read (D-487, W3-10): shown with the parsed kinds. */
+  logins?: true
   /** Vedette đọc gì từ nguồn này (parsed) hoặc vì sao chỉ lưu (stored). */
   readsNote: string
   intro: string
@@ -40,6 +42,9 @@ export interface CatalogEntry {
 }
 
 const STORED = 'Stored and searchable. The digest finds new and unusual lines with a generic pattern finder; it does not read the fields of this device yet, and the bad-connection check does not use these lines yet.'
+// The failed-login rule (D-487) reads the sshd and PAM lines of any source; these kinds are the machines that send them. Linux hosts also have the netfilter profile (D-489).
+const LOGINS = 'Failed logins: 5 failed SSH or PAM logins from one address within 10 minutes raise an incident, and a later accepted login from that address raises a high one. Every line is stored and searchable, and the digest finds new and unusual lines with a generic pattern finder; the bad-connection check does not use these lines yet.'
+const LINUX = 'Failed logins: 5 failed SSH or PAM logins from one address within 10 minutes raise an incident, and a later accepted login from that address raises a high one. Kernel firewall lines (UFW, or iptables LOG with a UFW or EdgeOS-style prefix) are read for the digest and bad-connection checks. Every line is stored and searchable, and the digest finds new and unusual lines with a generic pattern finder.'
 const at = (c: Ctx) => `${c.ip}:${c.port}`
 const rsyslogTarget = (c: Ctx, selector = '*.*') => `${selector} action(type="omfwd" target="${c.ip}" port="${c.port}" protocol="${c.proto === 'tcp' ? 'tcp' : 'udp'}")`
 const restartRsyslog: Snippet = { label: 'Terminal', code: 'sudo systemctl restart rsyslog' }
@@ -74,7 +79,8 @@ const E: CatalogEntry[] = [
   },
   {
     // Nguồn: Sophos Firewall Help, "Add a syslog server" (Configure > System services > Log settings); API SyslogServers (docs.sophos.com).
-    id: 'sophos', group: 'firewall', name: 'Sophos Firewall (XG / XGS)', keywords: 'sophos xg xgs sfos', protos: ['udp'], reads: 'stored', readsNote: STORED,
+    id: 'sophos', group: 'firewall', name: 'Sophos Firewall (XG / XGS)', keywords: 'sophos xg xgs sfos', protos: ['udp'], reads: 'parsed',
+    readsNote: 'Reads firewall rule and web filter lines (source, destination, domain, allowed or denied) for the digest and bad-connection checks. Other log types are stored and read by the generic pattern finder.',
     intro: 'Sophos Firewall is set up in the web admin console; there is no command to paste.',
     steps: (c) => [
       'Go to Configure, System services, Log settings.',
@@ -87,7 +93,8 @@ const E: CatalogEntry[] = [
   },
   {
     // Nguồn: PAN-OS Administrator's Guide, "Configure Syslog Monitoring" (docs.paloaltonetworks.com).
-    id: 'paloalto', group: 'firewall', name: 'Palo Alto Networks (PAN-OS)', keywords: 'palo alto pan-os panos ngfw', protos: ['udp', 'tcp', 'tls'], reads: 'stored', readsNote: STORED,
+    id: 'paloalto', group: 'firewall', name: 'Palo Alto Networks (PAN-OS)', keywords: 'palo alto pan-os panos ngfw', protos: ['udp', 'tcp', 'tls'], reads: 'parsed',
+    readsNote: 'Reads TRAFFIC logs (source, destination, action) in the default CSV format for the digest and bad-connection checks. Threat, URL and system logs are stored and read by the generic pattern finder.',
     intro: 'PAN-OS is set up in the web interface: a syslog server profile, then a log forwarding profile used by your security rules.',
     steps: (c) => [
       `Go to Device, Server Profiles, Syslog and press Add. Name it vedette, add a server: IP ${c.ip}, transport ${c.proto === 'tls' ? 'SSL' : c.proto.toUpperCase()}, port ${c.port}, format ${c.proto === 'udp' ? 'BSD' : 'IETF'}, facility LOG_USER.`,
@@ -101,7 +108,8 @@ const E: CatalogEntry[] = [
   },
   {
     // Nguồn: Cisco ASA Series CLI Configuration Guide, "Logging" (cisco.com).
-    id: 'cisco-asa', group: 'firewall', name: 'Cisco ASA', keywords: 'cisco asa adaptive security appliance firepower asa', protos: ['udp', 'tcp'], reads: 'stored', readsNote: STORED,
+    id: 'cisco-asa', group: 'firewall', name: 'Cisco ASA', keywords: 'cisco asa adaptive security appliance firepower asa', protos: ['udp', 'tcp'], reads: 'parsed',
+    readsNote: 'Reads outbound connection messages (302013, 302015) and access-list denies (106023, 106100) for the digest and bad-connection checks. Other messages are stored and read by the generic pattern finder.',
     intro: 'Paste into the ASA CLI in global configuration mode. Replace inside with the interface that can reach the box.',
     steps: () => ['Open the CLI (console or SSH) and enter configure terminal.', 'Paste the block, replacing inside with the name of the interface that reaches the box.', 'Save with write memory.'],
     snippets: (c) => [{ label: 'ASA CLI', code: ['logging enable', 'logging timestamp', 'logging trap informational', `logging host inside ${c.ip} ${c.proto === 'tcp' ? 'tcp' : 'udp'}/${c.port}`, 'logging device-id hostname'].join('\n') }],
@@ -150,7 +158,8 @@ const E: CatalogEntry[] = [
   },
   {
     // Nguồn: Netgate pfSense documentation, "Remote Logging with Syslog": pfSense chỉ gửi UDP.
-    id: 'pfsense', group: 'firewall', name: 'pfSense', keywords: 'pfsense netgate', protos: ['udp'], reads: 'stored', readsNote: STORED,
+    id: 'pfsense', group: 'firewall', name: 'pfSense', keywords: 'pfsense netgate', protos: ['udp'], reads: 'parsed',
+    readsNote: 'Reads firewall log lines (filterlog: source, destination, pass or block) for the digest and bad-connection checks. System lines are stored and read by the generic pattern finder.',
     intro: 'pfSense is set up in the web interface; there is no command to paste.',
     steps: (c) => [
       'Go to Status, System Logs, tab Settings.',
@@ -164,7 +173,8 @@ const E: CatalogEntry[] = [
   },
   {
     // Nguồn: OPNsense manual, "Settings, Logging, Remote" (docs.opnsense.org).
-    id: 'opnsense', group: 'firewall', name: 'OPNsense', keywords: 'opnsense deciso', protos: ['udp', 'tcp', 'tls'], reads: 'stored', readsNote: STORED,
+    id: 'opnsense', group: 'firewall', name: 'OPNsense', keywords: 'opnsense deciso', protos: ['udp', 'tcp', 'tls'], reads: 'parsed',
+    readsNote: 'Reads firewall log lines (filterlog: source, destination, pass or block) for the digest and bad-connection checks. System lines are stored and read by the generic pattern finder.',
     intro: 'OPNsense is set up in the web interface; there is no command to paste.',
     steps: (c) => [
       'Go to System, Settings, Logging, tab Remote, and press the plus sign.',
@@ -177,7 +187,8 @@ const E: CatalogEntry[] = [
   },
   {
     // Nguồn: SonicWall SonicOS 7 Administration Guide, "Log > Syslog" (sonicwall.com/support).
-    id: 'sonicwall', group: 'firewall', name: 'SonicWall (SonicOS)', keywords: 'sonicwall tz nsa nsv sonicos', protos: ['udp'], reads: 'stored', readsNote: STORED,
+    id: 'sonicwall', group: 'firewall', name: 'SonicWall (SonicOS)', keywords: 'sonicwall tz nsa nsv sonicos', protos: ['udp'], reads: 'parsed',
+    readsNote: 'Reads Connection Opened lines (source, destination) for the digest and bad-connection checks. Dropped packets and other messages are stored and read by the generic pattern finder.',
     intro: 'SonicWall is set up in the web interface; there is no command to paste.',
     steps: (c) => [
       'Go to Device, Log, Syslog (SonicOS 6.5: Log, Syslog) and press Add.',
@@ -242,7 +253,8 @@ const E: CatalogEntry[] = [
   },
   {
     // Nguồn: Ubiquiti Help Center (UniFi Network, "Remote Logging") và EdgeOS User Guide, "System, Syslog".
-    id: 'ubiquiti', group: 'firewall', name: 'Ubiquiti UniFi gateway / EdgeRouter', keywords: 'ubiquiti unifi udm usg ucg edgerouter edgeos', protos: ['udp'], reads: 'stored', readsNote: STORED,
+    id: 'ubiquiti', group: 'firewall', name: 'Ubiquiti UniFi gateway / EdgeRouter', keywords: 'ubiquiti unifi udm usg ucg edgerouter edgeos', protos: ['udp'], reads: 'parsed',
+    readsNote: 'Reads firewall log lines of the kernel (source, destination, allowed or dropped, by the rule-set name in the log prefix) for the digest and bad-connection checks. Turn on logging in the firewall rules you want to see.',
     intro: 'A UniFi gateway sends logs through the UniFi Network application; an EdgeRouter has a CLI.',
     steps: (c) => [
       `UniFi: open Settings, System (some versions: Control Plane, Integrations) and find Remote Logging or Activity Logging (Syslog). Enable it, enter ${c.ip} and port ${c.port}.`,
@@ -347,7 +359,7 @@ const E: CatalogEntry[] = [
   },
   {
     // Nguồn: rsyslog documentation, "omfwd: syslog forwarding output module" (rsyslog.com/doc).
-    id: 'linux-rsyslog', group: 'server', name: 'Linux (rsyslog)', keywords: 'linux ubuntu debian centos rhel rocky alma rsyslog server', protos: ['udp', 'tcp'], reads: 'stored', readsNote: STORED,
+    id: 'linux-rsyslog', group: 'server', name: 'Linux (rsyslog)', keywords: 'linux ubuntu debian centos rhel rocky alma rsyslog server', protos: ['udp', 'tcp'], reads: 'parsed', logins: true, readsNote: LINUX,
     intro: 'Most Linux servers already run rsyslog. Add one forwarding rule and restart it.',
     steps: () => ['SSH to the server.', 'Create the file below.', 'Restart rsyslog, then send a test line.'],
     snippets: (c) => [{ label: '/etc/rsyslog.d/60-vedette.conf', code: rsyslogTarget(c) }, restartRsyslog, testLogger],
@@ -355,7 +367,7 @@ const E: CatalogEntry[] = [
   },
   {
     // Nguồn: systemd journald.conf(5) ForwardToSyslog và rsyslog imuxsock/imjournal.
-    id: 'linux-journald', group: 'server', name: 'Linux (systemd-journald via rsyslog)', keywords: 'journald journalctl systemd', protos: ['udp', 'tcp'], reads: 'stored', readsNote: STORED,
+    id: 'linux-journald', group: 'server', name: 'Linux (systemd-journald via rsyslog)', keywords: 'journald journalctl systemd', protos: ['udp', 'tcp'], reads: 'parsed', logins: true, readsNote: LINUX,
     intro: 'journald keeps logs in its own store. Forward them to rsyslog, and rsyslog sends them to the box.',
     steps: () => ['Install rsyslog if it is missing (sudo apt install rsyslog, or sudo dnf install rsyslog).', 'Create the two files below.', 'Restart journald and rsyslog.'],
     snippets: (c) => [
@@ -594,7 +606,7 @@ const E: CatalogEntry[] = [
 
   // ───────── Other and generic ─────────
   {
-    id: 'syslog-generic', group: 'other', name: 'Other device (standard syslog, RFC 3164 / 5424)', keywords: 'syslog generic other rfc 3164 5424 unknown', protos: ['udp', 'tcp'], reads: 'stored', readsNote: STORED,
+    id: 'syslog-generic', group: 'other', name: 'Other device (standard syslog, RFC 3164 / 5424)', keywords: 'syslog generic other rfc 3164 5424 unknown', protos: ['udp', 'tcp', 'tls'], reads: 'stored', logins: true, readsNote: LOGINS,
     intro: 'Any device or program that can send standard syslog works. Point it at the address below.',
     steps: (c) => [`Find the remote syslog (or log server) setting in the device and enter ${c.ip}.`, `Set the port to ${c.port} and the protocol to ${c.proto.toUpperCase()}.`, 'Choose the log types to send and save.'],
     snippets: (c) => [{ label: 'Where to send', code: [`Server: ${c.ip}`, `Port: ${c.port}`, `Protocol: ${c.proto.toUpperCase()}`, 'Format: RFC 3164 or RFC 5424'].join('\n') }],

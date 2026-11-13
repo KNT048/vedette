@@ -388,7 +388,7 @@ func TestContract_PRE4_ApprovalLinks(t *testing.T) {
 		t.Fatalf("ApprovalChannels = %+v, %v", ac, err)
 	}
 	// Without the box address no approval request is sent: a link that approves must point at the real box.
-	e2 := newEnv(t, func(c *notify.Config) { c.BaseURL = "" })
+	e2 := newEnv(t, func(c *notify.Config) { c.BaseURL = nil })
 	if _, err := e2.svc.SendApprovalRequest(e2.ctx(), req); !errors.Is(err, notify.ErrApprovalUnavailable) {
 		t.Fatalf("err = %v", err)
 	}
@@ -448,7 +448,7 @@ func TestSubscribeTurnsEventsIntoNoticesAndIncidents(t *testing.T) {
 	for _, it := range h.Items {
 		kinds[it.Kind]++
 	}
-	if kinds["vuln"] != 2 || kinds["incident"] != 3 || h.Suppressed.Count != 1 {
+	if kinds["vuln"] != 1 || kinds["incident"] != 3 || h.Suppressed.Count != 1 { // the finding and its confirmation: one digest (D-483)
 		t.Fatalf("history kinds = %v, suppressed %d, items %+v", kinds, h.Suppressed.Count, h.Items)
 	}
 	l, _ := e.svc.Incidents(e.ctx())
@@ -457,7 +457,7 @@ func TestSubscribeTurnsEventsIntoNoticesAndIncidents(t *testing.T) {
 		got[i.Kind] = i
 	}
 	if got[notify.IncidentTrap].Severity != notify.Critical || got[notify.IncidentTrap].Link != "/honeypot/hits/hit-1" ||
-		got[notify.IncidentUnknownDevice].Title != "A new unknown device appeared: 192.168.10.157" || got[notify.IncidentBadAddress].Devices[0].Name != "PC-SALES-02" {
+		got[notify.IncidentUnknownDevice].Title != "1 device found on your network: approve it in Devices" || got[notify.IncidentBadAddress].Devices[0].Name != "PC-SALES-02" {
 		t.Fatalf("incidents = %+v", l)
 	}
 	// Module off: events are ignored.

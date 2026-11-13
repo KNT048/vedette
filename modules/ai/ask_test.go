@@ -150,7 +150,7 @@ func (f *fakeProviders) play(turns ...turn) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	n := 0
-	f.script = func(_ context.Context, _ ai.Profile, _ provider.Request) (provider.Response, error) {
+	f.script = func(_ context.Context, _ ai.Profile, req provider.Request) (provider.Response, error) {
 		t := turns[min(n, len(turns)-1)]
 		n++
 		calls := make([]provider.ToolCall, len(t.calls))
@@ -159,7 +159,10 @@ func (f *fakeProviders) play(turns ...turn) {
 			calls[i] = c
 		}
 		in, out := 14, 3
-		if f.usageIn > 0 {
+		switch {
+		case f.sizedUsage:
+			in = requestTokens(req)
+		case f.usageIn > 0:
 			in, out = f.usageIn, f.usageOut
 		}
 		r := provider.Response{Text: t.text, ToolCalls: calls, Usage: provider.Usage{InputTokens: in, OutputTokens: out}, Stop: provider.StopEnd}
@@ -330,7 +333,7 @@ func TestAskAnswerWithoutToolsHasNoTable(t *testing.T) {
 		t.Fatalf("answer = %v", got)
 	}
 	a.fake.play(turn{text: " \n\n "})
-	a.ask("What is the weather today?", 409, "ai_unavailable") // an empty answer is not an answer
+	a.ask("What is the weather today?", 502, "ai_bad_format") // an empty answer is not an answer
 }
 
 func TestAskTablesAndCitationsComeFromTheToolsOnly(t *testing.T) {
@@ -565,7 +568,7 @@ func TestAskResultsAreCapped(t *testing.T) {
 	reqs := a.fake.askRequests()
 	sent, refused := 0, 0
 	for _, res := range toolResults(reqs[1]) { // the first four calls
-		if len(res.Content) > 12<<10+300 {
+		if len(res.Content) > 4<<10+300 {
 			t.Errorf("a result of %d bytes", len(res.Content))
 		}
 	}
@@ -578,7 +581,7 @@ func TestAskResultsAreCapped(t *testing.T) {
 			}
 		}
 	}
-	if sent == 0 || sent > 4 || refused == 0 { // 48 KiB in all: four results of about 12 KiB, then the rest are not sent
+	if sent == 0 || sent > 3 || refused == 0 { // 12 KiB in all: three results of about 4 KiB, then the rest are not sent (D-482)
 		t.Fatalf("results sent = %d, refused for size = %d", sent, refused)
 	}
 	table := got["table"].(map[string]any)
@@ -591,28 +594,28 @@ func TestAskLoopIsBounded(t *testing.T) {
 	a := newAskAPI(t)
 	c := call("search_assets", `{"limit":1}`)
 	a.fake.play(turn{calls: []provider.ToolCall{c, c, c, c}}) // a model that never stops
-	a.ask("Keep going please", 409, "ai_unavailable")
+	a.ask("Keep going please", 502, "ai_bad_format")
 	reqs := a.fake.askRequests()
-	if len(reqs) != 8 { // 6 turns in which tools run, 2 that only take an answer
+	if len(reqs) != 6 { // 4 turns in which tools run, 2 that only take an answer (D-482)
 		t.Fatalf("provider turns = %d", len(reqs))
 	}
-	if n := a.data.readCount(); n != 12 { // at most 12 calls in all
+	if n := a.data.readCount(); n != 8 { // at most 8 calls in all
 		t.Fatalf("tools ran %d times", n)
 	}
-	for i, r := range toolResults(reqs[7]) { // the turns after the sixth are refused with a note
+	for i, r := range toolResults(reqs[5]) { // the turns after the fourth are refused with a note
 		if !r.IsError || !strings.Contains(r.Content, "tool limit") {
 			t.Errorf("call %d of the last turn: %+v", i, r)
 		}
 	}
 	rows := a.activity()
-	if len(rows) != 1 || rows[0].Result != ai.ResultError || len(rows[0].Tools) > 24 || rows[0].TokensIn != 8*14 {
+	if len(rows) != 1 || rows[0].Result != ai.ResultError || len(rows[0].Tools) > 24 || rows[0].TokensIn != 6*14 {
 		t.Fatalf("row = %+v", rows)
 	}
 	if got := rows[0].Summary; !strings.Contains(got, "kept asking") {
 		t.Fatalf("summary = %q", got)
 	}
 	// after the tools stop the model may still answer in the next turn
-	a.fake.play(turn{calls: []provider.ToolCall{c}}, turn{calls: []provider.ToolCall{c}}, turn{calls: []provider.ToolCall{c}}, turn{calls: []provider.ToolCall{c}}, turn{calls: []provider.ToolCall{c}}, turn{calls: []provider.ToolCall{c}},
+	a.fake.play(turn{calls: []provider.ToolCall{c}}, turn{calls: []provider.ToolCall{c}}, turn{calls: []provider.ToolCall{c}}, turn{calls: []provider.ToolCall{c}},
 		turn{calls: []provider.ToolCall{c}, text: "Here is what I found."})
 	a.ask("Keep going please", 200, "")
 }
@@ -632,7 +635,7 @@ func TestAskDeadline(t *testing.T) {
 		return provider.Response{}, &provider.Error{Kind: provider.ErrTimeout}
 	}
 	b.fake.mu.Unlock()
-	b.ask("Which machines still expose RDP?", 409, "ai_unavailable")
+	b.ask("Which machines still expose RDP?", 504, "ai_timeout")
 	rows := b.activity()
 	if len(rows) != 1 || rows[0].Result != ai.ResultError || len(rows[0].Tools) != 1 || rows[0].Profile != "Claude" || !strings.Contains(rows[0].Summary, "used up its time") || rows[0].TokensIn != 14 {
 		t.Fatalf("row = %+v", rows)
@@ -682,7 +685,7 @@ func TestContract_INV3_AskNeverGivesToolResultsToCloudUnderTheRule(t *testing.T)
 		return provider.Response{}, &provider.Error{Kind: provider.ErrNetwork}
 	}
 	a.fake.mu.Unlock()
-	a.ask("Which machines still expose RDP?", 409, "ai_unavailable")
+	a.ask("Which machines still expose RDP?", 502, "unreachable")
 	if a.fake.called("Claude") != 0 {
 		t.Fatal("the cloud profile was called with tool results")
 	}
@@ -720,7 +723,7 @@ func TestContract_INV3_TheRuleTurnedOnMidQuestionStopsTheNextTurn(t *testing.T) 
 		return provider.Response{}, &provider.Error{Kind: provider.ErrNetwork}
 	}
 	a.fake.mu.Unlock()
-	a.ask("Which machines still expose RDP?", 409, "ai_unavailable")
+	a.ask("Which machines still expose RDP?", 502, "unreachable")
 	if a.fake.called("Claude") != 0 {
 		t.Fatal("the cloud profile got the tool results after the rule was turned on")
 	}
@@ -746,6 +749,9 @@ func TestAskBlockedQuestionIsStoredHiddenAndCostsNothing(t *testing.T) {
 	hist := a.want("GET", "/ai/asks", "viewer", "", 200, "")
 	if items := list(hist["items"]); len(items) != 1 || items[0].(map[string]any)["question"] != ai.HiddenQuestion {
 		t.Fatalf("history = %v", hist)
+	}
+	if h := list(list(hist["items"])[0].(map[string]any)["hooks"]); len(h) != 1 || h[0].(map[string]any)["step"] != "question" { // the AI was not asked
+		t.Fatalf("hooks = %v", h)
 	}
 	// nowhere is the text kept: not in the result row, not in the activity row
 	rows, err := a.db.Reader().QueryContext(a.ctx(), `SELECT payload || key || coalesce(asked_by, '') FROM ai_result WHERE kind = 'ask'`)
@@ -821,6 +827,18 @@ func TestAskHooksActOnEachToolResult(t *testing.T) {
 	}
 	if fmt.Sprint(seen) != "[No router key/block Block personal data/mask]" && fmt.Sprint(seen) != "[Block personal data/mask No router key/block]" {
 		t.Fatalf("hooks = %v", seen)
+	}
+	// item 19 of beta 0.1.0-beta.1: each hit names its step and tool, and says what happened there (the AI was asked and answered;
+	// a held-back result is not a refused question)
+	for _, h := range list(got["hooks"]) {
+		m := h.(map[string]any)
+		msg := m["message"].(string)
+		if m["step"] != "tool_result" || m["tool"] != "search_assets" || !strings.Contains(msg, "The result of the tool search_assets contained") || strings.Contains(msg, "ask again") {
+			t.Fatalf("hook = %v", m)
+		}
+	}
+	if got["model"] == "" || len(list(got["answer"])) == 0 {
+		t.Fatalf("the answer = %v", got)
 	}
 	rows := a.activity()
 	if len(rows) != 1 || len(rows[0].Hooks) != 2 || len(rows[0].Tools) != 3 || !strings.Contains(rows[0].Tools[0].Args, "[withheld #") || !strings.Contains(rows[0].Tools[1].Args, "[masked #") {

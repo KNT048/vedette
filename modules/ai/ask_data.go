@@ -23,6 +23,13 @@ type AssetRow struct {
 	Ports    []string // "3389/tcp rdp"
 	Software []string // "Display name version"
 	LastSeen string
+	// FirstSeen, Origin and SeenBy say how the box knows the device, so the AI can name it the way the Devices page does: when it was
+	// first seen, whether it was found on the network ("discovered") or added by hand ("manual"), and which source gave the values
+	// above (scan, sensor, agent, manual; the source of the most trusted value). None of them is personal data; the notes of a
+	// device are not read (free text a person typed).
+	FirstSeen string
+	Origin    string
+	SeenBy    string
 	// IsBox marks the Vedette box itself: it is searched like any device, but the citation names it apart, as Devices and Reports
 	// do not count it as a device of the network (D-422). Not sent to the model.
 	IsBox bool

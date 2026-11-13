@@ -112,7 +112,7 @@ function view(t: StoredTarget): Target {
   return {
     id: t.id, kind: t.kind, value: t.value, status: !verified ? 'unverified' : expired ? 'expired' : 'verified', method: t.method, token: t.token,
     verified_at: t.verified_at, expires_at: t.expires_at, validity, last_check: t.last_check, commitment,
-    scannable: blocked === null, blocked_reason: blocked, created_at: t.created_at, last_scan_at: t.last_scan_at, latest: last ? last.counts : null,
+    scannable: blocked === null, blocked_reason: blocked, created_at: t.created_at, last_scan_at: t.last_scan_at, latest: last ? last.counts : null, open_ports: last ? last.ports.slice(0, 20) : null,
   }
 }
 
@@ -289,7 +289,10 @@ export const handlers = [
   http.get(`${API}/exposure/targets`, () => {
     const denied = guard('viewer'); if (denied) return denied
     autoDetectIfDue()
-    return HttpResponse.json({ items: targets.get().map(view), box_ip: boxView(), ignored: ignored.get().slice().sort((a, b) => b.ignored_at.localeCompare(a.ignored_at)) })
+    const items = targets.get().map(view)
+    // D-492: the sample gateway is an unnamed FortiGate with two exploited findings; the box answers "who answers" only for its own IPs.
+    const gateway = items.some((x) => x.kind === 'ip' && (x.open_ports?.length ?? 0) > 0) ? { ip: '192.168.1.1', device_id: 'dev-gateway', name: 'fortigate-hq', open_exploited: 2 } : null
+    return HttpResponse.json({ items, box_ip: boxView(), ignored: ignored.get().slice().sort((a, b) => b.ignored_at.localeCompare(a.ignored_at)), gateway })
   }),
 
   // Auto-detect on or off and the interval. Turning it on checks at once (not when it checked in the last 5 minutes). Never takes an IP.

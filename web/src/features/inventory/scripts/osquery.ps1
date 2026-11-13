@@ -6,7 +6,7 @@
 #      checks the SHA-256 of the MSI, installs it silently with msiexec /qn
 #   3. writes the enroll secret and osquery.flags, sets the osqueryd service to Automatic and starts it; with a token this machine does
 #      not hold yet, it first removes osquery's database (osquery.db: the old node key and unsent results) so that it enrols under the new token
-#   4. waits until this machine has enrolled (not for its first report, due within about an hour) and exits 0
+#   4. waits until this machine has enrolled (not for its first report, due within a few minutes) and exits 0
 param([string]$Token = '', [switch]$Uninstall)
 $ErrorActionPreference = 'Stop'
 $Box = '@@BOX@@'
@@ -65,7 +65,7 @@ try {
   @(
     '--config_plugin=tls', '--logger_plugin=tls', '--host_identifier=specified', "--specified_identifier=$hostId",
     "--enroll_secret_path=$Secret", "--tls_server_certs=$Ca", "--tls_hostname=$hostPort",
-    '--enroll_tls_endpoint=/api/v1/intake/osquery/enroll', '--config_tls_endpoint=/api/v1/intake/osquery/config', '--logger_tls_endpoint=/api/v1/intake/osquery/log'
+    '--enroll_tls_endpoint=/api/v1/intake/osquery/enroll', '--config_tls_endpoint=/api/v1/intake/osquery/config', '--config_refresh=300', '--logger_tls_endpoint=/api/v1/intake/osquery/log'
   ) | Set-Content -Path (Join-Path $Dir 'osquery.flags') -Encoding ascii
   if (-not (Test-Path (Join-Path $Dir 'osquery.conf'))) { '{}' | Set-Content -Path (Join-Path $Dir 'osquery.conf') -Encoding ascii }
 
@@ -91,7 +91,7 @@ try {
   Write-Host 'Waiting for this machine to enrol with Vedette (up to 2 minutes)...'
   for ($i = 0; $i -lt 24; $i++) {
     $now = Get-Seen
-    if ($hostId -and $now -and $now -ne $base -and (Get-Service osqueryd).Status -eq 'Running') { Write-Host 'Installed and enrolled; the first report arrives within about an hour.'; return }
+    if ($hostId -and $now -and $now -ne $base -and (Get-Service osqueryd).Status -eq 'Running') { Write-Host "Installed and enrolled; this machine's operating system and packages appear in Vedette within a few minutes."; return }
     Start-Sleep -Seconds 5
   }
   Write-Warning 'osquery is installed, but this machine did not enrol with Vedette within 2 minutes. Check that the box address is reachable from here and the token is still valid, then: Get-Service osqueryd'

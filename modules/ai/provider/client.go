@@ -357,6 +357,16 @@ func (o OwnSources) Own(ip netip.Addr, port uint16) bool {
 	return false
 }
 
+// HostAliasNames are the names Docker and Podman give the machine that runs the container. They resolve to the machine's address
+// (cmd/vedette resolves them into OwnSources.Machine for the dialer), so on a port of vedettePorts they are Vedette itself.
+var HostAliasNames = []string{"host.docker.internal", "host.containers.internal"}
+
+// OwnHostAlias reports whether host is a host-alias name used on one of Vedette's own ports: the save-time answer for a name,
+// which is not resolved in a request. On any other port the machine's alias is a legitimate address (a model server on the machine).
+func OwnHostAlias(host string, port uint16) bool {
+	return slices.Contains(HostAliasNames, strings.TrimSuffix(strings.ToLower(host), ".")) && slices.Contains(vedettePorts, port)
+}
+
 // selfAddrs are the addresses of this process's own interfaces (in the shipped container: core itself), loopback left out.
 func selfAddrs() []netip.Addr {
 	var out []netip.Addr

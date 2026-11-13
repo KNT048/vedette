@@ -14,6 +14,7 @@ import type { Role } from '@/lib/session'
 import SiemSettings from './SiemSettings'
 import { CATALOG, ENTRIES, GROUPS, searchCatalog } from './catalog'
 import { KIND_IDS } from './kinds'
+import { syslogHeader } from './syslog'
 import type { SourceKind } from './types'
 
 const USER: Record<Role, string> = { admin: 'u-admin', operator: 'u-op', viewer: 'u-view' }
@@ -54,8 +55,11 @@ describe('logs: source catalog (S-LOG-1)', () => {
       expect(JSON.stringify([e.name, e.intro, e.readsNote, e.steps({ ip: IP, port: 514, proto: e.protos[0]! }), e.snippets({ ip: IP, port: 514, proto: e.protos[0]! }), e.notes]), e.id).not.toMatch(/[ạảãàáâấầẩẫậăắằẳẵặẹẻẽèéêếềểễệỉĩìíịọỏõòóôốồổỗộơớờởỡợụủũùúưứừửữựỳỷỹỵýđ]/i)
     }
     // honesty: only the kinds that have a profile (modules/logs/data/profiles) say parsed; everyone else says stored, and the digest reads them with the generic pattern finder
-    expect(ENTRIES.filter((e) => e.reads === 'parsed').map((e) => e.id).sort()).toEqual(['fortigate', 'mikrotik', 'windows'])
+    expect(ENTRIES.filter((e) => e.reads === 'parsed').map((e) => e.id).sort()).toEqual(['cisco-asa', 'fortigate', 'linux-journald', 'linux-rsyslog', 'mikrotik', 'opnsense', 'paloalto', 'pfsense', 'sonicwall', 'sophos', 'ubiquiti', 'windows'])
     expect(CATALOG.nginx.readsNote).toMatch(/Stored and searchable\./)
+    // W3-10 (D-487): a Linux source says its failed logins are read, not "Stored only".
+    expect(CATALOG['linux-rsyslog'].logins).toBe(true)
+    expect(CATALOG['linux-rsyslog'].readsNote).toMatch(/^Failed logins: 5 failed SSH or PAM logins/)
   })
 
   it('every snippet that names the box uses the box address and port', () => {
@@ -147,6 +151,18 @@ async function openAdd(pick: RegExp | string) {
   return form
 }
 
+describe('logs: the syslog header of a listed line (W1-22, D-485)', () => {
+  it('reads RFC 3164 and 5424 like the box (service_test.go TestEventHeaderIsReadForDisplay); a line without a header is all message', () => {
+    expect(syslogHeader('<38>Nov 13 14:15:02 laptop-it sshd[2211]: Failed password for invalid user admin from 45.155.205.233 port 51122 ssh2'))
+      .toEqual({ host: 'laptop-it', app: 'sshd', message: 'Failed password for invalid user admin from 45.155.205.233 port 51122 ssh2' })
+    expect(syslogHeader('<165>1 2026-11-13T07:15:02.000Z fw01 app 77 ID47 - hello')).toEqual({ host: 'fw01', app: 'app', message: 'hello' })
+    expect(syslogHeader('type="traffic" srcip=10.0.0.5 action="deny"')).toEqual({ host: null, app: null, message: 'type="traffic" srcip=10.0.0.5 action="deny"' })
+    expect(syslogHeader('<34>Nov 11 08:30:15 sshd[1]: hi')).toEqual({ host: null, app: 'sshd', message: 'hi' })
+    expect(syslogHeader('<34>Nov 11 08:30:15 sshd[1]: Accepted: key')).toEqual({ host: null, app: 'sshd', message: 'Accepted: key' })
+    expect(syslogHeader('<38>Nov 13 14:15:02 lap\u202etop sshd[2]: x')).toEqual({ host: 'laptop', app: 'sshd', message: 'x' })
+  })
+})
+
 describe('logs: the Logs page (S-LOG-1, S-LOG-2)', () => {
   it('the heading answers the question, sources and digest tables show, no a11y violations', async () => {
     renderApp('/logs')
@@ -154,6 +170,9 @@ describe('logs: the Logs page (S-LOG-1, S-LOG-2)', () => {
     const sources = await screen.findByRole('table', { name: 'Log sources currently received' })
     expect(within(sources).getAllByRole('row')).toHaveLength(5)
     expect(within(sources).getAllByText('Receiving')).toHaveLength(3)
+    // Walk 5: a UDP source's TCP lines are kept too, so the column says both; the mock's sources are UDP
+    expect(within(sources).getAllByText(/^UDP and TCP \d+$/).length).toBeGreaterThan(0)
+    expect(within(sources).queryByText(/^UDP \d+$/)).toBeNull()
     expect(within(sources).getByText('Silent')).toBeInTheDocument()
     expect(screen.getByText(/No new line for over 1 hour/)).toBeInTheDocument()
     expect(await screen.findByRole('table', { name: 'Connections to bad IPs or domains' })).toBeInTheDocument()
@@ -237,6 +256,12 @@ describe('logs: the Logs page (S-LOG-1, S-LOG-2)', () => {
     expect(within(form).getByText(/Stored and searchable\./)).toBeInTheDocument()
     await userEvent.click(within(form).getByRole('button', { name: 'Change device type' }))
     expect(within(form).getByLabelText('Find your device or software')).toBeInTheDocument()
+  })
+
+  it('walk 5: the generic syslog form offers UDP, TCP and TLS, as its port hint says', async () => {
+    renderApp('/logs')
+    const form = await openAdd(/Other device \(standard syslog/)
+    expect(within(within(form).getByLabelText('Protocol')).getAllByRole('option').map((o) => o.textContent)).toEqual(['UDP', 'TCP', 'TLS'])
   })
 
   it('protocol options follow the device: MikroTik UDP only, FortiGate UDP/TCP/TLS, each saying what the box keeps; a duplicate IP is refused at the boundary', async () => {

@@ -17,7 +17,8 @@ WHERE seq <= ?1
   AND (?3 IS NULL OR ts <= ?3)
   AND (?4 IS NULL OR user = ?4)
   AND (?5 IS NULL OR substr(action, 1, instr(action, '.') - 1) = ?5)
-  AND (?6 IS NULL OR instr(lower(action || ' ' || target || ' ' || COALESCE(detail, '') || ' ' || user), ?6) > 0)
+  AND (?6 IS NULL OR (user <> 'system' AND substr(user, 1, 7) <> 'system:'))
+  AND (?7 IS NULL OR instr(lower(action || ' ' || target || ' ' || COALESCE(detail, '') || ' ' || user), ?7) > 0)
 `
 
 type CountAuditFilteredParams struct {
@@ -26,6 +27,7 @@ type CountAuditFilteredParams struct {
 	ToTs    interface{}
 	Who     interface{}
 	Grp     interface{}
+	People  interface{}
 	Needle  interface{}
 }
 
@@ -36,6 +38,7 @@ func (q *Queries) CountAuditFiltered(ctx context.Context, arg CountAuditFiltered
 		arg.ToTs,
 		arg.Who,
 		arg.Grp,
+		arg.People,
 		arg.Needle,
 	)
 	var count int64
@@ -156,9 +159,10 @@ WHERE seq < ?1
   AND (?3 IS NULL OR ts <= ?3)
   AND (?4 IS NULL OR user = ?4)
   AND (?5 IS NULL OR substr(action, 1, instr(action, '.') - 1) = ?5)
-  AND (?6 IS NULL OR instr(lower(action || ' ' || target || ' ' || COALESCE(detail, '') || ' ' || user), ?6) > 0)
+  AND (?6 IS NULL OR (user <> 'system' AND substr(user, 1, 7) <> 'system:'))
+  AND (?7 IS NULL OR instr(lower(action || ' ' || target || ' ' || COALESCE(detail, '') || ' ' || user), ?7) > 0)
 ORDER BY seq DESC
-LIMIT ?7
+LIMIT ?8
 `
 
 type ListAuditFilteredParams struct {
@@ -167,6 +171,7 @@ type ListAuditFilteredParams struct {
 	ToTs      interface{}
 	Who       interface{}
 	Grp       interface{}
+	People    interface{}
 	Needle    interface{}
 	MaxRows   int64
 }
@@ -184,7 +189,7 @@ type ListAuditFilteredRow struct {
 // The audit screen and its CSV export (GET /core/audit, /core/audit/export): newest first, keyset on seq
 // (seq < before_seq), every filter optional. The text filter is a case-insensitive substring over the
 // same four columns the screen shows; lower() folds ASCII only. The group is the part of the action before
-// the first dot.
+// the first dot. people (D-416), when set, leaves out the automatic lines: user "system" or "system:<part>".
 func (q *Queries) ListAuditFiltered(ctx context.Context, arg ListAuditFilteredParams) ([]ListAuditFilteredRow, error) {
 	rows, err := q.db.QueryContext(ctx, listAuditFiltered,
 		arg.BeforeSeq,
@@ -192,6 +197,7 @@ func (q *Queries) ListAuditFiltered(ctx context.Context, arg ListAuditFilteredPa
 		arg.ToTs,
 		arg.Who,
 		arg.Grp,
+		arg.People,
 		arg.Needle,
 		arg.MaxRows,
 	)

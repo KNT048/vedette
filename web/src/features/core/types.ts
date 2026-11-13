@@ -9,7 +9,6 @@ export type GeneralSettings = z.infer<typeof C.GeneralSettings>
 export type SetupStatus = z.infer<typeof C.SetupStatus>
 export type SetupModule = z.infer<typeof C.SetupModule>
 export type BundleId = z.infer<typeof C.BundleId>
-export type ChannelType = 'telegram' | 'zalo' | 'email'
 export type SetupPayload = z.infer<typeof C.SetupPayload>
 
 export type AuthOptions = z.infer<typeof C.AuthOptions>
@@ -27,7 +26,7 @@ export type OidcStart = z.infer<typeof C.OidcStart>
 
 export type AuditRow = z.infer<typeof C.AuditRow>
 export type AuditResult = z.infer<typeof C.AuditResult>
-export type AuditQuery = { q: string; user: string; group: string; from: string; to: string }
+export type AuditQuery = { q: string; user: string; group: string; from: string; to: string; actor: '' | 'people' }
 
 export type UpdateChannel = z.infer<typeof C.UpdateChannel>
 export type UpdateComponent = z.infer<typeof C.UpdateComponent>

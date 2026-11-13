@@ -9,19 +9,21 @@ import (
 	"time"
 
 	"github.com/knt048/vedette/host/api"
+	"github.com/knt048/vedette/modules/findings"
 	"github.com/knt048/vedette/modules/inventory"
 )
 
 // fakeInfo is GET /v1/info of a fake vedette-host: the next answer and how often it was asked.
 type fakeInfo struct {
 	name  string
+	os    api.OSInfo
 	err   error
 	calls int
 }
 
 func (f *fakeInfo) Info(context.Context) (api.Info, error) {
 	f.calls++
-	return api.Info{Hostname: f.name}, f.err
+	return api.Info{Hostname: f.name, OS: f.os}, f.err
 }
 
 // #471: the box's name is the OS host name vedette-host reports, checked again in core; "vedette" without a valid one; the last good
@@ -179,5 +181,61 @@ func TestBoxRowIsMadeWhileTheHostIsDown(t *testing.T) {
 	runBoxJob(t, *s.d)
 	if name, _, ok, err := s.d.Inventory.BoxName(t.Context()); err != nil || !ok || name != fallbackBoxName {
 		t.Fatalf("box row: %q %v %v", name, ok, err)
+	}
+}
+
+// W3-8: the box's device carries the OS the host reads from /etc/os-release (GET /v1/info), as an agent host's does, so the
+// findings matcher judges OS-release NVD entries by it: CVE-2021-3493 (OverlayFS, NVD lists only Ubuntu releases before
+// 20.10) is no finding on an Ubuntu 26.04 box, and its old product finding is proved not affected.
+func TestBoxCarriesItsOSForTheMatcher(t *testing.T) {
+	f := &fakeInfo{name: "boxkien", os: api.OSInfo{Distro: "ubuntu", Release: "26.04", Kernel: "7.0.0-15-generic"}}
+	s := newStackWith(t, func(d *deps) { d.BoxName = newBoxHostNameFrom(f.Info, time.Now) })
+	ctx := t.Context()
+	runBoxJob(t, *s.d)
+	id, err := s.d.Inventory.EnsureBox(ctx, inventory.BoxInfo{Hostname: "boxkien"}) // the id; no OS given keeps the row's
+	if err != nil {
+		t.Fatal(err)
+	}
+	a, ok, err := (findingsInventory{s.d.Inventory}).MatchInput(ctx, id)
+	if err != nil || !ok || a.OS != "Ubuntu 26.04" {
+		t.Fatalf("box for the matcher: OS %q, %v %v", a.OS, ok, err)
+	}
+	a.Software = append(a.Software, findings.Software{ID: "s-k", Display: "Kernel", Vendor: "Linux", Product: "Kernel", Version: "7.0.0", KevKeys: []string{"linux|kernel"}})
+	overlayFS := findings.Vuln{CVE: "CVE-2021-3493", Vendor: "Linux", Product: "Kernel", Affected: []findings.Affected{ // NVD, 2026-11-13
+		{CPE: "cpe:2.3:o:canonical:ubuntu_linux:*:*:*:*:lts:*:*:*", Range: findings.VersionRange{EndExcl: "18.04"}},
+		{CPE: "cpe:2.3:o:canonical:ubuntu_linux:*:*:*:*:lts:*:*:*", Range: findings.VersionRange{StartIncl: "18.04.1", EndExcl: "20.04"}},
+		{CPE: "cpe:2.3:o:canonical:ubuntu_linux:*:*:*:*:-:*:*:*", Range: findings.VersionRange{EndExcl: "20.10"}},
+	}}
+	r := findings.MatchAsset(a, []findings.Vuln{overlayFS}, map[string]bool{overlayFS.CVE: true}, time.Now())
+	if len(r.New)+len(r.Existing) != 0 || len(r.NotAffected) != 1 {
+		t.Fatalf("CVE-2021-3493 on the Ubuntu 26.04 box: %+v", r)
+	}
+
+	down := &fakeInfo{err: errors.New("host restarting")}
+	restarted := *s.d
+	restarted.BoxName = newBoxHostNameFrom(down.Info, time.Now)
+	runBoxJob(t, restarted)
+	if a, _, err := (findingsInventory{s.d.Inventory}).MatchInput(ctx, id); err != nil || a.OS != "Ubuntu 26.04" {
+		t.Fatalf("a host that does not answer emptied the OS: %q %v", a.OS, err)
+	}
+}
+
+// The host's os-release values are checked again in core: only the appliance's distributions, a plain numeric release.
+func TestBoxOS(t *testing.T) {
+	t.Parallel()
+	for in, want := range map[api.OSInfo]string{
+		{Distro: "ubuntu", Release: "26.04"}:       "Ubuntu 26.04",
+		{Distro: "debian", Release: "13"}:          "Debian 13",
+		{Distro: "unknown", Release: "unknown"}:    "",
+		{Distro: "ubuntu", Release: "unknown"}:     "",
+		{Distro: "fedora", Release: "41"}:          "",
+		{Distro: "ubuntu", Release: "26.04 LTS\n"}: "",
+	} {
+		if got := boxOS(in); got != want {
+			t.Errorf("%+v: %q, want %q", in, got, want)
+		}
+	}
+	if (*boxHostName)(nil).OS() != "" || newBoxHostNameFrom(nil, time.Now).OS() != "" {
+		t.Error("no host: an OS")
 	}
 }

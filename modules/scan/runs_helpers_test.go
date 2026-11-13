@@ -27,18 +27,21 @@ func sampleDevices() []Device {
 		{ID: "a-web01", Label: "WEB01", IP: "192.168.10.12", Kind: "web", Approved: true, Services: []OpenPort{{Port: 443, Name: "https"}}},
 		{ID: "a-srv", Label: "SRV-AD", IP: "192.168.10.10", Kind: "server", Approved: true},
 		{ID: "a-unk", Label: "192.168.10.157", IP: "192.168.10.157", Kind: "unknown", Approved: false},
-		{ID: "a-box", Label: "vedette", IP: "192.168.10.250", Kind: "server", Approved: true},
+		{ID: "a-box", Label: "vedette", IP: "192.168.10.250", Kind: "server", Approved: true, Box: true},
 		{ID: "a-never", Label: "PLC-1", IP: "192.168.20.40", Kind: "iot", Approved: true},
 		{ID: "a-far", Label: "FAR", IP: "10.9.9.9", Kind: "pc", Approved: true},
 	}
 }
 
-// fakePolicy answers VulnScanPolicy like inventory does for the sample (D-126): the box and "never" always refused, a
-// fragile device only when explicit.
+// fakePolicy answers VulnScanPolicy like inventory does for the sample (D-126): "never" always refused, a fragile device
+// and the box (D-470) only when explicit.
 func samplePolicy(id string, explicit bool) Decision {
 	switch id {
 	case "a-box":
-		return Decision{Reason: reasonBox}
+		if !explicit {
+			return Decision{Reason: reasonBox}
+		}
+		return Decision{Allowed: true, Reason: "ok"}
 	case "a-never":
 		return Decision{Reason: reasonNever}
 	case "a-far":
@@ -64,6 +67,8 @@ type runInventory struct {
 	devices []Device
 	policy  func(id string, explicit bool) Decision
 	calls   []policyCall
+	single  int // VulnScanPolicy calls: the per-device re-check right before a job (INV-1)
+	batches int // VulnScanPolicies calls (D-472)
 }
 
 func (f *runInventory) Devices(context.Context) ([]Device, error) {
@@ -75,6 +80,26 @@ func (f *runInventory) Devices(context.Context) ([]Device, error) {
 func (f *runInventory) VulnScanPolicy(_ context.Context, id string, explicit bool) (Decision, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
+	f.single++
+	return f.decide(id, explicit), nil
+}
+
+// VulnScanPolicies records one call per id like VulnScanPolicy (the INV-1 tests read calls) and counts the batch.
+func (f *runInventory) VulnScanPolicies(_ context.Context, ids []string, explicit bool) (map[string]Decision, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.batches++
+	out := map[string]Decision{}
+	for _, id := range ids {
+		if slices.ContainsFunc(f.devices, func(d Device) bool { return d.ID == id }) {
+			out[id] = f.decide(id, explicit)
+		}
+	}
+	return out, nil
+}
+
+// decide records the call and answers the policy; f.mu is held.
+func (f *runInventory) decide(id string, explicit bool) Decision {
 	f.calls = append(f.calls, policyCall{id, explicit})
 	d := f.policy(id, explicit)
 	if d.IP == "" {
@@ -84,7 +109,7 @@ func (f *runInventory) VulnScanPolicy(_ context.Context, id string, explicit boo
 			}
 		}
 	}
-	return d, nil
+	return d
 }
 
 func (f *runInventory) setPolicy(p func(id string, explicit bool) Decision) {

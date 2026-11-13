@@ -210,7 +210,10 @@ func (s *Service) AddSoftware(ctx context.Context, actor, assetID string, in Add
 			return notFoundDevice()
 		}
 		var dup int
-		err = tx.QueryRowContext(ctx, `SELECT 1 FROM inv_software WHERE asset_id = ? AND lower(vendor) = lower(?) AND lower(product) = lower(?) LIMIT 1`, assetID, a.entry.vendor, a.entry.product).Scan(&dup)
+		// A row with no match key is a sensor's guess (nmap's OS, D-501): adding the product by hand is how a person confirms it, so
+		// the guess is no duplicate. Every other row has at least its vendor|product key.
+		err = tx.QueryRowContext(ctx, `SELECT 1 FROM inv_software s WHERE s.asset_id = ? AND lower(s.vendor) = lower(?) AND lower(s.product) = lower(?)
+			AND EXISTS (SELECT 1 FROM inv_software_kev k WHERE k.software_id = s.id) LIMIT 1`, assetID, a.entry.vendor, a.entry.product).Scan(&dup)
 		if err == nil {
 			return conflict("duplicate_software", a.entry.display+" is already on this device. To change the version, remove it and add it again.")
 		} else if !errors.Is(err, sql.ErrNoRows) {

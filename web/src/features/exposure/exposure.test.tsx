@@ -7,6 +7,7 @@ import { server } from '@/test/server'
 import { eachOption } from '@/test/formMatrix'
 import { auditStore, modulesStore, sessionStore } from '@/mocks/stores'
 import { feature } from './index'
+import { portLabel, riskOf } from './services'
 
 const USER = { admin: 'u-admin', operator: 'u-op', viewer: 'u-view' } as const
 async function call(method: string, path: string, body?: unknown, role: keyof typeof USER = 'admin') {
@@ -78,6 +79,56 @@ describe('exposure: list (S-EXP-1)', () => {
     renderApp('/exposure')
     expect(await screen.findByRole('heading', { level: 1, name: 'No domain or verified public IP yet' })).toBeInTheDocument()
     expect(screen.getAllByText(/Select Detect now to look right away/).length).toBeGreaterThan(0)
+  })
+
+  it('W1-23: with no admin page, the first sentence says what is open and SIP is called out with "is that on purpose?"', async () => {
+    const at = '2026-11-13T06:02:00.000Z'
+    const ip = { id: 't-ip', kind: 'ip', value: '203.0.113.10', status: 'verified', method: 'box_egress', token: '', verified_at: at, expires_at: '2026-12-13T06:02:00.000Z', validity: 'valid', last_check: null,
+      commitment: { by: 'An', at }, scannable: true, blocked_reason: null, created_at: at, last_scan_at: at,
+      latest: { subdomains: 0, ips: 1, ports: 2, admin_panels: 0, certs_expiring: 0 },
+      open_ports: [{ ip: '203.0.113.10', port: 5060, service: 'sip' }, { ip: '203.0.113.10', port: 10443, service: 'https', product: 'nginx' }] }
+    server.use(http.get('*/api/v1/exposure/targets', () => HttpResponse.json({ items: [ip], box_ip: { auto: true, interval_min: 60, last_run: null, retry_in_min: null }, ignored: [] })))
+    renderApp('/exposure')
+    expect(await screen.findByRole('heading', { level: 1, name: '2 ports are open to the Internet: SIP 5060, HTTPS 10443' })).toBeInTheDocument()
+    const open = screen.getByRole('region', { name: '2 ports open to the Internet' })
+    expect(within(open).getAllByText('Commonly attacked')).toHaveLength(1) // SIP only; HTTPS is not called out
+    expect(within(open).getByText(/toll fraud.*Is that on purpose\?/)).toBeInTheDocument()
+    expect(within(open).getByText('answers as nginx')).toBeInTheDocument()
+    // a service name from the network never finds Object.prototype
+    expect([riskOf({ service: 'constructor' }), portLabel({ service: 'constructor', port: 1 })]).toEqual([null, 'CONSTRUCTOR 1'])
+  })
+
+  const gwTarget = () => {
+    const at = '2026-11-13T06:02:00.000Z'
+    return { id: 't-ip', kind: 'ip', value: '203.0.113.10', status: 'verified', method: 'box_egress', token: '', verified_at: at, expires_at: '2026-12-13T06:02:00.000Z', validity: 'valid', last_check: null,
+      commitment: { by: 'An', at }, scannable: true, blocked_reason: null, created_at: at, last_scan_at: at,
+      latest: { subdomains: 0, ips: 1, ports: 1, admin_panels: 0, certs_expiring: 0 }, open_ports: [{ ip: '203.0.113.10', port: 10443, service: 'https', product: 'nginx' }] }
+  }
+  it.each([
+    ['known with findings', { ip: '192.168.18.1', device_id: 'd-gw', name: 'fortigate-hq', open_exploited: 2 },
+      'These ports are answered by your gateway fortigate-hq (192.168.18.1), or a device it forwards them to. fortigate-hq has 2 open exploited vulnerabilities: fix these first.', '/findings?device=d-gw'],
+    ['known with one finding', { ip: '192.168.18.1', device_id: 'd-gw', name: 'fortigate-hq', open_exploited: 1 },
+      'These ports are answered by your gateway fortigate-hq (192.168.18.1), or a device it forwards them to. fortigate-hq has 1 open exploited vulnerability: fix these first.', '/findings?device=d-gw'],
+    ['known without findings', { ip: '192.168.18.1', device_id: 'd-gw', name: 'fortigate-hq', open_exploited: 0 },
+      'These ports are answered by your gateway fortigate-hq (192.168.18.1), or a device it forwards them to. Vedette knows of no open exploited vulnerability on fortigate-hq; that does not prove the device it forwards to is safe.', null],
+    ['gateway not in the device list', { ip: '192.168.18.1', device_id: null, name: null, open_exploited: 0 },
+      'These ports are answered by your gateway (192.168.18.1), or a device it forwards them to. Your gateway is not in your device list yet, so Vedette cannot say what is exploited on it. Scan your network to add it.', null],
+    ['gateway unknown', { ip: null, device_id: null, name: null, open_exploited: 0 },
+      'Vedette cannot see which gateway your network uses from here, so it cannot say which device answers these ports.', null],
+  ])('D-492: open ports and the gateway, %s', async (_n, gateway, text, href) => {
+    server.use(http.get('*/api/v1/exposure/targets', () => HttpResponse.json({ items: [gwTarget()], box_ip: { auto: true, interval_min: 60, last_run: null, retry_in_min: null }, ignored: [], gateway })))
+    renderApp('/exposure')
+    const note = await screen.findByTestId('gateway-note')
+    expect(within(note).getByText(text)).toBeInTheDocument()
+    if (href) expect(within(note).getByRole('link')).toHaveAttribute('href', href)
+    else expect(within(note).queryByRole('link')).toBeNull()
+  })
+
+  it('D-492: no gateway note when the server sends none', async () => {
+    server.use(http.get('*/api/v1/exposure/targets', () => HttpResponse.json({ items: [gwTarget()], box_ip: { auto: true, interval_min: 60, last_run: null, retry_in_min: null }, ignored: [], gateway: null })))
+    renderApp('/exposure')
+    await screen.findByRole('region', { name: '1 port open to the Internet' })
+    expect(screen.queryByTestId('gateway-note')).toBeNull()
   })
 
   it('module off says where to turn it on', async () => {

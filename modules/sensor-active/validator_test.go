@@ -14,7 +14,7 @@ func TestValidatorCannotBeBypassed(t *testing.T) {
 	t.Parallel()
 	sweep := func(r string) []string { return []string{"--privileged", "-sn", "-n", "--max-rate", r} }
 	normal := func(r string) []string {
-		return []string{"--privileged", "-sS", "-sV", "-O", "-n", "--max-rate", r, "--top-ports", "1000", "--host-timeout", "30m"}
+		return []string{"--privileged", "-sS", "-sV", "-O", "--script", "rdp-ntlm-info,http-ntlm-info", "-n", "--max-rate", r, "--top-ports", "1000", "--host-timeout", "30m"}
 	}
 	gentle := func(r string) []string {
 		return []string{"--privileged", "-sS", "-n", "-T2", "--max-retries", "1", "--max-rate", r, "--host-timeout", "15m", "--top-ports", "100"}
@@ -40,6 +40,8 @@ func TestValidatorCannotBeBypassed(t *testing.T) {
 		"172.16/12 low":   with(sweep("5"), "172.16.0.0"),
 		"172.16/12 high":  with(sweep("5"), "172.31.255.255"),
 		"192.168/16 high": with(sweep("5"), "192.168.255.255"),
+		"100.64/10 low":   with(sweep("5"), "100.64.0.0"), // RFC 6598 (D-461)
+		"100.64/10 high":  with(sweep("5"), "100.127.255.255"),
 	}
 	for name, argv := range ok {
 		if err := sa.ValidateNmapArgs(argv); err != nil {
@@ -55,7 +57,7 @@ func TestValidatorCannotBeBypassed(t *testing.T) {
 		"rate -1":                   with(sweep("-1"), "10.0.0.1"),
 		"rate 99999":                with(normal("99999"), "10.0.0.1"),
 		"gentle rate 2":             with(gentle("2"), "10.0.0.1"),
-		"normal without -O":         with(slices.DeleteFunc(normal("5"), func(s string) bool { return s == "-O" }), "10.0.0.1"),
+		"normal without -sV":        with(slices.DeleteFunc(normal("5"), func(s string) bool { return s == "-sV" }), "10.0.0.1"), // without -O it is the versions shape (D-501)
 		"flags reordered":           with([]string{"-sn", "--privileged", "-n", "--max-rate", "5"}, "10.0.0.1"),
 		"flag duplicated":           with(append(sweep("5"), "-n"), "10.0.0.1"),
 		"max-rate twice":            with(append(sweep("5"), "--max-rate", "5"), "10.0.0.1"),
@@ -76,7 +78,8 @@ func TestValidatorCannotBeBypassed(t *testing.T) {
 		"public":                    with(sweep("5"), "8.8.8.8"),
 		"loopback":                  with(sweep("5"), "127.0.0.1"),
 		"link local":                with(sweep("5"), "169.254.1.1"),
-		"cgnat":                     with(sweep("5"), "100.64.0.1"),
+		"below RFC 6598 (D-461)":    with(sweep("5"), "100.63.255.255"),
+		"above RFC 6598 (D-461)":    with(sweep("5"), "100.128.0.0"),
 		"multicast":                 with(sweep("5"), "224.0.0.1"),
 		"broadcast":                 with(sweep("5"), "255.255.255.255"),
 		"v4-mapped v6":              with(sweep("5"), "::ffff:10.0.0.1"),

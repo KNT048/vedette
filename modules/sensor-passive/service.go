@@ -64,6 +64,10 @@ type Config struct {
 	// KnownMACs lists the devices the inventory has. The first batch seeds core's budget with them, so that devices that exist
 	// do not count as new ones after a restart. nil means none.
 	KnownMACs func(ctx context.Context) ([]string, error)
+	// Starting says the box is still bringing the sensor container up (its start is being retried, or was confirmed moments ago):
+	// a sensor not online is then "starting", not "never_connected"/"offline" (customer walk 2, W2-6). nil: never (no host to
+	// start it: a container-only install, where the customer starts it, and dev).
+	Starting func() bool
 
 	// ConfigRecheck is how often an open config long poll reads the settings again (5 s): a change of the SPAN filters is not
 	// announced to it, a SetInterface is.
@@ -95,6 +99,7 @@ type Service struct {
 
 	enabled                                                        func() bool
 	knownMACs                                                      func(ctx context.Context) ([]string, error)
+	starting                                                       func() bool
 	recheck                                                        time.Duration
 	flushEvery, beatEvery, retryEvery, summaryEvery, retryAfterCap time.Duration
 
@@ -138,7 +143,7 @@ func New(cfg Config) (*Service, error) {
 	s := &Service{db: cfg.DB, audit: cfg.Audit, sink: cfg.Sink, meta: cfg.Meta, host: cfg.Host, clock: cfg.Clock, log: cfg.Log,
 		version: cfg.Version, name: cfg.Name, open: cfg.Open, recheck: cfg.ConfigRecheck, flushEvery: cfg.FlushEvery,
 		beatEvery: cfg.HeartbeatEvery, retryEvery: cfg.RetryEvery, summaryEvery: cfg.SummaryEvery, retryAfterCap: cfg.RetryAfterCap,
-		enabled: cfg.Enabled, knownMACs: cfg.KnownMACs, budget: capture.NewFloodBudget(), repeats: newRepeatFilter(), unknown: map[string]bool{}, seqMem: map[string]uint64{}, wake: make(chan struct{})}
+		enabled: cfg.Enabled, knownMACs: cfg.KnownMACs, starting: cfg.Starting, budget: capture.NewFloodBudget(), repeats: newRepeatFilter(), unknown: map[string]bool{}, seqMem: map[string]uint64{}, wake: make(chan struct{})}
 	if s.clock == nil {
 		s.clock = time.Now
 	}
@@ -195,7 +200,7 @@ type Sensor struct {
 	Span        bool       `json:"span"`
 	Chosen      bool       `json:"chosen"` // Interface is a stored choice, not the default card (D-380, D-393)
 	SpanStatus  SpanStatus `json:"span_status"`
-	Status      string     `json:"status"` // online | offline | never_connected
+	Status      string     `json:"status"` // online | offline | never_connected | starting
 	LastSeen    *string    `json:"last_seen"`
 	Version     *string    `json:"version"`
 	DevicesSeen int        `json:"devices_seen"`
@@ -306,6 +311,8 @@ func (s *Service) Status(ctx context.Context) ([]Sensor, error) {
 			e := hb.captureErr
 			out.CaptureError = &e
 		}
+	case s.starting != nil && s.starting(): // the host is still starting its container (W2-6): not a failure yet
+		out.Status = "starting"
 	case !r.lastSeen.Valid: // offline means it reported once; never heard from is not "lost contact" (D-387)
 		out.Status = "never_connected"
 	}

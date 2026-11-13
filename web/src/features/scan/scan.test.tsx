@@ -7,7 +7,13 @@ import { server } from '@/test/server'
 import { eachOption } from '@/test/formMatrix'
 import { assetsStore, auditStore, findingsStore, modulesStore, sessionStore } from '@/mocks/stores'
 import { engineStore, nextRun, runs, scannerStore, timing, zoneStore } from './mocks'
+import { manyAssets } from '@/mocks/seed/assets'
+import { inventorySettingsStore } from '@/features/inventory/mocks'
 import type { ScanConfig, ScanRun } from './types'
+
+// D-417: v1 does not offer the credentialed scan (no backend yet); its GUI is kept, so this file runs it as offered, and one test runs v1.
+const credFlag = vi.hoisted(() => ({ CREDENTIALED_IN_UI: true }))
+vi.mock('@/lib/credentialed', () => credFlag)
 
 const base = () => `${location.origin}/api/v1`
 const as = (userId: string) => sessionStore.set({ userId })
@@ -69,7 +75,7 @@ describe('scan: trang chính và chọn mục tiêu (S-SCAN-1)', () => {
     expect(screen.getByRole('checkbox', { name: /SRV-AD/ })).toBeChecked()
     expect(screen.getAllByText('Fragile: pick it to scan at a quarter of the speed').length).toBeGreaterThan(0)
     expect(screen.getAllByText('Added by hand: pick it to scan').length).toBeGreaterThan(0)
-    expect(screen.getAllByText('Type unknown: pick it to scan at a quarter of the speed').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Type unknown: pick it to identify its services (no operating system probe) and scan it at a quarter of the speed').length).toBeGreaterThan(0)
     await userEvent.click(screen.getByRole('button', { name: 'Select all' }))
     expect(nas).not.toBeChecked()
     expect(screen.getByRole('checkbox', { name: /WEB01/ })).not.toBeChecked()
@@ -182,7 +188,7 @@ describe('scan: API không bao giờ quét ngoài phạm vi (LEGAL §3)', () => 
     expect((await getRuns()).filter((r) => !r.id.startsWith('run-seed'))).toHaveLength(0)
   })
 
-  it('D-126: chọn tay là đồng ý cho thiết bị khai tay, mong manh, chưa phân loại; hộp và thiết bị "never" thì không bao giờ', async () => {
+  it('D-126, D-470: chọn tay là đồng ý cho thiết bị khai tay, mong manh, chưa phân loại và chính hộp; thiết bị "never" thì không bao giờ', async () => {
     const { ensureBox } = await import('@/features/inventory/mocks')
     ensureBox()
     assetsStore.update((l) => l.map((a) => (a.id === 'a-web01' ? { ...a, origin: 'manual' as const } : a.id === 'a-unk01' ? { ...a, approved: true } : a)))
@@ -190,20 +196,21 @@ describe('scan: API không bao giờ quét ngoài phạm vi (LEGAL §3)', () => 
     expect((await fetch(`${base()}/inventory/devices/a-srvad`, json('PATCH', { regular_scan: 'never' }))).status).toBe(200)
     renderApp('/scans')
     expect(await screen.findByRole('checkbox', { name: /WEB01/ })).toBeEnabled()
-    const items = (await (await fetch(`${base()}/scans/targets`)).json()).items as { id: string; fragile: boolean; selectable: boolean; reason: string | null }[]
+    const items = (await (await fetch(`${base()}/scans/targets`)).json()).items as { id: string; label: string; fragile: boolean; selectable: boolean; reason: string | null }[]
     const byId = (id: string) => items.find((x) => x.id === id)!
     expect(byId('a-web01')).toMatchObject({ selectable: true, reason: null }) // added by hand, picked by hand
     expect(byId('a-nas02')).toMatchObject({ selectable: true, fragile: true })
     expect(byId('a-unk01')).toMatchObject({ selectable: true, fragile: true }) // unknown kind counts as fragile: a quarter of the speed
-    expect(byId('a-box')).toMatchObject({ selectable: false, reason: 'box' })
+    expect(byId('a-box')).toMatchObject({ selectable: true, pick_only: true, box: true, reason: null }) // D-470: a person may scan the box
     expect(byId('a-srvad')).toMatchObject({ selectable: false, reason: 'regular_scan_never' }) // "never" set by a person is absolute
-    expect(screen.getAllByText('This is the Vedette box itself, never scanned').length).toBeGreaterThan(0)
+    expect(screen.getByText(/^The Vedette box itself: pick it to scan it from the network/)).toBeInTheDocument()
     expect(screen.getAllByText('Set to never be scanned in the inventory').length).toBeGreaterThan(0)
+    await userEvent.click(screen.getByRole('button', { name: 'Select all' }))
+    expect(screen.getByRole('checkbox', { name: new RegExp(`^${byId('a-box').label} `) })).not.toBeChecked() // Select all never ticks the box
+    expect(screen.getByText(/need your own tick/)).toHaveTextContent(/need your own tick \([^)]*the Vedette box itself[^)]*\)/) // and says why
     as('u-op')
-    const res = await postRun(['a-box'])
-    expect(res.status).toBe(400)
-    expect((await res.json()).error.message).toMatch(/is the Vedette box itself, which is never scanned/)
     expect((await (await postRun(['a-srvad'])).json()).error.message).toMatch(/is set to never be scanned in the inventory; change that setting first/)
+    expect((await postRun(['a-box'])).status).toBe(201)
   })
 
   it('máy quét không sẵn sàng: can_scan=false kèm lý do, nút khoá, POST trả 503 scanner_unavailable', async () => {
@@ -278,6 +285,11 @@ describe('scan: quét ngay, tiến độ, dừng ngay (S-SCAN-4)', () => {
     expect(within(dlg).getByText('Matches, still vulnerable')).toBeInTheDocument()
     expect(within(dlg).getByText('http/cves/2022/CVE-2022-27593.yaml')).toBeInTheDocument()
     expect(within(dlg).getByRole('link', { name: 'Open finding' })).toHaveAttribute('href', '/findings/f-1')
+    // D-501: Scan now identifies first and says per device what it found or exactly why not (the NAS is fragile: gentle scan only)
+    expect(run.identification).toEqual([expect.objectContaining({ target_id: 'a-nas02', reason: 'gentle_only', found: [] })])
+    expect(within(dlg).getByRole('heading', { name: 'What each device was identified as' })).toBeInTheDocument()
+    expect(within(dlg).getByText('Gentle scan only')).toBeInTheDocument()
+    expect(within(dlg).getByText(/only a gentle port scan ran, without version or operating system detection/)).toBeInTheDocument()
   })
 
   it('đã giảm thiểu rồi quét lại: không có khớp chỉ là "không báo khớp", không đổi gì ở phát hiện (D-133 (5))', async () => {
@@ -407,7 +419,7 @@ describe('scan: lịch và an toàn (S-SCAN-4)', () => {
     expect(await screen.findByLabelText('From')).toHaveValue('22:00')
     expect(screen.getByLabelText('Until')).toHaveValue('05:00')
     expect(screen.getByLabelText('Speed')).toHaveValue('5')
-    expect(screen.getByLabelText('One IP or network per line')).toHaveValue('192.168.10.250')
+    expect(screen.getByLabelText('One IP or network per line')).toHaveValue('192.168.10.240')
     expect(screen.getByText('No exploitation, no denial of service')).toBeInTheDocument()
     expect(screen.getByText(/Never guesses passwords/)).toBeInTheDocument()
     expect(screen.getByText(/Next scan: /)).toBeInTheDocument()
@@ -508,6 +520,14 @@ describe('scan: lịch và an toàn (S-SCAN-4)', () => {
     expect(new Date(nextRun({ ...c, schedule: { ...c.schedule, frequency: 'weekly', weekday: 1 } }, now)!).getDay()).toBe(1) // 1 = Monday
     expect(nextRun({ ...c, schedule: { ...c.schedule, enabled: false } }, now)).toBeNull()
     expect(nextRun({ ...c, schedule: { ...c.schedule, frequency: 'weekly', weekday: 3 }, window: { ...c.window, days: [1] } }, now)).toBeNull()
+  })
+
+  it('the first scheduled run is the next window of any window day, not the weekly weekday (W3-6)', () => {
+    const c: ScanConfig = { window: { days: [1, 2, 3, 4, 5, 6, 7], from: '22:00', to: '05:00' }, rate: 5, exclusions: [], stop_on_unresponsive: true, unresponsive_after: 3, auto_rescan: true, schedule: { enabled: true, frequency: 'weekly', weekday: 7, at: '23:00' } }
+    const fri = new Date(2026, 10, 13, 14, 40) // the walk: Friday 13 Nov 14:40
+    const first = new Date(nextRun(c, fri, true)!)
+    expect([first.getDate(), first.getHours()]).toEqual([13, 23])
+    expect(new Date(nextRun(c, fri, false)!).getDate()).toBe(15) // once a scheduled run happened: the weekly Sunday
   })
 
   it('a window that crosses midnight counts by its start day: a 02:00 slot belongs to the day before (#164 review M1)', () => {
@@ -666,6 +686,16 @@ const KEY = '-----BEGIN OPENSSH PRIVATE KEY-----\nb3BlbnNzaC1rZXktdjEAAAAABG5vbm
 describe('scan: quét có tài khoản (S-SCAN-5)', () => {
   const enable = () => modulesStore.update((l) => l.map((m) => (m.id === 'scan-credentialed' ? { ...m, enabled: true } : m)))
 
+  it('v1 offers no Credentialed scan tab: the feature has no backend in this build (D-417, walk-1 W1-36)', async () => {
+    credFlag.CREDENTIALED_IN_UI = false
+    try {
+      enable()
+      renderApp('/scans')
+      expect(await screen.findByRole('tab', { name: 'Schedule and safety' })).toBeInTheDocument()
+      expect(screen.queryByRole('tab', { name: 'Credentialed scan' })).toBeNull()
+    } finally { credFlag.CREDENTIALED_IN_UI = true }
+  })
+
   it('module tắt mặc định thì nói rõ và chỉ chỗ bật', async () => {
     renderApp('/scans?tab=credentialed')
     expect(await screen.findByText('Credentialed scan module is off')).toBeInTheDocument()
@@ -762,5 +792,153 @@ describe('scan: quét có tài khoản (S-SCAN-5)', () => {
     const input = screen.getByLabelText('SSH private key file') as HTMLInputElement
     await userEvent.upload(input, new File([KEY], 'vedette_scan_key', { type: 'text/plain' }))
     expect(await screen.findByText('Read file vedette_scan_key')).toBeInTheDocument()
+  })
+})
+
+describe('scan: target picker with 500 devices (S-SCAN-4, D-472)', () => {
+  type T = { id: string; label: string; ip: string; selectable: boolean; pick_only: boolean }
+  const big = () => {
+    inventorySettingsStore.update((s) => ({ ...s, lan_ranges: ['192.168.0.0/16'] }))
+    assetsStore.update((l) => [...l, ...manyAssets(470)])
+  }
+  const items = async () => ((await (await fetch(`${base()}/scans/targets`)).json()) as { items: T[] }).items
+  const devices = () => screen.getByRole('list', { name: 'Devices in the inventory' })
+  const start = async () => {
+    renderApp('/scans')
+    await screen.findByRole('button', { name: 'Select all' })
+    await userEvent.click(screen.getByRole('button', { name: 'Clear selection' }))
+  }
+
+  it('groups by subnet with 50 rows a page; search finds a device by name, IP, MAC or vendor', async () => {
+    big()
+    await start()
+    const total = (await items()).filter((x) => x.id.startsWith('a-')).length
+    expect(total).toBeGreaterThanOrEqual(500)
+    expect(screen.getByText(`${total} devices in the inventory`)).toBeInTheDocument()
+    expect(within(devices()).getAllByRole('checkbox').filter((c) => c.id.startsWith('tg-')).length).toBeLessThanOrEqual(50)
+    expect(screen.getByRole('button', { name: /^192\.168\.10\.0\/24/ })).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.getByText(/^Page 1 of 1\d$/)).toBeInTheDocument()
+    const search = screen.getByRole('searchbox', { name: 'Search devices' })
+    for (const q of ['PC-120', '192.168.40.121', '3c:52:82:00:78']) {
+      await userEvent.clear(search)
+      await userEvent.type(search, q)
+      expect(await screen.findByRole('checkbox', { name: /^PC-120 192\.168\.40\.121$/ })).toBeInTheDocument()
+      expect(screen.getByText(`1 of ${total} devices match`)).toBeInTheDocument()
+    }
+    await userEvent.clear(search)
+    await userEvent.type(search, 'synology')
+    expect(screen.getByText(`48 of ${total} devices match`)).toBeInTheDocument() // 47 generated + the seed's NAS-BACKUP
+    // a collapsed group keeps only its header
+    await userEvent.clear(search)
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Subnet' }), '192.168.41.0/24')
+    const head = screen.getByRole('button', { name: /^192\.168\.41\.0\/24/ })
+    await userEvent.click(head)
+    expect(head).toHaveAttribute('aria-expanded', 'false')
+    expect(within(devices()).queryAllByRole('checkbox').filter((c) => c.id.startsWith('tg-'))).toHaveLength(0)
+  })
+
+  it('the selection survives paging, search and filters; Show selected lists exactly it', async () => {
+    big()
+    await start()
+    await userEvent.click(screen.getByRole('checkbox', { name: /^SRV-AD / }))
+    await userEvent.click(screen.getByRole('button', { name: 'Next' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Next' }))
+    const far = await screen.findAllByRole('checkbox', { name: /^PC-\d+ / })
+    const pick = far.find((c) => !(c as HTMLButtonElement).disabled)!
+    const name = pick.getAttribute('id')!
+    await userEvent.click(pick)
+    await userEvent.type(screen.getByRole('searchbox', { name: 'Search devices' }), 'nothing-like-this')
+    expect(screen.getByText('No device matches the search and filters.')).toBeInTheDocument()
+    expect(screen.getByText('2 selected')).toBeInTheDocument()
+    await userEvent.click(screen.getAllByRole('button', { name: 'Clear filters' })[0]!)
+    await userEvent.click(screen.getByRole('button', { name: 'Show selected' }))
+    const shown = within(devices()).getAllByRole('checkbox').filter((c) => c.id.startsWith('tg-'))
+    expect(shown.map((c) => c.id).sort()).toEqual(['tg-a-srvad', name].sort())
+    expect(shown.every((c) => c.getAttribute('data-state') === 'checked')).toBe(true)
+    expect(screen.getByRole('button', { name: 'Scan now (2)' })).toBeEnabled()
+  })
+
+  it('Select all on a filter ticks only devices that need no own tick and says how many do; Show them lists those, unticked', async () => {
+    big()
+    await start()
+    const list = (await items()).filter((x) => x.ip.startsWith('192.168.40.'))
+    const ok = list.filter((x) => x.selectable && !x.pick_only).length
+    const tick = list.filter((x) => x.selectable && x.pick_only).length
+    const no = list.filter((x) => !x.selectable).length
+    expect([ok > 0, tick > 0, no > 0]).toEqual([true, true, true])
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Subnet' }), '192.168.40.0/24')
+    await userEvent.click(screen.getByRole('button', { name: 'Select all' }))
+    const status = screen.getByText(`Selected ${ok} devices.`, { exact: false })
+    expect(status).toHaveTextContent(new RegExp(`${tick} need your own tick \\(\\d+ (type unknown|fragile|added by hand)(, \\d+ (type unknown|fragile|added by hand))*\\): Show them ${no} cannot be scanned \\(\\d+ not approved.*\\); each row says why\\. Approve devices on the Devices page`))
+    expect(screen.getByText(`${ok} selected`)).toBeInTheDocument()
+    await userEvent.click(within(status).getByRole('button', { name: 'Show them' }))
+    expect(screen.getByRole('combobox', { name: 'Show' })).toHaveValue('pick')
+    const rows = within(devices()).getAllByRole('checkbox').filter((c) => c.id.startsWith('tg-'))
+    expect(rows.length).toBe(Math.min(tick, 49)) // a page is 50 rows, the subnet header included
+    expect(rows.every((c) => c.getAttribute('data-state') === 'unchecked' && !(c as HTMLButtonElement).disabled)).toBe(true)
+    // D-126 (2): there is no bulk tick for them, the person ticks each one
+    await userEvent.click(rows[0]!)
+    expect(screen.getByText(`${ok + 1} selected`)).toBeInTheDocument()
+  })
+
+  it('W2-5: on a fresh box Select all ticks 0 and says why, by cause, with Show them', async () => {
+    // a fresh box: nothing classified yet, two devices not approved
+    assetsStore.update((l) => l.map((a, i) => ({ ...a, kind: 'unknown' as const, fragile: false, origin: 'discovered' as const, approved: i > 1 })))
+    await start()
+    await userEvent.click(screen.getByRole('button', { name: 'Select all' }))
+    const status = screen.getByText(/^Selected 0 devices\./)
+    const n = (await items()).filter((x) => x.selectable && x.pick_only).length
+    expect(status).toHaveTextContent(`Selected 0 devices. ${n} need your own tick (${n} type unknown): Show them 2 cannot be scanned (2 not approved); each row says why. Approve devices on the Devices page`)
+    expect(within(status).getByRole('link', { name: 'Approve devices on the Devices page' })).toHaveAttribute('href', '/devices')
+    await userEvent.click(within(status).getByRole('button', { name: 'Show them' }))
+    expect(screen.getByText(`${n} of ${n + 2} devices match`)).toBeInTheDocument()
+  })
+
+  it('the group checkbox ticks its subnet like Select all; ticked again it clears the group', async () => {
+    big()
+    await start()
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Subnet' }), '192.168.41.0/24')
+    const group = screen.getByRole('checkbox', { name: 'Select the devices in 192.168.41.0/24 that need no tick of your own' })
+    await userEvent.click(group)
+    expect(group).toHaveAttribute('data-state', 'indeterminate') // the fragile and unknown rows still wait for a tick of their own
+    expect(screen.getByText(/^Selected \d+ devices\./)).toBeInTheDocument()
+    await userEvent.click(group)
+    expect(group).toHaveAttribute('data-state', 'unchecked')
+    expect(screen.getByText('0 selected')).toBeInTheDocument()
+  })
+
+  it('more than 200 selected locks Scan now and names the limit', async () => {
+    big()
+    await start()
+    await userEvent.click(screen.getByRole('button', { name: 'Select all' }))
+    const n = (await items()).filter((x) => x.selectable && !x.pick_only).length
+    expect(n).toBeGreaterThan(200)
+    expect(screen.getByRole('button', { name: `Scan now (${n})` })).toBeDisabled()
+    expect(screen.getByText(`A scan can include at most 200 devices; ${n} are selected. Narrow the selection, then scan the rest in a second run.`)).toBeInTheDocument()
+  })
+
+  it('beta item 27: "Only devices with findings" shows those devices and says why none was ticked when each needs a hand pick', async () => {
+    // kien's box: the devices with findings were added by hand, so the button ticked nothing and said nothing
+    assetsStore.update((l) => l.map((a) => (a.id === 'a-web01' || a.id === 'a-srvad' ? { ...a, origin: 'manual' as const } : a)))
+    await start()
+    await userEvent.click(screen.getByRole('button', { name: 'Only devices with findings' }))
+    expect(screen.getByRole('combobox', { name: 'Show' })).toHaveValue('findings')
+    expect(screen.getByRole('checkbox', { name: /^WEB01 / })).toBeInTheDocument()
+    expect(screen.getByRole('checkbox', { name: /^NAS-PHOTOS / })).toBeInTheDocument()
+    expect(screen.getByText(/^Selected 0 devices\./)).toHaveTextContent(/^Selected 0 devices\. \d+ need your own tick/)
+    expect(screen.getByText('0 selected')).toBeInTheDocument()
+  })
+
+  it('beta item 27, D-484: a product added by hand without an address is named, says "no IP" and links to its device', async () => {
+    assetsStore.update((l) => [{ ...l.find((a) => a.id === 'a-web01')!, id: 'a-office', ip: '—', mac: null, hostname: null, kind: 'unknown' as const, origin: 'manual' as const, model: null,
+      vendor: { value: 'Microsoft', source: 'manual' as const, confidence: 1, seen_at: new Date().toISOString() },
+      software: [{ id: 's-off', display: 'Microsoft Office', vendor: 'Microsoft', product: 'Office', version: null, kev: [], source: 'manual' as const, confidence: 1 }] }, ...l])
+    await start()
+    const row = screen.getByRole('checkbox', { name: /^Microsoft$/ }) // D-484's name; no "—" for the missing IP
+    expect(row).toBeDisabled()
+    expect(screen.getByText('No IP address, so it cannot be scanned. Add its IP on the device page')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^No IP address/ })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Open device Microsoft' })).toHaveAttribute('href', '/devices/a-office')
+    await expectNoA11yViolations()
   })
 })

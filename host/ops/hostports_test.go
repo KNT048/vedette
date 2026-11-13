@@ -381,6 +381,10 @@ func TestPortsFreeRefusesWith412PortInUse(t *testing.T) {
 			t.Errorf("message %q lacks %q", ref.Message, s)
 		}
 	}
+	// core reads the ports and programs out of the message to show them (D-412)
+	if list, plural, ok := api.PortsInUse(ref.Message); !ok || !plural || list != "8765/tcp (python3, pid 4242), 6514/tcp (rsyslogd, pid 600)" {
+		t.Errorf("api.PortsInUse(%q) = %q %v %v", ref.Message, list, plural, ok)
+	}
 	if err := o.portsFree(ctx, api.ServiceCore, want, want); err != nil {
 		t.Fatalf("the same unit: %v", err)
 	}
@@ -390,6 +394,9 @@ func TestPortsFreeRefusesWith412PortInUse(t *testing.T) {
 	r.process("70", "nginx", cgUser, "61")
 	if err := r.ops(t).portsFree(ctx, api.ServiceCore, nil, want); !errors.As(err, &ref) || !strings.Contains(ref.Message, "Port 8443/tcp (nginx, pid 70) is in use") {
 		t.Fatalf("every port of a stopped service: %v", err)
+	}
+	if list, plural, ok := api.PortsInUse(ref.Message); !ok || plural || list != "8443/tcp (nginx, pid 70)" {
+		t.Errorf("api.PortsInUse(%q) = %q %v %v", ref.Message, list, plural, ok)
 	}
 	if err := r.ops(t).portsFree(ctx, api.ServiceCore, old, want); err != nil {
 		t.Fatalf("a running service's own port: %v", err)

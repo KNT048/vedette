@@ -8,16 +8,19 @@ import { assetsStore, boxInfo, emailCodeUserCount, usersStore } from '@/mocks/st
 import { collection, daysAgo, newId, nowIso } from '@/mocks/db'
 import type { Severity } from '@/lib/types'
 import { isInternalHost } from '@/features/feeds/defaults'
+import { chatLinkSenders, newLinkToken } from '@/features/response/identity'
+import { identityStore, isLinked } from '@/features/response/state'
 import { CHANNEL_TYPES, FIELDS, OWN_TEXT, ROUTE_SEVERITIES, forbiddenHost, ownHost } from './types'
-import type { Approver, Channel, ChannelInput, ChannelType, Grouping, HistoryItem, Incident, IncidentDetail, IncidentStatus, Preview, Quiet, SendRecord, TestResult } from './types'
+import { OAUTH_HOST, emailBinding, emailProvider, isOAuth, isUserSignin, savedFor } from './emailProviders'
+import type { Approver, Channel, ChannelInput, ChannelType, EmailSignin, Grouping, HistoryItem, Incident, IncidentDetail, IncidentStatus, Preview, Quiet, SendRecord, TestResult, ZaloApprover, ZaloContact, ZaloLogin } from './types'
 
 const SEV: Record<Severity, string> = { critical: 'Critical', high: 'High', medium: 'Medium', low: 'Low', info: 'Info' }
 
 // approvals: module khác (response) đọc bằng peek('notify_channels'): mỗi kênh có approvals?: boolean và approvers?: {user_id, address}[]. Giữ nguyên hình dạng này (D-46).
-interface StoredChannel extends Omit<Channel, 'secret_last4' | 'approvals' | 'approvers' | 'approval_last4'> { secret: string; url?: string; approvals?: boolean; approvers?: Approver[]; app_token?: string; bot_token?: string }
+interface StoredChannel extends Omit<Channel, 'secret_last4' | 'approvals' | 'approvers' | 'approval_last4'> { secret: string; url?: string; approvals?: boolean; approvers?: Approver[]; app_token?: string; bot_token?: string; secret_key?: string; refresh_token?: string }
 const blank = (type: ChannelType): StoredChannel => ({ type, configured: false, enabled: false, fields: {}, secret: '', min_severity: 'medium', last_test: null })
 // The webhook URL is a bearer secret (SYS-4): the mock keeps it apart from `fields`, as the backend seals it, and shows only scheme://host/… and its last 4 characters.
-const SAVED_FIELDS: Record<ChannelType, string[]> = { ...FIELDS, slack: ['label', 'channel_id'], webhook: [] }
+const SAVED_FIELDS: Record<ChannelType, string[]> = { ...FIELDS, slack: ['label', 'channel_id'], 'zalo-personal': ['user_id', 'group', 'name'], webhook: [] }
 
 const channels = collection<StoredChannel[]>('notify_channels', () => [
   { type: 'telegram', configured: true, enabled: true, fields: { chat_id: '-1002145678901' }, secret: '123456789:EXAMPLE_not_a_real_token_0000000000', min_severity: 'medium', last_test: { at: daysAgo(2), ok: true, detail: 'Telegram received the test message (chat -1002145678901).' } },
@@ -34,7 +37,7 @@ const rules = collection<{ quiet: Quiet; grouping: Grouping }>('notify_rules', (
 
 // Vulnerability notices (D-52): messages about a finding. They are not incidents; the finding page shows them (slot finding.panels) and Settings, Alert channels, History lists them.
 interface Notice { id: string; finding_ids: string[]; cves: string[]; product: string; created_at: string; sends: SendRecord[] }
-const s = (id: string, channel: ChannelType, to: string, at: string, ok = true, error?: string): SendRecord => ({ id, channel, to, at, ok, error })
+const s = (id: string, channel: ChannelType, to: string, at: string, ok = true, error?: string, delayed = false): SendRecord => ({ id, channel, to, at, ok, error, delayed })
 const plus = (iso: string, sec: number) => new Date(new Date(iso).getTime() + sec * 1000).toISOString()
 const notices = collection<Notice[]>('notify_alerts', () => {
   const t1 = daysAgo(0, 4), t2 = daysAgo(3), t3 = daysAgo(24)
@@ -61,7 +64,8 @@ const incidents = collection<StoredIncident[]>('notify_incidents', () => {
     { id: 'al-4', kind: 'trap', attempt: false, link: '/honeypot/hits/hit-seed-1', title: 'PC-HR-01 touched the SMB trap on FILESRV-OLD', asset_ids: ['a-pc07'], severity: 'critical', status: 'new', first_seen: t4, last_seen: p(t4, 0.4), count: 3,
       what: 'PC-HR-01 (192.168.10.107) opened an SMB connection to the trap machine FILESRV-OLD (192.168.10.240) 3 times. Nobody uses this trap, so it usually means the machine is infected or someone is probing the network.',
       action: 'Take the machine off the network (unplug the cable, turn off Wi-Fi), then ask its user what they were doing. Do not change passwords from that machine.',
-      sends: [s('sd-7', 'telegram', 'chat -1002145678901', plus(t4, 5))], handled_by: null, handled_at: null, note: null },
+      // D-483: Telegram held the first try back with HTTP 429; the box sent it after the wait
+      sends: [s('sd-7a', 'telegram', 'chat -1002145678901', plus(t4, 2), false, 'Delayed (rate limited): Telegram asked Vedette to wait 3s. It is sent again by itself after the wait.', true), s('sd-7', 'telegram', 'chat -1002145678901', plus(t4, 5))], handled_by: null, handled_at: null, note: null },
     { id: 'al-5', kind: 'trap', attempt: false, link: '/honeypot/hits/hit-seed-2', title: '192.168.10.157 touched the RDP trap on FILESRV-OLD', asset_ids: ['a-unk01'], severity: 'critical', status: 'resolved', first_seen: t5, last_seen: t5, count: 1,
       what: 'Unknown device 192.168.10.157 (not in the inventory) tried to sign in over Remote Desktop to the trap machine FILESRV-OLD (192.168.10.240).',
       action: 'Take the device off the network, then find out who brought it into the company.',
@@ -119,7 +123,7 @@ function history(): HistoryItem[] {
 
 const last4 = (v?: string) => (v ? v.slice(-4) : null)
 const shownUrl = (u?: string) => { try { const x = new URL(u ?? ''); return `${x.protocol}//${x.host}/…${(u as string).slice(-4)}` } catch { return '' } }
-const pub = (c: StoredChannel): Channel => { const { secret, url, app_token, bot_token, approvals, approvers, ...r } = c; return { ...r, fields: c.type === 'webhook' && url ? { url: shownUrl(url) } : r.fields, secret_last4: last4(secret), approvals: approvals === true, approvers: approvers ?? [], approval_last4: { app_token: last4(app_token), bot_token: last4(bot_token) } } }
+const pub = (c: StoredChannel): Channel => { const { secret, url, app_token, bot_token, approvals, approvers, secret_key: _k, refresh_token, ...r } = c; return { ...r, fields: c.type === 'webhook' && url ? { url: shownUrl(url) } : r.fields, secret_last4: last4(refresh_token || secret), approvals: approvals === true, approvers: approvers ?? [], approval_last4: { app_token: last4(app_token), bot_token: last4(bot_token) } } }
 const HM = /^([01]\d|2[0-3]):[0-5]\d$/
 
 // Quy tắc kênh (đối chiếu 2026-11): Telegram Bot API (token <số bot>:<chuỗi>; chat_id số, nhóm/kênh siêu nhóm bắt đầu -100, kênh công khai @tên);
@@ -172,6 +176,105 @@ const shownRecipient = (x: string) => {
   return r.length > 60 ? `${r.slice(0, 59).join('')}…` : r.join('')
 }
 
+const GUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+const BAD_KEY = 'This is not a service account key file from Google Cloud. In the Google Cloud console open IAM & Admin, Service accounts, the account, Keys, Add key, JSON, and choose the downloaded file.'
+/** The box's reading of a Google service account key file (smtpauth.go parseGoogleKey), minus the RSA parse: the mock cannot read the key itself. */
+const googleKeyOk = (raw: string) => {
+  if (raw.length > 16384) return false
+  try {
+    const k = JSON.parse(raw) as Record<string, unknown>
+    return k.type === 'service_account' && typeof k.client_email === 'string' && EMAIL_RE.test(k.client_email) && typeof k.private_key === 'string' && /^-----BEGIN (RSA )?PRIVATE KEY-----/.test(k.private_key)
+  } catch { return false }
+}
+const SECRET_NAME: Record<string, string> = { password: 'Enter the password or API key', token_as_user: 'Enter the server API token', microsoft_oauth: 'Enter the client secret', google_oauth: 'Choose the service account key', microsoft_user: 'Sign in with Microsoft', google_user: 'Sign in with Google' }
+// eslint-disable-next-line no-control-regex
+const ONE_LINE = /^[^\u0000-\u001f\u007f]+$/
+
+const GOOGLE_CLIENT_RE = /^[0-9]{6,30}-[a-z0-9]{10,64}\.apps\.googleusercontent\.com$/
+const TENANT_OK = (t: string) => ['organizations', 'common', 'consumers'].includes(t) || GUID_RE.test(t) || DOMAIN_RE.test(t)
+/** The tenant and client checks of a user sign-in (smtpsignin.go StartMicrosoftDevice, StartGoogleConsent; smtp.go NewEmail). */
+function signinFieldError(provider: string, tenant: string, client: string) {
+  if (provider === 'microsoft365-user' && !TENANT_OK(tenant.trim())) return fail(400, 'bad_tenant_id', 'The tenant ID is the Directory (tenant) ID of the app registration, a domain such as company.onmicrosoft.com, organizations, or consumers for Outlook.com.')
+  if (provider !== 'gmail-oauth' && !GUID_RE.test(client.trim())) return fail(400, 'bad_client_id', 'The client ID is the Application (client) ID of the app registration, for example 0a1b2c3d-4e5f-6789-abcd-ef0123456789.')
+  if (provider === 'gmail-oauth' && !GOOGLE_CLIENT_RE.test(client.trim())) return fail(400, 'bad_client_id', 'The client ID of a Google OAuth client ends with .apps.googleusercontent.com. Copy it from Google Auth Platform, Clients.')
+  return null
+}
+
+// D-480 user sign-ins: in the mock, a device sign-in finishes at the second check; a Google one when a fitting address is pasted.
+interface MockSignin extends EmailSignin { by: string; client: string; tenant: string; checks: number; state?: string; redirect?: string }
+const signins = new Map<string, MockSignin>()
+const SIGNED_IN_AS = 'alerts@acme.example'
+const publicSignin = ({ by: _b, client: _c, tenant: _t, checks: _k, state: _s, redirect: _r, ...v }: MockSignin): EmailSignin => v
+
+/** The box's reading of the pasted address (smtpsignin.go pastedCode): loopback at this sign-in's port, its state, then code. */
+function pastedCode(si: MockSignin, pasted: string) {
+  const notOurs = fail(400, 'bad_url', `Paste the whole address your browser shows after you approved, starting with ${si.redirect}/?`)
+  let u: URL
+  try { u = new URL(pasted.trim()) } catch { return { err: notOurs } }
+  if (pasted.length > 4096 || u.protocol !== 'http:' || u.username || !['127.0.0.1', 'localhost'].includes(u.hostname) || `http://127.0.0.1:${u.port}` !== si.redirect || !['', '/'].includes(u.pathname)) return { err: notOurs }
+  if (u.searchParams.get('state') !== si.state) return { err: fail(400, 'bad_state', 'This address belongs to another sign-in. Press Sign in with Google again and paste the address of that sign-in.') }
+  if (u.searchParams.get('error')) return { declined: true }
+  if (!/^[\x21-\x7e]{1,2048}$/.test(u.searchParams.get('code') ?? '')) return { err: fail(400, 'bad_url', 'The address has no sign-in code. Paste the whole address from the browser after you approved.') }
+  return {}
+}
+
+/** The email checks of the box in its order (channels.go emailFields, newSender, then channel/smtp.go NewEmail; D-449 presets). */
+function validateEmail(f: Record<string, string>, secret: string, cur: StoredChannel) {
+  const prov = emailProvider(f.provider)
+  if (!prov) return fail(400, 'bad_provider', 'Choose an email provider from the list, or Custom SMTP.')
+  // a saved secret goes only where it was saved for (D-449 review): another method, server or port needs it again
+  const rebind = !secret && !!cur.secret && savedFor(cur.fields) !== emailBinding(f)
+  const needSecret = (msg: string) => fail(400, 'secret_required', rebind ? `${SECRET_NAME[prov.auth]} again: the sign-in method, the server or the port changed, and a saved secret is only sent where it was saved for.` : msg)
+  // SaveChannel reads the port and the recipients before the adapter checks the rest (channels.go newSender).
+  const portText = (f.port ?? '').trim()
+  if (!/^[+-]?\d+$/.test(portText)) return fail(400, 'bad_port', 'The SMTP port is a number from 1 to 65535 (usually 587 or 465).')
+  const to = (f.to ?? '').split(/[,;]/).map((x) => x.trim()).filter(Boolean)
+  if (!to.length || to.length > 20) return fail(400, 'bad_to', 'Enter between 1 and 20 recipient emails, separated by commas.')
+  const badTo = to.find((x) => !EMAIL_RE.test(x))
+  const named = badTo === undefined ? '' : shownRecipient(badTo)
+  if (badTo !== undefined) return fail(400, 'bad_to', named ? `${named} is not a valid email address. Separate several recipients with commas.` : 'A recipient email is not valid. Separate several recipients with commas.')
+  const host = (f.host ?? '').trim()
+  if (!(IPV4_RE.test(host) || DOMAIN_RE.test(host))) return fail(400, 'bad_host', 'The SMTP server must be a domain name or an IP address, for example smtp.company.com.')
+  const port = Number(portText)
+  if (port < 1 || port > 65535) return fail(400, 'bad_port', 'The SMTP port is a number from 1 to 65535 (usually 587 or 465).')
+  if (ownHost(host)) return fail(400, 'bad_host', OWN_TEXT) // D-446
+  if (forbiddenHost(host)) return fail(400, 'bad_host', 'The SMTP server cannot be a link-local or multicast address, a cloud metadata service, or an unspecified address.')
+  if (!['starttls', 'ssl', 'none'].includes(f.security ?? '')) return fail(400, 'bad_security', 'Choose an encryption type: STARTTLS, SSL/TLS or none.')
+  if (f.security === 'ssl' && port === 587) return fail(400, 'port_mismatch', 'Port 587 uses STARTTLS, not SSL/TLS. Choose STARTTLS, or change the port to 465 for SSL/TLS.')
+  if (f.security === 'starttls' && port === 465) return fail(400, 'port_mismatch', 'Port 465 uses SSL/TLS, not STARTTLS. Choose SSL/TLS, or change the port to 587 for STARTTLS.')
+  const has = !!secret || (!!cur.secret && !rebind)
+  const pinned = OAUTH_HOST[prov.id]
+  if (f.security === 'none') {
+    if (prov.auth !== 'password') return fail(400, 'bad_security', 'This provider signs in, so the connection must be encrypted. Choose STARTTLS or SSL/TLS.')
+    // the adapter's insecure_smtp, which the API answers as bad_security (channels.go apiConfigCode); no login without encryption
+    if (!isInternalHost(host)) return fail(400, 'bad_security', 'Unencrypted SMTP is only allowed for a server on your internal network. Choose STARTTLS or SSL/TLS.')
+  } else if (isUserSignin(prov.auth)) {
+    if (pinned && host.toLowerCase().replace(/\.$/, '') !== pinned) return fail(400, 'bad_host', `This sign-in sends its token only to ${pinned}. Enter ${pinned} as the SMTP server.`)
+    if (!EMAIL_RE.test((f.username ?? '').trim())) return fail(400, 'bad_username', 'Sign in first: the mailbox is the account that signs in.')
+    const bad = signinFieldError(prov.id, f.tenant_id ?? '', f.client_id ?? ''); if (bad) return bad
+    if (!has) return needSecret(prov.auth === 'google_user' ? 'Sign in with Google first.' : 'Sign in with Microsoft first.')
+  } else if (isOAuth(prov.auth)) {
+    if (pinned && host.toLowerCase().replace(/\.$/, '') !== pinned) return fail(400, 'bad_host', `This sign-in sends its token only to ${pinned}. Enter ${pinned} as the SMTP server.`)
+    if (!EMAIL_RE.test((f.username ?? '').trim())) return fail(400, 'bad_username', 'Enter the mailbox Vedette sends as, for example alerts@company.com.')
+    if (prov.auth === 'microsoft_oauth') {
+      const tenant = (f.tenant_id ?? '').trim()
+      if (!GUID_RE.test(tenant) && !DOMAIN_RE.test(tenant)) return fail(400, 'bad_tenant_id', 'The tenant ID is the Directory (tenant) ID of the app registration, for example 72f988bf-86f1-41af-91ab-2d7cd011db47, or your domain such as company.onmicrosoft.com.')
+      if (!GUID_RE.test((f.client_id ?? '').trim())) return fail(400, 'bad_client_id', 'The client ID is the Application (client) ID of the app registration, for example 0a1b2c3d-4e5f-6789-abcd-ef0123456789.')
+      if (!has) return needSecret('Enter the client secret of the app registration.')
+      if (secret && (secret.length > 256 || !ONE_LINE.test(secret))) return fail(400, 'bad_secret', 'The client secret is the Value of a secret under Certificates & secrets of the app registration (not its Secret ID). Copy it again.')
+    } else {
+      if (!has) return needSecret('Choose the JSON key file of the service account.')
+      if (secret && !googleKeyOk(secret)) return fail(400, 'bad_secret', BAD_KEY)
+    }
+  } else {
+    if (prov.auth !== 'token_as_user' && (!f.username?.trim() || !ONE_LINE.test(f.username))) return fail(400, 'bad_username', 'Enter the SMTP username (usually the email address).')
+    if (!has) return needSecret('Enter the SMTP password. This channel has no saved key yet.')
+    if (secret && (secret.length > 1024 || !ONE_LINE.test(secret))) return fail(400, 'bad_secret', prov.auth === 'token_as_user' ? "The server API token is one line of letters, digits and dashes. Copy it again from the server's API Tokens tab in Postmark." : 'The password has a control character (such as a line break) or is too long. Copy it again.')
+  }
+  if (!EMAIL_RE.test((f.from ?? '').trim())) return fail(400, 'bad_from', 'The sender email is not valid, for example alerts@company.com.')
+  return null
+}
+
 function validate(type: ChannelType, b: Partial<ChannelInput>, cur: StoredChannel) {
   const f = b.fields ?? {}
   const secret = (b.secret ?? '').trim()
@@ -201,45 +304,31 @@ function validate(type: ChannelType, b: Partial<ChannelInput>, cur: StoredChanne
     }
     return null
   }
-  if (type === 'zalo') {
+  if (type === 'zalo') { // D-483: App ID + Secret key + refresh token (the box renews the access token), or a pasted access token as before
+    const key = (b.secret_key ?? '').trim() || cur.secret_key || '', refresh = (b.refresh_token ?? '').trim() || cur.refresh_token || ''
+    const grant = !!(b.secret_key?.trim() || b.refresh_token?.trim() || cur.refresh_token)
+    const token = (s: string, lo: number, hi: number) => s.length >= lo && s.length <= hi && /^[\x21-\x7e]+$/.test(s)
+    if (grant && !key) return fail(400, 'bad_secret_key', 'Enter the Secret key of the Zalo app (Zalo Developers, your app, Settings).')
+    if (grant && !refresh) return fail(400, 'bad_refresh_token', 'Enter the refresh token of the OA (Zalo Developers, API Explorer, OA access token). It lasts about 3 months.')
     if (!/^\d{6,20}$/.test((f.oa_id ?? '').trim())) return fail(400, 'bad_oa_id', 'OA ID is a string of digits, shown in the Official Account management page.')
     if (!/^\d{6,25}$/.test((f.user_id ?? '').trim())) return fail(400, 'bad_user_id', 'The Zalo recipient ID (user_id) is the number of a person who followed or messaged the OA.')
-    const bad = need('access token'); if (bad) return bad
+    if (grant) {
+      if (!/^\d{6,25}$/.test((f.app_id ?? '').trim())) return fail(400, 'bad_app_id', 'App ID is the number of your Zalo app, shown in Zalo Developers next to the app name.')
+      if (!token(key, 8, 128)) return fail(400, 'bad_secret_key', 'The Secret key of the Zalo app is a string of letters and digits. Copy it again from Zalo Developers (your app, Settings).')
+      if (!token(refresh, 20, 2048)) return fail(400, 'bad_refresh_token', 'The refresh token is too short or has a character that is not allowed. Copy the whole string again from Zalo Developers.')
+      if (secret && !token(secret, 20, 2048)) return fail(400, 'bad_token', 'The Zalo access token has a character that is not allowed. Copy it again without spaces, or leave it empty.')
+      return null
+    }
+    if (!cur.secret && !secret) return fail(400, 'secret_required', 'Enter the refresh token, or an access token. This channel has no saved key yet.')
     if (secret && secret.length < 20) return fail(400, 'bad_token', 'The Zalo access token is too short. Copy the whole string from Zalo Developers.')
     return null
   }
   if (type === 'zalo-personal') {
+    if (b.zalo_login === true && zaloSignedIn() === null) return fail(400, 'login_required', 'The Zalo sign-in has ended. Sign in with a new QR code, then save.')
     if (!/^\d{6,25}$/.test((f.user_id ?? '').trim())) return fail(400, 'bad_user_id', 'The recipient is the numeric Zalo ID of a user or a group (6 to 25 digits).')
-    return !cur.secret && !secret ? fail(400, 'secret_required', 'Scan the QR code with the Zalo app first. This channel has no saved session yet.') : null
+    return !cur.secret && !secret && b.zalo_login !== true ? fail(400, 'secret_required', 'Scan the QR code with the Zalo app first. This channel has no saved session yet.') : null
   }
-  if (type === 'email') {
-    // SaveChannel reads the port and the recipients before the adapter checks the rest (channels.go newSender).
-    const portText = (f.port ?? '').trim()
-    if (!/^[+-]?\d+$/.test(portText)) return fail(400, 'bad_port', 'The SMTP port is a number from 1 to 65535 (usually 587 or 465).')
-    const to = (f.to ?? '').split(/[,;]/).map((x) => x.trim()).filter(Boolean)
-    if (!to.length || to.length > 20) return fail(400, 'bad_to', 'Enter between 1 and 20 recipient emails, separated by commas.')
-    const badTo = to.find((x) => !EMAIL_RE.test(x))
-    const named = badTo === undefined ? '' : shownRecipient(badTo)
-    if (badTo !== undefined) return fail(400, 'bad_to', named ? `${named} is not a valid email address. Separate several recipients with commas.` : 'A recipient email is not valid. Separate several recipients with commas.')
-    const host = (f.host ?? '').trim()
-    if (!(IPV4_RE.test(host) || DOMAIN_RE.test(host))) return fail(400, 'bad_host', 'The SMTP server must be a domain name or an IP address, for example smtp.company.com.')
-    const port = Number(portText)
-    if (port < 1 || port > 65535) return fail(400, 'bad_port', 'The SMTP port is a number from 1 to 65535 (usually 587 or 465).')
-    if (ownHost(host)) return fail(400, 'bad_host', OWN_TEXT) // D-446
-    if (forbiddenHost(host)) return fail(400, 'bad_host', 'The SMTP server cannot be a link-local or multicast address, a cloud metadata service, or an unspecified address.')
-    if (!['starttls', 'ssl', 'none'].includes(f.security ?? '')) return fail(400, 'bad_security', 'Choose an encryption type: STARTTLS, SSL/TLS or none.')
-    if (f.security === 'ssl' && port === 587) return fail(400, 'port_mismatch', 'Port 587 uses STARTTLS, not SSL/TLS. Choose STARTTLS, or change the port to 465 for SSL/TLS.')
-    if (f.security === 'starttls' && port === 465) return fail(400, 'port_mismatch', 'Port 465 uses SSL/TLS, not STARTTLS. Choose SSL/TLS, or change the port to 587 for STARTTLS.')
-    if (f.security === 'none') {
-      // the adapter's insecure_smtp, which the API answers as bad_security (channels.go apiConfigCode); no login without encryption
-      if (!isInternalHost(host)) return fail(400, 'bad_security', 'Unencrypted SMTP is only allowed for a server on your internal network. Choose STARTTLS or SSL/TLS.')
-    } else {
-      if (!f.username?.trim()) return fail(400, 'bad_username', 'Enter the SMTP username (usually the email address).')
-      const bad = need('SMTP password'); if (bad) return bad
-    }
-    if (!EMAIL_RE.test((f.from ?? '').trim())) return fail(400, 'bad_from', 'The sender email is not valid, for example alerts@company.com.')
-    return null
-  }
+  if (type === 'email') return validateEmail(f, secret, cur)
   let u: URL | null = null
   try { u = new URL(webhookUrl(f, cur)) } catch { /* không phải URL */ }
   if (!u || !/^https?:$/.test(u.protocol)) return fail(400, 'bad_url', 'The webhook URL must start with https:// (or http:// on an internal network). Example: https://hooks.company.com/vedette.')
@@ -272,7 +361,166 @@ function deliver(c: StoredChannel): { ok: boolean; detail: string } {
 const destOf = (c: StoredChannel) => (c.type === 'telegram' ? `chat ${c.fields.chat_id}` : c.type === 'slack' ? (c.fields.label || 'Slack webhook') : c.type === 'zalo' ? `OA ${c.fields.oa_id}` : c.type === 'zalo-personal' ? `Zalo ${c.fields.user_id}` : c.type === 'email' ? (c.fields.to ?? '') : (c.url ? new URL(c.url).origin : ''))
 const isType = (v: unknown): v is ChannelType => CHANNEL_TYPES.includes(v as ChannelType)
 
+// Zalo personal set-up (D-447): the QR sign-in walks one state per poll (waiting → scanned → signed in), the contact list is fixed, and an
+// approver is sent a confirm link (made by the response mock, kept in zaloMessages) and is linked once they confirm it signed in.
+const ZALO_QR = { size: 29, path: 'M4 4h7v1h-7zM4 5h1v1h-1zM10 5h1v1h-1zM4 6h1v1h-1zM6 6h3v1h-3zM10 6h1v1h-1zM4 7h1v1h-1zM6 7h3v1h-3zM10 7h1v1h-1zM4 8h1v1h-1zM6 8h3v1h-3zM10 8h1v1h-1zM4 9h1v1h-1zM10 9h1v1h-1zM4 10h7v1h-7zM14 14h1v1h-1z' }
+let zaloLogin: { owner: string; state: ZaloLogin['state']; polls: number } | null = null
+const zaloCodes = new Map<string, { address: string; at: string; error: string }>()
+const zaloMessages: { to: string; text: string }[] = []
+/** The messages the box's Zalo account sent (tests read the confirm link from them). */
+export const zaloMessagesForTest = () => zaloMessages
+function sendZaloLink(a: Approver) {
+  const made = newLinkToken(a.user_id, 'zalo-personal', a.address)
+  if (!('token' in made)) { zaloCodes.set(a.user_id, { address: a.address, at: nowIso(), error: `No link was made: ${made.message}` }); return made }
+  const who = usersStore.get().find((u) => u.id === a.user_id)?.name ?? a.user_id
+  const link = `https://${boxInfo().ip ?? 'vedette.local'}/link/zalo?c=${encodeURIComponent(made.token)}`
+  zaloMessages.push({ to: a.address, text: `Vedette: open this link and sign in to Vedette as ${who} to link this Zalo account to ${who}: ${link} It works once, within 10 minutes. If you are not ${who}, ignore this message.` })
+  zaloCodes.set(a.user_id, { address: a.address, at: nowIso(), error: '' })
+  audit('notify.zalo_link_code', 'zalo-personal', `a confirm link was sent to Zalo ${a.address}`)
+  return made
+}
+const zaloSignedIn = () => (zaloLogin?.state === 'signed_in' && zaloLogin.owner === currentUser()?.id ? 'Vedette Box' : null)
+const ZALO_GROUPS: ZaloContact[] = [{ id: '8000000001', name: 'IT team', group: true, members: 5 }, { id: '8000000002', name: 'Night shift', group: true, members: 12 }]
+/** The uid of the mock's signed-in Zalo account (the box's own account): only your own row with it confirms without a message. */
+export const ZALO_BOX_UID = '1000000000000000001'
+const ZALO_FRIENDS: ZaloContact[] = [{ id: '3847561029384756102', name: 'Lan Pham', group: false, members: 0 }, { id: '2938475610293847561', name: 'Minh Tran', group: false, members: 0 }]
+const zaloView = (): ZaloLogin => {
+  const l = zaloLogin
+  if (!l || l.owner !== currentUser()?.id) return { state: 'none', qr: null, name: '', error: '', expires_at: null }
+  const live = l.state === 'waiting' || l.state === 'scanned'
+  return { state: l.state, qr: live ? ZALO_QR : null, name: l.state === 'scanned' ? 'Vedette Alerts' : l.state === 'signed_in' ? 'Vedette Box' : '', error: '', expires_at: live ? new Date(Date.now() + 100_000).toISOString() : null }
+}
+const zaloSession = () => zaloSignedIn() !== null || !!channels.get().find((c) => c.type === 'zalo-personal' && c.configured && c.secret)
+const NO_SESSION = () => fail(409, 'no_session', 'Sign in with the QR code first: finding groups and people needs the Zalo account.')
+const BAD_QUERY = 'Enter a group invite link (https://zalo.me/g/…), a phone number such as 0912345678, or a Zalo ID.'
+// Telegram approvers (D-414): the bot sends each a confirm link privately (made by the response mock, kept in tgMessages) and they are
+// linked once they confirm it signed in, as on Zalo. The mock's bot may always write to the person; the real box, when it may not, posts a
+// note without the link in the approval chat asking them to press Start, and answers send_failed.
+const tgCodes = new Map<string, { address: string; at: string; error: string }>()
+const tgMessages: { to: string; text: string }[] = []
+/** The messages the Telegram bot sent (tests read the confirm link from them). */
+export const telegramMessagesForTest = () => tgMessages
+function sendTelegramLink(a: Approver) {
+  const made = newLinkToken(a.user_id, 'telegram', a.address)
+  if (!('token' in made)) { tgCodes.set(a.user_id, { address: a.address, at: nowIso(), error: `No link was made: ${made.message}` }); return made }
+  const who = usersStore.get().find((u) => u.id === a.user_id)?.name ?? a.user_id
+  const link = `https://${boxInfo().ip ?? 'vedette.local'}/link/telegram?c=${encodeURIComponent(made.token)}`
+  tgMessages.push({ to: a.address, text: `Info: ${who}: open this link to link your Telegram account to Vedette.\nSign in to Vedette as ${who}, then press Confirm. It works once, within 10 minutes. If you are not ${who}, ignore this message.\nDetails: ${link}` })
+  tgCodes.set(a.user_id, { address: a.address, at: nowIso(), error: '' })
+  audit('notify.telegram_link_code', 'telegram', `a confirm link was sent to Telegram ${a.address} privately`)
+  return made
+}
+const zaloApprover = (a: Approver) => linkApprover('zalo-personal', a)
+function linkApprover(type: 'zalo-personal' | 'telegram', a: Approver): ZaloApprover {
+  const rec = (type === 'telegram' ? tgCodes : zaloCodes).get(a.user_id)
+  const base = { user_id: a.user_id, address: a.address, name: a.name ?? '', sent_at: rec?.address === a.address ? rec.at : null, error: '', self: a.user_id === currentUser()?.id, box_account: type === 'zalo-personal' && a.address === ZALO_BOX_UID }
+  if (isLinked(a.user_id, type, a.address)) return { ...base, state: 'linked' }
+  if (!rec || rec.address !== a.address) return { ...base, state: 'not_sent' }
+  if (rec.error) return { ...base, state: 'not_sent', error: rec.error }
+  return Date.now() - new Date(rec.at).getTime() < 600_000 ? { ...base, state: 'waiting' } : { ...base, state: 'not_sent', error: 'The link expired. Send a new one.' }
+}
+
 export const handlers = [
+  http.post(`${API}/notify/zalo/login`, () => {
+    const denied = guard('admin'); if (denied) return denied
+    const me = currentUser()!.id
+    if (zaloLogin && zaloLogin.owner !== me && zaloLogin.state !== 'expired' && zaloLogin.state !== 'declined' && zaloLogin.state !== 'failed') return fail(409, 'login_busy', 'Another administrator is signing in to Zalo now. Try again in a few minutes.')
+    zaloLogin = { owner: me, state: 'waiting', polls: 0 }
+    return HttpResponse.json(zaloView())
+  }),
+
+  http.get(`${API}/notify/zalo/login`, () => {
+    const denied = guard('admin'); if (denied) return denied
+    const l = zaloLogin
+    if (l && l.owner === currentUser()!.id && (l.state === 'waiting' || l.state === 'scanned')) {
+      l.polls++
+      l.state = l.polls >= 2 ? 'signed_in' : 'scanned'
+      if (l.state === 'signed_in') audit('notify.zalo_login', 'zalo-personal', 'QR sign-in: signed in as Vedette Box')
+    }
+    return HttpResponse.json(zaloView())
+  }),
+
+  http.delete(`${API}/notify/zalo/login`, () => {
+    const denied = guard('admin'); if (denied) return denied
+    if (zaloLogin?.owner === currentUser()!.id) zaloLogin = null
+    return new HttpResponse(null, { status: 204 })
+  }),
+
+  // The box answers 409 no_session without a session; the page asks only once it has one (ZaloRecipient canLook), so the mock always
+  // answers the demo list (the contract test reads every GET of the module).
+  http.get(`${API}/notify/zalo/contacts`, () => {
+    const denied = guard('admin'); if (denied) return denied
+    return HttpResponse.json({ friends: ZALO_FRIENDS, groups: ZALO_GROUPS })
+  }),
+
+  http.post(`${API}/notify/zalo/resolve`, async ({ request }) => {
+    const denied = guard('admin'); if (denied) return denied
+    const q = String((await body<{ query: string }>(request)).query ?? '').trim()
+    const link = /^(https?:\/\/)?zalo\.me\/g\/[A-Za-z0-9]{6,40}\/?$/i.test(q)
+    const phone = /^(\+?84\d{9}|0\d{9})$/.test(q.replace(/[\s.-]/g, ''))
+    if (!q || q.length > 200) return fail(400, 'bad_query', BAD_QUERY)
+    if (!link && !phone && /^\d{6,25}$/.test(q)) return HttpResponse.json({ id: q, name: '', group: false, members: 0, member: true })
+    if (!link && !phone) return fail(400, 'bad_query', BAD_QUERY)
+    if (!zaloSession()) return NO_SESSION()
+    if (link) return HttpResponse.json({ id: '8000000009', name: 'Support group', group: true, members: 7, member: false })
+    if (q.endsWith('000')) return fail(404, 'not_found', "Nothing was found. Check the link or the number; a person can hide from search by phone number in Zalo's privacy settings.")
+    return HttpResponse.json({ id: '4756102938475610293', name: 'Hoa Le', group: false, members: 0, member: true })
+  }),
+
+  http.get(`${API}/notify/zalo/approvers`, () => {
+    const denied = guard('admin'); if (denied) return denied
+    const c = channels.get().find((x) => x.type === 'zalo-personal')
+    return HttpResponse.json({ items: (c?.approvers ?? []).map(zaloApprover) })
+  }),
+
+  http.post(`${API}/notify/zalo/approvers/:user_id/code`, ({ params }) => {
+    const denied = guard('admin'); if (denied) return denied
+    const c = channels.get().find((x) => x.type === 'zalo-personal')
+    if (!c?.configured || !c.enabled || !c.approvals) return fail(409, 'channel_not_ready', 'Save the Zalo (personal) channel turned on, with "Approve actions from this channel", first.')
+    const a = (c.approvers ?? []).find((x) => x.user_id === params.user_id)
+    if (!a) return fail(404, 'not_listed', 'This person is not an approver on the Zalo channel. Save the channel first.')
+    if (a.user_id === currentUser()!.id && a.address === ZALO_BOX_UID) { // the box's own account: no message, confirm it now in this session
+      const made = newLinkToken(a.user_id, 'zalo-personal', a.address)
+      if (!('token' in made)) return fail(made.status, made.code, made.message)
+      audit('notify.zalo_link_code', 'zalo-personal', `a confirm link was made for the administrator's own Zalo ${a.address} (no message sent)`)
+      return HttpResponse.json({ ...zaloApprover(a), link: `/link/zalo?c=${encodeURIComponent(made.token)}` })
+    }
+    const made = sendZaloLink(a)
+    if (!('token' in made)) return fail(made.status, made.code, made.message)
+    return HttpResponse.json(zaloApprover(a))
+  }),
+
+  // D-491: the chats a bot has seen. A token ending _none has no message yet, _fresh has none and the box has just reset the bot's update filter, _revoked is refused by Telegram, _busy has a webhook.
+  http.post(`${API}/notify/telegram/chats`, async ({ request }) => {
+    const denied = guard('admin'); if (denied) return denied
+    const b = await body<{ token?: string }>(request)
+    const saved = channels.get().find((x) => x.type === 'telegram')
+    const typed = (b.token ?? '').trim()
+    const token = typed || saved?.secret || ''
+    if (!token) return fail(400, 'secret_required', 'Enter the bot token first.')
+    if (typed && !/^\d{6,12}:[A-Za-z0-9_-]{30,}$/.test(typed)) return fail(400, 'bad_token', 'A bot token looks like 123456789:AAH… and comes from @BotFather. Copy it again without extra spaces.')
+    if (token.endsWith('_revoked')) return fail(400, 'bad_token', 'The bot token is not valid. Copy it again from @BotFather.')
+    if (token.endsWith('_busy')) return fail(409, 'telegram_busy', "Another program is already reading this bot's messages (a webhook is set, or other software uses the same token). Type the Chat ID by hand, or stop the other reader and try again.")
+    if (token.endsWith('_none')) return HttpResponse.json({ items: [], fresh: false })
+    if (token.endsWith('_fresh')) return HttpResponse.json({ items: [], fresh: true })
+    return HttpResponse.json({ items: [
+      { id: '-1002145678901', kind: 'supergroup', name: 'IT Ops', username: '' },
+      { id: '5550001', kind: 'private', name: 'Lan Tran', username: 'lan_t' },
+    ], fresh: false })
+  }),
+
+  http.get(`${API}/notify/telegram/approvers`, () => {
+    const denied = guard('admin'); if (denied) return denied
+    const c = channels.get().find((x) => x.type === 'telegram')
+    return HttpResponse.json({ items: (c?.approvers ?? []).map((a) => linkApprover('telegram', a)) })
+  }),
+
+  http.post(`${API}/notify/telegram/approvers/:user_id/code`, ({ params }) => {
+    const denied = guard('admin'); if (denied) return denied
+    const r = telegramLinkFor(String(params.user_id))
+    return 'status' in r ? fail(r.status, r.code, r.message) : HttpResponse.json(r)
+  }),
+
   http.get(`${API}/notify/incidents`, () => {
     const denied = guard('viewer'); if (denied) return denied
     return HttpResponse.json({ incidents: [...incidents.get()].sort((a, b) => b.last_seen.localeCompare(a.last_seen)).map(withDevices) })
@@ -313,7 +561,7 @@ export const handlers = [
     const c = channels.get().find((x) => x.type === old.channel)
     if (!c || !c.configured || !c.enabled) return fail(409, 'channel_not_ready', 'This channel is not set up or is turned off. An administrator can turn it on in Settings, Alert channels.')
     const r = deliver(c)
-    const rec: SendRecord = { id: newId('sd'), channel: c.type, to: destOf(c), at: nowIso(), ok: r.ok, error: r.ok ? undefined : r.detail }
+    const rec: SendRecord = { id: newId('sd'), channel: c.type, to: destOf(c), at: nowIso(), ok: r.ok, error: r.ok ? undefined : r.detail, delayed: false }
     if (old.kind === 'incident') incidents.update((l) => l.map((x) => (x.sends.some((y) => y.id === id) ? { ...x, sends: [...x.sends, rec] } : x)))
     else if (old.kind === 'vuln') notices.update((l) => l.map((x) => (x.sends.some((y) => y.id === id) ? { ...x, sends: [...x.sends, rec] } : x)))
     else approvalSends.update((l) => [...l, { id: newId('ap'), at: rec.at, what: old.what, send: rec }])
@@ -348,15 +596,57 @@ export const handlers = [
     if (!isType(type)) return fail(404, 'not_found', 'No such channel type.')
     const b = await body<ChannelInput>(request)
     const cur = channels.get().find((c) => c.type === type) ?? blank(type)
+    if (type === 'email' && b.signin) { // D-480: the box takes the sign-in's refresh token and mailbox (channels.go takeSignin)
+      const si = signins.get(b.signin)
+      const f = b.fields ?? {}
+      if (!si || si.by !== (currentUser()?.email ?? '') || si.status !== 'signed_in' || si.provider !== f.provider || si.client !== (f.client_id ?? '').trim() ||
+        (si.provider === 'microsoft365-user' && si.tenant !== (f.tenant_id ?? '').trim())) return fail(400, 'secret_required', 'The sign-in is over or does not match these settings. Sign in again, then save.')
+      b.secret = `{"refresh_token":"mock-${si.id}"}`
+      b.fields = { ...f, username: si.mailbox!, ...(si.provider === 'outlook' ? { tenant_id: 'consumers' } : {}) }
+      signins.delete(si.id)
+    }
     const bad = validate(type, b, cur); if (bad) return bad
     const fields = Object.fromEntries(SAVED_FIELDS[type].filter((k) => !(type === 'slack' && k === 'channel_id' && b.approvals !== true)).map((k) => [k, String(b.fields?.[k] ?? '').trim()]))
-    if (type === 'email') fields.to = fields.to!.split(/[,;]/).map((x) => x.trim()).filter(Boolean).join(', ')
-    const secret = (b.secret ?? '').trim()
+    if (type === 'email') {
+      fields.to = fields.to!.split(/[,;]/).map((x) => x.trim()).filter(Boolean).join(', ')
+      // only the fields the provider uses (channels.go emailFields): tenant and client IDs are Microsoft 365's; Postmark's username is its token
+      const auth = emailProvider(fields.provider)!.auth
+      if (!fields.provider) delete fields.provider
+      if (auth !== 'microsoft_oauth' && auth !== 'microsoft_user') delete fields.tenant_id
+      if (!['microsoft_oauth', 'microsoft_user', 'google_user'].includes(auth)) delete fields.client_id
+      if (auth === 'token_as_user') delete fields.username
+    }
+    const zalo = type === 'zalo-personal'
+    if (zalo) {
+      if (fields.group !== 'true') delete fields.group
+      if (!fields.name) delete fields.name
+      const account = b.zalo_login === true ? zaloSignedIn() : cur.fields.account
+      if (account) fields.account = account
+    }
+    const secret = zalo && b.zalo_login === true ? 'zl-session-from-qr-sign-in' : (b.secret ?? '').trim()
+    if (zalo && b.zalo_login === true) zaloLogin = null
     const approvals = b.approvals === true
-    const approvers = approvals ? (b.approvers ?? []).map((a) => ({ user_id: a.user_id, address: a.address.trim() })) : []
-    const next: StoredChannel = { ...cur, configured: true, enabled: b.enabled === true, fields, secret: secret ? secret : cur.secret, ...(type === 'webhook' ? { url: webhookUrl(b.fields ?? {}, cur) } : {}), min_severity: b.min_severity!, last_test: null, approvals, approvers,
-      app_token: type === 'slack' ? (b.app_token?.trim() || cur.app_token) : undefined, bot_token: type === 'slack' ? (b.bot_token?.trim() || cur.bot_token) : undefined }
+    const approvers = approvals ? (b.approvers ?? []).map((a) => ({ user_id: a.user_id, address: a.address.trim(), ...(zalo && a.name ? { name: a.name } : {}) })) : []
+    // email: the saved secret stays only for the method, server and port it was saved for; a save that needs none deletes it (D-449 review)
+    const kept = type !== 'email' || savedFor(cur.fields) === emailBinding(fields) ? cur.secret : ''
+    if (type === 'email' && (secret || kept)) fields.secret_for = emailBinding(fields)
+    const byLink = zalo || type === 'telegram' // the confirm-link channels (D-447, D-414)
+    const same = (a: Approver, x: Approver) => x.user_id === a.user_id && x.address === a.address
+    const fresh = byLink ? approvers.filter((a) => !(cur.approvers ?? []).some((x) => same(a, x))) : []
+    const gone = byLink ? (cur.approvers ?? []).filter((x) => !approvers.some((a) => same(a, x)) && isLinked(x.user_id, type, x.address)) : []
+    const next: StoredChannel = { ...cur, configured: true, enabled: b.enabled === true, fields, secret: secret ? secret : kept, ...(type === 'webhook' ? { url: webhookUrl(b.fields ?? {}, cur) } : {}), min_severity: b.min_severity!, last_test: null, approvals, approvers,
+      app_token: type === 'slack' ? (b.app_token?.trim() || cur.app_token) : undefined, bot_token: type === 'slack' ? (b.bot_token?.trim() || cur.bot_token) : undefined,
+      ...(type === 'zalo' ? { secret_key: b.secret_key?.trim() || cur.secret_key, refresh_token: b.refresh_token?.trim() || cur.refresh_token } : {}) }
+    if (type === 'zalo' && !next.refresh_token) delete next.fields.app_id // an access token only: no app to refresh with
     channels.update((l) => [...l.filter((c) => c.type !== type), next])
+    // your own row with the box's own account confirms in your session; every other Zalo, yours too, gets the link by message
+    for (const g of gone) { // a linked approver removed or given another ID: the old proof ends, so naming it again needs a new confirm
+      identityStore.update((l) => l.filter((x) => !(x.channel === type && same(g, x))))
+      const who = usersStore.get().find((u) => u.id === g.user_id)?.email ?? g.user_id
+      audit(zalo ? 'notify.zalo_unlink' : 'notify.telegram_unlink', type, `${who}: ${zalo ? 'Zalo' : 'Telegram'} ${g.address} is no longer their approver address; its link no longer counts`)
+    }
+    if (next.enabled && approvals && zalo) for (const a of fresh) if (!(a.user_id === currentUser()!.id && a.address === ZALO_BOX_UID)) sendZaloLink(a)
+    if (next.enabled && approvals && type === 'telegram') for (const a of fresh) sendTelegramLink(a)
     audit('notify.channel_save', type, `${next.enabled ? 'on' : 'off'}${approvals ? `, approvals on (${approvers.length} approver${approvers.length === 1 ? '' : 's'})` : ''}`)
     return HttpResponse.json(pub(next))
   }),
@@ -365,7 +655,10 @@ export const handlers = [
     const denied = guard('admin'); if (denied) return denied
     const type = params.type
     if (!isType(type)) return fail(404, 'not_found', 'No such channel type.')
+    const gone = channels.get().find((c) => c.type === type)?.approvers ?? []
     channels.update((l) => [...l.filter((c) => c.type !== type), blank(type)])
+    // the approvers' proofs end with the channel (D-447): a recreated channel does not show them linked
+    identityStore.update((l) => l.filter((x) => !(x.channel === type && gone.some((a) => a.user_id === x.user_id && a.address === x.address))))
     audit('notify.channel_remove', type, 'configuration and saved key deleted')
     return new HttpResponse(null, { status: 204 })
   }),
@@ -383,6 +676,45 @@ export const handlers = [
     return HttpResponse.json(result)
   }),
 
+  http.post(`${API}/notify/email-signin`, async ({ request }) => {
+    const denied = guard('admin'); if (denied) return denied
+    const b = await body<{ provider: string; tenant_id?: string; client_id: string; client_secret?: string }>(request)
+    const provider = b.provider ?? '', client = (b.client_id ?? '').trim()
+    if (!['microsoft365-user', 'outlook', 'gmail-oauth'].includes(provider)) return fail(400, 'bad_provider', 'Only Microsoft 365, Outlook.com and Gmail sign in this way.')
+    const tenant = provider === 'outlook' ? 'consumers' : (b.tenant_id ?? '').trim()
+    const bad = signinFieldError(provider, tenant, client); if (bad) return bad
+    if (provider === 'gmail-oauth' && !(b.client_secret ?? '').trim()) return fail(400, 'bad_secret', 'Enter the client secret of the Desktop OAuth client (Google Auth Platform, Clients).')
+    const id = newId('si')
+    const base = { id, provider: provider as EmailSignin['provider'], status: 'waiting' as const, expires_at: new Date(Date.now() + 15 * 60_000).toISOString(), by: currentUser()?.email ?? '', client, tenant, checks: 0 }
+    let si: MockSignin
+    if (provider === 'gmail-oauth') {
+      const state = 'S'.repeat(43), redirect = 'http://127.0.0.1:53121'
+      si = { ...base, flow: 'paste', state, redirect, consent_url: `https://accounts.google.com/o/oauth2/v2/auth?${new URLSearchParams({ client_id: base.client, redirect_uri: redirect, response_type: 'code', scope: 'https://mail.google.com/ openid email', state, code_challenge_method: 'S256' })}` }
+    } else {
+      si = { ...base, flow: 'device', user_code: 'WDJB-MJHT', verification_uri: 'https://microsoft.com/devicelogin', interval: 5 }
+    }
+    for (const [k, o] of signins) if (o.by === si.by) signins.delete(k)
+    signins.set(id, si)
+    return HttpResponse.json(publicSignin(si))
+  }),
+
+  http.post(`${API}/notify/email-signin/:id`, async ({ params, request }) => {
+    const denied = guard('admin'); if (denied) return denied
+    const si = signins.get(String(params.id))
+    if (!si || si.by !== (currentUser()?.email ?? '')) return fail(404, 'not_found', 'This sign-in is over or belongs to another administrator. Start the sign-in again.')
+    if (si.status !== 'waiting') return HttpResponse.json(publicSignin(si))
+    if (si.flow === 'device') {
+      si.checks++
+      if (si.checks >= 2) { si.status = 'signed_in'; si.mailbox = SIGNED_IN_AS }
+      return HttpResponse.json(publicSignin(si))
+    }
+    const r = pastedCode(si, (await body<{ url?: string }>(request)).url ?? '')
+    if (r.err) return r.err
+    if (r.declined) si.status = 'declined'
+    else { si.status = 'signed_in'; si.mailbox = SIGNED_IN_AS }
+    return HttpResponse.json(publicSignin(si))
+  }),
+
   http.put(`${API}/notify/rules`, async ({ request }) => {
     const denied = guard('admin'); if (denied) return denied
     const b = await body<{ quiet: Quiet; grouping: Grouping }>(request)
@@ -396,3 +728,29 @@ export const handlers = [
     return HttpResponse.json(next)
   }),
 ]
+
+type Refusal = { status: number; code: string; message: string }
+/** Send again for a Telegram approver (the channel dialog, and My account through response, D-414). */
+function telegramLinkFor(userId: string): ZaloApprover | Refusal {
+  const c = channels.get().find((x) => x.type === 'telegram')
+  if (!c?.configured || !c.enabled || !c.approvals) return { status: 409, code: 'channel_not_ready', message: 'Save the Telegram channel turned on, with "Approve actions from this channel", first.' }
+  const a = (c.approvers ?? []).find((x) => x.user_id === userId)
+  if (!a) return { status: 404, code: 'not_listed', message: 'This person is not an approver on the Telegram channel. Save the channel first.' }
+  const made = sendTelegramLink(a)
+  return 'token' in made ? linkApprover('telegram', a) : made
+}
+// My account, Send again (response's Config.LinkSender on the real box): the same sends as the channel dialog.
+chatLinkSenders.telegram = (userId) => { const r = telegramLinkFor(userId); return 'status' in r ? r : {} }
+chatLinkSenders['zalo-personal'] = (userId) => {
+  const c = channels.get().find((x) => x.type === 'zalo-personal')
+  if (!c?.configured || !c.enabled || !c.approvals) return { status: 409, code: 'channel_not_ready', message: 'Save the Zalo (personal) channel turned on, with "Approve actions from this channel", first.' }
+  const a = (c.approvers ?? []).find((x) => x.user_id === userId)
+  if (!a) return { status: 404, code: 'not_listed', message: 'This person is not an approver on the Zalo channel. Save the channel first.' }
+  // your own row with the box's own account confirms in this session, for an administrator only (D-414 review: an operator never)
+  if (a.address === ZALO_BOX_UID && usersStore.get().find((u) => u.id === userId)?.role === 'admin') {
+    const made = newLinkToken(a.user_id, 'zalo-personal', a.address)
+    return 'token' in made ? { link: `/link/zalo?c=${encodeURIComponent(made.token)}` } : made
+  }
+  const made = sendZaloLink(a)
+  return 'token' in made ? {} : made
+}

@@ -118,6 +118,32 @@ describe('ai: assistant (S-AI-5, S-AI-6)', () => {
     expect(screen.queryByText(/No questions yet/)).toBeNull()
   })
 
+  // beta 0.1.0-beta.1 item 19: a tool result a hook held back is not a refused question; only a stopped question reads "not asked"
+  const asked = (hooks: object[]) => ({ id: 'ask-x', question: 'give me solution of currently status', asked_at: '2026-11-13T05:00:00.000Z', answer: ['FW-HQ needs the PAN-OS update first.'], table: null,
+    tool_calls: [{ tool: 'search_assets', args: '{}', result: 'withheld by hook Block personal data' }], citations: [], model: 'claude-haiku-5-5', profile: 'Claude', tokens: { input: 900, output: 200 }, downgraded: null, hooks, memories_suggested: 0 })
+  const hit = { id: 'block-pii', name: 'Block personal data', kind: 'builtin', when: 'before_ai', action: 'block' }
+  it.each([
+    ['tool_result', { ...hit, step: 'tool_result', tool: 'search_assets', message: 'The result of the tool search_assets contained an ID number, so the box held it back from the AI. The AI answered without it.' }, null, 'on the result of search_assets:'],
+    ['question', { ...hit, step: 'question', message: 'The text contains an ID number. It was not sent to the AI. Remove the number and ask again.' }, 'The AI was not asked', 'on the question:'],
+    ['answer', { ...hit, when: 'after_ai', step: 'answer', message: 'The answer named a log.' }, 'The AI answered, but a hook held the answer back', 'on the answer:'],
+  ])('a hook on the %s says which step it stopped and what to do', async (_step, h, title, where) => {
+    server.use(http.post('*/api/v1/ai/ask', () => HttpResponse.json(asked([h]))))
+    renderApp('/assistant')
+    const box = await screen.findByLabelText('Question')
+    await enabled(box)
+    await userEvent.type(box, 'give me solution of currently status')
+    await userEvent.click(screen.getByRole('button', { name: 'Ask' }))
+    const region = await screen.findByRole('region', { name: 'Answer to: give me solution of currently status' })
+    const hooks = within(region).getByRole('list', { name: 'Hooks that acted' })
+    expect(hooks).toHaveTextContent(where)
+    expect(within(region).getByText(/An administrator can adjust the hooks in Settings, AI assistant, Hooks/)).toBeInTheDocument()
+    if (title) expect(within(region).getByRole('alert')).toHaveTextContent(title)
+    else {
+      expect(within(region).queryByText('The AI was not asked')).toBeNull()
+      expect(within(region).getByText('FW-HQ needs the PAN-OS update first.')).toBeInTheDocument()
+    }
+  })
+
   it('walk 3 G13: a question longer than the box takes (500) says so and Ask stays off; near the limit a counter shows', async () => {
     renderApp('/assistant')
     const box = await screen.findByLabelText('Question')
@@ -158,8 +184,15 @@ describe('ai: assistant (S-AI-5, S-AI-6)', () => {
 
   it('AI module off: says why and where to turn it on (S-CORE-1)', async () => {
     modulesStore.update((l) => l.map((m) => (m.id === 'ai' ? { ...m, enabled: false } : m)))
+    const asked: string[] = []
+    server.events.on('request:start', ({ request }) => { if (new URL(request.url).pathname.includes('/ai/')) asked.push(new URL(request.url).pathname) })
     renderApp('/assistant')
     expect(await screen.findByRole('heading', { level: 1, name: /AI assistant is off/ })).toBeInTheDocument()
+    // Walk 5: only the module-off card; no calls to routes that are 404 and no "Not found" cards for the meter and the logs.
+    expect(screen.queryByText(/Not found/)).toBeNull()
+    expect(screen.queryByRole('heading', { name: /Activity log/i })).toBeNull()
+    expect(asked).toEqual([])
+    server.events.removeAllListeners()
   })
 })
 

@@ -213,27 +213,23 @@ func TestReplyCodeNormalisation(t *testing.T) {
 	}
 }
 
-// Six digits from a listed approver are a link code from My account (D-243): handed to LinkChat with the sender's ID and answered
-// privately; from a stranger they are only noted. A message Zalo delivers twice is taken once.
-func TestContract_PRE8_ZaloLinkCodeFromAnApprover(t *testing.T) {
+// D-447: a reply alone never links a Zalo account (the confirm link does, signed in): six digits or a confirm-link token from a listed
+// approver decide nothing, link nothing and get no answer; from a stranger they are only noted. A message Zalo delivers twice is taken once.
+func TestContract_D447_AReplyAloneDoesNotLink(t *testing.T) {
 	l := newZaloListenEnv(t, notify.DecisionResult{}, nil)
-	l.dec.link = notify.DecisionResult{Status: "linked", Message: "Linked. Your Zalo account now counts as you in Vedette."}
 	l.inbox.texts = []channel.ZaloText{
 		{ID: "11", From: zaloOp, Text: " 123456 "},
-		{ID: "11", From: zaloOp, Text: " 123456 "},
-		{ID: "12", From: zaloStranger, Text: "654321"},
+		{ID: "12", From: zaloOp, Text: "0a1b2c3d-AAAAAAAAAAAAAAAAAAAAAA"},
+		{ID: "13", From: zaloStranger, Text: "654321"},
 	}
 	_ = l.svc.ListenZaloForTest(l.ctx())
 	l.dec.mu.Lock()
 	links := append([]notify.Decision(nil), l.dec.links...)
 	l.dec.mu.Unlock()
-	if len(links) != 1 || links[0] != (notify.Decision{Channel: channel.ZaloPersonal, ExternalID: zaloOp, Code: "123456"}) {
-		t.Fatalf("links = %+v", links)
+	if len(links) != 0 || len(l.dec.got()) != 0 || len(l.z.sent) != 0 {
+		t.Fatalf("links %+v decisions %+v answers %+v", links, l.dec.got(), l.z.sent)
 	}
-	if len(l.z.sent) != 1 || l.z.sent[0].to != zaloOp || l.z.sent[0].msg.Title != "Linked. Your Zalo account now counts as you in Vedette." {
-		t.Fatalf("answers = %+v", l.z.sent)
-	}
-	if len(l.dec.got()) != 0 || l.count(`SELECT COUNT(*) FROM core_audit WHERE action = 'notify.zalo_message' AND target = ?`, zaloStranger) != 1 {
+	if l.count(`SELECT COUNT(*) FROM core_audit WHERE action = 'notify.zalo_message' AND target = ?`, zaloStranger) != 1 {
 		t.Fatal("a stranger's digits were not just noted")
 	}
 }

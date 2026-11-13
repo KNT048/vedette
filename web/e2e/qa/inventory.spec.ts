@@ -66,8 +66,7 @@ async function cleanInstall(page: Page, lan: string) {
 }
 async function finishWizard(page: Page) {
   await page.getByRole('radio', { name: /Small business/ }).or(page.getByRole('radio').first()).first().click()
-  await page.getByRole('button', { name: 'Continue' }).click()
-  await page.getByRole('button', { name: 'Skip and finish' }).click()
+  await page.getByRole('button', { name: 'Finish setup' }).click()
   await expect(page).not.toHaveURL(/\/setup/) // the wizard saves the scope before it leaves this page
   await expect(h1(page)).toBeVisible()
 }
@@ -287,7 +286,7 @@ test.describe('P1 director, view only', () => {
       await expect(b).toHaveAttribute('title', /Operator/)
     }
     await expect(page.getByRole('button', { name: 'Export CSV' })).toBeEnabled()
-    await expect(page.getByRole('link', { name: 'Scope and sensors' })).toHaveCount(0)
+    await expect(page.getByRole('link', { name: 'Scope, sensors and agents' })).toHaveCount(0)
     await page.goto('/devices/setup')
     await expect(page.getByText('You do not have access to this page')).toBeVisible()
     await page.goto('/devices/a-nas02')
@@ -441,8 +440,19 @@ test.describe('Admin: scan scope, sensor, agents', () => {
 
   test('osquery: token shown once; one-line install with a SHA-256 that matches the served script; uninstall; manual steps; revoke', async ({ page }) => {
     await enableModule(page, 'agent-intake')
-    await page.goto('/devices/setup')
+    // item 26b: /devices leads to the setup page, and the packages are on the page itself (step 1) before any token exists
+    await page.goto('/devices')
+    await page.getByRole('link', { name: 'Scope, sensors and agents' }).click()
+    await expect(page).toHaveURL(/\/devices\/setup$/)
     await expect(page.getByText('Use osquery on your Linux and Windows servers. Already run Wazuh? Connect its API instead.').first()).toBeVisible()
+    const pkgTable = page.getByRole('table', { name: 'osquery packages this box serves' })
+    await expect(pkgTable.getByRole('link')).toHaveCount(5)
+    const msiName = { name: /^Download osquery-[\d.]+\.msi$/ }
+    await expect(pkgTable.getByRole('link', msiName)).toHaveAttribute('href', /^\/api\/v1\/install\/osquery\/osquery-[\d.]+\.msi$/)
+    await expect(pkgTable.getByRole('row').filter({ has: page.getByRole('link', msiName) })).toContainText('msiexec /i osquery-')
+    await expect(page.getByRole('heading', { name: '2. Then create a token so the agent can report to this box' })).toBeVisible()
+    await shot(page, 'inventory', 'agent-downloads')
+    await expectAccessible(page, 'setup page with the osquery downloads')
     await page.getByRole('button', { name: 'Create agent token' }).click()
     const dlg = page.getByRole('dialog')
     await expect(dlg).toContainText('Linux and Windows Server')

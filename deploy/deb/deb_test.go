@@ -17,7 +17,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"slices"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -373,58 +372,19 @@ func TestPackage_Scripts(t *testing.T) {
 
 // The postinst enables the unit and never starts it (the installer starts it once host.conf exists), creates the users with
 // ids the system allocates, and never deletes anything; the postrm never deletes data, users or subuid lines.
-// The honeypot's log/ is the container's after its first start (podman's :U gives it to the image user, D-162). The postinst of an upgrade must not
-// stop at it: `once` fails on a directory whose owner or mode differ, which is exactly what :U leaves. This runs the real `once` and the real log/
-// line of the postinst against a directory that has a different mode, with `install` stubbed to record what it is asked to make.
-func TestPostinst_HoneypotLogIsNotCheckedAfterFirstRun(t *testing.T) {
+// The honeypot's log/ is the volume vedette-hp-log (D-318): the postinst neither makes nor checks /var/lib/vedette-honeypot/log (D-412).
+// A box installed before D-412 has one that podman's :U gave to the container (D-162): an upgrade must not stop at it, which a
+// `once` check would do, and must not make an unused folder on a new box (lab L1).
+func TestPostinst_NoHoneypotLogFolder(t *testing.T) {
 	t.Parallel()
 	b, err := os.ReadFile("postinst")
 	if err != nil {
 		t.Fatal(err)
 	}
-	text := string(b)
-	if regexp.MustCompile(`(?m)^\s*once\s+\d+\s+"?\$CORE"?\s+/var/lib/vedette-honeypot/log`).MatchString(text) {
-		t.Fatal("the postinst checks honeypot log/ with once: an upgrade after the container took it (:U) would fail")
-	}
-	logLine := ""
-	for _, l := range strings.Split(text, "\n") {
-		if strings.Contains(l, "/var/lib/vedette-honeypot/log") && strings.HasPrefix(strings.TrimSpace(l), "[ -d ") {
-			logLine = strings.TrimSpace(l)
+	for l := range strings.SplitSeq(string(b), "\n") {
+		if codeLine.MatchString(strings.TrimSpace(l)) && strings.Contains(l, "/var/lib/vedette-honeypot/log") {
+			t.Errorf("the postinst touches the honeypot's old log folder: %q", strings.TrimSpace(l))
 		}
-	}
-	once := ""
-	if i := strings.Index(text, "once() {"); i >= 0 {
-		if j := strings.Index(text[i:], "\n}\n"); j >= 0 {
-			once = text[i : i+j+3]
-		}
-	}
-	if logLine == "" || once == "" {
-		t.Fatalf("log line %q, once %q", logLine, once)
-	}
-	sh, err := exec.LookPath("sh")
-	if err != nil {
-		t.Skip("no sh")
-	}
-	dir := filepath.Join(t.TempDir(), "log")
-	if err := os.Mkdir(dir, 0o700); err != nil { // not the mode install -d would make: what :U and a later chmod leave is different from the first one
-		t.Fatal(err)
-	}
-	script := "fail() { echo FAIL \"$*\"; exit 1; }\nCORE=" + strconv.Itoa(os.Getuid()) + "\ninstall() { echo MADE \"$@\"; }\n" + once +
-		strings.ReplaceAll(logLine, "/var/lib/vedette-honeypot/log", dir) + "\necho DONE\n"
-	out, err := exec.CommandContext(t.Context(), sh, "-c", script).CombinedOutput() //nolint:gosec // test: the postinst's own lines, in a temp dir
-	if err != nil || strings.Contains(string(out), "MADE") || !strings.Contains(string(out), "DONE") {
-		t.Errorf("an existing log/ must be left alone: %v %q", err, out)
-	}
-	// ... and the old check really would have stopped here (what the review found)
-	oldRun := exec.CommandContext(t.Context(), sh, "-c", "fail() { echo FAIL \"$*\"; exit 1; }\ninstall() { :; }\n"+once+"once 750 root "+dir+"\necho DONE\n") //nolint:gosec // test
-	if o, _ := oldRun.CombinedOutput(); !strings.Contains(string(o), "FAIL") {
-		t.Errorf("the old once check should refuse a directory with another owner and mode, got %q", o)
-	}
-	// a missing log/ is made, as the core user, mode 0755
-	missing := filepath.Join(t.TempDir(), "log")
-	out, err = exec.CommandContext(t.Context(), sh, "-c", "CORE=vedette\ninstall() { echo MADE \"$@\"; }\n"+strings.ReplaceAll(logLine, "/var/lib/vedette-honeypot/log", missing)).CombinedOutput() //nolint:gosec // test
-	if err != nil || !strings.Contains(string(out), "MADE -d -m 0755 -o vedette -g vedette "+missing) {
-		t.Errorf("a missing log/ must be created 0755 vedette:vedette: %v %q", err, out)
 	}
 }
 
@@ -447,7 +407,7 @@ func TestScripts_Rules(t *testing.T) {
 	if !regexp.MustCompile(`useradd --system --gid "\$1" `).MatchString(post) {
 		t.Error("postinst must create users with useradd --system and no fixed --uid (ids are allocated by the system; the installer reads them with getent)")
 	}
-	for _, need := range []string{"groupadd --system", "containers:2147483647:2147483648", "daemon-reload", "was-enabled", "once 700 \"$CORE\" /var/lib/vedette", "[ -d /var/lib/vedette-honeypot/log ] || install -d -m 0755", "check_account", "check_dirs", "check_subid", "SYS_UID_MIN", "[ ! -L"} {
+	for _, need := range []string{"groupadd --system", "containers:2147483647:2147483648", "daemon-reload", "was-enabled", "once 700 \"$CORE\" /var/lib/vedette", "check_account", "check_dirs", "check_subid", "SYS_UID_MIN", "[ ! -L"} {
 		if !strings.Contains(post, need) {
 			t.Errorf("postinst lacks %q", need)
 		}

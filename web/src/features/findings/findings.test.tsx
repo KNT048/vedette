@@ -8,8 +8,10 @@ import { renderApp, expectNoA11yViolations } from '@/test/render'
 import { eachOption } from '@/test/formMatrix'
 import { server } from '@/test/server'
 import { makeQueryClient } from '@/app/App'
-import { aiConfigStore, aiRunsStore, auditStore, findingsStore, modulesStore, sessionStore } from '@/mocks/stores'
+import { aiConfigStore, aiRunsStore, assetsStore, auditStore, findingsStore, modulesStore, sessionStore } from '@/mocks/stores'
 import { feature } from './index'
+import { FixedInNote } from './Recommendation'
+import type { FindingDetail } from './types'
 
 const FORTI = 'show firewall vip | grep -f 192.168.10.21'
 const MIKROTIK_RULE = '/ip firewall filter add chain=forward action=drop in-interface-list=WAN connection-state=new connection-nat-state=dstnat dst-address=192.168.10.21 comment="Vedette: block Internet access to NAS" place-before=0'
@@ -43,6 +45,19 @@ describe('findings: danh sách (S-MIT-1)', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'No unresolved findings' })).toBeInTheDocument()
     expect(screen.getAllByRole('link', { name: 'Open Vulnerability scans' })[0]).toHaveAttribute('href', '/scans')
     expect(screen.getAllByRole('link', { name: 'Open Devices' })[0]).toHaveAttribute('href', '/devices')
+  })
+
+  it('D-500: phần mềm không có phiên bản là MỘT dòng "add the version", không phải một finding mỗi CVE', async () => {
+    server.use(http.get('*/api/v1/findings', () => HttpResponse.json({ items: [], version_needed: [
+      { asset: { id: 'a-pc', hostname: 'PC-KE-TOAN', ip: '192.168.10.40', kind: 'pc', display: 'Microsoft Office' }, asset_id: 'a-pc', software_id: 's-1', software: 'Microsoft Office', version: null, cves: 32 },
+      { asset: null, asset_id: 'a-fw', software_id: 's-2', software: 'FortiGate', version: 'latest', cves: 21 },
+    ] })))
+    renderApp('/findings')
+    const box = await screen.findByRole('region', { name: 'Add the version of 2 software to check them' })
+    expect(within(box).getByText(/Microsoft Office has no version: adding it checks 32 exploited CVEs/)).toBeInTheDocument()
+    expect(within(box).getByText(/FortiGate version "latest" cannot be compared/)).toBeInTheDocument()
+    expect(within(box).getByRole('link', { name: 'PC-KE-TOAN' })).toHaveAttribute('href', '/devices/a-pc')
+    await expectNoA11yViolations()
   })
 
   it('lỗi API hiện thông báo và nút thử lại', async () => {
@@ -156,15 +171,46 @@ describe('findings: f-2, f-3 chưa có khuyến nghị đã xác nhận (D-21)',
     expect(await screen.findByText('No confirmed recommendation yet')).toBeInTheDocument()
     expect(screen.queryByText('Confirmed by Vedette maintainers')).not.toBeInTheDocument()
     expect(screen.getByText(/Apply mitigations in accordance with vendor instructions/)).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'https://wordpress.org/news/2026/10/wordpress-7-1-4' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Vendor advisory (wordpress.org)' })).toHaveAttribute('href', 'https://wordpress.org/news/2026/10/wordpress-7-1-4')
+    expect(screen.getByText('Steps you can take now')).toBeInTheDocument() // W1-31: what the box knows, without a pack
     expect(screen.getByText(/No confirmed exploitation signs/)).toBeInTheDocument()
     await expectNoA11yViolations()
+  })
+
+  it('D-488: "What to do" nói phiên bản vá cho đúng thiết bị, đúng nhánh, và không bịa khi NVD không cho', () => {
+    const note = (fixed_in: FindingDetail['fixed_in']) => render(<FixedInNote finding={{ asset: { name: 'FortiGate-60F' }, fixed_in } as FindingDetail} />)
+    const src = { source: 'NVD affected versions', more: 0, no_fix: 0, distro: '', branches: [] }
+    const a = note({ ...src, kind: 'fixed', version: '7.4.1', fixed: '7.4.3' })
+    expect(screen.getByText('Fixed in 7.4.3: upgrade FortiGate-60F from 7.4.1 to 7.4.3 or later.')).toBeInTheDocument()
+    expect(screen.getByText(/Source: NVD affected versions/)).toBeInTheDocument()
+    a.unmount()
+    const b = note({ ...src, kind: 'up_to', version: '5.6.8', fixed: '5.6.10' })
+    expect(screen.getByText(/Versions up to 5\.6\.10 are affected, and FortiGate-60F runs 5\.6\.8: upgrade to a release after 5\.6\.10\./)).toBeInTheDocument()
+    expect(screen.queryByText(/Fixed in/)).not.toBeInTheDocument()
+    b.unmount()
+    const c = note({ ...src, kind: 'branches', version: '', fixed: '', more: 3, branches: [{ branch: '7.4', fixed: '7.4.3' }, { branch: '7.2', fixed: '7.2.7' }, { branch: '', fixed: '22.4R2' }] })
+    expect(screen.getByText(/7\.4 \u2192 7\.4\.3, 7\.2 \u2192 7\.2\.7, 22\.4R2, and 3 more/)).toBeInTheDocument()
+    c.unmount()
+    const d = note({ ...src, kind: 'distro', version: '1.9.4-1ubuntu2', fixed: '', distro: 'Ubuntu' })
+    expect(screen.getByText(/It is a Ubuntu package: install its security updates/)).toBeInTheDocument()
+    expect(screen.queryByText(/Fixed in/)).not.toBeInTheDocument()
+    d.unmount()
+    const g = note({ ...src, kind: 'fixed', version: '8.2.0', fixed: '8.3.3', distro: 'Ubuntu' })
+    expect(screen.getByText('Fixed in 8.3.3: upgrade FortiGate-60F from 8.2.0 to 8.3.3 or later.')).toBeInTheDocument()
+    expect(screen.getByText(/If you installed .* from Ubuntu's packages, install its security updates instead/)).toBeInTheDocument()
+    g.unmount()
+    const e = note({ ...src, kind: 'branches', version: '7.0.x', fixed: '', no_fix: 4, branches: [{ branch: '7.0', fixed: '7.0.9' }] })
+    expect(screen.getByText(/cannot read the version "7\.0\.x" of FortiGate-60F.*7\.0 \u2192 7\.0\.9, NVD names no fixed release for 4 more line\(s\)/)).toBeInTheDocument()
+    expect(screen.queryByText(/has no version yet/)).not.toBeInTheDocument()
+    e.unmount()
+    note(null)
+    expect(screen.queryByTestId('fixed-in')).not.toBeInTheDocument()
   })
 
   it('f-3 cũng vậy, với link MSRC', async () => {
     renderApp('/findings/f-3')
     expect(await screen.findByText('No confirmed recommendation yet')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'https://msrc.microsoft.com/update-guide/en-US/vulnerability/CVE-2026-96951' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Vendor advisory (msrc.microsoft.com)' })).toHaveAttribute('href', 'https://msrc.microsoft.com/update-guide/en-US/vulnerability/CVE-2026-96951')
   })
 
   it('"Hỏi AI của tôi" trả lời trong AiBlock của khách, ghi lượt chạy, còn sau khi tải lại', async () => {
@@ -182,6 +228,23 @@ describe('findings: f-2, f-3 chưa có khuyến nghị đã xác nhận (D-21)',
     view.unmount()
     renderApp('/findings/f-2')
     expect(await screen.findByText('Your AI')).toBeInTheDocument()
+  })
+
+  // beta 0.1.0-beta.1: Explain on Haiku 5.5 failed with a cut answer, and the page said "No AI profile is assigned". Each failure of the
+  // AI shows the box's own message for it, never the "not set up" one.
+  it.each([
+    ['ai_cut_off', 502, "The AI's answer was cut off at the output limit (12,000 tokens), so it was not used. Try again; if it keeps happening, use a model for explaining findings that writes shorter answers."],
+    ['ai_bad_format', 502, 'The AI answered, but not in the format Vedette needs, so the answer was discarded. Try again, or use a stronger model for this job.'],
+    ['provider_error', 502, 'The AI provider returned an error for explaining findings (Claude: provider refused the request (HTTP 400): bad model).'],
+    ['blocked_by_hook', 409, 'The AI was not asked: a hook stopped the data sent with it (the device of the finding). The text contains an ID number.'],
+    ['daily_cap', 429, "Today's 60,000 token cap is used up and the tier is already the minimum."],
+    ['ai_timeout', 504, 'The AI provider did not answer explaining findings in time (Claude: provider did not answer in time).'],
+  ])('Ask my AI failing with %s shows that failure', async (code, status, message) => {
+    server.use(http.post('*/api/v1/findings/:id/ai', () => HttpResponse.json({ error: { code, message } }, { status })))
+    renderApp('/findings/f-2')
+    await userEvent.click(await screen.findByRole('button', { name: 'Ask my AI' }))
+    expect(await screen.findByText(message)).toBeInTheDocument()
+    expect(screen.queryByText(/No AI profile is assigned to this job/)).toBeNull()
   })
 
   it('AI chưa cấu hình: nút tắt, nói rõ phải làm gì, có link tới cài đặt', async () => {
@@ -317,5 +380,58 @@ describe('findings: Mark as handled form matrix (docs/QA.md §2, QA walk 2026-11
     })
     expect(within(dlg).getByRole('radio', { name: /Patched/ })).toBeChecked()
     expect(within(dlg).getByRole('textbox')).toHaveValue('')
+  })
+})
+
+describe('findings: customer walk 1 (D-484)', () => {
+  it('W1-4: real risk first; a product-only guess shows its severity muted as unverified; certainty filter', async () => {
+    renderApp('/findings')
+    const table = await screen.findByRole('table', { name: 'Findings list' })
+    const rows = within(table).getAllByRole('row').slice(1)
+    expect(rows.map((r) => within(r).getByRole('link', { name: /^CVE-/ }).textContent)).toEqual(['CVE-2022-27593', 'CVE-2026-96951', 'CVE-2026-119977'])
+    expect(within(rows[2]!).getByText('High, unverified')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Unverified' }))
+    await waitFor(() => expect(within(screen.getByRole('table')).getAllByRole('row')).toHaveLength(2))
+  })
+
+  it('W1-12: select all shown, one action and one note, one history and audit row per finding', async () => {
+    renderApp('/findings')
+    await screen.findByRole('table', { name: 'Findings list' })
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Select all 3 findings shown' }))
+    const bar = screen.getByRole('region', { name: 'Selected findings' })
+    expect(within(bar).getByText('3 findings selected')).toBeInTheDocument()
+    await userEvent.click(within(bar).getByRole('button', { name: 'Mark as handled' }))
+    const dlg = await screen.findByRole('dialog', { name: 'Mark 3 findings as handled' })
+    await userEvent.click(within(dlg).getByRole('radio', { name: /False positive/ }))
+    await userEvent.type(within(dlg).getByLabelText('Note: why (required)'), 'Lab network, not ours')
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Save status for 3 findings' }))
+    expect(await screen.findByRole('heading', { level: 1, name: 'No unresolved findings' })).toBeInTheDocument()
+    expect(findingsStore.get().every((f) => f.status === 'false_positive' && f.resolution_note === 'Lab network, not ours' && f.history.at(-1)?.action === 'false_positive')).toBe(true)
+    expect(auditStore.get().filter((a) => a.action === 'findings.status')).toHaveLength(3)
+  })
+
+  it('W1-12: a closed finding in the selection keeps its status and reason; the toast says so', async () => {
+    findingsStore.update((l) => l.map((f) => (f.id === 'f-1' ? { ...f, status: 'patched' as const, resolution_note: 'Updated to 6.1.2' } : f)))
+    renderApp('/findings')
+    await screen.findByRole('table', { name: 'Findings list' })
+    await userEvent.click(screen.getByRole('button', { name: 'All' }))
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Select all 3 findings shown' }))
+    await userEvent.click(within(screen.getByRole('region', { name: 'Selected findings' })).getByRole('button', { name: 'Mark as handled' }))
+    const dlg = await screen.findByRole('dialog', { name: 'Mark 3 findings as handled' })
+    await userEvent.click(within(dlg).getByRole('radio', { name: /Not relevant/ }))
+    await userEvent.type(within(dlg).getByLabelText('Note: why (required)'), 'Retired next month')
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Save status for 3 findings' }))
+    expect(await screen.findByText('Status saved for 2 findings. 1 was already closed and kept its status.')).toBeInTheDocument()
+    const f1 = findingsStore.get().find((f) => f.id === 'f-1')!
+    expect([f1.status, f1.resolution_note]).toEqual(['patched', 'Updated to 6.1.2'])
+  })
+
+  it('W1-2, W1-32: a device with no IP is named, says "No IP address" and offers no rescan', async () => {
+    assetsStore.update((l) => l.map((a) => (a.id === 'a-web01' ? { ...a, ip: '—', hostname: null } : a)))
+    renderApp('/findings/f-2')
+    expect(await screen.findByRole('heading', { level: 1, name: /^VMware may be affected/ })).toBeInTheDocument()
+    expect(screen.getAllByText('No IP address').length).toBeGreaterThan(0)
+    expect(screen.queryByRole('link', { name: 'Rescan this device' })).not.toBeInTheDocument()
+    expect(screen.queryByText(/a-web01/)).not.toBeInTheDocument()
   })
 })

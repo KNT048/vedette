@@ -19,7 +19,8 @@
 #      the signed images by digest; then starts vedette-host and core, waits until core is healthy and prints the address
 #      and the one-time setup code
 # Running it again repairs (also after a run that stopped half way) or upgrades the host package and changes nothing that is
-# already right. --uninstall --yes puts the box back as it was (--keep-data keeps the data and the users). Nothing is read from
+# already right. --uninstall --yes puts the box back as it was (--keep-data keeps the data and the users; running this script again
+# then installs its release over them, and refuses a release older than the one that last ran on them). Nothing is read from
 # the environment.
 #
 # The three values below are filled by the release job (WP-08k) and are empty in the repository: an empty value makes the
@@ -43,7 +44,8 @@ unset IFS
 STATE=/var/lib/vedette-install
 HOST_BIN=/usr/lib/vedette/vedette-host
 HOST_STATE=/var/lib/vedette-host
-NETWORK_FILE=/etc/containers/systemd/vedette-int.network
+UNIT_DIR=/etc/containers/systemd
+NETWORK_FILE=$UNIT_DIR/vedette-int.network
 MIRROR_FILE=/etc/containers/registries.conf.d/vedette-test-mirror.conf
 REGISTRY_UNIT=vedette-testregistry
 REGISTRY_ADDR=127.0.0.1:5077
@@ -58,6 +60,10 @@ CLOCK_FLOOR=1793491200 # 2026-11-01: a clock before this is not set
 MODE=install
 HANDOVER=
 KEEP_DATA=
+HOST_STOPPED=
+HP_STOPPED=
+RELEASE=
+SERVICES=
 YES=
 TEST_DIR=
 ART=
@@ -99,6 +105,11 @@ cleanup() {
 		rm -f "$MIRROR_FILE"
 	fi
 	[ -z "$TMP" ] || rm -rf "$TMP"
+	# a run that stopped vedette-host for the bootstrap and then failed leaves it running again, as it was, with the honeypot (W2-10)
+	if [ "$rc" -ne 0 ] && [ -n "$HOST_STOPPED" ]; then
+		systemctl start vedette-host.service >/dev/null 2>&1 || true
+		[ -z "$HP_STOPPED" ] || systemctl start vedette-honeypot.service >/dev/null 2>&1 || true
+	fi
 	[ -e "$STATE/owner" ] || rm -rf "$STATE/art" # a refusal before the first change leaves nothing behind
 	rmdir "$STATE" 2>/dev/null || true
 	if [ "$rc" -ne 0 ] && [ "$MODE" = install ] && [ -d "$STATE" ]; then
@@ -297,9 +308,11 @@ preflight() {
 		[ -n "$VEDETTE_VERSION" ] || die "this install.sh is not tied to a release: its version and package checksum are empty. Download install.sh from a Vedette release page (${REPO_URL}/releases). Nothing was changed."
 		case $VEDETTE_VERSION in *-test.*) die "release $VEDETTE_VERSION has a -test. prerelease: that is a test version, never a release" ;; esac
 		host_version_ok "$VEDETTE_VERSION" || die "release '$VEDETTE_VERSION' cannot name a host package (SemVer, a prerelease of letters, digits and dots only). Nothing was changed."
+		RELEASE=$VEDETTE_VERSION
 		case $ARCH in amd64) DEB_SUM=$VEDETTE_DEB_SHA256_AMD64 ;; arm64) DEB_SUM=$VEDETTE_DEB_SHA256_ARM64 ;; esac
 		printf '%s' "$DEB_SUM" | grep -Eq '^[0-9a-f]{64}$' || die "this install.sh has no package checksum for $ARCH. Nothing was changed."
 	fi
+	kept_release_ok "$RELEASE"
 	# a self-update of vedette-host under way (D-316) owns the package until it ends: installing over it would race its applier
 	if [ -e "$HOST_STATE/selfupdate/journal.json" ]; then
 		die "a self-update of vedette-host is under way or stopped half way ($HOST_STATE/selfupdate/journal.json): wait for it to end, or follow docs/RUNBOOK.md if it does not. Nothing was changed."
@@ -702,9 +715,78 @@ EOF
 	done
 }
 
+# vedette_units: a container unit of Vedette is in the Quadlet folder
+vedette_units() {
+	for s in core sensor scan honeypot; do
+		if [ -e "$UNIT_DIR/vedette-$s.container" ] || [ -L "$UNIT_DIR/vedette-$s.container" ]; then return 0; fi
+	done
+	return 1
+}
+
+# kept_records: no unit of Vedette's containers is left, but the host recorded what they ran (containers/versions-<service>.json,
+# written only with the units), or this script noted it in $STATE/kept-release before it cleared those records in a run that then
+# stopped: the state an --uninstall --keep-data leaves (it removes the units and the images and keeps /var/lib/vedette-host and
+# $STATE). The records say which release last ran on the kept data (W2-9, D-418).
+kept_records() {
+	! vedette_units || return 1
+	if [ -e "$STATE/kept-release" ] || [ -L "$STATE/kept-release" ]; then return 0; fi
+	for f in "$HOST_STATE"/containers/versions-*.json; do
+		if [ -e "$f" ] || [ -L "$f" ]; then return 0; fi
+	done
+	return 1
+}
+
+# kept_release: the release core last ran on the kept data, as recorded (empty when there is no record that can be read)
+kept_release() {
+	f=$HOST_STATE/containers/versions-core.json
+	v=
+	if [ -f "$f" ] && [ ! -L "$f" ]; then
+		# one line of JSON (Go's encoding); the current record holds only plain values, so it ends at its first }
+		v=$(sed -n 's/.*"current":{\([^}]*\)}.*/\1/p' "$f" | sed -n 's/.*"version":"\([^"]*\)".*/\1/p' | head -n 1)
+	fi
+	if [ -z "$v" ] && [ -f "$STATE/kept-release" ] && [ ! -L "$STATE/kept-release" ]; then
+		v=$(head -n 1 "$STATE/kept-release")
+	fi
+	if [ -n "$v" ] && host_version_ok "$v"; then printf '%s\n' "$v"; fi
+}
+
+# kept_release_ok <release>: a release older than the one core last ran on the kept data is refused before any change: core's
+# migrations only go forward, so an older core would run on a newer database (D-418). A record that cannot be read is no record (the
+# host ignores it too): a warning, and the install goes on.
+kept_release_ok() {
+	kept_records || return 0
+	had=$(kept_release)
+	if [ -z "$had" ]; then
+		warn "the data of an earlier install is kept here, but the release that last ran on it cannot be read ($HOST_STATE/containers/versions-core.json or $STATE/kept-release); it is not compared with $1"
+		return 0
+	fi
+	if dpkg --compare-versions "$(printf '%s' "$had" | sed 's/-/~/')" gt "$(printf '%s' "$1" | sed 's/-/~/')"; then
+		die "this box keeps the data of Vedette $had (an --uninstall --keep-data), newer than the release of this script ($1): an older Vedette cannot open newer data. Run the install.sh of release $had or newer. Nothing was changed."
+	fi
+	if [ "$had" = "$1" ]; then
+		say "the kept data last ran with release $had, the release of this script"
+	else
+		# the normal update (Settings -> Updates) takes a pre_update backup first; this path cannot (D-418)
+		warn "the kept data last ran with release $had: core $1 moves it forward at its first start and it cannot go back to $had. A backup of $had made before the uninstall (Settings -> Backups) is the only way back."
+	fi
+}
+
+# forget_containers: the host's records of what the containers ran (versions, pulled images, the journals of unit changes and the old
+# unit texts) describe units and images that the uninstall removed. They are cleared, so that the bootstrap installs this release over
+# the kept data and records what then runs (W2-9, D-418). The data, the backups, the release index and the host's package records stay.
+# A link is removed, never followed.
+forget_containers() {
+	d=$HOST_STATE/containers
+	[ -d "$d" ] && [ ! -L "$d" ] || return 0
+	rm -f "$d"/versions-*.json "$d"/pulled-*.json "$d"/transition-*.json
+	rm -rf "$d/units"
+}
+
 bootstrap() {
-	if [ -e "$HOST_STATE/containers/versions-core.json" ]; then
+	# done when core has its unit and its record; a missing unit (an --uninstall --keep-data, or a unit removed by hand) is installed again
+	if [ -e "$HOST_STATE/containers/versions-core.json" ] && [ -e "$UNIT_DIR/vedette-core.container" ]; then
 		say "the release is already bootstrapped (containers are updated from Settings -> Updates); skipping"
+		rm -f "$STATE/kept-release" # core has its record and its unit: the note of a run that stopped after writing them is done
 		return 0
 	fi
 	if [ -z "$TEST_DIR" ]; then
@@ -713,6 +795,29 @@ bootstrap() {
 		fetch "$REPO_URL/releases/download/index/index.json.minisig" "$DOCS/index.json.minisig" 4096
 		fetch "$REPO_URL/releases/download/v$RELEASE/release-manifest.json" "$DOCS/release-manifest.json" 1048576
 		fetch "$REPO_URL/releases/download/v$RELEASE/release-manifest.json.minisig" "$DOCS/release-manifest.json.minisig" 4096
+	fi
+	# the bootstrap runs only while vedette-host does not (one owner of the state and the units, D-142): a re-run finds it running when
+	# the package install restarted it or an earlier run started it and then stopped (W2-10). start_and_wait starts it again, and so
+	# does cleanup when this run fails.
+	# The honeypot Requires= the host, so it stops with it and is started again with it.
+	case $(systemctl is-active vedette-host.service 2>/dev/null || true) in
+	inactive | failed | unknown | '') ;;
+	*)
+		say "stopping vedette-host for the bootstrap (it starts again below)"
+		if systemctl is-active --quiet vedette-honeypot.service 2>/dev/null; then HP_STOPPED=1; fi
+		HOST_STOPPED=1
+		systemctl stop vedette-host.service || die "vedette-host did not stop (journalctl -u vedette-host)"
+		;;
+	esac
+	if kept_records; then
+		say "the data of an earlier install is kept here (--uninstall --keep-data) but none of its containers: installing release $RELEASE over it"
+		# the release that last ran stays known until this release is bootstrapped, so a run that stops before that keeps the guard
+		had=$(kept_release)
+		if [ -n "$had" ]; then
+			printf '%s\n' "$had" >"$STATE/kept-release.new"
+			mv -f "$STATE/kept-release.new" "$STATE/kept-release"
+		fi
+		forget_containers
 	fi
 	systemctl daemon-reload
 	# the scan image is built on vedette-int (#467): Quadlet makes the network only when its unit starts, and no container has started yet
@@ -733,12 +838,18 @@ bootstrap() {
 	5) die "a unit file in /etc/containers/systemd is not Vedette's own (unit_foreign), or a credential volume was made for other ids (unit_unsafe); the line above says which. Look at it; nothing was replaced." ;;
 	*) die "vedette-host -bootstrap failed with exit $rc (its message is above); run this script again after fixing it" ;;
 	esac
+	[ -e "$UNIT_DIR/vedette-core.container" ] || die "core has no unit after the bootstrap (exit $rc, its message is above): this box records another release for it in $HOST_STATE/containers/versions-core.json. Run the install.sh of that release."
+	rm -f "$STATE/kept-release" # the host's own record holds the release now
 }
 
 start_and_wait() {
 	systemctl daemon-reload
 	systemctl start vedette-host.service || die "vedette-host did not start (journalctl -u vedette-host)"
 	[ -S /run/vedette/host.sock ] || die "vedette-host is running but /run/vedette/host.sock is missing"
+	if [ -n "$HP_STOPPED" ]; then
+		systemctl start vedette-honeypot.service || warn "the honeypot did not start again after the bootstrap (journalctl -u vedette-honeypot)"
+		HP_STOPPED=
+	fi
 	systemctl start vedette-core.service || die "vedette-core did not start (journalctl -u vedette-core)"
 	say "waiting for core to be healthy (up to 300 s)"
 	n=0
@@ -1044,6 +1155,12 @@ do_uninstall() {
 	fi
 	ip netns delete vedette-hp >/dev/null 2>&1 || true
 	rm -f /etc/containers/systemd/vedette-* "$MIRROR_FILE"
+	# a unit write of vedette-host cut short leaves .tmp-<16 lowercase hex> beside the units (host/ops writeAtomicIn); a regular file only
+	for f in /etc/containers/systemd/.tmp-*; do
+		n=${f##*/.tmp-}
+		case $n in *[!0-9a-f]*) continue ;; esac
+		if [ "${#n}" -eq 16 ] && [ -f "$f" ] && [ ! -L "$f" ]; then rm -f "$f"; fi
+	done
 	systemctl daemon-reload >/dev/null 2>&1 || true
 	systemctl reset-failed >/dev/null 2>&1 || true
 	remove_forward_rules
@@ -1058,13 +1175,31 @@ do_uninstall() {
 	if grep -qx chrony "$STATE/asked-packages" 2>/dev/null; then
 		systemctl disable --now chrony.service >/dev/null 2>&1 || true
 	fi
+	# the purge of a package with an AppArmor profile (chrony) runs dh_apparmor's postrm, which also rmdirs the apparmor package's
+	# own folders when they are empty (/etc/apparmor.d/disable on a fresh Ubuntu 24.04): one that was there before is put back
+	# while the apparmor package is installed (a box without it had the folders only for the purged profiles, made by dpkg)
+	aa_dirs=
+	for d in /etc/apparmor.d /etc/apparmor.d/disable /etc/apparmor.d/force-complain /etc/apparmor.d/local; do
+		if [ -d "$d" ] && [ ! -L "$d" ]; then aa_dirs="$aa_dirs $(stat -c %a "$d"):$d"; fi
+	done
 	purge_added_packages
-	# what the packages this script asked for left behind (a purge keeps accounts, runtime files and podman's storage)
-	if grep -qx podman "$STATE/asked-packages" 2>/dev/null; then
+	if installed_pkg apparmor; then
+		for e in $aa_dirs; do
+			[ -e "${e#*:}" ] || install -d -m "${e%%:*}" -o root -g root "${e#*:}" || warn "could not put back the folder ${e#*:}"
+		done
+	fi
+	# what podman, when this script added it and apt then purged it, left behind: its storage and runtime files (a purge keeps them),
+	# and the folders the package (/etc/containers, its systemd/) and podman for vedette-int (networks/, /var/lib/cni) made. A podman
+	# that apt kept (another package needs it, or it is marked manual) is the administrator's: nothing of it is touched (D-463).
+	if grep -qx podman "$STATE/asked-packages" 2>/dev/null && ! installed_pkg podman; then
 		find /var/lib/containers -mindepth 1 -delete 2>/dev/null || true
 		rmdir /var/lib/containers 2>/dev/null || true
-		rm -rf /run/containers /etc/containers/systemd /root/.config/cni
-		rmdir /etc/containers /root/.config 2>/dev/null || true
+		rm -rf /run/containers /root/.config/cni
+		# rmdir only, deepest first, and never a folder an installed package owns (buildah's containers-common): a folder with anything
+		# left in it is somebody else's and stays (N100)
+		for d in /etc/containers/networks /etc/containers/systemd/users /etc/containers/systemd /etc/containers/registries.conf.d /etc/containers /var/lib/cni/networks /var/lib/cni /root/.config; do
+			if [ -d "$d" ] && ! dpkg-query -S "$d" >/dev/null 2>&1; then rmdir "$d" 2>/dev/null || true; fi
+		done
 	fi
 	if grep -qx netplan.io "$STATE/asked-packages" 2>/dev/null; then
 		rm -f /run/systemd/system/netplan-ovs-cleanup.service /run/systemd/system/*.wants/netplan-ovs-cleanup.service
@@ -1084,7 +1219,7 @@ do_uninstall() {
 		rm -f "$HOST_STATE/selfupdate/installed-by-us"
 		# the next install saves the forwarding and nft state again, as it will be then
 		rm -f "$STATE/runtime-saved" "$STATE/ip_forward.orig" "$STATE/ip6_forward.orig" "$STATE/nft.before"
-		say "kept: /var/lib/vedette*, /etc/vedette and the users"
+		say "kept: /var/lib/vedette*, /etc/vedette and the users. Running install.sh again (this release or a newer one) brings Vedette back with them."
 	else
 		rm -rf /var/lib/vedette /var/lib/vedette-host /var/lib/vedette-honeypot /var/lib/vedette-creds /etc/vedette /var/log/vedette-host /run/vedette
 		remove_subid /etc/subuid subuid

@@ -19,6 +19,12 @@
 - **scan** sở hữu runner (`cmd/vedette` `scanRunner`, `modules/scan/surface`, D-229): đổi `ScanTarget`/`Content` phải sửa adapter `contentOf` và `TestExposureRunnerResult`. Ba lỗi là câu người dùng đọc (toast của Scan now); mock `exposure` trả đúng `module_off` khi module `scan` tắt.
 - **response** (`new_port`) và **reports** đọc ảnh chụp do runner tạo; runner không lưu gì khi lỗi.
 
+## Modifying: `TargetView.open_ports`, `MaxOpenPorts`, `latestResults` (D-485)
+- **web/features/exposure**: câu đầu và mục "N ports open to the Internet" của `ExposurePage.tsx` đọc `open_ports`; nhãn "Commonly attacked" theo `PortRow.service` (`services.ts`), nên đổi tên dịch vụ trong `modules/scan/surface/ports.go` là đổi nhãn đó. Mock `mocks.ts` cắt 20 như hộp.
+
+## Modifying: `Gateway` (port), `GatewayDevice`, `GatewayNote`, `GatewayView`, `gateway` of `GET /exposure/targets` (D-492)
+- **cmd/vedette** `exposuregateway.go` implements the port from `netStateReader` (default route), `inventory.Service.AllDevices`/`Names` and `findings.Service.List`: changing the meaning of "open" findings (`Status.Open`), the device name rule or the host's `NetState.DefaultRoute` changes what the page says. **web/features/exposure** `GatewayNote` (ExposurePage.tsx) words the four cases (known with findings, known without, not in the device list, unknown) and links to `/findings?device=<id>`; `contract.ts` is the OpenAPI source for `gateway`. Exposure never reads `inv_*` or `fnd_*`.
+
 ## Modifying: trường `Snapshot`/`Diff`
 - **SPA** `ResultsPanel`, `TargetPage`; **reports**. `contract.ts` là nguồn OpenAPI.
 

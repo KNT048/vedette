@@ -6,6 +6,7 @@ import (
 
 	"github.com/knt048/vedette/core/jobs"
 	"github.com/knt048/vedette/core/store"
+	hostclient "github.com/knt048/vedette/host/client"
 	"github.com/knt048/vedette/modules/exposure"
 )
 
@@ -33,6 +34,13 @@ func exposureService(d deps) *exposure.Service {
 		panic("vedette: " + err.Error())
 	}
 	cfg := exposure.Config{DB: d.DB, Audit: d.Audit, Resolver: net.DefaultResolver, Prober: prober, Runner: scanRunner(d), Log: d.Log, Clock: d.Clock}
+	if d.Inventory != nil && d.Findings != nil { // D-492; a nil service would only fail at the first read
+		g := exposureGateway{inv: d.Inventory, fnd: d.Findings}
+		if d.HostSocket != "" {
+			g.state = hostclient.New(d.HostSocket)
+		}
+		cfg.Gateway = g
+	}
 	if d.Bus != nil { // a nil *events.Bus inside the interface would not compare equal to nil
 		cfg.Publisher = d.Bus
 	}

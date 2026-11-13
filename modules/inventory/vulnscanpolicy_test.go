@@ -47,7 +47,22 @@ func TestContract_VulnScanPolicy_Rules(t *testing.T) {
 				e.t.Fatal(err)
 			}
 			return id
-		}, deny(inventory.ReasonBox), deny(inventory.ReasonBox)},
+		}, deny(inventory.ReasonBox), ok(normal)}, // D-470: only a person's pick scans the box
+		{"box, regular_scan=allow", false, func(e *env) string {
+			id, err := e.svc.EnsureBox(e.ctx(), inventory.BoxInfo{Hostname: "vedette-hq", IP: "192.168.10.2"})
+			if err != nil {
+				e.t.Fatal(err)
+			}
+			patch(e, id, regular("allow"))
+			return id
+		}, deny(inventory.ReasonBox), ok(normal)}, // nothing automatic scans the box, whatever its setting
+		{"box, outside lan_ranges", false, func(e *env) string {
+			id, err := e.svc.EnsureBox(e.ctx(), inventory.BoxInfo{Hostname: "vedette-hq", IP: "10.9.9.2"})
+			if err != nil {
+				e.t.Fatal(err)
+			}
+			return id
+		}, deny(inventory.ReasonBox), deny(inventory.ReasonOutOfScope)}, // a pick of the box passes the same checks as any device
 		{"no IP", false, func(e *env) string {
 			e.record(obsv(macA, observe.Kind, "pc", observe.Agent, 0.9))
 			return e.idByMAC(macA)

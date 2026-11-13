@@ -44,8 +44,10 @@ type fakeProviders struct {
 	probeIn, probeOut int      // tokens of every probe call; 0 = the default 14 in and 3 out
 	answer            string   // the text of every answer that is not a probe
 	usageIn, usageOut int      // tokens of every answer that is not a probe; 0 = the default 14 in and 3 out
+	sizedUsage        bool     // a played answer reports the size of its request as its input tokens (requestTokens), as a provider would
 	noClient          string   // the profile whose client cannot be built ("" = none)
 	reqs              []provider.Request
+	cut               int // the next answers with a schema that stop at the output limit: half the text, stop reason max_tokens
 	// script, when set, answers every request that carries tools or follows a tool turn instead of the default text (slice 5, ask).
 	script func(ctx context.Context, p ai.Profile, req provider.Request) (provider.Response, error)
 }
@@ -122,7 +124,18 @@ func (p fakeProvider) Complete(ctx context.Context, req provider.Request) (provi
 	case !isProbe && p.f.usageIn > 0:
 		in, out = p.f.usageIn, p.f.usageOut
 	}
-	return provider.Response{Text: text, Usage: provider.Usage{InputTokens: in, OutputTokens: out}}, nil
+	if !isProbe && p.f.cut > 0 {
+		p.f.cut--
+		return provider.Response{Text: text[:len(text)/2], Usage: provider.Usage{InputTokens: in, OutputTokens: req.MaxTokens}, Stop: provider.StopMaxTokens}, nil
+	}
+	return provider.Response{Text: text, Usage: provider.Usage{InputTokens: in, OutputTokens: out}, Stop: provider.StopEnd}, nil
+}
+
+// cutNext makes the next n answers with a schema stop at the output limit.
+func (f *fakeProviders) cutNext(n int) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.cut = n
 }
 
 type clock struct {

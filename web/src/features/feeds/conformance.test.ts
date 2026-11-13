@@ -106,7 +106,7 @@ const steps: Step[] = [
   { name: 'search blank', role: 'viewer', method: 'GET', path: '/feeds/search?q=%20%20', status: 400, code: 'empty_query' },
   { name: 'search 201 characters', role: 'viewer', method: 'GET', path: `/feeds/search?q=${'a'.repeat(201)}`, status: 200, real: { status: 400, code: 'invalid' } },
   { name: 'sources list', role: 'viewer', method: 'GET', path: '/feeds/sources', status: 200, schema: FeedList,
-    check: (b) => { expect(b.items.filter((f: { builtin: boolean }) => f.builtin).map((f: { id: string }) => f.id)).toEqual(['cisa-kev', 'first-epss', 'nuclei-templates', 'ipsum', 'et-open', 'abusech-feodo', 'tor-exit', 'hagezi-tif']) } },
+    check: (b) => { expect(b.items.filter((f: { builtin: boolean }) => f.builtin).map((f: { id: string }) => f.id)).toEqual(['cisa-kev', 'first-epss', 'nvd-kev', 'nuclei-templates', 'ipsum', 'et-open', 'abusech-feodo', 'tor-exit', 'hagezi-tif']) } },
 
   // ---- roles
   { name: 'no session', role: null, method: 'GET', path: '/feeds/status', status: 401, code: 'unauthenticated' },

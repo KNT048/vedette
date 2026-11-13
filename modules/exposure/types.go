@@ -113,6 +113,22 @@ type TargetView struct {
 	CreatedAt     string         `json:"created_at"`
 	LastScanAt    *string        `json:"last_scan_at"`
 	Latest        *Counts        `json:"latest"`
+	// OpenPorts are the first MaxOpenPorts open ports of the newest snapshot, in its order (Latest.Ports is the total), so
+	// the list page can say what is open (S-EXP-1, D-485); nil when never scanned.
+	OpenPorts []PortRow `json:"open_ports"`
+}
+
+// MaxOpenPorts bounds TargetView.OpenPorts (a domain can have hundreds of names on 80 and 443).
+const MaxOpenPorts = 20
+
+// GatewayView is the API shape of the gateway note (contract.ts Gateway): the device that probably answers the open ports of the
+// box's public IP, or a gap in what is known. IP is nil when the box cannot tell its gateway, DeviceID and Name are nil when the
+// gateway is not in the inventory.
+type GatewayView struct {
+	IP            *string `json:"ip"`
+	DeviceID      *string `json:"device_id"`
+	Name          *string `json:"name"`
+	OpenExploited int     `json:"open_exploited"`
 }
 
 // LastRun is the last detection of the box's public IPs, automatic or by a click (BoxIP.last_run).

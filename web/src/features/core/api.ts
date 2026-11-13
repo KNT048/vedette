@@ -186,9 +186,6 @@ export async function saveInventoryScope(lan: string[], scopeConfirmed: boolean)
   const cur = await api.get<Record<string, unknown>>('/inventory/settings')
   return api.put<{ scope_confirmed_at: string | null }>('/inventory/settings', { ...cur, lan_ranges: lan, active: { ...(cur.active as object), enabled: scopeConfirmed }, scope_confirmed: scopeConfirmed })
 }
-/** Module thông báo: PUT /notify/channels/:type, bật kênh với mức tối thiểu Trung bình. */
-export const saveNotifyChannel = (type: string, fields: Record<string, string>, secret: string) =>
-  api.put(`/notify/channels/${type}`, { enabled: true, fields, secret: secret || undefined, min_severity: 'medium' })
 
 // ---- khôi phục sao lưu trên hộp (S-CORE-1, D-377) ----
 export const useBoxBackups = () => useQuery({ queryKey: ['core', 'backups'], queryFn: () => api.get<BoxBackups>('/core/data/backups'), retry: false })
@@ -217,5 +214,8 @@ export function useNetworkActions() {
     revert: useMutation({ mutationFn: () => api.post<NetworkState>('/core/network/management/revert'), onSuccess: done }),
     span: useMutation({ mutationFn: (b: SpanConfig) => api.put<NetworkState>('/core/network/span', b), onSuccess: done }),
     ntp: useMutation({ mutationFn: (b: NtpConfig) => api.put<NetworkState>('/core/network/ntp', b), onSuccess: done }),
+    // D-465: the block list URL (Response) and the agent install commands (Devices) carry the Box address.
+    boxAddress: useMutation({ mutationFn: (address: string) => api.put<NetworkState>('/core/network/box-address', { address }), onSuccess: (d: NetworkState) => { done(d); void qc.invalidateQueries({ queryKey: ['response'] }) } }),
+    forgetBoxAddress: useMutation({ mutationFn: (address: string) => api.post<NetworkState>('/core/network/box-address/forget', { address }), onSuccess: done }),
   }
 }

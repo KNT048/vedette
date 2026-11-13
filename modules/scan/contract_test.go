@@ -1,6 +1,7 @@
 package scan
 
 import (
+	"database/sql"
 	"slices"
 	"strings"
 	"testing"
@@ -192,7 +193,7 @@ func TestContract_POST3_NextRun(t *testing.T) {
 	base := Settings{Window: Window{Days: []int{1, 2, 3, 4, 5, 6, 7}, From: "22:00", To: "05:00"}, Schedule: Schedule{Enabled: true, Frequency: "weekly", Weekday: 7, At: "23:00"}}
 	at := func(c Settings, now time.Time, loc *time.Location) string {
 		t.Helper()
-		r := c.NextRun(now, loc)
+		r := c.NextRun(now, loc, false)
 		if r == nil {
 			return "null"
 		}
@@ -222,7 +223,23 @@ func TestContract_POST3_NextRun(t *testing.T) {
 	}
 	e := newEnv(t)
 	v, _ := e.svc.Config(e.ctx())
-	if v.NextRun == nil || *v.NextRun != "2026-11-15T23:00:00.000Z" { // the env's zone is UTC; t0 is a Tuesday
+	if v.NextRun == nil || *v.NextRun != "2026-11-10T23:00:00.000Z" { // the env's zone is UTC; t0 is a Tuesday; no run yet: tonight (W3-6)
 		t.Fatalf("view next_run: %v", v.NextRun)
+	}
+	if err := e.db.Write(e.ctx(), func(tx *sql.Tx) error { return markSlot(e.ctx(), tx, t0.AddDate(0, 0, -2)) }); err != nil {
+		t.Fatal(err)
+	}
+	if v, _ = e.svc.Config(e.ctx()); v.NextRun == nil || *v.NextRun != "2026-11-10T23:00:00.000Z" { // a slot recorded without a run (W3-9)
+		t.Fatalf("view next_run after a slot without a run: %v", v.NextRun)
+	}
+	if err := e.db.Write(e.ctx(), func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(e.ctx(), `INSERT INTO scan_run (id, trigger, started_at, started_by, ended_at, status, target_ids, total)
+VALUES ('r-sched', 'schedule', '2026-11-08T23:00:00.000Z', 'system', '2026-11-09T01:00:00.000Z', 'done', '["a-web01"]', 1)`)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if v, _ = e.svc.Config(e.ctx()); v.NextRun == nil || *v.NextRun != "2026-11-15T23:00:00.000Z" { // a scheduled run started: the weekly Sunday
+		t.Fatalf("view next_run after a scheduled slot: %v", v.NextRun)
 	}
 }

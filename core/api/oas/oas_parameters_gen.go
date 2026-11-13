@@ -1674,11 +1674,12 @@ func decodeCoreDeleteCoreMcpTokensIDParams(args [1]string, argsEscaped bool, r *
 
 // CoreGetCoreAuditParams is parameters of core_get_core_audit operation.
 type CoreGetCoreAuditParams struct {
-	Q     OptString `json:",omitempty,omitzero"`
-	User  OptString `json:",omitempty,omitzero"`
-	Group OptString `json:",omitempty,omitzero"`
-	From  OptString `json:",omitempty,omitzero"`
-	To    OptString `json:",omitempty,omitzero"`
+	Q     OptString                `json:",omitempty,omitzero"`
+	User  OptString                `json:",omitempty,omitzero"`
+	Group OptString                `json:",omitempty,omitzero"`
+	From  OptString                `json:",omitempty,omitzero"`
+	To    OptString                `json:",omitempty,omitzero"`
+	Actor OptCoreGetCoreAuditActor `json:",omitempty,omitzero"`
 }
 
 func unpackCoreGetCoreAuditParams(packed middleware.Parameters) (params CoreGetCoreAuditParams) {
@@ -1725,6 +1726,15 @@ func unpackCoreGetCoreAuditParams(packed middleware.Parameters) (params CoreGetC
 		}
 		if v, ok := packed[key]; ok {
 			params.To = v.(OptString)
+		}
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "actor",
+			In:   "query",
+		}
+		if v, ok := packed[key]; ok {
+			params.Actor = v.(OptCoreGetCoreAuditActor)
 		}
 	}
 	return params
@@ -1937,16 +1947,73 @@ func decodeCoreGetCoreAuditParams(args [0]string, argsEscaped bool, r *http.Requ
 			Err:  err,
 		}
 	}
+	// Decode query: actor.
+	if err := func() error {
+		cfg := uri.QueryParameterDecodingConfig{
+			Name:    "actor",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.HasParam(cfg); err == nil {
+			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotActorVal CoreGetCoreAuditActor
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToString(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotActorVal = CoreGetCoreAuditActor(c)
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.Actor.SetTo(paramsDotActorVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+			if err := func() error {
+				if value, ok := params.Actor.Get(); ok {
+					if err := func() error {
+						if err := value.Validate(); err != nil {
+							return err
+						}
+						return nil
+					}(); err != nil {
+						return err
+					}
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "actor",
+			In:   "query",
+			Err:  err,
+		}
+	}
 	return params, nil
 }
 
 // CoreGetCoreAuditExportParams is parameters of core_get_core_audit_export operation.
 type CoreGetCoreAuditExportParams struct {
-	Q     OptString `json:",omitempty,omitzero"`
-	User  OptString `json:",omitempty,omitzero"`
-	Group OptString `json:",omitempty,omitzero"`
-	From  OptString `json:",omitempty,omitzero"`
-	To    OptString `json:",omitempty,omitzero"`
+	Q     OptString                      `json:",omitempty,omitzero"`
+	User  OptString                      `json:",omitempty,omitzero"`
+	Group OptString                      `json:",omitempty,omitzero"`
+	From  OptString                      `json:",omitempty,omitzero"`
+	To    OptString                      `json:",omitempty,omitzero"`
+	Actor OptCoreGetCoreAuditExportActor `json:",omitempty,omitzero"`
 }
 
 func unpackCoreGetCoreAuditExportParams(packed middleware.Parameters) (params CoreGetCoreAuditExportParams) {
@@ -1993,6 +2060,15 @@ func unpackCoreGetCoreAuditExportParams(packed middleware.Parameters) (params Co
 		}
 		if v, ok := packed[key]; ok {
 			params.To = v.(OptString)
+		}
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "actor",
+			In:   "query",
+		}
+		if v, ok := packed[key]; ok {
+			params.Actor = v.(OptCoreGetCoreAuditExportActor)
 		}
 	}
 	return params
@@ -2201,6 +2277,62 @@ func decodeCoreGetCoreAuditExportParams(args [0]string, argsEscaped bool, r *htt
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
 			Name: "to",
+			In:   "query",
+			Err:  err,
+		}
+	}
+	// Decode query: actor.
+	if err := func() error {
+		cfg := uri.QueryParameterDecodingConfig{
+			Name:    "actor",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.HasParam(cfg); err == nil {
+			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotActorVal CoreGetCoreAuditExportActor
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToString(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotActorVal = CoreGetCoreAuditExportActor(c)
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.Actor.SetTo(paramsDotActorVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+			if err := func() error {
+				if value, ok := params.Actor.Get(); ok {
+					if err := func() error {
+						if err := value.Validate(); err != nil {
+							return err
+						}
+						return nil
+					}(); err != nil {
+						return err
+					}
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "actor",
 			In:   "query",
 			Err:  err,
 		}
@@ -6740,6 +6872,71 @@ func decodeNotifyPostNotifyChannelsTypeTestParams(args [1]string, argsEscaped bo
 	return params, nil
 }
 
+// NotifyPostNotifyEmailSigninIDParams is parameters of notify_post_notify_email_signin_id operation.
+type NotifyPostNotifyEmailSigninIDParams struct {
+	ID string
+}
+
+func unpackNotifyPostNotifyEmailSigninIDParams(packed middleware.Parameters) (params NotifyPostNotifyEmailSigninIDParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "id",
+			In:   "path",
+		}
+		params.ID = packed[key].(string)
+	}
+	return params
+}
+
+func decodeNotifyPostNotifyEmailSigninIDParams(args [1]string, argsEscaped bool, r *http.Request) (params NotifyPostNotifyEmailSigninIDParams, _ error) {
+	// Decode path: id.
+	if err := func() error {
+		param := args[0]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[0])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "id",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.ID = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "id",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
 // NotifyPostNotifyHistoryIDResendParams is parameters of notify_post_notify_history_id_resend operation.
 type NotifyPostNotifyHistoryIDResendParams struct {
 	ID string
@@ -6798,6 +6995,136 @@ func decodeNotifyPostNotifyHistoryIDResendParams(args [1]string, argsEscaped boo
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
 			Name: "id",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
+// NotifyPostNotifyTelegramApproversUserIDCodeParams is parameters of notify_post_notify_telegram_approvers_user_id_code operation.
+type NotifyPostNotifyTelegramApproversUserIDCodeParams struct {
+	UserID string
+}
+
+func unpackNotifyPostNotifyTelegramApproversUserIDCodeParams(packed middleware.Parameters) (params NotifyPostNotifyTelegramApproversUserIDCodeParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "user_id",
+			In:   "path",
+		}
+		params.UserID = packed[key].(string)
+	}
+	return params
+}
+
+func decodeNotifyPostNotifyTelegramApproversUserIDCodeParams(args [1]string, argsEscaped bool, r *http.Request) (params NotifyPostNotifyTelegramApproversUserIDCodeParams, _ error) {
+	// Decode path: user_id.
+	if err := func() error {
+		param := args[0]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[0])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "user_id",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.UserID = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "user_id",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
+// NotifyPostNotifyZaloApproversUserIDCodeParams is parameters of notify_post_notify_zalo_approvers_user_id_code operation.
+type NotifyPostNotifyZaloApproversUserIDCodeParams struct {
+	UserID string
+}
+
+func unpackNotifyPostNotifyZaloApproversUserIDCodeParams(packed middleware.Parameters) (params NotifyPostNotifyZaloApproversUserIDCodeParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "user_id",
+			In:   "path",
+		}
+		params.UserID = packed[key].(string)
+	}
+	return params
+}
+
+func decodeNotifyPostNotifyZaloApproversUserIDCodeParams(args [1]string, argsEscaped bool, r *http.Request) (params NotifyPostNotifyZaloApproversUserIDCodeParams, _ error) {
+	// Decode path: user_id.
+	if err := func() error {
+		param := args[0]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[0])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "user_id",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.UserID = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "user_id",
 			In:   "path",
 			Err:  err,
 		}

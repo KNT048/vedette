@@ -1,5 +1,6 @@
-// Package nmapargv builds and checks the only three nmap command lines Vedette ever runs (D-84 (7), D-113).
-// It is a leaf: standard library only, no database and no core/exec, because the sensor binary links it and
+// Package nmapargv builds and checks the only four nmap command lines Vedette ever runs (D-84 (7), D-113, D-501).
+// It is a leaf: standard library only (plus core/localnet, itself standard library only, D-461), no database and
+// no core/exec, because the sensor binary links it and
 // both sides (core before it hands a job over, the worker before it starts nmap) use the same code (SYS-2).
 package nmapargv
 
@@ -9,17 +10,23 @@ import (
 	"net/netip"
 	"slices"
 	"strconv"
+
+	"github.com/knt048/vedette/core/localnet"
 )
 
-// Kind says which of the three nmap command lines is built (D-84 (7)).
+// Kind says which of the four nmap command lines is built (D-84 (7), D-501).
 type Kind int
 
-// The three kinds, one per command shape.
+// The four kinds, one per command shape.
 const (
-	Sweep  Kind = iota // host discovery: -sn
-	Normal             // service and OS identification
-	Gentle             // the one gentle scan of a fragile device (D-45)
+	Sweep    Kind = iota // host discovery: -sn
+	Normal               // service and OS identification
+	Gentle               // the one gentle scan of a fragile device (D-45)
+	Versions             // service identification without OS detection: a person's pick of a device of unknown kind (D-501)
 )
+
+// kinds is every Kind, in the order Validate and KindOf try them.
+var kinds = []Kind{Sweep, Normal, Gentle, Versions}
 
 // MaxBatch is the most addresses one nmap run gets, so its XML stays small (D-84 (7)).
 const MaxBatch = 64
@@ -36,7 +43,16 @@ const (
 	flagTiming      = "-T2"
 	flagHostTimeout = "--host-timeout" // bounds the time one host may take, which --max-rate does not
 	flagXML         = "-oX"
+	flagScript      = "--script"
 )
+
+// Scripts is the exact NSE script list of the normal and versions shapes (D-504): two scripts that send an NTLM NEGOTIATE (type 1)
+// with no credentials and read the CHALLENGE (type 2) the device answers with: its own Windows version and build, and its names.
+// Neither ever sends an AUTHENTICATE (type 3), so nothing logs in. rdp-ntlm-info runs only on an open RDP port, http-ntlm-info only
+// on an open HTTP port, with a GET of "/" (nmap's http library follows a few redirects, only on the same host, port and scheme,
+// never with credentials). A fixed list, never a category or a wildcard; smb-os-discovery is left out because it
+// opens an anonymous, then a guest, SMB session (a logon attempt).
+const Scripts = "rdp-ntlm-info,http-ntlm-info"
 
 // Host time limits (D-84 (7)): a gentle scan is slow by design, a normal one has -sV and -O to finish.
 const (
@@ -53,14 +69,18 @@ func (k Kind) Name() string {
 		return "normal"
 	case Gentle:
 		return "gentle"
+	case Versions:
+		return "versions"
 	}
 	return ""
 }
 
-// Flags is the whole flag part of the command line of a kind: the only three shapes nmap is ever run with.
-// -sV makes nmap run the scripts of its "version" category (and nothing else), -O has its own timing; no
-// script flag, no -A and no -sC exists (FORBID-3, FORBID-6). The gentle shape has neither -sV nor -O: on a
-// fragile device even the version scripts are too much (PLC protocol probes).
+// Flags is the whole flag part of the command line of a kind: the only four shapes nmap is ever run with.
+// -sV makes nmap run the scripts of its "version" category, -O has its own timing; the only other scripts are the fixed
+// Scripts list of the normal and versions shapes (D-504); no category, no -A and no -sC exists (FORBID-3, FORBID-6). The gentle
+// shape has neither -sV, -O nor a script: on a fragile device even the version scripts are too much (PLC protocol probes). The
+// versions shape is the normal one without -O: OS detection sends malformed probes that are the riskiest part for an OT stack,
+// and a device of unknown kind may be one (D-501).
 func Flags(kind Kind, rate int) ([]string, error) {
 	if rate < 1 || rate > 1000 {
 		return nil, fmt.Errorf("nmapargv: rate %d is outside 1..1000", rate)
@@ -70,9 +90,11 @@ func Flags(kind Kind, rate int) ([]string, error) {
 	case Sweep:
 		return []string{flagPrivileged, "-sn", flagNoDNS, flagMaxRate, r}, nil
 	case Normal:
-		return []string{flagPrivileged, "-sS", "-sV", "-O", flagNoDNS, flagMaxRate, r, flagTopPorts, "1000", flagHostTimeout, normalHostTimeout}, nil
+		return []string{flagPrivileged, "-sS", "-sV", "-O", flagScript, Scripts, flagNoDNS, flagMaxRate, r, flagTopPorts, "1000", flagHostTimeout, normalHostTimeout}, nil
 	case Gentle:
 		return []string{flagPrivileged, "-sS", flagNoDNS, flagTiming, flagMaxRetries, "1", flagMaxRate, "1", flagHostTimeout, gentleHostTimeout, flagTopPorts, "100"}, nil
+	case Versions:
+		return []string{flagPrivileged, "-sS", "-sV", flagScript, Scripts, flagNoDNS, flagMaxRate, r, flagTopPorts, "1000", flagHostTimeout, normalHostTimeout}, nil
 	}
 	return nil, errors.New("nmapargv: unknown scan kind")
 }
@@ -91,10 +113,10 @@ func atoi(s string) (int, bool) {
 	return n, err == nil
 }
 
-// validTarget: a LAN range can only hold private unicast IPv4 addresses (RFC 1918), so nothing else may ever
-// be named, whatever the caller says (0/8, 127/8, 169.254/16, 100.64/10, multicast, reserved and broadcast
-// are all outside 10/8, 172.16/12 and 192.168/16).
-func validTarget(a netip.Addr) bool { return a.IsValid() && a.Is4() && a.Zone() == "" && a.IsPrivate() }
+// validTarget: a LAN range can only hold local IPv4 addresses (RFC 1918 or the RFC 6598 shared space 100.64/10,
+// localnet.Addr, D-461), so nothing else may ever be named, whatever the caller says (0/8, 127/8, 169.254/16, the
+// rest of 100/8, multicast, reserved and broadcast are all outside 10/8, 172.16/12, 192.168/16 and 100.64/10).
+func validTarget(a netip.Addr) bool { return a.IsValid() && a.Zone() == "" && localnet.Addr(a) }
 
 // Build builds an nmap command line only from private IPv4 addresses, an integer rate and the fixed
 // flags above (INV-4, FORBID-3). The shape is: the flags of the kind, -oX -, then the targets.
@@ -117,8 +139,8 @@ func Build(kind Kind, rate int, targets []netip.Addr) ([]string, error) {
 }
 
 // Validate is the Validate func of the nmap Binary: it re-checks the whole argv before the process
-// starts, independently of how Build made it (SYS-2). It accepts exactly the three shapes of Flags
-// (sweep, normal, gentle), where only the rate of sweep and normal varies, then "-oX -", then 1 to MaxBatch
+// starts, independently of how Build made it (SYS-2). It accepts exactly the four shapes of Flags
+// (sweep, normal, gentle, versions), where only the rate of sweep, normal and versions varies, then "-oX -", then 1 to MaxBatch
 // canonical, unique, private IPv4 addresses. Everything else is rejected.
 func Validate(args []string) error {
 	i := slices.Index(args, flagXML)
@@ -132,11 +154,11 @@ func Validate(args []string) error {
 			rate = n
 		}
 	}
-	if !slices.ContainsFunc([]Kind{Sweep, Normal, Gentle}, func(k Kind) bool {
+	if !slices.ContainsFunc(kinds, func(k Kind) bool {
 		want, err := Flags(k, rate)
 		return err == nil && slices.Equal(flags, want)
 	}) {
-		return fmt.Errorf("flags %q are not one of the three allowed command shapes", flags)
+		return fmt.Errorf("flags %q are not one of the four allowed command shapes", flags)
 	}
 	targets := args[i+2:]
 	if len(targets) == 0 || len(targets) > MaxBatch {
@@ -155,7 +177,7 @@ func Validate(args []string) error {
 
 // KindOf is the Kind whose Name is shape: the shape field of a job on the sensor link.
 func KindOf(shape string) (Kind, bool) {
-	for _, k := range []Kind{Sweep, Normal, Gentle} {
+	for _, k := range kinds {
 		if k.Name() == shape {
 			return k, true
 		}
@@ -182,7 +204,7 @@ func Parse(args []string) (Kind, int, []netip.Addr, error) {
 	for _, t := range args[i+2:] {
 		targets = append(targets, netip.MustParseAddr(t)) // Validate proved each is canonical
 	}
-	for _, k := range []Kind{Sweep, Normal, Gentle} {
+	for _, k := range kinds {
 		if want, err := Flags(k, rate); err == nil && slices.Equal(flags, want) {
 			return k, rate, targets, nil
 		}

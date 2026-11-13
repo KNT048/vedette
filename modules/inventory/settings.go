@@ -295,6 +295,21 @@ func (s *Service) SetupScope(ctx context.Context, tx *sql.Tx, actor string, rang
 	if err := putSetting(ctx, tx, "scope", sc, now, actorOrSystem(actor)); err != nil {
 		return err
 	}
+	// The commitment ticked at setup is the consent to scan these ranges (D-26), so active scanning goes on with it, as the setup
+	// page says (D-501, walk 2 W2-4: it stayed off). Unticked leaves the setting as it was (off on a new box).
+	if confirmed {
+		var act ActiveWindow
+		if err := loadSetting(ctx, tx, "active", &act); err != nil {
+			return err
+		}
+		act.Enabled = true
+		if act.Exclusions == nil {
+			act.Exclusions = []string{}
+		}
+		if err := putSetting(ctx, tx, "active", act, now, actorOrSystem(actor)); err != nil {
+			return err
+		}
+	}
 	var o outbox
 	o.add(EventSettingsChanged, SettingsEvent{Scope: "scan"})
 	s.keep(tx, &o)

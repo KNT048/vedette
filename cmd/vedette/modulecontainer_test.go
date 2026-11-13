@@ -620,3 +620,64 @@ func TestSensorContainersStartWhenFirstRunSetupCommits(t *testing.T) {
 		eventually(t, c.service+" started after setup", func() bool { return e.state(t, c.service) == api.UnitActive })
 	}
 }
+
+// W2-6 (customer walk 2): GET /inventory/sensors says "starting" while the guard is still bringing the sensor container up. Not
+// before setup (nothing is started, D-405); while a start is retried, for at most startGiveUp; for startSettle after the host
+// confirmed a start; never after the module is turned off. The clock is the watch's own, moved by hand.
+func TestModuleContainerStartWatch(t *testing.T) {
+	t.Parallel()
+	e := startHPHost(t, false)
+	e.m.InstallUnit(api.ServiceSensor, opstest.Digest('b'), true) // with [Install], not running
+	reg := &flagReg{}
+	reg.on.Store(true)
+	f := e.follower(reg, "sensor-passive", api.ServiceSensor)
+	now := time.Date(2026, 11, 13, 14, 40, 0, 0, time.UTC)
+	f.watch = &startWatch{now: func() time.Time { return now }}
+	var done atomic.Bool
+	var readErr atomic.Bool
+	f.setupDone = func(context.Context) (bool, error) {
+		if readErr.Load() {
+			return false, errors.New("database is busy")
+		}
+		return done.Load(), nil
+	}
+	ctx := t.Context()
+
+	if err := f.ensureOn(ctx); err != nil || f.watch.Starting() {
+		t.Fatalf("before setup: %v, starting %v; want nothing started", err, f.watch.Starting())
+	}
+	done.Store(true)
+	readErr.Store(true) // an attempt that fails is retried: starting, up to startGiveUp
+	if err := f.ensureOn(ctx); err == nil || !f.watch.Starting() {
+		t.Fatalf("a failed attempt: %v, starting %v", err, f.watch.Starting())
+	}
+	now = now.Add(startGiveUp - time.Second)
+	if err := f.ensureOn(ctx); err == nil || !f.watch.Starting() {
+		t.Fatalf("still retried inside the bound: %v, starting %v", err, f.watch.Starting())
+	}
+	now = now.Add(time.Second)
+	if f.watch.Starting() {
+		t.Fatal("a start that kept failing for startGiveUp is still starting")
+	}
+	readErr.Store(false) // the host confirms the start: starting for startSettle, the time the sensor needs to report
+	if err := f.ensureOn(ctx); err != nil || !f.watch.Starting() || e.state(t, api.ServiceSensor) != api.UnitActive {
+		t.Fatalf("the start: %v, starting %v, unit %s", err, f.watch.Starting(), e.state(t, api.ServiceSensor))
+	}
+	now = now.Add(startSettle)
+	if f.watch.Starting() {
+		t.Fatal("still starting startSettle after the host confirmed the start")
+	}
+	if err := f.ensureOn(ctx); err != nil || f.watch.Starting() { // a re-run on a running unit (a scope change) does not start again
+		t.Fatalf("a re-run on a running unit: %v, starting %v", err, f.watch.Starting())
+	}
+	reg.on.Store(false)
+	if err := f.ensureOff(ctx); err != nil || f.watch.Starting() {
+		t.Fatalf("off: %v, starting %v", err, f.watch.Starting())
+	}
+	var nilWatch *startWatch // scan and tests have none
+	nilWatch.done(errors.New("x"), true)
+	nilWatch.reset()
+	if nilWatch.Starting() {
+		t.Fatal("a nil watch says starting")
+	}
+}

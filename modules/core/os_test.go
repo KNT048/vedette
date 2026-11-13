@@ -71,6 +71,7 @@ type osEnv struct {
 	admin     *client
 	oper      *client
 	viewer    *client
+	installed atomic.Int32 // calls of OSConfig.Installed (D-470)
 }
 
 type osOpts struct {
@@ -126,6 +127,7 @@ func (e *osEnv) newHandlers(t *testing.T, host core.Host, behind time.Duration) 
 		DB: e.env.DB, Auth: e.env.Svc, Audit: e.env.Audit, Log: e.logger(), Host: host,
 		DataDir: e.m.CoreData, KeyPath: filepath.Join(e.m.CoreData, "vedette.key"),
 		Zone: e.h.OrgTimeZone, Clock: func() time.Time { return e.clock.Now().Add(-behind) }, Gate: e.purgeGate,
+		Installed: func() { e.installed.Add(1) },
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -409,6 +411,11 @@ func TestOSInstallRunsThroughTheHostAndCleansUp(t *testing.T) {
 	if n != 1 {
 		t.Errorf("os.install_done audited %d times", n)
 	}
+	// D-470: the box's package list is read again once after a successful install, not again when a restart rebuilds the run.
+	eventuallyOS(t, "OSConfig.Installed after the install", func() bool { return e.installed.Load() >= 1 })
+	if got := e.installed.Load(); got != 1 {
+		t.Errorf("OSConfig.Installed called %d times, want once", got)
+	}
 }
 
 func joinAny(a []any) string {
@@ -476,6 +483,11 @@ func TestOSInstallRunThatFailsSaysSoInItsLinesAndResult(t *testing.T) {
 	}
 	eventuallyOS(t, "the snapshot directory to be removed", func() bool { return len(e.snapshotDirs()) == 0 })
 	eventuallyOS(t, "the audit row of the end", func() bool { return slices.Contains(e.actions(), "os.install_done") })
+	e.newHandlers(t, e.hh.Client, 0) // a restart rebuilds the ended run: still no call
+	wantOK(t, e.viewer.get("/core/updates/os/run"), 200)
+	if got := e.installed.Load(); got != 0 {
+		t.Errorf("OSConfig.Installed called %d times after a failed install (D-470: only after success)", got)
+	}
 }
 
 func TestOSHostRefusalsAreMappedAndTheSnapshotIsRemoved(t *testing.T) {
@@ -844,7 +856,7 @@ func TestBackupDownloadStreamsTheHostsFileAndHoldsNoKey(t *testing.T) {
 			t.Errorf("%s contains the master key", name)
 		}
 	}
-	if !bytes.Contains(members["manifest.json"], []byte(`"db_schema":"core=10"`)) || !bytes.Contains(members["manifest.json"], []byte(`"includes_secrets":false`)) {
+	if !bytes.Contains(members["manifest.json"], []byte(`"db_schema":"core=11"`)) || !bytes.Contains(members["manifest.json"], []byte(`"includes_secrets":false`)) {
 		t.Errorf("manifest = %s", members["manifest.json"])
 	}
 	bl, err := e.hh.Client.StateBackups(t.Context())

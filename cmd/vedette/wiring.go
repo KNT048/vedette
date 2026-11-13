@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/netip"
 	"slices"
+	"sync"
 	"time"
 
 	"github.com/knt048/vedette/core/auth"
@@ -62,8 +63,11 @@ func (a feedsInventory) MatchProducts(ctx context.Context, products []feeds.Prod
 	return out, nil
 }
 
-func (a feedsInventory) AddManualDevice(ctx context.Context, tx *sql.Tx, actor string, d feeds.ManualDevice) error {
-	return a.inv.AddManualDevice(ctx, tx, actor, inventory.ManualDevice{Kind: d.Kind, Vendor: d.Vendor, Product: d.Product, Display: d.Display, Key: d.Key})
+// AddManualDevice declares the "I have this" device. inventory does not return the new device's id yet, so the id is ""
+// and the "I have this" scope of findings (D-484, INV-11) stays off: no CVE is hidden on any device. Once
+// inventory.AddManualDevice returns the id (Kiên, .ai/deferred/fix-findings-walk1-mlee.md), return it here.
+func (a feedsInventory) AddManualDevice(ctx context.Context, tx *sql.Tx, actor string, d feeds.ManualDevice) (string, error) {
+	return "", a.inv.AddManualDevice(ctx, tx, actor, inventory.ManualDevice{Kind: d.Kind, Vendor: d.Vendor, Product: d.Product, Display: d.Display, Key: d.Key})
 }
 
 func (a feedsInventory) Settle(ctx context.Context, tx *sql.Tx, committed bool) {
@@ -124,9 +128,13 @@ func (a findingsInventory) Assets(ctx context.Context, ids []string) (map[string
 	if err != nil {
 		return nil, err
 	}
+	names, err := a.inv.Names(ctx) // the Devices page's name (hostname, else vendor and model, else IP), as notify and reports use it
+	if err != nil {
+		return nil, err
+	}
 	out := make(map[string]findings.AssetView, len(refs))
 	for id, r := range refs {
-		out[id] = findings.AssetView{ID: r.ID, Hostname: r.Hostname, IP: r.IP, Kind: r.Kind, Display: r.Display}
+		out[id] = findings.AssetView{ID: r.ID, Name: names[id], Hostname: r.Hostname, IP: r.IP, Kind: r.Kind, Display: r.Display}
 	}
 	return out, nil
 }
@@ -145,14 +153,34 @@ func (a findingsInventory) MatchInput(ctx context.Context, assetID string) (find
 	if err != nil || !ok {
 		return findings.Asset{}, false, err
 	}
-	out := findings.Asset{ID: d.ID, Name: d.Name, Software: make([]findings.Software, len(d.Software))}
+	out := findings.Asset{ID: d.ID, Name: d.Name, OS: d.OS, Software: make([]findings.Software, len(d.Software))}
+	if d.Name == d.ID { // no hostname and no IP (hand-added, LLDP only): the evidence names it as the Devices page does, never by its id (D-484)
+		names, err := a.inv.Names(ctx)
+		if err != nil {
+			return findings.Asset{}, false, err
+		}
+		if n := names[d.ID]; n != "" && n != d.ID {
+			out.Name = n
+		}
+	}
 	for i, s := range d.Software {
 		out.Software[i] = findings.Software{ID: s.ID, Display: s.Display, Vendor: s.Vendor, Product: s.Product, Version: s.Version, KevKeys: s.KevKeys, CPE: s.CPE}
 	}
 	return out, true, nil
 }
 
-type findingsFeeds struct{ st *feeds.Store }
+type findingsFeeds struct {
+	st    *feeds.Store
+	cache *vulnCache // nil: read the list every time
+}
+
+// vulnCache keeps the last list for matching with the feeds stamp it was read under (review H3: a rematch of every
+// device read the 33k NVD rows once per device and ran out of time).
+type vulnCache struct {
+	mu    sync.Mutex
+	stamp string
+	vulns []findings.Vuln // read only once built: the matcher never changes it
+}
 
 func (a findingsFeeds) KevInfo(ctx context.Context, cves []string) (map[string]findings.KevInfo, error) {
 	rows, err := a.st.KevVulnsByCVE(ctx, cves)
@@ -171,16 +199,47 @@ func (a findingsFeeds) KevInfo(ctx context.Context, cves []string) (map[string]f
 	return out, nil
 }
 
-// Vulns returns the CISA list for matching. The list has no NVD affected ranges yet, so findings can only
-// match by product (basis "product").
+// Vulns returns the CISA list for matching, each CVE with the NVD affected versions feeds pulled (nvd-kev, D-500).
+// A CVE NVD has not answered for has none, and findings then cannot decide by version.
 func (a findingsFeeds) Vulns(ctx context.Context) ([]findings.Vuln, error) {
+	stamp := ""
+	if a.cache != nil {
+		var err error
+		if stamp, err = a.st.MatchStamp(ctx); err != nil {
+			return nil, err
+		}
+		a.cache.mu.Lock()
+		v, ok := a.cache.vulns, a.cache.vulns != nil && a.cache.stamp == stamp
+		a.cache.mu.Unlock()
+		if ok {
+			return v, nil
+		}
+	}
+	out, err := a.readVulns(ctx)
+	if err == nil && a.cache != nil { // the stamp was read first: the list is at least as new as it
+		a.cache.mu.Lock()
+		a.cache.stamp, a.cache.vulns = stamp, out
+		a.cache.mu.Unlock()
+	}
+	return out, err
+}
+
+func (a findingsFeeds) readVulns(ctx context.Context) ([]findings.Vuln, error) {
 	rows, err := a.st.KevVulns(ctx)
+	if err != nil {
+		return nil, err
+	}
+	affected, err := a.st.KevAffected(ctx)
 	if err != nil {
 		return nil, err
 	}
 	out := make([]findings.Vuln, len(rows))
 	for i, v := range rows {
 		out[i] = findings.Vuln{CVE: v.CVE, Vendor: v.Vendor, Product: v.Product, Ransomware: v.Ransomware}
+		for _, r := range affected[v.CVE] {
+			out[i].Affected = append(out[i].Affected, findings.Affected{CPE: r.CPE,
+				Range: findings.VersionRange{StartIncl: r.StartIncl, StartExcl: r.StartExcl, EndIncl: r.EndIncl, EndExcl: r.EndExcl}})
+		}
 		if t, err := time.Parse(time.DateOnly, v.DateAdded); err == nil { // an unreadable date stays zero: backlog, never news
 			out[i].DateAdded = t
 		}
@@ -189,6 +248,21 @@ func (a findingsFeeds) Vulns(ctx context.Context) ([]findings.Vuln, error) {
 		}
 	}
 	return out, nil
+}
+
+// findingsHave is feeds' "I have this" scopes, by declared device, as findings reads them (INV-11, D-484).
+func findingsHave(st *feeds.Store) func(ctx context.Context) (map[string]findings.Have, error) {
+	return func(ctx context.Context) (map[string]findings.Have, error) {
+		got, err := st.HaveSince(ctx)
+		if err != nil {
+			return nil, err
+		}
+		out := make(map[string]findings.Have, len(got))
+		for id, h := range got {
+			out[id] = findings.Have{Key: h.Key, Since: h.Since}
+		}
+		return out, nil
+	}
 }
 
 // findingsPublisher puts findings events on the bus.
@@ -233,7 +307,7 @@ func buildServices(ctx context.Context, d *deps) error {
 	if d.OIDC, err = authoidc.New(authoidc.Deps{DB: d.DB, Secrets: d.Secrets, Auth: d.Auth, Audit: d.Audit, Log: d.Log, Clock: d.Clock}); err != nil {
 		return fmt.Errorf("auth-oidc: %w", err)
 	}
-	if d.AgentIntake, err = agentintake.New(agentintake.Config{DB: d.DB, Audit: d.Audit, Sink: d.Inventory, Software: d.Inventory, Secrets: d.Secrets, Conn: d.Conn, Clock: d.Clock, Log: d.Log,
+	if d.AgentIntake, err = agentintake.New(agentintake.Config{DB: d.DB, Audit: d.Audit, Sink: d.Inventory, Software: d.Inventory, Approver: d.Inventory, Secrets: d.Secrets, Conn: d.Conn, Clock: d.Clock, Log: d.Log,
 		TrustAnchor: d.TrustAnchor, HostAllowed: d.HostAllowed, BoxURL: d.BaseURL, MirrorDir: d.OsqueryDir}); err != nil {
 		return fmt.Errorf("agent-intake: %w", err)
 	}
@@ -243,7 +317,7 @@ func buildServices(ctx context.Context, d *deps) error {
 	if d.Inventory != nil {
 		scope = d.Inventory
 	}
-	if d.Core, err = core.NewAPIHandlers(core.HandlersConfig{Scope: scope, BoxLAN: func(ctx context.Context) (netip.Prefix, bool) { return d.Network.ManagementLAN(ctx) }, Logs: d.Logs, SpoolDir: logSpoolDir(d.DataDir), DB: d.DB, Auth: d.Auth, Reg: d.Reg, Audit: d.Audit, Secrets: d.Secrets, Log: d.Log, Clock: d.Clock, Facts: privacyFacts{conns: d.Conn, d: d}, Conns: d.Conn,
+	if d.Core, err = core.NewAPIHandlers(core.HandlersConfig{Scope: scope, BoxLAN: func(ctx context.Context) (netip.Prefix, bool) { return d.Network.ManagementLAN(ctx) }, Logs: d.Logs, SpoolDir: logSpoolDir(d.DataDir), DB: d.DB, Auth: d.Auth, Reg: d.Reg, Audit: d.Audit, Secrets: d.Secrets, Log: d.Log, Clock: d.Clock, Facts: privacyFacts{conns: d.Conn, d: d}, Names: auditNamer{d: d}, Conns: d.Conn,
 		DataDir: d.DataDir, DataFiles: moduleDataFiles, Schema: schemaSets(wiredModules()), Restart: d.Restart, KeyPath: d.KeyPath,
 		Host: purgeHost(d), OSBusy: func(ctx context.Context) bool { return d.OS != nil && d.OS.Busy(ctx) }, BeforeWipe: purgeBeforeWipe(d), Gate: d.PurgeGate, AlsoKept: purgeAlsoKept(d), KeepRows: purgeKeptRows(d), AlsoFreeze: purgeFreezes(d)}); err != nil {
 		return fmt.Errorf("core: %w", err)
@@ -252,11 +326,15 @@ func buildServices(ctx context.Context, d *deps) error {
 		return fmt.Errorf("os updates: %w", err)
 	}
 	sensor := &spanSensor{reg: d.Reg} // its service comes below: the Box network page needs the sensor and the sensor needs the page's settings
+	//nolint:contextcheck // AddressesChanged (core) has no context; Invalidate bounds its own read (boxAddrTimeout)
 	if d.Network, err = newNetworkHandlers(d, sensor); err != nil {
 		return fmt.Errorf("box network: %w", err)
 	}
 	if d.Honeypot, err = newHoneypot(d); err != nil {
 		return fmt.Errorf("honeypot: %w", err)
+	}
+	if d.HostSocket != "" {
+		d.SensorStart = &startWatch{now: d.Clock}
 	}
 	sp, err := newSensorPassive(*d)
 	if err != nil {
@@ -270,9 +348,10 @@ func buildServices(ctx context.Context, d *deps) error {
 		return fmt.Errorf("feeds: %w", err)
 	}
 	inv := findingsInventory{d.Inventory}
-	feed := findingsFeeds{fs.Store()}
+	feed := findingsFeeds{st: fs.Store(), cache: &vulnCache{}}
 	// Backlog: findings the reconcile job creates for old KEV entries are D-78 backlog, silent for notify (findings does not import notify).
-	cfg := findings.ServiceConfig{DB: d.DB, Audit: d.Audit, Inventory: inv, Feeds: feed, Log: d.Log, Clock: d.Clock, Backlog: notify.WithBaseline}
+	cfg := findings.ServiceConfig{DB: d.DB, Audit: d.Audit, Inventory: inv, Feeds: feed, Log: d.Log, Clock: d.Clock, Backlog: notify.WithBaseline,
+		HaveSince: findingsHave(fs.Store())} // "I have this" on Home scopes the one device it declared (D-484)
 	if d.Bus != nil {
 		cfg.Publisher = findingsPublisher{d.Bus}
 	}
@@ -356,6 +435,31 @@ func subscribe(d deps) {
 	}))
 	d.Bus.Subscribe(feeds.EventNewKEV, on("scan", onNewKEVForScan(d)))          // after inventory's: the findings of the new entry exist when the job looks
 	d.Bus.Subscribe(feeds.EventVulnUpdated, on("inventory", rematchUpdated(d))) // D-328: a CVE whose vendor or product changed
+	// D-500: new NVD affected versions decide findings again for every device; the first fill is backlog, like D-78.
+	// Review H3: one event per device; after a later update only the devices of the changed CVEs.
+	d.Bus.Subscribe(feeds.EventRangesUpdated, on("inventory", func(ctx context.Context, data any) error {
+		ev, _ := data.(feeds.RangesUpdatedEvent)
+		ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), rematchTimeout)
+		defer cancel()
+		st, ok := feedsKEV{&d}.store()
+		if ev.First || !ok {
+			if ev.First {
+				ctx = notify.WithBaseline(ctx)
+			}
+			_, err := d.Inventory.RematchAll(ctx)
+			return err
+		}
+		rows, err := st.KevVulnsByCVE(ctx, ev.CVEs)
+		if err != nil {
+			return err
+		}
+		refs := make([]inventory.KevRef, len(rows))
+		for i, r := range rows {
+			refs[i] = inventory.KevRef{CVE: r.CVE, Vendor: r.Vendor, Product: r.Product}
+		}
+		_, err = d.Inventory.RematchMany(ctx, refs)
+		return err
+	}))
 	d.Bus.Subscribe(feeds.EventSyncBaseline, on("inventory", func(ctx context.Context, _ any) error {
 		ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), rematchTimeout)
 		defer cancel()
@@ -500,6 +604,11 @@ func newOSHandlers(d deps) (*core.OSHandlers, error) {
 				d.Wake("core", "software-update")
 			}
 		},
+		Installed: func() { // the box's packages changed: read them again now (D-470), not at the next hourly box run
+			if d.Wake != nil {
+				d.Wake("inventory", "box")
+			}
+		},
 	})
 }
 
@@ -519,9 +628,18 @@ func newNetworkHandlers(d *deps, sensor core.SpanSensor) (*core.NetworkHandlers,
 		AddressInUse: func(ctx context.Context, ip netip.Addr) (bool, error) {
 			return addressInUse(ctx, d.Inventory, d.Honeypot, ip)
 		},
-		// AddressesChanged: the cached addresses are dropped and the box's certificate follows its management address (D-139).
+		// AddressesChanged: the cached addresses are dropped and the box's certificate follows its management address (D-139) and its
+		// Box address (D-465: a save, or a new management address that is its default).
+		BoxLinks: func(context.Context) core.BoxLinks {
+			var base string
+			if d.BaseURL != nil {
+				base = d.BaseURL()
+			}
+			return core.BoxLinks{Base: base, SelfSigned: d.SelfSigned}
+		},
 		AddressesChanged: func() {
 			d.HostNet.Invalidate()
+			d.BoxAddr.Invalidate()
 			if d.CertKick != nil {
 				d.CertKick()
 			}

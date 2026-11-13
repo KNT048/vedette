@@ -61,10 +61,15 @@ func slackEscape(s string) string {
 // slackText renders m as Slack mrkdwn: a bold head, plain lines, a link. Every
 // untrusted string is escaped; the link was validated to hold no < > |.
 func slackText(m Message, link string) string {
+	more := m.moreLine()
+	m.More = 0 // the link line is Slack's own below; the "and N more" line goes before it
 	l := m.mapText(slackFormat).lines(link)
 	out := []string{"*" + slackEscape(l[0]) + "*"}
 	for _, x := range l[1 : len(l)-1] {
 		out = append(out, slackEscape(x))
+	}
+	if more != "" {
+		out = append(out, "- "+more)
 	}
 	if link == "" {
 		return strings.Join(append(out, openVedetteLine), "\n")

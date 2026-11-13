@@ -21,6 +21,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/knt048/vedette/core/audit"
 	"github.com/knt048/vedette/core/jobs"
 	"github.com/knt048/vedette/core/pki"
 	"github.com/knt048/vedette/core/sensorlink"
@@ -325,9 +326,14 @@ func TestSensorLinkFailureShutsDownTheMainServer(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "sensor link") {
 		t.Fatalf("err = %v, want the sensor link failure", err)
 	}
-	if c, err := new(net.Dialer).DialContext(t.Context(), "tcp", main.Addr().String()); err == nil {
-		_ = c.Close()
-		t.Fatal("the 8443 server still accepts connections after the sensor link failed")
+	// Accept on the listener itself, not a dial to its port: a parallel test may bind the same port number once it is closed
+	// (merge queue run 43365010370 for #634).
+	_ = main.(*net.TCPListener).SetDeadline(time.Now().Add(5 * time.Second)) // an open listener fails with a timeout, not a hang
+	if c, err := main.Accept(); !errors.Is(err, net.ErrClosed) {
+		if c != nil {
+			_ = c.Close()
+		}
+		t.Fatalf("the 8443 listener is still open after the sensor link failed: Accept err = %v", err)
 	}
 }
 
@@ -338,13 +344,17 @@ func TestRenewJobIsScheduledAndRenews(t *testing.T) {
 	now := time.Now()
 	clock := func() time.Time { mu.Lock(); defer mu.Unlock(); return now }
 	s := newStackWith(t, func(d *deps) { d.Clock = clock })
-	prune, update := false, false
+	prune, update, auditPrune := false, false, false
 	for _, j := range coreJobs(*s.d) {
 		if j.Name == "sensor-cert-renew" {
 			t.Fatal("no sensor link, yet core registers sensor-cert-renew")
 		}
-		prune = prune || j.Name == "auth-prune" && j.Module == "core" && j.Run(t.Context()) == nil // INV-30
-		update = update || j.Name == "software-update" && j.Every == core.UpdateTickEvery          // not run: it would reach GitHub
+		prune = prune || j.Name == "auth-prune" && j.Module == "core" && j.Run(t.Context()) == nil                     // INV-30
+		update = update || j.Name == "software-update" && j.Every == core.UpdateTickEvery                              // not run: it would reach GitHub
+		auditPrune = auditPrune || j.Name == "audit-prune" && j.Every == audit.PruneEvery && j.Run(t.Context()) == nil // INV-37, D-416
+	}
+	if !auditPrune {
+		t.Fatal("core does not schedule audit-prune, or it failed")
 	}
 	if !prune {
 		t.Fatal("core does not schedule auth-prune, or it failed")

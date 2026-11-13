@@ -15,8 +15,8 @@ import (
 // MitigationModule is the id of the module whose Guidance fills the "What to do" fields.
 const MitigationModule = "mitigation"
 
-// FindingHandlers implements the findings operations: GET /findings, GET /findings/{id} and
-// POST /findings/{id}/status. Embed it in the composite handler. POST /findings/{id}/applied|ai belong
+// FindingHandlers implements the findings operations: GET /findings, GET /findings/{id}, POST /findings/{id}/status
+// and the bulk POST /findings/status. Embed it in the composite handler. POST /findings/{id}/applied|ai belong
 // to mitigation (core/server/modules.go).
 type FindingHandlers struct {
 	svc  *Service
@@ -119,7 +119,30 @@ func (h *FindingHandlers) Detail(ctx context.Context, rec Record) (Detail, error
 	}
 	d.Normalize()
 	d.addAppliedToHistory()
+	d.FixedIn = h.fixedIn(ctx, rec)
 	return d, nil
+}
+
+// fixedIn is the release that fixes the finding on its device, from NVD's ranges (D-488). It only informs the page, so
+// a failed read gives nil, the text the page always had, and never an error. Closed findings have nothing to upgrade.
+func (h *FindingHandlers) fixedIn(ctx context.Context, rec Record) *FixedIn {
+	if !rec.Status.Open() {
+		return nil
+	}
+	a, ok, err := h.inv.MatchInput(ctx, rec.AssetID)
+	if err != nil || !ok {
+		return nil
+	}
+	vulns, err := h.feed.Vulns(ctx)
+	if err != nil {
+		return nil
+	}
+	for _, v := range vulns {
+		if v.CVE == rec.CVE {
+			return FixedInFor(a, v)
+		}
+	}
+	return nil
 }
 
 // DetailByID is Detail for a finding id; an unknown id is a 404 API error.
@@ -142,9 +165,51 @@ func (h *FindingHandlers) FindingsGetFindings(ctx context.Context, params oas.Fi
 	if err != nil {
 		return nil, err
 	}
+	need, err := h.versionNeeded(ctx, params.Asset.Or(""))
+	if err != nil {
+		return nil, err
+	}
 	return Into[oas.FindingsGetFindingsOK](struct {
-		Items []Row `json:"items"`
-	}{rows})
+		Items         []Row             `json:"items"`
+		VersionNeeded []versionNeededJS `json:"version_needed"`
+	}{rows, need})
+}
+
+// versionNeededJS is contract.ts VersionNeeded (D-500).
+type versionNeededJS struct {
+	Asset      *AssetView `json:"asset"`
+	AssetID    string     `json:"asset_id"`
+	SoftwareID string     `json:"software_id"`
+	Software   string     `json:"software"`
+	Version    *string    `json:"version"` // nil: missing; else the version Vedette could not read
+	CVEs       int        `json:"cves"`
+}
+
+func (h *FindingHandlers) versionNeeded(ctx context.Context, assetID string) ([]versionNeededJS, error) {
+	items, err := h.svc.ListVersionNeeded(ctx, assetID)
+	if err != nil || len(items) == 0 {
+		return []versionNeededJS{}, err
+	}
+	ids := make([]string, 0, len(items))
+	for _, n := range items {
+		ids = append(ids, n.AssetID)
+	}
+	assets, err := h.inv.Assets(ctx, ids)
+	if err != nil {
+		return nil, fmt.Errorf("findings: reading devices: %w", err)
+	}
+	out := make([]versionNeededJS, 0, len(items))
+	for _, n := range items {
+		j := versionNeededJS{AssetID: n.AssetID, SoftwareID: n.SoftwareID, Software: n.Software, CVEs: n.CVEs}
+		if a, ok := assets[n.AssetID]; ok {
+			j.Asset = &a
+		}
+		if n.Version != "" {
+			j.Version = &n.Version
+		}
+		out = append(out, j)
+	}
+	return out, nil
 }
 
 // FindingsGetFindingsID implements findings_get_findings_id.
@@ -174,6 +239,23 @@ func (h *FindingHandlers) FindingsPostFindingsIDStatus(ctx context.Context, req 
 		return nil, err
 	}
 	return Into[oas.FindingsPostFindingsIDStatusOK](d)
+}
+
+// FindingsPostFindingsStatus implements findings_post_findings_status (operator): one action and one note for the open
+// findings among up to MaxBulk ids, one history and audit row each, all or nothing; closed ones are skipped (INV-10).
+func (h *FindingHandlers) FindingsPostFindingsStatus(ctx context.Context, req *oas.FindingsPostFindingsStatusReq) (*oas.FindingsPostFindingsStatusOK, error) {
+	p, ok := server.PrincipalFrom(ctx)
+	if !ok {
+		return nil, apierr.Unauthenticated()
+	}
+	if strings.ContainsRune(req.Note, 0) {
+		return nil, apierr.Invalid("The note contains a character that is not allowed.")
+	}
+	n, skipped, err := h.svc.SetStatusMany(ctx, req.Ids, Action(req.Action), req.Note, p.Email)
+	if err != nil {
+		return nil, ToAPIError(err)
+	}
+	return &oas.FindingsPostFindingsStatusOK{Updated: n, Skipped: skipped}, nil
 }
 
 // Guidance is the optional "What to do" provider. mitigation registers one with FindingHandlers.SetGuidance

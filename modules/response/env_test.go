@@ -308,7 +308,7 @@ func newEnv(t *testing.T, opts ...func(*response.Config)) *env {
 		})
 	}
 	cfg := response.Config{DB: db, Secrets: sec, Audit: audit.New(e.clock.Now), Users: e.users, Log: log, Bus: e.bus, Directory: e.dir, Notifier: e.note, Connections: e.conns,
-		Executor: e.exec, Webhooks: e.hooks, Clock: e.clock.Now, BaseURL: "https://box.example:8443"}
+		Executor: e.exec, Webhooks: e.hooks, Clock: e.clock.Now, BaseURL: func() string { return "https://box.example:8443" }}
 	for _, o := range opts {
 		o(&cfg)
 	}
@@ -501,7 +501,7 @@ func (e *env) trap(id, src string) response.Det {
 func twoBlocks() []response.RuleAction {
 	return []response.RuleAction{
 		{ActionID: "blocklist_add", Params: map[string]string{"ip": "{{trigger.dest_ip}}"}, TTLMin: intp(60)},
-		{ActionID: "blocklist_add", Params: map[string]string{"ip": "{{trigger.src_ip}}"}, TTLMin: intp(60)},
+		{ActionID: "blocklist_add", Params: map[string]string{"ip": "203.0.113.200"}, TTLMin: intp(60)}, // a fixed public address: the LAN source would be refused (D-469)
 	}
 }
 func strp(s string) *string { return &s }

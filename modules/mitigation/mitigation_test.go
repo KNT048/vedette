@@ -161,7 +161,7 @@ func newRig(t *testing.T) *rig {
 	if err != nil {
 		t.Fatal(err)
 	}
-	sw := []findings.Software{{ID: "s-1", Display: "Photo Station", Vendor: "QNAP", Product: "Photo Station", KevKeys: []string{"qnap|photo station"}}}
+	sw := []findings.Software{{ID: "s-1", Display: "Photo Station", Vendor: "QNAP", Product: "Photo Station", Version: "6.0.3", KevKeys: []string{"qnap|photo station"}}}
 	vulns := []findings.Vuln{{CVE: qnapCVE, Vendor: "QNAP", Product: "Photo Station"}, {CVE: otherCVE, Vendor: "QNAP", Product: "Photo Station"}}
 	res, err := r.svc.UpsertFromMatch(t.Context(), findings.Asset{ID: "a-1", Name: "nas01", Software: sw}, vulns)
 	if err != nil || len(res.Created) != 2 {
@@ -501,6 +501,11 @@ func TestContract_INV3_AIResultIsLabelledStoredAndGated(t *testing.T) {
 	// the AI module says it is unavailable after all
 	r.ai.err = ErrAIUnavailable
 	if code, b = r.call("POST", "/findings/"+id+"/ai", "operator", `{"skill":"explain"}`); code != 409 || errCode(b) != "ai_unavailable" {
+		t.Fatalf("%d %v", code, b)
+	}
+	// the AI module's own error is what the page shows, not "No AI profile is assigned" (beta 0.1.0-beta.1: a cut answer read so)
+	r.ai.err = apierr.New(502, "ai_cut_off", "The AI's answer was cut off at the output limit (12,000 tokens), so it was not used.")
+	if code, b = r.call("POST", "/findings/"+id+"/ai", "operator", `{"skill":"explain"}`); code != 502 || errCode(b) != "ai_cut_off" || strings.Contains(string(mustJSON(t, b)), "assigned") {
 		t.Fatalf("%d %v", code, b)
 	}
 	// any other failure is a 500 without detail

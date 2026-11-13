@@ -4,6 +4,7 @@ import kev from '@/mocks/fixtures/kev.json'
 import { API, audit, body, currentUser, fail, guard } from '@/mocks/http'
 import { collection, nowIso } from '@/mocks/db'
 import { aiAvailable, aiCandidates, assetsStore, findingsStore, recordAiRun, type AiJob } from '@/mocks/stores'
+import { versionNeeded } from '@/mocks/match'
 import type { Asset, Finding } from '@/lib/types'
 import { compromise, packs } from './packs'
 import type { AiResult, ApplyItem, FindingAsset, FindingDetail, FindingRow, FirewallGuide, KevInfo, MitigationPack, StatusAction } from './types'
@@ -17,6 +18,7 @@ const aiOutputs = collection<Record<string, AiResult>>('mit_ai_outputs', () => (
 
 const APPLY_ITEMS: ApplyItem[] = ['patch', 'workaround', 'fortigate', 'mikrotik', 'generic']
 const ACTIONS: StatusAction[] = ['patched', 'mitigated', 'false_positive', 'not_relevant', 'reopen']
+const MAX_BULK = 500
 
 const DISPLAY: Record<string, string> = {
   'qnap|photo station': 'Photo Station app on a QNAP NAS',
@@ -31,8 +33,14 @@ function kevInfo(cve: string): KevInfo | null {
   return { name: v.name, vendor: v.vendor, product: v.product, display, required_action: v.required_action, links: v.links, date_added: v.date_added, due_date: v.due_date, ransomware: v.ransomware, epss: v.epss, has_template: v.has_template }
 }
 
+/** Tên như trang Devices (D-484): tên máy, rồi hãng + model, rồi IP, rồi phần mềm; không bao giờ là id. */
+function nameOf(a: Asset): string {
+  const hw = [a.vendor?.value, a.model?.value].filter(Boolean).join(' ')
+  return a.hostname || hw || (a.ip && a.ip !== '—' ? a.ip : '') || a.software[0]?.display || a.kind
+}
+
 function assetView(a: Asset | undefined): FindingAsset | null {
-  return a ? { id: a.id, hostname: a.hostname, ip: a.ip, kind: a.kind, display: a.software[0]?.display ?? a.kind } : null
+  return a ? { id: a.id, name: nameOf(a), hostname: a.hostname, ip: a.ip || '—', kind: a.kind, display: a.software[0]?.display ?? a.kind } : null
 }
 
 function row(f: Finding): FindingRow {
@@ -63,13 +71,16 @@ function recheckFor(f: Finding, k: KevInfo | null, a: FindingAsset | null) {
       code: `curl -sI http://${a.ip}/photo/`,
     }
   }
+  const reachable = !!a && a.ip !== '—'
   return {
-    steps: f.basis === 'scan'
+    steps: f.basis === 'scan' && reachable
       ? ['Run the scan template again with the "Rescan this device" button.']
       : [
-          `Open the admin page of ${a?.hostname ?? 'the device'} and check which version of ${k?.display ?? 'the software'} is running.`,
+          `Check which version of ${k?.display ?? 'the software'} ${a?.name ?? 'the device'} runs (in its settings, its admin page or its About screen).`,
           'Compare it with the fixed version in the vendor advisory (link in the source section). An older version means the flaw is still there.',
-          k?.has_template ? 'This CVE has a safe scan template: click "Rescan this device" to confirm.' : 'This CVE has no safe scan template yet, so Vedette can only conclude from the version. Check by hand as above.',
+          k?.has_template && reachable ? 'This CVE has a safe scan template: click "Rescan this device" to confirm.'
+            : k?.has_template ? 'This CVE has a safe scan template, but this device has no IP address in your inventory, so it cannot be scanned. Add its IP on the device page to scan it, or check by hand as above.'
+            : 'This CVE has no safe scan template yet, so Vedette can only conclude from the version. Check by hand as above.',
         ],
   }
 }
@@ -83,6 +94,7 @@ function detail(f: Finding): FindingDetail {
   const outs = aiOutputs.get()
   return {
     ...r,
+    fixed_in: null,
     pack: pack ? renderPack(pack, r.asset) : null,
     compromise: check ? JSON.parse(fill(JSON.stringify(check), ip, host)) : null,
     recheck: recheckFor(f, r.kev, r.asset),
@@ -119,7 +131,7 @@ const jobOf = (skill: AiResult['skill']): AiJob => (skill === 'explain' ? 'expla
 function aiResult(f: Finding, skill: AiResult['skill']): AiResult {
   const r = row(f)
   const k = r.kev
-  const dev = r.asset?.hostname ?? r.asset?.ip ?? f.asset_id
+  const dev = r.asset?.name ?? 'a removed device'
   const key = k ? `${k.vendor}|${k.product}`.toLowerCase() : ''
   const date = k ? fmtDate(k.date_added) : ''
   const paragraphs = skill === 'explain'
@@ -143,7 +155,10 @@ export const handlers = [
     const denied = guard('viewer'); if (denied) return denied
     const asset = new URL(request.url).searchParams.get('asset')
     const list = findingsStore.get().filter((f) => !asset || f.asset_id === asset)
-    return HttpResponse.json({ items: list.map(row) })
+    const version_needed = versionNeeded(asset).map(({ asset: a, software: s, cves }) => ({
+      asset: assetView(a), asset_id: a.id, software_id: s.id, software: s.display, version: s.version || null, cves,
+    }))
+    return HttpResponse.json({ items: list.map(row), version_needed })
   }),
 
   http.get(`${API}/findings/:id`, ({ params }) => {
@@ -172,6 +187,29 @@ export const handlers = [
     }
     audit('findings.status', f.id, `${f.cve} → ${b.action}${note ? `: ${note}` : ''}`)
     return HttpResponse.json(detail(find(f.id)!))
+  }),
+
+  // Một hành động, một ghi chú cho các phát hiện đang mở (W1-12, INV-10): tất cả hoặc không gì; mỗi phát hiện một dòng lịch sử và kiểm toán; phát hiện đã đóng được đếm và bỏ qua.
+  http.post(`${API}/findings/status`, async ({ request }) => {
+    const denied = guard('operator'); if (denied) return denied
+    const b = await body<{ ids: string[]; action: StatusAction; note: string }>(request)
+    const ids = [...new Set(Array.isArray(b.ids) ? b.ids.map(String) : [])]
+    if (ids.length === 0 || ids.length > MAX_BULK) return fail(400, 'invalid', `Select between 1 and ${MAX_BULK} findings.`)
+    if (!b.action || b.action === 'reopen' || !ACTIONS.includes(b.action)) return fail(400, 'bad_action', 'Choose one of: patched, mitigated, false positive, or not relevant.')
+    const note = typeof b.note === 'string' ? b.note.trim() : ''
+    if (note.length > 500) return fail(400, 'note_too_long', 'The note can be at most 500 characters. Shorten it.')
+    if ((b.action === 'false_positive' || b.action === 'not_relevant') && note.length < 3) return fail(400, 'note_required', 'Write why this is a false positive or not relevant (at least 3 characters) so the next person understands.')
+    if (ids.some((id) => !find(id))) return fail(404, 'not_found', 'No such finding.')
+    const ts = nowIso()
+    const user = who()
+    let skipped = 0
+    for (const id of ids) {
+      const f = find(id)!
+      if (f.status !== 'confirmed' && f.status !== 'suspected') { skipped++; continue } // a closed finding keeps its reason
+      patch(id, (x) => ({ ...x, status: b.action as Finding['status'], resolved_by: user, resolved_at: ts, resolution_note: note || null, history: [...x.history, { ts, user, action: b.action as string, note: note || undefined }] }))
+      audit('findings.status', id, `${f.cve} → ${b.action}${note ? `: ${note}` : ''}`)
+    }
+    return HttpResponse.json({ updated: ids.length - skipped, skipped })
   }),
 
   // "Đã áp dụng": ghi nhật ký, không tự đổi trạng thái; chỉ quét lại mới xác nhận đã hết.

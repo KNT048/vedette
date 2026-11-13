@@ -1,7 +1,7 @@
-import { useState, type FormEvent } from 'react'
+import { useCallback, useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { LoaderCircle, QrCode, Send, TriangleAlert, X } from 'lucide-react'
+import { LoaderCircle, Send, X } from 'lucide-react'
 import { PageHeader } from '@/components/common/PageHeader'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { Chip } from '@/components/common/StatusChip'
@@ -17,22 +17,46 @@ import { useCan } from '@/lib/session'
 import { useUsers } from '@/features/core/api'
 import { checkFeedUrl } from '@/features/feeds/defaults'
 import History from './History'
+import { EMAIL_PROVIDERS, OAUTH_HOST, emailBinding, emailProvider, isOAuth, isUserSignin, savedFor, type EmailProvider } from './emailProviders'
+import { EmailSignin } from './EmailSignin'
 import { useChannels, useRemoveChannel, useSaveChannel, useSaveRules, useTestChannel } from './api'
 import { APPROVAL_CHANNELS, FIELDS, ROUTE_SEVERITIES, forbiddenHost, ownHost } from './types'
+import { TelegramFind } from './TelegramFind'
+import { ApproverLinkState, ZaloApproverField, ZaloRecipient, ZaloSignIn, ZaloWarning, type ZaloTarget } from './ZaloPersonal'
 import type { Approver, Channel, Grouping, Quiet, RouteSeverity } from './types'
 
 const errMsg = (e: unknown) => (e instanceof ApiError ? e.message : String(e))
 // The box names the wrong field by its code: the message goes under that field, as in the log source form. Per type, because a code
 // can mean another field elsewhere (modules/notify/channel/*.go, mocks.ts validate). A code left out stays at the top of the dialog:
-// Slack `secret_required` is the webhook URL, the app token or the bot token; Zalo personal's session is a QR sign-in, not a field.
+// Slack `secret_required` is the webhook URL, the app token or the bot token; Zalo personal's session is a QR sign-in, not a field
+// (`login_required` too); its `bad_user_id` is the recipient, shown in the recipient box.
 // Approver errors (`bad_approver_address`, …) stay at the top too: they name the approver in the message.
 const FIELD_OF: Record<Channel['type'], Record<string, string>> = {
   telegram: { bad_chat_id: 'chat_id', secret_required: 'secret', bad_token: 'secret' },
   slack: { bad_label: 'label', bad_webhook: 'secret', bad_channel_id: 'channel_id', bad_app_token: 'app_token', bad_bot_token: 'bot_token' },
-  zalo: { bad_oa_id: 'oa_id', bad_user_id: 'user_id', secret_required: 'secret', bad_token: 'secret' },
+  zalo: { bad_oa_id: 'oa_id', bad_user_id: 'user_id', bad_app_id: 'app_id', bad_secret_key: 'secret_key', bad_refresh_token: 'refresh_token', secret_required: 'refresh_token', bad_token: 'secret' },
   'zalo-personal': { bad_user_id: 'user_id' }, // at save an approver's ID is `bad_approver_address`; `bad_user_id` is the recipient
-  email: { bad_host: 'host', bad_port: 'port', port_mismatch: 'port', bad_security: 'security', bad_username: 'username', secret_required: 'secret', bad_from: 'from', bad_to: 'to' },
+  email: { bad_provider: 'provider', bad_host: 'host', bad_port: 'port', port_mismatch: 'port', bad_security: 'security', bad_username: 'username', bad_tenant_id: 'tenant_id', bad_client_id: 'client_id', secret_required: 'secret', bad_secret: 'secret', bad_from: 'from', bad_to: 'to' },
   webhook: { bad_url: 'url', url_unreadable: 'url', secret_required: 'secret', bad_secret: 'secret' },
+}
+
+/** Zalo's page on the OA access and refresh tokens (D-483): where the App ID, Secret key and refresh token come from. */
+const ZALO_OA_DOC = 'https://developers.zalo.me/docs/official-account/bat-dau/xac-thuc-va-uy-quyen-cho-ung-dung-new'
+
+/** The service account of a Google key file, or null when the text is not one (the box checks the key itself, D-449). */
+function keyAccount(text: string): string | null {
+  try {
+    const j = JSON.parse(text) as { type?: unknown; client_email?: unknown; private_key?: unknown }
+    return j.type === 'service_account' && typeof j.client_email === 'string' && typeof j.private_key === 'string' ? j.client_email : null
+  } catch { return null }
+}
+
+/** Translation keys of an email field's label or hint, most specific first: the preset, its sign-in, its kind, then the plain one (D-449). */
+function emailKeys(p: EmailProvider, k: string, part: 'label' | 'hint') {
+  const mailbox = p.group === 'password' && p.id !== 'custom'
+  const variants = k === 'username' ? [p.id, isUserSignin(p.auth) ? 'user' : isOAuth(p.auth) ? 'oauth' : mailbox ? 'mailbox' : '']
+    : k === 'secret' ? [p.id, p.auth, mailbox && p.id !== 'zoho' ? 'app' : '', p.id !== 'custom' ? 'service' : ''] : [p.id, k === 'host' && isOAuth(p.auth) ? 'oauth' : '']
+  return [...variants.filter(Boolean).map((v) => `channels.f.email.${k}.${part}_${v}`), `channels.f.email.${k}.${part}`]
 }
 
 function randomKey() {
@@ -41,20 +65,34 @@ function randomKey() {
   return Array.from(b, (x) => x.toString(16).padStart(2, '0')).join('')
 }
 
-function ChannelDialog({ channel, codeUsers, onClose, onSaved }: { channel: Channel; codeUsers: number; onClose: () => void; onSaved: (thenTest: boolean) => void }) {
+function ChannelDialog({ channel: opened, codeUsers, onClose, onSaved }: { channel: Channel; codeUsers: number; onClose: () => void; onSaved: (thenTest: boolean) => void }) {
   const { t } = useTranslation('notify')
   const save = useSaveChannel()
-  const type = channel.type
+  const type = opened.type
+  // The channel as the box has it now: a Zalo personal dialog stays open after Save to show each approver's link state (D-447).
+  const channel = useChannels().data?.channels.find((c) => c.type === type) ?? opened
   const name = t(`ch.${type}`)
   const [enabled, setEnabled] = useState(channel.configured ? channel.enabled : true)
-  const [fields, setFields] = useState<Record<string, string>>(() => ({ ...(type === 'email' ? { port: '587', security: 'starttls' } : {}), ...(type === 'webhook' ? {} : channel.fields) })) // the webhook URL is a secret: only its masked form comes back, so the field starts empty (empty = keep)
+  const [fields, setFields] = useState<Record<string, string>>(() => ({ ...(type === 'email' ? { port: '587', security: 'starttls', provider: 'custom' } : {}), ...(type === 'webhook' ? {} : channel.fields) })) // the webhook URL is a secret: only its masked form comes back, so the field starts empty (empty = keep)
   const [secret, setSecret] = useState('')
+  const [keyOf, setKeyOf] = useState<string | null>(null) // the service account of a chosen Google key file
+  const [signin, setSignin] = useState<string | null>(null) // a finished user sign-in (D-480): its id goes with the save
+  // Email presets (D-449): the preset decides which fields show and what the secret is; a saved secret counts only for the same sign-in.
+  const prov = emailProvider(fields.provider) ?? EMAIL_PROVIDERS[0]!
+  // the box sends a saved secret only to the method, server and port it was saved for (D-449 review): say so before saving
+  const keepsSecret = !!channel.secret_last4 && (type !== 'email' || savedFor(channel.fields) === emailBinding(fields))
   const [min, setMin] = useState<RouteSeverity>(channel.min_severity)
   const [approvals, setApprovals] = useState(channel.approvals)
   const [approvers, setApprovers] = useState<Approver[]>(channel.approvers)
   const [pick, setPick] = useState('')
-  const [qr, setQr] = useState(false)
+  const [zaloSigned, setZaloSigned] = useState<string | null>(null) // the account of a finished QR sign-in: Save keeps its session
+  const onZaloSigned = useCallback((n: string | null) => setZaloSigned(n), [])
+  const [target, setTarget] = useState<ZaloTarget>({ user_id: opened.fields.user_id ?? '', group: opened.fields.group === 'true', name: opened.fields.name ?? '' })
+  const zaloLook = zaloSigned !== null || (channel.configured && channel.secret_last4 !== null)
   const users = useUsers()
+  const [zaloKey, setZaloKey] = useState('') // Zalo OA (D-483): the app's Secret key and the OA refresh token; empty keeps the saved ones
+  const [zaloRefresh, setZaloRefresh] = useState('')
+  const zaloGrant = type === 'zalo' && channel.configured && !!channel.fields.app_id && !!channel.secret_last4
   const [appToken, setAppToken] = useState('')
   const [botToken, setBotToken] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -71,10 +109,13 @@ function ChannelDialog({ channel, codeUsers, onClose, onSaved }: { channel: Chan
     if (type === 'email' && channel.enabled && !enabled && codeUsers > 0 && !confirmed) { setWarn(thenTest); return }
     const canApprove = APPROVAL_CHANNELS.includes(type)
     // Slack's channel ID and app tokens only belong to approvals: with approvals off they are not sent.
-    const sent = type === 'slack' && !approvals ? Object.fromEntries(Object.entries(fields).filter(([k]) => k !== 'channel_id')) : fields
-    save.mutate({ type, enabled, fields: sent, secret: secret || undefined, min_severity: min, ...(canApprove ? { approvals, approvers: approvals ? approvers : [] } : {}), ...(type === 'slack' && approvals ? { app_token: appToken || undefined, bot_token: botToken || undefined } : {}) }, {
+    const sent = type === 'slack' && !approvals ? Object.fromEntries(Object.entries(fields).filter(([k]) => k !== 'channel_id'))
+      : type === 'zalo-personal' ? { user_id: target.user_id, group: target.group ? 'true' : '', name: target.name } : fields
+    const zalo = type === 'zalo-personal' ? { zalo_login: zaloSigned !== null } : {}
+    save.mutate({ type, enabled, fields: sent, secret: secret || undefined, ...(type === 'email' && signin ? { signin } : {}), min_severity: min, ...zalo, ...(canApprove ? { approvals, approvers: approvals ? approvers : [] } : {}), ...(type === 'slack' && approvals ? { app_token: appToken || undefined, bot_token: botToken || undefined } : {}), ...(type === 'zalo' ? { secret_key: zaloKey || undefined, refresh_token: zaloRefresh || undefined } : {}) }, {
       onSuccess: () => {
         toast.success(t('channels.saved', { name }))
+        if (type === 'zalo-personal' && approvals && !thenTest) { setZaloSigned(null); toast.info(t('zp.codesSent')); return } // stay: show who is linked
         onSaved(thenTest)
       },
       onError: (er) => {
@@ -97,7 +138,7 @@ function ChannelDialog({ channel, codeUsers, onClose, onSaved }: { channel: Chan
   // Focus after React has drawn the error, so a screen reader reads the field with its message (as the log source form does).
   function showErrors(errs: Record<string, string>) {
     setFieldErr(errs)
-    const first = [...FIELDS[type], 'secret', 'channel_id', 'app_token', 'bot_token'].find((k) => errs[k])
+    const first = [...FIELDS[type], 'secret_key', 'refresh_token', 'secret', 'channel_id', 'app_token', 'bot_token'].find((k) => errs[k])
     if (first) setTimeout(() => document.getElementById(`ch-${type}-${first}`)?.focus(), 0)
     return first !== undefined
   }
@@ -110,15 +151,56 @@ function ChannelDialog({ channel, codeUsers, onClose, onSaved }: { channel: Chan
     const u = free.find((x) => x.id === pick) ?? free[0]
     if (u) { setApprovers((l) => [...l, { user_id: u.id, address: type === 'email' ? u.email : '' }]); setPick('') }
   }
-  const secretHint = channel.secret_last4 ? t('channels.secretSaved', { last4: channel.secret_last4 }) : t(`channels.f.${type}.secret.hint`)
+  const secretHint = type === 'zalo' && (zaloGrant || zaloRefresh) ? t('channels.f.zalo.secret.hintGrant') : type === 'email' && keyOf ? t('channels.f.email.secret.loaded', { email: keyOf }) : keepsSecret ? t('channels.secretSaved', { last4: channel.secret_last4 }) : type === 'email' ? t(emailKeys(prov, 'secret', 'hint')) : t(`channels.f.${type}.secret.hint`)
+  const shown = (k: string) => type !== 'email' || (k !== 'username' || prov.auth !== 'token_as_user') &&
+    (k !== 'tenant_id' || prov.auth === 'microsoft_oauth' || prov.id === 'microsoft365-user') && (k !== 'client_id' || ['microsoft_oauth', 'microsoft_user', 'google_user'].includes(prov.auth))
+  const pickProvider = (id: string) => {
+    const p = emailProvider(id) ?? EMAIL_PROVIDERS[0]!
+    if (p.auth !== prov.auth) { setSecret(''); setKeyOf(null) } // a password is not a client secret, nor a key file
+    setSignin(null)
+    setFields((f) => ({ ...f, provider: p.id, ...(p.host ? { host: p.host, port: p.port, security: p.security } : {}), ...(p.id === 'microsoft365-user' && !f.tenant_id ? { tenant_id: 'organizations' } : {}), ...(p.username ? { username: p.username } : prov.username && f.username === prov.username ? { username: '' } : {}) }))
+    setFieldErr({})
+  }
+  async function chooseKey(file: File | undefined) {
+    if (!file) return
+    const text = file.size <= 16384 ? await file.text() : ''
+    const who = keyAccount(text)
+    setKeyOf(who)
+    setSecret(who ? text : '')
+    if (who) fixed('secret')
+    else showErrors({ secret: t('channels.f.email.secret.notKey') })
+  }
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose() }}>
       <DialogContent title={t('channels.dialogTitle', { name })} description={t('channels.dialogDesc')}>
         <form onSubmit={submit} className="grid gap-4" noValidate>
           {error ? <p role="alert" className="rounded-md border border-danger/40 bg-danger-soft px-3 py-2 text-sm">{error}</p> : null}
-          {FIELDS[type].map((k) => {
+          {type === 'zalo-personal' ? null : FIELDS[type].filter(shown).map((k) => {
             const id = `ch-${type}-${k}`
-            const label = t(`channels.f.${type}.${k}.label`)
+            const label = type === 'email' ? t(emailKeys(prov, k, 'label')) : t(`channels.f.${type}.${k}.label`)
+            if (k === 'provider') {
+              const steps = t(`channels.f.email.provider.steps.${prov.id}`, { returnObjects: true, defaultValue: {} }) as Record<string, string>
+              return (
+                <div key={k} className="grid gap-2">
+                  <Field label={label} hint={t('channels.f.email.provider.hint')} htmlFor={id} error={fieldErr[k]}>
+                    <Select id={id} value={prov.id} {...aria(id, k)} onChange={(e) => pickProvider(e.target.value)}>
+                      {(['password', 'service', 'oauth'] as const).map((g) => (
+                        <optgroup key={g} label={t(`channels.f.email.provider.group.${g}`)}>
+                          {EMAIL_PROVIDERS.filter((p) => p.group === g).map((p) => <option key={p.id} value={p.id}>{t(`channels.f.email.provider.name.${p.id}`)}</option>)}
+                        </optgroup>
+                      ))}
+                    </Select>
+                  </Field>
+                  {prov.doc ? (
+                    <div role="note" aria-label={t(`channels.f.email.provider.name.${prov.id}`)} className="grid gap-1.5 rounded-md border border-rule bg-sunken px-3 py-2 text-[13px]">
+                      <p>{t(`channels.f.email.provider.help.${prov.id}`)}</p>
+                      {Object.keys(steps).length ? <ol className="list-decimal pl-5">{Object.entries(steps).map(([s, text]) => <li key={s}>{text}</li>)}</ol> : null}
+                      <a className="w-fit text-accent underline underline-offset-4" href={prov.doc} target="_blank" rel="noopener noreferrer">{t('channels.f.email.provider.doc', { name: t(`channels.f.email.provider.name.${prov.id}`) })}</a>
+                    </div>
+                  ) : null}
+                </div>
+              )
+            }
             if (k === 'security') {
               return (
                 <Field key={k} label={label} htmlFor={id} error={fieldErr[k]}>
@@ -133,30 +215,50 @@ function ChannelDialog({ channel, codeUsers, onClose, onSaved }: { channel: Chan
                 </Field>
               )
             }
-            const hint = type === 'webhook' && k === 'url' && channel.fields.url ? t('channels.urlSaved', { url: channel.fields.url }) : t(`channels.f.${type}.${k}.hint`)
-            return (
+            const hint = type === 'webhook' && k === 'url' && channel.fields.url ? t('channels.urlSaved', { url: channel.fields.url }) : type === 'email' ? t(emailKeys(prov, k, 'hint')) : t(`channels.f.${type}.${k}.hint`)
+            const input = (
               <Field key={k} label={label} hint={hint} htmlFor={id} error={fieldErr[k]}>
-                <Input id={id} value={fields[k] ?? ''} type={k === 'port' ? 'number' : 'text'} onChange={(e) => set(k, e.target.value)} autoComplete="off" {...aria(id, k)} />
+                <Input id={id} value={fields[k] ?? ''} type={k === 'port' ? 'number' : 'text'} readOnly={type === 'email' && ((k === 'host' && !!OAUTH_HOST[prov.id]) || (k === 'username' && isUserSignin(prov.auth)))} onChange={(e) => set(k, e.target.value)} autoComplete="off" {...aria(id, k)} />
               </Field>
             )
+            // D-491: Telegram's Chat ID can be picked from the chats the bot has seen
+            return type === 'telegram' && k === 'chat_id' ? (
+              <div key={k} className="grid gap-2">
+                {input}
+                <TelegramFind token={secret} hasSaved={!!channel.secret_last4} chatId={(fields.chat_id ?? '').trim()} onPick={(v) => set('chat_id', v)} onTokenError={(m) => showErrors({ secret: m })} />
+              </div>
+            ) : input
           })}
+          {type === 'zalo' ? (
+            <div className="grid gap-3">
+              <div role="note" aria-label={t('channels.f.zalo.helpTitle')} className="grid gap-1.5 rounded-md border border-rule bg-sunken px-3 py-2 text-[13px]">
+                <p>{t('channels.f.zalo.help')}</p>
+                <a className="w-fit text-accent underline underline-offset-4" href={ZALO_OA_DOC} target="_blank" rel="noopener noreferrer">{t('channels.f.zalo.doc')}</a>
+              </div>
+              <Field label={t('channels.f.zalo.secret_key.label')} hint={zaloGrant ? t('channels.keepSaved') : t('channels.f.zalo.secret_key.hint')} htmlFor="ch-zalo-secret_key" error={fieldErr.secret_key}>
+                <Input id="ch-zalo-secret_key" type="password" value={zaloKey} onChange={(e) => { setZaloKey(e.target.value); fixed('secret_key') }} autoComplete="new-password" {...aria('ch-zalo-secret_key', 'secret_key')} />
+              </Field>
+              <Field label={t('channels.f.zalo.refresh_token.label')} hint={zaloGrant ? t('channels.secretSaved', { last4: channel.secret_last4 }) : t('channels.f.zalo.refresh_token.hint')} htmlFor="ch-zalo-refresh_token" error={fieldErr.refresh_token}>
+                <Input id="ch-zalo-refresh_token" type="password" value={zaloRefresh} onChange={(e) => { setZaloRefresh(e.target.value); fixed('refresh_token') }} autoComplete="new-password" {...aria('ch-zalo-refresh_token', 'refresh_token')} />
+              </Field>
+            </div>
+          ) : null}
           {type === 'zalo-personal' ? (
             <div className="grid gap-3">
-              <p role="note" className="flex gap-2 rounded-md border border-danger/40 bg-danger-soft px-3 py-2 text-sm font-medium"><TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden />{t('zp.warning')}</p>
-              <div className="grid gap-2 rounded-md border border-rule p-3">
-                <span className="text-sm font-medium">{t('zp.login')}</span>
-                <p className="text-[13px] text-muted">{secret ? t('zp.ready') : channel.secret_last4 ? t('channels.secretSaved', { last4: channel.secret_last4 }) : t('zp.none')}</p>
-                {qr ? (
-                  <div className="grid justify-items-start gap-2">
-                    <div role="img" aria-label={t('zp.qrAlt')} className="grid size-36 place-items-center rounded-md border border-dashed border-rule bg-sunken text-muted"><QrCode className="size-20" aria-hidden /></div>
-                    <p className="text-[13px]">{t('zp.scan')}</p>
-                    <Button onClick={() => { setSecret(`zl-session-${randomKey()}`); setQr(false) }}>{t('zp.scanned')}</Button>
-                  </div>
-                ) : <div><Button onClick={() => setQr(true)}><QrCode />{channel.secret_last4 || secret ? t('zp.relogin') : t('zp.show')}</Button></div>}
-              </div>
+              <ZaloWarning />
+              <ZaloSignIn channel={channel} onSigned={onZaloSigned} />
+              <ZaloRecipient value={target} onChange={(v) => { setTarget(v); fixed('user_id') }} canLook={zaloLook} error={fieldErr.user_id || undefined} />
             </div>
+          ) : type === 'email' && isUserSignin(prov.auth) ? (
+            <EmailSignin key={prov.id} prov={prov} fields={fields} saved={keepsSecret ? channel.fields.username ?? null : null} error={fieldErr.secret}
+              onSignedIn={(id, mailbox) => { setSignin(id); if (id) { setFields((f) => ({ ...f, username: mailbox })); fixed('secret'); fixed('username') } }}
+              onFieldError={(f, m) => showErrors({ [f]: m })} />
+          ) : type === 'email' && prov.auth === 'google_oauth' ? (
+            <Field label={t(emailKeys(prov, 'secret', 'label'))} hint={secretHint} htmlFor="ch-email-secret" error={fieldErr.secret}>
+              <Input id="ch-email-secret" type="file" accept=".json,application/json" onChange={(e) => void chooseKey(e.target.files?.[0])} {...aria('ch-email-secret', 'secret')} />
+            </Field>
           ) : (
-            <Field label={t(`channels.f.${type}.secret.label`)} hint={secretHint} htmlFor={`ch-${type}-secret`} error={fieldErr.secret}>
+            <Field label={type === 'email' ? t(emailKeys(prov, 'secret', 'label')) : t(`channels.f.${type}.secret.label`)} hint={secretHint} htmlFor={`ch-${type}-secret`} error={fieldErr.secret}>
               <div className="flex gap-2">
                 <Input id={`ch-${type}-secret`} type="password" value={secret} onChange={(e) => { setSecret(e.target.value); fixed('secret') }} autoComplete="new-password" {...aria(`ch-${type}-secret`, 'secret')} />
                 {type === 'webhook' ? <Button onClick={() => { setSecret(randomKey()); fixed('secret') }}>{t('channels.generate')}</Button> : null}
@@ -183,9 +285,17 @@ function ChannelDialog({ channel, codeUsers, onClose, onSaved }: { channel: Chan
                       return (
                         <div key={a.user_id} className="grid items-end gap-2 sm:grid-cols-[1fr_1.4fr_auto]">
                           <div className="grid text-sm"><span className="font-medium">{u?.name ?? a.user_id}</span><span className="text-[12px] text-muted">{u ? `${u.email}, ${t(`common:role.${u.role}`)}` : ''}</span></div>
-                          <Field label={t(`approve.address.${type}`)} htmlFor={`ap-${type}-${a.user_id}`}>
-                            <Input id={`ap-${type}-${a.user_id}`} value={a.address} placeholder={t(`approve.placeholder.${type}`)} autoComplete="off" onChange={(e) => setApprovers((l) => l.map((x) => (x.user_id === a.user_id ? { ...x, address: e.target.value } : x)))} />
-                          </Field>
+                          {type === 'zalo-personal'
+                            ? <ZaloApproverField approver={a} saved={channel.configured ? channel : null} canLook={zaloLook} onChange={(n) => setApprovers((l) => l.map((x) => (x.user_id === a.user_id ? n : x)))} />
+                            : (
+                              <div className="grid gap-2">
+                                <Field label={t(`approve.address.${type}`)} htmlFor={`ap-${type}-${a.user_id}`}>
+                                  <Input id={`ap-${type}-${a.user_id}`} value={a.address} placeholder={t(`approve.placeholder.${type}`)} autoComplete="off" onChange={(e) => setApprovers((l) => l.map((x) => (x.user_id === a.user_id ? { ...x, address: e.target.value } : x)))} />
+                                </Field>
+                                {/* D-414: a Telegram approver confirms the link the bot sends them, signed in as themselves */}
+                                {type === 'telegram' ? (channel.configured ? <ApproverLinkState kind="telegram" approver={a} saved={channel} /> : a.address ? <p className="text-[13px] text-muted">{t('tg.unsaved')}</p> : null) : null}
+                              </div>
+                            )}
                           <Button size="sm" variant="ghost" onClick={() => setApprovers((l) => l.filter((x) => x.user_id !== a.user_id))}><X /><span className="sr-only">{t('approve.remove', { who })}</span></Button>
                         </div>
                       )

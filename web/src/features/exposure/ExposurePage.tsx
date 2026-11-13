@@ -15,7 +15,8 @@ import { useCan } from '@/lib/session'
 import { BoxIpPanel } from './BoxIpPanel'
 import { OwnerChip } from './OwnerChip'
 import { useAddTarget, useTargets } from './api'
-import type { Target } from './types'
+import { portLabel, riskOf } from './services'
+import type { Gateway, PortRow, Target } from './types'
 
 export default function ExposurePage() {
   const { t } = useTranslation('exposure')
@@ -27,10 +28,16 @@ export default function ExposurePage() {
   const admin = scanned.reduce((n, x) => n + (x.latest?.admin_panels ?? 0), 0)
   const certs = scanned.reduce((n, x) => n + (x.latest?.certs_expiring ?? 0), 0)
   const pending = items?.filter((x) => !x.scannable).length ?? 0
+  // W1-23: say what is open before saying what is not (the open ports of each target's newest scan).
+  const ports = scanned.reduce((n, x) => n + (x.latest?.ports ?? 0), 0)
+  const open = scanned.flatMap((x) => (x.open_ports ?? []).map((p) => ({ ...p, target: x })))
+  const shown = open.slice(0, 3).map(portLabel).join(', ')
+  const list = ports > 3 ? t('title.more', { list: shown, count: ports - 3 }) : shown
   const title = !items ? t('titleLoading')
     : items.length === 0 ? t('title.none')
     : scanned.length === 0 ? (pending > 0 ? t('title.pending', { count: pending }) : t('title.ready', { count: items.length }))
     : admin > 0 ? t('title.admin', { count: admin })
+    : ports > 0 ? t('title.ports', { count: ports, list })
     : pending > 0 ? t('title.cleanPartial', { count: pending })
     : t('title.clean')
   return (
@@ -40,6 +47,7 @@ export default function ExposurePage() {
       <QueryState query={{ data, error, isPending, refetch }}>
         {(d) => (
           <>
+            {open.length > 0 ? <OpenPorts ports={open} total={ports} gateway={d.gateway} /> : null}
             <Section id="targets" title={t('targets.title')} description={t('targets.description')}>
               <TargetsTable items={d.items.filter((x) => x.kind === 'domain')} />
             </Section>
@@ -49,6 +57,50 @@ export default function ExposurePage() {
       </QueryState>
       <Panel className="max-w-3xl p-4 text-[13px] text-muted">{t('rule')}</Panel>
     </RequireModule>
+  )
+}
+
+/** W1-23: every open port of the newest scans, the commonly attacked ones called out, with "is that on purpose?" (S-EXP-1, D-485). */
+function OpenPorts({ ports, total, gateway }: { ports: (PortRow & { target: Target })[]; total: number; gateway: Gateway | null }) {
+  const { t } = useTranslation('exposure')
+  return (
+    <Section id="open" title={t('open.title', { count: total })} description={t('open.description')}>
+      {gateway ? <GatewayNote g={gateway} /> : null}
+      <Panel className="divide-y divide-rule">
+        {ports.map((p) => {
+          const risk = riskOf(p)
+          return (
+            <div key={`${p.target.id}|${p.ip}|${p.port}`} className="grid gap-1 px-4 py-3">
+              <p className="flex flex-wrap items-center gap-2 text-sm">
+                <span className="font-medium">{portLabel(p)}</span>
+                <span className="text-muted">{t('open.on', { ip: p.ip })}</span>
+                {p.product ? <span className="text-muted">{t('open.software', { product: p.product })}</span> : null}
+                {risk ? <Chip tone="warn">{t('open.attacked')}</Chip> : null}
+                <Link className="text-[13px] text-accent underline-offset-4 hover:underline" to={`/exposure/${p.target.id}`}>{t('open.details')}</Link>
+              </p>
+              <p className="text-[13px] text-muted">{risk ? `${t(`risky.${risk}`)} ${t('open.purpose')}` : t('open.purposePlain')}</p>
+            </div>
+          )
+        })}
+      </Panel>
+      {total > ports.length ? <p className="mt-2 text-[13px] text-muted">{t('open.moreOnTarget', { count: total - ports.length })}</p> : null}
+    </Section>
+  )
+}
+
+/** D-492: which device probably answers the open ports, and what is exploited on it. Never says for sure (a router can forward a port to another device). */
+function GatewayNote({ g }: { g: Gateway }) {
+  const { t } = useTranslation('exposure')
+  const name = g.name ?? ''
+  const ip = g.ip ?? ''
+  const known = g.device_id !== null
+  const text = !g.ip ? t('gateway.unknown') : !known ? t('gateway.notListed', { ip })
+    : g.open_exploited > 0 ? t('gateway.known', { name, ip, count: g.open_exploited }) : t('gateway.none', { name, ip })
+  return (
+    <div data-testid="gateway-note"><Panel className="mb-3 grid gap-1 px-4 py-3 text-sm">
+      <p>{text}</p>
+      {known && g.open_exploited > 0 ? <Link className="w-fit text-[13px] text-accent underline-offset-4 hover:underline" to={`/findings?device=${encodeURIComponent(g.device_id ?? '')}`}>{t('gateway.link', { name })}</Link> : null}
+    </Panel></div>
   )
 }
 

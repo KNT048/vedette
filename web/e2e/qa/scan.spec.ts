@@ -2,6 +2,7 @@
 // Chạy: pnpm exec playwright test -c playwright.qa.config.ts e2e/qa/scan.spec.ts
 import { expect, test, type Page } from '@playwright/test'
 import { collectErrors, expectAccessible, shot } from '../helpers'
+import { manyAssets } from '../../src/mocks/seed/assets'
 
 const DB = 'vedette-mock-db-v4'
 const DIACRITICS = /[àáảãạăằắẳẵặâầấẩẫậèéẻẽẹêềếểễệìíỉĩịòóỏõọôồốổỗộơờớởỡợùúủũụưừứửữựỳýỷỹỵđ]/i
@@ -31,8 +32,7 @@ async function clean(page: Page, commit = false) {
   if (commit) await page.getByRole('checkbox', { name: /I confirm these ranges belong to my company/ }).check()
   await page.getByRole('button', { name: 'Continue' }).click()
   await page.getByRole('radio', { name: /Mid-size business/ }).click() // gói nhỏ không có module quét
-  await page.getByRole('button', { name: 'Continue' }).click()
-  await page.getByRole('button', { name: /Skip and finish/ }).click()
+  await page.getByRole('button', { name: 'Finish setup' }).click()
   await expect(page).not.toHaveURL(/\/setup/)
 }
 async function patchDb(page: Page, patch: Record<string, unknown>) {
@@ -83,6 +83,44 @@ test.describe('scan: IT operator', () => {
     await expect(page.getByRole('button', { name: /Scan now/ })).toBeDisabled()
     await expect(page.getByText('Select at least one device.')).toBeVisible()
     await english(page, 'scans')
+    expect(errors).toEqual([])
+  })
+
+  test('500 devices (D-472): subnet groups and pages, search, the selection survives paging, Select all says what needs your own tick', async ({ page }, info) => {
+    const errors = collectErrors(page)
+    await page.goto('/scans') // the mock seeds the inventory settings on first read; the patch below keeps them
+    await expect(page.getByRole('button', { name: 'Select all' })).toBeVisible()
+    await page.evaluate(([k, extra]) => {
+      const db = JSON.parse(localStorage.getItem(k as string) ?? '{}')
+      db.inv_assets = [...(db.inv_assets ?? []), ...(extra as unknown[])]
+      db.inv_settings = { ...db.inv_settings, lan_ranges: ['192.168.0.0/16'], scope_confirmed_at: new Date().toISOString(), scope_confirmed_by: 'admin@acme.example' }
+      localStorage.setItem(k as string, JSON.stringify(db))
+    }, [DB, manyAssets(470)] as const)
+    await page.goto('/scans')
+    await expect(page.getByText(/^50\d devices in the inventory$/)).toBeVisible()
+    await expect(page.getByRole('button', { name: /^192\.168\.10\.0\/24/ })).toBeVisible()
+    await expect(page.getByText(/^Page 1 of \d+$/)).toBeVisible()
+    await page.getByRole('button', { name: 'Clear selection' }).click()
+    await page.getByRole('checkbox', { name: /^SRV-AD / }).click()
+    await page.getByRole('button', { name: 'Next' }).click()
+    await page.getByRole('button', { name: 'Next' }).click()
+    await page.getByRole('searchbox', { name: 'Search devices' }).fill('PC-120')
+    await page.getByRole('checkbox', { name: /^PC-120 / }).click()
+    await expect(page.getByText('2 selected')).toBeVisible()
+    await page.getByRole('button', { name: 'Clear filters' }).first().click()
+    await page.getByRole('button', { name: 'Show selected' }).click()
+    await expect(page.locator('[id^="tg-"][data-state="checked"]')).toHaveCount(2)
+    await page.getByRole('button', { name: 'Show all' }).click()
+    await page.getByRole('combobox', { name: 'Subnet' }).selectOption('192.168.40.0/24')
+    await page.getByRole('button', { name: 'Select all' }).click()
+    const report = page.getByText(/^Selected \d+ devices\./)
+    await expect(report).toContainText(/need your own tick \(\d+ fragile, \d+ type unknown, \d+ added by hand\): Show them \d+ cannot be scanned \(\d+ not approved\)/)
+    await shot(page, 'scan', `picker-500-${info.project.name}`)
+    await noHScroll(page, 'picker 500')
+    await expectAccessible(page, 'picker 500')
+    await report.getByRole('button', { name: 'Show them' }).click()
+    await expect(page.getByRole('combobox', { name: 'Show' })).toHaveValue('pick')
+    await expect(page.locator('[id^="tg-"][data-state="checked"]')).toHaveCount(0)
     expect(errors).toEqual([])
   })
 
@@ -212,7 +250,8 @@ test.describe('scan: admin sets safety', () => {
     await expect(page.getByText('No exploitation, no denial of service')).toBeVisible()
   })
 
-  test('credentialed scan: module-off message; then wrong key/port/account show errors in place; the private key never comes back', async ({ page }) => {
+  // D-417: v1 does not offer the credentialed scan (no backend yet); the GUI is kept for post-v1, so the walk is kept, skipped.
+  test.skip('credentialed scan: module-off message; then wrong key/port/account show errors in place; the private key never comes back', async ({ page }) => {
     await page.goto('/scans?tab=credentialed')
     await expect(page.getByText('Credentialed scan module is off')).toBeVisible()
     await enableCred(page)
@@ -278,10 +317,10 @@ test.describe('scan: clean install', () => {
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Cannot scan yet: confirm the scan scope first')
     await expect(page.getByText('What to set up before scanning')).toBeVisible()
     await expect(page.getByRole('link', { name: 'Open Scope and sensors' })).toHaveAttribute('href', '/devices/setup')
-    // The box is the first device of every inventory (D-53, S-INV-5), but it is never scanned (D-126), so step 2 is still to do.
+    // The box is the first device of every inventory (D-53, S-INV-5), but it is only scanned when picked (D-470), so step 2 is still to do.
     await expect(page.getByText(/2\. At least one approved device inside the scope \(Not done\)/)).toBeVisible()
     await expect(page.getByRole('link', { name: 'Open Devices' })).toBeVisible()
-    await expect(page.getByRole('checkbox', { name: /^vedette 10\.20\.0\./ })).toBeDisabled()
+    await expect(page.getByRole('checkbox', { name: /^vedette 10\.20\.0\./ })).toBeEnabled() // pickable (D-470); nothing runs before the commitment
     await expect(page.getByRole('button', { name: /Scan now/ })).toBeDisabled()
     await expect(page.getByText('No scans yet.').first()).toBeVisible()
     for (const tab of ['runs', 'safety', 'auto', 'probes']) {
@@ -296,15 +335,20 @@ test.describe('scan: clean install', () => {
     expect(errors).toEqual([])
   })
 
-  test('with the commitment ticked, only the devices step is left: the box itself is listed but never scanned (D-126)', async ({ page }) => {
+  test('with the commitment ticked, only the devices step is left: the box itself can be picked, never ticked for you (D-470)', async ({ page }) => {
     await clean(page, true)
     await page.goto('/scans')
     await expect(page.getByText('What to set up before scanning')).toBeVisible()
     await expect(page.getByRole('link', { name: 'Open Scope and sensors' })).toHaveCount(0)
     await expect(page.getByRole('link', { name: 'Open Devices' })).toBeVisible()
-    await expect(page.getByRole('checkbox', { name: /^vedette 10\.20\.0\./ })).toBeDisabled()
-    await expect(page.getByText('This is the Vedette box itself, never scanned').first()).toBeVisible()
+    const box = page.getByRole('checkbox', { name: /^vedette 10\.20\.0\./ })
+    await expect(box).toBeEnabled()
+    await expect(page.getByText(/^The Vedette box itself: pick it to scan it from the network/).first()).toBeVisible()
+    await page.getByRole('button', { name: 'Select all' }).click()
+    await expect(box).not.toBeChecked()
     await expect(page.getByRole('button', { name: /Scan now/ })).toBeDisabled()
+    await box.click()
+    await expect(page.getByRole('button', { name: 'Scan now (1)' })).toBeEnabled()
   })
 
   test('the box public IP is listed as an external target but not scanned yet, and the page says so', async ({ page }) => {
@@ -349,13 +393,7 @@ test.describe('scan: screenshots and accessibility', () => {
         await english(page, `${tab} ${tag}`)
         await expectAccessible(page, `${tab} ${tag}`)
       }
-      await enableCred(page)
-      await page.goto('/scans?tab=credentialed')
-      await expect(page.getByRole('heading', { level: 2 }).first()).toBeVisible()
-      await shot(page, 'scan', `credentialed-${tag}`)
-      await noHScroll(page, `cred ${tag}`)
-      await english(page, `cred ${tag}`)
-      await expectAccessible(page, `cred ${tag}`)
+      // D-417: no Credentialed scan tab in v1, so no shot of it.
       expect(errors).toEqual([])
     })
   }

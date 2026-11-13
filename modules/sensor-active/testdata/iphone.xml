@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE nmaprun>
+<!-- hand-written fixture shaped after nmap 7.94 output for an iPhone on Wi-Fi; no live network was scanned. Only the lockdown
+     port answers, without a product; the OS fingerprint matches exactly (device type phone, OS CPE apple:iphone_os). -->
+<nmaprun scanner="nmap" args="nmap --privileged -sS -sV -O -n --max-rate 25 --top-ports 1000 --host-timeout 30m -oX - 192.168.10.20" start="1762650000" version="7.94" xmloutputversion="1.05">
+<scaninfo type="syn" protocol="tcp" numservices="1000" services="1-1000"/>
+<host starttime="1762650001" endtime="1762650040"><status state="up" reason="arp-response" reason_ttl="0"/>
+<address addr="192.168.10.20" addrtype="ipv4"/>
+<address addr="AA:BB:CC:00:00:21" addrtype="mac" vendor="Apple"/>
+<ports>
+<extraports state="closed" count="999"><extrareasons reason="reset" count="999"/></extraports>
+<port protocol="tcp" portid="62078"><state state="open" reason="syn-ack" reason_ttl="64"/><service name="iphone-sync" method="table" conf="3"/></port>
+</ports>
+<os><portused state="open" proto="tcp" portid="62078"/><portused state="closed" proto="tcp" portid="1"/>
+<osmatch name="Apple iOS 15.0 - 16.1 (Darwin 21.0.0 - 22.1.0)" accuracy="100" line="7012">
+<osclass type="phone" vendor="Apple" osfamily="iOS" osgen="15.X" accuracy="100"><cpe>cpe:/o:apple:iphone_os:15</cpe></osclass>
+<osclass type="phone" vendor="Apple" osfamily="iOS" osgen="16.X" accuracy="100"><cpe>cpe:/o:apple:iphone_os:16</cpe></osclass>
+</osmatch>
+</os>
+</host>
+<runstats><finished time="1762650041" elapsed="40.00" summary="Nmap done" exit="success"/><hosts up="1" down="0" total="1"/></runstats>
+</nmaprun>

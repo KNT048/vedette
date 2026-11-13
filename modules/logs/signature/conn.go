@@ -2,8 +2,11 @@ package signature
 
 import (
 	"net/netip"
+	"regexp"
 	"slices"
 	"strings"
+
+	"github.com/knt048/vedette/core/localnet"
 )
 
 // The connection a line is about (L4, D-213): the LAN device that made it and what it connected to (a public address, and for a DNS
@@ -37,8 +40,10 @@ type Conn struct {
 	Blocked bool
 }
 
-// LocalOK says whether an address can be the LAN device of a connection: a private IPv4 address (RFC 1918).
-func LocalOK(a netip.Addr) bool { return a.IsValid() && a.Is4() && a.IsPrivate() }
+// LocalOK says whether an address can be the LAN device of a connection: an IPv4 address of a local network (RFC 1918, or the RFC 6598
+// shared space 100.64/10 that a network watched by Vedette may use, localnet.Addr, D-461). The destination rule (PublicDest) is not
+// changed: a 100.64/10 destination is never looked up.
+func LocalOK(a netip.Addr) bool { return a.IsValid() && localnet.Addr(a) }
 
 var specialNets = func() []netip.Prefix {
 	var out []netip.Prefix
@@ -205,29 +210,46 @@ func (p *profile) connByFields(msg string) Conn {
 	if len(c.Dests) == 0 {
 		return Conn{}
 	}
-	c.Blocked = len(p.Rule.ConnBlocked) > 0
-	for k, blocked := range p.Rule.ConnBlocked {
-		if v, has := vals[k]; !has || !slices.Contains(blocked, v) {
-			c.Blocked = false
+	for k, blocked := range p.Rule.ConnBlocked { // any listed key holding a listed value says blocked (one key, as FortiGate has, is the same as all)
+		if v, has := vals[k]; has && slices.Contains(blocked, v) {
+			c.Blocked = true
 		}
 	}
 	return c
 }
 
-// connByPattern reads the connection of a template line by the profile's conn_pattern ("local" and "dest" are addresses): exactly one
-// match, exactly one "->" in the line and no odd quote, or no connection.
+// connByPattern reads the connection of a template line. The anchored conn_patterns come first (the first that matches, exactly once, is the
+// connection and says whether it was blocked); then the conn_pattern ("local" and "dest" are addresses): exactly one match, exactly one "->"
+// in the line and no odd quote, or no connection.
 func (p *profile) connByPattern(msg string) Conn {
-	if p.conn == nil || strings.Count(msg, "->") != 1 || unbalancedQuotes(msg) || p.connRefuse != nil && p.connRefuse.MatchString(msg) {
+	if p.connRefuse != nil && p.connRefuse.MatchString(msg) {
+		return Conn{}
+	}
+	for _, cp := range p.connPats {
+		m := cp.re.FindAllStringSubmatch(msg, 2)
+		if len(m) == 0 {
+			continue
+		}
+		if len(m) != 1 {
+			return Conn{}
+		}
+		return connFrom(cp.re, m[0], cp.blocked)
+	}
+	if p.conn == nil || strings.Count(msg, "->") != 1 || unbalancedQuotes(msg) {
 		return Conn{}
 	}
 	m := p.conn.FindAllStringSubmatch(msg, 2)
 	if len(m) != 1 {
 		return Conn{}
 	}
-	local, err1 := netip.ParseAddr(m[0][p.conn.SubexpIndex("local")])
-	dest, err2 := netip.ParseAddr(m[0][p.conn.SubexpIndex("dest")])
+	return connFrom(p.conn, m[0], false)
+}
+
+func connFrom(re *regexp.Regexp, m []string, blocked bool) Conn {
+	local, err1 := netip.ParseAddr(m[re.SubexpIndex("local")])
+	dest, err2 := netip.ParseAddr(m[re.SubexpIndex("dest")])
 	if err1 != nil || err2 != nil || !LocalOK(local) || !PublicDest(dest) {
 		return Conn{}
 	}
-	return Conn{Local: local, Dests: []Dest{{KindIP, dest.String()}}}
+	return Conn{Local: local, Dests: []Dest{{KindIP, dest.String()}}, Blocked: blocked}
 }

@@ -261,6 +261,11 @@ func (s *Service) checkRule(b RuleInput, cats map[string]catRow, st Settings) (R
 					return b, invalid("Action \"" + cat.Name + "\": \"" + oneLine(spec, 40) + "\" is not a valid " + string(p) + " value.")
 				}
 				spec = v
+				if cat.ID == "blocklist_add" { // D-469: a fixed address the list never publishes is refused now; a trigger field only when it runs
+					if why := notPublicMsg(v); why != "" {
+						return b, fail(http.StatusBadRequest, codeNotPublishable, "Action \""+cat.Name+"\": "+why)
+					}
+				}
 			}
 			params[string(p)] = spec
 		}

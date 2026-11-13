@@ -2,6 +2,7 @@ package sensorpassive_test
 
 import (
 	"errors"
+	"sync/atomic"
 	"testing"
 
 	"github.com/knt048/vedette/core/api/oas"
@@ -42,6 +43,36 @@ func TestSensorsHandler(t *testing.T) {
 		if err != nil || len(out.Sensors) != 1 || out.Sensors[0].ID != sp.SensorID || out.Sensors[0].Name != c.want || string(out.Sensors[0].Status) != "online" {
 			t.Errorf("name %q: %+v %v", c.give, out.Sensors, err)
 		}
+	}
+}
+
+// W2-6: while Config.Starting says the box is still starting the sensor container, a sensor that is not online is "starting"
+// (not never_connected); once it reports it is online whatever Starting says, and when Starting ends it is never_connected again.
+func TestSensorsHandlerSaysStartingWhileTheBoxStartsIt(t *testing.T) {
+	t.Parallel()
+	backendOnly(t)
+	var starting atomic.Bool
+	starting.Store(true)
+	e := newEnv(t, nil, false, func(c *sp.Config, _ *env) { c.Starting = starting.Load })
+	status := func() string {
+		t.Helper()
+		out, err := sp.NewSensorHandlers(e.svc).InventoryGetInventorySensors(t.Context())
+		if err != nil || len(out.Sensors) != 1 {
+			t.Fatalf("%+v %v", out, err)
+		}
+		return string(out.Sensors[0].Status)
+	}
+	if got := status(); got != "starting" {
+		t.Errorf("before the first heartbeat, while starting: %s", got)
+	}
+	starting.Store(false)
+	if got := status(); got != "never_connected" {
+		t.Errorf("before the first heartbeat, start over: %s", got)
+	}
+	starting.Store(true)
+	e.sensorBeat()
+	if got := status(); got != "online" {
+		t.Errorf("after a heartbeat: %s", got)
 	}
 }
 

@@ -88,7 +88,11 @@ ON CONFLICT (id) DO UPDATE SET token_hash = excluded.token_hash, secret_id = exc
 }
 
 func (s *Service) blockURL(token string) string {
-	return strings.TrimRight(s.cfg.BaseURL, "/") + apiPrefix + "/response/blocklist/" + token + ".txt"
+	base := ""
+	if s.cfg.BaseURL != nil {
+		base = s.cfg.BaseURL()
+	}
+	return strings.TrimRight(base, "/") + apiPrefix + "/response/blocklist/" + token + ".txt"
 }
 
 // notPublishable are the blocks no public list may carry: every block of the IANA IPv4 and IPv6 Special-Purpose Address
@@ -123,6 +127,58 @@ func publishable(a netip.Addr) bool {
 		return false
 	}
 	return !slices.ContainsFunc(notPublishable, func(p netip.Prefix) bool { return p.Contains(a) })
+}
+
+// codeNotPublishable is the refusal of a block the list could never publish (D-469). Not not_public: exposure uses that for the box's own
+// address, with another meaning.
+const codeNotPublishable = "not_publishable"
+
+// notPublicMsg is the reason a block on ip is refused with not_publishable (D-469), "" when ip is publishable. The list is pulled by
+// the customer's firewall and blocks traffic to what it holds: a private or reserved address would never be published, and a
+// device inside the LAN is isolated with a device action, not through this list (blocklist-format section 1).
+func notPublicMsg(ip string) string {
+	if a, err := netip.ParseAddr(ip); err == nil && publishable(a) {
+		return ""
+	}
+	return oneLine(ip, 64) + " is not a public address (private, loopback, link-local, carrier-grade NAT 100.64.0.0/10, multicast or reserved). " +
+		"The block list only carries public addresses, so your firewall never blocks your own network. To stop a device on your LAN, use a device action (for example, shut its switch port). Nothing was changed."
+}
+
+// dropUnpublishable removes, once per start, the entries a block made before D-469 left on addresses the list never publishes (they
+// were never served, the admin view never listed them), with one log and audit line giving the count. tx is a write transaction.
+func (s *Service) dropUnpublishable(ctx context.Context, tx *sql.Tx) error {
+	rows, err := tx.QueryContext(ctx, `SELECT value FROM resp_block_entries`)
+	if err != nil {
+		return err
+	}
+	var bad []string
+	for rows.Next() {
+		var v string
+		if err := rows.Scan(&v); err != nil {
+			_ = rows.Close()
+			return err
+		}
+		if notPublicMsg(v) != "" {
+			bad = append(bad, v)
+		}
+	}
+	if err := rows.Close(); err != nil {
+		return err
+	}
+	for _, v := range bad {
+		if _, err := tx.ExecContext(ctx, `DELETE FROM resp_block_entries WHERE value = ?`, v); err != nil {
+			return err
+		}
+	}
+	if len(bad) == 0 {
+		return nil
+	}
+	what := itoa(len(bad)) + " block list entries"
+	if len(bad) == 1 {
+		what = "1 block list entry"
+	}
+	return s.step(ctx, tx, "response.blocklist.cleanup", "response", LogRefused, codeNotPublishable+": removed "+what+
+		" on addresses the list never publishes (private or reserved; D-469). They were never served to the firewall.", "system")
 }
 
 // blockListFull is true when value would be a new entry and the list already holds maxBlockEntries entries in force.

@@ -40,6 +40,8 @@ type OSHandlers struct {
 	audit *audit.Log
 	host  Host // nil: not an appliance
 	snaps *snapshotter
+	// installed is OSConfig.Installed (nil: none).
+	installed func()
 	// pkgDir is <core_data>/host-packages: the system helper package a software run downloads for the host
 	// (host.self_update, D-316); empty without a host.
 	pkgDir string
@@ -125,6 +127,9 @@ type OSConfig struct {
 	// Wake runs the core/software-update job now (core/jobs Scheduler.Wake): a box that never checked checks
 	// firstCheckAfter after its process started, not at the next tick (D-398). nil: no early run (tests).
 	Wake func()
+	// Installed is called once after an OS update run that succeeded has been audited: the box's packages changed, so its
+	// package list is read again now (wiring: the inventory/box job, D-470) instead of at the next hourly run. nil: nothing.
+	Installed func()
 }
 
 // NewOSHandlers returns the handlers and sweeps the snapshot directories an earlier run left behind.
@@ -135,7 +140,7 @@ func NewOSHandlers(c OSConfig) (*OSHandlers, error) {
 	if c.Clock == nil {
 		c.Clock = time.Now
 	}
-	h := &OSHandlers{gate: c.Gate, db: c.DB, auth: c.Auth, audit: c.Audit, host: c.Host, zone: c.Zone, log: c.Log, now: c.Clock, loadTimeout: loadTimeout, started: time.Now()}
+	h := &OSHandlers{gate: c.Gate, db: c.DB, auth: c.Auth, audit: c.Audit, host: c.Host, zone: c.Zone, log: c.Log, now: c.Clock, loadTimeout: loadTimeout, started: time.Now(), installed: c.Installed}
 	if err := h.upd.init(c, c.Clock()); err != nil {
 		return nil, err
 	}

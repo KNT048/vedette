@@ -1,6 +1,7 @@
 # Feeds — Change Impact Map
 
-## Modifying: `feeds.Store` — `VulnByCVE(cve)`, `VulnsByProductKey(key)`, `HasTemplate(cve)`, `IOCLookup(value)`, `IOCListed()`, `IOCSubdomainsOn()`, `KevPairs()`
+## Modifying: `feeds.Store` — `VulnByCVE(cve)`, `VulnsByProductKey(key)`, `HasTemplate(cve)`, `IOCLookup(value)`, `IOCListed()`, `IOCSubdomainsOn()`, `KevPairs()`, `HaveSince()`
+- `HaveSince` (D-484): **findings** (`ServiceConfig.HaveSince`, INV-11 của findings) khớp phần mềm không phiên bản của sản phẩm đã trả lời "I have this", trên đúng thiết bị đã khai, chỉ từ `have_since`. `feeds.Inventory.AddManualDevice` nay trả id thiết bị ("" = không biết, phạm vi tắt). Đổi `have_since`/`device_id` = đổi số finding của thiết bị đó.
 - **inventory** (`catalog`, khớp sản phẩm↔KEV theo khoá `vendorproject|product` chữ thường): đổi cách chuẩn hoá khoá = mọi khớp "Do you have it?" lệch.
 - **mitigation** (`KevInfo` trong `FindingRow`), **scan** (`has_template`), **mcp-server** (`lookup_cve`, `lookup_ioc`), **ai** (slot `cve.panels`), **reports**.
 - **honeypot / logs / response** (nhóm B): `IOCLookup` quyết định cảnh báo và chặn; đổi `verdict` ảnh hưởng quy tắc phản ứng.
@@ -22,6 +23,13 @@
 - KEV và nuclei đọc khoá JSON đúng chữ hoa/thường, khoá lặp lấy giá trị cuối (như `JSON.parse` của SPA). nuclei `cves.json` là JSON Lines với `ID`, `Info`, `file_path`; không nhận mảng.
 - Giới hạn riêng của nguồn dựng sẵn: `hagezi-tif` dùng `wildcard/tif.mini-onlydomains.txt` (kho hagezi đã bỏ thư mục `domains/`) với `MaxRows` 250 000; `ipsum` dùng `levels/3.txt` (IPsum mức ≥ 3, DATA_PIPELINE §2b) trong trần 50 000. Đổi URL/biến thể phải đo lại dòng và dung lượng.
 
+## Modifying: `NVDPageURL`/`ParseNVD`, feed `nvd-kev`, `Store.KevAffected`, sự kiện `feeds.ranges.updated` (D-500)
+
+- W3-1 (2026-11-13): `nvd_pull.go` (thử lại, tạm dừng/đi tiếp, dòng tiến độ `Service.live`), `Request.HeaderTimeout`/`slowHeaders` và `StatusError.RetryAfter` trong `fetch.go`, `lockFeed` gộp lượt kéo trùng (`busy`). Người đọc: `FeedsSettings.tsx` (feed `never` có `error` là dòng tiến độ: không kèm câu "Fetched at the next scheduled check"; Fetch now trả feed có `error` mà `status` không phải `error` ⇒ toast thông tin). Test: `nvd_pull_test.go`, `TestFeedLockIsContextAwareAndPruned`, `TestContract_INV8_*`, `feeds.test.tsx` W3-1.
+- **findings** (qua `cmd/vedette` `findingsFeeds.Vulns`): mọi quyết định theo phiên bản dựa vào các mục này; đổi hình `AffectedRow` hay bỏ mục ⇒ finding đổi (`modules/findings` `TestGolden_*`).
+- **cmd/vedette**: `feeds.ranges.updated` → `Inventory.RematchAll` lần đầu (trong `notify.WithBaseline`), sau đó `Inventory.RematchMany` với vendor/product của các CVE trong sự kiện (review H3); `findingsFeeds.Vulns` giữ danh sách theo `Store.MatchStamp` (đổi cách ghi `feeds_vuln`/`feeds_affected_cve` mà không đổi `last_fetch`, `updated_at` hay số hàng ⇒ findings đọc danh sách cũ).
+- **PRIVACY.md** luồng 1, Settings → Privacy (`locales/en/core.json` `privacy.flow.1`), `THIRD_PARTY_NOTICES.md`, `sourcesMock.ts` (danh sách có sẵn: 9), export policy (`feeds_affected*`).
+
 ## Modifying: `Fetcher.Fetch(ctx, Request)` (một GET tới đúng URL)
 - **feeds** job kéo và `POST /feeds/sources/{id}/fetch`. Chuyển hướng: chỉ cùng host (`ErrRedirect`), không hạ https→http, tối đa 5 bước, bỏ `Referer`. Đổi chính sách này = đổi host nào hộp có thể liên lạc (INV-1, INV-13, `PRIVACY.md`).
 - Kết nối (`NewClient`): luôn từ chối link-local (169.254/16, fe80::/10), địa chỉ metadata đám mây, unspecified và multicast; `http` chỉ tới IP riêng/loopback (tên nội bộ trỏ ra IP công cộng bị chặn); phân giải DNS một lần mỗi kết nối (chống DNS rebinding); không dùng proxy môi trường. `Fetcher.Client` tự cấp phải qua cùng bảo vệ này (chỉ dùng trong test).
@@ -38,6 +46,9 @@
 - `ErrOwnAddress` (D-420 (7)) bọc `ErrBlockedAddress`: mọi `errors.Is(err, ErrBlockedAddress)` vẫn đúng; `userError` kiểm nó trước để nói "This address is the machine Vedette runs on…".
 - `CheckDest(raw, box)` (D-420 (1)) dùng `refusedAlways` và `destGuard.refused` của bộ quay số: đổi luật quay số là đổi luôn luật lúc lưu (và `blockedFeedHost` của SPA, `web/src/features/feeds/defaults.ts`, phải đổi theo). `Service.boxAddrs` đọc `Fetcher.BoxAddrs`/`Gateway` như lượt kéo. Test và e2e-real không lưu được feed trỏ 127.0.0.1: origin của test gói tên `origin.lan` (`onlyLoopback`), e2e-real dùng `e2e-loopback.lan` (`cmd/vedette/e2ebox_test.go` `e2eOffline`).
 - `checkDuplicateURL` / `sameAddress` (D-420 (2)) đọc `feeds_source.url` của mọi feed khác trong giao dịch ghi; mock dùng `sameFeedAddress`. Mã `blocked_host`, `duplicate_url` là hợp đồng của `FeedDialogs.tsx` (`FIELD_OF` → lỗi dưới ô Address) và `conformance.test.ts`.
+
+## Modifying: `Service.hot` (cửa sổ, cách gom, `you_have`) và `Service.NewlyExploited` (D-485)
+- **reports**: `Counts.kev_new`/`kev_matched` của báo cáo tuần là `NewlyExploited`; đổi cửa sổ hay định nghĩa "products you use" là đổi cả trang chủ và báo cáo (đúng ý: hai trang phải cùng số). Chuyển `kev_matched` sang đơn vị khác phải đổi chữ `doc.weekly.stat.kevValueHome` của `web/features/reports`.
 
 ## Modifying: `GET /feeds/hot` trường `you_have`, `matched_assets`
 - **SPA** `HomePage`, `YouHaveCell`; **notify** không đọc trực tiếp.

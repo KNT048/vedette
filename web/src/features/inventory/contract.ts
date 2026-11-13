@@ -24,7 +24,7 @@ export const Asset = z.object({
 export const Observation = z.object({ id: z.string(), field: ObsField, value: z.string(), source: ObsSource, confidence, seen_at: dt, current: z.boolean() })
 
 export const RegularScan = z.enum(['follow', 'allow', 'never']).describe('Per-device override of the type setting for regular scans after the one gentle scan (D-45); never = never actively scanned again, for every kind of device (D-74)')
-/** D-45, D-84: a fragile device, or one of unknown kind, gets ONE gentle scan when first seen (lowest speed, no service/OS detection), then it is passive-only until classified or allowed; regular_scan=never means never for every kind; the box itself is never scanned. */
+/** D-45, D-84: a fragile device, or one of unknown kind, gets ONE gentle scan when first seen (lowest speed, no service/OS detection), then it is passive-only until classified or allowed; regular_scan=never means never for every kind; discovery never scans the box itself (only a person's pick in Scan now does, D-470). */
 const ScanInfo = z.object({
   is_box: z.boolean().describe('true for the Vedette box itself: the first device, always present, cannot be deleted (409)'),
   first_scan_at: dt.nullable().describe('When the one gentle first scan happened; null = no gentle scan (declared by hand, the box itself, or a known kind that is not fragile and not set to never)'),
@@ -72,7 +72,7 @@ export const ActiveWindow = z.object({
   rate: z.number().int().min(1).max(1000).describe('Packets per second'), exclusions: z.array(z.string()).describe('IPv4 or CIDR'),
 })
 export const InventorySettings = z.object({
-  lan_ranges: z.array(z.string()).max(16).describe('Internal IPv4 CIDR (RFC 1918)'), active: ActiveWindow, fragile_kinds: z.array(AssetKind).describe('Device types scanned only once, gently, when first seen; passive-only after that'),
+  lan_ranges: z.array(z.string()).max(16).describe('Internal IPv4 CIDR (RFC 1918, or the RFC 6598 shared address space 100.64.0.0/10, D-461)'), active: ActiveWindow, fragile_kinds: z.array(AssetKind).describe('Device types scanned only once, gently, when first seen; passive-only after that'),
   regular_scan_kinds: z.array(AssetKind).describe('Subset of fragile_kinds for which the owner allowed regular scans'),
   scope_confirmed_at: dt.nullable(), scope_confirmed_by: z.string().nullable(),
 })
@@ -81,7 +81,7 @@ export const SettingsSaved = InventorySettings.extend({
   adjusted: z.array(z.object({ from: z.string(), to: z.string() })).describe('Ranges normalized on save, e.g. 192.168.18.0 → 192.168.18.0/24'),
 })
 
-export const SensorStatus = z.enum(['online', 'offline', 'never_connected']).describe('online: a heartbeat in the last 90 s; offline: it reported before, then nothing for 90 s; never_connected: no heartbeat ever (D-387)')
+export const SensorStatus = z.enum(['online', 'offline', 'never_connected', 'starting']).describe('online: a heartbeat in the last 90 s; offline: it reported before, then nothing for 90 s; never_connected: no heartbeat ever (D-387); starting: not online while the box is still starting the sensor container (an appliance after setup or after the module is turned on: the start is being retried, for up to 10 minutes, or was confirmed less than 3 minutes ago; walk 2, W2-6). A container-only install never says starting: the customer starts it')
 /** Chỉ cảm biến của chính hộp này (chưa hỗ trợ nhiều site). */
 export const Sensor = z.object({
   id: z.string(), name: z.string(), interface: z.string().nullable().describe('The port the sensor listens on: the card chosen (the SPAN port when SPAN is on), else the default card, the management port (D-380); null: none. Set in Settings → Box network; on a container-only install with PATCH /inventory/sensors/{id} (D-387, D-393)'), interfaces: z.array(z.string()).describe('The cards the sensor reported in its last heartbeat'), span: z.boolean(),

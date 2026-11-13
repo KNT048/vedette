@@ -72,7 +72,7 @@ Pinned in `go.mod` and `go.sum`; licenses checked from the `LICENSE` files of ea
 
 | Source | License | How it is used |
 |---|---|---|
-| zca-js v2.2.0 (github.com/RFS-ADRENO/zca-js, copyright 2024-2025 RFS-ADRENO, truong9c2208, JustKemForFun) | MIT | The unofficial Zalo personal-account protocol (sign-in request, parameter encryption and signature, message send, and the WebSocket listener notes in `modules/notify/IMPACT.md`) was read from its source and re-implemented in Go in `modules/notify/channel/zalopersonal*.go` (D-46), the same protocol the n8n Zalo community node uses through that library. Not a dependency: no code or package is linked, the logic is rewritten with the Go standard library. The test vectors were produced by running its algorithms on crypto-js 4.2.0 (MIT) outside the repository. |
+| zca-js v2.2.0 (github.com/RFS-ADRENO/zca-js, copyright 2024-2025 RFS-ADRENO, truong9c2208, JustKemForFun) | MIT | The unofficial Zalo personal-account protocol (sign-in request, parameter encryption and signature, message send, and the WebSocket listener notes in `modules/notify/IMPACT.md`; since D-447 also the QR sign-in of `src/apis/loginQR.ts` and `loginQR` in `src/zalo.ts` with its device id, and `getAllFriends`, `getAllGroups`, `getGroupInfo`, `getGroupLinkInfo` and `findUser`) was read from its source and re-implemented in Go in `modules/notify/channel/zalopersonal*.go` (D-46, D-447), the same protocol the n8n Zalo community node uses through that library. Not a dependency: no code or package is linked, the logic is rewritten with the Go standard library. The test vectors were produced by running its algorithms on crypto-js 4.2.0 (MIT) outside the repository. |
 
 ## Tools run as separate processes (not embedded, not redistributed)
 
@@ -187,7 +187,7 @@ Read on the box, never stored or redistributed as they are: the box keeps only t
 
 | Source | Terms | How it is used |
 |---|---|---|
-| NVD CVE API 2.0 (`services.nvd.nist.gov`) | NVD terms of use; NVD data is in the public domain | data: one record per CVE, no key; the source row carries the notice the terms require: "This product uses the NVD API but is not endorsed or certified by the NVD." |
+| NVD CVE API 2.0 (`services.nvd.nist.gov`) | NVD terms of use; NVD data is in the public domain | data: one record per CVE, no key (CVE news, D-280); and the built-in feed "NVD affected versions" (`nvd-kev`, D-500): the vulnerable CPE match entries of the CISA KEV CVEs (`?hasKev`, 100 per request, 6 s apart as NVD asks of clients without a key), stored on the box and compared with device versions. Both source rows carry the notice the terms require: "This product uses the NVD API but is not endorsed or certified by the NVD." |
 | GitHub REST API, repository search (`api.github.com`) | GitHub Terms of Service (API) | data: names, descriptions, stars and dates of public repositories that name the CVE; no token, no code downloaded |
 | Vendor advisory pages (the 16 hosts in PRIVACY.md flow 8) | each vendor's site terms | data: the visible text of one advisory page the CVE links to, cut to 6000 bytes |
 | Feeds of watchTowr Labs, GreyNoise, SANS Internet Storm Center, Rapid7, Unit 42, Google Project Zero | each site's terms; public RSS/Atom | data: the posts that name the CVE (title, date, link, text around the mention) |

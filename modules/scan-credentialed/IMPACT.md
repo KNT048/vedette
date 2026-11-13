@@ -1,7 +1,7 @@
 # Scan-credentialed — Change Impact Map
 
 ## Modifying: `scancred.Service` — `Targets()`, `Add(ctx, in)`, `Remove(ctx, id)`, `Test(ctx, id)`
-- **SPA** (`CredentialedTab`), **core/audit**. Đổi mã lỗi (`not_server`, `exists`, `bad_key`) đổi thông báo giao diện; `scan/contract.ts` là nguồn OpenAPI.
+- **SPA** (`CredentialedTab`, ẩn trong v1 sau `CREDENTIALED_IN_UI` của `web/src/lib/credentialed.ts`, D-417: bật lại khi có backend; `ScansPage`, `ModulesSection`, `SetupPage` đọc công tắc), **core/audit**. Đổi mã lỗi (`not_server`, `exists`, `bad_key`) đổi thông báo giao diện; `scan/contract.ts` là nguồn OpenAPI.
 
 ## Modifying: lưu khoá qua `secrets.Seal` (khoá `scancred/<id>/ssh_key`)
 - **core** (`/core/data/export|backup` phải loại bỏ). Đổi tên khoá làm mất khoá cũ khi nâng cấp: cần migration.

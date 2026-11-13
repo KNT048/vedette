@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 	"unicode"
 	"unicode/utf8"
 
@@ -142,7 +143,7 @@ func scanSends(rows *sql.Rows) ([]SendView, error) {
 		var v SendView
 		var ch string
 		var e sql.NullString
-		if err := rows.Scan(&v.ID, &ch, &v.To, &v.At, &v.OK, &e); err != nil {
+		if err := rows.Scan(&v.ID, &ch, &v.To, &v.At, &v.OK, &e, &v.Delayed); err != nil {
 			return nil, fmt.Errorf("notify: read sends: %w", err)
 		}
 		v.Channel, v.Error = channel.Type(ch), e.String
@@ -183,12 +184,81 @@ func fillIncident(ctx context.Context, q dbtx, i *Incident) error {
 	if err := errors.Join(rows.Err(), rows.Close()); err != nil {
 		return fmt.Errorf("notify: read incident devices: %w", err)
 	}
-	srows, err := q.QueryContext(ctx, `SELECT id, channel, "to", at, ok, error FROM notify_send WHERE kind = 'incident' AND ref_id = ? ORDER BY at, rowid`, i.ID)
+	srows, err := q.QueryContext(ctx, `SELECT id, channel, "to", at, ok, error, delayed FROM notify_send WHERE kind = 'incident' AND ref_id = ? ORDER BY at, rowid`, i.ID)
 	if err != nil {
 		return fmt.Errorf("notify: read incident sends: %w", err)
 	}
 	i.Sends, err = scanSends(srows)
 	return err
+}
+
+// incidentClass is the kind a weekly report names an incident by (D-490), read in SQL so a busy week is counted whole. The two log
+// anomalies of the failed-login rule (modules/logs/authfail.go) are told apart by their title (GLOB: anchored and case-sensitive, so a log line that merely says "accepted" is not one); a "failed logins" one of severity
+// high had a login accepted in it, so it counts as accepted. A new-device incident has no class: Devices counts those.
+const incidentClass = `CASE kind WHEN 'trap' THEN 'trap' WHEN 'bad_address' THEN 'bad_connection' WHEN 'log_anomaly' THEN
+	CASE WHEN title GLOB 'A login from * was ACCEPTED after *' OR (title GLOB '[0-9]* failed logins from * on *' AND severity = 'high') THEN 'login_accepted'
+	WHEN title GLOB '[0-9]* failed logins from * on *' THEN 'failed_logins' ELSE 'anomaly' END END`
+
+// IncidentBrief is one incident of an IncidentWindow.
+type IncidentBrief struct {
+	Class    string // login_accepted, trap, failed_logins, bad_connection or anomaly
+	Severity Severity
+	Title    string
+	Count    int
+	LastSeen time.Time
+}
+
+// IncidentWindow is the incidents last seen since a time: how many of each class (all of them, however many there are) and the
+// first few that matter most: accepted logins, traps, failed logins, bad connections, then by severity and recency.
+type IncidentWindow struct {
+	Counts map[string]int
+	Top    []IncidentBrief
+}
+
+// IncidentsSince reads the window for the weekly report; top is how many incidents to name.
+func (s *Service) IncidentsSince(ctx context.Context, since time.Time, top int) (IncidentWindow, error) {
+	db := s.cfg.DB.Reader()
+	w := IncidentWindow{Counts: map[string]int{}}
+	from := store.FormatTS(since)
+	rows, err := db.QueryContext(ctx, `SELECT c, COUNT(*) FROM (SELECT `+incidentClass+` AS c FROM notify_incident WHERE last_seen > ?) WHERE c IS NOT NULL GROUP BY c`, from)
+	if err != nil {
+		return w, fmt.Errorf("notify: count incidents: %w", err)
+	}
+	for rows.Next() {
+		var c string
+		var n int
+		if err := rows.Scan(&c, &n); err != nil {
+			_ = rows.Close()
+			return w, fmt.Errorf("notify: count incidents: %w", err)
+		}
+		w.Counts[c] = n
+	}
+	if err := errors.Join(rows.Err(), rows.Close()); err != nil {
+		return w, fmt.Errorf("notify: count incidents: %w", err)
+	}
+	rows, err = db.QueryContext(ctx, `SELECT c, severity, title, count, last_seen FROM (SELECT `+incidentClass+` AS c, severity, title, count, last_seen FROM notify_incident WHERE last_seen > ?)
+		WHERE c IS NOT NULL ORDER BY CASE c WHEN 'login_accepted' THEN 0 WHEN 'trap' THEN 1 WHEN 'failed_logins' THEN 2 WHEN 'bad_connection' THEN 3 ELSE 4 END,
+		CASE severity WHEN 'critical' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 WHEN 'low' THEN 3 ELSE 4 END, last_seen DESC LIMIT ?`, from, top)
+	if err != nil {
+		return w, fmt.Errorf("notify: top incidents: %w", err)
+	}
+	for rows.Next() {
+		var b IncidentBrief
+		var at string
+		if err := rows.Scan(&b.Class, &b.Severity, &b.Title, &b.Count, &at); err != nil {
+			_ = rows.Close()
+			return w, fmt.Errorf("notify: top incidents: %w", err)
+		}
+		if b.LastSeen, err = time.Parse(time.RFC3339, at); err != nil {
+			_ = rows.Close()
+			return w, fmt.Errorf("notify: top incidents: %w", err)
+		}
+		w.Top = append(w.Top, b)
+	}
+	if err := errors.Join(rows.Err(), rows.Close()); err != nil {
+		return w, fmt.Errorf("notify: top incidents: %w", err)
+	}
+	return w, nil
 }
 
 // Incidents lists every incident, most recently seen first (GET /notify/incidents).
@@ -235,7 +305,7 @@ func (s *Service) Incidents(ctx context.Context) ([]Incident, error) {
 	if err := errors.Join(drows.Err(), drows.Close()); err != nil {
 		return nil, fmt.Errorf("notify: read incident devices: %w", err)
 	}
-	srows, err := db.QueryContext(ctx, `SELECT ref_id, id, channel, "to", at, ok, error FROM notify_send WHERE kind = 'incident' AND ref_id IN `+page+` ORDER BY at, rowid`, incidentsLimit)
+	srows, err := db.QueryContext(ctx, `SELECT ref_id, id, channel, "to", at, ok, error, delayed FROM notify_send WHERE kind = 'incident' AND ref_id IN `+page+` ORDER BY at, rowid`, incidentsLimit)
 	if err != nil {
 		return nil, fmt.Errorf("notify: read incident sends: %w", err)
 	}
@@ -243,7 +313,7 @@ func (s *Service) Incidents(ctx context.Context) ([]Incident, error) {
 		var ref, ch string
 		var v SendView
 		var e sql.NullString
-		if err := srows.Scan(&ref, &v.ID, &ch, &v.To, &v.At, &v.OK, &e); err != nil {
+		if err := srows.Scan(&ref, &v.ID, &ch, &v.To, &v.At, &v.OK, &e, &v.Delayed); err != nil {
 			_ = srows.Close()
 			return nil, fmt.Errorf("notify: read incident sends: %w", err)
 		}
@@ -361,7 +431,7 @@ func (s *Service) HandleIncident(ctx context.Context, actor, id string, status I
 func (s *Service) History(ctx context.Context) (HistoryView, error) {
 	db := s.cfg.DB.Reader()
 	v := HistoryView{Items: []HistoryItem{}}
-	rows, err := db.QueryContext(ctx, `SELECT id, channel, "to", at, ok, error, kind, what, link FROM notify_send ORDER BY at DESC, rowid DESC LIMIT ?`, historyLimit)
+	rows, err := db.QueryContext(ctx, `SELECT id, channel, "to", at, ok, error, delayed, kind, what, link FROM notify_send ORDER BY at DESC, rowid DESC LIMIT ?`, historyLimit)
 	if err != nil {
 		return v, fmt.Errorf("notify: read history: %w", err)
 	}
@@ -370,7 +440,7 @@ func (s *Service) History(ctx context.Context) (HistoryView, error) {
 		var h HistoryItem
 		var ch string
 		var e sql.NullString
-		if err := rows.Scan(&h.ID, &ch, &h.To, &h.At, &h.OK, &e, &h.Kind, &h.What, &h.Link); err != nil {
+		if err := rows.Scan(&h.ID, &ch, &h.To, &h.At, &h.OK, &e, &h.Delayed, &h.Kind, &h.What, &h.Link); err != nil {
 			return v, fmt.Errorf("notify: read history: %w", err)
 		}
 		h.Channel, h.Error = channel.Type(ch), e.String
@@ -474,7 +544,7 @@ func (s *Service) Resend(ctx context.Context, actor, id string) (HistoryItem, er
 
 // FindingNotices lists who was told about a finding, oldest first (GET /notify/findings/{id}/notices).
 func (s *Service) FindingNotices(ctx context.Context, findingID string) ([]SendView, error) {
-	rows, err := s.cfg.DB.Reader().QueryContext(ctx, `SELECT s.id, s.channel, s."to", s.at, s.ok, s.error FROM notify_send s
+	rows, err := s.cfg.DB.Reader().QueryContext(ctx, `SELECT s.id, s.channel, s."to", s.at, s.ok, s.error, s.delayed FROM notify_send s
 		WHERE s.id IN (SELECT sn.send_id FROM notify_send_notice sn JOIN notify_notice_finding nf ON nf.notice_id = sn.notice_id WHERE nf.finding_id = ?)
 		ORDER BY s.at, s.rowid`, findingID)
 	if err != nil {

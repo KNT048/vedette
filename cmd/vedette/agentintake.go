@@ -9,7 +9,8 @@ import (
 	agentintake "github.com/knt048/vedette/modules/agent-intake"
 )
 
-// agentIntakeJobs is the node-prune job of agent-intake: a normal job (not Housekeeping), so it never runs while the module is off (D-265 (8)).
+// agentIntakeJobs is the jobs of agent-intake (node-prune, wazuh-pull, approve-enrolled): normal jobs (not Housekeeping), so none runs
+// while the module is off (D-265 (8)).
 func agentIntakeJobs(d deps) []jobs.Job {
 	if d.AgentIntake == nil {
 		return nil

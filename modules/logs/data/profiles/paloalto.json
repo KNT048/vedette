@@ -1,0 +1,39 @@
+{
+  "id": "paloalto",
+  "title": "Palo Alto PAN-OS TRAFFIC log (CSV, PAN-OS 10 and 11 default field order)",
+  "kinds": [
+    "paloalto"
+  ],
+  "rule": {
+    "type": "template",
+    "prefix": "^1,[^,\"]{0,40},[^,\"]{0,40},(?P<head>TRAFFIC,(?:start|end|drop|deny)),",
+    "conn_patterns": [
+      {
+        "pattern": "^1,[^,\"]{0,40},[^,\"]{0,40},TRAFFIC,(?:start|end|drop|deny),[^,\"]{0,40},[^,\"]{0,40},(?P<local>\\d{1,3}(?:\\.\\d{1,3}){3}),(?P<dest>\\d{1,3}(?:\\.\\d{1,3}){3}),(?:(?:\"[^\"]*\"|[^,\"]*),){21}allow(?:,|$)"
+      },
+      {
+        "pattern": "^1,[^,\"]{0,40},[^,\"]{0,40},TRAFFIC,(?:start|end|drop|deny),[^,\"]{0,40},[^,\"]{0,40},(?P<local>\\d{1,3}(?:\\.\\d{1,3}){3}),(?P<dest>\\d{1,3}(?:\\.\\d{1,3}){3}),(?:(?:\"[^\"]*\"|[^,\"]*),){21}(?:deny|drop|reset-client|reset-server|reset-both|block-url|drop-icmp)(?:,|$)",
+        "blocked": true
+      }
+    ]
+  },
+  "samples": [
+    {
+      "line": "<14>Nov  9 10:00:00 PA-FW 1,2026/11/09 10:00:00,007051000123,TRAFFIC,end,2562,2026/11/09 10:00:00,192.168.10.113,185.220.101.47,203.0.113.5,185.220.101.47,out-allow,,,ssl,vsys1,trust,untrust,ethernet1/2,ethernet1/1,fwd,2026/11/09 10:00:00,12345,1,51234,443,51234,443,0x400000,tcp,allow,6200,1200,5000,30,2026/11/09 09:59:30,30,any,,7000000000,0x0,192.168.0.0-192.168.255.255,United States,,15,15,tcp-fin",
+      "signature": "TRAFFIC,end: <n>,<n>/<n>/<n> <n>:<n>:<n>,<ip>,<ip>,<ip>,<ip>,out-allow,,,ssl,vsys<n>,trust,untrust,ethernet<n>/<n>,ethernet<n>/<n>,fwd,<n>/<n>/<n> <n>:<n>:<n>,<n>,<n>,<n>,<n>,<n>,<n>,<hex>,tcp,allow,<n>,<n>,<n>,<n>,<n>/<n>/<n> <n>:<n>:<n>,<",
+      "local": "192.168.10.113",
+      "dests": [
+        "ip:185.220.101.47"
+      ]
+    },
+    {
+      "line": "<14>Nov  9 10:00:02 PA-FW 1,2026/11/09 10:00:02,007051000123,TRAFFIC,drop,2562,2026/11/09 10:00:02,192.168.10.113,185.220.101.47,0.0.0.0,0.0.0.0,block-bad,,,not-applicable,vsys1,trust,untrust,ethernet1/2,,fwd,2026/11/09 10:00:02,0,1,51236,23,0,0,0x0,tcp,deny,74,74,0,1,2026/11/09 10:00:02,0,any,,7000000001,0x0,192.168.0.0-192.168.255.255,United States,,1,0,policy-deny",
+      "signature": "TRAFFIC,drop: <n>,<n>/<n>/<n> <n>:<n>:<n>,<ip>,<ip>,<ip>,<ip>,block-bad,,,not-applicable,vsys<n>,trust,untrust,ethernet<n>/<n>,,fwd,<n>/<n>/<n> <n>:<n>:<n>,<n>,<n>,<n>,<n>,<n>,<n>,<hex>,tcp,deny,<n>,<n>,<n>,<n>,<n>/<n>/<n> <n>:<n>:<n>,<n>,a",
+      "blocked": true,
+      "local": "192.168.10.113",
+      "dests": [
+        "ip:185.220.101.47"
+      ]
+    }
+  ]
+}

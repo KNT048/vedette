@@ -7,11 +7,14 @@
     "pending_other": "{{count}} items cannot be scanned yet: they need ownership proof or your confirmation",
     "admin_one": "{{count}} admin interface is exposed to the Internet",
     "admin_other": "{{count}} admin interfaces are exposed to the Internet",
-    "clean": "No admin interface is exposed to the Internet",
+    "ports_one": "{{count}} port is open to the Internet: {{list}}",
+    "ports_other": "{{count}} ports are open to the Internet: {{list}}",
+    "more": "{{list}} and {{count}} more",
+    "clean": "No open port and no admin interface found on the Internet",
     "ready_one": "{{count}} target is verified and confirmed, ready for the first scan",
     "ready_other": "{{count}} targets are verified and confirmed, ready for the first scan",
-    "cleanPartial_one": "No exposed admin interface in the targets scanned so far. {{count}} target cannot be scanned yet",
-    "cleanPartial_other": "No exposed admin interface in the targets scanned so far. {{count}} targets cannot be scanned yet"
+    "cleanPartial_one": "No open port found in the targets scanned so far. {{count}} target cannot be scanned yet",
+    "cleanPartial_other": "No open port found in the targets scanned so far. {{count}} targets cannot be scanned yet"
   },
   "meta": {
     "certs_one": "{{count}} certificate is about to expire.",
@@ -19,6 +22,35 @@
     "rule": "Only what you have proven you own and confirmed is scanned."
   },
   "rule": "Scanning your external surface is active scanning, so Vedette sets two conditions. First, you prove ownership: a domain with a DNS TXT record (re-checked right before every scan), a public IP only when this box itself reaches the Internet through it (the box finds it by itself and renews it each time it sees it; 30 days after it last saw it, it expires). Second, you confirm that your company owns it and you are authorized to scan it. Without both, the scan button stays locked. Every verification and scan is written to the audit log.",
+  "open": {
+    "title_one": "{{count}} port open to the Internet",
+    "title_other": "{{count}} ports open to the Internet",
+    "description": "Anyone on the Internet can reach these. Is each one open on purpose? If nobody outside your company needs it, close it on your router or firewall (remove the port forward). If it must stay open, allow only the addresses that need it and keep its software up to date.",
+    "on": "on {{ip}}",
+    "software": "answers as {{product}}",
+    "attacked": "Commonly attacked",
+    "details": "Scan details",
+    "purpose": "Is that on purpose?",
+    "purposePlain": "Is that on purpose? If not, close it on your router or firewall.",
+    "moreOnTarget_one": "{{count}} more open port is listed on its target's page.",
+    "moreOnTarget_other": "{{count}} more open ports are listed on their target's page."
+  },
+  "gateway": {
+    "known_one": "These ports are answered by your gateway {{name}} ({{ip}}), or a device it forwards them to. {{name}} has {{count}} open exploited vulnerability: fix these first.",
+    "known_other": "These ports are answered by your gateway {{name}} ({{ip}}), or a device it forwards them to. {{name}} has {{count}} open exploited vulnerabilities: fix these first.",
+    "none": "These ports are answered by your gateway {{name}} ({{ip}}), or a device it forwards them to. Vedette knows of no open exploited vulnerability on {{name}}; that does not prove the device it forwards to is safe.",
+    "link": "See the vulnerabilities of {{name}}",
+    "notListed": "These ports are answered by your gateway ({{ip}}), or a device it forwards them to. Your gateway is not in your device list yet, so Vedette cannot say what is exploited on it. Scan your network to add it.",
+    "unknown": "Vedette cannot see which gateway your network uses from here, so it cannot say which device answers these ports."
+  },
+  "risky": {
+    "voip": "Phone systems (SIP) are scanned all day for toll fraud: attackers guess extension passwords and make paid calls on your bill.",
+    "remote": "Remote access is the most attacked way in: attackers guess passwords and use known flaws to log in.",
+    "files": "File sharing should never face the Internet: ransomware gangs scan for it.",
+    "database": "Databases should never face the Internet: they are scanned for weak or missing passwords to steal or wipe the data.",
+    "control": "This service controls the device or the containers on it: whoever reaches it can take the device over.",
+    "camera": "Camera recorders are taken over in bulk for botnets, often with factory passwords."
+  },
   "kind": {
     "domain": "Domain",
     "ip": "Public IP (this box)"
@@ -162,7 +194,8 @@
     "risk": "Level",
     "issuer": "Issuer",
     "expires": "Expires",
-    "left": "Remaining"
+    "left": "Remaining",
+    "note": "Note"
   },
   "hosts": {
     "title": "Subdomains",
@@ -172,7 +205,7 @@
   },
   "ports": {
     "title": "Open ports",
-    "description": "Which services answer on this box's verified public IPs. Close unneeded ports at the firewall.",
+    "description": "Which services answer on this box's verified public IPs. Close the ones nobody outside needs at the firewall. Software is read from a web page's Server header, with its version only when the server sends one; other services are listed by port.",
     "caption": "Ports open to the Internet",
     "empty": "No open ports.",
     "filter": "Filter by IP, port or service"
@@ -315,7 +348,12 @@
       "title": "Ignored IPs",
       "description": "IPs you removed and chose not to add again. The box never adds them back and never scans them. Restore lets detection add one again; it does not make it scannable: it still needs ownership proof and your confirmation.",
       "caption": "IPs on the Ignored list",
-      "col": { "ip": "IP", "by": "Ignored by", "at": "Ignored on", "restore": "Restore" },
+      "col": {
+        "ip": "IP",
+        "by": "Ignored by",
+        "at": "Ignored on",
+        "restore": "Restore"
+      },
       "restore": "Restore",
       "restoreLabel": "Restore {{value}}",
       "emptyTitle": "No ignored IPs",

@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -39,9 +40,9 @@ const (
 var savedFields = map[channel.Type][]string{
 	channel.Telegram:     {"chat_id"},
 	channel.Slack:        {"label", "channel_id"},
-	channel.Zalo:         {"oa_id", "user_id"},
-	channel.ZaloPersonal: {"user_id", "group"},
-	channel.Email:        {"host", "port", "security", "username", "from", "to"},
+	channel.Zalo:         {"oa_id", "user_id", "app_id"},          // app_id: the refresh-token flow (D-483)
+	channel.ZaloPersonal: {"user_id", "group", "name", "account"}, // name: the recipient's shown name; account: set from the sign-in only
+	channel.Email:        {"provider", "host", "port", "security", "username", "tenant_id", "client_id", "from", "to"},
 	channel.Webhook:      {"url"},
 }
 
@@ -131,7 +132,7 @@ func loadChannel(ctx context.Context, q dbtx, t channel.Type) (channelRow, error
 }
 
 func loadApprovers(ctx context.Context, q dbtx, t channel.Type) ([]Approver, error) {
-	rows, err := q.QueryContext(ctx, `SELECT user_id, address FROM notify_approver WHERE channel_type = ? ORDER BY rowid`, string(t))
+	rows, err := q.QueryContext(ctx, `SELECT user_id, address, name FROM notify_approver WHERE channel_type = ? ORDER BY rowid`, string(t))
 	if err != nil {
 		return nil, fmt.Errorf("notify: load approvers: %w", err)
 	}
@@ -139,7 +140,7 @@ func loadApprovers(ctx context.Context, q dbtx, t channel.Type) ([]Approver, err
 	out := []Approver{}
 	for rows.Next() {
 		var a Approver
-		if err := rows.Scan(&a.UserID, &a.Address); err != nil {
+		if err := rows.Scan(&a.UserID, &a.Address, &a.Name); err != nil {
 			return nil, fmt.Errorf("notify: load approvers: %w", err)
 		}
 		out = append(out, a)
@@ -247,17 +248,24 @@ func configAPIError(err error) error {
 func badRequest(code, msg string) *apierr.Error { return apierr.New(http.StatusBadRequest, code, msg) }
 
 // newSender builds the adapter of type t from stored fields and the plain secret. toOverride replaces
-// the recipients of an email channel (two-step codes go to one person, not to the alert list).
+// the recipients of an email channel (two-step codes go to one person, not to the alert list), and the chat of
+// a Telegram channel (a confirm link sent privately to one approver's user ID, D-414).
 func (s *Service) newSender(t channel.Type, f map[string]string, secret string, toOverride []string) (channel.Sender, error) {
 	sv := secrets.NewValue(secret)
 	hc := s.cfg.HTTPClient
 	switch t {
 	case channel.Telegram:
-		return channel.NewTelegram(channel.TelegramConfig{Token: sv, ChatID: f["chat_id"], Client: hc})
+		chat := f["chat_id"]
+		if len(toOverride) == 1 {
+			chat = toOverride[0]
+		}
+		return channel.NewTelegram(channel.TelegramConfig{Token: sv, ChatID: chat, Client: hc})
 	case channel.Slack:
 		return channel.NewSlack(channel.SlackConfig{Webhook: sv, Label: f["label"], Client: hc})
 	case channel.Zalo:
-		return channel.NewZalo(channel.ZaloConfig{OAID: f["oa_id"], UserID: f["user_id"], Token: sv, Client: hc})
+		latest := s.latestZalo(secret)
+		return channel.NewZalo(channel.ZaloConfig{OAID: f["oa_id"], UserID: f["user_id"], AppID: f["app_id"], Token: secrets.NewValue(latest), Client: hc, Now: s.now,
+			SaveSecret: s.rotateZaloSecret, Unsaved: latest != secret})
 	case channel.ZaloPersonal:
 		return channel.NewZaloPersonal(channel.ZaloPersonalConfig{UserID: f["user_id"], Group: f["group"] == "true", Session: sv, Client: hc})
 	case channel.Email:
@@ -271,8 +279,9 @@ func (s *Service) newSender(t channel.Type, f map[string]string, secret string, 
 				return nil, err
 			}
 		}
-		ec := channel.EmailConfig{Host: f["host"], Port: port, Security: f["security"], Username: f["username"],
-			Password: sv, From: f["from"], To: to, Now: s.now, BoxAddrsFunc: s.boxAddrs, SelfAddrsFunc: s.cfg.SelfAddrs, AllowLoopback: s.cfg.SMTPLoopback}
+		ec := channel.EmailConfig{Host: f["host"], Port: port, Security: f["security"], Provider: f["provider"], Username: f["username"],
+			TenantID: f["tenant_id"], ClientID: f["client_id"], Password: sv, From: f["from"], To: to, Now: s.now, HTTPClient: hc, Tokens: s.tokens, SaveSecret: s.rotateEmailSecret,
+			BoxAddrsFunc: s.boxAddrs, SelfAddrsFunc: s.cfg.SelfAddrs, AllowLoopback: s.cfg.SMTPLoopback}
 		if s.cfg.SMTPLoopback {
 			ec.BoxAddrsFunc = nil // the interface list holds 127.0.0.1
 		}
@@ -455,6 +464,56 @@ func (s *Service) checkApprovers(ctx context.Context, t channel.Type, in Channel
 	return nil
 }
 
+// emailFields keeps only the fields the email provider uses (D-449): the tenant and client IDs belong to Microsoft 365, and Postmark's
+// username is its server token, a secret, so it is never a field.
+func emailFields(fields map[string]string) error {
+	if fields["provider"] == "" {
+		delete(fields, "provider") // a channel saved before the presets, or a client that sends none: custom SMTP
+	}
+	auth, ok := channel.EmailAuth(fields["provider"])
+	if !ok {
+		return badRequest("bad_provider", "Choose an email provider from the list, or Custom SMTP.")
+	}
+	if auth != channel.AuthMicrosoft && auth != channel.AuthMicrosoftUser {
+		delete(fields, "tenant_id")
+	}
+	if auth != channel.AuthMicrosoft && auth != channel.AuthMicrosoftUser && auth != channel.AuthGoogleUser {
+		delete(fields, "client_id")
+	}
+	if auth == channel.AuthTokenAsUser {
+		delete(fields, "username")
+	}
+	return nil
+}
+
+// secretFor is the email field that says what the saved secret was saved for (emailBinding). The box writes it; a client cannot.
+const secretFor = "secret_for"
+
+// emailBinding is what an email secret is saved for: the sign-in method, the server and the port. A saved secret is only ever sent
+// there (D-449 review): a client secret is not a password, and a server it was not saved for never receives it, not even after a
+// save with "No encryption" in between.
+func emailBinding(f map[string]string) string {
+	auth, _ := channel.EmailAuth(f["provider"])
+	port := strings.TrimSpace(f["port"])
+	if n, err := strconv.Atoi(port); err == nil {
+		port = strconv.Itoa(n)
+	}
+	return auth + " " + strings.TrimSuffix(strings.ToLower(strings.TrimSpace(f["host"])), ".") + ":" + port
+}
+
+// savedFor is the binding of the saved email secret: the stored one, or for a row saved before it, what the row was saved with.
+func (c channelRow) savedFor() string {
+	if b := c.Fields[secretFor]; b != "" {
+		return b
+	}
+	return emailBinding(c.Fields)
+}
+
+// emailSecretName starts the sentence that asks for the secret again.
+var emailSecretName = map[string]string{channel.AuthPassword: "Enter the password or API key", channel.AuthTokenAsUser: "Enter the server API token",
+	channel.AuthMicrosoft: "Enter the client secret", channel.AuthGoogle: "Choose the service account key",
+	channel.AuthMicrosoftUser: "Sign in with Microsoft", channel.AuthGoogleUser: "Sign in with Google"}
+
 // SaveChannel stores the configuration of one channel (PUT /notify/channels/{type}, PRE-3, INV-1, INV-7, INV-8).
 // An empty Secret, AppToken or BotToken keeps the saved one. Errors are *apierr.Error.
 func (s *Service) SaveChannel(ctx context.Context, actor string, t channel.Type, in ChannelInput) (Channel, error) {
@@ -464,9 +523,27 @@ func (s *Service) SaveChannel(ctx context.Context, actor string, t channel.Type,
 	if err := s.checkApprovers(ctx, t, in); err != nil {
 		return Channel{}, err
 	}
+	// Zalo personal (D-447): the GUI saves the session of the saving administrator's finished QR sign-in; the API still takes a session
+	// pasted as the secret (the JSON a zca-js client keeps, checked like any saved session).
+	var login *zaloLoginRun
+	if t == channel.ZaloPersonal {
+		if in.ZaloLogin {
+			var ok bool
+			if login, ok = s.signedIn(actor); !ok {
+				return Channel{}, badRequest("login_required", "The Zalo sign-in has ended. Sign in with a new QR code, then save.")
+			}
+			in.Secret = login.signed.Session.Reveal()
+		}
+	}
+	unlinked, dropped, err := s.zaloUnlinked(ctx, t, in)
+	if err != nil {
+		return Channel{}, err
+	}
 	var out Channel
+	var before []Approver
 	ob := &events.Outbox{}
-	err := s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
+	var releaseSignin func() // a sign-in this save took (D-480): given back if the save fails
+	err = s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
 		cur, err := loadChannel(ctx, tx, t)
 		if err != nil {
 			return err
@@ -481,9 +558,49 @@ func (s *Service) SaveChannel(ctx context.Context, actor string, t channel.Type,
 		if g, ok := fields["group"]; ok && g != "true" {
 			delete(fields, "group")
 		}
+		if t == channel.ZaloPersonal {
+			fields["name"], fields["account"] = channel.Line(fields["name"], 64), cur.Fields["account"]
+			if login != nil {
+				fields["account"] = login.signed.Name
+			} else if strings.TrimSpace(in.Secret) != "" {
+				delete(fields, "account") // a pasted session replaces the signed-in one: its account is not known
+			}
+			for _, k := range []string{"name", "account"} {
+				if fields[k] == "" {
+					delete(fields, k)
+				}
+			}
+		}
 		secret := strings.TrimSpace(in.Secret)
+		rebind := false // email: the saved secret was saved for another sign-in, server or port, and no new one came
+		if t == channel.Email {
+			if err := emailFields(fields); err != nil {
+				return err
+			}
+			if in.Signin != "" { // D-480: the refresh token of a finished sign-in, never seen by the browser
+				var release func()
+				if secret, release, err = s.takeSignin(actor, in.Signin, fields); err != nil {
+					return err
+				}
+				releaseSignin = release
+			}
+			rebind = secret == "" && cur.SecretID != "" && cur.savedFor() != emailBinding(fields)
+		}
+		if t == channel.Zalo { // D-483: the secret key and refresh token join the saved grant; an empty one keeps the saved value
+			saved := ""
+			if strings.TrimSpace(in.SecretKey) != "" || strings.TrimSpace(in.RefreshToken) != "" || secret != "" {
+				saved, _ = s.openSecret(ctx, tx, cur.SecretID) // unreadable = nothing saved: what was typed must be complete
+				saved = s.latestZalo(saved)                    // a rotation not saved yet is newer: its refresh token is the one that works
+			}
+			if secret, err = channel.ZaloOASecret(saved, in.SecretKey, in.RefreshToken, secret); err != nil {
+				return configAPIError(err)
+			}
+			if _, isGrant := channel.ParseZaloGrant(secret); !isGrant && secret != "" {
+				delete(fields, "app_id") // an access token only: no app to refresh with
+			}
+		}
 		effective := secret
-		if effective == "" {
+		if effective == "" && !rebind {
 			if effective, err = s.openSecret(ctx, tx, cur.SecretID); err != nil {
 				return badRequest("secret_required", "The saved key cannot be read. Enter it again and save.")
 			}
@@ -502,7 +619,17 @@ func (s *Service) SaveChannel(ctx context.Context, actor string, t channel.Type,
 			fields["url"] = plainURL
 		}
 		if _, err := s.newSender(t, fields, effective, nil); err != nil {
+			if ce := (*channel.ConfigError)(nil); rebind && errors.As(err, &ce) && ce.Code == "secret_required" {
+				auth, _ := channel.EmailAuth(fields["provider"])
+				return badRequest("secret_required", emailSecretName[auth]+" again: the sign-in method, the server or the port changed, and a saved secret is only sent where it was saved for.")
+			}
 			return configAPIError(err)
+		}
+		if t == channel.Email { // a rebind that passed needs no secret ("No encryption"): the old one is deleted below, never kept for later
+			delete(fields, secretFor)
+			if secret != "" || (cur.SecretID != "" && !rebind) {
+				fields[secretFor] = emailBinding(fields)
+			}
 		}
 		if t == channel.Webhook {
 			fields["url"] = maskURL(plainURL) // what is stored beside the sealed URL: never the URL itself
@@ -537,6 +664,11 @@ func (s *Service) SaveChannel(ctx context.Context, actor string, t channel.Type,
 			if next.SecretID, next.SecretLast4, err = s.putSecret(ctx, tx, purposeSecret, cur.SecretID, secret); err != nil {
 				return err
 			}
+			if g, ok := channel.ParseZaloGrant(secret); ok && t == channel.Zalo {
+				next.SecretLast4 = lastFour(g.RefreshToken) // the end of the JSON says nothing: show the refresh token's
+			}
+		} else if rebind {
+			next.SecretID, next.SecretLast4 = "", "" // the row stops pointing at it here; it is deleted after the row is written
 		}
 		if t == channel.Webhook && (newURL != "" || cur.URLID == "") { // a row from before sealing is sealed by this save
 			if next.URLID, next.URLLast4, err = s.putSecret(ctx, tx, purposeURL, cur.URLID, plainURL); err != nil {
@@ -570,14 +702,25 @@ func (s *Service) SaveChannel(ctx context.Context, actor string, t channel.Type,
 		if err != nil {
 			return fmt.Errorf("notify: save channel %s: %w", t, err)
 		}
+		if rebind && secret == "" {
+			if err := s.cfg.Secrets.Delete(ctx, tx, cur.SecretID); err != nil {
+				return fmt.Errorf("notify: delete secret of %s: %w", t, err)
+			}
+		}
+		if before, err = loadApprovers(ctx, tx, t); err != nil {
+			return err
+		}
 		if _, err := tx.ExecContext(ctx, `DELETE FROM notify_approver WHERE channel_type = ?`, string(t)); err != nil {
 			return fmt.Errorf("notify: save approvers: %w", err)
 		}
 		approvers := []Approver{}
 		if in.Approvals {
 			for _, a := range in.Approvers {
-				a.Address = strings.TrimSpace(a.Address)
-				if _, err := tx.ExecContext(ctx, `INSERT INTO notify_approver (channel_type, user_id, address) VALUES (?, ?, ?)`, string(t), a.UserID, a.Address); err != nil {
+				a.Address, a.Name = strings.TrimSpace(a.Address), ""
+				if t == channel.ZaloPersonal {
+					a.Name = channel.Line(in.Approvers[len(approvers)].Name, 64)
+				}
+				if _, err := tx.ExecContext(ctx, `INSERT INTO notify_approver (channel_type, user_id, address, name) VALUES (?, ?, ?, ?)`, string(t), a.UserID, a.Address, a.Name); err != nil {
 					return fmt.Errorf("notify: save approvers: %w", err)
 				}
 				approvers = append(approvers, a)
@@ -593,16 +736,97 @@ func (s *Service) SaveChannel(ctx context.Context, actor string, t channel.Type,
 		if err := s.record(ctx, tx, actor, "notify.channel_save", string(t), detail); err != nil {
 			return err
 		}
+		for _, u := range unlinked {
+			if err := s.record(ctx, tx, actor, unlinkAction[t], string(t), clip(u, 400)); err != nil {
+				return err
+			}
+		}
 		ob.Add(events.Event{Name: "notify.channel.changed", Data: map[string]string{"type": string(t)}})
 		out = next.view(approvers)
 		return nil
 	})
 	if err != nil {
+		if releaseSignin != nil {
+			releaseSignin()
+		}
 		return Channel{}, err
 	}
 	s.forget(t)
+	if t == channel.Email {
+		s.tokens.Clear()
+		if in.Signin != "" {
+			s.forgetSignin(in.Signin)
+		}
+	}
 	s.flush(ctx, ob)
+	if t == channel.ZaloPersonal && login != nil {
+		s.dropLogin(login)
+	}
+	for _, a := range dropped { // after the commit (response writes its own rows): the old address must not count again
+		if err := s.cfg.LinkCodes.DropChatLink(ctx, actor, a.UserID, t, a.Address); err != nil {
+			s.cfg.Log.WarnContext(ctx, "notify: an old approver proof could not be dropped", "channel", string(t), "user", a.UserID, "error", err.Error())
+		}
+	}
+	if _, ok := unlinkAction[t]; ok { // the confirm-link channels (D-447, D-414): new approvers get their link after the save
+		if c, err := loadChannel(ctx, s.cfg.DB.Reader(), t); err == nil && zaloReady(c) {
+			if t == channel.ZaloPersonal {
+				s.sendLinkCodesLater(ctx, actor, c, newZaloApprovers(before, out.Approvers))
+			} else {
+				s.sendTelegramLinksLater(ctx, actor, c, newZaloApprovers(before, out.Approvers))
+			}
+		}
+	}
 	return out, nil
+}
+
+// newZaloApprovers lists the approvers of now who were not in before with the same address: they get a confirm link after the save
+// (D-447, D-414).
+func newZaloApprovers(before, now []Approver) []Approver {
+	var out []Approver
+	for _, a := range now {
+		if !slices.ContainsFunc(before, func(b Approver) bool { return b.UserID == a.UserID && b.Address == a.Address }) {
+			out = append(out, a)
+		}
+	}
+	return out
+}
+
+// unlinkAction is the audit action of a linked approver a save removes or re-addresses, per confirm-link channel (D-447, D-414).
+var unlinkAction = map[channel.Type]string{channel.ZaloPersonal: "notify.zalo_unlink", channel.Telegram: "notify.telegram_unlink"}
+
+// linkChannelName names a confirm-link channel in messages and audit rows.
+var linkChannelName = map[channel.Type]string{channel.ZaloPersonal: "Zalo", channel.Telegram: "Telegram"}
+
+// zaloUnlinked describes the linked approvers of a confirm-link channel (Zalo personal, Telegram) a save removes or gives another ID: each
+// gets an unlinkAction audit row, and their proof of the old address is dropped after the save (Config.LinkCodes), so naming that address
+// again needs a new confirm. Asked before the save, outside its transaction.
+func (s *Service) zaloUnlinked(ctx context.Context, t channel.Type, in ChannelInput) ([]string, []Approver, error) {
+	if _, ok := unlinkAction[t]; !ok || s.cfg.ApproverLinks == nil {
+		return nil, nil, nil
+	}
+	before, err := loadApprovers(ctx, s.cfg.DB.Reader(), t)
+	if err != nil {
+		return nil, nil, err
+	}
+	var out []string
+	var dropped []Approver
+	for _, b := range before {
+		if in.Approvals && slices.ContainsFunc(in.Approvers, func(a Approver) bool { return a.UserID == b.UserID && strings.TrimSpace(a.Address) == b.Address }) {
+			continue
+		}
+		if ok, err := s.cfg.ApproverLinks.Linked(ctx, b.UserID, t, b.Address); err != nil || !ok {
+			continue
+		}
+		who := b.UserID
+		if u, found, err := s.cfg.Users.Lookup(ctx, b.UserID); err == nil && found {
+			who = u.Email
+		}
+		out = append(out, who+": "+linkChannelName[t]+" "+b.Address+" is no longer their approver address; its link no longer counts")
+		if s.cfg.LinkCodes != nil {
+			dropped = append(dropped, b)
+		}
+	}
+	return out, dropped, nil
 }
 
 // putSecret seals plaintext as a new secret, or replaces the one id. It returns the id and the last 4 characters ("" when too short to show).
@@ -628,10 +852,15 @@ func lastFour(s string) string {
 }
 
 // DeleteChannel removes the saved configuration and every secret of a channel, and with them a Zalo
-// personal session (INV-12). The row stays, blank, so the API still lists six channels.
+// personal session (INV-12). The row stays, blank, so the API still lists six channels. The approvers'
+// proofs of their addresses on it end too (Config.LinkCodes.DropChatLink, D-447).
 func (s *Service) DeleteChannel(ctx context.Context, actor string, t channel.Type) error {
+	before, err := loadApprovers(ctx, s.cfg.DB.Reader(), t) // their proofs end with the channel (below, after the commit)
+	if err != nil {
+		return err
+	}
 	ob := &events.Outbox{}
-	err := s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
+	err = s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
 		cur, err := loadChannel(ctx, tx, t)
 		if err != nil {
 			return err
@@ -665,7 +894,19 @@ func (s *Service) DeleteChannel(ctx context.Context, actor string, t channel.Typ
 		return err
 	}
 	s.forget(t)
+	if t == channel.Email {
+		s.tokens.Clear()
+	}
 	s.flush(ctx, ob)
+	// D-447 review round 2: a recreated channel listing the same addresses must not show them linked without a new proof.
+	for _, a := range before {
+		if s.cfg.LinkCodes == nil {
+			break
+		}
+		if err := s.cfg.LinkCodes.DropChatLink(ctx, actor, a.UserID, t, a.Address); err != nil {
+			s.cfg.Log.WarnContext(ctx, "notify: an approver proof could not be dropped with its channel", "channel", string(t), "user", a.UserID, "error", err.Error())
+		}
+	}
 	return nil
 }
 

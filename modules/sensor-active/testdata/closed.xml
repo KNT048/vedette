@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE nmaprun>
+<!-- hand-written fixture shaped after nmap 7.94 output for an Android phone with nothing listening; no live network was
+     scanned. It answers, every port is closed (reset), and with no open port nmap cannot fingerprint the OS. -->
+<nmaprun scanner="nmap" args="nmap --privileged -sS -sV -O -n --max-rate 25 --top-ports 1000 --host-timeout 30m -oX - 192.168.10.20" start="1762650000" version="7.94" xmloutputversion="1.05">
+<scaninfo type="syn" protocol="tcp" numservices="1000" services="1-1000"/>
+<host starttime="1762650001" endtime="1762650012"><status state="up" reason="arp-response" reason_ttl="0"/>
+<address addr="192.168.10.20" addrtype="ipv4"/>
+<address addr="AA:BB:CC:00:00:25" addrtype="mac" vendor="Samsung Electronics"/>
+<ports>
+<extraports state="closed" count="1000"><extrareasons reason="reset" count="1000"/></extraports>
+</ports>
+</host>
+<runstats><finished time="1762650013" elapsed="12.00" summary="Nmap done" exit="success"/><hosts up="1" down="0" total="1"/></runstats>
+</nmaprun>

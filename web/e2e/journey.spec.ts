@@ -21,8 +21,7 @@ async function cleanInstall(page: Page, lan: string) {
   await page.getByRole('textbox', { name: 'Range 1' }).fill(lan)
   await page.getByRole('button', { name: 'Continue' }).click()
   await page.getByRole('radio', { name: /Mid-size business/ }).click()
-  await page.getByRole('button', { name: 'Continue' }).click()
-  await page.getByRole('button', { name: 'Skip and finish' }).click()
+  await page.getByRole('button', { name: 'Finish setup' }).click()
   // The setup page has its own heading: wait until the app lands on Home, after the scope is saved
   await expect(page).toHaveURL(/\/$/)
   await expect(page.getByRole('heading', { level: 1 }).first()).toBeVisible()

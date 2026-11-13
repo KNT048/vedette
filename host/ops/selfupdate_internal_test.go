@@ -103,7 +103,7 @@ func TestTheHostRunnerNeverInstallsAndTheApplierRunnerDoes(t *testing.T) {
 	hostForms := map[string][][]string{
 		binSystemdRun: {systemdRunArgv(suState, "rn_0123456789abcdef")},
 		binDpkgDeb:    {dpkgDebFieldArgv(suStaged)},
-		binDpkgQuery:  {argsDpkgQueryHost},
+		binDpkgQuery:  {argsDpkgQueryHost, argsDpkgQueryList},
 		binAptGet:     {aptSimInstallArgv(suStaged), argsUpdate},
 		binSystemctl:  {{"is-active", upgradeUnit}},
 	}
@@ -113,6 +113,10 @@ func TestTheHostRunnerNeverInstallsAndTheApplierRunnerDoes(t *testing.T) {
 				t.Errorf("the host runner refuses %s %q: %v", bin, a, err)
 			}
 		}
+	}
+	// The package list of the box (D-470) is the host's read only.
+	if ValidateApplierArgv(suState, binDpkgQuery, argsDpkgQueryList) == nil {
+		t.Error("the applier runner accepts the package list")
 	}
 	// The applier never starts units and never asks dpkg-deb.
 	for _, bin := range []string{binSystemdRun, binDpkgDeb, binPodman, binIP} {

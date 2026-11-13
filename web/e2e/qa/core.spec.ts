@@ -52,8 +52,7 @@ async function cleanInstall(page: Page, bundle: RegExp = /Small business/) {
   await page.getByLabel('Range 1', { exact: true }).fill('192.168.50.0/24')
   await next(page)
   await page.getByRole('radio', { name: bundle }).click()
-  await next(page)
-  await page.getByRole('button', { name: 'Skip and finish' }).click()
+  await page.getByRole('button', { name: 'Finish setup' }).click()
   await expect(h1(page)).toBeVisible()
   await expect(page).toHaveURL(/\/$/)
 }
@@ -90,6 +89,26 @@ function totp(secret: string, at = Date.now()) {
 }
 
 test.describe('first-run setup', () => {
+  test('D-462: a double-click on Continue moves one step; a double-click on Finish setup sends setup once', async ({ page }) => {
+    const errors = collectErrors(page)
+    let posts = 0
+    page.on('request', (r) => { if (r.method() === 'POST' && new URL(r.url()).pathname.endsWith('/core/setup')) posts++ })
+    await startClean(page)
+    await page.getByRole('button', { name: 'Continue' }).dblclick()
+    // the mock prefills Range 1 with the box's network (D-405), so a second submit here would pass: it must not happen
+    await expect(page.getByRole('heading', { level: 2, name: 'Network to watch' })).toBeVisible()
+    await page.getByRole('button', { name: 'Continue' }).dblclick()
+    await expect(page.getByRole('heading', { level: 2, name: 'Choose a module bundle' })).toBeVisible()
+    await page.waitForTimeout(300) // nothing is sent behind the step
+    expect(posts).toBe(0)
+    await page.getByRole('button', { name: 'Finish setup' }).dblclick()
+    // Home of a clean box: its heading is the "CISA list not fetched yet" sentence (D-92), not "Today"; the D-462 reminder shows it landed
+    await expect(page).toHaveURL(/\/$/)
+    await expect(page.getByText('No alert channel yet')).toBeVisible()
+    expect(posts).toBe(1)
+    noErrors(errors)
+  })
+
   test('mistakes at every step, fixes, finish; every page is empty with no sample data', async ({ page }) => {
     test.setTimeout(240_000)
     const errors = collectErrors(page)
@@ -131,6 +150,10 @@ test.describe('first-run setup', () => {
     await page.getByLabel('Range 1', { exact: true }).fill('10.0.0.0/0')
     await next(page)
     await expect(page.getByText(/is not a private range/)).toBeVisible()
+    // D-461: 100/8 outside the RFC 6598 shared address space is public; the sentence names 100.64-127.x
+    await page.getByLabel('Range 1', { exact: true }).fill('100.128.0.0/24')
+    await next(page)
+    await expect(page.getByText('100.128.0.0/24 is not a private range (10.x, 172.16-31.x, 192.168.x, 100.64-127.x). Add public addresses later under External exposure.')).toBeVisible()
     await page.getByLabel('Range 1', { exact: true }).fill('abc')
     await next(page)
     await expect(page.getByText(/"abc" is not a valid range/)).toBeVisible()
@@ -153,7 +176,7 @@ test.describe('first-run setup', () => {
     await page.getByRole('button', { name: 'Add range' }).click()
     await next(page)
     await expect(page.getByText('Fill in this range or remove the row.')).toBeVisible()
-    await page.getByRole('button', { name: 'Remove range 3' }).click()
+    await page.getByLabel('Range 3', { exact: true }).fill('100.65.254.0/24') // a LAN behind carrier-grade NAT (RFC 6598) is local (D-461)
     // the single commitment checkbox and the license line replace the consent upload
     await expect(page.getByLabel(/Upload/)).toHaveCount(0)
     await expect(page.locator('input[type=file]')).toHaveCount(0)
@@ -167,23 +190,24 @@ test.describe('first-run setup', () => {
     await page.getByRole('button', { name: 'Back' }).click()
     await expect(page.getByLabel('Range 1', { exact: true })).toHaveValue('192.168.18.0/25')
     await expect(page.getByLabel('Range 2', { exact: true })).toHaveValue('10.1.0.0/16')
+    await expect(page.getByLabel('Range 3', { exact: true })).toHaveValue('100.65.254.0/24')
     await next(page)
     await page.getByRole('radio', { name: /Mid-size business/ }).click()
     await shot(page, 'core', 'setup-3')
-    await next(page)
-
-    // step 4: incomplete -> errors; skip
-    await expect(page.getByRole('heading', { level: 2, name: 'Where alerts go' })).toBeVisible()
+    // D-462: three steps; Modules is the last one and finishes setup, there is no Alerts step
+    await expect(page.getByRole('list', { name: 'Setup steps' }).getByRole('listitem')).toHaveCount(3)
+    await expect(page.getByRole('button', { name: 'Continue' })).toHaveCount(0)
     await page.getByRole('button', { name: 'Finish setup' }).click()
-    await expect(page.getByText('Fill this in.').first()).toBeVisible()
-    await shot(page, 'core', 'setup-4')
-    await page.getByRole('button', { name: 'Skip and finish' }).click()
     await expect(h1(page)).toBeVisible()
     await expect(page).toHaveURL(/\/$/)
+    // no channel yet: Home says so and links to Settings, Alert channels
+    await expect(page.getByText('No alert channel yet')).toBeVisible()
+    await shot(page, 'core', 'setup-home-no-channel')
+    await expect(page.getByRole('link', { name: 'Set up an alert channel' })).toHaveAttribute('href', '/settings/channels')
 
     // scope reached the inventory module
     const inv = await page.evaluate(async () => (await (await fetch('/api/v1/inventory/settings')).json()) as { lan_ranges: string[]; active: { enabled: boolean } })
-    expect(inv.lan_ranges).toEqual(['192.168.18.0/25', '10.1.0.0/16'])
+    expect(inv.lan_ranges).toEqual(['192.168.18.0/25', '10.1.0.0/16', '100.65.254.0/24'])
     expect(inv.active.enabled).toBe(true)
 
     // every sidebar page is empty: no trace of sample data
@@ -372,33 +396,33 @@ test.describe('modules', () => {
     // no multi-site module anywhere
     await expect(page.getByRole('switch', { name: /Multi-site/ })).toHaveCount(0)
     await expect(nav.getByRole('link', { name: 'Multi-site' })).toHaveCount(0)
-    // Credentialed scan needs Vulnerability scan (off in the small bundle): ask to turn on together
-    await page.getByRole('switch', { name: /Turn (on|off) module Credentialed scan/ }).click()
+    // AI response needs AI assistant (off in the small bundle): ask to turn on together. (The credentialed scan is not listed in v1, D-417.)
+    await page.getByRole('switch', { name: /Turn (on|off) module AI response/ }).click()
     const dlg = page.getByRole('dialog', { name: 'Turn on the required modules too?' })
     await expect(dlg).toBeVisible()
-    await expect(dlg.getByText('Vulnerability scan')).toBeVisible()
+    await expect(dlg.getByText('AI assistant')).toBeVisible()
     await page.keyboard.press('Escape')
-    await expect(page.getByRole('switch', { name: /Turn (on|off) module Credentialed scan/ })).not.toBeChecked()
-    await page.getByRole('switch', { name: /Turn (on|off) module Credentialed scan/ }).click()
+    await expect(page.getByRole('switch', { name: /Turn (on|off) module AI response/ })).not.toBeChecked()
+    await page.getByRole('switch', { name: /Turn (on|off) module AI response/ }).click()
     await dlg.getByRole('button', { name: 'Turn on together' }).click()
-    await expect(page.getByRole('switch', { name: /Turn (on|off) module Vulnerability scan/ })).toBeChecked()
-    await expect(page.getByRole('switch', { name: /Turn (on|off) module Credentialed scan/ })).toBeChecked()
-    if (!isMobile) await expect(nav.getByRole('link', { name: 'Vulnerability scans' })).toBeVisible() // on a phone the sidebar is behind the menu button
-    await page.getByRole('switch', { name: /Turn (on|off) module Vulnerability scan/ }).click()
-    const off = page.getByRole('dialog', { name: 'Turn off Vulnerability scan?' })
-    await expect(off.getByText('Credentialed scan')).toBeVisible()
+    await expect(page.getByRole('switch', { name: /Turn (on|off) module AI assistant/ })).toBeChecked()
+    await expect(page.getByRole('switch', { name: /Turn (on|off) module AI response/ })).toBeChecked()
+    if (!isMobile) await expect(nav.getByRole('link', { name: 'AI assistant' })).toBeVisible() // on a phone the sidebar is behind the menu button
+    await page.getByRole('switch', { name: /Turn (on|off) module AI assistant/ }).click()
+    const off = page.getByRole('dialog', { name: 'Turn off AI assistant?' })
+    await expect(off.getByText('AI response')).toBeVisible()
     await off.getByRole('button', { name: 'Cancel' }).click()
-    await expect(page.getByRole('switch', { name: /Turn (on|off) module Vulnerability scan/ })).toBeChecked()
-    await page.getByRole('switch', { name: /Turn (on|off) module Vulnerability scan/ }).click()
+    await expect(page.getByRole('switch', { name: /Turn (on|off) module AI assistant/ })).toBeChecked()
+    await page.getByRole('switch', { name: /Turn (on|off) module AI assistant/ }).click()
     await off.getByRole('button', { name: 'Turn off', exact: true }).click()
-    if (!isMobile) await expect(nav.getByRole('link', { name: 'Vulnerability scans' })).toHaveCount(0)
-    await page.goto('/scans')
+    if (!isMobile) await expect(nav.getByRole('link', { name: 'AI assistant' })).toHaveCount(0)
+    await page.goto('/assistant')
     await expect(page.getByText(/is off|off\b/i).first()).toBeVisible()
     await shot(page, 'core', 'module-off-page')
     await page.goto('/settings/modules')
     await expect(page.getByRole('switch', { name: /Turn (on|off) module Core/ })).toBeDisabled()
     await page.reload()
-    await expect(page.getByRole('switch', { name: /Turn (on|off) module Credentialed scan/ })).toBeChecked()
+    await expect(page.getByRole('switch', { name: /Turn (on|off) module AI response/ })).toBeChecked()
     noErrors(errors)
   })
 })
@@ -724,7 +748,7 @@ test.describe('look and feel', () => {
     await page.keyboard.press('Tab'); await expect(page.getByLabel('Sign-in email')).toBeFocused()
     await page.keyboard.press('Tab'); await expect(page.getByLabel('Password', { exact: true })).toBeFocused()
     await page.keyboard.press('Tab'); await expect(page.getByLabel('Repeat password')).toBeFocused()
-    await expect(page.getByRole('button', { name: 'Back' })).toBeDisabled() // a disabled button is skipped by Tab
+    await expect(page.getByRole('button', { name: 'Back' })).toHaveCount(0) // W2-8: step 1 has no Back
     await page.keyboard.press('Tab'); await expect(page.getByRole('button', { name: 'Continue' })).toBeFocused()
     // network step on a phone: rows fit, no sideways scroll
     await startClean(page)

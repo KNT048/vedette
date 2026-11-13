@@ -90,7 +90,7 @@ Kích cỡ: S ≈ 1–2 phiên-ngày, M ≈ 3–5, L ≈ 6–10 (ước lượng
 
 ## 5. Nhịp phối hợp
 
-- **PR nhỏ** (≤ ~400 dòng), một WP có thể nhiều PR. Mọi PR (kể cả nhãn `contract`): tự merge khi CI xanh, sau `make check` trên máy (dán kết quả vào PR; `rules/local-checks.md`, D-62, D-63); PR chạm phần người kia thì @ họ để thông báo, không chờ (D-65).
+- **PR nhỏ** (≤ ~400 dòng), một WP có thể nhiều PR. Mọi PR (kể cả nhãn `contract`): build + lint gói đã đổi trên máy (dán lệnh vào PR), supervisor merge bằng `gh pr merge --squash` khi CI xanh (`rules/local-checks.md`, D-63, D-413); PR chạm phần người kia thì @ họ để thông báo, không chờ (D-65).
 - **Nhịp:** AI-Supervisor kiểm mỗi 30 phút: các phiên, PR và CI, chồng lấn file, câu hỏi đang chờ. Từ 2026-11-11 không dùng GitHub Discussions (#145) nữa.
 - **Thứ tự merge** theo phụ thuộc ở mục 3; `main` luôn xanh. GitHub Free không khoá được nhánh riêng tư → quy ước, không phải cơ chế.
 - **Issue** mỗi WP, nhãn `module:<id>`, `owner:kien` / `owner:emily`, `wp:<số>`; GitHub Projects một bảng Kanban.

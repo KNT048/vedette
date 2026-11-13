@@ -9,6 +9,17 @@
 - **mitigation** (`mitigation-config`, "Hỏi AI của tôi"), **logs** (`log-digest`): đổi nhãn "AI tạo" → vi phạm S-AI-6.
 - Thêm việc mới: thêm vào `AiJob`, bảng phân việc, ghi `data: internal|public` (quyết định INV-3), cập nhật GUI.
 
+## Modifying: mã lỗi của lời gọi việc AI, trần token đầu ra, `ai_activity.stop` (D-481, POST-6)
+- **mitigation** (`POST /findings/{id}/ai`, qua `cmd/vedette` `aiMitigation.Run`): trả nguyên `*apierr.Error` của `ai`; đổi mã hay thông điệp = đổi điều trang finding hiện (`web/src/features/findings/findings.test.tsx` "Ask my AI failing with …").
+- **response** (`planError` ở `cmd/vedette/ai_plan.go`): chỉ `daily_cap` và "chưa dùng được" dừng vòng kế hoạch; mã mới khác chỉ lùi finding đó.
+- **reports** (`reportsAI.Summarize`): lỗi đi thẳng tới `POST /reports/*/ai-summary`.
+- **GUI**: trang chỉ hiện `message`; `docs/API_CONVENTIONS.md` §3.3 giữ các mã (`TestConnections_ErrorCodesAreCatalogued` đếm hàng mỗi mục). Trần mỗi việc nằm ở người gọi `RunJob` (`brief.go`, `explain.go`, `news.go`, `ask.go`, `logdigest.go`, `cmd/vedette/reports.go`, `cmd/vedette/ai_plan.go`); `MaxAnswerTokens` chặn lần hỏi lại. `estimateTokens` (giữ trần khi đang gọi) cộng trần này, nên trần lớn chỉ giữ chỗ lâu hơn, không tính tiền.
+- `ai_activity.stop` và `retried` không vào hash: đổi nó không làm chuỗi cũ sai; bản xuất dữ liệu mang nó như `outcome` (`modules/core/export_policy.go`).
+
+## Modifying: `AskHook.step` / `notIDForms` (D-481, POST-7, INV-12a)
+- **GUI** `AssistantPage.tsx` đọc `hooks[].step`: chỉ `question` là "The AI was not asked", `answer` là "the answer was held back"; đổi giá trị = đổi `contract.ts` (`AskHookHit`), `api/openapi.json`, `core/api/oas`, mock.
+- `notIDForms` nới bộ tìm số định danh cho mọi lời gọi (câu hỏi, dữ liệu, kết quả công cụ, memory, kho tri thức): thêm một dạng = một dãy số định danh có thể lọt qua; giữ `TestContract_INV12_IDNumbersInEveryFormAreBlocked` và `TestIDNumbersAndTheFormsTheyAreNot` xanh.
+
 ## Modifying: `Profiles.Resolve(job) ([]Profile, error)` (chọn chính/dự phòng, INV-3)
 - Mọi `RunJob`. Đổi logic loại hồ sơ cloud → có thể rò dữ liệu nội bộ; test INV-3 bắt buộc xanh.
 
@@ -16,6 +27,7 @@
 - Thêm một công cụ đọc = thêm bề mặt dữ liệu rời hộp tới nhà cung cấp AI: ghi vào `toolImpl` (đối số schema đóng, trần số hàng/byte, `Cite`), cập nhật PRIVACY.md luồng 3 và `privacy.flow.3.what` trong `web/src/locales/en/core.json` cùng commit; việc thêm `log-investigate` (lát 5b) thêm công cụ log vào đúng danh sách này (`Jobs`).
 - Đổi `Config.Data` (cmd/vedette `aiAsk`) hoặc `Config.Conns` (`core/conn/read`): đổi dữ liệu AI thấy; đổi `ConnReader` = đổi bề mặt INV-14. `RunJob` có thêm `JobSpec.tools`/`AnswerWhenBlocked` và `JobResult.Hits/Blocked/Downgrade` (người gọi khác không bị ảnh hưởng).
 - GUI: `AskResult` khớp `web/src/features/ai/contract.ts`; đổi hình dạng = đổi cả mock, `api/openapi.json` và `core/api/oas`.
+- Đổi hình dạng kết quả của `search_assets`/`list_findings`/`lookup_cve` hay trần của vòng (D-482): mỗi lượt gửi lại cả hội thoại, nên số token đầu vào của một câu hỏi tăng theo kích thước kết quả nhân số lượt sau nó; chạy `TestAskBetaBoxQuestionStaysInBudget` (≤ 8.000 / ≤ 20.000) và giữ tổng rõ ràng (`matching_*`, `note`) để mô hình không đọc một trang là toàn bộ.
 - `ai_result` kind `ask` do `insertAsk` ghi, giữ 100 dòng; `GET /ai/asks` đọc 10 dòng. Xuất qua chính sách `ai_result` của core (payload là JSON).
 
 ## Modifying: `Tools.ForModel(job) []Tool` (INV-14)
@@ -77,7 +89,7 @@
 - `RunJob(ctx, JobSpec) (JobResult, error)`: một lần gọi = hook `before_ai` trên câu hỏi và từng khối dữ liệu (chặn/giữ/lỗi → không gửi, hàng nhật ký `blocked_by_hook`), `PromptBuilder` (luật dựng sẵn, dữ liệu không tin cậy chỉ trong `JobSpec.Data` có hàng rào), `Router.Call` (chính → dự phòng, `Meter`), hook `after_ai` trên câu trả lời, `JobSpec.Check` (sai schema → `ErrBadOutput`, bỏ câu trả lời), rồi **một** hàng `ai_activity` + `ai_downgrade` + kết quả (`JobSpec.Store`) trong một giao dịch ghi. Lỗi người dùng thấy là `*apierr.Error`: 409 `ai_unavailable` (kể cả hook chặn, trả lời hỏng), 429 `daily_cap`. Việc không có hồ sơ được phép thì **không** có hàng nhật ký (chưa thử gì). `connection-test` cũng ghi một hàng.
 - `ExplainCVE`, `CachedCVE` (`/ai/cve/{id}/explain|cached`): cache theo `(CVE, hash của mục feed + thiết bị khớp)` trong `ai_result`; `affected` do hộp quyết (không khớp → no, có phát hiện đã xác nhận → yes, còn lại unknown), nguồn trích dẫn do hộp dựng từ liên kết của feed. `Config.Facts` (`ai.Facts`: `CVE`, `AffectedAssets`) do `cmd/vedette` nối với feeds, findings, inventory; thêm trường vào `CVEFacts`/`AssetFact` = đổi dữ liệu gửi cho nhà cung cấp (PRIVACY luồng 3).
 - `Brief`, `Available`, `Configured`: cửa của `mitigation.AI` (`cmd/vedette/ai.go` `aiMitigation`) và của trang Quyền riêng tư (`privacyFacts.AIConfigured`). Đổi `BriefAnswer`/`JobSpec` → `mitigation` (`/findings/{id}/ai`) và `cmd/vedette/ai.go`.
-- `Usage`, `Runs`: view trên `ai_activity` (`status`: ok / schema_error nếu tốn token mà không dùng được / capped khi cột `outcome` = `capped` (trần chung hoặc trần riêng của hồ sơ chặn trước khi gửi) / failed cho mọi lần còn lại không tốn gì, kể cả `outcome` = `not_sent`; cột `outcome` ngoài hash như `profile_id`, migration 0007); `New` dựng lại đồng hồ từ `ai_activity` của hôm nay (`seedMeter`), nên mức đang áp dụng và trần từng hồ sơ không đổi khi khởi động lại.
+- `Usage`, `Runs`: view trên `ai_activity` (`status`: ok / schema_error nếu tốn token mà không dùng được / capped khi cột `outcome` = `capped` (trần chung hoặc trần riêng của hồ sơ chặn trước khi gửi, hay chặn lượt sau của một câu hỏi đã tiêu token, D-482; xét trước "tốn token") / failed cho mọi lần còn lại không tốn gì, kể cả `outcome` = `not_sent`; cột `outcome` ngoài hash như `profile_id`, migration 0007); `New` dựng lại đồng hồ từ `ai_activity` của hôm nay (`seedMeter`), nên mức đang áp dụng và trần từng hồ sơ không đổi khi khởi động lại.
 - `ai_activity` có trigger cấm sửa và cấm `INSERT OR REPLACE` đè; xoá do retention (lát 3, `PruneActivity`) cùng giao dịch với `core_chain_anchor` và giảm `core_chain_head.count`.
 - `GET /ai/cve/{id}/cached`: mock không mô phỏng việc cache mất hiệu lực sau khi thiết bị đổi (mock does not model cache invalidation after a device change); backend chỉ trả hàng có inputs hash khớp với feed và thiết bị hiện tại, còn lại trả "chưa có gì trong cache" như lúc chưa từng giải thích (the backend serves only a row whose inputs hash matches). `contract.ts` không đổi.
 
@@ -124,3 +136,4 @@
 - **GUI** (`web/src/features/ai/LogsPanel.tsx`, slot `logs.panels`): `GET` có thể trả `digest: null`; `LogDigest` của `contract.ts` là hợp đồng của kết quả.
 - **D-223** `Config.LogAround` (`events_around` của `log-investigate`): adapter `aiLogAround` chép từng trường của `logs.Around`; thêm trường vào `LogAroundData` = thêm dữ liệu log rời hộp (PRIVACY luồng 3); không bao giờ dòng gốc. Đổi `productTool`/`Jobs` của `search_assets`, `lookup_ioc`, `lookup_cve` đổi công cụ của cả Ask lẫn Log investigation. Bỏ `Schema` trong `converse` áp dụng mọi việc có công cụ (hiện chỉ Ask, không có lược đồ, và log-investigate). `remember` trong lược đồ digest gọi `SuggestMemory` (INV-8): đổi luật đề xuất ảnh hưởng hàng chờ Memory.
 - D-446 review: `provider.Config.Own` is a `provider.OwnSources{Machine, Self}` (`OwnSources.Own(ip, port)`); `ai.Config.SelfAddrs` (the honeypot's decoys) joins `Config.BoxAddrs`.
+- D-486: `provider.HostAliasNames` and `provider.OwnHostAlias(host, port)`: `host.docker.internal` / `host.containers.internal` on a port of 8443/8444/8765/514/6514 is refused at save, update and Test (`Profile.checkOwn`, `invalid_base_url`, the shared `OwnText`); at call time the dialer refuses the resolved address; other ports stay allowed. cmd/vedette's alias resolver uses the same list.

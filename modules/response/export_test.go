@@ -117,3 +117,6 @@ func (s *Service) LinkForTest(ctx context.Context, userID, channel, address stri
 		return err
 	})
 }
+
+// SetLinkSenderForTest sets Config.LinkSender after the service was made (D-414).
+func (s *Service) SetLinkSenderForTest(l LinkSender) { s.cfg.LinkSender = l }

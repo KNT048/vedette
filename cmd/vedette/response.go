@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"net/netip"
 	"slices"
 	"time"
@@ -403,12 +404,26 @@ func (r responseMailer) SendLinkCode(ctx context.Context, to, code string) error
 	return r.m.SendStepUpCode(ctx, to, code, "link this email address to your Vedette account, so approval links sent to it count as you")
 }
 
+// responseLinkSender is response's Config.LinkSender (D-414): Send again in My account sends the person's own chat ID a new confirm link
+// through notify (Telegram by the bot, Zalo personal by the box's account). With notify off nothing can be sent.
+type responseLinkSender struct {
+	n   *notify.Service
+	reg *modreg.Registry
+}
+
+func (r responseLinkSender) SendApproverLink(ctx context.Context, actor, ch, userID string) (string, error) {
+	if r.reg != nil && !r.reg.Enabled(notify.ModuleID) {
+		return "", apierr.New(http.StatusConflict, "module_off", "Notifications are off, so no link can be sent. Ask an administrator to turn the module on.")
+	}
+	return r.n.SendApproverLink(ctx, actor, channel.Type(ch), userID)
+}
+
 // responseConfig is the configuration of the response service: every port wired to the module that provides it.
 func responseConfig(d *deps) (response.Config, error) {
 	n := newNotify(d)
 	cfg := response.Config{DB: d.DB, Secrets: d.Secrets, Audit: d.Audit, Users: responseUsers{d}, TwoStep: responseTwoStep{d}, Log: d.Log, Clock: d.Clock,
 		Notifier: responseNotifier{n: n, now: d.Clock, reg: d.Reg}, Links: responseLinks{n}, Webhooks: responseWebhooks{n}, Directory: responseDirectory{inv: d.Inventory, fnd: d.Findings},
-		Mailer: responseMailer{n.CodeMailer()}, BaseURL: d.BaseURL} // the block list address a firewall pulls (empty on loopback: a relative path)
+		Mailer: responseMailer{n.CodeMailer()}, LinkSender: responseLinkSender{n: n, reg: d.Reg}, BaseURL: d.BaseURL} // the block list address a firewall pulls (empty on loopback: a relative path)
 	cfg.BoxAddrs = responseBoxAddrs(notifyBoxAddrs(d.HostNet), lateDecoys{d})        // D-179 (6), (8): the decoys and the host's addresses are the box too, so an action aimed at one is never_touch
 	cfg.MachineAddrs, cfg.SelfAddrs = machineAddrs(d), responseDecoys(lateDecoys{d}) // D-446 for webhook_call; an unreadable decoy record refuses (D-179 (8))
 	var hostState netStateReader

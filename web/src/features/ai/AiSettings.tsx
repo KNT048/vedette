@@ -194,7 +194,7 @@ function ProfileDialog({ profile, existing, onClose }: { profile: AiProfile | nu
   const [model, setModel] = useState(profile?.model ?? DEFAULTS[first].model)
   const [key, setKey] = useState('')
   const [location, setLocation] = useState<'internal' | 'cloud'>(profile?.location ?? DEFAULTS[first].location)
-  const [cap, setCap] = useState(String(profile?.daily_cap ?? 60000))
+  const [cap, setCap] = useState(String(profile?.daily_cap ?? 200000))
   const [ack, setAck] = useState(false)
   const [errs, setErrs] = useState<Errs>({})
   const cloudOnly = kind !== 'openai-compatible' && kind !== 'custom'

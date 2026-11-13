@@ -294,11 +294,11 @@ func (s *Service) DecideFromChat(ctx context.Context, d ChatDecision) (ChatOutco
 	refuse := func(e *apierr.Error) (ChatOutcome, error) {
 		return ChatOutcome{}, s.refuse(ctx, e, target, who.refuseActor())
 	}
-	// D-191: the ID must be one its person linked in My account. Not linked: nothing is decided and the private answer holds a link code.
+	// D-191: the ID must be one its person linked (D-414: by the confirm link). Not linked: nothing is decided and the answer says how to link.
 	if linked, err := s.isLinked(ctx, u, d.Channel, d.ExternalID); err != nil {
 		return ChatOutcome{}, err
 	} else if !linked {
-		return ChatOutcome{}, s.chatNotLinked(ctx, u, d.Channel, d.ExternalID, target, who.refuseActor())
+		return ChatOutcome{}, s.chatNotLinked(ctx, d.Channel, d.ExternalID, target, who.refuseActor())
 	}
 
 	// The request: from the button, or (Zalo) from the record of the code.

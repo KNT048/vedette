@@ -374,15 +374,23 @@ describe('logs: the Logs page (S-LOG-1, S-LOG-2)', () => {
     expect(screen.queryByLabelText('Keyword')).not.toBeInTheDocument()
   })
 
-  it('no sources yet, but syslog arrives: the sender is named with a way to add it (walk 4, D-443)', async () => {
+  it('no sources yet, but syslog arrives: the sender is named once with every protocol it used, a way to add it and a forgery warning (walk 4, D-443)', async () => {
     server.use(
       http.get('*/api/v1/logs/sources', () => HttpResponse.json({ box: { ip: '192.168.18.141', hostname: 'vedette' }, sources: [], retention_days: 30 })),
-      http.get('*/api/v1/logs/unknown-senders', () => HttpResponse.json({ items: [{ ip: '192.168.18.145', proto: 'udp', count: 3, last_seen: new Date().toISOString() }] })),
+      http.get('*/api/v1/logs/unknown-senders', () => HttpResponse.json({ items: [
+        { ip: '192.168.18.145', proto: 'tcp', count: 1, last_seen: new Date().toISOString() },
+        { ip: '192.168.18.145', proto: 'udp', count: 2, last_seen: new Date(Date.now() - 60e3).toISOString() },
+      ] })),
     )
     renderApp('/logs')
     const hint = await screen.findByRole('region', { name: 'Syslog from an address that is not a source' })
-    expect(hint).toHaveTextContent('192.168.18.145 sends syslog over UDP, but no source has this IP, so the box drops its lines (3 times, last')
-    expect(within(hint).getByRole('button', { name: 'Add 192.168.18.145 as a log source' })).toBeEnabled()
+    expect(hint).toHaveTextContent('192.168.18.145 sends syslog over TCP and UDP, but no source has this IP, so the box drops its lines (3 times, last')
+    expect(within(hint).getAllByRole('listitem')).toHaveLength(1)
+    expect(hint).toHaveTextContent('The sender address of a UDP datagram can be forged')
+    await userEvent.click(within(hint).getByRole('button', { name: 'Add 192.168.18.145 as a log source' }))
+    const form = await screen.findByRole('dialog', { name: 'Add log source' })
+    await userEvent.click(within(form).getByRole('button', { name: /^FortiGate/ }))
+    expect(within(form).getByLabelText('Protocol')).toHaveValue('udp') // a UDP source takes TCP too (D-444)
   })
 
   it('the box address is unknown (no LAN range yet): the page says so and the setup shows a clear placeholder', async () => {

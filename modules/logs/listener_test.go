@@ -247,6 +247,41 @@ func (g *toggleGate) Enabled(string) bool {
 }
 func (g *toggleGate) set(v bool) { g.mu.Lock(); defer g.mu.Unlock(); g.on = v }
 
+// SYS-5 with no source at all (D-443 opens the sockets without one): the module off means nothing listens, on means UDP and TCP
+// listen, off again closes them.
+func TestNoSocketWhileTheModuleIsOffWithNoSources(t *testing.T) {
+	t.Parallel()
+	e := syslogEnv(t)
+	gate := &toggleGate{}
+	sched := jobs.New(slog.New(slog.DiscardHandler), gate, nil)
+	for _, j := range Jobs(e.svc) {
+		if j.Name == "syslog" {
+			if err := sched.Add(j); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	ctx, cancel := context.WithCancel(t.Context())
+	done := make(chan struct{})
+	go func() { defer close(done); sched.Run(ctx) }()
+	defer func() { cancel(); <-done }()
+	waitUntil(t, "the scheduler to have asked the gate", func() bool { return gate.calls.Load() > 0 })
+	if e.svc.listening.Load() != nil {
+		t.Fatal("the listener runs while the module is off")
+	}
+	gate.set(true)
+	sched.ModuleChanged(ModuleID, true)
+	var udp, tcp net.Addr
+	waitUntil(t, "both sockets with no source after the module was turned on", func() bool { udp, tcp = e.addrs(); return udp != nil && tcp != nil })
+	gate.set(false)
+	sched.ModuleChanged(ModuleID, false)
+	waitUntil(t, "the listener to stop", func() bool { return e.svc.listening.Load() == nil })
+	if c, err := dialCtx("tcp4", tcp.String()); err == nil {
+		_ = c.Close()
+		t.Error("the TCP port still accepts connections after the module was turned off")
+	}
+}
+
 // SYS-5: with the module off nothing listens; turning it on opens the sockets of the declared sources; turning it off closes them.
 func TestNoSocketWhileTheModuleIsOff(t *testing.T) {
 	t.Parallel()

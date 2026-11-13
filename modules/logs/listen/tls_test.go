@@ -145,14 +145,42 @@ func TestTLSFromAnUnknownSenderIsDroppedBeforeTheHandshake(t *testing.T) {
 	}
 }
 
-// A sender declared as plain TCP is not served on the TLS port, and the reverse.
-func TestTLSPortServesOnlyTLSSources(t *testing.T) {
+// D-443, D-444: every socket is open, and a source is taken only over what it was declared with. A TLS source (here with a client
+// certificate pin) gets nothing stored over plain TCP or UDP: the datagram is dropped and the connection closed before a read, both counted.
+func TestATLSSourceIsNotTakenOverPlainTCPOrUDP(t *testing.T) {
 	t.Parallel()
 	tr := newTLSRig(t, Limits{}, true)
+	if err := tr.srv.SetSources(map[netip.Addr]Source{lo: {ID: "src-1", Proto: "tls", ClientCertSHA256: strings.Repeat("ab", 32)}}); err != nil {
+		t.Fatal(err)
+	}
 	tr.start()
+	sendUDP(t, tr.udpAddr(), "<34>plain udp from a tls source")
+	c := dialTCP(t, tr.tcpAddr())
+	_, _ = io.WriteString(c, "<34>plain tcp from a tls source\n")
+	if !closedByPeer(c, 5*time.Second) {
+		t.Error("a plain TCP connection of a TLS source stayed open")
+	}
+	waitFor(t, "the datagram and the connection to be counted", func() bool { return tr.srv.Stats().Unknown == 2 })
+	if got := tr.srv.Stats().UnknownSender; len(got) != 2 {
+		t.Errorf("unknown senders %+v: want the address once over UDP and once over TCP", got)
+	}
+	if n := len(tr.lines()); n != 0 {
+		t.Errorf("%d lines stored", n)
+	}
+}
+
+// A source declared plain TCP is closed on the TLS port before any handshake: the certificate is never asked for.
+func TestATCPSourceIsClosedBeforeTheHandshakeOnTheTLSPort(t *testing.T) {
+	t.Parallel()
+	tr := newTLSRig(t, Limits{}, true)
 	tr.set("tcp")
-	if a := tr.srv.TLSAddr(); a != nil {
-		t.Fatalf("a TCP source opened the TLS socket: %v", a)
+	tr.start()
+	if _, err := tr.dial(tr.tlsAddr(), tr.pool); err == nil {
+		t.Fatal("a TCP source completed a TLS handshake")
+	}
+	waitFor(t, "the connection to be counted as unknown", func() bool { return tr.srv.Stats().Unknown == 1 })
+	if n := tr.calls.Load(); n != 0 {
+		t.Errorf("the certificate was asked for %d times: the handshake ran", n)
 	}
 }
 

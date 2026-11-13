@@ -180,8 +180,8 @@ const UnknownShown = 10
 
 // UnknownSenders is the senders whose syslog the listener dropped because no source declares them, or declares them with another protocol
 // (FORBID-5; a UDP source takes TCP too, D-444): the S-LOG-1 hint "lines arrive from an address that is not a source". The addresses come from the socket (listen.UnknownSender),
-// never from the text of a line. A sender that a source now declares with the protocol it last used is left out, so adding the source clears
-// the hint at once. In memory only (the listener's 256-sender table, the 10 most recent returned; no line text is kept): empty while the listener is not running, and counted again from zero when it restarts.
+// never from the text of a line. A sender that a source now takes over the protocol it used is left out, so adding the source clears
+// the hint at once. One item per address and protocol, so a sender that uses UDP and TCP is named with both. In memory only (the listener's 256-entry table, the 10 most recent returned; no line text is kept): empty while the listener is not running, and counted again from zero when it restarts.
 func (s *Service) UnknownSenders(ctx context.Context) (UnknownSendersView, error) {
 	out := UnknownSendersView{Items: []UnknownSender{}}
 	srv := s.listening.Load()

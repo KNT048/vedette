@@ -27,6 +27,7 @@ type Limits struct {
 	MaxFrame         int           // largest datagram, octet count or newline-less line read (64 KiB)
 	MaxConns         int           // TCP connections at once, all sources (1,000)
 	MaxConnsIP       int           // TCP connections at once from one source (256)
+	MaxConnsIPOther  int           // of those, the ones over a protocol the source was not declared with: TCP to a UDP source (8, D-444), so such a source cannot take the share of the others
 	Idle             time.Duration // a connection that sends nothing for this long is closed (5 min)
 	HandshakeTimeout time.Duration // a TLS connection must finish its handshake within this (10 s): a half-open or silent one cannot hold a slot
 	HandshakeRate    float64       // TLS connections a second one declared sender may start (20): a handshake costs the box CPU (about 0.5 ms with ECDSA, D-436); a connection above it is closed before any handshake and counted in ConnRejected
@@ -38,7 +39,7 @@ type Limits struct {
 	BatchBytes       int           // bytes of text in a batch (1 MiB)
 	BatchWait        time.Duration // the longest a line waits for its batch (2 s)
 	Queue            int           // lines waiting for a batch (4,096); a datagram is dropped and counted when it is full
-	UnknownKept      int           // senders remembered while counting the unknown ones (256, least recently seen out)
+	UnknownKept      int           // senders remembered while counting the unknown ones, one per address and protocol (256, least recently seen out)
 	FlushOnClose     time.Duration // the longest a Sink call may take once the server is stopping (5 s)
 	ErrorLogEvery    time.Duration // the least time between two log lines about a failing Sink (10 s)
 }
@@ -58,6 +59,7 @@ func (l Limits) withDefaults() Limits {
 	def(&l.MaxFrame, 64<<10)
 	def(&l.MaxConns, 1000)
 	def(&l.MaxConnsIP, 256)
+	def(&l.MaxConnsIPOther, 8)
 	defD(&l.Idle, 5*time.Minute)
 	defD(&l.FrameTimeout, 30*time.Second)
 	defD(&l.HandshakeTimeout, 10*time.Second)
@@ -513,10 +515,11 @@ func (s *Server) Status() Status {
 	return Status{Port: s.port, Preferred: s.cfg.Ports[0], FellBack: s.fellBack, UDP: s.udp != nil, TCP: s.tcp != nil, TLS: s.tlsL != nil, TLSPort: s.tlsPort, UDPErr: s.bindErr[0], TCPErr: s.bindErr[1], TLSErr: s.bindErr[2], Conns: len(s.conns)}
 }
 
-// UnknownSender is a sender that is not a declared source, with the lines it sent since the server started.
+// UnknownSender is a sender that is not a declared source of one protocol, with the lines it sent over it since the server started; a
+// sender that used two protocols is two of them.
 type UnknownSender struct {
 	IP    netip.Addr // from the socket, never from the text
-	Proto string     // how its last datagram or connection arrived: udp, tcp or tls
+	Proto string     // how these datagrams or connections arrived: udp, tcp or tls
 	Count int64
 	Last  time.Time
 }
@@ -698,7 +701,7 @@ func (s *Server) register(l net.Listener, conn net.Conn, ip netip.Addr, proto st
 	if src, ok := s.sources[ip]; !ok || !Accepts(src.Proto, proto) {
 		return regStale
 	}
-	if len(s.conns) >= s.lim.MaxConns || s.perIP[ip] >= s.lim.MaxConnsIP {
+	if len(s.conns) >= s.lim.MaxConns || s.perIP[ip] >= s.lim.MaxConnsIP || (s.sources[ip].Proto != proto && s.perIP[ip] >= s.lim.MaxConnsIPOther) {
 		return regOverLimit
 	}
 	s.conns[conn] = connInfo{ip: ip, proto: proto, pin: s.sources[ip].ClientCertSHA256}
@@ -987,7 +990,13 @@ func (s *Server) sinkFailed(ctx context.Context, err error, n int) {
 type lru struct {
 	max int
 	ll  *list.List
-	idx map[netip.Addr]*list.Element
+	idx map[lruKey]*list.Element
+}
+
+// lruKey is one sender over one protocol: a sender that uses two protocols is two entries, so the page names both (not only the last).
+type lruKey struct {
+	ip    netip.Addr
+	proto string
 }
 
 type lruEntry struct {
@@ -998,21 +1007,23 @@ type lruEntry struct {
 }
 
 func newLRU(limit int) *lru {
-	return &lru{max: limit, ll: list.New(), idx: map[netip.Addr]*list.Element{}}
+	return &lru{max: limit, ll: list.New(), idx: map[lruKey]*list.Element{}}
 }
 
 func (l *lru) touch(ip netip.Addr, proto string, at time.Time) {
-	if e, ok := l.idx[ip]; ok {
+	k := lruKey{ip, proto}
+	if e, ok := l.idx[k]; ok {
 		en := e.Value.(*lruEntry)
 		en.count++
-		en.proto, en.last = proto, at
+		en.last = at
 		l.ll.MoveToFront(e)
 		return
 	}
-	l.idx[ip] = l.ll.PushFront(&lruEntry{ip: ip, proto: proto, count: 1, last: at})
+	l.idx[k] = l.ll.PushFront(&lruEntry{ip: ip, proto: proto, count: 1, last: at})
 	if l.ll.Len() > l.max {
 		old := l.ll.Back()
-		delete(l.idx, old.Value.(*lruEntry).ip)
+		oe := old.Value.(*lruEntry)
+		delete(l.idx, lruKey{oe.ip, oe.proto})
 		l.ll.Remove(old)
 	}
 }

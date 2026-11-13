@@ -74214,7 +74214,8 @@ type LogsGetLogsUnknownSendersOKItemsItem struct {
 	// The sender address as the socket saw it (IPv4, or IPv6 when the box listens on IPv6).
 	IP       string    `json:"ip"`
 	LastSeen time.Time `json:"last_seen"`
-	// How the last message arrived.
+	// How these messages arrived: one item per address and protocol, so a sender that used two protocols
+	// is two items.
 	Proto LogsGetLogsUnknownSendersOKItemsItemProto `json:"proto"`
 }
 
@@ -74258,7 +74259,8 @@ func (s *LogsGetLogsUnknownSendersOKItemsItem) SetProto(val LogsGetLogsUnknownSe
 	s.Proto = val
 }
 
-// How the last message arrived.
+// How these messages arrived: one item per address and protocol, so a sender that used two protocols
+// is two items.
 type LogsGetLogsUnknownSendersOKItemsItemProto string
 
 const (

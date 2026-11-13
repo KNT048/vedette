@@ -392,9 +392,56 @@ func TestTheUnknownSenderTableHoldsTheMostRecentOnly(t *testing.T) {
 	if got[0].IP != netip.AddrFrom4([4]byte{10, 0, 3, 231}) { // i = 999
 		t.Errorf("most recent = %v", got[0].IP)
 	}
-	l.touch(got[255].IP, "tcp", base)
-	if l.list()[0].IP != got[255].IP || l.list()[0].Count != 2 || l.list()[0].Proto != "tcp" {
+	l.touch(got[255].IP, "udp", base)
+	if l.list()[0].IP != got[255].IP || l.list()[0].Count != 2 || l.list()[0].Proto != "udp" {
 		t.Error("a repeat sender is not moved to the front and counted")
+	}
+	// A sender over another protocol is an entry of its own: the page names both protocols, not only the last one used.
+	l.touch(got[255].IP, "tcp", base)
+	if top := l.list(); len(top) != 256 || top[0].IP != got[255].IP || top[0].Proto != "tcp" || top[0].Count != 1 || top[1].IP != got[255].IP || top[1].Proto != "udp" || top[1].Count != 2 {
+		t.Errorf("one sender over two protocols: %+v", top[:2])
+	}
+}
+
+// D-444: every pair of declared and arriving protocol.
+func TestAcceptsTakesTheDeclaredProtocolAndTCPForAUDPSource(t *testing.T) {
+	want := map[[2]string]bool{
+		{"udp", "udp"}: true, {"udp", "tcp"}: true, {"udp", "tls"}: false,
+		{"tcp", "udp"}: false, {"tcp", "tcp"}: true, {"tcp", "tls"}: false,
+		{"tls", "udp"}: false, {"tls", "tcp"}: false, {"tls", "tls"}: true,
+	}
+	for k, w := range want {
+		if got := Accepts(k[0], k[1]); got != w {
+			t.Errorf("Accepts(declared %s, arrived %s) = %v, want %v", k[0], k[1], got, w)
+		}
+	}
+}
+
+// D-444: a UDP source may hold only MaxConnsIPOther TCP connections (8), so it cannot take the share of the sources declared with TCP or TLS.
+func TestAUDPSourceHoldsFewTCPConnections(t *testing.T) {
+	r := newRig(t, Limits{}, nil)
+	other := netip.MustParseAddr("127.0.0.2")
+	if err := r.srv.SetSources(map[netip.Addr]Source{lo: {ID: "src-1", Proto: "udp"}, other: {ID: "src-2", Proto: "tcp"}}); err != nil {
+		t.Fatal(err)
+	}
+	r.start()
+	r.tcpAddr()
+	r.srv.mu.Lock()
+	l := r.srv.tcp
+	r.srv.mu.Unlock()
+	pipe := func() net.Conn { a, b := net.Pipe(); t.Cleanup(func() { _ = a.Close(); _ = b.Close() }); return a }
+	for i := range 8 {
+		if got := r.srv.register(l, pipe(), lo, "tcp"); got != regOK {
+			t.Fatalf("TCP connection %d of a UDP source: %d", i+1, got)
+		}
+	}
+	if got := r.srv.register(l, pipe(), lo, "tcp"); got != regOverLimit {
+		t.Errorf("the 9th TCP connection of a UDP source: %d, want regOverLimit", got)
+	}
+	for i := range 9 {
+		if got := r.srv.register(l, pipe(), other, "tcp"); got != regOK {
+			t.Fatalf("TCP connection %d of a TCP source: %d (its limit is MaxConnsIP)", i+1, got)
+		}
 	}
 }
 

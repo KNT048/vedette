@@ -181,8 +181,9 @@ func isoDay(t time.Time) int {
 }
 
 // NextRun is the next scheduled run after now in loc, or nil when the schedule is off (POST-3; the mock's nextRun):
-// the first slot within two weeks that slotOK accepts.
-func (c Settings) NextRun(now time.Time, loc *time.Location) *time.Time {
+// the first slot within two weeks that slotOK accepts. first is true while no scheduled slot was ever recorded (sched_last is
+// empty): the first run is then the next window day at the schedule time, whatever the weekday of a weekly schedule (W3-6).
+func (c Settings) NextRun(now time.Time, loc *time.Location, first bool) *time.Time {
 	if !c.Schedule.Enabled || !hhmmRE.MatchString(c.Schedule.At) {
 		return nil
 	}
@@ -190,7 +191,7 @@ func (c Settings) NextRun(now time.Time, loc *time.Location) *time.Time {
 	local := now.In(loc)
 	for i := range nextRunSearchDay {
 		d := time.Date(local.Year(), local.Month(), local.Day()+i, at/60, at%60, 0, 0, loc)
-		if d.After(now) && c.slotOK(d) {
+		if d.After(now) && c.slotOK(d, first) {
 			return &d
 		}
 	}
@@ -200,12 +201,14 @@ func (c Settings) NextRun(now time.Time, loc *time.Location) *time.Time {
 // slotOK says whether the schedule runs at slot (a day at the schedule time): the window the slot falls in starts on
 // a window day, and a weekly schedule runs on its weekday (the slot's own calendar day). A window that crosses
 // midnight counts by its start day (the GUI's words), so a slot after midnight belongs to the window of the day
-// before: Monday 02:00 is in Sunday's 22:00 to 05:00 window (#164 review M1).
-func (c Settings) slotOK(slot time.Time) bool {
+// before: Monday 02:00 is in Sunday's 22:00 to 05:00 window (#164 review M1). The first scheduled run of a box (first) runs in
+// the next window of any window day, so a new box with the weekly default does not wait up to a week for it (W3-6, D-504); the
+// weekday counts from the second run on.
+func (c Settings) slotOK(slot time.Time, first bool) bool {
 	if _, ok := c.slotWindowEnd(slot); !ok {
 		return false
 	}
-	return c.Schedule.Frequency == "daily" || isoDay(slot) == c.Schedule.Weekday
+	return first || c.Schedule.Frequency == "daily" || isoDay(slot) == c.Schedule.Weekday
 }
 
 // slotWindowEnd is when the window of slot closes; ok is false when that window does not start on a window day. The

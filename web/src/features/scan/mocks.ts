@@ -147,20 +147,21 @@ const inTimeRange = (at: string, from: string, to: string) => (hm(from) < hm(to)
 const isoDay = (d: Date) => d.getDay() || 7
 
 /** A slot runs when its window starts on a window day (a window that crosses midnight counts by its start day, so a slot after midnight
- *  belongs to the window of the day before: #164 review M1) and, weekly, on the chosen weekday (the slot's own day). */
-function slotOK(c: ScanConfig, d: Date): boolean {
+ *  belongs to the window of the day before: #164 review M1) and, weekly, on the chosen weekday (the slot's own day). The first
+ *  scheduled run (first: none ran yet) takes the next window of any window day (W3-6; modules/scan slotOK). */
+function slotOK(c: ScanConfig, d: Date, first = false): boolean {
   const start = new Date(d)
   if (hm(c.window.from) > hm(c.window.to) && hm(c.schedule.at) < hm(c.window.to)) start.setDate(start.getDate() - 1)
-  return c.window.days.includes(isoDay(start)) && (c.schedule.frequency === 'daily' || isoDay(d) === c.schedule.weekday)
+  return c.window.days.includes(isoDay(start)) && (first || c.schedule.frequency === 'daily' || isoDay(d) === c.schedule.weekday)
 }
 
-export function nextRun(c: ScanConfig, now = new Date()): string | null {
+export function nextRun(c: ScanConfig, now = new Date(), first = false): string | null {
   if (!c.schedule.enabled) return null
   for (let i = 0; i < 15; i++) {
     const d = new Date(now)
     d.setDate(d.getDate() + i)
     d.setHours(hm(c.schedule.at) / 60 | 0, hm(c.schedule.at) % 60, 0, 0)
-    if (d.getTime() > now.getTime() && slotOK(c, d)) return d.toISOString()
+    if (d.getTime() > now.getTime() && slotOK(c, d, first)) return d.toISOString()
   }
   return null
 }
@@ -377,7 +378,7 @@ function configResponse(): ScanConfigResponse {
   const block = !sc.commitment ? 'The scan scope commitment is not ticked yet. Do it under Devices, Scope and sensors.' : !up ? SCANNER_DOWN : null
   const zoneDown = !zoneStore.get().readable
   const sched = zoneDown && c.schedule.enabled ? ZONE_DOWN : null
-  return { config: c, next_run: zoneDown ? null : nextRun(c), scope: sc, can_scan: block === null, block_reason: block, dangerous_checks: false, schedule_blocked_reason: sched }
+  return { config: c, next_run: zoneDown ? null : nextRun(c, new Date(), !runs.get().some((r) => r.trigger === 'schedule')), scope: sc, can_scan: block === null, block_reason: block, dangerous_checks: false, schedule_blocked_reason: sched }
 }
 
 // ---- khoá SSH (S-SCAN-5) ----

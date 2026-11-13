@@ -3,7 +3,13 @@
 ## Modifying: naming (`DisplayName`, `Device.Name`, `Names`, `deviceName`), `approved_at`, `SetSoftwareVersion`, `AddManualDevice` id (D-471, INV-26)
 - **Tên thiết bị** là một luật cho mọi nơi: `Names` → findings (`cmd/vedette/wiring.go` `findingsInventory.Assets` và `MatchInput` khi tên là id), notify, honeypot, báo cáo; `Device.Name` → `cmd/vedette/scan.go` `deviceLabel` (danh sách quét, báo cáo `reports.go`); `deviceName` → đích của dòng audit. Web: `web/src/features/inventory/nameOf.ts` (`displayName` cũng dùng trong mock của findings và scan). Đổi luật = đổi cả hai phía và các test `TestContract_D471_OneNamingRule`, `scan.test.tsx` (beta item 27), `inventory.test.tsx` (D-471).
 - **Tên máy dễ đọc thắng UUID** (`merge.go` `better`, M5-186): đổi điều kiện là đổi tên hiện trên mọi trang và tiêu đề incident thiết bị mới (notify đọc hostname).
-- **`approved_at`**: chỉ GUI đọc ("Approved in the last 24 h", KPI của /devices); `modules/core/export_policy.go` liệt kê cột (bản xuất JSON). B9 (D-474) phát `inventory.asset.approved` cùng chỗ `Approve`.
+- **`approved_at`**: GUI đọc ("Approved in the last 24 h", KPI của /devices) và notify qua `DeviceRef.ApprovedAt` (D-474); `modules/core/export_policy.go` liệt kê cột (bản xuất JSON).
+
+## Modifying: thời gian học, `inventory.asset.approved`, `MatchSoftware.Source/Packaged`, `DeviceRef.Model/Origin/ApprovedAt` (D-474, INV-28)
+- **notify** (Mlee; người đọc duy nhất của `learning` và `inventory.asset.approved`): gộp thiết bị `learning:true` vào một tóm tắt lần khám phá đầu; đóng incident thiết bị mới với "approved by <actor>" (`modules/notify/events.go` `assetApproved`; `actor` của `asset.deleted` cho "deleted by <actor>"); đọc `DeviceRefs` thay cho `Device` từng thiết bị. Đổi tên sự kiện, tên trường JSON (`learning`, `actor`), `LearningWindow` hay luật "chỉ duyệt của người, chỉ khi đang chờ" = notify im lặng sai (không lỗi biên dịch). `cmd/vedette` `TestWiringApproveInDevicesClosesTheNewDeviceIncident` giữ đường đó.
+- **findings** (Mlee; `findingsInventory` ở `cmd/vedette/wiring.go` chuyển `MatchSoftware` sang cổng của findings): `Source` + `Packaged` quyết câu `fixed_in` "install your distribution's security updates". `Packaged` sai = lời khuyên sai cho gói không phải của bản phân phối.
+- **Ghi `inv_source`** nằm trong `Record`, `deviceFor` (`ReplaceSoftware`, `ReplaceServices`, `AddServices`): thêm đường ghi mới của cảm biến mà không gọi `learning` = nguồn đó không bao giờ có thời gian học, hoặc học muộn. Cho `EnsureBox`/`UpsertSoftware` ghi vào đó = osquery cài sau trên LAN không bao giờ "đang học" (dpkg của hộp đã là `agent`).
+- **`observe.Software.Packaged`** (core/observe): agent-intake `mapPackages` đặt cho `deb_packages`/`rpm_packages` (osquery, Wazuh) và `MapDebPackages` (dpkg của hộp, `cmd/vedette` `boxPackages` chép sang `SoftwareItem.Packaged`); thêm bảng gói khác (snap, apk, brew) phải quyết cờ ở đó.
 - **`SetSoftwareVersion`**: findings khớp lại qua `inventory.match.changed` (một sự kiện mỗi lần đổi); M1 (findings "I updated X") gọi cùng route. Nhãn audit `inventory.set_software_version` trong `web/src/locales/en/core.json`.
 - **`AddManualDevice` trả id**: `cmd/vedette/wiring.go` `feedsInventory.AddManualDevice` chuyển id cho feeds (`declareDevice` ghi `feeds_weekly_answer.device_id`), làm phạm vi "I have this" theo thiết bị của findings (D-484 (4), INV-11) có hiệu lực. Trả id rỗng là tắt phạm vi đó.
 
@@ -40,8 +46,8 @@
 ## Modifying: `inventory.Service.Device/Devices/Detail/Names` (GetAsset/ListAssets của bản nháp)
 - **findings** (`FindingAsset`; D-57 (6)), **notify** (`devices[]` của incident), **honeypot/logs/response** (thiết bị nguồn), **reports**, **ai**, **mcp-server** (`search_assets`).
 
-## Modifying: sự kiện `inventory.asset.deleted`, `inventory.match.changed`, `inventory.asset.discovered`
-- **findings** (xoá/tạo finding qua `inventory.asset.deleted`, `inventory.match.changed`), **notify** (incident `unknown_device`), **sensor-active** (quét lần đầu thiết bị mong manh).
+## Modifying: sự kiện `inventory.asset.deleted`, `inventory.match.changed`, `inventory.asset.discovered`, `inventory.asset.approved`
+- **findings** (xoá/tạo finding qua `inventory.asset.deleted`, `inventory.match.changed`), **notify** (incident `unknown_device`, `learning`, `actor` của duyệt/xoá; D-474), **sensor-active** (quét lần đầu thiết bị mong manh).
 
 ## Modifying: các interface phía dùng (`modules/inventory/types.go`) và `inventory.Config`
 - `Publisher` (`Publish(ctx, Event{Name, Data}) error`): `cmd/vedette` nối với `core/events.Bus` (WP-04b) bằng `inventory.PublisherFunc`; nil = không ai nghe. Đổi tên/kiểu dữ liệu sự kiện: `findings`, `notify`, `sensor-active` im lặng, không lỗi biên dịch (có test ở bên phát).

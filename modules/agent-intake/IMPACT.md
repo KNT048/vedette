@@ -21,6 +21,7 @@
 
 ## Modifying: ghi vào `inventory` (`observe.Sink.Record`, `observe.SoftwareSink.ReplaceSoftware`, nguồn `agent`) — 1 đích
 - **inventory**: nhận quan sát `os`/`hostname`/`vendor`/`model`/`mac` và danh sách gói (≤ 5.000, khoá `vendor|product` ≤ 400 byte, phiên bản ≤ 100 ký tự). Đổi giới hạn của `inventory.checkItems`/`cleanText` → `mapper.go` (`maxName`, `maxVersion`, `maxKeyBytes`) phải đổi theo, nếu không kho từ chối cả danh sách. Đổi độ tin cậy → cách kho gộp nhiều nguồn và cột "nghi"/"chắc" đổi theo. Đổi khoá định danh host (MAC rồi IP) → trùng thiết bị.
+- **`Packaged`** (D-474): `mapPackages` đặt cho dòng deb/rpm; findings (qua inventory `MatchSoftware.Packaged`) chỉ khuyên "install your distribution's security updates" cho các dòng đó. Thêm bảng gói khác phải quyết cờ.
 - **`MapDebPackages`** (D-470): người gọi là `cmd/vedette` `boxPackages` (danh sách dpkg của chính hộp). Đổi `mapPackages` cho `deb_packages` cũng đổi phần mềm của "This box"; hai bên phải giữ cùng dòng để một osquery cài trên hộp không đổi qua đổi lại danh sách. `mapPackages` nhận trần số dòng: agent và Wazuh truyền `maxRows` (5 000), `MapDebPackages` không cắt (inventory lưu cả hay từ chối cả).
 - **pkgmap.json**: mỗi cặp phải có trong `content/catalog` (test); đổi `kev-products.json`/`curated.json` có thể làm một cặp chết → test đỏ.
 

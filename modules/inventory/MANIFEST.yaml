@@ -9,5 +9,5 @@ ports: []
 container: core
 tables_prefix: inv_
 stories: [S-INV-1, S-INV-2, S-INV-3, S-INV-5, S-FEED-1]   # S-INV-4 thuộc agent-intake
-decisions: [D-30, D-32, D-45, D-53, D-350]
+decisions: [D-30, D-32, D-45, D-53, D-350, D-474]
 milestone: M2   # khai tay; M3 tự động

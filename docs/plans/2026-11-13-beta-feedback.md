@@ -8,7 +8,7 @@ Rules that apply to every group:
 - plan → build → critique for screens (`docs/FRONTEND.md` §5)
 - Playwright of the touched specs runs **before** merge, because CI does not run e2e (lesson from #636)
 - Opus review for host / core / response / sensor / untrusted input
-- one PR per group, merged through the lead's merge-step
+- one PR per group, squash-merged by the lead when CI is green (D-413; no merge queue)
 
 The reference layout doc kien pointed to is from another project. It is git-ignored: its method and density ideas may be used, but never its names or branding, and it is never committed.
 

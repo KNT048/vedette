@@ -74,20 +74,19 @@ func changes() error {
 	var paths []string
 	ok := false
 	if event == "pull_request" {
-		out, err := exec.CommandContext(context.Background(), "git", "diff", "--name-only", "--no-renames", "-z", "HEAD^1", "HEAD").Output()
-		if err == nil {
+		var err error
+		if paths, err = changedSince("HEAD^1"); err == nil {
 			ok = true
-			for _, p := range bytes.Split(out, []byte{0}) {
-				if len(p) > 0 {
-					paths = append(paths, string(p))
-				}
-			}
 		} else {
 			fmt.Fprintln(os.Stderr, "ci: git diff failed, running everything:", err)
 		}
 	}
 	o := Decide(event, paths, ok)
-	text := fmt.Sprintf("go=%t\ntests=%t\nweb=%t\nvuln=%t\naudit=%t\n", o.Go, o.Tests, o.Web, o.Vuln, o.Audit)
+	webtests := "changed"
+	if o.WebAll {
+		webtests = "all"
+	}
+	text := fmt.Sprintf("go=%t\ntests=%t\nweb=%t\nwebtests=%s\nvuln=%t\naudit=%t\n", o.Go, o.Tests, o.Web, webtests, o.Vuln, o.Audit)
 	fmt.Fprintf(os.Stderr, "ci: event=%q changed=%d\n%s", event, len(paths), text)
 	if f := os.Getenv("GITHUB_OUTPUT"); f != "" {
 		w, err := os.OpenFile(f, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0o600) //nolint:gosec // G304: $GITHUB_OUTPUT is set by the runner
@@ -102,6 +101,22 @@ func changes() error {
 	}
 	fmt.Print(text)
 	return nil
+}
+
+// changedSince lists the repo paths changed between base and HEAD; a rename counts as a delete and an add.
+func changedSince(base string) ([]string, error) {
+	//nolint:gosec // G204: fixed argv, no shell; base is HEAD^1 from ci.yml or the maintainer's CHANGED_BASE
+	out, err := exec.CommandContext(context.Background(), "git", "diff", "--name-only", "--no-renames", "-z", base, "HEAD").Output()
+	if err != nil {
+		return nil, err
+	}
+	var paths []string
+	for _, p := range bytes.Split(out, []byte{0}) {
+		if len(p) > 0 {
+			paths = append(paths, string(p))
+		}
+	}
+	return paths, nil
 }
 
 type pkg struct {
@@ -218,9 +233,11 @@ var uncached = []string{
 }
 
 // shardCmd prints the packages of shard i of n, one per line: all of them, or only those go test may take from its cache
-// ("cached"), or only the ones it may not ("uncached").
+// ("cached"), or only the ones it may not ("uncached"). With CI_CHANGED_BASE set (a pull request, D-413) it prints only the
+// shard's packages that Affected names for the change since that ref.
 func shardCmd(i, n int, mode string) error {
-	out, err := exec.CommandContext(context.Background(), "go", "list", "-f", "{{.ImportPath}} {{.Dir}}", "./...").Output()
+	out, err := exec.CommandContext(context.Background(), "go", "list", "-f",
+		"{{.ImportPath}}\t{{.Dir}}\t{{join .Imports \" \"}} {{join .TestImports \" \"}} {{join .XTestImports \" \"}}", "./...").Output()
 	if err != nil {
 		return fmt.Errorf("go list: %w", err)
 	}
@@ -228,20 +245,43 @@ func shardCmd(i, n int, mode string) error {
 	if err != nil {
 		return err
 	}
+	root, err := os.Getwd()
+	if err != nil {
+		return err
+	}
 	var paths []string
 	bytesOf := map[string]int64{}
+	dirs := map[string]string{}
+	imports := map[string][]string{}
 	for line := range strings.SplitSeq(strings.TrimSpace(string(out)), "\n") {
-		path, dir, found := strings.Cut(line, " ")
-		if !found {
+		f := strings.Split(line, "\t")
+		if len(f) != 3 {
 			return fmt.Errorf("go list: unexpected line %q", line)
 		}
+		path, dir := f[0], f[1]
 		paths = append(paths, path)
 		bytesOf[path] = testBytes(dir)
+		if rel, err := filepath.Rel(root, dir); err == nil {
+			dirs[filepath.ToSlash(rel)] = path
+		}
+		imports[path] = strings.Fields(f[2])
 	}
 	pkgs := weigh(paths, bytesOf, times)
 	mine := Shard(pkgs, i, n)
 	if len(mine) == 0 {
 		return fmt.Errorf("shard %d/%d is empty (%d packages)", i, n, len(pkgs))
+	}
+	if base := os.Getenv("CI_CHANGED_BASE"); base != "" {
+		changed, err := changedSince(base)
+		if err != nil {
+			return fmt.Errorf("git diff %s: %w", base, err)
+		}
+		if affected, all := Affected(changed, dirs, imports); !all {
+			mine = slices.DeleteFunc(mine, func(p string) bool { return !affected[p] })
+			fmt.Fprintf(os.Stderr, "ci shard %d/%d: %d packages the change since %s reaches (D-413)\n", i, n, len(mine), base)
+		} else {
+			fmt.Fprintf(os.Stderr, "ci shard %d/%d: a changed path lies in no package; every package runs\n", i, n)
+		}
 	}
 	for _, p := range mine {
 		if mode == "" || (mode == "uncached") == slices.Contains(uncached, p) {

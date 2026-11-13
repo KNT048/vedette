@@ -2,6 +2,7 @@ package signature
 
 import (
 	"net/netip"
+	"regexp"
 	"slices"
 	"strings"
 
@@ -218,20 +219,38 @@ func (p *profile) connByFields(msg string) Conn {
 	return c
 }
 
-// connByPattern reads the connection of a template line by the profile's conn_pattern ("local" and "dest" are addresses): exactly one
-// match, exactly one "->" in the line and no odd quote, or no connection.
+// connByPattern reads the connection of a template line. The anchored conn_patterns come first (the first that matches, exactly once, is the
+// connection and says whether it was blocked); then the conn_pattern ("local" and "dest" are addresses): exactly one match, exactly one "->"
+// in the line and no odd quote, or no connection.
 func (p *profile) connByPattern(msg string) Conn {
-	if p.conn == nil || strings.Count(msg, "->") != 1 || unbalancedQuotes(msg) || p.connRefuse != nil && p.connRefuse.MatchString(msg) {
+	if p.connRefuse != nil && p.connRefuse.MatchString(msg) {
+		return Conn{}
+	}
+	for _, cp := range p.connPats {
+		m := cp.re.FindAllStringSubmatch(msg, 2)
+		if len(m) == 0 {
+			continue
+		}
+		if len(m) != 1 {
+			return Conn{}
+		}
+		return connFrom(cp.re, m[0], cp.blocked)
+	}
+	if p.conn == nil || strings.Count(msg, "->") != 1 || unbalancedQuotes(msg) {
 		return Conn{}
 	}
 	m := p.conn.FindAllStringSubmatch(msg, 2)
 	if len(m) != 1 {
 		return Conn{}
 	}
-	local, err1 := netip.ParseAddr(m[0][p.conn.SubexpIndex("local")])
-	dest, err2 := netip.ParseAddr(m[0][p.conn.SubexpIndex("dest")])
+	return connFrom(p.conn, m[0], false)
+}
+
+func connFrom(re *regexp.Regexp, m []string, blocked bool) Conn {
+	local, err1 := netip.ParseAddr(m[re.SubexpIndex("local")])
+	dest, err2 := netip.ParseAddr(m[re.SubexpIndex("dest")])
 	if err1 != nil || err2 != nil || !LocalOK(local) || !PublicDest(dest) {
 		return Conn{}
 	}
-	return Conn{Local: local, Dests: []Dest{{KindIP, dest.String()}}}
+	return Conn{Local: local, Dests: []Dest{{KindIP, dest.String()}}, Blocked: blocked}
 }

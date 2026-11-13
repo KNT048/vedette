@@ -757,7 +757,7 @@ kept_release_ok() {
 	kept_records || return 0
 	had=$(kept_release)
 	if [ -z "$had" ]; then
-		warn "the data of an earlier install is kept here, but the release that last ran on it cannot be read ($HOST_STATE/containers/versions-core.json); it is not compared with $1"
+		warn "the data of an earlier install is kept here, but the release that last ran on it cannot be read ($HOST_STATE/containers/versions-core.json or $STATE/kept-release); it is not compared with $1"
 		return 0
 	fi
 	if dpkg --compare-versions "$(printf '%s' "$had" | sed 's/-/~/')" gt "$(printf '%s' "$1" | sed 's/-/~/')"; then
@@ -786,6 +786,7 @@ bootstrap() {
 	# done when core has its unit and its record; a missing unit (an --uninstall --keep-data, or a unit removed by hand) is installed again
 	if [ -e "$HOST_STATE/containers/versions-core.json" ] && [ -e "$UNIT_DIR/vedette-core.container" ]; then
 		say "the release is already bootstrapped (containers are updated from Settings -> Updates); skipping"
+		rm -f "$STATE/kept-release" # core has its record and its unit: the note of a run that stopped after writing them is done
 		return 0
 	fi
 	if [ -z "$TEST_DIR" ]; then

@@ -55,7 +55,7 @@ describe('logs: source catalog (S-LOG-1)', () => {
       expect(JSON.stringify([e.name, e.intro, e.readsNote, e.steps({ ip: IP, port: 514, proto: e.protos[0]! }), e.snippets({ ip: IP, port: 514, proto: e.protos[0]! }), e.notes]), e.id).not.toMatch(/[ạảãàáâấầẩẫậăắằẳẵặẹẻẽèéêếềểễệỉĩìíịọỏõòóôốồổỗộơớờởỡợụủũùúưứừửữựỳỷỹỵýđ]/i)
     }
     // honesty: only the kinds that have a profile (modules/logs/data/profiles) say parsed; everyone else says stored, and the digest reads them with the generic pattern finder
-    expect(ENTRIES.filter((e) => e.reads === 'parsed').map((e) => e.id).sort()).toEqual(['fortigate', 'mikrotik', 'windows'])
+    expect(ENTRIES.filter((e) => e.reads === 'parsed').map((e) => e.id).sort()).toEqual(['cisco-asa', 'fortigate', 'linux-journald', 'linux-rsyslog', 'mikrotik', 'opnsense', 'paloalto', 'pfsense', 'sonicwall', 'sophos', 'ubiquiti', 'windows'])
     expect(CATALOG.nginx.readsNote).toMatch(/Stored and searchable\./)
     // W3-10 (D-487): a Linux source says its failed logins are read, not "Stored only".
     expect(CATALOG['linux-rsyslog'].logins).toBe(true)

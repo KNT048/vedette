@@ -208,12 +208,12 @@ func (s *Service) PlanOpen(ctx context.Context) (int, error) {
 			status.add(t, OutcomeNotSent, notSentReason(st))
 			continue
 		}
-		notes, err := s.sendPlan(ctx, t, d, steps, offeredFor(actions, t))
+		notes, skipped, err := s.sendPlan(ctx, t, d, steps, offeredFor(actions, t))
 		if err != nil {
 			return saved, err
 		}
-		if len(notes) == 0 { // the switch was turned off while the AI wrote the plan
-			status.add(t, OutcomeNotSent, "The plan was stored, but sending was turned off while the AI wrote it.")
+		if skipped != "" { // the settings changed while the AI wrote the plan
+			status.add(t, OutcomeNotSent, skipped)
 			continue
 		}
 		o, why := sentReason(notes)
@@ -239,13 +239,17 @@ func offeredFor(actions []AIAction, t PlanTarget) []AIAction {
 // evidence is the finding and the reads the AI cited (citedReads), the confidence is the AI's. Every gate of INV-15 runs there, so a
 // refusal is logged by Propose and is the end of it: nothing is retried. Only an error that is not a refusal (the database) stops the
 // run. The settings are read again first: the switch may have been turned off while the AI was writing the plan.
-func (s *Service) sendPlan(ctx context.Context, t PlanTarget, d PlanDraft, steps []storedStep, offered []AIAction) ([]sentNote, error) {
+func (s *Service) sendPlan(ctx context.Context, t PlanTarget, d PlanDraft, steps []storedStep, offered []AIAction) ([]sentNote, string, error) {
 	st, err := loadSettings(ctx, s.cfg.DB.Reader())
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
-	if !st.Execution || !slices.Contains(st.AI.Triggers, "finding") || checkAIPaused(st) != nil {
-		return nil, nil
+	// The second string is why nothing was sent, for the planner status (D-513).
+	if checkAIPaused(st) != nil {
+		return nil, "The plan was stored, but AI proposals were paused (quality breaker) while the AI wrote it, so nothing was sent. An administrator resumes them in the Log tab; ask for approval from the plan meanwhile.", nil
+	}
+	if !st.Execution || !slices.Contains(st.AI.Triggers, "finding") {
+		return nil, "The plan was stored, but sending was turned off while the AI wrote it.", nil
 	}
 	var sent []SentProposal
 	var notes []sentNote // for the planner status (D-513): the outcome and the box's sentence about it
@@ -262,7 +266,7 @@ func (s *Service) sendPlan(ctx context.Context, t PlanTarget, d PlanDraft, steps
 		if err != nil {
 			ae, ok := asAPI(err)
 			if !ok {
-				return nil, err
+				return nil, "", err
 			}
 			sp.Outcome = ae.Code
 			note = sentNote{outcome: ae.Code, note: "Refused (" + ae.Code + "): " + ae.Message}
@@ -276,7 +280,7 @@ func (s *Service) sendPlan(ctx context.Context, t PlanTarget, d PlanDraft, steps
 	if len(sent) > 0 {
 		s.cfg.Planner.Proposed(ctx, t, sent)
 	}
-	return notes, nil
+	return notes, "", nil
 }
 
 // citedReads keeps, of the reads the AI cited for a proposal, those the box recorded through the connection of that action (D-313):

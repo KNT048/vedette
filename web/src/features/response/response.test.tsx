@@ -1808,7 +1808,7 @@ describe('response: inbox and guided setup (item 20, D-513)', () => {
   const triggersOf = () => list<{ id: string; ai_allowed: boolean; ai_evidence: string[] }>('admin', '/response/triggers')
 
   it('the plans carry what the plan job did and why nothing was sent; the triggers say what proves them to the AI (D-119)', async () => {
-    const { json } = await call<PlanList>('viewer', 'GET', '/response/plans')
+    const { json } = await call<PlanList>('operator', 'GET', '/response/plans')
     expect(json.planner.ran_at).not.toBeNull()
     expect(json.planner.sending).toBe(false)
     expect(json.planner.considered).toBeGreaterThan(0)
@@ -1824,7 +1824,7 @@ describe('response: inbox and guided setup (item 20, D-513)', () => {
     actionsDb.set([])
     renderApp('/response')
     const setup = await screen.findByRole('region', { name: 'Let the AI propose actions' })
-    for (const step of ['1. Connect a firewall or switch, or let a firewall pull the block list', '2. Choose what the AI may propose', '3. Approvers and the channel', '4. Turn on execution (high risk)', '5. Pick the AI profile for response plans (this starts the AI)'])
+    for (const step of ['1. Connect a firewall or switch', '2. Choose what the AI may propose', '3. Approvers and the channel', '4. Turn on execution (high risk)', '5. Pick the AI profile for response plans (this starts the AI)'])
       expect(within(setup).getByRole('heading', { name: step })).toBeInTheDocument()
     expect(within(setup).getAllByText('What leaves the box:')).toHaveLength(5)
     expect(within(setup).getByText(/of 4 required steps done/)).toBeInTheDocument()
@@ -1859,6 +1859,54 @@ describe('response: inbox and guided setup (item 20, D-513)', () => {
     expect(within(setup).getAllByText('An administrator does this step.').length).toBeGreaterThan(0)
     expect(within(setup).queryByRole('button', { name: 'Turn on execution…' })).toBeNull()
     expect(within(setup).getByRole('checkbox', { name: /Critical findings/ })).toBeDisabled()
+  })
+
+  it('only a device action counts: the block list never covers a device on your network, so steps 1 and 2 stay to do with it alone (review M1)', async () => {
+    actionsDb.set([])
+    // nothing reaches a device: every device action switched off in the catalog and without a connection; the block list is on and the AI may propose it
+    catalogStore.update((l) => l.map((c) => (c.kind === 'device' ? { ...c, enabled: false, connection_id: null, ai_may_propose: false } : c.id === 'blocklist_add' ? { ...c, enabled: true, ai_may_propose: true } : c)))
+    renderApp('/response')
+    const setup = await screen.findByRole('region', { name: 'Let the AI propose actions' })
+    const step = (name: string) => within(setup).getByRole('heading', { name }).parentElement!
+    expect(await within(step('1. Connect a firewall or switch')).findByText('To do')).toBeInTheDocument()
+    expect(within(step('2. Choose what the AI may propose')).getByText('To do')).toBeInTheDocument()
+    expect(within(setup).getAllByText(/it does not cover devices on your network/).length).toBeGreaterThan(0)
+  })
+
+  it('the AI profile waits for steps 1, 2 and 4, with the reason; a plan written before them is never sent (review M2)', async () => {
+    actionsDb.set([])
+    renderApp('/response')
+    const select = await screen.findByRole('combobox', { name: 'AI profile for Response plans' })
+    expect(select).toBeDisabled() // execution is off in the sample
+    expect(screen.getByText(/^Finish steps 1, 2 and 4 first/)).toBeInTheDocument()
+    expect(select).toHaveAccessibleDescription(/Finish steps 1, 2 and 4 first/)
+  })
+
+  it('a non-admin sees "Ask an administrator" for step 1 when no device action is ready (review L2)', async () => {
+    actionsDb.set([])
+    catalogStore.update((l) => l.map((c) => (c.kind === 'device' ? { ...c, connection_id: null } : c)))
+    renderApp('/response', { role: 'operator' })
+    const setup = await screen.findByRole('region', { name: 'Let the AI propose actions' })
+    expect(within(within(setup).getByRole('heading', { name: '1. Connect a firewall or switch' }).parentElement!).getByText('Ask an administrator')).toBeInTheDocument()
+  })
+
+  it('a viewer gets the planner counts and outcome codes, not the sentences of the operator log (review L1)', async () => {
+    const viewer = (await call<PlanList>('viewer', 'GET', '/response/plans')).json.planner
+    const op = (await call<PlanList>('operator', 'GET', '/response/plans')).json.planner
+    expect(viewer.findings.length).toBeGreaterThan(0)
+    expect(viewer.findings.every((f) => f.reason === '' && f.outcome)).toBe(true)
+    expect(op.findings.every((f) => f.reason !== '')).toBe(true)
+  })
+
+  it('links that meant rules or requests name their tab now that the inbox opens first (review L4)', async () => {
+    const { recordActivity } = await import('@/features/ai/activity')
+    recordActivity({ job: 'response-plan', profile: '', model: '', hooks: [], tools: [], links: [{ kind: 'proposal', id: 'pr-x' }, { kind: 'action', id: 'act-x' }], input: 'i', output: 'o', summary: 'Sent 1 AI-generated proposal', tokens_in: 0, tokens_out: 0, result: 'ok' })
+    const { default: ActivityPanel } = await import('@/features/ai/ActivityPanel')
+    renderUi(<ActivityPanel />)
+    await userEvent.click((await screen.findAllByRole('button', { name: /^Details of Response plan/ }))[0]!)
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByRole('link', { name: 'Proposal pr-x' })).toHaveAttribute('href', '/response?tab=requests')
+    expect(within(dialog).getByRole('link', { name: 'Action act-x' })).toHaveAttribute('href', '/response?tab=requests')
   })
 
   it('filters by source and risk; with requests waiting the setup folds into one line', async () => {

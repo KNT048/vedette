@@ -46,7 +46,7 @@ function Step({ n, title, done, optional, children, leaves }: { n: number; title
   )
 }
 
-function ProfileStep({ done, admin }: { done: boolean; admin: boolean }) {
+function ProfileStep({ done, admin, ready }: { done: boolean; admin: boolean; ready: boolean }) {
   const { t } = useTranslation('response')
   const qc = useQueryClient()
   const aiOn = useModuleEnabled('ai')
@@ -73,18 +73,20 @@ function ProfileStep({ done, admin }: { done: boolean; admin: boolean }) {
         : assign.data ? (
           <div className="flex flex-wrap items-center gap-2">
             <label htmlFor="setup-profile" className="text-[13px] text-muted">{t('setup.profile.label')}</label>
-            <Select id="setup-profile" className="h-8 w-full min-w-0 sm:w-auto sm:min-w-[13rem]" value={slot?.primary ?? ''} disabled={save.isPending} onChange={(e) => pick(e.target.value)}>
+            <Select id="setup-profile" className="h-8 w-full min-w-0 sm:w-auto sm:min-w-[13rem]" value={slot?.primary ?? ''} disabled={!ready || save.isPending} aria-describedby={ready ? undefined : 'setup-profile-wait'} onChange={(e) => pick(e.target.value)}>
               <option value="">{t('setup.profile.noneChosen')}</option>
               {usable.map((p) => <option key={p.id} value={p.id} disabled={!allowed(p.location)}>{p.name} ({p.model}){allowed(p.location) ? '' : ` · ${t('setup.profile.cloudBlocked')}`}</option>)}
             </Select>
             <Link className={`text-[13px] ${link}`} to="/settings/ai">{t('setup.profile.toAi')}</Link>
+            {/* a plan written before steps 1, 2 and 4 is never sent (one plan per finding, D-314): the setup waits for them; the AI page still sets it */}
+            {ready ? null : <p id="setup-profile-wait" className="basis-full text-[13px] text-warn">{t('setup.profile.wait')}</p>}
           </div>
         ) : null}
     </Step>
   )
 }
 
-function ConnectStep({ cat, pulled, done, admin }: { cat: CatalogAction[]; pulled: Blocklist['last_fetch'] | undefined; done: boolean; admin: boolean }) {
+function ConnectStep({ cat, pulled, done, admin }: { cat: CatalogAction[]; pulled: Blocklist['last_fetch'] | undefined; done: boolean | undefined; admin: boolean }) {
   const { t } = useTranslation('response')
   const ready = cat.filter((a) => a.device && aiOfferable(a) && a.available)
   return (
@@ -177,9 +179,12 @@ function useSetup() {
   const cat = catalog.data.items
   const ready = (a: CatalogAction) => aiOfferable(a) && a.enabled && a.available
   const pulled = blocklist.data?.last_fetch
-  const connected = cat.some((a) => a.device && aiOfferable(a) && a.available) || !!pulled // switching the action on is step 2
-  const chosen = !!triggers.data.items.find((x) => x.id === 'finding')?.ai_allowed && cat.some((a) => ready(a) && a.ai_may_propose)
-  const required = [plans.data.ai_available, connected, chosen, plans.data.execution]
+  // Only a device action counts: the block list never publishes a LAN address, so the plan job never offers it for a device on your
+  // network (offeredFor, D-469), and a critical finding there would get a plan with no action for good. Switching the action on is step 2.
+  const device = cat.some((a) => a.device && aiOfferable(a) && a.available)
+  const connected = device ? true : admin ? false : undefined // the block list read is admin-only: a non-admin cannot tell more
+  const chosen = !!triggers.data.items.find((x) => x.id === 'finding')?.ai_allowed && cat.some((a) => a.device && ready(a) && a.ai_may_propose)
+  const required = [plans.data.ai_available, connected === true, chosen, plans.data.execution]
   return { admin, plans: plans.data, s: settings.data, triggers: triggers.data.items, cat, pulled, connected, chosen, n: required.filter(Boolean).length, of: required.length }
 }
 
@@ -196,13 +201,13 @@ export function AiSetup({ compact = false }: { compact?: boolean }) {
   if (!x) return null
   const steps = (
     <ol className="grid">
-      {/* The profile is last: it starts the AI, which writes one plan per finding and sends its actions only if steps 2 and 4 are done at
-          that moment (D-314); a plan written earlier stays in the plan list, where a person asks for approval (D-513). */}
+      {/* The profile is last: it starts the AI, which writes one plan per finding and sends its actions only if steps 1, 2 and 4 are done at
+          that moment (D-314), so the setup offers it only after steps 1, 2 and 4; a plan written earlier stays in the plan list, where a person asks for approval (D-513). */}
       <ConnectStep cat={x.cat} pulled={x.pulled} done={x.connected} admin={x.admin} />
       <ChooseStep cat={x.cat} s={x.s} triggers={x.triggers} done={x.chosen} admin={x.admin} />
       <ApproverStep s={x.s} />
       <ExecutionStep on={x.plans.execution} admin={x.admin} />
-      <ProfileStep done={x.plans.ai_available} admin={x.admin} />
+      <ProfileStep done={x.plans.ai_available} admin={x.admin} ready={x.connected === true && x.chosen && x.plans.execution} />
     </ol>
   )
   const title = t('setup.title')

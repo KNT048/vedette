@@ -313,6 +313,14 @@ func (a ActionRequest) masked(full bool) ActionRequest {
 
 // masked hides the header values of every proposal of every plan (a plan's proposal holds the exact change, like a request does).
 func (l PlanList) masked(full bool) PlanList {
+	// The planner's sentences quote the operator log (a refused plan's reason, Propose's answer): a viewer gets the counts and the
+	// outcome codes only (D-513).
+	l.Planner.Findings = slices.Clone(l.Planner.Findings)
+	for i := range l.Planner.Findings {
+		if !full {
+			l.Planner.Findings[i].Reason = ""
+		}
+	}
 	l.Items = slices.Clone(l.Items)
 	for i := range l.Items {
 		l.Items[i].Steps = slices.Clone(l.Items[i].Steps)

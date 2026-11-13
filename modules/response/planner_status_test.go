@@ -57,8 +57,13 @@ func TestPlannerStatusSaysWhyNothingWasSent(t *testing.T) {
 	// the API carries it as the contract says (a viewer reads it)
 	res, err := response.NewResponseHandlers(e.svc).ResponseGetResponsePlans(server.WithPrincipal(e.ctx(), server.Principal{ID: "u-x", Role: routes.Viewer}), oas.ResponseGetResponsePlansParams{})
 	e.must(err)
-	if b, err := res.MarshalJSON(); err != nil || !strings.Contains(string(b), `"outcome":"not_sent"`) || !strings.Contains(string(b), `"considered":3`) {
-		t.Fatalf("API: %s %v", b, err)
+	if b, err := res.MarshalJSON(); err != nil || !strings.Contains(string(b), `"outcome":"not_sent"`) || !strings.Contains(string(b), `"considered":3`) || strings.Contains(string(b), "execution switch") {
+		t.Fatalf("API, viewer (codes only, no sentence): %s %v", b, err)
+	}
+	res, err = response.NewResponseHandlers(e.svc).ResponseGetResponsePlans(server.WithPrincipal(e.ctx(), server.Principal{ID: "u-op", Role: routes.Operator}), oas.ResponseGetResponsePlansParams{})
+	e.must(err)
+	if b, err := res.MarshalJSON(); err != nil || !strings.Contains(string(b), "execution switch is off") {
+		t.Fatalf("API, operator (the sentence): %s %v", b, err)
 	}
 	if m["f1"].Outcome != response.OutcomeHasPlan || m["f1"].CVE != "CVE-2024-0001" || m["f1"].AssetName != "NAS" {
 		t.Fatalf("f1: %+v", m["f1"])
@@ -130,5 +135,21 @@ func TestPlannerStatusNamesWhyNoActionWasOffered(t *testing.T) {
 	f := outcomes(e.planner())["f2"]
 	if f.Outcome != response.OutcomeNoAction || !strings.Contains(f.Reason, "No action") {
 		t.Fatalf("no action: %+v", f)
+	}
+}
+
+func TestPlannerStatusAPauseWhileTheAIWritesIsNamed(t *testing.T) {
+	t.Parallel()
+	e, fp, _ := planSendEnv(t, nil)
+	e.turnOn()
+	fp.steps = func(response.PlanTarget) []response.DraftStep {
+		// the quality breaker pauses AI proposals while the AI is writing this plan
+		e.exec1(`UPDATE resp_settings SET value = json_set(value, '$.ai.paused_at', '2026-11-09T10:00:00.000Z') WHERE id = 1`)
+		return sendStep("blocklist_add", 0.95)
+	}
+	_, err := e.svc.PlanOpen(e.ctx())
+	e.must(err)
+	if f := outcomes(e.planner())["f2"]; f.Outcome != response.OutcomeNotSent || !strings.Contains(f.Reason, "paused") || strings.Contains(f.Reason, "turned off") {
+		t.Fatalf("paused mid-run: %+v", f)
 	}
 }

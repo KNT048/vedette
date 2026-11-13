@@ -821,7 +821,7 @@
     "toModules": "Open Settings, Modules",
     "profile": {
       "title": "Pick the AI profile for response plans (this starts the AI)",
-      "body": "No profile is chosen for this job by default (D-181): the plans run on their own, so an administrator picks the AI that writes them. Do this last: the AI writes one plan per finding when it first sees it, and sends its actions to this inbox only if steps 2 and 4 are done at that moment. A plan written earlier stays in the plan list below, where you ask for approval yourself.",
+      "body": "No profile is chosen for this job by default (D-181): the plans run on their own, so an administrator picks the AI that writes them. Do this last: the AI writes one plan per finding when it first sees it, and sends its actions to this inbox only if steps 1, 2 and 4 are done at that moment. A plan written earlier stays in the plan list below, where you ask for approval yourself.",
       "label": "AI profile for Response plans",
       "noneChosen": "None (no plans)",
       "cloudBlocked": "not allowed: internal data goes to internal profiles only",
@@ -829,17 +829,18 @@
       "toAi": "Open Settings, AI assistant",
       "aiOff": "The AI assistant module is off.",
       "saved": "AI profile for response plans saved",
-      "leaves": "For each open critical finding: the CVE and its public exploited-list entry, the device name, IP address and kind, the actions the AI may propose (names and parameter names, never commands or credentials) and the box's own records of reads it made (never what they returned). They go to the provider of the profile you pick, with your key; with a profile that runs inside your network nothing leaves it (Privacy, row 3)."
+      "leaves": "For each open critical finding: the CVE and its public exploited-list entry, the device name, IP address and kind, the actions the AI may propose (names and parameter names, never commands or credentials) and the box's own records of reads it made (never what they returned). They go to the provider of the profile you pick, with your key; with a profile that runs inside your network nothing leaves it (Privacy, row 3).",
+      "wait": "Finish steps 1, 2 and 4 first: a plan written before them never reaches this inbox. (Settings, AI assistant can still set it.)"
     },
     "connect": {
-      "title": "Connect a firewall or switch, or let a firewall pull the block list",
-      "body": "The AI can only propose an action Vedette can carry out: a block or quarantine of the device's address through a connection, or adding a public address to the block list your firewall pulls.",
+      "title": "Connect a firewall or switch",
+      "body": "The AI can only propose an action Vedette can carry out on the device of the finding: a block or quarantine of its address through a firewall or switch connection.",
       "ready": "Ready through a connection: {{names}}.",
       "noneReady": "No device action can run yet: connect a firewall or switch with a write tool, then choose it for a block action.",
       "toConnections": "Settings, Connections",
       "toActions": "Choose a connection in Actions",
-      "pulled": "Block list last pulled {{time}} by {{from}}.",
-      "blocklist": "No firewall has pulled the block list yet. It holds public addresses only, so it helps only for devices on a public address.",
+      "pulled": "Block list last pulled {{time}} by {{from}}. It holds public addresses only; it does not cover devices on your network, so it does not count for this step.",
+      "blocklist": "No firewall has pulled the block list yet. The block list holds public addresses only; it does not cover devices on your network, so it does not count for this step.",
       "toBlocklist": "Set up the block list",
       "leaves": "Nothing leaves your network: Vedette talks to the device at the address you typed for the connection (Privacy, row 12), and a firewall pulls the block list from the box."
     },
@@ -849,7 +850,7 @@
       "finding": "Critical findings: the AI may send requests from its plans",
       "off": "Switched off in the action catalog, so the AI cannot propose it yet.",
       "via": "Runs through {{connection}}.",
-      "publicOnly": "Public addresses only.",
+      "publicOnly": "Public addresses only; it does not cover devices on your network.",
       "noAction": "No action in the catalog takes only an address, so the AI has nothing to propose.",
       "leaves": "Nothing: these are settings on the box.",
       "toActions": "Turn it on in Actions"

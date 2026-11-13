@@ -314,7 +314,7 @@ describe('honeypot: S-HP-2 suggestions, tokens, respond, coverage', () => {
     await userEvent.click(screen.getByRole('tab', { name: /Hits/ }))
     const hits = await screen.findByRole('table', { name: 'Trap hits' })
     expect(within(hits).getAllByText('Credential token svc-backup-old').length).toBeGreaterThan(0)
-    expect(within(hits).getAllByRole('link', { name: /^Respond to the hit/ })[0]).toHaveAttribute('href', '/response')
+    expect(within(hits).getAllByRole('link', { name: /^Respond to the hit/ })[0]).toHaveAttribute('href', '/response?tab=rules') // rules for trap hits live there; the inbox opens first (D-513)
     await userEvent.click(screen.getByRole('tab', { name: /Overview/ }))
     expect(await screen.findByRole('heading', { name: 'Is this enough?' })).toBeInTheDocument()
   })

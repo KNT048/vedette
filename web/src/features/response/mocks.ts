@@ -178,10 +178,11 @@ export const handlers = [
       }
     }
     plannerLast = status
+    const viewer = currentUser()?.role === 'viewer' // the sentences quote the operator log: a viewer gets the codes (D-513)
     const only = new URL(request.url).searchParams.get('finding')
     const ids = new Set(open.map((f) => f.id))
     const items = plansStore.get().filter((p) => ids.has(p.finding_id) && (!only || p.finding_id === only)).map(planView)
-    return HttpResponse.json({ items, ai_available: aiAvailable('response-plan'), execution: s.execution, planner: plannerLast })
+    return HttpResponse.json({ items, ai_available: aiAvailable('response-plan'), execution: s.execution, planner: viewer ? { ...plannerLast, findings: plannerLast.findings.map((f) => ({ ...f, reason: '' })) } : plannerLast })
   }),
 
   http.get(`${API}/response/actions`, () => {

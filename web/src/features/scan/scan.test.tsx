@@ -75,7 +75,7 @@ describe('scan: trang chính và chọn mục tiêu (S-SCAN-1)', () => {
     expect(screen.getByRole('checkbox', { name: /SRV-AD/ })).toBeChecked()
     expect(screen.getAllByText('Fragile: pick it to scan at a quarter of the speed').length).toBeGreaterThan(0)
     expect(screen.getAllByText('Added by hand: pick it to scan').length).toBeGreaterThan(0)
-    expect(screen.getAllByText('Type unknown: pick it to scan at a quarter of the speed').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Type unknown: pick it to identify its services (no operating system probe) and scan it at a quarter of the speed').length).toBeGreaterThan(0)
     await userEvent.click(screen.getByRole('button', { name: 'Select all' }))
     expect(nas).not.toBeChecked()
     expect(screen.getByRole('checkbox', { name: /WEB01/ })).not.toBeChecked()
@@ -284,6 +284,11 @@ describe('scan: quét ngay, tiến độ, dừng ngay (S-SCAN-4)', () => {
     expect(within(dlg).getByText('Matches, still vulnerable')).toBeInTheDocument()
     expect(within(dlg).getByText('http/cves/2022/CVE-2022-27593.yaml')).toBeInTheDocument()
     expect(within(dlg).getByRole('link', { name: 'Open finding' })).toHaveAttribute('href', '/findings/f-1')
+    // D-501: Scan now identifies first and says per device what it found or exactly why not (the NAS is fragile: gentle scan only)
+    expect(run.identification).toEqual([expect.objectContaining({ target_id: 'a-nas02', reason: 'gentle_only', found: [] })])
+    expect(within(dlg).getByRole('heading', { name: 'What each device was identified as' })).toBeInTheDocument()
+    expect(within(dlg).getByText('Gentle scan only')).toBeInTheDocument()
+    expect(within(dlg).getByText(/only a gentle port scan ran, without version or operating system detection/)).toBeInTheDocument()
   })
 
   it('đã giảm thiểu rồi quét lại: không có khớp chỉ là "không báo khớp", không đổi gì ở phát hiện (D-133 (5))', async () => {

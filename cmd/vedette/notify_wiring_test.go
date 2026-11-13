@@ -414,6 +414,8 @@ func TestWiringScanWindowFollowsTheOrganizationTimeZone(t *testing.T) {
 		}
 	}
 	setZone(`INSERT INTO core_org (id, name, timezone, data_mode, install_id) VALUES (1, 'Acme', 'America/New_York', 'clean', 'ins-test')`) // 15:00 there
+	// not a new box: its first pass, which runs outside the window once (D-501), is behind it
+	setZone(`INSERT INTO sa_job (id, kind, started_at, finished_at, status) VALUES ('saj_old', 'sweep', '2026-11-02T02:00:00.000Z', '2026-11-02T02:01:00.000Z', 'done')`)
 	if z := svc.Health(ctx).Zone; z != "America/New_York" {
 		t.Fatalf("zone %q", z)
 	}

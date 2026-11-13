@@ -21,6 +21,7 @@ type Catalog struct {
 	byID     map[string]*catEntry
 	kevCount map[string]int
 	kev      []KEVProduct
+	byCPE    map[string][]string // "part:vendor:product" -> the KEV keys of the curated entry that names it (curatedRow.CPE)
 }
 
 type catEntry struct {
@@ -66,6 +67,9 @@ type curatedRow struct {
 	Aliases     string   `json:"aliases"`
 	VersionHint string   `json:"version_hint"`
 	KevMatch    []string `json:"kev_match"`
+	// CPE names the product the way nmap's CPE output does, "part:vendor:product" (an OS CPE such as o:apple:iphone_os), so
+	// software nmap identified gets this entry's KEV keys rather than a key no KEV row has (D-501).
+	CPE []string `json:"cpe"`
 }
 
 const otherCategory = "Other"
@@ -100,7 +104,7 @@ func NewCatalog(curatedJSON []byte, kev []KEVProduct) (*Catalog, error) {
 	if err := json.Unmarshal(curatedJSON, &rows); err != nil {
 		return nil, fmt.Errorf("inventory: curated catalog: %w", err)
 	}
-	c := &Catalog{byID: map[string]*catEntry{}, kevCount: map[string]int{}, kev: kev}
+	c := &Catalog{byID: map[string]*catEntry{}, kevCount: map[string]int{}, kev: kev, byCPE: map[string][]string{}}
 	for _, r := range kev {
 		c.kevCount[kevKey(r.Vendor, r.Product)] = r.Count
 	}
@@ -109,6 +113,12 @@ func NewCatalog(curatedJSON []byte, kev []KEVProduct) (*Catalog, error) {
 			return nil, fmt.Errorf("inventory: curated catalog: %q has kind %q", r.Display, r.Kind)
 		}
 		keys := c.keysFor(r.KevMatch, kevKey(r.Vendor, r.Product))
+		for _, p := range r.CPE {
+			if _, dup := c.byCPE[p]; dup || strings.Count(p, ":") != 2 {
+				return nil, fmt.Errorf("inventory: curated catalog: %q has a duplicate or malformed cpe %q", r.Display, p)
+			}
+			c.byCPE[p] = keys
+		}
 		var aliases []string
 		for a := range strings.SplitSeq(r.Aliases, ",") {
 			if a = strings.TrimSpace(a); a != "" {
@@ -185,6 +195,16 @@ func (c *Catalog) keysFor(matches []string, fallback string) []string {
 		return []string{fallback}
 	}
 	return keys
+}
+
+// keysForCPE is the KEV keys of the curated entry that names the product of a CPE 2.2 URI ("cpe:/o:apple:iphone_os:17" ->
+// the keys of iOS / iPadOS), nil when no entry names it (D-501). Only part, vendor and product are compared.
+func (c *Catalog) keysForCPE(cpe string) []string {
+	f := strings.SplitN(strings.ToLower(strings.TrimPrefix(cpe, "cpe:/")), ":", 4)
+	if len(f) < 3 {
+		return nil
+	}
+	return c.byCPE[f[0]+":"+f[1]+":"+f[2]]
 }
 
 func (c *Catalog) sum(keys []string) int {

@@ -112,6 +112,8 @@ type SoftwareItem struct {
 	Display, Vendor, Product, Version, CPE string
 	KevKeys                                []string
 	Confidence                             float64
+	// Guess is a sensor's guess (observe.Software.Guess, D-501): stored without match keys, so it raises no finding.
+	Guess bool
 }
 
 // Observed is a value with where it came from (contract.ts Observed).

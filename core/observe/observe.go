@@ -105,6 +105,9 @@ type Software struct {
 	CPE        string // optional
 	KevKeys    []string
 	Confidence float64
+	// Guess marks software a sensor only guessed (an OS from nmap's fingerprint, D-501): it is stored and shown, but gets no KEV match
+	// keys, so it raises no finding until a person adds it with its version.
+	Guess bool
 }
 
 // SoftwareSink receives the full software list of one device from one source. The list replaces the

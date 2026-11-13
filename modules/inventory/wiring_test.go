@@ -444,8 +444,11 @@ func TestSetupScopeBecomesTheScanScope(t *testing.T) {
 		st.ScopeConfirmedBy == nil || *st.ScopeConfirmedBy != "ann@acme.example" {
 		t.Fatalf("settings after setup: %+v", st)
 	}
-	if !slices.Equal(st.FragileKinds, before.FragileKinds) || st.Active.Enabled || st.Active.Rate != before.Active.Rate {
+	if !slices.Equal(st.FragileKinds, before.FragileKinds) || st.Active.Rate != before.Active.Rate || st.Active.From != before.Active.From {
 		t.Errorf("the other settings changed: %+v, before %+v", st, before)
+	}
+	if before.Active.Enabled || !st.Active.Enabled { // D-501 (walk 2 W2-4): the commitment ticked at setup turns active scanning on
+		t.Errorf("active scanning %v before setup and %v after a confirmed one, want off then on", before.Active.Enabled, st.Active.Enabled)
 	}
 	if ok, err := e.svc.InScope(e.ctx(), netip.MustParseAddr("192.168.10.7")); err != nil || !ok {
 		t.Errorf("an address of the setup range is not in scope: %v %v", ok, err)
@@ -461,7 +464,7 @@ func TestSetupScopeBecomesTheScanScope(t *testing.T) {
 	if err := e2.setupScope([]string{"192.168.10.0/24"}, false, false); err != nil {
 		t.Fatal(err)
 	}
-	if st, err := e2.svc.Settings(e2.ctx()); err != nil || st.ScopeConfirmedAt != nil || st.ScopeConfirmedBy != nil || len(st.LANRanges) != 1 {
+	if st, err := e2.svc.Settings(e2.ctx()); err != nil || st.ScopeConfirmedAt != nil || st.ScopeConfirmedBy != nil || len(st.LANRanges) != 1 || st.Active.Enabled {
 		t.Errorf("unconfirmed setup scope: %+v %v", st, err)
 	}
 }

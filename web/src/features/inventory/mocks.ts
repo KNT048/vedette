@@ -17,7 +17,7 @@ import type {
   InventorySettings, ObsField, Observation, OsqueryPackage, RegularScan, Sensor, SettingsInput, SoftwareView, WazuhConnection, WazuhInput,
 } from './types'
 import { KINDS } from './types'
-import { cidrRange, hasHostBits, isPrivateCidr, normalizeRange, overlapping } from './validate'
+import { cidrRange, hasHostBits, isPrivateCidr, LOCAL_RANGE_NAMES, normalizeRange, overlapping } from './validate'
 
 // Địa chỉ hộp Vedette đưa vào cấu hình agent: Vedette phục vụ cả giao diện lẫn API trên https://<IP hộp>:8443 (TLS). Không biết IP thì để chỗ trống rõ ràng, không bịa.
 const serverUrl = () => `https://${boxInfo().ip ?? NO_BOX_ADDRESS}:8443`
@@ -338,7 +338,7 @@ function rowShapeProblem(cells: string[], columns: number, delim: string): strin
 /** Như ipNote của Go: IP công cộng hoặc ngoài các dải đã lưu vẫn được thêm nhưng kèm ghi chú (Vedette không quét nó). */
 function ipNote(ip: string, ranges: string[]): string {
   const [a, b] = ip.split('.').map(Number) as [number, number]
-  const priv = a === 10 || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || (a === 169 && b === 254) || a === 127
+  const priv = isPrivateCidr(`${ip}/32`) || (a === 169 && b === 254) || a === 127 // local networks incl. 100.64/10 (D-461), link-local, loopback
   if (ranges.some((r) => { const c = cidrRange(r); const n = ip.split('.').reduce((x, y) => x * 256 + Number(y), 0); return n >= c.base && n < c.base + c.size })) return ''
   if (!priv) return `IP ${ip} is a public address. The device was added, but Vedette only scans your own network ranges.`
   if (ranges.length) return `IP ${ip} is outside your saved network ranges. The device was added, but Vedette will not scan it.`
@@ -629,7 +629,7 @@ export const handlers = [
       if (IPV4_RE.test(r)) return fail(400, 'no_prefix', `"${r}" has no prefix length. Add it so Vedette scans the right size of network, for example ${r}/24 or ${r}/25.`)
       if (!CIDR_RE.test(r)) return fail(400, 'bad_cidr', `"${r.slice(0, 30)}" is not a valid network range. Enter something like 192.168.10.0/24.`)
       if (hasHostBits(r)) return fail(400, 'host_bits', `Range ${r} is not written correctly: the address part must be the first address of the range. Use ${cidrRange(r).network}.`)
-      if (!isPrivateCidr(r)) return fail(400, 'public_range', `${r} is not an internal range (10.x, 172.16-31.x, 192.168.x). To scan public addresses, add them under External exposure after verifying ownership.`)
+      if (!isPrivateCidr(r)) return fail(400, 'public_range', `${r} is not an internal range (${LOCAL_RANGE_NAMES}). To scan public addresses, add them under External exposure after verifying ownership.`)
       const clash = overlapping(r, ranges)
       if (clash) return fail(400, 'overlap_range', `Range ${r} overlaps ${clash}. Keep the larger range and drop the smaller one.`)
     }

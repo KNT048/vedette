@@ -207,6 +207,7 @@ func TestBinaryDependencies(t *testing.T) {
 		"cmd/vedette-sensor",
 		"content/oui",
 		"core/exec",
+		"core/localnet", // the local networks of nmapargv and nucleiargv (D-461); net/netip and slices only, its own leaf test
 		"core/observe",
 		"core/sensorlink",
 		"internal/jsonstrict",

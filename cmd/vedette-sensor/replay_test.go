@@ -125,7 +125,7 @@ func TestGoListDepsOfTheSensorBinary(t *testing.T) {
 	t.Parallel()
 	const mod = "github.com/knt048/vedette/"
 	allowed := []string{
-		"cmd/vedette-sensor", "content/oui", "core/exec", "core/observe", "core/sensorlink", "internal/jsonstrict",
+		"cmd/vedette-sensor", "content/oui", "core/exec", "core/localnet", "core/observe", "core/sensorlink", "internal/jsonstrict",
 		"modules/scan/nucleiargv", "modules/scan/nucleiout", "modules/scan/pack", "modules/sensor-active/nmapargv", "modules/sensor-active/worker",
 		"modules/sensor-passive/capture",
 	}

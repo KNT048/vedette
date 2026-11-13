@@ -49,10 +49,17 @@ func TestConnRefusesPrivateAndSpecial(t *testing.T) {
 			t.Errorf("destination %s made %v", d, got)
 		}
 	}
-	for _, src := range []string{"8.8.8.8", "45.9.148.20", "100.64.0.9", "127.0.0.1", "fd00::5", "2606:4700::1", "192.168.10.113%eth0", "192.168.10.113/32", "", "-"} {
+	for _, src := range []string{"8.8.8.8", "45.9.148.20", "100.128.0.9", "100.63.0.9", "127.0.0.1", "fd00::5", "2606:4700::1", "192.168.10.113%eth0", "192.168.10.113/32", "", "-"} {
 		line := strings.Replace(fgTraffic, "srcip=192.168.10.113", "srcip="+src, 1)
 		if l, _ := connOf(t, set, "fortigate", line); l != "" {
 			t.Errorf("source %q made a connection from %q", src, l)
+		}
+	}
+	// D-461: a device in the RFC 6598 shared address space (a LAN behind carrier-grade NAT, Tailscale) is a LAN device.
+	for _, src := range []string{"100.64.0.9", "100.65.254.7", "100.127.255.254"} {
+		line := strings.Replace(fgTraffic, "srcip=192.168.10.113", "srcip="+src, 1)
+		if l, got := connOf(t, set, "fortigate", line); l != src || len(got) != 1 {
+			t.Errorf("source %q: local %q, dests %v", src, l, got)
 		}
 	}
 	// An IPv6 public destination is fine.

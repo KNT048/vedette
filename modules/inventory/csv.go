@@ -11,6 +11,8 @@ import (
 	"strconv"
 	"strings"
 	"unicode/utf8"
+
+	"github.com/knt048/vedette/core/localnet"
 )
 
 // ImportError is one rejected row, by row number (INV-13).
@@ -362,7 +364,7 @@ func ipNote(st Settings, ip string) string {
 			return ""
 		}
 	}
-	if !a.IsPrivate() && !a.IsLinkLocalUnicast() && !a.IsLoopback() {
+	if !localnet.Addr(a) && !a.IsLinkLocalUnicast() && !a.IsLoopback() { // a 100.64/10 device is on a local network, not public (D-461)
 		return fmt.Sprintf("IP %s is a public address. The device was added, but Vedette only scans your own network ranges.", ip)
 	}
 	if len(st.LANRanges) > 0 {

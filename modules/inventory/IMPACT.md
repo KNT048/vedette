@@ -19,6 +19,7 @@
 
 ## Modifying: `inventory.Service.Settings()` (dải, cửa sổ, loại mong manh, `scope_confirmed_at`)
 - **sensor-active**, **scan** (`scope.commitment`, `can_scan`), **SPA** (`NetworkForm`, Scan → Safety). Ngày 1..7 (Thứ Hai=1) dùng chung với `scan` (D-57 (9)); đổi phải đồng bộ.
+- **Dải nội bộ (INV-6, D-461)**: `checkRanges` và ghi chú nhập CSV (`ipNote`) dùng `core/localnet` (RFC 1918 + 100.64/10), cùng luật với cài đặt (`modules/core` `parseLan`), `nmapargv`/`nucleiargv` (đích quét) và GUI `isPrivateCidr`. Nới luật ở đây mà không nới ở hai bộ dựng argv = dải lưu được nhưng không quét được; đổi `core/localnet`, không đổi riêng ở đây.
 
 ## Modifying: `inventory.Service.Device/Devices/Detail/Names` (GetAsset/ListAssets của bản nháp)
 - **findings** (`FindingAsset`; D-57 (6)), **notify** (`devices[]` của incident), **honeypot/logs/response** (thiết bị nguồn), **reports**, **ai**, **mcp-server** (`search_assets`).

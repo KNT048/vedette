@@ -248,7 +248,12 @@ func getVal(r reply, path ...string) any {
 func TestOSStateBeforeAndAfterTheFirstCheck(t *testing.T) {
 	t.Parallel()
 	e := newOSEnv(t, osOpts{})
-	wantStatus(t, e.viewer.get("/core/updates/os"), 409, "no_check_yet")
+	// Before the first check: 200 with os null and core's own part (D-407), not 409 no_check_yet.
+	g0 := e.viewer.get("/core/updates/os")
+	wantOK(t, g0, 200)
+	if v, ok := g0.JSON["os"]; !ok || v != nil || len(getArr(g0, "pending")) != 0 || getVal(g0, "window", "mode") == nil || getVal(g0, "release_upgrade") != nil {
+		t.Errorf("GET before the first check = %s", g0.Raw)
+	}
 	wantStatus(t, e.viewer.get("/core/updates/os/run").withNull(t), 200, "")
 
 	r := e.oper.post("/core/updates/os/check", nil)

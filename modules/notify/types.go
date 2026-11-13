@@ -244,6 +244,8 @@ type FindingDirectory interface {
 // DeviceDirectory names a device by inventory id. Without one, device events show the id.
 type DeviceDirectory interface {
 	DeviceName(ctx context.Context, assetID string) (string, bool, error)
+	// DeviceLabel is the name of a newly discovered device for its unknown_device incident: name, IP or MAC, with the vendor.
+	DeviceLabel(ctx context.Context, assetID string) (string, bool, error)
 }
 
 // TokenRecorder stores an approval token record (spec approval-tokens.md 4.1: the record in the

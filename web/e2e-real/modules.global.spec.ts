@@ -2,7 +2,8 @@
 // this runs alone, and every test puts the switches back. Steps from e2e/qa/core.spec.ts ("modules").
 //   - "External surface" (exposure) is the module that is turned off: nothing depends on it and it keeps a setting of its own (the
 //     box-IP check interval), which is the data that must still be there after it is turned on again.
-//   - "Vulnerability scan" is turned off to make "Credentialed scan" (off by default, needs it) ask for its dependency.
+//   - "AI assistant" is turned off to make "AI response" (off in the mid-size bundle, needs it) ask for its dependency. (The credentialed
+//     scan is not listed in v1, D-417.)
 // What a module that is off answers: SYS-5 says its routes answer 404 "as if they did not exist" (core/server/modules.go), not 409
 // `module_off` (that code belongs to the MCP token call and to the email channel of the account page).
 import { expect, request, test, type Page } from '@playwright/test'
@@ -98,47 +99,47 @@ test('turning on a module whose dependency is off asks to turn both on', async (
   const errors = collectErrors(page)
   const admin = await request.newContext({ baseURL: box().base_url, storageState: authFile('admin') })
   try {
-    expect(await state(admin, 'scan'), 'the scan module is on (mid-size bundle)').toBe(true)
-    expect(await state(admin, 'scan-credentialed')).toBe(false)
-    expect((await api(admin, 'PATCH', '/modules/scan-credentialed', { enabled: false })).status).toBe(200)
-    expect((await api(admin, 'PATCH', '/modules/scan', { enabled: false })).status).toBe(200)
+    expect(await state(admin, 'ai'), 'the AI module is on (mid-size bundle)').toBe(true)
+    expect(await state(admin, 'response')).toBe(false)
+    expect((await api(admin, 'PATCH', '/modules/response', { enabled: false })).status).toBe(200)
+    expect((await api(admin, 'PATCH', '/modules/ai', { enabled: false })).status).toBe(200)
     // the server: 409 and the full list of what is missing, and nothing was changed
-    const refused = await api<{ error: { code: string; missing?: string[] }; missing?: string[] }>(admin, 'PATCH', '/modules/scan-credentialed', { enabled: true })
+    const refused = await api<{ error: { code: string; missing?: string[] }; missing?: string[] }>(admin, 'PATCH', '/modules/response', { enabled: true })
     expect(refused.status).toBe(409)
     expect(refused.body.error.code).toBe('missing_dependencies')
-    expect(refused.body.error.missing ?? refused.body.missing, 'the full list of what is missing').toEqual(['scan'])
-    expect(await state(admin, 'scan-credentialed')).toBe(false)
+    expect(refused.body.error.missing ?? refused.body.missing, 'the full list of what is missing').toEqual(['ai'])
+    expect(await state(admin, 'response')).toBe(false)
 
-    await onModulesPage(page, 'Credentialed scan')
-    await sw(page, 'Credentialed scan').click()
+    await onModulesPage(page, 'AI response')
+    await sw(page, 'AI response').click()
     const dlg = page.getByRole('dialog', { name: 'Turn on the required modules too?' })
     await expect(dlg).toBeVisible()
-    await expect(dlg.getByText('Vulnerability scan')).toBeVisible()
+    await expect(dlg.getByText('AI assistant')).toBeVisible()
     await shot(page, 'real', 'modules-dependencies')
     await page.keyboard.press('Escape')
-    await expect(sw(page, 'Credentialed scan')).not.toBeChecked()
-    expect(await state(admin, 'scan'), 'Escape turns nothing on').toBe(false)
-    await sw(page, 'Credentialed scan').click()
+    await expect(sw(page, 'AI response')).not.toBeChecked()
+    expect(await state(admin, 'ai'), 'Escape turns nothing on').toBe(false)
+    await sw(page, 'AI response').click()
     await dlg.getByRole('button', { name: 'Turn on together' }).click()
-    await toast(page, /Credentialed scan is on/)
-    await expect(sw(page, 'Credentialed scan')).toBeChecked()
-    expect(await state(admin, 'scan')).toBe(true)
-    expect(await state(admin, 'scan-credentialed')).toBe(true)
-    const log = await api<{ items: { action: string; target: string; detail?: string }[] }>(admin, 'GET', '/core/audit?q=scan-credentialed')
-    expect(log.body.items.some((r) => r.action === 'module.enable' && r.target === 'scan-credentialed' && /scan/.test(r.detail ?? ''))).toBe(true)
+    await toast(page, /AI response is on/)
+    await expect(sw(page, 'AI response')).toBeChecked()
+    expect(await state(admin, 'ai')).toBe(true)
+    expect(await state(admin, 'response')).toBe(true)
+    const log = await api<{ items: { action: string; target: string; detail?: string }[] }>(admin, 'GET', '/core/audit?q=response')
+    expect(log.body.items.some((r) => r.action === 'module.enable' && r.target === 'response' && /\bai\b/.test(r.detail ?? ''))).toBe(true)
 
     // turning the one that is needed off names the module that depends on it, and keeps it on
-    await onModulesPage(page, 'Vulnerability scan')
-    await sw(page, 'Vulnerability scan').click()
-    const off = page.getByRole('dialog', { name: 'Turn off Vulnerability scan?' })
-    await expect(off.getByText('Credentialed scan')).toBeVisible()
+    await onModulesPage(page, 'AI assistant')
+    await sw(page, 'AI assistant').click()
+    const off = page.getByRole('dialog', { name: 'Turn off AI assistant?' })
+    await expect(off.getByText('AI response')).toBeVisible()
     await off.getByRole('button', { name: 'Cancel' }).click()
-    expect(await state(admin, 'scan')).toBe(true)
+    expect(await state(admin, 'ai')).toBe(true)
     await noVietnamese(page, 'modules dependencies')
     noErrors(errors, /status of 409/)
   } finally {
-    await api(admin, 'PATCH', '/modules/scan-credentialed', { enabled: false })
-    if (!(await state(admin, 'scan'))) await api(admin, 'PATCH', '/modules/scan', { enabled: true })
+    await api(admin, 'PATCH', '/modules/response', { enabled: false })
+    if (!(await state(admin, 'ai'))) await api(admin, 'PATCH', '/modules/ai', { enabled: true })
     await admin.dispose()
   }
 })

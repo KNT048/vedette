@@ -40,6 +40,7 @@ var rules = []rule{
 	{"web/src/features/inventory/scripts/osquery.sh", Result{true, true}},  // the same test renders the GUI template
 	{"web/src/features/inventory/scripts/osquery.ps1", Result{true, true}}, // the same
 	{"web/src/locales/en/core.json", Result{true, true}},                   // modules/core/auditlabels_test.go: every audit action has a label
+	{"web/src/locales/en/common.json", Result{true, true}},                 // modules/manifests_test.go: every module has a display name (W1-25)
 	{"THIRD_PARTY_NOTICES.md", Result{Go: true}},                           // make notices-check (verify-go-static) holds it to go list and web/package.json (D-159)
 	{"web/package.json", Result{true, true}},                               // the same check reads the web production dependencies
 

@@ -76,12 +76,12 @@ test.describe('page frame (S-UI-1)', () => {
 
   test('phone: the Scans tab row scrolls inside itself and the deep-linked last tab is in view', async ({ page }) => {
     test.skip(device(page) !== 'phone', 'phone only')
-    await page.goto('/scans?tab=credentialed')
-    await expect(page.getByRole('tab', { name: 'Credentialed scan' })).toHaveAttribute('aria-selected', 'true')
+    await page.goto('/scans?tab=probes') // the last tab in v1: the credentialed scan is not offered (D-417)
+    await expect(page.getByRole('tab', { name: 'Probe log' })).toHaveAttribute('aria-selected', 'true')
     const row = await page.getByRole('tablist').evaluate((el) => ({ sw: el.scrollWidth, cw: el.clientWidth, left: el.scrollLeft }))
-    expect(row.sw, 'five tabs do not fit a phone, so the row scrolls').toBeGreaterThan(row.cw)
+    expect(row.sw, 'four tabs do not fit a phone, so the row scrolls').toBeGreaterThan(row.cw)
     expect(row.left, 'the row was scrolled to the open tab').toBeGreaterThan(0)
-    await noHScroll(page, '/scans?tab=credentialed')
-    await shot(page, 'frame', 'scans-credentialed-phone')
+    await noHScroll(page, '/scans?tab=probes')
+    await shot(page, 'frame', 'scans-probes-phone')
   })
 })

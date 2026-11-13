@@ -9,6 +9,10 @@ import { assetsStore, auditStore, findingsStore, modulesStore, sessionStore } fr
 import { engineStore, nextRun, runs, scannerStore, timing, zoneStore } from './mocks'
 import type { ScanConfig, ScanRun } from './types'
 
+// D-417: v1 does not offer the credentialed scan (no backend yet); its GUI is kept, so this file runs it as offered, and one test runs v1.
+const credFlag = vi.hoisted(() => ({ CREDENTIALED_IN_UI: true }))
+vi.mock('@/lib/credentialed', () => credFlag)
+
 const base = () => `${location.origin}/api/v1`
 const as = (userId: string) => sessionStore.set({ userId })
 const json = (method: string, b: unknown) => ({ method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(b) })
@@ -665,6 +669,16 @@ const KEY = '-----BEGIN OPENSSH PRIVATE KEY-----\nb3BlbnNzaC1rZXktdjEAAAAABG5vbm
 
 describe('scan: quét có tài khoản (S-SCAN-5)', () => {
   const enable = () => modulesStore.update((l) => l.map((m) => (m.id === 'scan-credentialed' ? { ...m, enabled: true } : m)))
+
+  it('v1 offers no Credentialed scan tab: the feature has no backend in this build (D-417, walk-1 W1-36)', async () => {
+    credFlag.CREDENTIALED_IN_UI = false
+    try {
+      enable()
+      renderApp('/scans')
+      expect(await screen.findByRole('tab', { name: 'Schedule and safety' })).toBeInTheDocument()
+      expect(screen.queryByRole('tab', { name: 'Credentialed scan' })).toBeNull()
+    } finally { credFlag.CREDENTIALED_IN_UI = true }
+  })
 
   it('module tắt mặc định thì nói rõ và chỉ chỗ bật', async () => {
     renderApp('/scans?tab=credentialed')

@@ -51,3 +51,38 @@ func TestNextRun_FirstWaitsForAWindowDay(t *testing.T) {
 		t.Fatalf("a later run from Saturday: %v, want Wednesday 23:00", got)
 	}
 }
+
+// Review M4: a first-run slot that is not on the weekday counts only when the schedule was saved (and the scope confirmed) before
+// it. A box set up at 23:30 inside Friday's open window does not start at once on Friday's 23:00 slot: next run says Saturday 23:00,
+// and that slot runs.
+func TestSchedule_FirstRunWaitsForASlotAfterTheSetup(t *testing.T) {
+	t.Parallel()
+	r := newRunEnv(t)
+	fri13 := time.Date(2026, 11, 13, 0, 0, 0, 0, time.UTC)
+	r.setNow(hm(fri13, 23, 30))
+	p := Patch{Days: []int{1, 2, 3, 4, 5, 6, 7}, From: ptr("22:00"), To: ptr("05:00"), SchedEnabled: ptr(true), SchedFrequency: ptr("weekly"), SchedWeekday: ptr(7), SchedAt: ptr("23:00")}
+	if _, err := r.svc.SaveConfig(r.ctx(), "admin@acme.example", p); err != nil {
+		t.Fatal(err)
+	}
+	r.schedAt(hm(fri13, 23, 45))
+	if n := r.scheduled(); n != 0 {
+		t.Fatalf("set up at 23:30: %d scheduled runs on the 23:00 slot, want 0", n)
+	}
+	if got := r.nextRun(); got != "2026-11-14T23:00:00.000Z" {
+		t.Fatalf("next run: %s, want Saturday 23:00", got)
+	}
+	r.schedAt(hm(fri13.AddDate(0, 0, 1), 23, 0).Add(30 * time.Second))
+	if n := r.scheduled(); n != 1 {
+		t.Fatalf("Saturday 23:00: %d scheduled runs, want the first one", n)
+	}
+	// the scope confirmed after a slot holds it back too
+	r2 := newRunEnv(t)
+	if _, err := r2.svc.SaveConfig(r2.ctx(), "admin@acme.example", p); err != nil {
+		t.Fatal(err)
+	}
+	r2.inv.set(Scope{Networks: confirmedScope().Networks, ConfirmedAt: "2026-11-13T23:30:00.000Z", ConfirmedBy: "admin@acme.example"})
+	r2.schedAt(hm(fri13, 23, 45))
+	if n := r2.scheduled(); n != 0 {
+		t.Fatalf("scope confirmed at 23:30: %d scheduled runs on the 23:00 slot, want 0", n)
+	}
+}

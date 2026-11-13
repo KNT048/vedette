@@ -49,7 +49,8 @@ const (
 // Scripts is the exact NSE script list of the normal and versions shapes (D-504): two scripts that send an NTLM NEGOTIATE (type 1)
 // with no credentials and read the CHALLENGE (type 2) the device answers with: its own Windows version and build, and its names.
 // Neither ever sends an AUTHENTICATE (type 3), so nothing logs in. rdp-ntlm-info runs only on an open RDP port, http-ntlm-info only
-// on an open HTTP port, with one GET of "/". A fixed list, never a category or a wildcard; smb-os-discovery is left out because it
+// on an open HTTP port, with a GET of "/" (nmap's http library follows a few redirects, only on the same host, port and scheme,
+// never with credentials). A fixed list, never a category or a wildcard; smb-os-discovery is left out because it
 // opens an anonymous, then a guest, SMB session (a logon attempt).
 const Scripts = "rdp-ntlm-info,http-ntlm-info"
 

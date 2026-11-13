@@ -441,7 +441,9 @@ func (s *Service) startAuto(ctx context.Context, trigger string, note *string, i
 // the next tick while its window is open; once the window has closed the slot is recorded as missed, never run late
 // in a later window (#164 review M1). A slot starts at most one run. Until a first slot is recorded (sched_last empty) the slots
 // are those of every window day (slotOK first, W3-6); such an extra slot (not on the weekly weekday) that closed or had nothing to
-// scan is not recorded, so a new box's first scheduled run is the next window that scans something, not the next weekday.
+// scan is not recorded, so a new box's first scheduled run is the next window that scans something, not the next weekday. An extra
+// slot counts only when the schedule was saved and the scope confirmed before it (review M4, as missSlot judges "due"): a box set up
+// inside an open window waits for the next one instead of starting at once.
 func (s *Service) RunSchedule(ctx context.Context) error {
 	var last, saved sql.NullString
 	row := s.cfg.DB.Reader().QueryRowContext(ctx, `SELECT sched_last, updated_at FROM scan_setting WHERE id = 1`)
@@ -463,6 +465,9 @@ func (s *Service) RunSchedule(ctx context.Context) error {
 		return nil
 	}
 	extra := never && !st.slotOK(*slot, false) // a slot only because no first run happened yet: never recorded as missed or empty
+	if extra && saved.Valid && saved.String >= store.FormatTS(*slot) {
+		return nil
+	}
 	end, _ := st.slotWindowEnd(*slot)
 	if !now.Before(end) {
 		if extra {
@@ -474,6 +479,9 @@ func (s *Service) RunSchedule(ctx context.Context) error {
 	sc, err := s.cfg.Inventory.Scope(ctx)
 	if err != nil || sc.ConfirmedAt == "" || s.liveRun() != "" || !s.scannerReady(ctx) {
 		return err
+	}
+	if c, err := time.Parse(time.RFC3339Nano, sc.ConfirmedAt); extra && (err != nil || !c.Before(*slot)) {
+		return nil
 	}
 	devs, err := s.cfg.Inventory.Devices(ctx)
 	if err != nil {

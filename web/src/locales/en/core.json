@@ -1283,6 +1283,13 @@
       "body": "You sign in through your company account (SSO). Your password and two-step sign-in are set at your identity provider, not in Vedette. Your role comes from your groups there and is updated each time you sign in."
     }
   },
+  "twoStepPrompt": {
+    "title": "Turn on two-step sign-in for this administrator account",
+    "body": "An administrator can change every setting of the box. With two-step sign-in, a password that leaks is not enough: signing in also needs a code from an authenticator app or an email.",
+    "go": "Turn on two-step sign-in",
+    "later_one": "Remind me in {{count}} day",
+    "later_other": "Remind me in {{count}} days"
+  },
   "changePassword": {
     "title": "Choose a new password",
     "desc": "An administrator set your current password. Choose your own before you continue: at least {{min}} characters, and not the temporary one.",
@@ -1339,6 +1346,7 @@
       "desc": "Vedette listens and (if you confirm) scans only inside these ranges.",
       "lan": "Network ranges",
       "lanHint": "One range per row, like 192.168.10.0/24. Write the prefix length too: a bare address such as 192.168.10.0 is refused. Printers and cameras should be inside the list.",
+      "lanFromBox": "The first row is the box's own network ({{lan}}); change it or add others.",
       "lanRow": "Range {{n}}",
       "lanAdd": "Add range",
       "lanRemove": "Remove range {{n}}",
@@ -1471,7 +1479,7 @@
       "static": "Fixed address (static)",
       "dhcp": "From a DHCP server",
       "dhcpNote": "The address, gateway and DNS come from your DHCP server. Reserve the address on the server so it does not change.",
-      "dhcpNow": "Current address: {{ip}}.",
+      "dhcpNow": "Now: address {{ip}}, gateway {{gateway}}, DNS {{dns}}.",
       "address": "IP address",
       "prefix": "Prefix length",
       "gateway": "Gateway",
@@ -1628,9 +1636,9 @@
       "title": "Time (NTP)",
       "desc": "Where the box gets the time. Correct time matters for logs and certificates.",
       "mode": "Time source",
-      "default": "Default (adds {{pool}})",
+      "default": "Default",
       "custom": "Your own servers (added)",
-      "defaultNote": "The box also asks the public pool.ntp.org for the time, next to the time sources its operating system already uses.",
+      "defaultNote": "The box uses the time sources its operating system already has. Once you save Box network with Default, the box also asks the public {{pool}}.",
       "servers": "NTP servers",
       "serversHint": "One to four names or addresses, separated by commas. They are added to the time sources the operating system already uses; those stay.",
       "saved": "Time servers saved.",

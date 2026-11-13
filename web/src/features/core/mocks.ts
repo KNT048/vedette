@@ -29,7 +29,7 @@ const tempPassword = () => `${hex(3)}-${hex(3)}-${hex(3)}-${hex(2)}`
 // ---------- Cài đặt ban đầu ----------
 const setupHandlers = [
   // Công khai, chỉ id/tầng/phụ thuộc (không lộ module nào đang bật) để bước chọn gói vẽ được danh sách.
-  http.get(`${API}/core/setup/modules`, () => HttpResponse.json({ modules: modulesStore.get().map(({ id, tier, depends }) => ({ id, tier, depends, available: moduleAvailable(id) })), install: installStore.get().kind })),
+  http.get(`${API}/core/setup/modules`, () => HttpResponse.json({ modules: modulesStore.get().map(({ id, tier, depends }) => ({ id, tier, depends, available: moduleAvailable(id) })), install: installStore.get().kind, lan: installStore.get().kind === 'appliance' && !orgStore.get().setup_complete ? '192.168.10.0/24' : null })),
 
   http.post(`${API}/core/setup`, async ({ request }) => {
     if (orgStore.get().setup_complete) return fail(409, 'already_setup', 'This box is already set up. Sign in with the administrator account.')

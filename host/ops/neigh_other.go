@@ -9,3 +9,8 @@ import "errors"
 func systemNeighDump() ([]byte, error) {
 	return nil, errors.New("ops: no neighbour table on this system")
 }
+
+// systemAddrDump: no netlink here either; every address then reads as permanent (state/net reports no lease).
+func systemAddrDump() ([]byte, error) {
+	return nil, errors.New("ops: no address table on this system")
+}

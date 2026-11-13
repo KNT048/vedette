@@ -17,7 +17,7 @@ const qs = (q: Partial<AuditQuery>) => {
 }
 
 // ---- cài đặt ban đầu ----
-export const useSetupModules = () => useQuery({ queryKey: ['core', 'setup-modules'], queryFn: () => api.get<{ modules: SetupModule[]; install: InstallKind }>('/core/setup/modules'), retry: false })
+export const useSetupModules = () => useQuery({ queryKey: ['core', 'setup-modules'], queryFn: () => api.get<{ modules: SetupModule[]; install: InstallKind; lan: string | null }>('/core/setup/modules'), retry: false })
 export const useSetupStatus = () => useQuery({ queryKey: ['setup'], queryFn: () => api.get<SetupStatus>('/setup') })
 export function useSubmitSetup() {
   const qc = useQueryClient()
@@ -63,7 +63,7 @@ export function useToggleModule() {
 }
 
 // ---- tài khoản ----
-export const useAccount = () => useQuery({ queryKey: ['core', 'account'], queryFn: () => api.get<Account>('/core/account') })
+export const useAccount = (enabled = true) => useQuery({ queryKey: ['core', 'account'], queryFn: () => api.get<Account>('/core/account'), enabled })
 export function useAccountMutations() {
   const qc = useQueryClient()
   const refresh = () => { void qc.invalidateQueries({ queryKey: ['core', 'account'] }); void qc.invalidateQueries({ queryKey: ['me'] }) }

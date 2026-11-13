@@ -68,7 +68,8 @@ type APIHandlers struct {
 	keepRows   []KeepRow
 	freezes    []*store.DB // other databases of the box (logs.db): frozen for the purge, thawed when it fails
 
-	scope SetupScope // the inventory for first-run setup; nil = the ranges stay only in setup.scope
+	scope  SetupScope                                 // the inventory for first-run setup; nil = the ranges stay only in setup.scope
+	boxLAN func(context.Context) (netip.Prefix, bool) // HandlersConfig.BoxLAN
 }
 
 // HandlersConfig wires APIHandlers; every field but Clock and Facts is required.
@@ -119,6 +120,9 @@ type HandlersConfig struct {
 	// the scope of Devices -> Scope and sensors in the setup's own transaction. nil = a build without the inventory: the ranges stay only
 	// in core_setting setup.scope.
 	Scope SetupScope
+	// BoxLAN is the network of the box's management address (the Box network's management card, D-405), offered by GET
+	// /core/setup/modules as the first range of the network step while setup is open. nil or ok=false: none (container-only).
+	BoxLAN func(context.Context) (netip.Prefix, bool)
 }
 
 // SetupScope is the inventory port of POST /core/setup (INV-15). SetupScope writes inside the setup's transaction tx and may refuse the
@@ -160,7 +164,7 @@ func NewAPIHandlers(c HandlersConfig) (*APIHandlers, error) {
 		}
 		alsoKept = append(alsoKept, oas.CorePostCoreDataPurgeOKKeptItem(k))
 	}
-	h := &APIHandlers{scope: c.Scope, freezes: c.AlsoFreeze, gate: c.Gate, alsoKept: alsoKept, keepRows: c.KeepRows, dataDir: c.DataDir, dataFiles: c.DataFiles, schema: c.Schema, restart: c.Restart, keyPath: c.KeyPath, purgeHost: c.Host, osBusy: c.OSBusy, beforeWipe: c.BeforeWipe, logsDir: c.SpoolDir, db: c.DB, auth: c.Auth, reg: c.Reg, audit: c.Audit, secrets: c.Secrets, log: c.Log, now: c.Clock, facts: c.Facts, conns: c.Conns, logs: c.Logs}
+	h := &APIHandlers{scope: c.Scope, boxLAN: c.BoxLAN, freezes: c.AlsoFreeze, gate: c.Gate, alsoKept: alsoKept, keepRows: c.KeepRows, dataDir: c.DataDir, dataFiles: c.DataFiles, schema: c.Schema, restart: c.Restart, keyPath: c.KeyPath, purgeHost: c.Host, osBusy: c.OSBusy, beforeWipe: c.BeforeWipe, logsDir: c.SpoolDir, db: c.DB, auth: c.Auth, reg: c.Reg, audit: c.Audit, secrets: c.Secrets, log: c.Log, now: c.Clock, facts: c.Facts, conns: c.Conns, logs: c.Logs}
 	c.Logs.Register("audit", h.exportAudit)
 	return h, nil
 }

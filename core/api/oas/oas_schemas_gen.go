@@ -15466,13 +15466,22 @@ type CoreGetCoreSetupModulesOK struct {
 	// Appliance: installed by install.sh, with the system helper vedette-host; container: container-only
 	// install on the customer's Docker or Podman, no helper (D-168). The one place the GUI learns it
 	// (D-381).
-	Install CoreGetCoreSetupModulesOKInstall       `json:"install"`
+	Install CoreGetCoreSetupModulesOKInstall `json:"install"`
+	// The network of the box's management address (CIDR, like 192.168.18.0/24), offered as the first range
+	// of the network step (D-405); null when setup is done, on a container-only install, or when the box
+	// has no private IPv4 address.
+	Lan     NilString                              `json:"lan"`
 	Modules []CoreGetCoreSetupModulesOKModulesItem `json:"modules"`
 }
 
 // GetInstall returns the value of Install.
 func (s *CoreGetCoreSetupModulesOK) GetInstall() CoreGetCoreSetupModulesOKInstall {
 	return s.Install
+}
+
+// GetLan returns the value of Lan.
+func (s *CoreGetCoreSetupModulesOK) GetLan() NilString {
+	return s.Lan
 }
 
 // GetModules returns the value of Modules.
@@ -15483,6 +15492,11 @@ func (s *CoreGetCoreSetupModulesOK) GetModules() []CoreGetCoreSetupModulesOKModu
 // SetInstall sets the value of Install.
 func (s *CoreGetCoreSetupModulesOK) SetInstall(val CoreGetCoreSetupModulesOKInstall) {
 	s.Install = val
+}
+
+// SetLan sets the value of Lan.
+func (s *CoreGetCoreSetupModulesOK) SetLan(val NilString) {
+	s.Lan = val
 }
 
 // SetModules sets the value of Modules.

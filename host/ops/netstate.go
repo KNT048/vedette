@@ -42,17 +42,24 @@ type HostIface struct {
 	MAC      string
 	Loopback bool
 	Addrs    []netip.Prefix
+	// Dynamic are the addresses of Addrs that have a lease (DHCP, SLAAC): the kernel's IFA_F_PERMANENT is unset (D-405).
+	Dynamic []netip.Prefix
 }
 
-// systemInterfaces lists the interfaces and their addresses through the net package.
+// systemInterfaces lists the interfaces and their addresses through the net package, and which addresses have a lease
+// through one netlink address dump (a dump that fails leaves every address permanent).
 func systemInterfaces() ([]HostIface, error) {
 	all, err := net.Interfaces()
 	if err != nil {
 		return nil, err
 	}
+	var dyn map[int][]netip.Prefix
+	if dump, err := systemAddrDump(); err == nil {
+		dyn = dynamicAddrs(dump)
+	}
 	out := make([]HostIface, 0, len(all))
 	for _, i := range all {
-		h := HostIface{Name: i.Name, Index: i.Index, MAC: i.HardwareAddr.String(), Loopback: i.Flags&net.FlagLoopback != 0}
+		h := HostIface{Name: i.Name, Index: i.Index, MAC: i.HardwareAddr.String(), Loopback: i.Flags&net.FlagLoopback != 0, Dynamic: dyn[i.Index]}
 		if addrs, err := i.Addrs(); err == nil {
 			for _, a := range addrs {
 				if p, err := netip.ParsePrefix(a.String()); err == nil {
@@ -405,7 +412,12 @@ func (o *Ops) readNet(context.Context) (any, error) {
 		h := c.h
 		ni := api.NetInterface{
 			Name: h.Name, State: sys.state(h.Name), SpeedMbps: sys.speed(h.Name), Promisc: sys.promisc(h.Name),
-			Addresses: prefixStrings(h.Addrs), Counters: sys.counters(h.Name),
+			Addresses: prefixStrings(h.Addrs), Counters: sys.counters(h.Name), Dynamic: []string{},
+		}
+		for _, a := range ni.Addresses {
+			if p, err := netip.ParsePrefix(a); err == nil && slices.Contains(h.Dynamic, p) {
+				ni.Dynamic = append(ni.Dynamic, a)
+			}
 		}
 		if mac, err := net.ParseMAC(h.MAC); err == nil && len(mac) == 6 {
 			ni.MAC = mac.String()

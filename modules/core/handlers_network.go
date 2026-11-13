@@ -115,9 +115,13 @@ type NetworkHandlers struct {
 	cardsMu   sync.Mutex
 	lastCards []Card // the last list of cards the host gave (Cards)
 	lastMgmt  string // the last management card the host gave (ManagementCard)
-	sensorMu  sync.Mutex
-	sensorOn  string // the SPAN port the sensor was last told to use ("eth1/true", "/false"); "" before the first time
-	after     func(d time.Duration, f func())
+	// ManagementLAN, for the public setup page: the last answer and when a read for it last began (one per netReadTTL).
+	lanAt    time.Time
+	lan      netip.Prefix
+	lanOK    bool
+	sensorMu sync.Mutex
+	sensorOn string // the SPAN port the sensor was last told to use ("eth1/true", "/false"); "" before the first time
+	after    func(d time.Duration, f func())
 }
 
 type stateFlight struct {
@@ -514,23 +518,39 @@ func mgmtViewOf(st api.NetState) netMgmtView {
 		}
 		return v
 	}
-	// DHCP, or a box the host has not configured yet: what the card has now.
-	if cfg != nil {
+	// DHCP, or a box the host has not configured yet: what the card has now. With no configuration of the host the mode is
+	// what the kernel says of the card's address: DHCP when it has a lease (`ip address` "dynamic"), static otherwise (an
+	// installer's fixed address, or a host older than D-405 that does not say).
+	p, ok := ipv4Of(card)
+	if cfg != nil || (ok && slices.Contains(card.Dynamic, p.String())) {
 		v.Mode = api.NetModeDHCP
 	}
-	if p, ok := ipv4Of(card); ok {
+	if ok {
 		v.Address, v.Prefix = refTo(p.Addr().String()), refTo(p.Bits())
 	}
 	if st.DefaultRoute != nil && card != nil && st.DefaultRoute.Iface == card.Name && st.DefaultRoute.Gateway != "" {
 		v.Gateway = refTo(st.DefaultRoute.Gateway)
 	}
-	if cfg != nil {
+	v.DNS = dnsInUse(st)
+	if len(v.DNS) == 0 && cfg != nil {
 		v.DNS = slices.Clone(cfg.DNS)
 	}
 	if v.DNS == nil {
 		v.DNS = []string{}
 	}
 	return v
+}
+
+// dnsInUse are the DNS servers the box's resolver uses now (a DHCP lease's or the installer's; D-405), as the static form
+// takes them: IPv4 only, at most 3.
+func dnsInUse(st api.NetState) []string {
+	out := []string{}
+	for _, s := range st.Resolvers {
+		if a, err := netip.ParseAddr(s); err == nil && a.Is4() && len(out) < 3 {
+			out = append(out, a.String())
+		}
+	}
+	return out
 }
 
 func (h *NetworkHandlers) composeNet(st api.NetState, rec *pendingRecord, sp SpanSettings, status spanStatusView) netView {
@@ -548,6 +568,9 @@ func (h *NetworkHandlers) composeNet(st api.NetState, rec *pendingRecord, sp Spa
 			}
 		case span:
 			iv.Role = api.NetRoleSPAN
+		}
+		if p, ok := ipv4Of(&c); ok && iv.Address == nil { // any other card shows the address it has now (a Wi-Fi card's lease, walk 4)
+			iv.Address = refTo(p.String())
 		}
 		v.Interfaces = append(v.Interfaces, iv)
 	}
@@ -1467,6 +1490,49 @@ func (h *NetworkHandlers) ManagementCard(ctx context.Context) (name string, ok b
 	h.cardsMu.Unlock()
 	return name, true
 }
+
+// ManagementLAN is the network of the management card's IPv4 address (host bits cleared): the range first-run setup offers
+// first (D-405). ok is false without a host, when the host has not answered (yet), or when the card has no IPv4 address. The
+// caller is a public page, so a read of the host starts at most once per netReadTTL from here, whatever its outcome (anonymous
+// requests cannot spend core's host budget or fill the log), and the caller waits for it at most managementLANWait; a read that
+// ends later still fills the answer for the next request.
+func (h *NetworkHandlers) ManagementLAN(ctx context.Context) (netip.Prefix, bool) {
+	if h == nil || h.host == nil {
+		return netip.Prefix{}, false
+	}
+	h.cardsMu.Lock()
+	if !h.lanAt.IsZero() && h.now().Sub(h.lanAt) < netReadTTL {
+		p, ok := h.lan, h.lanOK
+		h.cardsMu.Unlock()
+		return p, ok
+	}
+	h.lanAt = h.now()
+	h.cardsMu.Unlock()
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		st, err := h.state(context.WithoutCancel(ctx), false)
+		var p netip.Prefix
+		ok := false
+		if err == nil {
+			p, ok = ipv4Of(cardNamed(st, mgmtIface(st)))
+		}
+		h.cardsMu.Lock()
+		h.lan, h.lanOK = p.Masked(), ok
+		h.cardsMu.Unlock()
+	}()
+	select {
+	case <-done:
+	case <-time.After(managementLANWait):
+	case <-ctx.Done():
+	}
+	h.cardsMu.Lock()
+	defer h.cardsMu.Unlock()
+	return h.lan, h.lanOK
+}
+
+// managementLANWait bounds how long the public setup page waits for the host (a hung host must not stall the wizard).
+const managementLANWait = 2 * time.Second
 
 // Cards lists the cards the host reports. ok is false when there is no host to ask (no socket configured, or its
 // file is absent, or a host that says this is no appliance). Only "no socket configured" (HasHost false) means a

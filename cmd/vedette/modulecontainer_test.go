@@ -13,11 +13,13 @@ import (
 	"time"
 
 	"github.com/knt048/vedette/core/audit"
+	"github.com/knt048/vedette/core/events"
 	"github.com/knt048/vedette/core/modreg"
 	"github.com/knt048/vedette/host/api"
 	hostclient "github.com/knt048/vedette/host/client"
 	"github.com/knt048/vedette/host/ops/opstest"
 	"github.com/knt048/vedette/modules"
+	"github.com/knt048/vedette/modules/inventory"
 )
 
 // M3 (D-260): the sensor and scan containers follow their module, over the real host server and client (as the honeypot's
@@ -546,5 +548,75 @@ func TestModuleContainerStartVersion(t *testing.T) {
 		if got := c.startVersion(tc.st, tc.ok); got != tc.want {
 			t.Errorf("%s: version %q, want %q", tc.name, got, tc.want)
 		}
+	}
+}
+
+// D-405 (walk 4): before first-run setup a default-on module's container is not started, and the guard does not retry; once
+// setup is done the same call starts it.
+func TestModuleContainerWaitsForFirstRunSetup(t *testing.T) {
+	t.Parallel()
+	e := startHPHost(t, false)
+	e.m.InstallUnit(api.ServiceScan, opstest.Digest('b'), true)
+	reg := &flagReg{}
+	reg.on.Store(true)
+	f := e.follower(reg, "sensor-active", api.ServiceScan)
+	var done atomic.Bool
+	f.setupDone = func(context.Context) (bool, error) { return done.Load(), nil }
+	ctx := t.Context()
+	runs := e.writes()
+	if err := f.ensureOn(ctx); err != nil {
+		t.Fatalf("before setup: %v, want nil (nothing to do, no retry)", err)
+	}
+	if n := e.writes(); n != runs || e.state(t, api.ServiceScan) == api.UnitActive {
+		t.Fatalf("before setup the container was started (%d write runs)", n-runs)
+	}
+	done.Store(true)
+	if err := f.ensureOn(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if e.state(t, api.ServiceScan) != api.UnitActive {
+		t.Fatal("after setup the container did not start")
+	}
+}
+
+// D-405, the whole chain: with setup not done, the guards start nothing for the default-on sensor modules; the event the wizard's
+// commit publishes (inventory.settings.changed) runs the start, and the containers come up.
+func TestSensorContainersStartWhenFirstRunSetupCommits(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+	e := startHPHost(t, false)
+	db, err := openMigrated(ctx, filepath.Join(t.TempDir(), "v.db"), slog.New(slog.DiscardHandler))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	reg, err := modreg.New(ctx, modreg.Config{DB: db, Audit: audit.New(nil), Manifests: modules.Manifests, Version: version, Log: slog.New(slog.DiscardHandler)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range moduleContainers {
+		e.m.InstallUnit(c.service, opstest.Digest('b'), true)
+		if !reg.Enabled(c.module) {
+			t.Fatalf("%s is not on by default; this test is about default-on modules", c.module)
+		}
+	}
+	bus := events.NewBus(slog.New(slog.DiscardHandler))
+	var done atomic.Bool
+	gctx, cancel := context.WithCancel(ctx)
+	on, off := modreg.NewOnGuard(gctx, reg, slog.New(slog.DiscardHandler), nil), modreg.NewOffGuard(gctx, reg, slog.New(slog.DiscardHandler), nil)
+	defer func() { cancel(); on.Wait(); off.Wait() }()
+	addContainerGuards(on, off, deps{HostSocket: e.h.Socket, Reg: reg, Log: testLogger(), Bus: bus}, func(context.Context) (bool, error) { return done.Load(), nil })
+	on.Wait() // gctx is live: Wait returns once the first runs have ended (ensureOn returned nil before setup)
+	for _, c := range moduleContainers {
+		if e.state(t, c.service) == api.UnitActive {
+			t.Fatalf("%s started before first-run setup", c.service)
+		}
+	}
+	done.Store(true)
+	if err := bus.Publish(ctx, events.Event{Name: inventory.EventSettingsChanged, Data: inventory.SettingsEvent{Scope: "scan"}}); err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range moduleContainers {
+		eventually(t, c.service+" started after setup", func() bool { return e.state(t, c.service) == api.UnitActive })
 	}
 }

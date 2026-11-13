@@ -46,8 +46,11 @@ type NetInterface struct {
 	// (the sensor sets it on its own socket); netplan has no such key.
 	Promisc bool `json:"promisc"`
 	// Addresses are the IPv4 and IPv6 addresses of the card as CIDR text, "10.0.0.5/24".
-	Addresses []string    `json:"addresses"`
-	Counters  NetCounters `json:"counters"`
+	Addresses []string `json:"addresses"`
+	// Dynamic are the addresses of Addresses that have a lease (a DHCP lease, an IPv6 SLAAC address): the kernel's IFA_F_PERMANENT
+	// flag is unset, what `ip address` prints as "dynamic" (D-405). [] when none; absent from a host older than D-405.
+	Dynamic  []string    `json:"dynamic"`
+	Counters NetCounters `json:"counters"`
 }
 
 // NetMgmt is the management part of the running configuration, as the host wrote it.

@@ -59,6 +59,8 @@ var (
 	versionTokenRE = regexp.MustCompile(`^[0-9A-Za-z.+_-]{1,32}$`)
 	// errStoredInvalid: the index stored earlier no longer verifies.
 	errStoredInvalid = errors.New("core: the stored release index does not verify")
+	// errRedirectRefused: the source redirected to a host outside releaseHosts (or over http); unreachableReason names it.
+	errRedirectRefused = errors.New("redirect to a host that is not on the list")
 )
 
 // updCheck is the check side's part of OSHandlers.
@@ -176,7 +178,7 @@ func newReleaseClient() *http.Client {
 				return errors.New("too many redirects")
 			}
 			if req.URL.Scheme != "https" || !releaseHosts[strings.ToLower(req.URL.Hostname())] {
-				return errors.New("redirect to a host that is not on the list")
+				return errRedirectRefused
 			}
 			return nil
 		},
@@ -472,6 +474,7 @@ func (h *OSHandlers) restoresData(r releaseNow) bool {
 type errSource struct {
 	err    error
 	status int
+	sig    bool // the error is the .minisig's, not the document's (fetchPair): a missing signature is never "nothing published"
 }
 
 func (e errSource) Error() string { return "core: update source: " + e.err.Error() }
@@ -514,6 +517,11 @@ func (h *OSHandlers) fetchPair(ctx context.Context, docURL string) (doc, sig []b
 		return nil, nil, err
 	}
 	if sig, err = h.fetchDoc(ctx, docURL+".minisig", release.MaxSigBytes); err != nil {
+		var src errSource
+		if errors.As(err, &src) {
+			src.sig = true
+			return nil, nil, src
+		}
 		return nil, nil, err
 	}
 	return doc, sig, nil
@@ -548,8 +556,10 @@ func unreachableReason(err error) string {
 	switch {
 	case errors.As(err, &dns):
 		return "its name could not be looked up (DNS)"
+	case errors.Is(err, errRedirectRefused):
+		return "it redirected to a host that is not allowed"
 	case errors.Is(err, context.DeadlineExceeded) || (errors.As(err, &ne) && ne.Timeout()):
-		return "it did not answer within 30 seconds"
+		return "it did not answer in time"
 	case errors.Is(err, syscall.ECONNREFUSED):
 		return "the connection was refused"
 	case errors.Is(err, syscall.ENETUNREACH) || errors.Is(err, syscall.EHOSTUNREACH):
@@ -557,7 +567,7 @@ func unreachableReason(err error) string {
 	case errors.As(err, &cert):
 		return "its HTTPS certificate was not accepted (check the box clock and any proxy that inspects HTTPS)"
 	case errors.As(err, &src) && src.status == http.StatusNotFound:
-		return "a file that the release index names is missing there"
+		return "a release file is missing there"
 	case errors.As(err, &src) && (src.status == http.StatusForbidden || src.status == http.StatusTooManyRequests):
 		return "it refused the request or limited how often this box may ask"
 	case errors.As(err, &src) && src.status >= 500:
@@ -677,10 +687,12 @@ func (h *OSHandlers) runCheck(ctx context.Context, by string) (string, error) {
 	}
 	raw, sig, err := h.fetchPair(ctx, h.upd.base+"/index/index.json")
 	var src errSource
-	if errors.As(err, &src) && src.status == http.StatusNotFound {
-		// M5-181, D-540: the source answered and publishes no release (yet), so nothing is newer than this build: a good
-		// check (Home Assistant, Grafana: "you're on the latest version"), not a 502. The stored index and offer stay.
-		// A 404 on a manifest the index names is not this: it stays update_source_unreachable (fetchOffer).
+	if errors.As(err, &src) && src.status == http.StatusNotFound && !src.sig && len(st.Index) == 0 {
+		// M5-181, D-540: the source answered 404 for the index itself and this box never stored one, so no release was
+		// ever published there: nothing is newer than this build, a good check (Home Assistant, Grafana: "you're on the
+		// latest version"), not a 502. Not this (each stays 503 update_source_unreachable, last_check does not move, so
+		// the automatic mode installs nothing): a 404 once an index was stored (a withdrawn source or a proxy must not
+		// freshen an old offer), a 404 for the index's signature alone, a 404 on a manifest the index names.
 		h.log.InfoContext(ctx, "core: update check: no release information is published at the source", "error", err)
 		wctx := context.WithoutCancel(ctx)
 		if err := h.db.Write(wctx, func(tx *sql.Tx) error {

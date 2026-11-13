@@ -17192,11 +17192,11 @@ func (s *CoreGetCoreUpdatesOKHistoryItemAction) UnmarshalText(data []byte) error
 type CoreGetCoreUpdatesOKLastCheckError struct {
 	At time.Time `json:"at"`
 	// Update_source_unreachable = the release source could not be reached (network, timeout, an answer
-	// other than 200, or a 404 for a manifest the index names; the message names the host and the reason
-	// in fixed words, D-540); update_not_published = only in a record kept by an older version (D-407):
-	// since D-540 a source that publishes no index is a good check with nothing offered;
-	// update_check_failed = what arrived did not pass the signature or shape checks, or this build cannot
-	// check.
+	// other than 200, a 404 for the index once one is stored or for its signature, or for a manifest the
+	// index names; the message names the host and the reason in fixed words, D-540); update_not_published
+	// = only in a record kept by an older version (D-407): since D-540 a 404 for the index on a box that
+	// never stored one is a good check with nothing offered; update_check_failed = what arrived did not
+	// pass the signature or shape checks, or this build cannot check.
 	Code CoreGetCoreUpdatesOKLastCheckErrorCode `json:"code"`
 	// The box's own sentence for this failure (the message of the 503/502 answer): fixed words and the
 	// configured source host; never text received from the network.
@@ -17234,11 +17234,11 @@ func (s *CoreGetCoreUpdatesOKLastCheckError) SetMessage(val string) {
 }
 
 // Update_source_unreachable = the release source could not be reached (network, timeout, an answer
-// other than 200, or a 404 for a manifest the index names; the message names the host and the reason
-// in fixed words, D-540); update_not_published = only in a record kept by an older version (D-407):
-// since D-540 a source that publishes no index is a good check with nothing offered;
-// update_check_failed = what arrived did not pass the signature or shape checks, or this build cannot
-// check.
+// other than 200, a 404 for the index once one is stored or for its signature, or for a manifest the
+// index names; the message names the host and the reason in fixed words, D-540); update_not_published
+// = only in a record kept by an older version (D-407): since D-540 a 404 for the index on a box that
+// never stored one is a good check with nothing offered; update_check_failed = what arrived did not
+// pass the signature or shape checks, or this build cannot check.
 type CoreGetCoreUpdatesOKLastCheckErrorCode string
 
 const (
@@ -20702,11 +20702,11 @@ func (s *CorePatchCoreUpdatesOKHistoryItemAction) UnmarshalText(data []byte) err
 type CorePatchCoreUpdatesOKLastCheckError struct {
 	At time.Time `json:"at"`
 	// Update_source_unreachable = the release source could not be reached (network, timeout, an answer
-	// other than 200, or a 404 for a manifest the index names; the message names the host and the reason
-	// in fixed words, D-540); update_not_published = only in a record kept by an older version (D-407):
-	// since D-540 a source that publishes no index is a good check with nothing offered;
-	// update_check_failed = what arrived did not pass the signature or shape checks, or this build cannot
-	// check.
+	// other than 200, a 404 for the index once one is stored or for its signature, or for a manifest the
+	// index names; the message names the host and the reason in fixed words, D-540); update_not_published
+	// = only in a record kept by an older version (D-407): since D-540 a 404 for the index on a box that
+	// never stored one is a good check with nothing offered; update_check_failed = what arrived did not
+	// pass the signature or shape checks, or this build cannot check.
 	Code CorePatchCoreUpdatesOKLastCheckErrorCode `json:"code"`
 	// The box's own sentence for this failure (the message of the 503/502 answer): fixed words and the
 	// configured source host; never text received from the network.
@@ -20744,11 +20744,11 @@ func (s *CorePatchCoreUpdatesOKLastCheckError) SetMessage(val string) {
 }
 
 // Update_source_unreachable = the release source could not be reached (network, timeout, an answer
-// other than 200, or a 404 for a manifest the index names; the message names the host and the reason
-// in fixed words, D-540); update_not_published = only in a record kept by an older version (D-407):
-// since D-540 a source that publishes no index is a good check with nothing offered;
-// update_check_failed = what arrived did not pass the signature or shape checks, or this build cannot
-// check.
+// other than 200, a 404 for the index once one is stored or for its signature, or for a manifest the
+// index names; the message names the host and the reason in fixed words, D-540); update_not_published
+// = only in a record kept by an older version (D-407): since D-540 a 404 for the index on a box that
+// never stored one is a good check with nothing offered; update_check_failed = what arrived did not
+// pass the signature or shape checks, or this build cannot check.
 type CorePatchCoreUpdatesOKLastCheckErrorCode string
 
 const (
@@ -29140,11 +29140,11 @@ func (s *CorePostCoreUpdatesApplyOKHistoryItemAction) UnmarshalText(data []byte)
 type CorePostCoreUpdatesApplyOKLastCheckError struct {
 	At time.Time `json:"at"`
 	// Update_source_unreachable = the release source could not be reached (network, timeout, an answer
-	// other than 200, or a 404 for a manifest the index names; the message names the host and the reason
-	// in fixed words, D-540); update_not_published = only in a record kept by an older version (D-407):
-	// since D-540 a source that publishes no index is a good check with nothing offered;
-	// update_check_failed = what arrived did not pass the signature or shape checks, or this build cannot
-	// check.
+	// other than 200, a 404 for the index once one is stored or for its signature, or for a manifest the
+	// index names; the message names the host and the reason in fixed words, D-540); update_not_published
+	// = only in a record kept by an older version (D-407): since D-540 a 404 for the index on a box that
+	// never stored one is a good check with nothing offered; update_check_failed = what arrived did not
+	// pass the signature or shape checks, or this build cannot check.
 	Code CorePostCoreUpdatesApplyOKLastCheckErrorCode `json:"code"`
 	// The box's own sentence for this failure (the message of the 503/502 answer): fixed words and the
 	// configured source host; never text received from the network.
@@ -29182,11 +29182,11 @@ func (s *CorePostCoreUpdatesApplyOKLastCheckError) SetMessage(val string) {
 }
 
 // Update_source_unreachable = the release source could not be reached (network, timeout, an answer
-// other than 200, or a 404 for a manifest the index names; the message names the host and the reason
-// in fixed words, D-540); update_not_published = only in a record kept by an older version (D-407):
-// since D-540 a source that publishes no index is a good check with nothing offered;
-// update_check_failed = what arrived did not pass the signature or shape checks, or this build cannot
-// check.
+// other than 200, a 404 for the index once one is stored or for its signature, or for a manifest the
+// index names; the message names the host and the reason in fixed words, D-540); update_not_published
+// = only in a record kept by an older version (D-407): since D-540 a 404 for the index on a box that
+// never stored one is a good check with nothing offered; update_check_failed = what arrived did not
+// pass the signature or shape checks, or this build cannot check.
 type CorePostCoreUpdatesApplyOKLastCheckErrorCode string
 
 const (
@@ -30711,11 +30711,11 @@ func (s *CorePostCoreUpdatesBundleOKStateHistoryItemAction) UnmarshalText(data [
 type CorePostCoreUpdatesBundleOKStateLastCheckError struct {
 	At time.Time `json:"at"`
 	// Update_source_unreachable = the release source could not be reached (network, timeout, an answer
-	// other than 200, or a 404 for a manifest the index names; the message names the host and the reason
-	// in fixed words, D-540); update_not_published = only in a record kept by an older version (D-407):
-	// since D-540 a source that publishes no index is a good check with nothing offered;
-	// update_check_failed = what arrived did not pass the signature or shape checks, or this build cannot
-	// check.
+	// other than 200, a 404 for the index once one is stored or for its signature, or for a manifest the
+	// index names; the message names the host and the reason in fixed words, D-540); update_not_published
+	// = only in a record kept by an older version (D-407): since D-540 a 404 for the index on a box that
+	// never stored one is a good check with nothing offered; update_check_failed = what arrived did not
+	// pass the signature or shape checks, or this build cannot check.
 	Code CorePostCoreUpdatesBundleOKStateLastCheckErrorCode `json:"code"`
 	// The box's own sentence for this failure (the message of the 503/502 answer): fixed words and the
 	// configured source host; never text received from the network.
@@ -30753,11 +30753,11 @@ func (s *CorePostCoreUpdatesBundleOKStateLastCheckError) SetMessage(val string) 
 }
 
 // Update_source_unreachable = the release source could not be reached (network, timeout, an answer
-// other than 200, or a 404 for a manifest the index names; the message names the host and the reason
-// in fixed words, D-540); update_not_published = only in a record kept by an older version (D-407):
-// since D-540 a source that publishes no index is a good check with nothing offered;
-// update_check_failed = what arrived did not pass the signature or shape checks, or this build cannot
-// check.
+// other than 200, a 404 for the index once one is stored or for its signature, or for a manifest the
+// index names; the message names the host and the reason in fixed words, D-540); update_not_published
+// = only in a record kept by an older version (D-407): since D-540 a 404 for the index on a box that
+// never stored one is a good check with nothing offered; update_check_failed = what arrived did not
+// pass the signature or shape checks, or this build cannot check.
 type CorePostCoreUpdatesBundleOKStateLastCheckErrorCode string
 
 const (
@@ -32303,11 +32303,11 @@ func (s *CorePostCoreUpdatesCheckOKHistoryItemAction) UnmarshalText(data []byte)
 type CorePostCoreUpdatesCheckOKLastCheckError struct {
 	At time.Time `json:"at"`
 	// Update_source_unreachable = the release source could not be reached (network, timeout, an answer
-	// other than 200, or a 404 for a manifest the index names; the message names the host and the reason
-	// in fixed words, D-540); update_not_published = only in a record kept by an older version (D-407):
-	// since D-540 a source that publishes no index is a good check with nothing offered;
-	// update_check_failed = what arrived did not pass the signature or shape checks, or this build cannot
-	// check.
+	// other than 200, a 404 for the index once one is stored or for its signature, or for a manifest the
+	// index names; the message names the host and the reason in fixed words, D-540); update_not_published
+	// = only in a record kept by an older version (D-407): since D-540 a 404 for the index on a box that
+	// never stored one is a good check with nothing offered; update_check_failed = what arrived did not
+	// pass the signature or shape checks, or this build cannot check.
 	Code CorePostCoreUpdatesCheckOKLastCheckErrorCode `json:"code"`
 	// The box's own sentence for this failure (the message of the 503/502 answer): fixed words and the
 	// configured source host; never text received from the network.
@@ -32345,11 +32345,11 @@ func (s *CorePostCoreUpdatesCheckOKLastCheckError) SetMessage(val string) {
 }
 
 // Update_source_unreachable = the release source could not be reached (network, timeout, an answer
-// other than 200, or a 404 for a manifest the index names; the message names the host and the reason
-// in fixed words, D-540); update_not_published = only in a record kept by an older version (D-407):
-// since D-540 a source that publishes no index is a good check with nothing offered;
-// update_check_failed = what arrived did not pass the signature or shape checks, or this build cannot
-// check.
+// other than 200, a 404 for the index once one is stored or for its signature, or for a manifest the
+// index names; the message names the host and the reason in fixed words, D-540); update_not_published
+// = only in a record kept by an older version (D-407): since D-540 a 404 for the index on a box that
+// never stored one is a good check with nothing offered; update_check_failed = what arrived did not
+// pass the signature or shape checks, or this build cannot check.
 type CorePostCoreUpdatesCheckOKLastCheckErrorCode string
 
 const (
@@ -35104,11 +35104,11 @@ func (s *CorePostCoreUpdatesRollbackOKHistoryItemAction) UnmarshalText(data []by
 type CorePostCoreUpdatesRollbackOKLastCheckError struct {
 	At time.Time `json:"at"`
 	// Update_source_unreachable = the release source could not be reached (network, timeout, an answer
-	// other than 200, or a 404 for a manifest the index names; the message names the host and the reason
-	// in fixed words, D-540); update_not_published = only in a record kept by an older version (D-407):
-	// since D-540 a source that publishes no index is a good check with nothing offered;
-	// update_check_failed = what arrived did not pass the signature or shape checks, or this build cannot
-	// check.
+	// other than 200, a 404 for the index once one is stored or for its signature, or for a manifest the
+	// index names; the message names the host and the reason in fixed words, D-540); update_not_published
+	// = only in a record kept by an older version (D-407): since D-540 a 404 for the index on a box that
+	// never stored one is a good check with nothing offered; update_check_failed = what arrived did not
+	// pass the signature or shape checks, or this build cannot check.
 	Code CorePostCoreUpdatesRollbackOKLastCheckErrorCode `json:"code"`
 	// The box's own sentence for this failure (the message of the 503/502 answer): fixed words and the
 	// configured source host; never text received from the network.
@@ -35146,11 +35146,11 @@ func (s *CorePostCoreUpdatesRollbackOKLastCheckError) SetMessage(val string) {
 }
 
 // Update_source_unreachable = the release source could not be reached (network, timeout, an answer
-// other than 200, or a 404 for a manifest the index names; the message names the host and the reason
-// in fixed words, D-540); update_not_published = only in a record kept by an older version (D-407):
-// since D-540 a source that publishes no index is a good check with nothing offered;
-// update_check_failed = what arrived did not pass the signature or shape checks, or this build cannot
-// check.
+// other than 200, a 404 for the index once one is stored or for its signature, or for a manifest the
+// index names; the message names the host and the reason in fixed words, D-540); update_not_published
+// = only in a record kept by an older version (D-407): since D-540 a 404 for the index on a box that
+// never stored one is a good check with nothing offered; update_check_failed = what arrived did not
+// pass the signature or shape checks, or this build cannot check.
 type CorePostCoreUpdatesRollbackOKLastCheckErrorCode string
 
 const (

@@ -347,6 +347,12 @@ func TestUpdateCheckRefusesWhatDoesNotVerify(t *testing.T) {
 			e.srv.down = true
 			e.srv.mu.Unlock()
 		}},
+		// D-540 review: a missing signature next to a present index is never "nothing published".
+		"index signature 404": {503, core.CodeUpdateSourceUnreachable, func(_ *testing.T, e *updEnv) {
+			e.srv.mu.Lock()
+			delete(e.srv.files, "/index/index.json.minisig")
+			e.srv.mu.Unlock()
+		}},
 		// A release the signed index names whose manifest is missing is a broken source, not "nothing published".
 		"manifest 404": {503, core.CodeUpdateSourceUnreachable, func(_ *testing.T, e *updEnv) {
 			e.srv.mu.Lock()
@@ -414,6 +420,18 @@ func TestUpdateCheckNothingPublishedIsUpToDate(t *testing.T) {
 	e.wantNothingOffered(t, r)
 	if acts := e.actions(); !slices.Contains(acts, "update.check") {
 		t.Errorf("the check has no audit row: %v", acts)
+	}
+	// Once an index was stored, a 404 for it is a broken or withdrawn source: 503, last_check stays (D-540 review).
+	e.srv.standard(t, 5)
+	good := e.oper.post("/core/updates/check", nil)
+	wantOK(t, good, 200)
+	e.srv.mu.Lock()
+	delete(e.srv.files, "/index/index.json")
+	e.srv.mu.Unlock()
+	e.clock.Advance(time.Hour)
+	wantStatus(t, e.oper.post("/core/updates/check", nil), 503, core.CodeUpdateSourceUnreachable)
+	if g := e.viewer.get("/core/updates"); g.JSON["last_check"] != good.JSON["last_check"] || g.JSON["last_check_error"] == nil {
+		t.Errorf("after a 404 for a stored index: last_check %v (was %v), last_check_error %v", g.JSON["last_check"], good.JSON["last_check"], g.JSON["last_check_error"])
 	}
 }
 

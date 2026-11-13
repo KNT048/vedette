@@ -1183,7 +1183,7 @@ describe('core: cập nhật (S-CORE-2)', () => {
     renderApp('/settings/updates')
     await u.click(await screen.findByRole('button', { name: 'Check for Vedette releases' }))
     // One status line (D-407): the failure with its reason, then the last good check, which stays.
-    expect(await screen.findByText(/^Last check failed .+: Could not reach the update source \(github\.com\): it did not answer within 30 seconds\. Try again later.* Last successful check /)).toBeInTheDocument()
+    expect(await screen.findByText(/^Last check failed .+: Could not reach the update source \(github\.com\): it did not answer in time\. Try again later.* Last successful check /)).toBeInTheDocument()
     expect(screen.queryByText(/^Last checked |^Never checked/)).toBeNull()
     checkScenario.set({ code: null })
     await u.click(screen.getByRole('button', { name: 'Check for Vedette releases' }))

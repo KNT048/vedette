@@ -229,6 +229,26 @@ func TestUpdateAutoStopsAfterAFailedCheckNow(t *testing.T) {
 	}
 }
 
+// D-540 review: once an index was stored, the source answering 404 for it does not count as a fresh good check, so a
+// stored offer (perhaps withdrawn since) is not installed.
+func TestUpdateAutoSkipsWhenAStoredIndexGoes404(t *testing.T) {
+	t.Parallel()
+	e, fh := newRunEnv(t, lockstep("1.3.0", "1.2.0"), "1.3.0", true)
+	wantOK(t, e.admin.patch("/core/updates", map[string]any{"mode": "auto"}), 200)
+	e.srv.mu.Lock()
+	delete(e.srv.files, "/index/index.json")
+	e.srv.mu.Unlock()
+	e.clock.Advance(time.Hour)
+	wantStatus(t, e.oper.post("/core/updates/check", nil), 503, core.CodeUpdateSourceUnreachable)
+	e.clock.Advance(core.UpdateTickEvery)
+	if err := e.handler.UpdateTick(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if run := getVal(e.admin.get("/core/updates"), "run"); run != nil || len(fh.callList()) != 0 {
+		t.Fatalf("installed after a 404 for the stored index: run %v, calls %q", run, fh.callList())
+	}
+}
+
 // A failed check is stored (D-392): after core restarts the automatic mode still installs nothing, the page still shows
 // the failure, and the next good check clears it and installs.
 func TestUpdateAutoRemembersAFailedCheckAfterARestart(t *testing.T) {

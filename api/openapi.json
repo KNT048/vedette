@@ -15140,7 +15140,7 @@
                                 "update_not_published",
                                 "update_check_failed"
                               ],
-                              "description": "update_source_unreachable = the release source could not be reached (network, timeout, an answer other than 200, or a 404 for a manifest the index names; the message names the host and the reason in fixed words, D-540); update_not_published = only in a record kept by an older version (D-407): since D-540 a source that publishes no index is a good check with nothing offered; update_check_failed = what arrived did not pass the signature or shape checks, or this build cannot check"
+                              "description": "update_source_unreachable = the release source could not be reached (network, timeout, an answer other than 200, a 404 for the index once one is stored or for its signature, or for a manifest the index names; the message names the host and the reason in fixed words, D-540); update_not_published = only in a record kept by an older version (D-407): since D-540 a 404 for the index on a box that never stored one is a good check with nothing offered; update_check_failed = what arrived did not pass the signature or shape checks, or this build cannot check"
                             },
                             "message": {
                               "type": "string",
@@ -15710,7 +15710,7 @@
                                 "update_not_published",
                                 "update_check_failed"
                               ],
-                              "description": "update_source_unreachable = the release source could not be reached (network, timeout, an answer other than 200, or a 404 for a manifest the index names; the message names the host and the reason in fixed words, D-540); update_not_published = only in a record kept by an older version (D-407): since D-540 a source that publishes no index is a good check with nothing offered; update_check_failed = what arrived did not pass the signature or shape checks, or this build cannot check"
+                              "description": "update_source_unreachable = the release source could not be reached (network, timeout, an answer other than 200, a 404 for the index once one is stored or for its signature, or for a manifest the index names; the message names the host and the reason in fixed words, D-540); update_not_published = only in a record kept by an older version (D-407): since D-540 a 404 for the index on a box that never stored one is a good check with nothing offered; update_check_failed = what arrived did not pass the signature or shape checks, or this build cannot check"
                             },
                             "message": {
                               "type": "string",
@@ -16274,7 +16274,7 @@
                                 "update_not_published",
                                 "update_check_failed"
                               ],
-                              "description": "update_source_unreachable = the release source could not be reached (network, timeout, an answer other than 200, or a 404 for a manifest the index names; the message names the host and the reason in fixed words, D-540); update_not_published = only in a record kept by an older version (D-407): since D-540 a source that publishes no index is a good check with nothing offered; update_check_failed = what arrived did not pass the signature or shape checks, or this build cannot check"
+                              "description": "update_source_unreachable = the release source could not be reached (network, timeout, an answer other than 200, a 404 for the index once one is stored or for its signature, or for a manifest the index names; the message names the host and the reason in fixed words, D-540); update_not_published = only in a record kept by an older version (D-407): since D-540 a 404 for the index on a box that never stored one is a good check with nothing offered; update_check_failed = what arrived did not pass the signature or shape checks, or this build cannot check"
                             },
                             "message": {
                               "type": "string",
@@ -16891,7 +16891,7 @@
                                     "update_not_published",
                                     "update_check_failed"
                                   ],
-                                  "description": "update_source_unreachable = the release source could not be reached (network, timeout, an answer other than 200, or a 404 for a manifest the index names; the message names the host and the reason in fixed words, D-540); update_not_published = only in a record kept by an older version (D-407): since D-540 a source that publishes no index is a good check with nothing offered; update_check_failed = what arrived did not pass the signature or shape checks, or this build cannot check"
+                                  "description": "update_source_unreachable = the release source could not be reached (network, timeout, an answer other than 200, a 404 for the index once one is stored or for its signature, or for a manifest the index names; the message names the host and the reason in fixed words, D-540); update_not_published = only in a record kept by an older version (D-407): since D-540 a 404 for the index on a box that never stored one is a good check with nothing offered; update_check_failed = what arrived did not pass the signature or shape checks, or this build cannot check"
                                 },
                                 "message": {
                                   "type": "string",
@@ -17443,7 +17443,7 @@
                                 "update_not_published",
                                 "update_check_failed"
                               ],
-                              "description": "update_source_unreachable = the release source could not be reached (network, timeout, an answer other than 200, or a 404 for a manifest the index names; the message names the host and the reason in fixed words, D-540); update_not_published = only in a record kept by an older version (D-407): since D-540 a source that publishes no index is a good check with nothing offered; update_check_failed = what arrived did not pass the signature or shape checks, or this build cannot check"
+                              "description": "update_source_unreachable = the release source could not be reached (network, timeout, an answer other than 200, a 404 for the index once one is stored or for its signature, or for a manifest the index names; the message names the host and the reason in fixed words, D-540); update_not_published = only in a record kept by an older version (D-407): since D-540 a 404 for the index on a box that never stored one is a good check with nothing offered; update_check_failed = what arrived did not pass the signature or shape checks, or this build cannot check"
                             },
                             "message": {
                               "type": "string",
@@ -19687,7 +19687,7 @@
                                 "update_not_published",
                                 "update_check_failed"
                               ],
-                              "description": "update_source_unreachable = the release source could not be reached (network, timeout, an answer other than 200, or a 404 for a manifest the index names; the message names the host and the reason in fixed words, D-540); update_not_published = only in a record kept by an older version (D-407): since D-540 a source that publishes no index is a good check with nothing offered; update_check_failed = what arrived did not pass the signature or shape checks, or this build cannot check"
+                              "description": "update_source_unreachable = the release source could not be reached (network, timeout, an answer other than 200, a 404 for the index once one is stored or for its signature, or for a manifest the index names; the message names the host and the reason in fixed words, D-540); update_not_published = only in a record kept by an older version (D-407): since D-540 a 404 for the index on a box that never stored one is a good check with nothing offered; update_check_failed = what arrived did not pass the signature or shape checks, or this build cannot check"
                             },
                             "message": {
                               "type": "string",

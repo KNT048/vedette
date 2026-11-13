@@ -9,7 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/chain/chainhead"
 	"github.com/knt048/vedette/core/jobs"
 	"github.com/knt048/vedette/modules/ai"
@@ -185,9 +184,9 @@ func (m aiMitigation) Run(ctx context.Context, req mitigation.AIRequest) (mitiga
 	ans, err := m.svc.Brief(ctx, ai.BriefRequest{Job: jobOf(req.Skill), Actor: req.User, Target: row.CVE, Question: q,
 		Data: []ai.DataBlock{{Kind: ai.DataFeed, Source: "exploited list entry " + row.CVE, Text: feed.String()}, {Kind: "inventory", Source: "the device of the finding", Text: dev.String()}}})
 	if err != nil {
-		if ae, ok := apierr.As(err); ok && (ae.Code == "ai_unavailable" || ae.Code == "daily_cap") {
-			return mitigation.AIOutput{}, fmt.Errorf("%w: %s", mitigation.ErrAIUnavailable, ae.Message)
-		}
+		// the ai module's own error (not set up, cut off, wrong format, a hook, the provider, the cap) goes to the page as it is: the
+		// handler answers with it, so the person reads what really happened (beta 0.1.0-beta.1: a cut answer read "No AI profile is
+		// assigned")
 		return mitigation.AIOutput{}, err
 	}
 	out := mitigation.AIOutput{Model: ans.Model, Profile: ans.Profile, InputTok: ans.TokensIn, OutputTok: ans.TokensOut, Paragraphs: ans.Paragraphs, Steps: ans.Steps, ActivityID: ans.ActivityID}
@@ -249,7 +248,11 @@ func (a aiAsk) Assets(ctx context.Context) ([]ai.AssetRow, error) {
 	}
 	out := make([]ai.AssetRow, 0, len(devs))
 	for _, d := range devs {
-		r := ai.AssetRow{ID: d.ID, Name: aiDeviceName(d), IP: d.IP, Kind: d.Kind, Vendor: aiObserved(d.Vendor), Model: aiObserved(d.Model), OS: aiObserved(d.OS), Approved: d.Approved, LastSeen: d.LastSeen, IsBox: d.IsBox}
+		r := ai.AssetRow{ID: d.ID, Name: aiDeviceName(d), IP: d.IP, Kind: d.Kind, Vendor: aiObserved(d.Vendor), Model: aiObserved(d.Model), OS: aiObserved(d.OS), Approved: d.Approved,
+			FirstSeen: d.FirstSeen, LastSeen: d.LastSeen, Origin: d.Origin, IsBox: d.IsBox}
+		if d.Summary != nil {
+			r.SeenBy = d.Summary.Source
+		}
 		for _, sv := range d.Services {
 			r.Ports = append(r.Ports, fmt.Sprintf("%d/%s %s", sv.Port, sv.Proto, sv.Name))
 		}

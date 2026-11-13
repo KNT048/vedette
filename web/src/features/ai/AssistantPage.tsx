@@ -111,13 +111,17 @@ function Answer({ r }: { r: AskResult }) {
     cell: ({ row }: { row: { original: { href?: string; cells: string[] } } }) => (i === 0 && row.original.href ? <Link to={row.original.href} className="text-accent underline-offset-4 hover:underline">{row.original.cells[0]}</Link> : row.original.cells[i]),
   }))
   const hooks = r.hooks ?? []
-  const refused = hooks.some((h) => h.when === 'before_ai' && h.action !== 'mask')
+  // Only a stopped question means the AI was not asked; a stopped answer means it answered and the answer was held back. A tool result
+  // a hook held back is not either: the AI answered without it (beta 0.1.0-beta.1 item 19).
+  const stopped = (step: string) => hooks.some((h) => h.step === step && h.action !== 'mask')
+  const refused = stopped('question') ? 'refused' : stopped('answer') ? 'answerHeld' : null
+  const blocked = hooks.some((h) => h.action !== 'mask')
   return (
     <div className="grid gap-4" aria-label={t('ask.answerFor', { q: r.question })} role="region">
       <p className="text-sm"><span className="text-muted">{t('ask.you')}</span> {r.question}</p>
       {refused ? (
         <div role="alert" className="rounded-md border border-warn/50 bg-warn-soft px-4 py-3 text-sm">
-          <p className="mb-1 font-medium">{t('ask.refused')}</p>
+          <p className="mb-1 font-medium">{t(`ask.${refused}`)}</p>
           {r.answer.map((p, i) => <p key={i}>{p}</p>)}
         </div>
       ) : (
@@ -130,8 +134,9 @@ function Answer({ r }: { r: AskResult }) {
         <div className="rounded-md border border-rule bg-surface p-3 text-sm">
           <h3 className="mb-1 text-sm font-medium">{t('ask.hooksTitle')}</h3>
           <ul aria-label={t('ask.hooksTitle')} className="grid gap-1.5">
-            {hooks.map((h, i) => <li key={i} className="flex flex-wrap items-center gap-2"><Chip tone={h.action === 'block' ? 'danger' : h.action === 'mask' ? 'warn' : 'accent'}>{t(`harness.hooks.action.${h.action}`)}</Chip><span className="font-medium">{h.name}</span><span className="text-muted">{h.message}</span></li>)}
+            {hooks.map((h, i) => <li key={i} className="flex flex-wrap items-center gap-2"><Chip tone={h.action === 'block' ? 'danger' : h.action === 'mask' ? 'warn' : 'accent'}>{t(`harness.hooks.action.${h.action}`)}</Chip><span className="font-medium">{h.name}</span><span className="text-muted">{t(`ask.step.${h.step}`, { tool: h.tool ?? '' })}</span><span className="text-muted">{h.message}</span></li>)}
           </ul>
+          {blocked ? <p className="mt-2 text-[13px] text-muted">{t('ask.hooksHint')} {admin ? <Link to="/settings/ai?tab=hooks" className="text-accent underline underline-offset-4">{t('ask.hooksLink')}</Link> : null}</p> : null}
         </div>
       ) : null}
       {r.table ? (
@@ -141,7 +146,7 @@ function Answer({ r }: { r: AskResult }) {
           <DataTable caption={t('ask.tableCaption', { q: r.question })} data={r.table.rows} columns={cols} pageSize={20} />
         </div>
       ) : null}
-      {refused ? null : <div>
+      {refused === 'refused' ? null : <div>
         <h3 className="mb-1 text-sm font-medium">{t('ask.toolsTitle')}</h3>
         <p className="mb-2 text-[13px] text-muted">{t('ask.toolsNote')}</p>
         <ul className="grid gap-1 rounded-md border border-rule bg-surface p-3 text-[13px]">

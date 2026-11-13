@@ -285,9 +285,9 @@ type Config struct {
 	// an automated ban on the gateway or the resolver would cut the box off with the rest of the network. An error is as for BoxAddrs
 	// (fail closed). nil = none known (no host: a container-only box, whose own route is the container bridge).
 	HostInfra func() ([]HostInfra, error)
-	// BaseURL is the address people open Vedette at (https://192.168.10.2:8443). It is the start of the block list address;
-	// empty = the address is shown from /api/v1 on.
-	BaseURL string
+	// BaseURL is the address people open Vedette at (https://192.168.10.2:8443), asked at every use (D-465: the Box address of
+	// Settings → Box network). It is the start of the block list address; nil or "" = the address is shown from /api/v1 on.
+	BaseURL func() string
 }
 
 // HostInfra is one address of the network the box depends on (Config.HostInfra).

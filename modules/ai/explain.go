@@ -397,7 +397,7 @@ func (s *Service) ExplainCVE(ctx context.Context, actor, id string) (ExplainResu
 		KnowledgeQuery: explainKnowledgeQuery(facts, assets),
 		knowledge:      &know,
 		Schema:         &provider.Schema{Name: "explain_cve", JSON: json.RawMessage(explainSchema)},
-		MaxTokens:      1200,
+		MaxTokens:      6000, // the answer runs to about 1,000 tokens; the rest is room for thinking (briefMaxTokens)
 		Summary:        fmt.Sprintf("Explained %s for %d matching devices", cve, len(assets)),
 		Check: func(text string) error {
 			var perr error

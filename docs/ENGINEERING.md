@@ -18,7 +18,7 @@ Một thay đổi chỉ "xong" khi **tất cả** mục dưới đây đúng. PR
 6. **Build output đã dọn.** Chạy `make clean` sau build; không commit `bin/`, `web/dist/`, báo cáo test (`rules/build-artifacts.md`).
 7. **Ships-as-code.** Máy mới dựng từ repo đạt cùng trạng thái: dependency cài bởi code, ghim phiên bản, idempotent, xác minh bằng hiệu ứng (dịch vụ chạy, cổng mở, cấu hình đúng) chứ không bằng exit code (`rules/ships-as-code.md`).
 8. **Bảo mật.** Không gọi shell bằng chuỗi lệnh, không eval; validate ở biên; secret không vào log (`rules/security.md`).
-9. **`make check` trên máy xanh** (kết quả dán trong PR) **và CI xanh** (§7, D-62, D-63), và có ít nhất một review của người (xem §4).
+9. **Build + lint gói đã đổi trên máy** (lệnh đã chạy dán trong PR) **và CI xanh** (§7, D-63, D-413), và có ít nhất một review của người (xem §4).
 
 Với tài liệu thuần: mục 1, 4, 5, 6 vẫn áp dụng; mục 2–3 "không áp dụng".
 
@@ -136,7 +136,9 @@ Spec FE là nguồn đầy đủ; dưới đây chỉ là tóm tắt. Khi khác 
 - Quy trình một bản phát hành: (1) `main` xanh; (2) cập nhật `CHANGELOG.md`, PR `docs/release-x.y.z`; (3) **kien tag tay** `vX.Y.Z`; (4) người duy trì chạy `make` phát hành trên máy: dựng image, quét trivy, ký, đẩy lên registry kênh beta `ghcr.io/knt048` (khoá ký không lên CI); (5) theo dõi cohort; (6) nâng lên stable; (7) ghi `docs/project-map/completion-log.md`.
 - **Agent không tạo tag, không phát hành, không đẩy image.**
 
-## 7. Kiểm tra: `make check` trên máy, bộ đầy đủ trên CI (D-62, D-63)
+## 7. Kiểm tra: build + lint trên máy, CI là cổng (D-63, D-413)
+
+**Từ 2026-11-13 (D-413)** quy tắc hiện hành là `.claude/rules/local-checks.md`: trên máy chỉ build + lint gói đã đổi; CI của PR test gói đổi + gói import trực tiếp và `vitest --changed`; push lên `main` và lượt hằng ngày chạy bộ đầy đủ; không merge queue, supervisor merge PR xanh bằng `gh pr merge --squash`. Phần dưới về `make check` là lịch sử (D-62), lệnh vẫn chạy được để tái hiện CI đỏ.
 
 Repo `KNT048/vedette` là public nên GitHub Actions miễn phí (D-63; D-61 "không Actions" chỉ đúng khi repo còn riêng tư). `.github/workflows/ci.yml` chạy trên PR, trên `main` và hằng ngày: job `go` (`make verify-go`), `web` (`make verify-web`); quét hằng ngày `make vuln` + `pnpm audit`. Workflow chỉ gọi `make`; action ghim SHA; token chỉ đọc. Merge khi CI xanh.
 

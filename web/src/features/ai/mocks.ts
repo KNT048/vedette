@@ -11,7 +11,7 @@ import { activeDefs, memorySettings, memoryStore, rejectedTexts, runHooks, skill
 import { harnessHandlers } from './harness-mocks'
 import { activityHandlers, recordActivity } from './activity'
 import type { ActivityInput } from './activity'
-import type { AiConfigView, AiProfile, HookHit, AiRun, AiTier, AskResult, Assignments, ConfigInput, DigestItem, ExplainResult, FetchedSource, LogDigest, NewsResult, ProfileInput, ToolCall, Usage } from './types'
+import type { AiConfigView, AiProfile, AskHookHit, HookHit, AiRun, AiTier, AskResult, Assignments, ConfigInput, DigestItem, ExplainResult, FetchedSource, LogDigest, NewsResult, ProfileInput, ToolCall, Usage } from './types'
 import { fmtDate } from '@/lib/format'
 
 interface Kev { cve: string; vendor: string; product: string; name: string; description: string; required_action: string; links: string[]; date_added: string; ransomware: boolean; has_template: boolean }
@@ -402,7 +402,8 @@ export const handlers = [
     // Hook trước khi gửi AI (S-AI-7): chặn/giữ thì không gọi AI, không tốn token; che thì câu hỏi đã che mới đi tiếp và mới được lưu.
     const defs = activeDefs()
     const pre = runHooks(q, 'before_ai', defs)
-    const hooks: HookHit[] = [...pre.hits]
+    const at = (step: AskHookHit['step'], hits: HookHit[], tool?: string): AskHookHit[] => hits.map((h) => ({ ...h, step, ...(tool ? { tool } : {}) }))
+    const hooks: AskHookHit[] = at('question', pre.hits)
     if (pre.outcome === 'blocked' || pre.outcome === 'held') {
       const refused: AskResult = { id: newId('ask'), question: pre.hits.some((h) => h.id === 'block-pii') ? '[question hidden: contains personal data]' : q, asked_at: nowIso(), answer: [pre.text], table: null, tool_calls: [], citations: [], model: '', profile: '', tokens: { input: 0, output: 0 }, downgraded: null, hooks, memories_suggested: 0 }
       asks.update((l) => [refused, ...l].slice(0, 10))
@@ -414,11 +415,11 @@ export const handlers = [
     // Hook trước khi gọi công cụ và sau khi AI trả lời
     ans.tool_calls = ans.tool_calls.map((tc) => {
       const r = runHooks(tc.args, 'before_tool', defs)
-      hooks.push(...r.hits)
+      hooks.push(...at('tool_call', r.hits, tc.tool))
       return r.outcome === 'blocked' ? { ...tc, result: `Blocked: ${r.text}` } : r.outcome === 'held' ? { ...tc, result: `Waiting for approval: ${r.text}` } : { ...tc, args: r.text }
     })
     const lines = ans.answer.map((line) => runHooks(line, 'after_ai', defs))
-    for (const l of lines) hooks.push(...l.hits)
+    for (const l of lines) hooks.push(...at('answer', l.hits))
     const stop = lines.find((l) => l.outcome === 'blocked' || l.outcome === 'held')
     ans.answer = stop ? [stop.text] : lines.map((l) => l.text)
     if (stop) ans.table = null
@@ -430,7 +431,7 @@ export const handlers = [
     // Memory được dùng thì ghi lần dùng cuối
     const words = new Set(sent.toLowerCase().split(/[^a-z0-9-]+/).filter((w) => w.length >= 5))
     memoryStore.update((l) => l.map((m) => (m.enabled && m.text.toLowerCase().split(/[^a-z0-9-]+/).some((w) => words.has(w)) ? { ...m, last_used_at: nowIso() } : m)))
-    const uniq = hooks.filter((h, i) => hooks.findIndex((x) => x.id === h.id && x.action === h.action && x.when === h.when && x.message === h.message) === i)
+    const uniq = hooks.filter((h, i) => hooks.findIndex((x) => x.id === h.id && x.action === h.action && x.when === h.when && x.message === h.message && x.step === h.step && x.tool === h.tool) === i)
     const res: AskResult = { id: newId('ask'), question: sent, asked_at: nowIso(), ...ans, model: c.profile!.model, profile: c.profile!.name, tokens: { input: tin, output: tout }, downgraded: c.downgraded!, hooks: uniq, memories_suggested: 0 }
     asks.update((l) => [res, ...l].slice(0, 10))
     // memory suggestions (S-AI-7, D-225): at most one per answer that used a tool, only while allowed, never the same text twice; history reads back 0

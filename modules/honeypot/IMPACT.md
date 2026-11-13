@@ -37,6 +37,9 @@
 - Lý do IP bị loại (thiết bị, IP hộp, ngoài LAN, host từ chối, quá 32) lên GUI qua `Overview.Problem` (IP phụ) và `Decoy.Reason` (decoy thêm, D-383); danh sách đủ và bộ đếm (`Implausible`, `Suppressed`, `NotRegular`, `SkippedBytes`) chỉ ở đây và ở log (đổi GUI là story mới).
 - `Trap.state`/`Decoy.state` `listening` đọc `hostCache.placed` (T8): đổi nghĩa `placed` (IP host đã xác nhận ở lần `Apply` gần nhất) làm GUI nói "Listening" cho IP host không giữ, hoặc "failed" cho decoy đang nghe.
 
+## Modifying: `Config.BoxURL`, token loại `url` (D-465)
+- **cmd/vedette** (`honeypot.go`): `BoxURL` = `deps.BaseURL` (Box address của Settings → Box network). Bỏ nối = token URL mang IP hộp của kho trên 8443 (không theo Box address người dùng đặt). GUI/mock (`honeypot/mocks.ts`) dùng `boxAddress()` của `mocks/network.ts`; 409 `no_box_address` trùng câu.
+
 ## Disabling this module
 - Trang Honeypot, panel bẫy trên trang thiết bị trống ("module đang tắt").
 - `response`: trigger `honeypot` và các mẫu `tpl-trap-*`, `tpl-sweep-vlan` không còn sự kiện; quy tắc giữ nguyên, không lỗi.

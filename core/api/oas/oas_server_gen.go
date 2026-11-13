@@ -643,6 +643,13 @@ type Handler interface {
 	//
 	// POST /core/mcp/tokens
 	CorePostCoreMcpTokens(ctx context.Context, req *CorePostCoreMcpTokensReq) (*CorePostCoreMcpTokensCreated, error)
+	// CorePostCoreNetworkBoxAddressForget implements core_post_core_network_box_address_forget operation.
+	//
+	// Stop answering to an earlier Box address (D-465): it leaves the Host allowlist at once and the
+	// certificate at its next re-issue. 404 not_found when the box does not answer to it.
+	//
+	// POST /core/network/box-address/forget
+	CorePostCoreNetworkBoxAddressForget(ctx context.Context, req *CorePostCoreNetworkBoxAddressForgetReq) (*CorePostCoreNetworkBoxAddressForgetOK, error)
 	// CorePostCoreNetworkManagementConfirm implements core_post_core_network_management_confirm operation.
 	//
 	// Confirm the pending management change from the new address (409 when none is pending or it expired).
@@ -749,6 +756,15 @@ type Handler interface {
 	//
 	// PUT /core/general
 	CorePutCoreGeneral(ctx context.Context, req *CorePutCoreGeneralReq) (*CorePutCoreGeneralOK, error)
+	// CorePutCoreNetworkBoxAddress implements core_put_core_network_box_address operation.
+	//
+	// Box address (D-465): the host name or IPv4 address the LAN reaches the box at, used by every link
+	// the box makes; empty goes back to the management address. 400 bad_box_address for a URL, a port, a
+	// path or anything that is not a host name or IPv4 address. The box re-issues its own certificate with
+	// it.
+	//
+	// PUT /core/network/box-address
+	CorePutCoreNetworkBoxAddress(ctx context.Context, req *CorePutCoreNetworkBoxAddressReq) (*CorePutCoreNetworkBoxAddressOK, error)
 	// CorePutCoreNetworkInterfaces implements core_put_core_network_interfaces operation.
 	//
 	// Set the role of every interface (management / SPAN capture / unused). Exactly one management

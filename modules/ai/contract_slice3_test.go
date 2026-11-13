@@ -33,7 +33,7 @@ func (a *api) threeCalls() []actRow {
 	f.Description += " Reported by citizen 123456789012."
 	a.facts.cves["CVE-2022-27593"] = f
 	a.facts.mu.Unlock()
-	a.explain("CVE-2022-27593", 409, "ai_unavailable") // stopped by the personal-data hook
+	a.explain("CVE-2022-27593", 409, "blocked_by_hook") // stopped by the personal-data hook
 	a.clock.Add(10 * time.Minute)
 	a.want("POST", "/ai/profiles/test", "admin", cloudBody("Draft", keyA), 200, "")
 	rows := a.activity()

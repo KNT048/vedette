@@ -84,7 +84,7 @@ func (s *Service) sendTelegramLink(ctx context.Context, actor string, c channelR
 	if s.cfg.LinkCodes == nil {
 		return apierr.New(http.StatusServiceUnavailable, "link_unavailable", "Approvers cannot be linked now: the Response module is off.")
 	}
-	if s.cfg.BaseURL == "" {
+	if s.baseURL() == "" {
 		err := apierr.New(http.StatusServiceUnavailable, "no_base_url", "Vedette does not know the address people open it at, so no confirm link can be sent.")
 		s.markCode(channel.Telegram, a, zaloCodeSent{address: a.Address, errText: err.Message})
 		return err

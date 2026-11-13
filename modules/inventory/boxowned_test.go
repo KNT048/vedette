@@ -149,7 +149,9 @@ func TestContract_INV17_ADecoyComingUpIsNoDevice(t *testing.T) {
 	coming, held := netip.MustParseAddr("192.168.10.242"), netip.MustParseAddr("192.168.10.240")
 	e := newEnv(t, func(c *inventory.Config) {
 		c.BoxOwnedIPs = func(context.Context) []netip.Addr { return []netip.Addr{coming, held} }
-		c.BoxOwnedMACs = func(context.Context, bool) ([]string, error) { return []string{"f8:bc:12:00:02:40", "52:54:00:aa:bb:cc"}, nil }
+		c.BoxOwnedMACs = func(context.Context, bool) ([]string, error) {
+			return []string{"f8:bc:12:00:02:40", "52:54:00:aa:bb:cc"}, nil
+		}
 		c.BoxDecoyMACs = func(context.Context, bool) (map[netip.Addr]string, error) {
 			return map[netip.Addr]string{held: "f8:bc:12:00:02:40"}, nil // the host does not list .242 yet
 		}

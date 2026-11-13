@@ -306,7 +306,7 @@ func (w *world) deviceAt(ip netip.Addr) *Device {
 		return nil
 	}
 	for i := range w.devices {
-		if d := &w.devices[i]; !d.IsBox && d.IP == ip && !(d.MAC != "" && w.decoyMACs[d.MAC]) {
+		if d := &w.devices[i]; !d.IsBox && d.IP == ip && (d.MAC == "" || !w.decoyMACs[d.MAC]) {
 			return d
 		}
 	}

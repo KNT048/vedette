@@ -268,7 +268,7 @@ func TestTheRulesetTouchesOnlyItsOwnTableAndTheDecoys(t *testing.T) {
 // the same listing for any other decoy list.
 func TestRulesetIsAcceptsTheRealUbuntu2604Listing(t *testing.T) {
 	t.Parallel()
-	real, err := os.ReadFile("testdata/nft-list-ruleset-vedette-hp-ubuntu2604.txt")
+	listed, err := os.ReadFile("testdata/nft-list-ruleset-vedette-hp-ubuntu2604.txt")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -276,10 +276,10 @@ func TestRulesetIsAcceptsTheRealUbuntu2604Listing(t *testing.T) {
 		{IP: "192.168.18.240", MAC: "f8:bc:12:00:00:01", Table: 100, Iface: "enp0s2", Ports: ports("tcp", 445, "tcp", 3389)},
 		{IP: "192.168.18.241", MAC: "00:11:32:00:00:01", Table: 101, Iface: "enp0s2", Ports: ports("tcp", 80, "tcp", 445)},
 	}
-	if !rulesetIs(real, list) || !hasEgressDrop(real) {
-		t.Fatalf("the effect check refuses the real listing:\n%s", real)
+	if !rulesetIs(listed, list) || !hasEgressDrop(listed) {
+		t.Fatalf("the effect check refuses the real listing:\n%s", listed)
 	}
-	if rulesetIs(real, list[:1]) || rulesetIs(real, append(slices.Clone(list), decoyEntry{IP: "192.168.18.242", MAC: "00:50:56:00:00:01", Table: 102, Iface: "enp0s2", Ports: ports("tcp", 22)})) {
+	if rulesetIs(listed, list[:1]) || rulesetIs(listed, append(slices.Clone(list), decoyEntry{IP: "192.168.18.242", MAC: "00:50:56:00:00:01", Table: 102, Iface: "enp0s2", Ports: ports("tcp", 22)})) {
 		t.Fatal("the real listing was taken for another decoy list")
 	}
 }

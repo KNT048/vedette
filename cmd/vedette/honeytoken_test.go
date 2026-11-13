@@ -15,6 +15,7 @@ import (
 	"github.com/knt048/vedette/core/server"
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/modules/honeypot"
+	"github.com/knt048/vedette/modules/inventory"
 )
 
 // tokenRouter is the listener's real router (topHandler, as serve builds it) over the stack's API, with the URL token route, a
@@ -209,8 +210,9 @@ func TestURLTokenOpenWithATailFires(t *testing.T) {
 func TestURLTokenOpenFromTheBoxItselfAndFromIPv6(t *testing.T) {
 	t.Parallel()
 	s, path := urlTokenStack(t)
-	s.seen(t, "192.168.10.6", "aa:bb:cc:00:00:06", "")
-	s.exec(`UPDATE inv_asset SET is_box = 1 WHERE ip = '192.168.10.6'`)
+	if _, err := s.d.Inventory.EnsureBox(t.Context(), inventory.BoxInfo{Hostname: "vedette", IP: "192.168.10.6"}); err != nil { // through the inventory (its INV-2), not its table
+		t.Fatal(err)
+	}
 	h := tokenRouter(s, honeyTokenPerMinute)
 	for _, from := range []string{"127.0.0.1:1", "[::1]:1", "[::ffff:127.0.0.1]:1", "192.168.10.6:1", "192.168.10.5:1", "10.89.0.1:1"} {
 		sameAnswer(t, from, open(t, h, http.MethodGet, path, from, ""))

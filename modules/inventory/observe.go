@@ -34,8 +34,10 @@ const maxClockSkew = 5 * time.Minute
 // announced with AssetEvent.Learning, like Darktrace's and Zeek's learning periods, so notify folds the first sweep into one summary.
 const LearningWindow = 36 * time.Hour
 
-// learning records the source's first contact with this box (inv_source, written once, never moved) and reports whether that was less
-// than LearningWindow ago, by the box's clock. It runs in the transaction of the report, so a refused report leaves no contact.
+// learning records the source's first contact with this box (inv_source, written once) and reports whether that was less than
+// LearningWindow ago, by the box's clock. It runs in the transaction of the report, so a refused report leaves no contact. The time only
+// ever moves back: a first contact stored while the clock was ahead (review #721 LOW-1) becomes now once the clock is corrected, so the
+// window is never longer than LearningWindow of the corrected clock.
 func (s *Service) learning(ctx context.Context, tx *sql.Tx, source string) (bool, error) {
 	now := s.clock()
 	if _, err := tx.ExecContext(ctx, `INSERT INTO inv_source (source, first_seen) VALUES (?, ?) ON CONFLICT (source) DO NOTHING`, source, store.FormatTS(now)); err != nil {
@@ -48,6 +50,12 @@ func (s *Service) learning(ctx context.Context, tx *sql.Tx, source string) (bool
 	t, err := time.Parse(time.RFC3339Nano, first)
 	if err != nil {
 		return false, fmt.Errorf("inventory: read the source's first contact: %w", err)
+	}
+	if now.Before(t) {
+		if _, err := tx.ExecContext(ctx, `UPDATE inv_source SET first_seen = ? WHERE source = ?`, store.FormatTS(now), source); err != nil {
+			return false, fmt.Errorf("inventory: correct the source's first contact: %w", err)
+		}
+		t = now
 	}
 	return now.Sub(t) < LearningWindow, nil
 }

@@ -293,3 +293,29 @@ func TestMigration0005SeedsTheFirstContactOfEverySource(t *testing.T) {
 		t.Fatalf("packaged of an old row = %v, %v; want false", packaged, err)
 	}
 }
+
+// D-474 (review #721 LOW-1): a first contact recorded while the box clock was ahead is moved back to now when the clock is corrected,
+// so the window is at most 36 hours of the corrected clock, not 36 hours plus however far ahead the clock was.
+func TestContract_D474_AFirstContactInTheFutureIsMovedToNow(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	passive := func(mac string) {
+		t.Helper()
+		o := observe.Observation{AssetHint: observe.AssetHint{MAC: mac}, Field: observe.MAC, Value: mac, Source: observe.Passive, Confidence: 0.9}
+		if err := e.svc.Record(e.ctx(), []observe.Observation{o}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	passive("52:54:00:00:02:01") // first contact while the clock is 48 h ahead
+	e.tick(-48 * time.Hour)      // NTP corrects the clock
+	passive("52:54:00:00:02:02")
+	e.tick(37 * time.Hour) // 37 h of the corrected clock; still 11 h before the stored first contact
+	passive("52:54:00:00:02:03")
+	var id string
+	if err := e.db.Reader().QueryRowContext(e.ctx(), `SELECT id FROM inv_asset WHERE mac = '52:54:00:00:02:03'`).Scan(&id); err != nil {
+		t.Fatal(err)
+	}
+	if ev, ok := e.discovered()[id]; !ok || ev.Learning {
+		t.Fatalf("a device found 37 h after the corrected first contact: %+v (found %v), want learning=false", ev, ok)
+	}
+}

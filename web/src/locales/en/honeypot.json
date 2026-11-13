@@ -371,7 +371,7 @@
   "coverage": {
     "title": "Is this enough?",
     "description": "A guide to which common attacker moves traps and tokens can see. It is not a score.",
-    "notListening": "No Trap IP is listening yet, so the traps and tokens see none of these moves. Add a Trap IP and check that its status says Listening.",
+    "notListening": "No Trap IP is listening yet: only URL tokens can alert, because the box answers their links itself. The traps, fake credentials and decoy files see nothing until a Trap IP listens. Add a Trap IP and check that its status says Listening.",
     "listLabel": "Coverage by attacker move",
     "level": {
       "covered": "Covered",
@@ -394,7 +394,8 @@
       },
       "documents": {
         "move": "Opening or following bait",
-        "how": "Decoy files and URL tokens alert when opened."
+        "how": "Decoy files and URL tokens alert when opened.",
+        "howNoTrap": "URL tokens alert when opened. Decoy files need a listening Trap IP."
       },
       "outbound": {
         "move": "Talking to known-bad addresses",

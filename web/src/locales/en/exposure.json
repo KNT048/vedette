@@ -124,7 +124,6 @@
   "scan": {
     "button": "Scan now",
     "running": "Scanning",
-    "done": "Scan finished: {{ports}} open port(s), {{admin}} admin interface(s) exposed",
     "safe": "Non-intrusive scan: no exploitation, no disruption. Aimed only at this target.",
     "noticeTitle": "Pressing Scan now records this confirmation",
     "noticeWho": "Vedette keeps who confirmed it, when, for which target and this exact sentence.",
@@ -377,5 +376,18 @@
     "doneBody": "Confirmed by {{user}} on {{time}}, by pressing Scan now.",
     "sentence": "The sentence shown next to the button:",
     "older": "Confirmed with a tick box before the first scan. Vedette is provided as is under the Apache-2.0 license; its author, Kien Nguyen, is not responsible for how you use it."
+  },
+  "progress": {
+    "running": "Scanning {{value}}",
+    "phase": {
+      "queued": "Starting",
+      "probing": "Probing the target",
+      "saving": "Saving the result",
+      "done": "Done"
+    },
+    "stop": "Stop",
+    "done": "Scan of {{value}} finished. The new result is below.",
+    "stopped": "The scan of {{value}} was stopped. Nothing was saved.",
+    "failed": "The scan of {{value}} failed and nothing was saved. Try again."
   }
 }

@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
-import type { BoxIpDetectResult, BoxIpSettings, Diff, Snapshot, SnapshotMeta, Target, TargetList, VerifyResult } from './types'
+import type { BoxIpDetectResult, BoxIpSettings, Diff, ScanRun, Snapshot, SnapshotMeta, Target, TargetList, VerifyResult } from './types'
 
 export const useTargets = () => useQuery({ queryKey: ['exposure', 'targets'], queryFn: () => api.get<TargetList>('/exposure/targets') })
 export const useTarget = (id: string) => useQuery({ queryKey: ['exposure', 'target', id], queryFn: () => api.get<Target>(`/exposure/targets/${encodeURIComponent(id)}`), retry: false })
@@ -9,6 +9,14 @@ export const useSnapshot = (id: string, date: string | null) =>
   useQuery({ queryKey: ['exposure', 'snapshot', id, date], queryFn: () => api.get<Snapshot>(`/exposure/targets/${encodeURIComponent(id)}/snapshots/${date}`), enabled: !!date })
 export const useDiff = (id: string, from: string | null, to: string | null) =>
   useQuery({ queryKey: ['exposure', 'diff', id, from, to], queryFn: () => api.get<Diff>(`/exposure/targets/${encodeURIComponent(id)}/diff?from=${from}&to=${to}`), enabled: !!from && !!to && from !== to, retry: false })
+
+/** How often the page asks how the scan is going while one runs. */
+export const SCAN_POLL_MS = 2000
+/** The scan that runs now, or the last one (null before the first since the box started). Polls only while it runs. */
+export const useScanRun = () => useQuery({
+  queryKey: ['exposure', 'scan'], queryFn: () => api.get<ScanRun | null>('/exposure/scan'),
+  // a failed poll slows down but does not stop while the last answer says running, so the row cannot hang on "Scanning"
+  refetchInterval: (q) => (q.state.data?.status === 'running' ? (q.state.status === 'error' ? SCAN_POLL_MS * 5 : SCAN_POLL_MS) : false) })
 
 function useInvalidate() {
   const qc = useQueryClient()
@@ -51,8 +59,16 @@ export function useSaveBoxIpSettings() {
   return useMutation({ mutationFn: (s: Pick<BoxIpSettings, 'auto' | 'interval_min'>) => api.put<BoxIpSettings>('/exposure/box-ip/settings', s), onSuccess: inv })
 }
 export function useScan() {
+  const qc = useQueryClient()
   const inv = useInvalidate()
   // onError too: a refused scan may have found the IP paused, and the page must then show it (the answer is a state of the target).
   return useMutation({ // noticeVersion: the version of the sentence shown next to the button; the server records it with the first scan of a target (D-473).
-    mutationFn: ({ id, noticeVersion }: { id: string; noticeVersion?: string }) => api.post<Snapshot>(`/exposure/targets/${encodeURIComponent(id)}/scan`, noticeVersion ? { notice_version: noticeVersion } : undefined), onSuccess: inv, onError: inv })
+    mutationFn: ({ id, noticeVersion }: { id: string; noticeVersion?: string }) => api.post<ScanRun>(`/exposure/targets/${encodeURIComponent(id)}/scan`, noticeVersion ? { notice_version: noticeVersion } : undefined),
+    // the 202 run goes into the cache at once, so a run that ends before the first poll still ends a "running" the page has seen
+    onSuccess: (run) => { qc.setQueryData(['exposure', 'scan'], run); return inv() }, onError: inv })
+}
+/** Stop the scan that runs now (operator). */
+export function useStopScan() {
+  const inv = useInvalidate()
+  return useMutation({ mutationFn: () => api.post<ScanRun>('/exposure/scan/stop'), onSuccess: inv, onError: inv })
 }

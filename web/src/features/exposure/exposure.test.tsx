@@ -173,11 +173,25 @@ describe('exposure: a verified and confirmed domain', () => {
   it('"Scan now" creates a new snapshot; against yesterday the new staging host shows up', async () => {
     renderApp('/exposure/xt-1')
     await userEvent.click(await screen.findByRole('button', { name: 'Scan now' }))
-    expect(await screen.findByText('Scan finished: 10 open port(s), 3 admin interface(s) exposed')).toBeInTheDocument()
+    expect((await screen.findAllByText('Scanning acme.example')).length).toBeGreaterThan(0) // 202 at once, the phase row polls GET /exposure/scan
+    expect(await screen.findByText('Scan of acme.example finished. The new result is below.', {}, { timeout: 8000 })).toBeInTheDocument()
     expect(await screen.findByRole('heading', { level: 1, name: 'acme.example: 6 subdomain(s), 3 admin interface(s) exposed to the Internet' })).toBeInTheDocument()
     expect(await screen.findByText(/4 added, 0 gone, 0 changed/)).toBeInTheDocument()
     expect(within(screen.getByRole('table', { name: 'Changes between two scan days' })).getByText('staging.acme.example')).toBeInTheDocument()
     expect(auditStore.get().some((a) => a.action === 'exposure.scan' && a.target === 'acme.example')).toBe(true)
+  })
+
+  it('API: Scan now answers 202 with the run; GET /exposure/scan follows it; an operator stops it and nothing is saved', async () => {
+    expect((await call('GET', '/exposure/scan')).json).toBeNull()
+    const before = (await call('GET', '/exposure/targets/xt-1/snapshots')).json.items
+    const r = await call('POST', '/exposure/targets/xt-1/scan')
+    expect(r.status).toBe(202)
+    expect(r.json).toMatchObject({ target_id: 'xt-1', status: 'running', phase: 'queued', snapshot_id: null, error: null })
+    expect((await call('GET', '/exposure/scan', undefined, 'viewer')).json).toMatchObject({ id: r.json.id, status: 'running' })
+    expect((await call('POST', '/exposure/scan/stop', undefined, 'viewer')).status).toBe(403)
+    expect((await call('POST', '/exposure/scan/stop', undefined, 'operator')).json).toMatchObject({ status: 'stopped' })
+    expect((await call('GET', '/exposure/targets/xt-1/snapshots')).json.items).toEqual(before)
+    expect((await call('POST', '/exposure/scan/stop')).json.error.code).toBe('not_running')
   })
 
   it('with the Vulnerability scans module off, "Scan now" says so and saves nothing (D-229)', async () => {
@@ -685,9 +699,9 @@ describe('exposure: scan-time check of an IP (D-79 (2), INV-13)', () => {
   const scanXt2 = () => call('POST', '/exposure/targets/xt-2/scan')
 
   it('an IP is scanned while the box still goes out through it; otherwise the scan is paused, the IP stays in the list, and it works again when the box is back', async () => {
-    expect((await scanXt2()).status).toBe(200) // the sample box goes out through 203.0.113.10: a full check just ran and saw it
+    expect((await scanXt2()).status).toBe(202) // the sample box goes out through 203.0.113.10: a full check just ran and saw it
     setEgress('198.51.100.50') // the modem rebooted and the address went elsewhere
-    expect((await scanXt2()).status).toBe(200) // the check of the last 5 minutes saw it, so no new probe yet
+    expect((await scanXt2()).status).toBe(202) // the check of the last 5 minutes saw it, so no new probe yet
     advance(6)
     const paused = await scanXt2()
     expect(paused.status).toBe(409)
@@ -701,7 +715,7 @@ describe('exposure: scan-time check of an IP (D-79 (2), INV-13)', () => {
     }
     advance(6)
     setEgress('203.0.113.10,203.0.113.11') // a load balancer: every IP is seen, so every IP is scannable
-    expect((await scanXt2()).status).toBe(200)
+    expect((await scanXt2()).status).toBe(202)
   })
 
   it('a full check is reused for 5 minutes, a "not seen" included; after that the box is asked again', async () => {
@@ -714,7 +728,7 @@ describe('exposure: scan-time check of an IP (D-79 (2), INV-13)', () => {
     expect((await scanXt2()).json.error.code).toBe('ip_not_current')
     expect((await call('GET', '/exposure/targets')).json.box_ip.last_run.at).toBe(first) // nothing was probed again
     advance(4)
-    expect((await scanXt2()).status).toBe(200)
+    expect((await scanXt2()).status).toBe(202)
     expect((await call('GET', '/exposure/targets')).json.box_ip.last_run.at).not.toBe(first)
   })
 
@@ -796,10 +810,10 @@ describe("exposure: an administrator's first Scan now is the confirmation (D-473
     expect([stale.status, stale.json.error.code]).toEqual([409, 'notice_changed'])
     expect((await call('GET', `/exposure/targets/${id}`)).json.commitment).toBeNull()
     const ok = await call('POST', `/exposure/targets/${id}/scan`, { notice_version: NOTICE_VERSION })
-    expect(ok.status).toBe(200)
+    expect(ok.status).toBe(202)
     const first = (await call('GET', `/exposure/targets/${id}`)).json.commitment
-    expect((await call('POST', `/exposure/targets/${id}/scan`, undefined, 'operator')).status).toBe(200)
-    expect((await call('POST', `/exposure/targets/${id}/scan`, { notice_version: NOTICE_VERSION })).status).toBe(200)
+    expect((await call('POST', `/exposure/targets/${id}/scan`, undefined, 'operator')).status).toBe(202)
+    expect((await call('POST', `/exposure/targets/${id}/scan`, { notice_version: NOTICE_VERSION })).status).toBe(202)
     expect((await call('GET', `/exposure/targets/${id}`)).json.commitment).toEqual(first)
     expect(auditStore.get().filter((a) => a.action === 'exposure.commitment' && a.target === 'api.acme.example')).toHaveLength(1)
   })

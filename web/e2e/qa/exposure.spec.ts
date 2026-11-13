@@ -252,11 +252,10 @@ test('clean install: Detect now refuses private and CGNAT results; a public IP g
   await expect(box.getByRole('status')).toContainText('The box reaches the Internet via 198.51.100.7. Verified until')
   await box.getByRole('link', { name: '198.51.100.7' }).click()
   await expect(page).toHaveURL(/\/exposure\/xt-/)
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText(/198\.51\.100\.7 cannot be scanned yet: needs your confirmation/)
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText(/198\.51\.100\.7 is ready for its first scan/)
   await expect(page.getByText('Last seen by the box')).toBeVisible()
   await expect(page.getByText('Expires on')).toBeVisible()
   await expect(page.getByText('Valid', { exact: true })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Scan now' })).toBeDisabled()
   // Wrong route: the box now exits elsewhere, so Verify again explains what to do.
   await setEgress(page, '198.51.100.8')
   await page.getByRole('button', { name: 'Verify again' }).click()
@@ -264,12 +263,16 @@ test('clean install: Detect now refuses private and CGNAT results; a public IP g
   await setEgress(page, '198.51.100.7')
   await page.getByRole('button', { name: 'Verify again' }).click()
   await expect(page.getByRole('status').filter({ hasText: /Verified until/ })).toBeVisible()
-  await page.getByRole('checkbox').check()
-  await page.getByRole('button', { name: 'Confirm and allow scanning' }).click()
+  // D-473: the administrator's first Scan now (two-step sign-in on) records the confirmation; it runs in the background (D-493).
+  await turnOnTwoStep(page, 'a-very-long-password-123')
+  await page.reload()
+  await page.getByRole('button', { name: 'Scan now' }).click()
+  await expect(page.getByText(/Confirmed by admin@testco\.example on .*, by pressing Scan now\./)).toBeVisible()
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText(/198\.51\.100\.7: \d+ open port\(s\)/)
   // Scan-time check (D-79): the box no longer goes out through this IP, so the scan is paused, the IP stays, and it works again when the box is back.
   await expect(page.getByRole('button', { name: 'Scan now' })).toBeEnabled()
   await setEgress(page, '198.51.100.8')
-  await page.clock.fastForward('06:00') // the check of the last 5 minutes saw the IP; after 5 minutes the box is asked again
+  await page.clock.fastForward('11:00') // past the 5-minute window of the egress check and the 10 minutes between scans of one target
   await page.getByRole('button', { name: 'Scan now' }).click()
   // The pause stays on the page, not only in a toast: heading, card, locked button with the reason, and "Paused" in the list.
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(/198\.51\.100\.7 is paused: the box no longer goes out through it/)

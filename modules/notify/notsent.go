@@ -11,14 +11,8 @@ import (
 	"github.com/knt048/vedette/modules/notify/channel"
 )
 
-// channelLabel is a channel's name as the Channels page shows it.
-var channelLabel = map[channel.Type]string{
-	channel.Telegram: "Telegram", channel.Slack: "Slack", channel.Zalo: "Zalo OA", channel.ZaloPersonal: "Zalo personal",
-	channel.Email: "Email", channel.Webhook: "Webhook",
-}
-
 // withNotSent fills NotSent of the incidents that no channel received (INV-24, D-551). It reads, in this order: a message still
-// waiting in the queue (queued, or held for quiet hours with the time it goes out), the failed attempts, the decision kept when the
+// waiting in the queue (queued, or held for quiet hours with the time it goes out), a channel whose last attempt failed, the decision kept when the
 // incident was opened (enqueue, or the queue dropping a held message), and for an incident opened before that decision was kept,
 // the channels as they are now. Three small queries for the whole page, only for the incidents without a delivered message.
 func (s *Service) withNotSent(ctx context.Context, q dbtx, list []Incident) error {
@@ -64,18 +58,17 @@ func (s *Service) withNotSent(ctx context.Context, q dbtx, list []Incident) erro
 		return fmt.Errorf("notify: read queued incidents: %w", err)
 	}
 	type kept struct {
-		why   sql.NullString
-		floor sql.NullString
+		why, floor, ch sql.NullString
 	}
 	decided := map[string]kept{}
-	rows, err = q.QueryContext(ctx, `SELECT id, unsent, unsent_floor FROM notify_incident WHERE id IN `+in, ids...)
+	rows, err = q.QueryContext(ctx, `SELECT id, unsent, unsent_floor, unsent_channel FROM notify_incident WHERE id IN `+in, ids...)
 	if err != nil {
 		return fmt.Errorf("notify: read why incidents were not sent: %w", err)
 	}
 	for rows.Next() {
 		var id string
 		var k kept
-		if err := rows.Scan(&id, &k.why, &k.floor); err != nil {
+		if err := rows.Scan(&id, &k.why, &k.floor, &k.ch); err != nil {
 			_ = rows.Close()
 			return fmt.Errorf("notify: read why incidents were not sent: %w", err)
 		}
@@ -94,11 +87,11 @@ func (s *Service) withNotSent(ctx context.Context, q dbtx, list []Incident) erro
 			i.NotSent = notSent(UnsentQueued, i.Severity, "", "", "", loc)
 		case w != nil:
 			i.NotSent = notSent(UnsentQuietHours, i.Severity, "", "", w.quiet, loc)
-		case len(i.Sends) > 0:
-			last := i.Sends[len(i.Sends)-1] // sends are oldest first
-			i.NotSent = notSent(UnsentFailed, i.Severity, "", last.Channel, last.Error, loc)
+		case failedLast(i.Sends) != nil:
+			f := failedLast(i.Sends)
+			i.NotSent = notSent(UnsentFailed, i.Severity, "", f.Channel, f.Error, loc)
 		case kd.why.Valid && kd.why.String != string(UnsentQueued) && kd.why.String != string(UnsentQuietHours):
-			i.NotSent = notSent(NotSentReason(kd.why.String), i.Severity, Severity(kd.floor.String), "", "", loc)
+			i.NotSent = notSent(NotSentReason(kd.why.String), i.Severity, Severity(kd.floor.String), channel.Type(kd.ch.String), "", loc)
 		default: // opened by an older binary, or queued and then lost: the channels as they are now
 			if today == nil {
 				l, err := channelsNow(ctx, q)
@@ -114,14 +107,42 @@ func (s *Service) withNotSent(ctx context.Context, q dbtx, list []Incident) erro
 	return nil
 }
 
-// reached is true when a channel received the incident or is still trying (a send delayed by the provider's rate limit).
+// lastPerChannel is the last attempt of each channel, in the order of those attempts (sends are oldest first). An earlier "Delayed"
+// row says nothing once the message failed or was dropped: only the last attempt of a channel counts.
+func lastPerChannel(sends []SendView) []SendView {
+	last := map[channel.Type]int{}
+	for k, sd := range sends {
+		last[sd.Channel] = k
+	}
+	var out []SendView
+	for k, sd := range sends {
+		if last[sd.Channel] == k {
+			out = append(out, sd)
+		}
+	}
+	return out
+}
+
+// reached is true when the last attempt of a channel delivered the incident.
 func reached(sends []SendView) bool {
-	for _, sd := range sends {
-		if sd.OK || sd.Delayed {
+	for _, sd := range lastPerChannel(sends) {
+		if sd.OK {
 			return true
 		}
 	}
 	return false
+}
+
+// failedLast is the most recent channel whose last attempt failed (not a "Delayed" row: that one still waits in the queue or was
+// dropped, and the queue keeps why), or nil.
+func failedLast(sends []SendView) *SendView {
+	l := lastPerChannel(sends)
+	for k := len(l) - 1; k >= 0; k-- {
+		if !l[k].OK && !l[k].Delayed {
+			return &l[k]
+		}
+	}
+	return nil
 }
 
 type channelNow struct {
@@ -189,13 +210,17 @@ func notSent(why NotSentReason, sev, floor Severity, ch channel.Type, detail str
 		n.Text = "Not sent: no alert channel was set up."
 	case UnsentChannelsOff:
 		n.Text = "Not sent: the alert channels were turned off."
+	case UnsentChannelOff:
+		n.Text = "Not sent: the channel it was waiting for was turned off before it went out."
+	case UnsentChannelGone:
+		n.Text = "Not sent: the channel it was waiting for was removed before it went out."
 	case UnsentBelowMin:
 		n.Text = fmt.Sprintf("Not sent: this incident is %s, and your channels only send %s and above.", sev, floor)
 		if !floor.Valid() {
 			n.Text = fmt.Sprintf("Not sent: this incident is %s, below the minimum severity of your channels.", sev)
 		}
 	case UnsentFailed:
-		n.Text = fmt.Sprintf("Not delivered: %s failed.", channelLabel[ch])
+		n.Text = fmt.Sprintf("Not delivered. %s failed to deliver it.", channelName[ch])
 		if detail = strings.TrimSpace(detail); detail != "" {
 			n.Text += " " + detail
 		}

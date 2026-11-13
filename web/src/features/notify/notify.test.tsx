@@ -287,7 +287,7 @@ describe('notify: why not sent, bulk acknowledge and resolve (S-ALERT-3, D-551)'
   it('select all shown, Resolve with one note: one audit row per incident, the list empties', async () => {
     renderApp('/incidents')
     await screen.findByRole('table', { name: 'Incidents' })
-    await userEvent.click(screen.getByRole('checkbox', { name: 'Select all 4 incidents shown' }))
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Select all 4 incidents on this page' }))
     const bar = screen.getByRole('region', { name: 'Selected incidents' })
     expect(within(bar).getByText('4 incidents selected')).toBeInTheDocument()
     await userEvent.click(within(bar).getByRole('button', { name: 'Resolve' }))
@@ -302,10 +302,27 @@ describe('notify: why not sent, bulk acknowledge and resolve (S-ALERT-3, D-551)'
     expect(incidents.filter((i) => i.note === 'Pentest by the vendor').map((i) => i.id).sort()).toEqual(['al-4', 'al-6', 'in-7', 'in-8'])
   })
 
+  it('more than a page: the header box selects the 50 shown, then a banner offers all 60; the bar and the dialog say the real count', async () => {
+    const many = Array.from({ length: 60 }, (_, k) => ({ id: `in-m${k}`, kind: 'log_anomaly', attempt: false, link: '/logs', title: `Log anomaly ${k}`, devices: [], severity: 'medium', what: 'w', action: 'a',
+      first_seen: '2026-11-12T08:00:00.000Z', last_seen: '2026-11-12T08:00:00.000Z', count: 1, status: 'new', handled_by: null, handled_at: null, note: null, sends: [], not_sent: null }))
+    server.use(http.get('*/api/v1/notify/incidents', () => HttpResponse.json({ incidents: many })))
+    renderApp('/incidents')
+    await screen.findByRole('table', { name: 'Incidents' })
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Select all 50 incidents on this page' }))
+    const bar = screen.getByRole('region', { name: 'Selected incidents' })
+    expect(within(bar).getByText('50 incidents selected')).toBeInTheDocument()
+    expect(within(bar).getByText('All 50 incidents on this page are selected.')).toBeInTheDocument()
+    await userEvent.click(within(bar).getByRole('button', { name: 'Select all 60 matching incidents' }))
+    expect(within(bar).getByText('60 incidents selected')).toBeInTheDocument()
+    expect(within(bar).getByText('All 60 matching incidents are selected.')).toBeInTheDocument()
+    await userEvent.click(within(bar).getByRole('button', { name: 'Resolve' }))
+    expect(await screen.findByRole('dialog', { name: 'Resolve 60 incidents' })).toBeInTheDocument()
+  })
+
   it('Acknowledge leaves an acknowledged one as it is and the toast says so; a viewer has no selection', async () => {
     const view = renderApp('/incidents')
     await screen.findByRole('table', { name: 'Incidents' })
-    await userEvent.click(screen.getByRole('checkbox', { name: 'Select all 4 incidents shown' }))
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Select all 4 incidents on this page' }))
     await userEvent.click(within(screen.getByRole('region', { name: 'Selected incidents' })).getByRole('button', { name: 'Acknowledge' }))
     await userEvent.click(within(await screen.findByRole('dialog', { name: 'Acknowledge 4 incidents' })).getByRole('button', { name: 'Acknowledge 4 incidents' }))
     expect(await screen.findByText('3 incidents acknowledged. 1 was already acknowledged.')).toBeInTheDocument()

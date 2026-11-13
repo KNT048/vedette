@@ -465,6 +465,8 @@
     "fix": {
       "no_channel": "Set up alert channels",
       "channels_off": "Turn a channel on",
+      "channel_off": "Turn the channel on",
+      "channel_removed": "Set up alert channels",
       "below_min_severity": "Change the minimum severity",
       "quiet_hours": "Quiet hours settings",
       "failed": "Test the channel"
@@ -600,7 +602,10 @@
   "bulk": {
     "region": "Selected incidents",
     "select": "Select {{title}}",
-    "selectAll": "Select all {{count}} incidents shown",
+    "selectPage": "Select all {{count}} incidents on this page",
+    "pageSelected": "All {{count}} incidents on this page are selected.",
+    "selectEvery": "Select all {{count}} matching incidents",
+    "everySelected": "All {{count}} matching incidents are selected.",
     "selected_one": "{{count}} incident selected",
     "selected_other": "{{count}} incidents selected",
     "tooMany": "At most {{max}} at a time. Narrow the filter.",

@@ -190,7 +190,7 @@ func (s *Service) enqueue(ctx context.Context, tx *sql.Tx, n Notice) error {
 		return fmt.Errorf("notify: list channels: %w", err)
 	}
 	// The decision for an incident is kept on it (INV-24): the Incidents page says why it went nowhere from the same verdicts.
-	unsent, floor := UnsentNoChannel, Severity("")
+	unsent, floor, lowest := UnsentNoChannel, Severity(""), channel.Type("")
 	if configured > 0 {
 		unsent = UnsentChannelsOff
 	}
@@ -201,13 +201,13 @@ func (s *Service) enqueue(ctx context.Context, tx *sql.Tx, n Notice) error {
 		switch {
 		case verdict == Skip:
 			if unsent == UnsentNoChannel || unsent == UnsentChannelsOff || (unsent == UnsentBelowMin && tg.floor.rank() < floor.rank()) {
-				unsent, floor = UnsentBelowMin, tg.floor
+				unsent, floor, lowest = UnsentBelowMin, tg.floor, tg.t
 			}
 			continue
 		case verdict == Hold:
 			reason, due = "quiet", release
 			if unsent != UnsentQueued {
-				unsent, floor = UnsentQuietHours, ""
+				unsent, floor, lowest = UnsentQuietHours, "", ""
 			}
 		case rules.Grouping.Enabled && rules.Grouping.Validate() == nil && n.Kind == KindVuln && n.Severity != Critical && strings.TrimSpace(n.Product) != "":
 			reason, due = "group", n.At.Add(time.Duration(rules.Grouping.WindowMin)*time.Minute)
@@ -217,18 +217,20 @@ func (s *Service) enqueue(ctx context.Context, tx *sql.Tx, n Notice) error {
 			return fmt.Errorf("notify: queue notice: %w", err)
 		}
 		if reason == "now" {
-			unsent, floor = UnsentQueued, ""
+			unsent, floor, lowest = UnsentQueued, "", ""
 		}
 	}
 	if n.Kind == KindIncident {
-		return markUnsent(ctx, tx, n.ID, unsent, floor)
+		return markUnsent(ctx, tx, n.ID, unsent, floor, lowest)
 	}
 	return nil
 }
 
-// markUnsent keeps why an incident went to no channel, or that one took it (INV-24). An id that is no incident (a test notice) changes nothing.
-func markUnsent(ctx context.Context, tx *sql.Tx, id string, why NotSentReason, floor Severity) error {
-	if _, err := tx.ExecContext(ctx, `UPDATE notify_incident SET unsent = ?, unsent_floor = ? WHERE id = ?`, string(why), nullable(string(floor)), id); err != nil {
+// markUnsent keeps why an incident went to no channel, or that one took it (INV-24); ch is the channel to fix, if one. An id that is no
+// incident (a test notice) changes nothing.
+func markUnsent(ctx context.Context, tx *sql.Tx, id string, why NotSentReason, floor Severity, ch channel.Type) error {
+	if _, err := tx.ExecContext(ctx, `UPDATE notify_incident SET unsent = ?, unsent_floor = ?, unsent_channel = ? WHERE id = ?`,
+		string(why), nullable(string(floor)), nullable(string(ch)), id); err != nil {
 		return fmt.Errorf("notify: keep why an incident was not sent: %w", err)
 	}
 	return nil
@@ -338,7 +340,7 @@ const staleAfter = 24 * time.Hour
 func (s *Service) dropStale(ctx context.Context, now time.Time) error {
 	cut := store.FormatTS(now.Add(-staleAfter))
 	return s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
-		if _, err := tx.ExecContext(ctx, `UPDATE notify_incident SET unsent = ?, unsent_floor = NULL WHERE id IN (SELECT notice_id FROM notify_pending WHERE state = 'pending' AND created_at < ?)`,
+		if _, err := tx.ExecContext(ctx, `UPDATE notify_incident SET unsent = ?, unsent_floor = NULL, unsent_channel = NULL WHERE id IN (SELECT notice_id FROM notify_pending WHERE state = 'pending' AND created_at < ?)`,
 			string(UnsentDroppedStale), cut); err != nil {
 			return fmt.Errorf("notify: keep why incidents were not sent: %w", err)
 		}
@@ -435,10 +437,14 @@ func (s *Service) claim(ctx context.Context, now time.Time) ([]claim, error) {
 				return err
 			}
 			if !c.Configured || !c.Enabled { // turned off or removed since the notice was queued
+				why := UnsentChannelOff // this channel only: the others were judged when the incident was queued
+				if !c.Configured {
+					why = UnsentChannelGone
+				}
 				for _, r := range list {
 					drop = append(drop, r.id)
 					if r.notice.Kind == KindIncident {
-						if err := markUnsent(ctx, tx, r.notice.ID, UnsentChannelsOff, ""); err != nil {
+						if err := markUnsent(ctx, tx, r.notice.ID, why, "", t); err != nil {
 							return err
 						}
 					}
@@ -493,7 +499,7 @@ func (s *Service) claim(ctx context.Context, now time.Time) ([]claim, error) {
 				if !seen[r.notice.ID] {
 					drop = append(drop, r.id) // below the channel's minimum now: INV-4
 					if r.notice.Kind == KindIncident {
-						if err := markUnsent(ctx, tx, r.notice.ID, UnsentBelowMin, c.MinSeverity); err != nil {
+						if err := markUnsent(ctx, tx, r.notice.ID, UnsentBelowMin, c.MinSeverity, t); err != nil {
 							return err
 						}
 					}

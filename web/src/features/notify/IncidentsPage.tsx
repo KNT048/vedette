@@ -95,7 +95,10 @@ function Content() {
   const rows = (q.data?.incidents ?? []).filter((a) => (filter === 'all' || a.status !== 'resolved') && (kind === 'all' || a.kind === kind))
   // Only what is shown can stay selected: changing a filter never acts on hidden rows (as on Findings, D-484).
   const shown = rows.filter((r) => selected.has(r.id)).map((r) => r.id)
-  const allShown = rows.length > 0 && shown.length === rows.length
+  // Gmail pattern (Opus r1 MED-3): the header box selects the page the table shows; a banner then offers every matching incident.
+  const [pageIds, setPageIds] = useState<string[] | null>(null)
+  const pageAll = pageIds !== null && rows.length > pageIds.length && pageIds.every((id) => selected.has(id))
+  const clear = () => { setSelected(new Set()); setPageIds(null) }
   const toggle = (id: string, on: boolean) => setSelected((s) => { const n = new Set(s); if (on) n.add(id); else n.delete(id); return n })
   const pick = (r: Incident) => (
     // A click on the box selects; it never opens the incident (the row click does).
@@ -105,7 +108,15 @@ function Content() {
   )
   const open = (s: BulkStatus) => (e: MouseEvent<HTMLButtonElement>) => { opener.current = e.currentTarget; setBulk(s) }
   const columns: ColumnDef<Incident>[] = [
-    ...(can ? [{ id: 'select', enableSorting: false, header: () => <Checkbox checked={allShown ? true : shown.length > 0 ? 'indeterminate' : false} onCheckedChange={(v) => setSelected(v === true ? new Set(rows.map((r) => r.id)) : new Set())} aria-label={t('bulk.selectAll', { count: rows.length })} />, cell: ({ row: { original: r } }) => pick(r) } satisfies ColumnDef<Incident>] : []),
+    ...(can ? [{ id: 'select', enableSorting: false, header: ({ table }) => {
+      const page = table.getRowModel().rows.map((r) => r.original.id)
+      const on = page.filter((id) => selected.has(id)).length
+      const set = (v: boolean) => {
+        setSelected((s) => { const n = new Set(s); for (const id of page) { if (v) n.add(id); else n.delete(id) } return n })
+        setPageIds(v ? page : null)
+      }
+      return <Checkbox checked={page.length > 0 && on === page.length ? true : on > 0 ? 'indeterminate' : false} onCheckedChange={(v) => set(v === true)} aria-label={t('bulk.selectPage', { count: page.length })} />
+    }, cell: ({ row: { original: r } }) => pick(r) } satisfies ColumnDef<Incident>] : []),
     { id: 'incident', header: t('incidents.col.incident'), accessorFn: (r) => r.title, cell: ({ row: { original: r } }) => (
       <div className="grid"><Link to={`/incidents/${r.id}`} onClick={(e) => e.stopPropagation()} className={`font-medium ${link}`}>{r.title}</Link><span className="text-[12px] text-muted">{t(kindKey(r))}</span></div>
     ) },
@@ -135,7 +146,14 @@ function Content() {
                 {shown.length > MAX_BULK_INCIDENTS ? <span className="text-[13px] text-danger">{t('bulk.tooMany', { max: MAX_BULK_INCIDENTS })}</span> : null}
                 <Button size="sm" disabled={shown.length > MAX_BULK_INCIDENTS} onClick={open('acknowledged')}>{t('detail.acknowledge')}</Button>
                 <Button size="sm" variant="primary" disabled={shown.length > MAX_BULK_INCIDENTS} onClick={open('resolved')}>{t('detail.resolve')}</Button>
-                <Button size="sm" onClick={() => setSelected(new Set())}>{t('bulk.clear')}</Button>
+                <Button size="sm" onClick={clear}>{t('bulk.clear')}</Button>
+                {pageAll ? (
+                  <span className="flex basis-full flex-wrap items-center gap-2 text-[13px]">
+                    {shown.length === rows.length ? t('bulk.everySelected', { count: rows.length }) : (
+                      <>{t('bulk.pageSelected', { count: pageIds.length })}<Button size="sm" variant="link" onClick={() => setSelected(new Set(rows.map((r) => r.id)))}>{t('bulk.selectEvery', { count: rows.length })}</Button></>
+                    )}
+                  </span>
+                ) : null}
               </div>
             ) : null}
             {rows.length === 0 ? (
@@ -160,7 +178,7 @@ function Content() {
           </Section>
         )}
       </QueryState>
-      <BulkDialog ids={shown} status={bulk} onOpenChange={(v) => { if (!v) setBulk(null) }} opener={opener} onDone={() => setSelected(new Set())} />
+      <BulkDialog ids={shown} status={bulk} onOpenChange={(v) => { if (!v) setBulk(null) }} opener={opener} onDone={clear} />
     </>
   )
 }

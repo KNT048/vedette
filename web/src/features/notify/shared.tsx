@@ -16,7 +16,7 @@ export const kindKey = (i: Pick<Incident, 'kind' | 'attempt'>) => `incidents.kin
 export const fmtClock = (iso: string) => new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit' }).format(new Date(iso))
 
 /** Lý do có chỗ sửa (D-551): liên kết tới Settings, Alert channels; chỉ admin mở được trang đó. */
-const FIXABLE: NotSentReason[] = ['no_channel', 'channels_off', 'below_min_severity', 'quiet_hours', 'failed']
+const FIXABLE: NotSentReason[] = ['no_channel', 'channels_off', 'channel_off', 'channel_removed', 'below_min_severity', 'quiet_hours', 'failed']
 
 /** The fix link of a not-sent reason, for an admin; nothing for the others or a reason with nothing to fix. */
 export function NotSentFix({ notSent, admin }: { notSent: NotSent | null; admin: boolean }) {

@@ -1,0 +1,3 @@
+# Deferred: feat/incidents-not-sent-bulk-mlee (D-551)
+
+- [ ] 2026-11-13 — Single `PATCH /notify/incidents/{id}` still sets `note = NULL` when Acknowledge/Resolve is sent with an empty note, erasing an earlier acknowledge note (the bulk change keeps it, Opus r1 MED-2) — vì sao để sau: not a one-line change (HandleIncident must read the old note and keep the reopen path clearing it), and the same UPDATE line is changed by D-550 (M3a, `resolved_reason = NULL`), so editing it here makes a second conflict — ở đâu: `modules/notify/incidents.go` `HandleIncident`, after the D-550 merge; same `COALESCE(?, note)` as `bulk.go` for acknowledged/resolved.

@@ -97716,7 +97716,7 @@ type NotifyGetNotifyIncidentsIDOKIncident struct {
 	// Where to view the source: /honeypot/hits/ (trap), /logs (bad address, log anomaly), /devices/
 	// (unknown device).
 	Link string `json:"link"`
-	// Why no channel received it; null when a channel did or is still trying (a delayed send).
+	// Why no channel received it; null when the last attempt of a channel delivered it.
 	NotSent  NilNotifyGetNotifyIncidentsIDOKIncidentNotSent  `json:"not_sent"`
 	Note     NilString                                       `json:"note"`
 	Sends    []NotifyGetNotifyIncidentsIDOKIncidentSendsItem `json:"sends"`
@@ -97988,7 +97988,8 @@ func (s *NotifyGetNotifyIncidentsIDOKIncidentKind) UnmarshalText(data []byte) er
 }
 
 type NotifyGetNotifyIncidentsIDOKIncidentNotSent struct {
-	// The channel to fix: the one that failed (failed) or the one with the lowest minimum
+	// The channel to fix: the one whose last attempt failed (failed), the one turned off or removed while
+	// the message waited (channel_off, channel_removed), or the one with the lowest minimum
 	// (below_min_severity).
 	Channel OptNotifyGetNotifyIncidentsIDOKIncidentNotSentChannel `json:"channel"`
 	// Why no channel has it (INV-24, D-551): the decision kept when it was opened; queued and quiet_hours
@@ -98042,7 +98043,8 @@ func (s *NotifyGetNotifyIncidentsIDOKIncidentNotSent) SetUntil(val OptDateTime) 
 	s.Until = val
 }
 
-// The channel to fix: the one that failed (failed) or the one with the lowest minimum
+// The channel to fix: the one whose last attempt failed (failed), the one turned off or removed while
+// the message waited (channel_off, channel_removed), or the one with the lowest minimum
 // (below_min_severity).
 type NotifyGetNotifyIncidentsIDOKIncidentNotSentChannel string
 
@@ -98123,6 +98125,8 @@ const (
 	NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonQuietHours       NotifyGetNotifyIncidentsIDOKIncidentNotSentReason = "quiet_hours"
 	NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonNoChannel        NotifyGetNotifyIncidentsIDOKIncidentNotSentReason = "no_channel"
 	NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonChannelsOff      NotifyGetNotifyIncidentsIDOKIncidentNotSentReason = "channels_off"
+	NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonChannelOff       NotifyGetNotifyIncidentsIDOKIncidentNotSentReason = "channel_off"
+	NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonChannelRemoved   NotifyGetNotifyIncidentsIDOKIncidentNotSentReason = "channel_removed"
 	NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonBelowMinSeverity NotifyGetNotifyIncidentsIDOKIncidentNotSentReason = "below_min_severity"
 	NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonFailed           NotifyGetNotifyIncidentsIDOKIncidentNotSentReason = "failed"
 	NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonDroppedStale     NotifyGetNotifyIncidentsIDOKIncidentNotSentReason = "dropped_stale"
@@ -98137,6 +98141,8 @@ func (NotifyGetNotifyIncidentsIDOKIncidentNotSentReason) AllValues() []NotifyGet
 		NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonQuietHours,
 		NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonNoChannel,
 		NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonChannelsOff,
+		NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonChannelOff,
+		NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonChannelRemoved,
 		NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonBelowMinSeverity,
 		NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonFailed,
 		NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonDroppedStale,
@@ -98155,6 +98161,10 @@ func (s NotifyGetNotifyIncidentsIDOKIncidentNotSentReason) MarshalText() ([]byte
 	case NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonNoChannel:
 		return []byte(s), nil
 	case NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonChannelsOff:
+		return []byte(s), nil
+	case NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonChannelOff:
+		return []byte(s), nil
+	case NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonChannelRemoved:
 		return []byte(s), nil
 	case NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonBelowMinSeverity:
 		return []byte(s), nil
@@ -98185,6 +98195,12 @@ func (s *NotifyGetNotifyIncidentsIDOKIncidentNotSentReason) UnmarshalText(data [
 		return nil
 	case NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonChannelsOff:
 		*s = NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonChannelsOff
+		return nil
+	case NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonChannelOff:
+		*s = NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonChannelOff
+		return nil
+	case NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonChannelRemoved:
+		*s = NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonChannelRemoved
 		return nil
 	case NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonBelowMinSeverity:
 		*s = NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonBelowMinSeverity
@@ -98604,7 +98620,7 @@ type NotifyGetNotifyIncidentsOKIncidentsItem struct {
 	// Where to view the source: /honeypot/hits/ (trap), /logs (bad address, log anomaly), /devices/
 	// (unknown device).
 	Link string `json:"link"`
-	// Why no channel received it; null when a channel did or is still trying (a delayed send).
+	// Why no channel received it; null when the last attempt of a channel delivered it.
 	NotSent  NilNotifyGetNotifyIncidentsOKIncidentsItemNotSent  `json:"not_sent"`
 	Note     NilString                                          `json:"note"`
 	Sends    []NotifyGetNotifyIncidentsOKIncidentsItemSendsItem `json:"sends"`
@@ -98876,7 +98892,8 @@ func (s *NotifyGetNotifyIncidentsOKIncidentsItemKind) UnmarshalText(data []byte)
 }
 
 type NotifyGetNotifyIncidentsOKIncidentsItemNotSent struct {
-	// The channel to fix: the one that failed (failed) or the one with the lowest minimum
+	// The channel to fix: the one whose last attempt failed (failed), the one turned off or removed while
+	// the message waited (channel_off, channel_removed), or the one with the lowest minimum
 	// (below_min_severity).
 	Channel OptNotifyGetNotifyIncidentsOKIncidentsItemNotSentChannel `json:"channel"`
 	// Why no channel has it (INV-24, D-551): the decision kept when it was opened; queued and quiet_hours
@@ -98930,7 +98947,8 @@ func (s *NotifyGetNotifyIncidentsOKIncidentsItemNotSent) SetUntil(val OptDateTim
 	s.Until = val
 }
 
-// The channel to fix: the one that failed (failed) or the one with the lowest minimum
+// The channel to fix: the one whose last attempt failed (failed), the one turned off or removed while
+// the message waited (channel_off, channel_removed), or the one with the lowest minimum
 // (below_min_severity).
 type NotifyGetNotifyIncidentsOKIncidentsItemNotSentChannel string
 
@@ -99011,6 +99029,8 @@ const (
 	NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonQuietHours       NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason = "quiet_hours"
 	NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonNoChannel        NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason = "no_channel"
 	NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonChannelsOff      NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason = "channels_off"
+	NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonChannelOff       NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason = "channel_off"
+	NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonChannelRemoved   NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason = "channel_removed"
 	NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonBelowMinSeverity NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason = "below_min_severity"
 	NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonFailed           NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason = "failed"
 	NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonDroppedStale     NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason = "dropped_stale"
@@ -99025,6 +99045,8 @@ func (NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason) AllValues() []Notify
 		NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonQuietHours,
 		NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonNoChannel,
 		NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonChannelsOff,
+		NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonChannelOff,
+		NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonChannelRemoved,
 		NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonBelowMinSeverity,
 		NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonFailed,
 		NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonDroppedStale,
@@ -99043,6 +99065,10 @@ func (s NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason) MarshalText() ([]b
 	case NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonNoChannel:
 		return []byte(s), nil
 	case NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonChannelsOff:
+		return []byte(s), nil
+	case NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonChannelOff:
+		return []byte(s), nil
+	case NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonChannelRemoved:
 		return []byte(s), nil
 	case NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonBelowMinSeverity:
 		return []byte(s), nil
@@ -99073,6 +99099,12 @@ func (s *NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason) UnmarshalText(dat
 		return nil
 	case NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonChannelsOff:
 		*s = NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonChannelsOff
+		return nil
+	case NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonChannelOff:
+		*s = NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonChannelOff
+		return nil
+	case NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonChannelRemoved:
+		*s = NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonChannelRemoved
 		return nil
 	case NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonBelowMinSeverity:
 		*s = NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonBelowMinSeverity
@@ -100039,7 +100071,7 @@ type NotifyPatchNotifyIncidentsIDOKIncident struct {
 	// Where to view the source: /honeypot/hits/ (trap), /logs (bad address, log anomaly), /devices/
 	// (unknown device).
 	Link string `json:"link"`
-	// Why no channel received it; null when a channel did or is still trying (a delayed send).
+	// Why no channel received it; null when the last attempt of a channel delivered it.
 	NotSent  NilNotifyPatchNotifyIncidentsIDOKIncidentNotSent  `json:"not_sent"`
 	Note     NilString                                         `json:"note"`
 	Sends    []NotifyPatchNotifyIncidentsIDOKIncidentSendsItem `json:"sends"`
@@ -100311,7 +100343,8 @@ func (s *NotifyPatchNotifyIncidentsIDOKIncidentKind) UnmarshalText(data []byte) 
 }
 
 type NotifyPatchNotifyIncidentsIDOKIncidentNotSent struct {
-	// The channel to fix: the one that failed (failed) or the one with the lowest minimum
+	// The channel to fix: the one whose last attempt failed (failed), the one turned off or removed while
+	// the message waited (channel_off, channel_removed), or the one with the lowest minimum
 	// (below_min_severity).
 	Channel OptNotifyPatchNotifyIncidentsIDOKIncidentNotSentChannel `json:"channel"`
 	// Why no channel has it (INV-24, D-551): the decision kept when it was opened; queued and quiet_hours
@@ -100365,7 +100398,8 @@ func (s *NotifyPatchNotifyIncidentsIDOKIncidentNotSent) SetUntil(val OptDateTime
 	s.Until = val
 }
 
-// The channel to fix: the one that failed (failed) or the one with the lowest minimum
+// The channel to fix: the one whose last attempt failed (failed), the one turned off or removed while
+// the message waited (channel_off, channel_removed), or the one with the lowest minimum
 // (below_min_severity).
 type NotifyPatchNotifyIncidentsIDOKIncidentNotSentChannel string
 
@@ -100446,6 +100480,8 @@ const (
 	NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonQuietHours       NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason = "quiet_hours"
 	NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonNoChannel        NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason = "no_channel"
 	NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonChannelsOff      NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason = "channels_off"
+	NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonChannelOff       NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason = "channel_off"
+	NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonChannelRemoved   NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason = "channel_removed"
 	NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonBelowMinSeverity NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason = "below_min_severity"
 	NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonFailed           NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason = "failed"
 	NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonDroppedStale     NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason = "dropped_stale"
@@ -100460,6 +100496,8 @@ func (NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason) AllValues() []NotifyP
 		NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonQuietHours,
 		NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonNoChannel,
 		NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonChannelsOff,
+		NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonChannelOff,
+		NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonChannelRemoved,
 		NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonBelowMinSeverity,
 		NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonFailed,
 		NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonDroppedStale,
@@ -100478,6 +100516,10 @@ func (s NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason) MarshalText() ([]by
 	case NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonNoChannel:
 		return []byte(s), nil
 	case NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonChannelsOff:
+		return []byte(s), nil
+	case NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonChannelOff:
+		return []byte(s), nil
+	case NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonChannelRemoved:
 		return []byte(s), nil
 	case NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonBelowMinSeverity:
 		return []byte(s), nil
@@ -100508,6 +100550,12 @@ func (s *NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason) UnmarshalText(data
 		return nil
 	case NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonChannelsOff:
 		*s = NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonChannelsOff
+		return nil
+	case NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonChannelOff:
+		*s = NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonChannelOff
+		return nil
+	case NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonChannelRemoved:
+		*s = NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonChannelRemoved
 		return nil
 	case NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonBelowMinSeverity:
 		*s = NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonBelowMinSeverity

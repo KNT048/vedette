@@ -42378,6 +42378,8 @@
                                       "quiet_hours",
                                       "no_channel",
                                       "channels_off",
+                                      "channel_off",
+                                      "channel_removed",
                                       "below_min_severity",
                                       "failed",
                                       "dropped_stale",
@@ -42391,7 +42393,7 @@
                                     "description": "One plain sentence for the customer, e.g. \"Not sent: this incident is medium, and your channels only send high and above.\""
                                   },
                                   "channel": {
-                                    "description": "The channel to fix: the one that failed (failed) or the one with the lowest minimum (below_min_severity)",
+                                    "description": "The channel to fix: the one whose last attempt failed (failed), the one turned off or removed while the message waited (channel_off, channel_removed), or the one with the lowest minimum (below_min_severity)",
                                     "type": "string",
                                     "enum": [
                                       "telegram",
@@ -42419,7 +42421,7 @@
                                 "type": "null"
                               }
                             ],
-                            "description": "Why no channel received it; null when a channel did or is still trying (a delayed send)"
+                            "description": "Why no channel received it; null when the last attempt of a channel delivered it"
                           }
                         },
                         "required": [
@@ -42668,6 +42670,8 @@
                                     "quiet_hours",
                                     "no_channel",
                                     "channels_off",
+                                    "channel_off",
+                                    "channel_removed",
                                     "below_min_severity",
                                     "failed",
                                     "dropped_stale",
@@ -42681,7 +42685,7 @@
                                   "description": "One plain sentence for the customer, e.g. \"Not sent: this incident is medium, and your channels only send high and above.\""
                                 },
                                 "channel": {
-                                  "description": "The channel to fix: the one that failed (failed) or the one with the lowest minimum (below_min_severity)",
+                                  "description": "The channel to fix: the one whose last attempt failed (failed), the one turned off or removed while the message waited (channel_off, channel_removed), or the one with the lowest minimum (below_min_severity)",
                                   "type": "string",
                                   "enum": [
                                     "telegram",
@@ -42709,7 +42713,7 @@
                               "type": "null"
                             }
                           ],
-                          "description": "Why no channel received it; null when a channel did or is still trying (a delayed send)"
+                          "description": "Why no channel received it; null when the last attempt of a channel delivered it"
                         }
                       },
                       "required": [
@@ -43014,6 +43018,8 @@
                                     "quiet_hours",
                                     "no_channel",
                                     "channels_off",
+                                    "channel_off",
+                                    "channel_removed",
                                     "below_min_severity",
                                     "failed",
                                     "dropped_stale",
@@ -43027,7 +43033,7 @@
                                   "description": "One plain sentence for the customer, e.g. \"Not sent: this incident is medium, and your channels only send high and above.\""
                                 },
                                 "channel": {
-                                  "description": "The channel to fix: the one that failed (failed) or the one with the lowest minimum (below_min_severity)",
+                                  "description": "The channel to fix: the one whose last attempt failed (failed), the one turned off or removed while the message waited (channel_off, channel_removed), or the one with the lowest minimum (below_min_severity)",
                                   "type": "string",
                                   "enum": [
                                     "telegram",
@@ -43055,7 +43061,7 @@
                               "type": "null"
                             }
                           ],
-                          "description": "Why no channel received it; null when a channel did or is still trying (a delayed send)"
+                          "description": "Why no channel received it; null when the last attempt of a channel delivered it"
                         }
                       },
                       "required": [

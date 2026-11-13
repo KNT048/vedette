@@ -2,8 +2,10 @@ package notify_test
 
 import (
 	"database/sql"
+	"io"
 	"net/http"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -79,7 +81,7 @@ func TestContract_INV24_NotSentSaysWhyFromTheDecision(t *testing.T) {
 	e.net.failTelegram(http.StatusBadRequest)
 	failed := e.open("e", notify.High)
 	e.flush()
-	if ns := e.notSent(failed); ns == nil || ns.Reason != notify.UnsentFailed || ns.Channel != channel.Telegram || !strings.HasPrefix(ns.Text, "Not delivered: Telegram failed.") {
+	if ns := e.notSent(failed); ns == nil || ns.Reason != notify.UnsentFailed || ns.Channel != channel.Telegram || !strings.HasPrefix(ns.Text, "Not delivered. Telegram failed to deliver it.") {
 		t.Fatalf("failed send: %+v", ns)
 	}
 }
@@ -100,7 +102,7 @@ func TestContract_INV24_QuietHoursSayUntilWhenAndThenSend(t *testing.T) {
 	e.save(channel.Telegram, notify.ChannelInput{Enabled: false, Fields: map[string]string{"chat_id": "-1002145678901"}, MinSeverity: notify.Low})
 	e.clock.Add(8 * time.Hour)
 	e.flush()
-	wantReason(t, e.notSent(id), notify.UnsentChannelsOff, "turned off")
+	wantReason(t, e.notSent(id), notify.UnsentChannelOff, "was turned off before it went out")
 }
 
 func TestNotSentOfAnIncidentOpenedBeforeTheReasonWasKept(t *testing.T) {
@@ -145,8 +147,15 @@ func TestContract_INV25_BulkAcknowledgeAndResolve(t *testing.T) {
 	if err != nil || r != (notify.BulkResult{AlreadyAcknowledged: 2, AlreadyResolved: 1}) {
 		t.Fatalf("acknowledge again: %+v, %v", r, err)
 	}
+	r, err = e.svc.HandleIncidents(e.ctx(), "op@acme.example", []string{b}, notify.StatusResolved, "")
+	if err != nil || r != (notify.BulkResult{Updated: 1}) {
+		t.Fatalf("resolve without a note: %+v, %v", r, err)
+	}
+	if d, _ := e.svc.IncidentDetail(e.ctx(), b); d.Incident.Note == nil || *d.Incident.Note != "checking" {
+		t.Fatalf("no note given keeps the acknowledge note: %+v", d.Incident.Note)
+	}
 	r, err = e.svc.HandleIncidents(e.ctx(), "op@acme.example", []string{a, b, c}, notify.StatusResolved, "false alarm")
-	if err != nil || r != (notify.BulkResult{Updated: 2, AlreadyResolved: 1}) {
+	if err != nil || r != (notify.BulkResult{Updated: 1, AlreadyResolved: 2}) {
 		t.Fatalf("resolve: %+v, %v", r, err)
 	}
 	if n := e.count(`SELECT COUNT(*) FROM core_audit WHERE action = 'notify.incident_status'`) - audits; n != 4 {
@@ -160,4 +169,52 @@ func TestContract_INV25_BulkAcknowledgeAndResolve(t *testing.T) {
 	if d.Incident.Status != notify.StatusResolved || *d.Incident.Note != "false alarm" || *d.Incident.HandledBy != "op@acme.example" {
 		t.Fatalf("resolved by the bulk change: %+v", d.Incident)
 	}
+}
+
+// An earlier "Delayed (rate limited)" row does not hide what happened after it: the last attempt of the channel counts (Opus r1 MED-1).
+func TestNotSentAfterARateLimitIsTheLastOutcome(t *testing.T) {
+	var mu sync.Mutex
+	answer := 429
+	e := newEnv(t, withNet(func(r *http.Request) (*http.Response, error) {
+		mu.Lock()
+		defer mu.Unlock()
+		_, _ = io.ReadAll(r.Body)
+		body := `{"ok":false,"error_code":429,"description":"Too Many Requests: retry after 30","parameters":{"retry_after":30}}`
+		if answer == 400 {
+			body = `{"ok":false,"error_code":400,"description":"Bad Request: chat not found"}`
+		}
+		return &http.Response{StatusCode: answer, Header: http.Header{}, Request: r, Body: io.NopCloser(strings.NewReader(body))}, nil
+	}))
+	set := func(code int) { mu.Lock(); answer = code; mu.Unlock() }
+	e.telegram(notify.Low)
+	e.plain()
+	failed := e.open("a", notify.High)
+	e.flush()
+	wantReason(t, e.notSent(failed), notify.UnsentQueued, "within a minute") // waits in the queue for the provider: not a failure yet
+	set(400)
+	e.clock.Add(time.Minute)
+	e.flush()
+	if ns := e.notSent(failed); ns == nil || ns.Reason != notify.UnsentFailed || ns.Channel != channel.Telegram {
+		t.Fatalf("delayed then failed: %+v", ns)
+	}
+
+	set(429)
+	dropped := e.open("b", notify.High)
+	e.flush()
+	e.save(channel.Telegram, notify.ChannelInput{Enabled: false, Fields: map[string]string{"chat_id": "-1002145678901"}, MinSeverity: notify.Low})
+	e.clock.Add(time.Minute)
+	e.flush()
+	ns := e.notSent(dropped)
+	wantReason(t, ns, notify.UnsentChannelOff, "was turned off before it went out")
+	if ns.Channel != channel.Telegram {
+		t.Fatalf("the channel to fix: %+v", ns)
+	}
+
+	e.telegram(notify.Low)
+	gone := e.open("c", notify.High)
+	e.flush() // rate limited again: waits in the queue
+	if err := e.svc.DeleteChannel(e.ctx(), "admin@acme.example", channel.Telegram); err != nil {
+		t.Fatal(err)
+	}
+	wantReason(t, e.notSent(gone), notify.UnsentChannelGone, "was removed before it went out")
 }

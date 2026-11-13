@@ -63,11 +63,11 @@ export const IncidentKind = z.enum(['trap', 'bad_address', 'log_anomaly', 'unkno
 export const IncidentStatus = z.enum(['new', 'acknowledged', 'resolved'])
 export const SendRecord = z.object({ id: z.string(), channel: ChannelType, to: z.string(), at: iso, ok: z.boolean(), error: z.string().optional(),
   delayed: z.boolean().describe('The provider asked to slow down (HTTP 429, Zalo -32): the message waits in the queue and is sent again by itself; not a failure, no Resend (D-483)') })
-export const NotSentReason = z.enum(['queued', 'quiet_hours', 'no_channel', 'channels_off', 'below_min_severity', 'failed', 'dropped_stale', 'first_run_summary', 'unknown'])
+export const NotSentReason = z.enum(['queued', 'quiet_hours', 'no_channel', 'channels_off', 'channel_off', 'channel_removed', 'below_min_severity', 'failed', 'dropped_stale', 'first_run_summary', 'unknown'])
 export const NotSent = z.object({
   reason: NotSentReason.describe('Why no channel has it (INV-24, D-551): the decision kept when it was opened; queued and quiet_hours still go out by themselves; unknown = opened before the reason was kept and today\'s channels would take it'),
   text: z.string().describe('One plain sentence for the customer, e.g. "Not sent: this incident is medium, and your channels only send high and above."'),
-  channel: ChannelType.optional().describe('The channel to fix: the one that failed (failed) or the one with the lowest minimum (below_min_severity)'),
+  channel: ChannelType.optional().describe('The channel to fix: the one whose last attempt failed (failed), the one turned off or removed while the message waited (channel_off, channel_removed), or the one with the lowest minimum (below_min_severity)'),
   until: iso.optional().describe('quiet_hours: when the held message goes out'),
 })
 /** Most incidents one bulk change may name (INV-25): the page shows at most 500. */
@@ -90,7 +90,7 @@ export const Incident = z.object({
   handled_at: iso.nullable(),
   note: z.string().nullable(),
   sends: z.array(SendRecord),
-  not_sent: NotSent.nullable().describe('Why no channel received it; null when a channel did or is still trying (a delayed send)'),
+  not_sent: NotSent.nullable().describe('Why no channel received it; null when the last attempt of a channel delivered it'),
 })
 export const Preview = z.object({ channel: ChannelType, subject: z.string().optional(), text: z.string() })
 export const IncidentDetail = z.object({ incident: Incident, previews: z.array(Preview) })

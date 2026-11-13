@@ -166,7 +166,7 @@ type Incident struct {
 	HandledAt *string        `json:"handled_at"`
 	Note      *string        `json:"note"`
 	Sends     []SendView     `json:"sends"`
-	// NotSent says why no channel has the incident (INV-24, D-551); nil when a channel received it or is still trying (a delayed send).
+	// NotSent says why no channel has the incident (INV-24, D-551); nil when the last attempt of a channel delivered it.
 	NotSent *NotSent `json:"not_sent"`
 }
 
@@ -178,7 +178,9 @@ const (
 	UnsentQueued       NotSentReason = "queued"             // a channel took it; the deliver job sends it within a minute
 	UnsentQuietHours   NotSentReason = "quiet_hours"        // held until quiet hours end (INV-5), then sent
 	UnsentNoChannel    NotSentReason = "no_channel"         // no channel was set up
-	UnsentChannelsOff  NotSentReason = "channels_off"       // channels were set up, none was on (or the one it waited for was turned off)
+	UnsentChannelsOff  NotSentReason = "channels_off"       // channels were set up, none was on
+	UnsentChannelOff   NotSentReason = "channel_off"        // the one channel it waited for (quiet hours, rate limit) was turned off before it went
+	UnsentChannelGone  NotSentReason = "channel_removed"    // the one channel it waited for was removed before it went
 	UnsentBelowMin     NotSentReason = "below_min_severity" // every channel that was on sends only higher severities (INV-4)
 	UnsentFailed       NotSentReason = "failed"             // a channel tried and failed (INV-6)
 	UnsentDroppedStale NotSentReason = "dropped_stale"      // it waited while the module was off and was too old when it came back on
@@ -190,7 +192,7 @@ const (
 type NotSent struct {
 	Reason NotSentReason `json:"reason"`
 	Text   string        `json:"text"`
-	// Channel is the channel to fix: the one that failed, or the channel with the lowest minimum severity.
+	// Channel is the channel to fix: the one that failed, the one that was turned off or removed, or the one with the lowest minimum severity.
 	Channel channel.Type `json:"channel,omitempty"`
 	// Until (quiet_hours) is when the held message goes out.
 	Until string `json:"until,omitempty"`

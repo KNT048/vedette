@@ -47106,6 +47106,10 @@ func (s NotifyGetNotifyIncidentsIDOKIncidentNotSentReason) Validate() error {
 		return nil
 	case "channels_off":
 		return nil
+	case "channel_off":
+		return nil
+	case "channel_removed":
+		return nil
 	case "below_min_severity":
 		return nil
 	case "failed":
@@ -47482,6 +47486,10 @@ func (s NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason) Validate() error {
 	case "no_channel":
 		return nil
 	case "channels_off":
+		return nil
+	case "channel_off":
+		return nil
+	case "channel_removed":
 		return nil
 	case "below_min_severity":
 		return nil
@@ -48213,6 +48221,10 @@ func (s NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason) Validate() error {
 	case "no_channel":
 		return nil
 	case "channels_off":
+		return nil
+	case "channel_off":
+		return nil
+	case "channel_removed":
 		return nil
 	case "below_min_severity":
 		return nil

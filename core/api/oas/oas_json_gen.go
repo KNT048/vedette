@@ -178856,6 +178856,10 @@ func (s *NotifyGetNotifyIncidentsIDOKIncidentNotSentReason) Decode(d *jx.Decoder
 		*s = NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonNoChannel
 	case NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonChannelsOff:
 		*s = NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonChannelsOff
+	case NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonChannelOff:
+		*s = NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonChannelOff
+	case NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonChannelRemoved:
+		*s = NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonChannelRemoved
 	case NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonBelowMinSeverity:
 		*s = NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonBelowMinSeverity
 	case NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonFailed:
@@ -180267,6 +180271,10 @@ func (s *NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason) Decode(d *jx.Deco
 		*s = NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonNoChannel
 	case NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonChannelsOff:
 		*s = NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonChannelsOff
+	case NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonChannelOff:
+		*s = NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonChannelOff
+	case NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonChannelRemoved:
+		*s = NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonChannelRemoved
 	case NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonBelowMinSeverity:
 		*s = NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonBelowMinSeverity
 	case NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonFailed:
@@ -183023,6 +183031,10 @@ func (s *NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason) Decode(d *jx.Decod
 		*s = NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonNoChannel
 	case NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonChannelsOff:
 		*s = NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonChannelsOff
+	case NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonChannelOff:
+		*s = NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonChannelOff
+	case NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonChannelRemoved:
+		*s = NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonChannelRemoved
 	case NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonBelowMinSeverity:
 		*s = NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonBelowMinSeverity
 	case NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonFailed:

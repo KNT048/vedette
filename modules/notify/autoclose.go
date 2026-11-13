@@ -21,7 +21,7 @@ const (
 	maxAutoClose = 500
 )
 
-// quietWindows is how long an open (new or acknowledged) incident of each kind may see no new activity (last_seen does not move)
+// quietWindows is how long an open (new or acknowledged) incident of each kind may see no new activity (quietSince)
 // before Vedette closes it (D-550): a trap or a bad connection that has not come back for a week, a log anomaly after three days
 // (the logs digest keeps its lines; a new kind of message an hour is its own incident). A new hit afterwards opens a new incident:
 // the dedupe of INV-10 only joins incidents that are not resolved. New-device incidents close on approve or delete, never by time.
@@ -169,7 +169,10 @@ func (s *Service) firstRunSummary(ctx context.Context) error {
 		if err := errors.Join(rows.Err(), rows.Close()); err != nil {
 			return fmt.Errorf("notify: read held incidents: %w", err)
 		}
-		if total == 0 {
+		if total == 0 { // a summary still waiting whose incidents were all resolved or raised since: it would tell a stale count
+			if _, err := tx.ExecContext(ctx, `DELETE FROM notify_pending WHERE notice_id IN (`+unsentSummaries+`)`); err != nil {
+				return fmt.Errorf("notify: drop a waiting summary: %w", err)
+			}
 			return nil
 		}
 		sid := "fr-" + hex.EncodeToString(h.Sum(nil)[:12])

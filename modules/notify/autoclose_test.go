@@ -249,3 +249,29 @@ func TestFirstRunSummaryIsNeverLostAndWaitsAsOne(t *testing.T) {
 		t.Fatalf("messages = %q", m)
 	}
 }
+
+// INV-23 (Opus r2): a summary waiting through quiet hours whose incidents were all resolved meanwhile is dropped, not sent with a stale count.
+func TestFirstRunSummaryOfResolvedIncidentsIsDropped(t *testing.T) {
+	e := newEnv(t)
+	e.firstRunAt(e.clock.Now())
+	e.telegram(notify.Low)
+	e.rules(notify.Quiet{Enabled: true, From: "09:00", To: "18:00"}, notify.Grouping{Enabled: false, WindowMin: 60}) // now is 10:00
+	id, _, err := e.svc.OpenIncident(e.ctx(), notify.IncidentInput{Kind: notify.IncidentBadAddress, Source: "a", Title: "bad a", Severity: notify.Medium, What: "w", Action: "a", Link: "/logs"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	e.autoClose()
+	if i := e.detail(id); i.NotSent == nil || i.NotSent.Reason != notify.UnsentFirstRun || !strings.Contains(i.NotSent.Text, "which no channel has delivered yet") {
+		t.Fatalf("not sent = %+v", i.NotSent)
+	}
+	if _, err := e.svc.HandleIncident(e.ctx(), "u-op", id, notify.StatusResolved, ""); err != nil {
+		t.Fatal(err)
+	}
+	e.clock.Add(time.Hour)
+	e.autoClose()
+	e.clock.Add(8 * time.Hour)
+	e.flush()
+	if n := len(e.net.to("api.telegram.org")); n != 0 || e.count(`SELECT COUNT(*) FROM notify_pending`) != 0 {
+		t.Fatalf("messages = %d: the summary of a resolved incident went out", n)
+	}
+}

@@ -63,6 +63,15 @@ export const IncidentKind = z.enum(['trap', 'bad_address', 'log_anomaly', 'unkno
 export const IncidentStatus = z.enum(['new', 'acknowledged', 'resolved'])
 export const SendRecord = z.object({ id: z.string(), channel: ChannelType, to: z.string(), at: iso, ok: z.boolean(), error: z.string().optional(),
   delayed: z.boolean().describe('The provider asked to slow down (HTTP 429, Zalo -32): the message waits in the queue and is sent again by itself; not a failure, no Resend (D-483)') })
+export const NotSentReason = z.enum(['queued', 'quiet_hours', 'no_channel', 'channels_off', 'channel_off', 'channel_removed', 'below_min_severity', 'failed', 'dropped_stale', 'first_run_summary', 'unknown'])
+export const NotSent = z.object({
+  reason: NotSentReason.describe('Why no channel has it (INV-24, D-551): the decision kept when it was opened; queued and quiet_hours still go out by themselves; unknown = opened before the reason was kept and today\'s channels would take it'),
+  text: z.string().describe('One plain sentence for the customer, e.g. "Not sent: this incident is medium, and your channels only send high and above."'),
+  channel: ChannelType.optional().describe('The channel to fix: the one whose last attempt failed (failed), the one turned off or removed while the message waited (channel_off, channel_removed), or the one with the lowest minimum (below_min_severity)'),
+  until: iso.optional().describe('quiet_hours: when the held message goes out'),
+})
+/** Most incidents one bulk change may name (INV-25): the page shows at most 500. */
+export const MAX_BULK_INCIDENTS = 500
 export const Incident = z.object({
   id: z.string(),
   kind: IncidentKind,
@@ -83,6 +92,7 @@ export const Incident = z.object({
   resolved_reason: z.string().nullable().describe('Why Vedette closed it by itself, plain English shown as is ("Closed by Vedette: the device was approved by an@example.com.", "Closed by Vedette: no new activity for 7 days."); null when a person handled it last or it is open (D-550)'),
   first_run_summary: z.boolean().describe('Opened in the first 36 hours as a low or medium bad-connection or log incident, so it was told in the hourly first-run summary message instead of its own (D-550)'),
   sends: z.array(SendRecord),
+  not_sent: NotSent.nullable().describe('Why no channel received it; null when any attempt delivered it (a later failed Resend does not undo that)'),
 })
 export const Preview = z.object({ channel: ChannelType, subject: z.string().optional(), text: z.string() })
 export const IncidentDetail = z.object({ incident: Incident, previews: z.array(Preview) })
@@ -129,6 +139,9 @@ export const endpoints = defineEndpoints([
   { method: 'get', path: '/notify/incidents', summary: 'List incidents: trap touched, connection to a known-bad address, log anomaly, unknown device (repeats grouped); no vulnerabilities', stories: ['S-ALERT-3'], role: 'viewer', response: IncidentsResponse },
   { method: 'get', path: '/notify/incidents/{id}', summary: 'Incident details: what happened, content sent per channel, delivery log', stories: ['S-ALERT-3'], role: 'viewer', params: id, response: IncidentDetail, example: { params: { id: 'al-4' } } },
   { method: 'patch', path: '/notify/incidents/{id}', summary: 'Acknowledge, resolve or reopen an incident, with a note', stories: ['S-ALERT-3'], role: 'operator', params: id, body: z.object({ status: IncidentStatus, note: z.string().max(500).optional() }), response: IncidentDetail },
+  { method: 'post', path: '/notify/incidents/status', summary: 'Acknowledge or resolve up to 500 incidents with one note; one audit row per changed incident, all or nothing; resolved incidents keep their state, acknowledging an acknowledged one changes nothing', stories: ['S-ALERT-3'], role: 'operator',
+    body: z.object({ ids: z.array(z.string().min(1).max(96)).min(1).max(MAX_BULK_INCIDENTS), status: z.enum(['acknowledged', 'resolved']), note: z.string().max(500).optional() }),
+    response: z.object({ updated: z.number().int().describe('Incidents changed'), already_resolved: z.number().int().describe('Resolved incidents, left as they were'), already_acknowledged: z.number().int().describe('Acknowledge only: incidents already acknowledged, left as they were') }) },
   { method: 'get', path: '/notify/history', summary: 'Every message sent (incidents, vulnerability notices, approval requests) and the count of new vulnerabilities matching no device (not sent)', stories: ['S-ALERT-1', 'S-NOT-1'], role: 'admin', response: HistoryResponse },
   { method: 'post', path: '/notify/history/{id}/resend', summary: 'Send a message again through the same channel', stories: ['S-NOT-1'], role: 'operator', params: id, response: HistoryItem },
   { method: 'get', path: '/notify/findings/{id}/notices', summary: 'Who was notified about this finding, on which channel, and whether it arrived', stories: ['S-ALERT-1'], role: 'viewer', params: id, response: FindingNotices, example: { params: { id: 'f-1' } } },

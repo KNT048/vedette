@@ -462,7 +462,16 @@
     "emptyBody": "When a trap is touched, a machine connects to a known-bad address, a log looks wrong or an unknown device appears, it shows up here and is sent through the channels you turned on.",
     "emptyBodyNoTraps": "When a machine connects to a known-bad address, a log looks wrong or an unknown device appears, it shows up here and is sent through the channels you turned on.",
     "setupChannels": "Set up alert channels",
-    "sentDelayed": "{{channel}} delayed"
+    "sentDelayed": "{{channel}} delayed",
+    "fix": {
+      "no_channel": "Set up alert channels",
+      "channels_off": "Turn a channel on",
+      "channel_off": "Turn the channel on",
+      "channel_removed": "Set up alert channels",
+      "below_min_severity": "Change the minimum severity",
+      "quiet_hours": "Quiet hours settings",
+      "failed": "Test the channel"
+    }
   },
   "detail": {
     "meta": "First seen {{time}}.",
@@ -510,7 +519,8 @@
     "handledBy": "{{status}} by {{user}} at {{time}}.",
     "closedBy": "{{reason}} Resolved at {{time}}.",
     "noteShown": "Note: {{note}}",
-    "updated": "Incident updated."
+    "updated": "Incident updated.",
+    "notYetTitle": "Not sent yet"
   },
   "finding": {
     "title": "Notifications",
@@ -590,5 +600,41 @@
   },
   "tg": {
     "unsaved": "Save to send this person a confirm link on Telegram, privately. The bot can write to them only after they press Start once in a private chat with the bot; otherwise a note in this chat asks them to. They confirm the link while signed in to Vedette as themselves."
+  },
+  "bulk": {
+    "region": "Selected incidents",
+    "select": "Select {{title}}",
+    "selectPage": "Select all {{count}} incidents on this page",
+    "pageSelected": "All {{count}} incidents on this page are selected.",
+    "selectEvery": "Select all {{count}} matching incidents",
+    "everySelected": "All {{count}} matching incidents are selected.",
+    "selected_one": "{{count}} incident selected",
+    "selected_other": "{{count}} incidents selected",
+    "tooMany": "At most {{max}} at a time. Narrow the filter.",
+    "clear": "Clear selection",
+    "title": {
+      "acknowledged_one": "Acknowledge {{count}} incident",
+      "acknowledged_other": "Acknowledge {{count}} incidents",
+      "resolved_one": "Resolve {{count}} incident",
+      "resolved_other": "Resolve {{count}} incidents"
+    },
+    "description": "One note for every selected incident. Resolved incidents keep their state and note. Each incident keeps its own audit line, so others can see who changed it and why.",
+    "noteHint": "The same note is saved on each incident.",
+    "submit": {
+      "acknowledged_one": "Acknowledge {{count}} incident",
+      "acknowledged_other": "Acknowledge {{count}} incidents",
+      "resolved_one": "Resolve {{count}} incident",
+      "resolved_other": "Resolve {{count}} incidents"
+    },
+    "done": {
+      "acknowledged_one": "{{count}} incident acknowledged",
+      "acknowledged_other": "{{count}} incidents acknowledged",
+      "resolved_one": "{{count}} incident resolved",
+      "resolved_other": "{{count}} incidents resolved"
+    },
+    "alreadyResolved_one": "{{count}} was already resolved and kept its state.",
+    "alreadyResolved_other": "{{count}} were already resolved and kept their state.",
+    "alreadyAcknowledged_one": "{{count}} was already acknowledged.",
+    "alreadyAcknowledged_other": "{{count}} were already acknowledged."
   }
 }

@@ -342,6 +342,9 @@ func (s *Service) Incidents(ctx context.Context) ([]Incident, error) {
 	if err := errors.Join(srows.Err(), srows.Close()); err != nil {
 		return nil, fmt.Errorf("notify: read incident sends: %w", err)
 	}
+	if err := s.withNotSent(ctx, db, out); err != nil {
+		return nil, err
+	}
 	s.withConnections(ctx, out)
 	return out, nil
 }
@@ -410,6 +413,11 @@ func (s *Service) incidentDetail(ctx context.Context, q dbtx, id string) (Incide
 	if err := fillIncident(ctx, q, &i); err != nil {
 		return IncidentDetail{}, err
 	}
+	one := []Incident{i}
+	if err := s.withNotSent(ctx, q, one); err != nil {
+		return IncidentDetail{}, err
+	}
+	i = one[0]
 	names := make([]string, 0, len(i.Devices))
 	for _, d := range i.Devices {
 		names = append(names, d.Name)
@@ -437,7 +445,7 @@ func (s *Service) incidentDetail(ctx context.Context, q dbtx, id string) (Incide
 }
 
 // HandleIncident acknowledges, resolves or reopens an incident (PATCH /notify/incidents/{id}, INV-10).
-// Reopening (status new) clears who handled it and the note.
+// Reopening (status new) clears who handled it and the note; acknowledging or resolving without a note keeps the note already there.
 func (s *Service) HandleIncident(ctx context.Context, actor, id string, status IncidentStatus, note string) (IncidentDetail, error) {
 	if status != StatusNew && status != StatusAcknowledged && status != StatusResolved {
 		return IncidentDetail{}, badRequest("bad_status", "Status must be new, acknowledged or resolved.")
@@ -471,9 +479,10 @@ func (s *Service) HandleIncident(ctx context.Context, actor, id string, status I
 			by, at, nt = actor, now, nullable(note)
 		}
 		// A person's action replaces Vedette's reason (INV-22): the incident is theirs now. Reopening makes it active again, so the
-		// quiet window of autoclose starts over from now.
-		if _, err := tx.ExecContext(ctx, `UPDATE notify_incident SET status = ?, handled_by = ?, handled_at = ?, note = ?, resolved_reason = NULL,
-			active_at = CASE WHEN ? = 'new' THEN ? ELSE active_at END WHERE id = ?`, string(status), by, at, nt, string(status), now, id); err != nil {
+		// quiet window of autoclose starts over from now, and clears the note; acknowledging or resolving with no note keeps the one
+		// already there, as the bulk change does (INV-25).
+		if _, err := tx.ExecContext(ctx, `UPDATE notify_incident SET status = ?, handled_by = ?, handled_at = ?, note = CASE WHEN ? = 'new' THEN NULL ELSE COALESCE(?, note) END,
+			resolved_reason = NULL, active_at = CASE WHEN ? = 'new' THEN ? ELSE active_at END WHERE id = ?`, string(status), by, at, string(status), nt, string(status), now, id); err != nil {
 			return fmt.Errorf("notify: update incident: %w", err)
 		}
 		detail := string(status)

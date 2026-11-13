@@ -17,6 +17,8 @@ type FindingRow struct {
 	Severity string `json:"severity"`
 	Since    string `json:"since"`
 	By       string `json:"by,omitempty"` // who closed it, on the rows of what was done
+
+	noDevice bool // the device is a product added by hand with no device (Device.NoDevice)
 }
 
 // TopRisk is one of the biggest open risks of the week (W1-24, D-485): the open findings of one product, as Findings names it.

@@ -63,7 +63,7 @@
 Không route `/reports/*`, không job gửi theo lịch. Trang Reports "module đang tắt". `rep_*` (lịch, lịch sử, thông tin tổ chức, báo cáo đã sinh) giữ nguyên; bật lại thì lịch tiếp tục, không gửi bù hàng loạt.
 
 ## Ports (cmd/vedette/reports.go)
-`Inventory.Devices` (kể cả hộp, `Device.Box`; D-485), `Findings.All` (+ `ResolvedBy`), `KEV.Entries` (+ giờ kéo, `Display`), `KEV.NewlyExploited` (feeds, D-485), `Remedies.Fixes` (findings.FixedInForAll + inventory.MatchInput, D-490), `Incidents.Week` (notify.IncidentsSince, D-490: đếm cả tuần bằng SQL), `Mailer.Ready/Send` (notify), `AI.Available/Summarize` (ai: việc `weekly-report`, `pdpl-assessment`), `Modules.Enabled`. Reports không đọc bảng của module khác.
+`Inventory.Devices` (kể cả hộp, `Device.Box`; D-485; `Device.NoDevice` = sản phẩm thêm tay không thiết bị, câu việc cần làm không nhắc tên nó hai lần, W5-2), `Findings.All` (+ `ResolvedBy`), `KEV.Entries` (+ giờ kéo, `Display`), `KEV.NewlyExploited` (feeds, D-485), `Remedies.Fixes` (findings.FixedInForAll + inventory.MatchInput, D-490), `Incidents.Week` (notify.IncidentsSince, D-490: đếm cả tuần bằng SQL), `Mailer.Ready/Send` (notify), `AI.Available/Summarize` (ai: việc `weekly-report`, `pdpl-assessment`), `Modules.Enabled`. Reports không đọc bảng của module khác.
 
 ## Dependencies
 - **DEPENDS ON**: `core` (jobs, audit), `inventory` (thiết bị, nguồn kiểm kê), `feeds` (KEV), `notify` (gửi, mềm nhưng cần để gửi), `ai` (nhận xét, mềm), `scan`/`logs`/`honeypot` (mềm, mở rộng số liệu).

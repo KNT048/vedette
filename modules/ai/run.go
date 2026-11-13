@@ -315,7 +315,7 @@ func (s *Service) RunJob(ctx context.Context, spec JobSpec) (JobResult, error) {
 	}
 	if err != nil {
 		s.touchSent(ctx, mem.ids, res)
-		return JobResult{}, s.failed(ctx, spec, entry, res, err)
+		return JobResult{}, s.capNote(s.failed(ctx, spec, entry, res, err), res)
 	}
 	if spec.tools != nil && spec.Schema != nil {
 		// the tool loop asks for the JSON without structured output (D-223): out of a code block before the hooks walk its strings, so a
@@ -408,7 +408,7 @@ func (s *Service) RunJob(ctx context.Context, spec JobSpec) (JobResult, error) {
 		return JobResult{}, werr
 	}
 	if bad != nil {
-		return JobResult{}, bad
+		return JobResult{}, s.capNote(bad, res)
 	}
 	return JobResult{Text: text, Model: res.Model, Profile: res.Profile, TokensIn: entry.TokensIn, TokensOut: entry.TokensOut, Fallback: res.Fallback, ActivityID: id,
 		Hits: after.Hits, Blocked: blocked, Downgrade: res.Downgrade, Documents: know.docs}, nil
@@ -439,6 +439,43 @@ func (s *Service) touchSent(ctx context.Context, ids []string, res CallResult) {
 	}); err != nil {
 		s.cfg.Log.WarnContext(ctx, "ai: could not record the use of memory", "error", err)
 	}
+}
+
+// spentTokens is what the requests of a call used, all turns of a tool loop together.
+func spentTokens(res CallResult) int {
+	return res.Response.Usage.InputTokens + res.Response.Usage.OutputTokens
+}
+
+// profileCappedLast returns the profile whose own daily cap stopped the last turn of a call, when every profile of that turn was skipped
+// before a request was sent and one of them for its cap; "" otherwise. The turns before it are the attempts up to the last answered one.
+func profileCappedLast(res CallResult) string {
+	name := ""
+	for i := len(res.Attempts) - 1; i >= 0; i-- {
+		a := res.Attempts[i]
+		if !a.Skipped {
+			if a.Err != nil {
+				return "" // a request of the last turn was sent and failed: the provider's failure, not the cap
+			}
+			break
+		}
+		if errors.Is(a.Err, errProfileCapSkip) && name == "" {
+			name = a.Profile
+		}
+	}
+	return name
+}
+
+// capNote adds to the error of a call that failed after it spent tokens that today's cap is now used up, when that call is what used
+// it up: the person reads what went wrong first, then why the AI is paused (W1-27). A refusal by the cap itself says so already.
+func (s *Service) capNote(err error, res CallResult) error {
+	e, ok := apierr.As(err)
+	if !ok || e.Code == "daily_cap" || spentTokens(res) == 0 || !s.meter.Exhausted() {
+		return err
+	}
+	out := *e
+	out.Message = fmt.Sprintf("%s This request used %s tokens, and today's %s token cap is now used up: the AI is paused until tomorrow unless an administrator raises the cap in Settings, AI assistant.",
+		strings.TrimSpace(e.Message), number(spentTokens(res)), number(s.snap.Load().cfg.DailyCap))
+	return &out
 }
 
 // capSummary is the activity summary of a call the daily cap stopped (outcome capped).
@@ -507,6 +544,28 @@ func (s *Service) failed(ctx context.Context, spec JobSpec, entry ActivityEntry,
 			return rerr
 		}
 		return apiUnavailable("The AI profile did not accept tool calls, which " + spec.Job.Name() + " needs. Use a model that supports tools; Settings, AI assistant shows what a connection test found.")
+	case errors.Is(err, ErrCapped) && spentTokens(res) > 0:
+		// earlier turns of this call were sent and pushed the meter over the cap, so the next one could not be: this call used the cap up,
+		// it did not find it used up (W1-27)
+		s.nameLastProfile(&entry, res)
+		entry.Summary = fmt.Sprintf("Stopped: today's token cap ran out partway through, after %s tokens; no answer.", number(spentTokens(res)))
+		entry.Outcome = OutcomeCapped
+		if rerr := s.record(ctx, entry); rerr != nil {
+			return rerr
+		}
+		return apierr.New(http.StatusTooManyRequests, "daily_cap", fmt.Sprintf("The AI did not finish: today's %s token cap ran out partway through (this request used %s tokens before it stopped), so there is no answer. Raise the cap in Settings, AI assistant, or wait until tomorrow.",
+			number(s.snap.Load().cfg.DailyCap), number(spentTokens(res))))
+	case errors.As(err, &ue) && spentTokens(res) > 0 && profileCappedLast(res) != "":
+		// the same with a profile's own cap: no other profile could take the next turn
+		s.nameLastProfile(&entry, res)
+		name := profileCappedLast(res)
+		entry.Summary = fmt.Sprintf("Stopped: the profile's own daily token cap ran out partway through, after %s tokens; no answer.", number(spentTokens(res)))
+		entry.Outcome = OutcomeCapped
+		if rerr := s.record(ctx, entry); rerr != nil {
+			return rerr
+		}
+		return apierr.New(http.StatusTooManyRequests, "daily_cap", fmt.Sprintf("The AI did not finish: the daily token cap of the profile %s ran out partway through (this request used %s tokens before it stopped), so there is no answer. Raise the profile's cap or add a fallback profile in Settings, AI assistant, or wait until tomorrow.",
+			name, number(spentTokens(res))))
 	case errors.Is(err, ErrCapped):
 		entry.Summary, entry.Outcome = capSummary, OutcomeCapped
 		if rerr := s.record(ctx, entry); rerr != nil {

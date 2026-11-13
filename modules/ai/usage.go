@@ -142,8 +142,8 @@ type RunView struct {
 }
 
 // Runs returns the last 200 calls, newest first. A call a hook stopped is not an AI call and is left out (it is in the activity log).
-// Status: a call that got an answer is ok; one that cost tokens but gave no usable answer is schema_error; one the shared daily cap or
-// the profile's own cap stopped (outcome capped) is capped; one that spent nothing for any other reason (the provider was unreachable, or
+// Status: a call that got an answer is ok; one the shared daily cap or the profile's own cap stopped (outcome capped, also partway
+// through a question that had spent tokens) is capped; one that cost tokens but gave no usable answer otherwise is schema_error; one that spent nothing for any other reason (the provider was unreachable, or
 // no profile could take it and nothing was sent, outcome not_sent) is failed. The status comes from the outcome column, never the summary.
 func (s *Service) Runs(ctx context.Context) ([]RunView, error) {
 	rows, err := s.cfg.DB.Reader().QueryContext(ctx, `SELECT id, ts, job, model, tokens_in, tokens_out, result, profile, COALESCE(outcome, ''), summary FROM ai_activity WHERE result <> 'blocked_by_hook' ORDER BY seq DESC LIMIT 200`)
@@ -161,11 +161,12 @@ func (s *Service) Runs(ctx context.Context) ([]RunView, error) {
 		switch {
 		case result == string(ResultOK) || result == string(ResultFallbackUsed):
 			r.Status = "ok"
-		case r.TokensIn+r.TokensOut > 0:
-			r.Status = "schema_error"
-		// rows written before the outcome column (migration 0007) have no outcome; their summary says the cap stopped them
+		// a question the cap stopped partway through spent tokens and is still the cap's (W1-27: it read "Bad format"); rows written
+		// before the outcome column (migration 0007) have no outcome, and their summary says the cap stopped them
 		case outcome == OutcomeCapped || (outcome == "" && summary == capSummary):
 			r.Status = "capped"
+		case r.TokensIn+r.TokensOut > 0:
+			r.Status = "schema_error"
 		default:
 			r.Status = "failed"
 		}

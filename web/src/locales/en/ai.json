@@ -155,7 +155,7 @@
       "estimateMax": "Depends on how many tool calls the AI makes; you set the cap below."
     },
     "cap": "Daily token cap for all profiles together",
-    "capHint": "From 1,000 to 5,000,000. The medium level default is 60,000. Each profile also has its own cap.",
+    "capHint": "From 1,000 to 5,000,000. The default is 200,000. Each profile also has its own cap.",
     "redact": "Mask personal information before sending",
     "redactHint": "This is the Block personal data hook: it masks email addresses and phone numbers, and stops a call whose text holds an ID number, before anything is sent. It also masks device secrets that come with their marker in configurations, log lines and tool results (passwords, password hashes, SNMP communities, keys). A password or token in free text is not caught; add a hook for those.",
     "saving": "Saving",

@@ -39,7 +39,7 @@ func (n notifyFindings) Finding(ctx context.Context, id string) (notify.FindingI
 	}
 	var kev findings.KevInfo
 	if fs, err := feedsService(*n.d); err == nil {
-		got, err := findingsFeeds{fs.Store()}.KevInfo(ctx, []string{rec.CVE})
+		got, err := findingsFeeds{st: fs.Store()}.KevInfo(ctx, []string{rec.CVE})
 		if err != nil {
 			return notify.FindingInfo{}, false, err
 		}

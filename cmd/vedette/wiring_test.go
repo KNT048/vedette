@@ -446,3 +446,31 @@ func TestWiredModulesIncludeFindingsAndMitigationInOrder(t *testing.T) {
 		t.Errorf("wired modules: %s", got)
 	}
 }
+
+// Review H3: NVD ranges that changed for a few CVEs rematch only the devices of those CVEs, once each; the first fill
+// rematches every matching device once (not once per device and CVE).
+func TestWiringRangesUpdateRematchesOnlyItsDevices(t *testing.T) {
+	t.Parallel()
+	s := newStack(t)
+	s.addFortiGate()
+	s.kev("CVE-2026-2001", "Fortinet", "FortiOS")
+	s.kev("CVE-2026-2002", "Fortinet", "FortiOS")
+	s.kev("CVE-2026-2003", "Mikrotik", "RouterOS")
+	publish := func(ev feeds.RangesUpdatedEvent) int {
+		t.Helper()
+		s.got[inventory.EventMatchChanged] = 0
+		if err := s.d.Bus.Publish(t.Context(), events.Event{Name: feeds.EventRangesUpdated, Data: ev}); err != nil {
+			t.Fatal(err)
+		}
+		return s.got[inventory.EventMatchChanged]
+	}
+	if n := publish(feeds.RangesUpdatedEvent{CVEs: []string{"CVE-2026-2001", "CVE-2026-2002", "CVE-2026-2003"}, First: true}); n != 1 {
+		t.Fatalf("first fill: %d match events, want 1 (one device)", n)
+	}
+	if n := publish(feeds.RangesUpdatedEvent{CVEs: []string{"CVE-2026-2003"}}); n != 0 {
+		t.Fatalf("a RouterOS update rematched %d devices; no device runs it", n)
+	}
+	if n := publish(feeds.RangesUpdatedEvent{CVEs: []string{"CVE-2026-2001", "CVE-2026-2002"}}); n != 1 {
+		t.Fatalf("a FortiOS update: %d match events, want 1", n)
+	}
+}

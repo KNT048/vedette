@@ -10,6 +10,7 @@ import (
 	"net/netip"
 	"net/url"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -24,8 +25,33 @@ const (
 // ErrRedirect is a redirect the fetcher refuses.
 var ErrRedirect = errors.New("feeds: redirect refused")
 
-// StatusError is a non-200 answer (other than a usable 304).
-type StatusError struct{ Code int }
+// StatusError is a non-200 answer (other than a usable 304). RetryAfter is the answer's Retry-After (seconds or an
+// HTTP date; 0 when absent or unreadable, at most maxRetryAfter).
+type StatusError struct {
+	Code       int
+	RetryAfter time.Duration
+}
+
+// maxRetryAfter bounds what a source's Retry-After can ask for.
+const maxRetryAfter = time.Hour
+
+// retryAfter reads a Retry-After header: delay-seconds or an HTTP date (RFC 9110 10.2.3).
+func retryAfter(v string, now time.Time) time.Duration {
+	v = strings.TrimSpace(v)
+	if v == "" {
+		return 0
+	}
+	var d time.Duration
+	if n, err := strconv.Atoi(v); err == nil {
+		d = time.Duration(n) * time.Second
+	} else if t, err := http.ParseTime(v); err == nil {
+		d = t.Sub(now)
+	}
+	if d < 0 {
+		return 0
+	}
+	return min(d, maxRetryAfter)
+}
 
 func (e *StatusError) Error() string {
 	return fmt.Sprintf("feeds: the source answered HTTP %d", e.Code)
@@ -38,6 +64,9 @@ type Request struct {
 	ETag         string // sent as If-None-Match
 	LastModified string // sent as If-Modified-Since
 	MaxBytes     int64  // 0 means MaxBodyBytes
+	// HeaderTimeout, when longer than the client's, is how long the source may take before it starts to answer
+	// (NVD: W3-1). The whole request is then bounded by the context deadline only.
+	HeaderTimeout time.Duration
 }
 
 // Response is what came back.
@@ -103,6 +132,21 @@ func newClient(timeout time.Duration, res resolver) *http.Client {
 			ForceAttemptHTTP2:     true,
 		},
 	}
+}
+
+// slowHeaders lets the client wait up to d for the answer's headers: a transport with a shorter
+// ResponseHeaderTimeout is replaced by a clone (same guarded dialer) the caller closes after the request, and the
+// client's own whole-request timeout is lifted (Fetch always has a context deadline). It returns that clone, or nil.
+func slowHeaders(c *http.Client, d time.Duration) *http.Transport {
+	c.Timeout = 0
+	t, ok := c.Transport.(*http.Transport)
+	if !ok || t.ResponseHeaderTimeout == 0 || t.ResponseHeaderTimeout >= d {
+		return nil
+	}
+	t = t.Clone()
+	t.ResponseHeaderTimeout = d
+	c.Transport = t
+	return t
 }
 
 // capReader fails with ErrTooLarge once more than the limit was read, so an
@@ -216,6 +260,11 @@ func (f Fetcher) Fetch(ctx context.Context, req Request) (*Response, error) {
 		client = *NewClient(DefaultFetchTimeout)
 	}
 	client.CheckRedirect = checkRedirect
+	if req.HeaderTimeout > 0 {
+		if t := slowHeaders(&client, req.HeaderTimeout); t != nil {
+			defer t.CloseIdleConnections()
+		}
+	}
 
 	host := hreq.URL.Hostname()
 	resp, err := client.Do(hreq)
@@ -241,7 +290,7 @@ func (f Fetcher) Fetch(ctx context.Context, req Request) (*Response, error) {
 		out.NotModified = true
 		return out, nil
 	case resp.StatusCode != http.StatusOK:
-		return nil, &StatusError{Code: resp.StatusCode}
+		return nil, &StatusError{Code: resp.StatusCode, RetryAfter: retryAfter(resp.Header.Get("Retry-After"), time.Now())}
 	}
 	if resp.ContentLength > limit {
 		return nil, fail(ErrTooLarge, "The source is larger than %d bytes; Vedette would skip it.", limit)

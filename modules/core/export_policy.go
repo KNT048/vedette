@@ -73,6 +73,8 @@ var exportPolicy = map[string]tablePolicy{
 	"exp_setting":            {export: "id auto interval_min last_run_at last_run_ok last_run_message last_deep_at last_full_ok_at"},
 	"exp_snapshot":           {export: "id target_id date scanned_at", json: "hosts ports admin_panels certs counts"},
 	"exp_target":             {export: "id kind value method verified_at commitment_by commitment_at created_at last_scan_at", json: "last_check", skip: "token"},
+	"feeds_affected":         {export: "cve cpe start_incl start_excl end_incl end_excl"}, // D-500: public NVD data
+	"feeds_affected_cve":     {export: "cve updated_at"},
 	"feeds_fetch_log":        {export: "id source_id started_at finished_at status records_accepted records_rejected error bytes etag last_modified", json: "reject_reasons"},
 	"feeds_ioc":              {export: "id type value first_seen last_seen"},
 	"feeds_ioc_source":       {export: "ioc_id source_id last_seen confidence seen"},
@@ -80,8 +82,9 @@ var exportPolicy = map[string]tablePolicy{
 	"feeds_template":         {export: "cve"},
 	"feeds_vuln":             {export: "cve vendor product product_key name description required_action date_added due_date ransomware epss epss_7d_ago has_template source_id updated_at kev_announced_at", json: "links"},
 	"feeds_weekly_answer":    {export: "key answer user_id answered_at device_added device_id have_since"},
-	"fnd_finding":            {export: "id asset_id cve status severity confidence basis first_seen last_seen resolved_by resolved_at resolution_note", json: "evidence"},
+	"fnd_finding":            {export: "id asset_id cve status severity confidence basis first_seen last_seen resolved_by resolved_at resolution_note resolution_reason", json: "evidence"},
 	"fnd_finding_history":    {export: "id finding_id ts user action note"},
+	"fnd_version_needed":     {export: "asset_id software_id software version cves updated_at"}, // D-500
 	"hp_config":              {export: "key updated_at updated_by", json: "value"},
 	"hp_decoys":              {export: "id personality name ip enabled created_at"},
 	"hp_hits":                {export: "id ts kind service label port src_ip is_test excerpt trap_ip trap_hostname token_id conn_key conn_count", json: "events"},

@@ -81,7 +81,12 @@ export const FindingDetail = FindingRow.extend({
   ai_available: z.object({ explain: z.boolean(), config: z.boolean() }).describe('Whether an AI profile is assigned and allowed for each job (D-29)'),
   applied: z.array(AppliedEntry),
 })
-export const FindingList = z.object({ items: z.array(FindingRow) })
+export const VersionNeeded = z.object({
+  asset: FindingAsset.nullable(), asset_id: z.string(), software_id: z.string(), software: z.string().describe('Display name of the software'),
+  version: z.string().nullable().describe('null = no version; otherwise the version as entered, which Vedette cannot read'),
+  cves: z.number().int().min(1).describe('Exploited CVEs of this product that the version would decide'),
+}).describe('D-500: a software on the exploited list without a usable version is ONE item, not one finding per CVE')
+export const FindingList = z.object({ items: z.array(FindingRow), version_needed: z.array(VersionNeeded) })
 
 const idParams = z.object({ id: findingId })
 

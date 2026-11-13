@@ -27114,10 +27114,111 @@
                         ],
                         "additionalProperties": false
                       }
+                    },
+                    "version_needed": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "asset": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string"
+                                  },
+                                  "name": {
+                                    "type": "string",
+                                    "description": "The name the Devices page shows: hostname, else vendor and model, else the IP, else the software; never the internal id (D-484)"
+                                  },
+                                  "hostname": {
+                                    "type": [
+                                      "string",
+                                      "null"
+                                    ]
+                                  },
+                                  "ip": {
+                                    "type": "string",
+                                    "description": "\"—\" when the device has no IP address"
+                                  },
+                                  "kind": {
+                                    "type": "string",
+                                    "enum": [
+                                      "firewall",
+                                      "router",
+                                      "switch",
+                                      "ap",
+                                      "nas",
+                                      "server",
+                                      "pc",
+                                      "printer",
+                                      "camera",
+                                      "nvr",
+                                      "iot",
+                                      "web",
+                                      "unknown"
+                                    ]
+                                  },
+                                  "display": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "name",
+                                  "hostname",
+                                  "ip",
+                                  "kind",
+                                  "display"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "asset_id": {
+                            "type": "string"
+                          },
+                          "software_id": {
+                            "type": "string"
+                          },
+                          "software": {
+                            "type": "string",
+                            "description": "Display name of the software"
+                          },
+                          "version": {
+                            "description": "null = no version; otherwise the version as entered, which Vedette cannot read",
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "cves": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 9007199254740991,
+                            "description": "Exploited CVEs of this product that the version would decide"
+                          }
+                        },
+                        "required": [
+                          "asset",
+                          "asset_id",
+                          "software_id",
+                          "software",
+                          "version",
+                          "cves"
+                        ],
+                        "additionalProperties": false,
+                        "description": "D-500: a software on the exploited list without a usable version is ONE item, not one finding per CVE"
+                      }
                     }
                   },
                   "required": [
-                    "items"
+                    "items",
+                    "version_needed"
                   ],
                   "additionalProperties": false
                 }

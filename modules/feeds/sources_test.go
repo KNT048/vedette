@@ -11,6 +11,7 @@ func TestContract_INV1_BuiltinSourcesAreDeclaredHTTPS(t *testing.T) {
 	allowed := map[string]bool{
 		"www.cisa.gov": true, "api.first.org": true, "raw.githubusercontent.com": true,
 		"rules.emergingthreats.net": true, "feodotracker.abuse.ch": true, "check.torproject.org": true,
+		"services.nvd.nist.gov": true, // D-500
 	}
 	seenID, seenName := map[string]bool{}, map[string]bool{}
 	for _, s := range BuiltinSources() {
@@ -43,8 +44,8 @@ func TestContract_INV1_BuiltinSourcesAreDeclaredHTTPS(t *testing.T) {
 			t.Errorf("%s: dedicated decoder must not carry a parser", s.ID)
 		}
 	}
-	if len(seenID) != 8 {
-		t.Fatalf("expected the 8 built-ins of sourcesMock.ts, got %d", len(seenID))
+	if len(seenID) != 9 {
+		t.Fatalf("expected the 9 built-ins of sourcesMock.ts, got %d", len(seenID))
 	}
 }
 

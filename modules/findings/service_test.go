@@ -120,7 +120,7 @@ func newEnv(t *testing.T) *env {
 	*e.clock = t0
 	e.inv = &fakeInv{
 		assets: map[string]AssetView{"a-1": {ID: "a-1", Hostname: ptr("nas01"), IP: "192.168.10.21", Kind: "nas", Display: "Photo Station"}},
-		match:  map[string]Asset{"a-1": nas("")},
+		match:  map[string]Asset{"a-1": nas("6.1.1")},
 	}
 	e.feeds = &fakeFeeds{
 		kev:   map[string]KevInfo{"CVE-2022-27593": {Name: "QNAP Photo Station External Reference", Vendor: "QNAP", Product: "Photo Station", RequiredAction: "Apply updates.", Links: []string{"https://example.test/a"}, DateAdded: "2022-09-01", Ransomware: true}},
@@ -187,7 +187,7 @@ func TestContract_POST1_UpsertCreatesFindingWithHistoryAuditAndEvent(t *testing.
 	if err != nil {
 		t.Fatal(err)
 	}
-	if r.AssetID != "a-1" || r.CVE != "CVE-2022-27593" || r.Status != StatusSuspected || r.Basis != BasisProduct || r.Confidence != 0.5 || r.Severity != SeverityHigh {
+	if r.AssetID != "a-1" || r.CVE != "CVE-2022-27593" || r.Status != StatusSuspected || r.Basis != BasisProduct || r.Confidence != 0.5 || r.Severity != SeverityMedium {
 		t.Fatalf("finding = %+v", r)
 	}
 	if !r.FirstSeen.Equal(t0) || !r.LastSeen.Equal(t0) || len(r.History) != 1 || r.History[0].Action != "created" || r.History[0].User != SystemUser {
@@ -197,7 +197,7 @@ func TestContract_POST1_UpsertCreatesFindingWithHistoryAuditAndEvent(t *testing.
 		t.Fatalf("evidence = %+v", r.Evidence)
 	}
 	ev := e.pub.take()
-	if len(ev) != 1 || ev[0].Name != EventCreated || ev[0].Payload != (CreatedEvent{FindingID: r.ID, AssetID: "a-1", CVE: r.CVE, Severity: SeverityHigh, Basis: BasisProduct}) {
+	if len(ev) != 1 || ev[0].Name != EventCreated || ev[0].Payload != (CreatedEvent{FindingID: r.ID, AssetID: "a-1", CVE: r.CVE, Severity: SeverityMedium, Basis: BasisProduct}) {
 		t.Fatalf("events = %+v", ev)
 	}
 	if got := e.auditActions(); len(got) != 1 || got[0] != "findings.created" {
@@ -232,8 +232,11 @@ func TestContract_INV2_UpsertRaisesBasisOfOpenFindingOnly(t *testing.T) {
 	if got := e.auditActions(); len(got) != 2 || got[1] != "findings.basis_raised" {
 		t.Fatalf("audit = %v", got)
 	}
-	if len(e.pub.take()) != 0 {
-		t.Fatal("a repeated match must not publish created")
+	// a repeated match never publishes created (POST-1); the raise to high has its own event and no status_changed
+	// goes out, since the status did not change (review H2, M-a of #663)
+	want := SeverityRaisedEvent{FindingID: id, AssetID: "a-1", CVE: "CVE-2022-27593", FromSeverity: SeverityMedium, ToSeverity: SeverityHigh, Basis: BasisVersion}
+	if ev := e.pub.take(); len(ev) != 1 || ev[0].Name != EventSeverityRaised || ev[0].Payload.(SeverityRaisedEvent) != want {
+		t.Fatalf("events = %+v, want %+v", ev, want)
 	}
 }
 
@@ -438,7 +441,7 @@ func TestContract_INV7_OnAssetDeletedRemovesFindingsAndHistory(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	e.seed()
-	other := Asset{ID: "a-2", Name: "nas02", Software: nas("").Software}
+	other := Asset{ID: "a-2", Name: "nas02", Software: nas("6.1.1").Software}
 	if _, err := e.svc.UpsertFromMatch(t.Context(), other, e.feeds.vulns); err != nil {
 		t.Fatal(err)
 	}
@@ -535,7 +538,7 @@ func TestContract_POST1_EventsSurviveACancelledContextAfterCommit(t *testing.T) 
 	pub := &ctxPub{cancel: cancel}
 	e.svc.cfg.Publisher = pub
 	vulns := []Vuln{qnapVuln(), {CVE: "CVE-2021-0001", Vendor: "QNAP", Product: "Photo Station"}}
-	res, err := e.svc.UpsertFromMatch(ctx, nas(""), vulns)
+	res, err := e.svc.UpsertFromMatch(ctx, nas("6.1.1"), vulns)
 	if err != nil || len(res.Created) != 2 {
 		t.Fatalf("result = %+v err=%v", res, err)
 	}
@@ -637,11 +640,11 @@ func TestUpsert_NoLongerMatchesIsNotedOnceAndNeverClosed(t *testing.T) {
 	e.seed()
 	const q = `SELECT count(*) FROM fnd_finding_history WHERE action = 'no_longer_matches'`
 	moved := Vuln{CVE: "CVE-2022-27593", Vendor: "QNAP", Product: "Other Station"}
-	if _, err := e.svc.UpsertFromMatch(t.Context(), nas(""), []Vuln{{CVE: "CVE-2021-44228", Vendor: "Apache", Product: "Log4j"}}); err != nil || e.count(q) != 0 {
+	if _, err := e.svc.UpsertFromMatch(t.Context(), nas("6.1.1"), []Vuln{{CVE: "CVE-2021-44228", Vendor: "Apache", Product: "Log4j"}}); err != nil || e.count(q) != 0 {
 		t.Fatalf("a list without the CVE noted something: %v", err)
 	}
 	for range 2 {
-		if _, err := e.svc.UpsertFromMatch(t.Context(), nas(""), []Vuln{moved}); err != nil {
+		if _, err := e.svc.UpsertFromMatch(t.Context(), nas("6.1.1"), []Vuln{moved}); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -661,7 +664,7 @@ func TestUpsert_NoLongerMatchesThenMatchesAgain(t *testing.T) {
 	moved := Vuln{CVE: "CVE-2022-27593", Vendor: "QNAP", Product: "Other Station"}
 	run := func(v Vuln) {
 		t.Helper()
-		if _, err := e.svc.UpsertFromMatch(t.Context(), nas(""), []Vuln{v}); err != nil {
+		if _, err := e.svc.UpsertFromMatch(t.Context(), nas("6.1.1"), []Vuln{v}); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -678,5 +681,44 @@ func TestUpsert_NoLongerMatchesThenMatchesAgain(t *testing.T) {
 	run(moved) // flaps again: the newest row is matches_again, so a new note is written
 	if count("no_longer_matches") != 2 {
 		t.Fatalf("second no_longer_matches: %d", count("no_longer_matches"))
+	}
+}
+
+// D-500 on kien's box: the product findings of a software without a version stay open (FORBID-2) with a note that
+// says why, the device gets ONE "add the version" item, and the item goes away with the version or the device.
+func TestUpsert_NoVersionIsOneItemAndOldFindingsGetANote(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	if _, err := e.svc.UpsertFromMatch(t.Context(), nas("6.1.1"), e.feeds.vulns); err != nil { // the old flood: a product finding
+		t.Fatal(err)
+	}
+	res, err := e.svc.UpsertFromMatch(t.Context(), nas(""), e.feeds.vulns)
+	if err != nil || len(res.Created) != 0 {
+		t.Fatalf("%+v %v", res, err)
+	}
+	items, err := e.svc.ListVersionNeeded(t.Context(), "")
+	if err != nil || len(items) != 1 || items[0].AssetID != "a-1" || items[0].CVEs != 1 || items[0].Software != "Photo Station" {
+		t.Fatalf("items = %+v %v", items, err)
+	}
+	if n := e.count(`SELECT count(*) FROM fnd_finding_history WHERE action = 'no_longer_matches' AND note LIKE '%Add the version%'`); n != 1 {
+		t.Fatalf("notes = %d", n)
+	}
+	if n := e.count(`SELECT count(*) FROM fnd_finding WHERE status = 'suspected'`); n != 1 {
+		t.Fatalf("the finding must stay open (FORBID-2): %d", n)
+	}
+	if _, err := e.svc.UpsertFromMatch(t.Context(), nas("6.1.1"), e.feeds.vulns); err != nil {
+		t.Fatal(err)
+	}
+	if items, _ := e.svc.ListVersionNeeded(t.Context(), ""); len(items) != 0 {
+		t.Fatalf("the version was added, item stays: %+v", items)
+	}
+	if _, err := e.svc.UpsertFromMatch(t.Context(), nas(""), e.feeds.vulns); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.svc.OnAssetDeleted(t.Context(), "a-1"); err != nil {
+		t.Fatal(err)
+	}
+	if n := e.count(`SELECT count(*) FROM fnd_version_needed`); n != 0 {
+		t.Fatalf("items left after the device was deleted: %d", n)
 	}
 }

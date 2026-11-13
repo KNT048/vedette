@@ -12,6 +12,15 @@
 ## Modifying: `findings.Service.UpsertFromMatch(ctx, Asset, []Vuln)` và `OnMatchChanged(ctx, assetID)`
 - **inventory** (sự kiện `inventory.match.changed`; phải cài `findings.Inventory{Assets, MatchInput}`), **feeds** (phải cài `findings.Feeds{KevInfo, Vulns}`; `cmd/vedette/wiring.go` cài từ `feeds.Store.KevVulns/KevVulnsByCVE`, chỉ hàng `cisa-kev`, chưa có khoảng bị ảnh hưởng nên chỉ `basis=product`; `findings.Inventory` từ `inventory.DeviceRefs/MatchInput`), **core/jobs** (khớp lại sau `feeds.vuln.new_kev`). Interface do `findings` định nghĩa, `cmd/vedette` nối cài đặt thật. Đổi quy tắc khớp/tạo/độ nghiêm trọng đổi số finding và tin `notify`.
 
+## Modifying: khoảng phiên bản và mục "add the version" (D-500)
+- **feeds** (feed `nvd-kev`, `Store.KevAffected`) → `cmd/vedette` `findingsFeeds.Vulns` điền `Vuln.Affected`; sự kiện `feeds.ranges.updated` → `Inventory.RematchAll` (lần đầu trong ngữ cảnh baseline của notify, D-78).
+- **inventory**: `MatchDevice.OS` → `findings.Asset.OS` (loại trừ CVE chỉ nêu bản phát hành OS). Đổi cách gấp OS (`inv_asset.os`) làm lệch `osIdentity` (Ubuntu/Debian).
+- **content/catalog/nvd-cpe.json**: khoá là vendor|product của danh mục và của `agent-intake/pkgmap.json`; đổi tên sản phẩm ở hai nơi đó phải đổi khoá ở đây (`TestAliases_DataIsValid`, `TestGolden_*`).
+- **GUI/contract**: `FindingList.version_needed` (`contract.ts`, mock `web/src/mocks/match.ts` `versionNeeded`, `FindingsPage` khối "Add the version"); mock không có khoảng nên phần mềm có phiên bản → `medium` theo sản phẩm.
+- **notify**: finding theo sản phẩm nay `medium` (trước `high/critical`); quy tắc báo theo mức nghiêm trọng nhận ít tin hơn cho khớp không so được phiên bản.
+- **core export** (`export_policy.go`): `fnd_version_needed` được xuất.
+- **D-530 tự đóng/mở lại** (`autoResolve`, `Finding.AutoResolve/ReopenOnMatch`, cột `resolution_reason`, migration `0004_resolution_reason.sql`): **GUI** thấy `not_relevant` với `resolved_by=system` và ghi chú bắt đầu "Not affected:" (bộ lọc Unresolved mặc định ẩn nó; API không đổi hình); **logs/SIEM** nhận `finding.status_changed` suspected→not_relevant và ngược lại (trường `reason` = `not_affected_version` / `matches_again`); **notify** bỏ qua status_changed không phải `confirmed` (không tin nào khi tự đóng/mở lại cho tới khi notify dùng `reason`); **reports**/đếm finding mở giảm; **core export** xuất `resolution_reason`; nhãn audit `findings.auto_resolved` trong `locales/en/core.json`. `updateRecord` nay ghi cả `severity`.
+
 ## Modifying: `findings.Service.Reconcile(ctx)` và `findings.Jobs(svc)` (job `reconcile`, mỗi giờ)
 - **inventory**: phải cài `findings.Inventory.AssetIDs` (mọi id thiết bị, không giới hạn dòng, lỗi đọc là lỗi, không bao giờ trả danh sách ngắn: reconcile coi finding của thiết bị vắng là mồ côi và xoá sau khi hỏi lại `Assets`). Sửa `DevicesOfKind` hay `Kinds` (loại thiết bị mới) thì sửa adapter ở `cmd/vedette/wiring.go`, nếu không thiết bị loại mới không được khớp lại và finding của nó bị coi là mồ côi chỉ khi `Assets` cũng không thấy.
 - **cmd/vedette**: `wiredModules` có `Jobs: findingsJobs` cho `findings`; job chạy khi module bật rồi mỗi `ReconcileEvery`. Tắt module = job dừng, dữ liệu giữ.
@@ -46,8 +55,9 @@
 ## Modifying: `findings.Findings` (đọc: `List(filter)`, `Get(id)`, `ByAsset(id)`)
 - **mitigation** (gói theo finding), **notify** (`vuln` tin + panel `GET /notify/findings/{id}/notices`), **response** (đề xuất cho Critical), **reports**, **ai** (explain), **mcp-server** (`get_finding`), SPA Devices (`device.panels`). Đổi `FindingRow` phải sửa `findings/contract.ts` (nguồn OpenAPI).
 
-## Modifying: sự kiện `findings.finding.created|status_changed`
-- **notify** (tin lỗ hổng, `min_severity`), **response** (trigger finding). Đổi tên/trường = người nhận im lặng, không lỗi biên dịch.
+## Modifying: sự kiện `findings.finding.created|status_changed|severity_raised`
+- **notify** (tin lỗ hổng, `min_severity`), **response** (trigger finding), **logs** (SIEM). Đổi tên/trường = người nhận im lặng, không lỗi biên dịch.
+- `severity_raised` (review M-a của #663) thay cho `status_changed` `from = to` kèm `severity` của review H2: **notify** và **logs** chưa nghe nó (module của nhóm khác); tới lúc đó việc nâng mức không ra tin và không ra SIEM. Dòng trong `.ai/deferred/fix-cve-version-ranges.md`.
 
 ## Disabling this module
 - Mất trang Findings và panel finding ở Devices; không finding mới; `notify` mất tin lỗ hổng; `scan` không nối được `finding_id`; `response` không có phát hiện Critical để đề xuất; `reports` thiếu mục lỗ hổng; `mitigation` mất đầu vào.

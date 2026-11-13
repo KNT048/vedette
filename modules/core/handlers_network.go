@@ -478,9 +478,17 @@ type netPendingView struct {
 	RebootAt        *string `json:"reboot_at"`
 }
 
+// netBoxAddrView is the Box address (D-465): what an administrator saved (nil: none, the default is used) and the default, the
+// management IPv4 the host reports (nil while it has none).
+type netBoxAddrView struct {
+	Address *string `json:"address"`
+	Default *string `json:"default"`
+}
+
 type netView struct {
 	Interfaces []netIfaceView  `json:"interfaces"`
 	Management netMgmtView     `json:"management"`
+	BoxAddress netBoxAddrView  `json:"box_address"`
 	Span       netSpanView     `json:"span"`
 	SpanStatus spanStatusView  `json:"span_status"`
 	NTP        netNTPView      `json:"ntp"`
@@ -553,11 +561,14 @@ func dnsInUse(st api.NetState) []string {
 	return out
 }
 
-func (h *NetworkHandlers) composeNet(st api.NetState, rec *pendingRecord, sp SpanSettings, status spanStatusView) netView {
+func (h *NetworkHandlers) composeNet(st api.NetState, rec *pendingRecord, sp SpanSettings, status spanStatusView, box string) netView {
 	m := mgmtViewOf(st)
 	mgmt := mgmtIface(st)
 	span := spanIface(st)
-	v := netView{Management: m, SpanStatus: status, DefaultNTP: defaultNTPPool, Interfaces: []netIfaceView{}, DecoyIPs: []string{}}
+	v := netView{Management: m, SpanStatus: status, DefaultNTP: defaultNTPPool, Interfaces: []netIfaceView{}, DecoyIPs: []string{}, BoxAddress: netBoxAddrView{Default: m.Address}}
+	if box != "" {
+		v.BoxAddress.Address = refTo(box)
+	}
 	for _, c := range cardsOf(st) {
 		iv := netIfaceView{Name: c.Name, Role: "unused", Link: c.State == "up", Speed: speedText(c.SpeedMbps), MAC: c.MAC}
 		switch c.Name {
@@ -615,7 +626,11 @@ func (h *NetworkHandlers) view(ctx context.Context, fresh bool) (netView, error)
 	if err != nil {
 		return netView{}, err
 	}
-	return h.composeNet(st, rec, sp, h.spanStatus(ctx, st, sp)), nil
+	box, err := h.savedBoxAddress(ctx)
+	if err != nil {
+		return netView{}, err
+	}
+	return h.composeNet(st, rec, sp, h.spanStatus(ctx, st, sp), box), nil
 }
 
 // spanStatus is the health of the mirrored traffic. What only a look at the traffic can say (other MACs, the last
@@ -1431,6 +1446,90 @@ func (h *NetworkHandlers) CorePutCoreNetworkNtp(ctx context.Context, req *oas.Co
 		return nil, err
 	}
 	return asOAS[oas.CorePutCoreNetworkNtpOK](v)
+}
+
+// ---- the Box address (D-465) ----
+
+const keyBoxAddress = "core_box_address"
+
+// boxAddressSetting is what core keeps of the Box address: "" = the default (the management IPv4).
+type boxAddressSetting struct {
+	Address string `json:"address"`
+}
+
+// savedBoxAddress is the Box address an administrator saved, "" when none was (the default applies).
+func (h *NetworkHandlers) savedBoxAddress(ctx context.Context) (string, error) {
+	var s boxAddressSetting
+	if err := loadSetting(ctx, h.db, keyBoxAddress, &s); err != nil {
+		return "", err
+	}
+	return s.Address, nil
+}
+
+// CorePutCoreNetworkBoxAddress implements PUT /core/network/box-address (admin, D-465): the host name or IPv4 address the LAN reaches
+// the box at, which every link the box makes carries; "" goes back to the default, the management IPv4 the host reports. It touches
+// nothing of the host: the setting and its audit row are one transaction, then AddressesChanged tells cmd/vedette, which drops the
+// address it holds and re-issues the box's own certificate with it (D-465: the Box address is one of its names).
+func (h *NetworkHandlers) CorePutCoreNetworkBoxAddress(ctx context.Context, req *oas.CorePutCoreNetworkBoxAddressReq) (*oas.CorePutCoreNetworkBoxAddressOK, error) {
+	c, err := callerOf(ctx, h.auth)
+	if err != nil {
+		return nil, err
+	}
+	if err := h.needHost(); err != nil {
+		return nil, err
+	}
+	addr, perr := checkBoxAddress(req.Address)
+	if perr != nil {
+		return nil, perr
+	}
+	leave, ok := h.gate.Enter()
+	if !ok { // a purge is running (N4)
+		return nil, errPurging()
+	}
+	detail := addr
+	if addr == "" {
+		detail = "default (the management address)"
+	}
+	err = h.db.Write(ctx, func(tx *sql.Tx) error {
+		if err := h.auth.CheckAdmin(ctx, tx, c.ID, c.SessionID); err != nil {
+			return err
+		}
+		if err := h.audit.Append(ctx, tx, audit.Entry{User: c.Email, Action: "network.box_address", Target: "box address", Detail: detail}); err != nil {
+			return err
+		}
+		return putSettingTx(ctx, tx, keyBoxAddress, boxAddressSetting{Address: addr}, h.now(), c.Email)
+	})
+	leave()
+	if err != nil {
+		return nil, err
+	}
+	h.addressesChanged()
+	v, err := h.view(ctx, false)
+	if err != nil {
+		return nil, err
+	}
+	return asOAS[oas.CorePutCoreNetworkBoxAddressOK](v)
+}
+
+// BoxAddress is the address every link of the box carries (D-465): the saved Box address, else the management IPv4 the host reports
+// (state/net, read through the page's cache, netReadTTL); "" when neither is known (no host, or a management card without an IPv4
+// address). An error is a failed read of the setting or of the host: the caller keeps the address it had. Safe on nil ("").
+func (h *NetworkHandlers) BoxAddress(ctx context.Context) (string, error) {
+	if h == nil {
+		return "", nil
+	}
+	saved, err := h.savedBoxAddress(ctx)
+	if err != nil || saved != "" || h.host == nil {
+		return saved, err
+	}
+	st, err := h.state(ctx, false)
+	if err != nil {
+		return "", err
+	}
+	if a := mgmtViewOf(st).Address; a != nil {
+		return *a, nil
+	}
+	return "", nil
 }
 
 // ---- what other modules read ----

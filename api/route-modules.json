@@ -265,6 +265,7 @@
   "PUT /ai/skills/{id}": "ai",
   "PUT /core/connections/{id}": "core",
   "PUT /core/general": "core",
+  "PUT /core/network/box-address": "host",
   "PUT /core/network/interfaces": "host",
   "PUT /core/network/management": "host",
   "PUT /core/network/ntp": "host",

@@ -139,6 +139,7 @@ var Operations = map[string]Operation{
 	"core_post_core_users_id_reset_password":                {Method: "POST", Path: "/core/users/{id}/reset-password", MinRole: Admin, Tag: "core"},
 	"core_put_core_connections_id":                          {Method: "PUT", Path: "/core/connections/{id}", MinRole: Admin, Tag: "core"},
 	"core_put_core_general":                                 {Method: "PUT", Path: "/core/general", MinRole: Admin, Tag: "core"},
+	"core_put_core_network_box_address":                     {Method: "PUT", Path: "/core/network/box-address", MinRole: Admin, Tag: "core"},
 	"core_put_core_network_interfaces":                      {Method: "PUT", Path: "/core/network/interfaces", MinRole: Admin, Tag: "core"},
 	"core_put_core_network_management":                      {Method: "PUT", Path: "/core/network/management", MinRole: Admin, Tag: "core"},
 	"core_put_core_network_ntp":                             {Method: "PUT", Path: "/core/network/ntp", MinRole: Admin, Tag: "core"},

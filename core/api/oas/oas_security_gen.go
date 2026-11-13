@@ -140,6 +140,7 @@ var operationRolesSession = map[string][]string{
 	CorePostCoreUsersIDResetPasswordOperation:               []string{},
 	CorePutCoreConnectionsIDOperation:                       []string{},
 	CorePutCoreGeneralOperation:                             []string{},
+	CorePutCoreNetworkBoxAddressOperation:                   []string{},
 	CorePutCoreNetworkInterfacesOperation:                   []string{},
 	CorePutCoreNetworkManagementOperation:                   []string{},
 	CorePutCoreNetworkNtpOperation:                          []string{},

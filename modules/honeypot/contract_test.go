@@ -636,8 +636,18 @@ func TestContract_INV10_POST2_POST4_Tokens(t *testing.T) {
 	}
 	u, _ := e.svc.AddToken(e.ctx(), "a", honeypot.TokenInput{Type: honeypot.TokenURL, Name: "Wiki link", PlantAt: "wiki"})
 	d, _ := e.svc.AddToken(e.ctx(), "a", honeypot.TokenInput{Type: honeypot.TokenDNS, Name: "Backup host", PlantAt: "script"})
-	if u.Password != nil || d.Password != nil || !strings.HasPrefix(u.Value, "https://vedette-hq:8443/t/") || !strings.HasSuffix(d.Value, ".vedette.internal") {
+	// D-465: without a Box address the URL token carries the box's IP, never its host name (vedette-hq here, "vedette" on many boxes)
+	if u.Password != nil || d.Password != nil || !strings.HasPrefix(u.Value, "https://192.168.10.2:8443/t/") || !strings.HasSuffix(d.Value, ".vedette.internal") {
 		t.Fatalf("%+v %+v", u, d)
+	}
+	withBox := newEnv(t, func(e *env) { e.cfg.BoxURL = func() string { return "https://vedette.office.lan:8443/" } })
+	withBox.setup()
+	if u, err := withBox.svc.AddToken(withBox.ctx(), "a", honeypot.TokenInput{Type: honeypot.TokenURL, Name: "Wiki link", PlantAt: "wiki"}); err != nil || !strings.HasPrefix(u.Value, "https://vedette.office.lan:8443/t/") {
+		t.Fatalf("with a Box address: %+v %v", u, err)
+	}
+	noAddr := newEnv(t, func(e *env) { e.inv.box = honeypot.Box{Name: "vedette"} })
+	if _, err := noAddr.svc.AddToken(noAddr.ctx(), "a", honeypot.TokenInput{Type: honeypot.TokenURL, Name: "Wiki link", PlantAt: "wiki"}); err == nil || !strings.Contains(err.Error(), "409 no_box_address") {
+		t.Fatalf("no address known: %v, want 409 no_box_address", err)
 	}
 	list, _ := e.svc.Tokens(e.ctx())
 	for _, tk := range list {

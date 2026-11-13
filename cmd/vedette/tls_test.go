@@ -540,7 +540,7 @@ func TestStrictTransportSecurityOnlyWithAnOwnerCertificate(t *testing.T) {
 		if err != nil || hsts != tc.want {
 			t.Fatalf("%s: hsts = %v, err %v, want %v", name, hsts, err, tc.want)
 		}
-		h := topHandler(slog.New(slog.DiscardHandler), okHandler(), hosts, hsts, nil)
+		h := topHandler(slog.New(slog.DiscardHandler), okHandler(), server.HostMatcher(hosts, nil), hsts)
 		for _, host := range []string{"localhost", "evil.example"} { // the 421 carries it too
 			req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/setup", nil)
 			req.Host = host

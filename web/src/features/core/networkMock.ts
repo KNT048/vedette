@@ -4,7 +4,7 @@ import { API, audit, body, fail, guard } from '@/mocks/http'
 import { assetsStore } from '@/mocks/stores'
 import { dataMode, peek } from '@/mocks/db'
 import { CONFIRM_SECONDS, networkStore, SILENT_DEVICES, settlePending, spanStatusOf, type IfaceRole, type Management, type NetStore, type SpanConfig } from '@/mocks/network'
-import { filterProblem, normaliseFilter, ntpProblem, staticProblem, type FilterType } from './networkRules'
+import { boxAddressProblem, filterProblem, normaliseBoxAddress, normaliseFilter, ntpProblem, staticProblem, type FilterType } from './networkRules'
 
 const ROLES: IfaceRole[] = ['management', 'span', 'unused']
 
@@ -23,7 +23,7 @@ export function networkView() {
   const m = s.mgmt
   return {
     interfaces: s.ifaces.map(({ hears: _h, ...i }) => ({ ...i, address: i.role === 'management' && m.address && m.prefix ? `${m.address}/${m.prefix}` : null })),
-    management: m, span: s.span, span_status: spanStatusOf(s), ntp: s.ntp, default_ntp: 'pool.ntp.org', decoy_ips: decoyIps(),
+    management: m, box_address: { address: s.box_address || null, default: m.address }, span: s.span, span_status: spanStatusOf(s), ntp: s.ntp, default_ntp: 'pool.ntp.org', decoy_ips: decoyIps(),
     pending: s.pending ? { expires_at: s.pending.expires_at, previous_address: s.pending.previous.address, window_s: CONFIRM_SECONDS, reboot_at: s.pending.reboot_at ?? null } : null,
   }
 }
@@ -150,6 +150,18 @@ export const networkHandlers = [
       networkStore.update((s) => ({ ...s, ntp: { mode: 'custom', servers } }))
     } else return fail(400, 'invalid_mode', 'The mode must be default or custom.')
     audit('network.ntp', 'NTP servers', b.mode === 'default' ? 'default pool' : b.servers!.join(', '))
+    return ok()
+  }),
+
+  // D-465: the host name or IPv4 address every link of the box carries; '' = the management address. The real box re-issues its certificate with it.
+  http.put(`${API}/core/network/box-address`, async ({ request }) => {
+    const denied = guard('admin'); if (denied) return denied
+    const b = await body<{ address?: unknown }>(request)
+    const address = typeof b.address === 'string' ? normaliseBoxAddress(b.address) : 'missing address'
+    const p = boxAddressProblem(address)
+    if (p) return fail(400, 'bad_box_address', p)
+    networkStore.update((s) => ({ ...s, box_address: address || null }))
+    audit('network.box_address', 'box address', address || 'default (the management address)')
     return ok()
   }),
 ]

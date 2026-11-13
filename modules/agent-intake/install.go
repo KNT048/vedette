@@ -57,17 +57,22 @@ var (
 	authorityRE = regexp.MustCompile(`^[A-Za-z0-9.:\[\]-]{1,260}$`) // what a configured box address may hold: nothing a shell or a PowerShell string would read
 )
 
-// boxURL is the address the scripts and the one-liners carry. It is one of: the request's Host when the server's allow-list lets it in
-// (the same list that already let the request through; a loopback name or address never counts, a server cannot reach it), else the
-// configured box address, else the placeholder. A Host is never copied as sent: it is rebuilt from a validated name or IP and a numeric
-// port, so nothing that is not a host name or an address can reach a script (round 1 of the review: an arbitrary Host header must never be
-// reflected).
+// boxURL is the address the scripts and the one-liners carry. It is one of: the Box address (D-465: the address an administrator set in
+// Settings → Box network, else the management address; every link of the box carries it), else the request's Host when the server's
+// allow-list lets it in (the same list that already let the request through; a loopback name or address never counts, a server cannot
+// reach it), else the placeholder. A Host is never copied as sent: it is rebuilt from a validated name or IP and a numeric port, so
+// nothing that is not a host name or an address can reach a script (round 1 of the review: an arbitrary Host header must never be
+// reflected); the Box address is checked by authorityRE for the same reason.
 func (s *Service) boxURL(host string) string {
+	if s.cfg.BoxURL != nil {
+		if b := s.cfg.BoxURL(); b != "" {
+			if u, ok := strings.CutPrefix(b, "https://"); ok && authorityRE.MatchString(u) {
+				return b
+			}
+		}
+	}
 	if u := s.hostURL(host); u != "" {
 		return u
-	}
-	if u, ok := strings.CutPrefix(s.cfg.BoxURL, "https://"); ok && authorityRE.MatchString(u) {
-		return s.cfg.BoxURL
 	}
 	return boxPlaceholder
 }

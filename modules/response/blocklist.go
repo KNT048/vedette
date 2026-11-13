@@ -88,7 +88,11 @@ ON CONFLICT (id) DO UPDATE SET token_hash = excluded.token_hash, secret_id = exc
 }
 
 func (s *Service) blockURL(token string) string {
-	return strings.TrimRight(s.cfg.BaseURL, "/") + apiPrefix + "/response/blocklist/" + token + ".txt"
+	base := ""
+	if s.cfg.BaseURL != nil {
+		base = s.cfg.BaseURL()
+	}
+	return strings.TrimRight(base, "/") + apiPrefix + "/response/blocklist/" + token + ".txt"
 }
 
 // notPublishable are the blocks no public list may carry: every block of the IANA IPv4 and IPv6 Special-Purpose Address

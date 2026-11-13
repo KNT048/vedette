@@ -206,6 +206,7 @@ var contractRoutes = map[string][]string{
 		"GET /core/network/span/status",
 		"POST /core/network/management/confirm",
 		"POST /core/network/management/revert",
+		"PUT /core/network/box-address",
 		"PUT /core/network/interfaces",
 		"PUT /core/network/management",
 		"PUT /core/network/ntp",

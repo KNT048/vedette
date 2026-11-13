@@ -121,6 +121,7 @@ const (
 	CorePostCoreUsersIDResetPasswordOperation               OperationName = "CorePostCoreUsersIDResetPassword"
 	CorePutCoreConnectionsIDOperation                       OperationName = "CorePutCoreConnectionsID"
 	CorePutCoreGeneralOperation                             OperationName = "CorePutCoreGeneral"
+	CorePutCoreNetworkBoxAddressOperation                   OperationName = "CorePutCoreNetworkBoxAddress"
 	CorePutCoreNetworkInterfacesOperation                   OperationName = "CorePutCoreNetworkInterfaces"
 	CorePutCoreNetworkManagementOperation                   OperationName = "CorePutCoreNetworkManagement"
 	CorePutCoreNetworkNtpOperation                          OperationName = "CorePutCoreNetworkNtp"

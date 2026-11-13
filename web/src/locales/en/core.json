@@ -490,6 +490,7 @@
       "inventory.software_expired": "Agent software no longer reported was removed",
       "inventory.software_sync": "Software list synced",
       "network.ntp": "Change time server",
+      "network.box_address": "Change box address",
       "notify.approval_fallback": "Approval request sent without buttons",
       "notify.approval_request": "Send approval request",
       "notify.approval_skipped": "Approval request not sent",
@@ -1620,6 +1621,17 @@
       "saved": "Time servers saved.",
       "privacy": "The operating system keeps its own time sources, so time requests still reach public servers (they see the box's IP address). Servers you enter here are added, not substituted.",
       "privacyLink": "See Privacy, flow 10"
+    },
+    "boxAddress": {
+      "title": "Box address",
+      "desc": "The name or address people and devices on your network use to reach the box. Every link the box sends uses it: alert messages, approval links, sign-in emails, the block list URL, URL honey tokens and agent install commands.",
+      "label": "Host name or IP address",
+      "hint": "Leave it empty to use the management address. Enter a name only if your network's DNS resolves it to the box. No https:// and no port.",
+      "default": "Default: {{address}} (the management address)",
+      "noDefault": "Default: the management address, once the box has one",
+      "links": "Links now start with {{url}}",
+      "saved": "Box address saved. The box certificate now includes it.",
+      "reset": "Box address set back to the management address."
     }
   },
   "connections": {

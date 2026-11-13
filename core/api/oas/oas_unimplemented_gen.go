@@ -1099,6 +1099,18 @@ func (UnimplementedHandler) CorePutCoreGeneral(ctx context.Context, req *CorePut
 	return r, ht.ErrNotImplemented
 }
 
+// CorePutCoreNetworkBoxAddress implements core_put_core_network_box_address operation.
+//
+// Box address (D-465): the host name or IPv4 address the LAN reaches the box at, used by every link
+// the box makes; empty goes back to the management address. 400 bad_box_address for a URL, a port, a
+// path or anything that is not a host name or IPv4 address. The box re-issues its own certificate with
+// it.
+//
+// PUT /core/network/box-address
+func (UnimplementedHandler) CorePutCoreNetworkBoxAddress(ctx context.Context, req *CorePutCoreNetworkBoxAddressReq) (r *CorePutCoreNetworkBoxAddressOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // CorePutCoreNetworkInterfaces implements core_put_core_network_interfaces operation.
 //
 // Set the role of every interface (management / SPAN capture / unused). Exactly one management

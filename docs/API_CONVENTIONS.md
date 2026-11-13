@@ -89,7 +89,7 @@ Trích **tĩnh** từ mọi lời gọi `fail(`/`refuse(`/hàm `bad(`/`{status, 
 
 Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCatalog`: `invalid`, `read_only`; `feeds/parsers.ts`: `too_large`, `bad_config`, `bad_sample`) đã được thêm tay.
 
-#### HTTP 400 (237 mã)
+#### HTTP 400 (238 mã)
 
 | Code | HTTP | Thông điệp mẫu (EN, từ mock) | Endpoint dùng |
 |---|---|---|---|
@@ -328,6 +328,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `bad_limit` | 400 | The CPU cap must be a whole number from 5 to 50 percent. (backend: giản đồ OpenAPI từ chối trước, mã chung `invalid`) | `PUT /core/network/span` |
 | `default_no_servers` | 400 | The default pool takes no server list. Choose "your own servers" to enter some. | `PUT /core/network/ntp` |
 | `bad_ntp` | 400 | Give 1 to 4 NTP servers. (cùng nhóm: tên hoặc IPv4 sai, trùng; backend: tên chỉ gồm số như `1.2.3` bị từ chối, host cũng từ chối) | `PUT /core/network/ntp` |
+| `bad_box_address` | 400 | Enter a host name like vedette.office.lan or an IPv4 address like 192.168.1.10, without https:// and without a port. (D-465: URL, cổng, đường dẫn, dấu cách, IPv6, loopback, tên chỉ gồm số) | `PUT /core/network/box-address` |
 | `blocked_host` | 400 | Vedette does not pull feeds from link-local, multicast, unspecified or cloud metadata addresses. Also, for Vedette itself in every module (D-446): That address is Vedette itself: loopback, Vedette's own container, or one of its ports (8443, 8444, 8765, 514, 6514) on the machine that runs it. For another program on that machine, enter the machine's LAN address and that program's port. | `POST /feeds/custom`; `PUT /feeds/custom/{id}`; `PUT /feeds/sources/{id}`; `PUT /logs/siem` |
 | `duplicate_url` | 400 | The feed "Tor exit list" already uses this address. | `POST /feeds/custom`; `PUT /feeds/custom/{id}` |
 
@@ -362,7 +363,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | Code | HTTP | Thông điệp mẫu (EN, từ mock) | Endpoint dùng |
 |---|---|---|---|
 | `mirror_missing` | 404 | This box has no copy of the osquery packages (a development build, or an install without them). Update Vedette to the release. | `GET /install/osquery/{file}` khi thư mục gói (`-osquery-dir`, mặc định `/usr/share/vedette/osquery`) thiếu hoặc không có tệp đó; kèm một dòng log WARN (agent-intake, WP-26 lát 3). Tên không nằm trong danh sách 4 tệp là `not_found` |
-| `no_box_address` | 404 | This box knows no address that other machines can reach, so an install script would point nowhere. Open Vedette at its network address; on a container-only install first set VEDETTE_BIND_IP to this machine's LAN address and VEDETTE_HOSTS to that address or a name for it. Then copy the command again. | `GET /install/osquery.sh`, `GET /install/osquery.ps1` khi địa chỉ hộp trong script sẽ là chỗ giữ chỗ `<VEDETTE_BOX_IP>` (mở bằng localhost, không có địa chỉ cấu hình); `GET /inventory/agents` vẫn trả `server_url` giữ chỗ (agent-intake INV-17 (c), D-399) |
+| `no_box_address` | 404 | This box knows no address that other machines can reach, so an install script would point nowhere. Open Vedette at its network address; on a container-only install first set VEDETTE_BIND_IP to this machine's LAN address and VEDETTE_HOSTS to that address or a name for it. Then copy the command again. | `GET /install/osquery.sh`, `GET /install/osquery.ps1` khi địa chỉ hộp trong script sẽ là chỗ giữ chỗ `<VEDETTE_BOX_IP>` (mở bằng localhost, không có địa chỉ cấu hình); `GET /inventory/agents` vẫn trả `server_url` giữ chỗ (agent-intake INV-17 (c), D-399). **409** (D-465): The box does not know an address other machines can reach yet. Set the Box address in Settings → Box network, then try again. — `POST /honeypot/tokens` loại `url` khi hộp chưa có Box address và kho không có IP của hộp |
 | `no_certificate` | 404 | This box serves plain HTTP on loopback, so it has no certificate for osquery to trust. Open Vedette at its network address. | `GET /intake/ca.pem`, `GET /install/osquery.sh`, `GET /install/osquery.ps1` khi hộp phục vụ HTTP trên loopback (không có chứng chỉ để ghim); `GET /inventory/agents` vẫn trả script với chỗ trống CA ghi rõ (agent-intake, WP-26 lát 3) |
 | `no_update` | 404 | There is no new version of this component. Click "Check now". | `POST /core/updates/apply` |
 | `not_found` | 404 | This ${what} no longer exists. | 51 endpoint (/ai, /core, /exposure, /feeds, /findings, /honeypot, /inventory, /logs, /modules, /notify, /reports, /response) |

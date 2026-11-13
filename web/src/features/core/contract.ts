@@ -235,8 +235,13 @@ export const SpanStatus = z.object({
 })
 export const NtpConfig = z.object({ mode: z.enum(['default', 'custom']), servers: z.array(z.string()).describe('Only for mode custom; empty for the default pool') })
 export const PendingManagement = z.object({ expires_at: ts, previous_address: z.string().nullable(), window_s: z.number().int().describe('Seconds the box waits for the confirmation (the whole window, not what is left)'), reboot_at: ts.nullable().describe('Set when the box could not go back to the old settings by itself: it restarts at this time, and the saved settings on disk are the old ones (D-100)') })
+export const BoxAddress = z.object({
+  address: z.string().nullable().describe('The host name or IPv4 address an administrator saved; null = the default is used'),
+  default: z.string().nullable().describe('The management IPv4 address the box reports; null while it has none'),
+}).describe('D-465: the address every link the box makes carries (alert messages, approval links, sign-in mail, block list URL, URL honey tokens, agent install commands); also a name of the box\'s own certificate')
+export const BoxAddressBody = z.object({ address: z.string().describe('A host name (vedette.office.lan) or an IPv4 address; no scheme, port or path. Empty = go back to the default') })
 export const NetworkState = z.object({
-  interfaces: z.array(NetInterface), management: Management, span: SpanConfig, span_status: SpanStatus, ntp: NtpConfig,
+  interfaces: z.array(NetInterface), management: Management, box_address: BoxAddress, span: SpanConfig, span_status: SpanStatus, ntp: NtpConfig,
   default_ntp: z.string(), decoy_ips: z.array(z.string()), pending: PendingManagement.nullable().describe('A management address change waiting for confirmation from the new address; the box reverts at expires_at'),
 })
 export const ManagementBody = z.object({
@@ -330,4 +335,5 @@ export const endpoints = defineEndpoints([
   { method: 'put', path: '/core/network/span', summary: 'SPAN capture: port, what is extracted, exclusion filters, CPU and memory cap. The management interface cannot be the SPAN port (409); turning it on needs a port and at least one extraction', stories: ['S-CORE-8', 'S-INV-1', 'S-LOG-4'], role: 'admin', body: SpanConfig, response: NetworkState },
   { method: 'get', path: '/core/network/span/status', summary: 'Live mirrored-traffic status: packets/s, other MACs, last packet, health verdict', stories: ['S-CORE-8', 'S-INV-1'], role: 'viewer', response: SpanStatus },
   { method: 'put', path: '/core/network/ntp', summary: 'NTP servers: default pool or your own (1 to 4)', stories: ['S-CORE-8'], role: 'admin', body: NtpConfig, response: NetworkState },
+  { method: 'put', path: '/core/network/box-address', summary: 'Box address (D-465): the host name or IPv4 address the LAN reaches the box at, used by every link the box makes; empty goes back to the management address. 400 bad_box_address for a URL, a port, a path or anything that is not a host name or IPv4 address. The box re-issues its own certificate with it', stories: ['S-CORE-8', 'S-NOT-1', 'S-RESP-3'], role: 'admin', body: BoxAddressBody, response: NetworkState },
 ])

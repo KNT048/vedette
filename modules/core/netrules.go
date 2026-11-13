@@ -49,6 +49,7 @@ const (
 	CodeBadFilter             = "bad_filter"
 	CodeDefaultNoServers      = "default_no_servers"
 	CodeBadNTP                = "bad_ntp"
+	CodeBadBoxAddress         = "bad_box_address"
 )
 
 // msgNothingPending is what a confirm or a cancel says when no change waits.
@@ -231,6 +232,29 @@ func checkNTP(servers []string) *apierr.Error {
 		seen[s] = true
 	}
 	return nil
+}
+
+// msgBadBoxAddress is boxAddressProblem's sentence in networkRules.ts.
+const msgBadBoxAddress = "Enter a host name like vedette.office.lan or an IPv4 address like 192.168.1.10, without https:// and without a port."
+
+// checkBoxAddress is boxAddressProblem of networkRules.ts (D-465): the Box address in its normal form (trimmed, lower case, no trailing
+// dot), "" for "use the default". It is a host name (hostName: the NTP rule) or a unicast IPv4 address (unicast4); a URL, a port, a
+// path, a space or an IPv6 address is refused, so what is saved can go into a link, a certificate and an install command as is.
+func checkBoxAddress(s string) (string, *apierr.Error) {
+	s = strings.TrimSuffix(strings.ToLower(strings.TrimSpace(s)), ".")
+	if s == "" {
+		return "", nil
+	}
+	if a, ok := bareIPv4(s); ok {
+		if !unicast4(a) {
+			return "", invalid(CodeBadBoxAddress, msgBadBoxAddress)
+		}
+		return s, nil
+	}
+	if !hostName(s) {
+		return "", invalid(CodeBadBoxAddress, msgBadBoxAddress)
+	}
+	return s, nil
 }
 
 // SpanFilter is one exclusion filter as stored.

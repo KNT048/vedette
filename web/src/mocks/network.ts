@@ -18,6 +18,8 @@ export interface NetStore {
   ifaces: NetIface[]; mgmt: Management; span: SpanConfig
   ntp: { mode: 'default' | 'custom'; servers: string[] }
   pending: { previous: Management; expires_at: string; reboot_at?: string } | null
+  /** The Box address an administrator saved (D-465); null or missing = the management address. */
+  box_address?: string | null
   /** Set by a test to play a box whose network files the installer did not set up (host code net_backend_unsupported). */
   unsupported?: boolean
 }
@@ -50,6 +52,12 @@ export const networkStore = collection<NetStore>('core_network', () => ({
   const mgmt: Management = b.ip && prefix && gw ? { mode: 'static', address: b.ip, prefix, gateway: gw, dns: [gw] } : { mode: 'dhcp', address: null, prefix: null, gateway: null, dns: [] }
   return { ifaces: ifaces(false), mgmt, span: { enabled: false, interface: null, extract: { ...EXTRACT }, filters: [], ...LIMITS }, ntp: { mode: 'default', servers: [] }, pending: null }
 })
+
+/** The address every link of the box carries (D-465): the saved Box address, else the management address, else the address given at setup; null when none is known. */
+export function boxAddress(): string | null {
+  const s = networkStore.get()
+  return s.box_address || s.mgmt.address || boxInfo().ip || null
+}
 
 /** Mirrored-traffic health for the chosen port. Jitter follows the clock so the numbers look alive. */
 export function spanStatusOf(s: NetStore = networkStore.get()): SpanStatus {

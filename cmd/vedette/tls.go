@@ -279,7 +279,9 @@ type selfSignedRenewer struct {
 	mgmt func(ctx context.Context) ([]netip.Addr, error)
 	// box is the box's name for the certificate (certBoxName): "" while vedette-host has not answered since start. nil: no name is
 	// looked at (tests of other things).
-	box   func(ctx context.Context) string
+	box func(ctx context.Context) string
+	// addr is the Box address (D-465, boxAddr.Host): a name of the certificate, added when it lacks it; "" or nil: none.
+	addr  func(ctx context.Context) string
 	local func() []string // localNames; a test gives another
 	kick  chan struct{}
 	gap   time.Duration // between two address checks started by Kick; 0 = addrSyncGap
@@ -459,6 +461,15 @@ func (r *selfSignedRenewer) Check(ctx context.Context, log *slog.Logger) error {
 	// error that never goes away cannot keep the box from renewing.
 	ca, caErr := r.ca.ensure(ctx, r.now(), log, leaf.NotAfter.Sub(r.now()) <= selfSignedRenewBefore)
 	hosts := append([]string(nil), r.hosts...)
+	// The Box address (D-465): every link carries it, so the certificate names it; one it lacks (a name or address an administrator
+	// just saved) re-issues it. Unknown ("") changes nothing.
+	boxChange := false
+	if r.addr != nil {
+		if a := r.addr(ctx); a != "" {
+			hosts = append(hosts, a)
+			boxChange = len(uncoveredHosts(leaf, []string{a})) > 0
+		}
+	}
 	addrChange := false
 	var now map[netip.Addr]bool
 	if len(mgmt) > 0 {
@@ -477,14 +488,14 @@ func (r *selfSignedRenewer) Check(ctx context.Context, log *slog.Logger) error {
 	}
 	// The box's name (D-316 follow-up of #471): added when vedette-host reports one the certificate lacks (an upgraded box, a host that
 	// answered only after start, a renamed machine); a host that has not answered keeps the names the certificate has.
-	// The name goes after localNames, so "vedette" stays the first name that is not loopback (the default base URL, notify.go).
-	nameChange := false
+	// The order of the names no longer matters to links: they carry the Box address (D-465), never a name taken from the certificate.
+	nameChange := boxChange
 	var named []string
 	if r.box != nil {
 		if box := r.box(ctx); box != "" {
 			named = []string{box}
 			// "vedette" (no name from the host) is one of localNames: it rides along with the next re-issue, as before.
-			nameChange = box != fallbackBoxName && !slices.Contains(leaf.DNSNames, box)
+			nameChange = nameChange || box != fallbackBoxName && !slices.Contains(leaf.DNSNames, box)
 		} else {
 			named = leaf.DNSNames
 		}

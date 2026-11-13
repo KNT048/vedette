@@ -14,6 +14,7 @@ import { useNetwork, useNetworkActions } from './api'
 import { ContainerNetwork, InstallPending } from './ContainerOnly'
 import { useInstallKind } from '@/lib/modules'
 import { SPAN_IN_UI } from '@/lib/span'
+import { boxAddressProblem, normaliseBoxAddress } from './networkRules'
 import { errMsg, ReadOnlyNote, useGate } from './parts'
 import { SpanCard } from './SpanCard'
 import { SpanGuides } from './SpanGuides'
@@ -214,6 +215,35 @@ function NtpForm({ d }: { d: NetworkState }) {
   )
 }
 
+/** D-465: the address every link of the box carries. Empty = the management address; checked here with the box's own rule before saving. */
+function BoxAddressForm({ d }: { d: NetworkState }) {
+  const { t } = useTranslation('core')
+  const gate = useGate('admin')
+  const { boxAddress } = useNetworkActions()
+  const [value, setValue] = useState(d.box_address.address ?? '')
+  const [error, setError] = useState<string | null>(null)
+  const inUse = d.box_address.address ?? d.box_address.default
+  const port = window.location.port && window.location.port !== '443' ? `:${window.location.port}` : ''
+  return (
+    <form className="grid max-w-xl gap-4" noValidate onSubmit={(e) => {
+      e.preventDefault()
+      const v = normaliseBoxAddress(value)
+      const problem = boxAddressProblem(v)
+      setError(problem)
+      if (problem) return
+      boxAddress.mutate(v, { onSuccess: () => toast.success(t(v ? 'network.boxAddress.saved' : 'network.boxAddress.reset')), onError: (er) => setError(errMsg(er, t)) })
+    }}>
+      <Field label={t('network.boxAddress.label')} htmlFor="box-address-input" error={error ?? undefined} hint={t('network.boxAddress.hint')}>
+        <Input id="box-address-input" autoComplete="off" spellCheck={false} value={value} disabled={gate.disabled} aria-invalid={error ? true : undefined} aria-describedby={error ? 'box-address-input-error' : 'box-address-input-hint'}
+          onChange={(e) => { setValue(e.target.value); setError(null) }} />
+      </Field>
+      <p className="text-[13px] text-muted">{d.box_address.default ? t('network.boxAddress.default', { address: d.box_address.default }) : t('network.boxAddress.noDefault')}</p>
+      {inUse ? <p className="text-[13px]">{t('network.boxAddress.links', { url: `https://${inUse}${port}` })}</p> : null}
+      <div><Button type="submit" variant="primary" disabled={gate.disabled || boxAddress.isPending} title={gate.title}>{t('common:save')}</Button></div>
+    </form>
+  )
+}
+
 /** D-403: a box with SPAN on keeps seeing it (read-only, with Turn off) while the GUI does not offer it. A card left in the SPAN role
  *  with SPAN off keeps "SPAN capture" among its role options, which is its way out. */
 const spanSetUp = (d: NetworkState) => d.span.enabled
@@ -228,6 +258,9 @@ function Body({ d }: { d: NetworkState }) {
       <Section id="management" title={t('network.management.title')} description={t('network.management.desc')} stories={['S-CORE-8']}>
         <Pending d={d} />
         <ManagementForm key={JSON.stringify(d.management) + String(!!d.pending)} d={d} />
+      </Section>
+      <Section id="box-address" title={t('network.boxAddress.title')} description={t('network.boxAddress.desc')} stories={['S-CORE-8', 'S-NOT-1', 'S-RESP-3']}>
+        <BoxAddressForm key={d.box_address.address ?? ''} d={d} />
       </Section>
       {SPAN_IN_UI || spanSetUp(d) ? <SpanCard key={JSON.stringify(d.span)} d={d} readOnly={!SPAN_IN_UI} /> : null}
       {SPAN_IN_UI ? <SpanGuides spanPort={d.span.interface ?? d.interfaces.find((i) => i.role === 'span')?.name ?? 'eth1'} /> : null}

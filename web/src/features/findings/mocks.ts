@@ -94,6 +94,7 @@ function detail(f: Finding): FindingDetail {
   const outs = aiOutputs.get()
   return {
     ...r,
+    fixed_in: null,
     pack: pack ? renderPack(pack, r.asset) : null,
     compromise: check ? JSON.parse(fill(JSON.stringify(check), ip, host)) : null,
     recheck: recheckFor(f, r.kev, r.asset),

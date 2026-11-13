@@ -10,6 +10,8 @@ import { server } from '@/test/server'
 import { makeQueryClient } from '@/app/App'
 import { aiConfigStore, aiRunsStore, assetsStore, auditStore, findingsStore, modulesStore, sessionStore } from '@/mocks/stores'
 import { feature } from './index'
+import { FixedInNote } from './Recommendation'
+import type { FindingDetail } from './types'
 
 const FORTI = 'show firewall vip | grep -f 192.168.10.21'
 const MIKROTIK_RULE = '/ip firewall filter add chain=forward action=drop in-interface-list=WAN connection-state=new connection-nat-state=dstnat dst-address=192.168.10.21 comment="Vedette: block Internet access to NAS" place-before=0'
@@ -173,6 +175,24 @@ describe('findings: f-2, f-3 chưa có khuyến nghị đã xác nhận (D-21)',
     expect(screen.getByText('Steps you can take now')).toBeInTheDocument() // W1-31: what the box knows, without a pack
     expect(screen.getByText(/No confirmed exploitation signs/)).toBeInTheDocument()
     await expectNoA11yViolations()
+  })
+
+  it('D-488: "What to do" nói phiên bản vá cho đúng thiết bị, đúng nhánh, và không bịa khi NVD không cho', () => {
+    const note = (fixed_in: FindingDetail['fixed_in']) => render(<FixedInNote finding={{ asset: { name: 'FortiGate-60F' }, fixed_in } as FindingDetail} />)
+    const src = { source: 'NVD affected versions', more: 0, branches: [] }
+    const a = note({ ...src, kind: 'fixed', version: '7.4.1', fixed: '7.4.3' })
+    expect(screen.getByText('Fixed in 7.4.3: upgrade FortiGate-60F from 7.4.1 to 7.4.3 or later.')).toBeInTheDocument()
+    expect(screen.getByText(/Source: NVD affected versions/)).toBeInTheDocument()
+    a.unmount()
+    const b = note({ ...src, kind: 'up_to', version: '5.6.8', fixed: '5.6.10' })
+    expect(screen.getByText(/Versions up to 5\.6\.10 are affected, and FortiGate-60F runs 5\.6\.8: upgrade to a release after 5\.6\.10\./)).toBeInTheDocument()
+    expect(screen.queryByText(/Fixed in/)).not.toBeInTheDocument()
+    b.unmount()
+    const c = note({ ...src, kind: 'branches', version: '', fixed: '', more: 3, branches: [{ branch: '7.4', fixed: '7.4.3' }, { branch: '7.2', fixed: '7.2.7' }, { branch: '', fixed: '22.4R2' }] })
+    expect(screen.getByText(/7\.4 \u2192 7\.4\.3, 7\.2 \u2192 7\.2\.7, 22\.4R2, and 3 more/)).toBeInTheDocument()
+    c.unmount()
+    note(null)
+    expect(screen.queryByTestId('fixed-in')).not.toBeInTheDocument()
   })
 
   it('f-3 cũng vậy, với link MSRC', async () => {

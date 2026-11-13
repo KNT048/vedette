@@ -73,7 +73,16 @@ export const AiResult = z.object({
 })
 export const AppliedEntry = z.object({ item: z.string(), ts: iso, user: z.string() })
 
+export const FixedIn = z.object({
+  kind: z.enum(['fixed', 'up_to', 'branches']).describe('fixed = the device version is inside a range that ends before `fixed`; up_to = inside a range whose end `fixed` is itself affected (no fixed release named); branches = the version is unknown, `branches` lists the fix of each release line'),
+  version: z.string().describe("The device's version; empty for branches"),
+  fixed: z.string().describe('The fixed release (fixed), the last affected release (up_to); empty for branches'),
+  branches: z.array(z.object({ branch: z.string().describe('Release line such as 7.4; empty when it cannot be told'), fixed: z.string() })).describe('At most 5, newest first'),
+  more: z.number().int().min(0).describe('Release lines left out of branches'),
+  source: z.string().describe('Where the versions come from: "NVD affected versions"'),
+})
 export const FindingDetail = FindingRow.extend({
+  fixed_in: FixedIn.nullable().describe('The release that fixes this finding on this device, from the NVD affected versions (D-488); null = NVD gives none, the page shows CISA and the vendor advisory only'),
   pack: MitigationPack.nullable().describe('null = no recommendation confirmed by Vedette maintainers yet (D-21)'),
   compromise: CompromiseCheck.nullable(),
   recheck: z.object({ steps: z.array(z.string()), code: z.string().optional() }),

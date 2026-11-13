@@ -54423,8 +54423,11 @@ type FindingsGetFindingsIDOK struct {
 	Cve        string                               `json:"cve"`
 	Evidence   NilFindingsGetFindingsIDOKEvidence   `json:"evidence"`
 	FirstSeen  time.Time                            `json:"first_seen"`
-	History    []FindingsGetFindingsIDOKHistoryItem `json:"history"`
-	ID         string                               `json:"id"`
+	// The release that fixes this finding on this device, from the NVD affected versions (D-488); null =
+	// NVD gives none, the page shows CISA and the vendor advisory only.
+	FixedIn NilFindingsGetFindingsIDOKFixedIn    `json:"fixed_in"`
+	History []FindingsGetFindingsIDOKHistoryItem `json:"history"`
+	ID      string                               `json:"id"`
 	// Read from KEV, not from the project recommendation pack.
 	Kev      NilFindingsGetFindingsIDOKKev `json:"kev"`
 	LastSeen time.Time                     `json:"last_seen"`
@@ -54491,6 +54494,11 @@ func (s *FindingsGetFindingsIDOK) GetEvidence() NilFindingsGetFindingsIDOKEviden
 // GetFirstSeen returns the value of FirstSeen.
 func (s *FindingsGetFindingsIDOK) GetFirstSeen() time.Time {
 	return s.FirstSeen
+}
+
+// GetFixedIn returns the value of FixedIn.
+func (s *FindingsGetFindingsIDOK) GetFixedIn() NilFindingsGetFindingsIDOKFixedIn {
+	return s.FixedIn
 }
 
 // GetHistory returns the value of History.
@@ -54601,6 +54609,11 @@ func (s *FindingsGetFindingsIDOK) SetEvidence(val NilFindingsGetFindingsIDOKEvid
 // SetFirstSeen sets the value of FirstSeen.
 func (s *FindingsGetFindingsIDOK) SetFirstSeen(val time.Time) {
 	s.FirstSeen = val
+}
+
+// SetFixedIn sets the value of FixedIn.
+func (s *FindingsGetFindingsIDOK) SetFixedIn(val NilFindingsGetFindingsIDOKFixedIn) {
+	s.FixedIn = val
 }
 
 // SetHistory sets the value of History.
@@ -55570,6 +55583,160 @@ func (s *FindingsGetFindingsIDOKEvidence) SetSummary(val string) {
 // SetTemplate sets the value of Template.
 func (s *FindingsGetFindingsIDOKEvidence) SetTemplate(val OptString) {
 	s.Template = val
+}
+
+type FindingsGetFindingsIDOKFixedIn struct {
+	// At most 5, newest first.
+	Branches []FindingsGetFindingsIDOKFixedInBranchesItem `json:"branches"`
+	// The fixed release (fixed), the last affected release (up_to); empty for branches.
+	Fixed string `json:"fixed"`
+	// Fixed = the device version is inside a range that ends before `fixed`; up_to = inside a range whose
+	// end `fixed` is itself affected (no fixed release named); branches = the version is unknown,
+	// `branches` lists the fix of each release line.
+	Kind FindingsGetFindingsIDOKFixedInKind `json:"kind"`
+	// Release lines left out of branches.
+	More int `json:"more"`
+	// Where the versions come from: "NVD affected versions".
+	Source string `json:"source"`
+	// The device's version; empty for branches.
+	Version string `json:"version"`
+}
+
+// GetBranches returns the value of Branches.
+func (s *FindingsGetFindingsIDOKFixedIn) GetBranches() []FindingsGetFindingsIDOKFixedInBranchesItem {
+	return s.Branches
+}
+
+// GetFixed returns the value of Fixed.
+func (s *FindingsGetFindingsIDOKFixedIn) GetFixed() string {
+	return s.Fixed
+}
+
+// GetKind returns the value of Kind.
+func (s *FindingsGetFindingsIDOKFixedIn) GetKind() FindingsGetFindingsIDOKFixedInKind {
+	return s.Kind
+}
+
+// GetMore returns the value of More.
+func (s *FindingsGetFindingsIDOKFixedIn) GetMore() int {
+	return s.More
+}
+
+// GetSource returns the value of Source.
+func (s *FindingsGetFindingsIDOKFixedIn) GetSource() string {
+	return s.Source
+}
+
+// GetVersion returns the value of Version.
+func (s *FindingsGetFindingsIDOKFixedIn) GetVersion() string {
+	return s.Version
+}
+
+// SetBranches sets the value of Branches.
+func (s *FindingsGetFindingsIDOKFixedIn) SetBranches(val []FindingsGetFindingsIDOKFixedInBranchesItem) {
+	s.Branches = val
+}
+
+// SetFixed sets the value of Fixed.
+func (s *FindingsGetFindingsIDOKFixedIn) SetFixed(val string) {
+	s.Fixed = val
+}
+
+// SetKind sets the value of Kind.
+func (s *FindingsGetFindingsIDOKFixedIn) SetKind(val FindingsGetFindingsIDOKFixedInKind) {
+	s.Kind = val
+}
+
+// SetMore sets the value of More.
+func (s *FindingsGetFindingsIDOKFixedIn) SetMore(val int) {
+	s.More = val
+}
+
+// SetSource sets the value of Source.
+func (s *FindingsGetFindingsIDOKFixedIn) SetSource(val string) {
+	s.Source = val
+}
+
+// SetVersion sets the value of Version.
+func (s *FindingsGetFindingsIDOKFixedIn) SetVersion(val string) {
+	s.Version = val
+}
+
+type FindingsGetFindingsIDOKFixedInBranchesItem struct {
+	// Release line such as 7.4; empty when it cannot be told.
+	Branch string `json:"branch"`
+	Fixed  string `json:"fixed"`
+}
+
+// GetBranch returns the value of Branch.
+func (s *FindingsGetFindingsIDOKFixedInBranchesItem) GetBranch() string {
+	return s.Branch
+}
+
+// GetFixed returns the value of Fixed.
+func (s *FindingsGetFindingsIDOKFixedInBranchesItem) GetFixed() string {
+	return s.Fixed
+}
+
+// SetBranch sets the value of Branch.
+func (s *FindingsGetFindingsIDOKFixedInBranchesItem) SetBranch(val string) {
+	s.Branch = val
+}
+
+// SetFixed sets the value of Fixed.
+func (s *FindingsGetFindingsIDOKFixedInBranchesItem) SetFixed(val string) {
+	s.Fixed = val
+}
+
+// Fixed = the device version is inside a range that ends before `fixed`; up_to = inside a range whose
+// end `fixed` is itself affected (no fixed release named); branches = the version is unknown,
+// `branches` lists the fix of each release line.
+type FindingsGetFindingsIDOKFixedInKind string
+
+const (
+	FindingsGetFindingsIDOKFixedInKindFixed    FindingsGetFindingsIDOKFixedInKind = "fixed"
+	FindingsGetFindingsIDOKFixedInKindUpTo     FindingsGetFindingsIDOKFixedInKind = "up_to"
+	FindingsGetFindingsIDOKFixedInKindBranches FindingsGetFindingsIDOKFixedInKind = "branches"
+)
+
+// AllValues returns all FindingsGetFindingsIDOKFixedInKind values.
+func (FindingsGetFindingsIDOKFixedInKind) AllValues() []FindingsGetFindingsIDOKFixedInKind {
+	return []FindingsGetFindingsIDOKFixedInKind{
+		FindingsGetFindingsIDOKFixedInKindFixed,
+		FindingsGetFindingsIDOKFixedInKindUpTo,
+		FindingsGetFindingsIDOKFixedInKindBranches,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsIDOKFixedInKind) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsIDOKFixedInKindFixed:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKFixedInKindUpTo:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKFixedInKindBranches:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsIDOKFixedInKind) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsIDOKFixedInKind(data) {
+	case FindingsGetFindingsIDOKFixedInKindFixed:
+		*s = FindingsGetFindingsIDOKFixedInKindFixed
+		return nil
+	case FindingsGetFindingsIDOKFixedInKindUpTo:
+		*s = FindingsGetFindingsIDOKFixedInKindUpTo
+		return nil
+	case FindingsGetFindingsIDOKFixedInKindBranches:
+		*s = FindingsGetFindingsIDOKFixedInKindBranches
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type FindingsGetFindingsIDOKHistoryItem struct {
@@ -57585,8 +57752,11 @@ type FindingsPostFindingsIDAiOK struct {
 	Cve        string                                  `json:"cve"`
 	Evidence   NilFindingsPostFindingsIDAiOKEvidence   `json:"evidence"`
 	FirstSeen  time.Time                               `json:"first_seen"`
-	History    []FindingsPostFindingsIDAiOKHistoryItem `json:"history"`
-	ID         string                                  `json:"id"`
+	// The release that fixes this finding on this device, from the NVD affected versions (D-488); null =
+	// NVD gives none, the page shows CISA and the vendor advisory only.
+	FixedIn NilFindingsPostFindingsIDAiOKFixedIn    `json:"fixed_in"`
+	History []FindingsPostFindingsIDAiOKHistoryItem `json:"history"`
+	ID      string                                  `json:"id"`
 	// Read from KEV, not from the project recommendation pack.
 	Kev      NilFindingsPostFindingsIDAiOKKev `json:"kev"`
 	LastSeen time.Time                        `json:"last_seen"`
@@ -57653,6 +57823,11 @@ func (s *FindingsPostFindingsIDAiOK) GetEvidence() NilFindingsPostFindingsIDAiOK
 // GetFirstSeen returns the value of FirstSeen.
 func (s *FindingsPostFindingsIDAiOK) GetFirstSeen() time.Time {
 	return s.FirstSeen
+}
+
+// GetFixedIn returns the value of FixedIn.
+func (s *FindingsPostFindingsIDAiOK) GetFixedIn() NilFindingsPostFindingsIDAiOKFixedIn {
+	return s.FixedIn
 }
 
 // GetHistory returns the value of History.
@@ -57763,6 +57938,11 @@ func (s *FindingsPostFindingsIDAiOK) SetEvidence(val NilFindingsPostFindingsIDAi
 // SetFirstSeen sets the value of FirstSeen.
 func (s *FindingsPostFindingsIDAiOK) SetFirstSeen(val time.Time) {
 	s.FirstSeen = val
+}
+
+// SetFixedIn sets the value of FixedIn.
+func (s *FindingsPostFindingsIDAiOK) SetFixedIn(val NilFindingsPostFindingsIDAiOKFixedIn) {
+	s.FixedIn = val
 }
 
 // SetHistory sets the value of History.
@@ -58732,6 +58912,160 @@ func (s *FindingsPostFindingsIDAiOKEvidence) SetSummary(val string) {
 // SetTemplate sets the value of Template.
 func (s *FindingsPostFindingsIDAiOKEvidence) SetTemplate(val OptString) {
 	s.Template = val
+}
+
+type FindingsPostFindingsIDAiOKFixedIn struct {
+	// At most 5, newest first.
+	Branches []FindingsPostFindingsIDAiOKFixedInBranchesItem `json:"branches"`
+	// The fixed release (fixed), the last affected release (up_to); empty for branches.
+	Fixed string `json:"fixed"`
+	// Fixed = the device version is inside a range that ends before `fixed`; up_to = inside a range whose
+	// end `fixed` is itself affected (no fixed release named); branches = the version is unknown,
+	// `branches` lists the fix of each release line.
+	Kind FindingsPostFindingsIDAiOKFixedInKind `json:"kind"`
+	// Release lines left out of branches.
+	More int `json:"more"`
+	// Where the versions come from: "NVD affected versions".
+	Source string `json:"source"`
+	// The device's version; empty for branches.
+	Version string `json:"version"`
+}
+
+// GetBranches returns the value of Branches.
+func (s *FindingsPostFindingsIDAiOKFixedIn) GetBranches() []FindingsPostFindingsIDAiOKFixedInBranchesItem {
+	return s.Branches
+}
+
+// GetFixed returns the value of Fixed.
+func (s *FindingsPostFindingsIDAiOKFixedIn) GetFixed() string {
+	return s.Fixed
+}
+
+// GetKind returns the value of Kind.
+func (s *FindingsPostFindingsIDAiOKFixedIn) GetKind() FindingsPostFindingsIDAiOKFixedInKind {
+	return s.Kind
+}
+
+// GetMore returns the value of More.
+func (s *FindingsPostFindingsIDAiOKFixedIn) GetMore() int {
+	return s.More
+}
+
+// GetSource returns the value of Source.
+func (s *FindingsPostFindingsIDAiOKFixedIn) GetSource() string {
+	return s.Source
+}
+
+// GetVersion returns the value of Version.
+func (s *FindingsPostFindingsIDAiOKFixedIn) GetVersion() string {
+	return s.Version
+}
+
+// SetBranches sets the value of Branches.
+func (s *FindingsPostFindingsIDAiOKFixedIn) SetBranches(val []FindingsPostFindingsIDAiOKFixedInBranchesItem) {
+	s.Branches = val
+}
+
+// SetFixed sets the value of Fixed.
+func (s *FindingsPostFindingsIDAiOKFixedIn) SetFixed(val string) {
+	s.Fixed = val
+}
+
+// SetKind sets the value of Kind.
+func (s *FindingsPostFindingsIDAiOKFixedIn) SetKind(val FindingsPostFindingsIDAiOKFixedInKind) {
+	s.Kind = val
+}
+
+// SetMore sets the value of More.
+func (s *FindingsPostFindingsIDAiOKFixedIn) SetMore(val int) {
+	s.More = val
+}
+
+// SetSource sets the value of Source.
+func (s *FindingsPostFindingsIDAiOKFixedIn) SetSource(val string) {
+	s.Source = val
+}
+
+// SetVersion sets the value of Version.
+func (s *FindingsPostFindingsIDAiOKFixedIn) SetVersion(val string) {
+	s.Version = val
+}
+
+type FindingsPostFindingsIDAiOKFixedInBranchesItem struct {
+	// Release line such as 7.4; empty when it cannot be told.
+	Branch string `json:"branch"`
+	Fixed  string `json:"fixed"`
+}
+
+// GetBranch returns the value of Branch.
+func (s *FindingsPostFindingsIDAiOKFixedInBranchesItem) GetBranch() string {
+	return s.Branch
+}
+
+// GetFixed returns the value of Fixed.
+func (s *FindingsPostFindingsIDAiOKFixedInBranchesItem) GetFixed() string {
+	return s.Fixed
+}
+
+// SetBranch sets the value of Branch.
+func (s *FindingsPostFindingsIDAiOKFixedInBranchesItem) SetBranch(val string) {
+	s.Branch = val
+}
+
+// SetFixed sets the value of Fixed.
+func (s *FindingsPostFindingsIDAiOKFixedInBranchesItem) SetFixed(val string) {
+	s.Fixed = val
+}
+
+// Fixed = the device version is inside a range that ends before `fixed`; up_to = inside a range whose
+// end `fixed` is itself affected (no fixed release named); branches = the version is unknown,
+// `branches` lists the fix of each release line.
+type FindingsPostFindingsIDAiOKFixedInKind string
+
+const (
+	FindingsPostFindingsIDAiOKFixedInKindFixed    FindingsPostFindingsIDAiOKFixedInKind = "fixed"
+	FindingsPostFindingsIDAiOKFixedInKindUpTo     FindingsPostFindingsIDAiOKFixedInKind = "up_to"
+	FindingsPostFindingsIDAiOKFixedInKindBranches FindingsPostFindingsIDAiOKFixedInKind = "branches"
+)
+
+// AllValues returns all FindingsPostFindingsIDAiOKFixedInKind values.
+func (FindingsPostFindingsIDAiOKFixedInKind) AllValues() []FindingsPostFindingsIDAiOKFixedInKind {
+	return []FindingsPostFindingsIDAiOKFixedInKind{
+		FindingsPostFindingsIDAiOKFixedInKindFixed,
+		FindingsPostFindingsIDAiOKFixedInKindUpTo,
+		FindingsPostFindingsIDAiOKFixedInKindBranches,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDAiOKFixedInKind) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDAiOKFixedInKindFixed:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKFixedInKindUpTo:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKFixedInKindBranches:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDAiOKFixedInKind) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDAiOKFixedInKind(data) {
+	case FindingsPostFindingsIDAiOKFixedInKindFixed:
+		*s = FindingsPostFindingsIDAiOKFixedInKindFixed
+		return nil
+	case FindingsPostFindingsIDAiOKFixedInKindUpTo:
+		*s = FindingsPostFindingsIDAiOKFixedInKindUpTo
+		return nil
+	case FindingsPostFindingsIDAiOKFixedInKindBranches:
+		*s = FindingsPostFindingsIDAiOKFixedInKindBranches
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type FindingsPostFindingsIDAiOKHistoryItem struct {
@@ -59731,8 +60065,11 @@ type FindingsPostFindingsIDAppliedOK struct {
 	Cve        string                                       `json:"cve"`
 	Evidence   NilFindingsPostFindingsIDAppliedOKEvidence   `json:"evidence"`
 	FirstSeen  time.Time                                    `json:"first_seen"`
-	History    []FindingsPostFindingsIDAppliedOKHistoryItem `json:"history"`
-	ID         string                                       `json:"id"`
+	// The release that fixes this finding on this device, from the NVD affected versions (D-488); null =
+	// NVD gives none, the page shows CISA and the vendor advisory only.
+	FixedIn NilFindingsPostFindingsIDAppliedOKFixedIn    `json:"fixed_in"`
+	History []FindingsPostFindingsIDAppliedOKHistoryItem `json:"history"`
+	ID      string                                       `json:"id"`
 	// Read from KEV, not from the project recommendation pack.
 	Kev      NilFindingsPostFindingsIDAppliedOKKev `json:"kev"`
 	LastSeen time.Time                             `json:"last_seen"`
@@ -59799,6 +60136,11 @@ func (s *FindingsPostFindingsIDAppliedOK) GetEvidence() NilFindingsPostFindingsI
 // GetFirstSeen returns the value of FirstSeen.
 func (s *FindingsPostFindingsIDAppliedOK) GetFirstSeen() time.Time {
 	return s.FirstSeen
+}
+
+// GetFixedIn returns the value of FixedIn.
+func (s *FindingsPostFindingsIDAppliedOK) GetFixedIn() NilFindingsPostFindingsIDAppliedOKFixedIn {
+	return s.FixedIn
 }
 
 // GetHistory returns the value of History.
@@ -59909,6 +60251,11 @@ func (s *FindingsPostFindingsIDAppliedOK) SetEvidence(val NilFindingsPostFinding
 // SetFirstSeen sets the value of FirstSeen.
 func (s *FindingsPostFindingsIDAppliedOK) SetFirstSeen(val time.Time) {
 	s.FirstSeen = val
+}
+
+// SetFixedIn sets the value of FixedIn.
+func (s *FindingsPostFindingsIDAppliedOK) SetFixedIn(val NilFindingsPostFindingsIDAppliedOKFixedIn) {
+	s.FixedIn = val
 }
 
 // SetHistory sets the value of History.
@@ -60878,6 +61225,160 @@ func (s *FindingsPostFindingsIDAppliedOKEvidence) SetSummary(val string) {
 // SetTemplate sets the value of Template.
 func (s *FindingsPostFindingsIDAppliedOKEvidence) SetTemplate(val OptString) {
 	s.Template = val
+}
+
+type FindingsPostFindingsIDAppliedOKFixedIn struct {
+	// At most 5, newest first.
+	Branches []FindingsPostFindingsIDAppliedOKFixedInBranchesItem `json:"branches"`
+	// The fixed release (fixed), the last affected release (up_to); empty for branches.
+	Fixed string `json:"fixed"`
+	// Fixed = the device version is inside a range that ends before `fixed`; up_to = inside a range whose
+	// end `fixed` is itself affected (no fixed release named); branches = the version is unknown,
+	// `branches` lists the fix of each release line.
+	Kind FindingsPostFindingsIDAppliedOKFixedInKind `json:"kind"`
+	// Release lines left out of branches.
+	More int `json:"more"`
+	// Where the versions come from: "NVD affected versions".
+	Source string `json:"source"`
+	// The device's version; empty for branches.
+	Version string `json:"version"`
+}
+
+// GetBranches returns the value of Branches.
+func (s *FindingsPostFindingsIDAppliedOKFixedIn) GetBranches() []FindingsPostFindingsIDAppliedOKFixedInBranchesItem {
+	return s.Branches
+}
+
+// GetFixed returns the value of Fixed.
+func (s *FindingsPostFindingsIDAppliedOKFixedIn) GetFixed() string {
+	return s.Fixed
+}
+
+// GetKind returns the value of Kind.
+func (s *FindingsPostFindingsIDAppliedOKFixedIn) GetKind() FindingsPostFindingsIDAppliedOKFixedInKind {
+	return s.Kind
+}
+
+// GetMore returns the value of More.
+func (s *FindingsPostFindingsIDAppliedOKFixedIn) GetMore() int {
+	return s.More
+}
+
+// GetSource returns the value of Source.
+func (s *FindingsPostFindingsIDAppliedOKFixedIn) GetSource() string {
+	return s.Source
+}
+
+// GetVersion returns the value of Version.
+func (s *FindingsPostFindingsIDAppliedOKFixedIn) GetVersion() string {
+	return s.Version
+}
+
+// SetBranches sets the value of Branches.
+func (s *FindingsPostFindingsIDAppliedOKFixedIn) SetBranches(val []FindingsPostFindingsIDAppliedOKFixedInBranchesItem) {
+	s.Branches = val
+}
+
+// SetFixed sets the value of Fixed.
+func (s *FindingsPostFindingsIDAppliedOKFixedIn) SetFixed(val string) {
+	s.Fixed = val
+}
+
+// SetKind sets the value of Kind.
+func (s *FindingsPostFindingsIDAppliedOKFixedIn) SetKind(val FindingsPostFindingsIDAppliedOKFixedInKind) {
+	s.Kind = val
+}
+
+// SetMore sets the value of More.
+func (s *FindingsPostFindingsIDAppliedOKFixedIn) SetMore(val int) {
+	s.More = val
+}
+
+// SetSource sets the value of Source.
+func (s *FindingsPostFindingsIDAppliedOKFixedIn) SetSource(val string) {
+	s.Source = val
+}
+
+// SetVersion sets the value of Version.
+func (s *FindingsPostFindingsIDAppliedOKFixedIn) SetVersion(val string) {
+	s.Version = val
+}
+
+type FindingsPostFindingsIDAppliedOKFixedInBranchesItem struct {
+	// Release line such as 7.4; empty when it cannot be told.
+	Branch string `json:"branch"`
+	Fixed  string `json:"fixed"`
+}
+
+// GetBranch returns the value of Branch.
+func (s *FindingsPostFindingsIDAppliedOKFixedInBranchesItem) GetBranch() string {
+	return s.Branch
+}
+
+// GetFixed returns the value of Fixed.
+func (s *FindingsPostFindingsIDAppliedOKFixedInBranchesItem) GetFixed() string {
+	return s.Fixed
+}
+
+// SetBranch sets the value of Branch.
+func (s *FindingsPostFindingsIDAppliedOKFixedInBranchesItem) SetBranch(val string) {
+	s.Branch = val
+}
+
+// SetFixed sets the value of Fixed.
+func (s *FindingsPostFindingsIDAppliedOKFixedInBranchesItem) SetFixed(val string) {
+	s.Fixed = val
+}
+
+// Fixed = the device version is inside a range that ends before `fixed`; up_to = inside a range whose
+// end `fixed` is itself affected (no fixed release named); branches = the version is unknown,
+// `branches` lists the fix of each release line.
+type FindingsPostFindingsIDAppliedOKFixedInKind string
+
+const (
+	FindingsPostFindingsIDAppliedOKFixedInKindFixed    FindingsPostFindingsIDAppliedOKFixedInKind = "fixed"
+	FindingsPostFindingsIDAppliedOKFixedInKindUpTo     FindingsPostFindingsIDAppliedOKFixedInKind = "up_to"
+	FindingsPostFindingsIDAppliedOKFixedInKindBranches FindingsPostFindingsIDAppliedOKFixedInKind = "branches"
+)
+
+// AllValues returns all FindingsPostFindingsIDAppliedOKFixedInKind values.
+func (FindingsPostFindingsIDAppliedOKFixedInKind) AllValues() []FindingsPostFindingsIDAppliedOKFixedInKind {
+	return []FindingsPostFindingsIDAppliedOKFixedInKind{
+		FindingsPostFindingsIDAppliedOKFixedInKindFixed,
+		FindingsPostFindingsIDAppliedOKFixedInKindUpTo,
+		FindingsPostFindingsIDAppliedOKFixedInKindBranches,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDAppliedOKFixedInKind) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDAppliedOKFixedInKindFixed:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKFixedInKindUpTo:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKFixedInKindBranches:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDAppliedOKFixedInKind) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDAppliedOKFixedInKind(data) {
+	case FindingsPostFindingsIDAppliedOKFixedInKindFixed:
+		*s = FindingsPostFindingsIDAppliedOKFixedInKindFixed
+		return nil
+	case FindingsPostFindingsIDAppliedOKFixedInKindUpTo:
+		*s = FindingsPostFindingsIDAppliedOKFixedInKindUpTo
+		return nil
+	case FindingsPostFindingsIDAppliedOKFixedInKindBranches:
+		*s = FindingsPostFindingsIDAppliedOKFixedInKindBranches
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type FindingsPostFindingsIDAppliedOKHistoryItem struct {
@@ -61898,8 +62399,11 @@ type FindingsPostFindingsIDStatusOK struct {
 	Cve        string                                      `json:"cve"`
 	Evidence   NilFindingsPostFindingsIDStatusOKEvidence   `json:"evidence"`
 	FirstSeen  time.Time                                   `json:"first_seen"`
-	History    []FindingsPostFindingsIDStatusOKHistoryItem `json:"history"`
-	ID         string                                      `json:"id"`
+	// The release that fixes this finding on this device, from the NVD affected versions (D-488); null =
+	// NVD gives none, the page shows CISA and the vendor advisory only.
+	FixedIn NilFindingsPostFindingsIDStatusOKFixedIn    `json:"fixed_in"`
+	History []FindingsPostFindingsIDStatusOKHistoryItem `json:"history"`
+	ID      string                                      `json:"id"`
 	// Read from KEV, not from the project recommendation pack.
 	Kev      NilFindingsPostFindingsIDStatusOKKev `json:"kev"`
 	LastSeen time.Time                            `json:"last_seen"`
@@ -61966,6 +62470,11 @@ func (s *FindingsPostFindingsIDStatusOK) GetEvidence() NilFindingsPostFindingsID
 // GetFirstSeen returns the value of FirstSeen.
 func (s *FindingsPostFindingsIDStatusOK) GetFirstSeen() time.Time {
 	return s.FirstSeen
+}
+
+// GetFixedIn returns the value of FixedIn.
+func (s *FindingsPostFindingsIDStatusOK) GetFixedIn() NilFindingsPostFindingsIDStatusOKFixedIn {
+	return s.FixedIn
 }
 
 // GetHistory returns the value of History.
@@ -62076,6 +62585,11 @@ func (s *FindingsPostFindingsIDStatusOK) SetEvidence(val NilFindingsPostFindings
 // SetFirstSeen sets the value of FirstSeen.
 func (s *FindingsPostFindingsIDStatusOK) SetFirstSeen(val time.Time) {
 	s.FirstSeen = val
+}
+
+// SetFixedIn sets the value of FixedIn.
+func (s *FindingsPostFindingsIDStatusOK) SetFixedIn(val NilFindingsPostFindingsIDStatusOKFixedIn) {
+	s.FixedIn = val
 }
 
 // SetHistory sets the value of History.
@@ -63045,6 +63559,160 @@ func (s *FindingsPostFindingsIDStatusOKEvidence) SetSummary(val string) {
 // SetTemplate sets the value of Template.
 func (s *FindingsPostFindingsIDStatusOKEvidence) SetTemplate(val OptString) {
 	s.Template = val
+}
+
+type FindingsPostFindingsIDStatusOKFixedIn struct {
+	// At most 5, newest first.
+	Branches []FindingsPostFindingsIDStatusOKFixedInBranchesItem `json:"branches"`
+	// The fixed release (fixed), the last affected release (up_to); empty for branches.
+	Fixed string `json:"fixed"`
+	// Fixed = the device version is inside a range that ends before `fixed`; up_to = inside a range whose
+	// end `fixed` is itself affected (no fixed release named); branches = the version is unknown,
+	// `branches` lists the fix of each release line.
+	Kind FindingsPostFindingsIDStatusOKFixedInKind `json:"kind"`
+	// Release lines left out of branches.
+	More int `json:"more"`
+	// Where the versions come from: "NVD affected versions".
+	Source string `json:"source"`
+	// The device's version; empty for branches.
+	Version string `json:"version"`
+}
+
+// GetBranches returns the value of Branches.
+func (s *FindingsPostFindingsIDStatusOKFixedIn) GetBranches() []FindingsPostFindingsIDStatusOKFixedInBranchesItem {
+	return s.Branches
+}
+
+// GetFixed returns the value of Fixed.
+func (s *FindingsPostFindingsIDStatusOKFixedIn) GetFixed() string {
+	return s.Fixed
+}
+
+// GetKind returns the value of Kind.
+func (s *FindingsPostFindingsIDStatusOKFixedIn) GetKind() FindingsPostFindingsIDStatusOKFixedInKind {
+	return s.Kind
+}
+
+// GetMore returns the value of More.
+func (s *FindingsPostFindingsIDStatusOKFixedIn) GetMore() int {
+	return s.More
+}
+
+// GetSource returns the value of Source.
+func (s *FindingsPostFindingsIDStatusOKFixedIn) GetSource() string {
+	return s.Source
+}
+
+// GetVersion returns the value of Version.
+func (s *FindingsPostFindingsIDStatusOKFixedIn) GetVersion() string {
+	return s.Version
+}
+
+// SetBranches sets the value of Branches.
+func (s *FindingsPostFindingsIDStatusOKFixedIn) SetBranches(val []FindingsPostFindingsIDStatusOKFixedInBranchesItem) {
+	s.Branches = val
+}
+
+// SetFixed sets the value of Fixed.
+func (s *FindingsPostFindingsIDStatusOKFixedIn) SetFixed(val string) {
+	s.Fixed = val
+}
+
+// SetKind sets the value of Kind.
+func (s *FindingsPostFindingsIDStatusOKFixedIn) SetKind(val FindingsPostFindingsIDStatusOKFixedInKind) {
+	s.Kind = val
+}
+
+// SetMore sets the value of More.
+func (s *FindingsPostFindingsIDStatusOKFixedIn) SetMore(val int) {
+	s.More = val
+}
+
+// SetSource sets the value of Source.
+func (s *FindingsPostFindingsIDStatusOKFixedIn) SetSource(val string) {
+	s.Source = val
+}
+
+// SetVersion sets the value of Version.
+func (s *FindingsPostFindingsIDStatusOKFixedIn) SetVersion(val string) {
+	s.Version = val
+}
+
+type FindingsPostFindingsIDStatusOKFixedInBranchesItem struct {
+	// Release line such as 7.4; empty when it cannot be told.
+	Branch string `json:"branch"`
+	Fixed  string `json:"fixed"`
+}
+
+// GetBranch returns the value of Branch.
+func (s *FindingsPostFindingsIDStatusOKFixedInBranchesItem) GetBranch() string {
+	return s.Branch
+}
+
+// GetFixed returns the value of Fixed.
+func (s *FindingsPostFindingsIDStatusOKFixedInBranchesItem) GetFixed() string {
+	return s.Fixed
+}
+
+// SetBranch sets the value of Branch.
+func (s *FindingsPostFindingsIDStatusOKFixedInBranchesItem) SetBranch(val string) {
+	s.Branch = val
+}
+
+// SetFixed sets the value of Fixed.
+func (s *FindingsPostFindingsIDStatusOKFixedInBranchesItem) SetFixed(val string) {
+	s.Fixed = val
+}
+
+// Fixed = the device version is inside a range that ends before `fixed`; up_to = inside a range whose
+// end `fixed` is itself affected (no fixed release named); branches = the version is unknown,
+// `branches` lists the fix of each release line.
+type FindingsPostFindingsIDStatusOKFixedInKind string
+
+const (
+	FindingsPostFindingsIDStatusOKFixedInKindFixed    FindingsPostFindingsIDStatusOKFixedInKind = "fixed"
+	FindingsPostFindingsIDStatusOKFixedInKindUpTo     FindingsPostFindingsIDStatusOKFixedInKind = "up_to"
+	FindingsPostFindingsIDStatusOKFixedInKindBranches FindingsPostFindingsIDStatusOKFixedInKind = "branches"
+)
+
+// AllValues returns all FindingsPostFindingsIDStatusOKFixedInKind values.
+func (FindingsPostFindingsIDStatusOKFixedInKind) AllValues() []FindingsPostFindingsIDStatusOKFixedInKind {
+	return []FindingsPostFindingsIDStatusOKFixedInKind{
+		FindingsPostFindingsIDStatusOKFixedInKindFixed,
+		FindingsPostFindingsIDStatusOKFixedInKindUpTo,
+		FindingsPostFindingsIDStatusOKFixedInKindBranches,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDStatusOKFixedInKind) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDStatusOKFixedInKindFixed:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKFixedInKindUpTo:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKFixedInKindBranches:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDStatusOKFixedInKind) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDStatusOKFixedInKind(data) {
+	case FindingsPostFindingsIDStatusOKFixedInKindFixed:
+		*s = FindingsPostFindingsIDStatusOKFixedInKindFixed
+		return nil
+	case FindingsPostFindingsIDStatusOKFixedInKindUpTo:
+		*s = FindingsPostFindingsIDStatusOKFixedInKindUpTo
+		return nil
+	case FindingsPostFindingsIDStatusOKFixedInKindBranches:
+		*s = FindingsPostFindingsIDStatusOKFixedInKindBranches
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type FindingsPostFindingsIDStatusOKHistoryItem struct {
@@ -86437,6 +87105,51 @@ func (o NilFindingsGetFindingsIDOKEvidence) Or(d FindingsGetFindingsIDOKEvidence
 	return d
 }
 
+// NewNilFindingsGetFindingsIDOKFixedIn returns new NilFindingsGetFindingsIDOKFixedIn with value set to v.
+func NewNilFindingsGetFindingsIDOKFixedIn(v FindingsGetFindingsIDOKFixedIn) NilFindingsGetFindingsIDOKFixedIn {
+	return NilFindingsGetFindingsIDOKFixedIn{
+		Value: v,
+	}
+}
+
+// NilFindingsGetFindingsIDOKFixedIn is nullable FindingsGetFindingsIDOKFixedIn.
+type NilFindingsGetFindingsIDOKFixedIn struct {
+	Value FindingsGetFindingsIDOKFixedIn
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsGetFindingsIDOKFixedIn) SetTo(v FindingsGetFindingsIDOKFixedIn) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsGetFindingsIDOKFixedIn) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsGetFindingsIDOKFixedIn) SetToNull() {
+	o.Null = true
+	var v FindingsGetFindingsIDOKFixedIn
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsGetFindingsIDOKFixedIn) Get() (v FindingsGetFindingsIDOKFixedIn, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsGetFindingsIDOKFixedIn) Or(d FindingsGetFindingsIDOKFixedIn) FindingsGetFindingsIDOKFixedIn {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilFindingsGetFindingsIDOKKev returns new NilFindingsGetFindingsIDOKKev with value set to v.
 func NewNilFindingsGetFindingsIDOKKev(v FindingsGetFindingsIDOKKev) NilFindingsGetFindingsIDOKKev {
 	return NilFindingsGetFindingsIDOKKev{
@@ -86932,6 +87645,51 @@ func (o NilFindingsPostFindingsIDAiOKEvidence) Or(d FindingsPostFindingsIDAiOKEv
 	return d
 }
 
+// NewNilFindingsPostFindingsIDAiOKFixedIn returns new NilFindingsPostFindingsIDAiOKFixedIn with value set to v.
+func NewNilFindingsPostFindingsIDAiOKFixedIn(v FindingsPostFindingsIDAiOKFixedIn) NilFindingsPostFindingsIDAiOKFixedIn {
+	return NilFindingsPostFindingsIDAiOKFixedIn{
+		Value: v,
+	}
+}
+
+// NilFindingsPostFindingsIDAiOKFixedIn is nullable FindingsPostFindingsIDAiOKFixedIn.
+type NilFindingsPostFindingsIDAiOKFixedIn struct {
+	Value FindingsPostFindingsIDAiOKFixedIn
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsPostFindingsIDAiOKFixedIn) SetTo(v FindingsPostFindingsIDAiOKFixedIn) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsPostFindingsIDAiOKFixedIn) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsPostFindingsIDAiOKFixedIn) SetToNull() {
+	o.Null = true
+	var v FindingsPostFindingsIDAiOKFixedIn
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsPostFindingsIDAiOKFixedIn) Get() (v FindingsPostFindingsIDAiOKFixedIn, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsPostFindingsIDAiOKFixedIn) Or(d FindingsPostFindingsIDAiOKFixedIn) FindingsPostFindingsIDAiOKFixedIn {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilFindingsPostFindingsIDAiOKKev returns new NilFindingsPostFindingsIDAiOKKev with value set to v.
 func NewNilFindingsPostFindingsIDAiOKKev(v FindingsPostFindingsIDAiOKKev) NilFindingsPostFindingsIDAiOKKev {
 	return NilFindingsPostFindingsIDAiOKKev{
@@ -87247,6 +88005,51 @@ func (o NilFindingsPostFindingsIDAppliedOKEvidence) Or(d FindingsPostFindingsIDA
 	return d
 }
 
+// NewNilFindingsPostFindingsIDAppliedOKFixedIn returns new NilFindingsPostFindingsIDAppliedOKFixedIn with value set to v.
+func NewNilFindingsPostFindingsIDAppliedOKFixedIn(v FindingsPostFindingsIDAppliedOKFixedIn) NilFindingsPostFindingsIDAppliedOKFixedIn {
+	return NilFindingsPostFindingsIDAppliedOKFixedIn{
+		Value: v,
+	}
+}
+
+// NilFindingsPostFindingsIDAppliedOKFixedIn is nullable FindingsPostFindingsIDAppliedOKFixedIn.
+type NilFindingsPostFindingsIDAppliedOKFixedIn struct {
+	Value FindingsPostFindingsIDAppliedOKFixedIn
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsPostFindingsIDAppliedOKFixedIn) SetTo(v FindingsPostFindingsIDAppliedOKFixedIn) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsPostFindingsIDAppliedOKFixedIn) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsPostFindingsIDAppliedOKFixedIn) SetToNull() {
+	o.Null = true
+	var v FindingsPostFindingsIDAppliedOKFixedIn
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsPostFindingsIDAppliedOKFixedIn) Get() (v FindingsPostFindingsIDAppliedOKFixedIn, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsPostFindingsIDAppliedOKFixedIn) Or(d FindingsPostFindingsIDAppliedOKFixedIn) FindingsPostFindingsIDAppliedOKFixedIn {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilFindingsPostFindingsIDAppliedOKKev returns new NilFindingsPostFindingsIDAppliedOKKev with value set to v.
 func NewNilFindingsPostFindingsIDAppliedOKKev(v FindingsPostFindingsIDAppliedOKKev) NilFindingsPostFindingsIDAppliedOKKev {
 	return NilFindingsPostFindingsIDAppliedOKKev{
@@ -87556,6 +88359,51 @@ func (o NilFindingsPostFindingsIDStatusOKEvidence) Get() (v FindingsPostFindings
 
 // Or returns value if set, or given parameter if does not.
 func (o NilFindingsPostFindingsIDStatusOKEvidence) Or(d FindingsPostFindingsIDStatusOKEvidence) FindingsPostFindingsIDStatusOKEvidence {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFindingsPostFindingsIDStatusOKFixedIn returns new NilFindingsPostFindingsIDStatusOKFixedIn with value set to v.
+func NewNilFindingsPostFindingsIDStatusOKFixedIn(v FindingsPostFindingsIDStatusOKFixedIn) NilFindingsPostFindingsIDStatusOKFixedIn {
+	return NilFindingsPostFindingsIDStatusOKFixedIn{
+		Value: v,
+	}
+}
+
+// NilFindingsPostFindingsIDStatusOKFixedIn is nullable FindingsPostFindingsIDStatusOKFixedIn.
+type NilFindingsPostFindingsIDStatusOKFixedIn struct {
+	Value FindingsPostFindingsIDStatusOKFixedIn
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsPostFindingsIDStatusOKFixedIn) SetTo(v FindingsPostFindingsIDStatusOKFixedIn) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsPostFindingsIDStatusOKFixedIn) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsPostFindingsIDStatusOKFixedIn) SetToNull() {
+	o.Null = true
+	var v FindingsPostFindingsIDStatusOKFixedIn
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsPostFindingsIDStatusOKFixedIn) Get() (v FindingsPostFindingsIDStatusOKFixedIn, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsPostFindingsIDStatusOKFixedIn) Or(d FindingsPostFindingsIDStatusOKFixedIn) FindingsPostFindingsIDStatusOKFixedIn {
 	if v, ok := o.Get(); ok {
 		return v
 	}

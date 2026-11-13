@@ -2283,6 +2283,16 @@ func (UnimplementedHandler) NotifyPostNotifyHistoryIDResend(ctx context.Context,
 	return r, ht.ErrNotImplemented
 }
 
+// NotifyPostNotifyIncidentsStatus implements notify_post_notify_incidents_status operation.
+//
+// Acknowledge or resolve up to 500 incidents with one note; one audit row per changed incident, all or
+// nothing; resolved incidents keep their state, acknowledging an acknowledged one changes nothing.
+//
+// POST /notify/incidents/status
+func (UnimplementedHandler) NotifyPostNotifyIncidentsStatus(ctx context.Context, req *NotifyPostNotifyIncidentsStatusReq) (r *NotifyPostNotifyIncidentsStatusOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // NotifyPostNotifyTelegramApproversUserIDCode implements notify_post_notify_telegram_approvers_user_id_code operation.
 //
 // Send an approver a new confirm link by the Telegram bot (the old one stops working): only privately

@@ -14,7 +14,7 @@ import { ApiError } from '@/lib/api'
 import { fmtDateTime } from '@/lib/format'
 import { useCan } from '@/lib/session'
 import { useIncident, useSetStatus } from './api'
-import { IncidentStatusChip, MessagePreview, kindKey } from './shared'
+import { IncidentStatusChip, MessagePreview, NotSentFix, kindKey } from './shared'
 import type { IncidentDetail, IncidentStatus, SendRecord } from './types'
 
 const errMsg = (e: unknown) => (e instanceof ApiError ? e.message : String(e))
@@ -56,6 +56,7 @@ function Content() {
   const { t } = useTranslation('notify')
   const { id = '' } = useParams()
   const q = useIncident(id)
+  const admin = useCan('admin') // the fix links open Settings, Alert channels: an admin's page
   return (
     <QueryState query={q}>
       {(d) => {
@@ -89,7 +90,10 @@ function Content() {
             </Section>
             <Section id="sent" title={t('detail.sentTitle')} description={t('detail.sentDescription')}>
               {d.previews.length === 0 ? (
-                <EmptyState title={t('detail.noSendsTitle')} action={<Link to="/settings/channels" className={link}>{t('incidents.setupChannels')}</Link>}>{t('detail.noSendsBody')}</EmptyState>
+                a.not_sent ? (
+                  // D-551: why no channel has it, from the box's decision, and where to fix it
+                  <EmptyState title={a.not_sent.reason === 'queued' || a.not_sent.reason === 'quiet_hours' ? t('detail.notYetTitle') : t('detail.noSendsTitle')} action={<NotSentFix notSent={a.not_sent} admin={admin} />}>{a.not_sent.text}</EmptyState>
+                ) : <EmptyState title={t('detail.noSendsTitle')} action={<Link to="/settings/channels" className={link}>{t('incidents.setupChannels')}</Link>}>{t('detail.noSendsBody')}</EmptyState>
               ) : (
                 <Tabs defaultValue={d.previews[0]!.channel}>
                   <TabsList>{d.previews.map((p) => <TabsTrigger key={p.channel} value={p.channel}>{t(`ch.${p.channel}`)}</TabsTrigger>)}</TabsList>
@@ -98,6 +102,7 @@ function Content() {
               )}
             </Section>
             <Section id="log" title={t('detail.logTitle')}>
+              {a.not_sent?.reason === 'failed' ? <p className="mb-3 flex flex-wrap items-baseline gap-x-3 text-sm">{a.not_sent.text}<NotSentFix notSent={a.not_sent} admin={admin} /></p> : null}
               {a.sends.length ? <DataTable caption={t('detail.logCaption')} data={a.sends} columns={log} initialSort={[{ id: 'time', desc: true }]} /> : <EmptyState title={t('detail.noSendsTitle')} />}
             </Section>
             <Handle d={d} />

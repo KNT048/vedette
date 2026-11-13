@@ -268,6 +268,78 @@ describe('notify: retention is published (D-160, D-215)', () => {
   })
 })
 
+describe('notify: why not sent, bulk acknowledge and resolve (S-ALERT-3, D-551)', () => {
+  it('"Not sent" says why, with the fix link for an admin only; the detail says the same', async () => {
+    const view = renderApp('/incidents')
+    await screen.findByRole('table', { name: 'Incidents' })
+    await userEvent.click(screen.getByRole('button', { name: /^All$/ }))
+    const row = (await screen.findByText('NAS-BACKUP logged a configuration change at night')).closest('tr')!
+    expect(within(row).getByText('Not sent: this incident is low, and your channels only send medium and above.')).toBeInTheDocument()
+    expect(within(row).getByRole('link', { name: 'Change the minimum severity' })).toHaveAttribute('href', '/settings/channels')
+    expect(within(row).queryByText('Not sent')).toBeNull()
+    view.unmount()
+    renderApp('/incidents/in-9', { role: 'viewer' })
+    expect(await screen.findByText('Not sent: this incident is low, and your channels only send medium and above.')).toBeInTheDocument()
+    expect(screen.queryByText(/No channel was on when this incident was raised/)).toBeNull()
+    expect(screen.queryByRole('link', { name: 'Change the minimum severity' })).toBeNull()
+  })
+
+  it('select all shown, Resolve with one note: one audit row per incident, the list empties', async () => {
+    renderApp('/incidents')
+    await screen.findByRole('table', { name: 'Incidents' })
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Select all 4 incidents on this page' }))
+    const bar = screen.getByRole('region', { name: 'Selected incidents' })
+    expect(within(bar).getByText('4 incidents selected')).toBeInTheDocument()
+    await userEvent.click(within(bar).getByRole('button', { name: 'Resolve' }))
+    const dlg = await screen.findByRole('dialog', { name: 'Resolve 4 incidents' })
+    await userEvent.type(within(dlg).getByLabelText('Note (optional)'), 'Pentest by the vendor')
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Resolve 4 incidents' }))
+    expect(await screen.findByText('4 incidents resolved')).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: 'No new incidents' })).toBeInTheDocument()
+    expect(auditStore.get().filter((a) => a.action === 'notify.incident_status')).toHaveLength(4)
+    const { incidents } = await getJson('/notify/incidents') as { incidents: { id: string; status: string; note: string | null }[] }
+    expect(incidents.find((i) => i.id === 'al-5')?.note).toBe("A visitor's phone joined the internal network by mistake. Guest Wi-Fi password changed.")
+    expect(incidents.filter((i) => i.note === 'Pentest by the vendor').map((i) => i.id).sort()).toEqual(['al-4', 'al-6', 'in-7', 'in-8'])
+  })
+
+  it('more than a page: the header box selects the 50 shown, then a banner offers all 60; the bar and the dialog say the real count', async () => {
+    const many = Array.from({ length: 60 }, (_, k) => ({ id: `in-m${k}`, kind: 'log_anomaly', attempt: false, link: '/logs', title: `Log anomaly ${k}`, devices: [], severity: 'medium', what: 'w', action: 'a',
+      first_seen: '2026-11-12T08:00:00.000Z', last_seen: '2026-11-12T08:00:00.000Z', count: 1, status: 'new', handled_by: null, handled_at: null, note: null, sends: [], not_sent: null }))
+    server.use(http.get('*/api/v1/notify/incidents', () => HttpResponse.json({ incidents: many })))
+    renderApp('/incidents')
+    await screen.findByRole('table', { name: 'Incidents' })
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Select all 50 incidents on this page' }))
+    const bar = screen.getByRole('region', { name: 'Selected incidents' })
+    expect(within(bar).getByText('50 incidents selected')).toBeInTheDocument()
+    expect(within(bar).getByText('All 50 incidents on this page are selected.')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Next' })) // another page: no banner about the old one
+    await waitFor(() => expect(within(bar).queryByText('All 50 incidents on this page are selected.')).toBeNull())
+    await userEvent.click(screen.getByRole('button', { name: 'Previous' }))
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Select all 50 incidents on this page' })) // all selected: unselect the page
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Select all 50 incidents on this page' }))
+    expect(within(screen.getByRole('region', { name: 'Selected incidents' })).getByText('All 50 incidents on this page are selected.')).toBeInTheDocument()
+    await userEvent.click(within(screen.getByRole('region', { name: 'Selected incidents' })).getByRole('button', { name: 'Select all 60 matching incidents' }))
+    const bar2 = screen.getByRole('region', { name: 'Selected incidents' })
+    expect(within(bar2).getByText('60 incidents selected')).toBeInTheDocument()
+    expect(within(bar2).getByText('All 60 matching incidents are selected.')).toBeInTheDocument()
+    await userEvent.click(within(bar2).getByRole('button', { name: 'Resolve' }))
+    expect(await screen.findByRole('dialog', { name: 'Resolve 60 incidents' })).toBeInTheDocument()
+  })
+
+  it('Acknowledge leaves an acknowledged one as it is and the toast says so; a viewer has no selection', async () => {
+    const view = renderApp('/incidents')
+    await screen.findByRole('table', { name: 'Incidents' })
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Select all 4 incidents on this page' }))
+    await userEvent.click(within(screen.getByRole('region', { name: 'Selected incidents' })).getByRole('button', { name: 'Acknowledge' }))
+    await userEvent.click(within(await screen.findByRole('dialog', { name: 'Acknowledge 4 incidents' })).getByRole('button', { name: 'Acknowledge 4 incidents' }))
+    expect(await screen.findByText('3 incidents acknowledged. 1 was already acknowledged.')).toBeInTheDocument()
+    view.unmount()
+    renderApp('/incidents', { role: 'viewer' })
+    await screen.findByRole('table', { name: 'Incidents' })
+    expect(screen.queryByRole('checkbox')).toBeNull()
+  })
+})
+
 describe('notify: alert channels (S-NOT-1)', () => {
   it('lists 6 channels with their status, no a11y violations', async () => {
     renderChannels()

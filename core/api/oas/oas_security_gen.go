@@ -255,6 +255,7 @@ var operationRolesSession = map[string][]string{
 	NotifyPostNotifyEmailSigninOperation:                    []string{},
 	NotifyPostNotifyEmailSigninIDOperation:                  []string{},
 	NotifyPostNotifyHistoryIDResendOperation:                []string{},
+	NotifyPostNotifyIncidentsStatusOperation:                []string{},
 	NotifyPostNotifyTelegramApproversUserIDCodeOperation:    []string{},
 	NotifyPostNotifyTelegramChatsOperation:                  []string{},
 	NotifyPostNotifyZaloApproversUserIDCodeOperation:        []string{},

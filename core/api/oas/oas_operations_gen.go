@@ -244,6 +244,7 @@ const (
 	NotifyPostNotifyEmailSigninOperation                    OperationName = "NotifyPostNotifyEmailSignin"
 	NotifyPostNotifyEmailSigninIDOperation                  OperationName = "NotifyPostNotifyEmailSigninID"
 	NotifyPostNotifyHistoryIDResendOperation                OperationName = "NotifyPostNotifyHistoryIDResend"
+	NotifyPostNotifyIncidentsStatusOperation                OperationName = "NotifyPostNotifyIncidentsStatus"
 	NotifyPostNotifyTelegramApproversUserIDCodeOperation    OperationName = "NotifyPostNotifyTelegramApproversUserIDCode"
 	NotifyPostNotifyTelegramChatsOperation                  OperationName = "NotifyPostNotifyTelegramChats"
 	NotifyPostNotifyZaloApproversUserIDCodeOperation        OperationName = "NotifyPostNotifyZaloApproversUserIDCode"

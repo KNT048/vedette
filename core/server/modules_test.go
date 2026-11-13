@@ -274,6 +274,7 @@ var contractRoutes = map[string][]string{
 		"POST /notify/email-signin",
 		"POST /notify/email-signin/{id}",
 		"POST /notify/history/{id}/resend",
+		"POST /notify/incidents/status",
 		"POST /notify/telegram/approvers/{user_id}/code",
 		"POST /notify/telegram/chats",
 		"POST /notify/zalo/approvers/{user_id}/code",

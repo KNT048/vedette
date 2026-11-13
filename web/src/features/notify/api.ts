@@ -14,6 +14,9 @@ function useInvalidating<V, R>(fn: (v: V) => Promise<R>) {
   return useMutation({ mutationFn: fn, onSuccess: () => { void qc.invalidateQueries({ queryKey: ['notify'] }) } })
 }
 
+/** Acknowledge or resolve many incidents with one note (INV-25, D-551). */
+export const useBulkIncidents = () => useInvalidating((v: { ids: string[]; status: 'acknowledged' | 'resolved'; note?: string }) =>
+  api.post<{ updated: number; already_resolved: number; already_acknowledged: number }>('/notify/incidents/status', v))
 export const useSetStatus = () => useInvalidating(({ id, status, note }: { id: string; status: IncidentStatus; note?: string }) => api.patch<IncidentDetail>(`/notify/incidents/${encodeURIComponent(id)}`, { status, note }))
 export const useResend = () => useInvalidating((id: string) => api.post<HistoryItem>(`/notify/history/${encodeURIComponent(id)}/resend`))
 export const useSaveChannel = () => useInvalidating(({ type, ...v }: ChannelInput & { type: ChannelType }) => api.put<Channel>(`/notify/channels/${type}`, v))

@@ -355,7 +355,7 @@ func TestLogInvestigateAtMaxChecksPointsWithReadTools(t *testing.T) {
 	a.logs.set(someDigest())
 	a.logs.around = ai.LogAroundData{Lines: 1240, Kinds: []ai.LogAroundKind{{Signature: "sshd: Failed password for invalid user <*> from <ip> port <n>", SourceName: "FW-HQ", Count: 1240}}}
 	a.addProfile(cloudBody("Claude", keyA))
-	a.want("PUT", "/ai/config", "admin", `{"tier":"max","daily_cap":1000000,"redact_pii":true}`, 200, "")
+	a.want("PUT", "/ai/config", "admin", `{"tier":"max","monthly_budget":1000000,"redact_pii":true}`, 200, "")
 	a.fake.play(turn{calls: []provider.ToolCall{call("events_around", `{"ip":"::ffff:203.0.113.9","minutes":60}`)}}, turn{text: "```json\n" + goodDigest + "\n```"})
 	d := digestOf(t, a.digest("POST", "operator", 200, ""))
 	calls := d["tool_calls"].([]any)

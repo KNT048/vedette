@@ -84,7 +84,8 @@ const verifyEvery = 24 * time.Hour
 
 // Jobs are the scheduled jobs of the module. "activity-prune" is offered only when core's ChainPruner is wired; it only deletes rows
 // past the retention, so it is housekeeping (D-160) and keeps its timer while the module is off. "activity-verify" is offered only
-// when Alert is wired; it calls out to notify, so it is no housekeeping and runs only while the module is on.
+// when Alert is wired, and so is "budget-watch" (D-531); they call out to notify, so they are no housekeeping and run only while the
+// module is on.
 func (s *Service) Jobs() []jobs.Job {
 	var out []jobs.Job
 	if s.cfg.ChainPruner != nil {
@@ -96,7 +97,7 @@ func (s *Service) Jobs() []jobs.Job {
 	if s.cfg.Alert != nil {
 		out = append(out, jobs.Job{Module: "ai", Name: "activity-verify", Every: verifyEvery, Run: s.verifyAndAlert})
 	}
-	return out
+	return append(out, s.budgetJobs()...)
 }
 
 // verifyAndAlert checks the chain (INV-18) and, when it is broken, raises one incident notice (S-AI-8, D-430). The text names the
@@ -123,7 +124,7 @@ func (s *Service) verifyAndAlert(ctx context.Context) error {
 	if res.EntryID == "" {
 		text = fmt.Sprintf("The hash chain of the AI activity log does not match what the box recorded (%d rows). Rows at the end of the log may have been removed. Open AI, Activity and use Verify to see it.", res.Count)
 	}
-	if err := s.cfg.Alert(ctx, "ai-activity-chain-"+key, "The AI activity log failed its check", text); err != nil {
+	if err := s.cfg.Alert(ctx, "ai-activity-chain-"+key, "The AI activity log failed its check", text, true); err != nil {
 		return fmt.Errorf("ai: raise the broken chain: %w", err)
 	}
 	s.alerted.Store(&key)

@@ -176,22 +176,22 @@ func TestTheRowSaysTheAnswerWasAskedAgain(t *testing.T) {
 	}
 }
 
-// The shared daily cap leaves no room for the second request of a cut answer: the person reads the cap, not "cut off", and the row
+// The shared monthly budget leaves no room for the second request of a cut answer: the person reads the cap, not "cut off", and the row
 // keeps the tokens of the first request.
 func TestARetryTheSharedCapStopsSaysTheCap(t *testing.T) {
 	a := newAPI(t)
 	a.withProfile()
-	a.want("PUT", "/ai/config", "admin", `{"tier":"min","daily_cap":1000,"redact_pii":true}`, 200, "")
+	a.want("PUT", "/ai/config", "admin", `{"tier":"min","monthly_budget":1000,"redact_pii":true}`, 200, "")
 	a.fake.cutNext(1) // the cut answer reports 6,000 tokens out: the cap is used up when the retry asks for its share
-	m := a.explain("CVE-2022-27593", 429, "daily_cap")
-	if msg := m["error"].(map[string]any)["message"].(string); !strings.Contains(msg, "cut off at the output limit (6,000 tokens), and today's 1,000 token cap is used up") {
+	m := a.explain("CVE-2022-27593", 429, "budget_reached")
+	if msg := m["error"].(map[string]any)["message"].(string); !strings.Contains(msg, "cut off at the output limit (6,000 tokens) and was not asked again, because this month's AI budget of 1,000 tokens is used up") {
 		t.Fatalf("message = %q", msg)
 	}
 	if l := a.jobLimits(); len(l) != 1 {
 		t.Fatalf("limits sent = %v: the retry must not be sent", l)
 	}
 	last := lastOf(a.activity())
-	if last.TokensOut != 6000 || !strings.Contains(last.Summary, "token cap left no room") || lastOf(a.stops()) != "max_tokens" || lastOf(a.retried()) {
+	if last.TokensOut != 6000 || !strings.Contains(last.Summary, "AI budget left no room") || lastOf(a.stops()) != "max_tokens" || lastOf(a.retried()) {
 		t.Fatalf("row = %+v", last.ActivityEntry)
 	}
 }
@@ -199,11 +199,11 @@ func TestARetryTheSharedCapStopsSaysTheCap(t *testing.T) {
 // The profile's own cap leaves no room for the retry: the same, with the profile named.
 func TestARetryTheProfileCapStopsSaysTheProfileCap(t *testing.T) {
 	a := newAPI(t)
-	a.addProfile(strings.Replace(cloudBody("Claude", keyA), `"daily_cap":60000`, `"daily_cap":1000`, 1))
+	a.addProfile(strings.Replace(cloudBody("Claude", keyA), `"monthly_budget":60000`, `"monthly_budget":1000`, 1))
 	a.fake.setAnswer(goodExplain)
 	a.fake.cutNext(1)
-	m := a.explain("CVE-2022-27593", 429, "daily_cap")
-	if msg := m["error"].(map[string]any)["message"].(string); !strings.Contains(msg, "the daily token cap of the profile Claude is used up") {
+	m := a.explain("CVE-2022-27593", 429, "budget_reached")
+	if msg := m["error"].(map[string]any)["message"].(string); !strings.Contains(msg, "the monthly budget of the profile Claude is used up") {
 		t.Fatalf("message = %q", msg)
 	}
 	if l := a.jobLimits(); len(l) != 1 {

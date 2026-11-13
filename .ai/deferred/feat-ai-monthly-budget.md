@@ -1,0 +1,5 @@
+# Deferred — feat/ai-monthly-budget (D-531, kien beta item 23)
+
+- [ ] Open — modules/ai (Mlee): the budget never lowers the level now, so `Reservation.Settle`/`Meter.Record` always return nil `*Downgrade`; the writers that follow (`writeDowngrade` in run.go/profiles.go, `CallResult.Downgrade`, `firstDowngrade`, `AskResult.downgraded`) are kept only so this PR stays inside the meter; the readers of old `ai_downgrade` rows (Usage history) stay. Remove the dead writers in an ai-owned PR.
+- [ ] Open — web mock: the runaway fuse (429 `rate_limited`, 30 calls/minute/job) is not emulated in `web/src/features/ai/mocks.ts`; nothing in the GUI drives 30 calls a minute, so the mock answers as before. Add it if a screen ever needs to show the fuse.
+- [ ] Open — N100: check on the real box after deploy (Settings → AI budget line and per-profile "Used this month", Home banner at 80 %/100 % with a small budget, alert channel message, `ai.fuse` audit label). Not run here (no SSH/deploy from a subagent).

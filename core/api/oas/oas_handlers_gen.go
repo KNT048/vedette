@@ -1534,7 +1534,7 @@ func (s *Server) handleAiGetAiAssignmentsSuggestionRequest(args [0]string, argsE
 
 // handleAiGetAiConfigRequest handles ai_get_ai_config operation.
 //
-// Usage tier, shared token cap, PII redaction; which jobs are ready.
+// Usage tier, shared monthly budget and this month's use, PII redaction; which jobs are ready.
 //
 // GET /ai/config
 func (s *Server) handleAiGetAiConfigRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -1603,7 +1603,7 @@ func (s *Server) handleAiGetAiConfigRequest(args [0]string, argsEscaped bool, w 
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    AiGetAiConfigOperation,
-			OperationSummary: "Usage tier, shared token cap, PII redaction; which jobs are ready",
+			OperationSummary: "Usage tier, shared monthly budget and this month's use, PII redaction; which jobs are ready",
 			OperationID:      "ai_get_ai_config",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -2809,7 +2809,7 @@ func (s *Server) handleAiGetAiSkillsRequest(args [0]string, argsEscaped bool, w 
 
 // handleAiGetAiUsageRequest handles ai_get_ai_usage operation.
 //
-// Token meter: today, 30 days, per job, tier downgrades.
+// Token meter: today, this month, per job this month, earlier tier downgrades.
 //
 // GET /ai/usage
 func (s *Server) handleAiGetAiUsageRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -2878,7 +2878,7 @@ func (s *Server) handleAiGetAiUsageRequest(args [0]string, argsEscaped bool, w h
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    AiGetAiUsageOperation,
-			OperationSummary: "Token meter: today, 30 days, per job, tier downgrades",
+			OperationSummary: "Token meter: today, this month, per job this month, earlier tier downgrades",
 			OperationID:      "ai_get_ai_usage",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -5036,7 +5036,7 @@ func (s *Server) handleAiPutAiAssignmentsRequest(args [0]string, argsEscaped boo
 
 // handleAiPutAiConfigRequest handles ai_put_ai_config operation.
 //
-// Save token tier, shared cap and PII redaction.
+// Save token tier, shared monthly budget and PII redaction.
 //
 // PUT /ai/config
 func (s *Server) handleAiPutAiConfigRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -5120,7 +5120,7 @@ func (s *Server) handleAiPutAiConfigRequest(args [0]string, argsEscaped bool, w 
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    AiPutAiConfigOperation,
-			OperationSummary: "Save token tier, shared cap and PII redaction",
+			OperationSummary: "Save token tier, shared monthly budget and PII redaction",
 			OperationID:      "ai_put_ai_config",
 			Body:             request,
 			RawBody:          rawBody,

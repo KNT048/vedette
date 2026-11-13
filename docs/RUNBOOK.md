@@ -203,7 +203,7 @@ Kiểm theo thứ tự, từ rẻ đến đắt:
 2. `scan` (nuclei/nmap) đang chạy: trang "Vulnerability scans" (`/scans`) → "Stop now"; giảm "Speed" (tab "Schedule and safety"); dời vào cửa sổ giờ.
 3. `sensor` trên SPAN lưu lượng lớn: thêm "Exclusions", bớt mục ở "What Vedette reads" (Box network).
 4. `logs`: nhận syslog quá nhanh từ một nguồn: kiểm nguồn gửi vòng lặp (mỗi nguồn bị giới hạn tốc độ; dòng của nguồn chưa khai báo bị bỏ và đếm); `logs.db` có người ghi riêng, chạy dọn theo khúc 10.000 dòng; vượt trần 4 GiB thì dọn dòng cũ nhất tới 90%.
-5. `ai`: các lượt gọi nhà cung cấp theo trần token (`daily_cap`), xem nhật ký hoạt động. Ngay sau "Delete all data", lần khởi động kế nén CSDL (`VACUUM`) nên tốn CPU và đĩa vài phút.
+5. `ai`: các lượt gọi nhà cung cấp theo ngân sách token tháng (`monthly_budget`, D-531), xem nhật ký hoạt động. Ngay sau "Delete all data", lần khởi động kế nén CSDL (`VACUUM`) nên tốn CPU và đĩa vài phút.
 - Tắt module không cần (Settings → Modules: tắt = không route, không job, dữ liệu giữ nguyên) là cách giảm tải an toàn nhất; vài job dọn theo thời hạn lưu vẫn chạy khi tắt (§10).
 - **Xác minh:** `podman stats --no-stream` dưới ngưỡng bạn đặt; Settings → Modules đúng module bật; trang Scans không còn lượt chạy.
 

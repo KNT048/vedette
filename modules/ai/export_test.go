@@ -50,3 +50,12 @@ func (s *Service) NewsCallsFor(cve string) int {
 	}
 	return 0
 }
+
+// HoldBudget holds tokens of the shared budget as a call in flight would, and returns the function that gives them back.
+func (s *Service) HoldBudget(tokens int) (release func()) {
+	r, err := s.meter.Reserve("test-hold", MaxMonthlyBudget, tokens)
+	if err != nil {
+		panic(err)
+	}
+	return r.Cancel
+}

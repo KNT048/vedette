@@ -18,6 +18,7 @@ import { useAnswerWeekly, useFeedStatus, useHot, useWeekly } from './api'
 import { YouHaveCell } from './YouHaveCell'
 import { TwoStepPrompt } from '@/features/core/TwoStepPrompt'
 import { AlertChannelPrompt } from '@/features/core/AlertChannelPrompt'
+import { AiBudgetPrompt } from '@/features/ai/Budget'
 import type { HotRow } from './types'
 
 function SearchBox() {
@@ -172,6 +173,7 @@ export default function HomePage() {
         meta={never ? t('home.metaNone') : status.data ? <>{t('home.meta', { time: fmtStamp(status.data.generated_at), sources: status.data.sources.map((s) => s.name).join(', ') })}{setup.data?.data_mode === 'sample' ? ` ${t('home.sampleInventory')}` : ''}</> : null}
         actions={<SearchBox />}
       />
+      <AiBudgetPrompt />
       <AlertChannelPrompt />
       <TwoStepPrompt />
       {matched > 0 ? (

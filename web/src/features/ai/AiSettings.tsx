@@ -13,11 +13,12 @@ import { Dialog, DialogClose, DialogContent, DialogFooter } from '@/components/u
 import { Field, Input, Label, Select } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import { ApiError } from '@/lib/api'
-import { fmtDateTime, fmtNumber } from '@/lib/format'
+import { fmtDate, fmtDateTime, fmtNumber } from '@/lib/format'
 import { useInstallKind } from '@/lib/modules'
 import { useCan } from '@/lib/session'
 import { fetchSuggestion, useActivitySettings, useAiConfig, useAssignments, useProfiles, useRemoveProfile, useSaveActivitySettings, useSaveAssignments, useSaveConfig, useSaveProfile, useTestProfile } from './api'
 import { ActionError } from './parts'
+import { BudgetUse, budgetPct } from './Budget'
 import type { AiConfigView, AiJob, AiProfile, AiTier, ApiStyle, Assignments, ProfileInput, ProfileKind, TestResult } from './types'
 
 const RulesTab = lazy(() => import('./harness/RulesTab'))
@@ -90,7 +91,7 @@ function ProfilesTab({ cfg }: { cfg: AiConfigView }) {
       <Flow profiles={profiles.data?.items ?? []} />
       <QueryState query={profiles}>{(p) => <ProfilesSection profiles={p.items} assign={assign.data} />}</QueryState>
       <QueryState query={assign}>{(a) => <AssignSection key={JSON.stringify(a)} profiles={profiles.data?.items ?? []} assign={a} />}</QueryState>
-      <TierForm key={`${cfg.tier}|${cfg.daily_cap}|${cfg.redact_pii}`} cfg={cfg} />
+      <TierForm key={`${cfg.tier}|${cfg.monthly_budget}|${cfg.redact_pii}`} cfg={cfg} />
       <RetentionForm />
     </>
   )
@@ -150,7 +151,7 @@ function ProfilesSection({ profiles, assign }: { profiles: AiProfile[]; assign: 
             <div className="grid gap-1.5 text-sm">
               <p className="flex flex-wrap items-center gap-2 font-medium">{p.name} {loc(p)}</p>
               <p className="text-muted">{t(`profiles.kind.${p.kind}`)}, {p.model}</p>
-              <p className="text-muted">{keyText(p)}. {t('profiles.usage', { used: fmtNumber(p.used_today), cap: fmtNumber(p.daily_cap) })}</p>
+              <p className="text-muted">{keyText(p)}. {t('profiles.col.usage')}: <BudgetUse used={p.used_month} budget={p.monthly_budget} /></p>
               <p>{lastTest(p)}</p>
               {Actions(p)}
             </div>
@@ -161,7 +162,7 @@ function ProfilesSection({ profiles, assign }: { profiles: AiProfile[]; assign: 
             { id: 'model', header: t('profiles.col.model'), accessorKey: 'model', cell: ({ row }: { row: { original: AiProfile } }) => <span className="whitespace-nowrap">{row.original.model}</span> },
             { id: 'key', header: t('profiles.col.key'), accessorFn: keyText },
             { id: 'lastTest', header: t('profiles.col.lastTest'), enableSorting: false, cell: ({ row }: { row: { original: AiProfile } }) => lastTest(row.original) },
-            { id: 'cap', header: t('profiles.col.usage'), accessorKey: 'used_today', cell: ({ row }: { row: { original: AiProfile } }) => t('profiles.usage', { used: fmtNumber(row.original.used_today), cap: fmtNumber(row.original.daily_cap) }) },
+            { id: 'cap', header: t('profiles.col.usage'), accessorKey: 'used_month', cell: ({ row }: { row: { original: AiProfile } }) => <BudgetUse used={row.original.used_month} budget={row.original.monthly_budget} /> },
             { id: 'actions', header: t('profiles.col.actions'), enableSorting: false, cell: ({ row }: { row: { original: AiProfile } }) => Actions(row.original) },
           ]} />
       )}
@@ -194,7 +195,7 @@ function ProfileDialog({ profile, existing, onClose }: { profile: AiProfile | nu
   const [model, setModel] = useState(profile?.model ?? DEFAULTS[first].model)
   const [key, setKey] = useState('')
   const [location, setLocation] = useState<'internal' | 'cloud'>(profile?.location ?? DEFAULTS[first].location)
-  const [cap, setCap] = useState(String(profile?.daily_cap ?? 200000))
+  const [cap, setCap] = useState(String(profile?.monthly_budget ?? 6_000_000))
   const [ack, setAck] = useState(false)
   const [errs, setErrs] = useState<Errs>({})
   const cloudOnly = kind !== 'openai-compatible' && kind !== 'custom'
@@ -231,7 +232,7 @@ function ProfileDialog({ profile, existing, onClose }: { profile: AiProfile | nu
     if (d.location === 'internal' && name === d.name) setName('')
     if (d.location === 'internal' && baseUrl === d.base_url) setBaseUrl('')
   }
-  const input = (): ProfileInput => ({ id: profile?.id, name: name.trim(), kind, api_style: style, base_url: baseUrl.trim(), model: model.trim(), api_key: key || undefined, location, daily_cap: Number(cap) })
+  const input = (): ProfileInput => ({ id: profile?.id, name: name.trim(), kind, api_style: style, base_url: baseUrl.trim(), model: model.trim(), api_key: key || undefined, location, monthly_budget: Number(cap) })
 
   function validate(forTest: boolean): boolean {
     const n: Errs = {}
@@ -246,7 +247,7 @@ function ProfileDialog({ profile, existing, onClose }: { profile: AiProfile | nu
     if (key === '' && location === 'cloud' && moved) n.key = t('profiles.err.keyMoved')
     else if (key === '' && location === 'cloud' && !hadKey) n.key = t('profiles.err.keyRequired')
     else if (key !== '' && (key.length < 8 || /\s/.test(key))) n.key = t('profiles.err.keyShape')
-    if (!forTest) { const c = Number(cap); if (!Number.isInteger(c) || c < 1000 || c > 5_000_000) n.cap = t('profiles.err.cap') }
+    if (!forTest) { const c = Number(cap); if (!Number.isInteger(c) || c < 1000 || c > 150_000_000) n.cap = t('profiles.err.cap') }
     setErrs(n)
     return Object.keys(n).length === 0
   }
@@ -302,7 +303,7 @@ function ProfileDialog({ profile, existing, onClose }: { profile: AiProfile | nu
               {cloudOnly ? <p className="text-[13px] text-muted">{t('profiles.f.cloudOnly')}</p> : null}
             </div>
             <Field label={t('profiles.f.cap')} htmlFor="pf-cap" hint={t('profiles.f.capHint')} error={err('cap')} className="sm:col-span-2">
-              <Input id="pf-cap" type="number" min={1000} max={5000000} step={1000} value={cap} onChange={(e) => { setCap(e.target.value); upd('cap') }} {...aria('cap', true)} />
+              <Input id="pf-cap" type="number" min={1000} max={150000000} step={1000} value={cap} onChange={(e) => { setCap(e.target.value); upd('cap') }} {...aria('cap', true)} />
             </Field>
           </div>
           {needAck ? (
@@ -452,13 +453,13 @@ function AssignSection({ profiles, assign }: { profiles: AiProfile[]; assign: As
   )
 }
 
-// ---------- Mức dùng token, trần chung, che thông tin cá nhân
+// ---------- Mức dùng token, ngân sách tháng chung (D-531), che thông tin cá nhân
 function TierForm({ cfg }: { cfg: AiConfigView }) {
   const { t } = useTranslation('ai')
   const admin = useCan('admin')
   const save = useSaveConfig()
   const [tier, setTier] = useState<AiTier>(cfg.tier)
-  const [cap, setCap] = useState(String(cfg.daily_cap))
+  const [cap, setCap] = useState(String(cfg.monthly_budget))
   const [redact, setRedact] = useState(cfg.redact_pii)
   const [capErr, setCapErr] = useState('')
   const reason = admin ? undefined : t('common:needRole', { role: t('common:role.admin') })
@@ -466,11 +467,12 @@ function TierForm({ cfg }: { cfg: AiConfigView }) {
   function submit(e: React.FormEvent) {
     e.preventDefault()
     const c = Number(cap)
-    if (!Number.isInteger(c) || c < 1000 || c > 5_000_000) { setCapErr(t('settings.err.cap')); return }
+    if (!Number.isInteger(c) || c < 1000 || c > 150_000_000) { setCapErr(t('settings.err.cap')); return }
     setCapErr('')
-    save.mutate({ tier, daily_cap: c, redact_pii: redact }, { onSuccess: () => toast.success(t('settings.saved')) })
+    save.mutate({ tier, monthly_budget: c, redact_pii: redact }, { onSuccess: () => toast.success(t('settings.saved')) })
   }
   const err = capErr || serverCap
+  const pct = budgetPct(cfg.month_used, cfg.monthly_budget)
   return (
     <form onSubmit={submit} noValidate aria-label={t('settings.tier.title')}>
       <Section title={t('settings.tier.title')} description={t('settings.tier.intro')} stories={['S-AI-4']}>
@@ -481,14 +483,18 @@ function TierForm({ cfg }: { cfg: AiConfigView }) {
               <div className="grid gap-0.5">
                 <Label htmlFor={`ai-tier-${k}`}>{t(`settings.tier.${k}.name`)}</Label>
                 <p className="text-[13px] text-muted">{t(`settings.tier.${k}.sends`)}</p>
-                <p className="text-[13px] text-muted">{cfg.tier_estimates[k] ? t('settings.tier.estimate', { n: fmtNumber(cfg.tier_estimates[k]) }) : t('settings.tier.estimateMax')}</p>
+                <p className="text-[13px] text-muted">{cfg.tier_estimates[k] ? t('settings.tier.estimate', { n: fmtNumber(cfg.tier_estimates[k]), month: fmtNumber(cfg.tier_estimates[k]! * 30) }) : t('settings.tier.estimateMax')}</p>
               </div>
             </div>
           ))}
         </RadioGroup>
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <Field label={t('settings.cap')} htmlFor="ai-cap" hint={t('settings.capHint')} error={err || undefined}>
-            <Input id="ai-cap" type="number" min={1000} max={5000000} step={1000} value={cap} onChange={(e) => { setCap(e.target.value); setCapErr('') }} disabled={!admin} aria-invalid={err ? true : undefined} aria-describedby={err ? 'ai-cap-error' : 'ai-cap-hint'} />
+            <Input id="ai-cap" type="number" min={1000} max={150000000} step={1000} value={cap} onChange={(e) => { setCap(e.target.value); setCapErr('') }} disabled={!admin} aria-invalid={err ? true : undefined} aria-describedby={err ? 'ai-cap-error' : 'ai-cap-hint'} />
+            <p className="text-[13px]">{t('settings.budgetNow')}{' '}
+              <BudgetUse used={cfg.month_used} budget={cfg.monthly_budget} />{' '}<span className="text-muted">{t('settings.budgetRenews', { date: fmtDate(cfg.renews_on) })}</span>
+            </p>
+            {pct >= 80 ? <p role="status" className={`text-[13px] ${pct >= 100 ? 'text-danger' : 'text-warn'}`}>{pct >= 100 ? t('settings.budgetStop', { date: fmtDate(cfg.renews_on) }) : t('settings.budgetWarn')}</p> : null}
           </Field>
           <div className="flex items-start gap-3 pt-6">
             <Switch id="ai-redact" checked={redact} onCheckedChange={setRedact} disabled={!admin} />

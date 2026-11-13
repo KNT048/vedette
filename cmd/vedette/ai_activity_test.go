@@ -61,7 +61,7 @@ func TestAIActivityPruneEndToEnd(t *testing.T) {
 		for _, j := range w.Jobs(*s.d) {
 			names[j.Name] = true
 			switch {
-			case j.Module != "ai" || (j.Name != "activity-prune" && j.Name != "activity-verify"):
+			case j.Module != "ai" || (j.Name != "activity-prune" && j.Name != "activity-verify" && j.Name != "budget-watch"):
 				t.Fatalf("unexpected ai job %+v", j)
 			case j.Name == "activity-prune":
 				job = j.Run
@@ -69,6 +69,9 @@ func TestAIActivityPruneEndToEnd(t *testing.T) {
 		}
 		if !names["activity-verify"] { // D-430: the daily check of the chain raises a notify incident
 			t.Fatal("no activity-verify job: a broken chain is never reported")
+		}
+		if !names["budget-watch"] { // D-531: 80 % and 100 % of a monthly AI budget reach the alert channels
+			t.Fatal("no budget-watch job: a used-up AI budget is never reported")
 		}
 	}
 	if job == nil {

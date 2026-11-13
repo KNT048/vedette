@@ -19,13 +19,13 @@ import (
 // the planner of rules. The AI has no write tool here and no way to reach a device: a plan is text for people plus proposals, and a
 // proposal becomes a request only when a person asks for it (RequestProposal) and the request is approved (INV-14e, FORBID-5).
 
-// ErrPlanUnavailable is what a Planner answers when the AI cannot be used now (no usable profile, daily cap). The job stops quietly:
-// nothing is wrong, and nothing was spent.
+// ErrPlanUnavailable is what a Planner answers when the AI cannot be used now (no usable profile, or this month's AI budget is used up).
+// The run stops: nothing is wrong here, nothing was spent, and a used-up budget is not quiet: the ai module puts it on Home and sends it
+// to the alert channels (D-531).
 var ErrPlanUnavailable = errors.New("response: the AI cannot make plans now")
 
 const (
-	maxPlansPerRun  = 3               // plans asked for in one run of the job: a backlog is worked off over several runs, never in one burst of tokens
-	maxPlanCallsDay = 20              // plan calls in one UTC day: the daily AI cap is shared with Explain, Ask and the reports (D-181)
+	maxPlansPerRun  = 3               // plans asked for in one run of the job: a backlog is worked off over several runs, never in one burst of tokens; with planEvery this is the job's burst fuse, not a quota (D-531: no daily cap of its own, the monthly AI budget is the limit)
 	planEvery       = 5 * time.Minute // how often the job looks
 	maxPlanSteps    = 6               // steps in a plan
 	maxPlanActions  = 3               // steps of a plan that carry a proposal
@@ -132,7 +132,7 @@ func (s *Service) PlanOpen(ctx context.Context) (int, error) {
 		if have[t.FindingID] || s.backedOff(t.FindingID) {
 			continue
 		}
-		if asked >= maxPlansPerRun || !s.planCall(false) {
+		if asked >= maxPlansPerRun {
 			break
 		}
 		if actions == nil {
@@ -149,7 +149,6 @@ func (s *Service) PlanOpen(ctx context.Context) (int, error) {
 			}
 		}
 		asked++
-		s.planCall(true)
 		d, err := s.cfg.Planner.Plan(ctx, PlanAsk{Target: t, Actions: offeredFor(actions, t)})
 		if errors.Is(err, ErrPlanUnavailable) {
 			return saved, nil
@@ -247,8 +246,8 @@ func (s *Service) citedReads(ctx context.Context, ids []string, offered []AIActi
 }
 
 // planBackoff is how long a finding waits after its 1st, 2nd and 3rd failed or refused plan; after the 4th it is not asked again.
-// ponytail: the counters live in memory, so a restart starts them again (the shared daily cap of the ai module bounds what that can
-// cost); a table is the upgrade if restarts turn out to be frequent.
+// ponytail: the counters live in memory, so a restart starts them again (the monthly AI budget and the runaway fuse of the ai module
+// bound what that can cost, D-531); a table is the upgrade if restarts turn out to be frequent.
 // planEvidenceRE is the form of the id of a read the AI cites (the ai module's ids); Propose looks every one up again.
 var planEvidenceRE = regexp.MustCompile(`^[A-Za-z0-9_.-]{1,96}$`)
 
@@ -277,23 +276,6 @@ func (s *Service) planFailed(id string) {
 	}
 	f := s.planFails[id]
 	s.planFails[id] = planAttempt{n: f.n + 1, at: s.now()}
-}
-
-// planCall says whether another plan call fits today's budget; count=true also counts one.
-func (s *Service) planCall(count bool) bool {
-	s.limitMu.Lock()
-	defer s.limitMu.Unlock()
-	day := s.now().UTC().Format("2006-01-02")
-	if s.planDay != day {
-		s.planDay, s.planCalls = day, 0
-	}
-	if s.planCalls >= maxPlanCallsDay {
-		return false
-	}
-	if count {
-		s.planCalls++
-	}
-	return true
 }
 
 // savePlan checks the draft and, if it passes, stores it; if not, nothing is stored and the refusal is written to the log and the audit

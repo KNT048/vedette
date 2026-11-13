@@ -143,16 +143,18 @@ func (s *Service) Suggestion(internalOnly bool) AssignmentsView {
 type ConfigView struct {
 	Configured    bool            `json:"configured"`
 	Tier          Tier            `json:"tier"`
-	DailyCap      int             `json:"daily_cap"`
+	MonthlyBudget int             `json:"monthly_budget"`
+	MonthUsed     int             `json:"month_used"` // tokens this month, all profiles (D-531)
+	RenewsOn      string          `json:"renews_on"`  // the local date the budgets start again (YYYY-MM-DD)
 	RedactPII     bool            `json:"redact_pii"`
 	TierEstimates map[Tier]*int   `json:"tier_estimates"`
 	JobsReady     map[string]bool `json:"jobs_ready"`
 }
 
-// Config returns the settings. Tier is the level in force today: it is lower than the saved one after the shared cap was passed (INV-4).
+// Config returns the settings. Tier is the configured level (the monthly budget never lowers it, D-531).
 func (s *Service) Config() ConfigView {
 	sn := s.snap.Load()
-	v := ConfigView{Tier: s.meter.Tier(), DailyCap: sn.cfg.DailyCap, RedactPII: s.redactPII(),
+	v := ConfigView{Tier: s.meter.Tier(), MonthlyBudget: sn.cfg.MonthlyBudget, MonthUsed: s.meter.Used(), RenewsOn: s.meter.Renews().Format("2006-01-02"), RedactPII: s.redactPII(),
 		TierEstimates: map[Tier]*int{}, JobsReady: make(map[string]bool, len(Jobs()))}
 	for _, p := range sn.profiles {
 		v.Configured = v.Configured || p.Usable()
@@ -171,7 +173,7 @@ func (s *Service) Config() ConfigView {
 	return v
 }
 
-// SetConfig saves the tier, the shared cap and the PII setting.
+// SetConfig saves the tier, the shared monthly budget and the PII setting.
 func (s *Service) SetConfig(ctx context.Context, who string, in Settings) (ConfigView, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -201,12 +203,12 @@ func (s *Service) SetConfig(ctx context.Context, who string, in Settings) (Confi
 		if err := saveHookSwitch(ctx, tx, HookBlockPII, in.RedactPII); err != nil {
 			return err
 		}
-		return s.auditTx(ctx, tx, who, "ai.config", "tier", fmt.Sprintf("tier=%s, cap=%d, redact_pii=%t", in.Tier, in.DailyCap, in.RedactPII))
+		return s.auditTx(ctx, tx, who, "ai.config", "tier", fmt.Sprintf("tier=%s, monthly_budget=%d, redact_pii=%t", in.Tier, in.MonthlyBudget, in.RedactPII))
 	})
 	if err != nil {
 		return ConfigView{}, err
 	}
-	if err := s.meter.SetConfig(in.Tier, in.DailyCap); err != nil {
+	if err := s.meter.SetConfig(in.Tier, in.MonthlyBudget); err != nil {
 		return ConfigView{}, fmt.Errorf("ai: apply token settings: %w", err)
 	}
 	s.snap.Store(&snapshot{profiles: cur.profiles, assign: cur.assign, cfg: in})

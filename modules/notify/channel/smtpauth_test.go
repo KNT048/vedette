@@ -323,7 +323,7 @@ func keyFile(t *testing.T, mod func(map[string]string)) string {
 	if err != nil {
 		t.Fatal(err)
 	}
-	m := map[string]string{
+	m := map[string]string{ //nolint:gosec // a key made by the test
 		"type": "service_account", "project_id": "acme-alerts", "private_key_id": "0123456789abcdef0123456789abcdef01234567",
 		"private_key":  string(pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: der})),
 		"client_email": "vedette@acme-alerts.iam.gserviceaccount.com", "client_id": "112233445566778899001",
@@ -340,7 +340,7 @@ func googleKeyFile(t *testing.T) string { return keyFile(t, nil) }
 
 func TestSMTPGoogleServiceAccountJWT(t *testing.T) {
 	t.Parallel()
-	f := startFakeSMTP(t, &fakeSMTP{starttls: true, mechs: []string{"LOGIN", "PLAIN", "XOAUTH2", "OAUTHBEARER"}, user: "alerts@acme.example", token: "ya29.google-token"})
+	f := startFakeSMTP(t, &fakeSMTP{starttls: true, mechs: []string{"LOGIN", "PLAIN", "XOAUTH2", "OAUTHBEARER"}, user: "alerts@acme.example", token: "ya29.google-token"}) //nolint:gosec // a fake token
 	now := time.Date(2026, 11, 13, 9, 0, 0, 0, time.UTC)
 	tokens := startTokenService(t, func(path string, form url.Values) (int, string) {
 		if path != "/token" || form.Get("grant_type") != "urn:ietf:params:oauth:grant-type:jwt-bearer" {

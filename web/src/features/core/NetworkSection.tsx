@@ -154,7 +154,7 @@ function ManagementForm({ d }: { d: NetworkState }) {
           </Select>
         </Field>
         {mode === 'dhcp' ? (
-          <p className="max-w-lg rounded-md border border-rule bg-sunken px-3 py-2 text-[13px]">{t('network.management.dhcpNote')}{m.mode === 'dhcp' && m.address ? ` ${t('network.management.dhcpNow', { ip: m.address })}` : ''}</p>
+          <p className="max-w-lg rounded-md border border-rule bg-sunken px-3 py-2 text-[13px]">{t('network.management.dhcpNote')}{m.mode === 'dhcp' && m.address ? ` ${t('network.management.dhcpNow', { ip: `${m.address}/${m.prefix ?? '?'}`, gateway: m.gateway ?? '–', dns: m.dns.join(', ') || '–' })}` : ''}</p>
         ) : (
           <>
             <div className="grid grid-cols-[minmax(0,1fr)_96px] gap-3">
@@ -199,13 +199,13 @@ function NtpForm({ d }: { d: NetworkState }) {
     }}>
       <Field label={t('network.ntp.mode')} htmlFor="ntp-mode">
         <Select id="ntp-mode" value={mode} disabled={gate.disabled} onChange={(e) => { setMode(e.target.value as NtpConfig['mode']); setError(null); if (e.target.value === 'default') setServers('') }}>
-          <option value="default">{t('network.ntp.default', { pool: d.default_ntp })}</option>
+          <option value="default">{t('network.ntp.default')}</option>
           <option value="custom">{t('network.ntp.custom')}</option>
         </Select>
       </Field>
       {mode === 'custom'
         ? <Field label={t('network.ntp.servers')} htmlFor="ntp-servers" hint={t('network.ntp.serversHint')}><Input id="ntp-servers" autoComplete="off" value={servers} disabled={gate.disabled} placeholder="ntp.company.lan" onChange={(e) => setServers(e.target.value)} /></Field>
-        : <p className="text-[13px] text-muted">{t('network.ntp.defaultNote')}</p>}
+        : <p className="text-[13px] text-muted">{t('network.ntp.defaultNote', { pool: d.default_ntp })}</p>}
       {error ? <p role="alert" className="rounded-md border border-danger/40 bg-danger-soft px-3 py-2 text-sm text-danger">{error}</p> : null}
       <div><Button type="submit" variant="primary" disabled={gate.disabled || ntp.isPending} title={gate.title}>{t('common:save')}</Button></div>
     </form>

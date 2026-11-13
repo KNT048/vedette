@@ -43,6 +43,14 @@ const (
 	// REACHABLE, STALE, DELAY, PROBE, PERMANENT: the kernel's NUD_VALID without NOARP (a NOARP entry's address is not one a
 	// neighbour answered with; D-450 review, LOW 2)
 	nudValid = 0x02 | 0x04 | 0x08 | 0x10 | 0x80
+	// the address dump (D-405): struct ifaddrmsg, its IFA_ADDRESS, IFA_LOCAL and IFA_FLAGS attributes, and IFA_F_PERMANENT
+	rtmNewAddr    = 20
+	ifaddrmsgLen  = 8
+	ifaAddress    = 1
+	ifaLocal      = 2
+	ifaFlags      = 8
+	ifaFPermanent = 0x80
+	maxAddrBytes  = 8 << 20
 )
 
 const zero128 = "00000000000000000000000000000000"
@@ -279,3 +287,65 @@ func neighEntryMAC(m []byte, ifindex int, addr netip.Addr) string {
 }
 
 func align4(n int) int { return (n + 3) &^ 3 }
+
+// dynamicAddrs reads the reply of an RTM_GETADDR dump and returns, by interface index, the addresses that have a lease: the kernel's
+// IFA_F_PERMANENT flag is unset, which is what `ip address` prints as "dynamic" (a DHCP lease of systemd-networkd or NetworkManager,
+// an IPv6 SLAAC address). An address set by hand or by a static configuration is permanent. The 32-bit IFA_FLAGS attribute wins over
+// the 8-bit field of ifaddrmsg when present; for IPv4 the address is IFA_LOCAL (IFA_ADDRESS is the peer on a point-to-point link), as
+// the net package reads it. Read up to maxAddrBytes; a message or attribute whose length does not fit, an error or the end of the
+// dump ends the read with what came before (D-405).
+// ponytail: dhclient (ifupdown) adds its lease without a lifetime, so it reads as permanent there; no Ubuntu or Debian server
+// installs it any more, and the upgrade is reading the lease files of the network manager.
+func dynamicAddrs(dump []byte) map[int][]netip.Prefix {
+	out := map[int][]netip.Prefix{}
+	b := dump[:min(len(dump), maxAddrBytes)]
+	for len(b) >= nlmsgHdrLen {
+		l := int(binary.NativeEndian.Uint32(b[0:4]))
+		typ := binary.NativeEndian.Uint16(b[4:6])
+		if l < nlmsgHdrLen || l > len(b) || typ == nlmsgDone || typ == nlmsgError {
+			break
+		}
+		if typ == rtmNewAddr {
+			if idx, p, ok := dynamicAddr(b[nlmsgHdrLen:l]); ok {
+				out[idx] = append(out[idx], p)
+			}
+		}
+		b = b[min(align4(l), len(b)):]
+	}
+	return out
+}
+
+// dynamicAddr reads one address message (struct ifaddrmsg, then attributes): its interface index and address when it has a lease.
+func dynamicAddr(m []byte) (int, netip.Prefix, bool) {
+	if len(m) < ifaddrmsgLen {
+		return 0, netip.Prefix{}, false
+	}
+	bits, flags, idx := int(m[1]), uint32(m[2]), int(binary.NativeEndian.Uint32(m[4:8]))
+	var addr, local []byte
+	for a := m[ifaddrmsgLen:]; len(a) >= 4; {
+		n := int(binary.NativeEndian.Uint16(a[0:2]))
+		if n < 4 || n > len(a) {
+			return 0, netip.Prefix{}, false
+		}
+		switch binary.NativeEndian.Uint16(a[2:4]) & nlaTypeMask {
+		case ifaAddress:
+			addr = a[4:n]
+		case ifaLocal:
+			local = a[4:n]
+		case ifaFlags:
+			if n == 8 {
+				flags = binary.NativeEndian.Uint32(a[4:8])
+			}
+		}
+		a = a[min(align4(n), len(a)):]
+	}
+	if local != nil {
+		addr = local
+	}
+	ip, ok := netip.AddrFromSlice(addr)
+	if !ok || idx <= 0 || flags&ifaFPermanent != 0 {
+		return 0, netip.Prefix{}, false
+	}
+	p := netip.PrefixFrom(ip.Unmap(), bits)
+	return idx, p, p.IsValid()
+}

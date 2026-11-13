@@ -7,8 +7,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/knt048/vedette/core/events"
 	"github.com/knt048/vedette/core/modreg"
 	"github.com/knt048/vedette/host/api"
+	"github.com/knt048/vedette/modules/inventory"
 )
 
 // moduleContainer makes a module's container follow the module, the way the honeypot's does (M3, D-260): `sensor` runs
@@ -51,6 +53,9 @@ type moduleContainer struct {
 	service string
 	version string           // the build version of core (main.version); see startVersion
 	now     func() time.Time // nil: time.Now; a test moves it
+	// setupDone says whether first-run setup has finished (nil: always). Before it has, ensureOn starts nothing (D-405): the wizard
+	// decides which modules run, and a default-on module's container must not start on a box no administrator has seen yet.
+	setupDone func(context.Context) (bool, error)
 
 	mu sync.Mutex
 	// unsureSince is when ensureOn first found the state unreadable since the last good read (zero: it was readable). Reset
@@ -77,6 +82,15 @@ func (c *moduleContainer) ensureOn(ctx context.Context) error {
 	if !c.reg.Enabled(c.module) { // checked under the lock: a switch-off between the guard's check and the host call wins
 		c.unsureSince = time.Time{} // the next switch-on waits its own unsureFor
 		return nil
+	}
+	if c.setupDone != nil {
+		done, err := c.setupDone(ctx)
+		if err != nil {
+			return fmt.Errorf("%s: whether first-run setup is done could not be read: %w", c.service, err)
+		}
+		if !done {
+			return nil // D-405: nothing to start before the wizard; its commit starts the guard again (addContainerGuards)
+		}
 	}
 	// Skip only what the host vouches for: a unit it trusts (Installed), with [Install], that is active or coming up, running the
 	// version pulled for it when that is core's own (D-342 (2)). Start only on what it positively says is wrong. Anything else
@@ -239,15 +253,31 @@ func newModuleContainers(d deps) map[string]*moduleContainer {
 			return nil
 		}
 		h.who = m.service
-		out[m.module] = &moduleContainer{h: h, reg: d.Reg, module: m.module, service: m.service, version: version}
+		c := &moduleContainer{h: h, reg: d.Reg, module: m.module, service: m.service, version: version}
+		if d.Core != nil {
+			c.setupDone = d.Core.SetupDone
+		}
+		out[m.module] = c
 	}
 	return out
 }
 
-// addContainerGuards hands each follower's two funcs to the guards (on: start, off: stop persist).
+// addContainerGuards hands each follower's two funcs to the guards (on: start, off: stop persist). Before first-run setup the
+// start does nothing (D-405); the wizard's commit publishes inventory.settings.changed (its LAN ranges become the scope), and
+// that event runs the start again for every module that is on, so the bundle's containers start then, whether the wizard
+// switched them or left them on. Any later scope change runs it too: a start of a container that runs costs one state read.
 func addContainerGuards(on, off *modreg.OffGuard, d deps) {
-	for id, c := range newModuleContainers(d) {
+	all := newModuleContainers(d)
+	for id, c := range all {
 		off.Add(id, c.ensureOff)
 		on.Add(id, c.ensureOn)
+	}
+	if len(all) > 0 && d.Bus != nil {
+		d.Bus.Subscribe(inventory.EventSettingsChanged, func(context.Context, events.Event) error {
+			for id := range all {
+				on.ModuleChanged(id, true) // reads the registry itself: an off module is left alone
+			}
+			return nil
+		})
 	}
 }

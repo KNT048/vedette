@@ -548,3 +548,31 @@ func TestModuleContainerStartVersion(t *testing.T) {
 		}
 	}
 }
+
+// D-405 (walk 4): before first-run setup a default-on module's container is not started, and the guard does not retry; once
+// setup is done the same call starts it.
+func TestModuleContainerWaitsForFirstRunSetup(t *testing.T) {
+	t.Parallel()
+	e := startHPHost(t, false)
+	e.m.InstallUnit(api.ServiceScan, opstest.Digest('b'), true)
+	reg := &flagReg{}
+	reg.on.Store(true)
+	f := e.follower(reg, "sensor-active", api.ServiceScan)
+	var done atomic.Bool
+	f.setupDone = func(context.Context) (bool, error) { return done.Load(), nil }
+	ctx := t.Context()
+	runs := e.writes()
+	if err := f.ensureOn(ctx); err != nil {
+		t.Fatalf("before setup: %v, want nil (nothing to do, no retry)", err)
+	}
+	if n := e.writes(); n != runs || e.state(t, api.ServiceScan) == api.UnitActive {
+		t.Fatalf("before setup the container was started (%d write runs)", n-runs)
+	}
+	done.Store(true)
+	if err := f.ensureOn(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if e.state(t, api.ServiceScan) != api.UnitActive {
+		t.Fatal("after setup the container did not start")
+	}
+}

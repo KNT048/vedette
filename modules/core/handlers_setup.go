@@ -59,8 +59,10 @@ func (h *APIHandlers) CoreGetSetup(ctx context.Context) (*oas.CoreGetSetupOK, er
 }
 
 // CoreGetCoreSetupModules implements GET /core/setup/modules (public): module ids, tiers and dependencies
-// for the bundle step. It does not say which modules are on.
-func (h *APIHandlers) CoreGetCoreSetupModules(context.Context) (*oas.CoreGetCoreSetupModulesOK, error) {
+// for the bundle step. It does not say which modules are on. While setup is open it offers the box's own network
+// (lan) as the first range of the network step (D-405); once setup is done lan is null, so the public page tells
+// nobody the box's network afterwards.
+func (h *APIHandlers) CoreGetCoreSetupModules(ctx context.Context) (*oas.CoreGetCoreSetupModulesOK, error) {
 	states := h.reg.List()
 	out := &oas.CoreGetCoreSetupModulesOK{Modules: make([]oas.CoreGetCoreSetupModulesOKModulesItem, 0, len(states))}
 	for _, s := range states {
@@ -76,12 +78,25 @@ func (h *APIHandlers) CoreGetCoreSetupModules(context.Context) (*oas.CoreGetCore
 		out.Modules = append(out.Modules, it)
 	}
 	out.Install = oas.CoreGetCoreSetupModulesOKInstall(installKind(h.reg))
+	out.Lan = oas.NilString{Null: true}
+	if h.boxLAN != nil {
+		if done, err := h.setupDone(ctx); err == nil && !done {
+			if p, ok := h.boxLAN(ctx); ok && isPrivateLAN(p) {
+				out.Lan = oas.NewNilString(p.Masked().String())
+			}
+		}
+	}
 	return out, nil
 }
 
 // privateNets are the ranges a LAN range may lie in: 10/8, 172.16/12, 192.168/16 (the rule of the inventory
 // module). A prefix shorter than these (10.0.0.0/0) covers the Internet and is refused.
 var privateNets = []netip.Prefix{netip.MustParsePrefix("10.0.0.0/8"), netip.MustParsePrefix("172.16.0.0/12"), netip.MustParsePrefix("192.168.0.0/16")}
+
+// isPrivateLAN is the rule of parseLan for one IPv4 prefix: inside a private network, not wider than it.
+func isPrivateLAN(p netip.Prefix) bool {
+	return p.IsValid() && p.Addr().Is4() && slices.ContainsFunc(privateNets, func(n netip.Prefix) bool { return n.Bits() <= p.Bits() && n.Contains(p.Addr()) })
+}
 
 // parseLan checks the LAN ranges of the setup form (1 to 16 IPv4 ranges inside the private networks) and
 // returns them in canonical form (host bits cleared).
@@ -101,7 +116,7 @@ func parseLan(in []string) ([]string, *apierr.Error) {
 		if err != nil || !p.Addr().Is4() || p.Addr().Zone() != "" || strings.Contains(s, "%") {
 			return nil, apierr.New(400, CodeInvalidLan, fmt.Sprintf("The range %q is not valid. Write it like 192.168.10.0/24.", clip(s)))
 		}
-		if !slices.ContainsFunc(privateNets, func(n netip.Prefix) bool { return n.Bits() <= p.Bits() && n.Contains(p.Addr()) }) {
+		if !isPrivateLAN(p) {
 			return nil, apierr.New(400, CodePublicRange, fmt.Sprintf("%s is not a private range (10.x, 172.16-31.x, 192.168.x). Add public addresses later under External exposure.", clip(s)))
 		}
 		if m := p.Masked().String(); !slices.Contains(out, m) {
@@ -338,6 +353,10 @@ func (h *APIHandlers) CorePostCoreSetup(ctx context.Context, req *oas.CorePostCo
 	setSession(x, sess, "")
 	return &oas.CorePostCoreSetupOK{Ok: true}, nil
 }
+
+// SetupDone reports whether first-run setup has finished (an organization exists and is set up). cmd/vedette asks it before
+// it starts a module's container (D-405): nothing beyond core runs on a box before its first administrator exists.
+func (h *APIHandlers) SetupDone(ctx context.Context) (bool, error) { return h.setupDone(ctx) }
 
 func (h *APIHandlers) setupDone(ctx context.Context) (bool, error) {
 	org, err := coredb.New(h.db.Reader()).GetOrg(ctx)

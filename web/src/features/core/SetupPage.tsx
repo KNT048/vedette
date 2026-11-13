@@ -37,9 +37,12 @@ export default function SetupPage() {
   const navigate = useNavigate()
   const status = useSetupStatus()
   const submit = useSubmitSetup()
-  const install = useSetupModules().data?.install // D-381: the setup code hint names the log of this install
+  const setupModules = useSetupModules().data
+  const install = setupModules?.install // D-381: the setup code hint names the log of this install
+  const boxLan = setupModules?.lan ?? null // D-405: the box's own network, offered as the first range
   const [step, setStep] = useState<Step>('account')
   const [s, setS] = useState<State>(INIT)
+  useEffect(() => { if (boxLan) setS((x) => (x.lan.length === 1 && !x.lan[0].trim() ? { ...x, lan: [boxLan] } : x)) }, [boxLan])
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [formError, setFormError] = useState<string | null>(null)
   const [finished, setFinished] = useState(false)
@@ -196,7 +199,7 @@ export default function SetupPage() {
           <div className="mt-4 grid gap-4">
             <fieldset className="grid gap-2">
               <legend className="text-sm font-medium">{t('setup.network.lan')}</legend>
-              <p className="text-[13px] text-muted">{t('setup.network.lanHint')}</p>
+              <p className="text-[13px] text-muted">{t('setup.network.lanHint')}{boxLan && s.lan.includes(boxLan) ? ` ${t('setup.network.lanFromBox', { lan: boxLan })}` : ''}</p>
               {s.lan.map((v, i) => (
                 <div key={i} className="grid gap-1">
                   <div className="flex items-center gap-2">

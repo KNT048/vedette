@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"net/http"
+	"net/netip"
 	"os"
 	"slices"
 	"strings"
@@ -652,5 +653,34 @@ func TestContract_INV15_SetupRefusesOverlappingRangesUpFront(t *testing.T) {
 	defer f.mu.Unlock()
 	if !slices.Equal(f.lan, []string{"192.168.1.0/24"}) {
 		t.Fatalf("port got %v, want the one range", f.lan)
+	}
+}
+
+// D-405 (walk 4): while setup is open the network step is offered the box's own network (host bits cleared); a public or absent
+// address, a box with no BoxLAN (container-only) and a box already set up give null.
+func TestContract_INV15_SetupOffersTheBoxNetwork(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name string
+		lan  func(context.Context) (netip.Prefix, bool)
+		want any
+	}{
+		{"private", func(context.Context) (netip.Prefix, bool) { return netip.MustParsePrefix("192.168.18.141/24"), true }, "192.168.18.0/24"},
+		{"public", func(context.Context) (netip.Prefix, bool) { return netip.MustParsePrefix("203.0.113.5/24"), true }, nil},
+		{"none", func(context.Context) (netip.Prefix, bool) { return netip.Prefix{}, false }, nil},
+		{"no host", nil, nil},
+	} {
+		w := newWorldWith(t, func(hc *core.HandlersConfig) { hc.BoxLAN = tc.lan })
+		r := w.client().get("/core/setup/modules")
+		wantOK(t, r, 200)
+		if got, has := r.JSON["lan"]; !has || got != tc.want {
+			t.Errorf("%s: lan = %v (present %v), want %v", tc.name, got, has, tc.want)
+		}
+		if tc.name == "private" {
+			wantOK(t, w.client().post("/core/setup", setupBody(w.openSetup())), 200)
+			if got := w.client().get("/core/setup/modules").JSON["lan"]; got != nil {
+				t.Errorf("after setup lan = %v, want null", got)
+			}
+		}
 	}
 }

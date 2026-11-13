@@ -13721,11 +13721,19 @@
                         "container"
                       ],
                       "description": "appliance: installed by install.sh, with the system helper vedette-host; container: container-only install on the customer's Docker or Podman, no helper (D-168). The one place the GUI learns it (D-381)"
+                    },
+                    "lan": {
+                      "description": "The network of the box's management address (CIDR, like 192.168.18.0/24), offered as the first range of the network step (D-405); null when setup is done, on a container-only install, or when the box has no private IPv4 address",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
                     }
                   },
                   "required": [
                     "modules",
-                    "install"
+                    "install",
+                    "lan"
                   ],
                   "additionalProperties": false
                 }

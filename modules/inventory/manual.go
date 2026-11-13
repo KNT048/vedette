@@ -344,7 +344,7 @@ func (s *Service) PatchDevice(ctx context.Context, actor, id string, p Patch) er
 		return badRequest("bad_regular_scan", "Regular scans must be: follow type setting, allow or never.")
 	}
 	if p.Kind != nil && !validKind(*p.Kind) {
-		return badRequest("bad_kind", "Device type must be one of: "+strings.Join(Kinds, ", ")+".")
+		return badRequest("bad_kind", "Device type is not one of the device types (for example router, switch, ip_phone, laptop).")
 	}
 	if p.Notes != nil && len([]rune(*p.Notes)) > maxNotes {
 		return badRequest("bad_notes", "Notes are at most 2000 characters.")

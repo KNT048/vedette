@@ -64,6 +64,7 @@
 
 ## Modifying: `HitDetail(ctx, id)`, `SourceConnected(ctx, src, at, window)` (D-509) — người gọi: `cmd/vedette` `responseIncidents`
 - Respond trên sự cố bẫy (`response`) đọc nguồn từ `HitDetail` (`SrcIP`, `SrcAssetID`, `IsTest`, `Kind`, `NoHandshake`) và, với hit `scan` hoặc hit UDP (`NoHandshake`, D-467), hỏi `SourceConnected`: có hit `service` thật (không thử) **qua TCP** (`handshake = 1`) của cùng `src_ip` trong `at ± window` không. Chỉ đọc. Đổi `kind`/`src_ip`/`ts` của hit `service` hay để luồng tạo `scan` cũng tạo hit `service` từ lần thử chưa bắt tay ⇒ response coi nguồn giả được là đã xác nhận (rủi ro chặn nhầm máy vô tội); trả lỗi ⇒ response trả lỗi (không đưa gì).
+- **Loại thiết bị (D-511)**: đọc `content/devicetypes` (gói lá, chỉ thư viện chuẩn). Gợi ý preset so loại hành xử như (`ActsAs`): máy ảo hành xử như server, DVR như nvr.
 
 ## Modifying: the services (`types.go` `serviceDefs`, `Services`; D-467, B3)
 - **API / GUI**: `HpService` in `web/src/features/honeypot/contract.ts` is the enum of `api/openapi.json` and `core/api/oas`; `presets.ts` (`SERVICE_PORT`, `UDP_SERVICES`, `LOGIN_SERVICES`) and `locales/en/honeypot.json` (`service.*`, `serviceHint.*`) name each one. A new service is a row in `serviceDefs`, the enum, those maps, the `hp_hits.service` CHECK (a migration like 0004) and a real log line in `testdata/opencanary-0.9.10-lines.jsonl`.

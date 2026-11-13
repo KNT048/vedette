@@ -51,7 +51,7 @@ const orgClock = (hours: number) => new Intl.DateTimeFormat('en-GB', { timeZone:
 const shape = (line: string) => (line.includes(' -sn ') ? 'sweep' : line.includes(' -T2 ') ? 'gentle' : 'normal')
 const targetsOf = (line: string) => line.slice(line.indexOf('-oX - ') + 6).split(' ')
 const GENTLE = '--privileged -sS -n -T2 --max-retries 1 --max-rate 1 --host-timeout 15m --top-ports 100 -oX - '
-const NORMAL = '--privileged -sS -sV -O --script rdp-ntlm-info,http-ntlm-info -n --max-rate 50 --top-ports 1000 --host-timeout 30m -oX - '
+const NORMAL = '--privileged -sS -sV -O --script rdp-ntlm-info,http-ntlm-info,http-title,ssl-cert -n --max-rate 50 --top-ports 1000 --host-timeout 30m -oX - '
 
 test.beforeAll(async () => {
   const c = await as('admin')

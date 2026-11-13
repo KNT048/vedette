@@ -10,6 +10,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"github.com/knt048/vedette/content/devicetypes"
 	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/localnet"
 	"github.com/knt048/vedette/core/observe"
@@ -151,4 +152,5 @@ func clip(s string, n int) string {
 
 var hhmmRE = regexp.MustCompile(`^([01]\d|2[0-3]):[0-5]\d$`)
 
-func validKind(k string) bool { return slices.Contains(Kinds, k) }
+// validKind: k is a device type (D-511).
+func validKind(k string) bool { return devicetypes.Valid(k) }

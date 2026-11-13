@@ -26,7 +26,8 @@ const (
 	maxCPEs         = 8
 	maxText         = 200 // longest stored string, in runes
 	maxCPELen       = 300
-	maxElemLen      = 256 // longest <elem> text of an NTLM script that is read; a longer one is dropped
+	maxElemLen      = 256      // longest <elem> text of an NTLM script that is read; a longer one is dropped
+	maxScriptOutput = 64 << 10 // longest output attribute of a <script> that is read (ssl-cert prints the whole certificate, D-511); a longer one is ignored
 )
 
 var (
@@ -97,8 +98,11 @@ type portInfo struct {
 	number                 int
 	proto, name            string
 	product, version, info string
-	conf                   int // nmap's 1..10, 0 when absent
-	cpes                   []string
+	// What the port said about the device besides product and version (D-511): nmap's device type of the service match, the page
+	// title (http-title) and the certificate subject (ssl-cert). Evidence for identification, never software.
+	devType, title, certSubject string
+	conf                        int // nmap's 1..10, 0 when absent
+	cpes                        []string
 }
 
 type osMatch struct {
@@ -128,6 +132,49 @@ func text(s string) string {
 		return ""
 	}
 	return s
+}
+
+// clipRunes cuts s to at most n runes (whole runes; s is valid UTF-8 or text refuses it afterwards).
+func clipRunes(s string, n int) string {
+	if utf8.RuneCountInString(s) <= n {
+		return s
+	}
+	return string([]rune(s)[:n])
+}
+
+// Bounds of what a port says (D-511, #714 review): a long certificate subject or title is shortened, never dropped whole.
+const (
+	maxTitle       = 80
+	maxSubjectPart = 60
+	maxSubject     = 140
+)
+
+// certSubject is the subject of ssl-cert's output ("Subject: commonName=FGT60F.../organizationName=Fortinet/..."), commonName first
+// (it names the device: a FortiGate's serial, a host name), then the organisation, then the rest, each part cut to maxSubjectPart
+// and the whole to maxSubject; "" when there is none or it is not printable (D-511).
+func certSubject(out string) string {
+	for line := range strings.Lines(out) {
+		s, ok := strings.CutPrefix(strings.TrimSpace(line), "Subject: ")
+		if !ok {
+			continue
+		}
+		var first, org, rest []string
+		for part := range strings.SplitSeq(strings.TrimSpace(s), "/") {
+			if part = clipRunes(strings.TrimSpace(part), maxSubjectPart); part == "" {
+				continue
+			}
+			switch {
+			case strings.HasPrefix(part, "commonName="):
+				first = append(first, part)
+			case strings.HasPrefix(part, "organizationName="):
+				org = append(org, part)
+			default:
+				rest = append(rest, part)
+			}
+		}
+		return text(clipRunes(strings.Join(append(append(first, org...), rest...), "/"), maxSubject))
+	}
+	return ""
 }
 
 // cpeText accepts a CPE 2.2 URI: printable ASCII starting with "cpe:/".
@@ -195,6 +242,7 @@ func parseNmapXML(data []byte) ([]host, error) {
 		cpeBuf  strings.Builder
 		closed  bool
 		ntlm    bool   // inside the <script> of an NTLM script of an open port
+		title   bool   // inside the <script> of http-title (D-511)
 		elemKey string // key of the <elem> being read; "" when none
 		elemBuf strings.Builder
 	)
@@ -223,7 +271,9 @@ func parseNmapXML(data []byte) ([]host, error) {
 				return nil, fmt.Errorf("%w: too many attributes", errXMLInvalid)
 			}
 			for _, a := range t.Attr {
-				if len(a.Value) > 4096 {
+				// A script's printed output (a certificate with many names, a long page title) may be longer than any other
+				// attribute; it is bounded apart below, so a long one never refuses the whole run (D-511).
+				if limit := 4096; len(a.Value) > limit && (t.Name.Local != "script" || a.Name.Local != "output") {
 					return nil, fmt.Errorf("%w: attribute too long", errXMLInvalid)
 				}
 			}
@@ -232,6 +282,9 @@ func parseNmapXML(data []byte) ([]host, error) {
 			}
 			path = append(path, t.Name.Local)
 			a := attrs(t)
+			if t.Name.Local == "script" && len(a["output"]) > maxScriptOutput {
+				delete(a, "output") // only that script's output is ignored; its port and the run are kept (#714 round 2, L3)
+			}
 			switch strings.Join(path, "/") {
 			case "nmaprun/host":
 				if len(hosts) >= maxXMLHosts {
@@ -278,6 +331,7 @@ func parseNmapXML(data []byte) ([]host, error) {
 			case "nmaprun/host/ports/port/service":
 				if port != nil {
 					port.name, port.product, port.version, port.info = text(a["name"]), text(a["product"]), text(a["version"]), text(a["extrainfo"])
+					port.devType = text(a["devicetype"])
 					port.conf = num(a["conf"], 10)
 				}
 			case "nmaprun/host/ports/port/service/cpe":
@@ -287,8 +341,12 @@ func parseNmapXML(data []byte) ([]host, error) {
 				}
 			case "nmaprun/host/ports/port/script":
 				ntlm = cur != nil && port != nil && ntlmScripts[a["id"]]
+				title = cur != nil && port != nil && a["id"] == "http-title"
+				if cur != nil && port != nil && a["id"] == "ssl-cert" {
+					port.certSubject = certSubject(a["output"])
+				}
 			case "nmaprun/host/ports/port/script/elem":
-				if ntlm {
+				if ntlm || (title && a["key"] == "title") {
 					elemKey = a["key"]
 					elemBuf.Reset()
 				}
@@ -334,11 +392,17 @@ func parseNmapXML(data []byte) ([]host, error) {
 				}
 				port = nil
 			case "nmaprun/host/ports/port/script":
-				ntlm = false
+				ntlm, title = false, false
 			case "nmaprun/host/ports/port/script/elem":
 				// The challenge is read only from an open port; a value longer than maxElemLen or of another form is dropped.
-				if elemKey != "" && cur != nil && portOK && elemBuf.Len() <= maxElemLen {
-					cur.setNTLM(port.number, elemKey, text(strings.TrimSpace(elemBuf.String())))
+				// A title longer than the buffer keeps its start (#714 review: shortened, not dropped).
+				if elemKey != "" && cur != nil && portOK && (title || elemBuf.Len() <= maxElemLen) {
+					v := text(clipRunes(strings.Join(strings.Fields(elemBuf.String()), " "), maxTitle))
+					if title {
+						port.title = v
+					} else {
+						cur.setNTLM(port.number, elemKey, text(strings.TrimSpace(elemBuf.String())))
+					}
 				}
 				elemKey = ""
 			case "nmaprun/host/ports/port/service/cpe", "nmaprun/host/os/osmatch/osclass/cpe":

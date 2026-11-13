@@ -3,6 +3,8 @@ package reports
 import (
 	"sort"
 	"time"
+
+	"github.com/knt048/vedette/content/devicetypes"
 )
 
 // The law behind the assessment (checked against the official text on 2026-11-06, D-23): Law 91/2025/QH15 on personal data
@@ -55,7 +57,7 @@ func buildPdpl(in pdplInput) PdplReport {
 		if d.Fragile {
 			fragile++
 		}
-		if d.Kind == "firewall" {
+		if devicetypes.ActsAs(d.Kind) == "firewall" { // a VPN gateway acts as a firewall (D-511)
 			hasFirewall = true
 		}
 		if eolOS.MatchString(d.OS) {
@@ -160,7 +162,7 @@ func buildPdpl(in pdplInput) PdplReport {
 	})
 	key := []KeySystem{}
 	for _, d := range in.devices {
-		if (d.Kind == "server" || d.Kind == "nas" || d.Kind == "firewall") && len(key) < 50 {
+		if k := devicetypes.ActsAs(d.Kind); (k == "server" || k == "nas" || k == "firewall") && len(key) < 50 {
 			os := "–"
 			if d.OS != "" {
 				os = clip(d.OS, 80)

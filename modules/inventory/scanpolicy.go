@@ -8,6 +8,8 @@ import (
 	"net/netip"
 	"slices"
 	"strings"
+
+	"github.com/knt048/vedette/content/devicetypes"
 )
 
 // ScanDecision is the answer of ScanPolicy: may the box probe this device actively, and how fast.
@@ -187,6 +189,7 @@ func (f *scanFacts) scan(r interface{ Scan(...any) error }, lead ...any) error {
 	if err := r.Scan(append(lead, &ip, &f.origin, &f.kind, &f.fragile, &f.regular, &firstScan, &f.isBox)...); err != nil {
 		return err
 	}
+	f.kind = devicetypes.ActsAs(f.kind) // the policies are keyed on the 13 kinds; a type acts as one of them (D-511)
 	f.firstScan = firstScan.Valid
 	if ip.Valid {
 		f.addr, _ = netip.ParseAddr(ip.String)
@@ -251,6 +254,7 @@ func (s *Service) ProtectedIPs(ctx context.Context) ([]netip.Addr, error) {
 		if err := rows.Scan(&ip, &origin, &kind, &fragile, &regular, &hadFirst, &isBox); err != nil {
 			return nil, fmt.Errorf("inventory: read protected addresses: %w", err)
 		}
+		kind = devicetypes.ActsAs(kind)
 		addr, err := netip.ParseAddr(ip)
 		if err != nil {
 			continue
@@ -292,4 +296,26 @@ func (s *Service) MarkFirstScan(ctx context.Context, assetID string) error {
 		}
 		return s.auditTx(ctx, tx, systemActor, "inventory.first_scan", deviceName(ctx, tx, assetID), assetID)
 	})
+}
+
+// PendingGentleScans lists the devices whose one gentle scan is still to come (D-511, review of #714 round 2): discovered, kind
+// unknown, not fragile, not set to never, not the box, with an IP and no first scan. Migration 0004 cleared the first scan of such
+// devices seen before, so the gentle scan with titles reaches them; sensor-active queues them once per start, since only a new
+// device's inventory.asset.discovered queues one otherwise. Read-only.
+func (s *Service) PendingGentleScans(ctx context.Context) ([]string, error) {
+	rows, err := s.db.Reader().QueryContext(ctx, `SELECT id FROM inv_asset WHERE origin = 'discovered' AND kind = 'unknown' AND fragile = 0
+		AND regular_scan <> 'never' AND is_box = 0 AND ip IS NOT NULL AND first_scan_at IS NULL ORDER BY id`)
+	if err != nil {
+		return nil, fmt.Errorf("inventory: read devices waiting for their gentle scan: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	var out []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, fmt.Errorf("inventory: read devices waiting for their gentle scan: %w", err)
+		}
+		out = append(out, id)
+	}
+	return out, rows.Err()
 }

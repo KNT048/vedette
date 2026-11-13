@@ -12,6 +12,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/knt048/vedette/content/devicetypes"
 	"github.com/knt048/vedette/core/localnet"
 )
 
@@ -129,17 +130,14 @@ var headerAlias = map[string]string{
 	"ip_address": "ip", "address": "ip", "product_name": "product", "ver": "version", "type": "kind", "device_type": "kind",
 }
 
-// The labels the interface shows for a type ("Wi-Fi (AP)", "Camera recorder") are accepted next to the keys.
-var kindLabel = map[string]string{
-	"wi_fi_ap": "ap", "wifi": "ap", "access_point": "ap", "camera_recorder": "nvr", "iot_device": "iot", "website": "web", "laptop": "pc", "computer": "pc", "desktop": "pc", "other": "unknown",
-}
-
+// parseKind reads a type the way a person writes it: its id, the label the interface shows ("Wi-Fi (AP)", "IP phone") or one of its
+// aliases ("camera_recorder", "notebook"), without case or accents (D-511). "" when it is none.
 func parseKind(text string) string {
-	k := foldKey(text)
-	if validKind(k) {
+	if k := foldKey(text); validKind(k) {
 		return k
 	}
-	return kindLabel[k]
+	k, _ := devicetypes.Lookup(text)
+	return k
 }
 
 // Import adds devices from CSV text (S-INV-2, INV-13): at most 200 KB and 500 rows; the header needs a name or
@@ -313,7 +311,7 @@ func prepareRow(cat *Catalog, get func(string) string) (msg string, a addChecked
 	}
 	if kindText := get("kind"); kindText != "" {
 		if kind = parseKind(kindText); kind == "" {
-			return fmt.Sprintf(`Type "%s" is not valid. Use one of: %s.`, clip(kindText, 20), strings.Join(Kinds, ", ")), a, ""
+			return fmt.Sprintf(`Type "%s" is not a device type. Use a type the device page lists, for example router, switch, server, laptop, printer, camera, ip_phone or unknown.`, clip(kindText, 20)), a, ""
 		}
 	}
 	a, aerr := checkAdd(cat, AddInput{Version: get("version"), Name: get("name"), IP: get("ip")}, false)

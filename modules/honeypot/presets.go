@@ -5,6 +5,8 @@ import (
 	"net/netip"
 	"regexp"
 	"slices"
+
+	"github.com/knt048/vedette/content/devicetypes"
 )
 
 // presets follows web/src/features/honeypot/presets.ts (D-466): what a Trap IP of each kind answers on, the vendor whose MAC
@@ -98,13 +100,13 @@ func suggestions(devices []Device) []TrapSuggestion {
 			var hit bool
 			switch p.id {
 			case FileServer:
-				hit = d.Kind == "server" && (windowsRE.MatchString(d.OS) || slices.Contains(d.Ports, 445))
+				hit = devicetypes.ActsAs(d.Kind) == "server" && (windowsRE.MatchString(d.OS) || slices.Contains(d.Ports, 445))
 			case Linux:
-				hit = d.Kind == "server" && linuxRE.MatchString(d.OS)
+				hit = devicetypes.ActsAs(d.Kind) == "server" && linuxRE.MatchString(d.OS)
 			case Database:
-				hit = d.Kind == "server" && (slices.Contains(d.Ports, 1433) || slices.Contains(d.Ports, 3306))
+				hit = devicetypes.ActsAs(d.Kind) == "server" && (slices.Contains(d.Ports, 1433) || slices.Contains(d.Ports, 3306))
 			default:
-				hit = slices.Contains(p.kinds, d.Kind)
+				hit = slices.Contains(p.kinds, devicetypes.ActsAs(d.Kind)) // a type of D-511 blends in as the kind it acts as
 			}
 			if hit {
 				m = append(m, d)

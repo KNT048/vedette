@@ -132,11 +132,14 @@ type SoftwareSink interface {
 
 // Service is one port a sensor saw open on a device (D-350).
 type Service struct {
-	Port       int    // 1..65535
-	Proto      string // "tcp" or "udp"
-	Name       string // the service name, such as "ssh"; may be empty
-	Product    string // may be empty
-	Version    string // may be empty
+	Port    int    // 1..65535
+	Proto   string // "tcp" or "udp"
+	Name    string // the service name, such as "ssh"; may be empty
+	Product string // may be empty
+	Version string // may be empty
+	// Detail is what the service said about the device besides product and version (nmap's extra info and device type, the page
+	// title, the certificate subject; D-511): evidence for identifying the device, never software. May be empty.
+	Detail     string
 	Confidence float64
 }
 

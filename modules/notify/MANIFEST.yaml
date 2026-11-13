@@ -9,5 +9,5 @@ ports: []        # Slack Socket Mode và Telegram long polling chỉ mở kết 
 container: core
 tables_prefix: notify_
 stories: [S-NOT-1, S-NOT-2, S-ALERT-1, S-ALERT-3, S-RESP-2]   # MODULES.md ghi S-ALERT-1..2 (S-ALERT-2 đã rớt)
-decisions: [D-35, D-38, D-46, D-52, D-447]
+decisions: [D-35, D-38, D-46, D-52, D-447, D-483]
 milestone: M2

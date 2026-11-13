@@ -90,6 +90,7 @@ func (g Grouping) Validate() error {
 type Batch struct {
 	Notices []Notice
 	min     Severity // the channel's min_severity; the zero value passes nothing
+	link    string   // a digest of several products: the findings list (digest)
 }
 
 // ErrUnsendable means a batch holds a notice that must not go to its channel (FORBID-1, INV-4).
@@ -143,6 +144,57 @@ func group(ns []Notice, window time.Duration, floor Severity) []Batch {
 	return out
 }
 
+// digest merges the vulnerability batches a channel sends in one run into one message (D-483, W1-19): the first matching after a
+// product is added makes a burst of findings, often critical (never grouped by window, D-62), and one message each floods the chat
+// and runs into the provider's rate limit. Nothing waits longer for this: only batches already due now are merged. Critical notices
+// come first. Incident batches stay their own message. link is the findings list, the link of a digest of several products.
+func digest(release []Batch, link string) []Batch {
+	at := -1
+	var notices []Notice
+	var out []Batch
+	for _, b := range release {
+		if b.Notices[0].Kind != KindVuln {
+			out = append(out, b)
+			continue
+		}
+		if at < 0 {
+			at = len(out)
+			out = append(out, b)
+		}
+		notices = append(notices, b.Notices...)
+	}
+	if at < 0 || len(notices) == len(out[at].Notices) {
+		return release // one vulnerability batch or none: nothing to merge
+	}
+	slices.SortStableFunc(notices, func(a, b Notice) int {
+		if (a.Severity == Critical) != (b.Severity == Critical) {
+			if a.Severity == Critical {
+				return -1
+			}
+			return 1
+		}
+		return a.At.Compare(b.At)
+	})
+	out[at] = Batch{Notices: notices, min: out[at].min, link: link}
+	return out
+}
+
+// Listed is the notices the message of the batch names one by one, in its order: at most channel.MaxItems (the message counts the
+// rest in "and N more"). A chat channel may send fewer lines whole (channel.Listed); only the lines sent count as told (W1-11).
+func (b Batch) Listed() []Notice {
+	return b.Notices[:min(len(b.Notices), channel.MaxItems)]
+}
+
+// Told is the notices a message of the batch on channel t actually names (D-483): one notice is the message itself; of several, the
+// ones whose line t sends whole (channel.Listed of msg, the message of the batch).
+func (b Batch) Told(t channel.Type, msg channel.Message) []Notice {
+	l := b.Listed()
+	if len(b.Notices) == 1 {
+		return l
+	}
+	return l[:min(len(l), channel.Listed(t, msg))]
+}
+
 // DueAt is when a batch opened by its first notice must be sent at the latest
 // under the grouping rule: the first notice time plus the window. A critical or
 // non-vulnerability notice is due at its own time. Callers compare it with the
@@ -192,28 +244,62 @@ func (b Batch) Message() (channel.Message, error) {
 		}
 		return m, nil
 	}
-	var devices, items []string
+	var devices, items, products []string
+	perProduct := map[string]int{}
 	for _, n := range b.Notices {
 		for _, d := range n.Devices {
 			if strings.TrimSpace(d) != "" && !slices.Contains(devices, d) {
 				devices = append(devices, d)
 			}
 		}
+		p := strings.TrimSpace(n.Product)
+		if perProduct[p]++; perProduct[p] == 1 {
+			products = append(products, p)
+		}
+	}
+	mixed := len(products) > 1
+	listed := b.Listed()
+	for _, n := range listed {
 		line := strings.Join(dedupe(n.CVEs), ", ")
 		if line == "" {
 			line = n.Title
+		}
+		if mixed && strings.TrimSpace(n.Product) != "" {
+			line = strings.TrimSpace(n.Product) + ": " + line
 		}
 		if d := joinDevices(n.Devices); d != "" {
 			line += " on " + d
 		}
 		items = append(items, line)
 	}
+	more := len(b.Notices) - len(listed)
+	if mixed { // a digest of a burst across products (D-483)
+		var names []string
+		for _, p := range products {
+			c := perProduct[p]
+			if p == "" {
+				p = "other products"
+			}
+			names = append(names, fmt.Sprintf("%s (%d)", p, c))
+		}
+		link := b.link
+		if link == "" {
+			link = first.Link
+		}
+		return channel.Message{
+			ID: first.ID, Kind: first.Kind, Severity: string(b.Severity()),
+			Title:  fmt.Sprintf("%d exploited vulnerabilities match your devices", len(b.Notices)),
+			Device: joinDevices(devices), Devices: deviceRefs(devices, nil),
+			What:   fmt.Sprintf("%d vulnerabilities that attackers are using match devices in your network: %s.", len(b.Notices), strings.Join(names, ", ")),
+			Action: "Open the findings in Vedette and start with the critical ones.", Items: items, More: more, Link: link,
+		}, nil
+	}
 	return channel.Message{
 		ID: first.ID, Kind: first.Kind, Severity: string(b.Severity()),
 		Title:  fmt.Sprintf("%s: %d vulnerabilities are being exploited", first.Product, len(b.Notices)),
 		Device: joinDevices(devices), Devices: deviceRefs(devices, nil),
 		What:   fmt.Sprintf("%d vulnerabilities in %s are being exploited and match your devices.", len(b.Notices), first.Product),
-		Action: first.Action, Items: items, Link: first.Link,
+		Action: first.Action, Items: items, More: more, Link: first.Link,
 	}, nil
 }
 

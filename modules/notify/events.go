@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/knt048/vedette/core/events"
 	"github.com/knt048/vedette/core/jobs"
+	"github.com/knt048/vedette/core/store"
 )
 
 // Names of the events notify listens to. core/events wants <module>.<object>.<verb>, so the two-part
@@ -139,7 +141,8 @@ func (s *Service) findingEvent(ctx context.Context, data any, statusChange bool)
 }
 
 // assetEvent opens an unknown_device incident for a newly discovered device when the notify_new setting
-// of inventory was on at that moment (the event says so).
+// of inventory was on at that moment (the event says so). During the first discovery every device is new, so they go into one
+// summary incident instead (firstDiscovery, D-483).
 func (s *Service) assetEvent(ctx context.Context, data any) error {
 	var e struct {
 		AssetID string `json:"asset_id"`
@@ -160,11 +163,113 @@ func (s *Service) assetEvent(ctx context.Context, data any) error {
 		}
 	}
 	name = clip(name, 160) // a host name can be 200 characters; the title may not be longer than that (OpenIncident)
-	_, _, err := s.OpenIncident(ctx, IncidentInput{Kind: IncidentUnknownDevice, Source: e.AssetID, Title: "A new unknown device appeared: " + name, Severity: Medium,
+	first, err := s.firstDiscovery(ctx)
+	if err != nil {
+		return err
+	}
+	if first {
+		return s.discoveryIncident(ctx, Device{ID: e.AssetID, Name: name})
+	}
+	_, _, err = s.OpenIncident(ctx, IncidentInput{Kind: IncidentUnknownDevice, Source: e.AssetID, Title: "A new unknown device appeared: " + name, Severity: Medium,
 		What:   "A device that is not in your inventory joined the network: " + name + ".",
 		Action: "Find out whose device it is. Add it to the inventory if it belongs to you, otherwise remove it from the network.",
 		Link:   "/devices/" + e.AssetID, Devices: []Device{{ID: e.AssetID, Name: name}}})
 	return err
+}
+
+const (
+	// firstDiscoveryWindow is how long after notify first ran on the box new devices go into the one summary (D-483): the passive
+	// sensor finds most devices in the first hours, the active sensor (23:00-05:00 by default) the rest the first night.
+	firstDiscoveryWindow = 36 * time.Hour
+	firstDiscoverySource = "first-discovery" // the source of the summary incident: one per box while it is open
+	maxDiscoveryDevices  = 500               // devices listed on the summary; the count goes on
+	discoveryUpdateEvery = time.Hour         // the summary tells people again when it grew, at most this often
+)
+
+// firstDiscovery reports whether a new device belongs to the first discovery: notify first ran on this box (notify_box, migration
+// 0011: an upgraded box takes its earliest notify record) less than firstDiscoveryWindow ago. A box that turns new-device alerts on
+// later, or whose incidents passed retention, never opens the window again. ponytail: the start is notify's first run, not the first
+// contact of a sensor (inventory does not say; deferred line); a setup finished more than a day after the install gets one
+// incident per device, as before.
+func (s *Service) firstDiscovery(ctx context.Context) (bool, error) {
+	var first string
+	err := s.cfg.DB.Reader().QueryRowContext(ctx, `SELECT first_run_at FROM notify_box WHERE id = 1`).Scan(&first)
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		return false, nil
+	case err != nil:
+		return false, fmt.Errorf("notify: read first discovery: %w", err)
+	}
+	at, err := time.Parse(time.RFC3339Nano, first)
+	if err != nil {
+		return false, nil
+	}
+	return s.now().Sub(at) < firstDiscoveryWindow, nil
+}
+
+// discoveryIncident adds a device to the summary incident of the first discovery: the first device opens it (and its one message goes
+// out, if the channels take medium), the next ones add to its list and count, and its title says how many there are. When it grew
+// since its last message and that was at least discoveryUpdateEvery ago, it tells people again with the new count, so a device found
+// at hour 20 is not silent. ponytail: the update goes with a new device, so devices found within the hour after an update wait for the
+// next one (they are on the incident at once); upgrade path: a due update row in notify_pending.
+func (s *Service) discoveryIncident(ctx context.Context, d Device) error {
+	id, created, err := s.OpenIncident(ctx, IncidentInput{Kind: IncidentUnknownDevice, Source: firstDiscoverySource, Severity: Medium,
+		Title: "Devices found on your network: approve them in Devices",
+		What: "This is Vedette's first look at your network, so every device on it is new. Instead of one alert per device, the devices found in the first " +
+			"36 hours are listed together here.",
+		Action: "Open Devices, approve the devices you know, and find out about the ones you do not.",
+		Link:   "/devices", Devices: []Device{d}})
+	if err != nil || id == "" {
+		return err
+	}
+	now := s.now()
+	return s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
+		var n int
+		if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM notify_incident_device WHERE incident_id = ?`, id).Scan(&n); err != nil {
+			return fmt.Errorf("notify: count discovered devices: %w", err)
+		}
+		if n < maxDiscoveryDevices {
+			r, err := tx.ExecContext(ctx, `INSERT INTO notify_incident_device (incident_id, asset_id, name) VALUES (?, ?, ?) ON CONFLICT DO NOTHING`, id, d.ID, d.Name)
+			if err != nil {
+				return fmt.Errorf("notify: add discovered device: %w", err)
+			}
+			if c, _ := r.RowsAffected(); c == 1 {
+				n++
+			}
+		}
+		var count int
+		if err := tx.QueryRowContext(ctx, `SELECT count FROM notify_incident WHERE id = ?`, id).Scan(&count); err != nil {
+			return fmt.Errorf("notify: count discovered devices: %w", err)
+		}
+		count = max(n, count)
+		title := fmt.Sprintf("%d devices found on your network: approve them in Devices", count)
+		if count == 1 {
+			title = "1 device found on your network: approve it in Devices"
+		}
+		if _, err := tx.ExecContext(ctx, `UPDATE notify_incident SET title = ? WHERE id = ?`, title, id); err != nil {
+			return fmt.Errorf("notify: name discovered devices: %w", err)
+		}
+		if created { // its first message is queued by OpenIncident
+			_, err := tx.ExecContext(ctx, `UPDATE notify_box SET discovery_told_at = ?, discovery_told_count = ? WHERE id = 1`, store.FormatTS(now), count)
+			return err
+		}
+		var toldAt sql.NullString
+		var told int
+		if err := tx.QueryRowContext(ctx, `SELECT discovery_told_at, discovery_told_count FROM notify_box WHERE id = 1`).Scan(&toldAt, &told); err != nil {
+			return fmt.Errorf("notify: read discovery updates: %w", err)
+		}
+		last, _ := time.Parse(time.RFC3339Nano, toldAt.String)
+		if count <= told || now.Sub(last) < discoveryUpdateEvery {
+			return nil
+		}
+		if err := s.enqueue(ctx, tx, Notice{ID: id, Kind: KindIncident, IncidentKind: string(IncidentUnknownDevice), Severity: Medium, Title: title,
+			What:   fmt.Sprintf("%s since the last message. Vedette lists the devices of its first look at your network together for 36 hours.", plural(count-told, "more device found", "more devices found")),
+			Action: "Open Devices, approve the devices you know, and find out about the ones you do not.", Link: s.link("/incidents/" + id), At: now}); err != nil {
+			return err
+		}
+		_, err := tx.ExecContext(ctx, `UPDATE notify_box SET discovery_told_at = ?, discovery_told_count = ? WHERE id = 1`, store.FormatTS(now), count)
+		return err
+	})
 }
 
 // hitEvent opens a trap incident for a honeypot hit (S-HP-1). Every text from the event is data from the
@@ -231,4 +336,12 @@ func (s *Service) Jobs() []jobs.Job {
 		{Module: ModuleID, Name: zaloListenJob, Every: zaloListenEvery, Run: s.listenZalo},
 		{Module: ModuleID, Name: retentionJob, Every: retentionEvery, Housekeeping: true, Run: s.RunRetention}, // D-160: deletes history past 1 year, also while the module is off
 	}
+}
+
+// plural is "1 <one>" or "<n> <many>".
+func plural(n int, one, many string) string {
+	if n == 1 {
+		return "1 " + one
+	}
+	return fmt.Sprintf("%d %s", n, many)
 }

@@ -208,9 +208,10 @@ describe('notify: old /alerts links (D-52)', () => {
 })
 
 describe('notify: vulnerability notices on the finding (S-ALERT-1)', () => {
-  it('the finding shows where it was sent and a failure with its reason', async () => {
+  it('the finding shows where it was sent, and a failure apart, never as notified (W1-11)', async () => {
     renderApp('/findings/f-2')
-    expect(await screen.findByText(/Notified: Telegram \d\d:\d\d, Email \(failed: The SMTP server rejected the login/)).toBeInTheDocument()
+    expect(await screen.findByText(/^Notified: Telegram \d\d:\d\d$/)).toBeInTheDocument()
+    expect(screen.getByText(/^Not delivered: Email \(failed: The SMTP server rejected the login/)).toBeInTheDocument()
   })
   it('a finding that was never notified shows no panel', async () => {
     const res = await getJsonAfterLogin('/notify/findings/f-zzz/notices')
@@ -238,6 +239,15 @@ describe('notify: delivery history (S-NOT-1, D-52)', () => {
     await userEvent.click(btn)
     await waitFor(() => expect(within(screen.getByRole('table', { name: 'Sent messages' })).getAllByRole('row').length).toBe(before + 1))
     expect(auditStore.get().some((e) => e.action === 'notify.resend')).toBe(true)
+  })
+
+  it('a message a provider held back (HTTP 429) is Delayed, not Failed, and has no Send again (D-483)', async () => {
+    renderChannels()
+    const table = await screen.findByRole('table', { name: 'Sent messages' })
+    const row = within(table).getByText(/^Delayed \(rate limited\): Telegram asked Vedette to wait/).closest('tr')!
+    expect(within(row).getByText('Delayed')).toBeInTheDocument()
+    expect(within(row).queryByText('Failed')).toBeNull()
+    expect(within(row).queryByRole('button', { name: /Send again/ })).toBeNull()
   })
 
   it('nothing skipped (a box with no device, walk 2): the meta line says only what the count proves, and that the first download is not counted (walk 3)', async () => {
@@ -301,10 +311,11 @@ describe('notify: alert channels (S-NOT-1)', () => {
     expect(auditStore.get().some((e) => e.action === 'notify.channel_test' && e.target === 'telegram')).toBe(true)
   })
 
-  it('Zalo OA: the access token is required on first save, a full form can be turned on', async () => {
+  it('Zalo OA (D-483): App ID, Secret key and refresh token, checked field by field; the box renews the access token', async () => {
     renderChannels()
     await press('Set up Zalo OA')
     const dlg = await screen.findByRole('dialog', { name: 'Channel Zalo OA' })
+    expect(within(dlg).getByRole('link', { name: "Zalo's guide to OA access and refresh tokens" })).toHaveAttribute('href', expect.stringMatching(/^https:\/\/developers\.zalo\.me\//))
     await userEvent.type(within(dlg).getByLabelText('OA ID'), '12345')
     await userEvent.click(within(dlg).getByRole('button', { name: /^Save$/ }))
     await waitFor(() => expect(within(dlg).getByLabelText('OA ID')).toHaveAccessibleDescription(/OA ID is a string of digits/))
@@ -314,13 +325,19 @@ describe('notify: alert channels (S-NOT-1)', () => {
     await waitFor(() => expect(within(dlg).getByLabelText('Recipient ID (user_id)')).toHaveAccessibleDescription(/Zalo recipient ID \(user_id\)/))
     await userEvent.type(within(dlg).getByLabelText('Recipient ID (user_id)'), '2468013579')
     await userEvent.click(within(dlg).getByRole('button', { name: /^Save$/ }))
-    await waitFor(() => expect(within(dlg).getByLabelText('Access token')).toHaveAccessibleDescription(/Enter the access token/))
+    await waitFor(() => expect(within(dlg).getByLabelText('Refresh token')).toHaveAccessibleDescription(/Enter the refresh token, or an access token/))
     expect(within(dlg).queryByRole('alert')).toBeNull()
-    await userEvent.type(within(dlg).getByLabelText('Access token'), 'zalo-access-token-0123456789-abcdef')
+    await userEvent.type(within(dlg).getByLabelText('Refresh token'), 'zalo-refresh-token-0123456789-wxyz')
+    await userEvent.click(within(dlg).getByRole('button', { name: /^Save$/ }))
+    await waitFor(() => expect(within(dlg).getByLabelText('Secret key')).toHaveAccessibleDescription(/Enter the Secret key of the Zalo app/))
+    await userEvent.type(within(dlg).getByLabelText('Secret key'), 'app-secret-key-123')
+    await userEvent.click(within(dlg).getByRole('button', { name: /^Save$/ }))
+    await waitFor(() => expect(within(dlg).getByLabelText('App ID')).toHaveAccessibleDescription(/App ID is the number of your Zalo app/))
+    await userEvent.type(within(dlg).getByLabelText('App ID'), '4318650137000000000')
     await userEvent.click(within(dlg).getByRole('button', { name: 'Save and send test' }))
     expect((await screen.findAllByText(/Zalo OA 1234567890 sent the test message to recipient 2468013579/)).length).toBeGreaterThan(0)
-    const z = ((await getJson('/notify/channels')).channels as { type: string; configured: boolean; secret_last4: string }[]).find((c) => c.type === 'zalo')!
-    expect(z).toMatchObject({ configured: true, secret_last4: 'cdef' })
+    const z = ((await getJson('/notify/channels')).channels as { type: string; configured: boolean; secret_last4: string; fields: Record<string, string> }[]).find((c) => c.type === 'zalo')!
+    expect(z).toMatchObject({ configured: true, secret_last4: 'wxyz', fields: { app_id: '4318650137000000000' } })
   })
 
   it('SMTP email: recipients are checked at the boundary', async () => {
@@ -640,7 +657,7 @@ describe('notify: forbidden webhook hosts match the box (forbiddenAddr after Unm
 })
 
 describe('notify: channel form matrix (docs/QA.md §2)', () => {
-  const ALL = ['Chat ID', 'Bot token', 'OA ID', 'Access token', 'Recipient ID (user_id)', 'Provider', 'SMTP server', 'Port', 'Encryption', 'Username', 'Tenant ID', 'Client ID', 'Send from', 'Send to', 'SMTP password', 'Webhook URL', 'Signing key', 'Channel label (optional)', 'Incoming Webhook URL', 'Channel ID', 'App-level token (xapp-…)', 'Bot token (xoxb-…)', 'Recipient (user or group ID)']
+  const ALL = ['Chat ID', 'Bot token', 'OA ID', 'Access token (optional)', 'App ID', 'Secret key', 'Refresh token', 'Recipient ID (user_id)', 'Provider', 'SMTP server', 'Port', 'Encryption', 'Username', 'Tenant ID', 'Client ID', 'Send from', 'Send to', 'SMTP password', 'Webhook URL', 'Signing key', 'Channel label (optional)', 'Incoming Webhook URL', 'Channel ID', 'App-level token (xapp-…)', 'Bot token (xoxb-…)', 'Recipient (user or group ID)']
   const only = (...keep: string[]) => ALL.filter((x) => !keep.includes(x))
   const APPROVE = 'Approve actions from this channel'
   const LINK_ONLY = /This channel cannot take approvals/
@@ -657,7 +674,7 @@ describe('notify: channel form matrix (docs/QA.md §2)', () => {
     await eachOption([
       { option: 'Telegram', shown: ['Chat ID', 'Bot token', APPROVE], hidden: [...only('Chat ID', 'Bot token'), LINK_ONLY] },
       { option: 'Slack', shown: ['Channel label (optional)', 'Incoming Webhook URL', APPROVE], hidden: [...only('Channel label (optional)', 'Incoming Webhook URL', 'Channel ID', 'App-level token (xapp-…)', 'Bot token (xoxb-…)'), LINK_ONLY] },
-      { option: 'Zalo OA', shown: ['OA ID', 'Access token', 'Recipient ID (user_id)', LINK_ONLY], hidden: [...only('OA ID', 'Access token', 'Recipient ID (user_id)'), APPROVE] },
+      { option: 'Zalo OA', shown: ['OA ID', 'App ID', 'Secret key', 'Refresh token', 'Access token (optional)', 'Recipient ID (user_id)', LINK_ONLY], hidden: [...only('OA ID', 'App ID', 'Secret key', 'Refresh token', 'Access token (optional)', 'Recipient ID (user_id)'), APPROVE] },
       { option: 'Zalo personal', shown: ['Zalo sign-in', 'Or find by invite link, phone number or ID', APPROVE, /Unofficial channel/], hidden: [...only(), LINK_ONLY, 'Bot token', 'I scanned it'] },
       { option: 'Email', shown: ['Provider', 'SMTP server', 'Port', 'Encryption', 'Username', 'Send from', 'Send to', 'SMTP password', APPROVE], hidden: [...only('Provider', 'SMTP server', 'Port', 'Encryption', 'Username', 'Send from', 'Send to', 'SMTP password'), LINK_ONLY] },
       { option: 'Webhook', shown: ['Webhook URL', 'Signing key', 'Generate random', LINK_ONLY], hidden: [...only('Webhook URL', 'Signing key'), APPROVE] },

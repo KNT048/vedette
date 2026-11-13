@@ -73,7 +73,7 @@ func fit(lines []string, limit int) string {
 // still auto-links URLs, @mentions and /commands in plain text, so feed-sourced
 // fields go through defang; the box's own link stays a real link.
 func telegramText(m Message, link string) string {
-	return fit(m.mapText(defang).lines(link), telegramTextMax)
+	return chatText(m, link, telegramTextMax)
 }
 
 func (t *telegramSender) Send(ctx context.Context, m Message) (Receipt, error) {

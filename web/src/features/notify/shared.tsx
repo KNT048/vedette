@@ -24,6 +24,7 @@ export function DeliveryBadges({ sends }: { sends: SendRecord[] }) {
     <span className="flex flex-wrap gap-1">
       {[...last.values()].map((s) => (s.ok
         ? <Chip key={s.channel} tone="off">{t('incidents.sentAt', { channel: t(`ch.${s.channel}`), time: fmtClock(s.at) })}</Chip>
+        : s.delayed ? <Chip key={s.channel} tone="accent" title={s.error}>{t('incidents.sentDelayed', { channel: t(`ch.${s.channel}`) })}</Chip>
         : <Chip key={s.channel} tone="warn" title={s.error}>{t('incidents.sentFailed', { channel: t(`ch.${s.channel}`) })}</Chip>))}
     </span>
   )

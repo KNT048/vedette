@@ -184,6 +184,23 @@ describe('findings: f-2, f-3 chưa có khuyến nghị đã xác nhận (D-21)',
     expect(await screen.findByText('Your AI')).toBeInTheDocument()
   })
 
+  // beta 0.1.0-beta.1: Explain on Haiku 5.5 failed with a cut answer, and the page said "No AI profile is assigned". Each failure of the
+  // AI shows the box's own message for it, never the "not set up" one.
+  it.each([
+    ['ai_cut_off', 502, "The AI's answer was cut off at the output limit (12,000 tokens), so it was not used. Try again; if it keeps happening, use a model for explaining findings that writes shorter answers."],
+    ['ai_bad_format', 502, 'The AI answered, but not in the format Vedette needs, so the answer was discarded. Try again, or use a stronger model for this job.'],
+    ['provider_error', 502, 'The AI provider returned an error for explaining findings (Claude: provider refused the request (HTTP 400): bad model).'],
+    ['blocked_by_hook', 409, 'The AI was not asked: a hook stopped the data sent with it (the device of the finding). The text contains an ID number.'],
+    ['daily_cap', 429, "Today's 60,000 token cap is used up and the tier is already the minimum."],
+    ['ai_timeout', 504, 'The AI provider did not answer explaining findings in time (Claude: provider did not answer in time).'],
+  ])('Ask my AI failing with %s shows that failure', async (code, status, message) => {
+    server.use(http.post('*/api/v1/findings/:id/ai', () => HttpResponse.json({ error: { code, message } }, { status })))
+    renderApp('/findings/f-2')
+    await userEvent.click(await screen.findByRole('button', { name: 'Ask my AI' }))
+    expect(await screen.findByText(message)).toBeInTheDocument()
+    expect(screen.queryByText(/No AI profile is assigned to this job/)).toBeNull()
+  })
+
   it('AI chưa cấu hình: nút tắt, nói rõ phải làm gì, có link tới cài đặt', async () => {
     aiConfigStore.update((c) => ({ ...c, configured: false }))
     renderApp('/findings/f-2')

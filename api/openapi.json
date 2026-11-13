@@ -756,6 +756,20 @@
                           },
                           "message": {
                             "type": "string"
+                          },
+                          "step": {
+                            "type": "string",
+                            "enum": [
+                              "question",
+                              "tool_call",
+                              "tool_result",
+                              "answer"
+                            ],
+                            "description": "Which step the hook acted on: the question (blocked = the AI was not asked), a tool call the AI made, a tool result before it went to the AI, or the answer"
+                          },
+                          "tool": {
+                            "description": "The tool of a tool_call or tool_result step",
+                            "type": "string"
                           }
                         },
                         "required": [
@@ -764,11 +778,12 @@
                           "kind",
                           "when",
                           "action",
-                          "message"
+                          "message",
+                          "step"
                         ],
                         "additionalProperties": false
                       },
-                      "description": "Hooks that acted on this question, answer or tool call; empty when none did"
+                      "description": "Hooks that acted on this question, a tool call, a tool result or the answer; empty when none did"
                     },
                     "memories_suggested": {
                       "type": "integer",
@@ -1033,6 +1048,20 @@
                                 },
                                 "message": {
                                   "type": "string"
+                                },
+                                "step": {
+                                  "type": "string",
+                                  "enum": [
+                                    "question",
+                                    "tool_call",
+                                    "tool_result",
+                                    "answer"
+                                  ],
+                                  "description": "Which step the hook acted on: the question (blocked = the AI was not asked), a tool call the AI made, a tool result before it went to the AI, or the answer"
+                                },
+                                "tool": {
+                                  "description": "The tool of a tool_call or tool_result step",
+                                  "type": "string"
                                 }
                               },
                               "required": [
@@ -1041,11 +1070,12 @@
                                 "kind",
                                 "when",
                                 "action",
-                                "message"
+                                "message",
+                                "step"
                               ],
                               "additionalProperties": false
                             },
-                            "description": "Hooks that acted on this question, answer or tool call; empty when none did"
+                            "description": "Hooks that acted on this question, a tool call, a tool result or the answer; empty when none did"
                           },
                           "memories_suggested": {
                             "type": "integer",

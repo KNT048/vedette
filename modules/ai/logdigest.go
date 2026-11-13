@@ -473,9 +473,10 @@ func (s *Service) LogDigest(ctx context.Context, actor string) (LogDigestResult,
 	var body logDigestBody
 	var remember []string
 	now := s.cfg.Clock()
-	maxTokens := 2500
+	// up to 20 items a list at med and max (5 at min), about 2,500 tokens of JSON at most; the rest is room for thinking (briefMaxTokens)
+	maxTokens := 8000
 	if tier == TierMin {
-		maxTokens = 1200
+		maxTokens = 4000
 	}
 	var hash string
 	summary := fmt.Sprintf("Summarised the log digest: %d new kinds of line, %d spikes, %d bad connections", len(d.New), len(d.Spikes), len(d.BadConnections))

@@ -501,7 +501,7 @@ func TestNewsBadAnswersAreDiscarded(t *testing.T) {
 		"extra citation": `{"exploited":"x","public_exploit":"y","workaround":"z","other":[],"citations":[{"url":"https://evil.example"}]}`,
 	} {
 		a.fake.setAnswer(answer)
-		if m := a.news(409, "ai_unavailable"); !strings.Contains(m["error"].(map[string]any)["message"].(string), "not in the format") {
+		if m := a.news(502, "ai_bad_format"); !strings.Contains(m["error"].(map[string]any)["message"].(string), "not in the format") {
 			t.Errorf("%s: %v", name, m)
 		}
 	}

@@ -136,6 +136,9 @@ func (h *ActionHandlers) FindingsPostFindingsIDAi(ctx context.Context, req *oas.
 		return nil, err
 	}
 	out, err := h.ai.Run(ctx, AIRequest{Skill: skill, Finding: before.Row, HasPack: before.Pack != nil, User: p.Email})
+	if ae, ok := apierr.As(err); ok { // the AI module says what happened (cut off, wrong format, a hook, the provider, the cap): pass it on
+		return nil, ae
+	}
 	if errors.Is(err, ErrAIUnavailable) {
 		return nil, aiUnavailable()
 	}

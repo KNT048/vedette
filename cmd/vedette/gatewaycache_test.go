@@ -8,8 +8,8 @@ import (
 	"github.com/knt048/vedette/host/api"
 )
 
-// D-511: the inventory's gateway signal is the host's IPv4 default gateway, read again after a minute; a failed read is unknown and is
-// not kept.
+// D-511: the inventory's gateway signal is the host's IPv4 default gateway, read again after a minute; a failed read is unknown, and
+// kept for that minute too, so a host that does not answer costs one timeout a minute, not one per page (#714 M3).
 func TestGatewayCache(t *testing.T) {
 	t.Parallel()
 	now := time.Date(2026, 11, 13, 10, 0, 0, 0, time.UTC)
@@ -26,9 +26,19 @@ func TestGatewayCache(t *testing.T) {
 	if ip := g.Get(t.Context()); ip.String() != "192.168.18.254" {
 		t.Fatalf("after a minute the gateway is read again, got %v", ip)
 	}
-	failing := &gatewayCache{state: &fakeNet{err: errors.New("host down")}, now: func() time.Time { return now }}
+	down := &fakeNet{err: errors.New("host down")}
+	failing := &gatewayCache{state: down, now: func() time.Time { return now }}
 	if ip := failing.Get(t.Context()); ip.IsValid() {
 		t.Fatalf("a failed read is unknown, got %v", ip)
+	}
+	failing.Get(t.Context())
+	if down.calls != 1 {
+		t.Fatalf("a failed read was asked again %d times within the minute", down.calls-1)
+	}
+	now = now.Add(2 * time.Minute)
+	failing.Get(t.Context())
+	if down.calls != 2 {
+		t.Fatalf("after a minute a failed read is asked again: %d calls", down.calls)
 	}
 	none := &gatewayCache{state: &fakeNet{}, now: func() time.Time { return now }}
 	if ip := none.Get(t.Context()); ip.IsValid() {

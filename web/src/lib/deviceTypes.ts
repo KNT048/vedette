@@ -2,7 +2,7 @@
 // và nhãn hiển thị đều đọc từ đây, không chép tay.
 import data from '../../../content/devicetypes/types.json'
 
-export interface DeviceType { id: string; label: string; category: string; acts_as: string; aliases: string[] }
+export interface DeviceType { id: string; label: string; category: string; acts_as: string; aliases: string[]; no_auto_isolate?: boolean }
 export interface DeviceCategory { id: string; label: string }
 
 export const DEVICE_TYPES: readonly DeviceType[] = data.types
@@ -22,6 +22,13 @@ export const categoryOf = (id: string): string => BY_ID.get(id)?.category ?? 'un
 export const categoryLabel = (id: string): string => CAT_BY_ID.get(id)?.label ?? id
 /** Loại mà hành vi coi id là (D-511). */
 export const actsAs = (id: string): string => BY_ID.get(id)?.acts_as ?? 'unknown'
+/** Luật response theo loại (device_type) phủ thiết bị loại id: id có trong danh sách, hoặc loại nó hành xử như có trong danh sách và
+ * loại đó không đánh dấu no_auto_isolate (tổng đài, OT, y tế, nguồn điện; D-511, rà #714 M1). Như devicetypes.MatchesKind của Go. */
+export const matchesKind = (kinds: string[], id: string): boolean => {
+  if (kinds.includes(id)) return true
+  const t = BY_ID.get(id)
+  return !!t && !t.no_auto_isolate && kinds.includes(t.acts_as)
+}
 /** Các loại theo nhóm, theo thứ tự hiển thị: cho ô chọn loại có optgroup. */
 export const TYPES_BY_CATEGORY: readonly { category: DeviceCategory; types: DeviceType[] }[] =
   DEVICE_CATEGORIES.map((c) => ({ category: c, types: DEVICE_TYPES.filter((t) => t.category === c.id) }))

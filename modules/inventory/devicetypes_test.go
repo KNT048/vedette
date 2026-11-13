@@ -82,20 +82,26 @@ func loadN100(e *env) map[string]string {
 	return ids
 }
 
-func withGateway(ip string) opt {
-	return func(c *inventory.Config) {
-		c.Gateway = func(context.Context) netip.Addr { return netip.MustParseAddr(ip) }
-	}
-}
-
 // D-511 on the N100's own rows: each device that was "Unknown" while its card maker and ports told a person what it is now carries
 // that type as a guess with its evidence; the HP device with only web ports gets none. The kind stays unknown: scans still treat the
 // device as unknown and careful, and a guessed router is no never-touch gateway (D-177).
 func TestContract_D511_N100DevicesGetTheirType(t *testing.T) {
 	t.Parallel()
-	e := newEnv(t, withGateway("192.168.18.1"))
+	asked := 0
+	e := newEnv(t, func(c *inventory.Config) {
+		c.Gateway = func(context.Context) netip.Addr { asked++; return netip.MustParseAddr("192.168.18.1") }
+	})
 	ids := loadN100(e)
-	l, err := e.svc.Devices(e.ctx())
+	// #714 M3: only the Devices page and the device page ask for guesses (and the host for its gateway); every other reader, such as
+	// response's Directory inside a write, reads Devices or Device, which never do.
+	plain, err := e.svc.Devices(e.ctx())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if d, _ := e.svc.Device(e.ctx(), ids["192.168.18.251"]); d.Guess != nil || asked != 0 || slices.ContainsFunc(plain.Items, func(d inventory.Device) bool { return d.Guess != nil }) {
+		t.Fatalf("Devices/Device computed guesses (asked the gateway %d times)", asked)
+	}
+	l, err := e.svc.DevicesPage(e.ctx())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -117,7 +123,7 @@ func TestContract_D511_N100DevicesGetTheirType(t *testing.T) {
 		if d.Guess == nil || d.Guess.Type != want.want || !strings.Contains(strings.ToLower(d.Guess.Evidence), strings.ToLower(want.evidence)) {
 			t.Errorf("%s: guess %+v, want %s with evidence containing %q", want.ip, d.Guess, want.want, want.evidence)
 		}
-		if detail, err := e.svc.Detail(e.ctx(), d.ID); err != nil || detail.Asset.Guess == nil || detail.Asset.Guess.Type != want.want {
+		if detail, err := e.svc.DetailPage(e.ctx(), d.ID); err != nil || detail.Asset.Guess == nil || detail.Asset.Guess.Type != want.want {
 			t.Errorf("%s: device page guess = %+v, %v", want.ip, detail.Asset.Guess, err)
 		}
 	}
@@ -134,7 +140,7 @@ func TestContract_D511_N100DevicesGetTheirType(t *testing.T) {
 	// Without the host's gateway the .1 still reads as the router, from DNS at the first address.
 	e2 := newEnv(t)
 	loadN100(e2)
-	l2, _ := e2.svc.Devices(e2.ctx())
+	l2, _ := e2.svc.DevicesPage(e2.ctx())
 	for _, d := range l2.Items {
 		if d.IP == "192.168.18.1" && (d.Guess == nil || d.Guess.Type != "router" || !strings.Contains(d.Guess.Evidence, "address ending in .1")) {
 			t.Fatalf("gateway unknown: .1 guess = %+v", d.Guess)
@@ -247,6 +253,12 @@ func TestMigration0004KeepsRowsAndTakesNewTypes(t *testing.T) {
 	const ts = "2026-11-13T10:00:00.000Z"
 	for _, q := range []string{
 		`INSERT INTO inv_asset (id, ip, kind, origin, approved, approved_at, first_seen, last_seen) VALUES ('a-1', '192.168.18.47', 'switch', 'discovered', 1, '` + ts + `', '` + ts + `', '` + ts + `')`,
+		// the first-scan reset: unknown and not fragile → scanned again (with titles); fragile, never or a known kind → kept
+		`INSERT INTO inv_asset (id, ip, kind, origin, fragile, regular_scan, first_scan_at, first_seen, last_seen) VALUES
+			('a-unk', '192.168.18.251', 'unknown', 'discovered', 0, 'follow', '` + ts + `', '` + ts + `', '` + ts + `'),
+			('a-frag', '192.168.18.252', 'unknown', 'discovered', 1, 'follow', '` + ts + `', '` + ts + `', '` + ts + `'),
+			('a-never', '192.168.18.253', 'unknown', 'discovered', 0, 'never', '` + ts + `', '` + ts + `', '` + ts + `'),
+			('a-known', '192.168.18.200', 'printer', 'discovered', 1, 'follow', '` + ts + `', '` + ts + `', '` + ts + `')`,
 		`INSERT INTO inv_observation (id, asset_id, field, value, source, confidence, seen_at) VALUES ('o-1', 'a-1', 'kind', 'switch', 'passive', 0.6, '` + ts + `')`,
 		`INSERT INTO inv_service (id, asset_id, port, proto, name, source, confidence, seen_at) VALUES ('sv-1', 'a-1', 22, 'tcp', 'ssh', 'nmap', 0.5, '` + ts + `')`,
 		`INSERT INTO inv_software (id, asset_id, display, vendor, product, source, confidence, seen_at) VALUES ('s-1', 'a-1', 'Junos', 'juniper', 'junos', 'nmap', 0.5, '` + ts + `')`,
@@ -259,6 +271,13 @@ func TestMigration0004KeepsRowsAndTakesNewTypes(t *testing.T) {
 		t.Fatal("before 0004 the CHECK should refuse a new type (the test would prove nothing)")
 	}
 	if err := store.Migrate(ctx, db, "inventory", inventory.Migrations); err != nil {
+		t.Fatal(err)
+	}
+	var reset string
+	if err := db.Reader().QueryRowContext(ctx, `SELECT group_concat(id, ',') FROM (SELECT id FROM inv_asset WHERE first_scan_at IS NULL AND id <> 'a-1' ORDER BY id)`).Scan(&reset); err != nil || reset != "a-unk" {
+		t.Fatalf("first scan reset for %q (%v), want only the unknown, not fragile device", reset, err)
+	}
+	if err := exec(`DELETE FROM inv_asset WHERE id <> 'a-1'`); err != nil {
 		t.Fatal(err)
 	}
 	for _, table := range []string{"inv_asset", "inv_observation", "inv_service", "inv_software"} {

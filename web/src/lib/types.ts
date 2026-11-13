@@ -3,7 +3,7 @@ export type ObsSource = 'manual' | 'agent' | 'snmp' | 'nmap' | 'passive' | 'scan
 /** A device type id of content/devicetypes/types.json (D-511): data, not a hand-written union. */
 export type AssetKind = string
 /** What the identification rules say a device of unknown kind most likely is (D-511); never its kind. */
-export interface KindGuess { kind: AssetKind; confidence: number; evidence: string; model?: string }
+export interface KindGuess { kind: AssetKind; confidence: number; evidence: string; model?: string; alternatives?: AssetKind[] }
 
 export interface Observed { value: string; source: ObsSource; confidence: number; seen_at: string }
 

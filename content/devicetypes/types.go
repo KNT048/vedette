@@ -23,6 +23,9 @@ type Type struct {
 	Category string   `json:"category"`
 	ActsAs   string   `json:"acts_as"` // one of Kinds: what behaviour treats the type as
 	Aliases  []string `json:"aliases"`
+	// NoAutoIsolate: a response rule keyed on the kind the type acts as never covers it (D-511, #714 review M1): cutting off a phone
+	// system, an OT controller, a medical device or power gear harms more than it helps.
+	NoAutoIsolate bool `json:"no_auto_isolate,omitempty"`
 }
 
 // Category is one group of types.
@@ -96,6 +99,16 @@ func ActsAs(id string) string {
 		return t.ActsAs
 	}
 	return Unknown
+}
+
+// MatchesKind reports whether a rule keyed on kinds (response device_type, D-511) covers a device of type id: the id is listed
+// itself, or the kind it acts as is listed and the type is not marked no_auto_isolate. kinds are lower case.
+func MatchesKind(kinds []string, id string) bool {
+	if slices.Contains(kinds, id) {
+		return true
+	}
+	t, ok := byID[id]
+	return ok && !t.NoAutoIsolate && slices.Contains(kinds, t.ActsAs)
 }
 
 // CategoryOf is the category of the type; "unknown" for an id that is not a type.

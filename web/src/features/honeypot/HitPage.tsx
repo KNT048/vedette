@@ -11,6 +11,7 @@ import { useHit } from './api'
 import { hitName } from './hitName'
 import { RespondLink } from './hitParts'
 import type { HitEvent } from './types'
+import { kindLabel } from '@/lib/deviceTypes'
 
 export default function HitPage() {
   const { t, i18n } = useTranslation('honeypot')
@@ -41,7 +42,7 @@ export default function HitPage() {
                     { label: t('hit.trap'), value: h.kind === 'service' ? `${h.trap_hostname} (${h.trap_ip})` : `${h.trap_hostname}: ${h.trap_ip}` },
                     { label: t('hit.srcIp'), value: h.src_ip },
                     { label: t('hit.srcDevice'), value: h.asset && h.src_name
-                      ? <span className="flex flex-wrap items-center gap-2"><Link className="text-accent underline-offset-4 hover:underline" to={`/devices/${h.asset.id}`}>{h.src_name}</Link><span className="text-[13px] text-muted">{t(`kind.${h.asset.kind}`, { defaultValue: h.asset.kind })}</span>{h.asset.approved ? null : <Chip tone="warn">{t('hit.unapproved')}</Chip>}</span>
+                      ? <span className="flex flex-wrap items-center gap-2"><Link className="text-accent underline-offset-4 hover:underline" to={`/devices/${h.asset.id}`}>{h.src_name}</Link><span className="text-[13px] text-muted">{kindLabel(h.asset.kind)}</span>{h.asset.approved ? null : <Chip tone="warn">{t('hit.unapproved')}</Chip>}</span>
                       : <span className="text-muted">{h.is_test ? t('hits.deviceBox') : t('hit.noDevice')}</span> },
                   ]} />
                 </Panel>

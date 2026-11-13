@@ -677,6 +677,8 @@
     "title": "Most likely: {{kind}} ({{category}})",
     "model": "model {{model}}",
     "hint": "Vedette's guess from what it has seen. Until you confirm it, scans still treat this device as unknown and careful.",
-    "confirm": "Confirm: {{kind}}"
+    "confirm": "Confirm: {{kind}}",
+    "alternatives": "The same signals also fit: {{list}}. Pick the right one: the type decides whether Vedette scans the device gently as fragile.",
+    "instead": "It is a {{kind}}"
   }
 }

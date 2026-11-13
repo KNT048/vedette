@@ -26,7 +26,8 @@ const (
 	maxCPEs         = 8
 	maxText         = 200 // longest stored string, in runes
 	maxCPELen       = 300
-	maxElemLen      = 256 // longest <elem> text of an NTLM script that is read; a longer one is dropped
+	maxElemLen      = 256      // longest <elem> text of an NTLM script that is read; a longer one is dropped
+	maxScriptOutput = 64 << 10 // longest output attribute of a <script> (ssl-cert prints the whole certificate, D-511)
 )
 
 var (
@@ -125,23 +126,55 @@ func unprintable(r rune) bool {
 }
 
 // text accepts a string from nmap only if it is printable UTF-8 of 1..maxText runes; otherwise it is "" (absent).
-// certSubject is the subject line of ssl-cert's output ("Subject: commonName=FGT60F.../organizationName=Fortinet/..."), "" when it has
-// none or it is not printable (D-511).
-func certSubject(out string) string {
-	for line := range strings.Lines(out) {
-		if s, ok := strings.CutPrefix(strings.TrimSpace(line), "Subject: "); ok {
-			return text(strings.TrimSpace(s))
-		}
-	}
-	return ""
-}
-
 func text(s string) string {
 	n := utf8.RuneCountInString(s)
 	if n < 1 || n > maxText || !utf8.ValidString(s) || strings.ContainsFunc(s, unprintable) {
 		return ""
 	}
 	return s
+}
+
+// clipRunes cuts s to at most n runes (whole runes; s is valid UTF-8 or text refuses it afterwards).
+func clipRunes(s string, n int) string {
+	if utf8.RuneCountInString(s) <= n {
+		return s
+	}
+	return string([]rune(s)[:n])
+}
+
+// Bounds of what a port says (D-511, #714 review): a long certificate subject or title is shortened, never dropped whole.
+const (
+	maxTitle       = 80
+	maxSubjectPart = 60
+	maxSubject     = 140
+)
+
+// certSubject is the subject of ssl-cert's output ("Subject: commonName=FGT60F.../organizationName=Fortinet/..."), commonName first
+// (it names the device: a FortiGate's serial, a host name), then the organisation, then the rest, each part cut to maxSubjectPart
+// and the whole to maxSubject; "" when there is none or it is not printable (D-511).
+func certSubject(out string) string {
+	for line := range strings.Lines(out) {
+		s, ok := strings.CutPrefix(strings.TrimSpace(line), "Subject: ")
+		if !ok {
+			continue
+		}
+		var first, org, rest []string
+		for part := range strings.SplitSeq(strings.TrimSpace(s), "/") {
+			if part = clipRunes(strings.TrimSpace(part), maxSubjectPart); part == "" {
+				continue
+			}
+			switch {
+			case strings.HasPrefix(part, "commonName="):
+				first = append(first, part)
+			case strings.HasPrefix(part, "organizationName="):
+				org = append(org, part)
+			default:
+				rest = append(rest, part)
+			}
+		}
+		return text(clipRunes(strings.Join(append(append(first, org...), rest...), "/"), maxSubject))
+	}
+	return ""
 }
 
 // cpeText accepts a CPE 2.2 URI: printable ASCII starting with "cpe:/".
@@ -238,7 +271,9 @@ func parseNmapXML(data []byte) ([]host, error) {
 				return nil, fmt.Errorf("%w: too many attributes", errXMLInvalid)
 			}
 			for _, a := range t.Attr {
-				if len(a.Value) > 4096 {
+				// A script's printed output (a certificate with many names, a long page title) may be longer than any other
+				// attribute; it is bounded apart, so a long one does not refuse the whole run (D-511).
+				if limit := 4096; len(a.Value) > limit && (t.Name.Local != "script" || a.Name.Local != "output" || len(a.Value) > maxScriptOutput) {
 					return nil, fmt.Errorf("%w: attribute too long", errXMLInvalid)
 				}
 			}
@@ -357,8 +392,9 @@ func parseNmapXML(data []byte) ([]host, error) {
 				ntlm, title = false, false
 			case "nmaprun/host/ports/port/script/elem":
 				// The challenge is read only from an open port; a value longer than maxElemLen or of another form is dropped.
-				if elemKey != "" && cur != nil && portOK && elemBuf.Len() <= maxElemLen {
-					v := text(strings.Join(strings.Fields(elemBuf.String()), " "))
+				// A title longer than the buffer keeps its start (#714 review: shortened, not dropped).
+				if elemKey != "" && cur != nil && portOK && (title || elemBuf.Len() <= maxElemLen) {
+					v := text(clipRunes(strings.Join(strings.Fields(elemBuf.String()), " "), maxTitle))
 					if title {
 						port.title = v
 					} else {

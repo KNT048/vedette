@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -114,5 +115,43 @@ func TestGentleScanAfterANormalOneKeepsItsServices(t *testing.T) {
 	want := []string{"22/tcp ssh|OpenSSH", "80/tcp http|Apache httpd", "8080/tcp http-proxy|Squid http proxy", "9100/tcp jetdirect|"}
 	if fmt.Sprint(lines) != fmt.Sprint(want) {
 		t.Fatalf("services after normal then gentle\n got %q\nwant %q", lines, want)
+	}
+}
+
+// D-511 (lead decision on #714): the one gentle scan of a device whose kind is unknown and that nobody made fragile also reads the
+// page title and the certificate (http-title, ssl-cert, each capped by --script-timeout); a fragile device keeps the gentle command
+// line exactly, with no script.
+func TestGentleScanReadsTitlesOnlyOfUnknownNotFragile(t *testing.T) {
+	t.Parallel()
+	gentle, err := filepath.Abs(filepath.Join("testdata", "fragile.xml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range []struct {
+		name string
+		dec  sa.Decision
+		want []string
+	}{
+		{"unknown, not fragile", sa.Decision{Allowed: true, Rate: 1, Reason: "first_gentle_scan", FirstGentle: true, Unclassified: true},
+			[]string{"--privileged", "-sS", "--script", "http-title,ssl-cert", "--script-timeout", "20s", "-n", "-T2", "--max-retries", "1", "--max-rate", "1", "--host-timeout", "15m", "--top-ports", "100", "-oX", "-", "192.168.10.30"}},
+		{"unknown, fragile by a person", sa.Decision{Allowed: true, Rate: 1, Reason: "first_gentle_scan", FirstGentle: true, Unclassified: true, Fragile: true},
+			[]string{"--privileged", "-sS", "-n", "-T2", "--max-retries", "1", "--max-rate", "1", "--host-timeout", "15m", "--top-ports", "100", "-oX", "-", "192.168.10.30"}},
+		{"fragile by its kind", sa.Decision{Allowed: true, Rate: 1, Reason: "first_gentle_scan", FirstGentle: true, Fragile: true},
+			[]string{"--privileged", "-sS", "-n", "-T2", "--max-retries", "1", "--max-rate", "1", "--host-timeout", "15m", "--top-ports", "100", "-oX", "-", "192.168.10.30"}},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+			e := newEnv(t, fakeOpts{})
+			e.nm = writeFakeNmap(t, fakeOpts{always: gentle})
+			e.build()
+			e.inv.decision["a-printer"] = c.dec
+			if err := e.svc.ScanDevice(e.ctx(), "a-printer", "discovered"); err != nil {
+				t.Fatal(err)
+			}
+			calls := e.nm.calls(t)
+			if len(calls) != 1 || !slices.Equal(calls[0], c.want) {
+				t.Fatalf("nmap argv = %q\n          want %q", calls, c.want)
+			}
+		})
 	}
 }

@@ -65,6 +65,19 @@ func TestTypesFile(t *testing.T) {
 			t.Errorf("Lookup(%q) = %q, %v; want %q", name, got, ok, want)
 		}
 	}
+	// #714 review LOW: a smart switch is a network switch; words too broad to name one type are no aliases.
+	if got, _ := Lookup("smart switch"); got != "switch" {
+		t.Errorf("Lookup(smart switch) = %q, want switch", got)
+	}
+	for _, broad := range []string{"hub", "appliance", "console"} {
+		if got, ok := Lookup(broad); ok {
+			t.Errorf("Lookup(%q) = %q: too broad to be an alias", broad, got)
+		}
+	}
+	// A load balancer and a proxy stand in front of everyone's traffic: they act as routers, so never-touch keeps them (D-511).
+	if ActsAs("proxy") != "router" || ActsAs("load_balancer") != "router" {
+		t.Error("proxy and load balancer must act as router (never-touch infrastructure)")
+	}
 }
 
 // Every rule names a type, has at least one condition and a sentence, and the first rules (what a device states) come before the
@@ -85,6 +98,11 @@ func TestRulesFile(t *testing.T) {
 		}
 		if len(r.Vendor)+len(r.MACPrefix)+len(r.PortsAny)+len(r.PortsAll)+len(r.LastOctet) == 0 && r.Text == "" && r.Hostname == "" && r.Model == "" && r.OS == "" && !r.Gateway {
 			t.Errorf("rule %s has no condition", r.ID)
+		}
+		for _, a := range r.Alternatives {
+			if !Valid(a) || a == r.Type || a == Unknown {
+				t.Errorf("rule %s: alternative %q", r.ID, a)
+			}
 		}
 		if r.Says == "" || strings.HasSuffix(r.Says, ".") {
 			t.Errorf("rule %s: says %q (one clause, no full stop)", r.ID, r.Says)
@@ -121,9 +139,21 @@ func TestIdentify(t *testing.T) {
 			"firewall", "", "It is the box's default gateway and Fortinet network card"},
 		{"agent make is not a card", Facts{Vendor: "Dell Inc.", Services: []Service{svc(22, "ssh")}},
 			"server", "", "Made by Dell and port 22 (ssh)"},
+		// #714 review LOW: iDRAC9 is a management card; Intelbras is not Intel; a Dell box with SSH is only perhaps a server; a VMware
+		// card is hedged; a Fortinet card offers the access point and the switch next to the firewall.
+		{"iDRAC9 title", Facts{Vendor: "Dell", VendorFromCard: true, Services: []Service{svc(22, "ssh"), {Port: 443, Proto: "tcp", Detail: "title: iDRAC9"}}},
+			"bmc", "", "management card"},
+		{"Dell and SSH", Facts{Vendor: "Dell", VendorFromCard: true, Services: []Service{svc(22, "ssh")}}, "server", "", "perhaps a Linux server or a Linux computer"},
+		{"VMware card", Facts{Vendor: "VMware, Inc.", VendorFromCard: true}, "virtual_machine", "", "a VMware host's own management card"},
 		{"no signal", Facts{Vendor: "Hewlett Packard", VendorFromCard: true, Services: []Service{svc(80, "http"), svc(443, "https"), svc(8000, "http-alt")}},
 			"", "", ""},
 		{"udp ports do not count", Facts{Services: []Service{{Port: 554, Proto: "udp"}}}, "", "", ""},
+	}
+	if g, ok := Identify(Facts{Vendor: "Intelbras", VendorFromCard: true, Services: []Service{svc(22, "ssh")}}); ok {
+		t.Errorf("Intelbras + SSH guessed %+v: it is no PC maker", g)
+	}
+	if g, _ := Identify(Facts{Vendor: "Fortinet", VendorFromCard: true, Services: []Service{svc(22, "ssh")}}); !slices.Equal(g.Alternatives, []string{"ap", "switch"}) {
+		t.Errorf("Fortinet guess alternatives = %v, want ap, switch", g.Alternatives)
 	}
 	for _, c := range cases {
 		g, ok := Identify(c.f)

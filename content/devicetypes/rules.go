@@ -43,7 +43,10 @@ type Guess struct {
 	Confidence float64 `json:"confidence"`
 	Evidence   string  `json:"evidence"`        // one sentence: what matched and what that most likely means
 	Model      string  `json:"model,omitempty"` // a model a certificate or page title states ("FortiGate 60F")
-	Rule       string  `json:"-"`
+	// Alternatives are the other types the same signals fit (a Fortinet card: an access point or a switch), offered next to the
+	// guess so confirming it is a choice, not a default (#714 review: a fragile access point is not silently made a firewall).
+	Alternatives []string `json:"alternatives,omitempty"`
+	Rule         string   `json:"-"`
 }
 
 type rule struct {
@@ -64,7 +67,8 @@ type rule struct {
 		Re     string `json:"re"`     // regexp with one group over what a service said
 		Format string `json:"format"` // "{1}" is the group
 	} `json:"model_from"`
-	Says string `json:"says"`
+	Says         string   `json:"says"`
+	Alternatives []string `json:"alternatives"`
 
 	text, hostname, model, os, modelFrom *regexp.Regexp
 }
@@ -200,7 +204,7 @@ func (r *rule) apply(f Facts, open map[int]string) (Guess, bool) {
 	if len(why) == 0 { // a rule with no condition would match everything; the file test refuses one, this is the second guard
 		return Guess{}, false
 	}
-	g := Guess{Type: r.Type, Confidence: r.Confidence, Rule: r.ID, Evidence: sentence(why) + ": " + r.Says + "."}
+	g := Guess{Type: r.Type, Confidence: r.Confidence, Rule: r.ID, Evidence: sentence(why) + ": " + r.Says + ".", Alternatives: r.Alternatives}
 	if r.modelFrom != nil {
 		for _, s := range f.Services {
 			if m := r.modelFrom.FindStringSubmatch(s.Product + " " + s.Detail); len(m) > 1 && m[1] != "" {

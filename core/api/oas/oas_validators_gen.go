@@ -40672,6 +40672,31 @@ func (s *InventoryGetInventoryDevicesIDOKAssetGuess) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
+		var failures []validate.FieldError
+		for i, elem := range s.Alternatives {
+			if err := func() error {
+				if err := elem.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "alternatives",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := (validate.Float{
 			MinSet:        true,
 			Min:           0,
@@ -40707,6 +40732,191 @@ func (s *InventoryGetInventoryDevicesIDOKAssetGuess) Validate() error {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem) Validate() error {
+	switch s {
+	case "router":
+		return nil
+	case "switch":
+		return nil
+	case "modem":
+		return nil
+	case "sd_wan":
+		return nil
+	case "load_balancer":
+		return nil
+	case "network_controller":
+		return nil
+	case "firewall":
+		return nil
+	case "vpn_gateway":
+		return nil
+	case "ids_sensor":
+		return nil
+	case "proxy":
+		return nil
+	case "ap":
+		return nil
+	case "wireless_controller":
+		return nil
+	case "wifi_extender":
+		return nil
+	case "mesh_node":
+		return nil
+	case "server":
+		return nil
+	case "virtual_machine":
+		return nil
+	case "hypervisor":
+		return nil
+	case "bmc":
+		return nil
+	case "domain_controller":
+		return nil
+	case "mail_server":
+		return nil
+	case "database_server":
+		return nil
+	case "backup_server":
+		return nil
+	case "pc":
+		return nil
+	case "laptop":
+		return nil
+	case "workstation":
+		return nil
+	case "thin_client":
+		return nil
+	case "pos_terminal":
+		return nil
+	case "kiosk":
+		return nil
+	case "smartphone":
+		return nil
+	case "tablet":
+		return nil
+	case "smartwatch":
+		return nil
+	case "printer":
+		return nil
+	case "mfp":
+		return nil
+	case "scanner":
+		return nil
+	case "label_printer":
+		return nil
+	case "receipt_printer":
+		return nil
+	case "plotter":
+		return nil
+	case "3d_printer":
+		return nil
+	case "camera":
+		return nil
+	case "nvr":
+		return nil
+	case "dvr":
+		return nil
+	case "video_encoder":
+		return nil
+	case "doorbell":
+		return nil
+	case "video_conferencing":
+		return nil
+	case "ip_phone":
+		return nil
+	case "pbx":
+		return nil
+	case "voip_adapter":
+		return nil
+	case "voip_gateway":
+		return nil
+	case "conference_phone":
+		return nil
+	case "intercom":
+		return nil
+	case "nas":
+		return nil
+	case "san":
+		return nil
+	case "backup_appliance":
+		return nil
+	case "tape_library":
+		return nil
+	case "iot":
+		return nil
+	case "smart_tv":
+		return nil
+	case "media_player":
+		return nil
+	case "smart_speaker":
+		return nil
+	case "game_console":
+		return nil
+	case "smart_plug":
+		return nil
+	case "smart_light":
+		return nil
+	case "smart_hub":
+		return nil
+	case "thermostat":
+		return nil
+	case "projector":
+		return nil
+	case "digital_signage":
+		return nil
+	case "single_board_computer":
+		return nil
+	case "smart_appliance":
+		return nil
+	case "robot_vacuum":
+		return nil
+	case "wireless_bridge":
+		return nil
+	case "plc":
+		return nil
+	case "hmi":
+		return nil
+	case "rtu":
+		return nil
+	case "scada_server":
+		return nil
+	case "industrial_switch":
+		return nil
+	case "ups":
+		return nil
+	case "pdu":
+		return nil
+	case "access_control":
+		return nil
+	case "time_clock":
+		return nil
+	case "alarm_panel":
+		return nil
+	case "hvac_controller":
+		return nil
+	case "building_controller":
+		return nil
+	case "power_meter":
+		return nil
+	case "environment_monitor":
+		return nil
+	case "ev_charger":
+		return nil
+	case "solar_inverter":
+		return nil
+	case "medical_device":
+		return nil
+	case "web":
+		return nil
+	case "cloud_service":
+		return nil
+	case "unknown":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s InventoryGetInventoryDevicesIDOKAssetGuessKind) Validate() error {
@@ -42153,6 +42363,31 @@ func (s *InventoryGetInventoryDevicesOKItemsItemGuess) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
+		var failures []validate.FieldError
+		for i, elem := range s.Alternatives {
+			if err := func() error {
+				if err := elem.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "alternatives",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := (validate.Float{
 			MinSet:        true,
 			Min:           0,
@@ -42188,6 +42423,191 @@ func (s *InventoryGetInventoryDevicesOKItemsItemGuess) Validate() error {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem) Validate() error {
+	switch s {
+	case "router":
+		return nil
+	case "switch":
+		return nil
+	case "modem":
+		return nil
+	case "sd_wan":
+		return nil
+	case "load_balancer":
+		return nil
+	case "network_controller":
+		return nil
+	case "firewall":
+		return nil
+	case "vpn_gateway":
+		return nil
+	case "ids_sensor":
+		return nil
+	case "proxy":
+		return nil
+	case "ap":
+		return nil
+	case "wireless_controller":
+		return nil
+	case "wifi_extender":
+		return nil
+	case "mesh_node":
+		return nil
+	case "server":
+		return nil
+	case "virtual_machine":
+		return nil
+	case "hypervisor":
+		return nil
+	case "bmc":
+		return nil
+	case "domain_controller":
+		return nil
+	case "mail_server":
+		return nil
+	case "database_server":
+		return nil
+	case "backup_server":
+		return nil
+	case "pc":
+		return nil
+	case "laptop":
+		return nil
+	case "workstation":
+		return nil
+	case "thin_client":
+		return nil
+	case "pos_terminal":
+		return nil
+	case "kiosk":
+		return nil
+	case "smartphone":
+		return nil
+	case "tablet":
+		return nil
+	case "smartwatch":
+		return nil
+	case "printer":
+		return nil
+	case "mfp":
+		return nil
+	case "scanner":
+		return nil
+	case "label_printer":
+		return nil
+	case "receipt_printer":
+		return nil
+	case "plotter":
+		return nil
+	case "3d_printer":
+		return nil
+	case "camera":
+		return nil
+	case "nvr":
+		return nil
+	case "dvr":
+		return nil
+	case "video_encoder":
+		return nil
+	case "doorbell":
+		return nil
+	case "video_conferencing":
+		return nil
+	case "ip_phone":
+		return nil
+	case "pbx":
+		return nil
+	case "voip_adapter":
+		return nil
+	case "voip_gateway":
+		return nil
+	case "conference_phone":
+		return nil
+	case "intercom":
+		return nil
+	case "nas":
+		return nil
+	case "san":
+		return nil
+	case "backup_appliance":
+		return nil
+	case "tape_library":
+		return nil
+	case "iot":
+		return nil
+	case "smart_tv":
+		return nil
+	case "media_player":
+		return nil
+	case "smart_speaker":
+		return nil
+	case "game_console":
+		return nil
+	case "smart_plug":
+		return nil
+	case "smart_light":
+		return nil
+	case "smart_hub":
+		return nil
+	case "thermostat":
+		return nil
+	case "projector":
+		return nil
+	case "digital_signage":
+		return nil
+	case "single_board_computer":
+		return nil
+	case "smart_appliance":
+		return nil
+	case "robot_vacuum":
+		return nil
+	case "wireless_bridge":
+		return nil
+	case "plc":
+		return nil
+	case "hmi":
+		return nil
+	case "rtu":
+		return nil
+	case "scada_server":
+		return nil
+	case "industrial_switch":
+		return nil
+	case "ups":
+		return nil
+	case "pdu":
+		return nil
+	case "access_control":
+		return nil
+	case "time_clock":
+		return nil
+	case "alarm_panel":
+		return nil
+	case "hvac_controller":
+		return nil
+	case "building_controller":
+		return nil
+	case "power_meter":
+		return nil
+	case "environment_monitor":
+		return nil
+	case "ev_charger":
+		return nil
+	case "solar_inverter":
+		return nil
+	case "medical_device":
+		return nil
+	case "web":
+		return nil
+	case "cloud_service":
+		return nil
+	case "unknown":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s InventoryGetInventoryDevicesOKItemsItemGuessKind) Validate() error {

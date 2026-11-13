@@ -125,7 +125,7 @@ const (
 	upsertService = `INSERT INTO inv_service (id, asset_id, port, proto, name, product, version, detail, source, confidence, seen_at)
 			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (asset_id, port, proto, source) DO UPDATE SET `
 	replaceSet = `name = excluded.name, product = excluded.product, version = excluded.version, detail = excluded.detail, confidence = excluded.confidence, seen_at = excluded.seen_at`
-	addSet     = `seen_at = excluded.seen_at`
+	addSet     = `seen_at = excluded.seen_at, detail = coalesce(excluded.detail, detail)` // a gentle look with titles adds what a port said (D-511)
 )
 
 func replaceServicesTx(ctx context.Context, tx *sql.Tx, assetID string, items []observe.Service, source, seenAt string, replace bool) error {

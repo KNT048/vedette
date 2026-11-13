@@ -379,15 +379,20 @@ func cpeBase(c string) string {
 	return "cpe:/" + f[0] + ":" + f[1] + ":" + f[2]
 }
 
-// maxSvcDetail is the longest service detail the inventory keeps (inventory INV-23, D-511).
-const maxSvcDetail = 200
+// maxSvcDetail is the longest service detail the inventory keeps (inventory INV-23, D-511); maxInfoInDetail the share of nmap's extra
+// info in it.
+const (
+	maxSvcDetail    = 200
+	maxInfoInDetail = 60
+)
 
-// detailOf is what the port said about the device besides its product and version (D-511): nmap's extra info, the device type of
-// its service match, the page title and the certificate subject, "; "-separated and cut to maxSvcDetail. It is evidence for
+// detailOf is what the port said about the device besides its product and version (D-511): the certificate subject (its commonName
+// first), the page title, the device type of nmap's service match and nmap's extra info, "; "-separated, the extra info cut to
+// maxInfoInDetail and the whole to maxSvcDetail, so what names the device comes first and survives the cut. It is evidence for
 // identifying the device, never software: a banner names what answered, not a version anything can be matched on (W3-5).
 func detailOf(p portInfo) string {
 	var parts []string
-	for _, f := range [][2]string{{"", p.info}, {"device type: ", p.devType}, {"title: ", p.title}, {"certificate: ", p.certSubject}} {
+	for _, f := range [][2]string{{"certificate: ", p.certSubject}, {"title: ", p.title}, {"device type: ", p.devType}, {"", clipRunes(p.info, maxInfoInDetail)}} {
 		if f[1] != "" {
 			parts = append(parts, f[0]+f[1])
 		}
@@ -462,7 +467,7 @@ func identified(hosts []host, ip netip.Addr, shape nmapargv.Kind) (found []strin
 	switch {
 	case h.timedOut:
 		return found, WhyTimedOut
-	case shape == nmapargv.Gentle:
+	case shape.IsGentle():
 		return found, WhyGentleOnly
 	}
 	sw := softwareOf(h)

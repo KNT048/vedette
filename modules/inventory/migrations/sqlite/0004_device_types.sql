@@ -8,6 +8,7 @@
 -- its own connection and makes its own transaction, the documented SQLite procedure
 -- (https://www.sqlite.org/lang_altertable.html#otheralter), as findings 0005 does. The children keep "REFERENCES inv_asset" and point
 -- at the new table once it has the name.
+-- inv_asset.first_scan_at: see the UPDATE below.
 -- inv_service.detail: what an open service said about the device besides its product and version (nmap's extra info and device
 -- type, the page title, the certificate subject): evidence for identification, never software (D-511).
 -- Forward-only (DATA_MODEL 6, rule 1).
@@ -60,6 +61,13 @@ CREATE INDEX inv_asset_approved_ix ON inv_asset (approved);
 CREATE INDEX inv_asset_last_seen_ix ON inv_asset (last_seen);
 
 ALTER TABLE inv_service ADD COLUMN detail TEXT CHECK (detail IS NULL OR length(detail) <= 200);
+
+-- Lead decision on #714: the gentle scan of a device of unknown kind that nobody made fragile now also reads its page titles and
+-- certificates (sensor-active gentle_titles). A device that had its gentle scan before gets that one scan again, so what it states
+-- (a FortiGate's certificate, J-Web's title) shows without a Scan now: one more scan at 1 packet per second, never for a fragile
+-- device, a device set to "never", one declared by hand or the box.
+UPDATE inv_asset SET first_scan_at = NULL
+WHERE kind = 'unknown' AND fragile = 0 AND origin = 'discovered' AND is_box = 0 AND regular_scan <> 'never' AND first_scan_at IS NOT NULL;
 
 COMMIT;
 

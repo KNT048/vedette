@@ -1,4 +1,4 @@
-// Package nmapargv builds and checks the only four nmap command lines Vedette ever runs (D-84 (7), D-113, D-501).
+// Package nmapargv builds and checks the only five nmap command lines Vedette ever runs (D-84 (7), D-113, D-501, D-511).
 // It is a leaf: standard library only (plus core/localnet, itself standard library only, D-461), no database and
 // no core/exec, because the sensor binary links it and
 // both sides (core before it hands a job over, the worker before it starts nmap) use the same code (SYS-2).
@@ -14,19 +14,27 @@ import (
 	"github.com/knt048/vedette/core/localnet"
 )
 
-// Kind says which of the four nmap command lines is built (D-84 (7), D-501).
+// Kind says which of the five nmap command lines is built (D-84 (7), D-501, D-511).
 type Kind int
 
-// The four kinds, one per command shape.
+// The five kinds, one per command shape.
 const (
 	Sweep    Kind = iota // host discovery: -sn
 	Normal               // service and OS identification
 	Gentle               // the one gentle scan of a fragile device (D-45)
 	Versions             // service identification without OS detection: a person's pick of a device of unknown kind (D-501)
+	// GentleTitles is the gentle scan of a device whose kind is unknown and that nobody made fragile (D-511, lead decision on #714):
+	// the gentle command line plus http-title and ssl-cert on the web and TLS ports it finds open (one GET of / and one TLS
+	// handshake per port), each script capped by --script-timeout. A fragile device keeps Gentle exactly.
+	GentleTitles
 )
 
 // kinds is every Kind, in the order Validate and KindOf try them.
-var kinds = []Kind{Sweep, Normal, Gentle, Versions}
+var kinds = []Kind{Sweep, Normal, Gentle, Versions, GentleTitles}
+
+// IsGentle reports whether the shape is one of the gentle scans (Gentle, GentleTitles): rate 1, top 100 ports, no -sV or -O, so it
+// never says anything about software and only adds ports (D-45, D-350 (5)).
+func (k Kind) IsGentle() bool { return k == Gentle || k == GentleTitles }
 
 // MaxBatch is the most addresses one nmap run gets, so its XML stays small (D-84 (7)).
 const MaxBatch = 64
@@ -35,15 +43,16 @@ const MaxBatch = 64
 const MaxOutput = 8 << 20
 
 const (
-	flagPrivileged  = "--privileged" // use raw sockets granted by CAP_NET_RAW instead of checking for uid 0 (D-84 (8))
-	flagNoDNS       = "-n"           // never resolve names: no packet may reach a resolver outside the scope (INV-1)
-	flagMaxRate     = "--max-rate"   // limits port scanning and host discovery only; OS and version detection time themselves
-	flagTopPorts    = "--top-ports"
-	flagMaxRetries  = "--max-retries"
-	flagTiming      = "-T2"
-	flagHostTimeout = "--host-timeout" // bounds the time one host may take, which --max-rate does not
-	flagXML         = "-oX"
-	flagScript      = "--script"
+	flagPrivileged    = "--privileged" // use raw sockets granted by CAP_NET_RAW instead of checking for uid 0 (D-84 (8))
+	flagNoDNS         = "-n"           // never resolve names: no packet may reach a resolver outside the scope (INV-1)
+	flagMaxRate       = "--max-rate"   // limits port scanning and host discovery only; OS and version detection time themselves
+	flagTopPorts      = "--top-ports"
+	flagMaxRetries    = "--max-retries"
+	flagTiming        = "-T2"
+	flagHostTimeout   = "--host-timeout" // bounds the time one host may take, which --max-rate does not
+	flagXML           = "-oX"
+	flagScript        = "--script"
+	flagScriptTimeout = "--script-timeout"
 )
 
 // Scripts is the exact NSE script list of the normal and versions shapes. D-504: two scripts that send an NTLM NEGOTIATE (type 1)
@@ -55,6 +64,13 @@ const (
 // itself (a FortiGate's certificate names its model, J-Web's title the switch). A fixed list, never a category or a wildcard;
 // smb-os-discovery is left out because it opens an anonymous, then a guest, SMB session (a logon attempt).
 const Scripts = "rdp-ntlm-info,http-ntlm-info,http-title,ssl-cert"
+
+// TitleScripts is the exact NSE script list of the GentleTitles shape (D-511): the page title and the certificate subject, both in
+// nmap's "default, safe" categories, read only from ports their portrules match (web and TLS ports).
+const TitleScripts = "http-title,ssl-cert"
+
+// titleScriptTimeout caps each script of GentleTitles, so a device that answers slowly cannot stretch the gentle scan (D-511).
+const titleScriptTimeout = "20s"
 
 // Host time limits (D-84 (7)): a gentle scan is slow by design, a normal one has -sV and -O to finish.
 const (
@@ -73,11 +89,13 @@ func (k Kind) Name() string {
 		return "gentle"
 	case Versions:
 		return "versions"
+	case GentleTitles:
+		return "gentle_titles"
 	}
 	return ""
 }
 
-// Flags is the whole flag part of the command line of a kind: the only four shapes nmap is ever run with.
+// Flags is the whole flag part of the command line of a kind: the only five shapes nmap is ever run with.
 // -sV makes nmap run the scripts of its "version" category, -O has its own timing; the only other scripts are the fixed
 // Scripts list of the normal and versions shapes (D-504); no category, no -A and no -sC exists (FORBID-3, FORBID-6). The gentle
 // shape has neither -sV, -O nor a script: on a fragile device even the version scripts are too much (PLC protocol probes). The
@@ -97,6 +115,8 @@ func Flags(kind Kind, rate int) ([]string, error) {
 		return []string{flagPrivileged, "-sS", flagNoDNS, flagTiming, flagMaxRetries, "1", flagMaxRate, "1", flagHostTimeout, gentleHostTimeout, flagTopPorts, "100"}, nil
 	case Versions:
 		return []string{flagPrivileged, "-sS", "-sV", flagScript, Scripts, flagNoDNS, flagMaxRate, r, flagTopPorts, "1000", flagHostTimeout, normalHostTimeout}, nil
+	case GentleTitles:
+		return []string{flagPrivileged, "-sS", flagScript, TitleScripts, flagScriptTimeout, titleScriptTimeout, flagNoDNS, flagTiming, flagMaxRetries, "1", flagMaxRate, "1", flagHostTimeout, gentleHostTimeout, flagTopPorts, "100"}, nil
 	}
 	return nil, errors.New("nmapargv: unknown scan kind")
 }
@@ -141,8 +161,8 @@ func Build(kind Kind, rate int, targets []netip.Addr) ([]string, error) {
 }
 
 // Validate is the Validate func of the nmap Binary: it re-checks the whole argv before the process
-// starts, independently of how Build made it (SYS-2). It accepts exactly the four shapes of Flags
-// (sweep, normal, gentle, versions), where only the rate of sweep, normal and versions varies, then "-oX -", then 1 to MaxBatch
+// starts, independently of how Build made it (SYS-2). It accepts exactly the five shapes of Flags
+// (sweep, normal, gentle, versions, gentle_titles), where only the rate of sweep, normal and versions varies, then "-oX -", then 1 to MaxBatch
 // canonical, unique, private IPv4 addresses. Everything else is rejected.
 func Validate(args []string) error {
 	i := slices.Index(args, flagXML)
@@ -160,7 +180,7 @@ func Validate(args []string) error {
 		want, err := Flags(k, rate)
 		return err == nil && slices.Equal(flags, want)
 	}) {
-		return fmt.Errorf("flags %q are not one of the four allowed command shapes", flags)
+		return fmt.Errorf("flags %q are not one of the five allowed command shapes", flags)
 	}
 	targets := args[i+2:]
 	if len(targets) == 0 || len(targets) > MaxBatch {

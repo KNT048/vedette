@@ -203,7 +203,6 @@ func (s *Service) Devices(ctx context.Context) (DeviceList, error) {
 	if out.Items == nil {
 		out.Items = []Device{}
 	}
-	s.addGuesses(ctx, out.Items)
 	now := s.now()
 	for i := range out.Items {
 		d := &out.Items[i]
@@ -234,7 +233,6 @@ func (s *Service) Device(ctx context.Context, id string) (Device, error) {
 	if len(items) == 0 {
 		return Device{}, ErrNotFound
 	}
-	s.addGuesses(ctx, items)
 	d := items[0]
 	counts, err := s.findingCounts(ctx)
 	if err != nil {
@@ -407,13 +405,37 @@ func deviceName(ctx context.Context, q querier, id string) string {
 	return id
 }
 
+// DevicesPage is Devices with the guesses of the identification rules (D-511): GET /inventory/devices. Only the Devices page asks for
+// guesses; every other reader (scan, reports, honeypot, MCP, response) reads Devices or Device, which never ask the host (#714 M3).
+func (s *Service) DevicesPage(ctx context.Context) (DeviceList, error) {
+	l, err := s.Devices(ctx)
+	if err != nil {
+		return l, err
+	}
+	cores := make([]*AssetCore, len(l.Items))
+	for i := range l.Items {
+		cores[i] = &l.Items[i].AssetCore
+	}
+	s.addGuesses(ctx, cores)
+	return l, nil
+}
+
+// DetailPage is Detail with the guess of the identification rules (D-511): GET /inventory/devices/{id}.
+func (s *Service) DetailPage(ctx context.Context, id string) (Detail, error) {
+	d, err := s.Detail(ctx, id)
+	if err != nil {
+		return d, err
+	}
+	s.addGuesses(ctx, []*AssetCore{&d.Asset.AssetCore})
+	return d, nil
+}
+
 // addGuesses sets Guess on every device whose kind is still unknown and that one identification rule fits (D-511). It reads only what
 // the rows already hold (make, model, OS, host name, open services) and the box's default gateway, asked once.
-func (s *Service) addGuesses(ctx context.Context, items []Device) {
+func (s *Service) addGuesses(ctx context.Context, items []*AssetCore) {
 	var gw netip.Addr
 	asked := false
-	for i := range items {
-		d := &items[i]
+	for _, d := range items {
 		if d.Kind != devicetypes.Unknown || d.IsBox {
 			continue
 		}

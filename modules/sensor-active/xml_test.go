@@ -241,7 +241,7 @@ func TestServiceDetail(t *testing.T) {
 	}
 	svcs := servicesOf(hosts[0])
 	want := map[int]string{
-		443: "FortiOS; device type: firewall; title: FortiGate Login; certificate: commonName=FGT60FTK2109ABCD/organizationName=Fortinet/countryName=US",
+		443: "certificate: commonName=FGT60FTK2109ABCD/organizationName=Fortinet/countryName=US; title: FortiGate Login; device type: firewall; FortiOS",
 		80:  "", 22: "",
 	}
 	for _, s := range svcs {
@@ -257,5 +257,28 @@ func TestServiceDetail(t *testing.T) {
 	long := portInfo{title: strings.Repeat("x", 300)}
 	if n := len([]rune(detailOf(long))); n != maxSvcDetail {
 		t.Errorf("detail of a long title has %d runes, want %d", n, maxSvcDetail)
+	}
+	// #714 review: a certificate subject or title longer than the inventory keeps is shortened, its commonName first, never dropped.
+	longXML := `<?xml version="1.0"?><nmaprun><host><status state="up"/><address addr="192.168.18.252" addrtype="ipv4"/><ports>
+<port protocol="tcp" portid="443"><state state="open"/><service name="https" extrainfo="` + strings.Repeat("e", 150) + `"/>
+<script id="ssl-cert" output="Subject: countryName=US/stateOrProvinceName=` + strings.Repeat("California", 20) + `/organizationName=Fortinet/organizationalUnitName=` + strings.Repeat("FortiGate", 20) + `/commonName=FGT60FTK2109WXYZ/emailAddress=support@fortinet.com"/>
+<script id="http-title" output="x"><elem key="title">` + strings.Repeat("Juniper Web Device Manager ", 20) + `</elem></script></port>
+</ports></host></nmaprun>`
+	lh, err := parseNmapXML([]byte(longXML))
+	if err != nil {
+		t.Fatal(err)
+	}
+	d := servicesOf(lh[0])[0].Detail
+	// A certificate with many names prints more than 4 KB; that does not refuse the run (other attributes stay at 4 KB).
+	sans := strings.Repeat("DNS:host.example.com, ", 400)
+	bigXML := strings.Replace(longXML, "/emailAddress=support@fortinet.com", "/emailAddress=support@fortinet.com&#xa;Subject Alternative Name: "+sans, 1)
+	if bh, err := parseNmapXML([]byte(bigXML)); err != nil || len(bh) != 1 || !strings.HasPrefix(servicesOf(bh[0])[0].Detail, "certificate: commonName=FGT60FTK2109WXYZ") {
+		t.Errorf("ssl-cert output of %d bytes: %v", len(sans), err)
+	}
+	if _, err := parseNmapXML([]byte(strings.Replace(longXML, `extrainfo="`, `extrainfo="`+sans, 1))); err == nil {
+		t.Error("a 9 KB extrainfo was accepted: only a script's output may pass 4 KB")
+	}
+	if !strings.HasPrefix(d, "certificate: commonName=FGT60FTK2109WXYZ/organizationName=Fortinet/") || !strings.Contains(d, "title: Juniper Web Device Manager") || len([]rune(d)) > maxSvcDetail {
+		t.Errorf("long subject and title: detail = %q", d)
 	}
 }

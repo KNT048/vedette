@@ -416,6 +416,16 @@ describe('inventory: device types in two levels (D-511)', () => {
     await waitFor(() => expect(screen.queryByTestId('kind-guess')).toBeNull(), T)
   })
 
+  it('the guess offers the other types the same signals fit; picking the access point keeps the device fragile (#714 review)', async () => {
+    const user = userEvent.setup()
+    asAdmin()
+    renderApp('/devices/a-unk02')
+    const box = await screen.findByTestId('kind-guess', undefined, T)
+    expect(box).toHaveTextContent('The same signals also fit: Wi-Fi (AP), Switch')
+    await user.click(within(box).getByRole('button', { name: 'It is a Wi-Fi (AP)' }))
+    await waitFor(() => expect(find('a-unk02')).toMatchObject({ kind: 'ap', fragile: true }), T)
+  })
+
   it('the fragile setting still lists the 13 kinds every type acts as; a new type is fragile as the kind it acts as', async () => {
     asAdmin()
     expect((await call('PATCH', '/devices/a-pc01', { kind: 'ip_phone' })).status).toBe(200)

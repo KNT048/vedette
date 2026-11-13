@@ -488,7 +488,7 @@ func compactTargets(ts []netip.Addr) string {
 }
 
 func (s *Service) insertProbe(ctx context.Context, jobID string, kind nmapargv.Kind, rate int, targets []netip.Addr) (int64, error) {
-	if kind == nmapargv.Gentle {
+	if kind.IsGentle() {
 		rate = 1
 	}
 	flags, err := nmapargv.Flags(kind, rate)
@@ -924,9 +924,9 @@ func (s *Service) ScanDevice(ctx context.Context, assetID, reason string) error 
 		rate = min(rate, dec.Rate)
 	}
 	if dec.FirstGentle {
-		kind, rate = nmapargv.Gentle, 1
+		kind, rate = gentleShape(dec), 1
 	}
-	s.setGentle(kind == nmapargv.Gentle)
+	s.setGentle(kind.IsGentle())
 
 	id, err := s.startJob(ctx, KindDevice, reason, 1)
 	if err != nil {
@@ -975,7 +975,7 @@ func (s *Service) recordDevice(ctx context.Context, ip netip.Addr, hosts []host,
 	}
 	// A gentle scan has no -sV and no -O, so it says nothing about software: replacing the list with its empty one would remove what
 	// a normal scan found, an OS that findings were matched on among them (D-501).
-	if kind != nmapargv.Gentle {
+	if !kind.IsGentle() {
 		if err := s.sw.ReplaceSoftware(ctx, observe.AssetHint{IP: ip}, observe.Nmap, softwareOf(h)); err != nil {
 			return fmt.Errorf("sensoractive: recording software: %w", err)
 		}
@@ -999,6 +999,16 @@ func (s *Service) recordDevice(ctx context.Context, ip netip.Addr, hosts []host,
 type Identification struct {
 	Found []string
 	Why   string // a Why* code, or the inventory's refusal reason
+}
+
+// gentleShape is the one gentle scan of a device (D-45): a device whose kind is still unknown and that nobody made fragile also reads
+// the title and certificate of the web and TLS ports it finds open (GentleTitles, D-511), so a FortiGate's certificate or J-Web's
+// title names it without a Scan now; a fragile device (by a person, or by a kind a sensor or person gave it) keeps Gentle exactly.
+func gentleShape(dec Decision) nmapargv.Kind {
+	if dec.Unclassified && !dec.Fragile {
+		return nmapargv.GentleTitles
+	}
+	return nmapargv.Gentle
 }
 
 // pickedPlan is the scan a device a person picked in Scan now gets for identification (D-501), from the inventory's discovery
@@ -1122,7 +1132,7 @@ func (s *Service) IdentifyDevice(ctx context.Context, assetID string) (Identific
 	if slices.Contains(protected, asset.IP) && dec.Reason != reasonFragilePassive && dec.Reason != reasonUnclassifiedPassive {
 		return refuse(reasonBox)
 	}
-	s.setGentle(kind == nmapargv.Gentle)
+	s.setGentle(kind.IsGentle())
 	id, err := s.startJob(ctx, KindDevice, "scan_now", 1)
 	if err != nil {
 		return Identification{}, err
@@ -1131,7 +1141,7 @@ func (s *Service) IdentifyDevice(ctx context.Context, assetID string) (Identific
 	s.setAsset("")
 	if err == nil {
 		var markErr error
-		if dec.FirstGentle && kind == nmapargv.Gentle {
+		if dec.FirstGentle && kind.IsGentle() {
 			markErr = s.inv.MarkFirstScan(context.WithoutCancel(ctx), assetID)
 		}
 		err = errors.Join(markErr, s.recordDevice(ctx, asset.IP, hosts, kind))
@@ -1402,7 +1412,7 @@ func (s *Service) AssetChanged(ctx context.Context, assetID string) error {
 	if picked && err == nil { // a picked identification is held to its own plan (D-501): refused now, or gentler or slower than it runs
 		st, serr := s.inv.Settings(ctx)
 		kind, r, why := pickedPlan(dec, st.Rate)
-		if serr != nil || why != "" || (kind == nmapargv.Gentle && !gentle) || r < rate {
+		if serr != nil || why != "" || (kind.IsGentle() && !gentle) || r < rate {
 			cur.cancel()
 		}
 		return serr

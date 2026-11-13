@@ -25,6 +25,7 @@ export const Service = z.object({
 export const KindGuess = z.object({
   kind: AssetKind, confidence, evidence: z.string().describe('What matched and what it most likely means, one sentence'),
   model: z.string().optional().describe('A model a certificate or page title states'),
+  alternatives: z.array(AssetKind).optional().describe('Other types the same signals fit, offered next to the guess'),
 }).describe('What the identification rules say the device most likely is (D-511), only while kind is unknown; it changes no behaviour until a person sets the kind')
 export const Asset = z.object({
   id: z.string(), site: z.string(), ip: z.string().describe('"—" when declared manually and the IP is unknown'), mac: z.string().nullable(), hostname: z.string().nullable(), kind: AssetKind,

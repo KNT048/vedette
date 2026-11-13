@@ -146283,6 +146283,16 @@ func (s *InventoryGetInventoryDevicesIDOKAssetGuess) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *InventoryGetInventoryDevicesIDOKAssetGuess) encodeFields(e *jx.Encoder) {
 	{
+		if s.Alternatives != nil {
+			e.FieldStart("alternatives")
+			e.ArrStart()
+			for _, elem := range s.Alternatives {
+				elem.Encode(e)
+			}
+			e.ArrEnd()
+		}
+	}
+	{
 		e.FieldStart("confidence")
 		e.Float64(s.Confidence)
 	}
@@ -146302,11 +146312,12 @@ func (s *InventoryGetInventoryDevicesIDOKAssetGuess) encodeFields(e *jx.Encoder)
 	}
 }
 
-var jsonFieldsNameOfInventoryGetInventoryDevicesIDOKAssetGuess = [4]string{
-	0: "confidence",
-	1: "evidence",
-	2: "kind",
-	3: "model",
+var jsonFieldsNameOfInventoryGetInventoryDevicesIDOKAssetGuess = [5]string{
+	0: "alternatives",
+	1: "confidence",
+	2: "evidence",
+	3: "kind",
+	4: "model",
 }
 
 // Decode decodes InventoryGetInventoryDevicesIDOKAssetGuess from json.
@@ -146318,8 +146329,25 @@ func (s *InventoryGetInventoryDevicesIDOKAssetGuess) Decode(d *jx.Decoder) error
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
+		case "alternatives":
+			if err := func() error {
+				s.Alternatives = make([]InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem
+					if err := elem.Decode(d); err != nil {
+						return err
+					}
+					s.Alternatives = append(s.Alternatives, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"alternatives\"")
+			}
 		case "confidence":
-			requiredBitSet[0] |= 1 << 0
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				v, err := d.Float64()
 				s.Confidence = float64(v)
@@ -146331,7 +146359,7 @@ func (s *InventoryGetInventoryDevicesIDOKAssetGuess) Decode(d *jx.Decoder) error
 				return errors.Wrap(err, "decode field \"confidence\"")
 			}
 		case "evidence":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				v, err := d.Str()
 				s.Evidence = string(v)
@@ -146343,7 +146371,7 @@ func (s *InventoryGetInventoryDevicesIDOKAssetGuess) Decode(d *jx.Decoder) error
 				return errors.Wrap(err, "decode field \"evidence\"")
 			}
 		case "kind":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				if err := s.Kind.Decode(d); err != nil {
 					return err
@@ -146372,7 +146400,7 @@ func (s *InventoryGetInventoryDevicesIDOKAssetGuess) Decode(d *jx.Decoder) error
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000111,
+		0b00001110,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -146414,6 +146442,220 @@ func (s *InventoryGetInventoryDevicesIDOKAssetGuess) MarshalJSON() ([]byte, erro
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *InventoryGetInventoryDevicesIDOKAssetGuess) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem as json.
+func (s InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem from json.
+func (s *InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem(v) {
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemRouter:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemRouter
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemSwitch:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemSwitch
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemModem:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemModem
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemSdWan:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemSdWan
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemLoadBalancer:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemLoadBalancer
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemNetworkController:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemNetworkController
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemFirewall:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemFirewall
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemVpnGateway:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemVpnGateway
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemIdsSensor:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemIdsSensor
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemProxy:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemProxy
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemAp:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemAp
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemWirelessController:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemWirelessController
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemWifiExtender:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemWifiExtender
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemMeshNode:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemMeshNode
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemServer:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemServer
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemVirtualMachine:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemVirtualMachine
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemHypervisor:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemHypervisor
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemBmc:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemBmc
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemDomainController:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemDomainController
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemMailServer:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemMailServer
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemDatabaseServer:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemDatabaseServer
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemBackupServer:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemBackupServer
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemPc:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemPc
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemLaptop:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemLaptop
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemWorkstation:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemWorkstation
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemThinClient:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemThinClient
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemPosTerminal:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemPosTerminal
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemKiosk:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemKiosk
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemSmartphone:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemSmartphone
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemTablet:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemTablet
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemSmartwatch:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemSmartwatch
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemPrinter:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemPrinter
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemMfp:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemMfp
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemScanner:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemScanner
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemLabelPrinter:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemLabelPrinter
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemReceiptPrinter:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemReceiptPrinter
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemPlotter:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemPlotter
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem3dPrinter:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem3dPrinter
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemCamera:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemCamera
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemNvr:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemNvr
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemDvr:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemDvr
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemVideoEncoder:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemVideoEncoder
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemDoorbell:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemDoorbell
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemVideoConferencing:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemVideoConferencing
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemIPPhone:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemIPPhone
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemPbx:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemPbx
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemVoipAdapter:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemVoipAdapter
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemVoipGateway:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemVoipGateway
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemConferencePhone:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemConferencePhone
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemIntercom:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemIntercom
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemNas:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemNas
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemSan:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemSan
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemBackupAppliance:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemBackupAppliance
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemTapeLibrary:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemTapeLibrary
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemIot:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemIot
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemSmartTv:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemSmartTv
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemMediaPlayer:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemMediaPlayer
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemSmartSpeaker:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemSmartSpeaker
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemGameConsole:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemGameConsole
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemSmartPlug:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemSmartPlug
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemSmartLight:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemSmartLight
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemSmartHub:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemSmartHub
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemThermostat:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemThermostat
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemProjector:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemProjector
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemDigitalSignage:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemDigitalSignage
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemSingleBoardComputer:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemSingleBoardComputer
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemSmartAppliance:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemSmartAppliance
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemRobotVacuum:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemRobotVacuum
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemWirelessBridge:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemWirelessBridge
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemPlc:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemPlc
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemHmi:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemHmi
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemRtu:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemRtu
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemScadaServer:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemScadaServer
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemIndustrialSwitch:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemIndustrialSwitch
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemUps:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemUps
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemPdu:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemPdu
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemAccessControl:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemAccessControl
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemTimeClock:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemTimeClock
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemAlarmPanel:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemAlarmPanel
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemHvacController:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemHvacController
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemBuildingController:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemBuildingController
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemPowerMeter:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemPowerMeter
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemEnvironmentMonitor:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemEnvironmentMonitor
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemEvCharger:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemEvCharger
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemSolarInverter:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemSolarInverter
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemMedicalDevice:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemMedicalDevice
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemWeb:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemWeb
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemCloudService:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemCloudService
+	case InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemUnknown:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItemUnknown
+	default:
+		*s = InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *InventoryGetInventoryDevicesIDOKAssetGuessAlternativesItem) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -149459,6 +149701,16 @@ func (s *InventoryGetInventoryDevicesOKItemsItemGuess) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *InventoryGetInventoryDevicesOKItemsItemGuess) encodeFields(e *jx.Encoder) {
 	{
+		if s.Alternatives != nil {
+			e.FieldStart("alternatives")
+			e.ArrStart()
+			for _, elem := range s.Alternatives {
+				elem.Encode(e)
+			}
+			e.ArrEnd()
+		}
+	}
+	{
 		e.FieldStart("confidence")
 		e.Float64(s.Confidence)
 	}
@@ -149478,11 +149730,12 @@ func (s *InventoryGetInventoryDevicesOKItemsItemGuess) encodeFields(e *jx.Encode
 	}
 }
 
-var jsonFieldsNameOfInventoryGetInventoryDevicesOKItemsItemGuess = [4]string{
-	0: "confidence",
-	1: "evidence",
-	2: "kind",
-	3: "model",
+var jsonFieldsNameOfInventoryGetInventoryDevicesOKItemsItemGuess = [5]string{
+	0: "alternatives",
+	1: "confidence",
+	2: "evidence",
+	3: "kind",
+	4: "model",
 }
 
 // Decode decodes InventoryGetInventoryDevicesOKItemsItemGuess from json.
@@ -149494,8 +149747,25 @@ func (s *InventoryGetInventoryDevicesOKItemsItemGuess) Decode(d *jx.Decoder) err
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
+		case "alternatives":
+			if err := func() error {
+				s.Alternatives = make([]InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem
+					if err := elem.Decode(d); err != nil {
+						return err
+					}
+					s.Alternatives = append(s.Alternatives, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"alternatives\"")
+			}
 		case "confidence":
-			requiredBitSet[0] |= 1 << 0
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				v, err := d.Float64()
 				s.Confidence = float64(v)
@@ -149507,7 +149777,7 @@ func (s *InventoryGetInventoryDevicesOKItemsItemGuess) Decode(d *jx.Decoder) err
 				return errors.Wrap(err, "decode field \"confidence\"")
 			}
 		case "evidence":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				v, err := d.Str()
 				s.Evidence = string(v)
@@ -149519,7 +149789,7 @@ func (s *InventoryGetInventoryDevicesOKItemsItemGuess) Decode(d *jx.Decoder) err
 				return errors.Wrap(err, "decode field \"evidence\"")
 			}
 		case "kind":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				if err := s.Kind.Decode(d); err != nil {
 					return err
@@ -149548,7 +149818,7 @@ func (s *InventoryGetInventoryDevicesOKItemsItemGuess) Decode(d *jx.Decoder) err
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000111,
+		0b00001110,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -149590,6 +149860,220 @@ func (s *InventoryGetInventoryDevicesOKItemsItemGuess) MarshalJSON() ([]byte, er
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *InventoryGetInventoryDevicesOKItemsItemGuess) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem as json.
+func (s InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem from json.
+func (s *InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem(v) {
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemRouter:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemRouter
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemSwitch:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemSwitch
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemModem:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemModem
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemSdWan:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemSdWan
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemLoadBalancer:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemLoadBalancer
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemNetworkController:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemNetworkController
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemFirewall:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemFirewall
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemVpnGateway:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemVpnGateway
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemIdsSensor:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemIdsSensor
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemProxy:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemProxy
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemAp:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemAp
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemWirelessController:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemWirelessController
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemWifiExtender:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemWifiExtender
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemMeshNode:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemMeshNode
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemServer:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemServer
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemVirtualMachine:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemVirtualMachine
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemHypervisor:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemHypervisor
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemBmc:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemBmc
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemDomainController:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemDomainController
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemMailServer:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemMailServer
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemDatabaseServer:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemDatabaseServer
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemBackupServer:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemBackupServer
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemPc:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemPc
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemLaptop:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemLaptop
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemWorkstation:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemWorkstation
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemThinClient:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemThinClient
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemPosTerminal:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemPosTerminal
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemKiosk:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemKiosk
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemSmartphone:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemSmartphone
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemTablet:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemTablet
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemSmartwatch:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemSmartwatch
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemPrinter:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemPrinter
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemMfp:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemMfp
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemScanner:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemScanner
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemLabelPrinter:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemLabelPrinter
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemReceiptPrinter:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemReceiptPrinter
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemPlotter:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemPlotter
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem3dPrinter:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem3dPrinter
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemCamera:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemCamera
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemNvr:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemNvr
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemDvr:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemDvr
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemVideoEncoder:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemVideoEncoder
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemDoorbell:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemDoorbell
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemVideoConferencing:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemVideoConferencing
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemIPPhone:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemIPPhone
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemPbx:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemPbx
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemVoipAdapter:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemVoipAdapter
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemVoipGateway:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemVoipGateway
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemConferencePhone:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemConferencePhone
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemIntercom:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemIntercom
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemNas:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemNas
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemSan:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemSan
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemBackupAppliance:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemBackupAppliance
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemTapeLibrary:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemTapeLibrary
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemIot:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemIot
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemSmartTv:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemSmartTv
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemMediaPlayer:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemMediaPlayer
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemSmartSpeaker:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemSmartSpeaker
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemGameConsole:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemGameConsole
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemSmartPlug:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemSmartPlug
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemSmartLight:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemSmartLight
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemSmartHub:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemSmartHub
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemThermostat:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemThermostat
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemProjector:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemProjector
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemDigitalSignage:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemDigitalSignage
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemSingleBoardComputer:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemSingleBoardComputer
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemSmartAppliance:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemSmartAppliance
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemRobotVacuum:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemRobotVacuum
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemWirelessBridge:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemWirelessBridge
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemPlc:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemPlc
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemHmi:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemHmi
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemRtu:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemRtu
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemScadaServer:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemScadaServer
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemIndustrialSwitch:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemIndustrialSwitch
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemUps:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemUps
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemPdu:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemPdu
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemAccessControl:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemAccessControl
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemTimeClock:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemTimeClock
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemAlarmPanel:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemAlarmPanel
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemHvacController:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemHvacController
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemBuildingController:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemBuildingController
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemPowerMeter:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemPowerMeter
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemEnvironmentMonitor:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemEnvironmentMonitor
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemEvCharger:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemEvCharger
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemSolarInverter:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemSolarInverter
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemMedicalDevice:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemMedicalDevice
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemWeb:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemWeb
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemCloudService:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemCloudService
+	case InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemUnknown:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItemUnknown
+	default:
+		*s = InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *InventoryGetInventoryDevicesOKItemsItemGuessAlternativesItem) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }

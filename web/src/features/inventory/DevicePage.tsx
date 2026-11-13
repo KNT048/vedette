@@ -62,8 +62,10 @@ function Overview({ d }: { d: DeviceDetail }) {
             </p>
             <p className="text-[13px] text-muted [overflow-wrap:anywhere]">{guess.evidence}</p>
             <p className="text-[12px] text-muted">{t('guess.hint')}</p>
-            <span>
+            {guess.alternatives?.length ? <p className="text-[12px] text-muted">{t('guess.alternatives', { list: guess.alternatives.map(kindLabel).join(', ') })}</p> : null}
+            <span className="flex flex-wrap gap-2">
               <Button size="sm" disabled={!can || act.patch.isPending} title={needRole} onClick={() => setKind(guess.kind)}>{t('guess.confirm', { kind: kindLabel(guess.kind) })}</Button>
+              {(guess.alternatives ?? []).map((k) => <Button key={k} size="sm" variant="ghost" disabled={!can || act.patch.isPending} title={needRole} onClick={() => setKind(k)}>{t('guess.instead', { kind: kindLabel(k) })}</Button>)}
             </span>
           </div>
         ) : null}

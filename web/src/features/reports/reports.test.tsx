@@ -327,6 +327,16 @@ describe('reports: data protection assessment under Vietnam\'s Law 91/2025/QH15 
     await expectNoA11yViolations()
   })
 
+  it('a device type of D-511 is printed by its label and counted by the kind it acts as (a virtual machine is a key system)', async () => {
+    assetsStore.update((l) => l.map((a) => (a.id === 'a-srvad' ? { ...a, kind: 'virtual_machine' } : a)))
+    renderApp('/reports?tab=pdpl')
+    await fillOrg()
+    const doc = await generate()
+    expect(doc.textContent).not.toContain('virtual_machine')
+    const key = within(doc).getByRole('table', { name: 'Key systems: servers, NAS and firewalls' })
+    expect(within(key).getByText('Virtual machine')).toBeInTheDocument()
+  })
+
   it('with no devices the report has no raw translation keys, one measures heading and sensible empty text', async () => {
     assetsStore.set([])
     renderApp('/reports?tab=pdpl')

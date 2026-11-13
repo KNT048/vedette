@@ -84,3 +84,4 @@
 ## Disabling this module
 - Mất trang Findings và panel finding ở Devices; không finding mới; `notify` mất tin lỗ hổng; `scan` không nối được `finding_id`; `response` không có phát hiện Critical để đề xuất; `reports` thiếu mục lỗ hổng; `mitigation` mất đầu vào.
 - Finding cũ và lịch sử giữ trong `fnd_*`.
+- **Loại thiết bị (D-511)**: đọc `content/devicetypes` (gói lá, chỉ thư viện chuẩn). `validKind` nhận mọi id loại của danh sách (không còn chép tay 13 loại); không đổi cách khớp.

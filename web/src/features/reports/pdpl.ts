@@ -8,6 +8,7 @@ import { assetsStore, findingsStore, isOn } from '@/mocks/stores'
 import { newId, nowIso } from '@/mocks/db'
 import { EOL_OS, rowOf } from './weekly'
 import type { Measure, Obligation, PdplOrg, PdplReport } from './types'
+import { actsAs } from '@/lib/deviceTypes'
 
 /** Điều 41 Nghị định 356/2025/NĐ-CP. Mất miễn/chọn khi: kinh doanh dịch vụ xử lý dữ liệu cá nhân, trực tiếp xử lý dữ liệu nhạy cảm, hoặc tích lũy từ 100.000 chủ thể dữ liệu trở lên. */
 export function regimeOf(o: Pick<PdplOrg, 'size' | 'processing_service' | 'sensitive' | 'data_volume'>): 'required' | 'optional' | 'exempt' {
@@ -34,7 +35,7 @@ export function buildPdpl(org: PdplOrg): PdplReport {
   // Mirrors modules/reports/pdpl.go (D-237): something found is "attention"; nothing found is "ok" only when the box could look.
   const seen = (list: string[], ...needs: ModuleId[]): Measure['status'] => (list.length ? 'attention' : assets.length === 0 || needs.some((n) => !isOn(n)) ? 'unknown' : 'ok')
   const measures: Measure[] = [
-    m('firewall', assets.some((a) => a.kind === 'firewall') ? 'ok' : assets.length === 0 ? 'unknown' : 'attention'),
+    m('firewall', assets.some((a) => actsAs(a.kind) === 'firewall') ? 'ok' : assets.length === 0 ? 'unknown' : 'attention'),
     m('patching', seen(open.map((f) => f.cve), 'feeds'), open.map((f) => f.cve)),
     m('eol', seen(eol.map(label)), eol.map(label)),
     m('unapproved', seen(unapproved.map(label)), unapproved.map(label)),
@@ -59,7 +60,7 @@ export function buildPdpl(org: PdplOrg): PdplReport {
     inventory: {
       total: assets.length, approved: assets.length - unapproved.length, unapproved: unapproved.length, fragile: assets.filter((a) => a.fragile).length,
       by_kind: [...by.entries()].map(([kind, n]) => ({ kind, n })).sort((a, b) => b.n - a.n),
-      key_systems: assets.filter((a) => a.kind === 'server' || a.kind === 'nas' || a.kind === 'firewall').map((a) => ({ id: a.id, name: label(a), ip: a.ip, kind: a.kind, os: a.os?.value ?? '–' })),
+      key_systems: assets.filter((a) => ['server', 'nas', 'firewall'].includes(actsAs(a.kind))).map((a) => ({ id: a.id, name: label(a), ip: a.ip, kind: a.kind, os: a.os?.value ?? '–' })),
       sources: [...src.entries()].map(([source, n]) => ({ source, n })).sort((a, b) => b.n - a.n),
     },
     measures, risks: open.map(rowOf), obligations,

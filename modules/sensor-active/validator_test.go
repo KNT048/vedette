@@ -14,7 +14,7 @@ func TestValidatorCannotBeBypassed(t *testing.T) {
 	t.Parallel()
 	sweep := func(r string) []string { return []string{"--privileged", "-sn", "-n", "--max-rate", r} }
 	normal := func(r string) []string {
-		return []string{"--privileged", "-sS", "-sV", "-O", "--script", "rdp-ntlm-info,http-ntlm-info", "-n", "--max-rate", r, "--top-ports", "1000", "--host-timeout", "30m"}
+		return []string{"--privileged", "-sS", "-sV", "-O", "--script", "rdp-ntlm-info,http-ntlm-info,http-title,ssl-cert", "-n", "--max-rate", r, "--top-ports", "1000", "--host-timeout", "30m"}
 	}
 	gentle := func(r string) []string {
 		return []string{"--privileged", "-sS", "-n", "-T2", "--max-retries", "1", "--max-rate", r, "--host-timeout", "15m", "--top-ports", "100"}

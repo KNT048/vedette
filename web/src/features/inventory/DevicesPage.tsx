@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { createElement, useMemo, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -11,15 +11,17 @@ import { SourceBadge } from '@/components/common/SourceBadge'
 import { Chip } from '@/components/common/StatusChip'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Segmented } from '@/components/ui/segmented'
+import { Label, Select } from '@/components/ui/input'
 import { download } from '@/lib/api'
 import { fmtDateTime, fmtRelative, rawProductLine } from '@/lib/format'
 import { useCan } from '@/lib/session'
 import { cn } from '@/lib/utils'
+import { categoryLabel, categoryOf, DEVICE_CATEGORIES, kindLabel } from '@/lib/deviceTypes'
 import { AddDeviceDialog } from './AddDeviceDialog'
 import { AddWays } from './AddWays'
 import { useDevices, useSettings } from './api'
 import { ImportDialog } from './ImportDialog'
-import { errMsg, KIND_ICON } from './kinds'
+import { errMsg, kindIcon, shownKind } from './kinds'
 import { nameOf } from './nameOf'
 import { PendingPanel } from './PendingPanel'
 import type { DeviceRow, DevicesResponse } from './types'
@@ -35,17 +37,34 @@ const recent = (d: DeviceRow, now: number) => !!d.approved_at && now - new Date(
 const fromAgent = (d: DeviceRow) => d.summary?.source === 'agent' || d.software.some((s) => s.source === 'agent')
 const matches = (d: DeviceRow, f: Filter, now: number) => (f === 'recent' ? recent(d, now) : f === 'manual' ? d.origin === 'manual' : f === 'agent' ? fromAgent(d) : f === 'fragile' ? d.fragile : true)
 
-function DevicesTable({ items, filter, now }: { items: DeviceRow[]; filter: Filter; now: number }) {
+/** The category a row is listed under: that of its type, or of what it most likely is while its type is unknown (D-511). */
+const categoryOfRow = (d: DeviceRow) => categoryOf(shownKind(d).kind)
+
+/** Type cell (D-511): icon, type and category; a guess says "likely" and its evidence on hover. */
+function TypeCell({ d }: { d: DeviceRow }) {
+  const { t } = useTranslation('inventory')
+  const { kind, guessed } = shownKind(d)
+  return (
+    <span className="inline-flex flex-wrap items-center gap-x-1.5 gap-y-0.5" title={guessed ? d.guess?.evidence : undefined}>
+      {createElement(kindIcon(kind), { className: 'size-4 shrink-0 text-muted', 'aria-hidden': true })}
+      <span className="whitespace-nowrap">{kindLabel(kind)}</span>
+      {guessed ? <Chip tone="off">{t('guess.likely')}</Chip> : null}
+      {kind !== 'unknown' ? <span className="whitespace-nowrap text-[12px] text-muted">{categoryLabel(categoryOf(kind))}</span> : null}
+    </span>
+  )
+}
+
+function DevicesTable({ items, filter, category, now }: { items: DeviceRow[]; filter: Filter; category: string; now: number }) {
   const { t } = useTranslation('inventory')
   const navigate = useNavigate()
-  const shown = useMemo(() => items.filter((d) => matches(d, filter, now)), [items, filter, now])
+  const shown = useMemo(() => items.filter((d) => matches(d, filter, now) && (category === '' || categoryOfRow(d) === category)), [items, filter, category, now])
   const dash = <span className="text-muted">–</span>
   const columns: ColumnDef<DeviceRow>[] = [
-    { id: 'name', header: t('col.name'), accessorFn: (d) => nameOf(d, t(`kind.${d.kind}`)), cell: ({ row }) => {
+    { id: 'name', header: t('col.name'), accessorFn: (d) => nameOf(d, kindLabel(d.kind)), cell: ({ row }) => {
       const d = row.original
       return (
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-          <Link to={`/devices/${d.id}`} onClick={(e) => e.stopPropagation()} className="font-medium text-accent underline-offset-4 hover:underline">{nameOf(d, t(`kind.${d.kind}`))}</Link>
+          <Link to={`/devices/${d.id}`} onClick={(e) => e.stopPropagation()} className="font-medium text-accent underline-offset-4 hover:underline">{nameOf(d, kindLabel(d.kind))}</Link>
           {d.is_box ? <Chip tone="accent" title={t('box.noDelete')}>{t('box.badge')}</Chip> : null}
           {!d.approved ? <Chip tone="warn">{t('chip.pending')}</Chip> : null}
           {d.suspicious ? <Chip tone="warn">{t('chip.suspicious')}</Chip> : null}
@@ -54,10 +73,7 @@ function DevicesTable({ items, filter, now }: { items: DeviceRow[]; filter: Filt
       )
     } },
     { id: 'ip', header: t('col.ip'), accessorFn: (d) => d.ip, cell: ({ row }) => <span className="whitespace-nowrap">{row.original.ip}</span> },
-    { id: 'kind', header: t('col.kind'), accessorFn: (d) => t(`kind.${d.kind}`), cell: ({ row }) => {
-      const Icon = KIND_ICON[row.original.kind]
-      return <span className="inline-flex items-center gap-1.5 whitespace-nowrap"><Icon className="size-4 text-muted" aria-hidden />{t(`kind.${row.original.kind}`)}</span>
-    } },
+    { id: 'kind', header: t('col.kind'), accessorFn: (d) => { const k = shownKind(d).kind; return `${kindLabel(k)} ${categoryLabel(categoryOf(k))}` }, cell: ({ row }) => <TypeCell d={row.original} /> },
     { id: 'hw', header: t('col.hardware'), accessorFn: (d) => [d.vendor?.value, d.model?.value].filter(Boolean).join(' '), cell: ({ getValue }) => (getValue() as string) || dash },
     { id: 'os', header: t('col.os'), accessorFn: (d) => d.os?.value ?? '', cell: ({ getValue }) => (getValue() as string) || dash },
     { id: 'source', header: t('col.source'), accessorFn: (d) => d.summary?.confidence ?? -1, cell: ({ row }) => (row.original.summary ? <SourceBadge source={row.original.summary.source} confidence={row.original.summary.confidence} /> : dash) },
@@ -68,19 +84,18 @@ function DevicesTable({ items, filter, now }: { items: DeviceRow[]; filter: Filt
       onRowClick={(d) => void navigate(`/devices/${d.id}`)} rowTone={(d) => (!d.approved ? 'warn' : undefined)}
       empty={t(`table.empty.${filter}`)}
       mobileRow={(d) => {
-        const Icon = KIND_ICON[d.kind]
         const hw = [d.vendor?.value, d.model?.value].filter(Boolean).join(' ')
         return (
           <div className="grid gap-1.5">
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-              <Link to={`/devices/${d.id}`} className="min-w-0 font-medium [overflow-wrap:anywhere] text-accent underline-offset-4 hover:underline">{nameOf(d, t(`kind.${d.kind}`))}</Link>
+              <Link to={`/devices/${d.id}`} className="min-w-0 font-medium [overflow-wrap:anywhere] text-accent underline-offset-4 hover:underline">{nameOf(d, kindLabel(d.kind))}</Link>
               {d.is_box ? <Chip tone="accent">{t('box.badge')}</Chip> : null}
               {!d.approved ? <Chip tone="warn">{t('chip.pending')}</Chip> : null}
               {d.suspicious ? <Chip tone="warn">{t('chip.suspicious')}</Chip> : null}
               {d.fragile ? <Chip tone="off" title={t('chip.fragileHint')}>{t('chip.fragile')}</Chip> : null}
             </div>
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-muted">
-              <span className="inline-flex items-center gap-1.5"><Icon className="size-4" aria-hidden />{t(`kind.${d.kind}`)}</span>
+              <TypeCell d={d} />
               {d.ip && d.ip !== '—' ? <span>{d.ip}</span> : null}
               {hw ? <span className="min-w-0 [overflow-wrap:anywhere]">{hw}</span> : null}
             </div>
@@ -103,12 +118,25 @@ function AllDevices({ data, now }: { data: DevicesResponse; now: number }) {
   const filter: Filter = FILTERS.find((f) => f === raw) ?? 'all'
   const setFilter = (f: Filter) => { const p = new URLSearchParams(params); if (f === 'all') p.delete('show'); else p.set('show', f); setParams(p, { replace: true }) }
   const count = (f: Filter) => data.items.filter((d) => matches(d, f, now)).length
+  // D-511: filter by category, in ?cat=; only the categories some device is in are offered.
+  const perCategory = new Map<string, number>()
+  for (const d of data.items) perCategory.set(categoryOfRow(d), (perCategory.get(categoryOfRow(d)) ?? 0) + 1)
+  const rawCat = params.get('cat') ?? ''
+  const category = perCategory.has(rawCat) ? rawCat : ''
+  const setCategory = (c: string) => { const p = new URLSearchParams(params); if (c === '') p.delete('cat'); else p.set('cat', c); setParams(p, { replace: true }) }
   return (
     <section aria-label={t('tabs.all')}>
-      <div className="mb-3">
+      <div className="mb-3 flex flex-wrap items-end gap-3">
         <Segmented<Filter> label={t('filter.label')} value={filter} onChange={setFilter} options={FILTERS.map((f) => ({ value: f, label: t(`filter.${f}`, { count: f === 'all' ? data.counts.all : count(f) }) }))} />
+        <span className="inline-flex items-center gap-2">
+          <Label htmlFor="device-category" className="text-[13px] font-normal text-muted">{t('filter.category')}</Label>
+          <Select id="device-category" className="w-auto" value={category} onChange={(e) => setCategory(e.target.value)}>
+            <option value="">{t('filter.allCategories')}</option>
+            {DEVICE_CATEGORIES.filter((c) => perCategory.has(c.id)).map((c) => <option key={c.id} value={c.id}>{`${c.label} (${perCategory.get(c.id)})`}</option>)}
+          </Select>
+        </span>
       </div>
-      <DevicesTable items={data.items} filter={filter} now={now} />
+      <DevicesTable items={data.items} filter={filter} category={category} now={now} />
     </section>
   )
 }
@@ -122,12 +150,12 @@ function AllSoftware({ items }: { items: DeviceRow[] }) {
     key: `${d.id}/${s.id}`, display: s.display, raw: rawProductLine(s.display, s.vendor, s.product), version: s.version, source: s.source, confidence: s.confidence, device: d,
   }))), [items])
   if (!rows.length) return <EmptyState title={t('softwareTab.empty')}>{t('softwareTab.emptyBody')}</EmptyState>
-  const device = (d: DeviceRow) => <Link to={`/devices/${d.id}`} onClick={(e) => e.stopPropagation()} className="font-medium text-accent underline-offset-4 [overflow-wrap:anywhere] hover:underline">{nameOf(d, t(`kind.${d.kind}`))}</Link>
+  const device = (d: DeviceRow) => <Link to={`/devices/${d.id}`} onClick={(e) => e.stopPropagation()} className="font-medium text-accent underline-offset-4 [overflow-wrap:anywhere] hover:underline">{nameOf(d, kindLabel(d.kind))}</Link>
   const version = (v: string | null) => v || <span className="text-muted">{t('software.noVersion')}</span>
   const columns: ColumnDef<SoftwareRow>[] = [
     { id: 'name', header: t('software.name'), accessorFn: (r) => r.display, cell: ({ row }) => <div className="grid"><span className="font-medium">{row.original.display}</span>{row.original.raw ? <span className="text-[12px] text-muted">{row.original.raw}</span> : null}</div> },
     { id: 'version', header: t('software.version'), accessorFn: (r) => r.version ?? '', cell: ({ row }) => version(row.original.version) },
-    { id: 'device', header: t('softwareTab.device'), accessorFn: (r) => `${nameOf(r.device, t(`kind.${r.device.kind}`))} ${r.device.ip}`, cell: ({ row }) => device(row.original.device) },
+    { id: 'device', header: t('softwareTab.device'), accessorFn: (r) => `${nameOf(r.device, kindLabel(r.device.kind))} ${r.device.ip}`, cell: ({ row }) => device(row.original.device) },
     { id: 'source', header: t('obs.source'), accessorFn: (r) => r.confidence, cell: ({ row }) => <SourceBadge source={row.original.source} confidence={row.original.confidence} /> },
   ]
   return (

@@ -52,6 +52,14 @@ type Inventory interface {
 	ProtectedIPs(ctx context.Context) ([]netip.Addr, error)
 }
 
+// PendingGentle is an optional part of Inventory (D-511, review of #714 round 2): the devices whose one gentle scan is still to come
+// (discovered, kind unknown, not fragile, not set to never, not the box, not declared by hand, no first scan yet). Devices reach the
+// queue only through inventory.asset.discovered, which fires for new devices; inventory migration 0004 cleared the first scan of
+// devices seen before, so Tick queues these once per start (INSERT OR IGNORE, idempotent).
+type PendingGentle interface {
+	PendingGentleScans(ctx context.Context) ([]string, error)
+}
+
 // Event is what Service publishes after a transaction commits; cmd/vedette adapts it to core/events.
 type Event struct {
 	Name string

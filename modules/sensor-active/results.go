@@ -40,8 +40,8 @@ func serviceConf(conf int) float64 {
 // fingerprint matched exactly; under 85 its own manual calls such guesses unreliable, and a wrong OS gives wrong findings.
 const minOSAccuracy = 85
 
-// kindOf maps nmap's device type (osclass type) to an inventory kind; types with no clear kind give "". Phones (nmap's phone, VoIP
-// phone, PDA) and media devices are iot, as the catalog files iOS and Android, until the inventory has a phone kind (D-501).
+// kindOf maps nmap's device type (osclass type) to an inventory device type; types with no clear one give "". Phones, VoIP phones
+// and adapters, media and power devices have their own types since D-511; each acts as iot, as they did before (D-501).
 func kindOf(t string) string {
 	switch strings.ToLower(t) {
 	case "router", "broadband router":
@@ -58,14 +58,22 @@ func kindOf(t string) string {
 		return "camera"
 	case "storage-misc":
 		return "nas"
-	case "phone", "voip phone", "voip adapter", "pda", "media device", "power-device":
-		return "iot"
+	case "phone", "pda":
+		return "smartphone"
+	case "voip phone":
+		return "ip_phone"
+	case "voip adapter":
+		return "voip_adapter"
+	case "media device":
+		return "media_player"
+	case "power-device":
+		return "ups"
 	}
 	return ""
 }
 
 // generalKind is the kind a "general purpose" match suggests from its OS (D-501): Windows is a pc (a server when its name says so),
-// iOS and Android a phone (iot). Nothing else: Linux, the BSDs and Unix also run embedded and OT devices, so such a guess must not
+// iOS and Android a smartphone (D-511; it acts as iot, as before). Nothing else: Linux, the BSDs and Unix also run embedded and OT devices, so such a guess must not
 // lift a device out of "unknown, careful"; macOS stays unknown too. It is a hint, recorded below the confidence of a device type.
 func generalKind(c osClass, name string) string {
 	if !strings.EqualFold(c.typ, "general purpose") {
@@ -78,7 +86,7 @@ func generalKind(c osClass, name string) string {
 		}
 		return "pc"
 	case "ios", "android":
-		return "iot"
+		return "smartphone"
 	}
 	return ""
 }
@@ -371,6 +379,31 @@ func cpeBase(c string) string {
 	return "cpe:/" + f[0] + ":" + f[1] + ":" + f[2]
 }
 
+// maxSvcDetail is the longest service detail the inventory keeps (inventory INV-23, D-511); maxInfoInDetail the share of nmap's extra
+// info in it.
+const (
+	maxSvcDetail    = 200
+	maxInfoInDetail = 60
+)
+
+// detailOf is what the port said about the device besides its product and version (D-511): the certificate subject (its commonName
+// first), the page title, the device type of nmap's service match and nmap's extra info, "; "-separated, the extra info cut to
+// maxInfoInDetail and the whole to maxSvcDetail, so what names the device comes first and survives the cut. It is evidence for
+// identifying the device, never software: a banner names what answered, not a version anything can be matched on (W3-5).
+func detailOf(p portInfo) string {
+	var parts []string
+	for _, f := range [][2]string{{"certificate: ", p.certSubject}, {"title: ", p.title}, {"device type: ", p.devType}, {"", clipRunes(p.info, maxInfoInDetail)}} {
+		if f[1] != "" {
+			parts = append(parts, f[0]+f[1])
+		}
+	}
+	d := strings.Join(parts, "; ")
+	if r := []rune(d); len(r) > maxSvcDetail {
+		d = string(r[:maxSvcDetail])
+	}
+	return d
+}
+
 // servicesOf lists the open ports of the host for the inventory (D-350): tcp and udp only (the inventory has no other protocol),
 // at most maxServices. A name or version longer than the inventory keeps is left out, so one long banner does not refuse the
 // device's whole list; texts are already printable (text).
@@ -383,7 +416,7 @@ func servicesOf(h host) []observe.Service {
 		if p.number < 1 || (p.proto != "tcp" && p.proto != "udp") {
 			continue
 		}
-		s := observe.Service{Port: p.number, Proto: p.proto, Name: p.name, Product: p.product, Version: p.version, Confidence: serviceConf(p.conf)}
+		s := observe.Service{Port: p.number, Proto: p.proto, Name: p.name, Product: p.product, Version: p.version, Detail: detailOf(p), Confidence: serviceConf(p.conf)}
 		if utf8.RuneCountInString(s.Name) > maxSvcName {
 			s.Name = ""
 		}
@@ -434,7 +467,7 @@ func identified(hosts []host, ip netip.Addr, shape nmapargv.Kind) (found []strin
 	switch {
 	case h.timedOut:
 		return found, WhyTimedOut
-	case shape == nmapargv.Gentle:
+	case shape.IsGentle():
 		return found, WhyGentleOnly
 	}
 	sw := softwareOf(h)

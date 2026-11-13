@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Input, Label } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 import { useCatalog } from './api'
-import { KIND_ICON } from './kinds'
+import { kindIcon } from './kinds'
 import type { CatalogItem } from './types'
 
 /** Sản phẩm đã chọn: một mục trong danh mục, hoặc do người dùng tự nhập hãng + sản phẩm (khớp theo hãng). */
@@ -88,7 +88,7 @@ export function ProductPicker({ value, onChange, label, listOpenRef }: { value: 
           <div className="absolute left-0 right-0 top-full z-30 mt-1 overflow-hidden rounded-md border border-rule bg-surface shadow-md">
             <ul id={listId} role="listbox" aria-label={label} className="max-h-60 overflow-y-auto p-1">
               {items.map((it, i) => {
-                const Icon = KIND_ICON[it.kind]
+                const Icon = kindIcon(it.kind)
                 return (
                   <li key={it.id} id={`${uid}-opt-${i}`} role="option" aria-selected={i === active}
                     onMouseDown={(e) => e.preventDefault()} onClick={() => pick(it)} onMouseEnter={() => setActive(i)}

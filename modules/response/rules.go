@@ -10,6 +10,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/knt048/vedette/content/devicetypes"
 )
 
 // Rules: WHEN (trigger with typed fields) -> IF (conditions, at most 10) -> THEN (1 to 6 catalog actions with typed
@@ -359,7 +361,9 @@ func evalCondition(c Condition, ev Det, others []Det) bool {
 		}
 		return (c.Op == "gte" && x >= y) || (c.Op == "lte" && x <= y)
 	case "device_type":
-		return ev.DeviceKind != "" && slices.Contains(csvList(c.Value), lc(ev.DeviceKind))
+		// A device type matches as itself or as the kind it acts as (D-511): "iot" still covers an IP phone, but never a type marked
+		// no_auto_isolate (a PBX, a PLC, a medical device): cutting those off harms more than it helps (#714 review M1).
+		return ev.DeviceKind != "" && devicetypes.MatchesKind(csvList(c.Value), lc(ev.DeviceKind))
 	case "count_window":
 		if logSignature(ev.Trigger, c) { // the event is the count itself, made by PollLogs for this signature, window and threshold
 			return f != "" && f == c.Value && ev.Fields["window"] == itoa(intOr(c.WindowMin, 0)) && ev.Fields["threshold"] == itoa(intOr(c.N, 0))

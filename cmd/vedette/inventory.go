@@ -5,6 +5,8 @@ import (
 	"errors"
 	"log/slog"
 	"net/netip"
+	"strings"
+	"sync"
 	"time"
 
 	"github.com/knt048/vedette/core/events"
@@ -65,6 +67,7 @@ func newInventory(d *deps) *inventory.Service {
 			}
 			return m, nil
 		}
+		cfg.Gateway = (&gatewayCache{state: hostclient.New(d.HostSocket), now: d.Clock}).Get
 	}
 	svc, err := inventory.New(cfg)
 	if err != nil { // only a missing DB or audit log: a programming error in serve
@@ -176,4 +179,37 @@ func (f findingCounts) CountByAsset(ctx context.Context) (map[string]int, error)
 		return map[string]int{}, nil
 	}
 	return f.d.Findings.CountByAsset(ctx)
+}
+
+// gatewayCache is inventory.Config.Gateway (D-511): the box's IPv4 default gateway from vedette-host state/net, kept for a minute so
+// reading the device list does not ask the host each time; a failed read is kept as unknown (the zero address) for the same minute,
+// so a host that does not answer costs one timeout a minute, not one per page (#714 M3).
+type gatewayCache struct {
+	state netStateReader
+	now   func() time.Time
+	mu    sync.Mutex
+	at    time.Time
+	ip    netip.Addr
+}
+
+func (g *gatewayCache) Get(ctx context.Context) netip.Addr {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	now := time.Now
+	if g.now != nil {
+		now = g.now
+	}
+	if !g.at.IsZero() && now().Sub(g.at) < time.Minute {
+		return g.ip
+	}
+	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
+	defer cancel()
+	st, err := g.state.StateNet(ctx)
+	g.ip, g.at = netip.Addr{}, now()
+	if err == nil && st.DefaultRoute != nil {
+		if ip, err := netip.ParseAddr(strings.TrimSpace(st.DefaultRoute.Gateway)); err == nil && ip.Unmap().Is4() && !ip.IsUnspecified() {
+			g.ip = ip.Unmap().WithZone("")
+		}
+	}
+	return g.ip
 }

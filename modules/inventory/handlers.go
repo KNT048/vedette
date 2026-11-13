@@ -53,7 +53,7 @@ func fail(err error) error {
 
 // InventoryGetInventoryDevices implements GET /inventory/devices (viewer).
 func (h *Handlers) InventoryGetInventoryDevices(ctx context.Context) (*oas.InventoryGetInventoryDevicesOK, error) {
-	l, err := h.svc.Devices(ctx)
+	l, err := h.svc.DevicesPage(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -62,7 +62,7 @@ func (h *Handlers) InventoryGetInventoryDevices(ctx context.Context) (*oas.Inven
 
 // InventoryGetInventoryDevicesID implements GET /inventory/devices/{id} (viewer).
 func (h *Handlers) InventoryGetInventoryDevicesID(ctx context.Context, params oas.InventoryGetInventoryDevicesIDParams) (*oas.InventoryGetInventoryDevicesIDOK, error) {
-	d, err := h.svc.Detail(ctx, params.ID)
+	d, err := h.svc.DetailPage(ctx, params.ID)
 	if err != nil {
 		return nil, fail(err)
 	}

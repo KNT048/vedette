@@ -4,6 +4,7 @@
 // ---- SHA-256: one implementation for every chain, see src/lib/chain.ts (the UI verifies with crypto.subtle when it exists) ----
 import { GENESIS, respLogHash, sha256 as sha256Sync } from '@/lib/chain'
 import { isMcpKind, type ConnectionKindId } from '@/lib/connections'
+import { matchesKind } from '@/lib/deviceTypes'
 export { sha256Sync }
 
 /** Browser: crypto.subtle. Where it is missing (some test environments): the same digest from the JS version. */
@@ -285,7 +286,7 @@ export function evalCondition(c: Cond, ev: Ev, others: Ev[]): boolean {
     case 'in_cidr': return isCidr(c.value) && isIpv4(f) && allowMatches(c.value, f)
     case 'gte': return f !== '' && Number(f) >= Number(c.value)
     case 'lte': return f !== '' && Number(f) <= Number(c.value)
-    case 'device_type': return !!ev.device_kind && list().includes(lc(ev.device_kind))
+    case 'device_type': return !!ev.device_kind && matchesKind(list(), lc(ev.device_kind)) // as the box: the kind a type acts as (D-511)
     case 'count_window': {
       // a log count event is the count itself, made for exactly this signature, window and threshold (the box's PollLogs)
       if (logSignature(ev.trigger, c)) return f !== '' && f === c.value && ev.fields.window === String(c.window_min ?? 0) && ev.fields.threshold === String(c.n ?? 0)

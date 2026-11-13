@@ -24,3 +24,4 @@
 ## Disabling this module
 - Trang Reports và lịch gửi biến mất; người nhận không còn nhận báo cáo tuần (không báo lỗi phía họ).
 - Không module nào phụ thuộc vào `reports`. `rep_*` giữ nguyên.
+- **Loại thiết bị (D-511)**: đọc `content/devicetypes` (gói lá, chỉ thư viện chuẩn). PDPL so loại hành xử như (`ActsAs`): VPN gateway là firewall, máy ảo là hệ thống chính (server); đếm theo loại giữ id loại.

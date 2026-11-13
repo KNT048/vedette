@@ -212,21 +212,6 @@
       "measure": "Measure",
       "detail": "Observation"
     },
-    "kind": {
-      "firewall": "Firewall",
-      "router": "Router",
-      "switch": "Switch",
-      "ap": "Wi-Fi",
-      "nas": "NAS",
-      "server": "Server",
-      "pc": "Computer",
-      "printer": "Printer",
-      "camera": "Camera",
-      "nvr": "Recorder",
-      "iot": "IoT",
-      "web": "Website",
-      "unknown": "Unknown"
-    },
     "weekly": {
       "title": "Weekly security report",
       "period": "From {{from}} to {{to}}",

@@ -18,6 +18,7 @@ import { fmtDateTime, fmtRelative, rawProductLine } from '@/lib/format'
 import { useCan } from '@/lib/session'
 import type { AssetKind, Service } from '@/lib/types'
 import { cn } from '@/lib/utils'
+import { categoryLabel, categoryOf, kindLabel, TYPES_BY_CATEGORY } from '@/lib/deviceTypes'
 import { AddDeviceDialog } from './AddDeviceDialog'
 import { useDevice, useDeviceAction } from './api'
 import { useInstallKind } from '@/lib/modules'
@@ -33,6 +34,8 @@ function Overview({ d }: { d: DeviceDetail }) {
   const needRole = can ? undefined : t('common:needRole', { role: t('common:role.operator') })
   const a = d.asset
   const fail = (e: unknown) => toast.error(errMsg(e))
+  const guess = a.kind === 'unknown' ? a.guess : null
+  const setKind = (kind: AssetKind) => act.patch.mutate({ kind }, { onSuccess: () => toast.success(t('detail.kindSaved', { kind: kindLabel(kind) })), onError: fail })
   const row = (label: string, value: React.ReactNode) => (
     <div className="contents"><dt className="text-[13px] text-muted">{label}</dt><dd className="text-sm">{value}</dd></div>
   )
@@ -40,10 +43,32 @@ function Overview({ d }: { d: DeviceDetail }) {
     <dl className="grid grid-cols-1 items-center gap-x-6 gap-y-3 sm:grid-cols-[minmax(160px,max-content)_1fr]">
       <dt className="text-[13px] text-muted"><Label htmlFor="device-kind" className="text-[13px] font-normal text-muted">{t('detail.kind')}</Label></dt>
       <dd>
-        <Select id="device-kind" className="max-w-xs" value={a.kind} disabled={!can || act.patch.isPending} title={needRole}
-          onChange={(e) => { const kind = e.target.value as AssetKind; act.patch.mutate({ kind }, { onSuccess: () => toast.success(t('detail.kindSaved', { kind: t(`kind.${kind}`) })), onError: fail }) }}>
-          {d.kinds.map((k) => <option key={k} value={k}>{t(`kind.${k}`)}</option>)}
-        </Select>
+        <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <Select id="device-kind" className="max-w-xs" value={a.kind} disabled={!can || act.patch.isPending} title={needRole}
+            onChange={(e) => setKind(e.target.value as AssetKind)}>
+            {TYPES_BY_CATEGORY.map(({ category, types }) => {
+              const listed = types.filter((ty) => d.kinds.includes(ty.id))
+              return listed.length ? <optgroup key={category.id} label={category.label}>{listed.map((ty) => <option key={ty.id} value={ty.id}>{ty.label}</option>)}</optgroup> : null
+            })}
+          </Select>
+          {a.kind !== 'unknown' ? <span className="text-[13px] text-muted">{categoryLabel(categoryOf(a.kind))}</span> : null}
+          {a.kind_source ? <span className="text-[12px] text-muted">{t('detail.kindFrom')} <SourceBadge source={a.kind_source} /></span> : null}
+        </span>
+        {guess ? (
+          <div className="mt-2 grid max-w-2xl gap-1.5 rounded-md border border-border p-3" data-testid="kind-guess">
+            <p className="text-sm">
+              <span className="font-medium">{t('guess.title', { kind: kindLabel(guess.kind), category: categoryLabel(categoryOf(guess.kind)) })}</span>
+              {guess.model ? <span className="text-muted"> {t('guess.model', { model: guess.model })}</span> : null}
+            </p>
+            <p className="text-[13px] text-muted [overflow-wrap:anywhere]">{guess.evidence}</p>
+            <p className="text-[12px] text-muted">{t('guess.hint')}</p>
+            {guess.alternatives?.length ? <p className="text-[12px] text-muted">{t('guess.alternatives', { list: guess.alternatives.map(kindLabel).join(', ') })}</p> : null}
+            <span className="flex flex-wrap gap-2">
+              <Button size="sm" disabled={!can || act.patch.isPending} title={needRole} onClick={() => setKind(guess.kind)}>{t('guess.confirm', { kind: kindLabel(guess.kind) })}</Button>
+              {(guess.alternatives ?? []).map((k) => <Button key={k} size="sm" variant="ghost" disabled={!can || act.patch.isPending} title={needRole} onClick={() => setKind(k)}>{t('guess.instead', { kind: kindLabel(k) })}</Button>)}
+            </span>
+          </div>
+        ) : null}
       </dd>
       <dt className="text-[13px] text-muted"><Label htmlFor="device-fragile" className="text-[13px] font-normal text-muted">{t('detail.fragile')}</Label></dt>
       <dd className="flex flex-wrap items-center gap-3">
@@ -77,7 +102,7 @@ function Observations({ list }: { list: Observation[] }) {
   const { t } = useTranslation('inventory')
   const columns: ColumnDef<Observation>[] = [
     { id: 'field', header: t('obs.field'), accessorFn: (o) => t(`obs.fields.${o.field}`), cell: ({ getValue }) => <span className="whitespace-nowrap font-medium">{getValue() as string}</span> },
-    { id: 'value', header: t('obs.value'), accessorFn: (o) => (o.field === 'kind' ? t(`kind.${o.value}`, { defaultValue: o.value }) : o.value) },
+    { id: 'value', header: t('obs.value'), accessorFn: (o) => (o.field === 'kind' ? kindLabel(o.value) : o.value) },
     { id: 'source', header: t('obs.source'), accessorFn: (o) => o.confidence, cell: ({ row }) => <SourceBadge source={row.original.source} confidence={row.original.confidence} /> },
     { id: 'at', header: t('obs.at'), accessorFn: (o) => new Date(o.seen_at).getTime(), cell: ({ row }) => <time dateTime={row.original.seen_at} className="whitespace-nowrap text-[13px] text-muted">{fmtDateTime(row.original.seen_at)}</time> },
     { id: 'current', header: t('obs.state'), enableSorting: false, accessorFn: (o) => Number(o.current), cell: ({ row }) => (row.original.current ? <Chip tone="ok">{t('obs.current')}</Chip> : <span className="text-[13px] text-muted">{t('obs.kept')}</span>) },
@@ -87,7 +112,7 @@ function Observations({ list }: { list: Observation[] }) {
       mobileRow={(o) => (
         <div className="grid gap-1">
           <div className="flex items-start justify-between gap-3">
-            <span className="min-w-0 text-sm [overflow-wrap:anywhere]"><span className="font-medium">{t(`obs.fields.${o.field}`)}:</span> {o.field === 'kind' ? t(`kind.${o.value}`, { defaultValue: o.value }) : o.value}</span>
+            <span className="min-w-0 text-sm [overflow-wrap:anywhere]"><span className="font-medium">{t(`obs.fields.${o.field}`)}:</span> {o.field === 'kind' ? kindLabel(o.value) : o.value}</span>
             {o.current ? <Chip tone="ok">{t('obs.current')}</Chip> : null}
           </div>
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-muted">
@@ -107,6 +132,7 @@ function Services({ list, fragile }: { list: Service[]; fragile: boolean }) {
     { id: 'port', header: t('services.port'), accessorFn: (s) => s.port, cell: ({ row }) => <span className="whitespace-nowrap">{row.original.port}/{row.original.proto}</span> },
     { id: 'name', header: t('services.name'), accessorFn: (s) => s.name },
     { id: 'product', header: t('services.product'), accessorFn: (s) => [s.product, s.version].filter(Boolean).join(' '), cell: ({ getValue }) => (getValue() as string) || <span className="text-muted">–</span> },
+    { id: 'detail', header: t('services.detail'), accessorFn: (s) => s.detail ?? '', cell: ({ getValue }) => <span className="text-[13px] [overflow-wrap:anywhere]">{(getValue() as string) || <span className="text-muted">–</span>}</span> },
     { id: 'source', header: t('obs.source'), accessorFn: (s) => s.confidence, cell: ({ row }) => <SourceBadge source={row.original.source} confidence={row.original.confidence} /> },
   ]
   return (
@@ -115,6 +141,7 @@ function Services({ list, fragile }: { list: Service[]; fragile: boolean }) {
         <div className="grid gap-1">
           <span className="text-sm font-medium">{sv.port}/{sv.proto} {sv.name}</span>
           {sv.product || sv.version ? <span className="text-[13px] [overflow-wrap:anywhere]">{[sv.product, sv.version].filter(Boolean).join(' ')}</span> : null}
+          {sv.detail ? <span className="text-[13px] text-muted [overflow-wrap:anywhere]">{sv.detail}</span> : null}
           <span className="text-[12px] text-muted"><SourceBadge source={sv.source} confidence={sv.confidence} /></span>
         </div>
       )} />
@@ -254,7 +281,7 @@ function Approval({ d }: { d: DeviceDetail }) {
   const act = useDeviceAction(d.asset.id)
   const navigate = useNavigate()
   const [del, setDel] = useState(false)
-  const name = nameOf(d.asset, t(`kind.${d.asset.kind}`))
+  const name = nameOf(d.asset, kindLabel(d.asset.kind))
   const fail = (e: unknown) => toast.error(errMsg(e))
   return (
     <div className="mb-8 grid gap-3 rounded-md border border-dashed border-warn bg-warn-soft/60 p-4 md:grid-cols-[1fr_auto] md:items-center">
@@ -309,12 +336,12 @@ function Body() {
   }
   const d = q.data
   const a = d.asset
-  const name = nameOf(a, t(`kind.${a.kind}`))
+  const name = nameOf(a, kindLabel(a.kind))
   const needRole = can ? undefined : t('common:needRole', { role: t('common:role.operator') })
   return (
     <>
       {back}
-      <PageHeader title={<span className="[overflow-wrap:anywhere]">{t('detail.title', { name, kind: t(`kind.${a.kind}`), when: fmtRelative(a.last_seen) })}</span>} stories={['S-INV-1', 'S-INV-2']}
+      <PageHeader title={<span className="[overflow-wrap:anywhere]">{t('detail.title', { name, kind: kindLabel(a.kind), when: fmtRelative(a.last_seen) })}</span>} stories={['S-INV-1', 'S-INV-2']}
         meta={<span className="inline-flex flex-wrap items-center gap-2">{a.is_box ? <Chip tone="accent">{t('box.badge')}</Chip> : null}<SampleDataNote />{t('detail.meta')}</span>}
         actions={<Button disabled={!can || a.is_box} title={a.is_box ? t('box.noDelete') : needRole} onClick={() => setDel(true)}><Trash2 />{t('detail.delete')}</Button>} />
       {a.is_box ? <BoxNotice findings={d.findings_count} /> : null}

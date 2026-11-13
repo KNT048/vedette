@@ -16,9 +16,11 @@ import { useCan } from '@/lib/session'
 import { useAddCred, useCreds, useDelCred, useTargets, useTestCred } from './api'
 import { errMsg } from './errors'
 import type { CredTarget, ScanTarget } from './types'
+import { actsAs } from '@/lib/deviceTypes'
 
 const MAX_KEY = 16 * 1024
 /** Quét có tài khoản qua SSH chỉ hợp với máy chủ: không liệt kê camera, máy in, switch, máy trạm. */
+/** Devices an SSH login can check: types acting as server, NAS or web (D-511: a virtual machine or a hypervisor acts as server). */
 const SSH_KINDS = ['server', 'nas', 'web']
 
 function Prepare() {
@@ -159,7 +161,7 @@ function Inner() {
               <div className="grid gap-3">
                 <h3 className="text-sm font-semibold">{t('cred.addTitle')}</h3>
                 <QueryState query={targets}>
-                  {(d) => <AddForm options={d.items.filter((x) => x.kind === 'internal' && SSH_KINDS.includes(x.device_kind ?? 'unknown') && x.selectable && !c.items.some((i) => i.asset_id === x.id))} />}
+                  {(d) => <AddForm options={d.items.filter((x) => x.kind === 'internal' && SSH_KINDS.includes(actsAs(x.device_kind ?? 'unknown')) && x.selectable && !c.items.some((i) => i.asset_id === x.id))} />}
                 </QueryState>
               </div>
             </>

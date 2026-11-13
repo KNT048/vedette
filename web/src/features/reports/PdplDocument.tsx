@@ -5,6 +5,7 @@ import { FindingStatusChip } from '@/features/findings/AcceptRisk'
 import { fmtDate, fmtDateTime } from '@/lib/format'
 import { Scroll } from './parts'
 import type { PdplReport } from './types'
+import { kindLabel } from '@/lib/deviceTypes'
 
 const MEASURE_TONE: Record<string, Tone> = { ok: 'ok', attention: 'warn', unknown: 'off' }
 
@@ -43,12 +44,12 @@ export function PdplDocument({ report: r }: { report: PdplReport }) {
       <section aria-labelledby="pd-inv">
         {h('pd-inv', 'doc.pdpl.s.inventory')}
         <p>{t('doc.pdpl.inventorySummary', { total: r.inventory.total, approved: r.inventory.approved, unapproved: r.inventory.unapproved, fragile: r.inventory.fragile })}</p>
-        {r.inventory.by_kind.length > 0 ? <p className="mt-1 text-muted">{t('doc.pdpl.byKind')} {r.inventory.by_kind.map((k) => `${t(`doc.kind.${k.kind}`, { defaultValue: k.kind })} ${k.n}`).join(', ')}.</p> : null}
+        {r.inventory.by_kind.length > 0 ? <p className="mt-1 text-muted">{t('doc.pdpl.byKind')} {r.inventory.by_kind.map((k) => `${kindLabel(k.kind)} ${k.n}`).join(', ')}.</p> : null}
         {r.inventory.key_systems.length === 0 ? <p className="mt-2 text-muted">{r.inventory.total === 0 ? t('doc.pdpl.noDevices') : t('doc.pdpl.noKeySystems')}</p> : <div className="mt-2"><Scroll>
           <table className="w-full border-collapse text-[13px]">
             <caption className="mb-1 text-left text-muted">{t('doc.pdpl.keyCaption')}</caption>
             <thead><tr className="border-b border-rule text-left text-muted"><th scope="col" className="py-1 pr-3 font-medium">{t('doc.col.device')}</th><th scope="col" className="py-1 pr-3 font-medium">IP</th><th scope="col" className="py-1 pr-3 font-medium">{t('doc.col.kind')}</th><th scope="col" className="py-1 font-medium">{t('doc.col.os')}</th></tr></thead>
-            <tbody>{r.inventory.key_systems.map((k) => <tr key={k.id} className="border-b border-rule last:border-b-0"><td className="py-1 pr-3">{k.name}</td><td className="py-1 pr-3">{k.ip}</td><td className="py-1 pr-3">{t(`doc.kind.${k.kind}`, { defaultValue: k.kind })}</td><td className="py-1">{k.os}</td></tr>)}</tbody>
+            <tbody>{r.inventory.key_systems.map((k) => <tr key={k.id} className="border-b border-rule last:border-b-0"><td className="py-1 pr-3">{k.name}</td><td className="py-1 pr-3">{k.ip}</td><td className="py-1 pr-3">{kindLabel(k.kind)}</td><td className="py-1">{k.os}</td></tr>)}</tbody>
           </table>
         </Scroll></div>}
       </section>

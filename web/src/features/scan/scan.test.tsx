@@ -713,6 +713,14 @@ describe('scan: quét có tài khoản (S-SCAN-5)', () => {
     await expectNoA11yViolations()
   })
 
+  it('a device whose type acts as server (a virtual machine) stays an SSH candidate (D-511)', async () => {
+    enable()
+    assetsStore.update((l) => l.map((a) => (a.id === 'a-web01' ? { ...a, kind: 'virtual_machine' } : a)))
+    renderApp('/scans?tab=credentialed')
+    const select = await screen.findByLabelText('Target server')
+    expect(within(select).getByRole('option', { name: /192\.168\.10\.12/ })).toHaveValue('a-web01')
+  })
+
   it('thêm máy chủ với khoá riêng: chỉ hiện 4 ký tự cuối, khoá không được lưu hay trả lại; kiểm tra kết nối; xoá', async () => {
     enable()
     renderApp('/scans?tab=credentialed')

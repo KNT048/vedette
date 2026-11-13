@@ -191,21 +191,6 @@
     "ad": "Active Directory",
     "vedette": "Vedette"
   },
-  "kind": {
-    "pc": "Computer",
-    "unknown": "Unknown device",
-    "server": "Server",
-    "printer": "Printer",
-    "camera": "Camera",
-    "nas": "NAS",
-    "iot": "IoT",
-    "firewall": "Firewall",
-    "router": "Router",
-    "switch": "Switch",
-    "ap": "Wi-Fi access point",
-    "nvr": "Camera recorder",
-    "web": "Web service"
-  },
   "device": {
     "title": "Internal trap hits",
     "description": "Times this device connected to a trap. A normal machine has no reason to.",

@@ -1,13 +1,14 @@
 // Hợp đồng API module findings (D-18). Kiểu UI suy ra từ schema ở đây (types.ts), nên UI ↔ mock ↔ OpenAPI không lệch.
 import { z } from 'zod'
 import { defineEndpoints } from '@/lib/contract'
+import { TYPE_IDS } from '@/lib/deviceTypes'
 
 const iso = z.iso.datetime()
 const findingId = z.string().min(1).max(64)
 
 export const FindingStatus = z.enum(['confirmed', 'suspected', 'mitigated', 'patched', 'false_positive', 'not_relevant', 'risk_accepted'])
 export const Severity = z.enum(['critical', 'high', 'medium', 'low', 'info'])
-export const AssetKind = z.enum(['firewall', 'router', 'switch', 'ap', 'nas', 'server', 'pc', 'printer', 'camera', 'nvr', 'iot', 'web', 'unknown'])
+export const AssetKind = z.enum(TYPE_IDS) // the inventory's device types (D-511)
 export const FirewallVendor = z.enum(['fortigate', 'mikrotik', 'generic'])
 export const ApplyItem = z.enum(['patch', 'workaround', 'fortigate', 'mikrotik', 'generic'])
 export const StatusAction = z.enum(['patched', 'mitigated', 'false_positive', 'not_relevant', 'accept_risk', 'reopen'])

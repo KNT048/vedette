@@ -81,7 +81,8 @@ func (s *Service) sink(ctx context.Context, lines []listen.Line) error {
 // runSyslog is the listener job (SYS-5: a core/jobs job, not Housekeeping, so it runs only while the module is on and its
 // context is cancelled the moment the module is turned off, which closes every socket). It ends only when ctx does. A socket that
 // cannot be opened, or a read of the sources that fails, does not end it and does not touch the sockets that are open: it is
-// retried every RetryEvery, and the status (ListenStatus) says what is down and why. No source, no socket.
+// retried every RetryEvery, and the status (ListenStatus) says what is down and why. The sockets are open while the job runs, with or
+// without sources (D-443), so a sender that is not declared yet is counted for the Sources page instead of meeting a closed port.
 func (s *Service) runSyslog(ctx context.Context) error {
 	ports := s.cfg.Syslog.Ports
 	if len(ports) == 0 {
@@ -178,9 +179,9 @@ type ListenStatus struct {
 const UnknownShown = 10
 
 // UnknownSenders is the senders whose syslog the listener dropped because no source declares them, or declares them with another protocol
-// (FORBID-5): the S-LOG-1 hint "lines arrive from an address that is not a source". The addresses come from the socket (listen.UnknownSender),
-// never from the text of a line. A sender that a source now declares with the protocol it last used is left out, so adding the source clears
-// the hint at once. In memory only: empty while the listener is not running, and counted again from zero when it restarts.
+// (FORBID-5; a UDP source takes TCP too, D-444): the S-LOG-1 hint "lines arrive from an address that is not a source". The addresses come from the socket (listen.UnknownSender),
+// never from the text of a line. A sender that a source now takes over the protocol it used is left out, so adding the source clears
+// the hint at once. One item per address and protocol, so a sender that uses UDP and TCP is named with both. In memory only (the listener's 256-entry table, the 10 most recent returned; no line text is kept): empty while the listener is not running, and counted again from zero when it restarts.
 func (s *Service) UnknownSenders(ctx context.Context) (UnknownSendersView, error) {
 	out := UnknownSendersView{Items: []UnknownSender{}}
 	srv := s.listening.Load()
@@ -192,7 +193,7 @@ func (s *Service) UnknownSenders(ctx context.Context) (UnknownSendersView, error
 		return UnknownSendersView{}, err
 	}
 	for _, u := range srv.Stats().UnknownSender {
-		if src, ok := declared[u.IP]; ok && src.Proto == u.Proto {
+		if src, ok := declared[u.IP]; ok && listen.Accepts(src.Proto, u.Proto) {
 			continue
 		}
 		out.Items = append(out.Items, UnknownSender{IP: u.IP.String(), Proto: u.Proto, Count: u.Count, LastSeen: u.Last})

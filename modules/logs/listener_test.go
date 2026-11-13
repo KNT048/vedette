@@ -167,40 +167,68 @@ func TestASenderThatIsNotDeclaredStoresNothing(t *testing.T) {
 	}
 }
 
-func TestListenersOpenAndCloseWithTheSources(t *testing.T) {
+// D-443: the sockets are open while the listener runs, with or without sources, so a sender that is not declared yet is named by
+// UnknownSenders (walk 4: lines sent before any source left no trace). D-444: a UDP source takes TCP from its address too, a TCP
+// source no UDP, so the datagram of a TCP source is listed again.
+func TestSocketsAreOpenWithoutSourcesAndAnUndeclaredSenderIsNamed(t *testing.T) {
 	t.Parallel()
 	e := syslogEnv(t)
 	stop := e.runSyslogJob()
 	defer func() { _ = stop() }()
-	waitUntil(t, "the listener to be up", func() bool { return e.svc.listening.Load() != nil })
-	if u, tc := e.addrs(); u != nil || tc != nil {
-		t.Fatalf("no sources, yet sockets are open: %v %v", u, tc)
+	var udp, tcp net.Addr
+	waitUntil(t, "both sockets with no source", func() bool { udp, tcp = e.addrs(); return udp != nil && tcp != nil })
+	send := func(proto, text string) {
+		t.Helper()
+		a := udp
+		if proto == "tcp4" {
+			a = tcp
+		}
+		c, err := dialCtx(proto, a.String())
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer func() { _ = c.Close() }()
+		_, _ = io.WriteString(c, text)
 	}
-	if st := e.svc.ListenStatus(); !st.Listening || st.UDP || st.TCP {
-		t.Fatalf("status %+v", st)
+	named := func(proto string) bool {
+		v, err := e.svc.UnknownSenders(t.Context())
+		return err == nil && len(v.Items) == 1 && v.Items[0].IP == "127.0.0.1" && v.Items[0].Proto == proto
 	}
-	s := e.sourceOn("FW", "udp") // POST-1: adding a source opens the socket
-	waitUntil(t, "the UDP socket after the source was added", func() bool { u, _ := e.addrs(); return u != nil })
+	send("udp4", "<34>before any source")
+	waitUntil(t, "the sender to be named", func() bool { return named("udp") })
+	s := e.sourceOn("FW", "udp")
+	if v, err := e.svc.UnknownSenders(t.Context()); err != nil || len(v.Items) != 0 {
+		t.Fatalf("a declared sender is still named: %+v %v", v, err)
+	}
+	// The listener learns of the source when its wake-up has run: send until it has.
+	waitUntil(t, "the tcp line of the udp source", func() bool { send("tcp4", "<34>a udp source over tcp\n"); return len(e.searchLines()) > 0 })
 	if _, err := e.svc.UpdateSource(t.Context(), "admin@acme.example", s.ID, Input{Kind: "fortigate", Name: "FW", SenderIP: "127.0.0.1", Proto: "tcp", Port: 514}); err != nil {
 		t.Fatal(err)
 	}
-	waitUntil(t, "tcp instead of udp after the edit", func() bool { u, tc := e.addrs(); return u == nil && tc != nil })
+	waitUntil(t, "a datagram of the tcp source to be named", func() bool { send("udp4", "<34>not over tcp"); return named("udp") })
 	if err := e.svc.DeleteSource(t.Context(), "admin@acme.example", s.ID); err != nil {
 		t.Fatal(err)
 	}
-	waitUntil(t, "no socket after the last source was deleted", func() bool { u, tc := e.addrs(); return u == nil && tc == nil })
+	if st := e.svc.ListenStatus(); !st.UDP || !st.TCP {
+		t.Errorf("deleting the last source closed a socket: %+v", st.Status)
+	}
+	for _, l := range e.searchLines() {
+		if !strings.Contains(l, "a udp source over tcp") {
+			t.Errorf("stored %q, which its sender sent while it was not a source of that protocol", l)
+		}
+	}
 }
 
-// A row with proto tls can only be left over (the API refuses it, D-203): it gets no socket and does not hurt the others.
+// A row with proto tls can only be left over (the API refuses it, D-203): it gets no TLS socket and does not hurt the others.
 func TestALeftOverTLSRowGetsNoSocketFromThisListener(t *testing.T) {
 	t.Parallel()
 	e := syslogEnv(t)
 	e.exec(e.cfg, `INSERT INTO logs_sources (id, kind, name, sender_ip, proto, port, created_at) VALUES ('ls-old', 'fortigate', 'FW-TLS', '127.0.0.1', 'tls', 6514, '2026-11-01T00:00:00.000Z')`)
 	stop := e.runSyslogJob()
 	defer func() { _ = stop() }()
-	waitUntil(t, "the listener to be up", func() bool { return e.svc.listening.Load() != nil })
-	if u, tc := e.addrs(); u != nil || tc != nil {
-		t.Fatalf("a TLS row opened a plain socket: %v %v", u, tc)
+	waitUntil(t, "the plain sockets", func() bool { u, tc := e.addrs(); return u != nil && tc != nil })
+	if a := e.tlsAddr(); a != nil {
+		t.Fatalf("a TLS row opened a TLS socket on a box with no TLS configuration: %v", a)
 	}
 }
 
@@ -218,6 +246,41 @@ func (g *toggleGate) Enabled(string) bool {
 	return g.on
 }
 func (g *toggleGate) set(v bool) { g.mu.Lock(); defer g.mu.Unlock(); g.on = v }
+
+// SYS-5 with no source at all (D-443 opens the sockets without one): the module off means nothing listens, on means UDP and TCP
+// listen, off again closes them.
+func TestNoSocketWhileTheModuleIsOffWithNoSources(t *testing.T) {
+	t.Parallel()
+	e := syslogEnv(t)
+	gate := &toggleGate{}
+	sched := jobs.New(slog.New(slog.DiscardHandler), gate, nil)
+	for _, j := range Jobs(e.svc) {
+		if j.Name == "syslog" {
+			if err := sched.Add(j); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	ctx, cancel := context.WithCancel(t.Context())
+	done := make(chan struct{})
+	go func() { defer close(done); sched.Run(ctx) }()
+	defer func() { cancel(); <-done }()
+	waitUntil(t, "the scheduler to have asked the gate", func() bool { return gate.calls.Load() > 0 })
+	if e.svc.listening.Load() != nil {
+		t.Fatal("the listener runs while the module is off")
+	}
+	gate.set(true)
+	sched.ModuleChanged(ModuleID, true)
+	var udp, tcp net.Addr
+	waitUntil(t, "both sockets with no source after the module was turned on", func() bool { udp, tcp = e.addrs(); return udp != nil && tcp != nil })
+	gate.set(false)
+	sched.ModuleChanged(ModuleID, false)
+	waitUntil(t, "the listener to stop", func() bool { return e.svc.listening.Load() == nil })
+	if c, err := dialCtx("tcp4", tcp.String()); err == nil {
+		_ = c.Close()
+		t.Error("the TCP port still accepts connections after the module was turned off")
+	}
+}
 
 // SYS-5: with the module off nothing listens; turning it on opens the sockets of the declared sources; turning it off closes them.
 func TestNoSocketWhileTheModuleIsOff(t *testing.T) {
@@ -333,7 +396,7 @@ func TestAFailingReadOfTheSourcesKeepsTheSocketsAndIsRetried(t *testing.T) {
 	t.Parallel()
 	e := syslogEnv(t)
 	e.svc.cfg.Syslog.RetryEvery = 20 * time.Millisecond
-	e.sourceOn("FW", "udp")
+	s := e.sourceOn("FW", "udp")
 	var fail atomic.Bool
 	var failed atomic.Int32
 	e.svc.loadForListener = func(ctx context.Context) ([]sourceRow, error) {
@@ -351,17 +414,28 @@ func TestAFailingReadOfTheSourcesKeepsTheSocketsAndIsRetried(t *testing.T) {
 	done := make(chan error, 1)
 	go func() { done <- e.svc.runSyslog(ctx) }()
 	defer func() { cancel(); err := <-done; _ = err }()
-	waitUntil(t, "UDP", func() bool { return e.svc.ListenStatus().UDP })
+	var udp net.Addr
+	waitUntil(t, "UDP", func() bool { udp, _ = e.addrs(); return udp != nil })
+	c, err := dialCtx("udp4", udp.String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = c.Close() }()
 	fail.Store(true)
-	if _, err := e.svc.AddSource(t.Context(), "admin@acme.example", Input{Kind: "fortigate", Name: "FW2", SenderIP: "10.9.9.9", Proto: "tcp", Port: 514}); err != nil {
+	if _, err := e.svc.UpdateSource(t.Context(), "admin@acme.example", s.ID, Input{Kind: "fortigate", Name: "FW", SenderIP: "127.0.0.1", Proto: "tcp", Port: 514}); err != nil {
 		t.Fatal(err)
 	}
 	waitUntil(t, "three failed reads", func() bool { return failed.Load() >= 3 }) // the wake-up and two timed retries
-	if st := e.svc.ListenStatus(); !st.Listening || !st.UDP || st.TCP {
+	if st := e.svc.ListenStatus(); !st.Listening || !st.UDP || !st.TCP {
 		t.Fatalf("a failing read touched the sockets: %+v", st)
 	}
+	_, _ = io.WriteString(c, "<34>the listener still has the last sources it read")
+	waitUntil(t, "the datagram of the source as last read", func() bool { return len(e.searchLines()) == 1 })
 	fail.Store(false)
-	waitUntil(t, "the retry to pick up the new source", func() bool { st := e.svc.ListenStatus(); return st.UDP && st.TCP })
+	waitUntil(t, "the retry to pick up the edit (a TCP source takes no datagram)", func() bool {
+		_, _ = io.WriteString(c, "<34>after the edit")
+		return e.svc.ListenStatus().Stats.Unknown > 0
+	})
 }
 
 func TestTheListenerBatchIsNeverLargerThanWhatIngestTakes(t *testing.T) {
@@ -521,30 +595,25 @@ func dialTLS(addr string, pool *x509.CertPool) (*tls.Conn, error) {
 	return c.(*tls.Conn), nil
 }
 
-// POST-1 (D-214): on a box with a certificate a TLS source is accepted, adding it opens the TLS socket and a line sent over TLS from the
-// declared sender is stored; deleting the last TLS source closes the socket. Nothing plain opens for it.
+// POST-1 (D-214): on a box with a certificate a TLS source is accepted and a line sent over TLS from the
+// declared sender is stored; the TLS socket is open with no source (D-443), and once the last TLS source is deleted its sender gets no handshake.
 func TestTLSSyslogIsStoredAndTheSocketFollowsTheSources(t *testing.T) {
 	t.Parallel()
 	e, pool := tlsEnv(t)
 	stop := e.runSyslogJob()
 	defer func() { _ = stop() }()
-	waitUntil(t, "the listener to be up", func() bool { return e.svc.listening.Load() != nil })
-	if a := e.tlsAddr(); a != nil {
-		t.Fatalf("no sources, yet the TLS socket is open: %v", a)
-	}
-	src := e.sourceOn("FW-TLS", "tls")
 	var addr net.Addr
-	waitUntil(t, "the TLS socket", func() bool { addr = e.tlsAddr(); return addr != nil })
-	if u, tc := e.addrs(); u != nil || tc != nil {
-		t.Fatalf("a TLS source opened a plain socket: %v %v", u, tc)
-	}
+	waitUntil(t, "the TLS socket with no source (D-443)", func() bool { addr = e.tlsAddr(); return addr != nil })
+	src := e.sourceOn("FW-TLS", "tls")
 	if st := e.svc.ListenStatus(); !st.TLS || st.TLSErr != "" {
 		t.Fatalf("status %+v", st)
 	}
-	c, err := dialTLS(addr.String(), pool)
-	if err != nil {
-		t.Fatal(err)
-	}
+	var c *tls.Conn
+	waitUntil(t, "a handshake once the listener has the source", func() bool { // until its wake-up has run, the sender is not one
+		var err error
+		c, err = dialTLS(addr.String(), pool)
+		return err == nil
+	})
 	defer func() { _ = c.Close() }()
 	if _, err := io.WriteString(c, "<34>one\n10 <34>two ab"); err != nil {
 		t.Fatal(err)
@@ -556,7 +625,16 @@ func TestTLSSyslogIsStoredAndTheSocketFollowsTheSources(t *testing.T) {
 	if err := e.svc.DeleteSource(t.Context(), "admin@acme.example", src.ID); err != nil {
 		t.Fatal(err)
 	}
-	waitUntil(t, "the TLS socket to close with the last TLS source", func() bool { return e.tlsAddr() == nil })
+	waitUntil(t, "the deleted source's sender to get no handshake", func() bool {
+		c2, err := dialTLS(addr.String(), pool)
+		if err == nil {
+			_ = c2.Close()
+		}
+		return err != nil
+	})
+	if e.tlsAddr() == nil {
+		t.Error("the TLS socket closed with the last TLS source")
+	}
 }
 
 // A TLS source is accepted on create and on edit when the box has a certificate, and a plain client from another address is dropped.
@@ -642,7 +720,7 @@ func TestNoTLSSocketWhileTheModuleIsOff(t *testing.T) {
 	}
 }
 
-// Editing a source to TLS is accepted on a box that has a TLS config, and opens the TLS socket in place of the plain one.
+// Editing a source to TLS is accepted on a box that has a TLS config; the TLS socket is open (D-443).
 func TestEditingASourceToTLSIsAcceptedOnABoxWithTLS(t *testing.T) {
 	t.Parallel()
 	e, _ := tlsEnv(t)
@@ -654,7 +732,7 @@ func TestEditingASourceToTLSIsAcceptedOnABoxWithTLS(t *testing.T) {
 	if err != nil || got.Proto != "tls" {
 		t.Fatalf("edit to tls: %+v %v", got, err)
 	}
-	waitUntil(t, "the TLS socket instead of the UDP one", func() bool { u, _ := e.addrs(); return u == nil && e.tlsAddr() != nil })
+	waitUntil(t, "the TLS socket", func() bool { return e.tlsAddr() != nil })
 }
 
 // A left-over tls row on a box that now has a TLS config is served, and the "not served" warning (for a box with none) is not logged.

@@ -68,7 +68,8 @@
     "addFor": "Add {{ip}} as a log source",
     "edit": "Edit {{name}}",
     "container": "On a container install, syslog sent from the machine that runs Vedette arrives from the containers' network gateway (often 172.17.0.1 or 172.18.0.1), not from the machine's own address: declare that address for such a source.",
-    "memory": "Counted since the syslog listener last started; the 10 most recent addresses are shown."
+    "memory": "Counted since the syslog listener last started; the 10 most recent addresses are shown.",
+    "forged": "The sender address of a UDP datagram can be forged: check that the address is a device of yours before you add it."
   },
   "form": {
     "addTitle": "Add log source",
@@ -80,6 +81,11 @@
     "ip": "IP of the sending device",
     "ipHint": "The box only accepts logs from this IP. Example: 192.168.10.1.",
     "proto": "Protocol",
+    "protoHint": {
+      "udp": "The box listens on UDP and TCP and keeps this device's lines from either.",
+      "tcp": "The box listens on UDP and TCP but keeps only TCP from this device: UDP is easy to forge.",
+      "tls": "The box keeps only TLS from this device, on port 6514."
+    },
     "port": "Port the box listens on",
     "portHint": "Usually 514, or 6514 for TLS.",
     "submitAdd": "Add and show setup",

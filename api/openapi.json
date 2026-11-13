@@ -37768,7 +37768,7 @@
                               "tcp",
                               "tls"
                             ],
-                            "description": "How the last message arrived"
+                            "description": "How these messages arrived: one item per address and protocol, so a sender that used two protocols is two items"
                           },
                           "count": {
                             "type": "integer",

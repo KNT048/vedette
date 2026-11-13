@@ -128,8 +128,9 @@ export function SourceFormDialog({ open, onOpenChange, source, sender, onAdded }
             <Input id="ls-ip" value={ip} onChange={(e) => { setIp(e.target.value); fixed('ip') }} inputMode="decimal" autoComplete="off" required {...aria('ip', true)} />
           </Field>
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field label={t('form.proto')} htmlFor="ls-proto" error={fieldErr('proto')}>
-              <Select id="ls-proto" value={proto} onChange={(e) => changeProto(e.target.value as Proto)} {...aria('proto', false)}>
+            {/* What the box keeps from this IP over each protocol (D-443, D-444): it listens on UDP and TCP with or without sources. */}
+            <Field label={t('form.proto')} hint={t(`form.protoHint.${proto}`)} htmlFor="ls-proto" error={fieldErr('proto')}>
+              <Select id="ls-proto" value={proto} onChange={(e) => changeProto(e.target.value as Proto)} {...aria('proto', true)}>
                 {CATALOG[kind].protos.map((p) => <option key={p} value={p}>{p.toUpperCase()}</option>)}
               </Select>
             </Field>

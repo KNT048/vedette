@@ -21,17 +21,25 @@ import { useCan } from '@/lib/session'
 import { fetchOlderEvents, useDigest, useEvents, useSetRetention, useSources, useUnknownSenders } from './api'
 import { CATALOG } from './catalog'
 import { BoxCertificate, ConfigDialog, DeleteDialog, SourceFormDialog } from './SourceDialogs'
-import type { IocHit, EventsResponse, EventWindow, LogEvent, LogSource, NewItem, SourcesResponse, SpikeItem, UnknownSender } from './types'
+import type { IocHit, EventsResponse, EventWindow, LogEvent, LogSource, NewItem, Proto, SourcesResponse, SpikeItem } from './types'
 
 const STATE_TONE = { receiving: 'ok', silent: 'warn', never: 'off' } as const
 
 // S-LOG-1: syslog the box dropped because its sender is not a source (or is one, declared with another protocol). Operators and admins see the
 // addresses; a viewer does not get them from the API. The usual trap: on a container install, syslog from the machine that runs the
 // containers arrives from the container network's gateway, not from the address the source was declared with (QA walk 3).
-function UnknownSenders({ data, isAdmin, onAdd, onEdit }: { data: SourcesResponse; isAdmin: boolean; onAdd: (u: UnknownSender) => void; onEdit: (s: LogSource) => void }) {
+const PROTOS = new Intl.ListFormat('en', { type: 'conjunction' })
+
+function UnknownSenders({ data, isAdmin, onAdd, onEdit }: { data: SourcesResponse; isAdmin: boolean; onAdd: (u: { ip: string; proto: Proto }) => void; onEdit: (s: LogSource) => void }) {
   const { t } = useTranslation('logs')
   const q = useUnknownSenders(useCan('operator'))
-  const list = q.data?.items ?? []
+  // One item per address and protocol (the box keeps both when a sender uses two): one line per address, naming every protocol.
+  const list: { ip: string; protos: Proto[]; count: number; last_seen: string }[] = []
+  for (const u of q.data?.items ?? []) {
+    const g = list.find((x) => x.ip === u.ip)
+    if (!g) list.push({ ip: u.ip, protos: [u.proto], count: u.count, last_seen: u.last_seen })
+    else { g.protos.push(u.proto); g.count += u.count; if (u.last_seen > g.last_seen) g.last_seen = u.last_seen }
+  }
   if (!list.length) return null
   const need = isAdmin ? undefined : t('common:needRole', { role: t('common:role.admin') })
   const container = !data.box.ip && !!data.box.lan
@@ -41,7 +49,7 @@ function UnknownSenders({ data, isAdmin, onAdd, onEdit }: { data: SourcesRespons
       <ul className="mt-1 grid gap-2">
         {list.map((u) => {
           const declared = data.sources.find((s) => s.sender_ip === u.ip)
-          const facts = { ip: u.ip, proto: u.proto.toUpperCase(), times: t('unknown.times', { count: u.count }), when: fmtRelative(u.last_seen) }
+          const facts = { ip: u.ip, proto: PROTOS.format(u.protos.map((p) => p.toUpperCase())), times: t('unknown.times', { count: u.count }), when: fmtRelative(u.last_seen) }
           return (
             <li key={u.ip} className="flex flex-wrap items-start justify-between gap-2">
               <span className="min-w-0 flex-1">
@@ -49,12 +57,13 @@ function UnknownSenders({ data, isAdmin, onAdd, onEdit }: { data: SourcesRespons
               </span>
               {declared
                 ? <Button size="sm" disabled={!isAdmin} title={need} onClick={() => onEdit(declared)}>{t('unknown.edit', { name: declared.name })}</Button>
-                : <Button size="sm" disabled={!isAdmin} title={need} onClick={() => onAdd(u)} aria-label={t('unknown.addFor', { ip: u.ip })}>{t('unknown.add')}</Button>}
+                : <Button size="sm" disabled={!isAdmin} title={need} onClick={() => onAdd({ ip: u.ip, proto: u.protos.includes('udp') ? 'udp' : u.protos[0]! })} aria-label={t('unknown.addFor', { ip: u.ip })}>{t('unknown.add')}</Button>}
             </li>
           )
         })}
       </ul>
       {container ? <p className="mt-2 text-muted">{t('unknown.container')}</p> : null}
+      {list.some((u) => u.protos.includes('udp')) ? <p className="mt-1 text-muted">{t('unknown.forged')}</p> : null}
       <p className="mt-1 text-muted">{t('unknown.memory')}</p>
     </section>
   )
@@ -65,7 +74,7 @@ function SourcesSection() {
   const q = useSources()
   const isAdmin = useCan('admin')
   const [adding, setAdding] = useState(false)
-  const [addFrom, setAddFrom] = useState<UnknownSender | null>(null)
+  const [addFrom, setAddFrom] = useState<{ ip: string; proto: Proto } | null>(null)
   const [editing, setEditing] = useState<LogSource | null>(null)
   const [deleting, setDeleting] = useState<LogSource | null>(null)
   const [guide, setGuide] = useState<LogSource | null>(null)

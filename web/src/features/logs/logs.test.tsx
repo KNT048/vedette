@@ -239,10 +239,12 @@ describe('logs: the Logs page (S-LOG-1, S-LOG-2)', () => {
     expect(within(form).getByLabelText('Find your device or software')).toBeInTheDocument()
   })
 
-  it('protocol options follow the device: MikroTik UDP only, FortiGate UDP/TCP/TLS; a duplicate IP is refused at the boundary', async () => {
+  it('protocol options follow the device: MikroTik UDP only, FortiGate UDP/TCP/TLS, each saying what the box keeps; a duplicate IP is refused at the boundary', async () => {
     renderApp('/logs')
     const form = await openAdd(/MikroTik/)
     expect(within(within(form).getByLabelText('Protocol')).getAllByRole('option')).toHaveLength(1)
+    // D-443, D-444 (walk 4): the box listens on UDP and TCP whatever the sources; a UDP source takes TCP too, a TCP source no UDP
+    expect(within(form).getByLabelText('Protocol')).toHaveAccessibleDescription("The box listens on UDP and TCP and keeps this device's lines from either.")
     await userEvent.type(within(form).getByLabelText('Name'), 'RT-NEW')
     await userEvent.type(within(form).getByLabelText('IP of the sending device'), '192.168.10.1')
     await userEvent.click(within(form).getByRole('button', { name: 'Add and show setup' }))
@@ -250,7 +252,10 @@ describe('logs: the Logs page (S-LOG-1, S-LOG-2)', () => {
     await userEvent.click(within(form).getByRole('button', { name: 'Change device type' }))
     await userEvent.click(within(form).getByRole('button', { name: /^FortiGate/ }))
     expect(within(within(form).getByLabelText('Protocol')).getAllByRole('option')).toHaveLength(3)
+    await userEvent.selectOptions(within(form).getByLabelText('Protocol'), 'tcp')
+    expect(within(form).getByLabelText('Protocol')).toHaveAccessibleDescription('The box listens on UDP and TCP but keeps only TCP from this device: UDP is easy to forge.')
     await userEvent.selectOptions(within(form).getByLabelText('Protocol'), 'tls')
+    expect(within(form).getByLabelText('Protocol')).toHaveAccessibleDescription('The box keeps only TLS from this device, on port 6514.')
     expect(within(form).getByLabelText('Port the box listens on')).toHaveValue(6514)
   })
 
@@ -369,6 +374,25 @@ describe('logs: the Logs page (S-LOG-1, S-LOG-2)', () => {
     expect(screen.queryByLabelText('Keyword')).not.toBeInTheDocument()
   })
 
+  it('no sources yet, but syslog arrives: the sender is named once with every protocol it used, a way to add it and a forgery warning (walk 4, D-443)', async () => {
+    server.use(
+      http.get('*/api/v1/logs/sources', () => HttpResponse.json({ box: { ip: '192.168.18.141', hostname: 'vedette' }, sources: [], retention_days: 30 })),
+      http.get('*/api/v1/logs/unknown-senders', () => HttpResponse.json({ items: [
+        { ip: '192.168.18.145', proto: 'tcp', count: 1, last_seen: new Date().toISOString() },
+        { ip: '192.168.18.145', proto: 'udp', count: 2, last_seen: new Date(Date.now() - 60e3).toISOString() },
+      ] })),
+    )
+    renderApp('/logs')
+    const hint = await screen.findByRole('region', { name: 'Syslog from an address that is not a source' })
+    expect(hint).toHaveTextContent('192.168.18.145 sends syslog over TCP and UDP, but no source has this IP, so the box drops its lines (3 times, last')
+    expect(within(hint).getAllByRole('listitem')).toHaveLength(1)
+    expect(hint).toHaveTextContent('The sender address of a UDP datagram can be forged')
+    await userEvent.click(within(hint).getByRole('button', { name: 'Add 192.168.18.145 as a log source' }))
+    const form = await screen.findByRole('dialog', { name: 'Add log source' })
+    await userEvent.click(within(form).getByRole('button', { name: /^FortiGate/ }))
+    expect(within(form).getByLabelText('Protocol')).toHaveValue('udp') // a UDP source takes TCP too (D-444)
+  })
+
   it('the box address is unknown (no LAN range yet): the page says so and the setup shows a clear placeholder', async () => {
     server.use(http.get('*/api/v1/logs/sources', () => HttpResponse.json({
       box: { ip: null, hostname: 'vedette', lan: null, iface: 'eth0' }, retention_days: 30,
@@ -447,17 +471,17 @@ describe('logs: the Logs page (S-LOG-1, S-LOG-2)', () => {
       http.get('*/api/v1/logs/sources', () => HttpResponse.json({
         box: { ip: null, hostname: 'vedette', lan: '192.168.1.0/24', iface: 'eth0' }, retention_days: 30,
         sources: [{ id: 'ls-1', kind: 'fortigate', name: 'FW-HQ', sender_ip: '192.168.1.1', asset_id: null, asset_name: null, proto: 'udp', port: 514, last_received: null, lines_per_hour: 0, state: 'never', created_at: '2026-11-12T00:00:00Z' },
-          { id: 'ls-2', kind: 'mikrotik', name: 'RT-1', sender_ip: '192.168.1.2', asset_id: null, asset_name: null, proto: 'udp', port: 514, last_received: null, lines_per_hour: 0, state: 'never', created_at: '2026-11-12T00:00:00Z' }],
+          { id: 'ls-2', kind: 'cisco-asa', name: 'RT-1', sender_ip: '192.168.1.2', asset_id: null, asset_name: null, proto: 'tcp', port: 514, last_received: null, lines_per_hour: 0, state: 'never', created_at: '2026-11-12T00:00:00Z' }],
       })),
       http.get('*/api/v1/logs/unknown-senders', () => HttpResponse.json({ items: [
         { ip: '172.18.0.1', proto: 'udp', count: 5, last_seen: new Date().toISOString() },
-        { ip: '192.168.1.2', proto: 'tcp', count: 1, last_seen: new Date().toISOString() },
+        { ip: '192.168.1.2', proto: 'udp', count: 1, last_seen: new Date().toISOString() }, // a TCP source takes no UDP (D-444)
       ] })),
     )
     const view = renderApp('/logs')
     const hint = await screen.findByRole('region', { name: 'Syslog from an address that is not a source' })
     expect(hint).toHaveTextContent('172.18.0.1 sends syslog over UDP, but no source has this IP, so the box drops its lines (5 times, last')
-    expect(hint).toHaveTextContent('192.168.1.2 sends syslog over TCP, but RT-1 is declared with UDP, so the box drops its lines (once, last')
+    expect(hint).toHaveTextContent('192.168.1.2 sends syslog over UDP, but RT-1 is declared with TCP, so the box drops its lines (once, last')
     expect(hint).toHaveTextContent("arrives from the containers' network gateway")
     expect(within(hint).getByRole('button', { name: 'Edit RT-1' })).toBeEnabled()
     await userEvent.click(within(hint).getByRole('button', { name: 'Add 172.18.0.1 as a log source' }))

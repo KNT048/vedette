@@ -638,3 +638,51 @@ func TestAConnectionBeforeTheSweepKeepsTheForgedNoteOff(t *testing.T) {
 		t.Fatalf("a sweep after a real connection: %+v", scans)
 	}
 }
+
+// W6-4 review M1: the real connection comes minutes after the attempts' sweep (nmap -sS, then ssh): the note goes; a connection more
+// than an hour before the attempts vouches for nothing.
+func TestAConnectionNearTheSweepDecidesTheForgedNote(t *testing.T) {
+	t.Parallel()
+	for _, c := range []struct {
+		name   string
+		conn   time.Duration // when the source connects, against the attempts
+		forged bool
+	}{{"two minutes after", 2 * time.Minute, false}, {"61 minutes before", -61 * time.Minute, true}, {"59 minutes before", -59 * time.Minute, false}} {
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+			var list []honeypot.Touch
+			e := newEnv(t, func(e *env) { e.cfg.Host = touchHost{fakeHost: e.host, list: &list} })
+			e.now = t0.Add(2 * time.Hour)
+			e.setup()
+			e.addTrapIP("NAS-ARCHIVE", "192.168.10.241", honeypot.NAS, honeypot.HTTP, honeypot.SMB)
+			if err := e.svc.Apply(e.ctx()); err != nil {
+				t.Fatal(err)
+			}
+			sweep := func() {
+				list = []honeypot.Touch{{Src: addr("192.168.10.107"), Dst: addr("192.168.10.240"), At: e.now.Add(-20 * time.Second)},
+					{Src: addr("192.168.10.107"), Dst: addr("192.168.10.241"), At: e.now.Add(-10 * time.Second)}}
+				if err := e.svc.PollTouches(e.ctx()); err != nil {
+					t.Fatal(err)
+				}
+			}
+			connect := func() {
+				e.appendLog(sshNew("192.168.10.107", 50001, e.now.Add(-5*time.Second)).json())
+				e.poll()
+			}
+			if c.conn < 0 {
+				e.now = e.now.Add(c.conn)
+				connect()
+				e.now = e.now.Add(-c.conn)
+				sweep()
+			} else {
+				sweep()
+				e.now = e.now.Add(c.conn)
+				connect()
+			}
+			scans := hitsOfKind(t, e, honeypot.KindScan)
+			if len(scans) != 1 || strings.Contains(scans[0].Excerpt, "forged") != c.forged {
+				t.Fatalf("forged note want %v: %+v", c.forged, scans)
+			}
+		})
+	}
+}

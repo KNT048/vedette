@@ -38,7 +38,7 @@ func TestContract_INV25_ApproveEnrolledOnlyTheAgentsMachine(t *testing.T) {
 	}
 	approve := func(ip, mac string) (found, approved bool) {
 		t.Helper()
-		found, err := e.svc.ApproveEnrolled(e.ctx(), observe.AssetHint{IP: netip.MustParseAddr(ip)}, mac, "osquery on \"x\" enrolled with the token \"t\"")
+		found, err := e.svc.ApproveEnrolled(e.ctx(), observe.AssetHint{IP: netip.MustParseAddr(ip)}, mac, "osquery on \"x\" enrolled with the token \"t\"", false)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -94,7 +94,7 @@ func TestContract_INV25_ApproveEnrolledTypesFromTheAgentsOS(t *testing.T) {
 	}
 	approve := func(ip, mac string) {
 		t.Helper()
-		if _, err := e.svc.ApproveEnrolled(e.ctx(), observe.AssetHint{IP: netip.MustParseAddr(ip)}, mac, "r"); err != nil {
+		if _, err := e.svc.ApproveEnrolled(e.ctx(), observe.AssetHint{IP: netip.MustParseAddr(ip)}, mac, "r", false); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -124,6 +124,16 @@ func TestContract_INV25_ApproveEnrolledTypesFromTheAgentsOS(t *testing.T) {
 	}
 	if n := e.count(`SELECT count(*) FROM inv_observation WHERE field = 'kind' AND source = 'agent' AND value = 'pc'`); n != 1 {
 		t.Fatalf("the agent's pc observation under a person's kind: %d", n)
+	}
+	// agentSaw (the upgrade job): only a row the agent reported this MAC on counts as found.
+	rec("192.168.10.35", observe.Nmap, observe.OS, "Ubuntu 26.04 LTS")
+	if found, err := e.svc.ApproveEnrolled(e.ctx(), observe.AssetHint{IP: netip.MustParseAddr("192.168.10.35")}, mac, "r", true); err != nil || found {
+		t.Fatalf("agentSaw on a row with no agent MAC: found=%v err=%v", found, err)
+	}
+	rec("192.168.10.35", observe.Agent, observe.MAC, mac)
+	if found, err := e.svc.ApproveEnrolled(e.ctx(), observe.AssetHint{IP: netip.MustParseAddr("192.168.10.35")}, mac, "r", true); err != nil || !found ||
+		e.count(`SELECT count(*) FROM inv_asset WHERE ip = '192.168.10.35' AND approved = 1`) != 1 {
+		t.Fatalf("agentSaw on the agent's row: found=%v err=%v", found, err)
 	}
 	rec("192.168.10.34", observe.Agent, observe.OS, "Ubuntu 26.04 LTS")
 	rec("192.168.10.34", observe.Passive, observe.MAC, "52:54:00:00:00:99")

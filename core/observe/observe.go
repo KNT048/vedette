@@ -116,9 +116,12 @@ type Software struct {
 // only when it was never seen with another MAC, so an address DHCP gave to a new machine never approves the old machine's row.
 // found says the hint points to a device at all; a device a person marked suspicious, the box, one already approved or one seen with
 // another MAC is left as it is. On that same machine's row (not the box) an OS the agent reported before agents sent a kind gives the
-// device its kind (AgentKindOfOS, agent rank). reason is the audit detail (which token, made by whom).
+// device its kind (AgentKindOfOS, agent rank). reason is the audit detail (which token, made by whom). agentSaw is for a caller that
+// is not answering a report from the machine right now (agent-intake's job after an upgrade): the device counts as found only when
+// the agent itself once reported mac on it (an agent mac observation of that value), so a stored address another machine took since,
+// seen with no MAC, is never approved.
 type Approver interface {
-	ApproveEnrolled(ctx context.Context, hint AssetHint, mac, reason string) (found bool, err error)
+	ApproveEnrolled(ctx context.Context, hint AssetHint, mac, reason string, agentSaw bool) (found bool, err error)
 }
 
 // SoftwareSink receives the full software list of one device from one source. The list replaces the

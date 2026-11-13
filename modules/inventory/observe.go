@@ -237,7 +237,9 @@ var _ observe.Approver = (*Service)(nil)
 // an approved device are left as they are. One audit row inventory.approve_enrolled by "system", reason naming the token and its
 // maker, only when the flag changes. On the same row (not the box, not one seen with another MAC) an agent OS stored with no agent kind
 // gives the device its kind (typeFromAgentOS), approved or not: a node enrolled before agents sent a kind is typed without a new report.
-func (s *Service) ApproveEnrolled(ctx context.Context, hint observe.AssetHint, nodeMAC, reason string) (bool, error) {
+// With agentSaw (a caller not answering a live report: agent-intake's approve-enrolled job) a row counts as found only when it holds an
+// agent mac observation equal to nodeMAC; any other row is "not found" and left as it is.
+func (s *Service) ApproveEnrolled(ctx context.Context, hint observe.AssetHint, nodeMAC, reason string, agentSaw bool) (bool, error) {
 	ip, mac, err := checkHint(hint)
 	if err != nil {
 		return false, err
@@ -266,6 +268,16 @@ func (s *Service) ApproveEnrolled(ctx context.Context, hint observe.AssetHint, n
 			return nil
 		} else if err != nil {
 			return fmt.Errorf("inventory: find enrolled device: %w", err)
+		}
+		if agentSaw { // not a live report: the agent must once have reported this MAC on this very row (review #673 H1)
+			var n int
+			if err := tx.QueryRowContext(ctx, `SELECT count(*) FROM inv_observation WHERE asset_id = ? AND field = 'mac' AND source = 'agent' AND value = ?`,
+				id, nodeMAC).Scan(&n); err != nil {
+				return fmt.Errorf("inventory: check the agent's MAC: %w", err)
+			}
+			if n == 0 || nodeMAC == "" {
+				return nil
+			}
 		}
 		found = true
 		var other sql.NullString

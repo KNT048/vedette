@@ -135771,6 +135771,32 @@ func (s *HoneypotGetHoneypotHitsIDOKService) Decode(d *jx.Decoder) error {
 		*s = HoneypotGetHoneypotHitsIDOKServiceMssql
 	case HoneypotGetHoneypotHitsIDOKServiceHTTP:
 		*s = HoneypotGetHoneypotHitsIDOKServiceHTTP
+	case HoneypotGetHoneypotHitsIDOKServiceHTTPS:
+		*s = HoneypotGetHoneypotHitsIDOKServiceHTTPS
+	case HoneypotGetHoneypotHitsIDOKServiceFtp:
+		*s = HoneypotGetHoneypotHitsIDOKServiceFtp
+	case HoneypotGetHoneypotHitsIDOKServiceTelnet:
+		*s = HoneypotGetHoneypotHitsIDOKServiceTelnet
+	case HoneypotGetHoneypotHitsIDOKServiceMysql:
+		*s = HoneypotGetHoneypotHitsIDOKServiceMysql
+	case HoneypotGetHoneypotHitsIDOKServiceMongodb:
+		*s = HoneypotGetHoneypotHitsIDOKServiceMongodb
+	case HoneypotGetHoneypotHitsIDOKServiceRedis:
+		*s = HoneypotGetHoneypotHitsIDOKServiceRedis
+	case HoneypotGetHoneypotHitsIDOKServiceVnc:
+		*s = HoneypotGetHoneypotHitsIDOKServiceVnc
+	case HoneypotGetHoneypotHitsIDOKServiceGit:
+		*s = HoneypotGetHoneypotHitsIDOKServiceGit
+	case HoneypotGetHoneypotHitsIDOKServiceHttpproxy:
+		*s = HoneypotGetHoneypotHitsIDOKServiceHttpproxy
+	case HoneypotGetHoneypotHitsIDOKServiceTcpbanner:
+		*s = HoneypotGetHoneypotHitsIDOKServiceTcpbanner
+	case HoneypotGetHoneypotHitsIDOKServiceTftp:
+		*s = HoneypotGetHoneypotHitsIDOKServiceTftp
+	case HoneypotGetHoneypotHitsIDOKServiceNtp:
+		*s = HoneypotGetHoneypotHitsIDOKServiceNtp
+	case HoneypotGetHoneypotHitsIDOKServiceSip:
+		*s = HoneypotGetHoneypotHitsIDOKServiceSip
 	default:
 		*s = HoneypotGetHoneypotHitsIDOKService(v)
 	}
@@ -136256,6 +136282,32 @@ func (s *HoneypotGetHoneypotHitsOKItemsItemService) Decode(d *jx.Decoder) error 
 		*s = HoneypotGetHoneypotHitsOKItemsItemServiceMssql
 	case HoneypotGetHoneypotHitsOKItemsItemServiceHTTP:
 		*s = HoneypotGetHoneypotHitsOKItemsItemServiceHTTP
+	case HoneypotGetHoneypotHitsOKItemsItemServiceHTTPS:
+		*s = HoneypotGetHoneypotHitsOKItemsItemServiceHTTPS
+	case HoneypotGetHoneypotHitsOKItemsItemServiceFtp:
+		*s = HoneypotGetHoneypotHitsOKItemsItemServiceFtp
+	case HoneypotGetHoneypotHitsOKItemsItemServiceTelnet:
+		*s = HoneypotGetHoneypotHitsOKItemsItemServiceTelnet
+	case HoneypotGetHoneypotHitsOKItemsItemServiceMysql:
+		*s = HoneypotGetHoneypotHitsOKItemsItemServiceMysql
+	case HoneypotGetHoneypotHitsOKItemsItemServiceMongodb:
+		*s = HoneypotGetHoneypotHitsOKItemsItemServiceMongodb
+	case HoneypotGetHoneypotHitsOKItemsItemServiceRedis:
+		*s = HoneypotGetHoneypotHitsOKItemsItemServiceRedis
+	case HoneypotGetHoneypotHitsOKItemsItemServiceVnc:
+		*s = HoneypotGetHoneypotHitsOKItemsItemServiceVnc
+	case HoneypotGetHoneypotHitsOKItemsItemServiceGit:
+		*s = HoneypotGetHoneypotHitsOKItemsItemServiceGit
+	case HoneypotGetHoneypotHitsOKItemsItemServiceHttpproxy:
+		*s = HoneypotGetHoneypotHitsOKItemsItemServiceHttpproxy
+	case HoneypotGetHoneypotHitsOKItemsItemServiceTcpbanner:
+		*s = HoneypotGetHoneypotHitsOKItemsItemServiceTcpbanner
+	case HoneypotGetHoneypotHitsOKItemsItemServiceTftp:
+		*s = HoneypotGetHoneypotHitsOKItemsItemServiceTftp
+	case HoneypotGetHoneypotHitsOKItemsItemServiceNtp:
+		*s = HoneypotGetHoneypotHitsOKItemsItemServiceNtp
+	case HoneypotGetHoneypotHitsOKItemsItemServiceSip:
+		*s = HoneypotGetHoneypotHitsOKItemsItemServiceSip
 	default:
 		*s = HoneypotGetHoneypotHitsOKItemsItemService(v)
 	}
@@ -137193,6 +137245,32 @@ func (s *HoneypotGetHoneypotOKTrapsItemService) Decode(d *jx.Decoder) error {
 		*s = HoneypotGetHoneypotOKTrapsItemServiceMssql
 	case HoneypotGetHoneypotOKTrapsItemServiceHTTP:
 		*s = HoneypotGetHoneypotOKTrapsItemServiceHTTP
+	case HoneypotGetHoneypotOKTrapsItemServiceHTTPS:
+		*s = HoneypotGetHoneypotOKTrapsItemServiceHTTPS
+	case HoneypotGetHoneypotOKTrapsItemServiceFtp:
+		*s = HoneypotGetHoneypotOKTrapsItemServiceFtp
+	case HoneypotGetHoneypotOKTrapsItemServiceTelnet:
+		*s = HoneypotGetHoneypotOKTrapsItemServiceTelnet
+	case HoneypotGetHoneypotOKTrapsItemServiceMysql:
+		*s = HoneypotGetHoneypotOKTrapsItemServiceMysql
+	case HoneypotGetHoneypotOKTrapsItemServiceMongodb:
+		*s = HoneypotGetHoneypotOKTrapsItemServiceMongodb
+	case HoneypotGetHoneypotOKTrapsItemServiceRedis:
+		*s = HoneypotGetHoneypotOKTrapsItemServiceRedis
+	case HoneypotGetHoneypotOKTrapsItemServiceVnc:
+		*s = HoneypotGetHoneypotOKTrapsItemServiceVnc
+	case HoneypotGetHoneypotOKTrapsItemServiceGit:
+		*s = HoneypotGetHoneypotOKTrapsItemServiceGit
+	case HoneypotGetHoneypotOKTrapsItemServiceHttpproxy:
+		*s = HoneypotGetHoneypotOKTrapsItemServiceHttpproxy
+	case HoneypotGetHoneypotOKTrapsItemServiceTcpbanner:
+		*s = HoneypotGetHoneypotOKTrapsItemServiceTcpbanner
+	case HoneypotGetHoneypotOKTrapsItemServiceTftp:
+		*s = HoneypotGetHoneypotOKTrapsItemServiceTftp
+	case HoneypotGetHoneypotOKTrapsItemServiceNtp:
+		*s = HoneypotGetHoneypotOKTrapsItemServiceNtp
+	case HoneypotGetHoneypotOKTrapsItemServiceSip:
+		*s = HoneypotGetHoneypotOKTrapsItemServiceSip
 	default:
 		*s = HoneypotGetHoneypotOKTrapsItemService(v)
 	}
@@ -138379,6 +138457,32 @@ func (s *HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItem) Decode(d *jx.Dec
 		*s = HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemMssql
 	case HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemHTTP:
 		*s = HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemHTTP
+	case HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemHTTPS:
+		*s = HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemHTTPS
+	case HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemFtp:
+		*s = HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemFtp
+	case HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemTelnet:
+		*s = HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemTelnet
+	case HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemMysql:
+		*s = HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemMysql
+	case HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemMongodb:
+		*s = HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemMongodb
+	case HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemRedis:
+		*s = HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemRedis
+	case HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemVnc:
+		*s = HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemVnc
+	case HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemGit:
+		*s = HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemGit
+	case HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemHttpproxy:
+		*s = HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemHttpproxy
+	case HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemTcpbanner:
+		*s = HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemTcpbanner
+	case HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemTftp:
+		*s = HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemTftp
+	case HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemNtp:
+		*s = HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemNtp
+	case HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemSip:
+		*s = HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemSip
 	default:
 		*s = HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItem(v)
 	}
@@ -138475,6 +138579,32 @@ func (s *HoneypotGetHoneypotTrapIpsOKItemsItemServicesItem) Decode(d *jx.Decoder
 		*s = HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemMssql
 	case HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemHTTP:
 		*s = HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemHTTP
+	case HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemHTTPS:
+		*s = HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemHTTPS
+	case HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemFtp:
+		*s = HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemFtp
+	case HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemTelnet:
+		*s = HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemTelnet
+	case HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemMysql:
+		*s = HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemMysql
+	case HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemMongodb:
+		*s = HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemMongodb
+	case HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemRedis:
+		*s = HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemRedis
+	case HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemVnc:
+		*s = HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemVnc
+	case HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemGit:
+		*s = HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemGit
+	case HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemHttpproxy:
+		*s = HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemHttpproxy
+	case HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemTcpbanner:
+		*s = HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemTcpbanner
+	case HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemTftp:
+		*s = HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemTftp
+	case HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemNtp:
+		*s = HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemNtp
+	case HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemSip:
+		*s = HoneypotGetHoneypotTrapIpsOKItemsItemServicesItemSip
 	default:
 		*s = HoneypotGetHoneypotTrapIpsOKItemsItemServicesItem(v)
 	}
@@ -139355,6 +139485,32 @@ func (s *HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItem) Decode(d *jx.Decoder)
 		*s = HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemMssql
 	case HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemHTTP:
 		*s = HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemHTTP
+	case HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemHTTPS:
+		*s = HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemHTTPS
+	case HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemFtp:
+		*s = HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemFtp
+	case HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemTelnet:
+		*s = HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemTelnet
+	case HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemMysql:
+		*s = HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemMysql
+	case HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemMongodb:
+		*s = HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemMongodb
+	case HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemRedis:
+		*s = HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemRedis
+	case HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemVnc:
+		*s = HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemVnc
+	case HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemGit:
+		*s = HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemGit
+	case HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemHttpproxy:
+		*s = HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemHttpproxy
+	case HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemTcpbanner:
+		*s = HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemTcpbanner
+	case HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemTftp:
+		*s = HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemTftp
+	case HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemNtp:
+		*s = HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemNtp
+	case HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemSip:
+		*s = HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemSip
 	default:
 		*s = HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItem(v)
 	}
@@ -139451,6 +139607,32 @@ func (s *HoneypotPatchHoneypotTrapIpsIDOKServicesItem) Decode(d *jx.Decoder) err
 		*s = HoneypotPatchHoneypotTrapIpsIDOKServicesItemMssql
 	case HoneypotPatchHoneypotTrapIpsIDOKServicesItemHTTP:
 		*s = HoneypotPatchHoneypotTrapIpsIDOKServicesItemHTTP
+	case HoneypotPatchHoneypotTrapIpsIDOKServicesItemHTTPS:
+		*s = HoneypotPatchHoneypotTrapIpsIDOKServicesItemHTTPS
+	case HoneypotPatchHoneypotTrapIpsIDOKServicesItemFtp:
+		*s = HoneypotPatchHoneypotTrapIpsIDOKServicesItemFtp
+	case HoneypotPatchHoneypotTrapIpsIDOKServicesItemTelnet:
+		*s = HoneypotPatchHoneypotTrapIpsIDOKServicesItemTelnet
+	case HoneypotPatchHoneypotTrapIpsIDOKServicesItemMysql:
+		*s = HoneypotPatchHoneypotTrapIpsIDOKServicesItemMysql
+	case HoneypotPatchHoneypotTrapIpsIDOKServicesItemMongodb:
+		*s = HoneypotPatchHoneypotTrapIpsIDOKServicesItemMongodb
+	case HoneypotPatchHoneypotTrapIpsIDOKServicesItemRedis:
+		*s = HoneypotPatchHoneypotTrapIpsIDOKServicesItemRedis
+	case HoneypotPatchHoneypotTrapIpsIDOKServicesItemVnc:
+		*s = HoneypotPatchHoneypotTrapIpsIDOKServicesItemVnc
+	case HoneypotPatchHoneypotTrapIpsIDOKServicesItemGit:
+		*s = HoneypotPatchHoneypotTrapIpsIDOKServicesItemGit
+	case HoneypotPatchHoneypotTrapIpsIDOKServicesItemHttpproxy:
+		*s = HoneypotPatchHoneypotTrapIpsIDOKServicesItemHttpproxy
+	case HoneypotPatchHoneypotTrapIpsIDOKServicesItemTcpbanner:
+		*s = HoneypotPatchHoneypotTrapIpsIDOKServicesItemTcpbanner
+	case HoneypotPatchHoneypotTrapIpsIDOKServicesItemTftp:
+		*s = HoneypotPatchHoneypotTrapIpsIDOKServicesItemTftp
+	case HoneypotPatchHoneypotTrapIpsIDOKServicesItemNtp:
+		*s = HoneypotPatchHoneypotTrapIpsIDOKServicesItemNtp
+	case HoneypotPatchHoneypotTrapIpsIDOKServicesItemSip:
+		*s = HoneypotPatchHoneypotTrapIpsIDOKServicesItemSip
 	default:
 		*s = HoneypotPatchHoneypotTrapIpsIDOKServicesItem(v)
 	}
@@ -140034,6 +140216,32 @@ func (s *HoneypotPostHoneypotTestHitOKService) Decode(d *jx.Decoder) error {
 		*s = HoneypotPostHoneypotTestHitOKServiceMssql
 	case HoneypotPostHoneypotTestHitOKServiceHTTP:
 		*s = HoneypotPostHoneypotTestHitOKServiceHTTP
+	case HoneypotPostHoneypotTestHitOKServiceHTTPS:
+		*s = HoneypotPostHoneypotTestHitOKServiceHTTPS
+	case HoneypotPostHoneypotTestHitOKServiceFtp:
+		*s = HoneypotPostHoneypotTestHitOKServiceFtp
+	case HoneypotPostHoneypotTestHitOKServiceTelnet:
+		*s = HoneypotPostHoneypotTestHitOKServiceTelnet
+	case HoneypotPostHoneypotTestHitOKServiceMysql:
+		*s = HoneypotPostHoneypotTestHitOKServiceMysql
+	case HoneypotPostHoneypotTestHitOKServiceMongodb:
+		*s = HoneypotPostHoneypotTestHitOKServiceMongodb
+	case HoneypotPostHoneypotTestHitOKServiceRedis:
+		*s = HoneypotPostHoneypotTestHitOKServiceRedis
+	case HoneypotPostHoneypotTestHitOKServiceVnc:
+		*s = HoneypotPostHoneypotTestHitOKServiceVnc
+	case HoneypotPostHoneypotTestHitOKServiceGit:
+		*s = HoneypotPostHoneypotTestHitOKServiceGit
+	case HoneypotPostHoneypotTestHitOKServiceHttpproxy:
+		*s = HoneypotPostHoneypotTestHitOKServiceHttpproxy
+	case HoneypotPostHoneypotTestHitOKServiceTcpbanner:
+		*s = HoneypotPostHoneypotTestHitOKServiceTcpbanner
+	case HoneypotPostHoneypotTestHitOKServiceTftp:
+		*s = HoneypotPostHoneypotTestHitOKServiceTftp
+	case HoneypotPostHoneypotTestHitOKServiceNtp:
+		*s = HoneypotPostHoneypotTestHitOKServiceNtp
+	case HoneypotPostHoneypotTestHitOKServiceSip:
+		*s = HoneypotPostHoneypotTestHitOKServiceSip
 	default:
 		*s = HoneypotPostHoneypotTestHitOKService(v)
 	}
@@ -140174,6 +140382,32 @@ func (s *HoneypotPostHoneypotTestHitReqService) Decode(d *jx.Decoder) error {
 		*s = HoneypotPostHoneypotTestHitReqServiceMssql
 	case HoneypotPostHoneypotTestHitReqServiceHTTP:
 		*s = HoneypotPostHoneypotTestHitReqServiceHTTP
+	case HoneypotPostHoneypotTestHitReqServiceHTTPS:
+		*s = HoneypotPostHoneypotTestHitReqServiceHTTPS
+	case HoneypotPostHoneypotTestHitReqServiceFtp:
+		*s = HoneypotPostHoneypotTestHitReqServiceFtp
+	case HoneypotPostHoneypotTestHitReqServiceTelnet:
+		*s = HoneypotPostHoneypotTestHitReqServiceTelnet
+	case HoneypotPostHoneypotTestHitReqServiceMysql:
+		*s = HoneypotPostHoneypotTestHitReqServiceMysql
+	case HoneypotPostHoneypotTestHitReqServiceMongodb:
+		*s = HoneypotPostHoneypotTestHitReqServiceMongodb
+	case HoneypotPostHoneypotTestHitReqServiceRedis:
+		*s = HoneypotPostHoneypotTestHitReqServiceRedis
+	case HoneypotPostHoneypotTestHitReqServiceVnc:
+		*s = HoneypotPostHoneypotTestHitReqServiceVnc
+	case HoneypotPostHoneypotTestHitReqServiceGit:
+		*s = HoneypotPostHoneypotTestHitReqServiceGit
+	case HoneypotPostHoneypotTestHitReqServiceHttpproxy:
+		*s = HoneypotPostHoneypotTestHitReqServiceHttpproxy
+	case HoneypotPostHoneypotTestHitReqServiceTcpbanner:
+		*s = HoneypotPostHoneypotTestHitReqServiceTcpbanner
+	case HoneypotPostHoneypotTestHitReqServiceTftp:
+		*s = HoneypotPostHoneypotTestHitReqServiceTftp
+	case HoneypotPostHoneypotTestHitReqServiceNtp:
+		*s = HoneypotPostHoneypotTestHitReqServiceNtp
+	case HoneypotPostHoneypotTestHitReqServiceSip:
+		*s = HoneypotPostHoneypotTestHitReqServiceSip
 	default:
 		*s = HoneypotPostHoneypotTestHitReqService(v)
 	}
@@ -140553,6 +140787,32 @@ func (s *HoneypotPostHoneypotTestScanOKService) Decode(d *jx.Decoder) error {
 		*s = HoneypotPostHoneypotTestScanOKServiceMssql
 	case HoneypotPostHoneypotTestScanOKServiceHTTP:
 		*s = HoneypotPostHoneypotTestScanOKServiceHTTP
+	case HoneypotPostHoneypotTestScanOKServiceHTTPS:
+		*s = HoneypotPostHoneypotTestScanOKServiceHTTPS
+	case HoneypotPostHoneypotTestScanOKServiceFtp:
+		*s = HoneypotPostHoneypotTestScanOKServiceFtp
+	case HoneypotPostHoneypotTestScanOKServiceTelnet:
+		*s = HoneypotPostHoneypotTestScanOKServiceTelnet
+	case HoneypotPostHoneypotTestScanOKServiceMysql:
+		*s = HoneypotPostHoneypotTestScanOKServiceMysql
+	case HoneypotPostHoneypotTestScanOKServiceMongodb:
+		*s = HoneypotPostHoneypotTestScanOKServiceMongodb
+	case HoneypotPostHoneypotTestScanOKServiceRedis:
+		*s = HoneypotPostHoneypotTestScanOKServiceRedis
+	case HoneypotPostHoneypotTestScanOKServiceVnc:
+		*s = HoneypotPostHoneypotTestScanOKServiceVnc
+	case HoneypotPostHoneypotTestScanOKServiceGit:
+		*s = HoneypotPostHoneypotTestScanOKServiceGit
+	case HoneypotPostHoneypotTestScanOKServiceHttpproxy:
+		*s = HoneypotPostHoneypotTestScanOKServiceHttpproxy
+	case HoneypotPostHoneypotTestScanOKServiceTcpbanner:
+		*s = HoneypotPostHoneypotTestScanOKServiceTcpbanner
+	case HoneypotPostHoneypotTestScanOKServiceTftp:
+		*s = HoneypotPostHoneypotTestScanOKServiceTftp
+	case HoneypotPostHoneypotTestScanOKServiceNtp:
+		*s = HoneypotPostHoneypotTestScanOKServiceNtp
+	case HoneypotPostHoneypotTestScanOKServiceSip:
+		*s = HoneypotPostHoneypotTestScanOKServiceSip
 	default:
 		*s = HoneypotPostHoneypotTestScanOKService(v)
 	}
@@ -141203,6 +141463,32 @@ func (s *HoneypotPostHoneypotTokensIDTestOKService) Decode(d *jx.Decoder) error 
 		*s = HoneypotPostHoneypotTokensIDTestOKServiceMssql
 	case HoneypotPostHoneypotTokensIDTestOKServiceHTTP:
 		*s = HoneypotPostHoneypotTokensIDTestOKServiceHTTP
+	case HoneypotPostHoneypotTokensIDTestOKServiceHTTPS:
+		*s = HoneypotPostHoneypotTokensIDTestOKServiceHTTPS
+	case HoneypotPostHoneypotTokensIDTestOKServiceFtp:
+		*s = HoneypotPostHoneypotTokensIDTestOKServiceFtp
+	case HoneypotPostHoneypotTokensIDTestOKServiceTelnet:
+		*s = HoneypotPostHoneypotTokensIDTestOKServiceTelnet
+	case HoneypotPostHoneypotTokensIDTestOKServiceMysql:
+		*s = HoneypotPostHoneypotTokensIDTestOKServiceMysql
+	case HoneypotPostHoneypotTokensIDTestOKServiceMongodb:
+		*s = HoneypotPostHoneypotTokensIDTestOKServiceMongodb
+	case HoneypotPostHoneypotTokensIDTestOKServiceRedis:
+		*s = HoneypotPostHoneypotTokensIDTestOKServiceRedis
+	case HoneypotPostHoneypotTokensIDTestOKServiceVnc:
+		*s = HoneypotPostHoneypotTokensIDTestOKServiceVnc
+	case HoneypotPostHoneypotTokensIDTestOKServiceGit:
+		*s = HoneypotPostHoneypotTokensIDTestOKServiceGit
+	case HoneypotPostHoneypotTokensIDTestOKServiceHttpproxy:
+		*s = HoneypotPostHoneypotTokensIDTestOKServiceHttpproxy
+	case HoneypotPostHoneypotTokensIDTestOKServiceTcpbanner:
+		*s = HoneypotPostHoneypotTokensIDTestOKServiceTcpbanner
+	case HoneypotPostHoneypotTokensIDTestOKServiceTftp:
+		*s = HoneypotPostHoneypotTokensIDTestOKServiceTftp
+	case HoneypotPostHoneypotTokensIDTestOKServiceNtp:
+		*s = HoneypotPostHoneypotTokensIDTestOKServiceNtp
+	case HoneypotPostHoneypotTokensIDTestOKServiceSip:
+		*s = HoneypotPostHoneypotTokensIDTestOKServiceSip
 	default:
 		*s = HoneypotPostHoneypotTokensIDTestOKService(v)
 	}
@@ -142014,6 +142300,32 @@ func (s *HoneypotPostHoneypotTrapIpsCreatedOpenServicesItem) Decode(d *jx.Decode
 		*s = HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemMssql
 	case HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemHTTP:
 		*s = HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemHTTP
+	case HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemHTTPS:
+		*s = HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemHTTPS
+	case HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemFtp:
+		*s = HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemFtp
+	case HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemTelnet:
+		*s = HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemTelnet
+	case HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemMysql:
+		*s = HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemMysql
+	case HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemMongodb:
+		*s = HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemMongodb
+	case HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemRedis:
+		*s = HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemRedis
+	case HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemVnc:
+		*s = HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemVnc
+	case HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemGit:
+		*s = HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemGit
+	case HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemHttpproxy:
+		*s = HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemHttpproxy
+	case HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemTcpbanner:
+		*s = HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemTcpbanner
+	case HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemTftp:
+		*s = HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemTftp
+	case HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemNtp:
+		*s = HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemNtp
+	case HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemSip:
+		*s = HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemSip
 	default:
 		*s = HoneypotPostHoneypotTrapIpsCreatedOpenServicesItem(v)
 	}
@@ -142110,6 +142422,32 @@ func (s *HoneypotPostHoneypotTrapIpsCreatedServicesItem) Decode(d *jx.Decoder) e
 		*s = HoneypotPostHoneypotTrapIpsCreatedServicesItemMssql
 	case HoneypotPostHoneypotTrapIpsCreatedServicesItemHTTP:
 		*s = HoneypotPostHoneypotTrapIpsCreatedServicesItemHTTP
+	case HoneypotPostHoneypotTrapIpsCreatedServicesItemHTTPS:
+		*s = HoneypotPostHoneypotTrapIpsCreatedServicesItemHTTPS
+	case HoneypotPostHoneypotTrapIpsCreatedServicesItemFtp:
+		*s = HoneypotPostHoneypotTrapIpsCreatedServicesItemFtp
+	case HoneypotPostHoneypotTrapIpsCreatedServicesItemTelnet:
+		*s = HoneypotPostHoneypotTrapIpsCreatedServicesItemTelnet
+	case HoneypotPostHoneypotTrapIpsCreatedServicesItemMysql:
+		*s = HoneypotPostHoneypotTrapIpsCreatedServicesItemMysql
+	case HoneypotPostHoneypotTrapIpsCreatedServicesItemMongodb:
+		*s = HoneypotPostHoneypotTrapIpsCreatedServicesItemMongodb
+	case HoneypotPostHoneypotTrapIpsCreatedServicesItemRedis:
+		*s = HoneypotPostHoneypotTrapIpsCreatedServicesItemRedis
+	case HoneypotPostHoneypotTrapIpsCreatedServicesItemVnc:
+		*s = HoneypotPostHoneypotTrapIpsCreatedServicesItemVnc
+	case HoneypotPostHoneypotTrapIpsCreatedServicesItemGit:
+		*s = HoneypotPostHoneypotTrapIpsCreatedServicesItemGit
+	case HoneypotPostHoneypotTrapIpsCreatedServicesItemHttpproxy:
+		*s = HoneypotPostHoneypotTrapIpsCreatedServicesItemHttpproxy
+	case HoneypotPostHoneypotTrapIpsCreatedServicesItemTcpbanner:
+		*s = HoneypotPostHoneypotTrapIpsCreatedServicesItemTcpbanner
+	case HoneypotPostHoneypotTrapIpsCreatedServicesItemTftp:
+		*s = HoneypotPostHoneypotTrapIpsCreatedServicesItemTftp
+	case HoneypotPostHoneypotTrapIpsCreatedServicesItemNtp:
+		*s = HoneypotPostHoneypotTrapIpsCreatedServicesItemNtp
+	case HoneypotPostHoneypotTrapIpsCreatedServicesItemSip:
+		*s = HoneypotPostHoneypotTrapIpsCreatedServicesItemSip
 	default:
 		*s = HoneypotPostHoneypotTrapIpsCreatedServicesItem(v)
 	}
@@ -142484,6 +142822,32 @@ func (s *HoneypotPostHoneypotTrapIpsReqServicesItem) Decode(d *jx.Decoder) error
 		*s = HoneypotPostHoneypotTrapIpsReqServicesItemMssql
 	case HoneypotPostHoneypotTrapIpsReqServicesItemHTTP:
 		*s = HoneypotPostHoneypotTrapIpsReqServicesItemHTTP
+	case HoneypotPostHoneypotTrapIpsReqServicesItemHTTPS:
+		*s = HoneypotPostHoneypotTrapIpsReqServicesItemHTTPS
+	case HoneypotPostHoneypotTrapIpsReqServicesItemFtp:
+		*s = HoneypotPostHoneypotTrapIpsReqServicesItemFtp
+	case HoneypotPostHoneypotTrapIpsReqServicesItemTelnet:
+		*s = HoneypotPostHoneypotTrapIpsReqServicesItemTelnet
+	case HoneypotPostHoneypotTrapIpsReqServicesItemMysql:
+		*s = HoneypotPostHoneypotTrapIpsReqServicesItemMysql
+	case HoneypotPostHoneypotTrapIpsReqServicesItemMongodb:
+		*s = HoneypotPostHoneypotTrapIpsReqServicesItemMongodb
+	case HoneypotPostHoneypotTrapIpsReqServicesItemRedis:
+		*s = HoneypotPostHoneypotTrapIpsReqServicesItemRedis
+	case HoneypotPostHoneypotTrapIpsReqServicesItemVnc:
+		*s = HoneypotPostHoneypotTrapIpsReqServicesItemVnc
+	case HoneypotPostHoneypotTrapIpsReqServicesItemGit:
+		*s = HoneypotPostHoneypotTrapIpsReqServicesItemGit
+	case HoneypotPostHoneypotTrapIpsReqServicesItemHttpproxy:
+		*s = HoneypotPostHoneypotTrapIpsReqServicesItemHttpproxy
+	case HoneypotPostHoneypotTrapIpsReqServicesItemTcpbanner:
+		*s = HoneypotPostHoneypotTrapIpsReqServicesItemTcpbanner
+	case HoneypotPostHoneypotTrapIpsReqServicesItemTftp:
+		*s = HoneypotPostHoneypotTrapIpsReqServicesItemTftp
+	case HoneypotPostHoneypotTrapIpsReqServicesItemNtp:
+		*s = HoneypotPostHoneypotTrapIpsReqServicesItemNtp
+	case HoneypotPostHoneypotTrapIpsReqServicesItemSip:
+		*s = HoneypotPostHoneypotTrapIpsReqServicesItemSip
 	default:
 		*s = HoneypotPostHoneypotTrapIpsReqServicesItem(v)
 	}
@@ -143126,6 +143490,32 @@ func (s *HoneypotPutHoneypotTrapIpsIDOKOpenServicesItem) Decode(d *jx.Decoder) e
 		*s = HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemMssql
 	case HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemHTTP:
 		*s = HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemHTTP
+	case HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemHTTPS:
+		*s = HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemHTTPS
+	case HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemFtp:
+		*s = HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemFtp
+	case HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemTelnet:
+		*s = HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemTelnet
+	case HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemMysql:
+		*s = HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemMysql
+	case HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemMongodb:
+		*s = HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemMongodb
+	case HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemRedis:
+		*s = HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemRedis
+	case HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemVnc:
+		*s = HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemVnc
+	case HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemGit:
+		*s = HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemGit
+	case HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemHttpproxy:
+		*s = HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemHttpproxy
+	case HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemTcpbanner:
+		*s = HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemTcpbanner
+	case HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemTftp:
+		*s = HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemTftp
+	case HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemNtp:
+		*s = HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemNtp
+	case HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemSip:
+		*s = HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemSip
 	default:
 		*s = HoneypotPutHoneypotTrapIpsIDOKOpenServicesItem(v)
 	}
@@ -143222,6 +143612,32 @@ func (s *HoneypotPutHoneypotTrapIpsIDOKServicesItem) Decode(d *jx.Decoder) error
 		*s = HoneypotPutHoneypotTrapIpsIDOKServicesItemMssql
 	case HoneypotPutHoneypotTrapIpsIDOKServicesItemHTTP:
 		*s = HoneypotPutHoneypotTrapIpsIDOKServicesItemHTTP
+	case HoneypotPutHoneypotTrapIpsIDOKServicesItemHTTPS:
+		*s = HoneypotPutHoneypotTrapIpsIDOKServicesItemHTTPS
+	case HoneypotPutHoneypotTrapIpsIDOKServicesItemFtp:
+		*s = HoneypotPutHoneypotTrapIpsIDOKServicesItemFtp
+	case HoneypotPutHoneypotTrapIpsIDOKServicesItemTelnet:
+		*s = HoneypotPutHoneypotTrapIpsIDOKServicesItemTelnet
+	case HoneypotPutHoneypotTrapIpsIDOKServicesItemMysql:
+		*s = HoneypotPutHoneypotTrapIpsIDOKServicesItemMysql
+	case HoneypotPutHoneypotTrapIpsIDOKServicesItemMongodb:
+		*s = HoneypotPutHoneypotTrapIpsIDOKServicesItemMongodb
+	case HoneypotPutHoneypotTrapIpsIDOKServicesItemRedis:
+		*s = HoneypotPutHoneypotTrapIpsIDOKServicesItemRedis
+	case HoneypotPutHoneypotTrapIpsIDOKServicesItemVnc:
+		*s = HoneypotPutHoneypotTrapIpsIDOKServicesItemVnc
+	case HoneypotPutHoneypotTrapIpsIDOKServicesItemGit:
+		*s = HoneypotPutHoneypotTrapIpsIDOKServicesItemGit
+	case HoneypotPutHoneypotTrapIpsIDOKServicesItemHttpproxy:
+		*s = HoneypotPutHoneypotTrapIpsIDOKServicesItemHttpproxy
+	case HoneypotPutHoneypotTrapIpsIDOKServicesItemTcpbanner:
+		*s = HoneypotPutHoneypotTrapIpsIDOKServicesItemTcpbanner
+	case HoneypotPutHoneypotTrapIpsIDOKServicesItemTftp:
+		*s = HoneypotPutHoneypotTrapIpsIDOKServicesItemTftp
+	case HoneypotPutHoneypotTrapIpsIDOKServicesItemNtp:
+		*s = HoneypotPutHoneypotTrapIpsIDOKServicesItemNtp
+	case HoneypotPutHoneypotTrapIpsIDOKServicesItemSip:
+		*s = HoneypotPutHoneypotTrapIpsIDOKServicesItemSip
 	default:
 		*s = HoneypotPutHoneypotTrapIpsIDOKServicesItem(v)
 	}
@@ -143596,6 +144012,32 @@ func (s *HoneypotPutHoneypotTrapIpsIDReqServicesItem) Decode(d *jx.Decoder) erro
 		*s = HoneypotPutHoneypotTrapIpsIDReqServicesItemMssql
 	case HoneypotPutHoneypotTrapIpsIDReqServicesItemHTTP:
 		*s = HoneypotPutHoneypotTrapIpsIDReqServicesItemHTTP
+	case HoneypotPutHoneypotTrapIpsIDReqServicesItemHTTPS:
+		*s = HoneypotPutHoneypotTrapIpsIDReqServicesItemHTTPS
+	case HoneypotPutHoneypotTrapIpsIDReqServicesItemFtp:
+		*s = HoneypotPutHoneypotTrapIpsIDReqServicesItemFtp
+	case HoneypotPutHoneypotTrapIpsIDReqServicesItemTelnet:
+		*s = HoneypotPutHoneypotTrapIpsIDReqServicesItemTelnet
+	case HoneypotPutHoneypotTrapIpsIDReqServicesItemMysql:
+		*s = HoneypotPutHoneypotTrapIpsIDReqServicesItemMysql
+	case HoneypotPutHoneypotTrapIpsIDReqServicesItemMongodb:
+		*s = HoneypotPutHoneypotTrapIpsIDReqServicesItemMongodb
+	case HoneypotPutHoneypotTrapIpsIDReqServicesItemRedis:
+		*s = HoneypotPutHoneypotTrapIpsIDReqServicesItemRedis
+	case HoneypotPutHoneypotTrapIpsIDReqServicesItemVnc:
+		*s = HoneypotPutHoneypotTrapIpsIDReqServicesItemVnc
+	case HoneypotPutHoneypotTrapIpsIDReqServicesItemGit:
+		*s = HoneypotPutHoneypotTrapIpsIDReqServicesItemGit
+	case HoneypotPutHoneypotTrapIpsIDReqServicesItemHttpproxy:
+		*s = HoneypotPutHoneypotTrapIpsIDReqServicesItemHttpproxy
+	case HoneypotPutHoneypotTrapIpsIDReqServicesItemTcpbanner:
+		*s = HoneypotPutHoneypotTrapIpsIDReqServicesItemTcpbanner
+	case HoneypotPutHoneypotTrapIpsIDReqServicesItemTftp:
+		*s = HoneypotPutHoneypotTrapIpsIDReqServicesItemTftp
+	case HoneypotPutHoneypotTrapIpsIDReqServicesItemNtp:
+		*s = HoneypotPutHoneypotTrapIpsIDReqServicesItemNtp
+	case HoneypotPutHoneypotTrapIpsIDReqServicesItemSip:
+		*s = HoneypotPutHoneypotTrapIpsIDReqServicesItemSip
 	default:
 		*s = HoneypotPutHoneypotTrapIpsIDReqServicesItem(v)
 	}

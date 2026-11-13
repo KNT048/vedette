@@ -86,7 +86,7 @@ var exportPolicy = map[string]tablePolicy{
 	"fnd_finding_history":    {export: "id finding_id ts user action note"},
 	"fnd_version_needed":     {export: "asset_id software_id software version cves updated_at"}, // D-500
 	"hp_config":              {export: "key updated_at updated_by", json: "value"},
-	"hp_hits":                {export: "id ts kind service label port src_ip is_test excerpt trap_ip trap_hostname token_id conn_key conn_count", json: "events"},
+	"hp_hits":                {export: "id ts kind service label port src_ip is_test excerpt trap_ip trap_hostname token_id conn_key conn_count handshake", json: "events"},
 	"hp_ignored_day":         {export: "day count"},
 	"hp_tokens":              {export: "id type name value plant_at created_at", skip: "secret_id"},
 	"hp_trap_ips":            {export: "id name ip preset vendor enabled mac created_at enabled_at", json: "services"},

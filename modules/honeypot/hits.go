@@ -29,16 +29,18 @@ type storedHit struct {
 	connKey string
 }
 
-const hitCols = `id, ts, kind, service, label, port, src_ip, is_test, excerpt, trap_ip, trap_hostname, token_id, events`
+const hitCols = `id, ts, kind, service, label, port, src_ip, is_test, excerpt, trap_ip, trap_hostname, token_id, events, handshake`
 
 func scanHit(sc interface{ Scan(...any) error }) (storedHit, error) {
 	var h storedHit
 	var svc, tok sql.NullString
 	var port sql.NullInt64
 	var ev string
-	if err := sc.Scan(&h.ID, &h.TS, &h.Kind, &svc, &h.Label, &port, &h.SrcIP, &h.IsTest, &h.Excerpt, &h.TrapIP, &h.TrapHostname, &tok, &ev); err != nil {
+	var handshake bool
+	if err := sc.Scan(&h.ID, &h.TS, &h.Kind, &svc, &h.Label, &port, &h.SrcIP, &h.IsTest, &h.Excerpt, &h.TrapIP, &h.TrapHostname, &tok, &ev, &handshake); err != nil {
 		return storedHit{}, err
 	}
+	h.NoHandshake = !handshake
 	if svc.Valid {
 		s := ServiceName(svc.String)
 		h.Service = &s
@@ -118,6 +120,11 @@ func (s *Service) HitDetail(ctx context.Context, id string) (HitDetail, error) {
 	if err != nil {
 		return HitDetail{}, fmt.Errorf("honeypot: read hit: %w", err)
 	}
+	// INV-9: exactly one line is the hit, its first; the later connections folded into it are not (M5-189). Rows stored before
+	// that rule marked every folded line, so the rule is applied when read too.
+	for i := range h.events {
+		h.events[i].Mark = i == 0
+	}
 	out := HitDetail{Hit: w.view(h), Events: h.events, WindowMinutes: WindowMinutes}
 	if !h.IsTest {
 		if d := w.byIP(h.SrcIP); d != nil {
@@ -144,12 +151,12 @@ func (s *Service) HitDetail(ctx context.Context, id string) (HitDetail, error) {
 	return out, nil
 }
 
-// SourceConnected reports whether src completed a connection to a trap service (a real service hit: the listener logs a connection only
-// after the handshake) within window of at. A scan hit can be made from attempts that completed nothing, so its source may be forged;
+// SourceConnected reports whether src completed a connection to a trap service (a real service hit over TCP: the listener logs a
+// connection only after the handshake; a UDP service hit has none and never confirms, D-467 review H1) within window of at. A scan hit can be made from attempts that completed nothing, so its source may be forged;
 // response offers to block the source of a scan only when this holds (D-509). Read only.
 func (s *Service) SourceConnected(ctx context.Context, src string, at time.Time, window time.Duration) (bool, error) {
 	var n int
-	err := s.db.Reader().QueryRowContext(ctx, `SELECT COUNT(*) FROM hp_hits WHERE src_ip = ? AND is_test = 0 AND kind = 'service' AND ts BETWEEN ? AND ?`,
+	err := s.db.Reader().QueryRowContext(ctx, `SELECT COUNT(*) FROM hp_hits WHERE src_ip = ? AND is_test = 0 AND kind = 'service' AND handshake = 1 AND ts BETWEEN ? AND ?`,
 		src, store.FormatTS(at.Add(-window)), store.FormatTS(at.Add(window))).Scan(&n)
 	if err != nil {
 		return false, fmt.Errorf("honeypot: read the hits of a source: %w", err)
@@ -175,8 +182,8 @@ func (s *Service) insertHit(ctx context.Context, tx *sql.Tx, h storedHit) error 
 	if err != nil {
 		return err
 	}
-	_, err = tx.ExecContext(ctx, `INSERT INTO hp_hits (`+hitCols+`, conn_key) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		h.ID, h.TS, string(h.Kind), svc, h.Label, port, h.SrcIP, h.IsTest, h.Excerpt, h.TrapIP, h.TrapHostname, tok, string(ev), conn)
+	_, err = tx.ExecContext(ctx, `INSERT INTO hp_hits (`+hitCols+`, conn_key) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		h.ID, h.TS, string(h.Kind), svc, h.Label, port, h.SrcIP, h.IsTest, h.Excerpt, h.TrapIP, h.TrapHostname, tok, string(ev), !h.NoHandshake, conn)
 	if err != nil {
 		return fmt.Errorf("honeypot: store hit: %w", err)
 	}
@@ -214,7 +221,7 @@ func (s *Service) testHit(box Box, kind HitKind, svc *ServiceName, port *int, la
 // TestHit is POST /honeypot/test-hit (PRE-1, INV-4).
 func (s *Service) TestHit(ctx context.Context, actor string, svc ServiceName) (Hit, error) {
 	if !svc.Valid() {
-		return Hit{}, bad("bad_service", "Choose a service: SMB, RDP, SSH, MSSQL or HTTP.")
+		return Hit{}, bad("bad_service", "Choose a service from the list.")
 	}
 	w, err := s.load(ctx)
 	if err != nil {

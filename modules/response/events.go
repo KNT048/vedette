@@ -223,6 +223,8 @@ func (s *Service) honeypotEvent(ctx context.Context, data any) error {
 		SrcIP      string `json:"src_ip"`
 		Decoy      string `json:"decoy"`
 		SrcAssetID string `json:"src_asset_id"`
+		// Unconfirmed: the hit completed no handshake (a UDP trap, honeypot D-467), so its source may be forged, as a scan's.
+		Unconfirmed bool `json:"unconfirmed"`
 	}
 	if err := decode(data, &e); err != nil {
 		return err
@@ -237,7 +239,7 @@ func (s *Service) honeypotEvent(ctx context.Context, data any) error {
 		return nil
 	}
 	ip = ip.Unmap()
-	if e.Kind == "scan" && !s.scanRoom(ctx) {
+	if (e.Kind == "scan" || e.Unconfirmed) && !s.scanRoom(ctx) { // forgeable hits share the scan budget (honeypot D-467 review M1)
 		return nil
 	}
 	var dev DeviceInfo
@@ -263,14 +265,17 @@ func (s *Service) honeypotEvent(ctx context.Context, data any) error {
 	if t, err := time.Parse(time.RFC3339Nano, e.TS); err == nil {
 		ts = store2(t)
 	}
+	fields := map[string]string{"source_ip": ip.String(), "source_device": name, "decoy": decoy, "kind": e.Kind, "switch_port": ""}
+	if e.Unconfirmed {
+		fields["unconfirmed"] = "1"
+	}
 	return s.StoreEvent(ctx, Det{ID: "honeypot:" + e.ID, Trigger: "honeypot", TS: ts, DeviceKind: dev.Kind, AssetID: dev.ID,
-		Summary: oneLine(who+" touched a trap ("+decoy+", "+e.Kind+")", 300),
-		Fields:  map[string]string{"source_ip": ip.String(), "source_device": name, "decoy": decoy, "kind": e.Kind, "switch_port": ""}})
+		Summary: oneLine(who+" touched a trap ("+decoy+", "+e.Kind+")", 300), Fields: fields})
 }
 
-// maxScansPerHour bounds the port-scan hits that reach the rules in one clock hour. A scan hit's source can be forged, so a LAN
+// maxScansPerHour bounds the scan and UDP hits (unconfirmed: no handshake) that reach the rules in one clock hour. Their source can be forged, so a LAN
 // host can make up to the honeypot's own cap (2000 new hits an hour) of them, and every hit a rule sees writes permanent lines to
-// the append-only logs. Service and token hits need a connection from the real address and are not counted, so a flood of scans
+// the append-only logs. TCP service and token hits need a connection from the real address and are not counted, so a flood of scans
 // never hides a later login on a trap. ponytail: a flat cap per hour, one log line when it is reached; upgrade path: coalesce the
 // per-rule lines.
 const maxScansPerHour = 60
@@ -290,9 +295,9 @@ func (s *Service) scanRoom(ctx context.Context) bool {
 		return true
 	}
 	if n == maxScansPerHour+1 {
-		s.cfg.Log.WarnContext(ctx, "response: more honeypot scan hits than the hourly cap; the rest of this hour's scans do not reach the rules", "cap", maxScansPerHour)
+		s.cfg.Log.WarnContext(ctx, "response: more honeypot scan or UDP hits than the hourly cap; the rest of this hour's do not reach the rules", "cap", maxScansPerHour)
 		if err := s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
-			return s.step(ctx, tx, "response.events_dropped", "response", LogRefused, "honeypot_cap: more than "+itoa(maxScansPerHour)+" honeypot port scans this hour; the rest of this hour's scans are on the Honeypot page but do not run the rules (logins and tokens still do).", "system")
+			return s.step(ctx, tx, "response.events_dropped", "response", LogRefused, "honeypot_cap: more than "+itoa(maxScansPerHour)+" honeypot scans or UDP requests (source unconfirmed) this hour; the rest of this hour's are on the Honeypot page but do not run the rules (logins and tokens still do).", "system")
 		}); err != nil {
 			s.cfg.Log.WarnContext(ctx, "response: log the honeypot cap", "error", err)
 		}

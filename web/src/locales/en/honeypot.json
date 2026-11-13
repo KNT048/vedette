@@ -37,14 +37,40 @@
     "rdp": "RDP (remote desktop)",
     "ssh": "SSH",
     "mssql": "MSSQL (SQL Server)",
-    "http": "HTTP (fake admin page)"
+    "http": "HTTP (fake admin page)",
+    "https": "HTTPS (fake admin page, its own certificate)",
+    "ftp": "FTP",
+    "telnet": "Telnet",
+    "mysql": "MySQL",
+    "mongodb": "MongoDB",
+    "redis": "Redis",
+    "vnc": "VNC (remote screen)",
+    "git": "Git server",
+    "httpproxy": "HTTP proxy",
+    "tcpbanner": "SMTP (mail server greeting)",
+    "tftp": "TFTP",
+    "ntp": "NTP",
+    "sip": "SIP (VoIP)"
   },
   "serviceHint": {
     "smb": "Counted when a client opens the share or a file in it",
     "rdp": "Counted when a client sends an RDP connection request",
     "ssh": "Counted on every connection, even one that only reads the banner",
     "mssql": "Counted when a client tries to log in",
-    "http": "Counted on GET /, the fake login page and refused methods"
+    "http": "Counted on GET /, the fake login page and refused methods",
+    "https": "Counted on GET /, the fake login page and refused methods, as HTTP. The certificate is the trap's own, made by the box",
+    "ftp": "Counted when a client sends a user name and password. A client that only connects is not recorded",
+    "telnet": "Counted on every connection and on each login attempt",
+    "mysql": "Counted on every connection and on each login attempt",
+    "mongodb": "Counted on every connection, command and login attempt",
+    "redis": "Counted on every command. The command is shown, never its arguments",
+    "vnc": "Counted when a client answers the password challenge. A client that only connects is not recorded",
+    "git": "Counted when a client asks to clone a repository",
+    "httpproxy": "Counted only when a client sends proxy credentials. A request without them gets the login answer but is not recorded",
+    "tcpbanner": "Counted on every connection to port 25",
+    "tftp": "UDP, never answers. Counted on each read or write request",
+    "ntp": "UDP, never answers. Counted only on a monlist request; a plain time query is not recorded",
+    "sip": "UDP, never answers. Counted on each SIP request"
   },
   "state": {
     "listening": "Listening",
@@ -57,7 +83,7 @@
   },
   "traps": {
     "title": "Services",
-    "description": "Which services the Trap IPs answer on. Each Trap IP answers only the services picked for it; its other ports are closed, as on a real machine. A trap records what its service can see, listed under each service. A bare TCP connect that sends nothing is not recorded for SMB or MSSQL.",
+    "description": "Which services the Trap IPs answer on. Each Trap IP answers only the services picked for it; its other ports are closed, as on a real machine. A trap records what its service can see, listed under each service: a client that only connects is not recorded for every service.",
     "caption": "Services and their status",
     "col": {
       "service": "Service",
@@ -83,7 +109,8 @@
     "page": {
       "login": "admin login page",
       "nas": "NAS login page"
-    }
+    },
+    "banners": "Each service shows one banner for the whole box, chosen by the first Trap IP with it: an FTP or mail greeting looks like that device's maker, and the HTTPS certificate carries its name."
   },
   "exclusion": {
     "title": "Vedette's own scanner does not count as a trap hit",
@@ -227,7 +254,7 @@
       "vendorHint": "Its MAC address starts with {{oui}}, so a scanner guesses a {{vendor}} device.",
       "vendorHintNone": "It gets a random-looking local MAC address, as phones and virtual machines often have.",
       "services": "Services",
-      "servicesHint": "It answers only on these ports; every other port is closed, as on a real machine. A box has one SMB share name and one HTTP login page for all its Trap IPs: see the Services tab.",
+      "servicesHint": "It answers only on these ports; every other port is closed, as on a real machine. A box has one SMB share name, one login page and one banner per service for all its Trap IPs: the first Trap IP with the service decides it (see the Services tab).",
       "servicesRequired": "Pick at least one service.",
       "add": "Add Trap IP",
       "save": "Save changes",
@@ -367,15 +394,18 @@
     "row": {
       "lateral": {
         "move": "Moving sideways to file shares",
-        "how": "Trap IPs with SMB and decoy files on shares catch someone browsing for data."
+        "how": "Trap IPs with SMB and decoy files on shares catch someone browsing for data.",
+        "howNoSmb": "No listening Trap IP has SMB, so nothing catches someone browsing shares. Add SMB to a Trap IP."
       },
       "credentials": {
         "move": "Using stolen or guessed credentials",
-        "how": "Fake credentials alert on any login attempt. Real accounts that were stolen are not seen."
+        "how": "Fake credentials alert on any login attempt. Real accounts that were stolen are not seen.",
+        "howNoLogin": "No listening Trap IP has a service with a login (SSH, RDP, a database, FTP, Telnet, a web or proxy login), so a fake credential has nowhere to be tried."
       },
       "scanning": {
         "move": "Scanning the network for targets",
-        "how": "A sweep across the Trap IPs raises one alert that names the source."
+        "how": "A sweep across the Trap IPs raises one alert that names the source.",
+        "howOneTrap": "One Trap IP alerts when a scan touches it. The single sweep alert that names the source needs two or more listening Trap IPs."
       },
       "documents": {
         "move": "Opening or following bait",

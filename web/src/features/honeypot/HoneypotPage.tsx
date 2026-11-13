@@ -17,6 +17,7 @@ import { RespondLink } from './hitParts'
 import TrapIpsTab from './TrapIps'
 import TokensSection from './Tokens'
 import CoverageSection from './Coverage'
+import { portLabel } from './presets'
 import { TrapStateChip } from './TrapStateChip'
 import type { Hit, HpOverview, HpService, Trap } from './types'
 
@@ -108,7 +109,7 @@ function OverviewTab({ data, lan }: { data: HpOverview; lan: string }) {
         </EmptyState>
       ) : null}
       <ExclusionSection data={data} />
-      <CoverageSection listening={data.trap_ips.listening > 0} />
+      <CoverageSection services={data.traps.filter((tr) => tr.state === 'listening').map((tr) => tr.service)} listeningIps={data.trap_ips.listening} />
     </>
   )
 }
@@ -135,7 +136,7 @@ function ServicesTab({ data }: { data: HpOverview }) {
     { id: 'service', header: t('traps.col.service'), cell: ({ row }) => (
       <span className="grid"><span className="font-medium">{svc(row.original.service)}</span><span className="text-[12px] text-muted">{t(`serviceHint.${row.original.service}`)}</span></span>
     ) },
-    { id: 'port', header: t('traps.col.port'), accessorFn: (r) => r.port, cell: ({ row }) => <span className="tabular-nums">{row.original.port}</span> },
+    { id: 'port', header: t('traps.col.port'), accessorFn: (r) => r.port, cell: ({ row }) => <span className="tabular-nums">{portLabel(row.original.service)}</span> },
     { id: 'where', header: t('traps.col.trapIps'), enableSorting: false, cell: ({ row }) => <span className="text-[13px]">{where(row.original)}</span> },
     { id: 'state', header: t('traps.col.state'), cell: ({ row }) => stateChip(row.original) },
     { id: 'hits', header: t('traps.col.hits'), accessorFn: (r) => r.hits_7d, cell: ({ row }) => (
@@ -146,10 +147,10 @@ function ServicesTab({ data }: { data: HpOverview }) {
   return (
     <>
       <Section id="services" title={t('traps.title')} description={t('traps.description')}>
-        <DataTable caption={t('traps.caption')} data={data.traps} columns={columns} pageSize={10}
+        <DataTable caption={t('traps.caption')} data={data.traps} columns={columns} pageSize={data.traps.length}
           mobileRow={(tr) => (
             <div className="grid gap-2">
-              <span className="grid"><span className="font-medium">{svc(tr.service)} <span className="text-[12px] text-muted tabular-nums">{tr.port}</span></span><span className="text-[12px] text-muted">{t(`serviceHint.${tr.service}`)}</span></span>
+              <span className="grid"><span className="font-medium">{svc(tr.service)} <span className="text-[12px] text-muted tabular-nums">{portLabel(tr.service)}</span></span><span className="text-[12px] text-muted">{t(`serviceHint.${tr.service}`)}</span></span>
               <span className="text-[13px]">{t('traps.col.trapIps')}: {where(tr)}</span>
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="flex flex-wrap items-center gap-2">{stateChip(tr)}<span className="text-[13px] text-muted">{t('traps.col.hits')}: {tr.hits_7d}{tr.last_hit_at ? `, ${t('traps.lastHit', { when: fmtRelative(tr.last_hit_at) })}` : ''}</span></span>
@@ -163,6 +164,7 @@ function ServicesTab({ data }: { data: HpOverview }) {
         <Panel className="grid gap-1.5 p-4 text-sm">
           <p>{data.smb_name ? t('traps.smbName', { name: data.smb_name }) : t('traps.smbNone')}</p>
           <p>{data.http_page ? t('traps.httpPage', { page: t(`traps.page.${data.http_page}`) }) : t('traps.httpNone')}</p>
+          <p>{t('traps.banners')}</p>
         </Panel>
       </Section>
     </>

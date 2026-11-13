@@ -26,6 +26,7 @@ const (
 	EventAssetDiscovered      = "inventory.asset.discovered"
 	EventAssetDeleted         = "inventory.asset.deleted"
 	EventAssetApproved        = "inventory.asset.approved" // B9 (D-474): {asset_id, actor}
+	EventAssetUpdated         = "inventory.asset.updated"  // {asset_id}: also what a person's Approve publishes today (D-552)
 	EventNewKEV               = "feeds.vuln.new_kev"
 	EventHoneypotHit          = "honeypot.hit.created"
 	EventLogAnomaly           = "logs.anomaly.detected"
@@ -65,6 +66,7 @@ func (s *Service) Subscribe(bus Bus) (unsubscribe func()) {
 	on(EventAssetDiscovered, s.assetEvent)
 	on(EventAssetDeleted, s.assetDeleted)
 	on(EventAssetApproved, s.assetApproved)
+	on(EventAssetUpdated, s.assetUpdated)
 	on(EventHoneypotHit, s.hitEvent)
 	on(EventLogAnomaly, func(ctx context.Context, d any) error { return s.logEvent(ctx, d, IncidentLogAnomaly) })
 	on(EventLogBadAddress, func(ctx context.Context, d any) error { return s.logEvent(ctx, d, IncidentBadAddress) })
@@ -283,13 +285,14 @@ func (s *Service) assetEvent(ctx context.Context, data any) error {
 	}
 	name := e.AssetID
 	if s.cfg.Devices != nil {
-		if n, ok, err := s.cfg.Devices.DeviceLabel(ctx, e.AssetID); err != nil {
+		states, err := s.cfg.Devices.DeviceStates(ctx, []string{e.AssetID})
+		if err != nil {
 			return err
-		} else if ok && n != "" {
-			name = n
+		}
+		if st, ok := states[e.AssetID]; ok && st.Name != "" {
+			name = deviceLabel(st)
 		}
 	}
-	name = clip(name, 160) // a host name can be 200 characters; the title may not be longer than that (OpenIncident)
 	first, err := s.firstDiscovery(ctx)
 	if err != nil {
 		return err
@@ -297,11 +300,152 @@ func (s *Service) assetEvent(ctx context.Context, data any) error {
 	if first {
 		return s.discoveryIncident(ctx, Device{ID: e.AssetID, Name: name})
 	}
-	_, _, err = s.OpenIncident(ctx, IncidentInput{Kind: IncidentUnknownDevice, Source: e.AssetID, Title: "A new unknown device appeared: " + name, Severity: Medium,
-		What:   "A device that is not in your inventory joined the network: " + name + ".",
+	title, what := newDeviceTexts(name)
+	_, _, err = s.OpenIncident(ctx, IncidentInput{Kind: IncidentUnknownDevice, Source: e.AssetID, Title: title, Severity: Medium, What: what,
 		Action: "Find out whose device it is. Add it to the inventory if it belongs to you, otherwise remove it from the network.",
 		Link:   "/devices/" + e.AssetID, Devices: []Device{{ID: e.AssetID, Name: name}}})
 	return err
+}
+
+// deviceLabel names a device on its new-device incidents (D-552, W8-2): the name the Devices page shows (inventory's one naming rule,
+// so a host name learnt later or a name typed by hand shows), then its address when that is not the name already: "byn
+// (192.168.18.181)", "Hon Hai Precision Ind. Co.,Ltd. (192.168.18.181)", "192.168.18.254".
+func deviceLabel(st DeviceState) string {
+	if st.Address != "" && st.Address != st.Name {
+		return clip(st.Name+" ("+st.Address+")", 200)
+	}
+	return clip(st.Name, 200)
+}
+
+// newDeviceTexts are the title and what of a device's own new-device incident; the title is cut to the 200 characters OpenIncident takes.
+func newDeviceTexts(label string) (title, what string) {
+	return clip("A new unknown device appeared: "+label, 200), "A device that is not in your inventory joined the network: " + label + "."
+}
+
+// approvedInDevices closes a device's new-device incident when inventory.asset.updated shows the device approved (D-552): that event
+// does not say who approved it.
+const approvedInDevices = "Closed by Vedette: the device was approved in Devices."
+
+// assetUpdated follows a device that changed in Devices (inventory.asset.updated {asset_id}, D-552): a person's Approve publishes it
+// (B9's inventory.asset.approved is not published yet). When the device is on an open new-device incident, the incident takes the
+// name Devices shows now, and an approved device leaves it as INV-22 (1) says (approvedInDevices). An update of a device on no open
+// new-device incident, the usual case, costs one indexed read and no inventory read; nothing changed means no write. A deleted
+// device is INV-20's.
+func (s *Service) assetUpdated(ctx context.Context, data any) error {
+	var e struct {
+		AssetID string `json:"asset_id"`
+	}
+	if err := decode(data, &e); err != nil {
+		return err
+	}
+	if e.AssetID == "" || s.cfg.Devices == nil {
+		return nil
+	}
+	rows, err := s.openDeviceRows(ctx, e.AssetID)
+	if err != nil || len(rows) == 0 {
+		return err
+	}
+	states, err := s.cfg.Devices.DeviceStates(ctx, []string{e.AssetID})
+	if err != nil {
+		return err
+	}
+	st, ok := states[e.AssetID]
+	if !ok || !needsFollow(st, rows) {
+		return nil
+	}
+	return s.cfg.DB.Write(ctx, func(tx *sql.Tx) error { return s.followDevice(ctx, tx, e.AssetID, st) })
+}
+
+// newDeviceKey is the dedupe key of a device's own new-device incident (source = asset id) or, for firstDiscoverySource, of the
+// first-discovery summary: the open one is found through the unique index on open keys.
+func newDeviceKey(source string) string {
+	return dedupeKey(IncidentInput{Kind: IncidentUnknownDevice, Source: source})
+}
+
+// openDeviceRow is one device line of an open new-device incident (its own incident, or the first-discovery summary: link /devices).
+type openDeviceRow struct {
+	asset, link, title, name string
+	firstSeen, active        string // active: when the box last saw it or a person reopened it (INV-22)
+}
+
+// openDeviceRows reads the device lines of the open new-device incidents: of one device (through the open dedupe keys of its own
+// incident and of the summary, an indexed read), or of every device when assetID is "", oldest incident first.
+func (s *Service) openDeviceRows(ctx context.Context, assetID string) ([]openDeviceRow, error) {
+	q := `SELECT d.asset_id, i.link, i.title, d.name, i.first_seen, COALESCE(i.active_at, i.last_seen) FROM notify_incident i
+		JOIN notify_incident_device d ON d.incident_id = i.id WHERE i.kind = ? AND i.status <> 'resolved'`
+	args := []any{string(IncidentUnknownDevice)}
+	if assetID != "" {
+		q += ` AND i.dedupe_key IN (?, ?) AND d.asset_id = ?`
+		args = append(args, newDeviceKey(assetID), newDeviceKey(firstDiscoverySource), assetID)
+	}
+	rows, err := s.cfg.DB.Reader().QueryContext(ctx, q+` ORDER BY i.first_seen, d.asset_id`, args...)
+	if err != nil {
+		return nil, fmt.Errorf("notify: find the incidents of a device: %w", err)
+	}
+	var out []openDeviceRow
+	for rows.Next() {
+		var r openDeviceRow
+		if err := rows.Scan(&r.asset, &r.link, &r.title, &r.name, &r.firstSeen, &r.active); err != nil {
+			_ = rows.Close()
+			return nil, fmt.Errorf("notify: find the incidents of a device: %w", err)
+		}
+		out = append(out, r)
+	}
+	if err := errors.Join(rows.Err(), rows.Close()); err != nil {
+		return nil, fmt.Errorf("notify: find the incidents of a device: %w", err)
+	}
+	return out, nil
+}
+
+// reopenedSinceApproval says whether a device's own new-device incident showed life after the device was approved: a person reopened
+// it (active_at), or the device was found again. Vedette then leaves it open: the person took it back (Opus review LOW-2 of D-552).
+// Approved at an unknown time (before D-471), any reopen counts.
+func reopenedSinceApproval(approvedAt time.Time, firstSeen, active string) bool {
+	since := firstSeen
+	if !approvedAt.IsZero() {
+		since = max(since, store.FormatTS(approvedAt))
+	}
+	return active > since
+}
+
+// needsFollow says whether followDevice would change anything for these device lines: a label that differs from the one Devices
+// gives now, or an approved device on an incident Vedette may close. Nothing to change means no write transaction.
+func needsFollow(st DeviceState, rows []openDeviceRow) bool {
+	label := deviceLabel(st)
+	title, _ := newDeviceTexts(label)
+	for _, r := range rows {
+		own := r.link != "/devices"
+		if st.Name != "" && (r.name != label || (own && r.title != title)) {
+			return true
+		}
+		if st.Approved && (!own || !reopenedSinceApproval(st.ApprovedAt, r.firstSeen, r.active)) {
+			return true
+		}
+	}
+	return false
+}
+
+// followDevice brings the open new-device incidents of a device up to date with Devices (D-552): the device's own incident and its
+// entry on the first-discovery summary take its current label, and an approved device leaves them (leaveDevice, INV-22), except an
+// own incident a person reopened after the approval. Nothing is sent; a renamed incident keeps its history.
+func (s *Service) followDevice(ctx context.Context, tx *sql.Tx, assetID string, st DeviceState) error {
+	if st.Name != "" {
+		label := deviceLabel(st)
+		title, what := newDeviceTexts(label)
+		if _, err := tx.ExecContext(ctx, `UPDATE notify_incident SET title = ?, what = ? WHERE dedupe_key = ? AND status <> 'resolved' AND (title <> ? OR what <> ?)`,
+			title, what, newDeviceKey(assetID), title, what); err != nil {
+			return fmt.Errorf("notify: rename a new-device incident: %w", err)
+		}
+		if _, err := tx.ExecContext(ctx, `UPDATE notify_incident_device SET name = ? WHERE asset_id = ? AND name <> ? AND incident_id IN
+			(SELECT id FROM notify_incident WHERE dedupe_key IN (?, ?) AND status <> 'resolved')`,
+			label, assetID, label, newDeviceKey(assetID), newDeviceKey(firstDiscoverySource)); err != nil {
+			return fmt.Errorf("notify: rename a discovered device: %w", err)
+		}
+	}
+	if !st.Approved {
+		return nil
+	}
+	return s.leaveDevice(ctx, tx, assetID, approvedInDevices, &st.ApprovedAt)
 }
 
 // assetDeleted takes a device deleted in Devices off the open new-device incidents (W6-3, D-497, INV-20): see leaveDeviceIncidents.
@@ -326,7 +470,22 @@ func (s *Service) assetApproved(ctx context.Context, data any) error {
 	if err := decode(data, &e); err != nil {
 		return err
 	}
-	return s.leaveDeviceIncidents(ctx, e.AssetID, "Closed by Vedette: the device was approved"+byActor(e.Actor)+".")
+	by := byActor(e.Actor)
+	if err := s.leaveDeviceIncidents(ctx, e.AssetID, "Closed by Vedette: the device was approved"+by+"."); err != nil || by == "" {
+		return err
+	}
+	// The inventory.asset.updated of the same approval may have come first and closed the incident without the person (D-552): name
+	// them in its reason now. No second close and no second audit row; only a close of the last minute, so an old approval is never
+	// credited to whoever approves the device again later.
+	return s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
+		if _, err := tx.ExecContext(ctx, `UPDATE notify_incident SET resolved_reason = replace(resolved_reason, ?, ?) WHERE dedupe_key = ? AND status = 'resolved'
+			AND handled_by = ? AND handled_at >= ? AND substr(resolved_reason, 1, ?) = ?`,
+			"the device was approved in Devices", "the device was approved"+by, newDeviceKey(e.AssetID), systemUser,
+			store.FormatTS(s.now().Add(-time.Minute)), len(approvedInDevices)-1, strings.TrimSuffix(approvedInDevices, ".")); err != nil {
+			return fmt.Errorf("notify: name who approved a device: %w", err)
+		}
+		return nil
+	})
 }
 
 // byActor is " by <who>" from an event's actor (a user name or email that inventory sends), cut to size and stripped of control
@@ -351,56 +510,63 @@ func (s *Service) leaveDeviceIncidents(ctx context.Context, assetID, reason stri
 	if assetID == "" {
 		return nil
 	}
-	return s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
-		rows, err := tx.QueryContext(ctx, `SELECT i.id, i.title, i.link FROM notify_incident i JOIN notify_incident_device d ON d.incident_id = i.id
-			WHERE i.kind = ? AND i.status <> 'resolved' AND d.asset_id = ?`, string(IncidentUnknownDevice), assetID)
-		if err != nil {
+	return s.cfg.DB.Write(ctx, func(tx *sql.Tx) error { return s.leaveDevice(ctx, tx, assetID, reason, nil) })
+}
+
+// leaveDevice is leaveDeviceIncidents inside a transaction. With approvedAt (the device's approval as an update showed it, D-552), the
+// device's own incident stays open when a person reopened it after that approval (reopenedSinceApproval).
+func (s *Service) leaveDevice(ctx context.Context, tx *sql.Tx, assetID, reason string, approvedAt *time.Time) error {
+	rows, err := tx.QueryContext(ctx, `SELECT i.id, i.title, i.link, i.first_seen, COALESCE(i.active_at, i.last_seen) FROM notify_incident i JOIN notify_incident_device d ON d.incident_id = i.id
+		WHERE i.kind = ? AND i.status <> 'resolved' AND d.asset_id = ?`, string(IncidentUnknownDevice), assetID)
+	if err != nil {
+		return fmt.Errorf("notify: find the incidents of a device: %w", err)
+	}
+	type open struct{ id, title, link, firstSeen, active string }
+	var list []open
+	for rows.Next() {
+		var o open
+		if err := rows.Scan(&o.id, &o.title, &o.link, &o.firstSeen, &o.active); err != nil {
+			_ = rows.Close()
 			return fmt.Errorf("notify: find the incidents of a device: %w", err)
 		}
-		type open struct{ id, title, link string }
-		var list []open
-		for rows.Next() {
-			var o open
-			if err := rows.Scan(&o.id, &o.title, &o.link); err != nil {
-				_ = rows.Close()
-				return fmt.Errorf("notify: find the incidents of a device: %w", err)
-			}
-			list = append(list, o)
-		}
-		if err := errors.Join(rows.Err(), rows.Close()); err != nil {
-			return fmt.Errorf("notify: find the incidents of a device: %w", err)
-		}
-		for _, o := range list {
-			if o.link != "/devices" { // the device's own incident: nothing is left to approve
-				if err := s.closeBySystem(ctx, tx, o.id, o.title, reason); err != nil {
-					return err
-				}
+		list = append(list, o)
+	}
+	if err := errors.Join(rows.Err(), rows.Close()); err != nil {
+		return fmt.Errorf("notify: find the incidents of a device: %w", err)
+	}
+	for _, o := range list {
+		if o.link != "/devices" { // the device's own incident: nothing is left to approve
+			if approvedAt != nil && reopenedSinceApproval(*approvedAt, o.firstSeen, o.active) {
 				continue
 			}
-			if _, err := tx.ExecContext(ctx, `DELETE FROM notify_incident_device WHERE incident_id = ? AND asset_id = ?`, o.id, assetID); err != nil {
-				return fmt.Errorf("notify: take a device off the summary: %w", err)
+			if err := s.closeBySystem(ctx, tx, o.id, o.title, reason); err != nil {
+				return err
 			}
-			var n, count int // count can be above the listed rows: the list stops at maxDiscoveryDevices
-			if err := tx.QueryRowContext(ctx, `SELECT (SELECT COUNT(*) FROM notify_incident_device WHERE incident_id = ?), count FROM notify_incident WHERE id = ?`, o.id, o.id).Scan(&n, &count); err != nil {
-				return fmt.Errorf("notify: count discovered devices: %w", err)
-			}
-			n = max(n, count-1)
-			if n == 0 {
-				if err := s.closeBySystem(ctx, tx, o.id, o.title, "Closed by Vedette: every device on it was approved or deleted in Devices."); err != nil {
-					return err
-				}
-				continue
-			}
-			title := fmt.Sprintf("%d devices found on your network: approve them in Devices", n)
-			if n == 1 {
-				title = "1 device found on your network: approve it in Devices"
-			}
-			if _, err := tx.ExecContext(ctx, `UPDATE notify_incident SET title = ?, count = ? WHERE id = ?`, title, n, o.id); err != nil {
-				return fmt.Errorf("notify: name discovered devices: %w", err)
-			}
+			continue
 		}
-		return nil
-	})
+		if _, err := tx.ExecContext(ctx, `DELETE FROM notify_incident_device WHERE incident_id = ? AND asset_id = ?`, o.id, assetID); err != nil {
+			return fmt.Errorf("notify: take a device off the summary: %w", err)
+		}
+		var n, count int // count can be above the listed rows: the list stops at maxDiscoveryDevices
+		if err := tx.QueryRowContext(ctx, `SELECT (SELECT COUNT(*) FROM notify_incident_device WHERE incident_id = ?), count FROM notify_incident WHERE id = ?`, o.id, o.id).Scan(&n, &count); err != nil {
+			return fmt.Errorf("notify: count discovered devices: %w", err)
+		}
+		n = max(n, count-1)
+		if n == 0 {
+			if err := s.closeBySystem(ctx, tx, o.id, o.title, "Closed by Vedette: every device on it was approved or deleted in Devices."); err != nil {
+				return err
+			}
+			continue
+		}
+		title := fmt.Sprintf("%d devices found on your network: approve them in Devices", n)
+		if n == 1 {
+			title = "1 device found on your network: approve it in Devices"
+		}
+		if _, err := tx.ExecContext(ctx, `UPDATE notify_incident SET title = ?, count = ? WHERE id = ?`, title, n, o.id); err != nil {
+			return fmt.Errorf("notify: name discovered devices: %w", err)
+		}
+	}
+	return nil
 }
 
 const (

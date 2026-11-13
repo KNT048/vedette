@@ -76,7 +76,7 @@ const blockView = () => ({ url: blockUrl(blockMeta.get().token), token_last4: bl
 // ---- Respond from an incident (D-509): the server reads the source from the incident, never from the browser ----
 interface PeekIncident { id: string; kind: string; title: string; action: string; link: string; status: string }
 const RESOLVED_MSG = 'This incident is resolved, so nothing is offered. Reopen it in Incidents to act on it.'
-const UNCONFIRMED_MSG = 'The source of a scan can be forged: these attempts completed no connection, so this address may belong to someone innocent. Confirm on the device first. Nothing is offered for it.'
+const UNCONFIRMED_MSG = 'The source of a scan or of a UDP request can be forged: it completed no connection, so this address may belong to someone innocent. Confirm on the device first. Nothing is offered for it.'
 /** An IPv6 address as the backend reads one (netip): hp_hits holds IPv4 only, so this is for parity. Not public: ULA, link-local, loopback, documentation. */
 const isIpv6 = (ip: string) => { if (!ip.includes(':') || !/^[0-9a-f:.]+$/i.test(ip)) return false; try { return new URL(`http://[${ip}]/`).hostname.length > 2 } catch { return false } }
 const ipv6Public = (ip: string) => !/^(f[cd]|fe[89ab])/i.test(ip) && ip !== '::1' && !/^2001:0?db8:/i.test(ip)

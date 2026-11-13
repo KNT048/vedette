@@ -12,7 +12,8 @@ import (
 
 // presets follows web/src/features/honeypot/presets.ts (D-466): what a Trap IP of each kind answers on, the vendor whose MAC
 // prefix it gets, the device kinds of the inventory it blends in with (INV-11) and the example name the messages give. Data, so
-// a service B3 adds is a row here, not a new screen.
+// a service B3 adds is a row here, not a new screen. The defaults stay small (D-467): what such a device really answers on and
+// an attacker tries first; a preset only fills the form, so an existing Trap IP keeps exactly the services it has.
 type presetDef struct {
 	id       Preset
 	services []ServiceName
@@ -23,11 +24,11 @@ type presetDef struct {
 
 var presets = []presetDef{
 	{FileServer, []ServiceName{SMB, RDP}, "dell", []string{"server", "pc"}, "FILESRV-OLD"},
-	{NAS, []ServiceName{HTTP, SMB}, "synology", []string{"nas"}, "NAS-ARCHIVE"},
-	{Printer, []ServiceName{HTTP}, "hp", []string{"printer"}, "PRN-FLOOR2"},
+	{NAS, []ServiceName{HTTP, HTTPS, SMB}, "synology", []string{"nas"}, "NAS-ARCHIVE"},
+	{Printer, []ServiceName{HTTP, FTP}, "hp", []string{"printer"}, "PRN-FLOOR2"},
 	{Camera, []ServiceName{HTTP}, "hikvision", []string{"camera", "nvr"}, "CAM-STORE-04"},
-	{Linux, []ServiceName{SSH}, "vmware", []string{"server"}, "BUILD-SRV-02"},
-	{Database, []ServiceName{MSSQL}, "dell", []string{"server"}, "SQL-OLD-01"},
+	{Linux, []ServiceName{SSH, FTP}, "vmware", []string{"server"}, "BUILD-SRV-02"},
+	{Database, []ServiceName{MSSQL, MySQL}, "dell", []string{"server"}, "SQL-OLD-01"},
 	{Custom, nil, "", nil, "TRAP-01"},
 }
 
@@ -63,11 +64,11 @@ func vendorOUI(id string) (string, bool) {
 	return "", false
 }
 
-// ports are what the host lets the address answer on: the fixed TCP port of each service (INV-2).
+// ports are what the host lets the address answer on: the fixed port and protocol of each service (INV-2).
 func ports(services []ServiceName) []Port {
 	out := make([]Port, 0, len(services))
 	for _, s := range services {
-		out = append(out, Port{Proto: "tcp", Port: s.Port()})
+		out = append(out, Port{Proto: s.Proto(), Port: s.Port()})
 	}
 	return out
 }
@@ -104,7 +105,7 @@ func suggestions(devices []Device) []TrapSuggestion {
 			case Linux:
 				hit = devicetypes.ActsAs(d.Kind) == "server" && linuxRE.MatchString(d.OS)
 			case Database:
-				hit = devicetypes.ActsAs(d.Kind) == "server" && slices.Contains(d.Ports, 1433)
+				hit = devicetypes.ActsAs(d.Kind) == "server" && (slices.Contains(d.Ports, 1433) || slices.Contains(d.Ports, 3306))
 			default:
 				hit = slices.Contains(p.kinds, devicetypes.ActsAs(d.Kind)) // a type of D-511 blends in as the kind it acts as
 			}

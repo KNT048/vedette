@@ -39,6 +39,7 @@ const (
 	AiPostAiMemorySuggestionsIDAcceptOperation              OperationName = "AiPostAiMemorySuggestionsIDAccept"
 	AiPostAiMemorySuggestionsIDRejectOperation              OperationName = "AiPostAiMemorySuggestionsIDReject"
 	AiPostAiProfilesOperation                               OperationName = "AiPostAiProfiles"
+	AiPostAiProfilesModelsOperation                         OperationName = "AiPostAiProfilesModels"
 	AiPostAiProfilesTestOperation                           OperationName = "AiPostAiProfilesTest"
 	AiPostAiRulesOperation                                  OperationName = "AiPostAiRules"
 	AiPutAiActivitySettingsOperation                        OperationName = "AiPutAiActivitySettings"

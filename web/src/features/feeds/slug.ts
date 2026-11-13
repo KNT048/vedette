@@ -28,10 +28,17 @@ const SLUG: Record<string, string> = {
   'atlassian|multiple products': 'Atlassian software (Jira, Confluence)',
   'beyondtrust|remote support': 'BeyondTrust Remote Support',
   'google|brotli': 'Brotli compression library (in many products)',
+  'sudo|sudo': 'sudo',
 }
 
-/** Tên người dùng nhận ra (tiếng Anh, D-28). */
-export const displayOf = (vendor: string, product: string) => SLUG[keyOf(vendor, product)] ?? `${vendor} ${product}`
+/** Tên người dùng nhận ra (tiếng Anh, D-28); product đã bắt đầu bằng vendor thì không lặp vendor (W5-3, như feeds.DisplayOf). */
+export const displayOf = (vendor: string, product: string) => {
+  const slug = SLUG[keyOf(vendor, product)]
+  if (slug) return slug
+  const p = product.toLowerCase()
+  const v = vendor.toLowerCase()
+  return p === v || p.startsWith(`${v} `) ? product : `${vendor} ${product}`
+}
 /** Gợi ý loại thiết bị khi người dùng bấm "Tôi có" (S-FEED-2 → khai tay). */
 export const kindOf = (key: string) =>
   key.startsWith('qnap|') || key.startsWith('synology|') ? 'nas' : key.includes('fortios') || key.includes('pan-os') || key.includes('asa') ? 'firewall'

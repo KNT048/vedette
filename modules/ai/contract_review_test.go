@@ -202,29 +202,29 @@ func (a *api) profileIDOf(name string) string {
 	return ""
 }
 
-func TestContract_INV4_ConnectionTestsCountAgainstTheCap(t *testing.T) {
+func TestContract_INV4_ConnectionTestsCountAgainstTheBudget(t *testing.T) {
 	a := newAPI(t)
-	a.want("PUT", "/ai/config", "admin", `{"tier":"min","daily_cap":1000,"redact_pii":true}`, 200, "")
+	a.want("PUT", "/ai/config", "admin", `{"tier":"min","monthly_budget":1000,"redact_pii":true}`, 200, "")
 	a.fake.setProbeUsage(600, 400) // every request of a probe uses 1,000 tokens
 	a.want("POST", "/ai/profiles/test", "admin", cloudBody("Draft", keyA), 200, "")
 	calls := a.fake.total()
-	m := a.want("POST", "/ai/profiles/test", "admin", cloudBody("Draft", keyA), 429, "daily_cap")
+	m := a.want("POST", "/ai/profiles/test", "admin", cloudBody("Draft", keyA), 429, "budget_reached")
 	if a.fake.total() != calls {
 		t.Fatal("a test past the cap reached the provider")
 	}
-	if msg := m["error"].(map[string]any)["message"].(string); !strings.Contains(msg, "1,000 token cap") {
+	if msg := m["error"].(map[string]any)["message"].(string); !strings.Contains(msg, "AI budget of 1,000 tokens is used up") {
 		t.Fatalf("message = %q", msg)
 	}
-	// at a higher level a probe that passes the cap lowers the level, and the drop is recorded like any other
+	// at a higher level a probe that passes the budget lowers no level (D-531): the budget stops, it does not slide
 	a2 := newAPI(t)
-	a2.want("PUT", "/ai/config", "admin", `{"tier":"max","daily_cap":1000,"redact_pii":true}`, 200, "")
+	a2.want("PUT", "/ai/config", "admin", `{"tier":"max","monthly_budget":1000,"redact_pii":true}`, 200, "")
 	a2.fake.setProbeUsage(600, 400)
 	a2.want("POST", "/ai/profiles/test", "admin", cloudBody("Draft", keyA), 200, "")
-	if cfg := a2.want("GET", "/ai/config", "viewer", "", 200, ""); cfg["tier"] == "max" {
-		t.Fatalf("tier = %v", cfg["tier"])
+	if cfg := a2.want("GET", "/ai/config", "viewer", "", 200, ""); cfg["tier"] != "max" || cfg["month_used"] != float64(3000) {
+		t.Fatalf("config = %v", cfg)
 	}
 	var n int
-	if err := a2.db.Reader().QueryRowContext(a2.ctx(), `SELECT COUNT(*) FROM core_audit WHERE action = 'ai.downgrade'`).Scan(&n); err != nil || n != 1 {
+	if err := a2.db.Reader().QueryRowContext(a2.ctx(), `SELECT COUNT(*) FROM core_audit WHERE action = 'ai.downgrade'`).Scan(&n); err != nil || n != 0 {
 		t.Fatalf("downgrade audit rows = %d, %v", n, err)
 	}
 }
@@ -289,7 +289,7 @@ func TestContract_L2_ABadSavedStateDoesNotStopTheBox(t *testing.T) {
 	t.Run("a stored profile that the rules now refuse", func(t *testing.T) {
 		a := newAPI(t)
 		// a public address on an internal profile: what an older version, or a hand edit, could have left
-		if err := a.exec(`INSERT INTO ai_profile (id, name, name_key, kind, api_style, base_url, model, location, daily_cap, created_at, updated_at)
+		if err := a.exec(`INSERT INTO ai_profile (id, name, name_key, kind, api_style, base_url, model, location, monthly_budget, created_at, updated_at)
 			VALUES ('prof-old', 'Old', 'old', 'openai-compatible', 'openai', 'http://8.8.8.8:11434/v1', 'm-1', 'internal', 5000, '2026-11-01T00:00:00.000Z', '2026-11-01T00:00:00.000Z')`); err != nil {
 			t.Fatal(err)
 		}
@@ -310,7 +310,7 @@ func TestContract_L2_ABadSavedStateDoesNotStopTheBox(t *testing.T) {
 		if msg := m["error"].(map[string]any)["message"].(string); !strings.Contains(msg, "could not be loaded") {
 			t.Fatalf("message = %q", msg)
 		}
-		h.want("PUT", "/ai/config", "admin", `{"tier":"min","daily_cap":5000,"redact_pii":true}`, 409, "ai_unavailable")
+		h.want("PUT", "/ai/config", "admin", `{"tier":"min","monthly_budget":5000,"redact_pii":true}`, 409, "ai_unavailable")
 		h.want("PUT", "/ai/assignments", "admin", assignBody(false, map[string][2]string{}), 409, "ai_unavailable")
 		if svc.Config().JobsReady["explain-finding"] {
 			t.Fatal("a degraded service must not run jobs")
@@ -363,7 +363,7 @@ func TestContract_INV3_IPv6FormsThatCarryIPv4AreRefused(t *testing.T) {
 
 func TestContract_L2_DegradedConfigDoesNotPretend(t *testing.T) {
 	a := newAPI(t)
-	if err := a.exec(`INSERT INTO ai_profile (id, name, name_key, kind, api_style, base_url, model, location, daily_cap, created_at, updated_at)
+	if err := a.exec(`INSERT INTO ai_profile (id, name, name_key, kind, api_style, base_url, model, location, monthly_budget, created_at, updated_at)
 		VALUES ('prof-old', 'Old', 'old', 'openai-compatible', 'openai', 'http://8.8.8.8:11434/v1', 'm-1', 'internal', 5000, '2026-11-01T00:00:00.000Z', '2026-11-01T00:00:00.000Z')`); err != nil {
 		t.Fatal(err)
 	}

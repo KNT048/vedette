@@ -131,13 +131,13 @@ func TestAskBetaBoxQuestionStaysInBudget(t *testing.T) {
 // up" as if it had been refused before it was sent; the run log says the cap stopped it, not "Bad format".
 func TestAskTheCapRunningOutPartwaySaysSo(t *testing.T) {
 	a := newAskAPI(t)
-	a.want("PUT", "/ai/config", "admin", `{"tier":"min","daily_cap":1000,"redact_pii":true}`, 200, "")
+	a.want("PUT", "/ai/config", "admin", `{"tier":"min","monthly_budget":1000,"redact_pii":true}`, 200, "")
 	a.fake.usageIn, a.fake.usageOut = 600, 3
 	c := call("list_findings", `{}`)
 	a.fake.play(turn{calls: []provider.ToolCall{c}}, turn{calls: []provider.ToolCall{c}}, turn{text: "Never reached."})
-	m := a.ask("Which of my devices is most at risk?", 429, "daily_cap")
+	m := a.ask("Which of my devices is most at risk?", 429, "budget_reached")
 	msg := m["error"].(map[string]any)["message"].(string)
-	if !strings.Contains(msg, "did not finish: today's 1,000 token cap ran out partway through (this request used 1,206 tokens") || strings.Contains(msg, "is used up and the tier") {
+	if !strings.Contains(msg, "did not finish: this request used 1,206 tokens before it stopped") || !strings.Contains(msg, "this month's AI budget of 1,000 tokens is used up, so AI jobs are stopped until it renews on ") || !strings.Contains(msg, "raise the budget in Settings, AI assistant") {
 		t.Fatalf("message = %q", msg)
 	}
 	if a.fake.total() != 2 {
@@ -152,8 +152,8 @@ func TestAskTheCapRunningOutPartwaySaysSo(t *testing.T) {
 		t.Fatalf("run status = %v", st)
 	}
 	// now the cap is used up before anything is sent: that one says so
-	m = a.ask("Which of my devices is most at risk?", 429, "daily_cap")
-	if msg := m["error"].(map[string]any)["message"].(string); !strings.Contains(msg, "Today's 1,000 token cap is used up") {
+	m = a.ask("Which of my devices is most at risk?", 429, "budget_reached")
+	if msg := m["error"].(map[string]any)["message"].(string); !strings.HasPrefix(msg, "This month's AI budget of 1,000 tokens is used up") {
 		t.Fatalf("message = %q", msg)
 	}
 }
@@ -161,12 +161,12 @@ func TestAskTheCapRunningOutPartwaySaysSo(t *testing.T) {
 // A question that failed for its own reason and used the cap up doing so: the reason first, then that the AI is now paused.
 func TestAskAFailureThatUsedTheCapUpNamesBoth(t *testing.T) {
 	a := newAskAPI(t)
-	a.want("PUT", "/ai/config", "admin", `{"tier":"min","daily_cap":1000,"redact_pii":true}`, 200, "")
+	a.want("PUT", "/ai/config", "admin", `{"tier":"min","monthly_budget":1000,"redact_pii":true}`, 200, "")
 	a.fake.usageIn, a.fake.usageOut = 600, 3
 	a.fake.play(turn{calls: []provider.ToolCall{call("list_findings", `{}`)}}, turn{text: "  "}) // an empty answer: not in the format
 	m := a.ask("Which of my devices is most at risk?", 502, "ai_bad_format")
 	msg := m["error"].(map[string]any)["message"].(string)
-	if !strings.HasPrefix(msg, "The AI answered, but not in the format") || !strings.Contains(msg, "This request used 1,206 tokens, and today's 1,000 token cap is now used up") {
+	if !strings.HasPrefix(msg, "The AI answered, but not in the format") || !strings.Contains(msg, "This request used 1,206 tokens, and this month's AI budget of 1,000 tokens is used up") {
 		t.Fatalf("message = %q", msg)
 	}
 	// the same failure with room left under the cap says nothing of the cap
@@ -181,12 +181,12 @@ func TestAskAFailureThatUsedTheCapUpNamesBoth(t *testing.T) {
 // The same with the profile's own cap: the profile is named, and the run log says the cap stopped it.
 func TestAskTheProfileCapRunningOutPartwaySaysSo(t *testing.T) {
 	a := newAPI(t)
-	a.addProfile(strings.Replace(cloudBody("Claude", keyA), `"daily_cap":60000`, `"daily_cap":1000`, 1))
+	a.addProfile(strings.Replace(cloudBody("Claude", keyA), `"monthly_budget":60000`, `"monthly_budget":1000`, 1))
 	a.fake.usageIn, a.fake.usageOut = 600, 3
 	c := call("list_findings", `{}`)
 	a.fake.play(turn{calls: []provider.ToolCall{c}}, turn{calls: []provider.ToolCall{c}}, turn{text: "Never reached."})
-	m := a.ask("Which of my devices is most at risk?", 429, "daily_cap")
-	if msg := m["error"].(map[string]any)["message"].(string); !strings.Contains(msg, "the daily token cap of the profile Claude ran out partway through (this request used 1,206 tokens") {
+	m := a.ask("Which of my devices is most at risk?", 429, "budget_reached")
+	if msg := m["error"].(map[string]any)["message"].(string); !strings.Contains(msg, "the monthly budget of the profile Claude ran out partway through (this request used 1,206 tokens") {
 		t.Fatalf("message = %q", msg)
 	}
 	runs := a.want("GET", "/ai/runs", "viewer", "", 200, "")["items"].([]any)
@@ -195,28 +195,28 @@ func TestAskTheProfileCapRunningOutPartwaySaysSo(t *testing.T) {
 	}
 }
 
-// The tokens of a question that stopped partway still lower the level (INV-4): the drop is kept in ai_downgrade and the audit log,
-// for the shared cap (med falls to min, then the cap stops the next turn) and for a profile's cap (max falls to med on the shared cap,
-// then the profile's own cap stops the next turn).
-func TestAskStoppedPartwayKeepsTheDowngrade(t *testing.T) {
+// D-531: a question the budget stopped partway lowers no level: the budget is a stop rule at 100 %, not a slide through the levels,
+// for the shared budget and for a profile's own one alike; no ai_downgrade row, no ai.downgrade audit line, the tier stays.
+func TestAskStoppedPartwayLowersNoLevel(t *testing.T) {
 	c := call("list_findings", `{}`)
 	for _, tc := range []struct {
 		name, config, profileCap, want string
 	}{
-		{"shared cap", `{"tier":"med","daily_cap":1000,"redact_pii":true}`, "60000", "ai.downgrade med->min"},
-		{"profile cap", `{"tier":"max","daily_cap":1000,"redact_pii":true}`, "1000", "ai.downgrade max->med"},
+		{"shared budget", `{"tier":"med","monthly_budget":1000,"redact_pii":true}`, "60000", "med"},
+		{"profile budget", `{"tier":"max","monthly_budget":1000,"redact_pii":true}`, "1000", "max"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			a := newAPI(t)
-			a.addProfile(strings.Replace(cloudBody("Claude", keyA), `"daily_cap":60000`, `"daily_cap":`+tc.profileCap, 1))
+			a.addProfile(strings.Replace(cloudBody("Claude", keyA), `"monthly_budget":60000`, `"monthly_budget":`+tc.profileCap, 1))
 			a.want("PUT", "/ai/config", "admin", tc.config, 200, "")
 			a.fake.usageIn, a.fake.usageOut = 600, 3
 			a.fake.play(turn{calls: []provider.ToolCall{c}}, turn{calls: []provider.ToolCall{c}}, turn{text: "Never reached."})
-			a.ask("Which of my devices is most at risk?", 429, "daily_cap")
-			if dg := a.want("GET", "/ai/usage", "viewer", "", 200, "")["downgrades"].([]any); len(dg) != 1 {
-				t.Fatalf("downgrades = %v", dg)
+			a.ask("Which of my devices is most at risk?", 429, "budget_reached")
+			u := a.want("GET", "/ai/usage", "viewer", "", 200, "")
+			if dg := u["downgrades"].([]any); len(dg) != 0 || u["tier"] != tc.want {
+				t.Fatalf("usage = %v", u)
 			}
-			if rows := a.auditRows(); !containsPrefix(rows, tc.want) {
+			if rows := a.auditRows(); containsPrefix(rows, "ai.downgrade") {
 				t.Fatalf("audit = %v", rows)
 			}
 		})

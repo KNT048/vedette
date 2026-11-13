@@ -147,7 +147,7 @@ test.describe('findings: IT operator', () => {
 
   test('AI off or not configured: buttons locked with the reason and a way to Settings, no errors', async ({ page }) => {
     const errors = collectErrors(page)
-    await patchDb(page, { ai_config: { configured: false, provider: 'anthropic', base_url: 'https://api.anthropic.com', model: 'claude-haiku-5-5', key_last4: '', tier: 'med', daily_cap: 60000, redact_pii: true } })
+    await patchDb(page, { ai_config: { configured: false, provider: 'anthropic', base_url: 'https://api.anthropic.com', model: 'claude-haiku-5-5', key_last4: '', tier: 'med', monthly_budget: 60000, redact_pii: true } })
     await page.goto('/findings/f-3')
     await expect(page.getByRole('button', { name: 'Ask my AI' })).toBeDisabled()
     await expect(page.getByRole('button', { name: 'Explain', exact: true })).toBeDisabled()

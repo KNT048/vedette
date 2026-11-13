@@ -27,41 +27,47 @@ func LoadLocation(name string) (*time.Location, error) {
 	return loc, nil
 }
 
-// Downgrade records one automatic drop of the token level (INV-4, `ai_downgrades`, `ai.downgrade`).
+// Downgrade records one automatic drop of the token level (INV-4, `ai_downgrades`, `ai.downgrade`). Since D-531 the monthly budget
+// stops calls at 100 % instead of lowering the level, so the meter writes none; the type stays for the rows of earlier days, which
+// Usage still lists.
 type Downgrade struct {
 	At       time.Time
 	From, To Tier
 	Reason   string
 }
 
-// ErrProfileCapped means a profile has used its own daily cap; the router moves on to the fallback.
-var ErrProfileCapped = errors.New("ai: the profile's daily token cap is used up")
+// ErrProfileCapped means a profile has used its own monthly budget; the router moves on to the fallback.
+var ErrProfileCapped = errors.New("ai: the profile's monthly token budget is used up")
 
-// MeterConfig configures a Meter. Clock and Location are injected: the day boundary is local midnight
-// in Location, the box time zone, so "today" matches what the administrator sees on the wall clock.
+// ErrBudgetHeld means the tokens already spent are below the shared budget but the holds of other calls in flight cover the rest: the
+// budget is not used up (Home shows less than 100 %), and a call a few seconds later, once those calls have settled, may go.
+var ErrBudgetHeld = errors.New("ai: other AI calls in flight are holding the rest of this month's AI budget")
+
+// ErrProfileHeld is ErrBudgetHeld for a profile's own budget; the router moves on to the fallback.
+var ErrProfileHeld = errors.New("ai: other AI calls in flight are holding the rest of the profile's monthly budget")
+
+// MeterConfig configures a Meter. Clock and Location are injected: the month starts at local midnight of its first day in Location,
+// the box time zone, so "this month" matches what the administrator sees on the wall clock.
 type MeterConfig struct {
 	Clock     func() time.Time
 	Location  *time.Location
-	GlobalCap int
+	GlobalCap int // the shared monthly budget in tokens
 	Tier      Tier
 }
 
-// Meter counts tokens per day, globally and per profile, and lowers the effective level when the shared
-// cap is passed. It is safe for concurrent use. Usage lives in memory; WP-25 rebuilds it from ai_activity
-// at start-up with Seed.
+// Meter counts tokens per calendar month, for the whole box and per profile (D-531). It is safe for concurrent use. Usage lives in
+// memory; the service rebuilds it from ai_activity at start-up with Seed.
 //
-// The effective level is a pure function of today's total and the cap: one level down for every started cap
-// beyond the first (total <= cap: configured level; <= 2 x cap: one down; <= 3 x cap: two down; never below min).
-// So it only ever falls during a day, a restart that reloads the usage lands on the same level, and one call
-// that overshoots by a lot can drop several levels at once.
+// The budget is a plain stop rule: below it every call may go, at it (counting the holds of calls in flight) none may, until the
+// month turns or an administrator raises it. There is no daily cap and no level drop on the way: the warnings at 80 % and 100 % are
+// the service's (budget.go).
 type Meter struct {
 	mu       sync.Mutex
 	clock    func() time.Time
 	loc      *time.Location
 	cap      int
-	tier     Tier // configured level
-	eff      Tier // effective level today
-	day      string
+	tier     Tier
+	month    string // "2006-01" in the box time zone
 	total    int
 	pending  int // tokens reserved by calls in flight
 	byProf   map[string]int
@@ -77,46 +83,41 @@ func NewMeter(c MeterConfig) (*Meter, error) {
 	if err := m.set(c.Tier, c.GlobalCap); err != nil {
 		return nil, err
 	}
-	m.day = m.today()
+	m.month = m.thisMonth()
 	return m, nil
 }
 
-func (m *Meter) today() string { return m.clock().In(m.loc).Format("2006-01-02") }
+func (m *Meter) thisMonth() string { return m.clock().In(m.loc).Format("2006-01") }
+
+// MonthStart is the first instant of the month that contains now, in the box time zone.
+func MonthStart(now time.Time, loc *time.Location) time.Time {
+	y, mo, _ := now.In(loc).Date()
+	return time.Date(y, mo, 1, 0, 0, 0, 0, loc)
+}
+
+// Renews is when the current month's budget starts again: local midnight of the first day of the next month.
+func (m *Meter) Renews() time.Time { return MonthStart(m.clock(), m.loc).AddDate(0, 1, 0) }
 
 func (m *Meter) set(t Tier, capTokens int) error {
 	if !t.Valid() {
 		return fmt.Errorf("ai: unknown token level %q", t)
 	}
-	if !ValidDailyCap(capTokens) {
-		return fmt.Errorf("ai: the daily token cap must be a whole number from %d to %d", MinDailyCap, MaxDailyCap)
+	if !ValidMonthlyBudget(capTokens) {
+		return fmt.Errorf("ai: the monthly token budget must be a whole number from %d to %d", MinMonthlyBudget, MaxMonthlyBudget)
 	}
 	m.tier, m.cap = t, capTokens
-	m.eff = m.levelFor()
 	return nil
 }
 
-// levelFor derives the effective level from the configured one and today's total.
-func (m *Meter) levelFor() Tier {
-	t := m.tier
-	if m.total <= m.cap {
-		return t
-	}
-	for steps := (m.total - 1) / m.cap; steps > 0 && t != TierMin; steps-- {
-		t = t.Lower()
-	}
-	return t
-}
-
-// roll starts a new day when the local date has moved forward: counters reset and the level returns to the
-// configured one. A clock that steps back (NTP, an administrator) never starts a new day. Callers hold m.mu.
+// roll starts a new month when the local month has moved forward: the counters reset. A clock that steps back (NTP, an
+// administrator) never starts a new month. Callers hold m.mu.
 func (m *Meter) roll() {
-	if d := m.today(); d > m.day { // ISO dates compare in calendar order
-		m.day, m.total, m.pending, m.byProf, m.pendProf = d, 0, 0, map[string]int{}, map[string]int{}
-		m.eff = m.tier
+	if d := m.thisMonth(); d > m.month { // "2006-01" compares in calendar order
+		m.month, m.total, m.pending, m.byProf, m.pendProf = d, 0, 0, map[string]int{}, map[string]int{}
 	}
 }
 
-// SetConfig changes the configured level and shared cap (admin action); the effective level is recomputed.
+// SetConfig changes the level and the shared budget (admin action).
 func (m *Meter) SetConfig(t Tier, capTokens int) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -124,8 +125,7 @@ func (m *Meter) SetConfig(t Tier, capTokens int) error {
 	return m.set(t, capTokens)
 }
 
-// Seed loads today's usage after a restart. It replaces the counters and recomputes the effective level from
-// them, so a day that was already downgraded stays downgraded. Usage from other days is the caller's to leave out.
+// Seed loads this month's usage after a restart. It replaces the counters. Usage from other months is the caller's to leave out.
 func (m *Meter) Seed(perProfile map[string]int) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -137,18 +137,16 @@ func (m *Meter) Seed(perProfile map[string]int) {
 			m.total = satAdd(m.total, n)
 		}
 	}
-	m.eff = m.levelFor()
 }
 
-// Tier returns the effective level now.
+// Tier returns the level in force: the configured one (the budget never lowers it, D-531).
 func (m *Meter) Tier() Tier {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.roll()
-	return m.eff
+	return m.tier
 }
 
-// Used returns today's shared total.
+// Used returns this month's shared total.
 func (m *Meter) Used() int {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -156,7 +154,7 @@ func (m *Meter) Used() int {
 	return m.total
 }
 
-// ProfileUsed returns today's tokens for one profile.
+// ProfileUsed returns this month's tokens for one profile.
 func (m *Meter) ProfileUsed(id string) int {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -164,8 +162,8 @@ func (m *Meter) ProfileUsed(id string) int {
 	return m.byProf[id]
 }
 
-// Exhausted reports that the shared cap is used up and there is no lower level left to fall back to, so no
-// further call may be made today (the mock's `capped` outcome). Calls in flight count as used.
+// Exhausted reports that the shared budget is used up, so no further call may be made this month (the `capped` outcome). Calls in
+// flight count as used.
 func (m *Meter) Exhausted() bool {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -173,16 +171,24 @@ func (m *Meter) Exhausted() bool {
 	return m.exhausted()
 }
 
-// UsedUp reports that the tokens already spent today, without the holds of calls in flight, have used up the shared cap at the minimum
-// level: what a call that has just failed may call "used up" (another call's hold may still be given back).
+// UsedUp reports that the tokens already spent this month, without the holds of calls in flight, have used up the shared budget: what
+// a call that has just failed may call "used up" (another call's hold may still be given back).
 func (m *Meter) UsedUp() bool {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.roll()
-	return m.total >= m.cap && m.eff == TierMin
+	return m.total >= m.cap
 }
 
-func (m *Meter) exhausted() bool { return satAdd(m.total, m.pending) >= m.cap && m.eff == TierMin }
+// Reached reports that the tokens already spent this month are at least pct % of the shared budget (holds not counted).
+func (m *Meter) Reached(pct int) bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.roll()
+	return int64(m.total)*100 >= int64(m.cap)*int64(pct)
+}
+
+func (m *Meter) exhausted() bool { return satAdd(m.total, m.pending) >= m.cap }
 
 func satAdd(a, b int) int {
 	if b > 0 && a > math.MaxInt-b {
@@ -191,36 +197,42 @@ func satAdd(a, b int) int {
 	return a + b
 }
 
-// Reservation is the share of the caps held for one call in flight. Settle it with the real usage or Cancel it.
+// Reservation is the share of the budgets held for one call in flight. Settle it with the real usage or Cancel it.
 type Reservation struct {
 	m       *Meter
+	month   string // the month the hold was taken in: a hold that outlives it is not taken off the next month's holds
 	profile string
 	tokens  int
 	done    bool
 }
 
-// Reserve is the check before a call and the first half of metering. Under one lock it refuses the call when the
-// shared cap is used up at the minimum level (ErrCapped) or when the profile has used its own cap
-// (ErrProfileCapped), counting calls already in flight, and otherwise holds estimate tokens against both. N
-// concurrent calls therefore cannot all pass the check: the first holds the tokens the next one would need.
+// Reserve is the check before a call and the first half of metering. Under one lock it refuses the call when the shared budget is
+// used up (ErrCapped) or when the profile has used its own budget (ErrProfileCapped), counting calls already in flight, and otherwise
+// holds estimate tokens against both. N concurrent calls therefore cannot all pass the check: the first holds the tokens the next one
+// would need. When only the holds of calls in flight reach a budget, the refusal is ErrBudgetHeld or ErrProfileHeld: the budget is not
+// used up, and "used up" is said only of tokens really spent (review of #688).
 func (m *Meter) Reserve(profileID string, profileCap, estimate int) (*Reservation, error) {
 	estimate = max(estimate, 0)
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.roll()
-	if m.exhausted() {
+	switch {
+	case m.total >= m.cap:
 		return nil, ErrCapped
-	}
-	if satAdd(m.byProf[profileID], m.pendProf[profileID]) >= profileCap {
+	case m.exhausted():
+		return nil, ErrBudgetHeld
+	case m.byProf[profileID] >= profileCap:
 		return nil, ErrProfileCapped
+	case satAdd(m.byProf[profileID], m.pendProf[profileID]) >= profileCap:
+		return nil, ErrProfileHeld
 	}
 	m.pending = satAdd(m.pending, estimate)
 	m.pendProf[profileID] = satAdd(m.pendProf[profileID], estimate)
-	return &Reservation{m: m, profile: profileID, tokens: estimate}, nil
+	return &Reservation{m: m, month: m.month, profile: profileID, tokens: estimate}, nil
 }
 
-// Settle releases the hold and counts what the call really used (also for a failed call whose usage is known,
-// such as a refusal). It returns the downgrade record if the level fell.
+// Settle releases the hold and counts what the call really used (also for a failed call whose usage is known, such as a refusal).
+// It returns nil: the budget lowers no level (D-531); the result is kept for the callers that write a downgrade row when there is one.
 func (r *Reservation) Settle(tokensIn, tokensOut int) *Downgrade {
 	r.m.mu.Lock()
 	defer r.m.mu.Unlock()
@@ -228,9 +240,13 @@ func (r *Reservation) Settle(tokensIn, tokensOut int) *Downgrade {
 		return nil
 	}
 	r.done = true
-	r.m.pending = max(r.m.pending-r.tokens, 0)
-	r.m.pendProf[r.profile] = max(r.m.pendProf[r.profile]-r.tokens, 0)
-	return r.m.add(r.profile, tokensIn, tokensOut)
+	r.m.roll()
+	if r.month == r.m.month { // a new month started with no holds: this one is not among them
+		r.m.pending = max(r.m.pending-r.tokens, 0)
+		r.m.pendProf[r.profile] = max(r.m.pendProf[r.profile]-r.tokens, 0)
+	}
+	r.m.add(r.profile, tokensIn, tokensOut)
+	return nil
 }
 
 // Cancel releases the hold without counting anything (the call never reached the provider).
@@ -241,18 +257,12 @@ func (m *Meter) Record(profileID string, tokensIn, tokensOut int) *Downgrade {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.roll()
-	return m.add(profileID, tokensIn, tokensOut)
+	m.add(profileID, tokensIn, tokensOut)
+	return nil
 }
 
-func (m *Meter) add(profileID string, tokensIn, tokensOut int) *Downgrade {
+func (m *Meter) add(profileID string, tokensIn, tokensOut int) {
 	n := satAdd(max(tokensIn, 0), max(tokensOut, 0))
 	m.total = satAdd(m.total, n)
 	m.byProf[profileID] = satAdd(m.byProf[profileID], n)
-	to := m.levelFor()
-	if to == m.eff {
-		return nil
-	}
-	d := &Downgrade{At: m.clock().UTC(), From: m.eff, To: to, Reason: fmt.Sprintf("Over the %d tokens/day cap", m.cap)}
-	m.eff = to
-	return d
 }

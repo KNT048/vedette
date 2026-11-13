@@ -16,31 +16,31 @@ import (
 
 // ProfileInput is the body of an add, an edit or a test of a profile. APIKey "" means no new key.
 type ProfileInput struct {
-	ID       string            `json:"id"`
-	Name     string            `json:"name"`
-	Kind     string            `json:"kind"`
-	APIStyle provider.APIStyle `json:"api_style"`
-	BaseURL  string            `json:"base_url"`
-	Model    string            `json:"model"`
-	APIKey   string            `json:"api_key"`
-	Location Location          `json:"location"`
-	DailyCap int               `json:"daily_cap"`
+	ID            string            `json:"id"`
+	Name          string            `json:"name"`
+	Kind          string            `json:"kind"`
+	APIStyle      provider.APIStyle `json:"api_style"`
+	BaseURL       string            `json:"base_url"`
+	Model         string            `json:"model"`
+	APIKey        string            `json:"api_key"`
+	Location      Location          `json:"location"`
+	MonthlyBudget int               `json:"monthly_budget"`
 }
 
 // ProfileView is a profile as the API shows it: never the key, only its last four characters (INV-1).
 type ProfileView struct {
-	ID        string    `json:"id"`
-	Name      string    `json:"name"`
-	Kind      string    `json:"kind"`
-	APIStyle  string    `json:"api_style"`
-	BaseURL   string    `json:"base_url"`
-	Model     string    `json:"model"`
-	KeyLast4  *string   `json:"key_last4"`
-	Location  string    `json:"location"`
-	DailyCap  int       `json:"daily_cap"`
-	Usable    bool      `json:"usable"`
-	UsedToday int       `json:"used_today"`
-	LastTest  *LastTest `json:"last_test"`
+	ID            string    `json:"id"`
+	Name          string    `json:"name"`
+	Kind          string    `json:"kind"`
+	APIStyle      string    `json:"api_style"`
+	BaseURL       string    `json:"base_url"`
+	Model         string    `json:"model"`
+	KeyLast4      *string   `json:"key_last4"`
+	Location      string    `json:"location"`
+	MonthlyBudget int       `json:"monthly_budget"`
+	Usable        bool      `json:"usable"`
+	UsedMonth     int       `json:"used_month"`
+	LastTest      *LastTest `json:"last_test"`
 }
 
 // LastTest is the last connection test of a saved profile as it is saved (S-AI-1): when, whether it worked, and on failure the
@@ -69,7 +69,7 @@ type Capabilities struct {
 
 func (s *Service) view(p stored) ProfileView {
 	v := ProfileView{ID: p.ID, Name: p.Name, Kind: p.Kind, APIStyle: string(p.APIStyle), BaseURL: p.BaseURL, Model: p.Model,
-		Location: string(p.Location), DailyCap: p.DailyCap, Usable: p.Usable(), UsedToday: s.meter.ProfileUsed(p.ID), LastTest: p.lastTest}
+		Location: string(p.Location), MonthlyBudget: p.MonthlyBudget, Usable: p.Usable(), UsedMonth: s.meter.ProfileUsed(p.ID), LastTest: p.lastTest}
 	if p.APIKey.IsSet() {
 		l := p.APIKey.Last4()
 		v.KeyLast4 = &l
@@ -180,7 +180,7 @@ func (sn *snapshot) nameTaken(name, except string) bool {
 // buildProfile makes the library profile of an input. The API style follows the kind (only a custom profile chooses it).
 func buildProfile(in ProfileInput, id string, key provider.Secret) Profile {
 	p := Profile{ID: id, Name: strings.TrimSpace(in.Name), Kind: in.Kind, APIStyle: in.APIStyle, BaseURL: strings.TrimRight(strings.TrimSpace(in.BaseURL), "/"),
-		Model: in.Model, APIKey: key, Location: in.Location, DailyCap: in.DailyCap}
+		Model: in.Model, APIKey: key, Location: in.Location, MonthlyBudget: in.MonthlyBudget}
 	if st, err := provider.StyleForKind(in.Kind, in.APIStyle); err == nil {
 		p.APIStyle = st
 	}
@@ -242,9 +242,9 @@ func (s *Service) AddProfile(ctx context.Context, who string, in ProfileInput) (
 			secretID, last4 = sql.NullString{String: id, Valid: true}, sql.NullString{String: l4, Valid: true}
 			st.secretID = id
 		}
-		_, err := tx.ExecContext(ctx, `INSERT INTO ai_profile (id, name, name_key, kind, api_style, base_url, model, secret_id, key_last4, location, daily_cap, created_at, updated_at)
+		_, err := tx.ExecContext(ctx, `INSERT INTO ai_profile (id, name, name_key, kind, api_style, base_url, model, secret_id, key_last4, location, monthly_budget, created_at, updated_at)
 			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-			p.ID, p.Name, nameKey(p.Name), p.Kind, string(p.APIStyle), p.BaseURL, p.Model, secretID, last4, string(p.Location), p.DailyCap, store.FormatTS(now), store.FormatTS(now))
+			p.ID, p.Name, nameKey(p.Name), p.Kind, string(p.APIStyle), p.BaseURL, p.Model, secretID, last4, string(p.Location), p.MonthlyBudget, store.FormatTS(now), store.FormatTS(now))
 		if err != nil {
 			return fmt.Errorf("ai: add profile: %w", err)
 		}
@@ -353,8 +353,8 @@ func (s *Service) EditProfile(ctx context.Context, who, id string, in ProfileInp
 		case keepSecret:
 			sec, last4 = sql.NullString{String: secretID, Valid: true}, sql.NullString{String: key.Last4(), Valid: true}
 		}
-		if _, err := tx.ExecContext(ctx, `UPDATE ai_profile SET name = ?, name_key = ?, kind = ?, api_style = ?, base_url = ?, model = ?, secret_id = ?, key_last4 = ?, location = ?, daily_cap = ?, updated_at = ? WHERE id = ?`,
-			p.Name, nameKey(p.Name), p.Kind, string(p.APIStyle), p.BaseURL, p.Model, sec, last4, string(p.Location), p.DailyCap, store.FormatTS(now), id); err != nil {
+		if _, err := tx.ExecContext(ctx, `UPDATE ai_profile SET name = ?, name_key = ?, kind = ?, api_style = ?, base_url = ?, model = ?, secret_id = ?, key_last4 = ?, location = ?, monthly_budget = ?, updated_at = ? WHERE id = ?`,
+			p.Name, nameKey(p.Name), p.Kind, string(p.APIStyle), p.BaseURL, p.Model, sec, last4, string(p.Location), p.MonthlyBudget, store.FormatTS(now), id); err != nil {
 			return fmt.Errorf("ai: edit profile: %w", err)
 		}
 		if secretID != "" && !sec.Valid { // the key was dropped (provider type changed on an internal profile)
@@ -477,7 +477,7 @@ func (s *Service) TestProfile(ctx context.Context, who string, in ProfileInput) 
 	cur := s.snap.Load()
 	id, key := "draft", keyOf(in)
 	name := strings.TrimSpace(in.Name)
-	profileCap := MaxDailyCap // a draft is limited by the shared cap only; a saved profile also by its own
+	profileCap := MaxMonthlyBudget // a draft is limited by the shared cap only; a saved profile also by its own
 	exceptID := ""
 	var saved *Profile // the saved profile when this test is of its connection as saved
 	if in.ID != "" {
@@ -489,7 +489,7 @@ func (s *Service) TestProfile(ctx context.Context, who string, in ProfileInput) 
 		if key, kerr = keyFor(old, in, in.BaseURL); kerr != nil {
 			return TestResult{}, kerr
 		}
-		id, exceptID, profileCap = old.ID, old.ID, old.DailyCap
+		id, exceptID, profileCap = old.ID, old.ID, old.MonthlyBudget
 		if name == "" {
 			name = old.Name
 		}
@@ -500,7 +500,7 @@ func (s *Service) TestProfile(ctx context.Context, who string, in ProfileInput) 
 	if cur.nameTaken(name, exceptID) {
 		return TestResult{}, duplicateName()
 	}
-	in.Name, in.DailyCap = name, profileCap
+	in.Name, in.MonthlyBudget = name, profileCap
 	p := buildProfile(in, id, key)
 	if err := p.Validate(); err != nil {
 		return TestResult{}, mapErr(err)
@@ -514,9 +514,12 @@ func (s *Service) TestProfile(ctx context.Context, who string, in ProfileInput) 
 	pctx, cancel := context.WithTimeout(ctx, probeTimeout)
 	defer cancel()
 	res, down, probeErr := s.router.Probe(pctx, p, s.cfg.Clock)
+	if errors.Is(probeErr, ErrBudgetHeld) || errors.Is(probeErr, ErrProfileHeld) {
+		return TestResult{}, s.budgetHeld("") // nothing was sent: busy for a moment, not used up
+	}
 	if errors.Is(probeErr, ErrCapped) || errors.Is(probeErr, ErrProfileCapped) {
 		// nothing was sent: no audit row is needed for a key that did not leave the box
-		return TestResult{}, capError(probeErr, s.snap.Load().cfg.DailyCap)
+		return TestResult{}, s.capError(probeErr)
 	}
 	outcome, failure := "ok", error(nil)
 	if probeErr != nil {
@@ -578,6 +581,96 @@ func (s *Service) TestProfile(ctx context.Context, who string, in ProfileInput) 
 		Capabilities: Capabilities{Tools: res.Tools, Structured: res.Structured}}, nil
 }
 
+// ListModels asks the provider's model endpoint which models it offers, so the dialog can offer a list instead of a blank (D-475). It
+// is checked like a test: the same validation and own-address rule at save-time, the same stored-key rule for a saved profile (M1), and
+// the same dialer at connect time (provider.ListModels). The call is audited with the host (never the key). Nothing is saved and no
+// tokens are spent; the answer is ids only.
+func (s *Service) ListModels(ctx context.Context, who string, in ProfileInput) ([]string, error) {
+	if !s.allowModelList(who) {
+		return nil, apierr.New(http.StatusTooManyRequests, "rate_limited", "Too many model lists in a minute (at most 10). Wait a moment and try again.")
+	}
+	cur := s.snap.Load()
+	key := keyOf(in)
+	if in.ID != "" {
+		old, ok := cur.find(in.ID)
+		if !ok {
+			return nil, profileNotFound()
+		}
+		var kerr error
+		if key, kerr = keyFor(old, in, in.BaseURL); kerr != nil {
+			return nil, kerr
+		}
+	}
+	in.Name, in.MonthlyBudget = "Models", MaxMonthlyBudget
+	if in.Model == "" {
+		in.Model = "list"
+	}
+	p := buildProfile(in, "draft", key)
+	if err := p.Validate(); err != nil {
+		return nil, mapErr(err)
+	}
+	if err := p.checkOwn(s.own()); err != nil {
+		return nil, mapErr(err)
+	}
+	target := hostOf(p.BaseURL)
+	if in.ID != "" {
+		target = in.ID + " " + target // a saved profile's key was used: the row names the profile
+	}
+	style, err := provider.StyleForKind(p.Kind, p.APIStyle)
+	if err != nil {
+		return nil, mapErr(perr("invalid_style", "Pick a provider type."))
+	}
+	pctx, cancel := context.WithTimeout(ctx, probeTimeout)
+	defer cancel()
+	ids, lerr := provider.ListModels(pctx, provider.ModelsConfig{Style: style, BaseURL: p.BaseURL, APIKey: p.APIKey,
+		InternalOnly: p.Location == LocationInternal, Own: s.own(), AnthropicVersion: p.AnthropicVersion})
+	outcome := "ok"
+	if lerr != nil {
+		outcome = "failed"
+	}
+	// The key may already have left the box, so the audit row is written whatever happened to the request.
+	actx, acancel := context.WithTimeout(context.WithoutCancel(ctx), auditTimeout)
+	defer acancel()
+	if err := s.cfg.DB.Write(actx, func(tx *sql.Tx) error {
+		return s.auditTx(actx, tx, who, "ai.models", target, "result="+outcome)
+	}); err != nil {
+		return nil, err
+	}
+	if lerr != nil {
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
+		return nil, probeFailure(lerr, p.BaseURL)
+	}
+	return ids, nil
+}
+
+// modelListsPerMinute bounds ListModels per admin: the call dials an address the admin typed, so without a bound it is a cheap probe
+// of the network from the box.
+const modelListsPerMinute = 10
+
+// allowModelList records a model-list call of who and reports whether it is within modelListsPerMinute in the last minute.
+func (s *Service) allowModelList(who string) bool {
+	now := s.cfg.Clock()
+	s.modelsMu.Lock()
+	defer s.modelsMu.Unlock()
+	if s.modelsAt == nil {
+		s.modelsAt = map[string][]time.Time{}
+	}
+	recent := s.modelsAt[who][:0]
+	for _, t := range s.modelsAt[who] {
+		if now.Sub(t) < time.Minute {
+			recent = append(recent, t)
+		}
+	}
+	if len(recent) >= modelListsPerMinute {
+		s.modelsAt[who] = recent
+		return false
+	}
+	s.modelsAt[who] = append(recent, now)
+	return true
+}
+
 // withTest is the next snapshot with the result of a test of saved recorded on it, or nil when that profile was removed or its
 // connection changed since the test began. The caller holds s.mu.
 func (s *Service) withTest(saved Profile, failure error) *snapshot {
@@ -617,11 +710,11 @@ func clipRunes(s string, n int) string {
 }
 
 // capError is the 429 of a test that the caps stopped.
-func capError(err error, sharedCap int) error {
+func (s *Service) capError(err error) error {
 	if errors.Is(err, ErrProfileCapped) {
-		return apierr.New(http.StatusTooManyRequests, "daily_cap", "This profile has used its own daily token cap. Raise it in Settings, AI assistant, or wait until tomorrow.")
+		return s.budgetReached("This profile has used its own monthly budget. An administrator can raise it in Settings, AI assistant; it renews on " + s.renewDay() + ".")
 	}
-	return apierr.New(http.StatusTooManyRequests, "daily_cap", fmt.Sprintf("Today's %s token cap is used up and the tier is already the minimum. Raise the cap in Settings, AI assistant, or wait until tomorrow.", number(sharedCap)))
+	return s.budgetReached(capitalize(s.budgetStop()))
 }
 
 // probeFailure maps a provider error to the API error. The text never repeats the provider's message, the URL or the key. A

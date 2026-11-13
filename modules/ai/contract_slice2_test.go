@@ -397,41 +397,41 @@ func TestContract_INV3_ExplainNeverGoesToCloudUnderTheRule(t *testing.T) {
 	}
 }
 
-func TestContract_INV4_CapDowngradeAndRestart(t *testing.T) {
+// D-531: the monthly budget is a stop rule. A call that passes it keeps its answer and lowers no level; this month's tokens survive a
+// restart; the next call is refused before the provider is asked, at any level.
+func TestContract_INV4_BudgetStopsAtTheLimitAndSurvivesRestart(t *testing.T) {
 	a := newAPI(t)
 	a.withProfile()
-	a.want("PUT", "/ai/config", "admin", `{"tier":"max","daily_cap":1000,"redact_pii":true}`, 200, "")
-	a.fake.setUsage(1200, 300) // one call passes the shared cap by half
+	a.want("PUT", "/ai/config", "admin", `{"tier":"max","monthly_budget":1000,"redact_pii":true}`, 200, "")
+	a.fake.setUsage(1200, 300) // one call passes the shared budget by half
 	a.explain("CVE-2022-27593", 200, "")
 	cfg := a.want("GET", "/ai/config", "viewer", "", 200, "")
-	if cfg["tier"] != "med" {
-		t.Fatalf("tier after passing the cap = %v", cfg["tier"])
+	if cfg["tier"] != "max" || cfg["month_used"] != float64(1500) {
+		t.Fatalf("config after passing the budget = %v", cfg)
 	}
 	u := a.want("GET", "/ai/usage", "viewer", "", 200, "")
-	today := u["today"].(map[string]any)
-	dg := u["downgrades"].([]any)
-	if u["tier"] != "med" || u["daily_cap"] != float64(1000) || today["total"] != float64(1500) || len(dg) != 1 || dg[0].(map[string]any)["from"] != "max" || dg[0].(map[string]any)["to"] != "med" {
+	month := u["month"].(map[string]any)
+	if u["tier"] != "max" || u["monthly_budget"] != float64(1000) || month["total"] != float64(1500) || len(u["downgrades"].([]any)) != 0 {
 		t.Fatalf("usage = %v", u)
 	}
-	if rows := a.auditRows(); !containsPrefix(rows, "ai.downgrade max->med") {
+	if rows := a.auditRows(); containsPrefix(rows, "ai.downgrade") {
 		t.Fatalf("audit = %q", rows)
 	}
-	// the level in force and the day's tokens survive a restart: the meter is rebuilt from ai_activity
+	// this month's tokens survive a restart: the meter is rebuilt from ai_activity
 	b := newAPIOver(a.env)
-	if cfg := b.want("GET", "/ai/config", "viewer", "", 200, ""); cfg["tier"] != "med" {
-		t.Fatalf("tier after a restart = %v", cfg["tier"])
+	if cfg := b.want("GET", "/ai/config", "viewer", "", 200, ""); cfg["month_used"] != float64(1500) {
+		t.Fatalf("config after a restart = %v", cfg)
 	}
-	if list := b.want("GET", "/ai/profiles", "viewer", "", 200, "")["items"].([]any); list[0].(map[string]any)["used_today"] != float64(1500) {
-		t.Fatalf("used_today after a restart = %v", list[0])
+	if list := b.want("GET", "/ai/profiles", "viewer", "", 200, "")["items"].([]any); list[0].(map[string]any)["used_month"] != float64(1500) {
+		t.Fatalf("used_month after a restart = %v", list[0])
 	}
-	// at the minimum level with the cap passed, the next call is refused before the provider is asked
-	b.want("PUT", "/ai/config", "admin", `{"tier":"min","daily_cap":1000,"redact_pii":true}`, 200, "")
+	// the budget is passed: the next call is refused before the provider is asked, even at the maximum level
 	b.facts.mu.Lock()
 	b.facts.assets["CVE-2022-27593"][0].Name = "NAS-2"
 	b.facts.mu.Unlock()
 	calls := b.fake.total()
-	m := b.explain("CVE-2022-27593", 429, "daily_cap")
-	if msg := m["error"].(map[string]any)["message"].(string); !strings.Contains(msg, "1,000 token cap") || b.fake.total() != calls {
+	m := b.explain("CVE-2022-27593", 429, "budget_reached")
+	if msg := m["error"].(map[string]any)["message"].(string); !strings.HasPrefix(msg, "This month's AI budget of 1,000 tokens is used up") || b.fake.total() != calls {
 		t.Fatalf("message = %q, calls %d -> %d", msg, calls, b.fake.total())
 	}
 	runs := b.want("GET", "/ai/runs", "viewer", "", 200, "")["items"].([]any)
@@ -487,8 +487,8 @@ func TestAFailedConnectionTestKeepsItsTokens(t *testing.T) {
 		t.Fatalf("test row = %+v", last)
 	}
 	b := newAPIOver(a.env)
-	if list := b.want("GET", "/ai/profiles", "viewer", "", 200, "")["items"].([]any); list[0].(map[string]any)["used_today"] != float64(25) {
-		t.Fatalf("used_today after a restart = %v", list[0])
+	if list := b.want("GET", "/ai/profiles", "viewer", "", 200, "")["items"].([]any); list[0].(map[string]any)["used_month"] != float64(25) {
+		t.Fatalf("used_month after a restart = %v", list[0])
 	}
 }
 
@@ -529,7 +529,7 @@ func TestTheLastTestOfASavedProfileIsShown(t *testing.T) {
 	if lt := lastTest(a); lt["ok"] != true || lt["detail"] != "" {
 		t.Fatalf("last_test after a good test = %v", lt)
 	}
-	a.want("PUT", "/ai/profiles/"+id, "admin", strings.Replace(cloudBody("Renamed", ""), `"daily_cap":60000`, `"daily_cap":50000`, 1), 200, "")
+	a.want("PUT", "/ai/profiles/"+id, "admin", strings.Replace(cloudBody("Renamed", ""), `"monthly_budget":60000`, `"monthly_budget":50000`, 1), 200, "")
 	if lt := lastTest(a); lt == nil || lt["ok"] != true {
 		t.Fatalf("a new name cleared the last test: %v", lt)
 	}
@@ -588,7 +588,7 @@ func TestAnEditDuringATestDropsItsResult(t *testing.T) {
 // or a body that claims a test the box did not run do not count.
 func TestADialogTestIsKeptForTheProfileSavedWithIt(t *testing.T) {
 	compat := func(name, loc string) string { // the same server reached from either place
-		return `{"name":"` + name + `","kind":"openai-compatible","api_style":"openai","base_url":"https://llm.acme.example/v1","model":"qwen3:8b","api_key":"` + keyA + `","location":"` + loc + `","daily_cap":60000}`
+		return `{"name":"` + name + `","kind":"openai-compatible","api_style":"openai","base_url":"https://llm.acme.example/v1","model":"qwen3:8b","api_key":"` + keyA + `","location":"` + loc + `","monthly_budget":60000}`
 	}
 	haiku := cloudBody("P", keyA)
 	sonnet := strings.Replace(haiku, "claude-haiku-5-5", "claude-sonnet-5-5", 1)

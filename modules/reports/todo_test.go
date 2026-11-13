@@ -156,3 +156,19 @@ func TestTopRisksCountDevicesOnceAndPreferTheNamedRelease(t *testing.T) {
 		t.Fatalf("action = %q, devices %d", got[0].Action, got[0].Devices)
 	}
 }
+
+// A product added by hand with no device is named after the product: the step names it once (W5-2), and next to a real device
+// it is "the copy added by hand".
+func TestTopRisksNameAHandAddedProductOnce(t *testing.T) {
+	t.Parallel()
+	byHand := fixRow("1", "a1", "Cisco BroadWorks (no device)", "Cisco BroadWorks", "open")
+	byHand.noDevice = true
+	got, _ := topRisks([]FindingRow{byHand}, nil)
+	if want := "Check the version of Cisco BroadWorks (added by hand, no device) to confirm or rule out 1 suspected finding"; got[0].Action != want {
+		t.Fatalf("action = %q", got[0].Action)
+	}
+	got, _ = topRisks([]FindingRow{byHand, fixRow("2", "a2", "bw-srv", "Cisco BroadWorks", "open")}, nil)
+	if want := "Check the version of Cisco BroadWorks on bw-srv and the copy added by hand to confirm or rule out 2 suspected findings"; got[0].Action != want {
+		t.Fatalf("action = %q", got[0].Action)
+	}
+}

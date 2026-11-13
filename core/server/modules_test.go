@@ -68,6 +68,7 @@ var contractRoutes = map[string][]string{
 		"POST /ai/memory/suggestions/{id}/accept",
 		"POST /ai/memory/suggestions/{id}/reject",
 		"POST /ai/profiles",
+		"POST /ai/profiles/models",
 		"POST /ai/profiles/test",
 		"POST /ai/rules",
 		"PUT /ai/activity/settings",

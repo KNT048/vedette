@@ -27,7 +27,7 @@ func TestRolesAndModuleGate(t *testing.T) {
 		a.want("GET", p, "viewer", "", 200, "")
 	}
 	a.want("POST", "/ai/profiles", "operator", cloudBody("X", keyA), 403, "forbidden")
-	a.want("PUT", "/ai/config", "operator", `{"tier":"med","daily_cap":60000,"redact_pii":true}`, 403, "forbidden")
+	a.want("PUT", "/ai/config", "operator", `{"tier":"med","monthly_budget":60000,"redact_pii":true}`, 403, "forbidden")
 	a.want("PUT", "/ai/assignments", "operator", `{"internal_only":false,"jobs":{}}`, 403, "forbidden")
 	a.want("POST", "/ai/profiles/test", "operator", cloudBody("X", keyA), 403, "forbidden")
 	a.want("DELETE", "/ai/profiles/p-1", "viewer", "", 403, "forbidden")
@@ -41,7 +41,7 @@ func TestRolesAndModuleGate(t *testing.T) {
 func TestContract_INV1_KeyOnlyAsLast4(t *testing.T) {
 	a := newAPI(t)
 	p := a.addProfile(cloudBody("Claude", keyA))
-	if p["key_last4"] != "1111" || p["usable"] != true || p["used_today"] != float64(0) {
+	if p["key_last4"] != "1111" || p["usable"] != true || p["used_month"] != float64(0) {
 		t.Fatalf("profile = %v", p)
 	}
 	for _, path := range []string{"/ai/profiles", "/ai/config", "/ai/assignments"} {
@@ -251,21 +251,21 @@ func TestContract_INV4_ConfigAndEstimates(t *testing.T) {
 	a := newAPI(t)
 	got := a.want("GET", "/ai/config", "viewer", "", 200, "")
 	est := got["tier_estimates"].(map[string]any)
-	if got["configured"] != false || got["tier"] != "med" || got["daily_cap"] != float64(200000) || got["redact_pii"] != true || est["min"] != float64(10000) || est["med"] != float64(60000) || est["max"] != nil {
+	if got["configured"] != false || got["tier"] != "med" || got["monthly_budget"] != float64(6000000) || got["month_used"] != float64(0) || got["renews_on"] == "" || got["redact_pii"] != true || est["min"] != float64(10000) || est["med"] != float64(60000) || est["max"] != nil {
 		t.Fatalf("default config = %v", got)
 	}
-	put := a.want("PUT", "/ai/config", "admin", `{"tier":"max","daily_cap":250000,"redact_pii":false}`, 200, "")
-	if put["tier"] != "max" || put["daily_cap"] != float64(250000) || put["redact_pii"] != false {
+	put := a.want("PUT", "/ai/config", "admin", `{"tier":"max","monthly_budget":250000,"redact_pii":false}`, 200, "")
+	if put["tier"] != "max" || put["monthly_budget"] != float64(250000) || put["redact_pii"] != false {
 		t.Fatalf("saved config = %v", put)
 	}
-	a.want("PUT", "/ai/config", "admin", `{"tier":"max","daily_cap":999,"redact_pii":false}`, 400, "")
-	a.want("PUT", "/ai/config", "admin", `{"tier":"huge","daily_cap":5000,"redact_pii":false}`, 400, "")
-	a.want("PUT", "/ai/config", "admin", `{"tier":"max","daily_cap":5000001,"redact_pii":false}`, 400, "")
+	a.want("PUT", "/ai/config", "admin", `{"tier":"max","monthly_budget":999,"redact_pii":false}`, 400, "")
+	a.want("PUT", "/ai/config", "admin", `{"tier":"huge","monthly_budget":5000,"redact_pii":false}`, 400, "")
+	a.want("PUT", "/ai/config", "admin", `{"tier":"max","monthly_budget":150000001,"redact_pii":false}`, 400, "")
 	back := newAPIOver(a.env).want("GET", "/ai/config", "viewer", "", 200, "")
-	if back["tier"] != "max" || back["daily_cap"] != float64(250000) || back["redact_pii"] != false {
+	if back["tier"] != "max" || back["monthly_budget"] != float64(250000) || back["redact_pii"] != false {
 		t.Fatalf("after restart = %v", back)
 	}
-	a.want("POST", "/ai/profiles", "admin", strings.Replace(cloudBody("N", keyA), `"daily_cap":60000`, `"daily_cap":999`, 1), 400, "")
+	a.want("POST", "/ai/profiles", "admin", strings.Replace(cloudBody("N", keyA), `"monthly_budget":60000`, `"monthly_budget":999`, 1), 400, "")
 }
 
 func TestContract_PRE3_ProfileTest(t *testing.T) {
@@ -309,8 +309,8 @@ func TestContract_PRE3_ProfileTest(t *testing.T) {
 	a.fake.failWith("Saved", nil)
 	a.want("POST", "/ai/profiles/test", "admin", body, 200, "")
 	list := a.want("GET", "/ai/profiles", "viewer", "", 200, "")["items"].([]any)
-	if used := list[0].(map[string]any)["used_today"]; used != float64(14+3) {
-		t.Fatalf("used_today = %v, want the one probe call that got an answer", used)
+	if used := list[0].(map[string]any)["used_month"]; used != float64(14+3) {
+		t.Fatalf("used_month = %v, want the one probe call that got an answer", used)
 	}
 }
 
@@ -319,7 +319,7 @@ func TestContract_INV20_EveryChangeIsAudited(t *testing.T) {
 	p := a.addProfile(cloudBody("Claude", keyA))["id"].(string)
 	a.want("PUT", "/ai/profiles/"+p, "admin", cloudBody("Claude 2", keyB), 200, "")
 	a.want("PUT", "/ai/assignments", "admin", assignBody(false, map[string][2]string{"cve-news": {p, ""}}), 200, "")
-	a.want("PUT", "/ai/config", "admin", `{"tier":"min","daily_cap":10000,"redact_pii":true}`, 200, "")
+	a.want("PUT", "/ai/config", "admin", `{"tier":"min","monthly_budget":10000,"redact_pii":true}`, 200, "")
 	a.want("POST", "/ai/profiles/test", "admin", cloudBody("Draft", keyA), 200, "")
 	a.want("DELETE", "/ai/profiles/"+p, "admin", "", 200, "")
 	// refused changes leave no row

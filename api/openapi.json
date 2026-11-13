@@ -1508,7 +1508,7 @@
     "/ai/config": {
       "get": {
         "operationId": "ai_get_ai_config",
-        "summary": "Usage tier, shared token cap, PII redaction; which jobs are ready",
+        "summary": "Usage tier, shared monthly budget and this month's use, PII redaction; which jobs are ready",
         "tags": [
           "ai"
         ],
@@ -1537,11 +1537,21 @@
                         "max"
                       ]
                     },
-                    "daily_cap": {
+                    "monthly_budget": {
                       "type": "integer",
                       "minimum": -9007199254740991,
                       "maximum": 9007199254740991,
-                      "description": "Shared daily token cap, summed across all profiles"
+                      "description": "Shared monthly token budget, summed across all profiles (D-531): warning at 80 %, every AI job stops at 100 % until it renews or is raised"
+                    },
+                    "month_used": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991,
+                      "description": "Tokens used this calendar month by all profiles"
+                    },
+                    "renews_on": {
+                      "type": "string",
+                      "description": "Local date (YYYY-MM-DD) the monthly budgets start again"
                     },
                     "redact_pii": {
                       "type": "boolean"
@@ -1607,7 +1617,9 @@
                   "required": [
                     "configured",
                     "tier",
-                    "daily_cap",
+                    "monthly_budget",
+                    "month_used",
+                    "renews_on",
                     "redact_pii",
                     "tier_estimates",
                     "jobs_ready"
@@ -1631,7 +1643,7 @@
       },
       "put": {
         "operationId": "ai_put_ai_config",
-        "summary": "Save token tier, shared cap and PII redaction",
+        "summary": "Save token tier, shared monthly budget and PII redaction",
         "tags": [
           "ai"
         ],
@@ -1654,10 +1666,10 @@
                       "max"
                     ]
                   },
-                  "daily_cap": {
+                  "monthly_budget": {
                     "type": "integer",
                     "minimum": 1000,
-                    "maximum": 5000000
+                    "maximum": 150000000
                   },
                   "redact_pii": {
                     "type": "boolean"
@@ -1665,7 +1677,7 @@
                 },
                 "required": [
                   "tier",
-                  "daily_cap",
+                  "monthly_budget",
                   "redact_pii"
                 ],
                 "additionalProperties": false
@@ -1693,11 +1705,21 @@
                         "max"
                       ]
                     },
-                    "daily_cap": {
+                    "monthly_budget": {
                       "type": "integer",
                       "minimum": -9007199254740991,
                       "maximum": 9007199254740991,
-                      "description": "Shared daily token cap, summed across all profiles"
+                      "description": "Shared monthly token budget, summed across all profiles (D-531): warning at 80 %, every AI job stops at 100 % until it renews or is raised"
+                    },
+                    "month_used": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991,
+                      "description": "Tokens used this calendar month by all profiles"
+                    },
+                    "renews_on": {
+                      "type": "string",
+                      "description": "Local date (YYYY-MM-DD) the monthly budgets start again"
                     },
                     "redact_pii": {
                       "type": "boolean"
@@ -1763,7 +1785,9 @@
                   "required": [
                     "configured",
                     "tier",
-                    "daily_cap",
+                    "monthly_budget",
+                    "month_used",
+                    "renews_on",
                     "redact_pii",
                     "tier_estimates",
                     "jobs_ready"
@@ -4881,19 +4905,20 @@
                             ],
                             "description": "internal = runs inside the company network, data never leaves it; cloud = cloud provider"
                           },
-                          "daily_cap": {
+                          "monthly_budget": {
                             "type": "integer",
                             "minimum": -9007199254740991,
                             "maximum": 9007199254740991,
-                            "description": "Daily token cap for this profile alone; when reached, jobs switch to the fallback profile"
+                            "description": "Monthly token budget of this profile alone (D-531); when used up, its jobs switch to the fallback profile or stop with 429 budget_reached"
                           },
                           "usable": {
                             "type": "boolean"
                           },
-                          "used_today": {
+                          "used_month": {
                             "type": "integer",
                             "minimum": -9007199254740991,
-                            "maximum": 9007199254740991
+                            "maximum": 9007199254740991,
+                            "description": "Tokens this profile used this calendar month (box time zone)"
                           },
                           "last_test": {
                             "anyOf": [
@@ -4936,9 +4961,9 @@
                           "model",
                           "key_last4",
                           "location",
-                          "daily_cap",
+                          "monthly_budget",
                           "usable",
-                          "used_today",
+                          "used_month",
                           "last_test"
                         ],
                         "additionalProperties": false
@@ -5027,10 +5052,10 @@
                     ],
                     "description": "internal = runs inside the company network, data never leaves it; cloud = cloud provider"
                   },
-                  "daily_cap": {
+                  "monthly_budget": {
                     "type": "integer",
                     "minimum": 1000,
-                    "maximum": 5000000
+                    "maximum": 150000000
                   }
                 },
                 "required": [
@@ -5040,7 +5065,7 @@
                   "base_url",
                   "model",
                   "location",
-                  "daily_cap"
+                  "monthly_budget"
                 ],
                 "additionalProperties": false
               }
@@ -5101,19 +5126,20 @@
                       ],
                       "description": "internal = runs inside the company network, data never leaves it; cloud = cloud provider"
                     },
-                    "daily_cap": {
+                    "monthly_budget": {
                       "type": "integer",
                       "minimum": -9007199254740991,
                       "maximum": 9007199254740991,
-                      "description": "Daily token cap for this profile alone; when reached, jobs switch to the fallback profile"
+                      "description": "Monthly token budget of this profile alone (D-531); when used up, its jobs switch to the fallback profile or stop with 429 budget_reached"
                     },
                     "usable": {
                       "type": "boolean"
                     },
-                    "used_today": {
+                    "used_month": {
                       "type": "integer",
                       "minimum": -9007199254740991,
-                      "maximum": 9007199254740991
+                      "maximum": 9007199254740991,
+                      "description": "Tokens this profile used this calendar month (box time zone)"
                     },
                     "last_test": {
                       "anyOf": [
@@ -5156,9 +5182,9 @@
                     "model",
                     "key_last4",
                     "location",
-                    "daily_cap",
+                    "monthly_budget",
                     "usable",
-                    "used_today",
+                    "used_month",
                     "last_test"
                   ],
                   "additionalProperties": false
@@ -5319,10 +5345,10 @@
                     ],
                     "description": "internal = runs inside the company network, data never leaves it; cloud = cloud provider"
                   },
-                  "daily_cap": {
+                  "monthly_budget": {
                     "type": "integer",
                     "minimum": 1000,
-                    "maximum": 5000000
+                    "maximum": 150000000
                   }
                 },
                 "required": [
@@ -5332,7 +5358,7 @@
                   "base_url",
                   "model",
                   "location",
-                  "daily_cap"
+                  "monthly_budget"
                 ],
                 "additionalProperties": false
               }
@@ -5393,19 +5419,20 @@
                       ],
                       "description": "internal = runs inside the company network, data never leaves it; cloud = cloud provider"
                     },
-                    "daily_cap": {
+                    "monthly_budget": {
                       "type": "integer",
                       "minimum": -9007199254740991,
                       "maximum": 9007199254740991,
-                      "description": "Daily token cap for this profile alone; when reached, jobs switch to the fallback profile"
+                      "description": "Monthly token budget of this profile alone (D-531); when used up, its jobs switch to the fallback profile or stop with 429 budget_reached"
                     },
                     "usable": {
                       "type": "boolean"
                     },
-                    "used_today": {
+                    "used_month": {
                       "type": "integer",
                       "minimum": -9007199254740991,
-                      "maximum": 9007199254740991
+                      "maximum": 9007199254740991,
+                      "description": "Tokens this profile used this calendar month (box time zone)"
                     },
                     "last_test": {
                       "anyOf": [
@@ -5448,10 +5475,114 @@
                     "model",
                     "key_last4",
                     "location",
-                    "daily_cap",
+                    "monthly_budget",
                     "usable",
-                    "used_today",
+                    "used_month",
                     "last_test"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ai/profiles/models": {
+      "post": {
+        "operationId": "ai_post_ai_profiles_models",
+        "summary": "List the models a provider offers (asked by the box through the same guarded connection as AI calls; nothing is saved)",
+        "tags": [
+          "ai"
+        ],
+        "x-stories": [
+          "S-AI-1"
+        ],
+        "x-min-role": "admin",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "description": "Present when editing or testing a saved profile: leave the key blank to keep the old key, only while the provider type and the server address (scheme, host and port) stay the same; another address needs the key entered again",
+                    "type": "string"
+                  },
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "anthropic",
+                      "openai",
+                      "gemini",
+                      "openai-compatible",
+                      "custom"
+                    ]
+                  },
+                  "api_style": {
+                    "type": "string",
+                    "enum": [
+                      "openai",
+                      "anthropic",
+                      "gemini"
+                    ],
+                    "description": "openai = Chat Completions, anthropic = Messages, gemini = generateContent"
+                  },
+                  "base_url": {
+                    "type": "string"
+                  },
+                  "api_key": {
+                    "type": "string"
+                  },
+                  "location": {
+                    "type": "string",
+                    "enum": [
+                      "internal",
+                      "cloud"
+                    ],
+                    "description": "internal = runs inside the company network, data never leaves it; cloud = cloud provider"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "api_style",
+                  "base_url",
+                  "location"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "models": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "Model ids the provider lists, clean, sorted, at most 300; the box asked the provider and kept only ids"
+                    }
+                  },
+                  "required": [
+                    "models"
                   ],
                   "additionalProperties": false
                 }
@@ -5532,7 +5663,7 @@
                   "name": {
                     "type": "string"
                   },
-                  "daily_cap": {
+                  "monthly_budget": {
                     "type": "integer",
                     "minimum": -9007199254740991,
                     "maximum": 9007199254740991
@@ -6288,7 +6419,7 @@
     "/ai/usage": {
       "get": {
         "operationId": "ai_get_ai_usage",
-        "summary": "Token meter: today, 30 days, per job, tier downgrades",
+        "summary": "Token meter: today, this month, per job this month, earlier tier downgrades",
         "tags": [
           "ai"
         ],
@@ -6312,7 +6443,7 @@
                         "max"
                       ]
                     },
-                    "daily_cap": {
+                    "monthly_budget": {
                       "type": "number"
                     },
                     "today": {
@@ -6353,7 +6484,8 @@
                         "output",
                         "total"
                       ],
-                      "additionalProperties": false
+                      "additionalProperties": false,
+                      "description": "This calendar month in the box time zone: what the budget counts"
                     },
                     "by_skill": {
                       "type": "array",
@@ -6424,7 +6556,7 @@
                   },
                   "required": [
                     "tier",
-                    "daily_cap",
+                    "monthly_budget",
                     "today",
                     "month",
                     "by_skill",

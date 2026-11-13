@@ -77,7 +77,7 @@ type Handler interface {
 	AiGetAiAssignmentsSuggestion(ctx context.Context, params AiGetAiAssignmentsSuggestionParams) (*AiGetAiAssignmentsSuggestionOK, error)
 	// AiGetAiConfig implements ai_get_ai_config operation.
 	//
-	// Usage tier, shared token cap, PII redaction; which jobs are ready.
+	// Usage tier, shared monthly budget and this month's use, PII redaction; which jobs are ready.
 	//
 	// GET /ai/config
 	AiGetAiConfig(ctx context.Context) (*AiGetAiConfigOK, error)
@@ -137,7 +137,7 @@ type Handler interface {
 	AiGetAiSkills(ctx context.Context) (*AiGetAiSkillsOK, error)
 	// AiGetAiUsage implements ai_get_ai_usage operation.
 	//
-	// Token meter: today, 30 days, per job, tier downgrades.
+	// Token meter: today, this month, per job this month, earlier tier downgrades.
 	//
 	// GET /ai/usage
 	AiGetAiUsage(ctx context.Context) (*AiGetAiUsageOK, error)
@@ -208,6 +208,13 @@ type Handler interface {
 	//
 	// POST /ai/profiles
 	AiPostAiProfiles(ctx context.Context, req *AiPostAiProfilesReq) (*AiPostAiProfilesOK, error)
+	// AiPostAiProfilesModels implements ai_post_ai_profiles_models operation.
+	//
+	// List the models a provider offers (asked by the box through the same guarded connection as AI calls;
+	// nothing is saved).
+	//
+	// POST /ai/profiles/models
+	AiPostAiProfilesModels(ctx context.Context, req *AiPostAiProfilesModelsReq) (*AiPostAiProfilesModelsOK, error)
 	// AiPostAiProfilesTest implements ai_post_ai_profiles_test operation.
 	//
 	// Test the connection of a profile (saved or in draft) with a tiny request.
@@ -234,7 +241,7 @@ type Handler interface {
 	AiPutAiAssignments(ctx context.Context, req *AiPutAiAssignmentsReq) (*AiPutAiAssignmentsOK, error)
 	// AiPutAiConfig implements ai_put_ai_config operation.
 	//
-	// Save token tier, shared cap and PII redaction.
+	// Save token tier, shared monthly budget and PII redaction.
 	//
 	// PUT /ai/config
 	AiPutAiConfig(ctx context.Context, req *AiPutAiConfigReq) (*AiPutAiConfigOK, error)

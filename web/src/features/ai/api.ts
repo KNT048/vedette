@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
-import type { AiConfigView, AiJob, AiProfile, AskResult, Assignments, ConfigInput, ExplainResult, LogDigest, NewsResult, AiRun, ActivityList, ActivityResult, ActivitySettings, ActivityVerify, ProfileInput, TestInput, TestResult, Usage } from './types'
+import type { AiConfigView, AiJob, AiProfile, AskResult, Assignments, ConfigInput, ExplainResult, LogDigest, NewsResult, AiRun, ActivityList, ActivityResult, ActivitySettings, ActivityVerify, ProfileInput, ModelsInput, ModelsResult, TestInput, TestResult, Usage } from './types'
 
 /** enabled false: not asked (the AI module is off, so /ai/config is 404). */
 export const useAiConfig = (enabled = true) => useQuery({ queryKey: ['ai', 'config'], queryFn: () => api.get<AiConfigView>('/ai/config'), enabled })
@@ -15,7 +15,7 @@ export function useSaveConfig() {
   const done = useInvalidateAi()
   return useMutation({ mutationFn: (b: ConfigInput) => api.put<AiConfigView>('/ai/config', b), onSuccess: done })
 }
-export const useProfiles = () => useQuery({ queryKey: ['ai', 'profiles'], queryFn: () => api.get<{ items: AiProfile[] }>('/ai/profiles') })
+export const useProfiles = (enabled = true) => useQuery({ queryKey: ['ai', 'profiles'], queryFn: () => api.get<{ items: AiProfile[] }>('/ai/profiles'), enabled })
 export function useSaveProfile() {
   const done = useInvalidateAi()
   // gcTime 0: the variables hold the API key; nothing keeps them once the dialog is gone
@@ -30,6 +30,8 @@ export function useTestProfile() {
   // a failed test of a saved profile is its last test too (S-AI-1): refresh the list either way
   return useMutation({ mutationFn: (b: TestInput) => api.post<TestResult>('/ai/profiles/test', b), onSettled: done, gcTime: 0 })
 }
+/** The box asks the provider which models it offers (D-475). gcTime 0: the variables hold the API key. */
+export const useListModels = () => useMutation({ mutationFn: (b: ModelsInput) => api.post<ModelsResult>('/ai/profiles/models', b), gcTime: 0 })
 export const useAssignments = () => useQuery({ queryKey: ['ai', 'assignments'], queryFn: () => api.get<Assignments>('/ai/assignments') })
 export function useSaveAssignments() {
   const done = useInvalidateAi()

@@ -73,10 +73,10 @@ test.describe('ai: clean install', () => {
     await dlg.getByLabel('Server address').fill('https://api.anthropic.com')
     await dlg.getByRole('button', { name: 'Test connection' }).click()
     await expect(dlg.getByText('Connected')).toBeVisible()
-    await dlg.getByLabel('Daily token cap for this profile').fill('50')
+    await dlg.getByLabel('Monthly budget for this profile (tokens)').fill('50')
     await dlg.getByRole('button', { name: 'Add profile' }).click()
     await expect(dlg.getByText(/The cap must be a whole number/)).toBeVisible()
-    await dlg.getByLabel('Daily token cap for this profile').fill('20000')
+    await dlg.getByLabel('Monthly budget for this profile (tokens)').fill('20000')
     await dlg.getByLabel('API key').press('Enter') // Enter gửi form
     await expect(page.getByText('AI profile added').first()).toBeVisible()
     await expect(page.getByRole('region', { name: 'AI profiles' }).getByText('Key ends in 9z9z')).toBeVisible()
@@ -86,7 +86,7 @@ test.describe('ai: clean install', () => {
     // việc chưa có hồ sơ chính tự lấy hồ sơ mới: dùng được ngay
     await expect(page.getByLabel('Primary profile for Ask your data')).toHaveValue(/.+/)
     await page.goto('/assistant')
-    await expect(page.getByRole('heading', { level: 1 })).toContainText('tokens used today')
+    await expect(page.getByRole('heading', { level: 1 })).toContainText('tokens used this month')
     await page.getByRole('button', { name: 'Which machines still expose RDP?' }).click()
     // a clean install already lists the box itself as its first device (inventory mock, 830c3ad), so the answer comes from one device; the empty-inventory answer is covered by vitest
     await expect(page.getByText(/No device in the inventory has RDP/)).toBeVisible()
@@ -226,7 +226,7 @@ test.describe('ai: sample data', () => {
     const errors = collectErrors(page)
     await sampleStart(page)
     await page.goto('/assistant')
-    await expect(page.getByRole('heading', { level: 1 })).toContainText('tokens used today')
+    await expect(page.getByRole('heading', { level: 1 })).toContainText('tokens used this month')
     for (const [q, re] of [['Which machines still expose RDP?', /devices? (has|have) RDP/], ['Which devices are not approved yet?', /devices? (is|are) not approved yet/], ['Which findings are confirmed?', /findings? (is|are) confirmed/], ['Which NAS has findings?', /There (is|are) \d+ NAS/], ['Which cameras are Hikvision?', /cameras? and recorders?/], ['Which machines run an operating system near end of support?', /out of support or about to be/]] as const) {
       await page.getByRole('button', { name: q }).click()
       await expect(page.getByText(re).first()).toBeVisible()
@@ -253,26 +253,23 @@ test.describe('ai: sample data', () => {
     expect(errors).toEqual([])
   })
 
-  test('global cap: past it the level drops and is recorded; at minimum with no cap left the question is blocked with the fix', async ({ page }) => {
+  test('monthly budget (D-531): used up, every question is blocked with why and the fix; the level stays', async ({ page }) => {
     const errors = collectErrors(page)
     await sampleStart(page)
     await page.goto('/settings/ai')
-    await page.getByLabel('Daily token cap for all profiles together').fill('1000')
+    await page.getByLabel('Monthly AI budget for all profiles together (tokens)').fill('1000')
     await page.getByRole('radio', { name: /Maximum/ }).check()
     await page.getByRole('form', { name: 'Token level' }).getByRole('button', { name: 'Save', exact: true }).click()
     await expect(page.getByText('Token level saved').first()).toBeVisible()
     await page.goto('/assistant')
     await page.getByRole('button', { name: 'Which machines still expose RDP?' }).click()
-    await expect(page.getByText(/level lowered from Maximum to Medium/).first()).toBeVisible()
-    await page.getByRole('button', { name: 'Which devices are not approved yet?' }).click()
-    await expect(page.getByText(/level lowered from Medium to Minimum/).first()).toBeVisible()
-    await page.getByRole('button', { name: 'Which cameras are Hikvision?' }).click()
-    await expect(page.getByRole('alert')).toContainText('cap is used up')
-    await expect(page.getByText(/Today's cap is used up/)).toBeVisible()
+    await page.getByRole('button', { name: 'Which devices are not approved yet?' }).click() // by now the month has passed 1,000 tokens, whatever the date
+    await expect(page.getByRole('alert')).toContainText("This month's AI budget of 1,000 tokens is used up")
+    await expect(page.getByText(/This month's budget is used up/)).toBeVisible()
     await expect(page.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '1000')
     await shot(page, 'ai', `assistant-capped-${device(page)}`)
     await page.goto('/settings/ai')
-    await expect(page.getByRole('radio', { name: /Minimum/ })).toBeChecked() // không lưu đè mức đã hạ
+    await expect(page.getByRole('radio', { name: /Maximum/ })).toBeChecked() // ngân sách tháng không hạ mức (D-531)
     expect(errors).toEqual([])
   })
 

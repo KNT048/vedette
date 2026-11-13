@@ -14,11 +14,11 @@ import (
 const key = "sk-test-0123456789"
 
 func internal(id string) Profile {
-	return Profile{ID: id, Name: "Local " + id, Kind: "openai-compatible", BaseURL: "http://localhost:11434/v1", Model: "qwen3:8b", Location: LocationInternal, DailyCap: 300_000}
+	return Profile{ID: id, Name: "Local " + id, Kind: "openai-compatible", BaseURL: "http://localhost:11434/v1", Model: "qwen3:8b", Location: LocationInternal, MonthlyBudget: 300_000}
 }
 
 func cloud(id string) Profile {
-	return Profile{ID: id, Name: "Cloud " + id, Kind: "anthropic", BaseURL: "https://api.anthropic.com", Model: "m-1", APIKey: provider.NewSecret(key), Location: LocationCloud, DailyCap: 60_000}
+	return Profile{ID: id, Name: "Cloud " + id, Kind: "anthropic", BaseURL: "https://api.anthropic.com", Model: "m-1", APIKey: provider.NewSecret(key), Location: LocationCloud, MonthlyBudget: 60_000}
 }
 
 // fakes records which profiles were called and answers per profile.
@@ -262,8 +262,7 @@ func TestRouterUsesTheMeter(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var downs []Tier
-	for range 40 { // each call is 150 tokens: 1000 is passed on the 7th call (one level down), 2000 on the 14th (min)
+	for range 40 { // each call is 150 tokens: the 7th takes the total past the budget of 1000 (D-531)
 		res, err := r.Call(context.Background(), JobLogDigest, req)
 		if errors.Is(err, ErrCapped) {
 			break
@@ -271,17 +270,14 @@ func TestRouterUsesTheMeter(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if res.Downgrade != nil {
-			downs = append(downs, res.Downgrade.To)
+		if res.Downgrade != nil || m.Tier() != TierMax {
+			t.Fatalf("the budget lowered the level: %+v %s", res.Downgrade, m.Tier())
 		}
 	}
-	if len(downs) != 2 || downs[0] != TierMed || downs[1] != TierMin {
-		t.Fatalf("downgrades: %v", downs)
-	}
 	if _, err := r.Call(context.Background(), JobLogDigest, req); !errors.Is(err, ErrCapped) {
-		t.Fatalf("after the cap at min level: %v", err)
+		t.Fatalf("after the budget: %v", err)
 	}
-	if f.called("i1") != 14 { // the 14th call takes the total past 2 x cap (max->med->min); the 15th is refused
+	if f.called("i1") != 7 { // the 7th call takes the total past the budget; the 8th is refused at any level
 		t.Fatalf("provider calls: %d", f.called("i1"))
 	}
 }

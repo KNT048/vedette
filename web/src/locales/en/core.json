@@ -328,6 +328,7 @@
       "logs.export": "Download logs",
       "ai.activity_retention": "Change AI activity log retention",
       "ai.downgrade": "AI request used a different model",
+      "ai.fuse": "AI job stopped by the runaway fuse",
       "audit.export": "Download audit log",
       "audit.pruned": "Lines past the retention removed",
       "connection.create": "Add connection",
@@ -461,6 +462,7 @@
       "ai.rule.remove": "Delete AI rule",
       "ai.skill": "Turn an AI skill on or off",
       "ai.test": "Test AI profile",
+      "ai.models": "List AI models",
       "data.backup_failed": "Backup download failed",
       "data.restore": "Restore a backup kept on the box",
       "data.restore_failed": "Restore of a backup refused",
@@ -909,6 +911,7 @@
         "what": "The data you choose to send (findings, the log summary) to your provider with your key, job by job:",
         "items": [
           "Test (a profile): three tiny fixed requests (a one-word prompt, then the same with a dummy tool and with a JSON format, to learn what the model supports) with that profile's key to its address; no data of yours is in them, and each test is written to the audit log (never the key).",
+          "Model list (the Add AI profile dialog, D-475): one GET of the provider's model endpoint (for example /v1/models) with that profile's key, to show the models to pick from; no data of yours is in it, only the key as the provider's own header. The box asks, not your browser, through the same guarded connection as every AI call (no redirects; Vedette itself and forbidden addresses are refused at connect time, except that through a proxy you configure for cloud profiles the proxy makes the connection), keeps only clean model names, and writes the call to the audit log with the host (never the key).",
           "Explain (a CVE or a finding): the public exploited-list entry (CVE text, vendor, product, links) and, for each device it matches, the device name, IP address, kind, how it was matched (by version or by product) and the finding status, to the profile assigned to that job.",
           "Finding brief (the AI button of a finding, and the draft of a recommendation): the same entry plus, for that one device, its display name, the finding's severity and confidence, and whether a confirmed recommendation pack exists.",
           "Response plan (only once an administrator assigns a profile to it; it then runs by itself every 5 minutes, at most 20 calls a day, and does nothing while AI proposals are paused): for each open critical finding that has no plan yet, the CVE id and its public exploited-list entry, the device name, IP address and kind, and the list of response actions the AI may propose (their names, descriptions, risk and parameter names, never commands, paths or credentials; for an action on a device, the id of the connection it runs through), and the reads the box itself made through those connections in the last 24 hours (for each: an id, the connection id and name, the read tool's name and the time, never what the read returned), to that profile.",

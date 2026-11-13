@@ -41,11 +41,20 @@ func newAI(ctx context.Context, d *deps, facts ai.Facts, data ai.Data) (*ai.Serv
 			return m, nil
 		}
 	}
-	// the daily verify of the activity log raises a notify incident when the chain is broken (S-AI-8, D-430); newNotify is the one
-	// instance per database, so this is the service the rest of the box uses. A notify module that is off answers ErrModuleOff and the
-	// job tries again at its next run.
-	cfg.Alert = func(ctx context.Context, id, title, text string) error {
-		return newNotify(d).Publish(ctx, notify.Notice{ID: id, Kind: notify.KindIncident, Severity: notify.High, Title: title, What: text, At: d.Clock()})
+	// the daily verify of the activity log raises a notify incident when the chain is broken (S-AI-8, D-430), and the budget watch
+	// one at 80 % (medium) and 100 % (high) of a monthly AI budget (D-531); newNotify is the one instance per database, so this is the
+	// service the rest of the box uses. A notify module that is off answers ErrModuleOff, passed on as ai.ErrAlertOff too: the chain
+	// check tries again at its next run, the budget watch waits quietly for notify to be turned on (Home still shows the banner).
+	cfg.Alert = func(ctx context.Context, id, title, text string, high bool) error {
+		sev := notify.Medium
+		if high {
+			sev = notify.High
+		}
+		err := newNotify(d).Publish(ctx, notify.Notice{ID: id, Kind: notify.KindIncident, Severity: sev, Title: title, What: text, At: d.Clock()})
+		if errors.Is(err, notify.ErrModuleOff) {
+			return fmt.Errorf("%w: %w", ai.ErrAlertOff, err)
+		}
+		return err
 	}
 	// the log-digest job reads the digest of the logs module (ailogdigest.go)
 	cfg.LogDigest = aiLogDigest(d)

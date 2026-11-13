@@ -13,6 +13,7 @@ const TopRiskCount = 3
 // group whatever CISA calls its CVEs), or of one product name when no software row is known: the unit of an upgrade.
 type deviceRisk struct {
 	asset, device, label  string
+	noDevice              bool           // a product added by hand with no device: the step does not name it twice (W5-2)
 	names                 map[string]int // findings by the CISA product name they carry; the label is the biggest
 	open, confirmed       int
 	severity              string
@@ -54,7 +55,7 @@ func topRisks(open []FindingRow, fixes map[string]Fix) (out []TopRisk, kinds []s
 		}
 		g := byDev[k]
 		if g == nil {
-			g = &deviceRisk{asset: f.AssetID, device: f.Device, names: map[string]int{}, severity: f.Severity, first: i, firstConfirmed: -1}
+			g = &deviceRisk{asset: f.AssetID, device: f.Device, noDevice: f.noDevice, names: map[string]int{}, severity: f.Severity, first: i, firstConfirmed: -1}
 			byDev[k] = g
 			devs = append(devs, g)
 		}
@@ -166,6 +167,33 @@ func distinctDevices(gs []*deviceRisk) []string {
 	return out
 }
 
+// where is what the step is about and where: the product and " on " the devices. A product added by hand with no device (D-471) is
+// named after the product already, so it is not named again ("Cisco BroadWorks on Cisco BroadWorks (no device)", W5-2): alone it
+// is said once after the product; next to real devices it is "the copy added by hand".
+func where(product string, gs []*deviceRisk) (what, on string) {
+	seen := map[string]bool{}
+	var names []string
+	byHand := false
+	for _, g := range gs {
+		if seen[g.asset] {
+			continue
+		}
+		seen[g.asset] = true
+		if g.noDevice {
+			byHand = true
+		} else {
+			names = append(names, g.device)
+		}
+	}
+	if len(names) == 0 {
+		return product + " (added by hand, no device)", ""
+	}
+	if byHand {
+		names = append(names, "the copy added by hand")
+	}
+	return product, " on " + nameList(names)
+}
+
 // lines merges the product's device risks by class, the biggest line first (confirmed, then open findings, then class).
 func (p *product) lines() []*line {
 	by := map[string]*line{}
@@ -245,7 +273,7 @@ func (l *line) sentence(product string) string {
 		closed += g.closed
 	}
 	names := distinctDevices(l.devs)
-	dev := nameList(names)
+	product, on := where(product, l.devs)
 	fx := first.fix
 	switch fx.Kind {
 	case "fixed":
@@ -259,27 +287,27 @@ func (l *line) sentence(product string) string {
 			if v := clip(fx.Version, 40); v != "" {
 				from = " from " + v
 			}
-			s = fmt.Sprintf("Upgrade %s on %s%s to %s or later — fixes %s", product, dev, from, clip(fx.Fixed, 40), what)
+			s = fmt.Sprintf("Upgrade %s%s%s to %s or later — fixes %s", product, on, from, clip(fx.Fixed, 40), what)
 		} else {
-			s = fmt.Sprintf("Upgrade %s to %s or later on %s — fixes %s", product, clip(fx.Fixed, 40), dev, what)
+			s = fmt.Sprintf("Upgrade %s to %s or later%s — fixes %s", product, clip(fx.Fixed, 40), on, what)
 		}
 		if d := clip(fx.Distro, 40); d != "" { // inventory does not say whether it came from the distribution's packages
 			s += fmt.Sprintf(" (if you installed it from %s's packages, install its security updates instead)", d)
 		}
 		return s
 	case "none":
-		return fmt.Sprintf("NVD names no single release that fixes all %s of %s on %s: check the vendor advisory", plural(l.open, "exploited vulnerability", "exploited vulnerabilities"), product, dev)
+		return fmt.Sprintf("NVD names no single release that fixes all %s of %s%s: check the vendor advisory", plural(l.open, "exploited vulnerability", "exploited vulnerabilities"), product, on)
 	case "distro":
 		who := "your distribution's"
 		if d := clip(fx.Distro, 40); d != "" {
 			who = d
 		}
-		return fmt.Sprintf("Install the latest %s security updates for %s on %s — %s", who, product, dev, plural(l.open, "exploited vulnerability is open", "exploited vulnerabilities are open"))
+		return fmt.Sprintf("Install the latest %s security updates for %s%s — %s", who, product, on, plural(l.open, "exploited vulnerability is open", "exploited vulnerabilities are open"))
 	case "up_to":
-		return fmt.Sprintf("Check the vendor advisory for %s on %s: NVD names no fixed release, so use the vendor's temporary fix (%s)", product, dev, plural(l.open, "open finding", "open findings"))
+		return fmt.Sprintf("Check the vendor advisory for %s%s: NVD names no fixed release, so use the vendor's temporary fix (%s)", product, on, plural(l.open, "open finding", "open findings"))
 	}
 	if l.confirmed > 0 {
-		return fmt.Sprintf("Update %s on %s, or apply the vendor's temporary fix: a scan confirmed it (%s)", product, dev, plural(l.open, "open finding", "open findings"))
+		return fmt.Sprintf("Update %s%s, or apply the vendor's temporary fix: a scan confirmed it (%s)", product, on, plural(l.open, "open finding", "open findings"))
 	}
-	return fmt.Sprintf("Check the version of %s on %s to confirm or rule out %s", product, dev, plural(l.open, "suspected finding", "suspected findings"))
+	return fmt.Sprintf("Check the version of %s%s to confirm or rule out %s", product, on, plural(l.open, "suspected finding", "suspected findings"))
 }

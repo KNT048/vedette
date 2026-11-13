@@ -1570,12 +1570,17 @@ func (s *AiGetAiAssignmentsSuggestionOKJobsItem) SetPrimary(val NilString) {
 type AiGetAiConfigOK struct {
 	// At least one usable profile exists.
 	Configured bool `json:"configured"`
-	// Shared daily token cap, summed across all profiles.
-	DailyCap int `json:"daily_cap"`
 	// Which jobs have a usable, permitted profile.
 	JobsReady AiGetAiConfigOKJobsReady `json:"jobs_ready"`
-	RedactPii bool                     `json:"redact_pii"`
-	Tier      AiGetAiConfigOKTier      `json:"tier"`
+	// Tokens used this calendar month by all profiles.
+	MonthUsed int `json:"month_used"`
+	// Shared monthly token budget, summed across all profiles (D-531): warning at 80 %, every AI job stops
+	// at 100 % until it renews or is raised.
+	MonthlyBudget int  `json:"monthly_budget"`
+	RedactPii     bool `json:"redact_pii"`
+	// Local date (YYYY-MM-DD) the monthly budgets start again.
+	RenewsOn string              `json:"renews_on"`
+	Tier     AiGetAiConfigOKTier `json:"tier"`
 	// Estimated tokens/day per tier (no money, D-6). null = depends on alert count.
 	TierEstimates AiGetAiConfigOKTierEstimates `json:"tier_estimates"`
 }
@@ -1585,19 +1590,29 @@ func (s *AiGetAiConfigOK) GetConfigured() bool {
 	return s.Configured
 }
 
-// GetDailyCap returns the value of DailyCap.
-func (s *AiGetAiConfigOK) GetDailyCap() int {
-	return s.DailyCap
-}
-
 // GetJobsReady returns the value of JobsReady.
 func (s *AiGetAiConfigOK) GetJobsReady() AiGetAiConfigOKJobsReady {
 	return s.JobsReady
 }
 
+// GetMonthUsed returns the value of MonthUsed.
+func (s *AiGetAiConfigOK) GetMonthUsed() int {
+	return s.MonthUsed
+}
+
+// GetMonthlyBudget returns the value of MonthlyBudget.
+func (s *AiGetAiConfigOK) GetMonthlyBudget() int {
+	return s.MonthlyBudget
+}
+
 // GetRedactPii returns the value of RedactPii.
 func (s *AiGetAiConfigOK) GetRedactPii() bool {
 	return s.RedactPii
+}
+
+// GetRenewsOn returns the value of RenewsOn.
+func (s *AiGetAiConfigOK) GetRenewsOn() string {
+	return s.RenewsOn
 }
 
 // GetTier returns the value of Tier.
@@ -1615,19 +1630,29 @@ func (s *AiGetAiConfigOK) SetConfigured(val bool) {
 	s.Configured = val
 }
 
-// SetDailyCap sets the value of DailyCap.
-func (s *AiGetAiConfigOK) SetDailyCap(val int) {
-	s.DailyCap = val
-}
-
 // SetJobsReady sets the value of JobsReady.
 func (s *AiGetAiConfigOK) SetJobsReady(val AiGetAiConfigOKJobsReady) {
 	s.JobsReady = val
 }
 
+// SetMonthUsed sets the value of MonthUsed.
+func (s *AiGetAiConfigOK) SetMonthUsed(val int) {
+	s.MonthUsed = val
+}
+
+// SetMonthlyBudget sets the value of MonthlyBudget.
+func (s *AiGetAiConfigOK) SetMonthlyBudget(val int) {
+	s.MonthlyBudget = val
+}
+
 // SetRedactPii sets the value of RedactPii.
 func (s *AiGetAiConfigOK) SetRedactPii(val bool) {
 	s.RedactPii = val
+}
+
+// SetRenewsOn sets the value of RenewsOn.
+func (s *AiGetAiConfigOK) SetRenewsOn(val string) {
+	s.RenewsOn = val
 }
 
 // SetTier sets the value of Tier.
@@ -3413,9 +3438,7 @@ type AiGetAiProfilesOKItemsItem struct {
 	// Openai = Chat Completions, anthropic = Messages, gemini = generateContent.
 	APIStyle AiGetAiProfilesOKItemsItemAPIStyle `json:"api_style"`
 	BaseURL  string                             `json:"base_url"`
-	// Daily token cap for this profile alone; when reached, jobs switch to the fallback profile.
-	DailyCap int    `json:"daily_cap"`
-	ID       string `json:"id"`
+	ID       string                             `json:"id"`
 	// Last 4 characters of the key; the full key is never returned (SYS-4). null = no key yet (valid for
 	// internal profiles).
 	KeyLast4 NilString                      `json:"key_last4"`
@@ -3425,11 +3448,15 @@ type AiGetAiProfilesOKItemsItem struct {
 	// the settings saved (within 15 minutes) counts (D-445); the request cannot carry one.
 	LastTest NilAiGetAiProfilesOKItemsItemLastTest `json:"last_test"`
 	// Internal = runs inside the company network, data never leaves it; cloud = cloud provider.
-	Location  AiGetAiProfilesOKItemsItemLocation `json:"location"`
-	Model     string                             `json:"model"`
-	Name      string                             `json:"name"`
-	Usable    bool                               `json:"usable"`
-	UsedToday int                                `json:"used_today"`
+	Location AiGetAiProfilesOKItemsItemLocation `json:"location"`
+	Model    string                             `json:"model"`
+	// Monthly token budget of this profile alone (D-531); when used up, its jobs switch to the fallback
+	// profile or stop with 429 budget_reached.
+	MonthlyBudget int    `json:"monthly_budget"`
+	Name          string `json:"name"`
+	Usable        bool   `json:"usable"`
+	// Tokens this profile used this calendar month (box time zone).
+	UsedMonth int `json:"used_month"`
 }
 
 // GetAPIStyle returns the value of APIStyle.
@@ -3440,11 +3467,6 @@ func (s *AiGetAiProfilesOKItemsItem) GetAPIStyle() AiGetAiProfilesOKItemsItemAPI
 // GetBaseURL returns the value of BaseURL.
 func (s *AiGetAiProfilesOKItemsItem) GetBaseURL() string {
 	return s.BaseURL
-}
-
-// GetDailyCap returns the value of DailyCap.
-func (s *AiGetAiProfilesOKItemsItem) GetDailyCap() int {
-	return s.DailyCap
 }
 
 // GetID returns the value of ID.
@@ -3477,6 +3499,11 @@ func (s *AiGetAiProfilesOKItemsItem) GetModel() string {
 	return s.Model
 }
 
+// GetMonthlyBudget returns the value of MonthlyBudget.
+func (s *AiGetAiProfilesOKItemsItem) GetMonthlyBudget() int {
+	return s.MonthlyBudget
+}
+
 // GetName returns the value of Name.
 func (s *AiGetAiProfilesOKItemsItem) GetName() string {
 	return s.Name
@@ -3487,9 +3514,9 @@ func (s *AiGetAiProfilesOKItemsItem) GetUsable() bool {
 	return s.Usable
 }
 
-// GetUsedToday returns the value of UsedToday.
-func (s *AiGetAiProfilesOKItemsItem) GetUsedToday() int {
-	return s.UsedToday
+// GetUsedMonth returns the value of UsedMonth.
+func (s *AiGetAiProfilesOKItemsItem) GetUsedMonth() int {
+	return s.UsedMonth
 }
 
 // SetAPIStyle sets the value of APIStyle.
@@ -3500,11 +3527,6 @@ func (s *AiGetAiProfilesOKItemsItem) SetAPIStyle(val AiGetAiProfilesOKItemsItemA
 // SetBaseURL sets the value of BaseURL.
 func (s *AiGetAiProfilesOKItemsItem) SetBaseURL(val string) {
 	s.BaseURL = val
-}
-
-// SetDailyCap sets the value of DailyCap.
-func (s *AiGetAiProfilesOKItemsItem) SetDailyCap(val int) {
-	s.DailyCap = val
 }
 
 // SetID sets the value of ID.
@@ -3537,6 +3559,11 @@ func (s *AiGetAiProfilesOKItemsItem) SetModel(val string) {
 	s.Model = val
 }
 
+// SetMonthlyBudget sets the value of MonthlyBudget.
+func (s *AiGetAiProfilesOKItemsItem) SetMonthlyBudget(val int) {
+	s.MonthlyBudget = val
+}
+
 // SetName sets the value of Name.
 func (s *AiGetAiProfilesOKItemsItem) SetName(val string) {
 	s.Name = val
@@ -3547,9 +3574,9 @@ func (s *AiGetAiProfilesOKItemsItem) SetUsable(val bool) {
 	s.Usable = val
 }
 
-// SetUsedToday sets the value of UsedToday.
-func (s *AiGetAiProfilesOKItemsItem) SetUsedToday(val int) {
-	s.UsedToday = val
+// SetUsedMonth sets the value of UsedMonth.
+func (s *AiGetAiProfilesOKItemsItem) SetUsedMonth(val int) {
+	s.UsedMonth = val
 }
 
 // Openai = Chat Completions, anthropic = Messages, gemini = generateContent.
@@ -4294,21 +4321,17 @@ func (s *AiGetAiSkillsOKItemsItemJobsItem) UnmarshalText(data []byte) error {
 
 type AiGetAiUsageOK struct {
 	BySkill    []AiGetAiUsageOKBySkillItem    `json:"by_skill"`
-	DailyCap   float64                        `json:"daily_cap"`
 	Downgrades []AiGetAiUsageOKDowngradesItem `json:"downgrades"`
-	Month      AiGetAiUsageOKMonth            `json:"month"`
-	Tier       AiGetAiUsageOKTier             `json:"tier"`
-	Today      AiGetAiUsageOKToday            `json:"today"`
+	// This calendar month in the box time zone: what the budget counts.
+	Month         AiGetAiUsageOKMonth `json:"month"`
+	MonthlyBudget float64             `json:"monthly_budget"`
+	Tier          AiGetAiUsageOKTier  `json:"tier"`
+	Today         AiGetAiUsageOKToday `json:"today"`
 }
 
 // GetBySkill returns the value of BySkill.
 func (s *AiGetAiUsageOK) GetBySkill() []AiGetAiUsageOKBySkillItem {
 	return s.BySkill
-}
-
-// GetDailyCap returns the value of DailyCap.
-func (s *AiGetAiUsageOK) GetDailyCap() float64 {
-	return s.DailyCap
 }
 
 // GetDowngrades returns the value of Downgrades.
@@ -4319,6 +4342,11 @@ func (s *AiGetAiUsageOK) GetDowngrades() []AiGetAiUsageOKDowngradesItem {
 // GetMonth returns the value of Month.
 func (s *AiGetAiUsageOK) GetMonth() AiGetAiUsageOKMonth {
 	return s.Month
+}
+
+// GetMonthlyBudget returns the value of MonthlyBudget.
+func (s *AiGetAiUsageOK) GetMonthlyBudget() float64 {
+	return s.MonthlyBudget
 }
 
 // GetTier returns the value of Tier.
@@ -4336,11 +4364,6 @@ func (s *AiGetAiUsageOK) SetBySkill(val []AiGetAiUsageOKBySkillItem) {
 	s.BySkill = val
 }
 
-// SetDailyCap sets the value of DailyCap.
-func (s *AiGetAiUsageOK) SetDailyCap(val float64) {
-	s.DailyCap = val
-}
-
 // SetDowngrades sets the value of Downgrades.
 func (s *AiGetAiUsageOK) SetDowngrades(val []AiGetAiUsageOKDowngradesItem) {
 	s.Downgrades = val
@@ -4349,6 +4372,11 @@ func (s *AiGetAiUsageOK) SetDowngrades(val []AiGetAiUsageOKDowngradesItem) {
 // SetMonth sets the value of Month.
 func (s *AiGetAiUsageOK) SetMonth(val AiGetAiUsageOKMonth) {
 	s.Month = val
+}
+
+// SetMonthlyBudget sets the value of MonthlyBudget.
+func (s *AiGetAiUsageOK) SetMonthlyBudget(val float64) {
+	s.MonthlyBudget = val
 }
 
 // SetTier sets the value of Tier.
@@ -4551,6 +4579,7 @@ func (s *AiGetAiUsageOKDowngradesItemTo) UnmarshalText(data []byte) error {
 	}
 }
 
+// This calendar month in the box time zone: what the budget counts.
 type AiGetAiUsageOKMonth struct {
 	Input  float64 `json:"input"`
 	Output float64 `json:"output"`
@@ -7994,13 +8023,254 @@ func (s *AiPostAiMemorySuggestionsIDAcceptOKSource) UnmarshalText(data []byte) e
 // AiPostAiMemorySuggestionsIDRejectNoContent is response for AiPostAiMemorySuggestionsIDReject operation.
 type AiPostAiMemorySuggestionsIDRejectNoContent struct{}
 
+type AiPostAiProfilesModelsOK struct {
+	// Model ids the provider lists, clean, sorted, at most 300; the box asked the provider and kept only
+	// ids.
+	Models []string `json:"models"`
+}
+
+// GetModels returns the value of Models.
+func (s *AiPostAiProfilesModelsOK) GetModels() []string {
+	return s.Models
+}
+
+// SetModels sets the value of Models.
+func (s *AiPostAiProfilesModelsOK) SetModels(val []string) {
+	s.Models = val
+}
+
+type AiPostAiProfilesModelsReq struct {
+	APIKey OptString `json:"api_key"`
+	// Openai = Chat Completions, anthropic = Messages, gemini = generateContent.
+	APIStyle AiPostAiProfilesModelsReqAPIStyle `json:"api_style"`
+	BaseURL  string                            `json:"base_url"`
+	// Present when editing or testing a saved profile: leave the key blank to keep the old key, only while
+	// the provider type and the server address (scheme, host and port) stay the same; another address
+	// needs the key entered again.
+	ID   OptString                     `json:"id"`
+	Kind AiPostAiProfilesModelsReqKind `json:"kind"`
+	// Internal = runs inside the company network, data never leaves it; cloud = cloud provider.
+	Location AiPostAiProfilesModelsReqLocation `json:"location"`
+}
+
+// GetAPIKey returns the value of APIKey.
+func (s *AiPostAiProfilesModelsReq) GetAPIKey() OptString {
+	return s.APIKey
+}
+
+// GetAPIStyle returns the value of APIStyle.
+func (s *AiPostAiProfilesModelsReq) GetAPIStyle() AiPostAiProfilesModelsReqAPIStyle {
+	return s.APIStyle
+}
+
+// GetBaseURL returns the value of BaseURL.
+func (s *AiPostAiProfilesModelsReq) GetBaseURL() string {
+	return s.BaseURL
+}
+
+// GetID returns the value of ID.
+func (s *AiPostAiProfilesModelsReq) GetID() OptString {
+	return s.ID
+}
+
+// GetKind returns the value of Kind.
+func (s *AiPostAiProfilesModelsReq) GetKind() AiPostAiProfilesModelsReqKind {
+	return s.Kind
+}
+
+// GetLocation returns the value of Location.
+func (s *AiPostAiProfilesModelsReq) GetLocation() AiPostAiProfilesModelsReqLocation {
+	return s.Location
+}
+
+// SetAPIKey sets the value of APIKey.
+func (s *AiPostAiProfilesModelsReq) SetAPIKey(val OptString) {
+	s.APIKey = val
+}
+
+// SetAPIStyle sets the value of APIStyle.
+func (s *AiPostAiProfilesModelsReq) SetAPIStyle(val AiPostAiProfilesModelsReqAPIStyle) {
+	s.APIStyle = val
+}
+
+// SetBaseURL sets the value of BaseURL.
+func (s *AiPostAiProfilesModelsReq) SetBaseURL(val string) {
+	s.BaseURL = val
+}
+
+// SetID sets the value of ID.
+func (s *AiPostAiProfilesModelsReq) SetID(val OptString) {
+	s.ID = val
+}
+
+// SetKind sets the value of Kind.
+func (s *AiPostAiProfilesModelsReq) SetKind(val AiPostAiProfilesModelsReqKind) {
+	s.Kind = val
+}
+
+// SetLocation sets the value of Location.
+func (s *AiPostAiProfilesModelsReq) SetLocation(val AiPostAiProfilesModelsReqLocation) {
+	s.Location = val
+}
+
+// Openai = Chat Completions, anthropic = Messages, gemini = generateContent.
+type AiPostAiProfilesModelsReqAPIStyle string
+
+const (
+	AiPostAiProfilesModelsReqAPIStyleOpenai    AiPostAiProfilesModelsReqAPIStyle = "openai"
+	AiPostAiProfilesModelsReqAPIStyleAnthropic AiPostAiProfilesModelsReqAPIStyle = "anthropic"
+	AiPostAiProfilesModelsReqAPIStyleGemini    AiPostAiProfilesModelsReqAPIStyle = "gemini"
+)
+
+// AllValues returns all AiPostAiProfilesModelsReqAPIStyle values.
+func (AiPostAiProfilesModelsReqAPIStyle) AllValues() []AiPostAiProfilesModelsReqAPIStyle {
+	return []AiPostAiProfilesModelsReqAPIStyle{
+		AiPostAiProfilesModelsReqAPIStyleOpenai,
+		AiPostAiProfilesModelsReqAPIStyleAnthropic,
+		AiPostAiProfilesModelsReqAPIStyleGemini,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s AiPostAiProfilesModelsReqAPIStyle) MarshalText() ([]byte, error) {
+	switch s {
+	case AiPostAiProfilesModelsReqAPIStyleOpenai:
+		return []byte(s), nil
+	case AiPostAiProfilesModelsReqAPIStyleAnthropic:
+		return []byte(s), nil
+	case AiPostAiProfilesModelsReqAPIStyleGemini:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *AiPostAiProfilesModelsReqAPIStyle) UnmarshalText(data []byte) error {
+	switch AiPostAiProfilesModelsReqAPIStyle(data) {
+	case AiPostAiProfilesModelsReqAPIStyleOpenai:
+		*s = AiPostAiProfilesModelsReqAPIStyleOpenai
+		return nil
+	case AiPostAiProfilesModelsReqAPIStyleAnthropic:
+		*s = AiPostAiProfilesModelsReqAPIStyleAnthropic
+		return nil
+	case AiPostAiProfilesModelsReqAPIStyleGemini:
+		*s = AiPostAiProfilesModelsReqAPIStyleGemini
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type AiPostAiProfilesModelsReqKind string
+
+const (
+	AiPostAiProfilesModelsReqKindAnthropic        AiPostAiProfilesModelsReqKind = "anthropic"
+	AiPostAiProfilesModelsReqKindOpenai           AiPostAiProfilesModelsReqKind = "openai"
+	AiPostAiProfilesModelsReqKindGemini           AiPostAiProfilesModelsReqKind = "gemini"
+	AiPostAiProfilesModelsReqKindOpenaiCompatible AiPostAiProfilesModelsReqKind = "openai-compatible"
+	AiPostAiProfilesModelsReqKindCustom           AiPostAiProfilesModelsReqKind = "custom"
+)
+
+// AllValues returns all AiPostAiProfilesModelsReqKind values.
+func (AiPostAiProfilesModelsReqKind) AllValues() []AiPostAiProfilesModelsReqKind {
+	return []AiPostAiProfilesModelsReqKind{
+		AiPostAiProfilesModelsReqKindAnthropic,
+		AiPostAiProfilesModelsReqKindOpenai,
+		AiPostAiProfilesModelsReqKindGemini,
+		AiPostAiProfilesModelsReqKindOpenaiCompatible,
+		AiPostAiProfilesModelsReqKindCustom,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s AiPostAiProfilesModelsReqKind) MarshalText() ([]byte, error) {
+	switch s {
+	case AiPostAiProfilesModelsReqKindAnthropic:
+		return []byte(s), nil
+	case AiPostAiProfilesModelsReqKindOpenai:
+		return []byte(s), nil
+	case AiPostAiProfilesModelsReqKindGemini:
+		return []byte(s), nil
+	case AiPostAiProfilesModelsReqKindOpenaiCompatible:
+		return []byte(s), nil
+	case AiPostAiProfilesModelsReqKindCustom:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *AiPostAiProfilesModelsReqKind) UnmarshalText(data []byte) error {
+	switch AiPostAiProfilesModelsReqKind(data) {
+	case AiPostAiProfilesModelsReqKindAnthropic:
+		*s = AiPostAiProfilesModelsReqKindAnthropic
+		return nil
+	case AiPostAiProfilesModelsReqKindOpenai:
+		*s = AiPostAiProfilesModelsReqKindOpenai
+		return nil
+	case AiPostAiProfilesModelsReqKindGemini:
+		*s = AiPostAiProfilesModelsReqKindGemini
+		return nil
+	case AiPostAiProfilesModelsReqKindOpenaiCompatible:
+		*s = AiPostAiProfilesModelsReqKindOpenaiCompatible
+		return nil
+	case AiPostAiProfilesModelsReqKindCustom:
+		*s = AiPostAiProfilesModelsReqKindCustom
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Internal = runs inside the company network, data never leaves it; cloud = cloud provider.
+type AiPostAiProfilesModelsReqLocation string
+
+const (
+	AiPostAiProfilesModelsReqLocationInternal AiPostAiProfilesModelsReqLocation = "internal"
+	AiPostAiProfilesModelsReqLocationCloud    AiPostAiProfilesModelsReqLocation = "cloud"
+)
+
+// AllValues returns all AiPostAiProfilesModelsReqLocation values.
+func (AiPostAiProfilesModelsReqLocation) AllValues() []AiPostAiProfilesModelsReqLocation {
+	return []AiPostAiProfilesModelsReqLocation{
+		AiPostAiProfilesModelsReqLocationInternal,
+		AiPostAiProfilesModelsReqLocationCloud,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s AiPostAiProfilesModelsReqLocation) MarshalText() ([]byte, error) {
+	switch s {
+	case AiPostAiProfilesModelsReqLocationInternal:
+		return []byte(s), nil
+	case AiPostAiProfilesModelsReqLocationCloud:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *AiPostAiProfilesModelsReqLocation) UnmarshalText(data []byte) error {
+	switch AiPostAiProfilesModelsReqLocation(data) {
+	case AiPostAiProfilesModelsReqLocationInternal:
+		*s = AiPostAiProfilesModelsReqLocationInternal
+		return nil
+	case AiPostAiProfilesModelsReqLocationCloud:
+		*s = AiPostAiProfilesModelsReqLocationCloud
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type AiPostAiProfilesOK struct {
 	// Openai = Chat Completions, anthropic = Messages, gemini = generateContent.
 	APIStyle AiPostAiProfilesOKAPIStyle `json:"api_style"`
 	BaseURL  string                     `json:"base_url"`
-	// Daily token cap for this profile alone; when reached, jobs switch to the fallback profile.
-	DailyCap int    `json:"daily_cap"`
-	ID       string `json:"id"`
+	ID       string                     `json:"id"`
 	// Last 4 characters of the key; the full key is never returned (SYS-4). null = no key yet (valid for
 	// internal profiles).
 	KeyLast4 NilString              `json:"key_last4"`
@@ -8010,11 +8280,15 @@ type AiPostAiProfilesOK struct {
 	// the settings saved (within 15 minutes) counts (D-445); the request cannot carry one.
 	LastTest NilAiPostAiProfilesOKLastTest `json:"last_test"`
 	// Internal = runs inside the company network, data never leaves it; cloud = cloud provider.
-	Location  AiPostAiProfilesOKLocation `json:"location"`
-	Model     string                     `json:"model"`
-	Name      string                     `json:"name"`
-	Usable    bool                       `json:"usable"`
-	UsedToday int                        `json:"used_today"`
+	Location AiPostAiProfilesOKLocation `json:"location"`
+	Model    string                     `json:"model"`
+	// Monthly token budget of this profile alone (D-531); when used up, its jobs switch to the fallback
+	// profile or stop with 429 budget_reached.
+	MonthlyBudget int    `json:"monthly_budget"`
+	Name          string `json:"name"`
+	Usable        bool   `json:"usable"`
+	// Tokens this profile used this calendar month (box time zone).
+	UsedMonth int `json:"used_month"`
 }
 
 // GetAPIStyle returns the value of APIStyle.
@@ -8025,11 +8299,6 @@ func (s *AiPostAiProfilesOK) GetAPIStyle() AiPostAiProfilesOKAPIStyle {
 // GetBaseURL returns the value of BaseURL.
 func (s *AiPostAiProfilesOK) GetBaseURL() string {
 	return s.BaseURL
-}
-
-// GetDailyCap returns the value of DailyCap.
-func (s *AiPostAiProfilesOK) GetDailyCap() int {
-	return s.DailyCap
 }
 
 // GetID returns the value of ID.
@@ -8062,6 +8331,11 @@ func (s *AiPostAiProfilesOK) GetModel() string {
 	return s.Model
 }
 
+// GetMonthlyBudget returns the value of MonthlyBudget.
+func (s *AiPostAiProfilesOK) GetMonthlyBudget() int {
+	return s.MonthlyBudget
+}
+
 // GetName returns the value of Name.
 func (s *AiPostAiProfilesOK) GetName() string {
 	return s.Name
@@ -8072,9 +8346,9 @@ func (s *AiPostAiProfilesOK) GetUsable() bool {
 	return s.Usable
 }
 
-// GetUsedToday returns the value of UsedToday.
-func (s *AiPostAiProfilesOK) GetUsedToday() int {
-	return s.UsedToday
+// GetUsedMonth returns the value of UsedMonth.
+func (s *AiPostAiProfilesOK) GetUsedMonth() int {
+	return s.UsedMonth
 }
 
 // SetAPIStyle sets the value of APIStyle.
@@ -8085,11 +8359,6 @@ func (s *AiPostAiProfilesOK) SetAPIStyle(val AiPostAiProfilesOKAPIStyle) {
 // SetBaseURL sets the value of BaseURL.
 func (s *AiPostAiProfilesOK) SetBaseURL(val string) {
 	s.BaseURL = val
-}
-
-// SetDailyCap sets the value of DailyCap.
-func (s *AiPostAiProfilesOK) SetDailyCap(val int) {
-	s.DailyCap = val
 }
 
 // SetID sets the value of ID.
@@ -8122,6 +8391,11 @@ func (s *AiPostAiProfilesOK) SetModel(val string) {
 	s.Model = val
 }
 
+// SetMonthlyBudget sets the value of MonthlyBudget.
+func (s *AiPostAiProfilesOK) SetMonthlyBudget(val int) {
+	s.MonthlyBudget = val
+}
+
 // SetName sets the value of Name.
 func (s *AiPostAiProfilesOK) SetName(val string) {
 	s.Name = val
@@ -8132,9 +8406,9 @@ func (s *AiPostAiProfilesOK) SetUsable(val bool) {
 	s.Usable = val
 }
 
-// SetUsedToday sets the value of UsedToday.
-func (s *AiPostAiProfilesOK) SetUsedToday(val int) {
-	s.UsedToday = val
+// SetUsedMonth sets the value of UsedMonth.
+func (s *AiPostAiProfilesOK) SetUsedMonth(val int) {
+	s.UsedMonth = val
 }
 
 // Openai = Chat Completions, anthropic = Messages, gemini = generateContent.
@@ -8333,16 +8607,16 @@ type AiPostAiProfilesReq struct {
 	// Openai = Chat Completions, anthropic = Messages, gemini = generateContent.
 	APIStyle AiPostAiProfilesReqAPIStyle `json:"api_style"`
 	BaseURL  string                      `json:"base_url"`
-	DailyCap int                         `json:"daily_cap"`
 	// Present when editing or testing a saved profile: leave the key blank to keep the old key, only while
 	// the provider type and the server address (scheme, host and port) stay the same; another address
 	// needs the key entered again.
 	ID   OptString               `json:"id"`
 	Kind AiPostAiProfilesReqKind `json:"kind"`
 	// Internal = runs inside the company network, data never leaves it; cloud = cloud provider.
-	Location AiPostAiProfilesReqLocation `json:"location"`
-	Model    string                      `json:"model"`
-	Name     string                      `json:"name"`
+	Location      AiPostAiProfilesReqLocation `json:"location"`
+	Model         string                      `json:"model"`
+	MonthlyBudget int                         `json:"monthly_budget"`
+	Name          string                      `json:"name"`
 }
 
 // GetAPIKey returns the value of APIKey.
@@ -8358,11 +8632,6 @@ func (s *AiPostAiProfilesReq) GetAPIStyle() AiPostAiProfilesReqAPIStyle {
 // GetBaseURL returns the value of BaseURL.
 func (s *AiPostAiProfilesReq) GetBaseURL() string {
 	return s.BaseURL
-}
-
-// GetDailyCap returns the value of DailyCap.
-func (s *AiPostAiProfilesReq) GetDailyCap() int {
-	return s.DailyCap
 }
 
 // GetID returns the value of ID.
@@ -8385,6 +8654,11 @@ func (s *AiPostAiProfilesReq) GetModel() string {
 	return s.Model
 }
 
+// GetMonthlyBudget returns the value of MonthlyBudget.
+func (s *AiPostAiProfilesReq) GetMonthlyBudget() int {
+	return s.MonthlyBudget
+}
+
 // GetName returns the value of Name.
 func (s *AiPostAiProfilesReq) GetName() string {
 	return s.Name
@@ -8405,11 +8679,6 @@ func (s *AiPostAiProfilesReq) SetBaseURL(val string) {
 	s.BaseURL = val
 }
 
-// SetDailyCap sets the value of DailyCap.
-func (s *AiPostAiProfilesReq) SetDailyCap(val int) {
-	s.DailyCap = val
-}
-
 // SetID sets the value of ID.
 func (s *AiPostAiProfilesReq) SetID(val OptString) {
 	s.ID = val
@@ -8428,6 +8697,11 @@ func (s *AiPostAiProfilesReq) SetLocation(val AiPostAiProfilesReqLocation) {
 // SetModel sets the value of Model.
 func (s *AiPostAiProfilesReq) SetModel(val string) {
 	s.Model = val
+}
+
+// SetMonthlyBudget sets the value of MonthlyBudget.
+func (s *AiPostAiProfilesReq) SetMonthlyBudget(val int) {
+	s.MonthlyBudget = val
 }
 
 // SetName sets the value of Name.
@@ -8676,16 +8950,16 @@ type AiPostAiProfilesTestReq struct {
 	// Openai = Chat Completions, anthropic = Messages, gemini = generateContent.
 	APIStyle AiPostAiProfilesTestReqAPIStyle `json:"api_style"`
 	BaseURL  string                          `json:"base_url"`
-	DailyCap OptInt                          `json:"daily_cap"`
 	// Present when editing or testing a saved profile: leave the key blank to keep the old key, only while
 	// the provider type and the server address (scheme, host and port) stay the same; another address
 	// needs the key entered again.
 	ID   OptString                   `json:"id"`
 	Kind AiPostAiProfilesTestReqKind `json:"kind"`
 	// Internal = runs inside the company network, data never leaves it; cloud = cloud provider.
-	Location AiPostAiProfilesTestReqLocation `json:"location"`
-	Model    string                          `json:"model"`
-	Name     OptString                       `json:"name"`
+	Location      AiPostAiProfilesTestReqLocation `json:"location"`
+	Model         string                          `json:"model"`
+	MonthlyBudget OptInt                          `json:"monthly_budget"`
+	Name          OptString                       `json:"name"`
 }
 
 // GetAPIKey returns the value of APIKey.
@@ -8701,11 +8975,6 @@ func (s *AiPostAiProfilesTestReq) GetAPIStyle() AiPostAiProfilesTestReqAPIStyle 
 // GetBaseURL returns the value of BaseURL.
 func (s *AiPostAiProfilesTestReq) GetBaseURL() string {
 	return s.BaseURL
-}
-
-// GetDailyCap returns the value of DailyCap.
-func (s *AiPostAiProfilesTestReq) GetDailyCap() OptInt {
-	return s.DailyCap
 }
 
 // GetID returns the value of ID.
@@ -8728,6 +8997,11 @@ func (s *AiPostAiProfilesTestReq) GetModel() string {
 	return s.Model
 }
 
+// GetMonthlyBudget returns the value of MonthlyBudget.
+func (s *AiPostAiProfilesTestReq) GetMonthlyBudget() OptInt {
+	return s.MonthlyBudget
+}
+
 // GetName returns the value of Name.
 func (s *AiPostAiProfilesTestReq) GetName() OptString {
 	return s.Name
@@ -8748,11 +9022,6 @@ func (s *AiPostAiProfilesTestReq) SetBaseURL(val string) {
 	s.BaseURL = val
 }
 
-// SetDailyCap sets the value of DailyCap.
-func (s *AiPostAiProfilesTestReq) SetDailyCap(val OptInt) {
-	s.DailyCap = val
-}
-
 // SetID sets the value of ID.
 func (s *AiPostAiProfilesTestReq) SetID(val OptString) {
 	s.ID = val
@@ -8771,6 +9040,11 @@ func (s *AiPostAiProfilesTestReq) SetLocation(val AiPostAiProfilesTestReqLocatio
 // SetModel sets the value of Model.
 func (s *AiPostAiProfilesTestReq) SetModel(val string) {
 	s.Model = val
+}
+
+// SetMonthlyBudget sets the value of MonthlyBudget.
+func (s *AiPostAiProfilesTestReq) SetMonthlyBudget(val OptInt) {
+	s.MonthlyBudget = val
 }
 
 // SetName sets the value of Name.
@@ -9366,12 +9640,17 @@ func (s *AiPutAiAssignmentsReqJobsItem) SetPrimary(val NilString) {
 type AiPutAiConfigOK struct {
 	// At least one usable profile exists.
 	Configured bool `json:"configured"`
-	// Shared daily token cap, summed across all profiles.
-	DailyCap int `json:"daily_cap"`
 	// Which jobs have a usable, permitted profile.
 	JobsReady AiPutAiConfigOKJobsReady `json:"jobs_ready"`
-	RedactPii bool                     `json:"redact_pii"`
-	Tier      AiPutAiConfigOKTier      `json:"tier"`
+	// Tokens used this calendar month by all profiles.
+	MonthUsed int `json:"month_used"`
+	// Shared monthly token budget, summed across all profiles (D-531): warning at 80 %, every AI job stops
+	// at 100 % until it renews or is raised.
+	MonthlyBudget int  `json:"monthly_budget"`
+	RedactPii     bool `json:"redact_pii"`
+	// Local date (YYYY-MM-DD) the monthly budgets start again.
+	RenewsOn string              `json:"renews_on"`
+	Tier     AiPutAiConfigOKTier `json:"tier"`
 	// Estimated tokens/day per tier (no money, D-6). null = depends on alert count.
 	TierEstimates AiPutAiConfigOKTierEstimates `json:"tier_estimates"`
 }
@@ -9381,19 +9660,29 @@ func (s *AiPutAiConfigOK) GetConfigured() bool {
 	return s.Configured
 }
 
-// GetDailyCap returns the value of DailyCap.
-func (s *AiPutAiConfigOK) GetDailyCap() int {
-	return s.DailyCap
-}
-
 // GetJobsReady returns the value of JobsReady.
 func (s *AiPutAiConfigOK) GetJobsReady() AiPutAiConfigOKJobsReady {
 	return s.JobsReady
 }
 
+// GetMonthUsed returns the value of MonthUsed.
+func (s *AiPutAiConfigOK) GetMonthUsed() int {
+	return s.MonthUsed
+}
+
+// GetMonthlyBudget returns the value of MonthlyBudget.
+func (s *AiPutAiConfigOK) GetMonthlyBudget() int {
+	return s.MonthlyBudget
+}
+
 // GetRedactPii returns the value of RedactPii.
 func (s *AiPutAiConfigOK) GetRedactPii() bool {
 	return s.RedactPii
+}
+
+// GetRenewsOn returns the value of RenewsOn.
+func (s *AiPutAiConfigOK) GetRenewsOn() string {
+	return s.RenewsOn
 }
 
 // GetTier returns the value of Tier.
@@ -9411,19 +9700,29 @@ func (s *AiPutAiConfigOK) SetConfigured(val bool) {
 	s.Configured = val
 }
 
-// SetDailyCap sets the value of DailyCap.
-func (s *AiPutAiConfigOK) SetDailyCap(val int) {
-	s.DailyCap = val
-}
-
 // SetJobsReady sets the value of JobsReady.
 func (s *AiPutAiConfigOK) SetJobsReady(val AiPutAiConfigOKJobsReady) {
 	s.JobsReady = val
 }
 
+// SetMonthUsed sets the value of MonthUsed.
+func (s *AiPutAiConfigOK) SetMonthUsed(val int) {
+	s.MonthUsed = val
+}
+
+// SetMonthlyBudget sets the value of MonthlyBudget.
+func (s *AiPutAiConfigOK) SetMonthlyBudget(val int) {
+	s.MonthlyBudget = val
+}
+
 // SetRedactPii sets the value of RedactPii.
 func (s *AiPutAiConfigOK) SetRedactPii(val bool) {
 	s.RedactPii = val
+}
+
+// SetRenewsOn sets the value of RenewsOn.
+func (s *AiPutAiConfigOK) SetRenewsOn(val string) {
+	s.RenewsOn = val
 }
 
 // SetTier sets the value of Tier.
@@ -9509,14 +9808,14 @@ func (s *AiPutAiConfigOKTierEstimates) init() AiPutAiConfigOKTierEstimates {
 }
 
 type AiPutAiConfigReq struct {
-	DailyCap  int                  `json:"daily_cap"`
-	RedactPii bool                 `json:"redact_pii"`
-	Tier      AiPutAiConfigReqTier `json:"tier"`
+	MonthlyBudget int                  `json:"monthly_budget"`
+	RedactPii     bool                 `json:"redact_pii"`
+	Tier          AiPutAiConfigReqTier `json:"tier"`
 }
 
-// GetDailyCap returns the value of DailyCap.
-func (s *AiPutAiConfigReq) GetDailyCap() int {
-	return s.DailyCap
+// GetMonthlyBudget returns the value of MonthlyBudget.
+func (s *AiPutAiConfigReq) GetMonthlyBudget() int {
+	return s.MonthlyBudget
 }
 
 // GetRedactPii returns the value of RedactPii.
@@ -9529,9 +9828,9 @@ func (s *AiPutAiConfigReq) GetTier() AiPutAiConfigReqTier {
 	return s.Tier
 }
 
-// SetDailyCap sets the value of DailyCap.
-func (s *AiPutAiConfigReq) SetDailyCap(val int) {
-	s.DailyCap = val
+// SetMonthlyBudget sets the value of MonthlyBudget.
+func (s *AiPutAiConfigReq) SetMonthlyBudget(val int) {
+	s.MonthlyBudget = val
 }
 
 // SetRedactPii sets the value of RedactPii.
@@ -11105,9 +11404,7 @@ type AiPutAiProfilesIDOK struct {
 	// Openai = Chat Completions, anthropic = Messages, gemini = generateContent.
 	APIStyle AiPutAiProfilesIDOKAPIStyle `json:"api_style"`
 	BaseURL  string                      `json:"base_url"`
-	// Daily token cap for this profile alone; when reached, jobs switch to the fallback profile.
-	DailyCap int    `json:"daily_cap"`
-	ID       string `json:"id"`
+	ID       string                      `json:"id"`
 	// Last 4 characters of the key; the full key is never returned (SYS-4). null = no key yet (valid for
 	// internal profiles).
 	KeyLast4 NilString               `json:"key_last4"`
@@ -11117,11 +11414,15 @@ type AiPutAiProfilesIDOK struct {
 	// the settings saved (within 15 minutes) counts (D-445); the request cannot carry one.
 	LastTest NilAiPutAiProfilesIDOKLastTest `json:"last_test"`
 	// Internal = runs inside the company network, data never leaves it; cloud = cloud provider.
-	Location  AiPutAiProfilesIDOKLocation `json:"location"`
-	Model     string                      `json:"model"`
-	Name      string                      `json:"name"`
-	Usable    bool                        `json:"usable"`
-	UsedToday int                         `json:"used_today"`
+	Location AiPutAiProfilesIDOKLocation `json:"location"`
+	Model    string                      `json:"model"`
+	// Monthly token budget of this profile alone (D-531); when used up, its jobs switch to the fallback
+	// profile or stop with 429 budget_reached.
+	MonthlyBudget int    `json:"monthly_budget"`
+	Name          string `json:"name"`
+	Usable        bool   `json:"usable"`
+	// Tokens this profile used this calendar month (box time zone).
+	UsedMonth int `json:"used_month"`
 }
 
 // GetAPIStyle returns the value of APIStyle.
@@ -11132,11 +11433,6 @@ func (s *AiPutAiProfilesIDOK) GetAPIStyle() AiPutAiProfilesIDOKAPIStyle {
 // GetBaseURL returns the value of BaseURL.
 func (s *AiPutAiProfilesIDOK) GetBaseURL() string {
 	return s.BaseURL
-}
-
-// GetDailyCap returns the value of DailyCap.
-func (s *AiPutAiProfilesIDOK) GetDailyCap() int {
-	return s.DailyCap
 }
 
 // GetID returns the value of ID.
@@ -11169,6 +11465,11 @@ func (s *AiPutAiProfilesIDOK) GetModel() string {
 	return s.Model
 }
 
+// GetMonthlyBudget returns the value of MonthlyBudget.
+func (s *AiPutAiProfilesIDOK) GetMonthlyBudget() int {
+	return s.MonthlyBudget
+}
+
 // GetName returns the value of Name.
 func (s *AiPutAiProfilesIDOK) GetName() string {
 	return s.Name
@@ -11179,9 +11480,9 @@ func (s *AiPutAiProfilesIDOK) GetUsable() bool {
 	return s.Usable
 }
 
-// GetUsedToday returns the value of UsedToday.
-func (s *AiPutAiProfilesIDOK) GetUsedToday() int {
-	return s.UsedToday
+// GetUsedMonth returns the value of UsedMonth.
+func (s *AiPutAiProfilesIDOK) GetUsedMonth() int {
+	return s.UsedMonth
 }
 
 // SetAPIStyle sets the value of APIStyle.
@@ -11192,11 +11493,6 @@ func (s *AiPutAiProfilesIDOK) SetAPIStyle(val AiPutAiProfilesIDOKAPIStyle) {
 // SetBaseURL sets the value of BaseURL.
 func (s *AiPutAiProfilesIDOK) SetBaseURL(val string) {
 	s.BaseURL = val
-}
-
-// SetDailyCap sets the value of DailyCap.
-func (s *AiPutAiProfilesIDOK) SetDailyCap(val int) {
-	s.DailyCap = val
 }
 
 // SetID sets the value of ID.
@@ -11229,6 +11525,11 @@ func (s *AiPutAiProfilesIDOK) SetModel(val string) {
 	s.Model = val
 }
 
+// SetMonthlyBudget sets the value of MonthlyBudget.
+func (s *AiPutAiProfilesIDOK) SetMonthlyBudget(val int) {
+	s.MonthlyBudget = val
+}
+
 // SetName sets the value of Name.
 func (s *AiPutAiProfilesIDOK) SetName(val string) {
 	s.Name = val
@@ -11239,9 +11540,9 @@ func (s *AiPutAiProfilesIDOK) SetUsable(val bool) {
 	s.Usable = val
 }
 
-// SetUsedToday sets the value of UsedToday.
-func (s *AiPutAiProfilesIDOK) SetUsedToday(val int) {
-	s.UsedToday = val
+// SetUsedMonth sets the value of UsedMonth.
+func (s *AiPutAiProfilesIDOK) SetUsedMonth(val int) {
+	s.UsedMonth = val
 }
 
 // Openai = Chat Completions, anthropic = Messages, gemini = generateContent.
@@ -11440,16 +11741,16 @@ type AiPutAiProfilesIDReq struct {
 	// Openai = Chat Completions, anthropic = Messages, gemini = generateContent.
 	APIStyle AiPutAiProfilesIDReqAPIStyle `json:"api_style"`
 	BaseURL  string                       `json:"base_url"`
-	DailyCap int                          `json:"daily_cap"`
 	// Present when editing or testing a saved profile: leave the key blank to keep the old key, only while
 	// the provider type and the server address (scheme, host and port) stay the same; another address
 	// needs the key entered again.
 	ID   OptString                `json:"id"`
 	Kind AiPutAiProfilesIDReqKind `json:"kind"`
 	// Internal = runs inside the company network, data never leaves it; cloud = cloud provider.
-	Location AiPutAiProfilesIDReqLocation `json:"location"`
-	Model    string                       `json:"model"`
-	Name     string                       `json:"name"`
+	Location      AiPutAiProfilesIDReqLocation `json:"location"`
+	Model         string                       `json:"model"`
+	MonthlyBudget int                          `json:"monthly_budget"`
+	Name          string                       `json:"name"`
 }
 
 // GetAPIKey returns the value of APIKey.
@@ -11465,11 +11766,6 @@ func (s *AiPutAiProfilesIDReq) GetAPIStyle() AiPutAiProfilesIDReqAPIStyle {
 // GetBaseURL returns the value of BaseURL.
 func (s *AiPutAiProfilesIDReq) GetBaseURL() string {
 	return s.BaseURL
-}
-
-// GetDailyCap returns the value of DailyCap.
-func (s *AiPutAiProfilesIDReq) GetDailyCap() int {
-	return s.DailyCap
 }
 
 // GetID returns the value of ID.
@@ -11492,6 +11788,11 @@ func (s *AiPutAiProfilesIDReq) GetModel() string {
 	return s.Model
 }
 
+// GetMonthlyBudget returns the value of MonthlyBudget.
+func (s *AiPutAiProfilesIDReq) GetMonthlyBudget() int {
+	return s.MonthlyBudget
+}
+
 // GetName returns the value of Name.
 func (s *AiPutAiProfilesIDReq) GetName() string {
 	return s.Name
@@ -11512,11 +11813,6 @@ func (s *AiPutAiProfilesIDReq) SetBaseURL(val string) {
 	s.BaseURL = val
 }
 
-// SetDailyCap sets the value of DailyCap.
-func (s *AiPutAiProfilesIDReq) SetDailyCap(val int) {
-	s.DailyCap = val
-}
-
 // SetID sets the value of ID.
 func (s *AiPutAiProfilesIDReq) SetID(val OptString) {
 	s.ID = val
@@ -11535,6 +11831,11 @@ func (s *AiPutAiProfilesIDReq) SetLocation(val AiPutAiProfilesIDReqLocation) {
 // SetModel sets the value of Model.
 func (s *AiPutAiProfilesIDReq) SetModel(val string) {
 	s.Model = val
+}
+
+// SetMonthlyBudget sets the value of MonthlyBudget.
+func (s *AiPutAiProfilesIDReq) SetMonthlyBudget(val int) {
+	s.MonthlyBudget = val
 }
 
 // SetName sets the value of Name.

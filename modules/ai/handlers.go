@@ -61,7 +61,7 @@ func (h *AIHandlers) AiPutAiConfig(ctx context.Context, req *oas.AiPutAiConfigRe
 	if err != nil {
 		return nil, err
 	}
-	v, err := h.svc.SetConfig(ctx, who, Settings{Tier: Tier(req.Tier), DailyCap: req.DailyCap, RedactPII: req.RedactPii})
+	v, err := h.svc.SetConfig(ctx, who, Settings{Tier: Tier(req.Tier), MonthlyBudget: req.MonthlyBudget, RedactPII: req.RedactPii})
 	if err != nil {
 		return nil, err
 	}
@@ -139,6 +139,25 @@ func (h *AIHandlers) AiPostAiProfilesTest(ctx context.Context, req *oas.AiPostAi
 		return nil, err
 	}
 	return convert[oas.AiPostAiProfilesTestOK](res)
+}
+
+// AiPostAiProfilesModels implements POST /ai/profiles/models (admin).
+func (h *AIHandlers) AiPostAiProfilesModels(ctx context.Context, req *oas.AiPostAiProfilesModelsReq) (*oas.AiPostAiProfilesModelsOK, error) {
+	who, err := actor(ctx)
+	if err != nil {
+		return nil, err
+	}
+	in, err := convert[ProfileInput](req)
+	if err != nil {
+		return nil, err
+	}
+	ids, err := h.svc.ListModels(ctx, who, *in)
+	if err != nil {
+		return nil, err
+	}
+	return convert[oas.AiPostAiProfilesModelsOK](struct {
+		Models []string `json:"models"`
+	}{ids})
 }
 
 // AiGetAiAssignments implements GET /ai/assignments (viewer).

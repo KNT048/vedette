@@ -105,11 +105,14 @@ func (t Tier) EstimatePerDay() (tokens int, ok bool) {
 	return 0, false
 }
 
-// Daily cap limits (INV-4, PRE-3).
+// Monthly budget limits in tokens (INV-4, PRE-3, D-531): the old daily range times 30, so a box that kept its daily cap keeps the
+// same allowance over a month (migration 0009).
 const (
-	MinDailyCap = 1_000
-	MaxDailyCap = 5_000_000
+	MinMonthlyBudget = 1_000
+	MaxMonthlyBudget = 150_000_000
+	// DefaultMonthlyBudget is the shared budget of a fresh box and the budget a new profile form starts with.
+	DefaultMonthlyBudget = 6_000_000
 )
 
-// ValidDailyCap reports whether n is allowed as a shared or per-profile daily token cap.
-func ValidDailyCap(n int) bool { return n >= MinDailyCap && n <= MaxDailyCap }
+// ValidMonthlyBudget reports whether n is allowed as the shared or a per-profile monthly token budget.
+func ValidMonthlyBudget(n int) bool { return n >= MinMonthlyBudget && n <= MaxMonthlyBudget }

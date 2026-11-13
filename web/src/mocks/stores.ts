@@ -77,9 +77,9 @@ export function audit(action: string, target: string, detail?: string) {
 }
 
 // AI BYOK (S-AI-1/4): cấu hình và đồng hồ token dùng chung — module ai sở hữu UI/endpoint; module khác đọc để biết "Hỏi AI của tôi" dùng được không.
-export interface AiConfig { configured: boolean; provider: 'anthropic' | 'openai' | 'gemini' | 'openai-compatible'; base_url: string; model: string; key_last4: string | null; tier: 'min' | 'med' | 'max'; daily_cap: number; redact_pii: boolean }
-export const aiConfigStore = collection<AiConfig>('ai_config', () => ({ configured: true, provider: 'anthropic', base_url: 'https://api.anthropic.com', model: 'claude-haiku-5-5', key_last4: '7Qk2', tier: 'med', daily_cap: 60000, redact_pii: true }),
-  () => ({ configured: false, provider: 'anthropic', base_url: 'https://api.anthropic.com', model: '', key_last4: null, tier: 'min', daily_cap: 10000, redact_pii: true }))
+export interface AiConfig { configured: boolean; provider: 'anthropic' | 'openai' | 'gemini' | 'openai-compatible'; base_url: string; model: string; key_last4: string | null; tier: 'min' | 'med' | 'max'; monthly_budget: number; redact_pii: boolean }
+export const aiConfigStore = collection<AiConfig>('ai_config', () => ({ configured: true, provider: 'anthropic', base_url: 'https://api.anthropic.com', model: 'claude-haiku-5-5', key_last4: '7Qk2', tier: 'med', monthly_budget: 1_800_000, redact_pii: true }),
+  () => ({ configured: false, provider: 'anthropic', base_url: 'https://api.anthropic.com', model: '', key_last4: null, tier: 'min', monthly_budget: 300_000, redact_pii: true }))
 export interface AiRun { id: string; ts: string; skill: string; model: string; tokens_in: number; tokens_out: number; status: 'ok' | 'schema_error' | 'capped' | 'failed'; target?: string; /** Tên hồ sơ AI đã trả lời (thêm sau, tuỳ chọn) */ profile?: string; /** true khi hồ sơ chính lỗi, quá trần hoặc không được phép nên chạy bằng hồ sơ dự phòng */ fallback?: boolean }
 export const aiRunsStore = collection<AiRun[]>('ai_runs', () => [], () => [])
 // ---- Nhiều hồ sơ AI + phân việc (owner 2026-11-06). Thêm vào cuối, các trường cũ của aiConfigStore vẫn dùng được:
@@ -102,14 +102,14 @@ export interface AiProfile {
   base_url: string; model: string; key_last4: string | null
   /** internal = chạy trong mạng công ty, dữ liệu không rời mạng; cloud = nhà cung cấp đám mây */
   location: 'internal' | 'cloud'
-  daily_cap: number
+  monthly_budget: number
 }
 export const aiProfileUsable = (p: AiProfile) => p.key_last4 !== null || p.location === 'internal'
-const P = (id: string, name: string, kind: AiProfile['kind'], api_style: AiProfile['api_style'], base_url: string, model: string, key_last4: string | null, location: AiProfile['location'], daily_cap: number): AiProfile => ({ id, name, kind, api_style, base_url, model, key_last4, location, daily_cap })
+const P = (id: string, name: string, kind: AiProfile['kind'], api_style: AiProfile['api_style'], base_url: string, model: string, key_last4: string | null, location: AiProfile['location'], monthly_budget: number): AiProfile => ({ id, name, kind, api_style, base_url, model, key_last4, location, monthly_budget })
 export const aiProfilesStore = collection<AiProfile[]>('ai_profiles', () => [
-  P('p-haiku', 'Claude Haiku', 'anthropic', 'anthropic', 'https://api.anthropic.com', 'claude-haiku-5-5', '7Qk2', 'cloud', 60000),
-  P('p-sonnet', 'Claude Sonnet', 'anthropic', 'anthropic', 'https://api.anthropic.com', 'claude-sonnet-5-5', '7Qk2', 'cloud', 30000),
-  P('p-ollama', 'Company Ollama server', 'openai-compatible', 'openai', 'http://192.168.10.40:11434/v1', 'qwen3:8b', null, 'internal', 300000),
+  P('p-haiku', 'Claude Haiku', 'anthropic', 'anthropic', 'https://api.anthropic.com', 'claude-haiku-5-5', '7Qk2', 'cloud', 1_800_000),
+  P('p-sonnet', 'Claude Sonnet', 'anthropic', 'anthropic', 'https://api.anthropic.com', 'claude-sonnet-5-5', '7Qk2', 'cloud', 900_000),
+  P('p-ollama', 'Company Ollama server', 'openai-compatible', 'openai', 'http://192.168.10.40:11434/v1', 'qwen3:8b', null, 'internal', 9_000_000),
 ], () => [])
 export type AiAssign = Record<AiJob, { primary: string | null; fallback: string | null }>
 const noAssign = (): AiAssign => Object.fromEntries(AI_JOBS.map((j) => [j.id, { primary: null, fallback: null }])) as AiAssign

@@ -181081,6 +181081,10 @@ func (s *NotifyGetNotifyIncidentsIDOKIncident) encodeFields(e *jx.Encoder) {
 		e.ArrEnd()
 	}
 	{
+		e.FieldStart("first_run_summary")
+		e.Bool(s.FirstRunSummary)
+	}
+	{
 		e.FieldStart("first_seen")
 		json.EncodeDateTime(e, s.FirstSeen)
 	}
@@ -181117,6 +181121,10 @@ func (s *NotifyGetNotifyIncidentsIDOKIncident) encodeFields(e *jx.Encoder) {
 		s.Note.Encode(e)
 	}
 	{
+		e.FieldStart("resolved_reason")
+		s.ResolvedReason.Encode(e)
+	}
+	{
 		e.FieldStart("sends")
 		e.ArrStart()
 		for _, elem := range s.Sends {
@@ -181142,25 +181150,27 @@ func (s *NotifyGetNotifyIncidentsIDOKIncident) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfNotifyGetNotifyIncidentsIDOKIncident = [18]string{
+var jsonFieldsNameOfNotifyGetNotifyIncidentsIDOKIncident = [20]string{
 	0:  "action",
 	1:  "attempt",
 	2:  "count",
 	3:  "devices",
-	4:  "first_seen",
-	5:  "handled_at",
-	6:  "handled_by",
-	7:  "id",
-	8:  "kind",
-	9:  "last_seen",
-	10: "link",
-	11: "not_sent",
-	12: "note",
-	13: "sends",
-	14: "severity",
-	15: "status",
-	16: "title",
-	17: "what",
+	4:  "first_run_summary",
+	5:  "first_seen",
+	6:  "handled_at",
+	7:  "handled_by",
+	8:  "id",
+	9:  "kind",
+	10: "last_seen",
+	11: "link",
+	12: "not_sent",
+	13: "note",
+	14: "resolved_reason",
+	15: "sends",
+	16: "severity",
+	17: "status",
+	18: "title",
+	19: "what",
 }
 
 // Decode decodes NotifyGetNotifyIncidentsIDOKIncident from json.
@@ -181226,8 +181236,20 @@ func (s *NotifyGetNotifyIncidentsIDOKIncident) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"devices\"")
 			}
-		case "first_seen":
+		case "first_run_summary":
 			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Bool()
+				s.FirstRunSummary = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"first_run_summary\"")
+			}
+		case "first_seen":
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.FirstSeen = v
@@ -181239,7 +181261,7 @@ func (s *NotifyGetNotifyIncidentsIDOKIncident) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"first_seen\"")
 			}
 		case "handled_at":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				if err := s.HandledAt.Decode(d, json.DecodeDateTime); err != nil {
 					return err
@@ -181249,7 +181271,7 @@ func (s *NotifyGetNotifyIncidentsIDOKIncident) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"handled_at\"")
 			}
 		case "handled_by":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				if err := s.HandledBy.Decode(d); err != nil {
 					return err
@@ -181259,7 +181281,7 @@ func (s *NotifyGetNotifyIncidentsIDOKIncident) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"handled_by\"")
 			}
 		case "id":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				v, err := d.Str()
 				s.ID = string(v)
@@ -181271,7 +181293,7 @@ func (s *NotifyGetNotifyIncidentsIDOKIncident) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"id\"")
 			}
 		case "kind":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				if err := s.Kind.Decode(d); err != nil {
 					return err
@@ -181281,7 +181303,7 @@ func (s *NotifyGetNotifyIncidentsIDOKIncident) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"kind\"")
 			}
 		case "last_seen":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.LastSeen = v
@@ -181293,7 +181315,7 @@ func (s *NotifyGetNotifyIncidentsIDOKIncident) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"last_seen\"")
 			}
 		case "link":
-			requiredBitSet[1] |= 1 << 2
+			requiredBitSet[1] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.Link = string(v)
@@ -181305,7 +181327,7 @@ func (s *NotifyGetNotifyIncidentsIDOKIncident) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"link\"")
 			}
 		case "not_sent":
-			requiredBitSet[1] |= 1 << 3
+			requiredBitSet[1] |= 1 << 4
 			if err := func() error {
 				if err := s.NotSent.Decode(d); err != nil {
 					return err
@@ -181315,7 +181337,7 @@ func (s *NotifyGetNotifyIncidentsIDOKIncident) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"not_sent\"")
 			}
 		case "note":
-			requiredBitSet[1] |= 1 << 4
+			requiredBitSet[1] |= 1 << 5
 			if err := func() error {
 				if err := s.Note.Decode(d); err != nil {
 					return err
@@ -181324,8 +181346,18 @@ func (s *NotifyGetNotifyIncidentsIDOKIncident) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"note\"")
 			}
+		case "resolved_reason":
+			requiredBitSet[1] |= 1 << 6
+			if err := func() error {
+				if err := s.ResolvedReason.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"resolved_reason\"")
+			}
 		case "sends":
-			requiredBitSet[1] |= 1 << 5
+			requiredBitSet[1] |= 1 << 7
 			if err := func() error {
 				s.Sends = make([]NotifyGetNotifyIncidentsIDOKIncidentSendsItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -181343,7 +181375,7 @@ func (s *NotifyGetNotifyIncidentsIDOKIncident) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"sends\"")
 			}
 		case "severity":
-			requiredBitSet[1] |= 1 << 6
+			requiredBitSet[2] |= 1 << 0
 			if err := func() error {
 				if err := s.Severity.Decode(d); err != nil {
 					return err
@@ -181353,7 +181385,7 @@ func (s *NotifyGetNotifyIncidentsIDOKIncident) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"severity\"")
 			}
 		case "status":
-			requiredBitSet[1] |= 1 << 7
+			requiredBitSet[2] |= 1 << 1
 			if err := func() error {
 				if err := s.Status.Decode(d); err != nil {
 					return err
@@ -181363,7 +181395,7 @@ func (s *NotifyGetNotifyIncidentsIDOKIncident) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"status\"")
 			}
 		case "title":
-			requiredBitSet[2] |= 1 << 0
+			requiredBitSet[2] |= 1 << 2
 			if err := func() error {
 				v, err := d.Str()
 				s.Title = string(v)
@@ -181375,7 +181407,7 @@ func (s *NotifyGetNotifyIncidentsIDOKIncident) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"title\"")
 			}
 		case "what":
-			requiredBitSet[2] |= 1 << 1
+			requiredBitSet[2] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.What = string(v)
@@ -181398,7 +181430,7 @@ func (s *NotifyGetNotifyIncidentsIDOKIncident) Decode(d *jx.Decoder) error {
 	for i, mask := range [3]uint8{
 		0b11111111,
 		0b11111111,
-		0b00000011,
+		0b00001111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -182496,6 +182528,10 @@ func (s *NotifyGetNotifyIncidentsOKIncidentsItem) encodeFields(e *jx.Encoder) {
 		e.ArrEnd()
 	}
 	{
+		e.FieldStart("first_run_summary")
+		e.Bool(s.FirstRunSummary)
+	}
+	{
 		e.FieldStart("first_seen")
 		json.EncodeDateTime(e, s.FirstSeen)
 	}
@@ -182532,6 +182568,10 @@ func (s *NotifyGetNotifyIncidentsOKIncidentsItem) encodeFields(e *jx.Encoder) {
 		s.Note.Encode(e)
 	}
 	{
+		e.FieldStart("resolved_reason")
+		s.ResolvedReason.Encode(e)
+	}
+	{
 		e.FieldStart("sends")
 		e.ArrStart()
 		for _, elem := range s.Sends {
@@ -182557,25 +182597,27 @@ func (s *NotifyGetNotifyIncidentsOKIncidentsItem) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfNotifyGetNotifyIncidentsOKIncidentsItem = [18]string{
+var jsonFieldsNameOfNotifyGetNotifyIncidentsOKIncidentsItem = [20]string{
 	0:  "action",
 	1:  "attempt",
 	2:  "count",
 	3:  "devices",
-	4:  "first_seen",
-	5:  "handled_at",
-	6:  "handled_by",
-	7:  "id",
-	8:  "kind",
-	9:  "last_seen",
-	10: "link",
-	11: "not_sent",
-	12: "note",
-	13: "sends",
-	14: "severity",
-	15: "status",
-	16: "title",
-	17: "what",
+	4:  "first_run_summary",
+	5:  "first_seen",
+	6:  "handled_at",
+	7:  "handled_by",
+	8:  "id",
+	9:  "kind",
+	10: "last_seen",
+	11: "link",
+	12: "not_sent",
+	13: "note",
+	14: "resolved_reason",
+	15: "sends",
+	16: "severity",
+	17: "status",
+	18: "title",
+	19: "what",
 }
 
 // Decode decodes NotifyGetNotifyIncidentsOKIncidentsItem from json.
@@ -182641,8 +182683,20 @@ func (s *NotifyGetNotifyIncidentsOKIncidentsItem) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"devices\"")
 			}
-		case "first_seen":
+		case "first_run_summary":
 			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Bool()
+				s.FirstRunSummary = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"first_run_summary\"")
+			}
+		case "first_seen":
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.FirstSeen = v
@@ -182654,7 +182708,7 @@ func (s *NotifyGetNotifyIncidentsOKIncidentsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"first_seen\"")
 			}
 		case "handled_at":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				if err := s.HandledAt.Decode(d, json.DecodeDateTime); err != nil {
 					return err
@@ -182664,7 +182718,7 @@ func (s *NotifyGetNotifyIncidentsOKIncidentsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"handled_at\"")
 			}
 		case "handled_by":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				if err := s.HandledBy.Decode(d); err != nil {
 					return err
@@ -182674,7 +182728,7 @@ func (s *NotifyGetNotifyIncidentsOKIncidentsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"handled_by\"")
 			}
 		case "id":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				v, err := d.Str()
 				s.ID = string(v)
@@ -182686,7 +182740,7 @@ func (s *NotifyGetNotifyIncidentsOKIncidentsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"id\"")
 			}
 		case "kind":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				if err := s.Kind.Decode(d); err != nil {
 					return err
@@ -182696,7 +182750,7 @@ func (s *NotifyGetNotifyIncidentsOKIncidentsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"kind\"")
 			}
 		case "last_seen":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.LastSeen = v
@@ -182708,7 +182762,7 @@ func (s *NotifyGetNotifyIncidentsOKIncidentsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"last_seen\"")
 			}
 		case "link":
-			requiredBitSet[1] |= 1 << 2
+			requiredBitSet[1] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.Link = string(v)
@@ -182720,7 +182774,7 @@ func (s *NotifyGetNotifyIncidentsOKIncidentsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"link\"")
 			}
 		case "not_sent":
-			requiredBitSet[1] |= 1 << 3
+			requiredBitSet[1] |= 1 << 4
 			if err := func() error {
 				if err := s.NotSent.Decode(d); err != nil {
 					return err
@@ -182730,7 +182784,7 @@ func (s *NotifyGetNotifyIncidentsOKIncidentsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"not_sent\"")
 			}
 		case "note":
-			requiredBitSet[1] |= 1 << 4
+			requiredBitSet[1] |= 1 << 5
 			if err := func() error {
 				if err := s.Note.Decode(d); err != nil {
 					return err
@@ -182739,8 +182793,18 @@ func (s *NotifyGetNotifyIncidentsOKIncidentsItem) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"note\"")
 			}
+		case "resolved_reason":
+			requiredBitSet[1] |= 1 << 6
+			if err := func() error {
+				if err := s.ResolvedReason.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"resolved_reason\"")
+			}
 		case "sends":
-			requiredBitSet[1] |= 1 << 5
+			requiredBitSet[1] |= 1 << 7
 			if err := func() error {
 				s.Sends = make([]NotifyGetNotifyIncidentsOKIncidentsItemSendsItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -182758,7 +182822,7 @@ func (s *NotifyGetNotifyIncidentsOKIncidentsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"sends\"")
 			}
 		case "severity":
-			requiredBitSet[1] |= 1 << 6
+			requiredBitSet[2] |= 1 << 0
 			if err := func() error {
 				if err := s.Severity.Decode(d); err != nil {
 					return err
@@ -182768,7 +182832,7 @@ func (s *NotifyGetNotifyIncidentsOKIncidentsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"severity\"")
 			}
 		case "status":
-			requiredBitSet[1] |= 1 << 7
+			requiredBitSet[2] |= 1 << 1
 			if err := func() error {
 				if err := s.Status.Decode(d); err != nil {
 					return err
@@ -182778,7 +182842,7 @@ func (s *NotifyGetNotifyIncidentsOKIncidentsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"status\"")
 			}
 		case "title":
-			requiredBitSet[2] |= 1 << 0
+			requiredBitSet[2] |= 1 << 2
 			if err := func() error {
 				v, err := d.Str()
 				s.Title = string(v)
@@ -182790,7 +182854,7 @@ func (s *NotifyGetNotifyIncidentsOKIncidentsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"title\"")
 			}
 		case "what":
-			requiredBitSet[2] |= 1 << 1
+			requiredBitSet[2] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.What = string(v)
@@ -182813,7 +182877,7 @@ func (s *NotifyGetNotifyIncidentsOKIncidentsItem) Decode(d *jx.Decoder) error {
 	for i, mask := range [3]uint8{
 		0b11111111,
 		0b11111111,
-		0b00000011,
+		0b00001111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -185256,6 +185320,10 @@ func (s *NotifyPatchNotifyIncidentsIDOKIncident) encodeFields(e *jx.Encoder) {
 		e.ArrEnd()
 	}
 	{
+		e.FieldStart("first_run_summary")
+		e.Bool(s.FirstRunSummary)
+	}
+	{
 		e.FieldStart("first_seen")
 		json.EncodeDateTime(e, s.FirstSeen)
 	}
@@ -185292,6 +185360,10 @@ func (s *NotifyPatchNotifyIncidentsIDOKIncident) encodeFields(e *jx.Encoder) {
 		s.Note.Encode(e)
 	}
 	{
+		e.FieldStart("resolved_reason")
+		s.ResolvedReason.Encode(e)
+	}
+	{
 		e.FieldStart("sends")
 		e.ArrStart()
 		for _, elem := range s.Sends {
@@ -185317,25 +185389,27 @@ func (s *NotifyPatchNotifyIncidentsIDOKIncident) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfNotifyPatchNotifyIncidentsIDOKIncident = [18]string{
+var jsonFieldsNameOfNotifyPatchNotifyIncidentsIDOKIncident = [20]string{
 	0:  "action",
 	1:  "attempt",
 	2:  "count",
 	3:  "devices",
-	4:  "first_seen",
-	5:  "handled_at",
-	6:  "handled_by",
-	7:  "id",
-	8:  "kind",
-	9:  "last_seen",
-	10: "link",
-	11: "not_sent",
-	12: "note",
-	13: "sends",
-	14: "severity",
-	15: "status",
-	16: "title",
-	17: "what",
+	4:  "first_run_summary",
+	5:  "first_seen",
+	6:  "handled_at",
+	7:  "handled_by",
+	8:  "id",
+	9:  "kind",
+	10: "last_seen",
+	11: "link",
+	12: "not_sent",
+	13: "note",
+	14: "resolved_reason",
+	15: "sends",
+	16: "severity",
+	17: "status",
+	18: "title",
+	19: "what",
 }
 
 // Decode decodes NotifyPatchNotifyIncidentsIDOKIncident from json.
@@ -185401,8 +185475,20 @@ func (s *NotifyPatchNotifyIncidentsIDOKIncident) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"devices\"")
 			}
-		case "first_seen":
+		case "first_run_summary":
 			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Bool()
+				s.FirstRunSummary = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"first_run_summary\"")
+			}
+		case "first_seen":
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.FirstSeen = v
@@ -185414,7 +185500,7 @@ func (s *NotifyPatchNotifyIncidentsIDOKIncident) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"first_seen\"")
 			}
 		case "handled_at":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				if err := s.HandledAt.Decode(d, json.DecodeDateTime); err != nil {
 					return err
@@ -185424,7 +185510,7 @@ func (s *NotifyPatchNotifyIncidentsIDOKIncident) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"handled_at\"")
 			}
 		case "handled_by":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				if err := s.HandledBy.Decode(d); err != nil {
 					return err
@@ -185434,7 +185520,7 @@ func (s *NotifyPatchNotifyIncidentsIDOKIncident) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"handled_by\"")
 			}
 		case "id":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				v, err := d.Str()
 				s.ID = string(v)
@@ -185446,7 +185532,7 @@ func (s *NotifyPatchNotifyIncidentsIDOKIncident) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"id\"")
 			}
 		case "kind":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				if err := s.Kind.Decode(d); err != nil {
 					return err
@@ -185456,7 +185542,7 @@ func (s *NotifyPatchNotifyIncidentsIDOKIncident) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"kind\"")
 			}
 		case "last_seen":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.LastSeen = v
@@ -185468,7 +185554,7 @@ func (s *NotifyPatchNotifyIncidentsIDOKIncident) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"last_seen\"")
 			}
 		case "link":
-			requiredBitSet[1] |= 1 << 2
+			requiredBitSet[1] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.Link = string(v)
@@ -185480,7 +185566,7 @@ func (s *NotifyPatchNotifyIncidentsIDOKIncident) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"link\"")
 			}
 		case "not_sent":
-			requiredBitSet[1] |= 1 << 3
+			requiredBitSet[1] |= 1 << 4
 			if err := func() error {
 				if err := s.NotSent.Decode(d); err != nil {
 					return err
@@ -185490,7 +185576,7 @@ func (s *NotifyPatchNotifyIncidentsIDOKIncident) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"not_sent\"")
 			}
 		case "note":
-			requiredBitSet[1] |= 1 << 4
+			requiredBitSet[1] |= 1 << 5
 			if err := func() error {
 				if err := s.Note.Decode(d); err != nil {
 					return err
@@ -185499,8 +185585,18 @@ func (s *NotifyPatchNotifyIncidentsIDOKIncident) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"note\"")
 			}
+		case "resolved_reason":
+			requiredBitSet[1] |= 1 << 6
+			if err := func() error {
+				if err := s.ResolvedReason.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"resolved_reason\"")
+			}
 		case "sends":
-			requiredBitSet[1] |= 1 << 5
+			requiredBitSet[1] |= 1 << 7
 			if err := func() error {
 				s.Sends = make([]NotifyPatchNotifyIncidentsIDOKIncidentSendsItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -185518,7 +185614,7 @@ func (s *NotifyPatchNotifyIncidentsIDOKIncident) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"sends\"")
 			}
 		case "severity":
-			requiredBitSet[1] |= 1 << 6
+			requiredBitSet[2] |= 1 << 0
 			if err := func() error {
 				if err := s.Severity.Decode(d); err != nil {
 					return err
@@ -185528,7 +185624,7 @@ func (s *NotifyPatchNotifyIncidentsIDOKIncident) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"severity\"")
 			}
 		case "status":
-			requiredBitSet[1] |= 1 << 7
+			requiredBitSet[2] |= 1 << 1
 			if err := func() error {
 				if err := s.Status.Decode(d); err != nil {
 					return err
@@ -185538,7 +185634,7 @@ func (s *NotifyPatchNotifyIncidentsIDOKIncident) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"status\"")
 			}
 		case "title":
-			requiredBitSet[2] |= 1 << 0
+			requiredBitSet[2] |= 1 << 2
 			if err := func() error {
 				v, err := d.Str()
 				s.Title = string(v)
@@ -185550,7 +185646,7 @@ func (s *NotifyPatchNotifyIncidentsIDOKIncident) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"title\"")
 			}
 		case "what":
-			requiredBitSet[2] |= 1 << 1
+			requiredBitSet[2] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.What = string(v)
@@ -185573,7 +185669,7 @@ func (s *NotifyPatchNotifyIncidentsIDOKIncident) Decode(d *jx.Decoder) error {
 	for i, mask := range [3]uint8{
 		0b11111111,
 		0b11111111,
-		0b00000011,
+		0b00001111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.

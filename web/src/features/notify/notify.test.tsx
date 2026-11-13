@@ -64,6 +64,15 @@ describe('notify: incidents (S-ALERT-3, D-52)', () => {
     expect(within(screen.getByRole('table', { name: 'Incidents' })).getAllByRole('row')).toHaveLength(3)
   })
 
+  it('an incident Vedette closed by itself says why on the list and the detail (D-550)', async () => {
+    renderApp('/incidents')
+    await screen.findByRole('table', { name: 'Incidents' })
+    await userEvent.click(screen.getByRole('button', { name: /^All$/ }))
+    expect(await screen.findByText(/^Closed by Vedette: no new activity for 7 days\. /)).toBeInTheDocument()
+    renderApp('/incidents/in-10')
+    expect(await screen.findByText(/Closed by Vedette: no new activity for 7 days\. Resolved at /)).toBeInTheDocument()
+  })
+
   it('a blocked connection (D-227) is said as an attempt in the list and the detail (walk 3)', async () => {
     const one = { id: 'in-a', kind: 'bad_address', attempt: true, link: '/logs', title: '192.168.1.50 tried to reach 185.220.101.47 (blocked by FW-HQ), which a threat feed lists', devices: [], severity: 'high', what: 'w', action: 'a',
       first_seen: '2026-11-12T08:00:00.000Z', last_seen: '2026-11-12T08:00:00.000Z', count: 1, status: 'new', handled_by: null, handled_at: null, note: null, sends: [] }

@@ -66,28 +66,34 @@ const incidents = collection<StoredIncident[]>('notify_incidents', () => {
       what: 'PC-HR-01 (192.168.10.107) opened an SMB connection to the trap machine FILESRV-OLD (192.168.10.240) 3 times. Nobody uses this trap, so it usually means the machine is infected or someone is probing the network.',
       action: 'Take the machine off the network (unplug the cable, turn off Wi-Fi), then ask its user what they were doing. Do not change passwords from that machine.',
       // D-483: Telegram held the first try back with HTTP 429; the box sent it after the wait
-      sends: [s('sd-7a', 'telegram', 'chat -1002145678901', plus(t4, 2), false, 'Delayed (rate limited): Telegram asked Vedette to wait 3s. It is sent again by itself after the wait.', true), s('sd-7', 'telegram', 'chat -1002145678901', plus(t4, 5))], handled_by: null, handled_at: null, note: null, not_sent: null },
+      sends: [s('sd-7a', 'telegram', 'chat -1002145678901', plus(t4, 2), false, 'Delayed (rate limited): Telegram asked Vedette to wait 3s. It is sent again by itself after the wait.', true), s('sd-7', 'telegram', 'chat -1002145678901', plus(t4, 5))], handled_by: null, handled_at: null, note: null, resolved_reason: null, first_run_summary: false, not_sent: null },
     { id: 'al-5', kind: 'trap', attempt: false, link: '/honeypot/hits/hit-seed-2', title: '192.168.10.157 touched the RDP trap on FILESRV-OLD', asset_ids: ['a-unk01'], severity: 'critical', status: 'resolved', first_seen: t5, last_seen: t5, count: 1,
       what: 'Unknown device 192.168.10.157 (not in the inventory) tried to sign in over Remote Desktop to the trap machine FILESRV-OLD (192.168.10.240).',
       action: 'Take the device off the network, then find out who brought it into the company.',
-      sends: [s('sd-8', 'telegram', 'chat -1002145678901', plus(t5, 5)), s('sd-9', 'email', 'it@acme.example, director@acme.example', plus(t5, 9))], handled_by: 'it@acme.example', handled_at: daysAgo(3), note: "A visitor's phone joined the internal network by mistake. Guest Wi-Fi password changed.", not_sent: null },
+      sends: [s('sd-8', 'telegram', 'chat -1002145678901', plus(t5, 5)), s('sd-9', 'email', 'it@acme.example, director@acme.example', plus(t5, 9))], handled_by: 'it@acme.example', handled_at: daysAgo(3), note: "A visitor's phone joined the internal network by mistake. Guest Wi-Fi password changed.", resolved_reason: null, first_run_summary: false, not_sent: null },
     { id: 'al-6', kind: 'bad_address', attempt: false, link: '/logs', title: 'PC-SALES-02 connected to 185.220.101.47, a known-bad address', asset_ids: ['a-pc05'], severity: 'high', status: 'new', first_seen: p(t6, -23), last_seen: t6, count: 14,
       what: 'PC-SALES-02 (192.168.10.105) connected 14 times in 24 hours to 185.220.101.47, a Tor exit node on the malicious address list (Tor exit list, IPsum). This is usually unknown software on that machine calling out.',
       action: 'Open the logs to see whether that machine is still connecting, then run an antivirus scan on it. If you cannot explain it, take the machine off the network.',
-      sends: [s('sd-10', 'telegram', 'chat -1002145678901', plus(t6, 20)), s('sd-11', 'email', 'it@acme.example, director@acme.example', plus(t6, 24), false, 'The SMTP server rejected the login (code 535). Check the SMTP username and password in Settings, Alert channels.')], handled_by: null, handled_at: null, note: null, not_sent: null },
+      sends: [s('sd-10', 'telegram', 'chat -1002145678901', plus(t6, 20)), s('sd-11', 'email', 'it@acme.example, director@acme.example', plus(t6, 24), false, 'The SMTP server rejected the login (code 535). Check the SMTP username and password in Settings, Alert channels.')], handled_by: null, handled_at: null, note: null, resolved_reason: null, first_run_summary: false, not_sent: null },
     { id: 'in-7', kind: 'log_anomaly', attempt: false, link: '/logs', title: 'WEB01 logged far more failed sign-ins than usual', asset_ids: ['a-web01'], severity: 'medium', status: 'new', first_seen: t7, last_seen: p(t7, 0.8), count: 1,
       what: 'WEB01 wrote 1,240 failed sign-in lines in 10 minutes. On a normal day it writes fewer than 20. Someone may be guessing passwords.',
       action: 'Open the logs for WEB01 and check the source addresses. If they are not yours, block them and change the passwords of the accounts that were tried.',
-      sends: [s('sd-13', 'slack', '#it-alerts', plus(t7, 12))], handled_by: null, handled_at: null, note: null, not_sent: null },
+      sends: [s('sd-13', 'slack', '#it-alerts', plus(t7, 12))], handled_by: null, handled_at: null, note: null, resolved_reason: null, first_run_summary: false, not_sent: null },
     { id: 'in-8', kind: 'unknown_device', attempt: false, link: '/devices/a-unk01', title: 'A new unknown device appeared: 192.168.10.157', asset_ids: ['a-unk01'], severity: 'medium', status: 'acknowledged', first_seen: t8, last_seen: t8, count: 1,
       what: 'A device that is not in your inventory joined the network at 192.168.10.157.',
       action: 'Find out whose device it is. Add it to the inventory if it belongs to you, otherwise remove it from the network.',
-      sends: [s('sd-14', 'telegram', 'chat -1002145678901', plus(t8, 6))], handled_by: 'it@acme.example', handled_at: daysAgo(1, 5), note: 'Asking the office manager.', not_sent: null },
+      sends: [s('sd-14', 'telegram', 'chat -1002145678901', plus(t8, 6))], handled_by: 'it@acme.example', handled_at: daysAgo(1, 5), note: 'Asking the office manager.', resolved_reason: null, first_run_summary: false, not_sent: null },
     // D-551: an incident no channel took, and why (the channels only sent medium and above then)
     { id: 'in-9', kind: 'log_anomaly', attempt: false, link: '/logs', title: 'NAS-BACKUP logged a configuration change at night', asset_ids: ['a-nas01'], severity: 'low', status: 'resolved', first_seen: daysAgo(6), last_seen: daysAgo(6), count: 1,
       what: 'NAS-BACKUP wrote that its sharing settings changed at 02:14, when nobody usually works.', action: 'Ask who changed the NAS settings, and check the shares it lists now.',
-      sends: [], handled_by: 'it@acme.example', handled_at: daysAgo(5), note: 'Scheduled maintenance by the vendor.',
+      sends: [], handled_by: 'it@acme.example', handled_at: daysAgo(5), note: 'Scheduled maintenance by the vendor.', resolved_reason: null, first_run_summary: false,
       not_sent: { reason: 'below_min_severity', text: 'Not sent: this incident is low, and your channels only send medium and above.', channel: 'telegram' } },
+    // D-550: a bad connection of the first 36 hours, told in the first-run summary, closed by Vedette after a quiet week
+    { id: 'in-10', kind: 'bad_address', attempt: false, link: '/logs', title: 'PRINTER-2 connected to 45.95.147.236, which a threat feed lists', asset_ids: [], severity: 'medium', status: 'resolved', first_seen: daysAgo(12), last_seen: daysAgo(12), count: 2,
+      what: 'PRINTER-2 (192.168.10.60) connected to 45.95.147.236 (IP address), which IPsum lists. Confidence 40%. Seen in the log of FW-HQ.',
+      action: 'Open Logs and look at this connection. If nobody expected this device to talk to that address, take it off the network and ask its user what it was doing.',
+      sends: [], handled_by: 'system', handled_at: daysAgo(5), note: null, resolved_reason: 'Closed by Vedette: no new activity for 7 days.', first_run_summary: true,
+      not_sent: { reason: 'first_run_summary', text: 'Not sent on its own: it was in the first-run summary sent at 10:00.' } },
   ]
 }, () => [])
 
@@ -549,7 +555,7 @@ export const handlers = [
     if (note.length > 500) return fail(400, 'note_too_long', 'A note can be at most 500 characters.')
     const reopen = b.status === 'new'
     let out!: StoredIncident
-    incidents.update((l) => l.map((x) => (x.id === id ? (out = { ...x, status: b.status!, handled_by: reopen ? null : (currentUser()?.email ?? null), handled_at: reopen ? null : nowIso(), note: reopen ? null : note || null }) : x)))
+    incidents.update((l) => l.map((x) => (x.id === id ? (out = { ...x, status: b.status!, handled_by: reopen ? null : (currentUser()?.email ?? null), handled_at: reopen ? null : nowIso(), note: reopen ? null : note || x.note, resolved_reason: null }) : x)))
     audit('notify.incident_status', out.title, `${b.status}${note ? `: ${note}` : ''}`)
     return HttpResponse.json(detail(out))
   }),
@@ -573,7 +579,7 @@ export const handlers = [
       if (x.status === b.status) { r.already_acknowledged++; return x }
       r.updated++
       audit('notify.incident_status', x.title, `${b.status}${note ? `: ${note}` : ''}`)
-      return { ...x, status: b.status!, handled_by: who, handled_at: at, note: note || null }
+      return { ...x, status: b.status!, handled_by: who, handled_at: at, note: note || x.note, resolved_reason: null }
     })
     incidents.update(() => next)
     return HttpResponse.json(r)

@@ -19,10 +19,10 @@ import (
 //
 // A service is looked up by the CPE nmap printed. Its KEV keys come from the NVD configurations of the KEV entries themselves (a
 // KEV entry whose NVD data names cpe:2.3:a:apache:http_server gives that CPE the key "apache|http server"), plus catalog when it
-// is set: inventory's curated CPE to KEV keys (inventory.KevKeysForCPE, not exported yet; the curated catalog names few CPEs).
+// is set: inventory's curated CPE to KEV keys (inventory.Service.KevKeysForCPE).
 type exposureMatcher struct {
 	vulns   func(ctx context.Context) ([]findings.Vuln, error)
-	catalog func(cpe string) []string // nil until inventory exports KevKeysForCPE
+	catalog func(ctx context.Context, cpe string) []string // inventory.Service.KevKeysForCPE; nil: the list's own CPEs only
 	now     func() time.Time
 }
 
@@ -60,7 +60,7 @@ func (m exposureMatcher) Match(ctx context.Context, svcs []exposure.ServiceRow) 
 		base := cpeBase(cpe)
 		keys := byCPE[base]
 		if m.catalog != nil {
-			keys = slices.Concat(keys, m.catalog(s.CPE)) // a new slice: byCPE's lists are shared
+			keys = slices.Concat(keys, m.catalog(ctx, s.CPE)) // a new slice: byCPE's lists are shared
 		}
 		display := s.Product
 		if display == "" {

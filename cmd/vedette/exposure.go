@@ -56,7 +56,11 @@ func exposureService(d deps) *exposure.Service {
 	if clock == nil {
 		clock = time.Now
 	}
-	cfg.Matcher = exposureMatcher{vulns: exposureVulns(d), now: clock}
+	m := exposureMatcher{vulns: exposureVulns(d), now: clock}
+	if d.Inventory != nil {
+		m.catalog = d.Inventory.KevKeysForCPE
+	}
+	cfg.Matcher = m
 	if exposureTestConfig != nil {
 		exposureTestConfig(&cfg)
 	}

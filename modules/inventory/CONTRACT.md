@@ -57,6 +57,7 @@ Nguồn hành vi: `web/src/features/inventory/{contract,mocks,validate}.ts`. Cod
 
 ## Dependencies
 - **DEPENDS ON**: `core`, `feeds` (khớp KEV, danh mục; qua interface `KEV` do `cmd/vedette` cài từ `feeds.Store`; bảng `feeds_vuln` còn rỗng hoặc `feeds` tắt thì danh mục dùng `kev-products.json` nhúng và không có CVE).
+- **`KevKeysForCPE(ctx, cpe)`** (public, item 24): các khoá KEV của mục curated có `cpe` trùng hãng và sản phẩm của một CPE 2.2 (`cpe:/a:apache:http_server:2.4.49`), nil khi không mục nào nêu hoặc không đọc được danh mục. Chỉ đọc; không ghi bảng `inv_*`. Người gọi: `exposure` (qua `exposureMatcher.catalog` ở `cmd/vedette/exposure.go`). Apache HTTP Server, nginx (`igor_sysoev` và `f5`) và OpenSSH có `cpe` trong `curated.json`.
 - **DEPENDED ON BY**: `sensor-passive`, `sensor-active`, `agent-intake`, `findings` (khớp KEV, finding), `mitigation` (hãng thiết bị cho `firewall[].detected`), `exposure`, `scan`, `scan-credentialed`, `honeypot`, `logs`, `response`, `reports`, `ai`, `mcp-server`; tuỳ chọn `notify` (tên thiết bị trong tin).
 
 ## Endpoints owned (role tối thiểu)

@@ -207,6 +207,17 @@ func (c *Catalog) keysForCPE(cpe string) []string {
 	return c.byCPE[f[0]+":"+f[1]+":"+f[2]]
 }
 
+// KevKeysForCPE is the KEV keys of the curated entry that names the product of a CPE 2.2 URI as nmap prints it, for exposure's
+// comparison of a public service with the exploited list (item 24); nil when no entry names it or the catalog cannot be read.
+func (s *Service) KevKeysForCPE(ctx context.Context, cpe string) []string {
+	c, err := s.Catalog(ctx)
+	if err != nil {
+		s.log.WarnContext(ctx, "inventory: the catalog could not be read; a service is compared by the CPE keys of the exploited list only", "error", err)
+		return nil
+	}
+	return c.keysForCPE(cpe)
+}
+
 func (c *Catalog) sum(keys []string) int {
 	n := 0
 	for _, k := range keys {

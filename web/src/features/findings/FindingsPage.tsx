@@ -1,6 +1,6 @@
 import { useRef, useState, type RefObject } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router'
-import { useTranslation } from 'react-i18next'
+import { Trans, useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { X } from 'lucide-react'
 import { PageHeader } from '@/components/common/PageHeader'
@@ -220,15 +220,20 @@ function VersionNeededList({ items }: { items: VersionNeeded[] }) {
       <h2 id="version-needed-title" className="font-medium">{t('versionNeeded.title', { count: items.length })}</h2>
       <p className="text-muted">{t('versionNeeded.help')}</p>
       <ul className="mt-1 grid gap-0.5">
-        {items.map((n) => (
-          <li key={`${n.asset_id}/${n.software_id}`}>
-            <Link to={`/devices/${n.asset_id}`} className="font-medium text-accent underline-offset-4 hover:underline">{n.asset?.hostname ?? n.asset?.ip ?? n.asset_id}</Link>
-            {': '}
-            {n.version === null
-              ? t('versionNeeded.missing', { software: n.software, count: n.cves })
-              : t('versionNeeded.unreadable', { software: n.software, version: n.version, count: n.cves })}
-          </li>
-        ))}
+        {items.map((n) => {
+          // One naming rule (D-471, W5-1): the API's `asset.name`. A hand-added product IS the device ("Microsoft Office (no device)"):
+          // the line names it once instead of "<device>: <product> …".
+          const name = deviceName(n.asset, t('removedDevice'))
+          const self = name === n.software || name === t('inventory:noDevice', { product: n.software })
+          const link = <Link to={`/devices/${n.asset_id}`} className="font-medium text-accent underline-offset-4 hover:underline" />
+          return (
+            <li key={`${n.asset_id}/${n.software_id}`}>
+              {self ? null : <><Link to={`/devices/${n.asset_id}`} className="font-medium text-accent underline-offset-4 hover:underline">{name}</Link>{': '}</>}
+              <Trans t={t} i18nKey={n.version === null ? 'versionNeeded.missing' : 'versionNeeded.unreadable'} count={n.cves}
+                values={{ software: self ? name : n.software, version: n.version ?? '' }} components={{ sw: self ? link : <span /> }} />
+            </li>
+          )
+        })}
       </ul>
     </section>
   )

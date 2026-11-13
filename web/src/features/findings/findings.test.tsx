@@ -47,16 +47,21 @@ describe('findings: danh sách (S-MIT-1)', () => {
     expect(screen.getAllByRole('link', { name: 'Open Devices' })[0]).toHaveAttribute('href', '/devices')
   })
 
-  it('D-500: phần mềm không có phiên bản là MỘT dòng "add the version", không phải một finding mỗi CVE', async () => {
+  it('D-500: phần mềm không có phiên bản là MỘT dòng "add the version", không phải một finding mỗi CVE; sản phẩm khai tay không thiết bị gọi một lần theo D-471 (W5-1)', async () => {
     server.use(http.get('*/api/v1/findings', () => HttpResponse.json({ items: [], version_needed: [
-      { asset: { id: 'a-pc', hostname: 'PC-KE-TOAN', ip: '192.168.10.40', kind: 'pc', display: 'Microsoft Office' }, asset_id: 'a-pc', software_id: 's-1', software: 'Microsoft Office', version: null, cves: 32 },
+      { asset: { id: 'a-pc', name: 'PC-KE-TOAN', hostname: 'PC-KE-TOAN', ip: '192.168.10.40', kind: 'pc', display: 'Microsoft Office' }, asset_id: 'a-pc', software_id: 's-1', software: 'Microsoft Office', version: null, cves: 32 },
+      { asset: { id: 'a-man', name: 'Microsoft Office (no device)', hostname: null, ip: '—', kind: 'unknown', display: 'Microsoft Office' }, asset_id: 'a-man', software_id: 's-3', software: 'Microsoft Office', version: null, cves: 30 },
       { asset: null, asset_id: 'a-fw', software_id: 's-2', software: 'FortiGate', version: 'latest', cves: 21 },
     ] })))
     renderApp('/findings')
-    const box = await screen.findByRole('region', { name: 'Add the version of 2 software to check them' })
-    expect(within(box).getByText(/Microsoft Office has no version: adding it checks 32 exploited CVEs/)).toBeInTheDocument()
-    expect(within(box).getByText(/FortiGate version "latest" cannot be compared/)).toBeInTheDocument()
+    const box = await screen.findByRole('region', { name: 'Add the version of 3 software to check them' })
+    const lines = within(box).getAllByRole('listitem')
+    expect(lines[0]).toHaveTextContent(/^PC-KE-TOAN: Microsoft Office has no version: adding it checks 32 exploited CVEs\.$/)
+    expect(lines[1]).toHaveTextContent(/^Microsoft Office \(no device\) has no version: adding it checks 30 exploited CVEs\.$/)
+    expect(lines[2]).toHaveTextContent(/^A removed device: FortiGate version "latest" cannot be compared/)
     expect(within(box).getByRole('link', { name: 'PC-KE-TOAN' })).toHaveAttribute('href', '/devices/a-pc')
+    expect(within(box).getByRole('link', { name: 'Microsoft Office (no device)' })).toHaveAttribute('href', '/devices/a-man')
+    expect(box).not.toHaveTextContent('—')
     await expectNoA11yViolations()
   })
 

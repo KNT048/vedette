@@ -274,7 +274,7 @@
     "title": "LAN ranges",
     "description": "Internal network ranges Vedette may actively scan. The passive sensor still hears everything it can see.",
     "rangeLabel": "Add a network range",
-    "rangeHint": "Use CIDR format with the prefix length, for example 192.168.10.0/24 or 192.168.10.0/25. Internal addresses only (10.x, 172.16 to 172.31, 192.168.x).",
+    "rangeHint": "Use CIDR format with the prefix length, for example 192.168.10.0/24 or 192.168.10.0/25. Internal addresses only (10.x, 172.16 to 172.31, 192.168.x, 100.64 to 100.127).",
     "addRange": "Add range",
     "edit": "Edit",
     "remove": "Remove",

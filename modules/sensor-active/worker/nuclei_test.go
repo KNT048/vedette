@@ -151,8 +151,8 @@ func TestNucleiRefusesWhatTheGrammarForbids(t *testing.T) {
 		"link-local metadata": func(j *sensorlink.Job) {
 			j.Nuclei.Targets = []sensorlink.NucleiTarget{target("169.254.169.254", 80, "http")}
 		},
-		"CGNAT": func(j *sensorlink.Job) {
-			j.Nuclei.Targets = []sensorlink.NucleiTarget{target("100.64.0.1", 80, "http")}
+		"100/8 outside RFC 6598 (D-461)": func(j *sensorlink.Job) {
+			j.Nuclei.Targets = []sensorlink.NucleiTarget{target("100.128.0.1", 80, "http")}
 		},
 		"benchmark": func(j *sensorlink.Job) {
 			j.Nuclei.Targets = []sensorlink.NucleiTarget{target("198.18.0.1", 80, "http")}

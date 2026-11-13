@@ -15,7 +15,7 @@ import (
 // the network, a database or unsafe of its own.
 func TestLeafImportsOnlyTheStandardLibrary(t *testing.T) {
 	t.Parallel()
-	assertLeaf(t, nil)
+	assertLeaf(t, []string{"github.com/knt048/vedette/core/localnet"}) // standard library only itself (D-461)
 }
 
 // forbiddenDeps may not be anywhere in the graph. Not syscall: fmt imports os, which imports it. unsafe is checked on
@@ -24,6 +24,7 @@ var forbiddenDeps = []string{"os/exec", "net", "net/http", "database/sql", "plug
 
 // localDirs are the module packages a leaf may use, by directory relative to modules/scan/<leaf>.
 var localDirs = map[string]string{
+	"github.com/knt048/vedette/core/localnet":           "../../../core/localnet",
 	"github.com/knt048/vedette/internal/jsonstrict":     "../../../internal/jsonstrict",
 	"github.com/knt048/vedette/modules/scan/nucleiargv": "../nucleiargv",
 }

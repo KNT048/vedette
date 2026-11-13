@@ -180,17 +180,18 @@ func TestValidate(t *testing.T) {
 	}
 }
 
-// L1: lan_ranges can only be RFC 1918 ranges, so no legitimate argv names a public, loopback, link-local,
-// shared (CGNAT), multicast, reserved, broadcast or unspecified address, and the validator refuses them all.
+// L1: lan_ranges can only be RFC 1918 or RFC 6598 shared address space ranges (D-461), so no legitimate argv names a
+// public (the rest of 100/8 too), loopback, link-local, multicast, reserved, broadcast or unspecified address, and the
+// validator refuses them all.
 func TestValidateRefusesNonPrivateTargets(t *testing.T) {
 	t.Parallel()
-	for _, target := range []string{"8.8.8.8", "0.0.0.0", "0.1.2.3", "255.255.255.255", "224.0.0.1", "240.0.0.1", "127.0.0.1", "169.254.1.1", "100.64.0.1", "172.15.0.1", "172.32.0.1", "192.169.0.1", "11.0.0.1"} {
+	for _, target := range []string{"8.8.8.8", "0.0.0.0", "0.1.2.3", "255.255.255.255", "224.0.0.1", "240.0.0.1", "127.0.0.1", "169.254.1.1", "100.63.255.255", "100.128.0.0", "100.1.2.3", "172.15.0.1", "172.32.0.1", "192.169.0.1", "11.0.0.1"} {
 		argv := slices.Clone(shapeSweep[:len(shapeSweep)-1])
 		if err := Validate(append(argv, target)); err == nil {
 			t.Errorf("accepted target %s, which no confirmed LAN range can contain", target)
 		}
 	}
-	for _, target := range []string{"10.0.0.1", "10.255.255.254", "172.16.0.1", "172.31.255.254", "192.168.0.1"} {
+	for _, target := range []string{"10.0.0.1", "10.255.255.254", "172.16.0.1", "172.31.255.254", "192.168.0.1", "100.64.0.1", "100.65.254.7", "100.127.255.254"} {
 		argv := slices.Clone(shapeSweep[:len(shapeSweep)-1])
 		if err := Validate(append(argv, target)); err != nil {
 			t.Errorf("refused the private target %s: %v", target, err)
@@ -198,8 +199,8 @@ func TestValidateRefusesNonPrivateTargets(t *testing.T) {
 	}
 }
 
-// private is the oracle's own idea of RFC 1918, not netip's.
-var private = regexp.MustCompile(`^(10\.([0-9]{1,3}\.){2}[0-9]{1,3}|192\.168\.[0-9]{1,3}\.[0-9]{1,3}|172\.(1[6-9]|2[0-9]|3[01])\.[0-9]{1,3}\.[0-9]{1,3})$`)
+// private is the oracle's own idea of RFC 1918 and RFC 6598 (100.64-127.x, D-461), not netip's or localnet's.
+var private = regexp.MustCompile(`^(10\.([0-9]{1,3}\.){2}[0-9]{1,3}|192\.168\.[0-9]{1,3}\.[0-9]{1,3}|172\.(1[6-9]|2[0-9]|3[01])\.[0-9]{1,3}\.[0-9]{1,3}|100\.(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\.[0-9]{1,3}\.[0-9]{1,3})$`)
 
 // shapeOracle knows the three shapes and nothing else: the flags before "-oX" must be one of them, with the
 // rate of sweep and normal written as plain digits between 1 and 1000.

@@ -17,7 +17,7 @@ import type {
   InventorySettings, ObsField, Observation, OsqueryPackage, RegularScan, Sensor, SettingsInput, SoftwareView, WazuhConnection, WazuhInput,
 } from './types'
 import { KINDS } from './types'
-import { cidrRange, hasHostBits, isPrivateCidr, normalizeRange, overlapping } from './validate'
+import { cidrRange, hasHostBits, isPrivateCidr, LOCAL_RANGE_NAMES, normalizeRange, overlapping } from './validate'
 
 // Địa chỉ hộp Vedette đưa vào cấu hình agent: Vedette phục vụ cả giao diện lẫn API trên https://<IP hộp>:8443 (TLS). Không biết IP thì để chỗ trống rõ ràng, không bịa.
 const serverUrl = () => `https://${boxInfo().ip ?? NO_BOX_ADDRESS}:8443`
@@ -629,7 +629,7 @@ export const handlers = [
       if (IPV4_RE.test(r)) return fail(400, 'no_prefix', `"${r}" has no prefix length. Add it so Vedette scans the right size of network, for example ${r}/24 or ${r}/25.`)
       if (!CIDR_RE.test(r)) return fail(400, 'bad_cidr', `"${r.slice(0, 30)}" is not a valid network range. Enter something like 192.168.10.0/24.`)
       if (hasHostBits(r)) return fail(400, 'host_bits', `Range ${r} is not written correctly: the address part must be the first address of the range. Use ${cidrRange(r).network}.`)
-      if (!isPrivateCidr(r)) return fail(400, 'public_range', `${r} is not an internal range (10.x, 172.16-31.x, 192.168.x). To scan public addresses, add them under External exposure after verifying ownership.`)
+      if (!isPrivateCidr(r)) return fail(400, 'public_range', `${r} is not an internal range (${LOCAL_RANGE_NAMES}). To scan public addresses, add them under External exposure after verifying ownership.`)
       const clash = overlapping(r, ranges)
       if (clash) return fail(400, 'overlap_range', `Range ${r} overlaps ${clash}. Keep the larger range and drop the smaller one.`)
     }

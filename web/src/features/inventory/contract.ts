@@ -72,7 +72,7 @@ export const ActiveWindow = z.object({
   rate: z.number().int().min(1).max(1000).describe('Packets per second'), exclusions: z.array(z.string()).describe('IPv4 or CIDR'),
 })
 export const InventorySettings = z.object({
-  lan_ranges: z.array(z.string()).max(16).describe('Internal IPv4 CIDR (RFC 1918)'), active: ActiveWindow, fragile_kinds: z.array(AssetKind).describe('Device types scanned only once, gently, when first seen; passive-only after that'),
+  lan_ranges: z.array(z.string()).max(16).describe('Internal IPv4 CIDR (RFC 1918, or the RFC 6598 shared address space 100.64.0.0/10, D-461)'), active: ActiveWindow, fragile_kinds: z.array(AssetKind).describe('Device types scanned only once, gently, when first seen; passive-only after that'),
   regular_scan_kinds: z.array(AssetKind).describe('Subset of fragile_kinds for which the owner allowed regular scans'),
   scope_confirmed_at: dt.nullable(), scope_confirmed_by: z.string().nullable(),
 })

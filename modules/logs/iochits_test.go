@@ -365,7 +365,7 @@ func TestIOCOnlyPublicDestinationsFromLANDevices(t *testing.T) {
 	for _, d := range []string{"10.1.1.1", "192.168.1.1", "127.0.0.1", "169.254.9.9", "224.0.0.251", "100.64.1.1", "203.0.113.9", "198.51.100.5", "255.255.255.255", "0.0.0.0", "fc00::1", "::1"} {
 		texts = append(texts, traffic(lanDevice, d))
 	}
-	for _, s := range []string{"8.8.8.8", "100.64.1.1", "127.0.0.1", "fd00::1", "-"} { // not a LAN device
+	for _, s := range []string{"8.8.8.8", "100.128.1.1", "127.0.0.1", "fd00::1", "-"} { // not a LAN device (100.64/10 is one, D-461)
 		texts = append(texts, traffic(s, badIP))
 	}
 	e.feedAll(src, texts)

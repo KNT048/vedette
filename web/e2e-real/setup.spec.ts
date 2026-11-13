@@ -81,6 +81,10 @@ test('first-run setup: mistakes at every step, fixes, finish on Home', async ({ 
   await page.getByLabel('Range 1', { exact: true }).fill('10.0.0.0/0')
   await next(page)
   await expect(page.getByText(/is not a private range/)).toBeVisible()
+  // D-461: 100/8 outside the RFC 6598 shared address space is public; the sentence names 100.64-127.x
+  await page.getByLabel('Range 1', { exact: true }).fill('100.128.0.0/24')
+  await next(page)
+  await expect(page.getByText('100.128.0.0/24 is not a private range (10.x, 172.16-31.x, 192.168.x, 100.64-127.x). Add public addresses later under External exposure.')).toBeVisible()
   await page.getByLabel('Range 1', { exact: true }).fill('abc')
   await next(page)
   await expect(page.getByText(/"abc" is not a valid range/)).toBeVisible()
@@ -102,6 +106,15 @@ test('first-run setup: mistakes at every step, fixes, finish on Home', async ({ 
   await page.getByRole('button', { name: 'Add range' }).click()
   await next(page)
   await expect(page.getByText('Fill in this range or remove the row.')).toBeVisible()
+  // D-461 (kien's N100): a LAN behind carrier-grade NAT (RFC 6598, 100.64/10) passes the private-range check: written twice, the
+  // step names the duplicate, not a public range. Not kept, so the lab's scan scope stays the two ranges below.
+  await page.getByLabel('Range 3', { exact: true }).fill('100.65.254.0/24')
+  await page.getByRole('button', { name: 'Add range' }).click()
+  await page.getByLabel('Range 4', { exact: true }).fill('100.65.254.0/24')
+  await next(page)
+  await expect(page.getByText(/100\.65\.254\.0\/24 is listed twice/)).toBeVisible()
+  await expect(page.getByText(/is not a private range/)).toHaveCount(0)
+  await page.getByRole('button', { name: 'Remove range 4' }).click()
   await page.getByRole('button', { name: 'Remove range 3' }).click()
   await expect(page.getByLabel(/Upload/)).toHaveCount(0)
   await expect(page.locator('input[type=file]')).toHaveCount(0)

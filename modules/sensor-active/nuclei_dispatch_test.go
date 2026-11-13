@@ -230,7 +230,7 @@ func TestRunNucleiRefusesWhatTheGrammarForbidsBeforeDispatch(t *testing.T) {
 		"a public address":   func(q *sa.NucleiRequest) { q.Targets = tg("8.8.8.8") },
 		"loopback":           func(q *sa.NucleiRequest) { q.Targets = tg("127.0.0.1") },
 		"link-local":         func(q *sa.NucleiRequest) { q.Targets = tg("169.254.169.254") },
-		"CGNAT":              func(q *sa.NucleiRequest) { q.Targets = tg("100.64.0.1") },
+		"100/8 not RFC 6598": func(q *sa.NucleiRequest) { q.Targets = tg("100.128.0.1") }, // 100.64/10 is local (D-461)
 		"benchmark":          func(q *sa.NucleiRequest) { q.Targets = tg("198.18.0.1") },
 		"240/4":              func(q *sa.NucleiRequest) { q.Targets = tg("240.0.0.1") },
 		"a flag as a host":   func(q *sa.NucleiRequest) { q.Targets = tg("-u") },

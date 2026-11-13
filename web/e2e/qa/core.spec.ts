@@ -131,6 +131,10 @@ test.describe('first-run setup', () => {
     await page.getByLabel('Range 1', { exact: true }).fill('10.0.0.0/0')
     await next(page)
     await expect(page.getByText(/is not a private range/)).toBeVisible()
+    // D-461: 100/8 outside the RFC 6598 shared address space is public; the sentence names 100.64-127.x
+    await page.getByLabel('Range 1', { exact: true }).fill('100.128.0.0/24')
+    await next(page)
+    await expect(page.getByText('100.128.0.0/24 is not a private range (10.x, 172.16-31.x, 192.168.x, 100.64-127.x). Add public addresses later under External exposure.')).toBeVisible()
     await page.getByLabel('Range 1', { exact: true }).fill('abc')
     await next(page)
     await expect(page.getByText(/"abc" is not a valid range/)).toBeVisible()
@@ -153,7 +157,7 @@ test.describe('first-run setup', () => {
     await page.getByRole('button', { name: 'Add range' }).click()
     await next(page)
     await expect(page.getByText('Fill in this range or remove the row.')).toBeVisible()
-    await page.getByRole('button', { name: 'Remove range 3' }).click()
+    await page.getByLabel('Range 3', { exact: true }).fill('100.65.254.0/24') // a LAN behind carrier-grade NAT (RFC 6598) is local (D-461)
     // the single commitment checkbox and the license line replace the consent upload
     await expect(page.getByLabel(/Upload/)).toHaveCount(0)
     await expect(page.locator('input[type=file]')).toHaveCount(0)
@@ -167,6 +171,7 @@ test.describe('first-run setup', () => {
     await page.getByRole('button', { name: 'Back' }).click()
     await expect(page.getByLabel('Range 1', { exact: true })).toHaveValue('192.168.18.0/25')
     await expect(page.getByLabel('Range 2', { exact: true })).toHaveValue('10.1.0.0/16')
+    await expect(page.getByLabel('Range 3', { exact: true })).toHaveValue('100.65.254.0/24')
     await next(page)
     await page.getByRole('radio', { name: /Mid-size business/ }).click()
     await shot(page, 'core', 'setup-3')
@@ -183,7 +188,7 @@ test.describe('first-run setup', () => {
 
     // scope reached the inventory module
     const inv = await page.evaluate(async () => (await (await fetch('/api/v1/inventory/settings')).json()) as { lan_ranges: string[]; active: { enabled: boolean } })
-    expect(inv.lan_ranges).toEqual(['192.168.18.0/25', '10.1.0.0/16'])
+    expect(inv.lan_ranges).toEqual(['192.168.18.0/25', '10.1.0.0/16', '100.65.254.0/24'])
     expect(inv.active.enabled).toBe(true)
 
     // every sidebar page is empty: no trace of sample data

@@ -380,7 +380,7 @@ func (s *Service) iocEvent(ctx context.Context, data any) error {
 	case e.ID == "" || len(e.ID) > 64 || cleanLine(e.ID) != e.ID:
 		s.cfg.Log.WarnContext(ctx, "response: known-bad connection skipped: no valid id")
 		return nil
-	case !srcOK || !addrOf(src).IsPrivate():
+	case !srcOK || !signature.LocalOK(addrOf(src).Unmap()): // logs' own LAN-device rule: RFC 1918 or 100.64/10 (D-461)
 		s.cfg.Log.WarnContext(ctx, "response: known-bad connection skipped: the device address is not a private address")
 		return nil
 	case !destOK:

@@ -159,23 +159,55 @@ func (h notifyHits) HitConnections(ctx context.Context, hits []notify.HitRef) (m
 	if h.d.Honeypot == nil {
 		return nil, errors.New("honeypot is not ready")
 	}
-	out := map[string]int{}
+	want := map[time.Time]map[string]bool{} // one export per distinct time, every id of that time in one pass
 	for _, r := range hits {
-		var buf bytes.Buffer
-		if err := h.d.Honeypot.ExportHits(ctx, r.At, r.At, &buf); err != nil {
-			return nil, err
+		if want[r.At] == nil {
+			want[r.At] = map[string]bool{}
 		}
-		for _, line := range bytes.Split(buf.Bytes(), []byte("\n")) {
-			var row struct {
-				ID        string `json:"id"`
-				ConnCount int    `json:"conn_count"`
-			}
-			if json.Unmarshal(line, &row) == nil && row.ID == r.ID {
-				out[r.ID] = row.ConnCount
-			}
+		want[r.At][r.ID] = true
+	}
+	out := map[string]int{}
+	for at, ids := range want {
+		w := &hitRows{ids: ids, out: out}
+		if err := h.d.Honeypot.ExportHits(ctx, at, at, w); err != nil {
+			return nil, err
 		}
 	}
 	return out, nil
+}
+
+// hitRows reads the JSON lines ExportHits writes as they come, keeping only id and conn_count of the wanted hits; no more than one
+// line is held at a time and a line over maxHitRow is refused.
+type hitRows struct {
+	ids  map[string]bool
+	out  map[string]int
+	part []byte
+}
+
+const maxHitRow = 1 << 20
+
+func (w *hitRows) Write(p []byte) (int, error) {
+	n := len(p)
+	for len(p) > 0 {
+		i := bytes.IndexByte(p, '\n')
+		if i < 0 {
+			if len(w.part)+len(p) > maxHitRow {
+				return 0, errors.New("honeypot hit row too long")
+			}
+			w.part = append(w.part, p...)
+			break
+		}
+		w.part = append(w.part, p[:i]...)
+		var row struct {
+			ID        string `json:"id"`
+			ConnCount int    `json:"conn_count"`
+		}
+		if json.Unmarshal(w.part, &row) == nil && w.ids[row.ID] {
+			w.out[row.ID] = row.ConnCount
+		}
+		w.part, p = w.part[:0], p[i+1:]
+	}
+	return n, nil
 }
 
 // newNotify builds the notify service once per database, so the handlers, the deliver job, the event

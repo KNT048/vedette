@@ -270,3 +270,31 @@ func TestURLTokenOpenOutlivesTheRequest(t *testing.T) {
 		t.Fatalf("%d incidents", n)
 	}
 }
+
+// M5-190 (D-496): a trap hit that three connections folded into shows 3 times on its incident, in the list and in the detail, read from
+// the real honeypot; with the honeypot off notify's own count (1) shows.
+func TestTrapIncidentTimesFollowTheFoldedConnections(t *testing.T) {
+	t.Parallel()
+	s, path := urlTokenStack(t)
+	h := tokenRouter(s, honeyTokenPerMinute)
+	for _, port := range []string{"1", "2", "3"} {
+		sameAnswer(t, "open "+port, open(t, h, http.MethodGet, path, "192.168.10.107:"+port, ""))
+	}
+	times := func() (list, detail float64) {
+		_, b := s.do("GET", "/notify/incidents", "viewer", "")
+		items := field(t, b, "incidents").([]any)
+		if len(items) != 1 {
+			t.Fatalf("%d incidents, want 1: %v", len(items), b)
+		}
+		id := items[0].(map[string]any)["id"].(string)
+		_, d := s.do("GET", "/notify/incidents/"+id, "viewer", "")
+		return items[0].(map[string]any)["count"].(float64), field(t, d, "incident").(map[string]any)["count"].(float64)
+	}
+	if l, d := times(); l != 3 || d != 3 {
+		t.Fatalf("list %v, detail %v, want 3", l, d)
+	}
+	s.setModule("honeypot", false)
+	if l, d := times(); l != 1 || d != 1 {
+		t.Fatalf("honeypot off: list %v, detail %v, want notify's own 1", l, d)
+	}
+}

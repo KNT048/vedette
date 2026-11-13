@@ -329,9 +329,6 @@ func (s *Service) Incidents(ctx context.Context) ([]Incident, error) {
 	return out, nil
 }
 
-// maxHitLookups is the most trap incidents of one answer whose hit is asked about (the newest first).
-const maxHitLookups = 100
-
 const hitLinkPrefix = "/honeypot/hits/"
 
 // withConnections raises the count of each trap incident to the connections its hit saw: notify counts one per event, and a
@@ -345,7 +342,7 @@ func (s *Service) withConnections(ctx context.Context, list []Incident) {
 	for _, i := range list {
 		id, ok := strings.CutPrefix(i.Link, hitLinkPrefix)
 		at, err := time.Parse(time.RFC3339, i.FirstSeen)
-		if i.Kind != IncidentTrap || !ok || id == "" || err != nil || len(refs) >= maxHitLookups {
+		if i.Kind != IncidentTrap || !ok || id == "" || err != nil {
 			continue
 		}
 		refs = append(refs, HitRef{ID: id, At: at})
@@ -373,7 +370,16 @@ const incidentsLimit = 500
 
 // IncidentDetail returns one incident with what each channel received (GET /notify/incidents/{id}).
 func (s *Service) IncidentDetail(ctx context.Context, id string) (IncidentDetail, error) {
-	return s.incidentDetail(ctx, s.cfg.DB.Reader(), id)
+	d, err := s.incidentDetail(ctx, s.cfg.DB.Reader(), id)
+	s.detailConnections(ctx, &d)
+	return d, err
+}
+
+// detailConnections is withConnections for one incident, called outside any write transaction.
+func (s *Service) detailConnections(ctx context.Context, d *IncidentDetail) {
+	one := []Incident{d.Incident}
+	s.withConnections(ctx, one)
+	d.Incident.Count = one[0].Count
 }
 
 func (s *Service) incidentDetail(ctx context.Context, q dbtx, id string) (IncidentDetail, error) {
@@ -387,9 +393,6 @@ func (s *Service) incidentDetail(ctx context.Context, q dbtx, id string) (Incide
 	if err := fillIncident(ctx, q, &i); err != nil {
 		return IncidentDetail{}, err
 	}
-	one := []Incident{i}
-	s.withConnections(ctx, one)
-	i.Count = one[0].Count
 	names := make([]string, 0, len(i.Devices))
 	for _, d := range i.Devices {
 		names = append(names, d.Name)
@@ -463,6 +466,9 @@ func (s *Service) HandleIncident(ctx context.Context, actor, id string, status I
 		d, err = s.incidentDetail(ctx, tx, id)
 		return err
 	})
+	if err == nil {
+		s.detailConnections(ctx, &d) // after the write closed: the honeypot is asked outside the transaction
+	}
 	return d, err
 }
 

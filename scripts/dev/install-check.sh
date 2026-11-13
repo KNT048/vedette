@@ -4,7 +4,8 @@
 # refusals that change nothing; a fresh install (vedette-host active, socket, core healthy, interface answers, host.conf from getent,
 # a non-clashing container network, chrony sources, no leftover mirror or registry); a second run that changes nothing; --uninstall
 # without --yes that changes nothing; --uninstall --yes that leaves the box as before (users, groups, units, listening ports,
-# ip link, packages, files). Needs dist/install from `make install-artifacts` (FAST=1 is enough). ROOTLESS podman only: the
+# ip link, packages, files); a box set up through the API, uninstalled with --keep-data and installed again (core healthy, setup still
+# done, the administrator signs in, an older release refused), then repaired with vedette-host running (W2-9, W2-10, D-418). Needs dist/install from `make install-artifacts` (FAST=1 is enough). ROOTLESS podman only: the
 # container is privileged inside the user namespace; the script refuses to run as root. Opt-in, pulls base images and runs apt in
 # them, never in `make check` or CI. Never scans or probes anything outside the containers.
 # What a container cannot show (macvlan decoys on a real wire, netplan, a reboot, a real second NIC) is the on-box plan,
@@ -373,6 +374,59 @@ EOT
 	x 'rm -rf /etc/apt/sources.list.d/vic.list /opt/vicrepo; dpkg --purge vic-lib vic-orphan vic-dep >/dev/null 2>&1; true'
 	# shellcheck disable=SC2046 # package names, one word each
 	x "DEBIAN_FRONTEND=noninteractive apt-get purge -y -q $(comm -13 <(before_pkgs) <(pkgnames) | tr '\n' ' ') >/dev/null 2>&1; true"
+
+	# ---- W2-9, W2-10 (D-418): --uninstall --keep-data, then install again: Vedette comes back with its data and its users -----------
+	# A box set up by a person (first-run setup done, an administrator), uninstalled keeping the data, then installed again: core healthy,
+	# setup still complete, the same administrator signs in, the same key and ids. Then the repair path with vedette-host running: core's
+	# unit removed by hand, install.sh run again (it must stop vedette-host for the bootstrap, W2-10).
+	kd_healthy() { # kd_healthy <what>
+		[ "$(x 'podman inspect --format "{{.State.Health.Status}}" vedette-core')" = healthy ] || fail "$1: core is not healthy"
+		x 'curl -ksf --max-time 10 https://127.0.0.1:8443/api/v1/setup | grep -Eq "\"complete\" *: *true"' || fail "$1: first-run setup is not complete any more (the data was not kept)"
+		x 'n=0; while [ $n -lt 40 ]; do s=$(curl -ks -o /dev/null -w "%{http_code}" --max-time 30 -H "Content-Type: application/json" --data-binary @/root/kd-login.json https://127.0.0.1:8443/api/v1/auth/login); [ "$s" = 503 ] || break; sleep 1; n=$((n + 1)); done; [ "$s" = 200 ]' || fail "$1: the administrator made before the uninstall cannot sign in"
+	}
+	x 'sh /root/art/install.sh --test-artifacts /root/art' >"$work/kd1.log" 2>&1 || { tail -40 "$work/kd1.log" >&2; fail "the install of the keep-data case failed"; }
+	kcode=$(sed -n 's/.*setup code:  \([A-Z0-9-]*\).*/\1/p' "$work/kd1.log" | head -n 1)
+	[ -n "$kcode" ] || { tail -15 "$work/kd1.log" >&2; fail "keep-data case: no setup code in the output"; }
+	kpw=$(LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 24 || true)
+	printf '{"org":"Keep Data Check","admin":{"name":"Keep Data","email":"keepdata@vedette.test","password":"%s"},"lan":["192.168.250.0/24"],"commitment":false,"bundle":"custom","modules":[],"setup_code":"%s"}' "$kpw" "$kcode" >"$work/kd-setup.json"
+	printf '{"email":"keepdata@vedette.test","password":"%s"}' "$kpw" >"$work/kd-login.json"
+	"$c" cp "$work/kd-setup.json" "$ctr:/root/kd-setup.json" >/dev/null
+	"$c" cp "$work/kd-login.json" "$ctr:/root/kd-login.json" >/dev/null
+	rm -f "$work/kd-setup.json" "$work/kd-login.json"
+	[ "$(x 'curl -ks -o /root/kd-setup.out -w "%{http_code}" --max-time 60 -H "Content-Type: application/json" --data-binary @/root/kd-setup.json https://127.0.0.1:8443/api/v1/core/setup')" = 200 ] || { x 'cat /root/kd-setup.out' >&2; fail "keep-data case: first-run setup through the API failed"; }
+	kd_healthy "keep-data case, before the uninstall"
+	kkey=$(x 'sha256sum /var/lib/vedette/vedette.key')
+	kids=$(x 'id vedette; id vedette-sensor')
+	x 'sh /root/art/install.sh --uninstall --yes --keep-data' >"$work/kd-un.log" 2>&1 || { tail -40 "$work/kd-un.log" >&2; fail "--uninstall --yes --keep-data failed"; }
+	x '! test -e /etc/containers/systemd/vedette-core.container && ! dpkg -s vedette-host >/dev/null 2>&1 && ! systemctl is-active -q vedette-host.service' || fail "--uninstall --keep-data left core's unit, the package or a running vedette-host"
+	x 'test -s /var/lib/vedette/vedette.key && test -f /etc/vedette/host.conf && test -f /var/lib/vedette-host/containers/versions-core.json' || fail "--uninstall --keep-data did not keep the key, host.conf or the record of the release that ran"
+	ok "--uninstall --keep-data: Vedette is stopped and its units and package are gone; the key, host.conf and the record of the release that ran are kept"
+	# an older release than the one that ran on the kept data is refused before any change (D-418): the record says 99.0.0 for a moment
+	x 'cp -p /var/lib/vedette-host/containers/versions-core.json /root/kd-versions.bak && sed -i "s/\"current\":{\"service\":\"core\",\"version\":\"[^\"]*\"/\"current\":{\"service\":\"core\",\"version\":\"99.0.0\"/" /var/lib/vedette-host/containers/versions-core.json'
+	x 'sh /root/art/install.sh --test-artifacts /root/art' >"$work/o.txt" 2>&1 && fail "D-418: an install older than the release that ran on the kept data was accepted"
+	grep -q 'keeps the data of Vedette 99.0.0' "$work/o.txt" || { tail -20 "$work/o.txt" >&2; fail "D-418: no 'keeps the data of Vedette 99.0.0' refusal"; }
+	x '! dpkg -s vedette-host >/dev/null 2>&1 && ! test -e /etc/containers/systemd/vedette-core.container' || fail "D-418: the refused install changed the box"
+	x 'cp -p /root/kd-versions.bak /var/lib/vedette-host/containers/versions-core.json && rm -f /root/kd-versions.bak'
+	ok "D-418: an install older than the release that last ran on the kept data is refused and changes nothing"
+	x 'sh /root/art/install.sh --test-artifacts /root/art' >"$work/kd2.log" 2>&1 || { tail -40 "$work/kd2.log" >&2; fail "W2-9: the install after --uninstall --keep-data failed"; }
+	grep -q 'none of its containers: installing release' "$work/kd2.log" || { tail -30 "$work/kd2.log" >&2; fail "W2-9: the install did not see the kept data without containers"; }
+	! grep -q 'already bootstrapped' "$work/kd2.log" || fail "W2-9: the install skipped the bootstrap over the kept data"
+	grep -q 'first-run setup was completed already' "$work/kd2.log" || { tail -15 "$work/kd2.log" >&2; fail "W2-9: the summary does not say setup was done"; }
+	kd_healthy "W2-9, install after --uninstall --keep-data"
+	[ "$(x 'sha256sum /var/lib/vedette/vedette.key')" = "$kkey" ] && [ "$(x 'id vedette; id vedette-sensor')" = "$kids" ] || fail "W2-9: the key or the ids of the users changed"
+	ok "W2-9: install after --uninstall --keep-data: core healthy, setup still complete, the administrator signs in, same key and user ids"
+	# W2-10: the repair path with vedette-host running: core's unit removed by hand, then install.sh again
+	x 'systemctl is-active -q vedette-host.service && systemctl stop vedette-core.service && rm -f /etc/containers/systemd/vedette-core.container && systemctl daemon-reload' || fail "W2-10: cannot set up the case (vedette-host not running?)"
+	x 'sh /root/art/install.sh --test-artifacts /root/art' >"$work/kd3.log" 2>&1 || { tail -40 "$work/kd3.log" >&2; fail "W2-10: the re-run with vedette-host running and core's unit missing failed"; }
+	grep -q 'stopping vedette-host for the bootstrap' "$work/kd3.log" || { tail -30 "$work/kd3.log" >&2; fail "W2-10: the re-run did not stop vedette-host before the bootstrap"; }
+	! grep -q 'daemon_running' "$work/kd3.log" || fail "W2-10: the bootstrap still met a running vedette-host"
+	[ "$(x 'systemctl is-active vedette-host.service')" = active ] || fail "W2-10: vedette-host is not running after the re-run"
+	kd_healthy "W2-10, re-run with vedette-host running"
+	ok "W2-10: the re-run stopped vedette-host for the bootstrap, wrote core's unit again and started both; the data is still there"
+	x 'rm -f /root/kd-setup.json /root/kd-setup.out /root/kd-login.json'
+	x 'sh /root/art/install.sh --uninstall --yes' >"$work/kd-un2.log" 2>&1 || { tail -40 "$work/kd-un2.log" >&2; fail "--uninstall --yes after the keep-data case failed"; }
+	x '! getent passwd vedette >/dev/null && ! test -e /var/lib/vedette && ! test -e /var/lib/vedette-host && ! test -e /etc/vedette' || fail "--uninstall --yes after the keep-data case left Vedette's users or data"
+	ok "keep-data case: a full --uninstall --yes afterwards removes the data and the users"
 	"$c" rm -f -t 0 "$ctr" >/dev/null
 	"$c" volume rm -f "vic-$n-containers" >/dev/null 2>&1 || true
 	"$c" rmi -f "localhost/vedette-installcheck-$n:check" >/dev/null 2>&1 || true

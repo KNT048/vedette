@@ -84,6 +84,7 @@ type hostAPI interface {
 	Events(ctx context.Context, runID string, after uint64) *hostclient.Stream
 	StateContainers(ctx context.Context) (api.ContainersState, error)
 	StateNet(ctx context.Context) (api.NetState, error)
+	StateHPTouches(ctx context.Context) (api.HPTouchesState, error)
 	Info(ctx context.Context) (api.Info, error)
 }
 
@@ -340,6 +341,31 @@ func (h *honeypotHost) refresh(ctx context.Context) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	h.decoys, h.parent, h.gateway, h.decoyAt = set, parent, gw, time.Now()
+}
+
+// Touches is the host's record of new TCP/UDP attempts to the decoy addresses (GET /v1/state/hp-touches, the optional
+// honeypot.touchReporter, B2 review M2), each with the time of the first attempt. A host older than it (404 unknown_command)
+// records none: nil, no error.
+func (h *honeypotHost) Touches(ctx context.Context) ([]honeypot.Touch, error) {
+	st, err := h.api.StateHPTouches(ctx)
+	var he *hostclient.Error
+	switch {
+	case errors.As(err, &he) && he.Code == api.CodeUnknownCommand:
+		return nil, nil
+	case err != nil:
+		return nil, fmt.Errorf("honeypot: host attempts: %w", err)
+	}
+	now := time.Now()
+	out := make([]honeypot.Touch, 0, len(st.Touches))
+	for _, t := range st.Touches {
+		src, err1 := netip.ParseAddr(t.Src)
+		dst, err2 := netip.ParseAddr(t.Dst)
+		if err1 != nil || err2 != nil || t.AgeS < 0 {
+			continue
+		}
+		out = append(out, honeypot.Touch{Src: src, Dst: dst, At: now.Add(-time.Duration(t.AgeS) * time.Second)})
+	}
+	return out, nil
 }
 
 // Gateway is the box's IPv4 default gateway from state/net (the optional honeypot.gatewayReporter), so core refuses a Trap IP

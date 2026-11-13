@@ -368,6 +368,18 @@ type Host interface {
 	StopContainer(ctx context.Context) error // persist: the module is off or no trap is on
 }
 
+// Touch is a new TCP or UDP attempt of Src to the Trap IP Dst that the host recorded, allowed port or not, first at At (B2 review M2).
+type Touch struct {
+	Src, Dst netip.Addr
+	At       time.Time
+}
+
+// touchReporter is the optional part of a Host that records the attempts (vedette-host GET /v1/state/hp-touches); a Host without
+// it (an older host) leaves the sweep to the listener hits.
+type touchReporter interface {
+	Touches(ctx context.Context) ([]Touch, error)
+}
+
 // LogEvent is a log line from another source around a hit.
 type LogEvent struct {
 	TS     time.Time

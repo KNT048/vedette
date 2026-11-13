@@ -785,3 +785,31 @@ func TestHoneypotTrapIPFramesAreNeverDevices(t *testing.T) {
 		t.Fatalf("a foreign machine on a Trap IP address: %d new devices", n-before)
 	}
 }
+
+// noTouchesHost is a vedette-host from before B2 review M2: GET /v1/state/hp-touches is unknown to it.
+type noTouchesHost struct{ hostAPI }
+
+func (noTouchesHost) StateHPTouches(context.Context) (api.HPTouchesState, error) {
+	return api.HPTouchesState{}, &hostclient.Error{Status: http.StatusNotFound, Code: api.CodeUnknownCommand}
+}
+
+// B2 review M2: the adapter reads the host's record of attempts to the decoys, with the time of each first attempt; an older host
+// records none and that is no error.
+func TestHoneypotHostReadsTheAttemptsToTheDecoys(t *testing.T) {
+	t.Parallel()
+	e := startHPHost(t, false)
+	a := e.adapter()
+	ip := netip.MustParseAddr("192.168.10.240")
+	if err := a.AddDecoyIP(t.Context(), ip, honeypot.DecoySpec{Ports: []honeypot.Port{{Proto: "tcp", Port: 445}}}); err != nil {
+		t.Fatal(err)
+	}
+	e.m.SetIPState("touched.json", `{"nftables": [{"set": {"name": "touched", "timeout": 120, "elem": [{"elem": {"val": {"concat": ["192.168.10.145", "192.168.10.240"]}, "timeout": 120, "expires": 90}}]}}]}`)
+	got, err := a.Touches(t.Context())
+	if err != nil || len(got) != 1 || got[0].Src != netip.MustParseAddr("192.168.10.145") || got[0].Dst != ip || time.Since(got[0].At) < 29*time.Second || time.Since(got[0].At) > time.Minute {
+		t.Fatalf("touches %+v %v", got, err)
+	}
+	old := &honeypotHost{api: noTouchesHost{e.h.Client}, log: testLogger(), poll: time.Second, runFor: 30 * time.Second}
+	if got, err := old.Touches(t.Context()); err != nil || got != nil {
+		t.Fatalf("an older host: %+v %v", got, err)
+	}
+}

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -283,5 +284,55 @@ func TestContract_DecoyPorts_ProvingTheNamespaceAgainBuildsEveryLink(t *testing.
 	}
 	if n := len(d.state(t).Decoys); n != 2 {
 		t.Fatalf("state/net lists %d decoys", n)
+	}
+}
+
+// B2 review M2: a SYN scan completes no connection, so the honeypot logs nothing. The namespace's input chain adds every new TCP
+// or UDP attempt to a decoy to the set touched (source . decoy, two minutes, allowed port or not), and GET /v1/state/hp-touches
+// lists it: only pairs whose destination is a decoy and whose source is none of the decoys, loopback, multicast or broadcast, with
+// the seconds since the source first tried. What nft prints that does not parse is a 500, never a made-up touch.
+func TestContract_DecoyPorts_TouchesListWhoTriedADecoy(t *testing.T) {
+	t.Parallel()
+	d := startDecoy(t)
+	d.addPorts(t, decoyIP1, dports("tcp", 445))
+	rs := d.m.IPState("ruleset")
+	for _, want := range []string{"set touched {\n\t\ttype ipv4_addr . ipv4_addr\n\t\tsize 1024\n\t\tflags dynamic,timeout\n\t\ttimeout 120s\n\t}",
+		"iif lo accept\n\t\tmeta l4proto { tcp, udp } ct state new add @touched { ip saddr . ip daddr }\n\t\tct state established,related accept"} {
+		if !strings.Contains(rs, want) {
+			t.Fatalf("the ruleset lacks %q:\n%s", want, rs)
+		}
+	}
+	get := func() (int, api.HPTouchesState) {
+		code, body := rawGet(t, d.h, "/v1/state/hp-touches")
+		var st api.HPTouchesState
+		if code == 200 {
+			if err := json.Unmarshal(body, &st); err != nil {
+				t.Fatal(err)
+			}
+		}
+		return code, st
+	}
+	if code, st := get(); code != 200 || st.Touches == nil || len(st.Touches) != 0 {
+		t.Fatalf("an empty set: %d %+v", code, st)
+	}
+	elem := func(src, dst string, expires int) string {
+		return `{"elem": {"val": {"concat": ["` + src + `", "` + dst + `"]}, "timeout": 120, "expires": ` + strconv.Itoa(expires) + `}}`
+	}
+	d.m.SetIPState("touched.json", `{"nftables": [{"metainfo": {"version": "1.1.6"}}, {"set": {"family": "inet", "name": "touched", "table": "vedette_hp",
+		"type": ["ipv4_addr", "ipv4_addr"], "size": 1024, "flags": ["timeout", "dynamic"], "timeout": 120, "elem": [`+
+		elem("192.168.1.7", decoyIP1, 100)+`, `+elem("192.168.1.7", "192.168.1.255", 110)+`, `+elem(decoyIP1, decoyIP1, 90)+`, `+
+		elem("192.168.1.8", decoyIP2, 90)+`, {"concat": ["192.168.1.9", "`+decoyIP1+`"]}]}}]}`)
+	code, st := get()
+	if code != 200 || len(st.Touches) != 2 || st.Touches[0] != (api.HPTouch{Src: "192.168.1.7", Dst: decoyIP1, AgeS: 20}) ||
+		st.Touches[1] != (api.HPTouch{Src: "192.168.1.9", Dst: decoyIP1}) {
+		t.Fatalf("touches: %d %+v", code, st)
+	}
+	d.m.SetIPState("touched.json", `{"nftables": [{"set": {"name": "touched", "elem": [{"concat": ["192.168.1.7", "::1"]}]}}]}`)
+	if code, _ := get(); code != 500 {
+		t.Fatalf("an element that is not two IPv4 addresses: %d", code)
+	}
+	d.m.SetIPState("touched.json", `not json`)
+	if code, _ := get(); code != 500 {
+		t.Fatalf("output that is not JSON: %d", code)
 	}
 }

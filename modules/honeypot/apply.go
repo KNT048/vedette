@@ -680,6 +680,8 @@ func (s *Service) Run(ctx context.Context) error {
 	}
 	poll := time.NewTicker(s.cfg.PollEvery)
 	defer poll.Stop()
+	touch := time.NewTicker(touchEvery)
+	defer touch.Stop()
 	again := time.NewTicker(applyEvery)
 	defer again.Stop()
 	for {
@@ -696,6 +698,12 @@ func (s *Service) Run(ctx context.Context) error {
 			if err := s.Apply(ctx); err != nil && ctx.Err() == nil {
 				if s.due("apply") {
 					s.cfg.Log.WarnContext(ctx, "honeypot: apply", "error", err)
+				}
+			}
+		case <-touch.C:
+			if err := s.PollTouches(ctx); err != nil && ctx.Err() == nil {
+				if s.due("touches") {
+					s.cfg.Log.WarnContext(ctx, "honeypot: read the attempts the host recorded", "error", err)
 				}
 			}
 		case <-poll.C:

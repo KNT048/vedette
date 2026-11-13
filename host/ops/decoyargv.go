@@ -101,6 +101,11 @@ func argvLoUp() []string    { return inNS("link", "set", "lo", "up") }
 func argvNftLoad() []string { return []string{"netns", "exec", hpNS, hpNftPath, "-f", "-"} }
 func argvNftList() []string { return []string{"netns", "exec", hpNS, hpNftPath, "list", "ruleset"} }
 
+// argvNftTouched lists the set of new connection attempts to the decoys as JSON (D-466, M2: a SYN scan leaves no log line).
+func argvNftTouched() []string {
+	return []string{"netns", "exec", hpNS, hpNftPath, "-j", "list", "set", "inet", "vedette_hp", "touched"}
+}
+
 // Value checks of the validator.
 
 func plainIP4(s string) bool {
@@ -183,7 +188,8 @@ func validateIP(args []string) error {
 		slices.Equal(args, argvSysctl()),
 		slices.Equal(args, argvSysctlRead()),
 		slices.Equal(args, argvNftLoad()),
-		slices.Equal(args, argvNftList()):
+		slices.Equal(args, argvNftList()),
+		slices.Equal(args, argvNftTouched()):
 		return nil
 	}
 	return errors.New("not one of the fixed ip command lines")

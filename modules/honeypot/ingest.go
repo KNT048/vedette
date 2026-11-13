@@ -247,6 +247,12 @@ func (s *Service) ingestBatch(ctx context.Context, env *ingestEnv, batch []tailI
 	if err != nil {
 		return err
 	}
+	s.afterBatch(ctx, env)
+	return nil
+}
+
+// afterBatch counts and publishes what a committed batch made (core/events: after the commit, a rolled-back hit is never announced).
+func (s *Service) afterBatch(ctx context.Context, env *ingestEnv) {
 	created := env.newHits
 	env.pollNew += len(created)
 	env.hourNew += len(created)
@@ -270,7 +276,6 @@ func (s *Service) ingestBatch(ctx context.Context, env *ingestEnv, batch []tailI
 			}
 		}
 	}
-	return nil
 }
 
 // classify maps an OpenCanary logtype to the service (or scan) it belongs to.
@@ -688,4 +693,94 @@ func (s *Service) Prune(ctx context.Context) (int, error) {
 		return nil
 	})
 	return int(n), err
+}
+
+// touchEvery is how often the host's record of connection attempts is read (B2 review M2). The host takes 60 reads a minute for
+// all of core; a sweep is judged on the attempts' own times, so a poll every 15 s still sees two Trap IPs within a minute.
+const touchEvery = 15 * time.Second
+
+// touchTTL is how long the host keeps a (source, Trap IP) attempt (host-api 6.6 set touched): the same attempt read again before it
+// expires is not fed twice.
+const touchTTL = 2 * time.Minute
+
+// maxTouchKeys bounds the memory of attempts already fed (the host's set holds at most 1024).
+const maxTouchKeys = 4096
+
+// PollTouches feeds the host's record of new TCP/UDP attempts to the Trap IPs into the sweep detection (B2 review M2: a SYN scan,
+// nmap's default, completes no connection, so OpenCanary logs nothing). Only the sweep: a single attempt is no hit (the listener
+// hits stay the per-touch alerts). The source must be plausible as for a log line (not the box, a Trap IP, loopback, the network
+// or a broadcast address) and the target a Trap IP handed to the host. Each attempt is fed once while the host keeps it.
+func (s *Service) PollTouches(ctx context.Context) error {
+	r, ok := s.cfg.Host.(touchReporter)
+	if !ok || !s.on() {
+		return nil
+	}
+	list, err := r.Touches(ctx)
+	if err != nil || len(list) == 0 {
+		return err
+	}
+	s.pollMu.Lock()
+	defer s.pollMu.Unlock()
+	now := s.now()
+	if s.fedTouches == nil || len(s.fedTouches) > maxTouchKeys {
+		s.fedTouches = map[string]time.Time{}
+	}
+	for k, until := range s.fedTouches {
+		if now.After(until) {
+			delete(s.fedTouches, k)
+		}
+	}
+	var fresh []Touch
+	for _, t := range list {
+		key := t.Src.String() + "|" + t.Dst.String()
+		if until, seen := s.fedTouches[key]; seen && now.Before(until) {
+			continue
+		}
+		s.fedTouches[key] = t.At.Add(touchTTL + touchEvery)
+		fresh = append(fresh, t)
+	}
+	if len(fresh) == 0 {
+		return nil
+	}
+	slices.SortFunc(fresh, func(a, b Touch) int { return a.At.Compare(b.At) }) // sweep reads them in time order, as log lines
+	env, err := s.newIngest(ctx)
+	if err != nil {
+		return err
+	}
+	err = s.db.Write(ctx, func(tx *sql.Tx) error {
+		env.newHits, env.ignored, env.st = nil, 0, Stats{}
+		for _, t := range fresh {
+			if !env.touchPlausible(t) {
+				env.st.Implausible++
+				continue
+			}
+			if err := s.sweep(ctx, tx, env, t.Src, t.Dst.String(), t.At); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		for _, t := range fresh { // not stored: feed them again next time
+			delete(s.fedTouches, t.Src.String()+"|"+t.Dst.String())
+		}
+		return err
+	}
+	s.afterBatch(ctx, env)
+	return nil
+}
+
+// touchPlausible is plausible (ingest) for an attempt the host recorded: the source is not the box, a Trap IP, loopback, the
+// network or a broadcast address; the target is a Trap IP handed to the host; the time is within the host's record.
+func (env *ingestEnv) touchPlausible(t Touch) bool {
+	w := env.w
+	switch {
+	case !t.Src.Is4() || t.Src.IsLoopback() || t.Src.IsMulticast() || t.Src.IsUnspecified(), env.trapIPs[t.Src]:
+		return false
+	case w.box.IP.IsValid() && t.Src == w.box.IP, isBroadcast(w.lan, t.Src), w.lan.IsValid() && w.lan.Bits() < 31 && t.Src == w.lan.Masked().Addr():
+		return false
+	case !env.trapIPs[t.Dst]:
+		return false
+	}
+	return !t.At.Before(env.now.Add(-touchTTL-touchEvery)) && !t.At.After(env.now.Add(maxLineFuture))
 }

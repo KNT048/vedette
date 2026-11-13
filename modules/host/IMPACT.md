@@ -221,3 +221,7 @@
 - **Lịch chờ khoá giữ `reboot_scheduled_at` ở quá khứ** (tối đa 24 giờ): `core/updates` `updates_auto.go` coi lịch trước `now + updateRunMax` là "a reboot is scheduled" và bỏ lượt cập nhật tự động; đó là điều muốn (không cài thêm khi reboot đang chờ), nhưng GUI có thể hiện một giờ reboot đã qua.
 - **`busctl`** là binary thứ mười lăm của runner (`/usr/bin/busctl`, gói `systemd` mà `.deb` đã `Depends`); `opstest.Bins` có fake `busctl` (mặc định in rỗng = danh sách không biết = cho qua, nên test reboot cũ không đổi). Đổi argv phải đổi cả bộ kiểm `exactly(argsListInhibitors...)` và bảng §16 của `host-api.md`.
 - **Hẹn giờ:** lần thử lại của reboot đã bắt đầu dùng `Deps.AfterFunc` (30 s) và trường `stopRetry` (dưới `rbMu`), tách khỏi `stopTick` của lịch; test đếm hẹn giờ (`fakeTimers.active`) thấy thêm một hẹn giờ 30 s chỉ khi reboot bị khoá.
+
+## Modifying: tập `touched` và `GET /v1/state/hp-touches` (B2 review M2)
+- **honeypot / `cmd/vedette` (`honeypotHost.Touches`)**: đọc mỗi 15 giây (`touchEvery`) để đưa lần thử vào phát hiện quét (honeypot INV-24); đổi dạng `{touches[{src, dst, age_s}]}` hoặc bỏ lọc `dst` là decoy → quét SYN không còn thành cảnh báo, hoặc broadcast thành "lần chạm". Host cũ (404) → không có lần thử, chỉ còn quét bằng kết nối thật.
+- **Kiểm hiệu ứng của ruleset**: đổi cách nft in tập `touched` hay luật `add @touched` mà `touchedOK`/`touchRuleForms` không nhận → namespace không chứng minh được → mọi decoy tắt (fail closed). Dạng in thật của nft 1.1 cần chụp ở lab (`.ai/deferred/feat-trap-ip-profiles.md`).

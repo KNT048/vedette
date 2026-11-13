@@ -441,3 +441,79 @@ func TestADeviceWithTheDecoysOwnMACIsNoConflict(t *testing.T) {
 		t.Fatalf("a real device on the address: %v", err)
 	}
 }
+
+// touchHost records new connection attempts to the decoys, as vedette-host's set touched (B2 review M2).
+type touchHost struct {
+	*fakeHost
+	list *[]honeypot.Touch
+}
+
+func (h touchHost) Touches(context.Context) ([]honeypot.Touch, error) {
+	return slices.Clone(*h.list), nil
+}
+
+// B2 review M2 (lab: nmap -sS across the Trap IPs made no hit): the attempts the host records feed the sweep detection. Two Trap
+// IPs within a minute are one scan hit and one event; one Trap IP alone, the box, a Trap IP as the source, or the same attempts
+// read again make nothing new; a third Trap IP joins the same hit. No per-touch service hit comes from an attempt.
+func TestHostRecordedAttemptsAreASweep(t *testing.T) {
+	t.Parallel()
+	var list []honeypot.Touch
+	e := newEnv(t, func(e *env) { e.cfg.Host = touchHost{fakeHost: e.host, list: &list} })
+	e.now = t0.Add(5 * time.Minute) // inside one 10-minute hit window (a sweep across a window edge is two hits, one incident)
+	e.setup()
+	e.addTrapIP("NAS-ARCHIVE", "192.168.10.241", honeypot.NAS, honeypot.HTTP, honeypot.SMB)
+	e.addTrapIP("PRN-FLOOR2", "192.168.10.242", honeypot.Printer, honeypot.HTTP)
+	if err := e.svc.Apply(e.ctx()); err != nil {
+		t.Fatal(err)
+	}
+	src := addr("192.168.10.145")
+	touch := func(s, d string, ago time.Duration) honeypot.Touch {
+		return honeypot.Touch{Src: addr(s), Dst: addr(d), At: e.now.Add(-ago)}
+	}
+	poll := func() {
+		t.Helper()
+		if err := e.svc.PollTouches(e.ctx()); err != nil {
+			t.Fatal(err)
+		}
+	}
+	scanEvents := func() int {
+		n := 0
+		for _, ev := range e.pub.all() {
+			if ev.Data.(honeypot.HitEventData).Kind == honeypot.KindScan {
+				n++
+			}
+		}
+		return n
+	}
+	// One Trap IP, the box itself, a Trap IP as the source: nothing.
+	list = []honeypot.Touch{touch("192.168.10.145", "192.168.10.240", 30*time.Second), touch("192.168.10.2", "192.168.10.240", 20*time.Second),
+		touch("192.168.10.2", "192.168.10.241", 20*time.Second), touch("192.168.10.241", "192.168.10.240", 10*time.Second)}
+	poll()
+	if n := len(hitsOfKind(t, e, honeypot.KindScan)); n != 0 || len(e.pub.all()) != 0 {
+		t.Fatalf("%d scan hits, %d events from one Trap IP, the box and a Trap IP", n, len(e.pub.all()))
+	}
+	// A second Trap IP within the minute: one scan hit, one event, no service hit.
+	list = append(list, touch("192.168.10.145", "192.168.10.241", 5*time.Second))
+	poll()
+	poll() // the same attempts read again
+	scans := hitsOfKind(t, e, honeypot.KindScan)
+	if len(scans) != 1 || scans[0].SrcIP != src.String() || scans[0].TrapHostname != "FILESRV-OLD, NAS-ARCHIVE" || scanEvents() != 1 {
+		t.Fatalf("scan hits %+v, %d scan events", scans, scanEvents())
+	}
+	if n := len(hitsOfKind(t, e, honeypot.KindService)); n != 0 {
+		t.Fatalf("%d service hits from attempts", n)
+	}
+	// A third Trap IP: the same hit names it, no new event.
+	list = append(list, touch("192.168.10.145", "192.168.10.242", 0))
+	poll()
+	if scans = hitsOfKind(t, e, honeypot.KindScan); len(scans) != 1 || scans[0].TrapHostname != "FILESRV-OLD, NAS-ARCHIVE, PRN-FLOOR2" || scanEvents() != 1 {
+		t.Fatalf("after a third Trap IP: %+v, %d events", scans, scanEvents())
+	}
+	// Module off: the host is not even asked.
+	e.gate.turnOff()
+	list = append(list, touch("192.168.10.146", "192.168.10.240", 0), touch("192.168.10.146", "192.168.10.241", 0))
+	poll()
+	if n := len(hitsOfKind(t, e, honeypot.KindScan)); n != 1 {
+		t.Fatalf("%d scan hits while the module is off", n)
+	}
+}

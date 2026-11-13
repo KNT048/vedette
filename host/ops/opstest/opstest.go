@@ -553,7 +553,8 @@ func (m *Machine) Ops(now func() time.Time, mutate ...func(*ops.Config, *ops.Dep
 // table), a table exists once a route went into it, and "route flush table N" of a table that does not exist answers as
 // iproute2 6.19 does (exit 2, "Error: ipv4: FIB table does not exist." and "Flush terminated" on stderr; #475),
 // "ip -n vedette-hp -j addr show" prints the links as JSON, and "nft list ruleset" prints the
-// ruleset "nft -f -" loaded last, the way nft prints it back, "sysctl -n" reads back what "sysctl -w" set (the marker "sysctl-wrong" makes it read 9) (unless the marker "nft-noload" is set: the load then
+// ruleset "nft -f -" loaded last, the way nft prints it back, "nft -j list set … touched" prints the IP state "touched.json" (an empty
+// set when it is not set), "sysctl -n" reads back what "sysctl -w" set (the marker "sysctl-wrong" makes it read 9) (unless the marker "nft-noload" is set: the load then
 // silently does nothing). Rules added with Rule fire before this and can make a call fail.
 func (m *Machine) StatefulIP() {
 	m.writeFakeWith(ops.BinIP, `S="$REC/ip"; ROOT='`+m.Root+`'
@@ -589,6 +590,11 @@ case "$mode:$args" in
   "host:netns exec vedette-hp /usr/sbin/nft list ruleset")
     if [ -e "$S/ruleset" ]; then # what was loaded, as nft prints it back (no flush line, priority name, quoted interface)
       sed -e '/^flush ruleset$/d' -e 's/priority 0;/priority filter;/' -e 's/oif lo /oif "lo" /' -e 's/iif lo /iif "lo" /' "$S/ruleset"
+    fi
+    exit 0 ;;
+  "host:netns exec vedette-hp /usr/sbin/nft -j list set inet vedette_hp touched")
+    if [ -e "$S/touched.json" ]; then cat "$S/touched.json"; else
+      echo '{"nftables": [{"metainfo": {"version": "1.1.6"}}, {"set": {"family": "inet", "name": "touched", "table": "vedette_hp", "type": ["ipv4_addr", "ipv4_addr"], "size": 1024, "flags": ["timeout", "dynamic"], "timeout": 120}}]}'
     fi
     exit 0 ;;
   "host:link add link "*)

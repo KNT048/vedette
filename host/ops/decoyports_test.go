@@ -70,7 +70,8 @@ func TestRenderRulesetPutsEachAddressInItsSet(t *testing.T) {
 		"flush ruleset\ntable inet vedette_hp {\n",
 		"\tset open {\n\t\ttype ipv4_addr\n\t\telements = { 192.168.1.101 }\n\t}\n",
 		"\tset allow {\n\t\ttype ipv4_addr . inet_proto . inet_service\n\t\telements = { 192.168.1.100 . tcp . 3389, 192.168.1.100 . tcp . 445 }\n\t}\n",
-		"\t\ttype filter hook input priority 0; policy accept;\n\t\tiif lo accept\n\t\tct state established,related accept\n\t\tip daddr @open accept\n" +
+		"\tset touched {\n\t\ttype ipv4_addr . ipv4_addr\n\t\tsize 1024\n\t\tflags dynamic,timeout\n\t\ttimeout 120s\n\t}\n",
+		"\t\ttype filter hook input priority 0; policy accept;\n\t\tiif lo accept\n\t\tmeta l4proto { tcp, udp } ct state new add @touched { ip saddr . ip daddr }\n\t\tct state established,related accept\n\t\tip daddr @open accept\n" +
 			"\t\tip daddr . meta l4proto . th dport @allow accept\n\t\tmeta l4proto tcp reject with tcp reset\n\t\tmeta l4proto udp reject\n",
 		"\tchain output {\n\t\ttype filter hook output priority 0; policy accept;\n\t\tct state established,related accept\n\t\toif lo accept\n\t\tct state new drop\n\t}\n",
 		"\tchain forward {\n\t\ttype filter hook forward priority 0; policy drop;\n\t}\n}\n",
@@ -109,9 +110,19 @@ table inet vedette_hp {
 			     192.168.1.100 . 6 . 3389 }
 	}
 
+	set touched {
+		type ipv4_addr . ipv4_addr
+		size 1024
+		flags dynamic,timeout
+		timeout 2m
+		elements = { 192.168.1.7 . 192.168.1.100 timeout 2m expires 1m51s,
+			     192.168.1.7 . 192.168.1.101 timeout 2m expires 1m52s }
+	}
+
 	chain input {
 		type filter hook input priority filter; policy accept;
 		iif "lo" accept
+		meta l4proto { tcp, udp } ct state new add @touched { ip saddr . ip daddr }
 		ct state established,related accept
 		ip daddr @open accept
 		ip daddr . meta l4proto . th dport @allow accept
@@ -159,6 +170,11 @@ func TestRulesetIsReadsTheRealListing(t *testing.T) {
 		"set type":          strings.Replace(ours, "type ipv4_addr\n", "type ipv4_addr . inet_service\n", 1),
 		"extra chain":       strings.Replace(ours, "\tchain forward {", "\tchain prerouting {\n\t\ttype filter hook prerouting priority filter; policy accept;\n\t}\n\tchain forward {", 1),
 		"extra set":         strings.Replace(ours, "\tset allow {", "\tset more {\n\t\ttype ipv4_addr\n\t}\n\tset allow {", 1),
+		"no touched set":    ours[:strings.Index(ours, "\tset touched")] + ours[strings.Index(ours, "\tchain input"):],
+		"touched not dyn":   strings.Replace(ours, "flags dynamic,timeout", "flags timeout", 1),
+		"touched other":     strings.Replace(ours, "\t\tsize 1024\n", "\t\tsize 1024\n\t\tpolicy memory\n", 1),
+		"no touch rule":     strings.Replace(ours, "\t\tmeta l4proto { tcp, udp } ct state new add @touched { ip saddr . ip daddr }\n", "", 1),
+		"touch rule late":   strings.Replace(strings.Replace(ours, "\t\tmeta l4proto { tcp, udp } ct state new add @touched { ip saddr . ip daddr }\n", "", 1), "\t\tmeta l4proto tcp reject", "\t\tmeta l4proto { tcp, udp } ct state new add @touched { ip saddr . ip daddr }\n\t\tmeta l4proto tcp reject", 1),
 		"dormant":           strings.Replace(ours, "table inet vedette_hp {\n", "table inet vedette_hp {\n\tflags dormant\n", 1),
 		"egress gone":       strings.Replace(ours, "\t\tct state new drop\n", "", 1),
 	} {
@@ -276,8 +292,15 @@ func TestRulesetIsAcceptsTheRealUbuntu2604Listing(t *testing.T) {
 		{IP: "192.168.18.240", MAC: "f8:bc:12:00:00:01", Table: 100, Iface: "enp0s2", Ports: ports("tcp", 445, "tcp", 3389)},
 		{IP: "192.168.18.241", MAC: "00:11:32:00:00:01", Table: 101, Iface: "enp0s2", Ports: ports("tcp", 80, "tcp", 445)},
 	}
-	if !rulesetIs(listed, list) || !hasEgressDrop(listed) {
-		t.Fatalf("the effect check refuses the real listing:\n%s", listed)
+	// The capture predates the touched set (M2): it is refused now, so the host loads the new ruleset over it; its egress part
+	// is still read. With the set and the rule printed in, the rest of it is what nft 1.1 prints.
+	if rulesetIs(listed, list) || !hasEgressDrop(listed) {
+		t.Fatalf("the pre-M2 listing: rulesetIs %v, egress %v", rulesetIs(listed, list), hasEgressDrop(listed))
+	}
+	listed = []byte(strings.Replace(strings.Replace(string(listed), "\tchain input {", "\tset touched {\n\t\ttype ipv4_addr . ipv4_addr\n\t\tsize 1024\n\t\tflags dynamic,timeout\n\t\ttimeout 2m\n\t}\n\n\tchain input {", 1),
+		"\t\tiif \"lo\" accept\n", "\t\tiif \"lo\" accept\n\t\tmeta l4proto { tcp, udp } ct state new add @touched { ip saddr . ip daddr }\n", 1))
+	if !rulesetIs(listed, list) {
+		t.Fatalf("the effect check refuses the real listing with the touched set:\n%s", listed)
 	}
 	if rulesetIs(listed, list[:1]) || rulesetIs(listed, append(slices.Clone(list), decoyEntry{IP: "192.168.18.242", MAC: "00:50:56:00:00:01", Table: 102, Iface: "enp0s2", Ports: ports("tcp", 22)})) {
 		t.Fatal("the real listing was taken for another decoy list")

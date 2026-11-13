@@ -84,6 +84,19 @@ type DecoyAddResult struct {
 	MAC string `json:"mac"`
 }
 
+// HPTouch is one source that tried a new TCP or UDP connection to a decoy address (allowed port or not): AgeS is the seconds
+// since it first did within the set's two minutes (D-466, B2 review M2).
+type HPTouch struct {
+	Src  string `json:"src"`
+	Dst  string `json:"dst"`
+	AgeS int    `json:"age_s"`
+}
+
+// HPTouchesState is the body of GET /v1/state/hp-touches; Touches is [] when none (or while the namespace is not proven).
+type HPTouchesState struct {
+	Touches []HPTouch `json:"touches"`
+}
+
 // DecoyRemoveArgs are the args of decoy_ip.remove.
 type DecoyRemoveArgs struct {
 	IP string `json:"ip"`

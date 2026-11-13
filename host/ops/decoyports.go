@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"cmp"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/netip"
@@ -70,6 +71,7 @@ var (
 	hpOutputRules = []string{"ct state established,related accept", "oif lo accept", "ct state new drop"}
 	hpInputRules  = []string{
 		"iif lo accept",
+		hpTouchRule,
 		"ct state established,related accept",
 		"ip daddr @open accept",
 		"ip daddr . meta l4proto . th dport @allow accept",
@@ -81,7 +83,21 @@ var (
 const (
 	hpOpenType  = "ipv4_addr"
 	hpAllowType = "ipv4_addr . inet_proto . inet_service"
+	// hpTouchedType is the set of (source, decoy) pairs that tried a new TCP or UDP connection to a decoy address in the last
+	// hpTouchTimeout, allowed port or not (B2 review M2: a SYN scan completes no connection, so OpenCanary logs nothing). The
+	// packet path adds to it; "add" keeps the first time, so an element's age is the time since that source first touched
+	// that decoy. Bounded: past hpTouchedSize new pairs are not added (the oldest expire within the timeout).
+	hpTouchedType  = "ipv4_addr . ipv4_addr"
+	hpTouchedSize  = 1024
+	hpTouchTimeout = 2 * time.Minute
+	hpTouchRule    = "meta l4proto { tcp, udp } ct state new add @touched { ip saddr . ip daddr }"
 )
+
+// touchRuleForms are the ways nft may print hpTouchRule back, normalised (protocols as names or numbers).
+var touchRuleForms = []string{
+	nftNorm(hpTouchRule),
+	nftNorm("meta l4proto { 6, 17 } ct state new add @touched { ip saddr . ip daddr }"),
+}
 
 // wantedSets are the elements of the two sets for a decoy list: the addresses without an allow-list,
 // and "ip . proto . port" of every allowed port.
@@ -122,6 +138,8 @@ func renderRuleset(list []decoyEntry) string {
 	b.WriteString("flush ruleset\ntable inet vedette_hp {\n")
 	set("open", hpOpenType, open)
 	set("allow", hpAllowType, allow)
+	b.WriteString("\tset touched {\n\t\ttype " + hpTouchedType + "\n\t\tsize " + strconv.Itoa(hpTouchedSize) +
+		"\n\t\tflags dynamic,timeout\n\t\ttimeout " + strconv.Itoa(int(hpTouchTimeout/time.Second)) + "s\n\t}\n")
 	chain("input", "type filter hook input priority 0; policy accept;", hpInputRules)
 	chain("output", "type filter hook output priority 0; policy accept;", hpOutputRules)
 	chain("forward", "type filter hook forward priority 0; policy drop;", nil)
@@ -315,11 +333,33 @@ func (t nftTable) inputOK() bool {
 	want := normAll(hpInputRules)
 	for i, r := range in.rules {
 		udpReject := i == len(want)-1 && slices.Contains(rejectUDPForms, r)
-		if r != want[i] && !udpReject {
+		touch := want[i] == nftNorm(hpTouchRule) && slices.Contains(touchRuleForms, r)
+		if r != want[i] && !udpReject && !touch {
 			return false
 		}
 	}
 	return true
+}
+
+// touchedOK is the check of the dynamic set: its type, the flags dynamic and timeout, and no line but its size, flags and
+// timeout. Its elements are the traffic of the moment and are not compared.
+func touchedOK(s *nftSet) bool {
+	if s == nil || s.typ != hpTouchedType {
+		return false
+	}
+	flags := false
+	for _, l := range s.other {
+		n := nftNorm(l)
+		switch {
+		case strings.HasPrefix(n, "flags"):
+			f := strings.Split(strings.TrimPrefix(n, "flags"), ",")
+			flags = slices.Contains(f, "dynamic") && slices.Contains(f, "timeout")
+		case strings.HasPrefix(n, "size"), strings.HasPrefix(n, "timeout"):
+		default:
+			return false
+		}
+	}
+	return flags
 }
 
 // hasEgressDrop reads the text of "nft list ruleset" and accepts only the egress part of the host's
@@ -334,7 +374,7 @@ func hasEgressDrop(out []byte) bool { return parseHPTable(out).egressOK() }
 func rulesetIs(out []byte, list []decoyEntry) bool {
 	t := parseHPTable(out)
 	open, allow := wantedSets(list)
-	return t.foreign == 0 && t.egressOK() && t.inputOK() && len(t.chains) == 3 && len(t.sets) == 2 &&
+	return t.foreign == 0 && t.egressOK() && t.inputOK() && len(t.chains) == 3 && len(t.sets) == 3 && touchedOK(t.sets["touched"]) &&
 		setIs(t.sets["open"], hpOpenType, open, false) && setIs(t.sets["allow"], hpAllowType, allow, true)
 }
 
@@ -510,4 +550,98 @@ func portsOf(e decoyEntry) *[]api.DecoyPort {
 	}
 	p := slices.Clone(*e.Ports)
 	return &p
+}
+
+// readHPTouches is GET /v1/state/hp-touches: the elements of the touched set, from "nft -j list set" inside the namespace
+// (no shell, a fixed argv). Only pairs whose destination is a decoy of hp/decoys.json and whose source is no decoy, loopback,
+// multicast or the limited broadcast are kept; the host's own addresses never reach the namespace (macvlan bridge mode). A
+// namespace that is not proven answers no touch. Anything nft prints that does not parse is an error (fail closed: no touch is
+// made up).
+func (o *Ops) readHPTouches(ctx context.Context) (any, error) {
+	out := api.HPTouchesState{Touches: []api.HPTouch{}}
+	if o.hpDirErr != nil || !o.hpOK.Load() {
+		return out, nil
+	}
+	list, err := o.readDecoys()
+	if err != nil {
+		return out, nil
+	}
+	res, code, err := o.exec(ctx, binIP, argvNftTouched()...)
+	if err != nil || code != 0 || res.Truncated {
+		return nil, fmt.Errorf("ops: listing the touched set of vedette-hp failed (exit %d)", code)
+	}
+	touches, err := parseTouched(res.Stdout)
+	if err != nil {
+		return nil, err
+	}
+	decoys := map[string]bool{}
+	for _, e := range list {
+		decoys[e.IP] = true
+	}
+	for _, t := range touches {
+		src, _ := netip.ParseAddr(t.Src)
+		if !decoys[t.Dst] || decoys[t.Src] || src.IsLoopback() || src.IsMulticast() || src.IsUnspecified() || t.Src == "255.255.255.255" {
+			continue
+		}
+		out.Touches = append(out.Touches, t)
+	}
+	return out, nil
+}
+
+// parseTouched reads "nft -j list set inet vedette_hp touched". An element is {"elem": {"val": {"concat": [src, dst]},
+// "timeout": s, "expires": s}} (or a bare {"concat": [...]} when nft gives no times: age 0). Both addresses must be plain IPv4.
+func parseTouched(b []byte) ([]api.HPTouch, error) {
+	var doc struct {
+		Nftables []struct {
+			Set *struct {
+				Name    string            `json:"name"`
+				Timeout int               `json:"timeout"`
+				Elem    []json.RawMessage `json:"elem"`
+			} `json:"set"`
+		} `json:"nftables"`
+	}
+	if err := json.Unmarshal(b, &doc); err != nil {
+		return nil, fmt.Errorf("ops: the touched set is not nft JSON: %w", err)
+	}
+	type concat struct {
+		Concat []string `json:"concat"`
+	}
+	var out []api.HPTouch
+	found := false
+	for _, n := range doc.Nftables {
+		if n.Set == nil || n.Set.Name != "touched" {
+			continue
+		}
+		found = true
+		for _, raw := range n.Set.Elem {
+			var e struct {
+				Elem *struct {
+					Val     concat `json:"val"`
+					Timeout int    `json:"timeout"`
+					Expires int    `json:"expires"`
+				} `json:"elem"`
+				concat
+			}
+			if err := json.Unmarshal(raw, &e); err != nil {
+				return nil, fmt.Errorf("ops: an element of the touched set: %w", err)
+			}
+			pair, age := e.Concat, 0
+			if e.Elem != nil {
+				pair = e.Elem.Val.Concat
+				timeout := e.Elem.Timeout
+				if timeout == 0 {
+					timeout = n.Set.Timeout
+				}
+				age = max(0, timeout-e.Elem.Expires)
+			}
+			if len(pair) != 2 || !plainIP4(pair[0]) || !plainIP4(pair[1]) {
+				return nil, errors.New("ops: an element of the touched set is not two IPv4 addresses")
+			}
+			out = append(out, api.HPTouch{Src: pair[0], Dst: pair[1], AgeS: age})
+		}
+	}
+	if !found {
+		return nil, errors.New("ops: nft printed no touched set")
+	}
+	return out, nil
 }

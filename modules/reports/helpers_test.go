@@ -29,11 +29,14 @@ type fakeFindings struct {
 func (f *fakeFindings) All(context.Context) ([]Finding, error) { return f.fs, f.err }
 
 type fakeKEV struct {
-	es []KEVEntry
-	at time.Time
+	es           []KEVEntry
+	at           time.Time
+	newN, inUseN int
 }
 
 func (f *fakeKEV) Entries(context.Context) ([]KEVEntry, time.Time, error) { return f.es, f.at, nil }
+
+func (f *fakeKEV) NewlyExploited(context.Context) (int, int, error) { return f.newN, f.inUseN, nil }
 
 type fakeMail struct {
 	mu    sync.Mutex

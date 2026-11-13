@@ -236,36 +236,39 @@ func (s *Service) build(ctx context.Context, src sourceRow) (pullPlan, error) {
 		return p, err
 	}
 	viaCISA := src.ID == "cisa-kev" && src.URL == s.kevPrimary() // the built-in address of the CISA list: D-91 applies
-	req := Request{URL: src.URL, Auth: auth}
+	// Conditional only after a good pull, each address with its own validators (D-91, D-485): the CISA list is pulled
+	// every hour, and a 304 keeps that cheap on the mirror too while CISA refuses the box.
+	// After the mirror answered, CISA is asked without validators once, so the list and answered_by come from CISA again.
+	ok := src.Status == "ok"
 	mirrorHeldIt := src.AnsweredBy != nil && *src.AnsweredBy == AnsweredMirror
-	if src.Status == "ok" && !mirrorHeldIt { // conditional only after a good pull, and only for the address the validators came from
-		if src.ETag != nil {
-			req.ETag = *src.ETag
-		}
-		if src.LastModified != nil {
-			req.LastModified = *src.LastModified
-		}
+	req := Request{URL: src.URL, Auth: auth}
+	if ok && !mirrorHeldIt {
+		req.ETag, req.LastModified = orEmpty(src.ETag), orEmpty(src.LastModified)
 	}
 	resp, err := s.get(ctx, req)
-	answered := ""
+	answered, viaMirror := "", false
 	if viaCISA {
 		answered = AnsweredCISA
 		if err != nil && fallbackWorthy(err) {
-			mresp, merr := s.get(ctx, Request{URL: s.kevFallback()}) // no validators, no credentials: a plain GET
+			mreq := Request{URL: s.kevFallback()} // no credentials
+			if ok {
+				mreq.ETag, mreq.LastModified = orEmpty(src.MirrorETag), orEmpty(src.MirrorLastModified)
+			}
+			mresp, merr := s.get(ctx, mreq)
 			if merr != nil {
 				return p, &Error{Err: merr, Detail: userError(err, src.URL) + " The CISA GitHub mirror failed too: " + userError(merr, s.kevFallback())}
 			}
-			resp, err, answered = mresp, nil, AnsweredMirror
+			resp, err, answered, viaMirror, req = mresp, nil, AnsweredMirror, true, mreq
 		}
 	}
 	if err != nil {
 		return p, err
 	}
 	if resp.NotModified {
-		p.out = outcome{OK: true, NotModified: true, ETag: req.ETag, LastModif: req.LastModified, AnsweredBy: answered}
+		p.out = outcome{OK: true, NotModified: true, ETag: req.ETag, LastModif: req.LastModified, AnsweredBy: answered, Mirror: viaMirror}
 		return p, nil
 	}
-	p.out = outcome{OK: true, Bytes: len(resp.Body), ETag: resp.ETag, LastModif: resp.LastModified, AnsweredBy: answered}
+	p.out = outcome{OK: true, Bytes: len(resp.Body), ETag: resp.ETag, LastModif: resp.LastModified, AnsweredBy: answered, Mirror: viaMirror}
 	switch dec {
 	case DecoderKEV:
 		cat, err := ParseKEV(resp.Body)
@@ -276,7 +279,8 @@ func (s *Service) build(ctx context.Context, src sourceRow) (pullPlan, error) {
 			return p, err
 		}
 		if answered == AnsweredMirror && src.CatalogVersion != nil && kevOlder(cat.Version, *src.CatalogVersion) { // never roll back (D-91)
-			p.out = outcome{OK: true, NotModified: true, Note: fmt.Sprintf("The CISA GitHub mirror has an older list (%s) than this box (%s), so the list on the box was kept.", cat.Version, *src.CatalogVersion)}
+			// the mirror's validators are kept, so the same older file is a 304 next hour
+			p.out = outcome{OK: true, NotModified: true, ETag: resp.ETag, LastModif: resp.LastModified, Mirror: true, Note: fmt.Sprintf("The CISA GitHub mirror has an older list (%s) than this box (%s), so the list on the box was kept.", cat.Version, *src.CatalogVersion)}
 			return p, nil
 		}
 		p.vulns, p.hasVulns = cat.Vulns, true
@@ -584,7 +588,9 @@ func (s *Service) pull(ctx context.Context, id, actor string) (sourceRow, error)
 	if err != nil || id != "cisa-kev" || row.Status != "ok" {
 		return row, err
 	}
-	if e, err := s.st.source(ctx, "first-epss"); err == nil && e.Enabled && (fresh > 0 || e.Records == nil || *e.Records == 0) {
+	// EPSS keeps its own back-off (D-485): with the list pulled every hour, a failing EPSS would otherwise be asked every hour.
+	if e, err := s.st.source(ctx, "first-epss"); err == nil && e.Enabled && (fresh > 0 || e.Records == nil || *e.Records == 0) &&
+		(e.Failures == 0 || e.state().Due(s.now(), e.IntervalHours)) {
 		if _, _, err := s.pullOne(ctx, "first-epss", ""); err != nil && ctx.Err() != nil {
 			return row, ctx.Err()
 		}
@@ -642,4 +648,11 @@ func (s *Service) kevFallback() string {
 		return s.KEVFallback
 	}
 	return KEVMirrorURL
+}
+
+func orEmpty(p *string) string {
+	if p == nil {
+		return ""
+	}
+	return *p
 }

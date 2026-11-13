@@ -15,6 +15,8 @@ export const VerifyMethod = z.enum(['dns_txt', 'box_egress'])
 
 export const Counts = z.object({ subdomains: z.number().int(), ips: z.number().int(), ports: z.number().int(), admin_panels: z.number().int(), certs_expiring: z.number().int() })
 
+export const PortRow = z.object({ ip: z.string(), port: z.number().int(), service: z.string(), product: z.string().optional() })
+
 export const Commitment = z.object({ by: z.string(), at: z.iso.datetime() })
 
 export const Target = z.object({
@@ -34,10 +36,10 @@ export const Target = z.object({
   created_at: z.iso.datetime(),
   last_scan_at: z.iso.datetime().nullable(),
   latest: Counts.nullable(),
+  open_ports: z.array(PortRow).nullable().describe('The first 20 open ports of the newest scan, in its order (latest.ports is the total), so the list can say what is open; null when never scanned'),
 })
 
 export const HostRow = z.object({ name: z.string(), ip: z.string() })
-export const PortRow = z.object({ ip: z.string(), port: z.number().int(), service: z.string(), product: z.string().optional() })
 export const AdminRow = z.object({ url: z.string(), product: z.string(), ip: z.string(), port: z.number().int(), risk: z.enum(['danger', 'warn']) })
 export const CertRow = z.object({ host: z.string(), issuer: z.string(), expires_at: z.iso.datetime() })
 

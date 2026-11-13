@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"os"
+	"regexp"
 	"sync"
 	"time"
 
@@ -36,6 +37,7 @@ type boxHostName struct {
 
 	mu       sync.Mutex
 	name     string                                    // the last valid name the host gave; "" none
+	os       string                                    // the operating system of the last answer that named one ("Ubuntu 26.04"); "" none
 	until    time.Time                                 // the host is asked again after this
 	answered bool                                      // the host has answered at least once (with or without a name)
 	row      func(ctx context.Context) (string, error) // the name of the box's device row; nil none (useRow)
@@ -103,6 +105,11 @@ func (b *boxHostName) Get(ctx context.Context) (name string, ok bool) {
 		default: // the host answered without a usable name: it will not have one until it is updated or renamed
 			b.name, b.until, b.answered = "", now.Add(boxNameTTL), true
 		}
+		if err == nil {
+			if o := boxOS(inf.OS); o != "" {
+				b.os = o
+			}
+		}
 	}
 	return b.pick(ctx)
 }
@@ -122,6 +129,36 @@ func (b *boxHostName) Cached(ctx context.Context) string {
 	defer b.mu.Unlock()
 	name, _ := b.pick(ctx)
 	return name
+}
+
+// OS is the box's operating system from the host's last answer to GET /v1/info ("Ubuntu 26.04", W3-8), read from memory: Get
+// keeps it fresh. "" without a host (container-only: the container's own OS is not the box's) or before the host has named one,
+// and the box job then leaves the device row's OS as it is. Safe on nil.
+func (b *boxHostName) OS() string {
+	if b == nil || b.info == nil {
+		return ""
+	}
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.os
+}
+
+// osDistros are the os-release IDs of the appliance's releases (host/ops supportTable) as people write them. The findings
+// matcher reads the release from this text (findings.osPatterns: "Ubuntu 26.04", "Debian 13").
+var osDistros = map[string]string{"ubuntu": "Ubuntu", "debian": "Debian"}
+
+// osReleaseRE is a release the host reads from VERSION_ID ("26.04", "13").
+var osReleaseRE = regexp.MustCompile(`^[0-9]{1,4}(\.[0-9]{1,4}){0,2}$`)
+
+// boxOS turns the host's os-release ID and VERSION_ID into the box's operating system ("Ubuntu 26.04"). The host's answer is
+// checked again (data from another process): "" for a distribution the appliance does not run on, or a release that is not
+// a plain number ("unknown" when the host could not read os-release).
+func boxOS(o api.OSInfo) string {
+	name, ok := osDistros[o.Distro]
+	if !ok || !osReleaseRE.MatchString(o.Release) {
+		return ""
+	}
+	return name + " " + o.Release
 }
 
 // pick is the answer from memory; called under mu. The device row is read until one read succeeds (a failed read or a caller that

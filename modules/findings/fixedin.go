@@ -71,7 +71,7 @@ func FixedInFor(a Asset, v Vuln) *FixedIn {
 		if !keyedTo(s, v) {
 			continue
 		}
-		in := newSWInfo(s, []Vuln{v}, a.OS)
+		in := newSWInfo(s, a.OS)
 		if f := fixedInSoftware(in, v, key); rank(f) > rank(best) {
 			best = f
 		}

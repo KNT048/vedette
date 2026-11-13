@@ -107,6 +107,10 @@ type MatchResult struct {
 	// software of the entry's product has a readable version outside every NVD range (or its OS release is not one
 	// the entry lists), none needs a version, none matches. Evidence.Summary is the sentence that closes the finding.
 	NotAffected []Match
+	// Unlisted lists the CVEs the device has a finding for whose "Multiple Products" entry NVD lists only other products
+	// (D-505): no finding, and no proof either (NVD's list can lag the vendor's advisory), so the finding stays open for a
+	// person. Evidence.Summary is the sentence of its no_longer_matches history row.
+	Unlisted []Match
 }
 
 // VersionNeeded is a software whose product is on the exploited list but whose version is missing or unreadable.
@@ -157,7 +161,8 @@ func ValidCVE(s string) bool {
 // invalid CVE id are skipped. Per CVE at most one match is produced, the
 // strongest one (version before product, then input order).
 //
-// Per software: the KEV key must match (or, for "Multiple products", the vendor).
+// Per software: the KEV key must match (or, for "Multiple products", the vendor; then
+// only an NVD entry naming the software itself can give a finding, D-505).
 // Then the NVD configurations decide (D-500): the version inside a range gives
 // basis version, outside every applicable range gives no finding, a given
 // version that cannot be compared (no NVD data, a scheme Vedette cannot read,
@@ -172,14 +177,14 @@ func MatchAsset(a Asset, vulns []Vuln, have map[string]bool, now time.Time) Matc
 	need := map[string]int{} // software id -> index in res.NeedVersion
 	infos := make([]swInfo, len(a.Software))
 	for i, s := range a.Software {
-		infos[i] = newSWInfo(s, vulns, a.OS)
+		infos[i] = newSWInfo(s, a.OS)
 	}
 	for _, v := range vulns {
 		if !ValidCVE(v.CVE) || seen[v.CVE] {
 			continue
 		}
 		seen[v.CVE] = true
-		var best, proved *Match
+		var best, proved, unlisted *Match
 		unproved := false // a software of this product with a No that proves nothing, or one that needs a version
 		for i, s := range a.Software {
 			m, out := matchOne(a, s, infos[i], v, now)
@@ -190,6 +195,9 @@ func MatchAsset(a Asset, vulns []Vuln, have map[string]bool, now time.Time) Matc
 				}
 			case outRuledOut:
 				unproved = true
+				if unlisted == nil && m.Evidence.Summary != "" {
+					unlisted = &m
+				}
 			case outMatch:
 				if best == nil || rank(m.Basis) > rank(best.Basis) {
 					best = &m
@@ -208,8 +216,12 @@ func MatchAsset(a Asset, vulns []Vuln, have map[string]bool, now time.Time) Matc
 			}
 		}
 		if best == nil {
-			if proved != nil && !unproved && have[v.CVE] { // D-530: only a proof for every software of the product
+			switch {
+			case !have[v.CVE]:
+			case proved != nil && !unproved: // D-530: only a proof for every software of the product
 				res.NotAffected = append(res.NotAffected, *proved)
+			case unlisted != nil:
+				res.Unlisted = append(res.Unlisted, *unlisted)
 			}
 			continue
 		}
@@ -232,6 +244,36 @@ const (
 	outRuledOut                   // this product, ruled out without a proof about the version (keeps a finding open)
 	outNotAffected                // this product, and its version is proved outside every range (D-530)
 )
+
+// nvdProducts names the products of NVD entries for a sentence: "fusion, horizon client, remote console", the first three
+// in list order and how many more. Only the vendor's own products are named when NVD lists any (a Fortinet entry may also
+// list a Siemens product that embeds it).
+func nvdProducts(vendor string, afs []Affected) string {
+	var names, own []string
+	seen := map[string]bool{}
+	for _, af := range afs {
+		c, err := ParseCPE(af.CPE)
+		if err != nil {
+			continue
+		}
+		p, ok := c.Product.Literal()
+		if !ok || seen[p] {
+			continue
+		}
+		seen[p] = true
+		names = append(names, strings.ReplaceAll(p, "_", " "))
+		if cv, _ := c.Vendor.Literal(); norm(cv) == norm(vendor) {
+			own = append(own, names[len(names)-1])
+		}
+	}
+	if len(own) > 0 {
+		names = own
+	}
+	if len(names) > 3 {
+		return clean(strings.Join(names[:3], ", ")) + fmt.Sprintf(" and %d more", len(names)-3)
+	}
+	return clean(strings.Join(names, ", "))
+}
 
 func rank(b Basis) int {
 	switch b {
@@ -270,6 +312,10 @@ func matchOne(a Asset, s Software, in swInfo, v Vuln, now time.Time) (Match, out
 	tri, within, every, proof := decide(in, v, multi)
 	switch {
 	case tri == No && proof == proofNone:
+		if multi && listsOthersOnly(in, v) { // D-505: no proof (NVD's list can lag the advisory); the person reads why
+			note := fmt.Sprintf("NVD lists %s for %s, not %s; check the vendor advisory and close it if it does not apply.", nvdProducts(v.Vendor, v.Affected), v.CVE, clean(s.Display))
+			return Match{CVE: v.CVE, SoftwareID: s.ID, SoftwareDisplay: clean(s.Display), Evidence: Evidence{Summary: note, CheckedAt: now}}, outRuledOut
+		}
 		return Match{}, outRuledOut
 	case tri == No:
 		note := fmt.Sprintf("Not affected: version %s of %s is outside every version range NVD lists for %s. Vedette closed this by itself and reopens it if a later match says the device is affected.", clean(in.ver), clean(s.Display), v.CVE)
@@ -321,15 +367,12 @@ type swInfo struct {
 	ver    string     // the version, or the CPE's when the software has none
 	given  bool       // ver says something about the version (versionGiven); it may still be unreadable
 	ids    []identity // the software's own names: inventory vendor/product and its aliases (cpeAliases)
-	// named: an NVD configuration of a single-product KEV entry of this software names it (by its CPE, name or
-	// alias). Only then does a "Multiple Products" entry that names other products only rule it out.
-	named bool
 	// os and osVer: the device's operating system as an NVD product ("canonical:ubuntu_linux", "26.04.1"), when known.
 	os    identity
 	osVer string
 }
 
-func newSWInfo(s Software, vulns []Vuln, osName string) swInfo {
+func newSWInfo(s Software, osName string) swInfo {
 	var in swInfo
 	in.os, in.osVer = osIdentity(osName)
 	if s.CPE != "" {
@@ -345,20 +388,21 @@ func newSWInfo(s Software, vulns []Vuln, osName string) swInfo {
 	if n := (identity{vendor: norm(s.Vendor), product: norm(s.Product)}); n.ok() {
 		in.ids = append(append(in.ids, n), cpeAliases[n]...)
 	}
-	for _, v := range vulns {
-		if isMultiProduct(v.Product) || !keyedTo(s, v) {
-			continue
+	return in
+}
+
+// listsOthersOnly reports whether every NVD entry of v is readable and names another product than the software (D-505).
+func listsOthersOnly(in swInfo, v Vuln) bool {
+	for _, af := range v.Affected {
+		c, err := ParseCPE(af.CPE)
+		if err != nil {
+			return false
 		}
-		for _, af := range v.Affected {
-			if c, err := ParseCPE(af.CPE); err == nil {
-				if m, _ := appliesTo(c, in.cpe, in.hasCPE, in.ids); m {
-					in.named = true
-					return in
-				}
-			}
+		if own, known := appliesTo(c, in.cpe, in.hasCPE, in.ids); own || !known {
+			return false
 		}
 	}
-	return in
+	return len(v.Affected) > 0
 }
 
 // decide evaluates the NVD configurations of v for one software. every is true when an applicable entry names every
@@ -371,8 +415,9 @@ func newSWInfo(s Software, vulns []Vuln, osName string) swInfo {
 // row keyed to the kernel), because a release is not the version of the package the CVE is about (review N1).
 //
 // proof says what a No rests on (D-530): proofRange when every applicable entry rules the readable version out,
-// proofOS when the entry lists only releases of the device's own distribution and not its release, proofNone for the
-// "Multiple Products names other products only" rule, which depends on the alias list and proves nothing.
+// proofOS when the entry lists only releases of the device's own distribution and not its release, proofNone for a
+// "Multiple Products" entry without NVD data or whose NVD list names only other products (D-505): no finding, and nothing
+// closes, because NVD's list for such an entry can lag the vendor's advisory.
 func decide(in swInfo, v Vuln, multi bool) (t Tri, within VersionRange, every bool, proof proofKind) {
 	var key []identity // the KEV entry's own vendor and product: it finds the entry, but a No on it alone proves nothing
 	if n := (identity{vendor: norm(v.Vendor), product: norm(v.Product)}); !multi && n.ok() {
@@ -427,8 +472,15 @@ func decide(in swInfo, v Vuln, multi bool) (t Tri, within VersionRange, every bo
 		}
 		return No, VersionRange{}, false, p // the entry names only operating-system releases, and not this device's (D-500)
 	}
-	if !applicable && multi && in.named && !undecidable && len(v.Affected) > 0 {
-		return No, VersionRange{}, false, proofNone // NVD names this software elsewhere and lists only other products of the vendor here (D-500)
+	if !applicable && multi {
+		// CISA's "Multiple Products" names no product: only NVD's list can tie the entry to this software (D-505, W3-7).
+		switch {
+		case len(v.Affected) == 0:
+			return No, VersionRange{}, false, proofNone // NVD lists no product yet: a vendor-wide guess is noise, and proves nothing
+		case undecidable:
+			return Unknown, VersionRange{}, every, proofNone // an entry that may be about this software (vendor or product ANY)
+		}
+		return No, VersionRange{}, false, proofNone // NVD lists other products only: no finding, but no proof (its list can lag the advisory)
 	}
 	if !applicable || undecidable && result == No {
 		return Unknown, VersionRange{}, every, proofNone

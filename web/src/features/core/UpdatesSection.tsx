@@ -97,7 +97,7 @@ const Body = memo(function Body({ s, reconnecting = false }: { s: UpdatesState; 
   async function check() {
     try {
       const r = await m.check.mutateAsync()
-      toast.success(r.applied ? t('updates.checkedApplied', { count: r.applied }) : r.available.length ? t('updates.checkedNew', { count: r.available.length }) : t('updates.checkedNone'))
+      toast.success(r.applied ? t('updates.checkedApplied', { count: r.applied }) : r.available.length ? t('updates.checkedNew', { count: r.available.length }) : t('updates.checkedNone', { version: r.components.find((c) => c.id === 'software')?.version ?? '' }))
     } catch (e) { toast.error(errMsg(e, t)) }
   }
   async function apply(id: string) {

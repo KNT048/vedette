@@ -622,7 +622,8 @@ export type HostOutcome = 'self_update_unhealthy' | 'install_failed' | 'signatur
  * real box the network decides). The sentences are core's own (modules/core/updates_check.go checkFailure), never remote text.
  */
 export const CHECK_FAILURES: Record<UpdateCheckError['code'], { status: number; message: string }> = {
-  update_source_unreachable: { status: 503, message: 'Vedette could not download the update information from GitHub. Check that the box can reach github.com over HTTPS, then try again.' },
+  update_source_unreachable: { status: 503, message: 'Could not reach the update source (github.com): it did not answer in time. Try again later; if it keeps happening, check that the box can reach github.com over HTTPS.' },
+  // Only a record kept by an older version (D-540): a check of a source that publishes no release now succeeds with nothing offered.
   update_not_published: { status: 502, message: 'No release found yet: the release source answered, but no update information is published there. This is not a network problem and nothing needs fixing on the box.' },
   update_check_failed: { status: 502, message: "The update information did not pass Vedette's signature checks, so nothing new is offered and nothing was installed. The details are in the box log." },
 }

@@ -373,6 +373,13 @@ describe('core: khung Cài đặt và vai', () => {
     expect(await screen.findByText('No such settings section')).toBeInTheDocument()
   })
 
+  it('My account is a Settings section: the menu entry and the old /account land inside Settings (W1-26, S-CORE-3)', async () => {
+    renderApp('/account#two-step')
+    const nav = await screen.findByRole('navigation', { name: 'Settings sections' })
+    expect(await within(nav).findByRole('link', { name: 'My account' })).toHaveAttribute('aria-current', 'page')
+    expect(await screen.findByRole('heading', { name: 'Change password' })).toBeInTheDocument()
+  })
+
   it('lưu cài đặt chung và ghi nhật ký', async () => {
     const u = user()
     renderApp('/settings/general')
@@ -1176,11 +1183,23 @@ describe('core: cập nhật (S-CORE-2)', () => {
     renderApp('/settings/updates')
     await u.click(await screen.findByRole('button', { name: 'Check for Vedette releases' }))
     // One status line (D-407): the failure with its reason, then the last good check, which stays.
-    expect(await screen.findByText(/^Last check failed .+: Vedette could not download the update information from GitHub\..* Last successful check /)).toBeInTheDocument()
+    expect(await screen.findByText(/^Last check failed .+: Could not reach the update source \(github\.com\): it did not answer in time\. Try again later.* Last successful check /)).toBeInTheDocument()
     expect(screen.queryByText(/^Last checked |^Never checked/)).toBeNull()
     checkScenario.set({ code: null })
     await u.click(screen.getByRole('button', { name: 'Check for Vedette releases' }))
     await waitFor(() => expect(screen.queryByText(/^Last check failed/)).toBeNull())
+  })
+
+  it('a check that finds nothing newer says which version is running, not "failed" (M5-181, D-540)', async () => {
+    const u = user()
+    sessionStore.set({ userId: 'u-admin' })
+    const s = await (await fetch(`${location.origin}/api/v1/core/updates`)).json()
+    server.use(http.post('*/api/v1/core/updates/check', () => HttpResponse.json({ ...s, last_check: new Date().toISOString(), last_check_error: null, available: [], applied: 0 })))
+    renderApp('/settings/updates')
+    await u.click(await screen.findByRole('button', { name: 'Check for Vedette releases' }))
+    const running = s.components.find((c: { id: string }) => c.id === 'software').version
+    expect(await screen.findByText(`You're on the latest version (${running}).`)).toBeInTheDocument()
+    expect(screen.queryByText(/failed/i)).toBeNull()
   })
 
   it('a build with no release: one status line that does not blame the network, no empty tables, the version in the sidebar (D-407)', async () => {

@@ -69,7 +69,7 @@ func (s *Service) SendApprovalRequest(ctx context.Context, req ApprovalRequest) 
 	if !req.Severity.Valid() {
 		req.Severity = Medium
 	}
-	if s.cfg.BaseURL == "" {
+	if s.baseURL() == "" {
 		return nil, ErrApprovalUnavailable
 	}
 	if len(req.Channels) == 0 {

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"path/filepath"
 	"slices"
+	"sync"
 	"testing"
 	"time"
 
@@ -240,28 +241,150 @@ func TestPublicDomainBoxNameIsNotAnswered(t *testing.T) {
 	}
 }
 
-// Review r1 L3: the box's name comes after localNames in the certificate, so the default allowlist still starts with "vedette" and the
-// base URL in links (notify.go baseURL, the first name that is not loopback) does not change on an upgraded box.
-func TestBoxNameKeepsVedetteFirstAndTheBaseURL(t *testing.T) {
+// D-465 (replaces the r1 L3 test that pinned https://vedette:8443): the certificate still holds "vedette" (old bookmarks keep working),
+// but links never take a name from the certificate: they carry the Box address, the management IPv4 by default, and none at all while
+// the box knows no address. Before D-465 every link of an appliance read https://vedette:8443, which nothing on a LAN resolves.
+func TestLinksCarryTheBoxAddressNeverTheCertificateName(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	ca := testCA(t, dir)
 	box := newBoxHostNameFrom((&fakeInfo{name: "office-box"}).Info, time.Now)
-	for _, step := range []string{"first start", "after Check", "next start"} {
-		hosts, renew := boxTransport(t, dir, ca, box)
-		if step == "after Check" {
-			if err := renew.Check(t.Context(), nil); err != nil {
-				t.Fatal(err)
+	hosts, renew := boxTransport(t, dir, ca, box)
+	if err := renew.Check(t.Context(), nil); err != nil {
+		t.Fatal(err)
+	}
+	if dns := servedLeaf(t, renew).DNSNames; !slices.Contains(dns, fallbackBoxName) || !slices.Contains(dns, "office-box") {
+		t.Fatalf("certificate names %v, want vedette and office-box", dns)
+	}
+	if !server.HostMatcher(hosts, nil)("vedette:8443") {
+		t.Fatalf("an old bookmark of https://vedette:8443 is refused (allowlist %v)", hosts)
+	}
+	mgmt := newBoxAddr(func(context.Context) (string, []string, error) { return "192.168.18.141", nil, nil }, flagAddress(nil))
+	if got := mgmt.URL(t.Context(), "0.0.0.0:8443"); got != "https://192.168.18.141:8443" {
+		t.Fatalf("default Box address: links start %q, want the management address", got)
+	}
+	// no Box address and no -hosts (an appliance whose host has not answered): no link at all, never one from the certificate's names
+	unknown := newBoxAddr(func(context.Context) (string, []string, error) { return "", nil, nil }, flagAddress(nil))
+	if got := unknown.URL(t.Context(), "0.0.0.0:8443"); got != "" {
+		t.Fatalf("no Box address known: links start %q, want none", got)
+	}
+}
+
+// D-465: the Box address is a name of the box's own certificate. A saved name or address the certificate lacks re-issues it at the next
+// Check (a save kicks one); a later change re-issues it again with the new one and keeps the earlier one the box still answers to (review
+// M1); an unknown address (none) changes nothing.
+func TestCertCoversTheBoxAddress(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	_, renew := boxTransport(t, dir, testCA(t, dir), newBoxHostNameFrom((&fakeInfo{name: "office-box"}).Info, time.Now))
+	var names []string
+	renew.addrs = func(context.Context) []string { return names }
+	if err := renew.Check(t.Context(), nil); err != nil {
+		t.Fatal(err)
+	}
+	before := servedLeaf(t, renew).SerialNumber
+	if err := renew.Check(t.Context(), nil); err != nil {
+		t.Fatal(err)
+	}
+	if servedLeaf(t, renew).SerialNumber.Cmp(before) != 0 {
+		t.Fatal("an unknown Box address re-issued the certificate")
+	}
+	prev := []string{}
+	for _, a := range []string{"vedette.office.lan", "box2.office.lan", "10.9.9.9"} {
+		names = append([]string{a}, prev...)
+		if err := renew.Check(t.Context(), nil); err != nil {
+			t.Fatal(err)
+		}
+		l := servedLeaf(t, renew)
+		for _, n := range names {
+			if l.VerifyHostname(n) != nil {
+				t.Fatalf("after saving %s the certificate lacks %s: %v %v", a, n, l.DNSNames, l.IPAddresses)
 			}
 		}
-		dns := servedLeaf(t, renew).DNSNames
-		if v, o := slices.Index(dns, fallbackBoxName), slices.Index(dns, "office-box"); v < 0 || o < 0 || v > o {
-			t.Fatalf("%s: certificate names %v, want vedette before office-box", step, dns)
-		}
-		if got := baseURL(hosts, "0.0.0.0:8443"); got != "https://vedette:8443" {
-			t.Fatalf("%s: base URL %q (allowlist %v)", step, got, hosts)
-		}
+		prev = append(prev, a)
 	}
+}
+
+// D-465: a Box address an administrator saves is a name the box answers to (Allows), at once after Invalidate (which waits for its read),
+// and so are the earlier ones (review M1) until they are forgotten; the answer in memory survives a failed read; the flag address (-hosts
+// without a host) is used only while core gives none. Review L2: no lock is held across a read, so the Host test and the links go on with
+// the last answer while a slow read runs, and a read that started before an Invalidate never replaces the newer answer.
+func TestBoxAddrReadsCoreAndKeepsTheLastAnswer(t *testing.T) {
+	t.Parallel()
+	var mu sync.Mutex
+	answer, previous, fail := "vedette.office.lan", []string(nil), false
+	var hold chan struct{} // when set, the next read waits for it
+	b := newBoxAddr(func(context.Context) (string, []string, error) {
+		mu.Lock()
+		h := hold
+		hold = nil
+		a, p, f := answer, previous, fail
+		mu.Unlock()
+		if h != nil {
+			<-h
+		}
+		if f {
+			return "", nil, errors.New("host down")
+		}
+		return a, p, nil
+	}, "box.corp.example")
+	var clockMu sync.Mutex
+	now := time.Date(2026, 11, 13, 9, 0, 0, 0, time.UTC)
+	b.now = func() time.Time { clockMu.Lock(); defer clockMu.Unlock(); return now }
+	advance := func(d time.Duration) { clockMu.Lock(); now = now.Add(d); clockMu.Unlock() }
+	if b.Allows("vedette.office.lan") {
+		t.Fatal("Allows before any read")
+	}
+	if got := b.Host(t.Context()); got != "vedette.office.lan" || !b.Allows("Vedette.Office.LAN:8443") || b.Allows("evil.example") {
+		t.Fatalf("Host %q, Allows wrong", got)
+	}
+	// a save: the new address and the earlier one both answered, at once after Invalidate
+	mu.Lock()
+	answer, previous = "box2.office.lan", []string{"vedette.office.lan"}
+	mu.Unlock()
+	b.Invalidate()
+	if got := b.Host(t.Context()); got != "box2.office.lan" || !b.Allows("box2.office.lan") || !b.Allows("vedette.office.lan:8443") {
+		t.Fatalf("after Invalidate: %q", got)
+	}
+	if got := b.Names(t.Context()); !slices.Equal(got, []string{"box2.office.lan", "vedette.office.lan"}) {
+		t.Fatalf("Names = %v", got)
+	}
+	// a slow read: the Host test and Host go on with the last answer meanwhile
+	release := make(chan struct{})
+	mu.Lock()
+	hold = release
+	mu.Unlock()
+	advance(boxAddrTTL)
+	done := make(chan string)
+	go func() { done <- b.Host(context.Background()) }()
+	if !b.Allows("box2.office.lan") || b.pick() != "box2.office.lan" {
+		t.Fatal("the Host test waited for a read, or lost the last answer")
+	}
+	close(release)
+	if got := <-done; got != "box2.office.lan" {
+		t.Fatalf("after the slow read: %q", got)
+	}
+	// a failed read keeps the answer
+	mu.Lock()
+	fail = true
+	mu.Unlock()
+	advance(boxAddrTTL)
+	if got := b.Host(t.Context()); got != "box2.office.lan" {
+		t.Fatalf("a failed read dropped the address: %q", got)
+	}
+	// no address from core and the earlier one forgotten: the -hosts address, and neither name is answered to
+	mu.Lock()
+	fail, answer, previous = false, "", nil
+	mu.Unlock()
+	advance(boxAddrRetry)
+	if got := b.Host(t.Context()); got != "box.corp.example" || b.Allows("vedette.office.lan") || b.Allows("box2.office.lan") {
+		t.Fatalf("no Box address from core: %q, want the -hosts address and the old names no longer answered", got)
+	}
+	var none *boxAddr
+	if none.Host(t.Context()) != "" || none.Allows("x") || none.URL(t.Context(), ":8443") != "" || none.Names(t.Context()) != nil {
+		t.Fatal("nil boxAddr")
+	}
+	none.Invalidate()
 }
 
 // Review r1 L4: Cached never asks the host; it gives what Get last learned.

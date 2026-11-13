@@ -89,7 +89,7 @@ func sum(s string) string { h := sha256.Sum256([]byte(s)); return hex.EncodeToSt
 // The drift test: the scripts the box serves, and the ones GET /inventory/agents puts in its page, are byte for byte what the GUI renders
 // from its own templates, and the SHA-256 the admin reads is the SHA-256 of the served bytes.
 func TestInstall_ScriptsEqualTheGUI(t *testing.T) {
-	w := newWorld(t)
+	w := newWorld(t, func(c *agentintake.Config) { c.BoxURL = nil }) // the Box address would win over the Host (D-465): this test is about the Host
 	const box = "https://" + boxAtPort
 	wantSh, wantPs1 := guiScript(t, guiSh, box, testCA), guiScript(t, guiPs1, box, testCA)
 	if strings.Contains(wantSh, "@@") || strings.Contains(wantPs1, "@@") {
@@ -256,41 +256,53 @@ func TestInstall_NewTokenEnrolsAgain(t *testing.T) {
 		`Set-Content -Path $Secret -Value $Token`, `Restart-Service osqueryd`)
 }
 
-// An arbitrary Host header is never put into a script: only a name the server's allow-list lets in, rebuilt from validated parts, or the
-// configured address, or the placeholder.
+// An arbitrary Host header is never put into a script: the Box address when the box has one (D-465), else only a name the server's
+// allow-list lets in, rebuilt from validated parts, else the placeholder.
 func TestInstall_HostIsNeverReflected(t *testing.T) {
-	w := newWorld(t)
-	for _, c := range []struct{ host, want string }{
+	hosts := []struct{ host, want string }{ // want: what a box without a Box address puts in the script ("" = no script)
 		{"box.corp.example", "https://box.corp.example"},
 		{"BOX.Corp.Example.:8443", "https://box.corp.example:8443"},
 		{boxAddr + ":8443", boxURL},
 		{"x.lab.example:9443", "https://x.lab.example:9443"},
-		{"evil.example", boxURL},                   // not on the list: the configured address
-		{"evil.example:8443", boxURL},              //
-		{"box.corp.example:99999", boxURL},         // not a port
-		{"box.corp.example:0x1f", boxURL},          //
-		{"a.b.lab.example", boxURL},                // a wildcard covers one label
-		{"localhost:8443", boxURL},                 // allowed by the server, but a server cannot reach it
-		{"127.0.0.1:8443", boxURL},                 //
-		{"[::1]:8443", boxURL},                     //
-		{"box.corp.example'; touch pwned", boxURL}, // never reaches a shell
-		{"box.corp.example\nX: y", boxURL},         //
-		{"", boxURL},                               //
-	} {
-		res, body := w.get("/install/osquery.sh", c.host, "")
-		if res.code != 200 {
-			t.Fatalf("Host %q: %d", c.host, res.code)
-		}
-		if !strings.Contains(string(body), "BOX='"+c.want+"'\n") {
-			t.Errorf("Host %q: the script does not carry %s", c.host, c.want)
+		{"evil.example", ""},                   // not on the list
+		{"evil.example:8443", ""},              //
+		{"box.corp.example:99999", ""},         // not a port
+		{"box.corp.example:0x1f", ""},          //
+		{"a.b.lab.example", ""},                // a wildcard covers one label
+		{"localhost:8443", ""},                 // allowed by the server, but a server cannot reach it
+		{"127.0.0.1:8443", ""},                 //
+		{"[::1]:8443", ""},                     //
+		{"box.corp.example'; touch pwned", ""}, // never reaches a shell
+		{"box.corp.example\nX: y", ""},         //
+		{"", ""},                               //
+	}
+	script := func(w *world, host, want string) {
+		t.Helper()
+		res, body := w.get("/install/osquery.sh", host, "")
+		if want == "" {
+			if res.code != 404 || res.errCode() != "no_box_address" {
+				t.Errorf("Host %q, no Box address: %d %q, want 404 no_box_address", host, res.code, res.errCode())
+			}
+		} else if res.code != 200 || !strings.Contains(string(body), "BOX='"+want+"'\n") {
+			t.Errorf("Host %q: %d, the script does not carry %s", host, res.code, want)
 		}
 		if strings.Contains(string(body), "evil") || strings.Contains(string(body), "pwned") {
-			t.Errorf("Host %q reached the script", c.host)
+			t.Errorf("Host %q reached the script", host)
 		}
 	}
-	// no configured address and no usable Host: never a guess, and no script pinned to the placeholder either (D-399 (2): it would
+	// D-465: with a Box address every script carries it, whatever Host the request came to.
+	w := newWorld(t)
+	for _, c := range hosts {
+		script(w, c.host, boxURL)
+	}
+	// Without one, the Host the allow-list lets in, rebuilt.
+	wh := newWorld(t, func(c *agentintake.Config) { c.BoxURL = nil })
+	for _, c := range hosts {
+		script(wh, c.host, c.want)
+	}
+	// no Box address and no usable Host: never a guess, and no script pinned to the placeholder either (D-399 (2): it would
 	// pass its SHA-256 check and then fail on every server); the admin's page still shows the placeholder
-	w2 := newWorld(t, func(c *agentintake.Config) { c.BoxURL = "" })
+	w2 := newWorld(t, func(c *agentintake.Config) { c.BoxURL = func() string { return "" } })
 	for _, p := range []string{"/install/osquery.sh", "/install/osquery.ps1"} {
 		for _, host := range []string{"evil.example", "localhost:8443", "127.0.0.1:8443"} {
 			if res, body := w2.get(p, host, ""); res.code != 404 || res.errCode() != "no_box_address" || strings.Contains(string(body), "VEDETTE_BOX_IP") {
@@ -303,7 +315,7 @@ func TestInstall_HostIsNeverReflected(t *testing.T) {
 	}
 	// a configured address that is not https or holds a quote is not used either
 	for _, bad := range []string{"http://192.168.10.250:8443", "https://x'; id", "https://a b"} {
-		w3 := newWorld(t, func(c *agentintake.Config) { c.BoxURL = bad })
+		w3 := newWorld(t, func(c *agentintake.Config) { c.BoxURL = func() string { return bad } })
 		if res, body := w3.get("/install/osquery.sh", "", ""); res.code != 404 || strings.Contains(string(body), "192.168.10.250") || strings.Contains(string(body), "; id") {
 			t.Errorf("configured address %q was used: %d", bad, res.code)
 		}

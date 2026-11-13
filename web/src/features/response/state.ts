@@ -5,6 +5,7 @@ import { audit, currentUser, fail } from '@/mocks/http'
 import { collection, daysAgo, newId, nowIso, peek } from '@/mocks/db'
 import { connectorsStore, type Connector } from '@/mocks/connectors'
 import { boxInfo, usersStore } from '@/mocks/stores'
+import { boxAddress } from '@/mocks/network'
 import { isHttpKind } from '@/lib/connections'
 import { RISK_PHRASE } from './contract'
 import type { StoredCat } from './data'
@@ -106,7 +107,7 @@ export const isLinked = (userId: string, channel: string, address: string) => {
 export interface Token { token: string; action_id: string; user_id: string; address: string; channel: string; expires_at: string; used_at: string | null }
 export const tokensStore = collection<Token[]>('resp_tokens', () => [])
 export const TOKEN_MIN = 30
-export const linkUrl = (t: string) => `https://${boxInfo().ip ?? '<box ip>'}:8443/approve/${t}`
+export const linkUrl = (t: string) => `https://${boxAddress() ?? '<box ip>'}:8443/approve/${t}`
 
 // ---- Action catalog (D-47, D-51) ----
 export const catalogStore = collection<StoredCat[]>('resp_catalog', seedCatalog)

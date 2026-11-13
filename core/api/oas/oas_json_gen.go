@@ -29585,6 +29585,10 @@ func (s *CoreGetCoreNetworkOK) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *CoreGetCoreNetworkOK) encodeFields(e *jx.Encoder) {
 	{
+		e.FieldStart("box_address")
+		s.BoxAddress.Encode(e)
+	}
+	{
 		e.FieldStart("decoy_ips")
 		e.ArrStart()
 		for _, elem := range s.DecoyIps {
@@ -29626,15 +29630,16 @@ func (s *CoreGetCoreNetworkOK) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfCoreGetCoreNetworkOK = [8]string{
-	0: "decoy_ips",
-	1: "default_ntp",
-	2: "interfaces",
-	3: "management",
-	4: "ntp",
-	5: "pending",
-	6: "span",
-	7: "span_status",
+var jsonFieldsNameOfCoreGetCoreNetworkOK = [9]string{
+	0: "box_address",
+	1: "decoy_ips",
+	2: "default_ntp",
+	3: "interfaces",
+	4: "management",
+	5: "ntp",
+	6: "pending",
+	7: "span",
+	8: "span_status",
 }
 
 // Decode decodes CoreGetCoreNetworkOK from json.
@@ -29642,12 +29647,22 @@ func (s *CoreGetCoreNetworkOK) Decode(d *jx.Decoder) error {
 	if s == nil {
 		return errors.New("invalid: unable to decode CoreGetCoreNetworkOK to nil")
 	}
-	var requiredBitSet [1]uint8
+	var requiredBitSet [2]uint8
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "decoy_ips":
+		case "box_address":
 			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.BoxAddress.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"box_address\"")
+			}
+		case "decoy_ips":
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				s.DecoyIps = make([]string, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -29667,7 +29682,7 @@ func (s *CoreGetCoreNetworkOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"decoy_ips\"")
 			}
 		case "default_ntp":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				v, err := d.Str()
 				s.DefaultNtp = string(v)
@@ -29679,7 +29694,7 @@ func (s *CoreGetCoreNetworkOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"default_ntp\"")
 			}
 		case "interfaces":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				s.Interfaces = make([]CoreGetCoreNetworkOKInterfacesItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -29697,7 +29712,7 @@ func (s *CoreGetCoreNetworkOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"interfaces\"")
 			}
 		case "management":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				if err := s.Management.Decode(d); err != nil {
 					return err
@@ -29707,7 +29722,7 @@ func (s *CoreGetCoreNetworkOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"management\"")
 			}
 		case "ntp":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				if err := s.Ntp.Decode(d); err != nil {
 					return err
@@ -29717,7 +29732,7 @@ func (s *CoreGetCoreNetworkOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"ntp\"")
 			}
 		case "pending":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				if err := s.Pending.Decode(d); err != nil {
 					return err
@@ -29727,7 +29742,7 @@ func (s *CoreGetCoreNetworkOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"pending\"")
 			}
 		case "span":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				if err := s.Span.Decode(d); err != nil {
 					return err
@@ -29737,7 +29752,7 @@ func (s *CoreGetCoreNetworkOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"span\"")
 			}
 		case "span_status":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				if err := s.SpanStatus.Decode(d); err != nil {
 					return err
@@ -29755,8 +29770,9 @@ func (s *CoreGetCoreNetworkOK) Decode(d *jx.Decoder) error {
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
-	for i, mask := range [1]uint8{
+	for i, mask := range [2]uint8{
 		0b11111111,
+		0b00000001,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -29798,6 +29814,176 @@ func (s *CoreGetCoreNetworkOK) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *CoreGetCoreNetworkOK) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *CoreGetCoreNetworkOKBoxAddress) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *CoreGetCoreNetworkOKBoxAddress) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("address")
+		s.Address.Encode(e)
+	}
+	{
+		e.FieldStart("default")
+		s.Default.Encode(e)
+	}
+	{
+		e.FieldStart("link_base")
+		s.LinkBase.Encode(e)
+	}
+	{
+		e.FieldStart("previous")
+		e.ArrStart()
+		for _, elem := range s.Previous {
+			e.Str(elem)
+		}
+		e.ArrEnd()
+	}
+	{
+		e.FieldStart("self_signed")
+		e.Bool(s.SelfSigned)
+	}
+}
+
+var jsonFieldsNameOfCoreGetCoreNetworkOKBoxAddress = [5]string{
+	0: "address",
+	1: "default",
+	2: "link_base",
+	3: "previous",
+	4: "self_signed",
+}
+
+// Decode decodes CoreGetCoreNetworkOKBoxAddress from json.
+func (s *CoreGetCoreNetworkOKBoxAddress) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CoreGetCoreNetworkOKBoxAddress to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "address":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.Address.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"address\"")
+			}
+		case "default":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				if err := s.Default.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"default\"")
+			}
+		case "link_base":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				if err := s.LinkBase.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"link_base\"")
+			}
+		case "previous":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				s.Previous = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.Previous = append(s.Previous, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"previous\"")
+			}
+		case "self_signed":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Bool()
+				s.SelfSigned = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"self_signed\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode CoreGetCoreNetworkOKBoxAddress")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00011111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfCoreGetCoreNetworkOKBoxAddress) {
+					name = jsonFieldsNameOfCoreGetCoreNetworkOKBoxAddress[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *CoreGetCoreNetworkOKBoxAddress) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CoreGetCoreNetworkOKBoxAddress) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -50715,14 +50901,18 @@ func (s *CorePostCoreMcpTokensReq) UnmarshalJSON(data []byte) error {
 }
 
 // Encode implements json.Marshaler.
-func (s *CorePostCoreNetworkManagementConfirmOK) Encode(e *jx.Encoder) {
+func (s *CorePostCoreNetworkBoxAddressForgetOK) Encode(e *jx.Encoder) {
 	e.ObjStart()
 	s.encodeFields(e)
 	e.ObjEnd()
 }
 
 // encodeFields encodes fields.
-func (s *CorePostCoreNetworkManagementConfirmOK) encodeFields(e *jx.Encoder) {
+func (s *CorePostCoreNetworkBoxAddressForgetOK) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("box_address")
+		s.BoxAddress.Encode(e)
+	}
 	{
 		e.FieldStart("decoy_ips")
 		e.ArrStart()
@@ -50765,28 +50955,39 @@ func (s *CorePostCoreNetworkManagementConfirmOK) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfCorePostCoreNetworkManagementConfirmOK = [8]string{
-	0: "decoy_ips",
-	1: "default_ntp",
-	2: "interfaces",
-	3: "management",
-	4: "ntp",
-	5: "pending",
-	6: "span",
-	7: "span_status",
+var jsonFieldsNameOfCorePostCoreNetworkBoxAddressForgetOK = [9]string{
+	0: "box_address",
+	1: "decoy_ips",
+	2: "default_ntp",
+	3: "interfaces",
+	4: "management",
+	5: "ntp",
+	6: "pending",
+	7: "span",
+	8: "span_status",
 }
 
-// Decode decodes CorePostCoreNetworkManagementConfirmOK from json.
-func (s *CorePostCoreNetworkManagementConfirmOK) Decode(d *jx.Decoder) error {
+// Decode decodes CorePostCoreNetworkBoxAddressForgetOK from json.
+func (s *CorePostCoreNetworkBoxAddressForgetOK) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode CorePostCoreNetworkManagementConfirmOK to nil")
+		return errors.New("invalid: unable to decode CorePostCoreNetworkBoxAddressForgetOK to nil")
 	}
-	var requiredBitSet [1]uint8
+	var requiredBitSet [2]uint8
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "decoy_ips":
+		case "box_address":
 			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.BoxAddress.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"box_address\"")
+			}
+		case "decoy_ips":
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				s.DecoyIps = make([]string, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -50806,7 +51007,7 @@ func (s *CorePostCoreNetworkManagementConfirmOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"decoy_ips\"")
 			}
 		case "default_ntp":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				v, err := d.Str()
 				s.DefaultNtp = string(v)
@@ -50818,7 +51019,1940 @@ func (s *CorePostCoreNetworkManagementConfirmOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"default_ntp\"")
 			}
 		case "interfaces":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				s.Interfaces = make([]CorePostCoreNetworkBoxAddressForgetOKInterfacesItem, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem CorePostCoreNetworkBoxAddressForgetOKInterfacesItem
+					if err := elem.Decode(d); err != nil {
+						return err
+					}
+					s.Interfaces = append(s.Interfaces, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"interfaces\"")
+			}
+		case "management":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				if err := s.Management.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"management\"")
+			}
+		case "ntp":
+			requiredBitSet[0] |= 1 << 5
+			if err := func() error {
+				if err := s.Ntp.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"ntp\"")
+			}
+		case "pending":
+			requiredBitSet[0] |= 1 << 6
+			if err := func() error {
+				if err := s.Pending.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"pending\"")
+			}
+		case "span":
+			requiredBitSet[0] |= 1 << 7
+			if err := func() error {
+				if err := s.Span.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"span\"")
+			}
+		case "span_status":
+			requiredBitSet[1] |= 1 << 0
+			if err := func() error {
+				if err := s.SpanStatus.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"span_status\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode CorePostCoreNetworkBoxAddressForgetOK")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [2]uint8{
+		0b11111111,
+		0b00000001,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfCorePostCoreNetworkBoxAddressForgetOK) {
+					name = jsonFieldsNameOfCorePostCoreNetworkBoxAddressForgetOK[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *CorePostCoreNetworkBoxAddressForgetOK) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CorePostCoreNetworkBoxAddressForgetOK) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *CorePostCoreNetworkBoxAddressForgetOKBoxAddress) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *CorePostCoreNetworkBoxAddressForgetOKBoxAddress) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("address")
+		s.Address.Encode(e)
+	}
+	{
+		e.FieldStart("default")
+		s.Default.Encode(e)
+	}
+	{
+		e.FieldStart("link_base")
+		s.LinkBase.Encode(e)
+	}
+	{
+		e.FieldStart("previous")
+		e.ArrStart()
+		for _, elem := range s.Previous {
+			e.Str(elem)
+		}
+		e.ArrEnd()
+	}
+	{
+		e.FieldStart("self_signed")
+		e.Bool(s.SelfSigned)
+	}
+}
+
+var jsonFieldsNameOfCorePostCoreNetworkBoxAddressForgetOKBoxAddress = [5]string{
+	0: "address",
+	1: "default",
+	2: "link_base",
+	3: "previous",
+	4: "self_signed",
+}
+
+// Decode decodes CorePostCoreNetworkBoxAddressForgetOKBoxAddress from json.
+func (s *CorePostCoreNetworkBoxAddressForgetOKBoxAddress) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CorePostCoreNetworkBoxAddressForgetOKBoxAddress to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "address":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.Address.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"address\"")
+			}
+		case "default":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				if err := s.Default.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"default\"")
+			}
+		case "link_base":
 			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				if err := s.LinkBase.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"link_base\"")
+			}
+		case "previous":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				s.Previous = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.Previous = append(s.Previous, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"previous\"")
+			}
+		case "self_signed":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Bool()
+				s.SelfSigned = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"self_signed\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode CorePostCoreNetworkBoxAddressForgetOKBoxAddress")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00011111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfCorePostCoreNetworkBoxAddressForgetOKBoxAddress) {
+					name = jsonFieldsNameOfCorePostCoreNetworkBoxAddressForgetOKBoxAddress[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *CorePostCoreNetworkBoxAddressForgetOKBoxAddress) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CorePostCoreNetworkBoxAddressForgetOKBoxAddress) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *CorePostCoreNetworkBoxAddressForgetOKInterfacesItem) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *CorePostCoreNetworkBoxAddressForgetOKInterfacesItem) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("address")
+		s.Address.Encode(e)
+	}
+	{
+		e.FieldStart("link")
+		e.Bool(s.Link)
+	}
+	{
+		e.FieldStart("mac")
+		e.Str(s.MAC)
+	}
+	{
+		e.FieldStart("name")
+		e.Str(s.Name)
+	}
+	{
+		e.FieldStart("role")
+		s.Role.Encode(e)
+	}
+	{
+		e.FieldStart("speed")
+		s.Speed.Encode(e)
+	}
+}
+
+var jsonFieldsNameOfCorePostCoreNetworkBoxAddressForgetOKInterfacesItem = [6]string{
+	0: "address",
+	1: "link",
+	2: "mac",
+	3: "name",
+	4: "role",
+	5: "speed",
+}
+
+// Decode decodes CorePostCoreNetworkBoxAddressForgetOKInterfacesItem from json.
+func (s *CorePostCoreNetworkBoxAddressForgetOKInterfacesItem) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CorePostCoreNetworkBoxAddressForgetOKInterfacesItem to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "address":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.Address.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"address\"")
+			}
+		case "link":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Bool()
+				s.Link = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"link\"")
+			}
+		case "mac":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Str()
+				s.MAC = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"mac\"")
+			}
+		case "name":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Str()
+				s.Name = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"name\"")
+			}
+		case "role":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				if err := s.Role.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"role\"")
+			}
+		case "speed":
+			requiredBitSet[0] |= 1 << 5
+			if err := func() error {
+				if err := s.Speed.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"speed\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode CorePostCoreNetworkBoxAddressForgetOKInterfacesItem")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00111111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfCorePostCoreNetworkBoxAddressForgetOKInterfacesItem) {
+					name = jsonFieldsNameOfCorePostCoreNetworkBoxAddressForgetOKInterfacesItem[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *CorePostCoreNetworkBoxAddressForgetOKInterfacesItem) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CorePostCoreNetworkBoxAddressForgetOKInterfacesItem) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes CorePostCoreNetworkBoxAddressForgetOKInterfacesItemRole as json.
+func (s CorePostCoreNetworkBoxAddressForgetOKInterfacesItemRole) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes CorePostCoreNetworkBoxAddressForgetOKInterfacesItemRole from json.
+func (s *CorePostCoreNetworkBoxAddressForgetOKInterfacesItemRole) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CorePostCoreNetworkBoxAddressForgetOKInterfacesItemRole to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch CorePostCoreNetworkBoxAddressForgetOKInterfacesItemRole(v) {
+	case CorePostCoreNetworkBoxAddressForgetOKInterfacesItemRoleManagement:
+		*s = CorePostCoreNetworkBoxAddressForgetOKInterfacesItemRoleManagement
+	case CorePostCoreNetworkBoxAddressForgetOKInterfacesItemRoleSpan:
+		*s = CorePostCoreNetworkBoxAddressForgetOKInterfacesItemRoleSpan
+	case CorePostCoreNetworkBoxAddressForgetOKInterfacesItemRoleUnused:
+		*s = CorePostCoreNetworkBoxAddressForgetOKInterfacesItemRoleUnused
+	default:
+		*s = CorePostCoreNetworkBoxAddressForgetOKInterfacesItemRole(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s CorePostCoreNetworkBoxAddressForgetOKInterfacesItemRole) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CorePostCoreNetworkBoxAddressForgetOKInterfacesItemRole) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *CorePostCoreNetworkBoxAddressForgetOKManagement) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *CorePostCoreNetworkBoxAddressForgetOKManagement) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("address")
+		s.Address.Encode(e)
+	}
+	{
+		e.FieldStart("dns")
+		e.ArrStart()
+		for _, elem := range s.DNS {
+			e.Str(elem)
+		}
+		e.ArrEnd()
+	}
+	{
+		e.FieldStart("gateway")
+		s.Gateway.Encode(e)
+	}
+	{
+		e.FieldStart("mode")
+		s.Mode.Encode(e)
+	}
+	{
+		e.FieldStart("prefix")
+		s.Prefix.Encode(e)
+	}
+}
+
+var jsonFieldsNameOfCorePostCoreNetworkBoxAddressForgetOKManagement = [5]string{
+	0: "address",
+	1: "dns",
+	2: "gateway",
+	3: "mode",
+	4: "prefix",
+}
+
+// Decode decodes CorePostCoreNetworkBoxAddressForgetOKManagement from json.
+func (s *CorePostCoreNetworkBoxAddressForgetOKManagement) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CorePostCoreNetworkBoxAddressForgetOKManagement to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "address":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.Address.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"address\"")
+			}
+		case "dns":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				s.DNS = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.DNS = append(s.DNS, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"dns\"")
+			}
+		case "gateway":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				if err := s.Gateway.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"gateway\"")
+			}
+		case "mode":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				if err := s.Mode.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"mode\"")
+			}
+		case "prefix":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				if err := s.Prefix.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"prefix\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode CorePostCoreNetworkBoxAddressForgetOKManagement")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00011111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfCorePostCoreNetworkBoxAddressForgetOKManagement) {
+					name = jsonFieldsNameOfCorePostCoreNetworkBoxAddressForgetOKManagement[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *CorePostCoreNetworkBoxAddressForgetOKManagement) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CorePostCoreNetworkBoxAddressForgetOKManagement) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes CorePostCoreNetworkBoxAddressForgetOKManagementMode as json.
+func (s CorePostCoreNetworkBoxAddressForgetOKManagementMode) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes CorePostCoreNetworkBoxAddressForgetOKManagementMode from json.
+func (s *CorePostCoreNetworkBoxAddressForgetOKManagementMode) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CorePostCoreNetworkBoxAddressForgetOKManagementMode to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch CorePostCoreNetworkBoxAddressForgetOKManagementMode(v) {
+	case CorePostCoreNetworkBoxAddressForgetOKManagementModeDhcp:
+		*s = CorePostCoreNetworkBoxAddressForgetOKManagementModeDhcp
+	case CorePostCoreNetworkBoxAddressForgetOKManagementModeStatic:
+		*s = CorePostCoreNetworkBoxAddressForgetOKManagementModeStatic
+	default:
+		*s = CorePostCoreNetworkBoxAddressForgetOKManagementMode(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s CorePostCoreNetworkBoxAddressForgetOKManagementMode) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CorePostCoreNetworkBoxAddressForgetOKManagementMode) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *CorePostCoreNetworkBoxAddressForgetOKNtp) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *CorePostCoreNetworkBoxAddressForgetOKNtp) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("mode")
+		s.Mode.Encode(e)
+	}
+	{
+		e.FieldStart("servers")
+		e.ArrStart()
+		for _, elem := range s.Servers {
+			e.Str(elem)
+		}
+		e.ArrEnd()
+	}
+}
+
+var jsonFieldsNameOfCorePostCoreNetworkBoxAddressForgetOKNtp = [2]string{
+	0: "mode",
+	1: "servers",
+}
+
+// Decode decodes CorePostCoreNetworkBoxAddressForgetOKNtp from json.
+func (s *CorePostCoreNetworkBoxAddressForgetOKNtp) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CorePostCoreNetworkBoxAddressForgetOKNtp to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "mode":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.Mode.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"mode\"")
+			}
+		case "servers":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				s.Servers = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.Servers = append(s.Servers, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"servers\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode CorePostCoreNetworkBoxAddressForgetOKNtp")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000011,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfCorePostCoreNetworkBoxAddressForgetOKNtp) {
+					name = jsonFieldsNameOfCorePostCoreNetworkBoxAddressForgetOKNtp[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *CorePostCoreNetworkBoxAddressForgetOKNtp) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CorePostCoreNetworkBoxAddressForgetOKNtp) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes CorePostCoreNetworkBoxAddressForgetOKNtpMode as json.
+func (s CorePostCoreNetworkBoxAddressForgetOKNtpMode) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes CorePostCoreNetworkBoxAddressForgetOKNtpMode from json.
+func (s *CorePostCoreNetworkBoxAddressForgetOKNtpMode) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CorePostCoreNetworkBoxAddressForgetOKNtpMode to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch CorePostCoreNetworkBoxAddressForgetOKNtpMode(v) {
+	case CorePostCoreNetworkBoxAddressForgetOKNtpModeDefault:
+		*s = CorePostCoreNetworkBoxAddressForgetOKNtpModeDefault
+	case CorePostCoreNetworkBoxAddressForgetOKNtpModeCustom:
+		*s = CorePostCoreNetworkBoxAddressForgetOKNtpModeCustom
+	default:
+		*s = CorePostCoreNetworkBoxAddressForgetOKNtpMode(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s CorePostCoreNetworkBoxAddressForgetOKNtpMode) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CorePostCoreNetworkBoxAddressForgetOKNtpMode) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *CorePostCoreNetworkBoxAddressForgetOKPending) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *CorePostCoreNetworkBoxAddressForgetOKPending) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("expires_at")
+		json.EncodeDateTime(e, s.ExpiresAt)
+	}
+	{
+		e.FieldStart("previous_address")
+		s.PreviousAddress.Encode(e)
+	}
+	{
+		e.FieldStart("reboot_at")
+		s.RebootAt.Encode(e, json.EncodeDateTime)
+	}
+	{
+		e.FieldStart("window_s")
+		e.Int(s.WindowS)
+	}
+}
+
+var jsonFieldsNameOfCorePostCoreNetworkBoxAddressForgetOKPending = [4]string{
+	0: "expires_at",
+	1: "previous_address",
+	2: "reboot_at",
+	3: "window_s",
+}
+
+// Decode decodes CorePostCoreNetworkBoxAddressForgetOKPending from json.
+func (s *CorePostCoreNetworkBoxAddressForgetOKPending) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CorePostCoreNetworkBoxAddressForgetOKPending to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "expires_at":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := json.DecodeDateTime(d)
+				s.ExpiresAt = v
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"expires_at\"")
+			}
+		case "previous_address":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				if err := s.PreviousAddress.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"previous_address\"")
+			}
+		case "reboot_at":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				if err := s.RebootAt.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"reboot_at\"")
+			}
+		case "window_s":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Int()
+				s.WindowS = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"window_s\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode CorePostCoreNetworkBoxAddressForgetOKPending")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00001111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfCorePostCoreNetworkBoxAddressForgetOKPending) {
+					name = jsonFieldsNameOfCorePostCoreNetworkBoxAddressForgetOKPending[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *CorePostCoreNetworkBoxAddressForgetOKPending) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CorePostCoreNetworkBoxAddressForgetOKPending) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *CorePostCoreNetworkBoxAddressForgetOKSpan) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *CorePostCoreNetworkBoxAddressForgetOKSpan) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("cpu_percent")
+		e.Int(s.CPUPercent)
+	}
+	{
+		e.FieldStart("enabled")
+		e.Bool(s.Enabled)
+	}
+	{
+		e.FieldStart("extract")
+		s.Extract.Encode(e)
+	}
+	{
+		e.FieldStart("filters")
+		e.ArrStart()
+		for _, elem := range s.Filters {
+			elem.Encode(e)
+		}
+		e.ArrEnd()
+	}
+	{
+		e.FieldStart("interface")
+		s.Interface.Encode(e)
+	}
+	{
+		e.FieldStart("memory_mb")
+		e.Int(s.MemoryMB)
+	}
+}
+
+var jsonFieldsNameOfCorePostCoreNetworkBoxAddressForgetOKSpan = [6]string{
+	0: "cpu_percent",
+	1: "enabled",
+	2: "extract",
+	3: "filters",
+	4: "interface",
+	5: "memory_mb",
+}
+
+// Decode decodes CorePostCoreNetworkBoxAddressForgetOKSpan from json.
+func (s *CorePostCoreNetworkBoxAddressForgetOKSpan) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CorePostCoreNetworkBoxAddressForgetOKSpan to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "cpu_percent":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Int()
+				s.CPUPercent = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"cpu_percent\"")
+			}
+		case "enabled":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Bool()
+				s.Enabled = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"enabled\"")
+			}
+		case "extract":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				if err := s.Extract.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"extract\"")
+			}
+		case "filters":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				s.Filters = make([]CorePostCoreNetworkBoxAddressForgetOKSpanFiltersItem, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem CorePostCoreNetworkBoxAddressForgetOKSpanFiltersItem
+					if err := elem.Decode(d); err != nil {
+						return err
+					}
+					s.Filters = append(s.Filters, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"filters\"")
+			}
+		case "interface":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				if err := s.Interface.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"interface\"")
+			}
+		case "memory_mb":
+			requiredBitSet[0] |= 1 << 5
+			if err := func() error {
+				v, err := d.Int()
+				s.MemoryMB = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"memory_mb\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode CorePostCoreNetworkBoxAddressForgetOKSpan")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00111111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfCorePostCoreNetworkBoxAddressForgetOKSpan) {
+					name = jsonFieldsNameOfCorePostCoreNetworkBoxAddressForgetOKSpan[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *CorePostCoreNetworkBoxAddressForgetOKSpan) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CorePostCoreNetworkBoxAddressForgetOKSpan) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *CorePostCoreNetworkBoxAddressForgetOKSpanExtract) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *CorePostCoreNetworkBoxAddressForgetOKSpanExtract) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("dns")
+		e.Bool(s.DNS)
+	}
+	{
+		e.FieldStart("flows")
+		e.Bool(s.Flows)
+	}
+	{
+		e.FieldStart("http_host")
+		e.Bool(s.HTTPHost)
+	}
+	{
+		e.FieldStart("tls_sni")
+		e.Bool(s.TLSSni)
+	}
+}
+
+var jsonFieldsNameOfCorePostCoreNetworkBoxAddressForgetOKSpanExtract = [4]string{
+	0: "dns",
+	1: "flows",
+	2: "http_host",
+	3: "tls_sni",
+}
+
+// Decode decodes CorePostCoreNetworkBoxAddressForgetOKSpanExtract from json.
+func (s *CorePostCoreNetworkBoxAddressForgetOKSpanExtract) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CorePostCoreNetworkBoxAddressForgetOKSpanExtract to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "dns":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Bool()
+				s.DNS = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"dns\"")
+			}
+		case "flows":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Bool()
+				s.Flows = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"flows\"")
+			}
+		case "http_host":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Bool()
+				s.HTTPHost = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"http_host\"")
+			}
+		case "tls_sni":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Bool()
+				s.TLSSni = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"tls_sni\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode CorePostCoreNetworkBoxAddressForgetOKSpanExtract")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00001111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfCorePostCoreNetworkBoxAddressForgetOKSpanExtract) {
+					name = jsonFieldsNameOfCorePostCoreNetworkBoxAddressForgetOKSpanExtract[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *CorePostCoreNetworkBoxAddressForgetOKSpanExtract) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CorePostCoreNetworkBoxAddressForgetOKSpanExtract) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *CorePostCoreNetworkBoxAddressForgetOKSpanFiltersItem) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *CorePostCoreNetworkBoxAddressForgetOKSpanFiltersItem) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("type")
+		s.Type.Encode(e)
+	}
+	{
+		e.FieldStart("value")
+		e.Str(s.Value)
+	}
+}
+
+var jsonFieldsNameOfCorePostCoreNetworkBoxAddressForgetOKSpanFiltersItem = [2]string{
+	0: "type",
+	1: "value",
+}
+
+// Decode decodes CorePostCoreNetworkBoxAddressForgetOKSpanFiltersItem from json.
+func (s *CorePostCoreNetworkBoxAddressForgetOKSpanFiltersItem) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CorePostCoreNetworkBoxAddressForgetOKSpanFiltersItem to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "type":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.Type.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"type\"")
+			}
+		case "value":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Str()
+				s.Value = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"value\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode CorePostCoreNetworkBoxAddressForgetOKSpanFiltersItem")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000011,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfCorePostCoreNetworkBoxAddressForgetOKSpanFiltersItem) {
+					name = jsonFieldsNameOfCorePostCoreNetworkBoxAddressForgetOKSpanFiltersItem[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *CorePostCoreNetworkBoxAddressForgetOKSpanFiltersItem) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CorePostCoreNetworkBoxAddressForgetOKSpanFiltersItem) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes CorePostCoreNetworkBoxAddressForgetOKSpanFiltersItemType as json.
+func (s CorePostCoreNetworkBoxAddressForgetOKSpanFiltersItemType) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes CorePostCoreNetworkBoxAddressForgetOKSpanFiltersItemType from json.
+func (s *CorePostCoreNetworkBoxAddressForgetOKSpanFiltersItemType) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CorePostCoreNetworkBoxAddressForgetOKSpanFiltersItemType to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch CorePostCoreNetworkBoxAddressForgetOKSpanFiltersItemType(v) {
+	case CorePostCoreNetworkBoxAddressForgetOKSpanFiltersItemTypeCidr:
+		*s = CorePostCoreNetworkBoxAddressForgetOKSpanFiltersItemTypeCidr
+	case CorePostCoreNetworkBoxAddressForgetOKSpanFiltersItemTypeHost:
+		*s = CorePostCoreNetworkBoxAddressForgetOKSpanFiltersItemTypeHost
+	case CorePostCoreNetworkBoxAddressForgetOKSpanFiltersItemTypePort:
+		*s = CorePostCoreNetworkBoxAddressForgetOKSpanFiltersItemTypePort
+	default:
+		*s = CorePostCoreNetworkBoxAddressForgetOKSpanFiltersItemType(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s CorePostCoreNetworkBoxAddressForgetOKSpanFiltersItemType) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CorePostCoreNetworkBoxAddressForgetOKSpanFiltersItemType) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *CorePostCoreNetworkBoxAddressForgetOKSpanStatus) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *CorePostCoreNetworkBoxAddressForgetOKSpanStatus) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("interface")
+		s.Interface.Encode(e)
+	}
+	{
+		e.FieldStart("last_packet_at")
+		s.LastPacketAt.Encode(e, json.EncodeDateTime)
+	}
+	{
+		e.FieldStart("other_macs")
+		e.Int(s.OtherMacs)
+	}
+	{
+		e.FieldStart("packets_per_s")
+		e.Int(s.PacketsPerS)
+	}
+	{
+		e.FieldStart("verdict")
+		s.Verdict.Encode(e)
+	}
+}
+
+var jsonFieldsNameOfCorePostCoreNetworkBoxAddressForgetOKSpanStatus = [5]string{
+	0: "interface",
+	1: "last_packet_at",
+	2: "other_macs",
+	3: "packets_per_s",
+	4: "verdict",
+}
+
+// Decode decodes CorePostCoreNetworkBoxAddressForgetOKSpanStatus from json.
+func (s *CorePostCoreNetworkBoxAddressForgetOKSpanStatus) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CorePostCoreNetworkBoxAddressForgetOKSpanStatus to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "interface":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.Interface.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"interface\"")
+			}
+		case "last_packet_at":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				if err := s.LastPacketAt.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"last_packet_at\"")
+			}
+		case "other_macs":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Int()
+				s.OtherMacs = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"other_macs\"")
+			}
+		case "packets_per_s":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Int()
+				s.PacketsPerS = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"packets_per_s\"")
+			}
+		case "verdict":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				if err := s.Verdict.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"verdict\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode CorePostCoreNetworkBoxAddressForgetOKSpanStatus")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00011111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfCorePostCoreNetworkBoxAddressForgetOKSpanStatus) {
+					name = jsonFieldsNameOfCorePostCoreNetworkBoxAddressForgetOKSpanStatus[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *CorePostCoreNetworkBoxAddressForgetOKSpanStatus) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CorePostCoreNetworkBoxAddressForgetOKSpanStatus) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdict as json.
+func (s CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdict) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdict from json.
+func (s *CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdict) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdict to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdict(v) {
+	case CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdictOff:
+		*s = CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdictOff
+	case CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdictOk:
+		*s = CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdictOk
+	case CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdictOwnOnly:
+		*s = CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdictOwnOnly
+	case CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdictNoTraffic:
+		*s = CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdictNoTraffic
+	case CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdictNoLink:
+		*s = CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdictNoLink
+	case CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdictSensorUnreachable:
+		*s = CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdictSensorUnreachable
+	default:
+		*s = CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdict(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdict) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CorePostCoreNetworkBoxAddressForgetOKSpanStatusVerdict) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *CorePostCoreNetworkBoxAddressForgetReq) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *CorePostCoreNetworkBoxAddressForgetReq) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("address")
+		e.Str(s.Address)
+	}
+}
+
+var jsonFieldsNameOfCorePostCoreNetworkBoxAddressForgetReq = [1]string{
+	0: "address",
+}
+
+// Decode decodes CorePostCoreNetworkBoxAddressForgetReq from json.
+func (s *CorePostCoreNetworkBoxAddressForgetReq) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CorePostCoreNetworkBoxAddressForgetReq to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "address":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.Address = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"address\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode CorePostCoreNetworkBoxAddressForgetReq")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000001,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfCorePostCoreNetworkBoxAddressForgetReq) {
+					name = jsonFieldsNameOfCorePostCoreNetworkBoxAddressForgetReq[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *CorePostCoreNetworkBoxAddressForgetReq) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CorePostCoreNetworkBoxAddressForgetReq) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *CorePostCoreNetworkManagementConfirmOK) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *CorePostCoreNetworkManagementConfirmOK) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("box_address")
+		s.BoxAddress.Encode(e)
+	}
+	{
+		e.FieldStart("decoy_ips")
+		e.ArrStart()
+		for _, elem := range s.DecoyIps {
+			e.Str(elem)
+		}
+		e.ArrEnd()
+	}
+	{
+		e.FieldStart("default_ntp")
+		e.Str(s.DefaultNtp)
+	}
+	{
+		e.FieldStart("interfaces")
+		e.ArrStart()
+		for _, elem := range s.Interfaces {
+			elem.Encode(e)
+		}
+		e.ArrEnd()
+	}
+	{
+		e.FieldStart("management")
+		s.Management.Encode(e)
+	}
+	{
+		e.FieldStart("ntp")
+		s.Ntp.Encode(e)
+	}
+	{
+		e.FieldStart("pending")
+		s.Pending.Encode(e)
+	}
+	{
+		e.FieldStart("span")
+		s.Span.Encode(e)
+	}
+	{
+		e.FieldStart("span_status")
+		s.SpanStatus.Encode(e)
+	}
+}
+
+var jsonFieldsNameOfCorePostCoreNetworkManagementConfirmOK = [9]string{
+	0: "box_address",
+	1: "decoy_ips",
+	2: "default_ntp",
+	3: "interfaces",
+	4: "management",
+	5: "ntp",
+	6: "pending",
+	7: "span",
+	8: "span_status",
+}
+
+// Decode decodes CorePostCoreNetworkManagementConfirmOK from json.
+func (s *CorePostCoreNetworkManagementConfirmOK) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CorePostCoreNetworkManagementConfirmOK to nil")
+	}
+	var requiredBitSet [2]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "box_address":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.BoxAddress.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"box_address\"")
+			}
+		case "decoy_ips":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				s.DecoyIps = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.DecoyIps = append(s.DecoyIps, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"decoy_ips\"")
+			}
+		case "default_ntp":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Str()
+				s.DefaultNtp = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"default_ntp\"")
+			}
+		case "interfaces":
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				s.Interfaces = make([]CorePostCoreNetworkManagementConfirmOKInterfacesItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -50836,7 +52970,7 @@ func (s *CorePostCoreNetworkManagementConfirmOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"interfaces\"")
 			}
 		case "management":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				if err := s.Management.Decode(d); err != nil {
 					return err
@@ -50846,7 +52980,7 @@ func (s *CorePostCoreNetworkManagementConfirmOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"management\"")
 			}
 		case "ntp":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				if err := s.Ntp.Decode(d); err != nil {
 					return err
@@ -50856,7 +52990,7 @@ func (s *CorePostCoreNetworkManagementConfirmOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"ntp\"")
 			}
 		case "pending":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				if err := s.Pending.Decode(d); err != nil {
 					return err
@@ -50866,7 +53000,7 @@ func (s *CorePostCoreNetworkManagementConfirmOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"pending\"")
 			}
 		case "span":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				if err := s.Span.Decode(d); err != nil {
 					return err
@@ -50876,7 +53010,7 @@ func (s *CorePostCoreNetworkManagementConfirmOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"span\"")
 			}
 		case "span_status":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				if err := s.SpanStatus.Decode(d); err != nil {
 					return err
@@ -50894,8 +53028,9 @@ func (s *CorePostCoreNetworkManagementConfirmOK) Decode(d *jx.Decoder) error {
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
-	for i, mask := range [1]uint8{
+	for i, mask := range [2]uint8{
 		0b11111111,
+		0b00000001,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -50937,6 +53072,176 @@ func (s *CorePostCoreNetworkManagementConfirmOK) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *CorePostCoreNetworkManagementConfirmOK) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *CorePostCoreNetworkManagementConfirmOKBoxAddress) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *CorePostCoreNetworkManagementConfirmOKBoxAddress) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("address")
+		s.Address.Encode(e)
+	}
+	{
+		e.FieldStart("default")
+		s.Default.Encode(e)
+	}
+	{
+		e.FieldStart("link_base")
+		s.LinkBase.Encode(e)
+	}
+	{
+		e.FieldStart("previous")
+		e.ArrStart()
+		for _, elem := range s.Previous {
+			e.Str(elem)
+		}
+		e.ArrEnd()
+	}
+	{
+		e.FieldStart("self_signed")
+		e.Bool(s.SelfSigned)
+	}
+}
+
+var jsonFieldsNameOfCorePostCoreNetworkManagementConfirmOKBoxAddress = [5]string{
+	0: "address",
+	1: "default",
+	2: "link_base",
+	3: "previous",
+	4: "self_signed",
+}
+
+// Decode decodes CorePostCoreNetworkManagementConfirmOKBoxAddress from json.
+func (s *CorePostCoreNetworkManagementConfirmOKBoxAddress) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CorePostCoreNetworkManagementConfirmOKBoxAddress to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "address":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.Address.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"address\"")
+			}
+		case "default":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				if err := s.Default.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"default\"")
+			}
+		case "link_base":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				if err := s.LinkBase.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"link_base\"")
+			}
+		case "previous":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				s.Previous = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.Previous = append(s.Previous, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"previous\"")
+			}
+		case "self_signed":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Bool()
+				s.SelfSigned = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"self_signed\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode CorePostCoreNetworkManagementConfirmOKBoxAddress")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00011111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfCorePostCoreNetworkManagementConfirmOKBoxAddress) {
+					name = jsonFieldsNameOfCorePostCoreNetworkManagementConfirmOKBoxAddress[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *CorePostCoreNetworkManagementConfirmOKBoxAddress) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CorePostCoreNetworkManagementConfirmOKBoxAddress) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -52375,6 +54680,10 @@ func (s *CorePostCoreNetworkManagementRevertOK) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *CorePostCoreNetworkManagementRevertOK) encodeFields(e *jx.Encoder) {
 	{
+		e.FieldStart("box_address")
+		s.BoxAddress.Encode(e)
+	}
+	{
 		e.FieldStart("decoy_ips")
 		e.ArrStart()
 		for _, elem := range s.DecoyIps {
@@ -52416,15 +54725,16 @@ func (s *CorePostCoreNetworkManagementRevertOK) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfCorePostCoreNetworkManagementRevertOK = [8]string{
-	0: "decoy_ips",
-	1: "default_ntp",
-	2: "interfaces",
-	3: "management",
-	4: "ntp",
-	5: "pending",
-	6: "span",
-	7: "span_status",
+var jsonFieldsNameOfCorePostCoreNetworkManagementRevertOK = [9]string{
+	0: "box_address",
+	1: "decoy_ips",
+	2: "default_ntp",
+	3: "interfaces",
+	4: "management",
+	5: "ntp",
+	6: "pending",
+	7: "span",
+	8: "span_status",
 }
 
 // Decode decodes CorePostCoreNetworkManagementRevertOK from json.
@@ -52432,12 +54742,22 @@ func (s *CorePostCoreNetworkManagementRevertOK) Decode(d *jx.Decoder) error {
 	if s == nil {
 		return errors.New("invalid: unable to decode CorePostCoreNetworkManagementRevertOK to nil")
 	}
-	var requiredBitSet [1]uint8
+	var requiredBitSet [2]uint8
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "decoy_ips":
+		case "box_address":
 			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.BoxAddress.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"box_address\"")
+			}
+		case "decoy_ips":
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				s.DecoyIps = make([]string, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -52457,7 +54777,7 @@ func (s *CorePostCoreNetworkManagementRevertOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"decoy_ips\"")
 			}
 		case "default_ntp":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				v, err := d.Str()
 				s.DefaultNtp = string(v)
@@ -52469,7 +54789,7 @@ func (s *CorePostCoreNetworkManagementRevertOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"default_ntp\"")
 			}
 		case "interfaces":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				s.Interfaces = make([]CorePostCoreNetworkManagementRevertOKInterfacesItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -52487,7 +54807,7 @@ func (s *CorePostCoreNetworkManagementRevertOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"interfaces\"")
 			}
 		case "management":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				if err := s.Management.Decode(d); err != nil {
 					return err
@@ -52497,7 +54817,7 @@ func (s *CorePostCoreNetworkManagementRevertOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"management\"")
 			}
 		case "ntp":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				if err := s.Ntp.Decode(d); err != nil {
 					return err
@@ -52507,7 +54827,7 @@ func (s *CorePostCoreNetworkManagementRevertOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"ntp\"")
 			}
 		case "pending":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				if err := s.Pending.Decode(d); err != nil {
 					return err
@@ -52517,7 +54837,7 @@ func (s *CorePostCoreNetworkManagementRevertOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"pending\"")
 			}
 		case "span":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				if err := s.Span.Decode(d); err != nil {
 					return err
@@ -52527,7 +54847,7 @@ func (s *CorePostCoreNetworkManagementRevertOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"span\"")
 			}
 		case "span_status":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				if err := s.SpanStatus.Decode(d); err != nil {
 					return err
@@ -52545,8 +54865,9 @@ func (s *CorePostCoreNetworkManagementRevertOK) Decode(d *jx.Decoder) error {
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
-	for i, mask := range [1]uint8{
+	for i, mask := range [2]uint8{
 		0b11111111,
+		0b00000001,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -52588,6 +54909,176 @@ func (s *CorePostCoreNetworkManagementRevertOK) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *CorePostCoreNetworkManagementRevertOK) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *CorePostCoreNetworkManagementRevertOKBoxAddress) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *CorePostCoreNetworkManagementRevertOKBoxAddress) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("address")
+		s.Address.Encode(e)
+	}
+	{
+		e.FieldStart("default")
+		s.Default.Encode(e)
+	}
+	{
+		e.FieldStart("link_base")
+		s.LinkBase.Encode(e)
+	}
+	{
+		e.FieldStart("previous")
+		e.ArrStart()
+		for _, elem := range s.Previous {
+			e.Str(elem)
+		}
+		e.ArrEnd()
+	}
+	{
+		e.FieldStart("self_signed")
+		e.Bool(s.SelfSigned)
+	}
+}
+
+var jsonFieldsNameOfCorePostCoreNetworkManagementRevertOKBoxAddress = [5]string{
+	0: "address",
+	1: "default",
+	2: "link_base",
+	3: "previous",
+	4: "self_signed",
+}
+
+// Decode decodes CorePostCoreNetworkManagementRevertOKBoxAddress from json.
+func (s *CorePostCoreNetworkManagementRevertOKBoxAddress) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CorePostCoreNetworkManagementRevertOKBoxAddress to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "address":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.Address.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"address\"")
+			}
+		case "default":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				if err := s.Default.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"default\"")
+			}
+		case "link_base":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				if err := s.LinkBase.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"link_base\"")
+			}
+		case "previous":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				s.Previous = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.Previous = append(s.Previous, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"previous\"")
+			}
+		case "self_signed":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Bool()
+				s.SelfSigned = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"self_signed\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode CorePostCoreNetworkManagementRevertOKBoxAddress")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00011111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfCorePostCoreNetworkManagementRevertOKBoxAddress) {
+					name = jsonFieldsNameOfCorePostCoreNetworkManagementRevertOKBoxAddress[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *CorePostCoreNetworkManagementRevertOKBoxAddress) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CorePostCoreNetworkManagementRevertOKBoxAddress) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -70946,14 +73437,18 @@ func (s *CorePutCoreGeneralReq) UnmarshalJSON(data []byte) error {
 }
 
 // Encode implements json.Marshaler.
-func (s *CorePutCoreNetworkInterfacesOK) Encode(e *jx.Encoder) {
+func (s *CorePutCoreNetworkBoxAddressOK) Encode(e *jx.Encoder) {
 	e.ObjStart()
 	s.encodeFields(e)
 	e.ObjEnd()
 }
 
 // encodeFields encodes fields.
-func (s *CorePutCoreNetworkInterfacesOK) encodeFields(e *jx.Encoder) {
+func (s *CorePutCoreNetworkBoxAddressOK) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("box_address")
+		s.BoxAddress.Encode(e)
+	}
 	{
 		e.FieldStart("decoy_ips")
 		e.ArrStart()
@@ -70996,28 +73491,39 @@ func (s *CorePutCoreNetworkInterfacesOK) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfCorePutCoreNetworkInterfacesOK = [8]string{
-	0: "decoy_ips",
-	1: "default_ntp",
-	2: "interfaces",
-	3: "management",
-	4: "ntp",
-	5: "pending",
-	6: "span",
-	7: "span_status",
+var jsonFieldsNameOfCorePutCoreNetworkBoxAddressOK = [9]string{
+	0: "box_address",
+	1: "decoy_ips",
+	2: "default_ntp",
+	3: "interfaces",
+	4: "management",
+	5: "ntp",
+	6: "pending",
+	7: "span",
+	8: "span_status",
 }
 
-// Decode decodes CorePutCoreNetworkInterfacesOK from json.
-func (s *CorePutCoreNetworkInterfacesOK) Decode(d *jx.Decoder) error {
+// Decode decodes CorePutCoreNetworkBoxAddressOK from json.
+func (s *CorePutCoreNetworkBoxAddressOK) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode CorePutCoreNetworkInterfacesOK to nil")
+		return errors.New("invalid: unable to decode CorePutCoreNetworkBoxAddressOK to nil")
 	}
-	var requiredBitSet [1]uint8
+	var requiredBitSet [2]uint8
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "decoy_ips":
+		case "box_address":
 			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.BoxAddress.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"box_address\"")
+			}
+		case "decoy_ips":
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				s.DecoyIps = make([]string, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -71037,7 +73543,7 @@ func (s *CorePutCoreNetworkInterfacesOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"decoy_ips\"")
 			}
 		case "default_ntp":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				v, err := d.Str()
 				s.DefaultNtp = string(v)
@@ -71049,7 +73555,1940 @@ func (s *CorePutCoreNetworkInterfacesOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"default_ntp\"")
 			}
 		case "interfaces":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				s.Interfaces = make([]CorePutCoreNetworkBoxAddressOKInterfacesItem, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem CorePutCoreNetworkBoxAddressOKInterfacesItem
+					if err := elem.Decode(d); err != nil {
+						return err
+					}
+					s.Interfaces = append(s.Interfaces, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"interfaces\"")
+			}
+		case "management":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				if err := s.Management.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"management\"")
+			}
+		case "ntp":
+			requiredBitSet[0] |= 1 << 5
+			if err := func() error {
+				if err := s.Ntp.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"ntp\"")
+			}
+		case "pending":
+			requiredBitSet[0] |= 1 << 6
+			if err := func() error {
+				if err := s.Pending.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"pending\"")
+			}
+		case "span":
+			requiredBitSet[0] |= 1 << 7
+			if err := func() error {
+				if err := s.Span.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"span\"")
+			}
+		case "span_status":
+			requiredBitSet[1] |= 1 << 0
+			if err := func() error {
+				if err := s.SpanStatus.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"span_status\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode CorePutCoreNetworkBoxAddressOK")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [2]uint8{
+		0b11111111,
+		0b00000001,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfCorePutCoreNetworkBoxAddressOK) {
+					name = jsonFieldsNameOfCorePutCoreNetworkBoxAddressOK[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *CorePutCoreNetworkBoxAddressOK) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CorePutCoreNetworkBoxAddressOK) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *CorePutCoreNetworkBoxAddressOKBoxAddress) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *CorePutCoreNetworkBoxAddressOKBoxAddress) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("address")
+		s.Address.Encode(e)
+	}
+	{
+		e.FieldStart("default")
+		s.Default.Encode(e)
+	}
+	{
+		e.FieldStart("link_base")
+		s.LinkBase.Encode(e)
+	}
+	{
+		e.FieldStart("previous")
+		e.ArrStart()
+		for _, elem := range s.Previous {
+			e.Str(elem)
+		}
+		e.ArrEnd()
+	}
+	{
+		e.FieldStart("self_signed")
+		e.Bool(s.SelfSigned)
+	}
+}
+
+var jsonFieldsNameOfCorePutCoreNetworkBoxAddressOKBoxAddress = [5]string{
+	0: "address",
+	1: "default",
+	2: "link_base",
+	3: "previous",
+	4: "self_signed",
+}
+
+// Decode decodes CorePutCoreNetworkBoxAddressOKBoxAddress from json.
+func (s *CorePutCoreNetworkBoxAddressOKBoxAddress) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CorePutCoreNetworkBoxAddressOKBoxAddress to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "address":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.Address.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"address\"")
+			}
+		case "default":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				if err := s.Default.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"default\"")
+			}
+		case "link_base":
 			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				if err := s.LinkBase.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"link_base\"")
+			}
+		case "previous":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				s.Previous = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.Previous = append(s.Previous, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"previous\"")
+			}
+		case "self_signed":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Bool()
+				s.SelfSigned = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"self_signed\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode CorePutCoreNetworkBoxAddressOKBoxAddress")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00011111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfCorePutCoreNetworkBoxAddressOKBoxAddress) {
+					name = jsonFieldsNameOfCorePutCoreNetworkBoxAddressOKBoxAddress[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *CorePutCoreNetworkBoxAddressOKBoxAddress) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CorePutCoreNetworkBoxAddressOKBoxAddress) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *CorePutCoreNetworkBoxAddressOKInterfacesItem) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *CorePutCoreNetworkBoxAddressOKInterfacesItem) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("address")
+		s.Address.Encode(e)
+	}
+	{
+		e.FieldStart("link")
+		e.Bool(s.Link)
+	}
+	{
+		e.FieldStart("mac")
+		e.Str(s.MAC)
+	}
+	{
+		e.FieldStart("name")
+		e.Str(s.Name)
+	}
+	{
+		e.FieldStart("role")
+		s.Role.Encode(e)
+	}
+	{
+		e.FieldStart("speed")
+		s.Speed.Encode(e)
+	}
+}
+
+var jsonFieldsNameOfCorePutCoreNetworkBoxAddressOKInterfacesItem = [6]string{
+	0: "address",
+	1: "link",
+	2: "mac",
+	3: "name",
+	4: "role",
+	5: "speed",
+}
+
+// Decode decodes CorePutCoreNetworkBoxAddressOKInterfacesItem from json.
+func (s *CorePutCoreNetworkBoxAddressOKInterfacesItem) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CorePutCoreNetworkBoxAddressOKInterfacesItem to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "address":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.Address.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"address\"")
+			}
+		case "link":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Bool()
+				s.Link = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"link\"")
+			}
+		case "mac":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Str()
+				s.MAC = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"mac\"")
+			}
+		case "name":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Str()
+				s.Name = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"name\"")
+			}
+		case "role":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				if err := s.Role.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"role\"")
+			}
+		case "speed":
+			requiredBitSet[0] |= 1 << 5
+			if err := func() error {
+				if err := s.Speed.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"speed\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode CorePutCoreNetworkBoxAddressOKInterfacesItem")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00111111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfCorePutCoreNetworkBoxAddressOKInterfacesItem) {
+					name = jsonFieldsNameOfCorePutCoreNetworkBoxAddressOKInterfacesItem[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *CorePutCoreNetworkBoxAddressOKInterfacesItem) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CorePutCoreNetworkBoxAddressOKInterfacesItem) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes CorePutCoreNetworkBoxAddressOKInterfacesItemRole as json.
+func (s CorePutCoreNetworkBoxAddressOKInterfacesItemRole) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes CorePutCoreNetworkBoxAddressOKInterfacesItemRole from json.
+func (s *CorePutCoreNetworkBoxAddressOKInterfacesItemRole) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CorePutCoreNetworkBoxAddressOKInterfacesItemRole to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch CorePutCoreNetworkBoxAddressOKInterfacesItemRole(v) {
+	case CorePutCoreNetworkBoxAddressOKInterfacesItemRoleManagement:
+		*s = CorePutCoreNetworkBoxAddressOKInterfacesItemRoleManagement
+	case CorePutCoreNetworkBoxAddressOKInterfacesItemRoleSpan:
+		*s = CorePutCoreNetworkBoxAddressOKInterfacesItemRoleSpan
+	case CorePutCoreNetworkBoxAddressOKInterfacesItemRoleUnused:
+		*s = CorePutCoreNetworkBoxAddressOKInterfacesItemRoleUnused
+	default:
+		*s = CorePutCoreNetworkBoxAddressOKInterfacesItemRole(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s CorePutCoreNetworkBoxAddressOKInterfacesItemRole) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CorePutCoreNetworkBoxAddressOKInterfacesItemRole) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *CorePutCoreNetworkBoxAddressOKManagement) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *CorePutCoreNetworkBoxAddressOKManagement) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("address")
+		s.Address.Encode(e)
+	}
+	{
+		e.FieldStart("dns")
+		e.ArrStart()
+		for _, elem := range s.DNS {
+			e.Str(elem)
+		}
+		e.ArrEnd()
+	}
+	{
+		e.FieldStart("gateway")
+		s.Gateway.Encode(e)
+	}
+	{
+		e.FieldStart("mode")
+		s.Mode.Encode(e)
+	}
+	{
+		e.FieldStart("prefix")
+		s.Prefix.Encode(e)
+	}
+}
+
+var jsonFieldsNameOfCorePutCoreNetworkBoxAddressOKManagement = [5]string{
+	0: "address",
+	1: "dns",
+	2: "gateway",
+	3: "mode",
+	4: "prefix",
+}
+
+// Decode decodes CorePutCoreNetworkBoxAddressOKManagement from json.
+func (s *CorePutCoreNetworkBoxAddressOKManagement) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CorePutCoreNetworkBoxAddressOKManagement to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "address":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.Address.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"address\"")
+			}
+		case "dns":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				s.DNS = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.DNS = append(s.DNS, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"dns\"")
+			}
+		case "gateway":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				if err := s.Gateway.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"gateway\"")
+			}
+		case "mode":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				if err := s.Mode.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"mode\"")
+			}
+		case "prefix":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				if err := s.Prefix.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"prefix\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode CorePutCoreNetworkBoxAddressOKManagement")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00011111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfCorePutCoreNetworkBoxAddressOKManagement) {
+					name = jsonFieldsNameOfCorePutCoreNetworkBoxAddressOKManagement[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *CorePutCoreNetworkBoxAddressOKManagement) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CorePutCoreNetworkBoxAddressOKManagement) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes CorePutCoreNetworkBoxAddressOKManagementMode as json.
+func (s CorePutCoreNetworkBoxAddressOKManagementMode) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes CorePutCoreNetworkBoxAddressOKManagementMode from json.
+func (s *CorePutCoreNetworkBoxAddressOKManagementMode) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CorePutCoreNetworkBoxAddressOKManagementMode to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch CorePutCoreNetworkBoxAddressOKManagementMode(v) {
+	case CorePutCoreNetworkBoxAddressOKManagementModeDhcp:
+		*s = CorePutCoreNetworkBoxAddressOKManagementModeDhcp
+	case CorePutCoreNetworkBoxAddressOKManagementModeStatic:
+		*s = CorePutCoreNetworkBoxAddressOKManagementModeStatic
+	default:
+		*s = CorePutCoreNetworkBoxAddressOKManagementMode(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s CorePutCoreNetworkBoxAddressOKManagementMode) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CorePutCoreNetworkBoxAddressOKManagementMode) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *CorePutCoreNetworkBoxAddressOKNtp) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *CorePutCoreNetworkBoxAddressOKNtp) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("mode")
+		s.Mode.Encode(e)
+	}
+	{
+		e.FieldStart("servers")
+		e.ArrStart()
+		for _, elem := range s.Servers {
+			e.Str(elem)
+		}
+		e.ArrEnd()
+	}
+}
+
+var jsonFieldsNameOfCorePutCoreNetworkBoxAddressOKNtp = [2]string{
+	0: "mode",
+	1: "servers",
+}
+
+// Decode decodes CorePutCoreNetworkBoxAddressOKNtp from json.
+func (s *CorePutCoreNetworkBoxAddressOKNtp) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CorePutCoreNetworkBoxAddressOKNtp to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "mode":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.Mode.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"mode\"")
+			}
+		case "servers":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				s.Servers = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.Servers = append(s.Servers, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"servers\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode CorePutCoreNetworkBoxAddressOKNtp")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000011,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfCorePutCoreNetworkBoxAddressOKNtp) {
+					name = jsonFieldsNameOfCorePutCoreNetworkBoxAddressOKNtp[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *CorePutCoreNetworkBoxAddressOKNtp) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CorePutCoreNetworkBoxAddressOKNtp) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes CorePutCoreNetworkBoxAddressOKNtpMode as json.
+func (s CorePutCoreNetworkBoxAddressOKNtpMode) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes CorePutCoreNetworkBoxAddressOKNtpMode from json.
+func (s *CorePutCoreNetworkBoxAddressOKNtpMode) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CorePutCoreNetworkBoxAddressOKNtpMode to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch CorePutCoreNetworkBoxAddressOKNtpMode(v) {
+	case CorePutCoreNetworkBoxAddressOKNtpModeDefault:
+		*s = CorePutCoreNetworkBoxAddressOKNtpModeDefault
+	case CorePutCoreNetworkBoxAddressOKNtpModeCustom:
+		*s = CorePutCoreNetworkBoxAddressOKNtpModeCustom
+	default:
+		*s = CorePutCoreNetworkBoxAddressOKNtpMode(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s CorePutCoreNetworkBoxAddressOKNtpMode) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CorePutCoreNetworkBoxAddressOKNtpMode) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *CorePutCoreNetworkBoxAddressOKPending) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *CorePutCoreNetworkBoxAddressOKPending) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("expires_at")
+		json.EncodeDateTime(e, s.ExpiresAt)
+	}
+	{
+		e.FieldStart("previous_address")
+		s.PreviousAddress.Encode(e)
+	}
+	{
+		e.FieldStart("reboot_at")
+		s.RebootAt.Encode(e, json.EncodeDateTime)
+	}
+	{
+		e.FieldStart("window_s")
+		e.Int(s.WindowS)
+	}
+}
+
+var jsonFieldsNameOfCorePutCoreNetworkBoxAddressOKPending = [4]string{
+	0: "expires_at",
+	1: "previous_address",
+	2: "reboot_at",
+	3: "window_s",
+}
+
+// Decode decodes CorePutCoreNetworkBoxAddressOKPending from json.
+func (s *CorePutCoreNetworkBoxAddressOKPending) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CorePutCoreNetworkBoxAddressOKPending to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "expires_at":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := json.DecodeDateTime(d)
+				s.ExpiresAt = v
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"expires_at\"")
+			}
+		case "previous_address":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				if err := s.PreviousAddress.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"previous_address\"")
+			}
+		case "reboot_at":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				if err := s.RebootAt.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"reboot_at\"")
+			}
+		case "window_s":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Int()
+				s.WindowS = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"window_s\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode CorePutCoreNetworkBoxAddressOKPending")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00001111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfCorePutCoreNetworkBoxAddressOKPending) {
+					name = jsonFieldsNameOfCorePutCoreNetworkBoxAddressOKPending[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *CorePutCoreNetworkBoxAddressOKPending) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CorePutCoreNetworkBoxAddressOKPending) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *CorePutCoreNetworkBoxAddressOKSpan) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *CorePutCoreNetworkBoxAddressOKSpan) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("cpu_percent")
+		e.Int(s.CPUPercent)
+	}
+	{
+		e.FieldStart("enabled")
+		e.Bool(s.Enabled)
+	}
+	{
+		e.FieldStart("extract")
+		s.Extract.Encode(e)
+	}
+	{
+		e.FieldStart("filters")
+		e.ArrStart()
+		for _, elem := range s.Filters {
+			elem.Encode(e)
+		}
+		e.ArrEnd()
+	}
+	{
+		e.FieldStart("interface")
+		s.Interface.Encode(e)
+	}
+	{
+		e.FieldStart("memory_mb")
+		e.Int(s.MemoryMB)
+	}
+}
+
+var jsonFieldsNameOfCorePutCoreNetworkBoxAddressOKSpan = [6]string{
+	0: "cpu_percent",
+	1: "enabled",
+	2: "extract",
+	3: "filters",
+	4: "interface",
+	5: "memory_mb",
+}
+
+// Decode decodes CorePutCoreNetworkBoxAddressOKSpan from json.
+func (s *CorePutCoreNetworkBoxAddressOKSpan) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CorePutCoreNetworkBoxAddressOKSpan to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "cpu_percent":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Int()
+				s.CPUPercent = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"cpu_percent\"")
+			}
+		case "enabled":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Bool()
+				s.Enabled = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"enabled\"")
+			}
+		case "extract":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				if err := s.Extract.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"extract\"")
+			}
+		case "filters":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				s.Filters = make([]CorePutCoreNetworkBoxAddressOKSpanFiltersItem, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem CorePutCoreNetworkBoxAddressOKSpanFiltersItem
+					if err := elem.Decode(d); err != nil {
+						return err
+					}
+					s.Filters = append(s.Filters, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"filters\"")
+			}
+		case "interface":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				if err := s.Interface.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"interface\"")
+			}
+		case "memory_mb":
+			requiredBitSet[0] |= 1 << 5
+			if err := func() error {
+				v, err := d.Int()
+				s.MemoryMB = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"memory_mb\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode CorePutCoreNetworkBoxAddressOKSpan")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00111111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfCorePutCoreNetworkBoxAddressOKSpan) {
+					name = jsonFieldsNameOfCorePutCoreNetworkBoxAddressOKSpan[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *CorePutCoreNetworkBoxAddressOKSpan) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CorePutCoreNetworkBoxAddressOKSpan) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *CorePutCoreNetworkBoxAddressOKSpanExtract) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *CorePutCoreNetworkBoxAddressOKSpanExtract) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("dns")
+		e.Bool(s.DNS)
+	}
+	{
+		e.FieldStart("flows")
+		e.Bool(s.Flows)
+	}
+	{
+		e.FieldStart("http_host")
+		e.Bool(s.HTTPHost)
+	}
+	{
+		e.FieldStart("tls_sni")
+		e.Bool(s.TLSSni)
+	}
+}
+
+var jsonFieldsNameOfCorePutCoreNetworkBoxAddressOKSpanExtract = [4]string{
+	0: "dns",
+	1: "flows",
+	2: "http_host",
+	3: "tls_sni",
+}
+
+// Decode decodes CorePutCoreNetworkBoxAddressOKSpanExtract from json.
+func (s *CorePutCoreNetworkBoxAddressOKSpanExtract) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CorePutCoreNetworkBoxAddressOKSpanExtract to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "dns":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Bool()
+				s.DNS = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"dns\"")
+			}
+		case "flows":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Bool()
+				s.Flows = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"flows\"")
+			}
+		case "http_host":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Bool()
+				s.HTTPHost = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"http_host\"")
+			}
+		case "tls_sni":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Bool()
+				s.TLSSni = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"tls_sni\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode CorePutCoreNetworkBoxAddressOKSpanExtract")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00001111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfCorePutCoreNetworkBoxAddressOKSpanExtract) {
+					name = jsonFieldsNameOfCorePutCoreNetworkBoxAddressOKSpanExtract[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *CorePutCoreNetworkBoxAddressOKSpanExtract) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CorePutCoreNetworkBoxAddressOKSpanExtract) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *CorePutCoreNetworkBoxAddressOKSpanFiltersItem) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *CorePutCoreNetworkBoxAddressOKSpanFiltersItem) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("type")
+		s.Type.Encode(e)
+	}
+	{
+		e.FieldStart("value")
+		e.Str(s.Value)
+	}
+}
+
+var jsonFieldsNameOfCorePutCoreNetworkBoxAddressOKSpanFiltersItem = [2]string{
+	0: "type",
+	1: "value",
+}
+
+// Decode decodes CorePutCoreNetworkBoxAddressOKSpanFiltersItem from json.
+func (s *CorePutCoreNetworkBoxAddressOKSpanFiltersItem) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CorePutCoreNetworkBoxAddressOKSpanFiltersItem to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "type":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.Type.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"type\"")
+			}
+		case "value":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Str()
+				s.Value = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"value\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode CorePutCoreNetworkBoxAddressOKSpanFiltersItem")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000011,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfCorePutCoreNetworkBoxAddressOKSpanFiltersItem) {
+					name = jsonFieldsNameOfCorePutCoreNetworkBoxAddressOKSpanFiltersItem[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *CorePutCoreNetworkBoxAddressOKSpanFiltersItem) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CorePutCoreNetworkBoxAddressOKSpanFiltersItem) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes CorePutCoreNetworkBoxAddressOKSpanFiltersItemType as json.
+func (s CorePutCoreNetworkBoxAddressOKSpanFiltersItemType) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes CorePutCoreNetworkBoxAddressOKSpanFiltersItemType from json.
+func (s *CorePutCoreNetworkBoxAddressOKSpanFiltersItemType) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CorePutCoreNetworkBoxAddressOKSpanFiltersItemType to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch CorePutCoreNetworkBoxAddressOKSpanFiltersItemType(v) {
+	case CorePutCoreNetworkBoxAddressOKSpanFiltersItemTypeCidr:
+		*s = CorePutCoreNetworkBoxAddressOKSpanFiltersItemTypeCidr
+	case CorePutCoreNetworkBoxAddressOKSpanFiltersItemTypeHost:
+		*s = CorePutCoreNetworkBoxAddressOKSpanFiltersItemTypeHost
+	case CorePutCoreNetworkBoxAddressOKSpanFiltersItemTypePort:
+		*s = CorePutCoreNetworkBoxAddressOKSpanFiltersItemTypePort
+	default:
+		*s = CorePutCoreNetworkBoxAddressOKSpanFiltersItemType(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s CorePutCoreNetworkBoxAddressOKSpanFiltersItemType) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CorePutCoreNetworkBoxAddressOKSpanFiltersItemType) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *CorePutCoreNetworkBoxAddressOKSpanStatus) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *CorePutCoreNetworkBoxAddressOKSpanStatus) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("interface")
+		s.Interface.Encode(e)
+	}
+	{
+		e.FieldStart("last_packet_at")
+		s.LastPacketAt.Encode(e, json.EncodeDateTime)
+	}
+	{
+		e.FieldStart("other_macs")
+		e.Int(s.OtherMacs)
+	}
+	{
+		e.FieldStart("packets_per_s")
+		e.Int(s.PacketsPerS)
+	}
+	{
+		e.FieldStart("verdict")
+		s.Verdict.Encode(e)
+	}
+}
+
+var jsonFieldsNameOfCorePutCoreNetworkBoxAddressOKSpanStatus = [5]string{
+	0: "interface",
+	1: "last_packet_at",
+	2: "other_macs",
+	3: "packets_per_s",
+	4: "verdict",
+}
+
+// Decode decodes CorePutCoreNetworkBoxAddressOKSpanStatus from json.
+func (s *CorePutCoreNetworkBoxAddressOKSpanStatus) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CorePutCoreNetworkBoxAddressOKSpanStatus to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "interface":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.Interface.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"interface\"")
+			}
+		case "last_packet_at":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				if err := s.LastPacketAt.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"last_packet_at\"")
+			}
+		case "other_macs":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Int()
+				s.OtherMacs = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"other_macs\"")
+			}
+		case "packets_per_s":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Int()
+				s.PacketsPerS = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"packets_per_s\"")
+			}
+		case "verdict":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				if err := s.Verdict.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"verdict\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode CorePutCoreNetworkBoxAddressOKSpanStatus")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00011111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfCorePutCoreNetworkBoxAddressOKSpanStatus) {
+					name = jsonFieldsNameOfCorePutCoreNetworkBoxAddressOKSpanStatus[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *CorePutCoreNetworkBoxAddressOKSpanStatus) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CorePutCoreNetworkBoxAddressOKSpanStatus) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes CorePutCoreNetworkBoxAddressOKSpanStatusVerdict as json.
+func (s CorePutCoreNetworkBoxAddressOKSpanStatusVerdict) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes CorePutCoreNetworkBoxAddressOKSpanStatusVerdict from json.
+func (s *CorePutCoreNetworkBoxAddressOKSpanStatusVerdict) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CorePutCoreNetworkBoxAddressOKSpanStatusVerdict to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch CorePutCoreNetworkBoxAddressOKSpanStatusVerdict(v) {
+	case CorePutCoreNetworkBoxAddressOKSpanStatusVerdictOff:
+		*s = CorePutCoreNetworkBoxAddressOKSpanStatusVerdictOff
+	case CorePutCoreNetworkBoxAddressOKSpanStatusVerdictOk:
+		*s = CorePutCoreNetworkBoxAddressOKSpanStatusVerdictOk
+	case CorePutCoreNetworkBoxAddressOKSpanStatusVerdictOwnOnly:
+		*s = CorePutCoreNetworkBoxAddressOKSpanStatusVerdictOwnOnly
+	case CorePutCoreNetworkBoxAddressOKSpanStatusVerdictNoTraffic:
+		*s = CorePutCoreNetworkBoxAddressOKSpanStatusVerdictNoTraffic
+	case CorePutCoreNetworkBoxAddressOKSpanStatusVerdictNoLink:
+		*s = CorePutCoreNetworkBoxAddressOKSpanStatusVerdictNoLink
+	case CorePutCoreNetworkBoxAddressOKSpanStatusVerdictSensorUnreachable:
+		*s = CorePutCoreNetworkBoxAddressOKSpanStatusVerdictSensorUnreachable
+	default:
+		*s = CorePutCoreNetworkBoxAddressOKSpanStatusVerdict(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s CorePutCoreNetworkBoxAddressOKSpanStatusVerdict) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CorePutCoreNetworkBoxAddressOKSpanStatusVerdict) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *CorePutCoreNetworkBoxAddressReq) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *CorePutCoreNetworkBoxAddressReq) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("address")
+		e.Str(s.Address)
+	}
+}
+
+var jsonFieldsNameOfCorePutCoreNetworkBoxAddressReq = [1]string{
+	0: "address",
+}
+
+// Decode decodes CorePutCoreNetworkBoxAddressReq from json.
+func (s *CorePutCoreNetworkBoxAddressReq) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CorePutCoreNetworkBoxAddressReq to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "address":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.Address = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"address\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode CorePutCoreNetworkBoxAddressReq")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000001,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfCorePutCoreNetworkBoxAddressReq) {
+					name = jsonFieldsNameOfCorePutCoreNetworkBoxAddressReq[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *CorePutCoreNetworkBoxAddressReq) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CorePutCoreNetworkBoxAddressReq) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *CorePutCoreNetworkInterfacesOK) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *CorePutCoreNetworkInterfacesOK) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("box_address")
+		s.BoxAddress.Encode(e)
+	}
+	{
+		e.FieldStart("decoy_ips")
+		e.ArrStart()
+		for _, elem := range s.DecoyIps {
+			e.Str(elem)
+		}
+		e.ArrEnd()
+	}
+	{
+		e.FieldStart("default_ntp")
+		e.Str(s.DefaultNtp)
+	}
+	{
+		e.FieldStart("interfaces")
+		e.ArrStart()
+		for _, elem := range s.Interfaces {
+			elem.Encode(e)
+		}
+		e.ArrEnd()
+	}
+	{
+		e.FieldStart("management")
+		s.Management.Encode(e)
+	}
+	{
+		e.FieldStart("ntp")
+		s.Ntp.Encode(e)
+	}
+	{
+		e.FieldStart("pending")
+		s.Pending.Encode(e)
+	}
+	{
+		e.FieldStart("span")
+		s.Span.Encode(e)
+	}
+	{
+		e.FieldStart("span_status")
+		s.SpanStatus.Encode(e)
+	}
+}
+
+var jsonFieldsNameOfCorePutCoreNetworkInterfacesOK = [9]string{
+	0: "box_address",
+	1: "decoy_ips",
+	2: "default_ntp",
+	3: "interfaces",
+	4: "management",
+	5: "ntp",
+	6: "pending",
+	7: "span",
+	8: "span_status",
+}
+
+// Decode decodes CorePutCoreNetworkInterfacesOK from json.
+func (s *CorePutCoreNetworkInterfacesOK) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CorePutCoreNetworkInterfacesOK to nil")
+	}
+	var requiredBitSet [2]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "box_address":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.BoxAddress.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"box_address\"")
+			}
+		case "decoy_ips":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				s.DecoyIps = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.DecoyIps = append(s.DecoyIps, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"decoy_ips\"")
+			}
+		case "default_ntp":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Str()
+				s.DefaultNtp = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"default_ntp\"")
+			}
+		case "interfaces":
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				s.Interfaces = make([]CorePutCoreNetworkInterfacesOKInterfacesItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -71067,7 +75506,7 @@ func (s *CorePutCoreNetworkInterfacesOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"interfaces\"")
 			}
 		case "management":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				if err := s.Management.Decode(d); err != nil {
 					return err
@@ -71077,7 +75516,7 @@ func (s *CorePutCoreNetworkInterfacesOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"management\"")
 			}
 		case "ntp":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				if err := s.Ntp.Decode(d); err != nil {
 					return err
@@ -71087,7 +75526,7 @@ func (s *CorePutCoreNetworkInterfacesOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"ntp\"")
 			}
 		case "pending":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				if err := s.Pending.Decode(d); err != nil {
 					return err
@@ -71097,7 +75536,7 @@ func (s *CorePutCoreNetworkInterfacesOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"pending\"")
 			}
 		case "span":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				if err := s.Span.Decode(d); err != nil {
 					return err
@@ -71107,7 +75546,7 @@ func (s *CorePutCoreNetworkInterfacesOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"span\"")
 			}
 		case "span_status":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				if err := s.SpanStatus.Decode(d); err != nil {
 					return err
@@ -71125,8 +75564,9 @@ func (s *CorePutCoreNetworkInterfacesOK) Decode(d *jx.Decoder) error {
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
-	for i, mask := range [1]uint8{
+	for i, mask := range [2]uint8{
 		0b11111111,
+		0b00000001,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -71168,6 +75608,176 @@ func (s *CorePutCoreNetworkInterfacesOK) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *CorePutCoreNetworkInterfacesOK) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *CorePutCoreNetworkInterfacesOKBoxAddress) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *CorePutCoreNetworkInterfacesOKBoxAddress) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("address")
+		s.Address.Encode(e)
+	}
+	{
+		e.FieldStart("default")
+		s.Default.Encode(e)
+	}
+	{
+		e.FieldStart("link_base")
+		s.LinkBase.Encode(e)
+	}
+	{
+		e.FieldStart("previous")
+		e.ArrStart()
+		for _, elem := range s.Previous {
+			e.Str(elem)
+		}
+		e.ArrEnd()
+	}
+	{
+		e.FieldStart("self_signed")
+		e.Bool(s.SelfSigned)
+	}
+}
+
+var jsonFieldsNameOfCorePutCoreNetworkInterfacesOKBoxAddress = [5]string{
+	0: "address",
+	1: "default",
+	2: "link_base",
+	3: "previous",
+	4: "self_signed",
+}
+
+// Decode decodes CorePutCoreNetworkInterfacesOKBoxAddress from json.
+func (s *CorePutCoreNetworkInterfacesOKBoxAddress) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CorePutCoreNetworkInterfacesOKBoxAddress to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "address":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.Address.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"address\"")
+			}
+		case "default":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				if err := s.Default.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"default\"")
+			}
+		case "link_base":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				if err := s.LinkBase.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"link_base\"")
+			}
+		case "previous":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				s.Previous = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.Previous = append(s.Previous, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"previous\"")
+			}
+		case "self_signed":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Bool()
+				s.SelfSigned = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"self_signed\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode CorePutCoreNetworkInterfacesOKBoxAddress")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00011111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfCorePutCoreNetworkInterfacesOKBoxAddress) {
+					name = jsonFieldsNameOfCorePutCoreNetworkInterfacesOKBoxAddress[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *CorePutCoreNetworkInterfacesOKBoxAddress) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CorePutCoreNetworkInterfacesOKBoxAddress) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -72796,6 +77406,10 @@ func (s *CorePutCoreNetworkManagementOK) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *CorePutCoreNetworkManagementOK) encodeFields(e *jx.Encoder) {
 	{
+		e.FieldStart("box_address")
+		s.BoxAddress.Encode(e)
+	}
+	{
 		e.FieldStart("decoy_ips")
 		e.ArrStart()
 		for _, elem := range s.DecoyIps {
@@ -72837,15 +77451,16 @@ func (s *CorePutCoreNetworkManagementOK) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfCorePutCoreNetworkManagementOK = [8]string{
-	0: "decoy_ips",
-	1: "default_ntp",
-	2: "interfaces",
-	3: "management",
-	4: "ntp",
-	5: "pending",
-	6: "span",
-	7: "span_status",
+var jsonFieldsNameOfCorePutCoreNetworkManagementOK = [9]string{
+	0: "box_address",
+	1: "decoy_ips",
+	2: "default_ntp",
+	3: "interfaces",
+	4: "management",
+	5: "ntp",
+	6: "pending",
+	7: "span",
+	8: "span_status",
 }
 
 // Decode decodes CorePutCoreNetworkManagementOK from json.
@@ -72853,12 +77468,22 @@ func (s *CorePutCoreNetworkManagementOK) Decode(d *jx.Decoder) error {
 	if s == nil {
 		return errors.New("invalid: unable to decode CorePutCoreNetworkManagementOK to nil")
 	}
-	var requiredBitSet [1]uint8
+	var requiredBitSet [2]uint8
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "decoy_ips":
+		case "box_address":
 			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.BoxAddress.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"box_address\"")
+			}
+		case "decoy_ips":
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				s.DecoyIps = make([]string, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -72878,7 +77503,7 @@ func (s *CorePutCoreNetworkManagementOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"decoy_ips\"")
 			}
 		case "default_ntp":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				v, err := d.Str()
 				s.DefaultNtp = string(v)
@@ -72890,7 +77515,7 @@ func (s *CorePutCoreNetworkManagementOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"default_ntp\"")
 			}
 		case "interfaces":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				s.Interfaces = make([]CorePutCoreNetworkManagementOKInterfacesItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -72908,7 +77533,7 @@ func (s *CorePutCoreNetworkManagementOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"interfaces\"")
 			}
 		case "management":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				if err := s.Management.Decode(d); err != nil {
 					return err
@@ -72918,7 +77543,7 @@ func (s *CorePutCoreNetworkManagementOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"management\"")
 			}
 		case "ntp":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				if err := s.Ntp.Decode(d); err != nil {
 					return err
@@ -72928,7 +77553,7 @@ func (s *CorePutCoreNetworkManagementOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"ntp\"")
 			}
 		case "pending":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				if err := s.Pending.Decode(d); err != nil {
 					return err
@@ -72938,7 +77563,7 @@ func (s *CorePutCoreNetworkManagementOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"pending\"")
 			}
 		case "span":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				if err := s.Span.Decode(d); err != nil {
 					return err
@@ -72948,7 +77573,7 @@ func (s *CorePutCoreNetworkManagementOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"span\"")
 			}
 		case "span_status":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				if err := s.SpanStatus.Decode(d); err != nil {
 					return err
@@ -72966,8 +77591,9 @@ func (s *CorePutCoreNetworkManagementOK) Decode(d *jx.Decoder) error {
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
-	for i, mask := range [1]uint8{
+	for i, mask := range [2]uint8{
 		0b11111111,
+		0b00000001,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -73009,6 +77635,176 @@ func (s *CorePutCoreNetworkManagementOK) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *CorePutCoreNetworkManagementOK) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *CorePutCoreNetworkManagementOKBoxAddress) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *CorePutCoreNetworkManagementOKBoxAddress) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("address")
+		s.Address.Encode(e)
+	}
+	{
+		e.FieldStart("default")
+		s.Default.Encode(e)
+	}
+	{
+		e.FieldStart("link_base")
+		s.LinkBase.Encode(e)
+	}
+	{
+		e.FieldStart("previous")
+		e.ArrStart()
+		for _, elem := range s.Previous {
+			e.Str(elem)
+		}
+		e.ArrEnd()
+	}
+	{
+		e.FieldStart("self_signed")
+		e.Bool(s.SelfSigned)
+	}
+}
+
+var jsonFieldsNameOfCorePutCoreNetworkManagementOKBoxAddress = [5]string{
+	0: "address",
+	1: "default",
+	2: "link_base",
+	3: "previous",
+	4: "self_signed",
+}
+
+// Decode decodes CorePutCoreNetworkManagementOKBoxAddress from json.
+func (s *CorePutCoreNetworkManagementOKBoxAddress) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CorePutCoreNetworkManagementOKBoxAddress to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "address":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.Address.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"address\"")
+			}
+		case "default":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				if err := s.Default.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"default\"")
+			}
+		case "link_base":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				if err := s.LinkBase.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"link_base\"")
+			}
+		case "previous":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				s.Previous = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.Previous = append(s.Previous, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"previous\"")
+			}
+		case "self_signed":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Bool()
+				s.SelfSigned = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"self_signed\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode CorePutCoreNetworkManagementOKBoxAddress")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00011111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfCorePutCoreNetworkManagementOKBoxAddress) {
+					name = jsonFieldsNameOfCorePutCoreNetworkManagementOKBoxAddress[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *CorePutCoreNetworkManagementOKBoxAddress) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CorePutCoreNetworkManagementOKBoxAddress) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -74679,6 +79475,10 @@ func (s *CorePutCoreNetworkNtpOK) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *CorePutCoreNetworkNtpOK) encodeFields(e *jx.Encoder) {
 	{
+		e.FieldStart("box_address")
+		s.BoxAddress.Encode(e)
+	}
+	{
 		e.FieldStart("decoy_ips")
 		e.ArrStart()
 		for _, elem := range s.DecoyIps {
@@ -74720,15 +79520,16 @@ func (s *CorePutCoreNetworkNtpOK) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfCorePutCoreNetworkNtpOK = [8]string{
-	0: "decoy_ips",
-	1: "default_ntp",
-	2: "interfaces",
-	3: "management",
-	4: "ntp",
-	5: "pending",
-	6: "span",
-	7: "span_status",
+var jsonFieldsNameOfCorePutCoreNetworkNtpOK = [9]string{
+	0: "box_address",
+	1: "decoy_ips",
+	2: "default_ntp",
+	3: "interfaces",
+	4: "management",
+	5: "ntp",
+	6: "pending",
+	7: "span",
+	8: "span_status",
 }
 
 // Decode decodes CorePutCoreNetworkNtpOK from json.
@@ -74736,12 +79537,22 @@ func (s *CorePutCoreNetworkNtpOK) Decode(d *jx.Decoder) error {
 	if s == nil {
 		return errors.New("invalid: unable to decode CorePutCoreNetworkNtpOK to nil")
 	}
-	var requiredBitSet [1]uint8
+	var requiredBitSet [2]uint8
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "decoy_ips":
+		case "box_address":
 			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.BoxAddress.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"box_address\"")
+			}
+		case "decoy_ips":
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				s.DecoyIps = make([]string, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -74761,7 +79572,7 @@ func (s *CorePutCoreNetworkNtpOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"decoy_ips\"")
 			}
 		case "default_ntp":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				v, err := d.Str()
 				s.DefaultNtp = string(v)
@@ -74773,7 +79584,7 @@ func (s *CorePutCoreNetworkNtpOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"default_ntp\"")
 			}
 		case "interfaces":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				s.Interfaces = make([]CorePutCoreNetworkNtpOKInterfacesItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -74791,7 +79602,7 @@ func (s *CorePutCoreNetworkNtpOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"interfaces\"")
 			}
 		case "management":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				if err := s.Management.Decode(d); err != nil {
 					return err
@@ -74801,7 +79612,7 @@ func (s *CorePutCoreNetworkNtpOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"management\"")
 			}
 		case "ntp":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				if err := s.Ntp.Decode(d); err != nil {
 					return err
@@ -74811,7 +79622,7 @@ func (s *CorePutCoreNetworkNtpOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"ntp\"")
 			}
 		case "pending":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				if err := s.Pending.Decode(d); err != nil {
 					return err
@@ -74821,7 +79632,7 @@ func (s *CorePutCoreNetworkNtpOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"pending\"")
 			}
 		case "span":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				if err := s.Span.Decode(d); err != nil {
 					return err
@@ -74831,7 +79642,7 @@ func (s *CorePutCoreNetworkNtpOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"span\"")
 			}
 		case "span_status":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				if err := s.SpanStatus.Decode(d); err != nil {
 					return err
@@ -74849,8 +79660,9 @@ func (s *CorePutCoreNetworkNtpOK) Decode(d *jx.Decoder) error {
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
-	for i, mask := range [1]uint8{
+	for i, mask := range [2]uint8{
 		0b11111111,
+		0b00000001,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -74892,6 +79704,176 @@ func (s *CorePutCoreNetworkNtpOK) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *CorePutCoreNetworkNtpOK) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *CorePutCoreNetworkNtpOKBoxAddress) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *CorePutCoreNetworkNtpOKBoxAddress) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("address")
+		s.Address.Encode(e)
+	}
+	{
+		e.FieldStart("default")
+		s.Default.Encode(e)
+	}
+	{
+		e.FieldStart("link_base")
+		s.LinkBase.Encode(e)
+	}
+	{
+		e.FieldStart("previous")
+		e.ArrStart()
+		for _, elem := range s.Previous {
+			e.Str(elem)
+		}
+		e.ArrEnd()
+	}
+	{
+		e.FieldStart("self_signed")
+		e.Bool(s.SelfSigned)
+	}
+}
+
+var jsonFieldsNameOfCorePutCoreNetworkNtpOKBoxAddress = [5]string{
+	0: "address",
+	1: "default",
+	2: "link_base",
+	3: "previous",
+	4: "self_signed",
+}
+
+// Decode decodes CorePutCoreNetworkNtpOKBoxAddress from json.
+func (s *CorePutCoreNetworkNtpOKBoxAddress) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CorePutCoreNetworkNtpOKBoxAddress to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "address":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.Address.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"address\"")
+			}
+		case "default":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				if err := s.Default.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"default\"")
+			}
+		case "link_base":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				if err := s.LinkBase.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"link_base\"")
+			}
+		case "previous":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				s.Previous = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.Previous = append(s.Previous, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"previous\"")
+			}
+		case "self_signed":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Bool()
+				s.SelfSigned = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"self_signed\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode CorePutCoreNetworkNtpOKBoxAddress")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00011111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfCorePutCoreNetworkNtpOKBoxAddress) {
+					name = jsonFieldsNameOfCorePutCoreNetworkNtpOKBoxAddress[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *CorePutCoreNetworkNtpOKBoxAddress) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CorePutCoreNetworkNtpOKBoxAddress) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -76493,6 +81475,10 @@ func (s *CorePutCoreNetworkSpanOK) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *CorePutCoreNetworkSpanOK) encodeFields(e *jx.Encoder) {
 	{
+		e.FieldStart("box_address")
+		s.BoxAddress.Encode(e)
+	}
+	{
 		e.FieldStart("decoy_ips")
 		e.ArrStart()
 		for _, elem := range s.DecoyIps {
@@ -76534,15 +81520,16 @@ func (s *CorePutCoreNetworkSpanOK) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfCorePutCoreNetworkSpanOK = [8]string{
-	0: "decoy_ips",
-	1: "default_ntp",
-	2: "interfaces",
-	3: "management",
-	4: "ntp",
-	5: "pending",
-	6: "span",
-	7: "span_status",
+var jsonFieldsNameOfCorePutCoreNetworkSpanOK = [9]string{
+	0: "box_address",
+	1: "decoy_ips",
+	2: "default_ntp",
+	3: "interfaces",
+	4: "management",
+	5: "ntp",
+	6: "pending",
+	7: "span",
+	8: "span_status",
 }
 
 // Decode decodes CorePutCoreNetworkSpanOK from json.
@@ -76550,12 +81537,22 @@ func (s *CorePutCoreNetworkSpanOK) Decode(d *jx.Decoder) error {
 	if s == nil {
 		return errors.New("invalid: unable to decode CorePutCoreNetworkSpanOK to nil")
 	}
-	var requiredBitSet [1]uint8
+	var requiredBitSet [2]uint8
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "decoy_ips":
+		case "box_address":
 			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.BoxAddress.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"box_address\"")
+			}
+		case "decoy_ips":
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				s.DecoyIps = make([]string, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -76575,7 +81572,7 @@ func (s *CorePutCoreNetworkSpanOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"decoy_ips\"")
 			}
 		case "default_ntp":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				v, err := d.Str()
 				s.DefaultNtp = string(v)
@@ -76587,7 +81584,7 @@ func (s *CorePutCoreNetworkSpanOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"default_ntp\"")
 			}
 		case "interfaces":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				s.Interfaces = make([]CorePutCoreNetworkSpanOKInterfacesItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -76605,7 +81602,7 @@ func (s *CorePutCoreNetworkSpanOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"interfaces\"")
 			}
 		case "management":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				if err := s.Management.Decode(d); err != nil {
 					return err
@@ -76615,7 +81612,7 @@ func (s *CorePutCoreNetworkSpanOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"management\"")
 			}
 		case "ntp":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				if err := s.Ntp.Decode(d); err != nil {
 					return err
@@ -76625,7 +81622,7 @@ func (s *CorePutCoreNetworkSpanOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"ntp\"")
 			}
 		case "pending":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				if err := s.Pending.Decode(d); err != nil {
 					return err
@@ -76635,7 +81632,7 @@ func (s *CorePutCoreNetworkSpanOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"pending\"")
 			}
 		case "span":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				if err := s.Span.Decode(d); err != nil {
 					return err
@@ -76645,7 +81642,7 @@ func (s *CorePutCoreNetworkSpanOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"span\"")
 			}
 		case "span_status":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				if err := s.SpanStatus.Decode(d); err != nil {
 					return err
@@ -76663,8 +81660,9 @@ func (s *CorePutCoreNetworkSpanOK) Decode(d *jx.Decoder) error {
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
-	for i, mask := range [1]uint8{
+	for i, mask := range [2]uint8{
 		0b11111111,
+		0b00000001,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -76706,6 +81704,176 @@ func (s *CorePutCoreNetworkSpanOK) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *CorePutCoreNetworkSpanOK) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *CorePutCoreNetworkSpanOKBoxAddress) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *CorePutCoreNetworkSpanOKBoxAddress) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("address")
+		s.Address.Encode(e)
+	}
+	{
+		e.FieldStart("default")
+		s.Default.Encode(e)
+	}
+	{
+		e.FieldStart("link_base")
+		s.LinkBase.Encode(e)
+	}
+	{
+		e.FieldStart("previous")
+		e.ArrStart()
+		for _, elem := range s.Previous {
+			e.Str(elem)
+		}
+		e.ArrEnd()
+	}
+	{
+		e.FieldStart("self_signed")
+		e.Bool(s.SelfSigned)
+	}
+}
+
+var jsonFieldsNameOfCorePutCoreNetworkSpanOKBoxAddress = [5]string{
+	0: "address",
+	1: "default",
+	2: "link_base",
+	3: "previous",
+	4: "self_signed",
+}
+
+// Decode decodes CorePutCoreNetworkSpanOKBoxAddress from json.
+func (s *CorePutCoreNetworkSpanOKBoxAddress) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CorePutCoreNetworkSpanOKBoxAddress to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "address":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.Address.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"address\"")
+			}
+		case "default":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				if err := s.Default.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"default\"")
+			}
+		case "link_base":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				if err := s.LinkBase.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"link_base\"")
+			}
+		case "previous":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				s.Previous = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.Previous = append(s.Previous, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"previous\"")
+			}
+		case "self_signed":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Bool()
+				s.SelfSigned = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"self_signed\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode CorePutCoreNetworkSpanOKBoxAddress")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00011111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfCorePutCoreNetworkSpanOKBoxAddress) {
+					name = jsonFieldsNameOfCorePutCoreNetworkSpanOKBoxAddress[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *CorePutCoreNetworkSpanOKBoxAddress) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CorePutCoreNetworkSpanOKBoxAddress) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -155001,6 +160169,50 @@ func (s *NilCorePostCoreConnectionsIDTestOKConnectorPin) UnmarshalJSON(data []by
 	return s.Decode(d)
 }
 
+// Encode encodes CorePostCoreNetworkBoxAddressForgetOKPending as json.
+func (o NilCorePostCoreNetworkBoxAddressForgetOKPending) Encode(e *jx.Encoder) {
+	if o.Null {
+		e.Null()
+		return
+	}
+	o.Value.Encode(e)
+}
+
+// Decode decodes CorePostCoreNetworkBoxAddressForgetOKPending from json.
+func (o *NilCorePostCoreNetworkBoxAddressForgetOKPending) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode NilCorePostCoreNetworkBoxAddressForgetOKPending to nil")
+	}
+	if d.Next() == jx.Null {
+		if err := d.Null(); err != nil {
+			return err
+		}
+
+		var v CorePostCoreNetworkBoxAddressForgetOKPending
+		o.Value = v
+		o.Null = true
+		return nil
+	}
+	o.Null = false
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s NilCorePostCoreNetworkBoxAddressForgetOKPending) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *NilCorePostCoreNetworkBoxAddressForgetOKPending) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode encodes CorePostCoreNetworkManagementConfirmOKPending as json.
 func (o NilCorePostCoreNetworkManagementConfirmOKPending) Encode(e *jx.Encoder) {
 	if o.Null {
@@ -156097,6 +161309,50 @@ func (s NilCorePutCoreConnectionsIDOKPin) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *NilCorePutCoreConnectionsIDOKPin) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes CorePutCoreNetworkBoxAddressOKPending as json.
+func (o NilCorePutCoreNetworkBoxAddressOKPending) Encode(e *jx.Encoder) {
+	if o.Null {
+		e.Null()
+		return
+	}
+	o.Value.Encode(e)
+}
+
+// Decode decodes CorePutCoreNetworkBoxAddressOKPending from json.
+func (o *NilCorePutCoreNetworkBoxAddressOKPending) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode NilCorePutCoreNetworkBoxAddressOKPending to nil")
+	}
+	if d.Next() == jx.Null {
+		if err := d.Null(); err != nil {
+			return err
+		}
+
+		var v CorePutCoreNetworkBoxAddressOKPending
+		o.Value = v
+		o.Null = true
+		return nil
+	}
+	o.Null = false
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s NilCorePutCoreNetworkBoxAddressOKPending) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *NilCorePutCoreNetworkBoxAddressOKPending) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }

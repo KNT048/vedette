@@ -113,7 +113,7 @@ func newWorld(t *testing.T, opts ...func(*agentintake.Config)) *world {
 	}
 	mirror := t.TempDir()
 	cfg := agentintake.Config{DB: db, Audit: aud, Sink: inv, Software: inv, Secrets: sec, Conn: cs, Clock: clk.Now, Log: lg,
-		TrustAnchor: func() ([]byte, error) { return []byte(testCA), nil }, HostAllowed: server.HostMatcher(boxHosts, nil), BoxURL: boxURL, MirrorDir: mirror}
+		TrustAnchor: func() ([]byte, error) { return []byte(testCA), nil }, HostAllowed: server.HostMatcher(boxHosts, nil), BoxURL: func() string { return boxURL }, MirrorDir: mirror}
 	for _, o := range opts {
 		o(&cfg)
 	}

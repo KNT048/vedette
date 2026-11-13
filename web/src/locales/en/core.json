@@ -495,6 +495,8 @@
       "inventory.software_expired": "Agent software no longer reported was removed",
       "inventory.software_sync": "Software list synced",
       "network.ntp": "Change time server",
+      "network.box_address": "Change box address",
+      "network.box_address_forget": "Stop answering to an earlier box address",
       "notify.approval_fallback": "Approval request sent without buttons",
       "notify.approval_request": "Send approval request",
       "notify.approval_skipped": "Approval request not sent",
@@ -1628,6 +1630,30 @@
       "saved": "Time servers saved.",
       "privacy": "The operating system keeps its own time sources, so time requests still reach public servers (they see the box's IP address). Servers you enter here are added, not substituted.",
       "privacyLink": "See Privacy, flow 10"
+    },
+    "boxAddress": {
+      "title": "Box address",
+      "desc": "The name or address people and devices on your network use to reach the box. Every link the box sends uses it: alert messages, approval links, sign-in emails, the block list URL, URL honey tokens and agent install commands.",
+      "label": "Host name or IP address",
+      "hint": "Leave it empty to use the management address. Enter a name only if your network's DNS resolves it to the box. No https:// and no port.",
+      "default": "Default: {{address}} (the management address)",
+      "noDefault": "Default: the management address, once the box has one",
+      "links": "Links now start with {{url}}",
+      "noLinks": "The box knows no address yet, so messages carry no links and approval requests cannot be sent.",
+      "saved": "Box address saved. The certificate will include it within a few seconds.",
+      "savedOwnCert": "Box address saved. Your own certificate must include it, or browsers and agents will warn.",
+      "reset": "Box address set back to the management address.",
+      "previousLabel": "Earlier box addresses still answered to",
+      "previous": "Also still answering to {{address}} (agents, firewalls and links set up with it).",
+      "forget": "Stop answering to {{address}}",
+      "forgotten": "The box no longer answers to {{address}}.",
+      "confirm": {
+        "title": "Change the box address?",
+        "body": "Links, install commands and the block list URL will use {{to}} instead of {{from}}.",
+        "bodyDefault": "Links, install commands and the block list URL will use the management address {{def}} instead of {{from}}.",
+        "keeps": "Agents enrolled with {{from}}, firewalls that pull the block list from it and links already sent keep working: the box also keeps answering to {{from}} until you stop it here.",
+        "go": "Change the address"
+      }
     }
   },
   "connections": {

@@ -460,7 +460,8 @@ install-artifacts:
 install-check:
 	scripts/dev/install-check.sh
 # ---- Release builder (WP-08f, D-164): offline, on the maintainer's machine, no key in the repo, nothing pushed, no tag. Block kept apart on purpose. ----
-# Flow: kien tags v<version> first (the manifest reads the migrations at that ref, even for rollback.safe=false; or pass RELEASE_REF) ->
+# Flow (in full: docs/plans/2026-11-12-wp08k-release-job.md §1): kien tags v<version> first (the manifest reads the migrations at that ref, even for
+# rollback.safe=false; or pass RELEASE_REF; the images and the .deb are built only after the tag: release-gates rebuilds the .deb at the tag) ->
 # build the images and push them by digest (release-push, then release-in writes release.in.json; D-457); build the .deb with `make host-deb VERSION=<version> RELEASE_PREV_INDEX=<published index dir>` (that
 # index's sequence becomes the host's floor; MIN_SEQUENCE=0 only for the very first release) -> write release.in.json (leave released_at empty: the builder fills it, and a time more than 10 minutes
 # from the clock is refused; "install_modes": ["appliance", "container"], D-451) -> release-cosign-plan (prints the cosign commands; run them) -> release-manifest
@@ -493,7 +494,7 @@ RELEASE_KEYS_ARG = $(if $(RELEASE_KEYS),-keys-dir $(RELEASE_KEYS))
 # cosign attest --type cyclonedx per platform SBOM of `make sbom RELEASE=1 IMAGE_TAG=<version>` onto that platform's digest in images.json
 # (each SBOM's trivy ImageID must be the config digest images.json records for that platform: the image that was pushed). Printed with
 # the pinned cosign (COSIGN_BIN: an absolute path), never run; the first line is `cd` to the repo. The attest lines upload to ghcr with
-# the registry login cosign reads (docker config, or REGISTRY_AUTH_FILE=<podman auth.json>).
+# podman's ghcr login: run the plan as `scripts/release/cosign-auth.sh sh -eu <plan>` (cosign reads only the Docker config when one exists).
 release-cosign-plan:
 	@test -n "$$COSIGN_KEY" || { echo "release-cosign-plan: set COSIGN_KEY to the path of the cosign private key" >&2; exit 1; }
 	@$(RELEASE_GO) cosign-plan -in $(RELEASE_IN) -images $(RELEASE_OUT)/images.json -sbom dist/sbom -key "$$COSIGN_KEY" -out $(RELEASE_OUT)/cosign -cosign "$${COSIGN_BIN:-$$(scripts/release/cosign.sh)}"

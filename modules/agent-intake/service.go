@@ -55,7 +55,7 @@ type Config struct {
 	// never used for the box address.
 	TrustAnchor func() ([]byte, error) // the PEM certificates osquery pins (cmd/vedette trustAnchor); ErrNoTrustAnchor when the box has no certificate
 	HostAllowed func(host string) bool // the Host allow-list of the server (server.HostMatcher): the only Hosts the scripts may carry
-	BoxURL      string                 // the configured address of the box, https://host[:port], or "" when there is none
+	BoxURL      func() string          // the Box address (D-465) as https://host[:port], read at every use; nil or "" when there is none
 	MirrorDir   string                 // the folder of the image that holds the pinned osquery packages
 }
 

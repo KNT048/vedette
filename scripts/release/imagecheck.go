@@ -25,8 +25,9 @@ import (
 
 // What the release gates check INSIDE the platform images they record (D-410), by reading files out of the image and never running
 // it (the arm64 image on an amd64 machine, and the reverse, would need CPU emulation): core's /vedette links internal/release, so it
-// must hold the production keys and not the throwaway ones (D-108 (2)); scan-base holds the nuclei built from the pinned source with
-// the pinned Go and exactly the module versions of the patched go.mod (D-319), the pack of SCAN_PACK_VERSION, and no nmap anywhere
+// must hold the production keys and not the throwaway ones (D-108 (2)); scan-base holds a nuclei built with the pinned Go and exactly
+// the module versions of the patched go.mod (D-319; its source version is the SHA-256-checked archive of NUCLEI_VERSION, which the
+// build info cannot show: a build from an archive is "(devel)"), the pack of SCAN_PACK_VERSION, and no nmap anywhere
 // (D-4, D-113 (7)). `make images-check` runs the same scan-base check on its dev build (`release check-image`).
 
 const (
@@ -138,9 +139,11 @@ func checkNucleiBuild(what string, bi *buildinfo.BuildInfo, e imageExpect) error
 	for _, r := range e.NucleiMod.Require {
 		req[r.Mod.Path] = r.Mod.Version
 	}
-	repl := map[string]string{}
+	repl := map[string]string{} // a replace applies to the required version only when it names one (`x v1.2.3 => y`)
 	for _, r := range e.NucleiMod.Replace {
-		repl[r.Old.Path] = r.New.Path + "@" + r.New.Version
+		if r.Old.Version == "" || r.Old.Version == req[r.Old.Path] {
+			repl[r.Old.Path] = r.New.Path + "@" + r.New.Version
+		}
 	}
 	for _, d := range bi.Deps {
 		want, ok := req[d.Path]
@@ -250,17 +253,20 @@ func checkImageFiles(ctx context.Context, run runFunc, container, image, kind st
 		return err
 	}
 	name := "vedette-check-" + hex.EncodeToString(id[:])
+	// removed on every path, a create killed half way (timeout, Ctrl-C) included: rm of a name that does not exist is harmless
+	defer func() {
+		rctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), time.Minute)
+		defer cancel()
+		_, _ = run(rctx, container, "rm", "-f", "-v", name)
+	}()
 	cctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
 	defer cancel()
 	// create only: nothing runs, so another platform's image needs no emulation; --pull=never: a missing image is an error, not a download
 	if _, err := run(cctx, container, "create", "--pull=never", "--name", name, image); err != nil {
 		return fmt.Errorf("%s: %w", image, err)
 	}
-	defer func() {
-		rctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), time.Minute)
-		defer cancel()
-		_, _ = run(rctx, container, "rm", "-f", name)
-	}()
+	// ponytail: the whole filesystem lands in TMPDIR (a few hundred MB for scan-base, bounded per wanted file by maxBinary, not in total);
+	// stream `export` into the tar reader if an image ever outgrows the disk.
 	ectx, cancel2 := context.WithTimeout(ctx, 10*time.Minute)
 	defer cancel2()
 	out := filepath.Join(tmp, "fs.tar")

@@ -238,7 +238,7 @@ func cmdManifest(ctx context.Context, args []string, stdout, stderr io.Writer) e
 		return fmt.Errorf("migrations of %s: %w", *ref, err)
 	}
 	// D-410: no box may update straight from a release whose sensors core no longer accepts (sensor-protocol.md §10)
-	proto, err := sensorProtoAt(ctx, *repo, *ref)
+	proto, accepts, err := sensorProtoAt(ctx, *repo, *ref, true)
 	if err != nil {
 		return err
 	}
@@ -246,7 +246,10 @@ func cmdManifest(ctx context.Context, args []string, stdout, stderr io.Writer) e
 	if err != nil {
 		return err
 	}
-	if err := checkSensorProto(inputs.Version, inputs.MinUpgradeFrom, proto, earlier); err != nil {
+	if err := checkTagsCover(earlier, env.PrevIndex); err != nil {
+		return err
+	}
+	if err := checkSensorProto(inputs.Version, inputs.MinUpgradeFrom, proto, accepts, earlier); err != nil {
 		return err
 	}
 	if mv := inputs.Rollback.MinVersion; mv != "" {

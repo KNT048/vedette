@@ -60,7 +60,7 @@ floor, per `.deb` arch its file name, SHA-256 and size (of the bytes compared wi
 **config digest** (podman's image ID) of the platform image it read. The config digest is the identity the rest of the chain already
 uses (push compares it with a list already in the registry, `images.json` records it, part C requires each SBOM's trivy `ImageID` to
 equal it); a re-read of the same list gives the same one, any rebuild another (a bit-for-bit identical rebuild is the same image).
-Before writing it, the run also requires the trivy report `dist/vuln/<local>-<arch>.json` (`Metadata.ImageID`) and the SBOM
+Before writing it, the run also requires `dist/vuln/source.json` and the trivy report `dist/vuln/<local>-<arch>.json` (`Metadata.ImageID`; vuln-scan gives a report that name only once that target's gate is green, else `<label>.gate-failed.json`, or `<label>.unchecked.json` for a run stopped before its gate, D-410) and the SBOM
 `dist/sbom/<local>-<arch>.cdx.json` (`aquasecurity:trivy:ImageID`) of every platform to be of that same config digest, so a
 `make images` during the scans is refused rather than recorded. The first line of `make release-gates` removes an earlier
 `gates.json` (and the Go step does too), so a run that fails at any step, the scans included, never leaves a previous pass;

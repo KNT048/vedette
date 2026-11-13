@@ -5,23 +5,33 @@ import (
 	"os"
 	"os/exec" //nolint:depguard // the test looks up git; SYS-1 is about the product
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/knt048/vedette/internal/release"
 )
 
 // putProto writes core/sensorlink/limits.go with ProtoVersion n into repo, as the real file spells it.
 func putProto(t *testing.T, repo, n string) {
 	t.Helper()
 	must(t, os.MkdirAll(filepath.Join(repo, "core/sensorlink"), 0o750))
-	must(t, os.WriteFile(filepath.Join(repo, sensorProtoFile), []byte("package sensorlink\n\nconst (\n\tProtoVersion = \""+n+"\" // comment\n\tProtoPrevious = \"0\"\n)\n"), 0o600))
+	must(t, os.WriteFile(filepath.Join(repo, sensorProtoFile), []byte("package sensorlink\n\nconst (\n\tProtoVersion = \""+n+"\" // comment\n\tProtoPrevious = \""+strconv.Itoa(atoi(t, n)-1)+"\"\n)\n"), 0o600))
+}
+
+func atoi(t *testing.T, s string) int {
+	t.Helper()
+	n, err := strconv.Atoi(s)
+	must(t, err)
+	return n
 }
 
 // The real file is read the way the gate reads it.
 func TestSensorProtoOfThisTree(t *testing.T) {
 	b, err := os.ReadFile("../../" + sensorProtoFile)
 	must(t, err)
-	if m := sensorProtoRE.FindSubmatch(b); m == nil {
-		t.Fatalf("%s: the gate cannot read ProtoVersion", sensorProtoFile)
+	if m, p := sensorProtoRE.FindSubmatch(b), sensorProtoPrevRE.FindSubmatch(b); m == nil || p == nil {
+		t.Fatalf("%s: the gate cannot read ProtoVersion and ProtoPrevious", sensorProtoFile)
 	}
 }
 
@@ -42,7 +52,7 @@ func TestCheckSensorProto(t *testing.T) {
 		"first release":          {9, "", nil, ""},
 		"two bumps at once":      {6, "1.3.0", hist, "no box could update to it"},
 	} {
-		err := checkSensorProto("2.0.0", c.min, c.cur, c.earlier)
+		err := checkSensorProto("2.0.0", c.min, c.cur, c.cur-1, c.earlier)
 		if (c.want == "") != (err == nil) || (err != nil && !strings.Contains(err.Error(), c.want)) {
 			t.Errorf("%s: want %q, got %v", name, c.want, err)
 		}
@@ -67,7 +77,16 @@ func TestEarlierProtosFromGit(t *testing.T) {
 	if len(got) != 2 || got[0] != (releaseProto{"1.0.0", 3}) || got[1] != (releaseProto{"1.1.0", 4}) {
 		t.Errorf("earlier releases: %v", got)
 	}
-	if p, err := sensorProtoAt(context.Background(), repo, "HEAD"); err != nil || p != 9 {
-		t.Errorf("HEAD: %d %v", p, err)
+	if p, a, err := sensorProtoAt(context.Background(), repo, "HEAD", true); err != nil || p != 9 || a != 8 {
+		t.Errorf("HEAD: %d %d %v", p, a, err)
+	}
+	// a clone without the tag of the published latest would let the gate pass for a release it never saw
+	idx := &release.Index{Channels: map[string]release.Channel{"stable": {Latest: "1.1.0"}, "beta": {Latest: "1.5.0"}}}
+	if err := checkTagsCover(got, idx); err == nil || !strings.Contains(err.Error(), "no tag v1.5.0 here") {
+		t.Errorf("a missing tag: %v", err)
+	}
+	idx.Channels["beta"] = release.Channel{Latest: "1.1.0"}
+	if err := checkTagsCover(got, idx); err != nil {
+		t.Error(err)
 	}
 }

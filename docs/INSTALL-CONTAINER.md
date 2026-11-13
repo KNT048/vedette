@@ -102,7 +102,7 @@ Keep the same `-f` list on every later command (`ps`, `down`, `pull`, `up`), or 
 
 Vedette looks for a new release every 6 hours (while the update check is on under Settings → Privacy). When it finds one, Settings → Updates names the version and its notes and shows these commands with the release's own image digests, for Docker or Podman; there is no Apply button. Until the first release is published (WP-08k) the page says there is no release information yet.
 
-An update replaces all four files, not only `vedette.env`, so a release that changes a compose file reaches you (D-451). Run it in the folder of section 1, where `vedette.pub` and `cosign.pub` are. The page shows these commands with the real versions and digests, one block per step; here, updating from 0.9.3 to 0.9.4:
+An update replaces all four files, not only `vedette.env`, so a release that changes a compose file reaches you (D-451). Run it in the folder of section 1, where `vedette.pub`, `vedette-backup.pub` and `cosign.pub` are. The page shows these commands with the real versions and digests, one block per step; here, updating from 0.9.3 to 0.9.4:
 
 ```sh
 # 1. the way back: the four files you run now, in a NEW folder named after the release they run (mkdir refuses an existing folder,
@@ -127,7 +127,7 @@ docker compose --env-file vedette.env up -d
 
 A release can also change the compose files (the one with D-395 publishes the MCP port `127.0.0.1:8765`; with an older `compose.yaml` the MCP server cannot be reached): download `compose.yaml`, `compose.sensors.yaml` and `compose.syslog.yaml` of the new release with their `.minisig`, check each with `minisign -Vm`, and replace yours before `pull` and `up -d`.
 
-**A rescue release** (D-258, D-259): if the everyday signing key is ever leaked, the next release is signed with the backup key instead, and its release notes and the GitHub release page say "rescue release". Its four files then verify only with `vedette-backup.pub`: in step 2 use `-p vedette-backup.pub` in place of `-p vedette.pub` for that release only, and nothing else (a file signed with the backup key that is not announced as a rescue release is a reason to stop). `cosign.pub` does not change. If you kept no `vedette-backup.pub`, save it from this repository as in section 1 before you check.
+**A rescue release** (D-258, D-259): if the everyday signing key is ever leaked, the next release is signed with the backup key instead, and its release notes and the GitHub release page say "rescue release". Its four files then verify only with `vedette-backup.pub`: in step 2 use `-p vedette-backup.pub` in place of `-p vedette.pub` for that release only, and nothing else (a file signed with the backup key that is not announced as a rescue release is a reason to stop). `cosign.pub` does not change. If you kept no `vedette-backup.pub`, save it from this repository as in section 1 before you check. The releases after a rescue are signed with a new everyday key: replace `vedette.pub` with the one section 1 of this guide gives at the rescue release's tag (`https://github.com/KNT048/vedette/blob/v<rescue version>/docs/INSTALL-CONTAINER.md`), and keep `vedette-backup.pub`.
 
 If any check fails, stop and put your files back. The same commands are the way back after the update (with the same `-f` files if you run the add-ons):
 

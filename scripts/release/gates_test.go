@@ -40,6 +40,10 @@ func tgz(t *testing.T, entries [][2]string) []byte {
 		h := &tar.Header{Name: e[0], Mode: 0o755, Size: int64(len(e[1])), Typeflag: tar.TypeReg}
 		if target, ok := strings.CutPrefix(e[1], "->"); ok {
 			h = &tar.Header{Name: e[0], Mode: 0o777, Typeflag: tar.TypeSymlink, Linkname: target}
+		} else if target, ok := strings.CutPrefix(e[1], "=>"); ok {
+			h = &tar.Header{Name: e[0], Mode: 0o755, Typeflag: tar.TypeLink, Linkname: target}
+		} else if strings.HasSuffix(e[0], "/") {
+			h = &tar.Header{Name: e[0], Mode: 0o755, Typeflag: tar.TypeDir}
 		}
 		must(t, tw.WriteHeader(h))
 		if h.Typeflag == tar.TypeReg {
@@ -117,8 +121,8 @@ func (g *gatesFake) fn(argv []string) ([]byte, error) {
 			}
 		}
 		return nil, fmt.Errorf("export: unknown image %s", g.ctrs[argv[4]])
-	case len(argv) == 4 && a == "podman rm -f "+argv[3]:
-		delete(g.ctrs, argv[3])
+	case len(argv) == 5 && a == "podman rm -f -v "+argv[4]:
+		delete(g.ctrs, argv[4])
 		return nil, nil
 	case strings.HasPrefix(a, "make -C repo --no-print-directory host-deb "):
 		out := strings.TrimPrefix(argv[len(argv)-1], "DEB_OUT=")
@@ -154,7 +158,7 @@ func goodFiles(bin []byte) func(local, arch string) [][2]string {
 		case "core":
 			return [][2]string{{"./etc/passwd", "x"}, {"./" + coreBinaryInImage, string(bin) + keyMark}}
 		case "scan-base":
-			return [][2]string{{nucleiInImage, string(bin)}, {packIndexInImage, `{"version": "2026.11.1", "sha256": "` + strings.Repeat("c", 64) + `"}`}}
+			return [][2]string{{"usr/share/nmap/", ""}, {nucleiInImage, string(bin)}, {packIndexInImage, `{"version": "2026.11.1", "sha256": "` + strings.Repeat("c", 64) + `"}`}}
 		}
 		return nil
 	}
@@ -193,6 +197,7 @@ func gatesRig(t *testing.T, bin []byte) (gatesOpts, *gatesFake) {
 	mod, err := modfile.Parse("go.mod", []byte("module probe\n\ngo 1.21\n"), nil)
 	must(t, err)
 	e := imageExpect{Keys: []string{keyMark}, GoVersion: bi.GoVersion, NucleiMod: mod, PackVersion: "2026.11.1", PackSHA256: strings.Repeat("c", 64)}
+	writeJSON(t, filepath.Join(vuln, "source.json"), map[string]any{"SchemaVersion": 2, "ArtifactType": "filesystem"})
 	return gatesOpts{Version: "0.2.0", MinSequence: "1", PrevIndex: prev, Trust: r.trust, Platforms: allPlatforms, DebDir: dir, Repo: "repo", Out: t.TempDir(), VulnDir: vuln, SBOMDir: sbom, Expect: e},
 		&gatesFake{labels: goodLabels, rebuilt: filepath.Join(dir, "vedette-host_0.2.0_amd64.deb"), tag: "abc", files: goodFiles(bin), t: t}
 }
@@ -205,6 +210,9 @@ func TestGatesPassInOrder(t *testing.T) {
 	var out bytes.Buffer
 	if err := Gates(context.Background(), fr.run, o, &out); err != nil {
 		t.Fatal(err, fr.joined())
+	}
+	if len(g.ctrs) > 0 {
+		t.Errorf("containers left: %v", g.ctrs)
 	}
 	got := out.String()
 	for _, want := range []string{"check-binaries -release " + filepath.Join(o.DebDir, "vedette-host_0.2.0_arm64.deb"), "localhost/vedette-core:0.2.0: org.opencontainers.image.version=0.2.0 on linux/amd64, linux/arm64, floor 1", "localhost/vedette-honeypot:0.2.0", "is what this commit builds with MIN_SEQUENCE=1",
@@ -417,6 +425,18 @@ func TestGatesRefuse(t *testing.T) {
 		{"vuln-scan read another image", `localhost/vedette-sensor:0.2.0 linux/arm64: vulnerability report`, func(o *gatesOpts, _ *gatesFake) {
 			writeJSON(t, filepath.Join(o.VulnDir, "sensor-arm64.json"), map[string]any{"Metadata": map[string]any{"ImageID": digestOf("before the rebuild")}})
 		}, false},
+		{"source gate red", "vulnerability report of the source", func(o *gatesOpts, _ *gatesFake) {
+			must(t, os.Rename(filepath.Join(o.VulnDir, "source.json"), filepath.Join(o.VulnDir, "source.gate-failed.json")))
+		}, false},
+		{"hard-linked nmap in scan-base", "holds /usr/sbin/nmap", func(_ *gatesOpts, g *gatesFake) {
+			good := g.files
+			g.files = func(l, arch string) [][2]string {
+				if l == "scan-base" {
+					return append(good(l, arch), [2]string{"usr/lib/x/scanner", "x"}, [2]string{"usr/sbin/nmap", "=>usr/lib/x/scanner"})
+				}
+				return good(l, arch)
+			}
+		}, false},
 		{"no vulnerability report", "make vuln-scan RELEASE=1", func(o *gatesOpts, _ *gatesFake) {
 			must(t, os.Remove(filepath.Join(o.VulnDir, "core-amd64.json")))
 		}, false},
@@ -481,6 +501,9 @@ func TestGatesRefuse(t *testing.T) {
 			}
 			if left, _ := filepath.Glob(filepath.Join(o.Out, "*")); len(left) > 0 {
 				t.Errorf("a failed run leaves %v: push would ship on an earlier pass", left)
+			}
+			if len(g.ctrs) > 0 {
+				t.Errorf("containers left: %v", g.ctrs)
 			}
 			if ran := slices.ContainsFunc(fr.calls, func(a []string) bool { return a[0] == "make" }); ran != c.makes {
 				t.Errorf("rebuild ran = %v, want %v (fail fast, in order): %v", ran, c.makes, fr.joined())

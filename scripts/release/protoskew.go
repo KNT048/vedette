@@ -11,15 +11,18 @@ import (
 	"github.com/knt048/vedette/internal/release"
 )
 
-// The sensor protocol gate of release-manifest (D-410, D-459, docs/specs/sensor-protocol.md §10). core accepts its own protocol N and
-// N-1 (sensorlink.ProtoPrevious); an update moves core first, then the sensors. So a box may update straight to this release only
-// from a release whose sensors speak at least N-1: min_upgrade_from must exclude every earlier release below that. The protocol of
-// each release is read from git at its tag (sensorlink.ProtoVersion), never typed by hand.
+// The sensor protocol gate of release-manifest (D-410, D-459, docs/specs/sensor-protocol.md §10). core accepts its own protocol
+// (sensorlink.ProtoVersion) and the one before (sensorlink.ProtoPrevious); an update moves core first, then the sensors. So a box may
+// update straight to this release only from a release whose sensors speak at least ProtoPrevious: min_upgrade_from must exclude every
+// earlier release below that. The protocols are read from git at each tag, never typed by hand.
 
 // sensorProtoFile holds sensorlink.ProtoVersion.
 const sensorProtoFile = "core/sensorlink/limits.go"
 
-var sensorProtoRE = regexp.MustCompile(`(?m)^\s*ProtoVersion\s*=\s*"([1-9][0-9]{0,5})"`)
+var (
+	sensorProtoRE     = regexp.MustCompile(`(?m)^\s*ProtoVersion\s*=\s*"([1-9][0-9]{0,5})"`)
+	sensorProtoPrevRE = regexp.MustCompile(`(?m)^\s*ProtoPrevious\s*=\s*"([0-9]{1,6})"`)
+)
 
 // releaseProto is the sensor protocol of one earlier release.
 type releaseProto struct {
@@ -27,20 +30,29 @@ type releaseProto struct {
 	Proto   int
 }
 
-// sensorProtoAt reads sensorlink.ProtoVersion of ref from git.
-func sensorProtoAt(ctx context.Context, repo, ref string) (int, error) {
+// sensorProtoAt reads sensorlink.ProtoVersion and, when prev, sensorlink.ProtoPrevious (the oldest protocol core accepts) of ref from git.
+func sensorProtoAt(ctx context.Context, repo, ref string, prev bool) (cur, accepts int, err error) {
 	if !gitRefRE.MatchString(ref) || strings.Contains(ref, "..") {
-		return 0, fmt.Errorf("git ref %q is not a plain tag, branch or commit name", ref)
+		return 0, 0, fmt.Errorf("git ref %q is not a plain tag, branch or commit name", ref)
 	}
 	b, err := gitRun(ctx, repo, "show", ref+":"+sensorProtoFile)
 	if err != nil {
-		return 0, fmt.Errorf("the sensor protocol of %s: %w", ref, err)
+		return 0, 0, fmt.Errorf("the sensor protocol of %s: %w", ref, err)
 	}
 	m := sensorProtoRE.FindSubmatch(b)
 	if m == nil {
-		return 0, fmt.Errorf("the sensor protocol of %s: no ProtoVersion = \"<n>\" in %s", ref, sensorProtoFile)
+		return 0, 0, fmt.Errorf("the sensor protocol of %s: no ProtoVersion = \"<n>\" in %s", ref, sensorProtoFile)
 	}
-	return strconv.Atoi(string(m[1]))
+	if cur, err = strconv.Atoi(string(m[1])); err != nil || !prev {
+		return cur, 0, err
+	}
+	if m = sensorProtoPrevRE.FindSubmatch(b); m == nil {
+		return 0, 0, fmt.Errorf("the sensor protocol of %s: no ProtoPrevious = \"<n>\" in %s", ref, sensorProtoFile)
+	}
+	if accepts, err = strconv.Atoi(string(m[1])); err != nil || accepts >= cur {
+		return 0, 0, fmt.Errorf("the sensor protocol of %s: ProtoPrevious %s is not below ProtoVersion %d", ref, m[1], cur)
+	}
+	return cur, accepts, nil
 }
 
 // earlierProtos reads the sensor protocol of every release tag of repo below version: v<SemVer>, never a -test. one (those are
@@ -59,7 +71,7 @@ func earlierProtos(ctx context.Context, repo, version string) ([]releaseProto, e
 		if c, _ := release.CompareVersions(v, version); c >= 0 {
 			continue
 		}
-		p, err := sensorProtoAt(ctx, repo, tag)
+		p, _, err := sensorProtoAt(ctx, repo, tag, false)
 		if err != nil {
 			return nil, err
 		}
@@ -69,13 +81,30 @@ func earlierProtos(ctx context.Context, repo, version string) ([]releaseProto, e
 	return res, nil
 }
 
-// checkSensorProto refuses a release that speaks sensor protocol cur when min_upgrade_from lets a box update straight from an
-// earlier release whose sensors speak cur-2 or older: core would refuse them (426) until they are updated too, and a failed update
-// would leave the box with sensors core never accepts again. A release whose sensors are at least cur-1 is fine (D-459).
-func checkSensorProto(version, minUpgradeFrom string, cur int, earlier []releaseProto) error {
+// checkTagsCover refuses a clone that lacks the tag of a release the published index names (the latest of each channel): the gate
+// below would not see that release, and pass for it. A clone made before kien pushed a tag, or with --no-tags, is the case.
+func checkTagsCover(earlier []releaseProto, idx *release.Index) error {
+	if idx == nil {
+		return nil
+	}
+	for name, ch := range idx.Channels {
+		if refuseTestVersion(ch.Latest) != nil {
+			continue
+		}
+		if !slices.ContainsFunc(earlier, func(e releaseProto) bool { return e.Version == ch.Latest }) {
+			return fmt.Errorf("no tag v%s here, the latest of channel %s in the published index: fetch the tags (git fetch --tags origin) so the sensor protocol gate sees every release", ch.Latest, name)
+		}
+	}
+	return nil
+}
+
+// checkSensorProto refuses a release whose core accepts sensor protocols accepts..cur when min_upgrade_from lets a box update straight
+// from an earlier release whose sensors speak an older one: core would refuse them (426) until they are updated too, and a failed
+// update would leave the box with sensors core never accepts again. A release whose sensors are at least accepts is fine (D-459).
+func checkSensorProto(version, minUpgradeFrom string, cur, accepts int, earlier []releaseProto) error {
 	last, lastProto := "", 0 // the newest earlier release whose protocol core no longer accepts
 	for _, e := range earlier {
-		if e.Proto < cur-1 {
+		if e.Proto < accepts {
 			last, lastProto = e.Version, e.Proto
 		}
 	}
@@ -90,7 +119,7 @@ func checkSensorProto(version, minUpgradeFrom string, cur int, earlier []release
 		}
 	}
 	if next == "" {
-		return fmt.Errorf("release %s speaks sensor protocol %d and every earlier release speaks %d or older: no box could update to it (core accepts %d and %d only); release one with protocol %d first (docs/specs/sensor-protocol.md §10)", version, cur, cur-2, cur, cur-1, cur-1)
+		return fmt.Errorf("release %s speaks sensor protocol %d and every earlier release speaks below %d: no box could update to it (core accepts %d to %d only); release one with protocol %d first (docs/specs/sensor-protocol.md §10)", version, cur, accepts, accepts, cur, accepts)
 	}
 	if minUpgradeFrom != "" {
 		if c, err := release.CompareVersions(minUpgradeFrom, last); err == nil && c > 0 {

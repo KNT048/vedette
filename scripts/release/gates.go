@@ -89,6 +89,23 @@ func checkVulnReport(dir, rel, config string) error {
 	return nil
 }
 
+// checkSourceReport refuses when the source tree's report is not there as a regular file: vuln-scan gives it its name only after the
+// gate of the source was green.
+func checkSourceReport(dir string) error {
+	const rel = "source.json"
+	if err := noSymlinks(dir, rel); err != nil {
+		return fmt.Errorf("vulnerability report %s: %w", rel, err)
+	}
+	fi, err := os.Lstat(filepath.Join(dir, rel))
+	if err != nil {
+		return fmt.Errorf("vulnerability report of the source: %w (make vuln-scan RELEASE=1 IMAGE_TAG=<version> writes it when the source passed)", err)
+	}
+	if !fi.Mode().IsRegular() {
+		return fmt.Errorf("vulnerability report %s is not a regular file", rel)
+	}
+	return nil
+}
+
 // gatesFile is the record of a passed `release gates` run, next to images.json: what push and in ship must be what it names.
 const gatesFile = "gates.json"
 
@@ -181,6 +198,10 @@ func Gates(ctx context.Context, run runFunc, o gatesOpts, stdout io.Writer) erro
 	if o.Preflight {
 		say(stdout, "ok: %s is a release version, the floor is %s and the tree is the clean tag v%s", o.Version, o.MinSequence, o.Version)
 		return nil
+	}
+	// vuln-scan names a report <label>.json only when that target's gate was green (D-410): the source's too, which no image names
+	if err := checkSourceReport(o.VulnDir); err != nil {
+		return err
 	}
 	rec := &GatesDoc{Version: o.Version, MinSequence: o.MinSequence}
 	debs := make([]string, len(debArchs))
@@ -586,10 +607,11 @@ func cmdGates(ctx context.Context, args []string, stdout io.Writer) error {
 			return errors.New("this checker was built with the throwaway keys or none: run it with GOFLAGS= and without -tags")
 		}
 		o.Rules = BinaryRules{Release: true, Keys: []string{active, backup}}
-		var err error
-		if o.Expect, err = loadImageExpect(*repo, o.Rules.Keys); err != nil {
-			return err
-		}
+	}
+	// read in the preflight too, so a stale pack or an unreadable pin stops the run before the long scans
+	var err error
+	if o.Expect, err = loadImageExpect(*repo, o.Rules.Keys); err != nil {
+		return err
 	}
 	return Gates(ctx, execRun, o, stdout)
 }

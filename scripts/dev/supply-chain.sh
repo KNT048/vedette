@@ -115,16 +115,17 @@ bad=0
 scan_one() { # $1 = label, rest = the trivy scan command
 	local label=$1
 	shift
-	"$@" --scanners vuln --format json --output "/dist/vuln/$label.json" >/dev/null
+	# the report gets its name <label>.json only once its gate is green: `release gates` requires that name (and the source's), so a
+	# red gate (<label>.gate-failed.json) or a run stopped before its gate (<label>.unchecked.json) leaves nothing it accepts (D-410)
+	"$@" --scanners vuln --format json --output "/dist/vuln/$label.unchecked.json" >/dev/null
 	say "report $label: every severity, fixed or not (full list: dist/vuln/$label.json with RELEASE=1)"
 	"$@" --scanners vuln --format table --report summary 2>/dev/null | sed 's/^/    /'
 	if "$@" --scanners vuln --format table --severity HIGH,CRITICAL --ignore-unfixed --ignorefile /src/.trivyignore.yaml --exit-code 1 >"$work/gate.txt"; then
+		mv -f "$vuln/$label.unchecked.json" "$vuln/$label.json"
 		say "ok   $label: no fixable HIGH or CRITICAL"
 	else
 		cat "$work/gate.txt"
-		# the report of a red gate keeps its findings for reading but not its name: `release gates` looks for <label>.json, so a hand
-		# run of it after a red vuln-scan finds no report and refuses (D-410)
-		mv -f "$vuln/$label.json" "$vuln/$label.gate-failed.json"
+		mv -f "$vuln/$label.unchecked.json" "$vuln/$label.gate-failed.json"
 		say "FAIL $label: fixable HIGH or CRITICAL (above; report dist/vuln/$label.gate-failed.json with RELEASE=1)"
 		bad=1
 	fi

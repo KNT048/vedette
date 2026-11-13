@@ -414,8 +414,8 @@ func decide(in swInfo, v Vuln, multi bool) (t Tri, within VersionRange, every bo
 	if !applicable || undecidable && result == No {
 		return Unknown, VersionRange{}, every, proofNone
 	}
-	if result == No && versionKnown(in.ver) {
-		return No, VersionRange{}, every, proofRange
+	if pv, ok := parseVersion(in.ver); result == No && ok && !isPlaceholder(in.ver) && pv.q.class >= 0 {
+		return No, VersionRange{}, every, proofRange // a pre-release ("2.0.0-rc1") near a bound proves nothing (review L5)
 	}
 	return result, VersionRange{}, every, proofNone
 }

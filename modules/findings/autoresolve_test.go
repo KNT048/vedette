@@ -77,6 +77,7 @@ func TestContract_D530_OnlyAProofCloses(t *testing.T) {
 		"no version":           {"", ranged},
 		"placeholder version":  {"0", ranged},
 		"words without number": {"latest", ranged},
+		"pre-release (L5)":     {"6.2.0-rc1", ranged},
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()

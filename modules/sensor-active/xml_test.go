@@ -1,6 +1,7 @@
 package sensoractive
 
 import (
+	"github.com/knt048/vedette/modules/sensor-active/nmapargv"
 	"net/netip"
 	"os"
 	"strings"
@@ -148,7 +149,7 @@ func TestSoftwareAndObservations(t *testing.T) {
 			t.Errorf("software %q = %q, want %q (all: %v)", product, byProduct[product], want, byProduct)
 		}
 	}
-	obs := deviceObservations(hosts[0])
+	obs := deviceObservations(hosts[0], nmapargv.Normal)
 	got := map[string]float64{}
 	for _, o := range obs {
 		if o.Source != "nmap" || o.Confidence < 0 || o.Confidence >= 1 {

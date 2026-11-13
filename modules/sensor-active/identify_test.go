@@ -37,8 +37,9 @@ func TestIdentifiedFromRealOutputShapes(t *testing.T) {
 		// Linux "general purpose" gives no kind (review H2): Linux also runs embedded and OT devices.
 		{file: "device.xml", cpes: []string{"cpe:/a:openbsd:openssh:8.9p1", "cpe:/a:apache:http_server:2.4.52", "", "cpe:/o:linux:linux_kernel"},
 			found: []string{"Operating system: Linux 5.4 - 5.15", "Software: OpenSSH 8.9p1", "Software: Apache httpd 2.4.52", "Software: Squid http proxy 5.7"}},
-		{file: "fortigate.xml", kind: "firewall", cpes: []string{"cpe:/o:fortinet:fortios"},
-			found: []string{"Operating system: Fortinet FortiGate-60F firewall (FortiOS 7.2)", "Type: firewall"}, why: WhyOSGuess},
+		// Review M3: a device (h:) or application (a:) CPE is software even without a version: product matches on edge appliances.
+		{file: "fortigate.xml", kind: "firewall", cpes: []string{"cpe:/h:fortinet:fortigate", "cpe:/o:fortinet:fortios"},
+			found: []string{"Operating system: Fortinet FortiGate-60F firewall (FortiOS 7.2)", "Type: firewall", "Software: FortiGate firewall http config"}, why: WhyOSGuess},
 		{file: "printer.xml", why: WhyOSUnsure},
 		{file: "noversion.xml", why: WhyNoVersion},
 		{file: "filtered.xml", why: WhyFiltered},
@@ -58,14 +59,18 @@ func TestIdentifiedFromRealOutputShapes(t *testing.T) {
 			if c.file == "fragile.xml" {
 				addr = netip.MustParseAddr("192.168.10.30")
 			}
-			found, why := identified(hosts, addr, c.gentle)
+			shape := nmapargv.Normal
+			if c.gentle {
+				shape = nmapargv.Gentle
+			}
+			found, why := identified(hosts, addr, shape)
 			if why != c.why || strings.Join(found, "\n") != strings.Join(c.found, "\n") {
 				t.Errorf("identified = %q, %q\nwant %q, %q", found, why, c.found, c.why)
 			}
 			var kind string
 			var cpes []string
 			if i := slices.IndexFunc(hosts, func(h host) bool { return h.addr == addr }); i >= 0 {
-				for _, o := range deviceObservations(hosts[i]) {
+				for _, o := range deviceObservations(hosts[i], shape) {
 					if o.Field == observe.Kind {
 						kind = o.Value
 					}
@@ -92,7 +97,7 @@ func TestFortiGateIsIdentified(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := map[observe.Field]string{}
-	for _, o := range deviceObservations(hosts[0]) {
+	for _, o := range deviceObservations(hosts[0], nmapargv.Normal) {
 		got[o.Field] = o.Value
 	}
 	if got[observe.Vendor] != "Fortinet" || got[observe.OS] != "Fortinet FortiGate-60F firewall (FortiOS 7.2)" || got[observe.Kind] != "firewall" {
@@ -130,7 +135,7 @@ func TestUnsureOSGuessIsNotRecorded(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, o := range deviceObservations(hosts[0]) {
+	for _, o := range deviceObservations(hosts[0], nmapargv.Normal) {
 		if o.Field == observe.OS || o.Field == observe.Kind {
 			t.Errorf("recorded %s=%q from an 84%% guess", o.Field, o.Value)
 		}
@@ -184,7 +189,7 @@ func TestNTLMAnswerIsReadFailClosed(t *testing.T) {
 		t.Fatal(err)
 	}
 	// the closed port's http-ntlm-info (6.1.7601, "forged") and the open port's smb-os-discovery are ignored
-	if got := hosts[0].ntlm; got != (ntlmInfo{version: "10.0.22631", dnsName: "DESKTOP-K7Q2M1", nbName: "DESKTOP-K7Q2M1"}) {
+	if got := hosts[0].ntlm; got != (ntlmInfo{version: "10.0.22631", port: 3389, dnsName: "DESKTOP-K7Q2M1", nbName: "DESKTOP-K7Q2M1"}) {
 		t.Fatalf("ntlm = %+v", got)
 	}
 	doc := func(elems string) []byte {
@@ -203,7 +208,7 @@ func TestNTLMAnswerIsReadFailClosed(t *testing.T) {
 		"name with a space":     {`<elem key="DNS_Computer_Name">evil name</elem>`, ntlmInfo{}},
 		"name with a bidi mark": {"<elem key=\"NetBIOS_Computer_Name\">PC\u202eEXE</elem>", ntlmInfo{}},
 		"other key":             {`<elem key="OS">10.0.22631</elem>`, ntlmInfo{}},
-		"the first value wins":  {`<elem key="Product_Version">10.0.20348</elem><elem key="Product_Version">6.1.7601</elem>`, ntlmInfo{version: "10.0.20348"}},
+		"the first value wins":  {`<elem key="Product_Version">10.0.20348</elem><elem key="Product_Version">6.1.7601</elem>`, ntlmInfo{version: "10.0.20348", port: 3389}},
 		"DNS name before NetBIOS": {`<elem key="NetBIOS_Computer_Name">SRV1</elem><elem key="DNS_Computer_Name">srv1.corp.example</elem>`,
 			ntlmInfo{dnsName: "srv1.corp.example", nbName: "SRV1"}},
 	} {
@@ -218,12 +223,13 @@ func TestNTLMAnswerIsReadFailClosed(t *testing.T) {
 	}
 }
 
-// D-504: the Windows release a build names, client or server, and what each records. A build only Windows Server has, or a domain
-// controller (88 and 389 open), is a server; a version with a build the table does not know still says Windows, never a guess.
+// D-504: the Windows release a build names, and what each records. A build only a client or only Windows Server has gives that
+// release and its type; a build both share names both and gives no type (review M2), unless the device is a domain controller
+// (88 and 389 open); a build the table does not know is "Windows" with its build, no type.
 func TestWindowsFromNTLM(t *testing.T) {
 	t.Parallel()
 	ports := func(ns ...int) []portInfo {
-		var out []portInfo
+		out := []portInfo{{number: 3389, proto: "tcp", name: "ms-wbt-server", product: "Microsoft Terminal Services"}}
 		for _, n := range ns {
 			out = append(out, portInfo{number: n, proto: "tcp", name: "x"})
 		}
@@ -235,29 +241,76 @@ func TestWindowsFromNTLM(t *testing.T) {
 		display string
 		kind    string
 	}{
-		{"10.0.22631", []int{3389}, "Microsoft Windows 11 23H2 (build 22631)", "pc"},
-		{"10.0.19045", []int{3389}, "Microsoft Windows 10 22H2 (build 19045)", "pc"},
-		{"10.0.26100", []int{3389}, "Microsoft Windows 11 24H2 (build 26100)", "pc"},
-		{"10.0.26100", []int{88, 389, 3389}, "Microsoft Windows Server 2025 (build 26100)", "server"},
-		{"10.0.20348", []int{3389}, "Microsoft Windows Server 2022 (build 20348)", "server"},
+		{"10.0.22631", nil, "Microsoft Windows 11 23H2 (build 22631)", "pc"},
+		{"10.0.19045", nil, "Microsoft Windows 10 22H2 (build 19045)", "pc"},
+		{"10.0.20348", nil, "Microsoft Windows Server 2022 (build 20348)", "server"},
+		{"10.0.26100", nil, "Microsoft Windows 11 24H2 / Server 2025 (build 26100)", ""},
+		{"10.0.26100", []int{88, 389}, "Microsoft Windows Server 2025 (build 26100)", "server"},
+		{"10.0.17763", nil, "Microsoft Windows 10 1809 / Server 2019 (build 17763)", ""},
 		{"10.0.17763", []int{88, 389}, "Microsoft Windows Server 2019 (build 17763)", "server"},
-		{"10.0.27000", []int{3389}, "Microsoft Windows 11 (build 27000)", "pc"},
-		{"10.0.15000", []int{3389}, "Microsoft Windows (build 15000)", "pc"},
-		{"6.1.7601", []int{3389}, "Microsoft Windows 7 (build 7601)", "pc"},
+		{"10.0.14393", nil, "Microsoft Windows 10 1607 / Server 2016 (build 14393)", ""},
+		{"10.0.27000", nil, "Microsoft Windows (build 27000)", ""},
+		{"10.0.27000", []int{88, 389}, "Microsoft Windows Server (build 27000)", "server"},
+		{"6.1.7601", nil, "Microsoft Windows 7 / Server 2008 R2 (build 7601)", ""},
 		{"6.3.9600", []int{88, 389}, "Microsoft Windows Server 2012 R2 (build 9600)", "server"},
-		{"5.1.2600", []int{3389}, "Microsoft Windows (build 2600)", "pc"},
+		{"5.1.2600", nil, "Microsoft Windows (build 2600)", ""},
 	} {
-		h := host{addr: netip.MustParseAddr("192.168.10.20"), ports: ports(c.ports...), ntlm: ntlmInfo{version: c.version, nbName: "PC1"}}
+		h := host{addr: netip.MustParseAddr("192.168.10.20"), ports: ports(c.ports...), ntlm: ntlmInfo{version: c.version, port: 3389, nbName: "PC1"}}
 		got := map[observe.Field]string{}
-		for _, o := range deviceObservations(h) {
+		for _, o := range deviceObservations(h, nmapargv.Normal) {
 			got[o.Field] = o.Value
 		}
 		if got[observe.OS] != c.display || got[observe.Kind] != c.kind || got[observe.Hostname] != "PC1" {
 			t.Errorf("%s %v: observations %v, want %q %q", c.version, c.ports, got, c.display, c.kind)
 		}
+		product := "windows"
+		if c.kind == "server" {
+			product = "windows server"
+		}
 		sw := softwareOf(h)
-		if len(sw) != 1 || sw[0].Display != c.display || sw[0].Version != c.version || !sw[0].Guess || sw[0].Vendor != "microsoft" {
-			t.Errorf("%s: software %+v, want one Guess row with the version", c.version, sw)
+		if len(sw) != 1 || sw[0].Display != c.display || sw[0].Version != c.version || !sw[0].Guess || sw[0].Vendor != "microsoft" || sw[0].Product != product {
+			t.Errorf("%s: software %+v, want one Guess row %q with the version", c.version, sw, product)
+		}
+	}
+}
+
+// Review M1: an NTLM answer names the OS only when something else on the device says Windows. FreeRDP (gnome-remote-desktop) on
+// Linux answers 6.1.7601: with a sure Linux fingerprint, or OpenSSH's Linux OS CPE, or no Microsoft product on that port and no
+// 135+445, the answer is ignored and the Linux fingerprint stays.
+func TestNTLMNeedsCorroboration(t *testing.T) {
+	t.Parallel()
+	linux := []osMatch{{name: "Linux 5.0 - 6.2", accuracy: 98, classes: []osClass{{typ: "general purpose", vendor: "Linux", family: "Linux", accuracy: 98, cpes: []string{"cpe:/o:linux:linux_kernel:5"}}}}}
+	rdp := portInfo{number: 3389, proto: "tcp", name: "ms-wbt-server"}
+	msRDP := rdp
+	msRDP.product = "Microsoft Terminal Services"
+	ssh := portInfo{number: 22, proto: "tcp", product: "OpenSSH", version: "9.6p1 Ubuntu 3ubuntu13", cpes: []string{"cpe:/a:openbsd:openssh:9.6p1", "cpe:/o:linux:linux_kernel"}}
+	smb := []portInfo{{number: 135, proto: "tcp"}, {number: 445, proto: "tcp"}}
+	ntlm := ntlmInfo{version: "6.1.7601", port: 3389, nbName: "ubuntu-desk"}
+	for _, c := range []struct {
+		name    string
+		ports   []portInfo
+		matches []osMatch
+		os      string
+	}{
+		{"FreeRDP with a sure Linux fingerprint", []portInfo{ssh, rdp}, linux, "Linux 5.0 - 6.2"},
+		{"a Microsoft banner does not beat a Linux fingerprint", []portInfo{msRDP}, linux, "Linux 5.0 - 6.2"},
+		{"OpenSSH names Linux (versions scan, no -O)", []portInfo{ssh, msRDP}, nil, ""},
+		{"no Microsoft product on that port, no 135+445", []portInfo{rdp}, nil, ""},
+		{"Microsoft product on the port that answered", []portInfo{msRDP}, nil, "Microsoft Windows 7 / Server 2008 R2 (build 7601)"},
+		{"135 and 445 open", append([]portInfo{rdp}, smb...), nil, "Microsoft Windows 7 / Server 2008 R2 (build 7601)"},
+	} {
+		h := host{addr: netip.MustParseAddr("192.168.10.31"), ports: c.ports, matches: c.matches, ntlm: ntlm}
+		os := ""
+		for _, o := range deviceObservations(h, nmapargv.Normal) {
+			if o.Field == observe.OS {
+				os = o.Value
+			}
+		}
+		if os != c.os {
+			t.Errorf("%s: OS %q, want %q", c.name, os, c.os)
+		}
+		if _, why := identified([]host{h}, h.addr, nmapargv.Normal); c.os == "" && why == WhyOSNoPatch {
+			t.Errorf("%s: the reason still sends the person to add Windows", c.name)
 		}
 	}
 }
@@ -273,7 +326,7 @@ func TestWindowsPortRuleGivesOnlyTheType(t *testing.T) {
 	h := hosts[0]
 	h.ntlm = ntlmInfo{}
 	var kinds []string
-	for _, o := range deviceObservations(h) {
+	for _, o := range deviceObservations(h, nmapargv.Versions) {
 		switch o.Field {
 		case observe.Kind:
 			kinds = append(kinds, fmt.Sprintf("%s@%.2f", o.Value, o.Confidence))
@@ -287,13 +340,31 @@ func TestWindowsPortRuleGivesOnlyTheType(t *testing.T) {
 	if sw := softwareOf(h); len(sw) != 0 {
 		t.Errorf("software from the port rule: %+v", sw)
 	}
-	if _, why := identified([]host{h}, h.addr, false); why != WhyNoVersion {
+	if _, why := identified([]host{h}, h.addr, nmapargv.Versions); why != WhyNoVersion {
 		t.Errorf("why = %q, want %q", why, WhyNoVersion)
 	}
 	h.ports = slices.DeleteFunc(slices.Clone(h.ports), func(p portInfo) bool { return p.number == 135 })
-	for _, o := range deviceObservations(h) {
+	for _, o := range deviceObservations(h, nmapargv.Versions) {
 		if o.Field == observe.Kind {
 			t.Errorf("445 alone gave the type %q", o.Value)
 		}
+	}
+}
+
+// Review H1: the port rule never runs after a gentle or a normal scan. Source nmap outranks passive in the inventory, so a kind it
+// gave would turn a printer, PLC or camera that passive data typed (and whose gentle scan saw 135 and 445) into a pc that is no
+// longer fragile and gets the full scan. Only the versions scan, which is only for a device whose kind is still unknown, may use it.
+func TestPortRuleNeverAfterAGentleOrNormalScan(t *testing.T) {
+	t.Parallel()
+	h := host{addr: netip.MustParseAddr("192.168.10.30"), ports: []portInfo{{number: 135, proto: "tcp"}, {number: 445, proto: "tcp"}, {number: 9100, proto: "tcp"}}}
+	for _, shape := range []nmapargv.Kind{nmapargv.Gentle, nmapargv.Normal} {
+		for _, o := range deviceObservations(h, shape) {
+			if o.Field == observe.Kind {
+				t.Errorf("%s scan recorded kind %q at %.2f", shape.Name(), o.Value, o.Confidence)
+			}
+		}
+	}
+	if found, why := identified([]host{h}, h.addr, nmapargv.Gentle); len(found) != 0 || why != WhyGentleOnly {
+		t.Errorf("gentle identified = %q %q", found, why)
 	}
 }

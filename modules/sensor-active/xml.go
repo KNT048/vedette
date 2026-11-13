@@ -54,6 +54,7 @@ type host struct {
 // Windows version and build the device itself put in the challenge, and its computer name. Only values of the expected form are kept.
 type ntlmInfo struct {
 	version string // Product_Version, "10.0.22631": major.minor.build, without the monthly update revision
+	port    int    // the port whose script gave version
 	dnsName string // DNS_Computer_Name
 	nbName  string // NetBIOS_Computer_Name
 }
@@ -75,11 +76,11 @@ var (
 )
 
 // setNTLM keeps one <elem> of an NTLM script: the first well-formed value of each field wins (a host with RDP and HTTP answers twice).
-func (h *host) setNTLM(key, value string) {
+func (h *host) setNTLM(port int, key, value string) {
 	switch key {
 	case "Product_Version":
 		if h.ntlm.version == "" && ntlmVersionRE.MatchString(value) {
-			h.ntlm.version = value
+			h.ntlm.version, h.ntlm.port = value, port
 		}
 	case "DNS_Computer_Name":
 		if h.ntlm.dnsName == "" && ntlmNameRE.MatchString(value) {
@@ -337,7 +338,7 @@ func parseNmapXML(data []byte) ([]host, error) {
 			case "nmaprun/host/ports/port/script/elem":
 				// The challenge is read only from an open port; a value longer than maxElemLen or of another form is dropped.
 				if elemKey != "" && cur != nil && portOK && elemBuf.Len() <= maxElemLen {
-					cur.setNTLM(elemKey, text(strings.TrimSpace(elemBuf.String())))
+					cur.setNTLM(port.number, elemKey, text(strings.TrimSpace(elemBuf.String())))
 				}
 				elemKey = ""
 			case "nmaprun/host/ports/port/service/cpe", "nmaprun/host/os/osmatch/osclass/cpe":

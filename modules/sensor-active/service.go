@@ -965,7 +965,7 @@ func (s *Service) recordDevice(ctx context.Context, ip netip.Addr, hosts []host,
 		return nil
 	}
 	h := hosts[i]
-	if obs := deviceObservations(h); len(obs) > 0 {
+	if obs := deviceObservations(h, kind); len(obs) > 0 {
 		if err := s.obs.Record(ctx, obs); err != nil {
 			return fmt.Errorf("sensoractive: recording observations: %w", err)
 		}
@@ -1149,7 +1149,7 @@ func (s *Service) IdentifyDevice(ctx context.Context, assetID string) (Identific
 		}
 		return Identification{}, err
 	}
-	found, why := identified(hosts, asset.IP, kind == nmapargv.Gentle)
+	found, why := identified(hosts, asset.IP, kind)
 	return Identification{Found: found, Why: why}, nil
 }
 

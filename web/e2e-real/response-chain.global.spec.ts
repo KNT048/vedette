@@ -343,6 +343,7 @@ test('a trap hit fires the honeypot rule and asks to block its source (S-RESP-3)
   const hpWasOn = mods.find((m) => m.id === 'honeypot')?.enabled ?? false
   let lan: string[] | undefined
   let trapOn = false
+  let cleanupTip = async () => {}
   try {
     if (!hpWasOn) expect((await api(admin, 'PATCH', '/modules/honeypot', { enabled: true, with_dependencies: true })).status).toBe(200)
     const cur = await get<Record<string, unknown> & { lan_ranges: string[] }>(admin, '/inventory/settings')
@@ -352,28 +353,37 @@ test('a trap hit fires the honeypot rule and asks to block its source (S-RESP-3)
       delete next.adjusted
       expect((await api(admin, 'PUT', '/inventory/settings', next)).status).toBe(200)
     }
-    let hp = await get<{ secondary_ip: string | null }>(admin, '/honeypot')
-    const hadDecoy = !!hp.secondary_ip // the decoy address cannot be cleared once set (honeypot.global.spec.ts), so it is left
-    if (!hadDecoy) {
-      expect((await api(admin, 'PUT', '/honeypot/config', { secondary_ip: '192.168.1.200', hostname: 'CHAIN-DECOY' })).status).toBe(200)
-      hp = await get<{ secondary_ip: string | null }>(admin, '/honeypot')
+    // D-466: a Trap IP with SSH; one this spec added is deleted at the end, one already there is switched on and back.
+    const tips = await get<{ items: { id: string; ip: string; enabled: boolean; services: string[] }[] }>(admin, '/honeypot/trap-ips')
+    let tip = tips.items.find((x) => x.services.includes('ssh'))
+    const hadTip = !!tip
+    const tipWasOn = tip?.enabled ?? false
+    if (!tip) {
+      const r = await api<{ id: string; ip: string; enabled: boolean; services: string[] }>(admin, 'POST', '/honeypot/trap-ips', { name: 'CHAIN-DECOY', ip: '192.168.1.200', preset: 'linux', vendor: 'vmware', services: ['ssh'] })
+      expect(r.status).toBe(201)
+      tip = r.body
     }
     await hostKnob('hp_start', 'ok')
     trapOn = true
-    expect((await api(admin, 'PATCH', '/honeypot/traps/ssh', { enabled: true })).status).toBe(200)
+    if (!tip.enabled) expect((await api(admin, 'PATCH', `/honeypot/trap-ips/${tip.id}`, { enabled: true })).status).toBe(200)
+    cleanupTip = async () => {
+      if (!hadTip) await api(admin, 'DELETE', `/honeypot/trap-ips/${tip.id}`)
+      else if (!tipWasOn) await api(admin, 'PATCH', `/honeypot/trap-ips/${tip.id}`, { enabled: false })
+    }
+    const trapAddr = tip.ip
     const name = uniq('Trap source')
     await makeRule(admin, name, ['{{trigger.source_ip}}'], 'honeypot')
 
     const log = join(box().honeypot_dir, 'log', 'opencanary.jsonl')
     mkdirSync(dirname(log), { recursive: true })
     const utc = new Date().toISOString().replace('T', ' ').replace('Z', '000')
-    appendFileSync(log, JSON.stringify({ logtype: 4000, src_host: HIT, src_port: 40001, dst_host: hp.secondary_ip, dst_port: 22, node_id: 'vedette-honeypot', local_time: utc, utc_time: utc, logdata: {} }) + '\n')
+    appendFileSync(log, JSON.stringify({ logtype: 4000, src_host: HIT, src_port: 40001, dst_host: trapAddr, dst_port: 22, node_id: 'vedette-honeypot', local_time: utc, utc_time: utc, logdata: {} }) + '\n')
     // precondition: the honeypot read the line (it polls every 15 s) and recorded a hit from that source
     await expect.poll(async () => (await get<{ items: { src_ip: string }[] }>(admin, '/honeypot/hits')).items.some((h) => h.src_ip === HIT), { message: `a hit from ${HIT}`, timeout: 60_000, intervals: [2000] }).toBe(true)
 
     await expect.poll(async () => (await requests(admin)).some((r) => r.rule_name === name), { message: 'a request to block the source of the hit', timeout: 20_000 }).toBe(true)
   } finally {
-    if (trapOn) await api(admin, 'PATCH', '/honeypot/traps/ssh', { enabled: false })
+    if (trapOn) await cleanupTip()
     if (lan && !lan.includes(LAN)) {
       const cur = await get<Record<string, unknown>>(admin, '/inventory/settings')
       const back = { ...cur, lan_ranges: lan, scope_confirmed: true }

@@ -107,7 +107,8 @@
       "src": "Source IP",
       "device": "Source device",
       "excerpt": "Session excerpt",
-      "respond": "Respond"
+      "respond": "Respond",
+      "trapIp": "Trap IP"
     },
     "test": "Test",
     "deviceBox": "Vedette box (test)",
@@ -261,13 +262,32 @@
     "smbName": "Its name is the NetBIOS name of the box's SMB share.",
     "scan": {
       "title": "Scan detection",
-      "body": "A device that touches two or more Trap IPs, or many ports on one Trap IP, within a minute raises one high-confidence alert that names the source device. Normal machines have no reason to do this.",
-      "last": "Last scan alert {{when}} from {{src}}.",
+      "body": "A device that touches two or more Trap IPs within a minute raises one High alert that names the source device. Normal machines have no reason to do this. Each touch is also a hit of its own.",
+      "last": "Last scan {{when}} from {{src}}: touched {{trapIps}}.",
       "never": "No scan has been seen.",
       "test": "Test scan",
       "testToast": "Recorded a test scan alert",
       "needDecoys": "Turn on two or more Trap IPs first. Detection needs at least two Trap IPs."
-    }
+    },
+    "where": {
+      "looks": "Looks like",
+      "mac": "MAC address",
+      "macVendor": "{{mac}}, which a network scanner shows as {{vendor}}",
+      "macLocal": "{{mac}}, a locally administered address (no vendor)",
+      "macNone": "Given when the box holds the address",
+      "open": "Answers on",
+      "openNone": "Nothing while it does not listen",
+      "openAll": "Every service the box's Trap IPs use: the host program is older and cannot keep each Trap IP to its own",
+      "attached": "Lives on",
+      "attachedMacvlan": "Its own network link {{link}} (macvlan, with its own MAC) on the box card {{parent}}, inside the honeypot's isolated network. The box's own address, routes and firewall are not touched.",
+      "attachedMacvlanNoParent": "Its own network link {{link}} (macvlan, with its own MAC) on the box's network card, inside the honeypot's isolated network. The box's own address, routes and firewall are not touched.",
+      "attachedNone": "Not on the network yet",
+      "lastHit": "Last touched",
+      "lastHitNever": "Never",
+      "device": "In Devices",
+      "deviceLink": "{{name}} has this address: the Trap IP cannot listen until one of them moves"
+    },
+    "detailsLabel": "Details of Trap IP {{name}}"
   },
   "token": {
     "title": "Honey tokens",

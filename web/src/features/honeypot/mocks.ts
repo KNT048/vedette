@@ -71,11 +71,12 @@ const hitsStore = collection<Stored[]>('hp_hits', () => {
         { ts: daysAgo(3), source: 'honeypot', text: 'Credential token svc-backup-old was used from 192.168.10.157', mark: true },
         { ts: daysAgo(3, -0.1), source: 'firewall', text: 'Firewall: 192.168.10.157 to 192.168.10.10 port 445 allowed', mark: false },
       ] },
-    { id: 'hit-seed-4', ts: daysAgo(2), kind: 'scan', source_ip: '192.168.10.157', service: null, label: 'Port scan across 3 decoy IPs', port: null, src_ip: '192.168.10.157', src_asset_id: 'a-unk01', is_test: false,
-      excerpt: 'Touched 3 Trap IPs (.240, .241, .242) and 14 distinct ports in 38 seconds. Pattern: TCP SYN sweep.', trap_ip: '192.168.10.240-242', trap_hostname: 'Decoy sweep',
+    // W1-13: one source touching two or more Trap IPs within a minute is one scan hit (ingest.go sweep).
+    { id: 'hit-seed-4', ts: daysAgo(2), kind: 'scan', source_ip: '192.168.10.157', service: null, label: 'Scan across the Trap IPs', port: null, src_ip: '192.168.10.157', src_asset_id: 'a-unk01', is_test: false,
+      excerpt: 'Touched FILESRV-OLD (192.168.10.240), NAS-ARCHIVE (192.168.10.241), PRN-FLOOR2 (192.168.10.242) within a minute', trap_ip: '192.168.10.240, 192.168.10.241, 192.168.10.242', trap_hostname: 'FILESRV-OLD, NAS-ARCHIVE, PRN-FLOOR2',
       events: [
-        { ts: daysAgo(2, 0.02), source: 'honeypot', text: 'First probe: 192.168.10.157 to Trap IP 192.168.10.240 port 445', mark: true },
-        { ts: daysAgo(2), source: 'honeypot', text: 'Scan detected: 3 Trap IPs, 14 ports in 38 seconds', mark: true },
+        { ts: daysAgo(2, 0.02), source: 'honeypot', text: '192.168.10.157 touched FILESRV-OLD (192.168.10.240)', mark: true },
+        { ts: daysAgo(2), source: 'honeypot', text: '192.168.10.157 touched NAS-ARCHIVE (192.168.10.241)', mark: true },
         { ts: daysAgo(2, -0.1), source: 'firewall', text: 'Firewall: 192.168.10.157 to 192.168.10.13 port 3389 allowed', mark: false },
       ] },
   ]
@@ -132,10 +133,25 @@ function stateOf(t: StoredTrapIP): { state: TrapState; reason: string | null } {
   if (s === 'starting') return { state: 'starting', reason: null }
   return { state: 'listening', reason: null }
 }
+// What the D-83 OUI table says for each vendor's prefix (modules/honeypot reads content/oui).
+const MAC_VENDOR: Record<TrapVendor, string> = {
+  dell: 'Dell Inc.', hp: 'Hewlett Packard', vmware: 'VMware, Inc.', hyperv: 'Microsoft Corporation', supermicro: 'Super Micro Computer, Inc.', synology: 'Synology Incorporated',
+  qnap: 'QNAP Systems, Inc.', brother: 'Brother industries, LTD.', canon: 'CANON INC.', hikvision: 'Hangzhou Hikvision Digital Technology Co.,Ltd.', dahua: 'Zhejiang Dahua Technology Co., Ltd.', axis: 'Axis Communications AB',
+}
+const linkOf = (ip: string) => `vdh${ip.split('.').map((n) => hex2(Number(n))).join('')}`
+
 function trapIpView(t: StoredTrapIP): TrapIP {
   const { fail: _f, ...rest } = t
   const st = stateOf(t)
-  return { ...rest, services: HP_SERVICES.filter((s) => t.services.includes(s)), ...st, mac: st.state === 'listening' ? macOf(t) : null }
+  const held = st.state === 'listening'
+  const services = HP_SERVICES.filter((s) => t.services.includes(s))
+  const last = hitsStore.get().filter((h) => !h.is_test && (h.kind ?? 'service') === 'service' && h.trap_ip === t.ip).sort((a, b) => b.ts.localeCompare(a.ts))[0]
+  const dev = deviceAt(t.ip)
+  return {
+    ...rest, services, ...st, mac: held ? macOf(t) : null, mac_vendor: held && t.vendor ? MAC_VENDOR[t.vendor] : null,
+    attachment: held ? { kind: 'macvlan', link: linkOf(t.ip), parent: 'eth0' } : null, open_services: held ? services : [],
+    last_hit_at: last?.ts ?? null, device_id: dev?.id ?? null, device_name: dev ? assetName(dev) : null,
+  }
 }
 
 const maskPassword = (pw: string) => '•'.repeat(8) + (pw.length >= 8 ? pw.slice(-4) : '')
@@ -173,7 +189,7 @@ function hitView(h: Stored): Hit {
   const kind = h.kind ?? 'service'
   return {
     id: h.id, ts: h.ts, kind, service: h.service, label: h.label ?? (h.service ? LABEL[h.service] : ''), port: h.port, src_ip: h.src_ip, src_asset_id: a ? a.id : null, src_name: a ? assetName(a) : null, is_test: h.is_test,
-    excerpt: h.seed && h.service ? SESSION[h.service].excerpt : h.excerpt,
+    excerpt: h.seed && h.service ? SESSION[h.service].excerpt : h.excerpt, trap_ip: h.trap_ip, trap_hostname: h.trap_hostname,
   }
 }
 
@@ -257,7 +273,7 @@ export const handlers = [
     if (!h) return fail(404, 'not_found', 'No such trap hit. The list may have been cleaned up.')
     const a = h.src_asset_id ? assetsStore.get().find((x) => x.id === h.src_asset_id) : undefined
     const events = h.seed && h.service ? makeEvents(h.ts, h.src_ip, h.seed.srcName ?? `unknown device ${h.src_ip}`, h.service, h.trap_ip, h.seed.lan) : h.events
-    const detail: HitDetail = { ...hitView(h), trap_ip: h.trap_ip, trap_hostname: h.trap_hostname, asset: a ? { id: a.id, kind: a.kind, ip: a.ip, approved: a.approved } : null, events, window_minutes: WINDOW_MINUTES }
+    const detail: HitDetail = { ...hitView(h), asset: a ? { id: a.id, kind: a.kind, ip: a.ip, approved: a.approved } : null, events, window_minutes: WINDOW_MINUTES }
     return HttpResponse.json(detail)
   }),
 

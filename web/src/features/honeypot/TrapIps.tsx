@@ -1,4 +1,5 @@
-import { useState, type FormEvent } from 'react'
+import { useState, type FormEvent, type ReactNode } from 'react'
+import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { FlaskConical, Pencil, Plus, Trash2 } from 'lucide-react'
@@ -9,7 +10,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Field, Input, Label, Select } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import { ApiError } from '@/lib/api'
-import { fmtRelative } from '@/lib/format'
+import { fmtDateTime, fmtRelative } from '@/lib/format'
 import { useCan } from '@/lib/session'
 import { useAddTrapIp, useDeleteTrapIp, useEditTrapIp, useTestScan, useToggleTrapIp, useTrapIps } from './api'
 import { PRESETS, presetDef, SERVICE_PORT, VENDORS } from './presets'
@@ -86,25 +87,23 @@ function Inner({ data, hits, smbName }: { data: TrapIPsResponse; hits: Hit[]; sm
       {data.items.length ? (
         <ul className="grid divide-y divide-rule rounded-md border border-rule bg-surface" aria-label={t('trapIp.listLabel')}>
           {data.items.map((d) => (
-            <li key={d.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 text-sm">
-              <span className="grid min-w-0">
-                <span className="font-medium">{d.name} <span className="text-[13px] font-normal text-muted tabular-nums">{d.ip}</span></span>
-                <span className="text-[12px] text-muted">
-                  {t(`trapIp.preset.${d.preset}`)}: {d.services.map((s) => `${t(`service.${s}`)} ${SERVICE_PORT[s]}`).join(', ')}
-                  {d.vendor ? ` · ${t(`trapIp.vendor.${d.vendor}`)}` : null}
-                  {d.mac ? <> · <span className="tabular-nums">{t('trapIp.mac', { mac: d.mac })}</span></> : null}
+            <li key={d.id} className="grid gap-2 px-4 py-3 text-sm">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <span className="grid min-w-0">
+                  <span className="font-medium">{d.name} <span className="text-[13px] font-normal text-muted tabular-nums">{d.ip}</span></span>
+                  {firstSmb?.id === d.id ? <span className="text-[12px] text-muted">{t('trapIp.smbName')}</span> : null}
+                  {d.reason ? <span className={d.state === 'failed' || d.state === 'conflict' ? 'text-[12px] text-danger' : 'text-[12px] text-muted'}>{d.reason}</span> : null}
                 </span>
-                {firstSmb?.id === d.id ? <span className="text-[12px] text-muted">{t('trapIp.smbName')}</span> : null}
-                {d.reason ? <span className={d.state === 'failed' || d.state === 'conflict' ? 'text-[12px] text-danger' : 'text-[12px] text-muted'}>{d.reason}</span> : null}
-              </span>
-              <span className="flex items-center gap-3">
-                <TrapStateChip state={d.state} />
-                <Switch checked={d.enabled} disabled={!admin || toggle.isPending} title={needAdmin} aria-label={t('trapIp.switchLabel', { name: d.name })}
-                  onCheckedChange={(v) => toggle.mutate({ id: d.id, enabled: v }, { onError: (e) => toast.error(errMsg(e)) })} />
-                <Button size="sm" variant="ghost" disabled={!admin} title={needAdmin} aria-label={t('trapIp.editLabel', { name: d.name })} onClick={() => open({ mode: 'edit', item: d })}><Pencil /></Button>
-                <Button size="sm" variant="ghost" disabled={!admin || del.isPending} aria-label={t('trapIp.deleteLabel', { name: d.name })} title={needAdmin}
-                  onClick={() => del.mutate(d.id, { onSuccess: () => { toast.success(t('trapIp.deleted', { name: d.name })); if (editing?.mode === 'edit' && editing.item.id === d.id) setEditing(null) }, onError: (e) => toast.error(errMsg(e)) })}><Trash2 /></Button>
-              </span>
+                <span className="flex items-center gap-3">
+                  <TrapStateChip state={d.state} />
+                  <Switch checked={d.enabled} disabled={!admin || toggle.isPending} title={needAdmin} aria-label={t('trapIp.switchLabel', { name: d.name })}
+                    onCheckedChange={(v) => toggle.mutate({ id: d.id, enabled: v }, { onError: (e) => toast.error(errMsg(e)) })} />
+                  <Button size="sm" variant="ghost" disabled={!admin} title={needAdmin} aria-label={t('trapIp.editLabel', { name: d.name })} onClick={() => open({ mode: 'edit', item: d })}><Pencil /></Button>
+                  <Button size="sm" variant="ghost" disabled={!admin || del.isPending} aria-label={t('trapIp.deleteLabel', { name: d.name })} title={needAdmin}
+                    onClick={() => del.mutate(d.id, { onSuccess: () => { toast.success(t('trapIp.deleted', { name: d.name })); if (editing?.mode === 'edit' && editing.item.id === d.id) setEditing(null) }, onError: (e) => toast.error(errMsg(e)) })}><Trash2 /></Button>
+                </span>
+              </div>
+              <TrapIpDetails d={d} />
             </li>
           ))}
         </ul>
@@ -116,7 +115,7 @@ function Inner({ data, hits, smbName }: { data: TrapIPsResponse; hits: Hit[]; sm
           <div className="grid max-w-3xl gap-1">
             <p className="text-sm font-medium">{t('trapIp.scan.title')}</p>
             <p className="text-[13px] text-muted">{t('trapIp.scan.body')}</p>
-            <p className="text-[13px] text-muted">{lastScan ? t('trapIp.scan.last', { when: fmtRelative(lastScan.ts), src: lastScan.src_name ?? lastScan.src_ip }) : t('trapIp.scan.never')}</p>
+            <p className="text-[13px] text-muted">{lastScan ? t('trapIp.scan.last', { when: fmtRelative(lastScan.ts), src: lastScan.src_name ?? lastScan.src_ip, trapIps: lastScan.trap_hostname || lastScan.trap_ip }) : t('trapIp.scan.never')}</p>
           </div>
           <Button size="sm" disabled={!!scanReason || scan.isPending} title={scanReason} onClick={() => scan.mutate(undefined, { onSuccess: () => toast.success(t('trapIp.scan.testToast')), onError: (e) => toast.error(errMsg(e)) })}>
             <FlaskConical />{t('trapIp.scan.test')}
@@ -220,5 +219,35 @@ function TrapIpForm({ data, editing, onDone }: { data: TrapIPsResponse; editing:
         </div>
       </form>
     </Panel>
+  )
+}
+
+/** Where a Trap IP lives and what it shows the network (B2): looks, MAC and the vendor a scanner reads from it, open services, link, last touch, device. */
+function TrapIpDetails({ d }: { d: TrapIP }) {
+  const { t } = useTranslation('honeypot')
+  const svc = (l: HpService[]) => l.map((s) => `${t(`service.${s}`)} ${SERVICE_PORT[s]}`).join(', ')
+  const listening = d.state === 'listening'
+  const allOpen = listening && d.open_services.some((s) => !d.services.includes(s))
+  const mac = !d.mac ? <span className="text-muted">{t('trapIp.where.macNone')}</span>
+    : <span className="tabular-nums">{d.mac_vendor ? t('trapIp.where.macVendor', { mac: d.mac, vendor: d.mac_vendor }) : t('trapIp.where.macLocal', { mac: d.mac })}</span>
+  const where = !d.attachment ? <span className="text-muted">{t('trapIp.where.attachedNone')}</span>
+    : d.attachment.parent ? t('trapIp.where.attachedMacvlan', { link: d.attachment.link, parent: d.attachment.parent }) : t('trapIp.where.attachedMacvlanNoParent', { link: d.attachment.link })
+  const rows: { k: string; label: string; value: ReactNode }[] = [
+    { k: 'looks', label: t('trapIp.where.looks'), value: `${t(`trapIp.preset.${d.preset}`)}${d.vendor ? ` · ${t(`trapIp.vendor.${d.vendor}`)}` : ''}` },
+    { k: 'mac', label: t('trapIp.where.mac'), value: mac },
+    { k: 'open', label: t('trapIp.where.open'), value: d.open_services.length ? <>{svc(d.open_services)}{allOpen ? <span className="block text-muted">{t('trapIp.where.openAll')}</span> : null}</> : <span className="text-muted">{t('trapIp.where.openNone')}</span> },
+    { k: 'attached', label: t('trapIp.where.attached'), value: where },
+    { k: 'last', label: t('trapIp.where.lastHit'), value: d.last_hit_at ? <time dateTime={d.last_hit_at} title={fmtDateTime(d.last_hit_at)}>{fmtRelative(d.last_hit_at)}</time> : <span className="text-muted">{t('trapIp.where.lastHitNever')}</span> },
+  ]
+  if (d.device_id) rows.push({ k: 'device', label: t('trapIp.where.device'), value: <Link className="text-accent underline-offset-4 hover:underline" to={`/devices/${d.device_id}`}>{t('trapIp.where.deviceLink', { name: d.device_name ?? d.ip })}</Link> })
+  return (
+    <dl aria-label={t('trapIp.detailsLabel', { name: d.name })} className="grid gap-x-6 gap-y-1 text-[13px] sm:grid-cols-[max-content_1fr]">
+      {rows.map((r) => (
+        <div key={r.k} className="contents">
+          <dt className="text-muted">{r.label}</dt>
+          <dd className="min-w-0 break-words">{r.value}</dd>
+        </div>
+      ))}
+    </dl>
   )
 }

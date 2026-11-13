@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button'
 import { Field, Input, Select } from '@/components/ui/input'
 import { ApiError } from '@/lib/api'
 import { fmtDateTime } from '@/lib/format'
-import { cancelZaloLogin, useResolveZalo, useSendZaloCode, useStartZaloLogin, useZaloApprovers, useZaloContacts, useZaloLogin } from './api'
+import { cancelZaloLogin, useLinkApprovers, useResolveZalo, useSendLink, useStartZaloLogin, useZaloContacts, useZaloLogin, type LinkKind } from './api'
 import type { Approver, Channel, ZaloContact, ZaloLogin } from './types'
 
 const errMsg = (e: unknown) => (e instanceof ApiError ? e.message : String(e))
@@ -152,21 +152,22 @@ export function ZaloApproverField({ approver, saved, onChange, canLook }: { appr
         </Field>
       ) : null}
       <Finder id={id} label={t('zp.approverFind')} hint={t('zp.approverFindHint')} groups={false} onFound={(c) => onChange({ ...approver, address: c.id, name: c.name })} />
-      {saved ? <ZaloLinkState approver={approver} saved={saved} /> : approver.address ? <p className="text-[13px] text-muted">{t('zp.link.unsaved')}</p> : null}
+      {saved ? <ApproverLinkState kind="zalo" approver={approver} saved={saved} /> : approver.address ? <p className="text-[13px] text-muted">{t('zp.link.unsaved')}</p> : null}
     </div>
   )
 }
 
-/** Linked, or waiting for the person to confirm the link; Send again makes a new link (the old one stops working). Your own row: link it now.
- * Only for a saved approver. */
-function ZaloLinkState({ approver, saved }: { approver: Approver; saved: Channel }) {
+/** Linked, or waiting for the person to confirm the link; Send again makes a new link (the old one stops working). Your own row with the
+ * box's own Zalo: link it now. Only for a saved approver. Zalo personal (D-447) and Telegram (D-414). */
+export function ApproverLinkState({ kind, approver, saved }: { kind: LinkKind; approver: Approver; saved: Channel }) {
   const { t } = useTranslation('notify')
   const navigate = useNavigate()
   const on = saved.configured && saved.approvals
-  const states = useZaloApprovers(on)
-  const send = useSendZaloCode()
+  const states = useLinkApprovers(kind, on)
+  const send = useSendLink(kind)
   const s = states.data?.items.find((x) => x.user_id === approver.user_id && x.address === approver.address)
-  if (!on || !s) return approver.address ? <p className="text-[13px] text-muted">{t('zp.link.unsaved')}</p> : null
+  const unsaved = kind === 'zalo' ? t('zp.link.unsaved') : t('tg.unsaved')
+  if (!on || !s) return approver.address ? <p className="text-[13px] text-muted">{unsaved}</p> : null
   const who = s.name || s.address
   const again = () => send.mutate(approver.user_id, {
     onSuccess: (v) => { if (v.link) void navigate(v.link); else toast.success(t('zp.link.sentToast', { name: who })) },

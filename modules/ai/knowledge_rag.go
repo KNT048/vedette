@@ -21,7 +21,9 @@ const (
 	ragCandidates = 12    // pieces asked of the index, so the hooks can drop some and the rest still fill the block
 	ragPieces     = 4     // pieces in a call
 	ragChars      = 12000 // characters of pieces in a call
-	ragQueryChars = 8000  // characters of question and data read for search words
+	ragAskPieces  = 2     // the same for a question of Ask your data, whose turns each carry them
+	ragAskChars   = 4000
+	ragQueryChars = 8000 // characters of question and data read for search words
 )
 
 // ftsQuery turns free text into a safe FTS5 query: the words (letters and digits, 2 characters or more, lower case, each once, at
@@ -110,9 +112,13 @@ func (s *Service) knowledgeForCall(ctx context.Context, hooks *HookRunner, job J
 	}
 	hctx, cancel := context.WithTimeout(ctx, s.hookTimeout())
 	defer cancel()
+	pieces, chars := ragPieces, ragChars
+	if job == JobAskMyData { // every turn of a question sends the pieces again (D-482)
+		pieces, chars = ragAskPieces, ragAskChars
+	}
 	var out strings.Builder
 	for _, p := range found {
-		if len(kc.refs) == ragPieces {
+		if len(kc.refs) == pieces {
 			break
 		}
 		r, err := hooks.Run(hctx, BeforeAI, p.text)
@@ -121,7 +127,7 @@ func (s *Service) knowledgeForCall(ctx context.Context, hooks *HookRunner, job J
 			kc.leftNames = append(kc.leftNames, r.Names()...)
 			continue
 		}
-		if out.Len()+len(r.Text) > ragChars {
+		if out.Len()+len(r.Text) > chars {
 			continue // too long for what is left; a shorter piece further down may still fit
 		}
 		kc.names = append(kc.names, r.Names()...)

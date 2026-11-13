@@ -93829,6 +93829,183 @@ func (s *NotifyGetNotifyIncidentsOKIncidentsItemStatus) UnmarshalText(data []byt
 	}
 }
 
+type NotifyGetNotifyTelegramApproversOK struct {
+	Items []NotifyGetNotifyTelegramApproversOKItemsItem `json:"items"`
+}
+
+// GetItems returns the value of Items.
+func (s *NotifyGetNotifyTelegramApproversOK) GetItems() []NotifyGetNotifyTelegramApproversOKItemsItem {
+	return s.Items
+}
+
+// SetItems sets the value of Items.
+func (s *NotifyGetNotifyTelegramApproversOK) SetItems(val []NotifyGetNotifyTelegramApproversOKItemsItem) {
+	s.Items = val
+}
+
+type NotifyGetNotifyTelegramApproversOKItemsItem struct {
+	Address string `json:"address"`
+	// The address is the box's own signed-in Zalo account (the QR sign-in proved it); only your own row
+	// with it skips the message.
+	BoxAccount bool `json:"box_account"`
+	// Not_sent: why (failed, expired, or no link made).
+	Error string `json:"error"`
+	// Only in the answer of POST …/code for your own row with the box's own account: the confirm page
+	// (/link/zalo?c=…) to open in this session; any other Zalo gets the link by message.
+	Link OptString `json:"link"`
+	Name string    `json:"name"`
+	// The administrator asking.
+	Self   bool                                             `json:"self"`
+	SentAt NilDateTime                                      `json:"sent_at"`
+	State  NotifyGetNotifyTelegramApproversOKItemsItemState `json:"state"`
+	UserID string                                           `json:"user_id"`
+}
+
+// GetAddress returns the value of Address.
+func (s *NotifyGetNotifyTelegramApproversOKItemsItem) GetAddress() string {
+	return s.Address
+}
+
+// GetBoxAccount returns the value of BoxAccount.
+func (s *NotifyGetNotifyTelegramApproversOKItemsItem) GetBoxAccount() bool {
+	return s.BoxAccount
+}
+
+// GetError returns the value of Error.
+func (s *NotifyGetNotifyTelegramApproversOKItemsItem) GetError() string {
+	return s.Error
+}
+
+// GetLink returns the value of Link.
+func (s *NotifyGetNotifyTelegramApproversOKItemsItem) GetLink() OptString {
+	return s.Link
+}
+
+// GetName returns the value of Name.
+func (s *NotifyGetNotifyTelegramApproversOKItemsItem) GetName() string {
+	return s.Name
+}
+
+// GetSelf returns the value of Self.
+func (s *NotifyGetNotifyTelegramApproversOKItemsItem) GetSelf() bool {
+	return s.Self
+}
+
+// GetSentAt returns the value of SentAt.
+func (s *NotifyGetNotifyTelegramApproversOKItemsItem) GetSentAt() NilDateTime {
+	return s.SentAt
+}
+
+// GetState returns the value of State.
+func (s *NotifyGetNotifyTelegramApproversOKItemsItem) GetState() NotifyGetNotifyTelegramApproversOKItemsItemState {
+	return s.State
+}
+
+// GetUserID returns the value of UserID.
+func (s *NotifyGetNotifyTelegramApproversOKItemsItem) GetUserID() string {
+	return s.UserID
+}
+
+// SetAddress sets the value of Address.
+func (s *NotifyGetNotifyTelegramApproversOKItemsItem) SetAddress(val string) {
+	s.Address = val
+}
+
+// SetBoxAccount sets the value of BoxAccount.
+func (s *NotifyGetNotifyTelegramApproversOKItemsItem) SetBoxAccount(val bool) {
+	s.BoxAccount = val
+}
+
+// SetError sets the value of Error.
+func (s *NotifyGetNotifyTelegramApproversOKItemsItem) SetError(val string) {
+	s.Error = val
+}
+
+// SetLink sets the value of Link.
+func (s *NotifyGetNotifyTelegramApproversOKItemsItem) SetLink(val OptString) {
+	s.Link = val
+}
+
+// SetName sets the value of Name.
+func (s *NotifyGetNotifyTelegramApproversOKItemsItem) SetName(val string) {
+	s.Name = val
+}
+
+// SetSelf sets the value of Self.
+func (s *NotifyGetNotifyTelegramApproversOKItemsItem) SetSelf(val bool) {
+	s.Self = val
+}
+
+// SetSentAt sets the value of SentAt.
+func (s *NotifyGetNotifyTelegramApproversOKItemsItem) SetSentAt(val NilDateTime) {
+	s.SentAt = val
+}
+
+// SetState sets the value of State.
+func (s *NotifyGetNotifyTelegramApproversOKItemsItem) SetState(val NotifyGetNotifyTelegramApproversOKItemsItemState) {
+	s.State = val
+}
+
+// SetUserID sets the value of UserID.
+func (s *NotifyGetNotifyTelegramApproversOKItemsItem) SetUserID(val string) {
+	s.UserID = val
+}
+
+type NotifyGetNotifyTelegramApproversOKItemsItemState string
+
+const (
+	NotifyGetNotifyTelegramApproversOKItemsItemStateLinked  NotifyGetNotifyTelegramApproversOKItemsItemState = "linked"
+	NotifyGetNotifyTelegramApproversOKItemsItemStateSending NotifyGetNotifyTelegramApproversOKItemsItemState = "sending"
+	NotifyGetNotifyTelegramApproversOKItemsItemStateWaiting NotifyGetNotifyTelegramApproversOKItemsItemState = "waiting"
+	NotifyGetNotifyTelegramApproversOKItemsItemStateNotSent NotifyGetNotifyTelegramApproversOKItemsItemState = "not_sent"
+)
+
+// AllValues returns all NotifyGetNotifyTelegramApproversOKItemsItemState values.
+func (NotifyGetNotifyTelegramApproversOKItemsItemState) AllValues() []NotifyGetNotifyTelegramApproversOKItemsItemState {
+	return []NotifyGetNotifyTelegramApproversOKItemsItemState{
+		NotifyGetNotifyTelegramApproversOKItemsItemStateLinked,
+		NotifyGetNotifyTelegramApproversOKItemsItemStateSending,
+		NotifyGetNotifyTelegramApproversOKItemsItemStateWaiting,
+		NotifyGetNotifyTelegramApproversOKItemsItemStateNotSent,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s NotifyGetNotifyTelegramApproversOKItemsItemState) MarshalText() ([]byte, error) {
+	switch s {
+	case NotifyGetNotifyTelegramApproversOKItemsItemStateLinked:
+		return []byte(s), nil
+	case NotifyGetNotifyTelegramApproversOKItemsItemStateSending:
+		return []byte(s), nil
+	case NotifyGetNotifyTelegramApproversOKItemsItemStateWaiting:
+		return []byte(s), nil
+	case NotifyGetNotifyTelegramApproversOKItemsItemStateNotSent:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *NotifyGetNotifyTelegramApproversOKItemsItemState) UnmarshalText(data []byte) error {
+	switch NotifyGetNotifyTelegramApproversOKItemsItemState(data) {
+	case NotifyGetNotifyTelegramApproversOKItemsItemStateLinked:
+		*s = NotifyGetNotifyTelegramApproversOKItemsItemStateLinked
+		return nil
+	case NotifyGetNotifyTelegramApproversOKItemsItemStateSending:
+		*s = NotifyGetNotifyTelegramApproversOKItemsItemStateSending
+		return nil
+	case NotifyGetNotifyTelegramApproversOKItemsItemStateWaiting:
+		*s = NotifyGetNotifyTelegramApproversOKItemsItemStateWaiting
+		return nil
+	case NotifyGetNotifyTelegramApproversOKItemsItemStateNotSent:
+		*s = NotifyGetNotifyTelegramApproversOKItemsItemStateNotSent
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type NotifyGetNotifyZaloApproversOK struct {
 	Items []NotifyGetNotifyZaloApproversOKItemsItem `json:"items"`
 }
@@ -95979,6 +96156,169 @@ func (s *NotifyPostNotifyHistoryIDResendOKKind) UnmarshalText(data []byte) error
 		return nil
 	case NotifyPostNotifyHistoryIDResendOKKindApproval:
 		*s = NotifyPostNotifyHistoryIDResendOKKindApproval
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type NotifyPostNotifyTelegramApproversUserIDCodeOK struct {
+	Address string `json:"address"`
+	// The address is the box's own signed-in Zalo account (the QR sign-in proved it); only your own row
+	// with it skips the message.
+	BoxAccount bool `json:"box_account"`
+	// Not_sent: why (failed, expired, or no link made).
+	Error string `json:"error"`
+	// Only in the answer of POST …/code for your own row with the box's own account: the confirm page
+	// (/link/zalo?c=…) to open in this session; any other Zalo gets the link by message.
+	Link OptString `json:"link"`
+	Name string    `json:"name"`
+	// The administrator asking.
+	Self   bool                                               `json:"self"`
+	SentAt NilDateTime                                        `json:"sent_at"`
+	State  NotifyPostNotifyTelegramApproversUserIDCodeOKState `json:"state"`
+	UserID string                                             `json:"user_id"`
+}
+
+// GetAddress returns the value of Address.
+func (s *NotifyPostNotifyTelegramApproversUserIDCodeOK) GetAddress() string {
+	return s.Address
+}
+
+// GetBoxAccount returns the value of BoxAccount.
+func (s *NotifyPostNotifyTelegramApproversUserIDCodeOK) GetBoxAccount() bool {
+	return s.BoxAccount
+}
+
+// GetError returns the value of Error.
+func (s *NotifyPostNotifyTelegramApproversUserIDCodeOK) GetError() string {
+	return s.Error
+}
+
+// GetLink returns the value of Link.
+func (s *NotifyPostNotifyTelegramApproversUserIDCodeOK) GetLink() OptString {
+	return s.Link
+}
+
+// GetName returns the value of Name.
+func (s *NotifyPostNotifyTelegramApproversUserIDCodeOK) GetName() string {
+	return s.Name
+}
+
+// GetSelf returns the value of Self.
+func (s *NotifyPostNotifyTelegramApproversUserIDCodeOK) GetSelf() bool {
+	return s.Self
+}
+
+// GetSentAt returns the value of SentAt.
+func (s *NotifyPostNotifyTelegramApproversUserIDCodeOK) GetSentAt() NilDateTime {
+	return s.SentAt
+}
+
+// GetState returns the value of State.
+func (s *NotifyPostNotifyTelegramApproversUserIDCodeOK) GetState() NotifyPostNotifyTelegramApproversUserIDCodeOKState {
+	return s.State
+}
+
+// GetUserID returns the value of UserID.
+func (s *NotifyPostNotifyTelegramApproversUserIDCodeOK) GetUserID() string {
+	return s.UserID
+}
+
+// SetAddress sets the value of Address.
+func (s *NotifyPostNotifyTelegramApproversUserIDCodeOK) SetAddress(val string) {
+	s.Address = val
+}
+
+// SetBoxAccount sets the value of BoxAccount.
+func (s *NotifyPostNotifyTelegramApproversUserIDCodeOK) SetBoxAccount(val bool) {
+	s.BoxAccount = val
+}
+
+// SetError sets the value of Error.
+func (s *NotifyPostNotifyTelegramApproversUserIDCodeOK) SetError(val string) {
+	s.Error = val
+}
+
+// SetLink sets the value of Link.
+func (s *NotifyPostNotifyTelegramApproversUserIDCodeOK) SetLink(val OptString) {
+	s.Link = val
+}
+
+// SetName sets the value of Name.
+func (s *NotifyPostNotifyTelegramApproversUserIDCodeOK) SetName(val string) {
+	s.Name = val
+}
+
+// SetSelf sets the value of Self.
+func (s *NotifyPostNotifyTelegramApproversUserIDCodeOK) SetSelf(val bool) {
+	s.Self = val
+}
+
+// SetSentAt sets the value of SentAt.
+func (s *NotifyPostNotifyTelegramApproversUserIDCodeOK) SetSentAt(val NilDateTime) {
+	s.SentAt = val
+}
+
+// SetState sets the value of State.
+func (s *NotifyPostNotifyTelegramApproversUserIDCodeOK) SetState(val NotifyPostNotifyTelegramApproversUserIDCodeOKState) {
+	s.State = val
+}
+
+// SetUserID sets the value of UserID.
+func (s *NotifyPostNotifyTelegramApproversUserIDCodeOK) SetUserID(val string) {
+	s.UserID = val
+}
+
+type NotifyPostNotifyTelegramApproversUserIDCodeOKState string
+
+const (
+	NotifyPostNotifyTelegramApproversUserIDCodeOKStateLinked  NotifyPostNotifyTelegramApproversUserIDCodeOKState = "linked"
+	NotifyPostNotifyTelegramApproversUserIDCodeOKStateSending NotifyPostNotifyTelegramApproversUserIDCodeOKState = "sending"
+	NotifyPostNotifyTelegramApproversUserIDCodeOKStateWaiting NotifyPostNotifyTelegramApproversUserIDCodeOKState = "waiting"
+	NotifyPostNotifyTelegramApproversUserIDCodeOKStateNotSent NotifyPostNotifyTelegramApproversUserIDCodeOKState = "not_sent"
+)
+
+// AllValues returns all NotifyPostNotifyTelegramApproversUserIDCodeOKState values.
+func (NotifyPostNotifyTelegramApproversUserIDCodeOKState) AllValues() []NotifyPostNotifyTelegramApproversUserIDCodeOKState {
+	return []NotifyPostNotifyTelegramApproversUserIDCodeOKState{
+		NotifyPostNotifyTelegramApproversUserIDCodeOKStateLinked,
+		NotifyPostNotifyTelegramApproversUserIDCodeOKStateSending,
+		NotifyPostNotifyTelegramApproversUserIDCodeOKStateWaiting,
+		NotifyPostNotifyTelegramApproversUserIDCodeOKStateNotSent,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s NotifyPostNotifyTelegramApproversUserIDCodeOKState) MarshalText() ([]byte, error) {
+	switch s {
+	case NotifyPostNotifyTelegramApproversUserIDCodeOKStateLinked:
+		return []byte(s), nil
+	case NotifyPostNotifyTelegramApproversUserIDCodeOKStateSending:
+		return []byte(s), nil
+	case NotifyPostNotifyTelegramApproversUserIDCodeOKStateWaiting:
+		return []byte(s), nil
+	case NotifyPostNotifyTelegramApproversUserIDCodeOKStateNotSent:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *NotifyPostNotifyTelegramApproversUserIDCodeOKState) UnmarshalText(data []byte) error {
+	switch NotifyPostNotifyTelegramApproversUserIDCodeOKState(data) {
+	case NotifyPostNotifyTelegramApproversUserIDCodeOKStateLinked:
+		*s = NotifyPostNotifyTelegramApproversUserIDCodeOKStateLinked
+		return nil
+	case NotifyPostNotifyTelegramApproversUserIDCodeOKStateSending:
+		*s = NotifyPostNotifyTelegramApproversUserIDCodeOKStateSending
+		return nil
+	case NotifyPostNotifyTelegramApproversUserIDCodeOKStateWaiting:
+		*s = NotifyPostNotifyTelegramApproversUserIDCodeOKStateWaiting
+		return nil
+	case NotifyPostNotifyTelegramApproversUserIDCodeOKStateNotSent:
+		*s = NotifyPostNotifyTelegramApproversUserIDCodeOKStateNotSent
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -111432,16 +111772,15 @@ type ResponseGetResponseMeIdentitiesOKItemsItem struct {
 	// The address or ID on the approver list of the channel, as an administrator saved it.
 	Address string `json:"address"`
 	Channel string `json:"channel"`
-	// A code was sent or shown and can be entered now.
+	// A code or confirm link was sent and can be used now.
 	CodeWaiting bool   `json:"code_waiting"`
 	Label       string `json:"label"`
 	// Proved by this person for exactly this address; a changed address or sign-in email is not linked.
 	Linked   bool        `json:"linked"`
 	LinkedAt NilDateTime `json:"linked_at"`
-	// Email_code: Vedette mails a code to this address. chat_code: press Approve or Reject on an approval
-	// message and Vedette answers you privately with a code. send_code: the box sends a confirm link to
-	// that chat account and you confirm it while signed in to Vedette (Zalo personal, D-447). unavailable:
-	// this channel cannot answer privately yet, so it cannot be linked (approve in Vedette).
+	// Email_code: Vedette mails a code to this address. send_code: the box sends a confirm link to that
+	// chat account and you confirm it while signed in to Vedette (Zalo personal D-447, Telegram D-414);
+	// Send again asks for a new one. unavailable: this channel cannot be linked yet (approve in Vedette).
 	Method ResponseGetResponseMeIdentitiesOKItemsItemMethod `json:"method"`
 	// The shown name of that address where the channel knows it (Zalo personal, D-447).
 	Name OptString `json:"name"`
@@ -111527,15 +111866,13 @@ func (s *ResponseGetResponseMeIdentitiesOKItemsItem) SetName(val OptString) {
 	s.Name = val
 }
 
-// Email_code: Vedette mails a code to this address. chat_code: press Approve or Reject on an approval
-// message and Vedette answers you privately with a code. send_code: the box sends a confirm link to
-// that chat account and you confirm it while signed in to Vedette (Zalo personal, D-447). unavailable:
-// this channel cannot answer privately yet, so it cannot be linked (approve in Vedette).
+// Email_code: Vedette mails a code to this address. send_code: the box sends a confirm link to that
+// chat account and you confirm it while signed in to Vedette (Zalo personal D-447, Telegram D-414);
+// Send again asks for a new one. unavailable: this channel cannot be linked yet (approve in Vedette).
 type ResponseGetResponseMeIdentitiesOKItemsItemMethod string
 
 const (
 	ResponseGetResponseMeIdentitiesOKItemsItemMethodEmailCode   ResponseGetResponseMeIdentitiesOKItemsItemMethod = "email_code"
-	ResponseGetResponseMeIdentitiesOKItemsItemMethodChatCode    ResponseGetResponseMeIdentitiesOKItemsItemMethod = "chat_code"
 	ResponseGetResponseMeIdentitiesOKItemsItemMethodSendCode    ResponseGetResponseMeIdentitiesOKItemsItemMethod = "send_code"
 	ResponseGetResponseMeIdentitiesOKItemsItemMethodUnavailable ResponseGetResponseMeIdentitiesOKItemsItemMethod = "unavailable"
 )
@@ -111544,7 +111881,6 @@ const (
 func (ResponseGetResponseMeIdentitiesOKItemsItemMethod) AllValues() []ResponseGetResponseMeIdentitiesOKItemsItemMethod {
 	return []ResponseGetResponseMeIdentitiesOKItemsItemMethod{
 		ResponseGetResponseMeIdentitiesOKItemsItemMethodEmailCode,
-		ResponseGetResponseMeIdentitiesOKItemsItemMethodChatCode,
 		ResponseGetResponseMeIdentitiesOKItemsItemMethodSendCode,
 		ResponseGetResponseMeIdentitiesOKItemsItemMethodUnavailable,
 	}
@@ -111554,8 +111890,6 @@ func (ResponseGetResponseMeIdentitiesOKItemsItemMethod) AllValues() []ResponseGe
 func (s ResponseGetResponseMeIdentitiesOKItemsItemMethod) MarshalText() ([]byte, error) {
 	switch s {
 	case ResponseGetResponseMeIdentitiesOKItemsItemMethodEmailCode:
-		return []byte(s), nil
-	case ResponseGetResponseMeIdentitiesOKItemsItemMethodChatCode:
 		return []byte(s), nil
 	case ResponseGetResponseMeIdentitiesOKItemsItemMethodSendCode:
 		return []byte(s), nil
@@ -111571,9 +111905,6 @@ func (s *ResponseGetResponseMeIdentitiesOKItemsItemMethod) UnmarshalText(data []
 	switch ResponseGetResponseMeIdentitiesOKItemsItemMethod(data) {
 	case ResponseGetResponseMeIdentitiesOKItemsItemMethodEmailCode:
 		*s = ResponseGetResponseMeIdentitiesOKItemsItemMethodEmailCode
-		return nil
-	case ResponseGetResponseMeIdentitiesOKItemsItemMethodChatCode:
-		*s = ResponseGetResponseMeIdentitiesOKItemsItemMethodChatCode
 		return nil
 	case ResponseGetResponseMeIdentitiesOKItemsItemMethodSendCode:
 		*s = ResponseGetResponseMeIdentitiesOKItemsItemMethodSendCode
@@ -128840,9 +129171,9 @@ func (s *ResponsePostResponseExecutionReq) SetPhrase(val OptString) {
 }
 
 type ResponsePostResponseMeIdentitiesChannelCodeOK struct {
-	// Send_code channels only: the code to send from your own chat account to the box account (sent_to is
-	// that account ID); it proves nothing until it arrives from there.
-	Code OptString `json:"code"`
+	// Send_code channels only, when nothing was sent because you confirm in this session (your own row
+	// with the box's own Zalo account): the confirm page to open.
+	Link OptString `json:"link"`
 	// Preview build only; never sent by a real box.
 	PreviewCode OptString `json:"preview_code"`
 	ResendAfter int       `json:"resend_after"`
@@ -128850,9 +129181,9 @@ type ResponsePostResponseMeIdentitiesChannelCodeOK struct {
 	SentTo string `json:"sent_to"`
 }
 
-// GetCode returns the value of Code.
-func (s *ResponsePostResponseMeIdentitiesChannelCodeOK) GetCode() OptString {
-	return s.Code
+// GetLink returns the value of Link.
+func (s *ResponsePostResponseMeIdentitiesChannelCodeOK) GetLink() OptString {
+	return s.Link
 }
 
 // GetPreviewCode returns the value of PreviewCode.
@@ -128870,9 +129201,9 @@ func (s *ResponsePostResponseMeIdentitiesChannelCodeOK) GetSentTo() string {
 	return s.SentTo
 }
 
-// SetCode sets the value of Code.
-func (s *ResponsePostResponseMeIdentitiesChannelCodeOK) SetCode(val OptString) {
-	s.Code = val
+// SetLink sets the value of Link.
+func (s *ResponsePostResponseMeIdentitiesChannelCodeOK) SetLink(val OptString) {
+	s.Link = val
 }
 
 // SetPreviewCode sets the value of PreviewCode.
@@ -128894,16 +129225,15 @@ type ResponsePostResponseMeIdentitiesChannelConfirmOK struct {
 	// The address or ID on the approver list of the channel, as an administrator saved it.
 	Address string `json:"address"`
 	Channel string `json:"channel"`
-	// A code was sent or shown and can be entered now.
+	// A code or confirm link was sent and can be used now.
 	CodeWaiting bool   `json:"code_waiting"`
 	Label       string `json:"label"`
 	// Proved by this person for exactly this address; a changed address or sign-in email is not linked.
 	Linked   bool        `json:"linked"`
 	LinkedAt NilDateTime `json:"linked_at"`
-	// Email_code: Vedette mails a code to this address. chat_code: press Approve or Reject on an approval
-	// message and Vedette answers you privately with a code. send_code: the box sends a confirm link to
-	// that chat account and you confirm it while signed in to Vedette (Zalo personal, D-447). unavailable:
-	// this channel cannot answer privately yet, so it cannot be linked (approve in Vedette).
+	// Email_code: Vedette mails a code to this address. send_code: the box sends a confirm link to that
+	// chat account and you confirm it while signed in to Vedette (Zalo personal D-447, Telegram D-414);
+	// Send again asks for a new one. unavailable: this channel cannot be linked yet (approve in Vedette).
 	Method ResponsePostResponseMeIdentitiesChannelConfirmOKMethod `json:"method"`
 	// The shown name of that address where the channel knows it (Zalo personal, D-447).
 	Name OptString `json:"name"`
@@ -128989,15 +129319,13 @@ func (s *ResponsePostResponseMeIdentitiesChannelConfirmOK) SetName(val OptString
 	s.Name = val
 }
 
-// Email_code: Vedette mails a code to this address. chat_code: press Approve or Reject on an approval
-// message and Vedette answers you privately with a code. send_code: the box sends a confirm link to
-// that chat account and you confirm it while signed in to Vedette (Zalo personal, D-447). unavailable:
-// this channel cannot answer privately yet, so it cannot be linked (approve in Vedette).
+// Email_code: Vedette mails a code to this address. send_code: the box sends a confirm link to that
+// chat account and you confirm it while signed in to Vedette (Zalo personal D-447, Telegram D-414);
+// Send again asks for a new one. unavailable: this channel cannot be linked yet (approve in Vedette).
 type ResponsePostResponseMeIdentitiesChannelConfirmOKMethod string
 
 const (
 	ResponsePostResponseMeIdentitiesChannelConfirmOKMethodEmailCode   ResponsePostResponseMeIdentitiesChannelConfirmOKMethod = "email_code"
-	ResponsePostResponseMeIdentitiesChannelConfirmOKMethodChatCode    ResponsePostResponseMeIdentitiesChannelConfirmOKMethod = "chat_code"
 	ResponsePostResponseMeIdentitiesChannelConfirmOKMethodSendCode    ResponsePostResponseMeIdentitiesChannelConfirmOKMethod = "send_code"
 	ResponsePostResponseMeIdentitiesChannelConfirmOKMethodUnavailable ResponsePostResponseMeIdentitiesChannelConfirmOKMethod = "unavailable"
 )
@@ -129006,7 +129334,6 @@ const (
 func (ResponsePostResponseMeIdentitiesChannelConfirmOKMethod) AllValues() []ResponsePostResponseMeIdentitiesChannelConfirmOKMethod {
 	return []ResponsePostResponseMeIdentitiesChannelConfirmOKMethod{
 		ResponsePostResponseMeIdentitiesChannelConfirmOKMethodEmailCode,
-		ResponsePostResponseMeIdentitiesChannelConfirmOKMethodChatCode,
 		ResponsePostResponseMeIdentitiesChannelConfirmOKMethodSendCode,
 		ResponsePostResponseMeIdentitiesChannelConfirmOKMethodUnavailable,
 	}
@@ -129016,8 +129343,6 @@ func (ResponsePostResponseMeIdentitiesChannelConfirmOKMethod) AllValues() []Resp
 func (s ResponsePostResponseMeIdentitiesChannelConfirmOKMethod) MarshalText() ([]byte, error) {
 	switch s {
 	case ResponsePostResponseMeIdentitiesChannelConfirmOKMethodEmailCode:
-		return []byte(s), nil
-	case ResponsePostResponseMeIdentitiesChannelConfirmOKMethodChatCode:
 		return []byte(s), nil
 	case ResponsePostResponseMeIdentitiesChannelConfirmOKMethodSendCode:
 		return []byte(s), nil
@@ -129033,9 +129358,6 @@ func (s *ResponsePostResponseMeIdentitiesChannelConfirmOKMethod) UnmarshalText(d
 	switch ResponsePostResponseMeIdentitiesChannelConfirmOKMethod(data) {
 	case ResponsePostResponseMeIdentitiesChannelConfirmOKMethodEmailCode:
 		*s = ResponsePostResponseMeIdentitiesChannelConfirmOKMethodEmailCode
-		return nil
-	case ResponsePostResponseMeIdentitiesChannelConfirmOKMethodChatCode:
-		*s = ResponsePostResponseMeIdentitiesChannelConfirmOKMethodChatCode
 		return nil
 	case ResponsePostResponseMeIdentitiesChannelConfirmOKMethodSendCode:
 		*s = ResponsePostResponseMeIdentitiesChannelConfirmOKMethodSendCode

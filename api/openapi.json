@@ -41716,6 +41716,216 @@
         }
       }
     },
+    "/notify/telegram/approvers": {
+      "get": {
+        "operationId": "notify_get_notify_telegram_approvers",
+        "summary": "Approvers of the Telegram channel and whether each confirmed the link the bot sent them while signed in as themself (linked); box_account is always false (D-414)",
+        "tags": [
+          "notify"
+        ],
+        "x-stories": [
+          "S-RESP-2"
+        ],
+        "x-min-role": "admin",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "user_id": {
+                            "type": "string"
+                          },
+                          "address": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "state": {
+                            "type": "string",
+                            "enum": [
+                              "linked",
+                              "sending",
+                              "waiting",
+                              "not_sent"
+                            ]
+                          },
+                          "sent_at": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "format": "date-time",
+                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "error": {
+                            "type": "string",
+                            "description": "not_sent: why (failed, expired, or no link made)"
+                          },
+                          "self": {
+                            "type": "boolean",
+                            "description": "The administrator asking"
+                          },
+                          "box_account": {
+                            "type": "boolean",
+                            "description": "The address is the box's own signed-in Zalo account (the QR sign-in proved it); only your own row with it skips the message"
+                          },
+                          "link": {
+                            "description": "Only in the answer of POST …/code for your own row with the box's own account: the confirm page (/link/zalo?c=…) to open in this session; any other Zalo gets the link by message",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "user_id",
+                          "address",
+                          "name",
+                          "state",
+                          "sent_at",
+                          "error",
+                          "self",
+                          "box_account"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "items"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/notify/telegram/approvers/{user_id}/code": {
+      "post": {
+        "operationId": "notify_post_notify_telegram_approvers_user_id_code",
+        "summary": "Send an approver a new confirm link by the Telegram bot (the old one stops working): only privately to their user ID; when the bot may not write to them yet, 502 send_failed and a note without the link in the approval chat asks them to press Start (D-414)",
+        "tags": [
+          "notify"
+        ],
+        "x-stories": [
+          "S-RESP-2"
+        ],
+        "x-min-role": "admin",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "user_id": {
+                      "type": "string"
+                    },
+                    "address": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "state": {
+                      "type": "string",
+                      "enum": [
+                        "linked",
+                        "sending",
+                        "waiting",
+                        "not_sent"
+                      ]
+                    },
+                    "sent_at": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "error": {
+                      "type": "string",
+                      "description": "not_sent: why (failed, expired, or no link made)"
+                    },
+                    "self": {
+                      "type": "boolean",
+                      "description": "The administrator asking"
+                    },
+                    "box_account": {
+                      "type": "boolean",
+                      "description": "The address is the box's own signed-in Zalo account (the QR sign-in proved it); only your own row with it skips the message"
+                    },
+                    "link": {
+                      "description": "Only in the answer of POST …/code for your own row with the box's own account: the confirm page (/link/zalo?c=…) to open in this session; any other Zalo gets the link by message",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "user_id",
+                    "address",
+                    "name",
+                    "state",
+                    "sent_at",
+                    "error",
+                    "self",
+                    "box_account"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/notify/zalo/approvers": {
       "get": {
         "operationId": "notify_get_notify_zalo_approvers",
@@ -54454,15 +54664,14 @@
                             "type": "string",
                             "enum": [
                               "email_code",
-                              "chat_code",
                               "send_code",
                               "unavailable"
                             ],
-                            "description": "email_code: Vedette mails a code to this address. chat_code: press Approve or Reject on an approval message and Vedette answers you privately with a code. send_code: the box sends a confirm link to that chat account and you confirm it while signed in to Vedette (Zalo personal, D-447). unavailable: this channel cannot answer privately yet, so it cannot be linked (approve in Vedette)"
+                            "description": "email_code: Vedette mails a code to this address. send_code: the box sends a confirm link to that chat account and you confirm it while signed in to Vedette (Zalo personal D-447, Telegram D-414); Send again asks for a new one. unavailable: this channel cannot be linked yet (approve in Vedette)"
                           },
                           "code_waiting": {
                             "type": "boolean",
-                            "description": "A code was sent or shown and can be entered now"
+                            "description": "A code or confirm link was sent and can be used now"
                           }
                         },
                         "required": [
@@ -54541,7 +54750,7 @@
     "/response/me/identities/{channel}/code": {
       "post": {
         "operationId": "response_post_response_me_identities_channel_code",
-        "summary": "Mail a 6-digit link code to my address on the email approval channel (my sign-in email). 10 minutes, one at a time, a new one after 60 seconds, 5 an hour. Chat channels get their code by pressing a button on an approval message",
+        "summary": "Email: mail a 6-digit link code to my address on the email approval channel (my sign-in email). Telegram and Zalo personal (send_code): send a new confirm link to my listed chat ID (D-414; sent_to names it). 10 minutes, one at a time, a new one after 60 seconds, 5 an hour",
         "tags": [
           "response"
         ],
@@ -54581,8 +54790,8 @@
                       "description": "Preview build only; never sent by a real box",
                       "type": "string"
                     },
-                    "code": {
-                      "description": "send_code channels only: the code to send from your own chat account to the box account (sent_to is that account ID); it proves nothing until it arrives from there",
+                    "link": {
+                      "description": "send_code channels only, when nothing was sent because you confirm in this session (your own row with the box's own Zalo account): the confirm page to open",
                       "type": "string"
                     }
                   },
@@ -54691,15 +54900,14 @@
                       "type": "string",
                       "enum": [
                         "email_code",
-                        "chat_code",
                         "send_code",
                         "unavailable"
                       ],
-                      "description": "email_code: Vedette mails a code to this address. chat_code: press Approve or Reject on an approval message and Vedette answers you privately with a code. send_code: the box sends a confirm link to that chat account and you confirm it while signed in to Vedette (Zalo personal, D-447). unavailable: this channel cannot answer privately yet, so it cannot be linked (approve in Vedette)"
+                      "description": "email_code: Vedette mails a code to this address. send_code: the box sends a confirm link to that chat account and you confirm it while signed in to Vedette (Zalo personal D-447, Telegram D-414); Send again asks for a new one. unavailable: this channel cannot be linked yet (approve in Vedette)"
                     },
                     "code_waiting": {
                       "type": "boolean",
-                      "description": "A code was sent or shown and can be entered now"
+                      "description": "A code or confirm link was sent and can be used now"
                     }
                   },
                   "required": [

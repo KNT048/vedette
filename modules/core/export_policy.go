@@ -76,7 +76,7 @@ var exportPolicy = map[string]tablePolicy{
 	"feeds_fetch_log":        {export: "id source_id started_at finished_at status records_accepted records_rejected error bytes etag last_modified", json: "reject_reasons"},
 	"feeds_ioc":              {export: "id type value first_seen last_seen"},
 	"feeds_ioc_source":       {export: "ioc_id source_id last_seen confidence seen"},
-	"feeds_source":           {export: "id builtin name kind format enabled interval_hours auth_type auth_header_name auth_username secret_last4 license created_at last_fetch last_success failures records status error etag last_modified catalog_version rev answered_by", json: "parser", url: "url default_url", skip: "secret_id"},
+	"feeds_source":           {export: "id builtin name kind format enabled interval_hours auth_type auth_header_name auth_username secret_last4 license created_at last_fetch last_success failures records status error etag last_modified mirror_etag mirror_last_modified catalog_version rev answered_by", json: "parser", url: "url default_url", skip: "secret_id"},
 	"feeds_template":         {export: "cve"},
 	"feeds_vuln":             {export: "cve vendor product product_key name description required_action date_added due_date ransomware epss epss_7d_ago has_template source_id updated_at kev_announced_at", json: "links"},
 	"feeds_weekly_answer":    {export: "key answer user_id answered_at device_added"},

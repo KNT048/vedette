@@ -681,11 +681,43 @@ func TestSubscribeToldWhenARiskAcceptanceEnds(t *testing.T) {
 		}
 	}
 	e.flush()
-	if n := e.count(`SELECT COUNT(*) FROM notify_notice`); n != 1 || e.count(`SELECT COUNT(*) FROM notify_notice WHERE id LIKE 'nt-f-1-reopened-%'`) != 1 {
+	if n := e.count(`SELECT COUNT(*) FROM notify_notice`); n != 1 || e.count(`SELECT COUNT(*) FROM notify_notice WHERE id LIKE 'nt-f-1-expired-%'`) != 1 {
 		t.Fatalf("notices = %d", n)
 	}
 	all := strings.NewReplacer("=\r\n", "", "=\n", "", "\r\n ", " ", "\n ", " ").Replace(strings.Join(smtp.messages(), "\n"))
 	for _, want := range []string{"Risk acceptance ended: CVE-2026-100 on NAS-01 is open again", "it@acme.example accepted this risk until 12 Feb 2027; that date has passed."} {
+		if !strings.Contains(all, want) {
+			t.Fatalf("text %q missing: %s", want, all)
+		}
+	}
+}
+
+// D-498 (Opus r2 LOW-1): an acceptance that ends and a "matches again" reopen of the same finding on
+// the same UTC day are two notices; neither swallows the other.
+func TestSubscribeExpiryAndMatchesAgainSameDayBothGoOut(t *testing.T) {
+	e := newEnv(t, func(c *notify.Config) {
+		c.Findings = fakeFindings{map[string]notify.FindingInfo{
+			"f-1": {CVE: "CVE-2026-100", Product: "QNAP Photo Station", Severity: notify.Critical, Title: "t", What: "It is exploited.", Action: "a", Devices: []string{"NAS-01"}},
+		}}
+	})
+	smtp := newFakeSMTP(t)
+	e.email(smtp)
+	e.plain()
+	e.svc.Subscribe(e.bus)
+	for _, ev := range []findings.StatusChangedEvent{
+		{FindingID: "f-1", From: findings.StatusRiskAccepted, To: findings.StatusConfirmed, Reason: findings.ReasonRiskExpired, AcceptedBy: "it@acme.example", AcceptedUntil: "2027-02-12"},
+		{FindingID: "f-1", From: findings.StatusNotRelevant, To: findings.StatusSuspected, Reason: findings.ReasonMatchesAgain},
+	} {
+		if err := e.bus.Publish(e.ctx(), events.Event{Name: notify.EventFindingStatusChanged, Data: ev}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	e.flush()
+	if e.count(`SELECT COUNT(*) FROM notify_notice WHERE id LIKE 'nt-f-1-expired-%'`) != 1 || e.count(`SELECT COUNT(*) FROM notify_notice WHERE id LIKE 'nt-f-1-reopened-%'`) != 1 {
+		t.Fatalf("notices = %d, want one expired and one reopened", e.count(`SELECT COUNT(*) FROM notify_notice`))
+	}
+	all := strings.NewReplacer("=\r\n", "", "=\n", "", "\r\n ", " ", "\n ", " ").Replace(strings.Join(smtp.messages(), "\n"))
+	for _, want := range []string{"CVE-2026-100 on NAS-01: risk acceptance ended, open again", "CVE-2026-100 on NAS-01: reopened, it matches again"} {
 		if !strings.Contains(all, want) {
 			t.Fatalf("text %q missing: %s", want, all)
 		}

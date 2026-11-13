@@ -184,3 +184,29 @@ func TestWeeklyAcceptedRiskIsNotResolved(t *testing.T) {
 		t.Fatalf("counts = %+v, resolved = %+v", c, r.Resolved)
 	}
 }
+
+// Opus r2 LOW-3 of D-498: "Risk accepted: N" counts the same findings as the report's other rows: a hand-added product
+// with no device is listed and counted like any device (its flag only changes wording), and a finding stamped after the
+// report's time is in neither.
+func TestWeeklyAcceptedCountsWhatTheRowsShow(t *testing.T) {
+	t.Parallel()
+	in := sampleInput()
+	in.devices = append(in.devices, Device{ID: "p1", Name: "Veeam Backup", Kind: "other", Approved: true, FirstSeen: day0(30), NoDevice: true})
+	in.findings = append(in.findings,
+		Finding{ID: "p-open", AssetID: "p1", CVE: "CVE-2026-0201", Status: "suspected", Severity: "high", FirstSeen: day0(3)},
+		Finding{ID: "p-acc", AssetID: "p1", CVE: "CVE-2026-0202", Status: "risk_accepted", Severity: "high", FirstSeen: day0(3), ResolvedAt: day0(1), AcceptedUntil: time.Date(2027, 2, 12, 0, 0, 0, 0, time.UTC)},
+		Finding{ID: "future", AssetID: "a1", CVE: "CVE-2026-0203", Status: "risk_accepted", Severity: "high", FirstSeen: t0.Add(time.Hour), ResolvedAt: t0.Add(-time.Hour), AcceptedUntil: time.Date(2027, 1, 1, 0, 0, 0, 0, time.UTC)})
+	r := buildWeekly(in)
+	listed := map[string]bool{}
+	for _, rows := range [][]FindingRow{r.NewFindings, r.Open} {
+		for _, f := range rows {
+			listed[f.ID] = true
+		}
+	}
+	if !listed["p-open"] || !listed["p-acc"] || listed["future"] {
+		t.Fatalf("rows = %v", listed)
+	}
+	if c := r.Counts; c.Accepted != 1 || c.AcceptedUntil != "2027-02-12" {
+		t.Fatalf("counts = %+v", c)
+	}
+}

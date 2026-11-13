@@ -78,6 +78,8 @@ type Service struct {
 	pollMu   sync.Mutex // one Poll at a time
 	// touches is when each source last touched each Trap IP, for the sweep detection (ingest.go sweep; guarded by pollMu).
 	touches map[netip.Addr]map[netip.Addr]time.Time
+	// connected is when each source last completed a connection to the honeypot: its address is real (sweep; pollMu; W6-4).
+	connected map[netip.Addr]time.Time
 	// fedTouches are the host's attempts already fed to sweep, by "src|dst", until they expire there (PollTouches; pollMu).
 	fedTouches map[string]time.Time
 	// touchHourStart and touchHourNew count the scan hits made from attempts in this clock hour (guarded by mu; B2 review M2).

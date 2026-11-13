@@ -506,6 +506,9 @@ func (s *Service) ingestOne(ctx context.Context, tx *sql.Tx, env *ingestEnv, r R
 // sweepWindow: one source that touches two or more Trap IPs within this time is scanning the network (W1-13, S-HP-2).
 const sweepWindow = time.Minute
 
+// connectedWindow is how long a completed connection from a source vouches for its address on later scan hits (W6-4).
+const connectedWindow = time.Hour
+
 // maxSweepSources bounds the memory of who touched what: past it the record starts over. ponytail: a flood of sources
 // can make a real sweep in that poll go unseen as a scan (each of its hits still alerts); the upgrade is an LRU.
 const maxSweepSources = 4096
@@ -514,6 +517,12 @@ const maxSweepSources = 4096
 // sweepWindow, stores one scan hit for src per hit window (later Trap IPs it touches in that window are added to the same
 // hit, not a new alert). The record is memory only: a sweep that a restart of core cuts in two is not seen as one.
 func (s *Service) sweep(ctx context.Context, tx *sql.Tx, env *ingestEnv, src netip.Addr, trapIP string, ts time.Time) error {
+	if s.connected == nil || len(s.connected) > maxSweepSources {
+		s.connected = map[netip.Addr]time.Time{}
+	}
+	if old := s.connected[src]; !env.touch && ts.After(old) {
+		s.connected[src] = ts
+	}
 	ip, err := netip.ParseAddr(trapIP)
 	if err != nil || env.at[ip] == nil {
 		return nil
@@ -551,7 +560,7 @@ func (s *Service) sweep(ctx context.Context, tx *sql.Tx, env *ingestEnv, src net
 	line := src.String() + " touched " + env.nameAt(trapIP) + " (" + trapIP + ")"
 	key := connKey("sweep", src.String(), strconv.FormatInt(ts.Truncate(hitWindow).Unix(), 10))
 	note := ""
-	if env.touch {
+	if at, ok := s.connected[src]; env.touch && (!ok || ts.Sub(at) > connectedWindow) { // a connection in the hour before proves the address (W6-4)
 		note = forgedNote
 	}
 	if err := s.upsert(ctx, tx, env, storedHit{

@@ -610,3 +610,31 @@ func TestARealConnectionDropsTheForgedNote(t *testing.T) {
 		t.Fatalf("after a real connection: %+v", scans)
 	}
 }
+
+// W6-4 (n24 walk): the real connection came first, to one Trap IP; the sweep was made later by the host's attempts. The address is
+// proven by that connection, so the scan hit must not call it forged.
+func TestAConnectionBeforeTheSweepKeepsTheForgedNoteOff(t *testing.T) {
+	t.Parallel()
+	var list []honeypot.Touch
+	e := newEnv(t, func(e *env) { e.cfg.Host = touchHost{fakeHost: e.host, list: &list} })
+	e.now = t0.Add(5 * time.Minute)
+	e.setup()
+	e.addTrapIP("NAS-ARCHIVE", "192.168.10.241", honeypot.NAS, honeypot.HTTP, honeypot.SMB)
+	if err := e.svc.Apply(e.ctx()); err != nil {
+		t.Fatal(err)
+	}
+	e.appendLog(sshNew("192.168.10.107", 50001, e.now.Add(-30*time.Second)).json())
+	e.poll()
+	if scans := hitsOfKind(t, e, honeypot.KindScan); len(scans) != 0 {
+		t.Fatalf("one Trap IP is no sweep: %+v", scans)
+	}
+	list = []honeypot.Touch{{Src: addr("192.168.10.107"), Dst: addr("192.168.10.240"), At: e.now.Add(-20 * time.Second)},
+		{Src: addr("192.168.10.107"), Dst: addr("192.168.10.241"), At: e.now.Add(-10 * time.Second)}}
+	if err := e.svc.PollTouches(e.ctx()); err != nil {
+		t.Fatal(err)
+	}
+	scans := hitsOfKind(t, e, honeypot.KindScan)
+	if len(scans) != 1 || strings.Contains(scans[0].Excerpt, "forged") {
+		t.Fatalf("a sweep after a real connection: %+v", scans)
+	}
+}

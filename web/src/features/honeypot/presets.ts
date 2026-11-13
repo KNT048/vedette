@@ -7,11 +7,11 @@ export interface PresetDef { id: TrapPreset; services: HpService[]; vendor: Trap
 
 export const PRESETS: PresetDef[] = [
   { id: 'file_server', services: ['smb', 'rdp'], vendor: 'dell', kinds: ['server', 'pc'], example: 'FILESRV-OLD' },
-  { id: 'nas', services: ['http', 'smb'], vendor: 'synology', kinds: ['nas'], example: 'NAS-ARCHIVE' },
-  { id: 'printer', services: ['http'], vendor: 'hp', kinds: ['printer'], example: 'PRN-FLOOR2' },
+  { id: 'nas', services: ['http', 'https', 'smb'], vendor: 'synology', kinds: ['nas'], example: 'NAS-ARCHIVE' },
+  { id: 'printer', services: ['http', 'ftp'], vendor: 'hp', kinds: ['printer'], example: 'PRN-FLOOR2' },
   { id: 'camera', services: ['http'], vendor: 'hikvision', kinds: ['camera', 'nvr'], example: 'CAM-STORE-04' },
-  { id: 'linux', services: ['ssh'], vendor: 'vmware', kinds: ['server'], example: 'BUILD-SRV-02' },
-  { id: 'database', services: ['mssql'], vendor: 'dell', kinds: ['server'], example: 'SQL-OLD-01' },
+  { id: 'linux', services: ['ssh', 'ftp'], vendor: 'vmware', kinds: ['server'], example: 'BUILD-SRV-02' },
+  { id: 'database', services: ['mssql', 'mysql'], vendor: 'dell', kinds: ['server'], example: 'SQL-OLD-01' },
   { id: 'custom', services: [], vendor: null, kinds: [], example: 'TRAP-01' },
 ]
 export const presetDef = (id: TrapPreset) => PRESETS.find((p) => p.id === id)!
@@ -23,7 +23,16 @@ export const VENDORS: { id: TrapVendor; oui: string }[] = [
   { id: 'canon', oui: '00:1E:8F' }, { id: 'hikvision', oui: '44:19:B6' }, { id: 'dahua', oui: '3C:EF:8C' }, { id: 'axis', oui: 'AC:CC:8E' },
 ]
 
-export const SERVICE_PORT: Record<HpService, number> = { smb: 445, rdp: 3389, ssh: 22, mssql: 1433, http: 80 }
+export const SERVICE_PORT: Record<HpService, number> = {
+  smb: 445, rdp: 3389, ssh: 22, mssql: 1433, http: 80, https: 443, ftp: 21, telnet: 23, mysql: 3306, mongodb: 27017, redis: 6379, vnc: 5900, git: 9418,
+  httpproxy: 8080, tcpbanner: 25, tftp: 69, ntp: 123, sip: 5060,
+}
+/** The UDP services (the rest are TCP): they answer nothing, they only log (D-467). */
+export const UDP_SERVICES: HpService[] = ['tftp', 'ntp', 'sip']
+/** "445" or "69/udp". */
+export const portLabel = (s: HpService) => (UDP_SERVICES.includes(s) ? `${SERVICE_PORT[s]}/udp` : String(SERVICE_PORT[s]))
+/** Services where a login names an account, so a fake credential fires on them (Coverage). */
+export const LOGIN_SERVICES: HpService[] = ['ssh', 'rdp', 'mssql', 'http', 'https', 'ftp', 'telnet', 'mysql', 'mongodb', 'httpproxy']
 
 // Honey token presets (D-468, S-HP-2): a believable token in one click, as Canarytokens offers ready token kinds. A preset fills the
 // type, name, file type and place of the form (the place text is token.preset.<id>.plant); every field stays editable. Web only:

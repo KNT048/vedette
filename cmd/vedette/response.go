@@ -464,7 +464,9 @@ func (r responseIncidents) Incident(ctx context.Context, id string) (response.In
 	if h.SrcAssetID != nil {
 		out.AssetID = *h.SrcAssetID
 	}
-	if h.Kind == honeypot.KindScan { // a scan's source may be forged: confirmed only by a completed connection near it (D-509)
+	// A scan's source may be forged, and so may a UDP trap's (no handshake, D-467 review H1): confirmed only by a completed
+	// connection near it (D-509).
+	if h.Kind == honeypot.KindScan || h.NoHandshake {
 		confirmed := false // a time that does not parse confirms nothing
 		if at, err := time.Parse(time.RFC3339, h.TS); err == nil {
 			if confirmed, err = r.d.Honeypot.SourceConnected(ctx, h.SrcIP, at, scanConfirmWindow); err != nil {

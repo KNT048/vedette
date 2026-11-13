@@ -425,7 +425,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `no_devices` | 409 | No device in the inventory matches (agent sample data). | `POST /inventory/agents/tokens/{id}/sample-data`; `POST /inventory/agents/wazuh/sample-data` |
 | `no_source` | 409 | This incident names no single address Vedette can act on. Nothing was requested. | `POST /response/incidents/{id}/request` (D-509): not a trap incident, a test hit, or the hit is gone |
 | `incident_resolved` | 409 | This incident is resolved, so nothing is offered. Reopen it in Incidents to act on it. | `POST /response/incidents/{id}/request` (D-509) |
-| `source_unconfirmed` | 409 | The source of a scan can be forged: these attempts completed no connection, so this address may belong to someone innocent. Confirm on the device first. Nothing is offered for it. | `POST /response/incidents/{id}/request` (D-509): a scan hit whose source has no service hit within the hour around it |
+| `source_unconfirmed` | 409 | The source of a scan or of a UDP request can be forged: it completed no connection, so this address may belong to someone innocent. Confirm on the device first. Nothing is offered for it. | `POST /response/incidents/{id}/request` (D-509, honeypot D-467): a scan hit, or a UDP trap hit (TFTP, NTP, SIP), whose source has no TCP service hit within the hour around it |
 | `no_pending` | 409 | No key is waiting for confirmation. Click "Turn on two-factor authentication" to create one. | `POST /core/account/2fa/confirm` |
 | `no_previous` | 409 | No previous version to go back to. | `POST /core/updates/rollback` |
 | `not_email_method` | 409 | This account does not use email codes. | `POST /auth/login/resend-code` |

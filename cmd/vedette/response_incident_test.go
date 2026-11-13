@@ -83,6 +83,28 @@ func TestResponseIncidentRespondReadsTheTrapSource(t *testing.T) {
 		t.Fatalf("a scan whose source completed a connection is still unconfirmed: %v", v)
 	}
 
+	// D-467 review H1: a UDP trap hit (one datagram, no handshake) is as forgeable as a scan: nothing is offered for its source, and
+	// it does not confirm a scan of the same source. A TCP connection of that source near it confirms both.
+	exec(`INSERT INTO hp_hits (id, ts, kind, service, label, port, src_ip, is_test, excerpt, trap_ip, trap_hostname, events, handshake)
+		VALUES ('hit-udp', '2026-11-13T08:00:00.000Z', 'service', 'tftp', 'TFTP', 69, '203.0.113.20', 0, '', '192.168.18.241', 'NAS', '[]', 0)`)
+	if err := s.d.Bus.Publish(ctx, events.Event{Name: honeypot.EventHitCreated, Data: honeypot.HitEventData{ID: "hit-udp", TS: "2026-11-13T08:00:00.000Z",
+		Kind: honeypot.KindService, Service: "tftp", Port: 69, SrcIP: "203.0.113.20", Label: "TFTP", Decoy: "NAS", Unconfirmed: true}}); err != nil {
+		t.Fatal(err)
+	}
+	udp := incidentOf(s, "203.0.113.20")
+	if _, v := s.do("GET", "/response/incidents/"+udp, "viewer", ""); v["note"] == nil || !strings.Contains(v["note"].(string), "forged") || fmt.Sprint(v["options"]) == "[]" || strings.Contains(fmt.Sprint(v["options"]), "ready:true") {
+		t.Fatalf("a UDP hit's source is offered as confirmed: %v", v)
+	}
+	if c, v := s.do("POST", "/response/incidents/"+udp+"/request", "operator", `{"action_id":"blocklist_add"}`); c != 409 || v["error"].(map[string]any)["code"] != "source_unconfirmed" {
+		t.Fatalf("block a UDP hit's source: %d %v", c, v)
+	}
+	hitAt("hit-scan-udp", "192.168.18.171", "scan", "real", "2026-11-13T08:10:00.000Z")
+	exec(`INSERT INTO hp_hits (id, ts, kind, service, label, port, src_ip, is_test, excerpt, trap_ip, trap_hostname, events, handshake)
+		VALUES ('hit-udp-2', '2026-11-13T08:11:00.000Z', 'service', 'ntp', 'NTP', 123, '192.168.18.171', 0, '', '192.168.18.241', 'NAS', '[]', 0)`)
+	if _, v := s.do("GET", "/response/incidents/"+incidentOf(s, "192.168.18.171"), "viewer", ""); v["note"] == nil {
+		t.Fatalf("a UDP line confirms a scan's source: %v", v)
+	}
+
 	// A source that is one of the box's decoys is never-touch through the real BoxAddrs (the honeypot's applied Trap IPs).
 	exec(`INSERT INTO hp_config (key, value, updated_at, updated_by) VALUES ('applied', '["192.168.18.240"]', '2026-11-13T07:00:00.000Z', 'system')`)
 	if c, v := s.do("PUT", "/response/catalog/fgt_addrgrp_add", "admin", `{"enabled":true}`); c != 200 {

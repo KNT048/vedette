@@ -1,0 +1,3 @@
+# Deferred: fix/incident-approved-close-mlee (D-552)
+
+- [ ] 2026-11-13 — inventory: a light batch read for notify's `DeviceStates` (like `DeviceRefs`, adding model, origin, approved, approved_at; one query, no findings count) so notify stops using `inventory.Device` (counts every finding via `findings.CountByAsset`) per update and `AllDevices` (loads all software) per hour — vì sao để sau: inventory is Kiên's module, off limits for this PR; current reads are bounded (only devices on open new-device incidents; one batch per hour) — ở đâu: `modules/inventory/wiring.go` `DeviceRefs`, `cmd/vedette/notify.go` `notifyDevices.DeviceStates`

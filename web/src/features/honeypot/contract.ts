@@ -1,10 +1,12 @@
 // API contract of module honeypot (D-18, D-50, D-466, S-HP-1, S-HP-2). UI types are inferred from here (types.ts).
-// Traps only listen and log, they never hit back (LEGAL §3). Ports of the services OpenCanary supports: SMB 445, RDP 3389, SSH 22, MSSQL 1433, HTTP 80.
+// Traps only listen and log, they never hit back (LEGAL §3). Each service has its fixed port (presets.ts SERVICE_PORT): the OpenCanary modules that work in
+// the honeypot image (D-467); snmp and llmnr (scapy, GPL-2, raw sockets) and portscan (iptables) are not offered.
 // D-466: a Trap IP is a profile (name, IP, vendor MAC prefix, its own services); the host lets each address answer only its own ports.
 import { z } from 'zod'
 import { defineEndpoints } from '@/lib/contract'
 
-export const HpService = z.enum(['smb', 'rdp', 'ssh', 'mssql', 'http'])
+export const HpService = z.enum(['smb', 'rdp', 'ssh', 'mssql', 'http', 'https', 'ftp', 'telnet', 'mysql', 'mongodb', 'redis', 'vnc', 'git', 'httpproxy', 'tcpbanner', 'tftp', 'ntp', 'sip'])
+  .describe('A trap service (D-467). tcpbanner = a mail server greeting on port 25; tftp, ntp and sip are UDP and never answer, they only log')
 
 export const TrapState = z.enum(['off', 'listening', 'conflict', 'starting', 'stopping', 'failed'])
   .describe('What the box reports, not the switch. conflict = on, but the IP clashes with a device in the inventory or the host refused it. starting = switched on, the box is bringing it up (container start and health check take minutes). stopping = switched off, the host has not confirmed yet. failed = switched on, but the box could not set it up (see problem / reason)')
@@ -40,7 +42,7 @@ export const Hit = z.object({
   id: z.string(),
   ts: z.iso.datetime(),
   kind: HitKind,
-  service: HpService.nullable().describe('Set for kind=service on the classic ports; null otherwise'),
+  service: HpService.nullable().describe('Set for kind=service; null otherwise'),
   label: z.string().describe('What was touched, e.g. "SMB", "Credential token svc-backup-old", "Port scan across 5 decoy IPs"'),
   port: z.number().int().nullable(),
   src_ip: z.string(),

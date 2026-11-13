@@ -476,6 +476,8 @@ func heldForAuto(ev Det, specs []RuleAction, recs []itemRec) string {
 	switch {
 	case ev.Trigger == "honeypot" && ev.Fields["kind"] == "scan":
 		return "the source address of a port scan can be forged, so a person approves it"
+	case ev.Trigger == "honeypot" && ev.Fields["unconfirmed"] == "1": // a UDP trap: no handshake (honeypot D-467 review H1)
+		return "the source address of a UDP request can be forged (UDP has no handshake), so a person approves it"
 	case ev.Trigger == "ioc_connection" && ev.Fields["dest_kind"] != "ip":
 		return "the hit names a domain only, so the device it names may be a DNS forwarder or a proxy: a person approves it"
 	case ev.Trigger == "ioc_connection" && (namesSource(specs) || slices.ContainsFunc(recs, func(r itemRec) bool { return touchesSource(r.Values, ev) })):

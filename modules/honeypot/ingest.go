@@ -161,7 +161,7 @@ func (s *Service) Poll(ctx context.Context) error {
 		}
 	}
 	if changed && saved != final {
-		if err := s.db.Write(ctx, func(tx *sql.Tx) error { return s.saveJSON(ctx, tx, "tail", final, "system") }); err != nil {
+		if err := s.db.Write(ctx, func(tx *sql.Tx) error { return s.saveJSON(ctx, tx, "tail", final) }); err != nil {
 			return err
 		}
 	}
@@ -186,8 +186,11 @@ type ingestEnv struct {
 	// touch: this batch is made of attempts the host recorded (PollTouches): new hits draw from touchLeft, not the listener caps.
 	touch     bool
 	touchLeft int
-	pollNew   int // new hits stored by this poll's earlier batches
-	hourNew   int // new hits stored in this clock hour before this batch
+	pollNew   int // new hits of real connections stored by this poll's earlier batches
+	hourNew   int // new hits of real connections stored in this clock hour before this batch
+	// udpLeft is what this clock hour's UDP budget had when the poll began, udpNew what this poll's earlier batches took of it.
+	udpLeft, udpNew int
+	batchUDP        int // new UDP hits of the batch in progress
 	// of the batch in progress
 	newHits []HitEventData
 	ignored int
@@ -222,9 +225,10 @@ func (s *Service) newIngest(ctx context.Context) (*ingestEnv, error) {
 	hour := env.now.Truncate(time.Hour)
 	s.mu.Lock()
 	if !s.hourStart.Equal(hour) {
-		s.hourStart, s.hourNew = hour, 0
+		s.hourStart, s.hourNew, s.udpHourNew = hour, 0, 0
 	}
 	env.hourNew = s.hourNew
+	env.udpLeft = maxUDPHitsPerHour - s.udpHourNew
 	s.mu.Unlock()
 	return env, nil
 }
@@ -233,7 +237,7 @@ func (s *Service) newIngest(ctx context.Context) (*ingestEnv, error) {
 // hits it made (core/events: after the commit, a rolled-back hit is never announced).
 func (s *Service) ingestBatch(ctx context.Context, env *ingestEnv, batch []tailItem, pos tailPos) error {
 	err := s.db.Write(ctx, func(tx *sql.Tx) error {
-		env.newHits, env.ignored, env.st = nil, 0, Stats{}
+		env.newHits, env.ignored, env.st, env.batchUDP = nil, 0, Stats{}, 0
 		for _, it := range batch {
 			if err := s.ingestOne(ctx, tx, env, it.rec); err != nil {
 				return err
@@ -245,7 +249,7 @@ func (s *Service) ingestBatch(ctx context.Context, env *ingestEnv, batch []tailI
 				return fmt.Errorf("honeypot: count ignored: %w", err)
 			}
 		}
-		return s.saveJSON(ctx, tx, "tail", pos, "system")
+		return s.saveJSON(ctx, tx, "tail", pos)
 	})
 	if err != nil {
 		return err
@@ -257,13 +261,16 @@ func (s *Service) ingestBatch(ctx context.Context, env *ingestEnv, batch []tailI
 // afterBatch counts and publishes what a committed batch made (core/events: after the commit, a rolled-back hit is never announced).
 func (s *Service) afterBatch(ctx context.Context, env *ingestEnv) {
 	created := env.newHits
-	env.pollNew += len(created)
-	env.hourNew += len(created)
+	listener := len(created) - env.batchUDP
+	env.pollNew += listener
+	env.hourNew += listener
+	env.udpNew += env.batchUDP
 	s.mu.Lock()
 	if env.touch {
 		s.touchHourNew += len(created) // their own budget: never the listener's (B2 review M2)
 	} else {
-		s.hourNew += len(created) // a delta: a URL token hit stored meanwhile is not lost (B2 review L3)
+		s.hourNew += listener        // a delta: a URL token hit stored meanwhile is not lost (B2 review L3)
+		s.udpHourNew += env.batchUDP // their own budget (D-467 review M1)
 	}
 	s.stats.Lines += env.st.Lines
 	s.stats.Ignored += env.st.Ignored
@@ -285,9 +292,10 @@ func (s *Service) afterBatch(ctx context.Context, env *ingestEnv) {
 	}
 }
 
-// classify maps an OpenCanary logtype to the service (or scan) it belongs to.
-func classify(lt int) (svc ServiceName, scan, ok bool) {
-	switch {
+// classify maps an OpenCanary line to the service (or scan) it belongs to: by logtype, and for the web lines by port (the HTTPS
+// trap logs the HTTP logtypes).
+func classify(r Record) (svc ServiceName, scan, ok bool) {
+	switch lt := r.LogType; {
 	case lt >= ltSSHNew && lt <= ltSSHLogin:
 		return SSH, false, true
 	case lt == ltRDP:
@@ -295,29 +303,83 @@ func classify(lt int) (svc ServiceName, scan, ok bool) {
 	case lt == ltMSSQLSQL || lt == ltMSSQLWin:
 		return MSSQL, false, true
 	case lt >= ltHTTPGet && lt <= ltHTTPRedirect:
+		if r.DstPort == HTTPS.Port() {
+			return HTTPS, false, true
+		}
 		return HTTP, false, true
 	case lt == ltSMBFile:
 		return SMB, false, true
 	case lt >= ltPortSYN && lt <= ltPortNmapEnd:
 		return "", true, true
+	case lt == ltFTPLogin || lt == ltFTPAuthStart:
+		return FTP, false, true
+	case lt == ltTelnetLogin || lt == ltTelnetNew:
+		return Telnet, false, true
+	case lt == ltProxyLogin:
+		return HTTPProxy, false, true
+	case lt == ltMySQLLogin || lt == ltMySQLNew:
+		return MySQL, false, true
+	case lt == ltTFTP:
+		return TFTP, false, true
+	case lt == ltNTPMonlist:
+		return NTP, false, true
+	case lt == ltVNC:
+		return VNC, false, true
+	case lt == ltSIP:
+		return SIP, false, true
+	case lt == ltGit:
+		return Git, false, true
+	case lt == ltRedis:
+		return Redis, false, true
+	case lt >= ltBannerNew && lt <= ltBannerEnd:
+		return TCPBanner, false, true
+	case lt == ltMongoDB:
+		return MongoDB, false, true
 	}
 	return "", false, false
 }
 
-// detail is the line shown for what this log line did; it holds no password (a typed password may be a real one).
+// loginLine says whether a line is a login attempt that names an account: a bait account used on it fires its token (POST-2).
+func loginLine(r Record) bool {
+	switch r.LogType {
+	case ltSSHLogin, ltHTTPLogin, ltMSSQLSQL, ltMSSQLWin, ltRDP, ltFTPLogin, ltTelnetLogin, ltProxyLogin, ltMySQLLogin:
+		return true
+	case ltMongoDB:
+		return r.MongoAction == "mongodb.auth_attempt"
+	}
+	return false
+}
+
+// ntlmToken is how OpenCanary's proxy trap logs an NTLM Proxy-Authorization: the raw token, base64 of "NTLMSSP". It can carry the
+// answer to the challenge, which is password material: never stored.
+const ntlmSSPBase64 = "TlRMTVNT"
+
+// detail is the line shown for what this log line did. It holds no password and nothing derived from one (a typed password may be
+// a real one): OpenCanary's PASSWORD, the VNC answer and its guess, Redis's arguments (AUTH carries the password), MongoDB's
+// auth_data and an NTLM token are never read into it.
 func detail(r Record, svc ServiceName) string {
 	q := func(s string) string { return `"` + s + `"` }
-	switch r.LogType {
-	case ltSSHNew:
-		return "new connection"
-	case ltSSHVersion:
-		return "client version " + q(r.RemoteVersion)
-	case ltSSHLogin, ltMSSQLSQL, ltMSSQLWin, ltRDP:
+	login := func() string {
 		s := "login attempt, account " + q(r.User)
-		if r.Hostname != "" {
+		if r.Hostname != "" && r.LogType != ltHTTPLogin {
 			s += ", from host name " + q(r.Hostname)
 		}
 		return s
+	}
+	switch r.LogType {
+	case ltSSHNew, ltTelnetNew, ltMySQLNew, ltBannerNew:
+		return "new connection"
+	case ltSSHVersion:
+		return "client version " + q(r.RemoteVersion)
+	case ltSSHLogin, ltMSSQLSQL, ltMSSQLWin, ltRDP, ltFTPLogin, ltTelnetLogin, ltMySQLLogin:
+		return login()
+	case ltFTPAuthStart:
+		return "login started"
+	case ltProxyLogin:
+		if strings.HasPrefix(r.User, ntlmSSPBase64) {
+			return "proxy login attempt (NTLM)"
+		}
+		return "proxy login attempt, account " + q(r.User)
 	case ltHTTPGet:
 		return "request GET " + r.Path + userAgent(r)
 	case ltHTTPRedirect:
@@ -331,6 +393,43 @@ func detail(r Record, svc ServiceName) string {
 			return "share opened"
 		}
 		return "file opened " + q(r.Filename)
+	case ltTFTP:
+		op := "request"
+		switch r.Opcode {
+		case "READ":
+			op = "read request"
+		case "WRITE":
+			op = "write request"
+		}
+		return op + " for file " + q(r.Filename)
+	case ltNTPMonlist:
+		return "monlist request (a list of the server's recent clients, used for reconnaissance and amplification)"
+	case ltVNC:
+		return "login attempt (answered the VNC password challenge)"
+	case ltSIP:
+		return "SIP request"
+	case ltGit:
+		return "clone request for repository " + q(r.Repo)
+	case ltRedis:
+		if r.Error != "" {
+			return "malformed request: " + r.Error
+		}
+		return "command " + q(r.Cmd)
+	case ltMongoDB:
+		switch r.MongoAction {
+		case "mongodb.connection":
+			return "new connection"
+		case "mongodb.auth_attempt":
+			return login()
+		case "mongodb.command":
+			return "command " + q(r.Cmd)
+		case "mongodb.disconnect":
+			return "connection closed"
+		}
+		return "malformed request"
+	}
+	if r.LogType > ltBannerNew && r.LogType <= ltBannerEnd {
+		return "data received"
 	}
 	return string(svc) + " activity"
 }
@@ -409,7 +508,7 @@ func (s *Service) ingestOne(ctx context.Context, tx *sql.Tx, env *ingestEnv, r R
 		env.st.Skipped++
 		return nil
 	}
-	svc, scan, ok := classify(r.LogType)
+	svc, scan, ok := classify(r)
 	if !ok {
 		env.st.Skipped++
 		return nil
@@ -466,23 +565,36 @@ func (s *Service) ingestOne(ctx context.Context, tx *sql.Tx, env *ingestEnv, r R
 		more += " [from port " + strconv.Itoa(r.SrcPort) + "]"
 	}
 	svcCopy := svc
+	// A UDP service (TFTP, NTP, SIP) has no handshake: one datagram with any source address makes the line, so the hit confirms nothing
+	// about its source and says so (D-467 review H1).
+	handshake := svc.Proto() == "tcp"
+	excerpt := det
+	if !handshake {
+		excerpt += "." + udpNote
+	}
 	if err := s.upsert(ctx, tx, env, storedHit{
-		Hit:     Hit{TS: tsText, Kind: KindService, Service: &svcCopy, Label: svc.Label(), Port: &port, SrcIP: src, Excerpt: det, TrapIP: trapIP, TrapHostname: env.nameAt(trapIP)},
+		Hit: Hit{TS: tsText, Kind: KindService, Service: &svcCopy, Label: svc.Label(), Port: &port, SrcIP: src, Excerpt: excerpt, TrapIP: trapIP,
+			TrapHostname: env.nameAt(trapIP), NoHandshake: !handshake},
 		connKey: connKey("service", string(svc), src, dst, strconv.Itoa(port), window),
 		events:  []HitEvent{{TS: tsText, Source: "honeypot", Text: first, Mark: true}},
 	}, more, det); err != nil {
 		return err
 	}
-	if err := s.sweep(ctx, tx, env, r.Src, trapIP, ts); err != nil {
-		return err
+	// A UDP line is not fed to the sweep: its source may be forged (and the sweep would take it as a completed connection that
+	// vouches for the source), and its target is a guess (OpenCanary's UDP listeners report 0.0.0.0); the host's record of the
+	// attempts (PollTouches) has the real source and target of the UDP datagrams, as for a SYN.
+	if handshake {
+		if err := s.sweep(ctx, tx, env, r.Src, trapIP, ts); err != nil {
+			return err
+		}
 	}
 	// POST-2: a bait account or file touched. Only a token that still exists counts (INV-10).
 	var tok Token
 	var found bool
-	switch r.LogType {
-	case ltSSHLogin, ltHTTPLogin, ltMSSQLSQL, ltMSSQLWin, ltRDP:
+	switch {
+	case loginLine(r):
 		tok, found = env.creds[strings.ToLower(r.User)]
-	case ltSMBFile:
+	case r.LogType == ltSMBFile:
 		name := strings.ReplaceAll(r.Filename, `\`, "/")
 		tok, found = env.files[strings.ToLower(path.Base(name))]
 	}
@@ -564,7 +676,7 @@ func (s *Service) sweep(ctx context.Context, tx *sql.Tx, env *ingestEnv, src net
 	note := ""
 	if env.touch { // only attempts: forged unless src completed a connection near it (the rule response uses, SourceConnected, D-509)
 		var n int
-		if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM hp_hits WHERE src_ip = ? AND is_test = 0 AND kind = 'service' AND ts BETWEEN ? AND ?`,
+		if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM hp_hits WHERE src_ip = ? AND is_test = 0 AND kind = 'service' AND handshake = 1 AND ts BETWEEN ? AND ?`,
 			src.String(), from, to).Scan(&n); err != nil {
 			return fmt.Errorf("honeypot: read the hits of a source: %w", err)
 		}
@@ -629,9 +741,12 @@ func isBroadcast(lan netip.Prefix, a netip.Addr) bool {
 	return lan.IsValid() && lan.Bits() < 31 && a == lastAddr(lan)
 }
 
-func hasEvent(evs []HitEvent, text string) bool {
+// hasEvent says whether evs has a line of this time and text: the same log line read twice. A later connection that logs the same
+// text (a second SMB visit within the hit window: no source port, the same "share opened") is a new line (M5-188). ts "" compares
+// the text only: a scan hit has one line per Trap IP touched, not one per connection.
+func hasEvent(evs []HitEvent, ts, text string) bool {
 	for _, e := range evs {
-		if e.Text == text {
+		if (ts == "" || e.TS == ts) && e.Text == text {
 			return true
 		}
 	}
@@ -648,8 +763,10 @@ func (s *Service) upsert(ctx context.Context, tx *sql.Tx, env *ingestEnv, h stor
 	err := tx.QueryRowContext(ctx, `SELECT id, excerpt, events FROM hp_hits WHERE conn_key = ?`, h.connKey).Scan(&id, &excerpt, &evJSON)
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
+		listener := len(env.newHits) - env.batchUDP
 		if env.touch && len(env.newHits) >= env.touchLeft ||
-			!env.touch && (env.pollNew+len(env.newHits) >= maxNewPerPoll || env.hourNew+len(env.newHits) >= maxNewPerHour) {
+			!env.touch && h.NoHandshake && env.udpNew+env.batchUDP >= env.udpLeft ||
+			!env.touch && !h.NoHandshake && (env.pollNew+listener >= maxNewPerPoll || env.hourNew+listener >= maxNewPerHour) {
 			env.st.Suppressed++
 			return nil
 		}
@@ -658,13 +775,16 @@ func (s *Service) upsert(ctx context.Context, tx *sql.Tx, env *ingestEnv, h stor
 		for i := range h.events {
 			h.events[i].Text = clean(h.events[i].Text, 300)
 		}
-		if l := clean(line, 300); l != "" && !hasEvent(h.events, l) {
-			h.events = append(h.events, HitEvent{TS: h.TS, Source: "honeypot", Text: l, Mark: true})
+		if l := clean(line, 300); l != "" && !hasEvent(h.events, h.TS, l) {
+			h.events = append(h.events, HitEvent{TS: h.TS, Source: "honeypot", Text: l}) // INV-9: only the hit's own line is marked
 		}
 		if err := s.insertHit(ctx, tx, h); err != nil {
 			return err
 		}
-		d := HitEventData{ID: h.ID, TS: h.TS, Kind: h.Kind, SrcIP: h.SrcIP, Label: h.Label, Decoy: h.TrapHostname}
+		d := HitEventData{ID: h.ID, TS: h.TS, Kind: h.Kind, SrcIP: h.SrcIP, Label: h.Label, Decoy: h.TrapHostname, Unconfirmed: h.NoHandshake}
+		if h.NoHandshake {
+			env.batchUDP++
+		}
 		if d.Decoy == "" {
 			d.Decoy = h.TrapIP
 		}
@@ -687,11 +807,15 @@ func (s *Service) upsert(ctx context.Context, tx *sql.Tx, env *ingestEnv, h stor
 		evs = nil
 	}
 	line = clean(line, 300)
-	if hasEvent(evs, line) {
+	at := h.TS
+	if h.Kind == KindScan {
+		at = ""
+	}
+	if hasEvent(evs, at, line) { // the same log line read again (a batch that failed): nothing new
 		return nil
 	}
 	if len(evs) < maxEvents {
-		evs = append(evs, HitEvent{TS: h.TS, Source: "honeypot", Text: line, Mark: true})
+		evs = append(evs, HitEvent{TS: h.TS, Source: "honeypot", Text: line}) // INV-9: a later connection is not the hit's line
 	}
 	if excerptAdd = clean(excerptAdd, maxExcerpt); excerptAdd != "" && !strings.Contains(excerpt, excerptAdd) {
 		excerpt = clean(excerpt+"; "+excerptAdd, maxExcerpt)
@@ -743,6 +867,14 @@ const maxTouchScansPerHour = 20
 // forgedNote ends the excerpt of a scan hit made from attempts the host recorded.
 const forgedNote = " The handshake was not completed, so the source address may be forged."
 
+// udpNote ends the excerpt of a UDP service hit (D-467 review H1).
+const udpNote = " UDP has no handshake, so the source address may be forged."
+
+// maxUDPHitsPerHour is the budget of new UDP service hits (TFTP, NTP, SIP) in a clock hour: their source can be forged, so a flood of
+// datagrams with rotating sources stops here and never draws from maxNewPerPoll or maxNewPerHour, which the hits of real connections
+// keep (D-467 review M1).
+const maxUDPHitsPerHour = 20
+
 // PollTouches feeds the host's record of new TCP/UDP attempts to the Trap IPs into the sweep detection (B2 review M2: a SYN scan,
 // nmap's default, completes no connection, so OpenCanary logs nothing). Only the sweep: a single attempt is no hit (the listener
 // hits stay the per-touch alerts). The source must be plausible as for a log line (not the box, a Trap IP, loopback, the network
@@ -792,7 +924,7 @@ func (s *Service) PollTouches(ctx context.Context) error {
 	env.touch, env.touchLeft = true, maxTouchScansPerHour-s.touchHourNew
 	s.mu.Unlock()
 	err = s.db.Write(ctx, func(tx *sql.Tx) error {
-		env.newHits, env.ignored, env.st = nil, 0, Stats{}
+		env.newHits, env.ignored, env.st, env.batchUDP = nil, 0, Stats{}, 0
 		for _, t := range fresh {
 			if !env.touchPlausible(t) { // the box, a Trap IP, broadcast...: not counted as an implausible log line (B2 review L2)
 				continue

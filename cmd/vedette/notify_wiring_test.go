@@ -18,6 +18,7 @@ import (
 	"github.com/knt048/vedette/core/api/routes"
 	"github.com/knt048/vedette/core/auth"
 	"github.com/knt048/vedette/core/events"
+	"github.com/knt048/vedette/core/observe"
 	"github.com/knt048/vedette/modules/inventory"
 	"github.com/knt048/vedette/modules/notify"
 	"github.com/knt048/vedette/modules/notify/channel"
@@ -342,11 +343,59 @@ func TestWiringDeviceNoticeNamesTheDeviceFromInventory(t *testing.T) {
 	for _, d := range list[0:min(len(list), 1)] {
 		named = strings.Contains(d.Title, "fw-hanoi")
 		for _, dev := range d.Devices {
-			named = named || dev.Name == "fw-hanoi"
+			named = named || dev.Name == "fw-hanoi (192.168.30.1)" // D-552: the Devices name, then the address
 		}
 	}
 	if len(list) != 1 || !named || strings.Contains(list[0].Title, r.ID) {
 		t.Fatalf("the incident does not name the device: %+v", list)
+	}
+}
+
+// D-552 (W8-1, N100 walk n27): approving a device in Devices closes its "A new unknown device appeared" incident through the real
+// bus: inventory's Approve publishes inventory.asset.updated (B9's inventory.asset.approved is not published yet), and notify reads
+// the device back through notifyDevices. Before this, the incident stayed New.
+func TestWiringApproveInDevicesClosesTheNewDeviceIncident(t *testing.T) {
+	t.Parallel()
+	s := newStack(t)
+	s.enableNotify()
+	ctx := t.Context()
+	if err := s.d.DB.Write(ctx, func(tx *sql.Tx) error { // not a fresh box: the device gets its own incident, not the first-discovery summary
+		_, err := tx.ExecContext(ctx, `UPDATE notify_box SET first_run_at = ?`, time.Now().AddDate(0, -1, 0).UTC().Format("2006-01-02T15:04:05.000Z"))
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	const mac = "aa:bb:cc:00:01:45"
+	if err := s.d.Inventory.Record(ctx, []observe.Observation{
+		{AssetHint: observe.AssetHint{MAC: mac, IP: netip.MustParseAddr("192.168.18.145")}, Field: observe.Hostname, Value: "kiens-macbook-air", Source: observe.Passive, Confidence: 0.7},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	l, err := s.d.Inventory.Devices(ctx)
+	if err != nil || len(l.Items) == 0 {
+		t.Fatalf("devices = %+v, %v", l, err)
+	}
+	var id string
+	for _, d := range l.Items {
+		if d.MAC != nil && *d.MAC == mac {
+			id = d.ID
+		}
+	}
+	if err := s.d.Bus.Publish(ctx, events.Event{Name: inventory.EventAssetDiscovered, Data: inventory.AssetEvent{AssetID: id, Notify: true}}); err != nil {
+		t.Fatal(err)
+	}
+	svc := newNotify(s.d)
+	list, err := svc.Incidents(ctx)
+	if err != nil || len(list) != 1 || list[0].Status != notify.StatusNew || list[0].Title != "A new unknown device appeared: kiens-macbook-air (192.168.18.145)" {
+		t.Fatalf("before approving = %+v, %v", list, err)
+	}
+	if err := s.d.Inventory.Approve(ctx, "it@acme.example", id); err != nil {
+		t.Fatal(err)
+	}
+	d, err := svc.IncidentDetail(ctx, list[0].ID)
+	if err != nil || d.Incident.Status != notify.StatusResolved || d.Incident.ResolvedReason == nil ||
+		*d.Incident.ResolvedReason != "Closed by Vedette: the device was approved in Devices." {
+		t.Fatalf("after approving = %+v, %v", d.Incident, err)
 	}
 }
 

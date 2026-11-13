@@ -46,7 +46,7 @@ var (
 // package tests only.
 func forbiddenAddr(a netip.Addr, allowLoopback bool) bool {
 	for _, f := range netguard.Forms(a) {
-		if netguard.Always(f) && !(allowLoopback && f.IsLoopback()) {
+		if netguard.Always(f) && (!allowLoopback || !f.IsLoopback()) {
 			return true
 		}
 	}

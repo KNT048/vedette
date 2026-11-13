@@ -1044,6 +1044,8 @@ do_uninstall() {
 	fi
 	ip netns delete vedette-hp >/dev/null 2>&1 || true
 	rm -f /etc/containers/systemd/vedette-* "$MIRROR_FILE"
+	# a unit write of vedette-host cut short leaves .tmp-<16 hex> beside the units (host/ops writeAtomicIn)
+	find /etc/containers/systemd -maxdepth 1 -type f -name '.tmp-????????????????' -delete 2>/dev/null || true
 	systemctl daemon-reload >/dev/null 2>&1 || true
 	systemctl reset-failed >/dev/null 2>&1 || true
 	remove_forward_rules
@@ -1058,13 +1060,29 @@ do_uninstall() {
 	if grep -qx chrony "$STATE/asked-packages" 2>/dev/null; then
 		systemctl disable --now chrony.service >/dev/null 2>&1 || true
 	fi
+	# the purge of a package with an AppArmor profile (chrony) runs dh_apparmor's postrm, which also rmdirs the apparmor package's
+	# own folders when they are empty (/etc/apparmor.d/disable on a fresh Ubuntu 24.04): one that was there before is put back
+	aa_dirs=
+	for d in /etc/apparmor.d /etc/apparmor.d/disable /etc/apparmor.d/force-complain /etc/apparmor.d/local; do
+		if [ -d "$d" ] && [ ! -L "$d" ]; then aa_dirs="$aa_dirs $(stat -c %a "$d"):$d"; fi
+	done
 	purge_added_packages
+	for e in $aa_dirs; do
+		[ -e "${e#*:}" ] || install -d -m "${e%%:*}" -o root -g root "${e#*:}" || warn "could not put back the folder ${e#*:}"
+	done
 	# what the packages this script asked for left behind (a purge keeps accounts, runtime files and podman's storage)
 	if grep -qx podman "$STATE/asked-packages" 2>/dev/null; then
 		find /var/lib/containers -mindepth 1 -delete 2>/dev/null || true
 		rmdir /var/lib/containers 2>/dev/null || true
-		rm -rf /run/containers /etc/containers/systemd /root/.config/cni
-		rmdir /etc/containers /root/.config 2>/dev/null || true
+		rm -rf /run/containers /root/.config/cni
+		# the folders the package (/etc/containers, its systemd/) and podman for vedette-int (networks/, /var/lib/cni) made, when podman
+		# is gone too: rmdir only, deepest first, so a folder with anything left in it is somebody else's and stays (N100)
+		if ! installed_pkg podman; then
+			for d in /etc/containers/networks /etc/containers/systemd/users /etc/containers/systemd /etc/containers/registries.conf.d /etc/containers /var/lib/cni/networks /var/lib/cni; do
+				rmdir "$d" 2>/dev/null || true
+			done
+		fi
+		rmdir /root/.config 2>/dev/null || true
 	fi
 	if grep -qx netplan.io "$STATE/asked-packages" 2>/dev/null; then
 		rm -f /run/systemd/system/netplan-ovs-cleanup.service /run/systemd/system/*.wants/netplan-ovs-cleanup.service

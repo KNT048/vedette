@@ -38378,7 +38378,7 @@
                             "additionalProperties": {
                               "type": "string"
                             },
-                            "description": "Non-secret fields: telegram chat_id · zalo oa_id, user_id · zalo-personal user_id (recipient user or group ID; session is the secret) · email host, port, security (starttls|ssl|none), username, from, to · webhook url (a secret: sealed on save, returned only as scheme://host/… followed by its last 4 characters; send it empty, or as returned, to keep the saved one) · slack label (optional), channel_id (approvals only)"
+                            "description": "Non-secret fields: telegram chat_id · zalo oa_id, user_id · zalo-personal user_id (recipient user or group ID), group (\"true\" for a group), name (shown name of the recipient), account (shown name of the signed-in Zalo account; set by the box from the QR sign-in, D-447; the session is the secret) · email host, port, security (starttls|ssl|none), username, from, to · webhook url (a secret: sealed on save, returned only as scheme://host/… followed by its last 4 characters; send it empty, or as returned, to keep the saved one) · slack label (optional), channel_id (approvals only)"
                           },
                           "secret_last4": {
                             "description": "Secrets (token, password, signing key) are never returned, only the last 4 characters (SYS-4)",
@@ -38440,6 +38440,10 @@
                                 "address": {
                                   "type": "string",
                                   "description": "Slack member ID · Telegram user ID · sign-in email · Zalo user ID (digits, not a phone number); unique per channel"
+                                },
+                                "name": {
+                                  "description": "Zalo personal: the shown name of the approver's Zalo account, from the picker (D-447)",
+                                  "type": "string"
                                 }
                               },
                               "required": [
@@ -38698,6 +38702,10 @@
                         "address": {
                           "type": "string",
                           "description": "Slack member ID · Telegram user ID · sign-in email · Zalo user ID (digits, not a phone number); unique per channel"
+                        },
+                        "name": {
+                          "description": "Zalo personal: the shown name of the approver's Zalo account, from the picker (D-447)",
+                          "type": "string"
                         }
                       },
                       "required": [
@@ -38714,6 +38722,10 @@
                   "bot_token": {
                     "description": "Slack bot token (xoxb-…); leave blank to keep the saved one",
                     "type": "string"
+                  },
+                  "zalo_login": {
+                    "description": "Zalo personal: save the session of your finished QR sign-in (D-447); without it the saved session is kept. The session is never sent by the client",
+                    "type": "boolean"
                   }
                 },
                 "required": [
@@ -38759,7 +38771,7 @@
                       "additionalProperties": {
                         "type": "string"
                       },
-                      "description": "Non-secret fields: telegram chat_id · zalo oa_id, user_id · zalo-personal user_id (recipient user or group ID; session is the secret) · email host, port, security (starttls|ssl|none), username, from, to · webhook url (a secret: sealed on save, returned only as scheme://host/… followed by its last 4 characters; send it empty, or as returned, to keep the saved one) · slack label (optional), channel_id (approvals only)"
+                      "description": "Non-secret fields: telegram chat_id · zalo oa_id, user_id · zalo-personal user_id (recipient user or group ID), group (\"true\" for a group), name (shown name of the recipient), account (shown name of the signed-in Zalo account; set by the box from the QR sign-in, D-447; the session is the secret) · email host, port, security (starttls|ssl|none), username, from, to · webhook url (a secret: sealed on save, returned only as scheme://host/… followed by its last 4 characters; send it empty, or as returned, to keep the saved one) · slack label (optional), channel_id (approvals only)"
                     },
                     "secret_last4": {
                       "description": "Secrets (token, password, signing key) are never returned, only the last 4 characters (SYS-4)",
@@ -38821,6 +38833,10 @@
                           "address": {
                             "type": "string",
                             "description": "Slack member ID · Telegram user ID · sign-in email · Zalo user ID (digits, not a phone number); unique per channel"
+                          },
+                          "name": {
+                            "description": "Zalo personal: the shown name of the approver's Zalo account, from the picker (D-447)",
+                            "type": "string"
                           }
                         },
                         "required": [
@@ -40191,6 +40207,640 @@
                   "required": [
                     "quiet",
                     "grouping"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/notify/zalo/approvers": {
+      "get": {
+        "operationId": "notify_get_notify_zalo_approvers",
+        "summary": "Approvers of the Zalo personal channel and whether each confirmed the link sent to their Zalo while signed in as themself (linked)",
+        "tags": [
+          "notify"
+        ],
+        "x-stories": [
+          "S-RESP-2"
+        ],
+        "x-min-role": "admin",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "user_id": {
+                            "type": "string"
+                          },
+                          "address": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "state": {
+                            "type": "string",
+                            "enum": [
+                              "linked",
+                              "sending",
+                              "waiting",
+                              "not_sent"
+                            ]
+                          },
+                          "sent_at": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "format": "date-time",
+                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "error": {
+                            "type": "string",
+                            "description": "not_sent: why (failed, expired, or no link made)"
+                          },
+                          "self": {
+                            "type": "boolean",
+                            "description": "The administrator asking"
+                          },
+                          "box_account": {
+                            "type": "boolean",
+                            "description": "The address is the box's own signed-in Zalo account (the QR sign-in proved it); only your own row with it skips the message"
+                          },
+                          "link": {
+                            "description": "Only in the answer of POST …/code for your own row with the box's own account: the confirm page (/link/zalo?c=…) to open in this session; any other Zalo gets the link by message",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "user_id",
+                          "address",
+                          "name",
+                          "state",
+                          "sent_at",
+                          "error",
+                          "self",
+                          "box_account"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "items"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/notify/zalo/approvers/{user_id}/code": {
+      "post": {
+        "operationId": "notify_post_notify_zalo_approvers_user_id_code",
+        "summary": "Send an approver a new confirm link to their Zalo (the old one stops working); for your own row, return the link to confirm now instead",
+        "tags": [
+          "notify"
+        ],
+        "x-stories": [
+          "S-RESP-2"
+        ],
+        "x-min-role": "admin",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "user_id": {
+                      "type": "string"
+                    },
+                    "address": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "state": {
+                      "type": "string",
+                      "enum": [
+                        "linked",
+                        "sending",
+                        "waiting",
+                        "not_sent"
+                      ]
+                    },
+                    "sent_at": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "error": {
+                      "type": "string",
+                      "description": "not_sent: why (failed, expired, or no link made)"
+                    },
+                    "self": {
+                      "type": "boolean",
+                      "description": "The administrator asking"
+                    },
+                    "box_account": {
+                      "type": "boolean",
+                      "description": "The address is the box's own signed-in Zalo account (the QR sign-in proved it); only your own row with it skips the message"
+                    },
+                    "link": {
+                      "description": "Only in the answer of POST …/code for your own row with the box's own account: the confirm page (/link/zalo?c=…) to open in this session; any other Zalo gets the link by message",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "user_id",
+                    "address",
+                    "name",
+                    "state",
+                    "sent_at",
+                    "error",
+                    "self",
+                    "box_account"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/notify/zalo/contacts": {
+      "get": {
+        "operationId": "notify_get_notify_zalo_contacts",
+        "summary": "Friends and groups of the Zalo account (your finished sign-in, else the saved session)",
+        "tags": [
+          "notify"
+        ],
+        "x-stories": [
+          "S-NOT-1",
+          "S-RESP-2"
+        ],
+        "x-min-role": "admin",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "friends": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "group": {
+                            "type": "boolean"
+                          },
+                          "members": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991,
+                            "description": "Group size; 0 when not given"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name",
+                          "group",
+                          "members"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "groups": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "group": {
+                            "type": "boolean"
+                          },
+                          "members": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991,
+                            "description": "Group size; 0 when not given"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name",
+                          "group",
+                          "members"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "friends",
+                    "groups"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/notify/zalo/login": {
+      "delete": {
+        "operationId": "notify_delete_notify_zalo_login",
+        "summary": "Cancel your Zalo QR sign-in (a finished one is dropped unsaved)",
+        "tags": [
+          "notify"
+        ],
+        "x-stories": [
+          "S-NOT-1"
+        ],
+        "x-min-role": "admin",
+        "responses": {
+          "204": {
+            "description": "Done, no content"
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "operationId": "notify_get_notify_zalo_login",
+        "summary": "State of your Zalo QR sign-in: waiting, scanned, signed in, expired, declined or failed",
+        "tags": [
+          "notify"
+        ],
+        "x-stories": [
+          "S-NOT-1"
+        ],
+        "x-min-role": "admin",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "state": {
+                      "type": "string",
+                      "enum": [
+                        "none",
+                        "waiting",
+                        "scanned",
+                        "signed_in",
+                        "expired",
+                        "declined",
+                        "failed"
+                      ]
+                    },
+                    "qr": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "size": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991,
+                              "description": "Side of the square view box, quiet zone included"
+                            },
+                            "path": {
+                              "type": "string",
+                              "description": "SVG path of the dark cells, redrawn by the box from Zalo's image"
+                            }
+                          },
+                          "required": [
+                            "size",
+                            "path"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Set while waiting or scanned"
+                    },
+                    "name": {
+                      "type": "string",
+                      "description": "scanned: the name the Zalo app shows for who scanned; signed_in: the signed-in account's display name"
+                    },
+                    "error": {
+                      "type": "string",
+                      "description": "failed: why"
+                    },
+                    "expires_at": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "When the QR code expires (waiting, scanned)"
+                    }
+                  },
+                  "required": [
+                    "state",
+                    "qr",
+                    "name",
+                    "error",
+                    "expires_at"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "notify_post_notify_zalo_login",
+        "summary": "Start a Zalo personal QR sign-in for the signed-in administrator (one at a time per box; at most one start in 30 s and five an hour)",
+        "tags": [
+          "notify"
+        ],
+        "x-stories": [
+          "S-NOT-1"
+        ],
+        "x-min-role": "admin",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "state": {
+                      "type": "string",
+                      "enum": [
+                        "none",
+                        "waiting",
+                        "scanned",
+                        "signed_in",
+                        "expired",
+                        "declined",
+                        "failed"
+                      ]
+                    },
+                    "qr": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "size": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991,
+                              "description": "Side of the square view box, quiet zone included"
+                            },
+                            "path": {
+                              "type": "string",
+                              "description": "SVG path of the dark cells, redrawn by the box from Zalo's image"
+                            }
+                          },
+                          "required": [
+                            "size",
+                            "path"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Set while waiting or scanned"
+                    },
+                    "name": {
+                      "type": "string",
+                      "description": "scanned: the name the Zalo app shows for who scanned; signed_in: the signed-in account's display name"
+                    },
+                    "error": {
+                      "type": "string",
+                      "description": "failed: why"
+                    },
+                    "expires_at": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "When the QR code expires (waiting, scanned)"
+                    }
+                  },
+                  "required": [
+                    "state",
+                    "qr",
+                    "name",
+                    "error",
+                    "expires_at"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/notify/zalo/resolve": {
+      "post": {
+        "operationId": "notify_post_notify_zalo_resolve",
+        "summary": "Find the group of a zalo.me/g/ invite link, the person of a phone number, or take a numeric Zalo ID",
+        "tags": [
+          "notify"
+        ],
+        "x-stories": [
+          "S-NOT-1",
+          "S-RESP-2"
+        ],
+        "x-min-role": "admin",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "query": {
+                    "type": "string",
+                    "maxLength": 200
+                  }
+                },
+                "required": [
+                  "query"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "group": {
+                      "type": "boolean"
+                    },
+                    "members": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991,
+                      "description": "Group size; 0 when not given"
+                    },
+                    "member": {
+                      "type": "boolean",
+                      "description": "false: a group the signed-in account is not a member of (messages would not reach it)"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "group",
+                    "members",
+                    "member"
                   ],
                   "additionalProperties": false
                 }
@@ -52290,6 +52940,10 @@
                             "type": "string",
                             "description": "The address or ID on the approver list of the channel, as an administrator saved it"
                           },
+                          "name": {
+                            "description": "The shown name of that address where the channel knows it (Zalo personal, D-447)",
+                            "type": "string"
+                          },
                           "linked": {
                             "type": "boolean",
                             "description": "Proved by this person for exactly this address; a changed address or sign-in email is not linked"
@@ -52314,7 +52968,7 @@
                               "send_code",
                               "unavailable"
                             ],
-                            "description": "email_code: Vedette mails a code to this address. chat_code: press Approve or Reject on an approval message and Vedette answers you privately with a code. send_code: Vedette shows you a code and you send it from that chat account to the account of the box (Zalo personal). unavailable: this channel cannot answer privately yet, so it cannot be linked (approve in Vedette)"
+                            "description": "email_code: Vedette mails a code to this address. chat_code: press Approve or Reject on an approval message and Vedette answers you privately with a code. send_code: the box sends a confirm link to that chat account and you confirm it while signed in to Vedette (Zalo personal, D-447). unavailable: this channel cannot answer privately yet, so it cannot be linked (approve in Vedette)"
                           },
                           "code_waiting": {
                             "type": "boolean",
@@ -52523,6 +53177,10 @@
                       "type": "string",
                       "description": "The address or ID on the approver list of the channel, as an administrator saved it"
                     },
+                    "name": {
+                      "description": "The shown name of that address where the channel knows it (Zalo personal, D-447)",
+                      "type": "string"
+                    },
                     "linked": {
                       "type": "boolean",
                       "description": "Proved by this person for exactly this address; a changed address or sign-in email is not linked"
@@ -52547,7 +53205,7 @@
                         "send_code",
                         "unavailable"
                       ],
-                      "description": "email_code: Vedette mails a code to this address. chat_code: press Approve or Reject on an approval message and Vedette answers you privately with a code. send_code: Vedette shows you a code and you send it from that chat account to the account of the box (Zalo personal). unavailable: this channel cannot answer privately yet, so it cannot be linked (approve in Vedette)"
+                      "description": "email_code: Vedette mails a code to this address. chat_code: press Approve or Reject on an approval message and Vedette answers you privately with a code. send_code: the box sends a confirm link to that chat account and you confirm it while signed in to Vedette (Zalo personal, D-447). unavailable: this channel cannot answer privately yet, so it cannot be linked (approve in Vedette)"
                     },
                     "code_waiting": {
                       "type": "boolean",

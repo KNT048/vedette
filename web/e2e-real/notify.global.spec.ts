@@ -432,31 +432,35 @@ test.describe('channels through the form: add, refusals, edit, remove (S-NOT-1, 
     noErrors(errors, /status of 400/)
   })
 
-  test('Zalo personal: the unofficial-account warning is always shown, and a recipient and a session are both required', async ({ page }) => {
+  test('Zalo personal: the unofficial-account note is always shown, and a recipient and a session are both required (D-447)', async ({ page }) => {
     const errors = collectErrors(page)
     await page.goto('/settings/channels')
     await chanRow(page, { type: 'zalo-personal', configured: false }).getByRole('button', { name: 'Set up Zalo personal', exact: true }).click()
     const d = page.getByRole('dialog', { name: 'Channel Zalo personal' })
-    await expect(d.getByText("Unofficial: uses Zalo's personal web protocol, not an official API. Zalo may lock the account. Use a dedicated account, not your personal one.")).toBeVisible()
+    await expect(d.getByRole('note')).toHaveText('Unofficial channel: Zalo may lock the account it signs in with, so use a separate Zalo account, not your own.')
     await expect(d.getByText('Not signed in yet.')).toBeVisible()
+    await expect(d.getByRole('button', { name: 'I scanned it' })).toHaveCount(0)
     await sw(d).click()
-    await saveRefused(page, d, 'zalo-personal', 'bad_user_id', 'The recipient is the numeric Zalo ID of a user or a group (6 to 25 digits).', 'Recipient (user or group ID)')
-    await d.getByLabel('Recipient (user or group ID)', { exact: true }).fill('8412345678901')
+    await saveRefused(page, d, 'zalo-personal', 'bad_user_id', 'The recipient is the numeric Zalo ID of a user or a group (6 to 25 digits).')
+    await d.getByLabel('Or find by invite link, phone number or ID', { exact: true }).fill('8412345678901') // a typed ID: taken as it is, nothing asked of Zalo
+    await d.getByRole('button', { name: 'Find', exact: true }).click()
+    await expect(d.getByText('Alerts go to 8412345678901 (ID 8412345678901).')).toBeVisible()
     await saveRefused(page, d, 'zalo-personal', 'secret_required', 'Scan the QR code with the Zalo app first. This channel has no saved session yet.')
     expect((await channel('zalo-personal')).configured).toBe(false)
     noErrors(errors, /status of 400/)
   })
 
-  // The GUI's "I scanned it" makes a placeholder string and the box refuses it (400 bad_secret): the backend loginQR is not built, and paste-cookies vs a loginQR port is
-  // undecided (.ai/deferred/feat-notify-module.md:9, D-171(2)). The body is the real flow: it becomes the test once the backend exists.
-  test.fixme('Zalo personal: sign in by QR in the form and save the channel (backend loginQR not built: .ai/deferred/feat-notify-module.md:9)', async ({ page }) => {
+  // The QR sign-in is real since D-447: it needs a phone with the test Zalo account, so it runs only with kien present (not in this suite).
+  // The body is that flow; the box never reaches Zalo from this suite.
+  test.fixme('Zalo personal: sign in by QR in the form and save the channel (real Zalo account and phone: only with kien, D-447)', async ({ page }) => {
     await page.goto('/settings/channels')
     await chanRow(page, { type: 'zalo-personal', configured: false }).getByRole('button', { name: 'Set up Zalo personal', exact: true }).click()
     const d = page.getByRole('dialog', { name: 'Channel Zalo personal' })
     await sw(d).click() // never turned on: no test of this file may send to the internet
-    await d.getByRole('button', { name: 'Show QR code', exact: true }).click()
-    await d.getByRole('button', { name: 'I scanned it', exact: true }).click()
-    await d.getByLabel('Recipient (user or group ID)', { exact: true }).fill('8412345678901')
+    await d.getByRole('button', { name: 'Sign in with a QR code', exact: true }).click()
+    await expect(d.getByRole('img', { name: 'QR code to sign in to Zalo' })).toBeVisible()
+    await expect(d.getByText(/Signed in as .*\. Press Save/)).toBeVisible({ timeout: 100_000 }) // scanned and confirmed on the phone
+    await d.getByLabel('Group or friend', { exact: true }).selectOption({ index: 1 })
     await saveBtn(d).click()
     await toast(page, 'Channel Zalo personal saved.')
   })

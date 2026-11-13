@@ -18,6 +18,7 @@ export const feature: Feature = {
     { path: 'incidents/:id', lazy: () => import('./IncidentDetailPage').then((m) => ({ Component: m.default })) },
     { path: 'alerts', lazy: () => import('./LegacyIndexRedirect').then((m) => ({ Component: m.default })) },
     { path: 'alerts/:id', lazy: legacy },
+    { path: 'link/zalo', lazy: () => import('./ZaloLinkPage').then((m) => ({ Component: m.default })) }, // the confirm link sent to a Zalo approver (D-447)
   ],
   nav: [{ to: '/incidents', label: 'notify:nav.incidents', icon: Bell, module: 'notify', group: 'monitor', order: 30 }],
   settings: [{ id: 'channels', label: 'notify:channels.nav', module: 'notify', minRole: 'admin', order: 30, element: <ChannelsSettings /> }],

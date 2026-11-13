@@ -37373,6 +37373,52 @@ func (s *HoneypotGetHoneypotTrapIpsOKItemsItem) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
+		if value, ok := s.Attachment.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "attachment",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if s.OpenServices == nil {
+			return errors.New("nil is invalid value")
+		}
+		var failures []validate.FieldError
+		for i, elem := range s.OpenServices {
+			if err := func() error {
+				if err := elem.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "open_services",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := s.Preset.Validate(); err != nil {
 			return err
 		}
@@ -37444,6 +37490,55 @@ func (s *HoneypotGetHoneypotTrapIpsOKItemsItem) Validate() error {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s *HoneypotGetHoneypotTrapIpsOKItemsItemAttachment) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.Kind.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "kind",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s HoneypotGetHoneypotTrapIpsOKItemsItemAttachmentKind) Validate() error {
+	switch s {
+	case "macvlan":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItem) Validate() error {
+	switch s {
+	case "smb":
+		return nil
+	case "rdp":
+		return nil
+	case "ssh":
+		return nil
+	case "mssql":
+		return nil
+	case "http":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s HoneypotGetHoneypotTrapIpsOKItemsItemPreset) Validate() error {
@@ -37617,6 +37712,52 @@ func (s *HoneypotPatchHoneypotTrapIpsIDOK) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
+		if value, ok := s.Attachment.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "attachment",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if s.OpenServices == nil {
+			return errors.New("nil is invalid value")
+		}
+		var failures []validate.FieldError
+		for i, elem := range s.OpenServices {
+			if err := func() error {
+				if err := elem.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "open_services",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := s.Preset.Validate(); err != nil {
 			return err
 		}
@@ -37688,6 +37829,55 @@ func (s *HoneypotPatchHoneypotTrapIpsIDOK) Validate() error {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s *HoneypotPatchHoneypotTrapIpsIDOKAttachment) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.Kind.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "kind",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s HoneypotPatchHoneypotTrapIpsIDOKAttachmentKind) Validate() error {
+	switch s {
+	case "macvlan":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItem) Validate() error {
+	switch s {
+	case "smb":
+		return nil
+	case "rdp":
+		return nil
+	case "ssh":
+		return nil
+	case "mssql":
+		return nil
+	case "http":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s HoneypotPatchHoneypotTrapIpsIDOKPreset) Validate() error {
@@ -38248,6 +38438,52 @@ func (s *HoneypotPostHoneypotTrapIpsCreated) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
+		if value, ok := s.Attachment.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "attachment",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if s.OpenServices == nil {
+			return errors.New("nil is invalid value")
+		}
+		var failures []validate.FieldError
+		for i, elem := range s.OpenServices {
+			if err := func() error {
+				if err := elem.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "open_services",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := s.Preset.Validate(); err != nil {
 			return err
 		}
@@ -38319,6 +38555,55 @@ func (s *HoneypotPostHoneypotTrapIpsCreated) Validate() error {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s *HoneypotPostHoneypotTrapIpsCreatedAttachment) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.Kind.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "kind",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s HoneypotPostHoneypotTrapIpsCreatedAttachmentKind) Validate() error {
+	switch s {
+	case "macvlan":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s HoneypotPostHoneypotTrapIpsCreatedOpenServicesItem) Validate() error {
+	switch s {
+	case "smb":
+		return nil
+	case "rdp":
+		return nil
+	case "ssh":
+		return nil
+	case "mssql":
+		return nil
+	case "http":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s HoneypotPostHoneypotTrapIpsCreatedPreset) Validate() error {
@@ -38554,6 +38839,52 @@ func (s *HoneypotPutHoneypotTrapIpsIDOK) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
+		if value, ok := s.Attachment.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "attachment",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if s.OpenServices == nil {
+			return errors.New("nil is invalid value")
+		}
+		var failures []validate.FieldError
+		for i, elem := range s.OpenServices {
+			if err := func() error {
+				if err := elem.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "open_services",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := s.Preset.Validate(); err != nil {
 			return err
 		}
@@ -38625,6 +38956,55 @@ func (s *HoneypotPutHoneypotTrapIpsIDOK) Validate() error {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s *HoneypotPutHoneypotTrapIpsIDOKAttachment) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.Kind.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "kind",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s HoneypotPutHoneypotTrapIpsIDOKAttachmentKind) Validate() error {
+	switch s {
+	case "macvlan":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s HoneypotPutHoneypotTrapIpsIDOKOpenServicesItem) Validate() error {
+	switch s {
+	case "smb":
+		return nil
+	case "rdp":
+		return nil
+	case "ssh":
+		return nil
+	case "mssql":
+		return nil
+	case "http":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s HoneypotPutHoneypotTrapIpsIDOKPreset) Validate() error {

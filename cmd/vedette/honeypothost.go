@@ -8,10 +8,10 @@ import (
 	"io"
 	"io/fs"
 	"log/slog"
-	"maps"
 	"net/http"
 	"net/netip"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -54,9 +54,19 @@ type honeypotHost struct {
 	// that saw the container not running, the next stop costs no write (it starts false, so the first Apply still stops).
 	stopped   bool
 	decoyAt   time.Time
-	decoys    map[netip.Addr]bool
-	macs      map[netip.Addr]string // the MAC of each decoy of the last state/net read, lower case
+	decoys    map[netip.Addr]heldDecoy // what the last state/net read listed; nil = read again
+	parent    string                   // the management card of that read: the decoys' macvlan links hang off it
 	lastWarns map[string]time.Time
+	// infoAt and setPorts: whether the host lists decoy_ip.set_ports (GET /v1/info, read once per infoTTL): only then does
+	// core send ports (host-api 6.6 compatibility, D-466).
+	infoAt   time.Time
+	setPorts bool
+}
+
+// heldDecoy is one decoy as state/net lists it: its MAC (lower case) and allow-list (nil = none).
+type heldDecoy struct {
+	mac   string
+	ports *[]api.DecoyPort
 }
 
 type stateAt struct {
@@ -72,6 +82,7 @@ type hostAPI interface {
 	Events(ctx context.Context, runID string, after uint64) *hostclient.Stream
 	StateContainers(ctx context.Context) (api.ContainersState, error)
 	StateNet(ctx context.Context) (api.NetState, error)
+	Info(ctx context.Context) (api.Info, error)
 }
 
 var _ hostAPI = (*hostclient.Client)(nil)
@@ -85,6 +96,8 @@ const (
 	stateTTL = 20 * time.Second
 	// hostWarnEvery rate-limits the adapter's own warnings, as the module does for its own (ingest.go warnEvery).
 	hostWarnEvery = time.Minute
+	// infoTTL is how long the host's command list stays valid: it changes only when vedette-host is updated.
+	infoTTL = 5 * time.Minute
 )
 
 // newHoneypotHost is the Host of the honeypot: the adapter when core has a host socket, else notAnAppliance (dev and a
@@ -137,20 +150,117 @@ func (h *honeypotHost) setRunning(running bool) {
 	h.mu.Unlock()
 }
 
-func (h *honeypotHost) AddDecoyIP(ctx context.Context, ip netip.Addr) error {
-	// The module asks for every wanted address at every Apply and the host takes 10 writes a minute (6.6): an address
-	// the host already holds costs no write. A failed read only costs the write (duplicate_decoy is success too).
-	if h.holds(ctx, ip) {
-		return nil
+// AddDecoyIP makes the host hold ip as spec says, sending only what differs from state/net (the module asks for every
+// wanted address at every Apply and the host takes 10 writes a minute, 6.6): an address that is not there is added with the
+// vendor's OUI and its ports; one whose MAC does not carry the wanted prefix is removed and added again (the host refuses a
+// second add of the same address, duplicate_decoy); one whose ports differ gets decoy_ip.set_ports. Ports go only to a host
+// that lists decoy_ip.set_ports (KeepsPorts); an older host refuses the field, and its addresses answer every service.
+// A failed state/net read only costs a write (duplicate_decoy is success too).
+func (h *honeypotHost) AddDecoyIP(ctx context.Context, ip netip.Addr, spec honeypot.DecoySpec) error {
+	keeps := h.KeepsPorts(ctx)
+	var want *[]api.DecoyPort
+	if keeps {
+		p := apiPorts(spec.Ports)
+		want = &p
 	}
-	// No OUI: the host gives the decoy a locally administered MAC derived from its own key (6.6).
-	err := h.do(ctx, api.CmdDecoyAdd, api.DecoyAddArgs{IP: ip.String()}, api.CodeDuplicateDecoy)
+	cur, held := h.held(ctx, ip)
+	if held && !macHasPrefix(cur.mac, spec.OUI) {
+		if err := h.RemoveDecoyIP(ctx, ip); err != nil {
+			return err
+		}
+		held = false
+	}
+	if held {
+		if !keeps || samePorts(cur.ports, want) {
+			return nil
+		}
+		err := h.do(ctx, api.CmdDecoySetPorts, api.DecoySetPortsArgs{IP: ip.String(), Ports: *want}, "")
+		var re refusedError
+		if errors.As(err, &re) && re.code == api.CodeNotADecoy { // gone since the read: add it
+			h.forgetDecoys()
+		} else if err != nil {
+			h.forgetDecoys()
+			return fmt.Errorf("honeypot: ports of decoy address %s: %w", ip, err)
+		} else {
+			h.noteDecoy(ip, &heldDecoy{mac: cur.mac, ports: want})
+			return nil
+		}
+	}
+	err := h.do(ctx, api.CmdDecoyAdd, api.DecoyAddArgs{IP: ip.String(), OUI: spec.OUI, Ports: want}, api.CodeDuplicateDecoy)
 	if err != nil {
 		h.forgetDecoys()
 		return fmt.Errorf("honeypot: decoy address %s: %w", ip, err)
 	}
-	h.noteDecoy(ip, true)
+	h.forgetDecoys() // the next look (DecoyLinks at the end of this Apply) reads the MAC the host gave it
 	return nil
+}
+
+// KeepsPorts says whether the host keeps each decoy address to its own ports (it lists decoy_ip.set_ports, host-api 6.6);
+// the module tells the owner when it does not. A host whose info cannot be read is taken not to: no ports are sent.
+func (h *honeypotHost) KeepsPorts(ctx context.Context) bool {
+	h.mu.Lock()
+	if !h.infoAt.IsZero() && time.Since(h.infoAt) < infoTTL {
+		defer h.mu.Unlock()
+		return h.setPorts
+	}
+	h.mu.Unlock()
+	info, err := h.api.Info(ctx)
+	if err != nil {
+		h.mu.Lock()
+		defer h.mu.Unlock()
+		return h.setPorts // the last answer stands until one is read
+	}
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.setPorts, h.infoAt = slices.Contains(info.Commands, api.CmdDecoySetPorts), time.Now()
+	return h.setPorts
+}
+
+// apiPorts is the allow-list of a spec in the host's order (protocol, then port), never nil: an empty list closes every port.
+func apiPorts(l []honeypot.Port) []api.DecoyPort {
+	out := make([]api.DecoyPort, 0, len(l))
+	for _, p := range l {
+		if dp := (api.DecoyPort{Proto: p.Proto, Port: p.Port}); !slices.Contains(out, dp) {
+			out = append(out, dp)
+		}
+	}
+	slices.SortFunc(out, func(a, b api.DecoyPort) int {
+		if a.Proto != b.Proto {
+			return strings.Compare(a.Proto, b.Proto)
+		}
+		return a.Port - b.Port
+	})
+	return out
+}
+
+// samePorts compares an allow-list the host holds with the wanted one (both sorted; nil = no allow-list).
+func samePorts(have, want *[]api.DecoyPort) bool {
+	if have == nil || want == nil {
+		return have == want
+	}
+	return slices.Equal(apiPorts(toSpecPorts(*have)), *want)
+}
+
+func toSpecPorts(l []api.DecoyPort) []honeypot.Port {
+	out := make([]honeypot.Port, len(l))
+	for i, p := range l {
+		out[i] = honeypot.Port{Proto: p.Proto, Port: p.Port}
+	}
+	return out
+}
+
+// macHasPrefix says whether the MAC the host gave a decoy is what the wanted OUI asks for: the vendor's six hex digits, or
+// with no OUI a locally administered MAC (the host's default). An unknown MAC is taken to match: no write on a guess.
+func macHasPrefix(mac, ouiHex string) bool {
+	hexOnly := strings.ReplaceAll(strings.ToLower(mac), ":", "")
+	if len(hexOnly) != 12 {
+		return true
+	}
+	if ouiHex != "" {
+		return hexOnly[:6] == strings.ToLower(ouiHex)
+	}
+	b, err := strconv.ParseUint(hexOnly[:2], 16, 8)
+	return err == nil && b&0x02 != 0
 }
 
 func (h *honeypotHost) RemoveDecoyIP(ctx context.Context, ip netip.Addr) error {
@@ -159,51 +269,79 @@ func (h *honeypotHost) RemoveDecoyIP(ctx context.Context, ip netip.Addr) error {
 		h.forgetDecoys()
 		return fmt.Errorf("honeypot: remove decoy address %s: %w", ip, err)
 	}
-	h.noteDecoy(ip, false)
+	h.noteDecoy(ip, nil)
 	return nil
 }
 
-// holds reports whether the host lists ip among its decoys (GET /v1/state/net, read once per stateTTL).
-func (h *honeypotHost) holds(ctx context.Context, ip netip.Addr) bool {
+// held is what the host lists for ip among its decoys (GET /v1/state/net, read once per stateTTL); ok is false when it
+// does not list it or the read failed.
+func (h *honeypotHost) held(ctx context.Context, ip netip.Addr) (heldDecoy, bool) {
+	h.refresh(ctx)
 	h.mu.Lock()
-	if h.decoys != nil && time.Since(h.decoyAt) < stateTTL {
-		defer h.mu.Unlock()
-		return h.decoys[ip]
-	}
+	defer h.mu.Unlock()
+	d, ok := h.decoys[ip]
+	return d, ok
+}
+
+// refresh reads state/net when the last read is older than stateTTL or was dropped.
+func (h *honeypotHost) refresh(ctx context.Context) {
+	h.mu.Lock()
+	fresh := h.decoys != nil && time.Since(h.decoyAt) < stateTTL
 	h.mu.Unlock()
+	if fresh {
+		return
+	}
 	ns, err := h.api.StateNet(ctx)
 	if err != nil {
-		return false
+		return
 	}
-	set := map[netip.Addr]bool{}
-	macs := map[netip.Addr]string{}
+	set := map[netip.Addr]heldDecoy{}
 	for _, d := range ns.Decoys {
 		if a, err := netip.ParseAddr(d.IP); err == nil {
-			set[a] = true
-			macs[a] = strings.ToLower(d.MAC)
+			set[a] = heldDecoy{mac: strings.ToLower(d.MAC), ports: d.Ports}
+		}
+	}
+	parent := ""
+	if ns.Config.Mgmt != nil {
+		parent = ns.Config.Mgmt.Iface
+	}
+	for _, c := range ns.Interfaces {
+		if parent == "" && c.Role == api.NetRoleManagement {
+			parent = c.Name
 		}
 	}
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	h.decoys, h.macs, h.decoyAt = set, macs, time.Now()
-	return set[ip]
+	h.decoys, h.parent, h.decoyAt = set, parent, time.Now()
 }
 
-// DecoyMACs is the MAC the host gave each decoy address (the optional honeypot.macReporter), from the same state/net read
-// as holds; a decoy added since that read has none until the next one (at most stateTTL later).
-func (h *honeypotHost) DecoyMACs(ctx context.Context) map[netip.Addr]string {
-	h.holds(ctx, netip.Addr{}) // refresh when older than stateTTL
+// DecoyLinks is how the host holds each decoy address (the optional honeypot.linkReporter), from the same state/net read
+// as held: its MAC, its macvlan link (host-api 6.6 names it vdh + the eight hex digits of the address) and the management
+// card it hangs off; a decoy added since that read is missing until the next one (at most stateTTL later).
+func (h *honeypotHost) DecoyLinks(ctx context.Context) map[netip.Addr]honeypot.DecoyLink {
+	h.refresh(ctx)
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	return maps.Clone(h.macs)
-}
-
-func (h *honeypotHost) noteDecoy(ip netip.Addr, held bool) {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	if h.decoys != nil {
-		h.decoys[ip] = held
+	out := make(map[netip.Addr]honeypot.DecoyLink, len(h.decoys))
+	for ip, d := range h.decoys {
+		b := ip.As4()
+		out[ip] = honeypot.DecoyLink{MAC: d.mac, Link: fmt.Sprintf("vdh%02x%02x%02x%02x", b[0], b[1], b[2], b[3]), Parent: h.parent}
 	}
+	return out
+}
+
+// noteDecoy updates the last read after a write the host confirmed: d nil = the address is gone.
+func (h *honeypotHost) noteDecoy(ip netip.Addr, d *heldDecoy) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if h.decoys == nil {
+		return
+	}
+	if d == nil {
+		delete(h.decoys, ip)
+		return
+	}
+	h.decoys[ip] = *d
 }
 
 func (h *honeypotHost) forgetDecoys() {

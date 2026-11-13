@@ -138,6 +138,11 @@ type Hit struct {
 	SrcName    *string      `json:"src_name"`
 	IsTest     bool         `json:"is_test"`
 	Excerpt    string       `json:"excerpt"`
+	// TrapIP is the address that was touched (a scan: the Trap IPs it touched, comma-separated; a token: its value),
+	// TrapHostname the name of the Trap IP there (D-466), the token's label, or the names a scan touched: the "Trap IP"
+	// column of the hit list (W1-13).
+	TrapIP       string `json:"trap_ip"`
+	TrapHostname string `json:"trap_hostname"`
 }
 
 // SourceIP is the address the hit came from, for the response module.
@@ -162,8 +167,6 @@ type DetailAsset struct {
 // HitDetail is GET /honeypot/hits/{id} (contract.ts HitDetail).
 type HitDetail struct {
 	Hit
-	TrapIP        string       `json:"trap_ip"`
-	TrapHostname  string       `json:"trap_hostname"`
 	Asset         *DetailAsset `json:"asset"`
 	Events        []HitEvent   `json:"events"`
 	WindowMinutes int          `json:"window_minutes"`
@@ -188,17 +191,45 @@ const (
 
 // TrapIP is one Trap IP, a profile (contract.ts TrapIP, D-466).
 type TrapIP struct {
-	ID        string        `json:"id"`
-	Name      string        `json:"name"`
-	IP        string        `json:"ip"`
-	Preset    Preset        `json:"preset"`
-	Vendor    *string       `json:"vendor"`
-	Services  []ServiceName `json:"services"`
-	Enabled   bool          `json:"enabled"`
-	State     string        `json:"state"`  // what the host reports (Trap states), not the switch
-	Reason    *string       `json:"reason"` // why state is failed, conflict, or a note while it listens
-	MAC       *string       `json:"mac"`    // the MAC the host gave the address, nil while unknown
-	CreatedAt string        `json:"created_at"`
+	ID       string        `json:"id"`
+	Name     string        `json:"name"`
+	IP       string        `json:"ip"`
+	Preset   Preset        `json:"preset"`
+	Vendor   *string       `json:"vendor"`
+	Services []ServiceName `json:"services"`
+	Enabled  bool          `json:"enabled"`
+	State    string        `json:"state"`  // what the host reports (Trap states), not the switch
+	Reason   *string       `json:"reason"` // why state is failed, conflict, or a note while it listens
+	MAC      *string       `json:"mac"`    // the MAC the host gave the address, nil while unknown
+	// MACVendor is the company the IEEE registered the MAC's prefix to (D-83 table), what a scanner on the LAN shows; nil for
+	// a locally administered MAC or while the MAC is unknown.
+	MACVendor *string `json:"mac_vendor"`
+	// Attachment is how the address sits on the box (host-api 6.6: its own macvlan link on the management card, moved into
+	// the honeypot namespace); nil until the host holds it.
+	Attachment *Attachment `json:"attachment"`
+	// OpenServices are the services the address answers on now: its own while it listens on a host that keeps them apart,
+	// every service the container runs on an older host, none while it does not listen.
+	OpenServices []ServiceName `json:"open_services"`
+	LastHitAt    *string       `json:"last_hit_at"` // the last real hit on this address
+	// DeviceID and DeviceName are the inventory device at this address, when the inventory has one (it is then a conflict).
+	DeviceID   *string `json:"device_id"`
+	DeviceName *string `json:"device_name"`
+	CreatedAt  string  `json:"created_at"`
+}
+
+// Attachment is how a Trap IP address sits on the box: Kind "macvlan" (the only way the host makes one, D-102), Link the
+// name of the link, Parent the card it hangs off ("" when the host does not say).
+type Attachment struct {
+	Kind   string `json:"kind"`
+	Link   string `json:"link"`
+	Parent string `json:"parent"`
+}
+
+// DecoyLink is what the host says of one address it holds (state/net): its MAC, the link and the parent card.
+type DecoyLink struct {
+	MAC    string
+	Link   string
+	Parent string
 }
 
 // TrapSuggestion is a device type that exists in the inventory (INV-11).
@@ -372,7 +403,8 @@ type ModuleGate interface{ Enabled(id string) bool }
 const EventHitCreated = "honeypot.hit.created"
 
 // HitEventData is the data of EventHitCreated. Every text is cut to size and came from the network. Decoy is the name of
-// what was touched (the trap's host name, the bait token's label, or "Decoy sweep"; the trap IP when the name is empty);
+// what was touched (the Trap IP's name, the bait token's label, the names of the Trap IPs a sweep touched, or "Decoy sweep"
+// for a probe the container saw; the trap IP when the name is empty);
 // SrcAssetID is the inventory device at the source address when the hit was stored, "" for none (the response trigger reads both).
 type HitEventData struct {
 	ID         string  `json:"id"`
@@ -384,4 +416,5 @@ type HitEventData struct {
 	Label      string  `json:"label"`
 	Decoy      string  `json:"decoy"`
 	SrcAssetID string  `json:"src_asset_id"`
+	SrcName    string  `json:"src_name"` // the name of that device, "" for none (notify names it on the incident, W1-13)
 }

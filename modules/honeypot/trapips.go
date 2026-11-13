@@ -3,12 +3,15 @@ package honeypot
 import (
 	"context"
 	"database/sql"
+	"encoding/hex"
 	"errors"
 	"fmt"
+	"maps"
 	"net/netip"
 	"slices"
 	"strings"
 
+	"github.com/knt048/vedette/content/oui"
 	"github.com/knt048/vedette/core/store"
 )
 
@@ -143,10 +146,49 @@ func (s *Service) TrapIPs(ctx context.Context) (TrapIPsResponse, error) {
 	}
 	out := TrapIPsResponse{Items: make([]TrapIP, 0, len(w.trapIPs)), Suggestions: suggestions(w.devices), SpareIPs: spareIPs(w), SpareChecked: w.discovered()}
 	hv := s.hostView()
+	last, err := s.lastHits(ctx)
+	if err != nil {
+		return TrapIPsResponse{}, err
+	}
 	for _, d := range w.trapIPs {
-		out.Items = append(out.Items, w.withState(d, hv))
+		v := w.withState(d, hv)
+		if l := last[d.IP]; l != "" {
+			v.LastHitAt = ptr(l)
+		}
+		out.Items = append(out.Items, v)
 	}
 	return out, nil
+}
+
+// lastHits is the time of the last real hit on each Trap IP address (a scan counts for none: it names several).
+func (s *Service) lastHits(ctx context.Context) (map[string]string, error) {
+	rows, err := s.db.Reader().QueryContext(ctx, `SELECT trap_ip, max(ts) FROM hp_hits WHERE is_test = 0 AND kind = 'service' GROUP BY trap_ip`)
+	if err != nil {
+		return nil, fmt.Errorf("honeypot: last hits: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	out := map[string]string{}
+	for rows.Next() {
+		var ip, ts string
+		if err := rows.Scan(&ip, &ts); err != nil {
+			return nil, fmt.Errorf("honeypot: last hits: %w", err)
+		}
+		out[ip] = ts
+	}
+	return out, rows.Err()
+}
+
+// macVendor is the company the IEEE registered the prefix of mac to (D-83), nil when it has none (locally administered).
+func macVendor(mac string) *string {
+	hw, err := hex.DecodeString(strings.NewReplacer(":", "", "-", "").Replace(mac)) // not net.ParseMAC: the module imports no net (INV-1)
+	if err != nil || len(hw) != 6 {
+		return nil
+	}
+	v, ok := oui.Lookup([6]byte(hw))
+	if !ok {
+		return nil
+	}
+	return ptr(v)
 }
 
 // AddTrapIP is POST /honeypot/trap-ips (INV-5, INV-13, D-466). A new Trap IP is on.
@@ -291,7 +333,15 @@ func (s *Service) trapIP(ctx context.Context, id string) (TrapIP, error) {
 	hv := s.hostView()
 	for _, d := range w.trapIPs {
 		if d.ID == id {
-			return w.withState(d, hv), nil
+			v := w.withState(d, hv)
+			last, err := s.lastHits(ctx)
+			if err != nil {
+				return TrapIP{}, err
+			}
+			if l := last[d.IP]; l != "" {
+				v.LastHitAt = ptr(l)
+			}
+			return v, nil
 		}
 	}
 	return TrapIP{}, notFound("No such Trap IP.")
@@ -309,8 +359,18 @@ func (w *world) withState(d trapIPRow, hv hostView) TrapIP {
 		}
 		return out
 	}
-	if m := hv.macs[d.ip]; m != "" && hv.placed[d.ip] {
-		out.MAC = ptr(m)
+	out.OpenServices = []ServiceName{}
+	if dev := w.deviceAt(d.ip); dev != nil {
+		out.DeviceID, out.DeviceName = ptr(dev.ID), ptr(dev.Name)
+	}
+	if l, ok := hv.links[d.ip]; ok && hv.placed[d.ip] {
+		if l.MAC != "" {
+			out.MAC = ptr(l.MAC)
+			out.MACVendor = macVendor(l.MAC)
+		}
+		if l.Link != "" {
+			out.Attachment = &Attachment{Kind: "macvlan", Link: l.Link, Parent: l.Parent}
+		}
 	}
 	switch why, hostFault := hv.conflicts[d.ip], hv.hostFailed[d.ip]; {
 	case !d.Enabled:
@@ -325,8 +385,14 @@ func (w *world) withState(d trapIPRow, hv hostView) TrapIP {
 	case why != "":
 		return set(StateConflict, why)
 	case hv.available && hv.running && hv.placed[d.ip]:
-		if hv.openPorts {
+		if hv.openPorts { // an older host: the address answers every service the container runs
+			out.OpenServices = inOrder(slices.Collect(maps.Keys(hv.services)))
 			return set(StateListening, openPortsNote)
+		}
+		for _, svc := range d.Services {
+			if hv.services[svc] {
+				out.OpenServices = append(out.OpenServices, svc)
+			}
 		}
 		return set(StateListening, "")
 	case hv.pending:

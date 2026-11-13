@@ -75,6 +75,8 @@ type Service struct {
 	refusals map[netip.Addr]*refusal
 	sig      string
 	pollMu   sync.Mutex // one Poll at a time
+	// touches is when each source last touched each Trap IP, for the sweep detection (ingest.go sweep; guarded by pollMu).
+	touches map[netip.Addr]map[netip.Addr]time.Time
 }
 
 // New returns the service.

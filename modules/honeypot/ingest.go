@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"net/netip"
 	"path"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -182,8 +183,8 @@ type ingestEnv struct {
 	order     []netip.Addr
 	openPorts bool
 	perSrc    map[netip.Addr]int
-	pollNew int // new hits stored by this poll's earlier batches
-	hourNew int // new hits stored in this clock hour before this batch
+	pollNew   int // new hits stored by this poll's earlier batches
+	hourNew   int // new hits stored in this clock hour before this batch
 	// of the batch in progress
 	newHits []HitEventData
 	ignored int
@@ -437,8 +438,7 @@ func (s *Service) ingestOne(ctx context.Context, tx *sql.Tx, env *ingestEnv, r R
 		}
 		line := label + " from " + from
 		return s.upsert(ctx, tx, env, storedHit{
-			Hit:    Hit{TS: tsText, Kind: KindScan, Label: label, SrcIP: src, Excerpt: "TCP probe of a decoy IP"},
-			trapIP: trapIP, trapHostname: "Decoy sweep",
+			Hit:     Hit{TS: tsText, Kind: KindScan, Label: label, SrcIP: src, Excerpt: "TCP probe of a decoy IP", TrapIP: trapIP, TrapHostname: "Decoy sweep"},
 			connKey: connKey("scan", src, dst, window),
 			events:  []HitEvent{{TS: tsText, Source: "honeypot", Text: line, Mark: true}},
 		}, line, "")
@@ -455,10 +455,13 @@ func (s *Service) ingestOne(ctx context.Context, tx *sql.Tx, env *ingestEnv, r R
 	}
 	svcCopy := svc
 	if err := s.upsert(ctx, tx, env, storedHit{
-		Hit:    Hit{TS: tsText, Kind: KindService, Service: &svcCopy, Label: svc.Label(), Port: &port, SrcIP: src, Excerpt: det},
-		trapIP: trapIP, trapHostname: env.nameAt(trapIP), connKey: connKey("service", string(svc), src, dst, strconv.Itoa(port), window),
-		events: []HitEvent{{TS: tsText, Source: "honeypot", Text: first, Mark: true}},
+		Hit:     Hit{TS: tsText, Kind: KindService, Service: &svcCopy, Label: svc.Label(), Port: &port, SrcIP: src, Excerpt: det, TrapIP: trapIP, TrapHostname: env.nameAt(trapIP)},
+		connKey: connKey("service", string(svc), src, dst, strconv.Itoa(port), window),
+		events:  []HitEvent{{TS: tsText, Source: "honeypot", Text: first, Mark: true}},
 	}, more, det); err != nil {
+		return err
+	}
+	if err := s.sweep(ctx, tx, env, r.Src, trapIP, ts); err != nil {
 		return err
 	}
 	// POST-2: a bait account or file touched. Only a token that still exists counts (INV-10).
@@ -481,11 +484,65 @@ func (s *Service) ingestOne(ctx context.Context, tx *sql.Tx, env *ingestEnv, r R
 	}
 	line := label + " was used from " + from
 	return s.upsert(ctx, tx, env, storedHit{
-		Hit:    Hit{TS: tsText, Kind: KindToken, Label: label, SrcIP: src, Excerpt: ex},
-		trapIP: tok.Value, trapHostname: label, tokenID: tok.ID,
+		Hit:     Hit{TS: tsText, Kind: KindToken, Label: label, SrcIP: src, Excerpt: ex, TrapIP: tok.Value, TrapHostname: label},
+		tokenID: tok.ID,
 		connKey: connKey("token", tok.ID, src, window),
 		events:  []HitEvent{{TS: tsText, Source: "honeypot", Text: line, Mark: true}},
 	}, line, "")
+}
+
+// sweepWindow: one source that touches two or more Trap IPs within this time is scanning the network (W1-13, S-HP-2).
+const sweepWindow = time.Minute
+
+// maxSweepSources bounds the memory of who touched what: past it the record starts over. ponytail: a flood of sources
+// can make a real sweep in that poll go unseen as a scan (each of its hits still alerts); the upgrade is an LRU.
+const maxSweepSources = 4096
+
+// sweep records that src touched the Trap IP at trapIP at ts and, once src touched two or more Trap IPs within
+// sweepWindow, stores one scan hit for src per hit window (later Trap IPs it touches in that window are added to the same
+// hit, not a new alert). The record is memory only: a sweep that a restart of core cuts in two is not seen as one.
+func (s *Service) sweep(ctx context.Context, tx *sql.Tx, env *ingestEnv, src netip.Addr, trapIP string, ts time.Time) error {
+	ip, err := netip.ParseAddr(trapIP)
+	if err != nil || env.at[ip] == nil {
+		return nil
+	}
+	if s.touches == nil || len(s.touches) > maxSweepSources {
+		s.touches = map[netip.Addr]map[netip.Addr]time.Time{}
+	}
+	seen := s.touches[src]
+	if seen == nil {
+		seen = map[netip.Addr]time.Time{}
+		s.touches[src] = seen
+	}
+	if old, ok := seen[ip]; !ok || ts.After(old) {
+		seen[ip] = ts
+	}
+	var near []netip.Addr
+	for a, at := range seen {
+		switch d := ts.Sub(at); {
+		case d > sweepWindow:
+			delete(seen, a) // too old for any later line (the log is in time order, give or take a second)
+		case d >= -sweepWindow:
+			near = append(near, a)
+		}
+	}
+	if len(near) < 2 {
+		return nil
+	}
+	slices.SortFunc(near, func(a, b netip.Addr) int { return a.Compare(b) })
+	var ips, names, both []string
+	for _, a := range near {
+		name := env.nameAt(a.String())
+		ips, names, both = append(ips, a.String()), append(names, name), append(both, name+" ("+a.String()+")")
+	}
+	tsText := store.FormatTS(ts)
+	line := src.String() + " touched " + env.nameAt(trapIP) + " (" + trapIP + ")"
+	return s.upsert(ctx, tx, env, storedHit{
+		Hit: Hit{TS: tsText, Kind: KindScan, Label: "Scan across the Trap IPs", SrcIP: src.String(),
+			Excerpt: "Touched " + strings.Join(both, ", ") + " within a minute", TrapIP: joinMax(ips, 400), TrapHostname: joinMax(names, 100)},
+		connKey: connKey("sweep", src.String(), strconv.FormatInt(ts.Truncate(hitWindow).Unix(), 10)),
+		events:  []HitEvent{{TS: tsText, Source: "honeypot", Text: line, Mark: true}},
+	}, line, env.nameAt(trapIP)+" ("+trapIP+")")
 }
 
 func isBroadcast(lan netip.Prefix, a netip.Addr) bool {
@@ -529,12 +586,12 @@ func (s *Service) upsert(ctx context.Context, tx *sql.Tx, env *ingestEnv, h stor
 		if err := s.insertHit(ctx, tx, h); err != nil {
 			return err
 		}
-		d := HitEventData{ID: h.ID, TS: h.TS, Kind: h.Kind, SrcIP: h.SrcIP, Label: h.Label, Decoy: h.trapHostname}
+		d := HitEventData{ID: h.ID, TS: h.TS, Kind: h.Kind, SrcIP: h.SrcIP, Label: h.Label, Decoy: h.TrapHostname}
 		if d.Decoy == "" {
-			d.Decoy = h.trapIP
+			d.Decoy = h.TrapIP
 		}
 		if dev := env.w.byIP(h.SrcIP); dev != nil { // INV-8: the source device as the inventory knows it now
-			d.SrcAssetID = dev.ID
+			d.SrcAssetID, d.SrcName = dev.ID, clean(dev.Name, 120)
 		}
 		if h.Service != nil {
 			d.Service = string(*h.Service)

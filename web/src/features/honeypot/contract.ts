@@ -48,13 +48,13 @@ export const Hit = z.object({
   src_name: z.string().nullable().describe('Source device name, looked up from the inventory when read; null = not in the inventory'),
   is_test: z.boolean(),
   excerpt: z.string(),
+  trap_ip: z.string().describe('The Trap IP that was touched; for a scan the Trap IPs it touched, comma-separated; for a token its value'),
+  trap_hostname: z.string().describe('Name of the Trap IP that was hit (D-466), of the token, or of the Trap IPs a scan touched ("Decoy sweep" for a probe without names): the Trap IP column of the hit list (W1-13)'),
 })
 
 export const HitEvent = z.object({ ts: z.iso.datetime(), source: z.enum(['honeypot', 'firewall', 'dhcp', 'ad', 'vedette']), text: z.string(), mark: z.boolean() })
 
 export const HitDetail = Hit.extend({
-  trap_ip: z.string(),
-  trap_hostname: z.string().describe('Name of the Trap IP that was hit (D-466), or of the token / "Decoy sweep"'),
   asset: z.object({ id: z.string(), kind: z.string(), ip: z.string(), approved: z.boolean() }).nullable(),
   events: z.array(HitEvent),
   window_minutes: z.number().int(),
@@ -76,6 +76,16 @@ export const TrapIP = z.object({
   state: TrapState.describe('From the host, not the switch: listening only when the container runs and the host holds the address with its ports'),
   reason: z.string().nullable().describe('Why state is failed or conflict, or why an enabled Trap IP is off; also a note when it listens but the host cannot keep its services apart; null otherwise'),
   mac: z.string().nullable().describe('MAC address the box gave this IP, as the host reports it; null until known'),
+  mac_vendor: z.string().nullable().describe('Company the IEEE registered the MAC prefix to, what a network scanner shows for this address; null for a locally administered MAC or while the MAC is unknown'),
+  attachment: z.object({
+    kind: z.enum(['macvlan']).describe('How the host holds the address: its own macvlan link with its own MAC, moved into the honeypot network namespace (host-api 6.6); never an address on the box\'s own card'),
+    link: z.string().describe('Name of the link, vdh + the eight hex digits of the address'),
+    parent: z.string().describe('The box network card the link hangs off; empty when the host does not say'),
+  }).nullable().describe('null until the host holds the address'),
+  open_services: z.array(HpService).describe('Services the address answers on now: its own while it listens; every running service on an older host that cannot keep them apart; none while it does not listen'),
+  last_hit_at: z.iso.datetime().nullable().describe('Last real hit on this address'),
+  device_id: z.string().nullable().describe('Inventory device at this address, when the inventory shows one (the Trap IP is then in conflict)'),
+  device_name: z.string().nullable(),
   created_at: z.iso.datetime(),
 })
 export const TrapSuggestion = z.object({ preset: TrapPreset, count: z.number().int(), examples: z.array(z.string()) }).describe('A device type that really exists in the inventory, so a Trap IP of that type blends in')

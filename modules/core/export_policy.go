@@ -86,11 +86,10 @@ var exportPolicy = map[string]tablePolicy{
 	"fnd_finding_history":    {export: "id finding_id ts user action note"},
 	"fnd_version_needed":     {export: "asset_id software_id software version cves updated_at"}, // D-500
 	"hp_config":              {export: "key updated_at updated_by", json: "value"},
-	"hp_decoys":              {export: "id personality name ip enabled created_at"},
 	"hp_hits":                {export: "id ts kind service label port src_ip is_test excerpt trap_ip trap_hostname token_id conn_key conn_count", json: "events"},
 	"hp_ignored_day":         {export: "day count"},
 	"hp_tokens":              {export: "id type name value plant_at created_at", skip: "secret_id"},
-	"hp_trap":                {export: "service enabled since"},
+	"hp_trap_ips":            {export: "id name ip preset vendor enabled created_at", json: "services"},
 	"inv_asset":              {export: "id ip mac hostname kind vendor model os vendor_obs_id model_obs_id os_obs_id kind_obs_id hostname_obs_id mac_obs_id origin approved fragile fragile_manual regular_scan first_scan_at suspicious is_box notes first_seen last_seen"},
 	"inv_observation":        {export: "id asset_id field value source confidence seen_at evidence"},
 	"inv_service":            {export: "id asset_id port proto name product version source confidence seen_at"},

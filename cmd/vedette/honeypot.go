@@ -93,7 +93,9 @@ var errNoHost = errors.New("honeypot: there is no vedette-host on this machine")
 func (notAnAppliance) Status(context.Context) (honeypot.HostStatus, error) {
 	return honeypot.HostStatus{Reason: notApplianceReason}, nil
 }
-func (notAnAppliance) AddDecoyIP(context.Context, netip.Addr) error    { return errNoHost }
+func (notAnAppliance) AddDecoyIP(context.Context, netip.Addr, honeypot.DecoySpec) error {
+	return errNoHost
+}
 func (notAnAppliance) RemoveDecoyIP(context.Context, netip.Addr) error { return errNoHost }
 func (notAnAppliance) StartContainer(context.Context, bool) error      { return errNoHost }
 func (notAnAppliance) StopContainer(context.Context) error             { return errNoHost }

@@ -12,6 +12,8 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -139,7 +141,7 @@ func TestHoneypotHostCallsAreIdempotent(t *testing.T) {
 	ctx := t.Context()
 	ip := netip.MustParseAddr("192.168.10.240")
 	for range 2 {
-		if err := a.AddDecoyIP(ctx, ip); err != nil {
+		if err := a.AddDecoyIP(ctx, ip, honeypot.DecoySpec{}); err != nil {
 			t.Fatalf("add: %v", err)
 		}
 	}
@@ -195,12 +197,7 @@ func TestHoneypotOverTheRealHostEnableAndSwitchOff(t *testing.T) {
 	})
 	s.saveScope(t)
 	s.setModule("honeypot", true)
-	if code, b := s.do("PUT", "/honeypot/config", "admin", `{"secondary_ip":"192.168.10.240","hostname":"FILESRV-OLD"}`); code != 200 {
-		t.Fatalf("%d %v", code, b)
-	}
-	if code, b := s.do("PATCH", "/honeypot/traps/ssh", "admin", `{"enabled":true}`); code != 200 {
-		t.Fatalf("%d %v", code, b)
-	}
+	tip := s.addTrapIP(t, `{"name":"FILESRV-OLD","ip":"192.168.10.240","preset":"custom","vendor":null,"services":["ssh"]}`)
 	if err := s.d.Honeypot.Apply(t.Context()); err != nil {
 		t.Fatal(err)
 	}
@@ -232,7 +229,7 @@ func TestHoneypotOverTheRealHostEnableAndSwitchOff(t *testing.T) {
 	if n := len(e.m.Calls(ops.BinIP)); n != ipCalls {
 		t.Fatalf("the second Apply asked the host to add an address it already holds (%d ip calls, was %d)", n, ipCalls)
 	}
-	if code, b := s.do("PATCH", "/honeypot/traps/http", "admin", `{"enabled":true}`); code != 200 {
+	if code, b := s.do("PUT", "/honeypot/trap-ips/"+tip, "admin", `{"name":"FILESRV-OLD","ip":"192.168.10.240","preset":"custom","vendor":null,"services":["ssh","http"]}`); code != 200 {
 		t.Fatalf("%d %v", code, b)
 	}
 	if err := s.d.Honeypot.Apply(t.Context()); err != nil || e.systemctl("restart") != 2 {
@@ -289,12 +286,7 @@ func TestHoneypotHostDownOrAbsentNothingListens(t *testing.T) {
 			})
 			s.saveScope(t)
 			s.setModule("honeypot", true)
-			if code, b := s.do("PUT", "/honeypot/config", "admin", `{"secondary_ip":"192.168.10.240","hostname":"FILESRV-OLD"}`); code != 200 {
-				t.Fatalf("%d %v", code, b)
-			}
-			if code, b := s.do("PATCH", "/honeypot/traps/ssh", "admin", `{"enabled":true}`); code != 200 {
-				t.Fatalf("%d %v", code, b)
-			}
+			s.addTrapIP(t, `{"name":"FILESRV-OLD","ip":"192.168.10.240","preset":"custom","vendor":null,"services":["ssh"]}`)
 			if err := s.d.Honeypot.Apply(t.Context()); err != nil {
 				t.Fatalf("apply: %v", err)
 			}
@@ -342,16 +334,16 @@ func TestHoneypotHostContainerNotInstalled(t *testing.T) {
 func TestHoneypotHostRefusalsArePlain(t *testing.T) {
 	t.Parallel()
 	e := startHPHost(t, false)
-	err := e.adapter().AddDecoyIP(t.Context(), netip.MustParseAddr("10.9.9.9"))
+	err := e.adapter().AddDecoyIP(t.Context(), netip.MustParseAddr("10.9.9.9"), honeypot.DecoySpec{})
 	if err == nil || !strings.Contains(err.Error(), "outside the network") || !strings.Contains(err.Error(), api.CodeIPNotInMgmtSubnet) {
 		t.Fatalf("outside the subnet: %v", err)
 	}
-	if err := e.adapter().AddDecoyIP(t.Context(), netip.MustParseAddr("192.168.10.1")); err == nil || !strings.Contains(err.Error(), api.CodeIPIsGateway) || errors.Is(err, honeypot.ErrHostFailed) {
+	if err := e.adapter().AddDecoyIP(t.Context(), netip.MustParseAddr("192.168.10.1"), honeypot.DecoySpec{}); err == nil || !strings.Contains(err.Error(), api.CodeIPIsGateway) || errors.Is(err, honeypot.ErrHostFailed) {
 		t.Fatalf("the gateway: %v", err)
 	}
 	// The host failing to build the decoy is a refusal (it holds nothing) but not about the address (#475).
 	e.m.Rule(ops.BinIP, "link add link", "", 2, "", "")
-	if err := e.adapter().AddDecoyIP(t.Context(), netip.MustParseAddr("192.168.10.240")); !errors.Is(err, honeypot.ErrRefused) || !errors.Is(err, honeypot.ErrHostFailed) || !strings.Contains(err.Error(), api.CodeDecoyFailed) {
+	if err := e.adapter().AddDecoyIP(t.Context(), netip.MustParseAddr("192.168.10.240"), honeypot.DecoySpec{}); !errors.Is(err, honeypot.ErrRefused) || !errors.Is(err, honeypot.ErrHostFailed) || !strings.Contains(err.Error(), api.CodeDecoyFailed) {
 		t.Fatalf("a failed build: %v", err)
 	}
 	if got := e.decoyLinks(); len(got) != 0 {
@@ -405,11 +397,11 @@ func TestHoneypotHostBusyIsNotSpunOn(t *testing.T) {
 		b := mk()
 		a := &honeypotHost{api: b, log: testLogger(), poll: time.Second, runFor: 30 * time.Second}
 		start := time.Now()
-		err := a.AddDecoyIP(t.Context(), ip)
+		err := a.AddDecoyIP(t.Context(), ip, honeypot.DecoySpec{})
 		if !errors.Is(err, errHostBusy) || errors.Is(err, honeypot.ErrRefused) || b.calls != 1 || time.Since(start) > time.Second || len(e.decoyLinks()) != 0 {
 			t.Fatalf("%s: %v after %d calls in %v, links %v", name, err, b.calls, time.Since(start), e.decoyLinks())
 		}
-		if err := a.AddDecoyIP(t.Context(), ip); err != nil || len(e.decoyLinks()) != 1 {
+		if err := a.AddDecoyIP(t.Context(), ip, honeypot.DecoySpec{}); err != nil || len(e.decoyLinks()) != 1 {
 			t.Fatalf("%s: the next call: %v, links %v", name, err, e.decoyLinks())
 		}
 		if err := a.RemoveDecoyIP(t.Context(), ip); err != nil || len(e.decoyLinks()) != 0 {
@@ -427,7 +419,7 @@ func TestHoneypotHostStaysInsideTheHostLimits(t *testing.T) {
 	a := e.adapter()
 	ctx := t.Context()
 	for i := range 4 {
-		if err := a.AddDecoyIP(ctx, netip.MustParseAddr(fmt.Sprintf("192.168.10.%d", 240+i))); err != nil {
+		if err := a.AddDecoyIP(ctx, netip.MustParseAddr(fmt.Sprintf("192.168.10.%d", 240+i)), honeypot.DecoySpec{}); err != nil {
 			t.Fatalf("add %d: %v", i, err)
 		}
 	}
@@ -439,7 +431,7 @@ func TestHoneypotHostStaysInsideTheHostLimits(t *testing.T) {
 			t.Fatalf("apply %d status: %+v %v", i, st, err)
 		}
 		for j := range 4 {
-			if err := a.AddDecoyIP(ctx, netip.MustParseAddr(fmt.Sprintf("192.168.10.%d", 240+j))); err != nil {
+			if err := a.AddDecoyIP(ctx, netip.MustParseAddr(fmt.Sprintf("192.168.10.%d", 240+j)), honeypot.DecoySpec{}); err != nil {
 				t.Fatalf("apply %d add: %v", i, err)
 			}
 		}
@@ -463,7 +455,7 @@ func TestHoneypotHostSlowRunAndCancel(t *testing.T) {
 	t.Parallel()
 	e := startHPHostWith(t, false, false, 300*time.Millisecond) // the add is still running when the answer comes
 	a := &honeypotHost{api: e.h.Client, log: testLogger(), poll: time.Millisecond, runFor: time.Nanosecond}
-	err := a.AddDecoyIP(t.Context(), netip.MustParseAddr("192.168.10.240"))
+	err := a.AddDecoyIP(t.Context(), netip.MustParseAddr("192.168.10.240"), honeypot.DecoySpec{})
 	if !errors.Is(err, errHostTooLong) || errors.Is(err, honeypot.ErrRefused) {
 		t.Fatalf("slow run: %v", err)
 	}
@@ -518,12 +510,7 @@ func TestHoneypotUnknownOutcomeIsNotForgottenByTheTeardown(t *testing.T) {
 	})
 	s.saveScope(t)
 	s.setModule("honeypot", true)
-	if code, b := s.do("PUT", "/honeypot/config", "admin", `{"secondary_ip":"192.168.10.240","hostname":"FILESRV-OLD"}`); code != 200 {
-		t.Fatalf("%d %v", code, b)
-	}
-	if code, b := s.do("PATCH", "/honeypot/traps/ssh", "admin", `{"enabled":true}`); code != 200 {
-		t.Fatalf("%d %v", code, b)
-	}
+	s.addTrapIP(t, `{"name":"FILESRV-OLD","ip":"192.168.10.240","preset":"custom","vendor":null,"services":["ssh"]}`)
 	broken.Store(true)
 	if err := s.d.Honeypot.Apply(t.Context()); err == nil || errors.Is(err, honeypot.ErrRefused) {
 		t.Fatalf("Apply with a host whose answers are lost: %v", err)
@@ -574,7 +561,7 @@ func TestHoneypotHostCutOffRunIsUnknown(t *testing.T) {
 	e := startHPHost(t, false)
 	ip := netip.MustParseAddr("192.168.10.241")
 	a := &honeypotHost{api: cutOffAPI{e.h.Client}, log: testLogger(), poll: time.Second, runFor: 30 * time.Second}
-	err := a.AddDecoyIP(t.Context(), ip)
+	err := a.AddDecoyIP(t.Context(), ip, honeypot.DecoySpec{})
 	if err == nil || errors.Is(err, honeypot.ErrRefused) || errors.Is(err, errHostBusy) {
 		t.Fatalf("cut-off add: %v, want an unknown outcome", err)
 	}
@@ -616,5 +603,92 @@ func TestHoneypotHostStopIsNotRepeated(t *testing.T) {
 	}
 	if err := a.StopContainer(ctx); err != nil || e.systemctl("stop") != stops+1 || e.unitState(t) == api.UnitActive {
 		t.Fatalf("stop after a start: %v, stops %d, unit %s", err, e.systemctl("stop")-stops, e.unitState(t))
+	}
+}
+
+// oldHost is a vedette-host from before D-466: its command list has no decoy_ip.set_ports.
+type oldHost struct{ hostAPI }
+
+func (o oldHost) Info(ctx context.Context) (api.Info, error) {
+	info, err := o.hostAPI.Info(ctx)
+	info.Commands = slices.DeleteFunc(info.Commands, func(c string) bool { return c == api.CmdDecoySetPorts })
+	return info, err
+}
+
+func (e *hpHost) heldDecoy(t *testing.T, ip string) (api.NetDecoy, bool) {
+	t.Helper()
+	ns, err := e.h.Client.StateNet(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, d := range ns.Decoys {
+		if d.IP == ip {
+			return d, true
+		}
+	}
+	return api.NetDecoy{}, false
+}
+
+// D-466, W1-14: the adapter hands the host each Trap IP's own ports and its vendor's MAC prefix, and later changes only what
+// differs: new ports go by decoy_ip.set_ports (the link stays), a new prefix by remove + add, the same spec costs no write.
+func TestHoneypotHostSendsEachTrapIPItsPortsAndPrefix(t *testing.T) {
+	t.Parallel()
+	e := startHPHost(t, false)
+	a := e.adapter()
+	ctx := t.Context()
+	ip := netip.MustParseAddr("192.168.10.240")
+	fileServer := honeypot.DecoySpec{OUI: "f8bc12", Ports: []honeypot.Port{{Proto: "tcp", Port: 3389}, {Proto: "tcp", Port: 445}}}
+	if !a.KeepsPorts(ctx) {
+		t.Fatal("the host lists decoy_ip.set_ports, but the adapter says it cannot keep ports")
+	}
+	if err := a.AddDecoyIP(ctx, ip, fileServer); err != nil {
+		t.Fatal(err)
+	}
+	d, ok := e.heldDecoy(t, ip.String())
+	if !ok || d.Ports == nil || fmt.Sprint(*d.Ports) != "[{tcp 445} {tcp 3389}]" || !strings.HasPrefix(d.MAC, "f8:bc:12:") {
+		t.Fatalf("the host holds %+v (ports %v)", d, d.Ports)
+	}
+	mac := d.MAC
+	writes := len(e.m.Calls(ops.BinIP))
+	if err := a.AddDecoyIP(ctx, ip, fileServer); err != nil || len(e.m.Calls(ops.BinIP)) != writes {
+		t.Fatalf("the same spec again: %v (%d ip calls, was %d)", err, len(e.m.Calls(ops.BinIP)), writes)
+	}
+	ssh := honeypot.DecoySpec{OUI: "f8bc12", Ports: []honeypot.Port{{Proto: "tcp", Port: 22}}}
+	a.forgetDecoys()
+	if err := a.AddDecoyIP(ctx, ip, ssh); err != nil {
+		t.Fatal(err)
+	}
+	if d, _ := e.heldDecoy(t, ip.String()); d.Ports == nil || fmt.Sprint(*d.Ports) != "[{tcp 22}]" || d.MAC != mac {
+		t.Fatalf("after new ports the host holds %+v (ports %v), MAC was %s", d, d.Ports, mac)
+	}
+	a.forgetDecoys()
+	if err := a.AddDecoyIP(ctx, ip, honeypot.DecoySpec{Ports: ssh.Ports}); err != nil {
+		t.Fatal(err)
+	}
+	d, _ = e.heldDecoy(t, ip.String())
+	if b, err := strconv.ParseUint(d.MAC[:2], 16, 8); err != nil || b&0x02 == 0 || d.Ports == nil || len(*d.Ports) != 1 {
+		t.Fatalf("no vendor: the host holds %+v, not a locally administered MAC with the ports", d)
+	}
+	links := a.DecoyLinks(ctx)
+	if l := links[ip]; l.Link != "vdhc0a80af0" || l.MAC != d.MAC {
+		t.Fatalf("links %+v", links)
+	}
+}
+
+// An older vedette-host (no decoy_ip.set_ports in /v1/info) never gets ports, which it would refuse: its addresses answer
+// every service, and the module is told so (KeepsPorts false).
+func TestHoneypotHostSendsNoPortsToAnOlderHost(t *testing.T) {
+	t.Parallel()
+	e := startHPHost(t, false)
+	a := &honeypotHost{api: oldHost{e.h.Client}, log: testLogger(), poll: time.Second, runFor: 30 * time.Second}
+	ip := netip.MustParseAddr("192.168.10.241")
+	if a.KeepsPorts(t.Context()) {
+		t.Fatal("an older host was taken to keep ports")
+	}
+	if err := a.AddDecoyIP(t.Context(), ip, honeypot.DecoySpec{Ports: []honeypot.Port{{Proto: "tcp", Port: 445}}}); err != nil {
+		t.Fatal(err)
+	}
+	if d, ok := e.heldDecoy(t, ip.String()); !ok || d.Ports != nil {
+		t.Fatalf("an older host was sent ports: %+v", d)
 	}
 }

@@ -65019,8 +65019,11 @@ type HoneypotGetHoneypotHitsIDOK struct {
 	SrcIP      string                                `json:"src_ip"`
 	// Source device name, looked up from the inventory when read; null = not in the inventory.
 	SrcName NilString `json:"src_name"`
-	// Name of the Trap IP that was hit (D-466), or of the token / "Decoy sweep".
-	TrapHostname  string    `json:"trap_hostname"`
+	// Name of the Trap IP that was hit (D-466), of the token, or of the Trap IPs a scan touched ("Decoy
+	// sweep" for a probe without names): the Trap IP column of the hit list (W1-13).
+	TrapHostname string `json:"trap_hostname"`
+	// The Trap IP that was touched; for a scan the Trap IPs it touched, comma-separated; for a token its
+	// value.
 	TrapIP        string    `json:"trap_ip"`
 	Ts            time.Time `json:"ts"`
 	WindowMinutes int       `json:"window_minutes"`
@@ -65484,7 +65487,13 @@ type HoneypotGetHoneypotHitsOKItemsItem struct {
 	SrcIP      string                                       `json:"src_ip"`
 	// Source device name, looked up from the inventory when read; null = not in the inventory.
 	SrcName NilString `json:"src_name"`
-	Ts      time.Time `json:"ts"`
+	// Name of the Trap IP that was hit (D-466), of the token, or of the Trap IPs a scan touched ("Decoy
+	// sweep" for a probe without names): the Trap IP column of the hit list (W1-13).
+	TrapHostname string `json:"trap_hostname"`
+	// The Trap IP that was touched; for a scan the Trap IPs it touched, comma-separated; for a token its
+	// value.
+	TrapIP string    `json:"trap_ip"`
+	Ts     time.Time `json:"ts"`
 }
 
 // GetExcerpt returns the value of Excerpt.
@@ -65535,6 +65544,16 @@ func (s *HoneypotGetHoneypotHitsOKItemsItem) GetSrcIP() string {
 // GetSrcName returns the value of SrcName.
 func (s *HoneypotGetHoneypotHitsOKItemsItem) GetSrcName() NilString {
 	return s.SrcName
+}
+
+// GetTrapHostname returns the value of TrapHostname.
+func (s *HoneypotGetHoneypotHitsOKItemsItem) GetTrapHostname() string {
+	return s.TrapHostname
+}
+
+// GetTrapIP returns the value of TrapIP.
+func (s *HoneypotGetHoneypotHitsOKItemsItem) GetTrapIP() string {
+	return s.TrapIP
 }
 
 // GetTs returns the value of Ts.
@@ -65590,6 +65609,16 @@ func (s *HoneypotGetHoneypotHitsOKItemsItem) SetSrcIP(val string) {
 // SetSrcName sets the value of SrcName.
 func (s *HoneypotGetHoneypotHitsOKItemsItem) SetSrcName(val NilString) {
 	s.SrcName = val
+}
+
+// SetTrapHostname sets the value of TrapHostname.
+func (s *HoneypotGetHoneypotHitsOKItemsItem) SetTrapHostname(val string) {
+	s.TrapHostname = val
+}
+
+// SetTrapIP sets the value of TrapIP.
+func (s *HoneypotGetHoneypotHitsOKItemsItem) SetTrapIP(val string) {
+	s.TrapIP = val
 }
 
 // SetTs sets the value of Ts.
@@ -66430,14 +66459,27 @@ func (s *HoneypotGetHoneypotTrapIpsOK) SetSuggestions(val []HoneypotGetHoneypotT
 }
 
 type HoneypotGetHoneypotTrapIpsOKItemsItem struct {
-	CreatedAt time.Time `json:"created_at"`
-	Enabled   bool      `json:"enabled"`
-	ID        string    `json:"id"`
-	IP        string    `json:"ip"`
+	// Null until the host holds the address.
+	Attachment NilHoneypotGetHoneypotTrapIpsOKItemsItemAttachment `json:"attachment"`
+	CreatedAt  time.Time                                          `json:"created_at"`
+	// Inventory device at this address, when the inventory shows one (the Trap IP is then in conflict).
+	DeviceID   NilString `json:"device_id"`
+	DeviceName NilString `json:"device_name"`
+	Enabled    bool      `json:"enabled"`
+	ID         string    `json:"id"`
+	IP         string    `json:"ip"`
+	// Last real hit on this address.
+	LastHitAt NilDateTime `json:"last_hit_at"`
 	// MAC address the box gave this IP, as the host reports it; null until known.
 	MAC NilString `json:"mac"`
+	// Company the IEEE registered the MAC prefix to, what a network scanner shows for this address; null
+	// for a locally administered MAC or while the MAC is unknown.
+	MACVendor NilString `json:"mac_vendor"`
 	// Host name of the Trap IP (NetBIOS form, up to 15 characters); the label of its hits.
 	Name string `json:"name"`
+	// Services the address answers on now: its own while it listens; every running service on an older
+	// host that cannot keep them apart; none while it does not listen.
+	OpenServices []HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItem `json:"open_services"`
 	// What the Trap IP looks like; a preset fills services and vendor, which stay editable. custom =
 	// services picked by hand.
 	Preset HoneypotGetHoneypotTrapIpsOKItemsItemPreset `json:"preset"`
@@ -66452,9 +66494,24 @@ type HoneypotGetHoneypotTrapIpsOKItemsItem struct {
 	Vendor NilHoneypotGetHoneypotTrapIpsOKItemsItemVendor `json:"vendor"`
 }
 
+// GetAttachment returns the value of Attachment.
+func (s *HoneypotGetHoneypotTrapIpsOKItemsItem) GetAttachment() NilHoneypotGetHoneypotTrapIpsOKItemsItemAttachment {
+	return s.Attachment
+}
+
 // GetCreatedAt returns the value of CreatedAt.
 func (s *HoneypotGetHoneypotTrapIpsOKItemsItem) GetCreatedAt() time.Time {
 	return s.CreatedAt
+}
+
+// GetDeviceID returns the value of DeviceID.
+func (s *HoneypotGetHoneypotTrapIpsOKItemsItem) GetDeviceID() NilString {
+	return s.DeviceID
+}
+
+// GetDeviceName returns the value of DeviceName.
+func (s *HoneypotGetHoneypotTrapIpsOKItemsItem) GetDeviceName() NilString {
+	return s.DeviceName
 }
 
 // GetEnabled returns the value of Enabled.
@@ -66472,14 +66529,29 @@ func (s *HoneypotGetHoneypotTrapIpsOKItemsItem) GetIP() string {
 	return s.IP
 }
 
+// GetLastHitAt returns the value of LastHitAt.
+func (s *HoneypotGetHoneypotTrapIpsOKItemsItem) GetLastHitAt() NilDateTime {
+	return s.LastHitAt
+}
+
 // GetMAC returns the value of MAC.
 func (s *HoneypotGetHoneypotTrapIpsOKItemsItem) GetMAC() NilString {
 	return s.MAC
 }
 
+// GetMACVendor returns the value of MACVendor.
+func (s *HoneypotGetHoneypotTrapIpsOKItemsItem) GetMACVendor() NilString {
+	return s.MACVendor
+}
+
 // GetName returns the value of Name.
 func (s *HoneypotGetHoneypotTrapIpsOKItemsItem) GetName() string {
 	return s.Name
+}
+
+// GetOpenServices returns the value of OpenServices.
+func (s *HoneypotGetHoneypotTrapIpsOKItemsItem) GetOpenServices() []HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItem {
+	return s.OpenServices
 }
 
 // GetPreset returns the value of Preset.
@@ -66507,9 +66579,24 @@ func (s *HoneypotGetHoneypotTrapIpsOKItemsItem) GetVendor() NilHoneypotGetHoneyp
 	return s.Vendor
 }
 
+// SetAttachment sets the value of Attachment.
+func (s *HoneypotGetHoneypotTrapIpsOKItemsItem) SetAttachment(val NilHoneypotGetHoneypotTrapIpsOKItemsItemAttachment) {
+	s.Attachment = val
+}
+
 // SetCreatedAt sets the value of CreatedAt.
 func (s *HoneypotGetHoneypotTrapIpsOKItemsItem) SetCreatedAt(val time.Time) {
 	s.CreatedAt = val
+}
+
+// SetDeviceID sets the value of DeviceID.
+func (s *HoneypotGetHoneypotTrapIpsOKItemsItem) SetDeviceID(val NilString) {
+	s.DeviceID = val
+}
+
+// SetDeviceName sets the value of DeviceName.
+func (s *HoneypotGetHoneypotTrapIpsOKItemsItem) SetDeviceName(val NilString) {
+	s.DeviceName = val
 }
 
 // SetEnabled sets the value of Enabled.
@@ -66527,14 +66614,29 @@ func (s *HoneypotGetHoneypotTrapIpsOKItemsItem) SetIP(val string) {
 	s.IP = val
 }
 
+// SetLastHitAt sets the value of LastHitAt.
+func (s *HoneypotGetHoneypotTrapIpsOKItemsItem) SetLastHitAt(val NilDateTime) {
+	s.LastHitAt = val
+}
+
 // SetMAC sets the value of MAC.
 func (s *HoneypotGetHoneypotTrapIpsOKItemsItem) SetMAC(val NilString) {
 	s.MAC = val
 }
 
+// SetMACVendor sets the value of MACVendor.
+func (s *HoneypotGetHoneypotTrapIpsOKItemsItem) SetMACVendor(val NilString) {
+	s.MACVendor = val
+}
+
 // SetName sets the value of Name.
 func (s *HoneypotGetHoneypotTrapIpsOKItemsItem) SetName(val string) {
 	s.Name = val
+}
+
+// SetOpenServices sets the value of OpenServices.
+func (s *HoneypotGetHoneypotTrapIpsOKItemsItem) SetOpenServices(val []HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItem) {
+	s.OpenServices = val
 }
 
 // SetPreset sets the value of Preset.
@@ -66560,6 +66662,144 @@ func (s *HoneypotGetHoneypotTrapIpsOKItemsItem) SetState(val HoneypotGetHoneypot
 // SetVendor sets the value of Vendor.
 func (s *HoneypotGetHoneypotTrapIpsOKItemsItem) SetVendor(val NilHoneypotGetHoneypotTrapIpsOKItemsItemVendor) {
 	s.Vendor = val
+}
+
+type HoneypotGetHoneypotTrapIpsOKItemsItemAttachment struct {
+	// How the host holds the address: its own macvlan link with its own MAC, moved into the honeypot
+	// network namespace (host-api 6.6); never an address on the box's own card.
+	Kind HoneypotGetHoneypotTrapIpsOKItemsItemAttachmentKind `json:"kind"`
+	// Name of the link, vdh + the eight hex digits of the address.
+	Link string `json:"link"`
+	// The box network card the link hangs off; empty when the host does not say.
+	Parent string `json:"parent"`
+}
+
+// GetKind returns the value of Kind.
+func (s *HoneypotGetHoneypotTrapIpsOKItemsItemAttachment) GetKind() HoneypotGetHoneypotTrapIpsOKItemsItemAttachmentKind {
+	return s.Kind
+}
+
+// GetLink returns the value of Link.
+func (s *HoneypotGetHoneypotTrapIpsOKItemsItemAttachment) GetLink() string {
+	return s.Link
+}
+
+// GetParent returns the value of Parent.
+func (s *HoneypotGetHoneypotTrapIpsOKItemsItemAttachment) GetParent() string {
+	return s.Parent
+}
+
+// SetKind sets the value of Kind.
+func (s *HoneypotGetHoneypotTrapIpsOKItemsItemAttachment) SetKind(val HoneypotGetHoneypotTrapIpsOKItemsItemAttachmentKind) {
+	s.Kind = val
+}
+
+// SetLink sets the value of Link.
+func (s *HoneypotGetHoneypotTrapIpsOKItemsItemAttachment) SetLink(val string) {
+	s.Link = val
+}
+
+// SetParent sets the value of Parent.
+func (s *HoneypotGetHoneypotTrapIpsOKItemsItemAttachment) SetParent(val string) {
+	s.Parent = val
+}
+
+// How the host holds the address: its own macvlan link with its own MAC, moved into the honeypot
+// network namespace (host-api 6.6); never an address on the box's own card.
+type HoneypotGetHoneypotTrapIpsOKItemsItemAttachmentKind string
+
+const (
+	HoneypotGetHoneypotTrapIpsOKItemsItemAttachmentKindMacvlan HoneypotGetHoneypotTrapIpsOKItemsItemAttachmentKind = "macvlan"
+)
+
+// AllValues returns all HoneypotGetHoneypotTrapIpsOKItemsItemAttachmentKind values.
+func (HoneypotGetHoneypotTrapIpsOKItemsItemAttachmentKind) AllValues() []HoneypotGetHoneypotTrapIpsOKItemsItemAttachmentKind {
+	return []HoneypotGetHoneypotTrapIpsOKItemsItemAttachmentKind{
+		HoneypotGetHoneypotTrapIpsOKItemsItemAttachmentKindMacvlan,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s HoneypotGetHoneypotTrapIpsOKItemsItemAttachmentKind) MarshalText() ([]byte, error) {
+	switch s {
+	case HoneypotGetHoneypotTrapIpsOKItemsItemAttachmentKindMacvlan:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *HoneypotGetHoneypotTrapIpsOKItemsItemAttachmentKind) UnmarshalText(data []byte) error {
+	switch HoneypotGetHoneypotTrapIpsOKItemsItemAttachmentKind(data) {
+	case HoneypotGetHoneypotTrapIpsOKItemsItemAttachmentKindMacvlan:
+		*s = HoneypotGetHoneypotTrapIpsOKItemsItemAttachmentKindMacvlan
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItem string
+
+const (
+	HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemSmb   HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItem = "smb"
+	HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemRdp   HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItem = "rdp"
+	HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemSSH   HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItem = "ssh"
+	HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemMssql HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItem = "mssql"
+	HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemHTTP  HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItem = "http"
+)
+
+// AllValues returns all HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItem values.
+func (HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItem) AllValues() []HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItem {
+	return []HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItem{
+		HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemSmb,
+		HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemRdp,
+		HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemSSH,
+		HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemMssql,
+		HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemHTTP,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItem) MarshalText() ([]byte, error) {
+	switch s {
+	case HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemSmb:
+		return []byte(s), nil
+	case HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemRdp:
+		return []byte(s), nil
+	case HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemSSH:
+		return []byte(s), nil
+	case HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemMssql:
+		return []byte(s), nil
+	case HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemHTTP:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItem) UnmarshalText(data []byte) error {
+	switch HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItem(data) {
+	case HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemSmb:
+		*s = HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemSmb
+		return nil
+	case HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemRdp:
+		*s = HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemRdp
+		return nil
+	case HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemSSH:
+		*s = HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemSSH
+		return nil
+	case HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemMssql:
+		*s = HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemMssql
+		return nil
+	case HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemHTTP:
+		*s = HoneypotGetHoneypotTrapIpsOKItemsItemOpenServicesItemHTTP
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 // What the Trap IP looks like; a preset fills services and vendor, which stay editable. custom =
@@ -67004,14 +67244,27 @@ func (s *HoneypotGetHoneypotTrapIpsOKSuggestionsItemPreset) UnmarshalText(data [
 }
 
 type HoneypotPatchHoneypotTrapIpsIDOK struct {
-	CreatedAt time.Time `json:"created_at"`
-	Enabled   bool      `json:"enabled"`
-	ID        string    `json:"id"`
-	IP        string    `json:"ip"`
+	// Null until the host holds the address.
+	Attachment NilHoneypotPatchHoneypotTrapIpsIDOKAttachment `json:"attachment"`
+	CreatedAt  time.Time                                     `json:"created_at"`
+	// Inventory device at this address, when the inventory shows one (the Trap IP is then in conflict).
+	DeviceID   NilString `json:"device_id"`
+	DeviceName NilString `json:"device_name"`
+	Enabled    bool      `json:"enabled"`
+	ID         string    `json:"id"`
+	IP         string    `json:"ip"`
+	// Last real hit on this address.
+	LastHitAt NilDateTime `json:"last_hit_at"`
 	// MAC address the box gave this IP, as the host reports it; null until known.
 	MAC NilString `json:"mac"`
+	// Company the IEEE registered the MAC prefix to, what a network scanner shows for this address; null
+	// for a locally administered MAC or while the MAC is unknown.
+	MACVendor NilString `json:"mac_vendor"`
 	// Host name of the Trap IP (NetBIOS form, up to 15 characters); the label of its hits.
 	Name string `json:"name"`
+	// Services the address answers on now: its own while it listens; every running service on an older
+	// host that cannot keep them apart; none while it does not listen.
+	OpenServices []HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItem `json:"open_services"`
 	// What the Trap IP looks like; a preset fills services and vendor, which stay editable. custom =
 	// services picked by hand.
 	Preset HoneypotPatchHoneypotTrapIpsIDOKPreset `json:"preset"`
@@ -67026,9 +67279,24 @@ type HoneypotPatchHoneypotTrapIpsIDOK struct {
 	Vendor NilHoneypotPatchHoneypotTrapIpsIDOKVendor `json:"vendor"`
 }
 
+// GetAttachment returns the value of Attachment.
+func (s *HoneypotPatchHoneypotTrapIpsIDOK) GetAttachment() NilHoneypotPatchHoneypotTrapIpsIDOKAttachment {
+	return s.Attachment
+}
+
 // GetCreatedAt returns the value of CreatedAt.
 func (s *HoneypotPatchHoneypotTrapIpsIDOK) GetCreatedAt() time.Time {
 	return s.CreatedAt
+}
+
+// GetDeviceID returns the value of DeviceID.
+func (s *HoneypotPatchHoneypotTrapIpsIDOK) GetDeviceID() NilString {
+	return s.DeviceID
+}
+
+// GetDeviceName returns the value of DeviceName.
+func (s *HoneypotPatchHoneypotTrapIpsIDOK) GetDeviceName() NilString {
+	return s.DeviceName
 }
 
 // GetEnabled returns the value of Enabled.
@@ -67046,14 +67314,29 @@ func (s *HoneypotPatchHoneypotTrapIpsIDOK) GetIP() string {
 	return s.IP
 }
 
+// GetLastHitAt returns the value of LastHitAt.
+func (s *HoneypotPatchHoneypotTrapIpsIDOK) GetLastHitAt() NilDateTime {
+	return s.LastHitAt
+}
+
 // GetMAC returns the value of MAC.
 func (s *HoneypotPatchHoneypotTrapIpsIDOK) GetMAC() NilString {
 	return s.MAC
 }
 
+// GetMACVendor returns the value of MACVendor.
+func (s *HoneypotPatchHoneypotTrapIpsIDOK) GetMACVendor() NilString {
+	return s.MACVendor
+}
+
 // GetName returns the value of Name.
 func (s *HoneypotPatchHoneypotTrapIpsIDOK) GetName() string {
 	return s.Name
+}
+
+// GetOpenServices returns the value of OpenServices.
+func (s *HoneypotPatchHoneypotTrapIpsIDOK) GetOpenServices() []HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItem {
+	return s.OpenServices
 }
 
 // GetPreset returns the value of Preset.
@@ -67081,9 +67364,24 @@ func (s *HoneypotPatchHoneypotTrapIpsIDOK) GetVendor() NilHoneypotPatchHoneypotT
 	return s.Vendor
 }
 
+// SetAttachment sets the value of Attachment.
+func (s *HoneypotPatchHoneypotTrapIpsIDOK) SetAttachment(val NilHoneypotPatchHoneypotTrapIpsIDOKAttachment) {
+	s.Attachment = val
+}
+
 // SetCreatedAt sets the value of CreatedAt.
 func (s *HoneypotPatchHoneypotTrapIpsIDOK) SetCreatedAt(val time.Time) {
 	s.CreatedAt = val
+}
+
+// SetDeviceID sets the value of DeviceID.
+func (s *HoneypotPatchHoneypotTrapIpsIDOK) SetDeviceID(val NilString) {
+	s.DeviceID = val
+}
+
+// SetDeviceName sets the value of DeviceName.
+func (s *HoneypotPatchHoneypotTrapIpsIDOK) SetDeviceName(val NilString) {
+	s.DeviceName = val
 }
 
 // SetEnabled sets the value of Enabled.
@@ -67101,14 +67399,29 @@ func (s *HoneypotPatchHoneypotTrapIpsIDOK) SetIP(val string) {
 	s.IP = val
 }
 
+// SetLastHitAt sets the value of LastHitAt.
+func (s *HoneypotPatchHoneypotTrapIpsIDOK) SetLastHitAt(val NilDateTime) {
+	s.LastHitAt = val
+}
+
 // SetMAC sets the value of MAC.
 func (s *HoneypotPatchHoneypotTrapIpsIDOK) SetMAC(val NilString) {
 	s.MAC = val
 }
 
+// SetMACVendor sets the value of MACVendor.
+func (s *HoneypotPatchHoneypotTrapIpsIDOK) SetMACVendor(val NilString) {
+	s.MACVendor = val
+}
+
 // SetName sets the value of Name.
 func (s *HoneypotPatchHoneypotTrapIpsIDOK) SetName(val string) {
 	s.Name = val
+}
+
+// SetOpenServices sets the value of OpenServices.
+func (s *HoneypotPatchHoneypotTrapIpsIDOK) SetOpenServices(val []HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItem) {
+	s.OpenServices = val
 }
 
 // SetPreset sets the value of Preset.
@@ -67134,6 +67447,144 @@ func (s *HoneypotPatchHoneypotTrapIpsIDOK) SetState(val HoneypotPatchHoneypotTra
 // SetVendor sets the value of Vendor.
 func (s *HoneypotPatchHoneypotTrapIpsIDOK) SetVendor(val NilHoneypotPatchHoneypotTrapIpsIDOKVendor) {
 	s.Vendor = val
+}
+
+type HoneypotPatchHoneypotTrapIpsIDOKAttachment struct {
+	// How the host holds the address: its own macvlan link with its own MAC, moved into the honeypot
+	// network namespace (host-api 6.6); never an address on the box's own card.
+	Kind HoneypotPatchHoneypotTrapIpsIDOKAttachmentKind `json:"kind"`
+	// Name of the link, vdh + the eight hex digits of the address.
+	Link string `json:"link"`
+	// The box network card the link hangs off; empty when the host does not say.
+	Parent string `json:"parent"`
+}
+
+// GetKind returns the value of Kind.
+func (s *HoneypotPatchHoneypotTrapIpsIDOKAttachment) GetKind() HoneypotPatchHoneypotTrapIpsIDOKAttachmentKind {
+	return s.Kind
+}
+
+// GetLink returns the value of Link.
+func (s *HoneypotPatchHoneypotTrapIpsIDOKAttachment) GetLink() string {
+	return s.Link
+}
+
+// GetParent returns the value of Parent.
+func (s *HoneypotPatchHoneypotTrapIpsIDOKAttachment) GetParent() string {
+	return s.Parent
+}
+
+// SetKind sets the value of Kind.
+func (s *HoneypotPatchHoneypotTrapIpsIDOKAttachment) SetKind(val HoneypotPatchHoneypotTrapIpsIDOKAttachmentKind) {
+	s.Kind = val
+}
+
+// SetLink sets the value of Link.
+func (s *HoneypotPatchHoneypotTrapIpsIDOKAttachment) SetLink(val string) {
+	s.Link = val
+}
+
+// SetParent sets the value of Parent.
+func (s *HoneypotPatchHoneypotTrapIpsIDOKAttachment) SetParent(val string) {
+	s.Parent = val
+}
+
+// How the host holds the address: its own macvlan link with its own MAC, moved into the honeypot
+// network namespace (host-api 6.6); never an address on the box's own card.
+type HoneypotPatchHoneypotTrapIpsIDOKAttachmentKind string
+
+const (
+	HoneypotPatchHoneypotTrapIpsIDOKAttachmentKindMacvlan HoneypotPatchHoneypotTrapIpsIDOKAttachmentKind = "macvlan"
+)
+
+// AllValues returns all HoneypotPatchHoneypotTrapIpsIDOKAttachmentKind values.
+func (HoneypotPatchHoneypotTrapIpsIDOKAttachmentKind) AllValues() []HoneypotPatchHoneypotTrapIpsIDOKAttachmentKind {
+	return []HoneypotPatchHoneypotTrapIpsIDOKAttachmentKind{
+		HoneypotPatchHoneypotTrapIpsIDOKAttachmentKindMacvlan,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s HoneypotPatchHoneypotTrapIpsIDOKAttachmentKind) MarshalText() ([]byte, error) {
+	switch s {
+	case HoneypotPatchHoneypotTrapIpsIDOKAttachmentKindMacvlan:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *HoneypotPatchHoneypotTrapIpsIDOKAttachmentKind) UnmarshalText(data []byte) error {
+	switch HoneypotPatchHoneypotTrapIpsIDOKAttachmentKind(data) {
+	case HoneypotPatchHoneypotTrapIpsIDOKAttachmentKindMacvlan:
+		*s = HoneypotPatchHoneypotTrapIpsIDOKAttachmentKindMacvlan
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItem string
+
+const (
+	HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemSmb   HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItem = "smb"
+	HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemRdp   HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItem = "rdp"
+	HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemSSH   HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItem = "ssh"
+	HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemMssql HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItem = "mssql"
+	HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemHTTP  HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItem = "http"
+)
+
+// AllValues returns all HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItem values.
+func (HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItem) AllValues() []HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItem {
+	return []HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItem{
+		HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemSmb,
+		HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemRdp,
+		HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemSSH,
+		HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemMssql,
+		HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemHTTP,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItem) MarshalText() ([]byte, error) {
+	switch s {
+	case HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemSmb:
+		return []byte(s), nil
+	case HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemRdp:
+		return []byte(s), nil
+	case HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemSSH:
+		return []byte(s), nil
+	case HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemMssql:
+		return []byte(s), nil
+	case HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemHTTP:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItem) UnmarshalText(data []byte) error {
+	switch HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItem(data) {
+	case HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemSmb:
+		*s = HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemSmb
+		return nil
+	case HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemRdp:
+		*s = HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemRdp
+		return nil
+	case HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemSSH:
+		*s = HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemSSH
+		return nil
+	case HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemMssql:
+		*s = HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemMssql
+		return nil
+	case HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemHTTP:
+		*s = HoneypotPatchHoneypotTrapIpsIDOKOpenServicesItemHTTP
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 // What the Trap IP looks like; a preset fills services and vendor, which stay editable. custom =
@@ -67490,7 +67941,13 @@ type HoneypotPostHoneypotTestHitOK struct {
 	SrcIP      string                                  `json:"src_ip"`
 	// Source device name, looked up from the inventory when read; null = not in the inventory.
 	SrcName NilString `json:"src_name"`
-	Ts      time.Time `json:"ts"`
+	// Name of the Trap IP that was hit (D-466), of the token, or of the Trap IPs a scan touched ("Decoy
+	// sweep" for a probe without names): the Trap IP column of the hit list (W1-13).
+	TrapHostname string `json:"trap_hostname"`
+	// The Trap IP that was touched; for a scan the Trap IPs it touched, comma-separated; for a token its
+	// value.
+	TrapIP string    `json:"trap_ip"`
+	Ts     time.Time `json:"ts"`
 }
 
 // GetExcerpt returns the value of Excerpt.
@@ -67541,6 +67998,16 @@ func (s *HoneypotPostHoneypotTestHitOK) GetSrcIP() string {
 // GetSrcName returns the value of SrcName.
 func (s *HoneypotPostHoneypotTestHitOK) GetSrcName() NilString {
 	return s.SrcName
+}
+
+// GetTrapHostname returns the value of TrapHostname.
+func (s *HoneypotPostHoneypotTestHitOK) GetTrapHostname() string {
+	return s.TrapHostname
+}
+
+// GetTrapIP returns the value of TrapIP.
+func (s *HoneypotPostHoneypotTestHitOK) GetTrapIP() string {
+	return s.TrapIP
 }
 
 // GetTs returns the value of Ts.
@@ -67596,6 +68063,16 @@ func (s *HoneypotPostHoneypotTestHitOK) SetSrcIP(val string) {
 // SetSrcName sets the value of SrcName.
 func (s *HoneypotPostHoneypotTestHitOK) SetSrcName(val NilString) {
 	s.SrcName = val
+}
+
+// SetTrapHostname sets the value of TrapHostname.
+func (s *HoneypotPostHoneypotTestHitOK) SetTrapHostname(val string) {
+	s.TrapHostname = val
+}
+
+// SetTrapIP sets the value of TrapIP.
+func (s *HoneypotPostHoneypotTestHitOK) SetTrapIP(val string) {
+	s.TrapIP = val
 }
 
 // SetTs sets the value of Ts.
@@ -67807,7 +68284,13 @@ type HoneypotPostHoneypotTestScanOK struct {
 	SrcIP      string                                   `json:"src_ip"`
 	// Source device name, looked up from the inventory when read; null = not in the inventory.
 	SrcName NilString `json:"src_name"`
-	Ts      time.Time `json:"ts"`
+	// Name of the Trap IP that was hit (D-466), of the token, or of the Trap IPs a scan touched ("Decoy
+	// sweep" for a probe without names): the Trap IP column of the hit list (W1-13).
+	TrapHostname string `json:"trap_hostname"`
+	// The Trap IP that was touched; for a scan the Trap IPs it touched, comma-separated; for a token its
+	// value.
+	TrapIP string    `json:"trap_ip"`
+	Ts     time.Time `json:"ts"`
 }
 
 // GetExcerpt returns the value of Excerpt.
@@ -67858,6 +68341,16 @@ func (s *HoneypotPostHoneypotTestScanOK) GetSrcIP() string {
 // GetSrcName returns the value of SrcName.
 func (s *HoneypotPostHoneypotTestScanOK) GetSrcName() NilString {
 	return s.SrcName
+}
+
+// GetTrapHostname returns the value of TrapHostname.
+func (s *HoneypotPostHoneypotTestScanOK) GetTrapHostname() string {
+	return s.TrapHostname
+}
+
+// GetTrapIP returns the value of TrapIP.
+func (s *HoneypotPostHoneypotTestScanOK) GetTrapIP() string {
+	return s.TrapIP
 }
 
 // GetTs returns the value of Ts.
@@ -67913,6 +68406,16 @@ func (s *HoneypotPostHoneypotTestScanOK) SetSrcIP(val string) {
 // SetSrcName sets the value of SrcName.
 func (s *HoneypotPostHoneypotTestScanOK) SetSrcName(val NilString) {
 	s.SrcName = val
+}
+
+// SetTrapHostname sets the value of TrapHostname.
+func (s *HoneypotPostHoneypotTestScanOK) SetTrapHostname(val string) {
+	s.TrapHostname = val
+}
+
+// SetTrapIP sets the value of TrapIP.
+func (s *HoneypotPostHoneypotTestScanOK) SetTrapIP(val string) {
+	s.TrapIP = val
 }
 
 // SetTs sets the value of Ts.
@@ -68208,7 +68711,13 @@ type HoneypotPostHoneypotTokensIDTestOK struct {
 	SrcIP      string                                       `json:"src_ip"`
 	// Source device name, looked up from the inventory when read; null = not in the inventory.
 	SrcName NilString `json:"src_name"`
-	Ts      time.Time `json:"ts"`
+	// Name of the Trap IP that was hit (D-466), of the token, or of the Trap IPs a scan touched ("Decoy
+	// sweep" for a probe without names): the Trap IP column of the hit list (W1-13).
+	TrapHostname string `json:"trap_hostname"`
+	// The Trap IP that was touched; for a scan the Trap IPs it touched, comma-separated; for a token its
+	// value.
+	TrapIP string    `json:"trap_ip"`
+	Ts     time.Time `json:"ts"`
 }
 
 // GetExcerpt returns the value of Excerpt.
@@ -68259,6 +68768,16 @@ func (s *HoneypotPostHoneypotTokensIDTestOK) GetSrcIP() string {
 // GetSrcName returns the value of SrcName.
 func (s *HoneypotPostHoneypotTokensIDTestOK) GetSrcName() NilString {
 	return s.SrcName
+}
+
+// GetTrapHostname returns the value of TrapHostname.
+func (s *HoneypotPostHoneypotTokensIDTestOK) GetTrapHostname() string {
+	return s.TrapHostname
+}
+
+// GetTrapIP returns the value of TrapIP.
+func (s *HoneypotPostHoneypotTokensIDTestOK) GetTrapIP() string {
+	return s.TrapIP
 }
 
 // GetTs returns the value of Ts.
@@ -68314,6 +68833,16 @@ func (s *HoneypotPostHoneypotTokensIDTestOK) SetSrcIP(val string) {
 // SetSrcName sets the value of SrcName.
 func (s *HoneypotPostHoneypotTokensIDTestOK) SetSrcName(val NilString) {
 	s.SrcName = val
+}
+
+// SetTrapHostname sets the value of TrapHostname.
+func (s *HoneypotPostHoneypotTokensIDTestOK) SetTrapHostname(val string) {
+	s.TrapHostname = val
+}
+
+// SetTrapIP sets the value of TrapIP.
+func (s *HoneypotPostHoneypotTokensIDTestOK) SetTrapIP(val string) {
+	s.TrapIP = val
 }
 
 // SetTs sets the value of Ts.
@@ -68577,14 +69106,27 @@ func (s *HoneypotPostHoneypotTokensReqType) UnmarshalText(data []byte) error {
 }
 
 type HoneypotPostHoneypotTrapIpsCreated struct {
-	CreatedAt time.Time `json:"created_at"`
-	Enabled   bool      `json:"enabled"`
-	ID        string    `json:"id"`
-	IP        string    `json:"ip"`
+	// Null until the host holds the address.
+	Attachment NilHoneypotPostHoneypotTrapIpsCreatedAttachment `json:"attachment"`
+	CreatedAt  time.Time                                       `json:"created_at"`
+	// Inventory device at this address, when the inventory shows one (the Trap IP is then in conflict).
+	DeviceID   NilString `json:"device_id"`
+	DeviceName NilString `json:"device_name"`
+	Enabled    bool      `json:"enabled"`
+	ID         string    `json:"id"`
+	IP         string    `json:"ip"`
+	// Last real hit on this address.
+	LastHitAt NilDateTime `json:"last_hit_at"`
 	// MAC address the box gave this IP, as the host reports it; null until known.
 	MAC NilString `json:"mac"`
+	// Company the IEEE registered the MAC prefix to, what a network scanner shows for this address; null
+	// for a locally administered MAC or while the MAC is unknown.
+	MACVendor NilString `json:"mac_vendor"`
 	// Host name of the Trap IP (NetBIOS form, up to 15 characters); the label of its hits.
 	Name string `json:"name"`
+	// Services the address answers on now: its own while it listens; every running service on an older
+	// host that cannot keep them apart; none while it does not listen.
+	OpenServices []HoneypotPostHoneypotTrapIpsCreatedOpenServicesItem `json:"open_services"`
 	// What the Trap IP looks like; a preset fills services and vendor, which stay editable. custom =
 	// services picked by hand.
 	Preset HoneypotPostHoneypotTrapIpsCreatedPreset `json:"preset"`
@@ -68599,9 +69141,24 @@ type HoneypotPostHoneypotTrapIpsCreated struct {
 	Vendor NilHoneypotPostHoneypotTrapIpsCreatedVendor `json:"vendor"`
 }
 
+// GetAttachment returns the value of Attachment.
+func (s *HoneypotPostHoneypotTrapIpsCreated) GetAttachment() NilHoneypotPostHoneypotTrapIpsCreatedAttachment {
+	return s.Attachment
+}
+
 // GetCreatedAt returns the value of CreatedAt.
 func (s *HoneypotPostHoneypotTrapIpsCreated) GetCreatedAt() time.Time {
 	return s.CreatedAt
+}
+
+// GetDeviceID returns the value of DeviceID.
+func (s *HoneypotPostHoneypotTrapIpsCreated) GetDeviceID() NilString {
+	return s.DeviceID
+}
+
+// GetDeviceName returns the value of DeviceName.
+func (s *HoneypotPostHoneypotTrapIpsCreated) GetDeviceName() NilString {
+	return s.DeviceName
 }
 
 // GetEnabled returns the value of Enabled.
@@ -68619,14 +69176,29 @@ func (s *HoneypotPostHoneypotTrapIpsCreated) GetIP() string {
 	return s.IP
 }
 
+// GetLastHitAt returns the value of LastHitAt.
+func (s *HoneypotPostHoneypotTrapIpsCreated) GetLastHitAt() NilDateTime {
+	return s.LastHitAt
+}
+
 // GetMAC returns the value of MAC.
 func (s *HoneypotPostHoneypotTrapIpsCreated) GetMAC() NilString {
 	return s.MAC
 }
 
+// GetMACVendor returns the value of MACVendor.
+func (s *HoneypotPostHoneypotTrapIpsCreated) GetMACVendor() NilString {
+	return s.MACVendor
+}
+
 // GetName returns the value of Name.
 func (s *HoneypotPostHoneypotTrapIpsCreated) GetName() string {
 	return s.Name
+}
+
+// GetOpenServices returns the value of OpenServices.
+func (s *HoneypotPostHoneypotTrapIpsCreated) GetOpenServices() []HoneypotPostHoneypotTrapIpsCreatedOpenServicesItem {
+	return s.OpenServices
 }
 
 // GetPreset returns the value of Preset.
@@ -68654,9 +69226,24 @@ func (s *HoneypotPostHoneypotTrapIpsCreated) GetVendor() NilHoneypotPostHoneypot
 	return s.Vendor
 }
 
+// SetAttachment sets the value of Attachment.
+func (s *HoneypotPostHoneypotTrapIpsCreated) SetAttachment(val NilHoneypotPostHoneypotTrapIpsCreatedAttachment) {
+	s.Attachment = val
+}
+
 // SetCreatedAt sets the value of CreatedAt.
 func (s *HoneypotPostHoneypotTrapIpsCreated) SetCreatedAt(val time.Time) {
 	s.CreatedAt = val
+}
+
+// SetDeviceID sets the value of DeviceID.
+func (s *HoneypotPostHoneypotTrapIpsCreated) SetDeviceID(val NilString) {
+	s.DeviceID = val
+}
+
+// SetDeviceName sets the value of DeviceName.
+func (s *HoneypotPostHoneypotTrapIpsCreated) SetDeviceName(val NilString) {
+	s.DeviceName = val
 }
 
 // SetEnabled sets the value of Enabled.
@@ -68674,14 +69261,29 @@ func (s *HoneypotPostHoneypotTrapIpsCreated) SetIP(val string) {
 	s.IP = val
 }
 
+// SetLastHitAt sets the value of LastHitAt.
+func (s *HoneypotPostHoneypotTrapIpsCreated) SetLastHitAt(val NilDateTime) {
+	s.LastHitAt = val
+}
+
 // SetMAC sets the value of MAC.
 func (s *HoneypotPostHoneypotTrapIpsCreated) SetMAC(val NilString) {
 	s.MAC = val
 }
 
+// SetMACVendor sets the value of MACVendor.
+func (s *HoneypotPostHoneypotTrapIpsCreated) SetMACVendor(val NilString) {
+	s.MACVendor = val
+}
+
 // SetName sets the value of Name.
 func (s *HoneypotPostHoneypotTrapIpsCreated) SetName(val string) {
 	s.Name = val
+}
+
+// SetOpenServices sets the value of OpenServices.
+func (s *HoneypotPostHoneypotTrapIpsCreated) SetOpenServices(val []HoneypotPostHoneypotTrapIpsCreatedOpenServicesItem) {
+	s.OpenServices = val
 }
 
 // SetPreset sets the value of Preset.
@@ -68707,6 +69309,144 @@ func (s *HoneypotPostHoneypotTrapIpsCreated) SetState(val HoneypotPostHoneypotTr
 // SetVendor sets the value of Vendor.
 func (s *HoneypotPostHoneypotTrapIpsCreated) SetVendor(val NilHoneypotPostHoneypotTrapIpsCreatedVendor) {
 	s.Vendor = val
+}
+
+type HoneypotPostHoneypotTrapIpsCreatedAttachment struct {
+	// How the host holds the address: its own macvlan link with its own MAC, moved into the honeypot
+	// network namespace (host-api 6.6); never an address on the box's own card.
+	Kind HoneypotPostHoneypotTrapIpsCreatedAttachmentKind `json:"kind"`
+	// Name of the link, vdh + the eight hex digits of the address.
+	Link string `json:"link"`
+	// The box network card the link hangs off; empty when the host does not say.
+	Parent string `json:"parent"`
+}
+
+// GetKind returns the value of Kind.
+func (s *HoneypotPostHoneypotTrapIpsCreatedAttachment) GetKind() HoneypotPostHoneypotTrapIpsCreatedAttachmentKind {
+	return s.Kind
+}
+
+// GetLink returns the value of Link.
+func (s *HoneypotPostHoneypotTrapIpsCreatedAttachment) GetLink() string {
+	return s.Link
+}
+
+// GetParent returns the value of Parent.
+func (s *HoneypotPostHoneypotTrapIpsCreatedAttachment) GetParent() string {
+	return s.Parent
+}
+
+// SetKind sets the value of Kind.
+func (s *HoneypotPostHoneypotTrapIpsCreatedAttachment) SetKind(val HoneypotPostHoneypotTrapIpsCreatedAttachmentKind) {
+	s.Kind = val
+}
+
+// SetLink sets the value of Link.
+func (s *HoneypotPostHoneypotTrapIpsCreatedAttachment) SetLink(val string) {
+	s.Link = val
+}
+
+// SetParent sets the value of Parent.
+func (s *HoneypotPostHoneypotTrapIpsCreatedAttachment) SetParent(val string) {
+	s.Parent = val
+}
+
+// How the host holds the address: its own macvlan link with its own MAC, moved into the honeypot
+// network namespace (host-api 6.6); never an address on the box's own card.
+type HoneypotPostHoneypotTrapIpsCreatedAttachmentKind string
+
+const (
+	HoneypotPostHoneypotTrapIpsCreatedAttachmentKindMacvlan HoneypotPostHoneypotTrapIpsCreatedAttachmentKind = "macvlan"
+)
+
+// AllValues returns all HoneypotPostHoneypotTrapIpsCreatedAttachmentKind values.
+func (HoneypotPostHoneypotTrapIpsCreatedAttachmentKind) AllValues() []HoneypotPostHoneypotTrapIpsCreatedAttachmentKind {
+	return []HoneypotPostHoneypotTrapIpsCreatedAttachmentKind{
+		HoneypotPostHoneypotTrapIpsCreatedAttachmentKindMacvlan,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s HoneypotPostHoneypotTrapIpsCreatedAttachmentKind) MarshalText() ([]byte, error) {
+	switch s {
+	case HoneypotPostHoneypotTrapIpsCreatedAttachmentKindMacvlan:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *HoneypotPostHoneypotTrapIpsCreatedAttachmentKind) UnmarshalText(data []byte) error {
+	switch HoneypotPostHoneypotTrapIpsCreatedAttachmentKind(data) {
+	case HoneypotPostHoneypotTrapIpsCreatedAttachmentKindMacvlan:
+		*s = HoneypotPostHoneypotTrapIpsCreatedAttachmentKindMacvlan
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type HoneypotPostHoneypotTrapIpsCreatedOpenServicesItem string
+
+const (
+	HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemSmb   HoneypotPostHoneypotTrapIpsCreatedOpenServicesItem = "smb"
+	HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemRdp   HoneypotPostHoneypotTrapIpsCreatedOpenServicesItem = "rdp"
+	HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemSSH   HoneypotPostHoneypotTrapIpsCreatedOpenServicesItem = "ssh"
+	HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemMssql HoneypotPostHoneypotTrapIpsCreatedOpenServicesItem = "mssql"
+	HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemHTTP  HoneypotPostHoneypotTrapIpsCreatedOpenServicesItem = "http"
+)
+
+// AllValues returns all HoneypotPostHoneypotTrapIpsCreatedOpenServicesItem values.
+func (HoneypotPostHoneypotTrapIpsCreatedOpenServicesItem) AllValues() []HoneypotPostHoneypotTrapIpsCreatedOpenServicesItem {
+	return []HoneypotPostHoneypotTrapIpsCreatedOpenServicesItem{
+		HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemSmb,
+		HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemRdp,
+		HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemSSH,
+		HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemMssql,
+		HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemHTTP,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s HoneypotPostHoneypotTrapIpsCreatedOpenServicesItem) MarshalText() ([]byte, error) {
+	switch s {
+	case HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemSmb:
+		return []byte(s), nil
+	case HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemRdp:
+		return []byte(s), nil
+	case HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemSSH:
+		return []byte(s), nil
+	case HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemMssql:
+		return []byte(s), nil
+	case HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemHTTP:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *HoneypotPostHoneypotTrapIpsCreatedOpenServicesItem) UnmarshalText(data []byte) error {
+	switch HoneypotPostHoneypotTrapIpsCreatedOpenServicesItem(data) {
+	case HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemSmb:
+		*s = HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemSmb
+		return nil
+	case HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemRdp:
+		*s = HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemRdp
+		return nil
+	case HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemSSH:
+		*s = HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemSSH
+		return nil
+	case HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemMssql:
+		*s = HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemMssql
+		return nil
+	case HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemHTTP:
+		*s = HoneypotPostHoneypotTrapIpsCreatedOpenServicesItemHTTP
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 // What the Trap IP looks like; a preset fills services and vendor, which stay editable. custom =
@@ -69347,14 +70087,27 @@ func (s *HoneypotPostHoneypotTrapIpsReqVendor) UnmarshalText(data []byte) error 
 }
 
 type HoneypotPutHoneypotTrapIpsIDOK struct {
-	CreatedAt time.Time `json:"created_at"`
-	Enabled   bool      `json:"enabled"`
-	ID        string    `json:"id"`
-	IP        string    `json:"ip"`
+	// Null until the host holds the address.
+	Attachment NilHoneypotPutHoneypotTrapIpsIDOKAttachment `json:"attachment"`
+	CreatedAt  time.Time                                   `json:"created_at"`
+	// Inventory device at this address, when the inventory shows one (the Trap IP is then in conflict).
+	DeviceID   NilString `json:"device_id"`
+	DeviceName NilString `json:"device_name"`
+	Enabled    bool      `json:"enabled"`
+	ID         string    `json:"id"`
+	IP         string    `json:"ip"`
+	// Last real hit on this address.
+	LastHitAt NilDateTime `json:"last_hit_at"`
 	// MAC address the box gave this IP, as the host reports it; null until known.
 	MAC NilString `json:"mac"`
+	// Company the IEEE registered the MAC prefix to, what a network scanner shows for this address; null
+	// for a locally administered MAC or while the MAC is unknown.
+	MACVendor NilString `json:"mac_vendor"`
 	// Host name of the Trap IP (NetBIOS form, up to 15 characters); the label of its hits.
 	Name string `json:"name"`
+	// Services the address answers on now: its own while it listens; every running service on an older
+	// host that cannot keep them apart; none while it does not listen.
+	OpenServices []HoneypotPutHoneypotTrapIpsIDOKOpenServicesItem `json:"open_services"`
 	// What the Trap IP looks like; a preset fills services and vendor, which stay editable. custom =
 	// services picked by hand.
 	Preset HoneypotPutHoneypotTrapIpsIDOKPreset `json:"preset"`
@@ -69369,9 +70122,24 @@ type HoneypotPutHoneypotTrapIpsIDOK struct {
 	Vendor NilHoneypotPutHoneypotTrapIpsIDOKVendor `json:"vendor"`
 }
 
+// GetAttachment returns the value of Attachment.
+func (s *HoneypotPutHoneypotTrapIpsIDOK) GetAttachment() NilHoneypotPutHoneypotTrapIpsIDOKAttachment {
+	return s.Attachment
+}
+
 // GetCreatedAt returns the value of CreatedAt.
 func (s *HoneypotPutHoneypotTrapIpsIDOK) GetCreatedAt() time.Time {
 	return s.CreatedAt
+}
+
+// GetDeviceID returns the value of DeviceID.
+func (s *HoneypotPutHoneypotTrapIpsIDOK) GetDeviceID() NilString {
+	return s.DeviceID
+}
+
+// GetDeviceName returns the value of DeviceName.
+func (s *HoneypotPutHoneypotTrapIpsIDOK) GetDeviceName() NilString {
+	return s.DeviceName
 }
 
 // GetEnabled returns the value of Enabled.
@@ -69389,14 +70157,29 @@ func (s *HoneypotPutHoneypotTrapIpsIDOK) GetIP() string {
 	return s.IP
 }
 
+// GetLastHitAt returns the value of LastHitAt.
+func (s *HoneypotPutHoneypotTrapIpsIDOK) GetLastHitAt() NilDateTime {
+	return s.LastHitAt
+}
+
 // GetMAC returns the value of MAC.
 func (s *HoneypotPutHoneypotTrapIpsIDOK) GetMAC() NilString {
 	return s.MAC
 }
 
+// GetMACVendor returns the value of MACVendor.
+func (s *HoneypotPutHoneypotTrapIpsIDOK) GetMACVendor() NilString {
+	return s.MACVendor
+}
+
 // GetName returns the value of Name.
 func (s *HoneypotPutHoneypotTrapIpsIDOK) GetName() string {
 	return s.Name
+}
+
+// GetOpenServices returns the value of OpenServices.
+func (s *HoneypotPutHoneypotTrapIpsIDOK) GetOpenServices() []HoneypotPutHoneypotTrapIpsIDOKOpenServicesItem {
+	return s.OpenServices
 }
 
 // GetPreset returns the value of Preset.
@@ -69424,9 +70207,24 @@ func (s *HoneypotPutHoneypotTrapIpsIDOK) GetVendor() NilHoneypotPutHoneypotTrapI
 	return s.Vendor
 }
 
+// SetAttachment sets the value of Attachment.
+func (s *HoneypotPutHoneypotTrapIpsIDOK) SetAttachment(val NilHoneypotPutHoneypotTrapIpsIDOKAttachment) {
+	s.Attachment = val
+}
+
 // SetCreatedAt sets the value of CreatedAt.
 func (s *HoneypotPutHoneypotTrapIpsIDOK) SetCreatedAt(val time.Time) {
 	s.CreatedAt = val
+}
+
+// SetDeviceID sets the value of DeviceID.
+func (s *HoneypotPutHoneypotTrapIpsIDOK) SetDeviceID(val NilString) {
+	s.DeviceID = val
+}
+
+// SetDeviceName sets the value of DeviceName.
+func (s *HoneypotPutHoneypotTrapIpsIDOK) SetDeviceName(val NilString) {
+	s.DeviceName = val
 }
 
 // SetEnabled sets the value of Enabled.
@@ -69444,14 +70242,29 @@ func (s *HoneypotPutHoneypotTrapIpsIDOK) SetIP(val string) {
 	s.IP = val
 }
 
+// SetLastHitAt sets the value of LastHitAt.
+func (s *HoneypotPutHoneypotTrapIpsIDOK) SetLastHitAt(val NilDateTime) {
+	s.LastHitAt = val
+}
+
 // SetMAC sets the value of MAC.
 func (s *HoneypotPutHoneypotTrapIpsIDOK) SetMAC(val NilString) {
 	s.MAC = val
 }
 
+// SetMACVendor sets the value of MACVendor.
+func (s *HoneypotPutHoneypotTrapIpsIDOK) SetMACVendor(val NilString) {
+	s.MACVendor = val
+}
+
 // SetName sets the value of Name.
 func (s *HoneypotPutHoneypotTrapIpsIDOK) SetName(val string) {
 	s.Name = val
+}
+
+// SetOpenServices sets the value of OpenServices.
+func (s *HoneypotPutHoneypotTrapIpsIDOK) SetOpenServices(val []HoneypotPutHoneypotTrapIpsIDOKOpenServicesItem) {
+	s.OpenServices = val
 }
 
 // SetPreset sets the value of Preset.
@@ -69477,6 +70290,144 @@ func (s *HoneypotPutHoneypotTrapIpsIDOK) SetState(val HoneypotPutHoneypotTrapIps
 // SetVendor sets the value of Vendor.
 func (s *HoneypotPutHoneypotTrapIpsIDOK) SetVendor(val NilHoneypotPutHoneypotTrapIpsIDOKVendor) {
 	s.Vendor = val
+}
+
+type HoneypotPutHoneypotTrapIpsIDOKAttachment struct {
+	// How the host holds the address: its own macvlan link with its own MAC, moved into the honeypot
+	// network namespace (host-api 6.6); never an address on the box's own card.
+	Kind HoneypotPutHoneypotTrapIpsIDOKAttachmentKind `json:"kind"`
+	// Name of the link, vdh + the eight hex digits of the address.
+	Link string `json:"link"`
+	// The box network card the link hangs off; empty when the host does not say.
+	Parent string `json:"parent"`
+}
+
+// GetKind returns the value of Kind.
+func (s *HoneypotPutHoneypotTrapIpsIDOKAttachment) GetKind() HoneypotPutHoneypotTrapIpsIDOKAttachmentKind {
+	return s.Kind
+}
+
+// GetLink returns the value of Link.
+func (s *HoneypotPutHoneypotTrapIpsIDOKAttachment) GetLink() string {
+	return s.Link
+}
+
+// GetParent returns the value of Parent.
+func (s *HoneypotPutHoneypotTrapIpsIDOKAttachment) GetParent() string {
+	return s.Parent
+}
+
+// SetKind sets the value of Kind.
+func (s *HoneypotPutHoneypotTrapIpsIDOKAttachment) SetKind(val HoneypotPutHoneypotTrapIpsIDOKAttachmentKind) {
+	s.Kind = val
+}
+
+// SetLink sets the value of Link.
+func (s *HoneypotPutHoneypotTrapIpsIDOKAttachment) SetLink(val string) {
+	s.Link = val
+}
+
+// SetParent sets the value of Parent.
+func (s *HoneypotPutHoneypotTrapIpsIDOKAttachment) SetParent(val string) {
+	s.Parent = val
+}
+
+// How the host holds the address: its own macvlan link with its own MAC, moved into the honeypot
+// network namespace (host-api 6.6); never an address on the box's own card.
+type HoneypotPutHoneypotTrapIpsIDOKAttachmentKind string
+
+const (
+	HoneypotPutHoneypotTrapIpsIDOKAttachmentKindMacvlan HoneypotPutHoneypotTrapIpsIDOKAttachmentKind = "macvlan"
+)
+
+// AllValues returns all HoneypotPutHoneypotTrapIpsIDOKAttachmentKind values.
+func (HoneypotPutHoneypotTrapIpsIDOKAttachmentKind) AllValues() []HoneypotPutHoneypotTrapIpsIDOKAttachmentKind {
+	return []HoneypotPutHoneypotTrapIpsIDOKAttachmentKind{
+		HoneypotPutHoneypotTrapIpsIDOKAttachmentKindMacvlan,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s HoneypotPutHoneypotTrapIpsIDOKAttachmentKind) MarshalText() ([]byte, error) {
+	switch s {
+	case HoneypotPutHoneypotTrapIpsIDOKAttachmentKindMacvlan:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *HoneypotPutHoneypotTrapIpsIDOKAttachmentKind) UnmarshalText(data []byte) error {
+	switch HoneypotPutHoneypotTrapIpsIDOKAttachmentKind(data) {
+	case HoneypotPutHoneypotTrapIpsIDOKAttachmentKindMacvlan:
+		*s = HoneypotPutHoneypotTrapIpsIDOKAttachmentKindMacvlan
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type HoneypotPutHoneypotTrapIpsIDOKOpenServicesItem string
+
+const (
+	HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemSmb   HoneypotPutHoneypotTrapIpsIDOKOpenServicesItem = "smb"
+	HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemRdp   HoneypotPutHoneypotTrapIpsIDOKOpenServicesItem = "rdp"
+	HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemSSH   HoneypotPutHoneypotTrapIpsIDOKOpenServicesItem = "ssh"
+	HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemMssql HoneypotPutHoneypotTrapIpsIDOKOpenServicesItem = "mssql"
+	HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemHTTP  HoneypotPutHoneypotTrapIpsIDOKOpenServicesItem = "http"
+)
+
+// AllValues returns all HoneypotPutHoneypotTrapIpsIDOKOpenServicesItem values.
+func (HoneypotPutHoneypotTrapIpsIDOKOpenServicesItem) AllValues() []HoneypotPutHoneypotTrapIpsIDOKOpenServicesItem {
+	return []HoneypotPutHoneypotTrapIpsIDOKOpenServicesItem{
+		HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemSmb,
+		HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemRdp,
+		HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemSSH,
+		HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemMssql,
+		HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemHTTP,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s HoneypotPutHoneypotTrapIpsIDOKOpenServicesItem) MarshalText() ([]byte, error) {
+	switch s {
+	case HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemSmb:
+		return []byte(s), nil
+	case HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemRdp:
+		return []byte(s), nil
+	case HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemSSH:
+		return []byte(s), nil
+	case HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemMssql:
+		return []byte(s), nil
+	case HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemHTTP:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *HoneypotPutHoneypotTrapIpsIDOKOpenServicesItem) UnmarshalText(data []byte) error {
+	switch HoneypotPutHoneypotTrapIpsIDOKOpenServicesItem(data) {
+	case HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemSmb:
+		*s = HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemSmb
+		return nil
+	case HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemRdp:
+		*s = HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemRdp
+		return nil
+	case HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemSSH:
+		*s = HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemSSH
+		return nil
+	case HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemMssql:
+		*s = HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemMssql
+		return nil
+	case HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemHTTP:
+		*s = HoneypotPutHoneypotTrapIpsIDOKOpenServicesItemHTTP
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 // What the Trap IP looks like; a preset fills services and vendor, which stay editable. custom =
@@ -89484,6 +90435,51 @@ func (o NilHoneypotGetHoneypotOKHTTPPage) Or(d HoneypotGetHoneypotOKHTTPPage) Ho
 	return d
 }
 
+// NewNilHoneypotGetHoneypotTrapIpsOKItemsItemAttachment returns new NilHoneypotGetHoneypotTrapIpsOKItemsItemAttachment with value set to v.
+func NewNilHoneypotGetHoneypotTrapIpsOKItemsItemAttachment(v HoneypotGetHoneypotTrapIpsOKItemsItemAttachment) NilHoneypotGetHoneypotTrapIpsOKItemsItemAttachment {
+	return NilHoneypotGetHoneypotTrapIpsOKItemsItemAttachment{
+		Value: v,
+	}
+}
+
+// NilHoneypotGetHoneypotTrapIpsOKItemsItemAttachment is nullable HoneypotGetHoneypotTrapIpsOKItemsItemAttachment.
+type NilHoneypotGetHoneypotTrapIpsOKItemsItemAttachment struct {
+	Value HoneypotGetHoneypotTrapIpsOKItemsItemAttachment
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilHoneypotGetHoneypotTrapIpsOKItemsItemAttachment) SetTo(v HoneypotGetHoneypotTrapIpsOKItemsItemAttachment) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilHoneypotGetHoneypotTrapIpsOKItemsItemAttachment) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilHoneypotGetHoneypotTrapIpsOKItemsItemAttachment) SetToNull() {
+	o.Null = true
+	var v HoneypotGetHoneypotTrapIpsOKItemsItemAttachment
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilHoneypotGetHoneypotTrapIpsOKItemsItemAttachment) Get() (v HoneypotGetHoneypotTrapIpsOKItemsItemAttachment, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilHoneypotGetHoneypotTrapIpsOKItemsItemAttachment) Or(d HoneypotGetHoneypotTrapIpsOKItemsItemAttachment) HoneypotGetHoneypotTrapIpsOKItemsItemAttachment {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilHoneypotGetHoneypotTrapIpsOKItemsItemVendor returns new NilHoneypotGetHoneypotTrapIpsOKItemsItemVendor with value set to v.
 func NewNilHoneypotGetHoneypotTrapIpsOKItemsItemVendor(v HoneypotGetHoneypotTrapIpsOKItemsItemVendor) NilHoneypotGetHoneypotTrapIpsOKItemsItemVendor {
 	return NilHoneypotGetHoneypotTrapIpsOKItemsItemVendor{
@@ -89523,6 +90519,51 @@ func (o NilHoneypotGetHoneypotTrapIpsOKItemsItemVendor) Get() (v HoneypotGetHone
 
 // Or returns value if set, or given parameter if does not.
 func (o NilHoneypotGetHoneypotTrapIpsOKItemsItemVendor) Or(d HoneypotGetHoneypotTrapIpsOKItemsItemVendor) HoneypotGetHoneypotTrapIpsOKItemsItemVendor {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilHoneypotPatchHoneypotTrapIpsIDOKAttachment returns new NilHoneypotPatchHoneypotTrapIpsIDOKAttachment with value set to v.
+func NewNilHoneypotPatchHoneypotTrapIpsIDOKAttachment(v HoneypotPatchHoneypotTrapIpsIDOKAttachment) NilHoneypotPatchHoneypotTrapIpsIDOKAttachment {
+	return NilHoneypotPatchHoneypotTrapIpsIDOKAttachment{
+		Value: v,
+	}
+}
+
+// NilHoneypotPatchHoneypotTrapIpsIDOKAttachment is nullable HoneypotPatchHoneypotTrapIpsIDOKAttachment.
+type NilHoneypotPatchHoneypotTrapIpsIDOKAttachment struct {
+	Value HoneypotPatchHoneypotTrapIpsIDOKAttachment
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilHoneypotPatchHoneypotTrapIpsIDOKAttachment) SetTo(v HoneypotPatchHoneypotTrapIpsIDOKAttachment) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilHoneypotPatchHoneypotTrapIpsIDOKAttachment) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilHoneypotPatchHoneypotTrapIpsIDOKAttachment) SetToNull() {
+	o.Null = true
+	var v HoneypotPatchHoneypotTrapIpsIDOKAttachment
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilHoneypotPatchHoneypotTrapIpsIDOKAttachment) Get() (v HoneypotPatchHoneypotTrapIpsIDOKAttachment, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilHoneypotPatchHoneypotTrapIpsIDOKAttachment) Or(d HoneypotPatchHoneypotTrapIpsIDOKAttachment) HoneypotPatchHoneypotTrapIpsIDOKAttachment {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -89709,6 +90750,51 @@ func (o NilHoneypotPostHoneypotTokensIDTestOKService) Or(d HoneypotPostHoneypotT
 	return d
 }
 
+// NewNilHoneypotPostHoneypotTrapIpsCreatedAttachment returns new NilHoneypotPostHoneypotTrapIpsCreatedAttachment with value set to v.
+func NewNilHoneypotPostHoneypotTrapIpsCreatedAttachment(v HoneypotPostHoneypotTrapIpsCreatedAttachment) NilHoneypotPostHoneypotTrapIpsCreatedAttachment {
+	return NilHoneypotPostHoneypotTrapIpsCreatedAttachment{
+		Value: v,
+	}
+}
+
+// NilHoneypotPostHoneypotTrapIpsCreatedAttachment is nullable HoneypotPostHoneypotTrapIpsCreatedAttachment.
+type NilHoneypotPostHoneypotTrapIpsCreatedAttachment struct {
+	Value HoneypotPostHoneypotTrapIpsCreatedAttachment
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilHoneypotPostHoneypotTrapIpsCreatedAttachment) SetTo(v HoneypotPostHoneypotTrapIpsCreatedAttachment) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilHoneypotPostHoneypotTrapIpsCreatedAttachment) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilHoneypotPostHoneypotTrapIpsCreatedAttachment) SetToNull() {
+	o.Null = true
+	var v HoneypotPostHoneypotTrapIpsCreatedAttachment
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilHoneypotPostHoneypotTrapIpsCreatedAttachment) Get() (v HoneypotPostHoneypotTrapIpsCreatedAttachment, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilHoneypotPostHoneypotTrapIpsCreatedAttachment) Or(d HoneypotPostHoneypotTrapIpsCreatedAttachment) HoneypotPostHoneypotTrapIpsCreatedAttachment {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilHoneypotPostHoneypotTrapIpsCreatedVendor returns new NilHoneypotPostHoneypotTrapIpsCreatedVendor with value set to v.
 func NewNilHoneypotPostHoneypotTrapIpsCreatedVendor(v HoneypotPostHoneypotTrapIpsCreatedVendor) NilHoneypotPostHoneypotTrapIpsCreatedVendor {
 	return NilHoneypotPostHoneypotTrapIpsCreatedVendor{
@@ -89793,6 +90879,51 @@ func (o NilHoneypotPostHoneypotTrapIpsReqVendor) Get() (v HoneypotPostHoneypotTr
 
 // Or returns value if set, or given parameter if does not.
 func (o NilHoneypotPostHoneypotTrapIpsReqVendor) Or(d HoneypotPostHoneypotTrapIpsReqVendor) HoneypotPostHoneypotTrapIpsReqVendor {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilHoneypotPutHoneypotTrapIpsIDOKAttachment returns new NilHoneypotPutHoneypotTrapIpsIDOKAttachment with value set to v.
+func NewNilHoneypotPutHoneypotTrapIpsIDOKAttachment(v HoneypotPutHoneypotTrapIpsIDOKAttachment) NilHoneypotPutHoneypotTrapIpsIDOKAttachment {
+	return NilHoneypotPutHoneypotTrapIpsIDOKAttachment{
+		Value: v,
+	}
+}
+
+// NilHoneypotPutHoneypotTrapIpsIDOKAttachment is nullable HoneypotPutHoneypotTrapIpsIDOKAttachment.
+type NilHoneypotPutHoneypotTrapIpsIDOKAttachment struct {
+	Value HoneypotPutHoneypotTrapIpsIDOKAttachment
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilHoneypotPutHoneypotTrapIpsIDOKAttachment) SetTo(v HoneypotPutHoneypotTrapIpsIDOKAttachment) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilHoneypotPutHoneypotTrapIpsIDOKAttachment) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilHoneypotPutHoneypotTrapIpsIDOKAttachment) SetToNull() {
+	o.Null = true
+	var v HoneypotPutHoneypotTrapIpsIDOKAttachment
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilHoneypotPutHoneypotTrapIpsIDOKAttachment) Get() (v HoneypotPutHoneypotTrapIpsIDOKAttachment, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilHoneypotPutHoneypotTrapIpsIDOKAttachment) Or(d HoneypotPutHoneypotTrapIpsIDOKAttachment) HoneypotPutHoneypotTrapIpsIDOKAttachment {
 	if v, ok := o.Get(); ok {
 		return v
 	}

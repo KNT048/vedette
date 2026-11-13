@@ -31,9 +31,9 @@ type hostCache struct {
 	hostFailed map[netip.Addr]bool
 	// placed are the wanted addresses the host confirmed it holds at the last Apply (it took them now, or took them before
 	// and did not refuse them since; an address only on the "applied" record is not confirmed): what the states and the
-	// MACs read. macs the MACs it gave them (when the host says).
+	// MACs read. links are what the host says of each address it holds: MAC, link, parent card (when the host says).
 	placed map[netip.Addr]bool
-	macs   map[netip.Addr]string
+	links  map[netip.Addr]DecoyLink
 	// openPorts: the host cannot keep each address to its own ports (an older vedette-host without decoy_ip.set_ports,
 	// host-api §13): every address answers every service that runs, and the Trap IPs say so.
 	openPorts bool
@@ -73,9 +73,10 @@ func userReason(err error) string {
 	return err.Error()
 }
 
-// macReporter is the optional part of a Host that knows the MACs of the addresses it holds (vedette-host state/net).
-type macReporter interface {
-	DecoyMACs(ctx context.Context) map[netip.Addr]string
+// linkReporter is the optional part of a Host that knows how it holds each address: its MAC, link and parent card
+// (vedette-host state/net).
+type linkReporter interface {
+	DecoyLinks(ctx context.Context) map[netip.Addr]DecoyLink
 }
 
 // hostView is the host cache with whether a change is still waiting for the host: one consistent read for the overview.
@@ -318,13 +319,13 @@ func (s *Service) Apply(ctx context.Context) error {
 		delete(s.refusals, ip)
 	}
 	// What the host confirmed and its MACs go into the same cache write as the rest, so a reader never sees the new state with the old addresses.
-	placedSet, macs := s.placedAndMACs(ctx, confirmed)
+	placedSet, links := s.placedAndLinks(ctx, confirmed)
 	open := false
 	if k, ok := s.cfg.Host.(portKeeper); ok && len(placed) > 0 {
 		open = !k.KeepsPorts(ctx)
 	}
 	set := func(h hostCache) {
-		h.placed, h.macs, h.openPorts = placedSet, macs, open
+		h.placed, h.links, h.openPorts = placedSet, links, open
 		s.setHost(h)
 	}
 	switch {
@@ -402,17 +403,17 @@ func (s *Service) noteRefused(ip netip.Addr, err error, hostFault bool) {
 	}
 }
 
-// placedAndMACs is the set of addresses the host holds and, when the host says, their MACs, for the overview.
-func (s *Service) placedAndMACs(ctx context.Context, placed []netip.Addr) (map[netip.Addr]bool, map[netip.Addr]string) {
-	var macs map[netip.Addr]string
-	if r, ok := s.cfg.Host.(macReporter); ok && len(placed) > 0 {
-		macs = r.DecoyMACs(ctx)
+// placedAndLinks is the set of addresses the host holds and, when the host says, how it holds them, for the overview.
+func (s *Service) placedAndLinks(ctx context.Context, placed []netip.Addr) (map[netip.Addr]bool, map[netip.Addr]DecoyLink) {
+	var links map[netip.Addr]DecoyLink
+	if r, ok := s.cfg.Host.(linkReporter); ok && len(placed) > 0 {
+		links = r.DecoyLinks(ctx)
 	}
 	set := make(map[netip.Addr]bool, len(placed))
 	for _, ip := range placed {
 		set[ip] = true
 	}
-	return set, macs
+	return set, links
 }
 
 func (s *Service) setHost(h hostCache) {

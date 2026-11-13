@@ -42,7 +42,7 @@ func hpLine(logtype int, src string, sport int, at time.Time, data map[string]an
 func TestHoneypotIsWiredAndOffByDefault(t *testing.T) {
 	t.Parallel()
 	s := newStackWith(t, func(d *deps) { d.HoneypotDir = t.TempDir() })
-	if n := s.count(`SELECT count(*) FROM sqlite_master WHERE name IN ('hp_config', 'hp_trap', 'hp_hits', 'hp_decoys', 'hp_tokens', 'hp_ignored_day')`); n != 6 {
+	if n := s.count(`SELECT count(*) FROM sqlite_master WHERE name IN ('hp_config', 'hp_trap_ips', 'hp_hits', 'hp_tokens', 'hp_ignored_day')`); n != 5 {
 		t.Fatalf("%d hp_ tables", n)
 	}
 	if code, _ := s.do("GET", "/honeypot", "admin", ""); code != http.StatusNotFound {
@@ -53,23 +53,21 @@ func TestHoneypotIsWiredAndOffByDefault(t *testing.T) {
 	if code, _ := s.do("GET", "/honeypot", "viewer", ""); code != 200 {
 		t.Fatalf("viewer GET: %d", code)
 	}
-	if code, _ := s.do("PUT", "/honeypot/config", "operator", `{"secondary_ip":"192.168.10.240","hostname":"FILESRV-OLD"}`); code != http.StatusForbidden {
-		t.Fatalf("operator PUT config: %d", code)
+	fileSrv := `{"name":"FILESRV-OLD","ip":"192.168.10.240","preset":"file_server","vendor":"dell","services":["smb","rdp"]}`
+	if code, _ := s.do("POST", "/honeypot/trap-ips", "operator", fileSrv); code != http.StatusForbidden {
+		t.Fatalf("operator POST trap IP: %d", code)
 	}
-	if code, b := s.do("PUT", "/honeypot/config", "admin", `{"secondary_ip":"10.1.1.1","hostname":"FILESRV-OLD"}`); code != 400 || field(t, b, "error", "code") != "ip_outside_lan" {
+	if code, b := s.do("POST", "/honeypot/trap-ips", "admin", `{"name":"FILESRV-OLD","ip":"10.1.1.1","preset":"file_server","vendor":"dell","services":["smb"]}`); code != 400 || field(t, b, "error", "code") != "ip_outside_lan" {
 		t.Fatalf("%d %v", code, b)
 	}
-	code, o := s.do("PUT", "/honeypot/config", "admin", `{"secondary_ip":"192.168.10.240","hostname":"FILESRV-OLD"}`)
-	if code != 200 || field(t, o, "secondary_ip") != "192.168.10.240" || field(t, o, "lan") != "192.168.10.0/24" {
-		t.Fatalf("%d %v", code, o)
+	if code, b := s.do("POST", "/honeypot/trap-ips", "admin", `{"name":"FILESRV-OLD","ip":"192.168.10.240","preset":"file_server","vendor":"acme","services":["smb"]}`); code != 400 || field(t, b, "error", "code") != "invalid" { // the schema refuses a vendor not in the list
+		t.Fatalf("%d %v", code, b)
 	}
-	if code, o = s.do("PATCH", "/honeypot/traps/ssh", "admin", `{"enabled":true}`); code != 200 {
-		t.Fatalf("%d %v", code, o)
-	}
+	tip := s.addTrapIP(t, `{"name":"FILESRV-OLD","ip":"192.168.10.240","preset":"custom","vendor":null,"services":["ssh"]}`)
 	if err := s.d.Honeypot.Apply(t.Context()); err != nil {
 		t.Fatal(err)
 	}
-	_, o = s.do("GET", "/honeypot", "viewer", "")
+	_, o := s.do("GET", "/honeypot", "viewer", "")
 	traps := field(t, o, "traps").([]any)
 	ssh := traps[2].(map[string]any)
 	if ssh["service"] != "ssh" || ssh["enabled"] != true || ssh["state"] != "failed" || !strings.Contains(fmt.Sprint(field(t, o, "problem")), "appliance") {
@@ -82,9 +80,7 @@ func TestHoneypotIsWiredAndOffByDefault(t *testing.T) {
 	if code, b := s.do("POST", "/honeypot/test-hit", "operator", `{"service":"ssh"}`); code != 200 || field(t, b, "is_test") != true {
 		t.Fatalf("%d %v", code, b)
 	}
-	if code, b := s.do("POST", "/honeypot/decoys", "admin", `{"personality":"nas","name":"NAS-OLD","ip":"192.168.10.241"}`); code != 201 || field(t, b, "id") == "" {
-		t.Fatalf("%d %v", code, b)
-	}
+	nas := s.addTrapIP(t, `{"name":"NAS-OLD","ip":"192.168.10.241","preset":"nas","vendor":"synology","services":["http","smb"]}`)
 	if code, b := s.do("POST", "/honeypot/test-scan", "operator", ""); code != 200 || field(t, b, "kind") != "scan" {
 		t.Fatalf("%d %v", code, b)
 	}
@@ -99,7 +95,7 @@ func TestHoneypotIsWiredAndOffByDefault(t *testing.T) {
 	if code, b = s.do("GET", "/honeypot/tokens", "viewer", ""); code != 200 || len(field(t, b, "items").([]any)) != 1 {
 		t.Fatalf("%d %v", code, b)
 	}
-	if code, b = s.do("GET", "/honeypot/decoys", "viewer", ""); code != 200 || len(field(t, b, "items").([]any)) != 1 {
+	if code, b = s.do("GET", "/honeypot/trap-ips", "viewer", ""); code != 200 || len(field(t, b, "items").([]any)) != 2 {
 		t.Fatalf("%d %v", code, b)
 	}
 	_, b = s.do("GET", "/honeypot/hits", "viewer", "")
@@ -114,20 +110,19 @@ func TestHoneypotIsWiredAndOffByDefault(t *testing.T) {
 	if code, _ = s.do("DELETE", "/honeypot/hits/"+hid, "admin", ""); code != http.StatusNotFound && code != http.StatusMethodNotAllowed {
 		t.Fatalf("a hit can be deleted through the API: %d", code)
 	}
-	if code, _ = s.do("PATCH", "/honeypot/decoys/nope", "admin", `{"enabled":false}`); code != 404 {
+	if code, _ = s.do("PATCH", "/honeypot/trap-ips/nope", "admin", `{"enabled":false}`); code != 404 {
 		t.Fatalf("%d", code)
 	}
 	if code, _ = s.do("DELETE", "/honeypot/tokens/"+id, "admin", ""); code != 204 {
 		t.Fatalf("%d", code)
 	}
-	if code, b = s.do("GET", "/honeypot/decoys", "viewer", ""); code != 200 {
+	if code, _ = s.do("PATCH", "/honeypot/trap-ips/"+nas, "admin", `{"enabled":false}`); code != 200 {
 		t.Fatalf("%d", code)
 	}
-	did := field(t, b, "items").([]any)[0].(map[string]any)["id"].(string)
-	if code, _ = s.do("PATCH", "/honeypot/decoys/"+did, "admin", `{"enabled":false}`); code != 200 {
+	if code, _ = s.do("PUT", "/honeypot/trap-ips/"+tip, "admin", `{"name":"FILESRV-OLD","ip":"192.168.10.240","preset":"custom","vendor":null,"services":["ssh","rdp"]}`); code != 200 {
 		t.Fatalf("%d", code)
 	}
-	if code, _ = s.do("DELETE", "/honeypot/decoys/"+did, "admin", ""); code != 204 {
+	if code, _ = s.do("DELETE", "/honeypot/trap-ips/"+nas, "admin", ""); code != 204 {
 		t.Fatalf("%d", code)
 	}
 	if s.count(`SELECT count(*) FROM core_audit WHERE action LIKE 'honeypot.%'`) < 10 {
@@ -154,12 +149,7 @@ func TestHoneypotReadsTheLogOfTheContainer(t *testing.T) {
 		return nil
 	})
 	s.setModule("honeypot", true)
-	if code, _ := s.do("PUT", "/honeypot/config", "admin", `{"secondary_ip":"192.168.10.240","hostname":"FILESRV-OLD"}`); code != 200 {
-		t.Fatal(code)
-	}
-	if code, _ := s.do("PATCH", "/honeypot/traps/ssh", "admin", `{"enabled":true}`); code != 200 {
-		t.Fatal(code)
-	}
+	s.addTrapIP(t, `{"name":"FILESRV-OLD","ip":"192.168.10.240","preset":"custom","vendor":null,"services":["ssh"]}`)
 	if err := s.d.Honeypot.Apply(t.Context()); err != nil {
 		t.Fatal(err)
 	}
@@ -294,4 +284,14 @@ func TestHoneypotInventoryAdapter(t *testing.T) {
 	if b, err := a.Box(t.Context()); err != nil || b.Name == "" {
 		t.Fatalf("%+v %v", b, err)
 	}
+}
+
+// addTrapIP adds one Trap IP through the API as an admin (D-466) and returns its id.
+func (s *stack) addTrapIP(t *testing.T, body string) string {
+	t.Helper()
+	code, b := s.do("POST", "/honeypot/trap-ips", "admin", body)
+	if code != 201 {
+		t.Fatalf("add trap IP: %d %v", code, b)
+	}
+	return field(t, b, "id").(string)
 }

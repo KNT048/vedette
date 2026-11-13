@@ -31893,6 +31893,14 @@
                           },
                           "excerpt": {
                             "type": "string"
+                          },
+                          "trap_ip": {
+                            "type": "string",
+                            "description": "The Trap IP that was touched; for a scan the Trap IPs it touched, comma-separated; for a token its value"
+                          },
+                          "trap_hostname": {
+                            "type": "string",
+                            "description": "Name of the Trap IP that was hit (D-466), of the token, or of the Trap IPs a scan touched (\"Decoy sweep\" for a probe without names): the Trap IP column of the hit list (W1-13)"
                           }
                         },
                         "required": [
@@ -31906,7 +31914,9 @@
                           "src_asset_id",
                           "src_name",
                           "is_test",
-                          "excerpt"
+                          "excerpt",
+                          "trap_ip",
+                          "trap_hostname"
                         ],
                         "additionalProperties": false
                       }
@@ -32036,11 +32046,12 @@
                       "type": "string"
                     },
                     "trap_ip": {
-                      "type": "string"
+                      "type": "string",
+                      "description": "The Trap IP that was touched; for a scan the Trap IPs it touched, comma-separated; for a token its value"
                     },
                     "trap_hostname": {
                       "type": "string",
-                      "description": "Name of the Trap IP that was hit (D-466), or of the token / \"Decoy sweep\""
+                      "description": "Name of the Trap IP that was hit (D-466), of the token, or of the Trap IPs a scan touched (\"Decoy sweep\" for a probe without names): the Trap IP column of the hit list (W1-13)"
                     },
                     "asset": {
                       "anyOf": [
@@ -32268,6 +32279,14 @@
                     },
                     "excerpt": {
                       "type": "string"
+                    },
+                    "trap_ip": {
+                      "type": "string",
+                      "description": "The Trap IP that was touched; for a scan the Trap IPs it touched, comma-separated; for a token its value"
+                    },
+                    "trap_hostname": {
+                      "type": "string",
+                      "description": "Name of the Trap IP that was hit (D-466), of the token, or of the Trap IPs a scan touched (\"Decoy sweep\" for a probe without names): the Trap IP column of the hit list (W1-13)"
                     }
                   },
                   "required": [
@@ -32281,7 +32300,9 @@
                     "src_asset_id",
                     "src_name",
                     "is_test",
-                    "excerpt"
+                    "excerpt",
+                    "trap_ip",
+                    "trap_hostname"
                   ],
                   "additionalProperties": false
                 }
@@ -32392,6 +32413,14 @@
                     },
                     "excerpt": {
                       "type": "string"
+                    },
+                    "trap_ip": {
+                      "type": "string",
+                      "description": "The Trap IP that was touched; for a scan the Trap IPs it touched, comma-separated; for a token its value"
+                    },
+                    "trap_hostname": {
+                      "type": "string",
+                      "description": "Name of the Trap IP that was hit (D-466), of the token, or of the Trap IPs a scan touched (\"Decoy sweep\" for a probe without names): the Trap IP column of the hit list (W1-13)"
                     }
                   },
                   "required": [
@@ -32405,7 +32434,9 @@
                     "src_asset_id",
                     "src_name",
                     "is_test",
-                    "excerpt"
+                    "excerpt",
+                    "trap_ip",
+                    "trap_hostname"
                   ],
                   "additionalProperties": false
                 }
@@ -32816,6 +32847,14 @@
                     },
                     "excerpt": {
                       "type": "string"
+                    },
+                    "trap_ip": {
+                      "type": "string",
+                      "description": "The Trap IP that was touched; for a scan the Trap IPs it touched, comma-separated; for a token its value"
+                    },
+                    "trap_hostname": {
+                      "type": "string",
+                      "description": "Name of the Trap IP that was hit (D-466), of the token, or of the Trap IPs a scan touched (\"Decoy sweep\" for a probe without names): the Trap IP column of the hit list (W1-13)"
                     }
                   },
                   "required": [
@@ -32829,7 +32868,9 @@
                     "src_asset_id",
                     "src_name",
                     "is_test",
-                    "excerpt"
+                    "excerpt",
+                    "trap_ip",
+                    "trap_hostname"
                   ],
                   "additionalProperties": false
                 }
@@ -32965,6 +33006,87 @@
                               "null"
                             ]
                           },
+                          "mac_vendor": {
+                            "description": "Company the IEEE registered the MAC prefix to, what a network scanner shows for this address; null for a locally administered MAC or while the MAC is unknown",
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "attachment": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "kind": {
+                                    "type": "string",
+                                    "enum": [
+                                      "macvlan"
+                                    ],
+                                    "description": "How the host holds the address: its own macvlan link with its own MAC, moved into the honeypot network namespace (host-api 6.6); never an address on the box's own card"
+                                  },
+                                  "link": {
+                                    "type": "string",
+                                    "description": "Name of the link, vdh + the eight hex digits of the address"
+                                  },
+                                  "parent": {
+                                    "type": "string",
+                                    "description": "The box network card the link hangs off; empty when the host does not say"
+                                  }
+                                },
+                                "required": [
+                                  "kind",
+                                  "link",
+                                  "parent"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "description": "null until the host holds the address"
+                          },
+                          "open_services": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "enum": [
+                                "smb",
+                                "rdp",
+                                "ssh",
+                                "mssql",
+                                "http"
+                              ]
+                            },
+                            "description": "Services the address answers on now: its own while it listens; every running service on an older host that cannot keep them apart; none while it does not listen"
+                          },
+                          "last_hit_at": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "format": "date-time",
+                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "description": "Last real hit on this address"
+                          },
+                          "device_id": {
+                            "description": "Inventory device at this address, when the inventory shows one (the Trap IP is then in conflict)",
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "device_name": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
                           "created_at": {
                             "type": "string",
                             "format": "date-time",
@@ -32982,6 +33104,12 @@
                           "state",
                           "reason",
                           "mac",
+                          "mac_vendor",
+                          "attachment",
+                          "open_services",
+                          "last_hit_at",
+                          "device_id",
+                          "device_name",
                           "created_at"
                         ],
                         "additionalProperties": false
@@ -33247,6 +33375,87 @@
                         "null"
                       ]
                     },
+                    "mac_vendor": {
+                      "description": "Company the IEEE registered the MAC prefix to, what a network scanner shows for this address; null for a locally administered MAC or while the MAC is unknown",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "attachment": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": {
+                              "type": "string",
+                              "enum": [
+                                "macvlan"
+                              ],
+                              "description": "How the host holds the address: its own macvlan link with its own MAC, moved into the honeypot network namespace (host-api 6.6); never an address on the box's own card"
+                            },
+                            "link": {
+                              "type": "string",
+                              "description": "Name of the link, vdh + the eight hex digits of the address"
+                            },
+                            "parent": {
+                              "type": "string",
+                              "description": "The box network card the link hangs off; empty when the host does not say"
+                            }
+                          },
+                          "required": [
+                            "kind",
+                            "link",
+                            "parent"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "null until the host holds the address"
+                    },
+                    "open_services": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "enum": [
+                          "smb",
+                          "rdp",
+                          "ssh",
+                          "mssql",
+                          "http"
+                        ]
+                      },
+                      "description": "Services the address answers on now: its own while it listens; every running service on an older host that cannot keep them apart; none while it does not listen"
+                    },
+                    "last_hit_at": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Last real hit on this address"
+                    },
+                    "device_id": {
+                      "description": "Inventory device at this address, when the inventory shows one (the Trap IP is then in conflict)",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "device_name": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
                     "created_at": {
                       "type": "string",
                       "format": "date-time",
@@ -33264,6 +33473,12 @@
                     "state",
                     "reason",
                     "mac",
+                    "mac_vendor",
+                    "attachment",
+                    "open_services",
+                    "last_hit_at",
+                    "device_id",
+                    "device_name",
                     "created_at"
                   ],
                   "additionalProperties": false
@@ -33461,6 +33676,87 @@
                         "null"
                       ]
                     },
+                    "mac_vendor": {
+                      "description": "Company the IEEE registered the MAC prefix to, what a network scanner shows for this address; null for a locally administered MAC or while the MAC is unknown",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "attachment": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": {
+                              "type": "string",
+                              "enum": [
+                                "macvlan"
+                              ],
+                              "description": "How the host holds the address: its own macvlan link with its own MAC, moved into the honeypot network namespace (host-api 6.6); never an address on the box's own card"
+                            },
+                            "link": {
+                              "type": "string",
+                              "description": "Name of the link, vdh + the eight hex digits of the address"
+                            },
+                            "parent": {
+                              "type": "string",
+                              "description": "The box network card the link hangs off; empty when the host does not say"
+                            }
+                          },
+                          "required": [
+                            "kind",
+                            "link",
+                            "parent"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "null until the host holds the address"
+                    },
+                    "open_services": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "enum": [
+                          "smb",
+                          "rdp",
+                          "ssh",
+                          "mssql",
+                          "http"
+                        ]
+                      },
+                      "description": "Services the address answers on now: its own while it listens; every running service on an older host that cannot keep them apart; none while it does not listen"
+                    },
+                    "last_hit_at": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Last real hit on this address"
+                    },
+                    "device_id": {
+                      "description": "Inventory device at this address, when the inventory shows one (the Trap IP is then in conflict)",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "device_name": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
                     "created_at": {
                       "type": "string",
                       "format": "date-time",
@@ -33478,6 +33774,12 @@
                     "state",
                     "reason",
                     "mac",
+                    "mac_vendor",
+                    "attachment",
+                    "open_services",
+                    "last_hit_at",
+                    "device_id",
+                    "device_name",
                     "created_at"
                   ],
                   "additionalProperties": false
@@ -33694,6 +33996,87 @@
                         "null"
                       ]
                     },
+                    "mac_vendor": {
+                      "description": "Company the IEEE registered the MAC prefix to, what a network scanner shows for this address; null for a locally administered MAC or while the MAC is unknown",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "attachment": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": {
+                              "type": "string",
+                              "enum": [
+                                "macvlan"
+                              ],
+                              "description": "How the host holds the address: its own macvlan link with its own MAC, moved into the honeypot network namespace (host-api 6.6); never an address on the box's own card"
+                            },
+                            "link": {
+                              "type": "string",
+                              "description": "Name of the link, vdh + the eight hex digits of the address"
+                            },
+                            "parent": {
+                              "type": "string",
+                              "description": "The box network card the link hangs off; empty when the host does not say"
+                            }
+                          },
+                          "required": [
+                            "kind",
+                            "link",
+                            "parent"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "null until the host holds the address"
+                    },
+                    "open_services": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "enum": [
+                          "smb",
+                          "rdp",
+                          "ssh",
+                          "mssql",
+                          "http"
+                        ]
+                      },
+                      "description": "Services the address answers on now: its own while it listens; every running service on an older host that cannot keep them apart; none while it does not listen"
+                    },
+                    "last_hit_at": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Last real hit on this address"
+                    },
+                    "device_id": {
+                      "description": "Inventory device at this address, when the inventory shows one (the Trap IP is then in conflict)",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "device_name": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
                     "created_at": {
                       "type": "string",
                       "format": "date-time",
@@ -33711,6 +34094,12 @@
                     "state",
                     "reason",
                     "mac",
+                    "mac_vendor",
+                    "attachment",
+                    "open_services",
+                    "last_hit_at",
+                    "device_id",
+                    "device_name",
                     "created_at"
                   ],
                   "additionalProperties": false

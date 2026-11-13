@@ -24,11 +24,9 @@ const maxEvents = 20
 
 type storedHit struct {
 	Hit
-	trapIP       string
-	trapHostname string
-	tokenID      string
-	events       []HitEvent
-	connKey      string
+	tokenID string
+	events  []HitEvent
+	connKey string
 }
 
 const hitCols = `id, ts, kind, service, label, port, src_ip, is_test, excerpt, trap_ip, trap_hostname, token_id, events`
@@ -38,7 +36,7 @@ func scanHit(sc interface{ Scan(...any) error }) (storedHit, error) {
 	var svc, tok sql.NullString
 	var port sql.NullInt64
 	var ev string
-	if err := sc.Scan(&h.ID, &h.TS, &h.Kind, &svc, &h.Label, &port, &h.SrcIP, &h.IsTest, &h.Excerpt, &h.trapIP, &h.trapHostname, &tok, &ev); err != nil {
+	if err := sc.Scan(&h.ID, &h.TS, &h.Kind, &svc, &h.Label, &port, &h.SrcIP, &h.IsTest, &h.Excerpt, &h.TrapIP, &h.TrapHostname, &tok, &ev); err != nil {
 		return storedHit{}, err
 	}
 	if svc.Valid {
@@ -120,7 +118,7 @@ func (s *Service) HitDetail(ctx context.Context, id string) (HitDetail, error) {
 	if err != nil {
 		return HitDetail{}, fmt.Errorf("honeypot: read hit: %w", err)
 	}
-	out := HitDetail{Hit: w.view(h), TrapIP: h.trapIP, TrapHostname: h.trapHostname, Events: h.events, WindowMinutes: WindowMinutes}
+	out := HitDetail{Hit: w.view(h), Events: h.events, WindowMinutes: WindowMinutes}
 	if !h.IsTest {
 		if d := w.byIP(h.SrcIP); d != nil {
 			out.Asset = &DetailAsset{ID: d.ID, Kind: d.Kind, IP: d.IP.String(), Approved: d.Approved}
@@ -165,7 +163,7 @@ func (s *Service) insertHit(ctx context.Context, tx *sql.Tx, h storedHit) error 
 		return err
 	}
 	_, err = tx.ExecContext(ctx, `INSERT INTO hp_hits (`+hitCols+`, conn_key) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		h.ID, h.TS, string(h.Kind), svc, h.Label, port, h.SrcIP, h.IsTest, h.Excerpt, h.trapIP, h.trapHostname, tok, string(ev), conn)
+		h.ID, h.TS, string(h.Kind), svc, h.Label, port, h.SrcIP, h.IsTest, h.Excerpt, h.TrapIP, h.TrapHostname, tok, string(ev), conn)
 	if err != nil {
 		return fmt.Errorf("honeypot: store hit: %w", err)
 	}
@@ -195,8 +193,7 @@ func (s *Service) testHit(box Box, kind HitKind, svc *ServiceName, port *int, la
 	}
 	ts := store.FormatTS(s.now())
 	return storedHit{
-		Hit:    Hit{ID: store.NewID("hit"), TS: ts, Kind: kind, Service: svc, Label: label, Port: port, SrcIP: src, IsTest: true, Excerpt: excerpt},
-		trapIP: trapIP, trapHostname: trapHost,
+		Hit:    Hit{ID: store.NewID("hit"), TS: ts, Kind: kind, Service: svc, Label: label, Port: port, SrcIP: src, IsTest: true, Excerpt: excerpt, TrapIP: trapIP, TrapHostname: trapHost},
 		events: []HitEvent{{TS: ts, Source: "vedette", Text: eventText, Mark: true}},
 	}
 }

@@ -16,12 +16,12 @@ import (
 // rule excludes (INV-3).
 var ErrUnavailable = errors.New("ai: no AI profile is available for this job")
 
-// errProfileCapSkip is the reason of an attempt skipped because the profile has used its own daily cap (Meter.Reserve said
+// errProfileCapSkip is the reason of an attempt skipped because the profile has used its own monthly budget (Meter.Reserve said
 // ErrProfileCapped); the run log reads such a call as capped (notSent).
-var errProfileCapSkip = errors.New("daily cap reached")
+var errProfileCapSkip = errors.New("monthly budget reached")
 
-// ErrCapped means today's shared token cap is used up and the level is already the minimum.
-var ErrCapped = errors.New("ai: the daily token cap is used up")
+// ErrCapped means this month's shared token budget is used up (D-531).
+var ErrCapped = errors.New("ai: this month's AI token budget is used up")
 
 // UnavailableError carries why every candidate was rejected.
 type UnavailableError struct {
@@ -214,7 +214,7 @@ func estimateTokens(req provider.Request) int {
 
 // Call sends req for job to the first profile that may and can answer.
 //
-// A profile is skipped, and the next one tried, when it is not allowed (privacy rule), has used its own daily
+// A profile is skipped, and the next one tried, when it is not allowed (privacy rule), has used its own monthly
 // cap, cannot be built, or fails (error, timeout, rate limit, refusal). The privacy rule is checked against the
 // current settings right before each request, so a settings change during the call (turning internal_only on)
 // applies to the next attempt. If nothing remains the error is ErrUnavailable with a reason per profile.
@@ -261,9 +261,9 @@ func (r *Router) Call(ctx context.Context, job Job, req provider.Request) (CallR
 			skip("cannot connect: profile settings are not valid")
 			continue
 		}
-		hold, err := r.meter.Reserve(p.ID, p.DailyCap, est)
+		hold, err := r.meter.Reserve(p.ID, p.MonthlyBudget, est)
 		if errors.Is(err, ErrCapped) {
-			return res, fmt.Errorf("%w: raise the cap in Settings, AI assistant, or wait until tomorrow", ErrCapped)
+			return res, fmt.Errorf("%w: raise the monthly budget in Settings, AI assistant, or wait for next month", ErrCapped)
 		}
 		if err != nil {
 			skipErr(errProfileCapSkip)
@@ -315,10 +315,10 @@ func (r *Router) retryCut(ctx context.Context, res *CallResult, cl provider.Prov
 		return nil
 	}
 	attempt := Attempt{ProfileID: p.ID, Profile: p.Name, Model: p.Model, Retry: true}
-	hold, err := r.meter.Reserve(p.ID, p.DailyCap, estimateTokens(more))
+	hold, err := r.meter.Reserve(p.ID, p.MonthlyBudget, estimateTokens(more))
 	if err != nil {
 		if errors.Is(err, ErrCapped) {
-			err = fmt.Errorf("%w: raise the cap in Settings, AI assistant, or wait until tomorrow", ErrCapped)
+			err = fmt.Errorf("%w: raise the monthly budget in Settings, AI assistant, or wait for next month", ErrCapped)
 		}
 		attempt.Err, attempt.Skipped = err, true
 		res.Attempts = append(res.Attempts, attempt)
@@ -380,13 +380,13 @@ const probeEstimate = 200
 // request is sent (ErrCapped, ErrProfileCapped) and counted after (INV-4, PRE-3): the tokens of all three requests, also of those
 // that failed with known usage, are settled together, and the result reports that sum also when the test failed (what the provider
 // bills for the test, not the first request only; the caller writes it to the activity log, which the meter is seeded from). It returns the downgrade if the test lowered the level, so the caller can record it. The prompts hold no
-// customer data, so the privacy rule does not apply. p.DailyCap is the cap checked for the profile.
+// customer data, so the privacy rule does not apply. p.MonthlyBudget is the cap checked for the profile.
 func (r *Router) Probe(ctx context.Context, p Profile, now func() time.Time) (provider.ProbeResult, *Downgrade, error) {
 	cl, err := r.factory(p)
 	if err != nil {
 		return provider.ProbeResult{}, nil, err
 	}
-	hold, err := r.meter.Reserve(p.ID, p.DailyCap, probeEstimate)
+	hold, err := r.meter.Reserve(p.ID, p.MonthlyBudget, probeEstimate)
 	if err != nil {
 		return provider.ProbeResult{}, nil, err
 	}

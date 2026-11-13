@@ -24,6 +24,12 @@ const plural = (n: number, one: string, many = `${one}s`) => `${num(n)} ${n === 
 
 const ESTIMATES: AiConfigView['tier_estimates'] = { min: 10_000, med: 60_000, max: null }
 const startOfToday = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime() }
+/** D-531: the budgets count the calendar month (the box's time zone; the browser's in the mock) and renew on the 1st. */
+const startOfMonth = () => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1).getTime() }
+const renewsOn = () => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth() + 1, 1) }
+const isoDate = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+const renewDay = () => renewsOn().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
+const budgetStop = () => `this month's AI budget of ${num(aiConfigStore.get().monthly_budget)} tokens is used up, so AI jobs are stopped until it renews on ${renewDay()}. An administrator can raise the budget in Settings, AI assistant.`
 
 // Lịch sử mẫu để đồng hồ và nhật ký có số liệu ngay (dữ liệu mẫu, không phải lần gọi thật). Cài sạch: rỗng.
 const sampleRuns = collection<AiRun[]>('ai_sample_runs', () => {
@@ -44,18 +50,18 @@ const sampleRuns = collection<AiRun[]>('ai_sample_runs', () => {
 const downgrades = collection<Usage['downgrades']>('ai_downgrades', () => [{ id: 'dg-1', ts: new Date(Date.now() - 3 * DAY).toISOString(), from: 'med', to: 'min', reason: 'Over the 60,000 tokens/day cap' }], () => [])
 
 const allRuns = () => [...aiRunsStore.get(), ...sampleRuns.get()].sort((a, b) => b.ts.localeCompare(a.ts))
-const todayRuns = () => allRuns().filter((r) => new Date(r.ts).getTime() >= startOfToday())
-const todayTokens = () => todayRuns().reduce((n, r) => n + r.tokens_in + r.tokens_out, 0)
-const profileUsed = (p: StoredProfile) => todayRuns().filter((r) => r.profile === p.name && r.status === 'ok').reduce((n, r) => n + r.tokens_in + r.tokens_out, 0)
+const monthRuns = () => allRuns().filter((r) => new Date(r.ts).getTime() >= startOfMonth())
+const monthTokens = () => monthRuns().reduce((n, r) => n + r.tokens_in + r.tokens_out, 0)
+const profileUsed = (p: StoredProfile) => monthRuns().filter((r) => r.profile === p.name && r.status === 'ok').reduce((n, r) => n + r.tokens_in + r.tokens_out, 0)
 
 function usage(): Usage {
   const cfg = aiConfigStore.get()
   const s = startOfToday()
-  const month = allRuns().filter((r) => new Date(r.ts).getTime() >= Date.now() - 30 * DAY)
+  const month = monthRuns()
   const sum = (rs: AiRun[]) => { const input = rs.reduce((n, r) => n + r.tokens_in, 0); const output = rs.reduce((n, r) => n + r.tokens_out, 0); return { input, output, total: input + output } }
   const by = new Map<string, { runs: number; tokens: number }>()
   for (const r of month) { const e = by.get(r.skill) ?? { runs: 0, tokens: 0 }; by.set(r.skill, { runs: e.runs + 1, tokens: e.tokens + r.tokens_in + r.tokens_out }) }
-  return { tier: cfg.tier, daily_cap: cfg.daily_cap, today: sum(month.filter((r) => new Date(r.ts).getTime() >= s)), month: sum(month), by_skill: [...by.entries()].map(([skill, v]) => ({ skill, ...v })).sort((a, b) => b.tokens - a.tokens), downgrades: downgrades.get() }
+  return { tier: cfg.tier, monthly_budget: cfg.monthly_budget, today: sum(month.filter((r) => new Date(r.ts).getTime() >= s)), month: sum(month), by_skill: [...by.entries()].map(([skill, v]) => ({ skill, ...v })).sort((a, b) => b.tokens - a.tokens), downgrades: downgrades.get() }
 }
 
 // Lần thử kết nối gần nhất của hồ sơ như đã lưu (S-AI-1), theo id; hồ sơ đổi địa chỉ/model/khoá thì mất. Mẫu: hai hồ sơ đám mây đã thử được.
@@ -71,9 +77,9 @@ const draftTests = collection<Record<string, { p: StoredProfile; test: LastTest;
 const me = () => currentUser()?.id ?? ''
 const draftTestOf = (p: StoredProfile) => { const d = draftTests.get()[me()]; return d && Date.now() - d.at <= 15 * 60_000 && sameConnection(d.p, p) ? d.test : null }
 const endDraftTest = () => draftTests.update((m) => { const n = { ...m }; delete n[me()]; return n })
-const profileView = (p: StoredProfile): AiProfile => ({ ...p, usable: aiProfileUsable(p), used_today: profileUsed(p), last_test: lastTests.get()[p.id] ?? null })
+const profileView = (p: StoredProfile): AiProfile => ({ ...p, usable: aiProfileUsable(p), used_month: profileUsed(p), last_test: lastTests.get()[p.id] ?? null })
 const jobsReady = () => Object.fromEntries(AI_JOBS.map((j) => [j.id, aiCandidates(j.id).length > 0])) as Record<AiJob, boolean>
-const view = (): AiConfigView => { const c = aiConfigStore.get(); return { configured: c.configured, tier: c.tier, daily_cap: c.daily_cap, redact_pii: c.redact_pii, tier_estimates: ESTIMATES, jobs_ready: jobsReady() } }
+const view = (): AiConfigView => { const c = aiConfigStore.get(); return { configured: c.configured, tier: c.tier, monthly_budget: c.monthly_budget, month_used: monthTokens(), renews_on: isoDate(renewsOn()), redact_pii: c.redact_pii, tier_estimates: ESTIMATES, jobs_ready: jobsReady() } }
 
 /** `configured` (dùng chung với module khác) = có ít nhất một hồ sơ dùng được; provider/model/khoá phản chiếu hồ sơ dùng được đầu tiên. */
 function syncConfig() {
@@ -92,45 +98,38 @@ function notReady(job: AiJob) {
   return fail(409, 'ai_unavailable', `No AI profile is assigned to ${JOB_NAME[job]}. Assign one in Settings, AI assistant.`)
 }
 
-/** Chọn hồ sơ trả lời một việc: chính, rồi dự phòng khi hồ sơ chính lỗi, hết trần riêng hoặc bị luật riêng tư loại. Ghi lần chạy; vượt trần chung → hạ mức (S-AI-4). */
+/** Chọn hồ sơ trả lời một việc: chính, rồi dự phòng khi hồ sơ chính lỗi, hết ngân sách tháng riêng hoặc bị luật riêng tư loại. Ghi lần chạy; ngân sách tháng chung dùng hết → mọi việc dừng, không hạ mức (D-531). */
 /** What the activity log needs to know about one call (S-AI-8). Missing parts get a plain default. */
 type Act = Partial<Pick<ActivityInput, 'hooks' | 'tools' | 'links' | 'input' | 'output' | 'summary' | 'result' | 'trigger'>>
 function runJob(job: AiJob, tin: number, tout: number, target?: string, act: Act = {}) {
   if (!aiAvailable(job)) return { error: notReady(job) }
   const cfg = aiConfigStore.get()
-  const used = todayTokens()
-  const cap = num(cfg.daily_cap)
+  const used = monthTokens()
   // status capped = a cap stopped the call before anything was sent; failed = a profile was asked and did not answer (POST-5)
-  // the daily cap answers 429 daily_cap; a call no profile could take or answered is 409 ai_unavailable, as on the box
+  // the monthly budget answers 429 budget_reached; a call no profile could take or answered is 409 ai_unavailable, as on the box
   const capped = (reason: string, status: 'capped' | 'failed' = 'capped', refusal: Response | null = null) => {
     aiRunsStore.update((l) => [{ id: newId('ai'), ts: nowIso(), skill: job, model: cfg.model, tokens_in: 0, tokens_out: 0, status, target }, ...l])
     recordActivity({ job, profile: '', model: cfg.model, hooks: act.hooks ?? [], tools: act.tools ?? [], input: act.input ?? `${job}:${target ?? ''}`, output: '', summary: `${status === 'capped' ? 'Not sent' : 'No profile answered'}: ${reason}`, tokens_in: 0, tokens_out: 0, result: 'error', trigger: act.trigger })
-    return { error: refusal ?? fail(429, 'daily_cap', reason) }
+    return { error: refusal ?? fail(429, 'budget_reached', reason) }
   }
-  if (used >= cfg.daily_cap && cfg.tier === 'min') return capped(`Today's ${cap} token cap is used up and the tier is already the minimum. Raise the cap in Settings, AI assistant, or wait until tomorrow.`)
+  if (used >= cfg.monthly_budget) return capped(budgetStop().replace(/^t/, 'T'))
   const cands = aiCandidates(job)
   let pick: StoredProfile | undefined
   let idx = -1
   const why: string[] = []
   for (const [i, p] of cands.entries()) {
     if (/unreachable|timeout/.test(p.base_url)) { why.push(`${p.name}: no answer`); continue }
-    if (profileUsed(p) + tin + tout > p.daily_cap) { why.push(`${p.name}: daily cap reached`); continue }
+    if (profileUsed(p) >= p.monthly_budget) { why.push(`${p.name}: monthly budget reached`); continue }
     pick = p; idx = i; break
   }
   if (!pick) {
     const reason = `No AI profile could answer ${JOB_NAME[job]} (${why.join('; ')}). Check the profiles in Settings, AI assistant, or add a fallback.`
-    return capped(reason, why.every((w) => w.endsWith('daily cap reached')) ? 'capped' : 'failed', fail(409, 'ai_unavailable', reason))
+    return capped(reason, why.every((w) => w.endsWith('monthly budget reached')) ? 'capped' : 'failed', fail(409, 'ai_unavailable', reason))
   }
   recordAiRun(job, tin, tout, target, pick, idx > 0)
   recordActivity({ job, profile: pick.name, model: pick.model, hooks: act.hooks ?? [], tools: act.tools ?? [], links: act.links, input: act.input ?? `${job}:${target ?? ''}`, output: act.output ?? `${job}:${target ?? ''}:${tin}:${tout}`, summary: act.summary ?? `${JOB_NAME[job]}${target ? ` for ${target}` : ''}`, tokens_in: tin, tokens_out: tout, result: act.result ?? (idx > 0 ? 'fallback_used' : 'ok'), trigger: act.trigger })
-  let downgraded: { from: AiTier; to: AiTier } | null = null
-  if (used + tin + tout > cfg.daily_cap && cfg.tier !== 'min') {
-    const to: AiTier = cfg.tier === 'max' ? 'med' : 'min'
-    downgraded = { from: cfg.tier, to }
-    aiConfigStore.update((c) => ({ ...c, tier: to }))
-    downgrades.update((l) => [{ id: newId('dg'), ts: nowIso(), from: cfg.tier, to, reason: `Over the ${cap} tokens/day cap` }, ...l])
-    audit('ai.downgrade', `${cfg.tier}->${to}`, 'over the daily token cap')
-  }
+  // D-531: the budget stops calls at 100 %; it never lowers the level (earlier downgrades stay in the history)
+  const downgraded: { from: AiTier; to: AiTier } | null = null
   return { error: null, profile: pick, fallback: idx > 0, downgraded }
 }
 
@@ -167,10 +166,10 @@ function checkProfile(b: Partial<ProfileInput>, existing?: StoredProfile): Respo
   return { name, url, key, keepOld, style }
 }
 function toStored(b: ProfileInput, ok: { name: string; url: URL; key: string | null; keepOld: boolean; style: ProfileInput['api_style'] }, id: string, existing?: StoredProfile): StoredProfile {
-  const cap = Number(b.daily_cap)
-  return { id, name: ok.name, kind: b.kind, api_style: ok.style, base_url: ok.url.toString().replace(/\/$/, ''), model: b.model, key_last4: ok.key ? ok.key.slice(-4) : ok.keepOld ? existing!.key_last4 : null, location: b.location, daily_cap: cap }
+  const cap = Number(b.monthly_budget)
+  return { id, name: ok.name, kind: b.kind, api_style: ok.style, base_url: ok.url.toString().replace(/\/$/, ''), model: b.model, key_last4: ok.key ? ok.key.slice(-4) : ok.keepOld ? existing!.key_last4 : null, location: b.location, monthly_budget: cap }
 }
-const capError = (b: Partial<ProfileInput>) => { const c = Number(b.daily_cap); return !Number.isInteger(c) || c < 1000 || c > 5_000_000 ? fail(400, 'invalid_cap', 'The profile\'s daily token cap must be a whole number from 1,000 to 5,000,000.') : null }
+const capError = (b: Partial<ProfileInput>) => { const c = Number(b.monthly_budget); return !Number.isInteger(c) || c < 1000 || c > 150_000_000 ? fail(400, 'invalid_cap', 'The profile\'s monthly budget must be a whole number of tokens from 1000 to 150000000.') : null }
 
 // ---- Phân việc
 const allowed = (p: StoredProfile, job: AiJob, internalOnly: boolean) => aiProfileUsable(p) && !(internalOnly && AI_JOBS.find((j) => j.id === job)?.data === 'internal' && p.location !== 'internal')
@@ -296,10 +295,10 @@ export const handlers = [
     const denied = guard('admin'); if (denied) return denied
     const b = await body<ConfigInput>(request)
     if (!['min', 'med', 'max'].includes(String(b.tier))) return fail(400, 'invalid_tier', 'Pick a tier: minimum, medium or maximum.')
-    const cap = Number(b.daily_cap)
-    if (!Number.isInteger(cap) || cap < 1000 || cap > 5_000_000) return fail(400, 'invalid_cap', 'The daily token cap must be a whole number from 1,000 to 5,000,000.')
-    aiConfigStore.update((c) => ({ ...c, tier: b.tier as AiTier, daily_cap: cap, redact_pii: b.redact_pii !== false }))
-    audit('ai.config', 'tier', `tier=${b.tier}, cap=${cap}`)
+    const cap = Number(b.monthly_budget)
+    if (!Number.isInteger(cap) || cap < 1000 || cap > 150_000_000) return fail(400, 'invalid_cap', 'The monthly AI budget must be a whole number of tokens from 1000 to 150000000.')
+    aiConfigStore.update((c) => ({ ...c, tier: b.tier as AiTier, monthly_budget: cap, redact_pii: b.redact_pii !== false }))
+    audit('ai.config', 'tier', `tier=${b.tier}, monthly_budget=${cap}, redact_pii=${b.redact_pii !== false}`)
     return HttpResponse.json(view())
   }),
 
@@ -360,16 +359,16 @@ export const handlers = [
     const denied = guard('admin'); if (denied) return denied
     const b = await body<ProfileInput>(request)
     const cur = b.id ? aiProfilesStore.get().find((p) => p.id === b.id) : undefined
-    const ok = checkProfile({ ...b, name: b.name || cur?.name || 'Test', daily_cap: 1000 }, cur); if (ok instanceof Response) return ok
+    const ok = checkProfile({ ...b, name: b.name || cur?.name || 'Test', monthly_budget: 1000 }, cur); if (ok instanceof Response) return ok
     // a test of the profile exactly as saved is its last test (the saved key typed again counts, like the box); a test of other settings waits for the profile saved with them (D-445)
-    const asSaved = cur && sameConnection(cur, toStored({ ...(b as ProfileInput), daily_cap: cur.daily_cap }, ok, cur.id, cur)) ? cur : undefined
-    const tried = toStored({ ...(b as ProfileInput), daily_cap: 1000 }, ok, cur?.id ?? 'draft', cur)
+    const asSaved = cur && sameConnection(cur, toStored({ ...(b as ProfileInput), monthly_budget: cur.monthly_budget }, ok, cur.id, cur)) ? cur : undefined
+    const tried = toStored({ ...(b as ProfileInput), monthly_budget: 1000 }, ok, cur?.id ?? 'draft', cur)
     const record = (t: LastTest) => { if (asSaved) setLastTest(asSaved.id, t); else draftTests.update((m) => ({ ...m, [me()]: { p: tried, test: t, at: Date.now() } })) }
     const failed = (code: string, msg: string) => { record({ at: nowIso(), ok: false, detail: msg }); return fail(502, code, msg) }
     if (ok.url.hostname.includes('unreachable')) return failed('unreachable', `Could not connect to ${ok.url.hostname}. Check the address, the box's network and the firewall.`)
     if (ok.key?.startsWith('bad')) return failed('key_rejected', 'The provider rejected the key (HTTP 401). Check the key has not expired and belongs to this provider.')
     record({ at: nowIso(), ok: true, detail: '' })
-    recordAiRun('connection-test', 42, 9, b.model, { id: cur?.id ?? 'draft', name: ok.name, kind: b.kind!, api_style: ok.style, base_url: ok.url.toString(), model: b.model!, key_last4: null, location: b.location!, daily_cap: 1000 })
+    recordAiRun('connection-test', 42, 9, b.model, { id: cur?.id ?? 'draft', name: ok.name, kind: b.kind!, api_style: ok.style, base_url: ok.url.toString(), model: b.model!, key_last4: null, location: b.location!, monthly_budget: 1000 })
     recordActivity({ job: 'connection-test', profile: ok.name, model: b.model!, hooks: [], tools: [], input: 'ping', output: 'pong', summary: `Connection test of ${ok.name}`, tokens_in: 42, tokens_out: 9, result: 'ok' }) // three requests: plain, tools, JSON format
     audit('ai.test', ok.name, `model=${b.model}`)
     return HttpResponse.json({ ok: true, latency_ms: b.location === 'internal' ? 180 : 420, tokens_in: 42, tokens_out: 9, capabilities: { tools: true, structured: true } })

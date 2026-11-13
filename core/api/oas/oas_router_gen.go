@@ -9211,7 +9211,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 								switch method {
 								case "GET":
 									r.name = AiGetAiConfigOperation
-									r.summary = "Usage tier, shared token cap, PII redaction; which jobs are ready"
+									r.summary = "Usage tier, shared monthly budget and this month's use, PII redaction; which jobs are ready"
 									r.operationID = "ai_get_ai_config"
 									r.operationGroup = ""
 									r.pathPattern = "/ai/config"
@@ -9220,7 +9220,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 									return r, true
 								case "PUT":
 									r.name = AiPutAiConfigOperation
-									r.summary = "Save token tier, shared cap and PII redaction"
+									r.summary = "Save token tier, shared monthly budget and PII redaction"
 									r.operationID = "ai_put_ai_config"
 									r.operationGroup = ""
 									r.pathPattern = "/ai/config"
@@ -10142,7 +10142,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 							switch method {
 							case "GET":
 								r.name = AiGetAiUsageOperation
-								r.summary = "Token meter: today, 30 days, per job, tier downgrades"
+								r.summary = "Token meter: today, this month, per job this month, earlier tier downgrades"
 								r.operationID = "ai_get_ai_usage"
 								r.operationGroup = ""
 								r.pathPattern = "/ai/usage"

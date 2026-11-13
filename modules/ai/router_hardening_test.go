@@ -20,7 +20,7 @@ import (
 func TestContract_INV3_InternalLabelIsEnforced(t *testing.T) {
 	t.Parallel()
 	mk := func(base string, loc Location) Profile {
-		return Profile{ID: "x", Name: "Looks local", Kind: "openai-compatible", BaseURL: base, Model: "gpt-5", APIKey: provider.NewSecret("sk-live-0123456789"), Location: loc, DailyCap: 10_000}
+		return Profile{ID: "x", Name: "Looks local", Kind: "openai-compatible", BaseURL: base, Model: "gpt-5", APIKey: provider.NewSecret("sk-live-0123456789"), Location: loc, MonthlyBudget: 10_000}
 	}
 	for base, ok := range map[string]bool{
 		"http://203.0.113.10:8000/v1": false, "https://8.8.8.8/v1": false, "http://[2001:db8::1]/v1": false, "http://100.128.0.1/v1": false,
@@ -55,7 +55,7 @@ func TestContract_INV3_InternalLabelIsEnforced(t *testing.T) {
 	m := newMeter(t, startClock(), TierMed, 5000)
 	for name, bad := range map[string]Profile{
 		"public IP labelled internal": mk("http://203.0.113.10:8000/v1", LocationInternal),
-		"native kind internal":        {ID: "x", Name: "n", Kind: "anthropic", BaseURL: "https://api.anthropic.com", Model: "m", Location: LocationInternal, DailyCap: 5000},
+		"native kind internal":        {ID: "x", Name: "n", Kind: "anthropic", BaseURL: "https://api.anthropic.com", Model: "m", Location: LocationInternal, MonthlyBudget: 5000},
 		"cloud over http":             mk("http://api.example.com/v1", LocationCloud),
 	} {
 		if _, err := NewRouter(RouterConfig{Profiles: []Profile{bad}, Meter: m}); err == nil {
@@ -71,11 +71,11 @@ func TestContract_INV3_InternalLabelIsEnforced(t *testing.T) {
 // The anthropic-version header comes from the profile (item 14).
 func TestProfileAnthropicVersion(t *testing.T) {
 	t.Parallel()
-	if err := (Profile{ID: "x", Name: "n", Kind: "custom", APIStyle: provider.StyleAnthropic, BaseURL: "http://10.0.0.5", Model: "m", Location: LocationInternal, DailyCap: 5000, AnthropicVersion: "last year"}).Validate(); err == nil {
+	if err := (Profile{ID: "x", Name: "n", Kind: "custom", APIStyle: provider.StyleAnthropic, BaseURL: "http://10.0.0.5", Model: "m", Location: LocationInternal, MonthlyBudget: 5000, AnthropicVersion: "last year"}).Validate(); err == nil {
 		t.Fatal("bad version accepted")
 	}
 	for _, v := range []string{"", "2025-01-01"} {
-		p := Profile{ID: "x", Name: "n", Kind: "custom", APIStyle: provider.StyleAnthropic, BaseURL: "http://10.0.0.5", Model: "m", Location: LocationInternal, DailyCap: 5000, AnthropicVersion: v}
+		p := Profile{ID: "x", Name: "n", Kind: "custom", APIStyle: provider.StyleAnthropic, BaseURL: "http://10.0.0.5", Model: "m", Location: LocationInternal, MonthlyBudget: 5000, AnthropicVersion: v}
 		if err := p.Validate(); err != nil {
 			t.Errorf("version %q: %v", v, err)
 		}
@@ -106,7 +106,7 @@ func TestContract_INV4_MeterSaturates(t *testing.T) {
 	}
 }
 
-// F4 / item 5: a clock that steps back never starts a new day.
+// F4 / item 5: a clock that steps back never starts a new month (D-531: the budget is monthly).
 func TestContract_INV4_ClockBackwardsKeepsUsage(t *testing.T) {
 	t.Parallel()
 	c := &clock{time.Date(2026, 11, 9, 0, 0, 30, 0, time.UTC)}
@@ -120,44 +120,38 @@ func TestContract_INV4_ClockBackwardsKeepsUsage(t *testing.T) {
 	if m.Used() != 5000 || !m.Exhausted() {
 		t.Fatalf("usage after the clock came forward again: used=%d exhausted=%v", m.Used(), m.Exhausted())
 	}
-	c.t = time.Date(2026, 11, 10, 0, 0, 1, 0, time.UTC) // a real new day still resets
-	if m.Used() != 0 || m.Exhausted() {
+	c.t = time.Date(2026, 11, 10, 0, 0, 1, 0, time.UTC) // a new day of the same month resets nothing
+	if m.Used() != 5000 || !m.Exhausted() {
 		t.Fatalf("new day: %d", m.Used())
+	}
+	c.t = time.Date(2026, 12, 1, 0, 0, 1, 0, time.UTC) // a real new month resets
+	if m.Used() != 0 || m.Exhausted() {
+		t.Fatalf("new month: %d", m.Used())
 	}
 }
 
-// F13 / item 5: after a restart the level follows the usage, never upward; Seed and live recording agree.
-func TestContract_INV4_RestartKeepsTheDowngrade(t *testing.T) {
+// F13 / item 5: after a restart the meter stands where it stood: Seed and live recording agree on the use and on the stop at the
+// budget; the level never moves by itself (D-531).
+func TestContract_INV4_RestartKeepsTheMonthsUse(t *testing.T) {
 	t.Parallel()
 	c := startClock()
 	live := newMeter(t, c, TierMax, 1000)
 	for _, n := range []int{400, 700, 800, 900, 2000, 300} {
-		before := live.Tier()
 		live.Record("p", n, 0)
 		restarted := newMeter(t, c, TierMax, 1000)
 		restarted.Seed(map[string]int{"p": live.Used()})
-		if restarted.Tier() != live.Tier() || restarted.Exhausted() != live.Exhausted() {
+		if restarted.Tier() != TierMax || live.Tier() != TierMax || restarted.Exhausted() != live.Exhausted() || restarted.Used() != live.Used() {
 			t.Fatalf("after %d tokens: live %s/%v, restarted %s/%v", live.Used(), live.Tier(), live.Exhausted(), restarted.Tier(), restarted.Exhausted())
 		}
-		if rank(live.Tier()) > rank(before) {
-			t.Fatalf("level rose from %s to %s", before, live.Tier())
-		}
 	}
-	if live.Tier() != TierMin || !live.Exhausted() {
-		t.Fatalf("%s %v", live.Tier(), live.Exhausted())
+	if !live.Exhausted() {
+		t.Fatal("over the budget")
 	}
-	// One call far over the cap lowers several levels at once, in one record.
-	m := newMeter(t, c, TierMax, 1000)
-	if d := m.Record("p", 2500, 0); d == nil || d.From != TierMax || d.To != TierMin {
-		t.Fatalf("far over the cap: %+v", d)
-	}
-	// An admin raising the cap lifts the level again (it is a deliberate action, not a restart).
-	if err := m.SetConfig(TierMax, 5000); err != nil || m.Tier() != TierMax {
-		t.Fatalf("%v %s", err, m.Tier())
+	// An admin raising the budget lets calls go again (a deliberate action, not a restart).
+	if err := live.SetConfig(TierMax, 50_000); err != nil || live.Exhausted() {
+		t.Fatalf("%v %v", err, live.Exhausted())
 	}
 }
-
-func rank(t Tier) int { return map[Tier]int{TierMin: 0, TierMed: 1, TierMax: 2}[t] }
 
 // Item 5: the caps are checked and held under one lock, so concurrent calls cannot all pass.
 func TestContract_INV4_ReservationStopsConcurrentOvershoot(t *testing.T) {

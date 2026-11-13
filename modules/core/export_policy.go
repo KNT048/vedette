@@ -50,7 +50,7 @@ var exportPolicy = map[string]tablePolicy{
 	"ai_rule":                {export: "id text enabled created_at updated_at", json: "jobs"},
 	"ai_result":              {export: "id kind key inputs_hash model profile tokens_in tokens_out asked_by activity_id created_at", json: "payload"},
 	"ai_assignment":          {export: "job primary_profile_id fallback_profile_id"},
-	"ai_profile":             {export: "id name name_key kind api_style model key_last4 location daily_cap created_at updated_at", url: "base_url", skip: "secret_id"},
+	"ai_profile":             {export: "id name name_key kind api_style model key_last4 location monthly_budget created_at updated_at", url: "base_url", skip: "secret_id"},
 	"ai_setting":             {export: "key updated_at updated_by", json: "value"},
 	"core_audit":             {export: "seq id prev_hash hash ts user action target detail"},
 	"core_chain_anchor":      {export: "chain last_pruned_id last_pruned_hash pruned_at"},

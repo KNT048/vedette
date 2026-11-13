@@ -282,11 +282,11 @@ func (a *api) want(method, path, user, body string, status int, code string) map
 
 // profile bodies
 func cloudBody(name, key string) string {
-	return `{"name":"` + name + `","kind":"anthropic","api_style":"anthropic","base_url":"https://api.anthropic.com","model":"claude-haiku-5-5","api_key":"` + key + `","location":"cloud","daily_cap":60000}`
+	return `{"name":"` + name + `","kind":"anthropic","api_style":"anthropic","base_url":"https://api.anthropic.com","model":"claude-haiku-5-5","api_key":"` + key + `","location":"cloud","monthly_budget":60000}`
 }
 
 func internalBody(name string) string {
-	return `{"name":"` + name + `","kind":"openai-compatible","api_style":"openai","base_url":"http://192.168.10.5:11434/v1","model":"qwen3:8b","location":"internal","daily_cap":300000}`
+	return `{"name":"` + name + `","kind":"openai-compatible","api_style":"openai","base_url":"http://192.168.10.5:11434/v1","model":"qwen3:8b","location":"internal","monthly_budget":300000}`
 }
 
 func (a *api) addProfile(body string) map[string]any {

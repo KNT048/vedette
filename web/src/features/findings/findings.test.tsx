@@ -237,7 +237,7 @@ describe('findings: f-2, f-3 chưa có khuyến nghị đã xác nhận (D-21)',
     ['ai_bad_format', 502, 'The AI answered, but not in the format Vedette needs, so the answer was discarded. Try again, or use a stronger model for this job.'],
     ['provider_error', 502, 'The AI provider returned an error for explaining findings (Claude: provider refused the request (HTTP 400): bad model).'],
     ['blocked_by_hook', 409, 'The AI was not asked: a hook stopped the data sent with it (the device of the finding). The text contains an ID number.'],
-    ['daily_cap', 429, "Today's 60,000 token cap is used up and the tier is already the minimum."],
+    ['budget_reached', 429, "This month's AI budget of 6,000,000 tokens is used up, so AI jobs are stopped until it renews on 1 December 2026. An administrator can raise the budget in Settings, AI assistant."],
     ['ai_timeout', 504, 'The AI provider did not answer explaining findings in time (Claude: provider did not answer in time).'],
   ])('Ask my AI failing with %s shows that failure', async (code, status, message) => {
     server.use(http.post('*/api/v1/findings/:id/ai', () => HttpResponse.json({ error: { code, message } }, { status })))

@@ -11,7 +11,7 @@ import (
 func TestRunsTellAProfileCapAndANotSentCallFromAProviderFailure(t *testing.T) {
 	t.Parallel()
 	a := newAPI(t)
-	a.addProfile(strings.Replace(cloudBody("Claude", keyA), `"daily_cap":60000`, `"daily_cap":1000`, 1))
+	a.addProfile(strings.Replace(cloudBody("Claude", keyA), `"monthly_budget":60000`, `"monthly_budget":1000`, 1))
 	a.fake.setAnswer(goodExplain)
 	a.fake.setUsage(1200, 300) // the first call passes the profile's own cap of 1,000
 	a.explain("CVE-2022-27593", 200, "")

@@ -9,17 +9,17 @@ import (
 	"github.com/knt048/vedette/modules/ai/provider"
 )
 
-func TestContract_INV4_TokenMeterCapsAndDowngrade(t *testing.T) {
+func TestContract_INV4_TokenMeterMonthlyBudget(t *testing.T) {
 	t.Parallel()
-	// Cap range for the shared cap and for a profile (1,000..5,000,000).
-	for n, ok := range map[int]bool{0: false, 999: false, 1000: true, 60_000: true, 5_000_000: true, 5_000_001: false, -5: false} {
-		if ValidDailyCap(n) != ok {
-			t.Errorf("ValidDailyCap(%d) != %v", n, ok)
+	// Budget range for the shared budget and for a profile (1,000..150,000,000 tokens a month, D-531).
+	for n, ok := range map[int]bool{0: false, 999: false, 1000: true, 6_000_000: true, 150_000_000: true, 150_000_001: false, -5: false} {
+		if ValidMonthlyBudget(n) != ok {
+			t.Errorf("ValidMonthlyBudget(%d) != %v", n, ok)
 		}
 	}
 	c := startClock()
 	if _, err := NewMeter(MeterConfig{Clock: c.now, Location: time.UTC, GlobalCap: 999, Tier: TierMed}); err == nil {
-		t.Error("cap below 1000 accepted")
+		t.Error("budget below 1000 accepted")
 	}
 	if _, err := NewMeter(MeterConfig{Clock: c.now, Location: time.UTC, GlobalCap: 5000, Tier: "huge"}); err == nil {
 		t.Error("unknown level accepted")
@@ -29,42 +29,45 @@ func TestContract_INV4_TokenMeterCapsAndDowngrade(t *testing.T) {
 	}
 
 	m := newMeter(t, c, TierMax, 1000)
-	if d := m.Record("a", 400, 100); d != nil || m.Tier() != TierMax || m.Used() != 500 {
-		t.Fatalf("under the cap: %v %v %d", d, m.Tier(), m.Used())
+	if d := m.Record("a", 400, 100); d != nil || m.Tier() != TierMax || m.Used() != 500 || m.Exhausted() {
+		t.Fatalf("under the budget: %v %v %d", d, m.Tier(), m.Used())
 	}
-	if d := m.Record("a", 500, 0); d != nil { // exactly at the cap is not over it
-		t.Fatalf("at the cap: %+v", d)
+	if _, err := m.Reserve("a", 5000, 500); err != nil { // 500 used, nothing held: allowed
+		t.Fatalf("under the budget: %v", err)
 	}
-	d := m.Record("b", 1, 0)
-	if d == nil || d.From != TierMax || d.To != TierMed || !strings.Contains(d.Reason, "1000") || !d.At.Equal(c.t) {
-		t.Fatalf("first downgrade: %+v", d)
+	if _, err := m.Reserve("b", 5000, 10); !errors.Is(err, ErrCapped) { // 500 used + 500 held = the budget: calls in flight count
+		t.Fatalf("holds count against the budget: %v", err)
 	}
-	if d := m.Record("b", 1, 0); d != nil || m.Tier() != TierMed { // still within 2 x cap: one level down is enough
-		t.Fatalf("no second record inside the second cap: %+v %v", d, m.Tier())
+	m2 := newMeter(t, c, TierMax, 1000)
+	if d := m2.Record("a", 1000, 0); d != nil || m2.Tier() != TierMax {
+		t.Fatalf("at the budget the level stays: %+v %v", d, m2.Tier())
 	}
-	if d := m.Record("b", 999, 0); d == nil || d.From != TierMed || d.To != TierMin { // total 2001
-		t.Fatalf("second downgrade: %+v", d)
+	if !m2.Exhausted() || !m2.UsedUp() {
+		t.Fatal("at 100 % of the budget no call may go, at any level")
 	}
-	if d := m.Record("b", 1, 0); d != nil || m.Tier() != TierMin {
-		t.Fatalf("min stays min, no record: %+v", d)
+	if _, err := m2.Reserve("a", 5000, 1); !errors.Is(err, ErrCapped) {
+		t.Fatalf("reserve at the budget: %v", err)
 	}
-	if !m.Exhausted() {
-		t.Fatal("at min and over the cap, no more calls")
+	if d := m2.Record("b", 2500, 0); d != nil || m2.Tier() != TierMax {
+		t.Fatalf("far over the budget the level still stays (D-531): %+v %v", d, m2.Tier())
 	}
-	if m.ProfileUsed("a") != 1000 || m.ProfileUsed("b") != 1002 || m.ProfileUsed("none") != 0 {
-		t.Fatalf("per profile: a=%d b=%d", m.ProfileUsed("a"), m.ProfileUsed("b"))
+	if m2.ProfileUsed("a") != 1000 || m2.ProfileUsed("b") != 2500 || m2.ProfileUsed("none") != 0 {
+		t.Fatalf("per profile: a=%d b=%d", m2.ProfileUsed("a"), m2.ProfileUsed("b"))
 	}
-	// Levels only move down by themselves.
-	for _, tier := range []Tier{TierMin, TierMed, TierMax} {
-		if tier.Lower() != map[Tier]Tier{TierMin: TierMin, TierMed: TierMin, TierMax: TierMed}[tier] {
-			t.Errorf("Lower(%s)", tier)
-		}
+	// a profile's own budget refuses that profile only
+	m3 := newMeter(t, c, TierMed, 100_000)
+	m3.Record("p", 2000, 0)
+	if _, err := m3.Reserve("p", 2000, 1); !errors.Is(err, ErrProfileCapped) {
+		t.Fatalf("profile budget: %v", err)
+	}
+	if _, err := m3.Reserve("q", 2000, 1); err != nil {
+		t.Fatalf("another profile: %v", err)
 	}
 	// Negative token counts from a broken provider cannot lower the total.
-	m2 := newMeter(t, c, TierMed, 5000)
-	m2.Record("x", -50, -50)
-	if m2.Used() != 0 {
-		t.Fatalf("negative counted: %d", m2.Used())
+	m4 := newMeter(t, c, TierMed, 5000)
+	m4.Record("x", -50, -50)
+	if m4.Used() != 0 {
+		t.Fatalf("negative counted: %d", m4.Used())
 	}
 	if n, ok := TierMin.EstimatePerDay(); !ok || n != 10_000 {
 		t.Error("min estimate")
@@ -77,32 +80,43 @@ func TestContract_INV4_TokenMeterCapsAndDowngrade(t *testing.T) {
 	}
 }
 
-// The day is the box's local day, not UTC: 16:59 UTC is 23:59 in Ho Chi Minh City, 17:01 UTC is the next day.
-func TestMeterDayBoundaryInBoxTimeZone(t *testing.T) {
+// The month is the box's local month, not UTC: 16:59 UTC on 30 November is 23:59 in Ho Chi Minh City, 17:01 UTC is 1 December. A
+// day boundary inside a month resets nothing (no daily cap, D-531).
+func TestMeterMonthBoundaryInBoxTimeZone(t *testing.T) {
 	t.Parallel()
 	c := &clock{time.Date(2026, 11, 9, 16, 59, 0, 0, time.UTC)}
 	m := newMeter(t, c, TierMax, 1000)
 	m.Record("a", 900, 0)
-	m.Record("a", 200, 0) // downgrade to med
-	if m.Tier() != TierMed || m.Used() != 1100 {
-		t.Fatalf("%v %d", m.Tier(), m.Used())
+	c.t = time.Date(2026, 11, 9, 17, 1, 0, 0, time.UTC) // 00:01 local on 10 Nov: a new day, the same month
+	if m.Used() != 900 || m.ProfileUsed("a") != 900 {
+		t.Fatalf("a new day must not reset the month: used=%d", m.Used())
 	}
-	c.t = time.Date(2026, 11, 9, 17, 1, 0, 0, time.UTC) // 00:01 local on 10 Nov
-	if m.Used() != 0 || m.ProfileUsed("a") != 0 {
-		t.Fatalf("counters must reset at local midnight: used=%d", m.Used())
+	m.Record("a", 200, 0)
+	if !m.Exhausted() {
+		t.Fatal("over the budget within the month")
 	}
-	if m.Tier() != TierMax {
-		t.Fatalf("a downgrade lasts until the end of the local day, got %v", m.Tier())
+	if got := m.Renews(); !got.Equal(time.Date(2026, 12, 1, 0, 0, 0, 0, m.loc)) {
+		t.Fatalf("renews = %v", got)
 	}
-	if m.Exhausted() {
-		t.Fatal("new day, not exhausted")
+	c.t = time.Date(2026, 11, 30, 16, 59, 0, 0, time.UTC) // 23:59 local on 30 Nov
+	if !m.Exhausted() {
+		t.Fatal("still November locally")
 	}
-	// The same instant in UTC would still be the same day: prove the zone matters.
+	c.t = time.Date(2026, 11, 30, 17, 1, 0, 0, time.UTC) // 00:01 local on 1 Dec
+	if m.Used() != 0 || m.ProfileUsed("a") != 0 || m.Exhausted() {
+		t.Fatalf("counters must reset at local midnight of the 1st: used=%d", m.Used())
+	}
+	// The same instant in UTC would still be November: prove the zone matters.
 	utc, _ := NewMeter(MeterConfig{Clock: c.now, Location: time.UTC, GlobalCap: 1000, Tier: TierMax})
 	utc.Record("a", 10, 0)
 	c.t = c.t.Add(10 * time.Minute)
 	if utc.Used() != 10 {
 		t.Fatalf("UTC meter must keep counting at 17:11 UTC, got %d", utc.Used())
+	}
+	// A clock that steps back does not start a new month.
+	c.t = time.Date(2026, 11, 15, 0, 0, 0, 0, time.UTC)
+	if m.Used() != 0 {
+		t.Fatalf("a clock that went back reset nothing new: %d", m.Used())
 	}
 }
 
@@ -162,8 +176,8 @@ func TestProfileValidate(t *testing.T) {
 		"short key":         {mut(func(p *Profile) { p.APIKey = provider.NewSecret("short") }), "invalid_key"},
 		"key with space":    {mut(func(p *Profile) { p.APIKey = provider.NewSecret("sk-abc def-123456") }), "invalid_key"},
 		"cloud without key": {mut(func(p *Profile) { p.APIKey = provider.Secret{} }), "key_required"},
-		"cap too low":       {mut(func(p *Profile) { p.DailyCap = 999 }), "invalid_cap"},
-		"cap too high":      {mut(func(p *Profile) { p.DailyCap = 5_000_001 }), "invalid_cap"},
+		"cap too low":       {mut(func(p *Profile) { p.MonthlyBudget = 999 }), "invalid_cap"},
+		"cap too high":      {mut(func(p *Profile) { p.MonthlyBudget = 150_000_001 }), "invalid_cap"},
 	}
 	for name, c := range cases {
 		err := c.p.Validate()
@@ -174,7 +188,7 @@ func TestProfileValidate(t *testing.T) {
 		}
 	}
 	// Internal profiles: http allowed, key optional (INV-1), custom with a chosen style.
-	for _, p := range []Profile{internal("i"), {ID: "x", Name: "gw", Kind: "custom", APIStyle: provider.StyleAnthropic, BaseURL: "http://10.0.0.5:8080", Model: "m", Location: LocationInternal, DailyCap: 1000}} {
+	for _, p := range []Profile{internal("i"), {ID: "x", Name: "gw", Kind: "custom", APIStyle: provider.StyleAnthropic, BaseURL: "http://10.0.0.5:8080", Model: "m", Location: LocationInternal, MonthlyBudget: 1000}} {
 		if err := p.Validate(); err != nil || !p.Usable() {
 			t.Errorf("%s: %v usable=%v", p.Name, err, p.Usable())
 		}
@@ -187,8 +201,8 @@ func TestProfileValidate(t *testing.T) {
 func TestProfileProviderMapping(t *testing.T) {
 	t.Parallel()
 	for _, p := range []Profile{cloud("a"), internal("b"),
-		{ID: "g", Name: "g", Kind: "gemini", BaseURL: "https://generativelanguage.googleapis.com", Model: "gem", APIKey: provider.NewSecret(key), Location: LocationCloud, DailyCap: 1000},
-		{ID: "o", Name: "o", Kind: "openai", BaseURL: "https://api.openai.com/v1", Model: "gpt", APIKey: provider.NewSecret(key), Location: LocationCloud, DailyCap: 1000}} {
+		{ID: "g", Name: "g", Kind: "gemini", BaseURL: "https://generativelanguage.googleapis.com", Model: "gem", APIKey: provider.NewSecret(key), Location: LocationCloud, MonthlyBudget: 1000},
+		{ID: "o", Name: "o", Kind: "openai", BaseURL: "https://api.openai.com/v1", Model: "gpt", APIKey: provider.NewSecret(key), Location: LocationCloud, MonthlyBudget: 1000}} {
 		if _, err := p.Provider(); err != nil {
 			t.Errorf("%s: %v", p.Kind, err)
 		}

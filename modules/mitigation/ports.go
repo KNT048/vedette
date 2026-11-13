@@ -47,7 +47,7 @@ type AI interface {
 	// Available reports whether a profile is assigned and allowed for the skill and the ai module is on.
 	Available(ctx context.Context, s Skill) bool
 	// Run asks the AI. ErrAIUnavailable (wrapped) when it cannot be used; an *apierr.Error of the ai module (ai_unavailable,
-	// daily_cap, ai_cut_off, ai_bad_format, blocked_by_hook, provider_error, unreachable, ai_timeout) is answered as it is.
+	// budget_reached, ai_cut_off, ai_bad_format, blocked_by_hook, provider_error, unreachable, ai_timeout) is answered as it is.
 	Run(ctx context.Context, req AIRequest) (AIOutput, error)
 }
 

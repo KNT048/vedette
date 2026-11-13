@@ -61,7 +61,7 @@ func (h *AIHandlers) AiPutAiConfig(ctx context.Context, req *oas.AiPutAiConfigRe
 	if err != nil {
 		return nil, err
 	}
-	v, err := h.svc.SetConfig(ctx, who, Settings{Tier: Tier(req.Tier), DailyCap: req.DailyCap, RedactPII: req.RedactPii})
+	v, err := h.svc.SetConfig(ctx, who, Settings{Tier: Tier(req.Tier), MonthlyBudget: req.MonthlyBudget, RedactPII: req.RedactPii})
 	if err != nil {
 		return nil, err
 	}

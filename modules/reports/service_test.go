@@ -268,8 +268,8 @@ func TestAIUnavailable(t *testing.T) {
 		t.Fatalf("without AI the report is complete and ai_available is false (INV-5): %+v", p)
 	}
 	e.ai.on = true
-	e.ai.err = apierr.New(429, "daily_cap", "cap")
-	if _, err := e.svc.WeeklyAI(e.ctx(), "op@acme.example"); apiCode(err) != "daily_cap" {
+	e.ai.err = apierr.New(429, "budget_reached", "cap")
+	if _, err := e.svc.WeeklyAI(e.ctx(), "op@acme.example"); apiCode(err) != "budget_reached" {
 		t.Fatalf("AI errors pass through: %v", err)
 	}
 	if e.count(`SELECT count(*) FROM rep_weekly_ai`) != 0 {

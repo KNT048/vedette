@@ -16,7 +16,7 @@
     "titleLoading": "AI assistant",
     "titleOff": "AI assistant is off, existing data is kept",
     "titleUnconfigured": "No AI profile yet: add one in Settings to ask your data",
-    "title": "{{used}} of {{cap}} tokens used today. The AI only reads data and changes nothing.",
+    "title": "{{used}} of {{cap}} tokens used this month. The AI only reads data and changes nothing.",
     "meta": "{{tier}} level. Every answer needs a person to confirm before acting on it."
   },
   "skill": {
@@ -55,7 +55,7 @@
     "tooLong": "A question has {{max}} characters at most; this one has {{n}}. Shorten it, then ask.",
     "count": "{{n}} of {{max}} characters",
     "history": "Recent questions",
-    "downgraded": "Daily token cap exceeded, level lowered from {{from}} to {{to}}.",
+    "downgraded": "Token budget exceeded, level lowered from {{from}} to {{to}}.",
     "answerFor": "Answer to: {{q}}",
     "you": "You asked:",
     "tableTitle": "Result table ({{n}} rows)",
@@ -79,14 +79,14 @@
   "meter": {
     "title": "Token meter",
     "description": "Tokens used with your provider. Vedette charges nothing; you pay the provider directly.",
-    "today": "Today: {{used}} of {{cap}} tokens",
+    "today": "This month: {{used}} of {{cap}} tokens",
     "tier": "Current level: {{tier}}",
-    "barLabel": "Tokens used today against the cap",
-    "percent": "{{pct}}% of today's cap",
-    "split": "Today {{input}} tokens in, {{output}} tokens out. Last 30 days: {{month}} tokens.",
-    "over": "Today's cap is used up. At the minimum level Vedette stops calling AI until tomorrow; you can raise the cap in Settings.",
-    "near": "Close to today's cap. Past it Vedette lowers the level automatically.",
-    "skillCaption": "Tokens by task, last 30 days",
+    "barLabel": "Tokens used this month against the monthly budget",
+    "percent": "{{pct}}% of this month's budget",
+    "split": "Today {{input}} tokens in, {{output}} tokens out. This month: {{month}} tokens; the budget renews on {{date}}.",
+    "over": "This month's budget is used up: every AI job is stopped until it renews on {{date}}. An administrator can raise it in Settings, AI assistant.",
+    "near": "Past 80 % of this month's budget. At 100 % every AI job stops until the budget renews.",
+    "skillCaption": "Tokens by task, this month",
     "skillEmpty": "No AI calls yet.",
     "col": {
       "skill": "Task",
@@ -94,8 +94,8 @@
       "tokens": "Tokens"
     },
     "callsNote": "Calls counts every call in the run log below, answered or not; a call that failed or was not sent uses no tokens. Connection test is the Test button on an AI profile.",
-    "downgrades": "Automatic level downgrades",
-    "noDowngrades": "No downgrade has happened.",
+    "downgrades": "Automatic level downgrades (before the monthly budget)",
+    "noDowngrades": "No downgrade has happened. The monthly budget stops AI jobs at 100 % and never lowers the level.",
     "downgrade": "{{time}}: lowered from {{from}} to {{to}}. {{reason}}."
   },
   "runs": {
@@ -138,7 +138,7 @@
     },
     "tier": {
       "title": "Token level",
-      "intro": "The level decides how much one log digest sends and whether the AI may check points with read-only tools. Log digests, explanations, CVE news and report comments run only when someone clicks. Response plans, once you give them a profile, run by themselves (every 5 minutes, at most 20 calls a day); the level does not change them. Past the daily cap Vedette lowers the level itself and records it.",
+      "intro": "The level decides how much one log digest sends and whether the AI may check points with read-only tools. Log digests, explanations, CVE news and report comments run only when someone clicks. Response plans, once you give them a profile, run by themselves (every 5 minutes, at most 3 findings a run); the level does not change them. There is no daily cap: the box spends up to the monthly budget below, warns on Home and through the alert channels at 80 %, and stops every AI job at 100 % until the budget renews or you raise it.",
       "min": {
         "name": "Minimum",
         "sends": "Short log digests: at most 5 new kinds of line, 5 spikes and 5 bad connections."
@@ -151,16 +151,16 @@
         "name": "Maximum",
         "sends": "Full log digests, and the AI may check points with read-only tools (Log investigation): what the logs counted for an address, devices, threat feeds and the exploited list."
       },
-      "estimate": "Suggested daily cap at this level: {{n}} tokens.",
-      "estimateMax": "Depends on how many tool calls the AI makes; you set the cap below."
+      "estimate": "About {{n}} tokens a day at this level, so about {{month}} a month.",
+      "estimateMax": "Depends on how many tool calls the AI makes; the monthly budget below is the limit."
     },
-    "cap": "Daily token cap for all profiles together",
-    "capHint": "From 1,000 to 5,000,000. The default is 200,000. Each profile also has its own cap.",
+    "cap": "Monthly AI budget for all profiles together (tokens)",
+    "capHint": "From 1,000 to 150,000,000 tokens a month. The default is 6,000,000. Each profile also has its own budget. Set a spend limit in your provider's console too: Vedette counts tokens, not money.",
     "redact": "Mask personal information before sending",
     "redactHint": "This is the Block personal data hook: it masks email addresses and phone numbers, and stops a call whose text holds an ID number, before anything is sent. It also masks device secrets that come with their marker in configurations, log lines and tool results (passwords, password hashes, SNMP communities, keys). A password or token in free text is not caught; add a hook for those.",
     "saving": "Saving",
     "err": {
-      "cap": "The cap must be a whole number from 1,000 to 5,000,000."
+      "cap": "The budget must be a whole number from 1,000 to 150,000,000."
     },
     "retention": {
       "title": "Activity log retention",
@@ -168,7 +168,11 @@
       "label": "Keep for (days)",
       "hint": "Default 365, minimum 90.",
       "err": "Enter a whole number of days, at least 90."
-    }
+    },
+    "budgetNow": "Used this month:",
+    "budgetRenews": "It renews on {{date}}.",
+    "budgetWarn": "Past 80 %: Home and the alert channels have been told. At 100 % every AI job stops until the budget renews or you raise it.",
+    "budgetStop": "Used up: every AI job is stopped until the budget renews on {{date}} or you raise it here."
   },
   "cve": {
     "explainTitle": "Explain in plain English",
@@ -234,7 +238,7 @@
       "model": "Model",
       "key": "Key",
       "lastTest": "Last test",
-      "usage": "Used today",
+      "usage": "Used this month",
       "actions": "Actions"
     },
     "kind": {
@@ -305,8 +309,8 @@
       "location_internal": "On your own network or machine (Ollama, vLLM). Internal means the address is inside your network; data sent to it may leave if it forwards to a cloud provider.",
       "location_cloud": "A provider's cloud service. Data sent to it leaves your network.",
       "cloudOnly": "Anthropic, OpenAI and Gemini run in the cloud. Choose OpenAI-compatible or Custom for a server on your own network.",
-      "cap": "Daily token cap for this profile",
-      "capHint": "From 1,000 to 5,000,000. When the cap is reached, tasks move to their fallback profile.",
+      "cap": "Monthly budget for this profile (tokens)",
+      "capHint": "From 1,000 to 150,000,000. When the budget is used up, its jobs move to their fallback profile, or stop when they have none.",
       "ack": "I understand the data for tasks assigned to this profile will be sent to {{host}}.",
       "ackNoHost": "I understand the data for tasks assigned to this profile will be sent to the server address above.",
       "ackNeeded": "{{button}} stays off until you tick the box above: it confirms you know where the data goes."
@@ -321,12 +325,12 @@
       "keyRequired": "Enter the provider's API key. It stays on this box and is encrypted.",
       "keyMoved": "Changing the address needs the API key entered again.",
       "keyShape": "The key is too short or contains spaces. Copy the whole key again from the provider's console.",
-      "cap": "The cap must be a whole number from 1,000 to 5,000,000."
+      "cap": "The budget must be a whole number from 1,000 to 150,000,000."
     }
   },
   "assign": {
     "title": "Job routing",
-    "description": "Each AI task uses a primary profile and, optionally, a fallback. Vedette switches to the fallback when the primary fails, times out or reaches its daily cap, and records which profile answered.",
+    "description": "Each AI task uses a primary profile and, optionally, a fallback. Vedette switches to the fallback when the primary fails, times out or has used its monthly budget, and records which profile answered.",
     "rule": "Logs and device data go only to profiles inside your network",
     "ruleBody": "On: tasks that send your logs, devices or findings (summaries, investigation, asking your data, explanations, reports) can only use profiles that run inside your network, so that data never leaves it. Tasks on public data (CVE news, translating vendor advisories) may still use cloud profiles. Off: any profile can be used for any task.",
     "suggest": "Apply suggestion",
@@ -653,6 +657,21 @@
       "prev": "Previous hash",
       "hash": "Entry hash",
       "note": "hash = SHA-256 of the previous hash plus the entry's canonical JSON (sorted keys, without hash). Download the logs in Settings, Data to verify offline."
+    }
+  },
+  "budget": {
+    "use": "{{used}} of {{budget}} tokens ({{pct}} %)",
+    "home": {
+      "boxWarnTitle": "This month's AI budget is at {{pct}} %",
+      "boxWarn": "{{used}} of {{budget}} tokens used. At 100 % every AI job (explanations, Ask your data, log digests, reports, response plans) stops until the budget renews on {{date}}.",
+      "boxStopTitle": "This month's AI budget is used up",
+      "boxStop": "{{used}} of {{budget}} tokens used. Every AI job (explanations, Ask your data, log digests, reports, response plans) is stopped until the budget renews on {{date}}.",
+      "profileWarnTitle": "The AI profile {{name}} is at {{pct}} % of its monthly budget",
+      "profileWarn": "{{used}} of {{budget}} tokens used. At 100 % its jobs move to their fallback profile, or stop when they have none, until {{date}}.",
+      "profileStopTitle": "The AI profile {{name}} has used its monthly budget",
+      "profileStop": "{{used}} of {{budget}} tokens used. Its jobs go to their fallback profile, or are stopped when they have none, until {{date}}.",
+      "raise": "Raise the AI budget",
+      "askAdmin": "An administrator can raise the budget in Settings, AI assistant."
     }
   }
 }

@@ -35,7 +35,7 @@ const seedEntries = (): ActivityEntry[] => {
     sample(4, 'log-digest', 'Company Ollama server', 'qwen3:8b', 'system:schedule', 'ok', 'Daily log digest: 2 items need a look', 4800, 900, [{ name: 'query_logs', access: 'read', args: 'since=24h' }]),
     sample(3, 'ask-my-data', '', '', 'user:it@acme.example', 'blocked_by_hook', 'Question refused before sending: contained personal data', 0, 0, [], ['Block personal data']),
     sample(2, 'cve-news', 'Claude Haiku', 'claude-haiku-5-5', 'user:admin@acme.example', 'fallback_used', 'Advisories summarised on the fallback profile', 4100, 700), // no tool: the box fetches, the AI only summarises
-    sample(1, 'weekly-report', 'Claude Haiku', 'claude-haiku-5-5', 'system:schedule', 'error', 'Daily token cap reached; nothing was sent', 0, 0),
+    sample(1, 'weekly-report', 'Claude Haiku', 'claude-haiku-5-5', 'system:schedule', 'error', 'Monthly AI budget used up; nothing was sent', 0, 0),
   ].map((s) => { const e = seal(prev, s); prev = e.hash; return e })
 }
 export const activityStore = collection<ActivityEntry[]>('ai_activity', seedEntries, () => [])

@@ -14,31 +14,32 @@ export const Location = z.enum(['internal', 'cloud']).describe('internal = runs 
 export const AiProfile = z.object({
   id: z.string(), name: z.string(), kind: ProfileKind, api_style: ApiStyle, base_url: z.string(), model: z.string(),
   key_last4: z.string().nullable().describe('Last 4 characters of the key; the full key is never returned (SYS-4). null = no key yet (valid for internal profiles)'),
-  location: Location, daily_cap: z.number().int().describe('Daily token cap for this profile alone; when reached, jobs switch to the fallback profile'),
-  usable: z.boolean(), used_today: z.number().int(),
+  location: Location, monthly_budget: z.number().int().describe('Monthly token budget of this profile alone (D-531); when used up, its jobs switch to the fallback profile or stop with 429 budget_reached'),
+  usable: z.boolean(), used_month: z.number().int().describe('Tokens this profile used this calendar month (box time zone)'),
   last_test: z.object({ at: iso, ok: z.boolean(), detail: z.string().describe("On failure the box's own sentence, which may name the server's host but never the key or the provider's raw text; empty on success") }).nullable()
     .describe('Last connection test of the profile as saved (S-AI-1). null = not tested since it was added or its address, model, key or place changed. A test the same admin ran in the Add or Edit dialog of exactly the settings saved (within 15 minutes) counts (D-445); the request cannot carry one'),
 })
 export const ProfileInput = z.object({
   id: z.string().optional().describe('Present when editing or testing a saved profile: leave the key blank to keep the old key, only while the provider type and the server address (scheme, host and port) stay the same; another address needs the key entered again'),
   name: z.string().min(1).max(40), kind: ProfileKind, api_style: ApiStyle, base_url: z.string(), model: z.string(),
-  api_key: z.string().optional(), location: Location, daily_cap: z.number().int().min(1000).max(5_000_000),
+  api_key: z.string().optional(), location: Location, monthly_budget: z.number().int().min(1000).max(150_000_000),
 })
-export const TestInput = ProfileInput.omit({ daily_cap: true, name: true }).extend({ name: z.string().optional(), daily_cap: z.number().int().optional() })
+export const TestInput = ProfileInput.omit({ monthly_budget: true, name: true }).extend({ name: z.string().optional(), monthly_budget: z.number().int().optional() })
 export const TestResult = z.object({ ok: z.literal(true), latency_ms: z.number(), tokens_in: z.number(), tokens_out: z.number(), capabilities: z.object({ tools: z.boolean(), structured: z.boolean() }) })
 const Slot = z.object({ primary: z.string().nullable(), fallback: z.string().nullable() })
 export const Assignments = z.object({ internal_only: z.boolean().describe('On: jobs that send logs/device data may only be assigned internal profiles'), jobs: z.record(AiJob, Slot) })
 export const AiConfigView = z.object({
-  configured: z.boolean().describe('At least one usable profile exists'), tier: AiTier, daily_cap: z.number().int().describe('Shared daily token cap, summed across all profiles'), redact_pii: z.boolean(),
+  configured: z.boolean().describe('At least one usable profile exists'), tier: AiTier, monthly_budget: z.number().int().describe('Shared monthly token budget, summed across all profiles (D-531): warning at 80 %, every AI job stops at 100 % until it renews or is raised'),
+  month_used: z.number().int().describe('Tokens used this calendar month by all profiles'), renews_on: z.string().describe('Local date (YYYY-MM-DD) the monthly budgets start again'), redact_pii: z.boolean(),
   tier_estimates: z.record(AiTier, z.number().nullable()).describe('Estimated tokens/day per tier (no money, D-6). null = depends on alert count'),
   jobs_ready: z.record(AiJob, z.boolean()).describe('Which jobs have a usable, permitted profile'),
 })
-export const ConfigInput = z.object({ tier: AiTier, daily_cap: z.number().int().min(1000).max(5_000_000), redact_pii: z.boolean() })
+export const ConfigInput = z.object({ tier: AiTier, monthly_budget: z.number().int().min(1000).max(150_000_000), redact_pii: z.boolean() })
 
 export const Usage = z.object({
-  tier: AiTier, daily_cap: z.number(),
+  tier: AiTier, monthly_budget: z.number(),
   today: z.object({ input: z.number(), output: z.number(), total: z.number() }),
-  month: z.object({ input: z.number(), output: z.number(), total: z.number() }),
+  month: z.object({ input: z.number(), output: z.number(), total: z.number() }).describe('This calendar month in the box time zone: what the budget counts'),
   by_skill: z.array(z.object({ skill: z.string(), runs: z.number(), tokens: z.number() })),
   downgrades: z.array(z.object({ id: z.string(), ts: iso, from: AiTier, to: AiTier, reason: z.string() })),
 })
@@ -124,8 +125,8 @@ const cve = z.string().regex(/^CVE-\d{4}-\d{4,}$/i)
 const CachedCve = z.object({ explain: ExplainResult.nullable(), news: NewsResult.nullable() })
 
 export const endpoints = defineEndpoints([
-  { method: 'get', path: '/ai/config', summary: 'Usage tier, shared token cap, PII redaction; which jobs are ready', stories: ['S-AI-1', 'S-AI-4'], role: 'viewer', response: AiConfigView },
-  { method: 'put', path: '/ai/config', summary: 'Save token tier, shared cap and PII redaction', stories: ['S-AI-4'], role: 'admin', body: ConfigInput, response: AiConfigView },
+  { method: 'get', path: '/ai/config', summary: 'Usage tier, shared monthly budget and this month\'s use, PII redaction; which jobs are ready', stories: ['S-AI-1', 'S-AI-4'], role: 'viewer', response: AiConfigView },
+  { method: 'put', path: '/ai/config', summary: 'Save token tier, shared monthly budget and PII redaction', stories: ['S-AI-4'], role: 'admin', body: ConfigInput, response: AiConfigView },
   { method: 'get', path: '/ai/profiles', summary: 'List AI profiles (no full keys)', stories: ['S-AI-1'], role: 'viewer', response: z.object({ items: z.array(AiProfile) }) },
   { method: 'post', path: '/ai/profiles', summary: 'Add an AI profile: Anthropic, OpenAI, Gemini, OpenAI-compatible or custom', stories: ['S-AI-1'], role: 'admin', body: ProfileInput, response: AiProfile },
   { method: 'put', path: '/ai/profiles/{id}', summary: 'Edit an AI profile (blank key = keep the old key)', stories: ['S-AI-1'], role: 'admin', params: z.object({ id: z.string() }), body: ProfileInput, response: AiProfile },
@@ -134,7 +135,7 @@ export const endpoints = defineEndpoints([
   { method: 'get', path: '/ai/assignments', summary: 'Job assignments: each AI job has a primary and fallback profile; privacy rule', stories: ['S-AI-1', 'S-AI-4'], role: 'viewer', response: Assignments },
   { method: 'put', path: '/ai/assignments', summary: 'Save job assignments and the "internal data only to internal profiles" rule', stories: ['S-AI-1', 'S-AI-4'], role: 'admin', body: Assignments, response: Assignments },
   { method: 'get', path: '/ai/assignments/suggestion', summary: 'Suggested assignments: fast model for bulk jobs, strong model for reasoning jobs', stories: ['S-AI-1'], role: 'viewer', query: z.object({ internal_only: z.enum(['true', 'false']) }), response: Assignments, example: { query: { internal_only: 'false' } } },
-  { method: 'get', path: '/ai/usage', summary: 'Token meter: today, 30 days, per job, tier downgrades', stories: ['S-AI-4'], role: 'viewer', response: Usage },
+  { method: 'get', path: '/ai/usage', summary: 'Token meter: today, this month, per job this month, earlier tier downgrades', stories: ['S-AI-4'], role: 'viewer', response: Usage },
   { method: 'get', path: '/ai/runs', summary: 'Log of AI calls (sent content is not stored)', stories: ['S-AI-4'], role: 'viewer', response: z.object({ items: z.array(AiRun) }) },
   { method: 'get', path: '/ai/asks', summary: 'Recent "Ask your data" questions', stories: ['S-AI-5'], role: 'viewer', response: z.object({ items: z.array(AskResult) }) },
   { method: 'post', path: '/ai/ask', summary: 'Ask about my data; the AI uses read-only tools', stories: ['S-AI-5', 'S-AI-6'], role: 'operator', body: z.object({ question: z.string().min(3).max(500) }), response: AskResult },

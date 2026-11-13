@@ -34,7 +34,13 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 	logger := slog.New(slog.NewJSONHandler(os.Stderr, nil)).With("module", "host")
-	if err := run(ctx, os.Args[1:], os.Stdout, realEnvironment(logger)); err != nil {
+	env := realEnvironment(logger)
+	var oneShot *slog.Logger
+	env.oneShotLog = func() *slog.Logger { oneShot = oneShotLogger(os.Stderr); return oneShot }
+	if err := run(ctx, os.Args[1:], os.Stdout, env); err != nil {
+		if oneShot != nil {
+			logger = oneShot
+		}
 		var ee *exitError
 		if errors.As(err, &ee) { // the bootstrap: one line, an exit code the installer reads
 			fmt.Fprintln(os.Stderr, ee.line)
@@ -54,6 +60,8 @@ type environment struct {
 	newChecker  func(coreUID int, unit, cgroup string) (peer.Checker, error)
 	logger      *slog.Logger
 	executable  func() (string, error) // the path of this binary (os.Executable), for -self-update-apply
+	// oneShotLog, when set, replaces logger for -bootstrap and -recover-core-data, which a person runs in a terminal (journal.go)
+	oneShotLog func() *slog.Logger
 }
 
 func realEnvironment(logger *slog.Logger) environment {
@@ -118,6 +126,9 @@ func run(ctx context.Context, args []string, stdout io.Writer, env environment) 
 	}
 	if *applyRun != "" {
 		return runApply(ctx, *applyRun, env)
+	}
+	if (*bootstrap || *doRecover) && env.oneShotLog != nil {
+		env.logger = env.oneShotLog()
 	}
 	cfg, err := config.Load(*confPath, env.configOwner)
 	if err != nil {

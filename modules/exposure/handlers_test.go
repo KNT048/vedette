@@ -81,7 +81,7 @@ func TestContract_PRE4_Roles(t *testing.T) {
 	t.Parallel()
 	e := newHTTPEnv(t)
 	d := e.addVerifiedDomain()
-	e.svc.cfg.TwoStep = func(context.Context, string) (bool, error) { return true, nil } // so an administrator's refusal is about the role only
+	e.svc.cfg.TwoStep = func(context.Context, string) (string, error) { return "app", nil } // so an administrator's refusal is about the role only
 	cases := []struct {
 		method, path, body string
 		min                string // the lowest role that gets through
@@ -175,7 +175,7 @@ func TestHandlers_FlowAndShapes(t *testing.T) {
 		t.Fatalf("scan without commitment: %d %v", code, b)
 	}
 	// an administrator's first Scan now is the confirmation (D-473): needs two-step sign-in and the version of the sentence
-	e.svc.cfg.TwoStep = func(context.Context, string) (bool, error) { return true, nil }
+	e.svc.cfg.TwoStep = func(context.Context, string) (string, error) { return "app", nil }
 	code, b = e.call("POST", "/exposure/targets/"+id+"/scan", "admin", `{"notice_version":"`+NoticeVersion+`"}`)
 	if code != 200 || len(list(b, "hosts")) != 3 || len(list(b, "certs")) != 2 || b["date"] != "2026-11-09" {
 		t.Fatalf("first scan by an administrator: %d %v", code, b)

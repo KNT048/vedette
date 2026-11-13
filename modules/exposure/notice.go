@@ -37,9 +37,10 @@ type Actor struct {
 	Admin bool
 }
 
-// TwoStep says whether a user has two-step sign-in on (core/auth, wired in cmd/vedette). nil in Config means "no": the first scan
+// TwoStep says how a user meets two-step sign-in: "app" or "email" (Vedette's own), "sso" (the identity provider owns MFA, D-473), or "" for none
+// (core/auth, wired in cmd/vedette). nil in Config means "none": the first scan
 // of a target, which records a legal confirmation, is refused.
-type TwoStep func(ctx context.Context, userID string) (bool, error)
+type TwoStep func(ctx context.Context, userID string) (method string, err error)
 
 func errNeedAdminFirstScan(value string) *APIError {
 	return apiErr(400, "commitment_required", "%s has not been confirmed yet. An administrator must run the first scan: it records that your company owns %s and that the scan is authorized.", value, value)
@@ -64,11 +65,11 @@ func (s *Service) confirmByScan(ctx context.Context, who Actor, t Target, versio
 	if s.cfg.TwoStep == nil {
 		return errNeedTwoStep()
 	}
-	on, err := s.cfg.TwoStep(ctx, who.ID)
+	method, err := s.cfg.TwoStep(ctx, who.ID)
 	if err != nil {
 		return fmt.Errorf("checking two-step sign-in: %w", err)
 	}
-	if !on {
+	if method == "" {
 		return errNeedTwoStep()
 	}
 	switch {
@@ -77,11 +78,11 @@ func (s *Service) confirmByScan(ctx context.Context, who Actor, t Target, versio
 	case version != NoticeVersion:
 		return errNoticeChanged()
 	}
-	return s.commit(ctx, who.Email, t.ID, noticeFor(t.Value))
+	return s.commit(ctx, who, method, t.ID, noticeFor(t.Value))
 }
 
 // commit stores the commitment of a verified target with the sentence it was given (INV-7). It is a no-op when one exists.
-func (s *Service) commit(ctx context.Context, user, id string, n Notice) error {
+func (s *Service) commit(ctx context.Context, who Actor, method, id string, n Notice) error {
 	err := s.write(ctx, func(tx *sql.Tx, _ func(string, any)) error {
 		t, err := loadTarget(ctx, tx, id)
 		if err != nil {
@@ -97,10 +98,10 @@ func (s *Service) commit(ctx context.Context, user, id string, n Notice) error {
 		if t.Commitment != nil {
 			return nil
 		}
-		if err := setCommitment(ctx, tx, id, user, now, n); err != nil {
+		if err := setCommitment(ctx, tx, id, who.Email, now, n, who.ID, method); err != nil {
 			return err
 		}
-		return s.audit(ctx, tx, user, "exposure.commitment", t.Value, "confirmed by the first Scan now (notice "+n.Version+"): "+n.Text)
+		return s.audit(ctx, tx, who.Email, "exposure.commitment", t.Value, "confirmed by the first Scan now (user "+who.ID+", two-step: "+method+", notice "+n.Version+"): "+n.Text)
 	})
 	if err != nil {
 		return fmt.Errorf("exposure: recording commitment: %w", err)

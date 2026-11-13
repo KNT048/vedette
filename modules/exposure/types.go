@@ -71,8 +71,10 @@ type Commitment struct {
 	By string `json:"by"`
 	At string `json:"at"`
 	// Version and Sentence: the exact sentence the administrator saw next to Scan now (D-473); nil on a commitment recorded earlier.
-	Version  *string `json:"version"`
-	Sentence *string `json:"sentence"`
+	// UserID and Method are kept in the row and the audit line, not in the API: who by id, and how two-step was met (app, email, sso).
+	UserID, Method string  `json:"-"`
+	Version        *string `json:"version"`
+	Sentence       *string `json:"sentence"`
 }
 
 // Counts are the numbers of one snapshot (INV-8).

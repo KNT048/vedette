@@ -427,7 +427,7 @@ export const handlers = [
       // D-473: an administrator's first Scan now is the confirmation (D-26); an operator cannot scan an unconfirmed target.
       const me = currentUser()
       if (me?.role !== 'admin') return fail(400, 'commitment_required', `${t.value} has not been confirmed yet. An administrator must run the first scan: it records that your company owns ${t.value} and that the scan is authorized.`)
-      if (!me.twofa) return fail(403, 'twofa_required', 'Turn on two-step sign-in for your account first (My account), then run the first scan again. The first scan records your confirmation that your company owns the target and that you are authorized to scan it.')
+      if (!me.twofa && !me.sso) return fail(403, 'twofa_required', 'Turn on two-step sign-in for your account first (My account), then run the first scan again. The first scan records your confirmation that your company owns the target and that you are authorized to scan it.')
       const sent = await body<{ notice_version?: string }>(request)
       if (!sent.notice_version) return fail(400, 'commitment_required', `The first scan of ${t.value} records a confirmation, so the request must carry notice_version of the sentence shown next to Scan now.`)
       if (sent.notice_version !== NOTICE_VERSION) return fail(409, 'notice_changed', 'The confirmation text changed since this page loaded. Read it again, then press Scan now again.')

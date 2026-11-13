@@ -202,9 +202,8 @@ describe('exposure: domain ownership = DNS TXT only', () => {
     expect(await screen.findByText(/was not found on acme-demo\.example/)).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Check' }))
     expect(await screen.findByText(/Verified with a DNS TXT record/)).toBeInTheDocument()
-    // verified but not confirmed: an administrator without two-step sign-in cannot make the first scan (D-473)
-    expect(screen.getByRole('button', { name: 'Scan now' })).toBeDisabled()
-    expect(screen.getAllByText(/before the first scan of acme-demo\.example/).length).toBeGreaterThan(0)
+    // verified but not confirmed: the administrator sees the sentence beside an enabled button (the server decides about two-step, D-473)
+    expect(await screen.findByRole('note', { name: 'Pressing Scan now records this confirmation' })).toBeInTheDocument()
   })
 
   it('a verified domain whose TXT record is gone cannot be scanned, in the UI and in the API', async () => {
@@ -765,13 +764,13 @@ describe("exposure: an administrator's first Scan now is the confirmation (D-473
     expect(auditStore.get().some((a) => a.action === 'exposure.commitment' && a.target === 'fresh.acme.example' && a.detail?.includes(sent.text))).toBe(true)
   })
 
-  it('an administrator without two-step sign-in cannot press it and is told to turn it on', async () => {
+  it('an administrator without two-step sign-in is refused by the server and told to turn it on', async () => {
     withTwoStep(false)
     const id = await verifiedTarget('notwo.acme.example')
     renderApp(`/exposure/${id}`)
+    await userEvent.click(await screen.findByRole('button', { name: 'Scan now' }))
     expect(await screen.findByText(/Turn on two-step sign-in for your account before the first scan/)).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Turn on two-step sign-in' })).toHaveAttribute('href', '/account#two-step')
-    expect(screen.getByRole('button', { name: 'Scan now' })).toBeDisabled()
     const r = await call('POST', `/exposure/targets/${id}/scan`, { notice_version: '2026-11-13' })
     expect(r.status).toBe(403)
     expect(r.json.error.code).toBe('twofa_required')

@@ -262,7 +262,7 @@ func (e *env) commit(id string) (TargetView, error) {
 	if err != nil {
 		return TargetView{}, err
 	}
-	if err := e.svc.commit(e.ctx(), "admin@acme.example", id, noticeFor(t.Value)); err != nil {
+	if err := e.svc.commit(e.ctx(), Actor{ID: "u-admin", Email: "admin@acme.example", Admin: true}, "app", id, noticeFor(t.Value)); err != nil {
 		return TargetView{}, err
 	}
 	return e.svc.Target(e.ctx(), id)

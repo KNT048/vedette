@@ -81,8 +81,8 @@ test('clean install: no sample targets, the box finds its two IPs by itself; a d
   await expect(page.getByText(/Verified with a DNS TXT record/)).toBeVisible()
 
   // Verified but not confirmed, administrator without two-step sign-in: no scan, in the button (with the way to turn it on) and in the API.
-  await expect(scan).toBeDisabled()
-  await expect(page.locator('#scan-reason')).toContainText('Turn on two-step sign-in for your account before the first scan')
+  await scan.click()
+  await expect(page.getByRole('alert').filter({ hasText: 'Turn on two-step sign-in for your account before the first scan' })).toBeVisible()
   await expect(page.getByRole('link', { name: 'Turn on two-step sign-in' })).toHaveAttribute('href', '/account#two-step')
   const blocked = await api(page, 'POST', `/exposure/targets/${id}/scan`, { notice_version: '2026-11-13' })
   expect(blocked.status).toBe(403)

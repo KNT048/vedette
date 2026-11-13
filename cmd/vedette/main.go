@@ -420,7 +420,7 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 		return err
 	}
 	srv := &http.Server{
-		Handler:           topHandler(log, api, hostAllowed, hsts),
+		Handler:           topHandler(log, api, honeyTokenHandler(log, d.Honeypot, server.NewAddrLimiter(honeyTokenPerMinute, nil)), hostAllowed, hsts),
 		ReadHeaderTimeout: 10 * time.Second,
 		ReadTimeout:       60 * time.Second,
 		IdleTimeout:       2 * time.Minute,
@@ -454,10 +454,14 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 // topHandler is everything the listener answers. A Host header allowed refuses is 421 before anything else is routed (DNS rebinding):
 // allowed is server.HostMatcher of the allowlist and the box's own addresses, plus the Box address (D-465). The Envelope (panic
 // recovery, request id, security headers) wraps the ServeMux too, so the mux's own answers (307 for /api/v1, //, .. and the 404 for
-// other paths) carry the headers the API's responses do.
-func topHandler(log *slog.Logger, api http.Handler, allowed func(host string) bool, hsts bool) http.Handler {
+// other paths) carry the headers the API's responses do. token answers /t/<id>, the link of a URL honey token (D-507); nil leaves the
+// path to the interface.
+func topHandler(log *slog.Logger, api, token http.Handler, allowed func(host string) bool, hsts bool) http.Handler {
 	mux := http.NewServeMux()
 	mux.Handle(server.Prefix+"/", api)
+	if token != nil {
+		mux.Handle(honeyTokenPath, token)
+	}
 	mux.Handle("/", webui.Handler(webui.FS())) // the interface (D-149): anything that is not the API; paths under /api/ other than the API's are its own 404
 	h := server.HostAllowlistFunc(allowed, mux)
 	if hsts {

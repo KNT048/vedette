@@ -15,7 +15,7 @@ import { TOKEN_TYPES, type Token, type TokenType } from './types'
 
 const errMsg = (e: unknown) => (e instanceof Error ? e.message : String(e))
 
-/** S-HP-2: honey tokens. Each says where to plant it and what triggers it. */
+/** S-HP-2: honey tokens. Each says where to plant it and what triggers it. A DNS token cannot be created: the box answers no DNS (D-507). */
 export default function TokensSection() {
   const { t } = useTranslation('honeypot')
   const q = useTokens()
@@ -70,7 +70,7 @@ function Inner({ items }: { items: Token[] }) {
           <Field label={t('token.form.plant')} htmlFor="tk-plant" hint={t(`token.form.plantHint.${type}`)}>
             <Input id="tk-plant" value={plant} onChange={(e) => setPlant(e.target.value)} disabled={!admin} autoComplete="off" />
           </Field>
-          <Button type="submit" variant="primary" className="sm:mt-[26px]" disabled={!admin || add.isPending} title={admin ? undefined : t('common:needRole', { role: t('common:role.admin') })}>{t('token.form.create')}</Button>
+          <Button type="submit" variant="primary" className="sm:mt-[26px]" disabled={!admin || add.isPending || type === 'dns'} title={!admin ? t('common:needRole', { role: t('common:role.admin') }) : type === 'dns' ? t('token.what.dns') : undefined}>{t('token.form.create')}</Button>
         </form>
       </Panel>
 

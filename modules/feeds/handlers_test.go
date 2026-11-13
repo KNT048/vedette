@@ -12,6 +12,7 @@ import (
 	"net/http/httptest"
 	"net/netip"
 	"os"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -111,6 +112,15 @@ type env struct {
 	pub  *fakePub
 	mu   sync.Mutex
 	now  time.Time
+
+	waits []time.Duration // the waits of the NVD pull, which never wait for real here (Service.wait)
+}
+
+// waited returns the waits the NVD pull asked for that were not zero.
+func (e *env) waited() []time.Duration {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	return slices.Clone(e.waits)
 }
 
 func (e *env) clock() time.Time {
@@ -147,6 +157,14 @@ func newEnvFetcher(t *testing.T, f Fetcher) *env {
 		Fetcher: f})
 	if err != nil {
 		t.Fatal(err)
+	}
+	e.svc.wait = func(ctx context.Context, d time.Duration) error {
+		if d > 0 {
+			e.mu.Lock()
+			e.waits = append(e.waits, d)
+			e.mu.Unlock()
+		}
+		return ctx.Err()
 	}
 	if err := e.svc.Seed(t.Context()); err != nil {
 		t.Fatal(err)

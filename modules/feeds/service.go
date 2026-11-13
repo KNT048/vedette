@@ -117,6 +117,11 @@ type Service struct {
 	unknownLogged atomic.Bool // the "waiting for the box's addresses" debug line is written once (D-208)
 
 	afterChunk func(chunk int) // tests: runs after each chunk of an indicator list has committed
+
+	nvdMu sync.Mutex
+	nvd   *nvdRun // the NVD pull running now, or paused to go on later (W3-1); nil when none
+
+	wait func(ctx context.Context, d time.Duration) error // tests: replaces the real waits of the NVD pull
 }
 
 // NewService checks the dependencies.
@@ -151,37 +156,61 @@ func (s *Service) publish(ctx context.Context, name string, payload any) {
 	}
 }
 
-// feedGate serialises the pulls of one feed; refs counts the pulls holding or waiting for it, so the entry can
-// be dropped when the last one is done.
+// feedGate is the pull of one feed: done is open while a pull runs (closed when it ends, so the callers that joined
+// it go on); refs counts the pulls holding or waiting for it, so the entry can be dropped when the last one is done.
 type feedGate struct {
-	ch   chan struct{}
+	done chan struct{}
 	refs int
 }
 
-// lockFeed waits for the pull lock of a feed or for ctx, whichever comes first. The returned func releases it.
-func (s *Service) lockFeed(ctx context.Context, id string) (func(), error) {
+// lockFeed takes the pull lock of a feed. When another pull of the feed holds it, the caller joins that pull: it
+// waits for it to end (or for ctx) and gets joined true without the lock, so a second "Fetch now" or a job tick
+// during a pull never starts a second pull (W3-1: two NVD pulls 0.3 s apart got HTTP 503). The returned func
+// releases the lock.
+func (s *Service) lockFeed(ctx context.Context, id string) (release func(), joined bool, err error) {
 	s.mu.Lock()
 	g := s.locks[id]
 	if g == nil {
-		g = &feedGate{ch: make(chan struct{}, 1)}
+		g = &feedGate{}
 		s.locks[id] = g
 	}
 	g.refs++
-	s.mu.Unlock()
-	drop := func() {
-		s.mu.Lock()
-		defer s.mu.Unlock()
+	drop := func() { // under s.mu
 		if g.refs--; g.refs == 0 {
 			delete(s.locks, id)
 		}
 	}
-	select {
-	case g.ch <- struct{}{}:
-		return func() { <-g.ch; drop() }, nil
-	case <-ctx.Done():
-		drop()
-		return nil, ctx.Err()
+	if g.done == nil {
+		g.done = make(chan struct{})
+		s.mu.Unlock()
+		return func() {
+			s.mu.Lock()
+			defer s.mu.Unlock()
+			close(g.done)
+			g.done = nil
+			drop()
+		}, false, nil
 	}
+	done := g.done
+	s.mu.Unlock()
+	select {
+	case <-done:
+		joined = true
+	case <-ctx.Done():
+		err = ctx.Err()
+	}
+	s.mu.Lock()
+	drop()
+	s.mu.Unlock()
+	return nil, joined, err
+}
+
+// busy reports whether a pull of the feed is running now.
+func (s *Service) busy(id string) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	g := s.locks[id]
+	return g != nil && g.done != nil
 }
 
 // ready seeds the built-in feeds the first time a request or a pull needs them (once, with the caller context), so

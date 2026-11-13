@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"maps"
 	"net"
 	"net/http"
 	"net/url"
@@ -56,7 +55,11 @@ func (s *Service) RunPull(ctx context.Context) error {
 				r = cur
 			}
 		}
-		if !r.Enabled || !r.state().Due(now, r.IntervalHours) {
+		due := r.state().Due(now, r.IntervalHours)
+		if at, paused := s.nvdResumeAt(); paused && r.ID == nvdFeedID {
+			due = !now.Before(at) // a paused NVD pull goes on when it said it would (W3-1)
+		}
+		if !r.Enabled || !due || s.busy(r.ID) { // busy: a "Fetch now" is pulling it; never a second pull
 			continue
 		}
 		pulled = true
@@ -428,66 +431,6 @@ func (s *Service) buildEPSS(ctx context.Context, src sourceRow, p pullPlan) (pul
 	return p, nil
 }
 
-// buildNVD asks the NVD CVE API 2.0 for the affected versions of the CVEs CISA lists (?hasKev, D-500), NVDPageSize
-// per request with nvdPause between requests. After a good pull less than nvdIncrementalDays old, only the CVEs NVD
-// changed since one day before that pull are asked for; otherwise everything, and CVEs NVD no longer lists go. Any
-// failed page fails the whole pull: entries are never half updated.
-func (s *Service) buildNVD(ctx context.Context, src sourceRow, p pullPlan) (pullPlan, error) {
-	now := s.now()
-	have, err := s.st.affectedCount(ctx)
-	if err != nil {
-		return p, err
-	}
-	var from, to time.Time
-	if have > 0 && src.Status == "ok" && src.LastSuccess != nil && now.Sub(*src.LastSuccess) < nvdIncrementalDays*24*time.Hour {
-		from, to = src.LastSuccess.Add(-24*time.Hour), now
-	}
-	p.out = outcome{OK: true}
-	p.hasAffected, p.affectedFull, p.affected = true, from.IsZero(), map[string][]AffectedRow{}
-	var st Stats
-	for page, start := 0, 0; ; page++ {
-		if page == nvdMaxPages {
-			return p, fail(ErrBadSample, "NVD answered more than %d pages; Vedette stopped and kept the versions it had.", nvdMaxPages)
-		}
-		if page > 0 {
-			select {
-			case <-ctx.Done():
-				return p, ctx.Err()
-			case <-time.After(nvdPause):
-			}
-		}
-		u, err := NVDPageURL(src.URL, start, from, to)
-		if err != nil {
-			return p, err
-		}
-		resp, err := s.get(ctx, Request{URL: u})
-		if err != nil {
-			return p, err
-		}
-		d, err := ParseNVD(resp.Body)
-		if err != nil {
-			return p, err
-		}
-		p.out.Bytes += len(resp.Body)
-		st.Accepted += d.Accepted
-		st.Rejected += d.Rejected
-		st.Reasons = append(st.Reasons, d.Reasons...)
-		maps.Copy(p.affected, d.Affected)
-		start += d.Returned
-		if d.Returned == 0 || start >= d.Total {
-			break
-		}
-	}
-	if len(st.Reasons) > 3 {
-		st.Reasons = st.Reasons[:3]
-	}
-	if p.affectedFull && len(p.affected) == 0 {
-		return p, accepted(st) // a full pull with nothing never empties the table
-	}
-	p.out.fill(st, len(p.affected))
-	return p, nil
-}
-
 // errStoreFailed is the sentence stored on a feed when its result could not be written (a database problem).
 const errStoreFailed = "The result could not be stored. Check the disk space and the box logs."
 
@@ -501,9 +444,13 @@ func (s *Service) pullOne(ctx context.Context, id, actor string) (sourceRow, int
 	if err := s.ready(ctx); err != nil {
 		return sourceRow{}, 0, nil, err
 	}
-	release, err := s.lockFeed(ctx, id)
+	release, joined, err := s.lockFeed(ctx, id)
 	if err != nil {
 		return sourceRow{}, 0, nil, err
+	}
+	if joined { // another pull of this feed ran while this one waited: its result is the answer, not a second pull (W3-1)
+		row, err := s.st.source(ctx, id)
+		return s.live(row), 0, nil, err
 	}
 	defer release()
 	src, err := s.st.source(ctx, id)
@@ -525,6 +472,9 @@ func (s *Service) pullOne(ctx context.Context, id, actor string) (sourceRow, int
 			s.Log.DebugContext(ctx, "feed pull waits: the box's own addresses are not known yet", "feed", src.ID)
 		}
 		return src, 0, nil, nil
+	}
+	if errors.Is(perr, errNVDPaused) { // W3-1: the pages so far are kept and the pull goes on later; nothing is written
+		return s.live(src), 0, nil, nil
 	}
 	if perr != nil {
 		s.Log.WarnContext(ctx, "feed pull failed", "feed", src.ID, "name", src.Name, "error", perr) // the name too: an admin knows the feed by it (D-420 (2))
@@ -677,6 +627,9 @@ func (s *Service) pull(ctx context.Context, id, actor string) (sourceRow, error)
 	row, fresh, evs, err := s.pullOne(ctx, id, actor)
 	if err == nil && id == "cisa-kev" && row.Status == "ok" {
 		for _, dep := range []string{"first-epss", "nvd-kev"} {
+			if s.busy(dep) {
+				continue // already being pulled (a person's "Fetch now"): never a second pull of it
+			}
 			if e, err := s.st.source(ctx, dep); err == nil && e.Enabled && (fresh > 0 || e.Records == nil || *e.Records == 0) {
 				_, _, more, err := s.pullOne(ctx, dep, "")
 				evs = append(evs, more...)

@@ -27,7 +27,7 @@ func (h *FeedHandlers) FeedsGetFeedsSources(ctx context.Context) (*oas.FeedsGetF
 	}
 	items := make([]feedDTO, 0, len(rows))
 	for _, r := range rows {
-		items = append(items, toFeedDTO(r))
+		items = append(items, toFeedDTO(h.s.live(r)))
 	}
 	return convert[oas.FeedsGetFeedsSourcesOK](map[string]any{"items": items})
 }
@@ -378,7 +378,13 @@ func (h *FeedHandlers) FeedsPostFeedsSourcesIDFetch(ctx context.Context, params 
 	if err != nil {
 		return nil, err
 	}
-	row, err := h.s.pull(ctx, params.ID, p.Email)
+	var row sourceRow
+	if h.s.busy(params.ID) { // a pull is running: say how far it got instead of starting or waiting for another (W3-1)
+		row, err = h.s.st.source(ctx, params.ID)
+		row = h.s.live(row)
+	} else {
+		row, err = h.s.pull(ctx, params.ID, p.Email)
+	}
 	switch {
 	case errors.Is(err, ErrNotFound):
 		return nil, noSuchFeed()

@@ -157,6 +157,8 @@
     "notLinkedYet": "Not linked yet: {{names}}. Their buttons and links do not count until they link in My account."
   },
   "tabs": {
+    "label": "Sections of the Response page",
+    "pending": "waiting for a decision",
     "rules": "Rules",
     "requests": "Requests",
     "blocklist": "Block list",

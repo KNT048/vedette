@@ -1372,6 +1372,19 @@ describe('response: screens', () => {
     expect((await screen.findAllByText('Add 203.0.113.77 to the block list')).length).toBeGreaterThan(0)
   })
 
+  it('page frame (D-464): old #hash links open the tab through ?tab=, Requests carries the pending count, a tab the role may not see opens Rules', async () => {
+    const view = renderApp('/response?incident=al-4#log')
+    expect(await screen.findByRole('tab', { name: 'Log' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('tab', { name: /^Requests \d+ waiting for a decision$/ })).toBeInTheDocument()
+    view.unmount()
+    const ai = renderApp('/response#ai')
+    expect(await screen.findByRole('tab', { name: /^Requests/ })).toHaveAttribute('aria-selected', 'true')
+    ai.unmount()
+    renderApp('/response?tab=blocklist', { role: 'viewer' })
+    expect(await screen.findByRole('tab', { name: 'Rules' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.queryByRole('tab', { name: 'Block list' })).toBeNull()
+  })
+
   it('Metrics tab: acceptance, AI budget and the rejected requests with their reasons', async () => {
     renderApp('/response#metrics')
     expect((await screen.findAllByText('Acceptance')).length).toBeGreaterThan(0)

@@ -312,6 +312,13 @@ Quy ước: `S-<MODULE>-<n>` · Persona P1–P4 (`PRODUCT.md` §3) · **Trạng 
 **S-CORE-6** (tất cả) `[đạt]` (D-48) — Tôi tải toàn bộ log của hộp (kiểm toán, AI, phản ứng, probe quét, cảnh báo, log thiết bị) dạng JSON/CSV. Tiêu chí (D-132): ngày `từ`/`đến` là cả ngày theo múi giờ của tổ chức; danh mục mà module chưa có log để xuất được ghi rõ là thiếu (`missing` trong JSON, `(no source)` trong CSV) thay vì giả vờ rỗng; ô CSV bắt đầu bằng `= + - @` không chạy được như công thức; quá 128 MiB thì từ chối và bảo thu hẹp ngày/danh mục; một lần tải một lúc và một lần mỗi phút (409 `busy`, 429 `rate_limited`); với kiểm toán, phản ứng và hoạt động AI (có chuỗi hash) tệp nói chuỗi bắt đầu và kết thúc ở đâu (`chains`: neo, hash đầu, số dòng, đủ hay không) nên tự kiểm được ngoại tuyến, và xoá dòng mới nhất bị lộ.
 - Tiêu chí bổ sung (D-381, lượt đi Mac 2026-11-13 w4, G14; đã xây): trên bản cài không chạy được bẫy (`available` của honeypot là false, tức bản chỉ container) ô "Honeypot hits" của Download logs xám, không được chọn, kèm "(traps need the appliance install)", và không có trong `categories` gửi đi.
 
+## UI — Khung trang
+
+**S-UI-1** (tất cả) `[đạt]` (D-464, góp ý beta của kien 2026-11-13) — Mọi trang trong menu chính có cùng một khung, nên tôi biết ngay trang nói gì, có mấy phần và phần nào đang chờ tôi, thay vì cuộn một trang dài nhiều mục.
+- **Kích hoạt:** tôi mở một trang trong menu chính (ví dụ Vulnerability scans, Response, Reports). **Thấy:** dòng đầu là tiêu đề (~20 px) và mô tả ngắn cùng một dòng (mô tả xuống dòng khi không đủ chỗ); dưới đó, khi trang có số liệu trả lời câu hỏi của trang, một dải tối đa 4 ô (số, nhãn, liên kết); rồi một hàng tab ngang khi trang có hơn một phần; tab có việc chờ tôi mang số đỏ (ví dụ Response → Requests: số yêu cầu đang chờ duyệt, trình đọc màn hình đọc "Requests 3 waiting for a decision": tên tab chứa đúng chữ nhìn thấy). **Bấm:** một tab. **Nhận:** phần đó hiện ra, địa chỉ đổi thành `?tab=<id>`; gửi liên kết đó cho người khác thì họ mở đúng tab.
+- Chấp nhận (D-464): mọi trang trong menu chính vẽ khung này (Cài đặt giữ menu dọc). Đổi tab cập nhật `?tab=`; tải lại giữ tab; mở một liên kết từ tab rồi bấm Back quay về đúng tab đó (đổi tab thay mục lịch sử hiện tại, không thêm mục: phím mũi tên đổi tab theo WAI-ARIA, nên thêm mục sẽ bắt Back đi qua từng tab đã lướt). `?tab=` lạ hoặc tab vai trò không được xem → tab đầu. Chỉ còn một phần (ví dụ sau khi lọc theo vai trò) → không vẽ hàng tab. Liên kết cũ `/response#<tab>` (và `#ai`) mở đúng tab qua `?tab=`, giữ các tham số khác (`?incident=`). Điện thoại: không cuộn ngang cả trang, hàng tab cuộn trong chính nó và tab đang mở được cuộn vào tầm nhìn. Dải số có tối đa 4 ô, mỗi ô là liên kết tới chỗ xem chi tiết. axe không có vi phạm mới.
+- Lượt này (B0): khung + Scans, Response, Reports. Honeypot, Devices, chi tiết thiết bị, Logs chuyển sang khung ở B2, B7 và phần việc của Mlee.
+
 ## Nhật ký xác minh
 
 | Story | Ngày | Phương pháp | Kết quả | Ghi chú |
@@ -321,4 +328,5 @@ Quy ước: `S-<MODULE>-<n>` · Persona P1–P4 (`PRODUCT.md` §3) · **Trạng 
 | S-CORE-4 | 2026-11-06 | quyết định D-16, D-17 (nhóm A, D-20) | đạt | nền, pháp lý |
 | S-AI-6 | 2026-11-06 | quyết định D-11 (nhóm A, D-20) | đạt | guardrail AI |
 | S-MIT-4 | 2026-11-06 | quyết định D-21 (kien) | đạt | quy trình của người duy trì |
+| S-UI-1 | 2026-11-13 | góp ý beta của kien (ảnh chụp màn hình), quyết định D-464 | đạt | khung trang |
 | Mọi story còn lại | 2026-11-06 | quyết định D-23 (kien: không phỏng vấn) | đạt | xác minh bằng QA người dùng thật do AI làm |

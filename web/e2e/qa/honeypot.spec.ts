@@ -17,7 +17,7 @@ test('clean install: empty page with three steps, switches locked until there is
   await expect(page.getByText('FILESRV-OLD', { exact: true })).toHaveCount(0)
   await expect(page.getByText('192.168.10.240')).toHaveCount(0)
   await expect(vis(page, /No trap is on yet, so there is nothing to record/)).toBeVisible()
-  await expect(page.getByRole('switch', { name: `Turn on ${SMB} trap` })).toBeDisabled()
+  await expect(page.getByRole('switch', { name: `${SMB} trap` })).toBeDisabled()
   await expect(page.getByRole('button', { name: `Test trap ${SMB}` })).toBeDisabled()
   await shot(page, 'honeypot', `clean-${isMobile ? 'mobile' : 'desktop'}`)
   await expectAccessible(page, 'honeypot clean')
@@ -48,8 +48,8 @@ test('clean install: empty page with three steps, switches locked until there is
   await expect(ip).toHaveValue('192.168.10.240')
 
   for (const name of [SMB, 'RDP (remote desktop)', 'SSH', 'MSSQL (SQL Server)', 'HTTP (fake admin page)']) {
-    await page.getByRole('switch', { name: `Turn on ${name} trap` }).click()
-    await expect(page.getByRole('switch', { name: `Turn on ${name} trap` })).toBeChecked()
+    await page.getByRole('switch', { name: `${name} trap` }).click()
+    await expect(page.getByRole('switch', { name: `${name} trap` })).toBeChecked()
   }
   await expect(page.getByText('Listening').locator('visible=true')).toHaveCount(5)
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(/No trap was hit in the last 7 days/)
@@ -65,7 +65,7 @@ test('clean install: empty page with three steps, switches locked until there is
   await expect(page.getByText('What to do')).toHaveCount(0)
   await shot(page, 'honeypot', `hit-test-${isMobile ? 'mobile' : 'desktop'}`)
   await page.goto('/honeypot')
-  await page.getByRole('switch', { name: `Turn on ${SMB} trap` }).click()
+  await page.getByRole('switch', { name: `${SMB} trap` }).click()
   await expect(page.getByRole('button', { name: `Test trap ${SMB}` })).toBeDisabled()
   expect(errors).toEqual([])
 })

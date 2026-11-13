@@ -82,7 +82,8 @@ func TestLANDiscoveryFixture(t *testing.T) {
 		router + " kind=router @192.168.10.1 0.5",
 		sw + " mac=" + sw + " @ 0.9",
 		sw + " hostname=SW-CORE-01 @ 0.7",
-		sw + " model=Example Switch OS 4.2, 24 ports @ 0.5",
+		sw + " model=EX2300-24T @ 0.5", // the description itself never becomes a value (walk 4)
+		sw + " os=JUNOS 18.2R3.4 @ 0.5",
 		sw + " kind=switch @ 0.6",
 		phone + " mac=" + phone + " @ 0.9",
 		laptop + " mac=" + laptop + " @192.168.10.24 0.9",

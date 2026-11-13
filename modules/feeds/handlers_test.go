@@ -471,7 +471,7 @@ func TestContract_INV14_WeeklyAndIHaveIt(t *testing.T) {
 	if c != 200 || at(b, "items", 0, "id") != "synology|diskstation manager" || at(b, "items", 0, "answer") != nil || at(b, "items", 3) != nil {
 		t.Fatalf("%d %v", c, b)
 	}
-	want := "Synology NAS (DSM) has a vulnerability that ransomware groups are exploiting (added to the CISA list on 3 Nov). If your company uses it, update it following Synology's advisory this week."
+	want := "Synology NAS (DSM) has a vulnerability that ransomware groups are exploiting (added to the CISA list on 3 Nov). If your company uses it, update it following the advisory from Synology this week."
 	if at(b, "items", 0, "text") != want || !strings.Contains(at(b, "items", 1, "text").(string), "being exploited in the wild") {
 		t.Errorf("text: %v", at(b, "items", 0, "text"))
 	}

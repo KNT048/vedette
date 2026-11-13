@@ -38,7 +38,7 @@ describe('honeypot: main page (S-HP-1)', () => {
 
   it('admin turns on the MSSQL trap and it is audited', async () => {
     renderApp('/honeypot')
-    const sw = (await screen.findAllByRole('switch', { name: 'Turn on MSSQL (SQL Server) trap' }))[0]!
+    const sw = (await screen.findAllByRole('switch', { name: 'MSSQL (SQL Server) trap' }))[0]!
     expect(sw).not.toBeDisabled()
     await userEvent.click(sw)
     expect(await screen.findByText('MSSQL (SQL Server) trap is on')).toBeInTheDocument()
@@ -155,7 +155,7 @@ describe('honeypot: what the box reports (S-HP-1)', () => {
     expect(within(list).getByText('Starting')).toBeInTheDocument()
     expect(within(list).getByText('Listening')).toBeInTheDocument()
     expect(within(list).getByText('06:b7:36:0a:0b:0c')).toBeInTheDocument()
-    expect(screen.getByText(/Not checked: no devices discovered yet/)).toBeInTheDocument()
+    expect(screen.getByText(/No devices discovered yet, so these are only guesses/)).toBeInTheDocument()
   })
 
   it('the decoy IP can be removed only while every trap is off', async () => {
@@ -170,7 +170,7 @@ describe('honeypot: what the box reports (S-HP-1)', () => {
 describe('honeypot: roles', () => {
   it('viewer: switches, test buttons and Save are locked with a reason', async () => {
     renderApp('/honeypot', { role: 'viewer' })
-    const sw = (await screen.findAllByRole('switch', { name: 'Turn on MSSQL (SQL Server) trap' }))[0]!
+    const sw = (await screen.findAllByRole('switch', { name: 'MSSQL (SQL Server) trap' }))[0]!
     expect(sw).toBeDisabled()
     expect(sw).toHaveAttribute('title', 'Requires Admin role')
     expect(screen.getAllByRole('button', { name: 'Test trap SMB (file sharing)' })[0]!).toBeDisabled()
@@ -180,7 +180,7 @@ describe('honeypot: roles', () => {
 
   it('operator can test traps but not switch them or change the secondary IP', async () => {
     renderApp('/honeypot', { role: 'operator' })
-    expect((await screen.findAllByRole('switch', { name: 'Turn on MSSQL (SQL Server) trap' }))[0]!).toBeDisabled()
+    expect((await screen.findAllByRole('switch', { name: 'MSSQL (SQL Server) trap' }))[0]!).toBeDisabled()
     expect(screen.getAllByRole('button', { name: 'Test trap SMB (file sharing)' })[0]!).not.toBeDisabled()
     expect(screen.getByLabelText('Trap secondary IP')).toBeDisabled()
   })
@@ -344,10 +344,10 @@ describe('honeypot: decoy and honey token form matrix (docs/QA.md §2)', () => {
       { option: 'Windows file server', shown: [/Opens: .*445/], hidden: [/Opens: .*554/] },
     ], pick('Looks like'), formOf('Looks like'))
     await userEvent.type(screen.getByLabelText('Decoy name'), 'FILESRV2')
-    await userEvent.type(screen.getByLabelText('Spare IP'), '192.168.10.1') // taken by the firewall
+    await userEvent.type(screen.getByLabelText('Decoy IP'), '192.168.10.1') // taken by the firewall
     await userEvent.click(screen.getByRole('button', { name: 'Add decoy' }))
-    await waitFor(() => expect(screen.getByLabelText('Spare IP')).toBeInvalid())
+    await waitFor(() => expect(screen.getByLabelText('Decoy IP')).toBeInvalid())
     await pick('Looks like')('IP camera')
-    expect(screen.getByLabelText('Spare IP')).toBeValid()
+    expect(screen.getByLabelText('Decoy IP')).toBeValid()
   })
 })

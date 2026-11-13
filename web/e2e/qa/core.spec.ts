@@ -293,7 +293,7 @@ test.describe('users and roles', () => {
     const errors = collectErrors(page)
     await cleanInstall(page)
     await page.goto('/settings/users')
-    await expect(h1(page)).toContainText('1 active users')
+    await expect(h1(page)).toContainText('1 active user')
     await shot(page, 'core', 'users-clean')
     const vis = { visible: true }
     await expect(page.getByRole('button', { name: /Disable Alex Admin/ }).filter(vis)).toBeDisabled()

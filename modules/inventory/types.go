@@ -189,10 +189,11 @@ type Summary struct {
 // Device is a row of the device list (contract.ts DeviceRow).
 type Device struct {
 	AssetCore
-	Software      []Software `json:"software"`
-	Suspicious    bool       `json:"suspicious"`
-	FindingsCount int        `json:"findings_count"`
-	Summary       *Summary   `json:"summary"`
+	Software      []Software  `json:"software"`
+	Suspicious    bool        `json:"suspicious"`
+	FindingsCount int         `json:"findings_count"`
+	Summary       *Summary    `json:"summary"`
+	ident         []*Observed // current hostname and MAC observations: the summary of a device with no vendor, model or OS
 }
 
 // DetailAsset is the asset of a device detail.

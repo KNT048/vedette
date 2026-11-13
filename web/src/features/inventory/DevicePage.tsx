@@ -13,7 +13,7 @@ import { Button, buttonVariants } from '@/components/ui/button'
 import { Select, Textarea, Label } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import { ApiError } from '@/lib/api'
-import { fmtDateTime, fmtRelative } from '@/lib/format'
+import { fmtDateTime, fmtRelative, rawProductLine } from '@/lib/format'
 import { useCan } from '@/lib/session'
 import type { AssetKind, Service } from '@/lib/types'
 import { cn } from '@/lib/utils'
@@ -127,7 +127,10 @@ function SoftwareList({ d }: { d: DeviceDetail }) {
   const list = d.asset.software
   if (!list.length) return <EmptyState title={t('software.empty')}>{t('software.emptyBody')}</EmptyState>
   const columns: ColumnDef<SoftwareView>[] = [
-    { id: 'name', header: t('software.name'), accessorFn: (s) => s.display, cell: ({ row }) => <div className="grid"><span className="font-medium">{row.original.display}</span><span className="text-[12px] text-muted">{row.original.vendor} {row.original.product}</span></div> },
+    { id: 'name', header: t('software.name'), accessorFn: (s) => s.display, cell: ({ row }) => {
+      const raw = rawProductLine(row.original.display, row.original.vendor, row.original.product)
+      return <div className="grid"><span className="font-medium">{row.original.display}</span>{raw ? <span className="text-[12px] text-muted">{raw}</span> : null}</div>
+    } },
     { id: 'version', header: t('software.version'), accessorFn: (s) => s.version ?? '', cell: ({ getValue }) => (getValue() as string) || <span className="text-muted">{t('software.noVersion')}</span> },
     { id: 'kev', header: t('software.kev'), accessorFn: (s) => s.kev_cves.length, cell: ({ row }) => row.original.kev_cves.length ? (
       <div className="flex flex-wrap gap-x-2">{row.original.kev_cves.map((c) => <Link key={c} to={`/cve/${c}`} className="whitespace-nowrap text-accent underline-offset-4 hover:underline">{c}</Link>)}</div>
@@ -144,7 +147,7 @@ function SoftwareList({ d }: { d: DeviceDetail }) {
         <div className="flex items-start justify-between gap-3">
           <div className="grid min-w-0 gap-1">
             <span className="text-sm font-medium [overflow-wrap:anywhere]">{sw.display}{sw.version ? ` ${sw.version}` : ` (${t('software.noVersion')})`}</span>
-            <span className="text-[12px] text-muted">{sw.vendor} {sw.product}</span>
+            {rawProductLine(sw.display, sw.vendor, sw.product) ? <span className="text-[12px] text-muted">{rawProductLine(sw.display, sw.vendor, sw.product)}</span> : null}
             <div className="flex flex-wrap gap-x-2 text-[13px]">
               {sw.kev_cves.length ? sw.kev_cves.map((c) => <Link key={c} to={`/cve/${c}`} className="whitespace-nowrap text-accent underline-offset-4 hover:underline">{c}</Link>) : <span className="text-muted">{t('software.noKev')}</span>}
             </div>

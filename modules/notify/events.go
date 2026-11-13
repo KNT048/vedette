@@ -153,12 +153,13 @@ func (s *Service) assetEvent(ctx context.Context, data any) error {
 	}
 	name := e.AssetID
 	if s.cfg.Devices != nil {
-		if n, ok, err := s.cfg.Devices.DeviceName(ctx, e.AssetID); err != nil {
+		if n, ok, err := s.cfg.Devices.DeviceLabel(ctx, e.AssetID); err != nil {
 			return err
 		} else if ok && n != "" {
 			name = n
 		}
 	}
+	name = clip(name, 160) // a host name can be 200 characters; the title may not be longer than that (OpenIncident)
 	_, _, err := s.OpenIncident(ctx, IncidentInput{Kind: IncidentUnknownDevice, Source: e.AssetID, Title: "A new unknown device appeared: " + name, Severity: Medium,
 		What:   "A device that is not in your inventory joined the network: " + name + ".",
 		Action: "Find out whose device it is. Add it to the inventory if it belongs to you, otherwise remove it from the network.",

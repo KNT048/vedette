@@ -111,7 +111,7 @@ func LANDiscovery() []Frame {
 	add(11, UDPFrame(netipMcastMAC, Router, RouterIP, netipSSDP, 1900, 1900, SSDPNotify("Linux/5.4 UPnP/1.0 MiniUPnPd/2.2", "urn:schemas-upnp-org:device:InternetGatewayDevice:1", "uuid:abc::urn:schemas-upnp-org:device:InternetGatewayDevice:1", "http://192.168.10.1:5000/rootDesc.xml")))
 	add(12, UDPFrame(netipMcastMAC, Router, RouterIP, netipSSDP, 1900, 1900, []byte("M-SEARCH * HTTP/1.1\r\nHOST: 239.255.255.250:1900\r\nMAN: \"ssdp:discover\"\r\nMX: 1\r\nST: ssdp:all\r\n\r\n")))
 	// the switch speaks LLDP
-	add(20, LLDP(Switch, LLDPInfo{Chassis: Switch, Port: "Gi1/0/7", SysName: "SW-CORE-01", SysDesc: "Example Switch OS 4.2, 24 ports", Caps: 1<<2 | 1<<4}))
+	add(20, LLDP(Switch, LLDPInfo{Chassis: Switch, Port: "Gi1/0/7", SysName: "SW-CORE-01", SysDesc: "Juniper Networks, Inc. ex2300-24t Ethernet Switch, kernel JUNOS 18.2R3.4, Build date: 2019-08-30 12:00:00 UTC Copyright (c) 1996-2019 Juniper Networks, Inc.", Caps: 1<<2 | 1<<4}))
 	// a laptop with a registered vendor prefix says hello
 	add(25, ARP(Bcast, 1, Laptop, LaptopIP, MAC{}, RouterIP))
 	// a phone only asks for DHCP, no name

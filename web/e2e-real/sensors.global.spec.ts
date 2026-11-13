@@ -233,7 +233,8 @@ test('every new device opened one "unknown device" alert (S-INV-3, notify on by 
     for (const [d, name] of [[router, ROUTER.ip], [pc, PC.hostname]] as const) {
       const mine = list.filter((i) => i.devices.some((x) => x.id === d.id))
       expect(mine, `alerts for ${name}`).toHaveLength(1)
-      expect(mine[0]).toMatchObject({ kind: 'unknown_device', title: `A new unknown device appeared: ${name}`, status: 'new', link: `/devices/${d.id}` })
+      expect(mine[0]).toMatchObject({ kind: 'unknown_device', status: 'new', link: `/devices/${d.id}` })
+      expect(mine[0]!.title.startsWith(`A new unknown device appeared: ${name}`), mine[0]!.title).toBe(true) // an IP may be followed by its vendor
     }
   } finally { await c.dispose() }
 })

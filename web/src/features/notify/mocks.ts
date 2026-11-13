@@ -12,7 +12,7 @@ import { chatLinkSenders, newLinkToken } from '@/features/response/identity'
 import { identityStore, isLinked } from '@/features/response/state'
 import { CHANNEL_TYPES, FIELDS, OWN_TEXT, ROUTE_SEVERITIES, forbiddenHost, ownHost } from './types'
 import { OAUTH_HOST, emailBinding, emailProvider, isOAuth, isUserSignin, savedFor } from './emailProviders'
-import type { Approver, Channel, ChannelInput, ChannelType, EmailSignin, Grouping, HistoryItem, Incident, IncidentDetail, IncidentStatus, Preview, Quiet, SendRecord, TestResult, ZaloApprover, ZaloContact, ZaloLogin } from './types'
+import type { Approver, Channel, ChannelInput, ChannelType, EmailSignin, Grouping, HistoryItem, Incident, IncidentDetail, IncidentStatus, Preview, Quiet, SendRecord, TestResult, LinkApprover, ZaloContact, ZaloLogin } from './types'
 
 const SEV: Record<Severity, string> = { critical: 'Critical', high: 'High', medium: 'Medium', low: 'Low', info: 'Info' }
 
@@ -411,7 +411,7 @@ function sendTelegramLink(a: Approver) {
   return made
 }
 const zaloApprover = (a: Approver) => linkApprover('zalo-personal', a)
-function linkApprover(type: 'zalo-personal' | 'telegram', a: Approver): ZaloApprover {
+function linkApprover(type: 'zalo-personal' | 'telegram', a: Approver): LinkApprover {
   const rec = (type === 'telegram' ? tgCodes : zaloCodes).get(a.user_id)
   const base = { user_id: a.user_id, address: a.address, name: a.name ?? '', sent_at: rec?.address === a.address ? rec.at : null, error: '', self: a.user_id === currentUser()?.id, box_account: type === 'zalo-personal' && a.address === ZALO_BOX_UID }
   if (isLinked(a.user_id, type, a.address)) return { ...base, state: 'linked' }
@@ -731,7 +731,7 @@ export const handlers = [
 
 type Refusal = { status: number; code: string; message: string }
 /** Send again for a Telegram approver (the channel dialog, and My account through response, D-414). */
-function telegramLinkFor(userId: string): ZaloApprover | Refusal {
+function telegramLinkFor(userId: string): LinkApprover | Refusal {
   const c = channels.get().find((x) => x.type === 'telegram')
   if (!c?.configured || !c.enabled || !c.approvals) return { status: 409, code: 'channel_not_ready', message: 'Save the Telegram channel turned on, with "Approve actions from this channel", first.' }
   const a = (c.approvers ?? []).find((x) => x.user_id === userId)

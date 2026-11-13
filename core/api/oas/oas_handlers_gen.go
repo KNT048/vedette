@@ -24994,6 +24994,167 @@ func (s *Server) handleInventoryPatchInventoryDevicesIDRequest(args [1]string, a
 	}
 }
 
+// handleInventoryPatchInventoryDevicesIDSoftwareSidRequest handles inventory_patch_inventory_devices_id_software_sid operation.
+//
+// Change the version of manually declared software (400 not_manual for software a sensor or agent
+// saw); an empty version removes it; the device is matched again (D-471).
+//
+// PATCH /inventory/devices/{id}/software/{sid}
+func (s *Server) handleInventoryPatchInventoryDevicesIDSoftwareSidRequest(args [2]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: InventoryPatchInventoryDevicesIDSoftwareSidOperation,
+			ID:   "inventory_patch_inventory_devices_id_software_sid",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securitySession(ctx, InventoryPatchInventoryDevicesIDSoftwareSidOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Session",
+					Err:              err,
+				}
+				if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
+					defer recordError("Security:Session", err)
+				}
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
+				defer recordError("Security", err)
+			}
+			return
+		}
+	}
+	params, err := decodeInventoryPatchInventoryDevicesIDSoftwareSidParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeInventoryPatchInventoryDevicesIDSoftwareSidRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response *InventoryPatchInventoryDevicesIDSoftwareSidOK
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    InventoryPatchInventoryDevicesIDSoftwareSidOperation,
+			OperationSummary: "Change the version of manually declared software (400 not_manual for software a sensor or agent saw); an empty version removes it; the device is matched again (D-471)",
+			OperationID:      "inventory_patch_inventory_devices_id_software_sid",
+			Body:             request,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "id",
+					In:   "path",
+				}: params.ID,
+				{
+					Name: "sid",
+					In:   "path",
+				}: params.Sid,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = *InventoryPatchInventoryDevicesIDSoftwareSidReq
+			Params   = InventoryPatchInventoryDevicesIDSoftwareSidParams
+			Response = *InventoryPatchInventoryDevicesIDSoftwareSidOK
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackInventoryPatchInventoryDevicesIDSoftwareSidParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.InventoryPatchInventoryDevicesIDSoftwareSid(ctx, request, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.InventoryPatchInventoryDevicesIDSoftwareSid(ctx, request, params)
+	}
+	if err != nil {
+		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
+			if err := encodeErrorResponse(errRes, w); err != nil {
+				defer recordError("Internal", err)
+			}
+			return
+		}
+		if errors.Is(err, ht.ErrNotImplemented) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+		if err := encodeErrorResponse(s.h.NewError(ctx, err), w); err != nil {
+			defer recordError("Internal", err)
+		}
+		return
+	}
+
+	if err := encodeInventoryPatchInventoryDevicesIDSoftwareSidResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleInventoryPatchInventorySensorsIDRequest handles inventory_patch_inventory_sensors_id operation.
 //
 // Container-only install: choose the card the sensor reads (any card of its last heartbeat, with or

@@ -22,7 +22,7 @@ import { EmailSignin } from './EmailSignin'
 import { useChannels, useRemoveChannel, useSaveChannel, useSaveRules, useTestChannel } from './api'
 import { APPROVAL_CHANNELS, FIELDS, ROUTE_SEVERITIES, forbiddenHost, ownHost } from './types'
 import { TelegramFind } from './TelegramFind'
-import { ApproverLinkState, ZaloApproverField, ZaloRecipient, ZaloSignIn, ZaloWarning, type ZaloTarget } from './ZaloPersonal'
+import { ApproverLinkState, LinkApproverField, ZaloRecipient, ZaloSignIn, ZaloWarning, type ZaloTarget } from './ZaloPersonal'
 import type { Approver, Channel, Grouping, Quiet, RouteSeverity } from './types'
 
 const errMsg = (e: unknown) => (e instanceof ApiError ? e.message : String(e))
@@ -286,7 +286,7 @@ function ChannelDialog({ channel: opened, codeUsers, onClose, onSaved }: { chann
                         <div key={a.user_id} className="grid items-end gap-2 sm:grid-cols-[1fr_1.4fr_auto]">
                           <div className="grid text-sm"><span className="font-medium">{u?.name ?? a.user_id}</span><span className="text-[12px] text-muted">{u ? `${u.email}, ${t(`common:role.${u.role}`)}` : ''}</span></div>
                           {type === 'zalo-personal'
-                            ? <ZaloApproverField approver={a} saved={channel.configured ? channel : null} canLook={zaloLook} onChange={(n) => setApprovers((l) => l.map((x) => (x.user_id === a.user_id ? n : x)))} />
+                            ? <LinkApproverField approver={a} saved={channel.configured ? channel : null} canLook={zaloLook} onChange={(n) => setApprovers((l) => l.map((x) => (x.user_id === a.user_id ? n : x)))} />
                             : (
                               <div className="grid gap-2">
                                 <Field label={t(`approve.address.${type}`)} htmlFor={`ap-${type}-${a.user_id}`}>

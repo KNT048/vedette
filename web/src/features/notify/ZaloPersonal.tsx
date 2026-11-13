@@ -135,7 +135,7 @@ export function ZaloRecipient({ value, onChange, canLook, error }: { value: Zalo
 }
 
 /** One approver's Zalo: picked from the account's friends or found by phone number; its link state once saved. */
-export function ZaloApproverField({ approver, saved, onChange, canLook }: { approver: Approver; saved: Channel | null; onChange: (a: Approver) => void; canLook: boolean }) {
+export function LinkApproverField({ approver, saved, onChange, canLook }: { approver: Approver; saved: Channel | null; onChange: (a: Approver) => void; canLook: boolean }) {
   const { t } = useTranslation('notify')
   const contacts = useZaloContacts(canLook)
   const id = `ap-zalo-personal-${approver.user_id}`

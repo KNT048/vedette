@@ -60,8 +60,10 @@ func buildWeekly(in weeklyInput) WeeklyReport {
 	now, from := in.now.UTC(), in.now.UTC().Add(-7*day)
 	inWeek := func(t time.Time) bool { return !t.IsZero() && t.After(from) && !t.After(now) }
 	names := make(map[string]string, len(in.devices))
+	noDevice := map[string]bool{}
 	for _, d := range in.devices {
 		names[d.ID] = clip(d.Name, 80)
+		noDevice[d.ID] = d.NoDevice
 	}
 	products := make(map[string]string, len(in.kev))
 	for _, k := range in.kev {
@@ -80,7 +82,7 @@ func buildWeekly(in weeklyInput) WeeklyReport {
 		if !ok {
 			prod = clip(f.CVE, 40)
 		}
-		return FindingRow{ID: f.ID, CVE: clip(f.CVE, 40), Device: dev, AssetID: f.AssetID, Product: prod, Status: status, Severity: f.Severity, Since: ts(f.FirstSeen)}
+		return FindingRow{ID: f.ID, CVE: clip(f.CVE, 40), Device: dev, AssetID: f.AssetID, Product: prod, Status: status, Severity: f.Severity, Since: ts(f.FirstSeen), noDevice: noDevice[f.AssetID]}
 	}
 	order := func(rows []FindingRow) []FindingRow {
 		sort.SliceStable(rows, func(i, j int) bool {

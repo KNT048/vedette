@@ -63,7 +63,9 @@ func (a reportsInventory) Devices(ctx context.Context) ([]reports.Device, error)
 	out := make([]reports.Device, 0, len(devs))
 	for _, d := range devs {
 		// The box is listed: the weekly report counts what the Devices page counts (D-485); the PDPL report leaves it out.
-		r := reports.Device{ID: d.ID, Name: deviceLabel(d), IP: d.IP, Kind: d.Kind, Approved: d.Approved, Fragile: d.Fragile, Box: d.IsBox}
+		name := deviceLabel(d)
+		r := reports.Device{ID: d.ID, Name: name, IP: d.IP, Kind: d.Kind, Approved: d.Approved, Fragile: d.Fragile, Box: d.IsBox,
+			NoDevice: strings.HasSuffix(name, inventory.NoDevice)}
 		if t, err := time.Parse(time.RFC3339, d.FirstSeen); err == nil {
 			r.FirstSeen = t
 		}

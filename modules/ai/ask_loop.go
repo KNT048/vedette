@@ -51,6 +51,7 @@ type toolSession struct {
 	n         int // calls so far, refused ones too
 	bytesSent int
 	spent     bool // the input budget of the question allows no further tool turn (askInputBudget)
+	leftOut   bool // a call did not run, or its result was not sent, to keep within the budget of the question (tokens or bytes)
 }
 
 func (s *Service) newToolSession(ctx context.Context, job Job) *toolSession {
@@ -132,6 +133,7 @@ func (ts *toolSession) runCall(ctx context.Context, hooks *HookRunner, prompt Pr
 		return &ActivityTool{Name: t.Name, Access: AccessRead, Args: argsNote(shownArgs, outcome)}
 	}
 	if turn >= askMaxRounds || ts.n > askMaxCalls || inTurn >= askMaxCallsPerTurn || ts.spent {
+		ts.leftOut = ts.leftOut || ts.spent
 		record("limit reached", act("skipped"))
 		return fail(refusedLimit)
 	}
@@ -242,6 +244,7 @@ func (ts *toolSession) runCall(ctx context.Context, hooks *HookRunner, prompt Pr
 	}
 	ts.addHits(wr, StepToolResult, t.Name)
 	if ts.bytesSent+len(wrapped) > askTotalBytes {
+		ts.leftOut = true
 		record("size limit reached", act("skipped"))
 		return fail("The total size of tool results for this question was reached, so this result was not sent. Answer from what you have.")
 	}

@@ -170,15 +170,23 @@ func plural(n int, one, many string) string {
 	return fmt.Sprintf("%d %s", n, many)
 }
 
-// fitRows writes head with as many rows under key as fit the byte cap, how many that is ("shown") and a note that says the counts are
-// of all total matches, not of the rows (W1-27: a model read the first page as the whole and reported 39 findings of 126).
-func fitRows(head map[string]any, key, what string, total int, rows []map[string]any) (string, int) {
-	for n := len(rows); ; n-- {
-		head[key], head["shown"] = rows[:n], n
-		head["note"] = shownNote(what, total, n)
-		b, err := json.Marshal(head)
-		if err == nil && (len(b) <= askResultBytes || n == 0) {
-			return string(b), n
+// fit returns the JSON of build(rows, extra) with as many rows, and then as many extra entries (the per-device counts), as fit the
+// byte cap. build puts the totals and the note first (a struct, whose fields keep their order), so they are never what gets cut, and a
+// result whose totals alone are over the cap still starts with them (W1-27: a model read the first page as the whole and reported 39
+// findings of 126).
+func fit(rows, extra int, build func(rows, extra int) any) (string, int) {
+	for {
+		b, err := json.Marshal(build(rows, extra))
+		if err == nil && len(b) <= askResultBytes {
+			return string(b), rows
+		}
+		switch {
+		case rows > 0:
+			rows--
+		case extra > 0:
+			extra--
+		default:
+			return string(b), 0
 		}
 	}
 }
@@ -186,7 +194,7 @@ func fitRows(head map[string]any, key, what string, total int, rows []map[string
 func shownNote(what string, total, shown int) string {
 	switch {
 	case total == 0:
-		return "Nothing matches."
+		return fmt.Sprintf("No %s match.", what)
 	case shown >= total:
 		return fmt.Sprintf("All %d matching %s are listed.", total, what)
 	}
@@ -373,7 +381,14 @@ func toolSearchAssets(ctx context.Context, d Data, raw map[string]any) (toolOut,
 		rows[i] = r
 	}
 	total := len(matched)
-	text, shown := fitRows(map[string]any{"matching_devices": total}, "devices", "devices", total, rows)
+	text, shown := fit(len(rows), 0, func(n, _ int) any {
+		return struct {
+			MatchingDevices int              `json:"matching_devices"`
+			Shown           int              `json:"shown"`
+			Note            string           `json:"note"`
+			Devices         []map[string]any `json:"devices"`
+		}{total, n, shownNote("devices", total, n), rows[:n]}
+	})
 	t := &AskTable{Columns: []string{"Device", "IP", "Type", "Operating system"}, Rows: []AskRow{}}
 	for _, a := range hit[:shown] {
 		os := clip(a.OS, 80)
@@ -413,7 +428,7 @@ func findingMap(f FindingRow) map[string]any {
 		"severity": clip(f.Severity, 12), "basis": clip(f.Basis, 12), "confidence": f.Confidence, "first_seen": clip(f.FirstSeen, 32), "last_seen": clip(f.LastSeen, 32)}
 }
 
-// riskRank orders findings riskiest first: confirmed before suspected, then severity, then how the match was made (a scan, the version, the
+// riskRank orders findings riskiest first: confirmed, then suspected, then closed ones (status=any), then severity, then how the match was made (a scan, the version, the
 // product name only), then confidence. Equal ones keep the box's order (newest first).
 func riskRank(f FindingRow) [4]int {
 	sev := map[string]int{"critical": 0, "high": 1, "medium": 2, "low": 3}
@@ -426,11 +441,11 @@ func riskRank(f FindingRow) [4]int {
 	if !ok {
 		b = 2
 	}
-	conf := 0
-	if f.Status != "confirmed" {
-		conf = 1
+	st := map[string]int{"confirmed": 0, "suspected": 1}[f.Status] // open ones first: a closed critical one is not the risk now
+	if f.Status != "confirmed" && f.Status != "suspected" {
+		st = 2
 	}
-	return [4]int{conf, s, b, -int(f.Confidence * 100)}
+	return [4]int{st, s, b, -int(f.Confidence * 100)}
 }
 
 func lessRank(a, b [4]int) bool {
@@ -512,6 +527,7 @@ func toolListFindings(ctx context.Context, d Data, raw map[string]any) (toolOut,
 		v.row["findings"], v.row["critical"], v.row["confirmed"] = v.n, v.crit, v.sure
 		byDevice = append(byDevice, v.row)
 	}
+	bySev, byStatus, byBasis := count(func(f FindingRow) string { return f.Severity }), count(func(f FindingRow) string { return f.Status }), count(func(f FindingRow) string { return f.Basis })
 	list := hit
 	if limit := limitOf(raw); len(list) > limit {
 		list = list[:limit]
@@ -522,9 +538,23 @@ func toolListFindings(ctx context.Context, d Data, raw map[string]any) (toolOut,
 		put(r, "device", clip(f.Asset, 80))
 		rows[i] = r
 	}
-	head := map[string]any{"matching_findings": total, "devices_with_findings": len(order), "by_severity": count(func(f FindingRow) string { return f.Severity }),
-		"by_status": count(func(f FindingRow) string { return f.Status }), "by_basis": count(func(f FindingRow) string { return f.Basis }), "by_device": byDevice}
-	text, shown := fitRows(head, "findings", "findings", total, rows)
+	text, shown := fit(len(rows), len(byDevice), func(n, k int) any {
+		note := shownNote("findings", total, n)
+		if k < len(order) {
+			note += fmt.Sprintf(" by_device lists the top %d of %d devices by count.", k, len(order))
+		}
+		return struct {
+			MatchingFindings    int              `json:"matching_findings"`
+			Shown               int              `json:"shown"`
+			Note                string           `json:"note"`
+			DevicesWithFindings int              `json:"devices_with_findings"`
+			BySeverity          map[string]int   `json:"by_severity"`
+			ByStatus            map[string]int   `json:"by_status"`
+			ByBasis             map[string]int   `json:"by_basis"`
+			ByDevice            []map[string]any `json:"by_device"`
+			Findings            []map[string]any `json:"findings"`
+		}{total, n, note, len(order), bySev, byStatus, byBasis, byDevice[:k], rows[:n]}
+	})
 	t := &AskTable{Columns: []string{"Device", "CVE", "Status", "Severity"}, Rows: []AskRow{}}
 	for _, f := range list[:shown] {
 		t.Rows = append(t.Rows, AskRow{Href: "/findings/" + clip(f.ID, 96), Cells: []string{clip(f.Asset, 80), clip(f.CVE, 24), clip(f.Status, 20), clip(f.Severity, 12)}})
@@ -573,22 +603,29 @@ func toolLookupCVE(ctx context.Context, f Facts, raw map[string]any) (toolOut, e
 		}
 	}
 	devs := []map[string]any{}
-	for _, a := range assets {
-		if len(devs) < 20 {
-			devs = append(devs, map[string]any{"name": clip(a.Name, 80), "ip": clip(a.IP, 45), "kind": clip(a.Kind, 32), "matched_by": clip(a.Basis, 12), "finding_status": clip(a.Status, 20)})
-		}
+	for _, a := range assets[:min(len(assets), 20)] {
+		devs = append(devs, map[string]any{"name": clip(a.Name, 80), "ip": clip(a.IP, 45), "kind": clip(a.Kind, 32), "matched_by": clip(a.Basis, 12), "finding_status": clip(a.Status, 20)})
 	}
-	m := map[string]any{"found": true, "cve": clip(facts.CVE, 24), "vendor": clip(facts.Vendor, 80), "product": clip(facts.Product, 80), "name": clip(facts.Name, 160),
-		"description": clip(facts.Description, 800), "required_action": clip(facts.RequiredAction, 400), "date_added": clip(facts.DateAdded, 20), "ransomware": facts.Ransomware,
-		"links": links, "matching_devices_total": len(assets), "matching_devices": devs}
-	b, _ := json.Marshal(m)
-	text := string(b)
-	for len(text) > askResultBytes && len(devs) > 0 { // the description is capped, so only a flood of devices can be too long
-		devs = devs[:len(devs)/2]
-		m["matching_devices"] = devs
-		b, _ = json.Marshal(m)
-		text = string(b)
-	}
+	total := len(assets)
+	text, _ := fit(len(devs), 0, func(n, _ int) any {
+		return struct {
+			Found                bool             `json:"found"`
+			CVE                  string           `json:"cve"`
+			MatchingDevicesTotal int              `json:"matching_devices_total"`
+			Shown                int              `json:"shown"`
+			Note                 string           `json:"note"`
+			Vendor               string           `json:"vendor"`
+			Product              string           `json:"product"`
+			Name                 string           `json:"name"`
+			Description          string           `json:"description"`
+			RequiredAction       string           `json:"required_action"`
+			DateAdded            string           `json:"date_added"`
+			Ransomware           bool             `json:"ransomware"`
+			Links                []string         `json:"links"`
+			MatchingDevices      []map[string]any `json:"matching_devices"`
+		}{true, clip(facts.CVE, 24), total, n, shownNote("devices", total, n), clip(facts.Vendor, 80), clip(facts.Product, 80), clip(facts.Name, 160),
+			clip(facts.Description, 800), clip(facts.RequiredAction, 400), clip(facts.DateAdded, 20), facts.Ransomware, links, devs[:n]}
+	})
 	return toolOut{Text: text, Summary: "on the list, " + plural(len(assets), "device", "devices"), Cite: "Exploited list: " + id}, nil
 }
 

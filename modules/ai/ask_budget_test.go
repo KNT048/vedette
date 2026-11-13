@@ -194,3 +194,104 @@ func TestAskTheProfileCapRunningOutPartwaySaysSo(t *testing.T) {
 		t.Fatalf("run status = %v", st)
 	}
 }
+
+// The tokens of a question that stopped partway still lower the level (INV-4): the drop is kept in ai_downgrade and the audit log,
+// for the shared cap (med falls to min, then the cap stops the next turn) and for a profile's cap (max falls to med on the shared cap,
+// then the profile's own cap stops the next turn).
+func TestAskStoppedPartwayKeepsTheDowngrade(t *testing.T) {
+	c := call("list_findings", `{}`)
+	for _, tc := range []struct {
+		name, config, profileCap, want string
+	}{
+		{"shared cap", `{"tier":"med","daily_cap":1000,"redact_pii":true}`, "60000", "ai.downgrade med->min"},
+		{"profile cap", `{"tier":"max","daily_cap":1000,"redact_pii":true}`, "1000", "ai.downgrade max->med"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			a := newAPI(t)
+			a.addProfile(strings.Replace(cloudBody("Claude", keyA), `"daily_cap":60000`, `"daily_cap":`+tc.profileCap, 1))
+			a.want("PUT", "/ai/config", "admin", tc.config, 200, "")
+			a.fake.usageIn, a.fake.usageOut = 600, 3
+			a.fake.play(turn{calls: []provider.ToolCall{c}}, turn{calls: []provider.ToolCall{c}}, turn{text: "Never reached."})
+			a.ask("Which of my devices is most at risk?", 429, "daily_cap")
+			if dg := a.want("GET", "/ai/usage", "viewer", "", 200, "")["downgrades"].([]any); len(dg) != 1 {
+				t.Fatalf("downgrades = %v", dg)
+			}
+			if rows := a.auditRows(); !containsPrefix(rows, tc.want) {
+				t.Fatalf("audit = %v", rows)
+			}
+		})
+	}
+}
+
+// A list whose totals alone come near the cap (device names that grow when escaped) keeps its totals and note first and whole: the
+// per-device counts and the rows give way, and the result is never cut by the loop.
+func TestAskListKeepsItsTotalsWhenTheHeadIsLarge(t *testing.T) {
+	a := newAskAPI(t)
+	var findings []ai.FindingRow
+	for i := range 30 {
+		name := fmt.Sprintf("%02d", i) + strings.Repeat("<", 78) // each "<" is written as <: 480 bytes a name
+		findings = append(findings, ai.FindingRow{ID: fmt.Sprintf("f-%d", i), AssetID: fmt.Sprintf("a-%d", i), Asset: name, AssetIP: "10.0.0.1", CVE: "CVE-2024-1111", Status: "suspected", Severity: "high", Basis: "product"})
+	}
+	a.data.findings = findings
+	a.fake.play(turn{calls: []provider.ToolCall{call("list_findings", `{}`)}}, turn{text: "Thirty findings."})
+	a.ask("How many findings are open?", 200, "")
+	res := toolResults(a.fake.askRequests()[1])
+	if len(res) != 1 || strings.Contains(res[0].Content, "[result truncated]") {
+		t.Fatalf("result = %+v", res)
+	}
+	body := res[0].Content[strings.Index(res[0].Content, "{"):]
+	if !strings.HasPrefix(body, `{"matching_findings":30,"shown":`) || !strings.Contains(body, "devices by count") || !strings.Contains(body, `"devices_with_findings":30`) {
+		t.Fatalf("result = %s", body)
+	}
+}
+
+// lookup_cve says how many devices the CVE matches and how many it lists.
+func TestAskLookupCVEGivesTheDeviceTotal(t *testing.T) {
+	a := newAskAPI(t)
+	var many []ai.AssetFact
+	for i := range 25 {
+		many = append(many, ai.AssetFact{Name: fmt.Sprintf("NAS-%02d", i), IP: fmt.Sprintf("10.0.0.%d", i), Kind: "nas", Basis: "product", Status: "open"})
+	}
+	a.facts.mu.Lock()
+	a.facts.assets["CVE-2022-27593"] = many
+	a.facts.mu.Unlock()
+	a.fake.play(turn{calls: []provider.ToolCall{call("lookup_cve", `{"cve":"CVE-2022-27593"}`)}}, turn{text: "Twenty-five devices."})
+	a.ask("Which devices does CVE-2022-27593 hit?", 200, "")
+	res := toolResults(a.fake.askRequests()[1])
+	if len(res) != 1 || !strings.Contains(res[0].Content, `"matching_devices_total":25,"shown":20`) || !strings.Contains(res[0].Content, `25 devices (showing 20)`) {
+		t.Fatalf("result = %+v", res)
+	}
+}
+
+// Closed findings (status=any) come after the open ones, whatever their severity.
+func TestAskListFindingsPutsOpenOnesFirst(t *testing.T) {
+	a := newAskAPI(t)
+	a.data.findings = []ai.FindingRow{
+		{ID: "f-closed", AssetID: "a-1", Asset: "PC-1", CVE: "CVE-2020-0001", Status: "false_positive", Severity: "critical", Basis: "scan"},
+		{ID: "f-open", AssetID: "a-1", Asset: "PC-1", CVE: "CVE-2024-0002", Status: "suspected", Severity: "high", Basis: "product"},
+	}
+	a.fake.play(turn{calls: []provider.ToolCall{call("list_findings", `{"status":"any"}`)}}, turn{text: "One open."})
+	a.ask("What is open?", 200, "")
+	c := toolResults(a.fake.askRequests()[1])[0].Content
+	if strings.Index(c, "f-open") > strings.Index(c, "f-closed") {
+		t.Fatalf("result = %s", c)
+	}
+}
+
+// When the budget kept data from the model, the answer ends with the box's line saying so; otherwise it does not.
+func TestAskSaysWhenDataWasLeftOut(t *testing.T) {
+	a := newAskAPI(t)
+	a.fake.sizedUsage = true
+	a.data.assets, a.data.findings = betaBox()
+	big := []provider.ToolCall{call("list_findings", `{"limit":50}`), call("search_assets", `{"limit":50}`)}
+	a.fake.play(turn{calls: big}, turn{calls: big}, turn{calls: big}, turn{text: "The iPhone has the most findings."})
+	got := a.ask("Which of my devices is most at risk?", 200, "")
+	if ans := list(got["answer"]); len(ans) != 2 || !strings.HasPrefix(ans[1].(string), "Some data was left out to stay within the token budget") {
+		t.Fatalf("answer = %v", ans)
+	}
+	b := newAskAPI(t)
+	b.fake.play(turn{calls: []provider.ToolCall{call("list_findings", `{}`)}}, turn{text: "Two open findings."})
+	if ans := list(b.ask("Which of my devices is most at risk?", 200, "")["answer"]); len(ans) != 1 {
+		t.Fatalf("answer = %v", ans)
+	}
+}

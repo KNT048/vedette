@@ -173,6 +173,15 @@ func (m *Meter) Exhausted() bool {
 	return m.exhausted()
 }
 
+// UsedUp reports that the tokens already spent today, without the holds of calls in flight, have used up the shared cap at the minimum
+// level: what a call that has just failed may call "used up" (another call's hold may still be given back).
+func (m *Meter) UsedUp() bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.roll()
+	return m.total >= m.cap && m.eff == TierMin
+}
+
 func (m *Meter) exhausted() bool { return satAdd(m.total, m.pending) >= m.cap && m.eff == TierMin }
 
 func satAdd(a, b int) int {

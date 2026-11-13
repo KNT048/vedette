@@ -441,6 +441,22 @@ func (s *Service) touchSent(ctx context.Context, ids []string, res CallResult) {
 	}
 }
 
+// recordSpent writes the row of a call that spent tokens and got no answer, with the drop of the level those tokens caused (INV-4:
+// ai_downgrade and the ai.downgrade audit line), in one transaction.
+func (s *Service) recordSpent(ctx context.Context, spec JobSpec, entry ActivityEntry, res CallResult) error {
+	if res.Downgrade == nil {
+		return s.record(ctx, entry)
+	}
+	wctx, cancel := detached(ctx)
+	defer cancel()
+	return s.cfg.DB.Write(wctx, func(tx *sql.Tx) error {
+		if _, err := s.appendActivity(wctx, tx, entry); err != nil {
+			return err
+		}
+		return s.writeDowngrade(wctx, tx, spec.Actor, res.Downgrade)
+	})
+}
+
 // spentTokens is what the requests of a call used, all turns of a tool loop together.
 func spentTokens(res CallResult) int {
 	return res.Response.Usage.InputTokens + res.Response.Usage.OutputTokens
@@ -469,7 +485,7 @@ func profileCappedLast(res CallResult) string {
 // it up: the person reads what went wrong first, then why the AI is paused (W1-27). A refusal by the cap itself says so already.
 func (s *Service) capNote(err error, res CallResult) error {
 	e, ok := apierr.As(err)
-	if !ok || e.Code == "daily_cap" || spentTokens(res) == 0 || !s.meter.Exhausted() {
+	if !ok || e.Code == "daily_cap" || spentTokens(res) == 0 || !s.meter.UsedUp() {
 		return err
 	}
 	out := *e
@@ -534,7 +550,7 @@ func (s *Service) failed(ctx context.Context, spec JobSpec, entry ActivityEntry,
 			entry.Summary = "Stopped: the AI kept asking for tools and gave no answer."
 			out = apiBadFormat("The AI kept asking for data and gave no answer. Try again, or use a stronger model for this job.")
 		}
-		if rerr := s.record(ctx, entry); rerr != nil {
+		if rerr := s.recordSpent(ctx, spec, entry, res); rerr != nil {
 			return rerr
 		}
 		return out
@@ -550,7 +566,7 @@ func (s *Service) failed(ctx context.Context, spec JobSpec, entry ActivityEntry,
 		s.nameLastProfile(&entry, res)
 		entry.Summary = fmt.Sprintf("Stopped: today's token cap ran out partway through, after %s tokens; no answer.", number(spentTokens(res)))
 		entry.Outcome = OutcomeCapped
-		if rerr := s.record(ctx, entry); rerr != nil {
+		if rerr := s.recordSpent(ctx, spec, entry, res); rerr != nil {
 			return rerr
 		}
 		return apierr.New(http.StatusTooManyRequests, "daily_cap", fmt.Sprintf("The AI did not finish: today's %s token cap ran out partway through (this request used %s tokens before it stopped), so there is no answer. Raise the cap in Settings, AI assistant, or wait until tomorrow.",
@@ -561,7 +577,7 @@ func (s *Service) failed(ctx context.Context, spec JobSpec, entry ActivityEntry,
 		name := profileCappedLast(res)
 		entry.Summary = fmt.Sprintf("Stopped: the profile's own daily token cap ran out partway through, after %s tokens; no answer.", number(spentTokens(res)))
 		entry.Outcome = OutcomeCapped
-		if rerr := s.record(ctx, entry); rerr != nil {
+		if rerr := s.recordSpent(ctx, spec, entry, res); rerr != nil {
 			return rerr
 		}
 		return apierr.New(http.StatusTooManyRequests, "daily_cap", fmt.Sprintf("The AI did not finish: the daily token cap of the profile %s ran out partway through (this request used %s tokens before it stopped), so there is no answer. Raise the profile's cap or add a fallback profile in Settings, AI assistant, or wait until tomorrow.",
@@ -581,17 +597,7 @@ func (s *Service) failed(ctx context.Context, spec JobSpec, entry ActivityEntry,
 		if out := notSent(res); out != "" { // every profile was skipped: no request left the box
 			entry.Summary, entry.Outcome = "Not sent: no AI profile could take the call: "+strings.Join(reasons, "; "), out
 		}
-		if res.Downgrade != nil {
-			// the failed attempts still used tokens and may have lowered the level: keep both facts
-			if rerr := s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
-				if _, err := s.appendActivity(ctx, tx, entry); err != nil {
-					return err
-				}
-				return s.writeDowngrade(ctx, tx, spec.Actor, res.Downgrade)
-			}); rerr != nil {
-				return rerr
-			}
-		} else if rerr := s.record(ctx, entry); rerr != nil {
+		if rerr := s.recordSpent(ctx, spec, entry, res); rerr != nil {
 			return rerr
 		}
 		if perr := providerFailure(spec.Job, res); perr != nil {

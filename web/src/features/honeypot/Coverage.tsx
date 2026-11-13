@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
 import { Section, Panel } from '@/components/common/PageHeader'
 import { Chip, type Tone } from '@/components/common/StatusChip'
+import { SPAN_IN_UI } from '@/lib/span'
 
 type Level = 'covered' | 'partial' | 'none'
 const TONE: Record<Level, Tone> = { covered: 'ok', partial: 'warn', none: 'off' }
@@ -26,7 +27,7 @@ export default function CoverageSection({ listening }: { listening: boolean }) {
         <ul className="grid divide-y divide-rule" aria-label={t('coverage.listLabel')}>
           {ROWS.map((r) => (
             <li key={r.id} className="grid gap-1 py-2.5 first:pt-0 last:pb-0 sm:grid-cols-[minmax(0,1fr)_auto] sm:gap-4">
-              <span className="grid"><span className="text-sm font-medium">{t(`coverage.row.${r.id}.move`)}</span><span className="text-[13px] text-muted">{t(`coverage.row.${r.id}.how`)}{r.id === 'outbound' ? <> <Link to="/logs" className="text-accent underline-offset-4 hover:underline">{t('coverage.openLogs')}</Link></> : null}</span></span>
+              <span className="grid"><span className="text-sm font-medium">{t(`coverage.row.${r.id}.move`)}</span><span className="text-[13px] text-muted">{t(`coverage.row.${r.id}.${r.id === 'outbound' && !SPAN_IN_UI ? 'howNoSpan' : 'how'}`)}{r.id === 'outbound' ? <> <Link to="/logs" className="text-accent underline-offset-4 hover:underline">{t('coverage.openLogs')}</Link></> : null}</span></span>
               <span className="sm:justify-self-end"><Chip tone={TONE[level(r.level)]}>{t(`coverage.level.${level(r.level)}`)}</Chip></span>
             </li>
           ))}

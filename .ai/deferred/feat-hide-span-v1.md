@@ -1,0 +1,4 @@
+# Deferred — feat/hide-span-v1 (D-403)
+
+- [ ] 2026-11-13 — post-v1: bring SPAN back in the GUI (flip SPAN_IN_UI, recheck stories D-56/D-387/D-393); also D-399 (the SPAN tick of Configure), S-LOG-4 and the SPAN line of S-INV-1, the QA rows "SPAN capture" and "Hướng dẫn mirror" of docs/QA.md, the e2e-real SPAN test (skipped while hidden), the lab/install-test SPAN step and docs/INSTALL-CONTAINER.md — vì sao để sau: kien 2026-11-13, SPAN out of v1 — ở đâu: web/src/lib/span.ts, docs/decisions/D-403.md
+- [ ] 2026-11-13 — (Opus r1 LOW 6) no vitest case for the Logs `noteKept`/SPAN description kept when rows were seen through SPAN, nor for the honeypot coverage `howNoSpan` row; add one short case each — vì sao để sau: LOW, text-only branches — ở đâu: web/src/features/logs/LogsPage.tsx, web/src/features/honeypot/Coverage.tsx

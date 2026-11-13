@@ -156,8 +156,10 @@ func TestInteropMinisignCLI(t *testing.T) {
 		imgs = append(imgs, `{"service":"`+s+`","digest":"`+d+`","size":5,"platforms":["linux/amd64"]}`)
 	}
 	in := filepath.Join(work, "release.in.json")
-	host, err := json.Marshal(hostIn(t, "0.1.0-beta.1"))
+	hin := hostIn(t, "0.1.0-beta.1")
+	host, err := json.Marshal(hin)
 	must(t, err)
+	gates := gatesPath(t, gatesDoc(t, "0.1.0-beta.1", filepath.Dir(hin.Files[0]))) // what release gates checked
 	must(t, os.WriteFile(in, []byte(`{"version":"0.1.0-beta.1","channel":"beta","notes":"interop","install_modes":["appliance","container"],"rollback":{"safe":false,"min_version":""},"images":[`+strings.Join(imgs, ",")+`],"host":`+string(host)+`}`), 0o600))
 	out := filepath.Join(work, "out")
 
@@ -167,7 +169,7 @@ func TestInteropMinisignCLI(t *testing.T) {
 		return code, o.String() + e.String()
 	}
 	for _, step := range [][]string{
-		{"manifest", "-in", in, "-cosign-dir", cdir, "-out", out, "-repo", repo},
+		{"manifest", "-in", in, "-cosign-dir", cdir, "-out", out, "-repo", repo, "-gates", gates},
 		{"container-assets", "-in", in, "-out", out, "-repo", repo},
 		{"bake-install", "-dir", out, "-in", in, "-repo", repo, "-key", pub("active.key"), "-minisign", bin, "-keys-dir", keys},
 		{"index", "-out", out, "-manifest", filepath.Join(out, manifestFile)},

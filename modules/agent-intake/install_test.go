@@ -396,6 +396,83 @@ func TestMirror_ServesTheFourFilesWithTheirLength(t *testing.T) {
 	}
 }
 
+// D-404: the admin downloads a package in the browser, so each file is an attachment under its own fixed name, with its type and nosniff.
+func TestMirror_DownloadHeaders(t *testing.T) {
+	w := newWorld(t)
+	w.fillMirror()
+	types := map[string]string{".deb": "application/vnd.debian.binary-package", ".rpm": "application/octet-stream", ".msi": "application/octet-stream", "": "text/plain; charset=utf-8"}
+	for _, n := range mirrorNames {
+		res, _ := w.get("/install/osquery/"+n, "", "")
+		if want := types[filepath.Ext(n)]; res.code != 200 || res.header.Get("Content-Type") != want {
+			t.Errorf("%s: %d, Content-Type %q, want %q", n, res.code, res.header.Get("Content-Type"), want)
+		}
+		if got := res.header.Get("Content-Disposition"); got != `attachment; filename="`+n+`"` {
+			t.Errorf("%s: Content-Disposition %q", n, got)
+		}
+		if res.header.Get("X-Content-Type-Options") != "nosniff" {
+			t.Errorf("%s: no nosniff", n)
+		}
+	}
+	// the folder itself is never listed
+	for _, p := range []string{"/install/osquery/", "/install/osquery"} {
+		if res, body := w.get(p, "", ""); res.code == 200 || strings.Contains(string(body), mirrorNames[0]) {
+			t.Errorf("%s: %d %s", p, res.code, body)
+		}
+	}
+}
+
+// D-404: GET /inventory/agents lists the packages the box can serve, in a fixed order, with the size of the file and the SHA-256 of the
+// box's SHA256SUMS; a package without its file or without its SHA256SUMS line is left out, and no mirror is an empty list.
+func TestAdmin_PageListsTheServedPackages(t *testing.T) {
+	w := newWorld(t)
+	write := func(name, body string) {
+		t.Helper()
+		if err := os.WriteFile(filepath.Join(w.mirror, name), []byte(body), 0o644); err != nil { //nolint:gosec // a test file
+			t.Fatal(err)
+		}
+	}
+	sums := ""
+	for i, n := range mirrorNames[:5] {
+		switch i {
+		case 1: // the x86_64 rpm: a file without a SHA256SUMS line
+			write(n, "rpm")
+		case 3: // the aarch64 rpm: a SHA256SUMS line without its file
+			sums += fmt.Sprintf("%064x  %s\n", i+1, n)
+		default:
+			sums += fmt.Sprintf("%064x  %s\n", i+1, n)
+			write(n, strings.Repeat("x", 100+i))
+		}
+	}
+	sums += "not a line\n" + strings.Repeat("A", 64) + "  other.deb\n"
+	write("SHA256SUMS", sums)
+	page := w.admin("GET", "/inventory/agents", nil)
+	inst, _ := page.body["install"].(map[string]any)
+	pk, _ := inst["packages"].([]any)
+	var got []string
+	for _, p := range pk {
+		m, _ := p.(map[string]any)
+		got = append(got, fmt.Sprintf("%s %s %s %s %v %s", m["file"], m["platform"], m["format"], m["arch"], m["size"], m["sha256"]))
+	}
+	want := []string{
+		fmt.Sprintf("%s linux deb x86_64 100 %064x", mirrorNames[0], 1),
+		fmt.Sprintf("%s linux deb arm64 102 %064x", mirrorNames[2], 3),
+		fmt.Sprintf("%s windows msi x86_64 104 %064x", mirrorNames[4], 5),
+	}
+	if strings.Join(got, "\n") != strings.Join(want, "\n") {
+		t.Fatalf("packages:\n%s\nwant:\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
+	}
+	none := newWorld(t, func(c *agentintake.Config) { c.MirrorDir = "" })
+	if p := none.admin("GET", "/inventory/agents", nil); !strings.Contains(p.raw, `"packages":[]`) {
+		t.Fatalf("no mirror: %s", p.raw)
+	}
+	if err := os.Remove(filepath.Join(w.mirror, "SHA256SUMS")); err != nil { // the packages are there, SHA256SUMS is not
+		t.Fatal(err)
+	}
+	if p := w.admin("GET", "/inventory/agents", nil); p.code != 200 || !strings.Contains(p.raw, `"packages":[]`) {
+		t.Fatalf("no SHA256SUMS: %d %s", p.code, p.raw)
+	}
+}
+
 // Only the four names exist. A request's text is a key into a table, never a path: traversal, encoded separators, NUL, other names, other
 // cases and files that sit in the folder but are not on the list are all 404.
 func TestMirror_AllowListAndTraversal(t *testing.T) {

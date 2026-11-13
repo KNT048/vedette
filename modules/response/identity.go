@@ -552,3 +552,42 @@ func (s *Service) chatNotLinked(ctx context.Context, u User, channel, ext, targe
 	}
 	return fail(http.StatusForbidden, "approver_not_linked", "Your "+name+" account is not linked to Vedette yet. Sign in to Vedette, open My account and enter code "+code+" within 10 minutes, then press again.")
 }
+
+// ChatLinkCode makes a link code for a sendLink channel when an administrator lists the person with that ID (notify sends the code TO the
+// ID from the box's account and the person replies with it FROM the ID, which LinkFromChat checks: notify Config.LinkCodes, D-447). The
+// person must be an active operator or admin listed with exactly that address and not linked yet; the limits of Get a code apply (one a
+// minute, five an hour) and a new code replaces the one waiting. name is how the message names the person (their name, else their email).
+func (s *Service) ChatLinkCode(ctx context.Context, userID, channel, address string) (code, name string, err error) {
+	if !slices.Contains(sendLink, channel) {
+		return "", "", fail(http.StatusBadRequest, "chat_channel", "This channel is not linked by a code sent to it.")
+	}
+	if s.cfg.Users == nil {
+		return "", "", fail(http.StatusNotFound, "not_listed", "This person is not an approver on this channel.")
+	}
+	u, ok, err := s.cfg.Users.Lookup(ctx, userID)
+	if err != nil {
+		return "", "", err
+	}
+	if !ok || u.Disabled || (u.Role != "operator" && u.Role != "admin") {
+		return "", "", fail(http.StatusNotFound, "not_listed", "This person is not an approver on this channel.")
+	}
+	rows, err := s.mine(ctx, u)
+	if err != nil {
+		return "", "", err
+	}
+	i := slices.IndexFunc(rows, func(r Identity) bool { return r.Channel == channel && sameAddress(channel, r.Address, address) })
+	switch {
+	case i < 0:
+		return "", "", fail(http.StatusNotFound, "not_listed", "This person is not listed with this address on the channel. Save the channel first.")
+	case rows[i].Linked:
+		return "", "", fail(http.StatusConflict, "already_linked", "This address is already linked.")
+	}
+	sent, err := s.showLinkCode(ctx, u, channel, address)
+	if err != nil {
+		return "", "", err
+	}
+	if name = strings.TrimSpace(u.Name); name == "" {
+		name = u.Email
+	}
+	return sent.Code, name, nil
+}

@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -40,7 +41,7 @@ var savedFields = map[channel.Type][]string{
 	channel.Telegram:     {"chat_id"},
 	channel.Slack:        {"label", "channel_id"},
 	channel.Zalo:         {"oa_id", "user_id"},
-	channel.ZaloPersonal: {"user_id", "group"},
+	channel.ZaloPersonal: {"user_id", "group", "name", "account"}, // name: the recipient's shown name; account: set from the sign-in only
 	channel.Email:        {"host", "port", "security", "username", "from", "to"},
 	channel.Webhook:      {"url"},
 }
@@ -131,7 +132,7 @@ func loadChannel(ctx context.Context, q dbtx, t channel.Type) (channelRow, error
 }
 
 func loadApprovers(ctx context.Context, q dbtx, t channel.Type) ([]Approver, error) {
-	rows, err := q.QueryContext(ctx, `SELECT user_id, address FROM notify_approver WHERE channel_type = ? ORDER BY rowid`, string(t))
+	rows, err := q.QueryContext(ctx, `SELECT user_id, address, name FROM notify_approver WHERE channel_type = ? ORDER BY rowid`, string(t))
 	if err != nil {
 		return nil, fmt.Errorf("notify: load approvers: %w", err)
 	}
@@ -139,7 +140,7 @@ func loadApprovers(ctx context.Context, q dbtx, t channel.Type) ([]Approver, err
 	out := []Approver{}
 	for rows.Next() {
 		var a Approver
-		if err := rows.Scan(&a.UserID, &a.Address); err != nil {
+		if err := rows.Scan(&a.UserID, &a.Address, &a.Name); err != nil {
 			return nil, fmt.Errorf("notify: load approvers: %w", err)
 		}
 		out = append(out, a)
@@ -464,9 +465,26 @@ func (s *Service) SaveChannel(ctx context.Context, actor string, t channel.Type,
 	if err := s.checkApprovers(ctx, t, in); err != nil {
 		return Channel{}, err
 	}
+	// Zalo personal (D-447): the GUI saves the session of the saving administrator's finished QR sign-in; the API still takes a session
+	// pasted as the secret (the JSON a zca-js client keeps, checked like any saved session).
+	var login *zaloLoginRun
+	if t == channel.ZaloPersonal {
+		if in.ZaloLogin {
+			var ok bool
+			if login, ok = s.signedIn(actor); !ok {
+				return Channel{}, badRequest("login_required", "The Zalo sign-in has ended. Sign in with a new QR code, then save.")
+			}
+			in.Secret = login.signed.Session.Reveal()
+		}
+	}
+	unlinked, err := s.zaloUnlinked(ctx, t, in)
+	if err != nil {
+		return Channel{}, err
+	}
 	var out Channel
+	var before []Approver
 	ob := &events.Outbox{}
-	err := s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
+	err = s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
 		cur, err := loadChannel(ctx, tx, t)
 		if err != nil {
 			return err
@@ -480,6 +498,17 @@ func (s *Service) SaveChannel(ctx context.Context, actor string, t channel.Type,
 		}
 		if g, ok := fields["group"]; ok && g != "true" {
 			delete(fields, "group")
+		}
+		if t == channel.ZaloPersonal {
+			fields["name"], fields["account"] = channel.Line(fields["name"], 64), cur.Fields["account"]
+			if login != nil {
+				fields["account"] = login.signed.Name
+			}
+			for _, k := range []string{"name", "account"} {
+				if fields[k] == "" {
+					delete(fields, k)
+				}
+			}
 		}
 		secret := strings.TrimSpace(in.Secret)
 		effective := secret
@@ -570,14 +599,20 @@ func (s *Service) SaveChannel(ctx context.Context, actor string, t channel.Type,
 		if err != nil {
 			return fmt.Errorf("notify: save channel %s: %w", t, err)
 		}
+		if before, err = loadApprovers(ctx, tx, t); err != nil {
+			return err
+		}
 		if _, err := tx.ExecContext(ctx, `DELETE FROM notify_approver WHERE channel_type = ?`, string(t)); err != nil {
 			return fmt.Errorf("notify: save approvers: %w", err)
 		}
 		approvers := []Approver{}
 		if in.Approvals {
 			for _, a := range in.Approvers {
-				a.Address = strings.TrimSpace(a.Address)
-				if _, err := tx.ExecContext(ctx, `INSERT INTO notify_approver (channel_type, user_id, address) VALUES (?, ?, ?)`, string(t), a.UserID, a.Address); err != nil {
+				a.Address, a.Name = strings.TrimSpace(a.Address), ""
+				if t == channel.ZaloPersonal {
+					a.Name = channel.Line(in.Approvers[len(approvers)].Name, 64)
+				}
+				if _, err := tx.ExecContext(ctx, `INSERT INTO notify_approver (channel_type, user_id, address, name) VALUES (?, ?, ?, ?)`, string(t), a.UserID, a.Address, a.Name); err != nil {
 					return fmt.Errorf("notify: save approvers: %w", err)
 				}
 				approvers = append(approvers, a)
@@ -593,6 +628,11 @@ func (s *Service) SaveChannel(ctx context.Context, actor string, t channel.Type,
 		if err := s.record(ctx, tx, actor, "notify.channel_save", string(t), detail); err != nil {
 			return err
 		}
+		for _, u := range unlinked {
+			if err := s.record(ctx, tx, actor, "notify.zalo_unlink", string(channel.ZaloPersonal), clip(u, 400)); err != nil {
+				return err
+			}
+		}
 		ob.Add(events.Event{Name: "notify.channel.changed", Data: map[string]string{"type": string(t)}})
 		out = next.view(approvers)
 		return nil
@@ -602,6 +642,52 @@ func (s *Service) SaveChannel(ctx context.Context, actor string, t channel.Type,
 	}
 	s.forget(t)
 	s.flush(ctx, ob)
+	if t == channel.ZaloPersonal {
+		if login != nil {
+			s.dropLogin(login)
+		}
+		if c, err := loadChannel(ctx, s.cfg.DB.Reader(), t); err == nil && zaloReady(c) {
+			s.sendLinkCodesLater(ctx, actor, c, newZaloApprovers(before, out.Approvers))
+		}
+	}
+	return out, nil
+}
+
+// newZaloApprovers lists the approvers of now who were not in before with the same Zalo: they get a link code after the save (D-447).
+func newZaloApprovers(before, now []Approver) []Approver {
+	var out []Approver
+	for _, a := range now {
+		if !slices.ContainsFunc(before, func(b Approver) bool { return b.UserID == a.UserID && b.Address == a.Address }) {
+			out = append(out, a)
+		}
+	}
+	return out
+}
+
+// zaloUnlinked describes the linked Zalo approvers a save removes or gives another Zalo: their proof stops counting (it is held to the
+// address, D-191), and each gets a "notify.zalo_unlink" audit row. Asked before the save, outside its transaction.
+func (s *Service) zaloUnlinked(ctx context.Context, t channel.Type, in ChannelInput) ([]string, error) {
+	if t != channel.ZaloPersonal || s.cfg.ApproverLinks == nil {
+		return nil, nil
+	}
+	before, err := loadApprovers(ctx, s.cfg.DB.Reader(), t)
+	if err != nil {
+		return nil, err
+	}
+	var out []string
+	for _, b := range before {
+		if in.Approvals && slices.ContainsFunc(in.Approvers, func(a Approver) bool { return a.UserID == b.UserID && strings.TrimSpace(a.Address) == b.Address }) {
+			continue
+		}
+		if ok, err := s.cfg.ApproverLinks.Linked(ctx, b.UserID, t, b.Address); err != nil || !ok {
+			continue
+		}
+		who := b.UserID
+		if u, found, err := s.cfg.Users.Lookup(ctx, b.UserID); err == nil && found {
+			who = u.Email
+		}
+		out = append(out, who+": Zalo "+b.Address+" is no longer their approver address; its link no longer counts")
+	}
 	return out, nil
 }
 

@@ -457,18 +457,17 @@ describe('response: approvers prove their channel identity (S-RESP-2, D-191)', (
     expect(ok.json.approvals[0]!.via).toBe('telegram')
   })
 
-  it('Zalo personal: My account shows a code that links only when it arrives from the listed ID (D-243)', async () => {
+  it('Zalo personal: My account shows the status only; a code links only when it arrives from the listed ID (D-243, D-447)', async () => {
     await turnOn()
     setChannels([{ type: 'zalo-personal', configured: true, enabled: true, approvals: true, approvers: [{ user_id: 'u-op', address: '2938475610293847561' }] }], false)
     expect((await ids('operator')).find((r) => r.channel === 'zalo-personal')).toEqual(expect.objectContaining({ address: '2938475610293847561', linked: false, method: 'send_code' }))
-    const u = userEvent.setup()
     renderApp('/account', { role: 'operator' })
     const card = await screen.findByRole('region', { name: 'Approval channels' })
     const row = (await within(card).findByText('2938475610293847561')).closest('li')!
     expect(within(row).queryByLabelText('Code')).toBeNull() // nothing to type: the code must come from the Zalo account
-    await u.click(within(row).getByRole('button', { name: 'Get a code' }))
-    const code = (await within(row).findByText(/^\d{6}$/)).textContent!
-    expect(within(row).getByText(/Send this code from Zalo .* account 2938475610293847561/)).toBeTruthy()
+    expect(within(row).queryByRole('button')).toBeNull() // status only (D-447): the administrator's save sends the code to this Zalo
+    expect(within(row).getByText(/When they save it, the Vedette Zalo .* account sends it a code/)).toBeTruthy()
+    const code = (await (await fetch(`${location.origin}/api/v1/response/me/identities/zalo-personal/code`, { method: 'POST' })).json() as { code: string }).code
     expect((await confirm('operator', 'zalo-personal', code)).code).toBe('chat_channel')
     expect(linkFromChat('zalo-personal', '1111111111', code).status).toBe('approver_not_listed')
     expect(linkFromChat('zalo-personal', '2938475610293847561', code).status).toBe('linked')

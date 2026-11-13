@@ -2021,6 +2021,15 @@ func (UnimplementedHandler) NotifyDeleteNotifyChannelsType(ctx context.Context, 
 	return ht.ErrNotImplemented
 }
 
+// NotifyDeleteNotifyZaloLogin implements notify_delete_notify_zalo_login operation.
+//
+// Cancel your Zalo QR sign-in (a finished one is dropped unsaved).
+//
+// DELETE /notify/zalo/login
+func (UnimplementedHandler) NotifyDeleteNotifyZaloLogin(ctx context.Context) error {
+	return ht.ErrNotImplemented
+}
+
 // NotifyGetNotifyAlertsIDTarget implements notify_get_notify_alerts_id_target operation.
 //
 // Old alert link: the incident or the finding it became (D-52).
@@ -2078,6 +2087,34 @@ func (UnimplementedHandler) NotifyGetNotifyIncidentsID(ctx context.Context, para
 	return r, ht.ErrNotImplemented
 }
 
+// NotifyGetNotifyZaloApprovers implements notify_get_notify_zalo_approvers operation.
+//
+// Approvers of the Zalo personal channel and whether each replied with the code sent to their Zalo
+// (linked).
+//
+// GET /notify/zalo/approvers
+func (UnimplementedHandler) NotifyGetNotifyZaloApprovers(ctx context.Context) (r *NotifyGetNotifyZaloApproversOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// NotifyGetNotifyZaloContacts implements notify_get_notify_zalo_contacts operation.
+//
+// Friends and groups of the Zalo account (your finished sign-in, else the saved session).
+//
+// GET /notify/zalo/contacts
+func (UnimplementedHandler) NotifyGetNotifyZaloContacts(ctx context.Context) (r *NotifyGetNotifyZaloContactsOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// NotifyGetNotifyZaloLogin implements notify_get_notify_zalo_login operation.
+//
+// State of your Zalo QR sign-in: waiting, scanned, signed in, expired, declined or failed.
+//
+// GET /notify/zalo/login
+func (UnimplementedHandler) NotifyGetNotifyZaloLogin(ctx context.Context) (r *NotifyGetNotifyZaloLoginOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // NotifyPatchNotifyIncidentsID implements notify_patch_notify_incidents_id operation.
 //
 // Acknowledge, resolve or reopen an incident, with a note.
@@ -2102,6 +2139,34 @@ func (UnimplementedHandler) NotifyPostNotifyChannelsTypeTest(ctx context.Context
 //
 // POST /notify/history/{id}/resend
 func (UnimplementedHandler) NotifyPostNotifyHistoryIDResend(ctx context.Context, params NotifyPostNotifyHistoryIDResendParams) (r *NotifyPostNotifyHistoryIDResendOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// NotifyPostNotifyZaloApproversUserIDCode implements notify_post_notify_zalo_approvers_user_id_code operation.
+//
+// Send an approver a new code to their Zalo (the old one stops working).
+//
+// POST /notify/zalo/approvers/{user_id}/code
+func (UnimplementedHandler) NotifyPostNotifyZaloApproversUserIDCode(ctx context.Context, params NotifyPostNotifyZaloApproversUserIDCodeParams) (r *NotifyPostNotifyZaloApproversUserIDCodeOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// NotifyPostNotifyZaloLogin implements notify_post_notify_zalo_login operation.
+//
+// Start a Zalo personal QR sign-in for the signed-in administrator (one at a time per box; at most one
+// start in 30 s and five an hour).
+//
+// POST /notify/zalo/login
+func (UnimplementedHandler) NotifyPostNotifyZaloLogin(ctx context.Context) (r *NotifyPostNotifyZaloLoginOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// NotifyPostNotifyZaloResolve implements notify_post_notify_zalo_resolve operation.
+//
+// Find the group of a zalo.me/g/ invite link, the person of a phone number, or take a numeric Zalo ID.
+//
+// POST /notify/zalo/resolve
+func (UnimplementedHandler) NotifyPostNotifyZaloResolve(ctx context.Context, req *NotifyPostNotifyZaloResolveReq) (r *NotifyPostNotifyZaloResolveOK, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

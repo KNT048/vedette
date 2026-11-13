@@ -35,6 +35,14 @@ Người gọi duy nhất ở mọi mục là `response` (qua adapter ở `cmd/v
 ## Modifying: lịch sử `HistoryItem.kind` (`incident|vuln|approval`) và `GET /notify/findings/{id}/notices`
 - **findings** (panel `finding.panels` ở trang finding), **core** (`/core/logs/export` danh mục `alerts`).
 
+## Modifying: Zalo cá nhân — đăng nhập QR, tra cứu, mã liên kết người duyệt (D-447; `zalologin.go`, `channel/zalopersonal_qr.go`, `channel/zalopersonal_contacts.go`)
+- API mới (admin): `POST,GET,DELETE /notify/zalo/login`, `GET /notify/zalo/contacts`, `POST /notify/zalo/resolve`, `GET /notify/zalo/approvers`, `POST /notify/zalo/approvers/{user_id}/code`; `ChannelInput.zalo_login`; `Approver.name` (migration 0009 thêm cột `notify_approver.name`); `fields.name`, `fields.account` của Zalo cá nhân. Ai đọc `Approvers` (response, qua `cmd/vedette`) thấy thêm `Name` (bỏ qua được).
+- Cổng mới `Config.LinkCodes` (`cmd/vedette/notify.go`: `notifyApproverLinks.ChatLinkCode` → `response.Service.ChatLinkCode`). Không nối → không gửi mã, người duyệt Zalo ở "Not linked" (gửi lại → 503 `link_unavailable`).
+- Gói `channel`: `StartZaloQR`, `ZaloQR` (`QR`, `WaitScan`, `WaitConfirm`, `Finish`), `ZaloSignedIn`, `ZaloQRImage`, `ZaloQRUserAgent`, `ZaloQRLife`, `ErrZaloQRDeclined`, `ErrZaloQRExpired`, `NewZaloAccount`, `ZaloContacts`, `ZaloGroupByLink`, `ZaloFindPhone`, `ZaloInviteLink`, `ZaloPhone`, `ZaloContact`, `ErrZaloNotFound`. Bộ gửi Zalo giữ thêm bản đồ dịch vụ `profile`, `friend`, `group_poll`, `group` (đã kiểm như `chat`); `call` có biến thể giới hạn riêng (`callN`, danh bạ ≤ 4 MiB); `Send` của một tài khoản không người nhận bị từ chối.
+- Máy mới hộp nói chuyện: `id.zalo.me`, `chat.zalo.me`, `jr.chat.zalo.me` (chỉ lúc đăng nhập QR) và các dịch vụ `*.chat.zalo.me` của bản đồ dịch vụ (PRIVACY luồng 5, Cài đặt → Quyền riêng tư).
+- Trạng thái trong bộ nhớ (`Service.zalo`): một lần đăng nhập, khẩu phần bắt đầu/tra cứu, mã đã gửi theo người duyệt; khởi động lại thì mất (mã vẫn ở `response`, gửi lại được). Goroutine nền (đăng nhập, gửi mã sau Save) có hạn: 100 s + 45 s, mỗi tin ≤ 30 s.
+- GUI: `web/src/features/notify/ZaloPersonal.tsx`; My account (response, `ApproverIdentities.tsx`) chỉ còn trạng thái cho Zalo.
+
 ## Disabling this module
 - Không tin nào gửi; Incidents và Settings → Alert channels mất; panel thông báo ở finding mất.
 - `core`: 2FA email báo `module_off`, người dùng 2FA email bị khoá cho tới khi quản trị đặt lại.

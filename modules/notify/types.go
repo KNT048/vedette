@@ -23,6 +23,8 @@ type TestResult struct {
 type Approver struct {
 	UserID  string `json:"user_id"`
 	Address string `json:"address"`
+	// Name is the display name of the approver's account on the channel, as the picker showed it (Zalo personal, D-447); "" elsewhere.
+	Name string `json:"name,omitempty"`
 }
 
 // ApprovalLast4 holds the last 4 characters of the Slack Socket Mode tokens (never the tokens).
@@ -55,6 +57,8 @@ type ChannelInput struct {
 	Approvers   []Approver
 	AppToken    string
 	BotToken    string
+	// ZaloLogin (Zalo personal, D-447): the session of the saving administrator's finished QR sign-in becomes the channel's secret.
+	ZaloLogin bool
 }
 
 // Rules is the quiet-hours and grouping rule pair.
@@ -213,6 +217,13 @@ type Users interface {
 // chat ids (Telegram, Slack, Zalo) are exact decimal or opaque strings and are compared exactly.
 type ApproverLinks interface {
 	Linked(ctx context.Context, userID string, ch channel.Type, address string) (bool, error)
+}
+
+// LinkCodes makes the code that proves an approver's chat ID when the box sends it to that ID and the person replies with it from there
+// (Zalo personal, D-447; module response keeps the code and the proof, D-191). name is the Vedette user's name for the message. A
+// refusal is an *apierr.Error (not listed, already linked, a new code too soon): it goes to the administrator as it is.
+type LinkCodes interface {
+	ChatLinkCode(ctx context.Context, userID string, ch channel.Type, address string) (code, name string, err error)
 }
 
 // ModuleGate says whether a module is on (modreg.Registry satisfies it).

@@ -657,7 +657,7 @@ describe('notify: channel form matrix (docs/QA.md §2)', () => {
       { option: 'Telegram', shown: ['Chat ID', 'Bot token', APPROVE], hidden: [...only('Chat ID', 'Bot token'), LINK_ONLY] },
       { option: 'Slack', shown: ['Channel label (optional)', 'Incoming Webhook URL', APPROVE], hidden: [...only('Channel label (optional)', 'Incoming Webhook URL', 'Channel ID', 'App-level token (xapp-…)', 'Bot token (xoxb-…)'), LINK_ONLY] },
       { option: 'Zalo OA', shown: ['OA ID', 'Access token', 'Recipient ID (user_id)', LINK_ONLY], hidden: [...only('OA ID', 'Access token', 'Recipient ID (user_id)'), APPROVE] },
-      { option: 'Zalo personal', shown: ['Recipient (user or group ID)', 'Zalo login', APPROVE, /Unofficial/], hidden: [...only('Recipient (user or group ID)'), LINK_ONLY, 'Bot token'] },
+      { option: 'Zalo personal', shown: ['Zalo sign-in', 'Or find by invite link, phone number or ID', APPROVE, /Unofficial channel/], hidden: [...only(), LINK_ONLY, 'Bot token', 'I scanned it'] },
       { option: 'Email', shown: ['SMTP server', 'Port', 'Encryption', 'Username', 'Send from', 'Send to', 'SMTP password', APPROVE], hidden: [...only('SMTP server', 'Port', 'Encryption', 'Username', 'Send from', 'Send to', 'SMTP password'), LINK_ONLY] },
       { option: 'Webhook', shown: ['Webhook URL', 'Signing key', 'Generate random', LINK_ONLY], hidden: [...only('Webhook URL', 'Signing key'), APPROVE] },
       { option: 'Telegram', shown: ['Chat ID', 'Bot token'], hidden: [...only('Chat ID', 'Bot token')] }, // going back restores the same fields
@@ -723,30 +723,62 @@ describe('notify: channel form matrix (docs/QA.md §2)', () => {
     expect((await put({ ...base, approvals: false, approvers: [], fields: { chat_id: '@vedette_alerts' } })).status).toBe(200) // a @name is fine for alerts only
   })
 
-  it('Zalo personal: sign in by QR, turn approvals on, add two approvers, each with their own Zalo ID', async () => {
+  it('Zalo personal: a real QR sign-in, the recipient picked from the groups, approvers by friend or phone, Waiting then Linked (S-NOT-1, S-RESP-2, D-447)', async () => {
     renderChannels()
     await screen.findByRole('table')
     await press(/^Set up Zalo personal$/)
     const dlg = await screen.findByRole('dialog')
-    await userEvent.type(within(dlg).getByLabelText('Recipient (user or group ID)'), '8412345678901')
-    await userEvent.click(within(dlg).getByRole('button', { name: 'Show QR code' }))
-    await userEvent.click(within(dlg).getByRole('button', { name: 'I scanned it' }))
-    expect(within(dlg).getByText(/Signed in/)).toBeInTheDocument()
+    expect(within(dlg).getByRole('note')).toHaveTextContent('Unofficial channel: Zalo may lock the account it signs in with')
+    expect(within(dlg).getByText(/Sign in to pick from the account's groups/)).toBeInTheDocument()
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Sign in with a QR code' }))
+    expect(await within(dlg).findByRole('img', { name: 'QR code to sign in to Zalo' })).toBeInTheDocument()
+    expect(await within(dlg).findByText(/Signed in as Vedette Box\. Press Save/, undefined, { timeout: 5000 })).toBeInTheDocument()
+    expect(within(dlg).queryByRole('img', { name: 'QR code to sign in to Zalo' })).toBeNull()
+    const pick = await within(dlg).findByLabelText('Group or friend')
+    await waitFor(() => expect(within(pick).getByRole('option', { name: 'Night shift (12 members)' })).toBeInTheDocument())
+    await userEvent.selectOptions(pick, '8000000002')
+    expect(within(dlg).getByText('Alerts go to the group Night shift (ID 8000000002).')).toBeInTheDocument()
+    // An invite link resolves to its group; the account is not a member, which the dialog says.
+    await userEvent.type(within(dlg).getByLabelText('Or find by invite link, phone number or ID'), 'https://zalo.me/g/rowukgvsyq24kacrh4ii')
+    await userEvent.click(within(dlg).getAllByRole('button', { name: 'Find' })[0]!)
+    expect(await within(dlg).findByText('Alerts go to the group Support group (ID 8000000009).')).toBeInTheDocument()
+    expect(within(dlg).getByText(/not a member of Support group/)).toBeInTheDocument()
+    await userEvent.type(within(dlg).getByLabelText('Or find by invite link, phone number or ID'), 'hello')
+    await userEvent.click(within(dlg).getAllByRole('button', { name: 'Find' })[0]!)
+    expect(await within(dlg).findByText(/Enter a group invite link/)).toBeInTheDocument()
+    expect(within(dlg).getByLabelText('Or find by invite link, phone number or ID')).toHaveAttribute('aria-invalid', 'true')
+    await userEvent.selectOptions(within(dlg).getByLabelText('Group or friend'), '8000000002')
     await userEvent.click(within(dlg).getByRole('switch', { name: APPROVE_LABEL }))
     await userEvent.click(within(dlg).getByRole('button', { name: 'Add' }))
     await userEvent.click(within(dlg).getByRole('button', { name: 'Add' }))
-    const ids = within(dlg).getAllByLabelText('Zalo user ID')
-    expect(ids).toHaveLength(2)
-    await userEvent.type(ids[0]!, '2938475610293847561')
-    await userEvent.type(ids[1]!, 'not a number')
+    const friends = within(dlg).getAllByLabelText('Zalo friend')
+    expect(friends).toHaveLength(2)
+    await userEvent.selectOptions(friends[0]!, '2938475610293847561')
+    const phones = within(dlg).getAllByLabelText('Or find by phone number')
+    await userEvent.type(phones[1]!, '0912 345 678')
+    await userEvent.click(within(dlg).getAllByRole('button', { name: 'Find' })[2]!)
+    expect(await within(dlg).findByText('Zalo: Hoa Le (ID 4756102938475610293)')).toBeInTheDocument()
+    expect(within(dlg).getAllByText('Save to send this person a code on Zalo.')).toHaveLength(2)
     await userEvent.click(within(dlg).getByRole('button', { name: 'Save' }))
-    expect(await within(dlg).findByRole('alert')).toHaveTextContent(/Zalo user ID/)
-    await userEvent.clear(ids[1]!); await userEvent.type(ids[1]!, '3847561029384756102')
-    await userEvent.click(within(dlg).getByRole('button', { name: 'Save' }))
-    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
-    const z = (await getJson('/notify/channels') as { channels: { type: string; approvals: boolean; approvers: unknown[] }[] }).channels.find((c) => c.type === 'zalo-personal')!
-    expect(z.approvals).toBe(true)
-    expect(z.approvers).toHaveLength(2)
+    // The dialog stays open: each approver waits for the reply to the code, then shows Linked.
+    expect(await within(dlg).findAllByText(/Waiting for (Minh Tran|Hoa Le) to reply/)).toHaveLength(2)
+    expect(within(dlg).getAllByRole('button', { name: 'Send again' })).toHaveLength(2)
+    expect(await within(dlg).findAllByText('Linked', undefined, { timeout: 5000 })).toHaveLength(2)
+    const z = (await getJson('/notify/channels') as { channels: { type: string; approvals: boolean; fields: Record<string, string>; approvers: { address: string; name?: string }[] }[] }).channels.find((c) => c.type === 'zalo-personal')!
+    expect(z.fields).toEqual({ user_id: '8000000002', group: 'true', name: 'Night shift', account: 'Vedette Box' })
+    expect(z.approvers.map((a) => [a.address, a.name])).toEqual([['2938475610293847561', 'Minh Tran'], ['4756102938475610293', 'Hoa Le']])
+  })
+
+  it('Zalo personal: saving with a sign-in that ended is refused, and finding needs a session (S-NOT-1, D-447)', async () => {
+    renderChannels()
+    await screen.findByRole('table')
+    const res = await fetch(`${location.origin}/api/v1/notify/channels/zalo-personal`, { method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ enabled: true, min_severity: 'high', fields: { user_id: '8000000002' }, zalo_login: true }) })
+    expect(res.status).toBe(400)
+    expect((await res.json() as { error: { code: string } }).error.code).toBe('login_required')
+    await fetch(`${location.origin}/api/v1/notify/channels/zalo-personal`, { method: 'DELETE' })
+    const find = await fetch(`${location.origin}/api/v1/notify/zalo/resolve`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query: '0912345678' }) })
+    expect(find.status).toBe(409)
   })
 })
 const APPROVE_LABEL = 'Approve actions from this channel'

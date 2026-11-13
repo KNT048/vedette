@@ -41,3 +41,14 @@ func (s *Service) ListenZaloForTest(ctx context.Context) error { return s.listen
 
 // NormReplyCodeForTest is the normalisation of spec 7.1.
 func NormReplyCodeForTest(s string) (string, bool, bool) { return normReplyCode(s) }
+
+// ZaloQRFlowForTest is one QR sign-in, as the service drives it.
+type ZaloQRFlowForTest = zaloQRFlow
+
+// SetZaloStartQRForTest replaces how a QR sign-in starts (channel.StartZaloQR in production).
+func (s *Service) SetZaloStartQRForTest(f func(context.Context, *http.Client) (ZaloQRFlowForTest, error)) {
+	s.zaloStartQR = f
+}
+
+// WaitZaloForTest waits for the sign-ins and the link-code sends running in the background.
+func (s *Service) WaitZaloForTest() { s.zalo.bg.Wait() }

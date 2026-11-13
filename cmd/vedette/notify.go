@@ -185,6 +185,14 @@ func (l notifyApproverLinks) Linked(ctx context.Context, userID string, ch chann
 	return l.d.Response.Linked(ctx, userID, string(ch), address)
 }
 
+// ChatLinkCode is notify's Config.LinkCodes (D-447): response makes the code a Zalo personal approver replies with from their Zalo.
+func (l notifyApproverLinks) ChatLinkCode(ctx context.Context, userID string, ch channel.Type, address string) (code, name string, err error) {
+	if l.d.Response == nil {
+		return "", "", errResponseNotReady
+	}
+	return l.d.Response.ChatLinkCode(ctx, userID, string(ch), address)
+}
+
 // newNotify builds the notify service once per database, so the handlers, the deliver job, the event
 // subscriptions and the code mailer share it (the Zalo personal adapter keeps its signed-in session and its
 // sign-in pause in memory). Events go to and come from deps.Bus. buildServices calls it first with the real
@@ -205,7 +213,7 @@ func newNotify(d *deps) *notify.Service {
 	}
 	c := notify.Config{DB: d.DB, Secrets: d.Secrets, Audit: d.Audit, Users: notifyUsers{d}, Log: d.Log, Clock: d.Clock,
 		Zone: orgZone(d), BaseURL: d.BaseURL, Tokens: notifyTokens{d}, Decisions: responseDecisions{d}, BoxAddrs: machineAddrs(d), SelfAddrs: vedetteSelf(d),
-		ApproverLinks: notifyApproverLinks{d}, SMTPLoopback: notifySMTPLoopback} // unknown only while a configured vedette-host has never answered (#157)
+		ApproverLinks: notifyApproverLinks{d}, LinkCodes: notifyApproverLinks{d}, SMTPLoopback: notifySMTPLoopback} // unknown only while a configured vedette-host has never answered (#157)
 	if d.Inventory != nil {
 		c.Devices = notifyDevices{d.Inventory}
 	}

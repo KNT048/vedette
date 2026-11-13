@@ -1380,6 +1380,12 @@ type Handler interface {
 	//
 	// DELETE /notify/channels/{type}
 	NotifyDeleteNotifyChannelsType(ctx context.Context, params NotifyDeleteNotifyChannelsTypeParams) error
+	// NotifyDeleteNotifyZaloLogin implements notify_delete_notify_zalo_login operation.
+	//
+	// Cancel your Zalo QR sign-in (a finished one is dropped unsaved).
+	//
+	// DELETE /notify/zalo/login
+	NotifyDeleteNotifyZaloLogin(ctx context.Context) error
 	// NotifyGetNotifyAlertsIDTarget implements notify_get_notify_alerts_id_target operation.
 	//
 	// Old alert link: the incident or the finding it became (D-52).
@@ -1419,6 +1425,25 @@ type Handler interface {
 	//
 	// GET /notify/incidents/{id}
 	NotifyGetNotifyIncidentsID(ctx context.Context, params NotifyGetNotifyIncidentsIDParams) (*NotifyGetNotifyIncidentsIDOK, error)
+	// NotifyGetNotifyZaloApprovers implements notify_get_notify_zalo_approvers operation.
+	//
+	// Approvers of the Zalo personal channel and whether each replied with the code sent to their Zalo
+	// (linked).
+	//
+	// GET /notify/zalo/approvers
+	NotifyGetNotifyZaloApprovers(ctx context.Context) (*NotifyGetNotifyZaloApproversOK, error)
+	// NotifyGetNotifyZaloContacts implements notify_get_notify_zalo_contacts operation.
+	//
+	// Friends and groups of the Zalo account (your finished sign-in, else the saved session).
+	//
+	// GET /notify/zalo/contacts
+	NotifyGetNotifyZaloContacts(ctx context.Context) (*NotifyGetNotifyZaloContactsOK, error)
+	// NotifyGetNotifyZaloLogin implements notify_get_notify_zalo_login operation.
+	//
+	// State of your Zalo QR sign-in: waiting, scanned, signed in, expired, declined or failed.
+	//
+	// GET /notify/zalo/login
+	NotifyGetNotifyZaloLogin(ctx context.Context) (*NotifyGetNotifyZaloLoginOK, error)
 	// NotifyPatchNotifyIncidentsID implements notify_patch_notify_incidents_id operation.
 	//
 	// Acknowledge, resolve or reopen an incident, with a note.
@@ -1437,6 +1462,25 @@ type Handler interface {
 	//
 	// POST /notify/history/{id}/resend
 	NotifyPostNotifyHistoryIDResend(ctx context.Context, params NotifyPostNotifyHistoryIDResendParams) (*NotifyPostNotifyHistoryIDResendOK, error)
+	// NotifyPostNotifyZaloApproversUserIDCode implements notify_post_notify_zalo_approvers_user_id_code operation.
+	//
+	// Send an approver a new code to their Zalo (the old one stops working).
+	//
+	// POST /notify/zalo/approvers/{user_id}/code
+	NotifyPostNotifyZaloApproversUserIDCode(ctx context.Context, params NotifyPostNotifyZaloApproversUserIDCodeParams) (*NotifyPostNotifyZaloApproversUserIDCodeOK, error)
+	// NotifyPostNotifyZaloLogin implements notify_post_notify_zalo_login operation.
+	//
+	// Start a Zalo personal QR sign-in for the signed-in administrator (one at a time per box; at most one
+	// start in 30 s and five an hour).
+	//
+	// POST /notify/zalo/login
+	NotifyPostNotifyZaloLogin(ctx context.Context) (*NotifyPostNotifyZaloLoginOK, error)
+	// NotifyPostNotifyZaloResolve implements notify_post_notify_zalo_resolve operation.
+	//
+	// Find the group of a zalo.me/g/ invite link, the person of a phone number, or take a numeric Zalo ID.
+	//
+	// POST /notify/zalo/resolve
+	NotifyPostNotifyZaloResolve(ctx context.Context, req *NotifyPostNotifyZaloResolveReq) (*NotifyPostNotifyZaloResolveOK, error)
 	// NotifyPutNotifyChannelsType implements notify_put_notify_channels_type operation.
 	//
 	// Save the configuration of one channel (Telegram, Slack, Zalo OA, Zalo personal, Email, Webhook),

@@ -459,6 +459,31 @@ func TestContract_D191_ZaloPersonalIsLinkedBySendingTheCode(t *testing.T) {
 	}
 }
 
+// D-447: notify sends the code to the approver's Zalo when an administrator lists them; the code is made only for the listed address,
+// at most one a minute, and replying with it from that ID links the person as before.
+func TestContract_D447_ZaloCodeForTheListedAddress(t *testing.T) {
+	t.Parallel()
+	c := unlinkedChat(t)
+	_, _, err := c.svc.ChatLinkCode(c.ctx(), "u-op", "zalo-personal", "9999999999")
+	wantCode(t, err, 404, "not_listed")
+	_, _, err = c.svc.ChatLinkCode(c.ctx(), "u-op", "telegram", tgOp)
+	wantCode(t, err, 400, "chat_channel")
+	code, name, err := c.svc.ChatLinkCode(c.ctx(), "u-op", "zalo-personal", zlOp)
+	c.must(err)
+	if len(code) != 6 || name == "" {
+		t.Fatalf("code %q name %q", code, name)
+	}
+	_, _, err = c.svc.ChatLinkCode(c.ctx(), "u-op", "zalo-personal", zlOp)
+	wantCode(t, err, 429, "resend_too_soon")
+	out, err := c.svc.LinkFromChat(c.ctx(), response.ChatDecision{Channel: "zalo-personal", ExternalID: zlOp, Code: code})
+	c.must(err)
+	if out.Status != "linked" {
+		t.Fatalf("link = %+v", out)
+	}
+	_, _, err = c.svc.ChatLinkCode(c.ctx(), "u-op", "zalo-personal", zlOp)
+	wantCode(t, err, 409, "already_linked")
+}
+
 func zaloRow(ids []response.Identity) *response.Identity {
 	for i := range ids {
 		if ids[i].Channel == "zalo-personal" {

@@ -9,12 +9,12 @@ export const RouteSeverity = z.enum(['critical', 'high', 'medium', 'low'])
 export const Severity = z.enum(['critical', 'high', 'medium', 'low', 'info'])
 
 export const TestResult = z.object({ at: iso, ok: z.boolean(), detail: z.string() })
-export const Approver = z.object({ user_id: z.string(), address: z.string().describe('Slack member ID · Telegram user ID · sign-in email · Zalo user ID (digits, not a phone number); unique per channel') })
+export const Approver = z.object({ user_id: z.string(), address: z.string().describe('Slack member ID · Telegram user ID · sign-in email · Zalo user ID (digits, not a phone number); unique per channel'), name: z.string().optional().describe('Zalo personal: the shown name of the approver\'s Zalo account, from the picker (D-447)') })
 export const Channel = z.object({
   type: ChannelType,
   configured: z.boolean(),
   enabled: z.boolean(),
-  fields: z.record(z.string(), z.string()).describe('Non-secret fields: telegram chat_id · zalo oa_id, user_id · zalo-personal user_id (recipient user or group ID; session is the secret) · email host, port, security (starttls|ssl|none), username, from, to · webhook url (a secret: sealed on save, returned only as scheme://host/… followed by its last 4 characters; send it empty, or as returned, to keep the saved one) · slack label (optional), channel_id (approvals only)'),
+  fields: z.record(z.string(), z.string()).describe('Non-secret fields: telegram chat_id · zalo oa_id, user_id · zalo-personal user_id (recipient user or group ID), group ("true" for a group), name (shown name of the recipient), account (shown name of the signed-in Zalo account; set by the box from the QR sign-in, D-447; the session is the secret) · email host, port, security (starttls|ssl|none), username, from, to · webhook url (a secret: sealed on save, returned only as scheme://host/… followed by its last 4 characters; send it empty, or as returned, to keep the saved one) · slack label (optional), channel_id (approvals only)'),
   secret_last4: z.string().nullable().describe('Secrets (token, password, signing key) are never returned, only the last 4 characters (SYS-4)'),
   min_severity: RouteSeverity,
   last_test: TestResult.nullable(),
@@ -31,6 +31,7 @@ export const ChannelInput = z.object({
   approvers: z.array(Approver).optional().describe('Required (at least one) when approvals is on'),
   app_token: z.string().optional().describe('Slack app-level token (xapp-…) for Socket Mode; leave blank to keep the saved one'),
   bot_token: z.string().optional().describe('Slack bot token (xoxb-…); leave blank to keep the saved one'),
+  zalo_login: z.boolean().optional().describe('Zalo personal: save the session of your finished QR sign-in (D-447); without it the saved session is kept. The session is never sent by the client'),
 })
 export const Quiet = z.object({ enabled: z.boolean(), from: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/), to: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/), allow_critical: z.boolean() })
 export const Grouping = z.object({ enabled: z.boolean(), window_min: z.union([z.literal(15), z.literal(60), z.literal(240)]) })
@@ -70,6 +71,23 @@ export const HistoryResponse = z.object({ items: z.array(HistoryItem), suppresse
 export const FindingNotices = z.object({ sends: z.array(SendRecord) })
 export const LegacyTarget = z.object({ to: z.string() })
 
+// Zalo personal set-up (D-447): QR sign-in, friends and groups, look-up of an invite link or a phone number, approvers' link state.
+export const ZaloQR = z.object({ size: z.number().int().describe('Side of the square view box, quiet zone included'), path: z.string().describe('SVG path of the dark cells, redrawn by the box from Zalo\'s image') })
+export const ZaloLoginState = z.enum(['none', 'waiting', 'scanned', 'signed_in', 'expired', 'declined', 'failed'])
+export const ZaloLogin = z.object({
+  state: ZaloLoginState,
+  qr: ZaloQR.nullable().describe('Set while waiting or scanned'),
+  name: z.string().describe('scanned: the name the Zalo app shows for who scanned; signed_in: the signed-in account\'s display name'),
+  error: z.string().describe('failed: why'),
+  expires_at: iso.nullable().describe('When the QR code expires (waiting, scanned)'),
+})
+export const ZaloContact = z.object({ id: z.string(), name: z.string(), group: z.boolean(), members: z.number().int().describe('Group size; 0 when not given') })
+export const ZaloContacts = z.object({ friends: z.array(ZaloContact), groups: z.array(ZaloContact) })
+export const ZaloFound = ZaloContact.extend({ member: z.boolean().describe('false: a group the signed-in account is not a member of (messages would not reach it)') })
+export const ZaloApproverState = z.enum(['linked', 'sending', 'waiting', 'not_sent'])
+export const ZaloApprover = z.object({ user_id: z.string(), address: z.string(), name: z.string(), state: ZaloApproverState, sent_at: iso.nullable(), error: z.string().describe('not_sent: why (failed, expired, or no code made)') })
+export const ZaloApprovers = z.object({ items: z.array(ZaloApprover) })
+
 const id = z.object({ id: z.string() })
 const type = z.object({ type: ChannelType })
 
@@ -85,5 +103,12 @@ export const endpoints = defineEndpoints([
   { method: 'put', path: '/notify/channels/{type}', summary: 'Save the configuration of one channel (Telegram, Slack, Zalo OA, Zalo personal, Email, Webhook), including approvals (switch + approvers list) per channel; the email channel also carries two-step sign-in codes', stories: ['S-NOT-1', 'S-NOT-2', 'S-RESP-2'], role: 'admin', params: type, body: ChannelInput, response: Channel },
   { method: 'delete', path: '/notify/channels/{type}', summary: 'Delete the saved configuration and secret of a channel', stories: ['S-NOT-1'], role: 'admin', params: type, response: null },
   { method: 'post', path: '/notify/channels/{type}/test', summary: 'Send a test message through the saved channel', stories: ['S-NOT-1'], role: 'admin', params: type, response: TestResult },
+  { method: 'post', path: '/notify/zalo/login', summary: 'Start a Zalo personal QR sign-in for the signed-in administrator (one at a time per box; at most one start in 30 s and five an hour)', stories: ['S-NOT-1'], role: 'admin', response: ZaloLogin },
+  { method: 'get', path: '/notify/zalo/login', summary: 'State of your Zalo QR sign-in: waiting, scanned, signed in, expired, declined or failed', stories: ['S-NOT-1'], role: 'admin', response: ZaloLogin },
+  { method: 'delete', path: '/notify/zalo/login', summary: 'Cancel your Zalo QR sign-in (a finished one is dropped unsaved)', stories: ['S-NOT-1'], role: 'admin', response: null },
+  { method: 'get', path: '/notify/zalo/contacts', summary: 'Friends and groups of the Zalo account (your finished sign-in, else the saved session)', stories: ['S-NOT-1', 'S-RESP-2'], role: 'admin', response: ZaloContacts },
+  { method: 'post', path: '/notify/zalo/resolve', summary: 'Find the group of a zalo.me/g/ invite link, the person of a phone number, or take a numeric Zalo ID', stories: ['S-NOT-1', 'S-RESP-2'], role: 'admin', body: z.object({ query: z.string().max(200) }), response: ZaloFound },
+  { method: 'get', path: '/notify/zalo/approvers', summary: 'Approvers of the Zalo personal channel and whether each replied with the code sent to their Zalo (linked)', stories: ['S-RESP-2'], role: 'admin', response: ZaloApprovers },
+  { method: 'post', path: '/notify/zalo/approvers/{user_id}/code', summary: 'Send an approver a new code to their Zalo (the old one stops working)', stories: ['S-RESP-2'], role: 'admin', params: z.object({ user_id: z.string() }), response: ZaloApprover, example: { params: { user_id: 'u-op' } } },
   { method: 'put', path: '/notify/rules', summary: 'Save quiet hours and batching rules', stories: ['S-NOT-1'], role: 'admin', body: Rules, response: Rules },
 ])

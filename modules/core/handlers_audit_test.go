@@ -1,16 +1,19 @@
 package core_test
 
 import (
+	"context"
 	"database/sql"
 	"encoding/csv"
 	"fmt"
 	"net/url"
+	"slices"
 	"strings"
 	"testing"
 	"time"
 	"unicode/utf8"
 
 	"github.com/knt048/vedette/core/audit"
+	"github.com/knt048/vedette/modules/core"
 )
 
 func (w *world) auditRows(n int, user, action string) {
@@ -302,5 +305,58 @@ func TestAudit_FiltersAreCapped(t *testing.T) {
 				t.Errorf("%s%s of 200 characters = %d %s", path, param, r.Code, r.Raw)
 			}
 		}
+	}
+}
+
+// auditNamesFake names one device and one finding, as cmd/vedette's namer does from inventory and findings.
+type auditNamesFake struct{ asked *[]string }
+
+func (f auditNamesFake) AuditNames(_ context.Context, ids []string) (map[string]string, error) {
+	*f.asked = append(*f.asked, ids...)
+	return map[string]string{"a-nas01": "NAS-PHOTOS", "f-1": "CVE-2026-0001 on NAS-PHOTOS", "a-other": "not asked for"}, nil
+}
+
+// D-416 (walk-1 W1-34): actor=people leaves out the lines the box writes itself ("system", "system:<part>"); the page names the devices
+// and findings its rows refer to (only the ids in these rows; one the namer does not know is left out).
+func TestContract_INV17_AuditPeopleOnlyAndNames(t *testing.T) {
+	t.Parallel()
+	var asked []string
+	w := newWorldWith(t, func(c *core.HandlersConfig) { c.Names = auditNamesFake{asked: &asked} })
+	admin := w.setupAdmin()
+	if err := w.env.DB.Write(t.Context(), func(tx *sql.Tx) error {
+		for _, e := range []audit.Entry{
+			{User: "system", Action: "findings.created", Target: "f-1", Detail: "CVE-2026-0001 on a-nas01, basis product, high"},
+			{User: "system:ai", Action: "ai.activity_pruned", Target: "3 rows"},
+			{User: "op@acme.example", Action: "inventory.update", Target: "a-gone"},
+		} {
+			if err := w.env.Audit.Append(t.Context(), tx, e); err != nil {
+				return err
+			}
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	all := admin.get("/core/audit")
+	wantOK(t, all, 200)
+	names := all.JSON["names"].(map[string]any)
+	if len(names) != 2 || names["f-1"] != "CVE-2026-0001 on NAS-PHOTOS" || names["a-nas01"] != "NAS-PHOTOS" {
+		t.Fatalf("names = %v", names)
+	}
+	if !slices.Contains(asked, "a-gone") || !slices.Contains(asked, "f-1") || !slices.Contains(asked, "a-nas01") {
+		t.Fatalf("asked for %v", asked)
+	}
+	people := admin.get("/core/audit?actor=people")
+	wantOK(t, people, 200)
+	for _, it := range people.JSON["items"].([]any) {
+		if u := it.(map[string]any)["user"].(string); u == "system" || strings.HasPrefix(u, "system:") {
+			t.Fatalf("actor=people lists a line by %s", u)
+		}
+	}
+	if people.JSON["total"].(float64) >= all.JSON["total"].(float64)-1 {
+		t.Fatalf("actor=people total %v, all %v", people.JSON["total"], all.JSON["total"])
+	}
+	if r := admin.get("/core/audit?actor=bots"); r.Code != 400 {
+		t.Fatalf("actor=bots: %d %s", r.Code, r.Raw)
 	}
 }

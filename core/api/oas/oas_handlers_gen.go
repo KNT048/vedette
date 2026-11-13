@@ -7330,6 +7330,10 @@ func (s *Server) handleCoreGetCoreAuditRequest(args [0]string, argsEscaped bool,
 					Name: "to",
 					In:   "query",
 				}: params.To,
+				{
+					Name: "actor",
+					In:   "query",
+				}: params.Actor,
 			},
 			Raw: r,
 		}
@@ -7487,6 +7491,10 @@ func (s *Server) handleCoreGetCoreAuditExportRequest(args [0]string, argsEscaped
 					Name: "to",
 					In:   "query",
 				}: params.To,
+				{
+					Name: "actor",
+					In:   "query",
+				}: params.Actor,
 			},
 			Raw: r,
 		}

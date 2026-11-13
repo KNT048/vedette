@@ -103,7 +103,7 @@ func (s *Service) checkPassword(ctx context.Context, email, password string, lim
 const auditKeyPurpose = "core_audit.unknown_email_key"
 
 // unknownEmailRef names an email that has no account in core_audit without storing the address a stranger
-// typed (people paste passwords into the email field, and the audit chain cannot be pruned): a keyed hash,
+// typed (people paste passwords into the email field, and the audit chain keeps a line for a year, D-416): a keyed hash,
 // HMAC-SHA-256 under a key of the box, cut to 16 hex characters. It is enough to see that one address is
 // being tried again and again, and no table of guesses can undo it without the key.
 func (s *Service) unknownEmailRef(ctx context.Context, email string) (string, error) {

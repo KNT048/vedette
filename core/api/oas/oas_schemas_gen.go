@@ -12962,6 +12962,78 @@ func (s *CoreGetCoreAccountOKUserTwofaMethod) UnmarshalText(data []byte) error {
 	}
 }
 
+// People: leave out the automatic lines (user "system" or "system:"), so what people and tools did
+// stands out (D-416).
+type CoreGetCoreAuditActor string
+
+const (
+	CoreGetCoreAuditActorPeople CoreGetCoreAuditActor = "people"
+)
+
+// AllValues returns all CoreGetCoreAuditActor values.
+func (CoreGetCoreAuditActor) AllValues() []CoreGetCoreAuditActor {
+	return []CoreGetCoreAuditActor{
+		CoreGetCoreAuditActorPeople,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CoreGetCoreAuditActor) MarshalText() ([]byte, error) {
+	switch s {
+	case CoreGetCoreAuditActorPeople:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CoreGetCoreAuditActor) UnmarshalText(data []byte) error {
+	switch CoreGetCoreAuditActor(data) {
+	case CoreGetCoreAuditActorPeople:
+		*s = CoreGetCoreAuditActorPeople
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// People: leave out the automatic lines (user "system" or "system:"), so what people and tools did
+// stands out (D-416).
+type CoreGetCoreAuditExportActor string
+
+const (
+	CoreGetCoreAuditExportActorPeople CoreGetCoreAuditExportActor = "people"
+)
+
+// AllValues returns all CoreGetCoreAuditExportActor values.
+func (CoreGetCoreAuditExportActor) AllValues() []CoreGetCoreAuditExportActor {
+	return []CoreGetCoreAuditExportActor{
+		CoreGetCoreAuditExportActorPeople,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CoreGetCoreAuditExportActor) MarshalText() ([]byte, error) {
+	switch s {
+	case CoreGetCoreAuditExportActorPeople:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CoreGetCoreAuditExportActor) UnmarshalText(data []byte) error {
+	switch CoreGetCoreAuditExportActor(data) {
+	case CoreGetCoreAuditExportActorPeople:
+		*s = CoreGetCoreAuditExportActorPeople
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type CoreGetCoreAuditExportOK struct {
 	Data io.Reader
 }
@@ -12979,8 +13051,11 @@ func (s CoreGetCoreAuditExportOK) Read(p []byte) (n int, err error) {
 type CoreGetCoreAuditOK struct {
 	Groups []string                      `json:"groups"`
 	Items  []CoreGetCoreAuditOKItemsItem `json:"items"`
-	Total  float64                       `json:"total"`
-	Users  []string                      `json:"users"`
+	// Display names of the devices and findings whose ids appear in the target or detail of these rows (id
+	// to name); an id the box no longer has is left out (D-416).
+	Names CoreGetCoreAuditOKNames `json:"names"`
+	Total float64                 `json:"total"`
+	Users []string                `json:"users"`
 }
 
 // GetGroups returns the value of Groups.
@@ -12991,6 +13066,11 @@ func (s *CoreGetCoreAuditOK) GetGroups() []string {
 // GetItems returns the value of Items.
 func (s *CoreGetCoreAuditOK) GetItems() []CoreGetCoreAuditOKItemsItem {
 	return s.Items
+}
+
+// GetNames returns the value of Names.
+func (s *CoreGetCoreAuditOK) GetNames() CoreGetCoreAuditOKNames {
+	return s.Names
 }
 
 // GetTotal returns the value of Total.
@@ -13011,6 +13091,11 @@ func (s *CoreGetCoreAuditOK) SetGroups(val []string) {
 // SetItems sets the value of Items.
 func (s *CoreGetCoreAuditOK) SetItems(val []CoreGetCoreAuditOKItemsItem) {
 	s.Items = val
+}
+
+// SetNames sets the value of Names.
+func (s *CoreGetCoreAuditOK) SetNames(val CoreGetCoreAuditOKNames) {
+	s.Names = val
 }
 
 // SetTotal sets the value of Total.
@@ -13090,6 +13175,19 @@ func (s *CoreGetCoreAuditOKItemsItem) SetTs(val time.Time) {
 // SetUser sets the value of User.
 func (s *CoreGetCoreAuditOKItemsItem) SetUser(val string) {
 	s.User = val
+}
+
+// Display names of the devices and findings whose ids appear in the target or detail of these rows (id
+// to name); an id the box no longer has is left out (D-416).
+type CoreGetCoreAuditOKNames map[string]string
+
+func (s *CoreGetCoreAuditOKNames) init() CoreGetCoreAuditOKNames {
+	m := *s
+	if m == nil {
+		m = map[string]string{}
+		*s = m
+	}
+	return m
 }
 
 type CoreGetCoreAuthOptionsOK struct {
@@ -98065,6 +98163,98 @@ func (o OptBool) Get() (v bool, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptBool) Or(d bool) bool {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptCoreGetCoreAuditActor returns new OptCoreGetCoreAuditActor with value set to v.
+func NewOptCoreGetCoreAuditActor(v CoreGetCoreAuditActor) OptCoreGetCoreAuditActor {
+	return OptCoreGetCoreAuditActor{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptCoreGetCoreAuditActor is optional CoreGetCoreAuditActor.
+type OptCoreGetCoreAuditActor struct {
+	Value CoreGetCoreAuditActor
+	Set   bool
+}
+
+// IsSet returns true if OptCoreGetCoreAuditActor was set.
+func (o OptCoreGetCoreAuditActor) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptCoreGetCoreAuditActor) Reset() {
+	var v CoreGetCoreAuditActor
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptCoreGetCoreAuditActor) SetTo(v CoreGetCoreAuditActor) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptCoreGetCoreAuditActor) Get() (v CoreGetCoreAuditActor, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptCoreGetCoreAuditActor) Or(d CoreGetCoreAuditActor) CoreGetCoreAuditActor {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptCoreGetCoreAuditExportActor returns new OptCoreGetCoreAuditExportActor with value set to v.
+func NewOptCoreGetCoreAuditExportActor(v CoreGetCoreAuditExportActor) OptCoreGetCoreAuditExportActor {
+	return OptCoreGetCoreAuditExportActor{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptCoreGetCoreAuditExportActor is optional CoreGetCoreAuditExportActor.
+type OptCoreGetCoreAuditExportActor struct {
+	Value CoreGetCoreAuditExportActor
+	Set   bool
+}
+
+// IsSet returns true if OptCoreGetCoreAuditExportActor was set.
+func (o OptCoreGetCoreAuditExportActor) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptCoreGetCoreAuditExportActor) Reset() {
+	var v CoreGetCoreAuditExportActor
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptCoreGetCoreAuditExportActor) SetTo(v CoreGetCoreAuditExportActor) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptCoreGetCoreAuditExportActor) Get() (v CoreGetCoreAuditExportActor, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptCoreGetCoreAuditExportActor) Or(d CoreGetCoreAuditExportActor) CoreGetCoreAuditExportActor {
 	if v, ok := o.Get(); ok {
 		return v
 	}

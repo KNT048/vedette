@@ -154,11 +154,11 @@ func TestForbiddenAddrClasses(t *testing.T) {
 		"::ffff:100.100.100.200": true, "fd20:ce::254": true, "fd00:ec2::1": false,
 		"10.1.1.1": false, "192.168.0.9": false, "172.16.5.5": false, "8.8.8.8": false, "2001:db8::1": false,
 	} {
-		if got := forbiddenAddr(netip.MustParseAddr(in), false, nil); got != want {
+		if got := forbiddenAddr(netip.MustParseAddr(in), false); got != want {
 			t.Errorf("forbiddenAddr(%s) = %v, want %v", in, got, want)
 		}
 	}
-	if forbiddenAddr(netip.MustParseAddr("127.0.0.1"), true, nil) || !forbiddenAddr(netip.MustParseAddr("169.254.1.1"), true, nil) {
+	if forbiddenAddr(netip.MustParseAddr("127.0.0.1"), true) || !forbiddenAddr(netip.MustParseAddr("169.254.1.1"), true) {
 		t.Error("allowLoopback must allow only loopback")
 	}
 }

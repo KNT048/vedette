@@ -121,7 +121,7 @@ func NewEmail(cfg EmailConfig) (Sender, error) {
 	if (aerr == nil && ownAddr(a, uint16(cfg.Port), cfg.AllowLoopback, boxAddrs)) || (!cfg.AllowLoopback && (host == "localhost" || strings.HasSuffix(host, ".localhost"))) {
 		return nil, cfgErr("bad_host", OwnText)
 	}
-	if (aerr == nil && forbiddenAddr(a, cfg.AllowLoopback, nil)) || metadataName(host) {
+	if (aerr == nil && forbiddenAddr(a, cfg.AllowLoopback)) || metadataName(host) {
 		return nil, cfgErr("bad_host", "The SMTP server cannot be a link-local or multicast address, a cloud metadata service, or an unspecified address.")
 	}
 	switch cfg.Security {

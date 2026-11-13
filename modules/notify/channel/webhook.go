@@ -64,21 +64,16 @@ var numericLabelRE = regexp.MustCompile(`^(0x[0-9a-f]+|[0-9]+)$`)
 
 // forbiddenAddr reports whether a webhook may never connect to a: loopback (on http and https alike, unless
 // allowLoopback, which only package tests set:
-// the box's own services listen there), link-local, unspecified, multicast, a cloud metadata endpoint and the addresses of box,
+// the box's own services listen there), link-local, unspecified, multicast, a cloud metadata endpoint,
 // in any transition form (NAT64, 6to4, IPv4-compatible, IPv4-mapped). Private RFC 1918 addresses are allowed on both
 // schemes: an internal SIEM is a normal target. Vedette itself is ownAddr's (checked first, for its own sentence).
-func forbiddenAddr(a netip.Addr, allowLoopback bool, box []netip.Addr) bool {
+func forbiddenAddr(a netip.Addr, allowLoopback bool) bool {
 	for _, f := range addrForms(a) {
 		switch {
 		case f.IsUnspecified(), f.IsMulticast(), f.IsLinkLocalUnicast(), f.IsLinkLocalMulticast(), metadataAddr(f):
 			return true
 		case f.IsLoopback() && !allowLoopback:
 			return true
-		}
-		for _, b := range box {
-			if b.Unmap() == f {
-				return true
-			}
 		}
 	}
 	return false
@@ -370,7 +365,7 @@ func dialControl(allowLoopback bool, box func() ([]netip.Addr, bool)) func(netwo
 			return errForbiddenDial
 		case ownAddr(a, portNumber(port, 0), allowLoopback, addrs):
 			return errOwnDial
-		case forbiddenAddr(a, allowLoopback, nil):
+		case forbiddenAddr(a, allowLoopback):
 			return errForbiddenDial
 		}
 		return nil
@@ -433,7 +428,7 @@ func NewWebhook(cfg WebhookConfig) (Sender, error) {
 		if ownAddr(a, port, cfg.allowLoopback, box) {
 			return nil, own
 		}
-		if forbiddenAddr(a, cfg.allowLoopback, nil) {
+		if forbiddenAddr(a, cfg.allowLoopback) {
 			return nil, blocked
 		}
 	} else {

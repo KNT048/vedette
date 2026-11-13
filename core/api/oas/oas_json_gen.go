@@ -213890,6 +213890,10 @@ func (s *ResponseGetResponseIncidentsIDOK) encodeFields(e *jx.Encoder) {
 		s.Incident.Encode(e)
 	}
 	{
+		e.FieldStart("note")
+		s.Note.Encode(e)
+	}
+	{
 		e.FieldStart("options")
 		e.ArrStart()
 		for _, elem := range s.Options {
@@ -213903,11 +213907,12 @@ func (s *ResponseGetResponseIncidentsIDOK) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfResponseGetResponseIncidentsIDOK = [4]string{
+var jsonFieldsNameOfResponseGetResponseIncidentsIDOK = [5]string{
 	0: "execution",
 	1: "incident",
-	2: "options",
-	3: "source",
+	2: "note",
+	3: "options",
+	4: "source",
 }
 
 // Decode decodes ResponseGetResponseIncidentsIDOK from json.
@@ -213941,8 +213946,18 @@ func (s *ResponseGetResponseIncidentsIDOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"incident\"")
 			}
-		case "options":
+		case "note":
 			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				if err := s.Note.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"note\"")
+			}
+		case "options":
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				s.Options = make([]ResponseGetResponseIncidentsIDOKOptionsItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -213960,7 +213975,7 @@ func (s *ResponseGetResponseIncidentsIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"options\"")
 			}
 		case "source":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				if err := s.Source.Decode(d); err != nil {
 					return err
@@ -213979,7 +213994,7 @@ func (s *ResponseGetResponseIncidentsIDOK) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00001111,
+		0b00011111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -214047,16 +214062,21 @@ func (s *ResponseGetResponseIncidentsIDOKIncident) encodeFields(e *jx.Encoder) {
 		e.Str(s.Kind)
 	}
 	{
+		e.FieldStart("status")
+		e.Str(s.Status)
+	}
+	{
 		e.FieldStart("title")
 		e.Str(s.Title)
 	}
 }
 
-var jsonFieldsNameOfResponseGetResponseIncidentsIDOKIncident = [4]string{
+var jsonFieldsNameOfResponseGetResponseIncidentsIDOKIncident = [5]string{
 	0: "action",
 	1: "id",
 	2: "kind",
-	3: "title",
+	3: "status",
+	4: "title",
 }
 
 // Decode decodes ResponseGetResponseIncidentsIDOKIncident from json.
@@ -214104,8 +214124,20 @@ func (s *ResponseGetResponseIncidentsIDOKIncident) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"kind\"")
 			}
-		case "title":
+		case "status":
 			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Str()
+				s.Status = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"status\"")
+			}
+		case "title":
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.Title = string(v)
@@ -214126,7 +214158,7 @@ func (s *ResponseGetResponseIncidentsIDOKIncident) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00001111,
+		0b00011111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.

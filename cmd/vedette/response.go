@@ -16,6 +16,7 @@ import (
 	"github.com/knt048/vedette/core/modreg"
 	hostclient "github.com/knt048/vedette/host/client"
 	"github.com/knt048/vedette/modules/findings"
+	"github.com/knt048/vedette/modules/honeypot"
 	"github.com/knt048/vedette/modules/inventory"
 	"github.com/knt048/vedette/modules/logs"
 	"github.com/knt048/vedette/modules/notify"
@@ -422,6 +423,10 @@ func (r responseLinkSender) SendApproverLink(ctx context.Context, actor, ch, use
 // responseIncidents is response's Config.Incidents (D-509): Respond on an incident reads the incident through notify's public
 // IncidentDetail and, for a trap, the source of its hit through honeypot's HitDetail. A test hit, another kind or a link that is not
 // a hit names no source. With notify off there is no incident.
+// scanConfirmWindow is how near a scan hit a service hit of the same source must be to confirm it: the hour around a hit that the
+// honeypot shows with it (honeypot WindowMinutes).
+const scanConfirmWindow = time.Hour
+
 type responseIncidents struct {
 	n   *notify.Service
 	d   *deps
@@ -440,7 +445,7 @@ func (r responseIncidents) Incident(ctx context.Context, id string) (response.In
 		return response.IncidentInfo{}, false, err
 	}
 	i := det.Incident
-	out := response.IncidentInfo{ID: i.ID, Kind: string(i.Kind), Title: i.Title, Action: i.Action}
+	out := response.IncidentInfo{ID: i.ID, Kind: string(i.Kind), Title: i.Title, Action: i.Action, Status: string(i.Status)}
 	hit, ok := strings.CutPrefix(i.Link, "/honeypot/hits/")
 	if i.Kind != notify.IncidentTrap || !ok || r.d.Honeypot == nil {
 		return out, true, nil
@@ -455,9 +460,18 @@ func (r responseIncidents) Incident(ctx context.Context, id string) (response.In
 	if h.IsTest {
 		return out, true, nil
 	}
-	out.SourceIP = h.SrcIP
+	out.SourceIP, out.HitKind = h.SrcIP, string(h.Kind)
 	if h.SrcAssetID != nil {
 		out.AssetID = *h.SrcAssetID
+	}
+	if h.Kind == honeypot.KindScan { // a scan's source may be forged: confirmed only by a completed connection near it (D-509)
+		confirmed := false // a time that does not parse confirms nothing
+		if at, err := time.Parse(time.RFC3339, h.TS); err == nil {
+			if confirmed, err = r.d.Honeypot.SourceConnected(ctx, h.SrcIP, at, scanConfirmWindow); err != nil {
+				return response.IncidentInfo{}, false, err
+			}
+		}
+		out.Unconfirmed = !confirmed
 	}
 	return out, true, nil
 }

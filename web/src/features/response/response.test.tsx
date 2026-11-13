@@ -1797,12 +1797,14 @@ describe('response: rule editor form matrix (docs/QA.md §2)', () => {
 
 describe('response: Respond from an incident (S-RESP-3, D-509)', () => {
   type Panel = import('./types').IncidentPanel
-  const hitRow = (id: string, src: string, asset: string | null) => ({ id, ts: new Date().toISOString(), kind: 'service', service: 'ssh', port: 22, src_ip: src, src_asset_id: asset, is_test: false, excerpt: '', events: [], trap_ip: '192.168.10.240', trap_hostname: 'FILESRV-OLD' })
-  const incident = (id: string, hit: string, title: string) => ({ id, kind: 'trap', attempt: false, link: `/honeypot/hits/${hit}`, title, asset_ids: [], severity: 'critical', status: 'new', first_seen: new Date().toISOString(), last_seen: new Date().toISOString(), count: 1,
+  const hitRow = (id: string, src: string, asset: string | null, kind = 'service') => ({ id, ts: new Date().toISOString(), kind, service: 'ssh', port: 22, src_ip: src, src_asset_id: asset, is_test: false, excerpt: '', events: [], trap_ip: '192.168.10.240', trap_hostname: 'FILESRV-OLD' })
+  const incident = (id: string, hit: string, title: string, status = 'new', kind = 'trap') => ({ id, kind, attempt: false, link: `/honeypot/hits/${hit}`, title, asset_ids: [], severity: 'critical', status, first_seen: new Date().toISOString(), last_seen: new Date().toISOString(), count: 1,
     what: title, action: 'Take the machine off the network (unplug the cable, turn off Wi-Fi), then ask its user what they were doing.', sends: [], handled_by: null, handled_at: null, note: null })
   beforeEach(() => {
-    collection<unknown[]>('hp_hits', () => []).set([hitRow('hit-lan', '192.168.10.107', 'a-pc07'), hitRow('hit-pub', '203.0.113.9', null)])
-    collection<unknown[]>('notify_incidents', () => []).set([incident('al-4', 'hit-lan', 'PC-HR-01 touched the SSH trap'), incident('in-pub', 'hit-pub', '203.0.113.9 touched the SSH trap')])
+    collection<unknown[]>('hp_hits', () => []).set([hitRow('hit-lan', '192.168.10.107', 'a-pc07'), hitRow('hit-pub', '203.0.113.9', null), hitRow('hit-scan', '192.168.10.170', null, 'scan'), hitRow('hit-v6', 'fd00::5', null)])
+    collection<unknown[]>('notify_incidents', () => []).set([incident('al-4', 'hit-lan', 'PC-HR-01 touched the SSH trap'), incident('in-pub', 'hit-pub', '203.0.113.9 touched the SSH trap'),
+      incident('in-scan', 'hit-scan', '192.168.10.170 scanned the Trap IPs'), incident('in-v6', 'hit-v6', 'fd00::5 touched the SSH trap'), incident('in-done', 'hit-lan', 'PC-HR-01 touched the SSH trap', 'resolved'),
+      { ...incident('in-log', 'hit-lan', 'WEB01 logged far more failed sign-ins than usual', 'new', 'log_anomaly'), link: '/logs' }])
   })
 
   it('a LAN source: never the block list; a firewall block is a pending request after execution is on, asked once', async () => {
@@ -1851,5 +1853,33 @@ describe('response: Respond from an incident (S-RESP-3, D-509)', () => {
     await userEvent.click(within(row as HTMLElement).getByRole('button', { name: 'Ask for approval' }))
     expect(await within(panel).findByRole('status')).toHaveTextContent('Nothing changes until someone approves it.')
     expect(actionsStore.get().filter((a) => a.source === 'person')).toHaveLength(1)
+  })
+
+  it('a scan that completed no connection, a resolved incident, an IPv6 source (review of #702)', async () => {
+    await turnOn()
+    const scan = (await call<Panel>('viewer', 'GET', '/response/incidents/in-scan')).json
+    expect(scan.note).toMatch(/can be forged/)
+    expect(scan.options.every((o) => !o.ready)).toBe(true)
+    expect((await call('operator', 'POST', '/response/incidents/in-scan/request', { action_id: 'fgt_addrgrp_add' })).code).toBe('source_unconfirmed')
+    const done = (await call<Panel>('viewer', 'GET', '/response/incidents/in-done')).json
+    expect(done).toMatchObject({ options: [], note: expect.stringMatching(/resolved/) as unknown })
+    expect((await call('operator', 'POST', '/response/incidents/in-done/request', { action_id: 'fgt_addrgrp_add' })).code).toBe('incident_resolved')
+    expect((await call<Panel>('viewer', 'GET', '/response/incidents/in-v6')).json.source).toMatchObject({ ip: 'fd00::5', scope: 'lan' })
+  })
+
+  it('the panel with no source says so and links to Rules, without a button', async () => {
+    renderApp('/response?incident=in-log', { role: 'operator' })
+    const panel = await screen.findByRole('region', { name: 'Respond to this incident' })
+    expect(await within(panel).findByText(/names no single address Vedette can act on/)).toBeInTheDocument()
+    expect(within(panel).getByRole('link', { name: 'Rule templates' })).toHaveAttribute('href', '/response?tab=rules')
+    expect(within(panel).queryByRole('button')).toBeNull()
+  })
+
+  it('a viewer sees a ready option with a disabled button', async () => {
+    await turnOn()
+    renderApp('/response?incident=al-4', { role: 'viewer' })
+    const panel = await screen.findByRole('region', { name: 'Respond to this incident' })
+    const row = (await within(panel).findByText('FortiGate: add an IP to the Vedette-Blocked address group: 192.168.10.107')).closest('li')!
+    expect(within(row as HTMLElement).getByRole('button', { name: 'Ask for approval' })).toBeDisabled()
   })
 })

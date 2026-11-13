@@ -117787,8 +117787,12 @@ func (s *ResponseGetResponseEventsOKItemsItemTrigger) UnmarshalText(data []byte)
 type ResponseGetResponseIncidentsIDOK struct {
 	Execution bool                                     `json:"execution"`
 	Incident  ResponseGetResponseIncidentsIDOKIncident `json:"incident"`
+	// Why nothing can be asked although the source is known: the incident is resolved (no options), or the
+	// source of a scan may be forged (every option not ready).
+	Note NilString `json:"note"`
 	// Device actions whose only parameter is {ip} that are on or have a connection, and the block list for
-	// a public source.
+	// a public source. The source of a scan that completed no connection may be forged: every option is
+	// then not ready.
 	Options []ResponseGetResponseIncidentsIDOKOptionsItem `json:"options"`
 	// Null: the incident names no single address Vedette can act on (another kind, a test hit, unreadable).
 	Source NilResponseGetResponseIncidentsIDOKSource `json:"source"`
@@ -117802,6 +117806,11 @@ func (s *ResponseGetResponseIncidentsIDOK) GetExecution() bool {
 // GetIncident returns the value of Incident.
 func (s *ResponseGetResponseIncidentsIDOK) GetIncident() ResponseGetResponseIncidentsIDOKIncident {
 	return s.Incident
+}
+
+// GetNote returns the value of Note.
+func (s *ResponseGetResponseIncidentsIDOK) GetNote() NilString {
+	return s.Note
 }
 
 // GetOptions returns the value of Options.
@@ -117824,6 +117833,11 @@ func (s *ResponseGetResponseIncidentsIDOK) SetIncident(val ResponseGetResponseIn
 	s.Incident = val
 }
 
+// SetNote sets the value of Note.
+func (s *ResponseGetResponseIncidentsIDOK) SetNote(val NilString) {
+	s.Note = val
+}
+
 // SetOptions sets the value of Options.
 func (s *ResponseGetResponseIncidentsIDOK) SetOptions(val []ResponseGetResponseIncidentsIDOKOptionsItem) {
 	s.Options = val
@@ -117839,6 +117853,8 @@ type ResponseGetResponseIncidentsIDOKIncident struct {
 	Action string `json:"action"`
 	ID     string `json:"id"`
 	Kind   string `json:"kind"`
+	// New, acknowledged or resolved.
+	Status string `json:"status"`
 	Title  string `json:"title"`
 }
 
@@ -117855,6 +117871,11 @@ func (s *ResponseGetResponseIncidentsIDOKIncident) GetID() string {
 // GetKind returns the value of Kind.
 func (s *ResponseGetResponseIncidentsIDOKIncident) GetKind() string {
 	return s.Kind
+}
+
+// GetStatus returns the value of Status.
+func (s *ResponseGetResponseIncidentsIDOKIncident) GetStatus() string {
+	return s.Status
 }
 
 // GetTitle returns the value of Title.
@@ -117875,6 +117896,11 @@ func (s *ResponseGetResponseIncidentsIDOKIncident) SetID(val string) {
 // SetKind sets the value of Kind.
 func (s *ResponseGetResponseIncidentsIDOKIncident) SetKind(val string) {
 	s.Kind = val
+}
+
+// SetStatus sets the value of Status.
+func (s *ResponseGetResponseIncidentsIDOKIncident) SetStatus(val string) {
+	s.Status = val
 }
 
 // SetTitle sets the value of Title.

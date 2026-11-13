@@ -31,6 +31,10 @@ CREATE TABLE resp_actions_new (
 );
 INSERT INTO resp_actions_new (seq, id, source, proposal_id, rule_id, rule_name, trigger, trigger_summary, finding_id, cve, asset_id, asset_name, title, risk, status, requested_at, expires_at, decided_at, requires_approvals, two_because, approvals, sent_to, note, pre_approved, ai, items)
     SELECT seq, id, source, proposal_id, rule_id, rule_name, trigger, trigger_summary, finding_id, cve, asset_id, asset_name, title, risk, status, requested_at, expires_at, decided_at, requires_approvals, two_because, approvals, sent_to, note, pre_approved, ai, items FROM resp_actions;
+-- Keep the AUTOINCREMENT high-water mark: the copy only raises the new table's counter to the largest seq still there, so the seq of
+-- requests deleted at the top would be given out again.
+INSERT INTO sqlite_sequence (name, seq) SELECT 'resp_actions_new', 0 WHERE NOT EXISTS (SELECT 1 FROM sqlite_sequence WHERE name = 'resp_actions_new');
+UPDATE sqlite_sequence SET seq = MAX(seq, COALESCE((SELECT seq FROM sqlite_sequence WHERE name = 'resp_actions'), 0)) WHERE name = 'resp_actions_new';
 DROP TABLE resp_actions;
 ALTER TABLE resp_actions_new RENAME TO resp_actions;
 CREATE INDEX resp_actions_status_ix ON resp_actions (status, requested_at);

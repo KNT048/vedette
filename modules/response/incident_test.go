@@ -24,10 +24,13 @@ func (f *fakeIncidents) Incident(_ context.Context, id string) (response.Inciden
 func incidentEnv(t *testing.T) *env {
 	t.Helper()
 	inc := &fakeIncidents{m: map[string]response.IncidentInfo{
-		"in-lan":    {ID: "in-lan", Kind: "trap", Title: "192.168.18.145 touched the SSH trap", Action: "Take the machine off the network.", SourceIP: "192.168.18.145", AssetID: "a-pc"},
-		"in-public": {ID: "in-public", Kind: "trap", Title: "203.0.113.9 touched the SSH trap", Action: "Block it.", SourceIP: "203.0.113.9"},
-		"in-log":    {ID: "in-log", Kind: "log_anomaly", Title: "WEB01 logged far more failed sign-ins than usual"},
-		"in-gw":     {ID: "in-gw", Kind: "trap", Title: "10.0.0.1 touched the SSH trap", SourceIP: "10.0.0.1"},
+		"in-lan":     {ID: "in-lan", Kind: "trap", Title: "192.168.18.145 touched the SSH trap", Action: "Take the machine off the network.", SourceIP: "192.168.18.145", AssetID: "a-pc"},
+		"in-public":  {ID: "in-public", Kind: "trap", Title: "203.0.113.9 touched the SSH trap", Action: "Block it.", SourceIP: "203.0.113.9"},
+		"in-log":     {ID: "in-log", Kind: "log_anomaly", Title: "WEB01 logged far more failed sign-ins than usual"},
+		"in-gw":      {ID: "in-gw", Kind: "trap", Title: "10.0.0.1 touched the SSH trap", SourceIP: "10.0.0.1"},
+		"in-scan":    {ID: "in-scan", Kind: "trap", Title: "192.168.18.150 scanned the Trap IPs", SourceIP: "192.168.18.150", HitKind: "scan", Unconfirmed: true},
+		"in-scan-ok": {ID: "in-scan-ok", Kind: "trap", Title: "192.168.18.151 scanned the Trap IPs", SourceIP: "192.168.18.151", HitKind: "scan"},
+		"in-done":    {ID: "in-done", Kind: "trap", Status: "resolved", Title: "192.168.18.152 touched the SSH trap", SourceIP: "192.168.18.152"},
 	}}
 	e := newEnv(t, func(c *response.Config) { c.Incidents = inc })
 	e.dir.devices["a-pc"] = response.DeviceInfo{ID: "a-pc", Name: "PC-HR-01", IP: "192.168.18.145", Kind: "workstation"}
@@ -176,4 +179,79 @@ func TestD509_NoSourceAndUnknownIncident(t *testing.T) {
 	wantCode(t, err, http.StatusNotFound, "not_found")
 	_, err = e.svc.RequestFromIncident(e.ctx(), oper, "../x", "fgt_addrgrp_add")
 	wantCode(t, err, http.StatusNotFound, "not_found")
+}
+
+// M1 (review of #702): a scan made only of attempts can carry a forged source, so nothing is offered or asked for it; a scan whose
+// source also completed a connection is offered, and its request says why the source is trusted.
+func TestD509_AForgeableScanSourceIsNeverBlocked(t *testing.T) {
+	t.Parallel()
+	e := incidentEnv(t)
+	e.firewall("fgt_addrgrp_add")
+	e.turnOn()
+	p := e.panel("in-scan")
+	o := option(p, "fgt_addrgrp_add")
+	if p.Note == nil || !strings.Contains(*p.Note, "can be forged") || o == nil || o.Ready || o.Why == nil || !strings.Contains(*o.Why, "Confirm on the device first") {
+		t.Fatalf("panel note %v, option %+v", p.Note, o)
+	}
+	_, err := e.svc.RequestFromIncident(e.ctx(), oper, "in-scan", "fgt_addrgrp_add")
+	wantCode(t, err, http.StatusConflict, "source_unconfirmed")
+	if len(e.actions()) != 0 {
+		t.Fatal("a request was made for a source that may be forged")
+	}
+	if o := option(e.panel("in-scan-ok"), "fgt_addrgrp_add"); o == nil || !o.Ready {
+		t.Fatalf("confirmed scan: %+v", o)
+	}
+	a, err := e.svc.RequestFromIncident(e.ctx(), oper, "in-scan-ok", "fgt_addrgrp_add")
+	e.must(err)
+	if a.TriggerSummary == nil || !strings.Contains(*a.TriggerSummary, "not forged") {
+		t.Fatalf("the request does not say the scan source is confirmed: %v", a.TriggerSummary)
+	}
+}
+
+// L2: a resolved incident offers nothing and says why; asking is refused.
+func TestD509_AResolvedIncidentOffersNothing(t *testing.T) {
+	t.Parallel()
+	e := incidentEnv(t)
+	e.firewall("fgt_addrgrp_add")
+	e.turnOn()
+	p := e.panel("in-done")
+	if p.Source == nil || len(p.Options) != 0 || p.Note == nil || !strings.Contains(*p.Note, "resolved") || p.Incident.Status != "resolved" {
+		t.Fatalf("panel: %+v", p)
+	}
+	_, err := e.svc.RequestFromIncident(e.ctx(), oper, "in-done", "fgt_addrgrp_add")
+	wantCode(t, err, http.StatusConflict, "incident_resolved")
+}
+
+// L1: a maintenance window and an open circuit breaker are shown as the reason an option is not ready.
+func TestD509_MaintenanceAndBreakerAreReasons(t *testing.T) {
+	t.Parallel()
+	e := incidentEnv(t)
+	e.firewall("fgt_addrgrp_add")
+	e.turnOn()
+	e.saveSettings(func(in *response.SettingsInput) {
+		in.Maintenance = []response.Window{{ID: "w1", Name: "Night work", Start: "2026-11-09T09:00:00Z", End: "2026-11-09T11:00:00Z"}}
+	})
+	if o := option(e.panel("in-lan"), "fgt_addrgrp_add"); o == nil || o.Ready || o.Why == nil || !strings.Contains(*o.Why, "Night work") {
+		t.Fatalf("maintenance: %+v", o)
+	}
+	e.saveSettings(func(in *response.SettingsInput) { in.Maintenance = []response.Window{} })
+	e.setting("$.breaker_tripped_at", "2026-11-09T09:30:00.000Z")
+	if o := option(e.panel("in-lan"), "fgt_addrgrp_add"); o == nil || o.Ready || o.Why == nil || !strings.Contains(*o.Why, "circuit breaker") {
+		t.Fatalf("breaker: %+v", o)
+	}
+}
+
+// M2: a person's request is neither an AI nor a rule request in the metrics.
+func TestD509_MetricsDoNotCountAPersonAsARule(t *testing.T) {
+	t.Parallel()
+	e := incidentEnv(t)
+	a, err := e.svc.RequestFromIncident(e.ctx(), oper, "in-public", "blocklist_add")
+	e.must(err)
+	_, err = e.svc.Reject(e.ctx(), oper, a.ID, "not now", "none")
+	e.must(err)
+	m, err := e.svc.Metrics(e.ctx())
+	e.must(err)
+	if m.Rules.Sent != 0 || m.AI.Sent != 0 || len(m.Rejected) != 1 || m.Rejected[0].Source != "person" {
+		t.Fatalf("metrics: rules %+v, ai %+v, rejected %+v", m.Rules, m.AI, m.Rejected)
+	}
 }

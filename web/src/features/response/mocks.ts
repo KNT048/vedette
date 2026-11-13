@@ -74,18 +74,24 @@ const blockUrl = (token: string) => `https://${boxAddress() ?? '<box ip>'}:8443/
 const blockView = () => ({ url: blockUrl(blockMeta.get().token), token_last4: blockMeta.get().token.slice(-4), entries: blockEntries(), last_fetch: blockMeta.get().last_fetch })
 
 // ---- Respond from an incident (D-509): the server reads the source from the incident, never from the browser ----
-interface PeekIncident { id: string; kind: string; title: string; action: string; link: string }
+interface PeekIncident { id: string; kind: string; title: string; action: string; link: string; status: string }
+const RESOLVED_MSG = 'This incident is resolved, so nothing is offered. Reopen it in Incidents to act on it.'
+const UNCONFIRMED_MSG = 'The source of a scan can be forged: these attempts completed no connection, so this address may belong to someone innocent. Confirm on the device first. Nothing is offered for it.'
+/** An IPv6 address as the backend reads one (netip): hp_hits holds IPv4 only, so this is for parity. Not public: ULA, link-local, loopback, documentation. */
+const isIpv6 = (ip: string) => { if (!ip.includes(':') || !/^[0-9a-f:.]+$/i.test(ip)) return false; try { return new URL(`http://[${ip}]/`).hostname.length > 2 } catch { return false } }
+const ipv6Public = (ip: string) => !/^(f[cd]|fe[89ab])/i.test(ip) && ip !== '::1' && !/^2001:0?db8:/i.test(ip)
 const INCIDENT_TTL = 1440
 const HIT_LINK = /^\/honeypot\/hits\/([\w.-]{1,64})$/
-function readIncident(id: string): { inc: PeekIncident; source: IncidentPanel['source'] } | null {
+function readIncident(id: string): { inc: PeekIncident; source: IncidentPanel['source']; kind: string; confirmed: boolean } | null {
   const l = peek<PeekIncident[]>('notify_incidents')
   const inc = Array.isArray(l) ? l.find((x) => x.id === id) : undefined
   if (!inc) return null
   const m = inc.kind === 'trap' ? HIT_LINK.exec(inc.link) : null
   const hit = m ? hitSource(m[1]!) : null
-  if (!hit || !isIpv4(hit.ip)) return { inc, source: null }
+  if (!hit || !(isIpv4(hit.ip) || isIpv6(hit.ip))) return { inc, source: null, kind: '', confirmed: false }
   const a = hit.asset_id ? assetsStore.get().find((x) => x.id === hit.asset_id && x.ip === hit.ip) : undefined
-  return { inc, source: { ip: hit.ip, device: a ? (a.hostname ?? a.ip) : null, asset_id: a?.id ?? null, scope: isPublishable(hit.ip) ? 'public' : 'lan' } }
+  const pub = isIpv4(hit.ip) ? isPublishable(hit.ip) : ipv6Public(hit.ip)
+  return { inc, source: { ip: hit.ip, device: a ? (a.hostname ?? a.ip) : null, asset_id: a?.id ?? null, scope: pub ? 'public' : 'lan' }, kind: hit.kind, confirmed: hit.confirmed }
 }
 /** The catalog actions offered for a source: a device action whose only parameter is {ip} that is on or has a connection, and the block list for a public address. */
 const offered = (src: NonNullable<IncidentPanel['source']>) => catalogStore.get().filter((c) => {
@@ -93,17 +99,22 @@ const offered = (src: NonNullable<IncidentPanel['source']>) => catalogStore.get(
   if (c.id === 'blocklist_add') return src.scope === 'public'
   return c.kind === 'device' && p.length === 1 && p[0] === 'ip' && (c.enabled || !!c.connection_id)
 })
-const incidentEvent = (inc: PeekIncident, src: NonNullable<IncidentPanel['source']>): Det => ({ id: `incident:${inc.id}`, trigger: 'honeypot', ts: nowIso(), summary: inc.title, device_kind: null, asset_id: src.asset_id,
-  fields: { source_ip: src.ip, source_device: src.device ?? '', decoy: '', kind: 'service', switch_port: '' } })
-function incidentOption(inc: PeekIncident, src: NonNullable<IncidentPanel['source']>, c: ReturnType<typeof catalogStore.get>[number]): IncidentOption {
-  const r = planAction({ action_id: c.id, params: { ip: src.ip }, ttl_min: INCIDENT_TTL }, incidentEvent(inc, src), `Incident: ${inc.title}`)
+type Read = NonNullable<ReturnType<typeof readIncident>> & { source: NonNullable<IncidentPanel['source']> }
+const incidentEvent = (r: Read): Det => ({ id: `incident:${r.inc.id}`, trigger: 'honeypot', ts: nowIso(), summary: r.inc.title, device_kind: null, asset_id: r.source.asset_id,
+  fields: { source_ip: r.source.ip, source_device: r.source.device ?? '', decoy: '', kind: r.kind || 'service', switch_port: '' } })
+const incidentWhy = (r: Read) => `Incident: ${r.inc.title}${r.kind === 'scan' ? ' (a scan; the same source also completed a connection to a trap, so its address is not forged)' : ''}`
+const planIncident = (r: Read, c: ReturnType<typeof catalogStore.get>[number]) => planAction({ action_id: c.id, params: { ip: r.source.ip }, ttl_min: INCIDENT_TTL }, incidentEvent(r), incidentWhy(r))
+function incidentOption(r: Read, c: ReturnType<typeof catalogStore.get>[number]): IncidentOption {
+  const p = planIncident(r, c)
   const device = c.kind === 'device'
   const base = { action_id: c.id, name: c.name, connection: device ? connById(c.connection_id)?.name ?? null : null, device, risk: c.risk, ttl_min: INCIDENT_TTL }
+  if (!r.confirmed) return { ...base, title: c.name, ready: false, why: UNCONFIRMED_MSG, requested: false }
   if (!c.enabled) return { ...base, title: c.name, ready: false, why: 'This action is switched off in the action catalog (Settings, AI response). An administrator turns it on.', requested: false }
-  if (!r.ok) return { ...base, title: c.name, ready: false, why: r.error, requested: false }
-  const requested = openKeys().has(plannedKey(r.p))
-  const why = device && !settings().execution ? OFF_MSG : requested ? 'Already asked for: see Requests.' : null
-  return { ...base, title: r.p.item.title, ready: why === null, why, requested }
+  if (!p.ok) return { ...base, title: c.name, ready: false, why: p.error, requested: false }
+  const requested = openKeys().has(plannedKey(p.p))
+  const w = maintenanceNow()
+  const why = device && !settings().execution ? OFF_MSG : w ? `Held: maintenance window "${w.name}" is active.` : breakerOpen() ? BREAKER_MSG : requested ? 'Already asked for: see Requests.' : null
+  return { ...base, title: p.p.item.title, ready: why === null, why, requested }
 }
 
 /** The approver of a link is still valid: on the channel's list with that address, the channel ready and one of the approval channels, an active operator or admin, and the person linked that address themselves (D-191). */
@@ -179,8 +190,9 @@ export const handlers = [
     const denied = guard('viewer'); if (denied) return denied
     sweep()
     const r = readIncident(String(params.id)); if (!r) return fail(404, 'not_found', 'No such incident. It may have been removed.')
-    const panel: IncidentPanel = { incident: { id: r.inc.id, kind: r.inc.kind, title: r.inc.title, action: r.inc.action }, source: r.source,
-      options: r.source ? offered(r.source).map((c) => incidentOption(r.inc, r.source!, c)) : [], execution: settings().execution }
+    const resolved = !!r.source && r.inc.status === 'resolved'
+    const panel: IncidentPanel = { incident: { id: r.inc.id, kind: r.inc.kind, title: r.inc.title, action: r.inc.action, status: r.inc.status }, source: r.source, note: resolved ? RESOLVED_MSG : r.source && !r.confirmed ? UNCONFIRMED_MSG : null,
+      options: r.source && !resolved ? offered(r.source).map((c) => incidentOption(r as Read, c)) : [], execution: settings().execution }
     return HttpResponse.json(panel)
   }),
   http.post(`${API}/response/incidents/:id/request`, async ({ params, request }) => {
@@ -189,6 +201,9 @@ export const handlers = [
     const id = String(params.id)
     const r = readIncident(id); if (!r) return fail(404, 'not_found', 'No such incident. It may have been removed.')
     if (!r.source) return refuse(409, 'no_source', 'This incident names no single address Vedette can act on. Nothing was requested.', id)
+    if (r.inc.status === 'resolved') return refuse(409, 'incident_resolved', RESOLVED_MSG, id)
+    if (!r.confirmed) return refuse(409, 'source_unconfirmed', UNCONFIRMED_MSG, id)
+    const rd = r as Read
     const b = await body<{ action_id?: unknown }>(request)
     const c = offered(r.source).find((x) => x.id === b.action_id)
     if (!c) return refuse(403, 'tool_not_allowed', 'This action is not offered for this incident. Nothing was requested.', id)
@@ -196,11 +211,11 @@ export const handlers = [
     if (c.kind === 'device' && !settings().execution) return refuse(409, 'execution_off', OFF_MSG, id)
     const w = maintenanceNow(); if (w) return refuse(409, 'maintenance', `Held: maintenance window "${w.name}" is active. Nothing was requested.`, id)
     if (breakerOpen()) return refuse(409, 'circuit_open', BREAKER_MSG, id)
-    const p = planAction({ action_id: c.id, params: { ip: r.source.ip }, ttl_min: INCIDENT_TTL }, incidentEvent(r.inc, r.source), `Incident: ${r.inc.title}`)
+    const p = planIncident(rd, c)
     if (!p.ok) return refuse(409, p.code, p.error, id)
     if (openKeys().has(plannedKey(p.p))) return refuse(409, 'already_requested', 'This action already has an open request or is in force for this address.', id)
     if (checkBreaker(1)) return refuse(409, 'circuit_open', BREAKER_MSG, id)
-    const a = newRequest({ source: 'person', proposal_id: `incident:${id}`, rule_id: null, rule_name: null, trigger: null, trigger_summary: `Incident: ${r.inc.title}`, finding_id: null, cve: null,
+    const a = newRequest({ source: 'person', proposal_id: `incident:${id}`, rule_id: null, rule_name: null, trigger: null, trigger_summary: incidentWhy(rd), finding_id: null, cve: null,
       asset_id: r.source.asset_id, asset_name: r.source.device ?? r.source.ip, title: p.p.item.title, items: [{ ...p.p.item, id: newId('it') }], ai: null }, true)
     return HttpResponse.json(a, { status: 201 })
   }),

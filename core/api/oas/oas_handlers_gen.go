@@ -38110,8 +38110,9 @@ func (s *Server) handleResponsePostResponseExecutionRequest(args [0]string, args
 //
 // Ask for approval of one offered action on the incident's source (D-509). The server reads the source
 // from the incident; the request waits for approval like any other (expiry, undo after 24 hours, log).
-// Refused when the action is not offered for this source, a device action while execution is off, or a
-// request is already open.
+// Refused when the action is not offered for this source, a device action while execution is off, a
+// request is already open, the incident is resolved (incident_resolved) or the source of a scan may be
+// forged (source_unconfirmed).
 //
 // POST /response/incidents/{id}/request
 func (s *Server) handleResponsePostResponseIncidentsIDRequestRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -38205,7 +38206,7 @@ func (s *Server) handleResponsePostResponseIncidentsIDRequestRequest(args [1]str
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    ResponsePostResponseIncidentsIDRequestOperation,
-			OperationSummary: "Ask for approval of one offered action on the incident's source (D-509). The server reads the source from the incident; the request waits for approval like any other (expiry, undo after 24 hours, log). Refused when the action is not offered for this source, a device action while execution is off, or a request is already open",
+			OperationSummary: "Ask for approval of one offered action on the incident's source (D-509). The server reads the source from the incident; the request waits for approval like any other (expiry, undo after 24 hours, log). Refused when the action is not offered for this source, a device action while execution is off, a request is already open, the incident is resolved (incident_resolved) or the source of a scan may be forged (source_unconfirmed)",
 			OperationID:      "response_post_response_incidents_id_request",
 			Body:             request,
 			RawBody:          rawBody,

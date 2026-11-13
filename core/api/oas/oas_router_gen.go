@@ -16659,7 +16659,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 								switch method {
 								case "POST":
 									r.name = ResponsePostResponseIncidentsIDRequestOperation
-									r.summary = "Ask for approval of one offered action on the incident's source (D-509). The server reads the source from the incident; the request waits for approval like any other (expiry, undo after 24 hours, log). Refused when the action is not offered for this source, a device action while execution is off, or a request is already open"
+									r.summary = "Ask for approval of one offered action on the incident's source (D-509). The server reads the source from the incident; the request waits for approval like any other (expiry, undo after 24 hours, log). Refused when the action is not offered for this source, a device action while execution is off, a request is already open, the incident is resolved (incident_resolved) or the source of a scan may be forged (source_unconfirmed)"
 									r.operationID = "response_post_response_incidents_id_request"
 									r.operationGroup = ""
 									r.pathPattern = "/response/incidents/{id}/request"

@@ -18,8 +18,14 @@ import (
 // by cmd/vedette. SourceIP is "" when the incident names no single address (another kind, a test hit, an unreadable hit).
 type IncidentInfo struct {
 	ID, Kind, Title, Action string
+	Status                  string // new, acknowledged or resolved: a resolved incident offers nothing
 	SourceIP                string
 	AssetID                 string // the inventory device of the source, "" when not known
+	HitKind                 string // a trap's hit: service, token or scan
+	// Unconfirmed: the source may be forged. A scan hit can be made from attempts that completed no handshake; it counts as
+	// confirmed only when the same source also completed a connection to a trap service (a service hit) near it. Nothing is
+	// offered for an unconfirmed source.
+	Unconfirmed bool
 }
 
 // IncidentReader reads one incident (Config.Incidents). ok is false for an unknown id or while the notify module is off.
@@ -30,6 +36,7 @@ type IncidentReader interface {
 // IncidentPanel is GET /response/incidents/{id} (contract.ts IncidentPanel).
 type IncidentPanel struct {
 	Incident  IncidentRef      `json:"incident"`
+	Note      *string          `json:"note"` // why nothing can be asked for a source that is there: resolved (no options), or unconfirmed
 	Source    *IncidentSource  `json:"source"`
 	Options   []IncidentOption `json:"options"`
 	Execution bool             `json:"execution"`
@@ -41,6 +48,7 @@ type IncidentRef struct {
 	Kind   string `json:"kind"`
 	Title  string `json:"title"`
 	Action string `json:"action"`
+	Status string `json:"status"`
 }
 
 // IncidentSource is the address the response acts on, read by the server from the incident.
@@ -69,6 +77,12 @@ type IncidentOption struct {
 const incidentTTL = 1440
 
 const sourcePerson = "person"
+
+const (
+	resolvedMsg    = "This incident is resolved, so nothing is offered. Reopen it in Incidents to act on it."
+	unconfirmedMsg = "The source of a scan can be forged: these attempts completed no connection, so this address may belong to someone innocent. Confirm on the device first. Nothing is offered for it."
+	scanConfirmed  = " (a scan; the same source also completed a connection to a trap, so its address is not forged)"
+)
 
 var errNoIncident = fail(http.StatusNotFound, "not_found", "No such incident. It may have been removed.")
 
@@ -134,14 +148,24 @@ func incidentOffers(src *IncidentSource, cats map[string]catRow) []catRow {
 
 func incidentEvent(inc IncidentInfo, src *IncidentSource) Det {
 	return Det{ID: "incident:" + inc.ID, Trigger: "honeypot", Summary: inc.Title,
-		Fields: map[string]string{"source_ip": src.IP, "source_device": deref2(src.Device), "decoy": "", "kind": "service", "switch_port": ""}}
+		Fields: map[string]string{"source_ip": src.IP, "source_device": deref2(src.Device), "decoy": "", "kind": orStr(inc.HitKind, "service"), "switch_port": ""}}
 }
 
 // planIncident plans one action on the source, through the planner of a rule run: {ip} resolves to the source the server read.
 func (s *Service) planIncident(c catRow, inc IncidentInfo, src *IncidentSource, cats map[string]catRow, cs conns, never []AllowEntry) (planned, *planFail) {
 	ttl := incidentTTL
 	a := RuleAction{ActionID: c.ID, Params: map[string]string{string(PIP): "{{trigger.source_ip}}"}, TTLMin: &ttl}
-	return s.planAction(a, incidentEvent(inc, src), "Incident: "+inc.Title, cats, cs, never)
+	return s.planAction(a, incidentEvent(inc, src), incidentWhy(inc), cats, cs, never)
+}
+
+// incidentWhy is the reason the request carries (its approval message and the change's "after" line): the incident, and for a scan
+// that the source is confirmed.
+func incidentWhy(inc IncidentInfo) string {
+	why := "Incident: " + inc.Title
+	if inc.HitKind == "scan" {
+		why += scanConfirmed
+	}
+	return oneLine(why, 300)
 }
 
 // IncidentPanel is GET /response/incidents/{id}: the incident's source and the actions that can be asked for it, each saying why
@@ -159,9 +183,16 @@ func (s *Service) IncidentPanel(ctx context.Context, id string) (IncidentPanel, 
 	if err != nil {
 		return IncidentPanel{}, err
 	}
-	out := IncidentPanel{Incident: IncidentRef{ID: inc.ID, Kind: inc.Kind, Title: inc.Title, Action: inc.Action}, Source: src, Options: []IncidentOption{}, Execution: st.Execution}
+	out := IncidentPanel{Incident: IncidentRef{ID: inc.ID, Kind: inc.Kind, Title: inc.Title, Action: inc.Action, Status: inc.Status}, Source: src, Options: []IncidentOption{}, Execution: st.Execution}
 	if src == nil {
 		return out, nil
+	}
+	if inc.Status == "resolved" {
+		out.Note = strp(resolvedMsg)
+		return out, nil
+	}
+	if inc.Unconfirmed {
+		out.Note = strp(unconfirmedMsg)
 	}
 	cats, err := s.cats(ctx, q)
 	if err != nil {
@@ -179,6 +210,7 @@ func (s *Service) IncidentPanel(ctx context.Context, id string) (IncidentPanel, 
 	if err != nil {
 		return IncidentPanel{}, err
 	}
+	held := maintenanceNow(st, s.now())
 	for _, c := range incidentOffers(src, cats) {
 		o := IncidentOption{ActionID: c.ID, Name: c.Name, Title: c.Name, Device: c.device(), Risk: c.Risk, TTLMin: incidentTTL}
 		if cn, ok := cs.get(c.ConnectionID); ok && c.device() {
@@ -186,6 +218,8 @@ func (s *Service) IncidentPanel(ctx context.Context, id string) (IncidentPanel, 
 		}
 		why := ""
 		switch pl, f := s.planIncident(c, inc, src, cats, cs, never); {
+		case inc.Unconfirmed:
+			why = unconfirmedMsg
 		case !c.Enabled:
 			why = "This action is switched off in the action catalog (Settings, AI response). An administrator turns it on."
 		case nt != nil:
@@ -198,6 +232,10 @@ func (s *Service) IncidentPanel(ctx context.Context, id string) (IncidentPanel, 
 			switch {
 			case c.device() && !st.Execution:
 				why = offMsg
+			case held != nil:
+				why = "Held: maintenance window \"" + oneLine(held.Name, 80) + "\" is active."
+			case st.BreakerTrippedAt != nil:
+				why = breakerMsg
 			case o.Requested:
 				why = "Already asked for: see Requests."
 			}
@@ -223,8 +261,13 @@ func (s *Service) RequestFromIncident(ctx context.Context, who Actor, id, action
 		return ActionRequest{}, err
 	}
 	target := "incident:" + oneLine(id, 96)
-	if src == nil {
+	switch {
+	case src == nil:
 		return ActionRequest{}, s.refuse(ctx, fail(http.StatusConflict, "no_source", "This incident names no single address Vedette can act on. Nothing was requested."), target, who.Email)
+	case inc.Status == "resolved":
+		return ActionRequest{}, s.refuse(ctx, fail(http.StatusConflict, "incident_resolved", resolvedMsg), target, who.Email)
+	case inc.Unconfirmed:
+		return ActionRequest{}, s.refuse(ctx, fail(http.StatusConflict, "source_unconfirmed", unconfirmedMsg), target, who.Email)
 	}
 	var refusal error
 	var out request
@@ -289,7 +332,7 @@ func (s *Service) RequestFromIncident(ctx context.Context, who Actor, id, action
 			}
 			item := pl.rec
 			item.ID = newID("it")
-			out, err = s.createRequest(ctx, tx, st, reqInit{Source: sourcePerson, Actor: who.Email + " (app)", ProposalID: target, TriggerSummary: oneLine("Incident: "+inc.Title, 300),
+			out, err = s.createRequest(ctx, tx, st, reqInit{Source: sourcePerson, Actor: who.Email + " (app)", ProposalID: target, TriggerSummary: incidentWhy(inc),
 				AssetID: deref2(src.AssetID), AssetName: firstNonEmpty(deref2(src.Device), src.IP), Title: item.Title, Recs: []itemRec{item}}, &fx)
 			return err
 		})

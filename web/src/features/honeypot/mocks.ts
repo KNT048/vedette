@@ -254,10 +254,14 @@ function checkInput(b: Partial<TrapIPInput>, self?: string): Response | { name: 
   return { name, ip, preset, vendor, services: HP_SERVICES.filter((s) => raw.includes(s)) }
 }
 
-/** The source of a real hit, for Respond on a trap incident (response D-509); null for a test hit or an unknown id. */
-export function hitSource(id: string): { ip: string; asset_id: string | null } | null {
+/** The source of a real hit, for Respond on a trap incident (response D-509); null for a test hit or an unknown id. A scan's source
+ * may be forged: it is confirmed only by a service hit (a completed connection) of the same source within the hour around it. */
+export function hitSource(id: string): { ip: string; asset_id: string | null; kind: HitKind; confirmed: boolean } | null {
   const h = hitsStore.get().find((x) => x.id === id)
-  return h && !h.is_test ? { ip: h.src_ip, asset_id: h.src_asset_id } : null
+  if (!h || h.is_test) return null
+  const kind = h.kind ?? 'service', at = Date.parse(h.ts)
+  const confirmed = kind !== 'scan' || hitsStore.get().some((x) => !x.is_test && (x.kind ?? 'service') === 'service' && x.src_ip === h.src_ip && Math.abs(Date.parse(x.ts) - at) <= 36e5)
+  return { ip: h.src_ip, asset_id: h.src_asset_id, kind, confirmed }
 }
 
 export const handlers = [

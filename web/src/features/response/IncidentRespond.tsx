@@ -20,7 +20,7 @@ export function IncidentRespond({ id }: { id: string }) {
   const [sent, setSent] = useState<string | null>(null)
   if (q.isPending) return <Loading />
   if (q.error) return <div className="mb-6"><ErrorState error={q.error} onRetry={() => void q.refetch()} /></div>
-  const { incident, source, options } = q.data
+  const { incident, source, options, note } = q.data
   const ready = options.some((o) => o.ready || o.requested)
   return (
     <section aria-labelledby="incident-respond" className="mb-6 grid gap-3 rounded-md border border-rule bg-surface p-4">
@@ -36,11 +36,12 @@ export function IncidentRespond({ id }: { id: string }) {
             <span>{t('incident.source')}: <span className="font-medium">{source.ip}</span>{source.device ? <> ({source.asset_id ? <Link className={link} to={`/devices/${encodeURIComponent(source.asset_id)}`}>{source.device}</Link> : source.device})</> : null}</span>
             <Chip tone={source.scope === 'lan' ? 'warn' : 'danger'}>{t(`incident.scope.${source.scope}`)}</Chip>
           </p>
+          {note ? <p role="note" className="rounded-md border border-dashed border-rule bg-paper px-3 py-2 text-sm">{note}</p> : null}
           {sent ? (
             <p role="status" className="rounded-md border border-rule bg-paper px-3 py-2 text-sm">{t('incident.sent', { title: sent })} <Link className={link} to="/response?tab=requests">{t('incident.toRequests')}</Link></p>
           ) : null}
           {options.length ? <ul className="grid gap-2">{options.map((o) => <OptionRow key={o.action_id} id={incident.id} o={o} onSent={setSent} />)}</ul> : null}
-          {source.scope === 'lan' && !ready ? (
+          {source.scope === 'lan' && !ready && !note ? (
             <div className="grid gap-1.5 rounded-md border border-dashed border-rule bg-paper px-3 py-2 text-sm">
               <p className="font-medium">{t('incident.lanNothing')}</p>
               <ol className="ml-5 grid list-decimal gap-1">

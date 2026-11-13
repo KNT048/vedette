@@ -56412,15 +56412,27 @@
                         "action": {
                           "type": "string",
                           "description": "The incident's own advice"
+                        },
+                        "status": {
+                          "type": "string",
+                          "description": "new, acknowledged or resolved"
                         }
                       },
                       "required": [
                         "id",
                         "kind",
                         "title",
-                        "action"
+                        "action",
+                        "status"
                       ],
                       "additionalProperties": false
+                    },
+                    "note": {
+                      "description": "Why nothing can be asked although the source is known: the incident is resolved (no options), or the source of a scan may be forged (every option not ready)",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
                     },
                     "source": {
                       "anyOf": [
@@ -56537,7 +56549,7 @@
                         ],
                         "additionalProperties": false
                       },
-                      "description": "Device actions whose only parameter is {ip} that are on or have a connection, and the block list for a public source"
+                      "description": "Device actions whose only parameter is {ip} that are on or have a connection, and the block list for a public source. The source of a scan that completed no connection may be forged: every option is then not ready"
                     },
                     "execution": {
                       "type": "boolean"
@@ -56545,6 +56557,7 @@
                   },
                   "required": [
                     "incident",
+                    "note",
                     "source",
                     "options",
                     "execution"
@@ -56570,7 +56583,7 @@
     "/response/incidents/{id}/request": {
       "post": {
         "operationId": "response_post_response_incidents_id_request",
-        "summary": "Ask for approval of one offered action on the incident's source (D-509). The server reads the source from the incident; the request waits for approval like any other (expiry, undo after 24 hours, log). Refused when the action is not offered for this source, a device action while execution is off, or a request is already open",
+        "summary": "Ask for approval of one offered action on the incident's source (D-509). The server reads the source from the incident; the request waits for approval like any other (expiry, undo after 24 hours, log). Refused when the action is not offered for this source, a device action while execution is off, a request is already open, the incident is resolved (incident_resolved) or the source of a scan may be forged (source_unconfirmed)",
         "tags": [
           "response"
         ],

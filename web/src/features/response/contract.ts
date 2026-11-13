@@ -274,9 +274,10 @@ export const IncidentOption = z.object({
   requested: z.boolean().describe('The same action on this address is already open or in force'),
 })
 export const IncidentPanel = z.object({
-  incident: z.object({ id: z.string(), kind: z.string(), title: z.string(), action: z.string().describe("The incident's own advice") }),
+  incident: z.object({ id: z.string(), kind: z.string(), title: z.string(), action: z.string().describe("The incident's own advice"), status: z.string().describe('new, acknowledged or resolved') }),
+  note: z.string().nullable().describe('Why nothing can be asked although the source is known: the incident is resolved (no options), or the source of a scan may be forged (every option not ready)'),
   source: IncidentSource.nullable().describe('null: the incident names no single address Vedette can act on (another kind, a test hit, unreadable)'),
-  options: z.array(IncidentOption).describe('Device actions whose only parameter is {ip} that are on or have a connection, and the block list for a public source'),
+  options: z.array(IncidentOption).describe('Device actions whose only parameter is {ip} that are on or have a connection, and the block list for a public source. The source of a scan that completed no connection may be forged: every option is then not ready'),
   execution: z.boolean(),
 })
 
@@ -291,7 +292,7 @@ export const endpoints = defineEndpoints([
   R({ method: 'post', path: '/response/proposals/{id}/request', status: 201, summary: 'Ask for approval of one action proposed in an AI plan (refused when execution is off, the action is not enabled or a request is already open)', stories: ['S-RESP-2'], role: 'operator',
     params: idParams, response: ActionRequest }),
   R({ method: 'get', path: '/response/incidents/{id}', summary: 'Respond to an incident (D-509): its source address and device, LAN or public, and the actions that can really be asked for it, each with why it is not ready', stories: ['S-RESP-3'], role: 'viewer', params: idParams, response: IncidentPanel }),
-  R({ method: 'post', path: '/response/incidents/{id}/request', status: 201, summary: "Ask for approval of one offered action on the incident's source (D-509). The server reads the source from the incident; the request waits for approval like any other (expiry, undo after 24 hours, log). Refused when the action is not offered for this source, a device action while execution is off, or a request is already open", stories: ['S-RESP-3'], role: 'operator',
+  R({ method: 'post', path: '/response/incidents/{id}/request', status: 201, summary: "Ask for approval of one offered action on the incident's source (D-509). The server reads the source from the incident; the request waits for approval like any other (expiry, undo after 24 hours, log). Refused when the action is not offered for this source, a device action while execution is off, a request is already open, the incident is resolved (incident_resolved) or the source of a scan may be forged (source_unconfirmed)", stories: ['S-RESP-3'], role: 'operator',
     params: idParams, body: z.object({ action_id: id }), response: ActionRequest }),
   R({ method: 'post', path: '/response/actions/{id}/approve', summary: 'Approve a request in the app: all actions or the ones picked. High-risk requests need a second, different approver; AI high-risk requests need the two-step code', stories: ['S-RESP-2'], role: 'operator',
     params: idParams, body: z.object({ items: z.array(z.string()).optional(), code: z.string().optional() }), response: ActionRequest }),

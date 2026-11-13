@@ -203,6 +203,17 @@ func (s *Service) UpsertFromMatch(ctx context.Context, a Asset, vulns []Vuln) (U
 				return err
 			}
 			before := r.Finding
+			reopened := false
+			if f, h, ok := r.ReopenOnMatch(now); ok { // D-530: Vedette closed it by itself; it applies again
+				r.Finding, reopened = f, true
+				if err := insertHistory(ctx, tx, r.ID, h); err != nil {
+					return err
+				}
+				if err := s.cfg.Audit.Append(ctx, tx, audit.Entry{User: SystemUser, Action: "findings.matches_again", Target: r.ID, Detail: r.CVE + ": reopened"}); err != nil {
+					return err
+				}
+				emit(EventStatusChanged, StatusChangedEvent{FindingID: r.ID, From: before.Status, To: r.Status})
+			}
 			r.Finding = r.ApplyMatch(em)
 			r.LastSeen = now
 			if err := r.Validate(); err != nil {
@@ -217,7 +228,7 @@ func (s *Service) UpsertFromMatch(ctx context.Context, a Asset, vulns []Vuln) (U
 					return err
 				}
 			}
-			if n := len(r.History); n > 0 && r.History[n-1].Action == "no_longer_matches" { // matches again: the newest line must not say otherwise
+			if n := len(r.History); !reopened && n > 0 && r.History[n-1].Action == "no_longer_matches" { // matches again: the newest line must not say otherwise
 				if err := insertHistory(ctx, tx, r.ID, HistoryEntry{TS: now, User: SystemUser, Action: "matches_again", Note: "The device matches this entry again."}); err != nil {
 					return err
 				}
@@ -226,6 +237,9 @@ func (s *Service) UpsertFromMatch(ctx context.Context, a Asset, vulns []Vuln) (U
 				}
 			}
 			res.Touched++
+		}
+		if err := s.autoResolve(ctx, tx, a.ID, m.NotAffected, now, emit); err != nil {
+			return err
 		}
 		if err := s.noteNoLongerMatching(ctx, tx, a.ID, vulns, m, now); err != nil {
 			return err
@@ -310,6 +324,40 @@ func haveScope(a Asset, vulns []Vuln, m MatchResult, since map[string]Have, have
 		}
 	}
 	return out
+}
+
+// autoResolve closes the suspected findings the matcher proved not affected (D-530): status not_relevant by the system
+// user, reason not_affected_version, the matcher's sentence as note and history, audit findings.auto_resolved and a
+// findings.finding.status_changed event. Only a positive proof comes here (MatchResult.NotAffected): an unknown or
+// unreadable version, a scan-confirmed or a closed finding is never closed. Nothing is deleted.
+func (s *Service) autoResolve(ctx context.Context, tx *sql.Tx, assetID string, proved []Match, now time.Time, emit func(string, any)) error {
+	for _, p := range proved {
+		r, err := loadByPair(ctx, tx, assetID, p.CVE)
+		if errors.Is(err, ErrNotFound) {
+			continue
+		}
+		if err != nil {
+			return err
+		}
+		was := r.Status
+		f, h, ok := r.AutoResolve(p.Evidence.Summary, now)
+		if !ok {
+			continue
+		}
+		r.Finding = f
+		if err := updateRecord(ctx, tx, r); err != nil {
+			return err
+		}
+		if err := insertHistory(ctx, tx, r.ID, h); err != nil {
+			return err
+		}
+		if err := s.cfg.Audit.Append(ctx, tx, audit.Entry{User: SystemUser, Action: "findings.auto_resolved", Target: r.ID,
+			Detail: r.CVE + ": " + ReasonNotAffectedVersion}); err != nil {
+			return err
+		}
+		emit(EventStatusChanged, StatusChangedEvent{FindingID: r.ID, From: was, To: r.Status})
+	}
+	return nil
 }
 
 // noteNoLongerMatching records, once, that a suspected finding (basis version or product) is no longer produced by the

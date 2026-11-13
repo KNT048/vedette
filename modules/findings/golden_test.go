@@ -161,6 +161,35 @@ func TestGolden_PatchedUbuntuServer(t *testing.T) {
 	if !slices.Equal(got, want) || len(res.NeedVersion) != 0 {
 		t.Fatalf("findings %v, items %+v; want %v", got, res.NeedVersion, want)
 	}
+	// W3-2, D-530: the box already has the old flood (every KEV CVE of these products, by product). The four stay; every
+	// other one is proved outside its ranges (or, CVE-2021-3493, outside the OS releases it lists) and closes by itself.
+	byn := Asset{ID: "a", Name: "byn", OS: "Ubuntu 26.04.1 LTS", Software: ubuntuServer()}
+	flood := map[string]bool{}
+	for _, v := range vulns {
+		for _, sw := range byn.Software {
+			if keyedTo(sw, v) {
+				flood[v.CVE] = true
+			}
+		}
+	}
+	res = MatchAsset(byn, vulns, flood, t0)
+	var kept, closed []string
+	for _, m := range res.Existing {
+		kept = append(kept, m.CVE+" "+string(m.Basis))
+	}
+	for _, m := range res.NotAffected {
+		closed = append(closed, m.CVE)
+	}
+	slices.Sort(kept)
+	if !slices.Equal(kept, want) || len(res.New) != 0 || len(kept)+len(closed) != len(flood) {
+		t.Fatalf("kept %v, closed %d of %d flood findings; want %v kept, the rest closed", kept, len(closed), len(flood), want)
+	}
+	for _, c := range cves("CVE-2014-0160 CVE-2014-6271 CVE-2021-4034 CVE-2021-3156 CVE-2023-4911 CVE-2016-5195 CVE-2022-0847 CVE-2021-3493") {
+		if flood[c] && !slices.Contains(closed, c) {
+			t.Errorf("%s is not closed", c)
+		}
+	}
+	t.Logf("byn: %d old findings, %d kept, %d closed by D-530", len(flood), len(kept), len(closed))
 	// the same server years ago is caught by version, not by product
 	old := []Software{agentPkg("OpenSSL", "OpenSSL", "1.0.1f"), agentPkg("Sudo", "Sudo", "1.8.31"), agentPkg("Red Hat", "Polkit", "0.105"),
 		agentPkg("Linux", "Kernel", "4.4.0"), agentPkg("GNU", "GNU C Library", "2.35")}

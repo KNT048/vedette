@@ -68,6 +68,54 @@ type Finding struct {
 	ResolvedBy     string    // "" = none
 	ResolvedAt     time.Time // zero = none
 	ResolutionNote string    // "" = none
+	// ResolutionReason is set only when Vedette closed the finding by itself (D-530): ReasonNotAffectedVersion. A
+	// person's action, a reopen or a scan clears it.
+	ResolutionReason string
+}
+
+// ReasonNotAffectedVersion closes a suspected finding whose version the matcher proved outside every range (D-530).
+const ReasonNotAffectedVersion = "not_affected_version"
+
+// AutoResolved reports whether Vedette closed the finding by itself (D-530): only such a finding reopens on a match.
+func (f Finding) AutoResolved() bool {
+	return f.Status == StatusNotRelevant && f.ResolutionReason == ReasonNotAffectedVersion
+}
+
+// AutoResolve closes a suspected finding (basis version or product) that the matcher proved not affected (D-530):
+// not_relevant by the system user, with the matcher's sentence as note. ok is false for anything else: an open
+// finding a scan confirmed, or a closed one, is never touched.
+func (f Finding) AutoResolve(note string, now time.Time) (Finding, HistoryEntry, bool) {
+	if f.Status != StatusSuspected || f.Basis == BasisScan {
+		return f, HistoryEntry{}, false
+	}
+	note = clipRunes(note, MaxNote)
+	f.Status, f.ResolvedBy, f.ResolvedAt, f.ResolutionNote, f.ResolutionReason = StatusNotRelevant, SystemUser, now, note, ReasonNotAffectedVersion
+	return f, HistoryEntry{TS: now, User: SystemUser, Action: string(StatusNotRelevant), Note: note}, true
+}
+
+// ReopenOnMatch reopens a finding Vedette closed by itself when the matcher says the device matches again (D-530).
+func (f Finding) ReopenOnMatch(now time.Time) (Finding, HistoryEntry, bool) {
+	if !f.AutoResolved() {
+		return f, HistoryEntry{}, false
+	}
+	f.Status, f.ResolvedBy, f.ResolvedAt, f.ResolutionNote, f.ResolutionReason = StatusSuspected, "", time.Time{}, "", ""
+	return f, HistoryEntry{TS: now, User: SystemUser, Action: "matches_again",
+		Note: "The device matches this entry again, so Vedette reopened it (it had closed it because the version was outside the affected versions)."}, true
+}
+
+// clipRunes cuts s to at most n UTF-16 units (jsLen), on a character boundary.
+func clipRunes(s string, n int) string {
+	if jsLen(s) <= n {
+		return s
+	}
+	out := []rune{}
+	for _, r := range s {
+		if jsLen(string(append(out, r))) > n-1 {
+			break
+		}
+		out = append(out, r)
+	}
+	return string(out) + "…"
 }
 
 // HistoryEntry is one append-only row of fnd_finding_history.
@@ -156,11 +204,11 @@ func (f Finding) Apply(action Action, note, user string, now time.Time) (Finding
 		if f.Basis == BasisScan {
 			f.Status = StatusConfirmed
 		}
-		f.ResolvedBy, f.ResolvedAt, f.ResolutionNote = "", time.Time{}, ""
+		f.ResolvedBy, f.ResolvedAt, f.ResolutionNote, f.ResolutionReason = "", time.Time{}, "", ""
 		return f, HistoryEntry{TS: now, User: user, Action: "reopened", Note: note}, nil
 	}
 	f.Status = Status(action)
-	f.ResolvedBy, f.ResolvedAt, f.ResolutionNote = user, now, note
+	f.ResolvedBy, f.ResolvedAt, f.ResolutionNote, f.ResolutionReason = user, now, note, ""
 	return f, HistoryEntry{TS: now, User: user, Action: string(action), Note: note}, nil
 }
 
@@ -191,7 +239,8 @@ func (f Finding) ConfirmFromScan(ev Evidence, now time.Time) (ScanOutcome, error
 	}
 	ev.Summary, ev.Request, ev.Response = truncate(ev.Summary), truncate(ev.Request), truncate(ev.Response)
 	was := f.Status
-	closedByPerson := was == StatusFalsePositive || was == StatusNotRelevant
+	auto := f.AutoResolved() // closed by Vedette, not a person (D-530): a scan reopens it like patched
+	closedByPerson := (was == StatusFalsePositive || was == StatusNotRelevant) && !auto
 	if closedByPerson && f.Basis == BasisScan && f.Evidence != nil && f.Evidence.Template == ev.Template {
 		return ScanOutcome{Finding: f}, nil // this match was already signalled
 	}
@@ -199,17 +248,17 @@ func (f Finding) ConfirmFromScan(ev Evidence, now time.Time) (ScanOutcome, error
 	f.Confidence = math.Max(f.Confidence, ConfScan)
 	f.Evidence = &ev
 	h := HistoryEntry{TS: now, User: SystemUser, Action: "confirmed", Note: ev.Template}
-	switch was {
-	case StatusFalsePositive, StatusNotRelevant:
+	switch {
+	case closedByPerson:
 		h.Action, h.Note = "rescanned", "scan: "+ev.Template+" (kept as "+string(was)+")"
 		return ScanOutcome{Finding: f, History: []HistoryEntry{h}, Notify: true}, nil
-	case StatusConfirmed:
+	case was == StatusConfirmed:
 		h.Action = "rescanned"
-	case StatusPatched, StatusMitigated:
+	case was == StatusPatched, was == StatusMitigated, auto:
 		h.Action, h.Note = "reopened", "scan: "+ev.Template
 	}
 	f.Status = StatusConfirmed
-	f.ResolvedBy, f.ResolvedAt, f.ResolutionNote = "", time.Time{}, ""
+	f.ResolvedBy, f.ResolvedAt, f.ResolutionNote, f.ResolutionReason = "", time.Time{}, "", ""
 	return ScanOutcome{Finding: f, History: []HistoryEntry{h}, Notify: was != StatusConfirmed}, nil
 }
 

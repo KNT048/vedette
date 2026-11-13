@@ -103,6 +103,10 @@ type MatchResult struct {
 	// NeedVersion lists, per software, the exploited CVEs of its product that cannot be checked because the
 	// software has no usable version (D-500): one item for the device, not one finding per CVE.
 	NeedVersion []VersionNeeded
+	// NotAffected lists the CVEs the device has a finding for that the matcher proves do not apply (D-530): every
+	// software of the entry's product has a readable version outside every NVD range (or its OS release is not one
+	// the entry lists), none needs a version, none matches. Evidence.Summary is the sentence that closes the finding.
+	NotAffected []Match
 }
 
 // VersionNeeded is a software whose product is on the exploited list but whose version is missing or unreadable.
@@ -175,15 +179,23 @@ func MatchAsset(a Asset, vulns []Vuln, have map[string]bool, now time.Time) Matc
 			continue
 		}
 		seen[v.CVE] = true
-		var best *Match
+		var best, proved *Match
+		unproved := false // a software of this product with a No that proves nothing, or one that needs a version
 		for i, s := range a.Software {
 			m, out := matchOne(a, s, infos[i], v, now)
 			switch out {
+			case outNotAffected:
+				if proved == nil {
+					proved = &m
+				}
+			case outRuledOut:
+				unproved = true
 			case outMatch:
 				if best == nil || rank(m.Basis) > rank(best.Basis) {
 					best = &m
 				}
 			case outNeedVersion:
+				unproved = true
 				i, ok := need[s.ID]
 				if !ok {
 					i = len(res.NeedVersion)
@@ -196,6 +208,9 @@ func MatchAsset(a Asset, vulns []Vuln, have map[string]bool, now time.Time) Matc
 			}
 		}
 		if best == nil {
+			if proved != nil && !unproved && have[v.CVE] { // D-530: only a proof for every software of the product
+				res.NotAffected = append(res.NotAffected, *proved)
+			}
 			continue
 		}
 		if have[v.CVE] {
@@ -214,6 +229,8 @@ const (
 	outNone        outcome = iota // not this product, or a version outside every range
 	outMatch                      // a finding
 	outNeedVersion                // this product, but only a version would tell
+	outRuledOut                   // this product, ruled out without a proof about the version (keeps a finding open)
+	outNotAffected                // this product, and its version is proved outside every range (D-530)
 )
 
 func rank(b Basis) int {
@@ -250,10 +267,16 @@ func matchOne(a Asset, s Software, in swInfo, v Vuln, now time.Time) (Match, out
 		return Match{}, outNone
 	}
 	multi := isMultiProduct(v.Product)
-	tri, within, every := decide(in, v, multi)
+	tri, within, every, proof := decide(in, v, multi)
 	switch {
+	case tri == No && proof == proofNone:
+		return Match{}, outRuledOut
 	case tri == No:
-		return Match{}, outNone
+		note := fmt.Sprintf("Not affected: version %s of %s is outside every version range NVD lists for %s. Vedette closed this by itself and reopens it if a later match says the device is affected.", clean(in.ver), clean(s.Display), v.CVE)
+		if proof == proofOS {
+			note = fmt.Sprintf("Not affected: %s lists only operating-system releases other than this device's (%s). Vedette closed this by itself and reopens it if a later match says the device is affected.", v.CVE, clean(a.OS))
+		}
+		return Match{CVE: v.CVE, SoftwareID: s.ID, SoftwareDisplay: clean(s.Display), Evidence: Evidence{Summary: note, CheckedAt: now}}, outNotAffected
 	case tri == Unknown && !in.given && !every:
 		return Match{}, outNeedVersion // D-500: one "add the version" item per software, not one finding per CVE
 	}
@@ -341,7 +364,11 @@ func newSWInfo(s Software, vulns []Vuln, osName string) swInfo {
 // decide evaluates the NVD configurations of v for one software. every is true when an applicable entry names every
 // version of the product (no range, version and update ANY, nothing pinned the software contradicts): then the answer
 // does not depend on the version, so a software without one is not sent to "add the version" (D-500).
-func decide(in swInfo, v Vuln, multi bool) (t Tri, within VersionRange, every bool) {
+//
+// proof says what a No rests on (D-530): proofRange when every applicable entry rules the readable version out,
+// proofOS when the entry lists only releases of the device's own distribution and not its release, proofNone for the
+// "Multiple Products names other products only" rule, which depends on the alias list and proves nothing.
+func decide(in swInfo, v Vuln, multi bool) (t Tri, within VersionRange, every bool, proof proofKind) {
 	ids := in.ids
 	if !multi {
 		if n := (identity{vendor: norm(v.Vendor), product: norm(v.Product)}); n.ok() {
@@ -368,23 +395,39 @@ func decide(in swInfo, v Vuln, multi bool) (t Tri, within VersionRange, every bo
 		}
 		switch t {
 		case Yes:
-			return Yes, r, every
+			return Yes, r, every, proofNone
 		case Unknown:
 			result = Unknown
 		case No:
 		}
 	}
 	if !applicable && in.osVer != "" && osRulesOut(v, in) {
-		return No, VersionRange{}, false // the entry names only operating-system releases, and not this device's (D-500)
+		p := proofNone
+		if versionKnown(in.osVer) {
+			p = proofOS
+		}
+		return No, VersionRange{}, false, p // the entry names only operating-system releases, and not this device's (D-500)
 	}
 	if !applicable && multi && in.named && !undecidable && len(v.Affected) > 0 {
-		return No, VersionRange{}, false // NVD names this software elsewhere and lists only other products of the vendor here (D-500)
+		return No, VersionRange{}, false, proofNone // NVD names this software elsewhere and lists only other products of the vendor here (D-500)
 	}
 	if !applicable || undecidable && result == No {
-		return Unknown, VersionRange{}, every
+		return Unknown, VersionRange{}, every, proofNone
 	}
-	return result, VersionRange{}, every
+	if result == No && versionKnown(in.ver) {
+		return No, VersionRange{}, every, proofRange
+	}
+	return result, VersionRange{}, every, proofNone
 }
+
+// proofKind is what a No of decide rests on (D-530): only proofRange and proofOS close a finding.
+type proofKind uint8
+
+const (
+	proofNone  proofKind = iota // no No, or a No that proves nothing about the version
+	proofRange                  // the readable version is outside every applicable NVD entry
+	proofOS                     // the entry lists only releases of the device's distribution, not its release
+)
 
 // everyVersion reports whether configuration c names the product with nothing else pinned: every version, update,
 // edition, language and target.

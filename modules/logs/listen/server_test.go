@@ -363,7 +363,7 @@ func TestUnknownSendersAreDroppedAndCountedInABoundedTable(t *testing.T) {
 	r.start()
 	sendUDP(t, r.udpAddr(), "<34>from nobody I know") // UDP socket is open for 10.9.9.9; the sender is 127.0.0.1, declared for TCP only
 	waitFor(t, "the datagram to be counted", func() bool { return r.srv.Stats().Unknown == 1 })
-	// TCP from a sender declared for UDP only is refused too: use the second address when the host has it
+	// TCP from a sender that is not declared is refused too: use the second address when the host has it
 	d := &net.Dialer{LocalAddr: &net.TCPAddr{IP: net.ParseIP("127.0.0.2")}}
 	for range 3 {
 		if c, err := d.Dial("tcp4", r.tcpAddr()); err == nil {
@@ -493,38 +493,44 @@ func TestAFailingSinkLosesOnlyItsBatchAndIsCounted(t *testing.T) {
 	waitFor(t, "the next line to arrive", func() bool { return len(r.lines()) == 2 })
 }
 
-func TestSocketsFollowTheSources(t *testing.T) {
+// D-443: the sockets are open with no source at all, so a sender that is not declared yet is counted (not met by a closed port); the
+// sources decide only what is kept. D-444: a UDP source takes TCP from its address too; a TCP source takes no UDP.
+func TestSocketsAreOpenWithoutSourcesAndTheSourcesDecideWhatIsKept(t *testing.T) {
 	r := newRig(t, Limits{BatchWait: 10 * time.Millisecond}, nil)
 	r.start()
-	waitFor(t, "Run to be up", func() bool { r.srv.mu.Lock(); defer r.srv.mu.Unlock(); return r.srv.running })
-	if u, tc := r.srv.Addrs(); u != nil || tc != nil {
-		t.Fatalf("a server with no sources listens: %v %v", u, tc)
+	sendUDP(t, r.udpAddr(), "<34>before any source")
+	waitFor(t, "the undeclared sender to be counted", func() bool { return r.srv.Stats().Unknown == 1 })
+	if st := r.srv.Stats(); len(st.UnknownSender) != 1 || st.UnknownSender[0].IP != lo || st.UnknownSender[0].Proto != "udp" {
+		t.Fatalf("unknown senders %+v", st.UnknownSender)
 	}
 	r.set("udp")
-	if u, tc := r.srv.Addrs(); u == nil || tc != nil {
-		t.Fatalf("one UDP source: udp=%v tcp=%v", u, tc)
-	}
 	sendUDP(t, r.udpAddr(), "<34>added")
 	waitFor(t, "the line of the added source", func() bool { return len(r.lines()) == 1 })
-
-	r.set("tcp") // the same sender changes protocol
-	if u, tc := r.srv.Addrs(); u != nil || tc == nil {
-		t.Fatalf("one TCP source: udp=%v tcp=%v", u, tc)
-	}
 	c := dialTCP(t, r.tcpAddr())
-	if _, err := io.WriteString(c, "<34>over tcp\n"); err != nil {
+	if _, err := io.WriteString(c, "<34>a udp source over tcp\n"); err != nil {
 		t.Fatal(err)
 	}
-	waitFor(t, "the tcp line", func() bool { return len(r.lines()) == 2 })
+	waitFor(t, "the tcp line of the udp source", func() bool { return len(r.lines()) == 2 })
 
-	if err := r.srv.SetSources(nil); err != nil { // the last source is deleted: no socket, and the open connection is closed
+	r.set("tcp") // the same sender is declared TCP: its open connection stays, a datagram from it is no longer kept
+	if _, err := io.WriteString(c, "<34>still tcp\n"); err != nil {
 		t.Fatal(err)
 	}
-	if u, tc := r.srv.Addrs(); u != nil || tc != nil {
-		t.Fatalf("no sources: udp=%v tcp=%v", u, tc)
+	waitFor(t, "the tcp line of the tcp source", func() bool { return len(r.lines()) == 3 })
+	sendUDP(t, r.udpAddr(), "<34>a datagram that claims the tcp source")
+	waitFor(t, "the datagram to be counted", func() bool { return r.srv.Stats().Unknown == 2 })
+
+	if err := r.srv.SetSources(nil); err != nil { // the last source is deleted: the sockets stay, the open connection is closed
+		t.Fatal(err)
+	}
+	if u, tc := r.srv.Addrs(); u == nil || tc == nil {
+		t.Fatalf("no sources closed a socket: udp=%v tcp=%v", u, tc)
 	}
 	if !closedByPeer(c, 5*time.Second) {
 		t.Error("the connection of a deleted source stayed open")
+	}
+	if got := r.texts(); len(got) != 3 {
+		t.Errorf("kept %q", got)
 	}
 }
 
@@ -562,7 +568,7 @@ func TestTheFallbackPortIsUsedOnlyWhenThePreferredOneIsNotPermitted(t *testing.T
 	r.start()
 	sendUDP(t, r.udpAddr(), "<34>on the fallback")
 	waitFor(t, "the line", func() bool { return len(r.lines()) == 1 })
-	if st := r.srv.Status(); !st.FellBack || st.Preferred != 1 || !st.UDP || st.TCP {
+	if st := r.srv.Status(); !st.FellBack || st.Preferred != 1 || !st.UDP || !st.TCP {
 		t.Errorf("status %+v", st)
 	}
 }
@@ -828,11 +834,20 @@ func TestRegisterRefusesASenderThatIsNoLongerATCPSource(t *testing.T) {
 	if got := r.srv.register(l, c1, lo, "tcp"); got != regStale {
 		t.Errorf("a sender that was removed while its listener stays open: %d, want regStale", got)
 	}
-	if err := r.srv.SetSources(map[netip.Addr]Source{other: {ID: "src-2", Proto: "udp"}}); err != nil { // the listener closes
+	if err := r.srv.SetSources(map[netip.Addr]Source{other: {ID: "src-2", Proto: "tls"}}); err != nil { // declared with another protocol
 		t.Fatal(err)
 	}
-	if got := r.srv.register(l, c1, other, "tcp"); got != regGone {
-		t.Errorf("a listener that is gone: %d, want regGone", got)
+	if got := r.srv.register(l, c1, other, "tcp"); got != regStale {
+		t.Errorf("a sender now declared with TLS: %d, want regStale", got)
+	}
+	var lc net.ListenConfig
+	gone, err := lc.Listen(t.Context(), "tcp4", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = gone.Close()
+	if got := r.srv.register(gone, c1, other, "tcp"); got != regGone {
+		t.Errorf("a listener that is not the one in use: %d, want regGone", got)
 	}
 	if got := r.srv.register(nil, c1, other, "tcp"); got != regGone {
 		t.Errorf("no listener: %d", got)

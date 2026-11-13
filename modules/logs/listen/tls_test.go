@@ -107,9 +107,6 @@ func TestTLSBothFramingsAreStoredFromTheDeclaredSender(t *testing.T) {
 	tr := newTLSRig(t, Limits{}, true)
 	tr.start()
 	tr.set("tls")
-	if st := tr.srv.Status(); st.UDP || st.TCP {
-		t.Fatalf("a TLS source opened a plain socket: %+v", st)
-	}
 	c, err := tr.dial(tr.tlsAddr(), tr.pool)
 	if err != nil {
 		t.Fatal(err)
@@ -244,7 +241,8 @@ func TestNoTLSConfigMeansNoTLSSocket(t *testing.T) {
 	tr := newTLSRig(t, Limits{}, false)
 	tr.start()
 	tr.set("tls")
-	if st := tr.srv.Status(); st.TLS || st.TLSErr != "" || st.TCP || st.UDP {
+	tr.tcpAddr() // the plain sockets are open (D-443): Run has applied the sources
+	if st := tr.srv.Status(); st.TLS || st.TLSErr != "" {
 		t.Errorf("status %+v", st)
 	}
 	if a := tr.srv.TLSAddr(); a != nil {
@@ -252,7 +250,9 @@ func TestNoTLSConfigMeansNoTLSSocket(t *testing.T) {
 	}
 }
 
-func TestTheTLSSocketClosesWithItsLastSourceAndItsConnectionsGo(t *testing.T) {
+// D-443: the TLS socket stays open when the last TLS source goes; the open connection of that source is cut, and a new one from the
+// same address is closed before any handshake and counted.
+func TestTheTLSSocketOutlivesItsLastSourceButItsConnectionsGo(t *testing.T) {
 	t.Parallel()
 	tr := newTLSRig(t, Limits{}, true)
 	tr.start()
@@ -267,12 +267,15 @@ func TestTheTLSSocketClosesWithItsLastSourceAndItsConnectionsGo(t *testing.T) {
 	if err := tr.srv.SetSources(nil); err != nil {
 		t.Fatal(err)
 	}
-	waitFor(t, "the TLS socket to close", func() bool { return tr.srv.TLSAddr() == nil })
 	waitFor(t, "the open connection to be cut", func() bool { return tr.srv.Status().Conns == 0 })
-	if conn, err := dialCtx("tcp4", addr); err == nil {
-		_ = conn.Close()
-		t.Error("the TLS port still accepts connections")
+	if tr.srv.TLSAddr() == nil {
+		t.Fatal("the TLS socket closed with its last source")
 	}
+	if c2, err := tr.dial(addr, tr.pool); err == nil {
+		_ = c2.Close()
+		t.Error("a sender that is no longer a source completed a handshake")
+	}
+	waitFor(t, "the refused connection to be counted", func() bool { return tr.srv.Stats().Unknown >= 1 })
 }
 
 // A TLS source and a TCP source can both be declared (different senders): both sockets are open.

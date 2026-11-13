@@ -80,6 +80,11 @@
     "ip": "IP of the sending device",
     "ipHint": "The box only accepts logs from this IP. Example: 192.168.10.1.",
     "proto": "Protocol",
+    "protoHint": {
+      "udp": "The box listens on UDP and TCP and keeps this device's lines from either.",
+      "tcp": "The box listens on UDP and TCP but keeps only TCP from this device: UDP is easy to forge.",
+      "tls": "The box keeps only TLS from this device, on port 6514."
+    },
     "port": "Port the box listens on",
     "portHint": "Usually 514, or 6514 for TLS.",
     "submitAdd": "Add and show setup",

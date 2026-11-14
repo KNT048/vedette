@@ -214,6 +214,9 @@ type Row struct {
 	History        []historyDoc `json:"history"`
 	Asset          *AssetView   `json:"asset"`
 	Kev            *KevInfo     `json:"kev"`
+	// Fix is the one update that fixes this finding together with the device's other open findings of the same software (D-545):
+	// set on the list only, for an open finding; nil when Vedette cannot name one.
+	Fix *RowFix `json:"fix"`
 }
 
 type historyDoc struct {

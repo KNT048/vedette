@@ -21,6 +21,8 @@ import { basisKey, deviceName, hasIp, isOpen, riskRank, unverified } from './bas
 import { MAX_BULK } from './contract'
 import { errMsg } from './errors'
 import { RiskChip } from './Risk'
+import { FixGroupList } from './FixGroups'
+import { fixGroups, useFixAction } from './fix'
 import type { BulkAction, FindingRow, VersionNeeded } from './types'
 
 /** The three lists (D-543): Open = confirmed + suspected, Accepted risk, Handled = patched / mitigated / false positive / not relevant. */
@@ -105,6 +107,7 @@ function List() {
   const device = params.get('device') ?? ''
   const product = params.get('product') ?? ''
   const severity = params.get('severity') ?? ''
+  const fixKey = params.get('fix') ?? '' // D-545: the findings one update fixes, as rows (to select and handle them)
   const status: OpenStatus = params.get('status') === 'confirmed' ? 'confirmed' : params.get('status') === 'suspected' ? 'suspected' : 'all'
   const setParam = (k: string, v: string) => { if (v) params.set(k, v); else params.delete(k); setParams(params, { replace: true }) }
   const [certainty, setCertainty] = useState<Certainty>('all')
@@ -122,11 +125,15 @@ function List() {
   const s = search.trim().toLowerCase()
   const rowsFor = (tab: Tab) => (items ?? []).filter(inTab[tab]).filter(certain[certainty])
     .filter((f) => tab !== 'open' || status === 'all' || f.status === status)
-    .filter((f) => (!cve || f.cve === cve) && (!device || f.asset_id === device) && (!product || f.kev?.display === product) && (!severity || f.severity === severity))
+    .filter((f) => (!cve || f.cve === cve) && (!device || f.asset_id === device) && (!product || f.kev?.display === product) && (!severity || f.severity === severity) && (!fixKey || f.fix?.group === fixKey))
     .filter((f) => !s || [f.cve, name(f), f.asset?.ip ?? '', f.kev?.display ?? ''].some((v) => v.toLowerCase().includes(s)))
   // The tab being shown decides which rows are selectable: selection is cleared on a tab change by the filter below (hidden rows never stay selected).
   const tabId = (['open', 'accepted', 'handled'] as Tab[]).find((x) => x === params.get('tab')) ?? 'open'
-  const rows = rowsFor(tabId)
+  // D-545: in Open, the findings one update fixes together are one item above the table, not one row each (unless ?fix= asks for them).
+  const grouping = tabId === 'open' && !fixKey ? fixGroups(rowsFor('open')) : null
+  const rows = grouping ? grouping.rest : rowsFor(tabId)
+  const fixAction = useFixAction()
+  const fixShown = fixKey ? items?.find((f) => f.fix?.group === fixKey)?.fix : undefined
   // Only what is shown can stay selected: changing a filter never acts on hidden rows.
   const shown = rows.filter((r) => selected.has(r.id)).map((r) => r.id)
   const allShown = rows.length > 0 && shown.length === rows.length
@@ -179,7 +186,11 @@ function List() {
           {cve ? (
             <Button size="sm" onClick={() => setParam('cve', '')}><X />{t('clearCve', { cve })}</Button>
           ) : null}
+          {fixKey ? (
+            <Button size="sm" onClick={() => setParam('fix', '')}><X />{t('fix.clear')}</Button>
+          ) : null}
         </div>
+        {fixShown ? <p className="text-sm">{t('fix.filtered', { action: fixAction(fixShown) })}</p> : null}
         <div className="flex flex-wrap items-center gap-2">
           <Input className="h-9 w-full sm:max-w-xs" value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('filter')} aria-label={t('filter')} />
           <Select className="w-full sm:w-auto sm:max-w-64" value={device} onChange={(e) => setParam('device', e.target.value)} aria-label={t('deviceFilter')}>
@@ -201,8 +212,11 @@ function List() {
         ) : null}
       </div>
       {tab === 'open' && q.data?.version_needed.length ? <VersionNeededList items={q.data.version_needed} /> : null}
+      {tab === 'open' && grouping ? <div className="mb-3"><FixGroupList groups={grouping.groups} showDevice /></div> : null}
       <QueryState query={q}>
-        {() => (
+        {() => tab === 'open' && grouping && grouping.groups.length > 0 && rows.length === 0 ? (
+          <p className="text-sm text-muted">{t('fix.allGrouped')}</p>
+        ) : (
           <DataTable
             caption={t('caption')}
             data={rows}

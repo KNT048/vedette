@@ -53872,12 +53872,15 @@ type FeedsGetFeedsCveIDOK struct {
 	Epss7dAgo   NilFloat64 `json:"epss_7d_ago"`
 	HasTemplate bool       `json:"has_template"`
 	// Http(s) addresses only.
-	Links          []string                          `json:"links"`
-	Matched        []FeedsGetFeedsCveIDOKMatchedItem `json:"matched"`
-	Name           string                            `json:"name"`
-	Product        string                            `json:"product"`
-	Ransomware     bool                              `json:"ransomware"`
-	RequiredAction string                            `json:"required_action"`
+	Links   []string                          `json:"links"`
+	Matched []FeedsGetFeedsCveIDOKMatchedItem `json:"matched"`
+	Name    string                            `json:"name"`
+	// D-549: devices that run the product but that the platform rules of the findings prove are not
+	// affected; left out of matched.
+	NotAffected    OptInt `json:"not_affected"`
+	Product        string `json:"product"`
+	Ransomware     bool   `json:"ransomware"`
+	RequiredAction string `json:"required_action"`
 	// Which list the entry is on: "cisa-kev", "vulncheck-kev" (VulnCheck KEV, D-557) or the id of a custom
 	// feed; texts name it, an entry of VulnCheck is never called CISA's.
 	Source OptString `json:"source"`
@@ -53937,6 +53940,11 @@ func (s *FeedsGetFeedsCveIDOK) GetMatched() []FeedsGetFeedsCveIDOKMatchedItem {
 // GetName returns the value of Name.
 func (s *FeedsGetFeedsCveIDOK) GetName() string {
 	return s.Name
+}
+
+// GetNotAffected returns the value of NotAffected.
+func (s *FeedsGetFeedsCveIDOK) GetNotAffected() OptInt {
+	return s.NotAffected
 }
 
 // GetProduct returns the value of Product.
@@ -54017,6 +54025,11 @@ func (s *FeedsGetFeedsCveIDOK) SetMatched(val []FeedsGetFeedsCveIDOKMatchedItem)
 // SetName sets the value of Name.
 func (s *FeedsGetFeedsCveIDOK) SetName(val string) {
 	s.Name = val
+}
+
+// SetNotAffected sets the value of NotAffected.
+func (s *FeedsGetFeedsCveIDOK) SetNotAffected(val OptInt) {
+	s.NotAffected = val
 }
 
 // SetProduct sets the value of Product.
@@ -60746,6 +60759,9 @@ type FindingsGetFindingsIDOK struct {
 	Cve        string                               `json:"cve"`
 	Evidence   NilFindingsGetFindingsIDOKEvidence   `json:"evidence"`
 	FirstSeen  time.Time                            `json:"first_seen"`
+	// GET /findings only, open findings: the update that fixes it with others (D-545); null when there is
+	// none to name.
+	Fix OptNilFindingsGetFindingsIDOKFix `json:"fix"`
 	// The release that fixes this finding on this device, from the NVD affected versions (D-488); null =
 	// NVD gives none, the page shows CISA and the vendor advisory only.
 	FixedIn NilFindingsGetFindingsIDOKFixedIn    `json:"fixed_in"`
@@ -60822,6 +60838,11 @@ func (s *FindingsGetFindingsIDOK) GetEvidence() NilFindingsGetFindingsIDOKEviden
 // GetFirstSeen returns the value of FirstSeen.
 func (s *FindingsGetFindingsIDOK) GetFirstSeen() time.Time {
 	return s.FirstSeen
+}
+
+// GetFix returns the value of Fix.
+func (s *FindingsGetFindingsIDOK) GetFix() OptNilFindingsGetFindingsIDOKFix {
+	return s.Fix
 }
 
 // GetFixedIn returns the value of FixedIn.
@@ -60942,6 +60963,11 @@ func (s *FindingsGetFindingsIDOK) SetEvidence(val NilFindingsGetFindingsIDOKEvid
 // SetFirstSeen sets the value of FirstSeen.
 func (s *FindingsGetFindingsIDOK) SetFirstSeen(val time.Time) {
 	s.FirstSeen = val
+}
+
+// SetFix sets the value of Fix.
+func (s *FindingsGetFindingsIDOK) SetFix(val OptNilFindingsGetFindingsIDOKFix) {
+	s.Fix = val
 }
 
 // SetFixedIn sets the value of FixedIn.
@@ -62393,11 +62419,19 @@ func (s *FindingsGetFindingsIDOKCompromiseIndicatorsItemKind) UnmarshalText(data
 }
 
 type FindingsGetFindingsIDOKEvidence struct {
+	// D-548: the version compared is the one the device's own agent (osquery, Wazuh) reports installed: a
+	// detection, shown as "Detected by the agent", with nothing for the person to look up.
+	Agent     OptBool   `json:"agent"`
 	CheckedAt time.Time `json:"checked_at"`
 	Request   OptString `json:"request"`
 	Response  OptString `json:"response"`
 	Summary   string    `json:"summary"`
 	Template  OptString `json:"template"`
+}
+
+// GetAgent returns the value of Agent.
+func (s *FindingsGetFindingsIDOKEvidence) GetAgent() OptBool {
+	return s.Agent
 }
 
 // GetCheckedAt returns the value of CheckedAt.
@@ -62425,6 +62459,11 @@ func (s *FindingsGetFindingsIDOKEvidence) GetTemplate() OptString {
 	return s.Template
 }
 
+// SetAgent sets the value of Agent.
+func (s *FindingsGetFindingsIDOKEvidence) SetAgent(val OptBool) {
+	s.Agent = val
+}
+
 // SetCheckedAt sets the value of CheckedAt.
 func (s *FindingsGetFindingsIDOKEvidence) SetCheckedAt(val time.Time) {
 	s.CheckedAt = val
@@ -62448,6 +62487,169 @@ func (s *FindingsGetFindingsIDOKEvidence) SetSummary(val string) {
 // SetTemplate sets the value of Template.
 func (s *FindingsGetFindingsIDOKEvidence) SetTemplate(val OptString) {
 	s.Template = val
+}
+
+// D-545: one update fixes this finding together with the device's other open findings of the same
+// software (top-tier: one item per missing update).
+type FindingsGetFindingsIDOKFix struct {
+	// Distro: "Ubuntu" or "Debian", empty for the distribution's.
+	Distro string `json:"distro"`
+	// The release or build that fixes them all; feature_update: the release to move to; empty for distro.
+	Fixed string `json:"fixed"`
+	// "/": the open findings with the same group are fixed by the same update.
+	Group string `json:"group"`
+	// Fixed = upgrade to `fixed` (a Windows release: the monthly cumulative update with build `fixed` or
+	// later); esu = that build needs Extended Security Updates; feature_update = no update of this release
+	// fixes them, move to release `fixed`; distro = install the distribution's security updates for the
+	// package.
+	Kind FindingsGetFindingsIDOKFixKind `json:"kind"`
+	// Distro: the fix of at least one of them is in Ubuntu Pro (ESM) only.
+	Pro bool `json:"pro"`
+	// Display name of the software row.
+	Software string `json:"software"`
+	// The installed version.
+	Version string `json:"version"`
+	// A Windows release row (D-546): the update is the monthly cumulative update Windows Update offers.
+	Windows bool `json:"windows"`
+}
+
+// GetDistro returns the value of Distro.
+func (s *FindingsGetFindingsIDOKFix) GetDistro() string {
+	return s.Distro
+}
+
+// GetFixed returns the value of Fixed.
+func (s *FindingsGetFindingsIDOKFix) GetFixed() string {
+	return s.Fixed
+}
+
+// GetGroup returns the value of Group.
+func (s *FindingsGetFindingsIDOKFix) GetGroup() string {
+	return s.Group
+}
+
+// GetKind returns the value of Kind.
+func (s *FindingsGetFindingsIDOKFix) GetKind() FindingsGetFindingsIDOKFixKind {
+	return s.Kind
+}
+
+// GetPro returns the value of Pro.
+func (s *FindingsGetFindingsIDOKFix) GetPro() bool {
+	return s.Pro
+}
+
+// GetSoftware returns the value of Software.
+func (s *FindingsGetFindingsIDOKFix) GetSoftware() string {
+	return s.Software
+}
+
+// GetVersion returns the value of Version.
+func (s *FindingsGetFindingsIDOKFix) GetVersion() string {
+	return s.Version
+}
+
+// GetWindows returns the value of Windows.
+func (s *FindingsGetFindingsIDOKFix) GetWindows() bool {
+	return s.Windows
+}
+
+// SetDistro sets the value of Distro.
+func (s *FindingsGetFindingsIDOKFix) SetDistro(val string) {
+	s.Distro = val
+}
+
+// SetFixed sets the value of Fixed.
+func (s *FindingsGetFindingsIDOKFix) SetFixed(val string) {
+	s.Fixed = val
+}
+
+// SetGroup sets the value of Group.
+func (s *FindingsGetFindingsIDOKFix) SetGroup(val string) {
+	s.Group = val
+}
+
+// SetKind sets the value of Kind.
+func (s *FindingsGetFindingsIDOKFix) SetKind(val FindingsGetFindingsIDOKFixKind) {
+	s.Kind = val
+}
+
+// SetPro sets the value of Pro.
+func (s *FindingsGetFindingsIDOKFix) SetPro(val bool) {
+	s.Pro = val
+}
+
+// SetSoftware sets the value of Software.
+func (s *FindingsGetFindingsIDOKFix) SetSoftware(val string) {
+	s.Software = val
+}
+
+// SetVersion sets the value of Version.
+func (s *FindingsGetFindingsIDOKFix) SetVersion(val string) {
+	s.Version = val
+}
+
+// SetWindows sets the value of Windows.
+func (s *FindingsGetFindingsIDOKFix) SetWindows(val bool) {
+	s.Windows = val
+}
+
+// Fixed = upgrade to `fixed` (a Windows release: the monthly cumulative update with build `fixed` or
+// later); esu = that build needs Extended Security Updates; feature_update = no update of this release
+// fixes them, move to release `fixed`; distro = install the distribution's security updates for the
+// package.
+type FindingsGetFindingsIDOKFixKind string
+
+const (
+	FindingsGetFindingsIDOKFixKindFixed         FindingsGetFindingsIDOKFixKind = "fixed"
+	FindingsGetFindingsIDOKFixKindEsu           FindingsGetFindingsIDOKFixKind = "esu"
+	FindingsGetFindingsIDOKFixKindFeatureUpdate FindingsGetFindingsIDOKFixKind = "feature_update"
+	FindingsGetFindingsIDOKFixKindDistro        FindingsGetFindingsIDOKFixKind = "distro"
+)
+
+// AllValues returns all FindingsGetFindingsIDOKFixKind values.
+func (FindingsGetFindingsIDOKFixKind) AllValues() []FindingsGetFindingsIDOKFixKind {
+	return []FindingsGetFindingsIDOKFixKind{
+		FindingsGetFindingsIDOKFixKindFixed,
+		FindingsGetFindingsIDOKFixKindEsu,
+		FindingsGetFindingsIDOKFixKindFeatureUpdate,
+		FindingsGetFindingsIDOKFixKindDistro,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsIDOKFixKind) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsIDOKFixKindFixed:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKFixKindEsu:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKFixKindFeatureUpdate:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKFixKindDistro:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsIDOKFixKind) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsIDOKFixKind(data) {
+	case FindingsGetFindingsIDOKFixKindFixed:
+		*s = FindingsGetFindingsIDOKFixKindFixed
+		return nil
+	case FindingsGetFindingsIDOKFixKindEsu:
+		*s = FindingsGetFindingsIDOKFixKindEsu
+		return nil
+	case FindingsGetFindingsIDOKFixKindFeatureUpdate:
+		*s = FindingsGetFindingsIDOKFixKindFeatureUpdate
+		return nil
+	case FindingsGetFindingsIDOKFixKindDistro:
+		*s = FindingsGetFindingsIDOKFixKindDistro
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type FindingsGetFindingsIDOKFixedIn struct {
@@ -63730,13 +63932,16 @@ type FindingsGetFindingsOKItemsItem struct {
 	AssetID       string                                 `json:"asset_id"`
 	// Scan = confirmed by a scan template; version = suspected by version; product = only the product
 	// matches.
-	Basis      FindingsGetFindingsOKItemsItemBasis         `json:"basis"`
-	Confidence float64                                     `json:"confidence"`
-	Cve        string                                      `json:"cve"`
-	Evidence   NilFindingsGetFindingsOKItemsItemEvidence   `json:"evidence"`
-	FirstSeen  time.Time                                   `json:"first_seen"`
-	History    []FindingsGetFindingsOKItemsItemHistoryItem `json:"history"`
-	ID         string                                      `json:"id"`
+	Basis      FindingsGetFindingsOKItemsItemBasis       `json:"basis"`
+	Confidence float64                                   `json:"confidence"`
+	Cve        string                                    `json:"cve"`
+	Evidence   NilFindingsGetFindingsOKItemsItemEvidence `json:"evidence"`
+	FirstSeen  time.Time                                 `json:"first_seen"`
+	// GET /findings only, open findings: the update that fixes it with others (D-545); null when there is
+	// none to name.
+	Fix     OptNilFindingsGetFindingsOKItemsItemFix     `json:"fix"`
+	History []FindingsGetFindingsOKItemsItemHistoryItem `json:"history"`
+	ID      string                                      `json:"id"`
 	// Read from KEV, not from the project recommendation pack.
 	Kev            NilFindingsGetFindingsOKItemsItemKev   `json:"kev"`
 	LastSeen       time.Time                              `json:"last_seen"`
@@ -63785,6 +63990,11 @@ func (s *FindingsGetFindingsOKItemsItem) GetEvidence() NilFindingsGetFindingsOKI
 // GetFirstSeen returns the value of FirstSeen.
 func (s *FindingsGetFindingsOKItemsItem) GetFirstSeen() time.Time {
 	return s.FirstSeen
+}
+
+// GetFix returns the value of Fix.
+func (s *FindingsGetFindingsOKItemsItem) GetFix() OptNilFindingsGetFindingsOKItemsItemFix {
+	return s.Fix
 }
 
 // GetHistory returns the value of History.
@@ -63870,6 +64080,11 @@ func (s *FindingsGetFindingsOKItemsItem) SetEvidence(val NilFindingsGetFindingsO
 // SetFirstSeen sets the value of FirstSeen.
 func (s *FindingsGetFindingsOKItemsItem) SetFirstSeen(val time.Time) {
 	s.FirstSeen = val
+}
+
+// SetFix sets the value of Fix.
+func (s *FindingsGetFindingsOKItemsItem) SetFix(val OptNilFindingsGetFindingsOKItemsItemFix) {
+	s.Fix = val
 }
 
 // SetHistory sets the value of History.
@@ -64690,11 +64905,19 @@ func (s *FindingsGetFindingsOKItemsItemBasis) UnmarshalText(data []byte) error {
 }
 
 type FindingsGetFindingsOKItemsItemEvidence struct {
+	// D-548: the version compared is the one the device's own agent (osquery, Wazuh) reports installed: a
+	// detection, shown as "Detected by the agent", with nothing for the person to look up.
+	Agent     OptBool   `json:"agent"`
 	CheckedAt time.Time `json:"checked_at"`
 	Request   OptString `json:"request"`
 	Response  OptString `json:"response"`
 	Summary   string    `json:"summary"`
 	Template  OptString `json:"template"`
+}
+
+// GetAgent returns the value of Agent.
+func (s *FindingsGetFindingsOKItemsItemEvidence) GetAgent() OptBool {
+	return s.Agent
 }
 
 // GetCheckedAt returns the value of CheckedAt.
@@ -64722,6 +64945,11 @@ func (s *FindingsGetFindingsOKItemsItemEvidence) GetTemplate() OptString {
 	return s.Template
 }
 
+// SetAgent sets the value of Agent.
+func (s *FindingsGetFindingsOKItemsItemEvidence) SetAgent(val OptBool) {
+	s.Agent = val
+}
+
 // SetCheckedAt sets the value of CheckedAt.
 func (s *FindingsGetFindingsOKItemsItemEvidence) SetCheckedAt(val time.Time) {
 	s.CheckedAt = val
@@ -64745,6 +64973,169 @@ func (s *FindingsGetFindingsOKItemsItemEvidence) SetSummary(val string) {
 // SetTemplate sets the value of Template.
 func (s *FindingsGetFindingsOKItemsItemEvidence) SetTemplate(val OptString) {
 	s.Template = val
+}
+
+// D-545: one update fixes this finding together with the device's other open findings of the same
+// software (top-tier: one item per missing update).
+type FindingsGetFindingsOKItemsItemFix struct {
+	// Distro: "Ubuntu" or "Debian", empty for the distribution's.
+	Distro string `json:"distro"`
+	// The release or build that fixes them all; feature_update: the release to move to; empty for distro.
+	Fixed string `json:"fixed"`
+	// "/": the open findings with the same group are fixed by the same update.
+	Group string `json:"group"`
+	// Fixed = upgrade to `fixed` (a Windows release: the monthly cumulative update with build `fixed` or
+	// later); esu = that build needs Extended Security Updates; feature_update = no update of this release
+	// fixes them, move to release `fixed`; distro = install the distribution's security updates for the
+	// package.
+	Kind FindingsGetFindingsOKItemsItemFixKind `json:"kind"`
+	// Distro: the fix of at least one of them is in Ubuntu Pro (ESM) only.
+	Pro bool `json:"pro"`
+	// Display name of the software row.
+	Software string `json:"software"`
+	// The installed version.
+	Version string `json:"version"`
+	// A Windows release row (D-546): the update is the monthly cumulative update Windows Update offers.
+	Windows bool `json:"windows"`
+}
+
+// GetDistro returns the value of Distro.
+func (s *FindingsGetFindingsOKItemsItemFix) GetDistro() string {
+	return s.Distro
+}
+
+// GetFixed returns the value of Fixed.
+func (s *FindingsGetFindingsOKItemsItemFix) GetFixed() string {
+	return s.Fixed
+}
+
+// GetGroup returns the value of Group.
+func (s *FindingsGetFindingsOKItemsItemFix) GetGroup() string {
+	return s.Group
+}
+
+// GetKind returns the value of Kind.
+func (s *FindingsGetFindingsOKItemsItemFix) GetKind() FindingsGetFindingsOKItemsItemFixKind {
+	return s.Kind
+}
+
+// GetPro returns the value of Pro.
+func (s *FindingsGetFindingsOKItemsItemFix) GetPro() bool {
+	return s.Pro
+}
+
+// GetSoftware returns the value of Software.
+func (s *FindingsGetFindingsOKItemsItemFix) GetSoftware() string {
+	return s.Software
+}
+
+// GetVersion returns the value of Version.
+func (s *FindingsGetFindingsOKItemsItemFix) GetVersion() string {
+	return s.Version
+}
+
+// GetWindows returns the value of Windows.
+func (s *FindingsGetFindingsOKItemsItemFix) GetWindows() bool {
+	return s.Windows
+}
+
+// SetDistro sets the value of Distro.
+func (s *FindingsGetFindingsOKItemsItemFix) SetDistro(val string) {
+	s.Distro = val
+}
+
+// SetFixed sets the value of Fixed.
+func (s *FindingsGetFindingsOKItemsItemFix) SetFixed(val string) {
+	s.Fixed = val
+}
+
+// SetGroup sets the value of Group.
+func (s *FindingsGetFindingsOKItemsItemFix) SetGroup(val string) {
+	s.Group = val
+}
+
+// SetKind sets the value of Kind.
+func (s *FindingsGetFindingsOKItemsItemFix) SetKind(val FindingsGetFindingsOKItemsItemFixKind) {
+	s.Kind = val
+}
+
+// SetPro sets the value of Pro.
+func (s *FindingsGetFindingsOKItemsItemFix) SetPro(val bool) {
+	s.Pro = val
+}
+
+// SetSoftware sets the value of Software.
+func (s *FindingsGetFindingsOKItemsItemFix) SetSoftware(val string) {
+	s.Software = val
+}
+
+// SetVersion sets the value of Version.
+func (s *FindingsGetFindingsOKItemsItemFix) SetVersion(val string) {
+	s.Version = val
+}
+
+// SetWindows sets the value of Windows.
+func (s *FindingsGetFindingsOKItemsItemFix) SetWindows(val bool) {
+	s.Windows = val
+}
+
+// Fixed = upgrade to `fixed` (a Windows release: the monthly cumulative update with build `fixed` or
+// later); esu = that build needs Extended Security Updates; feature_update = no update of this release
+// fixes them, move to release `fixed`; distro = install the distribution's security updates for the
+// package.
+type FindingsGetFindingsOKItemsItemFixKind string
+
+const (
+	FindingsGetFindingsOKItemsItemFixKindFixed         FindingsGetFindingsOKItemsItemFixKind = "fixed"
+	FindingsGetFindingsOKItemsItemFixKindEsu           FindingsGetFindingsOKItemsItemFixKind = "esu"
+	FindingsGetFindingsOKItemsItemFixKindFeatureUpdate FindingsGetFindingsOKItemsItemFixKind = "feature_update"
+	FindingsGetFindingsOKItemsItemFixKindDistro        FindingsGetFindingsOKItemsItemFixKind = "distro"
+)
+
+// AllValues returns all FindingsGetFindingsOKItemsItemFixKind values.
+func (FindingsGetFindingsOKItemsItemFixKind) AllValues() []FindingsGetFindingsOKItemsItemFixKind {
+	return []FindingsGetFindingsOKItemsItemFixKind{
+		FindingsGetFindingsOKItemsItemFixKindFixed,
+		FindingsGetFindingsOKItemsItemFixKindEsu,
+		FindingsGetFindingsOKItemsItemFixKindFeatureUpdate,
+		FindingsGetFindingsOKItemsItemFixKindDistro,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsOKItemsItemFixKind) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsOKItemsItemFixKindFixed:
+		return []byte(s), nil
+	case FindingsGetFindingsOKItemsItemFixKindEsu:
+		return []byte(s), nil
+	case FindingsGetFindingsOKItemsItemFixKindFeatureUpdate:
+		return []byte(s), nil
+	case FindingsGetFindingsOKItemsItemFixKindDistro:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsOKItemsItemFixKind) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsOKItemsItemFixKind(data) {
+	case FindingsGetFindingsOKItemsItemFixKindFixed:
+		*s = FindingsGetFindingsOKItemsItemFixKindFixed
+		return nil
+	case FindingsGetFindingsOKItemsItemFixKindEsu:
+		*s = FindingsGetFindingsOKItemsItemFixKindEsu
+		return nil
+	case FindingsGetFindingsOKItemsItemFixKindFeatureUpdate:
+		*s = FindingsGetFindingsOKItemsItemFixKindFeatureUpdate
+		return nil
+	case FindingsGetFindingsOKItemsItemFixKindDistro:
+		*s = FindingsGetFindingsOKItemsItemFixKindDistro
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type FindingsGetFindingsOKItemsItemHistoryItem struct {
@@ -65926,6 +66317,9 @@ type FindingsPostFindingsIDAiOK struct {
 	Cve        string                                  `json:"cve"`
 	Evidence   NilFindingsPostFindingsIDAiOKEvidence   `json:"evidence"`
 	FirstSeen  time.Time                               `json:"first_seen"`
+	// GET /findings only, open findings: the update that fixes it with others (D-545); null when there is
+	// none to name.
+	Fix OptNilFindingsPostFindingsIDAiOKFix `json:"fix"`
 	// The release that fixes this finding on this device, from the NVD affected versions (D-488); null =
 	// NVD gives none, the page shows CISA and the vendor advisory only.
 	FixedIn NilFindingsPostFindingsIDAiOKFixedIn    `json:"fixed_in"`
@@ -66002,6 +66396,11 @@ func (s *FindingsPostFindingsIDAiOK) GetEvidence() NilFindingsPostFindingsIDAiOK
 // GetFirstSeen returns the value of FirstSeen.
 func (s *FindingsPostFindingsIDAiOK) GetFirstSeen() time.Time {
 	return s.FirstSeen
+}
+
+// GetFix returns the value of Fix.
+func (s *FindingsPostFindingsIDAiOK) GetFix() OptNilFindingsPostFindingsIDAiOKFix {
+	return s.Fix
 }
 
 // GetFixedIn returns the value of FixedIn.
@@ -66122,6 +66521,11 @@ func (s *FindingsPostFindingsIDAiOK) SetEvidence(val NilFindingsPostFindingsIDAi
 // SetFirstSeen sets the value of FirstSeen.
 func (s *FindingsPostFindingsIDAiOK) SetFirstSeen(val time.Time) {
 	s.FirstSeen = val
+}
+
+// SetFix sets the value of Fix.
+func (s *FindingsPostFindingsIDAiOK) SetFix(val OptNilFindingsPostFindingsIDAiOKFix) {
+	s.Fix = val
 }
 
 // SetFixedIn sets the value of FixedIn.
@@ -67573,11 +67977,19 @@ func (s *FindingsPostFindingsIDAiOKCompromiseIndicatorsItemKind) UnmarshalText(d
 }
 
 type FindingsPostFindingsIDAiOKEvidence struct {
+	// D-548: the version compared is the one the device's own agent (osquery, Wazuh) reports installed: a
+	// detection, shown as "Detected by the agent", with nothing for the person to look up.
+	Agent     OptBool   `json:"agent"`
 	CheckedAt time.Time `json:"checked_at"`
 	Request   OptString `json:"request"`
 	Response  OptString `json:"response"`
 	Summary   string    `json:"summary"`
 	Template  OptString `json:"template"`
+}
+
+// GetAgent returns the value of Agent.
+func (s *FindingsPostFindingsIDAiOKEvidence) GetAgent() OptBool {
+	return s.Agent
 }
 
 // GetCheckedAt returns the value of CheckedAt.
@@ -67605,6 +68017,11 @@ func (s *FindingsPostFindingsIDAiOKEvidence) GetTemplate() OptString {
 	return s.Template
 }
 
+// SetAgent sets the value of Agent.
+func (s *FindingsPostFindingsIDAiOKEvidence) SetAgent(val OptBool) {
+	s.Agent = val
+}
+
 // SetCheckedAt sets the value of CheckedAt.
 func (s *FindingsPostFindingsIDAiOKEvidence) SetCheckedAt(val time.Time) {
 	s.CheckedAt = val
@@ -67628,6 +68045,169 @@ func (s *FindingsPostFindingsIDAiOKEvidence) SetSummary(val string) {
 // SetTemplate sets the value of Template.
 func (s *FindingsPostFindingsIDAiOKEvidence) SetTemplate(val OptString) {
 	s.Template = val
+}
+
+// D-545: one update fixes this finding together with the device's other open findings of the same
+// software (top-tier: one item per missing update).
+type FindingsPostFindingsIDAiOKFix struct {
+	// Distro: "Ubuntu" or "Debian", empty for the distribution's.
+	Distro string `json:"distro"`
+	// The release or build that fixes them all; feature_update: the release to move to; empty for distro.
+	Fixed string `json:"fixed"`
+	// "/": the open findings with the same group are fixed by the same update.
+	Group string `json:"group"`
+	// Fixed = upgrade to `fixed` (a Windows release: the monthly cumulative update with build `fixed` or
+	// later); esu = that build needs Extended Security Updates; feature_update = no update of this release
+	// fixes them, move to release `fixed`; distro = install the distribution's security updates for the
+	// package.
+	Kind FindingsPostFindingsIDAiOKFixKind `json:"kind"`
+	// Distro: the fix of at least one of them is in Ubuntu Pro (ESM) only.
+	Pro bool `json:"pro"`
+	// Display name of the software row.
+	Software string `json:"software"`
+	// The installed version.
+	Version string `json:"version"`
+	// A Windows release row (D-546): the update is the monthly cumulative update Windows Update offers.
+	Windows bool `json:"windows"`
+}
+
+// GetDistro returns the value of Distro.
+func (s *FindingsPostFindingsIDAiOKFix) GetDistro() string {
+	return s.Distro
+}
+
+// GetFixed returns the value of Fixed.
+func (s *FindingsPostFindingsIDAiOKFix) GetFixed() string {
+	return s.Fixed
+}
+
+// GetGroup returns the value of Group.
+func (s *FindingsPostFindingsIDAiOKFix) GetGroup() string {
+	return s.Group
+}
+
+// GetKind returns the value of Kind.
+func (s *FindingsPostFindingsIDAiOKFix) GetKind() FindingsPostFindingsIDAiOKFixKind {
+	return s.Kind
+}
+
+// GetPro returns the value of Pro.
+func (s *FindingsPostFindingsIDAiOKFix) GetPro() bool {
+	return s.Pro
+}
+
+// GetSoftware returns the value of Software.
+func (s *FindingsPostFindingsIDAiOKFix) GetSoftware() string {
+	return s.Software
+}
+
+// GetVersion returns the value of Version.
+func (s *FindingsPostFindingsIDAiOKFix) GetVersion() string {
+	return s.Version
+}
+
+// GetWindows returns the value of Windows.
+func (s *FindingsPostFindingsIDAiOKFix) GetWindows() bool {
+	return s.Windows
+}
+
+// SetDistro sets the value of Distro.
+func (s *FindingsPostFindingsIDAiOKFix) SetDistro(val string) {
+	s.Distro = val
+}
+
+// SetFixed sets the value of Fixed.
+func (s *FindingsPostFindingsIDAiOKFix) SetFixed(val string) {
+	s.Fixed = val
+}
+
+// SetGroup sets the value of Group.
+func (s *FindingsPostFindingsIDAiOKFix) SetGroup(val string) {
+	s.Group = val
+}
+
+// SetKind sets the value of Kind.
+func (s *FindingsPostFindingsIDAiOKFix) SetKind(val FindingsPostFindingsIDAiOKFixKind) {
+	s.Kind = val
+}
+
+// SetPro sets the value of Pro.
+func (s *FindingsPostFindingsIDAiOKFix) SetPro(val bool) {
+	s.Pro = val
+}
+
+// SetSoftware sets the value of Software.
+func (s *FindingsPostFindingsIDAiOKFix) SetSoftware(val string) {
+	s.Software = val
+}
+
+// SetVersion sets the value of Version.
+func (s *FindingsPostFindingsIDAiOKFix) SetVersion(val string) {
+	s.Version = val
+}
+
+// SetWindows sets the value of Windows.
+func (s *FindingsPostFindingsIDAiOKFix) SetWindows(val bool) {
+	s.Windows = val
+}
+
+// Fixed = upgrade to `fixed` (a Windows release: the monthly cumulative update with build `fixed` or
+// later); esu = that build needs Extended Security Updates; feature_update = no update of this release
+// fixes them, move to release `fixed`; distro = install the distribution's security updates for the
+// package.
+type FindingsPostFindingsIDAiOKFixKind string
+
+const (
+	FindingsPostFindingsIDAiOKFixKindFixed         FindingsPostFindingsIDAiOKFixKind = "fixed"
+	FindingsPostFindingsIDAiOKFixKindEsu           FindingsPostFindingsIDAiOKFixKind = "esu"
+	FindingsPostFindingsIDAiOKFixKindFeatureUpdate FindingsPostFindingsIDAiOKFixKind = "feature_update"
+	FindingsPostFindingsIDAiOKFixKindDistro        FindingsPostFindingsIDAiOKFixKind = "distro"
+)
+
+// AllValues returns all FindingsPostFindingsIDAiOKFixKind values.
+func (FindingsPostFindingsIDAiOKFixKind) AllValues() []FindingsPostFindingsIDAiOKFixKind {
+	return []FindingsPostFindingsIDAiOKFixKind{
+		FindingsPostFindingsIDAiOKFixKindFixed,
+		FindingsPostFindingsIDAiOKFixKindEsu,
+		FindingsPostFindingsIDAiOKFixKindFeatureUpdate,
+		FindingsPostFindingsIDAiOKFixKindDistro,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDAiOKFixKind) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDAiOKFixKindFixed:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKFixKindEsu:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKFixKindFeatureUpdate:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKFixKindDistro:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDAiOKFixKind) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDAiOKFixKind(data) {
+	case FindingsPostFindingsIDAiOKFixKindFixed:
+		*s = FindingsPostFindingsIDAiOKFixKindFixed
+		return nil
+	case FindingsPostFindingsIDAiOKFixKindEsu:
+		*s = FindingsPostFindingsIDAiOKFixKindEsu
+		return nil
+	case FindingsPostFindingsIDAiOKFixKindFeatureUpdate:
+		*s = FindingsPostFindingsIDAiOKFixKindFeatureUpdate
+		return nil
+	case FindingsPostFindingsIDAiOKFixKindDistro:
+		*s = FindingsPostFindingsIDAiOKFixKindDistro
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type FindingsPostFindingsIDAiOKFixedIn struct {
@@ -68950,6 +69530,9 @@ type FindingsPostFindingsIDAppliedOK struct {
 	Cve        string                                       `json:"cve"`
 	Evidence   NilFindingsPostFindingsIDAppliedOKEvidence   `json:"evidence"`
 	FirstSeen  time.Time                                    `json:"first_seen"`
+	// GET /findings only, open findings: the update that fixes it with others (D-545); null when there is
+	// none to name.
+	Fix OptNilFindingsPostFindingsIDAppliedOKFix `json:"fix"`
 	// The release that fixes this finding on this device, from the NVD affected versions (D-488); null =
 	// NVD gives none, the page shows CISA and the vendor advisory only.
 	FixedIn NilFindingsPostFindingsIDAppliedOKFixedIn    `json:"fixed_in"`
@@ -69026,6 +69609,11 @@ func (s *FindingsPostFindingsIDAppliedOK) GetEvidence() NilFindingsPostFindingsI
 // GetFirstSeen returns the value of FirstSeen.
 func (s *FindingsPostFindingsIDAppliedOK) GetFirstSeen() time.Time {
 	return s.FirstSeen
+}
+
+// GetFix returns the value of Fix.
+func (s *FindingsPostFindingsIDAppliedOK) GetFix() OptNilFindingsPostFindingsIDAppliedOKFix {
+	return s.Fix
 }
 
 // GetFixedIn returns the value of FixedIn.
@@ -69146,6 +69734,11 @@ func (s *FindingsPostFindingsIDAppliedOK) SetEvidence(val NilFindingsPostFinding
 // SetFirstSeen sets the value of FirstSeen.
 func (s *FindingsPostFindingsIDAppliedOK) SetFirstSeen(val time.Time) {
 	s.FirstSeen = val
+}
+
+// SetFix sets the value of Fix.
+func (s *FindingsPostFindingsIDAppliedOK) SetFix(val OptNilFindingsPostFindingsIDAppliedOKFix) {
+	s.Fix = val
 }
 
 // SetFixedIn sets the value of FixedIn.
@@ -70597,11 +71190,19 @@ func (s *FindingsPostFindingsIDAppliedOKCompromiseIndicatorsItemKind) UnmarshalT
 }
 
 type FindingsPostFindingsIDAppliedOKEvidence struct {
+	// D-548: the version compared is the one the device's own agent (osquery, Wazuh) reports installed: a
+	// detection, shown as "Detected by the agent", with nothing for the person to look up.
+	Agent     OptBool   `json:"agent"`
 	CheckedAt time.Time `json:"checked_at"`
 	Request   OptString `json:"request"`
 	Response  OptString `json:"response"`
 	Summary   string    `json:"summary"`
 	Template  OptString `json:"template"`
+}
+
+// GetAgent returns the value of Agent.
+func (s *FindingsPostFindingsIDAppliedOKEvidence) GetAgent() OptBool {
+	return s.Agent
 }
 
 // GetCheckedAt returns the value of CheckedAt.
@@ -70629,6 +71230,11 @@ func (s *FindingsPostFindingsIDAppliedOKEvidence) GetTemplate() OptString {
 	return s.Template
 }
 
+// SetAgent sets the value of Agent.
+func (s *FindingsPostFindingsIDAppliedOKEvidence) SetAgent(val OptBool) {
+	s.Agent = val
+}
+
 // SetCheckedAt sets the value of CheckedAt.
 func (s *FindingsPostFindingsIDAppliedOKEvidence) SetCheckedAt(val time.Time) {
 	s.CheckedAt = val
@@ -70652,6 +71258,169 @@ func (s *FindingsPostFindingsIDAppliedOKEvidence) SetSummary(val string) {
 // SetTemplate sets the value of Template.
 func (s *FindingsPostFindingsIDAppliedOKEvidence) SetTemplate(val OptString) {
 	s.Template = val
+}
+
+// D-545: one update fixes this finding together with the device's other open findings of the same
+// software (top-tier: one item per missing update).
+type FindingsPostFindingsIDAppliedOKFix struct {
+	// Distro: "Ubuntu" or "Debian", empty for the distribution's.
+	Distro string `json:"distro"`
+	// The release or build that fixes them all; feature_update: the release to move to; empty for distro.
+	Fixed string `json:"fixed"`
+	// "/": the open findings with the same group are fixed by the same update.
+	Group string `json:"group"`
+	// Fixed = upgrade to `fixed` (a Windows release: the monthly cumulative update with build `fixed` or
+	// later); esu = that build needs Extended Security Updates; feature_update = no update of this release
+	// fixes them, move to release `fixed`; distro = install the distribution's security updates for the
+	// package.
+	Kind FindingsPostFindingsIDAppliedOKFixKind `json:"kind"`
+	// Distro: the fix of at least one of them is in Ubuntu Pro (ESM) only.
+	Pro bool `json:"pro"`
+	// Display name of the software row.
+	Software string `json:"software"`
+	// The installed version.
+	Version string `json:"version"`
+	// A Windows release row (D-546): the update is the monthly cumulative update Windows Update offers.
+	Windows bool `json:"windows"`
+}
+
+// GetDistro returns the value of Distro.
+func (s *FindingsPostFindingsIDAppliedOKFix) GetDistro() string {
+	return s.Distro
+}
+
+// GetFixed returns the value of Fixed.
+func (s *FindingsPostFindingsIDAppliedOKFix) GetFixed() string {
+	return s.Fixed
+}
+
+// GetGroup returns the value of Group.
+func (s *FindingsPostFindingsIDAppliedOKFix) GetGroup() string {
+	return s.Group
+}
+
+// GetKind returns the value of Kind.
+func (s *FindingsPostFindingsIDAppliedOKFix) GetKind() FindingsPostFindingsIDAppliedOKFixKind {
+	return s.Kind
+}
+
+// GetPro returns the value of Pro.
+func (s *FindingsPostFindingsIDAppliedOKFix) GetPro() bool {
+	return s.Pro
+}
+
+// GetSoftware returns the value of Software.
+func (s *FindingsPostFindingsIDAppliedOKFix) GetSoftware() string {
+	return s.Software
+}
+
+// GetVersion returns the value of Version.
+func (s *FindingsPostFindingsIDAppliedOKFix) GetVersion() string {
+	return s.Version
+}
+
+// GetWindows returns the value of Windows.
+func (s *FindingsPostFindingsIDAppliedOKFix) GetWindows() bool {
+	return s.Windows
+}
+
+// SetDistro sets the value of Distro.
+func (s *FindingsPostFindingsIDAppliedOKFix) SetDistro(val string) {
+	s.Distro = val
+}
+
+// SetFixed sets the value of Fixed.
+func (s *FindingsPostFindingsIDAppliedOKFix) SetFixed(val string) {
+	s.Fixed = val
+}
+
+// SetGroup sets the value of Group.
+func (s *FindingsPostFindingsIDAppliedOKFix) SetGroup(val string) {
+	s.Group = val
+}
+
+// SetKind sets the value of Kind.
+func (s *FindingsPostFindingsIDAppliedOKFix) SetKind(val FindingsPostFindingsIDAppliedOKFixKind) {
+	s.Kind = val
+}
+
+// SetPro sets the value of Pro.
+func (s *FindingsPostFindingsIDAppliedOKFix) SetPro(val bool) {
+	s.Pro = val
+}
+
+// SetSoftware sets the value of Software.
+func (s *FindingsPostFindingsIDAppliedOKFix) SetSoftware(val string) {
+	s.Software = val
+}
+
+// SetVersion sets the value of Version.
+func (s *FindingsPostFindingsIDAppliedOKFix) SetVersion(val string) {
+	s.Version = val
+}
+
+// SetWindows sets the value of Windows.
+func (s *FindingsPostFindingsIDAppliedOKFix) SetWindows(val bool) {
+	s.Windows = val
+}
+
+// Fixed = upgrade to `fixed` (a Windows release: the monthly cumulative update with build `fixed` or
+// later); esu = that build needs Extended Security Updates; feature_update = no update of this release
+// fixes them, move to release `fixed`; distro = install the distribution's security updates for the
+// package.
+type FindingsPostFindingsIDAppliedOKFixKind string
+
+const (
+	FindingsPostFindingsIDAppliedOKFixKindFixed         FindingsPostFindingsIDAppliedOKFixKind = "fixed"
+	FindingsPostFindingsIDAppliedOKFixKindEsu           FindingsPostFindingsIDAppliedOKFixKind = "esu"
+	FindingsPostFindingsIDAppliedOKFixKindFeatureUpdate FindingsPostFindingsIDAppliedOKFixKind = "feature_update"
+	FindingsPostFindingsIDAppliedOKFixKindDistro        FindingsPostFindingsIDAppliedOKFixKind = "distro"
+)
+
+// AllValues returns all FindingsPostFindingsIDAppliedOKFixKind values.
+func (FindingsPostFindingsIDAppliedOKFixKind) AllValues() []FindingsPostFindingsIDAppliedOKFixKind {
+	return []FindingsPostFindingsIDAppliedOKFixKind{
+		FindingsPostFindingsIDAppliedOKFixKindFixed,
+		FindingsPostFindingsIDAppliedOKFixKindEsu,
+		FindingsPostFindingsIDAppliedOKFixKindFeatureUpdate,
+		FindingsPostFindingsIDAppliedOKFixKindDistro,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDAppliedOKFixKind) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDAppliedOKFixKindFixed:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKFixKindEsu:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKFixKindFeatureUpdate:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKFixKindDistro:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDAppliedOKFixKind) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDAppliedOKFixKind(data) {
+	case FindingsPostFindingsIDAppliedOKFixKindFixed:
+		*s = FindingsPostFindingsIDAppliedOKFixKindFixed
+		return nil
+	case FindingsPostFindingsIDAppliedOKFixKindEsu:
+		*s = FindingsPostFindingsIDAppliedOKFixKindEsu
+		return nil
+	case FindingsPostFindingsIDAppliedOKFixKindFeatureUpdate:
+		*s = FindingsPostFindingsIDAppliedOKFixKindFeatureUpdate
+		return nil
+	case FindingsPostFindingsIDAppliedOKFixKindDistro:
+		*s = FindingsPostFindingsIDAppliedOKFixKindDistro
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type FindingsPostFindingsIDAppliedOKFixedIn struct {
@@ -71995,6 +72764,9 @@ type FindingsPostFindingsIDStatusOK struct {
 	Cve        string                                      `json:"cve"`
 	Evidence   NilFindingsPostFindingsIDStatusOKEvidence   `json:"evidence"`
 	FirstSeen  time.Time                                   `json:"first_seen"`
+	// GET /findings only, open findings: the update that fixes it with others (D-545); null when there is
+	// none to name.
+	Fix OptNilFindingsPostFindingsIDStatusOKFix `json:"fix"`
 	// The release that fixes this finding on this device, from the NVD affected versions (D-488); null =
 	// NVD gives none, the page shows CISA and the vendor advisory only.
 	FixedIn NilFindingsPostFindingsIDStatusOKFixedIn    `json:"fixed_in"`
@@ -72071,6 +72843,11 @@ func (s *FindingsPostFindingsIDStatusOK) GetEvidence() NilFindingsPostFindingsID
 // GetFirstSeen returns the value of FirstSeen.
 func (s *FindingsPostFindingsIDStatusOK) GetFirstSeen() time.Time {
 	return s.FirstSeen
+}
+
+// GetFix returns the value of Fix.
+func (s *FindingsPostFindingsIDStatusOK) GetFix() OptNilFindingsPostFindingsIDStatusOKFix {
+	return s.Fix
 }
 
 // GetFixedIn returns the value of FixedIn.
@@ -72191,6 +72968,11 @@ func (s *FindingsPostFindingsIDStatusOK) SetEvidence(val NilFindingsPostFindings
 // SetFirstSeen sets the value of FirstSeen.
 func (s *FindingsPostFindingsIDStatusOK) SetFirstSeen(val time.Time) {
 	s.FirstSeen = val
+}
+
+// SetFix sets the value of Fix.
+func (s *FindingsPostFindingsIDStatusOK) SetFix(val OptNilFindingsPostFindingsIDStatusOKFix) {
+	s.Fix = val
 }
 
 // SetFixedIn sets the value of FixedIn.
@@ -73642,11 +74424,19 @@ func (s *FindingsPostFindingsIDStatusOKCompromiseIndicatorsItemKind) UnmarshalTe
 }
 
 type FindingsPostFindingsIDStatusOKEvidence struct {
+	// D-548: the version compared is the one the device's own agent (osquery, Wazuh) reports installed: a
+	// detection, shown as "Detected by the agent", with nothing for the person to look up.
+	Agent     OptBool   `json:"agent"`
 	CheckedAt time.Time `json:"checked_at"`
 	Request   OptString `json:"request"`
 	Response  OptString `json:"response"`
 	Summary   string    `json:"summary"`
 	Template  OptString `json:"template"`
+}
+
+// GetAgent returns the value of Agent.
+func (s *FindingsPostFindingsIDStatusOKEvidence) GetAgent() OptBool {
+	return s.Agent
 }
 
 // GetCheckedAt returns the value of CheckedAt.
@@ -73674,6 +74464,11 @@ func (s *FindingsPostFindingsIDStatusOKEvidence) GetTemplate() OptString {
 	return s.Template
 }
 
+// SetAgent sets the value of Agent.
+func (s *FindingsPostFindingsIDStatusOKEvidence) SetAgent(val OptBool) {
+	s.Agent = val
+}
+
 // SetCheckedAt sets the value of CheckedAt.
 func (s *FindingsPostFindingsIDStatusOKEvidence) SetCheckedAt(val time.Time) {
 	s.CheckedAt = val
@@ -73697,6 +74492,169 @@ func (s *FindingsPostFindingsIDStatusOKEvidence) SetSummary(val string) {
 // SetTemplate sets the value of Template.
 func (s *FindingsPostFindingsIDStatusOKEvidence) SetTemplate(val OptString) {
 	s.Template = val
+}
+
+// D-545: one update fixes this finding together with the device's other open findings of the same
+// software (top-tier: one item per missing update).
+type FindingsPostFindingsIDStatusOKFix struct {
+	// Distro: "Ubuntu" or "Debian", empty for the distribution's.
+	Distro string `json:"distro"`
+	// The release or build that fixes them all; feature_update: the release to move to; empty for distro.
+	Fixed string `json:"fixed"`
+	// "/": the open findings with the same group are fixed by the same update.
+	Group string `json:"group"`
+	// Fixed = upgrade to `fixed` (a Windows release: the monthly cumulative update with build `fixed` or
+	// later); esu = that build needs Extended Security Updates; feature_update = no update of this release
+	// fixes them, move to release `fixed`; distro = install the distribution's security updates for the
+	// package.
+	Kind FindingsPostFindingsIDStatusOKFixKind `json:"kind"`
+	// Distro: the fix of at least one of them is in Ubuntu Pro (ESM) only.
+	Pro bool `json:"pro"`
+	// Display name of the software row.
+	Software string `json:"software"`
+	// The installed version.
+	Version string `json:"version"`
+	// A Windows release row (D-546): the update is the monthly cumulative update Windows Update offers.
+	Windows bool `json:"windows"`
+}
+
+// GetDistro returns the value of Distro.
+func (s *FindingsPostFindingsIDStatusOKFix) GetDistro() string {
+	return s.Distro
+}
+
+// GetFixed returns the value of Fixed.
+func (s *FindingsPostFindingsIDStatusOKFix) GetFixed() string {
+	return s.Fixed
+}
+
+// GetGroup returns the value of Group.
+func (s *FindingsPostFindingsIDStatusOKFix) GetGroup() string {
+	return s.Group
+}
+
+// GetKind returns the value of Kind.
+func (s *FindingsPostFindingsIDStatusOKFix) GetKind() FindingsPostFindingsIDStatusOKFixKind {
+	return s.Kind
+}
+
+// GetPro returns the value of Pro.
+func (s *FindingsPostFindingsIDStatusOKFix) GetPro() bool {
+	return s.Pro
+}
+
+// GetSoftware returns the value of Software.
+func (s *FindingsPostFindingsIDStatusOKFix) GetSoftware() string {
+	return s.Software
+}
+
+// GetVersion returns the value of Version.
+func (s *FindingsPostFindingsIDStatusOKFix) GetVersion() string {
+	return s.Version
+}
+
+// GetWindows returns the value of Windows.
+func (s *FindingsPostFindingsIDStatusOKFix) GetWindows() bool {
+	return s.Windows
+}
+
+// SetDistro sets the value of Distro.
+func (s *FindingsPostFindingsIDStatusOKFix) SetDistro(val string) {
+	s.Distro = val
+}
+
+// SetFixed sets the value of Fixed.
+func (s *FindingsPostFindingsIDStatusOKFix) SetFixed(val string) {
+	s.Fixed = val
+}
+
+// SetGroup sets the value of Group.
+func (s *FindingsPostFindingsIDStatusOKFix) SetGroup(val string) {
+	s.Group = val
+}
+
+// SetKind sets the value of Kind.
+func (s *FindingsPostFindingsIDStatusOKFix) SetKind(val FindingsPostFindingsIDStatusOKFixKind) {
+	s.Kind = val
+}
+
+// SetPro sets the value of Pro.
+func (s *FindingsPostFindingsIDStatusOKFix) SetPro(val bool) {
+	s.Pro = val
+}
+
+// SetSoftware sets the value of Software.
+func (s *FindingsPostFindingsIDStatusOKFix) SetSoftware(val string) {
+	s.Software = val
+}
+
+// SetVersion sets the value of Version.
+func (s *FindingsPostFindingsIDStatusOKFix) SetVersion(val string) {
+	s.Version = val
+}
+
+// SetWindows sets the value of Windows.
+func (s *FindingsPostFindingsIDStatusOKFix) SetWindows(val bool) {
+	s.Windows = val
+}
+
+// Fixed = upgrade to `fixed` (a Windows release: the monthly cumulative update with build `fixed` or
+// later); esu = that build needs Extended Security Updates; feature_update = no update of this release
+// fixes them, move to release `fixed`; distro = install the distribution's security updates for the
+// package.
+type FindingsPostFindingsIDStatusOKFixKind string
+
+const (
+	FindingsPostFindingsIDStatusOKFixKindFixed         FindingsPostFindingsIDStatusOKFixKind = "fixed"
+	FindingsPostFindingsIDStatusOKFixKindEsu           FindingsPostFindingsIDStatusOKFixKind = "esu"
+	FindingsPostFindingsIDStatusOKFixKindFeatureUpdate FindingsPostFindingsIDStatusOKFixKind = "feature_update"
+	FindingsPostFindingsIDStatusOKFixKindDistro        FindingsPostFindingsIDStatusOKFixKind = "distro"
+)
+
+// AllValues returns all FindingsPostFindingsIDStatusOKFixKind values.
+func (FindingsPostFindingsIDStatusOKFixKind) AllValues() []FindingsPostFindingsIDStatusOKFixKind {
+	return []FindingsPostFindingsIDStatusOKFixKind{
+		FindingsPostFindingsIDStatusOKFixKindFixed,
+		FindingsPostFindingsIDStatusOKFixKindEsu,
+		FindingsPostFindingsIDStatusOKFixKindFeatureUpdate,
+		FindingsPostFindingsIDStatusOKFixKindDistro,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDStatusOKFixKind) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDStatusOKFixKindFixed:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKFixKindEsu:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKFixKindFeatureUpdate:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKFixKindDistro:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDStatusOKFixKind) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDStatusOKFixKind(data) {
+	case FindingsPostFindingsIDStatusOKFixKindFixed:
+		*s = FindingsPostFindingsIDStatusOKFixKindFixed
+		return nil
+	case FindingsPostFindingsIDStatusOKFixKindEsu:
+		*s = FindingsPostFindingsIDStatusOKFixKindEsu
+		return nil
+	case FindingsPostFindingsIDStatusOKFixKindFeatureUpdate:
+		*s = FindingsPostFindingsIDStatusOKFixKindFeatureUpdate
+		return nil
+	case FindingsPostFindingsIDStatusOKFixKindDistro:
+		*s = FindingsPostFindingsIDStatusOKFixKindDistro
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type FindingsPostFindingsIDStatusOKFixedIn struct {
@@ -126037,6 +126995,346 @@ func (o OptInventoryPutInventorySnmpIDReqPriv) Get() (v InventoryPutInventorySnm
 
 // Or returns value if set, or given parameter if does not.
 func (o OptInventoryPutInventorySnmpIDReqPriv) Or(d InventoryPutInventorySnmpIDReqPriv) InventoryPutInventorySnmpIDReqPriv {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptNilFindingsGetFindingsIDOKFix returns new OptNilFindingsGetFindingsIDOKFix with value set to v.
+func NewOptNilFindingsGetFindingsIDOKFix(v FindingsGetFindingsIDOKFix) OptNilFindingsGetFindingsIDOKFix {
+	return OptNilFindingsGetFindingsIDOKFix{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptNilFindingsGetFindingsIDOKFix is optional nullable FindingsGetFindingsIDOKFix.
+type OptNilFindingsGetFindingsIDOKFix struct {
+	Value FindingsGetFindingsIDOKFix
+	Set   bool
+	Null  bool
+}
+
+// IsSet returns true if OptNilFindingsGetFindingsIDOKFix was set.
+func (o OptNilFindingsGetFindingsIDOKFix) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptNilFindingsGetFindingsIDOKFix) Reset() {
+	var v FindingsGetFindingsIDOKFix
+	o.Value = v
+	o.Set = false
+	o.Null = false
+}
+
+// SetTo sets value to v.
+func (o *OptNilFindingsGetFindingsIDOKFix) SetTo(v FindingsGetFindingsIDOKFix) {
+	o.Set = true
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o OptNilFindingsGetFindingsIDOKFix) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *OptNilFindingsGetFindingsIDOKFix) SetToNull() {
+	o.Set = true
+	o.Null = true
+	var v FindingsGetFindingsIDOKFix
+	o.Value = v
+}
+
+// IsEmpty returns true if the field was omitted from the payload (not Set and not Null).
+func (o OptNilFindingsGetFindingsIDOKFix) IsEmpty() bool {
+	return !o.Set && !o.Null
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptNilFindingsGetFindingsIDOKFix) Get() (v FindingsGetFindingsIDOKFix, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptNilFindingsGetFindingsIDOKFix) Or(d FindingsGetFindingsIDOKFix) FindingsGetFindingsIDOKFix {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptNilFindingsGetFindingsOKItemsItemFix returns new OptNilFindingsGetFindingsOKItemsItemFix with value set to v.
+func NewOptNilFindingsGetFindingsOKItemsItemFix(v FindingsGetFindingsOKItemsItemFix) OptNilFindingsGetFindingsOKItemsItemFix {
+	return OptNilFindingsGetFindingsOKItemsItemFix{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptNilFindingsGetFindingsOKItemsItemFix is optional nullable FindingsGetFindingsOKItemsItemFix.
+type OptNilFindingsGetFindingsOKItemsItemFix struct {
+	Value FindingsGetFindingsOKItemsItemFix
+	Set   bool
+	Null  bool
+}
+
+// IsSet returns true if OptNilFindingsGetFindingsOKItemsItemFix was set.
+func (o OptNilFindingsGetFindingsOKItemsItemFix) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptNilFindingsGetFindingsOKItemsItemFix) Reset() {
+	var v FindingsGetFindingsOKItemsItemFix
+	o.Value = v
+	o.Set = false
+	o.Null = false
+}
+
+// SetTo sets value to v.
+func (o *OptNilFindingsGetFindingsOKItemsItemFix) SetTo(v FindingsGetFindingsOKItemsItemFix) {
+	o.Set = true
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o OptNilFindingsGetFindingsOKItemsItemFix) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *OptNilFindingsGetFindingsOKItemsItemFix) SetToNull() {
+	o.Set = true
+	o.Null = true
+	var v FindingsGetFindingsOKItemsItemFix
+	o.Value = v
+}
+
+// IsEmpty returns true if the field was omitted from the payload (not Set and not Null).
+func (o OptNilFindingsGetFindingsOKItemsItemFix) IsEmpty() bool {
+	return !o.Set && !o.Null
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptNilFindingsGetFindingsOKItemsItemFix) Get() (v FindingsGetFindingsOKItemsItemFix, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptNilFindingsGetFindingsOKItemsItemFix) Or(d FindingsGetFindingsOKItemsItemFix) FindingsGetFindingsOKItemsItemFix {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptNilFindingsPostFindingsIDAiOKFix returns new OptNilFindingsPostFindingsIDAiOKFix with value set to v.
+func NewOptNilFindingsPostFindingsIDAiOKFix(v FindingsPostFindingsIDAiOKFix) OptNilFindingsPostFindingsIDAiOKFix {
+	return OptNilFindingsPostFindingsIDAiOKFix{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptNilFindingsPostFindingsIDAiOKFix is optional nullable FindingsPostFindingsIDAiOKFix.
+type OptNilFindingsPostFindingsIDAiOKFix struct {
+	Value FindingsPostFindingsIDAiOKFix
+	Set   bool
+	Null  bool
+}
+
+// IsSet returns true if OptNilFindingsPostFindingsIDAiOKFix was set.
+func (o OptNilFindingsPostFindingsIDAiOKFix) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptNilFindingsPostFindingsIDAiOKFix) Reset() {
+	var v FindingsPostFindingsIDAiOKFix
+	o.Value = v
+	o.Set = false
+	o.Null = false
+}
+
+// SetTo sets value to v.
+func (o *OptNilFindingsPostFindingsIDAiOKFix) SetTo(v FindingsPostFindingsIDAiOKFix) {
+	o.Set = true
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o OptNilFindingsPostFindingsIDAiOKFix) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *OptNilFindingsPostFindingsIDAiOKFix) SetToNull() {
+	o.Set = true
+	o.Null = true
+	var v FindingsPostFindingsIDAiOKFix
+	o.Value = v
+}
+
+// IsEmpty returns true if the field was omitted from the payload (not Set and not Null).
+func (o OptNilFindingsPostFindingsIDAiOKFix) IsEmpty() bool {
+	return !o.Set && !o.Null
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptNilFindingsPostFindingsIDAiOKFix) Get() (v FindingsPostFindingsIDAiOKFix, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptNilFindingsPostFindingsIDAiOKFix) Or(d FindingsPostFindingsIDAiOKFix) FindingsPostFindingsIDAiOKFix {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptNilFindingsPostFindingsIDAppliedOKFix returns new OptNilFindingsPostFindingsIDAppliedOKFix with value set to v.
+func NewOptNilFindingsPostFindingsIDAppliedOKFix(v FindingsPostFindingsIDAppliedOKFix) OptNilFindingsPostFindingsIDAppliedOKFix {
+	return OptNilFindingsPostFindingsIDAppliedOKFix{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptNilFindingsPostFindingsIDAppliedOKFix is optional nullable FindingsPostFindingsIDAppliedOKFix.
+type OptNilFindingsPostFindingsIDAppliedOKFix struct {
+	Value FindingsPostFindingsIDAppliedOKFix
+	Set   bool
+	Null  bool
+}
+
+// IsSet returns true if OptNilFindingsPostFindingsIDAppliedOKFix was set.
+func (o OptNilFindingsPostFindingsIDAppliedOKFix) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptNilFindingsPostFindingsIDAppliedOKFix) Reset() {
+	var v FindingsPostFindingsIDAppliedOKFix
+	o.Value = v
+	o.Set = false
+	o.Null = false
+}
+
+// SetTo sets value to v.
+func (o *OptNilFindingsPostFindingsIDAppliedOKFix) SetTo(v FindingsPostFindingsIDAppliedOKFix) {
+	o.Set = true
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o OptNilFindingsPostFindingsIDAppliedOKFix) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *OptNilFindingsPostFindingsIDAppliedOKFix) SetToNull() {
+	o.Set = true
+	o.Null = true
+	var v FindingsPostFindingsIDAppliedOKFix
+	o.Value = v
+}
+
+// IsEmpty returns true if the field was omitted from the payload (not Set and not Null).
+func (o OptNilFindingsPostFindingsIDAppliedOKFix) IsEmpty() bool {
+	return !o.Set && !o.Null
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptNilFindingsPostFindingsIDAppliedOKFix) Get() (v FindingsPostFindingsIDAppliedOKFix, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptNilFindingsPostFindingsIDAppliedOKFix) Or(d FindingsPostFindingsIDAppliedOKFix) FindingsPostFindingsIDAppliedOKFix {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptNilFindingsPostFindingsIDStatusOKFix returns new OptNilFindingsPostFindingsIDStatusOKFix with value set to v.
+func NewOptNilFindingsPostFindingsIDStatusOKFix(v FindingsPostFindingsIDStatusOKFix) OptNilFindingsPostFindingsIDStatusOKFix {
+	return OptNilFindingsPostFindingsIDStatusOKFix{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptNilFindingsPostFindingsIDStatusOKFix is optional nullable FindingsPostFindingsIDStatusOKFix.
+type OptNilFindingsPostFindingsIDStatusOKFix struct {
+	Value FindingsPostFindingsIDStatusOKFix
+	Set   bool
+	Null  bool
+}
+
+// IsSet returns true if OptNilFindingsPostFindingsIDStatusOKFix was set.
+func (o OptNilFindingsPostFindingsIDStatusOKFix) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptNilFindingsPostFindingsIDStatusOKFix) Reset() {
+	var v FindingsPostFindingsIDStatusOKFix
+	o.Value = v
+	o.Set = false
+	o.Null = false
+}
+
+// SetTo sets value to v.
+func (o *OptNilFindingsPostFindingsIDStatusOKFix) SetTo(v FindingsPostFindingsIDStatusOKFix) {
+	o.Set = true
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o OptNilFindingsPostFindingsIDStatusOKFix) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *OptNilFindingsPostFindingsIDStatusOKFix) SetToNull() {
+	o.Set = true
+	o.Null = true
+	var v FindingsPostFindingsIDStatusOKFix
+	o.Value = v
+}
+
+// IsEmpty returns true if the field was omitted from the payload (not Set and not Null).
+func (o OptNilFindingsPostFindingsIDStatusOKFix) IsEmpty() bool {
+	return !o.Set && !o.Null
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptNilFindingsPostFindingsIDStatusOKFix) Get() (v FindingsPostFindingsIDStatusOKFix, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptNilFindingsPostFindingsIDStatusOKFix) Or(d FindingsPostFindingsIDStatusOKFix) FindingsPostFindingsIDStatusOKFix {
 	if v, ok := o.Get(); ok {
 		return v
 	}

@@ -100,3 +100,9 @@
 - Mất trang Findings và panel finding ở Devices; không finding mới; `notify` mất tin lỗ hổng; `scan` không nối được `finding_id`; `response` không có phát hiện Critical để đề xuất; `reports` thiếu mục lỗ hổng; `mitigation` mất đầu vào.
 - Finding cũ và lịch sử giữ trong `fnd_*`.
 - **Loại thiết bị (D-511)**: đọc `content/devicetypes` (gói lá, chỉ thư viện chuẩn). `validKind` nhận mọi id loại của danh sách (không còn chép tay 13 loại); không đổi cách khớp.
+
+## Modifying: `Evidence.Agent`, `RowFix`/`RowFixes`, `Asset.AgentOS`, `PlatformRuledOut` (D-545, D-548, D-549)
+- `Evidence.Agent` → API `evidence.agent` (contract.ts): SPA chip "Detected by the agent", tiêu đề trang finding; **mitigation** `genericRecheck` đọc nó để không hỏi phiên bản. Đổi câu bằng chứng ⇒ test `TestMatchAsset_D548_*`, `distro_test.go`.
+- `RowFix` → `FindingRow.fix` (contract.ts, `api/openapi.json`, `core/api/oas`): SPA `fix.ts`/`FixGroups.tsx` (Findings Open, panel thiết bị). Cùng luật với báo cáo tuần (`cmd/vedette/reports.go` `FixedInForAll`).
+- `Asset.AgentOS` do `cmd/vedette/wiring.go` `findingsInventory.MatchInput` điền từ inventory `MatchDevice.AgentOS`; thiếu ⇒ dòng agent không có bằng chứng nền tảng (finding giữ câu điều kiện).
+- `PlatformRuledOut` ← `cmd/vedette/wiring.go` `feedsInventory.NotAffected` (feeds `PlatformChecker`, trang CVE).

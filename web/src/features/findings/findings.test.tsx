@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter } from 'react-router'
@@ -10,7 +10,7 @@ import { server } from '@/test/server'
 import { makeQueryClient } from '@/app/App'
 import { aiConfigStore, aiRunsStore, assetsStore, auditStore, findingsStore, modulesStore, sessionStore } from '@/mocks/stores'
 import { feature } from './index'
-import { accepted } from './mocks'
+import { accepted, fixes } from './mocks'
 import { FixedInNote } from './Recommendation'
 import { dayAfter, untilBounds, untilOk } from './accept'
 import type { FindingDetail } from './types'
@@ -37,7 +37,7 @@ describe('findings: danh sách (S-MIT-1)', () => {
     expect(within(table).getByText('NAS-PHOTOS')).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Clear CVE-2022-27593 filter' }))
     await waitFor(() => expect(within(screen.getByRole('table')).getAllByRole('row')).toHaveLength(4))
-    await userEvent.click(screen.getByRole('button', { name: 'Suspected' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Suspected or detected' }))
     await waitFor(() => expect(within(screen.getByRole('table')).getAllByRole('row')).toHaveLength(3))
   })
 
@@ -634,5 +634,57 @@ describe('findings: a closed finding opens with why it was closed (S-MIT-1, W12-
     expect(await screen.findByRole('heading', { name: 'Evidence' })).toBeInTheDocument()
     expect(screen.queryByTestId('closed-notice')).not.toBeInTheDocument()
     expect(screen.queryByTestId('before-closed')).not.toBeInTheDocument()
+  })
+})
+
+describe('findings: one update, one item; the agent\'s build is a detection (D-545, D-548, TUNE-5b W-1/W-3)', () => {
+  const fix = { group: 'a-srvad/s-win', kind: 'fixed' as const, windows: true, software: 'Windows Server 2025', version: '10.0.26100.1742', fixed: '10.0.26100.2314', distro: '', pro: false }
+  const agentWindows = () => {
+    const ev = (cve: string) => ({ summary: `The agent on SRV-AD reports Windows Server 2025 build 26100.1742. Microsoft fixed ${cve} in build 26100.2314.`, checked_at: new Date().toISOString(), agent: true })
+    findingsStore.update((l) => [...l.map((f) => (f.id === 'f-3' ? { ...f, evidence: ev(f.cve) } : f)),
+      { ...l.find((f) => f.id === 'f-3')!, id: 'f-9', cve: 'CVE-2024-43451', evidence: ev('CVE-2024-43451') }])
+    fixes.set({ 'f-3': fix, 'f-9': fix })
+  }
+
+  it('the list shows one item for the update with the CVEs inside, and lists them as rows on request', async () => {
+    agentWindows()
+    renderApp('/findings')
+    const group = await screen.findByRole('list', { name: 'Updates that fix several findings' })
+    expect(within(group).getByText('Install the latest cumulative update for Windows Server 2025 (build 26100.2314 or later)')).toBeInTheDocument()
+    expect(within(group).getByText(/fixes 2 exploited vulnerabilities/)).toBeInTheDocument()
+    expect(within(group).getByRole('link', { name: 'SRV-AD' })).toHaveAttribute('href', '/devices/a-srvad')
+    expect(within(group).getByRole('link', { name: 'CVE-2024-43451' })).toHaveAttribute('href', '/findings/f-9')
+    expect(within(group).getAllByText('Detected by the agent')).toHaveLength(2)
+    const table = screen.getByRole('table', { name: 'Findings list' })
+    expect(within(table).queryByText('CVE-2026-96951')).toBeNull() // inside the item, not a row of its own
+    await expectNoA11yViolations()
+    await userEvent.click(within(group).getByText('Show the 2 CVEs'))
+    await userEvent.click(within(group).getByRole('link', { name: 'Handle these 2 findings in the list' }))
+    await waitFor(() => expect(within(screen.getByRole('table', { name: 'Findings list' })).getAllByRole('row')).toHaveLength(3))
+    expect(screen.getByText('Showing the findings one update fixes: Install the latest cumulative update for Windows Server 2025 (build 26100.2314 or later).')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Show all findings' }))
+    expect(await screen.findByRole('list', { name: 'Updates that fix several findings' })).toBeInTheDocument()
+  })
+
+  it('when every unresolved finding is in an update, the table says so instead of "No unresolved findings" (review r1 #2)', async () => {
+    agentWindows()
+    renderApp('/findings?device=a-srvad')
+    expect(await screen.findByRole('list', { name: 'Updates that fix several findings' })).toBeInTheDocument()
+    expect(screen.getByText('Every unresolved finding in this list is in an update above.')).toBeInTheDocument()
+    expect(screen.queryByText('No unresolved findings.')).toBeNull()
+    expect(screen.queryByRole('table', { name: 'Findings list' })).toBeNull()
+  })
+
+  it('the finding says the agent detected it and asks nothing to look up; the device page groups the same way', async () => {
+    agentWindows()
+    renderApp('/findings/f-9')
+    expect(await screen.findByRole('heading', { level: 1, name: 'SRV-AD has CVE-2024-43451: its agent reports an affected version' })).toBeInTheDocument()
+    expect(screen.getByText(/^Nothing to look up: the agent on SRV-AD reports the installed version/)).toBeInTheDocument()
+    expect(screen.queryByText(/About screen/)).toBeNull()
+    cleanup()
+    renderApp('/devices/a-srvad')
+    const group = await screen.findByRole('list', { name: 'Updates that fix several findings' })
+    expect(within(group).getByText(/fixes 2 exploited vulnerabilities/)).toBeInTheDocument()
+    expect(within(group).queryByRole('link', { name: 'SRV-AD' })).toBeNull()
   })
 })

@@ -207,12 +207,40 @@ func TestSNMPStatedOSAndApproval(t *testing.T) {
 	}
 	id := addrs[ip.String()]
 	d, ok, err := e.svc.MatchInput(e.ctx(), id)
-	if err != nil || !ok || d.StatedOS != "JUNOS 15.1R7.9" || d.Model != "EX4200-48T" {
+	if err != nil || !ok || d.StatedOS != "JUNOS 15.1R7.9" || d.SNMPOS != "JUNOS 15.1R7.9" || d.AgentOS != "" || d.Model != "EX4200-48T" { // D-549: SNMPOS is the SNMP read only
 		t.Fatalf("MatchInput: %+v %v %v", d, ok, err)
 	}
 	refs, err := e.svc.DeviceRefs(e.ctx(), []string{id})
 	if err != nil || refs[id].Approved {
 		t.Fatalf("a discovered device is approved: %+v %v", refs, err)
+	}
+}
+
+// D-549 (review r2 of #790): AgentOS is the OS the agent itself reported, empty on a device only nmap guessed, and still the agent's
+// when another source's value wins the OS field.
+func TestMatchInputAgentOS(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	at := time.Date(2026, 11, 15, 8, 0, 0, 0, time.UTC)
+	guessed, agent := netip.MustParseAddr("192.168.30.50"), netip.MustParseAddr("192.168.30.51")
+	for i, o := range []observe.Observation{
+		{AssetHint: observe.AssetHint{IP: guessed}, Field: observe.OS, Value: "Ubuntu 24.04", Source: observe.Nmap, Confidence: 0.9},
+		{AssetHint: observe.AssetHint{IP: agent}, Field: observe.OS, Value: "Alpine Linux v3.23", Source: observe.Agent, Confidence: 0.95},
+	} {
+		o.SeenAt = at.Add(time.Duration(i) * time.Minute)
+		if err := e.svc.Record(e.ctx(), []observe.Observation{o}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	addrs, err := e.svc.AddressMap(e.ctx())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for ip, want := range map[netip.Addr]string{guessed: "", agent: "Alpine Linux v3.23"} {
+		d, ok, err := e.svc.MatchInput(e.ctx(), addrs[ip.String()])
+		if err != nil || !ok || d.AgentOS != want {
+			t.Fatalf("%s: AgentOS %q, want %q (%v %v)", ip, d.AgentOS, want, ok, err)
+		}
 	}
 }
 

@@ -252,6 +252,18 @@ describe('feeds: CVE links (contract.ts: http(s) only)', () => {
   })
 })
 
+describe('feeds: CVE page agrees with the findings (D-549, KF-CVEPAGE)', () => {
+  it('devices the platform rules prove not affected are counted, not invited to be added again', async () => {
+    server.use(http.get('*/api/v1/feeds/cve/:id', () => HttpResponse.json({
+      cve: 'CVE-2026-123158', vendor: 'OpenBSD', product: 'OpenSSH', name: 'n', description: 'd', required_action: 'a', display: 'OpenSSH',
+      links: [], date_added: '2026-11-09', due_date: null, ransomware: false, epss: null, epss_7d_ago: null, has_template: false, matched: [], not_affected: 2,
+    })))
+    renderApp('/cve/CVE-2026-123158')
+    expect(await screen.findByText('2 devices run this product but are not affected: Vedette checked their platform (see their findings).')).toBeInTheDocument()
+    expect(screen.queryByText('No matching devices found')).toBeNull()
+  })
+})
+
 describe('feeds: after a refused submit the first wrong field takes focus (phone: the message is off-screen)', () => {
   async function openAdd() {
     renderApp('/settings/feeds')

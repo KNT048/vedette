@@ -210,7 +210,7 @@ function Detail({ f }: { f: FindingDetail }) {
   return (
     <>
       <PageHeader
-        title={<span className="[overflow-wrap:anywhere]">{t(`headline.${f.status}`, { device: name, cve: f.cve, date: fmtDate(f.accepted_until) })}</span>}
+        title={<span className="[overflow-wrap:anywhere]">{t(`headline.${f.status === 'suspected' && f.evidence?.agent ? 'agent' : f.status}`, { device: name, cve: f.cve, date: fmtDate(f.accepted_until) })}</span>}
         stories={['S-MIT-1', 'S-MIT-3', 'S-SCAN-3', 'S-AI-2']}
         meta={
           <span className="flex flex-wrap items-center gap-x-2 gap-y-1.5">

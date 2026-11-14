@@ -28140,6 +28140,12 @@
                           "type": "null"
                         }
                       ]
+                    },
+                    "not_affected": {
+                      "description": "D-549: devices that run the product but that the platform rules of the findings prove are not affected; left out of matched",
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
                     }
                   },
                   "required": [
@@ -30248,6 +30254,10 @@
                                     "type": "string",
                                     "format": "date-time",
                                     "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                  },
+                                  "agent": {
+                                    "description": "D-548: the version compared is the one the device's own agent (osquery, Wazuh) reports installed: a detection, shown as \"Detected by the agent\", with nothing for the person to look up",
+                                    "type": "boolean"
                                   }
                                 },
                                 "required": [
@@ -30547,6 +30557,69 @@
                               }
                             ],
                             "description": "Read from KEV, not from the project recommendation pack"
+                          },
+                          "fix": {
+                            "description": "GET /findings only, open findings: the update that fixes it with others (D-545); null when there is none to name",
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "group": {
+                                    "type": "string",
+                                    "description": "\"<device id>/<software id>\": the open findings with the same group are fixed by the same update"
+                                  },
+                                  "kind": {
+                                    "type": "string",
+                                    "enum": [
+                                      "fixed",
+                                      "esu",
+                                      "feature_update",
+                                      "distro"
+                                    ],
+                                    "description": "fixed = upgrade to `fixed` (a Windows release: the monthly cumulative update with build `fixed` or later); esu = that build needs Extended Security Updates; feature_update = no update of this release fixes them, move to release `fixed`; distro = install the distribution's security updates for the package"
+                                  },
+                                  "windows": {
+                                    "type": "boolean",
+                                    "description": "A Windows release row (D-546): the update is the monthly cumulative update Windows Update offers"
+                                  },
+                                  "software": {
+                                    "type": "string",
+                                    "description": "Display name of the software row"
+                                  },
+                                  "version": {
+                                    "type": "string",
+                                    "description": "The installed version"
+                                  },
+                                  "fixed": {
+                                    "type": "string",
+                                    "description": "The release or build that fixes them all; feature_update: the release to move to; empty for distro"
+                                  },
+                                  "distro": {
+                                    "type": "string",
+                                    "description": "distro: \"Ubuntu\" or \"Debian\", empty for the distribution's"
+                                  },
+                                  "pro": {
+                                    "type": "boolean",
+                                    "description": "distro: the fix of at least one of them is in Ubuntu Pro (ESM) only"
+                                  }
+                                },
+                                "required": [
+                                  "group",
+                                  "kind",
+                                  "windows",
+                                  "software",
+                                  "version",
+                                  "fixed",
+                                  "distro",
+                                  "pro"
+                                ],
+                                "additionalProperties": false,
+                                "description": "D-545: one update fixes this finding together with the device's other open findings of the same software (top-tier: one item per missing update)"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
                           }
                         },
                         "required": [
@@ -30871,6 +30944,10 @@
                               "type": "string",
                               "format": "date-time",
                               "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            "agent": {
+                              "description": "D-548: the version compared is the one the device's own agent (osquery, Wazuh) reports installed: a detection, shown as \"Detected by the agent\", with nothing for the person to look up",
+                              "type": "boolean"
                             }
                           },
                           "required": [
@@ -31170,6 +31247,69 @@
                         }
                       ],
                       "description": "Read from KEV, not from the project recommendation pack"
+                    },
+                    "fix": {
+                      "description": "GET /findings only, open findings: the update that fixes it with others (D-545); null when there is none to name",
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "group": {
+                              "type": "string",
+                              "description": "\"<device id>/<software id>\": the open findings with the same group are fixed by the same update"
+                            },
+                            "kind": {
+                              "type": "string",
+                              "enum": [
+                                "fixed",
+                                "esu",
+                                "feature_update",
+                                "distro"
+                              ],
+                              "description": "fixed = upgrade to `fixed` (a Windows release: the monthly cumulative update with build `fixed` or later); esu = that build needs Extended Security Updates; feature_update = no update of this release fixes them, move to release `fixed`; distro = install the distribution's security updates for the package"
+                            },
+                            "windows": {
+                              "type": "boolean",
+                              "description": "A Windows release row (D-546): the update is the monthly cumulative update Windows Update offers"
+                            },
+                            "software": {
+                              "type": "string",
+                              "description": "Display name of the software row"
+                            },
+                            "version": {
+                              "type": "string",
+                              "description": "The installed version"
+                            },
+                            "fixed": {
+                              "type": "string",
+                              "description": "The release or build that fixes them all; feature_update: the release to move to; empty for distro"
+                            },
+                            "distro": {
+                              "type": "string",
+                              "description": "distro: \"Ubuntu\" or \"Debian\", empty for the distribution's"
+                            },
+                            "pro": {
+                              "type": "boolean",
+                              "description": "distro: the fix of at least one of them is in Ubuntu Pro (ESM) only"
+                            }
+                          },
+                          "required": [
+                            "group",
+                            "kind",
+                            "windows",
+                            "software",
+                            "version",
+                            "fixed",
+                            "distro",
+                            "pro"
+                          ],
+                          "additionalProperties": false,
+                          "description": "D-545: one update fixes this finding together with the device's other open findings of the same software (top-tier: one item per missing update)"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
                     },
                     "fixed_in": {
                       "anyOf": [
@@ -32038,6 +32178,10 @@
                               "type": "string",
                               "format": "date-time",
                               "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            "agent": {
+                              "description": "D-548: the version compared is the one the device's own agent (osquery, Wazuh) reports installed: a detection, shown as \"Detected by the agent\", with nothing for the person to look up",
+                              "type": "boolean"
                             }
                           },
                           "required": [
@@ -32337,6 +32481,69 @@
                         }
                       ],
                       "description": "Read from KEV, not from the project recommendation pack"
+                    },
+                    "fix": {
+                      "description": "GET /findings only, open findings: the update that fixes it with others (D-545); null when there is none to name",
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "group": {
+                              "type": "string",
+                              "description": "\"<device id>/<software id>\": the open findings with the same group are fixed by the same update"
+                            },
+                            "kind": {
+                              "type": "string",
+                              "enum": [
+                                "fixed",
+                                "esu",
+                                "feature_update",
+                                "distro"
+                              ],
+                              "description": "fixed = upgrade to `fixed` (a Windows release: the monthly cumulative update with build `fixed` or later); esu = that build needs Extended Security Updates; feature_update = no update of this release fixes them, move to release `fixed`; distro = install the distribution's security updates for the package"
+                            },
+                            "windows": {
+                              "type": "boolean",
+                              "description": "A Windows release row (D-546): the update is the monthly cumulative update Windows Update offers"
+                            },
+                            "software": {
+                              "type": "string",
+                              "description": "Display name of the software row"
+                            },
+                            "version": {
+                              "type": "string",
+                              "description": "The installed version"
+                            },
+                            "fixed": {
+                              "type": "string",
+                              "description": "The release or build that fixes them all; feature_update: the release to move to; empty for distro"
+                            },
+                            "distro": {
+                              "type": "string",
+                              "description": "distro: \"Ubuntu\" or \"Debian\", empty for the distribution's"
+                            },
+                            "pro": {
+                              "type": "boolean",
+                              "description": "distro: the fix of at least one of them is in Ubuntu Pro (ESM) only"
+                            }
+                          },
+                          "required": [
+                            "group",
+                            "kind",
+                            "windows",
+                            "software",
+                            "version",
+                            "fixed",
+                            "distro",
+                            "pro"
+                          ],
+                          "additionalProperties": false,
+                          "description": "D-545: one update fixes this finding together with the device's other open findings of the same software (top-tier: one item per missing update)"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
                     },
                     "fixed_in": {
                       "anyOf": [
@@ -33207,6 +33414,10 @@
                               "type": "string",
                               "format": "date-time",
                               "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            "agent": {
+                              "description": "D-548: the version compared is the one the device's own agent (osquery, Wazuh) reports installed: a detection, shown as \"Detected by the agent\", with nothing for the person to look up",
+                              "type": "boolean"
                             }
                           },
                           "required": [
@@ -33506,6 +33717,69 @@
                         }
                       ],
                       "description": "Read from KEV, not from the project recommendation pack"
+                    },
+                    "fix": {
+                      "description": "GET /findings only, open findings: the update that fixes it with others (D-545); null when there is none to name",
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "group": {
+                              "type": "string",
+                              "description": "\"<device id>/<software id>\": the open findings with the same group are fixed by the same update"
+                            },
+                            "kind": {
+                              "type": "string",
+                              "enum": [
+                                "fixed",
+                                "esu",
+                                "feature_update",
+                                "distro"
+                              ],
+                              "description": "fixed = upgrade to `fixed` (a Windows release: the monthly cumulative update with build `fixed` or later); esu = that build needs Extended Security Updates; feature_update = no update of this release fixes them, move to release `fixed`; distro = install the distribution's security updates for the package"
+                            },
+                            "windows": {
+                              "type": "boolean",
+                              "description": "A Windows release row (D-546): the update is the monthly cumulative update Windows Update offers"
+                            },
+                            "software": {
+                              "type": "string",
+                              "description": "Display name of the software row"
+                            },
+                            "version": {
+                              "type": "string",
+                              "description": "The installed version"
+                            },
+                            "fixed": {
+                              "type": "string",
+                              "description": "The release or build that fixes them all; feature_update: the release to move to; empty for distro"
+                            },
+                            "distro": {
+                              "type": "string",
+                              "description": "distro: \"Ubuntu\" or \"Debian\", empty for the distribution's"
+                            },
+                            "pro": {
+                              "type": "boolean",
+                              "description": "distro: the fix of at least one of them is in Ubuntu Pro (ESM) only"
+                            }
+                          },
+                          "required": [
+                            "group",
+                            "kind",
+                            "windows",
+                            "software",
+                            "version",
+                            "fixed",
+                            "distro",
+                            "pro"
+                          ],
+                          "additionalProperties": false,
+                          "description": "D-545: one update fixes this finding together with the device's other open findings of the same software (top-tier: one item per missing update)"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
                     },
                     "fixed_in": {
                       "anyOf": [
@@ -34388,6 +34662,10 @@
                               "type": "string",
                               "format": "date-time",
                               "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            "agent": {
+                              "description": "D-548: the version compared is the one the device's own agent (osquery, Wazuh) reports installed: a detection, shown as \"Detected by the agent\", with nothing for the person to look up",
+                              "type": "boolean"
                             }
                           },
                           "required": [
@@ -34687,6 +34965,69 @@
                         }
                       ],
                       "description": "Read from KEV, not from the project recommendation pack"
+                    },
+                    "fix": {
+                      "description": "GET /findings only, open findings: the update that fixes it with others (D-545); null when there is none to name",
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "group": {
+                              "type": "string",
+                              "description": "\"<device id>/<software id>\": the open findings with the same group are fixed by the same update"
+                            },
+                            "kind": {
+                              "type": "string",
+                              "enum": [
+                                "fixed",
+                                "esu",
+                                "feature_update",
+                                "distro"
+                              ],
+                              "description": "fixed = upgrade to `fixed` (a Windows release: the monthly cumulative update with build `fixed` or later); esu = that build needs Extended Security Updates; feature_update = no update of this release fixes them, move to release `fixed`; distro = install the distribution's security updates for the package"
+                            },
+                            "windows": {
+                              "type": "boolean",
+                              "description": "A Windows release row (D-546): the update is the monthly cumulative update Windows Update offers"
+                            },
+                            "software": {
+                              "type": "string",
+                              "description": "Display name of the software row"
+                            },
+                            "version": {
+                              "type": "string",
+                              "description": "The installed version"
+                            },
+                            "fixed": {
+                              "type": "string",
+                              "description": "The release or build that fixes them all; feature_update: the release to move to; empty for distro"
+                            },
+                            "distro": {
+                              "type": "string",
+                              "description": "distro: \"Ubuntu\" or \"Debian\", empty for the distribution's"
+                            },
+                            "pro": {
+                              "type": "boolean",
+                              "description": "distro: the fix of at least one of them is in Ubuntu Pro (ESM) only"
+                            }
+                          },
+                          "required": [
+                            "group",
+                            "kind",
+                            "windows",
+                            "software",
+                            "version",
+                            "fixed",
+                            "distro",
+                            "pro"
+                          ],
+                          "additionalProperties": false,
+                          "description": "D-545: one update fixes this finding together with the device's other open findings of the same software (top-tier: one item per missing update)"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
                     },
                     "fixed_in": {
                       "anyOf": [

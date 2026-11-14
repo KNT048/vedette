@@ -29150,6 +29150,34 @@ func (s *FeedsGetFeedsCveIDOK) Validate() error {
 			Error: err,
 		})
 	}
+	if err := func() error {
+		if value, ok := s.NotAffected.Get(); ok {
+			if err := func() error {
+				if err := (validate.Int{
+					MinSet:        true,
+					Min:           0,
+					MaxSet:        true,
+					Max:           9007199254740991,
+					MinExclusive:  false,
+					MaxExclusive:  false,
+					MultipleOfSet: false,
+					MultipleOf:    0,
+					Pattern:       nil,
+				}).Validate(int64(value)); err != nil {
+					return errors.Wrap(err, "int")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "not_affected",
+			Error: err,
+		})
+	}
 	if len(failures) > 0 {
 		return &validate.Error{Fields: failures}
 	}
@@ -34094,6 +34122,24 @@ func (s *FindingsGetFindingsIDOK) Validate() error {
 		})
 	}
 	if err := func() error {
+		if value, ok := s.Fix.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "fix",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if value, ok := s.FixedIn.Get(); ok {
 			if err := func() error {
 				if err := value.Validate(); err != nil {
@@ -34779,6 +34825,44 @@ func (s FindingsGetFindingsIDOKCompromiseIndicatorsItemKind) Validate() error {
 	}
 }
 
+func (s *FindingsGetFindingsIDOKFix) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.Kind.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "kind",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s FindingsGetFindingsIDOKFixKind) Validate() error {
+	switch s {
+	case "fixed":
+		return nil
+	case "esu":
+		return nil
+	case "feature_update":
+		return nil
+	case "distro":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
 func (s *FindingsGetFindingsIDOKFixedIn) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
@@ -35393,6 +35477,24 @@ func (s *FindingsGetFindingsOKItemsItem) Validate() error {
 		})
 	}
 	if err := func() error {
+		if value, ok := s.Fix.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "fix",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if s.History == nil {
 			return errors.New("nil is invalid value")
 		}
@@ -35664,6 +35766,44 @@ func (s FindingsGetFindingsOKItemsItemBasis) Validate() error {
 	case "version":
 		return nil
 	case "product":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s *FindingsGetFindingsOKItemsItemFix) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.Kind.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "kind",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s FindingsGetFindingsOKItemsItemFixKind) Validate() error {
+	switch s {
+	case "fixed":
+		return nil
+	case "esu":
+		return nil
+	case "feature_update":
+		return nil
+	case "distro":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -36153,6 +36293,24 @@ func (s *FindingsPostFindingsIDAiOK) Validate() error {
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "cve",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.Fix.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "fix",
 			Error: err,
 		})
 	}
@@ -36842,6 +37000,44 @@ func (s FindingsPostFindingsIDAiOKCompromiseIndicatorsItemKind) Validate() error
 	}
 }
 
+func (s *FindingsPostFindingsIDAiOKFix) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.Kind.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "kind",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s FindingsPostFindingsIDAiOKFixKind) Validate() error {
+	switch s {
+	case "fixed":
+		return nil
+	case "esu":
+		return nil
+	case "feature_update":
+		return nil
+	case "distro":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
 func (s *FindingsPostFindingsIDAiOKFixedIn) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
@@ -37458,6 +37654,24 @@ func (s *FindingsPostFindingsIDAppliedOK) Validate() error {
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "cve",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.Fix.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "fix",
 			Error: err,
 		})
 	}
@@ -38147,6 +38361,44 @@ func (s FindingsPostFindingsIDAppliedOKCompromiseIndicatorsItemKind) Validate() 
 	}
 }
 
+func (s *FindingsPostFindingsIDAppliedOKFix) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.Kind.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "kind",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s FindingsPostFindingsIDAppliedOKFixKind) Validate() error {
+	switch s {
+	case "fixed":
+		return nil
+	case "esu":
+		return nil
+	case "feature_update":
+		return nil
+	case "distro":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
 func (s *FindingsPostFindingsIDAppliedOKFixedIn) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
@@ -38769,6 +39021,24 @@ func (s *FindingsPostFindingsIDStatusOK) Validate() error {
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "cve",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.Fix.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "fix",
 			Error: err,
 		})
 	}
@@ -39452,6 +39722,44 @@ func (s FindingsPostFindingsIDStatusOKCompromiseIndicatorsItemKind) Validate() e
 	case "log":
 		return nil
 	case "process":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s *FindingsPostFindingsIDStatusOKFix) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.Kind.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "kind",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s FindingsPostFindingsIDStatusOKFixKind) Validate() error {
+	switch s {
+	case "fixed":
+		return nil
+	case "esu":
+		return nil
+	case "feature_update":
+		return nil
+	case "distro":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)

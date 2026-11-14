@@ -6,14 +6,14 @@
   "titleNone": "No unresolved findings",
   "title_one": "{{count}} unresolved finding, {{confirmed}} confirmed",
   "title_other": "{{count}} unresolved findings, {{confirmed}} confirmed",
-  "intro": "A finding is an actively exploited vulnerability (CISA KEV, or VulnCheck KEV if you turned it on) that matches one of your devices. Confirmed means a safe scan template saw the vulnerability; suspected means it only matches by version or product.",
+  "intro": "A finding is an actively exploited vulnerability (CISA KEV, or VulnCheck KEV if you turned it on) that matches one of your devices. Confirmed means a safe scan template saw the vulnerability; detected by the agent means the device's own agent reports an installed version that is affected; suspected means it only matches by a version or product Vedette read some other way.",
   "caption": "Findings list",
   "filter": "Search device, CVE, product",
   "filterLabel": "Filter by status",
   "filters": {
     "all": "All unresolved",
     "confirmed": "Confirmed",
-    "suspected": "Suspected"
+    "suspected": "Suspected or detected"
   },
   "versionNeeded": {
     "title_one": "Add the version of 1 software to check it",
@@ -53,7 +53,8 @@
     "patched": "{{device}}: {{cve}} is patched",
     "false_positive": "{{device}}: {{cve}} marked as false positive",
     "not_relevant": "{{device}}: {{cve}} marked as not relevant",
-    "risk_accepted": "{{device}}: {{cve}} risk accepted until {{date}}"
+    "risk_accepted": "{{device}}: {{cve}} risk accepted until {{date}}",
+    "agent": "{{device}} has {{cve}}: its agent reports an affected version"
   },
   "meta": {
     "ransomware": "Used by ransomware",
@@ -326,5 +327,28 @@
     "systemNotRelevant": "Vedette closed this as not relevant{{when}}",
     "risk_accepted": "Risk accepted until {{date}}{{who}}{{when}}. It reopens by itself after that day",
     "before": "Before it was closed: evidence, how to check, what to do"
+  },
+  "agentChip": "Detected by the agent",
+  "agentChipHint": "The device's own agent (osquery or Wazuh) reports the installed version, and that version is affected. A safe scan template has not seen it, so the status is still open, not confirmed.",
+  "fix": {
+    "title_one": "1 update fixes several findings",
+    "title_other": "{{count}} updates each fix several findings",
+    "help": "One missing update often leaves many exploited vulnerabilities open. Install it once: when the device reports the new version (its agent or the next scan), or you enter it, Vedette closes every finding it fixes.",
+    "windowsFixed": "Install the latest cumulative update for {{software}} (build {{fixed}} or later)",
+    "windowsEsu": "Install the Extended Security Update for {{software}} (build {{fixed}} or later; it needs an ESU subscription)",
+    "featureUpdate": "Upgrade {{software}} to {{fixed}}: some of these get no update for this release",
+    "fixed": "Upgrade {{software}} from {{version}} to {{fixed}} or later",
+    "distro": "Install {{distro}}'s security updates for {{software}}",
+    "distroAny": "Install the distribution's security updates for {{software}}",
+    "fixes_one": "fixes {{count}} exploited vulnerability",
+    "fixes_other": "fixes {{count}} exploited vulnerabilities",
+    "show_one": "Show the {{count}} CVE",
+    "show_other": "Show the {{count}} CVEs",
+    "select": "Handle these {{count}} findings in the list",
+    "filtered": "Showing the findings one update fixes: {{action}}.",
+    "clear": "Show all findings",
+    "listLabel": "Updates that fix several findings",
+    "distroPro": "Install {{distro}}'s security updates for {{software}} (some of the fixes need Ubuntu Pro)",
+    "allGrouped": "Every unresolved finding in this list is in an update above."
   }
 }

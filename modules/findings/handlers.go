@@ -146,6 +146,52 @@ func (h *FindingHandlers) fixedIn(ctx context.Context, rec Record) *FixedIn {
 	return nil
 }
 
+// addFixes sets Row.Fix on the open findings of the list (D-545): per device, the update that fixes its open findings of one software
+// together (RowFixes). Like fixedIn it only informs the page: a device or a list it cannot read leaves the rows without one.
+func (h *FindingHandlers) addFixes(ctx context.Context, rows []Row) {
+	byAsset := map[string][]int{}
+	var order []string
+	for i, r := range rows {
+		if !r.Status.Open() || r.Basis == BasisProduct { // review r1 #1: a product match is not proved fixed by an update
+			continue
+		}
+		if _, ok := byAsset[r.AssetID]; !ok {
+			order = append(order, r.AssetID)
+		}
+		byAsset[r.AssetID] = append(byAsset[r.AssetID], i)
+	}
+	if len(order) == 0 {
+		return
+	}
+	vulns, err := h.feed.Vulns(ctx)
+	if err != nil {
+		return
+	}
+	byCVE := make(map[string]Vuln, len(vulns))
+	for _, v := range vulns {
+		byCVE[v.CVE] = v
+	}
+	for _, id := range order {
+		var mine []Vuln
+		for _, i := range byAsset[id] {
+			if v, ok := byCVE[rows[i].CVE]; ok {
+				mine = append(mine, v)
+			}
+		}
+		if len(mine) < 2 { // one finding is its own item: nothing to group
+			continue
+		}
+		a, ok, err := h.inv.MatchInput(ctx, id)
+		if err != nil || !ok {
+			continue
+		}
+		fixes := RowFixes(a, mine)
+		for _, i := range byAsset[id] {
+			rows[i].Fix = fixes[rows[i].CVE]
+		}
+	}
+}
+
 // DetailByID is Detail for a finding id; an unknown id is a 404 API error.
 func (h *FindingHandlers) DetailByID(ctx context.Context, id string) (Detail, error) {
 	rec, err := h.svc.Get(ctx, id)
@@ -166,6 +212,7 @@ func (h *FindingHandlers) FindingsGetFindings(ctx context.Context, params oas.Fi
 	if err != nil {
 		return nil, err
 	}
+	h.addFixes(ctx, rows)
 	need, err := h.versionNeeded(ctx, params.Asset.Or(""))
 	if err != nil {
 		return nil, err

@@ -2,6 +2,7 @@ package findings
 
 import (
 	"fmt"
+	"maps"
 	"regexp"
 	"slices"
 	"strconv"
@@ -476,7 +477,7 @@ func windowsGroupFix(in swInfo, vulns []Vuln) *GroupFix {
 	if kind == "feature_update" {
 		fixed = branch
 	}
-	return &GroupFix{Kind: kind, Version: clean(in.ver), Fixed: clean(fixed), Closed: closed}
+	return &GroupFix{Kind: kind, Version: clean(in.ver), Fixed: clean(fixed), Closed: closed, Ranged: maps.Clone(closed)}
 }
 
 // winNames names releases for a sentence: "windows 10 1809, windows 11 23h2 and 2 more".

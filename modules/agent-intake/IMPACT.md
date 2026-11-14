@@ -71,3 +71,6 @@
 - Mục Agents trong Inventory hiện "module đang tắt"; script cài và `/intake/*` trả 404 (cổng SYS-5, test `TestContract_SYS5_ModuleOffIs404`); osquery trên máy chủ khách nhận 404 ở config/log (osquery tự thử lại; rẻ, qua cổng); không đăng ký/báo được.
 - `inventory`: thiết bị nguồn `agent` không cập nhật nữa; phát hiện (findings) dựa trên gói cũ có thể lỗi thời, UI hiện tuổi dữ liệu. Token, máy, dữ liệu giữ nguyên (`node-prune` cũng dừng; thời gian tắt không tính vào 90 ngày im lặng).
 - `reports` (PDPL): mục nguồn kiểm kê không còn `agent` mới.
+
+## Modifying: `enrolHostname` (D-548, INV-21)
+- **inventory**: một quan sát `hostname` nguồn agent mỗi lần log tới khi `system_info` được nhận; tên thiết bị (`DisplayName`) đổi từ hãng/IP sang tên máy ở mọi trang, tin và báo cáo.

@@ -65,6 +65,26 @@ func (a feedsInventory) MatchProducts(ctx context.Context, products []feeds.Prod
 	return out, nil
 }
 
+// NotAffected implements feeds.PlatformChecker (D-549, KF-CVEPAGE): the devices the findings matcher's platform rules (D-547) prove are
+// not affected by the CVE, read as findings reads them (findingsInventory.MatchInput), so the CVE page agrees with their findings.
+func (a feedsInventory) NotAffected(ctx context.Context, cve, vendor, product string, ids []string) (map[string]bool, error) {
+	out := map[string]bool{}
+	if !findings.HasPlatformLimit(cve) { // review r1 #9: only a platform-limited CVE reads the devices
+		return out, nil
+	}
+	now := time.Now()
+	for _, id := range ids {
+		d, ok, err := findingsInventory(a).MatchInput(ctx, id)
+		if err != nil {
+			return nil, err
+		}
+		if ok && findings.PlatformRuledOut(d, cve, vendor, product, now) {
+			out[id] = true
+		}
+	}
+	return out, nil
+}
+
 // AddManualDevice declares the "I have this" device and returns its id, so feeds records it on the answer and the
 // "I have this" scope of findings (D-484 (4), INV-11) covers that one device (W1-3, M5-177).
 func (a feedsInventory) AddManualDevice(ctx context.Context, tx *sql.Tx, actor string, d feeds.ManualDevice) (string, error) {
@@ -184,7 +204,7 @@ func (a findingsInventory) MatchInput(ctx context.Context, assetID string) (find
 	if err != nil || !ok {
 		return findings.Asset{}, false, err
 	}
-	out := findings.Asset{ID: d.ID, Name: d.Name, OS: d.OS, Model: d.Model, StatedOS: d.StatedOS, Software: make([]findings.Software, len(d.Software))}
+	out := findings.Asset{ID: d.ID, Name: d.Name, OS: d.OS, Model: d.Model, StatedOS: d.StatedOS, AgentOS: d.AgentOS, SNMPOS: d.SNMPOS, Software: make([]findings.Software, len(d.Software))}
 	if d.Name == d.ID { // no hostname and no IP (hand-added, LLDP only): the evidence names it as the Devices page does, never by its id (D-484)
 		names, err := a.inv.Names(ctx)
 		if err != nil {

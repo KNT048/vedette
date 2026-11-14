@@ -51,7 +51,9 @@ export default function CvePage() {
               </div>
               <aside aria-label={t('cve.matched')}>
                 <Section title={t('cve.matched')} stories={['S-FEED-1']}>
-                  {v.matched === null ? <ModuleOff module="inventory" /> : v.matched.length === 0 ? (
+                  {v.matched === null ? <ModuleOff module="inventory" /> : v.matched.length === 0 && v.not_affected ? (
+                    <p className="text-sm text-muted">{t('cve.notAffected', { count: v.not_affected })}</p>
+                  ) : v.matched.length === 0 ? (
                     <EmptyState title={t('cve.matchedNone')}>{t('cve.matchedNoneBody')}</EmptyState>
                   ) : (
                     <ul className="grid divide-y divide-rule rounded-md border border-rule bg-surface">
@@ -66,6 +68,7 @@ export default function CvePage() {
                       ))}
                     </ul>
                   )}
+                  {v.matched?.length && v.not_affected ? <p className="mt-2 text-[13px] text-muted">{t('cve.notAffected', { count: v.not_affected })}</p> : null}
                   {v.matched?.length ? <Link to={`/findings?cve=${v.cve}`} className="mt-3 inline-block text-sm text-accent underline-offset-4 hover:underline">{t('cve.toFindings')}</Link> : null}
                 </Section>
               </aside>

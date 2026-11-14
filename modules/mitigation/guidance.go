@@ -169,6 +169,16 @@ func genericRecheck(r findings.Row) findings.Recheck {
 			software = r.Kev.Vendor + " " + r.Kev.Product
 		}
 	}
+	if r.Evidence != nil && r.Evidence.Agent { // D-548: the agent reports the installed version; nothing to look up
+		steps := []string{
+			fmt.Sprintf("Nothing to look up: the agent on %s reports the installed version of %s, and Vedette compared it with the affected versions (Evidence above).", device, software),
+			"Install the update (What to do below). The agent reports the new version by itself, usually within two hours (after the restart the update needs), and Vedette then closes this finding by itself.",
+		}
+		if hasTemplate && reachable {
+			steps = append(steps, `This CVE also has a safe scan template: "Rescan this device" checks it from the network.`)
+		}
+		return findings.Recheck{Steps: steps}
+	}
 	last := "This CVE has no safe scan template yet, so Vedette can only conclude from the version. Check by hand as above."
 	switch {
 	case hasTemplate && reachable:

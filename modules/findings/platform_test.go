@@ -48,7 +48,7 @@ func TestPlatform_DeviceOSClosesTheFinding(t *testing.T) {
 	t.Parallel()
 	sw := sshRow("9.6p1", "", "agent")
 	sw.Packaged, sw.PkgVersion, sw.PkgSource = true, "1:9.6p1-3ubuntu13.20", "openssh"
-	a := Asset{ID: "a", Name: "boxkien", OS: "Ubuntu 24.04.3 LTS", Software: []Software{sw}}
+	a := Asset{ID: "a", Name: "boxkien", OS: "Ubuntu 24.04.3 LTS", AgentOS: "Ubuntu 24.04.3 LTS", Software: []Software{sw}}
 	res := MatchAsset(a, []Vuln{sshhole()}, map[string]bool{"CVE-2026-123158": true}, t0)
 	if len(res.Existing) != 0 || len(res.NotAffected) != 1 {
 		t.Fatalf("existing %+v, not affected %+v", res.Existing, res.NotAffected)
@@ -65,7 +65,7 @@ func TestPlatform_UnknownPlatformKeepsTheFindingWithTheCondition(t *testing.T) {
 	for _, a := range []Asset{
 		{ID: "fw", Name: "192.168.18.1", Software: []Software{sshRow("10.2", "protocol 2.0", "nmap")}},
 		{ID: "host", Name: "docker1", OS: "Ubuntu 24.04.3 LTS", Software: []Software{sshRow("10.2", "", "nmap")}},
-		{ID: "alp", Name: "alp1", OS: "Alpine Linux v3.23", Software: []Software{sshRow("10.2", "", "agent")}},
+		{ID: "alp", Name: "alp1", OS: "Alpine Linux v3.23", AgentOS: "Alpine Linux v3.23", Software: []Software{sshRow("10.2", "", "agent")}},
 	} {
 		res := MatchAsset(a, []Vuln{sshhole()}, nil, t0)
 		if len(res.New) != 1 || res.New[0].Basis != BasisVersion || len(res.OtherPlatform) != 0 {
@@ -94,17 +94,25 @@ func TestPlatform_OtherCVEsUnchanged(t *testing.T) {
 func TestPlatform_OSIsEvidenceOnlyForTheDevicesOwnRows(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
-		name, source, os, stated string
-		out                      bool
+		name, source, os, stated, agent, snmp string
+		out                                   bool
 	}{
-		{"agent row on a Ubuntu device", "agent", "Ubuntu 24.04.3 LTS", "", true},
-		{"manual row on a Ubuntu device (an Alpine container's sshd typed by hand)", "manual", "Ubuntu 24.04.3 LTS", "", false},
-		{"scan row on a Ubuntu device", "nmap", "Ubuntu 24.04.3 LTS", "", false},
-		{"row of unknown source", "", "Ubuntu 24.04.3 LTS", "", false},
-		{"SNMP row, OS only a fingerprint or DHCP guess", "snmp", "Microsoft Windows", "", false},
-		{"SNMP row, the device states its OS", "snmp", "", "Ubuntu 22.04", true},
+		{"agent row on a Ubuntu device", "agent", "Ubuntu 24.04.3 LTS", "", "Ubuntu 24.04.3 LTS", "", true},
+		{"agent row, the folded OS is a guess the agent never reported (review r2 of #790)", "agent", "Ubuntu 24.04.3 LTS", "", "", "", false},
+		{"agent row, a person's OS won but the agent reports Ubuntu", "agent", "Alpine Linux v3.23", "", "Ubuntu 24.04.3 LTS", "", true},
+		{"scan row on a Junos switch that states its OS over SNMP (D-549, N47-1)", "nmap", "Juniper Junos", "JUNOS 15.1R7.9", "", "JUNOS 15.1R7.9", true},
+		{"scan row, Junos only in an LLDP frame (forgeable with the device's MAC, review r1 #3)", "nmap", "", "JUNOS 15.1R7.9", "", "", false},
+		{"scan row, Junos OS Evolved runs containers (review r1 #4)", "nmap", "", "JUNOS 21.4R1.12-EVO", "", "JUNOS 21.4R1.12-EVO", false},
+		{"scan row, SNMP says Junos but an agent reports another OS", "nmap", "", "JUNOS 15.1R7.9", "Alpine Linux v3.23", "JUNOS 15.1R7.9", false},
+		{"scan row on a device that states Ubuntu over SNMP (may forward to a container)", "nmap", "", "Ubuntu 22.04", "", "", false},
+		{"manual row on a Ubuntu device (an Alpine container's sshd typed by hand)", "manual", "Ubuntu 24.04.3 LTS", "", "", "", false},
+		{"scan row on a Ubuntu device", "nmap", "Ubuntu 24.04.3 LTS", "", "", "", false},
+		{"row of unknown source", "", "Ubuntu 24.04.3 LTS", "", "", "", false},
+		{"SNMP row, OS only a fingerprint or DHCP guess", "snmp", "Microsoft Windows", "", "", "", false},
+		{"SNMP row, the device states its OS to Vedette's SNMP read", "snmp", "", "Ubuntu 22.04", "", "Ubuntu 22.04", true},
+		{"SNMP row, the OS only in an LLDP frame (review r2 of #800)", "snmp", "", "Ubuntu 22.04", "", "", false},
 	} {
-		a := Asset{ID: "d", Name: "docker1", OS: tc.os, StatedOS: tc.stated, Software: []Software{sshRow("10.2", "", tc.source)}}
+		a := Asset{ID: "d", Name: "docker1", OS: tc.os, StatedOS: tc.stated, AgentOS: tc.agent, SNMPOS: tc.snmp, Software: []Software{sshRow("10.2", "", tc.source)}}
 		res := MatchAsset(a, []Vuln{sshhole()}, nil, t0)
 		if got := len(res.OtherPlatform) == 1 && len(res.New) == 0; got != tc.out {
 			t.Errorf("%s: ruled out %v, want %v (new %+v)", tc.name, got, tc.out, res.New)
@@ -118,7 +126,7 @@ func TestPlatform_ContainerPortKeepsTheFinding(t *testing.T) {
 	t.Parallel()
 	host := sshRow("9.6p1", "", "agent")
 	host.ID, host.Packaged, host.PkgVersion, host.PkgSource = "pkg", true, "1:9.6p1-3ubuntu13.20", "openssh"
-	a := Asset{ID: "d", Name: "docker1", OS: "Ubuntu 24.04.3 LTS", Software: []Software{host, sshRow("10.2", "", "nmap")}}
+	a := Asset{ID: "d", Name: "docker1", OS: "Ubuntu 24.04.3 LTS", AgentOS: "Ubuntu 24.04.3 LTS", Software: []Software{host, sshRow("10.2", "", "nmap")}}
 	res := MatchAsset(a, []Vuln{sshhole()}, map[string]bool{"CVE-2026-123158": true}, t0)
 	if len(res.Existing) != 1 || len(res.NotAffected) != 0 || len(res.OtherPlatform) != 0 {
 		t.Fatalf("existing %+v, not affected %+v, other %+v", res.Existing, res.NotAffected, res.OtherPlatform)
@@ -157,7 +165,7 @@ func TestPlatform_DistributionWordBeatsTheHandList(t *testing.T) {
 	sw.Packaged, sw.PkgVersion, sw.PkgSource = true, "1:9.6p1-3ubuntu13.14", "openssh"
 	v := sshhole()
 	v.Distro = []DistroFix{{Distro: "ubuntu", Release: "24.04", Package: "openssh", Status: "fixed", Fixed: "1:9.6p1-3ubuntu13.20"}}
-	res := MatchAsset(Asset{ID: "a", Name: "boxkien", OS: "Ubuntu 24.04.3 LTS", Software: []Software{sw}}, []Vuln{v}, nil, t0)
+	res := MatchAsset(Asset{ID: "a", Name: "boxkien", OS: "Ubuntu 24.04.3 LTS", AgentOS: "Ubuntu 24.04.3 LTS", Software: []Software{sw}}, []Vuln{v}, nil, t0)
 	if len(res.New) != 1 || len(res.OtherPlatform) != 0 {
 		t.Fatalf("new %+v, other %+v; want the distribution's version finding", res.New, res.OtherPlatform)
 	}
@@ -171,7 +179,7 @@ func TestContract_D547_PlatformClosesAndReopens(t *testing.T) {
 	run := func(os string) {
 		t.Helper()
 		e.advance(time.Minute)
-		a := Asset{ID: "a-1", Name: "fw1", OS: os, Software: []Software{sshRow("10.2", "", "agent")}}
+		a := Asset{ID: "a-1", Name: "fw1", OS: os, AgentOS: os, Software: []Software{sshRow("10.2", "", "agent")}}
 		if _, err := e.svc.UpsertFromMatch(t.Context(), a, []Vuln{sshhole()}); err != nil {
 			t.Fatal(err)
 		}

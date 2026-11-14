@@ -126,3 +126,6 @@
 - `Fetcher.Gateway` (wired to `procGateway` in `cmd/vedette/feeds.go`) adds the container default gateway to the box set, as core/conn does.
 - D-446: the rule of Vedette itself is now one rule in feeds, notify, logs and ai (`ownAddrs`: loopback and the container's own interfaces on every port, the machine's addresses — `Fetcher.BoxAddrs`, `Fetcher.Gateway` — only on `vedettePorts` 8443, 8444, 8765, 514, 6514), with one sentence (`ownText`, the same text as `channel.OwnText`, logs `ownText`, `provider.OwnText` and the SPA's `OWN_TEXT` copies). `CheckDest` takes an `ownAddrs`. Changing the port list or the sentence means changing every copy; the GUI's `blockedFeedHost` returns `'own'` or `'blocked'`.
 - D-446 review: `Fetcher.Self` (cmd/vedette `vedetteSelf`: the honeypot's decoys, read at every check) is Vedette itself on every port; `cmd/vedette/ownaddr.go` `machineAddrs` is the one source of the machine's addresses for feeds, notify, logs and ai (it includes the gateway, so `Fetcher.Gateway` is no longer wired).
+
+## Modifying: `PlatformChecker` (D-549)
+- Cài bởi `cmd/vedette/wiring.go` `feedsInventory.NotAffected` (inventory + `findings.PlatformRuledOut`); SPA trang CVE (`CvePage.tsx`) chỉ thấy danh sách ngắn hơn, không đổi hợp đồng.

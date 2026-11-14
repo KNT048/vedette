@@ -320,7 +320,7 @@ func TestEgressTransportDialsIPv4Only(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer v4.Close()
+	defer func() { _ = v4.Close() }()
 	c, err := tr.DialContext(t.Context(), "tcp", v4.Addr().String())
 	if err != nil {
 		t.Fatalf("IPv4: %v", err)
@@ -330,7 +330,7 @@ func TestEgressTransportDialsIPv4Only(t *testing.T) {
 	if err != nil {
 		t.Skip("no IPv6 loopback on this machine")
 	}
-	defer v6.Close()
+	defer func() { _ = v6.Close() }()
 	if c, err := tr.DialContext(t.Context(), "tcp", v6.Addr().String()); err == nil {
 		_ = c.Close()
 		t.Fatal("the fence's transport dialed an IPv6 address")

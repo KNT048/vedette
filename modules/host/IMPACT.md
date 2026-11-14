@@ -21,6 +21,7 @@
 - `host/config`: thêm khoá tuỳ chọn `core_cgroup`; `golang.org/x/sys` thành phụ thuộc trực tiếp (Linux).
 - `cmd/vedette-host`: cờ `-config -socket -state-dir -audit-log -version`.
 - D-521 (`zap.baseline`, INV-31): `host/api/zap.go` (`CmdZapBaseline`, `ZapBaselineArgs`, `ZapBaselineResult`, các mã `zap_*`, `target_not_owned`, `ownership_unchecked`, `MaxZapReport`); `host/ops/zap.go` (lệnh không lấy khoá ghi, `Readers.ZapReport`, binary `nft` với ba argv cố định, các dạng podman của ZAP trong `validatePodman`, `Deps.ZapEgress`/`ZapTXT`/`ZapUID`, dọn ở `Start`); `host/server` `Readers.ZapReport` + đường `GET /v1/zap/{id}/content`; `host/client` `ZapBaseline` (theo run tới hết, đọc lại mỗi 2 s) và `DownloadZapReport`; `core/egressip` thành phụ thuộc của `vedette-host`.
+- D-525 (`zap.baseline` cấu hình, INV-31): `host/ops/zap.go` (`--autooff`, `-c vedette-baseline.conf`, `--workdir /home/zap` trong argv cố định; `zapWriteConf`), `host/ops/zapconf.go` (hằng `zapConf`: danh sách mức luật do AI-Mlee quyết, phía exposure đọc kết quả). Exposure (`ParseZAPReport`) không đổi: `-c` chỉ đổi mã thoát và bản tóm tắt, báo cáo JSON vẫn đủ mọi cảnh báo.
 
 ## Modifying: `Client.Run(ctx, command, args, requestID, actor) (api.Run, error)` (phía `core`) — 6 nhóm người gọi
 - **core/updates** (`/core/updates/os*`): đổi tên lệnh hoặc `OsRunResult` → màn hình Updates, trạng thái `busy`, tiến trình trực tiếp (`lines`) vỡ.

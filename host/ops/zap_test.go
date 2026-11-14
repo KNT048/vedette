@@ -12,6 +12,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"syscall"
 	"testing"
 	"testing/synctest"
 
@@ -101,14 +102,22 @@ func TestZapRunArgvIsFixedAndValidated(t *testing.T) {
 	got := p.runArgv(wrk)
 	want := strings.Fields("--module /usr/lib/vedette/apparmor-containers.conf run --rm --pull=never --name vedette-zap --label io.vedette.owner=vedette-host --network vedette-zap --dns none" +
 		" --add-host www.example.com:" + zapTestIP + " --cap-drop ALL --security-opt no-new-privileges --read-only --tmpfs /home/zap:rw,size=256m,mode=0700,uid=1000,gid=1000" +
-		" --volume /var/lib/vedette-host/zap/wrk:/zap/wrk:rw,nosuid,nodev,noexec --user 1000:1000 --memory=1g --memory-swap=1g --pids-limit=256 --no-healthcheck " + zapImage +
-		" zap-baseline.py -t https://www.example.com/ -m 1 -T 5 -J out.json -z")
+		" --volume /var/lib/vedette-host/zap/wrk:/zap/wrk:rw,nosuid,nodev,noexec --user 1000:1000 --memory=1g --memory-swap=1g --pids-limit=256 --no-healthcheck" +
+		" --workdir /home/zap " + zapImage +
+		" zap-baseline.py --autooff -t https://www.example.com/ -m 1 -T 5 -c vedette-baseline.conf -J out.json -z")
 	want = append(want, "-silent -Xmx512m -config spider.processform=false -config spider.postform=false -config spider.thread=1")
 	if !slices.Equal(got, want) {
 		t.Fatalf("argv\n%q\nwant\n%q", got, want)
 	}
-	if slices.Contains(got, "-a") || slices.Contains(got, "-u") || slices.Contains(got, "-j") {
-		t.Fatal("an active scan, a config URL or the AJAX spider is in the argv")
+	// K-5 (D-559): never alpha/active rules, a config URL, the AJAX or client spider, a context or a scan user; the rules file is
+	// only the host's own.
+	for _, f := range []string{"-a", "-u", "-j", "--ajax-spider", "--client-spider", "-n", "-U", "-P", "--hook", "--auto"} {
+		if slices.Contains(got, f) {
+			t.Fatalf("%s is in the argv", f)
+		}
+	}
+	if !strings.Contains(zapOptions, "spider.processform=false") || !strings.Contains(zapOptions, "spider.postform=false") || !slices.Contains(got, "--autooff") {
+		t.Fatal("the spider may post forms: its options or the traditional runner they need (--autooff, D-525) are gone")
 	}
 	validate := validatePodmanIn("/var/lib/vedette-host")
 	if err := validate(got); err != nil {
@@ -140,6 +149,13 @@ func TestZapRunArgvIsFixedAndValidated(t *testing.T) {
 		"no label":             set(got, at(got, "--label")+1, "io.vedette.owner=someone"),
 		"another image":        set(got, at(got, zapImage), "docker.io/library/debian:latest"),
 		"options changed":      set(got, len(got)-1, "-config spider.postform=true"),
+		"another rules file":   set(got, at(got, "-c")+1, "/etc/passwd"),
+		"a dotdot rules file":  set(got, at(got, "-c")+1, "../../etc/x.conf"),
+		"a near rules name":    set(got, at(got, "-c")+1, "vedette-baseline.conf2"),
+		"no rules file":        slices.Delete(slices.Clone(got), at(got, "-c"), at(got, "-c")+2),
+		"the AF runner":        slices.Delete(slices.Clone(got), at(got, "--autooff"), at(got, "--autooff")+1),
+		"the AJAX spider":      append(slices.Clone(got), "-j"),
+		"another workdir":      set(got, at(got, "--workdir")+1, "/zap"),
 		"no AppArmor module":   set(got, 1, "/tmp/x.conf"),
 	} {
 		if validate(bad) == nil {
@@ -278,6 +294,9 @@ type zapWorld struct {
 	ctr        string // the container vedette-zap: "" none, "ours" (carries the label), "foreign"
 	rmCode     int    // exit code of podman rm (-1: it did not answer within its bound)
 	leaveCtr   bool   // the run's container survives podman run (the client was killed at the limit)
+	conf       string // the rules file as the run found it in the work folder ("" none)
+	confMode   os.FileMode
+	confUID    int
 }
 
 const zapOurNet = `[{"name":"vedette-zap","id":"ab","driver":"bridge","network_interface":"vedette-zap0","created":"2026-11-14T10:00:00Z","subnets":[{"subnet":"10.89.3.0/24","gateway":"10.89.3.1"}],"ipv6_enabled":false,"internal":false,"dns_enabled":false,"labels":{"io.vedette.owner":"vedette-host"},"ipam_options":{"driver":"host-local"}}]`
@@ -418,6 +437,12 @@ func (w *zapWorld) exec(ctx context.Context, name string, stdin io.Reader, args 
 			<-w.runGate
 		}
 		wrk, _ := strings.CutSuffix(args[slices.Index(args, "--volume")+1], ":/zap/wrk:rw,nosuid,nodev,noexec")
+		if st, err := os.Lstat(filepath.Join(wrk, zapConfName)); err == nil {
+			b, _ := os.ReadFile(filepath.Join(wrk, zapConfName)) //nolint:gosec // the test's own temp folder
+			w.mu.Lock()
+			w.conf, w.confMode, w.confUID = string(b), st.Mode(), fileUID(st)
+			w.mu.Unlock()
+		}
 		if w.leaveCtr {
 			w.mu.Lock()
 			w.ctr = "ours"
@@ -523,6 +548,9 @@ func TestZapBaseline_ARunIsFencedAndCleanedUp(t *testing.T) {
 			t.Fatalf("exit %d: calls\n%q\nwant\n%q", code, got, want)
 		}
 		w.cleanedUp(t)
+		if w.conf != zapConf || w.confMode != 0o600 || w.confUID != os.Getuid() {
+			t.Fatalf("the rules file the run found: mode %v uid %d, content %q", w.confMode, w.confUID, w.conf)
+		}
 		f, err := w.o.zapReport(r.ReportID)
 		if err != nil {
 			t.Fatal(err)
@@ -866,4 +894,32 @@ func TestZapOnlyZapStepFeedsNft(t *testing.T) {
 			t.Errorf("%s runs nft without zapStep: %s", f, m)
 		}
 	}
+}
+
+// TestZapConfIsZapBaselineFormat: every line of the rules file is one zap-baseline.py load_config reads (a comment, or
+// "<id>\t<level>\t(<name>)" with a level of zap_conf_lvls), each rule once; a bad line would end every run with exit 3.
+func TestZapConfIsZapBaselineFormat(t *testing.T) {
+	t.Parallel()
+	line := regexp.MustCompile(`^[0-9]{1,6}\t(IGNORE|INFO|WARN|FAIL)\t\([^\t]+\)$`)
+	seen := map[string]bool{}
+	for _, l := range strings.Split(strings.TrimSuffix(zapConf, "\n"), "\n") {
+		if strings.HasPrefix(l, "#") {
+			continue
+		}
+		id, _, _ := strings.Cut(l, "\t")
+		if !line.MatchString(l) || seen[id] {
+			t.Errorf("line %q is not a zap-baseline rule line, or its rule is listed twice", l)
+		}
+		seen[id] = true
+	}
+	if !strings.HasSuffix(zapConf, "\n") || len(seen) == 0 {
+		t.Fatal("the rules file is empty or does not end with a newline")
+	}
+}
+
+func fileUID(st os.FileInfo) int {
+	if s, ok := st.Sys().(*syscall.Stat_t); ok {
+		return int(s.Uid)
+	}
+	return -1
 }

@@ -141,6 +141,90 @@ func TestContract_INV17_StaleOrMissingNoticeVersionIsRefused(t *testing.T) {
 	}
 }
 
+// oldCommitted is a verified domain whose commitment was recorded under an older sentence (version "2026-11-13", or none).
+func (e *env) oldCommitted(version *string) TargetView {
+	e.t.Helper()
+	d := e.addVerifiedDomain()
+	err := e.svc.write(e.ctx(), func(tx *sql.Tx, _ func(string, any)) error {
+		if err := setCommitment(e.ctx(), tx, d.ID, "first@acme.example", t0, Notice{Version: "2026-11-13", Text: "old sentence"}, "u-first", "app"); err != nil {
+			return err
+		}
+		if version == nil { // recorded before D-473: no version, no sentence
+			_, err := tx.ExecContext(e.ctx(), `UPDATE exp_target SET commitment_version = NULL, commitment_sentence = NULL, commitment_user_id = NULL, commitment_method = NULL WHERE id = ?`, d.ID)
+			return err
+		}
+		return nil
+	})
+	if err != nil {
+		e.t.Fatal(err)
+	}
+	return e.target(d.ID)
+}
+
+// D-559: a commitment of an older sentence (or none recorded) is not confirmed for the current one: the gate blocks, the new sentence is
+// offered, an operator and a schedule are refused, and the administrator's first Scan now replaces it, with an audit row naming the old version.
+func TestContract_INV17_OlderCommitmentIsAskedAgainOnce(t *testing.T) {
+	t.Parallel()
+	for name, ver := range map[string]*string{"old version": new("2026-11-13"), "no version": nil} {
+		e := newEnv(t)
+		e.svc.cfg.TwoStep = twoStep("u-admin")
+		run := &fakeRunner{content: sampleContent()}
+		e.svc.SetRunner(run)
+		d := e.oldCommitted(ver)
+		if d.Commitment == nil || d.Scannable || str((*string)(d.BlockedReason)) != "no_commitment" || d.CommitmentNotice == nil || d.CommitmentNotice.Version != NoticeVersion {
+			t.Fatalf("%s: commitment %+v scannable %v reason %v notice %+v", name, d.Commitment, d.Scannable, d.BlockedReason, d.CommitmentNotice)
+		}
+		for _, call := range []func() error{
+			func() error { _, err := e.svc.Scan(e.ctx(), "schedule@acme.example", d.ID); return err },
+			func() error { _, err := e.svc.ScanNow(e.ctx(), operator, d.ID, NoticeVersion); return err },
+		} {
+			err := call()
+			wantAPI(t, err, 400, "commitment_required")
+			if !strings.Contains(err.Error(), "confirmation text changed") {
+				t.Fatalf("%s: %v", name, err)
+			}
+		}
+		_, err := e.svc.ScanNow(e.ctx(), adminOn, d.ID, "2026-11-13") // the page of the old sentence
+		wantAPI(t, err, 409, "notice_changed")
+		if run.calls != 0 || e.target(d.ID).Commitment.By != "first@acme.example" {
+			t.Fatalf("%s: scanned or rewritten before the administrator confirmed", name)
+		}
+		if _, err := e.svc.ScanNow(e.ctx(), adminOn, d.ID, NoticeVersion); err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		got := e.target(d.ID)
+		if c := got.Commitment; c.By != adminOn.Email || c.Version == nil || *c.Version != NoticeVersion || got.CommitmentNotice != nil || !got.Scannable || run.calls != 1 {
+			t.Fatalf("%s: after re-confirm %+v notice %+v calls %d", name, c, got.CommitmentNotice, run.calls)
+		}
+		var detail string
+		for _, a := range e.audits() {
+			if a.Action == "exposure.commitment" {
+				detail = a.Detail
+			}
+		}
+		old := "2026-11-13"
+		if ver == nil {
+			old = "recorded before versions"
+		}
+		if !strings.Contains(detail, "re-confirmed under the new sentence (replaces notice "+old+")") || !strings.Contains(detail, NoticeVersion) {
+			t.Fatalf("%s: audit detail %q", name, detail)
+		}
+		// asked once: the same version is never rewritten, and a schedule scans again
+		before := got.Commitment
+		e.advance(ScanEvery + time.Minute)
+		if _, err := e.svc.ScanNow(e.ctx(), adminOff, d.ID, NoticeVersion); err != nil {
+			t.Fatal(err)
+		}
+		e.advance(ScanEvery + time.Minute)
+		if _, err := e.svc.Scan(e.ctx(), "schedule@acme.example", d.ID); err != nil {
+			t.Fatalf("%s: scheduled scan after the re-confirmation: %v", name, err)
+		}
+		if after := e.target(d.ID).Commitment; !reflect.DeepEqual(after, before) {
+			t.Fatalf("%s: rewritten %+v -> %+v", name, before, after)
+		}
+	}
+}
+
 // D-473: the sentence the mock shows is the backend's: contract.ts holds the same version and text.
 func TestNoticeMatchesTheContractOfTheGUI(t *testing.T) {
 	t.Parallel()
@@ -159,7 +243,10 @@ func TestNoticeMatchesTheContractOfTheGUI(t *testing.T) {
 // Changing the sentence without a new version would store words under a version nobody agreed to: the text of each version is pinned.
 func TestNoticeTextIsPinnedToItsVersion(t *testing.T) {
 	t.Parallel()
-	pinned := map[string]string{"2026-11-13": "37c87da3084419bf2284a452ea46dd08abb86796060c067709049f6c67cf742b"}
+	pinned := map[string]string{
+		"2026-11-13": "37c87da3084419bf2284a452ea46dd08abb86796060c067709049f6c67cf742b",
+		"2026-11-14": "3dd8a9bbd19da97de41909fd864ef1536a1a98a1c289ac5eed7e80d5124a330f",
+	}
 	sum := sha256.Sum256([]byte(noticeTemplate))
 	if got := pinned[NoticeVersion]; got != hex.EncodeToString(sum[:]) {
 		t.Fatalf("the notice text for version %s has hash %x: change NoticeVersion (and contract.ts) when the text changes, then pin the new hash", NoticeVersion, sum)

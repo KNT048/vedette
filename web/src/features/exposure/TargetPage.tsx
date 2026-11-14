@@ -71,6 +71,7 @@ function TargetView({ target }: { target: Target }) {
       {notice ? (
         <div id="scan-notice" role="note" aria-label={t('scan.noticeTitle')} className="-mt-3 mb-6 max-w-3xl rounded-md border border-line p-3 text-sm">
           <p className="mb-1 font-medium">{t('scan.noticeTitle')}</p>
+          {target.commitment ? <p className="mb-1 text-[13px] text-muted">{t('scan.noticeChanged')}</p> : null}
           <p>{notice.text}</p>
           <p className="mt-1 text-[13px] text-muted">{t('scan.noticeWho')}</p>
         </div>

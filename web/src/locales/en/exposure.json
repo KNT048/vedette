@@ -126,6 +126,7 @@
     "running": "Scanning",
     "safe": "Non-intrusive scan: no exploitation, no disruption. Aimed only at this target.",
     "noticeTitle": "Pressing Scan now records this confirmation",
+    "noticeChanged": "The confirmation text changed: it now names service identification, safe checks for known exploited vulnerabilities and a passive web scan. An administrator confirms once with the next Scan now.",
     "noticeWho": "Vedette keeps who confirmed it, when, for which target and this exact sentence.",
     "needTwoStep": "Turn on two-step sign-in for your account before the first scan of {{value}}: that scan records your confirmation of ownership and authorization.",
     "needTwoStepLink": "Turn on two-step sign-in"

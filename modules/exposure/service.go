@@ -189,7 +189,7 @@ func (t Target) blocked(now time.Time) BlockedReason {
 		return BlockedExpired
 	case t.Kind == KindDomain && (t.LastCheck == nil || !t.LastCheck.OK):
 		return BlockedTxtMissing
-	case t.Commitment == nil:
+	case !t.Commitment.current():
 		return BlockedNoCommitment
 	}
 	return ""
@@ -215,7 +215,7 @@ func (s *Service) view(t Target, latest map[string]latestResult, c checks, now t
 	if val := t.validity(now); val != "" {
 		v.Validity = &val
 	}
-	if t.Commitment == nil {
+	if !t.Commitment.current() {
 		n := noticeFor(t.Value)
 		v.CommitmentNotice = &n
 	}

@@ -21061,7 +21061,7 @@
                                 "type": "null"
                               }
                             ],
-                            "description": "The sentence the first Scan now of an administrator confirms, with this target in it; null once the target has a commitment"
+                            "description": "The sentence the first Scan now of an administrator confirms, with this target in it; null once the target has a commitment of the current sentence; an older one is asked again once (D-559), so a target with a commitment can carry it too"
                           },
                           "scannable": {
                             "type": "boolean"
@@ -21699,7 +21699,7 @@
                                 "type": "null"
                               }
                             ],
-                            "description": "The sentence the first Scan now of an administrator confirms, with this target in it; null once the target has a commitment"
+                            "description": "The sentence the first Scan now of an administrator confirms, with this target in it; null once the target has a commitment of the current sentence; an older one is asked again once (D-559), so a target with a commitment can carry it too"
                           },
                           "scannable": {
                             "type": "boolean"
@@ -22220,7 +22220,7 @@
                           "type": "null"
                         }
                       ],
-                      "description": "The sentence the first Scan now of an administrator confirms, with this target in it; null once the target has a commitment"
+                      "description": "The sentence the first Scan now of an administrator confirms, with this target in it; null once the target has a commitment of the current sentence; an older one is asked again once (D-559), so a target with a commitment can carry it too"
                     },
                     "scannable": {
                       "type": "boolean"
@@ -22632,7 +22632,7 @@
                           "type": "null"
                         }
                       ],
-                      "description": "The sentence the first Scan now of an administrator confirms, with this target in it; null once the target has a commitment"
+                      "description": "The sentence the first Scan now of an administrator confirms, with this target in it; null once the target has a commitment of the current sentence; an older one is asked again once (D-559), so a target with a commitment can carry it too"
                     },
                     "scannable": {
                       "type": "boolean"
@@ -23895,7 +23895,7 @@
                               "type": "null"
                             }
                           ],
-                          "description": "The sentence the first Scan now of an administrator confirms, with this target in it; null once the target has a commitment"
+                          "description": "The sentence the first Scan now of an administrator confirms, with this target in it; null once the target has a commitment of the current sentence; an older one is asked again once (D-559), so a target with a commitment can carry it too"
                         },
                         "scannable": {
                           "type": "boolean"

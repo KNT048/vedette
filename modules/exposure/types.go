@@ -77,6 +77,12 @@ type Commitment struct {
 	Sentence       *string `json:"sentence"`
 }
 
+// current says the commitment is of the sentence in force (D-559): a missing one, one recorded before versions and one of an older
+// version all count as not confirmed for it.
+func (c *Commitment) current() bool {
+	return c != nil && c.Version != nil && *c.Version == NoticeVersion
+}
+
 // Counts are the numbers of one snapshot (INV-8).
 type Counts struct {
 	Subdomains    int `json:"subdomains"`
@@ -114,7 +120,7 @@ type TargetView struct {
 	LastCheck  *Check      `json:"last_check"`
 	Commitment *Commitment `json:"commitment"`
 	// CommitmentNotice is the sentence an administrator's first Scan now confirms (D-473), with this target's name in it; nil once
-	// the target has a commitment.
+	// the target has a commitment of the current sentence (an older one is asked again once, D-559).
 	CommitmentNotice *Notice        `json:"commitment_notice"`
 	Scannable        bool           `json:"scannable"`
 	BlockedReason    *BlockedReason `json:"blocked_reason"`

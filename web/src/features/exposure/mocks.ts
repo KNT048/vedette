@@ -27,8 +27,10 @@ const snapshots = collection<Record<string, Snapshot[]>>('exp_snapshots', seedSn
 const commitments = collection<Record<string, Commitment>>('exp_commitments', () => {
   const at = (d: number) => new Date(Date.now() - d * 864e5).toISOString()
   return {
-    'xt-1': { by: 'admin@acme.example', at: at(20), version: null, sentence: null },
-    'xt-2': { by: 'admin@acme.example', at: at(20), version: null, sentence: null },
+    'xt-1': { by: 'admin@acme.example', at: at(20), version: NOTICE_VERSION, sentence: NOTICE_TEMPLATE.replace('{value}', 'acme.example') },
+    'xt-2': { by: 'admin@acme.example', at: at(20), version: NOTICE_VERSION, sentence: NOTICE_TEMPLATE.replace('{value}', BOX_EGRESS_IP) },
+    // Confirmed under an older sentence: the first Scan now after the upgrade asks again (D-559).
+    'xt-6': { by: 'admin@acme.example', at: at(20), version: '2026-11-13', sentence: 'By choosing Scan now I confirm that my company owns ' + BOX_EGRESS_IP_2 + ' and that I am authorized to scan it. Vedette is provided as is under the Apache-2.0 license; its author, Kien Nguyen, is not responsible for how you use it.' },
     'xt-4': { by: 'admin@acme.example', at: at(60), version: null, sentence: null },
     'xt-5': { by: 'admin@acme.example', at: at(39), version: null, sentence: null },
   }
@@ -127,17 +129,18 @@ function settledRun(): ScanRun | null {
 
 function view(t: StoredTarget): Target {
   const commitment = commitments.get()[t.id] ?? null
+  const current = commitment?.version === NOTICE_VERSION // an older sentence counts as not confirmed (D-559)
   const verified = t.verified_at !== null
   const ip = t.kind === 'ip'
   const expired = ip && verified && !!t.expires_at && Date.parse(t.expires_at) < Date.now()
   const validity = !ip || !verified || !t.expires_at ? null : expired ? 'expired' : dayLeft(t.expires_at) <= EXPIRING_DAYS ? 'expiring' : 'valid'
-  const blocked: Target['blocked_reason'] = !verified ? 'unverified' : expired ? 'expired' : !ip && !t.txt_ok ? 'txt_missing' : !commitment ? 'no_commitment' : ip && ipNotSeenNow(t) ? 'ip_not_current' : null
+  const blocked: Target['blocked_reason'] = !verified ? 'unverified' : expired ? 'expired' : !ip && !t.txt_ok ? 'txt_missing' : !current ? 'no_commitment' : ip && ipNotSeenNow(t) ? 'ip_not_current' : null
   const snaps = (snapshots.get()[t.id] ?? []).slice().sort((a, b) => a.date.localeCompare(b.date))
   const last = snaps[snaps.length - 1]
   return {
     id: t.id, kind: t.kind, value: t.value, status: !verified ? 'unverified' : expired ? 'expired' : 'verified', method: t.method, token: t.token,
     verified_at: t.verified_at, expires_at: t.expires_at, validity, last_check: t.last_check, commitment,
-    commitment_notice: commitment ? null : { version: NOTICE_VERSION, text: NOTICE_TEMPLATE.replace('{value}', t.value) },
+    commitment_notice: current ? null : { version: NOTICE_VERSION, text: NOTICE_TEMPLATE.replace('{value}', t.value) },
     scannable: blocked === null, blocked_reason: blocked, created_at: t.created_at, last_scan_at: t.last_scan_at, latest: last ? last.counts : null, open_ports: last ? last.ports.slice(0, 20) : null,
   }
 }
@@ -460,9 +463,10 @@ export const handlers = [
       targets.update((l) => l.map((x) => (x.id === t.id ? { ...x, last_check: { at: nowIso(), ok: false, message: `The TXT record vedette-verify=${t.token} was not found on ${t.value}.` } } : x)))
       return fail(409, 'txt_missing', `The DNS TXT record vedette-verify=${t.token} is no longer on ${t.value}, so it cannot be scanned. Add the record back, then check again.`)
     }
-    if (!v.commitment) {
+    if (v.commitment?.version !== NOTICE_VERSION) {
       // D-473: an administrator's first Scan now is the confirmation (D-26); an operator cannot scan an unconfirmed target.
       const me = currentUser()
+      if (me?.role !== 'admin' && v.commitment) return fail(400, 'commitment_required', `The confirmation text changed, so ${t.value} must be confirmed again. An administrator confirms once with the next Scan now.`)
       if (me?.role !== 'admin') return fail(400, 'commitment_required', `${t.value} has not been confirmed yet. An administrator must run the first scan: it records that your company owns ${t.value} and that the scan is authorized.`)
       if (!me.twofa && !me.sso) return fail(403, 'twofa_required', 'Turn on two-step sign-in for your account first (My account), then run the first scan again. The first scan records your confirmation that your company owns the target and that you are authorized to scan it.')
       const sent = await body<{ notice_version?: string }>(request)
@@ -470,7 +474,7 @@ export const handlers = [
       if (sent.notice_version !== NOTICE_VERSION) return fail(409, 'notice_changed', 'The confirmation text changed since this page loaded. Read it again, then press Scan now again.')
       const sentence = NOTICE_TEMPLATE.replace('{value}', t.value)
       commitments.update((m) => ({ ...m, [t.id]: { by: me.email, at: nowIso(), version: NOTICE_VERSION, sentence } }))
-      audit('exposure.commitment', t.value, `confirmed by the first Scan now (notice ${NOTICE_VERSION}): ${sentence}`)
+      audit('exposure.commitment', t.value, `${v.commitment ? `re-confirmed under the new sentence (replaces notice ${v.commitment.version ?? 'recorded before versions'})` : 'confirmed by the first Scan now'} (notice ${NOTICE_VERSION}): ${sentence}`)
     }
     // An IP is scanned only while the box still goes out through it (a fresh full check just before the scan sees it). Not seen, or no answer = paused, fail closed; the IP stays in the list.
     if (t.kind === 'ip') {

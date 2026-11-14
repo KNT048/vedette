@@ -18,8 +18,8 @@ export const Counts = z.object({ subdomains: z.number().int(), ips: z.number().i
 export const PortRow = z.object({ ip: z.string(), port: z.number().int(), service: z.string(), product: z.string().optional() })
 
 /** The sentence an administrator's first Scan now confirms (D-473). The backend owns the text (modules/exposure/notice.go) and sends it with the target's name in it; the page shows what it received. These two constants are the mock's copy, held equal to the backend's by a Go test. */
-export const NOTICE_VERSION = '2026-11-13'
-export const NOTICE_TEMPLATE = 'By choosing Scan now I confirm that my company owns {value} and that I am authorized to scan it. Vedette is provided as is under the Apache-2.0 license; its author, Kien Nguyen, is not responsible for how you use it.'
+export const NOTICE_VERSION = '2026-11-14'
+export const NOTICE_TEMPLATE = 'By choosing Scan now I confirm that my company owns {value} and that I am authorized to scan it, including identifying its services and versions, safe checks for known exploited vulnerabilities and a passive web scan. Vedette is provided as is under the Apache-2.0 license; its author, Kien Nguyen, is not responsible for how you use it.'
 export const Notice = z.object({ version: z.string(), text: z.string() })
 export const Commitment = z.object({
   by: z.string(), at: z.iso.datetime(),
@@ -39,7 +39,7 @@ export const Target = z.object({
   validity: z.enum(['valid', 'expiring', 'expired']).nullable().describe('IPs only: expiring = 5 days or less left'),
   last_check: z.object({ at: z.iso.datetime(), ok: z.boolean(), message: z.string() }).nullable(),
   commitment: Commitment.nullable().describe('Recorded by the first Scan now of an administrator with two-step sign-in (D-473): who, when and the exact sentence shown next to the button'),
-  commitment_notice: Notice.nullable().describe('The sentence the first Scan now of an administrator confirms, with this target in it; null once the target has a commitment'),
+  commitment_notice: Notice.nullable().describe('The sentence the first Scan now of an administrator confirms, with this target in it; null once the target has a commitment of the current sentence; an older one is asked again once (D-559), so a target with a commitment can carry it too'),
   scannable: z.boolean(),
   blocked_reason: z.enum(['unverified', 'expired', 'txt_missing', 'no_commitment', 'ip_not_current']).nullable().describe('Why it cannot be scanned yet; null = can be scanned. ip_not_current (IPs only): the last full check that got an answer did not see the IP and no check since has, so scans are paused (until a later check sees it) while the IP stays in the list; verified_at is when the box last saw it'),
   created_at: z.iso.datetime(),

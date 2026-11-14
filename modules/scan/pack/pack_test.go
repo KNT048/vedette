@@ -124,3 +124,67 @@ func TestForbiddenTagsAreTheExcludedTags(t *testing.T) {
 		t.Fatal("ForbiddenTags hands out the shared slice")
 	}
 }
+
+// D-520: the worker's own text check of a template file before an own_ip job, and the index rule for an entry marked own_ip.
+func TestOwnIPText(t *testing.T) {
+	t.Parallel()
+	ok := "id: x\nhttp:\n  - raw:\n      - |\n        GET /a HTTP/1.1\n        Host: {{Hostname}}\n  - method: GET\n    path:\n      - \"{{BaseURL}}/etc/passwd\"\n"
+	if err := OwnIPText([]byte(ok)); err != nil {
+		t.Fatalf("a GET check refused: %v", err)
+	}
+	for name, body := range map[string]string{
+		"a POST raw":       strings.Replace(ok, "GET /a", "POST /a", 1),
+		"a PUT method":     strings.Replace(ok, "method: GET", "method: put", 1),
+		"a body":           strings.Replace(ok, "  - method: GET\n", "  - method: GET\n    body: x\n", 1),
+		"an authorization": strings.Replace(ok, "Host: {{Hostname}}", "Host: {{Hostname}}\n        Authorization: Basic eA==", 1),
+		"a password var":   strings.Replace(ok, "/etc/passwd", "/login?p={{password}}", 1),
+		"a command":        strings.Replace(ok, "/etc/passwd", "/x?c=%60id%60", 1),
+		"a third party":    strings.Replace(ok, "/etc/passwd", "/x?u=http://oast.me", 1),
+		"a delete":         strings.Replace(ok, "/etc/passwd", "/api/delete?id=1", 1),
+		"a password query": strings.Replace(ok, "/etc/passwd", "/x?password=a", 1),
+	} {
+		if OwnIPText([]byte(body)) == nil {
+			t.Errorf("%s: accepted", name)
+		}
+	}
+	for tag, want := range map[string]bool{"rce": true, "time-based-sqli": true, "ssti": true, "authenticated": true, "auth-bypass": true,
+		"file-write": true, "ssrf": true, "lfi": false, "apache": false, "exposure": false} {
+		if OwnIPRefusedTag(tag) != want {
+			t.Errorf("OwnIPRefusedTag(%s) != %v", tag, want)
+		}
+	}
+	entry := `{"version":"2026.11.2","sha256":"` + strings.Repeat("a", 64) + `","templates":[{"id":"CVE-2024-1234","cve":"CVE-2024-1234","path":"http/a.yaml","sha256":"` +
+		strings.Repeat("b", 64) + `","tags":["kev"],"request":"%s","own_ip":true}]}`
+	if _, err := Parse([]byte(strings.Replace(entry, "%s", "GET /a", 1))); err != nil {
+		t.Errorf("a GET entry marked own_ip refused: %v", err)
+	}
+	if _, err := Parse([]byte(strings.Replace(entry, "%s", "POST /a", 1))); err == nil {
+		t.Error("a POST entry marked own_ip accepted")
+	}
+	if _, err := Parse([]byte(strings.Replace(strings.Replace(entry, "%s", "GET /a", 1), `["kev"]`, `["kev","rce"]`, 1))); err == nil {
+		t.Error("an rce entry marked own_ip accepted")
+	}
+}
+
+// Review round 2 M1: a request target or header value with an injection-shaped payload is refused, plain or percent-encoded; the
+// read-only file reads of the pack pass.
+func TestRequestPayloadOK(t *testing.T) {
+	t.Parallel()
+	for _, ok := range []string{"{{BaseURL}}/remote/fgt_lang?lang=/../../../..//////////dev/cmdb/sslvpn_websession", "/vpn/../vpns/cfg/smb.conf",
+		"{{BaseURL}}/static/link/%2e%2e/etc/passwd", "{{Hostname}}", "*/*"} {
+		if err := RequestPayloadOK(ok); err != nil {
+			t.Errorf("%s refused: %v", ok, err)
+		}
+	}
+	for _, bad := range []string{
+		"/?instawp-database-manager=x&table_name=wp_users--%20-", "/?__wpdmxp=%27][/wpdm_package]", "/a?b='x'", "/a?b=%22x",
+		"/a?b=1;id", "/a?b=1%3bid", "/a?b=%0d%0aSet-Cookie:x", `/a?b=\r\nX`, "/a?q=<script>alert(1)</script>", "/a?q=%3cscript%3e",
+		"/a?u=javascript:alert(1)", "/nonauth/guestConfirm.cs?dest=Cgo8c2NyaXB0PmFsZXJ0KGRvY3VtZW50LmRvbWFpbik8L3NjcmlwdD4%3d",
+		"/a?id=1 UNION SELECT 1", "/a?id=1%20union%20select%201", "/a?x=sleep(5)", "/a?x=benchmark(1,md5(1))", "/a/{{randstr}}",
+		"/a?x=${7*7}", "/a?x=#{7*7}", "/a?x={{7*7}}", "/a?x={{", "/a?x=%252d%252d",
+	} {
+		if RequestPayloadOK(bad) == nil {
+			t.Errorf("%s accepted", bad)
+		}
+	}
+}

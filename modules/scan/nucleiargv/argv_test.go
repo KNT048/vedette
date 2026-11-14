@@ -181,7 +181,7 @@ func TestTarget_Input(t *testing.T) {
 		if got := c.t.Input(); got != c.want {
 			t.Errorf("%+v: %s", c.t, got)
 		}
-		back, ok := parseInput(c.want)
+		back, ok := parseInput(c.want, ScopeLAN)
 		if !ok || back != c.t {
 			t.Errorf("parseInput(%s) = %+v %v", c.want, back, ok)
 		}
@@ -210,21 +210,26 @@ func rfc1918Literal(s string) bool {
 	return private && o[3] >= 1 && o[3] <= 254
 }
 
-func independentTarget(s string) bool {
+func independentTarget(s string) bool { return independentTargetOf(s, rfc1918Literal) }
+
+func independentTargetOf(s string, hostOK func(string) bool) bool {
 	hp := strings.TrimPrefix(strings.TrimPrefix(s, "http://"), "https://")
 	host, port, ok := strings.Cut(hp, ":")
 	if !ok || strings.ContainsAny(port, ":/@?#") {
 		return false
 	}
 	p, err := strconv.Atoi(port)
-	return err == nil && p >= 1 && p <= 65535 && strconv.Itoa(p) == port && rfc1918Literal(host)
+	return err == nil && p >= 1 && p <= 65535 && strconv.Itoa(p) == port && hostOK(host)
 }
 
 // L5: whatever Validate accepts has these properties, checked without its code: the approved fixed part, then -rl
-// 1..20, -mhe 2..20, then only -t pairs under TemplatesDir, then only -u pairs of private literal targets.
+// 1..20, -mhe 2..20, then only -t pairs under TemplatesDir, then only -u pairs of private literal targets; or (D-520) the
+// approved own_ip fixed part, -rl 5, and exactly one -u of a public literal target.
 func FuzzValidate(f *testing.F) {
 	good, _ := Build(job())
 	f.Add(strings.Join(good, "\x00"))
+	own, _ := Build(ownIPJob())
+	f.Add(strings.Join(own, "\x00"))
 	f.Add(strings.Join(append(slices.Clone(approvedFixed), "-rl", "1", "-mhe", "2", "-t", TemplatesDir+"/a.yaml", "-u", "10.0.0.1:1"), "\x00"))
 	f.Add("-t\x00/x\x00-u\x00http://[::1]:80")
 	f.Fuzz(func(t *testing.T, s string) {
@@ -233,8 +238,16 @@ func FuzzValidate(f *testing.F) {
 			return
 		}
 		n := len(approvedFixed)
-		if len(args) < n+8 || !slices.Equal(args[:n], approvedFixed) || args[n] != "-rl" || args[n+2] != "-mhe" {
+		ownIP := len(args) >= n && slices.Equal(args[:n], approvedOwnIPFixed)
+		if len(args) < n+8 || !slices.Equal(args[:n], approvedFixed) && !ownIP || args[n] != "-rl" || args[n+2] != "-mhe" {
 			t.Fatalf("accepted a line without the approved fixed part: %q", args)
+		}
+		targetOK := independentTarget
+		if ownIP {
+			if args[n+1] != "5" || args[len(args)-2] != "-u" || slices.Contains(args[n+4:len(args)-2], "-u") {
+				t.Fatalf("an own_ip line not at 5 a second with one target: %q", args)
+			}
+			targetOK = func(s string) bool { return independentTargetOf(s, publicLiteral) }
 		}
 		if r, err := strconv.Atoi(args[n+1]); err != nil || r < 1 || r > 20 {
 			t.Fatalf("rate: %q", args)
@@ -252,7 +265,7 @@ func FuzzValidate(f *testing.F) {
 				}
 			case flag == "-u":
 				seenU = true
-				if !independentTarget(v) {
+				if !targetOK(v) {
 					t.Fatalf("target %q", v)
 				}
 				if _, err := netip.ParseAddr(strings.Split(strings.TrimPrefix(strings.TrimPrefix(v, "http://"), "https://"), ":")[0]); err != nil {
@@ -266,4 +279,29 @@ func FuzzValidate(f *testing.F) {
 			t.Fatalf("shape: %q", args)
 		}
 	})
+}
+
+// publicLiteral is written apart from localnet.Public: a dotted IPv4 literal outside the private, shared, loopback, link-local,
+// documentation, benchmark, reserved and multicast blocks.
+func publicLiteral(s string) bool {
+	parts := strings.Split(s, ".")
+	if len(parts) != 4 {
+		return false
+	}
+	var o [4]int
+	for i, p := range parts {
+		n, err := strconv.Atoi(p)
+		if err != nil || n < 0 || n > 255 || strconv.Itoa(n) != p {
+			return false
+		}
+		o[i] = n
+	}
+	switch {
+	case o[0] == 0, o[0] == 10, o[0] == 127, o[0] >= 224,
+		o[0] == 100 && o[1] >= 64 && o[1] <= 127, o[0] == 169 && o[1] == 254, o[0] == 172 && o[1] >= 16 && o[1] <= 31,
+		o[0] == 192 && o[1] == 168, o[0] == 192 && o[1] == 0 && (o[2] == 0 || o[2] == 2), o[0] == 192 && o[1] == 88 && o[2] == 99,
+		o[0] == 198 && (o[1] == 18 || o[1] == 19), o[0] == 198 && o[1] == 51 && o[2] == 100, o[0] == 203 && o[1] == 0 && o[2] == 113:
+		return false
+	}
+	return true
 }

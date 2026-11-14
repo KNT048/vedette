@@ -489,9 +489,9 @@ func TestNucleiHeartbeat(t *testing.T) {
 	}
 	t.Run("present", func(t *testing.T) {
 		t.Parallel()
-		r := startNuclei(t, printJSONL)
+		r := startNuclei(t, printJSONL, func(c *worker.Config) { c.Egress = &fakeEgress{answers: []string{"8.8.8.8"}} })
 		hb := next(t, r.rig)
-		if !hb.Nuclei.Present || hb.Nuclei.Version != "v3.3.7" || hb.Nuclei.Pack.Version != r.pack.Version || hb.Nuclei.Pack.SHA256 != r.pack.SHA256 {
+		if !hb.Nuclei.Present || hb.Nuclei.Version != "v3.3.7" || hb.Nuclei.Pack.Version != r.pack.Version || hb.Nuclei.Pack.SHA256 != r.pack.SHA256 || !hb.Nuclei.OwnIP { // OwnIP: D-520
 			t.Fatalf("heartbeat = %+v", hb.Nuclei)
 		}
 		if !hb.Nmap.Present {

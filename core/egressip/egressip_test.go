@@ -384,7 +384,8 @@ func TestIsPublicIPv4(t *testing.T) {
 	}
 }
 
-// The sensor binary links this package (the worker's own-IP fence, D-514): standard library only.
+// The sensor binary links this package (the worker's own-IP fence, D-514): standard library only, plus core/localnet (itself
+// net/netip and slices only, its own TestIsALeaf), which holds the public-address rule (D-520).
 func TestIsALeaf(t *testing.T) {
 	t.Parallel()
 	files, err := filepath.Glob("*.go")
@@ -400,7 +401,7 @@ func TestIsALeaf(t *testing.T) {
 			t.Fatal(err)
 		}
 		for _, im := range af.Imports {
-			if p, _ := strconv.Unquote(im.Path.Value); strings.Contains(strings.SplitN(p, "/", 2)[0], ".") {
+			if p, _ := strconv.Unquote(im.Path.Value); strings.Contains(strings.SplitN(p, "/", 2)[0], ".") && p != "github.com/knt048/vedette/core/localnet" {
 				t.Errorf("%s imports %q: only the standard library is allowed in egressip", f, p)
 			}
 		}

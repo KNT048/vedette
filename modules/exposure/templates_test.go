@@ -14,6 +14,7 @@ import (
 // fakeTemplates is the TemplateScanner seam with canned results per port; probes says what the probe log held when it was called.
 type fakeTemplates struct {
 	results []TemplateResult
+	notes   []string
 	err     error
 	jobs    [][]TemplateJob
 	log     *fakeProbeLog
@@ -26,7 +27,7 @@ func (f *fakeTemplates) ScanTemplates(_ context.Context, t ScanTarget, ip netip.
 	}
 	f.jobs = append(f.jobs, jobs)
 	f.logged = append(f.logged, len(f.log.rows))
-	return TemplateScan{Results: f.results}, f.err
+	return TemplateScan{Results: f.results, NotChecked: f.notes}, f.err
 }
 
 type fakeProbeLog struct {
@@ -303,5 +304,29 @@ func TestContract_INV23_GateRunsAgainBeforeTheTemplates(t *testing.T) {
 	s := e.scanIP(Content{})
 	if len(f.jobs) != 0 || len(f.log.rows) != 0 || !slices.Contains(notChecked(s), notTemplatesGate) {
 		t.Fatalf("calls = %d, rows = %d, not checked = %q", len(f.jobs), len(f.log.rows), notChecked(s))
+	}
+}
+
+// D-520: the scanner's own "Not checked" sentences (a CVE whose template is not a read-only request, a run that did not finish) are
+// shown next to the results it kept, at most maxTemplateNotes of them, the last saying how many more there were.
+func TestContract_INV23_ScannerNotCheckedLines(t *testing.T) {
+	t.Parallel()
+	e, f := tplEnv(t)
+	f.results = []TemplateResult{{Port: 80, Template: "CVE-2021-41773", CVE: "CVE-2021-41773", Outcome: OutcomeMatched}}
+	f.notes = []string{"Safe templates for exploited vulnerabilities: CVE-2021-42013 on port 80 was not run on a public IP: this check is not a read-only request."}
+	for range 10 {
+		f.notes = append(f.notes, "x")
+	}
+	s := e.scanIP(Content{})
+	n := 0
+	for _, r := range s.NotChecked {
+		if r.Kind == "templates" {
+			n++
+		}
+	}
+	if vulnOf(s, "CVE-2021-41773").Basis != "template" || n != maxTemplateNotes ||
+		!slices.ContainsFunc(s.NotChecked, func(r NotCheckedRow) bool { return strings.HasSuffix(r.Text, "and 4 more lines like these.") }) ||
+		!slices.ContainsFunc(s.NotChecked, func(r NotCheckedRow) bool { return strings.Contains(r.Text, "not a read-only request") }) {
+		t.Fatalf("%d lines: %+v", n, s.NotChecked)
 	}
 }

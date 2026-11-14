@@ -60,9 +60,13 @@ func exposureService(d deps) *exposure.Service {
 	// the scan container's nmap -sV on the box's own verified public IP (sensor-active ScanExternal, D-514). The commitment sentence of
 	// NoticeVersion 2026-11-14 (D-559, K-4) already names service identification, so wiring it leaves NoticeVersion alone (a second bump
 	// would ask every customer again); PRIVACY flow 9, Settings -> Privacy and the nmap row of THIRD_PARTY_NOTICES say what is sent.
-	cfg.Services = exposureServicesFor(d, func(ctx context.Context, actor string, ip netip.Addr) (bool, error) {
+	gate := func(ctx context.Context, actor string, ip netip.Addr) (bool, error) {
 		return exposureService(d).ScannableIP(ctx, actor, ip) // called at scan time, after this function returned
-	})
+	}
+	cfg.Services = exposureServicesFor(d, gate)
+	// INV-23 (D-561, D-520): the exploited CVEs matched on a port are checked with their safe nuclei templates by the scan container,
+	// scope own_ip, each template in the scan module's probe log first. Named by the same commitment sentence (K-4).
+	cfg.Templates, cfg.Probes = exposureTemplatesFor(d, gate), exposureProbeLog{d: d}
 	clock := d.Clock
 	if clock == nil {
 		clock = time.Now

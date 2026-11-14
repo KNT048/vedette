@@ -138,6 +138,9 @@ type HeartbeatNuclei struct {
 	Present bool          `json:"present"`
 	Version string        `json:"version"`
 	Pack    HeartbeatPack `json:"pack"`
+	// OwnIP (protocol 5, D-520) says the worker runs nuclei jobs of scope own_ip, with its own-IP fence. An older worker leaves it
+	// out: core then never sends it one.
+	OwnIP bool `json:"own_ip,omitempty"`
 }
 
 // HeartbeatPack names the template pack baked into the scan image.
@@ -340,13 +343,16 @@ func checkSNMPCredential(c SNMPCredential) error {
 }
 
 // NucleiJob is what a nuclei run is made of (D-125 (1), D-136 (4) and (6)): template ids, never paths; the worker maps them
-// through the index of the pack named here.
+// through the index of the pack named here. Scope (protocol 5, D-520) is "" or "lan" (private targets, the scan module) or
+// "own_ip" (one public target, the box's own IP, exposure D-561: the worker checks by itself that the box goes out through it
+// before nuclei starts). Core leaves it out of a LAN job, so an older worker gets the shape it knows.
 type NucleiJob struct {
 	Pack          JobPack        `json:"pack"`
 	Templates     []string       `json:"templates"`
 	Targets       []NucleiTarget `json:"targets"`
 	Rate          int            `json:"rate"`
 	MaxHostErrors int            `json:"max_host_errors"`
+	Scope         string         `json:"scope,omitempty"`
 }
 
 // JobPack names the pack a job was planned against.

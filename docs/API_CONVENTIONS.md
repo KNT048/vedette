@@ -383,7 +383,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `unknown` | 404 | This link is not valid. | `POST /response/approve/{token}` |
 | `unknown_cve` | 404 | This CVE is not on the exploited list the box holds. The AI only explains CVEs the box has data for. | `POST /ai/cve/{id}/explain`; `POST /ai/cve/{id}/news` |
 
-#### HTTP 409 (99 mã)
+#### HTTP 409 (98 mã)
 
 | Code | HTTP | Thông điệp mẫu (EN, từ mock) | Endpoint dùng |
 |---|---|---|---|
@@ -457,7 +457,6 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `dpkg_inconsistent` | 409 | The package database on the box is in a broken state. Run dpkg --audit on the box and repair it before updating. Backend [ĐX]: host `dpkg_inconsistent`. | `POST /core/updates/os/install` |
 | `low_disk` | 409 | There is not enough free disk space for this. Free some space on the box and try again. Backend [ĐX]: host `low_disk`. | `POST /core/updates/os/install`; `GET /core/data/backup`; `PUT /exposure/greenbone` (enabling Greenbone with less than 60 GB free, with the measured number: "This box has 41.3 GB of free disk space; Greenbone needs at least 60.0 GB free.", D-563) |
 | `low_memory` | 409 | This box has 7.1 GB of memory; Greenbone needs at least 8.0 GB. (the measured MemTotal, decimal GB, D-563) | `PUT /exposure/greenbone` |
-| `under_review` | 409 | Greenbone deep scan is not available yet: its own active checks on a public IP are being reviewed. (D-564: held back until kien decides G1; nothing is recorded or downloaded) | `PUT /exposure/greenbone` |
 | `no_check_yet` | 409 | The box has not looked for operating system updates yet. Click Check now. Backend [ĐX]: host `no_check_yet`. `GET /core/updates/os` không trả mã này nữa (D-407): hộp chưa kiểm trả 200 với `os` null; settings và reboot cũng trả trạng thái với `os` null. | `POST /core/updates/os/install` |
 | `not_appliance` | 409 | This install has no operating system helper (container-only install), so Vedette cannot update or back up the operating system from here. Backend [ĐX] (D-55): không có socket `vedette-host`, hoặc bản phát hành OS ngoài bảng hỗ trợ của host. Cũng là câu trả lời khi bật một module cần host (`needs_host`) trên bản chỉ container (D-381): "Module {id} needs vedette-host, which only the appliance install has. This is a container-only install, so it cannot run here." (mock có nhánh này). | `GET /core/updates/os`; `POST /core/updates/os/check`; `POST /core/updates/os/install`; `PATCH /core/updates/os/settings`; `POST /core/updates/os/reboot`; `DELETE /core/updates/os/reboot`; `GET /core/data/backup`; `POST /core/updates/apply`, `POST /core/updates/rollback` (D-342: no `vedette-host`, or core does not run from a pinned container: "Vedette itself does not run from a pinned container on this box, so it cannot update itself from here."); `PATCH /modules/{id}`, `POST /core/setup` (D-381: module `needs_host` trên bản chỉ container) |
 | `reboot_limit_reached` | 409 | The box has already rebooted three times in 24 hours. Wait before rebooting again. Backend [ĐX]: host `reboot_limit_reached`. | `POST /core/updates/os/reboot` |

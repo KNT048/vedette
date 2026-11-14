@@ -102,6 +102,7 @@ type Target struct {
 	VerifiedAt time.Time // zero while unverified; for an IP, the last time the box saw it
 	LastCheck  *Check
 	Commitment *Commitment
+	Terms      *Terms // the testing terms (FULL-1); nil when not accepted
 	CreatedAt  time.Time
 	LastScanAt time.Time // zero when never scanned
 }
@@ -121,12 +122,17 @@ type TargetView struct {
 	Commitment *Commitment `json:"commitment"`
 	// CommitmentNotice is the sentence an administrator's first Scan now confirms (D-473), with this target's name in it; nil once
 	// the target has a commitment of the current sentence (an older one is asked again once, D-559).
-	CommitmentNotice *Notice        `json:"commitment_notice"`
-	Scannable        bool           `json:"scannable"`
-	BlockedReason    *BlockedReason `json:"blocked_reason"`
-	CreatedAt        string         `json:"created_at"`
-	LastScanAt       *string        `json:"last_scan_at"`
-	Latest           *Counts        `json:"latest"`
+	CommitmentNotice *Notice `json:"commitment_notice"`
+	// Terms is the acceptance of the testing terms (FULL-1), nil when none; TermsNotice is the current text with this target in it,
+	// always sent (the page shows it to accept, or to read again after a new version). FullScan says scans run at full depth.
+	Terms         *Terms         `json:"terms"`
+	TermsNotice   TermsNotice    `json:"terms_notice"`
+	FullScan      bool           `json:"full_scan"`
+	Scannable     bool           `json:"scannable"`
+	BlockedReason *BlockedReason `json:"blocked_reason"`
+	CreatedAt     string         `json:"created_at"`
+	LastScanAt    *string        `json:"last_scan_at"`
+	Latest        *Counts        `json:"latest"`
 	// OpenPorts are the first MaxOpenPorts open ports of the newest snapshot, in its order (Latest.Ports is the total), so
 	// the list page can say what is open (S-EXP-1, D-485); nil when never scanned.
 	OpenPorts []PortRow `json:"open_ports"`

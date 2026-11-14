@@ -86,3 +86,9 @@
 - **web/features/exposure**: `ServicesPanel.tsx` basis chip "Confirmed by template <id>", `contract.ts` (`TemplateRow`, `Snapshot.templates`, `VulnRow.template*`), `data.ts` mock, `locales/en/exposure.json` `vulns.basis.template`; `api/openapi.json` and `core/api/oas` are generated.
 - **PRIVACY.md flow 9** and `locales/en/core.json` `privacy.flow.9` name the template requests (rule legal.md); `THIRD_PARTY_NOTICES.md` already lists nuclei and its safe pack (D-125, D-146).
 - **findings / response / reports** read vulns through the existing `Matcher` only; `basis` "template" is new to a reader that switches on `version`/`product`.
+
+## Modifying: `Terms`, `TermsVersion`, `termsTemplate`, `termsDisruptive`, `AcceptTerms`, `RevokeTerms`, `ScanMode`, `ScanTarget.Mode`, `exp_target.terms_*` (INV-26, D-566)
+- **cmd/vedette** (Trưởng): mọi adapter máy quét (`exposureservices.go`, `exposuretemplates.go`, `exposureweb.go`) đọc `ScanTarget.Mode`; FULL-3 (ZAP full) và FULL-4 (nuclei/nmap full, DoS/brute-force chỉ khi `Disruptive`) xây trên đó (deferred `.ai/deferred/feat-exposure-greenbone-mlee.md`). Đổi `ScanMode` là sửa các adapter đó.
+- **Greenbone** (`greenbone.go`, `gmp.go`): mức cấu hình theo `Mode` (INV-25 (10)).
+- **PRIVACY luồng 9** + `core.json` `privacy.flow.9`: mỗi khi một máy quét làm thêm ở mức Full/Disruptive, câu chữ đổi cùng PR (rules/legal.md).
+- **web/features/exposure**: `TermsPanel.tsx` (tab Ownership), `api.ts` (`useAcceptTerms`, `useRevokeTerms`), `contract.ts` (`Terms`, `TermsNotice`, `TERMS_*`, `Target.terms/terms_notice/full_scan`, hai route) là nguồn OpenAPI; mock `mocks.ts` giữ cùng câu chữ; `modules/core/export_policy.go` liệt kê cột `terms_*`; `core.json` `audit.action` có nhãn hai hành động mới.

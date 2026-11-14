@@ -864,6 +864,13 @@ type Handler interface {
 	//
 	// DELETE /exposure/targets/{id}
 	ExposureDeleteExposureTargetsID(ctx context.Context, params ExposureDeleteExposureTargetsIDParams) error
+	// ExposureDeleteExposureTargetsIDTerms implements exposure_delete_exposure_targets_id_terms operation.
+	//
+	// Withdraw the testing terms of a target (FULL-1, D-566): always possible; the next scan runs in the
+	// K-4 scope again. Audited (exposure.terms_revoke) when there was an acceptance.
+	//
+	// DELETE /exposure/targets/{id}/terms
+	ExposureDeleteExposureTargetsIDTerms(ctx context.Context, params ExposureDeleteExposureTargetsIDTermsParams) (*ExposureDeleteExposureTargetsIDTermsOK, error)
 	// ExposureGetExposureGreenbone implements exposure_get_exposure_greenbone operation.
 	//
 	// The optional deep scan with Greenbone (OpenVAS, D-563): its state and this box's memory and free
@@ -1002,12 +1009,22 @@ type Handler interface {
 	// low_memory or low_disk and the measured numbers below 8 GB of memory or 60 GB free; else Greenbone
 	// starts in the background (starting, then loading while it loads its feed, about 2 hours the first
 	// time). Off: no scan uses it, its containers stop and its data is kept (502 host_error when they
-	// could not be stopped). 501 not_implemented when Greenbone is not available on this box; 409
-	// under_review for enabled: true while its own active checks on a public IP are reviewed (D-564), with
-	// nothing recorded or downloaded; enabled: false is always accepted. Audited.
+	// could not be stopped). 501 not_implemented when Greenbone is not available on this box. A scan uses
+	// it only on a target whose testing terms are accepted (D-566). Audited.
 	//
 	// PUT /exposure/greenbone
 	ExposurePutExposureGreenbone(ctx context.Context, req *ExposurePutExposureGreenboneReq) (*ExposurePutExposureGreenboneOK, error)
+	// ExposurePutExposureTargetsIDTerms implements exposure_put_exposure_targets_id_terms operation.
+	//
+	// Accept the testing terms of a verified target (FULL-1, D-566): every scan of it is then a deep scan;
+	// disruptive adds denial-of-service, brute-force and default-password checks (off by default). Admin
+	// with two-step sign-in (403 twofa_required); 409 notice_changed when version is not the current
+	// terms_notice.version; 409 not_verified or expired. Also records the Scan now commitment when the
+	// target has none of the current sentence. Accepting what is accepted changes nothing. Audited
+	// (exposure.terms_accept, with the flag).
+	//
+	// PUT /exposure/targets/{id}/terms
+	ExposurePutExposureTargetsIDTerms(ctx context.Context, req *ExposurePutExposureTargetsIDTermsReq, params ExposurePutExposureTargetsIDTermsParams) (*ExposurePutExposureTargetsIDTermsOK, error)
 	// FeedsDeleteFeedsCustomID implements feeds_delete_feeds_custom_id operation.
 	//
 	// Delete your own feed; records already fetched are removed.

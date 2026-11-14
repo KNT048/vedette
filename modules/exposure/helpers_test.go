@@ -135,6 +135,7 @@ type env struct {
 	prober *fakeProber
 	dns    *fakeResolver
 	pub    *fakePub
+	terms  *bool // scanIP accepts the testing terms (FULL-1) when set, with the disruptive tick when true
 }
 
 func newEnv(t *testing.T) *env {
@@ -253,6 +254,19 @@ func str(p *string) string {
 		return "<nil>"
 	}
 	return *p
+}
+
+// acceptTerms accepts the testing terms of a target as an administrator with two-step sign-in (FULL-1, D-566).
+func (e *env) acceptTerms(id string, disruptive bool) TargetView {
+	e.t.Helper()
+	if e.svc.cfg.TwoStep == nil {
+		e.svc.cfg.TwoStep = func(context.Context, string) (string, error) { return "app", nil }
+	}
+	v, err := e.svc.AcceptTerms(e.ctx(), Actor{ID: "u-admin", Email: "admin@acme.example", Admin: true}, id, TermsVersion, disruptive)
+	if err != nil {
+		e.t.Fatal(err)
+	}
+	return v
 }
 
 // commit records the commitment the way an administrator's first Scan now does (D-473), without a scan.

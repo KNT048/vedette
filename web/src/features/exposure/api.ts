@@ -95,3 +95,13 @@ export function useSetGreenbone() {
   const inv = useInvalidate()
   return useMutation({ mutationFn: (enabled: boolean) => api.put<Greenbone>('/exposure/greenbone', { enabled }), onSuccess: inv, onError: inv })
 }
+
+/** FULL-1 (D-566): accept the testing terms of a target (admin with two-step), with or without the disruptive tick, or withdraw them. */
+export function useAcceptTerms(id: string) {
+  const inv = useInvalidate()
+  return useMutation({ mutationFn: (b: { version: string; disruptive: boolean }) => api.put<Target>(`/exposure/targets/${encodeURIComponent(id)}/terms`, b), onSuccess: inv })
+}
+export function useRevokeTerms(id: string) {
+  const inv = useInvalidate()
+  return useMutation({ mutationFn: () => api.del<Target>(`/exposure/targets/${encodeURIComponent(id)}/terms`), onSuccess: inv })
+}

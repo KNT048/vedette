@@ -21385,6 +21385,73 @@
                             ],
                             "description": "The sentence the first Scan now of an administrator confirms, with this target in it; null once the target has a commitment of the current sentence; an older one is asked again once (D-559), so a target with a commitment can carry it too"
                           },
+                          "terms": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "version": {
+                                    "type": "string"
+                                  },
+                                  "by": {
+                                    "type": "string"
+                                  },
+                                  "at": {
+                                    "type": "string",
+                                    "format": "date-time",
+                                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                  },
+                                  "text": {
+                                    "type": "string",
+                                    "description": "The exact terms the administrator accepted, with the tick's sentence as the last line when ticked"
+                                  },
+                                  "disruptive": {
+                                    "type": "boolean",
+                                    "description": "The extra tick: denial of service, brute-force and default-password logins too"
+                                  }
+                                },
+                                "required": [
+                                  "version",
+                                  "by",
+                                  "at",
+                                  "text",
+                                  "disruptive"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "description": "FULL-1 (D-566): the acceptance of the testing terms; null when none. An acceptance of an older version does not count (full_scan is false) until accepted again"
+                          },
+                          "terms_notice": {
+                            "type": "object",
+                            "properties": {
+                              "version": {
+                                "type": "string"
+                              },
+                              "text": {
+                                "type": "string",
+                                "description": "The terms with the target in them, one paragraph per line"
+                              },
+                              "disruptive": {
+                                "type": "string",
+                                "description": "The sentence of the extra tick, off by default"
+                              }
+                            },
+                            "required": [
+                              "version",
+                              "text",
+                              "disruptive"
+                            ],
+                            "additionalProperties": false,
+                            "description": "The current testing terms for this target, to accept or to read again"
+                          },
+                          "full_scan": {
+                            "type": "boolean",
+                            "description": "Scans of this target are deep scans: the current testing terms are accepted. Otherwise the K-4 scope of the Scan now sentence"
+                          },
                           "scannable": {
                             "type": "boolean"
                           },
@@ -21533,6 +21600,9 @@
                           "last_check",
                           "commitment",
                           "commitment_notice",
+                          "terms",
+                          "terms_notice",
+                          "full_scan",
                           "scannable",
                           "blocked_reason",
                           "created_at",
@@ -21599,7 +21669,7 @@
                         "ready",
                         "error"
                       ],
-                      "description": "unavailable: not set up on this box, or held back while its own active checks on a public IP are reviewed (D-564, reason says which); loading: Greenbone is loading its feed (the first time takes about 2 hours) or its weekly feed update, a phase and not a hang"
+                      "description": "unavailable: not set up on this box; loading: Greenbone is loading its feed (the first time takes about 2 hours) or its weekly feed update, a phase and not a hang"
                     },
                     "reason": {
                       "description": "Why, for unavailable and error; the feed sentence for loading; null otherwise",
@@ -21731,7 +21801,7 @@
                     },
                     "enabled": {
                       "type": "boolean",
-                      "description": "The stored switch. It can be true while the state is unavailable (held back after it was turned on, D-564); the page then still offers Turn off, which the API accepts"
+                      "description": "The stored switch; the page offers Turn off whenever it is true"
                     }
                   },
                   "required": [
@@ -21762,7 +21832,7 @@
       },
       "put": {
         "operationId": "exposure_put_exposure_greenbone",
-        "summary": "Turn the optional deep scan with Greenbone on or off (off by default). On: refused with 409 low_memory or low_disk and the measured numbers below 8 GB of memory or 60 GB free; else Greenbone starts in the background (starting, then loading while it loads its feed, about 2 hours the first time). Off: no scan uses it, its containers stop and its data is kept (502 host_error when they could not be stopped). 501 not_implemented when Greenbone is not available on this box; 409 under_review for enabled: true while its own active checks on a public IP are reviewed (D-564), with nothing recorded or downloaded; enabled: false is always accepted. Audited",
+        "summary": "Turn the optional deep scan with Greenbone on or off (off by default). On: refused with 409 low_memory or low_disk and the measured numbers below 8 GB of memory or 60 GB free; else Greenbone starts in the background (starting, then loading while it loads its feed, about 2 hours the first time). Off: no scan uses it, its containers stop and its data is kept (502 host_error when they could not be stopped). 501 not_implemented when Greenbone is not available on this box. A scan uses it only on a target whose testing terms are accepted (D-566). Audited",
         "tags": [
           "exposure"
         ],
@@ -21807,7 +21877,7 @@
                         "ready",
                         "error"
                       ],
-                      "description": "unavailable: not set up on this box, or held back while its own active checks on a public IP are reviewed (D-564, reason says which); loading: Greenbone is loading its feed (the first time takes about 2 hours) or its weekly feed update, a phase and not a hang"
+                      "description": "unavailable: not set up on this box; loading: Greenbone is loading its feed (the first time takes about 2 hours) or its weekly feed update, a phase and not a hang"
                     },
                     "reason": {
                       "description": "Why, for unavailable and error; the feed sentence for loading; null otherwise",
@@ -21939,7 +22009,7 @@
                     },
                     "enabled": {
                       "type": "boolean",
-                      "description": "The stored switch. It can be true while the state is unavailable (held back after it was turned on, D-564); the page then still offers Turn off, which the API accepts"
+                      "description": "The stored switch; the page offers Turn off whenever it is true"
                     }
                   },
                   "required": [
@@ -22439,6 +22509,73 @@
                             ],
                             "description": "The sentence the first Scan now of an administrator confirms, with this target in it; null once the target has a commitment of the current sentence; an older one is asked again once (D-559), so a target with a commitment can carry it too"
                           },
+                          "terms": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "version": {
+                                    "type": "string"
+                                  },
+                                  "by": {
+                                    "type": "string"
+                                  },
+                                  "at": {
+                                    "type": "string",
+                                    "format": "date-time",
+                                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                  },
+                                  "text": {
+                                    "type": "string",
+                                    "description": "The exact terms the administrator accepted, with the tick's sentence as the last line when ticked"
+                                  },
+                                  "disruptive": {
+                                    "type": "boolean",
+                                    "description": "The extra tick: denial of service, brute-force and default-password logins too"
+                                  }
+                                },
+                                "required": [
+                                  "version",
+                                  "by",
+                                  "at",
+                                  "text",
+                                  "disruptive"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "description": "FULL-1 (D-566): the acceptance of the testing terms; null when none. An acceptance of an older version does not count (full_scan is false) until accepted again"
+                          },
+                          "terms_notice": {
+                            "type": "object",
+                            "properties": {
+                              "version": {
+                                "type": "string"
+                              },
+                              "text": {
+                                "type": "string",
+                                "description": "The terms with the target in them, one paragraph per line"
+                              },
+                              "disruptive": {
+                                "type": "string",
+                                "description": "The sentence of the extra tick, off by default"
+                              }
+                            },
+                            "required": [
+                              "version",
+                              "text",
+                              "disruptive"
+                            ],
+                            "additionalProperties": false,
+                            "description": "The current testing terms for this target, to accept or to read again"
+                          },
+                          "full_scan": {
+                            "type": "boolean",
+                            "description": "Scans of this target are deep scans: the current testing terms are accepted. Otherwise the K-4 scope of the Scan now sentence"
+                          },
                           "scannable": {
                             "type": "boolean"
                           },
@@ -22587,6 +22724,9 @@
                           "last_check",
                           "commitment",
                           "commitment_notice",
+                          "terms",
+                          "terms_notice",
+                          "full_scan",
                           "scannable",
                           "blocked_reason",
                           "created_at",
@@ -22975,6 +23115,73 @@
                       ],
                       "description": "The sentence the first Scan now of an administrator confirms, with this target in it; null once the target has a commitment of the current sentence; an older one is asked again once (D-559), so a target with a commitment can carry it too"
                     },
+                    "terms": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "version": {
+                              "type": "string"
+                            },
+                            "by": {
+                              "type": "string"
+                            },
+                            "at": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            "text": {
+                              "type": "string",
+                              "description": "The exact terms the administrator accepted, with the tick's sentence as the last line when ticked"
+                            },
+                            "disruptive": {
+                              "type": "boolean",
+                              "description": "The extra tick: denial of service, brute-force and default-password logins too"
+                            }
+                          },
+                          "required": [
+                            "version",
+                            "by",
+                            "at",
+                            "text",
+                            "disruptive"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "FULL-1 (D-566): the acceptance of the testing terms; null when none. An acceptance of an older version does not count (full_scan is false) until accepted again"
+                    },
+                    "terms_notice": {
+                      "type": "object",
+                      "properties": {
+                        "version": {
+                          "type": "string"
+                        },
+                        "text": {
+                          "type": "string",
+                          "description": "The terms with the target in them, one paragraph per line"
+                        },
+                        "disruptive": {
+                          "type": "string",
+                          "description": "The sentence of the extra tick, off by default"
+                        }
+                      },
+                      "required": [
+                        "version",
+                        "text",
+                        "disruptive"
+                      ],
+                      "additionalProperties": false,
+                      "description": "The current testing terms for this target, to accept or to read again"
+                    },
+                    "full_scan": {
+                      "type": "boolean",
+                      "description": "Scans of this target are deep scans: the current testing terms are accepted. Otherwise the K-4 scope of the Scan now sentence"
+                    },
                     "scannable": {
                       "type": "boolean"
                     },
@@ -23123,6 +23330,9 @@
                     "last_check",
                     "commitment",
                     "commitment_notice",
+                    "terms",
+                    "terms_notice",
+                    "full_scan",
                     "scannable",
                     "blocked_reason",
                     "created_at",
@@ -23402,6 +23612,73 @@
                       ],
                       "description": "The sentence the first Scan now of an administrator confirms, with this target in it; null once the target has a commitment of the current sentence; an older one is asked again once (D-559), so a target with a commitment can carry it too"
                     },
+                    "terms": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "version": {
+                              "type": "string"
+                            },
+                            "by": {
+                              "type": "string"
+                            },
+                            "at": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            "text": {
+                              "type": "string",
+                              "description": "The exact terms the administrator accepted, with the tick's sentence as the last line when ticked"
+                            },
+                            "disruptive": {
+                              "type": "boolean",
+                              "description": "The extra tick: denial of service, brute-force and default-password logins too"
+                            }
+                          },
+                          "required": [
+                            "version",
+                            "by",
+                            "at",
+                            "text",
+                            "disruptive"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "FULL-1 (D-566): the acceptance of the testing terms; null when none. An acceptance of an older version does not count (full_scan is false) until accepted again"
+                    },
+                    "terms_notice": {
+                      "type": "object",
+                      "properties": {
+                        "version": {
+                          "type": "string"
+                        },
+                        "text": {
+                          "type": "string",
+                          "description": "The terms with the target in them, one paragraph per line"
+                        },
+                        "disruptive": {
+                          "type": "string",
+                          "description": "The sentence of the extra tick, off by default"
+                        }
+                      },
+                      "required": [
+                        "version",
+                        "text",
+                        "disruptive"
+                      ],
+                      "additionalProperties": false,
+                      "description": "The current testing terms for this target, to accept or to read again"
+                    },
+                    "full_scan": {
+                      "type": "boolean",
+                      "description": "Scans of this target are deep scans: the current testing terms are accepted. Otherwise the K-4 scope of the Scan now sentence"
+                    },
                     "scannable": {
                       "type": "boolean"
                     },
@@ -23550,6 +23827,9 @@
                     "last_check",
                     "commitment",
                     "commitment_notice",
+                    "terms",
+                    "terms_notice",
+                    "full_scan",
                     "scannable",
                     "blocked_reason",
                     "created_at",
@@ -24974,6 +25254,926 @@
         }
       }
     },
+    "/exposure/targets/{id}/terms": {
+      "delete": {
+        "operationId": "exposure_delete_exposure_targets_id_terms",
+        "summary": "Withdraw the testing terms of a target (FULL-1, D-566): always possible; the next scan runs in the K-4 scope again. Audited (exposure.terms_revoke) when there was an acceptance",
+        "tags": [
+          "exposure"
+        ],
+        "x-stories": [
+          "S-EXP-2"
+        ],
+        "x-min-role": "admin",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "domain",
+                        "ip"
+                      ]
+                    },
+                    "value": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "unverified",
+                        "verified",
+                        "expired"
+                      ],
+                      "description": "expired only exists for IPs: the box has not seen this IP for more than 30 days"
+                    },
+                    "method": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "dns_txt",
+                            "box_egress"
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "token": {
+                      "type": "string",
+                      "description": "Domain: the token in the TXT record vedette-verify=<token> (not secret, it is public in DNS). IP: empty string"
+                    },
+                    "verified_at": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Domain: first successful verification. IP: the last time the box saw this IP (every sighting renews it)"
+                    },
+                    "expires_at": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "IP: verified_at + 30 days. Domain: null (the TXT record is re-checked right before every scan)"
+                    },
+                    "validity": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "valid",
+                            "expiring",
+                            "expired"
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "IPs only: expiring = 5 days or less left"
+                    },
+                    "last_check": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "at": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            "ok": {
+                              "type": "boolean"
+                            },
+                            "message": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "at",
+                            "ok",
+                            "message"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "commitment": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "by": {
+                              "type": "string"
+                            },
+                            "at": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            "version": {
+                              "description": "Version of the sentence the administrator saw next to Scan now; null on a commitment recorded before D-473",
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "sentence": {
+                              "description": "The exact sentence, with the target in it, kept with who and when; null on a commitment recorded before D-473",
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "by",
+                            "at",
+                            "version",
+                            "sentence"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Recorded by the first Scan now of an administrator with two-step sign-in (D-473): who, when and the exact sentence shown next to the button"
+                    },
+                    "commitment_notice": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "version": {
+                              "type": "string"
+                            },
+                            "text": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "version",
+                            "text"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "The sentence the first Scan now of an administrator confirms, with this target in it; null once the target has a commitment of the current sentence; an older one is asked again once (D-559), so a target with a commitment can carry it too"
+                    },
+                    "terms": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "version": {
+                              "type": "string"
+                            },
+                            "by": {
+                              "type": "string"
+                            },
+                            "at": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            "text": {
+                              "type": "string",
+                              "description": "The exact terms the administrator accepted, with the tick's sentence as the last line when ticked"
+                            },
+                            "disruptive": {
+                              "type": "boolean",
+                              "description": "The extra tick: denial of service, brute-force and default-password logins too"
+                            }
+                          },
+                          "required": [
+                            "version",
+                            "by",
+                            "at",
+                            "text",
+                            "disruptive"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "FULL-1 (D-566): the acceptance of the testing terms; null when none. An acceptance of an older version does not count (full_scan is false) until accepted again"
+                    },
+                    "terms_notice": {
+                      "type": "object",
+                      "properties": {
+                        "version": {
+                          "type": "string"
+                        },
+                        "text": {
+                          "type": "string",
+                          "description": "The terms with the target in them, one paragraph per line"
+                        },
+                        "disruptive": {
+                          "type": "string",
+                          "description": "The sentence of the extra tick, off by default"
+                        }
+                      },
+                      "required": [
+                        "version",
+                        "text",
+                        "disruptive"
+                      ],
+                      "additionalProperties": false,
+                      "description": "The current testing terms for this target, to accept or to read again"
+                    },
+                    "full_scan": {
+                      "type": "boolean",
+                      "description": "Scans of this target are deep scans: the current testing terms are accepted. Otherwise the K-4 scope of the Scan now sentence"
+                    },
+                    "scannable": {
+                      "type": "boolean"
+                    },
+                    "blocked_reason": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "unverified",
+                            "expired",
+                            "txt_missing",
+                            "no_commitment",
+                            "ip_not_current"
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Why it cannot be scanned yet; null = can be scanned. ip_not_current (IPs only): the last full check that got an answer did not see the IP and no check since has, so scans are paused (until a later check sees it) while the IP stays in the list; verified_at is when the box last saw it"
+                    },
+                    "created_at": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    "last_scan_at": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "latest": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "subdomains": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "ips": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "ports": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "admin_panels": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "certs_expiring": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            }
+                          },
+                          "required": [
+                            "subdomains",
+                            "ips",
+                            "ports",
+                            "admin_panels",
+                            "certs_expiring"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "open_ports": {
+                      "anyOf": [
+                        {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "ip": {
+                                "type": "string"
+                              },
+                              "port": {
+                                "type": "integer",
+                                "minimum": -9007199254740991,
+                                "maximum": 9007199254740991
+                              },
+                              "service": {
+                                "type": "string"
+                              },
+                              "product": {
+                                "type": "string"
+                              },
+                              "last_seen": {
+                                "description": "Set only on a port the newest scan did not report, kept from an earlier scan: the day a scan last saw it open (INV-22)",
+                                "type": "string",
+                                "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                              },
+                              "misses": {
+                                "description": "With last_seen: how many scans in a row that checked the address missed the port (1 = missed by the last scan)",
+                                "type": "integer",
+                                "minimum": -9007199254740991,
+                                "maximum": 9007199254740991
+                              },
+                              "unchecked": {
+                                "description": "The newest scan did not check the address: the row is as an earlier scan left it",
+                                "type": "boolean"
+                              }
+                            },
+                            "required": [
+                              "ip",
+                              "port",
+                              "service"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "The first 20 open ports of the newest scan, in its order (latest.ports is the total), so the list can say what is open; null when never scanned"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "kind",
+                    "value",
+                    "status",
+                    "method",
+                    "token",
+                    "verified_at",
+                    "expires_at",
+                    "validity",
+                    "last_check",
+                    "commitment",
+                    "commitment_notice",
+                    "terms",
+                    "terms_notice",
+                    "full_scan",
+                    "scannable",
+                    "blocked_reason",
+                    "created_at",
+                    "last_scan_at",
+                    "latest",
+                    "open_ports"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "operationId": "exposure_put_exposure_targets_id_terms",
+        "summary": "Accept the testing terms of a verified target (FULL-1, D-566): every scan of it is then a deep scan; disruptive adds denial-of-service, brute-force and default-password checks (off by default). Admin with two-step sign-in (403 twofa_required); 409 notice_changed when version is not the current terms_notice.version; 409 not_verified or expired. Also records the Scan now commitment when the target has none of the current sentence. Accepting what is accepted changes nothing. Audited (exposure.terms_accept, with the flag)",
+        "tags": [
+          "exposure"
+        ],
+        "x-stories": [
+          "S-EXP-2"
+        ],
+        "x-min-role": "admin",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "version": {
+                    "type": "string",
+                    "description": "terms_notice.version as the page showed it"
+                  },
+                  "disruptive": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "version",
+                  "disruptive"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "domain",
+                        "ip"
+                      ]
+                    },
+                    "value": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "unverified",
+                        "verified",
+                        "expired"
+                      ],
+                      "description": "expired only exists for IPs: the box has not seen this IP for more than 30 days"
+                    },
+                    "method": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "dns_txt",
+                            "box_egress"
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "token": {
+                      "type": "string",
+                      "description": "Domain: the token in the TXT record vedette-verify=<token> (not secret, it is public in DNS). IP: empty string"
+                    },
+                    "verified_at": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Domain: first successful verification. IP: the last time the box saw this IP (every sighting renews it)"
+                    },
+                    "expires_at": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "IP: verified_at + 30 days. Domain: null (the TXT record is re-checked right before every scan)"
+                    },
+                    "validity": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "valid",
+                            "expiring",
+                            "expired"
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "IPs only: expiring = 5 days or less left"
+                    },
+                    "last_check": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "at": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            "ok": {
+                              "type": "boolean"
+                            },
+                            "message": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "at",
+                            "ok",
+                            "message"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "commitment": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "by": {
+                              "type": "string"
+                            },
+                            "at": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            "version": {
+                              "description": "Version of the sentence the administrator saw next to Scan now; null on a commitment recorded before D-473",
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "sentence": {
+                              "description": "The exact sentence, with the target in it, kept with who and when; null on a commitment recorded before D-473",
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "by",
+                            "at",
+                            "version",
+                            "sentence"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Recorded by the first Scan now of an administrator with two-step sign-in (D-473): who, when and the exact sentence shown next to the button"
+                    },
+                    "commitment_notice": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "version": {
+                              "type": "string"
+                            },
+                            "text": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "version",
+                            "text"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "The sentence the first Scan now of an administrator confirms, with this target in it; null once the target has a commitment of the current sentence; an older one is asked again once (D-559), so a target with a commitment can carry it too"
+                    },
+                    "terms": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "version": {
+                              "type": "string"
+                            },
+                            "by": {
+                              "type": "string"
+                            },
+                            "at": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            "text": {
+                              "type": "string",
+                              "description": "The exact terms the administrator accepted, with the tick's sentence as the last line when ticked"
+                            },
+                            "disruptive": {
+                              "type": "boolean",
+                              "description": "The extra tick: denial of service, brute-force and default-password logins too"
+                            }
+                          },
+                          "required": [
+                            "version",
+                            "by",
+                            "at",
+                            "text",
+                            "disruptive"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "FULL-1 (D-566): the acceptance of the testing terms; null when none. An acceptance of an older version does not count (full_scan is false) until accepted again"
+                    },
+                    "terms_notice": {
+                      "type": "object",
+                      "properties": {
+                        "version": {
+                          "type": "string"
+                        },
+                        "text": {
+                          "type": "string",
+                          "description": "The terms with the target in them, one paragraph per line"
+                        },
+                        "disruptive": {
+                          "type": "string",
+                          "description": "The sentence of the extra tick, off by default"
+                        }
+                      },
+                      "required": [
+                        "version",
+                        "text",
+                        "disruptive"
+                      ],
+                      "additionalProperties": false,
+                      "description": "The current testing terms for this target, to accept or to read again"
+                    },
+                    "full_scan": {
+                      "type": "boolean",
+                      "description": "Scans of this target are deep scans: the current testing terms are accepted. Otherwise the K-4 scope of the Scan now sentence"
+                    },
+                    "scannable": {
+                      "type": "boolean"
+                    },
+                    "blocked_reason": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "unverified",
+                            "expired",
+                            "txt_missing",
+                            "no_commitment",
+                            "ip_not_current"
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Why it cannot be scanned yet; null = can be scanned. ip_not_current (IPs only): the last full check that got an answer did not see the IP and no check since has, so scans are paused (until a later check sees it) while the IP stays in the list; verified_at is when the box last saw it"
+                    },
+                    "created_at": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    "last_scan_at": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "latest": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "subdomains": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "ips": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "ports": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "admin_panels": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "certs_expiring": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            }
+                          },
+                          "required": [
+                            "subdomains",
+                            "ips",
+                            "ports",
+                            "admin_panels",
+                            "certs_expiring"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "open_ports": {
+                      "anyOf": [
+                        {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "ip": {
+                                "type": "string"
+                              },
+                              "port": {
+                                "type": "integer",
+                                "minimum": -9007199254740991,
+                                "maximum": 9007199254740991
+                              },
+                              "service": {
+                                "type": "string"
+                              },
+                              "product": {
+                                "type": "string"
+                              },
+                              "last_seen": {
+                                "description": "Set only on a port the newest scan did not report, kept from an earlier scan: the day a scan last saw it open (INV-22)",
+                                "type": "string",
+                                "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                              },
+                              "misses": {
+                                "description": "With last_seen: how many scans in a row that checked the address missed the port (1 = missed by the last scan)",
+                                "type": "integer",
+                                "minimum": -9007199254740991,
+                                "maximum": 9007199254740991
+                              },
+                              "unchecked": {
+                                "description": "The newest scan did not check the address: the row is as an earlier scan left it",
+                                "type": "boolean"
+                              }
+                            },
+                            "required": [
+                              "ip",
+                              "port",
+                              "service"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "The first 20 open ports of the newest scan, in its order (latest.ports is the total), so the list can say what is open; null when never scanned"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "kind",
+                    "value",
+                    "status",
+                    "method",
+                    "token",
+                    "verified_at",
+                    "expires_at",
+                    "validity",
+                    "last_check",
+                    "commitment",
+                    "commitment_notice",
+                    "terms",
+                    "terms_notice",
+                    "full_scan",
+                    "scannable",
+                    "blocked_reason",
+                    "created_at",
+                    "last_scan_at",
+                    "latest",
+                    "open_ports"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/exposure/targets/{id}/verify": {
       "post": {
         "operationId": "exposure_post_exposure_targets_id_verify",
@@ -25189,6 +26389,73 @@
                           ],
                           "description": "The sentence the first Scan now of an administrator confirms, with this target in it; null once the target has a commitment of the current sentence; an older one is asked again once (D-559), so a target with a commitment can carry it too"
                         },
+                        "terms": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "version": {
+                                  "type": "string"
+                                },
+                                "by": {
+                                  "type": "string"
+                                },
+                                "at": {
+                                  "type": "string",
+                                  "format": "date-time",
+                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                },
+                                "text": {
+                                  "type": "string",
+                                  "description": "The exact terms the administrator accepted, with the tick's sentence as the last line when ticked"
+                                },
+                                "disruptive": {
+                                  "type": "boolean",
+                                  "description": "The extra tick: denial of service, brute-force and default-password logins too"
+                                }
+                              },
+                              "required": [
+                                "version",
+                                "by",
+                                "at",
+                                "text",
+                                "disruptive"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "FULL-1 (D-566): the acceptance of the testing terms; null when none. An acceptance of an older version does not count (full_scan is false) until accepted again"
+                        },
+                        "terms_notice": {
+                          "type": "object",
+                          "properties": {
+                            "version": {
+                              "type": "string"
+                            },
+                            "text": {
+                              "type": "string",
+                              "description": "The terms with the target in them, one paragraph per line"
+                            },
+                            "disruptive": {
+                              "type": "string",
+                              "description": "The sentence of the extra tick, off by default"
+                            }
+                          },
+                          "required": [
+                            "version",
+                            "text",
+                            "disruptive"
+                          ],
+                          "additionalProperties": false,
+                          "description": "The current testing terms for this target, to accept or to read again"
+                        },
+                        "full_scan": {
+                          "type": "boolean",
+                          "description": "Scans of this target are deep scans: the current testing terms are accepted. Otherwise the K-4 scope of the Scan now sentence"
+                        },
                         "scannable": {
                           "type": "boolean"
                         },
@@ -25337,6 +26604,9 @@
                         "last_check",
                         "commitment",
                         "commitment_notice",
+                        "terms",
+                        "terms_notice",
+                        "full_scan",
                         "scannable",
                         "blocked_reason",
                         "created_at",

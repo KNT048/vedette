@@ -51,6 +51,9 @@ type ScanTarget struct {
 	Kind  Kind
 	Value string
 	User  string
+	// Mode is what this scan may do (FULL-1, D-566): Full once the target's testing terms are accepted, else the K-4 scope. Every
+	// scanner seam reads it here, and only here.
+	Mode ScanMode
 }
 
 // Runner does the scan itself. It belongs to the scan module (D-55), which registers it with

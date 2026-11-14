@@ -19,7 +19,7 @@ type querier interface {
 
 type scanner interface{ Scan(dest ...any) error }
 
-const targetColumns = `id, kind, value, coalesce(method, ''), token, verified_at, last_check, commitment_by, commitment_at, commitment_version, commitment_sentence, commitment_user_id, commitment_method, created_at, last_scan_at`
+const targetColumns = `id, kind, value, coalesce(method, ''), token, verified_at, last_check, commitment_by, commitment_at, commitment_version, commitment_sentence, commitment_user_id, commitment_method, created_at, last_scan_at, terms_version, terms_by, terms_at, terms_text, terms_user_id, terms_method, terms_disruptive`
 
 func parseTS(s string) (time.Time, error) {
 	t, err := time.Parse("2006-01-02T15:04:05.000Z", s)
@@ -48,9 +48,11 @@ func scanTarget(s scanner) (Target, error) {
 		t                                                                      Target
 		kind                                                                   string
 		verified, check, by, byAt, noticeVer, noticeText, uid, method, scanned sql.NullString
+		tVer, tBy, tAt, tText, tUID, tMethod                                   sql.NullString
+		tDisruptive                                                            int
 		created                                                                string
 	)
-	if err := s.Scan(&t.ID, &kind, &t.Value, &t.Method, &t.Token, &verified, &check, &by, &byAt, &noticeVer, &noticeText, &uid, &method, &created, &scanned); err != nil {
+	if err := s.Scan(&t.ID, &kind, &t.Value, &t.Method, &t.Token, &verified, &check, &by, &byAt, &noticeVer, &noticeText, &uid, &method, &created, &scanned, &tVer, &tBy, &tAt, &tText, &tUID, &tMethod, &tDisruptive); err != nil {
 		return Target{}, err
 	}
 	t.Kind = Kind(kind)
@@ -76,6 +78,9 @@ func scanTarget(s scanner) (Target, error) {
 			t.Commitment.Version, t.Commitment.Sentence = &noticeVer.String, &noticeText.String
 			t.Commitment.UserID, t.Commitment.Method = uid.String, method.String
 		}
+	}
+	if tVer.Valid && tBy.Valid && tAt.Valid && tText.Valid {
+		t.Terms = &Terms{Version: tVer.String, By: tBy.String, At: tAt.String, Text: tText.String, UserID: tUID.String, Method: tMethod.String, Disruptive: tDisruptive == 1}
 	}
 	return t, nil
 }

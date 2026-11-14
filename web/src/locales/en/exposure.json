@@ -466,9 +466,26 @@
     "countBackport_one": "{{count}} maybe patched",
     "countBackport_other": "{{count}} maybe patched"
   },
+  "terms": {
+    "title": "Testing terms (deep scan)",
+    "description": "Accept once for this target: every scan of it is then a deep scan, with each tool used to its full capability. Without them, scans stay in the scope of the Scan now sentence: no Greenbone, read-only checks only.",
+    "none": "Not accepted: scans of this target stay in the Scan now scope.",
+    "changed": "The testing terms changed since they were accepted, so scans are back in the Scan now scope until an administrator accepts them again.",
+    "accepted": "Accepted by {{by}}, {{time}}. Every scan of this target is a deep scan.",
+    "withDisruptive": "Disruptive checks are included.",
+    "withoutDisruptive": "Disruptive checks are not included.",
+    "textLabel": "Testing terms",
+    "accept": "Accept the testing terms",
+    "acceptChange": "Accept with this choice",
+    "withdraw": "Withdraw",
+    "who": "Only an administrator with two-step sign-in can accept them; who and when go in the audit log. Withdrawing is always possible.",
+    "needVerified": "Verify ownership first; only then can the testing terms be accepted.",
+    "toastAccepted": "Testing terms accepted. The next scan is a deep scan.",
+    "toastWithdrawn": "Testing terms withdrawn. The next scan is in the Scan now scope."
+  },
   "greenbone": {
     "title": "Optional deep scan: Greenbone (OpenVAS)",
-    "description": "Greenbone is a free vulnerability scanner that runs as its own containers next to Vedette. When it is on, each scan of the box's own verified public IP ends with a Greenbone scan of that IP. Off by default.",
+    "description": "Greenbone is a free vulnerability scanner that runs as its own containers next to Vedette. When it is on, each scan of the box's own verified public IP whose testing terms are accepted ends with a Greenbone scan of that IP. Off by default.",
     "state": { "unavailable": "Not available", "off": "Off", "starting": "Starting", "loading": "Loading its feed", "ready": "Ready", "error": "Error" },
     "stateText": {
       "off": "Greenbone is off. Scans do not use it.",
@@ -476,7 +493,7 @@
       "ready": "Greenbone is ready. The next scan of an IP of this box uses it."
     },
     "loading": "Greenbone is loading its feed (first time takes about 2 hours)",
-    "what": "It looks at your public IP from outside without logging in, with Greenbone's \"Full and fast\" tests minus brute force, default accounts, denial of service and generic web application scanning, and with safe checks on.",
+    "what": "It looks at your public IP from outside without logging in, with Greenbone's \"Full and fast\" tests, only once that IP's testing terms are accepted (Ownership tab): every non-disruptive check, active ones and generic web application scanning included, with safe checks on; with the disruptive checks ticked, brute force, default accounts and denial of service too, with safe checks off.",
     "apart": "Its results are shown in their own section of each scan. They never replace or hide what Vedette found by version, and finding nothing is not proof that nothing is affected.",
     "weekly": "While it is on, Vedette updates Greenbone's feed once a week, never during a scan, and only with 60 GB free.",
     "offKeeps": "Turning it off stops its containers and keeps its images and data, so turning it on again does not download them again.",

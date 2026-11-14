@@ -1238,32 +1238,8 @@ describe('exposure: services and exploited vulnerabilities of the box IP (S-EXP-
 })
 
 describe('exposure: optional deep scan with Greenbone (S-EXP-2, INV-25, D-563)', () => {
-  // D-564 G1: the box ships with Greenbone held back; these tests play the gate opened, the first one below the box as it ships
-  beforeEach(() => localStorage.setItem('vedette-mock-greenbone-public', '1'))
-  afterEach(() => { localStorage.removeItem('vedette-mock-box-memory'); localStorage.removeItem('vedette-mock-box-disk'); localStorage.removeItem('vedette-mock-greenbone-public') })
+  afterEach(() => { localStorage.removeItem('vedette-mock-box-memory'); localStorage.removeItem('vedette-mock-box-disk') })
   const section = () => screen.findByRole('region', { name: 'Optional deep scan: Greenbone (OpenVAS)' })
-
-  it('D-564 G1: held back while its own active checks on a public IP are reviewed: the page says so, offers nothing, Enable is 409 under_review', async () => {
-    localStorage.removeItem('vedette-mock-greenbone-public')
-    renderApp('/exposure')
-    const s = await section()
-    expect(await within(s).findByText('Greenbone deep scan is not available yet: its own active checks on a public IP are being reviewed.')).toBeInTheDocument()
-    expect(within(s).queryByRole('button')).toBeNull()
-    const r = await call('PUT', '/exposure/greenbone', { enabled: true })
-    expect([r.status, r.json.error.code]).toEqual([409, 'under_review'])
-    expect(auditStore.get().some((a) => a.action === 'exposure.greenbone')).toBe(false)
-  })
-
-  it('D-564 review r1 M1: held back after it was turned on, Turn off is still offered and works', async () => {
-    expect((await call('PUT', '/exposure/greenbone', { enabled: true })).status).toBe(200)
-    localStorage.removeItem('vedette-mock-greenbone-public')
-    renderApp('/exposure')
-    const s = await section()
-    expect(await within(s).findByText('Greenbone deep scan is not available yet: its own active checks on a public IP are being reviewed.')).toBeInTheDocument()
-    await userEvent.click(within(s).getByRole('button', { name: 'Turn off Greenbone' }))
-    await waitFor(() => expect(within(s).queryByRole('button')).toBeNull())
-    expect(auditStore.get().some((a) => a.action === 'exposure.greenbone' && a.detail === 'disabled (data kept)')).toBe(true)
-  })
 
   it('off by default: shows the box\'s numbers and what it needs before Enable; an administrator enables it and it starts; axe clean', async () => {
     renderApp('/exposure')
@@ -1348,6 +1324,50 @@ describe('exposure: optional deep scan with Greenbone (S-EXP-2, INV-25, D-563)',
     renderApp('/exposure/xt-1')
     expect(await screen.findByRole('list', { name: 'Not checked' })).toBeInTheDocument()
     expect(screen.queryByRole('region', { name: 'Greenbone results (unauthenticated, QoD ≥ 70)' })).toBeNull()
+  })
+})
+
+describe('exposure: testing terms per target (S-EXP-2, FULL-1, D-566)', () => {
+  const withTwoStep = (on: boolean) => usersStore.update((l) => l.map((x) => (x.id === 'u-admin' ? { ...x, twofa: on } : x)))
+
+  it('one screen says what each tool may send and the risk; the disruptive tick is its own box, off by default; axe clean', async () => {
+    renderApp('/exposure/xt-1?tab=ownership')
+    const s = await screen.findByRole('region', { name: 'Testing terms (deep scan)' })
+    expect(within(s).getByText('Not accepted: scans of this target stay in the Scan now scope.')).toBeInTheDocument()
+    const terms = within(s).getByRole('group', { name: 'Testing terms' })
+    expect(within(terms).getByText(/^I confirm that my company owns acme\.example and that I am authorized to test it in depth/)).toBeInTheDocument()
+    expect(within(terms).getAllByRole('listitem').map((l) => l.textContent?.split(':')[0])).toEqual(['All ports', 'Version and exploit-confirming checks', 'An active web scan that submits forms', 'Authentication checks'])
+    expect(within(terms).getByText(/The deep scan can load or slow the services on acme\.example and may create, change or delete data/)).toBeInTheDocument()
+    const tick = within(s).getByRole('checkbox', { name: 'Include disruptive checks (denial of service, brute-force and default-password logins): these can crash your service or lock accounts.' })
+    expect(tick).not.toBeChecked()
+    await expectNoA11yViolations()
+  })
+
+  it('an administrator with two-step accepts, adds the tick, then withdraws; each is audited with the flag', async () => {
+    withTwoStep(true)
+    renderApp('/exposure/xt-1?tab=ownership')
+    const s = await screen.findByRole('region', { name: 'Testing terms (deep scan)' })
+    await userEvent.click(within(s).getByRole('button', { name: 'Accept the testing terms' }))
+    expect(await within(s).findByText(/^Accepted by admin@acme\.example.*Every scan of this target is a deep scan\. Disruptive checks are not included\./)).toBeInTheDocument()
+    expect(auditStore.get().some((a) => a.action === 'exposure.terms_accept' && a.detail?.startsWith('accepted (disruptive checks: no'))).toBe(true)
+    await userEvent.click(within(s).getByRole('checkbox'))
+    await userEvent.click(within(s).getByRole('button', { name: 'Accept with this choice' }))
+    expect(await within(s).findByText(/Disruptive checks are included\./)).toBeInTheDocument()
+    expect(auditStore.get().some((a) => a.action === 'exposure.terms_accept' && a.detail?.includes('(disruptive checks: yes'))).toBe(true)
+    await userEvent.click(within(s).getByRole('button', { name: 'Withdraw' }))
+    expect(await within(s).findByText('Not accepted: scans of this target stay in the Scan now scope.')).toBeInTheDocument()
+    expect(auditStore.get().some((a) => a.action === 'exposure.terms_revoke')).toBe(true)
+  })
+
+  it('without two-step the acceptance is refused; a stale version is 409; a viewer cannot accept', async () => {
+    withTwoStep(false)
+    const v = (await call('GET', '/exposure/targets/xt-1')).json as { terms_notice: { version: string } }
+    expect((await call('PUT', '/exposure/targets/xt-1/terms', { version: v.terms_notice.version, disruptive: false })).json.error.code).toBe('twofa_required')
+    withTwoStep(true)
+    expect((await call('PUT', '/exposure/targets/xt-1/terms', { version: 'old', disruptive: false })).json.error.code).toBe('notice_changed')
+    renderApp('/exposure/xt-1?tab=ownership', { role: 'viewer' })
+    const s = await screen.findByRole('region', { name: 'Testing terms (deep scan)' })
+    expect(within(s).getByRole('button', { name: 'Accept the testing terms' })).toBeDisabled()
   })
 })
 

@@ -17251,6 +17251,148 @@ func (s *Server) handleExposureDeleteExposureTargetsIDRequest(args [1]string, ar
 	}
 }
 
+// handleExposureDeleteExposureTargetsIDTermsRequest handles exposure_delete_exposure_targets_id_terms operation.
+//
+// Withdraw the testing terms of a target (FULL-1, D-566): always possible; the next scan runs in the
+// K-4 scope again. Audited (exposure.terms_revoke) when there was an acceptance.
+//
+// DELETE /exposure/targets/{id}/terms
+func (s *Server) handleExposureDeleteExposureTargetsIDTermsRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: ExposureDeleteExposureTargetsIDTermsOperation,
+			ID:   "exposure_delete_exposure_targets_id_terms",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securitySession(ctx, ExposureDeleteExposureTargetsIDTermsOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Session",
+					Err:              err,
+				}
+				if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
+					defer recordError("Security:Session", err)
+				}
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
+				defer recordError("Security", err)
+			}
+			return
+		}
+	}
+	params, err := decodeExposureDeleteExposureTargetsIDTermsParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response *ExposureDeleteExposureTargetsIDTermsOK
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    ExposureDeleteExposureTargetsIDTermsOperation,
+			OperationSummary: "Withdraw the testing terms of a target (FULL-1, D-566): always possible; the next scan runs in the K-4 scope again. Audited (exposure.terms_revoke) when there was an acceptance",
+			OperationID:      "exposure_delete_exposure_targets_id_terms",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "id",
+					In:   "path",
+				}: params.ID,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = ExposureDeleteExposureTargetsIDTermsParams
+			Response = *ExposureDeleteExposureTargetsIDTermsOK
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackExposureDeleteExposureTargetsIDTermsParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.ExposureDeleteExposureTargetsIDTerms(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.ExposureDeleteExposureTargetsIDTerms(ctx, params)
+	}
+	if err != nil {
+		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
+			if err := encodeErrorResponse(errRes, w); err != nil {
+				defer recordError("Internal", err)
+			}
+			return
+		}
+		if errors.Is(err, ht.ErrNotImplemented) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+		if err := encodeErrorResponse(s.h.NewError(ctx, err), w); err != nil {
+			defer recordError("Internal", err)
+		}
+		return
+	}
+
+	if err := encodeExposureDeleteExposureTargetsIDTermsResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleExposureGetExposureGreenboneRequest handles exposure_get_exposure_greenbone operation.
 //
 // The optional deep scan with Greenbone (OpenVAS, D-563): its state and this box's memory and free
@@ -19366,9 +19508,8 @@ func (s *Server) handleExposurePutExposureBoxIPSettingsRequest(args [0]string, a
 // low_memory or low_disk and the measured numbers below 8 GB of memory or 60 GB free; else Greenbone
 // starts in the background (starting, then loading while it loads its feed, about 2 hours the first
 // time). Off: no scan uses it, its containers stop and its data is kept (502 host_error when they
-// could not be stopped). 501 not_implemented when Greenbone is not available on this box; 409
-// under_review for enabled: true while its own active checks on a public IP are reviewed (D-564), with
-// nothing recorded or downloaded; enabled: false is always accepted. Audited.
+// could not be stopped). 501 not_implemented when Greenbone is not available on this box. A scan uses
+// it only on a target whose testing terms are accepted (D-566). Audited.
 //
 // PUT /exposure/greenbone
 func (s *Server) handleExposurePutExposureGreenboneRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -19452,7 +19593,7 @@ func (s *Server) handleExposurePutExposureGreenboneRequest(args [0]string, argsE
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    ExposurePutExposureGreenboneOperation,
-			OperationSummary: "Turn the optional deep scan with Greenbone on or off (off by default). On: refused with 409 low_memory or low_disk and the measured numbers below 8 GB of memory or 60 GB free; else Greenbone starts in the background (starting, then loading while it loads its feed, about 2 hours the first time). Off: no scan uses it, its containers stop and its data is kept (502 host_error when they could not be stopped). 501 not_implemented when Greenbone is not available on this box; 409 under_review for enabled: true while its own active checks on a public IP are reviewed (D-564), with nothing recorded or downloaded; enabled: false is always accepted. Audited",
+			OperationSummary: "Turn the optional deep scan with Greenbone on or off (off by default). On: refused with 409 low_memory or low_disk and the measured numbers below 8 GB of memory or 60 GB free; else Greenbone starts in the background (starting, then loading while it loads its feed, about 2 hours the first time). Off: no scan uses it, its containers stop and its data is kept (502 host_error when they could not be stopped). 501 not_implemented when Greenbone is not available on this box. A scan uses it only on a target whose testing terms are accepted (D-566). Audited",
 			OperationID:      "exposure_put_exposure_greenbone",
 			Body:             request,
 			RawBody:          rawBody,
@@ -19499,6 +19640,167 @@ func (s *Server) handleExposurePutExposureGreenboneRequest(args [0]string, argsE
 	}
 
 	if err := encodeExposurePutExposureGreenboneResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleExposurePutExposureTargetsIDTermsRequest handles exposure_put_exposure_targets_id_terms operation.
+//
+// Accept the testing terms of a verified target (FULL-1, D-566): every scan of it is then a deep scan;
+// disruptive adds denial-of-service, brute-force and default-password checks (off by default). Admin
+// with two-step sign-in (403 twofa_required); 409 notice_changed when version is not the current
+// terms_notice.version; 409 not_verified or expired. Also records the Scan now commitment when the
+// target has none of the current sentence. Accepting what is accepted changes nothing. Audited
+// (exposure.terms_accept, with the flag).
+//
+// PUT /exposure/targets/{id}/terms
+func (s *Server) handleExposurePutExposureTargetsIDTermsRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: ExposurePutExposureTargetsIDTermsOperation,
+			ID:   "exposure_put_exposure_targets_id_terms",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securitySession(ctx, ExposurePutExposureTargetsIDTermsOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Session",
+					Err:              err,
+				}
+				if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
+					defer recordError("Security:Session", err)
+				}
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
+				defer recordError("Security", err)
+			}
+			return
+		}
+	}
+	params, err := decodeExposurePutExposureTargetsIDTermsParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeExposurePutExposureTargetsIDTermsRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response *ExposurePutExposureTargetsIDTermsOK
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    ExposurePutExposureTargetsIDTermsOperation,
+			OperationSummary: "Accept the testing terms of a verified target (FULL-1, D-566): every scan of it is then a deep scan; disruptive adds denial-of-service, brute-force and default-password checks (off by default). Admin with two-step sign-in (403 twofa_required); 409 notice_changed when version is not the current terms_notice.version; 409 not_verified or expired. Also records the Scan now commitment when the target has none of the current sentence. Accepting what is accepted changes nothing. Audited (exposure.terms_accept, with the flag)",
+			OperationID:      "exposure_put_exposure_targets_id_terms",
+			Body:             request,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "id",
+					In:   "path",
+				}: params.ID,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = *ExposurePutExposureTargetsIDTermsReq
+			Params   = ExposurePutExposureTargetsIDTermsParams
+			Response = *ExposurePutExposureTargetsIDTermsOK
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackExposurePutExposureTargetsIDTermsParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.ExposurePutExposureTargetsIDTerms(ctx, request, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.ExposurePutExposureTargetsIDTerms(ctx, request, params)
+	}
+	if err != nil {
+		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
+			if err := encodeErrorResponse(errRes, w); err != nil {
+				defer recordError("Internal", err)
+			}
+			return
+		}
+		if errors.Is(err, ht.ErrNotImplemented) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+		if err := encodeErrorResponse(s.h.NewError(ctx, err), w); err != nil {
+			defer recordError("Internal", err)
+		}
+		return
+	}
+
+	if err := encodeExposurePutExposureTargetsIDTermsResponse(response, w); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)

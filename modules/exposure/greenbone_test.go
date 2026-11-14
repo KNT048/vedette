@@ -2,14 +2,15 @@ package exposure
 
 import (
 	"context"
-	"database/sql"
 	"encoding/base64"
 	"encoding/xml"
 	"errors"
+	"fmt"
 	"io"
 	"maps"
 	"net"
 	"os"
+	"regexp"
 	"slices"
 	"strings"
 	"sync"
@@ -45,34 +46,65 @@ type fakeGVM struct {
 	mu         sync.Mutex
 	cmds       []string // command names in the order they came
 	authFail   bool
-	syncing    bool     // get_feeds reports a feed that is still loading
-	noFAF      bool     // "Full and fast" is not there yet (404)
-	states     []string // get_tasks answers in turn; the last repeats
-	report     string   // the get_reports answer
-	hasConfig  bool     // Vedette's config exists already
-	families   []string // families sent in the last family_selection
-	logAtStart int      // probe rows in the log when start_task came
+	syncing    bool       // get_feeds reports a feed that is still loading
+	noFAF      bool       // "Full and fast" is not there yet (404)
+	states     []string   // get_tasks answers in turn; the last repeats
+	report     string     // the get_reports answer
+	configs    []*fakeCfg // Vedette's configs, made by create_config
+	foreign    string     // a config of this name belongs to another GMP user
+	taskConfig string     // the config of the last create_task
+	logAtStart int        // probe rows in the log when start_task came
 	log        *gbLog
-	owner      string            // owner of Vedette's config; "" = vedette
-	prefs      map[string]string // the checkboxes of "Options for Brute Force NVTs" in Vedette's config
-	noPref     bool              // the feed has no "Disable default account checks"
-	keepNo     bool              // gvmd ignores the change of the checkboxes
-	noWebPref  bool              // the feed has no "Enable generic web application scanning"
-	keepWeb    bool              // gvmd ignores the change of that checkbox only
-	inUse      bool              // modify_config refused: a task uses the config
-	leftover   string            // the state of a task an earlier scan left behind; "" none
-	fail       map[string]bool   // commands answered with 400
-	hang       map[string]bool   // commands never answered
-	onPoll     func()            // runs (without the lock) at each poll of the task
-	bodies     []string          // every command's attributes and body
+	noPref     bool            // the feed has no "Disable default account checks"
+	keepNo     bool            // gvmd ignores the change of the checkboxes
+	noWebPref  bool            // the feed has no "Enable generic web application scanning"
+	keepWeb    bool            // gvmd ignores the change of that checkbox only
+	keepSafe   bool            // gvmd ignores the change of safe_checks
+	keepFamily bool            // gvmd ignores the family selection
+	inUse      bool            // modify_config refused: a task uses the config
+	leftover   string          // the state of a task an earlier scan left behind; "" none
+	fail       map[string]bool // commands answered with 400
+	hang       map[string]bool // commands never answered
+	onPoll     func()          // runs (without the lock) at each poll of the task
+	bodies     []string        // every command's attributes and body
 }
 
 const leftoverTask = "cccccccc-dddd-4eee-8fff-000000000000"
 
-func (f *fakeGVM) prefsOf() map[string]string {
+// fakeCfg is one scan config of Vedette's in the fake gvmd: its families and preferences (the checkboxes and safe_checks).
+type fakeCfg struct {
+	id, name string
+	families []string
+	prefs    map[string]string
+}
+
+var cfgIDRe = regexp.MustCompile(`config_id=([0-9a-f-]{36})`)
+
+// cfgIn is the config a command names (config_id=…), nil when none of Vedette's.
+func (f *fakeGVM) cfgIn(body string) *fakeCfg {
+	m := cfgIDRe.FindStringSubmatch(body)
+	for _, c := range f.configs {
+		if m != nil && c.id == m[1] {
+			return c
+		}
+	}
+	return nil
+}
+
+// cfg is a copy of Vedette's config of that name, and the name of the config the last task used.
+func (f *fakeGVM) cfg(name string) (fakeCfg, string) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	return maps.Clone(f.prefs)
+	used := ""
+	for _, c := range f.configs {
+		if c.id == f.taskConfig {
+			used = c.name
+		}
+		if c.name == name {
+			return fakeCfg{id: c.id, name: c.name, families: slices.Clone(c.families), prefs: maps.Clone(c.prefs)}, used
+		}
+	}
+	return fakeCfg{}, used
 }
 
 // with changes the fake under its lock (the session goroutines read it).
@@ -120,41 +152,62 @@ func (f *fakeGVM) answer(cmd string, body string) string {
 	case "get_configs":
 		switch {
 		case strings.Contains(body, "filter="):
-			if f.hasConfig {
-				owner := f.owner
-				if owner == "" {
-					owner = "vedette"
-				}
-				return ok(`<config id="11111111-2222-4333-8444-555555555555"><name>` + GreenboneConfigName + `</name><owner><name>` + owner + `</name></owner></config>`)
+			name := body[strings.Index(body, "filter=name=")+len("filter=name=") : strings.Index(body, " rows=")]
+			out := ""
+			if f.foreign == name {
+				out += `<config id="99999999-2222-4333-8444-555555555555"><name>` + name + `</name><owner><name>someone</name></owner></config>`
 			}
-			return ok("")
+			for _, c := range f.configs {
+				if c.name == name {
+					out += `<config id="` + c.id + `"><name>` + c.name + `</name><owner><name>vedette</name></owner></config>`
+				}
+			}
+			return ok(out)
+		case f.cfgIn(body) != nil:
+			c := f.cfgIn(body)
+			fams := ""
+			for _, n := range c.families {
+				fams += "<family><name>" + n + "</name><nvt_count>10</nvt_count></family>"
+			}
+			return ok(`<config id="` + c.id + `"><name>` + c.name + `</name><families>` + fams + `</families></config>`)
 		case f.noFAF:
 			return `<get_configs_response status="404" status_text="Failed to find config"/>`
 		}
 		return ok(`<config id="` + gmpFullAndFast + `"><name>Full and fast</name><families><family><name>General</name></family><family><name>Brute force attacks</name></family>` +
 			`<family><name>Default Accounts</name></family><family><name>Denial of Service</name></family><family><name>Web application abuses</name></family></families></config>`)
 	case "create_config":
-		f.hasConfig = true
-		return `<create_config_response status="201" status_text="OK, resource created" id="11111111-2222-4333-8444-555555555555"/>`
+		name := body[strings.Index(body, "<name>")+len("<name>") : strings.Index(body, "</name>")]
+		c := &fakeCfg{id: fmt.Sprintf("11111111-2222-4333-8444-5555555555%02d", len(f.configs)), name: name,
+			families: []string{"General", "Brute force attacks", "Default Accounts", "Denial of Service", "Web application abuses"},
+			prefs:    map[string]string{"safe_checks": "yes", "Enable generic web application scanning": "no", "Disable brute force checks": "no", "Disable default account checks": "no"}}
+		f.configs = append(f.configs, c)
+		return `<create_config_response status="201" status_text="OK, resource created" id="` + c.id + `"/>`
 	case "modify_config":
 		if f.inUse {
 			return `<modify_config_response status="400" status_text="Config is in use"/>`
 		}
-		for _, c := range gmpSafePrefs {
-			if !strings.Contains(body, c.oid+":") || !strings.Contains(body, ":checkbox:"+c.name+"<") || f.keepNo || (f.keepWeb && c.oid == gmpGlobalOID) {
-				continue
-			}
-			if f.prefs == nil {
-				f.prefs = map[string]string{}
-			}
+		c := f.cfgIn(body)
+		if c == nil {
+			return `<modify_config_response status="404" status_text="Failed to find config"/>`
+		}
+		value := func() string {
 			v := body[strings.Index(body, "<value>")+len("<value>") : strings.Index(body, "</value>")]
 			b, _ := base64.StdEncoding.DecodeString(v)
-			f.prefs[c.name] = string(b)
+			return string(b)
 		}
-		if strings.Contains(body, "family_selection") {
-			f.families = nil
+		for _, p := range gbDisruptive.prefs {
+			if !strings.Contains(body, p.oid+":") || !strings.Contains(body, ":checkbox:"+p.name+"<") || f.keepNo || (f.keepWeb && p.oid == gmpGlobalOID) {
+				continue
+			}
+			c.prefs[p.name] = value()
+		}
+		if strings.Contains(body, "<name>safe_checks</name>") && !f.keepSafe {
+			c.prefs["safe_checks"] = value()
+		}
+		if strings.Contains(body, "family_selection") && !f.keepFamily {
+			c.families = nil
 			for _, part := range strings.Split(body, "<family><name>")[1:] {
-				f.families = append(f.families, part[:strings.Index(part, "<")])
+				c.families = append(c.families, part[:strings.Index(part, "<")])
 			}
 		}
 		return ok("")
@@ -163,6 +216,8 @@ func (f *fakeGVM) answer(cmd string, body string) string {
 	case "create_target":
 		return `<create_target_response status="201" status_text="OK, resource created" id="aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee"/>`
 	case "create_task":
+		f.taskConfig = body[strings.Index(body, `config id="`)+len(`config id="`):]
+		f.taskConfig = f.taskConfig[:strings.Index(f.taskConfig, `"`)]
 		return `<create_task_response status="201" status_text="OK, resource created" id="bbbbbbbb-cccc-4ddd-8eee-ffffffffffff"/>`
 	case "start_task":
 		if f.log != nil {
@@ -170,15 +225,14 @@ func (f *fakeGVM) answer(cmd string, body string) string {
 		}
 		return `<start_task_response status="202" status_text="OK, request submitted"><report_id>` + gbReportID + `</report_id></start_task_response>`
 	case "get_preferences":
-		v := func(n string) string {
-			if x, ok := f.prefs[n]; ok {
-				return x
-			}
-			if n == "Enable generic web application scanning" {
-				return "yes" // as if a feed default or a hand edit had turned it on: Vedette must set it off
-			}
-			return "no"
+		c := f.cfgIn(body)
+		if c == nil {
+			return `<get_preferences_response status="404" status_text="Failed to find config"/>`
 		}
+		if strings.Contains(body, "preference=safe_checks") {
+			return ok(`<preference><name>safe_checks</name><value>` + c.prefs["safe_checks"] + `</value></preference>`)
+		}
+		v := func(n string) string { return c.prefs[n] }
 		if strings.Contains(body, gmpGlobalOID) {
 			if f.noWebPref {
 				return ok(`<preference><nvt oid="` + gmpGlobalOID + `"/><id>1</id><name>HTTP User-Agent</name><type>entry</type><value>x</value></preference>`)
@@ -361,17 +415,9 @@ func (l *gbLog) RecordGreenboneProbe(_ context.Context, p GreenboneProbe) error 
 
 const gib = 1 << 30
 
-// gbEnv is an env with Greenbone wired and the G1 gate open (D-564: the tests of what it does once kien opens it): 16 GiB of
-// memory, 200 GB free, a ready gvmd with the fixture report, a probe log, and no waiting between polls.
+// gbEnv is an env with Greenbone wired, two-step sign-in on, and the IP of scanIP with its testing terms accepted (D-566), without the
+// disruptive tick: 16 GiB of memory, 200 GB free, a ready gvmd with the fixture report, a probe log, and no waiting between polls.
 func gbEnv(t *testing.T) (*env, *fakeGB) {
-	t.Helper()
-	e, h := gbEnvClosed(t)
-	e.svc.gb().publicScan = true
-	return e, h
-}
-
-// gbEnvClosed is gbEnv with the G1 gate as it ships: closed.
-func gbEnvClosed(t *testing.T) (*env, *fakeGB) {
 	t.Helper()
 	e := newEnv(t)
 	gvm := &fakeGVM{report: gbFixture(t)}
@@ -379,6 +425,8 @@ func gbEnvClosed(t *testing.T) (*env, *fakeGB) {
 	l := &gbLog{}
 	gvm.log = l
 	e.svc.cfg.Greenbone, e.svc.cfg.Probes, e.svc.cfg.DataDir = h, l, "/data"
+	e.svc.cfg.TwoStep = func(context.Context, string) (string, error) { return "app", nil }
+	e.terms = new(bool)
 	g := e.svc.gb()
 	g.memTotal = func() (int64, error) { return 16 * gib, nil }
 	g.diskFree = func(string) (int64, error) { return 200e9, nil }
@@ -654,8 +702,9 @@ func TestContract_INV25_SeamNilWording(t *testing.T) {
 
 // ---- when it runs ----
 
-// INV-25: an enabled, ready Greenbone scans the verified, committed IP after the other steps: the safe config (brute force, default
-// accounts and DoS off), the probe log row before the task starts, results stored, the task and target cleaned up.
+// INV-25, D-566: an enabled, ready Greenbone scans the verified, committed IP with accepted testing terms after the other steps: the
+// deep config (every family but brute force, default accounts and DoS; generic web scanning on; brute-force options off; safe checks
+// on), the probe log row before the task starts, results stored, the task and target cleaned up.
 func TestContract_INV25_ScansTheVerifiedIP(t *testing.T) {
 	t.Parallel()
 	e, h := gbEnv(t)
@@ -666,11 +715,12 @@ func TestContract_INV25_ScansTheVerifiedIP(t *testing.T) {
 		t.Fatalf("greenbone = %+v", s.Greenbone)
 	}
 	gvm := h.gvm
-	if v := gvm.prefsOf(); v["Disable brute force checks"] != "yes" || v["Disable default account checks"] != "yes" || v["Enable generic web application scanning"] != "no" {
-		t.Fatalf("brute-force options = %v", v)
+	c, used := gvm.cfg(gbDeep.name)
+	if v := c.prefs; used != gbDeep.name || v["Disable brute force checks"] != "yes" || v["Disable default account checks"] != "yes" || v["Enable generic web application scanning"] != "yes" || v["safe_checks"] != "yes" {
+		t.Fatalf("config %q used, prefs %v", used, v)
 	}
-	if !slices.Equal(gvm.families, []string{"General", "Web application abuses"}) {
-		t.Fatalf("families = %q", gvm.families)
+	if !slices.Equal(c.families, []string{"General", "Web application abuses"}) {
+		t.Fatalf("families = %q", c.families)
 	}
 	l := gvm.log
 	if len(l.rows) != 1 || l.rows[0].IP != ipA || l.rows[0].PortList != GreenbonePortList || !strings.Contains(l.rows[0].Note, "many probes") || gvm.logAtStart != 1 {
@@ -860,11 +910,12 @@ func TestContract_INV25_SafeConfigFailsClosed(t *testing.T) {
 	}{
 		{"option missing from the feed", func(g *fakeGVM) { g.noPref = true }, `Greenbone (OpenVAS) did not scan: Greenbone's feed has no "Disable default account checks" option`},
 		{"option not kept", func(g *fakeGVM) { g.keepNo = true }, `Greenbone (OpenVAS) did not scan: Greenbone did not keep "Disable brute force checks" on`},
-		{"config of another user", func(g *fakeGVM) { g.hasConfig, g.owner = true, "someone" }, "belongs to another Greenbone user"},
+		{"config of another user", func(g *fakeGVM) { g.foreign = gbDeep.name }, "belongs to another Greenbone user"},
 		{"config in use", func(g *fakeGVM) { g.inUse = true }, "is used by a task Vedette did not start"},
-		// D-564 G2: generic web application scanning must read back off
-		{"web scanning option missing", func(g *fakeGVM) { g.noWebPref = true }, `Greenbone's feed has no "Enable generic web application scanning" option, so Vedette cannot make sure no generic web attack`},
-		{"web scanning not kept off", func(g *fakeGVM) { g.keepWeb = true }, `Greenbone did not keep "Enable generic web application scanning" off`},
+		// D-564 G2, D-566: generic web application scanning, safe_checks and the families are read back too
+		{"web scanning option missing", func(g *fakeGVM) { g.noWebPref = true }, `Greenbone's feed has no "Enable generic web application scanning" option`},
+		{"web scanning not kept on", func(g *fakeGVM) { g.keepWeb = true }, `Greenbone did not keep "Enable generic web application scanning" on`},
+		{"families not kept", func(g *fakeGVM) { g.keepFamily = true }, `Greenbone did not keep the family "Brute force attacks" off`},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -961,6 +1012,7 @@ func TestContract_INV25_StopKeepsTheEarlierResults(t *testing.T) {
 	if _, err := e.commit(ips[0].ID); err != nil {
 		t.Fatal(err)
 	}
+	e.acceptTerms(ips[0].ID, false)
 	e.svc.SetRunner(&fakeRunner{content: Content{Ports: []PortRow{{ipA, 443, "https", "", "", 0, false}}}})
 	if _, err := e.svc.Scan(e.ctx(), "admin@acme.example", ips[0].ID); err == nil {
 		t.Fatal("a stopped run reads as done")
@@ -1060,52 +1112,55 @@ func TestContract_INV25_GreenboneEnabled(t *testing.T) {
 
 // ---- D-564 ----
 
-// G1: while the gate is closed, the page says Greenbone is not available yet and why, enabling is 409 under_review with nothing
-// recorded, started or downloaded, and a scan never asks gvmd anything, even with the setting left on by an older version.
-func TestContract_INV25_G1GateHoldsGreenboneBack(t *testing.T) {
+// D-566 (FULL-2): Greenbone can be enabled (no review gate any more) but scans only a target whose testing terms are accepted: without
+// them "Not checked" says so and gvmd is never asked; with the disruptive tick its own config turns on brute force, default accounts
+// and DoS, the brute-force options and safe_checks off, all read back; withdrawn terms are seen right before the step.
+func TestContract_INV25_TermsDecideGreenbone(t *testing.T) {
 	t.Parallel()
-	if greenbonePublicScan {
-		t.Fatal("the G1 gate ships open; kien has not decided (D-564)")
-	}
-	e, h := gbEnvClosed(t)
-	v, err := e.svc.GreenboneSetting(e.ctx())
-	if err != nil || v.State != GBUnavailable || str(v.Reason) != "Greenbone deep scan is not available yet: its own active checks on a public IP are being reviewed." {
-		t.Fatalf("view = %+v, %v", v, err)
-	}
-	_, err = e.svc.SetGreenbone(e.ctx(), "admin@acme.example", true)
-	wantAPI(t, err, 409, "under_review")
-	if on, _, _, _ := loadGreenbone(e.ctx(), e.db.Reader()); on || slices.Contains(e.auditActions(), "exposure.greenbone") {
-		t.Fatal("the refused enable was recorded")
-	}
-	if err := e.db.Write(e.ctx(), func(tx *sql.Tx) error {
-		_, err := tx.ExecContext(e.ctx(), `UPDATE exp_setting SET greenbone = 1, greenbone_at = '2020-01-01T00:00:00Z' WHERE id = 1`)
-		return err
-	}); err != nil {
-		t.Fatal(err)
-	}
+	e, h := gbEnv(t)
+	e.terms = nil
+	e.enable()
+	before := h.dialCount() // reading the setting may ask gvmd whether it is ready; the scan must not
 	s := e.scanIP(Content{})
-	if !slices.Contains(notChecked(s), NotYetGreenbone) || len(s.Greenbone) != 0 {
-		t.Fatalf("not checked = %q", notChecked(s))
+	if !slices.Contains(notChecked(s), notGBTerms) || len(s.Greenbone) != 0 || h.dialCount() != before {
+		t.Fatalf("not checked %q, dials %d -> %d", notChecked(s), before, h.dialCount())
 	}
-	o, err := e.svc.greenboneStep(e.ctx(), ScanTarget{Kind: KindIP, Value: ipA, User: "admin@acme.example"})
-	if err != nil || len(o.not) != 1 || o.not[0].Text != NotYetGreenbone {
-		t.Fatalf("step = %+v, %v", o, err)
-	}
-	if err := e.svc.RunGreenboneSync(e.ctx()); err != nil {
+	id := e.ipTarget(ipA)
+	e.acceptTerms(id, true)
+	e.advance(ScanEvery)
+	if _, err := e.svc.Scan(e.ctx(), "admin@acme.example", id); err != nil {
 		t.Fatal(err)
 	}
-	h.with(func(h *fakeGB) {
-		if h.ups != 0 || h.dials != 0 || h.syncs != 0 {
-			t.Errorf("ups %d, dials %d, syncs %d", h.ups, h.dials, h.syncs)
-		}
-	})
-	// review r1 M1: left on from before, it is still said to be on and Turn off still stops its containers
-	if v, err := e.svc.GreenboneSetting(e.ctx()); err != nil || v.State != GBUnavailable || !v.Enabled {
-		t.Fatalf("held back while on = %+v, %v", v, err)
+	c, used := h.gvm.cfg(gbDisruptive.name)
+	if v := c.prefs; used != gbDisruptive.name || v["Disable brute force checks"] != "no" || v["Disable default account checks"] != "no" || v["Enable generic web application scanning"] != "yes" || v["safe_checks"] != "no" {
+		t.Fatalf("config %q used, prefs %v", used, v)
 	}
-	v, err = e.svc.SetGreenbone(e.ctx(), "admin@acme.example", false)
-	if err != nil || v.Enabled || v.State != GBUnavailable || h.downs != 1 || !slices.Contains(e.auditActions(), "exposure.greenbone") {
-		t.Fatalf("turn off while held back = %+v, %v, downs %d", v, err, h.downs)
+	if !slices.Equal(c.families, []string{"General", "Brute force attacks", "Default Accounts", "Denial of Service", "Web application abuses"}) {
+		t.Fatalf("families = %q", c.families)
+	}
+	if d, _ := h.gvm.cfg(gbDeep.name); d.id != "" {
+		t.Fatal("the deep config was made for a disruptive scan")
+	}
+	// safe_checks not kept: nothing starts
+	h.gvm.with(func(g *fakeGVM) { g.keepSafe = true })
+	h.gvm.with(func(g *fakeGVM) { g.configs[0].prefs["safe_checks"] = "yes" })
+	e.advance(ScanEvery)
+	snap, err := e.svc.Scan(e.ctx(), "admin@acme.example", id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, _ := e.svc.SnapshotOf(e.ctx(), id, snap.Date)
+	if !slices.ContainsFunc(notChecked(got), func(l string) bool { return strings.Contains(l, "did not keep safe checks off") }) {
+		t.Fatalf("not checked %q", notChecked(got))
+	}
+	// withdrawn: the step checks the terms again and sends nothing
+	if _, err := e.svc.RevokeTerms(e.ctx(), "admin@acme.example", id); err != nil {
+		t.Fatal(err)
+	}
+	dials := h.dialCount()
+	o, err := e.svc.greenboneStep(e.ctx(), ScanTarget{ID: id, Kind: KindIP, Value: ipA, User: "admin@acme.example", Mode: ScanMode{Full: true, Disruptive: true}})
+	if err != nil || len(o.not) != 1 || o.not[0].Text != notGBTerms || h.dialCount() != dials {
+		t.Fatalf("step = %+v, %v, dials %d -> %d", o, err, dials, h.dialCount())
 	}
 }
 

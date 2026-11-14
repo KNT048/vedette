@@ -42751,12 +42751,862 @@ func (s *ExposureDeleteExposureTargetsIDIgnore) UnmarshalText(data []byte) error
 // ExposureDeleteExposureTargetsIDNoContent is response for ExposureDeleteExposureTargetsID operation.
 type ExposureDeleteExposureTargetsIDNoContent struct{}
 
+type ExposureDeleteExposureTargetsIDTermsOK struct {
+	// Why it cannot be scanned yet; null = can be scanned. ip_not_current (IPs only): the last full check
+	// that got an answer did not see the IP and no check since has, so scans are paused (until a later
+	// check sees it) while the IP stays in the list; verified_at is when the box last saw it.
+	BlockedReason NilExposureDeleteExposureTargetsIDTermsOKBlockedReason `json:"blocked_reason"`
+	// Recorded by the first Scan now of an administrator with two-step sign-in (D-473): who, when and the
+	// exact sentence shown next to the button.
+	Commitment NilExposureDeleteExposureTargetsIDTermsOKCommitment `json:"commitment"`
+	// The sentence the first Scan now of an administrator confirms, with this target in it; null once the
+	// target has a commitment of the current sentence; an older one is asked again once (D-559), so a
+	// target with a commitment can carry it too.
+	CommitmentNotice NilExposureDeleteExposureTargetsIDTermsOKCommitmentNotice `json:"commitment_notice"`
+	CreatedAt        time.Time                                                 `json:"created_at"`
+	// IP: verified_at + 30 days. Domain: null (the TXT record is re-checked right before every scan).
+	ExpiresAt NilDateTime `json:"expires_at"`
+	// Scans of this target are deep scans: the current testing terms are accepted. Otherwise the K-4 scope
+	// of the Scan now sentence.
+	FullScan   bool                                               `json:"full_scan"`
+	ID         string                                             `json:"id"`
+	Kind       ExposureDeleteExposureTargetsIDTermsOKKind         `json:"kind"`
+	LastCheck  NilExposureDeleteExposureTargetsIDTermsOKLastCheck `json:"last_check"`
+	LastScanAt NilDateTime                                        `json:"last_scan_at"`
+	Latest     NilExposureDeleteExposureTargetsIDTermsOKLatest    `json:"latest"`
+	Method     NilExposureDeleteExposureTargetsIDTermsOKMethod    `json:"method"`
+	// The first 20 open ports of the newest scan, in its order (latest.ports is the total), so the list
+	// can say what is open; null when never scanned.
+	OpenPorts []ExposureDeleteExposureTargetsIDTermsOKOpenPortsItem `json:"open_ports"`
+	Scannable bool                                                  `json:"scannable"`
+	// Expired only exists for IPs: the box has not seen this IP for more than 30 days.
+	Status ExposureDeleteExposureTargetsIDTermsOKStatus `json:"status"`
+	// FULL-1 (D-566): the acceptance of the testing terms; null when none. An acceptance of an older
+	// version does not count (full_scan is false) until accepted again.
+	Terms NilExposureDeleteExposureTargetsIDTermsOKTerms `json:"terms"`
+	// The current testing terms for this target, to accept or to read again.
+	TermsNotice ExposureDeleteExposureTargetsIDTermsOKTermsNotice `json:"terms_notice"`
+	// Domain: the token in the TXT record vedette-verify= (not secret, it is public in DNS). IP: empty
+	// string.
+	Token string `json:"token"`
+	// IPs only: expiring = 5 days or less left.
+	Validity NilExposureDeleteExposureTargetsIDTermsOKValidity `json:"validity"`
+	Value    string                                            `json:"value"`
+	// Domain: first successful verification. IP: the last time the box saw this IP (every sighting renews
+	// it).
+	VerifiedAt NilDateTime `json:"verified_at"`
+}
+
+// GetBlockedReason returns the value of BlockedReason.
+func (s *ExposureDeleteExposureTargetsIDTermsOK) GetBlockedReason() NilExposureDeleteExposureTargetsIDTermsOKBlockedReason {
+	return s.BlockedReason
+}
+
+// GetCommitment returns the value of Commitment.
+func (s *ExposureDeleteExposureTargetsIDTermsOK) GetCommitment() NilExposureDeleteExposureTargetsIDTermsOKCommitment {
+	return s.Commitment
+}
+
+// GetCommitmentNotice returns the value of CommitmentNotice.
+func (s *ExposureDeleteExposureTargetsIDTermsOK) GetCommitmentNotice() NilExposureDeleteExposureTargetsIDTermsOKCommitmentNotice {
+	return s.CommitmentNotice
+}
+
+// GetCreatedAt returns the value of CreatedAt.
+func (s *ExposureDeleteExposureTargetsIDTermsOK) GetCreatedAt() time.Time {
+	return s.CreatedAt
+}
+
+// GetExpiresAt returns the value of ExpiresAt.
+func (s *ExposureDeleteExposureTargetsIDTermsOK) GetExpiresAt() NilDateTime {
+	return s.ExpiresAt
+}
+
+// GetFullScan returns the value of FullScan.
+func (s *ExposureDeleteExposureTargetsIDTermsOK) GetFullScan() bool {
+	return s.FullScan
+}
+
+// GetID returns the value of ID.
+func (s *ExposureDeleteExposureTargetsIDTermsOK) GetID() string {
+	return s.ID
+}
+
+// GetKind returns the value of Kind.
+func (s *ExposureDeleteExposureTargetsIDTermsOK) GetKind() ExposureDeleteExposureTargetsIDTermsOKKind {
+	return s.Kind
+}
+
+// GetLastCheck returns the value of LastCheck.
+func (s *ExposureDeleteExposureTargetsIDTermsOK) GetLastCheck() NilExposureDeleteExposureTargetsIDTermsOKLastCheck {
+	return s.LastCheck
+}
+
+// GetLastScanAt returns the value of LastScanAt.
+func (s *ExposureDeleteExposureTargetsIDTermsOK) GetLastScanAt() NilDateTime {
+	return s.LastScanAt
+}
+
+// GetLatest returns the value of Latest.
+func (s *ExposureDeleteExposureTargetsIDTermsOK) GetLatest() NilExposureDeleteExposureTargetsIDTermsOKLatest {
+	return s.Latest
+}
+
+// GetMethod returns the value of Method.
+func (s *ExposureDeleteExposureTargetsIDTermsOK) GetMethod() NilExposureDeleteExposureTargetsIDTermsOKMethod {
+	return s.Method
+}
+
+// GetOpenPorts returns the value of OpenPorts.
+func (s *ExposureDeleteExposureTargetsIDTermsOK) GetOpenPorts() []ExposureDeleteExposureTargetsIDTermsOKOpenPortsItem {
+	return s.OpenPorts
+}
+
+// GetScannable returns the value of Scannable.
+func (s *ExposureDeleteExposureTargetsIDTermsOK) GetScannable() bool {
+	return s.Scannable
+}
+
+// GetStatus returns the value of Status.
+func (s *ExposureDeleteExposureTargetsIDTermsOK) GetStatus() ExposureDeleteExposureTargetsIDTermsOKStatus {
+	return s.Status
+}
+
+// GetTerms returns the value of Terms.
+func (s *ExposureDeleteExposureTargetsIDTermsOK) GetTerms() NilExposureDeleteExposureTargetsIDTermsOKTerms {
+	return s.Terms
+}
+
+// GetTermsNotice returns the value of TermsNotice.
+func (s *ExposureDeleteExposureTargetsIDTermsOK) GetTermsNotice() ExposureDeleteExposureTargetsIDTermsOKTermsNotice {
+	return s.TermsNotice
+}
+
+// GetToken returns the value of Token.
+func (s *ExposureDeleteExposureTargetsIDTermsOK) GetToken() string {
+	return s.Token
+}
+
+// GetValidity returns the value of Validity.
+func (s *ExposureDeleteExposureTargetsIDTermsOK) GetValidity() NilExposureDeleteExposureTargetsIDTermsOKValidity {
+	return s.Validity
+}
+
+// GetValue returns the value of Value.
+func (s *ExposureDeleteExposureTargetsIDTermsOK) GetValue() string {
+	return s.Value
+}
+
+// GetVerifiedAt returns the value of VerifiedAt.
+func (s *ExposureDeleteExposureTargetsIDTermsOK) GetVerifiedAt() NilDateTime {
+	return s.VerifiedAt
+}
+
+// SetBlockedReason sets the value of BlockedReason.
+func (s *ExposureDeleteExposureTargetsIDTermsOK) SetBlockedReason(val NilExposureDeleteExposureTargetsIDTermsOKBlockedReason) {
+	s.BlockedReason = val
+}
+
+// SetCommitment sets the value of Commitment.
+func (s *ExposureDeleteExposureTargetsIDTermsOK) SetCommitment(val NilExposureDeleteExposureTargetsIDTermsOKCommitment) {
+	s.Commitment = val
+}
+
+// SetCommitmentNotice sets the value of CommitmentNotice.
+func (s *ExposureDeleteExposureTargetsIDTermsOK) SetCommitmentNotice(val NilExposureDeleteExposureTargetsIDTermsOKCommitmentNotice) {
+	s.CommitmentNotice = val
+}
+
+// SetCreatedAt sets the value of CreatedAt.
+func (s *ExposureDeleteExposureTargetsIDTermsOK) SetCreatedAt(val time.Time) {
+	s.CreatedAt = val
+}
+
+// SetExpiresAt sets the value of ExpiresAt.
+func (s *ExposureDeleteExposureTargetsIDTermsOK) SetExpiresAt(val NilDateTime) {
+	s.ExpiresAt = val
+}
+
+// SetFullScan sets the value of FullScan.
+func (s *ExposureDeleteExposureTargetsIDTermsOK) SetFullScan(val bool) {
+	s.FullScan = val
+}
+
+// SetID sets the value of ID.
+func (s *ExposureDeleteExposureTargetsIDTermsOK) SetID(val string) {
+	s.ID = val
+}
+
+// SetKind sets the value of Kind.
+func (s *ExposureDeleteExposureTargetsIDTermsOK) SetKind(val ExposureDeleteExposureTargetsIDTermsOKKind) {
+	s.Kind = val
+}
+
+// SetLastCheck sets the value of LastCheck.
+func (s *ExposureDeleteExposureTargetsIDTermsOK) SetLastCheck(val NilExposureDeleteExposureTargetsIDTermsOKLastCheck) {
+	s.LastCheck = val
+}
+
+// SetLastScanAt sets the value of LastScanAt.
+func (s *ExposureDeleteExposureTargetsIDTermsOK) SetLastScanAt(val NilDateTime) {
+	s.LastScanAt = val
+}
+
+// SetLatest sets the value of Latest.
+func (s *ExposureDeleteExposureTargetsIDTermsOK) SetLatest(val NilExposureDeleteExposureTargetsIDTermsOKLatest) {
+	s.Latest = val
+}
+
+// SetMethod sets the value of Method.
+func (s *ExposureDeleteExposureTargetsIDTermsOK) SetMethod(val NilExposureDeleteExposureTargetsIDTermsOKMethod) {
+	s.Method = val
+}
+
+// SetOpenPorts sets the value of OpenPorts.
+func (s *ExposureDeleteExposureTargetsIDTermsOK) SetOpenPorts(val []ExposureDeleteExposureTargetsIDTermsOKOpenPortsItem) {
+	s.OpenPorts = val
+}
+
+// SetScannable sets the value of Scannable.
+func (s *ExposureDeleteExposureTargetsIDTermsOK) SetScannable(val bool) {
+	s.Scannable = val
+}
+
+// SetStatus sets the value of Status.
+func (s *ExposureDeleteExposureTargetsIDTermsOK) SetStatus(val ExposureDeleteExposureTargetsIDTermsOKStatus) {
+	s.Status = val
+}
+
+// SetTerms sets the value of Terms.
+func (s *ExposureDeleteExposureTargetsIDTermsOK) SetTerms(val NilExposureDeleteExposureTargetsIDTermsOKTerms) {
+	s.Terms = val
+}
+
+// SetTermsNotice sets the value of TermsNotice.
+func (s *ExposureDeleteExposureTargetsIDTermsOK) SetTermsNotice(val ExposureDeleteExposureTargetsIDTermsOKTermsNotice) {
+	s.TermsNotice = val
+}
+
+// SetToken sets the value of Token.
+func (s *ExposureDeleteExposureTargetsIDTermsOK) SetToken(val string) {
+	s.Token = val
+}
+
+// SetValidity sets the value of Validity.
+func (s *ExposureDeleteExposureTargetsIDTermsOK) SetValidity(val NilExposureDeleteExposureTargetsIDTermsOKValidity) {
+	s.Validity = val
+}
+
+// SetValue sets the value of Value.
+func (s *ExposureDeleteExposureTargetsIDTermsOK) SetValue(val string) {
+	s.Value = val
+}
+
+// SetVerifiedAt sets the value of VerifiedAt.
+func (s *ExposureDeleteExposureTargetsIDTermsOK) SetVerifiedAt(val NilDateTime) {
+	s.VerifiedAt = val
+}
+
+type ExposureDeleteExposureTargetsIDTermsOKBlockedReason string
+
+const (
+	ExposureDeleteExposureTargetsIDTermsOKBlockedReasonUnverified   ExposureDeleteExposureTargetsIDTermsOKBlockedReason = "unverified"
+	ExposureDeleteExposureTargetsIDTermsOKBlockedReasonExpired      ExposureDeleteExposureTargetsIDTermsOKBlockedReason = "expired"
+	ExposureDeleteExposureTargetsIDTermsOKBlockedReasonTxtMissing   ExposureDeleteExposureTargetsIDTermsOKBlockedReason = "txt_missing"
+	ExposureDeleteExposureTargetsIDTermsOKBlockedReasonNoCommitment ExposureDeleteExposureTargetsIDTermsOKBlockedReason = "no_commitment"
+	ExposureDeleteExposureTargetsIDTermsOKBlockedReasonIPNotCurrent ExposureDeleteExposureTargetsIDTermsOKBlockedReason = "ip_not_current"
+)
+
+// AllValues returns all ExposureDeleteExposureTargetsIDTermsOKBlockedReason values.
+func (ExposureDeleteExposureTargetsIDTermsOKBlockedReason) AllValues() []ExposureDeleteExposureTargetsIDTermsOKBlockedReason {
+	return []ExposureDeleteExposureTargetsIDTermsOKBlockedReason{
+		ExposureDeleteExposureTargetsIDTermsOKBlockedReasonUnverified,
+		ExposureDeleteExposureTargetsIDTermsOKBlockedReasonExpired,
+		ExposureDeleteExposureTargetsIDTermsOKBlockedReasonTxtMissing,
+		ExposureDeleteExposureTargetsIDTermsOKBlockedReasonNoCommitment,
+		ExposureDeleteExposureTargetsIDTermsOKBlockedReasonIPNotCurrent,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureDeleteExposureTargetsIDTermsOKBlockedReason) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureDeleteExposureTargetsIDTermsOKBlockedReasonUnverified:
+		return []byte(s), nil
+	case ExposureDeleteExposureTargetsIDTermsOKBlockedReasonExpired:
+		return []byte(s), nil
+	case ExposureDeleteExposureTargetsIDTermsOKBlockedReasonTxtMissing:
+		return []byte(s), nil
+	case ExposureDeleteExposureTargetsIDTermsOKBlockedReasonNoCommitment:
+		return []byte(s), nil
+	case ExposureDeleteExposureTargetsIDTermsOKBlockedReasonIPNotCurrent:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureDeleteExposureTargetsIDTermsOKBlockedReason) UnmarshalText(data []byte) error {
+	switch ExposureDeleteExposureTargetsIDTermsOKBlockedReason(data) {
+	case ExposureDeleteExposureTargetsIDTermsOKBlockedReasonUnverified:
+		*s = ExposureDeleteExposureTargetsIDTermsOKBlockedReasonUnverified
+		return nil
+	case ExposureDeleteExposureTargetsIDTermsOKBlockedReasonExpired:
+		*s = ExposureDeleteExposureTargetsIDTermsOKBlockedReasonExpired
+		return nil
+	case ExposureDeleteExposureTargetsIDTermsOKBlockedReasonTxtMissing:
+		*s = ExposureDeleteExposureTargetsIDTermsOKBlockedReasonTxtMissing
+		return nil
+	case ExposureDeleteExposureTargetsIDTermsOKBlockedReasonNoCommitment:
+		*s = ExposureDeleteExposureTargetsIDTermsOKBlockedReasonNoCommitment
+		return nil
+	case ExposureDeleteExposureTargetsIDTermsOKBlockedReasonIPNotCurrent:
+		*s = ExposureDeleteExposureTargetsIDTermsOKBlockedReasonIPNotCurrent
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposureDeleteExposureTargetsIDTermsOKCommitment struct {
+	At time.Time `json:"at"`
+	By string    `json:"by"`
+	// The exact sentence, with the target in it, kept with who and when; null on a commitment recorded
+	// before D-473.
+	Sentence NilString `json:"sentence"`
+	// Version of the sentence the administrator saw next to Scan now; null on a commitment recorded before
+	// D-473.
+	Version NilString `json:"version"`
+}
+
+// GetAt returns the value of At.
+func (s *ExposureDeleteExposureTargetsIDTermsOKCommitment) GetAt() time.Time {
+	return s.At
+}
+
+// GetBy returns the value of By.
+func (s *ExposureDeleteExposureTargetsIDTermsOKCommitment) GetBy() string {
+	return s.By
+}
+
+// GetSentence returns the value of Sentence.
+func (s *ExposureDeleteExposureTargetsIDTermsOKCommitment) GetSentence() NilString {
+	return s.Sentence
+}
+
+// GetVersion returns the value of Version.
+func (s *ExposureDeleteExposureTargetsIDTermsOKCommitment) GetVersion() NilString {
+	return s.Version
+}
+
+// SetAt sets the value of At.
+func (s *ExposureDeleteExposureTargetsIDTermsOKCommitment) SetAt(val time.Time) {
+	s.At = val
+}
+
+// SetBy sets the value of By.
+func (s *ExposureDeleteExposureTargetsIDTermsOKCommitment) SetBy(val string) {
+	s.By = val
+}
+
+// SetSentence sets the value of Sentence.
+func (s *ExposureDeleteExposureTargetsIDTermsOKCommitment) SetSentence(val NilString) {
+	s.Sentence = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ExposureDeleteExposureTargetsIDTermsOKCommitment) SetVersion(val NilString) {
+	s.Version = val
+}
+
+type ExposureDeleteExposureTargetsIDTermsOKCommitmentNotice struct {
+	Text    string `json:"text"`
+	Version string `json:"version"`
+}
+
+// GetText returns the value of Text.
+func (s *ExposureDeleteExposureTargetsIDTermsOKCommitmentNotice) GetText() string {
+	return s.Text
+}
+
+// GetVersion returns the value of Version.
+func (s *ExposureDeleteExposureTargetsIDTermsOKCommitmentNotice) GetVersion() string {
+	return s.Version
+}
+
+// SetText sets the value of Text.
+func (s *ExposureDeleteExposureTargetsIDTermsOKCommitmentNotice) SetText(val string) {
+	s.Text = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ExposureDeleteExposureTargetsIDTermsOKCommitmentNotice) SetVersion(val string) {
+	s.Version = val
+}
+
+type ExposureDeleteExposureTargetsIDTermsOKKind string
+
+const (
+	ExposureDeleteExposureTargetsIDTermsOKKindDomain ExposureDeleteExposureTargetsIDTermsOKKind = "domain"
+	ExposureDeleteExposureTargetsIDTermsOKKindIP     ExposureDeleteExposureTargetsIDTermsOKKind = "ip"
+)
+
+// AllValues returns all ExposureDeleteExposureTargetsIDTermsOKKind values.
+func (ExposureDeleteExposureTargetsIDTermsOKKind) AllValues() []ExposureDeleteExposureTargetsIDTermsOKKind {
+	return []ExposureDeleteExposureTargetsIDTermsOKKind{
+		ExposureDeleteExposureTargetsIDTermsOKKindDomain,
+		ExposureDeleteExposureTargetsIDTermsOKKindIP,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureDeleteExposureTargetsIDTermsOKKind) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureDeleteExposureTargetsIDTermsOKKindDomain:
+		return []byte(s), nil
+	case ExposureDeleteExposureTargetsIDTermsOKKindIP:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureDeleteExposureTargetsIDTermsOKKind) UnmarshalText(data []byte) error {
+	switch ExposureDeleteExposureTargetsIDTermsOKKind(data) {
+	case ExposureDeleteExposureTargetsIDTermsOKKindDomain:
+		*s = ExposureDeleteExposureTargetsIDTermsOKKindDomain
+		return nil
+	case ExposureDeleteExposureTargetsIDTermsOKKindIP:
+		*s = ExposureDeleteExposureTargetsIDTermsOKKindIP
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposureDeleteExposureTargetsIDTermsOKLastCheck struct {
+	At      time.Time `json:"at"`
+	Message string    `json:"message"`
+	Ok      bool      `json:"ok"`
+}
+
+// GetAt returns the value of At.
+func (s *ExposureDeleteExposureTargetsIDTermsOKLastCheck) GetAt() time.Time {
+	return s.At
+}
+
+// GetMessage returns the value of Message.
+func (s *ExposureDeleteExposureTargetsIDTermsOKLastCheck) GetMessage() string {
+	return s.Message
+}
+
+// GetOk returns the value of Ok.
+func (s *ExposureDeleteExposureTargetsIDTermsOKLastCheck) GetOk() bool {
+	return s.Ok
+}
+
+// SetAt sets the value of At.
+func (s *ExposureDeleteExposureTargetsIDTermsOKLastCheck) SetAt(val time.Time) {
+	s.At = val
+}
+
+// SetMessage sets the value of Message.
+func (s *ExposureDeleteExposureTargetsIDTermsOKLastCheck) SetMessage(val string) {
+	s.Message = val
+}
+
+// SetOk sets the value of Ok.
+func (s *ExposureDeleteExposureTargetsIDTermsOKLastCheck) SetOk(val bool) {
+	s.Ok = val
+}
+
+type ExposureDeleteExposureTargetsIDTermsOKLatest struct {
+	AdminPanels   int `json:"admin_panels"`
+	CertsExpiring int `json:"certs_expiring"`
+	Ips           int `json:"ips"`
+	Ports         int `json:"ports"`
+	Subdomains    int `json:"subdomains"`
+}
+
+// GetAdminPanels returns the value of AdminPanels.
+func (s *ExposureDeleteExposureTargetsIDTermsOKLatest) GetAdminPanels() int {
+	return s.AdminPanels
+}
+
+// GetCertsExpiring returns the value of CertsExpiring.
+func (s *ExposureDeleteExposureTargetsIDTermsOKLatest) GetCertsExpiring() int {
+	return s.CertsExpiring
+}
+
+// GetIps returns the value of Ips.
+func (s *ExposureDeleteExposureTargetsIDTermsOKLatest) GetIps() int {
+	return s.Ips
+}
+
+// GetPorts returns the value of Ports.
+func (s *ExposureDeleteExposureTargetsIDTermsOKLatest) GetPorts() int {
+	return s.Ports
+}
+
+// GetSubdomains returns the value of Subdomains.
+func (s *ExposureDeleteExposureTargetsIDTermsOKLatest) GetSubdomains() int {
+	return s.Subdomains
+}
+
+// SetAdminPanels sets the value of AdminPanels.
+func (s *ExposureDeleteExposureTargetsIDTermsOKLatest) SetAdminPanels(val int) {
+	s.AdminPanels = val
+}
+
+// SetCertsExpiring sets the value of CertsExpiring.
+func (s *ExposureDeleteExposureTargetsIDTermsOKLatest) SetCertsExpiring(val int) {
+	s.CertsExpiring = val
+}
+
+// SetIps sets the value of Ips.
+func (s *ExposureDeleteExposureTargetsIDTermsOKLatest) SetIps(val int) {
+	s.Ips = val
+}
+
+// SetPorts sets the value of Ports.
+func (s *ExposureDeleteExposureTargetsIDTermsOKLatest) SetPorts(val int) {
+	s.Ports = val
+}
+
+// SetSubdomains sets the value of Subdomains.
+func (s *ExposureDeleteExposureTargetsIDTermsOKLatest) SetSubdomains(val int) {
+	s.Subdomains = val
+}
+
+type ExposureDeleteExposureTargetsIDTermsOKMethod string
+
+const (
+	ExposureDeleteExposureTargetsIDTermsOKMethodDNSTxt    ExposureDeleteExposureTargetsIDTermsOKMethod = "dns_txt"
+	ExposureDeleteExposureTargetsIDTermsOKMethodBoxEgress ExposureDeleteExposureTargetsIDTermsOKMethod = "box_egress"
+)
+
+// AllValues returns all ExposureDeleteExposureTargetsIDTermsOKMethod values.
+func (ExposureDeleteExposureTargetsIDTermsOKMethod) AllValues() []ExposureDeleteExposureTargetsIDTermsOKMethod {
+	return []ExposureDeleteExposureTargetsIDTermsOKMethod{
+		ExposureDeleteExposureTargetsIDTermsOKMethodDNSTxt,
+		ExposureDeleteExposureTargetsIDTermsOKMethodBoxEgress,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureDeleteExposureTargetsIDTermsOKMethod) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureDeleteExposureTargetsIDTermsOKMethodDNSTxt:
+		return []byte(s), nil
+	case ExposureDeleteExposureTargetsIDTermsOKMethodBoxEgress:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureDeleteExposureTargetsIDTermsOKMethod) UnmarshalText(data []byte) error {
+	switch ExposureDeleteExposureTargetsIDTermsOKMethod(data) {
+	case ExposureDeleteExposureTargetsIDTermsOKMethodDNSTxt:
+		*s = ExposureDeleteExposureTargetsIDTermsOKMethodDNSTxt
+		return nil
+	case ExposureDeleteExposureTargetsIDTermsOKMethodBoxEgress:
+		*s = ExposureDeleteExposureTargetsIDTermsOKMethodBoxEgress
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposureDeleteExposureTargetsIDTermsOKOpenPortsItem struct {
+	IP string `json:"ip"`
+	// Set only on a port the newest scan did not report, kept from an earlier scan: the day a scan last
+	// saw it open (INV-22).
+	LastSeen OptString `json:"last_seen"`
+	// With last_seen: how many scans in a row that checked the address missed the port (1 = missed by the
+	// last scan).
+	Misses  OptInt    `json:"misses"`
+	Port    int       `json:"port"`
+	Product OptString `json:"product"`
+	Service string    `json:"service"`
+	// The newest scan did not check the address: the row is as an earlier scan left it.
+	Unchecked OptBool `json:"unchecked"`
+}
+
+// GetIP returns the value of IP.
+func (s *ExposureDeleteExposureTargetsIDTermsOKOpenPortsItem) GetIP() string {
+	return s.IP
+}
+
+// GetLastSeen returns the value of LastSeen.
+func (s *ExposureDeleteExposureTargetsIDTermsOKOpenPortsItem) GetLastSeen() OptString {
+	return s.LastSeen
+}
+
+// GetMisses returns the value of Misses.
+func (s *ExposureDeleteExposureTargetsIDTermsOKOpenPortsItem) GetMisses() OptInt {
+	return s.Misses
+}
+
+// GetPort returns the value of Port.
+func (s *ExposureDeleteExposureTargetsIDTermsOKOpenPortsItem) GetPort() int {
+	return s.Port
+}
+
+// GetProduct returns the value of Product.
+func (s *ExposureDeleteExposureTargetsIDTermsOKOpenPortsItem) GetProduct() OptString {
+	return s.Product
+}
+
+// GetService returns the value of Service.
+func (s *ExposureDeleteExposureTargetsIDTermsOKOpenPortsItem) GetService() string {
+	return s.Service
+}
+
+// GetUnchecked returns the value of Unchecked.
+func (s *ExposureDeleteExposureTargetsIDTermsOKOpenPortsItem) GetUnchecked() OptBool {
+	return s.Unchecked
+}
+
+// SetIP sets the value of IP.
+func (s *ExposureDeleteExposureTargetsIDTermsOKOpenPortsItem) SetIP(val string) {
+	s.IP = val
+}
+
+// SetLastSeen sets the value of LastSeen.
+func (s *ExposureDeleteExposureTargetsIDTermsOKOpenPortsItem) SetLastSeen(val OptString) {
+	s.LastSeen = val
+}
+
+// SetMisses sets the value of Misses.
+func (s *ExposureDeleteExposureTargetsIDTermsOKOpenPortsItem) SetMisses(val OptInt) {
+	s.Misses = val
+}
+
+// SetPort sets the value of Port.
+func (s *ExposureDeleteExposureTargetsIDTermsOKOpenPortsItem) SetPort(val int) {
+	s.Port = val
+}
+
+// SetProduct sets the value of Product.
+func (s *ExposureDeleteExposureTargetsIDTermsOKOpenPortsItem) SetProduct(val OptString) {
+	s.Product = val
+}
+
+// SetService sets the value of Service.
+func (s *ExposureDeleteExposureTargetsIDTermsOKOpenPortsItem) SetService(val string) {
+	s.Service = val
+}
+
+// SetUnchecked sets the value of Unchecked.
+func (s *ExposureDeleteExposureTargetsIDTermsOKOpenPortsItem) SetUnchecked(val OptBool) {
+	s.Unchecked = val
+}
+
+// Expired only exists for IPs: the box has not seen this IP for more than 30 days.
+type ExposureDeleteExposureTargetsIDTermsOKStatus string
+
+const (
+	ExposureDeleteExposureTargetsIDTermsOKStatusUnverified ExposureDeleteExposureTargetsIDTermsOKStatus = "unverified"
+	ExposureDeleteExposureTargetsIDTermsOKStatusVerified   ExposureDeleteExposureTargetsIDTermsOKStatus = "verified"
+	ExposureDeleteExposureTargetsIDTermsOKStatusExpired    ExposureDeleteExposureTargetsIDTermsOKStatus = "expired"
+)
+
+// AllValues returns all ExposureDeleteExposureTargetsIDTermsOKStatus values.
+func (ExposureDeleteExposureTargetsIDTermsOKStatus) AllValues() []ExposureDeleteExposureTargetsIDTermsOKStatus {
+	return []ExposureDeleteExposureTargetsIDTermsOKStatus{
+		ExposureDeleteExposureTargetsIDTermsOKStatusUnverified,
+		ExposureDeleteExposureTargetsIDTermsOKStatusVerified,
+		ExposureDeleteExposureTargetsIDTermsOKStatusExpired,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureDeleteExposureTargetsIDTermsOKStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureDeleteExposureTargetsIDTermsOKStatusUnverified:
+		return []byte(s), nil
+	case ExposureDeleteExposureTargetsIDTermsOKStatusVerified:
+		return []byte(s), nil
+	case ExposureDeleteExposureTargetsIDTermsOKStatusExpired:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureDeleteExposureTargetsIDTermsOKStatus) UnmarshalText(data []byte) error {
+	switch ExposureDeleteExposureTargetsIDTermsOKStatus(data) {
+	case ExposureDeleteExposureTargetsIDTermsOKStatusUnverified:
+		*s = ExposureDeleteExposureTargetsIDTermsOKStatusUnverified
+		return nil
+	case ExposureDeleteExposureTargetsIDTermsOKStatusVerified:
+		*s = ExposureDeleteExposureTargetsIDTermsOKStatusVerified
+		return nil
+	case ExposureDeleteExposureTargetsIDTermsOKStatusExpired:
+		*s = ExposureDeleteExposureTargetsIDTermsOKStatusExpired
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposureDeleteExposureTargetsIDTermsOKTerms struct {
+	At time.Time `json:"at"`
+	By string    `json:"by"`
+	// The extra tick: denial of service, brute-force and default-password logins too.
+	Disruptive bool `json:"disruptive"`
+	// The exact terms the administrator accepted, with the tick's sentence as the last line when ticked.
+	Text    string `json:"text"`
+	Version string `json:"version"`
+}
+
+// GetAt returns the value of At.
+func (s *ExposureDeleteExposureTargetsIDTermsOKTerms) GetAt() time.Time {
+	return s.At
+}
+
+// GetBy returns the value of By.
+func (s *ExposureDeleteExposureTargetsIDTermsOKTerms) GetBy() string {
+	return s.By
+}
+
+// GetDisruptive returns the value of Disruptive.
+func (s *ExposureDeleteExposureTargetsIDTermsOKTerms) GetDisruptive() bool {
+	return s.Disruptive
+}
+
+// GetText returns the value of Text.
+func (s *ExposureDeleteExposureTargetsIDTermsOKTerms) GetText() string {
+	return s.Text
+}
+
+// GetVersion returns the value of Version.
+func (s *ExposureDeleteExposureTargetsIDTermsOKTerms) GetVersion() string {
+	return s.Version
+}
+
+// SetAt sets the value of At.
+func (s *ExposureDeleteExposureTargetsIDTermsOKTerms) SetAt(val time.Time) {
+	s.At = val
+}
+
+// SetBy sets the value of By.
+func (s *ExposureDeleteExposureTargetsIDTermsOKTerms) SetBy(val string) {
+	s.By = val
+}
+
+// SetDisruptive sets the value of Disruptive.
+func (s *ExposureDeleteExposureTargetsIDTermsOKTerms) SetDisruptive(val bool) {
+	s.Disruptive = val
+}
+
+// SetText sets the value of Text.
+func (s *ExposureDeleteExposureTargetsIDTermsOKTerms) SetText(val string) {
+	s.Text = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ExposureDeleteExposureTargetsIDTermsOKTerms) SetVersion(val string) {
+	s.Version = val
+}
+
+// The current testing terms for this target, to accept or to read again.
+type ExposureDeleteExposureTargetsIDTermsOKTermsNotice struct {
+	// The sentence of the extra tick, off by default.
+	Disruptive string `json:"disruptive"`
+	// The terms with the target in them, one paragraph per line.
+	Text    string `json:"text"`
+	Version string `json:"version"`
+}
+
+// GetDisruptive returns the value of Disruptive.
+func (s *ExposureDeleteExposureTargetsIDTermsOKTermsNotice) GetDisruptive() string {
+	return s.Disruptive
+}
+
+// GetText returns the value of Text.
+func (s *ExposureDeleteExposureTargetsIDTermsOKTermsNotice) GetText() string {
+	return s.Text
+}
+
+// GetVersion returns the value of Version.
+func (s *ExposureDeleteExposureTargetsIDTermsOKTermsNotice) GetVersion() string {
+	return s.Version
+}
+
+// SetDisruptive sets the value of Disruptive.
+func (s *ExposureDeleteExposureTargetsIDTermsOKTermsNotice) SetDisruptive(val string) {
+	s.Disruptive = val
+}
+
+// SetText sets the value of Text.
+func (s *ExposureDeleteExposureTargetsIDTermsOKTermsNotice) SetText(val string) {
+	s.Text = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ExposureDeleteExposureTargetsIDTermsOKTermsNotice) SetVersion(val string) {
+	s.Version = val
+}
+
+type ExposureDeleteExposureTargetsIDTermsOKValidity string
+
+const (
+	ExposureDeleteExposureTargetsIDTermsOKValidityValid    ExposureDeleteExposureTargetsIDTermsOKValidity = "valid"
+	ExposureDeleteExposureTargetsIDTermsOKValidityExpiring ExposureDeleteExposureTargetsIDTermsOKValidity = "expiring"
+	ExposureDeleteExposureTargetsIDTermsOKValidityExpired  ExposureDeleteExposureTargetsIDTermsOKValidity = "expired"
+)
+
+// AllValues returns all ExposureDeleteExposureTargetsIDTermsOKValidity values.
+func (ExposureDeleteExposureTargetsIDTermsOKValidity) AllValues() []ExposureDeleteExposureTargetsIDTermsOKValidity {
+	return []ExposureDeleteExposureTargetsIDTermsOKValidity{
+		ExposureDeleteExposureTargetsIDTermsOKValidityValid,
+		ExposureDeleteExposureTargetsIDTermsOKValidityExpiring,
+		ExposureDeleteExposureTargetsIDTermsOKValidityExpired,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureDeleteExposureTargetsIDTermsOKValidity) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureDeleteExposureTargetsIDTermsOKValidityValid:
+		return []byte(s), nil
+	case ExposureDeleteExposureTargetsIDTermsOKValidityExpiring:
+		return []byte(s), nil
+	case ExposureDeleteExposureTargetsIDTermsOKValidityExpired:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureDeleteExposureTargetsIDTermsOKValidity) UnmarshalText(data []byte) error {
+	switch ExposureDeleteExposureTargetsIDTermsOKValidity(data) {
+	case ExposureDeleteExposureTargetsIDTermsOKValidityValid:
+		*s = ExposureDeleteExposureTargetsIDTermsOKValidityValid
+		return nil
+	case ExposureDeleteExposureTargetsIDTermsOKValidityExpiring:
+		*s = ExposureDeleteExposureTargetsIDTermsOKValidityExpiring
+		return nil
+	case ExposureDeleteExposureTargetsIDTermsOKValidityExpired:
+		*s = ExposureDeleteExposureTargetsIDTermsOKValidityExpired
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type ExposureGetExposureGreenboneOK struct {
 	ChangedAt NilDateTime `json:"changed_at"`
 	// Who last turned it on or off.
 	ChangedBy NilString `json:"changed_by"`
-	// The stored switch. It can be true while the state is unavailable (held back after it was turned on,
-	// D-564); the page then still offers Turn off, which the API accepts.
+	// The stored switch; the page offers Turn off whenever it is true.
 	Enabled bool `json:"enabled"`
 	// The weekly update of Greenbone's feed while it is enabled (D-564): never during a scan, refused
 	// below 60 GB free, audited.
@@ -42764,8 +43614,7 @@ type ExposureGetExposureGreenboneOK struct {
 	Preflight ExposureGetExposureGreenboneOKPreflight `json:"preflight"`
 	// Why, for unavailable and error; the feed sentence for loading; null otherwise.
 	Reason NilString `json:"reason"`
-	// Unavailable: not set up on this box, or held back while its own active checks on a public IP are
-	// reviewed (D-564, reason says which); loading: Greenbone is loading its feed (the first time takes
+	// Unavailable: not set up on this box; loading: Greenbone is loading its feed (the first time takes
 	// about 2 hours) or its weekly feed update, a phase and not a hang.
 	State ExposureGetExposureGreenboneOKState `json:"state"`
 }
@@ -42947,8 +43796,7 @@ func (s *ExposureGetExposureGreenboneOKPreflight) SetReason(val NilString) {
 	s.Reason = val
 }
 
-// Unavailable: not set up on this box, or held back while its own active checks on a public IP are
-// reviewed (D-564, reason says which); loading: Greenbone is loading its feed (the first time takes
+// Unavailable: not set up on this box; loading: Greenbone is loading its feed (the first time takes
 // about 2 hours) or its weekly feed update, a phase and not a hang.
 type ExposureGetExposureGreenboneOKState string
 
@@ -43729,7 +44577,10 @@ type ExposureGetExposureTargetsIDOK struct {
 	CommitmentNotice NilExposureGetExposureTargetsIDOKCommitmentNotice `json:"commitment_notice"`
 	CreatedAt        time.Time                                         `json:"created_at"`
 	// IP: verified_at + 30 days. Domain: null (the TXT record is re-checked right before every scan).
-	ExpiresAt  NilDateTime                                `json:"expires_at"`
+	ExpiresAt NilDateTime `json:"expires_at"`
+	// Scans of this target are deep scans: the current testing terms are accepted. Otherwise the K-4 scope
+	// of the Scan now sentence.
+	FullScan   bool                                       `json:"full_scan"`
 	ID         string                                     `json:"id"`
 	Kind       ExposureGetExposureTargetsIDOKKind         `json:"kind"`
 	LastCheck  NilExposureGetExposureTargetsIDOKLastCheck `json:"last_check"`
@@ -43742,6 +44593,11 @@ type ExposureGetExposureTargetsIDOK struct {
 	Scannable bool                                          `json:"scannable"`
 	// Expired only exists for IPs: the box has not seen this IP for more than 30 days.
 	Status ExposureGetExposureTargetsIDOKStatus `json:"status"`
+	// FULL-1 (D-566): the acceptance of the testing terms; null when none. An acceptance of an older
+	// version does not count (full_scan is false) until accepted again.
+	Terms NilExposureGetExposureTargetsIDOKTerms `json:"terms"`
+	// The current testing terms for this target, to accept or to read again.
+	TermsNotice ExposureGetExposureTargetsIDOKTermsNotice `json:"terms_notice"`
 	// Domain: the token in the TXT record vedette-verify= (not secret, it is public in DNS). IP: empty
 	// string.
 	Token string `json:"token"`
@@ -43776,6 +44632,11 @@ func (s *ExposureGetExposureTargetsIDOK) GetCreatedAt() time.Time {
 // GetExpiresAt returns the value of ExpiresAt.
 func (s *ExposureGetExposureTargetsIDOK) GetExpiresAt() NilDateTime {
 	return s.ExpiresAt
+}
+
+// GetFullScan returns the value of FullScan.
+func (s *ExposureGetExposureTargetsIDOK) GetFullScan() bool {
+	return s.FullScan
 }
 
 // GetID returns the value of ID.
@@ -43823,6 +44684,16 @@ func (s *ExposureGetExposureTargetsIDOK) GetStatus() ExposureGetExposureTargetsI
 	return s.Status
 }
 
+// GetTerms returns the value of Terms.
+func (s *ExposureGetExposureTargetsIDOK) GetTerms() NilExposureGetExposureTargetsIDOKTerms {
+	return s.Terms
+}
+
+// GetTermsNotice returns the value of TermsNotice.
+func (s *ExposureGetExposureTargetsIDOK) GetTermsNotice() ExposureGetExposureTargetsIDOKTermsNotice {
+	return s.TermsNotice
+}
+
 // GetToken returns the value of Token.
 func (s *ExposureGetExposureTargetsIDOK) GetToken() string {
 	return s.Token
@@ -43868,6 +44739,11 @@ func (s *ExposureGetExposureTargetsIDOK) SetExpiresAt(val NilDateTime) {
 	s.ExpiresAt = val
 }
 
+// SetFullScan sets the value of FullScan.
+func (s *ExposureGetExposureTargetsIDOK) SetFullScan(val bool) {
+	s.FullScan = val
+}
+
 // SetID sets the value of ID.
 func (s *ExposureGetExposureTargetsIDOK) SetID(val string) {
 	s.ID = val
@@ -43911,6 +44787,16 @@ func (s *ExposureGetExposureTargetsIDOK) SetScannable(val bool) {
 // SetStatus sets the value of Status.
 func (s *ExposureGetExposureTargetsIDOK) SetStatus(val ExposureGetExposureTargetsIDOKStatus) {
 	s.Status = val
+}
+
+// SetTerms sets the value of Terms.
+func (s *ExposureGetExposureTargetsIDOK) SetTerms(val NilExposureGetExposureTargetsIDOKTerms) {
+	s.Terms = val
+}
+
+// SetTermsNotice sets the value of TermsNotice.
+func (s *ExposureGetExposureTargetsIDOK) SetTermsNotice(val ExposureGetExposureTargetsIDOKTermsNotice) {
+	s.TermsNotice = val
 }
 
 // SetToken sets the value of Token.
@@ -44379,6 +45265,105 @@ func (s *ExposureGetExposureTargetsIDOKStatus) UnmarshalText(data []byte) error 
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
+}
+
+type ExposureGetExposureTargetsIDOKTerms struct {
+	At time.Time `json:"at"`
+	By string    `json:"by"`
+	// The extra tick: denial of service, brute-force and default-password logins too.
+	Disruptive bool `json:"disruptive"`
+	// The exact terms the administrator accepted, with the tick's sentence as the last line when ticked.
+	Text    string `json:"text"`
+	Version string `json:"version"`
+}
+
+// GetAt returns the value of At.
+func (s *ExposureGetExposureTargetsIDOKTerms) GetAt() time.Time {
+	return s.At
+}
+
+// GetBy returns the value of By.
+func (s *ExposureGetExposureTargetsIDOKTerms) GetBy() string {
+	return s.By
+}
+
+// GetDisruptive returns the value of Disruptive.
+func (s *ExposureGetExposureTargetsIDOKTerms) GetDisruptive() bool {
+	return s.Disruptive
+}
+
+// GetText returns the value of Text.
+func (s *ExposureGetExposureTargetsIDOKTerms) GetText() string {
+	return s.Text
+}
+
+// GetVersion returns the value of Version.
+func (s *ExposureGetExposureTargetsIDOKTerms) GetVersion() string {
+	return s.Version
+}
+
+// SetAt sets the value of At.
+func (s *ExposureGetExposureTargetsIDOKTerms) SetAt(val time.Time) {
+	s.At = val
+}
+
+// SetBy sets the value of By.
+func (s *ExposureGetExposureTargetsIDOKTerms) SetBy(val string) {
+	s.By = val
+}
+
+// SetDisruptive sets the value of Disruptive.
+func (s *ExposureGetExposureTargetsIDOKTerms) SetDisruptive(val bool) {
+	s.Disruptive = val
+}
+
+// SetText sets the value of Text.
+func (s *ExposureGetExposureTargetsIDOKTerms) SetText(val string) {
+	s.Text = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ExposureGetExposureTargetsIDOKTerms) SetVersion(val string) {
+	s.Version = val
+}
+
+// The current testing terms for this target, to accept or to read again.
+type ExposureGetExposureTargetsIDOKTermsNotice struct {
+	// The sentence of the extra tick, off by default.
+	Disruptive string `json:"disruptive"`
+	// The terms with the target in them, one paragraph per line.
+	Text    string `json:"text"`
+	Version string `json:"version"`
+}
+
+// GetDisruptive returns the value of Disruptive.
+func (s *ExposureGetExposureTargetsIDOKTermsNotice) GetDisruptive() string {
+	return s.Disruptive
+}
+
+// GetText returns the value of Text.
+func (s *ExposureGetExposureTargetsIDOKTermsNotice) GetText() string {
+	return s.Text
+}
+
+// GetVersion returns the value of Version.
+func (s *ExposureGetExposureTargetsIDOKTermsNotice) GetVersion() string {
+	return s.Version
+}
+
+// SetDisruptive sets the value of Disruptive.
+func (s *ExposureGetExposureTargetsIDOKTermsNotice) SetDisruptive(val string) {
+	s.Disruptive = val
+}
+
+// SetText sets the value of Text.
+func (s *ExposureGetExposureTargetsIDOKTermsNotice) SetText(val string) {
+	s.Text = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ExposureGetExposureTargetsIDOKTermsNotice) SetVersion(val string) {
+	s.Version = val
 }
 
 type ExposureGetExposureTargetsIDOKValidity string
@@ -46303,7 +47288,10 @@ type ExposureGetExposureTargetsOKItemsItem struct {
 	CommitmentNotice NilExposureGetExposureTargetsOKItemsItemCommitmentNotice `json:"commitment_notice"`
 	CreatedAt        time.Time                                                `json:"created_at"`
 	// IP: verified_at + 30 days. Domain: null (the TXT record is re-checked right before every scan).
-	ExpiresAt  NilDateTime                                       `json:"expires_at"`
+	ExpiresAt NilDateTime `json:"expires_at"`
+	// Scans of this target are deep scans: the current testing terms are accepted. Otherwise the K-4 scope
+	// of the Scan now sentence.
+	FullScan   bool                                              `json:"full_scan"`
 	ID         string                                            `json:"id"`
 	Kind       ExposureGetExposureTargetsOKItemsItemKind         `json:"kind"`
 	LastCheck  NilExposureGetExposureTargetsOKItemsItemLastCheck `json:"last_check"`
@@ -46316,6 +47304,11 @@ type ExposureGetExposureTargetsOKItemsItem struct {
 	Scannable bool                                                 `json:"scannable"`
 	// Expired only exists for IPs: the box has not seen this IP for more than 30 days.
 	Status ExposureGetExposureTargetsOKItemsItemStatus `json:"status"`
+	// FULL-1 (D-566): the acceptance of the testing terms; null when none. An acceptance of an older
+	// version does not count (full_scan is false) until accepted again.
+	Terms NilExposureGetExposureTargetsOKItemsItemTerms `json:"terms"`
+	// The current testing terms for this target, to accept or to read again.
+	TermsNotice ExposureGetExposureTargetsOKItemsItemTermsNotice `json:"terms_notice"`
 	// Domain: the token in the TXT record vedette-verify= (not secret, it is public in DNS). IP: empty
 	// string.
 	Token string `json:"token"`
@@ -46350,6 +47343,11 @@ func (s *ExposureGetExposureTargetsOKItemsItem) GetCreatedAt() time.Time {
 // GetExpiresAt returns the value of ExpiresAt.
 func (s *ExposureGetExposureTargetsOKItemsItem) GetExpiresAt() NilDateTime {
 	return s.ExpiresAt
+}
+
+// GetFullScan returns the value of FullScan.
+func (s *ExposureGetExposureTargetsOKItemsItem) GetFullScan() bool {
+	return s.FullScan
 }
 
 // GetID returns the value of ID.
@@ -46397,6 +47395,16 @@ func (s *ExposureGetExposureTargetsOKItemsItem) GetStatus() ExposureGetExposureT
 	return s.Status
 }
 
+// GetTerms returns the value of Terms.
+func (s *ExposureGetExposureTargetsOKItemsItem) GetTerms() NilExposureGetExposureTargetsOKItemsItemTerms {
+	return s.Terms
+}
+
+// GetTermsNotice returns the value of TermsNotice.
+func (s *ExposureGetExposureTargetsOKItemsItem) GetTermsNotice() ExposureGetExposureTargetsOKItemsItemTermsNotice {
+	return s.TermsNotice
+}
+
 // GetToken returns the value of Token.
 func (s *ExposureGetExposureTargetsOKItemsItem) GetToken() string {
 	return s.Token
@@ -46442,6 +47450,11 @@ func (s *ExposureGetExposureTargetsOKItemsItem) SetExpiresAt(val NilDateTime) {
 	s.ExpiresAt = val
 }
 
+// SetFullScan sets the value of FullScan.
+func (s *ExposureGetExposureTargetsOKItemsItem) SetFullScan(val bool) {
+	s.FullScan = val
+}
+
 // SetID sets the value of ID.
 func (s *ExposureGetExposureTargetsOKItemsItem) SetID(val string) {
 	s.ID = val
@@ -46485,6 +47498,16 @@ func (s *ExposureGetExposureTargetsOKItemsItem) SetScannable(val bool) {
 // SetStatus sets the value of Status.
 func (s *ExposureGetExposureTargetsOKItemsItem) SetStatus(val ExposureGetExposureTargetsOKItemsItemStatus) {
 	s.Status = val
+}
+
+// SetTerms sets the value of Terms.
+func (s *ExposureGetExposureTargetsOKItemsItem) SetTerms(val NilExposureGetExposureTargetsOKItemsItemTerms) {
+	s.Terms = val
+}
+
+// SetTermsNotice sets the value of TermsNotice.
+func (s *ExposureGetExposureTargetsOKItemsItem) SetTermsNotice(val ExposureGetExposureTargetsOKItemsItemTermsNotice) {
+	s.TermsNotice = val
 }
 
 // SetToken sets the value of Token.
@@ -46955,6 +47978,105 @@ func (s *ExposureGetExposureTargetsOKItemsItemStatus) UnmarshalText(data []byte)
 	}
 }
 
+type ExposureGetExposureTargetsOKItemsItemTerms struct {
+	At time.Time `json:"at"`
+	By string    `json:"by"`
+	// The extra tick: denial of service, brute-force and default-password logins too.
+	Disruptive bool `json:"disruptive"`
+	// The exact terms the administrator accepted, with the tick's sentence as the last line when ticked.
+	Text    string `json:"text"`
+	Version string `json:"version"`
+}
+
+// GetAt returns the value of At.
+func (s *ExposureGetExposureTargetsOKItemsItemTerms) GetAt() time.Time {
+	return s.At
+}
+
+// GetBy returns the value of By.
+func (s *ExposureGetExposureTargetsOKItemsItemTerms) GetBy() string {
+	return s.By
+}
+
+// GetDisruptive returns the value of Disruptive.
+func (s *ExposureGetExposureTargetsOKItemsItemTerms) GetDisruptive() bool {
+	return s.Disruptive
+}
+
+// GetText returns the value of Text.
+func (s *ExposureGetExposureTargetsOKItemsItemTerms) GetText() string {
+	return s.Text
+}
+
+// GetVersion returns the value of Version.
+func (s *ExposureGetExposureTargetsOKItemsItemTerms) GetVersion() string {
+	return s.Version
+}
+
+// SetAt sets the value of At.
+func (s *ExposureGetExposureTargetsOKItemsItemTerms) SetAt(val time.Time) {
+	s.At = val
+}
+
+// SetBy sets the value of By.
+func (s *ExposureGetExposureTargetsOKItemsItemTerms) SetBy(val string) {
+	s.By = val
+}
+
+// SetDisruptive sets the value of Disruptive.
+func (s *ExposureGetExposureTargetsOKItemsItemTerms) SetDisruptive(val bool) {
+	s.Disruptive = val
+}
+
+// SetText sets the value of Text.
+func (s *ExposureGetExposureTargetsOKItemsItemTerms) SetText(val string) {
+	s.Text = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ExposureGetExposureTargetsOKItemsItemTerms) SetVersion(val string) {
+	s.Version = val
+}
+
+// The current testing terms for this target, to accept or to read again.
+type ExposureGetExposureTargetsOKItemsItemTermsNotice struct {
+	// The sentence of the extra tick, off by default.
+	Disruptive string `json:"disruptive"`
+	// The terms with the target in them, one paragraph per line.
+	Text    string `json:"text"`
+	Version string `json:"version"`
+}
+
+// GetDisruptive returns the value of Disruptive.
+func (s *ExposureGetExposureTargetsOKItemsItemTermsNotice) GetDisruptive() string {
+	return s.Disruptive
+}
+
+// GetText returns the value of Text.
+func (s *ExposureGetExposureTargetsOKItemsItemTermsNotice) GetText() string {
+	return s.Text
+}
+
+// GetVersion returns the value of Version.
+func (s *ExposureGetExposureTargetsOKItemsItemTermsNotice) GetVersion() string {
+	return s.Version
+}
+
+// SetDisruptive sets the value of Disruptive.
+func (s *ExposureGetExposureTargetsOKItemsItemTermsNotice) SetDisruptive(val string) {
+	s.Disruptive = val
+}
+
+// SetText sets the value of Text.
+func (s *ExposureGetExposureTargetsOKItemsItemTermsNotice) SetText(val string) {
+	s.Text = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ExposureGetExposureTargetsOKItemsItemTermsNotice) SetVersion(val string) {
+	s.Version = val
+}
+
 type ExposureGetExposureTargetsOKItemsItemValidity string
 
 const (
@@ -47043,7 +48165,10 @@ type ExposurePostExposureBoxIPVerifyOKItemsItem struct {
 	CommitmentNotice NilExposurePostExposureBoxIPVerifyOKItemsItemCommitmentNotice `json:"commitment_notice"`
 	CreatedAt        time.Time                                                     `json:"created_at"`
 	// IP: verified_at + 30 days. Domain: null (the TXT record is re-checked right before every scan).
-	ExpiresAt  NilDateTime                                            `json:"expires_at"`
+	ExpiresAt NilDateTime `json:"expires_at"`
+	// Scans of this target are deep scans: the current testing terms are accepted. Otherwise the K-4 scope
+	// of the Scan now sentence.
+	FullScan   bool                                                   `json:"full_scan"`
 	ID         string                                                 `json:"id"`
 	Kind       ExposurePostExposureBoxIPVerifyOKItemsItemKind         `json:"kind"`
 	LastCheck  NilExposurePostExposureBoxIPVerifyOKItemsItemLastCheck `json:"last_check"`
@@ -47056,6 +48181,11 @@ type ExposurePostExposureBoxIPVerifyOKItemsItem struct {
 	Scannable bool                                                      `json:"scannable"`
 	// Expired only exists for IPs: the box has not seen this IP for more than 30 days.
 	Status ExposurePostExposureBoxIPVerifyOKItemsItemStatus `json:"status"`
+	// FULL-1 (D-566): the acceptance of the testing terms; null when none. An acceptance of an older
+	// version does not count (full_scan is false) until accepted again.
+	Terms NilExposurePostExposureBoxIPVerifyOKItemsItemTerms `json:"terms"`
+	// The current testing terms for this target, to accept or to read again.
+	TermsNotice ExposurePostExposureBoxIPVerifyOKItemsItemTermsNotice `json:"terms_notice"`
 	// Domain: the token in the TXT record vedette-verify= (not secret, it is public in DNS). IP: empty
 	// string.
 	Token string `json:"token"`
@@ -47090,6 +48220,11 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) GetCreatedAt() time.Time {
 // GetExpiresAt returns the value of ExpiresAt.
 func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) GetExpiresAt() NilDateTime {
 	return s.ExpiresAt
+}
+
+// GetFullScan returns the value of FullScan.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) GetFullScan() bool {
+	return s.FullScan
 }
 
 // GetID returns the value of ID.
@@ -47137,6 +48272,16 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) GetStatus() ExposurePostExp
 	return s.Status
 }
 
+// GetTerms returns the value of Terms.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) GetTerms() NilExposurePostExposureBoxIPVerifyOKItemsItemTerms {
+	return s.Terms
+}
+
+// GetTermsNotice returns the value of TermsNotice.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) GetTermsNotice() ExposurePostExposureBoxIPVerifyOKItemsItemTermsNotice {
+	return s.TermsNotice
+}
+
 // GetToken returns the value of Token.
 func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) GetToken() string {
 	return s.Token
@@ -47182,6 +48327,11 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) SetExpiresAt(val NilDateTim
 	s.ExpiresAt = val
 }
 
+// SetFullScan sets the value of FullScan.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) SetFullScan(val bool) {
+	s.FullScan = val
+}
+
 // SetID sets the value of ID.
 func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) SetID(val string) {
 	s.ID = val
@@ -47225,6 +48375,16 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) SetScannable(val bool) {
 // SetStatus sets the value of Status.
 func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) SetStatus(val ExposurePostExposureBoxIPVerifyOKItemsItemStatus) {
 	s.Status = val
+}
+
+// SetTerms sets the value of Terms.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) SetTerms(val NilExposurePostExposureBoxIPVerifyOKItemsItemTerms) {
+	s.Terms = val
+}
+
+// SetTermsNotice sets the value of TermsNotice.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) SetTermsNotice(val ExposurePostExposureBoxIPVerifyOKItemsItemTermsNotice) {
+	s.TermsNotice = val
 }
 
 // SetToken sets the value of Token.
@@ -47695,6 +48855,105 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItemStatus) UnmarshalText(data []
 	}
 }
 
+type ExposurePostExposureBoxIPVerifyOKItemsItemTerms struct {
+	At time.Time `json:"at"`
+	By string    `json:"by"`
+	// The extra tick: denial of service, brute-force and default-password logins too.
+	Disruptive bool `json:"disruptive"`
+	// The exact terms the administrator accepted, with the tick's sentence as the last line when ticked.
+	Text    string `json:"text"`
+	Version string `json:"version"`
+}
+
+// GetAt returns the value of At.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemTerms) GetAt() time.Time {
+	return s.At
+}
+
+// GetBy returns the value of By.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemTerms) GetBy() string {
+	return s.By
+}
+
+// GetDisruptive returns the value of Disruptive.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemTerms) GetDisruptive() bool {
+	return s.Disruptive
+}
+
+// GetText returns the value of Text.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemTerms) GetText() string {
+	return s.Text
+}
+
+// GetVersion returns the value of Version.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemTerms) GetVersion() string {
+	return s.Version
+}
+
+// SetAt sets the value of At.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemTerms) SetAt(val time.Time) {
+	s.At = val
+}
+
+// SetBy sets the value of By.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemTerms) SetBy(val string) {
+	s.By = val
+}
+
+// SetDisruptive sets the value of Disruptive.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemTerms) SetDisruptive(val bool) {
+	s.Disruptive = val
+}
+
+// SetText sets the value of Text.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemTerms) SetText(val string) {
+	s.Text = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemTerms) SetVersion(val string) {
+	s.Version = val
+}
+
+// The current testing terms for this target, to accept or to read again.
+type ExposurePostExposureBoxIPVerifyOKItemsItemTermsNotice struct {
+	// The sentence of the extra tick, off by default.
+	Disruptive string `json:"disruptive"`
+	// The terms with the target in them, one paragraph per line.
+	Text    string `json:"text"`
+	Version string `json:"version"`
+}
+
+// GetDisruptive returns the value of Disruptive.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemTermsNotice) GetDisruptive() string {
+	return s.Disruptive
+}
+
+// GetText returns the value of Text.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemTermsNotice) GetText() string {
+	return s.Text
+}
+
+// GetVersion returns the value of Version.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemTermsNotice) GetVersion() string {
+	return s.Version
+}
+
+// SetDisruptive sets the value of Disruptive.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemTermsNotice) SetDisruptive(val string) {
+	s.Disruptive = val
+}
+
+// SetText sets the value of Text.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemTermsNotice) SetText(val string) {
+	s.Text = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemTermsNotice) SetVersion(val string) {
+	s.Version = val
+}
+
 type ExposurePostExposureBoxIPVerifyOKItemsItemValidity string
 
 const (
@@ -48025,7 +49284,10 @@ type ExposurePostExposureTargetsCreated struct {
 	CommitmentNotice NilExposurePostExposureTargetsCreatedCommitmentNotice `json:"commitment_notice"`
 	CreatedAt        time.Time                                             `json:"created_at"`
 	// IP: verified_at + 30 days. Domain: null (the TXT record is re-checked right before every scan).
-	ExpiresAt  NilDateTime                                    `json:"expires_at"`
+	ExpiresAt NilDateTime `json:"expires_at"`
+	// Scans of this target are deep scans: the current testing terms are accepted. Otherwise the K-4 scope
+	// of the Scan now sentence.
+	FullScan   bool                                           `json:"full_scan"`
 	ID         string                                         `json:"id"`
 	Kind       ExposurePostExposureTargetsCreatedKind         `json:"kind"`
 	LastCheck  NilExposurePostExposureTargetsCreatedLastCheck `json:"last_check"`
@@ -48038,6 +49300,11 @@ type ExposurePostExposureTargetsCreated struct {
 	Scannable bool                                              `json:"scannable"`
 	// Expired only exists for IPs: the box has not seen this IP for more than 30 days.
 	Status ExposurePostExposureTargetsCreatedStatus `json:"status"`
+	// FULL-1 (D-566): the acceptance of the testing terms; null when none. An acceptance of an older
+	// version does not count (full_scan is false) until accepted again.
+	Terms NilExposurePostExposureTargetsCreatedTerms `json:"terms"`
+	// The current testing terms for this target, to accept or to read again.
+	TermsNotice ExposurePostExposureTargetsCreatedTermsNotice `json:"terms_notice"`
 	// Domain: the token in the TXT record vedette-verify= (not secret, it is public in DNS). IP: empty
 	// string.
 	Token string `json:"token"`
@@ -48072,6 +49339,11 @@ func (s *ExposurePostExposureTargetsCreated) GetCreatedAt() time.Time {
 // GetExpiresAt returns the value of ExpiresAt.
 func (s *ExposurePostExposureTargetsCreated) GetExpiresAt() NilDateTime {
 	return s.ExpiresAt
+}
+
+// GetFullScan returns the value of FullScan.
+func (s *ExposurePostExposureTargetsCreated) GetFullScan() bool {
+	return s.FullScan
 }
 
 // GetID returns the value of ID.
@@ -48119,6 +49391,16 @@ func (s *ExposurePostExposureTargetsCreated) GetStatus() ExposurePostExposureTar
 	return s.Status
 }
 
+// GetTerms returns the value of Terms.
+func (s *ExposurePostExposureTargetsCreated) GetTerms() NilExposurePostExposureTargetsCreatedTerms {
+	return s.Terms
+}
+
+// GetTermsNotice returns the value of TermsNotice.
+func (s *ExposurePostExposureTargetsCreated) GetTermsNotice() ExposurePostExposureTargetsCreatedTermsNotice {
+	return s.TermsNotice
+}
+
 // GetToken returns the value of Token.
 func (s *ExposurePostExposureTargetsCreated) GetToken() string {
 	return s.Token
@@ -48164,6 +49446,11 @@ func (s *ExposurePostExposureTargetsCreated) SetExpiresAt(val NilDateTime) {
 	s.ExpiresAt = val
 }
 
+// SetFullScan sets the value of FullScan.
+func (s *ExposurePostExposureTargetsCreated) SetFullScan(val bool) {
+	s.FullScan = val
+}
+
 // SetID sets the value of ID.
 func (s *ExposurePostExposureTargetsCreated) SetID(val string) {
 	s.ID = val
@@ -48207,6 +49494,16 @@ func (s *ExposurePostExposureTargetsCreated) SetScannable(val bool) {
 // SetStatus sets the value of Status.
 func (s *ExposurePostExposureTargetsCreated) SetStatus(val ExposurePostExposureTargetsCreatedStatus) {
 	s.Status = val
+}
+
+// SetTerms sets the value of Terms.
+func (s *ExposurePostExposureTargetsCreated) SetTerms(val NilExposurePostExposureTargetsCreatedTerms) {
+	s.Terms = val
+}
+
+// SetTermsNotice sets the value of TermsNotice.
+func (s *ExposurePostExposureTargetsCreated) SetTermsNotice(val ExposurePostExposureTargetsCreatedTermsNotice) {
+	s.TermsNotice = val
 }
 
 // SetToken sets the value of Token.
@@ -48675,6 +49972,105 @@ func (s *ExposurePostExposureTargetsCreatedStatus) UnmarshalText(data []byte) er
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
+}
+
+type ExposurePostExposureTargetsCreatedTerms struct {
+	At time.Time `json:"at"`
+	By string    `json:"by"`
+	// The extra tick: denial of service, brute-force and default-password logins too.
+	Disruptive bool `json:"disruptive"`
+	// The exact terms the administrator accepted, with the tick's sentence as the last line when ticked.
+	Text    string `json:"text"`
+	Version string `json:"version"`
+}
+
+// GetAt returns the value of At.
+func (s *ExposurePostExposureTargetsCreatedTerms) GetAt() time.Time {
+	return s.At
+}
+
+// GetBy returns the value of By.
+func (s *ExposurePostExposureTargetsCreatedTerms) GetBy() string {
+	return s.By
+}
+
+// GetDisruptive returns the value of Disruptive.
+func (s *ExposurePostExposureTargetsCreatedTerms) GetDisruptive() bool {
+	return s.Disruptive
+}
+
+// GetText returns the value of Text.
+func (s *ExposurePostExposureTargetsCreatedTerms) GetText() string {
+	return s.Text
+}
+
+// GetVersion returns the value of Version.
+func (s *ExposurePostExposureTargetsCreatedTerms) GetVersion() string {
+	return s.Version
+}
+
+// SetAt sets the value of At.
+func (s *ExposurePostExposureTargetsCreatedTerms) SetAt(val time.Time) {
+	s.At = val
+}
+
+// SetBy sets the value of By.
+func (s *ExposurePostExposureTargetsCreatedTerms) SetBy(val string) {
+	s.By = val
+}
+
+// SetDisruptive sets the value of Disruptive.
+func (s *ExposurePostExposureTargetsCreatedTerms) SetDisruptive(val bool) {
+	s.Disruptive = val
+}
+
+// SetText sets the value of Text.
+func (s *ExposurePostExposureTargetsCreatedTerms) SetText(val string) {
+	s.Text = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ExposurePostExposureTargetsCreatedTerms) SetVersion(val string) {
+	s.Version = val
+}
+
+// The current testing terms for this target, to accept or to read again.
+type ExposurePostExposureTargetsCreatedTermsNotice struct {
+	// The sentence of the extra tick, off by default.
+	Disruptive string `json:"disruptive"`
+	// The terms with the target in them, one paragraph per line.
+	Text    string `json:"text"`
+	Version string `json:"version"`
+}
+
+// GetDisruptive returns the value of Disruptive.
+func (s *ExposurePostExposureTargetsCreatedTermsNotice) GetDisruptive() string {
+	return s.Disruptive
+}
+
+// GetText returns the value of Text.
+func (s *ExposurePostExposureTargetsCreatedTermsNotice) GetText() string {
+	return s.Text
+}
+
+// GetVersion returns the value of Version.
+func (s *ExposurePostExposureTargetsCreatedTermsNotice) GetVersion() string {
+	return s.Version
+}
+
+// SetDisruptive sets the value of Disruptive.
+func (s *ExposurePostExposureTargetsCreatedTermsNotice) SetDisruptive(val string) {
+	s.Disruptive = val
+}
+
+// SetText sets the value of Text.
+func (s *ExposurePostExposureTargetsCreatedTermsNotice) SetText(val string) {
+	s.Text = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ExposurePostExposureTargetsCreatedTermsNotice) SetVersion(val string) {
+	s.Version = val
 }
 
 type ExposurePostExposureTargetsCreatedValidity string
@@ -49193,7 +50589,10 @@ type ExposurePostExposureTargetsIDVerifyOKTarget struct {
 	CommitmentNotice NilExposurePostExposureTargetsIDVerifyOKTargetCommitmentNotice `json:"commitment_notice"`
 	CreatedAt        time.Time                                                      `json:"created_at"`
 	// IP: verified_at + 30 days. Domain: null (the TXT record is re-checked right before every scan).
-	ExpiresAt  NilDateTime                                             `json:"expires_at"`
+	ExpiresAt NilDateTime `json:"expires_at"`
+	// Scans of this target are deep scans: the current testing terms are accepted. Otherwise the K-4 scope
+	// of the Scan now sentence.
+	FullScan   bool                                                    `json:"full_scan"`
 	ID         string                                                  `json:"id"`
 	Kind       ExposurePostExposureTargetsIDVerifyOKTargetKind         `json:"kind"`
 	LastCheck  NilExposurePostExposureTargetsIDVerifyOKTargetLastCheck `json:"last_check"`
@@ -49206,6 +50605,11 @@ type ExposurePostExposureTargetsIDVerifyOKTarget struct {
 	Scannable bool                                                       `json:"scannable"`
 	// Expired only exists for IPs: the box has not seen this IP for more than 30 days.
 	Status ExposurePostExposureTargetsIDVerifyOKTargetStatus `json:"status"`
+	// FULL-1 (D-566): the acceptance of the testing terms; null when none. An acceptance of an older
+	// version does not count (full_scan is false) until accepted again.
+	Terms NilExposurePostExposureTargetsIDVerifyOKTargetTerms `json:"terms"`
+	// The current testing terms for this target, to accept or to read again.
+	TermsNotice ExposurePostExposureTargetsIDVerifyOKTargetTermsNotice `json:"terms_notice"`
 	// Domain: the token in the TXT record vedette-verify= (not secret, it is public in DNS). IP: empty
 	// string.
 	Token string `json:"token"`
@@ -49240,6 +50644,11 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTarget) GetCreatedAt() time.Time {
 // GetExpiresAt returns the value of ExpiresAt.
 func (s *ExposurePostExposureTargetsIDVerifyOKTarget) GetExpiresAt() NilDateTime {
 	return s.ExpiresAt
+}
+
+// GetFullScan returns the value of FullScan.
+func (s *ExposurePostExposureTargetsIDVerifyOKTarget) GetFullScan() bool {
+	return s.FullScan
 }
 
 // GetID returns the value of ID.
@@ -49287,6 +50696,16 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTarget) GetStatus() ExposurePostEx
 	return s.Status
 }
 
+// GetTerms returns the value of Terms.
+func (s *ExposurePostExposureTargetsIDVerifyOKTarget) GetTerms() NilExposurePostExposureTargetsIDVerifyOKTargetTerms {
+	return s.Terms
+}
+
+// GetTermsNotice returns the value of TermsNotice.
+func (s *ExposurePostExposureTargetsIDVerifyOKTarget) GetTermsNotice() ExposurePostExposureTargetsIDVerifyOKTargetTermsNotice {
+	return s.TermsNotice
+}
+
 // GetToken returns the value of Token.
 func (s *ExposurePostExposureTargetsIDVerifyOKTarget) GetToken() string {
 	return s.Token
@@ -49332,6 +50751,11 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTarget) SetExpiresAt(val NilDateTi
 	s.ExpiresAt = val
 }
 
+// SetFullScan sets the value of FullScan.
+func (s *ExposurePostExposureTargetsIDVerifyOKTarget) SetFullScan(val bool) {
+	s.FullScan = val
+}
+
 // SetID sets the value of ID.
 func (s *ExposurePostExposureTargetsIDVerifyOKTarget) SetID(val string) {
 	s.ID = val
@@ -49375,6 +50799,16 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTarget) SetScannable(val bool) {
 // SetStatus sets the value of Status.
 func (s *ExposurePostExposureTargetsIDVerifyOKTarget) SetStatus(val ExposurePostExposureTargetsIDVerifyOKTargetStatus) {
 	s.Status = val
+}
+
+// SetTerms sets the value of Terms.
+func (s *ExposurePostExposureTargetsIDVerifyOKTarget) SetTerms(val NilExposurePostExposureTargetsIDVerifyOKTargetTerms) {
+	s.Terms = val
+}
+
+// SetTermsNotice sets the value of TermsNotice.
+func (s *ExposurePostExposureTargetsIDVerifyOKTarget) SetTermsNotice(val ExposurePostExposureTargetsIDVerifyOKTargetTermsNotice) {
+	s.TermsNotice = val
 }
 
 // SetToken sets the value of Token.
@@ -49845,6 +51279,105 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTargetStatus) UnmarshalText(data [
 	}
 }
 
+type ExposurePostExposureTargetsIDVerifyOKTargetTerms struct {
+	At time.Time `json:"at"`
+	By string    `json:"by"`
+	// The extra tick: denial of service, brute-force and default-password logins too.
+	Disruptive bool `json:"disruptive"`
+	// The exact terms the administrator accepted, with the tick's sentence as the last line when ticked.
+	Text    string `json:"text"`
+	Version string `json:"version"`
+}
+
+// GetAt returns the value of At.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetTerms) GetAt() time.Time {
+	return s.At
+}
+
+// GetBy returns the value of By.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetTerms) GetBy() string {
+	return s.By
+}
+
+// GetDisruptive returns the value of Disruptive.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetTerms) GetDisruptive() bool {
+	return s.Disruptive
+}
+
+// GetText returns the value of Text.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetTerms) GetText() string {
+	return s.Text
+}
+
+// GetVersion returns the value of Version.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetTerms) GetVersion() string {
+	return s.Version
+}
+
+// SetAt sets the value of At.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetTerms) SetAt(val time.Time) {
+	s.At = val
+}
+
+// SetBy sets the value of By.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetTerms) SetBy(val string) {
+	s.By = val
+}
+
+// SetDisruptive sets the value of Disruptive.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetTerms) SetDisruptive(val bool) {
+	s.Disruptive = val
+}
+
+// SetText sets the value of Text.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetTerms) SetText(val string) {
+	s.Text = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetTerms) SetVersion(val string) {
+	s.Version = val
+}
+
+// The current testing terms for this target, to accept or to read again.
+type ExposurePostExposureTargetsIDVerifyOKTargetTermsNotice struct {
+	// The sentence of the extra tick, off by default.
+	Disruptive string `json:"disruptive"`
+	// The terms with the target in them, one paragraph per line.
+	Text    string `json:"text"`
+	Version string `json:"version"`
+}
+
+// GetDisruptive returns the value of Disruptive.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetTermsNotice) GetDisruptive() string {
+	return s.Disruptive
+}
+
+// GetText returns the value of Text.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetTermsNotice) GetText() string {
+	return s.Text
+}
+
+// GetVersion returns the value of Version.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetTermsNotice) GetVersion() string {
+	return s.Version
+}
+
+// SetDisruptive sets the value of Disruptive.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetTermsNotice) SetDisruptive(val string) {
+	s.Disruptive = val
+}
+
+// SetText sets the value of Text.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetTermsNotice) SetText(val string) {
+	s.Text = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetTermsNotice) SetVersion(val string) {
+	s.Version = val
+}
+
 type ExposurePostExposureTargetsIDVerifyOKTargetValidity string
 
 const (
@@ -50026,8 +51559,7 @@ type ExposurePutExposureGreenboneOK struct {
 	ChangedAt NilDateTime `json:"changed_at"`
 	// Who last turned it on or off.
 	ChangedBy NilString `json:"changed_by"`
-	// The stored switch. It can be true while the state is unavailable (held back after it was turned on,
-	// D-564); the page then still offers Turn off, which the API accepts.
+	// The stored switch; the page offers Turn off whenever it is true.
 	Enabled bool `json:"enabled"`
 	// The weekly update of Greenbone's feed while it is enabled (D-564): never during a scan, refused
 	// below 60 GB free, audited.
@@ -50035,8 +51567,7 @@ type ExposurePutExposureGreenboneOK struct {
 	Preflight ExposurePutExposureGreenboneOKPreflight `json:"preflight"`
 	// Why, for unavailable and error; the feed sentence for loading; null otherwise.
 	Reason NilString `json:"reason"`
-	// Unavailable: not set up on this box, or held back while its own active checks on a public IP are
-	// reviewed (D-564, reason says which); loading: Greenbone is loading its feed (the first time takes
+	// Unavailable: not set up on this box; loading: Greenbone is loading its feed (the first time takes
 	// about 2 hours) or its weekly feed update, a phase and not a hang.
 	State ExposurePutExposureGreenboneOKState `json:"state"`
 }
@@ -50218,8 +51749,7 @@ func (s *ExposurePutExposureGreenboneOKPreflight) SetReason(val NilString) {
 	s.Reason = val
 }
 
-// Unavailable: not set up on this box, or held back while its own active checks on a public IP are
-// reviewed (D-564, reason says which); loading: Greenbone is loading its feed (the first time takes
+// Unavailable: not set up on this box; loading: Greenbone is loading its feed (the first time takes
 // about 2 hours) or its weekly feed update, a phase and not a hang.
 type ExposurePutExposureGreenboneOKState string
 
@@ -50302,6 +51832,883 @@ func (s *ExposurePutExposureGreenboneReq) GetEnabled() bool {
 // SetEnabled sets the value of Enabled.
 func (s *ExposurePutExposureGreenboneReq) SetEnabled(val bool) {
 	s.Enabled = val
+}
+
+type ExposurePutExposureTargetsIDTermsOK struct {
+	// Why it cannot be scanned yet; null = can be scanned. ip_not_current (IPs only): the last full check
+	// that got an answer did not see the IP and no check since has, so scans are paused (until a later
+	// check sees it) while the IP stays in the list; verified_at is when the box last saw it.
+	BlockedReason NilExposurePutExposureTargetsIDTermsOKBlockedReason `json:"blocked_reason"`
+	// Recorded by the first Scan now of an administrator with two-step sign-in (D-473): who, when and the
+	// exact sentence shown next to the button.
+	Commitment NilExposurePutExposureTargetsIDTermsOKCommitment `json:"commitment"`
+	// The sentence the first Scan now of an administrator confirms, with this target in it; null once the
+	// target has a commitment of the current sentence; an older one is asked again once (D-559), so a
+	// target with a commitment can carry it too.
+	CommitmentNotice NilExposurePutExposureTargetsIDTermsOKCommitmentNotice `json:"commitment_notice"`
+	CreatedAt        time.Time                                              `json:"created_at"`
+	// IP: verified_at + 30 days. Domain: null (the TXT record is re-checked right before every scan).
+	ExpiresAt NilDateTime `json:"expires_at"`
+	// Scans of this target are deep scans: the current testing terms are accepted. Otherwise the K-4 scope
+	// of the Scan now sentence.
+	FullScan   bool                                            `json:"full_scan"`
+	ID         string                                          `json:"id"`
+	Kind       ExposurePutExposureTargetsIDTermsOKKind         `json:"kind"`
+	LastCheck  NilExposurePutExposureTargetsIDTermsOKLastCheck `json:"last_check"`
+	LastScanAt NilDateTime                                     `json:"last_scan_at"`
+	Latest     NilExposurePutExposureTargetsIDTermsOKLatest    `json:"latest"`
+	Method     NilExposurePutExposureTargetsIDTermsOKMethod    `json:"method"`
+	// The first 20 open ports of the newest scan, in its order (latest.ports is the total), so the list
+	// can say what is open; null when never scanned.
+	OpenPorts []ExposurePutExposureTargetsIDTermsOKOpenPortsItem `json:"open_ports"`
+	Scannable bool                                               `json:"scannable"`
+	// Expired only exists for IPs: the box has not seen this IP for more than 30 days.
+	Status ExposurePutExposureTargetsIDTermsOKStatus `json:"status"`
+	// FULL-1 (D-566): the acceptance of the testing terms; null when none. An acceptance of an older
+	// version does not count (full_scan is false) until accepted again.
+	Terms NilExposurePutExposureTargetsIDTermsOKTerms `json:"terms"`
+	// The current testing terms for this target, to accept or to read again.
+	TermsNotice ExposurePutExposureTargetsIDTermsOKTermsNotice `json:"terms_notice"`
+	// Domain: the token in the TXT record vedette-verify= (not secret, it is public in DNS). IP: empty
+	// string.
+	Token string `json:"token"`
+	// IPs only: expiring = 5 days or less left.
+	Validity NilExposurePutExposureTargetsIDTermsOKValidity `json:"validity"`
+	Value    string                                         `json:"value"`
+	// Domain: first successful verification. IP: the last time the box saw this IP (every sighting renews
+	// it).
+	VerifiedAt NilDateTime `json:"verified_at"`
+}
+
+// GetBlockedReason returns the value of BlockedReason.
+func (s *ExposurePutExposureTargetsIDTermsOK) GetBlockedReason() NilExposurePutExposureTargetsIDTermsOKBlockedReason {
+	return s.BlockedReason
+}
+
+// GetCommitment returns the value of Commitment.
+func (s *ExposurePutExposureTargetsIDTermsOK) GetCommitment() NilExposurePutExposureTargetsIDTermsOKCommitment {
+	return s.Commitment
+}
+
+// GetCommitmentNotice returns the value of CommitmentNotice.
+func (s *ExposurePutExposureTargetsIDTermsOK) GetCommitmentNotice() NilExposurePutExposureTargetsIDTermsOKCommitmentNotice {
+	return s.CommitmentNotice
+}
+
+// GetCreatedAt returns the value of CreatedAt.
+func (s *ExposurePutExposureTargetsIDTermsOK) GetCreatedAt() time.Time {
+	return s.CreatedAt
+}
+
+// GetExpiresAt returns the value of ExpiresAt.
+func (s *ExposurePutExposureTargetsIDTermsOK) GetExpiresAt() NilDateTime {
+	return s.ExpiresAt
+}
+
+// GetFullScan returns the value of FullScan.
+func (s *ExposurePutExposureTargetsIDTermsOK) GetFullScan() bool {
+	return s.FullScan
+}
+
+// GetID returns the value of ID.
+func (s *ExposurePutExposureTargetsIDTermsOK) GetID() string {
+	return s.ID
+}
+
+// GetKind returns the value of Kind.
+func (s *ExposurePutExposureTargetsIDTermsOK) GetKind() ExposurePutExposureTargetsIDTermsOKKind {
+	return s.Kind
+}
+
+// GetLastCheck returns the value of LastCheck.
+func (s *ExposurePutExposureTargetsIDTermsOK) GetLastCheck() NilExposurePutExposureTargetsIDTermsOKLastCheck {
+	return s.LastCheck
+}
+
+// GetLastScanAt returns the value of LastScanAt.
+func (s *ExposurePutExposureTargetsIDTermsOK) GetLastScanAt() NilDateTime {
+	return s.LastScanAt
+}
+
+// GetLatest returns the value of Latest.
+func (s *ExposurePutExposureTargetsIDTermsOK) GetLatest() NilExposurePutExposureTargetsIDTermsOKLatest {
+	return s.Latest
+}
+
+// GetMethod returns the value of Method.
+func (s *ExposurePutExposureTargetsIDTermsOK) GetMethod() NilExposurePutExposureTargetsIDTermsOKMethod {
+	return s.Method
+}
+
+// GetOpenPorts returns the value of OpenPorts.
+func (s *ExposurePutExposureTargetsIDTermsOK) GetOpenPorts() []ExposurePutExposureTargetsIDTermsOKOpenPortsItem {
+	return s.OpenPorts
+}
+
+// GetScannable returns the value of Scannable.
+func (s *ExposurePutExposureTargetsIDTermsOK) GetScannable() bool {
+	return s.Scannable
+}
+
+// GetStatus returns the value of Status.
+func (s *ExposurePutExposureTargetsIDTermsOK) GetStatus() ExposurePutExposureTargetsIDTermsOKStatus {
+	return s.Status
+}
+
+// GetTerms returns the value of Terms.
+func (s *ExposurePutExposureTargetsIDTermsOK) GetTerms() NilExposurePutExposureTargetsIDTermsOKTerms {
+	return s.Terms
+}
+
+// GetTermsNotice returns the value of TermsNotice.
+func (s *ExposurePutExposureTargetsIDTermsOK) GetTermsNotice() ExposurePutExposureTargetsIDTermsOKTermsNotice {
+	return s.TermsNotice
+}
+
+// GetToken returns the value of Token.
+func (s *ExposurePutExposureTargetsIDTermsOK) GetToken() string {
+	return s.Token
+}
+
+// GetValidity returns the value of Validity.
+func (s *ExposurePutExposureTargetsIDTermsOK) GetValidity() NilExposurePutExposureTargetsIDTermsOKValidity {
+	return s.Validity
+}
+
+// GetValue returns the value of Value.
+func (s *ExposurePutExposureTargetsIDTermsOK) GetValue() string {
+	return s.Value
+}
+
+// GetVerifiedAt returns the value of VerifiedAt.
+func (s *ExposurePutExposureTargetsIDTermsOK) GetVerifiedAt() NilDateTime {
+	return s.VerifiedAt
+}
+
+// SetBlockedReason sets the value of BlockedReason.
+func (s *ExposurePutExposureTargetsIDTermsOK) SetBlockedReason(val NilExposurePutExposureTargetsIDTermsOKBlockedReason) {
+	s.BlockedReason = val
+}
+
+// SetCommitment sets the value of Commitment.
+func (s *ExposurePutExposureTargetsIDTermsOK) SetCommitment(val NilExposurePutExposureTargetsIDTermsOKCommitment) {
+	s.Commitment = val
+}
+
+// SetCommitmentNotice sets the value of CommitmentNotice.
+func (s *ExposurePutExposureTargetsIDTermsOK) SetCommitmentNotice(val NilExposurePutExposureTargetsIDTermsOKCommitmentNotice) {
+	s.CommitmentNotice = val
+}
+
+// SetCreatedAt sets the value of CreatedAt.
+func (s *ExposurePutExposureTargetsIDTermsOK) SetCreatedAt(val time.Time) {
+	s.CreatedAt = val
+}
+
+// SetExpiresAt sets the value of ExpiresAt.
+func (s *ExposurePutExposureTargetsIDTermsOK) SetExpiresAt(val NilDateTime) {
+	s.ExpiresAt = val
+}
+
+// SetFullScan sets the value of FullScan.
+func (s *ExposurePutExposureTargetsIDTermsOK) SetFullScan(val bool) {
+	s.FullScan = val
+}
+
+// SetID sets the value of ID.
+func (s *ExposurePutExposureTargetsIDTermsOK) SetID(val string) {
+	s.ID = val
+}
+
+// SetKind sets the value of Kind.
+func (s *ExposurePutExposureTargetsIDTermsOK) SetKind(val ExposurePutExposureTargetsIDTermsOKKind) {
+	s.Kind = val
+}
+
+// SetLastCheck sets the value of LastCheck.
+func (s *ExposurePutExposureTargetsIDTermsOK) SetLastCheck(val NilExposurePutExposureTargetsIDTermsOKLastCheck) {
+	s.LastCheck = val
+}
+
+// SetLastScanAt sets the value of LastScanAt.
+func (s *ExposurePutExposureTargetsIDTermsOK) SetLastScanAt(val NilDateTime) {
+	s.LastScanAt = val
+}
+
+// SetLatest sets the value of Latest.
+func (s *ExposurePutExposureTargetsIDTermsOK) SetLatest(val NilExposurePutExposureTargetsIDTermsOKLatest) {
+	s.Latest = val
+}
+
+// SetMethod sets the value of Method.
+func (s *ExposurePutExposureTargetsIDTermsOK) SetMethod(val NilExposurePutExposureTargetsIDTermsOKMethod) {
+	s.Method = val
+}
+
+// SetOpenPorts sets the value of OpenPorts.
+func (s *ExposurePutExposureTargetsIDTermsOK) SetOpenPorts(val []ExposurePutExposureTargetsIDTermsOKOpenPortsItem) {
+	s.OpenPorts = val
+}
+
+// SetScannable sets the value of Scannable.
+func (s *ExposurePutExposureTargetsIDTermsOK) SetScannable(val bool) {
+	s.Scannable = val
+}
+
+// SetStatus sets the value of Status.
+func (s *ExposurePutExposureTargetsIDTermsOK) SetStatus(val ExposurePutExposureTargetsIDTermsOKStatus) {
+	s.Status = val
+}
+
+// SetTerms sets the value of Terms.
+func (s *ExposurePutExposureTargetsIDTermsOK) SetTerms(val NilExposurePutExposureTargetsIDTermsOKTerms) {
+	s.Terms = val
+}
+
+// SetTermsNotice sets the value of TermsNotice.
+func (s *ExposurePutExposureTargetsIDTermsOK) SetTermsNotice(val ExposurePutExposureTargetsIDTermsOKTermsNotice) {
+	s.TermsNotice = val
+}
+
+// SetToken sets the value of Token.
+func (s *ExposurePutExposureTargetsIDTermsOK) SetToken(val string) {
+	s.Token = val
+}
+
+// SetValidity sets the value of Validity.
+func (s *ExposurePutExposureTargetsIDTermsOK) SetValidity(val NilExposurePutExposureTargetsIDTermsOKValidity) {
+	s.Validity = val
+}
+
+// SetValue sets the value of Value.
+func (s *ExposurePutExposureTargetsIDTermsOK) SetValue(val string) {
+	s.Value = val
+}
+
+// SetVerifiedAt sets the value of VerifiedAt.
+func (s *ExposurePutExposureTargetsIDTermsOK) SetVerifiedAt(val NilDateTime) {
+	s.VerifiedAt = val
+}
+
+type ExposurePutExposureTargetsIDTermsOKBlockedReason string
+
+const (
+	ExposurePutExposureTargetsIDTermsOKBlockedReasonUnverified   ExposurePutExposureTargetsIDTermsOKBlockedReason = "unverified"
+	ExposurePutExposureTargetsIDTermsOKBlockedReasonExpired      ExposurePutExposureTargetsIDTermsOKBlockedReason = "expired"
+	ExposurePutExposureTargetsIDTermsOKBlockedReasonTxtMissing   ExposurePutExposureTargetsIDTermsOKBlockedReason = "txt_missing"
+	ExposurePutExposureTargetsIDTermsOKBlockedReasonNoCommitment ExposurePutExposureTargetsIDTermsOKBlockedReason = "no_commitment"
+	ExposurePutExposureTargetsIDTermsOKBlockedReasonIPNotCurrent ExposurePutExposureTargetsIDTermsOKBlockedReason = "ip_not_current"
+)
+
+// AllValues returns all ExposurePutExposureTargetsIDTermsOKBlockedReason values.
+func (ExposurePutExposureTargetsIDTermsOKBlockedReason) AllValues() []ExposurePutExposureTargetsIDTermsOKBlockedReason {
+	return []ExposurePutExposureTargetsIDTermsOKBlockedReason{
+		ExposurePutExposureTargetsIDTermsOKBlockedReasonUnverified,
+		ExposurePutExposureTargetsIDTermsOKBlockedReasonExpired,
+		ExposurePutExposureTargetsIDTermsOKBlockedReasonTxtMissing,
+		ExposurePutExposureTargetsIDTermsOKBlockedReasonNoCommitment,
+		ExposurePutExposureTargetsIDTermsOKBlockedReasonIPNotCurrent,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePutExposureTargetsIDTermsOKBlockedReason) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePutExposureTargetsIDTermsOKBlockedReasonUnverified:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDTermsOKBlockedReasonExpired:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDTermsOKBlockedReasonTxtMissing:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDTermsOKBlockedReasonNoCommitment:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDTermsOKBlockedReasonIPNotCurrent:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePutExposureTargetsIDTermsOKBlockedReason) UnmarshalText(data []byte) error {
+	switch ExposurePutExposureTargetsIDTermsOKBlockedReason(data) {
+	case ExposurePutExposureTargetsIDTermsOKBlockedReasonUnverified:
+		*s = ExposurePutExposureTargetsIDTermsOKBlockedReasonUnverified
+		return nil
+	case ExposurePutExposureTargetsIDTermsOKBlockedReasonExpired:
+		*s = ExposurePutExposureTargetsIDTermsOKBlockedReasonExpired
+		return nil
+	case ExposurePutExposureTargetsIDTermsOKBlockedReasonTxtMissing:
+		*s = ExposurePutExposureTargetsIDTermsOKBlockedReasonTxtMissing
+		return nil
+	case ExposurePutExposureTargetsIDTermsOKBlockedReasonNoCommitment:
+		*s = ExposurePutExposureTargetsIDTermsOKBlockedReasonNoCommitment
+		return nil
+	case ExposurePutExposureTargetsIDTermsOKBlockedReasonIPNotCurrent:
+		*s = ExposurePutExposureTargetsIDTermsOKBlockedReasonIPNotCurrent
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposurePutExposureTargetsIDTermsOKCommitment struct {
+	At time.Time `json:"at"`
+	By string    `json:"by"`
+	// The exact sentence, with the target in it, kept with who and when; null on a commitment recorded
+	// before D-473.
+	Sentence NilString `json:"sentence"`
+	// Version of the sentence the administrator saw next to Scan now; null on a commitment recorded before
+	// D-473.
+	Version NilString `json:"version"`
+}
+
+// GetAt returns the value of At.
+func (s *ExposurePutExposureTargetsIDTermsOKCommitment) GetAt() time.Time {
+	return s.At
+}
+
+// GetBy returns the value of By.
+func (s *ExposurePutExposureTargetsIDTermsOKCommitment) GetBy() string {
+	return s.By
+}
+
+// GetSentence returns the value of Sentence.
+func (s *ExposurePutExposureTargetsIDTermsOKCommitment) GetSentence() NilString {
+	return s.Sentence
+}
+
+// GetVersion returns the value of Version.
+func (s *ExposurePutExposureTargetsIDTermsOKCommitment) GetVersion() NilString {
+	return s.Version
+}
+
+// SetAt sets the value of At.
+func (s *ExposurePutExposureTargetsIDTermsOKCommitment) SetAt(val time.Time) {
+	s.At = val
+}
+
+// SetBy sets the value of By.
+func (s *ExposurePutExposureTargetsIDTermsOKCommitment) SetBy(val string) {
+	s.By = val
+}
+
+// SetSentence sets the value of Sentence.
+func (s *ExposurePutExposureTargetsIDTermsOKCommitment) SetSentence(val NilString) {
+	s.Sentence = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ExposurePutExposureTargetsIDTermsOKCommitment) SetVersion(val NilString) {
+	s.Version = val
+}
+
+type ExposurePutExposureTargetsIDTermsOKCommitmentNotice struct {
+	Text    string `json:"text"`
+	Version string `json:"version"`
+}
+
+// GetText returns the value of Text.
+func (s *ExposurePutExposureTargetsIDTermsOKCommitmentNotice) GetText() string {
+	return s.Text
+}
+
+// GetVersion returns the value of Version.
+func (s *ExposurePutExposureTargetsIDTermsOKCommitmentNotice) GetVersion() string {
+	return s.Version
+}
+
+// SetText sets the value of Text.
+func (s *ExposurePutExposureTargetsIDTermsOKCommitmentNotice) SetText(val string) {
+	s.Text = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ExposurePutExposureTargetsIDTermsOKCommitmentNotice) SetVersion(val string) {
+	s.Version = val
+}
+
+type ExposurePutExposureTargetsIDTermsOKKind string
+
+const (
+	ExposurePutExposureTargetsIDTermsOKKindDomain ExposurePutExposureTargetsIDTermsOKKind = "domain"
+	ExposurePutExposureTargetsIDTermsOKKindIP     ExposurePutExposureTargetsIDTermsOKKind = "ip"
+)
+
+// AllValues returns all ExposurePutExposureTargetsIDTermsOKKind values.
+func (ExposurePutExposureTargetsIDTermsOKKind) AllValues() []ExposurePutExposureTargetsIDTermsOKKind {
+	return []ExposurePutExposureTargetsIDTermsOKKind{
+		ExposurePutExposureTargetsIDTermsOKKindDomain,
+		ExposurePutExposureTargetsIDTermsOKKindIP,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePutExposureTargetsIDTermsOKKind) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePutExposureTargetsIDTermsOKKindDomain:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDTermsOKKindIP:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePutExposureTargetsIDTermsOKKind) UnmarshalText(data []byte) error {
+	switch ExposurePutExposureTargetsIDTermsOKKind(data) {
+	case ExposurePutExposureTargetsIDTermsOKKindDomain:
+		*s = ExposurePutExposureTargetsIDTermsOKKindDomain
+		return nil
+	case ExposurePutExposureTargetsIDTermsOKKindIP:
+		*s = ExposurePutExposureTargetsIDTermsOKKindIP
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposurePutExposureTargetsIDTermsOKLastCheck struct {
+	At      time.Time `json:"at"`
+	Message string    `json:"message"`
+	Ok      bool      `json:"ok"`
+}
+
+// GetAt returns the value of At.
+func (s *ExposurePutExposureTargetsIDTermsOKLastCheck) GetAt() time.Time {
+	return s.At
+}
+
+// GetMessage returns the value of Message.
+func (s *ExposurePutExposureTargetsIDTermsOKLastCheck) GetMessage() string {
+	return s.Message
+}
+
+// GetOk returns the value of Ok.
+func (s *ExposurePutExposureTargetsIDTermsOKLastCheck) GetOk() bool {
+	return s.Ok
+}
+
+// SetAt sets the value of At.
+func (s *ExposurePutExposureTargetsIDTermsOKLastCheck) SetAt(val time.Time) {
+	s.At = val
+}
+
+// SetMessage sets the value of Message.
+func (s *ExposurePutExposureTargetsIDTermsOKLastCheck) SetMessage(val string) {
+	s.Message = val
+}
+
+// SetOk sets the value of Ok.
+func (s *ExposurePutExposureTargetsIDTermsOKLastCheck) SetOk(val bool) {
+	s.Ok = val
+}
+
+type ExposurePutExposureTargetsIDTermsOKLatest struct {
+	AdminPanels   int `json:"admin_panels"`
+	CertsExpiring int `json:"certs_expiring"`
+	Ips           int `json:"ips"`
+	Ports         int `json:"ports"`
+	Subdomains    int `json:"subdomains"`
+}
+
+// GetAdminPanels returns the value of AdminPanels.
+func (s *ExposurePutExposureTargetsIDTermsOKLatest) GetAdminPanels() int {
+	return s.AdminPanels
+}
+
+// GetCertsExpiring returns the value of CertsExpiring.
+func (s *ExposurePutExposureTargetsIDTermsOKLatest) GetCertsExpiring() int {
+	return s.CertsExpiring
+}
+
+// GetIps returns the value of Ips.
+func (s *ExposurePutExposureTargetsIDTermsOKLatest) GetIps() int {
+	return s.Ips
+}
+
+// GetPorts returns the value of Ports.
+func (s *ExposurePutExposureTargetsIDTermsOKLatest) GetPorts() int {
+	return s.Ports
+}
+
+// GetSubdomains returns the value of Subdomains.
+func (s *ExposurePutExposureTargetsIDTermsOKLatest) GetSubdomains() int {
+	return s.Subdomains
+}
+
+// SetAdminPanels sets the value of AdminPanels.
+func (s *ExposurePutExposureTargetsIDTermsOKLatest) SetAdminPanels(val int) {
+	s.AdminPanels = val
+}
+
+// SetCertsExpiring sets the value of CertsExpiring.
+func (s *ExposurePutExposureTargetsIDTermsOKLatest) SetCertsExpiring(val int) {
+	s.CertsExpiring = val
+}
+
+// SetIps sets the value of Ips.
+func (s *ExposurePutExposureTargetsIDTermsOKLatest) SetIps(val int) {
+	s.Ips = val
+}
+
+// SetPorts sets the value of Ports.
+func (s *ExposurePutExposureTargetsIDTermsOKLatest) SetPorts(val int) {
+	s.Ports = val
+}
+
+// SetSubdomains sets the value of Subdomains.
+func (s *ExposurePutExposureTargetsIDTermsOKLatest) SetSubdomains(val int) {
+	s.Subdomains = val
+}
+
+type ExposurePutExposureTargetsIDTermsOKMethod string
+
+const (
+	ExposurePutExposureTargetsIDTermsOKMethodDNSTxt    ExposurePutExposureTargetsIDTermsOKMethod = "dns_txt"
+	ExposurePutExposureTargetsIDTermsOKMethodBoxEgress ExposurePutExposureTargetsIDTermsOKMethod = "box_egress"
+)
+
+// AllValues returns all ExposurePutExposureTargetsIDTermsOKMethod values.
+func (ExposurePutExposureTargetsIDTermsOKMethod) AllValues() []ExposurePutExposureTargetsIDTermsOKMethod {
+	return []ExposurePutExposureTargetsIDTermsOKMethod{
+		ExposurePutExposureTargetsIDTermsOKMethodDNSTxt,
+		ExposurePutExposureTargetsIDTermsOKMethodBoxEgress,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePutExposureTargetsIDTermsOKMethod) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePutExposureTargetsIDTermsOKMethodDNSTxt:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDTermsOKMethodBoxEgress:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePutExposureTargetsIDTermsOKMethod) UnmarshalText(data []byte) error {
+	switch ExposurePutExposureTargetsIDTermsOKMethod(data) {
+	case ExposurePutExposureTargetsIDTermsOKMethodDNSTxt:
+		*s = ExposurePutExposureTargetsIDTermsOKMethodDNSTxt
+		return nil
+	case ExposurePutExposureTargetsIDTermsOKMethodBoxEgress:
+		*s = ExposurePutExposureTargetsIDTermsOKMethodBoxEgress
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposurePutExposureTargetsIDTermsOKOpenPortsItem struct {
+	IP string `json:"ip"`
+	// Set only on a port the newest scan did not report, kept from an earlier scan: the day a scan last
+	// saw it open (INV-22).
+	LastSeen OptString `json:"last_seen"`
+	// With last_seen: how many scans in a row that checked the address missed the port (1 = missed by the
+	// last scan).
+	Misses  OptInt    `json:"misses"`
+	Port    int       `json:"port"`
+	Product OptString `json:"product"`
+	Service string    `json:"service"`
+	// The newest scan did not check the address: the row is as an earlier scan left it.
+	Unchecked OptBool `json:"unchecked"`
+}
+
+// GetIP returns the value of IP.
+func (s *ExposurePutExposureTargetsIDTermsOKOpenPortsItem) GetIP() string {
+	return s.IP
+}
+
+// GetLastSeen returns the value of LastSeen.
+func (s *ExposurePutExposureTargetsIDTermsOKOpenPortsItem) GetLastSeen() OptString {
+	return s.LastSeen
+}
+
+// GetMisses returns the value of Misses.
+func (s *ExposurePutExposureTargetsIDTermsOKOpenPortsItem) GetMisses() OptInt {
+	return s.Misses
+}
+
+// GetPort returns the value of Port.
+func (s *ExposurePutExposureTargetsIDTermsOKOpenPortsItem) GetPort() int {
+	return s.Port
+}
+
+// GetProduct returns the value of Product.
+func (s *ExposurePutExposureTargetsIDTermsOKOpenPortsItem) GetProduct() OptString {
+	return s.Product
+}
+
+// GetService returns the value of Service.
+func (s *ExposurePutExposureTargetsIDTermsOKOpenPortsItem) GetService() string {
+	return s.Service
+}
+
+// GetUnchecked returns the value of Unchecked.
+func (s *ExposurePutExposureTargetsIDTermsOKOpenPortsItem) GetUnchecked() OptBool {
+	return s.Unchecked
+}
+
+// SetIP sets the value of IP.
+func (s *ExposurePutExposureTargetsIDTermsOKOpenPortsItem) SetIP(val string) {
+	s.IP = val
+}
+
+// SetLastSeen sets the value of LastSeen.
+func (s *ExposurePutExposureTargetsIDTermsOKOpenPortsItem) SetLastSeen(val OptString) {
+	s.LastSeen = val
+}
+
+// SetMisses sets the value of Misses.
+func (s *ExposurePutExposureTargetsIDTermsOKOpenPortsItem) SetMisses(val OptInt) {
+	s.Misses = val
+}
+
+// SetPort sets the value of Port.
+func (s *ExposurePutExposureTargetsIDTermsOKOpenPortsItem) SetPort(val int) {
+	s.Port = val
+}
+
+// SetProduct sets the value of Product.
+func (s *ExposurePutExposureTargetsIDTermsOKOpenPortsItem) SetProduct(val OptString) {
+	s.Product = val
+}
+
+// SetService sets the value of Service.
+func (s *ExposurePutExposureTargetsIDTermsOKOpenPortsItem) SetService(val string) {
+	s.Service = val
+}
+
+// SetUnchecked sets the value of Unchecked.
+func (s *ExposurePutExposureTargetsIDTermsOKOpenPortsItem) SetUnchecked(val OptBool) {
+	s.Unchecked = val
+}
+
+// Expired only exists for IPs: the box has not seen this IP for more than 30 days.
+type ExposurePutExposureTargetsIDTermsOKStatus string
+
+const (
+	ExposurePutExposureTargetsIDTermsOKStatusUnverified ExposurePutExposureTargetsIDTermsOKStatus = "unverified"
+	ExposurePutExposureTargetsIDTermsOKStatusVerified   ExposurePutExposureTargetsIDTermsOKStatus = "verified"
+	ExposurePutExposureTargetsIDTermsOKStatusExpired    ExposurePutExposureTargetsIDTermsOKStatus = "expired"
+)
+
+// AllValues returns all ExposurePutExposureTargetsIDTermsOKStatus values.
+func (ExposurePutExposureTargetsIDTermsOKStatus) AllValues() []ExposurePutExposureTargetsIDTermsOKStatus {
+	return []ExposurePutExposureTargetsIDTermsOKStatus{
+		ExposurePutExposureTargetsIDTermsOKStatusUnverified,
+		ExposurePutExposureTargetsIDTermsOKStatusVerified,
+		ExposurePutExposureTargetsIDTermsOKStatusExpired,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePutExposureTargetsIDTermsOKStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePutExposureTargetsIDTermsOKStatusUnverified:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDTermsOKStatusVerified:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDTermsOKStatusExpired:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePutExposureTargetsIDTermsOKStatus) UnmarshalText(data []byte) error {
+	switch ExposurePutExposureTargetsIDTermsOKStatus(data) {
+	case ExposurePutExposureTargetsIDTermsOKStatusUnverified:
+		*s = ExposurePutExposureTargetsIDTermsOKStatusUnverified
+		return nil
+	case ExposurePutExposureTargetsIDTermsOKStatusVerified:
+		*s = ExposurePutExposureTargetsIDTermsOKStatusVerified
+		return nil
+	case ExposurePutExposureTargetsIDTermsOKStatusExpired:
+		*s = ExposurePutExposureTargetsIDTermsOKStatusExpired
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposurePutExposureTargetsIDTermsOKTerms struct {
+	At time.Time `json:"at"`
+	By string    `json:"by"`
+	// The extra tick: denial of service, brute-force and default-password logins too.
+	Disruptive bool `json:"disruptive"`
+	// The exact terms the administrator accepted, with the tick's sentence as the last line when ticked.
+	Text    string `json:"text"`
+	Version string `json:"version"`
+}
+
+// GetAt returns the value of At.
+func (s *ExposurePutExposureTargetsIDTermsOKTerms) GetAt() time.Time {
+	return s.At
+}
+
+// GetBy returns the value of By.
+func (s *ExposurePutExposureTargetsIDTermsOKTerms) GetBy() string {
+	return s.By
+}
+
+// GetDisruptive returns the value of Disruptive.
+func (s *ExposurePutExposureTargetsIDTermsOKTerms) GetDisruptive() bool {
+	return s.Disruptive
+}
+
+// GetText returns the value of Text.
+func (s *ExposurePutExposureTargetsIDTermsOKTerms) GetText() string {
+	return s.Text
+}
+
+// GetVersion returns the value of Version.
+func (s *ExposurePutExposureTargetsIDTermsOKTerms) GetVersion() string {
+	return s.Version
+}
+
+// SetAt sets the value of At.
+func (s *ExposurePutExposureTargetsIDTermsOKTerms) SetAt(val time.Time) {
+	s.At = val
+}
+
+// SetBy sets the value of By.
+func (s *ExposurePutExposureTargetsIDTermsOKTerms) SetBy(val string) {
+	s.By = val
+}
+
+// SetDisruptive sets the value of Disruptive.
+func (s *ExposurePutExposureTargetsIDTermsOKTerms) SetDisruptive(val bool) {
+	s.Disruptive = val
+}
+
+// SetText sets the value of Text.
+func (s *ExposurePutExposureTargetsIDTermsOKTerms) SetText(val string) {
+	s.Text = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ExposurePutExposureTargetsIDTermsOKTerms) SetVersion(val string) {
+	s.Version = val
+}
+
+// The current testing terms for this target, to accept or to read again.
+type ExposurePutExposureTargetsIDTermsOKTermsNotice struct {
+	// The sentence of the extra tick, off by default.
+	Disruptive string `json:"disruptive"`
+	// The terms with the target in them, one paragraph per line.
+	Text    string `json:"text"`
+	Version string `json:"version"`
+}
+
+// GetDisruptive returns the value of Disruptive.
+func (s *ExposurePutExposureTargetsIDTermsOKTermsNotice) GetDisruptive() string {
+	return s.Disruptive
+}
+
+// GetText returns the value of Text.
+func (s *ExposurePutExposureTargetsIDTermsOKTermsNotice) GetText() string {
+	return s.Text
+}
+
+// GetVersion returns the value of Version.
+func (s *ExposurePutExposureTargetsIDTermsOKTermsNotice) GetVersion() string {
+	return s.Version
+}
+
+// SetDisruptive sets the value of Disruptive.
+func (s *ExposurePutExposureTargetsIDTermsOKTermsNotice) SetDisruptive(val string) {
+	s.Disruptive = val
+}
+
+// SetText sets the value of Text.
+func (s *ExposurePutExposureTargetsIDTermsOKTermsNotice) SetText(val string) {
+	s.Text = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ExposurePutExposureTargetsIDTermsOKTermsNotice) SetVersion(val string) {
+	s.Version = val
+}
+
+type ExposurePutExposureTargetsIDTermsOKValidity string
+
+const (
+	ExposurePutExposureTargetsIDTermsOKValidityValid    ExposurePutExposureTargetsIDTermsOKValidity = "valid"
+	ExposurePutExposureTargetsIDTermsOKValidityExpiring ExposurePutExposureTargetsIDTermsOKValidity = "expiring"
+	ExposurePutExposureTargetsIDTermsOKValidityExpired  ExposurePutExposureTargetsIDTermsOKValidity = "expired"
+)
+
+// AllValues returns all ExposurePutExposureTargetsIDTermsOKValidity values.
+func (ExposurePutExposureTargetsIDTermsOKValidity) AllValues() []ExposurePutExposureTargetsIDTermsOKValidity {
+	return []ExposurePutExposureTargetsIDTermsOKValidity{
+		ExposurePutExposureTargetsIDTermsOKValidityValid,
+		ExposurePutExposureTargetsIDTermsOKValidityExpiring,
+		ExposurePutExposureTargetsIDTermsOKValidityExpired,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePutExposureTargetsIDTermsOKValidity) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePutExposureTargetsIDTermsOKValidityValid:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDTermsOKValidityExpiring:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDTermsOKValidityExpired:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePutExposureTargetsIDTermsOKValidity) UnmarshalText(data []byte) error {
+	switch ExposurePutExposureTargetsIDTermsOKValidity(data) {
+	case ExposurePutExposureTargetsIDTermsOKValidityValid:
+		*s = ExposurePutExposureTargetsIDTermsOKValidityValid
+		return nil
+	case ExposurePutExposureTargetsIDTermsOKValidityExpiring:
+		*s = ExposurePutExposureTargetsIDTermsOKValidityExpiring
+		return nil
+	case ExposurePutExposureTargetsIDTermsOKValidityExpired:
+		*s = ExposurePutExposureTargetsIDTermsOKValidityExpired
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposurePutExposureTargetsIDTermsReq struct {
+	Disruptive bool `json:"disruptive"`
+	// Terms_notice.version as the page showed it.
+	Version string `json:"version"`
+}
+
+// GetDisruptive returns the value of Disruptive.
+func (s *ExposurePutExposureTargetsIDTermsReq) GetDisruptive() bool {
+	return s.Disruptive
+}
+
+// GetVersion returns the value of Version.
+func (s *ExposurePutExposureTargetsIDTermsReq) GetVersion() string {
+	return s.Version
+}
+
+// SetDisruptive sets the value of Disruptive.
+func (s *ExposurePutExposureTargetsIDTermsReq) SetDisruptive(val bool) {
+	s.Disruptive = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ExposurePutExposureTargetsIDTermsReq) SetVersion(val string) {
+	s.Version = val
 }
 
 // FeedsDeleteFeedsCustomIDNoContent is response for FeedsDeleteFeedsCustomID operation.
@@ -101921,6 +104328,366 @@ func (o NilDateTime) Or(d time.Time) time.Time {
 	return d
 }
 
+// NewNilExposureDeleteExposureTargetsIDTermsOKBlockedReason returns new NilExposureDeleteExposureTargetsIDTermsOKBlockedReason with value set to v.
+func NewNilExposureDeleteExposureTargetsIDTermsOKBlockedReason(v ExposureDeleteExposureTargetsIDTermsOKBlockedReason) NilExposureDeleteExposureTargetsIDTermsOKBlockedReason {
+	return NilExposureDeleteExposureTargetsIDTermsOKBlockedReason{
+		Value: v,
+	}
+}
+
+// NilExposureDeleteExposureTargetsIDTermsOKBlockedReason is nullable ExposureDeleteExposureTargetsIDTermsOKBlockedReason.
+type NilExposureDeleteExposureTargetsIDTermsOKBlockedReason struct {
+	Value ExposureDeleteExposureTargetsIDTermsOKBlockedReason
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposureDeleteExposureTargetsIDTermsOKBlockedReason) SetTo(v ExposureDeleteExposureTargetsIDTermsOKBlockedReason) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposureDeleteExposureTargetsIDTermsOKBlockedReason) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposureDeleteExposureTargetsIDTermsOKBlockedReason) SetToNull() {
+	o.Null = true
+	var v ExposureDeleteExposureTargetsIDTermsOKBlockedReason
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposureDeleteExposureTargetsIDTermsOKBlockedReason) Get() (v ExposureDeleteExposureTargetsIDTermsOKBlockedReason, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposureDeleteExposureTargetsIDTermsOKBlockedReason) Or(d ExposureDeleteExposureTargetsIDTermsOKBlockedReason) ExposureDeleteExposureTargetsIDTermsOKBlockedReason {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposureDeleteExposureTargetsIDTermsOKCommitment returns new NilExposureDeleteExposureTargetsIDTermsOKCommitment with value set to v.
+func NewNilExposureDeleteExposureTargetsIDTermsOKCommitment(v ExposureDeleteExposureTargetsIDTermsOKCommitment) NilExposureDeleteExposureTargetsIDTermsOKCommitment {
+	return NilExposureDeleteExposureTargetsIDTermsOKCommitment{
+		Value: v,
+	}
+}
+
+// NilExposureDeleteExposureTargetsIDTermsOKCommitment is nullable ExposureDeleteExposureTargetsIDTermsOKCommitment.
+type NilExposureDeleteExposureTargetsIDTermsOKCommitment struct {
+	Value ExposureDeleteExposureTargetsIDTermsOKCommitment
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposureDeleteExposureTargetsIDTermsOKCommitment) SetTo(v ExposureDeleteExposureTargetsIDTermsOKCommitment) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposureDeleteExposureTargetsIDTermsOKCommitment) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposureDeleteExposureTargetsIDTermsOKCommitment) SetToNull() {
+	o.Null = true
+	var v ExposureDeleteExposureTargetsIDTermsOKCommitment
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposureDeleteExposureTargetsIDTermsOKCommitment) Get() (v ExposureDeleteExposureTargetsIDTermsOKCommitment, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposureDeleteExposureTargetsIDTermsOKCommitment) Or(d ExposureDeleteExposureTargetsIDTermsOKCommitment) ExposureDeleteExposureTargetsIDTermsOKCommitment {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposureDeleteExposureTargetsIDTermsOKCommitmentNotice returns new NilExposureDeleteExposureTargetsIDTermsOKCommitmentNotice with value set to v.
+func NewNilExposureDeleteExposureTargetsIDTermsOKCommitmentNotice(v ExposureDeleteExposureTargetsIDTermsOKCommitmentNotice) NilExposureDeleteExposureTargetsIDTermsOKCommitmentNotice {
+	return NilExposureDeleteExposureTargetsIDTermsOKCommitmentNotice{
+		Value: v,
+	}
+}
+
+// NilExposureDeleteExposureTargetsIDTermsOKCommitmentNotice is nullable ExposureDeleteExposureTargetsIDTermsOKCommitmentNotice.
+type NilExposureDeleteExposureTargetsIDTermsOKCommitmentNotice struct {
+	Value ExposureDeleteExposureTargetsIDTermsOKCommitmentNotice
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposureDeleteExposureTargetsIDTermsOKCommitmentNotice) SetTo(v ExposureDeleteExposureTargetsIDTermsOKCommitmentNotice) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposureDeleteExposureTargetsIDTermsOKCommitmentNotice) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposureDeleteExposureTargetsIDTermsOKCommitmentNotice) SetToNull() {
+	o.Null = true
+	var v ExposureDeleteExposureTargetsIDTermsOKCommitmentNotice
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposureDeleteExposureTargetsIDTermsOKCommitmentNotice) Get() (v ExposureDeleteExposureTargetsIDTermsOKCommitmentNotice, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposureDeleteExposureTargetsIDTermsOKCommitmentNotice) Or(d ExposureDeleteExposureTargetsIDTermsOKCommitmentNotice) ExposureDeleteExposureTargetsIDTermsOKCommitmentNotice {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposureDeleteExposureTargetsIDTermsOKLastCheck returns new NilExposureDeleteExposureTargetsIDTermsOKLastCheck with value set to v.
+func NewNilExposureDeleteExposureTargetsIDTermsOKLastCheck(v ExposureDeleteExposureTargetsIDTermsOKLastCheck) NilExposureDeleteExposureTargetsIDTermsOKLastCheck {
+	return NilExposureDeleteExposureTargetsIDTermsOKLastCheck{
+		Value: v,
+	}
+}
+
+// NilExposureDeleteExposureTargetsIDTermsOKLastCheck is nullable ExposureDeleteExposureTargetsIDTermsOKLastCheck.
+type NilExposureDeleteExposureTargetsIDTermsOKLastCheck struct {
+	Value ExposureDeleteExposureTargetsIDTermsOKLastCheck
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposureDeleteExposureTargetsIDTermsOKLastCheck) SetTo(v ExposureDeleteExposureTargetsIDTermsOKLastCheck) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposureDeleteExposureTargetsIDTermsOKLastCheck) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposureDeleteExposureTargetsIDTermsOKLastCheck) SetToNull() {
+	o.Null = true
+	var v ExposureDeleteExposureTargetsIDTermsOKLastCheck
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposureDeleteExposureTargetsIDTermsOKLastCheck) Get() (v ExposureDeleteExposureTargetsIDTermsOKLastCheck, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposureDeleteExposureTargetsIDTermsOKLastCheck) Or(d ExposureDeleteExposureTargetsIDTermsOKLastCheck) ExposureDeleteExposureTargetsIDTermsOKLastCheck {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposureDeleteExposureTargetsIDTermsOKLatest returns new NilExposureDeleteExposureTargetsIDTermsOKLatest with value set to v.
+func NewNilExposureDeleteExposureTargetsIDTermsOKLatest(v ExposureDeleteExposureTargetsIDTermsOKLatest) NilExposureDeleteExposureTargetsIDTermsOKLatest {
+	return NilExposureDeleteExposureTargetsIDTermsOKLatest{
+		Value: v,
+	}
+}
+
+// NilExposureDeleteExposureTargetsIDTermsOKLatest is nullable ExposureDeleteExposureTargetsIDTermsOKLatest.
+type NilExposureDeleteExposureTargetsIDTermsOKLatest struct {
+	Value ExposureDeleteExposureTargetsIDTermsOKLatest
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposureDeleteExposureTargetsIDTermsOKLatest) SetTo(v ExposureDeleteExposureTargetsIDTermsOKLatest) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposureDeleteExposureTargetsIDTermsOKLatest) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposureDeleteExposureTargetsIDTermsOKLatest) SetToNull() {
+	o.Null = true
+	var v ExposureDeleteExposureTargetsIDTermsOKLatest
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposureDeleteExposureTargetsIDTermsOKLatest) Get() (v ExposureDeleteExposureTargetsIDTermsOKLatest, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposureDeleteExposureTargetsIDTermsOKLatest) Or(d ExposureDeleteExposureTargetsIDTermsOKLatest) ExposureDeleteExposureTargetsIDTermsOKLatest {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposureDeleteExposureTargetsIDTermsOKMethod returns new NilExposureDeleteExposureTargetsIDTermsOKMethod with value set to v.
+func NewNilExposureDeleteExposureTargetsIDTermsOKMethod(v ExposureDeleteExposureTargetsIDTermsOKMethod) NilExposureDeleteExposureTargetsIDTermsOKMethod {
+	return NilExposureDeleteExposureTargetsIDTermsOKMethod{
+		Value: v,
+	}
+}
+
+// NilExposureDeleteExposureTargetsIDTermsOKMethod is nullable ExposureDeleteExposureTargetsIDTermsOKMethod.
+type NilExposureDeleteExposureTargetsIDTermsOKMethod struct {
+	Value ExposureDeleteExposureTargetsIDTermsOKMethod
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposureDeleteExposureTargetsIDTermsOKMethod) SetTo(v ExposureDeleteExposureTargetsIDTermsOKMethod) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposureDeleteExposureTargetsIDTermsOKMethod) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposureDeleteExposureTargetsIDTermsOKMethod) SetToNull() {
+	o.Null = true
+	var v ExposureDeleteExposureTargetsIDTermsOKMethod
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposureDeleteExposureTargetsIDTermsOKMethod) Get() (v ExposureDeleteExposureTargetsIDTermsOKMethod, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposureDeleteExposureTargetsIDTermsOKMethod) Or(d ExposureDeleteExposureTargetsIDTermsOKMethod) ExposureDeleteExposureTargetsIDTermsOKMethod {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposureDeleteExposureTargetsIDTermsOKTerms returns new NilExposureDeleteExposureTargetsIDTermsOKTerms with value set to v.
+func NewNilExposureDeleteExposureTargetsIDTermsOKTerms(v ExposureDeleteExposureTargetsIDTermsOKTerms) NilExposureDeleteExposureTargetsIDTermsOKTerms {
+	return NilExposureDeleteExposureTargetsIDTermsOKTerms{
+		Value: v,
+	}
+}
+
+// NilExposureDeleteExposureTargetsIDTermsOKTerms is nullable ExposureDeleteExposureTargetsIDTermsOKTerms.
+type NilExposureDeleteExposureTargetsIDTermsOKTerms struct {
+	Value ExposureDeleteExposureTargetsIDTermsOKTerms
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposureDeleteExposureTargetsIDTermsOKTerms) SetTo(v ExposureDeleteExposureTargetsIDTermsOKTerms) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposureDeleteExposureTargetsIDTermsOKTerms) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposureDeleteExposureTargetsIDTermsOKTerms) SetToNull() {
+	o.Null = true
+	var v ExposureDeleteExposureTargetsIDTermsOKTerms
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposureDeleteExposureTargetsIDTermsOKTerms) Get() (v ExposureDeleteExposureTargetsIDTermsOKTerms, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposureDeleteExposureTargetsIDTermsOKTerms) Or(d ExposureDeleteExposureTargetsIDTermsOKTerms) ExposureDeleteExposureTargetsIDTermsOKTerms {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposureDeleteExposureTargetsIDTermsOKValidity returns new NilExposureDeleteExposureTargetsIDTermsOKValidity with value set to v.
+func NewNilExposureDeleteExposureTargetsIDTermsOKValidity(v ExposureDeleteExposureTargetsIDTermsOKValidity) NilExposureDeleteExposureTargetsIDTermsOKValidity {
+	return NilExposureDeleteExposureTargetsIDTermsOKValidity{
+		Value: v,
+	}
+}
+
+// NilExposureDeleteExposureTargetsIDTermsOKValidity is nullable ExposureDeleteExposureTargetsIDTermsOKValidity.
+type NilExposureDeleteExposureTargetsIDTermsOKValidity struct {
+	Value ExposureDeleteExposureTargetsIDTermsOKValidity
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposureDeleteExposureTargetsIDTermsOKValidity) SetTo(v ExposureDeleteExposureTargetsIDTermsOKValidity) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposureDeleteExposureTargetsIDTermsOKValidity) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposureDeleteExposureTargetsIDTermsOKValidity) SetToNull() {
+	o.Null = true
+	var v ExposureDeleteExposureTargetsIDTermsOKValidity
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposureDeleteExposureTargetsIDTermsOKValidity) Get() (v ExposureDeleteExposureTargetsIDTermsOKValidity, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposureDeleteExposureTargetsIDTermsOKValidity) Or(d ExposureDeleteExposureTargetsIDTermsOKValidity) ExposureDeleteExposureTargetsIDTermsOKValidity {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilExposureGetExposureScanOK returns new NilExposureGetExposureScanOK with value set to v.
 func NewNilExposureGetExposureScanOK(v ExposureGetExposureScanOK) NilExposureGetExposureScanOK {
 	return NilExposureGetExposureScanOK{
@@ -102275,6 +105042,51 @@ func (o NilExposureGetExposureTargetsIDOKMethod) Get() (v ExposureGetExposureTar
 
 // Or returns value if set, or given parameter if does not.
 func (o NilExposureGetExposureTargetsIDOKMethod) Or(d ExposureGetExposureTargetsIDOKMethod) ExposureGetExposureTargetsIDOKMethod {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposureGetExposureTargetsIDOKTerms returns new NilExposureGetExposureTargetsIDOKTerms with value set to v.
+func NewNilExposureGetExposureTargetsIDOKTerms(v ExposureGetExposureTargetsIDOKTerms) NilExposureGetExposureTargetsIDOKTerms {
+	return NilExposureGetExposureTargetsIDOKTerms{
+		Value: v,
+	}
+}
+
+// NilExposureGetExposureTargetsIDOKTerms is nullable ExposureGetExposureTargetsIDOKTerms.
+type NilExposureGetExposureTargetsIDOKTerms struct {
+	Value ExposureGetExposureTargetsIDOKTerms
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposureGetExposureTargetsIDOKTerms) SetTo(v ExposureGetExposureTargetsIDOKTerms) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposureGetExposureTargetsIDOKTerms) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposureGetExposureTargetsIDOKTerms) SetToNull() {
+	o.Null = true
+	var v ExposureGetExposureTargetsIDOKTerms
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposureGetExposureTargetsIDOKTerms) Get() (v ExposureGetExposureTargetsIDOKTerms, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposureGetExposureTargetsIDOKTerms) Or(d ExposureGetExposureTargetsIDOKTerms) ExposureGetExposureTargetsIDOKTerms {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -102731,6 +105543,51 @@ func (o NilExposureGetExposureTargetsOKItemsItemMethod) Or(d ExposureGetExposure
 	return d
 }
 
+// NewNilExposureGetExposureTargetsOKItemsItemTerms returns new NilExposureGetExposureTargetsOKItemsItemTerms with value set to v.
+func NewNilExposureGetExposureTargetsOKItemsItemTerms(v ExposureGetExposureTargetsOKItemsItemTerms) NilExposureGetExposureTargetsOKItemsItemTerms {
+	return NilExposureGetExposureTargetsOKItemsItemTerms{
+		Value: v,
+	}
+}
+
+// NilExposureGetExposureTargetsOKItemsItemTerms is nullable ExposureGetExposureTargetsOKItemsItemTerms.
+type NilExposureGetExposureTargetsOKItemsItemTerms struct {
+	Value ExposureGetExposureTargetsOKItemsItemTerms
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposureGetExposureTargetsOKItemsItemTerms) SetTo(v ExposureGetExposureTargetsOKItemsItemTerms) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposureGetExposureTargetsOKItemsItemTerms) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposureGetExposureTargetsOKItemsItemTerms) SetToNull() {
+	o.Null = true
+	var v ExposureGetExposureTargetsOKItemsItemTerms
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposureGetExposureTargetsOKItemsItemTerms) Get() (v ExposureGetExposureTargetsOKItemsItemTerms, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposureGetExposureTargetsOKItemsItemTerms) Or(d ExposureGetExposureTargetsOKItemsItemTerms) ExposureGetExposureTargetsOKItemsItemTerms {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilExposureGetExposureTargetsOKItemsItemValidity returns new NilExposureGetExposureTargetsOKItemsItemValidity with value set to v.
 func NewNilExposureGetExposureTargetsOKItemsItemValidity(v ExposureGetExposureTargetsOKItemsItemValidity) NilExposureGetExposureTargetsOKItemsItemValidity {
 	return NilExposureGetExposureTargetsOKItemsItemValidity{
@@ -103040,6 +105897,51 @@ func (o NilExposurePostExposureBoxIPVerifyOKItemsItemMethod) Get() (v ExposurePo
 
 // Or returns value if set, or given parameter if does not.
 func (o NilExposurePostExposureBoxIPVerifyOKItemsItemMethod) Or(d ExposurePostExposureBoxIPVerifyOKItemsItemMethod) ExposurePostExposureBoxIPVerifyOKItemsItemMethod {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePostExposureBoxIPVerifyOKItemsItemTerms returns new NilExposurePostExposureBoxIPVerifyOKItemsItemTerms with value set to v.
+func NewNilExposurePostExposureBoxIPVerifyOKItemsItemTerms(v ExposurePostExposureBoxIPVerifyOKItemsItemTerms) NilExposurePostExposureBoxIPVerifyOKItemsItemTerms {
+	return NilExposurePostExposureBoxIPVerifyOKItemsItemTerms{
+		Value: v,
+	}
+}
+
+// NilExposurePostExposureBoxIPVerifyOKItemsItemTerms is nullable ExposurePostExposureBoxIPVerifyOKItemsItemTerms.
+type NilExposurePostExposureBoxIPVerifyOKItemsItemTerms struct {
+	Value ExposurePostExposureBoxIPVerifyOKItemsItemTerms
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePostExposureBoxIPVerifyOKItemsItemTerms) SetTo(v ExposurePostExposureBoxIPVerifyOKItemsItemTerms) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePostExposureBoxIPVerifyOKItemsItemTerms) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePostExposureBoxIPVerifyOKItemsItemTerms) SetToNull() {
+	o.Null = true
+	var v ExposurePostExposureBoxIPVerifyOKItemsItemTerms
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePostExposureBoxIPVerifyOKItemsItemTerms) Get() (v ExposurePostExposureBoxIPVerifyOKItemsItemTerms, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePostExposureBoxIPVerifyOKItemsItemTerms) Or(d ExposurePostExposureBoxIPVerifyOKItemsItemTerms) ExposurePostExposureBoxIPVerifyOKItemsItemTerms {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -103406,6 +106308,51 @@ func (o NilExposurePostExposureTargetsCreatedMethod) Or(d ExposurePostExposureTa
 	return d
 }
 
+// NewNilExposurePostExposureTargetsCreatedTerms returns new NilExposurePostExposureTargetsCreatedTerms with value set to v.
+func NewNilExposurePostExposureTargetsCreatedTerms(v ExposurePostExposureTargetsCreatedTerms) NilExposurePostExposureTargetsCreatedTerms {
+	return NilExposurePostExposureTargetsCreatedTerms{
+		Value: v,
+	}
+}
+
+// NilExposurePostExposureTargetsCreatedTerms is nullable ExposurePostExposureTargetsCreatedTerms.
+type NilExposurePostExposureTargetsCreatedTerms struct {
+	Value ExposurePostExposureTargetsCreatedTerms
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePostExposureTargetsCreatedTerms) SetTo(v ExposurePostExposureTargetsCreatedTerms) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePostExposureTargetsCreatedTerms) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePostExposureTargetsCreatedTerms) SetToNull() {
+	o.Null = true
+	var v ExposurePostExposureTargetsCreatedTerms
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePostExposureTargetsCreatedTerms) Get() (v ExposurePostExposureTargetsCreatedTerms, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePostExposureTargetsCreatedTerms) Or(d ExposurePostExposureTargetsCreatedTerms) ExposurePostExposureTargetsCreatedTerms {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilExposurePostExposureTargetsCreatedValidity returns new NilExposurePostExposureTargetsCreatedValidity with value set to v.
 func NewNilExposurePostExposureTargetsCreatedValidity(v ExposurePostExposureTargetsCreatedValidity) NilExposurePostExposureTargetsCreatedValidity {
 	return NilExposurePostExposureTargetsCreatedValidity{
@@ -103766,6 +106713,51 @@ func (o NilExposurePostExposureTargetsIDVerifyOKTargetMethod) Or(d ExposurePostE
 	return d
 }
 
+// NewNilExposurePostExposureTargetsIDVerifyOKTargetTerms returns new NilExposurePostExposureTargetsIDVerifyOKTargetTerms with value set to v.
+func NewNilExposurePostExposureTargetsIDVerifyOKTargetTerms(v ExposurePostExposureTargetsIDVerifyOKTargetTerms) NilExposurePostExposureTargetsIDVerifyOKTargetTerms {
+	return NilExposurePostExposureTargetsIDVerifyOKTargetTerms{
+		Value: v,
+	}
+}
+
+// NilExposurePostExposureTargetsIDVerifyOKTargetTerms is nullable ExposurePostExposureTargetsIDVerifyOKTargetTerms.
+type NilExposurePostExposureTargetsIDVerifyOKTargetTerms struct {
+	Value ExposurePostExposureTargetsIDVerifyOKTargetTerms
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePostExposureTargetsIDVerifyOKTargetTerms) SetTo(v ExposurePostExposureTargetsIDVerifyOKTargetTerms) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePostExposureTargetsIDVerifyOKTargetTerms) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePostExposureTargetsIDVerifyOKTargetTerms) SetToNull() {
+	o.Null = true
+	var v ExposurePostExposureTargetsIDVerifyOKTargetTerms
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePostExposureTargetsIDVerifyOKTargetTerms) Get() (v ExposurePostExposureTargetsIDVerifyOKTargetTerms, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePostExposureTargetsIDVerifyOKTargetTerms) Or(d ExposurePostExposureTargetsIDVerifyOKTargetTerms) ExposurePostExposureTargetsIDVerifyOKTargetTerms {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilExposurePostExposureTargetsIDVerifyOKTargetValidity returns new NilExposurePostExposureTargetsIDVerifyOKTargetValidity with value set to v.
 func NewNilExposurePostExposureTargetsIDVerifyOKTargetValidity(v ExposurePostExposureTargetsIDVerifyOKTargetValidity) NilExposurePostExposureTargetsIDVerifyOKTargetValidity {
 	return NilExposurePostExposureTargetsIDVerifyOKTargetValidity{
@@ -103850,6 +106842,366 @@ func (o NilExposurePutExposureBoxIPSettingsOKLastRun) Get() (v ExposurePutExposu
 
 // Or returns value if set, or given parameter if does not.
 func (o NilExposurePutExposureBoxIPSettingsOKLastRun) Or(d ExposurePutExposureBoxIPSettingsOKLastRun) ExposurePutExposureBoxIPSettingsOKLastRun {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePutExposureTargetsIDTermsOKBlockedReason returns new NilExposurePutExposureTargetsIDTermsOKBlockedReason with value set to v.
+func NewNilExposurePutExposureTargetsIDTermsOKBlockedReason(v ExposurePutExposureTargetsIDTermsOKBlockedReason) NilExposurePutExposureTargetsIDTermsOKBlockedReason {
+	return NilExposurePutExposureTargetsIDTermsOKBlockedReason{
+		Value: v,
+	}
+}
+
+// NilExposurePutExposureTargetsIDTermsOKBlockedReason is nullable ExposurePutExposureTargetsIDTermsOKBlockedReason.
+type NilExposurePutExposureTargetsIDTermsOKBlockedReason struct {
+	Value ExposurePutExposureTargetsIDTermsOKBlockedReason
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePutExposureTargetsIDTermsOKBlockedReason) SetTo(v ExposurePutExposureTargetsIDTermsOKBlockedReason) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePutExposureTargetsIDTermsOKBlockedReason) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePutExposureTargetsIDTermsOKBlockedReason) SetToNull() {
+	o.Null = true
+	var v ExposurePutExposureTargetsIDTermsOKBlockedReason
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePutExposureTargetsIDTermsOKBlockedReason) Get() (v ExposurePutExposureTargetsIDTermsOKBlockedReason, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePutExposureTargetsIDTermsOKBlockedReason) Or(d ExposurePutExposureTargetsIDTermsOKBlockedReason) ExposurePutExposureTargetsIDTermsOKBlockedReason {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePutExposureTargetsIDTermsOKCommitment returns new NilExposurePutExposureTargetsIDTermsOKCommitment with value set to v.
+func NewNilExposurePutExposureTargetsIDTermsOKCommitment(v ExposurePutExposureTargetsIDTermsOKCommitment) NilExposurePutExposureTargetsIDTermsOKCommitment {
+	return NilExposurePutExposureTargetsIDTermsOKCommitment{
+		Value: v,
+	}
+}
+
+// NilExposurePutExposureTargetsIDTermsOKCommitment is nullable ExposurePutExposureTargetsIDTermsOKCommitment.
+type NilExposurePutExposureTargetsIDTermsOKCommitment struct {
+	Value ExposurePutExposureTargetsIDTermsOKCommitment
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePutExposureTargetsIDTermsOKCommitment) SetTo(v ExposurePutExposureTargetsIDTermsOKCommitment) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePutExposureTargetsIDTermsOKCommitment) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePutExposureTargetsIDTermsOKCommitment) SetToNull() {
+	o.Null = true
+	var v ExposurePutExposureTargetsIDTermsOKCommitment
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePutExposureTargetsIDTermsOKCommitment) Get() (v ExposurePutExposureTargetsIDTermsOKCommitment, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePutExposureTargetsIDTermsOKCommitment) Or(d ExposurePutExposureTargetsIDTermsOKCommitment) ExposurePutExposureTargetsIDTermsOKCommitment {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePutExposureTargetsIDTermsOKCommitmentNotice returns new NilExposurePutExposureTargetsIDTermsOKCommitmentNotice with value set to v.
+func NewNilExposurePutExposureTargetsIDTermsOKCommitmentNotice(v ExposurePutExposureTargetsIDTermsOKCommitmentNotice) NilExposurePutExposureTargetsIDTermsOKCommitmentNotice {
+	return NilExposurePutExposureTargetsIDTermsOKCommitmentNotice{
+		Value: v,
+	}
+}
+
+// NilExposurePutExposureTargetsIDTermsOKCommitmentNotice is nullable ExposurePutExposureTargetsIDTermsOKCommitmentNotice.
+type NilExposurePutExposureTargetsIDTermsOKCommitmentNotice struct {
+	Value ExposurePutExposureTargetsIDTermsOKCommitmentNotice
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePutExposureTargetsIDTermsOKCommitmentNotice) SetTo(v ExposurePutExposureTargetsIDTermsOKCommitmentNotice) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePutExposureTargetsIDTermsOKCommitmentNotice) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePutExposureTargetsIDTermsOKCommitmentNotice) SetToNull() {
+	o.Null = true
+	var v ExposurePutExposureTargetsIDTermsOKCommitmentNotice
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePutExposureTargetsIDTermsOKCommitmentNotice) Get() (v ExposurePutExposureTargetsIDTermsOKCommitmentNotice, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePutExposureTargetsIDTermsOKCommitmentNotice) Or(d ExposurePutExposureTargetsIDTermsOKCommitmentNotice) ExposurePutExposureTargetsIDTermsOKCommitmentNotice {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePutExposureTargetsIDTermsOKLastCheck returns new NilExposurePutExposureTargetsIDTermsOKLastCheck with value set to v.
+func NewNilExposurePutExposureTargetsIDTermsOKLastCheck(v ExposurePutExposureTargetsIDTermsOKLastCheck) NilExposurePutExposureTargetsIDTermsOKLastCheck {
+	return NilExposurePutExposureTargetsIDTermsOKLastCheck{
+		Value: v,
+	}
+}
+
+// NilExposurePutExposureTargetsIDTermsOKLastCheck is nullable ExposurePutExposureTargetsIDTermsOKLastCheck.
+type NilExposurePutExposureTargetsIDTermsOKLastCheck struct {
+	Value ExposurePutExposureTargetsIDTermsOKLastCheck
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePutExposureTargetsIDTermsOKLastCheck) SetTo(v ExposurePutExposureTargetsIDTermsOKLastCheck) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePutExposureTargetsIDTermsOKLastCheck) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePutExposureTargetsIDTermsOKLastCheck) SetToNull() {
+	o.Null = true
+	var v ExposurePutExposureTargetsIDTermsOKLastCheck
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePutExposureTargetsIDTermsOKLastCheck) Get() (v ExposurePutExposureTargetsIDTermsOKLastCheck, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePutExposureTargetsIDTermsOKLastCheck) Or(d ExposurePutExposureTargetsIDTermsOKLastCheck) ExposurePutExposureTargetsIDTermsOKLastCheck {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePutExposureTargetsIDTermsOKLatest returns new NilExposurePutExposureTargetsIDTermsOKLatest with value set to v.
+func NewNilExposurePutExposureTargetsIDTermsOKLatest(v ExposurePutExposureTargetsIDTermsOKLatest) NilExposurePutExposureTargetsIDTermsOKLatest {
+	return NilExposurePutExposureTargetsIDTermsOKLatest{
+		Value: v,
+	}
+}
+
+// NilExposurePutExposureTargetsIDTermsOKLatest is nullable ExposurePutExposureTargetsIDTermsOKLatest.
+type NilExposurePutExposureTargetsIDTermsOKLatest struct {
+	Value ExposurePutExposureTargetsIDTermsOKLatest
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePutExposureTargetsIDTermsOKLatest) SetTo(v ExposurePutExposureTargetsIDTermsOKLatest) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePutExposureTargetsIDTermsOKLatest) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePutExposureTargetsIDTermsOKLatest) SetToNull() {
+	o.Null = true
+	var v ExposurePutExposureTargetsIDTermsOKLatest
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePutExposureTargetsIDTermsOKLatest) Get() (v ExposurePutExposureTargetsIDTermsOKLatest, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePutExposureTargetsIDTermsOKLatest) Or(d ExposurePutExposureTargetsIDTermsOKLatest) ExposurePutExposureTargetsIDTermsOKLatest {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePutExposureTargetsIDTermsOKMethod returns new NilExposurePutExposureTargetsIDTermsOKMethod with value set to v.
+func NewNilExposurePutExposureTargetsIDTermsOKMethod(v ExposurePutExposureTargetsIDTermsOKMethod) NilExposurePutExposureTargetsIDTermsOKMethod {
+	return NilExposurePutExposureTargetsIDTermsOKMethod{
+		Value: v,
+	}
+}
+
+// NilExposurePutExposureTargetsIDTermsOKMethod is nullable ExposurePutExposureTargetsIDTermsOKMethod.
+type NilExposurePutExposureTargetsIDTermsOKMethod struct {
+	Value ExposurePutExposureTargetsIDTermsOKMethod
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePutExposureTargetsIDTermsOKMethod) SetTo(v ExposurePutExposureTargetsIDTermsOKMethod) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePutExposureTargetsIDTermsOKMethod) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePutExposureTargetsIDTermsOKMethod) SetToNull() {
+	o.Null = true
+	var v ExposurePutExposureTargetsIDTermsOKMethod
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePutExposureTargetsIDTermsOKMethod) Get() (v ExposurePutExposureTargetsIDTermsOKMethod, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePutExposureTargetsIDTermsOKMethod) Or(d ExposurePutExposureTargetsIDTermsOKMethod) ExposurePutExposureTargetsIDTermsOKMethod {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePutExposureTargetsIDTermsOKTerms returns new NilExposurePutExposureTargetsIDTermsOKTerms with value set to v.
+func NewNilExposurePutExposureTargetsIDTermsOKTerms(v ExposurePutExposureTargetsIDTermsOKTerms) NilExposurePutExposureTargetsIDTermsOKTerms {
+	return NilExposurePutExposureTargetsIDTermsOKTerms{
+		Value: v,
+	}
+}
+
+// NilExposurePutExposureTargetsIDTermsOKTerms is nullable ExposurePutExposureTargetsIDTermsOKTerms.
+type NilExposurePutExposureTargetsIDTermsOKTerms struct {
+	Value ExposurePutExposureTargetsIDTermsOKTerms
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePutExposureTargetsIDTermsOKTerms) SetTo(v ExposurePutExposureTargetsIDTermsOKTerms) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePutExposureTargetsIDTermsOKTerms) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePutExposureTargetsIDTermsOKTerms) SetToNull() {
+	o.Null = true
+	var v ExposurePutExposureTargetsIDTermsOKTerms
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePutExposureTargetsIDTermsOKTerms) Get() (v ExposurePutExposureTargetsIDTermsOKTerms, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePutExposureTargetsIDTermsOKTerms) Or(d ExposurePutExposureTargetsIDTermsOKTerms) ExposurePutExposureTargetsIDTermsOKTerms {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePutExposureTargetsIDTermsOKValidity returns new NilExposurePutExposureTargetsIDTermsOKValidity with value set to v.
+func NewNilExposurePutExposureTargetsIDTermsOKValidity(v ExposurePutExposureTargetsIDTermsOKValidity) NilExposurePutExposureTargetsIDTermsOKValidity {
+	return NilExposurePutExposureTargetsIDTermsOKValidity{
+		Value: v,
+	}
+}
+
+// NilExposurePutExposureTargetsIDTermsOKValidity is nullable ExposurePutExposureTargetsIDTermsOKValidity.
+type NilExposurePutExposureTargetsIDTermsOKValidity struct {
+	Value ExposurePutExposureTargetsIDTermsOKValidity
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePutExposureTargetsIDTermsOKValidity) SetTo(v ExposurePutExposureTargetsIDTermsOKValidity) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePutExposureTargetsIDTermsOKValidity) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePutExposureTargetsIDTermsOKValidity) SetToNull() {
+	o.Null = true
+	var v ExposurePutExposureTargetsIDTermsOKValidity
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePutExposureTargetsIDTermsOKValidity) Get() (v ExposurePutExposureTargetsIDTermsOKValidity, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePutExposureTargetsIDTermsOKValidity) Or(d ExposurePutExposureTargetsIDTermsOKValidity) ExposurePutExposureTargetsIDTermsOKValidity {
 	if v, ok := o.Get(); ok {
 		return v
 	}

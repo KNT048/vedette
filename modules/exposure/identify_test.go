@@ -86,6 +86,9 @@ func (e *env) scanIP(content Content) Snapshot {
 	if _, err := e.commit(ips[0].ID); err != nil {
 		e.t.Fatal(err)
 	}
+	if e.terms != nil {
+		e.acceptTerms(ips[0].ID, *e.terms)
+	}
 	e.svc.SetRunner(&fakeRunner{content: content})
 	snap, err := e.svc.Scan(e.ctx(), "admin@acme.example", ips[0].ID)
 	if err != nil {

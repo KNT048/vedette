@@ -174,6 +174,33 @@ func (h *ExposureHandlers) ExposurePostExposureTargetsIDScan(ctx context.Context
 	return into[oas.ExposurePostExposureTargetsIDScanAccepted](run)
 }
 
+// ExposurePutExposureTargetsIDTerms implements exposure_put_exposure_targets_id_terms (admin with two-step): accept the testing terms
+// of a verified target, with or without the disruptive tick (FULL-1, D-566).
+func (h *ExposureHandlers) ExposurePutExposureTargetsIDTerms(ctx context.Context, req *oas.ExposurePutExposureTargetsIDTermsReq, params oas.ExposurePutExposureTargetsIDTermsParams) (*oas.ExposurePutExposureTargetsIDTermsOK, error) {
+	p, ok := server.PrincipalFrom(ctx)
+	if !ok {
+		return nil, apierr.Unauthenticated()
+	}
+	v, err := h.svc.AcceptTerms(ctx, Actor{ID: p.ID, Email: p.Email, Admin: p.Role == routes.Admin}, params.ID, req.Version, req.Disruptive)
+	if err != nil {
+		return nil, ToAPIError(err)
+	}
+	return into[oas.ExposurePutExposureTargetsIDTermsOK](v)
+}
+
+// ExposureDeleteExposureTargetsIDTerms implements exposure_delete_exposure_targets_id_terms (admin): withdraw the testing terms.
+func (h *ExposureHandlers) ExposureDeleteExposureTargetsIDTerms(ctx context.Context, params oas.ExposureDeleteExposureTargetsIDTermsParams) (*oas.ExposureDeleteExposureTargetsIDTermsOK, error) {
+	user, err := actor(ctx)
+	if err != nil {
+		return nil, err
+	}
+	v, err := h.svc.RevokeTerms(ctx, user, params.ID)
+	if err != nil {
+		return nil, ToAPIError(err)
+	}
+	return into[oas.ExposureDeleteExposureTargetsIDTermsOK](v)
+}
+
 // ExposureGetExposureScan implements exposure_get_exposure_scan (viewer): the run that runs now or the last one, null before the first.
 func (h *ExposureHandlers) ExposureGetExposureScan(_ context.Context) (oas.NilExposureGetExposureScanOK, error) {
 	run := h.svc.CurrentScan()

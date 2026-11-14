@@ -231,6 +231,7 @@ func (s *Service) view(t Target, latest map[string]latestResult, c checks, now t
 		n := noticeFor(t.Value)
 		v.CommitmentNotice = &n
 	}
+	v.Terms, v.TermsNotice, v.FullScan = t.Terms, termsFor(t.Value), t.mode().Full
 	b := t.blocked(now)
 	if b == "" && t.Kind == KindIP && c.paused(t) {
 		b = BlockedNotCurrent // the latest full check did not see this IP (INV-13): the same answer the scan gate gives

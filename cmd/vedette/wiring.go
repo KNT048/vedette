@@ -379,6 +379,7 @@ func buildServices(ctx context.Context, d *deps) error {
 		Host: purgeHost(d), OSBusy: func(ctx context.Context) bool { return d.OS != nil && d.OS.Busy(ctx) }, BeforeWipe: purgeBeforeWipe(d), Gate: d.PurgeGate, AlsoKept: purgeAlsoKept(d), KeepRows: purgeKeptRows(d), AlsoFreeze: purgeFreezes(d)}); err != nil {
 		return fmt.Errorf("core: %w", err)
 	}
+	//nolint:contextcheck // the start-up settle of a first-run restore (D-544) runs on the OS handlers' own context, bounded to 10 s, like resume
 	if d.OS, err = newOSHandlers(*d); err != nil {
 		return fmt.Errorf("os updates: %w", err)
 	}

@@ -25,7 +25,7 @@ test.beforeAll(async () => {
   admin = await request.newContext({ baseURL: bare() })
   const r = await api<{ error?: { code: string } }>(admin, 'POST', '/core/setup', {
     org: 'Bare Company', admin: { name: ACCOUNTS.admin.name, email: ACCOUNTS.admin.email, password: password() },
-    lan: ['192.168.18.0/24'], commitment: false, bundle: 'smb', setup_code: box().bare_setup_code,
+    lan: ['192.168.18.0/24'], commitment: false, bundle: 'smb', setup_code: box().bare_setup_code, accept_terms: true,
   })
   if (r.status >= 300) { // a HOLD=1 rerun: the box was set up by the run before, so sign in as the administrator it made
     expect(r.body.error?.code, JSON.stringify(r.body)).toBe('already_setup')

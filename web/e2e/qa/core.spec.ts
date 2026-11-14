@@ -31,6 +31,8 @@ async function startSample(page: Page) {
   await page.evaluate(() => localStorage.clear())
   await page.goto('/')
   await expect(page).toHaveURL(/\/setup/)
+  await page.getByRole('checkbox', { name: 'I have read, understood and agree to the terms of use' }).click() // D-544: the terms of use come first
+  await page.getByRole('button', { name: 'Continue' }).click()
   await page.getByRole('button', { name: 'Use sample data' }).click()
   await expect(h1(page)).toContainText('Today')
 }
@@ -38,6 +40,8 @@ async function startClean(page: Page, org = 'Test Company') {
   await page.goto('/')
   await page.evaluate(() => localStorage.clear())
   await page.goto('/setup')
+  await page.getByRole('checkbox', { name: 'I have read, understood and agree to the terms of use' }).click() // D-544: the terms of use come first
+  await page.getByRole('button', { name: 'Continue' }).click()
   await page.getByLabel('Setup code').fill('setup-code-demo') // D-75: the code the mock accepts
   await page.getByLabel('Organization name').fill(org)
   await page.getByLabel('Administrator name').fill('Alex Admin')
@@ -120,6 +124,8 @@ test.describe('first-run setup', () => {
     await expectAccessible(page, 'setup step 1')
     await noVietnamese(page, 'setup 1')
 
+    await page.getByRole('checkbox', { name: 'I have read, understood and agree to the terms of use' }).click() // D-544: the terms of use come first
+    await page.getByRole('button', { name: 'Continue' }).click()
     // step 1: empty, weak password, mismatch, bad email
     await next(page)
     await expect(page.getByText('Enter the organization name (at least 2 characters).')).toBeVisible()
@@ -642,6 +648,8 @@ test.describe('data', () => {
     await login(page, LOGIN.email, LOGIN.password)
     await expect(page).toHaveURL(/\/setup|\/login/)
     await page.goto('/setup')
+    await page.getByRole('checkbox', { name: 'I have read, understood and agree to the terms of use' }).click() // D-544: the terms of use come first
+    await page.getByRole('button', { name: 'Continue' }).click()
     await page.getByRole('button', { name: 'Use sample data' }).click()
     await expect(h1(page)).toContainText('Today')
     await page.goto('/devices')

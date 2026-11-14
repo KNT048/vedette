@@ -1,4 +1,5 @@
-import { rmSync } from 'node:fs'
+import { createHash } from 'node:crypto'
+import { readFileSync, rmSync } from 'node:fs'
 import path from 'node:path'
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
@@ -14,8 +15,24 @@ const dropMockWorker: Plugin = {
   },
 }
 
+// D-544: TERMS.md at the repository root is the one source of the terms of use. `virtual:terms` gives the interface its text
+// and its version, computed as the Go root package does (vedette.TermsVersion): the Version date and the first 8 hex digits
+// of the file's SHA-256. A virtual module, so the dev server serves nothing outside web/.
+const TERMS_FILE = path.resolve(import.meta.dirname, '../TERMS.md')
+const terms: Plugin = {
+  name: 'terms',
+  resolveId: (id) => (id === 'virtual:terms' ? '\0virtual:terms' : undefined),
+  load(id) {
+    if (id !== '\0virtual:terms') return undefined
+    this.addWatchFile(TERMS_FILE)
+    const raw = readFileSync(TERMS_FILE)
+    const version = `${/^Version: (\d{4}-\d{2}-\d{2})$/m.exec(raw.toString('utf8'))?.[1] ?? 'undated'}.${createHash('sha256').update(raw).digest('hex').slice(0, 8)}`
+    return `export const TERMS = ${JSON.stringify(raw.toString('utf8'))}\nexport const TERMS_VERSION = ${JSON.stringify(version)}\n`
+  },
+}
+
 export default defineConfig({
-  plugins: [react(), tailwindcss(), dropMockWorker],
+  plugins: [react(), tailwindcss(), dropMockWorker, terms],
   resolve: { alias: { '@': path.resolve(import.meta.dirname, './src') } },
   build: { chunkSizeWarningLimit: 900 },
   // Ảnh chụp/kết quả Playwright ghi trong web/ không được kích hoạt HMR (gây tải lại CSS liên tục khi đang chạy E2E).

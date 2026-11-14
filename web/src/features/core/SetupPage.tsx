@@ -17,12 +17,16 @@ import { errMsg } from './parts'
 import { EMAIL_RE, isBareIp, isPrivateCidr, MIN_PASSWORD, normaliseCidr } from './util'
 import type { BundleId, SetupPayload } from './types'
 import { SetupRestore } from './SetupRestore'
+import { TermsText } from './TermsText'
 
-// D-462: three steps. Alert channels need credentials the admin often lacks at install time: Settings → Alert channels, and Home reminds until one is on.
-const STEPS = ['account', 'network', 'modules'] as const
+// D-462: no alert channel step. Alert channels need credentials the admin often lacks at install time: Settings → Alert channels, and Home reminds until one is on.
+// D-544: the terms of use come first, before anything is typed, as UniFi OS, Synology DSM and the pfSense installer do; the
+// restore from a backup is offered on the Account step, so it is reached only after the tick too.
+const STEPS = ['terms', 'account', 'network', 'modules'] as const
 type Step = (typeof STEPS)[number]
 
 interface State {
+  terms: boolean
   org: string; name: string; email: string; password: string; again: string; code: string
   lan: string[]; commitment: boolean; notes: { to: string; text: string }[]
   bundle: BundleId; picked: Set<ModuleId>
@@ -32,7 +36,7 @@ const LAN_ERRORS = new Set(['invalid_lan', 'public_range', 'overlap_range'])
 const noRepeat = (e: React.MouseEvent) => { if (e.detail > 1) e.preventDefault() }
 
 const INIT: State = {
-  org: '', name: '', email: '', password: '', again: '', code: '', lan: [''], commitment: false, notes: [],
+  terms: false, org: '', name: '', email: '', password: '', again: '', code: '', lan: [''], commitment: false, notes: [],
   bundle: 'smb', picked: new Set<ModuleId>(['core']),
 }
 
@@ -44,7 +48,7 @@ export default function SetupPage() {
   const setupModules = useSetupModules().data
   const install = setupModules?.install // D-381: the setup code hint names the log of this install
   const boxLan = setupModules?.lan ?? null // D-405: the box's own network, offered as the first range
-  const [step, setStep] = useState<Step>('account')
+  const [step, setStep] = useState<Step>('terms')
   const [s, setS] = useState<State>(INIT)
   useEffect(() => { if (boxLan) setS((x) => (x.lan.length === 1 && !x.lan[0]?.trim() ? { ...x, lan: [boxLan] } : x)) }, [boxLan])
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -63,6 +67,7 @@ export default function SetupPage() {
 
   function validate(which: Step): boolean {
     const e: Record<string, string> = {}
+    if (which === 'terms' && !s.terms) e.terms = t('setup.terms.needTick')
     if (which === 'account') {
       if (!s.code.trim()) e.code = t('setup.account.codeError')
       if (s.org.trim().length < 2) e.org = t('setup.account.orgError')
@@ -117,11 +122,14 @@ export default function SetupPage() {
       bundle: s.bundle,
       modules: s.bundle === 'custom' ? [...s.picked] : undefined,
       setup_code: s.code.trim(),
+      accept_terms: s.terms,
     }
     try { await submit.mutateAsync(p) } catch (err) {
       setFinished(false)
       // A wrong setup code belongs on the first step, next to its field.
       if (err instanceof ApiError && err.code === 'invalid_setup_code') { setErrors({ code: errMsg(err, t) }); setStep('account'); return }
+      // The terms the box says were not accepted belong on their step, next to the tick (D-544).
+      if (err instanceof ApiError && err.code === 'terms_not_accepted') { setErrors({ terms: errMsg(err, t) }); set({ terms: false }); setStep('terms'); return }
       // So does a password the box refuses (D-389: too easy to guess), next to the password field.
       if (err instanceof ApiError && err.code === 'weak_password') { setErrors({ password: errMsg(err, t) }); setStep('account'); return }
       // Ranges the box refuses belong on the Network step, under the list.
@@ -148,7 +156,8 @@ export default function SetupPage() {
         <section className="mt-6 rounded-md border border-rule bg-surface p-5" aria-labelledby="restore-title">
           <h2 id="restore-title" className="text-lg font-semibold">{t('setup.restore.title')}</h2>
           <p className="mt-1 text-sm text-muted">{t('setup.restore.desc')}</p>
-          <SetupRestore install={install} onBack={() => setRestoring(false)} />
+          <p className="mt-1 text-[13px] text-muted">{t('setup.restore.terms')}</p>
+          <SetupRestore install={install} termsAccepted={s.terms} onBack={() => setRestoring(false)} />
         </section>
       </main>
     )
@@ -190,6 +199,20 @@ export default function SetupPage() {
         <form noValidate onSubmit={(e) => { e.preventDefault(); if (step === 'modules') void finish(); else next() }}>
         <h2 id="step-title" ref={heading} tabIndex={-1} className="text-lg font-semibold outline-none">{t(`setup.${step}.title`)}</h2>
         <p className="mt-1 text-sm text-muted">{t(`setup.${step}.desc`)}</p>
+
+        {step === 'terms' ? (
+          <div className="mt-4 grid gap-4">
+            <TermsText />
+            <div className="grid gap-1">
+              <div className="flex items-start gap-2.5">
+                <Checkbox id="s-terms" checked={s.terms} aria-invalid={!!errors.terms}
+                  onCheckedChange={(v) => { set({ terms: v === true }); setErrors({}) }} className="mt-0.5" />
+                <label htmlFor="s-terms" className="text-sm font-medium">{t('setup.terms.agree')}</label>
+              </div>
+              {errors.terms ? <p role="alert" className="text-[13px] text-danger">{errors.terms}</p> : null}
+            </div>
+          </div>
+        ) : null}
 
         {step === 'account' ? (
           <div className="mt-4 grid gap-4">
@@ -250,7 +273,11 @@ export default function SetupPage() {
               Continue cannot skip a step or finish setup with the default bundle. Keyboard submits have detail 0. */}
           {step === 'modules'
             ? <Button key="finish" type="submit" variant="primary" disabled={finished} onClick={noRepeat}>{t('setup.finish')}</Button>
-            : <Button key="next" type="submit" variant="primary" onClick={noRepeat}>{t('setup.next')}</Button>}
+            : <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1">
+                {/* D-544: Continue waits for the tick, and says so next to it. */}
+                {step === 'terms' && !s.terms ? <p id="s-terms-why" className="text-[13px] text-muted">{t('setup.terms.needTick')}</p> : null}
+                <Button key="next" type="submit" variant="primary" onClick={noRepeat} disabled={step === 'terms' && !s.terms} aria-describedby={step === 'terms' && !s.terms ? 's-terms-why' : undefined}>{t('setup.next')}</Button>
+              </div>}
         </div>
         </form>
       </section>

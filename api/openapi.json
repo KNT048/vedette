@@ -14954,6 +14954,10 @@
                   "setup_code": {
                     "description": "The one-time setup code the box prints in its log while setup is open (D-75). Required to create the first administrator: missing or wrong gives 403 invalid_setup_code, 429 rate_limited after repeated wrong tries",
                     "type": "string"
+                  },
+                  "accept_terms": {
+                    "description": "true = the administrator read, understood and agrees to the terms of use (TERMS.md, D-544). Required to create the first administrator: anything else gives 400 terms_not_accepted, judged right after the setup code",
+                    "type": "boolean"
                   }
                 },
                 "additionalProperties": false
@@ -15229,6 +15233,10 @@
                   "confirm_without_key": {
                     "description": "Required (true) without key when the backup holds secrets: they are lost and two-step users cannot sign in",
                     "type": "boolean"
+                  },
+                  "accept_terms": {
+                    "description": "true = the operator read, understood and agrees to the terms of use (D-544); anything else gives 400 terms_not_accepted, judged right after the setup code",
+                    "type": "boolean"
                   }
                 },
                 "required": [
@@ -15377,6 +15385,96 @@
                     "twofa_users",
                     "admins_without_key",
                     "secrets"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/core/terms": {
+      "get": {
+        "operationId": "core_get_core_terms",
+        "summary": "The terms of use this box ships and who accepted them, when and which version (D-544); the text is TERMS.md, which the interface carries",
+        "tags": [
+          "core"
+        ],
+        "x-stories": [
+          "S-CORE-1"
+        ],
+        "x-min-role": "viewer",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "version": {
+                      "type": "string",
+                      "description": "The version of TERMS.md this box ships: its Version date and the first 8 hex digits of its SHA-256, like 2026-11-14.3f2a9c1b"
+                    },
+                    "accepted": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "by": {
+                              "description": "The email of the administrator setup created, or \"setup\" for the operator who restored the box from a backup with the setup code; null unless the caller is an administrator (viewers and operators cannot list users)",
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "at": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            "version": {
+                              "type": "string",
+                              "description": "The version accepted"
+                            },
+                            "via": {
+                              "type": "string",
+                              "enum": [
+                                "setup",
+                                "restore"
+                              ],
+                              "description": "setup = in the first-run setup; restore = before the first-run restore from a backup"
+                            }
+                          },
+                          "required": [
+                            "by",
+                            "at",
+                            "version",
+                            "via"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "null on a box set up before the terms step existed, or restored from such a backup and not yet settled"
+                    }
+                  },
+                  "required": [
+                    "version",
+                    "accepted"
                   ],
                   "additionalProperties": false
                 }

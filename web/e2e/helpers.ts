@@ -16,6 +16,8 @@ export async function startWithSample(page: Page) {
   await resetStorage(page)
   await page.goto('/')
   await expect(page).toHaveURL(/\/setup/)
+  await page.getByRole('checkbox', { name: 'I have read, understood and agree to the terms of use' }).click() // D-544: the terms of use come first
+  await page.getByRole('button', { name: 'Continue' }).click()
   await page.getByRole('button', { name: 'Use sample data' }).click()
   await expect(page.getByRole('heading', { level: 1, name: /^Today/ })).toBeVisible()
 }
@@ -58,6 +60,8 @@ export async function expectAccessible(page: Page, label: string) {
 export async function startClean(page: Page, org = 'Acme Test Ltd') {
   await resetStorage(page)
   await page.goto('/setup')
+  await page.getByRole('checkbox', { name: 'I have read, understood and agree to the terms of use' }).click() // D-544: the terms of use come first
+  await page.getByRole('button', { name: 'Continue' }).click()
   await page.getByLabel('Setup code').fill('setup-code-demo') // D-75: the code the mock accepts
   await page.getByLabel('Organization name').fill(org)
   await page.getByLabel('Administrator name').fill('Alex Admin')

@@ -5,6 +5,9 @@
 !go.sum
 # the project's own license: scripts/hostlicenses puts it beside the third-party ones (D-155 (10))
 !LICENSE
+# the terms of use and the root package that embeds them (D-544): core shows and versions them
+!TERMS.md
+!terms.go
 !cmd
 !core
 !modules

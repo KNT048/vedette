@@ -1,0 +1,5 @@
+# Deferred: feat/setup-terms-step (D-544, PR #783, Opus review r1)
+
+- [ ] L2 (part left): a Settings → Data restore of a backup made before D-544 replaces a recorded acceptance with none; General then says none is recorded. The first-run case (operator closed the page before the restart) is fixed in this PR by the start-up settle, and `general.terms.none` now says "set up, or restored from a backup made, before Vedette asked". Open: keep or re-ask the acceptance across such a restore.
+- [x] L3: the restore acceptance now records the version shown and the time of the tick, from the marker file written before the restore (`first-run-terms.json`), not the version running at settle. Done in this PR.
+- [ ] L4: boxes set up before D-544 (the N100, early users) have no acceptance on record, and a change of TERMS.md is never asked again. Needs a story: ask the first administrator who signs in on a box with none, and again after a terms version change. The supervisor tracks it as a BACKLOG row.

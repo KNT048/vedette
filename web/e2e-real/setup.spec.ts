@@ -10,7 +10,7 @@ test.describe.configure({ mode: 'serial' })
 
 const body = (code: string, extra: Record<string, unknown> = {}) => ({
   org: 'E2E Company', admin: { name: ACCOUNTS.admin.name, email: ACCOUNTS.admin.email, password: password() },
-  lan: ['192.168.18.0/24'], commitment: false, bundle: 'smb', setup_code: code, ...extra,
+  lan: ['192.168.18.0/24'], commitment: false, bundle: 'smb', setup_code: code, accept_terms: true, ...extra,
 })
 
 test('the box starts with setup open and a wrong setup code is refused', async ({ request }) => {
@@ -51,6 +51,8 @@ test('first-run setup: mistakes at every step, fixes, finish on Home', async ({ 
   await expectAccessible(page, 'setup step 1')
   await noVietnamese(page, 'setup 1')
 
+  await page.getByRole('checkbox', { name: 'I have read, understood and agree to the terms of use' }).click() // D-544: the terms of use come first
+  await page.getByRole('button', { name: 'Continue' }).click()
   // step 1: empty, weak password, mismatch, bad email
   await next(page)
   await expect(page.getByText('Enter the organization name (at least 2 characters).')).toBeVisible()

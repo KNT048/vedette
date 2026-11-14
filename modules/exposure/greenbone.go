@@ -87,10 +87,14 @@ type GreenboneRow struct {
 
 // Limits and timing of the deep scan (INV-25).
 const (
-	// GreenboneMinMemory is the least memory (MemTotal) the box needs before Greenbone may be enabled: 8 GB decimal, Greenbone's
-	// recommended size. Decimal on purpose: a machine sold as "8 GB" has 8 GiB and its kernel reports about 7.7 GiB (8.3e9 bytes) of
-	// MemTotal, which passes; the 7 GB N100 of the trial (D-494) does not.
-	GreenboneMinMemory = 8_000_000_000
+	// GreenboneMinMemory is the least memory (MemTotal) the box needs before OpenVAS may be enabled: 6 GB decimal (D-569). The trial
+	// on the 7 GB N100 next to Vedette peaked at about 4.0 GB used, with about 2 GB of swap during the first feed import and
+	// 1.9 to 2.4 GB during the scan, so a 7 GB box with swap passes; below 8 GB the box must have GreenboneMinSwap and the page notes the swap use.
+	GreenboneMinMemory = 6_000_000_000
+	// GreenboneSwapBelow is the memory under which the box also needs GreenboneMinSwap of swap (SwapTotal): the trial's 7 GB box
+	// used about 2 GB of swap for the first feed load, so a box under 8 GB without that much swap would run out of memory (D-569).
+	GreenboneSwapBelow = 8_000_000_000
+	GreenboneMinSwap   = 2_000_000_000
 	// GreenboneMinDisk is the least free space of the box data directory's filesystem: images 9 GB + feed volumes 41 GB measured, plus
 	// room for the reports and updates. ponytail: statfs of the data dir, since podman keeps its volumes on the same filesystem by
 	// default; upgrade: the host measures podman's own storage (graphroot) and reports it.
@@ -115,7 +119,7 @@ const (
 	gbSyncRetry        = 24 * time.Hour
 	gbSyncTimeout      = 60 * time.Minute // pulling the seven feed images
 	gbSyncStopWait     = 30 * time.Second // how long Turn off and Close wait for a cancelled feed update to end (review r1 L2)
-	gbNote             = "Greenbone sends many probes: every test of the config on every port of the list. They are not logged one by one."
+	gbNote             = "OpenVAS sends many probes: every test of the config on every port of the list. They are not logged one by one."
 	// GreenboneLowBelow: a result below this severity is Low (Greenbone's own classes: Low 0.1 to 3.9, Medium 4.0 to 6.9, High 7.0
 	// to 10). Low results are hardening notes (D-564 G3): shown apart, never counted as alerts.
 	GreenboneLowBelow = 4.0
@@ -133,28 +137,28 @@ const (
 
 // The sentences of the deep scan. NotAvailableGreenbone is the page's and the scan's line when no GreenboneHost is wired.
 const (
-	NotAvailableGreenbone = "Greenbone is not available on this box."
-	notGBOff              = "Optional deep scan with Greenbone (OpenVAS) is off. An administrator can turn it on under Settings on the External exposure page."
-	notGBDomain           = "Greenbone (OpenVAS) runs on the box's own verified public IP only, never on the names of a domain."
-	notGBStarting         = "Greenbone (OpenVAS) did not scan: it is still starting."
-	notGBLoading          = "Greenbone (OpenVAS) did not scan: it is loading its feed (the first time takes about 2 hours)."
-	notGBGate             = "Greenbone (OpenVAS) did not scan: this IP can no longer be scanned (it was removed, paused, no longer verified or needs the scan confirmed again), so nothing was sent."
-	notGBNoLog            = "Greenbone (OpenVAS) did not scan: the probe log is not available, and nothing is sent without it."
-	notGBSlow             = "Greenbone (OpenVAS) did not finish within 90 minutes, so its results are not shown."
-	notGBFail             = "Greenbone (OpenVAS) failed, so its results are not shown. The box log has the error."
-	notGBUnread           = "Greenbone (OpenVAS) returned an answer that could not be read, so its results are not shown."
-	notGBNotCompared      = "The CVEs Greenbone named were not compared with the list of exploited vulnerabilities: that comparison is not set up on this box yet."
-	gbLoadingReason       = "Greenbone is loading its feed (first time takes about 2 hours)"
-	gbNotAnswering        = "Greenbone does not answer on its socket. Turn it off and on again to restart it."
-	gbAuthFailed          = "Vedette could not sign in to Greenbone (GMP). The login the box created for it was refused."
-	gbUnreadable          = "Greenbone answered in a way Vedette could not read."
-	gbBusyReason          = "Greenbone is busy loading its feed and answers slowly; Vedette will ask again."
-	gbSlowReason          = "Greenbone did not answer within 2 minutes."
-	notGBSlowAnswer       = "Greenbone (OpenVAS) did not answer within 2 minutes, so its results are not shown."
-	notGBStopped          = "Greenbone (OpenVAS) was stopped before it finished, so its results are not shown. The results of the other checks above are kept."
+	NotAvailableGreenbone = "OpenVAS is not available on this box."
+	notGBOff              = "Optional deep scan with OpenVAS is off. An administrator can turn it on under Settings on the External exposure page."
+	notGBDomain           = "OpenVAS runs on the box's own verified public IP only, never on the names of a domain."
+	notGBStarting         = "OpenVAS did not scan: it is still starting."
+	notGBLoading          = "OpenVAS did not scan: it is loading its feed (the first time takes about 2 hours)."
+	notGBGate             = "OpenVAS did not scan: this IP can no longer be scanned (it was removed, paused, no longer verified or needs the scan confirmed again), so nothing was sent."
+	notGBNoLog            = "OpenVAS did not scan: the probe log is not available, and nothing is sent without it."
+	notGBSlow             = "OpenVAS did not finish within 90 minutes, so its results are not shown."
+	notGBFail             = "OpenVAS failed, so its results are not shown. The box log has the error."
+	notGBUnread           = "OpenVAS returned an answer that could not be read, so its results are not shown."
+	notGBNotCompared      = "The CVEs OpenVAS named were not compared with the list of exploited vulnerabilities: that comparison is not set up on this box yet."
+	gbLoadingReason       = "OpenVAS is loading its feed (first time takes about 2 hours)"
+	gbNotAnswering        = "OpenVAS does not answer on its socket. Turn it off and on again to restart it."
+	gbAuthFailed          = "Vedette could not sign in to OpenVAS (GMP). The login the box created for it was refused."
+	gbUnreadable          = "OpenVAS answered in a way Vedette could not read."
+	gbBusyReason          = "OpenVAS is busy loading its feed and answers slowly; Vedette will ask again."
+	gbSlowReason          = "OpenVAS did not answer within 2 minutes."
+	notGBSlowAnswer       = "OpenVAS did not answer within 2 minutes, so its results are not shown."
+	notGBStopped          = "OpenVAS was stopped before it finished, so its results are not shown. The results of the other checks above are kept."
 	// notGBTerms: Greenbone runs only on a target whose testing terms are accepted (D-566).
-	notGBTerms      = "Greenbone (OpenVAS) did not scan: accept the testing terms for this target to run Greenbone (Ownership tab)."
-	gbSyncingReason = "Greenbone is loading its weekly feed update"
+	notGBTerms      = "OpenVAS did not scan: accept the testing terms for this target to run OpenVAS (Ownership tab)."
+	gbSyncingReason = "OpenVAS is loading its weekly feed update"
 )
 
 // The answers of the setting.
@@ -212,7 +216,7 @@ type gbState struct {
 	state      string
 	reason     string
 	// injectable for tests
-	memTotal func() (int64, error)
+	memInfo  func() (mem, swap int64, err error)
 	diskFree func(dir string) (int64, error)
 	poll     time.Duration
 	cap      time.Duration
@@ -221,32 +225,41 @@ type gbState struct {
 // gb returns the Greenbone state, made on first use.
 func (s *Service) gb() *gbState {
 	s.gbOnce.Do(func() {
-		s.gbs = &gbState{memTotal: memTotal, diskFree: diskFree, poll: gbPollDefault, cap: GreenboneTimeout}
+		s.gbs = &gbState{memInfo: memInfo, diskFree: diskFree, poll: gbPollDefault, cap: GreenboneTimeout}
 	})
 	return s.gbs
 }
 
-// memTotal reads MemTotal from /proc/meminfo, in bytes.
-func memTotal() (int64, error) {
+// memInfo reads MemTotal and SwapTotal from /proc/meminfo, in bytes.
+func memInfo() (mem, swap int64, err error) {
 	b, err := os.ReadFile("/proc/meminfo")
 	if err != nil {
-		return 0, fmt.Errorf("reading /proc/meminfo: %w", err)
+		return 0, 0, fmt.Errorf("reading /proc/meminfo: %w", err)
 	}
-	return parseMemTotal(string(b))
+	return parseMemInfo(string(b))
 }
 
-func parseMemTotal(meminfo string) (int64, error) {
+// parseMemInfo fails closed: no valid MemTotal is an error; a missing or bad SwapTotal counts as no swap.
+func parseMemInfo(meminfo string) (mem, swap int64, err error) {
 	for _, line := range strings.Split(meminfo, "\n") {
 		f := strings.Fields(line)
-		if len(f) == 3 && f[0] == "MemTotal:" && f[2] == "kB" {
-			kb, err := strconv.ParseInt(f[1], 10, 64)
-			if err != nil || kb <= 0 || kb > 1<<40 {
-				break
-			}
-			return kb * 1024, nil
+		if len(f) != 3 || f[2] != "kB" || (f[0] != "MemTotal:" && f[0] != "SwapTotal:") {
+			continue
+		}
+		kb, err := strconv.ParseInt(f[1], 10, 64)
+		if err != nil || kb < 0 || kb > 1<<40 {
+			kb = 0
+		}
+		if f[0] == "MemTotal:" {
+			mem = kb * 1024
+		} else {
+			swap = kb * 1024
 		}
 	}
-	return 0, errors.New("no MemTotal line in /proc/meminfo")
+	if mem <= 0 {
+		return 0, 0, errors.New("no MemTotal line in /proc/meminfo")
+	}
+	return mem, swap, nil
 }
 
 // diskFree is the space an unprivileged writer may use on dir's filesystem, in bytes.
@@ -261,8 +274,11 @@ func diskFree(dir string) (int64, error) {
 	return int64(st.Bavail) * int64(st.Bsize), nil //nolint:gosec,unconvert // block counts of a real filesystem fit; Bsize differs in type between Linux and macOS
 }
 
-// gbText is a byte count as the page says it: decimal GB with one decimal ("7.1 GB").
-func gbText(n int64) string { return strconv.FormatFloat(float64(n)/1e9, 'f', 1, 64) + " GB" }
+// gbText is a byte count as the page says it: decimal GB with one decimal, rounded down ("7.1 GB"), so a number just under a
+// threshold never reads as the threshold itself.
+func gbText(n int64) string {
+	return strconv.FormatFloat(float64(n/100_000_000)/10, 'f', 1, 64) + " GB"
+}
 
 // preflight measures the box against the thresholds (INV-25). The reason names the measured number and the threshold.
 func (s *Service) preflight() GreenbonePreflight {
@@ -273,20 +289,23 @@ func (s *Service) preflight() GreenbonePreflight {
 			p.OK, p.Code, p.Reason = false, code, &why
 		}
 	}
-	if m, err := g.memTotal(); err != nil {
-		refuse("low_memory", "Vedette could not read how much memory this box has, so Greenbone cannot be enabled.")
+	if m, swap, err := g.memInfo(); err != nil {
+		refuse("low_memory", "Vedette could not read how much memory this box has, so OpenVAS cannot be enabled.")
 	} else {
 		p.MemoryBytes = &m
 		if m < GreenboneMinMemory {
-			refuse("low_memory", fmt.Sprintf("This box has %s of memory; Greenbone needs at least %s.", gbText(m), gbText(GreenboneMinMemory)))
+			refuse("low_memory", fmt.Sprintf("This box has %s of memory; OpenVAS needs at least %s.", gbText(m), gbText(GreenboneMinMemory)))
+		} else if m < GreenboneSwapBelow && swap < GreenboneMinSwap {
+			refuse("low_memory", fmt.Sprintf("This box has %s of memory and %s of swap; with less than %s of memory OpenVAS needs at least %s of swap for its first feed load.",
+				gbText(m), gbText(swap), gbText(GreenboneSwapBelow), gbText(GreenboneMinSwap)))
 		}
 	}
 	if d, err := g.diskFree(s.cfg.DataDir); err != nil {
-		refuse("low_disk", "Vedette could not read how much disk space is free on this box, so Greenbone cannot be enabled.")
+		refuse("low_disk", "Vedette could not read how much disk space is free on this box, so OpenVAS cannot be enabled.")
 	} else {
 		p.DiskFreeBytes = &d
 		if d < GreenboneMinDisk {
-			refuse("low_disk", fmt.Sprintf("This box has %s of free disk space; Greenbone needs at least %s free.", gbText(d), gbText(GreenboneMinDisk)))
+			refuse("low_disk", fmt.Sprintf("This box has %s of free disk space; OpenVAS needs at least %s free.", gbText(d), gbText(GreenboneMinDisk)))
 		}
 	}
 	return p
@@ -385,7 +404,7 @@ func (s *Service) SetGreenbone(ctx context.Context, user string, enabled bool) (
 		if errors.As(err, &un) {
 			why = clipText(un.Reason, 200)
 		}
-		return GreenboneView{}, apiErr(502, "host_error", "Greenbone is off for scans, but its containers did not stop: %s.", strings.TrimSuffix(why, "."))
+		return GreenboneView{}, apiErr(502, "host_error", "OpenVAS is off for scans, but its containers did not stop: %s.", strings.TrimSuffix(why, "."))
 	}
 	return s.GreenboneSetting(ctx)
 }
@@ -399,7 +418,7 @@ func (s *Service) saveGreenbone(ctx context.Context, user string, on bool, detai
 		if _, err := tx.ExecContext(ctx, `UPDATE exp_setting SET greenbone = ?, greenbone_by = ?, greenbone_at = ? WHERE id = 1`, v, user, store.FormatTS(s.clock())); err != nil {
 			return fmt.Errorf("saving the Greenbone setting: %w", err)
 		}
-		return s.audit(ctx, tx, user, "exposure.greenbone", "Greenbone (OpenVAS)", detail)
+		return s.audit(ctx, tx, user, "exposure.greenbone", "OpenVAS", detail)
 	})
 }
 
@@ -450,10 +469,10 @@ func (s *Service) gbStartUp(ctx context.Context) {
 		case errors.Is(err, context.Canceled): // disabled meanwhile
 		default:
 			s.cfg.Log.ErrorContext(uctx, "exposure: starting Greenbone failed", "error", err)
-			g.upErr = "Greenbone could not be started. The box log has the error."
+			g.upErr = "OpenVAS could not be started. The box log has the error."
 			var un *Unavailable
 			if errors.As(err, &un) {
-				g.upErr = "Greenbone could not be started: " + clipText(un.Reason, 200)
+				g.upErr = "OpenVAS could not be started: " + clipText(un.Reason, 200)
 			}
 		}
 	}()
@@ -566,14 +585,14 @@ func (s *Service) greenbonePlan(ctx context.Context, st ScanTarget) (run bool, l
 	case GBStarting:
 		return false, notGBStarting, nil
 	default:
-		return false, clipText("Greenbone (OpenVAS) did not scan: "+reason, maxLineText), nil
+		return false, clipText("OpenVAS did not scan: "+reason, maxLineText), nil
 	}
 }
 
 // gbPending is the "Not checked" line a snapshot carries while its Greenbone step runs (review r1 M5): the snapshot of the other
 // steps is stored first, and this line is replaced when Greenbone ends. A restart of the box in between leaves it, and it says so.
 func gbPending(at string) string {
-	return "Greenbone (OpenVAS) started at " + at + " and runs for up to 90 minutes; its results are added here when it finishes. If none appear, it was stopped before it finished (a stop or a restart of the box)."
+	return "OpenVAS started at " + at + " and runs for up to 90 minutes; its results are added here when it finishes. If none appear, it was stopped before it finished (a stop or a restart of the box)."
 }
 
 // gbOutcome is what the Greenbone step adds to the stored snapshot.
@@ -623,7 +642,7 @@ func (s *Service) greenboneStep(ctx context.Context, st ScanTarget) (gbOutcome, 
 	var out gbOutcome
 	if len(problems) > 0 {
 		s.cfg.Log.ErrorContext(ctx, "exposure: Greenbone left something behind", "target", st.Value, "problems", problems)
-		out.not = append(out.not, NotCheckedRow{Kind: "greenbone", Text: clipText("Greenbone: "+strings.Join(problems, "; ")+". The next scan stops and removes Vedette's leftover tasks before it starts.", maxLineText)})
+		out.not = append(out.not, NotCheckedRow{Kind: "greenbone", Text: clipText("OpenVAS: "+strings.Join(problems, "; ")+". The next scan stops and removes Vedette's leftover tasks before it starts.", maxLineText)})
 	}
 	add := func(text, audit string) (gbOutcome, error) {
 		out.not = append([]NotCheckedRow{{Kind: "greenbone", Text: clipText(text, maxLineText)}}, out.not...)
@@ -647,7 +666,7 @@ func (s *Service) greenboneStep(ctx context.Context, st ScanTarget) (gbOutcome, 
 	case gctx.Err() != nil:
 		return add(notGBSlow, "not done: did not finish within 90 minutes")
 	case errors.As(err, &un):
-		return add("Greenbone (OpenVAS) did not scan: "+un.Reason, "not done: "+un.Reason)
+		return add("OpenVAS did not scan: "+un.Reason, "not done: "+un.Reason)
 	case errors.Is(err, errGMPSlow):
 		return add(notGBSlowAnswer, "not done: no answer in time")
 	case errors.Is(err, ErrGMPBad):
@@ -671,10 +690,10 @@ func (s *Service) greenboneStep(ctx context.Context, st ScanTarget) (gbOutcome, 
 	}
 	out.rows = rows
 	out.checks = []CheckRow{{Kind: "greenbone", At: store.FormatTS(s.clock()), Text: clipText(fmt.Sprintf(
-		"Greenbone (OpenVAS) scanned %s from outside without logging in (%s; port list %s): %s with QoD %d or more (%d high or medium, %s), %s named.",
+		"OpenVAS scanned %s from outside without logging in (%s; port list %s): %s with QoD %d or more (%d high or medium, %s), %s named.",
 		ip, levelOf(st.Mode).text, GreenbonePortList, plural(len(rows), "result"), GreenboneMinQoD, len(rows)-low, plural(low, "hardening note"), plural(len(cves), "CVE")), maxLineText)}}
 	if len(rows) > maxGreenboneRows {
-		out.not = append(out.not, NotCheckedRow{Kind: "greenbone", Text: fmt.Sprintf("Greenbone: only the %d highest-severity of %d results are kept.", maxGreenboneRows, len(rows))})
+		out.not = append(out.not, NotCheckedRow{Kind: "greenbone", Text: fmt.Sprintf("OpenVAS: only the %d highest-severity of %d results are kept.", maxGreenboneRows, len(rows))})
 	}
 	out.audit = fmt.Sprintf("done: %s, %s", plural(len(rows), "result"), plural(len(cves), "CVE"))
 	if len(problems) > 0 {
@@ -783,7 +802,7 @@ func (s *Service) runGreenbone(ctx context.Context, st ScanTarget, ip netip.Addr
 			return rows, total, problems, err
 		case "Stopped", "Interrupted":
 			running = false
-			return nil, 0, problems, &Unavailable{Reason: "Greenbone ended the scan as " + strings.ToLower(state) + "."}
+			return nil, 0, problems, &Unavailable{Reason: "OpenVAS ended the scan as " + strings.ToLower(state) + "."}
 		}
 		select {
 		case <-ctx.Done():
@@ -901,7 +920,7 @@ func (s *Service) withGreenboneVulns(ctx context.Context, snap *Snapshot) {
 	var un *Unavailable
 	switch {
 	case errors.As(err, &un):
-		snap.NotChecked = append(snap.NotChecked, NotCheckedRow{Kind: "greenbone", Text: "The CVEs Greenbone named were not compared with exploited vulnerabilities: " + clipText(un.Reason, 200)})
+		snap.NotChecked = append(snap.NotChecked, NotCheckedRow{Kind: "greenbone", Text: "The CVEs OpenVAS named were not compared with exploited vulnerabilities: " + clipText(un.Reason, 200)})
 		return
 	case err != nil:
 		s.cfg.Log.ErrorContext(ctx, "exposure: comparing Greenbone's CVEs with exploited vulnerabilities failed", "snapshot", snap.ID, "error", err)
@@ -917,7 +936,7 @@ func (s *Service) withGreenboneVulns(ctx context.Context, snap *Snapshot) {
 				continue
 			}
 			row := VulnRow{IP: r.IP, Port: port, CVE: id, Name: clipText(e.Name, 200), Basis: "greenbone", QoD: r.QoD, DateAdded: e.DateAdded, Ransomware: e.Ransomware,
-				Summary: clipText(fmt.Sprintf("Scanner: Greenbone, QoD %d. Its test %q names this CVE. Greenbone looked from outside without logging in.", r.QoD, r.Name), maxLineText)}
+				Summary: clipText(fmt.Sprintf("Scanner: OpenVAS, QoD %d. Its test %q names this CVE. OpenVAS looked from outside without logging in.", r.QoD, r.Name), maxLineText)}
 			k := fmt.Sprintf("%s:%d:%s", r.IP, port, id)
 			if i, seen := best[k]; seen {
 				if snap.Vulns[i].QoD < row.QoD {
@@ -1018,7 +1037,7 @@ func (s *Service) RunGreenboneSync(ctx context.Context) error {
 	case derr != nil:
 		return s.recordSync(ctx, false, "Not updated: Vedette could not read how much disk space is free on this box.")
 	case free < GreenboneMinDisk:
-		return s.recordSync(ctx, false, fmt.Sprintf("Not updated: this box has %s of free disk space; Greenbone needs at least %s free.", gbText(free), gbText(GreenboneMinDisk)))
+		return s.recordSync(ctx, false, fmt.Sprintf("Not updated: this box has %s of free disk space; OpenVAS needs at least %s free.", gbText(free), gbText(GreenboneMinDisk)))
 	}
 	g.mu.Lock()
 	if g.off { // turned off since it was read
@@ -1040,9 +1059,9 @@ func (s *Service) RunGreenboneSync(ctx context.Context) error {
 	var un *Unavailable
 	switch {
 	case err == nil:
-		return s.recordSync(ctx, true, "Updated: Greenbone's feed images were pulled, and Greenbone now loads the new tests.")
+		return s.recordSync(ctx, true, "Updated: the OpenVAS feed images were pulled, and OpenVAS now loads the new tests.")
 	case off || ctx.Err() != nil:
-		return s.recordSync(ctx, false, "Not updated: it was stopped (Greenbone was turned off, or the box or the module stopped).")
+		return s.recordSync(ctx, false, "Not updated: it was stopped (OpenVAS was turned off, or the box or the module stopped).")
 	case sctx.Err() != nil:
 		return s.recordSync(ctx, false, "Not updated: it did not finish within 60 minutes.")
 	case errors.As(err, &un):
@@ -1065,14 +1084,14 @@ func (s *Service) recordSync(ctx context.Context, ok bool, note string) error {
 		if _, err := tx.ExecContext(wctx, `UPDATE exp_setting SET greenbone_sync_at = ?, greenbone_sync_ok = ?, greenbone_sync_note = ? WHERE id = 1`, store.FormatTS(s.clock()), v, note); err != nil {
 			return fmt.Errorf("saving the Greenbone feed update: %w", err)
 		}
-		return s.audit(wctx, tx, SystemUser, "exposure.greenbone_sync", "Greenbone (OpenVAS)", note)
+		return s.audit(wctx, tx, SystemUser, "exposure.greenbone_sync", "OpenVAS", note)
 	})
 }
 
 // errScanFeedSync is the 409 busy of a scan asked while the feed update holds the slot (review r1 L4): the real bound, and when it
 // started.
 func (s *Service) errScanFeedSync(started time.Time) *APIError {
-	return apiErr(409, "busy", "Greenbone is loading its weekly feed update (started %s), which holds the box's scanner while it runs, at most %d minutes. Try the scan again after it.",
+	return apiErr(409, "busy", "OpenVAS is loading its weekly feed update (started %s), which holds the box's scanner while it runs, at most %d minutes. Try the scan again after it.",
 		s.momentText(started), int(gbSyncTimeout/time.Minute))
 }
 

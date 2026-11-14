@@ -428,7 +428,7 @@ func gbEnv(t *testing.T) (*env, *fakeGB) {
 	e.svc.cfg.TwoStep = func(context.Context, string) (string, error) { return "app", nil }
 	e.terms = new(bool)
 	g := e.svc.gb()
-	g.memTotal = func() (int64, error) { return 16 * gib, nil }
+	g.memInfo = func() (int64, int64, error) { return 16 * gib, 0, nil }
 	g.diskFree = func(string) (int64, error) { return 200e9, nil }
 	g.poll = 0
 	return e, h
@@ -557,26 +557,31 @@ func FuzzDecodeGMPReport(f *testing.F) {
 
 // ---- the setting ----
 
-// INV-25: the preflight refuses below 8 GB (decimal) of memory or 60 GB free, with the measured number in plain English, and accepts
-// a real 8 GiB machine (about 7.7 GiB reported).
+// INV-25: the preflight refuses below 6 GB (decimal) of memory or 60 GB free, with the measured number in plain English, and accepts
+// the 7 GB box of the trial (D-569).
 func TestContract_INV25_Preflight(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
-		name      string
-		mem, disk int64
-		code      string
-		text      string
+		name            string
+		mem, swap, disk int64
+		code            string
+		text            string
 	}{
-		{"7.1 GB of memory", 7_100_000_000, 200e9, "low_memory", "This box has 7.1 GB of memory; Greenbone needs at least 8.0 GB."},
-		{"low disk", 16 * gib, 41_300_000_000, "low_disk", "This box has 41.3 GB of free disk space; Greenbone needs at least 60.0 GB free."},
-		{"8.3 GB of memory", 8_300_000_000, 60e9, "", ""},
+		{"5.9 GB of memory", 5_900_000_000, 4e9, 200e9, "low_memory", "This box has 5.9 GB of memory; OpenVAS needs at least 6.0 GB."},
+		{"just under 6 GB reads 5.9", 5_999_999_999, 4e9, 200e9, "low_memory", "This box has 5.9 GB of memory; OpenVAS needs at least 6.0 GB."},
+		{"low disk", 16 * gib, 0, 41_300_000_000, "low_disk", "This box has 41.3 GB of free disk space; OpenVAS needs at least 60.0 GB free."},
+		{"7.1 GB of memory, no swap", 7_100_000_000, 0, 60e9, "low_memory", "This box has 7.1 GB of memory and 0.0 GB of swap; with less than 8.0 GB of memory OpenVAS needs at least 2.0 GB of swap for its first feed load."},
+		{"7.1 GB of memory, 1.9 GB of swap", 7_100_000_000, 1_999_999_999, 60e9, "low_memory", "This box has 7.1 GB of memory and 1.9 GB of swap; with less than 8.0 GB of memory OpenVAS needs at least 2.0 GB of swap for its first feed load."},
+		{"exactly 6 GB with 2 GB of swap", 6_000_000_000, 2e9, 60e9, "", ""},
+		{"7.1 GB of memory with swap", 7_100_000_000, 4e9, 60e9, "", ""},
+		{"exactly 8 GB needs no swap", 8_000_000_000, 0, 60e9, "", ""},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			e, h := gbEnv(t)
 			g := e.svc.gb()
-			g.memTotal = func() (int64, error) { return tc.mem, nil }
+			g.memInfo = func() (int64, int64, error) { return tc.mem, tc.swap, nil }
 			g.diskFree = func(string) (int64, error) { return tc.disk, nil }
 			before, err := e.svc.GreenboneSetting(e.ctx())
 			if err != nil {
@@ -603,15 +608,18 @@ func TestContract_INV25_Preflight(t *testing.T) {
 			}
 		})
 	}
-	if v := parseOrZero("MemTotal:        7965424 kB\nMemFree: 1 kB\n"); v != 7965424*1024 {
-		t.Fatalf("meminfo = %d", v)
+	if m, sw, err := parseMemInfo("MemTotal:        7965424 kB\nMemFree: 1 kB\nSwapTotal: 4194300 kB\n"); err != nil || m != 7965424*1024 || sw != 4194300*1024 {
+		t.Fatalf("meminfo = %d %d %v", m, sw, err)
+	}
+	if m, sw, err := parseMemInfo("MemTotal: 7965424 kB\nSwapTotal: -5 kB\n"); err != nil || m != 7965424*1024 || sw != 0 {
+		t.Fatalf("bad swap = %d %d %v", m, sw, err)
 	}
 	if v := parseOrZero("MemTotal: lots kB\n"); v != 0 {
 		t.Fatalf("bad meminfo = %d", v)
 	}
 }
 
-func parseOrZero(s string) int64 { v, _ := parseMemTotal(s); return v }
+func parseOrZero(s string) int64 { v, _, _ := parseMemInfo(s); return v }
 
 // INV-25: the states: off, starting while Up runs, loading while a feed syncs or "Full and fast" is missing (a phase, not a hang),
 // ready, error with the reason; disable stops the project, keeps the data and is audited like enable.
@@ -633,7 +641,7 @@ func TestContract_INV25_StateMachine(t *testing.T) {
 	close(gate)
 	e.svc.gb().upWG.Wait()
 	h.gvm.with(func(g *fakeGVM) { g.syncing = true })
-	if v := e.gbState(); v.State != GBLoading || str(v.Reason) != "Greenbone is loading its feed (first time takes about 2 hours)" {
+	if v := e.gbState(); v.State != GBLoading || str(v.Reason) != "OpenVAS is loading its feed (first time takes about 2 hours)" {
 		t.Fatalf("syncing = %+v", v)
 	}
 	h.gvm.with(func(g *fakeGVM) { g.syncing, g.noFAF = false, true })
@@ -666,13 +674,13 @@ func TestContract_INV25_StateMachine(t *testing.T) {
 			details = append(details, a.Detail)
 		}
 	}
-	if len(details) != 2 || details[0] != "enabled (memory 17.2 GB, free disk 200.0 GB)" || details[1] != "disabled (data kept)" {
+	if len(details) != 2 || details[0] != "enabled (memory 17.1 GB, free disk 200.0 GB)" || details[1] != "disabled (data kept)" {
 		t.Fatalf("audit = %q", details)
 	}
 	// Up fails: error with the reason, until it is turned off and on again
 	h.with(func(h *fakeGB) { h.dialErr, h.upErr = nil, &Unavailable{Reason: "the images could not be pulled"} })
 	e.enable()
-	if v := e.gbState(); v.State != GBError || str(v.Reason) != "Greenbone could not be started: the images could not be pulled" {
+	if v := e.gbState(); v.State != GBError || str(v.Reason) != "OpenVAS could not be started: the images could not be pulled" {
 		t.Fatalf("up failed = %+v", v)
 	}
 	// Down fails: 502 host_error, and scans no longer use it
@@ -689,7 +697,7 @@ func TestContract_INV25_SeamNilWording(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	v, err := e.svc.GreenboneSetting(e.ctx())
-	if err != nil || v.State != GBUnavailable || str(v.Reason) != "Greenbone is not available on this box." {
+	if err != nil || v.State != GBUnavailable || str(v.Reason) != "OpenVAS is not available on this box." {
 		t.Fatalf("view = %+v, %v", v, err)
 	}
 	_, err = e.svc.SetGreenbone(e.ctx(), "admin@acme.example", true)
@@ -854,7 +862,7 @@ func TestContract_INV25_GreenboneNeverReplacesAVersionRow(t *testing.T) {
 	if s.Vulns[0] != version {
 		t.Fatalf("version row changed: %+v", s.Vulns[0])
 	}
-	if s.Vulns[1].QoD != 99 || s.Vulns[1].Port != 443 || s.Vulns[1].IP != ipA || !strings.HasPrefix(s.Vulns[1].Summary, "Scanner: Greenbone, QoD 99.") {
+	if s.Vulns[1].QoD != 99 || s.Vulns[1].Port != 443 || s.Vulns[1].IP != ipA || !strings.HasPrefix(s.Vulns[1].Summary, "Scanner: OpenVAS, QoD 99.") {
 		t.Fatalf("greenbone row = %+v", s.Vulns[1])
 	}
 	// without the lookup, Greenbone's CVEs stay in its own section and the page says they were not compared
@@ -908,14 +916,14 @@ func TestContract_INV25_SafeConfigFailsClosed(t *testing.T) {
 		set  func(*fakeGVM)
 		want string
 	}{
-		{"option missing from the feed", func(g *fakeGVM) { g.noPref = true }, `Greenbone (OpenVAS) did not scan: Greenbone's feed has no "Disable default account checks" option`},
-		{"option not kept", func(g *fakeGVM) { g.keepNo = true }, `Greenbone (OpenVAS) did not scan: Greenbone did not keep "Disable brute force checks" on`},
-		{"config of another user", func(g *fakeGVM) { g.foreign = gbDeep.name }, "belongs to another Greenbone user"},
+		{"option missing from the feed", func(g *fakeGVM) { g.noPref = true }, `OpenVAS did not scan: the OpenVAS feed has no "Disable default account checks" option`},
+		{"option not kept", func(g *fakeGVM) { g.keepNo = true }, `OpenVAS did not scan: OpenVAS did not keep "Disable brute force checks" on`},
+		{"config of another user", func(g *fakeGVM) { g.foreign = gbDeep.name }, "belongs to another OpenVAS user"},
 		{"config in use", func(g *fakeGVM) { g.inUse = true }, "is used by a task Vedette did not start"},
 		// D-564 G2, D-566: generic web application scanning, safe_checks and the families are read back too
-		{"web scanning option missing", func(g *fakeGVM) { g.noWebPref = true }, `Greenbone's feed has no "Enable generic web application scanning" option`},
-		{"web scanning not kept on", func(g *fakeGVM) { g.keepWeb = true }, `Greenbone did not keep "Enable generic web application scanning" on`},
-		{"families not kept", func(g *fakeGVM) { g.keepFamily = true }, `Greenbone did not keep the family "Brute force attacks" off`},
+		{"web scanning option missing", func(g *fakeGVM) { g.noWebPref = true }, `the OpenVAS feed has no "Enable generic web application scanning" option`},
+		{"web scanning not kept on", func(g *fakeGVM) { g.keepWeb = true }, `OpenVAS did not keep "Enable generic web application scanning" on`},
+		{"families not kept", func(g *fakeGVM) { g.keepFamily = true }, `OpenVAS did not keep the family "Brute force attacks" off`},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -1224,7 +1232,7 @@ func TestContract_INV25_WeeklyFeedUpdate(t *testing.T) {
 		}
 	})
 	run()
-	if h.syncCount() != 1 || during.State != GBLoading || str(during.Reason) != "Greenbone is loading its weekly feed update" {
+	if h.syncCount() != 1 || during.State != GBLoading || str(during.Reason) != "OpenVAS is loading its weekly feed update" {
 		t.Fatalf("syncs %d, during = %+v", h.syncCount(), during)
 	}
 	wantAPI(t, scanErr, 409, "busy")
@@ -1244,7 +1252,7 @@ func TestContract_INV25_WeeklyFeedUpdate(t *testing.T) {
 	e.advance(GreenboneSyncEvery)
 	run()
 	v = e.gbState()
-	if h.syncCount() != 1 || v.FeedSync.OK == nil || *v.FeedSync.OK || str(v.FeedSync.Note) != "Not updated: this box has 41.3 GB of free disk space; Greenbone needs at least 60.0 GB free." {
+	if h.syncCount() != 1 || v.FeedSync.OK == nil || *v.FeedSync.OK || str(v.FeedSync.Note) != "Not updated: this box has 41.3 GB of free disk space; OpenVAS needs at least 60.0 GB free." {
 		t.Fatalf("syncs %d, feed sync = %+v", h.syncCount(), v.FeedSync)
 	}
 	e.svc.gb().diskFree = func(string) (int64, error) { return 200e9, nil }

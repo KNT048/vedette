@@ -19506,11 +19506,11 @@ func (s *Server) handleExposurePutExposureBoxIPSettingsRequest(args [0]string, a
 // handleExposurePutExposureGreenboneRequest handles exposure_put_exposure_greenbone operation.
 //
 // Turn the optional deep scan with Greenbone on or off (off by default). On: refused with 409
-// low_memory or low_disk and the measured numbers below 8 GB of memory or 60 GB free; else Greenbone
-// starts in the background (starting, then loading while it loads its feed, about 2 hours the first
-// time). Off: no scan uses it, its containers stop and its data is kept (502 host_error when they
-// could not be stopped). 501 not_implemented when Greenbone is not available on this box. A scan uses
-// it only on a target whose testing terms are accepted (D-566). Audited.
+// low_memory or low_disk and the measured numbers below 6 GB of memory (D-569) or 60 GB free; else
+// Greenbone starts in the background (starting, then loading while it loads its feed, about 2 hours
+// the first time). Off: no scan uses it, its containers stop and its data is kept (502 host_error when
+// they could not be stopped). 501 not_implemented when Greenbone is not available on this box. A scan
+// uses it only on a target whose testing terms are accepted (D-566). Audited.
 //
 // PUT /exposure/greenbone
 func (s *Server) handleExposurePutExposureGreenboneRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -19594,7 +19594,7 @@ func (s *Server) handleExposurePutExposureGreenboneRequest(args [0]string, argsE
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    ExposurePutExposureGreenboneOperation,
-			OperationSummary: "Turn the optional deep scan with Greenbone on or off (off by default). On: refused with 409 low_memory or low_disk and the measured numbers below 8 GB of memory or 60 GB free; else Greenbone starts in the background (starting, then loading while it loads its feed, about 2 hours the first time). Off: no scan uses it, its containers stop and its data is kept (502 host_error when they could not be stopped). 501 not_implemented when Greenbone is not available on this box. A scan uses it only on a target whose testing terms are accepted (D-566). Audited",
+			OperationSummary: "Turn the optional deep scan with Greenbone on or off (off by default). On: refused with 409 low_memory or low_disk and the measured numbers below 6 GB of memory (D-569) or 60 GB free; else Greenbone starts in the background (starting, then loading while it loads its feed, about 2 hours the first time). Off: no scan uses it, its containers stop and its data is kept (502 host_error when they could not be stopped). 501 not_implemented when Greenbone is not available on this box. A scan uses it only on a target whose testing terms are accepted (D-566). Audited",
 			OperationID:      "exposure_put_exposure_greenbone",
 			Body:             request,
 			RawBody:          rawBody,

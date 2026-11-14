@@ -165,7 +165,7 @@ func TestContract_POST1_EnrolAndLogShowTheDeviceWithItsSoftware(t *testing.T) {
 	key := w.enroll(secret, "srv-1", peerA)
 	cfg := w.post("/intake/osquery/config", peerA, map[string]any{"node_key": key})
 	sch, _ := cfg.body["schedule"].(map[string]any)
-	if cfg.code != 200 || cfg.invalid() || len(sch) != 7 || sch["interfaces"] == nil {
+	if cfg.code != 200 || cfg.invalid() || len(sch) != 8 || sch["interfaces"] == nil {
 		t.Fatalf("config: %d %s", cfg.code, cfg.raw)
 	}
 	lr := w.post("/intake/osquery/log", peerA, fullLog(key))

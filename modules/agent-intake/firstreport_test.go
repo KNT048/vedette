@@ -21,7 +21,7 @@ func (w *world) intervals(key string) map[string]float64 {
 	w.t.Helper()
 	r := w.post("/intake/osquery/config", peerA, map[string]any{"node_key": key})
 	sch, _ := r.body["schedule"].(map[string]any)
-	if r.code != 200 || r.invalid() || len(sch) != 7 {
+	if r.code != 200 || r.invalid() || len(sch) != 8 {
 		w.t.Fatalf("config: %d %s", r.code, r.raw)
 	}
 	out := map[string]float64{}

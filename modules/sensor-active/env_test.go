@@ -60,7 +60,7 @@ if [ %d -gt 0 ] && [ "$((n + 1))" -ge %d ]; then sleep 30; fi
 	} else {
 		body += fmt.Sprintf(`case " $* " in
   *" -sn "*) cat %q;;
-  *" --max-retries "*) cat %q;;
+  *" -T2 "*) cat %q;;
   *) cat %q;;
 esac
 `, fx("sweep.xml"), fx("fragile.xml"), fx("device.xml"))

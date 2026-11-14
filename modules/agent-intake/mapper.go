@@ -5,6 +5,7 @@ import (
 	_ "embed"
 	"encoding/json"
 	"regexp"
+	"strconv"
 	"strings"
 	"unicode/utf8"
 
@@ -279,5 +280,79 @@ func observations(hint observe.AssetHint, snaps map[string][]row, mac string) []
 	if mac != "" && len(out) > 0 { // the card's MAC, once per request that records something (hintConfidence in the inventory)
 		out = append(out, observe.Observation{AssetHint: hint, Field: observe.MAC, Value: mac, Source: observe.Agent, Confidence: 0.9})
 	}
+	return out
+}
+
+// ---- Windows release and update revision (D-524) ----
+
+// winOS is a Windows machine's release with its monthly update revision, as the os_revision query gives it, stored on the node
+// because osquery's splay may send it in another request than os_version. version is "10.0.22631.4460"; target is the NVD target_hw
+// of the machine ("x64", "x86", "arm64", "" when not known). It is collected and shown; KEV matching does not read it yet (D-524:
+// the Windows software row and its findings rule are a follow-up of the findings owner).
+type winOS struct{ name, version, target string }
+
+// winBuildRE is the version of Windows 10, 11 and Server 2016 and later as osquery gives it ("10.0.22631"). Older releases (6.x) are
+// named by NVD without build ranges, so they are left out.
+var winBuildRE = regexp.MustCompile(`^10\.0\.[1-9][0-9]{4}$`)
+
+// parseWinOS reads the os_revision row: a Windows 10/11/Server version and a revision 1..999999 written as osquery writes an
+// integer (no sign, no leading zero, no space). Anything else is not taken (the agent's data is untrusted, INV-7): a revision 0
+// or a missing one would place the machine at the release's first build.
+func parseWinOS(rows []row) (winOS, bool) {
+	if len(rows) == 0 {
+		return winOS{}, false
+	}
+	r := rows[0]
+	rev, err := strconv.Atoi(r["revision"])
+	if err != nil || rev < 1 || rev > 999999 || strconv.Itoa(rev) != r["revision"] || !winBuildRE.MatchString(r["version"]) || !fits(r["name"]) {
+		return winOS{}, false
+	}
+	return winOS{name: r["name"], version: r["version"] + "." + r["revision"], target: winTarget(r["arch"])}, true
+}
+
+// winTarget is the NVD target_hw of the architecture osquery reads from WMI (Win32_OperatingSystem.OSArchitecture: "64-bit",
+// translated on some systems, "64 bits", "64-Bit"; "ARM 64-bit Processor" on ARM); "" when it names neither.
+func winTarget(arch string) string {
+	a := strings.ToLower(arch)
+	switch {
+	case strings.Contains(a, "arm"):
+		return "arm64"
+	case strings.Contains(a, "64"):
+		return "x64"
+	case strings.Contains(a, "32"):
+		return "x86"
+	}
+	return ""
+}
+
+// withWindows puts the node's Windows release on the os_version row of a copy of the snapshots, so the device's OS reads
+// "Microsoft Windows 11 Pro 10.0.22631.4460": on this request's os_version row when its build is the stored one (a machine whose
+// feature update is not reported yet keeps "… build 26100"), or, when the request carries a usable os_revision row and no os_version
+// row, on an os_version row made from it (the revision's own report shows the OS at once, D-503's first report). A zero w, or
+// neither case, leaves the snapshots as they are.
+func withWindows(snaps map[string][]row, w winOS) map[string][]row {
+	if w.version == "" {
+		return snaps
+	}
+	var r row
+	if rows := snaps["os_version"]; len(rows) > 0 {
+		if rows[0]["platform"] != "windows" || !strings.HasPrefix(w.version, rows[0]["version"]+".") {
+			return snaps
+		}
+		r = make(row, len(rows[0]))
+		for k, v := range rows[0] {
+			r[k] = v
+		}
+	} else if fresh, ok := parseWinOS(snaps["os_revision"]); ok && fresh == w {
+		r = row{"name": w.name, "platform": "windows"}
+	} else {
+		return snaps
+	}
+	r["version"], r["build"] = w.version, ""
+	out := make(map[string][]row, len(snaps)+1)
+	for k, v := range snaps {
+		out[k] = v
+	}
+	out["os_version"] = []row{r}
 	return out
 }

@@ -21168,9 +21168,15 @@
                                       "type": "string"
                                     },
                                     "last_seen": {
-                                      "description": "Set only on a port the newest scan did not see: the day an earlier scan last saw it open. It still counts as open until a second scan agrees (INV-22)",
+                                      "description": "Set only on a port the newest scan did not report, kept from an earlier scan: the day a scan last saw it open (INV-22)",
                                       "type": "string",
                                       "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                                    },
+                                    "misses": {
+                                      "description": "With last_seen: how many scans in a row that checked the address missed the port (1 = missed by the last scan); 0 or absent = the last scan did not check the address and the row is as it was",
+                                      "type": "integer",
+                                      "minimum": -9007199254740991,
+                                      "maximum": 9007199254740991
                                     }
                                   },
                                   "required": [
@@ -21811,9 +21817,15 @@
                                       "type": "string"
                                     },
                                     "last_seen": {
-                                      "description": "Set only on a port the newest scan did not see: the day an earlier scan last saw it open. It still counts as open until a second scan agrees (INV-22)",
+                                      "description": "Set only on a port the newest scan did not report, kept from an earlier scan: the day a scan last saw it open (INV-22)",
                                       "type": "string",
                                       "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                                    },
+                                    "misses": {
+                                      "description": "With last_seen: how many scans in a row that checked the address missed the port (1 = missed by the last scan); 0 or absent = the last scan did not check the address and the row is as it was",
+                                      "type": "integer",
+                                      "minimum": -9007199254740991,
+                                      "maximum": 9007199254740991
                                     }
                                   },
                                   "required": [
@@ -22337,9 +22349,15 @@
                                 "type": "string"
                               },
                               "last_seen": {
-                                "description": "Set only on a port the newest scan did not see: the day an earlier scan last saw it open. It still counts as open until a second scan agrees (INV-22)",
+                                "description": "Set only on a port the newest scan did not report, kept from an earlier scan: the day a scan last saw it open (INV-22)",
                                 "type": "string",
                                 "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                              },
+                              "misses": {
+                                "description": "With last_seen: how many scans in a row that checked the address missed the port (1 = missed by the last scan); 0 or absent = the last scan did not check the address and the row is as it was",
+                                "type": "integer",
+                                "minimum": -9007199254740991,
+                                "maximum": 9007199254740991
                               }
                             },
                             "required": [
@@ -22754,9 +22772,15 @@
                                 "type": "string"
                               },
                               "last_seen": {
-                                "description": "Set only on a port the newest scan did not see: the day an earlier scan last saw it open. It still counts as open until a second scan agrees (INV-22)",
+                                "description": "Set only on a port the newest scan did not report, kept from an earlier scan: the day a scan last saw it open (INV-22)",
                                 "type": "string",
                                 "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                              },
+                              "misses": {
+                                "description": "With last_seen: how many scans in a row that checked the address missed the port (1 = missed by the last scan); 0 or absent = the last scan did not check the address and the row is as it was",
+                                "type": "integer",
+                                "minimum": -9007199254740991,
+                                "maximum": 9007199254740991
                               }
                             },
                             "required": [
@@ -23663,9 +23687,15 @@
                             "type": "string"
                           },
                           "last_seen": {
-                            "description": "Set only on a port the newest scan did not see: the day an earlier scan last saw it open. It still counts as open until a second scan agrees (INV-22)",
+                            "description": "Set only on a port the newest scan did not report, kept from an earlier scan: the day a scan last saw it open (INV-22)",
                             "type": "string",
                             "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                          },
+                          "misses": {
+                            "description": "With last_seen: how many scans in a row that checked the address missed the port (1 = missed by the last scan); 0 or absent = the last scan did not check the address and the row is as it was",
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
                           }
                         },
                         "required": [
@@ -24320,9 +24350,15 @@
                                     "type": "string"
                                   },
                                   "last_seen": {
-                                    "description": "Set only on a port the newest scan did not see: the day an earlier scan last saw it open. It still counts as open until a second scan agrees (INV-22)",
+                                    "description": "Set only on a port the newest scan did not report, kept from an earlier scan: the day a scan last saw it open (INV-22)",
                                     "type": "string",
                                     "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                                  },
+                                  "misses": {
+                                    "description": "With last_seen: how many scans in a row that checked the address missed the port (1 = missed by the last scan); 0 or absent = the last scan did not check the address and the row is as it was",
+                                    "type": "integer",
+                                    "minimum": -9007199254740991,
+                                    "maximum": 9007199254740991
                                   }
                                 },
                                 "required": [

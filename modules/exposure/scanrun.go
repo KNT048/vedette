@@ -148,22 +148,25 @@ func (s *Service) saveScan(ctx context.Context, user string, t Target, content C
 		Vulns: []VulnRow{}, VersionGaps: []GapRow{}} // computed when read (INV-20); never null in an answer
 	wctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), saveTimeout)
 	defer cancel()
+	// INV-22: carry what the last observation (a scan today counts) had open and this scan did not report. One scan runs at a time, so
+	// reading it before the write is safe; the address gate (ScannableIP) must not run inside the write transaction.
+	if prev, ok, err := previousSnapshot(wctx, s.cfg.DB.Reader(), t.ID, date); err != nil {
+		return Snapshot{}, err
+	} else if ok {
+		content = carryNotSeen(content, prev, s.coveredBy(wctx, user, t, content, prev))
+	}
+	snap.Content, snap.Counts = content, countsOf(content, extra, at)
 	err := s.write(wctx, func(tx *sql.Tx, emit func(string, any)) error {
 		if _, err := loadTarget(wctx, tx, t.ID); err != nil { // deleted while the scan ran
 			return err
 		}
-		prev, hadPrev, err := previousSnapshot(wctx, tx, t.ID, date)
-		if err != nil {
-			return err
-		}
-		if hadPrev {
-			content = carryNotSeen(content, prev) // INV-22: a port seen last time and not now is "not seen" once, "closed" the second time
-		}
-		snap.Content, snap.Counts = content, countsOf(content, extra, at)
 		if err := upsertSnapshot(wctx, tx, t.ID, snap); err != nil {
 			return err
 		}
 		detail := fmt.Sprintf("%d subdomains, %d ports", snap.Counts.Subdomains, snap.Counts.Ports)
+		if n := keptPorts(snap.Ports); n > 0 {
+			detail += fmt.Sprintf(" (%d kept from an earlier scan)", n)
+		}
 		if err := s.audit(wctx, tx, user, "exposure.scan", t.Value, detail); err != nil {
 			return err
 		}

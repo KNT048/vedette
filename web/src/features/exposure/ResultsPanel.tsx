@@ -10,6 +10,7 @@ import { dateText } from './dates'
 import { riskOf } from './services'
 import { useDiff, useSnapshot, useSnapshots } from './api'
 import { ChecksSection, VulnSection } from './ServicesPanel'
+import { PortMark, PortMarkNote } from './PortMark'
 import { PORT_NOT_SEEN, VERSION_NOT_READ } from './contract'
 import { CERT_WARN_DAYS, type AdminRow, type CertRow, type DiffItem, type DiffChange, type HostRow, type PortRow, type Snapshot, type Target } from './types'
 
@@ -63,10 +64,9 @@ function SnapshotView({ target, s }: { target: Target; s: Snapshot }) {
     { id: 'product', header: t('col.product'), accessorFn: (r) => r.product ?? '', cell: ({ row }) => row.original.product ?? <span className="text-muted">{t('common:unknown')}</span> },
     { id: 'note', header: t('col.note'), enableSorting: false, cell: ({ row }) => {
       const risk = riskOf(row.original)
-      const seen = row.original.last_seen
-      if (!risk && !seen) return null
+      if (!risk && !row.original.last_seen) return null
       return <span className="grid gap-1">
-        {seen ? <><Chip tone="off">{t('open.notSeen')}</Chip><span className="text-[12px] text-muted">{t('open.notSeenNote', { date: dateText(seen) })}</span></> : null}
+        {row.original.last_seen ? <><PortMark p={row.original} /><PortMarkNote p={row.original} at={s.scanned_at} /></> : null}
         {risk ? <><Chip tone="warn">{t('open.attacked')}</Chip><span className="text-[12px] text-muted">{t(`risky.${risk}`)} {t('open.purpose')}</span></> : null}
       </span>
     } },

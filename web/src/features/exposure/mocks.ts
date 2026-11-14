@@ -164,13 +164,13 @@ const plus = (iso: string, d: number) => new Date(Date.parse(iso) + d * 864e5).t
 const fmt = dateText
 
 // ---------- diff ----------
-type Entry = DiffItem & { exp?: string; product?: string; version?: string; lastSeen?: string }
+type Entry = DiffItem & { exp?: string; product?: string; version?: string; lastSeen?: string; missed?: boolean }
 // INV-20: the same product with a version before and none now: the version was not read, nothing changed and no CVE is gone.
 const versionUnread = (o?: Entry, v?: Entry) => !!o?.product && o.product === v?.product && !!o.version && !v.version
 function items(s: Snapshot): Map<string, Entry> {
   const m = new Map<string, Entry>()
   for (const h of s.hosts) m.set(`h:${h.name}`, { kind: 'subdomain', key: `h:${h.name}`, label: h.name, detail: h.ip })
-  for (const p of s.ports) m.set(`p:${p.ip}:${p.port}`, { kind: 'port', key: `p:${p.ip}:${p.port}`, label: `${p.ip}:${p.port}`, detail: [p.service, p.product].filter(Boolean).join(', '), lastSeen: p.last_seen })
+  for (const p of s.ports) m.set(`p:${p.ip}:${p.port}`, { kind: 'port', key: `p:${p.ip}:${p.port}`, label: `${p.ip}:${p.port}`, detail: [p.service, p.product].filter(Boolean).join(', '), lastSeen: p.last_seen, missed: (p.misses ?? 0) > 0 })
   for (const a of s.admin_panels) m.set(`a:${a.url}`, { kind: 'admin', key: `a:${a.url}`, label: a.url, detail: a.product })
   for (const c of s.certs) m.set(`c:${c.host}`, { kind: 'cert', key: `c:${c.host}`, label: c.host, detail: c.issuer, exp: c.expires_at })
   for (const x of s.services) m.set(`s:${x.ip}:${x.port}`, { kind: 'service', key: `s:${x.ip}:${x.port}`, label: `${x.ip}:${x.port}`, detail: x.product ? `${x.product} ${x.version}`.trim() : x.name, product: x.product, version: x.version })
@@ -183,7 +183,7 @@ function diff(a: Snapshot, b: Snapshot): Diff {
   for (const [k, v] of B) {
     const o = A.get(k)
     if (!o) added.push({ kind: v.kind, key: k, label: v.label, detail: v.detail })
-    else if (v.kind === 'port' && !o.lastSeen && v.lastSeen) changed.push({ kind: 'port', key: k, label: v.label, detail: v.detail, from: o.detail, to: PORT_NOT_SEEN })
+    else if (v.kind === 'port' && !o.missed && v.missed) changed.push({ kind: 'port', key: k, label: v.label, detail: v.detail, from: o.detail, to: PORT_NOT_SEEN })
     else if (v.kind === 'cert' && o.exp !== v.exp) changed.push({ kind: 'cert', key: k, label: v.label, detail: v.detail, from: o.exp!, to: v.exp! })
     else if (v.kind === 'service' && versionUnread(o, v)) changed.push({ kind: 'service', key: k, label: v.label, detail: v.detail, from: o.detail, to: VERSION_NOT_READ })
     else if (v.kind === 'service' && o.product === v.product && !o.version) { /* a version read now that was not before: no change */ }
@@ -193,7 +193,7 @@ function diff(a: Snapshot, b: Snapshot): Diff {
     if (B.has(k)) continue
     const at = v.kind === 'vuln' ? k.split(':').slice(1, 3).join(':') : ''
     if (at && versionUnread(A.get(`s:${at}`), B.get(`s:${at}`))) continue
-    removed.push({ kind: v.kind, key: k, label: v.label, detail: v.kind === 'port' && v.lastSeen ? `${v.detail} (closed: not seen in two scans, ${a.date} and ${b.date})` : v.detail })
+    removed.push({ kind: v.kind, key: k, label: v.label, detail: v.kind === 'port' && v.missed ? `${v.detail} (closed: missed by two scans in a row, last seen ${v.lastSeen})` : v.detail })
   }
   return { from: a.date, to: b.date, added, removed, changed }
 }

@@ -22,7 +22,7 @@ func certAt(host string, d time.Duration) CertRow {
 func sampleContent() Content {
 	return Content{
 		Hosts:       []HostRow{{"acme.example", ipA}, {"www.acme.example", ipA}, {"mail.acme.example", ipB}},
-		Ports:       []PortRow{{ipA, 80, "http", "nginx", ""}, {ipA, 443, "https", "nginx", ""}, {ipB, 25, "smtp", "", ""}},
+		Ports:       []PortRow{{ipA, 80, "http", "nginx", "", 0}, {ipA, 443, "https", "nginx", "", 0}, {ipB, 25, "smtp", "", "", 0}},
 		AdminPanels: []AdminRow{{"https://acme.example:10443", "FortiGate (admin)", ipA, 10443, "danger"}},
 		Certs:       []CertRow{certAt("acme.example", 62*day), certAt("mail.acme.example", 9*day)},
 	}
@@ -583,7 +583,7 @@ func TestContract_INV8_SnapshotsAndDiff(t *testing.T) {
 	e.advance(day)
 	c2 := sampleContent()
 	c2.Hosts = append(c2.Hosts, HostRow{"staging.acme.example", ipB})
-	c2.Ports = append(c2.Ports, PortRow{ipB, 8080, "http", "Jenkins", ""})
+	c2.Ports = append(c2.Ports, PortRow{ipB, 8080, "http", "Jenkins", "", 0})
 	c2.AdminPanels = nil
 	c2.Certs[1] = certAt("mail.acme.example", 100*day)
 	run.content = c2
@@ -629,7 +629,7 @@ func TestContract_INV8_SnapshotsAndDiff(t *testing.T) {
 func TestContract_INV8_IPTargetCountsItsOwnAddress(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
-	e.svc.SetRunner(&fakeRunner{content: Content{Ports: []PortRow{{ipA, 443, "https", "", ""}}}})
+	e.svc.SetRunner(&fakeRunner{content: Content{Ports: []PortRow{{ipA, 443, "https", "", "", 0}}}})
 	ip := e.detect(ipA)[0]
 	if _, err := e.commit(ip.ID); err != nil {
 		t.Fatal(err)
@@ -648,7 +648,7 @@ func TestContract_INV10_ScanContentIsLimited(t *testing.T) {
 	for i := range maxContentRows + 50 {
 		big.Hosts = append(big.Hosts, HostRow{Name: "h" + strings.Repeat("x", i%3), IP: ipA})
 	}
-	big.Ports = []PortRow{{ipA, 0, "bad", "", ""}, {ipA, 65536, "bad", "", ""}, {ipA, 22, "ssh\x00\xff" + strings.Repeat("é", 2*maxContentText), "OpenSSH", ""}}
+	big.Ports = []PortRow{{ipA, 0, "bad", "", "", 0}, {ipA, 65536, "bad", "", "", 0}, {ipA, 22, "ssh\x00\xff" + strings.Repeat("é", 2*maxContentText), "OpenSSH", "", 0}}
 	big.AdminPanels = []AdminRow{{"https://x/", "p", ipA, 443, "<script>"}, {"https://y/", "p", ipA, 0, "danger"}}
 	big.Certs = []CertRow{{"a.example", "R11", "not a date"}, certAt("b.example", day)}
 	got := sanitize(big)

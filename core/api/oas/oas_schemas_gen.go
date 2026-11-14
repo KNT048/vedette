@@ -43613,12 +43613,15 @@ func (s *ExposureGetExposureTargetsIDOKMethod) UnmarshalText(data []byte) error 
 
 type ExposureGetExposureTargetsIDOKOpenPortsItem struct {
 	IP string `json:"ip"`
-	// Set only on a port the newest scan did not see: the day an earlier scan last saw it open. It still
-	// counts as open until a second scan agrees (INV-22).
+	// Set only on a port the newest scan did not report, kept from an earlier scan: the day a scan last
+	// saw it open (INV-22).
 	LastSeen OptString `json:"last_seen"`
-	Port     int       `json:"port"`
-	Product  OptString `json:"product"`
-	Service  string    `json:"service"`
+	// With last_seen: how many scans in a row that checked the address missed the port (1 = missed by the
+	// last scan); 0 or absent = the last scan did not check the address and the row is as it was.
+	Misses  OptInt    `json:"misses"`
+	Port    int       `json:"port"`
+	Product OptString `json:"product"`
+	Service string    `json:"service"`
 }
 
 // GetIP returns the value of IP.
@@ -43629,6 +43632,11 @@ func (s *ExposureGetExposureTargetsIDOKOpenPortsItem) GetIP() string {
 // GetLastSeen returns the value of LastSeen.
 func (s *ExposureGetExposureTargetsIDOKOpenPortsItem) GetLastSeen() OptString {
 	return s.LastSeen
+}
+
+// GetMisses returns the value of Misses.
+func (s *ExposureGetExposureTargetsIDOKOpenPortsItem) GetMisses() OptInt {
+	return s.Misses
 }
 
 // GetPort returns the value of Port.
@@ -43654,6 +43662,11 @@ func (s *ExposureGetExposureTargetsIDOKOpenPortsItem) SetIP(val string) {
 // SetLastSeen sets the value of LastSeen.
 func (s *ExposureGetExposureTargetsIDOKOpenPortsItem) SetLastSeen(val OptString) {
 	s.LastSeen = val
+}
+
+// SetMisses sets the value of Misses.
+func (s *ExposureGetExposureTargetsIDOKOpenPortsItem) SetMisses(val OptInt) {
+	s.Misses = val
 }
 
 // SetPort sets the value of Port.
@@ -44332,12 +44345,15 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKNotCheckedItem) SetText(val 
 
 type ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem struct {
 	IP string `json:"ip"`
-	// Set only on a port the newest scan did not see: the day an earlier scan last saw it open. It still
-	// counts as open until a second scan agrees (INV-22).
+	// Set only on a port the newest scan did not report, kept from an earlier scan: the day a scan last
+	// saw it open (INV-22).
 	LastSeen OptString `json:"last_seen"`
-	Port     int       `json:"port"`
-	Product  OptString `json:"product"`
-	Service  string    `json:"service"`
+	// With last_seen: how many scans in a row that checked the address missed the port (1 = missed by the
+	// last scan); 0 or absent = the last scan did not check the address and the row is as it was.
+	Misses  OptInt    `json:"misses"`
+	Port    int       `json:"port"`
+	Product OptString `json:"product"`
+	Service string    `json:"service"`
 }
 
 // GetIP returns the value of IP.
@@ -44348,6 +44364,11 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem) GetIP() string {
 // GetLastSeen returns the value of LastSeen.
 func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem) GetLastSeen() OptString {
 	return s.LastSeen
+}
+
+// GetMisses returns the value of Misses.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem) GetMisses() OptInt {
+	return s.Misses
 }
 
 // GetPort returns the value of Port.
@@ -44373,6 +44394,11 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem) SetIP(val string)
 // SetLastSeen sets the value of LastSeen.
 func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem) SetLastSeen(val OptString) {
 	s.LastSeen = val
+}
+
+// SetMisses sets the value of Misses.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem) SetMisses(val OptInt) {
+	s.Misses = val
 }
 
 // SetPort sets the value of Port.
@@ -45553,12 +45579,15 @@ func (s *ExposureGetExposureTargetsOKItemsItemMethod) UnmarshalText(data []byte)
 
 type ExposureGetExposureTargetsOKItemsItemOpenPortsItem struct {
 	IP string `json:"ip"`
-	// Set only on a port the newest scan did not see: the day an earlier scan last saw it open. It still
-	// counts as open until a second scan agrees (INV-22).
+	// Set only on a port the newest scan did not report, kept from an earlier scan: the day a scan last
+	// saw it open (INV-22).
 	LastSeen OptString `json:"last_seen"`
-	Port     int       `json:"port"`
-	Product  OptString `json:"product"`
-	Service  string    `json:"service"`
+	// With last_seen: how many scans in a row that checked the address missed the port (1 = missed by the
+	// last scan); 0 or absent = the last scan did not check the address and the row is as it was.
+	Misses  OptInt    `json:"misses"`
+	Port    int       `json:"port"`
+	Product OptString `json:"product"`
+	Service string    `json:"service"`
 }
 
 // GetIP returns the value of IP.
@@ -45569,6 +45598,11 @@ func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItem) GetIP() string {
 // GetLastSeen returns the value of LastSeen.
 func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItem) GetLastSeen() OptString {
 	return s.LastSeen
+}
+
+// GetMisses returns the value of Misses.
+func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItem) GetMisses() OptInt {
+	return s.Misses
 }
 
 // GetPort returns the value of Port.
@@ -45594,6 +45628,11 @@ func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItem) SetIP(val string) {
 // SetLastSeen sets the value of LastSeen.
 func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItem) SetLastSeen(val OptString) {
 	s.LastSeen = val
+}
+
+// SetMisses sets the value of Misses.
+func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItem) SetMisses(val OptInt) {
+	s.Misses = val
 }
 
 // SetPort sets the value of Port.
@@ -46268,12 +46307,15 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItemMethod) UnmarshalText(data []
 
 type ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem struct {
 	IP string `json:"ip"`
-	// Set only on a port the newest scan did not see: the day an earlier scan last saw it open. It still
-	// counts as open until a second scan agrees (INV-22).
+	// Set only on a port the newest scan did not report, kept from an earlier scan: the day a scan last
+	// saw it open (INV-22).
 	LastSeen OptString `json:"last_seen"`
-	Port     int       `json:"port"`
-	Product  OptString `json:"product"`
-	Service  string    `json:"service"`
+	// With last_seen: how many scans in a row that checked the address missed the port (1 = missed by the
+	// last scan); 0 or absent = the last scan did not check the address and the row is as it was.
+	Misses  OptInt    `json:"misses"`
+	Port    int       `json:"port"`
+	Product OptString `json:"product"`
+	Service string    `json:"service"`
 }
 
 // GetIP returns the value of IP.
@@ -46284,6 +46326,11 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) GetIP() string
 // GetLastSeen returns the value of LastSeen.
 func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) GetLastSeen() OptString {
 	return s.LastSeen
+}
+
+// GetMisses returns the value of Misses.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) GetMisses() OptInt {
+	return s.Misses
 }
 
 // GetPort returns the value of Port.
@@ -46309,6 +46356,11 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) SetIP(val stri
 // SetLastSeen sets the value of LastSeen.
 func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) SetLastSeen(val OptString) {
 	s.LastSeen = val
+}
+
+// SetMisses sets the value of Misses.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) SetMisses(val OptInt) {
+	s.Misses = val
 }
 
 // SetPort sets the value of Port.
@@ -47215,12 +47267,15 @@ func (s *ExposurePostExposureTargetsCreatedMethod) UnmarshalText(data []byte) er
 
 type ExposurePostExposureTargetsCreatedOpenPortsItem struct {
 	IP string `json:"ip"`
-	// Set only on a port the newest scan did not see: the day an earlier scan last saw it open. It still
-	// counts as open until a second scan agrees (INV-22).
+	// Set only on a port the newest scan did not report, kept from an earlier scan: the day a scan last
+	// saw it open (INV-22).
 	LastSeen OptString `json:"last_seen"`
-	Port     int       `json:"port"`
-	Product  OptString `json:"product"`
-	Service  string    `json:"service"`
+	// With last_seen: how many scans in a row that checked the address missed the port (1 = missed by the
+	// last scan); 0 or absent = the last scan did not check the address and the row is as it was.
+	Misses  OptInt    `json:"misses"`
+	Port    int       `json:"port"`
+	Product OptString `json:"product"`
+	Service string    `json:"service"`
 }
 
 // GetIP returns the value of IP.
@@ -47231,6 +47286,11 @@ func (s *ExposurePostExposureTargetsCreatedOpenPortsItem) GetIP() string {
 // GetLastSeen returns the value of LastSeen.
 func (s *ExposurePostExposureTargetsCreatedOpenPortsItem) GetLastSeen() OptString {
 	return s.LastSeen
+}
+
+// GetMisses returns the value of Misses.
+func (s *ExposurePostExposureTargetsCreatedOpenPortsItem) GetMisses() OptInt {
+	return s.Misses
 }
 
 // GetPort returns the value of Port.
@@ -47256,6 +47316,11 @@ func (s *ExposurePostExposureTargetsCreatedOpenPortsItem) SetIP(val string) {
 // SetLastSeen sets the value of LastSeen.
 func (s *ExposurePostExposureTargetsCreatedOpenPortsItem) SetLastSeen(val OptString) {
 	s.LastSeen = val
+}
+
+// SetMisses sets the value of Misses.
+func (s *ExposurePostExposureTargetsCreatedOpenPortsItem) SetMisses(val OptInt) {
+	s.Misses = val
 }
 
 // SetPort sets the value of Port.
@@ -48348,12 +48413,15 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTargetMethod) UnmarshalText(data [
 
 type ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem struct {
 	IP string `json:"ip"`
-	// Set only on a port the newest scan did not see: the day an earlier scan last saw it open. It still
-	// counts as open until a second scan agrees (INV-22).
+	// Set only on a port the newest scan did not report, kept from an earlier scan: the day a scan last
+	// saw it open (INV-22).
 	LastSeen OptString `json:"last_seen"`
-	Port     int       `json:"port"`
-	Product  OptString `json:"product"`
-	Service  string    `json:"service"`
+	// With last_seen: how many scans in a row that checked the address missed the port (1 = missed by the
+	// last scan); 0 or absent = the last scan did not check the address and the row is as it was.
+	Misses  OptInt    `json:"misses"`
+	Port    int       `json:"port"`
+	Product OptString `json:"product"`
+	Service string    `json:"service"`
 }
 
 // GetIP returns the value of IP.
@@ -48364,6 +48432,11 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) GetIP() strin
 // GetLastSeen returns the value of LastSeen.
 func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) GetLastSeen() OptString {
 	return s.LastSeen
+}
+
+// GetMisses returns the value of Misses.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) GetMisses() OptInt {
+	return s.Misses
 }
 
 // GetPort returns the value of Port.
@@ -48389,6 +48462,11 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) SetIP(val str
 // SetLastSeen sets the value of LastSeen.
 func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) SetLastSeen(val OptString) {
 	s.LastSeen = val
+}
+
+// SetMisses sets the value of Misses.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) SetMisses(val OptInt) {
+	s.Misses = val
 }
 
 // SetPort sets the value of Port.

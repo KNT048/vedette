@@ -1100,16 +1100,18 @@ describe('exposure: services and exploited vulnerabilities of the box IP (S-EXP-
     expect(within(within(diff).getByRole('row', { name: /Service.*203\.0\.113\.10:18443/ })).getByText('Apache httpd 2.4.49')).toBeInTheDocument()
   })
 
-  it('INV-22: a port the newest scan did not see says "not seen", still counts as open, and the compare does not call it closed', async () => {
+  it('INV-22: a port the newest scan missed says "missed", still counts as open, and the compare does not call it closed', async () => {
     renderApp('/exposure/xt-2')
     const ports = await screen.findByRole('table', { name: 'Ports open to the Internet' })
     const row = within(ports).getByRole('row', { name: /\b8443\b/ })
-    expect(within(row).getByText('Not seen in the last scan')).toBeInTheDocument()
-    expect(within(row).getByText(/Vedette will confirm on the next scan\. Until then it counts as open\./)).toBeInTheDocument()
-    expect(within(ports).getAllByText('Not seen in the last scan')).toHaveLength(1)
+    expect(within(row).getByText('Missed by the last scan')).toBeInTheDocument()
+    expect(within(row).getByText(/Vedette says it is closed only after a second scan also misses it; use Scan now to check again\. Until then it counts as open\./)).toBeInTheDocument()
+    expect(within(ports).getAllByText('Missed by the last scan')).toHaveLength(1)
+    const svc = await screen.findByRole('table', { name: 'Services identified on the open ports (nmap -sV)' })
+    expect(within(within(svc).getByRole('row', { name: /^8443/ })).getByText('Missed by the last scan')).toBeInTheDocument()
     const diff = await screen.findByRole('table', { name: 'Changes between two scan days' })
     const changed = await within(diff).findByRole('row', { name: /Open port.*203\.0\.113\.10:8443/ })
-    expect(within(changed).getByText('Not seen in the last scan; Vedette will confirm on the next scan')).toBeInTheDocument()
+    expect(within(changed).getByText('Missed by the last scan; closed only after a second scan also misses it')).toBeInTheDocument()
     expect(within(changed).getByText('Changed')).toBeInTheDocument()
   })
 

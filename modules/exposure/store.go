@@ -323,10 +323,11 @@ func loadSnapshot(ctx context.Context, q querier, targetID, date string) (Snapsh
 	return s, true, nil
 }
 
-// previousSnapshot returns the newest snapshot of a day before `date`, or ok=false when there is none.
+// previousSnapshot returns the newest snapshot of `date` or an earlier day (the last observation: a scan earlier today counts), or
+// ok=false when there is none.
 func previousSnapshot(ctx context.Context, q querier, targetID, date string) (Snapshot, bool, error) {
 	var d string
-	err := q.QueryRowContext(ctx, `SELECT date FROM exp_snapshot WHERE target_id = ? AND date < ? ORDER BY date DESC LIMIT 1`, targetID, date).Scan(&d)
+	err := q.QueryRowContext(ctx, `SELECT date FROM exp_snapshot WHERE target_id = ? AND date <= ? ORDER BY date DESC LIMIT 1`, targetID, date).Scan(&d)
 	if errors.Is(err, sql.ErrNoRows) {
 		return Snapshot{}, false, nil
 	}

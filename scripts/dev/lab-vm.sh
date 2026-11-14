@@ -19,7 +19,8 @@ CPUS=${LAB_CPUS:-2}
 DISK_SIZE=${LAB_DISK_SIZE:-20G}
 MEM_HEADROOM_MB=1536   # start refuses below MEM_MB + this of MemAvailable
 MEM_MAX_PCT=90         # and when the box would pass this share of its memory with the VM up
-LAN_LINK=vlab0         # the only link lan-up/lan-down ever create or delete
+LAN_LINK=${LAB_LAN_LINK:-vlab0} # the only link lan-up/lan-down ever create or delete; vlabw0 for the Windows VM (scripts/dev/lab-win.sh)
+case $LAN_LINK in vlab0 | vlabw0) ;; *) echo "$prog: LAB_LAN_LINK must be vlab0 or vlabw0" >&2; exit 2 ;; esac
 # Minimum versions (D-155 style floors): Ubuntu 24.04's packages, the oldest supported host; Debian 13 is above all of them.
 # qemu >= 10.1 is needed for `-netdev passt` (QEMU starts passt itself over a socketpair).
 FLOORS="qemu-system-x86=1:10.1.0 qemu-utils=1:8.2.2 cloud-image-utils=0.33 passt=0.0~git20240220"
@@ -78,7 +79,7 @@ check_vm() {
 
 vm_port() { case $1 in ubuntu2404) echo 22404 ;; ubuntu2604) echo 22604 ;; debian13) echo 22013 ;; esac; }
 vm_nat_mac() { case $1 in ubuntu2404) echo 52:54:00:76:6c:01 ;; ubuntu2604) echo 52:54:00:76:6c:03 ;; debian13) echo 52:54:00:76:6c:02 ;; esac; }
-vm_lan_mac() { case $1 in ubuntu2404) echo 52:54:00:76:6d:01 ;; ubuntu2604) echo 52:54:00:76:6d:03 ;; debian13) echo 52:54:00:76:6d:02 ;; esac; }
+vm_lan_mac() { case $1 in ubuntu2404) echo 52:54:00:76:6d:01 ;; ubuntu2604) echo 52:54:00:76:6d:03 ;; debian13) echo 52:54:00:76:6d:02 ;; winlab) echo 52:54:00:76:6e:02 ;; esac; }
 
 need() {
 	local b
@@ -550,7 +551,11 @@ cmd_lan_up() {
 	# the router's DHCP offers to the VM's MAC never reached the guest).
 	if [ "$mode" = bridge ]; then
 		[ -n "$vm" ] || die "--bridge needs the VM that will use the link: lan-up $nic --bridge <vm>"
-		check_vm "$vm"
+		if [ "$vm" = winlab ]; then
+			[ "$LAN_LINK" = vlabw0 ] || die "winlab uses its own link: LAB_LAN_LINK=vlabw0 $0 lan-up $nic --bridge winlab"
+		else
+			check_vm "$vm"
+		fi
 		mac=$(vm_lan_mac "$vm")
 	fi
 	printf '%s' "$nic" | grep -Eq '^[A-Za-z0-9_.-]{1,15}$' || die "bad interface name '$nic'"
@@ -571,7 +576,7 @@ cmd_lan_up() {
 	command -v ip >/dev/null || die "ip (iproute2) is missing"
 	if [ -d "/sys/class/net/$LAN_LINK" ]; then
 		ip -d -o link show "$LAN_LINK" | grep -q " macvtap mode $mode " || die "$LAN_LINK exists and is not our macvtap in $mode mode: refused (lan-down first)"
-		[ "$(basename "$(readlink -f /sys/class/net/$LAN_LINK/lower_* 2>/dev/null)")" = "$nic" ] || die "$LAN_LINK exists on another NIC; lan-down first"
+		[ "$(basename "$(readlink -f /sys/class/net/"$LAN_LINK"/lower_* 2>/dev/null)")" = "$nic" ] || die "$LAN_LINK exists on another NIC; lan-down first"
 		[ -z "$mac" ] || [ "$(cat "/sys/class/net/$LAN_LINK/address")" = "$mac" ] || die "$LAN_LINK exists with another VM's MAC; lan-down first"
 	else
 		if [ "$mode" = passthru ]; then

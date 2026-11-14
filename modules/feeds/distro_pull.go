@@ -19,7 +19,9 @@ const distroFetchTimeout = 9 * time.Minute
 var errDistroWaits = errors.New("feeds: the distribution feeds wait for the CISA list")
 
 // errDistroNoDevice: no device needs this distribution feed (D-570, LEAN). Nothing is fetched or recorded, the stored rows
-// stay, and the feed stays due, so it pulls at the next tick after such a device appears.
+// stay, and the feed stays due, so it pulls at the next tick after such a device appears. A feed that never filled is pulled
+// once whatever the inventory says, so the first device of that distribution is judged on its rows, not NVD's upstream
+// ranges (no false alerts while the pull runs; review H1).
 var errDistroNoDevice = errors.New("feeds: no device needs this distribution feed")
 
 // distroOfFeed is the distribution each distribution feed answers for.
@@ -31,7 +33,7 @@ var distroOfFeed = map[string]string{ubuntuOSVFeedID: DistroUbuntu, ubuntuVEXFee
 // upgrade: an inventory event that says a device's OS changed.
 func (s *Service) distroNeeded(ctx context.Context, id string) bool {
 	need := true
-	if l, ok := s.Inventory.(DistroLister); ok && (s.Modules == nil || s.Modules.Enabled("inventory")) {
+	if l, ok := s.Inventory.(DistroLister); ok && s.inventoryOn() {
 		if got, err := l.Distros(ctx); err != nil {
 			s.Log.WarnContext(ctx, "reading the distributions of the devices failed; pulling the feed anyway", "feed", id, "error", err)
 		} else {
@@ -56,9 +58,9 @@ func (s *Service) distroNote(id string) string {
 		return ""
 	}
 	if distroOfFeed[id] == DistroDebian {
-		return "Not pulled: no Debian device yet. Vedette pulls it on the next check after an agent reports the packages of a Debian device."
+		return "Not updated: no Debian device now. Vedette updates it on the next check after an agent reports the packages of a Debian device."
 	}
-	return "Not pulled: no Ubuntu device yet. Vedette pulls it on the next check after an agent reports the packages of an Ubuntu device."
+	return "Not updated: no Ubuntu device now. Vedette updates it on the next check after an agent reports the packages of an Ubuntu device."
 }
 
 var distroParsers = map[Decoder]func(io.Reader, map[string]bool) (DistroResult, error){
@@ -79,7 +81,7 @@ func (s *Service) buildDistro(ctx context.Context, src sourceRow, p pullPlan, de
 	if len(cves) == 0 {
 		return p, errDistroWaits
 	}
-	if !s.distroNeeded(ctx, src.ID) {
+	if src.LastSuccess != nil && !s.distroNeeded(ctx, src.ID) {
 		return p, errDistroNoDevice
 	}
 	want := make(map[string]bool, len(cves))

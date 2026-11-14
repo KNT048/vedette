@@ -87,7 +87,7 @@ func (s *Service) nvdResumeAt() (time.Time, bool) {
 // finished a pull stays "never": its versions are not loaded yet. A distribution feed no device needs says so (D-570).
 func (s *Service) live(r sourceRow) sourceRow {
 	if distroFeeds[r.ID] && r.Enabled {
-		if note := s.distroNote(r.ID); note != "" { // D-570: the rows of an earlier pull stay
+		if note := s.distroNote(r.ID); note != "" && r.Status != "error" { // D-570: the rows of an earlier pull stay; a real error keeps its text
 			r.Error = &note
 		}
 		return r

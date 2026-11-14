@@ -358,10 +358,10 @@ describe('feeds: which address answered the CISA list (D-91)', () => {
 
 describe('feeds: a distribution feed no device needs is not pulled (D-570, LEAN)', () => {
   it('the Debian tracker says why it is not pulled, Fetch now fetches nothing and shows the same note, the Ubuntu feeds are pulled', async () => {
-    const note = 'Not pulled: no Debian device yet. Vedette pulls it on the next check after an agent reports the packages of a Debian device.'
+    const note = 'Not updated: no Debian device now. Vedette updates it on the next check after an agent reports the packages of a Debian device.'
     renderApp('/settings/feeds')
     expect((await screen.findAllByText(note)).length).toBeGreaterThan(0)
-    expect(screen.queryByText(/Not pulled: no Ubuntu device/)).toBeNull()
+    expect(screen.queryByText(/no Ubuntu device now/)).toBeNull()
     await userEvent.click(screen.getByRole('button', { name: /^Fetch now: Debian security tracker$|^Fetch Debian security tracker now$/ }))
     expect(await screen.findByText(`Debian security tracker: ${note}`)).toBeInTheDocument()
   })

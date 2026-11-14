@@ -54,6 +54,8 @@ async function cleanInstall(page: Page, lan: string) {
   await page.goto('/')
   await page.evaluate(() => localStorage.clear())
   await page.goto('/setup')
+  await page.getByRole('checkbox', { name: 'I have read, understood and agree to the terms of use' }).click() // D-544: the terms of use come first
+  await page.getByRole('button', { name: 'Continue' }).click()
   await page.getByLabel('Setup code').fill('setup-code-demo') // D-75: the code the mock accepts
   await page.getByLabel('Organization name').fill('Test Company')
   await page.getByLabel('Administrator name').fill('Alex Admin')

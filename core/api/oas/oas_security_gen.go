@@ -101,6 +101,7 @@ var operationRolesSession = map[string][]string{
 	CoreGetCoreNetworkSpanStatusOperation:                   []string{},
 	CoreGetCoreOidcOperation:                                []string{},
 	CoreGetCorePrivacyOperation:                             []string{},
+	CoreGetCoreTermsOperation:                               []string{},
 	CoreGetCoreUpdatesOperation:                             []string{},
 	CoreGetCoreUpdatesBundleOperation:                       []string{},
 	CoreGetCoreUpdatesOsOperation:                           []string{},

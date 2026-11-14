@@ -9,16 +9,19 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"log/slog"
 	"maps"
 	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/knt048/vedette"
 	"github.com/knt048/vedette/core/api/oas"
 	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/secrets"
@@ -461,6 +464,9 @@ func (h *OSHandlers) CorePostCoreSetupRestore(ctx context.Context, req *oas.Core
 	if err := h.setup.CheckSetupCode(ctx, req.SetupCode); err != nil {
 		return nil, err
 	}
+	if !req.AcceptTerms.Or(false) { // a new operator takes the box over: the same terms as setup (D-544)
+		return nil, termsNotAccepted()
+	}
 	var key []byte
 	if k := strings.TrimSpace(req.Key.Or("")); k != "" {
 		b, err := base64.StdEncoding.DecodeString(k)
@@ -512,6 +518,10 @@ func (h *OSHandlers) CorePostCoreSetupRestore(ctx context.Context, req *oas.Core
 	if key != nil {
 		detail = "backup of " + up.meta.CreatedAt.Format(time.RFC3339) + ", with the key"
 	}
+	// The acceptance is said here, in the fresh database the pre_restore backup keeps; the restored database gets its
+	// terms.accepted row from the marker file when the run is settled there (settleRestore, settleFirstRunRestore).
+	accepted := firstRunTerms{Version: vedette.TermsVersion(), At: h.now().UTC()}
+	detail += ", terms of use " + accepted.Version + " accepted"
 	err = h.act(ctx, c, false, "data.restore_import", "backup", detail, func(id, actor string) error {
 		label := "Uploaded backup of " + up.meta.CreatedAt.Format("2006-01-02 15:04") // labelRE of the host: letters, digits, space, : and -
 		run, err := h.host.BackupCreate(ctx, api.BackupCreateArgs{Kind: "manual", IncludeSecrets: key != nil, Label: label, Snapshot: up.ID}, id, actor)
@@ -548,11 +558,102 @@ func (h *OSHandlers) CorePostCoreSetupRestore(ctx context.Context, req *oas.Core
 		return nil, err
 	}
 	defer unlock()
+	if err := h.writeTermsMarker(accepted); err != nil {
+		return nil, err
+	}
 	rec, err := h.startRestore(ctx, c, false, b)
 	if err != nil {
+		h.dropTermsMarker()
 		return nil, err
 	}
 	return &oas.CorePostCoreSetupRestoreAccepted{Status: oas.CorePostCoreSetupRestoreAcceptedStatus(rec.view().Status), Error: oas.NilString{Null: true}}, nil
+}
+
+// ---- the terms accepted before a first-run restore (D-544) ----
+
+const (
+	termsMarkerFile = "first-run-terms.json"
+	// termsMarkerMaxAge: a marker older than this belongs to a restore that never came back (the host restores within
+	// restoreTimeout); it is dropped at start-up, not settled.
+	termsMarkerMaxAge = 2 * time.Hour
+)
+
+// firstRunTerms is the marker file: the version shown and when it was accepted. It lives next to the database, not in it,
+// because the restore replaces the database; the restored one records it when the run is settled there.
+type firstRunTerms struct {
+	Version string    `json:"version"`
+	At      time.Time `json:"at"`
+}
+
+func (h *OSHandlers) writeTermsMarker(t firstRunTerms) error {
+	b, err := json.Marshal(t)
+	if err != nil {
+		return fmt.Errorf("core: encode the terms marker: %w", err)
+	}
+	tmp := h.termsMarker + ".tmp"
+	if err := os.WriteFile(tmp, b, 0o600); err != nil {
+		return fmt.Errorf("core: write the terms marker: %w", err)
+	}
+	if err := os.Rename(tmp, h.termsMarker); err != nil {
+		_ = os.Remove(tmp)
+		return fmt.Errorf("core: write the terms marker: %w", err)
+	}
+	return nil
+}
+
+// termsVersionRE is the shape of vedette.TermsVersion: the Version date (or "undated") and 8 hex digits.
+var termsVersionRE = regexp.MustCompile(`^(\d{4}-\d{2}-\d{2}|undated)\.[0-9a-f]{8}$`)
+
+// readTermsMarker is the marker, ok false when there is none or it cannot be trusted: at most 4 KiB, a version of the
+// shape core writes, a time within the last termsMarkerMaxAge and not in the future (validated at the edge: the file sits
+// on disk, and a bad one falls back rather than reaching the database and the audit log).
+func (h *OSHandlers) readTermsMarker() (firstRunTerms, bool) {
+	var t firstRunTerms
+	if h.termsMarker == "" {
+		return t, false
+	}
+	b, err := os.ReadFile(h.termsMarker)
+	if err != nil || len(b) > 4096 || json.Unmarshal(b, &t) != nil || !termsVersionRE.MatchString(t.Version) {
+		return firstRunTerms{}, false
+	}
+	if now := h.now(); t.At.IsZero() || t.At.After(now) || now.Sub(t.At) > termsMarkerMaxAge {
+		return firstRunTerms{}, false
+	}
+	return t, true
+}
+
+func (h *OSHandlers) dropTermsMarker() {
+	if h.termsMarker != "" {
+		if err := os.Remove(h.termsMarker); err != nil && !errors.Is(err, fs.ErrNotExist) {
+			h.log.Warn("core: could not remove the terms marker", "error", err)
+		}
+	}
+}
+
+// settleFirstRunRestore runs once at start-up, only when a first-run restore left its marker: it settles the run into the
+// database core now runs on (the restored one, or the fresh one put back), so the operator's acceptance is recorded right
+// after the restart whoever opens which page. One host read, bounded; an error waits for the next start or the next read
+// of Settings -> Data, never a retry per request. A run the host still checks is followed to its end.
+func (h *OSHandlers) settleFirstRunRestore() {
+	fi, err := os.Stat(h.termsMarker)
+	if err != nil {
+		return
+	}
+	if time.Since(fi.ModTime()) > termsMarkerMaxAge { // the file's own age: its content is checked when it is used
+		h.dropTermsMarker()
+		return
+	}
+	ctx, cancel := context.WithTimeout(h.ctx, 10*time.Second)
+	defer cancel()
+	rec, err := h.restoreLatest(ctx)
+	if err != nil {
+		h.log.Warn("core: could not settle the first-run restore at start", "error", err)
+		return
+	}
+	if rec != nil && rec.Status == "" && rec.User == setupActor {
+		h.wg.Add(1)
+		go h.followRestore(api.Run{RunID: rec.RunID, Command: api.CmdBackupRestore, Status: api.StatusRunning, StartedAt: rec.StartedAt, Actor: rec.User})
+	}
 }
 
 // ---- GET /core/setup/restore ----

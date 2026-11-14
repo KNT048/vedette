@@ -57,7 +57,7 @@ if (!admin) {
   if (!CODE) throw new Error('the box is not set up yet: set SETUP_CODE to the code in the backend log')
   const r = must(await call(null, 'POST', '/core/setup', {
     org: 'QA Company', admin: { name: ACCOUNTS[0].name, email: ACCOUNTS[0].email, password: PASSWORD },
-    lan: ['192.168.10.0/24'], commitment: false, bundle: 'custom', modules: (process.env.BOX_MODULES ?? 'inventory,feeds,findings,mitigation').split(','), setup_code: CODE,
+    lan: ['192.168.10.0/24'], commitment: false, bundle: 'custom', modules: (process.env.BOX_MODULES ?? 'inventory,feeds,findings,mitigation').split(','), setup_code: CODE, accept_terms: true,
   }), 'setup', 200, 201)
   admin = sessionOf(r.jar)
   console.log('setup done')

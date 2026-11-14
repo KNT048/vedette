@@ -270,7 +270,7 @@ func TestRunPurgeBringsBackAFreshBoxAndStops(t *testing.T) {
 
 	code := setupCode(lines)
 	setup := map[string]any{"setup_code": code, "org": "Acme Co", "admin": map[string]any{"name": "Ann", "email": "ann@acme.example", "password": "correct horse battery staple"},
-		"lan": []string{"192.168.10.0/24"}, "bundle": "smb", "commitment": true}
+		"lan": []string{"192.168.10.0/24"}, "bundle": "smb", "commitment": true, "accept_terms": true}
 	if c, b, _ := call("POST", "/core/setup", setup); c != 200 {
 		t.Fatalf("setup = %d %s", c, b)
 	}
@@ -548,7 +548,7 @@ func TestExport_PlantedSecretsNeverLeave(t *testing.T) {
 		t.Fatalf("setup code: %q %v", code, err)
 	}
 	if c, b := call("POST", "/core/setup", map[string]any{"setup_code": code, "org": "Acme Co", "admin": map[string]any{"name": "Ann", "email": "ann@acme.example", "password": "correct horse battery staple"},
-		"lan": []string{"192.168.10.0/24"}, "bundle": "smb", "commitment": true}); c != 200 {
+		"lan": []string{"192.168.10.0/24"}, "bundle": "smb", "commitment": true, "accept_terms": true}); c != 200 {
 		t.Fatalf("setup = %d %s", c, b)
 	}
 

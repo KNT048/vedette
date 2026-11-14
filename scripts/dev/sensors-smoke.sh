@@ -32,7 +32,7 @@ done
 [ -n "$code" ] || { echo "smoke: core never printed its setup code"; dc logs core | tail -20; exit 1; }
 curl_api() { curl -ksS -m 15 -c "$jar" -b "$jar" -H 'Content-Type: application/json' "$@"; }
 pass='dev-only-Passw0rd-123'
-curl_api -f -X POST "$base/core/setup" -d "{\"org\":\"Dev\",\"admin\":{\"name\":\"Dev Admin\",\"email\":\"dev@example.com\",\"password\":\"$pass\"},\"lan\":[\"192.168.10.0/24\"],\"commitment\":true,\"bundle\":\"custom\",\"modules\":[\"core\",\"feeds\",\"inventory\",\"sensor-passive\",\"sensor-active\"],\"setup_code\":\"$code\"}" >/dev/null
+curl_api -f -X POST "$base/core/setup" -d "{\"org\":\"Dev\",\"admin\":{\"name\":\"Dev Admin\",\"email\":\"dev@example.com\",\"password\":\"$pass\"},\"lan\":[\"192.168.10.0/24\"],\"commitment\":true,\"bundle\":\"custom\",\"modules\":[\"core\",\"feeds\",\"inventory\",\"sensor-passive\",\"sensor-active\"],\"setup_code\":\"$code\",\"accept_terms\":true}" >/dev/null
 curl_api -f -X POST "$base/auth/login" -d "{\"email\":\"dev@example.com\",\"password\":\"$pass\"}" >/dev/null
 dc up -d --wait --wait-timeout 120 sensor scan
 deadline=$((SECONDS + bound))

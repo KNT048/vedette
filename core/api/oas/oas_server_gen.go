@@ -443,6 +443,13 @@ type Handler interface {
 	//
 	// GET /core/setup/restore
 	CoreGetCoreSetupRestore(ctx context.Context) (NilCoreGetCoreSetupRestoreOK, error)
+	// CoreGetCoreTerms implements core_get_core_terms operation.
+	//
+	// The terms of use this box ships and who accepted them, when and which version (D-544); the text is
+	// TERMS.md, which the interface carries.
+	//
+	// GET /core/terms
+	CoreGetCoreTerms(ctx context.Context) (*CoreGetCoreTermsOK, error)
 	// CoreGetCoreUpdates implements core_get_core_updates operation.
 	//
 	// Versions, new builds, history and security advisories of Vedette.

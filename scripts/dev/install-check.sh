@@ -396,7 +396,7 @@ EOT
 	kcode=$(sed -n 's/.*setup code:  \([A-Z0-9-]*\).*/\1/p' "$work/kd1.log" | head -n 1)
 	[ -n "$kcode" ] || { tail -15 "$work/kd1.log" >&2; fail "keep-data case: no setup code in the output"; }
 	kpw=$(LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 24 || true)
-	printf '{"org":"Keep Data Check","admin":{"name":"Keep Data","email":"keepdata@vedette.test","password":"%s"},"lan":["192.168.250.0/24"],"commitment":false,"bundle":"custom","modules":[],"setup_code":"%s"}' "$kpw" "$kcode" >"$work/kd-setup.json"
+	printf '{"org":"Keep Data Check","admin":{"name":"Keep Data","email":"keepdata@vedette.test","password":"%s"},"lan":["192.168.250.0/24"],"commitment":false,"bundle":"custom","modules":[],"setup_code":"%s","accept_terms":true}' "$kpw" "$kcode" >"$work/kd-setup.json"
 	printf '{"email":"keepdata@vedette.test","password":"%s"}' "$kpw" >"$work/kd-login.json"
 	"$c" cp "$work/kd-setup.json" "$ctr:/root/kd-setup.json" >/dev/null
 	"$c" cp "$work/kd-login.json" "$ctr:/root/kd-login.json" >/dev/null

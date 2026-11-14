@@ -3,7 +3,7 @@ import { api, ApiError, download } from '@/lib/api'
 import type { InstallKind, ModuleId } from '@/lib/modules'
 import type { Role } from '@/lib/session'
 import type {
-  Account, AdminUser, AuditQuery, AuditResult, AuthOptions, GeneralSettings, McpState, McpTokenCreated, OidcConfig, OidcSave, PrivacyState, SetupModule, SetupPayload, SetupStatus, TotpStart, EmailCodeSent,
+  Account, AdminUser, AuditQuery, AuditResult, AuthOptions, GeneralSettings, McpState, McpTokenCreated, OidcConfig, OidcSave, PrivacyState, SetupModule, SetupPayload, SetupStatus, TermsState, TotpStart, EmailCodeSent,
   UpdateChannel, UpdatesState, MaintenanceWindow, OsRebootBody, OsRun, OsState,
   BoxBackups, RestoreRun, BackupUpload, SetupRestoreRun,
   NetworkState, IfaceRole, ManagementBody, SpanConfig, SpanStatus, NtpConfig, Connector, ConnectorInput, ConnectorTestResult,
@@ -29,7 +29,7 @@ export function useSubmitSetup() {
 
 // ---- khôi phục từ tệp sao lưu ở lần cài đầu (S-CORE-1, D-518) ----
 export const useUploadBackup = () => useMutation({ mutationFn: (v: { code: string; file: File }) => api.upload<BackupUpload>('/core/setup/restore/upload', v.file, { 'X-Setup-Code': v.code.trim() }) })
-export const useSetupRestore = () => useMutation({ mutationFn: (v: { setup_code: string; upload_id: string; key?: string; confirm_without_key?: boolean }) => api.post<SetupRestoreRun>('/core/setup/restore', v) })
+export const useSetupRestore = () => useMutation({ mutationFn: (v: { setup_code: string; upload_id: string; key?: string; confirm_without_key?: boolean; accept_terms: boolean }) => api.post<SetupRestoreRun>('/core/setup/restore', v) })
 /** Polled while the first-run restore runs. Vedette restarts during it, so a failed poll keeps polling; done once the restored
  * organization is there. */
 export const useSetupRestoreRun = (enabled: boolean) => useQuery({
@@ -43,6 +43,7 @@ export const useAuthOptions = () => useQuery({ queryKey: ['core', 'auth-options'
 
 // ---- chung ----
 export const useGeneral = () => useQuery({ queryKey: ['core', 'general'], queryFn: () => api.get<GeneralSettings>('/core/general') })
+export const useTerms = () => useQuery({ queryKey: ['core', 'terms'], queryFn: () => api.get<TermsState>('/core/terms') })
 export function useSaveGeneral() {
   const qc = useQueryClient()
   return useMutation({ mutationFn: (v: GeneralSettings) => api.put<GeneralSettings>('/core/general', v), onSuccess: () => { void qc.invalidateQueries({ queryKey: ['core', 'general'] }); void qc.invalidateQueries({ queryKey: ['me'] }) } })

@@ -94,6 +94,7 @@ var Operations = map[string]Operation{
 	"core_get_core_privacy":                                 {Method: "GET", Path: "/core/privacy", MinRole: Viewer, Tag: "core"},
 	"core_get_core_setup_modules":                           {Method: "GET", Path: "/core/setup/modules", MinRole: Public, Tag: "core"},
 	"core_get_core_setup_restore":                           {Method: "GET", Path: "/core/setup/restore", MinRole: Public, Tag: "core"},
+	"core_get_core_terms":                                   {Method: "GET", Path: "/core/terms", MinRole: Viewer, Tag: "core"},
 	"core_get_core_updates":                                 {Method: "GET", Path: "/core/updates", MinRole: Viewer, Tag: "core"},
 	"core_get_core_updates_bundle":                          {Method: "GET", Path: "/core/updates/bundle", MinRole: Operator, Tag: "core"},
 	"core_get_core_updates_os":                              {Method: "GET", Path: "/core/updates/os", MinRole: Viewer, Tag: "core"},

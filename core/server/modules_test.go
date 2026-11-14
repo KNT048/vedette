@@ -109,6 +109,7 @@ var contractRoutes = map[string][]string{
 		"GET /core/privacy",
 		"GET /core/setup/modules",
 		"GET /core/setup/restore",
+		"GET /core/terms",
 		"GET /core/updates",
 		"GET /core/updates/bundle",
 		"GET /core/updates/os",

@@ -75,7 +75,7 @@ try {
         return { status: r.status, body: (await r.text()).slice(0, 300) }
       }
       const admin = { name: 'CSP Check', email: 'csp@example.com', password: 'correct-horse-battery-staple-91' }
-      const s = await post('/core/setup', { org: 'CSP Check', admin, lan: ['192.168.77.0/24'], commitment: true, bundle: 'smb', setup_code: code })
+      const s = await post('/core/setup', { org: 'CSP Check', admin, lan: ['192.168.77.0/24'], commitment: true, bundle: 'smb', setup_code: code, accept_terms: true })
       if (s.status !== 200 && s.status !== 201) return s
       const l = await post('/auth/login', { email: admin.email, password: admin.password })
       return l.status === 200 || l.status === 204 ? s : l

@@ -658,6 +658,16 @@ func (UnimplementedHandler) CoreGetCoreSetupRestore(ctx context.Context) (r NilC
 	return r, ht.ErrNotImplemented
 }
 
+// CoreGetCoreTerms implements core_get_core_terms operation.
+//
+// The terms of use this box ships and who accepted them, when and which version (D-544); the text is
+// TERMS.md, which the interface carries.
+//
+// GET /core/terms
+func (UnimplementedHandler) CoreGetCoreTerms(ctx context.Context) (r *CoreGetCoreTermsOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // CoreGetCoreUpdates implements core_get_core_updates operation.
 //
 // Versions, new builds, history and security advisories of Vedette.

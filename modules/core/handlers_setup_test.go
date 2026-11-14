@@ -7,11 +7,13 @@ import (
 	"net/http"
 	"net/netip"
 	"os"
+	"regexp"
 	"slices"
 	"strings"
 	"sync"
 	"testing"
 
+	"github.com/knt048/vedette"
 	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/auth"
 	"github.com/knt048/vedette/core/auth/authtest"
@@ -23,7 +25,7 @@ func setupBody(code string) map[string]any {
 		"setup_code": code, "org": "Acme Co",
 		"admin":  map[string]any{"name": "Ann Admin", "email": "admin@acme.example", "password": authtest.Password},
 		"lan":    []string{"192.168.10.0/24", "10.1.0.0/16"},
-		"bundle": "smb", "commitment": true,
+		"bundle": "smb", "commitment": true, "accept_terms": true,
 	}
 }
 
@@ -234,6 +236,55 @@ func TestContract_INV15_SetupHappyPath(t *testing.T) {
 		if strings.Contains(w.logs.String(), s) {
 			t.Fatal("a secret reached the logs")
 		}
+	}
+}
+
+// D-544: setup needs the tick on the terms of use (right after the setup code) and keeps who accepted them, when and which
+// version, with one audit row; GET /core/terms says so.
+func TestSetupNeedsTheTermsAndKeepsTheAcceptance(t *testing.T) {
+	t.Parallel()
+	w := newWorld(t)
+	code := w.openSetup()
+	c := w.client()
+	for _, accept := range []any{nil, false, "true"} {
+		b := setupBody(code)
+		b["org"] = "" // the terms are judged before the fields
+		if accept == nil {
+			delete(b, "accept_terms")
+		} else {
+			b["accept_terms"] = accept
+		}
+		r := c.post("/core/setup", b)
+		if accept == "true" { // not a boolean: the schema refuses it
+			if r.Code != 400 {
+				t.Fatalf("accept_terms %q = %d %s", accept, r.Code, r.Raw)
+			}
+			continue
+		}
+		wantStatus(t, r, 400, "terms_not_accepted")
+	}
+	if st := c.get("/setup"); st.JSON["complete"] != false {
+		t.Fatalf("setup finished without the terms: %s", st.Raw)
+	}
+	wantOK(t, c.post("/core/setup", setupBody(code)), 200) // the code was not used up
+	r := c.get("/core/terms")
+	wantOK(t, r, 200)
+	acc, _ := r.JSON["accepted"].(map[string]any)
+	if v := vedette.TermsVersion(); r.str("version") != v || acc["version"] != v || acc["by"] != "admin@acme.example" || acc["via"] != "setup" || acc["at"] == nil {
+		t.Fatalf("GET /core/terms = %s", r.Raw)
+	}
+	if !regexp.MustCompile(`^\d{4}-\d{2}-\d{2}\.[0-9a-f]{8}$`).MatchString(vedette.TermsVersion()) {
+		t.Fatalf("TermsVersion = %q: TERMS.md lost its Version line", vedette.TermsVersion())
+	}
+	if n := w.env.Count(t, "SELECT count(*) FROM core_audit WHERE action = 'core.terms_accept' AND user = 'admin@acme.example' AND target = 'version "+vedette.TermsVersion()+"'"); n != 1 {
+		t.Fatalf("core.terms_accept rows = %d", n)
+	}
+	// Who accepted is said to administrators only (viewers cannot list users); the date and version to everyone.
+	viewer, _ := w.signIn("vic@acme.example", "viewer")
+	v := viewer.get("/core/terms")
+	wantOK(t, v, 200)
+	if va, _ := v.JSON["accepted"].(map[string]any); va == nil || va["by"] != nil || va["version"] != vedette.TermsVersion() || va["at"] != acc["at"] {
+		t.Fatalf("GET /core/terms as a viewer = %s", v.Raw)
 	}
 }
 

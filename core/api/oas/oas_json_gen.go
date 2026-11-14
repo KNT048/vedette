@@ -33563,6 +33563,300 @@ func (s *CoreGetCoreSetupRestoreOKStatus) UnmarshalJSON(data []byte) error {
 }
 
 // Encode implements json.Marshaler.
+func (s *CoreGetCoreTermsOK) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *CoreGetCoreTermsOK) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("accepted")
+		s.Accepted.Encode(e)
+	}
+	{
+		e.FieldStart("version")
+		e.Str(s.Version)
+	}
+}
+
+var jsonFieldsNameOfCoreGetCoreTermsOK = [2]string{
+	0: "accepted",
+	1: "version",
+}
+
+// Decode decodes CoreGetCoreTermsOK from json.
+func (s *CoreGetCoreTermsOK) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CoreGetCoreTermsOK to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "accepted":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.Accepted.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"accepted\"")
+			}
+		case "version":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Str()
+				s.Version = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"version\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode CoreGetCoreTermsOK")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000011,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfCoreGetCoreTermsOK) {
+					name = jsonFieldsNameOfCoreGetCoreTermsOK[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *CoreGetCoreTermsOK) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CoreGetCoreTermsOK) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *CoreGetCoreTermsOKAccepted) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *CoreGetCoreTermsOKAccepted) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("at")
+		json.EncodeDateTime(e, s.At)
+	}
+	{
+		e.FieldStart("by")
+		s.By.Encode(e)
+	}
+	{
+		e.FieldStart("version")
+		e.Str(s.Version)
+	}
+	{
+		e.FieldStart("via")
+		s.Via.Encode(e)
+	}
+}
+
+var jsonFieldsNameOfCoreGetCoreTermsOKAccepted = [4]string{
+	0: "at",
+	1: "by",
+	2: "version",
+	3: "via",
+}
+
+// Decode decodes CoreGetCoreTermsOKAccepted from json.
+func (s *CoreGetCoreTermsOKAccepted) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CoreGetCoreTermsOKAccepted to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "at":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := json.DecodeDateTime(d)
+				s.At = v
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"at\"")
+			}
+		case "by":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				if err := s.By.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"by\"")
+			}
+		case "version":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Str()
+				s.Version = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"version\"")
+			}
+		case "via":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				if err := s.Via.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"via\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode CoreGetCoreTermsOKAccepted")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00001111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfCoreGetCoreTermsOKAccepted) {
+					name = jsonFieldsNameOfCoreGetCoreTermsOKAccepted[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *CoreGetCoreTermsOKAccepted) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CoreGetCoreTermsOKAccepted) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes CoreGetCoreTermsOKAcceptedVia as json.
+func (s CoreGetCoreTermsOKAcceptedVia) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes CoreGetCoreTermsOKAcceptedVia from json.
+func (s *CoreGetCoreTermsOKAcceptedVia) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CoreGetCoreTermsOKAcceptedVia to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch CoreGetCoreTermsOKAcceptedVia(v) {
+	case CoreGetCoreTermsOKAcceptedViaSetup:
+		*s = CoreGetCoreTermsOKAcceptedViaSetup
+	case CoreGetCoreTermsOKAcceptedViaRestore:
+		*s = CoreGetCoreTermsOKAcceptedViaRestore
+	default:
+		*s = CoreGetCoreTermsOKAcceptedVia(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s CoreGetCoreTermsOKAcceptedVia) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CoreGetCoreTermsOKAcceptedVia) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
 func (s *CoreGetCoreUpdatesOK) Encode(e *jx.Encoder) {
 	e.ObjStart()
 	s.encodeFields(e)
@@ -57180,6 +57474,12 @@ func (s *CorePostCoreSetupReq) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *CorePostCoreSetupReq) encodeFields(e *jx.Encoder) {
 	{
+		if s.AcceptTerms.Set {
+			e.FieldStart("accept_terms")
+			s.AcceptTerms.Encode(e)
+		}
+	}
+	{
 		if s.Admin.Set {
 			e.FieldStart("admin")
 			s.Admin.Encode(e)
@@ -57237,15 +57537,16 @@ func (s *CorePostCoreSetupReq) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfCorePostCoreSetupReq = [8]string{
-	0: "admin",
-	1: "bundle",
-	2: "commitment",
-	3: "lan",
-	4: "modules",
-	5: "org",
-	6: "sample",
-	7: "setup_code",
+var jsonFieldsNameOfCorePostCoreSetupReq = [9]string{
+	0: "accept_terms",
+	1: "admin",
+	2: "bundle",
+	3: "commitment",
+	4: "lan",
+	5: "modules",
+	6: "org",
+	7: "sample",
+	8: "setup_code",
 }
 
 // Decode decodes CorePostCoreSetupReq from json.
@@ -57256,6 +57557,16 @@ func (s *CorePostCoreSetupReq) Decode(d *jx.Decoder) error {
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
+		case "accept_terms":
+			if err := func() error {
+				s.AcceptTerms.Reset()
+				if err := s.AcceptTerms.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"accept_terms\"")
+			}
 		case "admin":
 			if err := func() error {
 				s.Admin.Reset()
@@ -57785,6 +58096,12 @@ func (s *CorePostCoreSetupRestoreReq) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *CorePostCoreSetupRestoreReq) encodeFields(e *jx.Encoder) {
 	{
+		if s.AcceptTerms.Set {
+			e.FieldStart("accept_terms")
+			s.AcceptTerms.Encode(e)
+		}
+	}
+	{
 		if s.ConfirmWithoutKey.Set {
 			e.FieldStart("confirm_without_key")
 			s.ConfirmWithoutKey.Encode(e)
@@ -57806,11 +58123,12 @@ func (s *CorePostCoreSetupRestoreReq) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfCorePostCoreSetupRestoreReq = [4]string{
-	0: "confirm_without_key",
-	1: "key",
-	2: "setup_code",
-	3: "upload_id",
+var jsonFieldsNameOfCorePostCoreSetupRestoreReq = [5]string{
+	0: "accept_terms",
+	1: "confirm_without_key",
+	2: "key",
+	3: "setup_code",
+	4: "upload_id",
 }
 
 // Decode decodes CorePostCoreSetupRestoreReq from json.
@@ -57822,6 +58140,16 @@ func (s *CorePostCoreSetupRestoreReq) Decode(d *jx.Decoder) error {
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
+		case "accept_terms":
+			if err := func() error {
+				s.AcceptTerms.Reset()
+				if err := s.AcceptTerms.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"accept_terms\"")
+			}
 		case "confirm_without_key":
 			if err := func() error {
 				s.ConfirmWithoutKey.Reset()
@@ -57843,7 +58171,7 @@ func (s *CorePostCoreSetupRestoreReq) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"key\"")
 			}
 		case "setup_code":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.SetupCode = string(v)
@@ -57855,7 +58183,7 @@ func (s *CorePostCoreSetupRestoreReq) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"setup_code\"")
 			}
 		case "upload_id":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.UploadID = string(v)
@@ -57876,7 +58204,7 @@ func (s *CorePostCoreSetupRestoreReq) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00001100,
+		0b00011000,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -181465,6 +181793,50 @@ func (s NilCoreGetCoreSetupRestoreOK) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *NilCoreGetCoreSetupRestoreOK) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes CoreGetCoreTermsOKAccepted as json.
+func (o NilCoreGetCoreTermsOKAccepted) Encode(e *jx.Encoder) {
+	if o.Null {
+		e.Null()
+		return
+	}
+	o.Value.Encode(e)
+}
+
+// Decode decodes CoreGetCoreTermsOKAccepted from json.
+func (o *NilCoreGetCoreTermsOKAccepted) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode NilCoreGetCoreTermsOKAccepted to nil")
+	}
+	if d.Next() == jx.Null {
+		if err := d.Null(); err != nil {
+			return err
+		}
+
+		var v CoreGetCoreTermsOKAccepted
+		o.Value = v
+		o.Null = true
+		return nil
+	}
+	o.Null = false
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s NilCoreGetCoreTermsOKAccepted) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *NilCoreGetCoreTermsOKAccepted) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }

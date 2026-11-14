@@ -27,8 +27,10 @@ async function keyBase64(f: File): Promise<string | null> {
  * First-run restore from a backup file (S-CORE-1, D-518): the setup code, the backup downloaded from Settings → Data and,
  * kept apart, the decryption key file. Check the backup uploads it and the box says what it holds; without the key the page
  * says what is lost before Restore is possible; Restore follows the run across Vedette's restart to the sign-in page.
+ * It is reached from the Account step of setup, after the terms of use were accepted on the first (D-544); the box refuses a
+ * restore without that acceptance.
  */
-export function SetupRestore({ install, onBack }: { install?: InstallKind; onBack: () => void }) {
+export function SetupRestore({ install, termsAccepted, onBack }: { install?: InstallKind; termsAccepted: boolean; onBack: () => void }) {
   const { t } = useTranslation('core')
   const navigate = useNavigate()
   const qc = useQueryClient()
@@ -76,7 +78,7 @@ export function SetupRestore({ install, onBack }: { install?: InstallKind; onBac
       key = k
     }
     try {
-      await restore.mutateAsync({ setup_code: code.trim(), upload_id: checked.id, ...(key ? { key } : { confirm_without_key: sure }) })
+      await restore.mutateAsync({ setup_code: code.trim(), upload_id: checked.id, accept_terms: termsAccepted, ...(key ? { key } : { confirm_without_key: sure }) })
       setStarted(true)
     } catch (err) {
       if (err instanceof ApiError && (err.code === 'invalid_key' || err.code === 'wrong_key')) setErrors({ key: errMsg(err, t) })

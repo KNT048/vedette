@@ -45,9 +45,12 @@ type OSHandlers struct {
 	// pkgDir is <core_data>/host-packages: the system helper package a software run downloads for the host
 	// (host.self_update, D-316); empty without a host.
 	pkgDir string
-	zone   func(context.Context) (string, error)
-	log    *slog.Logger
-	now    func() time.Time
+	// termsMarker is <core_data>/first-run-terms.json: the acceptance of the terms by the operator of a first-run restore,
+	// outside the database the restore replaces (D-544, restore_upload.go).
+	termsMarker string
+	zone        func(context.Context) (string, error)
+	log         *slog.Logger
+	now         func() time.Time
 	// loadTimeout bounds one shared read of the host (loadTimeout, shorter in tests).
 	loadTimeout time.Duration
 
@@ -161,6 +164,7 @@ func NewOSHandlers(c OSConfig) (*OSHandlers, error) {
 			c.Log.Info("core: removed old snapshots", "count", n)
 		}
 		h.pkgDir = filepath.Join(c.DataDir, hostPackagesDir)
+		h.termsMarker = filepath.Join(c.DataDir, termsMarkerFile)
 		h.sweepHostPackages()
 	}
 	if c.Host != nil {
@@ -174,6 +178,7 @@ func NewOSHandlers(c OSConfig) (*OSHandlers, error) {
 			go h.resume()
 		}
 		h.resumeUpdate()
+		h.settleFirstRunRestore()
 	}
 	return h, nil
 }

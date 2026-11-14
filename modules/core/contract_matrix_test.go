@@ -29,6 +29,7 @@ var matrix = []matrixRoute{
 	{"PATCH", "/modules/{id}", "/modules/core", routes.Admin, map[string]any{"enabled": false}},
 	{"GET", "/core/general", "/core/general", routes.Viewer, nil},
 	{"PUT", "/core/general", "/core/general", routes.Admin, map[string]any{"name": "x", "timezone": "UTC"}},
+	{"GET", "/core/terms", "/core/terms", routes.Viewer, nil},
 	{"GET", "/core/account", "/core/account", routes.Viewer, nil},
 	{"PATCH", "/core/account", "/core/account", routes.Viewer, map[string]any{"name": " "}},
 	{"POST", "/core/account/password", "/core/account/password", routes.Viewer, map[string]any{"current": "x", "next": "y"}},

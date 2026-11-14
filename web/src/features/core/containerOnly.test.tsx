@@ -223,6 +223,8 @@ describe('container-only install (D-381)', () => {
   it('setup: the code hint names vedette-core and the bundles leave the honeypot out', async () => {
     const u = userEvent.setup()
     renderApp('/setup', { role: null, setupComplete: false })
+    await u.click(await screen.findByRole('checkbox', { name: 'I have read, understood and agree to the terms of use' })) // D-544: the first step
+    await u.click(screen.getByRole('button', { name: 'Continue' }))
     expect(await screen.findByText(/docker logs vedette-core/)).toBeInTheDocument()
     await u.type(screen.getByLabelText('Setup code'), MOCK_SETUP_CODE)
     await u.type(screen.getByLabelText('Organization name'), 'ABC Company')

@@ -67,6 +67,11 @@ type Request struct {
 	// HeaderTimeout, when longer than the client's, is how long the source may take before it starts to answer
 	// (NVD: W3-1). The whole request is then bounded by the context deadline only.
 	HeaderTimeout time.Duration
+	// Stream, when set, reads the body as it arrives instead of Response.Body (D-516: the distribution archives are
+	// tens of megabytes and are parsed while they download). The reader stops with ErrTooLarge past MaxBytes, counted
+	// after the transport's gzip decoding; the client's whole-request timeout is lifted, so the context deadline is the
+	// bound. Its error is the error of the fetch.
+	Stream func(io.Reader) error
 }
 
 // Response is what came back.
@@ -260,6 +265,9 @@ func (f Fetcher) Fetch(ctx context.Context, req Request) (*Response, error) {
 		client = *NewClient(DefaultFetchTimeout)
 	}
 	client.CheckRedirect = checkRedirect
+	if req.Stream != nil {
+		client.Timeout = 0 // the context deadline bounds a streamed body (Fetch always has one)
+	}
 	if req.HeaderTimeout > 0 {
 		if t := slowHeaders(&client, req.HeaderTimeout); t != nil {
 			defer t.CloseIdleConnections()
@@ -294,6 +302,15 @@ func (f Fetcher) Fetch(ctx context.Context, req Request) (*Response, error) {
 	}
 	if resp.ContentLength > limit {
 		return nil, fail(ErrTooLarge, "The source is larger than %d bytes; Vedette would skip it.", limit)
+	}
+	if req.Stream != nil {
+		if err := req.Stream(newCapReader(resp.Body, limit)); err != nil {
+			if errors.Is(err, ErrTooLarge) {
+				return nil, fail(ErrTooLarge, "The source is larger than %d bytes; Vedette would skip it.", limit)
+			}
+			return nil, err
+		}
+		return out, nil
 	}
 	body, err := io.ReadAll(newCapReader(resp.Body, limit))
 	if err != nil {

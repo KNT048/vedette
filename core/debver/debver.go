@@ -53,12 +53,12 @@ func parse(s string) (version, error) {
 		return v, ErrInvalid
 	}
 	for _, c := range []byte(v.upstream) {
-		if !(alnum(c) || c == '.' || c == '+' || c == '~' || c == '-' || c == ':') {
+		if !alnum(c) && !strings.ContainsRune(".+~-:", rune(c)) {
 			return v, ErrInvalid
 		}
 	}
 	for _, c := range []byte(v.revision) {
-		if !(alnum(c) || c == '.' || c == '+' || c == '~') {
+		if !alnum(c) && !strings.ContainsRune(".+~", rune(c)) {
 			return v, ErrInvalid
 		}
 	}

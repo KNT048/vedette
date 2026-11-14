@@ -150,14 +150,15 @@ func (s *Store) KevAffected(ctx context.Context) (map[string][]AffectedRow, erro
 	return out, rows.Err()
 }
 
-// MatchStamp changes whenever what KevVulns and KevAffected return may have changed: the last pull time of the three
-// feeds that write them (cisa-kev, first-epss, nvd-kev; each written in the pull's own transaction), and the count and
+// MatchStamp changes whenever what KevVulns, KevAffected and DistroFixes return may have changed: the last pull time and
+// rev (turned on or off) of the feeds that write them (cisa-kev, first-epss, nvd-kev and the distribution feeds of D-516;
+// each written in the pull's own transaction), and the count and
 // newest change of the CISA rows and of the NVD answers. findings
 // (through cmd/vedette) keeps one read of the list per stamp, instead of reading 33k NVD rows per device (review H3).
 func (s *Store) MatchStamp(ctx context.Context) (string, error) {
 	var stamp sql.NullString
 	err := s.db.Reader().QueryRowContext(ctx, `SELECT (SELECT group_concat(id || '=' || COALESCE(last_fetch, '') || '/' || rev, ',') FROM
-(SELECT id, last_fetch, rev FROM feeds_source WHERE id IN ('cisa-kev', 'first-epss', 'nvd-kev') ORDER BY id))
+(SELECT id, last_fetch, rev FROM feeds_source WHERE id IN ('cisa-kev', 'first-epss', 'nvd-kev', 'ubuntu-osv', 'ubuntu-vex', 'debian-tracker') ORDER BY id))
 || ';' || (SELECT count(*) || '/' || COALESCE(max(updated_at), '') FROM feeds_vuln WHERE source_id = 'cisa-kev')
 || ';' || (SELECT count(*) || '/' || COALESCE(max(updated_at), '') FROM feeds_affected_cve)`).Scan(&stamp)
 	if err != nil {

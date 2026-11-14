@@ -32,8 +32,9 @@ test.describe('notify: incidents (S-ALERT-3, D-52)', () => {
     await page.goto('/incidents')
     await expect(page.getByRole('heading', { level: 1 })).toContainText('3 new incidents')
     await expect(page.locator('main')).not.toContainText('QNAP Photo Station') // vulnerabilities live in Findings, not here
-    await page.getByRole('button', { name: 'All', exact: true }).click()
+    await page.getByRole('tab', { name: 'Resolved', exact: true }).click()
     await expect(visible(page.getByText('192.168.10.157 touched the RDP trap on FILESRV-OLD'))).toBeVisible()
+    await page.getByRole('tab', { name: /^Open/ }).click()
     await page.getByRole('button', { name: 'Trap touches' }).click()
     await expect(visible(page.getByRole('link', { name: 'PC-HR-01 touched the SMB trap on FILESRV-OLD' }))).toBeVisible()
     await expect(page.getByText('185.220.101.47')).toHaveCount(0)

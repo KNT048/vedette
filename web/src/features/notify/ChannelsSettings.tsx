@@ -2,7 +2,7 @@ import { useCallback, useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { LoaderCircle, Send, X } from 'lucide-react'
-import { PageHeader } from '@/components/common/PageHeader'
+import { Notice, PageHeader } from '@/components/common/PageHeader'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { Chip } from '@/components/common/StatusChip'
 import { QueryState, RequireModule } from '@/components/common/States'
@@ -192,10 +192,13 @@ function ChannelDialog({ channel: opened, codeUsers, onClose, onSaved }: { chann
                     </Select>
                   </Field>
                   {prov.doc ? (
-                    <div role="note" aria-label={t(`channels.f.email.provider.name.${prov.id}`)} className="grid gap-1.5 rounded-md border border-rule bg-sunken px-3 py-2 text-[13px]">
-                      <p>{t(`channels.f.email.provider.help.${prov.id}`)}</p>
-                      {Object.keys(steps).length ? <ol className="list-decimal pl-5">{Object.entries(steps).map(([s, text]) => <li key={s}>{text}</li>)}</ol> : null}
-                      <a className="w-fit text-accent underline underline-offset-4" href={prov.doc} target="_blank" rel="noopener noreferrer">{t('channels.f.email.provider.doc', { name: t(`channels.f.email.provider.name.${prov.id}`) })}</a>
+                    <div role="note" aria-label={t(`channels.f.email.provider.name.${prov.id}`)}>
+                      <Notice tone="accent" title={t(`channels.f.email.provider.help.${prov.id}`)} className="mb-0">
+                        <div className="grid gap-1.5">
+                          {Object.keys(steps).length ? <ol className="list-decimal pl-5">{Object.entries(steps).map(([s, text]) => <li key={s}>{text}</li>)}</ol> : null}
+                          <a className="w-fit text-accent underline underline-offset-4" href={prov.doc} target="_blank" rel="noopener noreferrer">{t('channels.f.email.provider.doc', { name: t(`channels.f.email.provider.name.${prov.id}`) })}</a>
+                        </div>
+                      </Notice>
                     </div>
                   ) : null}
                 </div>
@@ -231,9 +234,10 @@ function ChannelDialog({ channel: opened, codeUsers, onClose, onSaved }: { chann
           })}
           {type === 'zalo' ? (
             <div className="grid gap-3">
-              <div role="note" aria-label={t('channels.f.zalo.helpTitle')} className="grid gap-1.5 rounded-md border border-rule bg-sunken px-3 py-2 text-[13px]">
-                <p>{t('channels.f.zalo.help')}</p>
-                <a className="w-fit text-accent underline underline-offset-4" href={ZALO_OA_DOC} target="_blank" rel="noopener noreferrer">{t('channels.f.zalo.doc')}</a>
+              <div role="note" aria-label={t('channels.f.zalo.helpTitle')}>
+                <Notice tone="accent" title={t('channels.f.zalo.help')} className="mb-0">
+                  <a className="w-fit text-accent underline underline-offset-4" href={ZALO_OA_DOC} target="_blank" rel="noopener noreferrer">{t('channels.f.zalo.doc')}</a>
+                </Notice>
               </div>
               <Field label={t('channels.f.zalo.secret_key.label')} hint={zaloGrant ? t('channels.keepSaved') : t('channels.f.zalo.secret_key.hint')} htmlFor="ch-zalo-secret_key" error={fieldErr.secret_key}>
                 <Input id="ch-zalo-secret_key" type="password" value={zaloKey} onChange={(e) => { setZaloKey(e.target.value); fixed('secret_key') }} autoComplete="new-password" {...aria('ch-zalo-secret_key', 'secret_key')} />
@@ -488,7 +492,7 @@ export default function ChannelsSettings() {
   return (
     <RequireModule module="notify">
       <PageHeader title={t('channels.title')} meta={t('channels.description')} stories={['S-NOT-1', 'S-NOT-2', 'S-RESP-2']} />
-        <p className="mb-4 max-w-3xl rounded-md border border-rule bg-sunken px-3 py-2 text-[13px]">{t('channels.privacy')}</p>
+        <Notice tone="accent" title={t('channels.privacy')} />
         <QueryState query={q}>
           {(d) => (
             <div className="grid gap-8">

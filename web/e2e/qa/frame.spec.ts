@@ -13,6 +13,9 @@ const PAGES = [
   { path: '/reports', second: 'Data protection assessment', id: 'pdpl', other: 'Weekly report' },
   // D-543: the other Kiên-side pages on the frame
   { path: '/honeypot', second: 'Services', id: 'services', other: 'Tokens' },
+  // exposure: the list and one IP target (Results is the first tab, Ownership the second)
+  { path: '/exposure', second: 'Open exposures', id: 'open', other: 'Targets' },
+  { path: '/exposure/xt-2', second: 'Ownership', id: 'ownership', other: 'Results' },
   { path: '/devices/a-nas02', second: 'Software', id: 'software', other: 'Observations' },
 ] as const
 

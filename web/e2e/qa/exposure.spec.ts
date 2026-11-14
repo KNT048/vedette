@@ -66,6 +66,7 @@ test('clean install: no sample targets, the box finds its two IPs by itself; a d
   const scan = page.getByRole('button', { name: 'Scan now' })
   await expect(scan).toBeDisabled()
   await expect(page.locator('#scan-reason')).toContainText('has no ownership proof')
+  await page.getByRole('tab', { name: /^Ownership/ }).click() // the DNS record, Check and the confirmation live on the Ownership tab
   await expect(page.getByText(/vedette-verify=[0-9a-f]{16}/).first()).toBeVisible()
   await expect(page.getByText(/reverse dns/i)).toHaveCount(0)
   await expect(page.locator('input[type="file"]')).toHaveCount(0)
@@ -320,7 +321,7 @@ test('sample: expired IP, expiring IP, missing TXT record and unverified domain 
   await expectAccessible(page, 'exposure list')
 
   // Expired IP: locked; verify again only works when the box egresses through that IP.
-  await page.goto('/exposure/xt-4')
+  await page.goto('/exposure/xt-4?tab=ownership')
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(/203\.0\.113\.55 cannot be scanned yet: verification expired/)
   await expect(page.getByRole('button', { name: 'Scan now' })).toBeDisabled()
   expect((await api(page, 'POST', '/exposure/targets/xt-4/scan')).body.error.code).toBe('expired')
@@ -333,7 +334,7 @@ test('sample: expired IP, expiring IP, missing TXT record and unverified domain 
   await setEgress(page, null)
 
   // Missing TXT: scan blocked even though the domain was verified before; adding the record back fixes it.
-  await page.goto('/exposure/xt-5')
+  await page.goto('/exposure/xt-5?tab=ownership')
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(/old-site\.example cannot be scanned yet: DNS TXT record missing/)
   await expect(page.getByRole('button', { name: 'Scan now' })).toBeDisabled()
   expect((await api(page, 'POST', '/exposure/targets/xt-5/scan')).body.error.code).toBe('txt_missing')

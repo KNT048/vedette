@@ -922,6 +922,8 @@ function privacyView() {
     { id: 13, state: isOn('mcp-server') ? 'conditional' : 'off', control: 'reason' },
     // the Wazuh connection the inventory mock keeps (Inventory → Agents): on while one is saved and the module is on (D-309)
     { id: 14, state: isOn('agent-intake') && peek<unknown>('intake_wazuh') ? 'on' : 'off', control: 'reason' },
+    // D-558: Shodan InternetDB is asked only on an administrator's click in External exposure
+    { id: 15, state: isOn('exposure') ? 'conditional' : 'off', control: 'reason' },
   ]
   return { flows, telemetry: { enabled: p.telemetry, last_sent: p.last_sent, payload: telemetryPayload() }, update_check: p.update_check }
 }

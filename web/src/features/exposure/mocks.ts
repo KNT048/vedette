@@ -17,10 +17,10 @@ import { API, audit, body, currentUser, DOMAIN_RE, fail, guard, IPV4_RE } from '
 import { auditStore, isOn } from '@/mocks/stores'
 import { canonHash, GENESIS } from '@/lib/chain'
 import { collection, newId, nowIso, type Collection } from '@/mocks/db'
-import { BOX_EGRESS_IP, BOX_EGRESS_IP_2, DEFAULT_INTERVAL, EXPIRING_DAYS, makeSnapshot, MAX_INTERVAL, MIN_INTERVAL, randomToken, scanContent, seedBoxIp, seedIgnored, seedSnapshots, seedTargets, VERIFY_DAYS, type StoredTarget } from './data'
+import { BOX_EGRESS_IP, BOX_EGRESS_IP_2, DEFAULT_INTERVAL, outsideAnswer, seedOutside, EXPIRING_DAYS, makeSnapshot, MAX_INTERVAL, MIN_INTERVAL, randomToken, scanContent, seedBoxIp, seedIgnored, seedSnapshots, seedTargets, VERIFY_DAYS, type StoredTarget } from './data'
 import { NOTICE_TEMPLATE, NOTICE_VERSION, VERSION_NOT_READ } from './contract'
 import { dateText, dateTimeText } from './dates'
-import type { BoxIpSettings, Commitment, Diff, DiffChange, DiffItem, IgnoredIp, ScanRun, Snapshot, Target } from './types'
+import type { BoxIpSettings, Commitment, Diff, DiffChange, DiffItem, IgnoredIp, OutsideView, ScanRun, Snapshot, Target } from './types'
 
 const targets = collection<StoredTarget[]>('exp_targets', seedTargets, () => [])
 const snapshots = collection<Record<string, Snapshot[]>>('exp_snapshots', seedSnapshots, () => ({}))
@@ -43,6 +43,19 @@ const ignored = collection<IgnoredIp[]>('exp_ignored', seedIgnored, () => [])
 
 /** deep_at: when the last full check ran (INV-13 reuses its answer for 5 minutes, a "not seen" included). full_ok_at: the last one that got an answer (the services agreed): an IP it did not see, and nothing since, shows as paused until a later check sees it. */
 const probe = collection<{ deep_at: string | null; full_ok_at?: string | null }>('exp_probe', () => ({ deep_at: null, full_ok_at: null }), () => ({ deep_at: null, full_ok_at: null }))
+
+/** D-558: Shodan's last answer per target (without our scan's ports, which are read from the newest snapshot on each GET). */
+const outside = collection<Record<string, Omit<OutsideView, 'scan_ports' | 'scan_at'>>>('exp_outside', seedOutside, () => ({}))
+/** When the box last asked Shodan: at most once a minute on the box (in memory, as on the box). */
+let outsideAskedMs = 0
+/** Shodan's answer beside the open ports of our own newest scan of that IP (null when never scanned). */
+function outsideView(id: string): OutsideView | null {
+  const o = outside.get()[id]
+  if (!o) return null
+  const last = (snapshots.get()[id] ?? []).slice().sort((a, b) => b.date.localeCompare(a.date))[0]
+  const scan_ports = last ? [...new Set(last.ports.filter((p) => p.ip === o.ip).map((p) => p.port))].sort((a, b) => a - b) : null
+  return { ...o, scan_ports, scan_at: last?.scanned_at ?? null }
+}
 
 const MAX_TARGETS = 20
 const MAX_IGNORED = 200
@@ -407,6 +420,7 @@ export const handlers = [
     targets.update((l) => l.filter((x) => x.id !== t.id))
     snapshots.update((m) => { const { [t.id]: _gone, ...rest } = m; void _gone; return rest })
     commitments.update((m) => { const { [t.id]: _gone, ...rest } = m; void _gone; return rest })
+    outside.update((m) => { const { [t.id]: _gone, ...rest } = m; void _gone; return rest })
     audit('exposure.target_delete', t.value)
     if (ignore) {
       ignored.update((l) => [{ value: t.value, ignored_by: currentUser()?.email ?? 'system', ignored_at: nowIso() }, ...l.filter((x) => x.value !== t.value)])
@@ -503,6 +517,31 @@ export const handlers = [
     mockRunStore.set({ ...m, run: stopped })
     audit('exposure.scan', r.target_value, `stopped by ${currentUser()?.email ?? ''}`)
     return HttpResponse.json(stopped)
+  }),
+
+  // What the Internet sees (D-558): reading sends nothing.
+  http.get(`${API}/exposure/targets/:id/outside`, ({ params }) => {
+    const denied = guard('viewer'); if (denied) return denied
+    if (!find(params.id)) return notFound()
+    return HttpResponse.json(outsideView(String(params.id)))
+  }),
+
+  // An administrator's click sends this IP of the box to Shodan InternetDB. Only the box's own verified IP that it still goes out through.
+  http.post(`${API}/exposure/targets/:id/outside`, ({ params }) => {
+    const denied = guard('admin'); if (denied) return denied
+    const t = find(params.id)
+    if (!t) return notFound()
+    if (t.kind !== 'ip') return fail(400, 'bad_value', 'Only a public IP of this box can be checked with Shodan, not a domain.')
+    const v = view(t)
+    if (v.status === 'unverified') return fail(409, 'not_verified', `${t.value} has no ownership proof, so it cannot be checked with Shodan. Finish verification first.`)
+    if (v.status === 'expired') return fail(409, 'expired', `Verification of ${t.value} expired on ${fmt(t.expires_at!)}, so it cannot be checked with Shodan. Verify it again first.`)
+    if (ipPaused(t)) return fail(409, 'ip_not_current', `This box no longer reaches the Internet through ${t.value}; it was last seen ${t.verified_at ? dateTimeText(t.verified_at) : 'never'}. It is not sent to Shodan until the box uses it again.`)
+    if (Date.now() - outsideAskedMs < 60_000) return fail(429, 'rate_limited', 'The box asked Shodan less than a minute ago. Try again in a minute: it asks at most once a minute.')
+    outsideAskedMs = Date.now()
+    const a = outsideAnswer(t.value)
+    outside.update((m) => ({ ...m, [t.id]: { ip: t.value, checked_at: nowIso(), checked_by: currentUser()?.email ?? '', ...a } }))
+    audit('exposure.outside_view', t.value, a.found ? `sent to internetdb.shodan.io; Shodan lists ${a.ports.length} ports and ${a.vulns.length} CVEs` : 'sent to internetdb.shodan.io; Shodan has no record of it')
+    return HttpResponse.json(outsideView(t.id))
   }),
 
   http.get(`${API}/exposure/targets/:id/snapshots`, ({ params }) => {

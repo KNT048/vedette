@@ -11,10 +11,8 @@ import (
 )
 
 // exposureServiceScan is exposure's ServiceScanner over sensor-active's ScanExternal (S-EXP-2, exposure INV-19, D-514): nmap -sV
-// in the scan container on the box's own verified public IP. It is BUILT, NOT WIRED: exposureService leaves cfg.Services unset
-// until the wiring commit (.ai/deferred/feat-exposure-services-mlee.md, plan exposure-real-vulns §3); the commitment sentence of
-// NoticeVersion 2026-11-14 (D-559) already covers -sV, so the wiring leaves NoticeVersion alone. PRIVACY flow 9 and THIRD_PARTY_NOTICES
-// change in the same commit as the wiring.
+// in the scan container on the box's own verified public IP. exposureService sets it as cfg.Services; the commitment sentence of
+// NoticeVersion 2026-11-14 (D-559, K-4) names service identification, and PRIVACY flow 9 and THIRD_PARTY_NOTICES say what is sent.
 //
 // The fence (exposure INV-13): right before the job is handed out, sensor-active asks gate, which is exposure's own
 // ScannableIP (verified, committed, seen by the public-IP check within 5 minutes, else a fresh full check, with the person who
@@ -87,7 +85,7 @@ func (a exposureServiceScan) ScanServices(ctx context.Context, t exposure.ScanTa
 	return out, nil
 }
 
-// exposureServicesFor builds the scanner for exposureService. Not called yet: see exposureServiceScan.
+// exposureServicesFor builds the scanner for exposureService.
 func exposureServicesFor(d deps, gate func(ctx context.Context, actor string, ip netip.Addr) (bool, error)) exposureServiceScan {
 	return exposureServiceScan{
 		on: func() bool { return d.Reg == nil || d.Reg.Enabled("sensor-active") },

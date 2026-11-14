@@ -225,6 +225,7 @@ type Content struct {
 	Checks      []CheckRow      `json:"checks"`
 	NotChecked  []NotCheckedRow `json:"not_checked"`
 	WebFindings []WebFindingRow `json:"web_findings"` // INV-24: alerts of the passive web scan (ZAP), not exploited CVEs
+	Greenbone   []GreenboneRow  `json:"greenbone"`    // INV-25: results of the optional deep scan (Greenbone, QoD >= 70)
 }
 
 // Snapshot is the result of one scan day (contract.ts Snapshot). Vulns and VersionGaps are not stored: they are computed when the

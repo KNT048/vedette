@@ -1076,7 +1076,11 @@ describe('exposure: services and exploited vulnerabilities of the box IP (S-EXP-
     renderApp('/exposure/xt-2')
     const vulns = await screen.findByRole('table', { name: 'Exploited vulnerabilities that match the services on this IP' })
     for (const cve of ['CVE-2021-41773', 'CVE-2021-42013']) {
-      const row = within(vulns).getByRole('row', { name: new RegExp(cve) })
+      // Greenbone also names it (INV-25): its row sits next to the version row and never replaces it
+      const rows = within(vulns).getAllByRole('row', { name: new RegExp(cve) })
+      expect(rows).toHaveLength(2)
+      expect(within(rows[1]!).getByText('Scanner: Greenbone, QoD 99')).toBeInTheDocument()
+      const row = rows[0]!
       expect(within(row).getByText('Version in range')).toBeInTheDocument()
       expect(within(row).getByText('18443')).toBeInTheDocument()
       expect(within(row).getByText(/Apache httpd 2\.4\.49\. Its version is inside the range/)).toBeInTheDocument()
@@ -1231,6 +1235,88 @@ describe('exposure: services and exploited vulnerabilities of the box IP (S-EXP-
     expect(await screen.findByRole('list', { name: 'Not checked' })).toBeInTheDocument()
     expect(screen.getByText(/it runs on the box's own verified public IP only, not on the names of a domain/)).toBeInTheDocument()
     expect(screen.queryByRole('region', { name: 'Exploited vulnerabilities' })).toBeNull()
+  })
+})
+
+describe('exposure: optional deep scan with Greenbone (S-EXP-2, INV-25, D-563)', () => {
+  afterEach(() => { localStorage.removeItem('vedette-mock-box-memory'); localStorage.removeItem('vedette-mock-box-disk') })
+  const section = () => screen.findByRole('region', { name: 'Optional deep scan: Greenbone (OpenVAS)' })
+
+  it('off by default: shows the box\'s numbers and what it needs before Enable; an administrator enables it and it starts; axe clean', async () => {
+    renderApp('/exposure')
+    const s = await section()
+    expect(await within(s).findByText('Off')).toBeInTheDocument()
+    expect(within(s).getByText("Needs about 50 GB of disk and about 2 hours to load Greenbone's feed the first time. The box must have at least 8 GB of memory and 60 GB free.")).toBeInTheDocument()
+    expect(within(s).getByText('16.0 GB')).toBeInTheDocument()
+    expect(within(s).getByText('180.0 GB')).toBeInTheDocument()
+    await expectNoA11yViolations()
+    await userEvent.click(within(s).getByRole('button', { name: 'Enable Greenbone' }))
+    expect(await within(s).findByText('Starting')).toBeInTheDocument()
+    expect(within(s).getByRole('button', { name: 'Turn off Greenbone' })).toBeInTheDocument()
+    expect(auditStore.get().some((a) => a.action === 'exposure.greenbone' && a.detail === 'enabled (memory 16.0 GB, free disk 180.0 GB)')).toBe(true)
+  })
+
+  it('the refusal shows the measured numbers: 7.1 GB of memory, then too little disk', async () => {
+    localStorage.setItem('vedette-mock-box-memory', '7100000000')
+    renderApp('/exposure')
+    const s = await section()
+    expect(await within(s).findByRole('alert')).toHaveTextContent('This box has 7.1 GB of memory; Greenbone needs at least 8.0 GB.')
+    expect(within(s).getByRole('button', { name: 'Enable Greenbone' })).toBeDisabled()
+    const r = await call('PUT', '/exposure/greenbone', { enabled: true })
+    expect(r.status).toBe(409)
+    expect(r.json.error.code).toBe('low_memory')
+    localStorage.setItem('vedette-mock-box-memory', '8300000000')
+    localStorage.setItem('vedette-mock-box-disk', '41300000000')
+    const d = await call('PUT', '/exposure/greenbone', { enabled: true })
+    expect([d.status, d.json.error.code, d.json.error.message]).toEqual([409, 'low_disk', 'This box has 41.3 GB of free disk space; Greenbone needs at least 60.0 GB free.'])
+  })
+
+  it('loading its feed is a visible phase; only an administrator can change it', async () => {
+    server.use(http.get('*/api/v1/exposure/greenbone', () => HttpResponse.json({ state: 'loading', reason: 'Greenbone is loading its feed (first time takes about 2 hours)', changed_by: 'admin@acme.example', changed_at: new Date().toISOString(),
+      preflight: { memory_bytes: 16e9, disk_free_bytes: 120e9, ok: true, reason: null } })))
+    renderApp('/exposure', { role: 'viewer' })
+    const s = await section()
+    expect(await within(s).findByText('Greenbone is loading its feed (first time takes about 2 hours)')).toBeInTheDocument()
+    expect(within(s).getByRole('button', { name: 'Turn off Greenbone' })).toBeDisabled()
+  })
+
+  it('not available on this box: says so and offers nothing', async () => {
+    server.use(http.get('*/api/v1/exposure/greenbone', () => HttpResponse.json({ state: 'unavailable', reason: 'Greenbone is not available on this box.', changed_by: null, changed_at: null,
+      preflight: { memory_bytes: 16e9, disk_free_bytes: 120e9, ok: true, reason: null } })))
+    renderApp('/exposure')
+    const s = await section()
+    expect(await within(s).findByText('Greenbone is not available on this box.')).toBeInTheDocument()
+    expect(within(s).queryByRole('button')).toBeNull()
+  })
+
+  it('results: their own section with the unauthenticated header, severity first, QoD and CVEs; axe clean', async () => {
+    renderApp('/exposure/xt-2')
+    const s = await screen.findByRole('region', { name: 'Greenbone results (unauthenticated, QoD ≥ 70)' })
+    expect(within(s).getByText('Greenbone looked at this IP from outside without logging in. Finding nothing is not proof the services are not affected (distributions backport fixes).')).toBeInTheDocument()
+    const rows = within(within(s).getByRole('table', { name: 'What Greenbone reported on this IP' })).getAllByRole('row').slice(1)
+    expect(rows).toHaveLength(3)
+    expect(within(rows[0]!).getByText('High 9.8')).toBeInTheDocument()
+    expect(within(rows[0]!).getByText('99%')).toBeInTheDocument()
+    expect(within(rows[0]!).getByText('CVE-2021-41773')).toBeInTheDocument()
+    expect(within(rows[2]!).getByText('None named')).toBeInTheDocument()
+    expect(within(screen.getByRole('list', { name: 'Checked' })).getByText(/Greenbone \(OpenVAS\) scanned 203\.0\.113\.10 from outside without logging in/)).toBeInTheDocument()
+    await expectNoA11yViolations()
+  })
+
+  it('a scan Greenbone did not run says why under its section, and claims nothing', async () => {
+    renderApp('/exposure/xt-2')
+    const pick = await screen.findByRole('combobox', { name: 'Snapshot of' })
+    await userEvent.selectOptions(pick, within(pick).getAllByRole('option').at(-1)!)
+    const s = await screen.findByRole('region', { name: 'Greenbone results (unauthenticated, QoD ≥ 70)' })
+    expect(await within(s).findByText('Greenbone did not scan this time')).toBeInTheDocument()
+    expect(within(s).getByText(/Optional deep scan with Greenbone \(OpenVAS\) is off/)).toBeInTheDocument()
+    expect(within(s).queryByRole('table')).toBeNull()
+  })
+
+  it('a domain has no Greenbone section', async () => {
+    renderApp('/exposure/xt-1')
+    expect(await screen.findByRole('list', { name: 'Not checked' })).toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'Greenbone results (unauthenticated, QoD ≥ 70)' })).toBeNull()
   })
 })
 

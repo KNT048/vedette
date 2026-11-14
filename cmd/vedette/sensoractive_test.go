@@ -60,7 +60,7 @@ func newFakeNmap(t *testing.T) *fakeNmapBin {
 		return p
 	}
 	log := filepath.Join(dir, "argv.log")
-	body := fmt.Sprintf("#!/bin/sh\nprintf '%%s\\n' \"$@\" >> %q\necho '--' >> %q\ncase \" $* \" in\n  *\" -sn \"*) cat %q;;\n  *\" --max-retries \"*) cat %q;;\n  *) cat %q;;\nesac\n",
+	body := fmt.Sprintf("#!/bin/sh\nprintf '%%s\\n' \"$@\" >> %q\necho '--' >> %q\ncase \" $* \" in\n  *\" -sn \"*) cat %q;;\n  *\" -T2 \"*) cat %q;;\n  *) cat %q;;\nesac\n",
 		log, log, fx("sweep.xml"), fx("fragile.xml"), fx("device.xml"))
 	path := filepath.Join(dir, "nmap")
 	exectest.WriteScript(t, path, body)
@@ -164,7 +164,7 @@ func TestSensorActiveScansADiscoveredDevice(t *testing.T) {
 		t.Fatal(err)
 	}
 	calls := nm.calls(t)
-	want := []string{"--privileged", "-sS", "-sV", "-O", "--script", "rdp-ntlm-info,http-ntlm-info,http-title,ssl-cert", "-n", "--max-rate", "100", "--top-ports", "1000", "--host-timeout", "30m", "-oX", "-", "192.168.10.20"}
+	want := []string{"--privileged", "-sS", "-sV", "-O", "--script", "rdp-ntlm-info,http-ntlm-info,http-title,ssl-cert", "-n", "--max-rate", "100", "--max-retries", "3", "--top-ports", "1000", "--host-timeout", "30m", "-oX", "-", "192.168.10.20"}
 	if got := scanTargets(calls, "192.168.10.20"); len(got) != 1 || !slices.Equal(got[0], want) {
 		t.Fatalf("device scans = %q\nwant %q", got, want)
 	}

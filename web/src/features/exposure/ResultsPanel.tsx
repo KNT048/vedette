@@ -11,6 +11,7 @@ import { riskOf } from './services'
 import { useDiff, useSnapshot, useSnapshots } from './api'
 import { ChecksSection, VulnSection } from './ServicesPanel'
 import { WebSection } from './WebPanel'
+import { GreenboneSection } from './GreenbonePanel'
 import { PortMark, PortMarkNote } from './PortMark'
 import { PORT_NOT_SEEN, VERSION_NOT_READ } from './contract'
 import { CERT_WARN_DAYS, type AdminRow, type CertRow, type DiffItem, type DiffChange, type HostRow, type PortRow, type Snapshot, type Target } from './types'
@@ -109,6 +110,7 @@ function SnapshotView({ target, s }: { target: Target; s: Snapshot }) {
       </Section>
       {target.kind === 'ip' ? <VulnSection s={s} /> : null}
       <WebSection s={s} />
+      {target.kind === 'ip' ? <GreenboneSection s={s} /> : null}
       <ChecksSection s={s} />
     </div>
   )

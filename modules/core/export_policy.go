@@ -71,8 +71,8 @@ var exportPolicy = map[string]tablePolicy{
 	"exp_attempt":            {export: "id ts"},
 	"exp_ignored":            {export: "value ignored_by ignored_at"},
 	"exp_outside":            {export: "target_id ip checked_at checked_by found", json: "answer"},
-	"exp_setting":            {export: "id auto interval_min last_run_at last_run_ok last_run_message last_deep_at last_full_ok_at"},
-	"exp_snapshot":           {export: "id target_id date scanned_at", json: "hosts ports admin_panels certs counts services checks not_checked web_findings"},
+	"exp_setting":            {export: "id auto interval_min last_run_at last_run_ok last_run_message last_deep_at last_full_ok_at greenbone greenbone_by greenbone_at"},
+	"exp_snapshot":           {export: "id target_id date scanned_at", json: "hosts ports admin_panels certs counts services checks not_checked web_findings greenbone"},
 	"exp_target":             {export: "id kind value method verified_at commitment_by commitment_at commitment_version commitment_sentence commitment_user_id commitment_method created_at last_scan_at", json: "last_check", skip: "token"},
 	"feeds_affected":         {export: "cve cpe start_incl start_excl end_incl end_excl"}, // D-500: public NVD data
 	"feeds_affected_cve":     {export: "cve updated_at source"},
@@ -115,11 +115,11 @@ var exportPolicy = map[string]tablePolicy{
 	"notify_notice_finding":  {export: "notice_id finding_id"},
 	"notify_pending":         {export: "id channel notice_id reason due_at state claimed_at created_at attempts", json: "notice"},
 	"notify_send":            {export: "id kind ref_id channel at ok error what link recipient delayed", json: "message", url: "to"},
-	"intake_agent_tokens":    {export: "id name kind last4 created_at expires_at last_received created_by", skip: "token_hash"},                                                                                                                   // the hash never leaves (agent-intake INV-3)
-	"intake_wazuh":           {export: "id username password_last4 interval_minutes tls_pin tls_pin_first_seen generation status last_sync next_pull agents packages error resume_after pass_packages updated_at", url: "url", skip: "secret_id"}, // the password stays in core_secret (agent-intake INV-6)
-	"intake_osquery_nodes":   {export: "id token_id host_identifier hostname platform osquery_version enrolled_at last_seen last_result_at bound_ip bound_mac reported approved_at kernel", skip: "node_key_hash"},                                // the key hash never leaves
-	"intake_prune_clock":     {export: "id last_run"},                                                                                                                                                                                             // when node-prune last ran (agent-intake POST-4)
-	"mcp_tokens":             {export: "id name last4 created_at last_used", json: "scopes", skip: "token_hash"},                                                                                                                                  // the hash never leaves (mcp-server INV-3)
+	"intake_agent_tokens":    {export: "id name kind last4 created_at expires_at last_received created_by", skip: "token_hash"},                                                                                                                    // the hash never leaves (agent-intake INV-3)
+	"intake_wazuh":           {export: "id username password_last4 interval_minutes tls_pin tls_pin_first_seen generation status last_sync next_pull agents packages error resume_after pass_packages updated_at", url: "url", skip: "secret_id"},  // the password stays in core_secret (agent-intake INV-6)
+	"intake_osquery_nodes":   {export: "id token_id host_identifier hostname platform osquery_version enrolled_at last_seen last_result_at bound_ip bound_mac reported approved_at kernel win_name win_version win_target", skip: "node_key_hash"}, // the key hash never leaves
+	"intake_prune_clock":     {export: "id last_run"},                                                                                                                                                                                              // when node-prune last ran (agent-intake POST-4)
+	"mcp_tokens":             {export: "id name last4 created_at last_used", json: "scopes", skip: "token_hash"},                                                                                                                                   // the hash never leaves (mcp-server INV-3)
 	"notify_send_notice":     {export: "send_id notice_id"},
 	"notify_box":             {export: "id first_run_at discovery_told_at discovery_told_count"}, // when notify first ran (D-483 first-discovery window)
 	"notify_setting":         {export: "key updated_at updated_by", json: "value"},

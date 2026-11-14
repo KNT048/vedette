@@ -66,9 +66,19 @@
 - **core** `export_policy.go`: cột JSON mới được xuất (`TestExport_PolicyClassifiesEveryColumn`).
 - `findings`, `response`, `reports`, `alerts`: không đọc `web_findings`; cảnh báo ZAP không thành finding hay tin cảnh báo.
 
+## Modifying: `GreenboneHost`, `GMPLogin`, `GreenboneProbeLog`, `ExploitedLookup`, `KEVEntry`, `GreenboneSetting`, `SetGreenbone`, `greenboneScan`, `gmp.go`, `GreenboneRow`, `Snapshot.greenbone`, cột `exp_snapshot.greenbone`, `exp_setting.greenbone*` (INV-25, D-563)
+- **host / cmd/vedette** (Trưởng, deferred `.ai/deferred/feat-exposure-greenbone-mlee.md`): thao tác host hiện thực `GreenboneHost` (compose chính thức ghim digest, project podman riêng, socket gvmd mount vào `core`, mật khẩu GMP sinh lúc cài và giữ ở `core/secrets`, gỡ cài đặt không đụng project và volume của nó); `cmd/vedette` nối `Config.Greenbone`, `Config.DataDir`, `GreenboneProbeLog` trên `Config.Probes` (cạnh `RecordTemplateProbes`/`RecordWebProbe`) và `ExploitedLookup` trên matcher (`exposurematch.go`). Đổi chữ ký cổng phải sửa cả adapter.
+- **PRIVACY luồng 9 và 16, THIRD_PARTY_NOTICES (hàng Greenbone CE và Community Feed)**, `web/src/locales/en/core.json` `privacy.flow.9/16`, danh sách luồng ở `modules/core/handlers_privacy.go` và mock `features/core/mocks.ts`: đổi cái Greenbone quét hay tải là đổi cả ba (rules/legal.md).
+- **web/features/exposure**: `GreenbonePanel.tsx` (cài đặt ở tab Targets, mục "Greenbone results" của IP), `ServicesPanel.tsx` (chip "Scanner: Greenbone, QoD N"; dòng greenbone không cộng vào số CVE của dịch vụ), `api.ts` (`useGreenbone`, `useSetGreenbone`), `contract.ts` (`Greenbone`, `GreenboneResult`, `Snapshot.greenbone`, `VulnBasis` thêm `greenbone`, `VulnRow.qod`) là nguồn OpenAPI → `core/api/oas` sinh lại; mock `data.ts`/`mocks.ts` giữ cùng câu chữ.
+- **core/server** `contractRoutes` và `api/route-modules.json` có hai route mới; **core** `export_policy.go` xuất bốn cột mới (`TestExport_PolicyClassifiesEveryColumn`); `docs/API_CONVENTIONS.md` có `low_memory` (mới) và `low_disk`/`host_error`/`not_implemented` thêm route này.
+- **modules/core** `handlers_privacy.go`: luồng 16 `on` chỉ khi `PrivacyFacts` (cmd/vedette `privacyFacts`) có `GreenboneEnabled` trả true; nối nó tới `Service.GreenboneEnabled` là việc của Trưởng (deferred).
+- **web/features/exposure** `ScanProgress.tsx`: phase `greenbone` và lượt `stopped` có `snapshot_id` ("The Greenbone part … was stopped. The results of the other checks are saved below").
+- **findings / response / reports**: basis `greenbone` mới với người đọc `VulnRow` theo `version`/`product`/`template`; không thành finding; `Diff` bỏ qua nó.
+
 ## Disabling this module
 - Trang External exposure mất; `scan` chỉ quét mục tiêu nội bộ; luồng PRIVACY 9 dừng (job không chạy, kể cả lượt dò đầy đủ trước khi quét).
 - Mục tiêu, cam kết, ảnh chụp, cài đặt và danh sách bỏ qua giữ; `reports` bỏ mục bề mặt ngoài.
+- Greenbone không quét nữa nhưng container của nó vẫn chạy cho tới khi admin tắt Greenbone (INV-25; deferred).
 
 ## Modifying: `TemplateScanner`, `TemplateJob`, `TemplateResult`, `ProbeLog`, `Config.Templates`, `Config.Probes`, `runTemplates`, `markTemplates`, `Snapshot.templates`, `VulnRow.template`/`template_result` (INV-23, D-561)
 - (D-522, N1) `schemeOf` đọc tiền tố `ssl/` mà parser của sensor-active ghi cho `tunnel="ssl"` (sensor-active INV-18); mọi `http…` khác vẫn là https ở 443/8443/9443 (review M2), cùng cách đoán của `isTLSService`. Đổi cách đặt tên ở parser phải sửa cả đây và `zap.go` `isWebService`/`isTLSService`.

@@ -4,6 +4,9 @@
 - (L8, D-178) `recordSweep` dùng `capture.FloodBudget` của `modules/sensor-passive/capture` (gói lá của module khác, như `scan/nucleiargv`/`nucleiout`; nó kéo theo `content/oui` và `core/sensorlink`) với số riêng 1.000/phút, 1.000/giờ (`NewFloodBudgetLimits`), tính theo MAC chưa có trong `Inventory.KnownMACs`. Đổi hằng ở capture không đổi số của quét dò, nhưng đổi cách `Decide`/`Commit` là đổi cả hai nơi. Cổng `Inventory` có thêm `KnownMACs`. `ponytail: bộ đếm trong bộ nhớ, khởi động lại là về 0; nâng cấp = lưu trong sa_*.`
 - **core/jobs** (`window-tick` mỗi phút, `prune-probes` mỗi ngày: `cmd/vedette/sensoractive.go`), **inventory** (không gọi trực tiếp: sự kiện `inventory.asset.discovered` và `inventory.settings.changed` đi qua `core/events`, đăng ký ở `cmd/vedette/sensoractive.go`). Đổi điều kiện từ chối hoặc cửa sổ = đổi số gói thực sự rời hộp: sửa CONTRACT + test INV-1…5 (`TestContract_INV*`, `TestWindow`).
 
+## Modifying: `Config.LocalPrefixes` và ước lượng thời gian quét dò (`sweepWarning`, D-523)
+- Chỉ đổi lời cảnh báo `Health.Warning` (trang Trạng thái, log của `DiscoverRanges`): `cmd/vedette/sensoractive.go` `boxNetworks` (giao diện của container + thẻ của appliance qua `hostNetCache`); phần phạm vi trong các mạng đó tính một gói một địa chỉ (ARP), phần còn lại `nmapargv.SweepProbes`. Đổi mẫu quét dò thì sửa `SweepProbes` và `TestScope`. Không ảnh hưởng gói nào rời hộp.
+
 ## Modifying: `DispatcherOptions.ContainerOnly` / thông điệp sức khoẻ của `NmapHealth`, `NucleiHealth`
 - Chỉ lời khuyên đổi theo kiểu cài (D-381); `cmd/vedette/wiring.go` đọc `Reg.ContainerOnly()`; trang Trạng thái và Cài đặt hiện nguyên văn thông điệp, test chỉ ghim phần đầu ("nmap is not installed", "has not reported").
 

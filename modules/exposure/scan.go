@@ -369,7 +369,8 @@ func sanitize(c Content) Content {
 		out.Certs = append(out.Certs, CertRow{Host: txt(x.Host), Issuer: txt(x.Issuer), ExpiresAt: store.FormatTS(t)})
 	}
 	return Content{Hosts: nz(out.Hosts), Ports: nz(out.Ports), AdminPanels: nz(out.AdminPanels), Certs: nz(out.Certs),
-		Services: sanitizeServices(c.Services), Templates: sanitizeTemplates(c.Templates, sanitizeServices(c.Services)), Checks: sanitizeChecks(c.Checks), NotChecked: sanitizeNotChecked(c.NotChecked), WebFindings: sanitizeWeb(c.WebFindings)}
+		Services: sanitizeServices(c.Services), Templates: sanitizeTemplates(c.Templates, sanitizeServices(c.Services)), Checks: sanitizeChecks(c.Checks), NotChecked: sanitizeNotChecked(c.NotChecked), WebFindings: sanitizeWeb(c.WebFindings),
+		Greenbone: sanitizeGreenbone(c.Greenbone)}
 }
 
 // scope says what the scan did with an address whose ports the previous observation listed (INV-22).
@@ -615,6 +616,9 @@ func entries(s Snapshot) (map[string]diffEntry, []string) {
 		add(diffEntry{DiffItem: DiffItem{Kind: "service", Key: "s:" + label, Label: label, Detail: serviceText(x)}, at: label, product: x.Product, version: x.Version})
 	}
 	for _, v := range s.Vulns {
+		if v.Basis == "greenbone" { // INV-25: a day Greenbone did not run (off, loading) must not read as its CVEs gone
+			continue
+		}
 		label := fmt.Sprintf("%s:%d", v.IP, v.Port)
 		add(diffEntry{DiffItem: DiffItem{Kind: "vuln", Key: "v:" + label + ":" + v.CVE, Label: v.CVE + " on " + label, Detail: v.Name}, at: label})
 	}

@@ -641,6 +641,7 @@ func (s *Service) scanDevice(ctx context.Context, runID string, d Device, st Set
 	}
 	out, err := s.runJob(ctx, Job{Job: job, IDs: ids, PackVersion: s.cfg.Pack.Version, PackSHA256: s.cfg.Pack.SHA256})
 	res := out.Results
+	s.noteSkipped(ctx, runID, d, probes, out.Skipped)
 	if ctx.Err() != nil { // Stop now while this device was being scanned
 		s.closeProbes(ctx, probes, func(string) string { return "stopped" })
 		return append(rows, RunRow{TargetID: d.ID, Label: d.Label, IP: d.IP, Result: "skipped", Note: noteStoppedMid}), "stopped"
@@ -873,6 +874,29 @@ func (s *Service) writeProbes(ctx context.Context, runID string, d Device, check
 		return nil
 	})
 	return out, err
+}
+
+// noteSkipped writes what nucleiout skipped (lines about an address the job did not name, N45-1: the run is kept) to the core log
+// and at the front of the probe row of the first skipped line's template, so the probe log says it.
+func (s *Service) noteSkipped(ctx context.Context, runID string, d Device, rows []probeRow, sk nucleiout.Skipped) {
+	if sk.Lines == 0 {
+		return
+	}
+	s.cfg.Log.WarnContext(ctx, "scan: nuclei printed lines for an address the job did not name; skipped, the run is kept", "asset", d.ID, "run", runID,
+		"lines", sk.Lines, "template", sk.Template, "host", sk.Host, "port", sk.Port)
+	i := slices.IndexFunc(rows, func(r probeRow) bool { return r.template == sk.Template })
+	if i < 0 {
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), finishTimeout)
+	defer cancel()
+	err := s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(ctx, `UPDATE scan_probe SET request = substr(? || request, 1, 300) WHERE id = ?`, sk.Note(), rows[i].id)
+		return err
+	})
+	if err != nil {
+		s.cfg.Log.ErrorContext(ctx, "scan: noting skipped lines in the probe log failed", "error", err)
+	}
 }
 
 // closeProbes fills in the results; it runs even when the run was stopped (INV-7).

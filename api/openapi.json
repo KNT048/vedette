@@ -69610,9 +69610,11 @@
                               "not_matched",
                               "no_response",
                               "banner",
-                              "stopped"
+                              "stopped",
+                              "not_run",
+                              "refused"
                             ],
-                            "description": "stopped: the request was on its way when the scan was stopped"
+                            "description": "stopped: the request was on its way when the scan was stopped; not_run: handed to nuclei, which printed nothing for it, so it did not run; refused: the scan worker refused the job (its own-IP check), nothing was sent"
                           }
                         },
                         "required": [

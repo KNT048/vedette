@@ -63,7 +63,7 @@ export const ScanRun = z.object({
 })
 export const ProbeEntry = z.object({
   id: z.string(), ts: iso, run_id: z.string().nullable(), ip: z.string(), label: z.string(), template: z.string(), request: z.string(),
-  result: z.enum(['matched', 'not_matched', 'no_response', 'banner', 'stopped']).describe('stopped: the request was on its way when the scan was stopped'),
+  result: z.enum(['matched', 'not_matched', 'no_response', 'banner', 'stopped', 'not_run', 'refused']).describe('stopped: the request was on its way when the scan was stopped; not_run: handed to nuclei, which printed nothing for it, so it did not run; refused: the scan worker refused the job (its own-IP check), nothing was sent'),
 })
 export const RescanEvent = z.object({
   id: z.string(), ts: iso, cve: z.string(), product: z.string(), devices: z.array(z.string()), latency_min: z.number().nullable(), run_id: z.string().nullable(),

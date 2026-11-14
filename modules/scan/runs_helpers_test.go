@@ -196,7 +196,7 @@ type Output struct {
 	HostErrors []nucleiout.HostError // what the worker counted from nuclei's error log (D-165)
 }
 
-// Run answers with what reply prints and parses it the way the real engine does (nucleiout.Parse against the job's
+// Run answers with what reply prints and parses it the way the real engine does (nucleiout.Read against the job's
 // ids and targets; output over the cap is an error).
 func (f *runEngine) Run(ctx context.Context, job Job) (nucleiout.Outcome, error) {
 	j := job.Job
@@ -224,8 +224,8 @@ func (f *runEngine) Run(ctx context.Context, job Job) (nucleiout.Outcome, error)
 	if out.Truncated {
 		return nucleiout.Outcome{}, errors.New("the output was over the cap")
 	}
-	res, err := nucleiout.Parse(out.JSONL, job.IDs, hostPorts(j.Targets))
-	return nucleiout.Outcome{Results: res, HostErrors: out.HostErrors}, err
+	res, skip, err := nucleiout.Read(out.JSONL, job.IDs, hostPorts(j.Targets))
+	return nucleiout.Outcome{Results: res, HostErrors: out.HostErrors, Skipped: skip}, err
 }
 
 func (f *runEngine) sent() []nucleiargv.Job {

@@ -169164,7 +169164,9 @@ type ScanGetScansProbesOKItemsItem struct {
 	IP      string `json:"ip"`
 	Label   string `json:"label"`
 	Request string `json:"request"`
-	// Stopped: the request was on its way when the scan was stopped.
+	// Stopped: the request was on its way when the scan was stopped; not_run: handed to nuclei, which
+	// printed nothing for it, so it did not run; refused: the scan worker refused the job (its own-IP
+	// check), nothing was sent.
 	Result   ScanGetScansProbesOKItemsItemResult `json:"result"`
 	RunID    NilString                           `json:"run_id"`
 	Template string                              `json:"template"`
@@ -169251,7 +169253,9 @@ func (s *ScanGetScansProbesOKItemsItem) SetTs(val time.Time) {
 	s.Ts = val
 }
 
-// Stopped: the request was on its way when the scan was stopped.
+// Stopped: the request was on its way when the scan was stopped; not_run: handed to nuclei, which
+// printed nothing for it, so it did not run; refused: the scan worker refused the job (its own-IP
+// check), nothing was sent.
 type ScanGetScansProbesOKItemsItemResult string
 
 const (
@@ -169260,6 +169264,8 @@ const (
 	ScanGetScansProbesOKItemsItemResultNoResponse ScanGetScansProbesOKItemsItemResult = "no_response"
 	ScanGetScansProbesOKItemsItemResultBanner     ScanGetScansProbesOKItemsItemResult = "banner"
 	ScanGetScansProbesOKItemsItemResultStopped    ScanGetScansProbesOKItemsItemResult = "stopped"
+	ScanGetScansProbesOKItemsItemResultNotRun     ScanGetScansProbesOKItemsItemResult = "not_run"
+	ScanGetScansProbesOKItemsItemResultRefused    ScanGetScansProbesOKItemsItemResult = "refused"
 )
 
 // AllValues returns all ScanGetScansProbesOKItemsItemResult values.
@@ -169270,6 +169276,8 @@ func (ScanGetScansProbesOKItemsItemResult) AllValues() []ScanGetScansProbesOKIte
 		ScanGetScansProbesOKItemsItemResultNoResponse,
 		ScanGetScansProbesOKItemsItemResultBanner,
 		ScanGetScansProbesOKItemsItemResultStopped,
+		ScanGetScansProbesOKItemsItemResultNotRun,
+		ScanGetScansProbesOKItemsItemResultRefused,
 	}
 }
 
@@ -169285,6 +169293,10 @@ func (s ScanGetScansProbesOKItemsItemResult) MarshalText() ([]byte, error) {
 	case ScanGetScansProbesOKItemsItemResultBanner:
 		return []byte(s), nil
 	case ScanGetScansProbesOKItemsItemResultStopped:
+		return []byte(s), nil
+	case ScanGetScansProbesOKItemsItemResultNotRun:
+		return []byte(s), nil
+	case ScanGetScansProbesOKItemsItemResultRefused:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -169308,6 +169320,12 @@ func (s *ScanGetScansProbesOKItemsItemResult) UnmarshalText(data []byte) error {
 		return nil
 	case ScanGetScansProbesOKItemsItemResultStopped:
 		*s = ScanGetScansProbesOKItemsItemResultStopped
+		return nil
+	case ScanGetScansProbesOKItemsItemResultNotRun:
+		*s = ScanGetScansProbesOKItemsItemResultNotRun
+		return nil
+	case ScanGetScansProbesOKItemsItemResultRefused:
+		*s = ScanGetScansProbesOKItemsItemResultRefused
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)

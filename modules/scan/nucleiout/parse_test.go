@@ -3,6 +3,7 @@ package nucleiout
 import (
 	"bytes"
 	"os"
+	"slices"
 	"strings"
 	"testing"
 	"unicode/utf8"
@@ -74,9 +75,11 @@ func TestParse_Fixture(t *testing.T) {
 	if m := res[0]; !strings.Contains(m.Response, "Copy successful") {
 		t.Fatalf("tcp match evidence: %+v", m)
 	}
-	// a line for a target or a template the job did not name still throws the whole run away
-	if _, err := Parse(fixture(t), labTemplates, labTargets[:3]); err == nil {
-		t.Fatal("a target outside the job was accepted")
+	// a line for a target the job did not name is skipped and counted (N45-1); one for a template it did not name still throws
+	// the whole run away
+	if got, skip, err := Read(fixture(t), labTemplates, labTargets[:3]); err != nil || skip.Lines != 3 || len(got) != len(res)-3 ||
+		slices.ContainsFunc(got, func(r Result) bool { return r.Target == labTargets[3] }) {
+		t.Fatalf("a target outside the job: %d results, %+v, %v", len(got), skip, err)
 	}
 	if _, err := Parse(fixture(t), labTemplates[1:], labTargets); err == nil {
 		t.Fatal("a template outside the job was accepted")
@@ -113,7 +116,7 @@ func TestParse_HostAndPort(t *testing.T) {
 		line := `{"template-id":"CVE-2022-27593",` + in + `,"matcher-status":false}`
 		res, err := Parse([]byte(line), templates, targets)
 		switch {
-		case want == "" && err == nil:
+		case want == "" && err == nil && len(res) > 0:
 			t.Errorf("%s accepted: %+v", in, res)
 		case want != "" && (err != nil || res[0].Target != want):
 			t.Errorf("%s: %+v %v, want %s", in, res, err, want)
@@ -147,11 +150,10 @@ func TestParse_RefusesTheWholeOutput(t *testing.T) {
 		"matcher-status a string": `{"template-id":"CVE-2022-27593",` + h + `,"matcher-status":"true"}`,
 		"template not in the job": `{"template-id":"CVE-2021-44228",` + h + `,"matcher-status":true}`,
 		"no template":             `{` + h + `,"matcher-status":true}`,
-		"host not in the job":     `{"template-id":"CVE-2022-27593","host":"http://192.168.10.99:5000","matcher-status":true}`,
-		"port not in the job":     `{"template-id":"CVE-2022-27593","host":"http://192.168.10.21:8080","matcher-status":true}`,
 		"no port, no scheme":      `{"template-id":"CVE-2022-27593","host":"192.168.10.21","matcher-status":true}`,
-		"host prefix trick":       `{"template-id":"CVE-2022-27593","host":"http://192.168.10.21.evil.example:5000","matcher-status":true}`,
 		"user-info trick":         `{"template-id":"CVE-2022-27593","host":"http://192.168.10.21:5000@10.0.0.9:80","matcher-status":true}`,
+		"host with a space":       `{"template-id":"CVE-2022-27593","host":"http://evil example:5000","matcher-status":true}`,
+		"foreign, no status":      `{"template-id":"CVE-2022-27593","host":"http://192.168.10.99:5000"}`,
 		"no host":                 `{"template-id":"CVE-2022-27593","matcher-status":true}`,
 		"match with an error":     `{"template-id":"CVE-2022-27593",` + h + `,"matcher-status":true,"error":"timeout"}`,
 		"deep nesting":            `{"template-id":"CVE-2022-27593",` + h + `,"matcher-status":true,"meta":` + strings.Repeat(`{"a":`, 40) + `1` + strings.Repeat(`}`, 40) + `}`,
@@ -167,6 +169,93 @@ func TestParse_RefusesTheWholeOutput(t *testing.T) {
 	if res, err := Parse([]byte(`{"template-id":"CVE-2022-27593","host":"https://192.168.10.21","matcher-status":false}`), templates, targets); err != nil || res[0].Target != "192.168.10.21:443" {
 		t.Fatalf("https default port: %+v %v", res, err)
 	}
+}
+
+// N45-1: a line about an address the job did not name (another host, another port, a name) is skipped and counted, never a
+// result; the run is kept. The first one's template, host and port go to the log and the probe row.
+func TestRead_SkipsALineForAnotherTarget(t *testing.T) {
+	t.Parallel()
+	lines := []string{
+		ok,
+		`{"template-id":"CVE-2022-27593","host":"192.168.10.99","port":"5000","matcher-status":true}`,                // another host
+		`{"template-id":"CVE-2022-27593","host":"http://192.168.10.21:8080","matcher-status":true}`,                  // another port
+		`{"template-id":"CVE-2024-3400","host":"http://192.168.10.21.evil.example:5000","matcher-status":false}`,     // a name
+		`{"template-id":"CVE-2024-3400","host":"https://192.168.10.21","port":"443","matcher-status":true}`,          // the job's 443 in URL form
+		`{"template-id":"CVE-2024-3400","host":"192.168.10.21:22","port":"22","matcher-status":false,"error":"EOF"}`, // host:port in host
+		`{"template-id":"CVE-2024-3400","host":"http://192.168.10.99:11080/landing","matcher-status":true}`,          // a redirect elsewhere
+	}
+	res, skip, err := Read([]byte(strings.Join(lines, "\n")), templates, targets)
+	if err != nil || len(res) != 3 || skip.Lines != 4 {
+		t.Fatalf("res %+v skip %+v err %v", res, skip, err)
+	}
+	if skip.Template != "CVE-2022-27593" || skip.Host != "192.168.10.99" || skip.Port != "5000" {
+		t.Fatalf("first skipped: %+v", skip)
+	}
+	if res[1].Target != "192.168.10.21:443" || !res[1].Matched || res[2].Target != "192.168.10.21:22" {
+		t.Fatalf("the job's targets in another spelling: %+v", res)
+	}
+	if n := skip.Note(); n != "Skipped 4 nuclei line(s) for an address the job did not name (first: CVE-2022-27593 on 192.168.10.99:5000). " {
+		t.Fatalf("note %q", n)
+	}
+	if (Skipped{}).Note() != "" {
+		t.Fatal("a note with nothing skipped")
+	}
+	// skipped lines still count toward the line limit
+	many := bytes.Repeat([]byte(lines[1]+"\n"), MaxLines+1)
+	if _, _, err := Read(many, templates, targets); err == nil {
+		t.Fatal("more than MaxLines skipped lines were read")
+	}
+}
+
+// Every line shape the pinned nuclei v3.11.1 printed in the lab (kf-scan item 4, 2026-11-14: the release binary, sha256 as in
+// docs/lab/2026-11-12-podman-nuclei.md, in a podman container with no network against servers on 127.0.0.1, rewritten to
+// 192.168.10.21; the argv of a full job, -or -ot): tcp, ssl and http templates on an https port, a plain TCP port and 443; a page
+// that redirects to another port and to another host (-dr: not followed, the line is about the job's target); a template with
+// two named matchers (two lines); an http template whose path names another port (nuclei refuses the URL, the line is about the
+// job's target). Every line maps to a target of the job; none is skipped.
+func TestRead_EveryShapeOfThePinnedNuclei(t *testing.T) {
+	t.Parallel()
+	tpls := []string{"lab-banner", "lab-ssl", "lab-hostredirect", "lab-miss", "lab-tech", "lab-redirect", "lab-otherport"}
+	tgts := []string{"192.168.10.21:10443", "192.168.10.21:10022", "192.168.10.21:443"}
+	for _, f := range []string{"testdata/shapes.jsonl", "testdata/otherport.jsonl"} {
+		out, err := os.ReadFile(f)
+		if err != nil {
+			t.Fatal(err)
+		}
+		res, skip, err := Read(out, tpls, tgts)
+		if err != nil || skip.Lines != 0 || len(res) != bytes.Count(out, []byte("\n")) {
+			t.Fatalf("%s: %d results, %+v, %v", f, len(res), skip, err)
+		}
+		for _, r := range res {
+			if r.Template == "lab-redirect" && r.Matched {
+				t.Fatalf("%s: a redirect was followed: %+v", f, r)
+			}
+		}
+	}
+	res, _, _ := Read(mustRead(t, "testdata/shapes.jsonl"), tpls, tgts)
+	names := 0
+	for _, r := range res {
+		if r.Template == "lab-tech" && r.Matched && (r.MatcherName == "labadmin" || r.MatcherName == "hello") {
+			names++
+		}
+	}
+	if names != 4 {
+		t.Fatalf("matcher names of the two-matcher template: %d", names)
+	}
+	// the job without 443: its lines are skipped, the others kept
+	res, skip, err := Read(mustRead(t, "testdata/shapes.jsonl"), tpls, tgts[:2])
+	if err != nil || skip.Lines != 7 || skip.Port != "443" || skip.Template != "lab-ssl" || len(res) != 13 {
+		t.Fatalf("without 443: %d %+v %v", len(res), skip, err)
+	}
+}
+
+func mustRead(t *testing.T, name string) []byte {
+	t.Helper()
+	b, err := os.ReadFile(name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return b
 }
 
 func TestParse_Limits(t *testing.T) {

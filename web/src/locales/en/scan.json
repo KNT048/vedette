@@ -356,7 +356,9 @@
       "not_matched": "No match reported",
       "no_response": "No response",
       "banner": "Banner read",
-      "stopped": "Stopped"
+      "stopped": "Stopped",
+      "not_run": "Not run",
+      "refused": "Refused, nothing sent"
     },
     "empty": "No probe requests yet.",
     "emptyHelp": "Each scan is recorded here."

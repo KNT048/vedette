@@ -71,11 +71,41 @@ type line struct {
 	MatcherName   string `json:"matcher-name"`
 }
 
-// Parse reads a whole run. templates are the job's template ids and targets its host:port pairs; anything outside
-// them is an error.
+// Skipped says what Read left out: Lines well-formed lines of the job's templates about a host:port the job did not name
+// (N45-1), and the template, host and port of the first of them (each checked and clipped, safe to log and store).
+type Skipped struct {
+	Lines          int
+	Template, Host string
+	Port           string
+}
+
+// MaxSkippedHost caps the host of a skipped line as it is logged and stored.
+const MaxSkippedHost = 64
+
+// Note is the sentence the probe log and the core log carry for the skipped lines; "" when nothing was skipped.
+func (s Skipped) Note() string {
+	if s.Lines == 0 {
+		return ""
+	}
+	return fmt.Sprintf("Skipped %d nuclei line(s) for an address the job did not name (first: %s on %s:%s). ", s.Lines, s.Template, s.Host, s.Port)
+}
+
+// errForeign marks a line that is well formed but about a host:port outside the job: Read skips it.
+var errForeign = errors.New("a target the job did not name")
+
+// Parse reads a whole run (Read) and returns its results only.
 func Parse(out []byte, templates, targets []string) ([]Result, error) {
+	res, _, err := Read(out, templates, targets)
+	return res, err
+}
+
+// Read reads a whole run. templates are the job's template ids and targets its host:port pairs. A line for a template outside
+// them, or one it cannot read without doubt, is an error and throws the run away; a well-formed line for another host:port is
+// skipped and counted in Skipped (N45-1).
+func Read(out []byte, templates, targets []string) ([]Result, Skipped, error) {
+	var skip Skipped
 	if len(out) > nucleiargv.MaxOutput {
-		return nil, fmt.Errorf("nucleiout: output of %d bytes is over the %d cap", len(out), nucleiargv.MaxOutput)
+		return nil, skip, fmt.Errorf("nucleiout: output of %d bytes is over the %d cap", len(out), nucleiargv.MaxOutput)
 	}
 	limit := max(MaxLines, LinesPerTemplate*len(templates)) // a full run of 200 templates (D-527): 8000
 	var res []Result
@@ -84,18 +114,28 @@ func Parse(out []byte, templates, targets []string) ([]Result, error) {
 		if len(raw) == 0 {
 			continue
 		}
-		if len(res) == limit {
-			return nil, fmt.Errorf("nucleiout: more than %d lines", limit)
+		if len(res)+skip.Lines == limit {
+			return nil, skip, fmt.Errorf("nucleiout: more than %d lines", limit)
 		}
 		r, err := parseLine(raw, templates, targets)
+		if errors.Is(err, errForeign) {
+			if skip.Lines == 0 {
+				skip.Template = r.Template
+				skip.Host, skip.Port, _ = strings.Cut(r.Target, ":")
+			}
+			skip.Lines++
+			continue
+		}
 		if err != nil {
-			return nil, fmt.Errorf("nucleiout: line %d: %w", i+1, err)
+			return nil, skip, fmt.Errorf("nucleiout: line %d: %w", i+1, err)
 		}
 		res = append(res, r)
 	}
-	return res, nil
+	return res, skip, nil
 }
 
+// parseLine reads one line. A well-formed line about a host:port outside targets returns errForeign with only Template and
+// Target set (Target then is the foreign host:port, its host a plain name or address of at most MaxSkippedHost characters).
 func parseLine(raw []byte, templates, targets []string) (Result, error) {
 	if raw[0] != '{' {
 		return Result{}, errors.New("not a JSON object")
@@ -111,11 +151,14 @@ func parseLine(raw []byte, templates, targets []string) (Result, error) {
 		return Result{}, errors.New("a template the job did not ask for")
 	}
 	target := targetOf(l.Host, l.Port)
-	if target == "" || !slices.Contains(targets, target) {
-		return Result{}, errors.New("a target the job did not name")
+	if target == "" {
+		return Result{}, errors.New("a target that is not a plain host and port")
 	}
 	if l.MatcherStatus == nil {
 		return Result{}, errors.New("no matcher-status")
+	}
+	if !slices.Contains(targets, target) {
+		return Result{Template: l.TemplateID, Target: target}, errForeign
 	}
 	if *l.MatcherStatus && l.Error != "" {
 		return Result{}, errors.New("a match with an error")
@@ -166,6 +209,9 @@ func hostOf(s string) string {
 		return ""
 	}
 	host, port, hasPort := strings.Cut(rest, ":")
+	if !plainHost(host) {
+		return ""
+	}
 	switch {
 	case hasPort:
 		n, err := strconv.Atoi(port)
@@ -183,6 +229,20 @@ func hostOf(s string) string {
 		return ""
 	}
 	return host + ":" + port
+}
+
+// plainHost: an address or a DNS name of letters, digits, dots and hyphens, at most MaxSkippedHost characters. A job names only
+// IPv4 addresses; a name can only be a skipped line's (a redirect elsewhere), which is logged and stored, so it must be plain.
+func plainHost(h string) bool {
+	if h == "" || len(h) > MaxSkippedHost {
+		return false
+	}
+	for _, c := range []byte(h) {
+		if !(c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || c == '.' || c == '-') {
+			return false
+		}
+	}
+	return true
 }
 
 // unsafeRune is a character evidence may not hold: anything of the categories Cc (controls), Cf (format: bidi

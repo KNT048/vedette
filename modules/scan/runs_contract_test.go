@@ -342,7 +342,7 @@ func TestContract_INV10_UntrustedOutputFailsClosed(t *testing.T) {
 	t.Parallel()
 	r := newRunEnv(t)
 	r.eng.reply = func(nucleiargv.Job) (Output, error) {
-		return Output{JSONL: []byte(`{"template-id":"CVE-2022-27593","host":"http://192.168.10.99:80","matcher-status":true}`)}, nil // a host the job did not name
+		return Output{JSONL: []byte(`{"template-id":"CVE-2021-44228","host":"http://192.168.10.21:5000","matcher-status":true}`)}, nil // a template the job did not name
 	}
 	v := r.start("a-nas02")
 	r.wait()
@@ -355,6 +355,30 @@ func TestContract_INV10_UntrustedOutputFailsClosed(t *testing.T) {
 	r.wait()
 	if rowOf(r.run(v.ID), "a-nas02", "no_response") == nil || len(r.findings.confirms) != 0 {
 		t.Fatal("truncated output was used")
+	}
+}
+
+// N45-1: a line about an address the job did not name is skipped, not a reason to throw the run away: the match on the job's own
+// target is still confirmed, and the probe row of the skipped line's template says what was skipped.
+func TestForeignTargetLineIsSkippedAndTheRunKept(t *testing.T) {
+	t.Parallel()
+	r := newRunEnv(t)
+	own := lines("CVE-2022-27593")
+	r.eng.reply = func(j nucleiargv.Job) (Output, error) {
+		out, _ := own(j)
+		out.JSONL = append(out.JSONL, []byte(`{"template-id":"CVE-2022-27593","host":"192.168.10.99","port":"11443","matcher-status":true}`+"\n")...)
+		return out, nil
+	}
+	v := r.start("a-nas02")
+	r.wait()
+	got := r.run(v.ID)
+	if rowOf(got, "a-nas02", "matched") == nil || !slices.Equal(r.findings.confirms, []string{"a-nas02|CVE-2022-27593"}) {
+		t.Fatalf("%+v %v", got.Results, r.findings.confirms)
+	}
+	ps, err := r.svc.Probes(r.ctx())
+	if err != nil || len(ps) != 1 || ps[0].Result != "matched" ||
+		!strings.HasPrefix(ps[0].Request, "Skipped 1 nuclei line(s) for an address the job did not name (first: CVE-2022-27593 on 192.168.10.99:11443). GET /photo") {
+		t.Fatalf("%+v %v", ps, err)
 	}
 }
 

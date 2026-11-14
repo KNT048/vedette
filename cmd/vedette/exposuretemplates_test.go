@@ -151,12 +151,16 @@ func TestExposureTemplatesSilentTemplateIsNotRun(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if f.last() != "done CVE-2018-13379=matched CVE-2019-19781=" || len(f.done) != 2 { // "" is written as no_response
+		want := "done CVE-2018-13379=matched CVE-2019-19781=" // "" is written as no_response
+		if tc.notRun {
+			want += scan.ProbeNotRun
+		}
+		if f.last() != want || len(f.done) != 2 {
 			t.Fatalf("host errors %v: events %q", tc.hostErrors, f.events)
 		}
 		line := "Safe templates for exploited vulnerabilities on port 18443: nuclei printed no result for 1 of 2, so they did not run (CVE-2019-19781)."
-		if tc.notRun != strings.HasPrefix(f.done[1].Request, notRunRequest) || tc.notRun != slices.Contains(got.NotChecked, line) ||
-			len(got.Sent) != 2 || strings.HasPrefix(f.done[0].Request, notRunRequest) {
+		if tc.notRun != (f.done[1].Result == scan.ProbeNotRun) || tc.notRun != slices.Contains(got.NotChecked, line) ||
+			len(got.Sent) != 2 || f.done[0].Result != "matched" {
 			t.Fatalf("host errors %v: rows %+v, scan %+v", tc.hostErrors, f.done, got)
 		}
 	}
@@ -190,6 +194,29 @@ func TestExposureTemplatesUnavailableReasons(t *testing.T) {
 		if !errors.As(err, &un) || !strings.Contains(un.Reason, want) {
 			t.Errorf("%v: %v", in, err)
 		}
+		// kf-scan item 5: the worker's refusal (its own-IP fence) completes the logged rows as refused; nothing was sent
+		refused := errors.Is(in, sensoractive.ErrWorkerRefused)
+		if refused != (f.last() == "done CVE-2018-13379="+scan.ProbeRefused) {
+			t.Errorf("%v: rows %q", in, f.events)
+		}
+	}
+}
+
+// N45-1: a run whose output had lines for an address the job did not name is kept; the probe row of the first skipped line's
+// template says what was skipped.
+func TestExposureTemplatesSkippedLinesAreNoted(t *testing.T) {
+	t.Parallel()
+	f := &templatesFake{gateOK: true, answer: func(sensoractive.NucleiRequest) nucleiout.Outcome {
+		return nucleiout.Outcome{Results: []nucleiout.Result{{Template: "CVE-2018-13379", Target: "8.8.8.8:18443"}, {Template: "CVE-2019-19781", Target: "8.8.8.8:18443"}},
+			Skipped: nucleiout.Skipped{Lines: 2, Template: "CVE-2019-19781", Host: "8.8.4.4", Port: "443"}}
+	}}
+	got, err := f.scanner().ScanTemplates(t.Context(), exposure.ScanTarget{User: "u"}, ownPublicIP, []exposure.TemplateJob{ownJob("CVE-2018-13379", "CVE-2019-19781")})
+	if err != nil || len(got.Results) != 2 || len(f.done) != 2 {
+		t.Fatalf("%+v %v %q", got, err, f.events)
+	}
+	if !strings.HasPrefix(f.done[1].Request, "Skipped 2 nuclei line(s) for an address the job did not name (first: CVE-2019-19781 on 8.8.4.4:443). nuclei CVE-2019-19781") ||
+		strings.HasPrefix(f.done[0].Request, "Skipped") {
+		t.Fatalf("rows %+v", f.done)
 	}
 }
 

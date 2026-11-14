@@ -1,0 +1,6 @@
+# Deferred: TUNE-1b (nmap shapes, D-523)
+
+- [ ] N4 waits for kien (licence): explicit `-p` for LAN normal/versions = nmap 7.95's top 1000 (selection from the NPSL `nmap-services` frequency column) ∪ `commonports.List` minus OT ports 102/502, instead of `--top-ports 1000`. Recommendation: ship it as naabu (MIT) ships its NmapTop1000, with a THIRD_PARTY_NOTICES line ("the selection of the 1000 highest-frequency TCP port numbers comes from nmap's frequency column; numbers only") and a LEGAL.md line next to nmap. Built and reviewed once in commit 90a68bba (commonports/lan.go, migration 0006 for sa_probe.flags ≤ 6000, TestLAN/TestLANPorts); bring it back from there. The lead asks kien.
+- [ ] N6 (tool-tuning plan §1): `smb-protocols` (and optionally `nbstat`) in `nmapargv.Scripts` for LAN normal/versions needs an acceptance line in the identification story first (no-imagined-features). Owner: Trưởng.
+- [ ] N100 measurement of D-523 (director): devices on a routed lab VLAN before/after one sweep (Windows PC, firewall on); Normal run p50/p95 from `sa_probe`.
+- [ ] Seen, not mine: `go test ./modules/inventory -run Contract` fails `TestContract_INV2_OnlyTheServiceWritesInvTables` on origin/main: `cmd/vedette/notify_wiring_test.go` (#725) touches `inv_*` tables. Route to its owner.

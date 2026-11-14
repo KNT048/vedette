@@ -137,7 +137,8 @@ var (
 
 // Health is the module's state for the status page (INV-6): "ok", or "unavailable" with a message. Zone is
 // the time zone the windows are read in (INV-3). Warning is set while a full sweep cannot fit in one window at
-// the configured rate (an estimate: addresses divided by the rate); the sweep then takes several days.
+// the configured rate (an estimate, D-523: one packet an address on the box's own networks, nmapargv.SweepProbes or more
+// behind a router); the sweep then takes several days.
 type Health struct {
 	Status  string `json:"status"`
 	Message string `json:"message"`

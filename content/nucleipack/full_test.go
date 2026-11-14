@@ -39,8 +39,8 @@ func TestFullSetsOfTheCommittedPack(t *testing.T) {
 			}
 		}
 	}
-	if n["kev"] != 338 || n["own_ip"] != 186 {
-		t.Errorf("KEV set %d, own_ip %d: D-527 must not change the KEV set of D-528 step 2 (338, 186)", n["kev"], n["own_ip"])
+	if n["kev"] != 327 || n["own_ip"] != 185 {
+		t.Errorf("KEV set %d, own_ip %d: D-527 must not change the KEV set of D-528 step 2 (327, 185)", n["kev"], n["own_ip"])
 	}
 	// D-528 step 2: without the tick only read-only GETs and the reviewed list (4 non-GET http checks, the TLS handshakes)
 	post := 0

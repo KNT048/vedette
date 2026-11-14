@@ -198,8 +198,14 @@ type Report struct {
 	Sets map[string]int // templates per set (a template may be in two), and how many deep ones are generic
 }
 
-// build writes out/templates/<path> for every template that qualifies, and out/index.json. out must not hold anything yet.
+// build writes out/templates/<path> for every template that qualifies, and out/index.json. out must not hold anything yet. The
+// templates a person read are those of reviewed.tsv.
 func build(src, out, version string) (Report, error) {
+	return buildWith(src, out, version, reviewedState)
+}
+
+// buildWith is build with the allowlist of read templates given (a test passes one for its fixture templates).
+func buildWith(src, out, version string, rv allowlist) (Report, error) {
 	rep := Report{Left: map[string]int{}}
 	if !versionRE.MatchString(version) {
 		return rep, fmt.Errorf("version %q is not AAAA.M.N", version)
@@ -230,13 +236,13 @@ func build(src, out, version string) (Report, error) {
 		if err != nil {
 			return err
 		}
-		tpl, reason := qualify(rel, body)
+		tpl, reason := qualifyWith(rel, body, rv)
 		if reason == "" && ids[tpl.ID] {
 			reason = "id"
 		}
 		// D-528 step 2: a KEV template out of the KEV set (left out, or only behind the tick) waits for a person
 		// (docs/research/kev-review-queue.md)
-		if (reason == "not reviewed" || reason == "state name" || reason == "" && !tpl.InKEV()) && kevCandidate(body) {
+		if (reason == "likely read-only" || reason == "not reviewed" || reason == "state name" || reason == "" && !tpl.InKEV()) && kevCandidate(body) {
 			queue = append(queue, queueRow(rel, body, reason))
 		}
 		if reason != "" {
@@ -319,6 +325,10 @@ func build(src, out, version string) (Report, error) {
 // rule of D-125/D-520 (kevReason), and in the deep or disruptive set by the rule of D-527 (fullSet); the reason of a template in
 // neither is the full rule's when the template sits in a folder of a full set, else the KEV rule's.
 func qualify(rel string, body []byte) (pack.Template, string) {
+	return qualifyWith(rel, body, reviewedState)
+}
+
+func qualifyWith(rel string, body []byte, rv allowlist) (pack.Template, string) {
 	var zero pack.Template
 	if !nucleiargv.ValidTemplatePath(rel) {
 		return zero, "path"
@@ -329,6 +339,12 @@ func qualify(rel string, body []byte) (pack.Template, string) {
 	var doc map[string]any
 	if err := yaml.Unmarshal(body, &doc); err != nil || doc == nil {
 		return zero, "yaml"
+	}
+	sum := sha256.Sum256(body)
+	if id, _ := doc["id"].(string); id != "" { // review r1 M-4: a reviewed file that changed stops the build, whatever else it now fails
+		if _, stale := rv(id, hex.EncodeToString(sum[:])); stale {
+			return zero, "stale review"
+		}
 	}
 	for k := range doc {
 		if !slices.Contains(allowedKeys, k) {
@@ -360,12 +376,17 @@ func qualify(rel string, body []byte) (pack.Template, string) {
 	if why, _ := changeReason(id, doc, body, tags); why != "" { // D-528, every set: no state change, no other destination, no third party
 		return zero, why
 	}
-	// D-528 step 2: without the tick (the KEV set, the deep set) only a read-only GET or a reviewed template; a template whose
-	// name says a change is in no set; any other goes behind the tick (disruptive) when it is of a full set, and waits for a reader
-	sum := sha256.Sum256(body)
-	ownIP := kr == "" && ownIPSafe(rel, doc, tags, body)
-	switch why, _ := noTickReason(id, nameOf(info), rel, hex.EncodeToString(sum[:]), doc, ownIP); why {
+	// D-528 step 2: the KEV set (no tick) only a template a person read (reviewed.tsv, by sha256); the deep set (no tick) a reviewed
+	// template or a read-only GET whose name names no change (rule (a), the lead keeps it for the deep set: the terms say a deep scan
+	// may change data); a template whose name says a change is in no set; any other goes behind the tick (disruptive) when it is of
+	// a full set, and waits for a reader
+	switch why, _ := noTickReason(id, nameOf(info), rel, hex.EncodeToString(sum[:]), doc, rv); why {
 	case "":
+	case "likely read-only":
+		kr = why
+		if fs == "" {
+			return zero, why
+		}
 	case "not reviewed":
 		kr = why
 		if fs == pack.SetDeep {
@@ -377,6 +398,7 @@ func qualify(rel string, body []byte) (pack.Template, string) {
 	default: // "state name": never at any depth; "stale review": the build stops
 		return zero, why
 	}
+	ownIP := kr == "" && ownIPSafe(rel, doc, tags, body) // the D-520 mark, only on a template of the (reviewed) KEV set
 	var sets []string
 	if kr == "" {
 		sets = append(sets, pack.SetKEV)

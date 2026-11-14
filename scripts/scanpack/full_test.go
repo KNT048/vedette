@@ -131,7 +131,9 @@ func TestBuildSets(t *testing.T) {
 	for p, text := range left {
 		write(t, src, p, text)
 	}
-	rep, err := build(src, out, "2026.11.3")
+	// only the KEV fixture read by a person: the deep set takes read-only GETs (rule (a)), any other goes behind the tick
+	kevRead := func(id, _ string) (bool, bool) { return id == "CVE-2024-3400", false }
+	rep, err := buildWith(src, out, "2026.11.3", kevRead)
 	if err != nil {
 		t.Fatal(err)
 	}

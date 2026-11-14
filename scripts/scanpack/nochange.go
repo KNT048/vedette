@@ -135,6 +135,15 @@ var denylist = map[string]string{ //nolint:gosec // G101: template ids and reaso
 	"CVE-2021-24554":              "action=delete once credentials exist",
 	"CVE-2022-0535":               "changes settings once credentials exist",
 	"CVE-2022-0949":               "inserts a fingerprint row",
+	// D-528 step 2 review r1 (H-1, M-2, M-3): a GET that acts, logins with known or backdoor credentials, a third-party ping
+	"CVE-2020-27866": "NETGEAR: GET setup.cgi?todo=debug turns debug mode and telnetd on",
+	"CVE-2018-10823": "D-Link: the ping diagnostic makes the device ping 1.1.1.1",
+	"CVE-2023-2732":  "MStore API: logs in as WordPress user 1 (and may add a listing)",
+	"CVE-2025-13390": "auto-login as WordPress user 1",
+	"CVE-2020-29583": "Zyxel: logs in with the published hard-coded admin account zyfwp",
+	"CVE-2019-16057": "D-Link DNS-320: logs in as admin with a blank password",
+	"CVE-2017-9833":  "Boa: logs in with admin/admin in the query",
+	"CVE-2017-7921":  "Hikvision: the magic auth token counts as a failed login on a patched device (lockout)",
 }
 
 var (

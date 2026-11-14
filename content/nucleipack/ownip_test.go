@@ -31,12 +31,20 @@ func TestOwnIPTemplatesOfTheCommittedPack(t *testing.T) {
 			}
 		}
 	}
-	if n < 100 || n > len(ix.Templates) { // D-528 step 2: most of the pack is read-only GETs now, so most is own_ip
+	// D-528 step 2: most of the pack is read-only GETs now, so most is own_ip (185 of 327); a share over 70% means the rule loosened
+	if n < 100 || n*10 > len(ix.Templates)*7 {
 		t.Errorf("%d of %d templates marked own_ip: the rule changed, look again before shipping", n, len(ix.Templates))
 	}
 	byID := map[string]pack.Template{}
 	for _, tp := range ix.Templates {
 		byID[tp.ID] = tp
+	}
+	// reviewed checks the own_ip rule must still refuse, all in the pack (review r1 L-3: a test that only checks absent ids checks
+	// nothing): a command in the URL (OGNL, dir, $(id), cat) and an exec path
+	for _, id := range []string{"CVE-2016-3081", "CVE-2021-21805", "CVE-2023-47105", "CVE-2019-17270", "CVE-2001-0537"} {
+		if tp, ok := byID[id]; !ok || tp.OwnIP {
+			t.Errorf("%s: in the pack %t, own_ip %t: want in the pack and not own_ip", id, ok, tp.OwnIP)
+		}
 	}
 	for _, id := range []string{ // (the PATCH/PUT password resets and the file write of this list left the pack with D-528)
 		"CVE-2020-9043", "CVE-2025-2075", "CVE-2018-7602", "CVE-2022-37061", // log in with credentials (wp-login, user/login, dologin)

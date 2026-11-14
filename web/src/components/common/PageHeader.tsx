@@ -35,6 +35,29 @@ export function Section({ title, description, actions, children, id, stories }: 
   )
 }
 
+const NOTICE = {
+  danger: 'border-danger/40 bg-danger-soft',
+  warn: 'border-warn/50 bg-warn-soft',
+  accent: 'border-accent/40 bg-accent-soft',
+  off: 'border-rule bg-off-soft',
+} as const
+
+/** Khung báo một trạng thái của trang (D-543, một kiểu cho cả ứng dụng): tiêu đề, một đoạn giải thích, nút hành động bên phải (xuống dòng trên điện thoại).
+ *  `tone` mang nghĩa cố định của FRONTEND §3: danger = hỏng/khẩn, warn = cần người xem, accent = thông tin của sản phẩm, off = tắt/không có. */
+export function Notice({ tone, title, children, actions, role, className = '', ...rest }: {
+  tone: keyof typeof NOTICE; title: ReactNode; children?: ReactNode; actions?: ReactNode; role?: 'alert' | 'status'; className?: string; 'data-testid'?: string
+}) {
+  return (
+    <div role={role} data-testid={rest['data-testid']} className={`mb-5 grid gap-3 rounded-md border px-4 py-3 text-sm md:grid-cols-[minmax(0,1fr)_auto] md:items-center ${NOTICE[tone]} ${className}`}>
+      <div className="grid min-w-0 gap-1">
+        <p className={tone === 'danger' ? 'font-medium text-danger' : 'font-medium'}>{title}</p>
+        {children ? <div className="max-w-3xl text-muted">{children}</div> : null}
+      </div>
+      {actions ? <div className="flex flex-wrap gap-2">{actions}</div> : null}
+    </div>
+  )
+}
+
 export function Panel({ children, className = '' }: { children: ReactNode; className?: string }) {
   return <div className={`rounded-md border border-rule bg-surface ${className}`}>{children}</div>
 }

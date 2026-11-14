@@ -33,7 +33,7 @@ for (const theme of THEMES) {
     await begin(page, theme)
     // sample devices with disagreeing sources: agent vs passive, SNMP vs passive, active scan vs passive
     for (const [id, winner, loser] of [['a-box', 'agent', 'passive'], ['a-fw01', 'snmp', 'passive'], ['a-nas01', 'active scan', 'passive']] as const) {
-      await page.goto(`/devices/${id}`)
+      await page.goto(`/devices/${id}?tab=observations`)
       await expect(page.getByRole('heading', { name: 'All observations' })).toBeVisible()
       await shot(`${id}`)
       const obs = await observations(page)
@@ -52,7 +52,7 @@ for (const theme of THEMES) {
       }
     }
     // the page's own explanation of the rule must match the priority rule
-    await page.goto('/devices/a-fw01')
+    await page.goto('/devices/a-fw01?tab=observations')
     await expect(page.getByRole('heading', { name: 'All observations' })).toBeVisible()
     const intro = await page.locator('main').innerText()
     const line = intro.split('\n').find((l) => /kept for comparison/i.test(l) && /Vedette uses/i.test(l)) ?? ''

@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import { Link, Navigate, NavLink, Outlet, useLocation, useParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { settingsSections } from '@/app/feature'
@@ -20,11 +21,27 @@ function useAllowed() {
 export function SettingsLayout() {
   const { t } = useTranslation('core')
   const a = useAllowed()
-  const link = ({ isActive }: { isActive: boolean }) => cn('flex h-9 items-center whitespace-nowrap rounded-md px-3 text-sm text-muted hover:bg-sunken hover:text-ink', isActive && 'bg-accent-soft font-medium text-ink')
+  const { pathname } = useLocation()
+  const nav = useRef<HTMLElement>(null)
+  // D-543: dưới lg menu là một hàng ngang cùng kiểu với hàng tab (PageTabs), cuộn trong chính nó; mục đang mở được cuộn vào tầm nhìn.
+  useEffect(() => {
+    const row = nav.current
+    const el = row?.querySelector<HTMLElement>('[aria-current="page"]')
+    if (!row || !el || row.scrollWidth <= row.clientWidth) return
+    const r = row.getBoundingClientRect()
+    const e = el.getBoundingClientRect()
+    if (e.left < r.left || e.right > r.right) row.scrollLeft += e.left - r.left - 16
+  }, [pathname, a.list.length])
+  // Điện thoại/cửa sổ hẹp: gạch chân như tab; từ lg: menu dọc (D-464: Cài đặt giữ menu dọc, như Grafana, GitLab admin).
+  const link = ({ isActive }: { isActive: boolean }) => cn(
+    'flex h-10 shrink-0 items-center whitespace-nowrap border-b-2 border-transparent px-3 text-sm text-muted hover:text-ink focus-visible:-outline-offset-2',
+    'lg:h-9 lg:rounded-md lg:border-b-0 lg:hover:bg-sunken',
+    isActive && 'border-accent font-medium text-ink lg:bg-accent-soft',
+  )
   return (
-    <div className="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[200px_minmax(0,1fr)]">
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-[200px_minmax(0,1fr)] lg:gap-6">
       <aside className="grid min-w-0 content-start gap-3">
-        <nav aria-label={t('settings.nav')} className="flex flex-wrap gap-1 lg:grid lg:gap-0.5">
+        <nav ref={nav} aria-label={t('settings.nav')} className="flex flex-nowrap overflow-x-auto overscroll-x-contain shadow-[inset_0_-1px_0_var(--color-rule)] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:grid lg:gap-0.5 lg:overflow-visible lg:shadow-none">
           {a.list.map((s) => <NavLink key={s.id} to={`/settings/${s.id}`} className={link}>{t(s.label)}</NavLink>)}
         </nav>
       </aside>

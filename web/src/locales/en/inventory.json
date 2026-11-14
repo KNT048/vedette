@@ -205,7 +205,9 @@
     "regularScanSaved": "Regular scan setting saved.",
     "firstScan": "First scan",
     "firstScanNone": "No gentle first scan (declared by hand, the Vedette box itself, or a known type that is not fragile)",
-    "kindFrom": "Set from"
+    "kindFrom": "Set from",
+    "tabs": { "label": "Sections of the device page", "overview": "Overview", "software": "Software", "services": "Services", "observations": "Observations" },
+    "kpi": { "label": "This device at a glance", "findings": "Findings", "software": "Software", "services": "Open services" }
   },
   "approval": {
     "pending": "This device is not approved yet",

@@ -225,8 +225,15 @@ func (a exposureTemplateScan) send(ctx context.Context, actor string, ip netip.A
 		return nil, nucleiout.Outcome{}, templatesErr(ctx, ip, err)
 	}
 	res := outcomes(r, got)
+	// N44-4: a template the finished run printed no line for, while the address kept answering, is "No match reported" in the probe
+	// log (scan INV-8: empty output without a host error is no match reported, never "no response"; a deep run prints nothing for
+	// most of its templates). An error line or an address that stopped answering stays no_response.
+	none := "not_matched"
+	if slices.ContainsFunc(got.HostErrors, func(h nucleiout.HostError) bool { return h.Unreachable }) {
+		none = ""
+	}
 	for i := range rows {
-		rows[i].Result = ""
+		rows[i].Result = none
 		for _, x := range res {
 			if x.Template == rows[i].Template {
 				rows[i].Result = map[string]string{exposure.OutcomeMatched: "matched", exposure.OutcomeNoMatch: "not_matched"}[x.Outcome]

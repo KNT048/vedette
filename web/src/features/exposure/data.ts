@@ -1,7 +1,7 @@
 // Sample data and scan-result generator of the exposure mock. 203.0.113.0/24 is the documentation range (RFC 5737), not real IPs.
 import { daysAgo } from '@/mocks/db'
 import { dateText } from './dates'
-import { CERT_WARN_DAYS, type AdminRow, type BoxIpSettings, type CertRow, type CheckRow, type Counts, type GapRow, type GreenboneResult, type HostClass, type HostIp, type HostRow, type IgnoredIp, type NotCheckedRow, type OutsideView, type PortRow, type ServiceRow, type Snapshot, type Target, type TargetKind, type VulnRow, type WebFinding } from './types'
+import { CERT_WARN_DAYS, type AdminRow, type BoxIpSettings, type CertRow, type CheckRow, type Counts, type GapRow, type GreenboneResult, type HostClass, type HostIp, type HostRow, type IgnoredIp, type NotCheckedRow, type OutsideView, type PortRow, type ServiceRow, type Snapshot, type Target, type TargetKind, type TemplateRow, type VulnRow, type WebFinding } from './types'
 
 export const BOX_EGRESS_IP = '203.0.113.10'
 /** The sample company has two public IPs behind a load balancer: the box leaves through both. */
@@ -11,6 +11,8 @@ export const BOX_EGRESS_IP_2 = '203.0.113.11'
 export interface Content { hosts: HostRow[]; ports: PortRow[]; admin_panels: AdminRow[]; certs: CertRow[]; services?: ServiceRow[]; web_findings?: WebFinding[]
   /** INV-25: Greenbone's results when it ran on this IP; greenboneNote: the "Not checked" line when it did not (default: it is off). */
   greenbone?: GreenboneResult[]; greenboneNote?: string
+  /** INV-23, D-527: the template rows of the scan (deep rows have a name and a severity: testing terms accepted). Default none. */
+  templates?: TemplateRow[]
   /** D-571: the lines of a domain's deep scan (set by withDeep when its testing terms are accepted). */
   deep?: { checks: CheckRow[]; lines: NotCheckedRow[] } }
 /** txt_ok = the DNS TXT record is currently present (domains). expires_at = verified_at + 30 days (IPs; verified_at is the last time the box saw the IP). The scan module reads this shape. */
@@ -269,7 +271,7 @@ export function makeSnapshot(id: string, at: string, c: Content, extraIp?: strin
   const js = jsVulns(web_findings)
   const jsLibs = web_findings.filter((w) => w.plugin_id === '10003').reduce((n, w) => n + w.software.length, 0)
   if (jsLibs > 0) l.checks.push({ kind: 'cve', at, text: `Versions ZAP read on the web pages compared with today's CISA list of exploited vulnerabilities (${jsLibs} from JavaScript libraries, 0 from Server or X-Powered-By headers): ${plural(js.length, 'exploited CVE')} matched.` })
-  return withGreenbone({ id, date: dateOf(at), scanned_at: at, hosts: c.hosts, ports: c.ports, admin_panels: c.admin_panels, certs: c.certs, services, templates: [], web_findings, greenbone: [], ...l, vulns: [...m.vulns, ...js], version_gaps: m.version_gaps, counts: countsOf(c, extraIp) }, c, at, extraIp)
+  return withGreenbone({ id, date: dateOf(at), scanned_at: at, hosts: c.hosts, ports: c.ports, admin_panels: c.admin_panels, certs: c.certs, services, templates: c.templates ?? [], web_findings, greenbone: [], ...l, vulns: [...m.vulns, ...js], version_gaps: m.version_gaps, counts: countsOf(c, extraIp) }, c, at, extraIp)
 }
 
 /** D-571: at most this many addresses of a domain's names get the deep scan in one run (modules/exposure/deep.go MaxDeepIPs). */
@@ -365,11 +367,22 @@ export function seedSnapshots(): Record<string, Snapshot[]> {
   const boxOld: Content = { ...box, ports: box.ports.filter((p) => p.port !== 18443), services: box.services!.filter((s) => s.port !== 18443) }
   // INV-22: yesterday's scan did not see the TCP-wrapped 8443 (a slow answer): it still counts as open and says so until the next scan agrees.
   // INV-25: yesterday's scan ended with Greenbone, which also names the two Apache CVEs (shown next to the version rows, never instead of them).
-  const boxMissed: Content = { ...box, ports: box.ports.map((p) => (p.port === 8443 ? { ...p, last_seen: dateOf(daysAgo(8)), misses: 1 } : p)), greenbone: boxGreenbone() }
+  // D-527: its testing terms are accepted, so nuclei's deep templates ran on every port; what matched is kept (an exposed .git, a technology).
+  const boxMissed: Content = { ...box, ports: box.ports.map((p) => (p.port === 8443 ? { ...p, last_seen: dateOf(daysAgo(8)), misses: 1 } : p)), greenbone: boxGreenbone(), templates: boxDeepTemplates() }
   return {
     'xt-1': [makeSnapshot('sn-1', daysAgo(14), old), makeSnapshot('sn-2', daysAgo(7), mid), makeSnapshot('sn-3', daysAgo(1), full)],
     'xt-2': [makeSnapshot('sn-4', daysAgo(8), boxOld, BOX_EGRESS_IP), makeSnapshot('sn-5', daysAgo(1), boxMissed, BOX_EGRESS_IP)],
   }
+}
+
+/** D-527: the rows nuclei's deep templates left on the box's own IP (only matched deep rows are kept; a KEV row has no severity). */
+function boxDeepTemplates(): TemplateRow[] {
+  const ip = BOX_EGRESS_IP
+  return [
+    { ip, port: 18443, cve: '', template: 'apache-detect', outcome: 'matched', name: 'Apache Detection', severity: 'info' },
+    { ip, port: 18443, cve: '', template: 'git-config', outcome: 'matched', name: 'Git Configuration - Detect', severity: 'medium' },
+    { ip, port: 443, cve: '', template: 'fortinet-fortigate-panel', outcome: 'matched', name: 'Fortinet FortiGate SSL VPN Panel - Detect', severity: 'info' },
+  ]
 }
 
 /** D-558: what the mock's Shodan InternetDB knows. The box's own IP: the FortiGate on 443, the TCP-wrapped 8443, and its admin page on 10443

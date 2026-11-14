@@ -43862,7 +43862,7 @@ type ExposureGetExposureGreenboneOKFeedSync struct {
 	// When the next one is due: a week after the last that worked (or after enabling), a day after one
 	// that did not; null while Greenbone is off or unavailable.
 	NextAt NilDateTime `json:"next_at"`
-	// What happened, e.g. "Not updated: this box has 41.3 GB of free disk space; Greenbone needs at least
+	// What happened, e.g. "Not updated: this box has 41.3 GB of free disk space; OpenVAS needs at least
 	// 60.0 GB free.".
 	Note NilString `json:"note"`
 	// Whether it worked; null before the first.
@@ -46859,12 +46859,19 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKServicesItem) SetVersion(val
 }
 
 type ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItem struct {
-	// The CVE the template is for (one the job asked about).
-	Cve      string                                                          `json:"cve"`
-	IP       string                                                          `json:"ip"`
-	Outcome  ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemOutcome `json:"outcome"`
-	Port     int                                                             `json:"port"`
-	Template string                                                          `json:"template"`
+	// The CVE the template is for (one the job asked about); "" on a deep row about no CVE (an exposed
+	// .git, an admin panel).
+	Cve string `json:"cve"`
+	IP  string `json:"ip"`
+	// D-527 (deep scan, testing terms accepted): the template's name from the pack index, one plain line;
+	// absent on a row of a scan without the terms.
+	Name    OptString                                                       `json:"name"`
+	Outcome ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemOutcome `json:"outcome"`
+	Port    int                                                             `json:"port"`
+	// D-527: the template's severity from the pack index; absent on a row of a scan without the terms. A
+	// deep row is kept only when it matched.
+	Severity OptExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemSeverity `json:"severity"`
+	Template string                                                              `json:"template"`
 }
 
 // GetCve returns the value of Cve.
@@ -46877,6 +46884,11 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItem) GetIP() strin
 	return s.IP
 }
 
+// GetName returns the value of Name.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItem) GetName() OptString {
+	return s.Name
+}
+
 // GetOutcome returns the value of Outcome.
 func (s *ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItem) GetOutcome() ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemOutcome {
 	return s.Outcome
@@ -46885,6 +46897,11 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItem) GetOutcome() 
 // GetPort returns the value of Port.
 func (s *ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItem) GetPort() int {
 	return s.Port
+}
+
+// GetSeverity returns the value of Severity.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItem) GetSeverity() OptExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemSeverity {
+	return s.Severity
 }
 
 // GetTemplate returns the value of Template.
@@ -46902,6 +46919,11 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItem) SetIP(val str
 	s.IP = val
 }
 
+// SetName sets the value of Name.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItem) SetName(val OptString) {
+	s.Name = val
+}
+
 // SetOutcome sets the value of Outcome.
 func (s *ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItem) SetOutcome(val ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemOutcome) {
 	s.Outcome = val
@@ -46910,6 +46932,11 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItem) SetOutcome(va
 // SetPort sets the value of Port.
 func (s *ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItem) SetPort(val int) {
 	s.Port = val
+}
+
+// SetSeverity sets the value of Severity.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItem) SetSeverity(val OptExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemSeverity) {
+	s.Severity = val
 }
 
 // SetTemplate sets the value of Template.
@@ -46959,6 +46986,77 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemOutcome) Unmars
 		return nil
 	case ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemOutcomeError:
 		*s = ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemOutcomeError
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// D-527: the template's severity from the pack index; absent on a row of a scan without the terms. A
+// deep row is kept only when it matched.
+type ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemSeverity string
+
+const (
+	ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemSeverityInfo     ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemSeverity = "info"
+	ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemSeverityLow      ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemSeverity = "low"
+	ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemSeverityMedium   ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemSeverity = "medium"
+	ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemSeverityHigh     ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemSeverity = "high"
+	ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemSeverityCritical ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemSeverity = "critical"
+	ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemSeverityUnknown  ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemSeverity = "unknown"
+)
+
+// AllValues returns all ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemSeverity values.
+func (ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemSeverity) AllValues() []ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemSeverity {
+	return []ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemSeverity{
+		ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemSeverityInfo,
+		ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemSeverityLow,
+		ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemSeverityMedium,
+		ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemSeverityHigh,
+		ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemSeverityCritical,
+		ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemSeverityUnknown,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemSeverity) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemSeverityInfo:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemSeverityLow:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemSeverityMedium:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemSeverityHigh:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemSeverityCritical:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemSeverityUnknown:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemSeverity) UnmarshalText(data []byte) error {
+	switch ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemSeverity(data) {
+	case ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemSeverityInfo:
+		*s = ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemSeverityInfo
+		return nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemSeverityLow:
+		*s = ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemSeverityLow
+		return nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemSeverityMedium:
+		*s = ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemSeverityMedium
+		return nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemSeverityHigh:
+		*s = ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemSeverityHigh
+		return nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemSeverityCritical:
+		*s = ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemSeverityCritical
+		return nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemSeverityUnknown:
+		*s = ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemSeverityUnknown
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -52442,7 +52540,7 @@ type ExposurePutExposureGreenboneOKFeedSync struct {
 	// When the next one is due: a week after the last that worked (or after enabling), a day after one
 	// that did not; null while Greenbone is off or unavailable.
 	NextAt NilDateTime `json:"next_at"`
-	// What happened, e.g. "Not updated: this box has 41.3 GB of free disk space; Greenbone needs at least
+	// What happened, e.g. "Not updated: this box has 41.3 GB of free disk space; OpenVAS needs at least
 	// 60.0 GB free.".
 	Note NilString `json:"note"`
 	// Whether it worked; null before the first.
@@ -124591,6 +124689,54 @@ func (o OptExposureGetExposureTargetsIDSnapshotsDateOKHostsItemSource) Get() (v 
 
 // Or returns value if set, or given parameter if does not.
 func (o OptExposureGetExposureTargetsIDSnapshotsDateOKHostsItemSource) Or(d ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemSource) ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemSource {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemSeverity returns new OptExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemSeverity with value set to v.
+func NewOptExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemSeverity(v ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemSeverity) OptExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemSeverity {
+	return OptExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemSeverity{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemSeverity is optional ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemSeverity.
+type OptExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemSeverity struct {
+	Value ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemSeverity
+	Set   bool
+}
+
+// IsSet returns true if OptExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemSeverity was set.
+func (o OptExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemSeverity) IsSet() bool {
+	return o.Set
+}
+
+// Reset unsets value.
+func (o *OptExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemSeverity) Reset() {
+	var v ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemSeverity
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemSeverity) SetTo(v ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemSeverity) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemSeverity) Get() (v ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemSeverity, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemSeverity) Or(d ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemSeverity) ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemSeverity {
 	if v, ok := o.Get(); ok {
 		return v
 	}

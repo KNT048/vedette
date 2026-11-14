@@ -1,11 +1,13 @@
 import { useTranslation } from 'react-i18next'
 import { Panel, Section } from '@/components/common/PageHeader'
 import { EmptyState } from '@/components/common/States'
-import { Chip } from '@/components/common/StatusChip'
+import { Chip, SeverityChip } from '@/components/common/StatusChip'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { dateText, dateTimeText } from './dates'
 import { PortMark } from './PortMark'
-import type { ServiceRow, Snapshot, VulnRow } from './types'
+import type { ServiceRow, Snapshot, TemplateRow, VulnRow } from './types'
+
+const SEVERITY_ORDER = { critical: 0, high: 1, medium: 2, low: 3, info: 4, unknown: 5 } as const
 
 /** S-EXP-2 (INV-19, INV-20): the services nmap -sV identified on the box's own public IP and their exploited CVEs (CISA KEV). */
 export function VulnSection({ s, domain = false }: { s: Snapshot; domain?: boolean }) {
@@ -41,6 +43,18 @@ export function VulnSection({ s, domain = false }: { s: Snapshot; domain?: boole
     ) },
     { id: 'why', header: t('col.why'), enableSorting: false, accessorFn: (r) => r.summary, cell: ({ row }) => <span className="text-[13px]">{row.original.summary}</span> },
   ]
+  // D-527 (deep scan, testing terms accepted): what nuclei's deep templates matched (an exposed .git, an admin panel, a technology).
+  // A matched row of a CVE the list above already shows as "Confirmed by template" is not repeated.
+  const deep = s.templates
+    .filter((r) => r.severity !== undefined && r.outcome === 'matched' && !(r.cve && s.vulns.some((v) => v.ip === r.ip && v.port === r.port && v.cve === r.cve)))
+    .sort((a, b) => SEVERITY_ORDER[a.severity!] - SEVERITY_ORDER[b.severity!])
+  const deepCols: ColumnDef<TemplateRow>[] = [
+    { id: 'risk', header: t('col.risk'), accessorFn: (r) => SEVERITY_ORDER[r.severity!], cell: ({ row }) => row.original.severity === 'unknown' || row.original.severity === undefined ? <Chip tone="off">{t('common:unknown')}</Chip> : <SeverityChip severity={row.original.severity} /> },
+    { id: 'name', header: t('col.name'), accessorFn: (r) => r.name ?? r.template, cell: ({ row }) => <span className="grid gap-0.5"><span className="font-medium">{row.original.name || row.original.template}</span><span className="text-[12px] text-muted">{t('vulns.deepTemplate', { id: row.original.template })}</span></span> },
+    ...ipCol<TemplateRow>(),
+    { id: 'port', header: t('col.port'), accessorFn: (r) => r.port, cell: ({ row }) => <span className="grid gap-1"><span className="tabular-nums">{row.original.port}</span>{mark(row.original.ip, row.original.port)}</span> },
+    { id: 'cve', header: t('col.cve'), accessorFn: (r) => r.cve, cell: ({ row }) => row.original.cve || null },
+  ]
   const why = s.not_checked.find((n) => n.kind === 'services' || n.kind === 'cve')
   // D-522 (TUNE-1a review M1): identification did not complete, so the title must not read as "nothing is there"
   const unidentified = why?.kind === 'services'
@@ -61,6 +75,12 @@ export function VulnSection({ s, domain = false }: { s: Snapshot; domain?: boole
             <ul aria-label={t('vulns.gapsLabel')} className="grid gap-1 text-sm">
               {s.version_gaps.map((g) => <li key={`${g.ip}:${g.port}`}>{t('vulns.gap', { count: g.cves.length, software: g.software, port: g.port, cves: g.cves.join(', ') })}</li>)}
             </ul>
+          ) : null}
+          {deep.length > 0 ? (
+            <div className="grid gap-2">
+              <DataTable caption={t('vulns.deepCaption')} data={deep} columns={deepCols} pageSize={20} />
+              <p className="text-[13px] text-muted">{t('vulns.deepNote')}</p>
+            </div>
           ) : null}
           {s.services.length > 0 ? <DataTable caption={t('vulns.servicesCaption')} data={s.services} columns={serviceCols} pageSize={20} empty={t('vulns.noneIdentifiedBody')} /> : null}
         </div>

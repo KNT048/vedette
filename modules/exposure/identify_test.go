@@ -336,3 +336,22 @@ func TestContract_INV20_DiffVersionNotRead(t *testing.T) {
 		t.Fatalf("version read again: %+v", d)
 	}
 }
+
+// N44-5: a port that only service identification found (the deep scan's nmap probes every TCP port; the runner a fixed list) is an
+// open port of the snapshot, so the counts, the first sentence and the outside view (INV-21 scan_ports) name it.
+func TestServicePortsAreOpenPorts(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	deep := false
+	e.terms = &deep
+	e.svc.cfg.Services = &fakeServices{scan: ServiceScan{Ports: 65535, Services: []ServiceRow{
+		{IP: ipA, Port: 5060, Name: "sip"}, {IP: ipA, Port: 10022, Name: "ssh", Product: "OpenSSH", Version: "9.6p1"}, {IP: ipA, Port: 2000, Name: "cisco-sccp"}}}}
+	s := e.scanIP(Content{Ports: []PortRow{{IP: ipA, Port: 5060, Service: "sip"}}})
+	var got []int
+	for _, p := range s.Ports {
+		got = append(got, p.Port)
+	}
+	if !slices.Equal(got, []int{5060, 10022, 2000}) || s.Counts.Ports != 3 || s.Ports[1].Product != "OpenSSH 9.6p1" {
+		t.Fatalf("ports %+v counts %+v", s.Ports, s.Counts)
+	}
+}

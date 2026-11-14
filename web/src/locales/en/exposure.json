@@ -504,9 +504,9 @@
   },
   "vulns": {
     "title": "Exploited vulnerabilities",
-    "description": "Vedette identifies the service and version on each open port of this box's own public IP (nmap -sV) and compares them with the exploited lists (CISA KEV, and VulnCheck KEV if you turned it on) and its NVD version ranges. Only exploited vulnerabilities are compared, so an empty list does not prove a service is safe.",
+    "description": "Vedette identifies the service and version on each open port of this box's own public IP (nmap -sV) and compares them with the exploited lists (CISA KEV, and VulnCheck KEV if you turned it on) and its NVD version ranges. Only exploited vulnerabilities are compared, so an empty list does not prove a service is safe. They are listed here, on this target's page, and not under Findings: Findings covers the devices on your network.",
     "caption": "Exploited vulnerabilities that match the services on this IP",
-    "descriptionDomain": "Service identification (nmap -sV) runs on the box's own public IP only, so for a domain these are the versions ZAP read on its web pages (a JavaScript library, a Server or X-Powered-By header), compared with the exploited lists and their NVD version ranges. Only exploited vulnerabilities are compared, so an empty list does not prove a page is safe.",
+    "descriptionDomain": "Service identification (nmap -sV) runs on the box's own public IP only, so for a domain these are the versions ZAP read on its web pages (a JavaScript library, a Server or X-Powered-By header), compared with the exploited lists and their NVD version ranges. Only exploited vulnerabilities are compared, so an empty list does not prove a page is safe. They are listed here, on this target's page, and not under Findings: Findings covers the devices on your network.",
     "captionDomain": "Exploited vulnerabilities that match the versions ZAP read on this domain's pages",
     "captionDomainDeep": "Exploited vulnerabilities that match the services on this domain's addresses and the versions ZAP read on its pages",
     "servicesCaption": "Services identified on the open ports (nmap -sV)",
@@ -535,7 +535,10 @@
     },
     "countBackport_one": "{{count}} maybe patched",
     "countBackport_other": "{{count}} maybe patched",
-    "descriptionDomainDeep": "The deep scan identifies the service and version on every open port of each address this domain's names resolve to (nmap -sV), and ZAP reads versions on its pages; both are compared with the exploited lists (CISA KEV, and VulnCheck KEV if you turned it on) and their NVD version ranges. Only exploited vulnerabilities are compared, so an empty list does not prove a service is safe."
+    "descriptionDomainDeep": "The deep scan identifies the service and version on every open port of each address this domain's names resolve to (nmap -sV), and ZAP reads versions on its pages; both are compared with the exploited lists (CISA KEV, and VulnCheck KEV if you turned it on) and their NVD version ranges. Only exploited vulnerabilities are compared, so an empty list does not prove a service is safe. They are listed here, on this target's page, and not under Findings: Findings covers the devices on your network.",
+    "deepCaption": "Found by the deep scan (nuclei templates that matched)",
+    "deepTemplate": "template {{id}}",
+    "deepNote": "Each line is what one template saw in the answer of this port: an exposed file, an admin page, a misconfiguration, or a technology it recognised (Info). Check a line before acting on it; a template that matched nothing is not listed and proves nothing."
   },
   "terms": {
     "title": "Testing terms (deep scan)",

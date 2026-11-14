@@ -1139,6 +1139,16 @@ describe('exposure: services and exploited vulnerabilities of the box IP (S-EXP-
     await expectNoA11yViolations()
   })
 
+  it('N44-3: the matched deep templates are listed by severity with their template and port; the section says these are not in Findings', async () => {
+    renderApp('/exposure/xt-2')
+    const deep = await screen.findByRole('table', { name: 'Found by the deep scan (nuclei templates that matched)' })
+    const rows = within(deep).getAllByRole('row').slice(1)
+    expect(rows.map((r) => within(r).getAllByRole('cell')[1]!.textContent)).toEqual(['Git Configuration - Detecttemplate git-config', 'Apache Detectiontemplate apache-detect', 'Fortinet FortiGate SSL VPN Panel - Detecttemplate fortinet-fortigate-panel'])
+    expect(within(rows[0]!).getByText('Medium')).toBeInTheDocument()
+    expect(within(rows[0]!).getByText('18443')).toBeInTheDocument()
+    expect(screen.getByText(/They are listed here, on this target's page, and not under Findings/)).toBeInTheDocument()
+  })
+
   it('compare: the new forward brings its service and both exploited CVEs', async () => {
     renderApp('/exposure/xt-2')
     const diff = await screen.findByRole('table', { name: 'Changes between two scan days' })
@@ -1460,7 +1470,7 @@ describe('exposure: testing terms per target (S-EXP-2, FULL-1, D-566)', () => {
     expect(within(s).getByText('Not accepted: scans of this target stay in the Scan now scope.')).toBeInTheDocument()
     const terms = within(s).getByRole('group', { name: 'Testing terms' })
     expect(within(terms).getByText(/^I confirm that my company owns acme\.example and that I am authorized to test it in depth/)).toBeInTheDocument()
-    expect(within(terms).getAllByRole('listitem').map((l) => l.textContent?.split(':')[0])).toEqual(['All ports', 'Vulnerability checks', 'An active web scan that submits forms', 'Authentication checks'])
+    expect(within(terms).getAllByRole('listitem').map((l) => l.textContent?.split(':')[0])).toEqual(['All ports', 'Vulnerability checks', 'Web scanning', 'Authentication checks'])
     expect(within(terms).getByText(/including checks that confirm a flaw by sending the exploit request itself in a harmless form.*Some checks, OpenVAS's in particular, may write a harmless test file or record.*Checks that can crash a service, guess passwords or sign in with default passwords, and the exploit checks of nuclei and nmap that send more than a harmless read, run only with the disruptive checks below\./)).toBeInTheDocument()
     expect(within(terms).getByText(/The deep scan can load or slow the services on acme\.example and may create, change or delete data/)).toBeInTheDocument()
     const tick = within(s).getByRole('checkbox', { name: "Include disruptive checks (denial of service, password guessing, sign-in attempts with default or well-known passwords, and exploit checks that send more than a harmless read, such as nuclei's POST exploit requests that may create or change data and nmap's SQL injection probes): these can crash a service, lock accounts, change data or take a device offline." })
@@ -1532,13 +1542,13 @@ describe('exposure: deep scan of a domain\'s addresses (S-EXP-2, FULL-5 slice 3,
     for (const sentence of [
       'Every name under acme.example that resolves to a public address is scanned at this depth, whatever serves it: your own server, a hosting provider or a CDN.',
       'If a provider serves a name, its testing policy applies to you (for example, Cloudflare and AWS forbid denial-of-service tests); leave the disruptive checks off unless that provider allows them.',
-      "Vedette's tools reach each address a name under acme.example resolves to, including a third-party hosting provider, CDN or proxy in front of your names: the scan of all ports, OpenVAS, nuclei and the active web scan (ZAP).",
+      "Vedette's tools reach each address a name under acme.example resolves to, including a third-party hosting provider, CDN or proxy in front of your names: the scan of all ports, OpenVAS, nuclei and the web scan (ZAP).",
       "With shared or cloud hosting, a CDN or a proxy, that address can also serve other people's systems: you are responsible for having the provider's permission.",
       'Vedette does not check who owns those addresses.',
     ]) expect(terms.textContent).toContain(sentence)
     expect(terms.textContent).not.toContain('yours alone')
     const ip = (await call('GET', '/exposure/targets/xt-2')).json as { terms_notice: { text: string; version: string } }
-    expect(ip.terms_notice.version).toBe('2026-11-14d')
+    expect(ip.terms_notice.version).toBe('2026-11-14e')
     expect(ip.terms_notice.text).toContain('Accept only if 203.0.113.10 is yours alone')
     expect(ip.terms_notice.text).not.toContain('Verifying a name')
   })

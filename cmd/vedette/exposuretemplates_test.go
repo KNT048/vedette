@@ -131,6 +131,29 @@ func TestExposureTemplatesLogBeforeSendingAndMapResults(t *testing.T) {
 	}
 }
 
+// N44-4: a template the finished run printed no line for is "No match reported" in the probe log while the address kept answering
+// (scan INV-8), and stays "No response" (no result written) when the address stopped answering.
+func TestExposureTemplatesSilentTemplateIsNoMatchReported(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		hostErrors []nucleiout.HostError
+		want       string
+	}{
+		{nil, "done CVE-2018-13379=matched CVE-2019-19781=not_matched"},
+		{[]nucleiout.HostError{{Target: "8.8.8.8:18443", Errors: 3, Unreachable: true}}, "done CVE-2018-13379=matched CVE-2019-19781="}, // "" is written as no_response
+	} {
+		f := &templatesFake{gateOK: true, answer: func(sensoractive.NucleiRequest) nucleiout.Outcome {
+			return nucleiout.Outcome{Results: []nucleiout.Result{{Template: "CVE-2018-13379", Target: "8.8.8.8:18443", Matched: true}}, HostErrors: tc.hostErrors}
+		}}
+		if _, err := f.scanner().ScanTemplates(t.Context(), exposure.ScanTarget{User: "u-admin"}, ownPublicIP, []exposure.TemplateJob{ownJob("CVE-2018-13379", "CVE-2019-19781")}); err != nil {
+			t.Fatal(err)
+		}
+		if f.last() != tc.want {
+			t.Fatalf("host errors %v: events %q", tc.hostErrors, f.events)
+		}
+	}
+}
+
 // The gate says no right before the run: nothing is logged or sent, and the page says why.
 func TestExposureTemplatesGateRefusesBeforeAnything(t *testing.T) {
 	t.Parallel()

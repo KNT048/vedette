@@ -12,6 +12,10 @@ export function useMe(enabled = true) {
     queryKey: ['me'],
     enabled,
     queryFn: async () => {
+      // N44-2: the box sets and clears the readable CSRF cookie together with the session cookie (core/auth Cookies, ClearCookies),
+      // so without it nobody is signed in: asking /me would only answer 401, which the browser logs on every page load. The mock
+      // sets no cookie, so it is asked as before.
+      if (import.meta.env.VITE_API_MOCK === 'off' && !/(?:^|;\s*)__Host-vedette_csrf=/.test(document.cookie)) return null
       try {
         return await api.get<Me>('/me')
       } catch (e) {

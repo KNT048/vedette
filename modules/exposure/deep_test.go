@@ -457,17 +457,17 @@ func TestContract_INV28_Deep_WithdrawStopsTheDeepStep(t *testing.T) {
 
 // D-571 (LEGAL-2, reviews r1 H1 and r2): a domain's terms say the scan reaches third-party hosting, CDN and proxies, name the IP-level
 // tools, the customer's responsibility and the CNAME rule; an IP keeps its "yours alone" sentence; both say what runs without the tick
-// and what the tick adds; the version is 2026-11-14d.
+// and what the tick adds; the version is 2026-11-14e.
 func TestContract_INV28_Deep_DomainTermsText(t *testing.T) {
 	t.Parallel()
-	if TermsVersion != "2026-11-14d" {
+	if TermsVersion != "2026-11-14e" {
 		t.Fatalf("version %s", TermsVersion)
 	}
 	dom := termsFor(KindDomain, "acme.example").Text
 	for _, want := range []string{
 		"Every name under acme.example that resolves to a public address is scanned at this depth, whatever serves it: your own server, a hosting provider or a CDN.",
 		"Cloudflare and AWS forbid denial-of-service tests",
-		"Vedette's tools reach each address a name under acme.example resolves to, including a third-party hosting provider, CDN or proxy in front of your names: the scan of all ports, OpenVAS, nuclei and the active web scan (ZAP).",
+		"Vedette's tools reach each address a name under acme.example resolves to, including a third-party hosting provider, CDN or proxy in front of your names: the scan of all ports, OpenVAS, nuclei and the web scan (ZAP).",
 		// review r1 M4
 		"A name that points (CNAME) to a name outside acme.example is scanned at whatever address the owner of that other name sets, so the disruptive checks never run on an address reached only that way.",
 		// TERMS.md (D-544) word for word, so the two texts never disagree

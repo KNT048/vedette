@@ -649,8 +649,8 @@ func (o *Ops) zapTXT(ctx context.Context, name string) ([]string, error) {
 func (o *Ops) zapFence(ctx context.Context, p zapPage) error {
 	refused := func(why string, res ...vexec.Result) error {
 		attrs := []any{"reason", why}
-		if len(res) > 0 { // what podman or nft printed: the page sends the reader to the box log for it
-			attrs = append(attrs, "stderr", clipText(strings.TrimSpace(string(res[0].Stderr)), 500))
+		if len(res) > 0 { // what podman or nft printed (a read-back that differs is on stdout): the page sends the reader to the box log
+			attrs = append(attrs, "stderr", clipText(strings.TrimSpace(string(res[0].Stderr)), 500), "stdout", clipText(strings.TrimSpace(string(res[0].Stdout)), 500))
 		}
 		o.log.ErrorContext(ctx, "zap.baseline: the network fence could not be set up", attrs...)
 		return fail(api.CodeZapFenceFailed, "The host could not set up the network fence of the web scan ("+why+"), so ZAP was not started.")
@@ -666,7 +666,7 @@ func (o *Ops) zapFence(ctx context.Context, p zapPage) error {
 	}
 	res, code, err = o.zapStep(ctx, binPodman, nil, zapNetInspectArgv()...)
 	if err != nil || code != 0 || res.Truncated || !zapNetworkIsOurs(res.Stdout) {
-		return refused("the network vedette-zap is not the one the host makes: label io.vedette.owner=vedette-host, bridge vedette-zap0, no DNS, no options, one IPv4 subnet, not internal")
+		return refused("the network vedette-zap is not the one the host makes: label io.vedette.owner=vedette-host, bridge vedette-zap0, no DNS, no options, one IPv4 subnet, not internal", res)
 	}
 	rules, err := zapRuleset(p.ip, p.port)
 	if err != nil {

@@ -45,6 +45,7 @@ const (
 	maxScriptsPerHost = 4 * maxPortsPerHost
 	maxScriptText     = 2000
 	maxScriptFindings = 20
+	maxFindingTitle   = 120 // a finding's title, as exposure keeps it (maxProduct there)
 	maxScriptCVEs     = 20
 )
 
@@ -529,7 +530,7 @@ func parseNmapXML(data []byte) ([]host, error) {
 					case "state":
 						fnd.state = findingState(v)
 					case "title":
-						fnd.title = text(clipRunes(v, maxText))
+						fnd.title = text(clipRunes(v, maxFindingTitle))
 					case "ids":
 						if m := cveIDRE.FindStringSubmatch(v); m != nil {
 							fnd.addCVE(m[1])

@@ -44,6 +44,10 @@ var (
 	// ErrFullUnsupported (D-526): the worker's latest heartbeat does not say it runs the full shapes (an older worker, while an
 	// update runs). Nothing was sent.
 	ErrFullUnsupported = errors.New("sensoractive: the scan container's worker is older and runs no deep nmap scan")
+	// ErrStoppedMidRun (review r1 H1, r2 LOW-5): the worker's re-check during a full run found the address no longer the box's own
+	// (also ErrNotOwnIP) or could not check it (also ErrEgressUnverified), killed nmap and discarded its output. Unlike a refusal
+	// at the start, nmap had already probed the address.
+	ErrStoppedMidRun = errors.New("sensoractive: the scan worker stopped the deep scan while it ran and discarded its output")
 )
 
 // OwnEgress says whether ip is the box's own verified public egress now: exposure's gate (verified, committed, seen by the
@@ -85,7 +89,7 @@ type ExternalScript struct {
 }
 
 // ScriptFinding is one finding of the vulns library: State "vulnerable" (VULNERABLE, also "(Exploitable)" or "(DoS)"), "likely"
-// (LIKELY VULNERABLE) or "not_vulnerable"; Title the script's name for it (printable, at most 200 runes); CVEs its CVE ids
+// (LIKELY VULNERABLE) or "not_vulnerable"; Title the script's name for it (printable, at most 120 runes); CVEs its CVE ids
 // (unique, at most 20).
 type ScriptFinding struct {
 	State string

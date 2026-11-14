@@ -449,10 +449,14 @@ func runOutcome(ctx, rctx context.Context, res Output, runErr error) (hosts []ho
 			result = "failed: nmap_missing"
 		case errors.Is(runErr, ErrWorkerLost):
 			result = "failed: worker_lost"
+		case errors.Is(runErr, ErrStoppedMidRun) && errors.Is(runErr, ErrNotOwnIP):
+			result = "stopped: while nmap ran, the scan worker found the address is no longer the box's own public IP; output discarded"
+		case errors.Is(runErr, ErrStoppedMidRun):
+			result = "stopped: while nmap ran, the scan worker could no longer reach the public IP services to check the address; output discarded"
 		case errors.Is(runErr, ErrNotOwnIP):
-			result = "refused: the scan worker found the address is not the box's own public IP now; nmap did not run or was stopped, output discarded"
+			result = "refused: the scan worker found the address is not the box's own public IP now; nmap did not run"
 		case errors.Is(runErr, ErrEgressUnverified):
-			result = "refused: the scan worker could not reach the public IP services to check the address; nmap did not run or was stopped, output discarded"
+			result = "refused: the scan worker could not reach the public IP services to check the address; nmap did not run"
 		case errors.Is(runErr, ErrFullUnsupported):
 			result = "refused: the scan worker is older and runs no deep scan; nmap did not run"
 		case errors.Is(runErr, ErrWorkerRefused):

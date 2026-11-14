@@ -45,7 +45,10 @@ const (
 	servicesStopped = "the scan was stopped: the Active discovery module was turned off."
 	// D-526: a deep scan whose terms changed before its job left, and a worker too old for the deep shapes.
 	servicesNotDeep = "the testing terms of %s are no longer accepted (withdrawn, or new terms to accept), so the deep scan was not sent. An administrator can accept the terms on the target, then scan again."
-	servicesOldFull = "the scan container is older than the rest of Vedette and does not run the deep scan of every TCP port. Update the box, then scan again."
+	servicesOldFull = "the scan container does not run the deep scan of every TCP port: it is older than the rest of Vedette, or its nmap is not the version whose scripts were reviewed. Update the box, then scan again."
+	// Review r2 LOW-5: the worker's re-check during a deep scan stopped it; its ports had been probed, the results are discarded.
+	servicesNotOwnMid  = "this box stopped reaching the Internet through %s while the deep scan ran, so the deep scan was stopped and its results discarded."
+	servicesNoCheckMid = "the scan container could no longer check that %s is still this box's address (the public IP services did not answer), so the deep scan was stopped and its results discarded."
 )
 
 // ownGate is the core half of the fence as sensor-active asks it: exposure's gate, with the person who started the scan as actor,
@@ -103,6 +106,10 @@ func (a exposureServiceScan) ScanServices(ctx context.Context, t exposure.ScanTa
 		return exposure.ServiceScan{}, &exposure.Unavailable{Reason: servicesStopped}
 	case errors.Is(err, sensoractive.ErrNoTime):
 		return exposure.ServiceScan{}, &exposure.Unavailable{Reason: fmt.Sprintf(servicesNoTime, int(bound/time.Minute))}
+	case errors.Is(err, sensoractive.ErrStoppedMidRun) && errors.Is(err, sensoractive.ErrEgressUnverified): // before the start-time lines
+		return exposure.ServiceScan{}, &exposure.Unavailable{Reason: fmt.Sprintf(servicesNoCheckMid, ip)}
+	case errors.Is(err, sensoractive.ErrStoppedMidRun):
+		return exposure.ServiceScan{}, &exposure.Unavailable{Reason: fmt.Sprintf(servicesNotOwnMid, ip)}
 	case errors.Is(err, sensoractive.ErrEgressUnverified): // before ErrWorkerRefused, which wraps it
 		return exposure.ServiceScan{}, &exposure.Unavailable{Reason: fmt.Sprintf(servicesNoCheck, ip)}
 	case errors.Is(err, sensoractive.ErrBusy):

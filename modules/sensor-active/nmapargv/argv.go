@@ -263,7 +263,7 @@ func Flags(kind Kind, rate int) ([]string, error) {
 		if kind == ExternalDisruptive {
 			scripts = DisruptiveScripts
 		}
-		// The only category expressions any shape names (FORBID-3, D-526); one argv element each, never through a shell.
+		// The reviewed explicit script lists of scripts.go, never a category expression (FORBID-3, D-526); one argv element, never through a shell.
 		return []string{flagPrivileged, "-sS", "-sV", "-Pn", flagNoDNS, "-p-", flagScript, scripts, flagScriptTimeout, fullScriptTimeout,
 			flagMaxRate, r, flagMaxRetries, fullRetries, flagHostTimeout, fullHostTimeout}, nil
 	}

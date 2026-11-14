@@ -203,6 +203,9 @@ func TestExposureServiceScanReasons(t *testing.T) {
 		"refused, other":   {exposureServiceScan{scan: scanErr(sensoractive.ErrWorkerRefused), gate: yes}, "refused the job"},
 		"terms withdrawn":  {exposureServiceScan{scan: scanErr(sensoractive.ErrNotDeep), gate: yes}, "testing terms of 8.8.8.8 are no longer accepted"},
 		"old worker, deep": {exposureServiceScan{scan: scanErr(fmt.Errorf("sensoractive: %w", sensoractive.ErrFullUnsupported)), gate: yes}, "does not run the deep scan"},
+		// review r2 LOW-5: stopped by the worker's re-check while it ran: never "its ports were not probed"
+		"not the box's, mid-run": {exposureServiceScan{scan: scanErr(fmt.Errorf("%w: %w", sensoractive.ErrStoppedMidRun, sensoractive.ErrNotOwnIP)), gate: yes}, "stopped reaching the Internet through 8.8.8.8 while the deep scan ran, so the deep scan was stopped and its results discarded"},
+		"no check, mid-run":      {exposureServiceScan{scan: scanErr(fmt.Errorf("%w: %w", sensoractive.ErrStoppedMidRun, sensoractive.ErrEgressUnverified)), gate: yes}, "could no longer check that 8.8.8.8 is still this box's address"},
 	} {
 		_, err := c.sc.ScanServices(t.Context(), exposure.ScanTarget{User: "a"}, ip)
 		var un *exposure.Unavailable
@@ -280,8 +283,9 @@ func (m *modeAt) now(_ context.Context, actor, id string) (exposure.ScanMode, er
 func TestExposureDeepScanEndToEndWithAFakeWorker(t *testing.T) {
 	t.Parallel()
 	s := newStack(t)
+	var amu sync.Mutex
 	answer := xmlResult(nmapFixture(t, "external_full.xml"))
-	w := startFakeScanWorkerFull(t, s, true, func(sensorlink.Job) *sensorlink.JobResult { return answer })
+	w := startFakeScanWorkerFull(t, s, true, func(sensorlink.Job) *sensorlink.JobResult { amu.Lock(); defer amu.Unlock(); return answer })
 	m := &modeAt{mode: exposure.ScanMode{Full: true}}
 	sc := exposureServicesFor(*s.d, (&gateFor{ok: true}).gate, m.now)
 	for deadline := time.Now().Add(20 * time.Second); strings.Contains(s.d.SensorDispatcher.NmapHealth(), "has not reported"); waitTick(t) {
@@ -311,6 +315,18 @@ func TestExposureDeepScanEndToEndWithAFakeWorker(t *testing.T) {
 	}
 	if jobs := w.received(); len(jobs) != 2 || jobs[1].Shape != "external_full" {
 		t.Fatalf("jobs = %+v", jobs)
+	}
+
+	// review r2 LOW-5: the worker's re-check stopped the run while it ran ("stopped", not "refused"): the page says so
+	for reason, want := range map[string]string{"not_own_ip": "while the deep scan ran, so the deep scan was stopped and its results discarded", "egress_unverified": "could no longer check that 8.8.8.8"} {
+		amu.Lock()
+		answer = &sensorlink.JobResult{Status: "stopped", Reason: reason, ExitCode: -1}
+		amu.Unlock()
+		_, err := sc.ScanServices(ctx, target, ownPublicIP)
+		var un *exposure.Unavailable
+		if !errors.As(err, &un) || !strings.Contains(un.Reason, want) || strings.Contains(un.Reason, "not probed") {
+			t.Fatalf("%s mid-run: err = %v", reason, err)
+		}
 	}
 
 	before := len(w.received())

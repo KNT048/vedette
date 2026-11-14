@@ -39,7 +39,9 @@ func (w *Worker) ownIP(ctx context.Context, ip netip.Addr) (ok bool, reason stri
 	return w.checkIP(ctx, ip, true)
 }
 
-// checkIP is the fence; cached lets a yes of the last EgressFresh stand (the re-check of a running full job asks again).
+// checkIP is the fence; cached lets a yes of the last EgressFresh stand (the re-check of a running full job asks again). Any
+// answer that is not a yes forgets the yes it had (review r2 M-A): a re-check that saw the address go must not let the next job
+// start on the yes from before.
 func (w *Worker) checkIP(ctx context.Context, ip netip.Addr, cached bool) (ok bool, reason string) {
 	if w.egress == nil {
 		return false, reasonUnverified // no way to check: never scan a public address unchecked
@@ -49,6 +51,11 @@ func (w *Worker) checkIP(ctx context.Context, ip netip.Addr, cached bool) (ok bo
 	if cached && w.egressIP == ip && w.now().Sub(w.egressAt) < EgressFresh && !w.egressAt.After(w.now()) {
 		return true, ""
 	}
+	defer func() {
+		if !ok {
+			w.egressIP, w.egressAt = netip.Addr{}, time.Time{}
+		}
+	}()
 	reason = reasonUnverified
 	for range EgressRounds {
 		a, err := w.egress.Round(ctx)
@@ -72,16 +79,15 @@ func (w *Worker) checkIP(ctx context.Context, ip netip.Addr, cached bool) (ok bo
 // the old address to someone else. The re-check is the whole fence again, without the cached yes.
 const EgressRecheck = 3 * time.Minute
 
-// watchEgress re-checks ip every `every` until ctx ends. The first check that is not a yes calls kill and returns its reason;
-// it returns "" when ctx ended first (the job finished, was cancelled or ran out of time).
-func (w *Worker) watchEgress(ctx context.Context, ip netip.Addr, every time.Duration, kill context.CancelFunc) string {
-	t := time.NewTicker(every)
-	defer t.Stop()
+// watchEgress re-checks ip on every value of ticks (every EgressRecheck in production) until ctx ends. The first check that is
+// not a yes calls kill and returns its reason; it returns "" when ctx ended first (the job finished, was cancelled or ran out of
+// time).
+func (w *Worker) watchEgress(ctx context.Context, ip netip.Addr, ticks <-chan time.Time, kill context.CancelFunc) string {
 	for {
 		select {
 		case <-ctx.Done():
 			return ""
-		case <-t.C:
+		case <-ticks:
 		}
 		ok, reason := w.checkIP(ctx, ip, false)
 		if ctx.Err() != nil {

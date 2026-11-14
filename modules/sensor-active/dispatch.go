@@ -405,6 +405,13 @@ func (d *Dispatcher) outcome(j *djob) (Output, error) {
 		// The fence could not ask the public IP services (no route, DNS, TLS, no agreement): nothing is known, so nothing is sent.
 		d.log.Warn("sensor_active_worker_refused_external_job", "reason", res.Reason)
 		return Output{}, fmt.Errorf("%w (%s): %w", ErrWorkerRefused, res.Reason, ErrEgressUnverified)
+	case res.Status == "stopped" && res.Reason == "not_own_ip":
+		// The re-check of a running full job (D-526, review r1 H1): nmap ran and was killed, its output discarded.
+		d.log.Warn("sensor_active_worker_stopped_external_job", "reason", res.Reason)
+		return Output{}, fmt.Errorf("%w (%s): %w", ErrStoppedMidRun, res.Reason, ErrNotOwnIP)
+	case res.Status == "stopped" && res.Reason == "egress_unverified":
+		d.log.Warn("sensor_active_worker_stopped_external_job", "reason", res.Reason)
+		return Output{}, fmt.Errorf("%w (%s): %w", ErrStoppedMidRun, res.Reason, ErrEgressUnverified)
 	case res.Status == "refused":
 		d.log.Error("sensor_active_worker_refused_job", "reason", res.Reason) // core and worker disagree on the grammar, or the worker is not what it should be
 		return Output{}, fmt.Errorf("%w (%s)", ErrWorkerRefused, res.Reason)

@@ -43,6 +43,7 @@
 - **inventory** cung cấp phía thiết bị (`pkg_version`, `pkg_source`, migration 0007 của inventory); tên gói nguồn phải khớp tên ở đây.
 - **cmd/vedette**: `feeds.ranges.updated` dùng chung với D-500 (rematch theo CVE; lần đầu trong `notify.WithBaseline`).
 - **PRIVACY.md** luồng 1 + Settings → Privacy (`privacy.flow.1`), `THIRD_PARTY_NOTICES.md` (dữ liệu Canonical CC BY-SA 4.0, Debian không nêu giấy phép; `github.com/ulikunitz/xz`), `sourcesMock.ts`, `conformance.test.ts` (thứ tự feed có sẵn), export policy (`feeds_distro_fix`). `Request.Stream` là đường đọc luồng duy nhất: guard đích, chuyển hướng và trần giống `Fetch`.
+- **D-570 (INV-22)**: `DistroLister` (tuỳ chọn trên `Inventory`) do `cmd/vedette` `feedsInventory.Distros` hiện thực bằng `inventory.AssetIDs` + `MatchInput` và `findings.DeviceDistro`; đổi luật "dòng gói deb của agent" của findings là đổi cả lúc feeds kéo. Câu "Not updated: no … device now…" có trong `distroNote`, mock `features/feeds/sourcesMock.ts` (Debian tracker) và test `feeds.test.tsx`. PRIVACY luồng 1 + `privacy.flow.1` nói Canonical/Debian biết họ bản phân phối.
 - Thêm tên mã Ubuntu/Debian mới: `ubuntuCodenames`, `debianReleases` trong `distro.go` (ponytail; thiếu ⇒ lý do "release … is not known" ở Settings → Feeds).
 
 ## Modifying: `vulncheck.go`, feed `vulncheck-kev`, `isKEVSource`, the `source_id IN ('cisa-kev', 'vulncheck-kev')` reads (D-557)

@@ -75,6 +75,36 @@ func (a feedsInventory) Settle(ctx context.Context, tx *sql.Tx, committed bool) 
 	a.inv.Settle(ctx, tx, committed)
 }
 
+// Distros implements feeds.DistroLister (D-570): the distributions of the devices whose deb packages an agent read, as
+// findings decides it (findings.DeviceDistro), so a distribution feed is pulled only while a device needs it.
+func (a feedsInventory) Distros(ctx context.Context) (map[string]bool, error) {
+	ids, err := a.inv.AssetIDs(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := map[string]bool{}
+	for _, id := range ids {
+		d, ok, err := a.inv.MatchInput(ctx, id)
+		if err != nil {
+			return nil, err
+		}
+		if !ok {
+			continue
+		}
+		fa := findings.Asset{OS: d.OS, Software: make([]findings.Software, len(d.Software))}
+		for i, sw := range d.Software {
+			fa.Software[i] = findings.Software{Source: sw.Source, Packaged: sw.Packaged, PkgVersion: sw.PkgVersion, PkgSource: sw.PkgSource}
+		}
+		if dist := findings.DeviceDistro(fa); dist != "" {
+			out[dist] = true
+			if len(out) == 2 { // both distributions found: nothing more to learn
+				break
+			}
+		}
+	}
+	return out, nil
+}
+
 // ---- feeds -> inventory (inventory.KEV) ----
 
 // feedsKEV implements inventory.KEV from the CISA rows of the feeds service. Until the first pull (the table is

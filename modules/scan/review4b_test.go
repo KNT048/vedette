@@ -33,8 +33,8 @@ func TestReview4b_L1_AnEventMatchesOnlyOnItsOwnFinding(t *testing.T) {
 	t.Parallel()
 	r := newRunEnv(t)
 	ix, err := pack.Parse([]byte(`{"version": "2026.11.1", "sha256": "5d41402abc4b2a76b9719d911017c5925d41402abc4b2a76b9719d911017c592", "templates": [
-{"id": "tpl-a", "cve": "CVE-2024-3400", "path": "http/shared/one-check.yaml", "sha256": "c4ca4238a0b923820dcc509a6f75849bc4ca4238a0b923820dcc509a6f75849b", "tags": ["kev"], "request": "GET / HTTP/1.1"},
-{"id": "tpl-b", "cve": "CVE-2023-46805", "path": "http/shared/one-check.yaml", "sha256": "c4ca4238a0b923820dcc509a6f75849bc4ca4238a0b923820dcc509a6f75849b", "tags": ["kev"], "request": "GET / HTTP/1.1"}]}`))
+{"id": "tpl-a", "cve": "CVE-2024-3400", "path": "http/shared/one-check.yaml", "sha256": "c4ca4238a0b923820dcc509a6f75849bc4ca4238a0b923820dcc509a6f75849b", "tags": ["kev"], "sets": ["kev"], "request": "GET / HTTP/1.1"},
+{"id": "tpl-b", "cve": "CVE-2023-46805", "path": "http/shared/one-check.yaml", "sha256": "c4ca4238a0b923820dcc509a6f75849bc4ca4238a0b923820dcc509a6f75849b", "tags": ["kev"], "sets": ["kev"], "request": "GET / HTTP/1.1"}]}`))
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -12,7 +12,6 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -105,9 +104,13 @@ func (w *Worker) nucleiArgv(j sensorlink.Job) ([]string, *sensorlink.JobResult, 
 		return nil, refusal("invalid_job"), fmt.Errorf("a nuclei job needs its fields and a timeout of 1..%d s", MaxNucleiTimeout)
 	}
 	targets := targetsOf(nj)
-	if _, err := nucleiargv.Build(nucleiargv.Job{Templates: placeholderPaths(len(nj.Templates)), Targets: targets, Rate: nj.Rate, MaxHostErrors: nj.MaxHostErrors, Scope: nj.Scope}); err != nil {
+	job := func(paths []string) nucleiargv.Job {
+		return nucleiargv.Job{Templates: paths, Targets: targets, Rate: nj.Rate, MaxHostErrors: nj.MaxHostErrors, Scope: nj.Scope, Depth: nj.Depth, Disruptive: nj.Disruptive}
+	}
+	if _, err := nucleiargv.Build(job(placeholderPaths(len(nj.Templates)))); err != nil {
 		return nil, refusal("invalid_job"), err
 	}
+	full := nj.Depth == nucleiargv.DepthFull // Build accepted the depth only with scope own_ip
 	ix, err := readIndex(w.nucleiCfg.index)
 	if err != nil {
 		return nil, refusal("pack_invalid"), err
@@ -118,12 +121,15 @@ func (w *Worker) nucleiArgv(j sensorlink.Job) ([]string, *sensorlink.JobResult, 
 	paths := make([]string, len(nj.Templates))
 	chosen := make([]pack.Template, len(nj.Templates))
 	for i, id := range nj.Templates {
-		k := slices.IndexFunc(ix.Templates, func(t pack.Template) bool { return t.ID == id })
-		if k < 0 {
+		tp, ok := ix.Get(id)
+		if !ok {
 			return nil, refusal("invalid_job"), fmt.Errorf("template %.100q is not in the pack", id)
 		}
-		chosen[i], paths[i] = ix.Templates[k], ix.Templates[k].Path
-		if nj.Scope == nucleiargv.ScopeOwnIP && !chosen[i].OwnIP { // the image's own index decides, never core (D-520)
+		chosen[i], paths[i] = tp, tp.Path
+		if !tp.RunsAt(full, nj.Disruptive) { // the image's own index decides the set, never core (D-527): KEV unless full
+			return nil, refusal("invalid_job"), fmt.Errorf("template %.100q is not in a set of the pack a job of depth %q (disruptive %t) may run", id, nj.Depth, nj.Disruptive)
+		}
+		if !full && nj.Scope == nucleiargv.ScopeOwnIP && !tp.OwnIP { // the image's own index decides, never core (D-520)
 			return nil, refusal("invalid_job"), fmt.Errorf("template %.100q is not marked for the own_ip scope in the pack", id)
 		}
 	}
@@ -138,13 +144,18 @@ func (w *Worker) nucleiArgv(j sensorlink.Job) ([]string, *sensorlink.JobResult, 
 		if err := pack.NoChangeText(body); err != nil { // D-528: no write, upload or other host, in every job (the builder kept only files that pass)
 			return nil, refusal("invalid_job"), fmt.Errorf("template %.100q may change the target or reach another host: %w", t.ID, err)
 		}
-		if nj.Scope == nucleiargv.ScopeOwnIP { // the last fence: the worker reads the file itself (D-520)
+		switch {
+		case full: // the last fence of D-527: no out-of-band interaction, read from the file itself
+			if err := pack.FullText(body, t.Tech()); err != nil {
+				return nil, refusal("invalid_job"), fmt.Errorf("template %.100q may not run at full depth: %w", t.ID, err)
+			}
+		case nj.Scope == nucleiargv.ScopeOwnIP: // the last fence: the worker reads the file itself (D-520)
 			if err := pack.OwnIPText(body); err != nil {
 				return nil, refusal("invalid_job"), fmt.Errorf("template %.100q may not run on a public IP: %w", t.ID, err)
 			}
 		}
 	}
-	argv, err := nucleiargv.Build(nucleiargv.Job{Templates: paths, Targets: targets, Rate: nj.Rate, MaxHostErrors: nj.MaxHostErrors, Scope: nj.Scope})
+	argv, err := nucleiargv.Build(job(paths))
 	if err == nil {
 		err = nucleiargv.Validate(argv)
 	}
@@ -293,7 +304,7 @@ func (w *Worker) nucleiStatus(ctx context.Context) sensorlink.HeartbeatNuclei {
 	if !w.nucleiCfg.on {
 		return sensorlink.HeartbeatNuclei{}
 	}
-	hb := sensorlink.HeartbeatNuclei{OwnIP: w.egress != nil} // D-520: own_ip jobs only behind the own-IP fence; without its checker every one would be refused
+	hb := sensorlink.HeartbeatNuclei{OwnIP: w.egress != nil, Full: w.egress != nil} // D-520, D-527: own_ip jobs (full ones too) only behind the own-IP fence; without its checker every one would be refused
 	rctx, cancel := context.WithTimeout(ctx, 20*time.Second)
 	defer cancel()
 	if res, err := w.runner.Run(rctx, nucleiVer, []string{"-version", "-duc"}, nil); err == nil {

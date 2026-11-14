@@ -47,6 +47,13 @@ type Inventory interface {
 	AddManualDevice(ctx context.Context, tx *sql.Tx, actor string, d ManualDevice) (deviceID string, err error)
 }
 
+// DistroLister is an optional extension of Inventory (D-570): the distributions ("ubuntu", "debian") of the devices the
+// distribution feeds can answer for (an Ubuntu or Debian device with deb packages an agent read). Without it, or with the
+// inventory module off, feeds pulls every enabled distribution feed as before.
+type DistroLister interface {
+	Distros(ctx context.Context) (map[string]bool, error)
+}
+
 func youHave(matched []MatchedAsset) YouHave {
 	out := HaveNo
 	for _, m := range matched {

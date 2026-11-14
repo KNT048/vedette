@@ -43,7 +43,7 @@ func TestParse_Fixture(t *testing.T) {
 func TestParse_Refuses(t *testing.T) {
 	t.Parallel()
 	entry := func(mod func(map[string]any)) string {
-		e := map[string]any{"id": "CVE-2022-27593", "cve": "CVE-2022-27593", "path": "http/cves/2022/CVE-2022-27593.yaml", "sha256": sha, "tags": []string{"cve", "kev"}, "request": "GET / HTTP/1.1"}
+		e := map[string]any{"id": "CVE-2022-27593", "cve": "CVE-2022-27593", "path": "http/cves/2022/CVE-2022-27593.yaml", "sha256": sha, "tags": []string{"cve", "kev"}, "request": "GET / HTTP/1.1", "sets": []string{"kev"}}
 		mod(e)
 		b, _ := json.Marshal(map[string]any{"version": "2026.11.1", "sha256": sha, "templates": []any{e}})
 		return string(b)
@@ -74,7 +74,7 @@ func TestParse_Refuses(t *testing.T) {
 		"request not ASCII":   entry(func(e map[string]any) { e["request"] = "GET /é HTTP/1.1" }),
 		"request empty":       entry(func(e map[string]any) { e["request"] = "" }),
 		"request too long":    entry(func(e map[string]any) { e["request"] = "GET /" + strings.Repeat("a", 200) }),
-		"template id twice":   strings.Replace(entry(func(map[string]any) {}), `"templates":[`, `"templates":[{"cve":"CVE-2022-27593","id":"CVE-2022-27593","path":"http/b.yaml","request":"GET / HTTP/1.1","sha256":"`+sha+`","tags":["kev"]},`, 1),
+		"template id twice":   strings.Replace(entry(func(map[string]any) {}), `"templates":[`, `"templates":[{"cve":"CVE-2022-27593","id":"CVE-2022-27593","path":"http/b.yaml","request":"GET / HTTP/1.1","sha256":"`+sha+`","tags":["kev"],"sets":["kev"]},`, 1),
 		"over the size cap":   `{"version":"` + strings.Repeat(" ", MaxSize) + `"}`,
 		"tags not an array":   entry(func(e map[string]any) { e["tags"] = "kev" }),
 		"template not object": `{"version":"2026.11.1","sha256":"` + sha + `","templates":["x"]}`,
@@ -154,7 +154,7 @@ func TestOwnIPText(t *testing.T) {
 		}
 	}
 	entry := `{"version":"2026.11.2","sha256":"` + strings.Repeat("a", 64) + `","templates":[{"id":"CVE-2024-1234","cve":"CVE-2024-1234","path":"http/a.yaml","sha256":"` +
-		strings.Repeat("b", 64) + `","tags":["kev"],"request":"%s","own_ip":true}]}`
+		strings.Repeat("b", 64) + `","tags":["kev"],"request":"%s","own_ip":true,"sets":["kev"]}]}`
 	if _, err := Parse([]byte(strings.Replace(entry, "%s", "GET /a", 1))); err != nil {
 		t.Errorf("a GET entry marked own_ip refused: %v", err)
 	}

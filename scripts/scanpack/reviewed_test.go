@@ -5,10 +5,11 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/knt048/vedette/modules/scan/pack"
 )
 
-// D-528 step 2: without the tick a template runs only if it is a read-only GET whose name names no change, or a person reviewed
-// that very file (reviewed.tsv, id + sha256).
+// D-528 step 2: the KEV set (no tick) takes only templates a person reviewed (reviewed.tsv, id + sha256); rule (a) sorts the queue.
 
 func getKEV(id, name, req string) string {
 	return "id: " + id + "\n\ninfo:\n  name: " + name + "\n  classification:\n    cve-id: CVE-2024-0001\n  tags: cve,kev\n\nhttp:\n  - raw:\n      - |\n" +
@@ -57,8 +58,8 @@ func TestOnlyTheReviewedListAdmits(t *testing.T) {
 	if !ownIPSafe("http/cves/2024/x.yaml", doc, []string{"cve", "kev"}, []byte(text)) {
 		t.Fatal("the fixture is meant to pass the D-520 own_ip rule")
 	}
-	if tp, why := qualify("http/cves/2024/x.yaml", []byte(text)); why == "" {
-		t.Fatalf("shipped %+v", tp)
+	if tp, why := qualify("http/cves/2024/x.yaml", []byte(text)); why == "" && (tp.InKEV() || tp.FullSet() == pack.SetDeep) {
+		t.Fatalf("runs without the tick: %+v", tp) // (in a full category it may run behind the tick: D-527)
 	}
 	for id, e := range reviewed {
 		if listed, stale := reviewedState(id, e.sha); !listed || stale {
@@ -104,9 +105,10 @@ func TestReviewedNeedsTheSameFile(t *testing.T) {
 	// a reviewed POST ships; an unreviewed read-only GET waits in the "read first" group, an unreviewed POST in the rest
 	src, out := t.TempDir(), t.TempDir()
 	post := getKEV("CVE-2024-0002", "X - RCE", "POST /a HTTP/1.1\nHost: {{Hostname}}\n\nq=1")
-	write(t, src, "http/cves/2024/read.yaml", getKEV("CVE-2024-0001", "X - Path Traversal", "GET /a/../../etc/passwd HTTP/1.1\nHost: {{Hostname}}"))
-	write(t, src, "http/cves/2024/post.yaml", post)
-	write(t, src, "http/cves/2024/post2.yaml", strings.ReplaceAll(post, "CVE-2024-0002", "CVE-2024-0003"))
+	// (a folder of no full set, so only the KEV rule decides: D-527's deep set would take the read-only GET)
+	write(t, src, "http/left/read.yaml", getKEV("CVE-2024-0001", "X - Path Traversal", "GET /a/../../etc/passwd HTTP/1.1\nHost: {{Hostname}}"))
+	write(t, src, "http/left/post.yaml", post)
+	write(t, src, "http/left/post2.yaml", strings.ReplaceAll(post, "CVE-2024-0002", "CVE-2024-0003"))
 	onlyPost := func(id, sha string) (bool, bool) { return id == "CVE-2024-0002" && sha == sum(post), false }
 	rep, err := buildWith(src, out, "2026.11.4", onlyPost)
 	if err != nil || rep.Kept != 1 {

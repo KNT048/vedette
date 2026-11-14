@@ -42,6 +42,8 @@ type exposureTemplateScan struct {
 	gate   func(ctx context.Context, actor string, ip netip.Addr) (bool, error)
 	probes func(ctx context.Context, ps []scan.ExternalProbe) error // the scan module's probe log
 	log    *slog.Logger
+	// mode is exposure's ModeNow (FULL-4, D-527): the scan mode of the target right before each full run leaves core.
+	mode func(ctx context.Context, actor, id string) (exposure.ScanMode, error)
 }
 
 // templatesHostErrors is -mhe of a run: nuclei stops on the address after 3 errors in a row (the scan module's default).
@@ -68,11 +70,14 @@ const (
 	runFailed = "Safe templates for exploited vulnerabilities on port %d did not run: %s"
 )
 
-// templateRun is one nuclei job: at most nucleiargv.MaxTemplates templates on one port.
+// templateRun is one nuclei job: at most nucleiargv.MaxTemplates templates on one port, or nucleiargv.MaxFullTemplates for a full
+// run (D-527: depth full, the disruptive set too when disruptive).
 type templateRun struct {
-	port   int
-	target nucleiargv.Target
-	tmpls  []pack.Template
+	port       int
+	target     nucleiargv.Target
+	tmpls      []pack.Template
+	full       bool
+	disruptive bool
 }
 
 func (a exposureTemplateScan) ScanTemplates(ctx context.Context, t exposure.ScanTarget, ip netip.Addr, jobs []exposure.TemplateJob) (exposure.TemplateScan, error) {
@@ -86,6 +91,14 @@ func (a exposureTemplateScan) ScanTemplates(ctx context.Context, t exposure.Scan
 	if err != nil {
 		return exposure.TemplateScan{}, err
 	}
+	if t.Mode.Full { // FULL-4 (D-527): the deep scan of a target whose testing terms were accepted
+		return a.scanFull(ctx, t, ip, ix, jobs)
+	}
+	return a.scanBaseline(ctx, t, ip, ix, jobs)
+}
+
+// scanBaseline runs the read-only KEV templates of the jobs (D-520), the scan of a target without accepted testing terms.
+func (a exposureTemplateScan) scanBaseline(ctx context.Context, t exposure.ScanTarget, ip netip.Addr, ix *pack.Index, jobs []exposure.TemplateJob) (exposure.TemplateScan, error) {
 	runs, notes := templateRuns(ix, ip, jobs)
 	out := exposure.TemplateScan{NotChecked: notes}
 	for i, r := range runs {
@@ -138,7 +151,7 @@ func namesOf(ids []string) string {
 // never makes one).
 func templateRuns(ix *pack.Index, ip netip.Addr, jobs []exposure.TemplateJob) (runs []templateRun, notes []string) {
 	for _, j := range jobs {
-		if j.Scope != exposure.ScopeOwnIP || j.Host != ip.String() {
+		if j.Scope != exposure.ScopeOwnIP || j.Host != ip.String() || j.Depth != "" { // a full job is scanFull's, in a Full scan only
 			continue
 		}
 		var tmpls []pack.Template
@@ -169,33 +182,47 @@ func templateRuns(ix *pack.Index, ip netip.Addr, jobs []exposure.TemplateJob) (r
 // runOne is one run, in this order: the gate (obligation 1), the probe rows with the real template ids (obligation 2, LEGAL §3),
 // the job, the results with their CVE (obligation 3), the probe rows completed.
 func (a exposureTemplateScan) runOne(ctx context.Context, actor string, ip netip.Addr, ix *pack.Index, r templateRun) ([]exposure.TemplateResult, error) {
+	res, _, err := a.send(ctx, actor, ip, ix, r)
+	return res, err
+}
+
+// send is runOne with the parsed lines of the run too (a full run reads the matcher names of the technologies templates, D-527).
+func (a exposureTemplateScan) send(ctx context.Context, actor string, ip netip.Addr, ix *pack.Index, r templateRun) ([]exposure.TemplateResult, nucleiout.Outcome, error) {
 	ok, err := a.gate(ctx, actor, ip)
 	switch {
 	case ctx.Err() != nil:
-		return nil, ctx.Err()
+		return nil, nucleiout.Outcome{}, ctx.Err()
 	case err != nil:
-		return nil, fmt.Errorf("vedette: checking that %s may still be scanned: %w", ip, err)
+		return nil, nucleiout.Outcome{}, fmt.Errorf("vedette: checking that %s may still be scanned: %w", ip, err)
 	case !ok:
-		return nil, &exposure.Unavailable{Reason: fmt.Sprintf(templatesNotOwn, ip)}
+		return nil, nucleiout.Outcome{}, &exposure.Unavailable{Reason: fmt.Sprintf(templatesNotOwn, ip)}
+	}
+	rate, depth, what := nucleiargv.OwnIPRate, "", "own IP"
+	if r.full { // FULL-4 (D-527)
+		rate, depth, what = nucleiargv.FullRate, nucleiargv.DepthFull, "own IP, deep scan, testing terms accepted"
+		if r.disruptive {
+			what += ", disruptive checks"
+		}
 	}
 	rows := make([]scan.ExternalProbe, len(r.tmpls))
 	ids := make([]string, len(r.tmpls))
 	for i, tp := range r.tmpls {
 		ids[i] = tp.ID
 		rows[i] = scan.ExternalProbe{ID: store.NewID("tp"), IP: ip.String(), Label: fmt.Sprintf("%s:%d", ip, r.port), Template: tp.ID,
-			Request: fmt.Sprintf("nuclei %s to %s (own IP, at most %d requests a second): %s", tp.ID, r.target.Input(), nucleiargv.OwnIPRate, tp.Request)}
+			Request: fmt.Sprintf("nuclei %s to %s (%s, at most %d requests a second): %s", tp.ID, r.target.Input(), what, rate, tp.Request)}
 	}
 	if err := a.probes(ctx, rows); err != nil {
 		if ctx.Err() != nil {
-			return nil, ctx.Err()
+			return nil, nucleiout.Outcome{}, ctx.Err()
 		}
 		a.log.ErrorContext(ctx, "exposure: writing the probe log of the safe templates failed", "ip", ip.String(), "error", err)
-		return nil, &exposure.Unavailable{Reason: templatesNoLog}
+		return nil, nucleiout.Outcome{}, &exposure.Unavailable{Reason: templatesNoLog}
 	}
 	got, err := a.run(ctx, sensoractive.NucleiRequest{PackVersion: ix.Version, PackSHA256: ix.SHA256, Templates: ids,
-		Targets: []nucleiargv.Target{r.target}, Rate: nucleiargv.OwnIPRate, MaxHostErrors: templatesHostErrors, Scope: nucleiargv.ScopeOwnIP})
+		Targets: []nucleiargv.Target{r.target}, Rate: rate, MaxHostErrors: templatesHostErrors, Scope: nucleiargv.ScopeOwnIP,
+		Depth: depth, Disruptive: r.full && r.disruptive})
 	if err != nil {
-		return nil, templatesErr(ctx, ip, err)
+		return nil, nucleiout.Outcome{}, templatesErr(ctx, ip, err)
 	}
 	res := outcomes(r, got)
 	for i := range rows {
@@ -209,7 +236,7 @@ func (a exposureTemplateScan) runOne(ctx context.Context, actor string, ip netip
 	if err := a.probes(context.WithoutCancel(ctx), rows); err != nil { // the rows stay "sent, no answer": the results still count
 		a.log.WarnContext(ctx, "exposure: completing the probe log of the safe templates failed", "ip", ip.String(), "error", err)
 	}
-	return res, nil
+	return res, got, nil
 }
 
 // outcomes reads a run's parsed lines (nucleiout already kept only the job's templates and target, fail closed) into one result per
@@ -235,7 +262,11 @@ func outcomes(r templateRun, o nucleiout.Outcome) []exposure.TemplateResult {
 		case !seen:
 			continue
 		}
-		out = append(out, exposure.TemplateResult{Port: r.port, Template: tp.ID, CVE: tp.CVE, Outcome: outcome})
+		res := exposure.TemplateResult{Port: r.port, Template: tp.ID, CVE: tp.CVE, Outcome: outcome}
+		if r.full { // D-527: a deep result shows the template's name and severity, from the pack index
+			res.Name, res.Severity = tp.Name, tp.Severity
+		}
+		out = append(out, res)
 	}
 	return out
 }
@@ -247,7 +278,7 @@ func templatesErr(ctx context.Context, ip netip.Addr, err error) error {
 	switch {
 	case ctx.Err() != nil:
 		return ctx.Err()
-	case errors.Is(err, sensoractive.ErrOwnIPUnsupported):
+	case errors.Is(err, sensoractive.ErrOwnIPUnsupported), errors.Is(err, sensoractive.ErrNucleiFullUnsupported): // D-527: a worker without full gets no full job
 		reason = templatesOld
 	case errors.Is(err, sensoractive.ErrNucleiBusy):
 		reason = templatesBusy
@@ -270,11 +301,13 @@ func templatesErr(ctx context.Context, ip netip.Addr, err error) error {
 }
 
 // exposureTemplatesFor builds the scanner for exposureService.
-func exposureTemplatesFor(d deps, gate func(ctx context.Context, actor string, ip netip.Addr) (bool, error)) exposureTemplateScan {
+func exposureTemplatesFor(d deps, gate func(ctx context.Context, actor string, ip netip.Addr) (bool, error),
+	mode func(ctx context.Context, actor, id string) (exposure.ScanMode, error)) exposureTemplateScan {
 	a := exposureTemplateScan{
 		on:   func() bool { return d.Reg == nil || d.Reg.Enabled("sensor-active") },
 		pack: nucleipack.Index,
 		gate: gate,
+		mode: mode,
 		probes: func(ctx context.Context, ps []scan.ExternalProbe) error {
 			return scanService(d).RecordExternalProbes(ctx, ps)
 		},

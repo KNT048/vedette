@@ -261,6 +261,9 @@ func queueRow(rel string, body []byte, reason string) reviewRow {
 		add("ssl")
 	}
 	r.method = strings.Join(methods, ", ")
+	if reason == "" { // kept behind the tick or in the deep set only: the KEV set wants it read
+		reason, _ = queueReason(id, name, rel, doc)
+	}
 	switch reason {
 	case "likely read-only":
 		r.first, r.why = true, "rule (a): read-only GET, no change in the name"
@@ -272,6 +275,16 @@ func queueRow(rel string, body []byte, reason string) reviewRow {
 		}
 	}
 	return r
+}
+
+// kevCandidate says whether a template passes the KEV rule (kevReason): the queue lists only those.
+func kevCandidate(body []byte) bool {
+	var doc map[string]any
+	if yaml.Unmarshal(body, &doc) != nil {
+		return false
+	}
+	info, _ := doc["info"].(map[string]any)
+	return kevReason(doc, body, tagsOf(info), cveOf(info)) == ""
 }
 
 func firstRequestLine(raw string) string {

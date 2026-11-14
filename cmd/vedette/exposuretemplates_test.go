@@ -222,7 +222,7 @@ func TestExposureTemplatesEndToEndWithAFakeWorker(t *testing.T) {
 		}
 	}
 	g := &gateFor{ok: true}
-	got, err := exposureTemplatesFor(*s.d, g.gate).ScanTemplates(t.Context(), exposure.ScanTarget{User: "ops@acme.example"}, ownPublicIP,
+	got, err := exposureTemplatesFor(*s.d, g.gate, nil).ScanTemplates(t.Context(), exposure.ScanTarget{User: "ops@acme.example"}, ownPublicIP,
 		[]exposure.TemplateJob{ownJob("CVE-2018-13379", "CVE-2019-19781")})
 	if err != nil {
 		t.Fatal(err)

@@ -2,12 +2,14 @@ package main
 
 import (
 	"database/sql"
+	"maps"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/knt048/vedette/core/store"
 	agentintake "github.com/knt048/vedette/modules/agent-intake"
+	"github.com/knt048/vedette/modules/feeds"
 	"github.com/knt048/vedette/modules/findings"
 	"github.com/knt048/vedette/modules/inventory"
 )
@@ -144,5 +146,46 @@ func TestDistroKernelFollowsTheRunningKernel(t *testing.T) {
 	install("7.0.0-43-generic", old, updated, meta) // rebooted
 	if f := status()["CVE-2026-53266"]; f.Status != findings.StatusNotRelevant || !strings.Contains(f.ResolutionNote, "fixed CVE-2026-53266 in linux 7.0.0-31.31, and this device has 7.0.0-43.43") {
 		t.Fatalf("after the reboot to 7.0.0-43: %+v", f)
+	}
+}
+
+var _ feeds.DistroLister = feedsInventory{} // D-570: a drifted signature would silently pull every feed again (review M1)
+
+// D-570: the adapter tells feeds which distributions need their files: a device of that OS with a deb package an agent read.
+func TestFeedsInventoryDistros(t *testing.T) {
+	t.Parallel()
+	s := newStack(t)
+	ctx := t.Context()
+	inv := feedsInventory{s.d.Inventory}
+	distros := func() map[string]bool {
+		t.Helper()
+		got, err := inv.Distros(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return got
+	}
+	id, err := s.d.Inventory.EnsureBox(ctx, inventory.BoxInfo{Hostname: "web-01", OS: "Ubuntu 24.04"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	pkg := inventory.SoftwareItem{Display: "OpenSSH", Vendor: "OpenBSD", Product: "OpenSSH", Version: "9.6p1", Confidence: 0.95, Packaged: true, PkgVersion: "1:9.6p1-3ubuntu13.4", PkgSource: "openssh"}
+	if err := s.d.Inventory.UpsertSoftware(ctx, id, []inventory.SoftwareItem{pkg}, "scan"); err != nil {
+		t.Fatal(err)
+	}
+	if got := distros(); len(got) != 0 {
+		t.Fatalf("a package a scan reported: %v", got)
+	}
+	if err := s.d.Inventory.UpsertSoftware(ctx, id, []inventory.SoftwareItem{pkg}, "agent"); err != nil {
+		t.Fatal(err)
+	}
+	if got := distros(); !maps.Equal(got, map[string]bool{"ubuntu": true}) {
+		t.Fatalf("an agent's deb package on Ubuntu: %v", got)
+	}
+	if _, err := s.d.Inventory.EnsureBox(ctx, inventory.BoxInfo{Hostname: "web-01", OS: "Debian GNU/Linux 12 (bookworm)"}); err != nil {
+		t.Fatal(err)
+	}
+	if got := distros(); !maps.Equal(got, map[string]bool{"debian": true}) {
+		t.Fatalf("the same box on Debian: %v", got)
 	}
 }

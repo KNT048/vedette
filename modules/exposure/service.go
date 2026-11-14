@@ -62,6 +62,8 @@ type Service struct {
 
 	gbOnce sync.Once
 	gbs    *gbState // Greenbone's state in memory (INV-25); made by gb()
+
+	bg context.Context // FULL-2 (Trưởng), for Mlee: the service's own context for work the registry's module switch starts (it has none)
 }
 
 // NewService returns the service. DB, Audit, Resolver, Prober and Log are required.
@@ -76,7 +78,7 @@ func NewService(cfg Config) (*Service, error) {
 	if cfg.Location == nil {
 		cfg.Location = time.Local
 	}
-	return &Service{cfg: cfg, now: now, runner: cfg.Runner, lastScan: map[string]time.Time{}}, nil
+	return &Service{cfg: cfg, now: now, runner: cfg.Runner, lastScan: map[string]time.Time{}, bg: context.Background()}, nil
 }
 
 // SetRunner registers the scanner (the scan module does it at start-up). Nil removes it.

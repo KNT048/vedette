@@ -447,11 +447,10 @@ func (s *Service) GreenboneAtStart(ctx context.Context) {
 // cancelled first; the stop runs in the background (the registry's goroutine must not wait). The setting stays enabled, so switching
 // the module on again starts it (GreenboneAtStart).
 // FULL-2 (Trưởng), for Mlee: the simplest truthful answer to the open line of feat-exposure-greenbone-mlee.md (module off).
-func (s *Service) gbModuleOff() {
+func (s *Service) gbModuleOff(ctx context.Context) {
 	if s.cfg.Greenbone == nil {
 		return
 	}
-	ctx := context.Background()
 	on, _, _, err := loadGreenbone(ctx, s.cfg.DB.Reader())
 	if err != nil || !on {
 		return

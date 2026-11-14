@@ -19,7 +19,7 @@ var _ exposure.GreenboneProbeLog = exposureProbeLog{}
 // config and the note that its probes are not logged one by one. It returns only once the row is written; nothing is started when it
 // fails.
 func (l exposureProbeLog) RecordGreenboneProbe(ctx context.Context, p exposure.GreenboneProbe) error {
-	return scanService(l.d).RecordExternalProbes(ctx, []scan.ExternalProbe{{ //nolint:contextcheck // the services are built once; their module-switch callbacks have no context of their own
+	return scanService(l.d).RecordExternalProbes(ctx, []scan.ExternalProbe{{
 		ID: p.ID, IP: p.IP, Label: p.IP, Template: "exposure: OpenVAS (Greenbone CE), config " + p.Config,
 		Request: fmt.Sprintf("planned: OpenVAS scan of %s, port list %s. %s", p.IP, p.PortList, p.Note),
 	}})

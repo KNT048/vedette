@@ -648,7 +648,7 @@ func (p privacyFacts) GreenboneEnabled(ctx context.Context) bool {
 	if p.d == nil || p.d.DB == nil {
 		return false
 	}
-	return exposureService(*p.d).GreenboneEnabled(ctx) //nolint:contextcheck // exposureService is built once; its module-switch callback has no context of its own
+	return exposureService(*p.d).GreenboneEnabled(ctx)
 }
 
 // WazuhConnected: flow 14 is on while agent-intake has a Wazuh server saved (D-309); the caller checks that the module is on. A store

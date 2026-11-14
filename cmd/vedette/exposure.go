@@ -107,7 +107,7 @@ func exposureService(d deps) *exposure.Service {
 // (exposure's ModuleSwitched).
 func exposureAtStart(ctx context.Context, d deps) {
 	if d.Reg == nil || d.Reg.Enabled(exposure.ModuleID) {
-		exposureService(d).GreenboneAtStart(ctx) //nolint:contextcheck // exposureService is built once; its module-switch callback has no context of its own
+		exposureService(d).GreenboneAtStart(ctx)
 	}
 }
 

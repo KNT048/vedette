@@ -14,6 +14,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"testing/synctest"
 	"time"
 )
 
@@ -198,23 +199,43 @@ func TestCacheNeverExcusesTheToken(t *testing.T) {
 	}
 }
 
+// The send of a tick returns when Watch takes it, before its re-check has read DNS: synctest.Wait lets that re-check finish before the
+// TXT is deleted (otherwise the first re-check could see it gone, stop, and leave the second tick with no reader: the CI hang of PR
+// #798). In the bubble a watch that never reads a tick again is a deadlock synctest reports at once, not a hang.
 func TestWatchStopsTheToolWhenTheTXTGoes(t *testing.T) {
 	t.Parallel()
-	d := world()
-	f := newFence(t, d, nil)
-	ticks := make(chan time.Time)
-	stopped := make(chan struct{})
-	got := make(chan Outcome, 1)
-	go func() { got <- f.Watch(t.Context(), job(), ticks, func() { close(stopped) }) }()
-	ticks <- time.Time{} // still owned: the watch goes on
-	d.mu.Lock()
-	delete(d.txt, "acme.example")
-	d.mu.Unlock()
-	ticks <- time.Time{}
-	<-stopped
-	if o := <-got; o.Reason != NotOwned {
-		t.Fatalf("watch ended with %+v, want target_not_owned", o)
-	}
+	synctest.Test(t, func(t *testing.T) {
+		d := world()
+		f := newFence(t, d, nil)
+		ticks := make(chan time.Time)
+		stopped := make(chan struct{})
+		got := make(chan Outcome, 1)
+		go func() { got <- f.Watch(t.Context(), job(), ticks, func() { close(stopped) }) }()
+		isStopped := func() bool {
+			select {
+			case <-stopped:
+				return true
+			default:
+				return false
+			}
+		}
+		ticks <- time.Time{}
+		synctest.Wait() // the re-check is done and the watch waits for the next tick
+		if isStopped() {
+			t.Fatalf("the watch stopped the tool while the domain was still owned: %+v", <-got)
+		}
+		d.mu.Lock()
+		delete(d.txt, "acme.example")
+		d.mu.Unlock()
+		ticks <- time.Time{}
+		synctest.Wait()
+		if !isStopped() {
+			t.Fatal("the TXT record is gone and the watch did not stop the tool")
+		}
+		if o := <-got; o.Reason != NotOwned {
+			t.Fatalf("watch ended with %+v, want target_not_owned", o)
+		}
+	})
 }
 
 func TestWatchEndsQuietlyWithItsContext(t *testing.T) {

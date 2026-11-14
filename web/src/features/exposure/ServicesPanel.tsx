@@ -38,7 +38,7 @@ export function VulnSection({ s }: { s: Snapshot }) {
   const why = s.not_checked.find((n) => n.kind === 'services' || n.kind === 'cve')
   return (
     <Section id="vulns" title={t('vulns.title')} description={t('vulns.description')}>
-      {s.services.length === 0 ? (
+      {s.services.length === 0 && s.vulns.length === 0 ? (
         <EmptyState title={t('vulns.noneIdentifiedTitle')}>{why?.text ?? t('vulns.noneIdentifiedBody')}</EmptyState>
       ) : (
         <div className="grid gap-4">
@@ -54,7 +54,7 @@ export function VulnSection({ s }: { s: Snapshot }) {
               {s.version_gaps.map((g) => <li key={`${g.ip}:${g.port}`}>{t('vulns.gap', { count: g.cves.length, software: g.software, port: g.port, cves: g.cves.join(', ') })}</li>)}
             </ul>
           ) : null}
-          <DataTable caption={t('vulns.servicesCaption')} data={s.services} columns={serviceCols} pageSize={20} empty={t('vulns.noneIdentifiedBody')} />
+          {s.services.length > 0 ? <DataTable caption={t('vulns.servicesCaption')} data={s.services} columns={serviceCols} pageSize={20} empty={t('vulns.noneIdentifiedBody')} /> : null}
         </div>
       )}
     </Section>

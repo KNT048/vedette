@@ -458,6 +458,7 @@
       "version": "Version in range",
       "product": "Product only",
       "template": "Confirmed by template {{id}}",
+      "js_library": "JavaScript library version, seen by ZAP",
       "backport": "Version in range, but {{distro}} may have backported the fix"
     },
     "countBackport_one": "{{count}} maybe patched",
@@ -465,8 +466,13 @@
   },
   "web": {
     "title": "Web findings (passive)",
-    "description": "ZAP looked at the pages without sending forms; these are things it noticed. They are hints from reading the pages and the server's answers, not known exploited vulnerabilities, so they are not counted with the exploited CVEs above.",
+    "description": "ZAP looked at the pages without sending forms; these are things it noticed. They are hints from reading the pages and the server's answers, not known exploited vulnerabilities. When ZAP reads a version that has an exploited CVE (a JavaScript library, a Server or X-Powered-By header), that CVE is listed with the exploited CVEs.",
     "caption": "What ZAP noticed on the web pages",
+    "group": {
+      "fix": { "title": "Fix this", "description": "Things to change: a vulnerable JavaScript library, a server that gives away its version, an error page that shows internals, a password sent without encryption.", "caption": "Web findings to fix" },
+      "hardening": { "title": "Hardening", "description": "Worth doing, but not a hole by themselves: missing security headers, cookie flags, cross-site settings.", "caption": "Web hardening suggestions" }
+    },
+    "software": "{{product}} {{version}}",
     "noneTitle": "ZAP noticed nothing on the pages it looked at",
     "noneBody": "That does not prove the pages are safe: ZAP only reads what the server sends, and sends no forms.",
     "notScannedTitle": "No page was scanned",

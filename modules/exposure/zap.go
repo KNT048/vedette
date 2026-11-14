@@ -112,6 +112,9 @@ type WebFindingRow struct {
 	Solution    string   `json:"solution"`
 	URLs        []string `json:"urls"`
 	Count       int      `json:"count"`
+	// D-565 (zaprules.go): Group is "fix" or "hardening" by content/zap/vedette-baseline.conf; Software the versions ZAP read.
+	Group    string        `json:"group"`
+	Software []WebSoftware `json:"software"`
 }
 
 var (
@@ -455,7 +458,7 @@ func (s *Service) webPassive(ctx context.Context, st ScanTarget, c Content) (Con
 		slow := wctx.Err() != nil
 		cancel()
 		if err == nil {
-			rows, perr := ParseZAPReport(res.Report, page.URL)
+			rows, perr := parseZAPWithRules(res.Report, page.URL) // D-565: the rule list applied
 			switch {
 			case perr == nil:
 				c.WebFindings = append(c.WebFindings, rows...)

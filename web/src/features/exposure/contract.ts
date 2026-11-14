@@ -62,10 +62,10 @@ export const ServiceRow = z.object({
 })
 export const CheckRow = z.object({ kind: z.string().describe('ports, names, services, templates, cve or web'), text: z.string(), at: z.iso.datetime() })
 export const NotCheckedRow = z.object({ kind: z.string().describe('udp, ports, non_exploited, services, templates, cve or web'), text: z.string() })
-export const VulnBasis = z.enum(['version', 'product', 'template'])
+export const VulnBasis = z.enum(['version', 'product', 'template', 'js_library'])
 export const VulnRow = z.object({
   ip: z.string(), port: z.number().int(), cve: z.string(), name: z.string(),
-  basis: VulnBasis.describe('version: the version is inside an NVD range; product: only the product matches; template: a safe template matched (INV-23), the strongest evidence'),
+  basis: VulnBasis.describe('version: the version is inside an NVD range (from nmap, or from a Server or X-Powered-By header ZAP read, D-565); product: only the product matches; template: a safe template matched (INV-23), the strongest evidence; js_library: Retire.js names this CVE for a JavaScript library version ZAP saw on a page (D-565)'),
   summary: z.string(), date_added: isoDate.nullable().describe('When CISA listed it as exploited'), ransomware: z.boolean(),
   backport: z.string().describe('The distribution the service names (Debian, Ubuntu…), which may have backported the fix without changing the version; "" when none'),
   template: z.string().describe('Id of the safe template that ran for this CVE; "" when none ran'),
@@ -79,11 +79,18 @@ export const GapRow = z.object({ ip: z.string(), port: z.number().int(), softwar
 
 // S-EXP-2 (INV-24, D-562): what ZAP's passive web scan (spider and passive rules, no form sent) noticed on a scanned page. Not exploited CVEs.
 export const WebRisk = z.enum(['high', 'medium', 'low', 'info'])
+export const WebSoftware = z.object({
+  product: z.string(), version: z.string(),
+  cves: z.array(z.string()).describe('The CVEs Retire.js lists for that library version; [] for a header'),
+  distro: z.string().describe('The distribution a header names (it may backport fixes); "" when none'),
+})
 export const WebFinding = z.object({
   site: z.string().describe('The page ZAP scanned, e.g. https://203.0.113.10:18443/'), plugin_id: z.string(),
   name: z.string().describe('ZAP\'s alert name; plain text'), risk: WebRisk, confidence: z.enum(['low', 'medium', 'high', 'confirmed']),
   cwe: z.number().int().describe('CWE number, 0 when ZAP names none'), description: z.string().describe('Plain text, clipped'), solution: z.string().describe('ZAP\'s advice, plain text, clipped'),
   urls: z.array(z.string()).describe('At most 3 sample pages of the site that showed it'), count: z.number().int().describe('How many pages showed it'),
+  group: z.enum(['fix', 'hardening']).describe('D-565, content/zap/vedette-baseline.conf: fix = a FAIL rule, shown first as "Fix this"; hardening = a WARN rule or one the list does not name'),
+  software: z.array(WebSoftware).describe('D-565: versions ZAP read (10003 JavaScript library, 10036 Server header, 10037 X-Powered-By); [] for other rules'),
 })
 
 export const Snapshot = z.object({

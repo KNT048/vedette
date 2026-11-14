@@ -1,0 +1,3 @@
+# Deferred: feat/exposure-zap-rules-mlee (D-565, tool-tuning Z1 Mlee half)
+
+- [ ] 2026-11-14 — host/ops/zap.go: write the embedded `content/zap/vedette-baseline.conf` (package `zapdata`, `zapdata.Baseline`) read-only into the ZAP workdir and add `-c vedette-baseline.conf` to the zap-baseline.py argv; plus Z2 `-config pscans.maxAlertsPerRule=10` in `-z` and Z3 `--autooff` (tool-tuning plan §3) — vì sao để sau: host/ is Kiên-side (Trưởng owns the ZAP argv, PR #757) — ở đâu: host/ops/zap.go, host/ops/zap_test.go; measure the web row count and JSON size with and without `-c` on the N100 (plan Z1 "Measure")

@@ -1180,22 +1180,32 @@ describe('exposure: services and exploited vulnerabilities of the box IP (S-EXP-
     expect(within(none).queryByText(/not vulnerable/i)).toBeNull()
   })
 
-  it('INV-24: passive web findings sit apart from the exploited CVEs, riskiest first, with the CWE link, three sample pages and the advice; axe clean', async () => {
+  it('INV-24, D-565: passive web findings in two groups, "Fix this" first then "Hardening", riskiest first, with the CWE link, three sample pages and the advice; axe clean', async () => {
     renderApp('/exposure/xt-2')
     const section = await screen.findByRole('region', { name: 'Web findings (passive)' })
     expect(within(section).getByText(/ZAP looked at the pages without sending forms; these are things it noticed\./)).toBeInTheDocument()
-    const table = within(section).getByRole('table', { name: 'What ZAP noticed on the web pages' })
-    const rows = within(table).getAllByRole('row').slice(1)
+    const groups = within(section).getAllByRole('heading', { level: 3 }).map((h) => h.textContent)
+    expect(groups).toEqual(['Fix this', 'Hardening'])
+    const fix = within(section).getByRole('table', { name: 'Web findings to fix' })
+    const fixRows = within(fix).getAllByRole('row').slice(1)
+    expect(within(fixRows[0]!).getByText('Vulnerable JS Library')).toBeInTheDocument()
+    expect(within(fixRows[0]!).getByText('jquery 3.4.1 · CVE-2020-11022, CVE-2020-11023')).toBeInTheDocument()
+    expect(within(fix).queryByText(/Content Security Policy/)).toBeNull()
+    const hardening = within(section).getByRole('table', { name: 'Web hardening suggestions' })
+    const rows = within(hardening).getAllByRole('row').slice(1)
     expect(within(rows[0]!).getByText('Medium')).toBeInTheDocument()
-    expect(within(rows[rows.length - 1]!).getByText('Info')).toBeInTheDocument()
-    const csp = within(table).getAllByRole('row', { name: /Content Security Policy/ })[0]!
+    expect(within(rows[rows.length - 1]!).getByText('Low')).toBeInTheDocument()
+    expect(within(section).queryByText('Modern Web Application')).toBeNull()
+    const csp = within(hardening).getAllByRole('row', { name: /Content Security Policy/ })[0]!
     expect(within(csp).getByRole('link', { name: 'CWE-693 (opens the MITRE page in a new tab)' })).toHaveAttribute('href', 'https://cwe.mitre.org/data/definitions/693.html')
     expect(within(csp).getAllByText(/^https:\/\/203\.0\.113\.10/)).toHaveLength(3)
-    expect(within(csp).getByText('5 pages in all')).toBeInTheDocument()
     expect(within(csp).getByText(/configured to set the Content-Security-Policy header/)).toBeInTheDocument()
-    // not mixed into the exploited CVE table
+    // the alerts are not mixed into the exploited CVE table; an exploited CVE of a library version ZAP read is, with its own basis
     const vulns = screen.getByRole('table', { name: 'Exploited vulnerabilities that match the services on this IP' })
     expect(within(vulns).queryByText(/Content Security Policy/)).toBeNull()
+    const js = within(vulns).getByRole('row', { name: /CVE-2020-11023/ })
+    expect(within(js).getByText('JavaScript library version, seen by ZAP')).toBeInTheDocument()
+    expect(within(vulns).queryByRole('row', { name: /CVE-2020-11022/ })).toBeNull()
     expect(within(screen.getByRole('list', { name: 'Checked' })).getByText(/Passive web scan \(ZAP baseline: spider and passive rules, no form sent\) of 2 pages/)).toBeInTheDocument()
     await expectNoA11yViolations()
   })

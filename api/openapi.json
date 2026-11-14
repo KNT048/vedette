@@ -24340,6 +24340,47 @@
                             "minimum": -9007199254740991,
                             "maximum": 9007199254740991,
                             "description": "How many pages showed it"
+                          },
+                          "group": {
+                            "type": "string",
+                            "enum": [
+                              "fix",
+                              "hardening"
+                            ],
+                            "description": "D-565, content/zap/vedette-baseline.conf: fix = a FAIL rule, shown first as \"Fix this\"; hardening = a WARN rule or one the list does not name"
+                          },
+                          "software": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "product": {
+                                  "type": "string"
+                                },
+                                "version": {
+                                  "type": "string"
+                                },
+                                "cves": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  },
+                                  "description": "The CVEs Retire.js lists for that library version; [] for a header"
+                                },
+                                "distro": {
+                                  "type": "string",
+                                  "description": "The distribution a header names (it may backport fixes); \"\" when none"
+                                }
+                              },
+                              "required": [
+                                "product",
+                                "version",
+                                "cves",
+                                "distro"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "description": "D-565: versions ZAP read (10003 JavaScript library, 10036 Server header, 10037 X-Powered-By); [] for other rules"
                           }
                         },
                         "required": [
@@ -24352,7 +24393,9 @@
                           "description",
                           "solution",
                           "urls",
-                          "count"
+                          "count",
+                          "group",
+                          "software"
                         ],
                         "additionalProperties": false
                       }
@@ -24381,9 +24424,10 @@
                             "enum": [
                               "version",
                               "product",
-                              "template"
+                              "template",
+                              "js_library"
                             ],
-                            "description": "version: the version is inside an NVD range; product: only the product matches; template: a safe template matched (INV-23), the strongest evidence"
+                            "description": "version: the version is inside an NVD range (from nmap, or from a Server or X-Powered-By header ZAP read, D-565); product: only the product matches; template: a safe template matched (INV-23), the strongest evidence; js_library: Retire.js names this CVE for a JavaScript library version ZAP saw on a page (D-565)"
                           },
                           "summary": {
                             "type": "string"

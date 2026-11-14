@@ -45065,8 +45065,10 @@ type ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItem struct {
 	// The distribution the service names (Debian, Ubuntu…), which may have backported the fix without
 	// changing the version; "" when none.
 	Backport string `json:"backport"`
-	// Version: the version is inside an NVD range; product: only the product matches; template: a safe
-	// template matched (INV-23), the strongest evidence.
+	// Version: the version is inside an NVD range (from nmap, or from a Server or X-Powered-By header ZAP
+	// read, D-565); product: only the product matches; template: a safe template matched (INV-23), the
+	// strongest evidence; js_library: Retire.js names this CVE for a JavaScript library version ZAP saw on
+	// a page (D-565).
 	Basis ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasis `json:"basis"`
 	Cve   string                                                    `json:"cve"`
 	// When CISA listed it as exploited.
@@ -45193,14 +45195,17 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItem) SetTemplateResult
 	s.TemplateResult = val
 }
 
-// Version: the version is inside an NVD range; product: only the product matches; template: a safe
-// template matched (INV-23), the strongest evidence.
+// Version: the version is inside an NVD range (from nmap, or from a Server or X-Powered-By header ZAP
+// read, D-565); product: only the product matches; template: a safe template matched (INV-23), the
+// strongest evidence; js_library: Retire.js names this CVE for a JavaScript library version ZAP saw on
+// a page (D-565).
 type ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasis string
 
 const (
-	ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasisVersion  ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasis = "version"
-	ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasisProduct  ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasis = "product"
-	ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasisTemplate ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasis = "template"
+	ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasisVersion   ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasis = "version"
+	ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasisProduct   ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasis = "product"
+	ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasisTemplate  ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasis = "template"
+	ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasisJsLibrary ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasis = "js_library"
 )
 
 // AllValues returns all ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasis values.
@@ -45209,6 +45214,7 @@ func (ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasis) AllValues() []E
 		ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasisVersion,
 		ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasisProduct,
 		ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasisTemplate,
+		ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasisJsLibrary,
 	}
 }
 
@@ -45220,6 +45226,8 @@ func (s ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasis) MarshalText()
 	case ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasisProduct:
 		return []byte(s), nil
 	case ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasisTemplate:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasisJsLibrary:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -45237,6 +45245,9 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasis) UnmarshalTex
 		return nil
 	case ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasisTemplate:
 		*s = ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasisTemplate
+		return nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasisJsLibrary:
+		*s = ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasisJsLibrary
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -45308,12 +45319,18 @@ type ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItem struct {
 	Cwe int `json:"cwe"`
 	// Plain text, clipped.
 	Description string `json:"description"`
+	// D-565, content/zap/vedette-baseline.conf: fix = a FAIL rule, shown first as "Fix this"; hardening =
+	// a WARN rule or one the list does not name.
+	Group ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemGroup `json:"group"`
 	// ZAP's alert name; plain text.
 	Name     string                                                         `json:"name"`
 	PluginID string                                                         `json:"plugin_id"`
 	Risk     ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemRisk `json:"risk"`
 	// The page ZAP scanned, e.g. https://203.0.113.10:18443/.
 	Site string `json:"site"`
+	// D-565: versions ZAP read (10003 JavaScript library, 10036 Server header, 10037 X-Powered-By); [] for
+	// other rules.
+	Software []ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemSoftwareItem `json:"software"`
 	// ZAP's advice, plain text, clipped.
 	Solution string `json:"solution"`
 	// At most 3 sample pages of the site that showed it.
@@ -45340,6 +45357,11 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItem) GetDescript
 	return s.Description
 }
 
+// GetGroup returns the value of Group.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItem) GetGroup() ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemGroup {
+	return s.Group
+}
+
 // GetName returns the value of Name.
 func (s *ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItem) GetName() string {
 	return s.Name
@@ -45358,6 +45380,11 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItem) GetRisk() E
 // GetSite returns the value of Site.
 func (s *ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItem) GetSite() string {
 	return s.Site
+}
+
+// GetSoftware returns the value of Software.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItem) GetSoftware() []ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemSoftwareItem {
+	return s.Software
 }
 
 // GetSolution returns the value of Solution.
@@ -45390,6 +45417,11 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItem) SetDescript
 	s.Description = val
 }
 
+// SetGroup sets the value of Group.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItem) SetGroup(val ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemGroup) {
+	s.Group = val
+}
+
 // SetName sets the value of Name.
 func (s *ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItem) SetName(val string) {
 	s.Name = val
@@ -45408,6 +45440,11 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItem) SetRisk(val
 // SetSite sets the value of Site.
 func (s *ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItem) SetSite(val string) {
 	s.Site = val
+}
+
+// SetSoftware sets the value of Software.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItem) SetSoftware(val []ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemSoftwareItem) {
+	s.Software = val
 }
 
 // SetSolution sets the value of Solution.
@@ -45475,6 +45512,49 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemConfidence) U
 	}
 }
 
+// D-565, content/zap/vedette-baseline.conf: fix = a FAIL rule, shown first as "Fix this"; hardening =
+// a WARN rule or one the list does not name.
+type ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemGroup string
+
+const (
+	ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemGroupFix       ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemGroup = "fix"
+	ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemGroupHardening ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemGroup = "hardening"
+)
+
+// AllValues returns all ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemGroup values.
+func (ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemGroup) AllValues() []ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemGroup {
+	return []ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemGroup{
+		ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemGroupFix,
+		ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemGroupHardening,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemGroup) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemGroupFix:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemGroupHardening:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemGroup) UnmarshalText(data []byte) error {
+	switch ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemGroup(data) {
+	case ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemGroupFix:
+		*s = ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemGroupFix
+		return nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemGroupHardening:
+		*s = ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemGroupHardening
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemRisk string
 
 const (
@@ -45528,6 +45608,55 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemRisk) Unmarsh
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
+}
+
+type ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemSoftwareItem struct {
+	// The CVEs Retire.js lists for that library version; [] for a header.
+	Cves []string `json:"cves"`
+	// The distribution a header names (it may backport fixes); "" when none.
+	Distro  string `json:"distro"`
+	Product string `json:"product"`
+	Version string `json:"version"`
+}
+
+// GetCves returns the value of Cves.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemSoftwareItem) GetCves() []string {
+	return s.Cves
+}
+
+// GetDistro returns the value of Distro.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemSoftwareItem) GetDistro() string {
+	return s.Distro
+}
+
+// GetProduct returns the value of Product.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemSoftwareItem) GetProduct() string {
+	return s.Product
+}
+
+// GetVersion returns the value of Version.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemSoftwareItem) GetVersion() string {
+	return s.Version
+}
+
+// SetCves sets the value of Cves.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemSoftwareItem) SetCves(val []string) {
+	s.Cves = val
+}
+
+// SetDistro sets the value of Distro.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemSoftwareItem) SetDistro(val string) {
+	s.Distro = val
+}
+
+// SetProduct sets the value of Product.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemSoftwareItem) SetProduct(val string) {
+	s.Product = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemSoftwareItem) SetVersion(val string) {
+	s.Version = val
 }
 
 type ExposureGetExposureTargetsIDSnapshotsOK struct {

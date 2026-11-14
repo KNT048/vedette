@@ -357,4 +357,9 @@ echo "$inv" | awk '{print $1}' | sort | uniq -c | sed 's/^/    inventory: /'
 if echo "$inv" | grep -E '^pip ' | grep -iE 'GPL|GNU General'; then fail "a GPL Python package is in the image (see above)"; fi
 if echo "$inv" | grep -qi '^pip hpfeeds'; then fail "hpfeeds is in the image, not the stub"; fi
 ok "no GPL Python package in the image (hpfeeds is the stub)"
+# D-594: the pinned Debian security update over the base (the honeypot keeps only the copyright file of each package's docs, so no dpkg --verify)
+# shellcheck disable=SC2016 # dpkg-query's own format
+zl=$($c run --rm --entrypoint dpkg-query "$img" -W -f '${Version}' zlib1g)
+[ "$zl" = "$ZLIB1G_VERSION" ] || fail "zlib1g is '$zl', pinned $ZLIB1G_VERSION (security-deb.sh)"
+ok "zlib1g $zl (pins.env ZLIB1G_VERSION)"
 echo "honeypot-check: all checks passed"

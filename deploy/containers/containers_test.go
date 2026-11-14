@@ -79,6 +79,18 @@ func TestPinsAreExact(t *testing.T) {
 	if !regexp.MustCompile(`^[0-9]+\.[0-9]+$`).MatchString(p["NMAP_MIN_VERSION"]) {
 		t.Errorf("NMAP_MIN_VERSION=%q is the floor, major.minor, of the nmap the box installs", p["NMAP_MIN_VERSION"])
 	}
+	// D-594: a Debian security update laid over the base: an exact Debian version, a debian-security snapshot time, a hash per architecture
+	if !regexp.MustCompile(`^[0-9]+:[A-Za-z0-9.+~-]+$`).MatchString(p["ZLIB1G_VERSION"]) {
+		t.Errorf("ZLIB1G_VERSION=%q must be the exact Debian version, epoch included", p["ZLIB1G_VERSION"])
+	}
+	if !regexp.MustCompile(`^[0-9]{8}T[0-9]{6}Z$`).MatchString(p["ZLIB1G_SNAPSHOT"]) {
+		t.Errorf("ZLIB1G_SNAPSHOT=%q must be a snapshot.debian.org timestamp (yyyymmddThhmmssZ)", p["ZLIB1G_SNAPSHOT"])
+	}
+	for _, k := range []string{"ZLIB1G_SHA256_AMD64", "ZLIB1G_SHA256_ARM64"} {
+		if !sha256RE.MatchString(p[k]) {
+			t.Errorf("%s=%q must be a lower-case SHA-256", k, p[k])
+		}
+	}
 	if _, has := p["NMAP_VERSION"]; has {
 		t.Error("nmap is not pinned to an exact version (D-146 (11)): security fixes must flow in")
 	}
@@ -623,5 +635,41 @@ func TestDevComposePassesEveryBuildArg(t *testing.T) {
 				t.Errorf("%s: ARG %s is not in deploy/compose/compose.yaml x-build-args", f, m[1])
 			}
 		}
+	}
+}
+
+// D-594: the two published images on DEBIAN_IMAGE (scan-base, honeypot) lay the pinned zlib1g security update over the base, on the
+// build machine (security-deb.sh checks the hash and writes the dpkg status), with every pin of pins.env passed by make, and scan-base's
+// final stage copies the result; the build context lets the script in.
+func TestDebianImagesTakeThePinnedSecurityUpdate(t *testing.T) {
+	t.Parallel()
+	call := `sh /usr/local/bin/security-deb.sh zlib1g zlib "${ZLIB1G_VERSION}" "${ZLIB1G_SNAPSHOT}" "$z" "${TARGETARCH}" /target/status `
+	for _, f := range []string{"scan-base/Containerfile", "honeypot/Containerfile"} {
+		text := read(t, f)
+		for _, want := range []string{
+			"ARG ZLIB1G_VERSION\n", "ARG ZLIB1G_SNAPSHOT\n", "ARG ZLIB1G_SHA256_AMD64\n", "ARG ZLIB1G_SHA256_ARM64\n",
+			`amd64) z="${ZLIB1G_SHA256_AMD64}" ;; arm64) z="${ZLIB1G_SHA256_ARM64}" ;;`, call,
+			"COPY deploy/containers/security-deb.sh /usr/local/bin/security-deb.sh\n", "COPY --from=base /var/lib/dpkg/status /target/status\n",
+		} {
+			if !strings.Contains(text, want) {
+				t.Errorf("%s: missing %q", f, want)
+			}
+		}
+	}
+	stages := stagesOf(read(t, "scan-base/Containerfile"))
+	if final := stages[len(stages)-1]; final.from != "FROM base" || !strings.Contains(final.body, "COPY --from=security /overlay/ /\n") {
+		t.Errorf("scan-base: the final stage must be FROM base and copy the security overlay, got %q", final.from)
+	}
+	if !strings.Contains(read(t, "honeypot/Containerfile"), call+"/rootfs; \\\n    cp /rootfs/var/lib/dpkg/status /target/status; \\\n") {
+		t.Error("honeypot: the updated status must become the target status before apt and assemble.py")
+	}
+	mk := read(t, "../../Makefile")
+	for _, k := range []string{"ZLIB1G_VERSION", "ZLIB1G_SNAPSHOT", "ZLIB1G_SHA256_AMD64", "ZLIB1G_SHA256_ARM64"} {
+		if !regexp.MustCompile(`(?m)^PIN_ARGS := .* ` + k + `[ ,]`).MatchString(mk) {
+			t.Errorf("Makefile PIN_ARGS does not pass %s", k)
+		}
+	}
+	if !strings.Contains(read(t, "../../.dockerignore"), "\n!deploy/containers/security-deb.sh\n") {
+		t.Error(".dockerignore must let deploy/containers/security-deb.sh into the build context")
 	}
 }

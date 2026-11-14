@@ -72,7 +72,7 @@ export const VulnRow = z.object({
   template_result: z.enum(['', 'matched', 'no_match', 'error']).describe('What that template did: matched (basis becomes template), no_match (one check, never "not vulnerable") or error; "" when none ran'),
 })
 export const TemplateRow = z.object({
-  ip: z.string(), port: z.number().int(), cve: z.string().describe('The CVE the template is for; "" for a template chosen by product tag'),
+  ip: z.string(), port: z.number().int(), cve: z.string().describe('The CVE the template is for (one the job asked about)'),
   template: z.string(), outcome: z.enum(['matched', 'no_match', 'error']),
 })
 export const GapRow = z.object({ ip: z.string(), port: z.number().int(), software: z.string(), cves: z.array(z.string()).describe('Exploited CVEs of the product that only a version would decide') })

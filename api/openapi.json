@@ -23887,7 +23887,7 @@
                           },
                           "cve": {
                             "type": "string",
-                            "description": "The CVE the template is for; \"\" for a template chosen by product tag"
+                            "description": "The CVE the template is for (one the job asked about)"
                           },
                           "template": {
                             "type": "string"

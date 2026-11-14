@@ -64,7 +64,7 @@ type (
 		Scope  string   `json:"scope"`
 		RPS    int      `json:"rps"`
 	}
-	// TemplateResult is what one template did on one port. CVE is the CVE the template is for, "" for a template chosen by tag.
+	// TemplateResult is what one template did on one port. CVE is the CVE the template is for (always one the job asked about).
 	// It came from the scan container, so it is untrusted: sanitizeTemplateResults limits it.
 	TemplateResult struct {
 		Port     int
@@ -162,6 +162,11 @@ func (s *Service) runTemplates(ctx context.Context, st ScanTarget, ip netip.Addr
 		if ctx.Err() != nil {
 			return c, ctx.Err()
 		}
+		if gerr != nil {
+			s.cfg.Log.ErrorContext(ctx, "exposure: the gate before the template step failed", "target", st.Value, "error", gerr)
+		} else {
+			s.cfg.Log.InfoContext(ctx, "exposure: the template step was refused by the gate", "target", st.Value, "reason", string(reason))
+		}
 		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "templates", Text: notTemplatesGate})
 		return c, nil
 	}
@@ -183,9 +188,9 @@ func (s *Service) runTemplates(ctx context.Context, st ScanTarget, ip netip.Addr
 	var un *Unavailable
 	switch {
 	case err == nil:
-		rows := sanitizeTemplateResults(res.Results, jobs)
+		rows, notKept := sanitizeTemplateResults(res.Results, jobs)
 		c.Templates = templateRows(c.Services, ip, rows)
-		c.Checks = append(c.Checks, CheckRow{Kind: "templates", At: store.FormatTS(s.clock()), Text: templatesLine(jobs, rows, sentIDs(res.Sent))})
+		c.Checks = append(c.Checks, CheckRow{Kind: "templates", At: store.FormatTS(s.clock()), Text: templatesLine(jobs, rows, sentIDs(res.Sent), notKept)})
 	case ctx.Err() != nil:
 		return c, err
 	case errors.As(err, &un):
@@ -274,7 +279,7 @@ func probesOf(ip netip.Addr, jobs []TemplateJob) []TemplateProbe {
 	var out []TemplateProbe
 	add := func(port int, name string) {
 		out = append(out, TemplateProbe{ID: store.NewID("tp"), IP: ip.String(), Label: fmt.Sprintf("%s:%d", ip, port), Template: "exposure: template " + name,
-			Request: fmt.Sprintf("safe template %s on %s:%d (own IP, at most %d requests a second)", name, ip, port, TemplateRPS)})
+			Request: fmt.Sprintf("planned: asked the scanner to check %s with its safe template, if it has one, on %s:%d (own IP, at most %d requests a second)", name, ip, port, TemplateRPS)})
 	}
 	for _, j := range jobs {
 		for _, c := range j.CVEs {
@@ -286,7 +291,7 @@ func probesOf(ip netip.Addr, jobs []TemplateJob) []TemplateProbe {
 
 // sanitizeTemplateResults keeps the results that belong to a job (its port, and its CVE when it names one), with ids and outcomes of
 // the right shape, at most maxTemplateRows per port; others are dropped (the answer came from the scan container: untrusted).
-func sanitizeTemplateResults(in []TemplateResult, jobs []TemplateJob) []TemplateResult {
+func sanitizeTemplateResults(in []TemplateResult, jobs []TemplateJob) (out []TemplateResult, notKept int) {
 	cves := map[int]map[string]bool{}
 	for _, j := range jobs {
 		if cves[j.Port] == nil {
@@ -296,15 +301,17 @@ func sanitizeTemplateResults(in []TemplateResult, jobs []TemplateJob) []Template
 			cves[j.Port][c] = true
 		}
 	}
-	var out []TemplateResult
 	n := map[int]int{}
 	seen := map[string]bool{}
 	in = matchedFirst(in, func(r TemplateResult) string { return r.Outcome })
 	for _, r := range in {
 		ok := cves[r.Port] != nil && templateID.MatchString(r.Template) && n[r.Port] < maxTemplateRows &&
-			(r.CVE == "" || cves[r.Port][r.CVE]) && (r.CVE == "" || cveID.MatchString(r.CVE)) &&
+			cves[r.Port][r.CVE] && cveID.MatchString(r.CVE) &&
 			(r.Outcome == OutcomeMatched || r.Outcome == OutcomeNoMatch || r.Outcome == OutcomeError)
 		key := fmt.Sprintf("%d|%s", r.Port, r.Template)
+		if cves[r.Port][r.CVE] && cveID.MatchString(r.CVE) && templateID.MatchString(r.Template) && n[r.Port] >= maxTemplateRows && !seen[key] {
+			notKept++ // well-formed, but over the per-service limit
+		}
 		if !ok || seen[key] {
 			continue
 		}
@@ -312,7 +319,7 @@ func sanitizeTemplateResults(in []TemplateResult, jobs []TemplateJob) []Template
 		n[r.Port]++
 		out = append(out, r)
 	}
-	return out
+	return out, notKept
 }
 
 // templateRows turns the results into the rows a snapshot keeps, for the services identified on ip.
@@ -332,7 +339,7 @@ func templateRows(services []ServiceRow, ip netip.Addr, rs []TemplateResult) []T
 
 // templatesLine is the "what was checked" line: how many templates were sent on how many ports, with their outcomes and the ids the
 // scanner says it sent (INV-19, INV-23).
-func templatesLine(jobs []TemplateJob, rs []TemplateResult, sent []string) string {
+func templatesLine(jobs []TemplateJob, rs []TemplateResult, sent []string, notKept int) string {
 	ports := map[int]bool{}
 	asked := 0
 	for _, j := range jobs {
@@ -359,8 +366,11 @@ func templatesLine(jobs []TemplateJob, rs []TemplateResult, sent []string) strin
 		return fmt.Sprintf("%s: the scanner reported no result for the %s asked about on %s.", head, plural(asked, "exploited CVE"), plural(len(ports), "port"))
 	}
 	text := fmt.Sprintf("%s: %s sent on %s, %d matched, %d no match, %d error", head, plural(max(len(names), len(rs)), "template"), plural(len(ports), "port"), matched, none, failed)
-	if asked > len(rs) {
-		text += fmt.Sprintf("; no result for %s of %d asked about", plural(asked-len(rs), "CVE"), asked)
+	if missing := asked - len(rs) - notKept; missing > 0 {
+		text += fmt.Sprintf("; no result for %s of %d asked about", plural(missing, "CVE"), asked)
+	}
+	if notKept > 0 {
+		text += fmt.Sprintf("; %d not kept, over the limit of %d a service", notKept, maxTemplateRows)
 	}
 	if len(names) > maxTemplatesLn {
 		names = append(names[:maxTemplatesLn:maxTemplatesLn], fmt.Sprintf("%d more", len(names)-maxTemplatesLn))
@@ -386,7 +396,7 @@ func sanitizeTemplates(in []TemplateRow, services []ServiceRow) []TemplateRow {
 			continue
 		}
 		k := netip.AddrPortFrom(ip, uint16(r.Port))
-		if have[k] && n[k] < maxTemplateRows && templateID.MatchString(r.Template) && (r.CVE == "" || cveID.MatchString(r.CVE)) &&
+		if have[k] && n[k] < maxTemplateRows && templateID.MatchString(r.Template) && cveID.MatchString(r.CVE) &&
 			(r.Outcome == OutcomeMatched || r.Outcome == OutcomeNoMatch || r.Outcome == OutcomeError) {
 			n[k]++
 			out = append(out, TemplateRow{IP: ip.String(), Port: r.Port, CVE: r.CVE, Template: r.Template, Outcome: r.Outcome})

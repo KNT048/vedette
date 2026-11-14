@@ -44538,7 +44538,7 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKServicesItem) SetVersion(val
 }
 
 type ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItem struct {
-	// The CVE the template is for; "" for a template chosen by product tag.
+	// The CVE the template is for (one the job asked about).
 	Cve      string                                                          `json:"cve"`
 	IP       string                                                          `json:"ip"`
 	Outcome  ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemOutcome `json:"outcome"`

@@ -209,16 +209,17 @@ func TestContract_INV23_CarriedPortIsNotProbedAgain(t *testing.T) {
 func TestContract_INV23_SanitizeResults(t *testing.T) {
 	t.Parallel()
 	jobs := []TemplateJob{{Port: 80, CVEs: []string{"CVE-2021-41773"}}}
-	got := sanitizeTemplateResults([]TemplateResult{
+	got, _ := sanitizeTemplateResults([]TemplateResult{
 		{Port: 80, Template: "CVE-2021-41773", CVE: "CVE-2021-41773", Outcome: OutcomeMatched},
 		{Port: 80, Template: "CVE-2021-41773", CVE: "CVE-2021-41773", Outcome: OutcomeNoMatch}, // twice
 		{Port: 80, Template: "x", CVE: "CVE-2099-0001", Outcome: OutcomeMatched},               // a CVE nobody asked for
 		{Port: 81, Template: "y", Outcome: OutcomeMatched},                                     // another port
 		{Port: 80, Template: "../etc", Outcome: OutcomeMatched},                                // a bad id
 		{Port: 80, Template: "z", Outcome: "vulnerable"},                                       // a bad outcome
-		{Port: 80, Template: "apache-tag", Outcome: OutcomeNoMatch},
+		{Port: 80, Template: "apache-tag", Outcome: OutcomeNoMatch},                            // no CVE: nothing asked for it
+		{Port: 80, Template: "CVE-2021-41773-b", CVE: "CVE-2021-41773", Outcome: OutcomeNoMatch},
 	}, jobs)
-	if len(got) != 2 || got[0].Outcome != OutcomeMatched || got[1].Template != "apache-tag" {
+	if len(got) != 2 || got[0].Outcome != OutcomeMatched || got[1].Template != "CVE-2021-41773-b" {
 		t.Fatalf("got = %+v", got)
 	}
 }
@@ -252,7 +253,7 @@ func TestContract_INV23_MatchSurvivesTheCapAndSkippedJobsAreSaid(t *testing.T) {
 		}
 		in = append(in, TemplateResult{Port: 80, Template: c, CVE: c, Outcome: o})
 	}
-	got := sanitizeTemplateResults(in, []TemplateJob{{Port: 80, CVEs: cves}})
+	got, _ := sanitizeTemplateResults(in, []TemplateJob{{Port: 80, CVEs: cves}})
 	if len(got) != 40 || got[0].Outcome != OutcomeMatched {
 		t.Fatalf("got %d, first %+v", len(got), got[0])
 	}

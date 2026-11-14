@@ -95,7 +95,10 @@ func (w exposureWebScan) Baseline(ctx context.Context, t exposure.ScanTarget, pa
 		if why := webReason(code, t, page); why != "" {
 			return exposure.WebScan{}, &exposure.Unavailable{Reason: why}
 		}
-		return exposure.WebScan{}, fmt.Errorf("exposure web scan: zap.baseline %s: %s: %s", run.Status, code, msg)
+		if msg != "" {
+			code += ": " + msg
+		}
+		return exposure.WebScan{}, fmt.Errorf("exposure web scan: zap.baseline %s: %s", run.Status, code)
 	}
 	res, err := hostclient.ResultOf[api.ZapBaselineResult](run)
 	if err != nil {

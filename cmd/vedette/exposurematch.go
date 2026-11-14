@@ -114,11 +114,7 @@ func (m exposureMatcher) Match(ctx context.Context, svcs []exposure.ServiceRow) 
 			s, v := where[x.SoftwareID], byCVE[x.CVE]
 			row := exposure.VulnRow{IP: s.IP, Port: s.Port, CVE: x.CVE, Basis: string(x.Basis), Summary: x.Evidence.Summary}
 			if v != nil {
-				row.Name, row.Ransomware = v.Name, v.Ransomware
-				if !v.DateAdded.IsZero() {
-					d := v.DateAdded.Format(time.DateOnly)
-					row.DateAdded = &d
-				}
+				kevRow(&row, *v)
 			}
 			out.Vulns = append(out.Vulns, row)
 		}
@@ -128,6 +124,33 @@ func (m exposureMatcher) Match(ctx context.Context, svcs []exposure.ServiceRow) 
 		}
 	}
 	return out, nil
+}
+
+// Exploited is exposure's ExploitedLookup (D-565, D-563): the CVE ids among cves that today's list carries, with their name, date and
+// ransomware flag (the CVEs Retire.js names for a JavaScript library ZAP saw on a page, and those Greenbone names).
+func (m exposureMatcher) Exploited(ctx context.Context, cves []string) (map[string]exposure.KEVEntry, error) {
+	vulns, err := m.vulns(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := map[string]exposure.KEVEntry{}
+	for _, v := range vulns {
+		if slices.Contains(cves, v.CVE) {
+			row := exposure.VulnRow{CVE: v.CVE}
+			kevRow(&row, v)
+			out[v.CVE] = exposure.KEVEntry{Name: row.Name, DateAdded: row.DateAdded, Ransomware: row.Ransomware}
+		}
+	}
+	return out, nil
+}
+
+// kevRow fills the name, ransomware flag and date CISA listed it of a row from its list entry.
+func kevRow(row *exposure.VulnRow, v findings.Vuln) {
+	row.Name, row.Ransomware = v.Name, v.Ransomware
+	if !v.DateAdded.IsZero() {
+		d := v.DateAdded.Format(time.DateOnly)
+		row.DateAdded = &d
+	}
 }
 
 // nmapAliases is content/catalog/nmap-cpe.json: "part:vendor:product" of a CPE nmap prints to the NVD names of the same software.

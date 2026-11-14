@@ -225,18 +225,99 @@ func TestContract_INV23_SanitizeResults(t *testing.T) {
 	}
 }
 
-// INV-23: nmap's XML keeps TLS in a tunnel attribute the parser does not pass on, so a TLS web service arrives as plain "http": the
-// scheme falls back to the well-known TLS ports.
+// INV-23, D-522 (N1): TLS comes from the data ("ssl/http" is nmap's tunnel="ssl"), on any port; any other "http" is https on the
+// well-known TLS ports (a TLS server's plaintext error page can make nmap read "http nginx" there, review M2) and http elsewhere.
 func TestContract_INV23_SchemeOfTLSServices(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
-		name string
-		port int
-		want string
-	}{{"http", 443, "https"}, {"http", 8443, "https"}, {"ssl/http", 9000, "https"}, {"https-alt", 8080, "https"}, {"http", 80, "http"}, {"http-proxy", 3128, "http"}, {"ssh", 22, ""}} {
-		if got := schemeOf(ServiceRow{Name: tc.name, Port: tc.port}); got != tc.want {
-			t.Errorf("schemeOf(%s:%d) = %q, want %q", tc.name, tc.port, got, tc.want)
+		name, product string
+		port          int
+		want          string
+	}{{"http", "", 443, "https"}, {"http", "", 8443, "https"}, {"http", "nginx", 443, "https"}, {"http", "Apache httpd", 9443, "https"},
+		{"ssl/http", "", 9000, "https"}, {"ssl/http", "lighttpd", 4443, "https"}, {"https-alt", "", 8080, "https"},
+		{"http", "", 80, "http"}, {"http", "nginx", 4443, "http"}, {"http-proxy", "", 3128, "http"}, {"ssh", "", 22, ""}} {
+		if got := schemeOf(ServiceRow{Name: tc.name, Product: tc.product, Port: tc.port}); got != tc.want {
+			t.Errorf("schemeOf(%s %s:%d) = %q, want %q", tc.name, tc.product, tc.port, got, tc.want)
 		}
+	}
+}
+
+// D-522 (N1): an HTTPS admin page on 4443 that nmap read as name="http" tunnel="ssl" reaches the template step as "ssl/http" and its
+// job speaks https, so the KEV template really runs over TLS instead of "No match reported" from a plain-HTTP request.
+func TestContract_INV23_TLSOnANonStandardPortGetsHTTPS(t *testing.T) {
+	t.Parallel()
+	e, f := tplEnv(t)
+	e.svc.cfg.Services = &fakeServices{scan: ServiceScan{Ports: 98, Services: []ServiceRow{
+		{IP: ipA, Port: 4443, Name: "ssl/http", Product: "Apache httpd", Version: "2.4.49", CPE: "cpe:/a:apache:http_server:2.4.49"}}}}
+	e.svc.cfg.Matcher = &fakeMatcher{m: Matches{Compared: 1, Listed: 1500, Vulns: []VulnRow{{IP: ipA, Port: 4443, CVE: "CVE-2021-41773", Basis: "version"}}}}
+	e.scanIP(Content{Ports: []PortRow{{IP: ipA, Port: 4443}}})
+	if len(f.jobs) != 1 || len(f.jobs[0]) != 1 || f.jobs[0][0].Port != 4443 || f.jobs[0][0].Scheme != "https" {
+		t.Fatalf("jobs = %+v", f.jobs)
+	}
+}
+
+// D-522 (N5): an address that answers on more than 40 of the 98 ports (a router or SYN proxy) gets one "Not checked" line: the
+// surface scan saw it, so nmap is not even asked (exactly 40 is still scanned; ports of another address do not count; an
+// IPv4-mapped address counts as itself); nmap seeing it, or nmap's 3-minute limit, are their own lines. No template and no web
+// page runs, and no line says "no services" (review M1): the template and web lines say why they did not run.
+func TestContract_INV19_AnswersEverywhereAndTimedOut(t *testing.T) {
+	t.Parallel()
+	open := func(n int, ip string) []PortRow {
+		var out []PortRow
+		for p := 1; p <= n; p++ {
+			out = append(out, PortRow{IP: ip, Port: p})
+		}
+		return out
+	}
+	one := []PortRow{{IP: ipA, Port: 80}}
+	for name, tc := range map[string]struct {
+		ports   []PortRow
+		svcErr  error
+		want    []string // lines that must be under "Not checked"
+		scanned int
+	}{
+		"41 open on the surface": {ports: open(41, ipA), want: []string{notAnswersEverywhere, notWebTarpit}},
+		"60 open, IPv4-mapped":   {ports: open(60, "::ffff:"+ipA), want: []string{notAnswersEverywhere, notWebTarpit}},
+		"exactly 40 open":        {ports: open(40, ipA), scanned: 1},
+		"60 open on another IP":  {ports: append(open(60, ipB), one...), scanned: 1},
+		"nmap saw it":            {ports: one, svcErr: ErrAnswersEverywhere, want: []string{notAnswersEverywhere, notWebTarpit}, scanned: 1},
+		"nmap timed out":         {ports: one, svcErr: ErrServicesTimedOut, want: []string{notServicesGaveUp, notTemplatesNoIdent, notWebNoIdent}, scanned: 1},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			e, f := tplEnv(t)
+			sv := &fakeServices{scan: ServiceScan{Ports: 98, Services: []ServiceRow{{IP: ipA, Port: 80, Name: "http", Product: "Apache httpd", Version: "2.4.49", CPE: "cpe:/a:apache:http_server:2.4.49"}}}, err: tc.svcErr}
+			web := &fakeWeb{report: func(string) []byte { return nil }}
+			e.svc.cfg.Services, e.svc.cfg.Web = sv, web
+			s := e.scanIP(Content{Ports: tc.ports})
+			if len(sv.calls) != tc.scanned {
+				t.Fatalf("service scanner called %d times, want %d", len(sv.calls), tc.scanned)
+			}
+			if tc.want == nil { // under the bound: identified and checked as usual
+				if len(s.Services) != 1 || len(f.jobs) != 1 || slices.Contains(notChecked(s), notAnswersEverywhere) {
+					t.Fatalf("services %+v, jobs %d, not checked %q", s.Services, len(f.jobs), notChecked(s))
+				}
+				return
+			}
+			for _, w := range tc.want {
+				if !slices.Contains(notChecked(s), w) {
+					t.Errorf("missing line %q in %q", w, notChecked(s))
+				}
+			}
+			if len(s.Services) != 0 || len(f.jobs) != 0 || len(web.asked) != 0 {
+				t.Fatalf("services %+v, template jobs %d, web pages %v", s.Services, len(f.jobs), web.asked)
+			}
+			for _, n := range notChecked(s) {
+				if l := strings.ToLower(n); strings.Contains(l, "no services") || strings.Contains(l, "no service was identified") || strings.Contains(l, "no web port was identified") {
+					t.Errorf("a line claims nothing is there: %q", n)
+				}
+			}
+			for _, c := range s.Checks {
+				if c.Kind == "services" || c.Kind == "templates" {
+					t.Fatalf("a %s check line for a result that says nothing: %q", c.Kind, c.Text)
+				}
+			}
+		})
 	}
 }
 

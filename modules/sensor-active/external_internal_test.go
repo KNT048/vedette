@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/netip"
 	"slices"
@@ -36,12 +37,39 @@ func TestExternalServicesFromTheXML(t *testing.T) {
 	}
 	want := []ExternalService{
 		{Port: 22, Name: "ssh", Product: "OpenSSH", Version: "7.4p1 Debian 10+deb9u7", CPE: "cpe:/a:openbsd:openssh:7.4p1", Extra: "protocol 2.0"},
-		{Port: 443, Name: "http", Product: "nginx", CPE: "cpe:/a:igor_sysoev:nginx"},
-		{Port: 8443, Name: "http", Product: "Apache httpd", Version: "2.4.49", CPE: "cpe:/a:apache:http_server:2.4.49", Extra: "(Unix)"},
+		{Port: 443, Name: "ssl/http", Product: "nginx", CPE: "cpe:/a:igor_sysoev:nginx"}, // tunnel="ssl" (D-522)
+		{Port: 8443, Name: "ssl/http", Product: "Apache httpd", Version: "2.4.49", CPE: "cpe:/a:apache:http_server:2.4.49", Extra: "(Unix)"},
 		{Port: 10443, Name: "tcpwrapped"},
 	}
 	if got.Ports != 98 || !slices.Equal(got.Services, want) {
 		t.Fatalf("got %d ports %+v", got.Ports, got.Services)
+	}
+}
+
+// D-522 (N1, N5): an HTTPS page on 4443 (name="http" tunnel="ssl") reaches exposure as "ssl/http", so its templates speak TLS; an
+// address with 60 of the 98 ports open (a router or SYN proxy answering for all of them) is ErrAnswersEverywhere, never 60 services.
+func TestExternalTLSTunnelAndAnswersEverywhere(t *testing.T) {
+	t.Parallel()
+	base := string(fixture(t, "external.xml"))
+	ports := base[strings.Index(base, "<port ") : strings.LastIndex(base, "</port>")+len("</port>")]
+	tls := `<port protocol="tcp" portid="4443"><state state="open" reason="syn-ack" reason_ttl="52"/><service name="http" product="lighttpd" tunnel="ssl" method="probed" conf="10"/></port>`
+	got, err := readExternal([]byte(strings.Replace(base, ports, tls, 1)))
+	if err != nil || len(got.Services) != 1 || got.Services[0] != (ExternalService{Port: 4443, Name: "ssl/http", Product: "lighttpd"}) {
+		t.Fatalf("tunnel: %+v %v", got.Services, err)
+	}
+	var tarpit strings.Builder
+	for _, p := range externalPorts[:60] {
+		fmt.Fprintf(&tarpit, `<port protocol="tcp" portid="%d"><state state="open" reason="syn-ack" reason_ttl="52"/><service name="tcpwrapped" method="probed" conf="8"/></port>`, p)
+	}
+	if got, err := readExternal([]byte(strings.Replace(base, ports, tarpit.String(), 1))); !errors.Is(err, ErrAnswersEverywhere) {
+		t.Fatalf("tarpit: %d services, %v", len(got.Services), err)
+	}
+	var forty strings.Builder // exactly the limit is still believed
+	for _, p := range externalPorts[:40] {
+		fmt.Fprintf(&forty, `<port protocol="tcp" portid="%d"><state state="open" reason="syn-ack" reason_ttl="52"/><service name="tcpwrapped" method="probed" conf="8"/></port>`, p)
+	}
+	if got, err := readExternal([]byte(strings.Replace(base, ports, forty.String(), 1))); err != nil || len(got.Services) != 40 {
+		t.Fatalf("40 open: %d services, %v", len(got.Services), err)
 	}
 }
 

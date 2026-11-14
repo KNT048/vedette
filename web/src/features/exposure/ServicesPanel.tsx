@@ -8,10 +8,12 @@ import { PortMark } from './PortMark'
 import type { ServiceRow, Snapshot, VulnRow } from './types'
 
 /** S-EXP-2 (INV-19, INV-20): the services nmap -sV identified on the box's own public IP and their exploited CVEs (CISA KEV). */
-export function VulnSection({ s }: { s: Snapshot }) {
+export function VulnSection({ s, domain = false }: { s: Snapshot; domain?: boolean }) {
   const { t } = useTranslation('exposure')
   // A match on a distribution package (backport) weighs less: it is counted apart and shown in the neutral tone.
-  const on = (r: ServiceRow) => s.vulns.filter((v) => v.ip === r.ip && v.port === r.port && v.basis !== 'greenbone') // a Greenbone row repeats a CVE, it is not one more
+  // A JavaScript library's CVE runs in the visitors' browsers, not in the service on that port (D-565, review r1 M1), and a Greenbone
+  // row repeats a CVE, it is not one more: neither is counted on the service.
+  const on = (r: ServiceRow) => s.vulns.filter((v) => v.ip === r.ip && v.port === r.port && v.basis !== 'js_library' && v.basis !== 'greenbone')
   const count = (r: ServiceRow) => on(r).filter((v) => !v.backport).length
   const maybe = (r: ServiceRow) => on(r).filter((v) => v.backport).length
   // INV-22: a service or CVE on a port kept from an earlier scan carries the port's mark
@@ -36,14 +38,16 @@ export function VulnSection({ s }: { s: Snapshot }) {
     { id: 'why', header: t('col.why'), enableSorting: false, accessorFn: (r) => r.summary, cell: ({ row }) => <span className="text-[13px]">{row.original.summary}</span> },
   ]
   const why = s.not_checked.find((n) => n.kind === 'services' || n.kind === 'cve')
+  // D-522 (TUNE-1a review M1): identification did not complete, so the title must not read as "nothing is there"
+  const unidentified = why?.kind === 'services'
   return (
-    <Section id="vulns" title={t('vulns.title')} description={t('vulns.description')}>
+    <Section id="vulns" title={t('vulns.title')} description={t(domain ? 'vulns.descriptionDomain' : 'vulns.description')}>
       {s.services.length === 0 && s.vulns.length === 0 ? (
-        <EmptyState title={t('vulns.noneIdentifiedTitle')}>{why?.text ?? t('vulns.noneIdentifiedBody')}</EmptyState>
+        <EmptyState title={t(unidentified ? 'vulns.notIdentifiedTitle' : 'vulns.noneIdentifiedTitle')}>{why?.text ?? t('vulns.noneIdentifiedBody')}</EmptyState>
       ) : (
         <div className="grid gap-4">
           {s.vulns.length > 0 ? (
-            <DataTable caption={t('vulns.caption')} data={s.vulns} columns={vulnCols} pageSize={20} rowTone={(r) => (r.backport ? undefined : 'warn')} />
+            <DataTable caption={t(domain ? 'vulns.captionDomain' : 'vulns.caption')} data={s.vulns} columns={vulnCols} pageSize={20} rowTone={(r) => (r.backport ? undefined : 'warn')} />
           ) : s.not_checked.some((n) => n.kind === 'cve') ? (
             <p role="status" className="text-sm text-warn">{s.not_checked.find((n) => n.kind === 'cve')!.text}</p>
           ) : (
@@ -54,7 +58,7 @@ export function VulnSection({ s }: { s: Snapshot }) {
               {s.version_gaps.map((g) => <li key={`${g.ip}:${g.port}`}>{t('vulns.gap', { count: g.cves.length, software: g.software, port: g.port, cves: g.cves.join(', ') })}</li>)}
             </ul>
           ) : null}
-          <DataTable caption={t('vulns.servicesCaption')} data={s.services} columns={serviceCols} pageSize={20} empty={t('vulns.noneIdentifiedBody')} />
+          {s.services.length > 0 ? <DataTable caption={t('vulns.servicesCaption')} data={s.services} columns={serviceCols} pageSize={20} empty={t('vulns.noneIdentifiedBody')} /> : null}
         </div>
       )}
     </Section>

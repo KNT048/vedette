@@ -108,7 +108,7 @@ function SnapshotView({ target, s }: { target: Target; s: Snapshot }) {
       <Section title={t('cert.title')} description={t('cert.description', { days: CERT_WARN_DAYS })}>
         <DataTable caption={t('cert.caption')} data={s.certs} columns={certCols} pageSize={20} initialSort={[{ id: 'expires', desc: false }]} empty={t('cert.empty')} />
       </Section>
-      {target.kind === 'ip' ? <VulnSection s={s} /> : null}
+      {target.kind === 'ip' || s.vulns.length > 0 ? <VulnSection s={s} domain={target.kind === 'domain'} /> : null /* D-565: a domain's page can carry versions ZAP read */}
       <WebSection s={s} />
       {target.kind === 'ip' ? <GreenboneSection s={s} /> : null}
       <ChecksSection s={s} />

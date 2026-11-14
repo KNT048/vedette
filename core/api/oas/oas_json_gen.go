@@ -94119,6 +94119,8 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasis) Decode(d *jx
 		*s = ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasisTemplate
 	case ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasisGreenbone:
 		*s = ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasisGreenbone
+	case ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasisJsLibrary:
+		*s = ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasisJsLibrary
 	default:
 		*s = ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasis(v)
 	}
@@ -94209,6 +94211,10 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItem) encodeField
 		e.Str(s.Description)
 	}
 	{
+		e.FieldStart("group")
+		s.Group.Encode(e)
+	}
+	{
 		e.FieldStart("name")
 		e.Str(s.Name)
 	}
@@ -94225,6 +94231,14 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItem) encodeField
 		e.Str(s.Site)
 	}
 	{
+		e.FieldStart("software")
+		e.ArrStart()
+		for _, elem := range s.Software {
+			elem.Encode(e)
+		}
+		e.ArrEnd()
+	}
+	{
 		e.FieldStart("solution")
 		e.Str(s.Solution)
 	}
@@ -94238,17 +94252,19 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItem) encodeField
 	}
 }
 
-var jsonFieldsNameOfExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItem = [10]string{
-	0: "confidence",
-	1: "count",
-	2: "cwe",
-	3: "description",
-	4: "name",
-	5: "plugin_id",
-	6: "risk",
-	7: "site",
-	8: "solution",
-	9: "urls",
+var jsonFieldsNameOfExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItem = [12]string{
+	0:  "confidence",
+	1:  "count",
+	2:  "cwe",
+	3:  "description",
+	4:  "group",
+	5:  "name",
+	6:  "plugin_id",
+	7:  "risk",
+	8:  "site",
+	9:  "software",
+	10: "solution",
+	11: "urls",
 }
 
 // Decode decodes ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItem from json.
@@ -94306,8 +94322,18 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItem) Decode(d *j
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"description\"")
 			}
-		case "name":
+		case "group":
 			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				if err := s.Group.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"group\"")
+			}
+		case "name":
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.Name = string(v)
@@ -94319,7 +94345,7 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItem) Decode(d *j
 				return errors.Wrap(err, "decode field \"name\"")
 			}
 		case "plugin_id":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				v, err := d.Str()
 				s.PluginID = string(v)
@@ -94331,7 +94357,7 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItem) Decode(d *j
 				return errors.Wrap(err, "decode field \"plugin_id\"")
 			}
 		case "risk":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				if err := s.Risk.Decode(d); err != nil {
 					return err
@@ -94341,7 +94367,7 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItem) Decode(d *j
 				return errors.Wrap(err, "decode field \"risk\"")
 			}
 		case "site":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				v, err := d.Str()
 				s.Site = string(v)
@@ -94352,8 +94378,26 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItem) Decode(d *j
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"site\"")
 			}
+		case "software":
+			requiredBitSet[1] |= 1 << 1
+			if err := func() error {
+				s.Software = make([]ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemSoftwareItem, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemSoftwareItem
+					if err := elem.Decode(d); err != nil {
+						return err
+					}
+					s.Software = append(s.Software, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"software\"")
+			}
 		case "solution":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				v, err := d.Str()
 				s.Solution = string(v)
@@ -94365,7 +94409,7 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItem) Decode(d *j
 				return errors.Wrap(err, "decode field \"solution\"")
 			}
 		case "urls":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 3
 			if err := func() error {
 				s.Urls = make([]string, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -94395,7 +94439,7 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItem) Decode(d *j
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00000011,
+		0b00001111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -94485,6 +94529,46 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemConfidence) U
 	return s.Decode(d)
 }
 
+// Encode encodes ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemGroup as json.
+func (s ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemGroup) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemGroup from json.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemGroup) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemGroup to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemGroup(v) {
+	case ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemGroupFix:
+		*s = ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemGroupFix
+	case ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemGroupHardening:
+		*s = ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemGroupHardening
+	default:
+		*s = ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemGroup(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemGroup) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemGroup) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode encodes ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemRisk as json.
 func (s ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemRisk) Encode(e *jx.Encoder) {
 	e.Str(string(s))
@@ -94525,6 +94609,165 @@ func (s ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemRisk) MarshalJ
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemRisk) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemSoftwareItem) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemSoftwareItem) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("cves")
+		e.ArrStart()
+		for _, elem := range s.Cves {
+			e.Str(elem)
+		}
+		e.ArrEnd()
+	}
+	{
+		e.FieldStart("distro")
+		e.Str(s.Distro)
+	}
+	{
+		e.FieldStart("product")
+		e.Str(s.Product)
+	}
+	{
+		e.FieldStart("version")
+		e.Str(s.Version)
+	}
+}
+
+var jsonFieldsNameOfExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemSoftwareItem = [4]string{
+	0: "cves",
+	1: "distro",
+	2: "product",
+	3: "version",
+}
+
+// Decode decodes ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemSoftwareItem from json.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemSoftwareItem) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemSoftwareItem to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "cves":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				s.Cves = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.Cves = append(s.Cves, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"cves\"")
+			}
+		case "distro":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Str()
+				s.Distro = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"distro\"")
+			}
+		case "product":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Str()
+				s.Product = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"product\"")
+			}
+		case "version":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Str()
+				s.Version = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"version\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemSoftwareItem")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00001111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemSoftwareItem) {
+					name = jsonFieldsNameOfExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemSoftwareItem[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemSoftwareItem) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemSoftwareItem) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }

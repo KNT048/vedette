@@ -47,6 +47,12 @@ var List = []Port{
 	{27017, "mongodb", Plain}, {34567, "dvr", Plain}, {37777, "dvr", Plain},
 }
 
+// MaxBelievableOpen is how many ports of List may be open before the address is taken to answer on every port (D-522, N5): an
+// ISP router or a firewall with a SYN proxy completes the handshake on all of them, so nmap -sV would read dozens of "tcpwrapped"
+// rows or run into its host timeout. With more open than this, exposure skips service identification and the template checks
+// and says why; sensor-active's external run discards its -sV rows. No real small office exposes 40 of these 98 ports.
+const MaxBelievableOpen = 40
+
 // Numbers returns the port numbers of List, in its order (ascending).
 func Numbers() []int {
 	out := make([]int, len(List))

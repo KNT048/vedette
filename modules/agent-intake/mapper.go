@@ -4,6 +4,7 @@ import (
 	"cmp"
 	_ "embed"
 	"encoding/json"
+	"regexp"
 	"strings"
 	"unicode/utf8"
 
@@ -88,10 +89,16 @@ func debUpstream(v string) string {
 //
 // A deb row also carries its full Debian version and source package (D-516). Binaries of one source that map to the same
 // product and upstream version are one row; when they differ in the full version (openssh-client upgraded,
-// openssh-server not) the row keeps the lowest, so a binary that was not updated keeps its finding.
+// openssh-server not) the row keeps the lowest, so a binary that was not updated keeps its finding. Kernel images are the
+// exception: Ubuntu and Debian keep the previous kernel installed as a boot fallback after an update, and the machine boots
+// the newest one, so the Kernel row keeps the HIGHEST version of the kernel images (linux-image-7.0.0-43-generic over
+// -30-generic); a metapackage (linux-image-generic, source linux-meta) never gives the row its version or source.
 func mapPackages(snaps map[string][]row, limit int) (items []observe.Software, dropped int) {
 	seen := map[string]int{} // key -> index in items
-	add := func(display, vendor, product, version string, mapped, packaged bool, pkgVersion, pkgSource string) {
+	add := func(display, vendor, product, version string, mapped, packaged bool, pkgVersion, pkgSource string, kernel bool) {
+		if !debver.Valid(pkgVersion) || pkgSource == "" {
+			pkgVersion, pkgSource = "", ""
+		}
 		// The key vendor|product must stay within the inventory's 400 bytes, or it refuses the whole list.
 		if !fits(display) || !fits(vendor) || !fits(product) || len(vendor)+len(product)+1 > maxKeyBytes || utf8.RuneCountInString(version) > maxVersion || len(items) >= limit {
 			dropped++
@@ -99,18 +106,18 @@ func mapPackages(snaps map[string][]row, limit int) (items []observe.Software, d
 		}
 		k := strings.ToLower(vendor) + "\x00" + strings.ToLower(product) + "\x00" + version
 		if i, ok := seen[k]; ok {
-			if old := items[i].PkgVersion; old != "" && pkgVersion != "" {
-				if c, err := debver.Compare(pkgVersion, old); err == nil && c < 0 {
-					items[i].PkgVersion, items[i].PkgSource = pkgVersion, pkgSource
-				}
+			if pkgVersion == "" {
+				return
+			}
+			c, err := debver.Compare(pkgVersion, items[i].PkgVersion) // an empty stored version is ErrInvalid: the new one is taken
+			if err != nil || kernel && c > 0 || !kernel && c < 0 {
+				items[i].PkgVersion, items[i].PkgSource = pkgVersion, pkgSource
 			}
 			return
 		}
 		seen[k] = len(items)
-		s := observe.Software{Display: display, Vendor: vendor, Product: product, Version: version, Confidence: softwareConfidence, Packaged: packaged}
-		if debver.Valid(pkgVersion) && pkgSource != "" {
-			s.PkgVersion, s.PkgSource = pkgVersion, pkgSource
-		}
+		s := observe.Software{Display: display, Vendor: vendor, Product: product, Version: version, Confidence: softwareConfidence, Packaged: packaged,
+			PkgVersion: pkgVersion, PkgSource: pkgSource}
 		if mapped {
 			s.KevKeys = []string{strings.ToLower(vendor) + "|" + strings.ToLower(product)}
 		}
@@ -124,19 +131,23 @@ func mapPackages(snaps map[string][]row, limit int) (items []observe.Software, d
 		}
 		version := debUpstream(r["version"])
 		src := strings.ToLower(cmp.Or(sourceName(r["source"]), name)) // dpkg leaves Source out when it equals the package name
+		full, kernel := r["version"], kernelImageRE.MatchString(name)
+		if strings.HasPrefix(strings.ToLower(name), "linux-image-") && !kernel {
+			full, src = "", "" // a kernel metapackage: it names no kernel the machine runs
+		}
 		if ok {
-			add(p.Product, p.Vendor, p.Product, version, true, true, r["version"], src)
+			add(p.Product, p.Vendor, p.Product, version, true, true, full, src, kernel)
 		} else {
-			add(name, name, name, version, false, true, r["version"], src)
+			add(name, name, name, version, false, true, full, src, kernel)
 		}
 	}
 	for _, r := range snaps["rpm_packages"] {
 		name := r["name"]
 		p, ok := pkgmap.Linux.lookup(strings.ToLower(name))
 		if ok {
-			add(p.Product, p.Vendor, p.Product, r["version"], true, true, "", "")
+			add(p.Product, p.Vendor, p.Product, r["version"], true, true, "", "", false)
 		} else {
-			add(name, name, name, r["version"], false, true, "", "")
+			add(name, name, name, r["version"], false, true, "", "", false)
 		}
 	}
 	for _, r := range snaps["programs"] {
@@ -144,15 +155,19 @@ func mapPackages(snaps map[string][]row, limit int) (items []observe.Software, d
 		p, ok := pkgmap.Windows.lookup(strings.ToLower(name))
 		switch {
 		case ok:
-			add(name, p.Vendor, p.Product, r["version"], true, false, "", "")
+			add(name, p.Vendor, p.Product, r["version"], true, false, "", "", false)
 		case r["publisher"] != "":
-			add(name, r["publisher"], name, r["version"], false, false, "", "")
+			add(name, r["publisher"], name, r["version"], false, false, "", "", false)
 		default:
-			add(name, name, name, r["version"], false, false, "", "")
+			add(name, name, name, r["version"], false, false, "", "", false)
 		}
 	}
 	return items, dropped
 }
+
+// kernelImageRE is a kernel image package of Ubuntu or Debian: linux-image-7.0.0-43-generic, linux-image-unsigned-…,
+// linux-image-6.1.0-18-amd64 (a release number after the prefix; linux-image-generic and linux-image-amd64 are metapackages).
+var kernelImageRE = regexp.MustCompile(`^linux-image-(unsigned-)?[0-9]`)
 
 // DebPackage is one installed Debian package: name, full Debian version and source package ("" when it has none).
 type DebPackage struct{ Name, Version, Source string }

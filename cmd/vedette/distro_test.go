@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/knt048/vedette/core/store"
+	agentintake "github.com/knt048/vedette/modules/agent-intake"
 	"github.com/knt048/vedette/modules/findings"
 	"github.com/knt048/vedette/modules/inventory"
 )
@@ -69,5 +70,72 @@ func TestDistroFixReachesFindings(t *testing.T) {
 	install("1:9.6p1-3ubuntu13.14")
 	if f := finding(); f.Status != findings.StatusNotRelevant || f.ResolutionReason != findings.ReasonNotAffectedVersion || !strings.Contains(f.ResolutionNote, "this device has 1:9.6p1-3ubuntu13.14") {
 		t.Fatalf("after the update: %+v", f)
+	}
+}
+
+// D-516, the dev box's kernel: Ubuntu lists its kernel CVEs under source package linux (the images come from linux-signed,
+// same version). With 7.0.0-30 alone, the CVE fixed in 7.0.0-31.31 is a finding that names the fix and the one fixed in
+// 7.0.0-22.22 is not; after 7.0.0-43 is installed (the old kernel stays as a boot fallback) both are closed, because the
+// Kernel row takes the newest image.
+func TestDistroKernelFollowsTheNewestImage(t *testing.T) {
+	t.Parallel()
+	s := newStack(t)
+	ctx := t.Context()
+	fixes := map[string]string{"CVE-2026-46300": "7.0.0-22.22", "CVE-2026-53266": "7.0.0-31.31"}
+	for cve, fixed := range fixes {
+		s.kevAdded(cve, "Linux", "Kernel", time.Now().AddDate(0, -1, 0))
+		err := s.d.DB.Write(ctx, func(tx *sql.Tx) error {
+			_, err := tx.ExecContext(ctx, `INSERT INTO feeds_distro_fix (source_id, distro, release, package, cve, status, fixed_version) VALUES ('ubuntu-osv', 'ubuntu', '26.04', 'linux', ?, 'fixed', ?)`, cve, fixed)
+			return err
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	id, err := s.d.Inventory.EnsureBox(ctx, inventory.BoxInfo{Hostname: "byn", OS: "Ubuntu 26.04"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	install := func(pkgs ...agentintake.DebPackage) {
+		t.Helper()
+		sw, _ := agentintake.MapDebPackages(pkgs)
+		items := make([]inventory.SoftwareItem, len(sw))
+		for i, x := range sw {
+			items[i] = inventory.SoftwareItem{Display: x.Display, Vendor: x.Vendor, Product: x.Product, Version: x.Version, KevKeys: x.KevKeys, Confidence: x.Confidence,
+				Packaged: x.Packaged, PkgVersion: x.PkgVersion, PkgSource: x.PkgSource}
+		}
+		if err := s.d.Inventory.UpsertSoftware(ctx, id, items, "agent"); err != nil {
+			t.Fatal(err)
+		}
+		if err := findingsJobs(*s.d)[0].Run(ctx); err != nil {
+			t.Fatal(err)
+		}
+	}
+	status := func() map[string]findings.Record {
+		t.Helper()
+		recs, err := s.d.Findings.List(ctx, id)
+		if err != nil {
+			t.Fatal(err)
+		}
+		out := map[string]findings.Record{}
+		for _, r := range recs {
+			out[r.CVE] = r
+		}
+		return out
+	}
+	old := agentintake.DebPackage{Name: "linux-image-7.0.0-30-generic", Version: "7.0.0-30.30", Source: "linux-signed"}
+	meta := agentintake.DebPackage{Name: "linux-image-generic", Version: "7.0.0-30.30", Source: "linux-meta"}
+	install(old, meta)
+	got := status()
+	if f, ok := got["CVE-2026-53266"]; !ok || f.Status != findings.StatusSuspected || !strings.Contains(f.Evidence.Summary, "Ubuntu fixed CVE-2026-53266 in linux 7.0.0-31.31") {
+		t.Fatalf("7.0.0-30 below the fix: %+v", got)
+	}
+	if _, ok := got["CVE-2026-46300"]; ok {
+		t.Fatalf("7.0.0-30 is past the fix of CVE-2026-46300, yet it is a finding: %+v", got["CVE-2026-46300"])
+	}
+	meta.Version = "7.0.0-43.43"
+	install(old, agentintake.DebPackage{Name: "linux-image-7.0.0-43-generic", Version: "7.0.0-43.43", Source: "linux-signed"}, meta)
+	if f := status()["CVE-2026-53266"]; f.Status != findings.StatusNotRelevant || !strings.Contains(f.ResolutionNote, "fixed CVE-2026-53266 in linux 7.0.0-31.31, and this device has 7.0.0-43.43") {
+		t.Fatalf("after the 7.0.0-43 kernel: %+v", f)
 	}
 }

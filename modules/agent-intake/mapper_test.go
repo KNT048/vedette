@@ -225,3 +225,28 @@ func TestMapDebPackagesKeepsFullVersionAndSource(t *testing.T) {
 		}
 	}
 }
+
+// D-516: a machine keeps its previous kernel installed as a boot fallback and boots the newest, so the Kernel row takes the
+// HIGHEST kernel image version (the dev box: 7.0.0-30 and the running 7.0.0-43); the metapackage linux-image-generic (source
+// linux-meta) never gives the row its version or source, whatever the order of the list.
+func TestMapDebPackagesKernelKeepsTheNewestImage(t *testing.T) {
+	t.Parallel()
+	list := []DebPackage{
+		{Name: "linux-image-7.0.0-30-generic", Version: "7.0.0-30.30", Source: "linux-signed"},
+		{Name: "linux-image-7.0.0-43-generic", Version: "7.0.0-43.43", Source: "linux-signed"},
+		{Name: "linux-image-generic", Version: "7.0.0-43.44", Source: "linux-meta"},
+	}
+	for _, order := range [][]int{{0, 1, 2}, {2, 1, 0}, {1, 0, 2}} {
+		var pkgs []DebPackage
+		for _, i := range order {
+			pkgs = append(pkgs, list[i])
+		}
+		items, _ := MapDebPackages(pkgs)
+		if len(items) != 1 || items[0].Product != "Kernel" || items[0].Version != "7.0.0" || items[0].PkgVersion != "7.0.0-43.43" || items[0].PkgSource != "linux-signed" {
+			t.Fatalf("order %v: %+v", order, items)
+		}
+	}
+	if items, _ := MapDebPackages(list[2:]); len(items) != 1 || items[0].PkgVersion != "" || items[0].PkgSource != "" {
+		t.Fatalf("a metapackage alone gave the kernel a version: %+v", items)
+	}
+}

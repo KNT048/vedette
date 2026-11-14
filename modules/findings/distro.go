@@ -31,6 +31,7 @@ const (
 // distroAnswer is the distribution's word on one software row for one CVE.
 type distroAnswer struct {
 	kind    distroKind
+	pkg     string // the source package the distribution's data names ("linux" for a linux-signed kernel)
 	name    string // "Ubuntu", "Debian"
 	release string // "24.04", "12"
 	fixed   string // the fixed version (fixed here, needed)
@@ -57,6 +58,21 @@ func distroOf(in swInfo) (string, string) {
 	return "", ""
 }
 
+// securitySource is the source package under which the distribution's security data lists a device's source package.
+// Kernel images are built by a signing source package whose binaries carry the kernel's own version, while Ubuntu's and
+// Debian's data list the kernel's source: Ubuntu linux-signed → linux, linux-signed-hwe-7.0 → linux-hwe-7.0; Debian
+// linux-signed-amd64 (and -arm64, -i386) → linux. Every other package is listed under its own source name.
+func securitySource(distro, src string) string {
+	rest, ok := strings.CutPrefix(src, "linux-signed")
+	switch {
+	case !ok:
+		return src
+	case distro == "debian":
+		return "linux"
+	}
+	return "linux" + rest
+}
+
 // distroVerdict reads v.Distro for the software row; ok is false when the distribution has no word on it.
 func distroVerdict(in swInfo, v Vuln) (distroAnswer, bool) {
 	if in.pkgVer == "" || in.pkgSrc == "" || len(v.Distro) == 0 {
@@ -66,11 +82,12 @@ func distroVerdict(in swInfo, v Vuln) (distroAnswer, bool) {
 	if d == "" || rel == "" {
 		return distroAnswer{}, false
 	}
+	pkg := securitySource(d, in.pkgSrc)
 	var fix *DistroFix
 	notAffected := false
 	for i := range v.Distro {
 		f := &v.Distro[i]
-		if f.Distro != d || f.Release != rel || f.Package != in.pkgSrc {
+		if f.Distro != d || f.Release != rel || f.Package != pkg {
 			continue
 		}
 		switch f.Status {
@@ -82,7 +99,7 @@ func distroVerdict(in swInfo, v Vuln) (distroAnswer, bool) {
 			notAffected = true
 		}
 	}
-	a := distroAnswer{name: distroName(in), release: rel}
+	a := distroAnswer{pkg: pkg, name: distroName(in), release: rel}
 	switch {
 	case fix != nil:
 		c, err := debver.Compare(in.pkgVer, fix.Fixed)
@@ -106,10 +123,10 @@ func distroMatch(a Asset, s Software, in swInfo, v Vuln, d distroAnswer, now tim
 	src := DistroSource(d.name)
 	if d.kind != distroNeeded {
 		note := fmt.Sprintf("Not affected: %s %s fixed %s in %s %s, and this device has %s (%s). Vedette closed this by itself and reopens it if a later match says the device is affected.",
-			d.name, d.release, v.CVE, clean(in.pkgSrc), clean(d.fixed), clean(in.pkgVer), src)
+			d.name, d.release, v.CVE, clean(d.pkg), clean(d.fixed), clean(in.pkgVer), src)
 		if d.kind == distroNotAffected {
 			note = fmt.Sprintf("Not affected: %s says its %s package of %s %s is not affected by %s (%s). Vedette closed this by itself and reopens it if a later match says the device is affected.",
-				d.name, clean(in.pkgSrc), d.name, d.release, v.CVE, src)
+				d.name, clean(d.pkg), d.name, d.release, v.CVE, src)
 		}
 		return Match{CVE: v.CVE, SoftwareID: s.ID, SoftwareDisplay: clean(s.Display), Evidence: Evidence{Summary: note, CheckedAt: now}}, outNotAffected
 	}
@@ -122,6 +139,6 @@ func distroMatch(a Asset, s Software, in swInfo, v Vuln, d distroAnswer, now tim
 		pro = " (Ubuntu Pro)"
 	}
 	m.Evidence = Evidence{CheckedAt: now, Summary: fmt.Sprintf("%s runs %s %s from %s %s's packages. %s fixed %s in %s %s%s (%s); no scan has confirmed it yet, so this is only suspected.",
-		clean(a.Name), clean(s.Display), clean(in.pkgVer), d.name, d.release, d.name, v.CVE, clean(in.pkgSrc), clean(d.fixed), pro, src)}
+		clean(a.Name), clean(s.Display), clean(in.pkgVer), d.name, d.release, d.name, v.CVE, clean(d.pkg), clean(d.fixed), pro, src)}
 	return m, outMatch
 }

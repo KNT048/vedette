@@ -79,3 +79,19 @@ func TestDistroDecidesForAPackagedRow(t *testing.T) {
 		}
 	}
 }
+
+// D-516: kernel images come from a signing source package; the security data lists the kernel's own source.
+func TestSecuritySourceOfSignedKernels(t *testing.T) {
+	t.Parallel()
+	for _, c := range [][3]string{
+		{"ubuntu", "linux-signed", "linux"},
+		{"ubuntu", "linux-signed-hwe-7.0", "linux-hwe-7.0"},
+		{"debian", "linux-signed-amd64", "linux"},
+		{"ubuntu", "openssh", "openssh"},
+		{"ubuntu", "linux-meta", "linux-meta"},
+	} {
+		if got := securitySource(c[0], c[1]); got != c[2] {
+			t.Errorf("securitySource(%s, %s) = %s, want %s", c[0], c[1], got, c[2])
+		}
+	}
+}

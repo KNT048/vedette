@@ -39,7 +39,7 @@ func TestOwnIPDecision(t *testing.T) {
 		"a network check":                                 strings.Replace(httpKEV, "http:\n  - method: GET\n    path:\n      - \"{{BaseURL}}/global-protect/login.esp\"\n", "tcp:\n  - host:\n      - \"{{Hostname}}\"\n    inputs:\n      - data: \"GET / HTTP/1.0\\r\\n\\r\\n\"\n", 1),
 	}
 	for name, text := range allowed {
-		tpl, why := qualify("http/cves/2021/t.yaml", []byte(text))
+		tpl, why := qualifyWith("http/cves/2021/t.yaml", []byte(text), allowAny)
 		if why != "" || !tpl.OwnIP {
 			t.Errorf("%s: left out %q or not own_ip", name, why)
 		}
@@ -49,7 +49,7 @@ func TestOwnIPDecision(t *testing.T) {
 		if strings.HasPrefix(text, "id: CVE-2024-3400") && strings.Contains(text, "tcp:") {
 			path = "network/cves/2021/t.yaml"
 		}
-		if tpl, why := qualify(path, []byte(text)); why == "" && tpl.OwnIP {
+		if tpl, why := qualifyWith(path, []byte(text), allowAny); why == "" && tpl.OwnIP {
 			t.Errorf("%s: marked own_ip", name)
 		}
 	}

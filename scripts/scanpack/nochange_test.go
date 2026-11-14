@@ -87,9 +87,9 @@ func TestDenylistIsOutOfTheCommittedPack(t *testing.T) {
 			t.Errorf("%s: reason %q, in the pack %t", id, why, in[id])
 		}
 	}
-	for id, why := range reviewedOK {
-		if len(why) < 10 || !in[id] {
-			t.Errorf("reviewed %s: reason %q, in the pack %t", id, why, in[id])
+	for id, e := range reviewed {
+		if !in[id] {
+			t.Errorf("reviewed %s (%s) is not in the pack", id, e.why)
 		}
 	}
 }

@@ -17,8 +17,8 @@ import { API, audit, body, currentUser, DOMAIN_RE, fail, guard, IPV4_RE } from '
 import { auditStore, isOn } from '@/mocks/stores'
 import { canonHash, GENESIS } from '@/lib/chain'
 import { collection, newId, nowIso, type Collection } from '@/mocks/db'
-import { BOX_EGRESS_IP, BOX_EGRESS_IP_2, boxGreenbone, DEFAULT_INTERVAL, outsideAnswer, seedOutside, EXPIRING_DAYS, makeSnapshot, MAX_INTERVAL, MIN_INTERVAL, randomToken, scanContent, seedBoxIp, seedIgnored, seedSnapshots, seedTargets, VERIFY_DAYS, type Content, type StoredTarget } from './data'
-import { NOTICE_TEMPLATE, NOTICE_VERSION, PORT_NOT_SEEN, TERMS_DISRUPTIVE, TERMS_TEMPLATE, TERMS_VERSION, VERSION_NOT_READ } from './contract'
+import { BOX_EGRESS_IP, BOX_EGRESS_IP_2, boxGreenbone, DEFAULT_INTERVAL, outsideAnswer, seedOutside, EXPIRING_DAYS, makeSnapshot, MAX_INTERVAL, MIN_INTERVAL, randomToken, scanContent, seedBoxIp, seedIgnored, seedSnapshots, seedTargets, VERIFY_DAYS, withDeep, type Content, type StoredTarget } from './data'
+import { NOTICE_TEMPLATE, NOTICE_VERSION, PORT_NOT_SEEN, TERMS_DISRUPTIVE, TERMS_TEMPLATE, TERMS_TEMPLATE_DOMAIN, TERMS_VERSION, VERSION_NOT_READ } from './contract'
 import { dateText, dateTimeText } from './dates'
 import type { BoxIpSettings, Commitment, Terms, Diff, DiffChange, DiffItem, Greenbone, IgnoredIp, OutsideView, ScanRun, Snapshot, Target } from './types'
 
@@ -189,12 +189,15 @@ function view(t: StoredTarget): Target {
     id: t.id, kind: t.kind, value: t.value, status: !verified ? 'unverified' : expired ? 'expired' : 'verified', method: t.method, token: t.token,
     verified_at: t.verified_at, expires_at: t.expires_at, validity, last_check: t.last_check, commitment,
     commitment_notice: current ? null : { version: NOTICE_VERSION, text: NOTICE_TEMPLATE.replace('{value}', t.value) },
-    terms, terms_notice: { version: TERMS_VERSION, text: TERMS_TEMPLATE.replaceAll('{value}', t.value), disruptive: TERMS_DISRUPTIVE }, full_scan: terms?.version === TERMS_VERSION,
+    terms, terms_notice: { version: TERMS_VERSION, text: (t.kind === 'domain' ? TERMS_TEMPLATE_DOMAIN : TERMS_TEMPLATE).replaceAll('{value}', t.value), disruptive: TERMS_DISRUPTIVE }, full_scan: terms?.version === TERMS_VERSION,
     scannable: blocked === null, blocked_reason: blocked, created_at: t.created_at, last_scan_at: t.last_scan_at, latest: last ? last.counts : null, open_ports: last ? last.ports.slice(0, 20) : null,
   }
 }
 
 const find = (id: unknown) => targets.get().find((t) => t.id === id)
+// The box's audit keeps a detail within 2000 characters; a domain's terms with the tick's sentence can pass it (modules/exposure/terms.go auditClip).
+const CLIP_NOTE = ' … (cut here; the whole text is stored with the acceptance and pinned to its version)'
+const auditClip = (d: string) => ([...d].length <= 2000 ? d : [...d].slice(0, 2000 - [...CLIP_NOTE].length).join('') + CLIP_NOTE)
 const notFound = () => fail(404, 'not_found', 'No such target. It may have been deleted.')
 const plus = (iso: string, d: number) => new Date(Date.parse(iso) + d * 864e5).toISOString()
 const fmt = dateText
@@ -524,7 +527,7 @@ export const handlers = [
     }
     const text = v.terms_notice.text + (disruptive ? `\n${TERMS_DISRUPTIVE}` : '')
     termsStore.update((m) => ({ ...m, [t.id]: { version: TERMS_VERSION, by: me.email, at: nowIso(), text, disruptive } }))
-    audit('exposure.terms_accept', t.value, `${v.terms ? `accepted again (replaces terms ${v.terms.version}, accepted by ${v.terms.by} at ${v.terms.at}, disruptive checks: ${v.terms.disruptive ? 'yes' : 'no'})` : 'accepted'} (disruptive checks: ${disruptive ? 'yes' : 'no'}, terms ${TERMS_VERSION}): ${text}`)
+    audit('exposure.terms_accept', t.value, auditClip(`${v.terms ? `accepted again (replaces terms ${v.terms.version}, accepted by ${v.terms.by} at ${v.terms.at}, disruptive checks: ${v.terms.disruptive ? 'yes' : 'no'})` : 'accepted'} (disruptive checks: ${disruptive ? 'yes' : 'no'}, terms ${TERMS_VERSION}): ${text}`))
     return HttpResponse.json(view(t))
   }),
 
@@ -577,7 +580,11 @@ export const handlers = [
     // Like the box: 202 with the run at once, and the phases move on while the page polls GET /exposure/scan. The mock has no one-at-a-time or 10-minute limit
     // (its tests scan an IP several times in a row). The result is stored when the run is done.
     const at = nowIso()
-    const snap = makeSnapshot(newId('sn'), at, t.kind === 'ip' ? { ...scanContent(t), ...greenboneFor(t.value, v.full_scan) } : scanContent(t), t.kind === 'ip' ? t.value : undefined)
+    // D-571: a domain with accepted terms gets the deep scan of its names' addresses, in turn by when each was last deep-scanned.
+    const lastDeep: Record<string, string> = {}
+    for (const sn of snapshots.get()[t.id] ?? []) for (const h of sn.hosts) for (const a of h.ips ?? []) if (a.last_deep && a.last_deep > (lastDeep[a.ip] ?? '')) lastDeep[a.ip] = a.last_deep
+    const content = t.kind === 'ip' ? { ...scanContent(t), ...greenboneFor(t.value, v.full_scan) } : v.full_scan ? withDeep(scanContent(t), at, lastDeep) : scanContent(t)
+    const snap = makeSnapshot(newId('sn'), at, content, t.kind === 'ip' ? t.value : undefined)
     const run: ScanRun = { id: newId('sr'), target_id: t.id, target_value: t.value, by: currentUser()?.email ?? '', started_at: at, finished_at: null, status: 'running', phase: 'queued', snapshot_id: null, error: null }
     mockRunStore.set({ run, startedMs: Date.now(), snap })
     return HttpResponse.json(run, { status: 202 })

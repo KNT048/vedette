@@ -54,6 +54,32 @@ type ScanTarget struct {
 	// Mode is what this scan may do (FULL-1, D-566): Full once the target's testing terms are accepted, else the K-4 scope. Every
 	// scanner seam reads it here, and only here.
 	Mode ScanMode
+	// Domain is set on a deep step of a domain's scan sent to a public address that is not the box's own verified IP (FULL-5 slice 3,
+	// D-571): the domain, the name under it that resolved to the address at the core-side re-check right before the step, and the
+	// domain's box-bound token from DomainFence. The scanner then runs the job with scope domain_ip and its executor checks the fence
+	// itself (plan 2026-11-14 §5). nil on every other step: an IP target, a domain's by-name checks, or a deep step to the box's own IP.
+	Domain *DomainScope
+}
+
+// DomainScope is the domain_ip scope of one deep step (D-571, plan 2026-11-14 §5): the job fields {domain, name, ip, token} without the
+// address and ports, which the seam call carries.
+type DomainScope struct {
+	Domain string // the verified domain (the target's value)
+	Name   string // the domain itself or a name under it that resolved to the address right before the step
+	Token  string // the domain's box-bound token (32 hex), from DomainFence
+}
+
+// DomainFence gives the box-bound token of a verified domain (FULL-5 slice 2, Trưởng's host op exposure.token: hex HMAC-SHA256 of the
+// host's fence key over the domain, first 32 characters, plan 2026-11-14 §5). Core never holds the key. Config.DomainFence nil means
+// this box has no domain fence: no deep step goes to a public address that is not the box's own verified IP (D-571).
+type DomainFence interface {
+	Token(ctx context.Context, domain string) (string, error)
+}
+
+// HostResolver looks up a name's addresses; *net.Resolver satisfies it. The core-side re-check of a deep step to a domain's address
+// asks it through Config.Resolver (D-571): a Resolver that does not implement it fails closed. Tests pass a fake: no test asks real DNS.
+type HostResolver interface {
+	LookupNetIP(ctx context.Context, network, host string) ([]netip.Addr, error)
 }
 
 // Runner does the scan itself. It belongs to the scan module (D-55), which registers it with

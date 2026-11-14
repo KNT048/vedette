@@ -155,7 +155,7 @@ func TestTermsMatchTheContractOfTheGUI(t *testing.T) {
 		}
 		return strings.NewReplacer(`\'`, `'`, `\n`, "\n").Replace(m[1])
 	}
-	if str("TERMS_VERSION") != TermsVersion || str("TERMS_TEMPLATE") != termsTemplate || str("TERMS_DISRUPTIVE") != termsDisruptive {
+	if str("TERMS_VERSION") != TermsVersion || str("TERMS_TEMPLATE") != termsTemplate || str("TERMS_TEMPLATE_DOMAIN") != termsTemplateDomain || str("TERMS_DISRUPTIVE") != termsDisruptive {
 		t.Fatal("contract.ts terms differ from the backend (modules/exposure/terms.go)")
 	}
 }
@@ -166,8 +166,10 @@ func TestTermsTextIsPinnedToItsVersion(t *testing.T) {
 	pinned := map[string]string{
 		"2026-11-14":  "e3cafa3e881a321c3ae62f23c5d6fd32ac7e34c7715dbc1138636682854bfd27",
 		"2026-11-14b": "220bd0f322cfe435686be56c09855532b3c18d92cfb2efae9d06126a96f58604",
+		"2026-11-14c": "82a9d549446ef21096cf7f035f83d30068bbc07c0f317b3fc48b164c508356e3", // D-571 review r1: the domain's own text, honest list
+		"2026-11-14d": "ec2a0df9ebbe6691d6b7b2ec0b4a7440289b25fdb027baab76287274b029e411", // D-571 review r2: OpenVAS test files, anonymous login, the tick as PRIVACY lists it
 	}
-	sum := sha256.Sum256([]byte(termsTemplate + "\x00" + termsDisruptive))
+	sum := sha256.Sum256([]byte(termsTemplate + "\x00" + termsTemplateDomain + "\x00" + termsDisruptive))
 	if got := pinned[TermsVersion]; got != hex.EncodeToString(sum[:]) {
 		t.Fatalf("the terms for version %s have hash %x: change TermsVersion (and contract.ts) when the text changes, then pin the new hash", TermsVersion, sum)
 	}

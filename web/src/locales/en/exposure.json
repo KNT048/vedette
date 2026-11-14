@@ -438,5 +438,39 @@
     "checked": "Checked",
     "notChecked": "Not checked",
     "older": "This scan was made before Vedette listed what each scan checks."
+  },
+  "outside": {
+    "title": "What the Internet sees",
+    "description": "Our scan runs from inside your network, so it reaches {{ip}} through your router. Shodan scans the whole Internet from outside and keeps what it finds, so it can show ports your router opens to the Internet but hides from this box.",
+    "button": "Check what Shodan has seen",
+    "again": "Check again",
+    "never": "Vedette has not asked Shodan about {{ip}}. Nothing is sent until an administrator chooses Check what Shodan has seen.",
+    "notEligible": "Only a verified public IP that the box goes out through now can be checked with Shodan.",
+    "confirmTitle": "Send {{ip}} to Shodan?",
+    "confirmBody": "Your public IP {{ip}} is sent to Shodan (internetdb.shodan.io). Shodan learns that someone asked about it. Nothing else is sent to Shodan. First the box may re-check that it still goes out through {{ip}} (the same check as before a scan).",
+    "send": "Send",
+    "toast": "Shodan answered for {{ip}}.",
+    "asked": "Asked Shodan on {{time}} ({{by}}). Shodan updates this data about once a week and does not say when it last saw this IP.",
+    "noRecord": "Shodan has no record of {{ip}}: it has not seen an open port there.",
+    "notScanned": "Our scan has not run on {{ip}} yet, so there is nothing to compare with.",
+    "portsTitle": "Open ports, Shodan and our scan",
+    "port": {
+      "both": "Shodan and our scan both saw {{port}} open.",
+      "shodanOnly": "Shodan saw {{port}} open; our scan did not.",
+      "oursOnly": "Our scan saw {{port}} open; Shodan did not.",
+      "shodanOnlyNoScan": "Shodan saw {{port}} open."
+    },
+    "onlyOutside": "Seen only from outside",
+    "hint": {
+      "shodanOnly": "A port only the Internet sees is usually one your router opens on its outside interface, or forwards only for outside traffic. Is it meant to be open? If not, close it on the router or firewall.",
+      "oursOnly": "Shodan may not have scanned {{port}} since it opened (its data is about a week old), or the port answers only from inside."
+    },
+    "hostnames": "Names Shodan links to this IP: {{list}}.",
+    "tags": "Shodan tags:",
+    "cpes": "Software Shodan names: {{list}}.",
+    "vulnsTitle_one": "{{count}} CVE Shodan lists",
+    "vulnsTitle_other": "{{count}} CVEs Shodan lists",
+    "vulnsNote": "Shodan guesses these from the software versions it saw. They are Shodan's claim: Vedette has not confirmed them, and the Exploited vulnerabilities above are Vedette's own check.",
+    "vuln": "Shodan lists {{cve}}; Vedette has not confirmed it."
   }
 }

@@ -14576,7 +14576,7 @@
                           "id": {
                             "type": "integer",
                             "minimum": 1,
-                            "maximum": 14
+                            "maximum": 15
                           },
                           "state": {
                             "type": "string",
@@ -14604,7 +14604,7 @@
                         ],
                         "additionalProperties": false
                       },
-                      "description": "Exactly the 14 flows listed in PRIVACY.md"
+                      "description": "Exactly the 15 flows listed in PRIVACY.md"
                     },
                     "telemetry": {
                       "type": "object",
@@ -14711,7 +14711,7 @@
                           "id": {
                             "type": "integer",
                             "minimum": 1,
-                            "maximum": 14
+                            "maximum": 15
                           },
                           "state": {
                             "type": "string",
@@ -14739,7 +14739,7 @@
                         ],
                         "additionalProperties": false
                       },
-                      "description": "Exactly the 14 flows listed in PRIVACY.md"
+                      "description": "Exactly the 15 flows listed in PRIVACY.md"
                     },
                     "telemetry": {
                       "type": "object",
@@ -22968,6 +22968,299 @@
                     "added",
                     "removed",
                     "changed"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/exposure/targets/{id}/outside": {
+      "get": {
+        "operationId": "exposure_get_exposure_targets_id_outside",
+        "summary": "What the Internet sees (D-558): the last answer of Shodan InternetDB about this public IP of the box, with the open ports of Vedette's own newest scan of it; null when nobody has asked yet. Reading sends nothing",
+        "tags": [
+          "exposure"
+        ],
+        "x-stories": [
+          "S-EXP-1"
+        ],
+        "x-min-role": "viewer",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "ip": {
+                          "type": "string",
+                          "description": "The public IP that was sent to Shodan"
+                        },
+                        "checked_at": {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                          "description": "When the box asked Shodan (InternetDB itself gives no date; its data is updated about once a week)"
+                        },
+                        "checked_by": {
+                          "type": "string",
+                          "description": "The administrator who asked (an e-mail)"
+                        },
+                        "found": {
+                          "type": "boolean",
+                          "description": "false: Shodan has no record of this IP (InternetDB answered 404); the lists are then empty"
+                        },
+                        "ports": {
+                          "type": "array",
+                          "items": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          },
+                          "description": "Open ports Shodan saw, sorted"
+                        },
+                        "hostnames": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "cpes": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          },
+                          "description": "CPE 2.2 names of the software Shodan saw"
+                        },
+                        "tags": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          },
+                          "description": "Shodan tags, for example self-signed, vpn, eol-product"
+                        },
+                        "vulns": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          },
+                          "description": "CVE IDs Shodan lists from the software versions it saw; Vedette has not confirmed them"
+                        },
+                        "scan_ports": {
+                          "anyOf": [
+                            {
+                              "type": "array",
+                              "items": {
+                                "type": "integer",
+                                "minimum": -9007199254740991,
+                                "maximum": 9007199254740991
+                              }
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "Open ports of Vedette's own newest scan of this IP, sorted; null when it was never scanned"
+                        },
+                        "scan_at": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "When that scan ran; null when never"
+                        }
+                      },
+                      "required": [
+                        "ip",
+                        "checked_at",
+                        "checked_by",
+                        "found",
+                        "ports",
+                        "hostnames",
+                        "cpes",
+                        "tags",
+                        "vulns",
+                        "scan_ports",
+                        "scan_at"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "exposure_post_exposure_targets_id_outside",
+        "summary": "Ask Shodan InternetDB what it has seen on this public IP (D-558). Only an administrator's click sends it: no job, no polling. Only a public IP of this box that is verified and still the one the box goes out through (the same check as before a scan, INV-13) is sent: 400 bad_value for a domain, 409 not_verified, expired or ip_not_current otherwise. One HTTPS GET of https://internetdb.shodan.io/<ip>, nothing else sent; 404 there is a normal answer (found false). At most one check a minute on the box (429 rate_limited); 502 unreachable when Shodan does not answer or its answer cannot be read. The answer is kept (one per IP) and every request sent is audited",
+        "tags": [
+          "exposure"
+        ],
+        "x-stories": [
+          "S-EXP-1"
+        ],
+        "x-min-role": "admin",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ip": {
+                      "type": "string",
+                      "description": "The public IP that was sent to Shodan"
+                    },
+                    "checked_at": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                      "description": "When the box asked Shodan (InternetDB itself gives no date; its data is updated about once a week)"
+                    },
+                    "checked_by": {
+                      "type": "string",
+                      "description": "The administrator who asked (an e-mail)"
+                    },
+                    "found": {
+                      "type": "boolean",
+                      "description": "false: Shodan has no record of this IP (InternetDB answered 404); the lists are then empty"
+                    },
+                    "ports": {
+                      "type": "array",
+                      "items": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      },
+                      "description": "Open ports Shodan saw, sorted"
+                    },
+                    "hostnames": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "cpes": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "CPE 2.2 names of the software Shodan saw"
+                    },
+                    "tags": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "Shodan tags, for example self-signed, vpn, eol-product"
+                    },
+                    "vulns": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "CVE IDs Shodan lists from the software versions it saw; Vedette has not confirmed them"
+                    },
+                    "scan_ports": {
+                      "anyOf": [
+                        {
+                          "type": "array",
+                          "items": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          }
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Open ports of Vedette's own newest scan of this IP, sorted; null when it was never scanned"
+                    },
+                    "scan_at": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "When that scan ran; null when never"
+                    }
+                  },
+                  "required": [
+                    "ip",
+                    "checked_at",
+                    "checked_by",
+                    "found",
+                    "ports",
+                    "hostnames",
+                    "cpes",
+                    "tags",
+                    "vulns",
+                    "scan_ports",
+                    "scan_at"
                   ],
                   "additionalProperties": false
                 }

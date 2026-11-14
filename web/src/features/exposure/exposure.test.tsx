@@ -1147,3 +1147,55 @@ describe('exposure: services and exploited vulnerabilities of the box IP (S-EXP-
     expect(screen.queryByRole('region', { name: 'Exploited vulnerabilities' })).toBeNull()
   })
 })
+
+describe('exposure: what the Internet sees, Shodan InternetDB (S-EXP-1, D-558)', () => {
+  it('shows Shodan\'s ports beside our own scan, the differences called out, and Shodan\'s CVEs as its claim; axe clean', async () => {
+    renderApp('/exposure/xt-2')
+    expect(await screen.findByRole('heading', { name: 'What the Internet sees' })).toBeInTheDocument()
+    const answer = await screen.findByTestId('outside-answer')
+    expect(within(answer).getByText('Shodan and our scan both saw 443 open.')).toBeInTheDocument()
+    expect(within(answer).getByText('Shodan saw 10443 open; our scan did not.')).toBeInTheDocument()
+    expect(within(answer).getByText('Seen only from outside')).toBeInTheDocument()
+    expect(within(answer).getByText('Our scan saw 18443 open; Shodan did not.')).toBeInTheDocument()
+    expect(within(answer).getByText('Shodan lists CVE-2023-27997; Vedette has not confirmed it.')).toBeInTheDocument()
+    expect(within(answer).getByText('self-signed')).toBeInTheDocument()
+    expect(within(answer).getByText(/Shodan updates this data about once a week/)).toBeInTheDocument()
+    await expectNoA11yViolations()
+  })
+
+  it('nothing is sent before Send: the confirm step says what goes to Shodan; Cancel sends nothing; Send sends one request', async () => {
+    const posts: string[] = []
+    server.events.on('request:start', ({ request }) => { if (request.method === 'POST' && new URL(request.url).pathname.endsWith('/outside')) posts.push(request.url) })
+    const user = userEvent.setup()
+    renderApp('/exposure/xt-6')
+    expect(await screen.findByText(/Vedette has not asked Shodan about 203\.0\.113\.11/)).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Check what Shodan has seen' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Send 203.0.113.11 to Shodan?' })
+    expect(within(dialog).getByText('Your public IP 203.0.113.11 is sent to Shodan (internetdb.shodan.io). Shodan learns that someone asked about it. Nothing else is sent to Shodan. First the box may re-check that it still goes out through 203.0.113.11 (the same check as before a scan).')).toBeInTheDocument()
+    expect(posts).toEqual([])
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(posts).toEqual([])
+    await user.click(screen.getByRole('button', { name: 'Check what Shodan has seen' }))
+    await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Send' }))
+    expect(await screen.findByText('Shodan has no record of 203.0.113.11: it has not seen an open port there.')).toBeInTheDocument()
+    expect(posts).toHaveLength(1)
+    expect(auditStore.get()[0]).toMatchObject({ action: 'exposure.outside_view', target: '203.0.113.11' })
+    // At most once a minute on the box; only an administrator sends; a domain is never sent.
+    expect((await call('POST', '/exposure/targets/xt-6/outside')).status).toBe(429)
+    expect((await call('POST', '/exposure/targets/xt-6/outside', undefined, 'operator')).status).toBe(403)
+    expect((await call('POST', '/exposure/targets/xt-1/outside')).json.error.code).toBe('bad_value')
+  })
+
+  it('a viewer sees the answer but cannot send', async () => {
+    renderApp('/exposure/xt-2', { role: 'viewer' })
+    expect(await screen.findByTestId('outside-answer')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Check again' })).toBeDisabled()
+  })
+
+  it('a domain has no outside view', async () => {
+    renderApp('/exposure/xt-1')
+    expect(await screen.findByRole('heading', { level: 2, name: 'Scan results' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'What the Internet sees' })).not.toBeInTheDocument()
+  })
+})

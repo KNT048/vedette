@@ -472,6 +472,7 @@
       "exposure.commitment": "Confirm scan permission for the public address",
       "exposure.ip_ignore": "Ignore public address",
       "exposure.ip_restore": "Stop ignoring public address",
+      "exposure.outside_view": "Ask Shodan what it has seen on a public address",
       "exposure.scan": "Scan public address",
       "exposure.target_add": "Add public address to check",
       "exposure.target_delete": "Delete public address to check",
@@ -978,7 +979,7 @@
       },
       "9": {
         "name": "External exposure",
-        "what": "Your verified domain names, to find subdomains in public certificate-transparency logs: one search at crt.sh when you scan a domain. The scan itself goes only to your own verified targets: ports only on this box's verified public IPs, and one web-page check by name on ports 80 and 443 for the names of your domain. It sends nothing else of yours. And HTTPS requests to public \"what is my IP\" services so the box can see its own public IP. The services see only that IP; the requests carry no product name or identifier. An IP counts only when at least two of the three agree. The first check after install is a full check of 15 requests. Then auto-detect (on by default) asks each service once every recheck interval (60 minutes by default, 1 minute to 24 hours). A full check also runs at most once an hour by itself, when you select Detect now, when you turn auto-detect on, when you verify a public IP again, and just before a scan of a public IP (at most one every 5 minutes).",
+        "what": "Your verified domain names, to find subdomains in public certificate-transparency logs: one search at crt.sh when you scan a domain. The scan itself goes only to your own verified targets: ports only on this box's verified public IPs, and one web-page check by name on ports 80 and 443 for the names of your domain. It sends nothing else of yours. And HTTPS requests to public \"what is my IP\" services so the box can see its own public IP. The services see only that IP; the requests carry no product name or identifier. An IP counts only when at least two of the three agree. The first check after install is a full check of 15 requests. Then auto-detect (on by default) asks each service once every recheck interval (60 minutes by default, 1 minute to 24 hours). A full check also runs at most once an hour by itself, when you select Detect now, when you turn auto-detect on, when you verify a public IP again, and just before a scan of a public IP or a Shodan check of it (flow 15) (at most one every 5 minutes).",
         "to": "crt.sh (certificate-transparency search, run by Sectigo); your own targets when you scan; checkip.amazonaws.com (AWS), icanhazip.com (Cloudflare), ifconfig.me/ip (Google Cloud). No Vedette-run server",
         "control": "Turn off auto-detect under External exposure (then it is sent only when you select Detect now), or turn off the External exposure module.",
         "link": "Open modules"
@@ -1021,6 +1022,13 @@
         "what": "Only while a Wazuh server is connected in Inventory → Agents and the agent intake module is on. The box signs in to the Wazuh server API address you typed with the read-only user name and password you entered, then only reads: the API version, the list of agents, and each agent's network addresses, network interfaces and installed packages. It sends nothing else and never changes anything in Wazuh. The certificate must be one a public authority vouches for, or the one pinned when you pressed Save; if it changes, the pull stops before the password is sent, and you trust the new one only by typing the password again and pressing Save. Sent when you press Test or Save, and at the interval you chose.",
         "to": "Only the Wazuh server address you typed",
         "control": "Disconnect Wazuh in Inventory → Agents (the saved password is deleted), or turn off the agent intake module."
+      },
+      "15": {
+        "name": "Outside view of your public IP (only when an administrator clicks it)",
+        "what": "One of this box's own verified public IPs, in one HTTPS request to Shodan InternetDB, only when an administrator selects \"Check what Shodan has seen\" on that IP's page in External exposure and then confirms that the IP is sent to Shodan. Nothing else is sent: no key, no account, no other data of yours. Shodan sees the box's IP address and learns that someone asked about that IP. Only an IP the box has verified and still goes out through is sent: before it is sent, the box may first re-check its public IP (flow 9). At most once a minute; every request is in the audit log. Nothing runs on a schedule or in the background.",
+        "to": "`internetdb.shodan.io` (Shodan). No Vedette-run server",
+        "control": "It is off until an administrator clicks: if nobody clicks, nothing is sent. Turn off the External exposure module to remove the button.",
+        "link": "Open External exposure"
       }
     },
     "telemetry": {

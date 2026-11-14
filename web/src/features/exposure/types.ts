@@ -32,6 +32,7 @@ export type TargetList = z.infer<typeof C.TargetList>
 export type BoxIpDetectResult = z.infer<typeof C.BoxIpDetectResult>
 export type IgnoredIp = z.infer<typeof C.IgnoredIp>
 export type ScanRun = z.infer<typeof C.ScanRun>
+export type OutsideView = z.infer<typeof C.OutsideView>
 
 /** The label key of a blocked target: a commitment of an older sentence reads as asked again, not as a missing first scan (D-559). */
 export function blockedKey(t: Pick<Target, 'blocked_reason' | 'commitment'>): string {

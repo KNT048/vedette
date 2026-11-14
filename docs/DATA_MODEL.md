@@ -53,6 +53,7 @@ erDiagram
   inv_asset ||--o{ logs_ioc_hit : "asset (soft)"
   logs_source ||--o{ logs_event : emits
   exp_target ||--o{ exp_snapshot : daily
+  exp_target ||--o| exp_outside : "Shodan answer"
   scan_run ||--o{ scan_probe : logs
   fnd_finding ||--o{ mit_ai_output : "AI cache"
   ai_profile ||--o{ ai_assignment : "primary/fallback"
@@ -270,6 +271,7 @@ Bí mật của kênh (token bot, URL webhook Slack, mật khẩu SMTP, khoá k�
 | **`exp_attempt`** (`exp_attempts`) | `id:int` (tự tăng) · `ts:ts` | PK(id) · IX(ts) | 24 giờ; giới hạn 10 lần bấm/giờ chung cho "Detect now", "Verify again" và kiểm DNS (`MAX_ATTEMPTS_PER_HOUR`, mã `rate_limited`); lần dò theo lịch và lần kiểm lúc quét không ghi vào đây (INV-5) | W `POST …/verify`, `/exposure/box-ip/verify` |
 | **`exp_setting`** (một hàng, `id = 1`) | `auto:bool=1` (tự dò IP công cộng của hộp, D-79) · `interval_min:int=60` (1–1440, chu kỳ dò nhẹ) · `last_run_at:ts?` · `last_run_ok:bool?` · `last_run_message:text?` (≤ 1000; ba cột cùng NULL hoặc cùng có) · `last_deep_at:ts?` (lần dò đầy đủ nhiều kết nối gần nhất, kể cả thất bại; dò đầy đủ tự động tối đa mỗi giờ một lần, D-81) · `last_full_ok_at:ts?` (lần dò đầy đủ thành công gần nhất; kiểm lúc quét D-79 (2) dựa vào đây) | PK(id), CHECK id = 1 | Mãi | R `GET /exposure/targets` (khối `box_ip`); W `PUT /exposure/box-ip/settings` (admin, audit `exposure.box_ip_settings`), job dò tự động |
 | **`exp_ignored`** | `value:text` (IPv4 công cộng, chỉ chặn: dò thấy cũng không thêm, không quét) · `ignored_by:text` · `ignored_at:ts` | PK(value) | Tới khi admin khôi phục | R `GET /exposure/targets` (danh sách `ignored`); W `DELETE /exposure/targets/{id}?ignore=true` (ghi), `DELETE /exposure/box-ip/ignored/{ip}` (khôi phục; không bao giờ cho phép một IP, chỉ để lần dò sau thêm lại; admin, audit) |
+| **`exp_outside`** (`exp_outside`, D-558) | `target_id:id` FK→exp_target CASCADE · `ip:text` (IPv4 đã gửi) · `checked_at:ts` · `checked_by:text` (admin bấm) · `found:bool` (0: Shodan không có bản ghi, 404) · `answer:json` `{ports, hostnames, cpes, tags, vulns}` (đã kiểm và giới hạn, lời của Shodan, không phải phát hiện của Vedette) | PK(target_id) | Câu trả lời cuối của mỗi IP, thay ở lần hỏi sau; mất cùng mục tiêu; mọi lần gửi có dòng `exposure.outside_view` trong `core_audit` | R `GET /exposure/targets/{id}/outside`; W `POST /exposure/targets/{id}/outside` (admin, chỉ khi bấm) |
 
 Dẫn xuất khi đọc, không lưu: `status` (verified/expired), `expires_at` (IP: lần thấy cuối + 30 ngày, gia hạn mỗi lần dò thấy lại, D-79; domain NULL, kiểm lại TXT ngay trước mỗi lần quét), `validity` (`expiring` khi ≤ 5 ngày), `scannable`, `blocked_reason`, `latest` counts (từ snapshot mới nhất).
 

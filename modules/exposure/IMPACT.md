@@ -32,6 +32,12 @@
 ## Modifying: `Gateway` (port), `GatewayDevice`, `GatewayNote`, `GatewayView`, `gateway` of `GET /exposure/targets` (D-492)
 - **cmd/vedette** `exposuregateway.go` implements the port from `netStateReader` (default route), `inventory.Service.AllDevices`/`Names` and `findings.Service.List`: changing the meaning of "open" findings (`Status.Open`), the device name rule or the host's `NetState.DefaultRoute` changes what the page says. **web/features/exposure** `GatewayNote` (ExposurePage.tsx) words the four cases (known with findings, known without, not in the device list, unknown) and links to `/findings?device=<id>`; `contract.ts` is the OpenAPI source for `gateway`. Exposure never reads `inv_*` or `fnd_*`.
 
+## Modifying: `InternetDB`, `NewInternetDB`, `InternetDBURL`, `Config.Outside`, `CheckOutside`, `Outside`, `OutsideView`, `parseOutside`, `OutsideEvery`, bảng `exp_outside` (INV-21, D-558)
+- **PRIVACY.md luồng 15** và Settings → Privacy (`web/src/locales/en/core.json` `privacy.flow.15`, `PrivacySection.tsx`, `privacyFlows.test.ts`; danh sách luồng ở `modules/core/handlers_privacy.go` và mock `features/core/mocks.ts`): đổi cái gửi đi (host, đường dẫn, thêm tham số), khi gửi (thêm lịch, nhớ đồng ý) hay ai được gửi là đổi luồng dữ liệu ra, phải sửa PRIVACY + UI + D-558 cùng commit (legal.md); **THIRD_PARTY_NOTICES** dòng Shodan InternetDB (điều khoản: miễn phí cho dùng không thương mại; Vedette thu tiền → cần giấy phép enterprise của Shodan hoặc BYOK).
+- **Cổng own-IP**: `CheckOutside` dùng `stillCurrent` của INV-13 (có thể chạy một lượt dò đầy đủ của luồng 9): nới nó là gửi IP không còn của khách cho bên thứ ba.
+- **cmd/vedette** `exposure.go` dựng `NewInternetDB("", nil)`; **core** `export_policy.go` xuất `exp_outside` (`answer` là JSON).
+- **web/features/exposure**: `OutsidePanel.tsx` (trang mục tiêu IP, bước xác nhận trước khi gửi, so cổng), `api.ts` (`useOutside`, `useCheckOutside`), mock `mocks.ts`/`data.ts` (`outsideAnswer`, `seedOutside`), `contract.ts` là nguồn OpenAPI của `OutsideView` và hai route; `core/server/modules_test.go` `contractRoutes` và `api/route-modules.json` có hai route mới.
+
 ## Modifying: trường `Snapshot`/`Diff`
 - **SPA** `ResultsPanel`, `TargetPage`; **reports**. `contract.ts` là nguồn OpenAPI.
 

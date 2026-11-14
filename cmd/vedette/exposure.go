@@ -36,7 +36,12 @@ func exposureService(d deps) *exposure.Service {
 	if err != nil { // the addresses are constants of the package: a programming error, caught at start-up
 		panic("vedette: " + err.Error())
 	}
-	cfg := exposure.Config{DB: d.DB, Audit: d.Audit, Resolver: net.DefaultResolver, Prober: prober, Runner: scanRunner(d), Log: d.Log, Clock: d.Clock}
+	// D-558: "What the Internet sees" asks Shodan InternetDB, only on an administrator's click (no job).
+	outside, err := exposure.NewInternetDB("", nil)
+	if err != nil { // the address is a constant of the package
+		panic("vedette: " + err.Error())
+	}
+	cfg := exposure.Config{DB: d.DB, Audit: d.Audit, Resolver: net.DefaultResolver, Prober: prober, Runner: scanRunner(d), Outside: outside, Log: d.Log, Clock: d.Clock}
 	if d.Auth != nil { // D-473: the first scan of a target records the commitment only for an administrator with two-step sign-in
 		cfg.TwoStep = exposureTwoStep(d.Auth)
 	}

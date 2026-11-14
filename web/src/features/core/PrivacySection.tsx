@@ -60,6 +60,7 @@ function Body({ d }: { d: PrivacyState }) {
           {f.id === 11 ? <Link className="text-accent underline-offset-4 hover:underline" to="/settings/modules">{t('privacy.flow.11.link')}</Link> : null}
           {f.id === 10 && !container ? <Link className="text-accent underline-offset-4 hover:underline" to="/settings/network">{t('privacy.flow.10.link')}</Link> : null}
           {f.id === 1 ? <Link className="text-accent underline-offset-4 hover:underline" to="/settings/feeds">{t('privacy.flow.1.link')}</Link> : null}
+          {f.id === 15 ? <Link className="text-accent underline-offset-4 hover:underline" to="/exposure">{t('privacy.flow.15.link')}</Link> : null}
         </span>
       )
   }

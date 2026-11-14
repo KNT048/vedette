@@ -125,7 +125,7 @@ func netScaler(vulns []Vuln, version string) Software {
 // agentPkg is a package as osquery reports it through agent-intake (pkgmap.json: vendor and product are the KEV
 // pair, the version is the Debian upstream version).
 func agentPkg(vendor, product, version string) Software {
-	return Software{ID: "s-" + strings.ToLower(product), Display: product, Vendor: vendor, Product: product, Version: version, KevKeys: []string{KevKey(vendor, product)}}
+	return Software{ID: "s-" + strings.ToLower(product), Display: product, Vendor: vendor, Product: product, Version: version, KevKeys: []string{KevKey(vendor, product)}, Source: "agent"}
 }
 
 // ubuntuServer is the box "byn" of the N100 walk (W2-11): Ubuntu 26.04.1, every version from osquery.

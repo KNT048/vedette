@@ -261,6 +261,7 @@ func MatchAsset(a Asset, vulns []Vuln, have map[string]bool, now time.Time) Matc
 	infos := make([]swInfo, len(sws))
 	for i, s := range sws {
 		infos[i] = newSWInfo(s, a.OS)
+		infos[i].platformOS = platformOS(s, a)
 		if d, ok := winDevice(infos[i]); ok {
 			infos[i].winNamed = winNamed(vulns, d.rel.Product) // D-546, review H2
 		}
@@ -427,12 +428,12 @@ func matchOne(a Asset, s Software, in swInfo, v Vuln, now time.Time) (Match, out
 		note := fmt.Sprintf("%s lists %s for Juniper %s only; this device's model is %s. Check the vendor advisory and close it if it does not apply.", v.listName(), v.CVE, orList(named), clean(a.Model))
 		return Match{CVE: v.CVE, SoftwareID: s.ID, SoftwareDisplay: clean(s.Display), Evidence: Evidence{Summary: note, CheckedAt: now}}, outRuledOut
 	}
-	if why, out := platformRuledOut(in, v.CVE); out { // D-547: the platform it runs on is not one the CVE affects
-		note := "Not affected: " + why + " Vedette closed this by itself and reopens it if a later match says the device is affected."
-		return Match{CVE: v.CVE, SoftwareID: s.ID, SoftwareDisplay: clean(s.Display), Evidence: Evidence{Summary: note, CheckedAt: now}, why: why}, outNotAffected
-	}
 	if d, ok := distroVerdict(in, v); ok { // D-516: the distribution's own word on its package comes before NVD's upstream ranges
 		return distroMatch(a, s, in, v, d, now)
+	}
+	if why, out := platformRuledOut(in, v.CVE); out { // D-547: the platform it runs on is not one the CVE affects; after the distribution's own word, which may contradict the hand list (review r1 #7)
+		note := "Not affected: " + why + " Vedette closed this by itself and reopens it if a later match says the device is affected."
+		return Match{CVE: v.CVE, SoftwareID: s.ID, SoftwareDisplay: clean(s.Display), Evidence: Evidence{Summary: note, CheckedAt: now}, why: why}, outNotAffected
 	}
 	multi := isMultiProduct(v.Product)
 	w, isWin := windowsDecide(in, v, in.winNamed, now) // D-546: a Windows release row by its monthly update
@@ -525,10 +526,10 @@ type swInfo struct {
 	// osName is the device's operating system as inventory folds it ("Microsoft Windows 10 Enterprise LTSC 2019 10.0.17763.6532"):
 	// a Windows LTSC/LTSB edition is still serviced when its release has ended (D-546).
 	osName string
-	// banner: Software.Banner. netSeen: a scan or sensor saw the row as a network service, so the device's OS says nothing
-	// about the platform of its build (D-547).
-	banner  string
-	netSeen bool
+	// banner: Software.Banner. platformOS: the device's OS when it is evidence of the platform this row was built for (D-547,
+	// platformOS), "" otherwise.
+	banner     string
+	platformOS string
 }
 
 func newSWInfo(s Software, osName string) swInfo {
@@ -546,7 +547,6 @@ func newSWInfo(s Software, osName string) swInfo {
 	}
 	in.given = versionGiven(in.ver)
 	in.banner = s.Banner
-	in.netSeen = s.Source == "nmap" || s.Source == "scan" || s.Source == "passive"
 	in.packaged = s.Packaged && s.Source == "agent"
 	if in.packaged {
 		in.pkgVer, in.pkgSrc = s.PkgVersion, s.PkgSource

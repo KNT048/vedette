@@ -428,7 +428,7 @@ const multiProducts = "multiple products"
 // its key. A "Multiple products" entry matches exactly only a software row declared with that product (the
 // "I have it" device); a device that has any software of the vendor, or that the vendor made, matches by
 // vendor only. Display is the software row that matched (KF-3: not the device's first row by name, "3cpio" on
-// an Ubuntu box whose OpenSSH matched), the device's own display when only its maker matched.
+// an Ubuntu box whose OpenSSH matched); when only its maker matched, DeviceRefs' display (first row by name, else the kind).
 func (s *Service) DevicesRunning(ctx context.Context, products []ProductQuery) (map[string][]DeviceMatch, error) {
 	out := map[string][]DeviceMatch{}
 	for _, p := range products {
@@ -470,8 +470,6 @@ func (s *Service) DevicesRunning(ctx context.Context, products []ProductQuery) (
 			if r, ok := refs[id]; ok {
 				if d, ok := shown[id]; ok {
 					r.Display = d
-				} else if slices.Contains(byVendor, id) {
-					r.Display = r.Kind // only the maker matched: no software row to name
 				}
 				list = append(list, DeviceMatch{DeviceRef: r, Exact: slices.Contains(exact, id)})
 				delete(refs, id) // a device once, the exact answer first

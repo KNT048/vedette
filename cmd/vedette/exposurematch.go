@@ -98,7 +98,7 @@ func (m exposureMatcher) Match(ctx context.Context, svcs []exposure.ServiceRow) 
 		}
 		id := fmt.Sprintf("%s:%d", s.IP, s.Port)
 		where[id] = s
-		a.Software = append(a.Software, findings.Software{ID: id, Display: display, Version: s.Version, Banner: s.Extra, CPE: cpe, KevKeys: keys})
+		a.Software = append(a.Software, findings.Software{ID: id, Display: display, Version: s.Version, Banner: s.Extra, CPE: cpe, KevKeys: keys, Source: "scan"})
 	}
 	if len(order) == 0 {
 		return out, nil

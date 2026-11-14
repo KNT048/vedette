@@ -46,7 +46,7 @@ func TestContract_D515_OnAssetMergedMovesTheFindings(t *testing.T) {
 
 // Review L3/L4 (round 2) of #722: for a CVE both devices hold, decided (a person's history or an applied mitigation item) beats
 // confirmed beats suspected, and a tie keeps the kept device's finding; one audit row names both devices, the moved count and a
-// decided finding that lost to another decided one.
+// decided finding that lost to another decided one; the people's history rows of that lost finding move onto the kept one.
 func TestContract_D515_OnAssetMergedKeepsTheBetterFinding(t *testing.T) {
 	t.Parallel()
 	for name, c := range map[string]struct {
@@ -90,6 +90,11 @@ func TestContract_D515_OnAssetMergedKeepsTheBetterFinding(t *testing.T) {
 			}
 			if _, err := e.svc.Get(t.Context(), gone); err == nil {
 				t.Errorf("the loser %s is still there", gone)
+			}
+			if c.lost { // both decided: the person's note on the copy that went is on the kept one
+				if n := e.count(`SELECT count(*) FROM fnd_finding_history WHERE finding_id = '` + want + `' AND user = 'kien'`); n != 2 {
+					t.Errorf("%d of the person's history rows on the kept finding, want both copies' 2", n)
+				}
 			}
 			var detail string
 			if err := e.db.Reader().QueryRowContext(t.Context(), `SELECT detail FROM core_audit WHERE action = 'findings.merged_with_asset' AND target = 'a-2'`).Scan(&detail); err != nil {

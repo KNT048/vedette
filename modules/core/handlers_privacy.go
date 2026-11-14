@@ -95,6 +95,8 @@ func (h *APIHandlers) privacyFlows(ctx context.Context, p privacySetting) []oas.
 		{ID: 13, State: cond(h.reg.Enabled("mcp-server")), Control: rs},
 		// D-309: the pull runs only while agent-intake is on and a Wazuh server is saved; disconnect or turn the module off to stop it
 		{ID: 14, State: state(wazuh && h.reg.Enabled("agent-intake")), Control: rs},
+		// D-558: Shodan InternetDB is asked only when an administrator clicks in External exposure (no job)
+		{ID: 15, State: cond(h.reg.Enabled("exposure")), Control: rs},
 	}
 }
 

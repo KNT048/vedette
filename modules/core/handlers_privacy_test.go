@@ -36,10 +36,10 @@ func TestPrivacy_GetDefaultsAndShape(t *testing.T) {
 	r := admin.get("/core/privacy")
 	wantOK(t, r, 200)
 	f := flowsOf(t, r)
-	if len(f) != 14 {
+	if len(f) != 15 {
 		t.Fatalf("flows = %s", r.Raw)
 	}
-	for id := 1; id <= 14; id++ {
+	for id := 1; id <= 15; id++ {
 		if _, ok := f[id]; !ok {
 			t.Fatalf("flow %d missing", id)
 		}
@@ -49,6 +49,7 @@ func TestPrivacy_GetDefaultsAndShape(t *testing.T) {
 		5: {"conditional", "reason", nil}, 6: {"on", "switch", nil}, 7: {"conditional", "reason", nil}, 8: {"off", "reason", nil},
 		9: {"off", "reason", nil}, 10: {"on", "reason", nil}, 11: {"off", "reason", nil}, 12: {"off", "reason", nil},
 		13: {"off", "reason", nil}, // mcp-server is off by default (D-234)
+		15: {"off", "reason", nil}, // exposure is off by default; on, Shodan is asked only on a click (D-558)
 	}
 	for id, w := range want {
 		if f[id] != w {
@@ -381,7 +382,7 @@ func TestPrivacy_AnswersHaveExactlyTheSchemaKeys(t *testing.T) {
 			t.Errorf("%s update_check = %v", name, r.JSON["update_check"])
 		}
 		flows, _ := r.JSON["flows"].([]any)
-		if len(flows) != 14 {
+		if len(flows) != 15 {
 			t.Fatalf("%s flows = %d", name, len(flows))
 		}
 		for i, f := range flows {

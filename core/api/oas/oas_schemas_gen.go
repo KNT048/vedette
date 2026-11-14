@@ -15624,7 +15624,7 @@ func (s *CoreGetCoreOidcOKRoleMapItemRole) UnmarshalText(data []byte) error {
 }
 
 type CoreGetCorePrivacyOK struct {
-	// Exactly the 14 flows listed in PRIVACY.md.
+	// Exactly the 15 flows listed in PRIVACY.md.
 	Flows       []CoreGetCorePrivacyOKFlowsItem `json:"flows"`
 	Telemetry   CoreGetCorePrivacyOKTelemetry   `json:"telemetry"`
 	UpdateCheck bool                            `json:"update_check"`
@@ -19626,7 +19626,7 @@ func (s *CorePatchCoreAccountReq) SetName(val string) {
 }
 
 type CorePatchCorePrivacyOK struct {
-	// Exactly the 14 flows listed in PRIVACY.md.
+	// Exactly the 15 flows listed in PRIVACY.md.
 	Flows       []CorePatchCorePrivacyOKFlowsItem `json:"flows"`
 	Telemetry   CorePatchCorePrivacyOKTelemetry   `json:"telemetry"`
 	UpdateCheck bool                              `json:"update_check"`
@@ -43754,6 +43754,140 @@ func (s *ExposureGetExposureTargetsIDOKValidity) UnmarshalText(data []byte) erro
 	}
 }
 
+type ExposureGetExposureTargetsIDOutsideOK struct {
+	// When the box asked Shodan (InternetDB itself gives no date; its data is updated about once a week).
+	CheckedAt time.Time `json:"checked_at"`
+	// The administrator who asked (an e-mail).
+	CheckedBy string `json:"checked_by"`
+	// CPE 2.2 names of the software Shodan saw.
+	Cpes []string `json:"cpes"`
+	// False: Shodan has no record of this IP (InternetDB answered 404); the lists are then empty.
+	Found     bool     `json:"found"`
+	Hostnames []string `json:"hostnames"`
+	// The public IP that was sent to Shodan.
+	IP string `json:"ip"`
+	// Open ports Shodan saw, sorted.
+	Ports []int `json:"ports"`
+	// When that scan ran; null when never.
+	ScanAt NilDateTime `json:"scan_at"`
+	// Open ports of Vedette's own newest scan of this IP, sorted; null when it was never scanned.
+	ScanPorts []int `json:"scan_ports"`
+	// Shodan tags, for example self-signed, vpn, eol-product.
+	Tags []string `json:"tags"`
+	// CVE IDs Shodan lists from the software versions it saw; Vedette has not confirmed them.
+	Vulns []string `json:"vulns"`
+}
+
+// GetCheckedAt returns the value of CheckedAt.
+func (s *ExposureGetExposureTargetsIDOutsideOK) GetCheckedAt() time.Time {
+	return s.CheckedAt
+}
+
+// GetCheckedBy returns the value of CheckedBy.
+func (s *ExposureGetExposureTargetsIDOutsideOK) GetCheckedBy() string {
+	return s.CheckedBy
+}
+
+// GetCpes returns the value of Cpes.
+func (s *ExposureGetExposureTargetsIDOutsideOK) GetCpes() []string {
+	return s.Cpes
+}
+
+// GetFound returns the value of Found.
+func (s *ExposureGetExposureTargetsIDOutsideOK) GetFound() bool {
+	return s.Found
+}
+
+// GetHostnames returns the value of Hostnames.
+func (s *ExposureGetExposureTargetsIDOutsideOK) GetHostnames() []string {
+	return s.Hostnames
+}
+
+// GetIP returns the value of IP.
+func (s *ExposureGetExposureTargetsIDOutsideOK) GetIP() string {
+	return s.IP
+}
+
+// GetPorts returns the value of Ports.
+func (s *ExposureGetExposureTargetsIDOutsideOK) GetPorts() []int {
+	return s.Ports
+}
+
+// GetScanAt returns the value of ScanAt.
+func (s *ExposureGetExposureTargetsIDOutsideOK) GetScanAt() NilDateTime {
+	return s.ScanAt
+}
+
+// GetScanPorts returns the value of ScanPorts.
+func (s *ExposureGetExposureTargetsIDOutsideOK) GetScanPorts() []int {
+	return s.ScanPorts
+}
+
+// GetTags returns the value of Tags.
+func (s *ExposureGetExposureTargetsIDOutsideOK) GetTags() []string {
+	return s.Tags
+}
+
+// GetVulns returns the value of Vulns.
+func (s *ExposureGetExposureTargetsIDOutsideOK) GetVulns() []string {
+	return s.Vulns
+}
+
+// SetCheckedAt sets the value of CheckedAt.
+func (s *ExposureGetExposureTargetsIDOutsideOK) SetCheckedAt(val time.Time) {
+	s.CheckedAt = val
+}
+
+// SetCheckedBy sets the value of CheckedBy.
+func (s *ExposureGetExposureTargetsIDOutsideOK) SetCheckedBy(val string) {
+	s.CheckedBy = val
+}
+
+// SetCpes sets the value of Cpes.
+func (s *ExposureGetExposureTargetsIDOutsideOK) SetCpes(val []string) {
+	s.Cpes = val
+}
+
+// SetFound sets the value of Found.
+func (s *ExposureGetExposureTargetsIDOutsideOK) SetFound(val bool) {
+	s.Found = val
+}
+
+// SetHostnames sets the value of Hostnames.
+func (s *ExposureGetExposureTargetsIDOutsideOK) SetHostnames(val []string) {
+	s.Hostnames = val
+}
+
+// SetIP sets the value of IP.
+func (s *ExposureGetExposureTargetsIDOutsideOK) SetIP(val string) {
+	s.IP = val
+}
+
+// SetPorts sets the value of Ports.
+func (s *ExposureGetExposureTargetsIDOutsideOK) SetPorts(val []int) {
+	s.Ports = val
+}
+
+// SetScanAt sets the value of ScanAt.
+func (s *ExposureGetExposureTargetsIDOutsideOK) SetScanAt(val NilDateTime) {
+	s.ScanAt = val
+}
+
+// SetScanPorts sets the value of ScanPorts.
+func (s *ExposureGetExposureTargetsIDOutsideOK) SetScanPorts(val []int) {
+	s.ScanPorts = val
+}
+
+// SetTags sets the value of Tags.
+func (s *ExposureGetExposureTargetsIDOutsideOK) SetTags(val []string) {
+	s.Tags = val
+}
+
+// SetVulns sets the value of Vulns.
+func (s *ExposureGetExposureTargetsIDOutsideOK) SetVulns(val []string) {
+	s.Vulns = val
+}
+
 type ExposureGetExposureTargetsIDSnapshotsDateOK struct {
 	AdminPanels []ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItem `json:"admin_panels"`
 	Certs       []ExposureGetExposureTargetsIDSnapshotsDateOKCertsItem       `json:"certs"`
@@ -47165,6 +47299,140 @@ func (s *ExposurePostExposureTargetsCreatedValidity) UnmarshalText(data []byte) 
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
+}
+
+type ExposurePostExposureTargetsIDOutsideOK struct {
+	// When the box asked Shodan (InternetDB itself gives no date; its data is updated about once a week).
+	CheckedAt time.Time `json:"checked_at"`
+	// The administrator who asked (an e-mail).
+	CheckedBy string `json:"checked_by"`
+	// CPE 2.2 names of the software Shodan saw.
+	Cpes []string `json:"cpes"`
+	// False: Shodan has no record of this IP (InternetDB answered 404); the lists are then empty.
+	Found     bool     `json:"found"`
+	Hostnames []string `json:"hostnames"`
+	// The public IP that was sent to Shodan.
+	IP string `json:"ip"`
+	// Open ports Shodan saw, sorted.
+	Ports []int `json:"ports"`
+	// When that scan ran; null when never.
+	ScanAt NilDateTime `json:"scan_at"`
+	// Open ports of Vedette's own newest scan of this IP, sorted; null when it was never scanned.
+	ScanPorts []int `json:"scan_ports"`
+	// Shodan tags, for example self-signed, vpn, eol-product.
+	Tags []string `json:"tags"`
+	// CVE IDs Shodan lists from the software versions it saw; Vedette has not confirmed them.
+	Vulns []string `json:"vulns"`
+}
+
+// GetCheckedAt returns the value of CheckedAt.
+func (s *ExposurePostExposureTargetsIDOutsideOK) GetCheckedAt() time.Time {
+	return s.CheckedAt
+}
+
+// GetCheckedBy returns the value of CheckedBy.
+func (s *ExposurePostExposureTargetsIDOutsideOK) GetCheckedBy() string {
+	return s.CheckedBy
+}
+
+// GetCpes returns the value of Cpes.
+func (s *ExposurePostExposureTargetsIDOutsideOK) GetCpes() []string {
+	return s.Cpes
+}
+
+// GetFound returns the value of Found.
+func (s *ExposurePostExposureTargetsIDOutsideOK) GetFound() bool {
+	return s.Found
+}
+
+// GetHostnames returns the value of Hostnames.
+func (s *ExposurePostExposureTargetsIDOutsideOK) GetHostnames() []string {
+	return s.Hostnames
+}
+
+// GetIP returns the value of IP.
+func (s *ExposurePostExposureTargetsIDOutsideOK) GetIP() string {
+	return s.IP
+}
+
+// GetPorts returns the value of Ports.
+func (s *ExposurePostExposureTargetsIDOutsideOK) GetPorts() []int {
+	return s.Ports
+}
+
+// GetScanAt returns the value of ScanAt.
+func (s *ExposurePostExposureTargetsIDOutsideOK) GetScanAt() NilDateTime {
+	return s.ScanAt
+}
+
+// GetScanPorts returns the value of ScanPorts.
+func (s *ExposurePostExposureTargetsIDOutsideOK) GetScanPorts() []int {
+	return s.ScanPorts
+}
+
+// GetTags returns the value of Tags.
+func (s *ExposurePostExposureTargetsIDOutsideOK) GetTags() []string {
+	return s.Tags
+}
+
+// GetVulns returns the value of Vulns.
+func (s *ExposurePostExposureTargetsIDOutsideOK) GetVulns() []string {
+	return s.Vulns
+}
+
+// SetCheckedAt sets the value of CheckedAt.
+func (s *ExposurePostExposureTargetsIDOutsideOK) SetCheckedAt(val time.Time) {
+	s.CheckedAt = val
+}
+
+// SetCheckedBy sets the value of CheckedBy.
+func (s *ExposurePostExposureTargetsIDOutsideOK) SetCheckedBy(val string) {
+	s.CheckedBy = val
+}
+
+// SetCpes sets the value of Cpes.
+func (s *ExposurePostExposureTargetsIDOutsideOK) SetCpes(val []string) {
+	s.Cpes = val
+}
+
+// SetFound sets the value of Found.
+func (s *ExposurePostExposureTargetsIDOutsideOK) SetFound(val bool) {
+	s.Found = val
+}
+
+// SetHostnames sets the value of Hostnames.
+func (s *ExposurePostExposureTargetsIDOutsideOK) SetHostnames(val []string) {
+	s.Hostnames = val
+}
+
+// SetIP sets the value of IP.
+func (s *ExposurePostExposureTargetsIDOutsideOK) SetIP(val string) {
+	s.IP = val
+}
+
+// SetPorts sets the value of Ports.
+func (s *ExposurePostExposureTargetsIDOutsideOK) SetPorts(val []int) {
+	s.Ports = val
+}
+
+// SetScanAt sets the value of ScanAt.
+func (s *ExposurePostExposureTargetsIDOutsideOK) SetScanAt(val NilDateTime) {
+	s.ScanAt = val
+}
+
+// SetScanPorts sets the value of ScanPorts.
+func (s *ExposurePostExposureTargetsIDOutsideOK) SetScanPorts(val []int) {
+	s.ScanPorts = val
+}
+
+// SetTags sets the value of Tags.
+func (s *ExposurePostExposureTargetsIDOutsideOK) SetTags(val []string) {
+	s.Tags = val
+}
+
+// SetVulns sets the value of Vulns.
+func (s *ExposurePostExposureTargetsIDOutsideOK) SetVulns(val []string) {
+	s.Vulns = val
 }
 
 type ExposurePostExposureTargetsIDScanAccepted struct {
@@ -99773,6 +100041,51 @@ func (o NilExposureGetExposureTargetsIDOKValidity) Get() (v ExposureGetExposureT
 
 // Or returns value if set, or given parameter if does not.
 func (o NilExposureGetExposureTargetsIDOKValidity) Or(d ExposureGetExposureTargetsIDOKValidity) ExposureGetExposureTargetsIDOKValidity {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposureGetExposureTargetsIDOutsideOK returns new NilExposureGetExposureTargetsIDOutsideOK with value set to v.
+func NewNilExposureGetExposureTargetsIDOutsideOK(v ExposureGetExposureTargetsIDOutsideOK) NilExposureGetExposureTargetsIDOutsideOK {
+	return NilExposureGetExposureTargetsIDOutsideOK{
+		Value: v,
+	}
+}
+
+// NilExposureGetExposureTargetsIDOutsideOK is nullable ExposureGetExposureTargetsIDOutsideOK.
+type NilExposureGetExposureTargetsIDOutsideOK struct {
+	Value ExposureGetExposureTargetsIDOutsideOK
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposureGetExposureTargetsIDOutsideOK) SetTo(v ExposureGetExposureTargetsIDOutsideOK) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposureGetExposureTargetsIDOutsideOK) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposureGetExposureTargetsIDOutsideOK) SetToNull() {
+	o.Null = true
+	var v ExposureGetExposureTargetsIDOutsideOK
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposureGetExposureTargetsIDOutsideOK) Get() (v ExposureGetExposureTargetsIDOutsideOK, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposureGetExposureTargetsIDOutsideOK) Or(d ExposureGetExposureTargetsIDOutsideOK) ExposureGetExposureTargetsIDOutsideOK {
 	if v, ok := o.Get(); ok {
 		return v
 	}

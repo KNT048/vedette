@@ -135,6 +135,9 @@ func (w *Worker) nucleiArgv(j sensorlink.Job) ([]string, *sensorlink.JobResult, 
 		if err != nil {
 			return nil, refusal("pack_invalid"), err
 		}
+		if err := pack.NoChangeText(body); err != nil { // D-528: no write, upload or other host, in every job (the builder kept only files that pass)
+			return nil, refusal("invalid_job"), fmt.Errorf("template %.100q may change the target or reach another host: %w", t.ID, err)
+		}
 		if nj.Scope == nucleiargv.ScopeOwnIP { // the last fence: the worker reads the file itself (D-520)
 			if err := pack.OwnIPText(body); err != nil {
 				return nil, refusal("invalid_job"), fmt.Errorf("template %.100q may not run on a public IP: %w", t.ID, err)

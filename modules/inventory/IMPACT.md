@@ -53,6 +53,10 @@
 ## Modifying: `inventory.Service.Device/Devices/Detail/Names` (GetAsset/ListAssets của bản nháp)
 - **findings** (`FindingAsset`; D-57 (6)), **notify** (`devices[]` của incident), **honeypot/logs/response** (thiết bị nguồn), **reports**, **ai**, **mcp-server** (`search_assets`).
 
+## Modifying: `SoftwareView.kev_cves` và cột Open findings của trang thiết bị (W11-1)
+- **Web** (`DevicePage.tsx` `useOpenFindings`/`OpenCves`): cột là `kev_cves` của dòng ∩ CVE của finding **mở** (`isOpen` của findings: suspected, confirmed) trong `GET /findings?asset=<id>` (cùng khoá truy vấn với khung Findings của trang). Đổi luật `isOpen`, dạng `FindingList` hay ý nghĩa `kev_cves` (ví dụ chỉ còn CVE trong khoảng phiên bản) = đổi cột; giữ ba test W11-1 trong `inventory.test.tsx`. Finding khớp không qua khoá KEV của dòng (chỉ qua OS tự nêu, hay CPE không có trong `kev_cves`) không hiện ở dòng nào; vẫn ở khung Findings.
+- **findings** (Mlee; `rematch.ts` `softwareFor`, `DevicePanel.tsx`, `Updated.tsx`) đọc `kev_cves` như "các CVE của sản phẩm" để chọn phần mềm của một finding; vì vậy API giữ danh sách không so phiên bản, chỉ trang thiết bị lọc.
+
 ## Modifying: sự kiện `inventory.asset.deleted`, `inventory.match.changed`, `inventory.asset.discovered`, `inventory.asset.approved`
 - **findings** (xoá/tạo finding qua `inventory.asset.deleted`, `inventory.match.changed`), **notify** (incident `unknown_device`, `learning`, `actor` của duyệt/xoá; D-474), **sensor-active** (quét lần đầu thiết bị mong manh).
 

@@ -589,8 +589,31 @@ describe('inventory: device detail (S-INV-1)', () => {
     expect(within(services).getByText('8080/tcp')).toBeInTheDocument()
     await user.click(screen.getByRole('tab', { name: 'Software' }))
     const sw = await screen.findByRole('table', { name: 'Software on the device' }, T)
-    expect(within(sw).getByRole('link', { name: 'CVE-2022-27593' })).toHaveAttribute('href', '/cve/CVE-2022-27593')
+    expect(within(sw).getByRole('link', { name: 'CVE-2022-27593' })).toHaveAttribute('href', '/findings/f-1')
     await expectNoA11yViolations()
+  })
+
+  // W11-1: the column agrees with Findings: a CVE shows against a software row only while the device has it open.
+  // The row is looked up on every try: the table re-renders when the module list and the findings arrive.
+  const photoStation = () => within(screen.getByRole('table', { name: 'Software on the device' })).getByText('QNAP Photo Station').closest('tr')!
+  const openSoftwareTab = () => renderApp('/devices/a-nas02?tab=software')
+  it('W11-1: an open finding shows its CVE on the software row, linked to the finding', async () => {
+    openSoftwareTab()
+    await waitFor(() => expect(within(photoStation()).getByRole('link', { name: 'CVE-2022-27593' })).toHaveAttribute('href', '/findings/f-1'), T)
+  })
+
+  it('W11-1: an exploited CVE of the product without an open finding on the device is not shown', async () => {
+    findingsStore.update((l) => l.map((f) => (f.asset_id === 'a-nas02' ? { ...f, status: 'not_relevant' as const } : f)))
+    openSoftwareTab()
+    await waitFor(() => expect(within(photoStation()).getByText('None open')).toBeInTheDocument(), T)
+    expect(within(photoStation()).queryByRole('link', { name: /^CVE-/ })).toBeNull()
+  })
+
+  it('W11-1: with findings off the column says so instead of listing the product\'s exploited CVEs', async () => {
+    enableModule('findings', false)
+    openSoftwareTab()
+    await waitFor(() => expect(within(photoStation()).getByText('Findings module is off')).toBeInTheDocument(), T)
+    expect(within(photoStation()).queryByRole('link', { name: /^CVE-/ })).toBeNull()
   })
 
   it('changing the type adds a manual observation and keeps the old one', async () => {

@@ -65,7 +65,7 @@
     "times_one": "once",
     "times_other": "{{count}} times",
     "add": "Add as source",
-    "addFor": "Add {{ip}} as a log source",
+    "addFor": "Add as source: {{ip}}",
     "edit": "Edit {{name}}",
     "container": "On a container install, syslog sent from the machine that runs Vedette arrives from the containers' network gateway (often 172.17.0.1 or 172.18.0.1), not from the machine's own address: declare that address for such a source.",
     "memory": "Counted since the syslog listener last started; the 10 most recent addresses are shown.",

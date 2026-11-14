@@ -199,3 +199,27 @@ func TestDistroHWEKernel(t *testing.T) {
 		t.Fatalf("a PPA kernel closed: %+v", r)
 	}
 }
+
+// D-570: the feeds module pulls a distribution's files only for a device the distribution's word can apply to.
+func TestDeviceDistro(t *testing.T) {
+	t.Parallel()
+	deb := Software{Source: "agent", Packaged: true, PkgVersion: "1:9.6p1-3ubuntu13.14", PkgSource: "openssh"}
+	manual := deb
+	manual.Source = "manual"
+	for _, tc := range []struct {
+		name string
+		a    Asset
+		want string
+	}{
+		{"Ubuntu with an agent's deb package", Asset{OS: "Ubuntu 24.04.1 LTS", Software: []Software{{Source: "scan"}, deb}}, "ubuntu"},
+		{"Debian with an agent's deb package", Asset{OS: "Debian GNU/Linux 12 (bookworm)", Software: []Software{deb}}, "debian"},
+		{"Ubuntu without packages", Asset{OS: "Ubuntu 24.04.1 LTS", Software: []Software{{Source: "scan", Version: "9.6p1"}}}, ""},
+		{"Ubuntu with a hand-entered package", Asset{OS: "Ubuntu 24.04.1 LTS", Software: []Software{manual}}, ""},
+		{"another OS", Asset{OS: "Windows Server 2022", Software: []Software{deb}}, ""},
+		{"no OS", Asset{Software: []Software{deb}}, ""},
+	} {
+		if got := DeviceDistro(tc.a); got != tc.want {
+			t.Errorf("%s: %q, want %q", tc.name, got, tc.want)
+		}
+	}
+}

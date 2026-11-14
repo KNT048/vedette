@@ -3,12 +3,14 @@ package feeds
 import (
 	"archive/tar"
 	"bytes"
+	"context"
 	"errors"
 	"io"
 	"slices"
 	"strings"
 	"testing"
 	"testing/iotest"
+	"time"
 
 	"github.com/ulikunitz/xz"
 
@@ -229,6 +231,62 @@ func TestDistroPull(t *testing.T) {
 	}
 	if fixes, _ := e.svc.st.DistroFixes(t.Context()); len(fixes["CVE-2026-10001"]) != 2 {
 		t.Fatalf("turned on again: %+v", fixes)
+	}
+}
+
+// distroInv is an inventory that answers only Distros (D-570).
+type distroInv struct {
+	Inventory
+	got   map[string]bool
+	err   error
+	asked int
+}
+
+func (d *distroInv) Distros(context.Context) (map[string]bool, error) { d.asked++; return d.got, d.err }
+
+// D-570 (LEAN): a distribution feed fills once whatever the inventory says (review H1: the first device of that distribution is
+// judged on its rows), then is fetched only while a device needs it. Otherwise nothing is fetched or recorded, the rows stay,
+// the feed stays due (the next tick asks again) and the Feeds page says why; a failed read of the inventory pulls as before.
+func TestDistroPullOnlyWhileADeviceNeedsIt(t *testing.T) {
+	t.Parallel()
+	e, o := pullEnv(t)
+	e.only(debianTrackerFeedID)
+	e.mirror(debianTrackerFeedID, o.url("/tracker.json"))
+	o.body("/tracker.json", `"v1"`, debianJSON)
+	e.loadKEV()
+	inv := &distroInv{got: map[string]bool{DistroUbuntu: true}}
+	e.svc.Inventory = inv
+	if err := e.svc.RunPull(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if f := e.svc.live(e.feed(debianTrackerFeedID)); o.count("/tracker.json") != 1 || inv.asked != 0 || f.Status != "ok" || rowsOf(t, e.db, "feeds_distro_fix") != 2 {
+		t.Fatalf("first fill: %d requests, asked %d, feed %+v", o.count("/tracker.json"), inv.asked, f)
+	}
+	const note = "Not updated: no Debian device now. Vedette updates it on the next check after an agent reports the packages of a Debian device."
+	for range 2 { // due again (a day later): no Debian device, so nothing is fetched and the next tick asks again
+		e.setNow(e.clock().Add(25 * time.Hour))
+		if err := e.svc.RunPull(t.Context()); err != nil {
+			t.Fatal(err)
+		}
+	}
+	f := e.svc.live(e.feed(debianTrackerFeedID))
+	if o.count("/tracker.json") != 1 || inv.asked != 2 || f.Status != "ok" || f.Error == nil || *f.Error != note || rowsOf(t, e.db, "feeds_distro_fix") != 2 {
+		t.Fatalf("no Debian device: %d requests, asked %d, feed %+v", o.count("/tracker.json"), inv.asked, f)
+	}
+	if err := e.svc.Fetch(t.Context(), debianTrackerFeedID); err != nil || o.count("/tracker.json") != 1 {
+		t.Fatalf("Fetch now without a Debian device: %v, %d requests", err, o.count("/tracker.json"))
+	}
+	inv.got = map[string]bool{DistroUbuntu: true, DistroDebian: true}
+	if err := e.svc.RunPull(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if f := e.svc.live(e.feed(debianTrackerFeedID)); o.count("/tracker.json") != 2 || f.Status != "ok" || f.Error != nil && *f.Error == note {
+		t.Fatalf("a Debian device appeared: %d requests, feed %+v", o.count("/tracker.json"), f)
+	}
+	// the inventory cannot be read: pull as before
+	inv.got, inv.err = nil, errors.New("database is locked")
+	if err := e.svc.Fetch(t.Context(), debianTrackerFeedID); err != nil || o.count("/tracker.json") != 3 {
+		t.Fatalf("read error: %v, %d requests", err, o.count("/tracker.json"))
 	}
 }
 

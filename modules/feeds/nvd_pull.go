@@ -84,8 +84,17 @@ func (s *Service) nvdResumeAt() (time.Time, bool) {
 
 // live is the feed row as the GUI shows it: while the NVD versions load (or wait to go on), the row says how far
 // the pull got and why it waits, instead of the last error or "not fetched yet" alone (W3-1). A feed that never
-// finished a pull stays "never": its versions are not loaded yet.
+// finished a pull stays "never": its versions are not loaded yet. A distribution feed no device needs says so (D-570).
 func (s *Service) live(r sourceRow) sourceRow {
+	if distroFeeds[r.ID] && r.Enabled {
+		if note := s.distroNote(r.ID); note != "" { // D-570: the rows of an earlier pull stay; a real error keeps its text, then says why it waits
+			if r.Status == "error" && r.Error != nil {
+				note = *r.Error + " " + note
+			}
+			r.Error = &note
+		}
+		return r
+	}
 	if r.ID != nvdFeedID {
 		return r
 	}

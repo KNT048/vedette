@@ -71,7 +71,6 @@ var gbProviderPkg = map[string]string{"ubuntu": "docker-compose-v2", "debian": "
 var (
 	gbPasswordRE = regexp.MustCompile(`^[0-9a-f]{48}$`)
 	gbVersionRE  = regexp.MustCompile(`(?m)^v?([0-9]+)\.([0-9]+)\.[0-9]+`)
-	errGBArgv    = errors.New("not one of the fixed OpenVAS command lines")
 	errGBStopped = errors.New("ops: stopped by greenbone.down")
 )
 
@@ -148,7 +147,7 @@ func (o *Ops) cmdGreenboneUp() server.Command {
 			if err := gbArgs(a); err != nil {
 				return nil, err
 			}
-			return struct{}{}, o.gbOp(ctx, false, gbUpLimit, func(ctx context.Context) error { return o.gbUp(ctx, rc.Log, a.Password) })
+			return gbResult(o.gbOp(ctx, false, gbUpLimit, func(ctx context.Context) error { return o.gbUp(ctx, rc.Log, a.Password) }))
 		},
 	})
 }
@@ -157,7 +156,7 @@ func (o *Ops) cmdGreenboneDown() server.Command {
 	return server.Define(server.Spec[struct{}]{
 		Name: api.CmdGreenboneDown, Write: false, Timeout: gbDownLimit + time.Minute,
 		Run: func(ctx context.Context, rc *server.RunContext, _ struct{}) (any, error) {
-			return struct{}{}, o.gbOp(ctx, true, gbDownLimit, func(ctx context.Context) error { return o.gbDown(ctx, rc.Log) })
+			return gbResult(o.gbOp(ctx, true, gbDownLimit, func(ctx context.Context) error { return o.gbDown(ctx, rc.Log) }))
 		},
 	})
 }
@@ -166,9 +165,17 @@ func (o *Ops) cmdGreenboneSyncFeed() server.Command {
 	return server.Define(server.Spec[struct{}]{
 		Name: api.CmdGreenboneSyncFeed, Write: false, Timeout: gbSyncLimit + 10*time.Minute,
 		Run: func(ctx context.Context, rc *server.RunContext, _ struct{}) (any, error) {
-			return struct{}{}, o.gbOp(ctx, false, gbSyncLimit, func(ctx context.Context) error { return o.gbSyncFeed(ctx, rc.Log) })
+			return gbResult(o.gbOp(ctx, false, gbSyncLimit, func(ctx context.Context) error { return o.gbSyncFeed(ctx, rc.Log) }))
 		},
 	})
+}
+
+// gbResult is a command's outcome: an empty result when it worked, the error alone when not.
+func gbResult(err error) (any, error) {
+	if err != nil {
+		return nil, err
+	}
+	return struct{}{}, nil
 }
 
 // gbOp runs f as the one OpenVAS operation of the host, bounded by limit. Another one waits for it (within its own bound); down
@@ -210,7 +217,7 @@ func (o *Ops) gbOp(ctx context.Context, preempt bool, limit time.Duration, f fun
 	return err
 }
 
-// gbExecFn runs one allowlisted binary (o.execIn; internal tests replace it).
+// gx runs one allowlisted binary (o.execIn; internal tests replace it through gbExec).
 func (o *Ops) gx() zapExecFn {
 	if o.gbExec != nil {
 		return o.gbExec
@@ -335,7 +342,7 @@ func (o *Ops) gbSocketDir() error {
 func gbDir(path string, uid, gid int) error {
 	f, err := openDirNoFollow(path)
 	if errors.Is(err, os.ErrNotExist) {
-		if err := os.Mkdir(path, 0o755); err != nil && !errors.Is(err, os.ErrExist) {
+		if err := os.Mkdir(path, 0o755); err != nil && !errors.Is(err, os.ErrExist) { //nolint:gosec // 0755 on purpose: core (another uid) must reach gvmd's socket; only the owner writes
 			return fmt.Errorf("ops: create %s: %w", path, err)
 		}
 		f, err = openDirNoFollow(path)

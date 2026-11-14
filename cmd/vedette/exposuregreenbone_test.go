@@ -29,7 +29,7 @@ type fakeGBHost struct {
 	run   func(command string) (api.Run, error)
 }
 
-func (f *fakeGBHost) Greenbone(ctx context.Context, command string, args any, _, actor string) (api.Run, error) {
+func (f *fakeGBHost) Greenbone(_ context.Context, command string, args any, _, actor string) (api.Run, error) {
 	b, _ := json.Marshal(args)
 	f.mu.Lock()
 	f.calls, f.args = append(f.calls, command+" "+actor), append(f.args, string(b))

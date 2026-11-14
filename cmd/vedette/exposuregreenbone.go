@@ -111,7 +111,7 @@ func (g exposureGreenbone) Down(ctx context.Context) error {
 func (g exposureGreenbone) SyncFeed(ctx context.Context) error {
 	err := g.run(ctx, api.CmdGreenboneSyncFeed, nil)
 	if ctx.Err() != nil {
-		go func() { //nolint:gosec,contextcheck // the stop outlives the cancelled update on purpose, bounded by gbDownAfterStop
+		go func() { // the stop outlives the cancelled update on purpose, bounded by gbDownAfterStop
 			dctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), gbDownAfterStop)
 			defer cancel()
 			_ = g.Down(dctx)

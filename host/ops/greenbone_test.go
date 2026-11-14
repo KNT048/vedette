@@ -123,7 +123,7 @@ func newGBWorld(t *testing.T, osRelease string) *gbWorld {
 	base := t.TempDir()
 	state := filepath.Join(base, "state")
 	for _, d := range []string{state, filepath.Join(base, "run"), filepath.Join(base, "etc"), filepath.Join(base, gbFilesDir)} {
-		if err := os.MkdirAll(d, 0o755); err != nil {
+		if err := os.MkdirAll(d, 0o755); err != nil { //nolint:gosec // the fake root of a test, like /run and /etc
 			t.Fatal(err)
 		}
 	}

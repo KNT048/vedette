@@ -77,63 +77,49 @@ func (a notifyDevices) DeviceName(ctx context.Context, assetID string) (string, 
 }
 
 // DeviceStates is notify's view of devices for their unknown_device incidents (D-552, W8-2): the name of the Devices page
-// (inventory.Device.Name, the one naming rule of D-471), else the MAC, else the kind; the IP, else the MAC, as the address; whether
+// (inventory.DisplayName, the one naming rule of D-471), else the MAC, else the kind; the IP, else the MAC, as the address; whether
 // and when it was approved (notify closes the device's incident on it). The values come from the network: plainText cleans them.
-// One id (notify's handler of inventory.asset.updated, only for a device on an open new-device incident) reads that device; more
-// (the hourly autoclose job) read every device once, never one read per id.
-// ponytail: inventory has no light read that says approved: Device also counts the findings of the whole box
-// (findings.CountByAsset) and AllDevices loads every device's software. Upgrade path: an inventory batch read like DeviceRefs that
-// adds model, origin, approved and approved_at (one query, no findings), used for both (deferred line, Kiên's module).
+// One light batch read of inventory (DeviceRefs: no findings count, no software list, D-554) for one id (notify's handler of
+// inventory.asset.updated, only for a device on an open new-device incident) or many (the hourly autoclose job).
 func (a notifyDevices) DeviceStates(ctx context.Context, ids []string) (map[string]notify.DeviceState, error) {
 	out := make(map[string]notify.DeviceState, len(ids))
-	switch len(ids) {
-	case 0:
-		return out, nil
-	case 1:
-		d, err := a.inv.Device(ctx, ids[0])
-		if errors.Is(err, inventory.ErrNotFound) {
-			return out, nil
-		}
-		if err != nil {
-			return nil, err
-		}
-		out[d.ID] = deviceState(d)
+	if len(ids) == 0 {
 		return out, nil
 	}
-	want := make(map[string]bool, len(ids))
-	for _, id := range ids {
-		want[id] = true
-	}
-	all, err := a.inv.AllDevices(ctx)
+	refs, err := a.inv.DeviceRefs(ctx, ids)
 	if err != nil {
 		return nil, err
 	}
-	for _, d := range all {
-		if want[d.ID] {
-			out[d.ID] = deviceState(d)
-		}
+	for id, r := range refs {
+		out[id] = deviceState(r)
 	}
 	return out, nil
 }
 
 // deviceState is DeviceStates of one device of the inventory.
-func deviceState(d inventory.Device) notify.DeviceState {
-	var mac string
-	if d.MAC != nil {
-		mac = plainText(*d.MAC, 64)
+func deviceState(r inventory.DeviceRef) notify.DeviceState {
+	product := r.Display // the first software's display name; DeviceRefs puts the kind there when the device has no software
+	if product == r.Kind {
+		product = ""
 	}
-	st := notify.DeviceState{Name: plainText(d.Name(), 160), Address: mac, Approved: d.Approved}
-	if _, err := netip.ParseAddr(d.IP); err == nil { // the inventory shows an em dash when the IP is unknown
-		st.Address = d.IP
+	var host string
+	if r.Hostname != nil {
+		host = *r.Hostname
+	}
+	mac := plainText(r.MAC, 64)
+	st := notify.DeviceState{Name: plainText(inventory.DisplayName(host, r.Vendor, r.Model, r.IP, r.Origin, product), 160), Address: mac,
+		Approved: r.Approved}
+	if _, err := netip.ParseAddr(r.IP); err == nil { // the inventory shows an em dash when the IP is unknown
+		st.Address = r.IP
 	}
 	if st.Name == "" {
 		st.Name = mac
 	}
 	if st.Name == "" {
-		st.Name = plainText(d.Kind, 64)
+		st.Name = plainText(r.Kind, 64)
 	}
-	if d.ApprovedAt != nil {
-		st.ApprovedAt, _ = time.Parse(time.RFC3339, *d.ApprovedAt) // unreadable: unknown, as before D-471
+	if r.ApprovedAt != nil {
+		st.ApprovedAt = *r.ApprovedAt
 	}
 	return st
 }

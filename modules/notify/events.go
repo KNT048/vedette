@@ -27,6 +27,7 @@ const (
 	EventAssetDeleted         = "inventory.asset.deleted"
 	EventAssetApproved        = "inventory.asset.approved" // B9 (D-474): {asset_id, actor}
 	EventAssetUpdated         = "inventory.asset.updated"  // {asset_id}: also what a person's Approve publishes today (D-552)
+	EventAssetMerged          = "inventory.asset.merged"   // {from, into}: inventory joined two rows of one device (D-515, D-554)
 	EventNewKEV               = "feeds.vuln.new_kev"
 	EventHoneypotHit          = "honeypot.hit.created"
 	EventLogAnomaly           = "logs.anomaly.detected"
@@ -67,6 +68,7 @@ func (s *Service) Subscribe(bus Bus) (unsubscribe func()) {
 	on(EventAssetDeleted, s.assetDeleted)
 	on(EventAssetApproved, s.assetApproved)
 	on(EventAssetUpdated, s.assetUpdated)
+	on(EventAssetMerged, s.assetMerged)
 	on(EventHoneypotHit, s.hitEvent)
 	on(EventLogAnomaly, func(ctx context.Context, d any) error { return s.logEvent(ctx, d, IncidentLogAnomaly) })
 	on(EventLogBadAddress, func(ctx context.Context, d any) error { return s.logEvent(ctx, d, IncidentBadAddress) })
@@ -271,11 +273,13 @@ func (s *Service) findingChange(ctx context.Context, id, eventCVE string, overri
 
 // assetEvent opens an unknown_device incident for a newly discovered device when the notify_new setting
 // of inventory was on at that moment (the event says so). During the first discovery every device is new, so they go into one
-// summary incident instead (firstDiscovery, D-483).
+// summary incident instead (firstDiscovery, D-483); so does a device that a sensor found while it was learning the network (learning:
+// its source first reported to the box less than 36 hours ago, inventory INV-28, D-554), whenever that sensor was added.
 func (s *Service) assetEvent(ctx context.Context, data any) error {
 	var e struct {
-		AssetID string `json:"asset_id"`
-		Notify  bool   `json:"notify"`
+		AssetID  string `json:"asset_id"`
+		Notify   bool   `json:"notify"`
+		Learning bool   `json:"learning"`
 	}
 	if err := decode(data, &e); err != nil {
 		return err
@@ -293,15 +297,18 @@ func (s *Service) assetEvent(ctx context.Context, data any) error {
 			name = deviceLabel(st)
 		}
 	}
-	first, err := s.firstDiscovery(ctx)
-	if err != nil {
-		return err
+	first := e.Learning
+	if !first {
+		var err error
+		if first, err = s.firstDiscovery(ctx); err != nil {
+			return err
+		}
 	}
 	if first {
 		return s.discoveryIncident(ctx, Device{ID: e.AssetID, Name: name})
 	}
 	title, what := newDeviceTexts(name)
-	_, _, err = s.OpenIncident(ctx, IncidentInput{Kind: IncidentUnknownDevice, Source: e.AssetID, Title: title, Severity: Medium, What: what,
+	_, _, err := s.OpenIncident(ctx, IncidentInput{Kind: IncidentUnknownDevice, Source: e.AssetID, Title: title, Severity: Medium, What: what,
 		Action: "Find out whose device it is. Add it to the inventory if it belongs to you, otherwise remove it from the network.",
 		Link:   "/devices/" + e.AssetID, Devices: []Device{{ID: e.AssetID, Name: name}}})
 	return err
@@ -457,7 +464,7 @@ func (s *Service) assetDeleted(ctx context.Context, data any) error {
 	if err := decode(data, &e); err != nil {
 		return err
 	}
-	return s.leaveDeviceIncidents(ctx, e.AssetID, "Closed by Vedette: the device was deleted in Devices"+byActor(e.Actor)+".")
+	return s.leaveDeviceIncidents(ctx, e.AssetID, deletedInDevices+byActor(e.Actor)+".")
 }
 
 // assetApproved takes a device a person approved in Devices (inventory.asset.approved {asset_id, actor}, B9 / D-474) off the open
@@ -483,6 +490,49 @@ func (s *Service) assetApproved(ctx context.Context, data any) error {
 			"the device was approved in Devices", "the device was approved"+by, newDeviceKey(e.AssetID), systemUser,
 			store.FormatTS(s.now().Add(-time.Minute)), len(approvedInDevices)-1, strings.TrimSuffix(approvedInDevices, ".")); err != nil {
 			return fmt.Errorf("notify: name who approved a device: %w", err)
+		}
+		return nil
+	})
+}
+
+// deletedInDevices starts the reason of a device's own new-device incident closed by inventory.asset.deleted (assetDeleted).
+const deletedInDevices = "Closed by Vedette: the device was deleted in Devices"
+
+// assetMerged takes the row inventory joined into another device (inventory.asset.merged {from, into}, D-515) off the open new-device
+// incidents like a delete (INV-20), with the reason that says where it went (D-554): "Closed by Vedette: merged into <name>.". The
+// device it joined keeps its own incident: it is still to approve. Inventory also publishes inventory.asset.deleted for from, in
+// either order: when the delete came first and closed from's own incident (within the last minute), only its reason is rewritten, so
+// there is one close and one audit row, as the approver rewrite of D-552 does.
+func (s *Service) assetMerged(ctx context.Context, data any) error {
+	var e struct {
+		From string `json:"from"`
+		Into string `json:"into"`
+	}
+	if err := decode(data, &e); err != nil {
+		return err
+	}
+	if e.From == "" || e.From == e.Into {
+		return nil
+	}
+	into := "another device in Devices"
+	if s.cfg.Devices != nil && e.Into != "" {
+		states, err := s.cfg.Devices.DeviceStates(ctx, []string{e.Into})
+		if err != nil {
+			return err
+		}
+		if st, ok := states[e.Into]; ok && st.Name != "" {
+			into = deviceLabel(st)
+		}
+	}
+	reason := "Closed by Vedette: merged into " + into + "."
+	return s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
+		if err := s.leaveDevice(ctx, tx, e.From, reason, nil); err != nil {
+			return err
+		}
+		if _, err := tx.ExecContext(ctx, `UPDATE notify_incident SET resolved_reason = ? WHERE dedupe_key = ? AND status = 'resolved'
+			AND handled_by = ? AND handled_at >= ? AND substr(resolved_reason, 1, ?) = ?`,
+			clip(reason, maxNote), newDeviceKey(e.From), systemUser, store.FormatTS(s.now().Add(-time.Minute)), len(deletedInDevices), deletedInDevices); err != nil {
+			return fmt.Errorf("notify: say where a merged device went: %w", err)
 		}
 		return nil
 	})
@@ -580,9 +630,8 @@ const (
 
 // firstDiscovery reports whether a new device belongs to the first discovery: notify first ran on this box (notify_box, migration
 // 0011: an upgraded box takes its earliest notify record) less than firstDiscoveryWindow ago. A box that turns new-device alerts on
-// later, or whose incidents passed retention, never opens the window again. ponytail: the start is notify's first run, not the first
-// contact of a sensor (inventory does not say; deferred line); a setup finished more than a day after the install gets one
-// incident per device, as before.
+// later, or whose incidents passed retention, never opens the window again. A sensor's own first 36 hours come from inventory instead
+// (AssetEvent.Learning, D-554), so a setup finished days after the install, or a sensor added later, still folds its first sweep.
 func (s *Service) firstDiscovery(ctx context.Context) (bool, error) {
 	var first string
 	err := s.cfg.DB.Reader().QueryRowContext(ctx, `SELECT first_run_at FROM notify_box WHERE id = 1`).Scan(&first)
@@ -607,8 +656,8 @@ func (s *Service) firstDiscovery(ctx context.Context) (bool, error) {
 func (s *Service) discoveryIncident(ctx context.Context, d Device) error {
 	id, created, err := s.OpenIncident(ctx, IncidentInput{Kind: IncidentUnknownDevice, Source: firstDiscoverySource, Severity: Medium,
 		Title: "Devices found on your network: approve them in Devices",
-		What: "This is Vedette's first look at your network, so every device on it is new. Instead of one alert per device, the devices found in the first " +
-			"36 hours are listed together here.",
+		What: "This is the first look of Vedette or of one of its sensors at your network, so every device it finds is new. Instead of one alert per " +
+			"device, the devices found in the first 36 hours are listed together here.",
 		Action: "Open Devices, approve the devices you know, and find out about the ones you do not.",
 		Link:   "/devices", Devices: []Device{d}})
 	if err != nil || id == "" {
@@ -655,7 +704,7 @@ func (s *Service) discoveryIncident(ctx context.Context, d Device) error {
 			return nil
 		}
 		if err := s.enqueue(ctx, tx, Notice{ID: id, Kind: KindIncident, IncidentKind: string(IncidentUnknownDevice), Severity: Medium, Title: title,
-			What:   fmt.Sprintf("%s since the last message. Vedette lists the devices of its first look at your network together for 36 hours.", plural(count-told, "more device found", "more devices found")),
+			What:   fmt.Sprintf("%s since the last message. Vedette lists the devices of a first look at your network together for 36 hours.", plural(count-told, "more device found", "more devices found")),
 			Action: "Open Devices, approve the devices you know, and find out about the ones you do not.", Link: s.link("/incidents/" + id), At: now}); err != nil {
 			return err
 		}

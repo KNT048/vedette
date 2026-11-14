@@ -359,8 +359,14 @@ func TestWiringApproveInDevicesClosesTheNewDeviceIncident(t *testing.T) {
 	s := newStack(t)
 	s.enableNotify()
 	ctx := t.Context()
-	if err := s.d.DB.Write(ctx, func(tx *sql.Tx) error { // not a fresh box: the device gets its own incident, not the first-discovery summary
-		_, err := tx.ExecContext(ctx, `UPDATE notify_box SET first_run_at = ?`, time.Now().AddDate(0, -1, 0).UTC().Format("2006-01-02T15:04:05.000Z"))
+	// not a fresh box, and the passive sensor is past its learning (inventory INV-28, D-554): the device gets its own incident, not the
+	// first-discovery summary
+	monthAgo := time.Now().AddDate(0, -1, 0).UTC().Format("2006-01-02T15:04:05.000Z")
+	if err := s.d.DB.Write(ctx, func(tx *sql.Tx) error {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO inv_source (source, first_seen) VALUES ('passive', ?)`, monthAgo); err != nil {
+			return err
+		}
+		_, err := tx.ExecContext(ctx, `UPDATE notify_box SET first_run_at = ?`, monthAgo)
 		return err
 	}); err != nil {
 		t.Fatal(err)

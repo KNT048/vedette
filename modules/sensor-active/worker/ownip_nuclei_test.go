@@ -18,8 +18,8 @@ import (
 // itself that the box leaves the Internet through the address (the own-IP fence of the external nmap shape, D-514). Nothing reaches
 // a network: the nuclei is a shell script and the public-IP services are a fake.
 
-func (r *nrig) ownIPJob(id string) sensorlink.Job {
-	j := r.job(id)
+func (r *nrig) ownIPJob() sensorlink.Job {
+	j := r.job(id1)
 	j.Nuclei.Targets = []sensorlink.NucleiTarget{{Host: "8.8.8.8", Port: 18443, Scheme: "http"}}
 	j.Nuclei.Rate, j.Nuclei.Scope = nucleiargv.OwnIPRate, nucleiargv.ScopeOwnIP
 	return j
@@ -29,7 +29,7 @@ func TestOwnIPNucleiRunsOnlyOnTheBoxsOwnIP(t *testing.T) {
 	t.Parallel()
 	eg := &fakeEgress{answers: []string{"8.8.8.8"}}
 	r := startNuclei(t, printJSONL, func(c *worker.Config) { c.Egress = eg })
-	r.core.push(r.ownIPJob(id1))
+	r.core.push(r.ownIPJob())
 	if got := r.core.next(t); got.res.Status != "done" || eg.count() != 1 {
 		t.Fatalf("result = %+v after %d rounds", got.res, eg.count())
 	}
@@ -58,7 +58,7 @@ func TestOwnIPNucleiRefusedWhenTheEgressIsNotOwn(t *testing.T) {
 					c.Egress = eg
 				}
 			})
-			r.core.push(r.ownIPJob(id1))
+			r.core.push(r.ownIPJob())
 			if got := r.core.next(t); got.res.Status != "refused" || got.res.Reason != c.want || got.res.ExitCode != -1 {
 				t.Fatalf("result = %+v", got.res)
 			}
@@ -83,13 +83,13 @@ func TestOwnIPNucleiGrammar(t *testing.T) {
 		"unknown scope": func(_ *testing.T, _ *nrig, n *sensorlink.NucleiJob) { n.Scope = "internet" },
 		"public in lan": func(_ *testing.T, _ *nrig, n *sensorlink.NucleiJob) { n.Scope = "" },
 		"not own_ip in the index": func(t *testing.T, r *nrig, _ *sensorlink.NucleiJob) {
-			editIndex(t, r.pack.Index, "CVE-2024-2", func(m map[string]any) { delete(m, "own_ip") })
+			editIndex(t, r.pack.Index, func(m map[string]any) { delete(m, "own_ip") })
 		},
 		"a POST in the file": func(t *testing.T, r *nrig, _ *sensorlink.NucleiJob) {
-			rewrite(t, r.pack.Index, r.pack.File("CVE-2024-2"), "CVE-2024-2", "id: CVE-2024-2\nhttp:\n  - raw:\n      - |\n        POST /x HTTP/1.1\n        Host: {{Hostname}}\n")
+			rewrite(t, r.pack.Index, r.pack.File("CVE-2024-2"), "id: CVE-2024-2\nhttp:\n  - raw:\n      - |\n        POST /x HTTP/1.1\n        Host: {{Hostname}}\n")
 		},
 		"a credential in the file": func(t *testing.T, r *nrig, _ *sensorlink.NucleiJob) {
-			rewrite(t, r.pack.Index, r.pack.File("CVE-2024-2"), "CVE-2024-2", "id: CVE-2024-2\nhttp:\n  - path:\n      - \"{{BaseURL}}/login?user=admin&password=admin\"\n")
+			rewrite(t, r.pack.Index, r.pack.File("CVE-2024-2"), "id: CVE-2024-2\nhttp:\n  - path:\n      - \"{{BaseURL}}/login?user=admin&password=admin\"\n")
 		},
 		"not in the index": func(_ *testing.T, _ *nrig, n *sensorlink.NucleiJob) { n.Templates = []string{"CVE-2099-1"} },
 	} {
@@ -97,7 +97,7 @@ func TestOwnIPNucleiGrammar(t *testing.T) {
 			t.Parallel()
 			eg := &fakeEgress{answers: []string{"8.8.8.8"}}
 			r := startNuclei(t, printJSONL, func(c *worker.Config) { c.Egress = eg })
-			j := r.ownIPJob(id1)
+			j := r.ownIPJob()
 			mut(t, r, j.Nuclei)
 			r.core.push(j)
 			if got := r.core.next(t); got.res.Status != "refused" || got.res.Reason != "invalid_job" || r.nu.Argv() != "" || eg.count() != 0 {
@@ -107,18 +107,18 @@ func TestOwnIPNucleiGrammar(t *testing.T) {
 	}
 }
 
-// rewrite replaces the file of template id with body and its hash in the index, so only the own_ip text check can refuse it.
-func rewrite(t *testing.T, index, file, id, body string) {
+// rewrite replaces the file of template CVE-2024-2 with body and its hash in the index, so only the own_ip text check can refuse it.
+func rewrite(t *testing.T, index, file, body string) {
 	t.Helper()
 	if err := os.WriteFile(file, []byte(body), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	sum := sha256.Sum256([]byte(body))
-	editIndex(t, index, id, func(m map[string]any) { m["sha256"] = hex.EncodeToString(sum[:]) })
+	editIndex(t, index, func(m map[string]any) { m["sha256"] = hex.EncodeToString(sum[:]) })
 }
 
-// editIndex changes the entry of template id in the index file.
-func editIndex(t *testing.T, index, id string, edit func(map[string]any)) {
+// editIndex changes the entry of template CVE-2024-2 in the index file.
+func editIndex(t *testing.T, index string, edit func(map[string]any)) {
 	t.Helper()
 	raw, err := os.ReadFile(index) //nolint:gosec // a test's temp file
 	if err != nil {
@@ -129,7 +129,7 @@ func editIndex(t *testing.T, index, id string, edit func(map[string]any)) {
 		t.Fatal(err)
 	}
 	for _, x := range ix["templates"].([]any) {
-		if m := x.(map[string]any); m["id"] == id {
+		if m := x.(map[string]any); m["id"] == "CVE-2024-2" {
 			edit(m)
 		}
 	}

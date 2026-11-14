@@ -1,4 +1,4 @@
-# KEV templates waiting for a reviewer (pack 2026.11.4, D-528 step 2)
+# KEV templates waiting for a reviewer (pack 2026.11.5, D-528 step 2)
 
 Written by `make scan-pack` (scripts/scanpack); do not edit by hand. Every template that runs without the disruptive tick (the LAN scan, the own-IP checks) is listed in `scripts/scanpack/reviewed.tsv` with the sha256 of the file a person read. These KEV templates passed every other rule of the pack and wait for that read: when a person has read the file, add `id<TAB>sha256<TAB>reason` to reviewed.tsv. Read the requests, not the name: a check is reviewed only if it changes nothing on the target (no account, password, setting, file, record, mail, service or login) and reaches no other host.
 
@@ -12,7 +12,7 @@ Every request is a GET or HEAD with no body, no credential, no injection-shaped 
 | CVE-2022-2551 | CVE-2022-2551 | snapcreek duplicator | GET | rule (a): read-only GET, no change in the name | http/cves/2022/CVE-2022-2551.yaml | 772cec66918974ad12a9f86acbf26f89b858832449c216b916a41668f8368bb5 |
 | CVE-2026-27944 | CVE-2026-27944 | 0xjacky nginx-ui | GET | rule (a): read-only GET, no change in the name | http/cves/2026/CVE-2026-27944.yaml | e5cc94d49c7430d5a7ac52f12e7a9f64a8aca2994de606240817468d6ca77c05 |
 
-## The rest (521)
+## The rest (518)
 
 POST and other methods, payloads, credentials, actions, or a name that says a change.
 
@@ -139,8 +139,6 @@ POST and other methods, payloads, credentials, actions, or a name that says a ch
 | CVE-2020-20601 | CVE-2020-20601 | thinkcmf thinkcmf | GET | payload: a ; in the query | http/cves/2020/CVE-2020-20601.yaml | 39d4720dfb32b13372697fc90ebeefba193bce859548d798970812996475f42f |
 | CVE-2020-2096 | CVE-2020-2096 | jenkins gitlab_hook | GET | payload: "<script" | http/cves/2020/CVE-2020-2096.yaml | 9c4fe1cc690fda60fe40085f492868be6864019bf895fb2ff718de3a67c12558 |
 | CVE-2020-21224 | CVE-2020-21224 | inspur clusterengine | POST | key body | http/cves/2020/CVE-2020-21224.yaml | 2012393d01f655842b2d484428bbf45b7e87168443da100634f7b42e25bdb714 |
-| CVE-2020-22208 | CVE-2020-22208 | 74cms 74cms | GET | payload: the expression "{{num}}" | http/cves/2020/CVE-2020-22208.yaml | 0eded7f51fd5d2cafa6273582ac2535b5657c2515d14c0cd94754b07c1335092 |
-| CVE-2020-22209 | CVE-2020-22209 | 74cms 74cms | GET | payload: the expression "{{num}}" | http/cves/2020/CVE-2020-22209.yaml | 645263423a623d546c3fd3d69ec1e63ef84e7b590299b74e85d1980d60e4b0c6 |
 | CVE-2020-22211 | CVE-2020-22211 | 74cms 74cms | GET | payload: the expression "{{num}}" | http/cves/2020/CVE-2020-22211.yaml | 3693aa62f1c7d36f97b829a15c792c6114122378d3a2e31b662aa0f6e79e70d5 |
 | CVE-2020-24949 | CVE-2020-24949 | php-fusion php-fusion | GET | payload: "${" | http/cves/2020/CVE-2020-24949.yaml | 48077c8036305e08ba5429b2c53874fcd6f4acb9d9d863530e063a5ca1a6f008 |
 | CVE-2020-27982 | CVE-2020-27982 | icewarp mail_server | GET | payload: "\"" | http/cves/2020/CVE-2020-27982.yaml | f7a40e7c60b2963d9922860107460f410110b4bbee641c3a016a46a0cee373cb |
@@ -255,7 +253,6 @@ POST and other methods, payloads, credentials, actions, or a name that says a ch
 | CVE-2022-0786 | CVE-2022-0786 | iqonic kivicare | GET | payload: "\"" | http/cves/2022/CVE-2022-0786.yaml | a651786545d5ea75db851747ecc6ea05948aa4928be22108fd8685bdd952c6da |
 | CVE-2022-0867 | CVE-2022-0867 | reputeinfosystems pricing_table | POST, GET | method POST /wp-admin/admin-ajax.php HTTP/1.1 | http/cves/2022/CVE-2022-0867.yaml | f2ef121ea3ba1fef78bb4ad6db80bce2421f3a09959abbb076d5864cbfa0484c |
 | CVE-2022-0948 | CVE-2022-0948 | pluginbazaar order_listener_for_woocommerce | POST, GET | method POST /?rest_route=/olistener/new HTTP/1.1 | http/cves/2022/CVE-2022-0948.yaml | 63433c1effb4cbf4312bcf6b8676d48f9ed17e589f6f80d23a4a7949295357d9 |
-| CVE-2022-1040 | CVE-2022-1040 | sophos sfos | POST | method POST | http/cves/2022/CVE-2022-1040.yaml | dbf8e7699ba3150596dba24d0fea3b0285b07f6623a7b90dae9912fc6a52a575 |
 | CVE-2022-1057 | CVE-2022-1057 | varktech pricing_deals_for_woocommerce | GET | payload: "'" | http/cves/2022/CVE-2022-1057.yaml | 8d166e2ca3eba2f41fcd640270b5e9d4e2cb1613a07607a46818656b3a2ba116 |
 | CVE-2022-1221 | CVE-2022-1221 | gwyn\'s_imagemap_selector_project gwyn\'s_imagemap_selector | GET | payload: "\"" | http/cves/2022/CVE-2022-1221.yaml | 6d3173b8580b9fec2210b7bdc98f4a833ddc77c3d40025e7dd455237218c5674 |
 | CVE-2022-1281 | CVE-2022-1281 | Photo Gallery WordPress v1.6.3 | POST | method POST /wp-admin/admin-ajax.php?image_id=123 HTTP/1.1 | http/cves/2022/CVE-2022-1281.yaml | 3d488e17bb0762e1f805255537f7fc5eada85df5a62764b68607db0bfab973a3 |
@@ -367,7 +364,7 @@ POST and other methods, payloads, credentials, actions, or a name that says a ch
 | CVE-2023-40748 | CVE-2023-40748 | phpjabbers food_delivery_script | POST | method POST | http/cves/2023/CVE-2023-40748.yaml | 4ab42e2ac93d3f797b99d14dd75bab8480592be0a724b078f031f8bcf01ebbf0 |
 | CVE-2023-41109 | CVE-2023-41109 | patton smartnode_sn200 | POST | method POST /rest/xxxxxxxxxxxxxxx/xxxxxxx?executeAsync HTTP/1.1 | http/cves/2023/CVE-2023-41109.yaml | 587d4d10ad849501b8fd19027afebb67267b79deae98afd6bb9b58cd291c9a19 |
 | CVE-2023-41265 | CVE-2023-41265 | qlik qlik_sense | GET | key unsafe | http/cves/2023/CVE-2023-41265.yaml | 39b943b6a22aaaea74f0dc13b512080958de57df3ce71a6dd510d90d11eb00e4 |
-| CVE-2023-41266 | CVE-2023-41266 | qlik qlik_sense | GET | header X-Qlik-Xrfkey | http/cves/2023/CVE-2023-41266.yaml | de18c0056daec4bc6e4b292cd0333e07b142cdb39810c351d803ed5feea8b55e |
+| CVE-2023-41266 | CVE-2023-41266 | qlik qlik_sense | GET | header Cookie | http/cves/2023/CVE-2023-41266.yaml | de18c0056daec4bc6e4b292cd0333e07b142cdb39810c351d803ed5feea8b55e |
 | CVE-2023-41642 | CVE-2023-41642 | grupposcai realgimm | POST, GET | method POST /RealGimmWeb/Pages/Sistema/LogObjectTrace.aspx HTTP/1.1 | http/cves/2023/CVE-2023-41642.yaml | 71ff863ddad02a5efa5e08f011841230e4fd6a24bfca816e17b869bb399b83bc |
 | CVE-2023-41892 | CVE-2023-41892 | craftcms craft_cms | POST | method POST /index.php HTTP/1.1 | http/cves/2023/CVE-2023-41892.yaml | 8f89b93e18048ca678a5565ab66fecf1594932f9717e23550452034e72e83f39 |
 | CVE-2023-44352 | CVE-2023-44352 | adobe coldfusion | GET | payload: the expression "{{string}}" | http/cves/2023/CVE-2023-44352.yaml | efd9e87ea49a7c98d812b1407d91311f333e1e5162639e5ce0bda9944a54183a |

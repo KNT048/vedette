@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/netip"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -47,6 +48,54 @@ const (
 	notTemplatesSlow    = "Safe templates for exploited vulnerabilities did not finish within 5 minutes, so the ones that had not finished are not reported."
 )
 
+// FULL-4 (Trưởng), for Mlee: the template step of a Full scan (testing terms accepted, D-527). Every identified port gets a job of
+// DepthFull, CVE-matched or not; the scanner runs nuclei's own automatic scan there (the technologies templates, then the deep
+// templates of what they found, the generic ones and the KEV templates of the port's CVEs) at FullTemplateRPS, and the step is
+// bounded by FullTemplatesTimeout instead of TemplatesTimeout. A deep result may have no CVE: it keeps the template's name and
+// severity (TemplateRow.Name, Severity) for the page.
+const (
+	DepthFull = "full"
+	// FullTemplateRPS is the rate of a full job (nucleiargv.FullRate; cmd/vedette holds them equal).
+	FullTemplateRPS = 20
+	// FullTemplatesPerPort is the most templates a full job runs on one web port (the scanner keeps to it, cmd/vedette).
+	FullTemplatesPerPort = 4000
+	// fullWebPort and fullOtherPort are the time a full job may take on a web port and on any other: 4000 templates at 1.5 requests
+	// each (the pack's measured average is 1.3 to 1.5) at 20 a second is 300 s, plus 20 runs of 200 templates at about 15 s each to
+	// hand out and start (the own-IP check, nuclei loading its templates) is 300 s more; another port runs at most a few hundred
+	// network templates in one or two runs. fullTemplatesCap bounds the whole step, like GreenboneTimeout.
+	fullWebPort      = 10 * time.Minute
+	fullOtherPort    = 2 * time.Minute
+	fullTemplatesCap = 90 * time.Minute
+)
+
+// FullTemplatesTimeout is the bound of the template step of a Full scan: the time of each port of the jobs, at most fullTemplatesCap.
+func FullTemplatesTimeout(jobs []TemplateJob) time.Duration {
+	seen := map[int]bool{}
+	var d time.Duration
+	for _, j := range jobs {
+		if seen[j.Port] {
+			continue
+		}
+		seen[j.Port] = true
+		if j.Scheme != "" {
+			d += fullWebPort
+		} else {
+			d += fullOtherPort
+		}
+	}
+	return min(d, fullTemplatesCap)
+}
+
+// FULL-4 (Trưởng), for Mlee: the wording of a Full scan's template step.
+const (
+	fullHead = "Deep templates (nuclei, testing terms accepted, at most %d requests a second, own IP only)"
+	// notFullSlow is the line of a Full step that ran out of its bound (%s: "40 minutes").
+	notFullSlow = "Deep templates did not finish within %s, so the ones that had not finished are not reported."
+)
+
+// minutes says a whole number of minutes.
+func minutes(d time.Duration) string { return plural(int(d/time.Minute), "minute") }
+
 // The outcomes of one template on one service.
 const (
 	OutcomeMatched = "matched"
@@ -66,6 +115,12 @@ type (
 		CVEs   []string `json:"cves"`
 		Scope  string   `json:"scope"`
 		RPS    int      `json:"rps"`
+		// FULL-4 (Trưởng), for Mlee: Depth is DepthFull in a Full scan (then CVEs may be empty and RPS is FullTemplateRPS); Service,
+		// Product and CPE are what identification read on the port, from which the scanner takes the product tags (D-527).
+		Depth   string `json:"depth,omitempty"`
+		Service string `json:"service,omitempty"`
+		Product string `json:"product,omitempty"`
+		CPE     string `json:"cpe,omitempty"`
 	}
 	// TemplateResult is what one template did on one port. CVE is the CVE the template is for (always one the job asked about).
 	// It came from the scan container, so it is untrusted: sanitizeTemplateResults limits it.
@@ -74,6 +129,10 @@ type (
 		Template string
 		CVE      string
 		Outcome  string // OutcomeMatched, OutcomeNoMatch or OutcomeError
+		// FULL-4 (Trưởng), for Mlee: a deep result (job of DepthFull) may have no CVE, or a CVE the job did not ask about; Name and
+		// Severity are the template's (from the pack index, never from nuclei's output).
+		Name     string
+		Severity string
 	}
 	// TemplateScan is the answer of one ScanTemplates: a result per template that ran. A CVE the scanner has no safe template
 	// for has no result, which is not an error.
@@ -92,6 +151,10 @@ type (
 		CVE      string `json:"cve"`
 		Template string `json:"template"`
 		Outcome  string `json:"outcome"`
+		// FULL-4 (Trưởng), for Mlee: set on a deep row (Full scan, D-527): the template's name and severity (info, low, medium,
+		// high, critical, unknown). CVE is "" when the template is not about one (an exposed .git, an admin panel).
+		Name     string `json:"name,omitempty"`
+		Severity string `json:"severity,omitempty"`
 	}
 	// TemplateProbe is one request-to-be of the template step, for the probe log (LEGAL §3: target, time, template id).
 	TemplateProbe struct {
@@ -158,7 +221,13 @@ func (s *Service) runTemplates(ctx context.Context, st ScanTarget, ip netip.Addr
 		return c, nil
 	}
 	jobs, skipped := buildJobs(ip, c.Services, m.Vulns)
-	if skipped > 0 {
+	if st.Mode.Full { // FULL-4 (Trưởng), for Mlee: every identified port, CVE-matched or not (D-527)
+		jobs, skipped = buildFullJobs(ip, c.Services, m.Vulns)
+	}
+	switch {
+	case skipped > 0 && st.Mode.Full: // FULL-4 (Trưởng), for Mlee: buildFullJobs counts ports (review r1 L4)
+		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "templates", Text: fmt.Sprintf("Deep templates: %s not scanned, over the limit of %d jobs a scan.", map[bool]string{true: "1 port was", false: fmt.Sprintf("%d ports were", skipped)}[skipped == 1], maxTemplateJobs)})
+	case skipped > 0:
 		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "templates", Text: fmt.Sprintf("Safe templates for exploited vulnerabilities: %s were not run, over the limit of %d jobs a scan.", plural(skipped, "exploited CVE"), maxTemplateJobs)})
 	}
 	if len(jobs) == 0 {
@@ -192,7 +261,12 @@ func (s *Service) runTemplates(ctx context.Context, st ScanTarget, ip netip.Addr
 		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "templates", Text: notTemplatesNoLog})
 		return c, nil
 	}
-	tctx, cancel := context.WithTimeout(ctx, TemplatesTimeout)
+	bound, slow := TemplatesTimeout, notTemplatesSlow
+	if st.Mode.Full { // FULL-4 (Trưởng), for Mlee: the bound of a Full step follows its ports (D-527)
+		bound = FullTemplatesTimeout(jobs)
+		slow = fmt.Sprintf(notFullSlow, minutes(bound))
+	}
+	tctx, cancel := context.WithTimeout(ctx, bound)
 	defer cancel()
 	res, err := s.cfg.Templates.ScanTemplates(tctx, st, ip, jobs)
 	var un *Unavailable
@@ -200,7 +274,11 @@ func (s *Service) runTemplates(ctx context.Context, st ScanTarget, ip netip.Addr
 	case err == nil:
 		rows, notKept := sanitizeTemplateResults(res.Results, jobs)
 		c.Templates = templateRows(c.Services, ip, rows)
-		c.Checks = append(c.Checks, CheckRow{Kind: "templates", At: store.FormatTS(s.clock()), Text: templatesLine(jobs, rows, sentIDs(res.Sent), notKept)})
+		line := templatesLine(jobs, rows, sentIDs(res.Sent), notKept)
+		if st.Mode.Full {
+			line = fullLine(jobs, rows, sentIDs(res.Sent))
+		}
+		c.Checks = append(c.Checks, CheckRow{Kind: "templates", At: store.FormatTS(s.clock()), Text: line})
 		notes := res.NotChecked            // D-520: why some CVEs have no result
 		if len(notes) > maxTemplateNotes { // the last line says how many were left out (review round 2 L3)
 			notes = append(notes[:maxTemplateNotes-1:maxTemplateNotes-1], fmt.Sprintf("Safe templates for exploited vulnerabilities: and %d more lines like these.", len(notes)-maxTemplateNotes+1))
@@ -213,7 +291,7 @@ func (s *Service) runTemplates(ctx context.Context, st ScanTarget, ip netip.Addr
 	case errors.As(err, &un):
 		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "templates", Text: "Safe templates for exploited vulnerabilities did not run: " + clipText(un.Reason, 200)})
 	case tctx.Err() != nil:
-		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "templates", Text: notTemplatesSlow})
+		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "templates", Text: slow})
 	default:
 		s.cfg.Log.ErrorContext(ctx, "exposure: the safe templates failed", "target", st.Value, "error", err)
 		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "templates", Text: notTemplatesFail})
@@ -260,6 +338,40 @@ func buildJobs(ip netip.Addr, services []ServiceRow, vulns []VulnRow) (jobs []Te
 	return jobs, skipped
 }
 
+// buildFullJobs is buildJobs of a Full scan (FULL-4 (Trưởng), for Mlee; D-527): one or more jobs of DepthFull for every port
+// identified on ip in this scan, with the exploited CVEs matched there (none is fine) and what identification read, in port order.
+func buildFullJobs(ip netip.Addr, services []ServiceRow, vulns []VulnRow) (jobs []TemplateJob, skipped int) {
+	byPort := map[int][]string{}
+	for _, v := range vulns {
+		if v.IP == ip.String() && cveID.MatchString(v.CVE) {
+			byPort[v.Port] = append(byPort[v.Port], v.CVE)
+		}
+	}
+	svcs := slices.Clone(services)
+	sort.SliceStable(svcs, func(i, j int) bool { return svcs[i].Port < svcs[j].Port })
+	seen := map[int]bool{}
+	for _, svc := range svcs {
+		if svc.IP != ip.String() || svc.Port < 1 || svc.Port > 65535 || seen[svc.Port] {
+			continue
+		}
+		seen[svc.Port] = true
+		cves := dedupe(byPort[svc.Port])
+		sort.Strings(cves)
+		for i := 0; i == 0 || i < len(cves); i += TemplatesPerJob {
+			chunk := cves[min(i, len(cves)):min(i+TemplatesPerJob, len(cves))]
+			if len(jobs) >= maxTemplateJobs { // skipped counts ports here (review r1 L4)
+				if i == 0 {
+					skipped++
+				}
+				continue
+			}
+			jobs = append(jobs, TemplateJob{Port: svc.Port, Scheme: schemeOf(svc), Host: ip.String(), CVEs: chunk, Scope: ScopeOwnIP, RPS: FullTemplateRPS,
+				Depth: DepthFull, Service: svc.Name, Product: svc.Product, CPE: svc.CPE})
+		}
+	}
+	return jobs, skipped
+}
+
 func dedupe(in []string) []string {
 	seen := map[string]bool{}
 	out := make([]string, 0, len(in))
@@ -301,6 +413,11 @@ func probesOf(ip netip.Addr, jobs []TemplateJob) []TemplateProbe {
 			Request: fmt.Sprintf("planned: asked the scanner to check %s with its safe template, if it has one, on %s:%d (own IP, at most %d requests a second)", name, ip, port, TemplateRPS)})
 	}
 	for _, j := range jobs {
+		if j.Depth == DepthFull { // FULL-4 (Trưởng), for Mlee: one planned row per port; the scanner logs each template before it sends it
+			out = append(out, TemplateProbe{ID: store.NewID("tp"), IP: ip.String(), Label: fmt.Sprintf("%s:%d", ip, j.Port), Template: "exposure: deep templates",
+				Request: fmt.Sprintf("planned: asked the scanner for the deep templates (testing terms accepted) of %s:%d, %d exploited CVEs among them (own IP, at most %d requests a second)", ip, j.Port, len(j.CVEs), FullTemplateRPS)})
+			continue
+		}
 		for _, c := range j.CVEs {
 			add(j.Port, c)
 		}
@@ -320,10 +437,28 @@ func sanitizeTemplateResults(in []TemplateResult, jobs []TemplateJob) (out []Tem
 			cves[j.Port][c] = true
 		}
 	}
+	full := map[int]bool{} // FULL-4 (Trưởng), for Mlee: the ports of jobs of DepthFull
+	for _, j := range jobs {
+		full[j.Port] = full[j.Port] || j.Depth == DepthFull
+	}
 	n := map[int]int{}
 	seen := map[string]bool{}
 	in = matchedFirst(in, func(r TemplateResult) string { return r.Outcome })
 	for _, r := range in {
+		if full[r.Port] && !cves[r.Port][r.CVE] { // a deep result: any CVE or none, with a name and a severity; only a match is kept
+			key := fmt.Sprintf("%d|%s", r.Port, r.Template)
+			if r.Outcome != OutcomeMatched || seen[key] || !templateID.MatchString(r.Template) || r.CVE != "" && !cveID.MatchString(r.CVE) || !deepMeta(r.Name, r.Severity) {
+				continue
+			}
+			if n[r.Port] >= maxTemplateRows {
+				notKept++
+				continue
+			}
+			seen[key] = true
+			n[r.Port]++
+			out = append(out, r)
+			continue
+		}
 		ok := cves[r.Port] != nil && templateID.MatchString(r.Template) && n[r.Port] < maxTemplateRows &&
 			cves[r.Port][r.CVE] && cveID.MatchString(r.CVE) &&
 			(r.Outcome == OutcomeMatched || r.Outcome == OutcomeNoMatch || r.Outcome == OutcomeError)
@@ -336,9 +471,23 @@ func sanitizeTemplateResults(in []TemplateResult, jobs []TemplateJob) (out []Tem
 		}
 		seen[key] = true
 		n[r.Port]++
+		if !deepMeta(r.Name, r.Severity) {
+			r.Name, r.Severity = "", ""
+		}
 		out = append(out, r)
 	}
 	return out, notKept
+}
+
+var (
+	deepName       = regexp.MustCompile(`^[ -~]{1,120}$`)
+	deepSeverities = []string{"info", "low", "medium", "high", "critical", "unknown"}
+)
+
+// deepMeta says whether a name and a severity are of a deep result's shape (FULL-4 (Trưởng), for Mlee): one printable line of at
+// most 120 bytes, and one of nuclei's severities.
+func deepMeta(name, severity string) bool {
+	return deepName.MatchString(name) && slices.Contains(deepSeverities, severity)
 }
 
 // templateRows turns the results into the rows a snapshot keeps, for the services identified on ip.
@@ -350,7 +499,7 @@ func templateRows(services []ServiceRow, ip netip.Addr, rs []TemplateResult) []T
 	out := []TemplateRow{}
 	for _, r := range rs {
 		if have[r.Port] {
-			out = append(out, TemplateRow{IP: ip.String(), Port: r.Port, CVE: r.CVE, Template: r.Template, Outcome: r.Outcome})
+			out = append(out, TemplateRow{IP: ip.String(), Port: r.Port, CVE: r.CVE, Template: r.Template, Outcome: r.Outcome, Name: r.Name, Severity: r.Severity})
 		}
 	}
 	return out
@@ -397,6 +546,34 @@ func templatesLine(jobs []TemplateJob, rs []TemplateResult, sent []string, notKe
 	return clipText(text+". "+strings.Join(names, ", ")+".", maxLineText) // sanitizeChecks drops a longer line
 }
 
+// fullLine is templatesLine of a Full scan (FULL-4 (Trưởng), for Mlee): how many templates were sent on how many ports, how many
+// found something, and the names of the first findings (else of the templates sent).
+func fullLine(jobs []TemplateJob, rs []TemplateResult, sent []string) string {
+	ports := map[int]bool{}
+	for _, j := range jobs {
+		ports[j.Port] = true
+	}
+	var found []string
+	for _, r := range rs {
+		if r.Outcome == OutcomeMatched {
+			found = append(found, r.Template)
+		}
+	}
+	head := fmt.Sprintf(fullHead, FullTemplateRPS)
+	if len(sent) == 0 && len(rs) == 0 {
+		return fmt.Sprintf("%s: the scanner reported no result for %s.", head, plural(len(ports), "port"))
+	}
+	text := fmt.Sprintf("%s: %s sent on %s, %d found something", head, plural(max(len(sent), len(rs)), "template"), plural(len(ports), "port"), len(found))
+	names := found
+	if len(names) == 0 {
+		names = sent
+	}
+	if len(names) > maxTemplatesLn {
+		names = append(names[:maxTemplatesLn:maxTemplatesLn], fmt.Sprintf("%d more", len(names)-maxTemplatesLn))
+	}
+	return clipText(text+". "+strings.Join(names, ", ")+".", maxLineText)
+}
+
 // sanitizeTemplates limits the template rows of a snapshot: only the services it has, ids and outcomes of the right shape, at most
 // maxTemplateRows per service.
 func sanitizeTemplates(in []TemplateRow, services []ServiceRow) []TemplateRow {
@@ -415,10 +592,15 @@ func sanitizeTemplates(in []TemplateRow, services []ServiceRow) []TemplateRow {
 			continue
 		}
 		k := netip.AddrPortFrom(ip, uint16(r.Port))
-		if have[k] && n[k] < maxTemplateRows && templateID.MatchString(r.Template) && cveID.MatchString(r.CVE) &&
+		meta := deepMeta(r.Name, r.Severity) // FULL-4 (Trưởng), for Mlee: a deep row has a name and a severity, and may have no CVE
+		if have[k] && n[k] < maxTemplateRows && templateID.MatchString(r.Template) && (cveID.MatchString(r.CVE) || r.CVE == "" && meta) &&
 			(r.Outcome == OutcomeMatched || r.Outcome == OutcomeNoMatch || r.Outcome == OutcomeError) {
 			n[k]++
-			out = append(out, TemplateRow{IP: ip.String(), Port: r.Port, CVE: r.CVE, Template: r.Template, Outcome: r.Outcome})
+			row := TemplateRow{IP: ip.String(), Port: r.Port, CVE: r.CVE, Template: r.Template, Outcome: r.Outcome}
+			if meta {
+				row.Name, row.Severity = r.Name, r.Severity
+			}
+			out = append(out, row)
 		}
 	}
 	return out
@@ -469,7 +651,7 @@ func sentIDs(in []string) []string {
 	out := []string{}
 	seen := map[string]bool{}
 	for _, id := range in {
-		if templateID.MatchString(id) && !seen[id] && len(out) < TemplatesPerJob*maxTemplateJobs {
+		if templateID.MatchString(id) && !seen[id] && len(out) < FullTemplatesPerPort*16 { // FULL-4 (Trưởng), for Mlee: a deep step sends thousands (was 4 jobs' worth)
 			seen[id] = true
 			out = append(out, id)
 		}

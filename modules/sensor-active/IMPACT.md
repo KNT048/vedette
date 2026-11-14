@@ -60,3 +60,9 @@
 - **inventory**: dòng Windows từ NTLM là `Guess` **có phiên bản**; inventory bỏ khoá KEV của mọi `Guess` (POST-2d), nên đổi `Guess` ở đây đổi phát hiện. `AddSoftware` không coi dòng không khoá là trùng: người thêm Windows kèm phiên bản đầy đủ là bước xác nhận.
 - **scan**: `WhyOSNoPatch` = `os_no_patch_level` có `identNote` riêng trong `modules/scan/identify.go`, `IdentReason` của `web/src/features/scan/contract.ts` (OpenAPI, `core/api/oas`), ghi chú của mock và nhãn `scan.ident.os_no_patch_level`.
 - **findings**: dịch vụ không phiên bản không còn thành dòng phần mềm, nên khoá sản phẩm của nó (khớp `product`) không còn sinh phát hiện từ nmap (D-504 (5)).
+
+## Modifying: job nuclei phạm vi `own_ip` (D-520, INV-17)
+- **exposure** (INV-23, D-561) qua `cmd/vedette/exposuretemplates.go`: lỗi `ErrOwnIPUnsupported`, `ErrNucleiBusy`, `ErrNotOwnIP`, `ErrEgressUnverified` (bọc trong `ErrWorkerRefused`), `ErrPackMismatch`, `ErrPackInvalid`, `ErrScannerUnavailable` thành câu "did not run: …" của trang; đổi tên hay cách bọc thì sửa `templatesErr` và `TestExposureTemplatesUnavailableReasons`.
+- **modules/scan/nucleiargv**: văn phạm `own_ip` (một IPv4 công khai, `OwnIPRate`, `OwnIPForbiddenTags`) là rào cuối của worker; nới nó (nhiều đích, tốc độ khác, bỏ tag K-6) là đổi D-520/D-559 K-6 và PRIVACY luồng 9. Luật địa chỉ công khai ở `core/localnet.Public` (`egressip.IsPublicIPv4` gọi nó): đổi nó đổi cả exposure INV-3 lẫn mẫu `external`.
+- **core/sensorlink** (proto 5, thêm trước lần phát hành đầu của bản 5 để `v0.1.0-beta.1` (bản 4) còn cập nhật thẳng được, D-410): `scope` chỉ có ở job `own_ip`; `nuclei.own_ip` của heartbeat quyết job đó có được giao không. Đổi thứ này phải giữ `TestOwnIPNucleiNeverGoesToAWorkerWithoutOwnIP`.
+- **scan** (`RecordExternalProbes`, `ExternalProbe.Result`): dòng probe của từng mẫu được ghi trước khi giao và hoàn tất bằng `matched`/`not_matched`.

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"net/netip"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -93,9 +94,10 @@ func targetsOf(nj *sensorlink.NucleiJob) []nucleiargv.Target {
 	return out
 }
 
-// nucleiArgv is the job grammar of sensor-protocol.md 6.4, checked here again and not trusted from core: the counts, the
-// targets (canonical private IPv4 only, D-136 (4)), the rate and the host-error limit by nucleiargv, the timeout, the pack by
-// version and hash, every template id by the index. The file of every template is hashed against the index before anything
+// nucleiArgv is the job grammar of sensor-protocol.md 6.4, checked here again and not trusted from core: the scope, the counts,
+// the targets (canonical private IPv4 only, D-136 (4); scope own_ip: exactly one public IPv4 at nucleiargv.OwnIPRate, D-520), the
+// rate and the host-error limit by nucleiargv, the timeout, the pack by version and hash, every template id by the index (an
+// own_ip job: none of a class of nucleiargv.OwnIPForbiddenTags). The file of every template is hashed against the index before anything
 // starts. It returns the argv, or the result to post when the job is refused.
 func (w *Worker) nucleiArgv(j sensorlink.Job) ([]string, *sensorlink.JobResult, error) {
 	nj := j.Nuclei
@@ -103,7 +105,7 @@ func (w *Worker) nucleiArgv(j sensorlink.Job) ([]string, *sensorlink.JobResult, 
 		return nil, refusal("invalid_job"), fmt.Errorf("a nuclei job needs its fields and a timeout of 1..%d s", MaxNucleiTimeout)
 	}
 	targets := targetsOf(nj)
-	if _, err := nucleiargv.Build(nucleiargv.Job{Templates: placeholderPaths(len(nj.Templates)), Targets: targets, Rate: nj.Rate, MaxHostErrors: nj.MaxHostErrors}); err != nil {
+	if _, err := nucleiargv.Build(nucleiargv.Job{Templates: placeholderPaths(len(nj.Templates)), Targets: targets, Rate: nj.Rate, MaxHostErrors: nj.MaxHostErrors, Scope: nj.Scope}); err != nil {
 		return nil, refusal("invalid_job"), err
 	}
 	ix, err := readIndex(w.nucleiCfg.index)
@@ -121,6 +123,9 @@ func (w *Worker) nucleiArgv(j sensorlink.Job) ([]string, *sensorlink.JobResult, 
 			return nil, refusal("invalid_job"), fmt.Errorf("template %.100q is not in the pack", id)
 		}
 		chosen[i], paths[i] = ix.Templates[k], ix.Templates[k].Path
+		if nj.Scope == nucleiargv.ScopeOwnIP && slices.ContainsFunc(chosen[i].Tags, func(tag string) bool { return slices.Contains(nucleiargv.OwnIPForbiddenTags(), tag) }) {
+			return nil, refusal("invalid_job"), fmt.Errorf("template %.100q is of a class the own_ip scope never runs (D-559 K-6)", id)
+		}
 	}
 	if err := checkTree(w.nucleiCfg.tmplDir); err != nil {
 		return nil, refusal("pack_invalid"), err
@@ -130,7 +135,7 @@ func (w *Worker) nucleiArgv(j sensorlink.Job) ([]string, *sensorlink.JobResult, 
 			return nil, refusal("pack_invalid"), err
 		}
 	}
-	argv, err := nucleiargv.Build(nucleiargv.Job{Templates: paths, Targets: targets, Rate: nj.Rate, MaxHostErrors: nj.MaxHostErrors})
+	argv, err := nucleiargv.Build(nucleiargv.Job{Templates: paths, Targets: targets, Rate: nj.Rate, MaxHostErrors: nj.MaxHostErrors, Scope: nj.Scope})
 	if err == nil {
 		err = nucleiargv.Validate(argv)
 	}
@@ -231,12 +236,21 @@ func (w *Worker) executeNuclei(ctx, jctx context.Context, cur *activeJob) *senso
 	if context.Cause(jctx) != nil {
 		return stopped()
 	}
+	rctx, cancel := context.WithTimeout(jctx, time.Duration(cur.job.TimeoutS)*time.Second)
+	defer cancel()
+	if cur.job.Nuclei.Scope == nucleiargv.ScopeOwnIP { // nucleiArgv proved it has one public target: the own-IP fence of D-514, D-520
+		if ok, reason := w.ownIP(rctx, netip.MustParseAddr(cur.job.Nuclei.Targets[0].Host)); !ok {
+			if context.Cause(jctx) != nil {
+				return stopped()
+			}
+			w.log.WarnContext(ctx, "sensor_active_own_ip_nuclei_job_refused", "id", cur.job.ID, "reason", reason)
+			return refusal(reason)
+		}
+	}
 	if err := w.freshHome(); err != nil {
 		w.log.WarnContext(ctx, "sensor_active_exec_failed", "id", cur.job.ID, "error", err)
 		return &sensorlink.JobResult{Status: "failed", Reason: "exec_failed", ExitCode: -1}
 	}
-	rctx, cancel := context.WithTimeout(jctx, time.Duration(cur.job.TimeoutS)*time.Second)
-	defer cancel()
 	out, err := w.runner.Run(rctx, nucleiBin, argv, nil)
 	res = w.finish(ctx, jctx, rctx, cur, out, err, "nuclei_missing", (*sensorlink.JobResult).SetJSONL)
 	if res.Status == "done" {
@@ -269,7 +283,7 @@ func (w *Worker) nucleiStatus(ctx context.Context) sensorlink.HeartbeatNuclei {
 	if !w.nucleiCfg.on {
 		return sensorlink.HeartbeatNuclei{}
 	}
-	var hb sensorlink.HeartbeatNuclei
+	hb := sensorlink.HeartbeatNuclei{OwnIP: true} // D-520: this worker runs own_ip jobs behind its own-IP fence (D-520)
 	rctx, cancel := context.WithTimeout(ctx, 20*time.Second)
 	defer cancel()
 	if res, err := w.runner.Run(rctx, nucleiVer, []string{"-version", "-duc"}, nil); err == nil {

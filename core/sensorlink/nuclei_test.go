@@ -219,3 +219,48 @@ func TestNucleiResultHostErrors(t *testing.T) {
 		}
 	}
 }
+
+// D-520 (protocol 5, before its first release): the scope of a nuclei job and own_ip in the nuclei heartbeat. A LAN job keeps the
+// shape it had (no scope), so an older worker still reads it; an own_ip job carries its scope; an older decoder, which knows no
+// scope, refuses the own_ip job (strict decoding: fail closed, nothing runs).
+func TestNucleiScopeOnTheWire(t *testing.T) {
+	t.Parallel()
+	lan, err := json.Marshal(Job{ID: strings.Repeat("c", 32), Kind: KindNuclei, TimeoutS: 60, Nuclei: &NucleiJob{Templates: []string{"CVE-2024-1"}}})
+	if err != nil || strings.Contains(string(lan), "scope") {
+		t.Fatalf("a LAN job: %s %v", lan, err)
+	}
+	own := strings.Replace(nucleiJobJSON, `"rate":5`, `"rate":5,"scope":"own_ip"`, 1)
+	rep, err := decodeReply(t, own)
+	if err != nil || rep.Jobs[0].Nuclei.Scope != "own_ip" {
+		t.Fatalf("decoded %v %+v", err, rep)
+	}
+	out, err := json.Marshal(rep.Jobs[0])
+	var back Job
+	if err != nil || json.Unmarshal(out, &back) != nil || back.Nuclei.Scope != "own_ip" {
+		t.Fatalf("round trip %s %v %+v", out, err, back)
+	}
+	type nucleiJobOld struct { // the nuclei job before D-520
+		ID            string         `json:"id"`
+		Kind          string         `json:"kind"`
+		TimeoutS      int            `json:"timeout_s"`
+		Pack          JobPack        `json:"pack"`
+		Templates     []string       `json:"templates"`
+		Targets       []NucleiTarget `json:"targets"`
+		Rate          int            `json:"rate"`
+		MaxHostErrors int            `json:"max_host_errors"`
+	}
+	var old nucleiJobOld
+	if err := jsonstrict.Decode([]byte(own), &old); err == nil {
+		t.Error("an older decoder accepted an own_ip job")
+	}
+	if err := jsonstrict.Decode([]byte(nucleiJobJSON), &old); err != nil {
+		t.Errorf("an older decoder refused a LAN job: %v", err)
+	}
+	hb, err := decodeActiveHeartbeat([]byte(`{"version":"1.0.0","nmap":{"present":true,"version":"7.94"},"nuclei":{"present":true,"version":"v3.11.1","pack":{"version":"","sha256":""},"own_ip":true}}`))
+	if err != nil || !hb.Nuclei.OwnIP {
+		t.Fatalf("heartbeat %v %+v", err, hb)
+	}
+	if hb, err := decodeActiveHeartbeat([]byte(`{"version":"1.0.0","nmap":{"present":true,"version":"7.94"},"nuclei":{"present":true,"version":"v3.11.1","pack":{"version":"","sha256":""}}}`)); err != nil || hb.Nuclei.OwnIP {
+		t.Fatalf("an older heartbeat: %v %+v", err, hb)
+	}
+}

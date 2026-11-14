@@ -34,18 +34,26 @@ var (
 	// special file in the tree): an integrity signal, never retried, logged at ERROR; not ErrScannerUnavailable.
 	ErrPackInvalid     = errors.New("sensoractive: pack_invalid: the template pack in the scan image failed its integrity check")
 	ErrOutputTruncated = errors.New("sensoractive: nuclei printed more than the limit; its output is discarded")
-	errJSONLTooBig     = errors.New("nuclei output is larger than the limit")
+	// ErrOwnIPUnsupported: the worker's latest heartbeat does not say own_ip (an older worker, while an update runs): an own_ip
+	// job is never sent to it (D-520). Nothing was sent.
+	ErrOwnIPUnsupported = errors.New("sensoractive: the scan container's worker is older and runs no own-IP nuclei job")
+	// ErrNucleiBusy: an own_ip job found the nuclei slot holding another job (a Scan now of the LAN may run up to an hour), and
+	// exposure's 5-minute step does not queue behind it (D-520). Nothing was sent.
+	ErrNucleiBusy  = errors.New("sensoractive: the scan container's nuclei is busy with another scan")
+	errJSONLTooBig = errors.New("nuclei output is larger than the limit")
 )
 
 // NucleiRequest is one nuclei run (D-125 (1), D-136 (4) and (6)): template ids from the pack index, never paths; targets that
-// are canonical private IPv4 literals with a port. The grammar is nucleiargv's; Dispatcher.RunNuclei checks it again before
-// the job leaves, and the worker checks it a third time.
+// are canonical private IPv4 literals with a port, or for Scope nucleiargv.ScopeOwnIP exactly one public one, the box's own IP
+// (D-520: the caller has checked that, and the worker checks it again). The grammar is nucleiargv's; Dispatcher.RunNuclei checks
+// it again before the job leaves, and the worker checks it a third time.
 type NucleiRequest struct {
 	PackVersion, PackSHA256 string
 	Templates               []string // template ids, 1..nucleiargv.MaxTemplates
 	Targets                 []nucleiargv.Target
-	Rate                    int // requests per second, 1..nucleiargv.MaxRate
-	MaxHostErrors           int // nucleiargv.MinHostErrors..MaxHostErrors
+	Rate                    int    // requests per second, 1..nucleiargv.MaxRate (own_ip: nucleiargv.OwnIPRate)
+	MaxHostErrors           int    // nucleiargv.MinHostErrors..MaxHostErrors
+	Scope                   string // "" (LAN) or nucleiargv.ScopeOwnIP
 }
 
 // Scanner is the seam the scan module calls (the smallest one: scan's own Engine asks only Ready, and the run is what S5 adds).
@@ -94,7 +102,10 @@ func (r NucleiRequest) check() error {
 		}
 		paths[i] = "t" + strconv.Itoa(i) + ".yaml"
 	}
-	if _, err := nucleiargv.Build(nucleiargv.Job{Templates: paths, Targets: r.Targets, Rate: r.Rate, MaxHostErrors: r.MaxHostErrors}); err != nil {
+	if r.Scope == nucleiargv.ScopeLAN { // the wire says LAN by leaving the scope out: a worker of protocol 5 reads the job it knows
+		return errors.New(`the LAN scope is "" in a request`)
+	}
+	if _, err := nucleiargv.Build(nucleiargv.Job{Templates: paths, Targets: r.Targets, Rate: r.Rate, MaxHostErrors: r.MaxHostErrors, Scope: r.Scope}); err != nil {
 		return err
 	}
 	return nil
@@ -122,6 +133,18 @@ func (d *Dispatcher) RunNuclei(ctx context.Context, r NucleiRequest) (nucleiout.
 	if err := d.checkPack(r); err != nil {
 		return nucleiout.Outcome{}, err
 	}
+	if r.Scope == nucleiargv.ScopeOwnIP { // D-520: only a worker that said own_ip, and never queued behind a scan of the LAN
+		d.mu.Lock()
+		ok := d.nuclei.OwnIP
+		busy := d.nucSlot.pending != nil || d.nucSlot.running != nil && !d.nucSlot.running.finished
+		d.mu.Unlock()
+		switch {
+		case !ok:
+			return nucleiout.Outcome{}, ErrOwnIPUnsupported
+		case busy:
+			return nucleiout.Outcome{}, ErrNucleiBusy
+		}
+	}
 	if err := ctx.Err(); err != nil {
 		return nucleiout.Outcome{}, err
 	}
@@ -131,6 +154,7 @@ func (d *Dispatcher) RunNuclei(ctx context.Context, r NucleiRequest) (nucleiout.
 		Targets:       make([]sensorlink.NucleiTarget, len(r.Targets)),
 		Rate:          r.Rate,
 		MaxHostErrors: r.MaxHostErrors,
+		Scope:         r.Scope,
 	}}
 	hostPort := make([]string, len(r.Targets))
 	for i, t := range r.Targets {
@@ -189,6 +213,12 @@ func (d *Dispatcher) nucleiOutcome(j *djob) ([]byte, error) {
 	case res.Status == "refused" && res.Reason == "pack_mismatch":
 		d.log.Error("sensor_active_worker_refused_job", "reason", res.Reason) // the image's pack is not the pack core planned with
 		return nil, ErrPackMismatch
+	case res.Status == "refused" && res.Reason == "not_own_ip": // the worker's own-IP fence of an own_ip job (D-520), as for nmap's external shape
+		d.log.Warn("sensor_active_worker_refused_own_ip_job", "reason", res.Reason)
+		return nil, fmt.Errorf("%w (%s): %w", ErrWorkerRefused, res.Reason, ErrNotOwnIP)
+	case res.Status == "refused" && res.Reason == "egress_unverified":
+		d.log.Warn("sensor_active_worker_refused_own_ip_job", "reason", res.Reason)
+		return nil, fmt.Errorf("%w (%s): %w", ErrWorkerRefused, res.Reason, ErrEgressUnverified)
 	case res.Status == "refused" && res.Reason == "pack_invalid":
 		d.mu.Lock()
 		d.packInvalid, d.packInvalidSHA = true, d.nuclei.Pack.SHA256 // until the image holds another pack

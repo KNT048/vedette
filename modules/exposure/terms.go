@@ -20,30 +20,31 @@ import (
 // the mock's copy (contract.ts TERMS_TEMPLATE, TERMS_TEMPLATE_DOMAIN, TERMS_DISRUPTIVE) is held equal by a test, and each version's text is pinned.
 const (
 	TermsVersion = "2026-11-14c"
-	// termsTemplate is the text of an IP target, unchanged since 2026-11-14b; termsTemplateDomain is a domain's (D-571, FULL-5 slice 3,
-	// LEGAL-2): the "yours alone" sentence becomes what reaches every address a name under the domain resolves to and who answers for
-	// a provider's permission. Both share the head and the tail, so the list of tools is the same.
+	// termsTemplate is an IP target's text, termsTemplateDomain a domain's (D-571, FULL-5 slice 3, LEGAL-2): the "yours alone"
+	// sentence becomes what reaches every address a name under the domain resolves to and who answers for a provider's permission.
+	// Both share the head and the tail, so the list of tools is the same. 2026-11-14c also moves the checks that confirm a flaw by
+	// exploiting it behind the disruptive tick in the text, as D-527 already runs them and TERMS.md (D-544) says (kien 2026-11-14).
 	termsTemplate       = termsHead + termsOwnIP + termsTail
 	termsTemplateDomain = termsHead + termsDomain + termsTail
 	termsHead           = "I confirm that my company owns {value} and that I am authorized to test it in depth. Once I accept, every scan of {value} is a deep scan, and Vedette's tools may send it:\n" +
 		"All ports: every TCP port, and the service and version behind each one.\n" +
-		"Version and exploit-confirming checks: tests for known vulnerabilities, some of which confirm a flaw by sending the exploit request itself (for example reading a file or running a harmless command).\n" +
+		"Vulnerability checks: tests for known vulnerabilities that confirm a flaw by reading what the service answers. Checks that confirm a flaw by exploiting it run only with the disruptive checks below.\n" +
 		"An active web scan that submits forms: a spider and an active scan that fill in and send forms and send attack payloads such as SQL injection and cross-site scripting probes. It can create records, send e-mails from forms or change data.\n" +
-		"Authentication checks: whether login pages, admin interfaces and services let anyone in without a password or with weak settings. Passwords are not guessed unless the disruptive checks below are ticked.\n"
+		"Authentication checks: whether login pages, admin interfaces and services let anyone in without a password or with weak settings. Passwords are not guessed and default or well-known passwords are not tried unless the disruptive checks below are ticked.\n"
 	termsOwnIP = "Accept only if {value} is yours alone: not an address shared through your Internet provider (carrier-grade NAT), a hosting provider's NAT or proxy, or a CDN or hosted service that serves your names. Their servers are not yours to test. "
-	// termsDomain: plan 2026-11-14 §3.5 word for word, then kien's LEGAL-2 (2026-11-14 18:4x): the IP-level tools by name, then
-	// TERMS.md's own sentences (D-544, #783) on what verifying a name proves, third-party hosting, CDN and proxies, the customer's
-	// responsibility, and that Vedette does not check who owns the addresses, so the two texts never disagree.
+	// termsDomain: plan 2026-11-14 §3.5 word for word, then kien's LEGAL-2 (2026-11-14 18:4x): the third party in front of the names
+	// and the IP-level tools by name, then TERMS.md's own sentences (D-544, #783) on what verifying a name proves, third-party hosting,
+	// CDN and proxies, the customer's responsibility, and that Vedette does not check who owns the addresses, so the two never disagree.
 	termsDomain = "Every name under {value} that resolves to a public address is scanned at this depth, whatever serves it: your own server, a hosting provider or a CDN. " +
 		"If a provider serves a name, its testing policy applies to you (for example, Cloudflare and AWS forbid denial-of-service tests); leave the disruptive checks off unless that provider allows them. " +
-		"Vedette sends all ports, OpenVAS, nuclei and the active web scan (ZAP) to each address a name under {value} resolves to. " +
+		"Vedette's tools reach each address a name under {value} resolves to, including a third-party hosting provider, CDN or proxy in front of your names: the scan of all ports, OpenVAS, nuclei and the active web scan (ZAP). " +
 		"Verifying a name proves you control its DNS, not that you own the machines behind it or may test them. " +
 		"With shared or cloud hosting, a CDN or a proxy, that address can also serve other people's systems: you are responsible for having the provider's permission. " +
 		"Vedette does not check who owns those addresses. "
 	termsTail = "The deep scan can load or slow the services on {value} and may create, change or delete data. Run scans when you can accept that, and keep a backup. " +
 		"An administrator can withdraw this acceptance at any time. Vedette is provided as is under the Apache-2.0 license; its author, Kien Nguyen, is not responsible for how you use it."
 	// termsDisruptive is the one extra tick, off by default: what it adds to the deep scan.
-	termsDisruptive = "Include disruptive checks (denial of service, brute-force and default-password logins): these can crash your service or lock accounts."
+	termsDisruptive = "Include disruptive checks (denial of service, password guessing, sign-in attempts with default or well-known passwords, and checks that confirm a vulnerability by exploiting it or by sending data that acts on the target): these can crash a service, lock accounts or take a device offline."
 )
 
 // Terms is who accepted the testing terms of a target, when, and the exact text of the version they saw (FULL-1). UserID and Method

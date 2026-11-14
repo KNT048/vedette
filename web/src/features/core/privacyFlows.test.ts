@@ -41,7 +41,14 @@ describe('Settings → Privacy flows match PRIVACY.md', () => {
     const sentence = "through this box's own DNS resolver (and from it the domain's DNS provider), the box looks up the A, AAAA and CNAME records"
     expect(plain(rows.get(9)![2]!)).toContain(sentence)
     expect(flows['9']!.what).toContain(sentence)
-    for (const text of [plain(rows.get(9)![2]!), flows['9']!.what]) expect(text).toContain("Names on addresses that are not this box's get no scan beyond the existing check by name on ports 80 and 443.")
+    for (const text of [plain(rows.get(9)![2]!), flows['9']!.what]) expect(text).toContain("Without a domain's testing terms, names on addresses that are not this box's get no scan beyond the existing check by name on ports 80 and 443.")
+  })
+  it('flow 9: with a domain\'s testing terms the deep scan reaches every address its names resolve to, the same words in both (D-571, LEGAL-2)', () => {
+    for (const text of [plain(rows.get(9)![2]!), flows['9']!.what]) {
+      expect(text).toContain("whatever serves it: your own server, a hosting provider, a CDN or a proxy, whose machines may also serve other people's systems (you need the provider's permission; Vedette does not check who owns those addresses).")
+      expect(text).toContain('Private and IPv6 addresses are never contacted. No new kind of destination.')
+    }
+    for (const to of [plain(rows.get(9)![3]!), flows['9']!.to]) expect(to).toContain('with a domain\'s testing terms, every public address its names resolve to, including a hosting provider, CDN or proxy in front of them')
   })
   it('flow 9: the testing terms can be withdrawn per target, the same words in both (D-566 review r1 L3)', () => {
     const sentence = "Withdraw a target's testing terms (Ownership tab) to keep its scans to the Scan now scope"

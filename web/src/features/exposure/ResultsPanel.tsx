@@ -91,7 +91,7 @@ function SnapshotView({ target, s }: { target: Target; s: Snapshot }) {
   return (
     <div className="grid gap-8">
       <Panel className="p-4">
-        <p className="mb-3 flex flex-wrap items-center gap-x-2 text-[13px] text-muted"><SourceBadge source="nmap" at={s.scanned_at} />{t('results.sourceNote')}</p>
+        <p className="mb-3 flex flex-wrap items-center gap-x-2 text-[13px] text-muted"><SourceBadge source="nmap" at={s.scanned_at} />{t(!target.full_scan ? 'results.scopeBasic' : target.kind === 'domain' ? 'results.scopeDeepDomain' : 'results.scopeDeepIp')} {t('results.sourceNote')}</p>
         <KeyValue items={[
           ...(target.kind === 'domain' ? [{ label: t('count.subdomains'), value: c.subdomains }] : []),
           { label: t('count.ips'), value: c.ips }, { label: t('count.ports'), value: c.ports },

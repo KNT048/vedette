@@ -25103,6 +25103,24 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItem) Validate()
 		})
 	}
 	if err := func() error {
+		if value, ok := s.Deep.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "deep",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := s.Family.Validate(); err != nil {
 			return err
 		}
@@ -25110,6 +25128,34 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItem) Validate()
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "family",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.NextInLine.Get(); ok {
+			if err := func() error {
+				if err := (validate.Int{
+					MinSet:        true,
+					Min:           1,
+					MaxSet:        true,
+					Max:           9007199254740991,
+					MinExclusive:  false,
+					MaxExclusive:  false,
+					MultipleOfSet: false,
+					MultipleOf:    0,
+					Pattern:       nil,
+				}).Validate(int64(value)); err != nil {
+					return errors.Wrap(err, "int")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "next_in_line",
 			Error: err,
 		})
 	}
@@ -25126,6 +25172,21 @@ func (s ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemClass) Valida
 	case "public":
 		return nil
 	case "private":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeep) Validate() error {
+	switch s {
+	case "scanned":
+		return nil
+	case "waiting":
+		return nil
+	case "fence":
+		return nil
+	case "refused":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)

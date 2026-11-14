@@ -43472,7 +43472,8 @@ func (s *ExposureDeleteExposureTargetsIDTermsOKStatus) UnmarshalText(data []byte
 type ExposureDeleteExposureTargetsIDTermsOKTerms struct {
 	At time.Time `json:"at"`
 	By string    `json:"by"`
-	// The extra tick: denial of service, brute-force and default-password logins too.
+	// The extra tick: denial of service, password guessing, default-password sign-ins and exploit checks
+	// too.
 	Disruptive bool `json:"disruptive"`
 	// The exact terms the administrator accepted, with the tick's sentence as the last line when ticked.
 	Text    string `json:"text"`
@@ -45312,7 +45313,8 @@ func (s *ExposureGetExposureTargetsIDOKStatus) UnmarshalText(data []byte) error 
 type ExposureGetExposureTargetsIDOKTerms struct {
 	At time.Time `json:"at"`
 	By string    `json:"by"`
-	// The extra tick: denial of service, brute-force and default-password logins too.
+	// The extra tick: denial of service, password guessing, default-password sign-ins and exploit checks
+	// too.
 	Disruptive bool `json:"disruptive"`
 	// The exact terms the administrator accepted, with the tick's sentence as the last line when ticked.
 	Text    string `json:"text"`
@@ -46185,9 +46187,18 @@ type ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItem struct {
 	// The check by name (one GET / on ports 80 and 443) went to this address: the name's first public
 	// IPv4. Missing or false: not contacted.
 	Contacted OptBool `json:"contacted"`
+	// D-571: what this run's deep scan did with the address (domain terms accepted): scanned (the deep
+	// steps ran), waiting (left by the cap, next_in_line), fence (not this box's, and the box has no
+	// domain fence: by-name checks only), refused (the re-check right before it refused: nothing sent).
+	// Missing: no deep scan (terms not accepted, IPv6 or private).
+	Deep OptExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeep `json:"deep"`
 	// IPv6 is listed, not scanned yet.
 	Family ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemFamily `json:"family"`
 	IP     string                                                            `json:"ip"`
+	// D-571: when a run last deep-scanned this address (rotation: the least recently scanned go first).
+	LastDeep OptDateTime `json:"last_deep"`
+	// D-571: its place among the addresses the cap left for the next runs.
+	NextInLine OptInt `json:"next_in_line"`
 }
 
 // GetClass returns the value of Class.
@@ -46200,6 +46211,11 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItem) GetContact
 	return s.Contacted
 }
 
+// GetDeep returns the value of Deep.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItem) GetDeep() OptExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeep {
+	return s.Deep
+}
+
 // GetFamily returns the value of Family.
 func (s *ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItem) GetFamily() ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemFamily {
 	return s.Family
@@ -46208,6 +46224,16 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItem) GetFamily(
 // GetIP returns the value of IP.
 func (s *ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItem) GetIP() string {
 	return s.IP
+}
+
+// GetLastDeep returns the value of LastDeep.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItem) GetLastDeep() OptDateTime {
+	return s.LastDeep
+}
+
+// GetNextInLine returns the value of NextInLine.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItem) GetNextInLine() OptInt {
+	return s.NextInLine
 }
 
 // SetClass sets the value of Class.
@@ -46220,6 +46246,11 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItem) SetContact
 	s.Contacted = val
 }
 
+// SetDeep sets the value of Deep.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItem) SetDeep(val OptExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeep) {
+	s.Deep = val
+}
+
 // SetFamily sets the value of Family.
 func (s *ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItem) SetFamily(val ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemFamily) {
 	s.Family = val
@@ -46228,6 +46259,16 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItem) SetFamily(
 // SetIP sets the value of IP.
 func (s *ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItem) SetIP(val string) {
 	s.IP = val
+}
+
+// SetLastDeep sets the value of LastDeep.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItem) SetLastDeep(val OptDateTime) {
+	s.LastDeep = val
+}
+
+// SetNextInLine sets the value of NextInLine.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItem) SetNextInLine(val OptInt) {
+	s.NextInLine = val
 }
 
 // Box: this box's verified, current IP; public: any other public address; private: not a public
@@ -46274,6 +46315,65 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemClass) Unmar
 		return nil
 	case ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemClassPrivate:
 		*s = ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemClassPrivate
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// D-571: what this run's deep scan did with the address (domain terms accepted): scanned (the deep
+// steps ran), waiting (left by the cap, next_in_line), fence (not this box's, and the box has no
+// domain fence: by-name checks only), refused (the re-check right before it refused: nothing sent).
+// Missing: no deep scan (terms not accepted, IPv6 or private).
+type ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeep string
+
+const (
+	ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeepScanned ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeep = "scanned"
+	ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeepWaiting ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeep = "waiting"
+	ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeepFence   ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeep = "fence"
+	ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeepRefused ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeep = "refused"
+)
+
+// AllValues returns all ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeep values.
+func (ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeep) AllValues() []ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeep {
+	return []ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeep{
+		ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeepScanned,
+		ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeepWaiting,
+		ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeepFence,
+		ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeepRefused,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeep) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeepScanned:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeepWaiting:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeepFence:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeepRefused:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeep) UnmarshalText(data []byte) error {
+	switch ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeep(data) {
+	case ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeepScanned:
+		*s = ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeepScanned
+		return nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeepWaiting:
+		*s = ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeepWaiting
+		return nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeepFence:
+		*s = ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeepFence
+		return nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeepRefused:
+		*s = ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeepRefused
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -46390,7 +46490,8 @@ type ExposureGetExposureTargetsIDSnapshotsDateOKNotCheckedItem struct {
 	// Udp, ports, non_exploited, services, templates, cve, web, greenbone; a domain's surface (INV-27):
 	// wordlist (common names not tried: wildcard DNS), by_name (names on other public addresses: checked
 	// by name only), address_family (IPv6 not scanned), lookup (names whose address lookup got no answer:
-	// left as the last scan found them).
+	// left as the last scan found them); deep (D-571: the deep scan of the names' addresses: the cap,
+	// needs the domain fence, private addresses, a refused re-check).
 	Kind string `json:"kind"`
 	Text string `json:"text"`
 }
@@ -48428,7 +48529,8 @@ func (s *ExposureGetExposureTargetsOKItemsItemStatus) UnmarshalText(data []byte)
 type ExposureGetExposureTargetsOKItemsItemTerms struct {
 	At time.Time `json:"at"`
 	By string    `json:"by"`
-	// The extra tick: denial of service, brute-force and default-password logins too.
+	// The extra tick: denial of service, password guessing, default-password sign-ins and exploit checks
+	// too.
 	Disruptive bool `json:"disruptive"`
 	// The exact terms the administrator accepted, with the tick's sentence as the last line when ticked.
 	Text    string `json:"text"`
@@ -49319,7 +49421,8 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItemStatus) UnmarshalText(data []
 type ExposurePostExposureBoxIPVerifyOKItemsItemTerms struct {
 	At time.Time `json:"at"`
 	By string    `json:"by"`
-	// The extra tick: denial of service, brute-force and default-password logins too.
+	// The extra tick: denial of service, password guessing, default-password sign-ins and exploit checks
+	// too.
 	Disruptive bool `json:"disruptive"`
 	// The exact terms the administrator accepted, with the tick's sentence as the last line when ticked.
 	Text    string `json:"text"`
@@ -50465,7 +50568,8 @@ func (s *ExposurePostExposureTargetsCreatedStatus) UnmarshalText(data []byte) er
 type ExposurePostExposureTargetsCreatedTerms struct {
 	At time.Time `json:"at"`
 	By string    `json:"by"`
-	// The extra tick: denial of service, brute-force and default-password logins too.
+	// The extra tick: denial of service, password guessing, default-password sign-ins and exploit checks
+	// too.
 	Disruptive bool `json:"disruptive"`
 	// The exact terms the administrator accepted, with the tick's sentence as the last line when ticked.
 	Text    string `json:"text"`
@@ -51797,7 +51901,8 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTargetStatus) UnmarshalText(data [
 type ExposurePostExposureTargetsIDVerifyOKTargetTerms struct {
 	At time.Time `json:"at"`
 	By string    `json:"by"`
-	// The extra tick: denial of service, brute-force and default-password logins too.
+	// The extra tick: denial of service, password guessing, default-password sign-ins and exploit checks
+	// too.
 	Disruptive bool `json:"disruptive"`
 	// The exact terms the administrator accepted, with the tick's sentence as the last line when ticked.
 	Text    string `json:"text"`
@@ -53071,7 +53176,8 @@ func (s *ExposurePutExposureTargetsIDTermsOKStatus) UnmarshalText(data []byte) e
 type ExposurePutExposureTargetsIDTermsOKTerms struct {
 	At time.Time `json:"at"`
 	By string    `json:"by"`
-	// The extra tick: denial of service, brute-force and default-password logins too.
+	// The extra tick: denial of service, password guessing, default-password sign-ins and exploit checks
+	// too.
 	Disruptive bool `json:"disruptive"`
 	// The exact terms the administrator accepted, with the tick's sentence as the last line when ticked.
 	Text    string `json:"text"`
@@ -124094,6 +124200,54 @@ func (o OptExposureDeleteExposureTargetsIDIgnore) Get() (v ExposureDeleteExposur
 
 // Or returns value if set, or given parameter if does not.
 func (o OptExposureDeleteExposureTargetsIDIgnore) Or(d ExposureDeleteExposureTargetsIDIgnore) ExposureDeleteExposureTargetsIDIgnore {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeep returns new OptExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeep with value set to v.
+func NewOptExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeep(v ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeep) OptExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeep {
+	return OptExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeep{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeep is optional ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeep.
+type OptExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeep struct {
+	Value ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeep
+	Set   bool
+}
+
+// IsSet returns true if OptExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeep was set.
+func (o OptExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeep) IsSet() bool {
+	return o.Set
+}
+
+// Reset unsets value.
+func (o *OptExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeep) Reset() {
+	var v ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeep
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeep) SetTo(v ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeep) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeep) Get() (v ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeep, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeep) Or(d ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeep) ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeep {
 	if v, ok := o.Get(); ok {
 		return v
 	}

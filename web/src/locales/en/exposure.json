@@ -157,7 +157,11 @@
   "scan": {
     "button": "Scan now",
     "running": "Scanning",
-    "safe": "Non-intrusive scan: no exploitation, no disruption. Aimed only at this target.",
+    "safe": "Scan now scope (testing terms not accepted): non-intrusive, no exploitation, no disruption. Aimed only at this target.",
+    "deepIp": "Deep scan: the testing terms of this IP are accepted, so every scan goes to the depth they describe (every TCP port, service versions, vulnerability checks, an active web scan, and OpenVAS when it is on).",
+    "deepDomain": "Deep scan: the testing terms of this domain are accepted, so every public IPv4 address a name under it resolves to is scanned to the depth they describe, whatever serves it (at most 3 addresses a run).",
+    "deepNotDisruptive": "Disruptive checks are not included.",
+    "deepDisruptive": "Disruptive checks are included: denial of service, password guessing, default-password sign-ins and exploit checks.",
     "noticeTitle": "Pressing Scan now records this confirmation",
     "noticeChanged": "The confirmation text changed: it now names service identification, safe checks for known exploited vulnerabilities and a passive web scan. An administrator confirms once with the next Scan now.",
     "noticeWho": "Vedette keeps who confirmed it, when, for which target and this exact sentence.",
@@ -213,7 +217,10 @@
     "emptyTitle": "No scan results yet",
     "emptyBody": "Finish the two steps above, then select Scan now. The first result shows up here.",
     "pick": "Snapshot of",
-    "sourceNote": "Ports are scanned only on this box's own verified public IPs; a domain's names get one check of their web page on ports 80 and 443. The box scans from inside your network. Names hosted elsewhere are reached over the Internet, but the box's own public IP is reached through your router (NAT loopback), so what it shows can differ from what the Internet sees: a router may show its own login page only to the inside, and a router without NAT loopback shows nothing."
+    "scopeBasic": "Ports are scanned only on this box's own verified public IPs; a domain's names get one check of their web page on ports 80 and 443.",
+    "scopeDeepIp": "Deep scan (testing terms accepted): every TCP port of this IP, the service behind each one, the checks the terms describe and OpenVAS when it is on.",
+    "scopeDeepDomain": "Deep scan (testing terms accepted): each public IPv4 address a name under this domain resolves to gets every TCP port, service versions, the checks the terms describe and OpenVAS when it is on, at most 3 addresses a run; IPv6 and private addresses are not scanned.",
+    "sourceNote": "The box scans from inside your network. Names hosted elsewhere are reached over the Internet, but the box's own public IP is reached through your router (NAT loopback), so what it shows can differ from what the Internet sees: a router may show its own login page only to the inside, and a router without NAT loopback shows nothing."
   },
   "count": {
     "subdomains": "Subdomains",
@@ -500,6 +507,7 @@
     "caption": "Exploited vulnerabilities that match the services on this IP",
     "descriptionDomain": "Service identification (nmap -sV) runs on the box's own public IP only, so for a domain these are the versions ZAP read on its web pages (a JavaScript library, a Server or X-Powered-By header), compared with the exploited lists and their NVD version ranges. Only exploited vulnerabilities are compared, so an empty list does not prove a page is safe.",
     "captionDomain": "Exploited vulnerabilities that match the versions ZAP read on this domain's pages",
+    "captionDomainDeep": "Exploited vulnerabilities that match the services on this domain's addresses and the versions ZAP read on its pages",
     "servicesCaption": "Services identified on the open ports (nmap -sV)",
     "noneIdentifiedTitle": "No service was identified",
     "notIdentifiedTitle": "Services were not identified",

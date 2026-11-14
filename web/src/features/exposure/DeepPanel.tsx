@@ -11,12 +11,12 @@ import type { HostIp, Snapshot } from './types'
 type Deep = NonNullable<HostIp['deep']>
 const TONE: Record<Deep, Tone> = { scanned: 'ok', waiting: 'accent', fence: 'off', refused: 'warn' }
 
-export type DeepAddr = { ip: string; names: string[]; deep: Deep; last?: string; next?: number; services: number; vulns: number; web: number; openvas: number }
+type DeepAddr = { ip: string; names: string[]; deep: Deep; last?: string; next?: number; services: number; vulns: number; web: number; openvas: number }
 
 const hostOf = (site: string) => { try { return new URL(site).hostname } catch { return '' } }
 
 /** One row per address with a deep state, in the order the scan took them (scanned, then next in line, then the rest). */
-export function deepAddrs(s: Snapshot): DeepAddr[] {
+function deepAddrs(s: Snapshot): DeepAddr[] {
   const by = new Map<string, DeepAddr>()
   for (const h of s.hosts) {
     for (const a of h.ips ?? []) {

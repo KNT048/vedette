@@ -168,7 +168,7 @@ describe('exposure: a verified and confirmed domain', () => {
     expect(within(row(/^www\.acme\.example/)).getByText('This box')).toBeInTheDocument()
     expect(within(row(/^www\.acme\.example/)).getByText("This box's verified address: scanned")).toBeInTheDocument()
     expect(within(row(/^cdn\.acme\.example/)).getByText('acme.example.cdn.cloudflare.net')).toBeInTheDocument()
-    expect(within(row(/^cdn\.acme\.example/)).getByText('Checked by name on ports 80 and 443. Deep scan of this name comes with the next update.')).toBeInTheDocument()
+    expect(within(row(/^cdn\.acme\.example/)).getByText("Checked by name on ports 80 and 443. Accept this domain's testing terms for the deep scan of this address.")).toBeInTheDocument()
     expect(within(row(/^docs\.acme\.example/)).getByText('No address: the CNAME leads nowhere')).toBeInTheDocument()
     expect(within(row(/^docs\.acme\.example/)).getByText('Found by a common name')).toBeInTheDocument()
     expect(within(row(/^mail\.acme\.example/)).getByText('Found in the MX records')).toBeInTheDocument()
@@ -1460,9 +1460,10 @@ describe('exposure: testing terms per target (S-EXP-2, FULL-1, D-566)', () => {
     expect(within(s).getByText('Not accepted: scans of this target stay in the Scan now scope.')).toBeInTheDocument()
     const terms = within(s).getByRole('group', { name: 'Testing terms' })
     expect(within(terms).getByText(/^I confirm that my company owns acme\.example and that I am authorized to test it in depth/)).toBeInTheDocument()
-    expect(within(terms).getAllByRole('listitem').map((l) => l.textContent?.split(':')[0])).toEqual(['All ports', 'Version and exploit-confirming checks', 'An active web scan that submits forms', 'Authentication checks'])
+    expect(within(terms).getAllByRole('listitem').map((l) => l.textContent?.split(':')[0])).toEqual(['All ports', 'Vulnerability checks', 'An active web scan that submits forms', 'Authentication checks'])
+    expect(within(terms).getByText(/Checks that confirm a flaw by exploiting it run only with the disruptive checks below\./)).toBeInTheDocument()
     expect(within(terms).getByText(/The deep scan can load or slow the services on acme\.example and may create, change or delete data/)).toBeInTheDocument()
-    const tick = within(s).getByRole('checkbox', { name: 'Include disruptive checks (denial of service, brute-force and default-password logins): these can crash your service or lock accounts.' })
+    const tick = within(s).getByRole('checkbox', { name: 'Include disruptive checks (denial of service, password guessing, sign-in attempts with default or well-known passwords, and checks that confirm a vulnerability by exploiting it or by sending data that acts on the target): these can crash a service, lock accounts or take a device offline.' })
     expect(tick).not.toBeChecked()
     await expectNoA11yViolations()
   })
@@ -1519,6 +1520,111 @@ describe('exposure: testing terms per target (S-EXP-2, FULL-1, D-566)', () => {
     renderApp('/exposure/xt-1?tab=ownership', { role: 'viewer' })
     const s = await screen.findByRole('region', { name: 'Testing terms (deep scan)' })
     expect(within(s).getByRole('button', { name: 'Accept the testing terms' })).toBeDisabled()
+  })
+})
+
+describe('exposure: deep scan of a domain\'s addresses (S-EXP-2, FULL-5 slice 3, D-571)', () => {
+  const withTwoStep = (on: boolean) => usersStore.update((l) => l.map((x) => (x.id === 'u-admin' ? { ...x, twofa: on } : x)))
+
+  it('LEGAL-2: a domain\'s terms say the scan reaches third-party hosting, CDN or proxy, name the tools and the customer\'s responsibility; an IP keeps "yours alone"', async () => {
+    renderApp('/exposure/xt-1?tab=ownership')
+    const terms = within(await screen.findByRole('region', { name: 'Testing terms (deep scan)' })).getByRole('group', { name: 'Testing terms' })
+    for (const sentence of [
+      'Every name under acme.example that resolves to a public address is scanned at this depth, whatever serves it: your own server, a hosting provider or a CDN.',
+      'If a provider serves a name, its testing policy applies to you (for example, Cloudflare and AWS forbid denial-of-service tests); leave the disruptive checks off unless that provider allows them.',
+      "Vedette's tools reach each address a name under acme.example resolves to, including a third-party hosting provider, CDN or proxy in front of your names: the scan of all ports, OpenVAS, nuclei and the active web scan (ZAP).",
+      "With shared or cloud hosting, a CDN or a proxy, that address can also serve other people's systems: you are responsible for having the provider's permission.",
+      'Vedette does not check who owns those addresses.',
+    ]) expect(terms.textContent).toContain(sentence)
+    expect(terms.textContent).not.toContain('yours alone')
+    const ip = (await call('GET', '/exposure/targets/xt-2')).json as { terms_notice: { text: string; version: string } }
+    expect(ip.terms_notice.version).toBe('2026-11-14c')
+    expect(ip.terms_notice.text).toContain('Accept only if 203.0.113.10 is yours alone')
+    expect(ip.terms_notice.text).not.toContain('Verifying a name')
+  })
+
+  it('with the terms accepted, Scan now deep-scans 3 addresses, the rest wait in line; Results show each address with its names, the Surface tab counts and notes; axe clean', async () => {
+    withTwoStep(true)
+    const v = (await call('GET', '/exposure/targets/xt-1')).json as { terms_notice: { version: string } }
+    expect((await call('PUT', '/exposure/targets/xt-1/terms', { version: v.terms_notice.version, disruptive: false })).status).toBe(200)
+    renderApp('/exposure/xt-1')
+    await userEvent.click(await screen.findByRole('button', { name: 'Scan now' }))
+    expect(await screen.findByText('Scan of acme.example finished. The new result is below.', {}, { timeout: 8000 })).toBeInTheDocument()
+    const deep = await screen.findByRole('table', { name: "Addresses of this domain's names and their deep scan" }, { timeout: 5000 })
+    const row = (ip: string) => within(deep).getByRole('row', { name: new RegExp(`^${ip.replaceAll('.', '\\.')} `) })
+    expect(within(row('198.51.100.30')).getByText('cdn.acme.example')).toBeInTheDocument()
+    expect(within(row('198.51.100.30')).getByText('Scanned this run')).toBeInTheDocument()
+    expect(within(row('203.0.113.20')).getByText('www.acme.example')).toBeInTheDocument() // two names, one address
+    expect(within(row('203.0.113.20')).getByText('acme.example')).toBeInTheDocument()
+    expect(within(row('203.0.113.22')).getByText('Next in line')).toBeInTheDocument()
+    expect(within(row('203.0.113.22')).getByText(/Number 1 in line\. Never deep-scanned\./)).toBeInTheDocument()
+    expect(within(deep).queryByText('10.20.0.5')).toBeNull() // private: never dialed, not a deep row
+    expect(within(screen.getByRole('table', { name: 'Services identified on the open ports (nmap -sV)' })).getAllByText('198.51.100.30').length).toBeGreaterThan(0) // each service says its address
+    expect(within(screen.getByRole('list', { name: 'Not checked' })).getByText('203.0.113.22 (vpn.acme.example): not scanned this run (at most 3 addresses get the deep scan in one run), never scanned at depth; next in line (1).')).toBeInTheDocument()
+    await expectNoA11yViolations()
+    await userEvent.click(screen.getByRole('tab', { name: 'Surface' }))
+    const table = await screen.findByRole('table', { name: 'Names under this domain and their addresses' })
+    expect(within(within(table).getByRole('row', { name: /^cdn\.acme\.example/ })).getByText(/^Deep-scanned at the testing terms depth, /)).toBeInTheDocument()
+    expect(within(within(table).getByRole('row', { name: /^staging\.acme\.example/ })).getByText(/^Not scanned this run \(at most 3 addresses a run\): next in line \(2\)\. Never deep-scanned\./)).toBeInTheDocument()
+    expect(screen.getByText('Addresses deep-scanned this run').nextSibling?.textContent).toBe('3')
+    expect(screen.getByText('Addresses next in line').nextSibling?.textContent).toBe('3')
+    const lines = within(screen.getByRole('list', { name: 'Not checked on the surface' }))
+    expect(lines.getByText('Private addresses (1 address): listed, never contacted.')).toBeInTheDocument()
+    expect(lines.getByText('IPv6 addresses (1 listed): IPv6 is not scanned yet.')).toBeInTheDocument()
+    expect(lines.queryByText(/checked by name on ports 80 and 443 only/)).toBeNull()
+    await expectNoA11yViolations()
+  })
+
+  it('N100: the line under Scan now and the Results intro say what the scan does: Scan now scope, then the deep scan with or without the disruptive checks', async () => {
+    withTwoStep(true)
+    setEgress('203.0.113.10')
+    expect((await call('DELETE', '/exposure/targets/xt-2/terms')).status).toBe(200) // the sample IP has them accepted
+    const view = renderApp('/exposure/xt-2')
+    expect(await screen.findByText('Scan now scope (testing terms not accepted): non-intrusive, no exploitation, no disruption. Aimed only at this target.')).toBeInTheDocument()
+    expect(await screen.findByText(/^Ports are scanned only on this box's own verified public IPs; a domain's names get one check/)).toBeInTheDocument()
+    view.unmount()
+    const v = (await call('GET', '/exposure/targets/xt-2')).json as { terms_notice: { version: string } }
+    expect((await call('PUT', '/exposure/targets/xt-2/terms', { version: v.terms_notice.version, disruptive: true })).status).toBe(200)
+    renderApp('/exposure/xt-2')
+    expect(await screen.findByText(/^Deep scan: the testing terms of this IP are accepted.* Disruptive checks are included: denial of service, password guessing, default-password sign-ins and exploit checks\.$/)).toBeInTheDocument()
+    expect(screen.queryByText(/Non-intrusive|no exploitation/)).toBeNull()
+    expect(await screen.findByText(/^Deep scan \(testing terms accepted\): every TCP port of this IP/)).toBeInTheDocument()
+    expect(screen.queryByText(/Ports are scanned only on this box/)).toBeNull()
+  })
+
+  it('N100: a domain with accepted terms (no disruptive tick) says its names are deep-scanned at every address they resolve to', async () => {
+    withTwoStep(true)
+    const v = (await call('GET', '/exposure/targets/xt-1')).json as { terms_notice: { version: string } }
+    expect((await call('PUT', '/exposure/targets/xt-1/terms', { version: v.terms_notice.version, disruptive: false })).status).toBe(200)
+    renderApp('/exposure/xt-1')
+    expect(await screen.findByText(/^Deep scan: the testing terms of this domain are accepted, so every public IPv4 address a name under it resolves to is scanned.* Disruptive checks are not included\.$/)).toBeInTheDocument()
+    expect(await screen.findByText(/^Deep scan \(testing terms accepted\): each public IPv4 address a name under this domain resolves to gets every TCP port/)).toBeInTheDocument()
+  })
+
+  it('a box without the domain fence, and a refused re-check, say so on the Surface tab and under Results; axe clean', async () => {
+    const at = new Date().toISOString()
+    const date = at.slice(0, 10)
+    const ip = (a: string, deep: string) => ({ ip: a, family: 'ipv4', class: 'public', contacted: true, deep })
+    const fence = "Addresses of names under this domain that are not this box's (198.51.100.30): not scanned at depth: this box needs the Vedette host's domain fence (update the box). Their names are checked by name on ports 80 and 443 only."
+    server.use(
+      http.get('*/api/v1/exposure/targets/xt-1/snapshots', () => HttpResponse.json({ items: [{ id: 'sn-f', date, scanned_at: at, counts: { subdomains: 2, ips: 2, ports: 0, admin_panels: 0, certs_expiring: 0 } }] })),
+      http.get('*/api/v1/exposure/targets/xt-1/snapshots/:date', () => HttpResponse.json({ id: 'sn-f', date, scanned_at: at, ports: [], admin_panels: [], certs: [], services: [], templates: [], checks: [], web_findings: [], greenbone: [], vulns: [], version_gaps: [],
+        hosts: [{ name: 'cdn.acme.example', ip: '198.51.100.30', source: 'ct', ips: [ip('198.51.100.30', 'fence')] }, { name: 'shop.acme.example', ip: '198.51.100.31', source: 'ct', ips: [ip('198.51.100.31', 'refused')] }],
+        not_checked: [{ kind: 'deep', text: fence }, { kind: 'deep', text: '198.51.100.31 (shop.acme.example): not scanned at depth: no name under this domain resolves to this address any more (looked up right before the step), so nothing was sent.' }],
+        counts: { subdomains: 2, ips: 2, ports: 0, admin_panels: 0, certs_expiring: 0 } })),
+    )
+    renderApp('/exposure/xt-1')
+    const deep = await screen.findByRole('table', { name: "Addresses of this domain's names and their deep scan" })
+    expect(within(deep).getByText('Needs the domain fence')).toBeInTheDocument()
+    expect(within(deep).getByText('Refused at the check')).toBeInTheDocument()
+    await expectNoA11yViolations()
+    await userEvent.click(screen.getByRole('tab', { name: 'Surface' }))
+    const table = await screen.findByRole('table', { name: 'Names under this domain and their addresses' })
+    expect(within(table).getByText("Checked by name only: the deep scan of an address that is not this box's needs the Vedette host's domain fence (update the box).")).toBeInTheDocument()
+    expect(within(table).getByText('Not scanned at depth: the check right before the scan refused it, so nothing was sent (see Not checked).')).toBeInTheDocument()
+    expect(within(screen.getByRole('list', { name: 'Not checked on the surface' })).getByText(fence)).toBeInTheDocument()
+    expect(screen.getByText('Addresses deep-scanned this run').nextSibling?.textContent).toBe('0')
+    await expectNoA11yViolations()
   })
 })
 

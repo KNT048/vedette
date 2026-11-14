@@ -440,7 +440,7 @@ func TestContract_INV27_Deep_DomainTermsText(t *testing.T) {
 	for _, want := range []string{
 		"Every name under acme.example that resolves to a public address is scanned at this depth, whatever serves it: your own server, a hosting provider or a CDN.",
 		"Cloudflare and AWS forbid denial-of-service tests",
-		"Vedette sends all ports, OpenVAS, nuclei and the active web scan (ZAP) to each address a name under acme.example resolves to.",
+		"Vedette's tools reach each address a name under acme.example resolves to, including a third-party hosting provider, CDN or proxy in front of your names: the scan of all ports, OpenVAS, nuclei and the active web scan (ZAP).",
 		// TERMS.md (D-544) word for word, so the two texts never disagree
 		"Verifying a name proves you control its DNS, not that you own the machines behind it or may test them. With shared or cloud hosting, a CDN or a proxy, that address can also serve other people's systems: you are responsible for having the provider's permission. Vedette does not check who owns those addresses.",
 	} {
@@ -454,6 +454,15 @@ func TestContract_INV27_Deep_DomainTermsText(t *testing.T) {
 	ip := termsFor(KindIP, ipA).Text
 	if !strings.Contains(ip, "Accept only if "+ipA+" is yours alone") || strings.Contains(ip, "Verifying a name") {
 		t.Errorf("IP terms = %q", ip)
+	}
+	// owner's rule (kien 2026-11-14, D-527, TERMS.md): exploit checks, password guessing and default-password sign-ins only with the tick
+	for _, text := range []string{dom, ip} {
+		if !strings.Contains(text, "Checks that confirm a flaw by exploiting it run only with the disruptive checks below.") || strings.Contains(text, "sending the exploit request itself") {
+			t.Errorf("terms say exploit checks run without the tick: %q", text)
+		}
+	}
+	if d := termsFor(KindDomain, "acme.example").Disruptive; !strings.Contains(d, "denial of service, password guessing, sign-in attempts with default or well-known passwords, and checks that confirm a vulnerability by exploiting it") {
+		t.Errorf("disruptive tick = %q", d)
 	}
 	e := newEnv(t)
 	v := e.addVerifiedDomain()

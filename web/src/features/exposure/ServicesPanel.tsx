@@ -51,7 +51,7 @@ export function VulnSection({ s, domain = false }: { s: Snapshot; domain?: boole
       ) : (
         <div className="grid gap-4">
           {s.vulns.length > 0 ? (
-            <DataTable caption={t(domain ? 'vulns.captionDomain' : 'vulns.caption')} data={s.vulns} columns={vulnCols} pageSize={20} rowTone={(r) => (r.backport ? undefined : 'warn')} />
+            <DataTable caption={t(domain ? (s.services.length > 0 ? 'vulns.captionDomainDeep' : 'vulns.captionDomain') : 'vulns.caption')} data={s.vulns} columns={vulnCols} pageSize={20} rowTone={(r) => (r.backport ? undefined : 'warn')} />
           ) : s.not_checked.some((n) => n.kind === 'cve') ? (
             <p role="status" className="text-sm text-warn">{s.not_checked.find((n) => n.kind === 'cve')!.text}</p>
           ) : (

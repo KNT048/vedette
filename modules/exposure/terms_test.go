@@ -165,11 +165,8 @@ func TestTermsTextIsPinnedToItsVersion(t *testing.T) {
 	t.Parallel()
 	pinned := map[string]string{
 		"2026-11-14":  "e3cafa3e881a321c3ae62f23c5d6fd32ac7e34c7715dbc1138636682854bfd27",
-		"2026-11-14b": "220bd0f322cfe435686be56c09855532b3c18d92cfb2efae9d06126a96f58604", // the IP text (termsTemplate) is still this one
-		"2026-11-14c": "f6fc1ada4263547f1d4916a22b01f77ff9ad8446c1be16d3d664f361a3e1d571", // D-571: with the domain's own text
-	}
-	if old := sha256.Sum256([]byte(termsTemplate + "\x00" + termsDisruptive)); hex.EncodeToString(old[:]) != pinned["2026-11-14b"] {
-		t.Fatal("the IP target's terms text changed: D-571 keeps it as it was in 2026-11-14b")
+		"2026-11-14b": "220bd0f322cfe435686be56c09855532b3c18d92cfb2efae9d06126a96f58604",
+		"2026-11-14c": "043ae362ece3f66e1de75110c9c30f2cf748df515a1bc932a5a56c0f4562645f", // D-571: the domain's own text; exploit checks behind the tick
 	}
 	sum := sha256.Sum256([]byte(termsTemplate + "\x00" + termsTemplateDomain + "\x00" + termsDisruptive))
 	if got := pinned[TermsVersion]; got != hex.EncodeToString(sum[:]) {

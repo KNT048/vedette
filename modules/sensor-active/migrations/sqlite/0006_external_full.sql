@@ -1,7 +1,8 @@
 -- +goose Up
 -- D-526 (FULL-4): the deep scan of the box's own verified public IP once its testing terms are accepted. Its run is still a job of
--- kind 'external'; its probe row has shape 'external_full' or 'external_disruptive' (every TCP port, -sV and nmap's script
--- categories; the flags are about 190 characters). SQLite cannot change a CHECK: sa_probe is rebuilt with the same columns and ids
+-- kind 'external'; its probe row has shape 'external_full' or 'external_disruptive' (every TCP port, -sV and nmap's scripts named
+-- one by one, nmapargv/scripts.go: the flags of the disruptive shape are about 7,000 characters, so flags may now be up to 16,384;
+-- the probe log keeps the exact list each run was sent with). SQLite cannot change a CHECK: sa_probe is rebuilt with the same columns and ids
 -- the way 0005 did it (sa_job keeps its CHECK, so it stays), and the AUTOINCREMENT counter of sa_probe goes on from the old one.
 -- Every shape of 0001-0005 is kept. Forward-only (DATA_MODEL 6, rule 1).
 CREATE TABLE sa_probe_new (
@@ -11,7 +12,7 @@ CREATE TABLE sa_probe_new (
     shape        TEXT    NOT NULL CHECK (shape IN ('sweep', 'normal', 'gentle', 'versions', 'gentle_titles', 'snmp', 'external', 'external_full', 'external_disruptive')),
     rate         INTEGER NOT NULL CHECK (rate BETWEEN 1 AND 1000),
     hosts        INTEGER NOT NULL CHECK (hosts BETWEEN 1 AND 64),
-    flags        TEXT    NOT NULL CHECK (length(flags) BETWEEN 1 AND 1000),
+    flags        TEXT    NOT NULL CHECK (length(flags) BETWEEN 1 AND 16384),
     targets      TEXT    NOT NULL CHECK (length(targets) BETWEEN 7 AND 1100),
     result       TEXT    NOT NULL CHECK (length(result) <= 200)
 );

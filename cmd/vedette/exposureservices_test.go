@@ -295,7 +295,7 @@ func TestExposureDeepScanEndToEndWithAFakeWorker(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.Ports != 65535 || len(got.Services) != 3 || len(got.Scripts) != 5 || got.Scripts[4].ID != "smb-vuln-ms17-010" || got.Scripts[4].IP != "8.8.8.8" || !got.Scripts[4].Vulnerable {
+	if got.Ports != 65535 || len(got.Services) != 3 || len(got.Scripts) != 5 || got.Scripts[4].ID != "smb-vuln-ms17-010" || got.Scripts[4].IP != "8.8.8.8" || len(got.Scripts[4].Findings) != 1 || got.Scripts[4].Findings[0].State != "vulnerable" || got.Scripts[4].Findings[0].CVEs[0] != "CVE-2017-0143" {
 		t.Fatalf("got %+v", got)
 	}
 	if jobs := w.received(); len(jobs) != 1 || jobs[0].Shape != "external_full" || jobs[0].Rate != nmapargv.FullRate || jobs[0].Targets[0] != "8.8.8.8" {

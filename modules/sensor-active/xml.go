@@ -13,6 +13,8 @@ import (
 	"strings"
 	"unicode"
 	"unicode/utf8"
+
+	"github.com/knt048/vedette/modules/sensor-active/nmapargv"
 )
 
 // Limits of the nmap XML parser (INV-7, SYS-6): the output is data from the network, so any structure
@@ -31,16 +33,18 @@ const (
 	maxCPELen       = 300
 	maxElemLen      = 256      // longest <elem> text of an NTLM script that is read; a longer one is dropped
 	maxScriptOutput = 64 << 10 // longest output attribute of a <script> that is read (ssl-cert prints the whole certificate, D-511); a longer one is ignored
-	// The NSE results of a full external run (D-526). maxScriptsPerHost: about 30 scripts of default, safe and vuln answer on a
-	// web port, and at most commonports.MaxBelievableOpen ports are believed, so 40 × 30 = 1200 is the most a real host prints;
-	// the cap is the LAN shapes' own worst case (their 4 fixed scripts on each of maxPortsPerHost ports), so it never refuses a
-	// LAN run that passed before; more fails the run like too many ports (the whole XML is bounded by MaxOutput anyway).
+	// The NSE results of a full external run (D-526). maxScriptsPerHost: a few dozen scripts answer on a web port and at most
+	// commonports.MaxBelievableOpen ports are believed, so a real host prints far fewer; the cap (four per listed port) bounds a
+	// hostile answer, and more fails the run like too many ports (the whole XML is bounded by MaxOutput anyway). It applies to
+	// every shape, LAN ones included (their -sV can print version-category scripts too); a LAN host near it is not expected.
 	// maxScriptText: a script's text is kept up to 2000 runes: the whole output of a
 	// vulns-library finding (smb-vuln-ms17-010 prints about 700 characters with its references) and of the usual discovery
-	// scripts fits; the long dumps (a certificate in PEM, every comment of a page) are cut, never dropped. maxScriptCVEs: a
-	// vulns-library script names one or a few CVEs; 20 bounds a script that prints a list.
+	// scripts fits; the long dumps (a certificate in PEM, every comment of a page) are cut, never dropped. maxScriptFindings and
+	// maxScriptCVEs: a vulns-library script reports one or a few findings of one or a few CVEs each; 20 bounds a script that
+	// reports a list.
 	maxScriptsPerHost = 4 * maxPortsPerHost
 	maxScriptText     = 2000
+	maxScriptFindings = 20
 	maxScriptCVEs     = 20
 )
 
@@ -66,20 +70,61 @@ type host struct {
 	scripts          []nseScript // every NSE script result of an open port or of the host (<hostscript>), read for the full shapes (D-526)
 }
 
-// nseScript is one NSE script result (D-526): the script's id, its text output (scriptText), the CVE ids it names and whether it
-// says VULNERABLE in the vulns library's format. Port is 0 for a host script.
+// nseScript is one NSE script result (D-526): the script's id, its text output (scriptText, or outputWithheld) and the findings
+// of the vulns library in its structured output. Port is 0 for a host script.
 type nseScript struct {
-	port       int
-	id         string
-	output     string
-	cves       []string
-	vulnerable bool
+	port     int
+	id       string
+	output   string
+	findings []nseFinding
 }
 
-var (
-	scriptIDRE = regexp.MustCompile(`^[a-z0-9][a-z0-9_.-]{0,63}$`) // nmap's script names: "smb-vuln-ms17-010", "http-title"
-	cveRE      = regexp.MustCompile(`CVE-[0-9]{4}-[0-9]{4,7}`)
+// nseFinding is one finding of nmap's vulns library (https://nmap.org/nsedoc/lib/vulns.html), read only from the script's
+// structured output (review r1 M1): a <table> directly under <script> with an <elem key="state">, its <elem key="title">, and the
+// CVE ids of its key ("CVE-2017-0143") and of its <table key="ids"> ("CVE:CVE-2017-0143"). Free text a service controls (a page
+// comment, a header, a banner) never makes a finding or names a CVE. State is per finding (L3).
+type nseFinding struct {
+	state string // findingVulnerable, findingLikely or findingNotVulnerable
+	title string
+	cves  []string
+}
+
+// The states of a finding: the vulns library prints "VULNERABLE", "VULNERABLE (Exploitable)", "VULNERABLE (DoS)", "LIKELY
+// VULNERABLE" and "NOT VULNERABLE"; any other state is not kept.
+const (
+	findingVulnerable    = "vulnerable"
+	findingLikely        = "likely"
+	findingNotVulnerable = "not_vulnerable"
 )
+
+// outputWithheld replaces the text of a script that can print credentials or hashes (nmapargv.StoresOutput, review r1 M4).
+const outputWithheld = "Output not stored: it can hold credentials."
+
+var (
+	scriptIDRE = regexp.MustCompile(`^[a-z0-9][a-z0-9_.-]{0,63}$`)     // nmap's script names: "smb-vuln-ms17-010", "http-title"
+	cveKeyRE   = regexp.MustCompile(`^CVE-[0-9]{4}-[0-9]{4,7}$`)       // the key of a finding's table (review r1 L2: anchored)
+	cveIDRE    = regexp.MustCompile(`^CVE:(CVE-[0-9]{4}-[0-9]{4,7})$`) // an <elem> of its ids table
+)
+
+// findingState maps the state the vulns library printed to the kept ones; "" for any other.
+func findingState(s string) string {
+	switch s = strings.TrimSpace(s); {
+	case strings.HasPrefix(s, "VULNERABLE"):
+		return findingVulnerable
+	case strings.HasPrefix(s, "LIKELY VULNERABLE"):
+		return findingLikely
+	case strings.HasPrefix(s, "NOT VULNERABLE"):
+		return findingNotVulnerable
+	}
+	return ""
+}
+
+// addCVE keeps a CVE id once, at most maxScriptCVEs.
+func (f *nseFinding) addCVE(c string) {
+	if len(f.cves) < maxScriptCVEs && !slices.Contains(f.cves, c) {
+		f.cves = append(f.cves, c)
+	}
+}
 
 // scriptText is a script's output as kept: valid UTF-8, line breaks kept (the vulns library prints one field a line), tabs and
 // carriage returns as spaces, every other unprintable rune (control, format, bidi, line and paragraph separators, INV-7)
@@ -98,30 +143,6 @@ func scriptText(s string) string {
 		return r
 	}, s)
 	return clipRunes(strings.TrimSpace(s), maxScriptText)
-}
-
-// note reads one piece of a script's printed or structured output: the CVE ids it names (unique, at most maxScriptCVEs) and,
-// when it is a state, whether it says VULNERABLE. The vulns library (https://nmap.org/nsedoc/lib/vulns.html) prints a finding as
-// "State: VULNERABLE", "VULNERABLE (Exploitable)" or "VULNERABLE (DoS)"; "LIKELY VULNERABLE" and "NOT VULNERABLE" are not.
-func (sc *nseScript) note(s string, state bool) {
-	for _, c := range cveRE.FindAllString(s, -1) {
-		if len(sc.cves) < maxScriptCVEs && !slices.Contains(sc.cves, c) {
-			sc.cves = append(sc.cves, c)
-		}
-	}
-	if state && strings.HasPrefix(strings.TrimSpace(s), "VULNERABLE") {
-		sc.vulnerable = true
-	}
-}
-
-// noteOutput reads the text output of a script: its CVE ids and its "State:" lines.
-func (sc *nseScript) noteOutput(out string) {
-	sc.note(out, false)
-	for line := range strings.Lines(out) {
-		if v, ok := strings.CutPrefix(strings.TrimSpace(line), "State:"); ok {
-			sc.note(v, true)
-		}
-	}
 }
 
 // ntlmInfo is the part of an NTLM CHALLENGE that nmap's rdp-ntlm-info or http-ntlm-info printed (nmapargv.Scripts, D-504): the
@@ -316,25 +337,27 @@ func parseNmapXML(data []byte) ([]host, error) {
 	dec := xml.NewDecoder(bytes.NewReader(data))
 	dec.Strict = true // an unknown entity is an error; charsets other than UTF-8 are refused (no CharsetReader)
 	var (
-		path    []string
-		hosts   []host
-		cur     *host
-		up      bool
-		port    *portInfo
-		portOK  bool
-		match   *osMatch
-		class   *osClass
-		cpeDst  *[]string
-		cpeBuf  strings.Builder
-		closed  bool
-		ntlm    bool   // inside the <script> of an NTLM script of an open port
-		title   bool   // inside the <script> of http-title (D-511)
-		elemKey string // key of the <elem> being read; "" when none
-		elemBuf strings.Builder
-		scr     *nseScript // the <script> being read, of an open port or of the host (D-526); nil outside one
-		scrElem bool       // inside an <elem> of scr, at any depth of its tables
-		scrKey  string
-		scrBuf  strings.Builder
+		path     []string
+		hosts    []host
+		cur      *host
+		up       bool
+		port     *portInfo
+		portOK   bool
+		match    *osMatch
+		class    *osClass
+		cpeDst   *[]string
+		cpeBuf   strings.Builder
+		closed   bool
+		ntlm     bool   // inside the <script> of an NTLM script of an open port
+		title    bool   // inside the <script> of http-title (D-511)
+		elemKey  string // key of the <elem> being read; "" when none
+		elemBuf  strings.Builder
+		scr      *nseScript  // the <script> being read, of an open port or of the host (D-526); nil outside one
+		scrDepth int         // len(path) of scr's <script>
+		fnd      *nseFinding // a <table> directly under scr: a vulns-library finding when it has a state
+		inIDs    bool        // inside fnd's <table key="ids">
+		fKey     string      // the field of fnd an <elem> being read fills ("state", "title", "ids"); "" when none
+		fBuf     strings.Builder
 	)
 	for tokens := 0; ; tokens++ {
 		if tokens > maxXMLTokens {
@@ -375,20 +398,32 @@ func parseNmapXML(data []byte) ([]host, error) {
 			if t.Name.Local == "script" && len(a["output"]) > maxScriptOutput {
 				delete(a, "output") // only that script's output is ignored; its port and the run are kept (#714 round 2, L3)
 			}
-			p := strings.Join(path, "/")
+			p, d := strings.Join(path, "/"), len(path)
 			switch {
 			case cur != nil && (p == "nmaprun/host/ports/port/script" && port != nil || p == "nmaprun/host/hostscript/script"):
 				if len(cur.scripts) >= maxScriptsPerHost {
 					return nil, fmt.Errorf("%w: too many script results", errXMLInvalid)
 				}
-				scr = &nseScript{id: a["id"], output: scriptText(a["output"])}
+				scr, scrDepth = &nseScript{id: a["id"], output: scriptText(a["output"])}, d
+				if a["output"] != "" && !nmapargv.StoresOutput(a["id"]) { // review r1 M4: it can print credentials or hashes
+					scr.output = outputWithheld
+				}
 				if port != nil {
 					scr.port = port.number
 				}
-				scr.noteOutput(a["output"])
-			case scr != nil && t.Name.Local == "elem":
-				scrElem, scrKey = true, a["key"]
-				scrBuf.Reset()
+			case scr != nil && d == scrDepth+1 && t.Name.Local == "table":
+				fnd = &nseFinding{}
+				if cveKeyRE.MatchString(a["key"]) {
+					fnd.addCVE(a["key"])
+				}
+			case fnd != nil && d == scrDepth+2 && t.Name.Local == "table" && a["key"] == "ids":
+				inIDs = true
+			case fnd != nil && t.Name.Local == "elem" && (d == scrDepth+2 && (a["key"] == "state" || a["key"] == "title") || inIDs && d == scrDepth+3):
+				fKey = a["key"]
+				if inIDs {
+					fKey = "ids"
+				}
+				fBuf.Reset()
 			}
 			switch p {
 			case "nmaprun/host":
@@ -482,24 +517,40 @@ func parseNmapXML(data []byte) ([]host, error) {
 			if elemKey != "" && elemBuf.Len() <= maxElemLen {
 				elemBuf.Write(t)
 			}
-			if scrElem && scrBuf.Len() <= maxElemLen {
-				scrBuf.Write(t)
+			if fKey != "" && fBuf.Len() <= maxElemLen {
+				fBuf.Write(t)
 			}
 		case xml.EndElement:
-			p := strings.Join(path, "/")
+			p, d := strings.Join(path, "/"), len(path)
 			switch {
-			case scrElem && t.Name.Local == "elem":
-				if scrBuf.Len() <= maxElemLen { // a longer value is not read (its text is in the output anyway)
-					scr.note(scrBuf.String(), scrKey == "state")
+			case fKey != "" && t.Name.Local == "elem":
+				if v := strings.TrimSpace(fBuf.String()); fBuf.Len() <= maxElemLen { // a longer value is not read
+					switch fKey {
+					case "state":
+						fnd.state = findingState(v)
+					case "title":
+						fnd.title = text(clipRunes(v, maxText))
+					case "ids":
+						if m := cveIDRE.FindStringSubmatch(v); m != nil {
+							fnd.addCVE(m[1])
+						}
+					}
 				}
-				scrElem = false
+				fKey = ""
+			case inIDs && d == scrDepth+2 && t.Name.Local == "table":
+				inIDs = false
+			case fnd != nil && d == scrDepth+1 && t.Name.Local == "table":
+				if fnd.state != "" && len(scr.findings) < maxScriptFindings { // a table without a state is not a finding
+					scr.findings = append(scr.findings, *fnd)
+				}
+				fnd = nil
 			case scr != nil && (p == "nmaprun/host/ports/port/script" || p == "nmaprun/host/hostscript/script"):
 				// A port script counts only on an open port (the state comes before the scripts in nmap's XML); a script whose id is
 				// not of nmap's form is dropped.
 				if cur != nil && (p == "nmaprun/host/hostscript/script" || portOK) && scriptIDRE.MatchString(scr.id) {
 					cur.scripts = append(cur.scripts, *scr)
 				}
-				scr, scrElem = nil, false
+				scr, fnd, inIDs, fKey = nil, nil, false, ""
 			}
 			switch p {
 			case "nmaprun":

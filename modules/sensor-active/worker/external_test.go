@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/knt048/vedette/core/sensorlink"
 	"github.com/knt048/vedette/modules/sensor-active/nmapargv"
@@ -155,6 +156,44 @@ func TestFullJobsRunOnlyOnTheBoxsOwnIP(t *testing.T) {
 				}
 			})
 		}
+	}
+}
+
+// D-526, review r1 H1: a full job re-checks the fence while nmap runs. The box's address changes mid-run (a forced reconnect), or
+// the public IP services can no longer be reached: nmap is killed and the whole result is dropped, refused with the fence's reason.
+// An address that stays the box's own lets the run finish; the External shape is not re-checked.
+func TestFullJobStopsWhenTheAddressChangesMidRun(t *testing.T) {
+	t.Parallel()
+	slow := "sleep 0.6\n" + printXML // long enough for several re-checks at the test's interval
+	for name, c := range map[string]struct {
+		shape   string
+		rate    int
+		answers []string
+		status  string
+		reason  string
+	}{
+		"another address mid-run":      {"external_full", nmapargv.FullRate, []string{"8.8.8.8", "1.1.1.1"}, "refused", "not_own_ip"},
+		"cannot verify mid-run":        {"external_disruptive", nmapargv.FullRate, []string{"8.8.8.8", ""}, "refused", "egress_unverified"},
+		"still the box's own":          {"external_full", nmapargv.FullRate, []string{"8.8.8.8"}, "done", ""},
+		"the External shape, no watch": {"external", nmapargv.ExternalRate, []string{"8.8.8.8", "1.1.1.1"}, "done", ""},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			nm := writeNmap(t, slow)
+			eg := &fakeEgress{answers: c.answers}
+			r := start(t, nm, func(cfg *worker.Config) { cfg.Egress, cfg.EgressRecheck = eg, 50*time.Millisecond })
+			r.core.push(sensorlink.Job{ID: id1, Kind: sensorlink.KindNmap, Shape: c.shape, Rate: c.rate, Targets: []string{"8.8.8.8"}, TimeoutS: 60})
+			got := r.core.next(t)
+			if got.res.Status != c.status || got.res.Reason != c.reason {
+				t.Fatalf("result = %+v after %d rounds", got.res, eg.count())
+			}
+			if c.status == "refused" && got.res.XMLB64 != "" {
+				t.Fatal("a stopped run's output was sent")
+			}
+			if c.status == "done" && got.res.XMLB64 == "" {
+				t.Fatal("no output")
+			}
+		})
 	}
 }
 

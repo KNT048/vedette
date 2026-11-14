@@ -62,17 +62,20 @@ func TestFullScanScriptsAndLines(t *testing.T) {
 		Services: []ServiceRow{{IP: ipA, Port: 49152, Name: "http", Product: "Jetty"}},
 		Scripts: []ScriptRow{
 			{IP: ipA, Port: 49152, ID: "http-title", Output: "Site title: admin" + string(rune(0x202e))}, // a right-to-left override
-			{IP: ipA, Port: 0, ID: "smb-vuln-ms17-010", Output: "VULNERABLE:\n    State: VULNERABLE", CVEs: []string{"CVE-2017-0143", "not-a-cve"}, Vulnerable: true},
+			{IP: ipA, Port: 0, ID: "smb-vuln-ms17-010", Output: "VULNERABLE:\n    State: VULNERABLE", Findings: []ScriptFinding{
+				{State: "vulnerable", Title: "ms17-010", CVEs: []string{"CVE-2017-0143", "not-a-cve"}}, {State: "exploited", Title: "an unknown state"}}},
 			{IP: ipB, Port: 22, ID: "ssh-hostkey", Output: "another address"},
 			{IP: ipA, Port: 22, ID: "Bad Id", Output: "dropped"},
 		}}}
 	s := e.scanIP(Content{})
 	want := []ScriptRow{
-		{IP: ipA, Port: 0, ID: "smb-vuln-ms17-010", Output: "VULNERABLE:\n    State: VULNERABLE", CVEs: []string{"CVE-2017-0143"}, Vulnerable: true},
-		{IP: ipA, Port: 49152, ID: "http-title", Output: "Site title: admin", CVEs: []string{}},
+		{IP: ipA, Port: 0, ID: "smb-vuln-ms17-010", Output: "VULNERABLE:\n    State: VULNERABLE", Findings: []ScriptFinding{{State: "vulnerable", Title: "ms17-010", CVEs: []string{"CVE-2017-0143"}}}},
+		{IP: ipA, Port: 49152, ID: "http-title", Output: "Site title: admin", Findings: []ScriptFinding{}},
 	}
 	if len(s.Scripts) != 2 || !slices.EqualFunc(s.Scripts, want, func(a, b ScriptRow) bool {
-		return a.IP == b.IP && a.Port == b.Port && a.ID == b.ID && a.Output == b.Output && slices.Equal(a.CVEs, b.CVEs) && a.Vulnerable == b.Vulnerable
+		return a.IP == b.IP && a.Port == b.Port && a.ID == b.ID && a.Output == b.Output && slices.EqualFunc(a.Findings, b.Findings, func(x, y ScriptFinding) bool {
+			return x.State == y.State && x.Title == y.Title && slices.Equal(x.CVEs, y.CVEs)
+		})
 	}) {
 		t.Fatalf("scripts = %+v", s.Scripts)
 	}
@@ -105,9 +108,11 @@ func TestFullScanSanitizeScripts(t *testing.T) {
 	for i := range maxScripts + 9 {
 		in = append(in, ScriptRow{IP: ipA, Port: 80, ID: "http-headers", Output: strings.Repeat("x", maxScriptOutput+5) + string(rune('a'+i%26))})
 	}
-	in = append(in, ScriptRow{IP: ipA, Port: 445, ID: "smb-vuln-ms17-010", Vulnerable: true}, ScriptRow{IP: "::1", Port: 1, ID: "x"}, ScriptRow{IP: ipA, Port: 70000, ID: "x"})
+	in = append(in, ScriptRow{IP: ipA, Port: 443, ID: "http-vuln-cve2011-3192", Findings: []ScriptFinding{{State: "likely"}}},
+		ScriptRow{IP: ipA, Port: 445, ID: "smb-vuln-ms17-010", Findings: []ScriptFinding{{State: "not_vulnerable"}, {State: "vulnerable"}}},
+		ScriptRow{IP: "::1", Port: 1, ID: "x"}, ScriptRow{IP: ipA, Port: 70000, ID: "x"})
 	got := sanitizeScripts(in)
-	if len(got) != maxScripts || got[0].ID != "smb-vuln-ms17-010" || len([]rune(got[1].Output)) != maxScriptOutput {
-		t.Fatalf("%d rows, first %q, output %d runes", len(got), got[0].ID, len([]rune(got[1].Output)))
+	if len(got) != maxScripts || got[0].ID != "smb-vuln-ms17-010" || got[1].ID != "http-vuln-cve2011-3192" || len([]rune(got[2].Output)) != maxScriptOutput {
+		t.Fatalf("%d rows, first %q %q, output %d runes", len(got), got[0].ID, got[1].ID, len([]rune(got[2].Output)))
 	}
 }

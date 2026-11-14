@@ -129,7 +129,11 @@ func (a exposureServiceScan) ScanServices(ctx context.Context, t exposure.ScanTa
 		out.Services = append(out.Services, exposure.ServiceRow{IP: ip.String(), Port: s.Port, Name: s.Name, Product: s.Product, Version: s.Version, CPE: s.CPE, Extra: s.Extra})
 	}
 	for _, s := range got.Scripts { // D-526: only a deep scan has any; exposure sanitizes them before they are stored
-		out.Scripts = append(out.Scripts, exposure.ScriptRow{IP: ip.String(), Port: s.Port, ID: s.ID, Output: s.Output, CVEs: s.CVEs, Vulnerable: s.Vulnerable})
+		row := exposure.ScriptRow{IP: ip.String(), Port: s.Port, ID: s.ID, Output: s.Output}
+		for _, f := range s.Findings {
+			row.Findings = append(row.Findings, exposure.ScriptFinding{State: f.State, Title: f.Title, CVEs: f.CVEs})
+		}
+		out.Scripts = append(out.Scripts, row)
 	}
 	return out, nil
 }

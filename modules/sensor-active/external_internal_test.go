@@ -40,9 +40,10 @@ func readFull(data []byte) (External, error) {
 
 // D-526: a full run read from a fixture written by hand after nmap's documented XML (nmap.dtd; the vulns library's output of
 // smb-vuln-ms17-010 as nsedoc prints it; structured output per https://nmap.org/book/nse-api.html): a high port is a service, the
-// script results of open ports and of the host are kept with their CVE ids and whether they say VULNERABLE ("LIKELY VULNERABLE"
-// and "NOT VULNERABLE" do not), a script of a closed port is not, text is cleaned and cut, a bad script id is dropped. The same
-// XML read as the External shape fails closed on the high port.
+// script results of open ports and of the host are kept with the findings of their structured output (state per finding, CVE
+// ids from the table key and the ids table), a text output that says "State: NOT VULNERABLE" with no structure makes no finding,
+// a script of a closed port is not kept, text is cleaned and cut, a bad script id is dropped. The same XML read as the External
+// shape fails closed on the high port.
 func TestFullRunReadsPortsAndScripts(t *testing.T) {
 	t.Parallel()
 	data := fixture(t, "external_full.xml")
@@ -60,20 +61,23 @@ func TestFullRunReadsPortsAndScripts(t *testing.T) {
 	if len(got.Scripts) != 5 || len(byID) != 5 {
 		t.Fatalf("scripts: %+v", got.Scripts)
 	}
-	ms := byID["smb-vuln-ms17-010"]
-	if ms.Port != 0 || !ms.Vulnerable || !slices.Equal(ms.CVEs, []string{"CVE-2017-0143"}) || !strings.Contains(ms.Output, "\n    State: VULNERABLE\n") {
+	one := func(id, state string, cves ...string) {
+		t.Helper()
+		s := byID[id]
+		if len(s.Findings) != 1 || s.Findings[0].State != state || !slices.Equal(s.Findings[0].CVEs, cves) || s.Findings[0].Title == "" {
+			t.Fatalf("%s: %+v", id, s)
+		}
+	}
+	one("smb-vuln-ms17-010", "vulnerable", "CVE-2017-0143") // the key and the ids table name the same CVE: once
+	one("http-vuln-cve2017-5638", "vulnerable", "CVE-2017-5638")
+	one("http-vuln-cve2011-3192", "likely", "CVE-2011-3192") // BID:49303 is not a CVE
+	if ms := byID["smb-vuln-ms17-010"]; ms.Port != 0 || !strings.Contains(ms.Output, "\n    State: VULNERABLE\n") {
 		t.Fatalf("host script: %+v", ms)
 	}
-	if s := byID["http-vuln-cve2017-5638"]; s.Port != 49152 || !s.Vulnerable || !slices.Equal(s.CVEs, []string{"CVE-2017-5638"}) {
-		t.Fatalf("structured state: %+v", s)
+	if s := byID["ssl-heartbleed"]; len(s.Findings) != 0 || s.Port != 443 { // text only: no structured finding
+		t.Fatalf("text only: %+v", s)
 	}
-	if s := byID["ssl-heartbleed"]; s.Vulnerable || !slices.Equal(s.CVEs, []string{"CVE-2014-0160"}) {
-		t.Fatalf("NOT VULNERABLE: %+v", s)
-	}
-	if s := byID["http-vuln-cve2011-3192"]; s.Vulnerable || s.Port != 443 {
-		t.Fatalf("LIKELY VULNERABLE: %+v", s)
-	}
-	if s := byID["http-title"]; s.Port != 443 || s.Output != "Site title: Box admin page" || s.Vulnerable || len(s.CVEs) != 0 { // a tab and a bidi override in the fixture
+	if s := byID["http-title"]; s.Port != 443 || s.Output != "Site title: Box admin page" || len(s.Findings) != 0 { // a tab and a bidi override in the fixture
 		t.Fatalf("plain script: %+v", s)
 	}
 	for _, s := range got.Scripts {
@@ -92,7 +96,7 @@ func TestFullRunReadsPortsAndScripts(t *testing.T) {
 
 // INV-7 for scripts (D-526): more script results on one host than maxScriptsPerHost fail the whole run, as too many ports do; a
 // port 0 fails a full run; a script output over maxScriptOutput is not read (its port and the run are kept); a long output is cut
-// to maxScriptText runes with only printable runes and line breaks left, and names at most maxScriptCVEs CVEs.
+// to maxScriptText runes with only printable runes and line breaks left, and the CVE ids it prints are never findings.
 func TestFullRunScriptLimits(t *testing.T) {
 	t.Parallel()
 	base := string(fixture(t, "external.xml"))
@@ -108,8 +112,8 @@ func TestFullRunScriptLimits(t *testing.T) {
 	}
 	s := got.Scripts[0]
 	if utf8.RuneCountInString(s.Output) != maxScriptText || strings.ContainsFunc(s.Output, func(r rune) bool { return r != '\n' && unprintable(r) }) ||
-		len(s.CVEs) != maxScriptCVEs || s.CVEs[0] != "CVE-2021-10000" || s.Port != 10443 {
-		t.Fatalf("long output: %d runes, CVEs %v", utf8.RuneCountInString(s.Output), s.CVEs)
+		len(s.Findings) != 0 || s.Port != 10443 {
+		t.Fatalf("long output: %d runes, findings %v", utf8.RuneCountInString(s.Output), s.Findings)
 	}
 	script := `<script id="http-date" output="Fri, 13 Nov 2026 10:00:00 GMT"/>`
 	many := strings.Replace(base, `<service name="tcpwrapped" method="probed" conf="8"/></port>`,
@@ -124,8 +128,64 @@ func TestFullRunScriptLimits(t *testing.T) {
 	big := strings.Replace(base, `<service name="tcpwrapped" method="probed" conf="8"/></port>`,
 		`<service name="tcpwrapped" method="probed" conf="8"/><script id="banner" output="`+strings.Repeat("CVE-2020-1234 ", maxScriptOutput/14+1)+`"/></port>`, 1)
 	got, err = readFull([]byte(big))
-	if err != nil || len(got.Services) != 4 || len(got.Scripts) != 1 || got.Scripts[0].Output != "" || len(got.Scripts[0].CVEs) != 0 {
+	if err != nil || len(got.Services) != 4 || len(got.Scripts) != 1 || got.Scripts[0].Output != "" || len(got.Scripts[0].Findings) != 0 {
 		t.Fatalf("an output over the limit: %+v %v", got.Scripts, err)
+	}
+}
+
+// Review r1 M4: a script that can print credentials or hashes (nmapargv.StoresOutput false) keeps no output text, only the
+// sentence that says so; its structured findings are still read. Another script keeps its text.
+func TestFullRunWithholdsCredentialOutput(t *testing.T) {
+	t.Parallel()
+	if nmapargv.StoresOutput("http-vuln-wnr1000-creds") || !nmapargv.StoresOutput("http-title") {
+		t.Fatal("StoresOutput no longer names http-vuln-wnr1000-creds alone of the two: pick another pair")
+	}
+	base := string(fixture(t, "external.xml"))
+	got, err := readFull([]byte(strings.Replace(base, `<service name="tcpwrapped" method="probed" conf="8"/></port>`,
+		`<service name="tcpwrapped" method="probed" conf="8"/><script id="http-vuln-wnr1000-creds" output="admin password: hunter2"><table key="CVE-2009-1234"><elem key="state">VULNERABLE (Exploitable)</elem></table></script>`+
+			`<script id="http-title" output="Router login"/></port>`, 1)))
+	if err != nil || len(got.Scripts) != 2 {
+		t.Fatalf("%+v %v", got.Scripts, err)
+	}
+	if s := got.Scripts[0]; s.Output != outputWithheld || strings.Contains(s.Output, "hunter2") || len(s.Findings) != 1 || s.Findings[0].State != "vulnerable" {
+		t.Fatalf("withheld: %+v", s)
+	}
+	if s := got.Scripts[1]; s.Output != "Router login" {
+		t.Fatalf("kept: %+v", s)
+	}
+}
+
+// Review r1 M1, L2, L3: findings come only from the vulns library's structured output. A page comment or a banner that prints a
+// CVE id and "State: VULNERABLE" makes none; a table under the script without a state is not a finding, nor is an elem "state"
+// nested deeper than the finding's own fields; each finding keeps its own state (one VULNERABLE, one LIKELY VULNERABLE in one
+// script), and a CVE id longer than CVE syntax allows is not cut into a shorter one.
+func TestFullRunFindingsAreStructuredOnly(t *testing.T) {
+	t.Parallel()
+	base := string(fixture(t, "external.xml"))
+	add := func(script string) External {
+		t.Helper()
+		got, err := readFull([]byte(strings.Replace(base, `<service name="tcpwrapped" method="probed" conf="8"/></port>`,
+			`<service name="tcpwrapped" method="probed" conf="8"/>`+script+`</port>`, 1)))
+		if err != nil || len(got.Scripts) != 1 {
+			t.Fatalf("%+v %v", got.Scripts, err)
+		}
+		return got
+	}
+	text := add(`<script id="http-comments-displayer" output="&lt;!-- fixed CVE-2023-4966 --&gt;&#xa;    State: VULNERABLE&#xa;    IDs:  CVE:CVE-2023-4966"><elem key="state">VULNERABLE</elem><table><elem key="state">VULNERABLE</elem><table key="x"><elem key="state">VULNERABLE</elem></table></table></script>`)
+	if f := text.Scripts[0].Findings; len(f) != 1 || f[0].State != "vulnerable" || len(f[0].CVEs) != 0 {
+		// the one finding is the table whose own state is VULNERABLE; the CVE of the free text and the elems elsewhere are not read
+		t.Fatalf("free text: %+v", f)
+	}
+	none := add(`<script id="banner" output="State: VULNERABLE CVE-2023-4966"><table key="CVE-2023-4966"><elem key="title">no state</elem></table></script>`)
+	if f := none.Scripts[0].Findings; len(f) != 0 {
+		t.Fatalf("a table without a state: %+v", f)
+	}
+	two := add(`<script id="smb-vuln-ms17-010"><table key="CVE-2017-0143"><elem key="state">VULNERABLE (Exploitable)</elem><elem key="title">a</elem></table>` +
+		`<table key="CVE-2017-0144"><elem key="state">LIKELY VULNERABLE</elem><elem key="title">b</elem><table key="ids"><elem>CVE:CVE-2021-12345678</elem><elem>CVE:CVE-2017-0145</elem></table></table></script>`)
+	f := two.Scripts[0].Findings
+	if len(f) != 2 || f[0].State != "vulnerable" || !slices.Equal(f[0].CVEs, []string{"CVE-2017-0143"}) ||
+		f[1].State != "likely" || !slices.Equal(f[1].CVEs, []string{"CVE-2017-0144", "CVE-2017-0145"}) {
+		t.Fatalf("per finding: %+v", f)
 	}
 }
 

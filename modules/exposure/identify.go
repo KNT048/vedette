@@ -95,15 +95,28 @@ type ServiceScan struct {
 
 // ScriptRow is one NSE script result of a deep scan (FULL-4 (Trưởng), for Mlee: D-526). Port is the open TCP port it ran on, 0
 // for a script about the whole host (smb-vuln-ms17-010 is one); ID is nmap's script name; Output its text (printable, line breaks
-// kept, at most maxScriptOutput runes); CVEs the CVE ids it names; Vulnerable that the script itself says VULNERABLE (nmap's
-// vulns library: a confirmed finding, not "LIKELY VULNERABLE").
+// kept, at most maxScriptOutput runes; "Output not stored: it can hold credentials." for a script that can print them);
+// Findings the findings of nmap's vulns library, read by the scanner from the script's structured output only (never from text a
+// service controls).
 type ScriptRow struct {
-	IP         string   `json:"ip"`
-	Port       int      `json:"port"`
-	ID         string   `json:"id"`
-	Output     string   `json:"output"`
-	CVEs       []string `json:"cves"`
-	Vulnerable bool     `json:"vulnerable"`
+	IP       string          `json:"ip"`
+	Port     int             `json:"port"`
+	ID       string          `json:"id"`
+	Output   string          `json:"output"`
+	Findings []ScriptFinding `json:"findings"`
+}
+
+// ScriptFinding is one finding of a script (FULL-4 (Trưởng), for Mlee: D-526): State "vulnerable" (the script confirmed it),
+// "likely" (LIKELY VULNERABLE) or "not_vulnerable"; Title the script's name for it; CVEs its CVE ids.
+type ScriptFinding struct {
+	State string   `json:"state"`
+	Title string   `json:"title"`
+	CVEs  []string `json:"cves"`
+}
+
+// vulnerable says the row has a finding the script confirmed.
+func (r ScriptRow) vulnerable() bool {
+	return slices.ContainsFunc(r.Findings, func(f ScriptFinding) bool { return f.State == "vulnerable" })
 }
 
 // Matcher compares identified services with the exploited CVEs: the CISA KEV list with the NVD version ranges the feeds keep
@@ -196,9 +209,10 @@ const (
 // maxScriptOutput runes; a deep scan of a box with a few web ports prints a few dozen results, so maxScripts keeps all of a real
 // one (findings first, sanitizeScripts) and bounds what a hostile answer can make the snapshot hold (300 × 2000 runes).
 const (
-	maxScripts      = 300
-	maxScriptOutput = 2000
-	maxScriptCVEs   = 20
+	maxScripts        = 300
+	maxScriptOutput   = 2000
+	maxScriptFindings = 20
+	maxScriptCVEs     = 20
 )
 
 var scriptIDRE = regexp.MustCompile(`^[a-z0-9][a-z0-9_.-]{0,63}$`) // nmap's script names
@@ -264,7 +278,7 @@ func (s *Service) identify(ctx context.Context, st ScanTarget, c Content) (Conte
 			for _, r := range sanitizeScripts(res.Scripts) {
 				if r.IP == ip.String() {
 					c.Scripts = append(c.Scripts, r)
-					if r.Vulnerable {
+					if r.vulnerable() {
 						vuln++
 					}
 				}
@@ -468,9 +482,10 @@ func sanitizeServices(in []ServiceRow) []ServiceRow {
 }
 
 // FULL-4 (Trưởng), for Mlee: sanitizeScripts keeps the script rows of an IPv4 address and a port 0..65535 (0: the host) with an
-// id of nmap's form (others are dropped), each output printable with its line breaks and cut to maxScriptOutput runes, each CVE
-// id of the right form (at most maxScriptCVEs); the findings first (VULNERABLE, then those naming a CVE), at most maxScripts, so
-// the cap drops the rest first (INV-10, D-526).
+// id of nmap's form (others are dropped), each output printable with its line breaks and cut to maxScriptOutput runes, each
+// finding of a known state (at most maxScriptFindings) with a printable title and CVE ids of the right form (at most
+// maxScriptCVEs); the rows with a VULNERABLE finding first, then those with a LIKELY one, at most maxScripts, so the cap drops the
+// rest first (INV-10, D-526).
 func sanitizeScripts(in []ScriptRow) []ScriptRow {
 	out := []ScriptRow{}
 	for _, r := range in {
@@ -478,11 +493,18 @@ func sanitizeScripts(in []ScriptRow) []ScriptRow {
 		if err != nil || !ip.Is4() || r.Port < 0 || r.Port > 65535 || !scriptIDRE.MatchString(r.ID) {
 			continue
 		}
-		cves := []string{}
-		for _, c := range r.CVEs {
-			if len(cves) < maxScriptCVEs && cveID.MatchString(c) && !slices.Contains(cves, c) {
-				cves = append(cves, c)
+		findings := []ScriptFinding{}
+		for _, f := range r.Findings {
+			if len(findings) == maxScriptFindings || !slices.Contains([]string{"vulnerable", "likely", "not_vulnerable"}, f.State) {
+				continue
 			}
+			cves := []string{}
+			for _, c := range f.CVEs {
+				if len(cves) < maxScriptCVEs && cveID.MatchString(c) && !slices.Contains(cves, c) {
+					cves = append(cves, c)
+				}
+			}
+			findings = append(findings, ScriptFinding{State: f.State, Title: field(f.Title, maxProduct), CVEs: cves})
 		}
 		text := strings.Map(func(r rune) rune {
 			if r != '\n' && unicode.In(r, unicode.Cc, unicode.Cf, unicode.Zl, unicode.Zp) {
@@ -490,13 +512,13 @@ func sanitizeScripts(in []ScriptRow) []ScriptRow {
 			}
 			return r
 		}, strings.ToValidUTF8(r.Output, ""))
-		out = append(out, ScriptRow{IP: ip.String(), Port: r.Port, ID: r.ID, Output: strings.TrimSpace(clipText(text, maxScriptOutput)), CVEs: cves, Vulnerable: r.Vulnerable})
+		out = append(out, ScriptRow{IP: ip.String(), Port: r.Port, ID: r.ID, Output: strings.TrimSpace(clipText(text, maxScriptOutput)), Findings: findings})
 	}
 	rank := func(r ScriptRow) int {
 		switch {
-		case r.Vulnerable:
+		case r.vulnerable():
 			return 0
-		case len(r.CVEs) > 0:
+		case slices.ContainsFunc(r.Findings, func(f ScriptFinding) bool { return f.State == "likely" }):
 			return 1
 		}
 		return 2

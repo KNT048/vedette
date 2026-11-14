@@ -36,12 +36,17 @@ const (
 
 // ownIP reports whether the box goes out through ip now; when not, reason says why (reasonNotOwnIP, reasonUnverified).
 func (w *Worker) ownIP(ctx context.Context, ip netip.Addr) (ok bool, reason string) {
+	return w.checkIP(ctx, ip, true)
+}
+
+// checkIP is the fence; cached lets a yes of the last EgressFresh stand (the re-check of a running full job asks again).
+func (w *Worker) checkIP(ctx context.Context, ip netip.Addr, cached bool) (ok bool, reason string) {
 	if w.egress == nil {
 		return false, reasonUnverified // no way to check: never scan a public address unchecked
 	}
 	w.egressMu.Lock()
 	defer w.egressMu.Unlock()
-	if w.egressIP == ip && w.now().Sub(w.egressAt) < EgressFresh && !w.egressAt.After(w.now()) {
+	if cached && w.egressIP == ip && w.now().Sub(w.egressAt) < EgressFresh && !w.egressAt.After(w.now()) {
 		return true, ""
 	}
 	reason = reasonUnverified
@@ -60,4 +65,31 @@ func (w *Worker) ownIP(ctx context.Context, ip netip.Addr) (ok bool, reason stri
 		reason = reasonNotOwnIP // the services answered: the box leaves through another address
 	}
 	return false, reason
+}
+
+// EgressRecheck is how often a running full job checks again that the box still goes out through its target (D-526, review r1
+// H1): a full run lasts up to an hour, and a line whose public address changes meanwhile (a forced PPPoE or DHCP reconnect) hands
+// the old address to someone else. The re-check is the whole fence again, without the cached yes.
+const EgressRecheck = 3 * time.Minute
+
+// watchEgress re-checks ip every `every` until ctx ends. The first check that is not a yes calls kill and returns its reason;
+// it returns "" when ctx ended first (the job finished, was cancelled or ran out of time).
+func (w *Worker) watchEgress(ctx context.Context, ip netip.Addr, every time.Duration, kill context.CancelFunc) string {
+	t := time.NewTicker(every)
+	defer t.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return ""
+		case <-t.C:
+		}
+		ok, reason := w.checkIP(ctx, ip, false)
+		if ctx.Err() != nil {
+			return ""
+		}
+		if !ok {
+			kill()
+			return reason
+		}
+	}
 }

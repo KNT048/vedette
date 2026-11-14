@@ -18,7 +18,7 @@ import (
 // (a verified, committed, current IP target), not the LAN scope's: the LAN settings, window and scope do not apply, and nothing
 // is written to the inventory. What holds: one nmap at a time on the box (runMu), the own-IP fence right before the job is handed
 // out (and again in the worker), the probe row before the job (INV-9, LEGAL §3), the XML limits (INV-7) and a tighter port bound.
-// A target whose testing terms are accepted gets the deep scan instead (D-526, INV-19): nmapargv.ExternalFull or
+// A target whose testing terms are accepted gets the deep scan instead (D-526, sensor-active INV-19): nmapargv.ExternalFull or
 // ExternalDisruptive, every TCP port with nmap's scripts, sent only after core's DeepGate said the terms still allow it.
 
 // KindExternal is the sa_job kind of an external run (migration 0005).
@@ -74,14 +74,23 @@ type ExternalService struct {
 
 // ExternalScript is one NSE script result of a full run (D-526): Port is the open TCP port it ran on, 0 for a host script
 // (<hostscript>, such as smb-vuln-ms17-010); ID nmap's script name; Output its text, printable runes and line breaks only, at
-// most 2000 runes (scriptText); CVEs the CVE ids it names, unique, at most 20; Vulnerable that it says VULNERABLE in the vulns
-// library's format. Everything came from the network: exposure limits it again before it is stored.
+// most 2000 runes (scriptText), or "Output not stored: it can hold credentials." for a script nmapargv.StoresOutput names
+// (review r1 M4); Findings the vulns library's findings, read only from the structured output (review r1 M1, L3). Everything
+// came from the network: exposure limits it again before it is stored.
 type ExternalScript struct {
-	Port       int
-	ID         string
-	Output     string
-	CVEs       []string
-	Vulnerable bool
+	Port     int
+	ID       string
+	Output   string
+	Findings []ScriptFinding
+}
+
+// ScriptFinding is one finding of the vulns library: State "vulnerable" (VULNERABLE, also "(Exploitable)" or "(DoS)"), "likely"
+// (LIKELY VULNERABLE) or "not_vulnerable"; Title the script's name for it (printable, at most 200 runes); CVEs its CVE ids
+// (unique, at most 20).
+type ScriptFinding struct {
+	State string
+	Title string
+	CVEs  []string
 }
 
 // External is the result of ScanExternal: the open ports with what -sV read, how many TCP ports were probed, and the script
@@ -295,7 +304,11 @@ func externalOf(hosts []host, ip netip.Addr, kind nmapargv.Kind) (External, erro
 			if sc.port != 0 && !seen[sc.port] { // parseNmapXML keeps only scripts of open ports: never reached
 				return External{}, fmt.Errorf("%w: a script of port %d, which is not open", errXMLInvalid, sc.port)
 			}
-			ext.Scripts = append(ext.Scripts, ExternalScript{Port: sc.port, ID: sc.id, Output: sc.output, CVEs: slices.Clone(sc.cves), Vulnerable: sc.vulnerable})
+			row := ExternalScript{Port: sc.port, ID: sc.id, Output: sc.output}
+			for _, f := range sc.findings {
+				row.Findings = append(row.Findings, ScriptFinding{State: f.state, Title: f.title, CVEs: slices.Clone(f.cves)})
+			}
+			ext.Scripts = append(ext.Scripts, row)
 		}
 	}
 	return ext, nil

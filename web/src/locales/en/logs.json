@@ -65,7 +65,7 @@
     "times_one": "once",
     "times_other": "{{count}} times",
     "add": "Add as source",
-    "addFor": "Add {{ip}} as a log source",
+    "addFor": "Add as source: {{ip}}",
     "edit": "Edit {{name}}",
     "container": "On a container install, syslog sent from the machine that runs Vedette arrives from the containers' network gateway (often 172.17.0.1 or 172.18.0.1), not from the machine's own address: declare that address for such a source.",
     "memory": "Counted since the syslog listener last started; the 10 most recent addresses are shown.",
@@ -281,5 +281,19 @@
     "fingerprint_box_ca": "CA SHA-256 fingerprint",
     "fingerprint_self_signed": "Certificate SHA-256 fingerprint",
     "fingerprint_issued": "SHA-256 fingerprint of the first certificate"
+  },
+  "kpi": {
+    "label": "Logs at a glance",
+    "bad": "Connections to known-bad addresses",
+    "new": "New destinations",
+    "sources": "Sources reporting",
+    "lines": "Lines per hour"
+  },
+  "tabs": {
+    "label": "Logs sections",
+    "digest": "Digest",
+    "events": "Events",
+    "sources": "Sources",
+    "retention": "Retention"
   }
 }

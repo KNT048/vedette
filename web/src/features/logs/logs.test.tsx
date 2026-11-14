@@ -164,9 +164,15 @@ describe('logs: the syslog header of a listed line (W1-22, D-485)', () => {
 })
 
 describe('logs: the Logs page (S-LOG-1, S-LOG-2)', () => {
-  it('the heading answers the question, sources and digest tables show, no a11y violations', async () => {
+  it('the heading answers the question, the Digest tab shows its tables, the Sources tab the sources, no a11y violations', async () => {
     renderApp('/logs')
     expect(await screen.findByRole('heading', { level: 1, name: 'Today: 2 connections and 1 blocked attempt to bad destinations, 3 new log types, 2 spikes.' })).toBeInTheDocument()
+    expect(await screen.findByRole('table', { name: 'Connections to bad IPs or domains' })).toBeInTheDocument()
+    expect(screen.getByRole('table', { name: 'New log types' })).toBeInTheDocument()
+    expect(screen.getByRole('table', { name: 'Log types with a spike' })).toBeInTheDocument()
+    expect(screen.queryByRole('table', { name: 'Log sources currently received' })).not.toBeInTheDocument()
+    await expectNoA11yViolations()
+    await userEvent.click(screen.getByRole('tab', { name: 'Sources' }))
     const sources = await screen.findByRole('table', { name: 'Log sources currently received' })
     expect(within(sources).getAllByRole('row')).toHaveLength(5)
     expect(within(sources).getAllByText('Receiving')).toHaveLength(3)
@@ -175,10 +181,28 @@ describe('logs: the Logs page (S-LOG-1, S-LOG-2)', () => {
     expect(within(sources).queryByText(/^UDP \d+$/)).toBeNull()
     expect(within(sources).getByText('Silent')).toBeInTheDocument()
     expect(screen.getByText(/No new line for over 1 hour/)).toBeInTheDocument()
-    expect(await screen.findByRole('table', { name: 'Connections to bad IPs or domains' })).toBeInTheDocument()
-    expect(screen.getByRole('table', { name: 'New log types' })).toBeInTheDocument()
-    expect(screen.getByRole('table', { name: 'Log types with a spike' })).toBeInTheDocument()
     await expectNoA11yViolations()
+  })
+
+  it('the KPI strip links to the tabs; the old #anchors land on their tab; other query parameters stay (D-543)', async () => {
+    const view = renderApp('/logs')
+    const strip = await screen.findByRole('list', { name: 'Logs at a glance' })
+    const links = within(strip).getAllByRole('link')
+    expect(links.map((a) => a.getAttribute('href'))).toEqual(['/logs?tab=digest', '/logs?tab=digest', '/logs?tab=sources', '/logs?tab=events'])
+    expect(within(strip).getByRole('link', { name: /Sources reporting/ })).toHaveTextContent('3 / 4')
+    expect(screen.getByRole('tab', { name: 'Digest' })).toHaveAttribute('aria-selected', 'true')
+    await userEvent.click(within(strip).getByRole('link', { name: /Lines per hour/ }))
+    expect(await screen.findByRole('tab', { name: 'Events', selected: true })).toBeInTheDocument()
+    view.unmount()
+    for (const [hash, tab] of [['sources', 'Sources'], ['retention', 'Retention'], ['events', 'Events'], ['spikes', 'Digest']] as const) {
+      const v = renderApp(`/logs?x=1#${hash}`)
+      expect(await screen.findByRole('tab', { name: tab, selected: true })).toBeInTheDocument()
+      v.unmount()
+    }
+    renderApp('/logs?x=1&tab=retention#main')
+    expect(await screen.findByRole('tab', { name: 'Retention', selected: true })).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('tab', { name: 'Digest' }))
+    expect(await screen.findByRole('tab', { name: 'Digest', selected: true })).toBeInTheDocument()
   })
 
   it('bad connections point to the source device in the inventory', async () => {
@@ -206,7 +230,7 @@ describe('logs: the Logs page (S-LOG-1, S-LOG-2)', () => {
   })
 
   it('"Device setup" for MikroTik shows the RouterOS commands, what Vedette reads, and the UDP note', async () => {
-    renderApp('/logs')
+    renderApp('/logs?tab=sources')
     await userEvent.click(await screen.findByRole('button', { name: 'Device setup for RT-BACKUP' }))
     const dialog = await screen.findByRole('dialog', { name: /Set up RT-BACKUP to send logs to the box/ })
     expect(within(dialog).getByText(/\/system logging action add name=vedette target=remote remote=192\.168\.10\.250 remote-port=514/)).toBeInTheDocument()
@@ -216,7 +240,7 @@ describe('logs: the Logs page (S-LOG-1, S-LOG-2)', () => {
   })
 
   it('add a FortiGate in three clicks: search, validate, then the setup shows the box IP; saved after reload', async () => {
-    renderApp('/logs')
+    renderApp('/logs?tab=sources')
     await userEvent.click(await screen.findByRole('button', { name: 'Add log source' }))
     const form = await screen.findByRole('dialog', { name: 'Add log source' })
     await userEvent.type(within(form).getByLabelText('Find your device or software'), 'forti')
@@ -241,7 +265,7 @@ describe('logs: the Logs page (S-LOG-1, S-LOG-2)', () => {
   })
 
   it('the picker groups by category, filters as you type, says when nothing matches, and Enter picks a single match', async () => {
-    renderApp('/logs')
+    renderApp('/logs?tab=sources')
     await userEvent.click(await screen.findByRole('button', { name: 'Add log source' }))
     const form = await screen.findByRole('dialog', { name: 'Add log source' })
     for (const g of ['Firewalls and routers', 'VPN and remote access', 'Servers and operating systems', 'NAS and virtualisation', 'Security tools', 'Web, proxy, DNS and mail', 'Switches and Wi-Fi', 'Other and generic']) {
@@ -259,13 +283,13 @@ describe('logs: the Logs page (S-LOG-1, S-LOG-2)', () => {
   })
 
   it('walk 5: the generic syslog form offers UDP, TCP and TLS, as its port hint says', async () => {
-    renderApp('/logs')
+    renderApp('/logs?tab=sources')
     const form = await openAdd(/Other device \(standard syslog/)
     expect(within(within(form).getByLabelText('Protocol')).getAllByRole('option').map((o) => o.textContent)).toEqual(['UDP', 'TCP', 'TLS'])
   })
 
   it('protocol options follow the device: MikroTik UDP only, FortiGate UDP/TCP/TLS, each saying what the box keeps; a duplicate IP is refused at the boundary', async () => {
-    renderApp('/logs')
+    renderApp('/logs?tab=sources')
     const form = await openAdd(/MikroTik/)
     expect(within(within(form).getByLabelText('Protocol')).getAllByRole('option')).toHaveLength(1)
     // D-443, D-444 (walk 4): the box listens on UDP and TCP whatever the sources; a UDP source takes TCP too, a TCP source no UDP
@@ -285,7 +309,7 @@ describe('logs: the Logs page (S-LOG-1, S-LOG-2)', () => {
   })
 
   it('the box certificate of the TLS port is shown with its fingerprint and a download (S-LOG-1, D-434)', async () => {
-    renderApp('/logs')
+    renderApp('/logs?tab=sources')
     const card = (await screen.findByRole('heading', { name: 'Box certificate for syslog over TLS' })).closest('div')!
     expect(within(card).getByText(/box's own certificate authority.*port 6514.*Do not pin the server certificate/)).toBeInTheDocument()
     expect(within(card).getByText(/^[0-9a-f]{64}$/)).toBeInTheDocument()
@@ -293,7 +317,7 @@ describe('logs: the Logs page (S-LOG-1, S-LOG-2)', () => {
   })
 
   it('a TLS source can pin the device client certificate: pasted as AB:CD..., stored as lowercase hex; a bad one is refused under the field (D-435)', async () => {
-    renderApp('/logs')
+    renderApp('/logs?tab=sources')
     const form = await openAdd(/^FortiGate/)
     expect(within(form).queryByLabelText('Client certificate fingerprint (optional)')).not.toBeInTheDocument() // UDP: no pin
     await userEvent.selectOptions(within(form).getByLabelText('Protocol'), 'tls')
@@ -312,7 +336,7 @@ describe('logs: the Logs page (S-LOG-1, S-LOG-2)', () => {
   })
 
   it('deleting a log source needs confirmation', async () => {
-    renderApp('/logs')
+    renderApp('/logs?tab=sources')
     await userEvent.click(await screen.findByRole('button', { name: 'Delete SRV-FILE' }))
     const dlg = await screen.findByRole('dialog', { name: 'Delete log source SRV-FILE?' })
     await userEvent.click(within(dlg).getByRole('button', { name: 'Delete' }))
@@ -321,18 +345,19 @@ describe('logs: the Logs page (S-LOG-1, S-LOG-2)', () => {
   })
 
   it('a viewer can read the setup but cannot add, edit or delete', async () => {
-    renderApp('/logs', { role: 'viewer' })
+    renderApp('/logs?tab=sources', { role: 'viewer' })
     expect(await screen.findByRole('button', { name: 'Add log source' })).toBeDisabled()
     expect(await screen.findByRole('button', { name: 'Edit FW-HQ' })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Delete FW-HQ' })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Device setup for FW-HQ' })).toBeEnabled()
-    expect(screen.getByLabelText('Keep logs for')).toBeDisabled()
+    await userEvent.click(screen.getByRole('tab', { name: 'Retention' }))
+    expect(await screen.findByLabelText('Keep logs for')).toBeDisabled()
     const res = await fetch(`${location.origin}/api/v1/logs/sources`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })
     expect(res.status).toBe(403)
   })
 
   it('searching events by keyword; says so when no line matches', async () => {
-    renderApp('/logs')
+    renderApp('/logs?tab=events')
     const input = await screen.findByLabelText('Keyword')
     await userEvent.type(input, '185.220.101.47')
     const table = await screen.findByRole('table', { name: 'Log events' })
@@ -354,7 +379,7 @@ describe('logs: the Logs page (S-LOG-1, S-LOG-2)', () => {
         ? HttpResponse.json({ events: [ev('le-2', '2026-11-05T08:00:00Z')], total: 1, next_cursor: null })
         : HttpResponse.json({ events: [ev('le-1', '2026-11-11T08:00:00Z')], total: 1, next_cursor: 'c1', searched_back_to: '2026-11-10T08:00:00Z' })
     }))
-    renderApp('/logs')
+    renderApp('/logs?tab=events')
     await userEvent.type(await screen.findByLabelText('Keyword'), 'needle')
     expect(await screen.findByText(/1 matching line found so far, searched back to/)).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Search older lines' }))
@@ -364,14 +389,14 @@ describe('logs: the Logs page (S-LOG-1, S-LOG-2)', () => {
   })
 
   it('changing the retention period', async () => {
-    renderApp('/logs')
+    renderApp('/logs?tab=retention')
     await userEvent.selectOptions(await screen.findByLabelText('Keep logs for'), '90')
     expect(await screen.findByText('Log retention saved.')).toBeInTheDocument()
     expect(((await getJson('/logs/sources')).retention_days)).toBe(90)
   })
 
   it('shortening the retention asks first: Cancel keeps it, Delete older lines saves; lengthening needs no dialog', async () => {
-    renderApp('/logs')
+    renderApp('/logs?tab=retention')
     const select = await screen.findByLabelText('Keep logs for')
     await userEvent.selectOptions(select, '7')
     const dialog = await screen.findByRole('dialog', { name: 'Keep logs for 7 days only?' })
@@ -412,7 +437,7 @@ describe('logs: the Logs page (S-LOG-1, S-LOG-2)', () => {
     expect(hint).toHaveTextContent('192.168.18.145 sends syslog over TCP and UDP, but no source has this IP, so the box drops its lines (3 times, last')
     expect(within(hint).getAllByRole('listitem')).toHaveLength(1)
     expect(hint).toHaveTextContent('The sender address of a UDP datagram can be forged')
-    await userEvent.click(within(hint).getByRole('button', { name: 'Add 192.168.18.145 as a log source' }))
+    await userEvent.click(within(hint).getByRole('button', { name: 'Add as source: 192.168.18.145' }))
     const form = await screen.findByRole('dialog', { name: 'Add log source' })
     await userEvent.click(within(form).getByRole('button', { name: /^FortiGate/ }))
     expect(within(form).getByLabelText('Protocol')).toHaveValue('udp') // a UDP source takes TCP too (D-444)
@@ -423,7 +448,7 @@ describe('logs: the Logs page (S-LOG-1, S-LOG-2)', () => {
       box: { ip: null, hostname: 'vedette', lan: null, iface: 'eth0' }, retention_days: 30,
       sources: [{ id: 'ls-9', kind: 'nginx', name: 'WEB-1', sender_ip: '10.0.0.5', asset_id: null, asset_name: null, proto: 'udp', port: 514, last_received: null, lines_per_hour: 0, state: 'never', created_at: new Date().toISOString() }],
     })))
-    renderApp('/logs')
+    renderApp('/logs?tab=sources')
     expect(await screen.findByText(/add your LAN range first \(Devices, Scope and sensors\)/)).toBeInTheDocument()
     await userEvent.click(await screen.findByRole('button', { name: 'Device setup for WEB-1' }))
     const dialog = await screen.findByRole('dialog', { name: /Set up WEB-1/ })
@@ -437,12 +462,14 @@ describe('logs: the Logs page (S-LOG-1, S-LOG-2)', () => {
       box: { ip: null, hostname: 'vedette', lan: '192.168.50.0/24', iface: 'eth0' }, retention_days: 30,
       sources: [{ id: 'ls-9', kind: 'nginx', name: 'WEB-1', sender_ip: '192.168.50.5', asset_id: null, asset_name: null, proto: 'udp', port: 514, last_received: null, lines_per_hour: 0, state: 'never', created_at: new Date().toISOString() }],
     })))
-    renderApp('/logs')
+    renderApp('/logs?tab=sources')
     expect(await screen.findByText(/cannot see its own address in your LAN range 192\.168\.50\.0\/24.*the one you open this page on/)).toBeInTheDocument()
     expect(screen.queryByText(/add your LAN range first/)).not.toBeInTheDocument()
     // no line yet: no size estimate for the retention (QA walk 2026-11-12)
-    expect(screen.getByText(/no size estimate yet/)).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('tab', { name: 'Retention' }))
+    expect(await screen.findByText(/no size estimate yet/)).toBeInTheDocument()
     expect(screen.queryByText(/take about/)).not.toBeInTheDocument()
+    await userEvent.click(screen.getByRole('tab', { name: 'Sources' }))
     await userEvent.click(await screen.findByRole('button', { name: 'Device setup for WEB-1' }))
     const alert = within(await screen.findByRole('dialog', { name: /Set up WEB-1/ })).getByRole('alert')
     expect(alert).toHaveTextContent('Use the address of the machine that runs Vedette')
@@ -455,11 +482,12 @@ describe('logs: the Logs page (S-LOG-1, S-LOG-2)', () => {
       http.get('*/api/v1/logs/digest', () => HttpResponse.json({ generated_at: '2026-11-12T01:00:00Z', lines_24h: lines, baseline_days: 7, history_days: 7, new: [], spikes: [], bad_connections: [], ioc_matching: true })),
       http.get('*/api/v1/logs/events', () => HttpResponse.json({ events: [], total: lines, next_cursor: null })),
     )
-    renderApp('/logs')
+    renderApp('/logs?tab=sources')
     expect(await screen.findByRole('heading', { level: 1, name: 'No log line received yet.' })).toBeInTheDocument()
     lines = 34
     await userEvent.click(screen.getByRole('button', { name: 'Refresh' }))
     expect(await screen.findByRole('heading', { level: 1, name: /^Today: logs look normal/ })).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('tab', { name: 'Events' }))
     expect(await screen.findByText(/0 of 34 matching lines/)).toBeInTheDocument()
   })
 
@@ -484,7 +512,7 @@ describe('logs: the Logs page (S-LOG-1, S-LOG-2)', () => {
     const hit = (id: string, blocked: boolean) => ({ id, ts: '2026-11-12T00:00:00Z', asset_id: null, asset_name: null, src_ip: '192.168.1.50', dest: '185.220.101.47', dest_kind: 'ip', seen_via: 'syslog:FW-HQ', feeds: ['IPsum'], confidence: 0.6, blocked, listed_as: null })
     let hits = [hit('h-1', true)]
     server.use(http.get('*/api/v1/logs/digest', () => HttpResponse.json({ generated_at: '2026-11-12T01:00:00Z', lines_24h: 5, baseline_days: 7, history_days: 7, new: [], spikes: [], bad_connections: hits, ioc_matching: true })))
-    renderApp('/logs')
+    renderApp('/logs?tab=sources')
     expect(await screen.findByRole('heading', { level: 1, name: 'Today: 1 blocked attempt to bad destinations, 0 new log types, 0 spikes.' })).toBeInTheDocument()
     hits = [hit('h-1', true), hit('h-2', false)]
     await userEvent.click(screen.getByRole('button', { name: 'Refresh' }))
@@ -503,18 +531,18 @@ describe('logs: the Logs page (S-LOG-1, S-LOG-2)', () => {
         { ip: '192.168.1.2', proto: 'udp', count: 1, last_seen: new Date().toISOString() }, // a TCP source takes no UDP (D-444)
       ] })),
     )
-    const view = renderApp('/logs')
+    const view = renderApp('/logs?tab=sources')
     const hint = await screen.findByRole('region', { name: 'Syslog from an address that is not a source' })
     expect(hint).toHaveTextContent('172.18.0.1 sends syslog over UDP, but no source has this IP, so the box drops its lines (5 times, last')
     expect(hint).toHaveTextContent('192.168.1.2 sends syslog over UDP, but RT-1 is declared with TCP, so the box drops its lines (once, last')
     expect(hint).toHaveTextContent("arrives from the containers' network gateway")
     expect(within(hint).getByRole('button', { name: 'Edit RT-1' })).toBeEnabled()
-    await userEvent.click(within(hint).getByRole('button', { name: 'Add 172.18.0.1 as a log source' }))
+    await userEvent.click(within(hint).getByRole('button', { name: 'Add as source: 172.18.0.1' }))
     const form = await screen.findByRole('dialog', { name: 'Add log source' })
     await userEvent.click(within(form).getByRole('button', { name: /^FortiGate/ }))
     expect(within(form).getByLabelText(/IP of the sending device/)).toHaveValue('172.18.0.1')
     view.unmount()
-    renderApp('/logs', { role: 'viewer' })
+    renderApp('/logs?tab=sources', { role: 'viewer' })
     expect(await screen.findByRole('table', { name: 'Log sources currently received' })).toBeInTheDocument()
     expect(screen.queryByText(/172\.18\.0\.1/)).not.toBeInTheDocument()
   })
@@ -634,7 +662,7 @@ describe('logs: SIEM forwarding (S-LOG-3)', () => {
 
 describe('logs: Add log source form matrix (docs/QA.md §2)', () => {
   it('for every one of the device types: only its own protocols are offered, and the port follows the protocol', async () => {
-    renderApp('/logs')
+    renderApp('/logs?tab=sources')
     await userEvent.click(await screen.findByRole('button', { name: 'Add log source' }))
     const form = await screen.findByRole('dialog', { name: 'Add log source' })
     const proto = () => within(form).getByLabelText('Protocol') as HTMLSelectElement
@@ -670,7 +698,7 @@ describe('logs: Add log source form matrix (docs/QA.md §2)', () => {
 
 describe('logs: Add log source form matrix (docs/QA.md §2, QA walk 2026-11-12)', () => {
   it('a refused value is told under its own field, which takes focus; fixing the field clears it', async () => {
-    renderApp('/logs')
+    renderApp('/logs?tab=sources')
     const form = await openAdd(/^FortiGate/)
     const name = within(form).getByLabelText('Name')
     const NAME_ERR = /may only contain letters without accents/

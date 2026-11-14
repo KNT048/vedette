@@ -237,7 +237,7 @@ func setCommitment(ctx context.Context, tx *sql.Tx, id, by string, at time.Time,
 // snapshotDocs encodes the JSON columns of a snapshot, in the order of the INSERT of upsertSnapshot.
 func snapshotDocs(c Content, counts Counts) ([8]string, error) {
 	var docs [8]string
-	for i, v := range []any{nz(c.Hosts), nz(c.Ports), nz(c.AdminPanels), nz(c.Certs), counts, nz(c.Services), nz(c.Checks), nz(c.NotChecked)} {
+	for i, v := range []any{nz(c.Hosts), nz(c.Ports), nz(c.AdminPanels), nz(c.Certs), counts, storedServices(c), nz(c.Checks), nz(c.NotChecked)} {
 		b, err := json.Marshal(v)
 		if err != nil {
 			return docs, fmt.Errorf("encoding snapshot: %w", err)
@@ -245,6 +245,27 @@ func snapshotDocs(c Content, counts Counts) ([8]string, error) {
 		docs[i] = string(b)
 	}
 	return docs, nil
+}
+
+// storedService is a service as the services column keeps it: with the safe templates that ran on it (INV-23), so the column is
+// the one place a snapshot's service evidence lives.
+type storedService struct {
+	ServiceRow
+	Templates []TemplateRow `json:"templates"`
+}
+
+func storedServices(c Content) []storedService {
+	out := make([]storedService, 0, len(c.Services))
+	for _, x := range c.Services {
+		row := storedService{ServiceRow: x, Templates: []TemplateRow{}}
+		for _, t := range c.Templates {
+			if t.IP == x.IP && t.Port == x.Port {
+				row.Templates = append(row.Templates, t)
+			}
+		}
+		out = append(out, row)
+	}
+	return out
 }
 
 // nz makes a nil slice encode as [] and not as null.
@@ -301,6 +322,7 @@ func listSnapshotMetas(ctx context.Context, q querier, targetID string) ([]Snaps
 func loadSnapshot(ctx context.Context, q querier, targetID, date string) (Snapshot, bool, error) {
 	var s Snapshot
 	var hosts, ports, admin, certs, counts, services, checks, notChecked string
+	var stored []storedService
 	err := q.QueryRowContext(ctx, `SELECT id, date, scanned_at, hosts, ports, admin_panels, certs, counts, services, checks, not_checked FROM exp_snapshot WHERE target_id = ? AND date = ?`, targetID, date).
 		Scan(&s.ID, &s.Date, &s.ScannedAt, &hosts, &ports, &admin, &certs, &counts, &services, &checks, &notChecked)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -313,13 +335,18 @@ func loadSnapshot(ctx context.Context, q querier, targetID, date string) (Snapsh
 		doc string
 		to  any
 	}{{hosts, &s.Hosts}, {ports, &s.Ports}, {admin, &s.AdminPanels}, {certs, &s.Certs}, {counts, &s.Counts},
-		{services, &s.Services}, {checks, &s.Checks}, {notChecked, &s.NotChecked}} {
+		{services, &stored}, {checks, &s.Checks}, {notChecked, &s.NotChecked}} {
 		if err := json.Unmarshal([]byte(d.doc), d.to); err != nil {
 			return Snapshot{}, false, fmt.Errorf("snapshot %s: %w", s.ID, err)
 		}
 	}
+	s.Services, s.Templates = []ServiceRow{}, []TemplateRow{}
+	for _, x := range stored {
+		s.Services = append(s.Services, x.ServiceRow)
+		s.Templates = append(s.Templates, x.Templates...)
+	}
 	s.Content = Content{Hosts: nz(s.Hosts), Ports: nz(s.Ports), AdminPanels: nz(s.AdminPanels), Certs: nz(s.Certs),
-		Services: nz(s.Services), Checks: nz(s.Checks), NotChecked: nz(s.NotChecked)}
+		Services: s.Services, Templates: s.Templates, Checks: nz(s.Checks), NotChecked: nz(s.NotChecked)}
 	return s, true, nil
 }
 

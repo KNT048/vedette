@@ -457,6 +457,7 @@
     "basis": {
       "version": "Version in range",
       "product": "Product only",
+      "template": "Confirmed by template {{id}}",
       "backport": "Version in range, but {{distro}} may have backported the fix"
     },
     "countBackport_one": "{{count}} maybe patched",

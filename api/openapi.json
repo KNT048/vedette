@@ -23872,6 +23872,46 @@
                         "additionalProperties": false
                       }
                     },
+                    "templates": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "ip": {
+                            "type": "string"
+                          },
+                          "port": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          },
+                          "cve": {
+                            "type": "string",
+                            "description": "The CVE the template is for (one the job asked about)"
+                          },
+                          "template": {
+                            "type": "string"
+                          },
+                          "outcome": {
+                            "type": "string",
+                            "enum": [
+                              "matched",
+                              "no_match",
+                              "error"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "ip",
+                          "port",
+                          "cve",
+                          "template",
+                          "outcome"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "description": "The safe templates that ran on the services (INV-23); the box ran no template when empty"
+                    },
                     "checks": {
                       "type": "array",
                       "items": {
@@ -23879,7 +23919,7 @@
                         "properties": {
                           "kind": {
                             "type": "string",
-                            "description": "ports, names, services or cve"
+                            "description": "ports, names, services, templates or cve"
                           },
                           "text": {
                             "type": "string"
@@ -23905,7 +23945,7 @@
                         "properties": {
                           "kind": {
                             "type": "string",
-                            "description": "udp, ports, non_exploited, services or cve"
+                            "description": "udp, ports, non_exploited, services, templates or cve"
                           },
                           "text": {
                             "type": "string"
@@ -23941,9 +23981,10 @@
                             "type": "string",
                             "enum": [
                               "version",
-                              "product"
+                              "product",
+                              "template"
                             ],
-                            "description": "version: the version is inside an NVD range; product: only the product matches"
+                            "description": "version: the version is inside an NVD range; product: only the product matches; template: a safe template matched (INV-23), the strongest evidence"
                           },
                           "summary": {
                             "type": "string"
@@ -23966,6 +24007,20 @@
                           "backport": {
                             "type": "string",
                             "description": "The distribution the service names (Debian, Ubuntu…), which may have backported the fix without changing the version; \"\" when none"
+                          },
+                          "template": {
+                            "type": "string",
+                            "description": "Id of the safe template that ran for this CVE; \"\" when none ran"
+                          },
+                          "template_result": {
+                            "type": "string",
+                            "enum": [
+                              "",
+                              "matched",
+                              "no_match",
+                              "error"
+                            ],
+                            "description": "What that template did: matched (basis becomes template), no_match (one check, never \"not vulnerable\") or error; \"\" when none ran"
                           }
                         },
                         "required": [
@@ -23977,7 +24032,9 @@
                           "summary",
                           "date_added",
                           "ransomware",
-                          "backport"
+                          "backport",
+                          "template",
+                          "template_result"
                         ],
                         "additionalProperties": false
                       },
@@ -24027,6 +24084,7 @@
                     "certs",
                     "counts",
                     "services",
+                    "templates",
                     "checks",
                     "not_checked",
                     "vulns",

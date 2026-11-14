@@ -12,7 +12,6 @@ import { resetMockDb } from '@/mocks/db'
 
 /** Sample data exists only in the preview (mock) build; a real box answers 400 sample_unavailable, so the release build does not offer to restore it (issue #244). */
 const isPreview = () => import.meta.env.VITE_API_MOCK !== 'off'
-import { useQueryClient } from '@tanstack/react-query'
 import { useAccount, useBoxBackups, useDownloadKey, usePurge, useRestore, useRestoreRun } from './api'
 import { useInstallKind, useModuleAvailable } from '@/lib/modules'
 import { ContainerBackup, InstallPending } from './ContainerOnly'
@@ -20,6 +19,7 @@ import type { BoxBackup } from './types'
 import { fmtDateTime } from '@/lib/format'
 import { errMsg, useGate } from './parts'
 import { nav } from './util'
+import { beginBoxRestart } from './BoxRestarting'
 import { LOG_CATEGORIES, logsExportQuery, type LogCategory } from './logCategories'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/input'
@@ -33,8 +33,6 @@ export default function DataSection() {
   const install = useInstallKind() // D-381: a container-only install has no helper, so no box backups; the customer copies the volume (S-CORE-9 G2)
   const [password, setPassword] = useState('')
   const [code, setCode] = useState('')
-  const [kept, setKept] = useState<string[] | null>(null) // set once the purge is done and something could not be deleted
-  const qc = useQueryClient()
   const purge = usePurge()
   const [askPurge, setAskPurge] = useState(false)
   const [typed, setTyped] = useState('')
@@ -58,9 +56,7 @@ export default function DataSection() {
     try {
       const r = await purge.mutateAsync({ confirm: typed, password, ...(code.trim() ? { code: code.trim() } : {}) })
       setAskPurge(false)
-      qc.clear()
-      if (r.kept.length > 0) { setKept(r.kept); return } // say what was not deleted before leaving the page
-      nav.toSetup() // hộp về trạng thái mới cài: tải lại ở màn cài đặt ban đầu
+      beginBoxRestart(r.kept) // says what was not deleted on the waiting page; the box restarts: a full-page wait, then the setup page (A13-4)
     } catch (e) { setPurgeErr(errMsg(e, t)) }
   }
   async function doReset() {
@@ -137,13 +133,6 @@ export default function DataSection() {
             <Button onClick={() => setAskPurge(false)}>{t('common:cancel')}</Button>
             <Button variant="danger" disabled={typed !== org || !password || purge.isPending} onClick={() => void doPurge()}>{t('data.purge.ask.confirm')}</Button>
           </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={kept !== null} onOpenChange={() => undefined}>
-        <DialogContent title={t('data.purge.done.title')} description={t('data.purge.done.body')}>
-          <ul className="list-disc pl-5 text-sm">{(kept ?? []).map((k) => <li key={k}>{t(`data.purge.done.kept.${k}`)}</li>)}</ul>
-          <DialogFooter><Button variant="danger" onClick={() => nav.toSetup()}>{t('data.purge.done.continue')}</Button></DialogFooter>
         </DialogContent>
       </Dialog>
 

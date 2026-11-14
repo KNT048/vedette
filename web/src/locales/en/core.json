@@ -1191,6 +1191,12 @@
       "title": "Delete all data",
       "desc": "Deletes all data on this box: devices, findings, logs, users, settings, every module's data and every backup. The decryption key is replaced, so no old copy can be opened. The box restarts and returns to a fresh install. This cannot be undone.",
       "button": "Delete all data",
+      "restarting": {
+        "title": "The box is deleting your data and restarting…",
+        "body": "This takes a few seconds. This page opens first-run setup by itself when the box is back.",
+        "slow": "The box has not come back yet. Check that it is powered on and reachable, then reload the page.",
+        "reload": "Reload the page"
+      },
       "ask": {
         "title": "Delete all data on the box?",
         "body": "Download an export first if you still need the data. You are signed out, the box restarts (the page is unreachable for a few seconds) and first-run setup opens again.",

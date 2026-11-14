@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 import { CodeBlock } from '@/components/common/CodeBlock'
 import { AiBlock } from '@/components/common/AiBlock'
 import { Chip } from '@/components/common/StatusChip'
+import { Notice } from '@/components/common/PageHeader'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Segmented } from '@/components/ui/segmented'
@@ -245,10 +246,7 @@ export function NoPack({ finding }: { finding: FindingDetail }) {
   const updatable = isOpen(finding.status) && softwareFor(sw.data?.asset.software, finding.cve).length > 0
   return (
     <div className="grid gap-5">
-      <div className="rounded-md border border-dashed border-warn bg-warn-soft/60 px-4 py-3">
-        <p className="font-medium">{t('rec.noPack')}</p>
-        <p className="mt-1 max-w-3xl text-sm">{t('rec.noPackBody')}</p>
-      </div>
+      <Notice tone="warn" title={t('rec.noPack')} className="mb-0">{t('rec.noPackBody')}</Notice>
       {k ? (
         <>
           <div className="grid gap-2">

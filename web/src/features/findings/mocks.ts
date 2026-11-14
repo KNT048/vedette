@@ -19,7 +19,7 @@ const vulns = (kev as { vulns: Vuln[] }).vulns
 const aiOutputs = collection<Record<string, AiResult>>('mit_ai_outputs', () => ({}))
 // D-498: accepted risks, finding id → last day. The shared store keeps them as not_relevant (closed for every other mock);
 // the findings API answers risk_accepted with accepted_until, and the day after it they reopen by themselves.
-const accepted = collection<Record<string, string>>('fnd_risk_accepted', () => ({}))
+export const accepted = collection<Record<string, string>>('fnd_risk_accepted', () => ({}))
 
 const APPLY_ITEMS: ApplyItem[] = ['patch', 'workaround', 'fortigate', 'mikrotik', 'generic']
 const ACTIONS: StatusAction[] = ['patched', 'mitigated', 'false_positive', 'not_relevant', 'accept_risk', 'reopen']

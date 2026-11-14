@@ -11,12 +11,9 @@
   "filter": "Search device, CVE, product",
   "filterLabel": "Filter by status",
   "filters": {
-    "open": "Unresolved",
+    "all": "All unresolved",
     "confirmed": "Confirmed",
-    "suspected": "Suspected",
-    "accepted": "Risk accepted",
-    "resolved": "Resolved",
-    "all": "All"
+    "suspected": "Suspected"
   },
   "versionNeeded": {
     "title_one": "Add the version of 1 software to check it",
@@ -30,7 +27,7 @@
   "clearCve": "Clear {{cve}} filter",
   "emptyCve": "No findings for {{cve}} in this filter.",
   "emptyOpen": "No unresolved findings.",
-  "emptyFilter": "No findings in this status.",
+  "emptyFilter": "No findings in this list.",
   "emptyHelp": "Vedette only matches vulnerabilities against devices it knows. If you have no devices yet, add them first; once you do, run a scan to check right away. Vedette will tell you when a new vulnerability matches.",
   "emptyDevices": "Open Devices",
   "emptyScan": "Open Vulnerability scans",
@@ -294,5 +291,20 @@
     "pending": "Vedette is checking the new version; this list updates in a moment.",
     "scanned": "Vedette reads this version from the device. Run a scan of {{device}} to check.",
     "scan": "Scan {{device}}"
+  },
+  "clearSeverity": "Clear {{severity}} filter",
+  "kpi": {
+    "label": "Findings at a glance",
+    "open": "Unresolved",
+    "confirmed": "Confirmed",
+    "critical": "Critical",
+    "ending": "Accepted risks ending within 7 days"
+  },
+  "tabs": {
+    "label": "Findings lists",
+    "open": "Open",
+    "accepted": "Accepted risk",
+    "handled": "Handled",
+    "openBadge": "confirmed, need you"
   }
 }

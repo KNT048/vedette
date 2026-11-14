@@ -35,7 +35,7 @@ Tóm lại: thiết bị biên không cài được EDR, bị khai thác nhanh h
 ## 4. Lời hứa (được phép quảng cáo — mỗi dòng truy về story trong `USER_STORIES.md`)
 
 **Biết sớm**
-- Theo dõi 24/7 các nguồn lỗ hổng đang bị khai thác thật (CISA KEV, VulnCheck KEV, CVE.org, EPSS, honeypot CIRCL/Shadowserver, PSIRT Microsoft/Fortinet/Synology/Cisco…), cập nhật mỗi giờ. (S-FEED-1)
+- Theo dõi 24/7 các nguồn lỗ hổng đang bị khai thác thật (CISA KEV, VulnCheck KEV, CVE.org, EPSS, PSIRT Microsoft/Fortinet/Synology/Cisco…), cập nhật mỗi giờ. (S-FEED-1)
 - Bảng "đang nóng tuần này": hãng/thiết bị nào đang bị đánh nhiều nhất, thế giới và Việt Nam. (S-FEED-2)
 - Cảnh báo Zalo/Telegram/email chỉ cho thiết bị anh có. (S-ALERT-1)
 

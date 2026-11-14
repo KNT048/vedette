@@ -17,7 +17,12 @@
     "titleOff": "AI assistant is off, existing data is kept",
     "titleUnconfigured": "No AI profile yet: add one in Settings to ask your data",
     "title": "{{used}} of {{cap}} tokens used this month. The AI only reads data and changes nothing.",
-    "meta": "{{tier}} level. Every answer needs a person to confirm before acting on it."
+    "meta": "{{tier}} level. Every answer needs a person to confirm before acting on it.",
+    "tabs": "Assistant sections",
+    "tabAsk": "Ask",
+    "tabUsage": "Usage",
+    "kpiLabel": "AI usage at a glance",
+    "kpiTokens": "tokens used this month"
   },
   "skill": {
     "ask-my-data": "Ask your data",

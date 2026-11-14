@@ -2,8 +2,9 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Globe } from 'lucide-react'
+import { Link } from 'react-router'
 import { Panel, Section } from '@/components/common/PageHeader'
-import { ErrorState, Loading } from '@/components/common/States'
+import { EmptyState, ErrorState, Loading } from '@/components/common/States'
 import { Chip } from '@/components/common/StatusChip'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog'
@@ -50,7 +51,7 @@ export function OutsidePanel({ target }: { target: Target }) {
 }
 
 /** Shodan's answer beside our own newest scan: a port only one side saw is called out. Shodan's CVEs stay Shodan's claim. */
-function Answer({ v }: { v: OutsideView }) {
+export function Answer({ v }: { v: OutsideView }) {
   const { t } = useTranslation('exposure')
   const ours = v.scan_ports
   const ports = [...new Set([...v.ports, ...(ours ?? [])])].sort((a, b) => a - b)
@@ -87,6 +88,33 @@ function Answer({ v }: { v: OutsideView }) {
           <ul className="grid gap-0.5 text-sm">{v.vulns.map((c) => <li key={c}>{t('outside.vuln', { cve: c })}</li>)}</ul>
         </Panel>
       ) : null}
+    </div>
+  )
+}
+
+/** The list page's "What the Internet sees" tab: the newest answer for each public IP of this box, read only; asking again happens on the IP's own page. */
+export function OutsideList({ items }: { items: Target[] }) {
+  const { t } = useTranslation('exposure')
+  return (
+    <Section id="outside-list" title={t('tabs.outside')} description={t('outsideList.description')}>
+      {items.length === 0 ? <EmptyState title={t('outsideList.emptyTitle')}>{t('outsideList.emptyBody')}</EmptyState> : (
+        <div className="grid gap-6">{items.map((x) => <OutsideOne key={x.id} target={x} />)}</div>
+      )}
+    </Section>
+  )
+}
+
+function OutsideOne({ target }: { target: Target }) {
+  const { t } = useTranslation('exposure')
+  const q = useOutside(target.id)
+  return (
+    <div className="grid gap-2">
+      <h3 className="flex flex-wrap items-center gap-3 text-sm font-medium">{target.value}
+        <Link className="text-[13px] font-normal text-accent underline-offset-4 hover:underline" to={`/exposure/${target.id}?tab=outside`}>{t('outsideList.open', { ip: target.value })}</Link>
+      </h3>
+      {q.isPending ? <Loading /> : q.error ? <ErrorState error={q.error} onRetry={() => void q.refetch()} /> : q.data ? <Answer v={q.data} /> : (
+        <Panel className="max-w-3xl px-4 py-3 text-sm">{t('outside.never', { ip: target.value })}</Panel>
+      )}
     </div>
   )
 }

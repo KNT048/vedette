@@ -4,6 +4,13 @@
     "lookup": "Lookup"
   },
   "home": {
+    "kpi": {
+      "label": "Today at a glance",
+      "confirmed": "open confirmed findings",
+      "exploited": "exploited CVEs this week",
+      "review": "devices to review",
+      "incidents": "open incidents"
+    },
     "titleLoading": "Today",
     "meta": "Data updated {{time}}. Sources: {{sources}}, each fetched directly from its source.",
     "titleNone": "Today: no data yet",

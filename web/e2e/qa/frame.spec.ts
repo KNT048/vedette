@@ -19,6 +19,7 @@ const PAGES = [
   { path: '/exposure', second: 'Open exposures', id: 'open', other: 'Targets' },
   { path: '/exposure/xt-2', second: 'Ownership', id: 'ownership', other: 'Results' },
   { path: '/devices/a-nas02', second: 'Software', id: 'software', other: 'Observations' },
+  { path: '/assistant', second: 'Usage', id: 'usage', other: 'Ask' },
 ] as const
 
 const device = (page: Page) => ((page.viewportSize()?.width ?? 1366) < 600 ? 'phone' : 'desktop')

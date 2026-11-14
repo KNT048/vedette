@@ -87563,15 +87563,22 @@ func (s *ExposureGetExposureTargetsIDOKOpenPortsItem) encodeFields(e *jx.Encoder
 		e.FieldStart("service")
 		e.Str(s.Service)
 	}
+	{
+		if s.Unchecked.Set {
+			e.FieldStart("unchecked")
+			s.Unchecked.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfExposureGetExposureTargetsIDOKOpenPortsItem = [6]string{
+var jsonFieldsNameOfExposureGetExposureTargetsIDOKOpenPortsItem = [7]string{
 	0: "ip",
 	1: "last_seen",
 	2: "misses",
 	3: "port",
 	4: "product",
 	5: "service",
+	6: "unchecked",
 }
 
 // Decode decodes ExposureGetExposureTargetsIDOKOpenPortsItem from json.
@@ -87648,6 +87655,16 @@ func (s *ExposureGetExposureTargetsIDOKOpenPortsItem) Decode(d *jx.Decoder) erro
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"service\"")
+			}
+		case "unchecked":
+			if err := func() error {
+				s.Unchecked.Reset()
+				if err := s.Unchecked.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"unchecked\"")
 			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
@@ -89417,15 +89434,22 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem) encodeFields(e *j
 		e.FieldStart("service")
 		e.Str(s.Service)
 	}
+	{
+		if s.Unchecked.Set {
+			e.FieldStart("unchecked")
+			s.Unchecked.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfExposureGetExposureTargetsIDSnapshotsDateOKPortsItem = [6]string{
+var jsonFieldsNameOfExposureGetExposureTargetsIDSnapshotsDateOKPortsItem = [7]string{
 	0: "ip",
 	1: "last_seen",
 	2: "misses",
 	3: "port",
 	4: "product",
 	5: "service",
+	6: "unchecked",
 }
 
 // Decode decodes ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem from json.
@@ -89502,6 +89526,16 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem) Decode(d *jx.Deco
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"service\"")
+			}
+		case "unchecked":
+			if err := func() error {
+				s.Unchecked.Reset()
+				if err := s.Unchecked.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"unchecked\"")
 			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
@@ -92406,15 +92440,22 @@ func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItem) encodeFields(e *jx.
 		e.FieldStart("service")
 		e.Str(s.Service)
 	}
+	{
+		if s.Unchecked.Set {
+			e.FieldStart("unchecked")
+			s.Unchecked.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfExposureGetExposureTargetsOKItemsItemOpenPortsItem = [6]string{
+var jsonFieldsNameOfExposureGetExposureTargetsOKItemsItemOpenPortsItem = [7]string{
 	0: "ip",
 	1: "last_seen",
 	2: "misses",
 	3: "port",
 	4: "product",
 	5: "service",
+	6: "unchecked",
 }
 
 // Decode decodes ExposureGetExposureTargetsOKItemsItemOpenPortsItem from json.
@@ -92491,6 +92532,16 @@ func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItem) Decode(d *jx.Decode
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"service\"")
+			}
+		case "unchecked":
+			if err := func() error {
+				s.Unchecked.Reset()
+				if err := s.Unchecked.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"unchecked\"")
 			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
@@ -93854,15 +93905,22 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) encodeFields(e
 		e.FieldStart("service")
 		e.Str(s.Service)
 	}
+	{
+		if s.Unchecked.Set {
+			e.FieldStart("unchecked")
+			s.Unchecked.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem = [6]string{
+var jsonFieldsNameOfExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem = [7]string{
 	0: "ip",
 	1: "last_seen",
 	2: "misses",
 	3: "port",
 	4: "product",
 	5: "service",
+	6: "unchecked",
 }
 
 // Decode decodes ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem from json.
@@ -93939,6 +93997,16 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) Decode(d *jx.D
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"service\"")
+			}
+		case "unchecked":
+			if err := func() error {
+				s.Unchecked.Reset()
+				if err := s.Unchecked.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"unchecked\"")
 			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
@@ -95620,15 +95688,22 @@ func (s *ExposurePostExposureTargetsCreatedOpenPortsItem) encodeFields(e *jx.Enc
 		e.FieldStart("service")
 		e.Str(s.Service)
 	}
+	{
+		if s.Unchecked.Set {
+			e.FieldStart("unchecked")
+			s.Unchecked.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfExposurePostExposureTargetsCreatedOpenPortsItem = [6]string{
+var jsonFieldsNameOfExposurePostExposureTargetsCreatedOpenPortsItem = [7]string{
 	0: "ip",
 	1: "last_seen",
 	2: "misses",
 	3: "port",
 	4: "product",
 	5: "service",
+	6: "unchecked",
 }
 
 // Decode decodes ExposurePostExposureTargetsCreatedOpenPortsItem from json.
@@ -95705,6 +95780,16 @@ func (s *ExposurePostExposureTargetsCreatedOpenPortsItem) Decode(d *jx.Decoder) 
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"service\"")
+			}
+		case "unchecked":
+			if err := func() error {
+				s.Unchecked.Reset()
+				if err := s.Unchecked.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"unchecked\"")
 			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
@@ -97925,15 +98010,22 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) encodeFields(
 		e.FieldStart("service")
 		e.Str(s.Service)
 	}
+	{
+		if s.Unchecked.Set {
+			e.FieldStart("unchecked")
+			s.Unchecked.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem = [6]string{
+var jsonFieldsNameOfExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem = [7]string{
 	0: "ip",
 	1: "last_seen",
 	2: "misses",
 	3: "port",
 	4: "product",
 	5: "service",
+	6: "unchecked",
 }
 
 // Decode decodes ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem from json.
@@ -98010,6 +98102,16 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) Decode(d *jx.
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"service\"")
+			}
+		case "unchecked":
+			if err := func() error {
+				s.Unchecked.Reset()
+				if err := s.Unchecked.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"unchecked\"")
 			}
 		default:
 			return errors.Errorf("unexpected field %q", k)

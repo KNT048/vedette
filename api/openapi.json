@@ -21173,10 +21173,14 @@
                                       "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
                                     },
                                     "misses": {
-                                      "description": "With last_seen: how many scans in a row that checked the address missed the port (1 = missed by the last scan); 0 or absent = the last scan did not check the address and the row is as it was",
+                                      "description": "With last_seen: how many scans in a row that checked the address missed the port (1 = missed by the last scan)",
                                       "type": "integer",
                                       "minimum": -9007199254740991,
                                       "maximum": 9007199254740991
+                                    },
+                                    "unchecked": {
+                                      "description": "The newest scan did not check the address: the row is as an earlier scan left it",
+                                      "type": "boolean"
                                     }
                                   },
                                   "required": [
@@ -21822,10 +21826,14 @@
                                       "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
                                     },
                                     "misses": {
-                                      "description": "With last_seen: how many scans in a row that checked the address missed the port (1 = missed by the last scan); 0 or absent = the last scan did not check the address and the row is as it was",
+                                      "description": "With last_seen: how many scans in a row that checked the address missed the port (1 = missed by the last scan)",
                                       "type": "integer",
                                       "minimum": -9007199254740991,
                                       "maximum": 9007199254740991
+                                    },
+                                    "unchecked": {
+                                      "description": "The newest scan did not check the address: the row is as an earlier scan left it",
+                                      "type": "boolean"
                                     }
                                   },
                                   "required": [
@@ -22354,10 +22362,14 @@
                                 "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
                               },
                               "misses": {
-                                "description": "With last_seen: how many scans in a row that checked the address missed the port (1 = missed by the last scan); 0 or absent = the last scan did not check the address and the row is as it was",
+                                "description": "With last_seen: how many scans in a row that checked the address missed the port (1 = missed by the last scan)",
                                 "type": "integer",
                                 "minimum": -9007199254740991,
                                 "maximum": 9007199254740991
+                              },
+                              "unchecked": {
+                                "description": "The newest scan did not check the address: the row is as an earlier scan left it",
+                                "type": "boolean"
                               }
                             },
                             "required": [
@@ -22777,10 +22789,14 @@
                                 "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
                               },
                               "misses": {
-                                "description": "With last_seen: how many scans in a row that checked the address missed the port (1 = missed by the last scan); 0 or absent = the last scan did not check the address and the row is as it was",
+                                "description": "With last_seen: how many scans in a row that checked the address missed the port (1 = missed by the last scan)",
                                 "type": "integer",
                                 "minimum": -9007199254740991,
                                 "maximum": 9007199254740991
+                              },
+                              "unchecked": {
+                                "description": "The newest scan did not check the address: the row is as an earlier scan left it",
+                                "type": "boolean"
                               }
                             },
                             "required": [
@@ -23692,10 +23708,14 @@
                             "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
                           },
                           "misses": {
-                            "description": "With last_seen: how many scans in a row that checked the address missed the port (1 = missed by the last scan); 0 or absent = the last scan did not check the address and the row is as it was",
+                            "description": "With last_seen: how many scans in a row that checked the address missed the port (1 = missed by the last scan)",
                             "type": "integer",
                             "minimum": -9007199254740991,
                             "maximum": 9007199254740991
+                          },
+                          "unchecked": {
+                            "description": "The newest scan did not check the address: the row is as an earlier scan left it",
+                            "type": "boolean"
                           }
                         },
                         "required": [
@@ -24355,10 +24375,14 @@
                                     "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
                                   },
                                   "misses": {
-                                    "description": "With last_seen: how many scans in a row that checked the address missed the port (1 = missed by the last scan); 0 or absent = the last scan did not check the address and the row is as it was",
+                                    "description": "With last_seen: how many scans in a row that checked the address missed the port (1 = missed by the last scan)",
                                     "type": "integer",
                                     "minimum": -9007199254740991,
                                     "maximum": 9007199254740991
+                                  },
+                                  "unchecked": {
+                                    "description": "The newest scan did not check the address: the row is as an earlier scan left it",
+                                    "type": "boolean"
                                   }
                                 },
                                 "required": [

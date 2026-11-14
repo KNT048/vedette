@@ -155,3 +155,48 @@ func TestNotSeen_UncheckedAddressIsNotAMiss(t *testing.T) {
 		t.Fatalf("the unchecked port = %+v, want kept as it was, last seen %s", p, first.Date)
 	}
 }
+
+// N1: a name that did not resolve this time (a failed lookup) does not make its address "gone": its ports are kept, unchecked, and
+// the next scan that sees them again adds no "new port"; a miss earlier is not erased either.
+func TestNotSeen_FailedLookupKeepsThePorts(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	v := scanReady(t, e)
+	run := &fakeRunner{content: sampleContent()}
+	e.svc.SetRunner(run)
+	scan := func(c Content) Snapshot {
+		t.Helper()
+		e.advance(day)
+		run.content = c
+		s, err := e.svc.Scan(e.ctx(), "admin@acme.example", v.ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		got, err := e.svc.SnapshotOf(e.ctx(), v.ID, s.Date)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return got
+	}
+	d1 := scan(sampleContent())
+	flaky := sampleContent() // mail.acme.example (ipB) did not resolve: no host row, no port on ipB
+	flaky.Hosts, flaky.Ports = flaky.Hosts[:2], flaky.Ports[:2]
+	for range 2 {
+		d := scan(flaky)
+		p := d.Ports[len(d.Ports)-1]
+		if len(d.Ports) != 3 || p.Port != 25 || !p.Unchecked || p.Misses != 0 || p.LastSeen != d1.Date {
+			t.Fatalf("a failed lookup: %+v", d.Ports)
+		}
+	}
+	back := scan(sampleContent())
+	if p := back.Ports[2]; p.Port != 25 || p.LastSeen != "" || p.Unchecked {
+		t.Fatalf("seen again: %+v", back.Ports)
+	}
+	// the name now points elsewhere: the address left the domain and its ports go with it
+	moved := sampleContent()
+	moved.Hosts[2].IP = ipA
+	moved.Ports = moved.Ports[:2]
+	if d := scan(moved); len(d.Ports) != 2 {
+		t.Fatalf("a moved name: %+v", d.Ports)
+	}
+}

@@ -410,7 +410,7 @@ func (s *Service) coveredBy(ctx context.Context, user string, t Target, c Conten
 		switch {
 		case reported[k] || (t.Kind == KindIP && k == ipKey(t.Value)):
 			out[k] = scopeChecked
-		case t.Kind != KindDomain || !pointed[k]:
+		case t.Kind != KindDomain || moved(k, pointed, prev.Hosts, c.Hosts):
 			out[k] = scopeGone
 		default:
 			out[k] = scopeKept
@@ -422,6 +422,30 @@ func (s *Service) coveredBy(ctx context.Context, user string, t Target, c Conten
 		}
 	}
 	return out
+}
+
+// moved says an address left a domain: it had names in the previous observation, and each of them is in this scan with another
+// address. An address no known name pointed at (a name's second address), or a name this scan did not resolve (a failed lookup),
+// is not "moved": the scan did not check it (INV-22).
+func moved(ip string, pointed map[string]bool, before, now []HostRow) bool {
+	if pointed[ip] {
+		return false
+	}
+	at := map[string]string{}
+	for _, h := range now {
+		at[h.Name] = ipKey(h.IP)
+	}
+	named := false
+	for _, h := range before {
+		if ipKey(h.IP) != ip {
+			continue
+		}
+		named = true
+		if to, ok := at[h.Name]; !ok || to == ip {
+			return false
+		}
+	}
+	return named
 }
 
 // carryNotSeen keeps, in the newest scan, the ports of the previous observation that this scan did not report (INV-22, D-560): one
@@ -450,7 +474,10 @@ func carryNotSeen(c Content, prev Snapshot, how map[string]scope) Content {
 		switch how[k.ip] {
 		case scopeGone:
 			continue
+		case scopeKept:
+			p.Unchecked = true
 		case scopeChecked:
+			p.Unchecked = false
 			if p.Misses >= 1 {
 				continue // missed by two scans in a row: closed
 			}

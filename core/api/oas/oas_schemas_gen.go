@@ -43617,11 +43617,13 @@ type ExposureGetExposureTargetsIDOKOpenPortsItem struct {
 	// saw it open (INV-22).
 	LastSeen OptString `json:"last_seen"`
 	// With last_seen: how many scans in a row that checked the address missed the port (1 = missed by the
-	// last scan); 0 or absent = the last scan did not check the address and the row is as it was.
+	// last scan).
 	Misses  OptInt    `json:"misses"`
 	Port    int       `json:"port"`
 	Product OptString `json:"product"`
 	Service string    `json:"service"`
+	// The newest scan did not check the address: the row is as an earlier scan left it.
+	Unchecked OptBool `json:"unchecked"`
 }
 
 // GetIP returns the value of IP.
@@ -43654,6 +43656,11 @@ func (s *ExposureGetExposureTargetsIDOKOpenPortsItem) GetService() string {
 	return s.Service
 }
 
+// GetUnchecked returns the value of Unchecked.
+func (s *ExposureGetExposureTargetsIDOKOpenPortsItem) GetUnchecked() OptBool {
+	return s.Unchecked
+}
+
 // SetIP sets the value of IP.
 func (s *ExposureGetExposureTargetsIDOKOpenPortsItem) SetIP(val string) {
 	s.IP = val
@@ -43682,6 +43689,11 @@ func (s *ExposureGetExposureTargetsIDOKOpenPortsItem) SetProduct(val OptString) 
 // SetService sets the value of Service.
 func (s *ExposureGetExposureTargetsIDOKOpenPortsItem) SetService(val string) {
 	s.Service = val
+}
+
+// SetUnchecked sets the value of Unchecked.
+func (s *ExposureGetExposureTargetsIDOKOpenPortsItem) SetUnchecked(val OptBool) {
+	s.Unchecked = val
 }
 
 // Expired only exists for IPs: the box has not seen this IP for more than 30 days.
@@ -44349,11 +44361,13 @@ type ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem struct {
 	// saw it open (INV-22).
 	LastSeen OptString `json:"last_seen"`
 	// With last_seen: how many scans in a row that checked the address missed the port (1 = missed by the
-	// last scan); 0 or absent = the last scan did not check the address and the row is as it was.
+	// last scan).
 	Misses  OptInt    `json:"misses"`
 	Port    int       `json:"port"`
 	Product OptString `json:"product"`
 	Service string    `json:"service"`
+	// The newest scan did not check the address: the row is as an earlier scan left it.
+	Unchecked OptBool `json:"unchecked"`
 }
 
 // GetIP returns the value of IP.
@@ -44386,6 +44400,11 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem) GetService() stri
 	return s.Service
 }
 
+// GetUnchecked returns the value of Unchecked.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem) GetUnchecked() OptBool {
+	return s.Unchecked
+}
+
 // SetIP sets the value of IP.
 func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem) SetIP(val string) {
 	s.IP = val
@@ -44414,6 +44433,11 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem) SetProduct(val Op
 // SetService sets the value of Service.
 func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem) SetService(val string) {
 	s.Service = val
+}
+
+// SetUnchecked sets the value of Unchecked.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem) SetUnchecked(val OptBool) {
+	s.Unchecked = val
 }
 
 type ExposureGetExposureTargetsIDSnapshotsDateOKServicesItem struct {
@@ -45583,11 +45607,13 @@ type ExposureGetExposureTargetsOKItemsItemOpenPortsItem struct {
 	// saw it open (INV-22).
 	LastSeen OptString `json:"last_seen"`
 	// With last_seen: how many scans in a row that checked the address missed the port (1 = missed by the
-	// last scan); 0 or absent = the last scan did not check the address and the row is as it was.
+	// last scan).
 	Misses  OptInt    `json:"misses"`
 	Port    int       `json:"port"`
 	Product OptString `json:"product"`
 	Service string    `json:"service"`
+	// The newest scan did not check the address: the row is as an earlier scan left it.
+	Unchecked OptBool `json:"unchecked"`
 }
 
 // GetIP returns the value of IP.
@@ -45620,6 +45646,11 @@ func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItem) GetService() string
 	return s.Service
 }
 
+// GetUnchecked returns the value of Unchecked.
+func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItem) GetUnchecked() OptBool {
+	return s.Unchecked
+}
+
 // SetIP sets the value of IP.
 func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItem) SetIP(val string) {
 	s.IP = val
@@ -45648,6 +45679,11 @@ func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItem) SetProduct(val OptS
 // SetService sets the value of Service.
 func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItem) SetService(val string) {
 	s.Service = val
+}
+
+// SetUnchecked sets the value of Unchecked.
+func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItem) SetUnchecked(val OptBool) {
+	s.Unchecked = val
 }
 
 // Expired only exists for IPs: the box has not seen this IP for more than 30 days.
@@ -46311,11 +46347,13 @@ type ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem struct {
 	// saw it open (INV-22).
 	LastSeen OptString `json:"last_seen"`
 	// With last_seen: how many scans in a row that checked the address missed the port (1 = missed by the
-	// last scan); 0 or absent = the last scan did not check the address and the row is as it was.
+	// last scan).
 	Misses  OptInt    `json:"misses"`
 	Port    int       `json:"port"`
 	Product OptString `json:"product"`
 	Service string    `json:"service"`
+	// The newest scan did not check the address: the row is as an earlier scan left it.
+	Unchecked OptBool `json:"unchecked"`
 }
 
 // GetIP returns the value of IP.
@@ -46348,6 +46386,11 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) GetService() s
 	return s.Service
 }
 
+// GetUnchecked returns the value of Unchecked.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) GetUnchecked() OptBool {
+	return s.Unchecked
+}
+
 // SetIP sets the value of IP.
 func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) SetIP(val string) {
 	s.IP = val
@@ -46376,6 +46419,11 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) SetProduct(val
 // SetService sets the value of Service.
 func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) SetService(val string) {
 	s.Service = val
+}
+
+// SetUnchecked sets the value of Unchecked.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) SetUnchecked(val OptBool) {
+	s.Unchecked = val
 }
 
 // Expired only exists for IPs: the box has not seen this IP for more than 30 days.
@@ -47271,11 +47319,13 @@ type ExposurePostExposureTargetsCreatedOpenPortsItem struct {
 	// saw it open (INV-22).
 	LastSeen OptString `json:"last_seen"`
 	// With last_seen: how many scans in a row that checked the address missed the port (1 = missed by the
-	// last scan); 0 or absent = the last scan did not check the address and the row is as it was.
+	// last scan).
 	Misses  OptInt    `json:"misses"`
 	Port    int       `json:"port"`
 	Product OptString `json:"product"`
 	Service string    `json:"service"`
+	// The newest scan did not check the address: the row is as an earlier scan left it.
+	Unchecked OptBool `json:"unchecked"`
 }
 
 // GetIP returns the value of IP.
@@ -47308,6 +47358,11 @@ func (s *ExposurePostExposureTargetsCreatedOpenPortsItem) GetService() string {
 	return s.Service
 }
 
+// GetUnchecked returns the value of Unchecked.
+func (s *ExposurePostExposureTargetsCreatedOpenPortsItem) GetUnchecked() OptBool {
+	return s.Unchecked
+}
+
 // SetIP sets the value of IP.
 func (s *ExposurePostExposureTargetsCreatedOpenPortsItem) SetIP(val string) {
 	s.IP = val
@@ -47336,6 +47391,11 @@ func (s *ExposurePostExposureTargetsCreatedOpenPortsItem) SetProduct(val OptStri
 // SetService sets the value of Service.
 func (s *ExposurePostExposureTargetsCreatedOpenPortsItem) SetService(val string) {
 	s.Service = val
+}
+
+// SetUnchecked sets the value of Unchecked.
+func (s *ExposurePostExposureTargetsCreatedOpenPortsItem) SetUnchecked(val OptBool) {
+	s.Unchecked = val
 }
 
 // Expired only exists for IPs: the box has not seen this IP for more than 30 days.
@@ -48417,11 +48477,13 @@ type ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem struct {
 	// saw it open (INV-22).
 	LastSeen OptString `json:"last_seen"`
 	// With last_seen: how many scans in a row that checked the address missed the port (1 = missed by the
-	// last scan); 0 or absent = the last scan did not check the address and the row is as it was.
+	// last scan).
 	Misses  OptInt    `json:"misses"`
 	Port    int       `json:"port"`
 	Product OptString `json:"product"`
 	Service string    `json:"service"`
+	// The newest scan did not check the address: the row is as an earlier scan left it.
+	Unchecked OptBool `json:"unchecked"`
 }
 
 // GetIP returns the value of IP.
@@ -48454,6 +48516,11 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) GetService() 
 	return s.Service
 }
 
+// GetUnchecked returns the value of Unchecked.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) GetUnchecked() OptBool {
+	return s.Unchecked
+}
+
 // SetIP sets the value of IP.
 func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) SetIP(val string) {
 	s.IP = val
@@ -48482,6 +48549,11 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) SetProduct(va
 // SetService sets the value of Service.
 func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) SetService(val string) {
 	s.Service = val
+}
+
+// SetUnchecked sets the value of Unchecked.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) SetUnchecked(val OptBool) {
+	s.Unchecked = val
 }
 
 // Expired only exists for IPs: the box has not seen this IP for more than 30 days.

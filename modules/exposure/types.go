@@ -186,7 +186,7 @@ type (
 	// PortRow is an open port.
 	// LastSeen and Misses are set only on a port this scan did not report, kept from an earlier scan (INV-22, D-560): LastSeen is the
 	// day a scan last saw it open; Misses is how many scans in a row that checked its address missed it (1 = "missed by the last scan";
-	// 0 with LastSeen set = the last scan did not check the address, so the row is as it was).
+	// Unchecked = the last scan did not check the address, so the row is as it was).
 	PortRow struct {
 		IP       string `json:"ip"`
 		Port     int    `json:"port"`
@@ -194,6 +194,8 @@ type (
 		Product  string `json:"product,omitempty"`
 		LastSeen string `json:"last_seen,omitempty"`
 		Misses   int    `json:"misses,omitempty"`
+		// Unchecked: the newest scan did not check the address, so the row (and Misses) is as an earlier scan left it.
+		Unchecked bool `json:"unchecked,omitempty"`
 	}
 	// AdminRow is an admin page that is open to the Internet. Risk is "danger" or "warn".
 	AdminRow struct {

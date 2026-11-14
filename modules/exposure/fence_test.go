@@ -151,7 +151,7 @@ func TestOpenVASStopsWhenTheHostsFenceSaysNoMidRun(t *testing.T) {
 	}
 	done := make(chan res, 1)
 	go func() {
-		_, _, _, err := e.svc.runGreenbone(e.ctx(), st, netip.MustParseAddr(ipB), h.gvm.log, time.Millisecond)
+		_, _, err := e.svc.runGreenbone(e.ctx(), st, netip.MustParseAddr(ipB), h.gvm.log, time.Millisecond)
 		done <- res{err}
 	}()
 	tick := time.NewTicker(time.Millisecond) // the task's start is a state of the fake gvmd: look until it is there

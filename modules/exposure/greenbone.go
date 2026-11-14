@@ -764,7 +764,7 @@ func (s *Service) greenboneAt(ctx context.Context, st ScanTarget, ip netip.Addr)
 	g.mu.Unlock()
 	gctx, cancel := context.WithTimeout(ctx, limit)
 	defer cancel()
-	rows, _, problems, err := s.runGreenbone(gctx, st, ip, plog, poll)
+	rows, problems, err := s.runGreenbone(gctx, st, ip, plog, poll)
 	var out gbOutcome
 	if len(problems) > 0 {
 		s.cfg.Log.ErrorContext(ctx, "exposure: Greenbone left something behind", "target", st.Value, "problems", problems)
@@ -868,52 +868,52 @@ var errGBNoLog = errors.New("exposure: the Greenbone probe log row could not be 
 // port list, a target of exactly ip, a task, the probe log row, start, a poll every `poll` until gvmd says Done, then the report (QoD >= GreenboneMinQoD).
 // The task, its report and the target are deleted afterwards (stopped first when cut short), and what could not be is returned in
 // problems.
-func (s *Service) runGreenbone(ctx context.Context, st ScanTarget, ip netip.Addr, plog GreenboneProbeLog, poll time.Duration) (rows []GreenboneRow, total int, problems []string, err error) {
+func (s *Service) runGreenbone(ctx context.Context, st ScanTarget, ip netip.Addr, plog GreenboneProbeLog, poll time.Duration) (rows []GreenboneRow, problems []string, err error) {
 	dctx, cancel := context.WithTimeout(ctx, gbDialTimeout)
 	conn, login, err := s.cfg.Greenbone.Dial(dctx)
 	cancel()
 	if err != nil {
-		return nil, 0, nil, err
+		return nil, nil, err
 	}
 	defer func() { _ = conn.Close() }()
 	g := &gmpConn{conn: conn}
 	if err := g.authenticate(ctx, login); err != nil {
-		return nil, 0, nil, err
+		return nil, nil, err
 	}
 	if problems, err = g.leftovers(ctx, login.User); err != nil { // never a second task of Vedette's beside one still running
-		return nil, 0, problems, err
+		return nil, problems, err
 	}
 	lv := levelOf(st.Mode)
 	config, err := g.levelConfig(ctx, login.User, lv)
 	if err != nil {
-		return nil, 0, problems, err
+		return nil, problems, err
 	}
 	ports, err := g.portList(ctx)
 	if err != nil {
-		return nil, 0, problems, err
+		return nil, problems, err
 	}
 	name := gbObjectPrefix + ip.String() + "-" + store.NewID("gb")
 	target, err := g.createTarget(ctx, name, ip.String(), ports)
 	if err != nil {
-		return nil, 0, problems, err
+		return nil, problems, err
 	}
 	task, running := "", false
 	defer func() { problems = append(problems, s.gbCleanup(ctx, task, target, running)...) }()
 	if task, err = g.createTask(ctx, name, target, config); err != nil {
-		return nil, 0, problems, err
+		return nil, problems, err
 	}
 	if err := plog.RecordGreenboneProbe(ctx, GreenboneProbe{ID: store.NewID("pb"), IP: ip.String(), PortList: GreenbonePortList,
 		Config: lv.name + " (" + lv.text + ")", Note: domainNote(st) + gbNote}); err != nil { // LEGAL §3: logged before the task starts
 		if ctx.Err() != nil {
-			return nil, 0, problems, ctx.Err()
+			return nil, problems, ctx.Err()
 		}
 		s.cfg.Log.ErrorContext(ctx, "exposure: writing the Greenbone probe log failed", "target", st.Value, "error", err)
-		return nil, 0, problems, errGBNoLog
+		return nil, problems, errGBNoLog
 	}
 	report, err := g.startTask(ctx, task)
 	if err != nil {
 		running = true // it may have started: stop it to be sure
-		return nil, 0, problems, err
+		return nil, problems, err
 	}
 	running = true
 	checked := s.clock()
@@ -924,28 +924,28 @@ func (s *Service) runGreenbone(ctx context.Context, st ScanTarget, ip netip.Addr
 			checked = s.clock()
 			if err := f.CheckDomainIP(ctx, *st.Domain, ip, FenceCheck{Disruptive: st.Mode.Disruptive, Recheck: true}); err != nil {
 				if ctx.Err() != nil {
-					return nil, 0, problems, ctx.Err()
+					return nil, problems, ctx.Err()
 				}
 				s.cfg.Log.ErrorContext(ctx, "exposure: the domain fence stopped OpenVAS", "target", st.Value, "ip", ip, "error", err)
-				return nil, 0, problems, &Unavailable{Reason: notGBFencedMid}
+				return nil, problems, &Unavailable{Reason: notGBFencedMid}
 			}
 		}
 		state, _, err := g.taskStatus(ctx, task)
 		if err != nil {
-			return nil, 0, problems, err
+			return nil, problems, err
 		}
 		switch state {
 		case gmpDone:
 			running = false
-			rows, total, err := g.report(ctx, report, ip.String())
-			return rows, total, problems, err
+			rows, _, err := g.report(ctx, report, ip.String())
+			return rows, problems, err
 		case "Stopped", "Interrupted":
 			running = false
-			return nil, 0, problems, &Unavailable{Reason: "OpenVAS ended the scan as " + strings.ToLower(state) + "."}
+			return nil, problems, &Unavailable{Reason: "OpenVAS ended the scan as " + strings.ToLower(state) + "."}
 		}
 		select {
 		case <-ctx.Done():
-			return nil, 0, problems, ctx.Err()
+			return nil, problems, ctx.Err()
 		case <-time.After(poll):
 		}
 	}

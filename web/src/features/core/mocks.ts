@@ -952,6 +952,8 @@ function privacyView() {
     { id: 14, state: isOn('agent-intake') && peek<unknown>('intake_wazuh') ? 'on' : 'off', control: 'reason' },
     // D-558: Shodan InternetDB is asked only on an administrator's click in External exposure
     { id: 15, state: isOn('exposure') ? 'conditional' : 'off', control: 'reason' },
+    // D-563: on only while Greenbone is enabled in External exposure (the exposure mock keeps the switch)
+    { id: 16, state: peek<{ enabled?: boolean }>('exp_greenbone')?.enabled ? 'on' : 'off', control: 'reason' },
   ]
   return { flows, telemetry: { enabled: p.telemetry, last_sent: p.last_sent, payload: telemetryPayload() }, update_check: p.update_check }
 }

@@ -185,9 +185,9 @@ export const UpdateCheck = UpdatesState.extend({ applied: z.number().describe('I
 export const BundleUpload = z.object({ name: z.string(), size: z.number(), sha256: z.string(), content: z.string().describe('Bundle file content, base64 (UTF-8)') })
 
 // ---- quyền riêng tư ----
-export const PrivacyFlow = z.object({ id: z.number().int().min(1).max(15), state: z.enum(['on', 'off', 'conditional']), control: z.enum(['switch', 'reason']), configured: z.boolean().optional() })
+export const PrivacyFlow = z.object({ id: z.number().int().min(1).max(16), state: z.enum(['on', 'off', 'conditional']), control: z.enum(['switch', 'reason']), configured: z.boolean().optional() })
 export const PrivacyState = z.object({
-  flows: z.array(PrivacyFlow).describe('Exactly the 15 flows listed in PRIVACY.md'),
+  flows: z.array(PrivacyFlow).describe('Exactly the 16 flows listed in PRIVACY.md'),
   telemetry: z.object({ enabled: z.boolean(), last_sent: ts.nullable(), payload: z.record(z.string(), z.unknown()).describe('Anonymous-signal payload verbatim, exactly what will be sent next hour') }),
   update_check: z.boolean(),
 })

@@ -17251,6 +17251,133 @@ func (s *Server) handleExposureDeleteExposureTargetsIDRequest(args [1]string, ar
 	}
 }
 
+// handleExposureGetExposureGreenboneRequest handles exposure_get_exposure_greenbone operation.
+//
+// The optional deep scan with Greenbone (OpenVAS, D-563): its state and this box's memory and free
+// disk against the thresholds. Reading may ask Greenbone whether it is ready; it never starts a scan.
+//
+// GET /exposure/greenbone
+func (s *Server) handleExposureGetExposureGreenboneRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: ExposureGetExposureGreenboneOperation,
+			ID:   "exposure_get_exposure_greenbone",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securitySession(ctx, ExposureGetExposureGreenboneOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Session",
+					Err:              err,
+				}
+				if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
+					defer recordError("Security:Session", err)
+				}
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
+				defer recordError("Security", err)
+			}
+			return
+		}
+	}
+
+	var rawBody []byte
+
+	var response *ExposureGetExposureGreenboneOK
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    ExposureGetExposureGreenboneOperation,
+			OperationSummary: "The optional deep scan with Greenbone (OpenVAS, D-563): its state and this box's memory and free disk against the thresholds. Reading may ask Greenbone whether it is ready; it never starts a scan",
+			OperationID:      "exposure_get_exposure_greenbone",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params:           middleware.Parameters{},
+			Raw:              r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = struct{}
+			Response = *ExposureGetExposureGreenboneOK
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			nil,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.ExposureGetExposureGreenbone(ctx)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.ExposureGetExposureGreenbone(ctx)
+	}
+	if err != nil {
+		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
+			if err := encodeErrorResponse(errRes, w); err != nil {
+				defer recordError("Internal", err)
+			}
+			return
+		}
+		if errors.Is(err, ht.ErrNotImplemented) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+		if err := encodeErrorResponse(s.h.NewError(ctx, err), w); err != nil {
+			defer recordError("Internal", err)
+		}
+		return
+	}
+
+	if err := encodeExposureGetExposureGreenboneResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleExposureGetExposureScanRequest handles exposure_get_exposure_scan operation.
 //
 // The scan that runs now, or the last one (status done, failed or stopped, with its error or
@@ -19225,6 +19352,151 @@ func (s *Server) handleExposurePutExposureBoxIPSettingsRequest(args [0]string, a
 	}
 
 	if err := encodeExposurePutExposureBoxIPSettingsResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleExposurePutExposureGreenboneRequest handles exposure_put_exposure_greenbone operation.
+//
+// Turn the optional deep scan with Greenbone on or off (off by default). On: refused with 409
+// low_memory or low_disk and the measured numbers below 8 GB of memory or 60 GB free; else Greenbone
+// starts in the background (starting, then loading while it loads its feed, about 2 hours the first
+// time). Off: no scan uses it, its containers stop and its data is kept (502 host_error when they
+// could not be stopped). 501 not_implemented when Greenbone is not available on this box. Audited.
+//
+// PUT /exposure/greenbone
+func (s *Server) handleExposurePutExposureGreenboneRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: ExposurePutExposureGreenboneOperation,
+			ID:   "exposure_put_exposure_greenbone",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securitySession(ctx, ExposurePutExposureGreenboneOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Session",
+					Err:              err,
+				}
+				if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
+					defer recordError("Security:Session", err)
+				}
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
+				defer recordError("Security", err)
+			}
+			return
+		}
+	}
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeExposurePutExposureGreenboneRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response *ExposurePutExposureGreenboneOK
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    ExposurePutExposureGreenboneOperation,
+			OperationSummary: "Turn the optional deep scan with Greenbone on or off (off by default). On: refused with 409 low_memory or low_disk and the measured numbers below 8 GB of memory or 60 GB free; else Greenbone starts in the background (starting, then loading while it loads its feed, about 2 hours the first time). Off: no scan uses it, its containers stop and its data is kept (502 host_error when they could not be stopped). 501 not_implemented when Greenbone is not available on this box. Audited",
+			OperationID:      "exposure_put_exposure_greenbone",
+			Body:             request,
+			RawBody:          rawBody,
+			Params:           middleware.Parameters{},
+			Raw:              r,
+		}
+
+		type (
+			Request  = *ExposurePutExposureGreenboneReq
+			Params   = struct{}
+			Response = *ExposurePutExposureGreenboneOK
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			nil,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.ExposurePutExposureGreenbone(ctx, request)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.ExposurePutExposureGreenbone(ctx, request)
+	}
+	if err != nil {
+		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
+			if err := encodeErrorResponse(errRes, w); err != nil {
+				defer recordError("Internal", err)
+			}
+			return
+		}
+		if errors.Is(err, ht.ErrNotImplemented) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+		if err := encodeErrorResponse(s.h.NewError(ctx, err), w); err != nil {
+			defer recordError("Internal", err)
+		}
+		return
+	}
+
+	if err := encodeExposurePutExposureGreenboneResponse(response, w); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)

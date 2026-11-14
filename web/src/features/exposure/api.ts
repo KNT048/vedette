@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
-import type { BoxIpDetectResult, BoxIpSettings, Diff, OutsideView, ScanRun, Snapshot, SnapshotMeta, Target, TargetList, VerifyResult } from './types'
+import type { BoxIpDetectResult, BoxIpSettings, Diff, Greenbone, OutsideView, ScanRun, Snapshot, SnapshotMeta, Target, TargetList, VerifyResult } from './types'
 
 export const useTargets = () => useQuery({ queryKey: ['exposure', 'targets'], queryFn: () => api.get<TargetList>('/exposure/targets') })
 export const useTarget = (id: string) => useQuery({ queryKey: ['exposure', 'target', id], queryFn: () => api.get<Target>(`/exposure/targets/${encodeURIComponent(id)}`), retry: false })
@@ -84,4 +84,14 @@ export function useCheckOutside() {
     // a refusal may have found the IP paused (INV-13), which the page must then show
     onError: () => qc.invalidateQueries({ queryKey: ['exposure', 'target'] }),
   })
+}
+
+/** D-563: the optional deep scan with Greenbone. Asks again every 30 s while it starts or loads its feed (about 2 hours the first time). */
+export const useGreenbone = () => useQuery({
+  queryKey: ['exposure', 'greenbone'], queryFn: () => api.get<Greenbone>('/exposure/greenbone'),
+  refetchInterval: (q) => (q.state.data?.state === 'starting' || q.state.data?.state === 'loading' ? 30_000 : false) })
+/** Turn Greenbone on (refused with the measured numbers below 8 GB of memory or 60 GB free) or off (admin). */
+export function useSetGreenbone() {
+  const inv = useInvalidate()
+  return useMutation({ mutationFn: (enabled: boolean) => api.put<Greenbone>('/exposure/greenbone', { enabled }), onSuccess: inv, onError: inv })
 }

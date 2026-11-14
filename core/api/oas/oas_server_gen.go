@@ -864,6 +864,13 @@ type Handler interface {
 	//
 	// DELETE /exposure/targets/{id}
 	ExposureDeleteExposureTargetsID(ctx context.Context, params ExposureDeleteExposureTargetsIDParams) error
+	// ExposureGetExposureGreenbone implements exposure_get_exposure_greenbone operation.
+	//
+	// The optional deep scan with Greenbone (OpenVAS, D-563): its state and this box's memory and free
+	// disk against the thresholds. Reading may ask Greenbone whether it is ready; it never starts a scan.
+	//
+	// GET /exposure/greenbone
+	ExposureGetExposureGreenbone(ctx context.Context) (*ExposureGetExposureGreenboneOK, error)
 	// ExposureGetExposureScan implements exposure_get_exposure_scan operation.
 	//
 	// The scan that runs now, or the last one (status done, failed or stopped, with its error or
@@ -989,6 +996,16 @@ type Handler interface {
 	//
 	// PUT /exposure/box-ip/settings
 	ExposurePutExposureBoxIPSettings(ctx context.Context, req *ExposurePutExposureBoxIPSettingsReq) (*ExposurePutExposureBoxIPSettingsOK, error)
+	// ExposurePutExposureGreenbone implements exposure_put_exposure_greenbone operation.
+	//
+	// Turn the optional deep scan with Greenbone on or off (off by default). On: refused with 409
+	// low_memory or low_disk and the measured numbers below 8 GB of memory or 60 GB free; else Greenbone
+	// starts in the background (starting, then loading while it loads its feed, about 2 hours the first
+	// time). Off: no scan uses it, its containers stop and its data is kept (502 host_error when they
+	// could not be stopped). 501 not_implemented when Greenbone is not available on this box. Audited.
+	//
+	// PUT /exposure/greenbone
+	ExposurePutExposureGreenbone(ctx context.Context, req *ExposurePutExposureGreenboneReq) (*ExposurePutExposureGreenboneOK, error)
 	// FeedsDeleteFeedsCustomID implements feeds_delete_feeds_custom_id operation.
 	//
 	// Delete your own feed; records already fetched are removed.

@@ -244,6 +244,7 @@ RunInit=true
 ReadOnly=true
 Tmpfs=/tmp
 Volume=vedette-creds-active.volume:/var/lib/vedette-creds:ro
+Volume=` + fenceScanDir + `:` + fenceScanDir + `:ro
 LogDriver=journald
 PodmanArgs=--memory=1g --memory-swap=1g --cpus=2 --pids-limit=512 --cpu-shares=128
 HealthCmd=["/vedette-sensor","healthcheck"]

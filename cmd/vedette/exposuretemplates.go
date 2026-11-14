@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/knt048/vedette/content/nucleipack"
+	"github.com/knt048/vedette/core/sensorlink"
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/modules/exposure"
 	"github.com/knt048/vedette/modules/scan"
@@ -78,6 +79,7 @@ type templateRun struct {
 	tmpls      []pack.Template
 	full       bool
 	disruptive bool
+	domain     *exposure.DomainScope // D-591: a full run on an address of a verified domain's name (domain_ip); nil otherwise
 }
 
 func (a exposureTemplateScan) ScanTemplates(ctx context.Context, t exposure.ScanTarget, ip netip.Addr, jobs []exposure.TemplateJob) (exposure.TemplateScan, error) {
@@ -90,6 +92,9 @@ func (a exposureTemplateScan) ScanTemplates(ctx context.Context, t exposure.Scan
 	ix, err := a.pack()
 	if err != nil {
 		return exposure.TemplateScan{}, err
+	}
+	if t.Domain != nil && !t.Mode.Full { // D-591: an address that is not the box's gets the deep templates only, as a domain_ip job
+		return exposure.TemplateScan{}, errNotFull
 	}
 	if t.Mode.Full { // FULL-4 (D-527): the deep scan of a target whose testing terms were accepted
 		return a.scanFull(ctx, t, ip, ix, jobs)
@@ -188,7 +193,10 @@ func (a exposureTemplateScan) runOne(ctx context.Context, actor string, ip netip
 
 // send is runOne with the parsed lines of the run too (a full run reads the matcher names of the technologies templates, D-527).
 func (a exposureTemplateScan) send(ctx context.Context, actor string, ip netip.Addr, ix *pack.Index, r templateRun) ([]exposure.TemplateResult, nucleiout.Outcome, error) {
-	ok, err := a.gate(ctx, actor, ip)
+	ok, err := true, error(nil)
+	if r.domain == nil { // D-591: a domain_ip run is not the box's own IP; exposure's deepGate checked it, and the worker's fence does
+		ok, err = a.gate(ctx, actor, ip)
+	}
 	switch {
 	case ctx.Err() != nil:
 		return nil, nucleiout.Outcome{}, ctx.Err()
@@ -196,13 +204,23 @@ func (a exposureTemplateScan) send(ctx context.Context, actor string, ip netip.A
 		return nil, nucleiout.Outcome{}, fmt.Errorf("vedette: checking that %s may still be scanned: %w", ip, err)
 	case !ok:
 		return nil, nucleiout.Outcome{}, &exposure.Unavailable{Reason: fmt.Sprintf(templatesNotOwn, ip)}
+	case r.domain != nil && !r.full:
+		return nil, nucleiout.Outcome{}, errNotFull
 	}
 	rate, depth, what := nucleiargv.OwnIPRate, "", "own IP"
 	if r.full { // FULL-4 (D-527)
 		rate, depth, what = nucleiargv.FullRate, nucleiargv.DepthFull, "own IP, deep scan, testing terms accepted"
+		if r.domain != nil {
+			what = "domain_ip " + r.domain.Domain + ", name " + r.domain.Name + " (CNAME chain " + chainText(r.domain) + "), deep scan, testing terms accepted"
+		}
 		if r.disruptive {
 			what += ", disruptive checks"
 		}
+	}
+	scope, dom := nucleiargv.ScopeOwnIP, (*sensorlink.DomainScope)(nil)
+	if r.domain != nil {
+		sc := scopeOf(r.domain)
+		scope, dom = sensorlink.ScopeDomainIP, &sc
 	}
 	rows := make([]scan.ExternalProbe, len(r.tmpls))
 	ids := make([]string, len(r.tmpls))
@@ -219,8 +237,11 @@ func (a exposureTemplateScan) send(ctx context.Context, actor string, ip netip.A
 		return nil, nucleiout.Outcome{}, &exposure.Unavailable{Reason: templatesNoLog}
 	}
 	got, err := a.run(ctx, sensoractive.NucleiRequest{PackVersion: ix.Version, PackSHA256: ix.SHA256, Templates: ids,
-		Targets: []nucleiargv.Target{r.target}, Rate: rate, MaxHostErrors: templatesHostErrors, Scope: nucleiargv.ScopeOwnIP,
-		Depth: depth, Disruptive: r.full && r.disruptive})
+		Targets: []nucleiargv.Target{r.target}, Rate: rate, MaxHostErrors: templatesHostErrors, Scope: scope,
+		Depth: depth, Disruptive: r.full && r.disruptive, Domain: dom})
+	if un, ok := domainErr(err, r.domain, ip.String()); ok && ctx.Err() == nil {
+		return nil, nucleiout.Outcome{}, un
+	}
 	if err != nil {
 		return nil, nucleiout.Outcome{}, templatesErr(ctx, ip, err)
 	}

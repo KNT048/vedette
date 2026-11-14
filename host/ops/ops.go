@@ -34,6 +34,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/knt048/vedette/core/domainfence"
 	vexec "github.com/knt048/vedette/core/exec"
 	"github.com/knt048/vedette/host/server"
 	"github.com/knt048/vedette/internal/release"
@@ -136,6 +137,10 @@ type Deps struct {
 	// ZapLookupIP is the A-record lookup of a domain page's name (default: the system resolver), to check it points at the page's IP.
 	ZapLookupIP func(ctx context.Context, name string) ([]netip.Addr, error)
 	ZapUID      int
+	// FenceKey replaces the fence key the host makes in <state>/fence.key (tests); with it no scan container copy is written.
+	// FenceCNAME is the CNAME lookup of the domain fence (default: the system resolver). D-591.
+	FenceKey   []byte
+	FenceCNAME func(ctx context.Context, name string) (string, error)
 	// GreenboneUID owns gvmd's socket directory (default 1001, the user gvmd of Greenbone's image, D-529); tests give their own uid.
 	GreenboneUID int
 }
@@ -235,6 +240,8 @@ type Ops struct {
 	// up call it.
 	gbResyncStop context.CancelFunc
 	gbExec       zapExecFn
+	// fence is the domain fence over the box's fence key (fence.go, D-591); nil when the key is not usable.
+	fence *domainfence.Fence
 	// gbOnQueue, internal tests only, is called by an up or feed update once it has its generation, before it waits for the slot.
 	gbOnQueue func()
 }
@@ -359,6 +366,7 @@ func NewWithDeps(cfg Config, d Deps) (*Ops, error) {
 		o.hpDirErr = err
 		cfg.Logger.Error("the hp state directory is not usable; decoys are off", "error", err.Error())
 	}
+	o.initFence() // D-591: before any unit is written or started, so the scan unit's mount of the key's copy finds it
 	return o, nil
 }
 
@@ -370,7 +378,7 @@ func (o *Ops) Commands() []server.Command {
 		o.cmdNetApply(), o.cmdNetConfirm(), o.cmdNetRevert(),
 		o.cmdDecoyAdd(), o.cmdDecoyRemove(), o.cmdDecoySetPorts(),
 		o.cmdContainerStart(), o.cmdContainerStop(), o.cmdContainerPull(), o.cmdContainerRollback(),
-		o.cmdHostSelfUpdate(), o.cmdZapBaseline(),
+		o.cmdHostSelfUpdate(), o.cmdZapBaseline(), o.cmdExposureToken(), o.cmdExposureFenceCheck(),
 		o.cmdGreenboneUp(), o.cmdGreenboneDown(), o.cmdGreenboneSyncFeed(),
 	}
 }

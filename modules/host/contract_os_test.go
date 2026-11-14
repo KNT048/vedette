@@ -268,7 +268,7 @@ func assertEnvClean(t *testing.T, envs [][]string) {
 // and zap.baseline (D-521).
 var documentedCommandsPart1 = []string{
 	"backup.create", "backup.purge", "backup.restore", "container.pull", "container.rollback", "container.start", "container.stop", "decoy_ip.add", "decoy_ip.remove", "decoy_ip.set_ports",
-	"greenbone.down", "greenbone.sync_feed", "greenbone.up", "host.self_update", "logs.export", "net.apply", "net.confirm", "net.revert",
+	"exposure.fence_check", "exposure.token", "greenbone.down", "greenbone.sync_feed", "greenbone.up", "host.self_update", "logs.export", "net.apply", "net.confirm", "net.revert",
 	"os.auto_security.set", "os.check", "os.install", "os.reboot", "os.reboot.cancel", "zap.baseline",
 }
 

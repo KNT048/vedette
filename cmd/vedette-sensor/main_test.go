@@ -207,7 +207,8 @@ func TestBinaryDependencies(t *testing.T) {
 	allowed := []string{
 		"cmd/vedette-sensor",
 		"content/oui",
-		"core/egressip", // the worker's own-IP fence of the external shape and its public-address rule (D-514); standard library only, its own leaf test
+		"core/domainfence", // the worker's domain fence of domain_ip jobs (D-591); standard library and core/localnet only, its own leaf test
+		"core/egressip",    // the worker's own-IP fence of the external shape and its public-address rule (D-514); standard library only, its own leaf test
 		"core/exec",
 		"core/localnet", // the local networks of nmapargv and nucleiargv (D-461); net/netip and slices only, its own leaf test
 		"core/observe",

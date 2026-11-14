@@ -52,8 +52,12 @@ func TestScanUnitExecParsesWithTheRealFlagsAndAgreesWithItsMount(t *testing.T) {
 	if !strings.HasPrefix(*f.core, "https://127.0.0.1:8444") {
 		t.Errorf("-core %q: core's sensor listener is published on 127.0.0.1:8444 only", *f.core)
 	}
-	if len(volumes) != 1 || !strings.HasSuffix(volumes[0], ":ro") || !strings.HasPrefix(*f.creds, strings.Split(volumes[0], ":")[1]+"/") {
+	// two read-only mounts: the keys volume, and the domain fence key's copy (D-591) where -fence-key's default looks for it
+	if len(volumes) != 2 || !strings.HasSuffix(volumes[0], ":ro") || !strings.HasPrefix(*f.creds, strings.Split(volumes[0], ":")[1]+"/") {
 		t.Errorf("-creds %q is not under the read-only keys volume %v", *f.creds, volumes)
+	}
+	if len(volumes) == 2 && (!strings.HasSuffix(volumes[1], ":ro") || !strings.HasPrefix(*f.fenceKey, strings.Split(volumes[1], ":")[1]+"/")) {
+		t.Errorf("-fence-key %q is not under the read-only fence volume %v", *f.fenceKey, volumes)
 	}
 	if *f.nmap != "/usr/bin/nmap" {
 		t.Errorf("-nmap %q: the unit leaves the OS package's path alone", *f.nmap)

@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	deepToken = "0123456789abcdef0123456789abcdef"
+	deepToken = "0123456789abcdef"
 	ipPriv    = "10.0.0.5"
 	ipV6      = "2606:4700::1"
 )
@@ -318,7 +318,7 @@ func TestContract_INV28_Deep_WithFenceEveryAddressOnce(t *testing.T) {
 		t.Fatalf("dialed %v", d.seams.bad)
 	}
 	st, _ := d.seams.call(ipB)
-	if !st.Mode.Full || !st.Mode.Disruptive || st.Domain == nil || *st.Domain != (DomainScope{Domain: "acme.example", Name: "api.acme.example", Token: deepToken}) {
+	if !st.Mode.Full || !st.Mode.Disruptive || st.Domain == nil || *st.Domain != (DomainScope{Domain: "acme.example", Name: "api.acme.example", Token: deepToken, Chain: "api.acme.example"}) {
 		t.Fatalf("ipB step = %+v %+v", st, st.Domain)
 	}
 	if st, _ := d.seams.call(ipA); st.Domain != nil {

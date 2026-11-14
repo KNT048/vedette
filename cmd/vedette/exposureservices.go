@@ -27,10 +27,13 @@ import (
 // stop by the caller's context (exposure's bound included) stays a context error, so exposure says "did not finish within …" or
 // drops the run.
 type exposureServiceScan struct {
-	on      func() bool // sensor-active is switched on
-	scan    func(ctx context.Context, ip netip.Addr, kind nmapargv.Kind, own sensoractive.OwnEgress) (sensoractive.External, error)
-	gate    func(ctx context.Context, actor string, ip netip.Addr) (bool, error)
-	modeNow func(ctx context.Context, actor, id string) (exposure.ScanMode, error)
+	on   func() bool // sensor-active is switched on
+	scan func(ctx context.Context, ip netip.Addr, kind nmapargv.Kind, own sensoractive.OwnEgress) (sensoractive.External, error)
+	// scanDomain is sensor-active's ScanDomainIP (D-591): the deep scan of an address a verified domain's name resolves to, as a
+	// domain_ip job the worker's own fence checks. nil: such a step is refused (nothing sent).
+	scanDomain func(ctx context.Context, ip netip.Addr, kind nmapargv.Kind, d sensoractive.DomainIP, gate sensoractive.DeepGate) (sensoractive.External, error)
+	gate       func(ctx context.Context, actor string, ip netip.Addr) (bool, error)
+	modeNow    func(ctx context.Context, actor, id string) (exposure.ScanMode, error)
 }
 
 // The reasons exposure shows after "Service identification (nmap -sV) did not run: ".
@@ -97,11 +100,24 @@ func (a exposureServiceScan) ScanServices(ctx context.Context, t exposure.ScanTa
 	}
 	ctx, cancel := context.WithTimeout(ctx, bound) // exposure bounds the step too; this keeps the adapter honest alone
 	defer cancel()
-	got, err := a.scan(ctx, ip, kind, ownGate{actor: t.User, id: t.ID, gate: a.gate, modeNow: a.modeNow})
+	var got sensoractive.External
+	var err error
+	g := ownGate{actor: t.User, id: t.ID, gate: a.gate, modeNow: a.modeNow}
+	if t.Domain != nil { // D-591: an address that is not the box's, reached through a name of the verified domain
+		if !kind.IsFull() || a.scanDomain == nil {
+			return exposure.ServiceScan{}, &exposure.Unavailable{Reason: fmt.Sprintf(servicesNotDeep, ip)}
+		}
+		got, err = a.scanDomain(ctx, ip, kind, sensoractive.DomainIP{Scope: scopeOf(t.Domain), Chain: chainText(t.Domain)}, g)
+	} else {
+		got, err = a.scan(ctx, ip, kind, g)
+	}
+	un, isDomain := domainErr(err, t.Domain, ip.String())
 	switch {
 	case err == nil:
 	case ctx.Err() != nil: // exposure's bound or the run's stop: exposure tells them apart
 		return exposure.ServiceScan{}, ctx.Err()
+	case isDomain: // D-591: the worker's domain fence refused or stopped it, or the worker has no fence key
+		return exposure.ServiceScan{}, un
 	case errors.Is(err, sensoractive.ErrStopped):
 		return exposure.ServiceScan{}, &exposure.Unavailable{Reason: servicesStopped}
 	case errors.Is(err, sensoractive.ErrNoTime):
@@ -155,6 +171,13 @@ func exposureServicesFor(d deps, gate func(ctx context.Context, actor string, ip
 				return sensoractive.External{}, err
 			}
 			return svc.ScanExternal(ctx, ip, kind, own)
+		},
+		scanDomain: func(ctx context.Context, ip netip.Addr, kind nmapargv.Kind, dom sensoractive.DomainIP, gate sensoractive.DeepGate) (sensoractive.External, error) {
+			svc, err := sensorActiveService(ctx, d)
+			if err != nil {
+				return sensoractive.External{}, err
+			}
+			return svc.ScanDomainIP(ctx, ip, kind, dom, gate)
 		},
 		gate:    gate,
 		modeNow: modeNow,

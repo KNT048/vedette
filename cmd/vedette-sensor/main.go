@@ -10,6 +10,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"io/fs"
 	"log/slog"
 	"net"
 	"net/http"
@@ -19,6 +20,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/knt048/vedette/core/domainfence"
 	"github.com/knt048/vedette/core/egressip"
 	"github.com/knt048/vedette/core/sensorlink"
 	"github.com/knt048/vedette/modules/sensor-active/worker"
@@ -59,7 +61,7 @@ func run(ctx context.Context, args []string, stdout io.Writer, logger *slog.Logg
 }
 
 // activeFlags are the options of `vedette-sensor active`.
-type activeFlags struct{ core, creds, nmap, nuclei, nucleiIndex, nucleiHome *string }
+type activeFlags struct{ core, creds, nmap, nuclei, nucleiIndex, nucleiHome, fenceKey *string }
 
 // newActiveFlags builds the flag set of `active`. The test that checks the Exec= line of the scan Quadlet unit
 // (host/ops owns the unit text, D-123) parses it with this same constructor, so a flag renamed here without the
@@ -76,6 +78,9 @@ func newActiveFlags(stdout io.Writer) (*flag.FlagSet, activeFlags) {
 		nuclei:      fs.String("nuclei", "/usr/local/bin/nuclei", "the pinned nuclei of the scan image"),
 		nucleiIndex: fs.String("nuclei-index", "/usr/local/share/vedette/nuclei-pack/index.json", "the index of the template pack baked into the scan image"),
 		nucleiHome:  fs.String("nuclei-home", "/tmp/vedette-nuclei", "a directory on a tmpfs that becomes nuclei's HOME"),
+		// D-591: the box's fence key, which vedette-host mounts read-only into the scan container only (never into core). Missing: this
+		// worker runs no domain_ip job and its heartbeat does not say domain_ip (a remote sensor, a container-only install).
+		fenceKey: fs.String("fence-key", fenceKeyPath, "the domain fence key vedette-host mounts read-only (optional)"),
 	}
 }
 
@@ -111,7 +116,7 @@ func runActive(ctx context.Context, args []string, stdout io.Writer, logger *slo
 	}
 	w, err := worker.New(worker.Config{
 		Link: withBeat(client, heartbeatPath, logger), NmapPath: *nmap, Version: version, Log: logger,
-		NucleiPath: *f.nuclei, NucleiIndex: *f.nucleiIndex, NucleiHome: *f.nucleiHome, Egress: egress,
+		NucleiPath: *f.nuclei, NucleiIndex: *f.nucleiIndex, NucleiHome: *f.nucleiHome, Egress: egress, Fence: loadFence(*f.fenceKey, logger),
 	})
 	if err != nil {
 		return err
@@ -127,4 +132,25 @@ func egressTransport() *http.Transport {
 	d := &net.Dialer{Timeout: 5 * time.Second}
 	t.DialContext = func(ctx context.Context, _, addr string) (net.Conn, error) { return d.DialContext(ctx, "tcp4", addr) }
 	return t
+}
+
+// fenceKeyPath is where vedette-host's scan unit mounts the fence key (host/ops scanUnitText, D-591).
+const fenceKeyPath = "/var/lib/vedette-fence/fence.key"
+
+// loadFence is the worker's domain fence over the key at path and the system resolver, or nil (no domain_ip jobs) when there is no
+// key or it is not one: a missing file is normal off the appliance, anything else is logged.
+func loadFence(path string, logger *slog.Logger) *domainfence.Fence {
+	key, err := domainfence.LoadKey(path)
+	if err != nil {
+		if !errors.Is(err, fs.ErrNotExist) {
+			logger.Error("the domain fence key cannot be read: this worker runs no domain_ip job", "error", err.Error())
+		}
+		return nil
+	}
+	f, err := domainfence.New(key, net.DefaultResolver, nil)
+	if err != nil {
+		logger.Error("the domain fence cannot start: this worker runs no domain_ip job", "error", err.Error())
+		return nil
+	}
+	return f
 }

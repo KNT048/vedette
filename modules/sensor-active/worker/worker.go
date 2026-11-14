@@ -26,6 +26,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/knt048/vedette/core/domainfence"
 	"github.com/knt048/vedette/core/exec"
 	"github.com/knt048/vedette/core/sensorlink"
 	"github.com/knt048/vedette/modules/sensor-active/nmapargv"
@@ -93,6 +94,10 @@ type Config struct {
 	// EgressTicks, when set, drives the re-check of a running full job instead of a ticker of EgressRecheck (tests send one tick
 	// at a time).
 	EgressTicks <-chan time.Time
+	// Fence is the domain fence of domain_ip jobs (D-591, core/domainfence): the box's fence key, mounted read-only into the scan
+	// container by vedette-host, and the system resolver. nil: the heartbeat does not say domain_ip and every domain_ip job is
+	// refused (invalid_job). The re-check of a running domain_ip full job is driven by EgressTicks too.
+	Fence *domainfence.Fence
 
 	Now       func() time.Time // the clock of the lease
 	Sleep     func(ctx context.Context, d time.Duration) error
@@ -122,6 +127,7 @@ type Worker struct {
 	egressMu    sync.Mutex       // one fence check at a time; guards the two fields below
 	egressIP    netip.Addr       // the address the latest yes was for
 	egressAt    time.Time        // when
+	fence       *domainfence.Fence
 
 	mu     sync.Mutex
 	lastOK time.Time            // the latest successful poll
@@ -151,7 +157,7 @@ func New(c Config) (*Worker, error) {
 	if c.Link == nil {
 		return nil, errors.New("worker: a Link is required")
 	}
-	w := &Worker{link: c.Link, nmapPath: c.NmapPath, snmpDial: c.SNMPDial, snmpWait: cmp.Or(c.SNMPTimeout, SNMPTimeout), version: c.Version, log: c.Log, now: c.Now, sleep: c.Sleep, wait: c.Wait, heartbeat: c.Heartbeat, tick: c.Tick, egress: c.Egress, egressTicks: c.EgressTicks}
+	w := &Worker{link: c.Link, nmapPath: c.NmapPath, snmpDial: c.SNMPDial, snmpWait: cmp.Or(c.SNMPTimeout, SNMPTimeout), version: c.Version, log: c.Log, now: c.Now, sleep: c.Sleep, wait: c.Wait, heartbeat: c.Heartbeat, tick: c.Tick, egress: c.Egress, egressTicks: c.EgressTicks, fence: c.Fence}
 	if w.log == nil {
 		w.log = slog.New(slog.DiscardHandler)
 	}
@@ -427,7 +433,11 @@ func (w *Worker) execute(ctx, jctx context.Context, cur *activeJob) *sensorlink.
 			return &sensorlink.JobResult{Status: "refused", Reason: "invalid_job", ExitCode: -1}
 		}
 	}
-	if kind.IsExternal() { // argvOf proved it has one public target (external, external_full, external_disruptive)
+	if cur.job.Scope == sensorlink.ScopeDomainIP { // argvOf proved it is a full shape with one public target: the domain fence (D-591)
+		if res := w.domainFence(ctx, rctx, jctx, cur, w.domainJob(cur.job), "nmap"); res != nil {
+			return res
+		}
+	} else if kind.IsExternal() { // argvOf proved it has one public target (external, external_full, external_disruptive)
 		if ok, reason := w.ownIP(rctx, netip.MustParseAddr(cur.job.Targets[0])); !ok {
 			if context.Cause(jctx) != nil {
 				return stopped()
@@ -452,7 +462,12 @@ func (w *Worker) execute(ctx, jctx context.Context, cur *activeJob) *sensorlink.
 	nctx, kill := context.WithCancel(rctx)
 	defer kill()
 	lost := make(chan string, 1)
-	go func() { lost <- w.watchEgress(nctx, netip.MustParseAddr(cur.job.Targets[0]), ticks, kill) }()
+	if cur.job.Scope == sensorlink.ScopeDomainIP { // D-591, review r1 L2: TXT and name -> address again every Recheck while nmap runs
+		dj := w.domainJob(cur.job)
+		go func() { lost <- w.watchDomain(nctx, dj, ticks, kill) }()
+	} else {
+		go func() { lost <- w.watchEgress(nctx, netip.MustParseAddr(cur.job.Targets[0]), ticks, kill) }()
+	}
 	out, err := w.runner.Run(nctx, "nmap", argv, nil)
 	kill()
 	if reason := <-lost; reason != "" && context.Cause(jctx) == nil {
@@ -550,6 +565,12 @@ func argvOf(j sensorlink.Job) ([]string, error) {
 	if kind.IsGentle() && j.Rate != 1 {
 		return nil, fmt.Errorf("a gentle job carries rate 1, got %d", j.Rate)
 	}
+	switch { // D-591: a domain_ip job is a full shape with its fence fields; no other job carries any
+	case j.Scope == "" && j.Domain == nil:
+	case j.Scope == sensorlink.ScopeDomainIP && j.Domain != nil && kind.IsFull():
+	default:
+		return nil, fmt.Errorf("scope %.20q is not a scope of shape %s", j.Scope, kind.Name())
+	}
 	targets, err := parseTargets(j.Targets)
 	if err != nil {
 		return nil, err
@@ -581,7 +602,7 @@ func (w *Worker) beat(ctx context.Context) {
 	// their grammar is nmapargv's, and the own-IP fence covers them like the external shape; they are advertised only with the
 	// nmap version their script lists were reviewed against (review r2 LOW-3).
 	full := present && ver == nmapargv.ReviewedNmapVersion
-	hb := &sensorlink.ActiveHeartbeat{Version: w.version, Nmap: sensorlink.HeartbeatNmap{Present: present, Version: ver, Full: full}, Nuclei: w.nucleiStatus(ctx), SNMP: true}
+	hb := &sensorlink.ActiveHeartbeat{Version: w.version, Nmap: sensorlink.HeartbeatNmap{Present: present, Version: ver, Full: full}, Nuclei: w.nucleiStatus(ctx), SNMP: true, DomainIP: w.fence != nil}
 	inst, err := w.link.ActiveHeartbeat(ctx, hb)
 	if err != nil {
 		if ctx.Err() == nil {

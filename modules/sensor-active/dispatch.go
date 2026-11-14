@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/knt048/vedette/core/domainfence"
 	"github.com/knt048/vedette/core/exec"
 	"github.com/knt048/vedette/core/sensorlink"
 	"github.com/knt048/vedette/modules/sensor-active/nmapargv"
@@ -81,6 +82,7 @@ type Dispatcher struct {
 	nmap     sensorlink.HeartbeatNmap
 	nuclei   sensorlink.HeartbeatNuclei
 	snmp     bool // the worker's heartbeat says it runs snmp jobs (protocol 5)
+	domainIP bool // the worker's heartbeat says it runs domain_ip jobs: it holds the fence key (D-591)
 
 	packInvalid    bool   // the worker found the image's pack damaged (pack_invalid): not trusted until the image holds another pack
 	packInvalidSHA string // the pack hash the heartbeat reported when it happened
@@ -272,6 +274,16 @@ func (d *Dispatcher) usable() error {
 // and no argv (D-111 (3)). It returns when the result is in, when the worker is gone, or when ctx ended and the worker
 // had 30 seconds to confirm the stop.
 func (d *Dispatcher) Probe(ctx context.Context, argv []string) (Output, error) {
+	return d.probe(ctx, argv, nil)
+}
+
+// ProbeDomain implements DomainProber: Probe of a full shape with one target as a domain_ip job (D-591), sent only to a worker whose
+// heartbeat says domain_ip (else ErrDomainUnsupported, nothing sent); the worker checks the domain fence itself before nmap.
+func (d *Dispatcher) ProbeDomain(ctx context.Context, argv []string, scope sensorlink.DomainScope) (Output, error) {
+	return d.probe(ctx, argv, &scope)
+}
+
+func (d *Dispatcher) probe(ctx context.Context, argv []string, scope *sensorlink.DomainScope) (Output, error) {
 	kind, rate, targets, err := nmapargv.Parse(argv)
 	if err != nil {
 		return Output{}, fmt.Errorf("sensoractive: %w", err)
@@ -287,10 +299,24 @@ func (d *Dispatcher) Probe(ctx context.Context, argv []string) (Output, error) {
 			return Output{}, ErrFullUnsupported
 		}
 	}
+	if scope != nil {
+		if !kind.IsFull() || len(targets) != 1 {
+			return Output{}, fmt.Errorf("sensoractive: a domain_ip job is a full shape on one address, not %s on %d", kind.Name(), len(targets))
+		}
+		d.mu.Lock()
+		ok := d.domainIP
+		d.mu.Unlock()
+		if !ok {
+			return Output{}, ErrDomainUnsupported
+		}
+	}
 	if err := ctx.Err(); err != nil {
 		return Output{}, err
 	}
 	j := &djob{spec: sensorlink.Job{ID: randomHex(), Kind: sensorlink.KindNmap, Shape: kind.Name(), Rate: rate, Targets: make([]string, len(targets))}}
+	if scope != nil {
+		j.spec.Scope, j.spec.Domain = sensorlink.ScopeDomainIP, scope
+	}
 	for i, t := range targets {
 		j.spec.Targets[i] = t.String()
 	}
@@ -412,6 +438,8 @@ func (d *Dispatcher) outcome(j *djob) (Output, error) {
 	case res.Status == "stopped" && res.Reason == "egress_unverified":
 		d.log.Warn("sensor_active_worker_stopped_external_job", "reason", res.Reason)
 		return Output{}, fmt.Errorf("%w (%s): %w", ErrStoppedMidRun, res.Reason, ErrEgressUnverified)
+	case j.spec.Domain != nil && domainReason(res):
+		return Output{}, d.domainRefused(res)
 	case res.Status == "refused":
 		d.log.Error("sensor_active_worker_refused_job", "reason", res.Reason) // core and worker disagree on the grammar, or the worker is not what it should be
 		return Output{}, fmt.Errorf("%w (%s)", ErrWorkerRefused, res.Reason)
@@ -543,6 +571,9 @@ func (d *Dispatcher) pollLocked(running []string) (rep sensorlink.JobsReply, rea
 		if n := s.pending.spec.Nuclei; n != nil && n.Depth != "" && !d.nuclei.Full {
 			continue // FULL-4 (D-527): the same for a job of depth full and nuclei.full
 		}
+		if (s.pending.spec.Domain != nil || s.pending.spec.Nuclei != nil && s.pending.spec.Nuclei.Domain != nil) && !d.domainIP {
+			continue // D-591: the latest heartbeat says this worker holds no fence key (or a downgrade since the job was asked): wait
+		}
 		if k, _ := nmapargv.KindOf(s.pending.spec.Shape); s == d.nmapSlot && k.IsFull() && !d.nmap.Full {
 			continue // the latest heartbeat says this worker runs no full shape (older than D-526, or a downgrade since Probe checked): wait
 		}
@@ -621,6 +652,46 @@ func (d *Dispatcher) JobResultRejected(id string, e *sensorlink.Error) {
 func (d *Dispatcher) ActiveHeartbeat(_ context.Context, hb *sensorlink.ActiveHeartbeat) (string, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	d.beatAt, d.haveBeat, d.nmap, d.nuclei, d.snmp = d.now(), true, hb.Nmap, hb.Nuclei, hb.SNMP
+	d.beatAt, d.haveBeat, d.nmap, d.nuclei, d.snmp, d.domainIP = d.now(), true, hb.Nmap, hb.Nuclei, hb.SNMP, hb.DomainIP
 	return d.instance, nil
+}
+
+// ---- the domain fence (D-591) ----
+
+var (
+	// ErrDomainUnsupported is returned when the worker's latest heartbeat does not say domain_ip (it holds no fence key: a remote sensor, a container-only
+	// install, or an older worker). A domain_ip job is never sent to it. Nothing was sent.
+	ErrDomainUnsupported = errors.New("sensoractive: the scan container's worker runs no domain_ip job (it has no fence key, or it is older)")
+	// ErrDomainRefused is the refusal of the worker's own domain fence (DomainRefusedError says why), also when it stopped a job while
+	// it ran (then the error is ErrStoppedMidRun too).
+	ErrDomainRefused = errors.New("sensoractive: the scan container's domain fence refused the job")
+)
+
+// DomainRefusedError is ErrDomainRefused with the fence's reason (core/domainfence.Reasons). MidRun: the re-check during a deep nmap
+// stopped it and its output was discarded.
+type DomainRefusedError struct {
+	Reason string
+	MidRun bool
+}
+
+func (e *DomainRefusedError) Error() string {
+	if e.MidRun {
+		return "sensoractive: the scan container's domain fence stopped the job while it ran (" + e.Reason + ")"
+	}
+	return "sensoractive: the scan container's domain fence refused the job (" + e.Reason + ")"
+}
+
+// Is makes it ErrDomainRefused, and ErrStoppedMidRun when it ended a running job.
+func (e *DomainRefusedError) Is(target error) bool {
+	return target == ErrDomainRefused || e.MidRun && target == ErrStoppedMidRun
+}
+
+// domainReason says whether res is a refusal or a stop by the worker's domain fence.
+func domainReason(res *sensorlink.JobResult) bool {
+	return (res.Status == "refused" || res.Status == "stopped") && slices.Contains(domainfence.Reasons, res.Reason) && res.Reason != domainfence.InvalidJob
+}
+
+func (d *Dispatcher) domainRefused(res *sensorlink.JobResult) error {
+	d.log.Warn("sensor_active_worker_refused_domain_job", "status", res.Status, "reason", res.Reason)
+	return &DomainRefusedError{Reason: res.Reason, MidRun: res.Status == "stopped"}
 }

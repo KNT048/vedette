@@ -79,7 +79,7 @@ const (
 	notDeepNoCNAME = "%s: the box could not confirm right before the scan that its name stays inside this domain (CNAME lookup), so the disruptive checks were not run there."
 )
 
-var fenceTokenRE = regexp.MustCompile(`^[0-9a-f]{32}$`)
+var fenceTokenRE = regexp.MustCompile(`^[0-9a-f]{16}$`)
 
 // deepAddr is one public IPv4 address of a domain's names: the names that led to it (sorted), whether the runner saw it as the box's
 // own (a hint for the order and the fence line only: deepGate decides), when it was last deep-scanned and last tried ("" never), and
@@ -203,7 +203,7 @@ func (s *Service) deepGate(ctx context.Context, st ScanTarget, ip netip.Addr, na
 		s.cfg.Log.ErrorContext(ctx, "exposure: the domain fence gave no token", "target", st.Value, "error", err)
 		return st, deepFenceDown, nil
 	}
-	out.Domain = &DomainScope{Domain: st.Value, Name: name, Token: tok}
+	out.Domain = &DomainScope{Domain: st.Value, Name: name, Token: tok, Chain: s.cnameChain(ctx, name)}
 	if out.Mode.Disruptive { // r2-M1: fail closed: the disruptive checks only when the name is seen to stay inside the domain now
 		out.Mode.Disruptive = s.cnameInZone(ctx, []string{name}, st.Value)
 	}
@@ -242,6 +242,26 @@ func (s *Service) cnameInZone(ctx context.Context, names []string, domain string
 		}
 	}
 	return false
+}
+
+// cnameChain is name's CNAME chain for the probe log (D-591): "name -> canonical name", the name alone when it has no CNAME, "" when
+// the lookup failed or the Resolver has no LookupCNAME. The standard resolver answers the end of the chain, not each hop.
+func (s *Service) cnameChain(ctx context.Context, name string) string {
+	cr, ok := s.cfg.Resolver.(CNAMEResolver)
+	if !ok {
+		return ""
+	}
+	lctx, cancel := context.WithTimeout(ctx, nameLookupTimeout)
+	defer cancel()
+	cn, err := cr.LookupCNAME(lctx, name)
+	cn = strings.ToLower(strings.TrimSuffix(cn, "."))
+	switch {
+	case err != nil || cn != "" && (len(cn) > 253 || !domainRE.MatchString(cn)):
+		return ""
+	case cn == "" || cn == name:
+		return name
+	}
+	return name + " -> " + cn
 }
 
 // clearDeep drops what a runner says about the deep scan from its rows (the runner's report is untrusted, INV-10): the deep state of

@@ -126,7 +126,7 @@ func (e *osEnv) newHandlers(t *testing.T, host core.Host, behind time.Duration) 
 	h, err := core.NewOSHandlers(core.OSConfig{
 		DB: e.env.DB, Auth: e.env.Svc, Audit: e.env.Audit, Log: e.logger(), Host: host,
 		DataDir: e.m.CoreData, KeyPath: filepath.Join(e.m.CoreData, "vedette.key"),
-		Zone: e.h.OrgTimeZone, Clock: func() time.Time { return e.clock.Now().Add(-behind) }, Gate: e.purgeGate,
+		Zone: e.h.OrgTimeZone, Setup: e.h, Clock: func() time.Time { return e.clock.Now().Add(-behind) }, Gate: e.purgeGate,
 		Installed: func() { e.installed.Add(1) },
 	})
 	if err != nil {
@@ -135,7 +135,7 @@ func (e *osEnv) newHandlers(t *testing.T, host core.Host, behind time.Duration) 
 	t.Cleanup(h.Close)
 	api, err := server.New(server.Config{
 		API:  fullOSAPI{Fallback: server.Fallback{Log: e.logger()}, ModuleHandlers: core.NewModuleHandlers(e.env.DB, e.reg), APIHandlers: e.h, OSHandlers: h},
-		Auth: e.env.Svc.Sessions, Modules: e.reg, Log: e.logger(),
+		Auth: e.env.Svc.Sessions, Modules: e.reg, Log: e.logger(), BodyLimits: core.BodyLimits,
 	})
 	if err != nil {
 		t.Fatal(err)

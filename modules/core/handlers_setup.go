@@ -210,31 +210,9 @@ func (h *APIHandlers) CorePostCoreSetup(ctx context.Context, req *oas.CorePostCo
 	if err != nil {
 		return nil, err
 	}
-	refund, werr := h.auth.BeginSetupAttempt(ip)
-	if werr != nil {
-		return nil, werr
-	}
-	want, ok, err := h.storedSetupCode(ctx)
-	if err != nil {
-		refund() // not a guess: nothing was judged
+	if err := h.CheckSetupCode(ctx, req.SetupCode.Or("")); err != nil {
 		return nil, err
 	}
-	if !ok {
-		// No code is stored: setup finished between the check above and the read (the winner deleted it),
-		// or this box has not made one yet. The loser of a race is told the truth and keeps its guess.
-		if done, err := h.setupDone(ctx); err != nil {
-			refund()
-			return nil, err
-		} else if done {
-			refund()
-			return nil, alreadySetup()
-		}
-		return nil, invalidSetupCode()
-	}
-	if !setupCodesEqual(req.SetupCode.Or(""), want) {
-		return nil, invalidSetupCode()
-	}
-	refund() // the right code gives its count back
 
 	org := strings.TrimSpace(req.Org.Or(""))
 	if !validOrgName(org) {

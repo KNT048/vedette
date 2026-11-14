@@ -17,7 +17,10 @@ export interface Endpoint {
   role: Role | 'public'
   params?: z.ZodObject
   query?: z.ZodObject
-  body?: z.ZodType
+  /** Request headers the operation reads (OpenAPI `in: header`), for an upload whose body is the file itself. */
+  headers?: z.ZodObject
+  /** 'file' = the body is the raw bytes of a file the user uploads (`application/octet-stream`, D-518). */
+  body?: z.ZodType | 'file'
   /** true = the request body may be left out (an empty request is accepted); `requestBody.required` is false. Only where an older caller sends none. */
   bodyOptional?: boolean
   /** null = 204 không có nội dung. 'file' = tải tệp (CSV, JSON, rule). 'text' = văn bản thuần `text/plain; charset=utf-8` (danh sách chặn cho firewall). */

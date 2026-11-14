@@ -2752,6 +2752,68 @@ func decodeCorePostCoreConnectionsIDTestParams(args [1]string, argsEscaped bool,
 	return params, nil
 }
 
+// CorePostCoreSetupRestoreUploadParams is parameters of core_post_core_setup_restore_upload operation.
+type CorePostCoreSetupRestoreUploadParams struct {
+	XSetupCode OptString `json:",omitempty,omitzero"`
+}
+
+func unpackCorePostCoreSetupRestoreUploadParams(packed middleware.Parameters) (params CorePostCoreSetupRestoreUploadParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "X-Setup-Code",
+			In:   "header",
+		}
+		if v, ok := packed[key]; ok {
+			params.XSetupCode = v.(OptString)
+		}
+	}
+	return params
+}
+
+func decodeCorePostCoreSetupRestoreUploadParams(args [0]string, argsEscaped bool, r *http.Request) (params CorePostCoreSetupRestoreUploadParams, _ error) {
+	h := uri.NewHeaderDecoder(r.Header)
+	// Decode header: X-Setup-Code.
+	if err := func() error {
+		cfg := uri.HeaderParameterDecodingConfig{
+			Name:    "X-Setup-Code",
+			Explode: false,
+		}
+		if err := h.HasParam(cfg); err == nil {
+			if err := h.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotXSetupCodeVal string
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToString(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotXSetupCodeVal = c
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.XSetupCode.SetTo(paramsDotXSetupCodeVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "X-Setup-Code",
+			In:   "header",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
 // CorePostCoreUsersID2FAResetParams is parameters of core_post_core_users_id_2fa_reset operation.
 type CorePostCoreUsersID2FAResetParams struct {
 	ID string

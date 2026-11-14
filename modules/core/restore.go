@@ -152,18 +152,11 @@ func (h *OSHandlers) CorePostCoreDataRestore(ctx context.Context, req *oas.CoreP
 	if v, ok := req.ConfirmDataLoss.Get(); !ok || !v {
 		return nil, apierr.New(409, codeConfirmReq, "Restoring replaces everything written since the backup. Confirm to go on.")
 	}
-	h.installMu.Lock() // one host write of this kind at a time through this process
-	defer h.installMu.Unlock()
-	h.urun.mu.Lock() // and no software run starts until this restore is stored (beginUpdate: restoreRunning)
-	defer h.urun.mu.Unlock()
-	if h.busy(ctx) {
-		return nil, apierr.New(409, codeBusy, "An update run is in progress. Wait for it to finish, then restore.")
-	}
-	if rec, err := h.restoreLatest(ctx); err != nil {
+	unlock, err := h.lockRestore(ctx)
+	if err != nil {
 		return nil, err
-	} else if rec != nil && rec.Status == "" {
-		return nil, apierr.New(409, codeBusy, "A restore is already running. Wait for it to finish.")
 	}
+	defer unlock()
 	bl, err := h.host.StateBackups(ctx)
 	if err != nil {
 		return nil, hostErr(ctx, h.log, err)
@@ -185,11 +178,42 @@ func (h *OSHandlers) CorePostCoreDataRestore(ctx context.Context, req *oas.CoreP
 			return nil, err
 		}
 	}
+	rec, err := h.startRestore(ctx, c, true, b)
+	if err != nil {
+		return nil, err
+	}
+	return asOAS[oas.CorePostCoreDataRestoreAccepted](rec.view())
+}
 
+// lockRestore takes what a restore holds from its busy check until it is stored (one host write of this kind at a time
+// through this process, and no software run starting meanwhile: beginUpdate asks restoreRunning) and refuses with 409
+// busy while an update or another restore runs. The caller runs unlock when it is done.
+func (h *OSHandlers) lockRestore(ctx context.Context) (unlock func(), err error) {
+	h.installMu.Lock()
+	h.urun.mu.Lock()
+	unlock = func() { h.urun.mu.Unlock(); h.installMu.Unlock() }
+	if h.busy(ctx) {
+		unlock()
+		return nil, apierr.New(409, codeBusy, "An update run is in progress. Wait for it to finish, then restore.")
+	}
+	if rec, err := h.restoreLatest(ctx); err != nil {
+		unlock()
+		return nil, err
+	} else if rec != nil && rec.Status == "" {
+		unlock()
+		return nil, apierr.New(409, codeBusy, "A restore is already running. Wait for it to finish.")
+	}
+	return unlock, nil
+}
+
+// startRestore runs backup.restore of b (in the host's list) under lockRestore: the intent's audit row (admin: the caller is
+// re-checked as an administrator in it), a snapshot of the current data WITH the key that the host keeps as pre_restore,
+// core's copy of the run and its follower. Settings -> Data and the first-run restore (D-518) share it.
+func (h *OSHandlers) startRestore(ctx context.Context, c caller, admin bool, b api.Backup) (*restoreRec, error) {
 	var snap snapshot
 	var run api.Run
 	keepSnap := false
-	err = h.act(ctx, c, true, "data.restore", b.BackupID, "backup of "+b.CreatedAt.UTC().Format(time.RFC3339), func(id, actor string) error {
+	err := h.act(ctx, c, admin, "data.restore", b.BackupID, "backup of "+b.CreatedAt.UTC().Format(time.RFC3339), func(id, actor string) error {
 		var err error
 		if snap, err = h.snaps.create(ctx, true); err != nil {
 			return h.snapshotFailure(ctx, err)
@@ -217,7 +241,7 @@ func (h *OSHandlers) CorePostCoreDataRestore(ctx context.Context, req *oas.CoreP
 	}
 	h.wg.Add(1)
 	go h.followRestore(run)
-	return asOAS[oas.CorePostCoreDataRestoreAccepted](rec.view())
+	return rec, nil
 }
 
 // ---- GET /core/data/restore/run ----

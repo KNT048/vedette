@@ -16348,6 +16348,89 @@ func (s *CoreGetCoreSetupModulesOKModulesItemTier) UnmarshalText(data []byte) er
 	}
 }
 
+type CoreGetCoreSetupRestoreOK struct {
+	// Only when not done: why, in words.
+	Error NilString `json:"error"`
+	// Reverted = the restored data did not start, so the box put back the fresh install.
+	Status CoreGetCoreSetupRestoreOKStatus `json:"status"`
+}
+
+// GetError returns the value of Error.
+func (s *CoreGetCoreSetupRestoreOK) GetError() NilString {
+	return s.Error
+}
+
+// GetStatus returns the value of Status.
+func (s *CoreGetCoreSetupRestoreOK) GetStatus() CoreGetCoreSetupRestoreOKStatus {
+	return s.Status
+}
+
+// SetError sets the value of Error.
+func (s *CoreGetCoreSetupRestoreOK) SetError(val NilString) {
+	s.Error = val
+}
+
+// SetStatus sets the value of Status.
+func (s *CoreGetCoreSetupRestoreOK) SetStatus(val CoreGetCoreSetupRestoreOKStatus) {
+	s.Status = val
+}
+
+// Reverted = the restored data did not start, so the box put back the fresh install.
+type CoreGetCoreSetupRestoreOKStatus string
+
+const (
+	CoreGetCoreSetupRestoreOKStatusRunning  CoreGetCoreSetupRestoreOKStatus = "running"
+	CoreGetCoreSetupRestoreOKStatusDone     CoreGetCoreSetupRestoreOKStatus = "done"
+	CoreGetCoreSetupRestoreOKStatusReverted CoreGetCoreSetupRestoreOKStatus = "reverted"
+	CoreGetCoreSetupRestoreOKStatusFailed   CoreGetCoreSetupRestoreOKStatus = "failed"
+)
+
+// AllValues returns all CoreGetCoreSetupRestoreOKStatus values.
+func (CoreGetCoreSetupRestoreOKStatus) AllValues() []CoreGetCoreSetupRestoreOKStatus {
+	return []CoreGetCoreSetupRestoreOKStatus{
+		CoreGetCoreSetupRestoreOKStatusRunning,
+		CoreGetCoreSetupRestoreOKStatusDone,
+		CoreGetCoreSetupRestoreOKStatusReverted,
+		CoreGetCoreSetupRestoreOKStatusFailed,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CoreGetCoreSetupRestoreOKStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case CoreGetCoreSetupRestoreOKStatusRunning:
+		return []byte(s), nil
+	case CoreGetCoreSetupRestoreOKStatusDone:
+		return []byte(s), nil
+	case CoreGetCoreSetupRestoreOKStatusReverted:
+		return []byte(s), nil
+	case CoreGetCoreSetupRestoreOKStatusFailed:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CoreGetCoreSetupRestoreOKStatus) UnmarshalText(data []byte) error {
+	switch CoreGetCoreSetupRestoreOKStatus(data) {
+	case CoreGetCoreSetupRestoreOKStatusRunning:
+		*s = CoreGetCoreSetupRestoreOKStatusRunning
+		return nil
+	case CoreGetCoreSetupRestoreOKStatusDone:
+		*s = CoreGetCoreSetupRestoreOKStatusDone
+		return nil
+	case CoreGetCoreSetupRestoreOKStatusReverted:
+		*s = CoreGetCoreSetupRestoreOKStatusReverted
+		return nil
+	case CoreGetCoreSetupRestoreOKStatusFailed:
+		*s = CoreGetCoreSetupRestoreOKStatusFailed
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type CoreGetCoreUpdatesBundleOK struct {
 	Data io.Reader
 }
@@ -24947,6 +25030,45 @@ func (s *CorePostCoreConnectionsReqToolsItemAccess) UnmarshalText(data []byte) e
 	}
 }
 
+type CorePostCoreDataKeyOK struct {
+	Data io.Reader
+}
+
+// Read reads data from the Data reader.
+//
+// Kept to satisfy the io.Reader interface.
+func (s CorePostCoreDataKeyOK) Read(p []byte) (n int, err error) {
+	if s.Data == nil {
+		return 0, io.EOF
+	}
+	return s.Data.Read(p)
+}
+
+type CorePostCoreDataKeyReq struct {
+	Code     OptString `json:"code"`
+	Password string    `json:"password"`
+}
+
+// GetCode returns the value of Code.
+func (s *CorePostCoreDataKeyReq) GetCode() OptString {
+	return s.Code
+}
+
+// GetPassword returns the value of Password.
+func (s *CorePostCoreDataKeyReq) GetPassword() string {
+	return s.Password
+}
+
+// SetCode sets the value of Code.
+func (s *CorePostCoreDataKeyReq) SetCode(val OptString) {
+	s.Code = val
+}
+
+// SetPassword sets the value of Password.
+func (s *CorePostCoreDataKeyReq) SetPassword(val string) {
+	s.Password = val
+}
+
 type CorePostCoreDataPurgeOK struct {
 	Kept    []CorePostCoreDataPurgeOKKeptItem `json:"kept"`
 	Ok      bool                              `json:"ok"`
@@ -28308,6 +28430,242 @@ func (s *CorePostCoreSetupReqModulesItem) UnmarshalText(data []byte) error {
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
+}
+
+type CorePostCoreSetupRestoreAccepted struct {
+	// Only when not done: why, in words.
+	Error NilString `json:"error"`
+	// Reverted = the restored data did not start, so the box put back the fresh install.
+	Status CorePostCoreSetupRestoreAcceptedStatus `json:"status"`
+}
+
+// GetError returns the value of Error.
+func (s *CorePostCoreSetupRestoreAccepted) GetError() NilString {
+	return s.Error
+}
+
+// GetStatus returns the value of Status.
+func (s *CorePostCoreSetupRestoreAccepted) GetStatus() CorePostCoreSetupRestoreAcceptedStatus {
+	return s.Status
+}
+
+// SetError sets the value of Error.
+func (s *CorePostCoreSetupRestoreAccepted) SetError(val NilString) {
+	s.Error = val
+}
+
+// SetStatus sets the value of Status.
+func (s *CorePostCoreSetupRestoreAccepted) SetStatus(val CorePostCoreSetupRestoreAcceptedStatus) {
+	s.Status = val
+}
+
+// Reverted = the restored data did not start, so the box put back the fresh install.
+type CorePostCoreSetupRestoreAcceptedStatus string
+
+const (
+	CorePostCoreSetupRestoreAcceptedStatusRunning  CorePostCoreSetupRestoreAcceptedStatus = "running"
+	CorePostCoreSetupRestoreAcceptedStatusDone     CorePostCoreSetupRestoreAcceptedStatus = "done"
+	CorePostCoreSetupRestoreAcceptedStatusReverted CorePostCoreSetupRestoreAcceptedStatus = "reverted"
+	CorePostCoreSetupRestoreAcceptedStatusFailed   CorePostCoreSetupRestoreAcceptedStatus = "failed"
+)
+
+// AllValues returns all CorePostCoreSetupRestoreAcceptedStatus values.
+func (CorePostCoreSetupRestoreAcceptedStatus) AllValues() []CorePostCoreSetupRestoreAcceptedStatus {
+	return []CorePostCoreSetupRestoreAcceptedStatus{
+		CorePostCoreSetupRestoreAcceptedStatusRunning,
+		CorePostCoreSetupRestoreAcceptedStatusDone,
+		CorePostCoreSetupRestoreAcceptedStatusReverted,
+		CorePostCoreSetupRestoreAcceptedStatusFailed,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CorePostCoreSetupRestoreAcceptedStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case CorePostCoreSetupRestoreAcceptedStatusRunning:
+		return []byte(s), nil
+	case CorePostCoreSetupRestoreAcceptedStatusDone:
+		return []byte(s), nil
+	case CorePostCoreSetupRestoreAcceptedStatusReverted:
+		return []byte(s), nil
+	case CorePostCoreSetupRestoreAcceptedStatusFailed:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CorePostCoreSetupRestoreAcceptedStatus) UnmarshalText(data []byte) error {
+	switch CorePostCoreSetupRestoreAcceptedStatus(data) {
+	case CorePostCoreSetupRestoreAcceptedStatusRunning:
+		*s = CorePostCoreSetupRestoreAcceptedStatusRunning
+		return nil
+	case CorePostCoreSetupRestoreAcceptedStatusDone:
+		*s = CorePostCoreSetupRestoreAcceptedStatusDone
+		return nil
+	case CorePostCoreSetupRestoreAcceptedStatusReverted:
+		*s = CorePostCoreSetupRestoreAcceptedStatusReverted
+		return nil
+	case CorePostCoreSetupRestoreAcceptedStatusFailed:
+		*s = CorePostCoreSetupRestoreAcceptedStatusFailed
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type CorePostCoreSetupRestoreReq struct {
+	// Required (true) without key when the backup holds secrets: they are lost and two-step users cannot
+	// sign in.
+	ConfirmWithoutKey OptBool `json:"confirm_without_key"`
+	// The decryption key file, base64.
+	Key       OptString `json:"key"`
+	SetupCode string    `json:"setup_code"`
+	UploadID  string    `json:"upload_id"`
+}
+
+// GetConfirmWithoutKey returns the value of ConfirmWithoutKey.
+func (s *CorePostCoreSetupRestoreReq) GetConfirmWithoutKey() OptBool {
+	return s.ConfirmWithoutKey
+}
+
+// GetKey returns the value of Key.
+func (s *CorePostCoreSetupRestoreReq) GetKey() OptString {
+	return s.Key
+}
+
+// GetSetupCode returns the value of SetupCode.
+func (s *CorePostCoreSetupRestoreReq) GetSetupCode() string {
+	return s.SetupCode
+}
+
+// GetUploadID returns the value of UploadID.
+func (s *CorePostCoreSetupRestoreReq) GetUploadID() string {
+	return s.UploadID
+}
+
+// SetConfirmWithoutKey sets the value of ConfirmWithoutKey.
+func (s *CorePostCoreSetupRestoreReq) SetConfirmWithoutKey(val OptBool) {
+	s.ConfirmWithoutKey = val
+}
+
+// SetKey sets the value of Key.
+func (s *CorePostCoreSetupRestoreReq) SetKey(val OptString) {
+	s.Key = val
+}
+
+// SetSetupCode sets the value of SetupCode.
+func (s *CorePostCoreSetupRestoreReq) SetSetupCode(val string) {
+	s.SetupCode = val
+}
+
+// SetUploadID sets the value of UploadID.
+func (s *CorePostCoreSetupRestoreReq) SetUploadID(val string) {
+	s.UploadID = val
+}
+
+type CorePostCoreSetupRestoreUploadOK struct {
+	// Active administrators who can still sign in when the restore has no decryption key (password
+	// sign-in, no two-step); 0 = nobody could run the box without the key.
+	AdminsWithoutKey int `json:"admins_without_key"`
+	// When the backup was made (its manifest).
+	CreatedAt time.Time `json:"created_at"`
+	// The uploaded backup, kept on the box for an hour; POST /core/setup/restore names it.
+	ID string `json:"id"`
+	// The organization the backup holds.
+	Org string `json:"org"`
+	// Saved secrets (AI and feed keys, channel passwords, tokens, two-step keys): without the key they
+	// must be entered again.
+	Secrets int `json:"secrets"`
+	// Active accounts that sign in with two-step: without the decryption key they cannot sign in.
+	TwofaUsers int `json:"twofa_users"`
+	// Active accounts.
+	Users int `json:"users"`
+}
+
+// GetAdminsWithoutKey returns the value of AdminsWithoutKey.
+func (s *CorePostCoreSetupRestoreUploadOK) GetAdminsWithoutKey() int {
+	return s.AdminsWithoutKey
+}
+
+// GetCreatedAt returns the value of CreatedAt.
+func (s *CorePostCoreSetupRestoreUploadOK) GetCreatedAt() time.Time {
+	return s.CreatedAt
+}
+
+// GetID returns the value of ID.
+func (s *CorePostCoreSetupRestoreUploadOK) GetID() string {
+	return s.ID
+}
+
+// GetOrg returns the value of Org.
+func (s *CorePostCoreSetupRestoreUploadOK) GetOrg() string {
+	return s.Org
+}
+
+// GetSecrets returns the value of Secrets.
+func (s *CorePostCoreSetupRestoreUploadOK) GetSecrets() int {
+	return s.Secrets
+}
+
+// GetTwofaUsers returns the value of TwofaUsers.
+func (s *CorePostCoreSetupRestoreUploadOK) GetTwofaUsers() int {
+	return s.TwofaUsers
+}
+
+// GetUsers returns the value of Users.
+func (s *CorePostCoreSetupRestoreUploadOK) GetUsers() int {
+	return s.Users
+}
+
+// SetAdminsWithoutKey sets the value of AdminsWithoutKey.
+func (s *CorePostCoreSetupRestoreUploadOK) SetAdminsWithoutKey(val int) {
+	s.AdminsWithoutKey = val
+}
+
+// SetCreatedAt sets the value of CreatedAt.
+func (s *CorePostCoreSetupRestoreUploadOK) SetCreatedAt(val time.Time) {
+	s.CreatedAt = val
+}
+
+// SetID sets the value of ID.
+func (s *CorePostCoreSetupRestoreUploadOK) SetID(val string) {
+	s.ID = val
+}
+
+// SetOrg sets the value of Org.
+func (s *CorePostCoreSetupRestoreUploadOK) SetOrg(val string) {
+	s.Org = val
+}
+
+// SetSecrets sets the value of Secrets.
+func (s *CorePostCoreSetupRestoreUploadOK) SetSecrets(val int) {
+	s.Secrets = val
+}
+
+// SetTwofaUsers sets the value of TwofaUsers.
+func (s *CorePostCoreSetupRestoreUploadOK) SetTwofaUsers(val int) {
+	s.TwofaUsers = val
+}
+
+// SetUsers sets the value of Users.
+func (s *CorePostCoreSetupRestoreUploadOK) SetUsers(val int) {
+	s.Users = val
+}
+
+type CorePostCoreSetupRestoreUploadReq struct {
+	Data io.Reader
+}
+
+// Read reads data from the Data reader.
+//
+// Kept to satisfy the io.Reader interface.
+func (s CorePostCoreSetupRestoreUploadReq) Read(p []byte) (n int, err error) {
+	if s.Data == nil {
+		return 0, io.EOF
+	}
+	return s.Data.Read(p)
 }
 
 type CorePostCoreUpdatesApplyOK struct {
@@ -97599,6 +97957,51 @@ func (o NilCoreGetCoreOidcOKDefaultRole) Get() (v CoreGetCoreOidcOKDefaultRole, 
 
 // Or returns value if set, or given parameter if does not.
 func (o NilCoreGetCoreOidcOKDefaultRole) Or(d CoreGetCoreOidcOKDefaultRole) CoreGetCoreOidcOKDefaultRole {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilCoreGetCoreSetupRestoreOK returns new NilCoreGetCoreSetupRestoreOK with value set to v.
+func NewNilCoreGetCoreSetupRestoreOK(v CoreGetCoreSetupRestoreOK) NilCoreGetCoreSetupRestoreOK {
+	return NilCoreGetCoreSetupRestoreOK{
+		Value: v,
+	}
+}
+
+// NilCoreGetCoreSetupRestoreOK is nullable CoreGetCoreSetupRestoreOK.
+type NilCoreGetCoreSetupRestoreOK struct {
+	Value CoreGetCoreSetupRestoreOK
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilCoreGetCoreSetupRestoreOK) SetTo(v CoreGetCoreSetupRestoreOK) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilCoreGetCoreSetupRestoreOK) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilCoreGetCoreSetupRestoreOK) SetToNull() {
+	o.Null = true
+	var v CoreGetCoreSetupRestoreOK
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilCoreGetCoreSetupRestoreOK) Get() (v CoreGetCoreSetupRestoreOK, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilCoreGetCoreSetupRestoreOK) Or(d CoreGetCoreSetupRestoreOK) CoreGetCoreSetupRestoreOK {
 	if v, ok := o.Get(); ok {
 		return v
 	}

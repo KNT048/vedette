@@ -31,6 +31,34 @@ const setupHandlers = [
   // Công khai, chỉ id/tầng/phụ thuộc (không lộ module nào đang bật) để bước chọn gói vẽ được danh sách.
   http.get(`${API}/core/setup/modules`, () => HttpResponse.json({ modules: modulesStore.get().map(({ id, tier, depends }) => ({ id, tier, depends, available: moduleAvailable(id) })), install: installStore.get().kind, lan: installStore.get().kind === 'appliance' && !orgStore.get().setup_complete ? '192.168.10.0/24' : null })),
 
+  // D-518: restore from a backup file on a new box. Mock: any gzip file is a backup of the sample organization, a key is any
+  // 32 bytes, and the restore puts the sample data back at once (the box would restart).
+  http.post(`${API}/core/setup/restore/upload`, async ({ request }) => {
+    if (orgStore.get().setup_complete) return fail(409, 'already_setup', 'This box is already set up. Sign in with the administrator account.')
+    if (installStore.get().kind !== 'appliance') return fail(409, 'not_appliance', 'This needs vedette-host, which only the appliance install has.')
+    if ((request.headers.get('X-Setup-Code') ?? '').trim() !== MOCK_SETUP_CODE) return fail(403, 'invalid_setup_code', 'The setup code is missing or wrong. Find it in the box\'s log: it is printed there each time Vedette starts while setup is open.')
+    const b = new Uint8Array(await request.arrayBuffer())
+    if (b[0] !== 0x1f || b[1] !== 0x8b) return fail(400, 'not_a_backup', 'This file is not a Vedette backup, or it is damaged or cut short. Choose the .tar.gz file that Download backup saved.')
+    return HttpResponse.json({ id: hex(16), created_at: daysAgo(2), org: 'Acme Manufacturing', users: 4, twofa_users: 1, admins_without_key: 1, secrets: 6 })
+  }),
+  http.post(`${API}/core/setup/restore`, async ({ request }) => {
+    if (orgStore.get().setup_complete) return fail(409, 'already_setup', 'This box is already set up. Sign in with the administrator account.')
+    const b = await body<{ setup_code?: string; upload_id?: string; key?: string; confirm_without_key?: boolean }>(request)
+    if (String(b.setup_code ?? '').trim() !== MOCK_SETUP_CODE) return fail(403, 'invalid_setup_code', 'The setup code is missing or wrong. Find it in the box\'s log: it is printed there each time Vedette starts while setup is open.')
+    if (!/^[0-9a-f]{32}$/.test(String(b.upload_id ?? ''))) return fail(404, 'upload_unknown', 'The uploaded backup is no longer on the box (an upload is kept for an hour). Upload it again.')
+    if (b.key) {
+      let n = 0
+      try { n = atob(b.key).length } catch { /* not base64 */ }
+      if (n !== 32) return fail(400, 'invalid_key', 'This is not a Vedette decryption key file: the key file is the 32-byte file that Download decryption key saved.')
+    } else if (b.confirm_without_key !== true) return fail(409, 'confirm_required', 'Without the decryption key the saved secrets are lost and users with two-step sign-in cannot sign in. Add the key file, or confirm to restore without it.')
+    resetMockDb()
+    setDataMode('sample')
+    orgStore.update((o) => ({ ...o, setup_complete: true }))
+    audit('data.restore', 'uploaded backup')
+    return HttpResponse.json({ status: 'running', error: null }, { status: 202 })
+  }),
+  http.get(`${API}/core/setup/restore`, () => HttpResponse.json(orgStore.get().setup_complete ? { status: 'done', error: null } : null)),
+
   http.post(`${API}/core/setup`, async ({ request }) => {
     if (orgStore.get().setup_complete) return fail(409, 'already_setup', 'This box is already set up. Sign in with the administrator account.')
     const b = await body<SetupPayload>(request)
@@ -1086,6 +1114,14 @@ const dataHandlers = [
     restoreRunStore.set({ run })
     audit('data.restore', src.created_at)
     return HttpResponse.json(run, { status: 202 })
+  }),
+  http.post(`${API}/core/data/key`, async ({ request }) => {
+    const denied = guard('admin')
+    if (denied) return denied
+    const stepped = await stepUp(await body<{ password?: string; code?: string }>(request), 'download the decryption key')
+    if (stepped) return stepped
+    audit('data.key_download', 'decryption key')
+    return new HttpResponse(crypto.getRandomValues(new Uint8Array(32)), { headers: { 'Content-Type': 'application/octet-stream', 'Content-Disposition': `attachment; filename="vedette-key-${stamp()}.key"` } })
   }),
   http.get(`${API}/core/data/export`, () => {
     const denied = guard('admin')

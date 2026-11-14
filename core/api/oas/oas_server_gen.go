@@ -435,6 +435,14 @@ type Handler interface {
 	//
 	// GET /core/setup/modules
 	CoreGetCoreSetupModules(ctx context.Context) (*CoreGetCoreSetupModulesOK, error)
+	// CoreGetCoreSetupRestore implements core_get_core_setup_restore operation.
+	//
+	// The first-run restore while setup is open: running, or how it ended (reverted, failed); null before
+	// one. Once setup is done it is done (a restore that succeeded brings an organization that finished
+	// setup), whoever finished setup: nothing more than GET /setup says.
+	//
+	// GET /core/setup/restore
+	CoreGetCoreSetupRestore(ctx context.Context) (NilCoreGetCoreSetupRestoreOK, error)
 	// CoreGetCoreUpdates implements core_get_core_updates operation.
 	//
 	// Versions, new builds, history and security advisories of Vedette.
@@ -618,6 +626,16 @@ type Handler interface {
 	//
 	// POST /core/connections/{id}/test
 	CorePostCoreConnectionsIDTest(ctx context.Context, params CorePostCoreConnectionsIDTestParams) (*CorePostCoreConnectionsIDTestOK, error)
+	// CorePostCoreDataKey implements core_post_core_data_key operation.
+	//
+	// Download the decryption key once, to keep apart from the backups (D-518): without it a backup
+	// restores on another box with its saved secrets and two-step sign-in lost. The current password (400
+	// wrong_password, counted like a failed sign-in, 429 rate_limited) and, when two-step sign-in is on, a
+	// fresh code (400 code_required / invalid_code), as for the purge; audited (data.key_download). The 32
+	// bytes of vedette.key, never logged.
+	//
+	// POST /core/data/key
+	CorePostCoreDataKey(ctx context.Context, req *CorePostCoreDataKeyReq) (CorePostCoreDataKeyOK, error)
 	// CorePostCoreDataPurge implements core_post_core_data_purge operation.
 	//
 	// Delete all data back to a fresh install and replace the decryption key (D-154). Needs the exact
@@ -683,6 +701,29 @@ type Handler interface {
 	//
 	// POST /core/setup
 	CorePostCoreSetup(ctx context.Context, req *CorePostCoreSetupReq) (*CorePostCoreSetupOK, error)
+	// CorePostCoreSetupRestore implements core_post_core_setup_restore operation.
+	//
+	// First-run restore, step 2 (D-518): restore the uploaded backup as the box's data, with the setup
+	// code. With key (the key file downloaded from Settings -> Data, base64) the saved secrets and
+	// two-step sign-in come back; a key that is not 32 bytes is 400 invalid_key, one that opens none of
+	// the backup's secrets 400 wrong_key, before anything changes. Without key, a backup that holds
+	// secrets needs confirm_without_key: true (409 confirm_required). 404 upload_unknown when the upload
+	// is gone (older than an hour); 409 already_setup, busy, low_disk, schema_newer, not_appliance as for
+	// a restore.
+	//
+	// POST /core/setup/restore
+	CorePostCoreSetupRestore(ctx context.Context, req *CorePostCoreSetupRestoreReq) (*CorePostCoreSetupRestoreAccepted, error)
+	// CorePostCoreSetupRestoreUpload implements core_post_core_setup_restore_upload operation.
+	//
+	// First-run restore, step 1 (D-518): upload a backup downloaded from Settings -> Data (the .tar.gz as
+	// the body). Only before setup is done (409 already_setup) and with the setup code (403
+	// invalid_setup_code, 429 rate_limited like setup). The box checks the file (400 not_a_backup: not a
+	// Vedette backup, damaged, or of a box never set up; 409 schema_newer: made by a newer Vedette), keeps
+	// it for an hour and says what it holds and what the decryption key changes. 409 not_appliance on a
+	// container-only install, 409 busy while another upload is checked, 409 low_disk, 413 over 4 GiB.
+	//
+	// POST /core/setup/restore/upload
+	CorePostCoreSetupRestoreUpload(ctx context.Context, req CorePostCoreSetupRestoreUploadReq, params CorePostCoreSetupRestoreUploadParams) (*CorePostCoreSetupRestoreUploadOK, error)
 	// CorePostCoreUpdatesApply implements core_post_core_updates_apply operation.
 	//
 	// Install the new version of one component; for the software it starts a run (UpdatesState.run, 409

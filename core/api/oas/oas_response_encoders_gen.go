@@ -860,6 +860,19 @@ func encodeCoreGetCoreSetupModulesResponse(response *CoreGetCoreSetupModulesOK, 
 	return nil
 }
 
+func encodeCoreGetCoreSetupRestoreResponse(response NilCoreGetCoreSetupRestoreOK, w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(200)
+
+	e := new(jx.Encoder)
+	response.Encode(e)
+	if _, err := e.WriteTo(w); err != nil {
+		return errors.Wrap(err, "write")
+	}
+
+	return nil
+}
+
 func encodeCoreGetCoreUpdatesResponse(response *CoreGetCoreUpdatesOK, w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(200)
@@ -1219,6 +1232,21 @@ func encodeCorePostCoreConnectionsIDTestResponse(response *CorePostCoreConnectio
 	return nil
 }
 
+func encodeCorePostCoreDataKeyResponse(response CorePostCoreDataKeyOK, w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/octet-stream")
+	w.WriteHeader(200)
+
+	writer := w
+	if closer, ok := response.Data.(io.Closer); ok {
+		defer closer.Close()
+	}
+	if _, err := io.Copy(writer, response); err != nil {
+		return errors.Wrap(err, "write")
+	}
+
+	return nil
+}
+
 func encodeCorePostCoreDataPurgeResponse(response *CorePostCoreDataPurgeOK, w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(200)
@@ -1311,6 +1339,32 @@ func encodeCorePostCoreOidcTestResponse(response *CorePostCoreOidcTestOK, w http
 }
 
 func encodeCorePostCoreSetupResponse(response *CorePostCoreSetupOK, w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(200)
+
+	e := new(jx.Encoder)
+	response.Encode(e)
+	if _, err := e.WriteTo(w); err != nil {
+		return errors.Wrap(err, "write")
+	}
+
+	return nil
+}
+
+func encodeCorePostCoreSetupRestoreResponse(response *CorePostCoreSetupRestoreAccepted, w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(202)
+
+	e := new(jx.Encoder)
+	response.Encode(e)
+	if _, err := e.WriteTo(w); err != nil {
+		return errors.Wrap(err, "write")
+	}
+
+	return nil
+}
+
+func encodeCorePostCoreSetupRestoreUploadResponse(response *CorePostCoreSetupRestoreUploadOK, w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(200)
 

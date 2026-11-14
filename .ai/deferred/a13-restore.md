@@ -1,0 +1,6 @@
+# Deferred: A13 restore on a new box (D-518), session a13-restore
+
+- [ ] Container-only install: the first-run "Restore from a backup" only shows the `docs/INSTALL-CONTAINER.md` §6 volume commands (no vedette-host, so no import or restore from the GUI). A GUI path needs core to swap its own database without the helper (stop, swap, start from inside the container): its own story and decision.
+- [ ] Settings → Data → "Upload a backup" on an already set-up box (nice-to-have of A13): not built. The server parts exist (`stageUpload`, `inspectBackup`, `seal`, the import in `CorePostCoreSetupRestore`); it needs an admin route pair and the UI row. Open: whether that path takes a key file too (a backup of another box restored over this one).
+- [ ] Backups on this box shows an imported upload as "Manual", taken at the import time: the host's label "Uploaded backup of <date>" (the backup's own date) is not in `GET /core/data/backups`. Add `label` to the list item and show it.
+- [ ] Walk on the N100 (director): new box → Restore from a backup with and without the key file, a wrong key, a backup of a newer release; Settings → Data → Download decryption key (password + two-step). Only Go/vitest tests with the in-process host ran here; the real host's systemctl stop/swap/start of an imported backup was not exercised outside that.

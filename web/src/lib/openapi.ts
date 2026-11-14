@@ -17,7 +17,7 @@ function js(schema: z.ZodType) {
 
 function parameters(e: Endpoint) {
   const list: Record<string, unknown>[] = []
-  for (const [where, obj] of [['path', e.params], ['query', e.query]] as const) {
+  for (const [where, obj] of [['path', e.params], ['query', e.query], ['header', e.headers]] as const) {
     if (!obj) continue
     for (const [name, s] of Object.entries(obj.shape)) {
       const schema = s as z.ZodType
@@ -49,7 +49,8 @@ export function buildOpenApi() {
       'x-min-role': e.role,
       ...(e.role === 'public' ? { security: [] } : {}),
       ...(parameters(e).length ? { parameters: parameters(e) } : {}),
-      ...(e.body ? { requestBody: { required: !e.bodyOptional, content: { 'application/json': { schema: js(e.body) } } } } : {}),
+      ...(e.body === 'file' ? { requestBody: { required: true, content: { 'application/octet-stream': { schema: { type: 'string', format: 'binary' } } } } }
+        : e.body ? { requestBody: { required: !e.bodyOptional, content: { 'application/json': { schema: js(e.body) } } } } : {}),
       responses: { ...ok, default: { description: 'Error', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } } },
     }
   }

@@ -76,6 +76,10 @@ type OSHandlers struct {
 	lastDL time.Time  // when the last download started its snapshot; guarded by dlMu
 
 	upd updCheck // the check side of the software update (updates_check.go)
+
+	setup   *APIHandlers // the setup code gate of the first-run restore (restore_upload.go)
+	upMu    sync.Mutex   // one backup upload or first-run restore at a time
+	keyPath string       // the master key file, for its download (POST /core/data/key)
 }
 
 // stateTTL is how long GET /core/updates/os may answer from one read of the host: the host allows 60 requests a
@@ -127,6 +131,9 @@ type OSConfig struct {
 	// Wake runs the core/software-update job now (core/jobs Scheduler.Wake): a box that never checked checks
 	// firstCheckAfter after its process started, not at the next tick (D-398). nil: no early run (tests).
 	Wake func()
+	// Setup is the first-run gate of the restore from an uploaded backup (D-518): the setup code and whether setup is done.
+	// Required.
+	Setup *APIHandlers
 	// Installed is called once after an OS update run that succeeded has been audited: the box's packages changed, so its
 	// package list is read again now (wiring: the inventory/box job, D-470) instead of at the next hourly run. nil: nothing.
 	Installed func()
@@ -134,13 +141,13 @@ type OSConfig struct {
 
 // NewOSHandlers returns the handlers and sweeps the snapshot directories an earlier run left behind.
 func NewOSHandlers(c OSConfig) (*OSHandlers, error) {
-	if c.DB == nil || c.Auth == nil || c.Audit == nil || c.Log == nil || c.Zone == nil {
-		return nil, errors.New("core: OSConfig needs DB, Auth, Audit, Log and Zone")
+	if c.DB == nil || c.Auth == nil || c.Audit == nil || c.Log == nil || c.Zone == nil || c.Setup == nil {
+		return nil, errors.New("core: OSConfig needs DB, Auth, Audit, Log, Zone and Setup")
 	}
 	if c.Clock == nil {
 		c.Clock = time.Now
 	}
-	h := &OSHandlers{gate: c.Gate, db: c.DB, auth: c.Auth, audit: c.Audit, host: c.Host, zone: c.Zone, log: c.Log, now: c.Clock, loadTimeout: loadTimeout, started: time.Now(), installed: c.Installed}
+	h := &OSHandlers{gate: c.Gate, db: c.DB, auth: c.Auth, audit: c.Audit, host: c.Host, zone: c.Zone, log: c.Log, now: c.Clock, loadTimeout: loadTimeout, started: time.Now(), installed: c.Installed, setup: c.Setup, keyPath: c.KeyPath}
 	if err := h.upd.init(c, c.Clock()); err != nil {
 		return nil, err
 	}

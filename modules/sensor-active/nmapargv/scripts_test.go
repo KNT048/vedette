@@ -16,7 +16,7 @@ func nse795(t *testing.T) [2]map[string][]string {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	var out [2]map[string][]string
 	block := -1
 	for sc := bufio.NewScanner(f); sc.Scan(); {
@@ -30,10 +30,10 @@ func nse795(t *testing.T) [2]map[string][]string {
 			continue
 		}
 		name, cats, ok := strings.Cut(line, ": ")
-		if !ok || block > 1 {
+		if !ok || block >= len(out) {
 			t.Fatalf("unexpected line %q", line)
 		}
-		out[block][name] = strings.Fields(cats)
+		out[block][name] = strings.Fields(cats) //nolint:gosec // G602: block < len(out), checked above
 	}
 	return out
 }

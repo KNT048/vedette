@@ -69,7 +69,7 @@ var disruptiveExtra = []string{
 	"drda-brute", "ftp-brute", "ftp-libopie", "ftp-vuln-cve2010-4221", "http-brute", "http-form-brute", "http-iis-short-name-brute",
 	"http-joomla-brute", "http-slowloris", "http-wordpress-brute", "iax2-brute", "imap-brute", "impress-remote-discover",
 	"informix-brute", "ipmi-brute", "irc-brute", "irc-sasl-brute", "iscsi-brute", "ldap-brute", "lu-enum", "membase-brute",
-	"metasploit-msgrpc-brute", "metasploit-xmlrpc-brute", "mikrotik-routeros-brute", "mmouse-brute", "mongodb-brute",
+	"metasploit-msgrpc-brute", "metasploit-xmlrpc-brute", "mikrotik-routeros-brute", "mmouse-brute", "mongodb-brute", //nolint:misspell // nmap's script name
 	"ms-sql-brute", "mysql-brute", "mysql-enum", "mysql-vuln-cve2012-2122", "nessus-brute", "nessus-xmlrpc-brute", "netbus-brute",
 	"nexpose-brute", "nje-node-brute", "nje-pass-brute", "nping-brute", "omp2-brute", "openvas-otp-brute", "oracle-brute",
 	"oracle-brute-stealth", "oracle-sid-brute", "pcanywhere-brute", "pgsql-brute", "pop3-brute", "rdp-vuln-ms12-020", "redis-brute",
@@ -82,7 +82,7 @@ var disruptiveExtra = []string{
 
 // excludedScripts never run in any shape, with why: they reach a host or resolver other than the target, write or change
 // something on it, or act on the box's own LAN.
-var excludedScripts = map[string]string{
+var excludedScripts = map[string]string{ //nolint:gosec // G101: script names and reasons, no credential
 	"clamav-exec":                  "can send a command such as SHUTDOWN to ClamAV",
 	"dns-client-subnet-scan":       "asks a DNS server about a domain of its arguments",
 	"dns-recursion":                "makes the target's DNS server resolve a name on the Internet",
@@ -136,7 +136,7 @@ var noOutputScripts = []string{
 	"http-vuln-cve2010-2861", "http-vuln-cve2013-7091", "http-vuln-wnr1000-creds", "http-wordpress-brute", "iax2-brute",
 	"imap-brute", "impress-remote-discover", "informix-brute", "ipmi-brute", "irc-brute", "irc-sasl-brute", "iscsi-brute",
 	"ldap-brute", "ldap-search", "lu-enum", "membase-brute", "metasploit-msgrpc-brute", "metasploit-xmlrpc-brute",
-	"mikrotik-routeros-brute", "mmouse-brute", "mongodb-brute", "ms-sql-brute", "ms-sql-dump-hashes", "ms-sql-query", "mysql-brute",
+	"mikrotik-routeros-brute", "mmouse-brute", "mongodb-brute", "ms-sql-brute", "ms-sql-dump-hashes", "ms-sql-query", "mysql-brute", //nolint:misspell // nmap's script name
 	"mysql-dump-hashes", "mysql-enum", "mysql-query", "mysql-vuln-cve2012-2122", "nessus-brute", "nessus-xmlrpc-brute",
 	"netbus-brute", "nexpose-brute", "nje-node-brute", "nje-pass-brute", "nping-brute", "omp2-brute", "openvas-otp-brute",
 	"oracle-brute", "oracle-brute-stealth", "oracle-sid-brute", "pcanywhere-brute", "pgsql-brute", "pop3-brute", "redis-brute",

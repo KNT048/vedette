@@ -269,8 +269,8 @@ func TestVulnCheckPull_FailsClosedWhenTheListIsNotComplete(t *testing.T) {
 }
 
 // Review M2, L1, L2, L4: a held entry stays past 180 days while VulnCheck lists it; VulnCheck takes a custom feed's CVE but
-// never CISA's; CISA takes VulnCheck's over (announced as KEV); an entry with several CVEs gives each its row; a CVE
-// that is new after every row went is news, not a baseline.
+// never CISA's; CISA takes VulnCheck's over (announced as KEV); an entry with several CVEs gives each its row. (A key saved
+// again is a quiet first fill: TestContract_VulnCheckKEV_BYOK.)
 func TestVulnCheckEntries_OwnershipAndWindow(t *testing.T) {
 	t.Parallel()
 	old := vcEntryJSON("CVE-2025-2001", "Acme", "Gateway", "2025-01-30", "")
@@ -286,10 +286,7 @@ func TestVulnCheckEntries_OwnershipAndWindow(t *testing.T) {
 		t.Fatalf("several CVEs: %+v %v", res, err)
 	}
 
-	e := newEnv(t)
-	applyV(t, e.db, epoch0, "ipsum", nil, false) // keeps the helper honest: the source row exists
-	_ = e
-	db := e.db
+	db := newEnv(t).db
 	// another feed's CVE is taken over by VulnCheck, a CISA one is not
 	applyV(t, db, epoch0, "nuclei-templates", []Vuln{vuln("CVE-2026-4001", "Acme", "A", "2026-11-01")}, false)
 	applyV(t, db, epoch0, "cisa-kev", []Vuln{vuln("CVE-2026-4002", "Acme", "B", "2026-11-01")}, false)

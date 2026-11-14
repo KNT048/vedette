@@ -458,6 +458,7 @@
     "emptyBody": "When a trap is touched, a machine connects to a known-bad address, a log looks wrong or an unknown device appears, it shows up here and is sent through the channels you turned on.",
     "emptyBodyNoTraps": "When a machine connects to a known-bad address, a log looks wrong or an unknown device appears, it shows up here and is sent through the channels you turned on.",
     "setupChannels": "Set up alert channels",
+    "noChannelTitle": "No alert channel is set up, so no incident is sent. Set one up in Settings → Alert channels.",
     "sentDelayed": "{{channel}} delayed",
     "fix": {
       "no_channel": "Set up alert channels",
@@ -651,6 +652,6 @@
     "label": "Incident lists",
     "open": "Open",
     "resolved": "Resolved",
-    "openBadge": "open, high or critical"
+    "openBadge": "open"
   }
 }

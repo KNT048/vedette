@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState, type MouseEvent, type RefObje
 import { Link, useNavigate, useSearchParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { PageHeader } from '@/components/common/PageHeader'
+import { PageHeader, Notice } from '@/components/common/PageHeader'
 import { KpiStrip, PageTabs } from '@/components/common/PageFrame'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { EmptyState, QueryState, RequireModule, SampleDataNote } from '@/components/common/States'
@@ -153,7 +153,7 @@ function Content() {
     { id: 'status', header: t('incidents.col.status'), accessorFn: (r) => r.status, cell: ({ row }) => <Handled i={row.original} /> },
     { id: 'seen', header: t('incidents.col.seen'), accessorFn: (r) => r.last_seen, cell: ({ row }) => <Seen i={row.original} /> },
     { id: 'count', header: t('incidents.col.count'), accessorFn: (r) => r.count, cell: ({ row }) => t('incidents.times', { count: row.original.count }) },
-    { id: 'sent', header: t('incidents.col.sent'), enableSorting: false, cell: ({ row }) => <DeliveryBadges sends={row.original.sends} notSent={row.original.not_sent} admin={admin} /> },
+    { id: 'sent', header: t('incidents.col.sent'), enableSorting: false, cell: ({ row }) => <DeliveryBadges sends={row.original.sends} notSent={row.original.not_sent} admin={admin} noChannelShown={noChannel} /> },
     { id: 'respond', header: t('incidents.col.respond'), enableSorting: false, cell: ({ row }) => <RespondLink i={row.original} /> },
   ]
   const panel = (
@@ -165,6 +165,9 @@ function Content() {
             {tab === 'open' && onlyUrgent ? <Button size="sm" onClick={() => setParam('severity', '')}><X />{t('incidents.clearUrgent')}</Button> : null}
             {tab === 'open' && onlyUnsent ? <Button size="sm" onClick={() => setParam('sent', '')}><X />{t('incidents.clearUnsent')}</Button> : null}
           </div>
+          {noChannel && rows.some((r) => r.not_sent?.reason === 'no_channel') ? (
+            <Notice tone="warn" title={t('incidents.noChannelTitle')} actions={<Link to="/settings/channels" className={link}>{t('incidents.setupChannels')}</Link>} />
+          ) : null}
           {tab === 'open' && can && shown.length > 0 ? (
             <div role="region" aria-label={t('bulk.region')} className="mb-3 flex flex-wrap items-center gap-2 rounded-md border border-rule bg-sunken px-3 py-2 text-sm">
               <span className="font-medium">{t('bulk.selected', { count: shown.length })}</span>
@@ -194,7 +197,7 @@ function Content() {
                       <SeverityChip severity={r.severity} />
                     </div>
                     <p className="text-[13px] text-muted">{t(kindKey(r))}, {r.devices.map((x) => x.name).join(', ')}, {t('incidents.times', { count: r.count })}</p>
-                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px]"><Handled i={r} /><DeliveryBadges sends={r.sends} notSent={r.not_sent} admin={admin} /><Seen i={r} /></div>
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px]"><Handled i={r} /><DeliveryBadges sends={r.sends} notSent={r.not_sent} admin={admin} noChannelShown={noChannel} /><Seen i={r} /></div>
                     <div><RespondLink i={r} /></div>
                   </div>
                 </div>
@@ -209,7 +212,7 @@ function Content() {
       <PageHeader title={title} stories={['S-ALERT-3', 'S-UI-1']} meta={q.data ? <span className="inline-flex flex-wrap items-center gap-2">{t('incidents.meta')} {t('incidents.retention')}<SampleDataNote /></span> : null} />
       {kpis.length ? <KpiStrip label={t('kpi.label')} items={kpis} /> : null}
       <PageTabs label={t('tabs.label')} tabs={[
-        { id: 'open', label: t('tabs.open'), panel, badge: { count: openRows.filter(urgent).length, label: t('tabs.openBadge') } },
+        { id: 'open', label: t('tabs.open'), panel, badge: { count: openRows.length, label: t('tabs.openBadge') } },
         { id: 'resolved', label: t('tabs.resolved'), panel },
       ]} />
       <BulkDialog ids={shown} status={bulk} onOpenChange={(v) => { if (!v) setBulk(null) }} opener={opener} onDone={clear} />

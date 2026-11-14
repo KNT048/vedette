@@ -3,6 +3,7 @@ package feeds
 import (
 	"archive/tar"
 	"bytes"
+	"context"
 	"errors"
 	"io"
 	"slices"
@@ -229,6 +230,59 @@ func TestDistroPull(t *testing.T) {
 	}
 	if fixes, _ := e.svc.st.DistroFixes(t.Context()); len(fixes["CVE-2026-10001"]) != 2 {
 		t.Fatalf("turned on again: %+v", fixes)
+	}
+}
+
+// distroInv is an inventory that answers only Distros (D-570).
+type distroInv struct {
+	Inventory
+	got   map[string]bool
+	err   error
+	asked int
+}
+
+func (d *distroInv) Distros(context.Context) (map[string]bool, error) { d.asked++; return d.got, d.err }
+
+// D-570 (LEAN): a distribution feed is fetched only while a device needs it. Otherwise nothing is fetched or recorded, the
+// feed stays due (the next tick asks again) and the Feeds page says why; a failed read of the inventory pulls as before.
+func TestDistroPullOnlyWhileADeviceNeedsIt(t *testing.T) {
+	t.Parallel()
+	e, o := pullEnv(t)
+	e.only(debianTrackerFeedID)
+	e.mirror(debianTrackerFeedID, o.url("/tracker.json"))
+	o.body("/tracker.json", `"v1"`, debianJSON)
+	e.loadKEV()
+	inv := &distroInv{got: map[string]bool{DistroUbuntu: true}}
+	e.svc.Inventory = inv
+	for range 2 {
+		if err := e.svc.RunPull(t.Context()); err != nil {
+			t.Fatal(err)
+		}
+	}
+	const note = "Not pulled: no Debian device yet. Vedette pulls it on the next check after an agent reports the packages of a Debian device."
+	f := e.svc.live(e.feed(debianTrackerFeedID))
+	if o.count("/tracker.json") != 0 || inv.asked != 2 || f.Status != "never" || f.Error == nil || *f.Error != note {
+		t.Fatalf("no Debian device: %d requests, asked %d, feed %+v", o.count("/tracker.json"), inv.asked, f)
+	}
+	inv.got = map[string]bool{DistroUbuntu: true, DistroDebian: true}
+	if err := e.svc.RunPull(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if f := e.svc.live(e.feed(debianTrackerFeedID)); o.count("/tracker.json") != 1 || f.Status != "ok" || f.Error != nil && *f.Error == note {
+		t.Fatalf("a Debian device appeared: %d requests, feed %+v", o.count("/tracker.json"), f)
+	}
+	// the device is gone: the rows stay, the next pull is skipped with the note
+	inv.got = map[string]bool{}
+	if err := e.svc.Fetch(t.Context(), debianTrackerFeedID); err != nil || o.count("/tracker.json") != 1 || rowsOf(t, e.db, "feeds_distro_fix") != 2 {
+		t.Fatalf("device gone: %v, %d requests, %d rows", err, o.count("/tracker.json"), rowsOf(t, e.db, "feeds_distro_fix"))
+	}
+	if f := e.svc.live(e.feed(debianTrackerFeedID)); f.Status != "ok" || f.Error == nil || *f.Error != note {
+		t.Fatalf("device gone: feed %+v", f)
+	}
+	// the inventory cannot be read: pull as before
+	inv.got, inv.err = nil, errors.New("database is locked")
+	if err := e.svc.Fetch(t.Context(), debianTrackerFeedID); err != nil || o.count("/tracker.json") != 2 {
+		t.Fatalf("read error: %v, %d requests", err, o.count("/tracker.json"))
 	}
 }
 

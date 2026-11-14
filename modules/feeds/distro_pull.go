@@ -18,6 +18,49 @@ const distroFetchTimeout = 9 * time.Minute
 // the feed stays due and pulls at the next tick after the list (like ErrBoxAddrsUnknown).
 var errDistroWaits = errors.New("feeds: the distribution feeds wait for the CISA list")
 
+// errDistroNoDevice: no device needs this distribution feed (D-570, LEAN). Nothing is fetched or recorded, the stored rows
+// stay, and the feed stays due, so it pulls at the next tick after such a device appears.
+var errDistroNoDevice = errors.New("feeds: no device needs this distribution feed")
+
+// distroOfFeed is the distribution each distribution feed answers for.
+var distroOfFeed = map[string]string{ubuntuOSVFeedID: DistroUbuntu, ubuntuVEXFeedID: DistroUbuntu, debianTrackerFeedID: DistroDebian}
+
+// distroNeeded says whether some device needs the distribution of feed id, and remembers the answer for the Feeds page.
+// No lister, the inventory module off, or a read error: pull as before, since a missed fix costs more than a download.
+// ponytail: asks the inventory on each tick while a distribution feed is due (every PullEvery while no device needs it);
+// upgrade: an inventory event that says a device's OS changed.
+func (s *Service) distroNeeded(ctx context.Context, id string) bool {
+	need := true
+	if l, ok := s.Inventory.(DistroLister); ok && (s.Modules == nil || s.Modules.Enabled("inventory")) {
+		if got, err := l.Distros(ctx); err != nil {
+			s.Log.WarnContext(ctx, "reading the distributions of the devices failed; pulling the feed anyway", "feed", id, "error", err)
+		} else {
+			need = got[distroOfFeed[id]]
+		}
+	}
+	s.idleMu.Lock()
+	defer s.idleMu.Unlock()
+	if s.distroIdle == nil {
+		s.distroIdle = map[string]bool{}
+	}
+	s.distroIdle[id] = !need
+	return need
+}
+
+// distroNote is the Feeds page line of a distribution feed no device needs; "" when it is pulled.
+func (s *Service) distroNote(id string) string {
+	s.idleMu.Lock()
+	idle := s.distroIdle[id]
+	s.idleMu.Unlock()
+	if !idle {
+		return ""
+	}
+	if distroOfFeed[id] == DistroDebian {
+		return "Not pulled: no Debian device yet. Vedette pulls it on the next check after an agent reports the packages of a Debian device."
+	}
+	return "Not pulled: no Ubuntu device yet. Vedette pulls it on the next check after an agent reports the packages of an Ubuntu device."
+}
+
 var distroParsers = map[Decoder]func(io.Reader, map[string]bool) (DistroResult, error){
 	DecoderUbuntuOSV:     ParseUbuntuOSV,
 	DecoderUbuntuVEX:     ParseUbuntuVEX,
@@ -35,6 +78,9 @@ func (s *Service) buildDistro(ctx context.Context, src sourceRow, p pullPlan, de
 	}
 	if len(cves) == 0 {
 		return p, errDistroWaits
+	}
+	if !s.distroNeeded(ctx, src.ID) {
+		return p, errDistroNoDevice
 	}
 	want := make(map[string]bool, len(cves))
 	for _, c := range cves {

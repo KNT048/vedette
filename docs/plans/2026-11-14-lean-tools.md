@@ -73,7 +73,7 @@ All run inside `core`; none starts an outside process. Listeners and long-lived 
 | L2 ZAP flags | — | none | `-silent`, HUD daemon default off (ZAP docs) | — | — |
 | L2 ZAP rules | Mlee | check rule ids vs `-addonlist`; hook only if passive > 30 s | correctness first; hook is documented | small CPU | zap.out phase times; `memory.peak` |
 | L2 nuclei | — | none | `-duc -ni -nh`, no `-stats` (source) | — | `ss -ltnp` in the scan container |
-| L2 distro feeds | Mlee | pull per distro present in inventory | data unused without such a device (D-516 story) | up to 232 MB/day download, 42 GB/day unpack+parse | core `cpu.stat` around "Fetch now"; feed pull duration |
+| L2 distro feeds | Mlee | pull per distro present in inventory (built: D-570, feeds INV-22) | data unused without such a device (D-516 story) | up to 232 MB/day download, 42 GB/day unpack+parse | core `cpu.stat` around "Fetch now"; feed pull duration |
 | L2 sensor/scan/honeypot (nmap/NSE, OpenCanary, Zeek, osquery, Wazuh, containers) | [T] | Trưởng's own plan | — | — | same commands |
 
 **Commands** (rootful podman on the N100; the Greenbone project name is `greenbone-community-edition`):

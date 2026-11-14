@@ -37,9 +37,14 @@ interface Config { builtin: Record<string, BuiltinState>; custom: Feed[] }
 // The built-in feed that needs the customer's own API key: off until one is saved (D-557).
 const BYOK = 'vulncheck-kev'
 const ago = (h: number) => new Date(Date.now() - h * 36e5).toISOString()
+/** D-570 (LEAN): the mock inventory has Ubuntu devices and no Debian one, so the Debian tracker is not pulled and says why. */
+const IDLE = 'debian-tracker'
+const NO_DEBIAN = 'Not pulled: no Debian device yet. Vedette pulls it on the next check after an agent reports the packages of a Debian device.'
 const seedBuiltin = (clean: boolean): Record<string, BuiltinState> => Object.fromEntries(DEFS.map((d, i) => [d.id, {
   enabled: d.id !== BYOK, interval_hours: d.kind === 'ioc' || d.id === BYOK ? 6 : d.id === 'cisa-kev' || d.id === 'cve-org' ? 1 : 24, url: d.url,
-  last_fetch: clean || d.id === BYOK ? null : ago(1 + i * 0.7), records: clean || d.id === BYOK ? null : d.records, status: clean || d.id === BYOK ? 'never' as const : 'ok' as const, error: null,
+  ...(clean || d.id === BYOK || d.id === IDLE
+    ? { last_fetch: null, records: null, status: 'never' as const, error: d.id === IDLE ? NO_DEBIAN : null }
+    : { last_fetch: ago(1 + i * 0.7), records: d.records, status: 'ok' as const, error: null }),
 }]))
 
 function seedCustom(): Feed[] {
@@ -148,6 +153,7 @@ export const sourceHandlers = [
     const f = allFeeds(c).find((x) => x.id === id)
     if (!f) return fail(404, 'not_found', 'No such feed.')
     if (!f.enabled) return fail(409, 'feed_disabled', 'Turn the feed on before fetching it.')
+    if (id === IDLE) return HttpResponse.json(f) // D-570: no Debian device, so nothing is fetched; the row keeps its note
     const host = hostOf(f.url)
     let status: Feed['status'] = 'ok', error: string | null = null, records = f.records
     if (/\.(invalid|example)$/.test(host) && !f.builtin) { status = 'error'; error = `Could not resolve ${host}. Check the address.` }

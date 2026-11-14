@@ -54,6 +54,7 @@ const (
 	EventAssetDiscovered = "inventory.asset.discovered"
 	EventAssetUpdated    = "inventory.asset.updated"
 	EventAssetDeleted    = "inventory.asset.deleted"
+	EventAssetMerged     = "inventory.asset.merged"
 	EventAssetApproved   = "inventory.asset.approved" // a person approved a discovered device (D-474, B9b)
 	EventSoftwareChanged = "inventory.software.changed"
 	EventMatchChanged    = "inventory.match.changed"
@@ -73,6 +74,14 @@ type AssetEvent struct {
 	Learning bool `json:"learning,omitempty"`
 	// Actor is the person who approved (inventory.asset.approved) or deleted (inventory.asset.deleted) the device; "" for the system.
 	Actor string `json:"actor,omitempty"`
+}
+
+// MergeEvent is the data of inventory.asset.merged (D-515): device From was the same device as Into and is gone; what other modules
+// keep about From belongs to Into now. It goes out before the inventory.asset.deleted of From.
+type MergeEvent struct {
+	From  string `json:"from"`
+	Into  string `json:"into"`
+	Actor string `json:"actor"`
 }
 
 // MatchEvent is the data of inventory.match.changed: the asset now matches an exploited CVE by product.

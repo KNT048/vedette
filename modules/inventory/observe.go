@@ -237,7 +237,19 @@ func (s *Service) Record(ctx context.Context, batch []observe.Observation) error
 				return fmt.Errorf("inventory: touch device: %w", err)
 			}
 		}
+		gone, joined, err := s.joinSame(ctx, tx, o, touched, created, before)
+		if err != nil {
+			return err
+		}
+		for _, id := range joined {
+			if !slices.Contains(touched, id) {
+				touched = append(touched, id)
+			}
+		}
 		for _, id := range touched {
+			if gone[id] {
+				continue
+			}
 			changed, err := s.RecomputeAsset(ctx, tx, id)
 			if err != nil {
 				return err
@@ -246,7 +258,7 @@ func (s *Service) Record(ctx context.Context, batch []observe.Observation) error
 			if err != nil {
 				return err
 			}
-			match := after != before[id] // D-510: findings matches the device again only when its OS or model changed
+			match := after != before[id] || slices.Contains(joined, id) // D-510: findings matches the device again only when its OS or model changed; D-515: or another device joined it
 			switch {
 			case created[id] != "":
 				o.add(EventAssetDiscovered, AssetEvent{AssetID: id, Notify: notify, Match: match, Learning: learn[created[id]]})
@@ -399,7 +411,8 @@ func (c cleanObs) target() string {
 
 // resolve finds the device a hint points to, or creates it. The MAC wins; with no known MAC the IP is used,
 // and a device that already has another MAC does not own that IP any more: a discovered device gives it up
-// (DHCP moved it), a declared one keeps it and the newcomer is created without an IP.
+// (DHCP moved it), a declared one keeps it and the newcomer is created without an IP. A hint with only a MAC that a
+// join left as a chassis MAC (D-515) is about the device it joined.
 func (s *Service) resolve(ctx context.Context, tx *sql.Tx, c cleanObs) (id string, created bool, err error) {
 	if c.mac != "" {
 		switch err := tx.QueryRowContext(ctx, `SELECT id FROM inv_asset WHERE mac = ?`, c.mac).Scan(&id); {
@@ -407,6 +420,11 @@ func (s *Service) resolve(ctx context.Context, tx *sql.Tx, c cleanObs) (id strin
 			return id, false, s.claimIP(ctx, tx, id, c.ip, c.source)
 		case !errors.Is(err, sql.ErrNoRows):
 			return "", false, fmt.Errorf("inventory: find device by MAC: %w", err)
+		}
+		if !c.ip.IsValid() {
+			if id, err := chassisOwner(ctx, tx, c.mac); id != "" || err != nil {
+				return id, false, err
+			}
 		}
 	}
 	if c.ip.IsValid() {
@@ -505,7 +523,8 @@ func pruneObs(ctx context.Context, tx *sql.Tx, assetID, field, source string) er
 // field the winner by source rank, confidence, seen_at, id. It is the only code that writes those columns, and
 // it runs in the transaction of the insert and the audit row. It reports whether anything changed.
 func (s *Service) RecomputeAsset(ctx context.Context, tx *sql.Tx, assetID string) (bool, error) {
-	rows, err := tx.QueryContext(ctx, `SELECT id, field, value, source, confidence, seen_at FROM inv_observation WHERE asset_id = ?`, assetID)
+	// The chassis MAC a join left (D-515) is a mark, never the device's MAC.
+	rows, err := tx.QueryContext(ctx, `SELECT id, field, value, source, confidence, seen_at FROM inv_observation WHERE asset_id = ? AND NOT (field = 'mac' AND evidence IS ?)`, assetID, chassisEvidence)
 	if err != nil {
 		return false, fmt.Errorf("inventory: read observations: %w", err)
 	}

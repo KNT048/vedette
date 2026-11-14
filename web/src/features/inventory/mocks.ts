@@ -244,7 +244,9 @@ const notFound = (_request?: Request) => fail(404, 'not_found', 'No such device.
 
 function createManual(entry: CatalogEntry | null, o: { version?: string; name?: string; ip?: string; kind?: AssetKind }): Asset {
   const now = nowIso()
-  const kind = o.kind ?? entry?.kind ?? 'unknown'
+  const suggested = o.kind ?? entry?.kind ?? 'unknown'
+  // A product with neither an IP nor a name is only a product ("(no device)"): no computer type for it (W9-1, D-515); an appliance keeps its type.
+  const kind: AssetKind = !o.ip && !o.name && ['pc', 'server', 'web'].includes(actsAs(suggested)) ? 'unknown' : suggested
   const a: Asset = {
     id: newId('a'), site: 'hq', ip: o.ip || '—', mac: null, hostname: o.name || null, kind,
     vendor: entry ? { value: entry.vendor, source: 'manual', confidence: 1, seen_at: now } : null,

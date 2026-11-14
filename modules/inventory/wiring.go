@@ -531,7 +531,7 @@ func (s *Service) AddManualDevice(ctx context.Context, tx *sql.Tx, actor string,
 	a.entry = &e
 	kind := ""
 	if validKind(in.Kind) {
-		kind = in.Kind
+		kind = suggestedKind(in.Kind, a) // feeds' suggestion (W9-1, D-515)
 	}
 	var o outbox
 	id, err := s.createManual(ctx, tx, &o, a, kind)

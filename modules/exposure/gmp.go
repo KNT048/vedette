@@ -354,7 +354,7 @@ func (g *gmpConn) levelConfig(ctx context.Context, user string, lv gbLevel) (str
 		break
 	}
 	if id == "" && foreign {
-		return "", &Unavailable{Reason: "a scan config named " + lv.name + " belongs to another Greenbone user, so Vedette did not use it. Rename or delete it in Greenbone."}
+		return "", &Unavailable{Reason: "a scan config named " + lv.name + " belongs to another OpenVAS user, so Vedette did not use it. Rename or delete it in OpenVAS."}
 	}
 	if id == "" {
 		var err error
@@ -407,7 +407,7 @@ func (g *gmpConn) readBack(ctx context.Context, id string, lv gbLevel) error {
 	for _, f := range gmpDisruptiveFamilies {
 		on := slices.ContainsFunc(got.Configs[0].Families, func(x gmpFamily) bool { return strings.TrimSpace(x.Name) == f && x.on() })
 		if on != lv.disruptive {
-			return &Unavailable{Reason: "Greenbone did not keep the family \"" + f + "\" " + onOff(lv.disruptive) + " in Vedette's scan config " + lv.name + ", so nothing was started."}
+			return &Unavailable{Reason: "OpenVAS did not keep the family \"" + f + "\" " + onOff(lv.disruptive) + " in Vedette's scan config " + lv.name + ", so nothing was started."}
 		}
 	}
 	var p gmpPrefs
@@ -415,7 +415,7 @@ func (g *gmpConn) readBack(ctx context.Context, id string, lv gbLevel) error {
 		return err
 	}
 	if x, ok := p.find("safe_checks"); !ok || strings.TrimSpace(x.Value) != lv.safeChecks {
-		return &Unavailable{Reason: "Greenbone did not keep safe checks " + onOff(lv.safeChecks == "yes") + " in Vedette's scan config " + lv.name + ", so nothing was started."}
+		return &Unavailable{Reason: "OpenVAS did not keep safe checks " + onOff(lv.safeChecks == "yes") + " in Vedette's scan config " + lv.name + ", so nothing was started."}
 	}
 	return nil
 }
@@ -432,7 +432,7 @@ func (g *gmpConn) modifyConfig(ctx context.Context, name, body string) error {
 	_, err := g.do(ctx, "modify_config", body, gmpMaxAnswer, nil)
 	var se *gmpStatusError
 	if errors.As(err, &se) && strings.Contains(strings.ToLower(se.Text), "in use") {
-		return &Unavailable{Reason: "Greenbone's scan config " + name + " is used by a task Vedette did not start, so its settings could not be set again and nothing was started. Delete that task in Greenbone."}
+		return &Unavailable{Reason: "the OpenVAS scan config " + name + " is used by a task Vedette did not start, so its settings could not be set again and nothing was started. Delete that task in OpenVAS."}
 	}
 	return err
 }
@@ -480,7 +480,7 @@ func (g *gmpConn) levelPrefs(ctx context.Context, config string, lv gbLevel) err
 			}
 			x, ok := before.find(c.name)
 			if !ok || strings.TrimSpace(x.Type) != "checkbox" || !gmpPrefID.MatchString(strings.TrimSpace(x.ID)) {
-				return &Unavailable{Reason: "Greenbone's feed has no \"" + c.name + "\" option, so Vedette cannot set its scan config as the testing terms say; nothing was started."}
+				return &Unavailable{Reason: "the OpenVAS feed has no \"" + c.name + "\" option, so Vedette cannot set its scan config as the testing terms say; nothing was started."}
 			}
 			full := oid + ":" + strings.TrimSpace(x.ID) + ":checkbox:" + c.name
 			if err := g.modifyConfig(ctx, lv.name, `<modify_config config_id="`+config+`"><preference><nvt oid="`+oid+`"/><name>`+esc(full)+`</name><value>`+
@@ -497,7 +497,7 @@ func (g *gmpConn) levelPrefs(ctx context.Context, config string, lv gbLevel) err
 				continue
 			}
 			if x, ok := after.find(c.name); !ok || strings.TrimSpace(x.Value) != c.value {
-				return &Unavailable{Reason: "Greenbone did not keep \"" + c.name + "\" " + onOff(c.value == "yes") + " in Vedette's scan config " + lv.name + ", so nothing was started."}
+				return &Unavailable{Reason: "OpenVAS did not keep \"" + c.name + "\" " + onOff(c.value == "yes") + " in Vedette's scan config " + lv.name + ", so nothing was started."}
 			}
 		}
 	}
@@ -640,7 +640,7 @@ type gmpObjects struct {
 var gmpActive = []string{"Requested", "Queued", "Running", "Stop Requested", "Processing"}
 
 // errGBStillStopping: an earlier task of Vedette's is still being stopped, so a new one does not start (it would run beside it).
-var errGBStillStopping = &Unavailable{Reason: "an earlier Greenbone scan of Vedette is still stopping, so a new one was not started. Try again in a few minutes."}
+var errGBStillStopping = &Unavailable{Reason: "an earlier OpenVAS scan of Vedette is still stopping, so a new one was not started. Try again in a few minutes."}
 
 // leftovers stops and deletes the tasks and targets an earlier scan of Vedette's left behind (a stop that failed, a restart of the
 // box in the middle of a scan), owned by user and named with gbObjectPrefix, before a new task starts: Vedette never leaves a task

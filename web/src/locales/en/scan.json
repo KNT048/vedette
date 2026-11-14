@@ -365,7 +365,7 @@
     "noHosts": "No server can be added yet: a server must be in the inventory, approved, and inside the scan scope.",
     "title": "Credentialed scan",
     "description": "Deep-scan important servers with a read-only SSH account, so Vedette sees real installed package versions instead of guessing.",
-    "how": "Greenbone runs in its own container, separate from the confirming scan. You create a read-only account on the target and give Vedette the private key.",
+    "how": "OpenVAS runs in its own container, separate from the confirming scan. You create a read-only account on the target and give Vedette the private key.",
     "privacy": "The private key is stored encrypted on the box and never shown again. Vedette only displays its last four characters and never exports it.",
     "prepare": "Prepare a Linux target (Debian, Ubuntu)",
     "prepareIntro": "Run the commands one at a time. The account has no sudo rights.",

@@ -109,7 +109,7 @@ func TestMigration0006UntypesAProductWithNoDevice(t *testing.T) {
 	var qs []string
 	qs = append(qs, declared("a-n100", "NULL", "pc", at, at)...)           // the N100 row
 	qs = append(qs, declared("a-version", "NULL", "server", at, later)...) // the version edited later ("I updated it")
-	qs = append(qs, declared("a-repicked", "NULL", "pc", later, at)...)    // a person picked Computer again on the device page
+	qs = append(qs, declared("a-repicked", "NULL", "pc", later, at)...)    // a kind observation stamped after the declare stays (defensive: the device page writes one only on a change)
 	qs = append(qs, declared("a-ip", "'192.168.30.5'", "pc", at, at)...)   // a product on a device
 	qs = append(qs, declared("a-fw", "NULL", "firewall", at, at)...)       // FortiGate: the product is the device
 	qs = append(qs, declared("a-chosen", "NULL", "pc", at, at)...)         // a person set Server later

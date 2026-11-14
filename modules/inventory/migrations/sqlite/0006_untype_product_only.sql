@@ -6,7 +6,7 @@
 -- no IP, MAC or host name, not the box, its current type the manual observation stamped with the row's first_seen and no other type
 -- observation, and the manual vendor observation of the same write (the software row of that write moves its seen_at when a person
 -- edits the version, "I updated it", so the vendor observation is the stamp that stays). A type a person set later on the device page
--- has a later seen_at (re-picking the same type moves the observation's seen_at) and stays; an appliance type (firewall, router…)
+-- has a later seen_at and stays; an appliance type (firewall, router…)
 -- stays. What RecomputeAsset would now store follows: kind unknown, no kind observation, fragile from fragile_kinds unless a person
 -- set it. No audit row and no event, as no inventory migration writes them; the device page reads the row. Forward-only
 -- (DATA_MODEL 6, rule 1).
@@ -22,7 +22,7 @@ WHERE a.origin = 'manual' AND a.ip IS NULL AND a.mac IS NULL AND a.hostname IS N
 
 UPDATE inv_asset SET kind = 'unknown', kind_obs_id = NULL,
     fragile = CASE WHEN fragile_manual = 1 THEN fragile
-        ELSE EXISTS (SELECT 1 FROM inv_setting st, json_each(st.value) j WHERE st.key = 'fragile_kinds' AND j.value = 'unknown') END
+        ELSE EXISTS (SELECT 1 FROM inv_setting st, json_each(CASE WHEN json_valid(st.value) THEN st.value ELSE '[]' END) j WHERE st.key = 'fragile_kinds' AND j.value = 'unknown') END
 WHERE id IN (SELECT asset_id FROM inv_untype);
 
 DELETE FROM inv_observation WHERE id IN (SELECT obs_id FROM inv_untype);

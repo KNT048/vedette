@@ -46102,8 +46102,21 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneItem) SetSolution(v
 }
 
 type ExposureGetExposureTargetsIDSnapshotsDateOKHostsItem struct {
-	IP   string `json:"ip"`
-	Name string `json:"name"`
+	// The final CNAME target.
+	Cname OptString `json:"cname"`
+	// The first IPv4 address; "" when the name has none (IPv6 only, or a CNAME that leads nowhere).
+	IP string `json:"ip"`
+	// Every address of the name with its kind (at most 16).
+	Ips  []ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItem `json:"ips"`
+	Name string                                                        `json:"name"`
+	// Where the name was found: a certificate-transparency log, the domain itself, its MX or NS records,
+	// or the list of common names. Missing on a snapshot older than D-567: its classes are unknown.
+	Source OptExposureGetExposureTargetsIDSnapshotsDateOKHostsItemSource `json:"source"`
+}
+
+// GetCname returns the value of Cname.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKHostsItem) GetCname() OptString {
+	return s.Cname
 }
 
 // GetIP returns the value of IP.
@@ -46111,9 +46124,24 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKHostsItem) GetIP() string {
 	return s.IP
 }
 
+// GetIps returns the value of Ips.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKHostsItem) GetIps() []ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItem {
+	return s.Ips
+}
+
 // GetName returns the value of Name.
 func (s *ExposureGetExposureTargetsIDSnapshotsDateOKHostsItem) GetName() string {
 	return s.Name
+}
+
+// GetSource returns the value of Source.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKHostsItem) GetSource() OptExposureGetExposureTargetsIDSnapshotsDateOKHostsItemSource {
+	return s.Source
+}
+
+// SetCname sets the value of Cname.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKHostsItem) SetCname(val OptString) {
+	s.Cname = val
 }
 
 // SetIP sets the value of IP.
@@ -46121,13 +46149,220 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKHostsItem) SetIP(val string)
 	s.IP = val
 }
 
+// SetIps sets the value of Ips.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKHostsItem) SetIps(val []ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItem) {
+	s.Ips = val
+}
+
 // SetName sets the value of Name.
 func (s *ExposureGetExposureTargetsIDSnapshotsDateOKHostsItem) SetName(val string) {
 	s.Name = val
 }
 
+// SetSource sets the value of Source.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKHostsItem) SetSource(val OptExposureGetExposureTargetsIDSnapshotsDateOKHostsItemSource) {
+	s.Source = val
+}
+
+type ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItem struct {
+	// Box: this box's verified, current IP; public: any other public address (checked by name on 80 and
+	// 443); private: not a public address, never dialed.
+	Class ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemClass `json:"class"`
+	// IPv6 is listed, not scanned yet.
+	Family ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemFamily `json:"family"`
+	IP     string                                                            `json:"ip"`
+}
+
+// GetClass returns the value of Class.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItem) GetClass() ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemClass {
+	return s.Class
+}
+
+// GetFamily returns the value of Family.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItem) GetFamily() ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemFamily {
+	return s.Family
+}
+
+// GetIP returns the value of IP.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItem) GetIP() string {
+	return s.IP
+}
+
+// SetClass sets the value of Class.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItem) SetClass(val ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemClass) {
+	s.Class = val
+}
+
+// SetFamily sets the value of Family.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItem) SetFamily(val ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemFamily) {
+	s.Family = val
+}
+
+// SetIP sets the value of IP.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItem) SetIP(val string) {
+	s.IP = val
+}
+
+// Box: this box's verified, current IP; public: any other public address (checked by name on 80 and
+// 443); private: not a public address, never dialed.
+type ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemClass string
+
+const (
+	ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemClassBox     ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemClass = "box"
+	ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemClassPublic  ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemClass = "public"
+	ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemClassPrivate ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemClass = "private"
+)
+
+// AllValues returns all ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemClass values.
+func (ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemClass) AllValues() []ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemClass {
+	return []ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemClass{
+		ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemClassBox,
+		ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemClassPublic,
+		ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemClassPrivate,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemClass) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemClassBox:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemClassPublic:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemClassPrivate:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemClass) UnmarshalText(data []byte) error {
+	switch ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemClass(data) {
+	case ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemClassBox:
+		*s = ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemClassBox
+		return nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemClassPublic:
+		*s = ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemClassPublic
+		return nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemClassPrivate:
+		*s = ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemClassPrivate
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// IPv6 is listed, not scanned yet.
+type ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemFamily string
+
+const (
+	ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemFamilyIpv4 ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemFamily = "ipv4"
+	ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemFamilyIpv6 ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemFamily = "ipv6"
+)
+
+// AllValues returns all ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemFamily values.
+func (ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemFamily) AllValues() []ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemFamily {
+	return []ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemFamily{
+		ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemFamilyIpv4,
+		ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemFamilyIpv6,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemFamily) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemFamilyIpv4:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemFamilyIpv6:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemFamily) UnmarshalText(data []byte) error {
+	switch ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemFamily(data) {
+	case ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemFamilyIpv4:
+		*s = ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemFamilyIpv4
+		return nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemFamilyIpv6:
+		*s = ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemFamilyIpv6
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Where the name was found: a certificate-transparency log, the domain itself, its MX or NS records,
+// or the list of common names. Missing on a snapshot older than D-567: its classes are unknown.
+type ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemSource string
+
+const (
+	ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemSourceCt       ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemSource = "ct"
+	ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemSourceDNS      ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemSource = "dns"
+	ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemSourceMx       ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemSource = "mx"
+	ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemSourceNs       ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemSource = "ns"
+	ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemSourceWordlist ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemSource = "wordlist"
+)
+
+// AllValues returns all ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemSource values.
+func (ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemSource) AllValues() []ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemSource {
+	return []ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemSource{
+		ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemSourceCt,
+		ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemSourceDNS,
+		ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemSourceMx,
+		ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemSourceNs,
+		ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemSourceWordlist,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemSource) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemSourceCt:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemSourceDNS:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemSourceMx:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemSourceNs:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemSourceWordlist:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemSource) UnmarshalText(data []byte) error {
+	switch ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemSource(data) {
+	case ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemSourceCt:
+		*s = ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemSourceCt
+		return nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemSourceDNS:
+		*s = ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemSourceDNS
+		return nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemSourceMx:
+		*s = ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemSourceMx
+		return nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemSourceNs:
+		*s = ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemSourceNs
+		return nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemSourceWordlist:
+		*s = ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemSourceWordlist
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type ExposureGetExposureTargetsIDSnapshotsDateOKNotCheckedItem struct {
-	// Udp, ports, non_exploited, services, templates, cve, web or greenbone.
+	// Udp, ports, non_exploited, services, templates, cve, web, greenbone; a domain's surface (INV-27):
+	// wordlist (common names not tried: wildcard DNS), by_name (names on other public addresses: checked
+	// by name only), address_family (IPv6 not scanned).
 	Kind string `json:"kind"`
 	Text string `json:"text"`
 }
@@ -123830,6 +124065,52 @@ func (o OptExposureDeleteExposureTargetsIDIgnore) Get() (v ExposureDeleteExposur
 
 // Or returns value if set, or given parameter if does not.
 func (o OptExposureDeleteExposureTargetsIDIgnore) Or(d ExposureDeleteExposureTargetsIDIgnore) ExposureDeleteExposureTargetsIDIgnore {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptExposureGetExposureTargetsIDSnapshotsDateOKHostsItemSource returns new OptExposureGetExposureTargetsIDSnapshotsDateOKHostsItemSource with value set to v.
+func NewOptExposureGetExposureTargetsIDSnapshotsDateOKHostsItemSource(v ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemSource) OptExposureGetExposureTargetsIDSnapshotsDateOKHostsItemSource {
+	return OptExposureGetExposureTargetsIDSnapshotsDateOKHostsItemSource{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptExposureGetExposureTargetsIDSnapshotsDateOKHostsItemSource is optional ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemSource.
+type OptExposureGetExposureTargetsIDSnapshotsDateOKHostsItemSource struct {
+	Value ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemSource
+	Set   bool
+}
+
+// IsSet returns true if OptExposureGetExposureTargetsIDSnapshotsDateOKHostsItemSource was set.
+func (o OptExposureGetExposureTargetsIDSnapshotsDateOKHostsItemSource) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptExposureGetExposureTargetsIDSnapshotsDateOKHostsItemSource) Reset() {
+	var v ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemSource
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptExposureGetExposureTargetsIDSnapshotsDateOKHostsItemSource) SetTo(v ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemSource) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptExposureGetExposureTargetsIDSnapshotsDateOKHostsItemSource) Get() (v ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemSource, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptExposureGetExposureTargetsIDSnapshotsDateOKHostsItemSource) Or(d ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemSource) ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemSource {
 	if v, ok := o.Get(); ok {
 		return v
 	}

@@ -1,7 +1,7 @@
 // Sample data and scan-result generator of the exposure mock. 203.0.113.0/24 is the documentation range (RFC 5737), not real IPs.
 import { daysAgo } from '@/mocks/db'
 import { dateText } from './dates'
-import { CERT_WARN_DAYS, type AdminRow, type BoxIpSettings, type CertRow, type Counts, type GapRow, type GreenboneResult, type HostRow, type IgnoredIp, type NotCheckedRow, type OutsideView, type PortRow, type ServiceRow, type Snapshot, type Target, type TargetKind, type VulnRow, type WebFinding } from './types'
+import { CERT_WARN_DAYS, type AdminRow, type BoxIpSettings, type CertRow, type Counts, type GapRow, type GreenboneResult, type HostClass, type HostIp, type HostRow, type IgnoredIp, type NotCheckedRow, type OutsideView, type PortRow, type ServiceRow, type Snapshot, type Target, type TargetKind, type VulnRow, type WebFinding } from './types'
 
 export const BOX_EGRESS_IP = '203.0.113.10'
 /** The sample company has two public IPs behind a load balancer: the box leaves through both. */
@@ -34,19 +34,28 @@ export function randomToken() {
 }
 
 export function countsOf(c: Content, extraIp?: string): Counts {
-  const ips = new Set([...c.hosts.map((h) => h.ip), ...c.ports.map((p) => p.ip), ...(extraIp ? [extraIp] : [])])
+  const ips = new Set([...c.hosts.flatMap((h) => [h.ip, ...(h.ips ?? []).map((a) => a.ip)]).filter(Boolean), ...c.ports.map((p) => p.ip), ...(extraIp ? [extraIp] : [])])
   const limit = Date.now() + CERT_WARN_DAYS * 864e5
   return { subdomains: c.hosts.length, ips: ips.size, ports: c.ports.length, admin_panels: c.admin_panels.length, certs_expiring: c.certs.filter((x) => new Date(x.expires_at).getTime() <= limit).length }
 }
+
+const H = (ip: string, cls: HostClass): HostIp => ({ ip, family: 'ipv4', class: cls })
 
 // acme.example: latest result before today's scan. The two older snapshots are trimmed copies of it.
 const P = (ip: string, port: number, service: string, product?: string): PortRow => ({ ip, port, service, product })
 function acmeNow(): Content {
   const mailExp = inDays(9), vpnExp = inDays(21)
   return {
+    // INV-27: every kind of the surface. The sample company's web, VPN and NAS answer on addresses the mock treats as the box's own.
     hosts: [
-      { name: 'acme.example', ip: '203.0.113.20' }, { name: 'www.acme.example', ip: '203.0.113.20' }, { name: 'mail.acme.example', ip: '203.0.113.21' },
-      { name: 'vpn.acme.example', ip: '203.0.113.22' }, { name: 'nas.acme.example', ip: '203.0.113.23' },
+      { name: 'acme.example', ip: '203.0.113.20', source: 'dns', ips: [H('203.0.113.20', 'box'), { ip: '2001:db8::20', family: 'ipv6', class: 'public' }] },
+      { name: 'www.acme.example', ip: '203.0.113.20', source: 'ct', ips: [H('203.0.113.20', 'box')] },
+      { name: 'mail.acme.example', ip: '203.0.113.21', source: 'mx', ips: [H('203.0.113.21', 'public')] },
+      { name: 'vpn.acme.example', ip: '203.0.113.22', source: 'ct', ips: [H('203.0.113.22', 'box')] },
+      { name: 'nas.acme.example', ip: '203.0.113.23', source: 'wordlist', ips: [H('203.0.113.23', 'box')] },
+      { name: 'cdn.acme.example', ip: '198.51.100.30', source: 'ct', cname: 'acme.example.cdn.cloudflare.net', ips: [H('198.51.100.30', 'public')] },
+      { name: 'docs.acme.example', ip: '', source: 'wordlist', cname: 'old-docs.hosting.example' },
+      { name: 'intranet.acme.example', ip: '10.20.0.5', source: 'ct', ips: [H('10.20.0.5', 'private')] },
     ],
     ports: [
       P('203.0.113.20', 80, 'http', 'nginx 1.24'), P('203.0.113.20', 443, 'https', 'nginx 1.24'),
@@ -71,7 +80,7 @@ function hash(s: string) { let h = 7; for (const ch of s) h = (h * 31 + ch.charC
 export function scanContent(t: { kind: TargetKind; value: string }): Content {
   if (t.value === 'acme.example') {
     const c = acmeNow()
-    c.hosts.push({ name: 'staging.acme.example', ip: '203.0.113.24' })
+    c.hosts.push({ name: 'staging.acme.example', ip: '203.0.113.24', source: 'wordlist', ips: [H('203.0.113.24', 'public')] })
     c.ports.push(P('203.0.113.24', 8080, 'http', 'Jenkins 2.426'), P('203.0.113.24', 22, 'ssh', 'OpenSSH 8.9'))
     c.admin_panels.push({ url: 'http://staging.acme.example:8080', product: 'Jenkins (HTTP)', ip: '203.0.113.24', port: 8080, risk: 'danger' })
     return c
@@ -91,7 +100,7 @@ export function scanContent(t: { kind: TargetKind; value: string }): Content {
     return { hosts: [], ports, admin_panels: admin, certs: [{ host: t.value, issuer: 'Self-signed', expires_at: inDays(40 + (h % 200)) }], services }
   }
   const apex = ip(0), mail = ip(1)
-  const hosts: HostRow[] = [{ name: t.value, ip: apex }, { name: `www.${t.value}`, ip: apex }, { name: `mail.${t.value}`, ip: mail }]
+  const hosts: HostRow[] = [{ name: t.value, ip: apex, source: 'dns', ips: [H(apex, 'public')] }, { name: `www.${t.value}`, ip: apex, source: 'ct', ips: [H(apex, 'public')] }, { name: `mail.${t.value}`, ip: mail, source: 'mx', ips: [H(mail, 'public')] }]
   const admin: AdminRow[] = h % 3 === 0 ? [{ url: `https://mail.${t.value}/admin`, product: 'Mail admin', ip: mail, port: 443, risk: 'warn' }] : []
   return {
     hosts, admin_panels: admin,
@@ -134,17 +143,29 @@ const plural = (n: number, noun: string) => `${n} ${noun}${n === 1 ? '' : 's'}`
 const NOT_UDP = 'UDP ports: the scan connects over TCP only.'
 const NOT_EXPLOITED = 'Vulnerabilities that are not known to be exploited: only the CISA list of exploited vulnerabilities (KEV) is compared.'
 
+/** INV-27: what a domain's surface did not scan, in the box's sentences (modules/exposure/surface.go). */
+function surfaceNotChecked(hosts: HostRow[]): NotCheckedRow[] {
+  const ips = hosts.flatMap((h) => h.ips ?? [])
+  const byName = hosts.filter((h) => (h.ips ?? []).some((a) => a.family === 'ipv4' && a.class === 'public')).length
+  const v6 = ips.filter((a) => a.family === 'ipv6').length
+  return [
+    ...(byName > 0 ? [{ kind: 'by_name', text: `Names on public addresses that are not this box's (${plural(byName, 'name')}): checked by name on ports 80 and 443 only; the deep scan of each name comes with the next update.` }] : []),
+    ...(v6 > 0 ? [{ kind: 'address_family', text: `IPv6 addresses (${v6} listed): IPv6 is not scanned yet.` }] : []),
+  ]
+}
+
 /** What the scan checked and did not check, in the box's sentences (INV-19, INV-20). */
 function lines(c: Content, at: string, ip: boolean, m: ReturnType<typeof matchServices>): Pick<Snapshot, 'checks' | 'not_checked'> {
   const services = c.services ?? []
   if (!ip) {
     return {
-      checks: [{ kind: 'names', at, text: `Names under the domain from certificate-transparency logs (crt.sh): ${plural(c.hosts.length, 'name')}; each checked by name on ports 80 and 443 (one GET / and the certificate on 443). ${plural(c.ports.length, 'port')} open in all.` }],
+      checks: [{ kind: 'names', at, text: `Names under the domain from certificate-transparency logs (crt.sh), the domain's MX and NS records and a list of common names, looked up through the box's DNS resolver: ${plural(c.hosts.length, 'name')}; each checked by name on ports 80 and 443 (one GET / and the certificate on 443). ${plural(c.ports.length, 'port')} open in all.` }],
       not_checked: [
         { kind: 'udp', text: NOT_UDP },
         { kind: 'ports', text: "Other ports of the names under this domain: names get web checks by name only; ports are scanned only on the box's own verified public IP." },
         { kind: 'services', text: "Service identification (nmap -sV): it runs on the box's own verified public IP only, not on the names of a domain." },
         { kind: 'non_exploited', text: NOT_EXPLOITED },
+        ...surfaceNotChecked(c.hosts),
       ],
     }
   }
@@ -284,7 +305,7 @@ export function seedSnapshots(): Record<string, Snapshot[]> {
     admin_panels: full.admin_panels.filter((a) => a.port !== 10443),
   }
   const old: Content = {
-    hosts: full.hosts.filter((h) => h.name !== 'nas.acme.example'),
+    hosts: full.hosts.filter((h) => h.name !== 'nas.acme.example').map(({ name, ip }) => ({ name, ip })), // a scan before INV-27: no classes
     ports: mid.ports.filter((p) => p.ip !== '203.0.113.23'),
     admin_panels: mid.admin_panels.filter((a) => a.ip !== '203.0.113.23'),
     certs: full.certs.filter((c) => c.host !== 'nas.acme.example'),

@@ -144,13 +144,32 @@ func ctAnswer(status int, body string, asked *[]string) *http.Client {
 type fakeResolver map[string][]netip.Addr
 
 func (f fakeResolver) LookupNetIP(_ context.Context, network, host string) ([]netip.Addr, error) {
-	if network != "ip4" {
-		return nil, errors.New("only ip4 is asked")
+	if network != "ip" {
+		return nil, errors.New("only ip (A and AAAA) is asked")
 	}
 	if a, ok := f[host]; ok {
 		return slices.Clone(a), nil
 	}
-	return nil, &net.DNSError{Err: "no such host", Name: host, IsNotFound: true}
+	return nil, notFound(host)
+}
+
+// LookupCNAME answers like the system resolver for a name without a CNAME: the name itself.
+func (f fakeResolver) LookupCNAME(_ context.Context, host string) (string, error) {
+	if _, ok := f[host]; ok {
+		return host + ".", nil
+	}
+	return "", notFound(host)
+}
+
+func (fakeResolver) LookupMX(_ context.Context, name string) ([]*net.MX, error) {
+	return nil, notFound(name)
+}
+func (fakeResolver) LookupNS(_ context.Context, name string) ([]*net.NS, error) {
+	return nil, notFound(name)
+}
+
+func notFound(host string) error {
+	return &net.DNSError{Err: "no such host", Name: host, IsNotFound: true}
 }
 
 func addrs(s ...string) []netip.Addr {
@@ -317,6 +336,7 @@ func TestDomainScan(t *testing.T) {
 		}
 		allLogged(t, n, log)
 		if want := []string{
+			"dns acme.example DNS lookups via the box's resolver: A, AAAA, CNAME of 5 names; MX, NS of acme.example; wildcard check; up to 147 common names; 5 names true",
 			"http acme.example GET http://acme.example/ true", "http mail.acme.example GET http://mail.acme.example/ false", "http www.acme.example GET http://www.acme.example/ true",
 			"https acme.example GET https://acme.example/ true", "https mail.acme.example GET https://mail.acme.example/ true", "https www.acme.example GET https://www.acme.example/ true",
 			"tcp 203.0.113.10 TCP connect to 98 ports; open: 22, 80, 443 true",

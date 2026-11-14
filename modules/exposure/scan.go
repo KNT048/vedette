@@ -313,7 +313,12 @@ func (s *Service) ScannableIP(ctx context.Context, actor string, ip netip.Addr) 
 func countsOf(c Content, extraIP string, now time.Time) Counts {
 	ips := map[string]bool{}
 	for _, h := range c.Hosts {
-		ips[h.IP] = true
+		if h.IP != "" {
+			ips[h.IP] = true
+		}
+		for _, a := range h.IPs {
+			ips[a.IP] = true
+		}
 	}
 	for _, p := range c.Ports {
 		ips[p.IP] = true
@@ -344,7 +349,7 @@ func sanitize(c Content) Content {
 	var out Content
 	for _, h := range c.Hosts {
 		if len(out.Hosts) < maxContentRows {
-			out.Hosts = append(out.Hosts, HostRow{Name: txt(h.Name), IP: txt(h.IP)})
+			out.Hosts = append(out.Hosts, sanitizeHost(h, txt))
 		}
 	}
 	for _, p := range c.Ports {

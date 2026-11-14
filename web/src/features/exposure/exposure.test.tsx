@@ -146,7 +146,7 @@ describe('exposure: list (S-EXP-1)', () => {
 describe('exposure: a verified and confirmed domain', () => {
   it('shows subdomains, ports, admin interfaces and expiring certificates; axe clean', async () => {
     renderApp('/exposure/xt-1')
-    expect(await screen.findByRole('heading', { level: 1, name: 'acme.example: 5 subdomain(s), 2 admin interface(s) exposed to the Internet' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: 'acme.example: 8 subdomain(s), 2 admin interface(s) exposed to the Internet' })).toBeInTheDocument()
     expect(within(await screen.findByRole('table', { name: 'Subdomains found' })).getByText('vpn.acme.example')).toBeInTheDocument()
     expect(within(await screen.findByRole('table', { name: 'Ports open to the Internet' })).getAllByRole('row')).toHaveLength(9)
     const admin = await screen.findByRole('table', { name: 'Admin interfaces exposed to the Internet' })
@@ -159,6 +159,39 @@ describe('exposure: a verified and confirmed domain', () => {
     expect(screen.getByText(/Confirmed by admin@acme\.example/)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Scan now' })).not.toBeDisabled()
     await expectNoA11yViolations()
+  })
+
+  it('INV-27: the Surface tab lists each name with where it was found, its CNAME and the kind of each address, the counts and what was not scanned; axe clean', async () => {
+    renderApp('/exposure/xt-1?tab=surface')
+    const table = await screen.findByRole('table', { name: 'Names under this domain and their addresses' })
+    const row = (name: RegExp) => within(table).getByRole('row', { name })
+    expect(within(row(/^www\.acme\.example/)).getByText('This box')).toBeInTheDocument()
+    expect(within(row(/^www\.acme\.example/)).getByText("This box's verified address: scanned")).toBeInTheDocument()
+    expect(within(row(/^cdn\.acme\.example/)).getByText('acme.example.cdn.cloudflare.net')).toBeInTheDocument()
+    expect(within(row(/^cdn\.acme\.example/)).getByText('Checked by name on ports 80 and 443. Deep scan of this name comes with the next update.')).toBeInTheDocument()
+    expect(within(row(/^docs\.acme\.example/)).getByText('No address: the CNAME leads nowhere')).toBeInTheDocument()
+    expect(within(row(/^docs\.acme\.example/)).getByText('Found by a common name')).toBeInTheDocument()
+    expect(within(row(/^mail\.acme\.example/)).getByText('Found in the MX records')).toBeInTheDocument()
+    expect(within(row(/^intranet\.acme\.example/)).getByText('Private address: never contacted')).toBeInTheDocument()
+    expect(within(row(/^acme\.example/)).getByText('IPv6 is not scanned yet.')).toBeInTheDocument()
+    expect(screen.queryByText(/CDN|not yours|your OK/)).not.toBeInTheDocument() // what serves a name does not matter (kien 2026-11-14)
+    expect(within(screen.getByRole('list', { name: 'Not checked on the surface' })).getByText(/Names on public addresses that are not this box's \(2 names\)/)).toBeInTheDocument()
+    expect(screen.getByText('On this box').nextSibling?.textContent).toBe('4')
+    expect(screen.getByText('On other public addresses').nextSibling?.textContent).toBe('2')
+    await expectNoA11yViolations()
+  })
+
+  it('INV-27: a snapshot from before the surface map says its classes show from the next scan', async () => {
+    const at = new Date(Date.now() - 864e5).toISOString()
+    const date = at.slice(0, 10)
+    server.use(
+      http.get('*/api/v1/exposure/targets/xt-1/snapshots', () => HttpResponse.json({ items: [{ id: 'sn-o', date, scanned_at: at, counts: { subdomains: 1, ips: 1, ports: 0, admin_panels: 0, certs_expiring: 0 } }] })),
+      http.get('*/api/v1/exposure/targets/xt-1/snapshots/:date', () => HttpResponse.json({ id: 'sn-o', date, scanned_at: at, hosts: [{ name: 'www.acme.example', ip: '198.51.100.20' }], ports: [], admin_panels: [], certs: [],
+        counts: { subdomains: 1, ips: 1, ports: 0, admin_panels: 0, certs_expiring: 0 }, services: [], templates: [], checks: [], not_checked: [], web_findings: [], greenbone: [], vulns: [], version_gaps: [] })),
+    )
+    renderApp('/exposure/xt-1?tab=surface')
+    expect(await screen.findByText(/This scan ran before the surface map/)).toBeInTheDocument()
+    expect(within(screen.getByRole('table', { name: 'Names under this domain and their addresses' })).getByText('198.51.100.20')).toBeInTheDocument()
   })
 
   it('compare defaults to the two latest days and lets you change the day', async () => {
@@ -176,7 +209,7 @@ describe('exposure: a verified and confirmed domain', () => {
     await userEvent.click(await screen.findByRole('button', { name: 'Scan now' }))
     expect((await screen.findAllByText('Scanning acme.example')).length).toBeGreaterThan(0) // 202 at once, the phase row polls GET /exposure/scan
     expect(await screen.findByText('Scan of acme.example finished. The new result is below.', {}, { timeout: 8000 })).toBeInTheDocument()
-    expect(await screen.findByRole('heading', { level: 1, name: 'acme.example: 6 subdomain(s), 3 admin interface(s) exposed to the Internet' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: 'acme.example: 9 subdomain(s), 3 admin interface(s) exposed to the Internet' })).toBeInTheDocument()
     expect(await screen.findByText(/4 added, 0 gone, 0 changed/)).toBeInTheDocument()
     expect(within(screen.getByRole('table', { name: 'Changes between two scan days' })).getByText('staging.acme.example')).toBeInTheDocument()
     expect(auditStore.get().some((a) => a.action === 'exposure.scan' && a.target === 'acme.example')).toBe(true)

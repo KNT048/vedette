@@ -3,7 +3,8 @@
 //
 //   - The box's own public IP (a verified IP target): a TCP connect to a fixed list of ports (commonPorts), then one GET of "/" on
 //     the open web ports and a TLS handshake on the TLS ports (admin pages, the Server header, certificates).
-//   - A verified domain: its names from certificate-transparency logs (crt.sh), resolved and listed. A name that points at a
+//   - A verified domain: its names from certificate-transparency logs (crt.sh), the apex's MX and NS hosts under it and the common
+//     names of content/wordlist that resolve (D-567), each resolved (A, AAAA, CNAME) through the box's resolver, classed and listed. A name that points at a
 //     public address gets HTTP checks by name only: one GET of "/" on port 80 and on 443 (with the certificate of 443). The
 //     addresses are never port-scanned, unless one is itself a verified IP target that may be scanned now (the caller decides,
 //     through exposure).
@@ -38,6 +39,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/knt048/vedette/content/wordlist"
 )
 
 // Bounds of one scan (D-229). Nothing is cut: a domain has at most maxNames names (more is ErrTooManyNames), so at most
@@ -62,9 +65,13 @@ var ErrTooLong = errors.New("surface: the scan did not finish in time")
 // ErrNotPublic means the target IP is not one the scan may probe.
 var ErrNotPublic = errors.New("surface: the address is not a public address the box may scan")
 
-// Resolver looks up addresses; *net.Resolver satisfies it.
+// Resolver looks up addresses, CNAME, MX and NS records through the box's own resolver; *net.Resolver satisfies it. Tests pass a
+// fake: no test sends a DNS query.
 type Resolver interface {
 	LookupNetIP(ctx context.Context, network, host string) ([]netip.Addr, error)
+	LookupCNAME(ctx context.Context, host string) (string, error)
+	LookupMX(ctx context.Context, name string) ([]*net.MX, error)
+	LookupNS(ctx context.Context, name string) ([]*net.NS, error)
 }
 
 // Probe is one line of the probe log (LEGAL §3: target, time, what was sent), kept 90 days by the scan module (scan INV-7).
@@ -72,7 +79,7 @@ type Probe struct {
 	ID       string     // unique, set by the scanner
 	Addr     netip.Addr // where it went
 	Label    string     // the name asked for, or the IP
-	Kind     string     // "tcp", "http", "https" or "tls"
+	Kind     string     // "tcp", "http", "https", "tls", or "dns" (one row a domain scan for its lookups; Addr is then not set)
 	Request  string     // what was sent: "TCP connect to 98 ports", "GET https://www.acme.example/"; after, the open ports too
 	Answered bool       // false until something answered
 }
@@ -131,10 +138,14 @@ func New(cfg Config) (*Scanner, error) {
 
 // The result of a scan: what exposure stores as a snapshot (exposure.Content).
 type (
-	// Host is a name under the domain and the first of its IPv4 addresses.
+	// Host is a name under the domain (D-567, exposure INV-27): where it was found, its final CNAME, its addresses with their kind,
+	// and IP, the first of its IPv4 addresses (zero when it has none: an IPv6-only name, or a CNAME that leads nowhere).
 	Host struct {
-		Name string
-		IP   netip.Addr
+		Name   string
+		IP     netip.Addr
+		Source string
+		CNAME  string
+		Addrs  []Addr
 	}
 	// Port is an open TCP port. Product is what its page names (a fingerprint, else the Server header), or empty.
 	Port struct {
@@ -157,19 +168,23 @@ type (
 		Issuer   string
 		NotAfter time.Time
 	}
-	// Result is what one scan found.
+	// Result is what one scan found. WordlistSkipped: a domain scan did not try the common names because the domain answers any
+	// name (wildcard DNS).
 	Result struct {
-		Hosts []Host
-		Ports []Port
-		Admin []Admin
-		Certs []Cert
+		Hosts           []Host
+		Ports           []Port
+		Admin           []Admin
+		Certs           []Cert
+		WordlistSkipped bool
 	}
 )
 
-// Domain scans a verified domain (D-57 (7)): its names from certificate transparency and their addresses, listed; HTTP checks by
-// name on 80 and 443 for the names on a public address; a port scan only of the addresses that mayScanPorts accepts (exposure:
-// a verified IP target that may be scanned now). ErrCT when the search gives no answer, ErrTooManyNames when the domain has
-// more names than one scan reads, ErrTooLong past the time cap.
+// Domain scans a verified domain (D-57 (7), D-567): its names from certificate transparency, the apex's MX and NS hosts under it
+// and the common names that resolve (discover), each with its addresses, CNAME and class, listed; HTTP checks by name on 80 and 443
+// for the names on a public IPv4 address; a port scan only of the addresses that mayScanPorts accepts (exposure: a verified IP
+// target that may be scanned now), which are also the ones of kind "box". One probe-log row of kind "dns" is written before the
+// lookups. ErrCT when the search gives no answer, ErrTooManyNames when the domain has more names than one scan reads, ErrTooLong
+// past the time cap.
 func (s *Scanner) Domain(ctx context.Context, domain string, mayScanPorts func(context.Context, netip.Addr) bool) (Result, error) {
 	domain = strings.ToLower(domain)
 	if !nameRE.MatchString(domain) {
@@ -177,26 +192,44 @@ func (s *Scanner) Domain(ctx context.Context, domain string, mayScanPorts func(c
 	}
 	ctx, cancel := context.WithTimeout(ctx, scanTimeout)
 	defer cancel()
-	names, err := s.searchCT(ctx, domain)
+	ct, err := s.searchCT(ctx, domain)
 	if err != nil {
 		return Result{}, s.stopped(ctx, err)
 	}
-	s.log.InfoContext(ctx, "exposure_scan_ct", "domain", domain, "names", len(names))
-	addrs := s.resolveAll(ctx, names)
-	var res Result
+	s.log.InfoContext(ctx, "exposure_scan_ct", "domain", domain, "names", len(ct))
+	probe := []Probe{{ID: probeID(), Label: domain, Kind: "dns", Request: fmt.Sprintf(
+		"DNS lookups via the box's resolver: A, AAAA, CNAME of %d names; MX, NS of %s; wildcard check; up to %d common names", len(ct), domain, len(wordlist.Labels()))}}
+	if err := s.record(ctx, probe, false); err != nil {
+		return Result{}, err
+	}
+	d, err := s.discover(ctx, domain, ct)
+	if err != nil {
+		return Result{}, s.stopped(ctx, err)
+	}
+	probe[0].Answered = slices.ContainsFunc(d.names, func(n string) bool { return len(d.answers[n].addrs) > 0 })
+	probe[0].Request += fmt.Sprintf("; %d names", len(d.names))
+	if err := s.record(ctx, probe, true); err != nil {
+		return Result{}, err
+	}
+	s.log.InfoContext(ctx, "exposure_scan_dns", "domain", domain, "names", len(d.names), "wordlist_skipped", d.skipped)
+	res := Result{WordlistSkipped: d.skipped}
 	var jobs []fetchJob
 	var public []netip.Addr
-	for _, n := range names {
-		a := addrs[n]
-		if len(a) == 0 {
-			continue
+	for _, n := range d.names {
+		a := d.answers[n]
+		if len(a.addrs) == 0 && a.cname == "" {
+			continue // a name from an old certificate that no longer resolves
 		}
-		res.Hosts = append(res.Hosts, Host{Name: n, IP: a[0]})
-		if i := slices.IndexFunc(a, s.public); i >= 0 { // the checks by name go to its first public address, the same every day
-			at := hostAddr{host: n, ip: a[i]}
+		h := Host{Name: n, Source: d.source[n], CNAME: a.cname}
+		if i := slices.IndexFunc(a.addrs, netip.Addr.Is4); i >= 0 {
+			h.IP = a.addrs[i]
+		}
+		res.Hosts = append(res.Hosts, h)
+		if i := slices.IndexFunc(a.addrs, s.public); i >= 0 { // the checks by name go to its first public address, the same every day
+			at := hostAddr{host: n, ip: a.addrs[i]}
 			jobs = append(jobs, fetchJob{hostAddr: at, port: portByNumber[80]}, fetchJob{hostAddr: at, port: portByNumber[443]})
 		}
-		for _, ip := range a {
+		for _, ip := range a.addrs {
 			if s.public(ip) && !slices.Contains(public, ip) {
 				public = append(public, ip)
 			}
@@ -207,13 +240,18 @@ func (s *Scanner) Domain(ctx context.Context, domain string, mayScanPorts func(c
 	}
 	slices.SortFunc(public, netip.Addr.Compare)
 	var ips []netip.Addr
+	box := map[netip.Addr]bool{}
 	for _, ip := range public {
 		if mayScanPorts(ctx, ip) {
 			ips = append(ips, ip)
+			box[ip] = true
 		}
 	}
 	if err := ctx.Err(); err != nil {
 		return Result{}, s.stopped(ctx, err)
+	}
+	for i := range res.Hosts {
+		res.Hosts[i].Addrs = s.classify(d.answers[res.Hosts[i].Name].addrs, box)
 	}
 	open, err := s.scanPorts(ctx, ips)
 	if err != nil {
@@ -266,36 +304,6 @@ func (s *Scanner) stopped(ctx context.Context, err error) error {
 		return ctx.Err()
 	}
 	return err
-}
-
-// resolveAll looks up the IPv4 addresses of every name, a few at a time; a name that does not resolve is left out. Addresses are
-// sorted so that the first one is stable from one scan to the next.
-func (s *Scanner) resolveAll(ctx context.Context, names []string) map[string][]netip.Addr {
-	out := make(map[string][]netip.Addr, len(names))
-	var mu sync.Mutex
-	sem := make(chan struct{}, resolveParallel)
-	var wg sync.WaitGroup
-	for _, n := range names {
-		sem <- struct{}{}
-		wg.Go(func() {
-			defer func() { <-sem }()
-			rctx, cancel := context.WithTimeout(ctx, resolveTimeout)
-			defer cancel()
-			a, err := s.resolve.LookupNetIP(rctx, "ip4", n)
-			if err != nil || len(a) == 0 {
-				return
-			}
-			for i := range a {
-				a[i] = a[i].Unmap()
-			}
-			slices.SortFunc(a, netip.Addr.Compare)
-			mu.Lock()
-			out[n] = slices.Compact(a)
-			mu.Unlock()
-		})
-	}
-	wg.Wait()
-	return out
 }
 
 // assemble builds the result from the open ports and the answers of the pages. Ports are listed only for ips (the port scan).

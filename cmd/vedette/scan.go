@@ -331,7 +331,11 @@ type scanProbeLog struct{ d deps }
 func (l scanProbeLog) Record(ctx context.Context, ps []surface.Probe) error {
 	rows := make([]scan.ExternalProbe, len(ps))
 	for i, p := range ps {
-		rows[i] = scan.ExternalProbe{ID: p.ID, IP: p.Addr.String(), Label: p.Label, Template: "exposure: " + p.Kind, Request: p.Request, Answered: p.Answered}
+		ip := "" // the DNS row of a domain scan goes to the box's resolver, not to one address
+		if p.Addr.IsValid() {
+			ip = p.Addr.String()
+		}
+		rows[i] = scan.ExternalProbe{ID: p.ID, IP: ip, Label: p.Label, Template: "exposure: " + p.Kind, Request: p.Request, Answered: p.Answered}
 	}
 	return scanService(l.d).RecordExternalProbes(ctx, rows)
 }
@@ -421,7 +425,21 @@ func (r *exposureRunner) Scan(ctx context.Context, t exposure.ScanTarget) (expos
 func contentOf(r surface.Result) exposure.Content {
 	c := exposure.Content{Hosts: []exposure.HostRow{}, Ports: []exposure.PortRow{}, AdminPanels: []exposure.AdminRow{}, Certs: []exposure.CertRow{}}
 	for _, h := range r.Hosts {
-		c.Hosts = append(c.Hosts, exposure.HostRow{Name: h.Name, IP: h.IP.String()})
+		row := exposure.HostRow{Name: h.Name, Source: h.Source, CNAME: h.CNAME}
+		if h.IP.IsValid() {
+			row.IP = h.IP.String()
+		}
+		for _, a := range h.Addrs {
+			fam := "ipv4"
+			if a.IP.Is6() {
+				fam = "ipv6"
+			}
+			row.IPs = append(row.IPs, exposure.HostIP{IP: a.IP.String(), Family: fam, Class: a.Class})
+		}
+		c.Hosts = append(c.Hosts, row)
+	}
+	if r.WordlistSkipped {
+		c.NotChecked = append(c.NotChecked, exposure.NotCheckedRow{Kind: "wordlist", Text: exposure.NotWordlistWildcard})
 	}
 	for _, p := range r.Ports {
 		c.Ports = append(c.Ports, exposure.PortRow{IP: p.IP.String(), Port: p.Port, Service: p.Service, Product: p.Product})

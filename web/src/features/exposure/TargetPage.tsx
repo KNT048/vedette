@@ -19,6 +19,7 @@ import { CommitChip, OwnerChip } from './OwnerChip'
 import { RemoveDialog } from './RemoveDialog'
 import { OutsidePanel } from './OutsidePanel'
 import { ResultsPanel } from './ResultsPanel'
+import { SurfacePanel } from './SurfacePanel'
 import { VerifyPanel } from './VerifyPanel'
 import type { Target } from './types'
 import { blockedKey } from './types'
@@ -101,6 +102,7 @@ function TargetView({ target }: { target: Target }) {
       <ScrollToHash />
       <PageTabs label={t('tabs.label')} tabs={[
         { id: 'results', label: t('tabs.results'), panel: <ResultsPanel target={target} blockedText={blocked} /> },
+        ...(target.kind === 'domain' ? [{ id: 'surface', label: t('tabs.surface'), panel: <SurfacePanel target={target} blockedText={blocked} /> }] : []),
         { id: 'ownership', label: t('tabs.ownership'), badge: needsOwnership ? { count: 1, label: t('tabs.needsYou') } : undefined, panel: <>
           <Section id="step-verify" title={t('step.verify')} description={target.kind === 'domain' ? t('step.verifyHintDomain') : t('step.verifyHintIp')}>
             <VerifyPanel target={target} />

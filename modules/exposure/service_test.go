@@ -21,7 +21,7 @@ func certAt(host string, d time.Duration) CertRow {
 
 func sampleContent() Content {
 	return Content{
-		Hosts:       []HostRow{{"acme.example", ipA}, {"www.acme.example", ipA}, {"mail.acme.example", ipB}},
+		Hosts:       []HostRow{{Name: "acme.example", IP: ipA}, {Name: "www.acme.example", IP: ipA}, {Name: "mail.acme.example", IP: ipB}},
 		Ports:       []PortRow{{ipA, 80, "http", "nginx", "", 0, false}, {ipA, 443, "https", "nginx", "", 0, false}, {ipB, 25, "smtp", "", "", 0, false}},
 		AdminPanels: []AdminRow{{"https://acme.example:10443", "FortiGate (admin)", ipA, 10443, "danger"}},
 		Certs:       []CertRow{certAt("acme.example", 62*day), certAt("mail.acme.example", 9*day)},
@@ -582,7 +582,7 @@ func TestContract_INV8_SnapshotsAndDiff(t *testing.T) {
 	// day 2: a new subdomain and port, the admin page is gone, mail's certificate was renewed
 	e.advance(day)
 	c2 := sampleContent()
-	c2.Hosts = append(c2.Hosts, HostRow{"staging.acme.example", ipB})
+	c2.Hosts = append(c2.Hosts, HostRow{Name: "staging.acme.example", IP: ipB})
 	c2.Ports = append(c2.Ports, PortRow{ipB, 8080, "http", "Jenkins", "", 0, false})
 	c2.AdminPanels = nil
 	c2.Certs[1] = certAt("mail.acme.example", 100*day)

@@ -187,10 +187,21 @@ type VerifyResult struct {
 // The content of a scan, as the scan module hands it over (INV-10: it came from other hosts, so it is
 // untrusted and the service limits it before storing).
 type (
-	// HostRow is a subdomain and the address it points at.
+	// HostRow is a name under the domain (INV-27, D-567). IP is the first of its IPv4 addresses ("" when it has none). Source, CNAME
+	// and IPs come from scans since D-567; a row of an older snapshot has no source and the kinds of its addresses are unknown.
 	HostRow struct {
-		Name string `json:"name"`
-		IP   string `json:"ip"`
+		Name   string   `json:"name"`
+		IP     string   `json:"ip"`
+		Source string   `json:"source,omitempty"`
+		CNAME  string   `json:"cname,omitempty"`
+		IPs    []HostIP `json:"ips,omitempty"`
+	}
+	// HostIP is one address of a name with its kind (INV-27): box (this box's verified, current IP), public (any other public
+	// address) or private (never dialed).
+	HostIP struct {
+		IP     string `json:"ip"`
+		Family string `json:"family"`
+		Class  string `json:"class"`
 	}
 	// PortRow is an open port.
 	// LastSeen and Misses are set only on a port this scan did not report, kept from an earlier scan (INV-22, D-560): LastSeen is the

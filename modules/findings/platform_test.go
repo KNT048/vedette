@@ -94,21 +94,24 @@ func TestPlatform_OtherCVEsUnchanged(t *testing.T) {
 func TestPlatform_OSIsEvidenceOnlyForTheDevicesOwnRows(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
-		name, source, os, stated, agent string
-		out                             bool
+		name, source, os, stated, agent, snmp string
+		out                                   bool
 	}{
-		{"agent row on a Ubuntu device", "agent", "Ubuntu 24.04.3 LTS", "", "Ubuntu 24.04.3 LTS", true},
-		{"agent row, the folded OS is a guess the agent never reported (review r2 of #790)", "agent", "Ubuntu 24.04.3 LTS", "", "", false},
-		{"agent row, a person's OS won but the agent reports Ubuntu", "agent", "Alpine Linux v3.23", "", "Ubuntu 24.04.3 LTS", true},
-		{"scan row on a Junos switch that states its OS (D-549, N47-1)", "nmap", "Juniper Junos", "JUNOS 15.1R7.9", "", true},
-		{"scan row on a device that states Ubuntu over SNMP (may forward to a container)", "nmap", "", "Ubuntu 22.04", "", false},
-		{"manual row on a Ubuntu device (an Alpine container's sshd typed by hand)", "manual", "Ubuntu 24.04.3 LTS", "", "", false},
-		{"scan row on a Ubuntu device", "nmap", "Ubuntu 24.04.3 LTS", "", "", false},
-		{"row of unknown source", "", "Ubuntu 24.04.3 LTS", "", "", false},
-		{"SNMP row, OS only a fingerprint or DHCP guess", "snmp", "Microsoft Windows", "", "", false},
-		{"SNMP row, the device states its OS", "snmp", "", "Ubuntu 22.04", "", true},
+		{"agent row on a Ubuntu device", "agent", "Ubuntu 24.04.3 LTS", "", "Ubuntu 24.04.3 LTS", "", true},
+		{"agent row, the folded OS is a guess the agent never reported (review r2 of #790)", "agent", "Ubuntu 24.04.3 LTS", "", "", "", false},
+		{"agent row, a person's OS won but the agent reports Ubuntu", "agent", "Alpine Linux v3.23", "", "Ubuntu 24.04.3 LTS", "", true},
+		{"scan row on a Junos switch that states its OS over SNMP (D-549, N47-1)", "nmap", "Juniper Junos", "JUNOS 15.1R7.9", "", "JUNOS 15.1R7.9", true},
+		{"scan row, Junos only in an LLDP frame (forgeable with the device's MAC, review r1 #3)", "nmap", "", "JUNOS 15.1R7.9", "", "", false},
+		{"scan row, Junos OS Evolved runs containers (review r1 #4)", "nmap", "", "JUNOS 21.4R1.12-EVO", "", "JUNOS 21.4R1.12-EVO", false},
+		{"scan row, SNMP says Junos but an agent reports another OS", "nmap", "", "JUNOS 15.1R7.9", "Alpine Linux v3.23", "JUNOS 15.1R7.9", false},
+		{"scan row on a device that states Ubuntu over SNMP (may forward to a container)", "nmap", "", "Ubuntu 22.04", "", "", false},
+		{"manual row on a Ubuntu device (an Alpine container's sshd typed by hand)", "manual", "Ubuntu 24.04.3 LTS", "", "", "", false},
+		{"scan row on a Ubuntu device", "nmap", "Ubuntu 24.04.3 LTS", "", "", "", false},
+		{"row of unknown source", "", "Ubuntu 24.04.3 LTS", "", "", "", false},
+		{"SNMP row, OS only a fingerprint or DHCP guess", "snmp", "Microsoft Windows", "", "", "", false},
+		{"SNMP row, the device states its OS", "snmp", "", "Ubuntu 22.04", "", "", true},
 	} {
-		a := Asset{ID: "d", Name: "docker1", OS: tc.os, StatedOS: tc.stated, AgentOS: tc.agent, Software: []Software{sshRow("10.2", "", tc.source)}}
+		a := Asset{ID: "d", Name: "docker1", OS: tc.os, StatedOS: tc.stated, AgentOS: tc.agent, SNMPOS: tc.snmp, Software: []Software{sshRow("10.2", "", tc.source)}}
 		res := MatchAsset(a, []Vuln{sshhole()}, nil, t0)
 		if got := len(res.OtherPlatform) == 1 && len(res.New) == 0; got != tc.out {
 			t.Errorf("%s: ruled out %v, want %v (new %+v)", tc.name, got, tc.out, res.New)

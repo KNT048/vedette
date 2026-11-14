@@ -22,3 +22,16 @@ func TestContract_D548_EnrolmentHostNameNamesTheDevice(t *testing.T) {
 		t.Fatalf("after system_info: %+v", d.AssetCore)
 	}
 }
+
+// Review r1 #8: after the first-report window the enrolment's name is not written again (the device keeps it; system_info renames it).
+func TestContract_D548_EnrolmentHostNameOnlyInTheFirstHour(t *testing.T) {
+	w := newWorld(t)
+	_, secret := w.token("lab", 7)
+	key := w.enroll(secret, "WIN-LAB", peerA)
+	w.clock.Advance(61 * time.Minute)
+	w.post("/intake/osquery/log", peerA, logBody(key, snap("interfaces", ifaceRow(macA, peerA)),
+		snap("os_version", map[string]string{"name": "Microsoft Windows Server 2025 Standard Evaluation", "version": "10.0.26100", "build": "26100", "platform": "windows"})))
+	if n := w.count(`SELECT count(*) FROM inv_observation WHERE field = 'hostname'`); n != 0 {
+		t.Fatalf("hostname observations after the window: %d", n)
+	}
+}

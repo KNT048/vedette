@@ -207,7 +207,7 @@ func TestSNMPStatedOSAndApproval(t *testing.T) {
 	}
 	id := addrs[ip.String()]
 	d, ok, err := e.svc.MatchInput(e.ctx(), id)
-	if err != nil || !ok || d.StatedOS != "JUNOS 15.1R7.9" || d.Model != "EX4200-48T" {
+	if err != nil || !ok || d.StatedOS != "JUNOS 15.1R7.9" || d.SNMPOS != "JUNOS 15.1R7.9" || d.AgentOS != "" || d.Model != "EX4200-48T" { // D-549: SNMPOS is the SNMP read only
 		t.Fatalf("MatchInput: %+v %v %v", d, ok, err)
 	}
 	refs, err := e.svc.DeviceRefs(e.ctx(), []string{id})

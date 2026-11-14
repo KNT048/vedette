@@ -53872,12 +53872,15 @@ type FeedsGetFeedsCveIDOK struct {
 	Epss7dAgo   NilFloat64 `json:"epss_7d_ago"`
 	HasTemplate bool       `json:"has_template"`
 	// Http(s) addresses only.
-	Links          []string                          `json:"links"`
-	Matched        []FeedsGetFeedsCveIDOKMatchedItem `json:"matched"`
-	Name           string                            `json:"name"`
-	Product        string                            `json:"product"`
-	Ransomware     bool                              `json:"ransomware"`
-	RequiredAction string                            `json:"required_action"`
+	Links   []string                          `json:"links"`
+	Matched []FeedsGetFeedsCveIDOKMatchedItem `json:"matched"`
+	Name    string                            `json:"name"`
+	// D-549: devices that run the product but that the platform rules of the findings prove are not
+	// affected; left out of matched.
+	NotAffected    OptInt `json:"not_affected"`
+	Product        string `json:"product"`
+	Ransomware     bool   `json:"ransomware"`
+	RequiredAction string `json:"required_action"`
 	// Which list the entry is on: "cisa-kev", "vulncheck-kev" (VulnCheck KEV, D-557) or the id of a custom
 	// feed; texts name it, an entry of VulnCheck is never called CISA's.
 	Source OptString `json:"source"`
@@ -53937,6 +53940,11 @@ func (s *FeedsGetFeedsCveIDOK) GetMatched() []FeedsGetFeedsCveIDOKMatchedItem {
 // GetName returns the value of Name.
 func (s *FeedsGetFeedsCveIDOK) GetName() string {
 	return s.Name
+}
+
+// GetNotAffected returns the value of NotAffected.
+func (s *FeedsGetFeedsCveIDOK) GetNotAffected() OptInt {
+	return s.NotAffected
 }
 
 // GetProduct returns the value of Product.
@@ -54017,6 +54025,11 @@ func (s *FeedsGetFeedsCveIDOK) SetMatched(val []FeedsGetFeedsCveIDOKMatchedItem)
 // SetName sets the value of Name.
 func (s *FeedsGetFeedsCveIDOK) SetName(val string) {
 	s.Name = val
+}
+
+// SetNotAffected sets the value of NotAffected.
+func (s *FeedsGetFeedsCveIDOK) SetNotAffected(val OptInt) {
+	s.NotAffected = val
 }
 
 // SetProduct sets the value of Product.
@@ -62490,6 +62503,8 @@ type FindingsGetFindingsIDOKFix struct {
 	// fixes them, move to release `fixed`; distro = install the distribution's security updates for the
 	// package.
 	Kind FindingsGetFindingsIDOKFixKind `json:"kind"`
+	// Distro: the fix of at least one of them is in Ubuntu Pro (ESM) only.
+	Pro bool `json:"pro"`
 	// Display name of the software row.
 	Software string `json:"software"`
 	// The installed version.
@@ -62516,6 +62531,11 @@ func (s *FindingsGetFindingsIDOKFix) GetGroup() string {
 // GetKind returns the value of Kind.
 func (s *FindingsGetFindingsIDOKFix) GetKind() FindingsGetFindingsIDOKFixKind {
 	return s.Kind
+}
+
+// GetPro returns the value of Pro.
+func (s *FindingsGetFindingsIDOKFix) GetPro() bool {
+	return s.Pro
 }
 
 // GetSoftware returns the value of Software.
@@ -62551,6 +62571,11 @@ func (s *FindingsGetFindingsIDOKFix) SetGroup(val string) {
 // SetKind sets the value of Kind.
 func (s *FindingsGetFindingsIDOKFix) SetKind(val FindingsGetFindingsIDOKFixKind) {
 	s.Kind = val
+}
+
+// SetPro sets the value of Pro.
+func (s *FindingsGetFindingsIDOKFix) SetPro(val bool) {
+	s.Pro = val
 }
 
 // SetSoftware sets the value of Software.
@@ -64964,6 +64989,8 @@ type FindingsGetFindingsOKItemsItemFix struct {
 	// fixes them, move to release `fixed`; distro = install the distribution's security updates for the
 	// package.
 	Kind FindingsGetFindingsOKItemsItemFixKind `json:"kind"`
+	// Distro: the fix of at least one of them is in Ubuntu Pro (ESM) only.
+	Pro bool `json:"pro"`
 	// Display name of the software row.
 	Software string `json:"software"`
 	// The installed version.
@@ -64990,6 +65017,11 @@ func (s *FindingsGetFindingsOKItemsItemFix) GetGroup() string {
 // GetKind returns the value of Kind.
 func (s *FindingsGetFindingsOKItemsItemFix) GetKind() FindingsGetFindingsOKItemsItemFixKind {
 	return s.Kind
+}
+
+// GetPro returns the value of Pro.
+func (s *FindingsGetFindingsOKItemsItemFix) GetPro() bool {
+	return s.Pro
 }
 
 // GetSoftware returns the value of Software.
@@ -65025,6 +65057,11 @@ func (s *FindingsGetFindingsOKItemsItemFix) SetGroup(val string) {
 // SetKind sets the value of Kind.
 func (s *FindingsGetFindingsOKItemsItemFix) SetKind(val FindingsGetFindingsOKItemsItemFixKind) {
 	s.Kind = val
+}
+
+// SetPro sets the value of Pro.
+func (s *FindingsGetFindingsOKItemsItemFix) SetPro(val bool) {
+	s.Pro = val
 }
 
 // SetSoftware sets the value of Software.
@@ -68024,6 +68061,8 @@ type FindingsPostFindingsIDAiOKFix struct {
 	// fixes them, move to release `fixed`; distro = install the distribution's security updates for the
 	// package.
 	Kind FindingsPostFindingsIDAiOKFixKind `json:"kind"`
+	// Distro: the fix of at least one of them is in Ubuntu Pro (ESM) only.
+	Pro bool `json:"pro"`
 	// Display name of the software row.
 	Software string `json:"software"`
 	// The installed version.
@@ -68050,6 +68089,11 @@ func (s *FindingsPostFindingsIDAiOKFix) GetGroup() string {
 // GetKind returns the value of Kind.
 func (s *FindingsPostFindingsIDAiOKFix) GetKind() FindingsPostFindingsIDAiOKFixKind {
 	return s.Kind
+}
+
+// GetPro returns the value of Pro.
+func (s *FindingsPostFindingsIDAiOKFix) GetPro() bool {
+	return s.Pro
 }
 
 // GetSoftware returns the value of Software.
@@ -68085,6 +68129,11 @@ func (s *FindingsPostFindingsIDAiOKFix) SetGroup(val string) {
 // SetKind sets the value of Kind.
 func (s *FindingsPostFindingsIDAiOKFix) SetKind(val FindingsPostFindingsIDAiOKFixKind) {
 	s.Kind = val
+}
+
+// SetPro sets the value of Pro.
+func (s *FindingsPostFindingsIDAiOKFix) SetPro(val bool) {
+	s.Pro = val
 }
 
 // SetSoftware sets the value of Software.
@@ -71225,6 +71274,8 @@ type FindingsPostFindingsIDAppliedOKFix struct {
 	// fixes them, move to release `fixed`; distro = install the distribution's security updates for the
 	// package.
 	Kind FindingsPostFindingsIDAppliedOKFixKind `json:"kind"`
+	// Distro: the fix of at least one of them is in Ubuntu Pro (ESM) only.
+	Pro bool `json:"pro"`
 	// Display name of the software row.
 	Software string `json:"software"`
 	// The installed version.
@@ -71251,6 +71302,11 @@ func (s *FindingsPostFindingsIDAppliedOKFix) GetGroup() string {
 // GetKind returns the value of Kind.
 func (s *FindingsPostFindingsIDAppliedOKFix) GetKind() FindingsPostFindingsIDAppliedOKFixKind {
 	return s.Kind
+}
+
+// GetPro returns the value of Pro.
+func (s *FindingsPostFindingsIDAppliedOKFix) GetPro() bool {
+	return s.Pro
 }
 
 // GetSoftware returns the value of Software.
@@ -71286,6 +71342,11 @@ func (s *FindingsPostFindingsIDAppliedOKFix) SetGroup(val string) {
 // SetKind sets the value of Kind.
 func (s *FindingsPostFindingsIDAppliedOKFix) SetKind(val FindingsPostFindingsIDAppliedOKFixKind) {
 	s.Kind = val
+}
+
+// SetPro sets the value of Pro.
+func (s *FindingsPostFindingsIDAppliedOKFix) SetPro(val bool) {
+	s.Pro = val
 }
 
 // SetSoftware sets the value of Software.
@@ -74447,6 +74508,8 @@ type FindingsPostFindingsIDStatusOKFix struct {
 	// fixes them, move to release `fixed`; distro = install the distribution's security updates for the
 	// package.
 	Kind FindingsPostFindingsIDStatusOKFixKind `json:"kind"`
+	// Distro: the fix of at least one of them is in Ubuntu Pro (ESM) only.
+	Pro bool `json:"pro"`
 	// Display name of the software row.
 	Software string `json:"software"`
 	// The installed version.
@@ -74473,6 +74536,11 @@ func (s *FindingsPostFindingsIDStatusOKFix) GetGroup() string {
 // GetKind returns the value of Kind.
 func (s *FindingsPostFindingsIDStatusOKFix) GetKind() FindingsPostFindingsIDStatusOKFixKind {
 	return s.Kind
+}
+
+// GetPro returns the value of Pro.
+func (s *FindingsPostFindingsIDStatusOKFix) GetPro() bool {
+	return s.Pro
 }
 
 // GetSoftware returns the value of Software.
@@ -74508,6 +74576,11 @@ func (s *FindingsPostFindingsIDStatusOKFix) SetGroup(val string) {
 // SetKind sets the value of Kind.
 func (s *FindingsPostFindingsIDStatusOKFix) SetKind(val FindingsPostFindingsIDStatusOKFixKind) {
 	s.Kind = val
+}
+
+// SetPro sets the value of Pro.
+func (s *FindingsPostFindingsIDStatusOKFix) SetPro(val bool) {
+	s.Pro = val
 }
 
 // SetSoftware sets the value of Software.

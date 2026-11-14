@@ -333,10 +333,10 @@
   "fix": {
     "title_one": "1 update fixes several findings",
     "title_other": "{{count}} updates each fix several findings",
-    "help": "One missing update often leaves many exploited vulnerabilities open. Install it once and Vedette closes every finding it fixes when the device reports the new version.",
+    "help": "One missing update often leaves many exploited vulnerabilities open. Install it once: when the device reports the new version (its agent or the next scan), or you enter it, Vedette closes every finding it fixes.",
     "windowsFixed": "Install the latest cumulative update for {{software}} (build {{fixed}} or later)",
     "windowsEsu": "Install the Extended Security Update for {{software}} (build {{fixed}} or later; it needs an ESU subscription)",
-    "featureUpdate": "Upgrade {{software}} to {{fixed}}: no update for this release fixes these",
+    "featureUpdate": "Upgrade {{software}} to {{fixed}}: some of these get no update for this release",
     "fixed": "Upgrade {{software}} from {{version}} to {{fixed}} or later",
     "distro": "Install {{distro}}'s security updates for {{software}}",
     "distroAny": "Install the distribution's security updates for {{software}}",
@@ -347,6 +347,8 @@
     "select": "Handle these {{count}} findings in the list",
     "filtered": "Showing the findings one update fixes: {{action}}.",
     "clear": "Show all findings",
-    "listLabel": "Updates that fix several findings"
+    "listLabel": "Updates that fix several findings",
+    "distroPro": "Install {{distro}}'s security updates for {{software}} (some of the fixes need Ubuntu Pro)",
+    "allGrouped": "Every unresolved finding in this list is in an update above."
   }
 }

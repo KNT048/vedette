@@ -214,7 +214,9 @@ function List() {
       {tab === 'open' && q.data?.version_needed.length ? <VersionNeededList items={q.data.version_needed} /> : null}
       {tab === 'open' && grouping ? <div className="mb-3"><FixGroupList groups={grouping.groups} showDevice /></div> : null}
       <QueryState query={q}>
-        {() => (
+        {() => tab === 'open' && grouping && grouping.groups.length > 0 && rows.length === 0 ? (
+          <p className="text-sm text-muted">{t('fix.allGrouped')}</p>
+        ) : (
           <DataTable
             caption={t('caption')}
             data={rows}

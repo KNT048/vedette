@@ -117,7 +117,9 @@
     "toFindings": "See findings and what to do",
     "tryLookup": "Look up this ID",
     "notAnId": "“{{id}}” is not a CVE ID",
-    "notAnIdBody": "CVE IDs look like CVE-2021-44228: the letters CVE, a year, and a number."
+    "notAnIdBody": "CVE IDs look like CVE-2021-44228: the letters CVE, a year, and a number.",
+    "notAffected_one": "1 device runs this product but is not affected: Vedette checked its platform (see its findings).",
+    "notAffected_other": "{{count}} devices run this product but are not affected: Vedette checked their platform (see their findings)."
   },
   "settings": {
     "nav": "Feeds",

@@ -103,7 +103,10 @@ type MatchDevice struct {
 	StatedOS string
 	// AgentOS is the newest OS the device's own agent reports (source agent: osquery, Wazuh, the box's own reading), even when a
 	// person's value won OS; "" when no agent reported one (D-549: the platform of an agent's software rows, findings INV-16).
-	AgentOS  string
+	AgentOS string
+	// SNMPOS is the newest OS the device stated to Vedette's own SNMP read of its address (source snmp), "" when none (D-549, review r1
+	// #3: unlike LLDP, which any host can send with another device's MAC).
+	SNMPOS   string
 	Software []MatchSoftware
 }
 
@@ -123,7 +126,10 @@ func (s *Service) MatchInput(ctx context.Context, id string) (d MatchDevice, ok 
 	if d.StatedOS, err = statedOS(ctx, q, id); err != nil {
 		return MatchDevice{}, false, err
 	}
-	if d.AgentOS, err = agentOS(ctx, q, id); err != nil {
+	if d.AgentOS, err = osFrom(ctx, q, id, "agent"); err != nil {
+		return MatchDevice{}, false, err
+	}
+	if d.SNMPOS, err = osFrom(ctx, q, id, "snmp"); err != nil {
 		return MatchDevice{}, false, err
 	}
 	rows, err := q.QueryContext(ctx, `SELECT s.id, s.display, s.vendor, s.product, ifnull(s.version, ''), ifnull(s.cpe, ''), s.source, s.packaged, ifnull(s.pkg_version, ''), ifnull(s.pkg_source, ''), k.kev_key
@@ -165,18 +171,19 @@ func statedOS(ctx context.Context, q querier, id string) (string, error) {
 	return v, nil
 }
 
-// agentOS is the newest OS observation of the device from its own agent (source agent).
-func agentOS(ctx context.Context, q querier, id string) (string, error) {
+// osFrom is the newest OS observation of the device from one source (agent: its own agent; snmp: Vedette's SNMP read of its address).
+func osFrom(ctx context.Context, q querier, id, source string) (string, error) {
 	var v string
-	err := q.QueryRowContext(ctx, `SELECT value FROM inv_observation WHERE asset_id = ? AND field = 'os' AND source = 'agent'
-		ORDER BY seen_at DESC, id DESC LIMIT 1`, id).Scan(&v)
+	err := q.QueryRowContext(ctx, `SELECT value FROM inv_observation WHERE asset_id = ? AND field = 'os' AND source = ?
+		ORDER BY seen_at DESC, id DESC LIMIT 1`, id, source).Scan(&v)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
-		return "", fmt.Errorf("inventory: read the agent's OS: %w", err)
+		return "", fmt.Errorf("inventory: read the %s OS: %w", source, err)
 	}
 	return v, nil
 }
 
-// matchView is what the findings matcher reads of a device besides its software (D-510): folded OS, model, stated OS, the agent's OS.
+// matchView is what the findings matcher reads of a device besides its software (D-510): folded OS, model, stated OS, the agent's and
+// SNMP's OS.
 func matchView(ctx context.Context, q querier, id string) (string, error) {
 	var osName, model sql.NullString
 	if err := q.QueryRowContext(ctx, `SELECT os, model FROM inv_asset WHERE id = ?`, id).Scan(&osName, &model); err != nil && !errors.Is(err, sql.ErrNoRows) {
@@ -186,8 +193,12 @@ func matchView(ctx context.Context, q querier, id string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	agent, err := agentOS(ctx, q, id)
-	return osName.String + "\x00" + model.String + "\x00" + stated + "\x00" + agent, err
+	agent, err := osFrom(ctx, q, id, "agent")
+	if err != nil {
+		return "", err
+	}
+	snmp, err := osFrom(ctx, q, id, "snmp")
+	return osName.String + "\x00" + model.String + "\x00" + stated + "\x00" + agent + "\x00" + snmp, err
 }
 
 // HasDevice reports whether the inventory has a device of one of these kinds whose vendor (the device's own

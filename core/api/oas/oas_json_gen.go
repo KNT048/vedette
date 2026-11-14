@@ -108484,6 +108484,12 @@ func (s *FeedsGetFeedsCveIDOK) encodeFields(e *jx.Encoder) {
 		e.Str(s.Name)
 	}
 	{
+		if s.NotAffected.Set {
+			e.FieldStart("not_affected")
+			s.NotAffected.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("product")
 		e.Str(s.Product)
 	}
@@ -108507,7 +108513,7 @@ func (s *FeedsGetFeedsCveIDOK) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfFeedsGetFeedsCveIDOK = [16]string{
+var jsonFieldsNameOfFeedsGetFeedsCveIDOK = [17]string{
 	0:  "cve",
 	1:  "date_added",
 	2:  "description",
@@ -108519,11 +108525,12 @@ var jsonFieldsNameOfFeedsGetFeedsCveIDOK = [16]string{
 	8:  "links",
 	9:  "matched",
 	10: "name",
-	11: "product",
-	12: "ransomware",
-	13: "required_action",
-	14: "source",
-	15: "vendor",
+	11: "not_affected",
+	12: "product",
+	13: "ransomware",
+	14: "required_action",
+	15: "source",
+	16: "vendor",
 }
 
 // Decode decodes FeedsGetFeedsCveIDOK from json.
@@ -108531,7 +108538,7 @@ func (s *FeedsGetFeedsCveIDOK) Decode(d *jx.Decoder) error {
 	if s == nil {
 		return errors.New("invalid: unable to decode FeedsGetFeedsCveIDOK to nil")
 	}
-	var requiredBitSet [2]uint8
+	var requiredBitSet [3]uint8
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
@@ -108682,8 +108689,18 @@ func (s *FeedsGetFeedsCveIDOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"name\"")
 			}
+		case "not_affected":
+			if err := func() error {
+				s.NotAffected.Reset()
+				if err := s.NotAffected.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"not_affected\"")
+			}
 		case "product":
-			requiredBitSet[1] |= 1 << 3
+			requiredBitSet[1] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.Product = string(v)
@@ -108695,7 +108712,7 @@ func (s *FeedsGetFeedsCveIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"product\"")
 			}
 		case "ransomware":
-			requiredBitSet[1] |= 1 << 4
+			requiredBitSet[1] |= 1 << 5
 			if err := func() error {
 				v, err := d.Bool()
 				s.Ransomware = bool(v)
@@ -108707,7 +108724,7 @@ func (s *FeedsGetFeedsCveIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"ransomware\"")
 			}
 		case "required_action":
-			requiredBitSet[1] |= 1 << 5
+			requiredBitSet[1] |= 1 << 6
 			if err := func() error {
 				v, err := d.Str()
 				s.RequiredAction = string(v)
@@ -108729,7 +108746,7 @@ func (s *FeedsGetFeedsCveIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"source\"")
 			}
 		case "vendor":
-			requiredBitSet[1] |= 1 << 7
+			requiredBitSet[2] |= 1 << 0
 			if err := func() error {
 				v, err := d.Str()
 				s.Vendor = string(v)
@@ -108749,9 +108766,10 @@ func (s *FeedsGetFeedsCveIDOK) Decode(d *jx.Decoder) error {
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
-	for i, mask := range [2]uint8{
+	for i, mask := range [3]uint8{
 		0b11111111,
-		0b10111111,
+		0b01110111,
+		0b00000001,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -124112,6 +124130,10 @@ func (s *FindingsGetFindingsIDOKFix) encodeFields(e *jx.Encoder) {
 		s.Kind.Encode(e)
 	}
 	{
+		e.FieldStart("pro")
+		e.Bool(s.Pro)
+	}
+	{
 		e.FieldStart("software")
 		e.Str(s.Software)
 	}
@@ -124125,14 +124147,15 @@ func (s *FindingsGetFindingsIDOKFix) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfFindingsGetFindingsIDOKFix = [7]string{
+var jsonFieldsNameOfFindingsGetFindingsIDOKFix = [8]string{
 	0: "distro",
 	1: "fixed",
 	2: "group",
 	3: "kind",
-	4: "software",
-	5: "version",
-	6: "windows",
+	4: "pro",
+	5: "software",
+	6: "version",
+	7: "windows",
 }
 
 // Decode decodes FindingsGetFindingsIDOKFix from json.
@@ -124190,8 +124213,20 @@ func (s *FindingsGetFindingsIDOKFix) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"kind\"")
 			}
-		case "software":
+		case "pro":
 			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Bool()
+				s.Pro = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"pro\"")
+			}
+		case "software":
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.Software = string(v)
@@ -124203,7 +124238,7 @@ func (s *FindingsGetFindingsIDOKFix) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"software\"")
 			}
 		case "version":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				v, err := d.Str()
 				s.Version = string(v)
@@ -124215,7 +124250,7 @@ func (s *FindingsGetFindingsIDOKFix) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"version\"")
 			}
 		case "windows":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := d.Bool()
 				s.Windows = bool(v)
@@ -124236,7 +124271,7 @@ func (s *FindingsGetFindingsIDOKFix) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b01111111,
+		0b11111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -128348,6 +128383,10 @@ func (s *FindingsGetFindingsOKItemsItemFix) encodeFields(e *jx.Encoder) {
 		s.Kind.Encode(e)
 	}
 	{
+		e.FieldStart("pro")
+		e.Bool(s.Pro)
+	}
+	{
 		e.FieldStart("software")
 		e.Str(s.Software)
 	}
@@ -128361,14 +128400,15 @@ func (s *FindingsGetFindingsOKItemsItemFix) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfFindingsGetFindingsOKItemsItemFix = [7]string{
+var jsonFieldsNameOfFindingsGetFindingsOKItemsItemFix = [8]string{
 	0: "distro",
 	1: "fixed",
 	2: "group",
 	3: "kind",
-	4: "software",
-	5: "version",
-	6: "windows",
+	4: "pro",
+	5: "software",
+	6: "version",
+	7: "windows",
 }
 
 // Decode decodes FindingsGetFindingsOKItemsItemFix from json.
@@ -128426,8 +128466,20 @@ func (s *FindingsGetFindingsOKItemsItemFix) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"kind\"")
 			}
-		case "software":
+		case "pro":
 			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Bool()
+				s.Pro = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"pro\"")
+			}
+		case "software":
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.Software = string(v)
@@ -128439,7 +128491,7 @@ func (s *FindingsGetFindingsOKItemsItemFix) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"software\"")
 			}
 		case "version":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				v, err := d.Str()
 				s.Version = string(v)
@@ -128451,7 +128503,7 @@ func (s *FindingsGetFindingsOKItemsItemFix) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"version\"")
 			}
 		case "windows":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := d.Bool()
 				s.Windows = bool(v)
@@ -128472,7 +128524,7 @@ func (s *FindingsGetFindingsOKItemsItemFix) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b01111111,
+		0b11111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -132679,6 +132731,10 @@ func (s *FindingsPostFindingsIDAiOKFix) encodeFields(e *jx.Encoder) {
 		s.Kind.Encode(e)
 	}
 	{
+		e.FieldStart("pro")
+		e.Bool(s.Pro)
+	}
+	{
 		e.FieldStart("software")
 		e.Str(s.Software)
 	}
@@ -132692,14 +132748,15 @@ func (s *FindingsPostFindingsIDAiOKFix) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfFindingsPostFindingsIDAiOKFix = [7]string{
+var jsonFieldsNameOfFindingsPostFindingsIDAiOKFix = [8]string{
 	0: "distro",
 	1: "fixed",
 	2: "group",
 	3: "kind",
-	4: "software",
-	5: "version",
-	6: "windows",
+	4: "pro",
+	5: "software",
+	6: "version",
+	7: "windows",
 }
 
 // Decode decodes FindingsPostFindingsIDAiOKFix from json.
@@ -132757,8 +132814,20 @@ func (s *FindingsPostFindingsIDAiOKFix) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"kind\"")
 			}
-		case "software":
+		case "pro":
 			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Bool()
+				s.Pro = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"pro\"")
+			}
+		case "software":
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.Software = string(v)
@@ -132770,7 +132839,7 @@ func (s *FindingsPostFindingsIDAiOKFix) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"software\"")
 			}
 		case "version":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				v, err := d.Str()
 				s.Version = string(v)
@@ -132782,7 +132851,7 @@ func (s *FindingsPostFindingsIDAiOKFix) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"version\"")
 			}
 		case "windows":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := d.Bool()
 				s.Windows = bool(v)
@@ -132803,7 +132872,7 @@ func (s *FindingsPostFindingsIDAiOKFix) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b01111111,
+		0b11111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -138873,6 +138942,10 @@ func (s *FindingsPostFindingsIDAppliedOKFix) encodeFields(e *jx.Encoder) {
 		s.Kind.Encode(e)
 	}
 	{
+		e.FieldStart("pro")
+		e.Bool(s.Pro)
+	}
+	{
 		e.FieldStart("software")
 		e.Str(s.Software)
 	}
@@ -138886,14 +138959,15 @@ func (s *FindingsPostFindingsIDAppliedOKFix) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfFindingsPostFindingsIDAppliedOKFix = [7]string{
+var jsonFieldsNameOfFindingsPostFindingsIDAppliedOKFix = [8]string{
 	0: "distro",
 	1: "fixed",
 	2: "group",
 	3: "kind",
-	4: "software",
-	5: "version",
-	6: "windows",
+	4: "pro",
+	5: "software",
+	6: "version",
+	7: "windows",
 }
 
 // Decode decodes FindingsPostFindingsIDAppliedOKFix from json.
@@ -138951,8 +139025,20 @@ func (s *FindingsPostFindingsIDAppliedOKFix) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"kind\"")
 			}
-		case "software":
+		case "pro":
 			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Bool()
+				s.Pro = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"pro\"")
+			}
+		case "software":
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.Software = string(v)
@@ -138964,7 +139050,7 @@ func (s *FindingsPostFindingsIDAppliedOKFix) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"software\"")
 			}
 		case "version":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				v, err := d.Str()
 				s.Version = string(v)
@@ -138976,7 +139062,7 @@ func (s *FindingsPostFindingsIDAppliedOKFix) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"version\"")
 			}
 		case "windows":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := d.Bool()
 				s.Windows = bool(v)
@@ -138997,7 +139083,7 @@ func (s *FindingsPostFindingsIDAppliedOKFix) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b01111111,
+		0b11111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -145073,6 +145159,10 @@ func (s *FindingsPostFindingsIDStatusOKFix) encodeFields(e *jx.Encoder) {
 		s.Kind.Encode(e)
 	}
 	{
+		e.FieldStart("pro")
+		e.Bool(s.Pro)
+	}
+	{
 		e.FieldStart("software")
 		e.Str(s.Software)
 	}
@@ -145086,14 +145176,15 @@ func (s *FindingsPostFindingsIDStatusOKFix) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfFindingsPostFindingsIDStatusOKFix = [7]string{
+var jsonFieldsNameOfFindingsPostFindingsIDStatusOKFix = [8]string{
 	0: "distro",
 	1: "fixed",
 	2: "group",
 	3: "kind",
-	4: "software",
-	5: "version",
-	6: "windows",
+	4: "pro",
+	5: "software",
+	6: "version",
+	7: "windows",
 }
 
 // Decode decodes FindingsPostFindingsIDStatusOKFix from json.
@@ -145151,8 +145242,20 @@ func (s *FindingsPostFindingsIDStatusOKFix) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"kind\"")
 			}
-		case "software":
+		case "pro":
 			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Bool()
+				s.Pro = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"pro\"")
+			}
+		case "software":
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.Software = string(v)
@@ -145164,7 +145267,7 @@ func (s *FindingsPostFindingsIDStatusOKFix) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"software\"")
 			}
 		case "version":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				v, err := d.Str()
 				s.Version = string(v)
@@ -145176,7 +145279,7 @@ func (s *FindingsPostFindingsIDStatusOKFix) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"version\"")
 			}
 		case "windows":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := d.Bool()
 				s.Windows = bool(v)
@@ -145197,7 +145300,7 @@ func (s *FindingsPostFindingsIDStatusOKFix) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b01111111,
+		0b11111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.

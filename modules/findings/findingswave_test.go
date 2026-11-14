@@ -69,7 +69,8 @@ func TestPlatformRuledOut_D549(t *testing.T) {
 	}{
 		{"agent row, agent says Ubuntu", Asset{ID: "a", AgentOS: "Ubuntu 24.04.3 LTS", Software: []Software{sshRow("9.6p1", "", "agent")}}, "CVE-2026-123158", true},
 		{"agent row, only a guessed OS", Asset{ID: "a", OS: "Ubuntu 24.04.3 LTS", Software: []Software{sshRow("9.6p1", "", "agent")}}, "CVE-2026-123158", false},
-		{"Junos switch, scan-seen OpenSSH", Asset{ID: "sw", StatedOS: "Juniper Networks, Inc. ex4200-48t Ethernet Switch, kernel JUNOS 15.1R7.9", Software: []Software{sshRow("7.5", "", "nmap")}}, "CVE-2026-123158", true},
+		{"Junos switch, scan-seen OpenSSH", Asset{ID: "sw", StatedOS: "Juniper Networks, Inc. ex4200-48t Ethernet Switch, kernel JUNOS 15.1R7.9", SNMPOS: "Juniper Networks, Inc. ex4200-48t Ethernet Switch, kernel JUNOS 15.1R7.9", Software: []Software{sshRow("7.5", "", "nmap")}}, "CVE-2026-123158", true},
+		{"forged LLDP Junos on an Alpine box (review r1 #3)", Asset{ID: "sw", StatedOS: "JUNOS 15.1R7.9", Software: []Software{sshRow("10.2", "", "nmap")}}, "CVE-2026-123158", false},
 		{"firewall that says nothing", Asset{ID: "fw", Software: []Software{sshRow("10.2", "protocol 2.0", "nmap")}}, "CVE-2026-123158", false},
 		{"a CVE not on the list", Asset{ID: "a", AgentOS: "Ubuntu 24.04.3 LTS", Software: []Software{sshRow("9.6p1", "", "agent")}}, "CVE-2024-6387", false},
 	} {
@@ -103,5 +104,49 @@ func TestContract_D545_ListCarriesTheFixGroup(t *testing.T) {
 		if fix["group"] != "a-1/s-win" || fix["kind"] != "fixed" || fix["windows"] != true || fix["fixed"] != "10.0.26100.7092" || ev["agent"] != true {
 			t.Fatalf("row %v", f)
 		}
+	}
+}
+
+// Review r1 #1: a CVE NVD has no range for keeps its own row: the upgrade that clears the others proves nothing about it.
+func TestRowFixes_D545_NoRangeKeepsItsRow(t *testing.T) {
+	ranged := func(cve, end string) Vuln {
+		return Vuln{CVE: cve, Vendor: "QNAP", Product: "Photo Station", Affected: []Affected{{CPE: "cpe:2.3:a:qnap:photo_station:*:*:*:*:*:*:*:*", Range: VersionRange{EndExcl: end}}}}
+	}
+	bare := Vuln{CVE: "CVE-2099-0003", Vendor: "QNAP", Product: "Photo Station"}
+	got := RowFixes(nas("6.1.1"), []Vuln{ranged("CVE-2099-0001", "6.1.2"), ranged("CVE-2099-0002", "6.2.0"), bare})
+	if got["CVE-2099-0001"] == nil || got["CVE-2099-0002"] == nil || got["CVE-2099-0001"].Fixed != "6.2.0" || got[bare.CVE] != nil {
+		t.Fatalf("fixes %+v", got)
+	}
+}
+
+// Review r1 #5, #6, #7: no "Detected by the agent" while the platform condition is open or when NVD names no end; an ESU-only or a
+// feature-update fix says so instead of "that monthly update".
+func TestMatchAsset_D548_AgentWordsOnlyWhenTheyHold(t *testing.T) {
+	m := MatchAsset(Asset{ID: "a", Name: "fw1", Software: []Software{sshRow("10.2", "", "agent")}}, []Vuln{sshhole()}, nil, t0).New
+	if len(m) != 1 || m[0].Evidence.Agent || !strings.Contains(m[0].Evidence.Summary, "It affects only") {
+		t.Fatalf("platform open: %+v", m)
+	}
+	m = MatchAsset(Asset{ID: "a", Name: "alp1", AgentOS: "Alpine Linux v3.23", Software: []Software{sshRow("10.2", "", "agent")}}, []Vuln{sshhole()}, nil, t0).New
+	if len(m) != 1 || !m[0].Evidence.Agent {
+		t.Fatalf("agent says Alpine: %+v", m)
+	}
+	all := Vuln{CVE: "CVE-2099-0004", Vendor: "QNAP", Product: "Photo Station", Affected: []Affected{{CPE: "cpe:2.3:a:qnap:photo_station:*:*:*:*:*:*:*:*", Range: VersionRange{StartIncl: "6.0"}}}}
+	box := nas("6.1.1")
+	box.Software[0].Source = "agent"
+	if m = MatchAsset(box, []Vuln{all}, nil, t0).New; len(m) != 1 || m[0].Evidence.Agent {
+		t.Fatalf("no end: %+v", m)
+	}
+	_, w := oneMatch(t, winPC(19045, false, "6456", "x64"), cve62215, false) // Windows 10 22H2 after its last free update
+	if !w.Evidence.Agent || !strings.Contains(w.Evidence.Summary, "comes only with Extended Security Updates for Windows 10 22H2") || strings.Contains(w.Evidence.Summary, "monthly update") {
+		t.Fatalf("esu: %q", w.Evidence.Summary)
+	}
+}
+
+// Review r1 #12: once the agent's row no longer decides it, "Detected by the agent" goes, the basis stays.
+func TestApplyMatch_D548_AgentFlagGoesWithTheAgentRow(t *testing.T) {
+	f := Finding{Status: StatusSuspected, Basis: BasisVersion, Severity: SeverityHigh, Evidence: &Evidence{Summary: "The agent on pc-01 reports …", Agent: true}}
+	f = f.ApplyMatch(Match{Basis: BasisProduct, Severity: SeverityMedium, Evidence: Evidence{Summary: "pc-01 runs X. Vedette cannot compare …"}})
+	if f.Basis != BasisVersion || f.Evidence.Agent || f.Evidence.Summary != "pc-01 runs X. Vedette cannot compare …" {
+		t.Fatalf("%+v %+v", f, f.Evidence)
 	}
 }

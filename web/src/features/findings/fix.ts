@@ -28,7 +28,7 @@ export function useFixAction() {
   return (f: RowFix) => {
     const v = { software: f.software, version: f.version, fixed: f.windows ? build(f.fixed) : f.fixed, distro: f.distro }
     switch (f.kind) {
-      case 'distro': return t(f.distro ? 'fix.distro' : 'fix.distroAny', v)
+      case 'distro': return t(f.pro && f.distro ? 'fix.distroPro' : f.distro ? 'fix.distro' : 'fix.distroAny', v)
       case 'feature_update': return t('fix.featureUpdate', v)
       case 'esu': return t('fix.windowsEsu', v)
     }

@@ -1,3 +1,5 @@
 # Deferred — feat/findings-wave (Mac agent, 2026-11-15)
 
 - [ ] W-2 root cause on the N100: why the Windows VM .128's osquery `system_info` answer had not reached the inventory (vendor stayed the passive OUI "QEMU virtual NIC"). This PR names the device from the enrolment host name (agent-intake INV-21) either way; check on the next walk whether system_info lands (Devices → .128 → vendor "QEMU", model "Standard PC …") and, if not, read the box log for "agent-intake" lines of that node. No box access in this PR.
+- [ ] Review r1 #13 (nit, not cheap): the weekly and PDPL report tables (WeeklyDocument.tsx, PdplDocument.tsx) still show "Suspected" for an agent detection: reports.Finding carries no evidence, so it needs reports.Finding.Agent → report row contract → FindingStatusChip `evidence`. Next findings/reports wave.
+- [ ] Review r1 #13: the CVE page's platform check does not read the distribution's own verdict (D-516); safe while content/catalog/platform-limits.json has no entry the distributions call affected. Revisit when an entry is added.

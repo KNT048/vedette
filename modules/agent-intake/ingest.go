@@ -65,9 +65,12 @@ func (s *Service) Log(ctx context.Context, src netip.Addr, in logIn) error {
 // enrolHostname gives the device the host name osquery sent at enrolment (host_details.system_info.hostname) while its system_info
 // answer has not reached the inventory (W-2, D-548): without it a machine whose system_info is late or never taken is named after its
 // network card's maker ("QEMU virtual NIC") though its agent told its name. It goes in at the agent's rank, below the system_info
-// answer (0.9 < softwareConfidence), so that answer replaces it once it comes; a repeat only moves seen_at (inventory INV-1).
+// answer (0.9 < softwareConfidence), so that answer replaces it once it comes; a repeat only moves seen_at (inventory INV-1). Only in
+// the first-report window (review r1 #8): the observation stays after it, and a later rename comes with system_info, not from the
+// enrolment's old name.
 func (s *Service) enrolHostname(ctx context.Context, n nodeRow, hint observe.AssetHint, in logIn) error {
-	if n.hostname == "" || !fits(n.hostname) || hasAnswer(n.reported, "system_info") || len(in.snaps["system_info"]) > 0 {
+	if n.hostname == "" || !fits(n.hostname) || hasAnswer(n.reported, "system_info") || len(in.snaps["system_info"]) > 0 ||
+		s.now().Sub(n.enrolledAt) >= firstReportWindow {
 		return nil
 	}
 	return s.record(ctx, []observe.Observation{{AssetHint: hint, Field: observe.Hostname, Value: n.hostname, Source: observe.Agent, Confidence: enrolHostConfidence}})

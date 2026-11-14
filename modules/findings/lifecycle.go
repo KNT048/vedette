@@ -235,12 +235,19 @@ func NewFinding(m Match, now time.Time) (Finding, HistoryEntry) {
 // it then equals the match. A match of the same basis (version or product, never
 // scan, whose evidence is the template's) brings its evidence: the sentence
 // says what the device runs now and in today's words (D-548: an agent row's
-// finding written before says "only suspected" until then).
+// finding written before says "only suspected" until then). A finding the agent
+// detected whose new match is not the agent's takes the new sentence (no basis change).
 func (f Finding) ApplyMatch(m Match) Finding {
 	if !f.Status.Open() {
 		return f
 	}
-	if m.Basis == f.Basis && f.Basis != BasisScan && m.Evidence.Summary != "" {
+	switch {
+	case m.Basis == f.Basis && f.Basis != BasisScan && m.Evidence.Summary != "":
+		ev := m.Evidence
+		f.Evidence = &ev
+	case f.Basis != BasisScan && f.Evidence != nil && f.Evidence.Agent && !m.Evidence.Agent && m.Evidence.Summary != "" && rank(m.Basis) <= rank(f.Basis):
+		// Review r1 #12: the agent's row is gone (or no longer decides it): drop "Detected by the agent" and take the sentence of
+		// what matches now; the basis never goes down.
 		ev := m.Evidence
 		f.Evidence = &ev
 	}

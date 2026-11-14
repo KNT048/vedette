@@ -638,7 +638,7 @@ describe('findings: a closed finding opens with why it was closed (S-MIT-1, W12-
 })
 
 describe('findings: one update, one item; the agent\'s build is a detection (D-545, D-548, TUNE-5b W-1/W-3)', () => {
-  const fix = { group: 'a-srvad/s-win', kind: 'fixed' as const, windows: true, software: 'Windows Server 2025', version: '10.0.26100.1742', fixed: '10.0.26100.2314', distro: '' }
+  const fix = { group: 'a-srvad/s-win', kind: 'fixed' as const, windows: true, software: 'Windows Server 2025', version: '10.0.26100.1742', fixed: '10.0.26100.2314', distro: '', pro: false }
   const agentWindows = () => {
     const ev = (cve: string) => ({ summary: `The agent on SRV-AD reports Windows Server 2025 build 26100.1742. Microsoft fixed ${cve} in build 26100.2314.`, checked_at: new Date().toISOString(), agent: true })
     findingsStore.update((l) => [...l.map((f) => (f.id === 'f-3' ? { ...f, evidence: ev(f.cve) } : f)),
@@ -664,6 +664,15 @@ describe('findings: one update, one item; the agent\'s build is a detection (D-5
     expect(screen.getByText('Showing the findings one update fixes: Install the latest cumulative update for Windows Server 2025 (build 26100.2314 or later).')).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Show all findings' }))
     expect(await screen.findByRole('list', { name: 'Updates that fix several findings' })).toBeInTheDocument()
+  })
+
+  it('when every unresolved finding is in an update, the table says so instead of "No unresolved findings" (review r1 #2)', async () => {
+    agentWindows()
+    renderApp('/findings?device=a-srvad')
+    expect(await screen.findByRole('list', { name: 'Updates that fix several findings' })).toBeInTheDocument()
+    expect(screen.getByText('Every unresolved finding in this list is in an update above.')).toBeInTheDocument()
+    expect(screen.queryByText('No unresolved findings.')).toBeNull()
+    expect(screen.queryByRole('table', { name: 'Findings list' })).toBeNull()
   })
 
   it('the finding says the agent detected it and asks nothing to look up; the device page groups the same way', async () => {

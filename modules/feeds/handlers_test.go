@@ -426,7 +426,7 @@ func TestCVEPage_D549_PlatformRulesAgreeWithFindings(t *testing.T) {
 	e.loadKEV()
 	e.inv.matches["synology|diskstation manager"] = []MatchedAsset{{ID: "a1", IP: "10.0.0.5", Display: "NAS", How: HaveYes}, {ID: "a2", IP: "10.0.0.6", Display: "NAS 2", How: HaveYes}}
 	e.inv.notAffected = map[string][]string{"CVE-2026-10001": {"a1"}}
-	if _, b := e.get("/feeds/cve/CVE-2026-10001"); len(at(b, "matched").([]any)) != 1 || at(b, "matched", 0, "id") != "a2" {
+	if _, b := e.get("/feeds/cve/CVE-2026-10001"); len(at(b, "matched").([]any)) != 1 || at(b, "matched", 0, "id") != "a2" || at(b, "not_affected") != 1.0 {
 		t.Fatalf("ruled-out device listed: %v", b["matched"])
 	}
 	e.inv.mu.Lock()

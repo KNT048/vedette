@@ -417,14 +417,16 @@ func (h *FeedHandlers) FeedsGetFeedsCveID(ctx context.Context, params oas.FeedsG
 	match, on := h.s.matchOf(ctx, []Product{{v.Vendor, v.Product}})
 	out := struct {
 		vulnDTO
-		Matched *[]MatchedAsset `json:"matched"`
+		Matched     *[]MatchedAsset `json:"matched"`
+		NotAffected int             `json:"not_affected"`
 	}{vulnDTO: toVulnDTO(v)}
 	if on {
-		m := h.s.withoutNotAffected(ctx, v, match[v.Key()])
+		all := match[v.Key()]
+		m := h.s.withoutNotAffected(ctx, v, all)
 		if m == nil {
 			m = []MatchedAsset{}
 		}
-		out.Matched = &m
+		out.Matched, out.NotAffected = &m, len(all)-len(m)
 	}
 	return convert[oas.FeedsGetFeedsCveIDOK](out)
 }

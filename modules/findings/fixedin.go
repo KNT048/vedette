@@ -463,6 +463,7 @@ type RowFix struct {
 	Version  string `json:"version"`  // the installed version
 	Fixed    string `json:"fixed"`    // the release or build that fixes them all (feature_update: the release to move to); "" for distro
 	Distro   string `json:"distro"`   // distro: "Ubuntu" or "Debian", "" for the distribution's
+	Pro      bool   `json:"pro"`      // distro: the fix of at least one of them is in Ubuntu Pro (ESM) only
 }
 
 // RowFixes is FixedInForAll as FindingRow.fix, by CVE, for the vulnerabilities of a device's open findings (vulns: only those, as the
@@ -476,16 +477,38 @@ func RowFixes(a Asset, vulns []Vuln) map[string]*RowFix {
 	for _, s := range deviceSoftware(a) {
 		sws[s.ID] = s
 	}
+	byCVE := make(map[string]Vuln, len(vulns))
+	for _, v := range vulns {
+		byCVE[v.CVE] = v
+	}
 	out := make(map[string]*RowFix, len(groups))
+	pro := map[string]bool{} // group -> a member's fix is in Ubuntu Pro only
 	for cve, g := range groups {
 		switch g.Kind {
 		case "fixed", "esu", "feature_update", "distro":
 		default:
 			continue
 		}
+		// Review r1 #1: only a CVE whose own version is inside a range with an end (FixedInFor names its fix). groupFixOf widens a
+		// "fixed" release to every entry of the software, also one NVD has no data for or that lists other products (D-505): those
+		// keep their own row, the update proves nothing about them.
+		f := FixedInFor(a, byCVE[cve])
+		if f == nil {
+			continue
+		}
+		switch f.Kind {
+		case "fixed", "up_to", "distro", "esu", "feature_update":
+		default:
+			continue
+		}
 		s := sws[g.Software]
 		_, win := winDevice(newSWInfo(s, a.OS))
-		out[cve] = &RowFix{Group: a.ID + "/" + g.Software, Kind: g.Kind, Windows: win, Software: clean(s.Display), Version: g.Version, Fixed: g.Fixed, Distro: g.Distro}
+		group := a.ID + "/" + g.Software
+		pro[group] = pro[group] || f.DistroPro
+		out[cve] = &RowFix{Group: group, Kind: g.Kind, Windows: win, Software: clean(s.Display), Version: g.Version, Fixed: g.Fixed, Distro: g.Distro}
+	}
+	for _, f := range out {
+		f.Pro = pro[f.Group]
 	}
 	return out
 }

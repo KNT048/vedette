@@ -57,6 +57,7 @@ export const RowFix = z.object({
   version: z.string().describe('The installed version'),
   fixed: z.string().describe('The release or build that fixes them all; feature_update: the release to move to; empty for distro'),
   distro: z.string().describe('distro: "Ubuntu" or "Debian", empty for the distribution\'s'),
+  pro: z.boolean().describe('distro: the fix of at least one of them is in Ubuntu Pro (ESM) only'),
 }).describe('D-545: one update fixes this finding together with the device\'s other open findings of the same software (top-tier: one item per missing update)')
 export const FindingRow = Finding.extend({
   asset: FindingAsset.nullable(), kev: KevInfo.nullable().describe('Read from KEV, not from the project recommendation pack'),

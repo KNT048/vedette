@@ -28140,6 +28140,12 @@
                           "type": "null"
                         }
                       ]
+                    },
+                    "not_affected": {
+                      "description": "D-549: devices that run the product but that the platform rules of the findings prove are not affected; left out of matched",
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
                     }
                   },
                   "required": [
@@ -30591,6 +30597,10 @@
                                   "distro": {
                                     "type": "string",
                                     "description": "distro: \"Ubuntu\" or \"Debian\", empty for the distribution's"
+                                  },
+                                  "pro": {
+                                    "type": "boolean",
+                                    "description": "distro: the fix of at least one of them is in Ubuntu Pro (ESM) only"
                                   }
                                 },
                                 "required": [
@@ -30600,7 +30610,8 @@
                                   "software",
                                   "version",
                                   "fixed",
-                                  "distro"
+                                  "distro",
+                                  "pro"
                                 ],
                                 "additionalProperties": false,
                                 "description": "D-545: one update fixes this finding together with the device's other open findings of the same software (top-tier: one item per missing update)"
@@ -31276,6 +31287,10 @@
                             "distro": {
                               "type": "string",
                               "description": "distro: \"Ubuntu\" or \"Debian\", empty for the distribution's"
+                            },
+                            "pro": {
+                              "type": "boolean",
+                              "description": "distro: the fix of at least one of them is in Ubuntu Pro (ESM) only"
                             }
                           },
                           "required": [
@@ -31285,7 +31300,8 @@
                             "software",
                             "version",
                             "fixed",
-                            "distro"
+                            "distro",
+                            "pro"
                           ],
                           "additionalProperties": false,
                           "description": "D-545: one update fixes this finding together with the device's other open findings of the same software (top-tier: one item per missing update)"
@@ -32505,6 +32521,10 @@
                             "distro": {
                               "type": "string",
                               "description": "distro: \"Ubuntu\" or \"Debian\", empty for the distribution's"
+                            },
+                            "pro": {
+                              "type": "boolean",
+                              "description": "distro: the fix of at least one of them is in Ubuntu Pro (ESM) only"
                             }
                           },
                           "required": [
@@ -32514,7 +32534,8 @@
                             "software",
                             "version",
                             "fixed",
-                            "distro"
+                            "distro",
+                            "pro"
                           ],
                           "additionalProperties": false,
                           "description": "D-545: one update fixes this finding together with the device's other open findings of the same software (top-tier: one item per missing update)"
@@ -33736,6 +33757,10 @@
                             "distro": {
                               "type": "string",
                               "description": "distro: \"Ubuntu\" or \"Debian\", empty for the distribution's"
+                            },
+                            "pro": {
+                              "type": "boolean",
+                              "description": "distro: the fix of at least one of them is in Ubuntu Pro (ESM) only"
                             }
                           },
                           "required": [
@@ -33745,7 +33770,8 @@
                             "software",
                             "version",
                             "fixed",
-                            "distro"
+                            "distro",
+                            "pro"
                           ],
                           "additionalProperties": false,
                           "description": "D-545: one update fixes this finding together with the device's other open findings of the same software (top-tier: one item per missing update)"
@@ -34979,6 +35005,10 @@
                             "distro": {
                               "type": "string",
                               "description": "distro: \"Ubuntu\" or \"Debian\", empty for the distribution's"
+                            },
+                            "pro": {
+                              "type": "boolean",
+                              "description": "distro: the fix of at least one of them is in Ubuntu Pro (ESM) only"
                             }
                           },
                           "required": [
@@ -34988,7 +35018,8 @@
                             "software",
                             "version",
                             "fixed",
-                            "distro"
+                            "distro",
+                            "pro"
                           ],
                           "additionalProperties": false,
                           "description": "D-545: one update fixes this finding together with the device's other open findings of the same software (top-tier: one item per missing update)"

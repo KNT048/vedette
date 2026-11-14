@@ -152,7 +152,7 @@ func (h *FindingHandlers) addFixes(ctx context.Context, rows []Row) {
 	byAsset := map[string][]int{}
 	var order []string
 	for i, r := range rows {
-		if !r.Status.Open() {
+		if !r.Status.Open() || r.Basis == BasisProduct { // review r1 #1: a product match is not proved fixed by an update
 			continue
 		}
 		if _, ok := byAsset[r.AssetID]; !ok {

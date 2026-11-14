@@ -73,7 +73,11 @@ type Asset struct {
 	// AgentOS is the OS the device's own agent reports (osquery, Wazuh, the box's own reading), even when another source's value
 	// won OS (a person's); "" when no agent reported one. Only it is evidence of the platform of an agent row (D-547, review r2 of
 	// #790: the folded OS of a Wazuh-only device can be nmap's or DHCP's guess).
-	AgentOS  string
+	AgentOS string
+	// SNMPOS is the OS the device states in answer to Vedette's own SNMP read of its address (source snmp), "" when none: unlike an
+	// LLDP frame, which any host on the wire can send with another device's MAC, it is the device answering at its own address
+	// (D-549, review r1 #3: only it may make a Junos statement count for scan-seen rows).
+	SNMPOS   string
 	Software []Software
 }
 
@@ -492,7 +496,10 @@ func matchOne(a Asset, s Software, in swInfo, v Vuln, now time.Time) (Match, out
 		if w.via != "" {
 			m.Evidence.Summary = fmt.Sprintf("%s runs %s. Its version is inside the range affected by %s (%s, read with the range NVD gives %s, which takes the same monthly update); no scan has confirmed it yet, so this is only suspected.", name, sw, v.CVE, clean(within.String()), w.via)
 		}
-		if s.Source == "agent" { // D-548: the device's own agent reports what is installed; a detection, not a guess
+		// D-548: the device's own agent reports what is installed; a detection, not a guess. Not when NVD gives no end to the range
+		// (every version: no fix to name, review r1 #7), nor while a platform condition is open (a platform-limited CVE whose
+		// platform the agent does not name as one it affects: the person still has to check it, review r1 #5).
+		if s.Source == "agent" && (within.EndExcl != "" || within.EndIncl != "") && platformSettled(in, v.CVE) {
 			m.Evidence.Agent = true
 			m.Evidence.Summary = agentSummary(name, s, in, v, within, w, isWin)
 		}
@@ -526,8 +533,15 @@ func agentSummary(name string, s Software, in swInfo, v Vuln, within VersionRang
 			via = fmt.Sprintf(", read with the range NVD gives %s, which takes the same monthly update", w.via)
 		}
 		if end := clean(within.EndExcl); end != "" {
-			return fmt.Sprintf("The agent on %s reports %s build %s. Microsoft fixed %s in build %s (NVD: %s%s), so this device has the flaw until it installs that monthly update or a later one.",
-				name, sw, build, v.CVE, strings.TrimPrefix(end, "10.0."), clean(within.String()), via)
+			head := fmt.Sprintf("The agent on %s reports %s build %s. Microsoft fixed %s in build %s (NVD: %s%s)", name, sw, build, v.CVE, strings.TrimPrefix(end, "10.0."), clean(within.String()), via)
+			d, _ := winDevice(in)
+			switch kind, _, branch := winFix(w, d); kind { // review r1 #6: what installing the fix takes on this release
+			case "esu":
+				return fmt.Sprintf("%s, an update that comes only with Extended Security Updates for %s; this device has the flaw until it installs it.", head, clean(branch))
+			case "feature_update":
+				return fmt.Sprintf("%s, but no update for this release carries it: this device has the flaw until it moves to %s or later.", head, clean(branch))
+			}
+			return head + ", so this device has the flaw until it installs that monthly update or a later one."
 		}
 		return fmt.Sprintf("The agent on %s reports %s build %s, inside the builds NVD lists as affected by %s (%s%s).", name, sw, build, v.CVE, clean(within.String()), via)
 	}

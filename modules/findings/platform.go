@@ -74,10 +74,26 @@ var platformWords = []struct {
 	{"junos", "Juniper Junos OS", regexp.MustCompile(`(?i)\bjunos\b`)},
 }
 
-// networkOS are the platforms of network gear whose own statement of its OS (LLDP, SNMP) also says what a service a scan sees on it
-// runs on (D-549, N47-1): a Junos switch does not forward its management address to an Alpine container. Only Junos for now: RouterOS
-// and Cisco IOS XE can host containers, so a service seen on them may still be one.
+// networkOS are the platforms of network gear whose own statement of its OS also says what a service a scan sees on it runs on (D-549,
+// N47-1): a Junos switch does not forward its management address to an Alpine container. Only Junos for now: RouterOS and Cisco IOS XE
+// can host containers, so a service seen on them may still be one; so can Junos OS Evolved ("…-EVO"), which runs Docker (review r1 #4).
 var networkOS = []string{"junos"}
+
+// junosEvolved matches Junos OS Evolved in a system description ("JUNOS 21.4R1.12-EVO", "Junos OS Evolved").
+var junosEvolved = regexp.MustCompile(`(?i)-evo\b|\bevolved\b`)
+
+// networkStated is the OS the device states for every row of it (D-549): only an SNMP answer read at the device's own address
+// (Asset.SNMPOS; an LLDP frame can be forged with the device's MAC, review r1 #3), naming a networkOS platform, not Junos Evolved, on a
+// device no agent reports another OS for. "" otherwise.
+func networkStated(a Asset) string {
+	if a.SNMPOS == "" || a.AgentOS != "" || junosEvolved.MatchString(a.SNMPOS) {
+		return ""
+	}
+	if slices.ContainsFunc(platformsIn(a.SNMPOS), func(id string) bool { return slices.Contains(networkOS, id) }) {
+		return a.SNMPOS
+	}
+	return ""
+}
 
 func platformName(id string) string {
 	for _, w := range platformWords {
@@ -123,8 +139,8 @@ func platformsIn(text string) []string {
 // a fingerprint or DHCP guess (review r2 of #790); an SNMP row takes only the OS the device states itself (Asset.StatedOS: LLDP/SNMP).
 // A row a scan saw on a port, a row a person typed and a row of unknown source say nothing about it: a Ubuntu host may run or forward
 // the service from an Alpine container (CVE-2026-123158's references are Docker sshd images), so only the row's own text decides
-// there (review r1 #1, #2). Exception (D-549, N47-1): on network gear whose stated OS is one of networkOS (a Junos switch), that
-// statement counts for every row, since such gear runs no container behind its own address.
+// there (review r1 #1, #2). Exception (D-549, N47-1): on network gear that states over SNMP an OS of networkOS (a Junos switch,
+// networkStated), that statement counts for every row, since such gear runs no container behind its own address.
 func platformOS(s Software, a Asset) string {
 	switch s.Source {
 	case "agent":
@@ -132,10 +148,7 @@ func platformOS(s Software, a Asset) string {
 	case "snmp":
 		return a.StatedOS
 	}
-	if slices.ContainsFunc(platformsIn(a.StatedOS), func(id string) bool { return slices.Contains(networkOS, id) }) {
-		return a.StatedOS
-	}
-	return ""
+	return networkStated(a)
 }
 
 // debRPM is the evidence id of a row an agent read from a deb or rpm database: a Debian, Ubuntu, Red Hat or SUSE family build,
@@ -198,9 +211,27 @@ func platformCondition(cve string) string {
 // closed is not listed as running it. It reads no NVD range and no distribution data (feeds has the entry only): the distribution's
 // word (D-516), which could say its own package is affected after all, is not read here; no entry of the list has such a word today.
 func PlatformRuledOut(a Asset, cve, vendor, product string, now time.Time) bool {
-	if _, ok := platformLimits[cve]; !ok {
+	if !HasPlatformLimit(cve) {
 		return false
 	}
 	r := MatchAsset(a, []Vuln{{CVE: cve, Vendor: vendor, Product: product}}, map[string]bool{cve: true}, now)
 	return len(r.OtherPlatform) > 0
+}
+
+// HasPlatformLimit says whether the CVE is on the platform-limits list (D-547): only such a CVE can be ruled out by PlatformRuledOut, so a
+// caller checks it before reading any device (review r1 #9).
+func HasPlatformLimit(cve string) bool {
+	_, ok := platformLimits[cve]
+	return ok
+}
+
+// platformSettled says whether the platform condition of a CVE is no longer open for the row: the CVE is not platform-limited, or the
+// row's evidence names a platform it affects (an agent reporting Alpine). A row whose platform is unknown leaves the person a check
+// to make, so its finding is not called a detection (D-548, review r1 #5).
+func platformSettled(in swInfo, cve string) bool {
+	l, ok := platformLimits[cve]
+	if !ok {
+		return true
+	}
+	return slices.ContainsFunc(evidenceOf(in).ids, func(id string) bool { return slices.Contains(l.Only, id) })
 }

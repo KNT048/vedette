@@ -3,7 +3,8 @@ import { Link, useNavigate, useParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { ArrowLeft, Pencil, Plus, Trash2 } from 'lucide-react'
-import { PageHeader, Section, Panel } from '@/components/common/PageHeader'
+import { Notice, PageHeader, Section, Panel } from '@/components/common/PageHeader'
+import { KpiStrip, PageTabs } from '@/components/common/PageFrame'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { EmptyState, ErrorState, Loading, ModuleOff, RequireModule, SampleDataNote } from '@/components/common/States'
 import { SourceBadge } from '@/components/common/SourceBadge'
@@ -21,7 +22,7 @@ import { cn } from '@/lib/utils'
 import { categoryLabel, categoryOf, kindLabel, TYPES_BY_CATEGORY } from '@/lib/deviceTypes'
 import { AddDeviceDialog } from './AddDeviceDialog'
 import { useDevice, useDeviceAction } from './api'
-import { useInstallKind } from '@/lib/modules'
+import { useInstallKind, useModuleEnabled } from '@/lib/modules'
 import { DeleteDialog } from './DeleteDialog'
 import { errMsg } from './kinds'
 import { nameOf } from './nameOf'
@@ -284,19 +285,15 @@ function Approval({ d }: { d: DeviceDetail }) {
   const name = nameOf(d.asset, kindLabel(d.asset.kind))
   const fail = (e: unknown) => toast.error(errMsg(e))
   return (
-    <div className="mb-8 grid gap-3 rounded-md border border-dashed border-warn bg-warn-soft/60 p-4 md:grid-cols-[1fr_auto] md:items-center">
-      <div>
-        <p className="font-medium">{d.suspicious ? t('approval.suspicious') : t('approval.pending')}</p>
-        <p className="mt-1 max-w-2xl text-sm text-muted">{t('approval.body')}</p>
-      </div>
-      <div className="flex flex-wrap gap-2">
+    <Notice tone="warn" title={d.suspicious ? t('approval.suspicious') : t('approval.pending')} actions={<>
         <Button variant="primary" disabled={!can || act.approve.isPending} onClick={() => act.approve.mutate(undefined, { onSuccess: () => toast.success(t('pending.approved', { name }), { description: t('pending.findLater') }), onError: fail })}>{t('pending.approve')}</Button>
         <Button disabled={!can || act.suspicious.isPending} onClick={() => act.suspicious.mutate(!d.suspicious, { onSuccess: () => toast.success(d.suspicious ? t('pending.unmarked', { name }) : t('pending.marked', { name })), onError: fail })}>{d.suspicious ? t('pending.unmark') : t('pending.mark')}</Button>
         <Button disabled={!can} onClick={() => setDel(true)}>{t('pending.delete')}</Button>
-      </div>
+      </>}>
+      {t('approval.body')}
       <DeleteDialog open={del} onOpenChange={setDel} name={name} findings={d.findings_count} pending={act.remove.isPending}
         onConfirm={() => act.remove.mutate(undefined, { onSuccess: () => { toast.success(t('delete.done', { name })); void navigate('/devices') }, onError: fail })} />
-    </div>
+    </Notice>
   )
 }
 
@@ -306,15 +303,14 @@ function BoxNotice({ findings }: { findings: number }) {
   const install = useInstallKind() // D-381; undefined while GET /modules loads: then neither claim about packages is made
   const packages = install === 'container' ? t('box.packagesContainer') : install === 'appliance' ? t('box.packagesAppliance') : ''
   return (
-    <div className="mb-8 grid gap-1 rounded-md border border-accent/40 bg-accent-soft/50 p-4">
-      <p className="font-medium">{t('box.title')}</p>
-      <p className="max-w-3xl text-sm text-muted">{[t('box.lead'), packages, t('box.matched')].filter(Boolean).join(' ')}</p>
-      <p className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+    <Notice tone="accent" title={t('box.title')}>
+      <p>{[t('box.lead'), packages, t('box.matched')].filter(Boolean).join(' ')}</p>
+      <p className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-ink">
         <Link to="/settings/updates" className="font-medium text-accent underline-offset-4 hover:underline">{t('box.fix')}</Link>
         <span className="text-[13px] text-muted">{t('box.noDelete')}</span>
         {findings ? <Link to="/findings" className="text-accent underline-offset-4 hover:underline">{t('box.findings', { count: findings })}</Link> : null}
       </p>
-    </div>
+    </Notice>
   )
 }
 
@@ -338,27 +334,58 @@ function Body() {
   const a = d.asset
   const name = nameOf(a, kindLabel(a.kind))
   const needRole = can ? undefined : t('common:needRole', { role: t('common:role.operator') })
+  // Khung D-464 / D-543: tiêu đề → thông báo (máy là hộp, chưa duyệt) → dải số → tab ở ?tab=. Các khối module khác cắm vào (slot device.panels) nằm ở tab Overview.
   return (
     <>
       {back}
       <PageHeader title={<span className="[overflow-wrap:anywhere]">{t('detail.title', { name, kind: kindLabel(a.kind), when: fmtRelative(a.last_seen) })}</span>} stories={['S-INV-1', 'S-INV-2']}
-        meta={<span className="inline-flex flex-wrap items-center gap-2">{a.is_box ? <Chip tone="accent">{t('box.badge')}</Chip> : null}<SampleDataNote />{t('detail.meta')}</span>}
+        meta={<span className="inline-flex flex-wrap items-center gap-2">{a.is_box ? <Chip tone="accent">{t('box.badge')}</Chip> : null}<SampleDataNote /></span>}
         actions={<Button disabled={!can || a.is_box} title={a.is_box ? t('box.noDelete') : needRole} onClick={() => setDel(true)}><Trash2 />{t('detail.delete')}</Button>} />
       {a.is_box ? <BoxNotice findings={d.findings_count} /> : null}
       {!a.approved ? <Approval d={d} /> : null}
-      <Section id="overview" title={t('detail.overview')}><Panel className="p-4"><Overview d={d} /></Panel></Section>
-      <Section id="obs" title={t('obs.title')} description={t('obs.description')}><Observations list={d.observations} /></Section>
-      <Section id="services" title={t('services.title')} description={t('services.description')}><Services list={a.services} fragile={a.fragile} /></Section>
-      <Section id="software" title={t('software.title')} description={t('software.description')}
-        actions={<Button disabled={!can} title={needRole} onClick={() => setAdding(true)}><Plus />{t('software.add')}</Button>}>
-        <SoftwareList d={d} />
-      </Section>
-      <Section id="notes" title={t('notes.title')}><Notes key={a.notes ?? ''} d={d} /></Section>
-      <Slot name="device.panels" props={{ assetId: a.id }} />
+      <DeviceKpis d={d} />
+      <PageTabs label={t('detail.tabs.label')} tabs={[
+        { id: 'overview', label: t('detail.tabs.overview'), panel: (
+          <>
+            <Section id="overview" title={t('detail.overview')}><Panel className="p-4"><Overview d={d} /></Panel></Section>
+            <Slot name="device.panels" props={{ assetId: a.id }} />
+            <Section id="notes" title={t('notes.title')}><Notes key={a.notes ?? ''} d={d} /></Section>
+          </>
+        ) },
+        { id: 'software', label: t('detail.tabs.software'), panel: (
+          <Section id="software" title={t('software.title')} description={t('software.description')}
+            actions={<Button disabled={!can} title={needRole} onClick={() => setAdding(true)}><Plus />{t('software.add')}</Button>}>
+            <SoftwareList d={d} />
+          </Section>
+        ) },
+        { id: 'services', label: t('detail.tabs.services'), panel: (
+          <Section id="services" title={t('services.title')} description={t('services.description')}><Services list={a.services} fragile={a.fragile} /></Section>
+        ) },
+        { id: 'observations', label: t('detail.tabs.observations'), panel: (
+          <Section id="obs" title={t('obs.title')} description={t('obs.description')}>
+            <p className="mb-3 max-w-3xl text-[13px] text-muted">{t('detail.meta')}</p>
+            <Observations list={d.observations} />
+          </Section>
+        ) },
+      ]} />
       <AddDeviceDialog open={adding} onOpenChange={setAdding} deviceId={a.id} />
       <DeleteDialog open={del} onOpenChange={setDel} name={name} findings={d.findings_count} pending={act.remove.isPending}
         onConfirm={() => act.remove.mutate(undefined, { onSuccess: () => { toast.success(t('delete.done', { name })); void navigate('/devices') }, onError: (e) => toast.error(errMsg(e)) })} />
     </>
+  )
+}
+
+/** Ba con số trả lời "máy này có sao không": phát hiện (khi module findings bật), phần mềm, dịch vụ mở; mỗi số dẫn tới chỗ xem. */
+function DeviceKpis({ d }: { d: DeviceDetail }) {
+  const { t } = useTranslation('inventory')
+  const findingsOn = useModuleEnabled('findings')
+  const id = encodeURIComponent(d.asset.id)
+  return (
+    <KpiStrip label={t('detail.kpi.label')} items={[
+      ...(findingsOn ? [{ value: d.findings_count, label: t('detail.kpi.findings'), to: `/findings?device=${id}` }] : []),
+      { value: d.asset.software.length, label: t('detail.kpi.software'), to: '?tab=software' },
+      { value: d.asset.services.length, label: t('detail.kpi.services'), to: '?tab=services' },
+    ]} />
   )
 }
 

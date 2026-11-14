@@ -567,19 +567,29 @@ describe('inventory: CSV (S-INV-2)', () => {
 
 describe('inventory: device detail (S-INV-1)', () => {
   it('shows every observation with source and confidence, services, and software matched to CVEs; no a11y violations', async () => {
+    const user = userEvent.setup()
     renderApp('/devices/a-nas02')
     expect(await screen.findByRole('heading', { level: 1, name: /^NAS-PHOTOS: NAS, last seen/ }, T)).toBeInTheDocument()
+    expect(screen.getByRole('switch', { name: 'Fragile device' })).toBeChecked()
+    // D-543: the page frame: numbers that link to the detail, then one tab per area of the device
+    const kpis = screen.getByRole('list', { name: 'This device at a glance' })
+    expect(within(kpis).getByRole('link', { name: /Findings/ })).toHaveAttribute('href', '/findings?device=a-nas02')
+    expect(within(kpis).getByRole('link', { name: '3 Open services' })).toHaveAttribute('href', '/devices/a-nas02?tab=services')
+    expect(screen.getAllByRole('tab').map((x) => x.textContent?.trim())).toEqual(['Overview', 'Software', 'Services', 'Observations'])
+    await expectNoA11yViolations()
+    await user.click(screen.getByRole('tab', { name: 'Observations' }))
     const obs = await screen.findByRole('table', { name: 'Observations for this device' }, T)
     expect(within(obs).getByText('QTS 5.0.1')).toBeInTheDocument()
     expect(within(obs).getByText('Unknown OS (guessed from packet TTL)')).toBeInTheDocument() // the older value is kept
     expect(within(obs).getAllByText(/confidence/).length).toBeGreaterThan(3)
     expect(within(obs).getAllByText('In use').length).toBeGreaterThanOrEqual(4)
     expect(within(obs).getAllByText('Kept for comparison').length).toBeGreaterThanOrEqual(1)
-    const services = screen.getByRole('table', { name: 'Services open on the device' })
+    await user.click(within(screen.getByRole('list', { name: 'This device at a glance' })).getByRole('link', { name: '3 Open services' }))
+    const services = await screen.findByRole('table', { name: 'Services open on the device' }, T)
     expect(within(services).getByText('8080/tcp')).toBeInTheDocument()
-    const sw = screen.getByRole('table', { name: 'Software on the device' })
+    await user.click(screen.getByRole('tab', { name: 'Software' }))
+    const sw = await screen.findByRole('table', { name: 'Software on the device' }, T)
     expect(within(sw).getByRole('link', { name: 'CVE-2022-27593' })).toHaveAttribute('href', '/cve/CVE-2022-27593')
-    expect(screen.getByRole('switch', { name: 'Fragile device' })).toBeChecked()
     await expectNoA11yViolations()
   })
 
@@ -590,7 +600,8 @@ describe('inventory: device detail (S-INV-1)', () => {
     await user.selectOptions(select, 'server')
     expect(await screen.findByText(/Type changed to Server\./, undefined, T)).toBeInTheDocument()
     expect(find('a-nas01').kind).toBe('server')
-    const obs = screen.getByRole('table', { name: 'Observations for this device' })
+    await user.click(screen.getByRole('tab', { name: 'Observations' }))
+    const obs = await screen.findByRole('table', { name: 'Observations for this device' }, T)
     await waitFor(() => expect(within(obs).getByText('Server')).toBeInTheDocument(), T)
     expect(within(obs).getByText('NAS')).toBeInTheDocument() // old value still there
     expect(within(obs).getByText('Added by hand')).toBeInTheDocument()
@@ -611,7 +622,7 @@ describe('inventory: device detail (S-INV-1)', () => {
 
   it('adds then removes manual software; software seen by a sensor cannot be removed by hand', async () => {
     const user = userEvent.setup()
-    renderApp('/devices/a-pc01')
+    renderApp('/devices/a-pc01?tab=software')
     await screen.findByRole('table', { name: 'Software on the device' }, T)
     const before = find('a-pc01').software.length
     await user.click(screen.getByRole('button', { name: 'Add software' }))
@@ -641,7 +652,7 @@ describe('inventory: device detail (S-INV-1)', () => {
   it('removing from the detail page goes back to the list', async () => {
     const user = userEvent.setup()
     renderApp('/devices/a-pc02')
-    await screen.findByRole('table', { name: 'Observations for this device' }, T)
+    await screen.findByRole('switch', { name: 'Fragile device' }, T)
     await user.click(screen.getByRole('button', { name: 'Remove from list' }))
     await user.click(await screen.findByRole('button', { name: 'Remove from list' }, T))
     expect(await screen.findByRole('heading', { level: 1, name: /devices, 2 not yet approved/ }, T)).toBeInTheDocument()
@@ -659,8 +670,9 @@ describe('inventory: device detail (S-INV-1)', () => {
     expect(await screen.findByRole('combobox', { name: 'Device type' }, T)).toBeDisabled()
     expect(screen.getByRole('switch', { name: 'Fragile device' })).toBeDisabled()
     expect(screen.getByRole('textbox', { name: 'Notes about the device' })).toBeDisabled()
-    expect(screen.getByRole('button', { name: 'Add software' })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Remove from list' })).toBeDisabled()
+    await userEvent.click(screen.getByRole('tab', { name: 'Software' }))
+    expect(await screen.findByRole('button', { name: 'Add software' }, T)).toBeDisabled()
   })
 
   it('PATCH validates at the edge', async () => {
@@ -1785,7 +1797,7 @@ describe('inventory: English only', () => {
     enableModule('agent-intake', true)
     const checks: [string, () => Promise<unknown>][] = [
       ['/devices', () => deviceTable()],
-      ['/devices/a-nas02', () => screen.findByRole('table', { name: 'Observations for this device' }, T)],
+      ['/devices/a-nas02?tab=observations', () => screen.findByRole('table', { name: 'Observations for this device' }, T)],
       ['/devices/setup', () => screen.findByRole('table', { name: 'Enrollment tokens' }, T)],
     ]
     for (const [path, ready] of checks) {
@@ -1837,7 +1849,7 @@ describe('inventory: the box is the first device (S-INV-5, D-53)', () => {
   })
 
   it('it is matched against exploited vulnerabilities like any device, and the device page points to the operating system update', async () => {
-    renderApp(`/devices/${BOX_ID}`)
+    renderApp(`/devices/${BOX_ID}?tab=software`)
     expect(await screen.findByText('This is the Vedette box itself', undefined, T)).toBeInTheDocument()
     expect(findingsStore.get().some((f) => f.asset_id === BOX_ID)).toBe(true)
     expect(screen.getByRole('link', { name: 'Fix by updating the operating system' })).toHaveAttribute('href', '/settings/updates')
@@ -2011,7 +2023,7 @@ describe('inventory: D-471 naming, versions, Software tab (S-INV-2)', () => {
     const user = userEvent.setup()
     const id = await addOffice({ version: '2019', ip: '192.168.10.240' })
     assetsStore.update((l) => l.map((a) => (a.id === id ? { ...a, software: [...a.software, { ...a.software[0]!, id: 'sw-agent-office', version: '2021', source: 'agent' as const, confidence: 0.95 }] } : a)))
-    renderApp(`/devices/${id}`)
+    renderApp(`/devices/${id}?tab=software`)
     expect(await screen.findByText('The device reports 2021 (Agent).', undefined, T)).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Use version 2021 for Microsoft Office' }))
     await waitFor(() => expect(find(id).software.find((s) => s.source === 'manual')!.version).toBe('2021'), T)

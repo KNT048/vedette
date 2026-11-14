@@ -18,9 +18,10 @@ export function KpiStrip({ items: all, label }: { items: Kpi[]; label: string })
     <ul aria-label={label} className={`mb-5 grid grid-cols-2 gap-px overflow-hidden rounded-md border border-rule bg-rule ${COLS[items.length]}`}>
       {items.map((k) => (
         <li key={k.label} className="bg-surface [&:last-child:nth-child(odd)]:col-span-2 sm:[&:last-child:nth-child(odd)]:col-span-1">
-          <Link to={k.to} className="grid h-full gap-0.5 px-3 py-2 hover:bg-sunken focus-visible:-outline-offset-2">
+          {/* Cả ô là liên kết (không phải chữ trong đoạn văn): không gạch chân cả số lẫn nhãn; di chuột → nền và gạch chân nhãn. */}
+          <Link to={k.to} className="group grid h-full gap-0.5 px-3 py-2 no-underline hover:bg-sunken focus-visible:-outline-offset-2">
             <span className="text-lg font-semibold leading-tight tabular-nums">{k.value}</span>{' '}
-            <span className="text-[13px] text-muted">{k.label}</span>
+            <span className="text-[13px] text-muted underline-offset-4 group-hover:underline">{k.label}</span>
           </Link>
         </li>
       ))}

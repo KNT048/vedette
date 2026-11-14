@@ -356,17 +356,33 @@ func TestWiringDeviceNoticeNamesTheDeviceFromInventory(t *testing.T) {
 // the device back through notifyDevices. Before this, the incident stayed New.
 func TestWiringApproveInDevicesClosesTheNewDeviceIncident(t *testing.T) {
 	t.Parallel()
-	s := newStack(t)
+	var back atomic.Pointer[time.Time] // when set, the clock of the stack is that time (the passive sensor's first contact below)
+	s := newStackWith(t, func(d *deps) {
+		d.Clock = func() time.Time {
+			if at := back.Load(); at != nil {
+				return *at
+			}
+			return time.Now()
+		}
+	})
 	s.enableNotify()
 	ctx := t.Context()
 	// not a fresh box, and the passive sensor is past its learning (inventory INV-28, D-554): the device gets its own incident, not the
-	// first-discovery summary
-	monthAgo := time.Now().AddDate(0, -1, 0).UTC().Format("2006-01-02T15:04:05.000Z")
+	// first-discovery summary. The sensor's first contact is made through the inventory (inv_* tables are its own, INV-2): a month
+	// ago it saw the box, which records the contact and creates no device.
+	monthAgo := time.Now().AddDate(0, -1, 0).UTC()
+	if _, err := s.d.Inventory.EnsureBox(ctx, inventory.BoxInfo{Hostname: "vedette-box", IP: "192.168.18.2"}); err != nil {
+		t.Fatal(err)
+	}
+	back.Store(&monthAgo)
+	if err := s.d.Inventory.Record(ctx, []observe.Observation{
+		{AssetHint: observe.AssetHint{IP: netip.MustParseAddr("192.168.18.2")}, Field: observe.Hostname, Value: "vedette-box", Source: observe.Passive, Confidence: 0.7},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	back.Store(nil)
 	if err := s.d.DB.Write(ctx, func(tx *sql.Tx) error {
-		if _, err := tx.ExecContext(ctx, `INSERT INTO inv_source (source, first_seen) VALUES ('passive', ?)`, monthAgo); err != nil {
-			return err
-		}
-		_, err := tx.ExecContext(ctx, `UPDATE notify_box SET first_run_at = ?`, monthAgo)
+		_, err := tx.ExecContext(ctx, `UPDATE notify_box SET first_run_at = ?`, monthAgo.Format("2006-01-02T15:04:05.000Z"))
 		return err
 	}); err != nil {
 		t.Fatal(err)

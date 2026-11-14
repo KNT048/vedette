@@ -309,6 +309,13 @@ func validateNft(args []string) error {
 	return errZapArgv
 }
 
+// The two base chains of the table. Not "fwd" or "in": both are words of nft's grammar, and nft 1.1 refuses them as chain names
+// with a syntax error, so no fence could ever load (n38, the N100: "nft could not load the egress rule").
+const (
+	zapFwdChain = "zapfwd"
+	zapInChain  = "zapin"
+)
+
 // zapRuleset is the nft transaction of one run: the table made empty if it was there (the "table; delete table" idiom keeps it one
 // atomic load), then two base chains, forward and input, that drop everything entering the host from the bridge vedette-zap0 except
 // TCP to ip:port. IPv6 from the bridge is dropped too (the family is inet). Replies to the container are not touched (they enter from
@@ -319,8 +326,8 @@ func zapRuleset(ip netip.Addr, port int) (string, error) {
 	}
 	allow := fmt.Sprintf("\t\tiifname %q ip daddr %s tcp dport %d accept\n\t\tiifname %q drop\n", zapBridge, ip, port, zapBridge)
 	return "table inet " + zapTable + "\ndelete table inet " + zapTable + "\ntable inet " + zapTable + " {\n" +
-		"\tchain fwd {\n\t\ttype filter hook forward priority -10; policy accept;\n" + allow + "\t}\n" +
-		"\tchain in {\n\t\ttype filter hook input priority -10; policy accept;\n" + allow + "\t}\n}\n", nil
+		"\tchain " + zapFwdChain + " {\n\t\ttype filter hook forward priority -10; policy accept;\n" + allow + "\t}\n" +
+		"\tchain " + zapInChain + " {\n\t\ttype filter hook input priority -10; policy accept;\n" + allow + "\t}\n}\n", nil
 }
 
 var zapAllowRE = regexp.MustCompile(`(?m)^\t\tiifname "vedette-zap0" ip daddr ([0-9.]{7,15}) tcp dport ([0-9]{1,5}) accept$`)
@@ -341,7 +348,7 @@ func zapRulesetOK(text string) bool {
 	return err == nil && text == want
 }
 
-// zapRulesetLoaded checks nft's JSON listing of the table: chains fwd (hook forward) and in (hook input), each with exactly the two
+// zapRulesetLoaded checks nft's JSON listing of the table: chains zapfwd (hook forward) and zapin (hook input), each with exactly the two
 // rules of zapRuleset: the accept of TCP to ip:port from the bridge, then the drop of the rest from the bridge.
 func zapRulesetLoaded(out []byte, ip netip.Addr, port int) bool {
 	var doc struct {
@@ -375,11 +382,11 @@ func zapRulesetLoaded(out []byte, ip netip.Addr, port int) bool {
 			rules[r.Chain] = append(rules[r.Chain], b.String())
 		}
 	}
-	if len(hooks) != 2 || hooks["fwd"] != "forward" || hooks["in"] != "input" || len(rules) != 2 {
+	if len(hooks) != 2 || hooks[zapFwdChain] != "forward" || hooks[zapInChain] != "input" || len(rules) != 2 {
 		return false
 	}
 	bridge := `"right":"` + zapBridge + `"`
-	for _, c := range []string{"fwd", "in"} {
+	for _, c := range []string{zapFwdChain, zapInChain} {
 		r := rules[c]
 		if len(r) != 2 || !strings.Contains(r[0], bridge) || !strings.Contains(r[0], `"right":"`+ip.String()+`"`) ||
 			!strings.Contains(r[0], `"right":`+strconv.Itoa(port)+`}`) || !strings.HasSuffix(r[0], `{"accept":null}]`) ||
@@ -640,20 +647,24 @@ func (o *Ops) zapTXT(ctx context.Context, name string) ([]string, error) {
 
 // zapFence makes sure the network is the host's own and loads and reads back the egress rule of this page.
 func (o *Ops) zapFence(ctx context.Context, p zapPage) error {
-	refused := func(why string) error {
-		o.log.ErrorContext(ctx, "zap.baseline: the network fence could not be set up", "reason", why)
+	refused := func(why string, res ...vexec.Result) error {
+		attrs := []any{"reason", why}
+		if len(res) > 0 { // what podman or nft printed: the page sends the reader to the box log for it
+			attrs = append(attrs, "stderr", clipText(strings.TrimSpace(string(res[0].Stderr)), 500))
+		}
+		o.log.ErrorContext(ctx, "zap.baseline: the network fence could not be set up", attrs...)
 		return fail(api.CodeZapFenceFailed, "The host could not set up the network fence of the web scan ("+why+"), so ZAP was not started.")
 	}
-	_, code, err := o.zapStep(ctx, binPodman, nil, zapNetExistsArgv()...)
+	res, code, err := o.zapStep(ctx, binPodman, nil, zapNetExistsArgv()...)
 	switch {
 	case err != nil || (code != 0 && code != 1):
-		return refused("podman did not say whether the network vedette-zap exists")
+		return refused("podman did not say whether the network vedette-zap exists", res)
 	case code == 1:
-		if _, code, err := o.zapStep(ctx, binPodman, nil, zapNetCreateArgv()...); err != nil || code != 0 {
-			return refused("podman could not create the network vedette-zap")
+		if res, code, err := o.zapStep(ctx, binPodman, nil, zapNetCreateArgv()...); err != nil || code != 0 {
+			return refused("podman could not create the network vedette-zap", res)
 		}
 	}
-	res, code, err := o.zapStep(ctx, binPodman, nil, zapNetInspectArgv()...)
+	res, code, err = o.zapStep(ctx, binPodman, nil, zapNetInspectArgv()...)
 	if err != nil || code != 0 || res.Truncated || !zapNetworkIsOurs(res.Stdout) {
 		return refused("the network vedette-zap is not the one the host makes: label io.vedette.owner=vedette-host, bridge vedette-zap0, no DNS, no options, one IPv4 subnet, not internal")
 	}
@@ -661,12 +672,12 @@ func (o *Ops) zapFence(ctx context.Context, p zapPage) error {
 	if err != nil {
 		return refused("the address cannot be written as a rule")
 	}
-	if _, code, err := o.zapStep(ctx, binNft, strings.NewReader(rules), nftLoadArgv...); err != nil || code != 0 {
-		return refused("nft could not load the egress rule")
+	if res, code, err := o.zapStep(ctx, binNft, strings.NewReader(rules), nftLoadArgv...); err != nil || code != 0 {
+		return refused("nft could not load the egress rule", res)
 	}
 	res, code, err = o.zapStep(ctx, binNft, nil, nftListArgv...)
 	if err != nil || code != 0 || res.Truncated || !zapRulesetLoaded(res.Stdout, p.ip, p.port) {
-		return refused("the egress rule read back from nft is not the one loaded")
+		return refused("the egress rule read back from nft is not the one loaded", res)
 	}
 	return nil
 }

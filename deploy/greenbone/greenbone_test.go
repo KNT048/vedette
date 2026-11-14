@@ -1,7 +1,8 @@
 // Package greenbone checks the two compose files of OpenVAS (Greenbone Community Edition, D-529, FULL-2, LEAN-1) that the vedette-host
 // package ships: Greenbone's official file is unmodified apart from its digest pins, the pins are those of pins.env, and Vedette's
 // override hands gvmd's socket to the host directory core mounts, gives gvmd Vedette's GMP login at the creation of its admin user
-// (D-590), publishes no port and runs only what Vedette's GMP path uses. It starts no container: the N100 walk of D-529 checks the effect.
+// (D-590), publishes no port and runs only what Vedette's GMP path uses (no web interface, no SCAP or CERT data: D-593). It starts no
+// container: the N100 walk of D-529 checks the effect.
 package greenbone
 
 import (
@@ -23,11 +24,17 @@ import (
 // officialSHA256 is the SHA-256 of https://greenbone.github.io/docs/latest/_static/compose.yaml as fetched on 2026-11-14.
 const officialSHA256 = "5b5117a7c200491de13bc7b79c97dc858c016c51017982d8f1de7ca077c1a868"
 
-// feedServices are the seven feed data services: Greenbone's tag, no digest (the weekly update pulls their new versions).
+// feedServices are the seven feed data services of Greenbone's file: Greenbone's tag, no digest (the weekly update pulls their new
+// versions; Vedette runs four of them, D-593).
 var feedServices = []string{"notus-data", "vulnerability-tests", "scap-data", "dfn-cert-data", "cert-bund-data", "report-formats", "data-objects"}
 
-// disabled are the services Vedette never starts (LEAN-1): the web interface and its helpers, the log viewer.
-var disabled = []string{"gsa", "gsad", "nginx", "gvm-config", "gvm-tools", "openvas"}
+// disabled are the services Vedette never starts (LEAN-1): the web interface and its helpers, the log viewer, and the SCAP and CERT
+// data (stage A, D-593).
+var disabled = []string{"gsa", "gsad", "nginx", "gvm-config", "gvm-tools", "openvas", "scap-data", "cert-bund-data", "dfn-cert-data"}
+
+// gvmdDropped are gvmd's mounts of Greenbone's file that the override takes out (D-593); the third is replaced by the host's socket
+// directory (D-529).
+var gvmdDropped = []string{"scap_data_vol:/var/lib/gvm/scap-data/", "cert_data_vol:/var/lib/gvm/cert-data", "gvmd_socket_vol:/run/gvmd"}
 
 var pinRE = regexp.MustCompile(`@sha256:[0-9a-f]{64}`)
 
@@ -45,6 +52,7 @@ type official struct {
 	Services map[string]struct {
 		Image     string    `yaml:"image"`
 		Ports     []string  `yaml:"ports"`
+		Volumes   []string  `yaml:"volumes"`
 		DependsOn yaml.Node `yaml:"depends_on"`
 	} `yaml:"services"`
 }
@@ -138,23 +146,28 @@ type override struct {
 		File string `yaml:"file"`
 	} `yaml:"secrets"`
 	Services map[string]struct {
-		Profiles []string          `yaml:"profiles"`
-		Labels   map[string]string `yaml:"labels"`
-		Command  []string          `yaml:"command"`
-		Secrets  []string          `yaml:"secrets"`
-		Volumes  []struct {
-			Type   string `yaml:"type"`
-			Source string `yaml:"source"`
-			Target string `yaml:"target"`
-			Bind   struct {
-				CreateHostPath bool `yaml:"create_host_path"`
-			} `yaml:"bind"`
-		} `yaml:"volumes"`
+		Profiles  []string          `yaml:"profiles"`
+		Labels    map[string]string `yaml:"labels"`
+		Command   []string          `yaml:"command"`
+		Secrets   []string          `yaml:"secrets"`
+		Volumes   yaml.Node         `yaml:"volumes"`
+		DependsOn yaml.Node         `yaml:"depends_on"`
 	} `yaml:"services"`
 }
 
-// The override hands gvmd's socket to the host directory core mounts, adds labels, turns the web interface and its helpers off and
-// nothing else: no port, no capability, no other mount (decoded with KnownFields, so any other key fails here).
+// bindMount is the long form of one volume entry.
+type bindMount struct {
+	Type   string `yaml:"type"`
+	Source string `yaml:"source"`
+	Target string `yaml:"target"`
+	Bind   struct {
+		CreateHostPath bool `yaml:"create_host_path"`
+	} `yaml:"bind"`
+}
+
+// The override hands gvmd's socket to the host directory core mounts, adds labels, turns the web interface, its helpers and the SCAP
+// and CERT data off and takes their mounts and dependencies out of gvmd, and nothing else: no port, no capability, no other mount
+// (decoded with KnownFields, so any other key fails here).
 func TestOverrideOnlyHandsOverTheSocketAndRunsWhatVedetteUses(t *testing.T) {
 	t.Parallel()
 	dec := yaml.NewDecoder(strings.NewReader(string(read(t, "compose.vedette.yaml"))))
@@ -170,7 +183,7 @@ func TestOverrideOnlyHandsOverTheSocketAndRunsWhatVedetteUses(t *testing.T) {
 			t.Errorf("the override names %s, which Greenbone's file does not have", name)
 		}
 		if len(s.Profiles) > 0 {
-			if !slices.Equal(s.Profiles, []string{"disabled"}) || len(s.Labels) > 0 || len(s.Volumes) > 0 {
+			if !slices.Equal(s.Profiles, []string{"disabled"}) || len(s.Labels) > 0 || s.Volumes.Kind != 0 || s.DependsOn.Kind != 0 {
 				t.Errorf("%s: a disabled service carries only profiles: [disabled]", name)
 			}
 			gotOff = append(gotOff, name)
@@ -179,7 +192,7 @@ func TestOverrideOnlyHandsOverTheSocketAndRunsWhatVedetteUses(t *testing.T) {
 		if s.Labels["io.vedette.started-by"] != "vedette-host" || len(s.Labels) != 1 {
 			t.Errorf("%s: labels %v, want exactly io.vedette.started-by=vedette-host", name, s.Labels)
 		}
-		if name != "gvmd" && (len(s.Volumes) > 0 || len(s.Command) > 0 || len(s.Secrets) > 0) {
+		if name != "gvmd" && (s.Volumes.Kind != 0 || s.DependsOn.Kind != 0 || len(s.Command) > 0 || len(s.Secrets) > 0) {
 			t.Errorf("%s: the override mounts something or changes its command; only gvmd's socket directory and login are handed over", name)
 		}
 	}
@@ -189,10 +202,8 @@ func TestOverrideOnlyHandsOverTheSocketAndRunsWhatVedetteUses(t *testing.T) {
 	if !slices.Equal(gotOff, want) {
 		t.Errorf("disabled services %v, want %v", gotOff, want)
 	}
-	v := ov.Services["gvmd"].Volumes
-	if len(v) != 1 || v[0].Type != "bind" || v[0].Source != api.GreenboneSocketDir || v[0].Target != "/run/gvmd" || v[0].Bind.CreateHostPath {
-		t.Errorf("gvmd's volumes %+v, want one bind of %s on /run/gvmd that compose never creates", v, api.GreenboneSocketDir)
-	}
+	checkGvmdMounts(t, ov.Services["gvmd"].Volumes, off.Services["gvmd"].Volumes)
+	reset := checkGvmdDependencies(t, ov.Services["gvmd"].DependsOn, dependsOn(t, off.Services["gvmd"].DependsOn))
 	for name, s := range off.Services {
 		if slices.Contains(disabled, name) {
 			continue
@@ -204,11 +215,67 @@ func TestOverrideOnlyHandsOverTheSocketAndRunsWhatVedetteUses(t *testing.T) {
 			t.Errorf("%s publishes %v", name, s.Ports)
 		}
 		for _, dep := range dependsOn(t, s.DependsOn) {
-			if slices.Contains(disabled, dep) {
+			if slices.Contains(disabled, dep) && (name != "gvmd" || !slices.Contains(reset, dep)) {
 				t.Errorf("%s depends on %s, which the override turns off", name, dep)
 			}
 		}
 	}
+}
+
+// checkGvmdMounts: gvmd's volume list replaces Greenbone's as a whole (compose's `!override`, since a merge cannot take an entry out):
+// Greenbone's entries in their order without the SCAP and CERT data and the socket volume, and in the socket's place one bind of the
+// host directory on /run/gvmd that compose never creates. A bump of compose.yaml that changes gvmd's mounts fails here.
+func checkGvmdMounts(t *testing.T, n yaml.Node, upstream []string) {
+	t.Helper()
+	if n.Kind != yaml.SequenceNode || n.Tag != "!override" {
+		t.Fatalf("gvmd's volumes are a %v tagged %q, want a list tagged !override", n.Kind, n.Tag)
+	}
+	var short []string
+	binds := 0
+	for i, e := range n.Content {
+		if e.Kind == yaml.ScalarNode {
+			short = append(short, e.Value)
+			continue
+		}
+		var b bindMount
+		if err := e.Decode(&b); err != nil {
+			t.Fatal(err)
+		}
+		if b.Type != "bind" || b.Source != api.GreenboneSocketDir || b.Target != "/run/gvmd" || b.Bind.CreateHostPath || slices.Index(upstream, gvmdDropped[2]) != i+2 {
+			t.Errorf("gvmd's mount %d %+v, want a bind of %s on /run/gvmd that compose never creates, where Greenbone mounts its socket volume", i, b, api.GreenboneSocketDir)
+		}
+		binds++
+	}
+	want := slices.DeleteFunc(slices.Clone(upstream), func(v string) bool { return slices.Contains(gvmdDropped, v) })
+	if binds != 1 || !slices.Equal(short, want) || len(upstream) != len(want)+len(gvmdDropped) {
+		t.Errorf("gvmd's mounts %q and %d bind(s), want Greenbone's %q without %q and one bind", short, binds, upstream, gvmdDropped)
+	}
+}
+
+// checkGvmdDependencies: the override removes exactly gvmd's dependencies on the SCAP and CERT data services (compose's `!reset`);
+// it returns them.
+func checkGvmdDependencies(t *testing.T, n yaml.Node, upstream []string) []string {
+	t.Helper()
+	if n.Kind != yaml.MappingNode {
+		t.Fatalf("gvmd's depends_on in the override is %v, want a map of !reset entries", n.Kind)
+	}
+	var reset []string
+	for i := 0; i < len(n.Content); i += 2 {
+		if v := n.Content[i+1]; v.Tag != "!reset" || v.Value != "null" {
+			t.Errorf("gvmd's dependency %s is %q %q in the override, want !reset null", n.Content[i].Value, v.Tag, v.Value)
+		}
+		reset = append(reset, n.Content[i].Value)
+	}
+	slices.Sort(reset)
+	if want := []string{"cert-bund-data", "dfn-cert-data", "scap-data"}; !slices.Equal(reset, want) {
+		t.Errorf("the override resets gvmd's dependencies %q, want %q", reset, want)
+	}
+	for _, d := range reset {
+		if !slices.Contains(upstream, d) {
+			t.Errorf("Greenbone's gvmd does not depend on %s any more: take its !reset out", d)
+		}
+	}
+	return reset
 }
 
 // N42-4 (D-590): gvmd takes Vedette's GMP login at the creation of its admin user. The override gives gvmd the host's password file

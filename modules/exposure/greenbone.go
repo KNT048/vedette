@@ -27,11 +27,13 @@ import (
 
 // GreenboneHost is the host side (vedette-host, Trưởng's): Greenbone's official compose project pinned by image digest, under its
 // own podman project name, with the gvmd socket mounted into core and the GMP password generated on install and kept in
-// core/secrets. Up starts the project (the first time it pulls about 9 GB of images); Down stops it and keeps its volumes (the
-// feed, about 41 GB, and gvmd's database); Dial opens the gvmd unix socket and returns the GMP login the host created. Uninstalling
-// Vedette never touches the project or its volumes. SyncFeed updates Greenbone's feed (D-564 G6): it pulls the project's seven feed
-// data images (notus-data, vulnerability-tests, scap-data, dfn-cert-data, cert-bund-data, report-formats, data-objects) and starts
-// them again (`compose pull` then `up -d` of those services, Greenbone's own feed workflow); gvmd then loads the new data by itself.
+// core/secrets. Up starts the project (the first time it pulls several GB of images); Down stops it and keeps its volumes (the
+// feed and gvmd's database); Dial opens the gvmd unix socket and returns the GMP login the host created. Uninstalling Vedette never
+// touches the project or its volumes. SyncFeed updates Greenbone's feed (D-564 G6): it pulls the four feed data images Vedette runs
+// (notus-data, vulnerability-tests, report-formats, data-objects) and starts them again (`compose pull` then `up -d` of those
+// services, Greenbone's own feed workflow); gvmd then loads the new data by itself. The SCAP and CERT data are off (D-593): the scan
+// reads CVE ids from the vulnerability tests' own references, readiness never waits for those feeds, and the client never sends the
+// commands that need them (get_info, get_resource_names; TestContract_INV25_NeedsNoSCAPOrCERTData).
 // A step that cannot run for a reason the page may show returns *Unavailable.
 type GreenboneHost interface {
 	Up(ctx context.Context) error
@@ -132,7 +134,7 @@ const (
 	// again after gbSyncRetry. The first one is due a week after Greenbone was enabled (enabling loads the feed).
 	GreenboneSyncEvery = 7 * 24 * time.Hour
 	gbSyncRetry        = 24 * time.Hour
-	gbSyncTimeout      = 60 * time.Minute // pulling the seven feed images
+	gbSyncTimeout      = 60 * time.Minute // pulling the four feed images (D-593)
 	gbSyncStopWait     = 30 * time.Second // how long Turn off and Close wait for a cancelled feed update to end (review r1 L2)
 	gbNote             = "OpenVAS sends many probes: every test of the config on every port of the list. They are not logged one by one."
 	// GreenboneLowBelow: a result below this severity is Low (Greenbone's own classes: Low 0.1 to 3.9, Medium 4.0 to 6.9, High 7.0

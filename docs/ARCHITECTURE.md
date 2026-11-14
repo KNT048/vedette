@@ -247,7 +247,7 @@ Dependency/feed mới → cập nhật `../THIRD_PARTY_NOTICES.md` cùng commit 
 - Hộp 4 nhân/8 GB: 1.000 thiết bị, 50k IOC, 7 ngày log gộp ≤ 2 GB SQLite; UI < 300 ms p95 cho trang chính.
 - Sensor thụ động ≤ 5% một nhân ở 100 Mbps SPAN.
 - Kéo feed ≤ 5 MB/giờ nhờ ETag/If-Modified-Since.
-- Hạn mức tài nguyên từng container và phương pháp đo: `DEPLOYMENT.md` §2.5 (đề xuất, chốt sau khi đo ở M2).
+- Hạn mức tài nguyên từng container và phương pháp đo: `DEPLOYMENT.md` §2.6 (đề xuất, chốt sau khi đo ở M2).
 - Nâng cấp: quay về bản trước ≤ 5 phút (đề xuất đo bằng test hiệu ứng).
 
 ## 12. Câu hỏi mở

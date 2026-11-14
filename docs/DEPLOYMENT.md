@@ -40,7 +40,7 @@ Liên quan: [`ARCHITECTURE.md`](ARCHITECTURE.md) · [`specs/host-api.md`](specs/
  └─ NIC quản trị (IP) · NIC SPAN (không IP, promisc) · decoy: macvlan trên NIC quản trị, trong `vedette-hp`
 ```
 
-Tóm tắt (chi tiết từng container ở §2.1–§2.4, giới hạn tài nguyên ở §2.5):
+Tóm tắt (chi tiết từng container ở §2.1–§2.4, công cụ chỉ chạy phần Vedette dùng ở §2.5, giới hạn tài nguyên ở §2.6):
 
 | Container | Image (đề xuất) | Mạng | Capability | Mặc định bật |
 |---|---|---|---|---|
@@ -109,9 +109,18 @@ Registry: `ghcr.io/knt048/vedette-<service>`, hằng trong `vedette-host` (D-57 
 | Volume | `vedette-creds-active` → `/var/lib/vedette-creds` **chỉ đọc**; tmpfs cho đầu ra tạm; không volume bền |
 | Health check | `vedette-sensor healthcheck` (D-137): như `sensor` (§2.2): tệp heartbeat của vai `active` còn trẻ hơn 60 s (heartbeat 30 s; poll job không tính, heartbeat là nhịp của liên kết) |
 
-`greenbone` (tuỳ chọn; khách thấy tên **OpenVAS**; đã xây ở D-529 cho quét sâu của External exposure, exposure INV-25): **không** phải unit Quadlet mà là dự án compose chính thức của Greenbone (`greenbone-community-edition`), `vedette-host` chạy bằng `podman compose` (host-api §6.16): tệp chính thức ghim digest + override của Vedette (`deploy/greenbone`, cài vào `/usr/lib/vedette/greenbone/`); giao diện web của Greenbone (gsa, gsad, nginx) không chạy nên không cổng nào publish; `core` nói chuyện với `gvmd` bằng GMP qua socket ở thư mục host `/run/vedette-greenbone/gvmd` (unit `core` mount `/run/vedette-greenbone` chỉ đọc; thư mục đó `0750` root, nhóm của `core`, nên chỉ root và `core` tới được socket); mật khẩu GMP ở `core/secrets`. `vedette-host` bật `podman.socket` (API của podman, chỉ root) khi nó chưa bật và gỡ cài đặt tắt lại đúng trường hợp đó. GPL/AGPL: container riêng, ảnh không sửa (D-55). Quét có đăng nhập (S-SCAN-5) vẫn chưa xây.
+`greenbone` (tuỳ chọn; khách thấy tên **OpenVAS**; đã xây ở D-529 cho quét sâu của External exposure, exposure INV-25): **không** phải unit Quadlet mà là dự án compose chính thức của Greenbone (`greenbone-community-edition`), `vedette-host` chạy bằng `podman compose` (host-api §6.16): tệp chính thức ghim digest + override của Vedette (`deploy/greenbone`, cài vào `/usr/lib/vedette/greenbone/`); giao diện web của Greenbone (gsa, gsad, nginx) không chạy nên không cổng nào publish; dữ liệu SCAP/CERT (scap-data, cert-bund-data, dfn-cert-data) không chạy, hộp đã chạy chúng trước D-593 được dọn một lần (§2.5, host-api §6.16); `core` nói chuyện với `gvmd` bằng GMP qua socket ở thư mục host `/run/vedette-greenbone/gvmd` (unit `core` mount `/run/vedette-greenbone` chỉ đọc; thư mục đó `0750` root, nhóm của `core`, nên chỉ root và `core` tới được socket); mật khẩu GMP ở `core/secrets`. `vedette-host` bật `podman.socket` (API của podman, chỉ root) khi nó chưa bật và gỡ cài đặt tắt lại đúng trường hợp đó. GPL/AGPL: container riêng, ảnh không sửa (D-55). Quét có đăng nhập (S-SCAN-5) vẫn chưa xây.
 
-### 2.5 Giới hạn tài nguyên và health (đề xuất, cho hộp 4 nhân / 8 GB)
+### 2.5 Lean tools
+
+Mỗi công cụ tích hợp chỉ chạy phần Vedette dùng (kien 2026-11-14, LEAN-1/2/3; kế hoạch `docs/plans/2026-11-14-lean-tools.md`). **Luật cho một công cụ mới:** liệt kê thứ Vedette hỏi nó, tắt phần còn lại, thêm một hàng vào bảng này với số đo trên N100. Số chỉ từ N100 (lệnh đo: kế hoạch §5: `memory.peak` của cgroup container, `du -sh` volume, kích thước schema PostgreSQL, `podman system df -v`).
+
+| Tool | Switched off | Why it is safe (source) | RAM idle / peak before → after | Disk before → after | Time/CPU before → after | Measured (date, build, by) | Owner |
+|---|---|---|---|---|---|---|---|
+| Greenbone CE | web GUI (gsa, gsad, gvm-config, nginx), gvm-tools, log tail (`openvas`) (FULL-2, D-529) | Vedette speaks GMP to the gvmd socket itself (`modules/exposure/gmp.go`); gsad only turns HTTP into GMP for the browser; `openvas` only prints the config and tails a log (Greenbone's compose); nothing listens on 443/9392 | not measured (already off on n49) | images never pulled: gsa 14.4 MB, gsad 116 MB, nginx 167 MB, gvm-config 89.5 MB, gvm-tools 180 MB (sizes of the old trial's images on the N100) | — | 2026-11-14 18:29 UTC, n49, Trưởng | [T] |
+| Greenbone CE | SCAP + CERT data (scap-data, cert-bund-data, dfn-cert-data; gvmd's `scap`/`cert` schemas) (D-593) | Vedette reads a result's CVE ids from the NVT's own refs; only `get_info`/`get_resource_names` need SCAP/CERT and Vedette never sends them (exposure test); gvmd without the feed files makes two empty schemas once and then reports them current, no lock loop (gvmd 26.43.0 source, D-593) | memory.peak during the feed load: scap-data 3430 MB, cert-bund-data 254 MB, dfn-cert-data 118 MB (with gvmd 1513 MB, pg-gvm 1079 MB, ospd-openvas 869 MB, notus-data 803 MB, vulnerability-tests 729 MB, redis 396 MB); now gvmd 556 MB, pg-gvm 232 MB, ospd 343 MB → TBD (N100 after deploy) | PostgreSQL: scap 37 GB, cert 196 MB (public 977 MB, pg_toast 712 MB, vts 269 MB); volumes scap_data 11 GB, cert_data 182 MB (psql_data 26 GB, notus 736 MB, vt 639 MB); images scap-data 1.75 GB, cert-bund-data 135 MB, dfn-cert-data 64.8 MB → TBD (N100 after deploy) | first feed load: not measured (enabled 12:32 UTC, did not finish before the old 20-minute login wait gave up, N42-4) → TBD (N100 after deploy); weekly update: 7 images → 4 | 2026-11-14 18:29 UTC, n49 (an OpenVAS scan running), Trưởng | [T] |
+
+### 2.6 Giới hạn tài nguyên và health (đề xuất, cho hộp 4 nhân / 8 GB)
 
 | Container | CPU | RAM | PIDs | Ghi chú |
 |---|---|---|---|---|
@@ -656,7 +665,7 @@ Không có endpoint metrics kiểu Prometheus: chưa có story, không làm (`ru
 - SSH quản trị host nằm ngoài Vedette; khuyến nghị chỉ cho phép từ dải quản trị.
 
 **Container.**
-- `cap_drop=ALL` + capability tối thiểu (§2); `no-new-privileges`; rootfs chỉ đọc + tmpfs; seccomp mặc định của Podman; AppArmor: hồ sơ `vedette-container` (bản của containers-default của Podman cộng luật tín hiệu/ptrace cho nhãn xếp chồng, D-458) trên hộp appliance, mặc định của runtime ở bản container-only; giới hạn tài nguyên (§2.5).
+- `cap_drop=ALL` + capability tối thiểu (§2); `no-new-privileges`; rootfs chỉ đọc + tmpfs; seccomp mặc định của Podman; AppArmor: hồ sơ `vedette-container` (bản của containers-default của Podman cộng luật tín hiệu/ptrace cho nhãn xếp chồng, D-458) trên hộp appliance, mặc định của runtime ở bản container-only; giới hạn tài nguyên (§2.6).
 - Secret qua file mount ro, không qua biến môi trường.
 - Non-root ở mọi container; `core` chạy `User=<core_uid>:<core_gid>` cố định, **không** `UserNS=auto` (kiểm peer của socket host và kiểm chủ sở hữu của D-87 cần uid ổn định); `sensor`/`scan` chạy `User=<sensor_uid>:<sensor_gid>` cố định, **không** `UserNS` (capability của user namespace con không phủ namespace mạng của host; D-114 sửa D-105 (5)); các container khác `UserNS=auto` (D-105). Unit là unit hệ thống, Podman rootful (đóng câu hỏi hệ thống/người dùng).
 - Image: ghim digest, SBOM CycloneDX, quét `trivy`/`govulncheck` trong CI, cosign.

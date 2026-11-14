@@ -22,16 +22,21 @@ import (
 // Greenbone's official compose project with `podman compose` and the docker-compose v2 provider, through the runner with fixed argv:
 //
 //	podman compose -p greenbone-community-edition -f /usr/lib/vedette/greenbone/compose.yaml -f /usr/lib/vedette/greenbone/compose.vedette.yaml
-//	    up -d | stop | ps --services --status running | pull <the seven feed services> | up -d <the seven feed services>
+//	    up -d | stop | stop gvmd | ps --services --status running | pull <the four feed services> | up -d <the four feed services>
 //	podman compose version --short
 //	podman exec -u gvmd greenbone-community-edition-gvmd-1 timeout -k 5 60 gvmd --user=admin --new-password=<48 hex>
-//	podman image inspect --format {{.Id}} registry.community.greenbone.net/community/<feed service> | podman rmi <64 hex>
+//	podman image inspect --format {{.Id}} registry.community.greenbone.net/community/<feed or SCAP/CERT service> | podman rmi <64 hex>
+//	podman exec greenbone-community-edition-pg-gvm-1 psql -U gvmd -d gvmd -v ON_ERROR_STOP=1 -c <gbDropSQL>
+//	podman rm --force --ignore greenbone-community-edition-<scap-data|cert-bund-data|dfn-cert-data>-1
+//	podman volume exists | rm greenbone-community-edition_<scap_data_vol|cert_data_vol>
 //	systemctl is-enabled | enable --now | start | is-active podman.socket
 //	apt-get update | apt-get ... --no-install-recommends install docker-compose-v2 (Ubuntu) or docker-compose (Debian)
 //
 // The project is not Vedette's: its name, its volumes and its images are Greenbone's own, and install.sh --uninstall never names them.
 // The two compose files ship in the vedette-host package (deploy/greenbone): Greenbone's file, unmodified apart from the digest pins, and
-// Vedette's override (the gvmd socket on a host directory, the web interface and its helpers off, labels).
+// Vedette's override (the gvmd socket on a host directory, the web interface and its helpers off, the SCAP and CERT data off, labels).
+// The one exception to "never removes anything of the project" is gbLean: once per box, the SCAP and CERT data an OpenVAS started
+// before D-593 left behind (their two volumes, three containers and three images, and the two schemas in gvmd's database).
 //
 // The GMP password is core's (core/secrets); it reaches the host as the args of greenbone.up (N42-4, D-590). Before compose up the host
 // writes it to <state>/greenbone/gvmd-admin-password (the directory root's 0700, the file gvmd's uid 1001, 0400, through a temp file and
@@ -67,7 +72,7 @@ const (
 	gbProviderFloorM = 2
 	gbProviderFloorN = 24 // the oldest docker-compose v2 on a supported release (Ubuntu 24.04's 2.24.6): profiles and merging by target
 
-	gbUpLimit    = 60 * time.Minute // exposure's own bound of Up: the first one pulls about 9 GB and fills the feed volumes
+	gbUpLimit    = 60 * time.Minute // exposure's own bound of Up: the first one pulls several GB and fills the feed volumes
 	gbSyncLimit  = 60 * time.Minute
 	gbDownLimit  = 5 * time.Minute
 	gbQueueWait  = 30 * time.Minute // how long an up or a feed update waits for the operation before it (the down that cancels it: none)
@@ -87,8 +92,28 @@ const (
 	gbPasswordShipped = "/var/lib/vedette-host/" + gbPasswordDir + "/" + gbPasswordName
 )
 
-// gbFeedServices are the seven feed data services of Greenbone's feed update, in the order of its workflow page.
-var gbFeedServices = []string{"notus-data", "vulnerability-tests", "scap-data", "dfn-cert-data", "cert-bund-data", "report-formats", "data-objects"}
+// gbFeedServices are the feed data services of Greenbone's feed update that Vedette runs, in the order of its workflow page: the SCAP and
+// CERT data (scap-data, dfn-cert-data, cert-bund-data) are off (compose.vedette.yaml, D-593).
+var gbFeedServices = []string{"notus-data", "vulnerability-tests", "report-formats", "data-objects"}
+
+// LEAN-1 stage A on a box whose OpenVAS ran before D-593 (gbLean): what is left of the SCAP and CERT data. The three services (their
+// containers are <project>-<service>-1 and their images Greenbone's tag of the service), the two volumes, and gvmd's two schemas.
+var (
+	gbLeanServices = []string{"scap-data", "cert-bund-data", "dfn-cert-data"}
+	gbLeanVolumes  = []string{gbProject + "_scap_data_vol", gbProject + "_cert_data_vol"}
+)
+
+const (
+	gbPgContainer = gbProject + "-pg-gvm-1" // docker-compose v2's name of the container of the service pg-gvm
+	// gbLeanMarker, in the state directory: the SCAP and CERT data of an earlier OpenVAS are gone (or there never were any), so gbLean
+	// does nothing at the next up.
+	gbLeanMarker = "greenbone-lean-scap-cert.done"
+	// gbDropSQL is one transaction (psql -c runs a string of statements as one): it gives up rather than waits behind a lock.
+	gbDropSQL     = "SET lock_timeout = '2min'; DROP SCHEMA IF EXISTS scap CASCADE; DROP SCHEMA IF EXISTS cert CASCADE"
+	gbDropTries   = 6                // psql tries while PostgreSQL starts (pg-gvm is only "started" when gvmd's up returns)
+	gbDropEvery   = 10 * time.Second // between two tries
+	gbRemoveLimit = 15 * time.Minute // one drop, or the removal of one data volume (11 GB of files on the N100)
+)
 
 // gbMustRun are the services a scan needs running after up: the manager, the scanner, the database and the scanner's store.
 var gbMustRun = []string{"gvmd", "ospd-openvas", "pg-gvm", "redis-server"}
@@ -113,6 +138,7 @@ func gbComposeArgv(verb ...string) []string {
 
 func gbUpArgv() []string       { return gbComposeArgv("up", "-d") }
 func gbStopArgv() []string     { return gbComposeArgv("stop") }
+func gbStopGvmdArgv() []string { return gbComposeArgv("stop", "gvmd") }
 func gbPsArgv() []string       { return gbComposeArgv("ps", "--services", "--status", "running") }
 func gbPullFeedArgv() []string { return gbComposeArgv(append([]string{"pull"}, gbFeedServices...)...) }
 func gbUpFeedArgv() []string {
@@ -134,12 +160,31 @@ func gbLoginArgv(password string) []string {
 // gbGvmdExistsArgv asks whether gvmd's container exists, in any state (exit 0 yes, 1 no): the re-sync goes on while it does.
 func gbGvmdExistsArgv() []string { return []string{"container", "exists", gbGvmdContainer} }
 
+// gbDropArgv drops gvmd's SCAP and CERT schemas (gbLean), with psql of Greenbone's pg-gvm image as gvmd's database user.
+func gbDropArgv() []string {
+	return []string{"exec", gbPgContainer, "psql", "-U", "gvmd", "-d", "gvmd", "-v", "ON_ERROR_STOP=1", "-c", gbDropSQL}
+}
+
+// gbLeanRmArgv removes the container of one SCAP or CERT service (stopping it first; none: nothing, exit 0).
+func gbLeanRmArgv(service string) []string {
+	return []string{"rm", "--force", "--ignore", gbProject + "-" + service + "-1"}
+}
+
+func gbVolumeExistsArgv(volume string) []string { return []string{"volume", "exists", volume} }
+func gbVolumeRmArgv(volume string) []string     { return []string{"volume", "rm", volume} }
+
 // isGreenbonePodmanArgv says whether args is one of the fixed podman shapes of the OpenVAS commands. The login's password must be
 // 48 lower-case hex characters; nothing else varies. (rmi <image ID> is validatePodman's own shape.)
 func isGreenbonePodmanArgv(args []string) bool {
-	fixed := [][]string{gbUpArgv(), gbStopArgv(), gbPsArgv(), gbPullFeedArgv(), gbUpFeedArgv(), gbVersionArgv(), gbGvmdExistsArgv()}
+	fixed := [][]string{gbUpArgv(), gbStopArgv(), gbStopGvmdArgv(), gbPsArgv(), gbPullFeedArgv(), gbUpFeedArgv(), gbVersionArgv(), gbGvmdExistsArgv(), gbDropArgv()}
 	for _, s := range gbFeedServices {
 		fixed = append(fixed, gbImageIDArgv(s))
+	}
+	for _, s := range gbLeanServices {
+		fixed = append(fixed, gbImageIDArgv(s), gbLeanRmArgv(s))
+	}
+	for _, v := range gbLeanVolumes {
+		fixed = append(fixed, gbVolumeExistsArgv(v), gbVolumeRmArgv(v))
 	}
 	for _, want := range fixed {
 		if slices.Equal(args, want) {
@@ -354,9 +399,130 @@ func (o *Ops) gbUp(ctx context.Context, logf func(string), password string) erro
 	if err := o.gbRunning(ctx); err != nil {
 		return err
 	}
+	if err := o.gbLean(ctx, logf); err != nil {
+		return err
+	}
 	o.gbResyncStart(func() bool { return ctx.Err() == nil }, password) //nolint:contextcheck // the re-sync outlives the up on purpose: the process's context, ended by down or the next up
 	logf("OpenVAS runs; gvmd creates its admin user with Vedette's GMP login, and the host sets the login again in the background once gvmd has loaded its feed (an existing volume keeps its own)")
 	return nil
+}
+
+// gbLean removes, once per box, the SCAP and CERT data an OpenVAS started before D-593 left behind (LEAN-1 stage A): compose no longer
+// runs or mounts them (compose.vedette.yaml), but their volumes (11 GB + 182 MB on the N100), containers, images (1.75 GB + 200 MB) and
+// gvmd's two schemas (37 GB in PostgreSQL) stay until removed. Why dropping the schemas is safe, from gvmd 26.43.0's source (the
+// pinned image; D-593 has the lines): with no SCAP/CERT feed files gvmd's sync, every 10 seconds, sees "database missing", takes the
+// feed lock once, logs "No SCAP db present, rebuilding SCAP db from scratch", finds no CPE dictionary and leaves both schemas empty
+// with last_update 0, which equals the missing feed's timestamp (0): from then on they are current and the lock is never taken for them
+// again, which is the state a new box reaches by itself. The drop runs with gvmd stopped: the CASCADE also drops the views gvmd's result
+// queries join (result_vt_epss, vulns), which gvmd makes again at its start (create_tables, without SCAP), so a running gvmd would answer
+// get_reports with an error until it restarted.
+//
+// Runs after compose up, when the services run. An upgraded box (one of the two volumes exists): compose stop gvmd, drop the schemas
+// (psql in pg-gvm, a few tries while PostgreSQL starts), compose up again (always, so gvmd never stays stopped), remove the volumes
+// found (without force: a volume a container still uses is refused). On every box, upgraded or not, the three containers and the three
+// images (by the ID of Greenbone's tag, without force) go, so a pass that removed the volumes but not an image finishes later. When every step worked the marker is written and an audit note says what went; otherwise the box log
+// says which step failed and the next up tries again (every step is idempotent). Only a failed restart of gvmd is an error of the up.
+func (o *Ops) gbLean(ctx context.Context, logf func(string)) error {
+	marker := o.stateFile(gbLeanMarker)
+	if _, err := os.Stat(marker); err == nil {
+		return nil
+	}
+	var found []string // the volumes there are
+	for _, v := range gbLeanVolumes {
+		_, code, err := o.gbStep(ctx, gbStepWait, binPodman, gbVolumeExistsArgv(v)...)
+		switch {
+		case err == nil && code == 0:
+			found = append(found, v)
+		case err != nil || code != 1:
+			o.gbLeanFailed(ctx, "asking whether "+v+" exists", code, err)
+			return nil
+		}
+	}
+	upgraded := len(found) > 0
+	if upgraded {
+		logf("removing the SCAP and CERT data of the earlier OpenVAS, which Vedette does not use (D-593); gvmd stops for this and starts again")
+		if _, code, err := o.gbStep(ctx, gbStepWait, binPodman, gbStopGvmdArgv()...); err != nil || code != 0 {
+			o.gbLeanFailed(ctx, "stopping gvmd", code, err)
+			return nil
+		}
+		dropped := o.gbDropSchemas(ctx)
+		if _, code, err := o.gbStep(ctx, gbUpLimit, binPodman, gbUpArgv()...); err != nil || code != 0 {
+			return o.gbFailed(ctx, "podman compose up (gvmd again, after the SCAP and CERT data)", code, err)
+		}
+		if err := o.gbRunning(ctx); err != nil {
+			return err
+		}
+		if !dropped {
+			return nil
+		}
+	}
+	ok := true
+	for _, s := range gbLeanServices {
+		if _, code, err := o.gbStep(ctx, gbStepWait, binPodman, gbLeanRmArgv(s)...); err != nil || code != 0 {
+			o.gbLeanFailed(ctx, "removing the container of "+s, code, err)
+			ok = false
+		}
+	}
+	var volumes []string
+	for _, v := range found {
+		if _, code, err := o.gbStep(ctx, gbRemoveLimit, binPodman, gbVolumeRmArgv(v)...); err != nil || code != 0 {
+			o.gbLeanFailed(ctx, "removing the volume "+v, code, err)
+			ok = false
+			continue
+		}
+		volumes = append(volumes, v)
+	}
+	var images []string
+	for _, s := range gbLeanServices {
+		out, code, err := o.gbStep(ctx, gbStepWait, binPodman, gbImageIDArgv(s)...)
+		id := strings.TrimPrefix(strings.TrimSpace(out), "sha256:")
+		if err != nil || code != 0 || !imageIDRE.MatchString(id) {
+			continue // no image of that tag
+		}
+		args, _ := rmiArgv(id)
+		if _, code, err := o.gbStep(ctx, gbStepWait, binPodman, args...); err != nil || code != 0 {
+			o.gbLeanFailed(ctx, "removing the image of "+s, code, err)
+			ok = false
+			continue
+		}
+		images = append(images, gbRegistry+s)
+	}
+	if upgraded || len(images) > 0 { // what this pass removed, whether or not every step worked
+		o.note(api.CmdGreenboneUp, "greenbone_scap_cert_removed", map[string]any{"schemas_dropped": upgraded, "volumes": volumes, "images": images})
+		logf(fmt.Sprintf("removed of the SCAP and CERT data: gvmd's two schemas %t, %d volume(s), %d image(s)", upgraded, len(volumes), len(images)))
+	}
+	if !ok || ctx.Err() != nil {
+		return nil
+	}
+	if err := writeFileAtomic(marker, []byte("vedette-host removed the SCAP and CERT data of OpenVAS (D-593)\n"), 0o600); err != nil {
+		o.log.ErrorContext(ctx, "greenbone: could not record that the SCAP and CERT data are removed; the next start of OpenVAS checks again", "error", err.Error())
+	}
+	return nil
+}
+
+// gbDropSchemas drops gvmd's SCAP and CERT schemas (gvmd stopped), trying again while PostgreSQL starts; it says whether it worked.
+func (o *Ops) gbDropSchemas(ctx context.Context) bool {
+	var code int
+	var err error
+	for try := 1; try <= gbDropTries; try++ {
+		if _, code, err = o.gbStep(ctx, gbRemoveLimit, binPodman, gbDropArgv()...); err == nil && code == 0 {
+			return true
+		}
+		if try == gbDropTries || !o.d.Sleep(ctx, gbDropEvery) {
+			break
+		}
+	}
+	o.gbLeanFailed(ctx, "dropping gvmd's SCAP and CERT schemas", code, err)
+	return false
+}
+
+// gbLeanFailed logs a step of gbLean that did not work; the up goes on and the next one tries again.
+func (o *Ops) gbLeanFailed(ctx context.Context, step string, code int, err error) {
+	attrs := []any{"step", step, "exit_code", code}
+	if err != nil {
+		attrs = append(attrs, "error", err.Error())
+	}
+	o.log.WarnContext(ctx, "greenbone: removing the SCAP and CERT data did not finish; the next start of OpenVAS tries again", attrs...)
 }
 
 // gbPasswordPath is the directory and the file of the GMP password for gvmd's start, in the state directory.
@@ -688,9 +854,9 @@ func (o *Ops) gbDown(ctx context.Context, logf func(string)) error {
 	return nil
 }
 
-// gbSyncFeed is Greenbone's feed update: pull the seven feed images, start their services again, then remove the feed images they
-// replaced (review r1 M4: each weekly pull would leave several GB of untagged images). Only the previous image of each of the seven
-// exact feed repositories, by its ID, without force: podman itself refuses one a container still uses or that has another name.
+// gbSyncFeed is Greenbone's feed update: pull the four feed images Vedette runs, start their services again, then remove the feed
+// images they replaced (review r1 M4: each weekly pull would leave several GB of untagged images). Only the previous image of each of
+// the four exact feed repositories, by its ID, without force: podman itself refuses one a container still uses or that has another name.
 func (o *Ops) gbSyncFeed(ctx context.Context, logf func(string)) error {
 	before := o.gbFeedImageIDs(ctx)
 	logf("updating OpenVAS's feed: pulling " + strings.Join(gbFeedServices, ", "))

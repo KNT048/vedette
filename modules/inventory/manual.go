@@ -414,9 +414,27 @@ func (s *Service) PatchDevice(ctx context.Context, actor, id string, p Patch) er
 }
 
 // Approve accepts a device a sensor found (S-INV-3); it also clears the suspicious flag.
+// A device that was waiting also gets inventory.asset.approved {asset_id, actor} after the commit (D-474, B9b): notify closes its
+// new-device incident naming the person. Approving again (to clear a mark) is no approval; osquery enrolment (ApproveEnrolled) is
+// not a person and publishes only inventory.asset.updated.
 func (s *Service) Approve(ctx context.Context, actor, id string) error {
-	// approved_at keeps the first approval: approving again (to clear the unknown mark) does not move the device to "approved in the last 24 h" (D-471).
-	return s.setFlag(ctx, actor, id, `UPDATE inv_asset SET approved_at = CASE WHEN approved = 1 THEN approved_at ELSE ? END, approved = 1, suspicious = 0 WHERE id = ?`, []any{s.now(), id}, "inventory.approve")
+	return s.write(ctx, func(tx *sql.Tx, o *outbox) error {
+		var was bool
+		err := tx.QueryRowContext(ctx, `SELECT approved FROM inv_asset WHERE id = ?`, id).Scan(&was)
+		if errors.Is(err, sql.ErrNoRows) {
+			return notFoundDevice()
+		} else if err != nil {
+			return fmt.Errorf("inventory: inventory.approve: %w", err)
+		}
+		// approved_at keeps the first approval: approving again (to clear the unknown mark) does not move the device to "approved in the last 24 h" (D-471).
+		if err := s.flagTx(ctx, tx, o, actor, id, `UPDATE inv_asset SET approved_at = CASE WHEN approved = 1 THEN approved_at ELSE ? END, approved = 1, suspicious = 0 WHERE id = ?`, []any{s.now(), id}, "inventory.approve"); err != nil {
+			return err
+		}
+		if !was {
+			o.add(EventAssetApproved, AssetEvent{AssetID: id, Actor: actor})
+		}
+		return nil
+	})
 }
 
 // SetSuspicious marks or unmarks a device as suspicious (S-INV-3).
@@ -429,17 +447,19 @@ func (s *Service) SetSuspicious(ctx context.Context, actor, id string, suspiciou
 }
 
 func (s *Service) setFlag(ctx context.Context, actor, id, query string, args []any, action string) error {
-	return s.write(ctx, func(tx *sql.Tx, o *outbox) error {
-		res, err := tx.ExecContext(ctx, query, args...)
-		if err != nil {
-			return fmt.Errorf("inventory: %s: %w", action, err)
-		}
-		if n, _ := res.RowsAffected(); n == 0 {
-			return notFoundDevice()
-		}
-		o.add(EventAssetUpdated, AssetEvent{AssetID: id})
-		return s.auditTx(ctx, tx, actor, action, deviceName(ctx, tx, id), id)
-	})
+	return s.write(ctx, func(tx *sql.Tx, o *outbox) error { return s.flagTx(ctx, tx, o, actor, id, query, args, action) })
+}
+
+func (s *Service) flagTx(ctx context.Context, tx *sql.Tx, o *outbox, actor, id, query string, args []any, action string) error {
+	res, err := tx.ExecContext(ctx, query, args...)
+	if err != nil {
+		return fmt.Errorf("inventory: %s: %w", action, err)
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return notFoundDevice()
+	}
+	o.add(EventAssetUpdated, AssetEvent{AssetID: id})
+	return s.auditTx(ctx, tx, actor, action, deviceName(ctx, tx, id), id)
 }
 
 // DeleteDevice removes a device with its observations, services and software; the box itself is 409 box_device
@@ -468,7 +488,7 @@ func (s *Service) DeleteDevice(ctx context.Context, actor, id string) error {
 		if n := counts[id]; n > 0 {
 			detail = fmt.Sprintf("%s; removed %d findings of the device", id, n)
 		}
-		o.add(EventAssetDeleted, AssetEvent{AssetID: id})
+		o.add(EventAssetDeleted, AssetEvent{AssetID: id, Actor: actor}) // notify says who deleted it (D-474)
 		return s.auditTx(ctx, tx, actor, "inventory.delete", name, detail)
 	})
 }

@@ -81,10 +81,11 @@ func debUpstream(v string) string {
 
 // mapPackages turns the package snapshots of one request into the software list of the device. Rows whose name or version does not fit
 // the inventory's limits are dropped, and the count is returned. One list per device: the deb, rpm and programs rows are joined (a
-// host has one of them), the same product and version once. At most limit rows are kept; the rows past it are dropped and counted.
+// host has one of them), the same product and version once. deb and rpm rows are Packaged (the distribution's package database,
+// D-474), programs rows are not. At most limit rows are kept; the rows past it are dropped and counted.
 func mapPackages(snaps map[string][]row, limit int) (items []observe.Software, dropped int) {
 	seen := map[string]bool{}
-	add := func(display, vendor, product, version string, mapped bool) {
+	add := func(display, vendor, product, version string, mapped, packaged bool) {
 		// The key vendor|product must stay within the inventory's 400 bytes, or it refuses the whole list.
 		if !fits(display) || !fits(vendor) || !fits(product) || len(vendor)+len(product)+1 > maxKeyBytes || utf8.RuneCountInString(version) > maxVersion || len(items) >= limit {
 			dropped++
@@ -95,7 +96,7 @@ func mapPackages(snaps map[string][]row, limit int) (items []observe.Software, d
 			return
 		}
 		seen[k] = true
-		s := observe.Software{Display: display, Vendor: vendor, Product: product, Version: version, Confidence: softwareConfidence}
+		s := observe.Software{Display: display, Vendor: vendor, Product: product, Version: version, Confidence: softwareConfidence, Packaged: packaged}
 		if mapped {
 			s.KevKeys = []string{strings.ToLower(vendor) + "|" + strings.ToLower(product)}
 		}
@@ -109,18 +110,18 @@ func mapPackages(snaps map[string][]row, limit int) (items []observe.Software, d
 		}
 		version := debUpstream(r["version"])
 		if ok {
-			add(p.Product, p.Vendor, p.Product, version, true)
+			add(p.Product, p.Vendor, p.Product, version, true, true)
 		} else {
-			add(name, name, name, version, false)
+			add(name, name, name, version, false, true)
 		}
 	}
 	for _, r := range snaps["rpm_packages"] {
 		name := r["name"]
 		p, ok := pkgmap.Linux.lookup(strings.ToLower(name))
 		if ok {
-			add(p.Product, p.Vendor, p.Product, r["version"], true)
+			add(p.Product, p.Vendor, p.Product, r["version"], true, true)
 		} else {
-			add(name, name, name, r["version"], false)
+			add(name, name, name, r["version"], false, true)
 		}
 	}
 	for _, r := range snaps["programs"] {
@@ -128,11 +129,11 @@ func mapPackages(snaps map[string][]row, limit int) (items []observe.Software, d
 		p, ok := pkgmap.Windows.lookup(strings.ToLower(name))
 		switch {
 		case ok:
-			add(name, p.Vendor, p.Product, r["version"], true)
+			add(name, p.Vendor, p.Product, r["version"], true, false)
 		case r["publisher"] != "":
-			add(name, r["publisher"], name, r["version"], false)
+			add(name, r["publisher"], name, r["version"], false, false)
 		default:
-			add(name, name, name, r["version"], false)
+			add(name, name, name, r["version"], false, false)
 		}
 	}
 	return items, dropped

@@ -171,12 +171,22 @@ func TestWiringJoinedSwitchKeepsItsFindings(t *testing.T) {
 	created := 0
 	s.d.Bus.Subscribe(findings.EventCreated, func(context.Context, events.Event) error { created++; return nil })
 	lldp()
-	if n := s.count(`SELECT count(*) FROM inv_asset WHERE is_box = 0`); n != 1 {
-		t.Fatalf("%d devices, want one switch", n)
+	list, err := s.d.Inventory.Devices(ctx)
+	if err != nil {
+		t.Fatal(err)
 	}
 	var ipID string
-	if err := s.d.DB.Reader().QueryRowContext(ctx, `SELECT id FROM inv_asset WHERE ip = ?`, ip).Scan(&ipID); err != nil {
-		t.Fatal(err)
+	n := 0
+	for _, d := range list.Items {
+		if !d.IsBox {
+			n++
+		}
+		if d.IP == ip {
+			ipID = d.ID
+		}
+	}
+	if n != 1 || ipID == "" {
+		t.Fatalf("%d devices (.47 is %q), want one switch", n, ipID)
 	}
 	if n := s.count(`SELECT count(*) FROM fnd_finding WHERE asset_id = '` + ipID + `'`); n != len(cves) {
 		t.Errorf("%d findings on the kept device, want %d", n, len(cves))

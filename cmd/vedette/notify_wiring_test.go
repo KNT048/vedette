@@ -394,7 +394,7 @@ func TestWiringApproveInDevicesClosesTheNewDeviceIncident(t *testing.T) {
 	}
 	d, err := svc.IncidentDetail(ctx, list[0].ID)
 	if err != nil || d.Incident.Status != notify.StatusResolved || d.Incident.ResolvedReason == nil ||
-		*d.Incident.ResolvedReason != "Closed by Vedette: the device was approved in Devices." {
+		*d.Incident.ResolvedReason != "Closed by Vedette: the device was approved by it@acme.example." { // B9 (D-474): inventory.asset.approved names the person
 		t.Fatalf("after approving = %+v, %v", d.Incident, err)
 	}
 }

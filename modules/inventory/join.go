@@ -254,7 +254,7 @@ func lastByte(mac string) int {
 // gone and those that received one. A joined device created in this very batch was never announced; an older one is announced
 // merged (findings moves its findings, with their status and history, to the device that received it; review H2 of #722) and
 // then deleted (the other listeners drop it; findings has nothing left to delete). The device that received it is matched again.
-func (s *Service) joinSame(ctx context.Context, tx *sql.Tx, o *outbox, touched []string, created map[string]bool, before map[string]string) (map[string]bool, []string, error) {
+func (s *Service) joinSame(ctx context.Context, tx *sql.Tx, o *outbox, touched []string, created map[string]string, before map[string]string) (map[string]bool, []string, error) {
 	gone := map[string]bool{}
 	var joined []string
 	for _, id := range touched {
@@ -277,7 +277,7 @@ func (s *Service) joinSame(ctx context.Context, tx *sql.Tx, o *outbox, touched [
 		if !slices.Contains(joined, into) {
 			joined = append(joined, into)
 		}
-		if !created[id] {
+		if created[id] == "" {
 			o.add(EventAssetMerged, MergeEvent{From: id, Into: into, Actor: systemActor})
 			o.add(EventAssetDeleted, AssetEvent{AssetID: id})
 		}

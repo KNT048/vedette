@@ -55,6 +55,7 @@ const (
 	EventAssetUpdated    = "inventory.asset.updated"
 	EventAssetDeleted    = "inventory.asset.deleted"
 	EventAssetMerged     = "inventory.asset.merged"
+	EventAssetApproved   = "inventory.asset.approved" // a person approved a discovered device (D-474, B9b)
 	EventSoftwareChanged = "inventory.software.changed"
 	EventMatchChanged    = "inventory.match.changed"
 	EventSettingsChanged = "inventory.settings.changed"
@@ -68,6 +69,11 @@ type AssetEvent struct {
 	// Match is set when what the findings matcher reads of the device besides its software changed (D-510): the folded OS,
 	// the model, or the OS the device states itself (MatchDevice.StatedOS). Only observations set it.
 	Match bool `json:"match,omitempty"`
+	// Learning is set on discovered events when the source that found the device (passive sensor, active scan, SNMP, agent, vulnerability
+	// scan) first reported to this box less than LearningWindow ago (D-474, MK-1): notify folds such devices into one summary.
+	Learning bool `json:"learning,omitempty"`
+	// Actor is the person who approved (inventory.asset.approved) or deleted (inventory.asset.deleted) the device; "" for the system.
+	Actor string `json:"actor,omitempty"`
 }
 
 // MergeEvent is the data of inventory.asset.merged (D-515): device From was the same device as Into and is gone; what other modules
@@ -130,6 +136,9 @@ type SoftwareItem struct {
 	Confidence                             float64
 	// Guess is a sensor's guess (observe.Software.Guess, D-501): stored without match keys, so it raises no finding.
 	Guess bool
+	// Packaged: an agent read it from the operating system's package database (observe.Software.Packaged, D-474). Stored only for
+	// source agent.
+	Packaged bool
 }
 
 // Observed is a value with where it came from (contract.ts Observed).

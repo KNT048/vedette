@@ -245,6 +245,8 @@ func TestPackage_Files(t *testing.T) {
 		"usr/lib/vedette/honeypot-containers.conf":        0o644,
 		"usr/lib/vedette/apparmor-containers.conf":        0o644,
 		"etc/apparmor.d/vedette-container":                0o644,
+		"usr/lib/vedette/greenbone/compose.yaml":          0o644,
+		"usr/lib/vedette/greenbone/compose.vedette.yaml":  0o644,
 		"usr/share/doc/vedette-host/copyright":            0o644,
 		"usr/share/doc/vedette-host/NOTICE":               0o644,
 		"usr/share/doc/vedette-host/third-party-licenses": 0o644,
@@ -303,6 +305,12 @@ func TestPackage_UnitIsTheRepoFileByteForByte(t *testing.T) {
 	}
 	if c := p.files["etc/apparmor.d/"+ops.AppArmorProfile].data; !bytes.Equal(c, repoFile(t, "deploy/deb/vedette-container.apparmor")) {
 		t.Errorf("/etc/apparmor.d/%s differs from deploy/deb/vedette-container.apparmor", ops.AppArmorProfile)
+	}
+	// OpenVAS's compose files (D-529): the paths vedette-host names in its argv, the repo's bytes
+	for _, f := range []string{"compose.yaml", "compose.vedette.yaml"} {
+		if c := p.files["usr/lib/vedette/greenbone/"+f].data; !bytes.Equal(c, repoFile(t, "deploy/greenbone/"+f)) {
+			t.Errorf("/usr/lib/vedette/greenbone/%s differs from deploy/greenbone/%s", f, f)
+		}
 	}
 	if c := p.files["usr/share/doc/vedette-host/copyright"].data; !bytes.Contains(c, []byte("Apache License")) || !bytes.Contains(c, []byte("Version 2.0")) {
 		t.Error("the copyright file is not the Apache License 2.0 text")

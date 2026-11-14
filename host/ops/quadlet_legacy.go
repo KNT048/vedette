@@ -28,6 +28,7 @@ var legacyTemplates = map[string][]*template.Template{
 		mustTemplate("core-2", coreUnitTextD214),       // D-214 (2026-11-12): 6514:5515/tcp published, no HostName yet
 		mustTemplate("core-3", coreUnitTextHostName),   // #489 (2026-11-12): HostName=vedette, no 127.0.0.1:8765 publish yet (D-395)
 		mustTemplate("core-4", coreUnitTextBeforeD458), // D-395 (2026-11-12): Podman's default AppArmor profile (D-458)
+		mustTemplate("core-5", coreUnitTextBeforeD529), // D-458 (2026-11-12): no mount of OpenVAS's socket directory (D-529)
 	},
 	api.ServiceSensor: {
 		mustTemplate("sensor-1", sensorUnitTextBeforeD458), // before D-458 (2026-11-12): Podman's default AppArmor profile
@@ -377,6 +378,50 @@ Exec=active --core https://127.0.0.1:8444 --creds /var/lib/vedette-creds/sensor.
 
 [Service]
 Restart=always
+`
+
+// coreUnitTextBeforeD529 is core's template before D-529 (2026-11-14): no mount of /run/vedette-greenbone, OpenVAS's socket directory.
+const coreUnitTextBeforeD529 = `[Unit]
+Description=Vedette core
+After=network-online.target vedette-host.service
+Wants=network-online.target
+
+[Container]
+ContainerName=vedette-core
+HostName=vedette
+Image=` + repoCore + `@{{.Digest}}
+Pull=never
+Network=vedette-int.network
+PublishPort=8443:8443
+PublishPort=127.0.0.1:8444:8444
+PublishPort=127.0.0.1:8765:8765
+PublishPort=514:5514/udp
+PublishPort=514:5514/tcp
+PublishPort=6514:5515/tcp
+Volume={{.DataDir}}:/var/lib/vedette
+Volume=` + hpHostDir + `/config:/var/lib/vedette/honeypot/config
+Volume=` + hpLogVolume + `.volume:/var/lib/vedette/honeypot/log:ro,noexec
+Volume=/run/vedette:/run/vedette
+Volume=vedette-creds-passive.volume:/var/lib/vedette-creds/passive
+Volume=vedette-creds-active.volume:/var/lib/vedette-creds/active
+ReadOnly=true
+Tmpfs=/tmp:size=64m
+NoNewPrivileges=true
+ContainersConfModule=` + AppArmorConfModule + `
+DropCapability=ALL
+User={{.CoreUID}}:{{.CoreGID}}
+LogDriver=journald
+PodmanArgs=--memory=2g --memory-swap=2g --cpus=2 --pids-limit=512 --group-add={{.SensorGID}}
+Environment=GOMEMLIMIT=1800MiB
+HealthCmd=["/vedette","healthcheck"]
+HealthInterval=30s
+HealthStartPeriod=60s
+HealthRetries=3
+Exec=-listen :8443 -sensor-listen :8444 -sensor-creds /var/lib/vedette-creds -syslog-port 5514
+
+[Service]
+Restart=always
+TimeoutStartSec=300
 `
 
 const coreUnitTextHostName = `[Unit]

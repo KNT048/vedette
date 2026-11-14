@@ -142,6 +142,7 @@ Volume={{.DataDir}}:/var/lib/vedette
 Volume=` + hpHostDir + `/config:/var/lib/vedette/honeypot/config
 Volume=` + hpLogVolume + `.volume:/var/lib/vedette/honeypot/log:ro,noexec
 Volume=/run/vedette:/run/vedette
+Volume=` + api.GreenboneRunDir + `:` + api.GreenboneRunDir + `:ro
 Volume=vedette-creds-passive.volume:/var/lib/vedette-creds/passive
 Volume=vedette-creds-active.volume:/var/lib/vedette-creds/active
 ReadOnly=true

@@ -110,7 +110,7 @@ func aptSimInstallArgv(staged string) []string {
 // and the simulated install of the staged file. It never accepts a real install of a file.
 func validateHostApt(stateDir string) func([]string) error {
 	return func(args []string) error {
-		if validateApt(args) == nil {
+		if validateApt(args) == nil || isGreenboneAptArgv(args) { // OpenVAS's compose provider, installed on its first start (D-529)
 			return nil
 		}
 		if len(args) == len(argsAptSimInstallPre)+1 && slices.Equal(args[:len(argsAptSimInstallPre)], argsAptSimInstallPre) && isStagedPath(stateDir, args[len(args)-1]) {

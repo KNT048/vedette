@@ -5,7 +5,7 @@ import { begin, noHScroll, stepper, THEMES } from './wp06-shared'
 // WP-06 independent check, area 5: "As the owner of a company I want to see exactly what leaves the box, the anonymous signal included."
 // Settings -> Privacy must match PRIVACY.md: 16 flows, payload verbatim, the word IDS nowhere, single sign-on (OIDC) listed.
 const FLOWS = [
-  /feeds/i, /anonymous signal/i, /AI/, /lookups?|need a key/i, /notifications?/i, /update/i, /SIEM/, /CVE/, /external (exposure|surface)/i, /time sync|NTP/i, /single sign-on|OIDC/i, /connections you add/i, /MCP server/, /Wazuh pull/, /Outside view/, /Greenbone feed/,
+  /feeds/i, /anonymous signal/i, /AI/, /lookups?|need a key/i, /notifications?/i, /update/i, /SIEM/, /CVE/, /external (exposure|surface)/i, /time sync|NTP/i, /single sign-on|OIDC/i, /connections you add/i, /MCP server/, /Wazuh pull/, /Outside view/, /OpenVAS feed/,
 ]
 
 for (const theme of THEMES) {

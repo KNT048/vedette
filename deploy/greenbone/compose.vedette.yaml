@@ -1,0 +1,89 @@
+# Vedette's override of Greenbone's official compose.yaml (D-529, FULL-2, LEAN-1). vedette-host always runs the two together:
+#   podman compose -p greenbone-community-edition -f compose.yaml -f compose.vedette.yaml ...
+# Every change Vedette makes to Greenbone's project is here, nothing in compose.yaml:
+#
+# 1. The gvmd socket goes to core and to nothing else. gvmd's /run/gvmd is the host directory /run/vedette-greenbone/gvmd instead of
+#    the project's volume gvmd_socket_vol (compose merges a service's volumes by their target, so this entry replaces that one).
+#    vedette-host makes the directory (0755, owned by gvmd's fixed uid 1001 of Greenbone's gvmd image) before every start; core's
+#    Quadlet unit mounts its parent /run/vedette-greenbone, which the host makes at its own start, so core never depends on a volume
+#    compose creates and starts normally while OpenVAS is off. gvmd listens with mode 666 (GVMD_ARGS of Greenbone's start-gvmd), so the
+#    parent is what keeps others out: 0750, root, core's group. Only root and core reach the socket; gvmd does not need the parent
+#    (the runtime bind-mounts gvmd/ straight onto /run/gvmd), and a host account that happens to have uid 1001 cannot reach gvmd/.
+# 2. Only what Vedette uses runs (kien, LEAN-1). Vedette talks GMP to gvmd over that socket; Greenbone's web interface and its
+#    helpers are never started, so nothing of Greenbone listens on a port of the box (the official nginx publishes 443 and 9392):
+#      gsa         the web interface's static files, copied into a volume for nginx;
+#      gsad        the web interface's HTTP server (GMP to gvmd for the browser; gvmd does not need it, it depends on gvmd);
+#      nginx       the TLS front of gsad, the only service that publishes ports;
+#      gvm-config  writes nginx's configuration and TLS certificate, for nginx only;
+#      gvm-tools   an interactive GMP command line for an administrator (Vedette sets its login with gvmd's own command instead);
+#      openvas     prints the scanner's configuration and then follows its log ("shows logs of openvas" in the official file):
+#                  the scans run in ospd-openvas, which starts the scanner itself and reads the same configuration volume.
+#    No service that stays depends on one of them (the test checks it). The profile "disabled" is never activated.
+# 3. Every service that runs carries the label io.vedette.started-by=vedette-host, so `podman ps --filter label=...` shows what
+#    Vedette started. The label never makes a container Vedette's to remove: uninstall leaves the whole project alone (D-529).
+services:
+  gvmd:
+    volumes:
+      - type: bind
+        source: /run/vedette-greenbone/gvmd
+        target: /run/gvmd
+        bind:
+          create_host_path: false
+    labels:
+      io.vedette.started-by: vedette-host
+
+  gsa:
+    profiles: [disabled]
+  gsad:
+    profiles: [disabled]
+  nginx:
+    profiles: [disabled]
+  gvm-config:
+    profiles: [disabled]
+  gvm-tools:
+    profiles: [disabled]
+  openvas:
+    profiles: [disabled]
+
+  vulnerability-tests:
+    labels:
+      io.vedette.started-by: vedette-host
+  notus-data:
+    labels:
+      io.vedette.started-by: vedette-host
+  scap-data:
+    labels:
+      io.vedette.started-by: vedette-host
+  cert-bund-data:
+    labels:
+      io.vedette.started-by: vedette-host
+  dfn-cert-data:
+    labels:
+      io.vedette.started-by: vedette-host
+  data-objects:
+    labels:
+      io.vedette.started-by: vedette-host
+  report-formats:
+    labels:
+      io.vedette.started-by: vedette-host
+  gpg-data:
+    labels:
+      io.vedette.started-by: vedette-host
+  redis-server:
+    labels:
+      io.vedette.started-by: vedette-host
+  pg-gvm:
+    labels:
+      io.vedette.started-by: vedette-host
+  pg-gvm-migrator:
+    labels:
+      io.vedette.started-by: vedette-host
+  configure-openvas:
+    labels:
+      io.vedette.started-by: vedette-host
+  openvasd:
+    labels:
+      io.vedette.started-by: vedette-host
+  ospd-openvas:
+    labels:
+      io.vedette.started-by: vedette-host

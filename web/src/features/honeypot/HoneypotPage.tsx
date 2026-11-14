@@ -2,7 +2,7 @@ import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { FlaskConical } from 'lucide-react'
-import { PageHeader, Section, Panel, KeyValue } from '@/components/common/PageHeader'
+import { Notice, PageHeader, Section, Panel, KeyValue } from '@/components/common/PageHeader'
 import { KpiStrip, PageTabs } from '@/components/common/PageFrame'
 import { EmptyState, QueryState, RequireModule, SampleDataNote } from '@/components/common/States'
 import { Chip } from '@/components/common/StatusChip'
@@ -71,10 +71,7 @@ function HoneypotBody() {
                 ]} />
               ) : null}
               {data.problem ? (
-                <div role="alert" className="mb-5 rounded-md border border-danger/40 bg-danger-soft px-4 py-3 text-sm">
-                  <p className="font-medium text-danger">{t('problem.title')}</p>
-                  <p className="mt-1">{t('problem.body', { reason: data.problem.replace(/[.\s]+$/, '') })}</p>
-                </div>
+                <Notice tone="danger" role="alert" title={t('problem.title')}>{t('problem.body', { reason: data.problem.replace(/[.\s]+$/, '') })}</Notice>
               ) : null}
               <PageTabs label={t('tabs.label')} tabs={[
                 { id: 'overview', label: t('tabs.overview'), panel: <OverviewTab data={data} lan={lan} /> },

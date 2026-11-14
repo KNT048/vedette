@@ -114,3 +114,15 @@ describe('KpiStrip (D-464)', () => {
     vi.restoreAllMocks()
   })
 })
+
+// D-543 (một kiểu cho cả ứng dụng): module không tự dựng hàng tab; mọi tab của trang đi qua PageTabs (?tab=, cùng hình, cùng bàn phím).
+describe('one style gate (D-543)', () => {
+  const sources = import.meta.glob<string>('../../features/**/*.tsx', { query: '?raw', import: 'default', eager: true })
+  // Ngoại lệ: một bộ chuyển nhỏ bên trong một khối (không phải các phần của trang), ví dụ xem trước tin theo từng kênh.
+  const INNER = ['../../features/notify/IncidentDetailPage.tsx']
+  it('no feature page imports the raw tab primitives; pages use PageTabs', () => {
+    expect(Object.keys(sources).length).toBeGreaterThan(50)
+    const raw = Object.entries(sources).filter(([f, src]) => !f.endsWith('.test.tsx') && !INNER.includes(f) && /from '@\/components\/ui\/tabs'/.test(src)).map(([f]) => f)
+    expect(raw).toEqual([])
+  })
+})

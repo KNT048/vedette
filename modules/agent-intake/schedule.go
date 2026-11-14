@@ -20,11 +20,12 @@ var schedule = []scheduleQuery{
 	{name: "os_version", query: "SELECT name, version, major, minor, patch, build, platform, arch FROM os_version;", interval: 3600},
 	{name: "system_info", query: "SELECT hostname, hardware_vendor, hardware_model FROM system_info;", interval: 86400},
 	{name: "interfaces", query: "SELECT d.mac, a.address FROM interface_details d JOIN interface_addresses a USING (interface) WHERE a.address NOT LIKE '%:%' AND a.address NOT LIKE '127.%' AND a.address NOT LIKE '169.254.%' AND d.mac != '00:00:00:00:00:00';", interval: 3600},
-	// kernel (D-516, review H1 of #732): the running kernel release (kernel_info.version, "7.0.0-43-generic") on every row, so the
-	// package list and the kernel it runs arrive in the same snapshot.
-	{name: "deb_packages", query: "SELECT name, version, arch, source, (SELECT version FROM kernel_info) AS kernel FROM deb_packages;", interval: 3600, platform: "linux"},
+	{name: "deb_packages", query: "SELECT name, version, arch, source FROM deb_packages;", interval: 3600, platform: "linux"},
 	{name: "rpm_packages", query: "SELECT name, version, release, arch, epoch FROM rpm_packages;", interval: 3600, platform: "linux"},
 	{name: "programs", query: "SELECT name, version, publisher, install_date FROM programs;", interval: 3600, platform: "windows"},
+	// D-516: the running kernel release ("7.0.0-43-generic"), its own one-row query (a column on every package row would make a
+	// big host's package list longer than osquery's logger_tls_max_linesize, and osquery drops such a line whole).
+	{name: "kernel_info", query: "SELECT version FROM kernel_info;", interval: 3600, platform: "linux"},
 }
 
 // The first report (D-503). osquery 5.12 runs a scheduled query when the Unix time is a multiple of its (splayed, ±10 %) interval, never at
@@ -41,7 +42,7 @@ const (
 // firstReport maps each query to the answer of the first report it gives; the package queries are one answer (a host has one kind).
 var firstReport = map[string]string{
 	"os_version": "os_version", "system_info": "system_info", "interfaces": "interfaces",
-	"deb_packages": "packages", "rpm_packages": "packages", "programs": "packages",
+	"deb_packages": "packages", "rpm_packages": "packages", "programs": "packages", "kernel_info": "packages",
 }
 
 // hasAnswer says whether the comma-separated list holds the answer.

@@ -1743,7 +1743,7 @@ describe('inventory: agents (S-INV-4)', () => {
     expect(osquerySteps('windows', BOX, 't', []).map((s) => s.key)).toEqual(['secret', 'flags', 'service'])
 
     const sched = JSON.parse(OSQUERY_SCHEDULE).schedule as Record<string, { query: string; platform?: string }>
-    expect(Object.keys(sched).sort()).toEqual(['deb_packages', 'interfaces', 'os_version', 'programs', 'rpm_packages', 'system_info']) // D-169 (7): identity query in, unused columns and patches out
+    expect(Object.keys(sched).sort()).toEqual(['deb_packages', 'interfaces', 'kernel_info', 'os_version', 'programs', 'rpm_packages', 'system_info']) // D-169 (7): identity query in, unused columns and patches out
     expect(JSON.stringify(sched)).not.toMatch(/cpu_brand|physical_memory|patches/)
     expect(sched.interfaces!.query).toContain('interface_details')
     for (const q of Object.values(sched)) expect(q.query).toMatch(/^SELECT /) // read-only queries

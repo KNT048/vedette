@@ -40,7 +40,8 @@ var columns = map[string][]string{
 	"os_version":   {"name", "version", "major", "minor", "patch", "build", "platform", "arch"},
 	"system_info":  {"hostname", "hardware_vendor", "hardware_model"},
 	"interfaces":   {"mac", "address"},
-	"deb_packages": {"name", "version", "arch", "source", "kernel"}, // kernel: the running kernel release, the same on every row (D-516)
+	"deb_packages": {"name", "version", "arch", "source"},
+	"kernel_info":  {"version"}, // the running kernel release (D-516)
 	"rpm_packages": {"name", "version", "release", "arch", "epoch"},
 	"programs":     {"name", "version", "publisher", "install_date"},
 }

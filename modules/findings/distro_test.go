@@ -141,6 +141,10 @@ func TestOwnBuild(t *testing.T) {
 		distro, v     string
 		fixed, notAff bool
 	}{
+		{"ubuntu", "6.8.0-45.45~22.04.1", true, false},   // a 22.04 HWE kernel (review round 2): a fix compares
+		{"ubuntu", "6.8.0-1015.16~22.04.1", true, false}, // a cloud kernel backported to 22.04
+		{"ubuntu", "6.8.0-45.45~ppa1", false, false},     // a PPA kernel
+		{"ubuntu", "6.8.0-45.45~bpo22+1", false, false},
 		{"ubuntu", "1:10.2p1-2ubuntu3.8", true, true},
 		{"ubuntu", "1.9.15p5-3ubuntu5.24.04.1", true, true},
 		{"ubuntu", "1.2-1ubuntu0.1~22.04.1", true, true},
@@ -158,11 +162,40 @@ func TestOwnBuild(t *testing.T) {
 		{"debian", "8.3.14-1+0~20241122.53+debian12~1.gbp55a5a8", false, false},
 		{"debian", "2.38", false, false}, // native: no revision
 	} {
-		if got := ownBuild(c.distro, c.v, false); got != c.fixed {
+		pkg := "openssh"
+		if strings.HasPrefix(c.v, "6.8.0") || strings.HasPrefix(c.v, "7.0.0") {
+			pkg = "linux-hwe-6.8"
+		}
+		if got := ownBuild(c.distro, pkg, c.v, false); got != c.fixed {
 			t.Errorf("ownBuild(%s, %s) for a fix = %v", c.distro, c.v, got)
 		}
-		if got := ownBuild(c.distro, c.v, true); got != c.notAff {
+		if got := ownBuild(c.distro, pkg, c.v, true); got != c.notAff {
 			t.Errorf("ownBuild(%s, %s) for not affected = %v", c.distro, c.v, got)
 		}
+	}
+}
+
+// Review round 2 of #732: a patched 22.04 HWE kernel (linux-signed-hwe-6.8, revision ~22.04.1) is decided by Ubuntu's fix; a PPA
+// kernel is not.
+func TestDistroHWEKernel(t *testing.T) {
+	t.Parallel()
+	now := time.Date(2026, 11, 14, 0, 0, 0, 0, time.UTC)
+	kernel := func(full string) Software {
+		return Software{ID: "s-k", Display: "Kernel", Vendor: "Linux", Product: "Kernel", Version: "6.8.0", KevKeys: []string{"linux|kernel"},
+			Source: "agent", Packaged: true, PkgVersion: full, PkgSource: "linux-signed-hwe-6.8"}
+	}
+	v := Vuln{CVE: "CVE-2026-53266", Vendor: "Linux", Product: "Kernel",
+		Distro: []DistroFix{{Distro: "ubuntu", Release: "22.04", Package: "linux-hwe-6.8", Status: "fixed", Fixed: "6.8.0-40.40~22.04.3"}}}
+	on := func(full string) MatchResult {
+		return MatchAsset(Asset{ID: "a", Name: "web-01", OS: "Ubuntu 22.04.5 LTS", Software: []Software{kernel(full)}}, []Vuln{v}, map[string]bool{v.CVE: true}, now)
+	}
+	if r := on("6.8.0-45.45~22.04.1"); len(r.NotAffected) != 1 || !strings.Contains(r.NotAffected[0].Evidence.Summary, "linux-hwe-6.8 6.8.0-40.40~22.04.3") {
+		t.Fatalf("patched HWE kernel: %+v", r)
+	}
+	if r := on("6.8.0-38.38~22.04.1"); len(r.New)+len(r.Existing) != 1 || len(r.NotAffected) != 0 {
+		t.Fatalf("unpatched HWE kernel: %+v", r)
+	}
+	if r := on("6.8.0-45.45~ppa1"); len(r.NotAffected) != 0 {
+		t.Fatalf("a PPA kernel closed: %+v", r)
 	}
 }

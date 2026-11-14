@@ -90,8 +90,8 @@ func debUpstream(v string) string {
 // A deb row also carries its full Debian version and source package (D-516). Binaries of one source that map to the same
 // product and upstream version are one row; when they differ in the full version (openssh-client upgraded,
 // openssh-server not) the row keeps the lowest, so a binary that was not updated keeps its finding. Kernel images: a machine
-// keeps older kernels installed and runs one of them, so when the rows say which kernel runs (the "kernel" column: osquery
-// kernel_info.version, Wazuh's uname, "7.0.0-43-generic") and an installed image is that kernel (linux-image-7.0.0-43-generic),
+// keeps older kernels installed and runs one of them, so when the rows say which kernel runs (the "kernel" column the caller puts on
+// every deb row: osquery's kernel_info query stored on the node, Wazuh's uname, the box's own kernel; "7.0.0-43-generic") and an installed image is that kernel (linux-image-7.0.0-43-generic),
 // only that image gives the Kernel row its version (review H1 of #732: the newest installed one may not run yet). Otherwise
 // the lowest, as for every package. A metapackage (linux-image-generic, source linux-meta) never gives the row its version.
 // A row whose Source names another epoch or upstream version than the binary's ("foo (2:1.0-1)" for "1:3.0-1", a package

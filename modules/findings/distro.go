@@ -90,11 +90,20 @@ var (
 	debianOwnRE = regexp.MustCompile(`^[0-9][0-9.]*([+~]deb[0-9]+u[0-9]+)?(\+b[0-9]+)?$`)
 )
 
-// ownBuild says whether the installed revision is the distribution's own build; strict is the rule for "not affected".
-func ownBuild(distro, version string, strict bool) bool {
+// ubuntuKernelRE is the revision of an Ubuntu kernel built for an older release or a cloud: "45.45~22.04.1" (HWE),
+// "1015.16~22.04.1" (a cloud kernel), the plain ABI.upload revision with the release it was backported to (review round 2 of
+// #732). Digits only after "~", so "45.45~ppa1" and "~bpo" do not match.
+var ubuntuKernelRE = regexp.MustCompile(`^[0-9][0-9.]*(~[0-9][0-9.]*)*$`)
+
+// ownBuild says whether the installed revision is the distribution's own build of the source package pkg (as the security data
+// names it); strict is the rule for "not affected".
+func ownBuild(distro, pkg, version string, strict bool) bool {
 	rev := debver.Revision(version)
 	if distro == "debian" {
 		return debianOwnRE.MatchString(rev)
+	}
+	if !strict && (pkg == "linux" || strings.HasPrefix(pkg, "linux-")) && ubuntuKernelRE.MatchString(rev) {
+		return true
 	}
 	return ubuntuOwnRE.MatchString(rev) || !strict && debianOwnRE.MatchString(rev) && !strings.Contains(rev, "deb")
 }
@@ -129,7 +138,7 @@ func distroVerdict(in swInfo, v Vuln) (distroAnswer, bool) {
 	switch {
 	case fix != nil:
 		// only the backport case: the same epoch and upstream release, a revision the distribution builds (review H2)
-		if !debver.SameUpstream(in.pkgVer, fix.Fixed) || !ownBuild(d, in.pkgVer, false) {
+		if !debver.SameUpstream(in.pkgVer, fix.Fixed) || !ownBuild(d, pkg, in.pkgVer, false) {
 			return distroAnswer{}, false
 		}
 		c, err := debver.Compare(in.pkgVer, fix.Fixed)
@@ -141,7 +150,7 @@ func distroVerdict(in swInfo, v Vuln) (distroAnswer, bool) {
 			a.kind = distroFixedHere
 		}
 	case notAffected:
-		if !ownBuild(d, in.pkgVer, true) {
+		if !ownBuild(d, pkg, in.pkgVer, true) {
 			return distroAnswer{}, false
 		}
 		a.kind = distroNotAffected

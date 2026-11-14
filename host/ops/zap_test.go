@@ -178,12 +178,12 @@ func TestZapRulesetForOneAddressAndPort(t *testing.T) {
 	want := `table inet vedette_zap
 delete table inet vedette_zap
 table inet vedette_zap {
-	chain fwd {
+	chain zapfwd {
 		type filter hook forward priority -10; policy accept;
 		iifname "vedette-zap0" ip daddr 93.184.216.34 tcp dport 8443 accept
 		iifname "vedette-zap0" drop
 	}
-	chain in {
+	chain zapin {
 		type filter hook input priority -10; policy accept;
 		iifname "vedette-zap0" ip daddr 93.184.216.34 tcp dport 8443 accept
 		iifname "vedette-zap0" drop
@@ -241,10 +241,10 @@ func zapNftListing(ip string, port int, extra string) string {
 	accept := fmt.Sprintf(`{"match":{"op":"==","left":{"payload":{"protocol":"ip","field":"daddr"}},"right":%q}},{"match":{"op":"==","left":{"payload":{"protocol":"tcp","field":"dport"}},"right":%d}},{"accept":null}`, ip, port)
 	return `{"nftables":[{"metainfo":{"version":"1.0.9","release_name":"Old Doc Yak #3","json_schema_version":1}},` +
 		`{"table":{"family":"inet","name":"vedette_zap","handle":7}},` +
-		`{"chain":{"family":"inet","table":"vedette_zap","name":"fwd","handle":1,"type":"filter","hook":"forward","prio":-10,"policy":"accept"}},` +
-		rule("fwd", 3, accept) + "," + rule("fwd", 4, `{"drop":null}`) + "," +
-		`{"chain":{"family":"inet","table":"vedette_zap","name":"in","handle":2,"type":"filter","hook":"input","prio":-10,"policy":"accept"}},` +
-		rule("in", 5, accept) + "," + rule("in", 6, `{"drop":null}`) + extra + `]}`
+		`{"chain":{"family":"inet","table":"vedette_zap","name":"zapfwd","handle":1,"type":"filter","hook":"forward","prio":-10,"policy":"accept"}},` +
+		rule("zapfwd", 3, accept) + "," + rule("zapfwd", 4, `{"drop":null}`) + "," +
+		`{"chain":{"family":"inet","table":"vedette_zap","name":"zapin","handle":2,"type":"filter","hook":"input","prio":-10,"policy":"accept"}},` +
+		rule("zapin", 5, accept) + "," + rule("zapin", 6, `{"drop":null}`) + extra + `]}`
 }
 
 func TestZapRulesetLoadedReadsNftsListing(t *testing.T) {
@@ -256,7 +256,7 @@ func TestZapRulesetLoadedReadsNftsListing(t *testing.T) {
 	for name, out := range map[string]string{
 		"another port":    zapNftListing(zapTestIP, 80, ""),
 		"another address": zapNftListing("1.1.1.1", 443, ""),
-		"a third rule":    zapNftListing(zapTestIP, 443, `,{"rule":{"family":"inet","table":"vedette_zap","chain":"fwd","handle":9,"expr":[{"accept":null}]}}`),
+		"a third rule":    zapNftListing(zapTestIP, 443, `,{"rule":{"family":"inet","table":"vedette_zap","chain":"zapfwd","handle":9,"expr":[{"accept":null}]}}`),
 		"no input chain":  strings.Replace(zapNftListing(zapTestIP, 443, ""), `"hook":"input"`, `"hook":"output"`, 1),
 		"not JSON":        "table inet vedette_zap {",
 		"empty":           `{"nftables":[]}`,
@@ -264,6 +264,23 @@ func TestZapRulesetLoadedReadsNftsListing(t *testing.T) {
 		if zapRulesetLoaded([]byte(out), ip, 443) {
 			t.Errorf("%s: accepted", name)
 		}
+	}
+}
+
+// TestZapRulesetLoadedReadsRealNft: testdata/zap-nft-1.1.6-list.json is what nft 1.1.6 (Ubuntu 26.04, the N100) printed for
+// `nft -j list table inet vedette_zap` after `nft -f -` of zapRuleset(93.184.216.34, 8443), loaded twice in a throwaway network
+// namespace (unshare -n). nft refused the first chain names, "fwd" and "in", as a syntax error, so no fence ever loaded (n38).
+func TestZapRulesetLoadedReadsRealNft(t *testing.T) {
+	t.Parallel()
+	out, err := os.ReadFile(filepath.Join("testdata", "zap-nft-1.1.6-list.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !zapRulesetLoaded(out, zapIP(t), 8443) {
+		t.Fatal("nft 1.1.6's listing of the loaded table is not recognised")
+	}
+	if zapRulesetLoaded(out, zapIP(t), 443) {
+		t.Fatal("a listing of another port was accepted")
 	}
 }
 

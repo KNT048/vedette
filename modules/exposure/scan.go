@@ -313,7 +313,12 @@ func (s *Service) ScannableIP(ctx context.Context, actor string, ip netip.Addr) 
 func countsOf(c Content, extraIP string, now time.Time) Counts {
 	ips := map[string]bool{}
 	for _, h := range c.Hosts {
-		ips[h.IP] = true
+		if h.IP != "" {
+			ips[h.IP] = true
+		}
+		for _, a := range h.IPs {
+			ips[a.IP] = true
+		}
 	}
 	for _, p := range c.Ports {
 		ips[p.IP] = true
@@ -344,7 +349,7 @@ func sanitize(c Content) Content {
 	var out Content
 	for _, h := range c.Hosts {
 		if len(out.Hosts) < maxContentRows {
-			out.Hosts = append(out.Hosts, HostRow{Name: txt(h.Name), IP: txt(h.IP)})
+			out.Hosts = append(out.Hosts, sanitizeHost(h, txt))
 		}
 	}
 	for _, p := range c.Ports {
@@ -368,7 +373,12 @@ func sanitize(c Content) Content {
 		}
 		out.Certs = append(out.Certs, CertRow{Host: txt(x.Host), Issuer: txt(x.Issuer), ExpiresAt: store.FormatTS(t)})
 	}
-	return Content{Hosts: nz(out.Hosts), Ports: nz(out.Ports), AdminPanels: nz(out.AdminPanels), Certs: nz(out.Certs),
+	for _, n := range c.Unresolved {
+		if len(out.Unresolved) < maxContentRows && len(n) <= 253 && domainRE.MatchString(n) {
+			out.Unresolved = append(out.Unresolved, n)
+		}
+	}
+	return Content{Hosts: nz(out.Hosts), Ports: nz(out.Ports), AdminPanels: nz(out.AdminPanels), Certs: nz(out.Certs), Unresolved: out.Unresolved,
 		Services: sanitizeServices(c.Services), Templates: sanitizeTemplates(c.Templates, sanitizeServices(c.Services)), Checks: sanitizeChecks(c.Checks), NotChecked: sanitizeNotChecked(c.NotChecked), WebFindings: sanitizeWeb(c.WebFindings),
 		Greenbone: sanitizeGreenbone(c.Greenbone), Scripts: sanitizeScripts(c.Scripts)} // FULL-4 (Trưởng), for Mlee: Scripts (D-526)
 }

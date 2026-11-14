@@ -45,6 +45,9 @@ var (
 	ErrScanOff = apiErr(409, "module_off", "The Vulnerability scans module is off, so the box cannot scan. An admin can turn it on in Settings, Modules.")
 	// ErrCTDown: the certificate-transparency search gave no answer; a snapshot without the subdomains would say they are gone.
 	ErrCTDown = apiErr(502, "unreachable", "The certificate-transparency search (crt.sh) did not answer, so the scan stopped and nothing was saved. Try again in a few minutes.")
+	// ErrDNSDown: the box's DNS resolver gave no clear answer for the domain itself (INV-27); like ErrCTDown, a snapshot without
+	// the names would say they are gone.
+	ErrDNSDown = apiErr(502, "unreachable", "The box's DNS resolver gave no answer for this domain, so the scan stopped and nothing was saved. Check the box's DNS settings, then try again in a few minutes.")
 	// ErrScanTooLong: the scan hit its time cap.
 	ErrScanTooLong = apiErr(502, "unreachable", "The scan did not finish within 5 minutes, so nothing was saved. Try again later.")
 	// ErrScanBusy: another scan runs on the box (one at a time).

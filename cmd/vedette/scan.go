@@ -331,7 +331,11 @@ type scanProbeLog struct{ d deps }
 func (l scanProbeLog) Record(ctx context.Context, ps []surface.Probe) error {
 	rows := make([]scan.ExternalProbe, len(ps))
 	for i, p := range ps {
-		rows[i] = scan.ExternalProbe{ID: p.ID, IP: p.Addr.String(), Label: p.Label, Template: "exposure: " + p.Kind, Request: p.Request, Answered: p.Answered}
+		ip := p.Label // the DNS row of a domain scan goes to the box's resolver, not one address: its target is the domain (never empty, scan_probe CHECK)
+		if p.Addr.IsValid() {
+			ip = p.Addr.String()
+		}
+		rows[i] = scan.ExternalProbe{ID: p.ID, IP: ip, Label: p.Label, Template: "exposure: " + p.Kind, Request: p.Request, Answered: p.Answered}
 	}
 	return scanService(l.d).RecordExternalProbes(ctx, rows)
 }
@@ -407,6 +411,8 @@ func (r *exposureRunner) Scan(ctx context.Context, t exposure.ScanTarget) (expos
 		return exposure.Content{}, err
 	case errors.Is(err, surface.ErrCT):
 		return exposure.Content{}, fmt.Errorf("%w (%w)", exposure.ErrCTDown, err)
+	case errors.Is(err, surface.ErrDNS):
+		return exposure.Content{}, fmt.Errorf("%w (%w)", exposure.ErrDNSDown, err)
 	case errors.Is(err, surface.ErrTooManyNames):
 		return exposure.Content{}, exposure.TooManyNames(t.Value)
 	case errors.Is(err, surface.ErrTooLong):
@@ -421,8 +427,24 @@ func (r *exposureRunner) Scan(ctx context.Context, t exposure.ScanTarget) (expos
 func contentOf(r surface.Result) exposure.Content {
 	c := exposure.Content{Hosts: []exposure.HostRow{}, Ports: []exposure.PortRow{}, AdminPanels: []exposure.AdminRow{}, Certs: []exposure.CertRow{}}
 	for _, h := range r.Hosts {
-		c.Hosts = append(c.Hosts, exposure.HostRow{Name: h.Name, IP: h.IP.String()})
+		row := exposure.HostRow{Name: h.Name, Source: h.Source, CNAME: h.CNAME}
+		if h.IP.IsValid() {
+			row.IP = h.IP.String()
+		}
+		for _, a := range h.Addrs {
+			fam := "ipv4"
+			if a.IP.Is6() {
+				fam = "ipv6"
+			}
+			row.IPs = append(row.IPs, exposure.HostIP{IP: a.IP.String(), Family: fam, Class: a.Class, Contacted: a.Contacted})
+		}
+		c.Hosts = append(c.Hosts, row)
 	}
+	if text := map[string]string{surface.WordlistWildcard: exposure.NotWordlistWildcard, surface.WordlistNoAnswer: exposure.NotWordlistNoAnswer,
+		surface.WordlistCut: exposure.NotWordlistCut}[r.Wordlist]; text != "" {
+		c.NotChecked = append(c.NotChecked, exposure.NotCheckedRow{Kind: "wordlist", Text: text})
+	}
+	c.Unresolved = r.Unresolved // exposure carries their previous rows forward and says so (INV-27)
 	for _, p := range r.Ports {
 		c.Ports = append(c.Ports, exposure.PortRow{IP: p.IP.String(), Port: p.Port, Service: p.Service, Product: p.Product})
 	}

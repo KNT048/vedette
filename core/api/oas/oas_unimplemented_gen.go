@@ -1410,13 +1410,15 @@ func (UnimplementedHandler) ExposurePostExposureTargetsIDOutside(ctx context.Con
 // confirmation text changed"), a request without notice_version gets 409 notice_changed, and the
 // administrator's press replaces it. After those checks the Vulnerability scans module does the scan
 // (D-229, D-57 (7)): ports are scanned only on the box's own verified public IPs; a domain's names
-// from certificate transparency are listed and get one GET of / by name on ports 80 and 443. 409
-// module_off while that module is off; 409 busy while another scan runs on the box; 429 rate_limited
-// within 10 minutes of the target's last scan. Failures that come while the scan runs (400 too_many
-// when the domain has more than 300 names in the logs; 502 unreachable when the
-// certificate-transparency search (crt.sh) does not answer or the scan does not finish within 5
-// minutes; module_off when the module is switched off meanwhile) end the run as status failed with
-// that code and text, and nothing is saved. Every attempt is audited.
+// from certificate transparency, its MX and NS records and a list of common names (looked up through
+// the box's DNS resolver) are listed with the kind of each address (INV-27) and get one GET of / by
+// name on ports 80 and 443; only the box's own address is scanned beyond that. 409 module_off while
+// that module is off; 409 busy while another scan runs on the box; 429 rate_limited within 10 minutes
+// of the target's last scan. Failures that come while the scan runs (400 too_many when the domain has
+// more than 300 names in the logs; 502 unreachable when the certificate-transparency search (crt.sh)
+// does not answer or the scan does not finish within 5 minutes; module_off when the module is switched
+// off meanwhile) end the run as status failed with that code and text, and nothing is saved. Every
+// attempt is audited.
 //
 // POST /exposure/targets/{id}/scan
 func (UnimplementedHandler) ExposurePostExposureTargetsIDScan(ctx context.Context, req OptExposurePostExposureTargetsIDScanReq, params ExposurePostExposureTargetsIDScanParams) (r *ExposurePostExposureTargetsIDScanAccepted, _ error) {

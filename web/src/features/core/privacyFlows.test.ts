@@ -37,6 +37,12 @@ describe('Settings → Privacy flows match PRIVACY.md', () => {
     expect(plain(rows.get(9)![2]!)).toMatch(/the box checks again right before it that it still goes out through that IP/)
     expect(flows['9']!.what).toMatch(/one probe-log row for the run written before it starts \(the box checks again right before it that the IP is still its own\)\. For the names of your domain, one web-page check by name on ports 80 and 443\./)
   })
+  it('flow 9: the DNS lookups of a domain scan go through the box\'s resolver, the same words in both (D-567, exposure INV-27)', () => {
+    const sentence = "through this box's own DNS resolver (and from it the domain's DNS provider), the box looks up the A, AAAA and CNAME records"
+    expect(plain(rows.get(9)![2]!)).toContain(sentence)
+    expect(flows['9']!.what).toContain(sentence)
+    for (const text of [plain(rows.get(9)![2]!), flows['9']!.what]) expect(text).toContain("Names on addresses that are not this box's get no scan beyond the existing check by name on ports 80 and 443.")
+  })
   it('flow 9: the testing terms can be withdrawn per target, the same words in both (D-566 review r1 L3)', () => {
     const sentence = "Withdraw a target's testing terms (Ownership tab) to keep its scans to the Scan now scope"
     expect(plain(rows.get(9)![4]!)).toContain(sentence)

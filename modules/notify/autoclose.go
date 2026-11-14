@@ -36,9 +36,10 @@ var quietWindows = []struct {
 func heldKind(k IncidentKind) bool { return k == IncidentBadAddress || k == IncidentLogAnomaly }
 
 // runAutoClose is the body of the "autoclose" job: the first-run summary first (an incident held in it may also be quiet), then the
-// quiet incidents, then the new-device incidents of devices approved or renamed in Devices (D-552).
+// quiet incidents, then the new-device incidents of devices approved or renamed in Devices (D-552), then the discovery summary's
+// update for devices still untold (D-554).
 func (s *Service) runAutoClose(ctx context.Context) error {
-	return errors.Join(s.firstRunSummary(ctx), s.closeQuiet(ctx), s.followDevices(ctx))
+	return errors.Join(s.firstRunSummary(ctx), s.closeQuiet(ctx), s.followDevices(ctx), s.discoveryUpdate(ctx))
 }
 
 // followDevices is assetUpdated for every device on an open new-device incident (D-552): a device approved before this version, or

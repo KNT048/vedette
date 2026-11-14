@@ -7,6 +7,7 @@ import (
 	"errors"
 	"net/http"
 	"net/netip"
+	"strings"
 	"sync"
 	"time"
 
@@ -90,25 +91,46 @@ func (a notifyDevices) DeviceStates(ctx context.Context, ids []string) (map[stri
 	if err != nil {
 		return nil, err
 	}
+	var names map[string]string
 	for id, r := range refs {
-		out[id] = deviceState(r)
+		name, sure := refName(r)
+		if !sure {
+			if names == nil {
+				if names, err = a.inv.Names(ctx); err != nil {
+					return nil, err
+				}
+			}
+			if name = names[id]; name == id { // Names gives the id when nothing names the device
+				name = ""
+			}
+		}
+		out[id] = deviceState(r, name)
 	}
 	return out, nil
 }
 
-// deviceState is DeviceStates of one device of the inventory.
-func deviceState(r inventory.DeviceRef) notify.DeviceState {
-	product := r.Display // the first software's display name; DeviceRefs puts the kind there when the device has no software
-	if product == r.Kind {
-		product = ""
-	}
+// refName is inventory.DisplayName of a DeviceRef. DeviceRefs puts the kind in Display when the device has no software, and only a
+// declared device names itself after its first software, so a declared device whose Display is its kind is not sure (sure=false):
+// DeviceStates then asks inventory.Names, one light read of every device's name (rare: a product with no device has a name of its own).
+func refName(r inventory.DeviceRef) (name string, sure bool) {
 	var host string
 	if r.Hostname != nil {
 		host = *r.Hostname
 	}
+	product := r.Display
+	if product == r.Kind {
+		if r.Origin == "manual" && strings.TrimSpace(host) == "" {
+			return "", false
+		}
+		product = ""
+	}
+	return inventory.DisplayName(host, r.Vendor, r.Model, r.IP, r.Origin, product), true
+}
+
+// deviceState is DeviceStates of one device of the inventory, named name (refName).
+func deviceState(r inventory.DeviceRef, name string) notify.DeviceState {
 	mac := plainText(r.MAC, 64)
-	st := notify.DeviceState{Name: plainText(inventory.DisplayName(host, r.Vendor, r.Model, r.IP, r.Origin, product), 160), Address: mac,
-		Approved: r.Approved}
+	st := notify.DeviceState{Name: plainText(name, 160), Address: mac, Approved: r.Approved}
 	if _, err := netip.ParseAddr(r.IP); err == nil { // the inventory shows an em dash when the IP is unknown
 		st.Address = r.IP
 	}

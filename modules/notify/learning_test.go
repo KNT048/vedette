@@ -1,6 +1,7 @@
 package notify_test
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -101,5 +102,107 @@ func TestMergedDeviceLeavesItsIncidentNamingWhereItWent(t *testing.T) {
 	l, _ := e.svc.Incidents(e.ctx())
 	if l[0].Link != "/devices" || l[0].Title != "1 device found on your network: approve it in Devices" || len(l[0].Devices) != 1 || l[0].Devices[0].ID != "s2" {
 		t.Fatalf("summary = %+v", l[0])
+	}
+	publish(inventory.EventAssetDeleted, map[string]string{"asset_id": "lldp-2"})
+	publish(notify.EventAssetMerged, map[string]string{"from": "s2", "into": "ip-2"})
+	if i := e.detail(l[0].ID); i.Status != notify.StatusResolved || i.ResolvedReason == nil ||
+		*i.ResolvedReason != "Closed by Vedette: every device on it was approved or deleted in Devices, the last one merged into EX4300." {
+		t.Fatalf("summary whose last device was merged = %+v", i)
+	}
+}
+
+// D-554 (Opus review HIGH): devices that leave the summary do not hide the ones added later. Told at 4 devices, 3 deleted, a month
+// later a new sensor learns 2 more: each is told ("1 more device found"), and an acknowledged summary that takes a device is New again.
+// A device that leaves before it was told does not count as told: the next update still names every untold device.
+func TestDiscoverySummaryTellsDevicesAddedAfterOthersLeft(t *testing.T) {
+	e := newEnv(t, func(c *notify.Config) {
+		c.Devices = fakeDevices{"a1": "D-a1", "a2": "D-a2", "a3": "D-a3", "a4": "D-a4", "b1": "D-b1", "b2": "D-b2", "b3": "D-b3", "b4": "D-b4"}
+	})
+	e.firstRunAt(e.clock.Now())
+	e.telegram(notify.Low)
+	e.plain()
+	e.svc.Subscribe(e.bus)
+	pub := func(name string, d any) {
+		t.Helper()
+		if err := e.bus.Publish(e.ctx(), eventOf(name, d)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, id := range []string{"a1", "a2", "a3", "a4"} {
+		pub(inventory.EventAssetDiscovered, inventory.AssetEvent{AssetID: id, Notify: true})
+		e.clock.Add(2 * time.Hour)
+	}
+	e.flush()
+	sent := func() []string {
+		t.Helper()
+		var out []string
+		for _, c := range e.net.to("api.telegram.org") {
+			out = append(out, c.Body)
+		}
+		return out
+	}
+	before := len(sent())
+	for _, id := range []string{"a1", "a2", "a3"} {
+		pub(inventory.EventAssetDeleted, map[string]string{"asset_id": id})
+	}
+	l, _ := e.svc.Incidents(e.ctx())
+	if _, err := e.svc.HandleIncident(e.ctx(), "u-op", l[0].ID, notify.StatusAcknowledged, "seen"); err != nil {
+		t.Fatal(err)
+	}
+	e.clock.Add(30 * 24 * time.Hour)
+	pub(inventory.EventAssetDiscovered, inventory.AssetEvent{AssetID: "b1", Notify: true, Learning: true})
+	e.flush()
+	got := sent()
+	if len(got) != before+1 || !strings.Contains(got[len(got)-1], "2 devices found on your network") || !strings.Contains(got[len(got)-1], "1 more device found") {
+		t.Fatalf("after b1: %d messages (was %d), last %.300s", len(got), before, got[len(got)-1])
+	}
+	if i := e.detail(l[0].ID); i.Status != notify.StatusNew || i.HandledBy != nil || i.Note == nil || *i.Note != "seen" {
+		t.Fatalf("acknowledged summary that took a device = %+v", i)
+	}
+	// b2 comes within the hour (untold) and leaves before it is told; b3 comes later: the update counts only b3
+	e.clock.Add(10 * time.Minute)
+	pub(inventory.EventAssetDiscovered, inventory.AssetEvent{AssetID: "b2", Notify: true, Learning: true})
+	pub(inventory.EventAssetDeleted, map[string]string{"asset_id": "b2"})
+	e.clock.Add(2 * time.Hour)
+	pub(inventory.EventAssetDiscovered, inventory.AssetEvent{AssetID: "b3", Notify: true, Learning: true})
+	e.flush()
+	if got = sent(); len(got) != before+2 || !strings.Contains(got[len(got)-1], "3 devices found on your network") || !strings.Contains(got[len(got)-1], "1 more device found") {
+		t.Fatalf("after b3: %d messages, last %.300s", len(got), got[len(got)-1])
+	}
+}
+
+// D-554 (Opus review MED): a burst within the hour after a message is told by the hourly job, once, with every untold device.
+func TestDiscoveryBurstIsToldByTheHourlyJob(t *testing.T) {
+	e := newEnv(t, func(c *notify.Config) {
+		c.Devices = fakeDevices{"a1": "D-a1", "a2": "D-a2", "a3": "D-a3", "a4": "D-a4"}
+	})
+	e.firstRunAt(e.clock.Now().AddDate(0, -2, 0))
+	e.telegram(notify.Low)
+	e.plain()
+	e.svc.Subscribe(e.bus)
+	for _, id := range []string{"a1", "a2", "a3", "a4"} {
+		if err := e.bus.Publish(e.ctx(), eventOf(inventory.EventAssetDiscovered, inventory.AssetEvent{AssetID: id, Notify: true, Learning: true})); err != nil {
+			t.Fatal(err)
+		}
+		e.clock.Add(time.Minute)
+	}
+	e.flush()
+	if n := len(e.net.to("api.telegram.org")); n != 1 {
+		t.Fatalf("messages after the burst = %d, want the summary", n)
+	}
+	l, _ := e.svc.Incidents(e.ctx())
+	if !strings.Contains(l[0].What, "A sensor started watching your network") {
+		t.Fatalf("what = %q", l[0].What)
+	}
+	e.autoClose() // within the hour: nothing yet
+	e.flush()
+	e.clock.Add(time.Hour)
+	e.autoClose()
+	e.flush()
+	e.autoClose() // nothing left to tell
+	e.flush()
+	calls := e.net.to("api.telegram.org")
+	if len(calls) != 2 || !strings.Contains(calls[1].Body, "4 devices found on your network") || !strings.Contains(calls[1].Body, "3 more devices found") {
+		t.Fatalf("calls = %d, last %.300s", len(calls), calls[len(calls)-1].Body)
 	}
 }

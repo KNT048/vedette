@@ -297,18 +297,15 @@ func (s *Service) assetEvent(ctx context.Context, data any) error {
 			name = deviceLabel(st)
 		}
 	}
-	first := e.Learning
-	if !first {
-		var err error
-		if first, err = s.firstDiscovery(ctx); err != nil {
-			return err
-		}
+	inWindow, err := s.firstDiscovery(ctx)
+	if err != nil {
+		return err
 	}
-	if first {
-		return s.discoveryIncident(ctx, Device{ID: e.AssetID, Name: name})
+	if inWindow || e.Learning {
+		return s.discoveryIncident(ctx, Device{ID: e.AssetID, Name: name}, !inWindow)
 	}
 	title, what := newDeviceTexts(name)
-	_, _, err := s.OpenIncident(ctx, IncidentInput{Kind: IncidentUnknownDevice, Source: e.AssetID, Title: title, Severity: Medium, What: what,
+	_, _, err = s.OpenIncident(ctx, IncidentInput{Kind: IncidentUnknownDevice, Source: e.AssetID, Title: title, Severity: Medium, What: what,
 		Action: "Find out whose device it is. Add it to the inventory if it belongs to you, otherwise remove it from the network.",
 		Link:   "/devices/" + e.AssetID, Devices: []Device{{ID: e.AssetID, Name: name}}})
 	return err
@@ -498,6 +495,9 @@ func (s *Service) assetApproved(ctx context.Context, data any) error {
 // deletedInDevices starts the reason of a device's own new-device incident closed by inventory.asset.deleted (assetDeleted).
 const deletedInDevices = "Closed by Vedette: the device was deleted in Devices"
 
+// mergedInto starts the reason of a device inventory joined into another (assetMerged).
+const mergedInto = "Closed by Vedette: merged into "
+
 // assetMerged takes the row inventory joined into another device (inventory.asset.merged {from, into}, D-515) off the open new-device
 // incidents like a delete (INV-20), with the reason that says where it went (D-554): "Closed by Vedette: merged into <name>.". The
 // device it joined keeps its own incident: it is still to approve. Inventory also publishes inventory.asset.deleted for from, in
@@ -524,7 +524,7 @@ func (s *Service) assetMerged(ctx context.Context, data any) error {
 			into = deviceLabel(st)
 		}
 	}
-	reason := "Closed by Vedette: merged into " + into + "."
+	reason := mergedInto + into + "."
 	return s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
 		if err := s.leaveDevice(ctx, tx, e.From, reason, nil); err != nil {
 			return err
@@ -594,25 +594,38 @@ func (s *Service) leaveDevice(ctx context.Context, tx *sql.Tx, assetID, reason s
 			}
 			continue
 		}
+		// Was the device told? The untold devices are the newest ones (count above notify_box.discovery_told_count); the rows are
+		// added in order, so the device was told unless it is among the newest untold listed rows (rowid order). A told device leaving
+		// lowers the told count, so the devices added after the last message stay untold (tellDiscovery). ponytail: a list that hit
+		// maxDiscoveryDevices and then lost rows lists later devices out of order; the guess can then be off by the devices it skipped.
+		var rows, newer, count, told int // count can be above the listed rows: the list stops at maxDiscoveryDevices
+		if err := tx.QueryRowContext(ctx, `SELECT (SELECT COUNT(*) FROM notify_incident_device WHERE incident_id = ?),
+			(SELECT COUNT(*) FROM notify_incident_device WHERE incident_id = ? AND rowid > (SELECT rowid FROM notify_incident_device WHERE incident_id = ? AND asset_id = ?)),
+			i.count, b.discovery_told_count FROM notify_incident i, notify_box b WHERE i.id = ? AND b.id = 1`,
+			o.id, o.id, o.id, assetID, o.id).Scan(&rows, &newer, &count, &told); err != nil {
+			return fmt.Errorf("notify: count discovered devices: %w", err)
+		}
+		listedUntold := max(0, max(rows, count)-told-max(0, count-rows))
+		if newer >= listedUntold && told > 0 {
+			if _, err := tx.ExecContext(ctx, `UPDATE notify_box SET discovery_told_count = ? WHERE id = 1`, told-1); err != nil {
+				return fmt.Errorf("notify: count told devices: %w", err)
+			}
+		}
 		if _, err := tx.ExecContext(ctx, `DELETE FROM notify_incident_device WHERE incident_id = ? AND asset_id = ?`, o.id, assetID); err != nil {
 			return fmt.Errorf("notify: take a device off the summary: %w", err)
 		}
-		var n, count int // count can be above the listed rows: the list stops at maxDiscoveryDevices
-		if err := tx.QueryRowContext(ctx, `SELECT (SELECT COUNT(*) FROM notify_incident_device WHERE incident_id = ?), count FROM notify_incident WHERE id = ?`, o.id, o.id).Scan(&n, &count); err != nil {
-			return fmt.Errorf("notify: count discovered devices: %w", err)
-		}
-		n = max(n, count-1)
+		n := max(rows-1, count-1)
 		if n == 0 {
-			if err := s.closeBySystem(ctx, tx, o.id, o.title, "Closed by Vedette: every device on it was approved or deleted in Devices."); err != nil {
+			why := "Closed by Vedette: every device on it was approved or deleted in Devices."
+			if strings.HasPrefix(reason, mergedInto) { // the last one was merged: say where it went (D-554)
+				why = "Closed by Vedette: every device on it was approved or deleted in Devices, the last one " + strings.TrimPrefix(reason, "Closed by Vedette: ")
+			}
+			if err := s.closeBySystem(ctx, tx, o.id, o.title, why); err != nil {
 				return err
 			}
 			continue
 		}
-		title := fmt.Sprintf("%d devices found on your network: approve them in Devices", n)
-		if n == 1 {
-			title = "1 device found on your network: approve it in Devices"
-		}
-		if _, err := tx.ExecContext(ctx, `UPDATE notify_incident SET title = ?, count = ? WHERE id = ?`, title, n, o.id); err != nil {
+		if _, err := tx.ExecContext(ctx, `UPDATE notify_incident SET title = ?, count = ? WHERE id = ?`, discoveryTitle(n), n, o.id); err != nil {
 			return fmt.Errorf("notify: name discovered devices: %w", err)
 		}
 	}
@@ -648,16 +661,20 @@ func (s *Service) firstDiscovery(ctx context.Context) (bool, error) {
 	return s.now().Sub(at) < firstDiscoveryWindow, nil
 }
 
-// discoveryIncident adds a device to the summary incident of the first discovery: the first device opens it (and its one message goes
-// out, if the channels take medium), the next ones add to its list and count, and its title says how many there are. When it grew
-// since its last message and that was at least discoveryUpdateEvery ago, it tells people again with the new count, so a device found
-// at hour 20 is not silent. ponytail: the update goes with a new device, so devices found within the hour after an update wait for the
-// next one (they are on the incident at once); upgrade path: a due update row in notify_pending.
-func (s *Service) discoveryIncident(ctx context.Context, d Device) error {
+// discoveryIncident adds a device to the summary incident of the first discovery (D-483) or of a sensor's learning (D-554): the first
+// device opens it (and its one message goes out, if the channels take medium), the next ones add to its list and count, and its title
+// says how many there are. An acknowledged summary that takes a new device goes back to New: a person acknowledged the devices they
+// saw, not this one. Devices added since its last message are told again (tellDiscovery) with the device, and by the hourly autoclose
+// job when they came within the hour after a message, so no device found by a burst stays untold.
+func (s *Service) discoveryIncident(ctx context.Context, d Device, learning bool) error {
+	what := "This is Vedette's first look at your network, so every device on it is new. Instead of one alert per device, the devices found in " +
+		"its first 36 hours are listed together here."
+	if learning {
+		what = "A sensor started watching your network less than 36 hours ago, so every device it finds is new to Vedette. Instead of one alert " +
+			"per device, the devices it finds while it learns the network are listed together here."
+	}
 	id, created, err := s.OpenIncident(ctx, IncidentInput{Kind: IncidentUnknownDevice, Source: firstDiscoverySource, Severity: Medium,
-		Title: "Devices found on your network: approve them in Devices",
-		What: "This is the first look of Vedette or of one of its sensors at your network, so every device it finds is new. Instead of one alert per " +
-			"device, the devices found in the first 36 hours are listed together here.",
+		Title: "Devices found on your network: approve them in Devices", What: what,
 		Action: "Open Devices, approve the devices you know, and find out about the ones you do not.",
 		Link:   "/devices", Devices: []Device{d}})
 	if err != nil || id == "" {
@@ -679,38 +696,78 @@ func (s *Service) discoveryIncident(ctx context.Context, d Device) error {
 			}
 		}
 		var count int
-		if err := tx.QueryRowContext(ctx, `SELECT count FROM notify_incident WHERE id = ?`, id).Scan(&count); err != nil {
+		var status, title string
+		if err := tx.QueryRowContext(ctx, `SELECT count, status, title FROM notify_incident WHERE id = ?`, id).Scan(&count, &status, &title); err != nil {
 			return fmt.Errorf("notify: count discovered devices: %w", err)
 		}
 		count = max(n, count)
-		title := fmt.Sprintf("%d devices found on your network: approve them in Devices", count)
-		if count == 1 {
-			title = "1 device found on your network: approve it in Devices"
-		}
-		if _, err := tx.ExecContext(ctx, `UPDATE notify_incident SET title = ? WHERE id = ?`, title, id); err != nil {
+		if _, err := tx.ExecContext(ctx, `UPDATE notify_incident SET title = ? WHERE id = ?`, discoveryTitle(count), id); err != nil {
 			return fmt.Errorf("notify: name discovered devices: %w", err)
 		}
 		if created { // its first message is queued by OpenIncident
 			_, err := tx.ExecContext(ctx, `UPDATE notify_box SET discovery_told_at = ?, discovery_told_count = ? WHERE id = 1`, store.FormatTS(now), count)
 			return err
 		}
-		var toldAt sql.NullString
-		var told int
-		if err := tx.QueryRowContext(ctx, `SELECT discovery_told_at, discovery_told_count FROM notify_box WHERE id = 1`).Scan(&toldAt, &told); err != nil {
-			return fmt.Errorf("notify: read discovery updates: %w", err)
+		if status == string(StatusAcknowledged) {
+			if _, err := tx.ExecContext(ctx, `UPDATE notify_incident SET status = 'new', handled_by = NULL, handled_at = NULL, active_at = ? WHERE id = ?`,
+				store.FormatTS(now), id); err != nil {
+				return fmt.Errorf("notify: reopen the discovery summary: %w", err)
+			}
+			if err := s.record(ctx, tx, systemUser, "notify.incident_status", clip(title, 400), "new: a new device was found"); err != nil {
+				return err
+			}
 		}
-		last, _ := time.Parse(time.RFC3339Nano, toldAt.String)
-		if count <= told || now.Sub(last) < discoveryUpdateEvery {
-			return nil
-		}
-		if err := s.enqueue(ctx, tx, Notice{ID: id, Kind: KindIncident, IncidentKind: string(IncidentUnknownDevice), Severity: Medium, Title: title,
-			What:   fmt.Sprintf("%s since the last message. Vedette lists the devices of a first look at your network together for 36 hours.", plural(count-told, "more device found", "more devices found")),
-			Action: "Open Devices, approve the devices you know, and find out about the ones you do not.", Link: s.link("/incidents/" + id), At: now}); err != nil {
-			return err
-		}
-		_, err := tx.ExecContext(ctx, `UPDATE notify_box SET discovery_told_at = ?, discovery_told_count = ? WHERE id = 1`, store.FormatTS(now), count)
-		return err
+		return s.tellDiscovery(ctx, tx, id, count, now)
 	})
+}
+
+// discoveryTitle is the title of the discovery summary with count devices.
+func discoveryTitle(count int) string {
+	if count == 1 {
+		return "1 device found on your network: approve it in Devices"
+	}
+	return fmt.Sprintf("%d devices found on your network: approve them in Devices", count)
+}
+
+// tellDiscovery queues the short "N more devices found" update of the discovery summary id when devices were added since its last
+// message (count above notify_box.discovery_told_count; leaveDevice lowers that count when a told device leaves) and that message
+// is at least discoveryUpdateEvery old.
+func (s *Service) tellDiscovery(ctx context.Context, tx *sql.Tx, id string, count int, now time.Time) error {
+	var toldAt sql.NullString
+	var told int
+	if err := tx.QueryRowContext(ctx, `SELECT discovery_told_at, discovery_told_count FROM notify_box WHERE id = 1`).Scan(&toldAt, &told); err != nil {
+		return fmt.Errorf("notify: read discovery updates: %w", err)
+	}
+	last, _ := time.Parse(time.RFC3339Nano, toldAt.String)
+	if count <= told || now.Sub(last) < discoveryUpdateEvery {
+		return nil
+	}
+	if err := s.enqueue(ctx, tx, Notice{ID: id, Kind: KindIncident, IncidentKind: string(IncidentUnknownDevice), Severity: Medium, Title: discoveryTitle(count),
+		What:   plural(count-told, "more device found", "more devices found") + " since the last message. Devices found while Vedette or a new sensor learns your network are listed together for 36 hours.",
+		Action: "Open Devices, approve the devices you know, and find out about the ones you do not.", Link: s.link("/incidents/" + id), At: now}); err != nil {
+		return err
+	}
+	_, err := tx.ExecContext(ctx, `UPDATE notify_box SET discovery_told_at = ?, discovery_told_count = ? WHERE id = 1`, store.FormatTS(now), count)
+	return err
+}
+
+// discoveryUpdate is the hourly part of tellDiscovery (autoclose job): devices that came within the hour after the summary's last
+// message, with no device after them, are told now. An open summary with nothing untold costs one read and no write.
+func (s *Service) discoveryUpdate(ctx context.Context) error {
+	var id string
+	var count, told int
+	switch err := s.cfg.DB.Reader().QueryRowContext(ctx, `SELECT i.id, i.count, b.discovery_told_count FROM notify_incident i, notify_box b
+		WHERE b.id = 1 AND i.dedupe_key = ? AND i.status <> 'resolved'`, newDeviceKey(firstDiscoverySource)).Scan(&id, &count, &told); {
+	case errors.Is(err, sql.ErrNoRows):
+		return nil
+	case err != nil:
+		return fmt.Errorf("notify: read the discovery summary: %w", err)
+	}
+	if count <= told {
+		return nil
+	}
+	now := s.now()
+	return s.cfg.DB.Write(ctx, func(tx *sql.Tx) error { return s.tellDiscovery(ctx, tx, id, count, now) })
 }
 
 // hitEvent opens a trap incident for a honeypot hit (S-HP-1). Every text from the event is data from the

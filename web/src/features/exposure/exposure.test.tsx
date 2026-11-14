@@ -1294,7 +1294,7 @@ describe('exposure: services and exploited vulnerabilities of the box IP (S-EXP-
 
 describe('exposure: optional deep scan with Greenbone (S-EXP-2, INV-25, D-563)', () => {
   afterEach(() => { localStorage.removeItem('vedette-mock-box-memory'); localStorage.removeItem('vedette-mock-box-disk') })
-  const section = () => screen.findByRole('region', { name: 'Optional deep scan: OpenVAS (Greenbone Community Edition)' })
+  const section = () => screen.findByRole('region', { name: 'Optional deep scan: OpenVAS' })
 
   it('off by default: shows the box\'s numbers and what it needs before Enable; an administrator enables it and it starts; axe clean', async () => {
     renderApp('/exposure')

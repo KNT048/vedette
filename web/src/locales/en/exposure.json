@@ -491,8 +491,8 @@
     "toastWithdrawn": "Testing terms withdrawn. The next scan is in the Scan now scope."
   },
   "greenbone": {
-    "title": "Optional deep scan: OpenVAS (Greenbone Community Edition)",
-    "description": "OpenVAS is a free vulnerability scanner that runs as its own containers next to Vedette. When it is on, each scan of the box's own verified public IP whose testing terms are accepted ends with an OpenVAS scan of that IP. Off by default.",
+    "title": "Optional deep scan: OpenVAS",
+    "description": "OpenVAS (Greenbone Community Edition, free, with the Greenbone Community Feed; not the paid Greenbone Enterprise) is an open-source vulnerability scanner that runs as its own containers next to Vedette. When it is on, each scan of the box's own verified public IP whose testing terms are accepted ends with an OpenVAS scan of that IP. Off by default.",
     "state": { "unavailable": "Not available", "off": "Off", "starting": "Starting", "loading": "Loading its feed", "ready": "Ready", "error": "Error" },
     "stateText": {
       "off": "OpenVAS is off. Scans do not use it.",

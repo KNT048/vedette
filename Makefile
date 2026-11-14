@@ -298,11 +298,13 @@ core-image: webui-dist check-min-sequence
 
 # The safe template pack: pinned download of nuclei-templates, filter, index (scripts/scanpack). Rebuilt (the folder removed first) whenever pins.env or the builder changes.
 scan-pack: $(PACK_DIR)/index.json
-$(PACK_DIR)/index.json: deploy/containers/pins.env $(wildcard scripts/scanpack/*.go) $(wildcard modules/scan/pack/*.go)
+$(PACK_DIR)/index.json: deploy/containers/pins.env $(wildcard scripts/scanpack/*.go) scripts/scanpack/reviewed.tsv $(wildcard modules/scan/pack/*.go)
 	rm -rf $(PACK_DIR)
 	go run ./scripts/scanpack -src-version $(NUCLEI_TEMPLATES_VERSION) -src-sha256 $(NUCLEI_TEMPLATES_SHA256) -version $(SCAN_PACK_VERSION) -out $(PACK_DIR)
 	# core plans jobs against the same index (scan S5): a committed copy, embedded by content/nucleipack; a test holds it to pins.env
 	cp $(PACK_DIR)/index.json content/nucleipack/index.json
+	# D-528 step 2: the KEV templates waiting for a reviewer; not shipped in the image
+	mv $(PACK_DIR)/review-queue.md docs/research/kev-review-queue.md
 	printf 'nuclei_templates_version: %s\nnuclei_templates_sha256: %s\nscan_pack_version: %s\n' '$(NUCLEI_TEMPLATES_VERSION)' '$(NUCLEI_TEMPLATES_SHA256)' '$(SCAN_PACK_VERSION)' > content/nucleipack/index.source
 
 # Multi-arch (WP-08d, D-158): one manifest list per image, every platform of PLATFORMS in it, local only (the push is the release job's, WP-08k).

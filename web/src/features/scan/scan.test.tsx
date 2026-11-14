@@ -420,7 +420,7 @@ describe('scan: lịch và an toàn (S-SCAN-4)', () => {
     expect(screen.getByLabelText('Until')).toHaveValue('05:00')
     expect(screen.getByLabelText('Speed')).toHaveValue('5')
     expect(screen.getByLabelText('One IP or network per line')).toHaveValue('192.168.10.240')
-    expect(screen.getByText('No exploitation, no denial of service')).toBeInTheDocument()
+    expect(screen.getByText('No changes, no denial of service')).toBeInTheDocument()
     expect(screen.getByText(/Never guesses passwords/)).toBeInTheDocument()
     expect(screen.getByText(/Next scan: /)).toBeInTheDocument()
     expect(screen.getByRole('switch', { name: 'Stop automatically when a device does not respond' })).toBeChecked()

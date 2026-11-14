@@ -43763,10 +43763,10 @@ type ExposureGetExposureGreenboneOKPreflight struct {
 	DiskFreeBytes NilInt `json:"disk_free_bytes"`
 	// MemTotal of the box; null when it could not be read.
 	MemoryBytes NilInt `json:"memory_bytes"`
-	// Both meet the thresholds: 8 GB (decimal) of memory and 60 GB free.
+	// Both meet the thresholds: 6 GB (decimal) of memory and 60 GB free (D-569).
 	Ok bool `json:"ok"`
-	// Why it cannot be enabled, with the measured number, e.g. "This box has 7.1 GB of memory; Greenbone
-	// needs at least 8.0 GB.".
+	// Why it cannot be enabled, with the measured number, e.g. "This box has 5.9 GB of memory; OpenVAS
+	// needs at least 6.0 GB.".
 	Reason NilString `json:"reason"`
 }
 
@@ -51954,10 +51954,10 @@ type ExposurePutExposureGreenboneOKPreflight struct {
 	DiskFreeBytes NilInt `json:"disk_free_bytes"`
 	// MemTotal of the box; null when it could not be read.
 	MemoryBytes NilInt `json:"memory_bytes"`
-	// Both meet the thresholds: 8 GB (decimal) of memory and 60 GB free.
+	// Both meet the thresholds: 6 GB (decimal) of memory and 60 GB free (D-569).
 	Ok bool `json:"ok"`
-	// Why it cannot be enabled, with the measured number, e.g. "This box has 7.1 GB of memory; Greenbone
-	// needs at least 8.0 GB.".
+	// Why it cannot be enabled, with the measured number, e.g. "This box has 5.9 GB of memory; OpenVAS
+	// needs at least 6.0 GB.".
 	Reason NilString `json:"reason"`
 }
 

@@ -1300,7 +1300,8 @@ describe('exposure: optional deep scan with Greenbone (S-EXP-2, INV-25, D-563)',
     renderApp('/exposure')
     const s = await section()
     expect(await within(s).findByText('Off')).toBeInTheDocument()
-    expect(within(s).getByText("Needs about 50 GB of disk and about 2 hours to load the OpenVAS feed the first time. The box must have at least 8 GB of memory and 60 GB free.")).toBeInTheDocument()
+    expect(within(s).getByText("Needs about 50 GB of disk and about 2 hours to load the OpenVAS feed the first time. The box must have at least 6 GB of memory and 60 GB free.")).toBeInTheDocument()
+    expect(within(s).queryByText(/may use swap/)).toBeNull()
     expect(within(s).getByText('16.0 GB')).toBeInTheDocument()
     expect(within(s).getByText('180.0 GB')).toBeInTheDocument()
     await expectNoA11yViolations()
@@ -1313,11 +1314,20 @@ describe('exposure: optional deep scan with Greenbone (S-EXP-2, INV-25, D-563)',
     expect(within(s).getByText('Next feed update')).toBeInTheDocument()
   })
 
-  it('the refusal shows the measured numbers: 7.1 GB of memory, then too little disk', async () => {
+  it('D-569: a 7.1 GB box may enable it, with the swap note', async () => {
     localStorage.setItem('vedette-mock-box-memory', '7100000000')
     renderApp('/exposure')
     const s = await section()
-    expect(await within(s).findByRole('alert')).toHaveTextContent('This box has 7.1 GB of memory; OpenVAS needs at least 8.0 GB.')
+    expect(await within(s).findByText('The first feed load may use swap on a box under 8 GB (the 7 GB test box used about 2 GB of swap).')).toBeInTheDocument()
+    expect(within(s).queryByRole('alert')).toBeNull()
+    expect(within(s).getByRole('button', { name: 'Enable OpenVAS' })).toBeEnabled()
+  })
+
+  it('the refusal shows the measured numbers: 5.9 GB of memory, then too little disk', async () => {
+    localStorage.setItem('vedette-mock-box-memory', '5900000000')
+    renderApp('/exposure')
+    const s = await section()
+    expect(await within(s).findByRole('alert')).toHaveTextContent('This box has 5.9 GB of memory; OpenVAS needs at least 6.0 GB.')
     expect(within(s).getByRole('button', { name: 'Enable OpenVAS' })).toBeDisabled()
     const r = await call('PUT', '/exposure/greenbone', { enabled: true })
     expect(r.status).toBe(409)

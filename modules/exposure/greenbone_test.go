@@ -557,8 +557,8 @@ func FuzzDecodeGMPReport(f *testing.F) {
 
 // ---- the setting ----
 
-// INV-25: the preflight refuses below 8 GB (decimal) of memory or 60 GB free, with the measured number in plain English, and accepts
-// a real 8 GiB machine (about 7.7 GiB reported).
+// INV-25: the preflight refuses below 6 GB (decimal) of memory or 60 GB free, with the measured number in plain English, and accepts
+// the 7 GB box of the trial (D-569).
 func TestContract_INV25_Preflight(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
@@ -567,9 +567,9 @@ func TestContract_INV25_Preflight(t *testing.T) {
 		code      string
 		text      string
 	}{
-		{"7.1 GB of memory", 7_100_000_000, 200e9, "low_memory", "This box has 7.1 GB of memory; OpenVAS needs at least 8.0 GB."},
+		{"5.9 GB of memory", 5_900_000_000, 200e9, "low_memory", "This box has 5.9 GB of memory; OpenVAS needs at least 6.0 GB."},
 		{"low disk", 16 * gib, 41_300_000_000, "low_disk", "This box has 41.3 GB of free disk space; OpenVAS needs at least 60.0 GB free."},
-		{"8.3 GB of memory", 8_300_000_000, 60e9, "", ""},
+		{"7.1 GB of memory", 7_100_000_000, 60e9, "", ""},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

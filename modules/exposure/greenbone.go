@@ -87,10 +87,10 @@ type GreenboneRow struct {
 
 // Limits and timing of the deep scan (INV-25).
 const (
-	// GreenboneMinMemory is the least memory (MemTotal) the box needs before Greenbone may be enabled: 8 GB decimal, Greenbone's
-	// recommended size. Decimal on purpose: a machine sold as "8 GB" has 8 GiB and its kernel reports about 7.7 GiB (8.3e9 bytes) of
-	// MemTotal, which passes; the 7 GB N100 of the trial (D-494) does not.
-	GreenboneMinMemory = 8_000_000_000
+	// GreenboneMinMemory is the least memory (MemTotal) the box needs before OpenVAS may be enabled: 6 GB decimal (D-569). The trial
+	// on the 7 GB N100 next to Vedette peaked at about 4.0 GB used, with about 2 GB of swap during the first feed import and
+	// 1.9 to 2.4 GB during the scan, so a 7 GB box passes; below 8 GB the page notes that the first feed load may use swap.
+	GreenboneMinMemory = 6_000_000_000
 	// GreenboneMinDisk is the least free space of the box data directory's filesystem: images 9 GB + feed volumes 41 GB measured, plus
 	// room for the reports and updates. ponytail: statfs of the data dir, since podman keeps its volumes on the same filesystem by
 	// default; upgrade: the host measures podman's own storage (graphroot) and reports it.

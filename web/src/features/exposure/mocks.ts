@@ -65,7 +65,7 @@ const WEEK_MS = 7 * 24 * 3600 * 1000
 function greenboneView(): Greenbone {
   const g = greenbone.get()
   const mem = measured('vedette-mock-box-memory', 16e9), disk = measured('vedette-mock-box-disk', 180e9)
-  const reason = mem < 8e9 ? `This box has ${gbText(mem)} of memory; OpenVAS needs at least 8.0 GB.` : disk < 60e9 ? `This box has ${gbText(disk)} of free disk space; OpenVAS needs at least 60.0 GB free.` : null
+  const reason = mem < 6e9 ? `This box has ${gbText(mem)} of memory; OpenVAS needs at least 6.0 GB.` : disk < 60e9 ? `This box has ${gbText(disk)} of free disk space; OpenVAS needs at least 60.0 GB free.` : null
   const since = g.changed_at ? Date.now() - Date.parse(g.changed_at) : 0
   const state = !g.enabled ? 'off' : since < 3000 ? 'starting' : since < 15000 ? 'loading' : 'ready'
   // D-564 G6: the first weekly feed update is due a week after Enable (the mock never runs it)
@@ -635,7 +635,7 @@ export const handlers = [
     if (typeof b.enabled !== 'boolean') return fail(400, 'bad_body', 'enabled must be true or false.')
     const before = greenboneView()
     if (b.enabled === before.enabled) return HttpResponse.json(before)
-    if (b.enabled && !before.preflight.ok) return fail(409, before.preflight.memory_bytes! < 8e9 ? 'low_memory' : 'low_disk', before.preflight.reason!)
+    if (b.enabled && !before.preflight.ok) return fail(409, before.preflight.memory_bytes! < 6e9 ? 'low_memory' : 'low_disk', before.preflight.reason!)
     greenbone.set({ enabled: b.enabled, changed_by: currentUser()?.email ?? null, changed_at: nowIso() })
     audit('exposure.greenbone', 'OpenVAS', b.enabled ? `enabled (memory ${gbText(before.preflight.memory_bytes!)}, free disk ${gbText(before.preflight.disk_free_bytes!)})` : 'disabled (data kept)')
     return HttpResponse.json(greenboneView())

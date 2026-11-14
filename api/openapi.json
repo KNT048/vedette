@@ -21505,7 +21505,7 @@
                                   },
                                   "disruptive": {
                                     "type": "boolean",
-                                    "description": "The extra tick: denial of service, password guessing, default-password sign-ins and exploit checks too"
+                                    "description": "The extra tick: denial of service, password guessing, default-password sign-ins and exploit checks built to change data too"
                                   }
                                 },
                                 "required": [
@@ -22650,7 +22650,7 @@
                                   },
                                   "disruptive": {
                                     "type": "boolean",
-                                    "description": "The extra tick: denial of service, password guessing, default-password sign-ins and exploit checks too"
+                                    "description": "The extra tick: denial of service, password guessing, default-password sign-ins and exploit checks built to change data too"
                                   }
                                 },
                                 "required": [
@@ -23263,7 +23263,7 @@
                             },
                             "disruptive": {
                               "type": "boolean",
-                              "description": "The extra tick: denial of service, password guessing, default-password sign-ins and exploit checks too"
+                              "description": "The extra tick: denial of service, password guessing, default-password sign-ins and exploit checks built to change data too"
                             }
                           },
                           "required": [
@@ -23767,7 +23767,7 @@
                             },
                             "disruptive": {
                               "type": "boolean",
-                              "description": "The extra tick: denial of service, password guessing, default-password sign-ins and exploit checks too"
+                              "description": "The extra tick: denial of service, password guessing, default-password sign-ins and exploit checks built to change data too"
                             }
                           },
                           "required": [
@@ -24873,17 +24873,24 @@
                                   "type": "boolean"
                                 },
                                 "deep": {
-                                  "description": "D-571: what this run's deep scan did with the address (domain terms accepted): scanned (the deep steps ran), waiting (left by the cap, next_in_line), fence (not this box's, and the box has no domain fence: by-name checks only), refused (the re-check right before it refused: nothing sent). Missing: no deep scan (terms not accepted, IPv6 or private)",
+                                  "description": "D-571: what this run's deep scan did with the address (domain terms accepted): scanned (service identification ran), waiting (left by the cap, next_in_line), fence (not this box's, and the box has no domain fence: by-name checks only), refused (the re-check right before it refused: nothing sent), incomplete (the re-check passed but service identification did not finish: its ports are not known this run). Missing: no deep scan (terms not accepted, IPv6 or private)",
                                   "type": "string",
                                   "enum": [
                                     "scanned",
                                     "waiting",
                                     "fence",
-                                    "refused"
+                                    "refused",
+                                    "incomplete"
                                   ]
                                 },
                                 "last_deep": {
                                   "description": "D-571: when a run last deep-scanned this address (rotation: the least recently scanned go first)",
+                                  "type": "string",
+                                  "format": "date-time",
+                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                },
+                                "last_tried": {
+                                  "description": "D-571 review r1 M3: when a run last took this address in turn (scanned, incomplete or refused); the rotation goes by the later of last_deep and last_tried",
                                   "type": "string",
                                   "format": "date-time",
                                   "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
@@ -25754,7 +25761,7 @@
                             },
                             "disruptive": {
                               "type": "boolean",
-                              "description": "The extra tick: denial of service, password guessing, default-password sign-ins and exploit checks too"
+                              "description": "The extra tick: denial of service, password guessing, default-password sign-ins and exploit checks built to change data too"
                             }
                           },
                           "required": [
@@ -25983,7 +25990,7 @@
       },
       "put": {
         "operationId": "exposure_put_exposure_targets_id_terms",
-        "summary": "Accept the testing terms of a verified target (FULL-1, D-566): every scan of it is then a deep scan; disruptive adds denial-of-service, password-guessing, default-password and exploit checks (off by default). Admin with two-step sign-in (403 twofa_required); 409 notice_changed when version is not the current terms_notice.version; 409 not_verified, expired or ip_not_current (a paused IP); 409 shared_address for disruptive on an IP behind carrier-grade NAT (terms_warning). Lowering or withdrawing them stops a scan of this target that runs above the new level (ScanRun.stop_reason). Also records the Scan now commitment when the target has none of the current sentence. Accepting what is accepted changes nothing. Audited (exposure.terms_accept, with the flag)",
+        "summary": "Accept the testing terms of a verified target (FULL-1, D-566): every scan of it is then a deep scan; disruptive adds denial-of-service, password-guessing, default-password and data-changing exploit checks (off by default). Admin with two-step sign-in (403 twofa_required); 409 notice_changed when version is not the current terms_notice.version; 409 not_verified, expired or ip_not_current (a paused IP); 409 shared_address for disruptive on an IP behind carrier-grade NAT (terms_warning). Lowering or withdrawing them stops a scan of this target that runs above the new level (ScanRun.stop_reason). Also records the Scan now commitment when the target has none of the current sentence. Accepting what is accepted changes nothing. Audited (exposure.terms_accept, with the flag)",
         "tags": [
           "exposure"
         ],
@@ -26232,7 +26239,7 @@
                             },
                             "disruptive": {
                               "type": "boolean",
-                              "description": "The extra tick: denial of service, password guessing, default-password sign-ins and exploit checks too"
+                              "description": "The extra tick: denial of service, password guessing, default-password sign-ins and exploit checks built to change data too"
                             }
                           },
                           "required": [
@@ -26697,7 +26704,7 @@
                                 },
                                 "disruptive": {
                                   "type": "boolean",
-                                  "description": "The extra tick: denial of service, password guessing, default-password sign-ins and exploit checks too"
+                                  "description": "The extra tick: denial of service, password guessing, default-password sign-ins and exploit checks built to change data too"
                                 }
                               },
                               "required": [

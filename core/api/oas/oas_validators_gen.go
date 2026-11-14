@@ -25252,6 +25252,8 @@ func (s ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeep) Validat
 		return nil
 	case "refused":
 		return nil
+	case "incomplete":
+		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}

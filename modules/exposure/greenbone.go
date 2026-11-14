@@ -701,9 +701,12 @@ func (s *Service) greenboneAt(ctx context.Context, st ScanTarget, ip netip.Addr)
 		return line(notGBGate, "not done: the gate refused")
 	}
 	// The testing terms again (D-566): withdrawn meanwhile, nothing is sent; the tick taken back, the deep config, not the disruptive.
-	if st.Mode = t.mode(); !st.Mode.Full {
+	m := t.mode()
+	if !m.Full {
 		return line(notGBTerms, "not done: the testing terms are not accepted")
 	}
+	// review r1 L1: never above the run's snapshot: a tick taken back stops the run, a tick added while it runs waits for the next one
+	st.Mode = ScanMode{Full: true, Disruptive: m.Disruptive && st.Mode.Disruptive}
 	if st.Domain != nil { // D-571: an address of a domain that is not the box's: the host checks the fence itself, or nothing is sent
 		f, ok := s.cfg.Greenbone.(GreenboneFence)
 		if !ok {

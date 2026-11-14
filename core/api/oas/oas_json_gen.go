@@ -93392,6 +93392,12 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItem) encodeFiel
 		}
 	}
 	{
+		if s.LastTried.Set {
+			e.FieldStart("last_tried")
+			s.LastTried.Encode(e, json.EncodeDateTime)
+		}
+	}
+	{
 		if s.NextInLine.Set {
 			e.FieldStart("next_in_line")
 			s.NextInLine.Encode(e)
@@ -93399,14 +93405,15 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItem) encodeFiel
 	}
 }
 
-var jsonFieldsNameOfExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItem = [7]string{
+var jsonFieldsNameOfExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItem = [8]string{
 	0: "class",
 	1: "contacted",
 	2: "deep",
 	3: "family",
 	4: "ip",
 	5: "last_deep",
-	6: "next_in_line",
+	6: "last_tried",
+	7: "next_in_line",
 }
 
 // Decode decodes ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItem from json.
@@ -93479,6 +93486,16 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItem) Decode(d *
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"last_deep\"")
+			}
+		case "last_tried":
+			if err := func() error {
+				s.LastTried.Reset()
+				if err := s.LastTried.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"last_tried\"")
 			}
 		case "next_in_line":
 			if err := func() error {
@@ -93612,6 +93629,8 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeep) Decode
 		*s = ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeepFence
 	case ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeepRefused:
 		*s = ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeepRefused
+	case ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeepIncomplete:
+		*s = ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeepIncomplete
 	default:
 		*s = ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeep(v)
 	}

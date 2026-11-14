@@ -74,6 +74,9 @@ func sanitizeHost(h HostRow, txt func(string) string) HostRow {
 		if at, err := time.Parse(time.RFC3339, a.LastDeep); err == nil && ip.Is4() {
 			row.LastDeep = store.FormatTS(at)
 		}
+		if at, err := time.Parse(time.RFC3339, a.LastTried); err == nil && ip.Is4() {
+			row.LastTried = store.FormatTS(at)
+		}
 		out.IPs = append(out.IPs, row)
 	}
 	return out

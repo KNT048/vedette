@@ -59,6 +59,8 @@ type deepSeams struct {
 	webST     []ScanTarget
 	bad       []string
 	onService func(ctx context.Context) error // runs inside ScanServices when set
+	svcErr    error                           // ScanServices answers it when set (after recording the call)
+	extra     []ServiceRow                    // more services ScanServices answers, for their own address
 }
 
 func (f *deepSeams) ScanServices(ctx context.Context, t ScanTarget, ip netip.Addr) (ServiceScan, error) {
@@ -67,14 +69,23 @@ func (f *deepSeams) ScanServices(ctx context.Context, t ScanTarget, ip netip.Add
 		f.bad = append(f.bad, ip.String())
 	}
 	f.services = append(f.services, deepCall{ip.String(), t})
-	hook := f.onService
+	hook, svcErr, extra := f.onService, f.svcErr, f.extra
 	f.mu.Unlock()
 	if hook != nil {
 		if err := hook(ctx); err != nil {
 			return ServiceScan{}, err
 		}
 	}
-	return ServiceScan{Ports: 65535, Services: []ServiceRow{{IP: ip.String(), Port: 443, Name: "https", Product: "nginx", Version: "1.24.0"}}}, nil
+	if svcErr != nil {
+		return ServiceScan{}, svcErr
+	}
+	rows := []ServiceRow{{IP: ip.String(), Port: 443, Name: "https", Product: "nginx", Version: "1.24.0"}}
+	for _, r := range extra {
+		if r.IP == ip.String() {
+			rows = append(rows, r)
+		}
+	}
+	return ServiceScan{Ports: 65535, Services: rows}, nil
 }
 
 func (f *deepSeams) ScanTemplates(_ context.Context, t ScanTarget, ip netip.Addr, jobs []TemplateJob) (TemplateScan, error) {
@@ -220,7 +231,7 @@ func hasLine(s Snapshot, sub string) bool {
 
 // D-571: without accepted terms nothing new goes to any address: no deep seam is called (not even for the box's own IP, which is a
 // domain's name here), the fence is not asked, the by-name passive pass is in the K-4 scope, and the lines are the K-4 lines.
-func TestContract_INV27_Deep_WithoutTermsNothingNewIsSent(t *testing.T) {
+func TestContract_INV28_Deep_WithoutTermsNothingNewIsSent(t *testing.T) {
 	t.Parallel()
 	d := newDeepEnv(t)
 	fence := &fakeFence{}
@@ -254,7 +265,7 @@ func TestContract_INV27_Deep_WithoutTermsNothingNewIsSent(t *testing.T) {
 
 // D-571: with the terms but no domain fence on this box, only the box's own IP gets the deep scan (its own pipeline, no scope); every
 // other public address gets the "needs the fence" line and nothing more than the by-name checks.
-func TestContract_INV27_Deep_NoFenceOnlyTheBoxIP(t *testing.T) {
+func TestContract_INV28_Deep_NoFenceOnlyTheBoxIP(t *testing.T) {
 	t.Parallel()
 	d := newDeepEnv(t)
 	d.acceptTerms(d.dom.ID, false)
@@ -282,7 +293,7 @@ func TestContract_INV27_Deep_NoFenceOnlyTheBoxIP(t *testing.T) {
 // D-571: with the terms and a domain fence, each public address gets the deep seams once (however many names point at it), with the
 // run's mode and the domain's scope {domain, name, token}; the box's own IP takes its pipeline without a scope; private and IPv6
 // addresses are never dialed and have their lines; the web scan by name goes to the names of the deep addresses, re-checked.
-func TestContract_INV27_Deep_WithFenceEveryAddressOnce(t *testing.T) {
+func TestContract_INV28_Deep_WithFenceEveryAddressOnce(t *testing.T) {
 	t.Parallel()
 	d := newDeepEnv(t)
 	d.svc.cfg.DomainFence = &fakeFence{}
@@ -303,6 +314,13 @@ func TestContract_INV27_Deep_WithFenceEveryAddressOnce(t *testing.T) {
 	if st, _ := d.seams.call(ipA); st.Domain != nil {
 		t.Fatalf("box step has a scope: %+v", st.Domain)
 	}
+	// review r1 M4: ipC is reached only through cdn.acme.example's CNAME outside the domain: never the disruptive checks
+	if st, _ := d.seams.call(ipC); !st.Mode.Full || st.Mode.Disruptive {
+		t.Fatalf("ipC step = %+v", st.Mode)
+	}
+	if !hasLine(s, ipC+" (cdn.acme.example): reached only through a name that points (CNAME) outside this domain, so the disruptive checks were not run there.") {
+		t.Fatalf("not checked %q", notChecked(s))
+	}
 	for _, c := range d.seams.templates {
 		if !c.st.Mode.Full || (c.ip != ipA) != (c.st.Domain != nil) {
 			t.Fatalf("templates %+v", c)
@@ -322,18 +340,16 @@ func TestContract_INV27_Deep_WithFenceEveryAddressOnce(t *testing.T) {
 	}) {
 		t.Fatalf("checks %+v", s.Checks)
 	}
-	// web by name at depth: at most MaxDeepWebPages pages, each by name and with the scope of its own name
-	deepPages := 0
-	for i, p := range d.seams.pages {
-		if d.seams.webST[i].Mode.Full {
-			deepPages++
-			if p.IP.String() != ipA && (d.seams.webST[i].Domain == nil || d.seams.webST[i].Domain.Name != p.Host) {
-				t.Fatalf("deep page %+v with %+v", p, d.seams.webST[i].Domain)
-			}
+	// review r1 M1: no web scan at depth until the active ZAP scan exists: every page is the by-name passive pass, logged as such
+	for i, st := range d.seams.webST {
+		if st.Mode.Full || st.Domain != nil {
+			t.Fatalf("page %+v sent at depth with %+v", d.seams.pages[i], st)
 		}
 	}
-	if deepPages != MaxDeepWebPages || !hasLine(s, "Web scan by name at the testing terms depth: 2 pages not scanned this run") {
-		t.Fatalf("%d deep pages; not checked %q", deepPages, notChecked(s))
+	for _, p := range d.log.web {
+		if p.Tool != webTool {
+			t.Fatalf("probe-log tool %q is not what the adapter runs", p.Tool)
+		}
 	}
 	if deepOf(s, ipB).Deep != DeepScanned || deepOf(s, ipPriv).Deep != "" || deepOf(s, ipV6).Deep != "" {
 		t.Fatalf("hosts %+v", s.Hosts)
@@ -341,7 +357,7 @@ func TestContract_INV27_Deep_WithFenceEveryAddressOnce(t *testing.T) {
 }
 
 // D-571: a name that no longer resolves to the address at the core-side re-check gets no call and a line; a DNS failure is its own line.
-func TestContract_INV27_Deep_NameMovedOrNoAnswer(t *testing.T) {
+func TestContract_INV28_Deep_NameMovedOrNoAnswer(t *testing.T) {
 	t.Parallel()
 	d := newDeepEnv(t)
 	d.svc.cfg.DomainFence = &fakeFence{}
@@ -367,7 +383,7 @@ func TestContract_INV27_Deep_NameMovedOrNoAnswer(t *testing.T) {
 
 // D-571 (plan §4): with 5 addresses and MaxDeepIPs 3, three are scanned and two get "not scanned this run … next in line" lines; the
 // next run takes the two left first (never scanned), then the least recently scanned.
-func TestContract_INV27_Deep_CapAndRotation(t *testing.T) {
+func TestContract_INV28_Deep_CapAndRotation(t *testing.T) {
 	t.Parallel()
 	d := newDeepEnv(t)
 	d.svc.cfg.DomainFence = &fakeFence{}
@@ -405,7 +421,7 @@ func TestContract_INV27_Deep_CapAndRotation(t *testing.T) {
 }
 
 // D-571: withdrawing the domain's terms while a deep step runs stops the run (FULL-1's mechanism), and no further address is scanned.
-func TestContract_INV27_Deep_WithdrawStopsTheDeepStep(t *testing.T) {
+func TestContract_INV28_Deep_WithdrawStopsTheDeepStep(t *testing.T) {
 	t.Parallel()
 	d := newDeepEnv(t)
 	d.svc.cfg.DomainFence = &fakeFence{}
@@ -431,7 +447,7 @@ func TestContract_INV27_Deep_WithdrawStopsTheDeepStep(t *testing.T) {
 
 // D-571 (LEGAL-2): a domain's terms say the scan reaches third-party hosting, CDN and proxies, name the IP-level tools and the
 // customer's responsibility; an IP's text is unchanged; the version is 2026-11-14c.
-func TestContract_INV27_Deep_DomainTermsText(t *testing.T) {
+func TestContract_INV28_Deep_DomainTermsText(t *testing.T) {
 	t.Parallel()
 	if TermsVersion != "2026-11-14c" {
 		t.Fatalf("version %s", TermsVersion)
@@ -441,6 +457,8 @@ func TestContract_INV27_Deep_DomainTermsText(t *testing.T) {
 		"Every name under acme.example that resolves to a public address is scanned at this depth, whatever serves it: your own server, a hosting provider or a CDN.",
 		"Cloudflare and AWS forbid denial-of-service tests",
 		"Vedette's tools reach each address a name under acme.example resolves to, including a third-party hosting provider, CDN or proxy in front of your names: the scan of all ports, OpenVAS, nuclei and the active web scan (ZAP).",
+		// review r1 M4
+		"A name that points (CNAME) to a name outside acme.example is scanned at whatever address the owner of that other name sets, so the disruptive checks never run on an address reached only that way.",
 		// TERMS.md (D-544) word for word, so the two texts never disagree
 		"Verifying a name proves you control its DNS, not that you own the machines behind it or may test them. With shared or cloud hosting, a CDN or a proxy, that address can also serve other people's systems: you are responsible for having the provider's permission. Vedette does not check who owns those addresses.",
 	} {
@@ -455,13 +473,22 @@ func TestContract_INV27_Deep_DomainTermsText(t *testing.T) {
 	if !strings.Contains(ip, "Accept only if "+ipA+" is yours alone") || strings.Contains(ip, "Verifying a name") {
 		t.Errorf("IP terms = %q", ip)
 	}
-	// owner's rule (kien 2026-11-14, D-527, TERMS.md): exploit checks, password guessing and default-password sign-ins only with the tick
+	// review r1 H1: the texts say what the deep scan sends without the tick (D-526, D-527, OpenVAS deep config), and what waits for it
 	for _, text := range []string{dom, ip} {
-		if !strings.Contains(text, "Checks that confirm a flaw by exploiting it run only with the disruptive checks below.") || strings.Contains(text, "sending the exploit request itself") {
-			t.Errorf("terms say exploit checks run without the tick: %q", text)
+		for _, want := range []string{
+			"including checks that confirm a flaw by sending the exploit request itself in a harmless form (for example reading a file or running a harmless command)",
+			"through a known authentication bypass",
+			"Checks that can crash a service, guess passwords, sign in with default passwords or are built to change data run only with the disruptive checks below.",
+		} {
+			if !strings.Contains(text, want) {
+				t.Errorf("terms lack %q", want)
+			}
+		}
+		if strings.Contains(text, "exploiting it run only with") {
+			t.Errorf("terms say exploit checks run only with the tick: %q", text)
 		}
 	}
-	if d := termsFor(KindDomain, "acme.example").Disruptive; !strings.Contains(d, "denial of service, password guessing, sign-in attempts with default or well-known passwords, and checks that confirm a vulnerability by exploiting it") {
+	if d := termsFor(KindDomain, "acme.example").Disruptive; !strings.Contains(d, "exploit checks built to send data that changes something on the target") {
 		t.Errorf("disruptive tick = %q", d)
 	}
 	e := newEnv(t)
@@ -483,7 +510,7 @@ func TestContract_INV27_Deep_DomainTermsText(t *testing.T) {
 
 // D-571: OpenVAS, when it is on, runs on the addresses a domain's deep scan reached: the box's own IP in its pipeline; an address that
 // is not the box's only through a host that checks the domain fence for OpenVAS (GreenboneFence), else a line and nothing sent.
-func TestContract_INV27_Deep_OpenVASOnTheDeepAddresses(t *testing.T) {
+func TestContract_INV28_Deep_OpenVASOnTheDeepAddresses(t *testing.T) {
 	t.Parallel()
 	e, h := gbEnv(t)
 	e.terms = nil
@@ -522,5 +549,115 @@ func TestContract_INV27_Deep_OpenVASOnTheDeepAddresses(t *testing.T) {
 		return c.Kind == "greenbone" && strings.Contains(c.Text, "OpenVAS scanned "+ipA)
 	}) {
 		t.Fatalf("checks %+v", s.Checks)
+	}
+}
+
+// review r1 L7: only public IPv4 addresses of names under the domain are candidates; mapped, private, CGNAT, link-local, multicast and
+// unspecified addresses, IPv6, and names that only look like the domain are not.
+func TestContract_INV28_Deep_Candidates(t *testing.T) {
+	t.Parallel()
+	row := func(name, ip string) HostRow {
+		return HostRow{Name: name, IPs: []HostIP{{IP: ip, Family: "ipv4", Class: ClassPublic}}}
+	}
+	hosts := []HostRow{
+		row("a.acme.example", "::ffff:10.0.0.1"), row("b.acme.example", "100.64.1.1"), row("c.acme.example", "169.254.1.1"),
+		row("d.acme.example", "224.0.0.1"), row("e.acme.example", "0.0.0.0"), row("f.acme.example", ipV6),
+		row("acme.example.evil.com", ipB), row("xacme.example", ipB), row("www.acme.example", ipC),
+		{Name: "cdn.acme.example", CNAME: "x.cdn.example.net", IPs: []HostIP{{IP: ipD, Family: "ipv4", Class: ClassPublic}}},
+	}
+	got, private := deepCandidates(hosts, "acme.example", nil, nil)
+	in := map[string]bool{}
+	for _, a := range got {
+		in[a.ip.String()] = a.inZone
+	}
+	if len(got) != 2 || !in[ipC] || in[ipD] || private == 0 {
+		t.Fatalf("candidates %+v, private %d", got, private)
+	}
+	if _, ok := in[ipD]; !ok {
+		t.Fatalf("candidates %+v", got)
+	}
+}
+
+// review r1 L7: the runner's "box" claim on an address that is not the box's, with no domain fence, sends nothing: the re-check refuses it.
+func TestContract_INV28_Deep_RunnerBoxClaimIsChecked(t *testing.T) {
+	t.Parallel()
+	d := newDeepEnv(t)
+	d.acceptTerms(d.dom.ID, false)
+	d.run.content.Hosts[1].IPs[0].Class = ClassBox // www on ipB, which is not the box's
+	s := d.scan()
+	if _, called := d.seams.call(ipB); called {
+		t.Fatal("ipB was scanned")
+	}
+	if deepOf(s, ipB).Deep != DeepRefused || !hasLine(s, ipB+" (api.acme.example, www.acme.example): not scanned at depth: "+deepNoFence) {
+		t.Fatalf("ipB = %+v; not checked %q", deepOf(s, ipB), notChecked(s))
+	}
+}
+
+// review r1 M2: an address whose service identification did not run is not "scanned": no new LastDeep, and the ports an earlier run
+// found there are kept unchecked rather than closed after two such runs.
+func TestContract_INV28_Deep_NmapDidNotRunKeepsPorts(t *testing.T) {
+	t.Parallel()
+	d := newDeepEnv(t)
+	d.svc.cfg.DomainFence = &fakeFence{}
+	d.acceptTerms(d.dom.ID, false)
+	d.seams.extra = []ServiceRow{{IP: ipB, Port: 8443, Name: "https", Product: "nginx"}}
+	s := d.scan()
+	first := deepOf(s, ipB).LastDeep
+	if deepOf(s, ipB).Deep != DeepScanned || first == "" {
+		t.Fatalf("ipB = %+v", deepOf(s, ipB))
+	}
+	d.seams.mu.Lock()
+	d.seams.svcErr = &Unavailable{Reason: "the scan module is busy"}
+	d.seams.mu.Unlock()
+	for range 2 {
+		d.advance(ScanEvery + time.Minute)
+		s = d.scan()
+	}
+	if a := deepOf(s, ipB); a.Deep != DeepIncomplete || a.LastDeep != first || a.LastTried == first {
+		t.Fatalf("ipB = %+v", a)
+	}
+	if !slices.ContainsFunc(s.Ports, func(p PortRow) bool { return p.IP == ipB && p.Port == 8443 }) {
+		t.Fatalf("the port nmap found before was dropped: %+v", s.Ports)
+	}
+	if !hasLine(s, deepNoNmap) {
+		t.Fatalf("not checked %q", notChecked(s))
+	}
+}
+
+// review r1 M3: an address the re-check refuses takes no place: with 3 always-refused addresses before 3 others, the 3 others are
+// scanned in each run.
+func TestContract_INV28_Deep_RefusedTakesNoPlace(t *testing.T) {
+	t.Parallel()
+	d := newDeepEnv(t)
+	d.svc.cfg.DomainFence = &fakeFence{}
+	d.acceptTerms(d.dom.ID, false)
+	ips := []string{"9.9.9.1", "9.9.9.2", "9.9.9.3", "9.9.9.4", "9.9.9.5", "9.9.9.6"}
+	var hosts []HostRow
+	for i, ip := range ips {
+		name := fmt.Sprintf("h%d.acme.example", i+1)
+		hosts = append(hosts, HostRow{Name: name, IP: ip, Source: "ct", IPs: []HostIP{{IP: ip, Family: "ipv4", Class: ClassPublic}}})
+		if i < 3 {
+			d.dns.point(name, ipD) // moved: refused at the re-check
+		} else {
+			d.dns.point(name, ip)
+		}
+	}
+	d.run.content = Content{Hosts: hosts, Ports: []PortRow{}}
+	for run := range 2 {
+		if run > 0 {
+			d.advance(ScanEvery + time.Minute)
+			d.seams.mu.Lock()
+			d.seams.services = nil
+			d.seams.mu.Unlock()
+		}
+		s := d.scan()
+		if got := d.seams.serviceIPs(); !slices.Equal(got, ips[3:]) {
+			t.Fatalf("run %d scanned %v", run, got)
+		}
+		for _, ip := range ips[:3] {
+			if a := deepOf(s, ip); a.Deep != DeepRefused || a.LastTried == "" {
+				t.Fatalf("run %d: %s = %+v", run, ip, a)
+			}
+		}
 	}
 }

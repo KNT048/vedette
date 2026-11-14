@@ -390,6 +390,9 @@ const (
 	scopeChecked scope = iota // the scan port-scanned it: a port it does not report was missed
 	scopeKept                 // still the domain's address but not scannable now (lapsed, paused, deleted, skipped): the scan did not check it
 	scopeGone                 // no longer an address of the domain: its ports leave with the host
+	// scopeByName: a domain's address that is not the box's and got only the check by name (D-229, ports 80 and 443) this run: those
+	// two ports were checked, any other (found by an earlier deep scan, D-571) was not (review r1 M2).
+	scopeByName
 )
 
 // ipKey is the one spelling of an address that two scans are compared by (an IPv4-mapped form is the same address).
@@ -423,17 +426,27 @@ func (s *Service) coveredBy(ctx context.Context, user string, t Target, c Conten
 		if _, done := out[k]; done {
 			continue
 		}
+		box := func() bool {
+			a, err := netip.ParseAddr(k)
+			if err != nil {
+				return false
+			}
+			ok, err := s.ScannableIP(ctx, user, a)
+			return err == nil && ok
+		}
 		switch {
-		case reported[k] || (t.Kind == KindIP && k == ipKey(t.Value)) || deep[k]:
+		case (t.Kind == KindIP && k == ipKey(t.Value)) || deep[k] || (reported[k] && t.Kind != KindDomain):
 			out[k] = scopeChecked
+		case reported[k] && box():
+			out[k] = scopeChecked
+		case reported[k]:
+			out[k] = scopeByName
 		case t.Kind != KindDomain || moved(k, pointed, prev.Hosts, c.Hosts):
 			out[k] = scopeGone
 		default:
 			out[k] = scopeKept
-			if a, err := netip.ParseAddr(k); err == nil {
-				if ok, err := s.ScannableIP(ctx, user, a); err == nil && ok {
-					out[k] = scopeChecked
-				}
+			if box() {
+				out[k] = scopeChecked
 			}
 		}
 	}
@@ -487,7 +500,14 @@ func carryNotSeen(c Content, prev Snapshot, how map[string]scope) Content {
 		if p.LastSeen == "" {
 			p.LastSeen = prev.Date
 		}
-		switch how[k.ip] {
+		sc := how[k.ip]
+		if sc == scopeByName {
+			sc = scopeKept
+			if p.Port == 80 || p.Port == 443 {
+				sc = scopeChecked
+			}
+		}
+		switch sc {
 		case scopeGone:
 			continue
 		case scopeKept:

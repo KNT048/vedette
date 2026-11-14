@@ -9,7 +9,7 @@ import type { HostIp, Snapshot } from './types'
 // it, what this run's deep scan did with it and what it found there; the details (services, exploited CVEs, web findings, OpenVAS) are
 // in the sections below, by address.
 type Deep = NonNullable<HostIp['deep']>
-const TONE: Record<Deep, Tone> = { scanned: 'ok', waiting: 'accent', fence: 'off', refused: 'warn' }
+const TONE: Record<Deep, Tone> = { scanned: 'ok', waiting: 'accent', fence: 'off', refused: 'warn', incomplete: 'warn' }
 
 type DeepAddr = { ip: string; names: string[]; deep: Deep; last?: string; next?: number; services: number; vulns: number; web: number; openvas: number }
 
@@ -34,7 +34,7 @@ function deepAddrs(s: Snapshot): DeepAddr[] {
     r.web = s.web_findings.filter((w) => r.names.includes(hostOf(w.site))).length
     r.openvas = (s.greenbone ?? []).filter((g) => g.ip === r.ip).length
   }
-  const rank: Record<Deep, number> = { scanned: 0, waiting: 1, refused: 2, fence: 3 }
+  const rank: Record<Deep, number> = { scanned: 0, incomplete: 1, waiting: 2, refused: 3, fence: 4 }
   return rows.sort((a, b) => rank[a.deep] - rank[b.deep] || (a.next ?? 0) - (b.next ?? 0) || a.ip.localeCompare(b.ip, undefined, { numeric: true }))
 }
 

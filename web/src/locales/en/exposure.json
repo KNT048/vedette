@@ -158,10 +158,10 @@
     "button": "Scan now",
     "running": "Scanning",
     "safe": "Scan now scope (testing terms not accepted): non-intrusive, no exploitation, no disruption. Aimed only at this target.",
-    "deepIp": "Deep scan: the testing terms of this IP are accepted, so every scan goes to the depth they describe (every TCP port, service versions, vulnerability checks, an active web scan, and OpenVAS when it is on).",
+    "deepIp": "Deep scan: the testing terms of this IP are accepted, so every scan goes to the depth they describe (every TCP port, service versions, vulnerability checks, some of which confirm a flaw by sending the exploit request in a harmless form, and OpenVAS when it is on).",
     "deepDomain": "Deep scan: the testing terms of this domain are accepted, so every public IPv4 address a name under it resolves to is scanned to the depth they describe, whatever serves it (at most 3 addresses a run).",
     "deepNotDisruptive": "Disruptive checks are not included.",
-    "deepDisruptive": "Disruptive checks are included: denial of service, password guessing, default-password sign-ins and exploit checks.",
+    "deepDisruptive": "Disruptive checks are included: denial of service, password guessing, default-password sign-ins and exploit checks built to change data.",
     "noticeTitle": "Pressing Scan now records this confirmation",
     "noticeChanged": "The confirmation text changed: it now names service identification, safe checks for known exploited vulnerabilities and a passive web scan. An administrator confirms once with the next Scan now.",
     "noticeWho": "Vedette keeps who confirmed it, when, for which target and this exact sentence.",
@@ -300,7 +300,8 @@
       "last": "Last deep-scanned {{time}}.",
       "never": "Never deep-scanned.",
       "fence": "Checked by name only: the deep scan of an address that is not this box's needs the Vedette host's domain fence (update the box).",
-      "refused": "Not scanned at depth: the check right before the scan refused it, so nothing was sent (see Not checked)."
+      "refused": "Not scanned at depth: the check right before the scan refused it, so nothing was sent (see Not checked).",
+      "incomplete": "Tried at depth, but service identification did not finish, so its ports are not known this run (see Not checked). It goes back in line."
     }
   },
   "hosts": {
@@ -706,7 +707,7 @@
   },
   "deep": {
     "title": "Deep scan by address",
-    "description": "With this domain's testing terms accepted, each public IPv4 address its names resolve to gets the deep scan, whatever serves it: every TCP port, service versions, exploited vulnerabilities, templates, a web scan by name and OpenVAS when it is on. At most 3 addresses a run, the least recently scanned first; the others follow in the next runs.",
+    "description": "With this domain's testing terms accepted, each public IPv4 address its names resolve to gets the deep scan, whatever serves it: every TCP port, service versions, exploited vulnerabilities, templates and OpenVAS when it is on; its names keep the passive web scan by name. At most 3 addresses a run, the least recently tried first; the others follow in the next runs.",
     "caption": "Addresses of this domain's names and their deep scan",
     "col": {
       "names": "Names that led to it",
@@ -717,7 +718,8 @@
       "scanned": "Scanned this run",
       "waiting": "Next in line",
       "fence": "Needs the domain fence",
-      "refused": "Refused at the check"
+      "refused": "Refused at the check",
+      "incomplete": "Not finished"
     },
     "next": "Number {{n}} in line.",
     "last": "Last deep-scanned {{time}}.",
@@ -726,7 +728,8 @@
     "why": {
       "waiting": "Not scanned this run: the cap of 3 addresses was reached.",
       "fence": "Checked by name only: this box needs the Vedette host's domain fence (update the box).",
-      "refused": "The check right before the scan refused it (the name moved, or the terms changed), so nothing was sent."
+      "refused": "The check right before the scan refused it (the name moved, or the terms changed), so nothing was sent.",
+      "incomplete": "Service identification did not finish, so its ports are not known this run; it goes back in line."
     }
   }
 }

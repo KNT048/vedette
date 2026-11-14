@@ -43623,7 +43623,7 @@ type ExposureDeleteExposureTargetsIDTermsOKTerms struct {
 	At time.Time `json:"at"`
 	By string    `json:"by"`
 	// The extra tick: denial of service, password guessing, default-password sign-ins and exploit checks
-	// too.
+	// built to change data too.
 	Disruptive bool `json:"disruptive"`
 	// The exact terms the administrator accepted, with the tick's sentence as the last line when ticked.
 	Text    string `json:"text"`
@@ -45464,7 +45464,7 @@ type ExposureGetExposureTargetsIDOKTerms struct {
 	At time.Time `json:"at"`
 	By string    `json:"by"`
 	// The extra tick: denial of service, password guessing, default-password sign-ins and exploit checks
-	// too.
+	// built to change data too.
 	Disruptive bool `json:"disruptive"`
 	// The exact terms the administrator accepted, with the tick's sentence as the last line when ticked.
 	Text    string `json:"text"`
@@ -46337,16 +46337,20 @@ type ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItem struct {
 	// The check by name (one GET / on ports 80 and 443) went to this address: the name's first public
 	// IPv4. Missing or false: not contacted.
 	Contacted OptBool `json:"contacted"`
-	// D-571: what this run's deep scan did with the address (domain terms accepted): scanned (the deep
-	// steps ran), waiting (left by the cap, next_in_line), fence (not this box's, and the box has no
-	// domain fence: by-name checks only), refused (the re-check right before it refused: nothing sent).
-	// Missing: no deep scan (terms not accepted, IPv6 or private).
+	// D-571: what this run's deep scan did with the address (domain terms accepted): scanned (service
+	// identification ran), waiting (left by the cap, next_in_line), fence (not this box's, and the box has
+	// no domain fence: by-name checks only), refused (the re-check right before it refused: nothing sent),
+	// incomplete (the re-check passed but service identification did not finish: its ports are not known
+	// this run). Missing: no deep scan (terms not accepted, IPv6 or private).
 	Deep OptExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeep `json:"deep"`
 	// IPv6 is listed, not scanned yet.
 	Family ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemFamily `json:"family"`
 	IP     string                                                            `json:"ip"`
 	// D-571: when a run last deep-scanned this address (rotation: the least recently scanned go first).
 	LastDeep OptDateTime `json:"last_deep"`
+	// D-571 review r1 M3: when a run last took this address in turn (scanned, incomplete or refused); the
+	// rotation goes by the later of last_deep and last_tried.
+	LastTried OptDateTime `json:"last_tried"`
 	// D-571: its place among the addresses the cap left for the next runs.
 	NextInLine OptInt `json:"next_in_line"`
 }
@@ -46379,6 +46383,11 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItem) GetIP() st
 // GetLastDeep returns the value of LastDeep.
 func (s *ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItem) GetLastDeep() OptDateTime {
 	return s.LastDeep
+}
+
+// GetLastTried returns the value of LastTried.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItem) GetLastTried() OptDateTime {
+	return s.LastTried
 }
 
 // GetNextInLine returns the value of NextInLine.
@@ -46414,6 +46423,11 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItem) SetIP(val 
 // SetLastDeep sets the value of LastDeep.
 func (s *ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItem) SetLastDeep(val OptDateTime) {
 	s.LastDeep = val
+}
+
+// SetLastTried sets the value of LastTried.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItem) SetLastTried(val OptDateTime) {
+	s.LastTried = val
 }
 
 // SetNextInLine sets the value of NextInLine.
@@ -46471,17 +46485,19 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemClass) Unmar
 	}
 }
 
-// D-571: what this run's deep scan did with the address (domain terms accepted): scanned (the deep
-// steps ran), waiting (left by the cap, next_in_line), fence (not this box's, and the box has no
-// domain fence: by-name checks only), refused (the re-check right before it refused: nothing sent).
-// Missing: no deep scan (terms not accepted, IPv6 or private).
+// D-571: what this run's deep scan did with the address (domain terms accepted): scanned (service
+// identification ran), waiting (left by the cap, next_in_line), fence (not this box's, and the box has
+// no domain fence: by-name checks only), refused (the re-check right before it refused: nothing sent),
+// incomplete (the re-check passed but service identification did not finish: its ports are not known
+// this run). Missing: no deep scan (terms not accepted, IPv6 or private).
 type ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeep string
 
 const (
-	ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeepScanned ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeep = "scanned"
-	ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeepWaiting ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeep = "waiting"
-	ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeepFence   ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeep = "fence"
-	ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeepRefused ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeep = "refused"
+	ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeepScanned    ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeep = "scanned"
+	ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeepWaiting    ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeep = "waiting"
+	ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeepFence      ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeep = "fence"
+	ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeepRefused    ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeep = "refused"
+	ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeepIncomplete ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeep = "incomplete"
 )
 
 // AllValues returns all ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeep values.
@@ -46491,6 +46507,7 @@ func (ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeep) AllValues
 		ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeepWaiting,
 		ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeepFence,
 		ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeepRefused,
+		ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeepIncomplete,
 	}
 }
 
@@ -46504,6 +46521,8 @@ func (s ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeep) Marshal
 	case ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeepFence:
 		return []byte(s), nil
 	case ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeepRefused:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeepIncomplete:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -46524,6 +46543,9 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeep) Unmars
 		return nil
 	case ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeepRefused:
 		*s = ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeepRefused
+		return nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeepIncomplete:
+		*s = ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeepIncomplete
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -48680,7 +48702,7 @@ type ExposureGetExposureTargetsOKItemsItemTerms struct {
 	At time.Time `json:"at"`
 	By string    `json:"by"`
 	// The extra tick: denial of service, password guessing, default-password sign-ins and exploit checks
-	// too.
+	// built to change data too.
 	Disruptive bool `json:"disruptive"`
 	// The exact terms the administrator accepted, with the tick's sentence as the last line when ticked.
 	Text    string `json:"text"`
@@ -49572,7 +49594,7 @@ type ExposurePostExposureBoxIPVerifyOKItemsItemTerms struct {
 	At time.Time `json:"at"`
 	By string    `json:"by"`
 	// The extra tick: denial of service, password guessing, default-password sign-ins and exploit checks
-	// too.
+	// built to change data too.
 	Disruptive bool `json:"disruptive"`
 	// The exact terms the administrator accepted, with the tick's sentence as the last line when ticked.
 	Text    string `json:"text"`
@@ -50719,7 +50741,7 @@ type ExposurePostExposureTargetsCreatedTerms struct {
 	At time.Time `json:"at"`
 	By string    `json:"by"`
 	// The extra tick: denial of service, password guessing, default-password sign-ins and exploit checks
-	// too.
+	// built to change data too.
 	Disruptive bool `json:"disruptive"`
 	// The exact terms the administrator accepted, with the tick's sentence as the last line when ticked.
 	Text    string `json:"text"`
@@ -52052,7 +52074,7 @@ type ExposurePostExposureTargetsIDVerifyOKTargetTerms struct {
 	At time.Time `json:"at"`
 	By string    `json:"by"`
 	// The extra tick: denial of service, password guessing, default-password sign-ins and exploit checks
-	// too.
+	// built to change data too.
 	Disruptive bool `json:"disruptive"`
 	// The exact terms the administrator accepted, with the tick's sentence as the last line when ticked.
 	Text    string `json:"text"`
@@ -53327,7 +53349,7 @@ type ExposurePutExposureTargetsIDTermsOKTerms struct {
 	At time.Time `json:"at"`
 	By string    `json:"by"`
 	// The extra tick: denial of service, password guessing, default-password sign-ins and exploit checks
-	// too.
+	// built to change data too.
 	Disruptive bool `json:"disruptive"`
 	// The exact terms the administrator accepted, with the tick's sentence as the last line when ticked.
 	Text    string `json:"text"`

@@ -121,7 +121,7 @@ func TestExposureRunnerResult(t *testing.T) {
 	ip := netip.MustParseAddr("203.0.113.10")
 	f := &fakeSurface{res: surface.Result{
 		Hosts:    []surface.Host{{Name: "acme.example", IP: ip, Source: "dns", Addrs: []surface.Addr{{IP: ip, Class: "box"}, {IP: netip.MustParseAddr("2606:4700::5"), Class: "public"}}}},
-		Wordlist: surface.WordlistNoAnswer, Unresolved: 2,
+		Wordlist: surface.WordlistNoAnswer, Unresolved: []string{"old.acme.example", "vpn.acme.example"},
 		Ports: []surface.Port{{IP: ip, Port: 443, Service: "https", Product: "FortiGate"}, {IP: ip, Port: 3000, Service: "http"}},
 		Admin: []surface.Admin{{URL: "https://acme.example", Product: "FortiGate", IP: ip, Port: 443, Danger: true}, {URL: "http://acme.example:3000", Product: "Grafana", IP: ip, Port: 3000}},
 		Certs: []surface.Cert{{Host: "acme.example", Issuer: "R11", NotAfter: time.Date(2027, 1, 2, 3, 4, 5, 0, time.UTC)}},
@@ -141,7 +141,7 @@ func TestExposureRunnerResult(t *testing.T) {
 	}
 	if f.domain != "acme.example" || len(c.Hosts) != 1 || !reflect.DeepEqual(c.Hosts[0], exposure.HostRow{Name: "acme.example", IP: "203.0.113.10", Source: "dns",
 		IPs: []exposure.HostIP{{IP: "203.0.113.10", Family: "ipv4", Class: "box"}, {IP: "2606:4700::5", Family: "ipv6", Class: "public"}}}) ||
-		len(c.NotChecked) != 2 || c.NotChecked[0].Text != exposure.NotWordlistNoAnswer || c.NotChecked[1].Kind != "lookup" ||
+		len(c.NotChecked) != 1 || c.NotChecked[0].Text != exposure.NotWordlistNoAnswer || len(c.Unresolved) != 2 ||
 		len(c.Ports) != 2 || c.Ports[0] != (exposure.PortRow{IP: "203.0.113.10", Port: 443, Service: "https", Product: "FortiGate"}) ||
 		len(c.AdminPanels) != 2 || c.AdminPanels[0].Risk != "danger" || c.AdminPanels[1].Risk != "warn" ||
 		len(c.Certs) != 1 || c.Certs[0] != (exposure.CertRow{Host: "acme.example", Issuer: "R11", ExpiresAt: "2027-01-02T03:04:05Z"}) {

@@ -373,7 +373,12 @@ func sanitize(c Content) Content {
 		}
 		out.Certs = append(out.Certs, CertRow{Host: txt(x.Host), Issuer: txt(x.Issuer), ExpiresAt: store.FormatTS(t)})
 	}
-	return Content{Hosts: nz(out.Hosts), Ports: nz(out.Ports), AdminPanels: nz(out.AdminPanels), Certs: nz(out.Certs),
+	for _, n := range c.Unresolved {
+		if len(out.Unresolved) < maxContentRows && len(n) <= 253 && domainRE.MatchString(n) {
+			out.Unresolved = append(out.Unresolved, n)
+		}
+	}
+	return Content{Hosts: nz(out.Hosts), Ports: nz(out.Ports), AdminPanels: nz(out.AdminPanels), Certs: nz(out.Certs), Unresolved: out.Unresolved,
 		Services: sanitizeServices(c.Services), Templates: sanitizeTemplates(c.Templates, sanitizeServices(c.Services)), Checks: sanitizeChecks(c.Checks), NotChecked: sanitizeNotChecked(c.NotChecked), WebFindings: sanitizeWeb(c.WebFindings),
 		Greenbone: sanitizeGreenbone(c.Greenbone)}
 }

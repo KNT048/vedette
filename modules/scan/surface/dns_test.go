@@ -176,8 +176,8 @@ func TestDiscoveryAndKinds(t *testing.T) {
 		if g := hostLines(got.Hosts); !slices.Equal(g, want) {
 			t.Fatalf("hosts:\n%s\nwant:\n%s", strings.Join(g, "\n"), strings.Join(want, "\n"))
 		}
-		if got.Wordlist != "" || got.Unresolved != 0 || dns.unrooted != 0 {
-			t.Fatalf("wordlist %q, unresolved %d, %d names not asked fully qualified", got.Wordlist, got.Unresolved, dns.unrooted)
+		if got.Wordlist != "" || len(got.Unresolved) != 0 || dns.unrooted != 0 {
+			t.Fatalf("wordlist %q, unresolved %v, %d names not asked fully qualified", got.Wordlist, got.Unresolved, dns.unrooted)
 		}
 		for _, h := range got.Hosts {
 			if (h.Name == "v6only.acme.example" || h.Name == "docs.acme.example") && h.IP.IsValid() {
@@ -321,8 +321,15 @@ func TestFailedLookupIsLeftOutNotMoved(t *testing.T) {
 		var asked []string
 		got, err := newScanner(t, &fakeNet{open: map[string]handler{}}, dns, ctAnswer(200, ctNames("www.acme.example"), &asked), &probeLog{}).
 			Domain(t.Context(), "acme.example", func(context.Context, netip.Addr) bool { return false })
-		if err != nil || got.Unresolved != 1 || len(got.Hosts) != 1 || got.Hosts[0].Name != "acme.example" {
-			t.Fatalf("err %v, unresolved %d, hosts %v", err, got.Unresolved, hostLines(got.Hosts))
+		if err != nil || !slices.Equal(got.Unresolved, []string{"www.acme.example"}) || len(got.Hosts) != 1 || got.Hosts[0].Name != "acme.example" {
+			t.Fatalf("err %v, unresolved %v, hosts %v", err, got.Unresolved, hostLines(got.Hosts))
+		}
+		// Review r2 M3: the domain itself without a clear answer (the resolver is down) stops the scan: nothing to compare with.
+		dns.fail["acme.example"] = true
+		n := &fakeNet{open: map[string]handler{}}
+		if _, err := newScanner(t, n, dns, ctAnswer(200, ctNames("www.acme.example"), &asked), &probeLog{}).
+			Domain(t.Context(), "acme.example", func(context.Context, netip.Addr) bool { return true }); !errors.Is(err, ErrDNS) || len(n.dialed) != 0 {
+			t.Fatalf("apex failed: err %v, %d dials", err, len(n.dialed))
 		}
 	})
 }

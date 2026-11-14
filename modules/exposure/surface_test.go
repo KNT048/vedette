@@ -1,9 +1,11 @@
 package exposure
 
 import (
+	"fmt"
 	"slices"
 	"strings"
 	"testing"
+	"time"
 )
 
 // INV-27: a domain's surface is stored as the scan module found it, bounded and checked like any other content (INV-10): a kind or
@@ -52,5 +54,57 @@ func TestContract_INV27_SurfaceIsStoredAndSaysWhatWasNotScanned(t *testing.T) {
 		if !slices.ContainsFunc(n, func(s string) bool { return strings.Contains(s, want) }) {
 			t.Errorf("not checked %q: missing %q", n, want)
 		}
+	}
+}
+
+// Review r2 M3 (INV-27, INV-22): a name whose address lookup failed this time keeps its last row (marked lookup_failed): it is not
+// "gone" in the comparison, the counts stay, its port is not closed, and one line says so. The domain itself failing is the
+// runner's ErrDNSDown: the scan fails and no snapshot is stored, as for crt.sh.
+func TestContract_INV27_FailedLookupKeepsTheName(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	dom := e.committedDomain()
+	day1 := Content{
+		Hosts: []HostRow{{Name: "acme.example", IP: ipA, Source: "dns", IPs: []HostIP{{IP: ipA, Family: "ipv4", Class: ClassPublic}}},
+			{Name: "vpn.acme.example", IP: ipB, Source: "wordlist", IPs: []HostIP{{IP: ipB, Family: "ipv4", Class: ClassPublic}}}},
+		Ports: []PortRow{},
+	}
+	run := &fakeRunner{content: day1}
+	e.svc.SetRunner(run)
+	first, err := e.svc.Scan(e.ctx(), "admin@acme.example", dom.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	e.advance(24 * time.Hour)
+	run.content = Content{Hosts: day1.Hosts[:1], Ports: []PortRow{}, Unresolved: []string{"vpn.acme.example", "never.acme.example"}}
+	second, err := e.svc.Scan(e.ctx(), "admin@acme.example", dom.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if second.Counts != first.Counts {
+		t.Fatalf("counts %+v, were %+v", second.Counts, first.Counts)
+	}
+	got, err := e.svc.SnapshotOf(e.ctx(), dom.ID, second.Date)
+	if err != nil {
+		t.Fatal(err)
+	}
+	i := slices.IndexFunc(got.Hosts, func(h HostRow) bool { return h.Name == "vpn.acme.example" })
+	if len(got.Hosts) != 2 || i < 0 || !got.Hosts[i].LookupFailed || got.Hosts[i].IP != ipB {
+		t.Fatalf("hosts %+v", got.Hosts)
+	}
+	if n := notChecked(got); !slices.Contains(n, "Names whose address lookup got no answer this time (2 names): shown as the last scan found them.") {
+		t.Fatalf("not checked %q", n)
+	}
+	d, err := e.svc.Diff(e.ctx(), dom.ID, first.Date, second.Date)
+	if err != nil || len(d.Removed) != 0 {
+		t.Fatalf("diff %+v, %v", d, err)
+	}
+	// the domain itself without an answer: nothing stored
+	e.advance(24 * time.Hour)
+	run.err = fmt.Errorf("%w (surface: the DNS resolver gave no answer for the domain)", ErrDNSDown)
+	_, err = e.svc.Scan(e.ctx(), "admin@acme.example", dom.ID)
+	wantAPI(t, err, 502, "unreachable")
+	if n := e.count(`SELECT count(*) FROM exp_snapshot`); n != 2 {
+		t.Fatalf("%d snapshots", n)
 	}
 }

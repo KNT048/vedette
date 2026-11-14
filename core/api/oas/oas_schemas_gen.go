@@ -46107,8 +46107,11 @@ type ExposureGetExposureTargetsIDSnapshotsDateOKHostsItem struct {
 	// The first IPv4 address; "" when the name has none (IPv6 only, or a CNAME that leads nowhere).
 	IP string `json:"ip"`
 	// Every address of the name with its kind (at most 16).
-	Ips  []ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItem `json:"ips"`
-	Name string                                                        `json:"name"`
+	Ips []ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItem `json:"ips"`
+	// The name's address lookup got no answer this time: the row is the previous scan's, carried forward
+	// (not gone).
+	LookupFailed OptBool `json:"lookup_failed"`
+	Name         string  `json:"name"`
 	// Where the name was found: a certificate-transparency log, the domain itself, its MX or NS records,
 	// or the list of common names. Missing on a snapshot older than D-567: its classes are unknown.
 	Source OptExposureGetExposureTargetsIDSnapshotsDateOKHostsItemSource `json:"source"`
@@ -46127,6 +46130,11 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKHostsItem) GetIP() string {
 // GetIps returns the value of Ips.
 func (s *ExposureGetExposureTargetsIDSnapshotsDateOKHostsItem) GetIps() []ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItem {
 	return s.Ips
+}
+
+// GetLookupFailed returns the value of LookupFailed.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKHostsItem) GetLookupFailed() OptBool {
+	return s.LookupFailed
 }
 
 // GetName returns the value of Name.
@@ -46152,6 +46160,11 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKHostsItem) SetIP(val string)
 // SetIps sets the value of Ips.
 func (s *ExposureGetExposureTargetsIDSnapshotsDateOKHostsItem) SetIps(val []ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItem) {
 	s.Ips = val
+}
+
+// SetLookupFailed sets the value of LookupFailed.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKHostsItem) SetLookupFailed(val OptBool) {
+	s.LookupFailed = val
 }
 
 // SetName sets the value of Name.

@@ -176,6 +176,9 @@ describe('exposure: a verified and confirmed domain', () => {
     expect(within(row(/^acme\.example/)).getByText('IPv6 is not scanned yet.')).toBeInTheDocument()
     expect(screen.queryByText(/CDN|not yours|your OK/)).not.toBeInTheDocument() // what serves a name does not matter (kien 2026-11-14)
     expect(within(screen.getByRole('list', { name: 'Not checked on the surface' })).getByText(/Names on public addresses that are not this box's \(2 names\)/)).toBeInTheDocument()
+    // Review r2 M3: a name whose lookup failed this time is kept as the last scan found it, and the Surface tab says so.
+    expect(within(row(/^nas\.acme\.example/)).getByText('Lookup failed this time: shown as the last scan found it')).toBeInTheDocument()
+    expect(within(screen.getByRole('list', { name: 'Not checked on the surface' })).getByText(/Names whose address lookup got no answer this time \(1 name\)/)).toBeInTheDocument()
     // Review r1 L3: the check by name went to one address of a name; the other says so.
     expect(within(row(/^mail\.acme\.example/)).getByText('Not contacted: the check by name used 203.0.113.21.')).toBeInTheDocument()
     // Review r1 M2: the tiles count names (acme.example and www share one address), the IP tile distinct addresses.

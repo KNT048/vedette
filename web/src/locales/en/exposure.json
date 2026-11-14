@@ -253,6 +253,7 @@
     "noAddress": "No address",
     "dangling": "No address: the CNAME leads nowhere",
     "ipv6": "IPv6 is not scanned yet.",
+    "lookupFailed": "Lookup failed this time: shown as the last scan found it",
     "notChecked": "Not checked on the surface",
     "col": {
       "cname": "CNAME",

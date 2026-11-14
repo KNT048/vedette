@@ -411,6 +411,8 @@ func (r *exposureRunner) Scan(ctx context.Context, t exposure.ScanTarget) (expos
 		return exposure.Content{}, err
 	case errors.Is(err, surface.ErrCT):
 		return exposure.Content{}, fmt.Errorf("%w (%w)", exposure.ErrCTDown, err)
+	case errors.Is(err, surface.ErrDNS):
+		return exposure.Content{}, fmt.Errorf("%w (%w)", exposure.ErrDNSDown, err)
 	case errors.Is(err, surface.ErrTooManyNames):
 		return exposure.Content{}, exposure.TooManyNames(t.Value)
 	case errors.Is(err, surface.ErrTooLong):
@@ -442,9 +444,7 @@ func contentOf(r surface.Result) exposure.Content {
 		surface.WordlistCut: exposure.NotWordlistCut}[r.Wordlist]; text != "" {
 		c.NotChecked = append(c.NotChecked, exposure.NotCheckedRow{Kind: "wordlist", Text: text})
 	}
-	if r.Unresolved > 0 {
-		c.NotChecked = append(c.NotChecked, exposure.NotCheckedRow{Kind: "lookup", Text: exposure.NotResolved(r.Unresolved)})
-	}
+	c.Unresolved = r.Unresolved // exposure carries their previous rows forward and says so (INV-27)
 	for _, p := range r.Ports {
 		c.Ports = append(c.Ports, exposure.PortRow{IP: p.IP.String(), Port: p.Port, Service: p.Service, Product: p.Product})
 	}

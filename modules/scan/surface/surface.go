@@ -61,6 +61,10 @@ const (
 	scanTimeout     = 5 * time.Minute
 )
 
+// ErrDNS means the box's resolver gave no clear answer for the domain itself (time-out, server failure, or the DNS phase ran out of
+// time before it): the scan stops, as for ErrCT, because a snapshot without the names would say they are gone.
+var ErrDNS = errors.New("surface: the DNS resolver gave no answer for the domain")
+
 // ErrTooLong means the scan did not finish within scanTimeout; nothing of it is kept.
 var ErrTooLong = errors.New("surface: the scan did not finish in time")
 
@@ -171,15 +175,15 @@ type (
 		NotAfter time.Time
 	}
 	// Result is what one scan found. Wordlist: why a domain scan did not try every common name (WordlistWildcard,
-	// WordlistNoAnswer, WordlistCut), "" when it did. Unresolved: names whose address lookup gave no clear answer; they are left out,
-	// so their earlier state stands (exposure INV-22).
+	// WordlistNoAnswer, WordlistCut), "" when it did. Unresolved: names whose address lookup gave no clear answer, sorted; they are
+	// not in Hosts, and exposure carries their earlier rows forward (INV-22, INV-27).
 	Result struct {
 		Hosts      []Host
 		Ports      []Port
 		Admin      []Admin
 		Certs      []Cert
 		Wordlist   string
-		Unresolved int
+		Unresolved []string
 	}
 )
 
@@ -217,6 +221,9 @@ func (s *Scanner) Domain(ctx context.Context, domain string, mayScanPorts func(c
 	if err := s.record(ctx, probe, true); err != nil {
 		return Result{}, err
 	}
+	if d.answers[domain].failed { // the domain itself (and so, at worst, every name) got no clear answer: nothing to compare with
+		return Result{}, ErrDNS
+	}
 	res := Result{Wordlist: d.wordlist}
 	var jobs []fetchJob
 	var public []netip.Addr
@@ -225,7 +232,7 @@ func (s *Scanner) Domain(ctx context.Context, domain string, mayScanPorts func(c
 		a := d.answers[n]
 		switch {
 		case a.failed:
-			res.Unresolved++ // no clear answer: left out, so nothing reads it as gone or moved (exposure INV-22)
+			res.Unresolved = append(res.Unresolved, n) // no clear answer: exposure carries its earlier row forward (INV-22, INV-27)
 			continue
 		case len(a.addrs) == 0 && a.cname == "":
 			continue // a name from an old certificate that no longer resolves
@@ -246,7 +253,7 @@ func (s *Scanner) Domain(ctx context.Context, domain string, mayScanPorts func(c
 			}
 		}
 	}
-	s.log.InfoContext(ctx, "exposure_scan_dns", "domain", domain, "names", len(d.names), "wordlist", d.wordlist, "unresolved", res.Unresolved)
+	s.log.InfoContext(ctx, "exposure_scan_dns", "domain", domain, "names", len(d.names), "wordlist", d.wordlist, "unresolved", len(res.Unresolved))
 	if err := ctx.Err(); err != nil {
 		return Result{}, s.stopped(ctx, err)
 	}

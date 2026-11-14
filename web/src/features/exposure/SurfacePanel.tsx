@@ -11,7 +11,7 @@ import type { HostClass, HostIp, HostRow, Snapshot, Target } from './types'
 // name was found. What serves a name (a CDN or not) does not matter (kien 2026-11-14); each address says what the scan does with it.
 const CLASSES: HostClass[] = ['box', 'public', 'private']
 const TONE: Record<HostClass, Tone> = { box: 'ok', public: 'accent', private: 'off' }
-const SURFACE_LINES = new Set(['wordlist', 'by_name', 'address_family'])
+const SURFACE_LINES = new Set(['wordlist', 'by_name', 'address_family', 'lookup'])
 
 export function SurfacePanel({ target, blockedText }: { target: Target; blockedText: string | null }) {
   const { t } = useTranslation('exposure')
@@ -39,6 +39,7 @@ function SurfaceView({ s }: { s: Snapshot }) {
       <span className="grid gap-1">
         <span className="break-all">{row.original.name}</span>
         {row.original.source ? <span className="text-[12px] text-muted">{t(`surface.source.${row.original.source}`)}</span> : null}
+        {row.original.lookup_failed ? <span className="text-[12px] text-warn">{t('surface.lookupFailed')}</span> : null}
       </span>
     ) },
     { id: 'cname', header: t('surface.col.cname'), accessorFn: (r) => r.cname ?? '', cell: ({ row }) => row.original.cname ? <span className="break-all text-[13px]">{row.original.cname}</span> : <span className="text-muted">{t('surface.none')}</span> },

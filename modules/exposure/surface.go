@@ -36,7 +36,7 @@ const (
 	// NotWordlistCut: some common names got no answer in the time the scan gives DNS lookups.
 	NotWordlistCut = "Common names (a list of about 150, such as vpn, mail and remote): not all tried, because some lookups got no answer from the DNS resolver in time."
 	notIPv6        = "IPv6 addresses (%d listed): IPv6 is not scanned yet."
-	notResolved    = "Names whose address lookup got no answer this time (%s): left as the last scan found them."
+	notResolved    = "Names whose address lookup got no answer this time (%s): shown as the last scan found them."
 	notByNameOnly  = "Names on public addresses that are not this box's (%s): checked by name on ports 80 and 443 only; the deep scan of each name comes with the next update."
 )
 
@@ -65,8 +65,33 @@ func sanitizeHost(h HostRow, txt func(string) string) HostRow {
 	return out
 }
 
-// NotResolved is the line of a scan that left out n names whose address lookup got no clear answer (INV-22: their earlier state stands).
-func NotResolved(n int) string { return fmt.Sprintf(notResolved, plural(n, "name")) }
+// carryHosts keeps, in the newest scan, the previous row of each name whose address lookup got no clear answer this time (INV-27,
+// INV-22): one DNS failure must not read as the name gone (diff, counts, the Surface tab), nor as its addresses moved. The row is
+// marked LookupFailed; a name no earlier scan listed has nothing to carry. One "Not checked" line says how many.
+func carryHosts(c Content, prev Snapshot, hasPrev bool) Content {
+	if len(c.Unresolved) == 0 {
+		return c
+	}
+	have := map[string]bool{}
+	for _, h := range c.Hosts {
+		have[h.Name] = true
+	}
+	failed := map[string]bool{}
+	for _, n := range c.Unresolved {
+		failed[n] = true
+	}
+	if hasPrev {
+		for _, h := range prev.Hosts {
+			if failed[h.Name] && !have[h.Name] && len(c.Hosts) < maxContentRows {
+				h.LookupFailed = true
+				have[h.Name] = true
+				c.Hosts = append(c.Hosts, h)
+			}
+		}
+	}
+	c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "lookup", Text: fmt.Sprintf(notResolved, plural(len(c.Unresolved), "name"))})
+	return c
+}
 
 // surfaceNotChecked is what a domain's surface did not scan: names on public IPv4 addresses that are not the box's (by name only),
 // and IPv6 addresses. It reads the rows before they are limited (identify runs first), so the family comes from the address.

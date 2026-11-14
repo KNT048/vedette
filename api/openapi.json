@@ -24782,6 +24782,10 @@
                               ],
                               "additionalProperties": false
                             }
+                          },
+                          "lookup_failed": {
+                            "description": "The name's address lookup got no answer this time: the row is the previous scan's, carried forward (not gone)",
+                            "type": "boolean"
                           }
                         },
                         "required": [

@@ -76,6 +76,7 @@ export const HostRow = z.object({
   source: z.enum(['ct', 'dns', 'mx', 'ns', 'wordlist']).optional().describe('Where the name was found: a certificate-transparency log, the domain itself, its MX or NS records, or the list of common names. Missing on a snapshot older than D-567: its classes are unknown'),
   cname: z.string().optional().describe('The final CNAME target'),
   ips: z.array(HostIp).optional().describe('Every address of the name with its kind (at most 16)'),
+  lookup_failed: z.boolean().optional().describe('The name\'s address lookup got no answer this time: the row is the previous scan\'s, carried forward (not gone)'),
 })
 export const AdminRow = z.object({ url: z.string(), product: z.string(), ip: z.string(), port: z.number().int(), risk: z.enum(['danger', 'warn']) })
 export const CertRow = z.object({ host: z.string(), issuer: z.string(), expires_at: z.iso.datetime() })

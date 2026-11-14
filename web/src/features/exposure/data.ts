@@ -52,7 +52,7 @@ function acmeNow(): Content {
       { name: 'www.acme.example', ip: '203.0.113.20', source: 'ct', ips: [H('203.0.113.20', 'box')] },
       { name: 'mail.acme.example', ip: '203.0.113.21', source: 'mx', ips: [H('203.0.113.21', 'public'), H('203.0.113.25', 'public', false)] },
       { name: 'vpn.acme.example', ip: '203.0.113.22', source: 'ct', ips: [H('203.0.113.22', 'box')] },
-      { name: 'nas.acme.example', ip: '203.0.113.23', source: 'wordlist', ips: [H('203.0.113.23', 'box')] },
+      { name: 'nas.acme.example', ip: '203.0.113.23', source: 'wordlist', ips: [H('203.0.113.23', 'box')], lookup_failed: true },
       { name: 'cdn.acme.example', ip: '198.51.100.30', source: 'ct', cname: 'acme.example.cdn.cloudflare.net', ips: [H('198.51.100.30', 'public')] },
       { name: 'docs.acme.example', ip: '', source: 'wordlist', cname: 'old-docs.hosting.example' },
       { name: 'intranet.acme.example', ip: '10.20.0.5', source: 'ct', ips: [H('10.20.0.5', 'private')] },
@@ -148,9 +148,11 @@ function surfaceNotChecked(hosts: HostRow[]): NotCheckedRow[] {
   const ips = hosts.flatMap((h) => h.ips ?? [])
   const byName = hosts.filter((h) => (h.ips ?? []).some((a) => a.family === 'ipv4' && a.class === 'public')).length
   const v6 = ips.filter((a) => a.family === 'ipv6').length
+  const failed = hosts.filter((h) => h.lookup_failed).length
   return [
     ...(byName > 0 ? [{ kind: 'by_name', text: `Names on public addresses that are not this box's (${plural(byName, 'name')}): checked by name on ports 80 and 443 only; the deep scan of each name comes with the next update.` }] : []),
     ...(v6 > 0 ? [{ kind: 'address_family', text: `IPv6 addresses (${v6} listed): IPv6 is not scanned yet.` }] : []),
+    ...(failed > 0 ? [{ kind: 'lookup', text: `Names whose address lookup got no answer this time (${plural(failed, 'name')}): shown as the last scan found them.` }] : []),
   ]
 }
 

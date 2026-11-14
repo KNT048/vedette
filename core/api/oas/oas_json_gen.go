@@ -92862,6 +92862,12 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKHostsItem) encodeFields(e *j
 		}
 	}
 	{
+		if s.LookupFailed.Set {
+			e.FieldStart("lookup_failed")
+			s.LookupFailed.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("name")
 		e.Str(s.Name)
 	}
@@ -92873,12 +92879,13 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKHostsItem) encodeFields(e *j
 	}
 }
 
-var jsonFieldsNameOfExposureGetExposureTargetsIDSnapshotsDateOKHostsItem = [5]string{
+var jsonFieldsNameOfExposureGetExposureTargetsIDSnapshotsDateOKHostsItem = [6]string{
 	0: "cname",
 	1: "ip",
 	2: "ips",
-	3: "name",
-	4: "source",
+	3: "lookup_failed",
+	4: "name",
+	5: "source",
 }
 
 // Decode decodes ExposureGetExposureTargetsIDSnapshotsDateOKHostsItem from json.
@@ -92929,8 +92936,18 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKHostsItem) Decode(d *jx.Deco
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"ips\"")
 			}
+		case "lookup_failed":
+			if err := func() error {
+				s.LookupFailed.Reset()
+				if err := s.LookupFailed.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"lookup_failed\"")
+			}
 		case "name":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.Name = string(v)
@@ -92961,7 +92978,7 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKHostsItem) Decode(d *jx.Deco
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00001010,
+		0b00010010,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.

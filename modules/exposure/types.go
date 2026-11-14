@@ -195,6 +195,8 @@ type (
 		Source string   `json:"source,omitempty"`
 		CNAME  string   `json:"cname,omitempty"`
 		IPs    []HostIP `json:"ips,omitempty"`
+		// LookupFailed: the name's address lookup got no clear answer this time; the row is the previous scan's, carried forward.
+		LookupFailed bool `json:"lookup_failed,omitempty"`
 	}
 	// HostIP is one address of a name with its kind (INV-27): box (this box's verified, current IP), public (any other public
 	// address) or private (never dialed). Contacted: the check by name (GET / on 80 and 443) went to this address.
@@ -247,6 +249,9 @@ type Content struct {
 	NotChecked  []NotCheckedRow `json:"not_checked"`
 	WebFindings []WebFindingRow `json:"web_findings"` // INV-24: alerts of the passive web scan (ZAP), not exploited CVEs
 	Greenbone   []GreenboneRow  `json:"greenbone"`    // INV-25: results of the optional deep scan (Greenbone, QoD >= 70)
+	// Unresolved are the names whose address lookup got no clear answer this time (INV-27): not stored as such; saveScan carries
+	// their previous rows forward (carryHosts).
+	Unresolved []string `json:"-"`
 }
 
 // Snapshot is the result of one scan day (contract.ts Snapshot). Vulns and VersionGaps are not stored: they are computed when the

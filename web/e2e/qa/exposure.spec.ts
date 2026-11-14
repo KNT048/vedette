@@ -284,7 +284,6 @@ test('clean install: Detect now refuses private and CGNAT results; a public IP g
   await page.getByRole('button', { name: 'Scan now' }).click()
   // The pause stays on the page, not only in a toast: heading, card, locked button with the reason, and "Paused" in the list.
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(/198\.51\.100\.7 is paused: the box no longer goes out through it/)
-  await page.getByRole('tab', { name: /^Ownership/ }).click() // the heading and the locked button say it on every tab; the card is on Ownership
   await expect(page.getByRole('alert').filter({ hasText: /Scans paused: the box no longer reaches the Internet through this IP \(last seen \d{1,2} \w{3} \d{4}, \d{2}:\d{2}\)/ })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Scan now' })).toBeDisabled()
   await expect(page.locator('#scan-reason')).toContainText('no longer goes out through 198.51.100.7')

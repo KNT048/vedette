@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { ArrowLeft, Play, Trash2 } from 'lucide-react'
-import { PageHeader, Section } from '@/components/common/PageHeader'
+import { Notice, PageHeader, Section } from '@/components/common/PageHeader'
 import { PageTabs } from '@/components/common/PageFrame'
 import { QueryState, RequireModule } from '@/components/common/States'
 import { Button } from '@/components/ui/button'
@@ -60,6 +60,11 @@ function TargetView({ target }: { target: Target }) {
   // The person has something to do on the Ownership tab: prove ownership, or the proof expired or went missing.
   const needsOwnership = target.status === 'unverified' || target.validity === 'expired' || target.blocked_reason === 'txt_missing'
 
+  // A paused or blocked ownership is a page-level state: it shows above the tabs whatever tab is open.
+  const stateNotice = target.kind === 'domain' ? (target.status !== 'unverified' && target.blocked_reason === 'txt_missing' ? t('verify.txtMissing') : null)
+    : target.blocked_reason === 'ip_not_current' ? t('verify.paused', { time: dateTimeText(target.verified_at) })
+    : target.validity === 'expired' ? t('verify.ipExpired') : null
+
   function run() {
     scan.mutate({ id: target.id, noticeVersion: notice?.version }, {
       // After Scan now the person wants the results, not the tab they pressed it from.
@@ -89,6 +94,8 @@ function TargetView({ target }: { target: Target }) {
         </div>
       ) : null}
       {!operator ? <p className="-mt-3 mb-6 max-w-3xl text-[13px] text-muted">{t('target.viewOnly')}</p> : null}
+      {stateNotice ? <Notice tone={target.validity === 'expired' && target.kind === 'ip' ? 'danger' : 'warn'} role="alert" title={stateNotice}
+        actions={<Button onClick={() => { const p = new URLSearchParams(params); p.set('tab', 'ownership'); setParams(p, { replace: true }) }}>{t('verify.goOwnership')}</Button>} /> : null}
       <AnchorRedirect map={target.kind === 'ip' ? ANCHOR_TAB : { ...ANCHOR_TAB, outside: 'results' }} />
       <ScrollToHash />
       <PageTabs label={t('tabs.label')} tabs={[

@@ -171,6 +171,7 @@
     "commitHint": "Recorded by the first Scan now of an administrator. Vedette keeps who, when and the exact sentence."
   },
   "verify": {
+    "goOwnership": "Open Ownership",
     "okToast": "Verified {{value}}",
     "failToast": "Not verified yet. The reason is shown just below the button.",
     "checking": "Checking",

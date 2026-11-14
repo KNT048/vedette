@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { RefreshCw } from 'lucide-react'
-import { Notice, Panel, KeyValue } from '@/components/common/PageHeader'
+import { Panel, KeyValue } from '@/components/common/PageHeader'
 import { CodeBlock } from '@/components/common/CodeBlock'
 import { Chip } from '@/components/common/StatusChip'
 import { Button } from '@/components/ui/button'
@@ -48,7 +48,6 @@ export function VerifyPanel({ target }: { target: Target }) {
           {verified ? (
             <>
               <p className="max-w-3xl text-sm">{t('verify.doneDomain', { time: dateTimeText(target.verified_at) })}</p>
-              {target.blocked_reason === 'txt_missing' ? <Notice tone="warn" role="alert" className="mb-0!" title={t('verify.txtMissing')} /> : null}
             </>
           ) : <p className="max-w-3xl text-sm">{t('verify.dnsIntro', { value: target.value })}</p>}
           {!verified || target.blocked_reason === 'txt_missing' ? (
@@ -71,8 +70,6 @@ export function VerifyPanel({ target }: { target: Target }) {
             { label: t('verify.verifiedOn'), value: dateTimeText(target.verified_at) },
             { label: t('verify.expiresOn'), value: dateText(target.expires_at) },
           ]} />
-          {target.validity === 'expired' ? <Notice tone="danger" role="alert" className="mb-0!" title={t('verify.ipExpired')} /> : null}
-          {paused ? <Notice tone="warn" role="alert" className="mb-0!" title={t('verify.paused', { time: dateTimeText(target.verified_at) })} /> : null}
         </>
       )}
       {recheck}

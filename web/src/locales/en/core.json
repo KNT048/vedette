@@ -1351,6 +1351,13 @@
     "sso": {
       "title": "Password and two-step sign-in",
       "body": "You sign in through your company account (SSO). Your password and two-step sign-in are set at your identity provider, not in Vedette. Your role comes from your groups there and is updated each time you sign in."
+    },
+    "tabs": {
+      "label": "Parts of My account",
+      "profile": "Profile",
+      "signIn": "Sign-in and two-step",
+      "sessions": "Sessions",
+      "approvers": "Approval channels"
     }
   },
   "twoStepPrompt": {
@@ -1754,6 +1761,13 @@
         "keeps": "Agents enrolled with {{from}}, firewalls that pull the block list from it and links already sent keep working: the box also keeps answering to {{from}} until you stop it here.",
         "go": "Change the address"
       }
+    },
+    "tabs": {
+      "label": "Parts of Box network",
+      "interfaces": "Interfaces",
+      "management": "Management address",
+      "boxAddress": "Box address",
+      "time": "Time"
     }
   },
   "connections": {

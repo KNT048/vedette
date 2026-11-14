@@ -14,7 +14,7 @@ describe('two-step sign-in prompt on Home (D-405)', () => {
     const u = userEvent.setup()
     renderApp('/')
     expect(await screen.findByText('Turn on two-step sign-in for this administrator account')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Turn on two-step sign-in' })).toHaveAttribute('href', '/account#two-step')
+    expect(screen.getByRole('link', { name: 'Turn on two-step sign-in' })).toHaveAttribute('href', '/settings/account?tab=sign-in')
     await u.click(screen.getByRole('button', { name: 'Remind me in 30 days' }))
     expect(prompt()).toBeNull()
     const until = Number(localStorage.getItem('vedette-two-step-later:u-admin'))

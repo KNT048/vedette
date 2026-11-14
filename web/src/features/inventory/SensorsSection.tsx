@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { Section } from '@/components/common/PageHeader'
+import { Notice, Section } from '@/components/common/PageHeader'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { ModuleOff, QueryState, RequireModule } from '@/components/common/States'
 import { Chip, type Tone } from '@/components/common/StatusChip'
@@ -116,7 +116,7 @@ function CardDialog({ sensor, onClose }: { sensor: Sensor; onClose: () => void }
                 <p id="sensor-span-hint" className="max-w-lg text-[13px] text-muted">{(!SPAN_IN_UI ? t('sensors.card.spanKept', { name: sensor.interface ?? '' }) : t(card === '' ? 'sensors.card.spanNeedsCard' : 'sensors.card.spanHint'))}</p>
               </div> : null}
               {showSpan ? <p className="max-w-lg text-[13px] text-muted">{t('sensors.spanHint')}</p> : null}
-              {error && errorAt === 'form' ? <p role="alert" className="rounded-md border border-danger/40 bg-danger-soft px-3 py-2 text-sm text-danger">{error}</p> : null}
+              {error && errorAt === 'form' ? <Notice tone="danger" role="alert" className="mb-0" title={error} /> : null}
               <DialogFooter>
                 <DialogClose asChild><Button type="button">{t('common:cancel')}</Button></DialogClose>
                 <Button type="submit" variant="primary" disabled={unchanged || save.isPending}>{t('common:save')}</Button>

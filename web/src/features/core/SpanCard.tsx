@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { X } from 'lucide-react'
 import { toast } from 'sonner'
-import { KeyValue, Section } from '@/components/common/PageHeader'
+import { Notice, KeyValue, Section } from '@/components/common/PageHeader'
 import { Chip, type Tone } from '@/components/common/StatusChip'
 import { Button } from '@/components/ui/button'
 import { Field, Input, Label, Select } from '@/components/ui/input'
@@ -139,7 +139,7 @@ export function SpanCard({ d, readOnly = false }: { d: NetworkState; readOnly?: 
             </div>
           </fieldset>
 
-          {error ? <p role="alert" className="rounded-md border border-danger/40 bg-danger-soft px-3 py-2 text-sm text-danger">{error}</p> : null}
+          {error ? <Notice tone="danger" role="alert" className="mb-0" title={error} /> : null}
           {readOnly ? null : <div className="flex flex-wrap items-center gap-3">
             <Button type="submit" variant="primary" disabled={gate.disabled || !dirty || span.isPending} title={gate.title}>{t('network.span.save')}</Button>
             {dirty ? <span className="text-[13px] text-muted">{t('network.span.unsaved')}</span> : null}

@@ -3,7 +3,7 @@ import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Chip } from '@/components/common/StatusChip'
-import { PageHeader } from '@/components/common/PageHeader'
+import { Notice, PageHeader } from '@/components/common/PageHeader'
 import { ErrorState, Loading, ModuleOff } from '@/components/common/States'
 import { useIncident } from '@/features/notify/api'
 import { Button } from '@/components/ui/button'
@@ -38,19 +38,18 @@ export function IncidentRespond({ id }: { id: string }) {
             <span>{t('incident.source')}: <span className="font-medium">{source.ip}</span>{source.device ? <> ({source.asset_id ? <Link className={link} to={`/devices/${encodeURIComponent(source.asset_id)}`}>{source.device}</Link> : source.device})</> : null}</span>
             <Chip tone={source.scope === 'lan' ? 'warn' : 'danger'}>{t(`incident.scope.${source.scope}`)}</Chip>
           </p>
-          {note ? <p role="note" className="rounded-md border border-dashed border-rule bg-paper px-3 py-2 text-sm">{note}</p> : null}
+          {note ? <Notice tone="off" role="note" className="mb-0" title={note} /> : null}
           {sent ? (
             <p role="status" className="rounded-md border border-rule bg-paper px-3 py-2 text-sm">{t('incident.sent', { title: sent })} <Link className={link} to="/response?tab=requests">{t('incident.toRequests')}</Link></p>
           ) : null}
           {options.length ? <ul className="grid gap-2">{options.map((o) => <OptionRow key={o.action_id} id={incident.id} o={o} onSent={setSent} />)}</ul> : null}
           {source.scope === 'lan' && !ready && !note ? (
-            <div className="grid gap-1.5 rounded-md border border-dashed border-rule bg-paper px-3 py-2 text-sm">
-              <p className="font-medium">{t('incident.lanNothing')}</p>
-              <ol className="ml-5 grid list-decimal gap-1">
+            <Notice tone="off" className="mb-0" title={t('incident.lanNothing')}>
+              <ol className="ml-5 grid list-decimal gap-1 text-ink">
                 <li>{t('incident.doNow')} {incident.action}</li>
                 <li>{t('incident.letVedette')} <Link className={link} to="/settings/connections">{t('incident.toConnections')}</Link>{t('incident.thenCatalog')} <Link className={link} to="/settings/response">{t('incident.toCatalog')}</Link>{t('incident.thenRule')} <Link className={link} to="/response?tab=rules">{t('incident.toRules')}</Link></li>
               </ol>
-            </div>
+            </Notice>
           ) : null}
           {source.scope === 'lan' ? <p className="text-[13px] text-muted">{t('incident.noBlocklist', { ip: source.ip })}</p> : null}
         </>
@@ -96,13 +95,12 @@ export function IncidentRespondOff({ id }: { id: string }) {
         {q.isPending ? <Loading /> : q.error ? <ErrorState error={q.error} onRetry={() => void q.refetch()} /> : (
           <>
             <p className="text-sm"><Link className={link} to={`/incidents/${encodeURIComponent(q.data.incident.id)}`}>{q.data.incident.title}</Link></p>
-            <div className="grid gap-1.5 rounded-md border border-dashed border-rule bg-paper px-3 py-2 text-sm">
-              <p className="font-medium">{t('incident.offNothing')}</p>
-              <ol className="ml-5 grid list-decimal gap-1">
+            <Notice tone="off" className="mb-0" title={t('incident.offNothing')}>
+              <ol className="ml-5 grid list-decimal gap-1 text-ink">
                 <li>{t('incident.doNow')} {q.data.incident.action}</li>
                 <li>{t('incident.offNext')}</li>
               </ol>
-            </div>
+            </Notice>
           </>
         )}
       </section>

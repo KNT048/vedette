@@ -2,8 +2,9 @@ import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { PageHeader, Section } from '@/components/common/PageHeader'
+import { Notice, PageHeader, Section } from '@/components/common/PageHeader'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
+import { OldHashToTab, PageTabs } from '@/components/common/PageFrame'
 import { QueryState } from '@/components/common/States'
 import { Chip } from '@/components/common/StatusChip'
 import { Button } from '@/components/ui/button'
@@ -79,7 +80,7 @@ function Interfaces({ d }: { d: NetworkState }) {
             </dl>
           </div>
         )} />
-      {error ? <p role="alert" className="mt-3 rounded-md border border-danger/40 bg-danger-soft px-3 py-2 text-sm text-danger">{error}</p> : null}
+      {error ? <Notice tone="danger" role="alert" className="mb-0 mt-3" title={error} /> : null}
     </Section>
   )
 }
@@ -102,23 +103,21 @@ function Pending({ d }: { d: NetworkState }) {
   // The box could not go back by itself: it restarts, and the old settings on disk bring it back (D-100). Nothing to confirm or cancel any more.
   if (d.pending.reboot_at) {
     return (
-      <div role="alert" className="mb-4 grid gap-2 rounded-md border border-danger/40 bg-danger-soft px-4 py-3">
-        <p className="text-sm font-medium">{t('network.pending.stuckTitle')}</p>
-        <p className="text-sm">{t('network.pending.stuckBody', { time: new Date(d.pending.reboot_at).toLocaleTimeString(), old: d.pending.previous_address ?? t('network.pending.previousSettings') })}</p>
-      </div>
+      <Notice tone="danger" role="alert" className="mb-4" title={t('network.pending.stuckTitle')}>
+        {t('network.pending.stuckBody', { time: new Date(d.pending.reboot_at).toLocaleTimeString(), old: d.pending.previous_address ?? t('network.pending.previousSettings') })}
+      </Notice>
     )
   }
   return (
-    <div role="status" className="mb-4 grid gap-3 rounded-md border border-warn/50 bg-warn-soft px-4 py-3">
-      <p className="text-sm font-medium">{t('network.pending.title', { ip })}</p>
-      <p className="text-sm">{t('network.pending.body', { ip, old: d.pending.previous_address ?? t('network.pending.previousSettings') })}</p>
-      <p className="text-sm" aria-live="off">{t('network.pending.left')}: <strong className="tabular-nums">{mmss(left)}</strong></p>
-      {error ? <p role="alert" className="text-sm text-danger">{error}</p> : null}
-      <div className="flex flex-wrap gap-2">
+    <Notice tone="warn" role="status" className="mb-4" title={t('network.pending.title', { ip })}
+      actions={<>
         <Button variant="primary" disabled={confirm.isPending} onClick={() => { settled.current = true; setError(null); confirm.mutate(undefined, { onSuccess: () => toast.success(t('network.pending.confirmed')), onError: (e) => setError(errMsg(e, t)) }) }}>{t('network.pending.confirm')}</Button>
         <Button disabled={revert.isPending} onClick={() => { settled.current = true; setError(null); revert.mutate(undefined, { onSuccess: () => toast.success(t('network.management.revertedNow')), onError: (e) => setError(errMsg(e, t)) }) }}>{t('network.pending.revert')}</Button>
-      </div>
-    </div>
+      </>}>
+      <p className="text-ink">{t('network.pending.body', { ip, old: d.pending.previous_address ?? t('network.pending.previousSettings') })}</p>
+      <p className="mt-1 text-ink" aria-live="off">{t('network.pending.left')}: <strong className="tabular-nums">{mmss(left)}</strong></p>
+      {error ? <p role="alert" className="mt-1 text-danger">{error}</p> : null}
+    </Notice>
   )
 }
 
@@ -173,7 +172,7 @@ function ManagementForm({ d }: { d: NetworkState }) {
             <Field label={t('network.management.dns')} htmlFor="mgmt-dns" hint={t('network.management.dnsHint')}><Input id="mgmt-dns" autoComplete="off" value={dns} disabled={locked} placeholder="192.168.10.1" onChange={(e) => setDns(e.target.value)} /></Field>
           </>
         )}
-        {error ? <p role="alert" className="rounded-md border border-danger/40 bg-danger-soft px-3 py-2 text-sm text-danger">{error}</p> : null}
+        {error ? <Notice tone="danger" role="alert" className="mb-0" title={error} /> : null}
         <div><Button type="submit" variant="primary" disabled={locked || management.isPending} title={gate.title}>{t('network.management.save')}</Button></div>
         <p className="max-w-lg text-[13px] text-muted">{t('network.management.restartNote')}</p>
       </form>
@@ -214,7 +213,7 @@ function NtpForm({ d }: { d: NetworkState }) {
       {mode === 'custom'
         ? <Field label={t('network.ntp.servers')} htmlFor="ntp-servers" hint={t('network.ntp.serversHint')}><Input id="ntp-servers" autoComplete="off" value={servers} disabled={gate.disabled} placeholder="ntp.company.lan" onChange={(e) => setServers(e.target.value)} /></Field>
         : <p className="text-[13px] text-muted">{t('network.ntp.defaultNote', { pool: d.default_ntp })}</p>}
-      {error ? <p role="alert" className="rounded-md border border-danger/40 bg-danger-soft px-3 py-2 text-sm text-danger">{error}</p> : null}
+      {error ? <Notice tone="danger" role="alert" className="mb-0" title={error} /> : null}
       <div><Button type="submit" variant="primary" disabled={gate.disabled || ntp.isPending} title={gate.title}>{t('common:save')}</Button></div>
     </form>
   )
@@ -283,32 +282,50 @@ function BoxAddressForm({ d }: { d: NetworkState }) {
  *  with SPAN off keeps "SPAN capture" among its role options, which is its way out. */
 const spanSetUp = (d: NetworkState) => d.span.enabled
 
+// D-519: a tab per independent area (each saves on its own), like pfSense/OPNsense keep interfaces, addresses and time apart.
+// Section ids before D-519 (`/settings/network#box-address` from Agents, bookmarks) open their tab.
+const OLD_HASH: Record<string, string> = { interfaces: 'interfaces', decoys: 'interfaces', span: 'interfaces', guides: 'interfaces', management: 'management', 'box-address': 'box-address', ntp: 'time' }
+
 function Body({ d }: { d: NetworkState }) {
   const { t } = useTranslation('core')
   return (
     <>
+      <OldHashToTab map={OLD_HASH} />
       <ReadOnlyNote role="admin" />
       <p className="mb-6 max-w-3xl rounded-md border border-rule bg-sunken px-4 py-2.5 text-[13px]">{t('network.helper')}</p>
-      <Interfaces d={d} />
-      <Section id="management" title={t('network.management.title')} description={t('network.management.desc')} stories={['S-CORE-8']}>
-        <Pending d={d} />
-        <ManagementForm key={JSON.stringify(d.management) + String(!!d.pending)} d={d} />
-      </Section>
-      <Section id="box-address" title={t('network.boxAddress.title')} description={t('network.boxAddress.desc')} stories={['S-CORE-8', 'S-NOT-1', 'S-RESP-3']}>
-        <BoxAddressForm key={d.box_address.address ?? ''} d={d} />
-      </Section>
-      {SPAN_IN_UI || spanSetUp(d) ? <SpanCard key={JSON.stringify(d.span)} d={d} readOnly={!SPAN_IN_UI} /> : null}
-      {SPAN_IN_UI ? <SpanGuides spanPort={d.span.interface ?? d.interfaces.find((i) => i.role === 'span')?.name ?? 'eth1'} /> : null}
-      <Section id="decoys" title={t('network.decoys.title')} description={t('network.decoys.desc')} stories={['S-CORE-8']}>
-        {d.decoy_ips.length
-          ? <ul aria-label={t('network.decoys.title')} className="flex flex-wrap gap-2">{d.decoy_ips.map((ip) => <li key={ip} className="rounded-md border border-rule bg-surface px-2.5 py-1 font-mono text-[12.5px]">{ip}</li>)}</ul>
-          : <p className="text-sm text-muted">{t('network.decoys.none')}</p>}
-        <p className="mt-3 text-sm"><Link to="/honeypot" className="text-accent underline-offset-4 hover:underline">{t('network.decoys.link')}</Link></p>
-      </Section>
-      <Section id="ntp" title={t('network.ntp.title')} description={t('network.ntp.desc')} stories={['S-CORE-8']}>
-        <NtpForm key={JSON.stringify(d.ntp)} d={d} />
-        <p className="mt-3 text-[13px] text-muted">{t('network.ntp.privacy')} <Link to="/settings/privacy" className="text-accent underline-offset-4 hover:underline">{t('network.ntp.privacyLink')}</Link></p>
-      </Section>
+      {/* A pending address change counts down on every tab: it must be confirmed from the new address or the box goes back. */}
+      <Pending d={d} />
+      <PageTabs label={t('network.tabs.label')} tabs={[
+        { id: 'interfaces', label: t('network.tabs.interfaces'), panel: (
+          <>
+            <Interfaces d={d} />
+            {SPAN_IN_UI || spanSetUp(d) ? <SpanCard key={JSON.stringify(d.span)} d={d} readOnly={!SPAN_IN_UI} /> : null}
+            {SPAN_IN_UI ? <SpanGuides spanPort={d.span.interface ?? d.interfaces.find((i) => i.role === 'span')?.name ?? 'eth1'} /> : null}
+            <Section id="decoys" title={t('network.decoys.title')} description={t('network.decoys.desc')} stories={['S-CORE-8']}>
+              {d.decoy_ips.length
+                ? <ul aria-label={t('network.decoys.title')} className="flex flex-wrap gap-2">{d.decoy_ips.map((ip) => <li key={ip} className="rounded-md border border-rule bg-surface px-2.5 py-1 font-mono text-[12.5px]">{ip}</li>)}</ul>
+                : <p className="text-sm text-muted">{t('network.decoys.none')}</p>}
+              <p className="mt-3 text-sm"><Link to="/honeypot" className="text-accent underline-offset-4 hover:underline">{t('network.decoys.link')}</Link></p>
+            </Section>
+          </>
+        ) },
+        { id: 'management', label: t('network.tabs.management'), panel: (
+          <Section id="management" title={t('network.management.title')} description={t('network.management.desc')} stories={['S-CORE-8']}>
+            <ManagementForm key={JSON.stringify(d.management) + String(!!d.pending)} d={d} />
+          </Section>
+        ) },
+        { id: 'box-address', label: t('network.tabs.boxAddress'), panel: (
+          <Section id="box-address" title={t('network.boxAddress.title')} description={t('network.boxAddress.desc')} stories={['S-CORE-8', 'S-NOT-1', 'S-RESP-3']}>
+            <BoxAddressForm key={d.box_address.address ?? ''} d={d} />
+          </Section>
+        ) },
+        { id: 'time', label: t('network.tabs.time'), panel: (
+          <Section id="ntp" title={t('network.ntp.title')} description={t('network.ntp.desc')} stories={['S-CORE-8']}>
+            <NtpForm key={JSON.stringify(d.ntp)} d={d} />
+            <p className="mt-3 text-[13px] text-muted">{t('network.ntp.privacy')} <Link to="/settings/privacy" className="text-accent underline-offset-4 hover:underline">{t('network.ntp.privacyLink')}</Link></p>
+          </Section>
+        ) },
+      ]} />
     </>
   )
 }

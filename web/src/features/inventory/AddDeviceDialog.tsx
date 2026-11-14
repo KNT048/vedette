@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Dialog, DialogContent, DialogFooter, DialogClose } from '@/components/ui/dialog'
+import { Notice } from '@/components/common/PageHeader'
 import { Button } from '@/components/ui/button'
 import { Field, Input } from '@/components/ui/input'
 import { useAddDevice, useDeviceAction } from './api'
@@ -57,7 +58,7 @@ function AddForm({ onDone, deviceId, listOpenRef }: { onDone: () => void; device
           </Field>
         </>
       )}
-      {error ? <p role="alert" className="rounded-md border border-danger/40 bg-danger-soft px-3 py-2 text-sm text-danger">{error}</p> : null}
+      {error ? <Notice tone="danger" role="alert" className="mb-0" title={error} /> : null}
       <DialogFooter>
         <DialogClose asChild><Button>{t('common:cancel')}</Button></DialogClose>
         <Button type="submit" variant="primary" disabled={!product || pending}>{t('add.submit')}</Button>

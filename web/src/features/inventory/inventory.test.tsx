@@ -219,8 +219,8 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
     enableModule('agent-intake', true)
     renderApp('/devices?tab=add')
     const ways = await screen.findByRole('region', { name: 'Add devices' }, T)
-    expect(within(ways).getByRole('link', { name: 'Download osquery and create a token' })).toHaveAttribute('href', '/devices/setup#agents')
-    expect(within(ways).getByRole('link', { name: 'Connect Wazuh' })).toHaveAttribute('href', '/devices/setup#agents')
+    expect(within(ways).getByRole('link', { name: 'Download osquery and create a token' })).toHaveAttribute('href', '/devices/setup?tab=agents')
+    expect(within(ways).getByRole('link', { name: 'Connect Wazuh' })).toHaveAttribute('href', '/devices/setup?tab=agents')
     expect(within(ways).getByRole('link', { name: 'Set network ranges and sensors' })).toHaveAttribute('href', '/devices/setup')
     await expectNoA11yViolations()
   })
@@ -230,6 +230,15 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
     await deviceTable()
     expect(screen.getByRole('button', { name: 'Add a device' })).toBeEnabled()
     expect(screen.queryByRole('link', { name: /sensors/ })).not.toBeInTheDocument()
+  })
+
+  it('D-519: old #agents and #snmp links to the setup page open their tab', async () => {
+    const { unmount } = renderApp('/devices/setup#agents')
+    expect(await screen.findByRole('tab', { name: 'Agents', selected: true }, T)).toBeInTheDocument()
+    unmount()
+    renderApp('/devices/setup#snmp')
+    expect(await screen.findByRole('tab', { name: 'SNMP', selected: true }, T)).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 2, name: 'SNMP credentials' }, T)).toBeInTheDocument()
   })
 
   it('the admin gets a link to the setup page (agents included) right after "Add a device" (item 26b)', async () => {
@@ -374,7 +383,7 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
   it('the setup page does not ask for agents while agent-intake is off', async () => {
     let asked = 0
     server.use(http.get('*/api/v1/inventory/agents', () => { asked++; return HttpResponse.json({ error: { code: 'module_off', message: 'off' } }, { status: 404 }) }))
-    renderApp('/devices/setup')
+    renderApp('/devices/setup?tab=agents')
     expect((await screen.findAllByText(/Agent intake is off/, undefined, T)).length).toBeGreaterThan(0)
     expect(asked).toBe(0)
   })
@@ -866,14 +875,22 @@ describe('inventory: range validation helpers', () => {
 
 describe('inventory: scope and sensors (S-INV-1, admin)', () => {
   it('the page answers in its first line, has the sections, and no a11y violations', async () => {
+    const user = userEvent.setup()
     renderApp('/devices/setup')
     expect(await screen.findByRole('heading', { level: 1, name: '2 network ranges to watch' }, T)).toBeInTheDocument()
-    for (const h of ['LAN ranges', 'Active scanning', 'Device types scanned only once', 'Sensor on this box', 'Agents on servers']) {
+    // D-519: one tab per area that saves on its own; Scope first
+    const tabs = await screen.findByRole('tablist', { name: 'Parts of the setup' }, T)
+    expect(within(tabs).getAllByRole('tab').map((x) => x.textContent?.trim())).toEqual(['Scope', 'Sensor', 'SNMP', 'Agents'])
+    for (const h of ['LAN ranges', 'Active scanning', 'Device types scanned only once']) {
       expect(await screen.findByRole('heading', { level: 2, name: h }, T)).toBeInTheDocument()
     }
     expect(screen.getByText(/No exploitation, no denial of service/)).toBeInTheDocument()
-    expect((await screen.findAllByText(/Agent intake is off/, undefined, T)).length).toBeGreaterThan(0) // agent-intake is off by default
     await expectNoA11yViolations()
+    await user.click(screen.getByRole('tab', { name: 'Sensor' }))
+    expect(await screen.findByRole('heading', { level: 2, name: 'Sensor on this box' }, T)).toBeInTheDocument()
+    await user.click(screen.getByRole('tab', { name: 'Agents' }))
+    expect(await screen.findByRole('heading', { level: 2, name: 'Agents on servers' }, T)).toBeInTheDocument()
+    expect((await screen.findAllByText(/Agent intake is off/, undefined, T)).length).toBeGreaterThan(0) // agent-intake is off by default
   })
 
   it('scope confirmation is a single commitment checkbox plus an "as is" line; no consent document', async () => {
@@ -1117,7 +1134,7 @@ describe('inventory: scope and sensors (S-INV-1, admin)', () => {
 
   it('SPAN settings explain what is read and never mention installing Zeek or Suricata', async () => {
     const user = userEvent.setup()
-    renderApp('/devices/setup')
+    renderApp('/devices/setup?tab=sensor')
     await screen.findAllByRole('button', { name: 'Configure sensor vedette-hq' }, T)
     await clickUntil(user, () => screen.getAllByRole('button', { name: 'Configure sensor vedette-hq' })[0]!, () => screen.getByRole('dialog'))
     const dlg = screen.getByRole('dialog')
@@ -1139,7 +1156,7 @@ describe('inventory: scope and sensors (S-INV-1, admin)', () => {
   // The sample box already listens on a SPAN card (eth1): with SPAN hidden for v1 (D-403) it still shows that state, read-only.
   it('the sensor dialog shows the SPAN status a box already has and links to Box network; it has no SPAN switch', async () => {
     const user = userEvent.setup()
-    renderApp('/devices/setup')
+    renderApp('/devices/setup?tab=sensor')
     await screen.findAllByRole('button', { name: 'Configure sensor vedette-hq' }, T)
     await clickUntil(user, () => screen.getAllByRole('button', { name: 'Configure sensor vedette-hq' })[0]!, () => screen.getByRole('dialog'))
     const dlg = screen.getByRole('dialog')
@@ -1154,7 +1171,7 @@ describe('inventory: scope and sensors (S-INV-1, admin)', () => {
     asAdmin()
     const r = await fetch(`${location.origin}/api/v1/core/network/interfaces`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ roles: { eth0: 'management', eth1: 'unused', eth2: 'unused' } }) })
     expect(r.status).toBe(200)
-    renderApp('/devices/setup')
+    renderApp('/devices/setup?tab=sensor')
     await screen.findAllByRole('button', { name: 'Configure sensor vedette-hq' }, T)
     const sec = document.getElementById('sensors')!
     expect(sec).toHaveTextContent("It listens on the box's management port, set in Settings → Box network.")
@@ -1173,13 +1190,13 @@ describe('inventory: scope and sensors (S-INV-1, admin)', () => {
     asAdmin()
     sensorsStore.update((l) => l.map((x) => ({ ...x, status: 'starting' as const, last_seen: null, version: null, devices_seen: 0 })))
     const sec = () => document.getElementById('sensors')!
-    const first = renderApp('/devices/setup')
+    const first = renderApp('/devices/setup?tab=sensor')
     await waitFor(() => expect(sec()).toHaveTextContent('Starting…'), T)
     expect(sec()).toHaveTextContent('The box is starting the sensor (after setup or after you turned it on).')
     expect(sec()).not.toHaveTextContent('Not connected yet')
     first.unmount()
     sensorsStore.update((l) => l.map((x) => ({ ...x, status: 'never_connected' as const })))
-    renderApp('/devices/setup')
+    renderApp('/devices/setup?tab=sensor')
     await waitFor(() => expect(sec()).toHaveTextContent('Not connected yet'), T)
     expect(sec()).toHaveTextContent('The box could not get the sensor running. Turn Passive sensor off and on in Settings → Modules')
     expect(sec().textContent).not.toContain('compose.sensors.yaml') // that hint is the container-only one
@@ -1193,7 +1210,7 @@ describe('inventory: scope and sensors (S-INV-1, admin)', () => {
     for (const k of ['kind', 'site', 'enrollment', 'waiting']) expect(list[0]).not.toHaveProperty(k)
     expect(JSON.stringify(list)).not.toMatch(/VED-[A-Z0-9]{4}/)
 
-    renderApp('/devices/setup')
+    renderApp('/devices/setup?tab=sensor')
     await screen.findAllByRole('button', { name: 'Configure sensor vedette-hq' }, T)
     expect(screen.queryByRole('button', { name: /another site/i })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Revoke sensor/i })).not.toBeInTheDocument()
@@ -1278,7 +1295,7 @@ const fastForward = (ms: number) => { const real = Date.now(); return vi.spyOn(D
 describe('inventory: agents (S-INV-4)', () => {
   it('the section has an osquery table and a Wazuh card; the seeded token is listed and masked', async () => {
     enableModule('agent-intake', true)
-    renderApp('/devices/setup')
+    renderApp('/devices/setup?tab=agents')
     const table = await screen.findByRole('table', { name: 'Enrollment tokens' }, T)
     expect(within(table).getByText(OSQ)).toBeInTheDocument()
     expect(within(table).getByText('••••k3Pq')).toBeInTheDocument()
@@ -1290,7 +1307,7 @@ describe('inventory: agents (S-INV-4)', () => {
 
   it('the page itself lists every osquery package as step 1, without opening a dialog; the token is step 2 (item 26b, D-404)', async () => {
     enableModule('agent-intake', true)
-    renderApp('/devices/setup')
+    renderApp('/devices/setup?tab=agents')
     const table = await screen.findByRole('table', { name: 'osquery packages this box serves' }, T)
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     const pkgs = (await call('GET', '/agents')).json!.install.packages as OsqueryPackage[]
@@ -1318,7 +1335,7 @@ describe('inventory: agents (S-INV-4)', () => {
     asAdmin()
     const real = (await call('GET', '/agents')).json!
     server.use(http.get('*/api/v1/inventory/agents', () => HttpResponse.json({ ...real, install: { ...real.install, packages: [] } })))
-    renderApp('/devices/setup')
+    renderApp('/devices/setup?tab=agents')
     expect(await screen.findByText(/This box has no copy of the osquery packages, so there is nothing to download here/, undefined, T)).toBeInTheDocument()
     expect(screen.queryByRole('table', { name: 'osquery packages this box serves' })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Create agent token' })).toBeInTheDocument()
@@ -1327,7 +1344,7 @@ describe('inventory: agents (S-INV-4)', () => {
   it('creates a token: name + lifetime, token and install command shown once; the API never returns the full token again', async () => {
     enableModule('agent-intake', true)
     const user = userEvent.setup()
-    renderApp('/devices/setup')
+    renderApp('/devices/setup?tab=agents')
     await screen.findByRole('table', { name: 'Enrollment tokens' }, T)
     await clickUntil(user, () => screen.getByRole('button', { name: 'Create agent token' }), () => screen.getByRole('dialog'))
     const form = await screen.findByRole('dialog', undefined, T)
@@ -1380,7 +1397,7 @@ describe('inventory: agents (S-INV-4)', () => {
   it('the snippets use the box address (https, never http or localhost) and the dialog is English', async () => {
     enableModule('agent-intake', true)
     const user = userEvent.setup()
-    renderApp('/devices/setup')
+    renderApp('/devices/setup?tab=agents')
     await screen.findByRole('table', { name: 'Enrollment tokens' }, T)
     await clickUntil(user, () => screen.getAllByRole('button', { name: `Show setup for ${OSQ}` })[0]!, () => screen.getByRole('dialog'))
     const dialog = await screen.findByRole('dialog', undefined, T)
@@ -1401,7 +1418,7 @@ describe('inventory: agents (S-INV-4)', () => {
     const real = (await call('GET', '/agents')).json!
     server.use(http.get('*/api/v1/inventory/agents', () => HttpResponse.json({ ...real, install: { ...real.install, packages: [] } })))
     const user = userEvent.setup()
-    renderApp('/devices/setup')
+    renderApp('/devices/setup?tab=agents')
     await screen.findByRole('table', { name: 'Enrollment tokens' }, T)
     await clickUntil(user, () => screen.getAllByRole('button', { name: `Show setup for ${OSQ}` })[0]!, () => screen.getByRole('dialog'))
     const dialog = await screen.findByRole('dialog', undefined, T)
@@ -1416,7 +1433,7 @@ describe('inventory: agents (S-INV-4)', () => {
   it('viewing the setup again uses <TOKEN> instead of exposing the token; the token can be revoked', async () => {
     enableModule('agent-intake', true)
     const user = userEvent.setup()
-    renderApp('/devices/setup')
+    renderApp('/devices/setup?tab=agents')
     await screen.findByRole('table', { name: 'Enrollment tokens' }, T)
     await clickUntil(user, () => screen.getAllByRole('button', { name: `Show setup for ${OSQ}` })[0]!, () => screen.getByRole('dialog'))
     const dialog = await screen.findByRole('dialog', { name: `Set up ${OSQ}` }, T)
@@ -1485,7 +1502,7 @@ describe('inventory: agents (S-INV-4)', () => {
         expect(r.text).not.toContain('BOX=')
       }
       const user = userEvent.setup()
-      renderApp('/devices/setup')
+      renderApp('/devices/setup?tab=agents')
       await clickUntil(user, () => screen.getByRole('button', { name: 'Create agent token' }), () => screen.getByRole('dialog'))
       const form = await screen.findByRole('dialog', undefined, T)
       await user.type(within(form).getByLabelText('Token name'), 'osquery lab')
@@ -1504,7 +1521,7 @@ describe('inventory: agents (S-INV-4)', () => {
   it('the token row counts enrolled machines and the Linux command names both architectures (walk 4)', async () => {
     enableModule('agent-intake', true)
     const user = userEvent.setup()
-    renderApp('/devices/setup')
+    renderApp('/devices/setup?tab=agents')
     const table = await screen.findByRole('table', { name: 'Enrollment tokens' }, T)
     expect(within(table).getByRole('columnheader', { name: /Machines enrolled/ })).toBeInTheDocument()
     expect(within(table).queryByText(/Machines reporting/)).toBeNull()
@@ -1586,7 +1603,7 @@ describe('inventory: agents (S-INV-4)', () => {
   it('the Send sample data button on a token row pretends the machines reported in', async () => {
     enableModule('agent-intake', true)
     const user = userEvent.setup()
-    renderApp('/devices/setup')
+    renderApp('/devices/setup?tab=agents')
     await screen.findByRole('table', { name: 'Enrollment tokens' }, T)
     await clickUntil(user, () => screen.getAllByRole('button', { name: `Send sample data for ${OSQ}` })[0]!, () => expect(assetsStore.get().some((a) => a.software.some((s) => s.source === 'agent'))).toBe(true))
     expect(await screen.findByText(/Sample data received: \d+ devices updated, \d+ software entries added from the agent\./, undefined, T)).toBeInTheDocument()
@@ -1596,7 +1613,7 @@ describe('inventory: agents (S-INV-4)', () => {
   it('Wazuh is a pull connection: Connect Wazuh opens read-only user steps and the connection form', async () => {
     enableModule('agent-intake', true)
     const user = userEvent.setup()
-    renderApp('/devices/setup')
+    renderApp('/devices/setup?tab=agents')
     await screen.findByRole('table', { name: 'Enrollment tokens' }, T)
     await clickUntil(user, () => screen.getByRole('button', { name: 'Connect Wazuh' }), () => screen.getByRole('dialog'))
     const dialog = await screen.findByRole('dialog', { name: 'Connect Wazuh' }, T)
@@ -1612,7 +1629,7 @@ describe('inventory: agents (S-INV-4)', () => {
   it('Wazuh form: refused password, unreachable host and a non-https address show clear errors; a good test shows the version', async () => {
     enableModule('agent-intake', true)
     const user = userEvent.setup()
-    renderApp('/devices/setup')
+    renderApp('/devices/setup?tab=agents')
     await screen.findByRole('table', { name: 'Enrollment tokens' }, T)
     await clickUntil(user, () => screen.getByRole('button', { name: 'Connect Wazuh' }), () => screen.getByRole('dialog'))
     const dialog = await screen.findByRole('dialog', { name: 'Connect Wazuh' }, T)
@@ -1642,7 +1659,7 @@ describe('inventory: agents (S-INV-4)', () => {
   it('Wazuh connect, sync with sample data, and disconnect from the UI; the password is never shown back', async () => {
     enableModule('agent-intake', true)
     const user = userEvent.setup()
-    renderApp('/devices/setup')
+    renderApp('/devices/setup?tab=agents')
     await screen.findByRole('table', { name: 'Enrollment tokens' }, T)
     await clickUntil(user, () => screen.getByRole('button', { name: 'Connect Wazuh' }), () => screen.getByRole('dialog'))
     const dialog = await screen.findByRole('dialog', { name: 'Connect Wazuh' }, T)
@@ -1821,7 +1838,10 @@ describe('inventory: English only', () => {
     const checks: [string, () => Promise<unknown>][] = [
       ['/devices', () => deviceTable()],
       ['/devices/a-nas02?tab=observations', () => screen.findByRole('table', { name: 'Observations for this device' }, T)],
-      ['/devices/setup', () => screen.findByRole('table', { name: 'Enrollment tokens' }, T)],
+      ['/devices/setup', () => screen.findByRole('heading', { level: 2, name: 'LAN ranges' }, T)],
+      ['/devices/setup?tab=sensor', () => screen.findByRole('heading', { level: 2, name: 'Sensor on this box' }, T)],
+      ['/devices/setup?tab=snmp', () => screen.findByRole('heading', { level: 2, name: 'SNMP credentials' }, T)],
+      ['/devices/setup?tab=agents', () => screen.findByRole('table', { name: 'Enrollment tokens' }, T)],
     ]
     for (const [path, ready] of checks) {
       const { unmount } = renderApp(path)
@@ -1837,7 +1857,7 @@ describe('inventory: English only', () => {
   it('the open dialogs (add, import, delete, sensor, agent token) and the API error messages are English too', async () => {
     const user = userEvent.setup()
     enableModule('agent-intake', true)
-    renderApp('/devices/setup')
+    renderApp('/devices/setup?tab=agents')
     await user.click(await screen.findByRole('button', { name: 'Create agent token' }, T))
     expect(within(await screen.findByRole('dialog', undefined, T)).getByText('Create an agent token')).toBeInTheDocument()
     expect(document.body.textContent).not.toMatch(VI)

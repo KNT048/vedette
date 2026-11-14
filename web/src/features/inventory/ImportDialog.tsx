@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Upload } from 'lucide-react'
 import { Dialog, DialogContent, DialogFooter, DialogClose } from '@/components/ui/dialog'
+import { Notice } from '@/components/common/PageHeader'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/input'
 import { download } from '@/lib/api'
@@ -46,7 +47,7 @@ function ImportForm({ onClose }: { onClose: () => void }) {
         <p className="text-[13px] text-muted">{t('import.fileHint', { kb: MAX_BYTES / 1000 })}</p>
       </div>
       {imp.isPending ? <p role="status" className="text-sm"><Upload className="mr-1 inline size-4" aria-hidden />{t('import.working')}</p> : null}
-      {error ? <p role="alert" className="rounded-md border border-danger/40 bg-danger-soft px-3 py-2 text-sm text-danger">{error}</p> : null}
+      {error ? <Notice tone="danger" role="alert" className="mb-0" title={error} /> : null}
       {result ? (
         <div role="status" className="grid gap-2 rounded-md border border-rule bg-sunken p-3 text-sm">
           <p className="font-medium">{t('import.summary', { added: t('import.added', { count: result.created }), skipped: t('import.skipped', { count: result.skipped }) })}</p>

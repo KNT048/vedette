@@ -7,7 +7,7 @@ import { server } from '@/test/server'
 import { assetsStore, auditStore, modulesStore, sessionStore } from '@/mocks/stores'
 import { ensureBox } from './mocks'
 
-// S-INV-1, D-512: SNMP credentials on Devices → Scope and sensors (/devices/setup#snmp).
+// S-INV-1, D-512: SNMP credentials on Devices → Scope and sensors (/devices/setup?tab=snmp; the old #snmp opens that tab, D-519).
 vi.setConfig({ testTimeout: 30_000 })
 beforeEach(() => ensureBox())
 afterEach(() => { server.events.removeAllListeners() })
@@ -42,7 +42,7 @@ describe('SNMP credentials (S-INV-1, D-512)', () => {
     expect((await call('POST', '/snmp', { name: 'Printers', version: 'v2c', community: 'public', scope: ['192.168.10.200/29'] })).status).toBe(201)
     const got = await call('GET', '/snmp')
     expect(got.text).not.toMatch(/ro-auth-2fe8|ro-priv-91c4|"community"|password/)
-    renderApp('/devices/setup')
+    renderApp('/devices/setup?tab=snmp')
     const v3 = await row('Core switches (v3)')
     expect(v3).toHaveTextContent('vedette-ro')
     expect(v3).toHaveTextContent('SHA-256, ••••2fe8')
@@ -59,7 +59,7 @@ describe('SNMP credentials (S-INV-1, D-512)', () => {
 
   it('adds a v2c credential from the dialog; the row shows the last 4 characters and the scope, and the audit log has the line', async () => {
     const user = userEvent.setup()
-    renderApp('/devices/setup')
+    renderApp('/devices/setup?tab=snmp')
     await row('Core switches (v3)')
     await clickUntil(user, () => screen.getByRole('button', { name: 'Add SNMP credential' }), () => screen.getByRole('dialog'))
     const dialog = await screen.findByRole('dialog', { name: 'Add SNMP credential' }, T)
@@ -82,7 +82,7 @@ describe('SNMP credentials (S-INV-1, D-512)', () => {
     let posts = 0
     server.events.on('request:start', ({ request }) => { if (request.method === 'POST' && request.url.endsWith('/inventory/snmp')) posts++ })
     const user = userEvent.setup()
-    renderApp('/devices/setup')
+    renderApp('/devices/setup?tab=snmp')
     await row('Core switches (v3)')
     await clickUntil(user, () => screen.getByRole('button', { name: 'Add SNMP credential' }), () => screen.getByRole('dialog'))
     const dialog = await screen.findByRole('dialog', { name: 'Add SNMP credential' }, T)
@@ -104,7 +104,7 @@ describe('SNMP credentials (S-INV-1, D-512)', () => {
 
   it('Test with an answer shows what the device said, links the device and records it in the inventory', async () => {
     const user = userEvent.setup()
-    renderApp('/devices/setup')
+    renderApp('/devices/setup?tab=snmp')
     await row('Core switches (v3)')
     const li = await runTest(user, 'Core switches (v3)', '192.168.10.3')
     const answer = await within(li).findByText('192.168.10.3 answered.', undefined, T)
@@ -125,7 +125,7 @@ describe('SNMP credentials (S-INV-1, D-512)', () => {
   it('Test with a wrong community shows the plain no-answer reason; a bad IP is refused in the browser', async () => {
     expect((await call('POST', '/snmp', { name: 'Old community', version: 'v2c', community: 'wrong-community', scope: ['192.168.10.0/24'] })).status).toBe(201)
     const user = userEvent.setup()
-    renderApp('/devices/setup')
+    renderApp('/devices/setup?tab=snmp')
     await row('Old community')
     const li = await runTest(user, 'Old community', '192.168.10.300')
     expect(within(li).getByText('Enter an IPv4 address, like 192.168.10.3.')).toBeInTheDocument()
@@ -158,7 +158,7 @@ describe('SNMP credentials (S-INV-1, D-512)', () => {
 
   it('says why SNMP reads are not available, and adding still works', async () => {
     server.use(http.get('*/api/v1/inventory/snmp', () => HttpResponse.json({ credentials: [], ready: false, message: 'The scan container has not reported yet.' })))
-    renderApp('/devices/setup')
+    renderApp('/devices/setup?tab=snmp')
     expect(await screen.findByText('The scan container has not reported yet.', undefined, T)).toBeInTheDocument()
     expect(screen.getByText('No SNMP credentials yet')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Add SNMP credential' })).toBeEnabled()
@@ -168,8 +168,9 @@ describe('SNMP credentials (S-INV-1, D-512)', () => {
     enableModule('sensor-active', false)
     let asked = 0
     server.events.on('request:start', ({ request }) => { if (new URL(request.url).pathname.endsWith('/inventory/snmp')) asked++ })
-    renderApp('/devices/setup')
-    await screen.findByRole('heading', { name: /Agents on servers/ }, T)
+    renderApp('/devices/setup?tab=snmp')
+    await screen.findByRole('tab', { name: 'Agents' }, T)
+    expect(screen.queryByRole('tab', { name: 'SNMP' })).toBeNull() // D-519: no tab for an area that does not exist
     expect(screen.queryByRole('heading', { name: 'SNMP credentials' })).toBeNull()
     expect(asked).toBe(0)
     expect((await call('GET', '/snmp')).status).toBe(404)

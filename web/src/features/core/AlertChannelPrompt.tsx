@@ -1,6 +1,7 @@
 import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
+import { Notice } from '@/components/common/PageHeader'
 import { useModuleEnabled } from '@/lib/modules'
 import { useMe } from '@/lib/session'
 import { useChannels } from '@/features/notify/api'
@@ -18,13 +19,10 @@ export function AlertChannelPrompt() {
   const ch = useChannels({ retry: false, enabled: ask })
   if (!ask || !ch.data || ch.data.channels.some((c) => c.configured && c.enabled)) return null
   return (
-    <div role="status" className="mb-6 rounded-md border border-warn/50 bg-warn-soft/60 px-4 py-3 text-sm">
-      <p className="font-medium">{t('alertChannelPrompt.title')}</p>
-      <p className="mt-1 max-w-prose">{t('alertChannelPrompt.body')}</p>
-      <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
-        <Button asChild size="sm" variant="primary"><Link to="/settings/channels">{t('alertChannelPrompt.go')}</Link></Button>
-        <p className="text-[13px] text-muted">{t('alertChannelPrompt.noAlerts')}</p>
-      </div>
-    </div>
+    <Notice tone="warn" role="status" className="mb-6" title={t('alertChannelPrompt.title')}
+      actions={<Button asChild size="sm" variant="primary"><Link to="/settings/channels">{t('alertChannelPrompt.go')}</Link></Button>}>
+      <p>{t('alertChannelPrompt.body')}</p>
+      <p className="mt-1 text-[13px]">{t('alertChannelPrompt.noAlerts')}</p>
+    </Notice>
   )
 }

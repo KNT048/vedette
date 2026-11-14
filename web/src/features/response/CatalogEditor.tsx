@@ -3,7 +3,7 @@ import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Pencil, Plus, Trash2 } from 'lucide-react'
-import { Panel } from '@/components/common/PageHeader'
+import { Notice, Panel } from '@/components/common/PageHeader'
 import { ErrorState, Loading } from '@/components/common/States'
 import { Chip } from '@/components/common/StatusChip'
 import { Button } from '@/components/ui/button'
@@ -162,7 +162,7 @@ export function ActionDialog({ action, cat, onClose, onSaved }: { action: Catalo
             <Switch id="ca-ai" checked={f.ai_may_propose} onCheckedChange={(v) => set({ ai_may_propose: v })} />
             <label htmlFor="ca-ai" className="grid text-sm"><span className="font-medium">{t('catalog.aiMay')}</span><span className="text-[13px] text-muted">{t('catalog.aiMayHint')}</span></label>
           </div>
-          {error ? <p role="alert" className="rounded-md border border-danger/40 bg-danger-soft px-3 py-2 text-sm">{error}</p> : null}
+          {error ? <Notice tone="danger" role="alert" className="mb-0" title={error} /> : null}
           <DialogFooter>
             <Button type="button" onClick={onClose}>{t('common:cancel')}</Button>
             <Button type="submit" variant="primary" disabled={save.isPending || !conn}>{t('common:save')}</Button>

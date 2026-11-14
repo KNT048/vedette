@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next'
 import { AiBlock } from '@/components/common/AiBlock'
+import { Notice } from '@/components/common/PageHeader'
 import { Chip, type Tone } from '@/components/common/StatusChip'
 import { FindingStatusChip } from '@/features/findings/AcceptRisk'
 import { fmtDate, fmtDateTime } from '@/lib/format'
@@ -15,10 +16,7 @@ export function PdplDocument({ report: r }: { report: PdplReport }) {
   const o = r.org
   const h = (id: string, key: string) => <h3 id={id} className="mb-2 text-base font-semibold">{t(key)}</h3>
   const disclaimer = (
-    <div role="note" className="rounded-md border border-warn/50 bg-warn-soft px-4 py-3">
-      <p className="font-semibold">{t('doc.pdpl.disclaimerTitle')}</p>
-      <p className="text-[13px]">{t('doc.pdpl.disclaimerBody')}</p>
-    </div>
+    <Notice tone="warn" role="note" className="mb-0" title={t('doc.pdpl.disclaimerTitle')}>{t('doc.pdpl.disclaimerBody')}</Notice>
   )
   return (
     <article className="grid grid-cols-[minmax(0,1fr)] gap-6 text-sm" aria-label={t('doc.pdpl.title')}>

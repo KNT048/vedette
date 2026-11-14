@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
 import { toast } from 'sonner'
 import { Download, Plus } from 'lucide-react'
-import { Section } from '@/components/common/PageHeader'
+import { Notice, Section } from '@/components/common/PageHeader'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { CodeBlock } from '@/components/common/CodeBlock'
 import { EmptyState, ModuleOff, QueryState, RequireModule } from '@/components/common/States'
@@ -43,11 +43,10 @@ function NoBoxAddress() {
   const { t } = useTranslation('inventory')
   const install = useInstallKind()
   return (
-    <div role="status" className="grid gap-1.5 rounded-md border border-warn/40 bg-warn-soft px-3 py-2 text-sm">
-      <p className="font-medium">{t('agents.noAddress.title')}</p>
-      <p>{t(install === 'container' ? 'agents.noAddress.container' : 'agents.noAddress.appliance')}</p>
-      <p className="text-[13px] text-muted">{t('agents.noAddress.token')}</p>
-    </div>
+    <Notice tone="warn" role="status" className="mb-0" title={t('agents.noAddress.title')}>
+      <p className="text-ink">{t(install === 'container' ? 'agents.noAddress.container' : 'agents.noAddress.appliance')}</p>
+      <p className="mt-1 text-[13px]">{t('agents.noAddress.token')}</p>
+    </Notice>
   )
 }
 
@@ -65,7 +64,7 @@ function BoxAddressNote({ box }: { box: string }) {
         {t('agents.boxAddress.uses', { url: box })}{' '}
         {install === 'container'
           ? t('agents.boxAddress.container')
-          : <Link to="/settings/network#box-address" className="text-accent underline-offset-4 hover:underline">{t('agents.boxAddress.change')}</Link>}
+          : <Link to="/settings/network?tab=box-address" className="text-accent underline-offset-4 hover:underline">{t('agents.boxAddress.change')}</Link>}
       </p>
       {here && host.toLowerCase() !== here.toLowerCase() ? <p className="text-muted">{t('agents.boxAddress.otherHost', { here, box: host })}</p> : null}
     </div>
@@ -149,7 +148,7 @@ function InstallPanel({ data, token }: { data: AgentsResponse; token: string }) 
       <div className="grid gap-1.5">
         <p className="text-sm font-medium">{t('agents.install.title')}</p>
         <p className="text-[13px] text-muted">{t(`agents.install.${platform}How`)}</p>
-        {packages.length ? null : <p role="status" className="rounded-md border border-warn/40 bg-warn-soft px-3 py-2 text-sm">{t('agents.download.none')}</p>}
+        {packages.length ? null : <Notice tone="warn" role="status" className="mb-0" title={t('agents.download.none')} />}
         <CodeBlock label={t(`agents.install.${platform}Label`)} code={one(box, inst.sha256, token)} />
         <p className="text-[13px]"><span className="font-medium">{t('agents.install.sha')}:</span> <code className="break-all font-mono text-[12.5px]">{inst.sha256}</code></p>
         <p className="text-[13px] text-muted">{t('agents.install.shaHint')}</p>
@@ -215,7 +214,7 @@ function CreateDialog({ open, onOpenChange, data }: { open: boolean; onOpenChang
                 {[1, 7, 30, 90, 0].map((d) => <option key={d} value={d}>{t(`agents.expiryOption.${d}`)}</option>)}
               </Select>
             </Field>
-            {error ? <p role="alert" className="rounded-md border border-danger/40 bg-danger-soft px-3 py-2 text-sm text-danger">{error}</p> : null}
+            {error ? <Notice tone="danger" role="alert" className="mb-0" title={error} /> : null}
             <DialogFooter>
               <DialogClose asChild><Button>{t('common:cancel')}</Button></DialogClose>
               <Button type="submit" variant="primary" disabled={!name.trim() || create.isPending}>{t('agents.createSubmit')}</Button>
@@ -267,7 +266,7 @@ function WazuhDialog({ open, onOpenChange, current }: { open: boolean; onOpenCha
               <Select id="wazuh-interval" value={interval} onChange={(e) => setInterval(Number(e.target.value))}>{INTERVALS.map((m) => <option key={m} value={m}>{t(`agents.wazuh.intervalOption.${m}`)}</option>)}</Select>
             </Field>
             {ok ? <p role="status" className="rounded-md border border-ok/40 bg-ok-soft px-3 py-2 text-sm">{ok}</p> : null}
-            {error ? <p role="alert" className="rounded-md border border-danger/40 bg-danger-soft px-3 py-2 text-sm text-danger">{error}</p> : null}
+            {error ? <Notice tone="danger" role="alert" className="mb-0" title={error} /> : null}
             <DialogFooter>
               <DialogClose asChild><Button>{t('common:cancel')}</Button></DialogClose>
               <Button disabled={test.isPending || save.isPending} onClick={doTest}>{t('agents.wazuh.test')}</Button>
@@ -375,7 +374,7 @@ export function AgentsSection() {
                       <PackageTable packages={d.install.packages} />
                       <p className="max-w-3xl text-[13px] text-muted">{t('agents.page.checkHint')}</p>
                     </>
-                  ) : <p role="status" className="max-w-3xl rounded-md border border-warn/40 bg-warn-soft px-3 py-2 text-sm">{t('agents.page.none')}</p>}
+                  ) : <Notice tone="warn" role="status" className="mb-0 max-w-3xl" title={t('agents.page.none')} />}
                 </div>
                 <div className="grid gap-2">
                   <div className="flex flex-wrap items-end justify-between gap-3">

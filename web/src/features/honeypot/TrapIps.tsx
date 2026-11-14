@@ -3,7 +3,7 @@ import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { FlaskConical, Pencil, Plus, Trash2 } from 'lucide-react'
-import { Section, Panel } from '@/components/common/PageHeader'
+import { Notice, Section, Panel } from '@/components/common/PageHeader'
 import { QueryState } from '@/components/common/States'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -212,7 +212,7 @@ function TrapIpForm({ data, editing, onDone }: { data: TrapIPsResponse; editing:
           </div>
           {errors.services ? <p id="tip-services-error" className="text-[13px] text-danger">{errors.services}</p> : <p id="tip-services-hint" className="text-[13px] text-muted">{t('trapIp.form.servicesHint')}</p>}
         </fieldset>
-        {errors.form ? <p role="alert" className="rounded-md border border-danger/40 bg-danger-soft px-3 py-2 text-[13px] text-danger">{errors.form}</p> : null}
+        {errors.form ? <Notice tone="danger" role="alert" className="mb-0" title={errors.form} /> : null}
         <div className="flex flex-wrap gap-2">
           <Button type="submit" variant="primary" disabled={busy}>{cur ? t('trapIp.form.save') : t('trapIp.form.add')}</Button>
           <Button type="button" onClick={onDone}>{t('trapIp.form.cancel')}</Button>

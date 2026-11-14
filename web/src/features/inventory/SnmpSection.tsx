@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
 import { toast } from 'sonner'
 import { Plus } from 'lucide-react'
-import { Section } from '@/components/common/PageHeader'
+import { Notice, Section } from '@/components/common/PageHeader'
 import { EmptyState, QueryState } from '@/components/common/States'
 import { Chip } from '@/components/common/StatusChip'
 import { Button } from '@/components/ui/button'
@@ -151,7 +151,7 @@ function CredentialDialog({ current, onClose }: { current: SnmpCredential | null
             <Textarea id="snmp-scope" rows={3} value={scopeText} placeholder={'192.168.10.0/24\n192.168.20.5'} spellCheck={false} onChange={(e) => setScopeText(e.target.value)} aria-invalid={!!errors.scope} aria-describedby={described('snmp-scope', errors.scope)} className="font-mono text-[13px]" />
           </Field>
           <p className="text-[12px] text-muted">{t('snmp.form.insecure')}</p>
-          {error ? <p role="alert" className="rounded-md border border-danger/40 bg-danger-soft px-3 py-2 text-sm text-danger">{error}</p> : null}
+          {error ? <Notice tone="danger" role="alert" className="mb-0" title={error} /> : null}
           <DialogFooter>
             <DialogClose asChild><Button>{t('common:cancel')}</Button></DialogClose>
             <Button type="submit" variant="primary" disabled={pending}>{current ? t('snmp.form.save') : t('snmp.form.create')}</Button>
@@ -168,11 +168,7 @@ function Answer({ r, ip }: { r: SnmpTestResult; ip: string }) {
   const device = r.device_id ? <Link to={`/devices/${encodeURIComponent(r.device_id)}`} className="font-medium text-accent underline-offset-4 hover:underline">{t('snmp.run.openDevice')}</Link> : null
   if (!r.ok || !a) {
     return (
-      <div role="alert" className="grid gap-1 rounded-md border border-danger/40 bg-danger-soft px-3 py-2 text-sm">
-        <p className="font-medium text-danger">{t('snmp.run.notRead', { ip })}</p>
-        <p>{r.message}</p>
-        {device ? <p>{device}</p> : null}
-      </div>
+      <Notice tone="danger" role="alert" className="mb-0" title={t('snmp.run.notRead', { ip })} actions={device}>{r.message}</Notice>
     )
   }
   const rows: [string, string][] = ([
@@ -224,7 +220,7 @@ function TestPanel({ cred, onClose }: { cred: SnmpCredential; onClose: () => voi
         </div>
       </form>
       {test.isPending ? <p role="status" aria-live="polite" className="text-[13px] text-muted">{t('snmp.run.pending', { ip: ip.trim() })}</p> : null}
-      {error ? <p role="alert" className="rounded-md border border-danger/40 bg-danger-soft px-3 py-2 text-sm text-danger">{error}</p> : null}
+      {error ? <Notice tone="danger" role="alert" className="mb-0" title={error} /> : null}
       {result && !test.isPending ? <Answer r={result.r} ip={result.ip} /> : null}
     </div>
   )
@@ -286,7 +282,7 @@ export function SnmpSection() {
       <QueryState query={q}>
         {(d) => (
           <div className="grid min-w-0 gap-3 [&>*]:min-w-0">
-            {d.ready ? null : <p role="status" className="max-w-3xl rounded-md border border-warn/40 bg-warn-soft px-3 py-2 text-sm">{d.message ?? t('snmp.notReady')}</p>}
+            {d.ready ? null : <Notice tone="warn" role="status" className="mb-0 max-w-3xl" title={d.message ?? t('snmp.notReady')} />}
             {d.credentials.length ? (
               <>
                 <p className="text-[13px] text-muted">{t('snmp.order')}{full ? ` ${t('snmp.max')}` : ''}</p>

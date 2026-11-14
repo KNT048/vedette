@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { PageHeader } from '@/components/common/PageHeader'
+import { Notice, PageHeader } from '@/components/common/PageHeader'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { Chip } from '@/components/common/StatusChip'
 import { QueryState } from '@/components/common/States'
@@ -20,7 +20,7 @@ type Confirm = { kind: 'disable'; mod: ModuleId; affected: ModuleId[] } | { kind
 function EmailCodeWarning() {
   const { t } = useTranslation('core')
   const count = (useUsers().data?.items ?? []).filter((u) => !u.disabled && u.twofa_method === 'email').length
-  return count > 0 ? <p role="alert" className="rounded-md border border-danger/40 bg-danger-soft px-3 py-2 text-sm">{t('modules.disable.emailCodes', { count })}</p> : null
+  return count > 0 ? <Notice tone="danger" role="alert" className="mb-0" title={t('modules.disable.emailCodes', { count })} /> : null
 }
 
 export default function ModulesSection() {

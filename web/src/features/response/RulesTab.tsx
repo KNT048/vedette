@@ -3,7 +3,7 @@ import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Copy, FlaskConical, Pencil, Play, Plus, Trash2 } from 'lucide-react'
-import { Panel, Section } from '@/components/common/PageHeader'
+import { Notice, Panel, Section } from '@/components/common/PageHeader'
 import { ErrorState, Loading } from '@/components/common/States'
 import { Chip } from '@/components/common/StatusChip'
 import { Button } from '@/components/ui/button'
@@ -32,7 +32,7 @@ function LiveDialog({ rule, onClose }: { rule: Rule; onClose: () => void }) {
     <Dialog open onOpenChange={(v) => { if (!v) onClose() }}>
       <DialogContent title={toLive ? t('rules.liveTitle') : t('rules.dryTitle')} description={rule.name}>
         <p className="text-sm">{toLive ? t('rules.liveBody') : t('rules.dryBody')}</p>
-        {toLive && rule.pre_approved ? <p role="alert" className="rounded-md border border-danger/50 bg-danger-soft px-3 py-2 text-sm font-medium">{t('editor.preWarning')}</p> : null}
+        {toLive && rule.pre_approved ? <Notice tone="danger" role="alert" className="mb-0" title={t('editor.preWarning')} /> : null}
         <DialogFooter>
           <Button onClick={onClose}>{t('common:cancel')}</Button>
           <Button variant={toLive ? 'danger' : 'primary'} disabled={save.isPending} onClick={() => save.mutate({ id: rule.id, rule: { ...toInput(rule), live: toLive } }, { onSuccess: () => { toast.success(toLive ? t('rules.nowLive') : t('rules.nowDry')); onClose() }, onError: (e) => toast.error(errText(e)) })}>{toLive ? t('rules.goLive') : t('rules.backToDry')}</Button>
@@ -110,7 +110,7 @@ function RuleCard({ rule, onEdit }: { rule: Rule; onEdit: () => void }) {
       {confirmDel ? (
         <Dialog open onOpenChange={(o) => { if (!o) setConfirmDel(false) }}>
           <DialogContent title={t('rules.deleteTitle', { name: rule.name })} description={t('rules.deleteBody')}>
-            {del.error ? <p role="alert" className="rounded-md border border-danger/40 bg-danger-soft px-3 py-2 text-sm">{errText(del.error)}</p> : null}
+            {del.error ? <Notice tone="danger" role="alert" className="mb-0" title={errText(del.error)} /> : null}
             <DialogFooter>
               <DialogClose asChild><Button>{t('common:cancel')}</Button></DialogClose>
               <Button variant="danger" disabled={del.isPending} onClick={() => del.mutate(rule.id, { onSuccess: () => { setConfirmDel(false); toast.success(t('rules.deleted')) } })}>{t('common:delete')}</Button>

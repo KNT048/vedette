@@ -476,7 +476,7 @@ describe('response: approvers prove their channel identity (S-RESP-2, D-191)', (
     await turnOn()
     setChannels([{ type: 'zalo-personal', configured: true, enabled: true, approvals: true, approvers: [{ user_id: 'u-op', address: '2938475610293847561' }] }], false)
     expect((await ids('operator')).find((r) => r.channel === 'zalo-personal')).toEqual(expect.objectContaining({ address: '2938475610293847561', linked: false, method: 'send_code' }))
-    renderApp('/account', { role: 'operator' })
+    renderApp('/settings/account?tab=approvers', { role: 'operator' })
     const card = await screen.findByRole('region', { name: 'Approval channels' })
     const row = (await within(card).findByText('2938475610293847561')).closest('li')!
     expect(within(row).queryByLabelText('Code')).toBeNull() // status and Send again only: the link comes to the Zalo account (D-414)
@@ -499,7 +499,7 @@ describe('response: approvers prove their channel identity (S-RESP-2, D-191)', (
 
   it('Telegram: My account shows Not linked and Send again; the bot sends a new link; the confirm page links it (D-414)', async () => {
     await unlinkedChat()
-    renderApp('/account', { role: 'operator' })
+    renderApp('/settings/account?tab=approvers', { role: 'operator' })
     const card = await screen.findByRole('region', { name: 'Approval channels' })
     const row = (await within(card).findByText('555')).closest('li')!
     expect(within(row).getByText('Not linked')).toBeInTheDocument()
@@ -574,8 +574,9 @@ describe('response: approvers prove their channel identity (S-RESP-2, D-191)', (
   })
 
   it('My account: no card for a viewer', async () => {
-    renderApp('/account', { role: 'viewer' })
-    await screen.findByRole('heading', { name: 'Change password' })
+    renderApp('/settings/account?tab=approvers', { role: 'viewer' })
+    await screen.findByRole('tab', { name: 'Sessions' }) // D-519: the tab is left out, so ?tab=approvers opens Profile
+    expect(screen.getByRole('tab', { name: 'Profile' })).toHaveAttribute('aria-selected', 'true')
     expect(screen.queryByText('Approval channels')).toBeNull()
   })
 })
@@ -1349,7 +1350,7 @@ describe('response: screens', () => {
     await userEvent.click(sw)
     const dialog = await screen.findByRole('dialog')
     expect(dialog).toHaveTextContent('This is a high-risk feature. Your AI can be wrong and can change your network devices. You carry the risk yourself. Vedette is provided as is under the Apache-2.0 license; its author, Kien Nguyen, is not responsible for actions your AI takes.')
-    expect(screen.getByRole('link', { name: 'Turn it on in My account' })).toHaveAttribute('href', '/account')
+    expect(screen.getByRole('link', { name: 'Turn it on in My account' })).toHaveAttribute('href', '/settings/account?tab=sign-in')
     await userEvent.type(screen.getByLabelText(`Type ${PHRASE} to confirm`), PHRASE)
     expect(screen.getByRole('button', { name: 'Turn on AI execution' })).toBeDisabled() // two-step sign-in is off
   })

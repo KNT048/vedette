@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
+import { Notice } from '@/components/common/PageHeader'
 import { Button } from '@/components/ui/button'
 import { useMe } from '@/lib/session'
 import { useAccount } from './api'
@@ -33,13 +34,12 @@ export function TwoStepPrompt() {
     setLaterFor(me.id)
   }
   return (
-    <div role="status" className="mb-6 rounded-md border border-warn/50 bg-warn-soft/60 px-4 py-3 text-sm">
-      <p className="font-medium">{t('twoStepPrompt.title')}</p>
-      <p className="mt-1 max-w-prose">{t('twoStepPrompt.body')}</p>
-      <div className="mt-3 flex flex-wrap gap-2">
-        <Button asChild size="sm" variant="primary"><Link to="/account#two-step">{t('twoStepPrompt.go')}</Link></Button>
+    <Notice tone="warn" role="status" className="mb-6" title={t('twoStepPrompt.title')}
+      actions={<>
+        <Button asChild size="sm" variant="primary"><Link to="/settings/account?tab=sign-in">{t('twoStepPrompt.go')}</Link></Button>
         <Button size="sm" variant="ghost" onClick={remind}>{t('twoStepPrompt.later', { count: TWO_STEP_SNOOZE_DAYS })}</Button>
-      </div>
-    </div>
+      </>}>
+      {t('twoStepPrompt.body')}
+    </Notice>
   )
 }

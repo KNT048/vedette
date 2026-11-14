@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { AiBlock } from '@/components/common/AiBlock'
-import { Panel, Section } from '@/components/common/PageHeader'
+import { Notice, Panel, Section } from '@/components/common/PageHeader'
 import { ErrorState, Loading } from '@/components/common/States'
 import { Chip } from '@/components/common/StatusChip'
 import { Button } from '@/components/ui/button'
@@ -83,10 +83,10 @@ export function MetricsTab() {
       <Section title={t('ai.title')} description={t('ai.description', { conf: s.min_confidence, days: s.repeat_days })} stories={['S-RESP-2']}>
         <div className="grid gap-4">
           {s.quality.paused || s.gates.paused_at ? (
-            <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-danger/50 bg-danger-soft px-4 py-3 text-sm">
-              <span><span className="font-medium">{t('ai.paused')}</span> {s.gates.paused_reason}. {t('ai.pausedBody')}</span>
-              {admin ? <Button disabled={resume.isPending} onClick={() => resume.mutate(undefined, { onSuccess: () => toast.success(t('ai.resumed')), onError: (e) => toast.error(errText(e)) })}>{t('ai.resume')}</Button> : null}
-            </div>
+            <Notice tone="danger" role="alert" className="mb-0" title={t('ai.paused')}
+              actions={admin ? <Button disabled={resume.isPending} onClick={() => resume.mutate(undefined, { onSuccess: () => toast.success(t('ai.resumed')), onError: (e) => toast.error(errText(e)) })}>{t('ai.resume')}</Button> : null}>
+              {s.gates.paused_reason}. {t('ai.pausedBody')}
+            </Notice>
           ) : null}
           <dl className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             <Tile label={t('ai.budgetHour')} value={`${s.usage.hour} / ${s.gates.budget_hour}`} />

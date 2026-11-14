@@ -284,7 +284,7 @@ describe('container-only install (D-381)', () => {
   it('Sensors (SPAN offered, post-v1): Configure picks the SPAN card among the reported cards; the box refuses SPAN on a card with an address', async () => {
     span.SPAN_IN_UI = true
     const u = userEvent.setup()
-    renderApp('/devices/setup')
+    renderApp('/devices/setup?tab=sensor')
     await openSensorDialog(u)
     const dlg = screen.getByRole('dialog')
     expect(within(dlg).queryByRole('link', { name: /Box network/ })).toBeNull()
@@ -321,7 +321,7 @@ describe('container-only install (D-381)', () => {
   // D-403: SPAN hidden for v1. "Listen on" stays (D-393: which card of a machine with two addresses), the SPAN tick goes.
   it('Sensors (SPAN hidden for v1): Configure chooses the card to listen on with no SPAN tick and no word about SPAN or mirrored traffic', async () => {
     const u = userEvent.setup()
-    renderApp('/devices/setup')
+    renderApp('/devices/setup?tab=sensor')
     await openSensorDialog(u)
     const dlg = screen.getByRole('dialog')
     expect(dlg).toHaveTextContent("Choose the card the sensor listens on among the cards it reported. This machine's network is yours: Vedette does not change the card.")
@@ -337,7 +337,7 @@ describe('container-only install (D-381)', () => {
   it('Sensors (SPAN hidden for v1): a card already saved as SPAN shows ticked and can be unticked, not ticked again', async () => {
     containerSensorStore.update((c) => ({ ...c, chosen: 'eno2', span: true }))
     const u = userEvent.setup()
-    renderApp('/devices/setup')
+    renderApp('/devices/setup?tab=sensor')
     await openSensorDialog(u)
     const dlg = screen.getByRole('dialog')
     const box = within(dlg).getByRole('checkbox', { name: /SPAN port/ })
@@ -357,7 +357,7 @@ describe('container-only install (D-381)', () => {
     let answer = { status: 400, code: 'bad_interface', message: 'The sensor has not reported its network cards in the last 90 seconds.' }
     server.use(http.patch('*/api/v1/inventory/sensors/:id', () => HttpResponse.json({ error: { code: answer.code, message: answer.message } }, { status: answer.status })))
     const u = userEvent.setup()
-    renderApp('/devices/setup')
+    renderApp('/devices/setup?tab=sensor')
     await openSensorDialog(u)
     const dlg = screen.getByRole('dialog')
     const pick = within(dlg).getByRole('combobox', { name: 'Listen on' })
@@ -376,7 +376,7 @@ describe('container-only install (D-381)', () => {
   it('Sensors: a sensor that reports but cannot capture says so and why, in the row and in Configure', async () => {
     containerSensorStore.set({ ...containerSensorStore.get(), capture_error: 'no_permission' })
     const u = userEvent.setup()
-    renderApp('/devices/setup')
+    renderApp('/devices/setup?tab=sensor')
     expect((await screen.findAllByText('Reporting, not capturing', undefined, { timeout: 5000 })).length).toBeGreaterThan(0)
     expect(screen.getAllByText(/capturing needs root and CAP_NET_RAW, which a rootless Docker or Podman does not give/).length).toBeGreaterThan(0)
     expect(screen.queryAllByText('Reporting')).toHaveLength(0)
@@ -389,7 +389,7 @@ describe('container-only install (D-381)', () => {
   it('Sensors: a sensor never started says Not connected yet and how to start it; no card reported yet, no Save', async () => {
     containerSensorStore.set({ connected: false, cards: [], chosen: null, span: false })
     const u = userEvent.setup()
-    renderApp('/devices/setup')
+    renderApp('/devices/setup?tab=sensor')
     await waitFor(() => {
       expect(screen.getByText('Not connected yet')).toBeInTheDocument()
       expect(screen.getByText('Start it with compose.sensors.yaml on this machine.')).toBeInTheDocument()
@@ -405,7 +405,7 @@ describe('container-only install (D-381)', () => {
   it('Sensors: two cards with an address: the dialog says the sensor is not listening, the admin picks one, then back to Automatic', async () => {
     containerSensorStore.set({ connected: true, chosen: null, span: false, cards: [{ name: 'eno1', ipv4: '192.168.10.20/24', link: true }, { name: 'eno2', ipv4: '10.0.0.2/24', link: true }, { name: 'eno3', ipv4: null, link: true }] })
     const u = userEvent.setup()
-    renderApp('/devices/setup')
+    renderApp('/devices/setup?tab=sensor')
     await openSensorDialog(u)
     let dlg = screen.getByRole('dialog')
     expect(within(dlg).getByRole('status')).toHaveTextContent('The sensor is not listening on any card')

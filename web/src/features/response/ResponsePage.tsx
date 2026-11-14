@@ -1,6 +1,6 @@
 import { Link, Navigate, useLocation } from 'react-router'
 import { useTranslation } from 'react-i18next'
-import { PageHeader } from '@/components/common/PageHeader'
+import { Notice, PageHeader } from '@/components/common/PageHeader'
 import { PageTabs } from '@/components/common/PageFrame'
 import { ErrorState, Loading, RequireModule, SampleDataNote } from '@/components/common/States'
 import { useCan } from '@/lib/session'
@@ -59,20 +59,14 @@ function Content() {
         meta={t('page.meta')}
         actions={<><SampleDataNote />{execution ? <EmergencyStop /> : null}</>} />
       {s?.breaker_tripped_at || s?.stopped_at ? (
-        <div role="alert" className="mb-6 rounded-md border border-danger/50 bg-danger-soft px-4 py-3 text-sm">
-          <p className="font-medium text-danger">{t('page.breakerTitle')}</p>
-          <p>{s.stopped_at ? t('page.stoppedBody') : t('page.breakerBody', { max: s.breaker_max_per_hour })} <Link className="text-accent underline underline-offset-4" to="/settings/response">{t('blocked.toSettings')}</Link></p>
-        </div>
+        <Notice tone="danger" role="alert" className="mb-6" title={t('page.breakerTitle')}>
+          {s.stopped_at ? t('page.stoppedBody') : t('page.breakerBody', { max: s.breaker_max_per_hour })} <Link className="text-accent underline underline-offset-4" to="/settings/response">{t('blocked.toSettings')}</Link>
+        </Notice>
       ) : null}
       {execution ? (
-        <div role="status" className="mb-6 rounded-md border border-danger/50 bg-danger-soft px-4 py-3 text-sm">
-          <p className="font-medium text-danger">{t('page.onTitle')}</p>
-          <p>{t('page.onBody', { count: pending })}</p>
-        </div>
+        <Notice tone="danger" role="status" className="mb-6" title={t('page.onTitle')}>{t('page.onBody', { count: pending })}</Notice>
       ) : (
-        <p className="mb-6 rounded-md border border-dashed border-rule bg-surface px-4 py-3 text-sm text-muted">
-          {t('blocked.execution_off')} {admin ? <Link className="text-accent underline underline-offset-4" to="/settings/response">{t('blocked.toSettings')}</Link> : null}
-        </p>
+        <Notice tone="off" className="mb-6" title={<>{t('blocked.execution_off')} {admin ? <Link className="text-accent underline underline-offset-4" to="/settings/response">{t('blocked.toSettings')}</Link> : null}</>} />
       )}
       {incident ? <IncidentRespond id={incident} /> : null}
       {/* D-513: the inbox first, then how requests are made (Rules, Actions), what happened (Log), and the switch and limits (Settings). */}

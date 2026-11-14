@@ -1,5 +1,6 @@
 import type { TFunction } from 'i18next'
 import { useTranslation } from 'react-i18next'
+import { Notice } from '@/components/common/PageHeader'
 import { ApiError } from '@/lib/api'
 import type { Role } from '@/lib/session'
 import { useCan } from '@/lib/session'
@@ -18,7 +19,7 @@ export function ReadOnlyNote({ role }: { role: Role }) {
   const { t } = useTranslation('core')
   const ok = useCan(role)
   if (ok) return null
-  return <p role="note" className="mb-4 rounded-md border border-rule bg-off-soft px-4 py-2.5 text-sm">{t('readOnly', { role: t(`common:role.${role}`) })}</p>
+  return <Notice tone="off" role="note" className="mb-4" title={t('readOnly', { role: t(`common:role.${role}`) })} />
 }
 
 /** Chỉ bản xem thử (mock) có mã này; backend thật không bao giờ gửi `preview_code`, nên ghi chú này biến mất khi build với VITE_API_MOCK=off. */

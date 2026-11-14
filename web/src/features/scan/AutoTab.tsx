@@ -1,7 +1,7 @@
 import { Link } from 'react-router'
 import { Trans, useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { Section } from '@/components/common/PageHeader'
+import { Notice, Section } from '@/components/common/PageHeader'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { EmptyState, QueryState } from '@/components/common/States'
 import { Chip } from '@/components/common/StatusChip'
@@ -55,7 +55,7 @@ export function AutoTab() {
               <Label htmlFor="auto-on">{t('auto.switch')}</Label>
               {!can ? <span className="text-[13px] text-muted">{t('common:needRole', { role: t('common:role.admin') })}</span> : null}
             </div>
-            {!d.auto_rescan ? <p className="rounded-md border border-dashed border-warn bg-warn-soft/60 px-3 py-2 text-sm">{t('auto.offNote')}</p> : null}
+            {!d.auto_rescan ? <Notice tone="warn" className="mb-0" title={t('auto.offNote')} /> : null}
             <DataTable caption={t('auto.caption')} data={d.items} columns={columns} pageSize={10} empty={<EmptyState title={t('auto.empty')}>{t('auto.emptyHelp')}</EmptyState>} />
           </div>
         )}

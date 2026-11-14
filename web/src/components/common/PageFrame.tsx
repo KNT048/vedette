@@ -1,5 +1,5 @@
 import { useEffect, useRef, type ReactNode } from 'react'
-import { Link, useSearchParams } from 'react-router'
+import { Link, Navigate, useLocation, useSearchParams } from 'react-router'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
 // Khung trang D-464 (S-UI-1): PageHeader → KpiStrip (tuỳ chọn) → PageTabs. Settings giữ menu dọc.
@@ -74,4 +74,15 @@ export function PageTabs({ tabs, label }: { tabs: PageTab[]; label: string }) {
       {tabs.map((x) => <TabsContent key={x.id} value={x.id}>{x.panel}</TabsContent>)}
     </Tabs>
   )
+}
+
+/** Liên kết cũ `#<phần>` của một trang đã chuyển sang tab (D-464, D-519) → `?tab=<id>`, giữ các tham số khác, bỏ hash.
+ *  Chỉ các tên trong `map`; hash khác (ví dụ `#main` của "Skip to content") để nguyên. Trả về null khi không có gì để chuyển. */
+export function OldHashToTab({ map }: { map: Record<string, string> }) {
+  const { hash, search } = useLocation()
+  const tab = Object.hasOwn(map, hash.slice(1)) ? map[hash.slice(1)] : undefined
+  if (!tab) return null
+  const p = new URLSearchParams(search)
+  p.set('tab', tab)
+  return <Navigate replace to={{ search: `?${p}`, hash: '' }} />
 }

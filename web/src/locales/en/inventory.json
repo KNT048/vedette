@@ -328,7 +328,8 @@
     "forbiddenBody": "The {{role}} role is needed to change scan scope, sensors and agent tokens. Ask an administrator for access or to do it for you.",
     "title_one": "{{count}} network range to watch",
     "title_other": "{{count}} network ranges to watch",
-    "titleNone": "No network ranges yet"
+    "titleNone": "No network ranges yet",
+    "tabs": { "label": "Parts of the setup", "scope": "Scope", "sensor": "Sensor", "snmp": "SNMP", "agents": "Agents" }
   },
   "network": {
     "title": "LAN ranges",

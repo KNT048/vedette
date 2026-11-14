@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { ShieldCheck } from 'lucide-react'
-import { Section, Panel } from '@/components/common/PageHeader'
+import { Notice, Section, Panel } from '@/components/common/PageHeader'
 import { QueryState } from '@/components/common/States'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -45,7 +45,7 @@ function Form({ data }: { data: ScanConfigResponse }) {
 
   return (
     <form onSubmit={submit} className="grid max-w-3xl gap-8" noValidate>
-      {dis ? <p className="rounded-md border border-rule bg-off-soft px-3 py-2 text-sm">{t('safety.adminOnly')}</p> : null}
+      {dis ? <Notice tone="off" className="mb-0" title={t('safety.adminOnly')} /> : null}
 
       <Section id="window" title={t('safety.windowTitle')} description={t('safety.windowDescription')} stories={['S-SCAN-4']}>
         <div className="grid gap-4">
@@ -126,7 +126,7 @@ function Form({ data }: { data: ScanConfigResponse }) {
         </div>
       </Section>
 
-      {error ? <p role="alert" className="rounded-md border border-danger/40 bg-danger-soft px-3 py-2 text-sm text-danger">{error}</p> : null}
+      {error ? <Notice tone="danger" role="alert" className="mb-0" title={error} /> : null}
       <div><Button type="submit" variant="primary" disabled={dis || save.isPending}>{t('safety.save')}</Button></div>
     </form>
   )

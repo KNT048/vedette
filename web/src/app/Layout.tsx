@@ -124,12 +124,16 @@ export function Layout() {
   return (
     <div className="min-h-dvh lg:grid lg:grid-cols-[240px_1fr]">
       <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-2 focus:top-2 focus:z-50 focus:rounded-md focus:bg-surface focus:px-3 focus:py-2">{t('layout.skip')}</a>
-      <div className="sticky top-0 hidden h-dvh flex-col gap-6 overflow-y-auto border-r border-rule bg-surface px-3 py-5 lg:flex">
-        <Brand />
-        <div className="flex-1"><Nav /></div>
-        <div className="grid gap-1">
-          <UserMenu />
-          <RunningVersion />
+      {/* UI-4: the column paints the background and the rule down the whole page (it stretches with the grid row); only its content
+          is sticky. With the background on the sticky h-dvh box, everything below the first screen height showed the page grey. */}
+      <div className="hidden border-r border-rule bg-surface lg:block">
+        <div className="sticky top-0 flex h-dvh flex-col gap-6 overflow-y-auto px-3 py-5">
+          <Brand />
+          <div className="flex-1"><Nav /></div>
+          <div className="grid gap-1">
+            <UserMenu />
+            <RunningVersion />
+          </div>
         </div>
       </div>
       <div className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-rule bg-surface px-4 lg:hidden">

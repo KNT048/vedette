@@ -4,7 +4,7 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
-import { Section } from '@/components/common/PageHeader'
+import { Notice, Section } from '@/components/common/PageHeader'
 import { CodeBlock } from '@/components/common/CodeBlock'
 import { QueryState } from '@/components/common/States'
 import { Segmented } from '@/components/ui/segmented'
@@ -101,10 +101,9 @@ function ReleaseStatus({ s }: { s: UpdatesState }) {
   const offer = s.available.find((a) => a.component === 'software')
   const running = s.components.find((c) => c.id === 'software')?.version ?? ''
   const main = offer ? (
-    <div className="grid gap-1 rounded-md border border-accent/40 bg-accent-soft px-4 py-3 text-sm">
-      <p className="font-medium [overflow-wrap:anywhere]">{running ? t('container.updates.offer', { version: offer.version, running }) : t('container.updates.offerUnknown', { version: offer.version })}</p>
-      {offer.note ? <p className="whitespace-pre-line text-muted [overflow-wrap:anywhere]">{offer.note}</p> : null}
-    </div>
+    <Notice tone="accent" className="mb-0 [overflow-wrap:anywhere]" title={running ? t('container.updates.offer', { version: offer.version, running }) : t('container.updates.offerUnknown', { version: offer.version })}>
+      {offer.note ? <p className="whitespace-pre-line">{offer.note}</p> : null}
+    </Notice>
   ) : !s.check_enabled ? (
     <p className="text-sm">{t('container.updates.checkOff')} <Link to="/settings/privacy" className="text-accent underline-offset-4 hover:underline">{t('container.updates.privacyLink')}</Link>.</p>
   ) : !s.last_check ? <p className="text-sm">{t(s.last_check_error ? 'container.updates.notYetFailed' : 'container.updates.notYet')}</p>

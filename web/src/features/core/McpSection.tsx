@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Plus } from 'lucide-react'
-import { PageHeader, Section, KeyValue } from '@/components/common/PageHeader'
+import { Notice, PageHeader, Section, KeyValue } from '@/components/common/PageHeader'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { CodeBlock } from '@/components/common/CodeBlock'
 import { Chip } from '@/components/common/StatusChip'
@@ -78,7 +78,7 @@ function Body({ s }: { s: McpState }) {
       <McpSwitch on />
       {s.enabled ? (
         <>
-          {!s.listening ? <p role="alert" className="mb-6 rounded-md border border-danger/40 bg-danger-soft px-3 py-2 text-sm">{s.listen_error ?? t('mcp.notListening')} {t('mcp.notListeningHint')}</p> : null}
+          {!s.listening ? <Notice tone="danger" role="alert" className="mb-6" title={s.listen_error ?? t('mcp.notListening')}>{t('mcp.notListeningHint')}</Notice> : null}
           <Section title={t('mcp.connect')} description={t('mcp.connectDesc')}>
             <KeyValue items={[
               { label: t('mcp.bind'), value: <span><span className="font-mono text-[12.5px]">{s.bind}:{s.port}</span> {t('mcp.bindNote')}</span> },

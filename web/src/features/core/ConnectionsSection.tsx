@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router'
 import { Trans, useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { PageHeader, Panel } from '@/components/common/PageHeader'
+import { Notice, PageHeader, Panel } from '@/components/common/PageHeader'
 import { EmptyState, QueryState } from '@/components/common/States'
 import { Chip } from '@/components/common/StatusChip'
 import { Button } from '@/components/ui/button'
@@ -89,7 +89,7 @@ export default function ConnectionsSection() {
                       </div>
                     </div>
                     {unsupported ? <p className="text-[13px]">{t('connections.unsupportedBody')}</p> : null}
-                    {result?.id === c.id ? (result.ok ? <p role="status" className="text-sm"><Chip tone="ok">{t('connections.testOk')}</Chip> {result.ok}</p> : <p role="alert" className="rounded-md border border-danger/40 bg-danger-soft px-3 py-2 text-sm">{result.error}</p>) : null}
+                    {result?.id === c.id ? (result.ok ? <p role="status" className="text-sm"><Chip tone="ok">{t('connections.testOk')}</Chip> {result.ok}</p> : <Notice tone="danger" role="alert" className="mb-0" title={result.error} />) : null}
                     <div>
                       <h3 className="mb-1 text-[13px] font-medium">{t('connections.allowTitle')}</h3>
                       <ul aria-label={t('connections.allowFor', { name: c.name })} className="flex flex-wrap gap-1.5">{c.allow.map((a) => <li key={a}><code className="rounded-[4px] border border-rule bg-sunken px-1.5 py-0.5 font-mono text-[12px]">{a}</code></li>)}</ul>
@@ -127,7 +127,7 @@ export default function ConnectionsSection() {
       {del ? (
         <Dialog open onOpenChange={(o) => { if (!o) setDel(null) }}>
           <DialogContent title={t('connections.deleteTitle', { name: del.name })} description={t('connections.deleteBody')}>
-            {remove.error ? <p role="alert" className="rounded-md border border-danger/40 bg-danger-soft px-3 py-2 text-sm">{errMsg(remove.error, t)}</p> : null}
+            {remove.error ? <Notice tone="danger" role="alert" className="mb-0" title={errMsg(remove.error, t)} /> : null}
             <DialogFooter>
               <DialogClose asChild><Button>{t('common:cancel')}</Button></DialogClose>
               <Button variant="danger" disabled={remove.isPending} onClick={() => remove.mutate(del.id, { onSuccess: () => { setDel(null); toast.success(t('connections.deleted')) } })}>{t('connections.delete')}</Button>
@@ -239,7 +239,7 @@ function ConnDialog({ conn, onClose, onSaved }: { conn: Connector | null; onClos
           ) : conn ? <p className="text-[13px] text-muted">{t('connections.f.pinNone')}</p> : null}
           <div className="flex items-center gap-3"><Switch id="cn-enabled" checked={enabled} onCheckedChange={setEnabled} /><Label htmlFor="cn-enabled" className="font-normal">{t('connections.enabled')}</Label></div>
           <p className="text-[13px] text-muted">{t('connections.writeNote')}</p>
-          {save.error && !placed ? <p role="alert" className="rounded-md border border-danger/40 bg-danger-soft px-3 py-2 text-sm">{errMsg(save.error, t)}</p> : null}
+          {save.error && !placed ? <Notice tone="danger" role="alert" className="mb-0" title={errMsg(save.error, t)} /> : null}
           <DialogFooter>
             <DialogClose asChild><Button type="button">{t('common:cancel')}</Button></DialogClose>
             <Button type="submit" variant="primary" disabled={save.isPending}>{save.isPending ? t('connections.saving') : conn ? t('common:save') : t('connections.addConfirm')}</Button>

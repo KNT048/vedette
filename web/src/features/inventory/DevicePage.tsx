@@ -183,7 +183,7 @@ function VersionDialog({ sw, assetId, onClose }: { sw: SoftwareView | null; asse
           <Field label={t('add.version')} htmlFor="sw-version" hint={t('add.versionHint')}>
             <Input id="sw-version" value={value} maxLength={40} placeholder={t('add.versionPlaceholder')} aria-describedby="sw-version-hint" onChange={(e) => { setValue(e.target.value); setError(null) }} />
           </Field>
-          {error ? <p role="alert" className="rounded-md border border-danger/40 bg-danger-soft px-3 py-2 text-sm text-danger">{error}</p> : null}
+          {error ? <Notice tone="danger" role="alert" className="mb-0" title={error} /> : null}
           <DialogFooter>
             <DialogClose asChild><Button>{t('common:cancel')}</Button></DialogClose>
             <Button type="submit" variant="primary" disabled={act.setVersion.isPending}>{t('software.editSave')}</Button>

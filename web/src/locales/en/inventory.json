@@ -573,7 +573,7 @@
     "install": {
       "title": "Install with one command",
       "linuxHow": "Run as root, or with sudo, on the server (Debian, Ubuntu, RHEL, Rocky, AlmaLinux; x86_64 or arm64).",
-      "windowsHow": "Run in PowerShell as Administrator on the server (Windows PowerShell 5.1 or later). Not yet tested on a real Windows Server.",
+      "windowsHow": "Run in PowerShell as Administrator on the server (Windows Server 2019 or later, Windows PowerShell 5.1 or later). Not yet proven on a real Windows Server: its first run found a certificate problem, fixed since and to be run again.",
       "linuxLabel": "Linux shell",
       "windowsLabel": "PowerShell (Administrator)",
       "sha": "Expected SHA-256 of the script",

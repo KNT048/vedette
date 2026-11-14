@@ -18,8 +18,7 @@ const nmapCeiling = 0.95
 
 const maxSoftware = 200
 
-// The bounds of the service list the inventory accepts (inventory INV-23, D-350): nmap's normal scan reads 1031 ports (D-523), so
-// only a device that answers on every port reaches maxServices, and servicesOf keeps the first ones.
+// The bounds of the service list the inventory accepts (inventory INV-23, D-350): nmap's normal scan reads its top 1000 ports.
 const (
 	maxServices   = 1000
 	maxSvcName    = 100

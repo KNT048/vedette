@@ -76,7 +76,8 @@ func newSensorActive(ctx context.Context, d deps, prober sensoractive.Prober) (*
 		return nil, errors.New("sensor-active needs a Prober")
 	}
 	cfg := sensoractive.Config{Prober: prober, DB: d.DB, Inventory: sensorInventory{inv: d.Inventory, hostNet: d.HostNet}, Observe: d.Inventory, Software: d.Inventory, Services: d.Inventory, Clock: d.Clock, Log: d.Log,
-		Location: orgLocation(ctx, d), Secrets: d.Secrets, Audit: d.Audit} // SNMP reads go through the same Dispatcher (D-512)
+		Location: orgLocation(ctx, d), Secrets: d.Secrets, Audit: d.Audit, // SNMP reads go through the same Dispatcher (D-512)
+		LocalPrefixes: func(ctx context.Context) []netip.Prefix { return boxNetworks(ctx, d.HostNet) }}
 	if d.Bus != nil {
 		cfg.Events = sensoractive.PublisherFunc(func(ctx context.Context, e sensoractive.Event) error {
 			return d.Bus.Publish(ctx, events.Event{Name: e.Name, Data: e.Data})
@@ -275,6 +276,25 @@ func (a sensorInventory) BoxIPs(ctx context.Context) ([]netip.Addr, error) {
 		return nil, err
 	}
 	return a.withBoxCards(ctx, out)
+}
+
+// boxNetworks is the IPv4 networks of the box's cards (the container's interfaces and the appliance's), for the sweep-time
+// estimate (D-523): addresses there are reached with ARP.
+func boxNetworks(ctx context.Context, hostNet *hostNetCache) []netip.Prefix {
+	var out []netip.Prefix
+	if addrs, err := net.InterfaceAddrs(); err == nil {
+		for _, x := range addrs {
+			if p, err := netip.ParsePrefix(x.String()); err == nil && p.Addr().Is4() && !p.Addr().IsLoopback() {
+				out = append(out, p.Masked())
+			}
+		}
+	}
+	for _, p := range hostNet.Get(ctx) {
+		if p.Addr().Is4() {
+			out = append(out, p.Masked())
+		}
+	}
+	return out
 }
 
 // withBoxCards adds the addresses of the box's own cards: the container's interfaces and the appliance's (vedette-host state/net).

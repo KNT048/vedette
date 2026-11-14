@@ -18,7 +18,6 @@ import (
 	"github.com/knt048/vedette/core/observe"
 	"github.com/knt048/vedette/modules/inventory"
 	sensoractive "github.com/knt048/vedette/modules/sensor-active"
-	"github.com/knt048/vedette/modules/sensor-active/nmapargv"
 )
 
 // These tests never run a real nmap or touch a network: nmap is a script in t.TempDir() that records its argv and
@@ -165,7 +164,7 @@ func TestSensorActiveScansADiscoveredDevice(t *testing.T) {
 		t.Fatal(err)
 	}
 	calls := nm.calls(t)
-	want := []string{"--privileged", "-sS", "-sV", "-O", "--osscan-limit", "--script", "rdp-ntlm-info,http-ntlm-info,http-title,ssl-cert", "-n", "--max-rate", "100", "--max-retries", "3", "--host-timeout", "30m", "-p", nmapargv.LANPorts, "-oX", "-", "192.168.10.20"}
+	want := []string{"--privileged", "-sS", "-sV", "-O", "--script", "rdp-ntlm-info,http-ntlm-info,http-title,ssl-cert", "-n", "--max-rate", "100", "--max-retries", "3", "--top-ports", "1000", "--host-timeout", "30m", "-oX", "-", "192.168.10.20"}
 	if got := scanTargets(calls, "192.168.10.20"); len(got) != 1 || !slices.Equal(got[0], want) {
 		t.Fatalf("device scans = %q\nwant %q", got, want)
 	}

@@ -63,6 +63,10 @@ type Config struct {
 	Secrets *secrets.Store
 	Audit   *audit.Log
 	SNMP    SNMPReader
+	// LocalPrefixes is the IPv4 networks the box has a card on (D-523): a sweep reaches them with one ARP request an address,
+	// everything else through a router with SweepProbes packets. Only the sweep-time estimate reads it; nil: every range counts
+	// as routed.
+	LocalPrefixes func(context.Context) []netip.Prefix
 }
 
 // Service runs active discovery. Create it with New. It is the only writer of the sa_* tables.
@@ -80,6 +84,7 @@ type Service struct {
 	clock         func() time.Time
 	log           *slog.Logger
 	loc           func() *time.Location
+	localNets     func(context.Context) []netip.Prefix // may be nil
 	// budget is core's budget of new devices (60 a minute, 200 an hour; L8): the scan container is a process that can be taken over,
 	// and a sweep over a /16 with random MACs would otherwise mint 65k devices. In memory, like the passive sensor's.
 	budget *capture.FloodBudget
@@ -157,6 +162,7 @@ func New(cfg Config) (*Service, error) {
 		s.prober = p
 	}
 	s.secrets, s.audit, s.snmp = cfg.Secrets, cfg.Audit, cfg.SNMP
+	s.localNets = cfg.LocalPrefixes
 	if r, ok := s.prober.(SNMPReader); ok && s.snmp == nil {
 		s.snmp = r // the Dispatcher sends the reads to the scan worker too
 	}
@@ -204,25 +210,34 @@ func (s *Service) Health(ctx context.Context) Health {
 		}
 	}
 	if st, err := s.inv.Settings(ctx); err == nil {
-		h.Warning = st.sweepWarning()
+		h.Warning = st.sweepWarning(s.localPrefixes(ctx))
 	}
 	return h
 }
 
-// sweepWarning is set when a sweep of the scope may take longer than one window: it then needs several days, resuming
-// each day where the window cut it. An address on the box's own segment costs one ARP request; one behind a router costs
-// up to nmapargv.SweepProbes packets (D-523), and which ranges are routed is not known here, so the warning is set when the
-// routed cost does not fit and names both.
-func (st Settings) sweepWarning() string {
+// localPrefixes is Config.LocalPrefixes, or none.
+func (s *Service) localPrefixes(ctx context.Context) []netip.Prefix {
+	if s.localNets == nil {
+		return nil
+	}
+	return s.localNets(ctx)
+}
+
+// sweepWarning is set when a sweep of the scope does not fit one window: it then needs several days, resuming each day
+// where the window cut it (D-523). An address on one of the local networks (the box's own segments) costs one ARP request;
+// one behind a router costs nmapargv.SweepProbes packets, more when nmap sends a silent address another round, so the
+// estimate is a floor.
+func (st Settings) sweepWarning(local []netip.Prefix) string {
 	if st.allowed() != nil || st.Rate < 1 {
 		return ""
 	}
-	n := newScope(st).count()
-	local := time.Duration(n) * time.Second / time.Duration(st.Rate)
-	routed := local * time.Duration(nmapargv.SweepProbes)
-	if have := st.windowLength(); have > 0 && routed > have {
-		return fmt.Sprintf("a sweep of about %d addresses at %d packets/s needs about %s on the box's own network segment (one packet per address) and up to %s behind a router (up to %d packets per address), but a window lasts %s; one pass may take several days",
-			n, st.Rate, local.Round(time.Minute), routed.Round(time.Minute), nmapargv.SweepProbes, have)
+	sc := newScope(st)
+	n, near := sc.count(), sc.within(local).count()
+	far := n - near
+	need := time.Duration(near+far*nmapargv.SweepProbes) * time.Second / time.Duration(st.Rate)
+	if have := st.windowLength(); have > 0 && need > have {
+		return fmt.Sprintf("a sweep of about %d addresses (%d on the box's own networks at one packet each, %d behind a router at %d or more) at %d packets/s needs at least %s but a window lasts %s; one pass will take several days",
+			n, near, far, nmapargv.SweepProbes, st.Rate, need.Round(time.Minute), have)
 	}
 	return ""
 }
@@ -732,7 +747,7 @@ func (s *Service) DiscoverRanges(ctx context.Context) (Result, error) {
 	if err != nil {
 		return Result{}, err
 	}
-	if w := st.sweepWarning(); w != "" {
+	if w := st.sweepWarning(s.localPrefixes(ctx)); w != "" {
 		s.log.WarnContext(ctx, "sensoractive: a full sweep does not fit one window", "estimate", w)
 	}
 

@@ -55,31 +55,6 @@ var ExternalPorts = func() string {
 	return strings.Join(ss, ",")
 }()
 
-// LANPorts is the -p value of the normal and versions shapes (D-523): commonports.LAN (nmap 7.95's top 1000 plus the surface
-// scan's list, without the OT ports), ascending, consecutive ports written as a range the way nmap prints its own scaninfo. A
-// written-out list instead of --top-ports 1000, whose ports move with the nmap package Debian ships.
-var LANPorts = portSpec(commonports.LAN())
-
-// portSpec writes ascending, distinct ports as nmap's -p syntax, consecutive ports as a range: 1,3-4,6.
-func portSpec(ns []int) string {
-	var b strings.Builder
-	for i := 0; i < len(ns); {
-		j := i
-		for j+1 < len(ns) && ns[j+1] == ns[j]+1 {
-			j++
-		}
-		if b.Len() > 0 {
-			b.WriteByte(',')
-		}
-		b.WriteString(strconv.Itoa(ns[i]))
-		if j > i {
-			b.WriteString("-" + strconv.Itoa(ns[j]))
-		}
-		i = j + 1
-	}
-	return b.String()
-}
-
 // The host discovery probes of the sweep (D-523). nmap's own -sn default for an address outside the box's segment is an ICMP
 // echo, a SYN to 443, an ACK to 80 and an ICMP timestamp request (https://nmap.org/book/man-host-discovery.html); a Windows PC
 // with its firewall on drops all four. The Nmap book's strategy chapter asks for a diverse set and ranks 80, 443, 21, 23, 22 and
@@ -91,8 +66,9 @@ const (
 	sweepACKPorts = "80,443"
 )
 
-// SweepProbes is the most packets the sweep sends one address behind a router: -PE and -PP (one ICMP packet each), one SYN per
-// port of -PS and one ACK per port of -PA. nmap stops probing an address once it answers.
+// SweepProbes is how many probes the sweep sends one address behind a router in one round: -PE and -PP (one ICMP packet each),
+// one SYN per port of -PS and one ACK per port of -PA. nmap stops probing an address once it answers, and may send a silent
+// address another round, so it is the least an address that never answers costs.
 var SweepProbes = 2 + strings.Count(sweepSYNPorts, ",") + 1 + strings.Count(sweepACKPorts, ",") + 1
 
 // lanMaxRetries caps the retransmissions of a normal or versions scan's port probes (D-523): nmap's default allows ten, -T4 six
@@ -175,7 +151,7 @@ func (k Kind) Name() string {
 // shape has neither -sV, -O nor a script: on a fragile device even the version scripts are too much (PLC protocol probes). The
 // versions shape is the normal one without -O: OS detection sends malformed probes that are the riskiest part for an OT stack,
 // and a device of unknown kind may be one (D-501). D-523 tuned the shapes to nmap's own guidance: the sweep's discovery probes
-// (SweepProbes), --osscan-limit on the normal shape, --max-retries 3 and the written-out LANPorts on normal and versions. No
+// (SweepProbes) and --max-retries 3 on normal and versions. No
 // shape names --allports (version detection then also probes TCP 9100, where some printers print whatever they are sent,
 // https://nmap.org/book/man-version-detection.html).
 func Flags(kind Kind, rate int) ([]string, error) {
@@ -187,13 +163,11 @@ func Flags(kind Kind, rate int) ([]string, error) {
 	case Sweep:
 		return []string{flagPrivileged, "-sn", "-PE", "-PP", "-PS" + sweepSYNPorts, "-PA" + sweepACKPorts, flagNoDNS, flagMaxRate, r}, nil
 	case Normal:
-		// --osscan-limit: OS detection only on a host with at least one open and one closed port, without which its guess is
-		// unreliable (https://nmap.org/book/osdetect-usage.html); the device then shows no OS rather than a wrong one.
-		return []string{flagPrivileged, "-sS", "-sV", "-O", "--osscan-limit", flagScript, Scripts, flagNoDNS, flagMaxRate, r, flagMaxRetries, lanMaxRetries, flagHostTimeout, normalHostTimeout, "-p", LANPorts}, nil
+		return []string{flagPrivileged, "-sS", "-sV", "-O", flagScript, Scripts, flagNoDNS, flagMaxRate, r, flagMaxRetries, lanMaxRetries, flagTopPorts, "1000", flagHostTimeout, normalHostTimeout}, nil
 	case Gentle:
 		return []string{flagPrivileged, "-sS", flagNoDNS, flagTiming, flagMaxRetries, "1", flagMaxRate, "1", flagHostTimeout, gentleHostTimeout, flagTopPorts, "100"}, nil
 	case Versions:
-		return []string{flagPrivileged, "-sS", "-sV", flagScript, Scripts, flagNoDNS, flagMaxRate, r, flagMaxRetries, lanMaxRetries, flagHostTimeout, normalHostTimeout, "-p", LANPorts}, nil
+		return []string{flagPrivileged, "-sS", "-sV", flagScript, Scripts, flagNoDNS, flagMaxRate, r, flagMaxRetries, lanMaxRetries, flagTopPorts, "1000", flagHostTimeout, normalHostTimeout}, nil
 	case GentleTitles:
 		return []string{flagPrivileged, "-sS", flagScript, TitleScripts, flagScriptTimeout, titleScriptTimeout, flagNoDNS, flagTiming, flagMaxRetries, "1", flagMaxRate, "1", flagHostTimeout, gentleHostTimeout, flagTopPorts, "100"}, nil
 	case External:

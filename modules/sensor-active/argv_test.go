@@ -172,16 +172,26 @@ func TestScope(t *testing.T) {
 	if got, want := newScope(st).count(), 256-16-1; got != want {
 		t.Errorf("count = %d, want %d", got, want)
 	}
-	if got := (Settings{Enabled: true, ScopeConfirmed: true, LANRanges: []string{"10.0.0.0/16"}, Days: []int{1}, From: "01:00", To: "05:00", Rate: 2}).sweepWarning(); got == "" {
+	if got := (Settings{Enabled: true, ScopeConfirmed: true, LANRanges: []string{"10.0.0.0/16"}, Days: []int{1}, From: "01:00", To: "05:00", Rate: 2}).sweepWarning(nil); got == "" {
 		t.Error("65536 addresses at 2 packets/s in 4 hours: no warning")
 	}
-	if got := (Settings{Enabled: true, ScopeConfirmed: true, LANRanges: []string{"10.0.0.0/24"}, Days: []int{1}, From: "01:00", To: "05:00", Rate: 10}).sweepWarning(); got != "" {
+	if got := (Settings{Enabled: true, ScopeConfirmed: true, LANRanges: []string{"10.0.0.0/24"}, Days: []int{1}, From: "01:00", To: "05:00", Rate: 10}).sweepWarning(nil); got != "" {
 		t.Errorf("a /24 at 10 packets/s fits: %q", got)
 	}
-	// D-523: 65536 addresses at 50 packets/s are 22 minutes on the box's own segment but up to 17 packets each behind a router,
-	// over six hours: more than the 23:00-05:00 window. The warning names both.
-	want := "a sweep of about 65536 addresses at 50 packets/s needs about 22m0s on the box's own network segment (one packet per address) and up to 6h11m0s behind a router (up to 17 packets per address), but a window lasts 6h0m0s; one pass may take several days"
-	if got := (Settings{Enabled: true, ScopeConfirmed: true, LANRanges: []string{"10.0.0.0/16"}, Days: []int{1}, From: "23:00", To: "05:00", Rate: 50}).sweepWarning(); got != want {
+	// D-523: 65536 addresses at 50 packets/s in the 23:00-05:00 window. On the box's own network (one ARP request each) that is
+	// 22 minutes and fits; behind a router (17 packets or more each) it is over six hours and does not. A mixed scope charges
+	// each part its own cost, and the exclusions come off both.
+	wide := Settings{Enabled: true, ScopeConfirmed: true, LANRanges: []string{"10.0.0.0/16"}, Days: []int{1}, From: "23:00", To: "05:00", Rate: 50}
+	if got := wide.sweepWarning([]netip.Prefix{netip.MustParsePrefix("10.0.0.1/16")}); got != "" {
+		t.Errorf("a local /16 at 50 packets/s fits: %q", got)
+	}
+	want := "a sweep of about 65536 addresses (0 on the box's own networks at one packet each, 65536 behind a router at 17 or more) at 50 packets/s needs at least 6h11m0s but a window lasts 6h0m0s; one pass will take several days"
+	if got := wide.sweepWarning([]netip.Prefix{netip.MustParsePrefix("192.168.1.10/24")}); got != want {
 		t.Errorf("sweepWarning = %q", got)
+	}
+	wide.Exclusions = []string{"10.0.1.0/24"}
+	want = "a sweep of about 65280 addresses (256 on the box's own networks at one packet each, 65024 behind a router at 17 or more) at 50 packets/s needs at least 6h9m0s but a window lasts 6h0m0s; one pass will take several days"
+	if got := wide.sweepWarning([]netip.Prefix{netip.MustParsePrefix("10.0.0.7/24"), netip.MustParsePrefix("10.0.1.7/24")}); got != want {
+		t.Errorf("mixed scope: sweepWarning = %q", got)
 	}
 }

@@ -51,10 +51,9 @@ const orgClock = (hours: number) => new Intl.DateTimeFormat('en-GB', { timeZone:
 const shape = (line: string) => (line.includes(' -sn ') ? 'sweep' : line.includes(' -T2 ') ? 'gentle' : 'normal')
 const targetsOf = (line: string) => line.slice(line.indexOf('-oX - ') + 6).split(' ')
 const GENTLE = '--privileged -sS -n -T2 --max-retries 1 --max-rate 1 --host-timeout 15m --top-ports 100 -oX - '
-// D-523: the sweep's discovery probes; the normal line names its ports (nmap 7.95's top 1000 plus the surface list, as ranges)
+// D-523: the sweep's discovery probes; the normal line bounds retransmissions
 const SWEEP = '--privileged -sn -PE -PP -PS21,22,23,80,135,139,443,445,554,3389,8000,8080,9100 -PA80,443 -n --max-rate 50'
-const NORMAL = '--privileged -sS -sV -O --osscan-limit --script rdp-ntlm-info,http-ntlm-info,http-title,ssl-cert -n --max-rate 50 --max-retries 3 --host-timeout 30m -p 1,3-4,6-7,9,13,'
-const normalLine = (ip: string) => new RegExp(`^${NORMAL.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[0-9,-]+,65000,65129,65389 -oX - ${ip.replaceAll('.', '\\.')}$`)
+const NORMAL = '--privileged -sS -sV -O --script rdp-ntlm-info,http-ntlm-info,http-title,ssl-cert -n --max-rate 50 --max-retries 3 --top-ports 1000 --host-timeout 30m -oX - '
 
 test.beforeAll(async () => {
   const c = await as('admin')
@@ -327,9 +326,7 @@ test('window open: a sweep of the confirmed range only, then one scan per device
     const gentle = scans.filter((l) => shape(l) === 'gentle')
     expect(gentle.map((l) => l.slice(GENTLE.length)).sort(), 'gentle: the three unclassified devices, each once').toEqual(['192.168.10.2', '192.168.10.21', '192.168.10.5'])
     for (const l of gentle) { expect(l.startsWith(GENTLE), l).toBe(true); expect(l).not.toMatch(/ -O | -sV |--script/) }
-    const normal = scans.filter((l) => shape(l) === 'normal')
-    expect(normal, 'normal: the router').toHaveLength(1)
-    expect(normal[0], 'normal: the router').toMatch(normalLine(ROUTER.ip))
+    expect(scans.filter((l) => shape(l) === 'normal'), 'normal: the router').toEqual([`${NORMAL}${ROUTER.ip}`])
     // the sweep made two new devices from what answered, and nothing from the host outside the range or the host that was down
     await expect.poll(async () => made(await devices(c)).map((d) => d.ip).sort(), { timeout: 20_000 }).toEqual(['192.168.10.1', '192.168.10.2', '192.168.10.21', '192.168.10.5'])
     const list = made(await devices(c))

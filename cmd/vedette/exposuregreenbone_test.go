@@ -12,6 +12,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/knt048/vedette/host/api"
 	hostclient "github.com/knt048/vedette/host/client"
@@ -90,6 +91,19 @@ func TestExposureGreenbone_HostOutcomes(t *testing.T) {
 		}, func(err error) bool {
 			var un *exposure.Unavailable
 			return errors.As(err, &un) && strings.Contains(un.Reason, "older than this version")
+		}},
+		// kf-scan item 6: refused for now, so exposure sends it again after a wait
+		"rate limited at a box restart": {func(string) (api.Run, error) {
+			return api.Run{}, &hostclient.Error{Status: 429, Code: api.CodeRateLimited, RetryAfterS: 20}
+		}, func(err error) bool {
+			var b *exposure.HostBusy
+			return errors.As(err, &b) && b.Reason == "rate_limited" && b.RetryAfter == 20*time.Second
+		}},
+		"busy with another run": {func(string) (api.Run, error) {
+			return api.Run{}, &hostclient.Error{Status: 409, Code: api.CodeBusy}
+		}, func(err error) bool {
+			var b *exposure.HostBusy
+			return errors.As(err, &b)
 		}},
 	} {
 		g := gbHostFor(&fakeGBHost{run: tc.run}, "/nonexistent")

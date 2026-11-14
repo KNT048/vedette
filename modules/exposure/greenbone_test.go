@@ -321,6 +321,7 @@ type fakeGB struct {
 	downs   int
 	dials   int
 	upErr   error
+	upErrs  []error // answered first, one per Up, before upErr
 	downErr error
 	dialErr error
 	upGate  chan struct{} // when set, Up waits for it
@@ -358,6 +359,9 @@ func (h *fakeGB) Up(ctx context.Context) error {
 	h.mu.Lock()
 	h.ups++
 	gate, err := h.upGate, h.upErr
+	if len(h.upErrs) > 0 {
+		err, h.upErrs = h.upErrs[0], h.upErrs[1:]
+	}
 	h.mu.Unlock()
 	if gate != nil {
 		select {

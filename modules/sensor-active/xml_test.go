@@ -6,6 +6,8 @@ import (
 	"maps"
 	"net/netip"
 	"os"
+	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -95,10 +97,9 @@ func TestParseRefusesBadOutput(t *testing.T) {
 		"too many attributes": manyAttrs,
 		"too many hosts":      manyHosts,
 		"too many ports":      manyPorts,
-		"attribute too long":  `<nmaprun x="` + strings.Repeat("a", 5000) + `"></nmaprun>`,
-		// N42-3: only the attributes the parser never reads are exempt; a long one it reads still refuses the run.
+		// N42-3: only the attributes the parser reads are capped; a long one of those still refuses the run, wherever it is.
 		"read attribute too long": `<nmaprun args="nmap"><host><status state="up"/><address addr="10.0.0.1" addrtype="ipv4"/><ports><port protocol="tcp" portid="80"><state state="open"/><service name="http" product="` + strings.Repeat("p", 5000) + `"/></port></ports></host></nmaprun>`,
-		"args of another element": `<nmaprun><host args="` + strings.Repeat("a", 5000) + `"></host></nmaprun>`,
+		"read name elsewhere":     `<nmaprun><host><status state="` + strings.Repeat("a", 5000) + `"/></host></nmaprun>`,
 		"output over the cap":     `<nmaprun>` + strings.Repeat(" ", maxOutput) + `</nmaprun>`,
 		"bad UTF-8 in a value":    "<nmaprun x=\"\xff\xfe\"></nmaprun>",
 	}
@@ -142,6 +143,44 @@ func TestParseAcceptsTheLongArgvOfTheFullShapes(t *testing.T) {
 		if len(hosts) != 1 || hosts[0].addr != boxIP || len(hosts[0].ports) != 1 || hosts[0].ports[0].number != 443 || hosts[0].ports[0].product != "nginx" {
 			t.Fatalf("%s: %+v", kind.Name(), hosts)
 		}
+	}
+}
+
+// Review r1 H1 (D-590): nmap prints the fingerprint of a port it cannot identify in <service servicefp>, about 6 KB of what the target
+// answered; the parser never reads it, so it no longer refuses the run, and the identified port beside it is kept.
+func TestParseKeepsARunWithALongServiceFingerprint(t *testing.T) {
+	t.Parallel()
+	fp := "SF-Port9999-TCP:V=7.95%I=7%D=11/14%Time=1%P=x86_64-pc-linux-gnu%r(NULL,384,&quot;" + strings.Repeat(`\x01\xfe`, 750) + "&quot;);"
+	if len(fp) < 6000 {
+		t.Fatalf("the fingerprint is %d bytes; the test needs about 6 KB", len(fp))
+	}
+	doc := `<nmaprun args="nmap -sV 10.0.0.1"><host><status state="up"/><address addr="10.0.0.1" addrtype="ipv4"/><ports>` +
+		`<port protocol="tcp" portid="80"><state state="open"/><service name="http" product="nginx" version="1.24.0"/></port>` +
+		`<port protocol="tcp" portid="9999"><state state="open"/><service name="unknown" servicefp="` + fp + `"/></port>` +
+		`</ports><os><osfingerprint fingerprint="` + strings.Repeat("OS:SCAN(V=7.95)", 400) + `"/></os></host></nmaprun>`
+	hosts, err := parseNmapXML([]byte(doc))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(hosts) != 1 || len(hosts[0].ports) != 2 || hosts[0].ports[0].product != "nginx" || hosts[0].ports[1].name != "unknown" {
+		t.Fatalf("%+v", hosts)
+	}
+}
+
+// readAttrs (the attributes that are capped) is exactly the set of a["…"] keys the parser reads: a key added to the parser without the
+// cap, or a cap on a key no longer read, fails here.
+func TestReadAttrsAreTheParsersKeys(t *testing.T) {
+	t.Parallel()
+	src, err := os.ReadFile("xml.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	read := map[string]bool{}
+	for _, m := range regexp.MustCompile(`a\["([a-z]+)"\]`).FindAllStringSubmatch(string(src), -1) {
+		read[m[1]] = true
+	}
+	if !maps.Equal(read, readAttrs) {
+		t.Fatalf("the parser reads %v, readAttrs caps %v", slices.Sorted(maps.Keys(read)), slices.Sorted(maps.Keys(readAttrs)))
 	}
 }
 

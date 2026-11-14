@@ -37,6 +37,7 @@ func TestGreenboneArgvIsFixedAndValidated(t *testing.T) {
 		"podman upfeed":     gbUpFeedArgv(),
 		"podman version":    gbVersionArgv(),
 		"podman login":      gbLoginArgv(gbTestPW),
+		"podman exists":     gbGvmdExistsArgv(),
 		"podman inspect":    gbImageIDArgv("vulnerability-tests"),
 		"podman rmi":        {"rmi", strings.Repeat("ab", 32)},
 		"systemctl enabled": argsPodmanSocketEnabled,
@@ -89,6 +90,7 @@ func TestGreenboneArgvIsFixedAndValidated(t *testing.T) {
 		"podman another user":       swap(gbLoginArgv(gbTestPW), "--user=admin", "--user=root"),
 		"podman another gvmd verb":  swap(gbLoginArgv(gbTestPW), "--user=admin", "--delete-user=admin"),
 		"podman create a user":      swap(gbLoginArgv(gbTestPW), "--user=admin", "--create-user=admin"),
+		"podman exists elsewhere":   {"container", "exists", "vedette-core"},
 		"podman exec a shell":       {"exec", "-u", "gvmd", gbGvmdContainer, "timeout", "-k", "5", "60", "sh", "-c", "--new-password=" + gbTestPW},
 		"podman inspect gvmd":       gbImageIDArgv("gvmd"),
 		"podman inspect elsewhere":  {"image", "inspect", "--format", "{{.Id}}", "docker.io/library/nginx"},
@@ -138,6 +140,7 @@ type gbWorld struct {
 	o         *Ops
 	base      string
 	log       *bytes.Buffer
+	logw      *syncWriter
 	mu        sync.Mutex
 	calls     []string
 	version   string    // what podman compose version prints ("" fails, like a podman without a provider)
@@ -145,9 +148,12 @@ type gbWorld struct {
 	logins    int       // how many logins fail before one works (-1: never)
 	locked    time.Time // until then gvmd holds its lock (it loads its feed): a login try is ended by the image's timeout (124)
 	running   string    // what compose ps prints
+	gone      bool      // gvmd's container no longer exists
+	pws       []string  // the password of each login try
 	socketOn  bool      // podman.socket is enabled
 	upGate    chan struct{}
 	upIn      chan struct{}
+	psGate    chan struct{} // when set, compose ps waits for it (or its context)
 	sleeps    int
 	images    map[string]string // feed service -> image ID
 	newImages map[string]string // what the pull changes
@@ -157,7 +163,7 @@ type gbWorld struct {
 func newGBWorld(t *testing.T, osRelease string) *gbWorld {
 	t.Helper()
 	base := t.TempDir()
-	state := filepath.Join(base, "state")
+	state := filepath.Join(base, "var", "lib", "vedette-host") // the shipped state directory under the fake root (compose names it)
 	for _, d := range []string{state, filepath.Join(base, "run"), filepath.Join(base, "etc"), filepath.Join(base, gbFilesDir)} {
 		if err := os.MkdirAll(d, 0o755); err != nil { //nolint:gosec // the fake root of a test, like /run and /etc
 			t.Fatal(err)
@@ -176,7 +182,8 @@ func newGBWorld(t *testing.T, osRelease string) *gbWorld {
 	for i, s := range gbFeedServices {
 		w.images[s] = strings.Repeat(string(rune('a'+i)), 64)
 	}
-	logger := slog.New(slog.NewTextHandler(&syncWriter{w: w.log}, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	w.logw = &syncWriter{w: w.log}
+	logger := slog.New(slog.NewTextHandler(w.logw, &slog.HandlerOptions{Level: slog.LevelDebug}))
 	o, err := NewWithDeps(Config{StateDir: state, CoreUnit: "vedette-core.service", OwnerUID: os.Getuid(), CoreGID: os.Getgid(), Logger: logger}, Deps{
 		Root: base, ChainTop: base, GreenboneUID: os.Getuid(),
 		LockHeld: func(string) (bool, error) { return false, nil },
@@ -206,6 +213,13 @@ func (s *syncWriter) Write(p []byte) (int, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.w.Write(p)
+}
+
+// logs is what the host logged so far (the re-sync may write while a test reads).
+func (w *gbWorld) logs() string {
+	w.logw.mu.Lock()
+	defer w.logw.mu.Unlock()
+	return w.log.String()
 }
 
 func (w *gbWorld) exec(ctx context.Context, name string, _ io.Reader, args ...string) (vexec.Result, int, error) {
@@ -259,6 +273,10 @@ func (w *gbWorld) exec(ctx context.Context, name string, _ io.Reader, args ...st
 	case len(args) == 11 && args[0] == "exec":
 		w.mu.Lock()
 		defer w.mu.Unlock()
+		w.pws = append(w.pws, strings.TrimPrefix(args[10], "--new-password="))
+		if w.gone {
+			return vexec.Result{}, 125, nil
+		}
 		if time.Now().Before(w.locked) {
 			return vexec.Result{}, 124, nil
 		}
@@ -270,9 +288,23 @@ func (w *gbWorld) exec(ctx context.Context, name string, _ io.Reader, args ...st
 		}
 		return vexec.Result{}, 0, nil
 	case slices.Equal(args, gbPsArgv()):
+		if w.psGate != nil {
+			select {
+			case <-w.psGate:
+			case <-ctx.Done():
+				return vexec.Result{}, -1, ctx.Err()
+			}
+		}
 		w.mu.Lock()
 		defer w.mu.Unlock()
 		return vexec.Result{Stdout: []byte(w.running)}, 0, nil
+	case slices.Equal(args, gbGvmdExistsArgv()):
+		w.mu.Lock()
+		defer w.mu.Unlock()
+		if w.gone {
+			return vexec.Result{}, 1, nil
+		}
+		return vexec.Result{}, 0, nil
 	case slices.Equal(args, gbStopArgv()):
 		w.mu.Lock()
 		w.running = ""
@@ -355,12 +387,13 @@ func testGreenboneFirstStart(t *testing.T) {
 		ps, // up checks the services and returns: the login is gvmd's from the creation of its user (N42-4)
 	}
 	synctest.Wait()
-	want = append(want, gbLoginLine, ps, gbLoginLine, ps, gbLoginLine) // the re-sync in the background, until it takes
+	exists := "podman " + strings.Join(gbGvmdExistsArgv(), " ")
+	want = append(want, gbLoginLine, exists, gbLoginLine, exists, gbLoginLine) // the re-sync in the background, until it takes
 	if got := w.Calls(); !slices.Equal(got, want) {
 		t.Fatalf("calls\n%q\nwant\n%q", got, want)
 	}
-	if !strings.Contains(w.log.String(), "gvmd took Vedette's GMP login") {
-		t.Fatalf("the re-sync is not in the log: %s", w.log.String())
+	if !strings.Contains(w.logs(), "gvmd took Vedette's GMP login") {
+		t.Fatalf("the re-sync is not in the log: %s", w.logs())
 	}
 	// review r1 M1: the parent is 0750, root's (here the test's uid) and core's group; gvmd's own folder 0755
 	for d, mode := range map[string]os.FileMode{api.GreenboneRunDir: 0o750, api.GreenboneSocketDir: 0o755} {
@@ -374,7 +407,7 @@ func testGreenboneFirstStart(t *testing.T) {
 		t.Errorf("%s is %d:%d, want the owner uid and core's gid %d:%d", api.GreenboneRunDir, sys.Uid, sys.Gid, os.Getuid(), os.Getgid())
 	}
 	// review r1 L5: the host enabled podman.socket, so it says so for install.sh --uninstall
-	marker := filepath.Join(w.base, "state", gbSocketMarker)
+	marker := w.o.stateFile(gbSocketMarker)
 	if _, err := os.Stat(marker); err != nil {
 		t.Fatalf("no marker after enabling podman.socket: %v", err)
 	}
@@ -393,7 +426,7 @@ func testGreenboneFirstStart(t *testing.T) {
 	if _, err := os.Stat(marker); err == nil {
 		t.Error("a marker was written for a podman.socket that was already enabled")
 	}
-	if strings.Contains(w.log.String(), gbTestPW) {
+	if strings.Contains(w.logs(), gbTestPW) {
 		t.Fatal("the password is in the log")
 	}
 }
@@ -434,8 +467,12 @@ func TestGreenboneUp_ReturnsWhileGvmdLoadsItsFeedAndTheLoginIsSetAfter(t *testin
 		}
 		<-time.After(4 * time.Hour)
 		synctest.Wait()
-		if w.count(gbLoginLine) < int(3*time.Hour/gbLoginEvery) {
-			t.Fatalf("%d login tries in 3 hours, want one every %s", w.count(gbLoginLine), gbLoginEvery)
+		// review r1 M3: the pause doubles from 10 s to 5 min, so 3 hours hold about 40 tries, not 1000; the log says it once an hour
+		if n := w.count(gbLoginLine); n < int(3*time.Hour/gbLoginMax) || n > int(3*time.Hour/gbLoginMax)+10 {
+			t.Fatalf("%d login tries in 3 hours, want about one every %s once backed off", n, gbLoginMax)
+		}
+		if n := strings.Count(w.logs(), "still does not take the GMP login"); n < 2 || n > 3 {
+			t.Fatalf("%d hourly lines in 3 hours: %s", n, w.logs())
 		}
 		if w.count("podman "+strings.Join(gbStopArgv(), " ")) != 0 {
 			t.Fatalf("the project was stopped: %q", w.Calls())
@@ -443,19 +480,20 @@ func TestGreenboneUp_ReturnsWhileGvmdLoadsItsFeedAndTheLoginIsSetAfter(t *testin
 		n := w.count(gbLoginLine)
 		<-time.After(time.Hour)
 		synctest.Wait()
-		if w.count(gbLoginLine) != n || !strings.Contains(w.log.String(), "gvmd took Vedette's GMP login") {
-			t.Fatalf("the re-sync did not end once gvmd took the login: %d → %d tries; log %s", n, w.count(gbLoginLine), w.log.String())
+		if w.count(gbLoginLine) != n || !strings.Contains(w.logs(), "gvmd took Vedette's GMP login") {
+			t.Fatalf("the re-sync did not end once gvmd took the login: %d → %d tries; log %s", n, w.count(gbLoginLine), w.logs())
 		}
-		if strings.Contains(w.log.String(), gbTestPW) || strings.Contains(w.log.String(), gbTestPW[:12]) {
-			t.Fatalf("the password leaked into the log: %s", w.log.String())
+		if strings.Contains(w.logs(), gbTestPW) || strings.Contains(w.logs(), gbTestPW[:12]) {
+			t.Fatalf("the password leaked into the log: %s", w.logs())
 		}
 	})
 }
 
-// The re-sync ends at greenbone.down (it is cancelled with the operation that runs) and when compose no longer lists gvmd as running.
+// The re-sync ends at greenbone.down (it is cancelled with the operation that runs) and when gvmd's container is gone; a gvmd that
+// restarts mid-load (not running for a while, its container still there) does not end it (review r1 M1).
 func TestGreenboneUp_TheLoginReSyncEndsOnDownAndWhenGvmdIsGone(t *testing.T) {
 	t.Parallel()
-	for _, end := range []string{"down", "gvmd gone"} {
+	for _, end := range []string{"down", "gvmd gone", "gvmd restarting"} {
 		synctest.Test(t, func(t *testing.T) {
 			w := newGBWorld(t, ubuntu2604)
 			w.o.d.Sleep = sleepCtx
@@ -468,26 +506,173 @@ func TestGreenboneUp_TheLoginReSyncEndsOnDownAndWhenGvmdIsGone(t *testing.T) {
 			if w.count(gbLoginLine) < 2 {
 				t.Fatalf("%s: the re-sync does not run: %q", end, w.Calls())
 			}
+			w.mu.Lock()
+			switch end {
+			case "gvmd gone":
+				w.gone = true
+			case "gvmd restarting":
+				w.running = "pg-gvm\nredis-server\n"
+			}
+			w.mu.Unlock()
 			if end == "down" {
 				if err := w.down(t.Context()); err != nil {
 					t.Fatal(err)
 				}
-			} else {
-				w.mu.Lock()
-				w.running = "pg-gvm\nredis-server\n"
-				w.mu.Unlock()
 			}
-			<-time.After(time.Minute) // the try that ran sees it
+			<-time.After(10 * time.Minute) // the try that ran sees it
 			synctest.Wait()
 			n := w.count(gbLoginLine)
 			<-time.After(time.Hour)
-			synctest.Wait() // a re-sync still running would have tried again in this hour
+			synctest.Wait()
+			if end == "gvmd restarting" {
+				if w.count(gbLoginLine) <= n {
+					t.Fatalf("the re-sync ended while gvmd's container was still there: %d tries", n)
+				}
+				w.mu.Lock()
+				w.gone = true // the end of the bubble needs the re-sync to end
+				w.mu.Unlock()
+				<-time.After(10 * time.Minute)
+				return
+			}
 			if w.count(gbLoginLine) != n {
 				t.Fatalf("%s: the re-sync went on: %d → %d tries", end, n, w.count(gbLoginLine))
 			}
-			if end == "gvmd gone" && !strings.Contains(w.log.String(), "gvmd no longer runs") {
-				t.Fatalf("the end is not in the log: %s", w.log.String())
+			if end == "gvmd gone" && !strings.Contains(w.logs(), "gvmd's container is gone") {
+				t.Fatalf("the end is not in the log: %s", w.logs())
 			}
+		})
+	}
+}
+
+// Review r1 L5: a down that lands while an up is still checking its services ends that up, and no re-sync starts after it; and a
+// re-sync is never started for an up whose context a down already cancelled.
+func TestGreenboneUp_ADownDuringAnUpStartsNoReSync(t *testing.T) {
+	t.Parallel()
+	synctest.Test(t, func(t *testing.T) {
+		w := newGBWorld(t, ubuntu2604)
+		w.o.d.Sleep = sleepCtx
+		w.logins = -1
+		w.psGate = make(chan struct{})
+		queued := make(chan struct{}, 2)
+		w.o.gbOnQueue = func() { queued <- struct{}{} }
+		res := make(chan error, 1)
+		go func() { res <- w.up(t.Context()) }()
+		<-queued
+		synctest.Wait() // the up waits in compose ps, after compose up
+		downed := make(chan error, 1)
+		go func() { downed <- w.down(t.Context()) }()
+		var f *server.Failure
+		if err := <-res; !errors.As(err, &f) || f.Code != api.CodeGreenboneCancelled {
+			t.Fatalf("%v, want greenbone_cancelled", err)
+		}
+		close(w.psGate) // the down's own compose ps
+		if err := <-downed; err != nil {
+			t.Fatal(err)
+		}
+		<-time.After(time.Hour)
+		synctest.Wait()
+		if n := w.count(gbLoginLine); n != 0 {
+			t.Fatalf("%d login tries after the down", n)
+		}
+		cctx, cancel := context.WithCancel(t.Context())
+		cancel()
+		w.o.gbResyncStart(func() bool { return cctx.Err() == nil }, gbTestPW)
+		synctest.Wait()
+		w.o.gbMu.Lock()
+		started := w.o.gbResyncStop != nil
+		w.o.gbMu.Unlock()
+		if w.count(gbLoginLine) != 0 || started {
+			t.Fatal("a re-sync started for a cancelled up")
+		}
+	})
+}
+
+// Review r1 L5: a second up replaces the re-sync of the first: only one runs, with the second up's password.
+func TestGreenboneUp_ASecondUpReplacesTheReSync(t *testing.T) {
+	t.Parallel()
+	synctest.Test(t, func(t *testing.T) {
+		w := newGBWorld(t, ubuntu2604)
+		w.o.d.Sleep = sleepCtx
+		w.logins = -1
+		if err := w.up(t.Context()); err != nil {
+			t.Fatal(err)
+		}
+		<-time.After(time.Minute)
+		synctest.Wait()
+		const pw2 = "fedcba9876543210fedcba9876543210fedcba9876543210"
+		if err := w.o.gbOp(t.Context(), false, gbUpLimit, func(ctx context.Context) error { return w.o.gbUp(ctx, nolog, pw2) }); err != nil {
+			t.Fatal(err)
+		}
+		w.mu.Lock()
+		from := len(w.pws)
+		w.mu.Unlock()
+		<-time.After(2 * time.Hour)
+		synctest.Wait()
+		w.mu.Lock()
+		later := slices.Clone(w.pws[from:])
+		w.gone = true // the end of the bubble needs the re-sync to end
+		w.mu.Unlock()
+		if len(later) == 0 || slices.Contains(later, gbTestPW) {
+			t.Fatalf("after the second up the tries used %d passwords, some the first up's: the first re-sync goes on", len(later))
+		}
+		if len(later) > int(2*time.Hour/gbLoginMax)+10 {
+			t.Fatalf("%d tries in 2 hours: more than one re-sync runs", len(later))
+		}
+		<-time.After(10 * time.Minute)
+	})
+}
+
+// Review r1 M1, L5: at the host's start, a project whose gvmd runs gets the re-sync again with the password of the file; a stopped
+// project, or no file, gets nothing, and a resume never replaces the re-sync of an up that came first.
+func TestGreenboneResume_AtTheHostsStart(t *testing.T) {
+	t.Parallel()
+	for _, c := range []string{"gvmd runs", "stopped", "no file", "after an up"} {
+		synctest.Test(t, func(t *testing.T) {
+			w := newGBWorld(t, ubuntu2604)
+			w.o.d.Sleep = sleepCtx
+			if c != "no file" {
+				if err := w.o.gbPasswordWrite(gbTestPW); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if c == "stopped" {
+				w.running = ""
+			}
+			w.logins = 1
+			if c == "after an up" {
+				w.logins = -1
+				if err := w.up(t.Context()); err != nil {
+					t.Fatal(err)
+				}
+			}
+			w.mu.Lock()
+			before := len(w.pws)
+			w.mu.Unlock()
+			w.o.gbResume(t.Context())
+			<-time.After(time.Hour)
+			synctest.Wait()
+			w.mu.Lock()
+			tries := slices.Clone(w.pws[before:])
+			w.gone = true
+			w.mu.Unlock()
+			switch c {
+			case "gvmd runs":
+				if len(tries) != 2 || tries[0] != gbTestPW || !strings.Contains(w.logs(), "gvmd took Vedette's GMP login") {
+					t.Fatalf("the re-sync did not resume: %d tries; %s", len(tries), w.logs())
+				}
+			case "after an up":
+				if len(tries) > int(time.Hour/gbLoginMax)+10 {
+					t.Fatalf("%d tries in an hour: the resume started a second re-sync", len(tries))
+				}
+			default:
+				if len(tries) != 0 {
+					t.Fatalf("%s: %d login tries", c, len(tries))
+				}
+			}
+			if strings.Contains(w.logs(), gbTestPW) {
+				t.Fatal("the password is in the log")
+			}
+			<-time.After(10 * time.Minute)
 		})
 	}
 }
@@ -503,36 +688,59 @@ func TestGreenboneUp_ThePasswordFileIsGvmdsAlone(t *testing.T) {
 			t.Fatal(err)
 		}
 		synctest.Wait()
-		dir, file := filepath.Join(w.base, gbPasswordDir), filepath.Join(w.base, gbPasswordFile)
+		dir, file := w.o.gbPasswordPath()
+		if file != filepath.Join(w.base, gbPasswordShipped) {
+			t.Fatalf("the file is %s, not the shipped path under the fake root", file)
+		}
 		if st, err := os.Lstat(dir); err != nil || !st.IsDir() || st.Mode().Perm() != 0o700 {
-			t.Fatalf("%s: %v %v, want a directory 0700", gbPasswordDir, st, err)
+			t.Fatalf("%s: %v %v, want a directory 0700", dir, st, err)
 		}
 		st, err := os.Lstat(file)
 		if err != nil || !st.Mode().IsRegular() || st.Mode().Perm() != 0o400 {
-			t.Fatalf("%s: %v %v, want a file 0400", gbPasswordFile, st, err)
+			t.Fatalf("%s: %v %v, want a file 0400", file, st, err)
 		}
 		if sys := st.Sys().(*syscall.Stat_t); int(sys.Uid) != os.Getuid() {
-			t.Fatalf("%s is owned by %d, want gvmd's uid (here %d)", gbPasswordFile, sys.Uid, os.Getuid())
+			t.Fatalf("%s is owned by %d, want gvmd's uid (here %d)", file, sys.Uid, os.Getuid())
 		}
 		if b, err := os.ReadFile(file); err != nil || string(b) != gbTestPW+"\n" { //nolint:gosec // the test's own file
-			t.Fatalf("%s holds %q, %v", gbPasswordFile, b, err)
+			t.Fatalf("%s holds %q, %v", file, b, err)
+		}
+		if pw, err := w.o.gbPasswordRead(); err != nil || pw != gbTestPW {
+			t.Fatalf("read back: %v", err)
+		}
+		// review r1 L1: a temp file a write cut short left behind is removed at the next write
+		if err := os.WriteFile(filepath.Join(dir, ".tmp-123"), []byte(gbTestPW), 0o400); err != nil {
+			t.Fatal(err)
+		}
+		if err := w.o.gbPasswordWrite(gbTestPW); err != nil {
+			t.Fatal(err)
 		}
 		if entries, _ := os.ReadDir(dir); len(entries) != 1 {
-			t.Fatalf("%s holds %v, want only the password file (no temp file left)", gbPasswordDir, entries)
+			t.Fatalf("%s holds %v, want only the password file (no temp file left)", dir, entries)
 		}
 		w2 := newGBWorld(t, ubuntu2604)
-		if err := os.MkdirAll(filepath.Join(w2.base, gbPasswordDir), 0o755); err != nil { //nolint:gosec // a directory open to others
+		d2, _ := w2.o.gbPasswordPath()
+		if err := os.MkdirAll(d2, 0o755); err != nil { //nolint:gosec // a directory open to others
 			t.Fatal(err)
 		}
 		var f *server.Failure
-		if err := w2.up(t.Context()); !errors.As(err, &f) || f.Code != api.CodeGreenboneFailed || !strings.Contains(f.Message, gbPasswordDir) {
-			t.Fatalf("%v, want greenbone_failed naming %s", err, gbPasswordDir)
+		if err := w2.up(t.Context()); !errors.As(err, &f) || f.Code != api.CodeGreenboneFailed || !strings.Contains(f.Message, "/var/lib/vedette-host/greenbone") {
+			t.Fatalf("%v, want greenbone_failed naming the directory", err)
 		}
 		if slices.Contains(w2.Calls(), "podman "+strings.Join(gbUpArgv(), " ")) {
 			t.Fatalf("compose up ran without the password file: %q", w2.Calls())
 		}
-		if strings.Contains(f.Message, gbTestPW) || strings.Contains(w2.log.String(), gbTestPW) {
-			t.Fatalf("the password leaked: %q / %s", f.Message, w2.log.String())
+		if strings.Contains(f.Message, gbTestPW) || strings.Contains(w2.logs(), gbTestPW) {
+			t.Fatalf("the password leaked: %q / %s", f.Message, w2.logs())
+		}
+		// review r1 L4: the file is in the state directory, which must be the shipped one the override names
+		w3 := newGBWorld(t, ubuntu2604)
+		w3.o.cfg.StateDir = filepath.Join(w3.base, "srv", "host-state")
+		if err := w3.up(t.Context()); !errors.As(err, &f) || !strings.Contains(f.Message, "/var/lib/vedette-host") {
+			t.Fatalf("%v, want a failure about the state directory", err)
+		}
+		if slices.Contains(w3.Calls(), "podman "+strings.Join(gbUpArgv(), " ")) {
+			t.Fatalf("compose up ran with another state directory: %q", w3.Calls())
 		}
 	})
 }
@@ -544,8 +752,8 @@ func TestGreenboneOverrideNamesThePasswordFile(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !bytes.Contains(b, []byte("\nsecrets:\n  vedette-gmp-password:\n    file: "+gbPasswordFile+"\n")) {
-		t.Fatalf("compose.vedette.yaml does not give gvmd %s as the secret vedette-gmp-password", gbPasswordFile)
+	if !bytes.Contains(b, []byte("\nsecrets:\n  vedette-gmp-password:\n    file: "+gbPasswordShipped+"\n")) {
+		t.Fatalf("compose.vedette.yaml does not give gvmd %s as the secret vedette-gmp-password", gbPasswordShipped)
 	}
 }
 

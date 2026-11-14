@@ -152,7 +152,7 @@ const (
 	notGBNotCompared = "The CVEs OpenVAS named were not compared with the list of exploited vulnerabilities: that comparison is not set up on this box yet."
 	gbLoadingReason  = "OpenVAS is loading its feed (first time takes about 2 hours)"
 	gbNotAnswering   = "OpenVAS does not answer on its socket. Turn it off and on again to restart it."
-	gbAuthFailed     = "Vedette could not sign in to OpenVAS (GMP): it refused the login the box set for it. Turn OpenVAS off and on again so the box sets it again."
+	gbAuthFailed     = "Vedette could not sign in to OpenVAS (GMP): it refused the login the box set for it. If OpenVAS has finished loading its feed, turn it off and on again so the box sets the login again."
 	gbUnreadable     = "OpenVAS answered in a way Vedette could not read."
 	gbBusyReason     = "OpenVAS is busy loading its feed and answers slowly; Vedette will ask again."
 	gbSlowReason     = "OpenVAS did not answer within 2 minutes."
@@ -163,9 +163,9 @@ const (
 	gbSyncingReason = "OpenVAS is loading its weekly feed update"
 )
 
-// gbLoginPending: OpenVAS kept the admin password of an earlier start (its data outlived Vedette's) and takes Vedette's only once it
-// has loaded its feed (host-api §6.16, D-590).
-const gbLoginPending = "OpenVAS is loading its feed and takes Vedette's login once it has (the first time takes about 2 hours)."
+// gbLoginPending: a refused login within the load grace after Up. A volume of an earlier start keeps its admin password until gvmd
+// has loaded its feed and the host sets Vedette's (host-api §6.16, D-590); the sentence claims neither cause.
+const gbLoginPending = "OpenVAS may still be loading its feed or setting Vedette's login; Vedette will ask again."
 
 // The answers of the setting.
 var (

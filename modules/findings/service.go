@@ -707,7 +707,8 @@ func (s *Service) OnAssetDeleted(ctx context.Context, assetID string) (int, erro
 // OnAssetMerged handles inventory.asset.merged (D-515): device from was the same device as into, so its findings become into's,
 // with their status, history, mitigation log and AI results (those key on the finding id). For a CVE both devices hold, the finding
 // that ranks higher stays and the other goes: decided (a person closed it, wrote its history, or marked a mitigation item applied)
-// over confirmed over suspected; on a tie into's stays. Version-needed items move too. One audit row findings.merged_with_asset
+// over confirmed over suspected; on a tie into's stays, and when both were decided the people's history rows of the one that goes
+// (their notes) move onto the one that stays. Version-needed items move too. One audit row findings.merged_with_asset
 // names both devices, how many findings moved and every decided finding that lost to another decided one. It runs before into is
 // matched again, which then finds the moved findings and creates and announces nothing new. It returns how many findings moved.
 func (s *Service) OnAssetMerged(ctx context.Context, from, into string) (int, error) {
@@ -765,12 +766,17 @@ func (s *Service) OnAssetMerged(ctx context.Context, from, into string) (int, er
 			if err != nil {
 				return err
 			}
-			loser := p.fromID
+			loser, winner := p.fromID, p.intoID
 			if rf > ri {
-				loser = p.intoID
+				loser, winner = p.intoID, p.fromID
 			}
 			if rf == 2 && ri == 2 {
 				lost = append(lost, p.cve+" "+loser)
+				// The person's notes on the losing copy stay readable on the kept one: deleting it cascades its history, and history is
+				// append-only, so its people's rows are copied, same time, user, action and note.
+				if err := copyPeoplesHistory(ctx, tx, loser, winner); err != nil {
+					return fmt.Errorf("findings: moving the findings of a merged device: %w", err)
+				}
 			}
 			if _, err := tx.ExecContext(ctx, `DELETE FROM fnd_finding WHERE id = ?`, loser); err != nil {
 				return fmt.Errorf("findings: moving the findings of a merged device: %w", err)
@@ -801,6 +807,37 @@ func (s *Service) OnAssetMerged(ctx context.Context, from, into string) (int, er
 		return s.cfg.Audit.Append(ctx, tx, audit.Entry{User: SystemUser, Action: "findings.merged_with_asset", Target: into, Detail: detail})
 	})
 	return int(n), err
+}
+
+// copyPeoplesHistory appends to finding to the history rows people wrote on finding from (D-515, merge of two decided copies).
+func copyPeoplesHistory(ctx context.Context, tx *sql.Tx, from, to string) error {
+	rows, err := tx.QueryContext(ctx, `SELECT ts, user, action, note FROM fnd_finding_history WHERE finding_id = ? AND user <> ? ORDER BY ts, rowid`, from, SystemUser)
+	if err != nil {
+		return err
+	}
+	type row struct {
+		ts, user, action string
+		note             sql.NullString
+	}
+	var rs []row
+	for rows.Next() {
+		var r row
+		if err := rows.Scan(&r.ts, &r.user, &r.action, &r.note); err != nil {
+			_ = rows.Close()
+			return err
+		}
+		rs = append(rs, r)
+	}
+	if err := rows.Close(); err != nil {
+		return err
+	}
+	for _, r := range rs {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO fnd_finding_history (id, finding_id, ts, user, action, note) VALUES (?, ?, ?, ?, ?, ?)`,
+			store.NewID("fh"), to, r.ts, r.user, r.action, r.note); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // deleteAsset removes the findings of a device under the caller's context (Reconcile keeps its own cancellation).

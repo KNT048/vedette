@@ -33,21 +33,27 @@ const clearProfiles = () => { aiProfilesStore.set([]); aiAssignStore.update((a) 
 
 describe('ai: assistant (S-AI-5, S-AI-6)', () => {
   it('the log of calls says a call the provider did not answer failed, not blocked by the cap (S-AI-4)', async () => {
-    renderApp('/assistant')
-    const table = await screen.findByRole('table', { name: 'Log of AI calls' })
-    expect(await within(table).findByText('Failed: not sent or not answered')).toBeInTheDocument()
-    expect(within(table).queryByText('Blocked by cap')).not.toBeInTheDocument()
+    renderApp('/assistant?tab=usage')
+    await waitFor(() => expect(screen.getByText('Failed: not sent or not answered')).toBeInTheDocument())
+    expect(within(screen.getByRole('table', { name: 'Log of AI calls' })).queryByText('Blocked by cap')).not.toBeInTheDocument()
   })
   it('first sentence says how many tokens were used; no a11y violations', async () => {
-    renderApp('/assistant')
+    renderApp('/assistant?tab=usage')
     expect(await screen.findByRole('heading', { level: 1, name: /[\d,]+ of 1,800,000 tokens used this month/ })).toBeInTheDocument()
     expect(await screen.findByRole('table', { name: 'Log of AI calls' })).toBeInTheDocument()
     expect(screen.getByRole('progressbar', { name: 'Tokens used this month against the monthly budget' })).toBeInTheDocument()
     await expectNoA11yViolations()
   })
 
-  it('shows no money or token prices anywhere on the page', async () => {
+  it('Ask and Usage are tabs; the token KPI appears only from 80 % of the budget and links to Usage (S-UI-1)', async () => {
     renderApp('/assistant')
+    expect(await screen.findByRole('tab', { name: 'Usage' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Ask' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.queryByRole('list', { name: 'AI usage at a glance' })).not.toBeInTheDocument()
+  })
+
+  it('shows no money or token prices anywhere on the page', async () => {
+    renderApp('/assistant?tab=usage')
     await screen.findByRole('table', { name: 'Log of AI calls' })
     expect(document.body.textContent).not.toMatch(/\$|USD|VND|₫|price|per million/i)
   })
@@ -162,7 +168,8 @@ describe('ai: assistant (S-AI-5, S-AI-6)', () => {
     const btn = await screen.findByRole('button', { name: 'Which machines still expose RDP?' })
     expect(btn).toBeDisabled()
     await waitFor(() => expect(screen.getByRole('button', { name: 'Which machines still expose RDP?' })).toHaveAttribute('title', expect.stringMatching(/Operator/)))
-    expect(screen.getByRole('progressbar')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('tab', { name: 'Usage' }))
+    expect(await screen.findByRole('progressbar')).toBeInTheDocument()
   })
 
   it('no AI profile: guides to add one and nothing can be asked', async () => {
@@ -217,7 +224,7 @@ describe('ai: token meter, monthly budget, fallback (S-AI-4, D-531)', () => {
   it('meter says this month\'s budget is used up and keeps the earlier downgrade in the history', async () => {
     aiConfigStore.update((c) => ({ ...c, monthly_budget: 1000 }))
     spend(1200)
-    renderApp('/assistant')
+    renderApp('/assistant?tab=usage')
     expect(await screen.findByText(/This month's budget is used up: every AI job is stopped until it renews on/)).toBeInTheDocument()
     expect(screen.getByText(/lowered from Medium to Minimum/)).toBeInTheDocument()
   })

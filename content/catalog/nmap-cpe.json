@@ -1,0 +1,4 @@
+{
+ "_about": "W11-2: the NVD CPE products (part:vendor:product) that name the same thing as a CPE nmap -sV prints. nmap's service database keeps old vendor names (nginx is igor_sysoev:nginx to nmap, f5:nginx in NVD since F5 bought it, nginx:nginx before), so without this an exposed nginx is never compared with the exploited CVEs listed under F5. Read by cmd/vedette/exposurematch.go (nmapAliases); checked by TestNmapAliases_DataIsValid.",
+ "a:igor_sysoev:nginx": ["a:f5:nginx", "a:nginx:nginx"]
+}

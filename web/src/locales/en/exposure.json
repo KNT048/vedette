@@ -39,6 +39,30 @@
     "moreOnTarget_one": "{{count}} more open port is listed on its target's page.",
     "moreOnTarget_other": "{{count}} more open ports are listed on their target's page."
   },
+  "kpi": {
+    "label": "External exposure at a glance",
+    "targets": "targets confirmed",
+    "open": "open exposures",
+    "scan": "last scan",
+    "never": "never"
+  },
+  "tabs": {
+    "label": "External exposure sections",
+    "targets": "Targets",
+    "open": "Open exposures",
+    "outside": "What the Internet sees",
+    "results": "Results",
+    "ownership": "Ownership",
+    "outsideView": "Outside view",
+    "needsYou": "needs you"
+  },
+  "outsideList": {
+    "description": "What Shodan InternetDB sees from outside for each public IP of this box. Open an IP to ask again.",
+    "open": "Open outside view of {{ip}}",
+    "emptyTitle": "No public IP yet",
+    "emptyBody": "When the box finds its public IP it appears here, and you can ask what the Internet sees."
+  },
+  "openEmpty": "No open port was found in the newest scans.",
   "gateway": {
     "known_one": "These ports are answered by your gateway {{name}} ({{ip}}), or a device it forwards them to. {{name}} has {{count}} open exploited vulnerability: fix these first.",
     "known_other": "These ports are answered by your gateway {{name}} ({{ip}}), or a device it forwards them to. {{name}} has {{count}} open exploited vulnerabilities: fix these first.",
@@ -147,6 +171,7 @@
     "commitHint": "Recorded by the first Scan now of an administrator. Vedette keeps who, when and the exact sentence."
   },
   "verify": {
+    "goOwnership": "Open Ownership",
     "okToast": "Verified {{value}}",
     "failToast": "Not verified yet. The reason is shown just below the button.",
     "checking": "Checking",
@@ -432,6 +457,7 @@
     "basis": {
       "version": "Version in range",
       "product": "Product only",
+      "template": "Confirmed by template {{id}}",
       "backport": "Version in range, but {{distro}} may have backported the fix"
     },
     "countBackport_one": "{{count}} maybe patched",

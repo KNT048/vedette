@@ -59,7 +59,7 @@
 - **response** (`new_port`) đọc `Diff.Added` kind `port`: kind mới không đổi nó.
 
 ## Modifying: `WebScanner`, `WebScan`, `ParseZAPReport`, `webURLs`, `webPassive`, `WebFindingRow`, `Snapshot.web_findings`, cột `exp_snapshot.web_findings` (INV-24, D-562)
-- **host** (Trưởng): thao tác `vedette-host` `zap.baseline` (container ZAP một lần, mạng `vedette-zap` chỉ ra tới địa chỉ:cổng đó, ghim ảnh `ZAP_IMAGE` trong `pins.env`, gỡ cài đặt xoá ảnh và mạng) và adapter `cmd/vedette` nối `Config.Web`; nó tự ghi Probe log (`scan_probe`) trước mỗi request và tự kiểm lại IP của hộp / token TXT. Đổi cách chọn URL ở `webURLs` là đổi cái được phép gửi tới ZAP (LEGAL §3, PRIVACY luồng 9).
+- **host** (Trưởng): thao tác `vedette-host` `zap.baseline` (container ZAP một lần, mạng `vedette-zap` chỉ ra tới địa chỉ:cổng đó, ghim ảnh `ZAP_IMAGE` trong `pins.env`, gỡ cài đặt xoá ảnh và mạng) và adapter `cmd/vedette` nối `Config.Web`; exposure ghi hàng Probe log của từng trang trước khi gọi (`Config.Probes` phải hiện thực thêm `WebProbeLog`), adapter ghim ZAP vào `WebPage.IP`, ghi thêm URL spider đã bò và tự kiểm lại IP của hộp / token TXT ở mỗi lần gọi. Đổi cách chọn URL ở `webURLs` là đổi cái được phép gửi tới ZAP (LEGAL §3, PRIVACY luồng 9).
 - **PRIVACY luồng 6 và 9, THIRD_PARTY_NOTICES (hàng ZAP)**, `web/src/locales/en/core.json` (Settings → Privacy, `privacyFlows.test.ts` so luồng 6 từng chữ): đổi cái ZAP đọc hay kéo là đổi cả ba.
 - **web/features/exposure**: `WebPanel.tsx` (mục "Web findings (passive)", cho IP và domain), `contract.ts` (`WebFinding`, nguồn OpenAPI → `core/api/oas` sinh lại).
 - **core** `export_policy.go`: cột JSON mới được xuất (`TestExport_PolicyClassifiesEveryColumn`).
@@ -68,3 +68,10 @@
 ## Disabling this module
 - Trang External exposure mất; `scan` chỉ quét mục tiêu nội bộ; luồng PRIVACY 9 dừng (job không chạy, kể cả lượt dò đầy đủ trước khi quét).
 - Mục tiêu, cam kết, ảnh chụp, cài đặt và danh sách bỏ qua giữ; `reports` bỏ mục bề mặt ngoài.
+
+## Modifying: `TemplateScanner`, `TemplateJob`, `TemplateResult`, `ProbeLog`, `Config.Templates`, `Config.Probes`, `runTemplates`, `markTemplates`, `Snapshot.templates`, `VulnRow.template`/`template_result` (INV-23, D-561)
+- **cmd/vedette** (Trưởng, deferred): implements `TemplateScanner` over sensor-active's external job (nuclei with the safe set, `Scope own_ip`, 5 rps, the worker's own-IP re-check, ≤ 32 templates a job) and `ProbeLog` over `scan.Service.RecordExternalProbes`; until then `Config.Templates` is nil and every scan says the templates are not set up. Changing `ScanTarget` or `ServiceRow` touches both adapters.
+- **scan** probe log: exposure writes one row per planned template before the call (`Template` "exposure: template <id>"); the table, retention and CSV are scan's (INV-7).
+- **web/features/exposure**: `ServicesPanel.tsx` basis chip "Confirmed by template <id>", `contract.ts` (`TemplateRow`, `Snapshot.templates`, `VulnRow.template*`), `data.ts` mock, `locales/en/exposure.json` `vulns.basis.template`; `api/openapi.json` and `core/api/oas` are generated.
+- **PRIVACY.md flow 9** and `locales/en/core.json` `privacy.flow.9` name the template requests (rule legal.md); `THIRD_PARTY_NOTICES.md` already lists nuclei and its safe pack (D-125, D-146).
+- **findings / response / reports** read vulns through the existing `Matcher` only; `basis` "template" is new to a reader that switches on `version`/`product`.

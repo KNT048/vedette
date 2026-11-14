@@ -34,7 +34,7 @@ export function WebSection({ s }: { s: Snapshot }) {
     { id: 'fix', header: t('web.col.fix'), enableSorting: false, accessorFn: (r) => r.solution, cell: ({ row }) => <span className="text-[13px]">{row.original.solution}</span> },
   ]
   return (
-    <Section id="web" title={t('web.title')} description={t('web.description')}>
+    <Section id="web" title={t('web.title')} description={rows.length > 0 || scanned ? t('web.description') : undefined}>
       {rows.length > 0 ? (
         <DataTable caption={t('web.caption')} data={rows} columns={cols} pageSize={20} rowTone={(r) => (r.risk === 'high' ? 'warn' : undefined)} />
       ) : scanned ? (

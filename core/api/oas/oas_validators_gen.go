@@ -23942,6 +23942,34 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOK) Validate() error {
 		})
 	}
 	if err := func() error {
+		if s.Templates == nil {
+			return errors.New("nil is invalid value")
+		}
+		var failures []validate.FieldError
+		for i, elem := range s.Templates {
+			if err := func() error {
+				if err := elem.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "templates",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if s.VersionGaps == nil {
 			return errors.New("nil is invalid value")
 		}
@@ -24327,6 +24355,63 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKServicesItem) Validate() err
 	return nil
 }
 
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItem) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.Outcome.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "outcome",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Port)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "port",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemOutcome) Validate() error {
+	switch s {
+	case "matched":
+		return nil
+	case "no_match":
+		return nil
+	case "error":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
 func (s *ExposureGetExposureTargetsIDSnapshotsDateOKVersionGapsItem) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
@@ -24439,6 +24524,17 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItem) Validate() error 
 			Error: err,
 		})
 	}
+	if err := func() error {
+		if err := s.TemplateResult.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "template_result",
+			Error: err,
+		})
+	}
 	if len(failures) > 0 {
 		return &validate.Error{Fields: failures}
 	}
@@ -24450,6 +24546,23 @@ func (s ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasis) Validate() er
 	case "version":
 		return nil
 	case "product":
+		return nil
+	case "template":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemTemplateResult) Validate() error {
+	switch s {
+	case "":
+		return nil
+	case "matched":
+		return nil
+	case "no_match":
+		return nil
+	case "error":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)

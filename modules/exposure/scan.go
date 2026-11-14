@@ -369,7 +369,7 @@ func sanitize(c Content) Content {
 		out.Certs = append(out.Certs, CertRow{Host: txt(x.Host), Issuer: txt(x.Issuer), ExpiresAt: store.FormatTS(t)})
 	}
 	return Content{Hosts: nz(out.Hosts), Ports: nz(out.Ports), AdminPanels: nz(out.AdminPanels), Certs: nz(out.Certs),
-		Services: sanitizeServices(c.Services), Checks: sanitizeChecks(c.Checks), NotChecked: sanitizeNotChecked(c.NotChecked), WebFindings: sanitizeWeb(c.WebFindings)}
+		Services: sanitizeServices(c.Services), Templates: sanitizeTemplates(c.Templates, sanitizeServices(c.Services)), Checks: sanitizeChecks(c.Checks), NotChecked: sanitizeNotChecked(c.NotChecked), WebFindings: sanitizeWeb(c.WebFindings)}
 }
 
 // scope says what the scan did with an address whose ports the previous observation listed (INV-22).
@@ -496,6 +496,11 @@ func carryNotSeen(c Content, prev Snapshot, how map[string]scope) Content {
 		if kept[k] && !haveSvc[k] && len(c.Services) < maxContentRows {
 			haveSvc[k] = true
 			c.Services = append(c.Services, x)
+			for _, t := range prev.Templates { // the port is not probed again (INV-23): what an earlier scan's templates said stays with it
+				if tk := (key{ipKey(t.IP), t.Port}); tk == k {
+					c.Templates = append(c.Templates, t)
+				}
+			}
 		}
 	}
 	return c

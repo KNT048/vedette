@@ -221,6 +221,7 @@ type Content struct {
 	AdminPanels []AdminRow      `json:"admin_panels"`
 	Certs       []CertRow       `json:"certs"`
 	Services    []ServiceRow    `json:"services"`
+	Templates   []TemplateRow   `json:"templates"` // INV-23: the safe templates that ran on those services
 	Checks      []CheckRow      `json:"checks"`
 	NotChecked  []NotCheckedRow `json:"not_checked"`
 	WebFindings []WebFindingRow `json:"web_findings"` // INV-24: alerts of the passive web scan (ZAP), not exploited CVEs

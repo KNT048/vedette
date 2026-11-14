@@ -45,17 +45,21 @@ type (
 	// VulnRow is an exploited CVE (CISA KEV) that matches an identified service. Basis is "version" (the version is inside an NVD
 	// range) or "product" (only the product matches: no version range could decide). DateAdded is the day CISA listed it. Backport
 	// names the distribution the service says it is packaged by ("Debian"), "" when none: a distribution backports fixes without
-	// changing the upstream version, so a version in range is weaker evidence there (INV-20).
+	// changing the upstream version, so a version in range is weaker evidence there (INV-20). Basis "template": a safe template
+	// matched (INV-23). Template is the id of the template that ran for this CVE and TemplateResult its outcome ("matched",
+	// "no_match", "error"; "" when none ran).
 	VulnRow struct {
-		IP         string  `json:"ip"`
-		Port       int     `json:"port"`
-		CVE        string  `json:"cve"`
-		Name       string  `json:"name"`
-		Basis      string  `json:"basis"`
-		Summary    string  `json:"summary"`
-		DateAdded  *string `json:"date_added"`
-		Ransomware bool    `json:"ransomware"`
-		Backport   string  `json:"backport"`
+		IP             string  `json:"ip"`
+		Port           int     `json:"port"`
+		CVE            string  `json:"cve"`
+		Name           string  `json:"name"`
+		Basis          string  `json:"basis"`
+		Summary        string  `json:"summary"`
+		DateAdded      *string `json:"date_added"`
+		Ransomware     bool    `json:"ransomware"`
+		Backport       string  `json:"backport"`
+		Template       string  `json:"template"`
+		TemplateResult string  `json:"template_result"`
 	}
 	// GapRow is a service whose product has exploited CVEs that only a version would decide, and nmap read no version.
 	GapRow struct {
@@ -148,13 +152,13 @@ func (s *Service) identify(ctx context.Context, st ScanTarget, c Content) (Conte
 	c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "udp", Text: notUDP})
 	if st.Kind != KindIP {
 		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "ports", Text: notOtherPortsDom}, NotCheckedRow{Kind: "services", Text: notServicesDom},
-			NotCheckedRow{Kind: "non_exploited", Text: notNonExploited})
+			NotCheckedRow{Kind: "non_exploited", Text: notNonExploited}, NotCheckedRow{Kind: "templates", Text: notTemplatesDom})
 		return c, nil
 	}
 	c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "ports", Text: notOtherPortsIP}, NotCheckedRow{Kind: "non_exploited", Text: notNonExploited})
 	if s.cfg.Services == nil {
 		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "services", Text: NotSetUpServices})
-		return c, nil
+		return s.runTemplates(ctx, st, netip.Addr{}, c) // no services, so it only says why it did not run
 	}
 	ip, err := netip.ParseAddr(st.Value)
 	if err != nil { // an IP target's value is a canonical public IPv4 (INV-2, INV-3): never reached
@@ -188,7 +192,7 @@ func (s *Service) identify(ctx context.Context, st ScanTarget, c Content) (Conte
 		s.cfg.Log.ErrorContext(ctx, "exposure: service identification failed", "target", st.Value, "error", err)
 		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "services", Text: notServicesFail})
 	}
-	return c, nil
+	return s.runTemplates(ctx, st, ip, c) // INV-23: safe templates for the exploited CVEs the services match
 }
 
 // runnerCheck says what the scan module's surface scan checked (INV-12), for a runner that reports no check lines of its own.
@@ -232,6 +236,7 @@ func (s *Service) withVulns(ctx context.Context, snap *Snapshot) {
 		return
 	}
 	snap.Vulns, snap.VersionGaps = nz(m.Vulns), nz(m.Gaps)
+	markTemplates(snap.Vulns, snap.Templates) // INV-23 first: a confirmed row is not a "maybe patched"
 	backported := markBackports(snap.Vulns, snap.Services)
 	text := fmt.Sprintf("%s of %d compared with today's CISA list of exploited vulnerabilities (%d entries) and its NVD version ranges: %s.",
 		plural(m.Compared, "identified service"), len(snap.Services), m.Listed, plural(len(m.Vulns), "exploited CVE")+" matched")

@@ -60,14 +60,20 @@ export const ServiceRow = z.object({
   version: z.string().describe('"" when the service sent none'), cpe: z.string().describe('The CPE 2.2 URI nmap printed; "" when none'),
   extra: z.string().describe('nmap\'s extrainfo, e.g. (Debian); "" when none'),
 })
-export const CheckRow = z.object({ kind: z.string().describe('ports, names, services, cve or web'), text: z.string(), at: z.iso.datetime() })
-export const NotCheckedRow = z.object({ kind: z.string().describe('udp, ports, non_exploited, services, cve or web'), text: z.string() })
-export const VulnBasis = z.enum(['version', 'product'])
+export const CheckRow = z.object({ kind: z.string().describe('ports, names, services, templates, cve or web'), text: z.string(), at: z.iso.datetime() })
+export const NotCheckedRow = z.object({ kind: z.string().describe('udp, ports, non_exploited, services, templates, cve or web'), text: z.string() })
+export const VulnBasis = z.enum(['version', 'product', 'template'])
 export const VulnRow = z.object({
   ip: z.string(), port: z.number().int(), cve: z.string(), name: z.string(),
-  basis: VulnBasis.describe('version: the version is inside an NVD range; product: only the product matches'),
+  basis: VulnBasis.describe('version: the version is inside an NVD range; product: only the product matches; template: a safe template matched (INV-23), the strongest evidence'),
   summary: z.string(), date_added: isoDate.nullable().describe('When CISA listed it as exploited'), ransomware: z.boolean(),
   backport: z.string().describe('The distribution the service names (Debian, Ubuntu…), which may have backported the fix without changing the version; "" when none'),
+  template: z.string().describe('Id of the safe template that ran for this CVE; "" when none ran'),
+  template_result: z.enum(['', 'matched', 'no_match', 'error']).describe('What that template did: matched (basis becomes template), no_match (one check, never "not vulnerable") or error; "" when none ran'),
+})
+export const TemplateRow = z.object({
+  ip: z.string(), port: z.number().int(), cve: z.string().describe('The CVE the template is for (one the job asked about)'),
+  template: z.string(), outcome: z.enum(['matched', 'no_match', 'error']),
 })
 export const GapRow = z.object({ ip: z.string(), port: z.number().int(), software: z.string(), cves: z.array(z.string()).describe('Exploited CVEs of the product that only a version would decide') })
 
@@ -83,7 +89,7 @@ export const WebFinding = z.object({
 export const Snapshot = z.object({
   id: z.string(), date: isoDate, scanned_at: z.iso.datetime(),
   hosts: z.array(HostRow), ports: z.array(PortRow), admin_panels: z.array(AdminRow), certs: z.array(CertRow), counts: Counts,
-  services: z.array(ServiceRow), checks: z.array(CheckRow), not_checked: z.array(NotCheckedRow), web_findings: z.array(WebFinding),
+  services: z.array(ServiceRow), templates: z.array(TemplateRow).describe('The safe templates that ran on the services (INV-23); the box ran no template when empty'), checks: z.array(CheckRow), not_checked: z.array(NotCheckedRow), web_findings: z.array(WebFinding),
   vulns: z.array(VulnRow).describe('Computed on read against today\'s CISA list, not stored'), version_gaps: z.array(GapRow),
 })
 export const SnapshotMeta = Snapshot.pick({ id: true, date: true, scanned_at: true, counts: true })

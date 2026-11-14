@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Search } from 'lucide-react'
 import { PageHeader, Section } from '@/components/common/PageHeader'
+import { KpiStrip, type Kpi } from '@/components/common/PageFrame'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { EmptyState, QueryState } from '@/components/common/States'
 import { Button } from '@/components/ui/button'
@@ -19,6 +20,9 @@ import { YouHaveCell } from './YouHaveCell'
 import { TwoStepPrompt } from '@/features/core/TwoStepPrompt'
 import { AlertChannelPrompt } from '@/features/core/AlertChannelPrompt'
 import { AiBudgetPrompt } from '@/features/ai/Budget'
+import { useFindings } from '@/features/findings/api'
+import { useDevices } from '@/features/inventory/api'
+import { useIncidents } from '@/features/notify/api'
 import type { HotRow } from './types'
 
 function SearchBox() {
@@ -155,6 +159,21 @@ function Weekly() {
   )
 }
 
+/** S-UI-1: four numbers that Home's own queries and three light list endpoints already answer. A cell whose module is off or whose query
+ *  has not answered is left out (never a 0 that is really "unknown"). */
+function HomeKpis({ exploited }: { exploited: number }) {
+  const { t } = useTranslation('feeds')
+  const findings = useFindings()
+  const devices = useDevices()
+  const incidents = useIncidents()
+  const items: Kpi[] = []
+  if (findings.data) items.push({ value: findings.data.items.filter((f) => f.status === 'confirmed').length, label: t('home.kpi.confirmed'), to: '/findings?tab=open&status=confirmed' })
+  items.push({ value: exploited, label: t('home.kpi.exploited'), to: '/#hot' })
+  if (devices.data) items.push({ value: devices.data.counts.pending, label: t('home.kpi.review'), to: '/devices?tab=review' })
+  if (incidents.data) items.push({ value: incidents.data.incidents.filter((i) => i.status !== 'resolved').length, label: t('home.kpi.incidents'), to: '/incidents?tab=open' })
+  return <KpiStrip label={t('home.kpi.label')} items={items} />
+}
+
 export default function HomePage() {
   const { t } = useTranslation('feeds')
   const status = useFeedStatus()
@@ -173,6 +192,7 @@ export default function HomePage() {
         meta={never ? t('home.metaNone') : status.data ? <>{t('home.meta', { time: fmtStamp(status.data.generated_at), sources: status.data.sources.map((s) => s.name).join(', ') })}{setup.data?.data_mode === 'sample' ? ` ${t('home.sampleInventory')}` : ''}</> : null}
         actions={<SearchBox />}
       />
+      {hot.data ? <HomeKpis exploited={cves} /> : null}
       <AiBudgetPrompt />
       <AlertChannelPrompt />
       <TwoStepPrompt />

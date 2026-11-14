@@ -117,7 +117,7 @@ const FORTIOS_KEV = ['CVE-2018-13379', 'CVE-2022-42475', 'CVE-2023-27997', 'CVE-
 function matchServices(services: ServiceRow[]): { vulns: VulnRow[]; version_gaps: GapRow[]; compared: number } {
   const vulns: VulnRow[] = [], version_gaps: GapRow[] = []
   const apache = (s: ServiceRow, cve: string, range: string): VulnRow => ({
-    ip: s.ip, port: s.port, cve, name: APACHE_TRAVERSAL, basis: 'version', date_added: '2021-11-03', ransomware: false, backport: '',
+    ip: s.ip, port: s.port, cve, name: APACHE_TRAVERSAL, basis: 'version', date_added: '2021-11-03', ransomware: false, backport: '', template: '', template_result: '',
     summary: `${s.ip} runs ${s.product} ${s.version}. Its version is inside the range affected by ${cve} (${range}); no scan has confirmed it yet, so this is only suspected.`,
   })
   for (const s of services) {
@@ -191,7 +191,7 @@ export function makeSnapshot(id: string, at: string, c: Content, extraIp?: strin
   const pages = webPages(c, extraIp !== undefined)
   const l = lines(c, at, extraIp !== undefined, m)
   if (pages.length > 0) l.checks.push({ kind: 'web', at, text: `Passive web scan (ZAP baseline: spider and passive rules, no form sent) of ${plural(pages.length, 'page')}: ${pages.join(', ')}. ${plural(web_findings.length, 'alert')}.` })
-  return { id, date: dateOf(at), scanned_at: at, hosts: c.hosts, ports: c.ports, admin_panels: c.admin_panels, certs: c.certs, services, web_findings, ...l, vulns: m.vulns, version_gaps: m.version_gaps, counts: countsOf(c, extraIp) }
+  return { id, date: dateOf(at), scanned_at: at, hosts: c.hosts, ports: c.ports, admin_panels: c.admin_panels, certs: c.certs, services, templates: [], web_findings, ...l, vulns: m.vulns, version_gaps: m.version_gaps, counts: countsOf(c, extraIp) }
 }
 
 const plusDays = (iso: string, d: number) => new Date(Date.parse(iso) + d * 864e5).toISOString()

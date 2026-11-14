@@ -88,7 +88,7 @@ func (f aiFacts) CVE(ctx context.Context, id string) (ai.CVEFacts, bool, error) 
 		return ai.CVEFacts{}, false, err
 	}
 	return ai.CVEFacts{CVE: v.CVE, Vendor: v.Vendor, Product: v.Product, Name: v.Name, Description: v.Description, RequiredAction: v.RequiredAction,
-		DateAdded: v.DateAdded, Links: v.Links, Ransomware: v.Ransomware, HasTemplate: v.HasTemplate}, true, nil
+		DateAdded: v.DateAdded, Links: v.Links, Ransomware: v.Ransomware, HasTemplate: v.HasTemplate, Source: v.SourceID}, true, nil
 }
 
 func (f aiFacts) AffectedAssets(ctx context.Context, cve string) ([]ai.AssetFact, error) {
@@ -172,8 +172,8 @@ func (m aiMitigation) Run(ctx context.Context, req mitigation.AIRequest) (mitiga
 	var feed, dev strings.Builder
 	var links []string
 	if k := row.Kev; k != nil {
-		fmt.Fprintf(&feed, "CVE: %s\nVendor: %s\nProduct: %s\nName: %s\nRequired action (CISA): %s\nAdded to the exploited list: %s\nUsed in ransomware campaigns: %t\nPublic check template exists: %t\nLinks: %s\n",
-			row.CVE, k.Vendor, k.Product, k.Name, k.RequiredAction, k.DateAdded, k.Ransomware, k.HasTemplate, strings.Join(k.Links, " "))
+		fmt.Fprintf(&feed, "CVE: %s\nVendor: %s\nProduct: %s\nName: %s\nExploited-list source: %s\nRequired action (from that source): %s\nAdded to the exploited list: %s\nUsed in ransomware campaigns: %t\nPublic check template exists: %t\nLinks: %s\n",
+			row.CVE, k.Vendor, k.Product, k.Name, ai.ListLabel(k.Source), k.RequiredAction, k.DateAdded, k.Ransomware, k.HasTemplate, strings.Join(k.Links, " "))
 		links = k.Links
 	} else {
 		fmt.Fprintf(&feed, "CVE: %s\n", row.CVE)

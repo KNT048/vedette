@@ -31,6 +31,15 @@ type CVEFacts struct {
 	Links          []string
 	Ransomware     bool
 	HasTemplate    bool
+	Source         string // "cisa-kev" or "vulncheck-kev": who says it is exploited (D-557)
+}
+
+// ListLabel names the exploited list an entry is on, for prompts and texts: VulnCheck's entries are never CISA's (D-557).
+func ListLabel(source string) string {
+	if source == "vulncheck-kev" {
+		return "VulnCheck KEV"
+	}
+	return "CISA KEV"
 }
 
 // AssetFact is a device the CVE matches (findings and inventory). Status is the status of the finding.
@@ -196,8 +205,8 @@ func feedBlock(f CVEFacts) DataBlock {
 		}
 	}
 	var b strings.Builder
-	fmt.Fprintf(&b, "CVE: %s\nVendor: %s\nProduct: %s\nName: %s\nDescription: %s\nRequired action (CISA): %s\nAdded to the exploited list: %s\nUsed in ransomware campaigns: %t\nPublic check template exists: %t\nLinks: %s\n",
-		sanitizeWeb(f.CVE), sanitizeWeb(f.Vendor), sanitizeWeb(f.Product), sanitizeWeb(f.Name), sanitizeWeb(f.Description), sanitizeWeb(f.RequiredAction), sanitizeWeb(f.DateAdded), f.Ransomware, f.HasTemplate, strings.Join(links, " "))
+	fmt.Fprintf(&b, "CVE: %s\nVendor: %s\nProduct: %s\nName: %s\nDescription: %s\nExploited-list source: %s\nRequired action (from that source): %s\nAdded to the exploited list: %s\nUsed in ransomware campaigns: %t\nPublic check template exists: %t\nLinks: %s\n",
+		sanitizeWeb(f.CVE), sanitizeWeb(f.Vendor), sanitizeWeb(f.Product), sanitizeWeb(f.Name), sanitizeWeb(f.Description), ListLabel(f.Source), sanitizeWeb(f.RequiredAction), sanitizeWeb(f.DateAdded), f.Ransomware, f.HasTemplate, strings.Join(links, " "))
 	return DataBlock{Kind: DataFeed, Source: "exploited list entry " + f.CVE, Text: b.String()}
 }
 

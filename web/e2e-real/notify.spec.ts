@@ -135,9 +135,10 @@ test.describe('Incidents on a box where nothing has happened yet (S-ALERT-3)', (
     } else {
       await expect(page.getByRole('table', { name: 'Incidents' }).getByRole('row')).toHaveCount(open + 1)
     }
-    await page.getByRole('button', { name: 'All', exact: true }).click() // the other filter: an empty box says "No incidents yet", a box with only resolved ones lists them
-    if (list.length === 0) await expect(page.getByText('No incidents yet')).toBeVisible()
-    else await expect(page.getByRole('table', { name: 'Incidents' }).getByRole('row')).toHaveCount(list.length + 1)
+    await page.getByRole('tab', { name: 'Resolved', exact: true }).click() // the other list: an empty one says "No resolved incidents"
+    const resolved = list.filter((i) => i.status === 'resolved').length
+    if (resolved === 0) await expect(page.getByText('No resolved incidents')).toBeVisible()
+    else await expect(page.getByRole('table', { name: 'Incidents' }).getByRole('row')).toHaveCount(resolved + 1)
     await expect(page.locator('main')).not.toContainText(/undefined|NaN|\[object|1970/)
     await expectAccessible(page, 'incidents')
     await noVietnamese(page, 'incidents')

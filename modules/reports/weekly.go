@@ -185,6 +185,12 @@ func buildWeekly(in weeklyInput) WeeklyReport {
 		kevAt = now
 	}
 	sources := []Source{{ID: "inventory", At: ts(now)}, {ID: "findings", At: ts(now)}, {ID: "kev", At: ts(kevAt)}}
+	for _, f := range in.findings { // VulnCheck KEV is named among the sources when a finding of the report comes from it (D-557)
+		if f.Source == "vulncheck-kev" && (f.ResolvedAt.IsZero() || inWeek(f.ResolvedAt) || inWeek(f.FirstSeen)) {
+			sources = append(sources, Source{ID: "vulncheck-kev", At: ts(kevAt)})
+			break
+		}
+	}
 	var happened *Happened
 	if in.incidentsOn {
 		happened = buildHappened(in.week)

@@ -98813,12 +98813,18 @@ func (s *FeedsGetFeedsCveIDOK) encodeFields(e *jx.Encoder) {
 		e.Str(s.RequiredAction)
 	}
 	{
+		if s.Source.Set {
+			e.FieldStart("source")
+			s.Source.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("vendor")
 		e.Str(s.Vendor)
 	}
 }
 
-var jsonFieldsNameOfFeedsGetFeedsCveIDOK = [15]string{
+var jsonFieldsNameOfFeedsGetFeedsCveIDOK = [16]string{
 	0:  "cve",
 	1:  "date_added",
 	2:  "description",
@@ -98833,7 +98839,8 @@ var jsonFieldsNameOfFeedsGetFeedsCveIDOK = [15]string{
 	11: "product",
 	12: "ransomware",
 	13: "required_action",
-	14: "vendor",
+	14: "source",
+	15: "vendor",
 }
 
 // Decode decodes FeedsGetFeedsCveIDOK from json.
@@ -99028,8 +99035,18 @@ func (s *FeedsGetFeedsCveIDOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"required_action\"")
 			}
+		case "source":
+			if err := func() error {
+				s.Source.Reset()
+				if err := s.Source.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"source\"")
+			}
 		case "vendor":
-			requiredBitSet[1] |= 1 << 6
+			requiredBitSet[1] |= 1 << 7
 			if err := func() error {
 				v, err := d.Str()
 				s.Vendor = string(v)
@@ -99051,7 +99068,7 @@ func (s *FeedsGetFeedsCveIDOK) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b01111111,
+		0b10111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -100914,12 +100931,18 @@ func (s *FeedsGetFeedsSearch1TextVulnsItem) encodeFields(e *jx.Encoder) {
 		e.Str(s.RequiredAction)
 	}
 	{
+		if s.Source.Set {
+			e.FieldStart("source")
+			s.Source.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("vendor")
 		e.Str(s.Vendor)
 	}
 }
 
-var jsonFieldsNameOfFeedsGetFeedsSearch1TextVulnsItem = [14]string{
+var jsonFieldsNameOfFeedsGetFeedsSearch1TextVulnsItem = [15]string{
 	0:  "cve",
 	1:  "date_added",
 	2:  "description",
@@ -100933,7 +100956,8 @@ var jsonFieldsNameOfFeedsGetFeedsSearch1TextVulnsItem = [14]string{
 	10: "product",
 	11: "ransomware",
 	12: "required_action",
-	13: "vendor",
+	13: "source",
+	14: "vendor",
 }
 
 // Decode decodes FeedsGetFeedsSearch1TextVulnsItem from json.
@@ -101103,8 +101127,18 @@ func (s *FeedsGetFeedsSearch1TextVulnsItem) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"required_action\"")
 			}
+		case "source":
+			if err := func() error {
+				s.Source.Reset()
+				if err := s.Source.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"source\"")
+			}
 		case "vendor":
-			requiredBitSet[1] |= 1 << 5
+			requiredBitSet[1] |= 1 << 6
 			if err := func() error {
 				v, err := d.Str()
 				s.Vendor = string(v)
@@ -101126,7 +101160,7 @@ func (s *FeedsGetFeedsSearch1TextVulnsItem) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00111111,
+		0b01011111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -111317,6 +111351,12 @@ func (s *FeedsPutFeedsSourcesIDReq) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *FeedsPutFeedsSourcesIDReq) encodeFields(e *jx.Encoder) {
 	{
+		if s.APIKey.Set {
+			e.FieldStart("api_key")
+			s.APIKey.Encode(e)
+		}
+	}
+	{
 		if s.Enabled.Set {
 			e.FieldStart("enabled")
 			s.Enabled.Encode(e)
@@ -111336,10 +111376,11 @@ func (s *FeedsPutFeedsSourcesIDReq) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfFeedsPutFeedsSourcesIDReq = [3]string{
-	0: "enabled",
-	1: "interval_hours",
-	2: "url",
+var jsonFieldsNameOfFeedsPutFeedsSourcesIDReq = [4]string{
+	0: "api_key",
+	1: "enabled",
+	2: "interval_hours",
+	3: "url",
 }
 
 // Decode decodes FeedsPutFeedsSourcesIDReq from json.
@@ -111350,6 +111391,16 @@ func (s *FeedsPutFeedsSourcesIDReq) Decode(d *jx.Decoder) error {
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
+		case "api_key":
+			if err := func() error {
+				s.APIKey.Reset()
+				if err := s.APIKey.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"api_key\"")
+			}
 		case "enabled":
 			if err := func() error {
 				s.Enabled.Reset()
@@ -114950,12 +115001,18 @@ func (s *FindingsGetFindingsIDOKKev) encodeFields(e *jx.Encoder) {
 		e.Str(s.RequiredAction)
 	}
 	{
+		if s.Source.Set {
+			e.FieldStart("source")
+			s.Source.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("vendor")
 		e.Str(s.Vendor)
 	}
 }
 
-var jsonFieldsNameOfFindingsGetFindingsIDOKKev = [11]string{
+var jsonFieldsNameOfFindingsGetFindingsIDOKKev = [12]string{
 	0:  "date_added",
 	1:  "display",
 	2:  "due_date",
@@ -114966,7 +115023,8 @@ var jsonFieldsNameOfFindingsGetFindingsIDOKKev = [11]string{
 	7:  "product",
 	8:  "ransomware",
 	9:  "required_action",
-	10: "vendor",
+	10: "source",
+	11: "vendor",
 }
 
 // Decode decodes FindingsGetFindingsIDOKKev from json.
@@ -115102,8 +115160,18 @@ func (s *FindingsGetFindingsIDOKKev) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"required_action\"")
 			}
+		case "source":
+			if err := func() error {
+				s.Source.Reset()
+				if err := s.Source.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"source\"")
+			}
 		case "vendor":
-			requiredBitSet[1] |= 1 << 2
+			requiredBitSet[1] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.Vendor = string(v)
@@ -115125,7 +115193,7 @@ func (s *FindingsGetFindingsIDOKKev) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00000111,
+		0b00001011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -115167,6 +115235,46 @@ func (s *FindingsGetFindingsIDOKKev) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *FindingsGetFindingsIDOKKev) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes FindingsGetFindingsIDOKKevSource as json.
+func (s FindingsGetFindingsIDOKKevSource) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes FindingsGetFindingsIDOKKevSource from json.
+func (s *FindingsGetFindingsIDOKKevSource) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode FindingsGetFindingsIDOKKevSource to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch FindingsGetFindingsIDOKKevSource(v) {
+	case FindingsGetFindingsIDOKKevSourceCisaKev:
+		*s = FindingsGetFindingsIDOKKevSourceCisaKev
+	case FindingsGetFindingsIDOKKevSourceVulncheckKev:
+		*s = FindingsGetFindingsIDOKKevSourceVulncheckKev
+	default:
+		*s = FindingsGetFindingsIDOKKevSource(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s FindingsGetFindingsIDOKKevSource) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *FindingsGetFindingsIDOKKevSource) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -118419,12 +118527,18 @@ func (s *FindingsGetFindingsOKItemsItemKev) encodeFields(e *jx.Encoder) {
 		e.Str(s.RequiredAction)
 	}
 	{
+		if s.Source.Set {
+			e.FieldStart("source")
+			s.Source.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("vendor")
 		e.Str(s.Vendor)
 	}
 }
 
-var jsonFieldsNameOfFindingsGetFindingsOKItemsItemKev = [11]string{
+var jsonFieldsNameOfFindingsGetFindingsOKItemsItemKev = [12]string{
 	0:  "date_added",
 	1:  "display",
 	2:  "due_date",
@@ -118435,7 +118549,8 @@ var jsonFieldsNameOfFindingsGetFindingsOKItemsItemKev = [11]string{
 	7:  "product",
 	8:  "ransomware",
 	9:  "required_action",
-	10: "vendor",
+	10: "source",
+	11: "vendor",
 }
 
 // Decode decodes FindingsGetFindingsOKItemsItemKev from json.
@@ -118571,8 +118686,18 @@ func (s *FindingsGetFindingsOKItemsItemKev) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"required_action\"")
 			}
+		case "source":
+			if err := func() error {
+				s.Source.Reset()
+				if err := s.Source.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"source\"")
+			}
 		case "vendor":
-			requiredBitSet[1] |= 1 << 2
+			requiredBitSet[1] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.Vendor = string(v)
@@ -118594,7 +118719,7 @@ func (s *FindingsGetFindingsOKItemsItemKev) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00000111,
+		0b00001011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -118636,6 +118761,46 @@ func (s *FindingsGetFindingsOKItemsItemKev) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *FindingsGetFindingsOKItemsItemKev) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes FindingsGetFindingsOKItemsItemKevSource as json.
+func (s FindingsGetFindingsOKItemsItemKevSource) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes FindingsGetFindingsOKItemsItemKevSource from json.
+func (s *FindingsGetFindingsOKItemsItemKevSource) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode FindingsGetFindingsOKItemsItemKevSource to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch FindingsGetFindingsOKItemsItemKevSource(v) {
+	case FindingsGetFindingsOKItemsItemKevSourceCisaKev:
+		*s = FindingsGetFindingsOKItemsItemKevSourceCisaKev
+	case FindingsGetFindingsOKItemsItemKevSourceVulncheckKev:
+		*s = FindingsGetFindingsOKItemsItemKevSourceVulncheckKev
+	default:
+		*s = FindingsGetFindingsOKItemsItemKevSource(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s FindingsGetFindingsOKItemsItemKevSource) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *FindingsGetFindingsOKItemsItemKevSource) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -122850,12 +123015,18 @@ func (s *FindingsPostFindingsIDAiOKKev) encodeFields(e *jx.Encoder) {
 		e.Str(s.RequiredAction)
 	}
 	{
+		if s.Source.Set {
+			e.FieldStart("source")
+			s.Source.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("vendor")
 		e.Str(s.Vendor)
 	}
 }
 
-var jsonFieldsNameOfFindingsPostFindingsIDAiOKKev = [11]string{
+var jsonFieldsNameOfFindingsPostFindingsIDAiOKKev = [12]string{
 	0:  "date_added",
 	1:  "display",
 	2:  "due_date",
@@ -122866,7 +123037,8 @@ var jsonFieldsNameOfFindingsPostFindingsIDAiOKKev = [11]string{
 	7:  "product",
 	8:  "ransomware",
 	9:  "required_action",
-	10: "vendor",
+	10: "source",
+	11: "vendor",
 }
 
 // Decode decodes FindingsPostFindingsIDAiOKKev from json.
@@ -123002,8 +123174,18 @@ func (s *FindingsPostFindingsIDAiOKKev) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"required_action\"")
 			}
+		case "source":
+			if err := func() error {
+				s.Source.Reset()
+				if err := s.Source.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"source\"")
+			}
 		case "vendor":
-			requiredBitSet[1] |= 1 << 2
+			requiredBitSet[1] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.Vendor = string(v)
@@ -123025,7 +123207,7 @@ func (s *FindingsPostFindingsIDAiOKKev) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00000111,
+		0b00001011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -123067,6 +123249,46 @@ func (s *FindingsPostFindingsIDAiOKKev) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *FindingsPostFindingsIDAiOKKev) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes FindingsPostFindingsIDAiOKKevSource as json.
+func (s FindingsPostFindingsIDAiOKKevSource) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes FindingsPostFindingsIDAiOKKevSource from json.
+func (s *FindingsPostFindingsIDAiOKKevSource) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode FindingsPostFindingsIDAiOKKevSource to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch FindingsPostFindingsIDAiOKKevSource(v) {
+	case FindingsPostFindingsIDAiOKKevSourceCisaKev:
+		*s = FindingsPostFindingsIDAiOKKevSourceCisaKev
+	case FindingsPostFindingsIDAiOKKevSourceVulncheckKev:
+		*s = FindingsPostFindingsIDAiOKKevSourceVulncheckKev
+	default:
+		*s = FindingsPostFindingsIDAiOKKevSource(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s FindingsPostFindingsIDAiOKKevSource) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *FindingsPostFindingsIDAiOKKevSource) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -128708,12 +128930,18 @@ func (s *FindingsPostFindingsIDAppliedOKKev) encodeFields(e *jx.Encoder) {
 		e.Str(s.RequiredAction)
 	}
 	{
+		if s.Source.Set {
+			e.FieldStart("source")
+			s.Source.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("vendor")
 		e.Str(s.Vendor)
 	}
 }
 
-var jsonFieldsNameOfFindingsPostFindingsIDAppliedOKKev = [11]string{
+var jsonFieldsNameOfFindingsPostFindingsIDAppliedOKKev = [12]string{
 	0:  "date_added",
 	1:  "display",
 	2:  "due_date",
@@ -128724,7 +128952,8 @@ var jsonFieldsNameOfFindingsPostFindingsIDAppliedOKKev = [11]string{
 	7:  "product",
 	8:  "ransomware",
 	9:  "required_action",
-	10: "vendor",
+	10: "source",
+	11: "vendor",
 }
 
 // Decode decodes FindingsPostFindingsIDAppliedOKKev from json.
@@ -128860,8 +129089,18 @@ func (s *FindingsPostFindingsIDAppliedOKKev) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"required_action\"")
 			}
+		case "source":
+			if err := func() error {
+				s.Source.Reset()
+				if err := s.Source.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"source\"")
+			}
 		case "vendor":
-			requiredBitSet[1] |= 1 << 2
+			requiredBitSet[1] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.Vendor = string(v)
@@ -128883,7 +129122,7 @@ func (s *FindingsPostFindingsIDAppliedOKKev) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00000111,
+		0b00001011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -128925,6 +129164,46 @@ func (s *FindingsPostFindingsIDAppliedOKKev) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *FindingsPostFindingsIDAppliedOKKev) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes FindingsPostFindingsIDAppliedOKKevSource as json.
+func (s FindingsPostFindingsIDAppliedOKKevSource) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes FindingsPostFindingsIDAppliedOKKevSource from json.
+func (s *FindingsPostFindingsIDAppliedOKKevSource) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode FindingsPostFindingsIDAppliedOKKevSource to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch FindingsPostFindingsIDAppliedOKKevSource(v) {
+	case FindingsPostFindingsIDAppliedOKKevSourceCisaKev:
+		*s = FindingsPostFindingsIDAppliedOKKevSourceCisaKev
+	case FindingsPostFindingsIDAppliedOKKevSourceVulncheckKev:
+		*s = FindingsPostFindingsIDAppliedOKKevSourceVulncheckKev
+	default:
+		*s = FindingsPostFindingsIDAppliedOKKevSource(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s FindingsPostFindingsIDAppliedOKKevSource) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *FindingsPostFindingsIDAppliedOKKevSource) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -134572,12 +134851,18 @@ func (s *FindingsPostFindingsIDStatusOKKev) encodeFields(e *jx.Encoder) {
 		e.Str(s.RequiredAction)
 	}
 	{
+		if s.Source.Set {
+			e.FieldStart("source")
+			s.Source.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("vendor")
 		e.Str(s.Vendor)
 	}
 }
 
-var jsonFieldsNameOfFindingsPostFindingsIDStatusOKKev = [11]string{
+var jsonFieldsNameOfFindingsPostFindingsIDStatusOKKev = [12]string{
 	0:  "date_added",
 	1:  "display",
 	2:  "due_date",
@@ -134588,7 +134873,8 @@ var jsonFieldsNameOfFindingsPostFindingsIDStatusOKKev = [11]string{
 	7:  "product",
 	8:  "ransomware",
 	9:  "required_action",
-	10: "vendor",
+	10: "source",
+	11: "vendor",
 }
 
 // Decode decodes FindingsPostFindingsIDStatusOKKev from json.
@@ -134724,8 +135010,18 @@ func (s *FindingsPostFindingsIDStatusOKKev) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"required_action\"")
 			}
+		case "source":
+			if err := func() error {
+				s.Source.Reset()
+				if err := s.Source.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"source\"")
+			}
 		case "vendor":
-			requiredBitSet[1] |= 1 << 2
+			requiredBitSet[1] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.Vendor = string(v)
@@ -134747,7 +135043,7 @@ func (s *FindingsPostFindingsIDStatusOKKev) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00000111,
+		0b00001011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -134789,6 +135085,46 @@ func (s *FindingsPostFindingsIDStatusOKKev) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *FindingsPostFindingsIDStatusOKKev) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes FindingsPostFindingsIDStatusOKKevSource as json.
+func (s FindingsPostFindingsIDStatusOKKevSource) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes FindingsPostFindingsIDStatusOKKevSource from json.
+func (s *FindingsPostFindingsIDStatusOKKevSource) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode FindingsPostFindingsIDStatusOKKevSource to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch FindingsPostFindingsIDStatusOKKevSource(v) {
+	case FindingsPostFindingsIDStatusOKKevSourceCisaKev:
+		*s = FindingsPostFindingsIDStatusOKKevSourceCisaKev
+	case FindingsPostFindingsIDStatusOKKevSourceVulncheckKev:
+		*s = FindingsPostFindingsIDStatusOKKevSourceVulncheckKev
+	default:
+		*s = FindingsPostFindingsIDStatusOKKevSource(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s FindingsPostFindingsIDStatusOKKevSource) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *FindingsPostFindingsIDStatusOKKevSource) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -198525,6 +198861,39 @@ func (s *OptExposurePostExposureTargetsIDScanReq) UnmarshalJSON(data []byte) err
 	return s.Decode(d)
 }
 
+// Encode encodes FindingsGetFindingsIDOKKevSource as json.
+func (o OptFindingsGetFindingsIDOKKevSource) Encode(e *jx.Encoder) {
+	if !o.Set {
+		return
+	}
+	e.Str(string(o.Value))
+}
+
+// Decode decodes FindingsGetFindingsIDOKKevSource from json.
+func (o *OptFindingsGetFindingsIDOKKevSource) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode OptFindingsGetFindingsIDOKKevSource to nil")
+	}
+	o.Set = true
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s OptFindingsGetFindingsIDOKKevSource) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OptFindingsGetFindingsIDOKKevSource) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode encodes FindingsGetFindingsIDOKPackFirewallItemAlternative as json.
 func (o OptFindingsGetFindingsIDOKPackFirewallItemAlternative) Encode(e *jx.Encoder) {
 	if !o.Set {
@@ -198554,6 +198923,72 @@ func (s OptFindingsGetFindingsIDOKPackFirewallItemAlternative) MarshalJSON() ([]
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *OptFindingsGetFindingsIDOKPackFirewallItemAlternative) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes FindingsGetFindingsOKItemsItemKevSource as json.
+func (o OptFindingsGetFindingsOKItemsItemKevSource) Encode(e *jx.Encoder) {
+	if !o.Set {
+		return
+	}
+	e.Str(string(o.Value))
+}
+
+// Decode decodes FindingsGetFindingsOKItemsItemKevSource from json.
+func (o *OptFindingsGetFindingsOKItemsItemKevSource) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode OptFindingsGetFindingsOKItemsItemKevSource to nil")
+	}
+	o.Set = true
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s OptFindingsGetFindingsOKItemsItemKevSource) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OptFindingsGetFindingsOKItemsItemKevSource) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes FindingsPostFindingsIDAiOKKevSource as json.
+func (o OptFindingsPostFindingsIDAiOKKevSource) Encode(e *jx.Encoder) {
+	if !o.Set {
+		return
+	}
+	e.Str(string(o.Value))
+}
+
+// Decode decodes FindingsPostFindingsIDAiOKKevSource from json.
+func (o *OptFindingsPostFindingsIDAiOKKevSource) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode OptFindingsPostFindingsIDAiOKKevSource to nil")
+	}
+	o.Set = true
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s OptFindingsPostFindingsIDAiOKKevSource) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OptFindingsPostFindingsIDAiOKKevSource) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -198591,6 +199026,39 @@ func (s *OptFindingsPostFindingsIDAiOKPackFirewallItemAlternative) UnmarshalJSON
 	return s.Decode(d)
 }
 
+// Encode encodes FindingsPostFindingsIDAppliedOKKevSource as json.
+func (o OptFindingsPostFindingsIDAppliedOKKevSource) Encode(e *jx.Encoder) {
+	if !o.Set {
+		return
+	}
+	e.Str(string(o.Value))
+}
+
+// Decode decodes FindingsPostFindingsIDAppliedOKKevSource from json.
+func (o *OptFindingsPostFindingsIDAppliedOKKevSource) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode OptFindingsPostFindingsIDAppliedOKKevSource to nil")
+	}
+	o.Set = true
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s OptFindingsPostFindingsIDAppliedOKKevSource) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OptFindingsPostFindingsIDAppliedOKKevSource) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode encodes FindingsPostFindingsIDAppliedOKPackFirewallItemAlternative as json.
 func (o OptFindingsPostFindingsIDAppliedOKPackFirewallItemAlternative) Encode(e *jx.Encoder) {
 	if !o.Set {
@@ -198620,6 +199088,39 @@ func (s OptFindingsPostFindingsIDAppliedOKPackFirewallItemAlternative) MarshalJS
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *OptFindingsPostFindingsIDAppliedOKPackFirewallItemAlternative) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes FindingsPostFindingsIDStatusOKKevSource as json.
+func (o OptFindingsPostFindingsIDStatusOKKevSource) Encode(e *jx.Encoder) {
+	if !o.Set {
+		return
+	}
+	e.Str(string(o.Value))
+}
+
+// Decode decodes FindingsPostFindingsIDStatusOKKevSource from json.
+func (o *OptFindingsPostFindingsIDStatusOKKevSource) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode OptFindingsPostFindingsIDStatusOKKevSource to nil")
+	}
+	o.Set = true
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s OptFindingsPostFindingsIDStatusOKKevSource) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OptFindingsPostFindingsIDStatusOKKevSource) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -206747,6 +207248,8 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemID) Decode(d *jx.Dec
 		*s = ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemIDFindings
 	case ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemIDKev:
 		*s = ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemIDKev
+	case ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemIDVulncheckKev:
+		*s = ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemIDVulncheckKev
 	case ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemIDIncidents:
 		*s = ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemIDIncidents
 	default:
@@ -210962,6 +211465,8 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportSourcesItemID) Decode(d *jx.Decod
 		*s = ReportsGetReportsWeeklyPreviewOKReportSourcesItemIDFindings
 	case ReportsGetReportsWeeklyPreviewOKReportSourcesItemIDKev:
 		*s = ReportsGetReportsWeeklyPreviewOKReportSourcesItemIDKev
+	case ReportsGetReportsWeeklyPreviewOKReportSourcesItemIDVulncheckKev:
+		*s = ReportsGetReportsWeeklyPreviewOKReportSourcesItemIDVulncheckKev
 	case ReportsGetReportsWeeklyPreviewOKReportSourcesItemIDIncidents:
 		*s = ReportsGetReportsWeeklyPreviewOKReportSourcesItemIDIncidents
 	default:

@@ -19,6 +19,7 @@ export const Vuln = z.object({
   epss: z.number().min(0).max(1).nullable(),
   epss_7d_ago: z.number().min(0).max(1).nullable(),
   has_template: z.boolean(),
+  source: z.string().optional().describe('Which list the entry is on: "cisa-kev", "vulncheck-kev" (VulnCheck KEV, D-557) or the id of a custom feed; texts name it, an entry of VulnCheck is never called CISA\'s'),
 })
 
 export const YouHave = z.enum(['yes', 'maybe', 'no'])
@@ -112,6 +113,7 @@ export const FeedPatch = z.object({
   enabled: z.boolean().optional(),
   interval_hours: z.number().int().min(1).max(168).optional(),
   url: z.string().max(500).optional().describe('Built-in: a mirror address. Empty string resets it to the default'),
+  api_key: z.string().max(500).optional().describe('VulnCheck KEV only, write-only: the customer\'s own API key (8 to 500 characters, no spaces). Saving it turns the feed on; an empty string removes the key, turns the feed off and deletes what it loaded'),
 })
 export const FeedInput = z.object({
   name: z.string().min(1).max(60),

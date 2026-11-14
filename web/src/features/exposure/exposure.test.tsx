@@ -1330,6 +1330,8 @@ describe('exposure: optional deep scan with Greenbone (S-EXP-2, INV-25, D-563)',
     let s = await section()
     expect(await within(s).findByRole('alert')).toHaveTextContent('This box has 7.1 GB of memory and 0.0 GB of swap; with less than 8.0 GB of memory OpenVAS needs at least 2.0 GB of swap for its first feed load.')
     expect(within(s).getByRole('button', { name: 'Enable OpenVAS' })).toBeDisabled()
+    const r = await call('PUT', '/exposure/greenbone', { enabled: true })
+    expect([r.status, r.json.error.code]).toEqual([409, 'low_memory'])
     unmount()
     localStorage.setItem('vedette-mock-box-memory', '8000000000')
     renderApp('/exposure')

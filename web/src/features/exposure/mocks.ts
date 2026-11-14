@@ -637,7 +637,7 @@ export const handlers = [
     if (typeof b.enabled !== 'boolean') return fail(400, 'bad_body', 'enabled must be true or false.')
     const before = greenboneView()
     if (b.enabled === before.enabled) return HttpResponse.json(before)
-    if (b.enabled && !before.preflight.ok) return fail(409, before.preflight.memory_bytes! < 6e9 ? 'low_memory' : 'low_disk', before.preflight.reason!)
+    if (b.enabled && !before.preflight.ok) return fail(409, before.preflight.reason!.includes(' of memory') ? 'low_memory' : 'low_disk', before.preflight.reason!)
     greenbone.set({ enabled: b.enabled, changed_by: currentUser()?.email ?? null, changed_at: nowIso() })
     audit('exposure.greenbone', 'OpenVAS', b.enabled ? `enabled (memory ${gbText(before.preflight.memory_bytes!)}, free disk ${gbText(before.preflight.disk_free_bytes!)})` : 'disabled (data kept)')
     return HttpResponse.json(greenboneView())

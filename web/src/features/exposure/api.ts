@@ -90,7 +90,7 @@ export function useCheckOutside() {
 export const useGreenbone = () => useQuery({
   queryKey: ['exposure', 'greenbone'], queryFn: () => api.get<Greenbone>('/exposure/greenbone'),
   refetchInterval: (q) => (q.state.data?.state === 'starting' || q.state.data?.state === 'loading' ? 30_000 : false) })
-/** Turn Greenbone on (refused with the measured numbers below 6 GB of memory or 60 GB free) or off (admin). */
+/** Turn Greenbone on (refused with the measured numbers below 6 GB of memory, under 8 GB without 2 GB of swap, or below 60 GB free) or off (admin). */
 export function useSetGreenbone() {
   const inv = useInvalidate()
   return useMutation({ mutationFn: (enabled: boolean) => api.put<Greenbone>('/exposure/greenbone', { enabled }), onSuccess: inv, onError: inv })

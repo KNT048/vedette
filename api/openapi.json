@@ -21735,7 +21735,7 @@
                         },
                         "ok": {
                           "type": "boolean",
-                          "description": "Both meet the thresholds: 6 GB (decimal) of memory and 60 GB free (D-569)"
+                          "description": "Both meet the thresholds: 6 GB (decimal) of memory (under 8 GB, also 2 GB of swap) and 60 GB free (D-569)"
                         },
                         "reason": {
                           "description": "Why it cannot be enabled, with the measured number, e.g. \"This box has 5.9 GB of memory; OpenVAS needs at least 6.0 GB.\"",
@@ -21943,7 +21943,7 @@
                         },
                         "ok": {
                           "type": "boolean",
-                          "description": "Both meet the thresholds: 6 GB (decimal) of memory and 60 GB free (D-569)"
+                          "description": "Both meet the thresholds: 6 GB (decimal) of memory (under 8 GB, also 2 GB of swap) and 60 GB free (D-569)"
                         },
                         "reason": {
                           "description": "Why it cannot be enabled, with the measured number, e.g. \"This box has 5.9 GB of memory; OpenVAS needs at least 6.0 GB.\"",

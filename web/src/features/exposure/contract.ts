@@ -190,7 +190,7 @@ export const Greenbone = z.object({
   preflight: z.object({
     memory_bytes: z.number().int().nullable().describe('MemTotal of the box; null when it could not be read'),
     disk_free_bytes: z.number().int().nullable().describe('Free space of the box data directory\'s filesystem; null when it could not be read'),
-    ok: z.boolean().describe('Both meet the thresholds: 6 GB (decimal) of memory and 60 GB free (D-569)'),
+    ok: z.boolean().describe('Both meet the thresholds: 6 GB (decimal) of memory (under 8 GB, also 2 GB of swap) and 60 GB free (D-569)'),
     reason: z.string().nullable().describe('Why it cannot be enabled, with the measured number, e.g. "This box has 5.9 GB of memory; OpenVAS needs at least 6.0 GB."'),
   }),
   feed_sync: z.object({

@@ -71,7 +71,7 @@ function GreenboneBody({ g }: { g: Greenbone }) {
             ...(f.next_at ? [{ label: t('greenbone.feedNext'), value: dateTimeText(f.next_at) }] : []),
           ]} />
           {!on ? <p className="text-[13px]">{t('greenbone.needs')}</p> : null}
-          {(!on || g.state === 'loading') && p.ok && p.memory_bytes != null && p.memory_bytes < SWAP_BELOW ? <p className="text-[13px] text-muted">{t('greenbone.swapNote')}</p> : null}
+          {(!on || (g.state === 'loading' && !f.last_at)) && p.ok && p.memory_bytes != null && p.memory_bytes < SWAP_BELOW ? <p className="text-[13px] text-muted">{t('greenbone.swapNote')}</p> : null}
           {!on && !p.ok ? <p role="alert" className="text-sm text-warn">{p.reason}</p> : null}
           <div className="flex flex-wrap items-center gap-3">
             {on ? (

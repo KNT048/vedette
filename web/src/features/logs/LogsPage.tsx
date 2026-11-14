@@ -1,10 +1,11 @@
-import { useDeferredValue, useState } from 'react'
+import { useDeferredValue, useEffect, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { Link } from 'react-router'
+import { Link, Navigate, useLocation } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Plus, RefreshCw } from 'lucide-react'
-import { PageHeader, Section } from '@/components/common/PageHeader'
+import { Notice, PageHeader, Section } from '@/components/common/PageHeader'
+import { KpiStrip, PageTabs } from '@/components/common/PageFrame'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { EmptyState, QueryState, RequireModule, SampleDataNote } from '@/components/common/States'
 import { Chip } from '@/components/common/StatusChip'
@@ -46,9 +47,9 @@ function UnknownSenders({ data, isAdmin, onAdd, onEdit }: { data: SourcesRespons
   const need = isAdmin ? undefined : t('common:needRole', { role: t('common:role.admin') })
   const container = !data.box.ip && !!data.box.lan
   return (
-    <section aria-labelledby="unknown-senders-title" className="mt-3 rounded-md border border-warn/50 bg-warn-soft/60 px-3 py-2 text-[13px]">
-      <h3 id="unknown-senders-title" className="font-medium">{t('unknown.title')}</h3>
-      <ul className="mt-1 grid gap-2">
+    <section aria-labelledby="unknown-senders-title" className="mt-3">
+    <Notice tone="warn" title={<span id="unknown-senders-title">{t('unknown.title')}</span>}>
+      <ul className="grid gap-2">
         {list.map((u) => {
           const declared = data.sources.find((s) => s.sender_ip === u.ip)
           const facts = { ip: u.ip, proto: PROTOS.format(u.protos.map((p) => p.toUpperCase())), times: t('unknown.times', { count: u.count }), when: fmtRelative(u.last_seen) }
@@ -67,6 +68,7 @@ function UnknownSenders({ data, isAdmin, onAdd, onEdit }: { data: SourcesRespons
       {container ? <p className="mt-2 text-muted">{t('unknown.container')}</p> : null}
       {list.some((u) => u.protos.includes('udp')) ? <p className="mt-1 text-muted">{t('unknown.forged')}</p> : null}
       <p className="mt-1 text-muted">{t('unknown.memory')}</p>
+    </Notice>
     </section>
   )
 }
@@ -159,6 +161,13 @@ function SourcesSection() {
 
 const sampleLine = (s: string) => <span className="mt-0.5 block max-w-[60ch] truncate font-mono text-[12px] text-muted" title={s}>{s}</span>
 
+// A link to /logs#bad (or #new, #spikes) lands on the Digest tab and scrolls to that block once the digest has loaded.
+function ScrollToHash() {
+  const { hash } = useLocation()
+  useEffect(() => { if (hash.length > 1) document.getElementById(hash.slice(1))?.scrollIntoView() }, [hash])
+  return null
+}
+
 function DigestSections() {
   const { t } = useTranslation('logs')
   const q = useDigest()
@@ -199,6 +208,7 @@ function DigestSections() {
         ]
         return (
           <>
+            <ScrollToHash />
             <Section id="bad" title={t('digest.bad.title')} description={t(SPAN_IN_UI || d.bad_connections.some((h) => h.seen_via.startsWith('span_')) ? 'digest.bad.description' : 'digest.bad.descriptionNoSpan')} stories={['S-LOG-2', 'S-LOG-4']}>
               {d.bad_connections.length ? <><DataTable caption={t('digest.bad.caption')} data={d.bad_connections} columns={bad} rowTone={() => 'danger'} />{SPAN_IN_UI ? <p className="mt-2 text-[13px] text-muted">{t('digest.bad.note')}</p> : d.bad_connections.some((h) => h.seen_via.startsWith('span_')) ? <p className="mt-2 text-[13px] text-muted">{t('digest.bad.noteKept')}</p> : null}</> : feedsOn === false ? <EmptyState title={t('digest.bad.emptyFeedsOff')}><Link to="/settings/modules" className="text-accent underline-offset-4 hover:underline">{t('digest.bad.openModules')}</Link></EmptyState> : <EmptyState title={d.ioc_matching ? t('digest.bad.empty') : t('digest.bad.emptyNoIoc')} />}
             </Section>
@@ -308,6 +318,9 @@ function RetentionSection({ days, linesPerHour }: { days: number; linesPerHour: 
   )
 }
 
+// Old #anchor → tab (before the tabs these were the six blocks of one page).
+const ANCHOR_TAB: Record<string, string> = { sources: 'sources', bad: 'digest', new: 'digest', spikes: 'digest', events: 'events', retention: 'retention' }
+
 function Content() {
   const { t } = useTranslation('logs')
   const sources = useSources()
@@ -336,15 +349,42 @@ function Content() {
     }
   }
   const sourceList = sources.data?.sources ?? []
+  const { hash, search } = useLocation()
+  // Links from before the tabs (/logs#sources, #bad, #new, #spikes, #events, #retention) land on the right tab; the Digest blocks keep their
+  // hash so the page scrolls to them. Any other hash (the skip link's #main) stays as it is.
+  const anchorTab = ANCHOR_TAB[hash.slice(1)]
+  if (anchorTab && new URLSearchParams(search).get('tab') !== anchorTab) {
+    const p = new URLSearchParams(search)
+    p.set('tab', anchorTab)
+    return <Navigate replace to={{ search: `?${p}`, hash: anchorTab === 'digest' ? hash : '' }} />
+  }
+  const d = digest.data
+  const receiving = sourceList.filter((x) => x.state === 'receiving').length
+  const bad = d?.bad_connections ?? []
+  // No count of bad connections when none can be matched (Feeds off, or no IOC feed lists anything): "0" would read as "none happened".
+  const matchable = bad.length > 0 || (feedsOn !== false && !!d?.ioc_matching)
+  const kpis = sources.data && d && !noSources ? [
+    { value: matchable ? fmtNumber(bad.length) : '–', label: t('kpi.bad'), to: '?tab=digest' },
+    { value: fmtNumber(d.new.length), label: t('kpi.new'), to: '?tab=digest' },
+    { value: `${receiving} / ${sourceList.length}`, label: t('kpi.sources'), to: '?tab=sources' },
+    { value: fmtNumber(sourceList.reduce((n, x) => n + x.lines_per_hour, 0)), label: t('kpi.lines'), to: '?tab=events' },
+  ] : []
+  const retention = sources.data ? [{ id: 'retention', label: t('tabs.retention'), panel: <RetentionSection days={sources.data.retention_days} linesPerHour={sourceList.reduce((n, x) => n + x.lines_per_hour, 0)} /> }] : []
+  const sourcesTab = { id: 'sources', label: t('tabs.sources'), panel: <SourcesSection /> }
   return (
     <>
       <PageHeader title={title} stories={['S-LOG-1', 'S-LOG-2', 'S-LOG-4']}
         meta={digest.data && !noSources && !noLogs ? <span className="inline-flex flex-wrap items-center gap-2">{t(learning ? 'metaLearning' : 'meta', { lines: fmtNumber(digest.data.lines_24h), days: digest.data.baseline_days, time: fmtDateTime(digest.data.generated_at) })}<SampleDataNote /></span> : null} />
-      <SourcesSection />
-      {noSources ? null : noLogs ? <EmptyState title={t('digest.none.title')}>{t('digest.none.body')}</EmptyState> : <DigestSections />}
-      {noSources ? null : <Slot name="logs.panels" props={{}} />}
-      {noSources ? null : <EventsSection sources={sourceList} />}
-      {sources.data ? <RetentionSection days={sources.data.retention_days} linesPerHour={sourceList.reduce((n, s) => n + s.lines_per_hour, 0)} /> : null}
+      {kpis.length ? <KpiStrip label={t('kpi.label')} items={kpis} /> : null}
+      <PageTabs label={t('tabs.label')} tabs={noSources ? [sourcesTab, ...retention] : [
+        { id: 'digest', label: t('tabs.digest'), panel: <>
+          {noLogs ? <EmptyState title={t('digest.none.title')}>{t('digest.none.body')}</EmptyState> : <DigestSections />}
+          <Slot name="logs.panels" props={{}} />
+        </> },
+        { id: 'events', label: t('tabs.events'), panel: <EventsSection sources={sourceList} /> },
+        sourcesTab,
+        ...retention,
+      ]} />
     </>
   )
 }

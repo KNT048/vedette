@@ -464,21 +464,16 @@ func TestPostinst_UpgradeRestartsARunningHost(t *testing.T) {
 	}
 	run := func(t *testing.T, withInvoke bool, old string) string {
 		t.Helper()
-		bin := t.TempDir()
-		log := filepath.Join(bin, "calls")
-		rec := "#!/bin/sh\necho \"${0##*/} $*\" >> " + log + "\n"
-		names := []string{"systemctl"}
+		log := filepath.Join(t.TempDir(), "calls")
+		// The recorders are shell functions, not scripts written and then run: a script this process has just written can fail
+		// with "text file busy" when another test forks at that moment (golang/go#22315), and the postinst's `|| true` would hide it
+		// as "nothing was called". command -v finds a function as it finds a command; PATH is empty so no real helper is found.
+		rec := "systemctl() { echo \"systemctl $*\" >> " + log + "; }\n"
 		if withInvoke {
-			names = append(names, "deb-systemd-invoke")
+			rec += "deb_systemd_invoke_rec() { echo \"deb-systemd-invoke $*\" >> " + log + "; }\nalias deb-systemd-invoke=deb_systemd_invoke_rec\n"
 		}
-		for _, n := range names {
-			if err := os.WriteFile(filepath.Join(bin, n), []byte(rec), 0o755); err != nil { //nolint:gosec // test: a recorder script in a temp dir
-				t.Fatal(err)
-			}
-		}
-		// command -v must not find the real deb-systemd-invoke of the machine: PATH is the recorders and the shell's own dir only
-		cmd := exec.CommandContext(t.Context(), sh, "-c", "set -eu\nUNIT=vedette-host.service\n"+fn+"restart_after_upgrade \""+old+"\"\n") //nolint:gosec // test: the postinst's own function
-		cmd.Env = []string{"PATH=" + bin}
+		cmd := exec.CommandContext(t.Context(), sh, "-c", "set -eu\nUNIT=vedette-host.service\n"+rec+fn+"restart_after_upgrade \""+old+"\"\n") //nolint:gosec // test: the postinst's own function
+		cmd.Env = []string{"PATH=/nonexistent"}
 		if out, err := cmd.CombinedOutput(); err != nil {
 			t.Fatalf("restart_after_upgrade: %v %s", err, out)
 		}

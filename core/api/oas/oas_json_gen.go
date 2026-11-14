@@ -87538,6 +87538,18 @@ func (s *ExposureGetExposureTargetsIDOKOpenPortsItem) encodeFields(e *jx.Encoder
 		e.Str(s.IP)
 	}
 	{
+		if s.LastSeen.Set {
+			e.FieldStart("last_seen")
+			s.LastSeen.Encode(e)
+		}
+	}
+	{
+		if s.Misses.Set {
+			e.FieldStart("misses")
+			s.Misses.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("port")
 		e.Int(s.Port)
 	}
@@ -87551,13 +87563,22 @@ func (s *ExposureGetExposureTargetsIDOKOpenPortsItem) encodeFields(e *jx.Encoder
 		e.FieldStart("service")
 		e.Str(s.Service)
 	}
+	{
+		if s.Unchecked.Set {
+			e.FieldStart("unchecked")
+			s.Unchecked.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfExposureGetExposureTargetsIDOKOpenPortsItem = [4]string{
+var jsonFieldsNameOfExposureGetExposureTargetsIDOKOpenPortsItem = [7]string{
 	0: "ip",
-	1: "port",
-	2: "product",
-	3: "service",
+	1: "last_seen",
+	2: "misses",
+	3: "port",
+	4: "product",
+	5: "service",
+	6: "unchecked",
 }
 
 // Decode decodes ExposureGetExposureTargetsIDOKOpenPortsItem from json.
@@ -87581,8 +87602,28 @@ func (s *ExposureGetExposureTargetsIDOKOpenPortsItem) Decode(d *jx.Decoder) erro
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"ip\"")
 			}
+		case "last_seen":
+			if err := func() error {
+				s.LastSeen.Reset()
+				if err := s.LastSeen.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"last_seen\"")
+			}
+		case "misses":
+			if err := func() error {
+				s.Misses.Reset()
+				if err := s.Misses.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"misses\"")
+			}
 		case "port":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Int()
 				s.Port = int(v)
@@ -87604,7 +87645,7 @@ func (s *ExposureGetExposureTargetsIDOKOpenPortsItem) Decode(d *jx.Decoder) erro
 				return errors.Wrap(err, "decode field \"product\"")
 			}
 		case "service":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.Service = string(v)
@@ -87614,6 +87655,16 @@ func (s *ExposureGetExposureTargetsIDOKOpenPortsItem) Decode(d *jx.Decoder) erro
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"service\"")
+			}
+		case "unchecked":
+			if err := func() error {
+				s.Unchecked.Reset()
+				if err := s.Unchecked.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"unchecked\"")
 			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
@@ -87625,7 +87676,7 @@ func (s *ExposureGetExposureTargetsIDOKOpenPortsItem) Decode(d *jx.Decoder) erro
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00001011,
+		0b00101001,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -89358,6 +89409,18 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem) encodeFields(e *j
 		e.Str(s.IP)
 	}
 	{
+		if s.LastSeen.Set {
+			e.FieldStart("last_seen")
+			s.LastSeen.Encode(e)
+		}
+	}
+	{
+		if s.Misses.Set {
+			e.FieldStart("misses")
+			s.Misses.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("port")
 		e.Int(s.Port)
 	}
@@ -89371,13 +89434,22 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem) encodeFields(e *j
 		e.FieldStart("service")
 		e.Str(s.Service)
 	}
+	{
+		if s.Unchecked.Set {
+			e.FieldStart("unchecked")
+			s.Unchecked.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfExposureGetExposureTargetsIDSnapshotsDateOKPortsItem = [4]string{
+var jsonFieldsNameOfExposureGetExposureTargetsIDSnapshotsDateOKPortsItem = [7]string{
 	0: "ip",
-	1: "port",
-	2: "product",
-	3: "service",
+	1: "last_seen",
+	2: "misses",
+	3: "port",
+	4: "product",
+	5: "service",
+	6: "unchecked",
 }
 
 // Decode decodes ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem from json.
@@ -89401,8 +89473,28 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem) Decode(d *jx.Deco
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"ip\"")
 			}
+		case "last_seen":
+			if err := func() error {
+				s.LastSeen.Reset()
+				if err := s.LastSeen.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"last_seen\"")
+			}
+		case "misses":
+			if err := func() error {
+				s.Misses.Reset()
+				if err := s.Misses.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"misses\"")
+			}
 		case "port":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Int()
 				s.Port = int(v)
@@ -89424,7 +89516,7 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem) Decode(d *jx.Deco
 				return errors.Wrap(err, "decode field \"product\"")
 			}
 		case "service":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.Service = string(v)
@@ -89434,6 +89526,16 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem) Decode(d *jx.Deco
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"service\"")
+			}
+		case "unchecked":
+			if err := func() error {
+				s.Unchecked.Reset()
+				if err := s.Unchecked.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"unchecked\"")
 			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
@@ -89445,7 +89547,7 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem) Decode(d *jx.Deco
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00001011,
+		0b00101001,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -92313,6 +92415,18 @@ func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItem) encodeFields(e *jx.
 		e.Str(s.IP)
 	}
 	{
+		if s.LastSeen.Set {
+			e.FieldStart("last_seen")
+			s.LastSeen.Encode(e)
+		}
+	}
+	{
+		if s.Misses.Set {
+			e.FieldStart("misses")
+			s.Misses.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("port")
 		e.Int(s.Port)
 	}
@@ -92326,13 +92440,22 @@ func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItem) encodeFields(e *jx.
 		e.FieldStart("service")
 		e.Str(s.Service)
 	}
+	{
+		if s.Unchecked.Set {
+			e.FieldStart("unchecked")
+			s.Unchecked.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfExposureGetExposureTargetsOKItemsItemOpenPortsItem = [4]string{
+var jsonFieldsNameOfExposureGetExposureTargetsOKItemsItemOpenPortsItem = [7]string{
 	0: "ip",
-	1: "port",
-	2: "product",
-	3: "service",
+	1: "last_seen",
+	2: "misses",
+	3: "port",
+	4: "product",
+	5: "service",
+	6: "unchecked",
 }
 
 // Decode decodes ExposureGetExposureTargetsOKItemsItemOpenPortsItem from json.
@@ -92356,8 +92479,28 @@ func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItem) Decode(d *jx.Decode
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"ip\"")
 			}
+		case "last_seen":
+			if err := func() error {
+				s.LastSeen.Reset()
+				if err := s.LastSeen.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"last_seen\"")
+			}
+		case "misses":
+			if err := func() error {
+				s.Misses.Reset()
+				if err := s.Misses.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"misses\"")
+			}
 		case "port":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Int()
 				s.Port = int(v)
@@ -92379,7 +92522,7 @@ func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItem) Decode(d *jx.Decode
 				return errors.Wrap(err, "decode field \"product\"")
 			}
 		case "service":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.Service = string(v)
@@ -92389,6 +92532,16 @@ func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItem) Decode(d *jx.Decode
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"service\"")
+			}
+		case "unchecked":
+			if err := func() error {
+				s.Unchecked.Reset()
+				if err := s.Unchecked.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"unchecked\"")
 			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
@@ -92400,7 +92553,7 @@ func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItem) Decode(d *jx.Decode
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00001011,
+		0b00101001,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -93727,6 +93880,18 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) encodeFields(e
 		e.Str(s.IP)
 	}
 	{
+		if s.LastSeen.Set {
+			e.FieldStart("last_seen")
+			s.LastSeen.Encode(e)
+		}
+	}
+	{
+		if s.Misses.Set {
+			e.FieldStart("misses")
+			s.Misses.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("port")
 		e.Int(s.Port)
 	}
@@ -93740,13 +93905,22 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) encodeFields(e
 		e.FieldStart("service")
 		e.Str(s.Service)
 	}
+	{
+		if s.Unchecked.Set {
+			e.FieldStart("unchecked")
+			s.Unchecked.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem = [4]string{
+var jsonFieldsNameOfExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem = [7]string{
 	0: "ip",
-	1: "port",
-	2: "product",
-	3: "service",
+	1: "last_seen",
+	2: "misses",
+	3: "port",
+	4: "product",
+	5: "service",
+	6: "unchecked",
 }
 
 // Decode decodes ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem from json.
@@ -93770,8 +93944,28 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) Decode(d *jx.D
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"ip\"")
 			}
+		case "last_seen":
+			if err := func() error {
+				s.LastSeen.Reset()
+				if err := s.LastSeen.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"last_seen\"")
+			}
+		case "misses":
+			if err := func() error {
+				s.Misses.Reset()
+				if err := s.Misses.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"misses\"")
+			}
 		case "port":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Int()
 				s.Port = int(v)
@@ -93793,7 +93987,7 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) Decode(d *jx.D
 				return errors.Wrap(err, "decode field \"product\"")
 			}
 		case "service":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.Service = string(v)
@@ -93803,6 +93997,16 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) Decode(d *jx.D
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"service\"")
+			}
+		case "unchecked":
+			if err := func() error {
+				s.Unchecked.Reset()
+				if err := s.Unchecked.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"unchecked\"")
 			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
@@ -93814,7 +94018,7 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) Decode(d *jx.D
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00001011,
+		0b00101001,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -95459,6 +95663,18 @@ func (s *ExposurePostExposureTargetsCreatedOpenPortsItem) encodeFields(e *jx.Enc
 		e.Str(s.IP)
 	}
 	{
+		if s.LastSeen.Set {
+			e.FieldStart("last_seen")
+			s.LastSeen.Encode(e)
+		}
+	}
+	{
+		if s.Misses.Set {
+			e.FieldStart("misses")
+			s.Misses.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("port")
 		e.Int(s.Port)
 	}
@@ -95472,13 +95688,22 @@ func (s *ExposurePostExposureTargetsCreatedOpenPortsItem) encodeFields(e *jx.Enc
 		e.FieldStart("service")
 		e.Str(s.Service)
 	}
+	{
+		if s.Unchecked.Set {
+			e.FieldStart("unchecked")
+			s.Unchecked.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfExposurePostExposureTargetsCreatedOpenPortsItem = [4]string{
+var jsonFieldsNameOfExposurePostExposureTargetsCreatedOpenPortsItem = [7]string{
 	0: "ip",
-	1: "port",
-	2: "product",
-	3: "service",
+	1: "last_seen",
+	2: "misses",
+	3: "port",
+	4: "product",
+	5: "service",
+	6: "unchecked",
 }
 
 // Decode decodes ExposurePostExposureTargetsCreatedOpenPortsItem from json.
@@ -95502,8 +95727,28 @@ func (s *ExposurePostExposureTargetsCreatedOpenPortsItem) Decode(d *jx.Decoder) 
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"ip\"")
 			}
+		case "last_seen":
+			if err := func() error {
+				s.LastSeen.Reset()
+				if err := s.LastSeen.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"last_seen\"")
+			}
+		case "misses":
+			if err := func() error {
+				s.Misses.Reset()
+				if err := s.Misses.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"misses\"")
+			}
 		case "port":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Int()
 				s.Port = int(v)
@@ -95525,7 +95770,7 @@ func (s *ExposurePostExposureTargetsCreatedOpenPortsItem) Decode(d *jx.Decoder) 
 				return errors.Wrap(err, "decode field \"product\"")
 			}
 		case "service":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.Service = string(v)
@@ -95535,6 +95780,16 @@ func (s *ExposurePostExposureTargetsCreatedOpenPortsItem) Decode(d *jx.Decoder) 
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"service\"")
+			}
+		case "unchecked":
+			if err := func() error {
+				s.Unchecked.Reset()
+				if err := s.Unchecked.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"unchecked\"")
 			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
@@ -95546,7 +95801,7 @@ func (s *ExposurePostExposureTargetsCreatedOpenPortsItem) Decode(d *jx.Decoder) 
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00001011,
+		0b00101001,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -97730,6 +97985,18 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) encodeFields(
 		e.Str(s.IP)
 	}
 	{
+		if s.LastSeen.Set {
+			e.FieldStart("last_seen")
+			s.LastSeen.Encode(e)
+		}
+	}
+	{
+		if s.Misses.Set {
+			e.FieldStart("misses")
+			s.Misses.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("port")
 		e.Int(s.Port)
 	}
@@ -97743,13 +98010,22 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) encodeFields(
 		e.FieldStart("service")
 		e.Str(s.Service)
 	}
+	{
+		if s.Unchecked.Set {
+			e.FieldStart("unchecked")
+			s.Unchecked.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem = [4]string{
+var jsonFieldsNameOfExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem = [7]string{
 	0: "ip",
-	1: "port",
-	2: "product",
-	3: "service",
+	1: "last_seen",
+	2: "misses",
+	3: "port",
+	4: "product",
+	5: "service",
+	6: "unchecked",
 }
 
 // Decode decodes ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem from json.
@@ -97773,8 +98049,28 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) Decode(d *jx.
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"ip\"")
 			}
+		case "last_seen":
+			if err := func() error {
+				s.LastSeen.Reset()
+				if err := s.LastSeen.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"last_seen\"")
+			}
+		case "misses":
+			if err := func() error {
+				s.Misses.Reset()
+				if err := s.Misses.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"misses\"")
+			}
 		case "port":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Int()
 				s.Port = int(v)
@@ -97796,7 +98092,7 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) Decode(d *jx.
 				return errors.Wrap(err, "decode field \"product\"")
 			}
 		case "service":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.Service = string(v)
@@ -97806,6 +98102,16 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) Decode(d *jx.
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"service\"")
+			}
+		case "unchecked":
+			if err := func() error {
+				s.Unchecked.Reset()
+				if err := s.Unchecked.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"unchecked\"")
 			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
@@ -97817,7 +98123,7 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) Decode(d *jx.
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00001011,
+		0b00101001,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -114033,6 +114339,18 @@ func (s *FindingsGetFindingsIDOKFixedIn) encodeFields(e *jx.Encoder) {
 		e.Str(s.Distro)
 	}
 	{
+		e.FieldStart("distro_fixed")
+		e.Str(s.DistroFixed)
+	}
+	{
+		e.FieldStart("distro_pro")
+		e.Bool(s.DistroPro)
+	}
+	{
+		e.FieldStart("distro_release")
+		e.Str(s.DistroRelease)
+	}
+	{
 		e.FieldStart("fixed")
 		e.Str(s.Fixed)
 	}
@@ -114058,15 +114376,18 @@ func (s *FindingsGetFindingsIDOKFixedIn) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfFindingsGetFindingsIDOKFixedIn = [8]string{
-	0: "branches",
-	1: "distro",
-	2: "fixed",
-	3: "kind",
-	4: "more",
-	5: "no_fix",
-	6: "source",
-	7: "version",
+var jsonFieldsNameOfFindingsGetFindingsIDOKFixedIn = [11]string{
+	0:  "branches",
+	1:  "distro",
+	2:  "distro_fixed",
+	3:  "distro_pro",
+	4:  "distro_release",
+	5:  "fixed",
+	6:  "kind",
+	7:  "more",
+	8:  "no_fix",
+	9:  "source",
+	10: "version",
 }
 
 // Decode decodes FindingsGetFindingsIDOKFixedIn from json.
@@ -114074,7 +114395,7 @@ func (s *FindingsGetFindingsIDOKFixedIn) Decode(d *jx.Decoder) error {
 	if s == nil {
 		return errors.New("invalid: unable to decode FindingsGetFindingsIDOKFixedIn to nil")
 	}
-	var requiredBitSet [1]uint8
+	var requiredBitSet [2]uint8
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
@@ -114108,8 +114429,44 @@ func (s *FindingsGetFindingsIDOKFixedIn) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"distro\"")
 			}
-		case "fixed":
+		case "distro_fixed":
 			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Str()
+				s.DistroFixed = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"distro_fixed\"")
+			}
+		case "distro_pro":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Bool()
+				s.DistroPro = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"distro_pro\"")
+			}
+		case "distro_release":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Str()
+				s.DistroRelease = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"distro_release\"")
+			}
+		case "fixed":
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.Fixed = string(v)
@@ -114121,7 +114478,7 @@ func (s *FindingsGetFindingsIDOKFixedIn) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"fixed\"")
 			}
 		case "kind":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				if err := s.Kind.Decode(d); err != nil {
 					return err
@@ -114131,7 +114488,7 @@ func (s *FindingsGetFindingsIDOKFixedIn) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"kind\"")
 			}
 		case "more":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := d.Int()
 				s.More = int(v)
@@ -114143,7 +114500,7 @@ func (s *FindingsGetFindingsIDOKFixedIn) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"more\"")
 			}
 		case "no_fix":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				v, err := d.Int()
 				s.NoFix = int(v)
@@ -114155,7 +114512,7 @@ func (s *FindingsGetFindingsIDOKFixedIn) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"no_fix\"")
 			}
 		case "source":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.Source = string(v)
@@ -114167,7 +114524,7 @@ func (s *FindingsGetFindingsIDOKFixedIn) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"source\"")
 			}
 		case "version":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				v, err := d.Str()
 				s.Version = string(v)
@@ -114187,8 +114544,9 @@ func (s *FindingsGetFindingsIDOKFixedIn) Decode(d *jx.Decoder) error {
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
-	for i, mask := range [1]uint8{
+	for i, mask := range [2]uint8{
 		0b11111111,
+		0b00000111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -121881,6 +122239,18 @@ func (s *FindingsPostFindingsIDAiOKFixedIn) encodeFields(e *jx.Encoder) {
 		e.Str(s.Distro)
 	}
 	{
+		e.FieldStart("distro_fixed")
+		e.Str(s.DistroFixed)
+	}
+	{
+		e.FieldStart("distro_pro")
+		e.Bool(s.DistroPro)
+	}
+	{
+		e.FieldStart("distro_release")
+		e.Str(s.DistroRelease)
+	}
+	{
 		e.FieldStart("fixed")
 		e.Str(s.Fixed)
 	}
@@ -121906,15 +122276,18 @@ func (s *FindingsPostFindingsIDAiOKFixedIn) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfFindingsPostFindingsIDAiOKFixedIn = [8]string{
-	0: "branches",
-	1: "distro",
-	2: "fixed",
-	3: "kind",
-	4: "more",
-	5: "no_fix",
-	6: "source",
-	7: "version",
+var jsonFieldsNameOfFindingsPostFindingsIDAiOKFixedIn = [11]string{
+	0:  "branches",
+	1:  "distro",
+	2:  "distro_fixed",
+	3:  "distro_pro",
+	4:  "distro_release",
+	5:  "fixed",
+	6:  "kind",
+	7:  "more",
+	8:  "no_fix",
+	9:  "source",
+	10: "version",
 }
 
 // Decode decodes FindingsPostFindingsIDAiOKFixedIn from json.
@@ -121922,7 +122295,7 @@ func (s *FindingsPostFindingsIDAiOKFixedIn) Decode(d *jx.Decoder) error {
 	if s == nil {
 		return errors.New("invalid: unable to decode FindingsPostFindingsIDAiOKFixedIn to nil")
 	}
-	var requiredBitSet [1]uint8
+	var requiredBitSet [2]uint8
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
@@ -121956,8 +122329,44 @@ func (s *FindingsPostFindingsIDAiOKFixedIn) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"distro\"")
 			}
-		case "fixed":
+		case "distro_fixed":
 			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Str()
+				s.DistroFixed = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"distro_fixed\"")
+			}
+		case "distro_pro":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Bool()
+				s.DistroPro = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"distro_pro\"")
+			}
+		case "distro_release":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Str()
+				s.DistroRelease = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"distro_release\"")
+			}
+		case "fixed":
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.Fixed = string(v)
@@ -121969,7 +122378,7 @@ func (s *FindingsPostFindingsIDAiOKFixedIn) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"fixed\"")
 			}
 		case "kind":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				if err := s.Kind.Decode(d); err != nil {
 					return err
@@ -121979,7 +122388,7 @@ func (s *FindingsPostFindingsIDAiOKFixedIn) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"kind\"")
 			}
 		case "more":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := d.Int()
 				s.More = int(v)
@@ -121991,7 +122400,7 @@ func (s *FindingsPostFindingsIDAiOKFixedIn) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"more\"")
 			}
 		case "no_fix":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				v, err := d.Int()
 				s.NoFix = int(v)
@@ -122003,7 +122412,7 @@ func (s *FindingsPostFindingsIDAiOKFixedIn) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"no_fix\"")
 			}
 		case "source":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.Source = string(v)
@@ -122015,7 +122424,7 @@ func (s *FindingsPostFindingsIDAiOKFixedIn) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"source\"")
 			}
 		case "version":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				v, err := d.Str()
 				s.Version = string(v)
@@ -122035,8 +122444,9 @@ func (s *FindingsPostFindingsIDAiOKFixedIn) Decode(d *jx.Decoder) error {
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
-	for i, mask := range [1]uint8{
+	for i, mask := range [2]uint8{
 		0b11111111,
+		0b00000111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -127687,6 +128097,18 @@ func (s *FindingsPostFindingsIDAppliedOKFixedIn) encodeFields(e *jx.Encoder) {
 		e.Str(s.Distro)
 	}
 	{
+		e.FieldStart("distro_fixed")
+		e.Str(s.DistroFixed)
+	}
+	{
+		e.FieldStart("distro_pro")
+		e.Bool(s.DistroPro)
+	}
+	{
+		e.FieldStart("distro_release")
+		e.Str(s.DistroRelease)
+	}
+	{
 		e.FieldStart("fixed")
 		e.Str(s.Fixed)
 	}
@@ -127712,15 +128134,18 @@ func (s *FindingsPostFindingsIDAppliedOKFixedIn) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfFindingsPostFindingsIDAppliedOKFixedIn = [8]string{
-	0: "branches",
-	1: "distro",
-	2: "fixed",
-	3: "kind",
-	4: "more",
-	5: "no_fix",
-	6: "source",
-	7: "version",
+var jsonFieldsNameOfFindingsPostFindingsIDAppliedOKFixedIn = [11]string{
+	0:  "branches",
+	1:  "distro",
+	2:  "distro_fixed",
+	3:  "distro_pro",
+	4:  "distro_release",
+	5:  "fixed",
+	6:  "kind",
+	7:  "more",
+	8:  "no_fix",
+	9:  "source",
+	10: "version",
 }
 
 // Decode decodes FindingsPostFindingsIDAppliedOKFixedIn from json.
@@ -127728,7 +128153,7 @@ func (s *FindingsPostFindingsIDAppliedOKFixedIn) Decode(d *jx.Decoder) error {
 	if s == nil {
 		return errors.New("invalid: unable to decode FindingsPostFindingsIDAppliedOKFixedIn to nil")
 	}
-	var requiredBitSet [1]uint8
+	var requiredBitSet [2]uint8
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
@@ -127762,8 +128187,44 @@ func (s *FindingsPostFindingsIDAppliedOKFixedIn) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"distro\"")
 			}
-		case "fixed":
+		case "distro_fixed":
 			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Str()
+				s.DistroFixed = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"distro_fixed\"")
+			}
+		case "distro_pro":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Bool()
+				s.DistroPro = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"distro_pro\"")
+			}
+		case "distro_release":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Str()
+				s.DistroRelease = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"distro_release\"")
+			}
+		case "fixed":
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.Fixed = string(v)
@@ -127775,7 +128236,7 @@ func (s *FindingsPostFindingsIDAppliedOKFixedIn) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"fixed\"")
 			}
 		case "kind":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				if err := s.Kind.Decode(d); err != nil {
 					return err
@@ -127785,7 +128246,7 @@ func (s *FindingsPostFindingsIDAppliedOKFixedIn) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"kind\"")
 			}
 		case "more":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := d.Int()
 				s.More = int(v)
@@ -127797,7 +128258,7 @@ func (s *FindingsPostFindingsIDAppliedOKFixedIn) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"more\"")
 			}
 		case "no_fix":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				v, err := d.Int()
 				s.NoFix = int(v)
@@ -127809,7 +128270,7 @@ func (s *FindingsPostFindingsIDAppliedOKFixedIn) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"no_fix\"")
 			}
 		case "source":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.Source = string(v)
@@ -127821,7 +128282,7 @@ func (s *FindingsPostFindingsIDAppliedOKFixedIn) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"source\"")
 			}
 		case "version":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				v, err := d.Str()
 				s.Version = string(v)
@@ -127841,8 +128302,9 @@ func (s *FindingsPostFindingsIDAppliedOKFixedIn) Decode(d *jx.Decoder) error {
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
-	for i, mask := range [1]uint8{
+	for i, mask := range [2]uint8{
 		0b11111111,
+		0b00000111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -133499,6 +133961,18 @@ func (s *FindingsPostFindingsIDStatusOKFixedIn) encodeFields(e *jx.Encoder) {
 		e.Str(s.Distro)
 	}
 	{
+		e.FieldStart("distro_fixed")
+		e.Str(s.DistroFixed)
+	}
+	{
+		e.FieldStart("distro_pro")
+		e.Bool(s.DistroPro)
+	}
+	{
+		e.FieldStart("distro_release")
+		e.Str(s.DistroRelease)
+	}
+	{
 		e.FieldStart("fixed")
 		e.Str(s.Fixed)
 	}
@@ -133524,15 +133998,18 @@ func (s *FindingsPostFindingsIDStatusOKFixedIn) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfFindingsPostFindingsIDStatusOKFixedIn = [8]string{
-	0: "branches",
-	1: "distro",
-	2: "fixed",
-	3: "kind",
-	4: "more",
-	5: "no_fix",
-	6: "source",
-	7: "version",
+var jsonFieldsNameOfFindingsPostFindingsIDStatusOKFixedIn = [11]string{
+	0:  "branches",
+	1:  "distro",
+	2:  "distro_fixed",
+	3:  "distro_pro",
+	4:  "distro_release",
+	5:  "fixed",
+	6:  "kind",
+	7:  "more",
+	8:  "no_fix",
+	9:  "source",
+	10: "version",
 }
 
 // Decode decodes FindingsPostFindingsIDStatusOKFixedIn from json.
@@ -133540,7 +134017,7 @@ func (s *FindingsPostFindingsIDStatusOKFixedIn) Decode(d *jx.Decoder) error {
 	if s == nil {
 		return errors.New("invalid: unable to decode FindingsPostFindingsIDStatusOKFixedIn to nil")
 	}
-	var requiredBitSet [1]uint8
+	var requiredBitSet [2]uint8
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
@@ -133574,8 +134051,44 @@ func (s *FindingsPostFindingsIDStatusOKFixedIn) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"distro\"")
 			}
-		case "fixed":
+		case "distro_fixed":
 			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Str()
+				s.DistroFixed = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"distro_fixed\"")
+			}
+		case "distro_pro":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Bool()
+				s.DistroPro = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"distro_pro\"")
+			}
+		case "distro_release":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Str()
+				s.DistroRelease = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"distro_release\"")
+			}
+		case "fixed":
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.Fixed = string(v)
@@ -133587,7 +134100,7 @@ func (s *FindingsPostFindingsIDStatusOKFixedIn) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"fixed\"")
 			}
 		case "kind":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				if err := s.Kind.Decode(d); err != nil {
 					return err
@@ -133597,7 +134110,7 @@ func (s *FindingsPostFindingsIDStatusOKFixedIn) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"kind\"")
 			}
 		case "more":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := d.Int()
 				s.More = int(v)
@@ -133609,7 +134122,7 @@ func (s *FindingsPostFindingsIDStatusOKFixedIn) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"more\"")
 			}
 		case "no_fix":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				v, err := d.Int()
 				s.NoFix = int(v)
@@ -133621,7 +134134,7 @@ func (s *FindingsPostFindingsIDStatusOKFixedIn) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"no_fix\"")
 			}
 		case "source":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.Source = string(v)
@@ -133633,7 +134146,7 @@ func (s *FindingsPostFindingsIDStatusOKFixedIn) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"source\"")
 			}
 		case "version":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				v, err := d.Str()
 				s.Version = string(v)
@@ -133653,8 +134166,9 @@ func (s *FindingsPostFindingsIDStatusOKFixedIn) Decode(d *jx.Decoder) error {
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
-	for i, mask := range [1]uint8{
+	for i, mask := range [2]uint8{
 		0b11111111,
+		0b00000111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.

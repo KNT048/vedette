@@ -53,6 +53,9 @@ type Software struct {
 	// inventory INV-28 (3)); only an "agent" row counts.
 	Source   string
 	Packaged bool
+	// PkgVersion and PkgSource: a packaged deb row's full Debian version ("1:9.6p1-3ubuntu13.14") and source package
+	// ("openssh"), read against what Ubuntu or Debian say about the CVE (Vuln.Distro, D-516); "" otherwise.
+	PkgVersion, PkgSource string
 }
 
 // Asset is what the matcher needs to know about a device.
@@ -84,6 +87,9 @@ type Vuln struct {
 	DateAdded  time.Time // when CISA added the entry to KEV; zero when unknown (Reconcile treats that as backlog)
 	Affected   []Affected
 	RangesFrom string // where Affected comes from: "" NVD, RangesCVEOrg or RangesCVEOrgPartial the CNA's CVE.org record (D-556)
+	// Distro is what Ubuntu and Debian say about the CVE in their own packages (D-516): per release and source package,
+	// fixed in a version or not affected. Empty when the distribution feeds are off or have no word on it.
+	Distro []DistroFix
 }
 
 // RangesCVEOrg and RangesCVEOrgPartial mark a Vuln whose affected versions come from the CNA's CVE.org record because
@@ -107,6 +113,16 @@ func (v Vuln) rangesBy(first bool) string {
 		return "The CVE.org record"
 	}
 	return "the CVE.org record"
+}
+
+// DistroFix is one distribution's word on a CVE for one source package of one release (feeds.DistroFix).
+type DistroFix struct {
+	Distro  string // "ubuntu" or "debian"
+	Release string // "24.04", "12"
+	Package string // source package
+	Status  string // "fixed" or "not_affected"
+	Fixed   string // the first fixed version (status fixed)
+	Pro     bool   // the fix is in Ubuntu Pro (ESM) only
 }
 
 // Evidence is the explanation shown with a finding.
@@ -379,6 +395,9 @@ func matchOne(a Asset, s Software, in swInfo, v Vuln, now time.Time) (Match, out
 		note := fmt.Sprintf("CISA lists %s for Juniper %s only; this device's model is %s. Check the vendor advisory and close it if it does not apply.", v.CVE, orList(named), clean(a.Model))
 		return Match{CVE: v.CVE, SoftwareID: s.ID, SoftwareDisplay: clean(s.Display), Evidence: Evidence{Summary: note, CheckedAt: now}}, outRuledOut
 	}
+	if d, ok := distroVerdict(in, v); ok { // D-516: the distribution's own word on its package comes before NVD's upstream ranges
+		return distroMatch(a, s, in, v, d, now)
+	}
 	multi := isMultiProduct(v.Product)
 	tri, within, every, proof := decide(in, v, multi)
 	if tri == No && v.RangesFrom == RangesCVEOrgPartial { // the CNA's list may skip branches: outside it proves nothing (D-556)
@@ -446,6 +465,8 @@ type swInfo struct {
 	osVer string
 	// packaged: an agent read the software from the device's package database (Software.Packaged).
 	packaged bool
+	// pkgVer and pkgSrc: the full Debian version and source package of a packaged row (D-516), "" otherwise.
+	pkgVer, pkgSrc string
 }
 
 func newSWInfo(s Software, osName string) swInfo {
@@ -462,6 +483,9 @@ func newSWInfo(s Software, osName string) swInfo {
 	}
 	in.given = versionGiven(in.ver)
 	in.packaged = s.Packaged && s.Source == "agent"
+	if in.packaged {
+		in.pkgVer, in.pkgSrc = s.PkgVersion, s.PkgSource
+	}
 	if n := (identity{vendor: norm(s.Vendor), product: norm(s.Product)}); n.ok() {
 		in.ids = append(append(in.ids, n), cpeAliases[n]...)
 	}

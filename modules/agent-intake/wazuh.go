@@ -612,7 +612,7 @@ func (s *Service) pullAgent(ctx context.Context, c *wazuhClient, a wzAgent) (int
 			return 0, err
 		}
 	}
-	items, dropped := mapPackages(wazuhSnaps(pkgs), maxRows)
+	items, dropped := mapPackages(wazuhSnaps(pkgs, wazuhKernel(a)), maxRows)
 	if dropped > 0 {
 		s.cfg.Log.InfoContext(ctx, "agent-intake: wazuh rows dropped", "agent", a.ID, "rows_not_fitting", dropped)
 	}
@@ -638,10 +638,26 @@ func wazuhFacts(a wzAgent) map[string][]row {
 	}
 }
 
+// wazuhKernel is the running kernel release of a Wazuh agent: the third "|"-separated field of its uname ("Linux |host
+// |7.0.0-43-generic |#43-Ubuntu SMP … |x86_64"), "" when the field is missing or not clean.
+func wazuhKernel(a wzAgent) string {
+	parts := strings.Split(a.OS.Uname, "|")
+	if len(parts) < 3 {
+		return ""
+	}
+	k, ok := cleanValue(parts[2], maxValue)
+	if !ok {
+		return ""
+	}
+	return k
+}
+
 // wazuhSnaps sorts the packages into the osquery tables the mapper knows: deb as deb_packages (the version keeps epoch and revision,
 // the mapper drops them), rpm as rpm_packages with the upstream version (Wazuh writes version-release, osquery only the version), win
 // as programs (vendor is the publisher). Other formats (snap, apk, pacman, macOS) are outside the supported servers (INV-2) and dropped.
-func wazuhSnaps(pkgs []wzPackage) map[string][]row {
+//
+// kernel is the running kernel release of the agent (wazuhKernel), put on every deb row as osquery's query does; "" when unknown.
+func wazuhSnaps(pkgs []wzPackage, kernel string) map[string][]row {
 	out := map[string][]row{}
 	for _, p := range pkgs {
 		name, ok1 := cleanValue(p.Name, maxValue)
@@ -653,7 +669,7 @@ func wazuhSnaps(pkgs []wzPackage) map[string][]row {
 		}
 		switch p.Format {
 		case "deb":
-			out["deb_packages"] = append(out["deb_packages"], row{"name": name, "version": version, "source": source})
+			out["deb_packages"] = append(out["deb_packages"], row{"name": name, "version": version, "source": source, "kernel": kernel})
 		case "rpm":
 			out["rpm_packages"] = append(out["rpm_packages"], row{"name": name, "version": debUpstream(version)})
 		case "win":

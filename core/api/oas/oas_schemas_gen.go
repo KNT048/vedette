@@ -43612,15 +43612,33 @@ func (s *ExposureGetExposureTargetsIDOKMethod) UnmarshalText(data []byte) error 
 }
 
 type ExposureGetExposureTargetsIDOKOpenPortsItem struct {
-	IP      string    `json:"ip"`
+	IP string `json:"ip"`
+	// Set only on a port the newest scan did not report, kept from an earlier scan: the day a scan last
+	// saw it open (INV-22).
+	LastSeen OptString `json:"last_seen"`
+	// With last_seen: how many scans in a row that checked the address missed the port (1 = missed by the
+	// last scan).
+	Misses  OptInt    `json:"misses"`
 	Port    int       `json:"port"`
 	Product OptString `json:"product"`
 	Service string    `json:"service"`
+	// The newest scan did not check the address: the row is as an earlier scan left it.
+	Unchecked OptBool `json:"unchecked"`
 }
 
 // GetIP returns the value of IP.
 func (s *ExposureGetExposureTargetsIDOKOpenPortsItem) GetIP() string {
 	return s.IP
+}
+
+// GetLastSeen returns the value of LastSeen.
+func (s *ExposureGetExposureTargetsIDOKOpenPortsItem) GetLastSeen() OptString {
+	return s.LastSeen
+}
+
+// GetMisses returns the value of Misses.
+func (s *ExposureGetExposureTargetsIDOKOpenPortsItem) GetMisses() OptInt {
+	return s.Misses
 }
 
 // GetPort returns the value of Port.
@@ -43638,9 +43656,24 @@ func (s *ExposureGetExposureTargetsIDOKOpenPortsItem) GetService() string {
 	return s.Service
 }
 
+// GetUnchecked returns the value of Unchecked.
+func (s *ExposureGetExposureTargetsIDOKOpenPortsItem) GetUnchecked() OptBool {
+	return s.Unchecked
+}
+
 // SetIP sets the value of IP.
 func (s *ExposureGetExposureTargetsIDOKOpenPortsItem) SetIP(val string) {
 	s.IP = val
+}
+
+// SetLastSeen sets the value of LastSeen.
+func (s *ExposureGetExposureTargetsIDOKOpenPortsItem) SetLastSeen(val OptString) {
+	s.LastSeen = val
+}
+
+// SetMisses sets the value of Misses.
+func (s *ExposureGetExposureTargetsIDOKOpenPortsItem) SetMisses(val OptInt) {
+	s.Misses = val
 }
 
 // SetPort sets the value of Port.
@@ -43656,6 +43689,11 @@ func (s *ExposureGetExposureTargetsIDOKOpenPortsItem) SetProduct(val OptString) 
 // SetService sets the value of Service.
 func (s *ExposureGetExposureTargetsIDOKOpenPortsItem) SetService(val string) {
 	s.Service = val
+}
+
+// SetUnchecked sets the value of Unchecked.
+func (s *ExposureGetExposureTargetsIDOKOpenPortsItem) SetUnchecked(val OptBool) {
+	s.Unchecked = val
 }
 
 // Expired only exists for IPs: the box has not seen this IP for more than 30 days.
@@ -44318,15 +44356,33 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKNotCheckedItem) SetText(val 
 }
 
 type ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem struct {
-	IP      string    `json:"ip"`
+	IP string `json:"ip"`
+	// Set only on a port the newest scan did not report, kept from an earlier scan: the day a scan last
+	// saw it open (INV-22).
+	LastSeen OptString `json:"last_seen"`
+	// With last_seen: how many scans in a row that checked the address missed the port (1 = missed by the
+	// last scan).
+	Misses  OptInt    `json:"misses"`
 	Port    int       `json:"port"`
 	Product OptString `json:"product"`
 	Service string    `json:"service"`
+	// The newest scan did not check the address: the row is as an earlier scan left it.
+	Unchecked OptBool `json:"unchecked"`
 }
 
 // GetIP returns the value of IP.
 func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem) GetIP() string {
 	return s.IP
+}
+
+// GetLastSeen returns the value of LastSeen.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem) GetLastSeen() OptString {
+	return s.LastSeen
+}
+
+// GetMisses returns the value of Misses.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem) GetMisses() OptInt {
+	return s.Misses
 }
 
 // GetPort returns the value of Port.
@@ -44344,9 +44400,24 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem) GetService() stri
 	return s.Service
 }
 
+// GetUnchecked returns the value of Unchecked.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem) GetUnchecked() OptBool {
+	return s.Unchecked
+}
+
 // SetIP sets the value of IP.
 func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem) SetIP(val string) {
 	s.IP = val
+}
+
+// SetLastSeen sets the value of LastSeen.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem) SetLastSeen(val OptString) {
+	s.LastSeen = val
+}
+
+// SetMisses sets the value of Misses.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem) SetMisses(val OptInt) {
+	s.Misses = val
 }
 
 // SetPort sets the value of Port.
@@ -44362,6 +44433,11 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem) SetProduct(val Op
 // SetService sets the value of Service.
 func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem) SetService(val string) {
 	s.Service = val
+}
+
+// SetUnchecked sets the value of Unchecked.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem) SetUnchecked(val OptBool) {
+	s.Unchecked = val
 }
 
 type ExposureGetExposureTargetsIDSnapshotsDateOKServicesItem struct {
@@ -45526,15 +45602,33 @@ func (s *ExposureGetExposureTargetsOKItemsItemMethod) UnmarshalText(data []byte)
 }
 
 type ExposureGetExposureTargetsOKItemsItemOpenPortsItem struct {
-	IP      string    `json:"ip"`
+	IP string `json:"ip"`
+	// Set only on a port the newest scan did not report, kept from an earlier scan: the day a scan last
+	// saw it open (INV-22).
+	LastSeen OptString `json:"last_seen"`
+	// With last_seen: how many scans in a row that checked the address missed the port (1 = missed by the
+	// last scan).
+	Misses  OptInt    `json:"misses"`
 	Port    int       `json:"port"`
 	Product OptString `json:"product"`
 	Service string    `json:"service"`
+	// The newest scan did not check the address: the row is as an earlier scan left it.
+	Unchecked OptBool `json:"unchecked"`
 }
 
 // GetIP returns the value of IP.
 func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItem) GetIP() string {
 	return s.IP
+}
+
+// GetLastSeen returns the value of LastSeen.
+func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItem) GetLastSeen() OptString {
+	return s.LastSeen
+}
+
+// GetMisses returns the value of Misses.
+func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItem) GetMisses() OptInt {
+	return s.Misses
 }
 
 // GetPort returns the value of Port.
@@ -45552,9 +45646,24 @@ func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItem) GetService() string
 	return s.Service
 }
 
+// GetUnchecked returns the value of Unchecked.
+func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItem) GetUnchecked() OptBool {
+	return s.Unchecked
+}
+
 // SetIP sets the value of IP.
 func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItem) SetIP(val string) {
 	s.IP = val
+}
+
+// SetLastSeen sets the value of LastSeen.
+func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItem) SetLastSeen(val OptString) {
+	s.LastSeen = val
+}
+
+// SetMisses sets the value of Misses.
+func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItem) SetMisses(val OptInt) {
+	s.Misses = val
 }
 
 // SetPort sets the value of Port.
@@ -45570,6 +45679,11 @@ func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItem) SetProduct(val OptS
 // SetService sets the value of Service.
 func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItem) SetService(val string) {
 	s.Service = val
+}
+
+// SetUnchecked sets the value of Unchecked.
+func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItem) SetUnchecked(val OptBool) {
+	s.Unchecked = val
 }
 
 // Expired only exists for IPs: the box has not seen this IP for more than 30 days.
@@ -46228,15 +46342,33 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItemMethod) UnmarshalText(data []
 }
 
 type ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem struct {
-	IP      string    `json:"ip"`
+	IP string `json:"ip"`
+	// Set only on a port the newest scan did not report, kept from an earlier scan: the day a scan last
+	// saw it open (INV-22).
+	LastSeen OptString `json:"last_seen"`
+	// With last_seen: how many scans in a row that checked the address missed the port (1 = missed by the
+	// last scan).
+	Misses  OptInt    `json:"misses"`
 	Port    int       `json:"port"`
 	Product OptString `json:"product"`
 	Service string    `json:"service"`
+	// The newest scan did not check the address: the row is as an earlier scan left it.
+	Unchecked OptBool `json:"unchecked"`
 }
 
 // GetIP returns the value of IP.
 func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) GetIP() string {
 	return s.IP
+}
+
+// GetLastSeen returns the value of LastSeen.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) GetLastSeen() OptString {
+	return s.LastSeen
+}
+
+// GetMisses returns the value of Misses.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) GetMisses() OptInt {
+	return s.Misses
 }
 
 // GetPort returns the value of Port.
@@ -46254,9 +46386,24 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) GetService() s
 	return s.Service
 }
 
+// GetUnchecked returns the value of Unchecked.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) GetUnchecked() OptBool {
+	return s.Unchecked
+}
+
 // SetIP sets the value of IP.
 func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) SetIP(val string) {
 	s.IP = val
+}
+
+// SetLastSeen sets the value of LastSeen.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) SetLastSeen(val OptString) {
+	s.LastSeen = val
+}
+
+// SetMisses sets the value of Misses.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) SetMisses(val OptInt) {
+	s.Misses = val
 }
 
 // SetPort sets the value of Port.
@@ -46272,6 +46419,11 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) SetProduct(val
 // SetService sets the value of Service.
 func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) SetService(val string) {
 	s.Service = val
+}
+
+// SetUnchecked sets the value of Unchecked.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) SetUnchecked(val OptBool) {
+	s.Unchecked = val
 }
 
 // Expired only exists for IPs: the box has not seen this IP for more than 30 days.
@@ -47162,15 +47314,33 @@ func (s *ExposurePostExposureTargetsCreatedMethod) UnmarshalText(data []byte) er
 }
 
 type ExposurePostExposureTargetsCreatedOpenPortsItem struct {
-	IP      string    `json:"ip"`
+	IP string `json:"ip"`
+	// Set only on a port the newest scan did not report, kept from an earlier scan: the day a scan last
+	// saw it open (INV-22).
+	LastSeen OptString `json:"last_seen"`
+	// With last_seen: how many scans in a row that checked the address missed the port (1 = missed by the
+	// last scan).
+	Misses  OptInt    `json:"misses"`
 	Port    int       `json:"port"`
 	Product OptString `json:"product"`
 	Service string    `json:"service"`
+	// The newest scan did not check the address: the row is as an earlier scan left it.
+	Unchecked OptBool `json:"unchecked"`
 }
 
 // GetIP returns the value of IP.
 func (s *ExposurePostExposureTargetsCreatedOpenPortsItem) GetIP() string {
 	return s.IP
+}
+
+// GetLastSeen returns the value of LastSeen.
+func (s *ExposurePostExposureTargetsCreatedOpenPortsItem) GetLastSeen() OptString {
+	return s.LastSeen
+}
+
+// GetMisses returns the value of Misses.
+func (s *ExposurePostExposureTargetsCreatedOpenPortsItem) GetMisses() OptInt {
+	return s.Misses
 }
 
 // GetPort returns the value of Port.
@@ -47188,9 +47358,24 @@ func (s *ExposurePostExposureTargetsCreatedOpenPortsItem) GetService() string {
 	return s.Service
 }
 
+// GetUnchecked returns the value of Unchecked.
+func (s *ExposurePostExposureTargetsCreatedOpenPortsItem) GetUnchecked() OptBool {
+	return s.Unchecked
+}
+
 // SetIP sets the value of IP.
 func (s *ExposurePostExposureTargetsCreatedOpenPortsItem) SetIP(val string) {
 	s.IP = val
+}
+
+// SetLastSeen sets the value of LastSeen.
+func (s *ExposurePostExposureTargetsCreatedOpenPortsItem) SetLastSeen(val OptString) {
+	s.LastSeen = val
+}
+
+// SetMisses sets the value of Misses.
+func (s *ExposurePostExposureTargetsCreatedOpenPortsItem) SetMisses(val OptInt) {
+	s.Misses = val
 }
 
 // SetPort sets the value of Port.
@@ -47206,6 +47391,11 @@ func (s *ExposurePostExposureTargetsCreatedOpenPortsItem) SetProduct(val OptStri
 // SetService sets the value of Service.
 func (s *ExposurePostExposureTargetsCreatedOpenPortsItem) SetService(val string) {
 	s.Service = val
+}
+
+// SetUnchecked sets the value of Unchecked.
+func (s *ExposurePostExposureTargetsCreatedOpenPortsItem) SetUnchecked(val OptBool) {
+	s.Unchecked = val
 }
 
 // Expired only exists for IPs: the box has not seen this IP for more than 30 days.
@@ -48282,15 +48472,33 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTargetMethod) UnmarshalText(data [
 }
 
 type ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem struct {
-	IP      string    `json:"ip"`
+	IP string `json:"ip"`
+	// Set only on a port the newest scan did not report, kept from an earlier scan: the day a scan last
+	// saw it open (INV-22).
+	LastSeen OptString `json:"last_seen"`
+	// With last_seen: how many scans in a row that checked the address missed the port (1 = missed by the
+	// last scan).
+	Misses  OptInt    `json:"misses"`
 	Port    int       `json:"port"`
 	Product OptString `json:"product"`
 	Service string    `json:"service"`
+	// The newest scan did not check the address: the row is as an earlier scan left it.
+	Unchecked OptBool `json:"unchecked"`
 }
 
 // GetIP returns the value of IP.
 func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) GetIP() string {
 	return s.IP
+}
+
+// GetLastSeen returns the value of LastSeen.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) GetLastSeen() OptString {
+	return s.LastSeen
+}
+
+// GetMisses returns the value of Misses.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) GetMisses() OptInt {
+	return s.Misses
 }
 
 // GetPort returns the value of Port.
@@ -48308,9 +48516,24 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) GetService() 
 	return s.Service
 }
 
+// GetUnchecked returns the value of Unchecked.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) GetUnchecked() OptBool {
+	return s.Unchecked
+}
+
 // SetIP sets the value of IP.
 func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) SetIP(val string) {
 	s.IP = val
+}
+
+// SetLastSeen sets the value of LastSeen.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) SetLastSeen(val OptString) {
+	s.LastSeen = val
+}
+
+// SetMisses sets the value of Misses.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) SetMisses(val OptInt) {
+	s.Misses = val
 }
 
 // SetPort sets the value of Port.
@@ -48326,6 +48549,11 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) SetProduct(va
 // SetService sets the value of Service.
 func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) SetService(val string) {
 	s.Service = val
+}
+
+// SetUnchecked sets the value of Unchecked.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) SetUnchecked(val OptBool) {
+	s.Unchecked = val
 }
 
 // Expired only exists for IPs: the box has not seen this IP for more than 30 days.
@@ -57154,6 +57382,14 @@ type FindingsGetFindingsIDOKFixedIn struct {
 	// inventory kept the flag); the page adds "if you installed it from the distribution's packages,
 	// install its security updates instead".
 	Distro string `json:"distro"`
+	// D-516, kind distro only: the version of the distribution's package that fixes the CVE on the
+	// device's release (Ubuntu security data, Debian Security Tracker); `version` is then the device's
+	// full package version. Empty when the distribution's data does not say.
+	DistroFixed string `json:"distro_fixed"`
+	// Distro_fixed is in Ubuntu Pro (ESM) only.
+	DistroPro bool `json:"distro_pro"`
+	// The device's release with distro_fixed ("24.04", "12"); empty otherwise.
+	DistroRelease string `json:"distro_release"`
 	// The fixed release (fixed), the last affected release (up_to), the upstream fixed release as a
 	// reference when NVD names one (distro: the backport may keep the package's number below it); empty
 	// for branches.
@@ -57169,8 +57405,9 @@ type FindingsGetFindingsIDOKFixedIn struct {
 	More int `json:"more"`
 	// Release lines NVD gives no fixed release for (a range that ends at an affected version).
 	NoFix int `json:"no_fix"`
-	// Where the versions come from: "NVD affected versions", or "CVE.org affected versions (from the CVE
-	// record's CNA)" when NVD has none (D-556).
+	// Where the versions come from: "NVD affected versions", "CVE.org affected versions (from the CVE
+	// record's CNA)" when NVD has none (D-556), or with distro_fixed "Ubuntu security data" / "Debian
+	// Security Tracker" (D-516).
 	Source string `json:"source"`
 	// The device's version; for branches empty when it has none, else the text Vedette cannot read.
 	Version string `json:"version"`
@@ -57184,6 +57421,21 @@ func (s *FindingsGetFindingsIDOKFixedIn) GetBranches() []FindingsGetFindingsIDOK
 // GetDistro returns the value of Distro.
 func (s *FindingsGetFindingsIDOKFixedIn) GetDistro() string {
 	return s.Distro
+}
+
+// GetDistroFixed returns the value of DistroFixed.
+func (s *FindingsGetFindingsIDOKFixedIn) GetDistroFixed() string {
+	return s.DistroFixed
+}
+
+// GetDistroPro returns the value of DistroPro.
+func (s *FindingsGetFindingsIDOKFixedIn) GetDistroPro() bool {
+	return s.DistroPro
+}
+
+// GetDistroRelease returns the value of DistroRelease.
+func (s *FindingsGetFindingsIDOKFixedIn) GetDistroRelease() string {
+	return s.DistroRelease
 }
 
 // GetFixed returns the value of Fixed.
@@ -57224,6 +57476,21 @@ func (s *FindingsGetFindingsIDOKFixedIn) SetBranches(val []FindingsGetFindingsID
 // SetDistro sets the value of Distro.
 func (s *FindingsGetFindingsIDOKFixedIn) SetDistro(val string) {
 	s.Distro = val
+}
+
+// SetDistroFixed sets the value of DistroFixed.
+func (s *FindingsGetFindingsIDOKFixedIn) SetDistroFixed(val string) {
+	s.DistroFixed = val
+}
+
+// SetDistroPro sets the value of DistroPro.
+func (s *FindingsGetFindingsIDOKFixedIn) SetDistroPro(val bool) {
+	s.DistroPro = val
+}
+
+// SetDistroRelease sets the value of DistroRelease.
+func (s *FindingsGetFindingsIDOKFixedIn) SetDistroRelease(val string) {
+	s.DistroRelease = val
 }
 
 // SetFixed sets the value of Fixed.
@@ -62275,6 +62542,14 @@ type FindingsPostFindingsIDAiOKFixedIn struct {
 	// inventory kept the flag); the page adds "if you installed it from the distribution's packages,
 	// install its security updates instead".
 	Distro string `json:"distro"`
+	// D-516, kind distro only: the version of the distribution's package that fixes the CVE on the
+	// device's release (Ubuntu security data, Debian Security Tracker); `version` is then the device's
+	// full package version. Empty when the distribution's data does not say.
+	DistroFixed string `json:"distro_fixed"`
+	// Distro_fixed is in Ubuntu Pro (ESM) only.
+	DistroPro bool `json:"distro_pro"`
+	// The device's release with distro_fixed ("24.04", "12"); empty otherwise.
+	DistroRelease string `json:"distro_release"`
 	// The fixed release (fixed), the last affected release (up_to), the upstream fixed release as a
 	// reference when NVD names one (distro: the backport may keep the package's number below it); empty
 	// for branches.
@@ -62290,8 +62565,9 @@ type FindingsPostFindingsIDAiOKFixedIn struct {
 	More int `json:"more"`
 	// Release lines NVD gives no fixed release for (a range that ends at an affected version).
 	NoFix int `json:"no_fix"`
-	// Where the versions come from: "NVD affected versions", or "CVE.org affected versions (from the CVE
-	// record's CNA)" when NVD has none (D-556).
+	// Where the versions come from: "NVD affected versions", "CVE.org affected versions (from the CVE
+	// record's CNA)" when NVD has none (D-556), or with distro_fixed "Ubuntu security data" / "Debian
+	// Security Tracker" (D-516).
 	Source string `json:"source"`
 	// The device's version; for branches empty when it has none, else the text Vedette cannot read.
 	Version string `json:"version"`
@@ -62305,6 +62581,21 @@ func (s *FindingsPostFindingsIDAiOKFixedIn) GetBranches() []FindingsPostFindings
 // GetDistro returns the value of Distro.
 func (s *FindingsPostFindingsIDAiOKFixedIn) GetDistro() string {
 	return s.Distro
+}
+
+// GetDistroFixed returns the value of DistroFixed.
+func (s *FindingsPostFindingsIDAiOKFixedIn) GetDistroFixed() string {
+	return s.DistroFixed
+}
+
+// GetDistroPro returns the value of DistroPro.
+func (s *FindingsPostFindingsIDAiOKFixedIn) GetDistroPro() bool {
+	return s.DistroPro
+}
+
+// GetDistroRelease returns the value of DistroRelease.
+func (s *FindingsPostFindingsIDAiOKFixedIn) GetDistroRelease() string {
+	return s.DistroRelease
 }
 
 // GetFixed returns the value of Fixed.
@@ -62345,6 +62636,21 @@ func (s *FindingsPostFindingsIDAiOKFixedIn) SetBranches(val []FindingsPostFindin
 // SetDistro sets the value of Distro.
 func (s *FindingsPostFindingsIDAiOKFixedIn) SetDistro(val string) {
 	s.Distro = val
+}
+
+// SetDistroFixed sets the value of DistroFixed.
+func (s *FindingsPostFindingsIDAiOKFixedIn) SetDistroFixed(val string) {
+	s.DistroFixed = val
+}
+
+// SetDistroPro sets the value of DistroPro.
+func (s *FindingsPostFindingsIDAiOKFixedIn) SetDistroPro(val bool) {
+	s.DistroPro = val
+}
+
+// SetDistroRelease sets the value of DistroRelease.
+func (s *FindingsPostFindingsIDAiOKFixedIn) SetDistroRelease(val string) {
+	s.DistroRelease = val
 }
 
 // SetFixed sets the value of Fixed.
@@ -65240,6 +65546,14 @@ type FindingsPostFindingsIDAppliedOKFixedIn struct {
 	// inventory kept the flag); the page adds "if you installed it from the distribution's packages,
 	// install its security updates instead".
 	Distro string `json:"distro"`
+	// D-516, kind distro only: the version of the distribution's package that fixes the CVE on the
+	// device's release (Ubuntu security data, Debian Security Tracker); `version` is then the device's
+	// full package version. Empty when the distribution's data does not say.
+	DistroFixed string `json:"distro_fixed"`
+	// Distro_fixed is in Ubuntu Pro (ESM) only.
+	DistroPro bool `json:"distro_pro"`
+	// The device's release with distro_fixed ("24.04", "12"); empty otherwise.
+	DistroRelease string `json:"distro_release"`
 	// The fixed release (fixed), the last affected release (up_to), the upstream fixed release as a
 	// reference when NVD names one (distro: the backport may keep the package's number below it); empty
 	// for branches.
@@ -65255,8 +65569,9 @@ type FindingsPostFindingsIDAppliedOKFixedIn struct {
 	More int `json:"more"`
 	// Release lines NVD gives no fixed release for (a range that ends at an affected version).
 	NoFix int `json:"no_fix"`
-	// Where the versions come from: "NVD affected versions", or "CVE.org affected versions (from the CVE
-	// record's CNA)" when NVD has none (D-556).
+	// Where the versions come from: "NVD affected versions", "CVE.org affected versions (from the CVE
+	// record's CNA)" when NVD has none (D-556), or with distro_fixed "Ubuntu security data" / "Debian
+	// Security Tracker" (D-516).
 	Source string `json:"source"`
 	// The device's version; for branches empty when it has none, else the text Vedette cannot read.
 	Version string `json:"version"`
@@ -65270,6 +65585,21 @@ func (s *FindingsPostFindingsIDAppliedOKFixedIn) GetBranches() []FindingsPostFin
 // GetDistro returns the value of Distro.
 func (s *FindingsPostFindingsIDAppliedOKFixedIn) GetDistro() string {
 	return s.Distro
+}
+
+// GetDistroFixed returns the value of DistroFixed.
+func (s *FindingsPostFindingsIDAppliedOKFixedIn) GetDistroFixed() string {
+	return s.DistroFixed
+}
+
+// GetDistroPro returns the value of DistroPro.
+func (s *FindingsPostFindingsIDAppliedOKFixedIn) GetDistroPro() bool {
+	return s.DistroPro
+}
+
+// GetDistroRelease returns the value of DistroRelease.
+func (s *FindingsPostFindingsIDAppliedOKFixedIn) GetDistroRelease() string {
+	return s.DistroRelease
 }
 
 // GetFixed returns the value of Fixed.
@@ -65310,6 +65640,21 @@ func (s *FindingsPostFindingsIDAppliedOKFixedIn) SetBranches(val []FindingsPostF
 // SetDistro sets the value of Distro.
 func (s *FindingsPostFindingsIDAppliedOKFixedIn) SetDistro(val string) {
 	s.Distro = val
+}
+
+// SetDistroFixed sets the value of DistroFixed.
+func (s *FindingsPostFindingsIDAppliedOKFixedIn) SetDistroFixed(val string) {
+	s.DistroFixed = val
+}
+
+// SetDistroPro sets the value of DistroPro.
+func (s *FindingsPostFindingsIDAppliedOKFixedIn) SetDistroPro(val bool) {
+	s.DistroPro = val
+}
+
+// SetDistroRelease sets the value of DistroRelease.
+func (s *FindingsPostFindingsIDAppliedOKFixedIn) SetDistroRelease(val string) {
+	s.DistroRelease = val
 }
 
 // SetFixed sets the value of Fixed.
@@ -68226,6 +68571,14 @@ type FindingsPostFindingsIDStatusOKFixedIn struct {
 	// inventory kept the flag); the page adds "if you installed it from the distribution's packages,
 	// install its security updates instead".
 	Distro string `json:"distro"`
+	// D-516, kind distro only: the version of the distribution's package that fixes the CVE on the
+	// device's release (Ubuntu security data, Debian Security Tracker); `version` is then the device's
+	// full package version. Empty when the distribution's data does not say.
+	DistroFixed string `json:"distro_fixed"`
+	// Distro_fixed is in Ubuntu Pro (ESM) only.
+	DistroPro bool `json:"distro_pro"`
+	// The device's release with distro_fixed ("24.04", "12"); empty otherwise.
+	DistroRelease string `json:"distro_release"`
 	// The fixed release (fixed), the last affected release (up_to), the upstream fixed release as a
 	// reference when NVD names one (distro: the backport may keep the package's number below it); empty
 	// for branches.
@@ -68241,8 +68594,9 @@ type FindingsPostFindingsIDStatusOKFixedIn struct {
 	More int `json:"more"`
 	// Release lines NVD gives no fixed release for (a range that ends at an affected version).
 	NoFix int `json:"no_fix"`
-	// Where the versions come from: "NVD affected versions", or "CVE.org affected versions (from the CVE
-	// record's CNA)" when NVD has none (D-556).
+	// Where the versions come from: "NVD affected versions", "CVE.org affected versions (from the CVE
+	// record's CNA)" when NVD has none (D-556), or with distro_fixed "Ubuntu security data" / "Debian
+	// Security Tracker" (D-516).
 	Source string `json:"source"`
 	// The device's version; for branches empty when it has none, else the text Vedette cannot read.
 	Version string `json:"version"`
@@ -68256,6 +68610,21 @@ func (s *FindingsPostFindingsIDStatusOKFixedIn) GetBranches() []FindingsPostFind
 // GetDistro returns the value of Distro.
 func (s *FindingsPostFindingsIDStatusOKFixedIn) GetDistro() string {
 	return s.Distro
+}
+
+// GetDistroFixed returns the value of DistroFixed.
+func (s *FindingsPostFindingsIDStatusOKFixedIn) GetDistroFixed() string {
+	return s.DistroFixed
+}
+
+// GetDistroPro returns the value of DistroPro.
+func (s *FindingsPostFindingsIDStatusOKFixedIn) GetDistroPro() bool {
+	return s.DistroPro
+}
+
+// GetDistroRelease returns the value of DistroRelease.
+func (s *FindingsPostFindingsIDStatusOKFixedIn) GetDistroRelease() string {
+	return s.DistroRelease
 }
 
 // GetFixed returns the value of Fixed.
@@ -68296,6 +68665,21 @@ func (s *FindingsPostFindingsIDStatusOKFixedIn) SetBranches(val []FindingsPostFi
 // SetDistro sets the value of Distro.
 func (s *FindingsPostFindingsIDStatusOKFixedIn) SetDistro(val string) {
 	s.Distro = val
+}
+
+// SetDistroFixed sets the value of DistroFixed.
+func (s *FindingsPostFindingsIDStatusOKFixedIn) SetDistroFixed(val string) {
+	s.DistroFixed = val
+}
+
+// SetDistroPro sets the value of DistroPro.
+func (s *FindingsPostFindingsIDStatusOKFixedIn) SetDistroPro(val bool) {
+	s.DistroPro = val
+}
+
+// SetDistroRelease sets the value of DistroRelease.
+func (s *FindingsPostFindingsIDStatusOKFixedIn) SetDistroRelease(val string) {
+	s.DistroRelease = val
 }
 
 // SetFixed sets the value of Fixed.
@@ -123880,10 +124264,11 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportSourcesItem) SetID(val ReportsG
 type ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemID string
 
 const (
-	ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemIDInventory ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemID = "inventory"
-	ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemIDFindings  ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemID = "findings"
-	ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemIDKev       ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemID = "kev"
-	ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemIDIncidents ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemID = "incidents"
+	ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemIDInventory    ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemID = "inventory"
+	ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemIDFindings     ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemID = "findings"
+	ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemIDKev          ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemID = "kev"
+	ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemIDVulncheckKev ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemID = "vulncheck-kev"
+	ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemIDIncidents    ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemID = "incidents"
 )
 
 // AllValues returns all ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemID values.
@@ -123892,6 +124277,7 @@ func (ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemID) AllValues() []Repor
 		ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemIDInventory,
 		ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemIDFindings,
 		ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemIDKev,
+		ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemIDVulncheckKev,
 		ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemIDIncidents,
 	}
 }
@@ -123904,6 +124290,8 @@ func (s ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemID) MarshalText() ([]
 	case ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemIDFindings:
 		return []byte(s), nil
 	case ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemIDKev:
+		return []byte(s), nil
+	case ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemIDVulncheckKev:
 		return []byte(s), nil
 	case ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemIDIncidents:
 		return []byte(s), nil
@@ -123923,6 +124311,9 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemID) UnmarshalText(da
 		return nil
 	case ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemIDKev:
 		*s = ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemIDKev
+		return nil
+	case ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemIDVulncheckKev:
+		*s = ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemIDVulncheckKev
 		return nil
 	case ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemIDIncidents:
 		*s = ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemIDIncidents
@@ -126089,10 +126480,11 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportSourcesItem) SetID(val ReportsGet
 type ReportsGetReportsWeeklyPreviewOKReportSourcesItemID string
 
 const (
-	ReportsGetReportsWeeklyPreviewOKReportSourcesItemIDInventory ReportsGetReportsWeeklyPreviewOKReportSourcesItemID = "inventory"
-	ReportsGetReportsWeeklyPreviewOKReportSourcesItemIDFindings  ReportsGetReportsWeeklyPreviewOKReportSourcesItemID = "findings"
-	ReportsGetReportsWeeklyPreviewOKReportSourcesItemIDKev       ReportsGetReportsWeeklyPreviewOKReportSourcesItemID = "kev"
-	ReportsGetReportsWeeklyPreviewOKReportSourcesItemIDIncidents ReportsGetReportsWeeklyPreviewOKReportSourcesItemID = "incidents"
+	ReportsGetReportsWeeklyPreviewOKReportSourcesItemIDInventory    ReportsGetReportsWeeklyPreviewOKReportSourcesItemID = "inventory"
+	ReportsGetReportsWeeklyPreviewOKReportSourcesItemIDFindings     ReportsGetReportsWeeklyPreviewOKReportSourcesItemID = "findings"
+	ReportsGetReportsWeeklyPreviewOKReportSourcesItemIDKev          ReportsGetReportsWeeklyPreviewOKReportSourcesItemID = "kev"
+	ReportsGetReportsWeeklyPreviewOKReportSourcesItemIDVulncheckKev ReportsGetReportsWeeklyPreviewOKReportSourcesItemID = "vulncheck-kev"
+	ReportsGetReportsWeeklyPreviewOKReportSourcesItemIDIncidents    ReportsGetReportsWeeklyPreviewOKReportSourcesItemID = "incidents"
 )
 
 // AllValues returns all ReportsGetReportsWeeklyPreviewOKReportSourcesItemID values.
@@ -126101,6 +126493,7 @@ func (ReportsGetReportsWeeklyPreviewOKReportSourcesItemID) AllValues() []Reports
 		ReportsGetReportsWeeklyPreviewOKReportSourcesItemIDInventory,
 		ReportsGetReportsWeeklyPreviewOKReportSourcesItemIDFindings,
 		ReportsGetReportsWeeklyPreviewOKReportSourcesItemIDKev,
+		ReportsGetReportsWeeklyPreviewOKReportSourcesItemIDVulncheckKev,
 		ReportsGetReportsWeeklyPreviewOKReportSourcesItemIDIncidents,
 	}
 }
@@ -126113,6 +126506,8 @@ func (s ReportsGetReportsWeeklyPreviewOKReportSourcesItemID) MarshalText() ([]by
 	case ReportsGetReportsWeeklyPreviewOKReportSourcesItemIDFindings:
 		return []byte(s), nil
 	case ReportsGetReportsWeeklyPreviewOKReportSourcesItemIDKev:
+		return []byte(s), nil
+	case ReportsGetReportsWeeklyPreviewOKReportSourcesItemIDVulncheckKev:
 		return []byte(s), nil
 	case ReportsGetReportsWeeklyPreviewOKReportSourcesItemIDIncidents:
 		return []byte(s), nil
@@ -126132,6 +126527,9 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportSourcesItemID) UnmarshalText(data
 		return nil
 	case ReportsGetReportsWeeklyPreviewOKReportSourcesItemIDKev:
 		*s = ReportsGetReportsWeeklyPreviewOKReportSourcesItemIDKev
+		return nil
+	case ReportsGetReportsWeeklyPreviewOKReportSourcesItemIDVulncheckKev:
+		*s = ReportsGetReportsWeeklyPreviewOKReportSourcesItemIDVulncheckKev
 		return nil
 	case ReportsGetReportsWeeklyPreviewOKReportSourcesItemIDIncidents:
 		*s = ReportsGetReportsWeeklyPreviewOKReportSourcesItemIDIncidents

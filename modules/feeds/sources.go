@@ -14,6 +14,10 @@ const (
 	DecoderNVD       Decoder = "nvd"       // NVDPageURL and ParseNVD (NVD CVE API 2.0, ?hasKev; D-500)
 	DecoderCVEOrg    Decoder = "cveorg"    // CVEOrgRecordURL and ParseCVERecord (cvelistV5 records; D-556)
 	DecoderVulnCheck Decoder = "vulncheck" // VulnCheckPageURL and ParseVulnCheckPage (the customer's own key; D-557)
+	// The distribution backport data (D-516): ParseUbuntuOSV, ParseUbuntuVEX, ParseDebianTracker, read as a stream.
+	DecoderUbuntuOSV     Decoder = "ubuntu-osv"
+	DecoderUbuntuVEX     Decoder = "ubuntu-vex"
+	DecoderDebianTracker Decoder = "debian-tracker"
 )
 
 // Source is a built-in feed (D-36). Built-ins cannot be deleted (INV-4): the
@@ -73,6 +77,15 @@ const cveOrgNotice = "CVE Program Terms of Use. CVE records © The MITRE Corpora
 // attribution (https://docs.vulncheck.com/community/vulncheck-kev/attribution); the data stays on the box.
 const vulnCheckNotice = "VulnCheck Known Exploited Vulnerabilities (VulnCheck KEV), used with your own free VulnCheck Community key. Data stays on this box."
 
+// canonicalNotice and debianNotice are the licence lines of the distribution feeds (D-516). Canonical publishes its
+// security metadata under CC BY-SA 4.0 (https://security-metadata.canonical.com/osv/LICENSE); the box keeps and shows it
+// for its own operator and Vedette ships none of it. The Debian Security Tracker states no licence for its JSON; it is
+// used as Trivy and Grype use it, attributed and never redistributed.
+const (
+	canonicalNotice = "CC BY-SA 4.0, Canonical Ltd. Ubuntu security data."
+	debianNotice    = "Debian Security Tracker data; no licence stated. Attributed, not redistributed."
+)
+
 // builtinSources is the default list of sourcesMock.ts. Hosts must match the
 // list in PRIVACY.md (INV-13) except where the report says otherwise.
 var builtinSources = []Source{
@@ -81,6 +94,9 @@ var builtinSources = []Source{
 	{ID: "nvd-kev", Name: "NVD affected versions", Kind: KindVulnerabilities, Format: FormatJSON, URL: "https://services.nvd.nist.gov/rest/json/cves/2.0", License: nvdNotice, IntervalHours: 24, Decoder: DecoderNVD},
 	{ID: "cve-org", Name: "CVE.org affected versions", Kind: KindVulnerabilities, Format: FormatJSON, URL: "https://raw.githubusercontent.com/CVEProject/cvelistV5/main/cves", License: cveOrgNotice, IntervalHours: 1, Decoder: DecoderCVEOrg},
 	{ID: vulnCheckFeedID, Name: "VulnCheck KEV", Kind: KindVulnerabilities, Format: FormatJSON, URL: "https://api.vulncheck.com/v3/index/vulncheck-kev", License: vulnCheckNotice, IntervalHours: 6, Decoder: DecoderVulnCheck, BYOK: true},
+	{ID: ubuntuOSVFeedID, Name: "Ubuntu fixed versions", Kind: KindVulnerabilities, Format: FormatJSON, URL: "https://security-metadata.canonical.com/osv/osv-all.tar.xz", License: canonicalNotice, IntervalHours: 24, Decoder: DecoderUbuntuOSV},
+	{ID: ubuntuVEXFeedID, Name: "Ubuntu not affected", Kind: KindVulnerabilities, Format: FormatJSON, URL: "https://security-metadata.canonical.com/vex/vex-all.tar.xz", License: canonicalNotice, IntervalHours: 24, Decoder: DecoderUbuntuVEX},
+	{ID: debianTrackerFeedID, Name: "Debian security tracker", Kind: KindVulnerabilities, Format: FormatJSON, URL: "https://security-tracker.debian.org/tracker/data/json", License: debianNotice, IntervalHours: 24, Decoder: DecoderDebianTracker},
 	{ID: "nuclei-templates", Name: "nuclei-templates", Kind: KindVulnerabilities, Format: FormatJSON, URL: "https://raw.githubusercontent.com/projectdiscovery/nuclei-templates/main/cves.json", License: "MIT", IntervalHours: 24, Decoder: DecoderNuclei},
 	{ID: "ipsum", Name: "IPsum", Kind: KindIOC, Format: FormatLines, URL: "https://raw.githubusercontent.com/stamparm/ipsum/master/levels/3.txt", License: "Unlicense", IntervalHours: 6, Decoder: DecoderParser, Parser: linesParser(), Aggregate: true, Upstreams: []string{"et-open", "abusech-feodo"}},
 	{ID: "et-open", Name: "ET Open compromised IPs", Kind: KindIOC, Format: FormatLines, URL: "https://rules.emergingthreats.net/blockrules/compromised-ips.txt", License: "BSD", IntervalHours: 6, Decoder: DecoderParser, Parser: linesParser()},

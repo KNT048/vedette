@@ -253,6 +253,7 @@ type wzAgent struct {
 		Name     string `json:"name"`
 		Version  string `json:"version"`
 		Platform string `json:"platform"`
+		Uname    string `json:"uname"` // "Linux |host |7.0.0-43-generic |#43-Ubuntu SMP … |x86_64": the third field is the running kernel (D-516)
 	} `json:"os"`
 }
 
@@ -313,7 +314,7 @@ func (c *wazuhClient) agents(ctx context.Context) ([]wzAgent, error) {
 	seen := map[string]bool{}
 	for offset := 0; len(out) < maxWazuhAgent; {
 		var page wzItems[wzAgent]
-		q := url.Values{"select": {"id,name,ip,status,lastKeepAlive,os.name,os.version,os.platform"}, "status": {"active,disconnected"},
+		q := url.Values{"select": {"id,name,ip,status,lastKeepAlive,os.name,os.version,os.platform,os.uname"}, "status": {"active,disconnected"},
 			"limit": {strconv.Itoa(wazuhPage)}, "offset": {strconv.Itoa(offset)}}
 		if err := c.get(ctx, "/agents", q, &page); err != nil {
 			return nil, err

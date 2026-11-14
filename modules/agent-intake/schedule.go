@@ -23,6 +23,9 @@ var schedule = []scheduleQuery{
 	{name: "deb_packages", query: "SELECT name, version, arch, source FROM deb_packages;", interval: 3600, platform: "linux"},
 	{name: "rpm_packages", query: "SELECT name, version, release, arch, epoch FROM rpm_packages;", interval: 3600, platform: "linux"},
 	{name: "programs", query: "SELECT name, version, publisher, install_date FROM programs;", interval: 3600, platform: "windows"},
+	// D-516: the running kernel release ("7.0.0-43-generic"), its own one-row query (a column on every package row would make a
+	// big host's package list longer than osquery's logger_tls_max_linesize, and osquery drops such a line whole).
+	{name: "kernel_info", query: "SELECT version FROM kernel_info;", interval: 3600, platform: "linux"},
 }
 
 // The first report (D-503). osquery 5.12 runs a scheduled query when the Unix time is a multiple of its (splayed, ±10 %) interval, never at
@@ -39,7 +42,7 @@ const (
 // firstReport maps each query to the answer of the first report it gives; the package queries are one answer (a host has one kind).
 var firstReport = map[string]string{
 	"os_version": "os_version", "system_info": "system_info", "interfaces": "interfaces",
-	"deb_packages": "packages", "rpm_packages": "packages", "programs": "packages",
+	"deb_packages": "packages", "rpm_packages": "packages", "programs": "packages", "kernel_info": "packages",
 }
 
 // hasAnswer says whether the comma-separated list holds the answer.

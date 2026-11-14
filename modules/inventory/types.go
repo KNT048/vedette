@@ -139,6 +139,9 @@ type SoftwareItem struct {
 	// Packaged: an agent read it from the operating system's package database (observe.Software.Packaged, D-474). Stored only for
 	// source agent.
 	Packaged bool
+	// PkgVersion and PkgSource: a deb row's full Debian version and source package (D-516). Stored only with Packaged; a value
+	// that is not a Debian version or package name is dropped (the row stays, without a distribution decision).
+	PkgVersion, PkgSource string
 }
 
 // Observed is a value with where it came from (contract.ts Observed).

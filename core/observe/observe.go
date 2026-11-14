@@ -113,6 +113,9 @@ type Software struct {
 	// deb and rpm packages, the box's dpkg list): the distribution ships its fixes, so findings can say "install your distribution's
 	// security updates" (D-474, MK-2). Programs and apps from other lists are false.
 	Packaged bool
+	// PkgVersion and PkgSource are a deb row's full Debian version ("1:9.6p1-3ubuntu13.14") and source package ("openssh"), so
+	// findings can compare it with the version Ubuntu or Debian fixed a CVE in (D-516). "" for every other row.
+	PkgVersion, PkgSource string
 }
 
 // Approver accepts the device an enrolled agent reports on (D-503): the person who made the enrolment token and ran the install

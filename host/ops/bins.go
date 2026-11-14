@@ -165,7 +165,7 @@ func validateSystemctl(coreUnit string) func([]string) error {
 			return nil
 		case len(args) == 4 && (args[0] == "enable" || args[0] == "disable") && args[1] == "--now" && slices.Equal(args[2:], aptTimers):
 			return nil
-		case slices.Equal(args, argsPodmanSocketEnable), slices.Equal(args, argsPodmanSocketActive): // OpenVAS's compose provider talks to it (D-529)
+		case isPodmanSocketArgv(args): // OpenVAS's compose provider talks to it (D-529)
 			return nil
 		}
 		return errors.New("not one of the fixed systemctl command lines")

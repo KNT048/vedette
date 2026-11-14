@@ -103,24 +103,24 @@ func TestExposureGreenbone_HostOutcomes(t *testing.T) {
 	}
 }
 
-// A feed update cut short (turned off, the box stopping) returns at once and asks the host to stop, which ends the pull there.
-func TestExposureGreenbone_ACancelledFeedUpdateStopsTheHost(t *testing.T) {
+// review r1 M2: a feed update that outlasts exposure's bound, or is cut short, returns at once and never stops OpenVAS: only turning
+// it off or switching the module off does (they send their own Down).
+func TestExposureGreenbone_ASlowFeedUpdateLeavesOpenVASUp(t *testing.T) {
 	t.Parallel()
-	ctx, cancel := context.WithCancel(t.Context())
-	stopped := make(chan struct{})
-	f := &fakeGBHost{}
-	f.run = func(command string) (api.Run, error) {
-		if command == api.CmdGreenboneDown {
-			close(stopped)
-			return api.Run{Status: api.StatusSucceeded}, nil
+	for name, end := range map[string]error{"deadline": context.DeadlineExceeded, "cancelled": context.Canceled} {
+		ctx, cancel := context.WithCancelCause(t.Context())
+		f := &fakeGBHost{}
+		f.run = func(string) (api.Run, error) {
+			cancel(end) // exposure's 60 minutes end (or a stop) while the host still pulls
+			return api.Run{Status: api.StatusRunning}, end
 		}
-		cancel() // the update is cut short while the host still pulls
-		return api.Run{Status: api.StatusRunning}, context.Canceled
+		if err := gbHostFor(f, "/nonexistent").SyncFeed(ctx); err == nil {
+			t.Errorf("%s: no error", name)
+		}
+		if got := f.Calls(); len(got) != 1 || got[0] != "greenbone.sync_feed exposure:openvas" {
+			t.Errorf("%s: calls %q, want the feed update only (no down)", name, got)
+		}
 	}
-	if err := gbHostFor(f, "/nonexistent").SyncFeed(ctx); !errors.Is(err, context.Canceled) {
-		t.Fatalf("%v, want canceled", err)
-	}
-	<-stopped
 }
 
 // Dial: no socket yet is "starting" (exposure then reads its state as starting within the grace); a socket gives the login.

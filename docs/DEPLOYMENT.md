@@ -109,7 +109,7 @@ Registry: `ghcr.io/knt048/vedette-<service>`, hằng trong `vedette-host` (D-57 
 | Volume | `vedette-creds-active` → `/var/lib/vedette-creds` **chỉ đọc**; tmpfs cho đầu ra tạm; không volume bền |
 | Health check | `vedette-sensor healthcheck` (D-137): như `sensor` (§2.2): tệp heartbeat của vai `active` còn trẻ hơn 60 s (heartbeat 30 s; poll job không tính, heartbeat là nhịp của liên kết) |
 
-`greenbone` (tuỳ chọn; khách thấy tên **OpenVAS**; đã xây ở D-529 cho quét sâu của External exposure, exposure INV-25): **không** phải unit Quadlet mà là dự án compose chính thức của Greenbone (`greenbone-community-edition`), `vedette-host` chạy bằng `podman compose` (host-api §6.16): tệp chính thức ghim digest + override của Vedette (`deploy/greenbone`, cài vào `/usr/lib/vedette/greenbone/`); giao diện web của Greenbone (gsa, gsad, nginx) không chạy nên không cổng nào publish; `core` nói chuyện với `gvmd` bằng GMP qua socket ở thư mục host `/run/vedette-greenbone/gvmd` (unit `core` mount `/run/vedette-greenbone` chỉ đọc); mật khẩu GMP ở `core/secrets`. GPL/AGPL: container riêng, ảnh không sửa (D-55). Quét có đăng nhập (S-SCAN-5) vẫn chưa xây.
+`greenbone` (tuỳ chọn; khách thấy tên **OpenVAS**; đã xây ở D-529 cho quét sâu của External exposure, exposure INV-25): **không** phải unit Quadlet mà là dự án compose chính thức của Greenbone (`greenbone-community-edition`), `vedette-host` chạy bằng `podman compose` (host-api §6.16): tệp chính thức ghim digest + override của Vedette (`deploy/greenbone`, cài vào `/usr/lib/vedette/greenbone/`); giao diện web của Greenbone (gsa, gsad, nginx) không chạy nên không cổng nào publish; `core` nói chuyện với `gvmd` bằng GMP qua socket ở thư mục host `/run/vedette-greenbone/gvmd` (unit `core` mount `/run/vedette-greenbone` chỉ đọc; thư mục đó `0750` root, nhóm của `core`, nên chỉ root và `core` tới được socket); mật khẩu GMP ở `core/secrets`. `vedette-host` bật `podman.socket` (API của podman, chỉ root) khi nó chưa bật và gỡ cài đặt tắt lại đúng trường hợp đó. GPL/AGPL: container riêng, ảnh không sửa (D-55). Quét có đăng nhập (S-SCAN-5) vẫn chưa xây.
 
 ### 2.5 Giới hạn tài nguyên và health (đề xuất, cho hộp 4 nhân / 8 GB)
 
@@ -274,7 +274,7 @@ Volume=/var/lib/vedette-honeypot/config:/var/lib/vedette/honeypot/config
 Volume=vedette-hp-log.volume:/var/lib/vedette/honeypot/log:ro,noexec
 # cả thư mục, không phải tệp socket: bind-mount một tệp giữ inode cũ và mất kết nối khi host tạo lại socket (D-123)
 Volume=/run/vedette:/run/vedette
-# thư mục socket gvmd của OpenVAS (D-529): host tạo nó lúc khởi động, gvmd/ trong đó trước mỗi lần bật; chỉ đọc
+# thư mục socket gvmd của OpenVAS (D-529): host tạo nó lúc khởi động (0750 root, nhóm của core), gvmd/ trong đó trước mỗi lần bật; chỉ đọc
 Volume=/run/vedette-greenbone:/run/vedette-greenbone:ro
 # bó khoá của sensor (D-110 (4)): đọc-ghi chỉ ở core
 Volume=vedette-creds-passive.volume:/var/lib/vedette-creds/passive

@@ -11,9 +11,10 @@
 # deploy/containers/pins.env with Greenbone's tag kept before the digest (the test keeps them equal). To bump: the Docker-Content-Digest of the tag's index from
 # registry.community.greenbone.net (a registry manifest request, no pull), here and in pins.env, then the N100 walk of D-529.
 # The seven feed data images (vulnerability-tests, notus-data, scap-data, cert-bund-data, dfn-cert-data, data-objects, report-formats)
-# keep Greenbone's tag on purpose: they carry data, not code, and the weekly feed update (greenbone.sync_feed) pulls their new
-# versions; a digest would freeze the feed. The vulnerability tests stay checked against Greenbone's signing key, which comes in the
-# pinned gpg-data image.
+# keep Greenbone's tag on purpose: the weekly feed update (greenbone.sync_feed) pulls their new versions, and a digest would freeze the
+# feed. They are trusted as upstream's own install trusts them: Greenbone's registry over TLS, nothing more. They run their own entry
+# point and write the vulnerability tests (NASL) that ospd-openvas runs; whether openvas checks the tests' signatures (with the key of the
+# pinned gpg-data image) depends on its nasl_no_signature_check setting, which is still to be read on a box (D-529, deferred).
 name: greenbone-community-edition
 
 services:

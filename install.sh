@@ -1092,6 +1092,15 @@ remove_zap_fence() {
 	fi
 }
 
+# remove_podman_socket: podman's API socket, which vedette-host enables for OpenVAS's provider (D-529), disabled again only when
+# vedette-host's marker says it was vedette-host that enabled it (an administrator's own enable stays theirs). OpenVAS's containers,
+# which stay (D-529), keep running without it; only managing them through podman's API needs it again
+remove_podman_socket() {
+	[ -e "$HOST_STATE/greenbone-podman-socket.enabled" ] || return 0
+	systemctl disable --now podman.socket >/dev/null 2>&1 || warn "could not disable podman.socket, which Vedette enabled for OpenVAS (systemctl disable --now podman.socket)"
+	rm -f "$HOST_STATE/greenbone-podman-socket.enabled"
+}
+
 # remove_subid <file> <state name>: the line the package added, and the file if the package made it; never the administrator's own line
 remove_subid() {
 	[ -e "$1" ] && [ -e "$STATE/$2-added" ] || return 0
@@ -1383,6 +1392,7 @@ do_uninstall() {
 	fi
 	# the egress fence of a passive web scan the host did not get to clean up (zap.baseline, D-521), after its container
 	remove_zap_fence
+	remove_podman_socket
 	if have podman; then
 		for v in vedette-creds-passive vedette-creds-active vedette-hp-log; do
 			remove_ours volume "$v"
@@ -1476,7 +1486,8 @@ do_uninstall() {
 	if [ -n "$KEEP_PODMAN" ] && [ -n "$PODMAN_OURS" ] && { installed_pkg podman || have podman; }; then
 		say "kept podman, the packages it runs with and /var/lib/containers: $KEEP_PODMAN"
 		[ -z "$KEPT_MANUAL" ] || say "  marked$KEPT_MANUAL as installed by hand (apt-mark manual), so apt autoremove keeps them"
-		[ -n "$KEEP_DATA" ] || say "  to remove podman too, once nothing else needs it: podman system reset, then apt-get purge podman, then apt-get autoremove"
+		# never suggest wiping podman's storage: it may hold OpenVAS's feed and database volumes, which stay (D-529, review r1 L5)
+		[ -n "$KEEP_DATA" ] || say "  to remove podman too, first remove what still uses it yourself (podman ps -a, podman volume ls, podman images; OpenVAS's feed and database are volumes), then apt-get purge podman, then apt-get autoremove"
 	fi
 	say "Vedette is removed."
 }

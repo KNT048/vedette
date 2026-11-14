@@ -230,7 +230,10 @@ type Ops struct {
 	gbSem    chan struct{}
 	gbMu     sync.Mutex
 	gbCancel func()
+	gbGen    uint64 // bumped by every greenbone.down: an up or feed update that waited from before it gives up (guarded by gbMu)
 	gbExec   zapExecFn
+	// gbOnQueue, internal tests only, is called by an up or feed update once it has its generation, before it waits for the slot.
+	gbOnQueue func()
 }
 
 // Notifier is what Ops needs from the server once it runs: an audit line for things the host does

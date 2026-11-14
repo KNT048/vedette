@@ -8,7 +8,6 @@ import (
 	"io/fs"
 	"net"
 	"os"
-	"time"
 
 	"github.com/knt048/vedette/host/api"
 	hostclient "github.com/knt048/vedette/host/client"
@@ -39,7 +38,6 @@ const (
 	gbSecretPurpose = "exposure_greenbone.gmp_password"
 	gbSecretSize    = 24
 	gbActor         = "exposure:openvas"
-	gbDownAfterStop = 5 * time.Minute // the stop a cancelled feed update sends, on its own context
 )
 
 // The sentences exposure shows of the host side (after "Greenbone could not be started: " and the like).
@@ -106,16 +104,13 @@ func (g exposureGreenbone) Down(ctx context.Context) error {
 	return g.run(ctx, api.CmdGreenboneDown, nil)
 }
 
-// SyncFeed is Greenbone's feed update. When ctx ends first (OpenVAS turned off, the box or the module stopping), it returns at once
-// and asks the host to stop OpenVAS, which ends the pull that runs there (exposure INV-25, D-564 G6: no pull after a stop).
+// SyncFeed is Greenbone's feed update. When ctx ends first it returns at once and never stops OpenVAS itself (review r1 M2: a slow
+// pull past exposure's 60 minutes must not switch an enabled OpenVAS off): turning OpenVAS off and switching the module off send their
+// own Down, and the host's down cancels the pull that runs there (exposure INV-25, D-564 G6). When only the box stops, the host
+// finishes the pull on its own bound.
 func (g exposureGreenbone) SyncFeed(ctx context.Context) error {
 	err := g.run(ctx, api.CmdGreenboneSyncFeed, nil)
 	if ctx.Err() != nil {
-		go func() { // the stop outlives the cancelled update on purpose, bounded by gbDownAfterStop
-			dctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), gbDownAfterStop)
-			defer cancel()
-			_ = g.Down(dctx)
-		}()
 		return ctx.Err()
 	}
 	return err

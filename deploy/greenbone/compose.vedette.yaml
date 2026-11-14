@@ -6,7 +6,9 @@
 #    the project's volume gvmd_socket_vol (compose merges a service's volumes by their target, so this entry replaces that one).
 #    vedette-host makes the directory (0755, owned by gvmd's fixed uid 1001 of Greenbone's gvmd image) before every start; core's
 #    Quadlet unit mounts its parent /run/vedette-greenbone, which the host makes at its own start, so core never depends on a volume
-#    compose creates and starts normally while OpenVAS is off. gvmd listens with mode 666 (GVMD_ARGS of Greenbone's start-gvmd).
+#    compose creates and starts normally while OpenVAS is off. gvmd listens with mode 666 (GVMD_ARGS of Greenbone's start-gvmd), so the
+#    parent is what keeps others out: 0750, root, core's group. Only root and core reach the socket; gvmd does not need the parent
+#    (the runtime bind-mounts gvmd/ straight onto /run/gvmd), and a host account that happens to have uid 1001 cannot reach gvmd/.
 # 2. Only what Vedette uses runs (kien, LEAN-1). Vedette talks GMP to gvmd over that socket; Greenbone's web interface and its
 #    helpers are never started, so nothing of Greenbone listens on a port of the box (the official nginx publishes 443 and 9392):
 #      gsa         the web interface's static files, copied into a volume for nginx;

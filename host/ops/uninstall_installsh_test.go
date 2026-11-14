@@ -461,8 +461,8 @@ func TestInstallSh_UninstallNeverForcesOutSomeoneElsesContainer(t *testing.T) {
 	if i < 0 || j < i {
 		t.Fatalf("do_uninstall has no removal of the network and volumes before podman_stays:\n%s", body)
 	}
-	out, err := runInstallShFns(t, dir, []string{"FAKE=" + dir, "TMP=" + t.TempDir(), "ZAP_IMAGE=" + ops.ZapImage},
-		[]string{"remove_ours", "rmi_ours", "others_use", "remove_images", "pm", "remove_zap", "remove_zap_fence"}, body[i:j])
+	out, err := runInstallShFns(t, dir, []string{"FAKE=" + dir, "TMP=" + t.TempDir(), "ZAP_IMAGE=" + ops.ZapImage, "HOST_STATE=" + t.TempDir()},
+		[]string{"remove_ours", "rmi_ours", "others_use", "remove_images", "pm", "remove_zap", "remove_zap_fence", "remove_podman_socket"}, body[i:j])
 	if err != nil {
 		t.Fatalf("removal: %v\n%s", err, out)
 	}

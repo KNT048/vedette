@@ -9264,6 +9264,64 @@
         }
       }
     },
+    "/core/data/key": {
+      "post": {
+        "operationId": "core_post_core_data_key",
+        "summary": "Download the decryption key once, to keep apart from the backups (D-518): without it a backup restores on another box with its saved secrets and two-step sign-in lost. The current password (400 wrong_password, counted like a failed sign-in, 429 rate_limited) and, when two-step sign-in is on, a fresh code (400 code_required / invalid_code), as for the purge; audited (data.key_download). The 32 bytes of vedette.key, never logged",
+        "tags": [
+          "core"
+        ],
+        "x-stories": [
+          "S-CORE-1"
+        ],
+        "x-min-role": "admin",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "password": {
+                    "type": "string"
+                  },
+                  "code": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "password"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "File download",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/core/data/purge": {
       "post": {
         "operationId": "core_post_core_data_purge",
@@ -15055,6 +15113,270 @@
                     "modules",
                     "install",
                     "lan"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/core/setup/restore": {
+      "get": {
+        "operationId": "core_get_core_setup_restore",
+        "summary": "The first-run restore while setup is open: running, or how it ended (reverted, failed); null before one. Once setup is done it is done (a restore that succeeded brings an organization that finished setup), whoever finished setup: nothing more than GET /setup says",
+        "tags": [
+          "core"
+        ],
+        "x-stories": [
+          "S-CORE-1"
+        ],
+        "x-min-role": "public",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "running",
+                            "done",
+                            "reverted",
+                            "failed"
+                          ],
+                          "description": "reverted = the restored data did not start, so the box put back the fresh install"
+                        },
+                        "error": {
+                          "description": "Only when not done: why, in words",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "status",
+                        "error"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "core_post_core_setup_restore",
+        "summary": "First-run restore, step 2 (D-518): restore the uploaded backup as the box's data, with the setup code. With key (the key file downloaded from Settings -> Data, base64) the saved secrets and two-step sign-in come back; a key that is not 32 bytes is 400 invalid_key, one that opens none of the backup's secrets 400 wrong_key, before anything changes. Without key, a backup that holds secrets needs confirm_without_key: true (409 confirm_required). 404 upload_unknown when the upload is gone (older than an hour); 409 already_setup, busy, low_disk, schema_newer, not_appliance as for a restore",
+        "tags": [
+          "core"
+        ],
+        "x-stories": [
+          "S-CORE-1"
+        ],
+        "x-min-role": "public",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "setup_code": {
+                    "type": "string"
+                  },
+                  "upload_id": {
+                    "type": "string"
+                  },
+                  "key": {
+                    "description": "The decryption key file, base64",
+                    "type": "string"
+                  },
+                  "confirm_without_key": {
+                    "description": "Required (true) without key when the backup holds secrets: they are lost and two-step users cannot sign in",
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "setup_code",
+                  "upload_id"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "running",
+                        "done",
+                        "reverted",
+                        "failed"
+                      ],
+                      "description": "reverted = the restored data did not start, so the box put back the fresh install"
+                    },
+                    "error": {
+                      "description": "Only when not done: why, in words",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/core/setup/restore/upload": {
+      "post": {
+        "operationId": "core_post_core_setup_restore_upload",
+        "summary": "First-run restore, step 1 (D-518): upload a backup downloaded from Settings -> Data (the .tar.gz as the body). Only before setup is done (409 already_setup) and with the setup code (403 invalid_setup_code, 429 rate_limited like setup). The box checks the file (400 not_a_backup: not a Vedette backup, damaged, or of a box never set up; 409 schema_newer: made by a newer Vedette), keeps it for an hour and says what it holds and what the decryption key changes. 409 not_appliance on a container-only install, 409 busy while another upload is checked, 409 low_disk, 413 over 4 GiB",
+        "tags": [
+          "core"
+        ],
+        "x-stories": [
+          "S-CORE-1"
+        ],
+        "x-min-role": "public",
+        "security": [],
+        "parameters": [
+          {
+            "name": "X-Setup-Code",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "description": "The setup code from the box's log, as for POST /core/setup",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/octet-stream": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "description": "The uploaded backup, kept on the box for an hour; POST /core/setup/restore names it"
+                    },
+                    "created_at": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                      "description": "When the backup was made (its manifest)"
+                    },
+                    "org": {
+                      "type": "string",
+                      "description": "The organization the backup holds"
+                    },
+                    "users": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991,
+                      "description": "Active accounts"
+                    },
+                    "twofa_users": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991,
+                      "description": "Active accounts that sign in with two-step: without the decryption key they cannot sign in"
+                    },
+                    "admins_without_key": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991,
+                      "description": "Active administrators who can still sign in when the restore has no decryption key (password sign-in, no two-step); 0 = nobody could run the box without the key"
+                    },
+                    "secrets": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991,
+                      "description": "Saved secrets (AI and feed keys, channel passwords, tokens, two-step keys): without the key they must be entered again"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "created_at",
+                    "org",
+                    "users",
+                    "twofa_users",
+                    "admins_without_key",
+                    "secrets"
                   ],
                   "additionalProperties": false
                 }

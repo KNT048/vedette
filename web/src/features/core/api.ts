@@ -1,11 +1,11 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { api, ApiError } from '@/lib/api'
+import { api, ApiError, download } from '@/lib/api'
 import type { InstallKind, ModuleId } from '@/lib/modules'
 import type { Role } from '@/lib/session'
 import type {
   Account, AdminUser, AuditQuery, AuditResult, AuthOptions, GeneralSettings, McpState, McpTokenCreated, OidcConfig, OidcSave, PrivacyState, SetupModule, SetupPayload, SetupStatus, TotpStart, EmailCodeSent,
   UpdateChannel, UpdatesState, MaintenanceWindow, OsRebootBody, OsRun, OsState,
-  BoxBackups, RestoreRun,
+  BoxBackups, RestoreRun, BackupUpload, SetupRestoreRun,
   NetworkState, IfaceRole, ManagementBody, SpanConfig, SpanStatus, NtpConfig, Connector, ConnectorInput, ConnectorTestResult,
 } from './types'
 
@@ -26,6 +26,17 @@ export function useSubmitSetup() {
     onSuccess: async () => { qc.removeQueries({ queryKey: ['me'] }); await qc.invalidateQueries() },
   })
 }
+
+// ---- khôi phục từ tệp sao lưu ở lần cài đầu (S-CORE-1, D-518) ----
+export const useUploadBackup = () => useMutation({ mutationFn: (v: { code: string; file: File }) => api.upload<BackupUpload>('/core/setup/restore/upload', v.file, { 'X-Setup-Code': v.code.trim() }) })
+export const useSetupRestore = () => useMutation({ mutationFn: (v: { setup_code: string; upload_id: string; key?: string; confirm_without_key?: boolean }) => api.post<SetupRestoreRun>('/core/setup/restore', v) })
+/** Polled while the first-run restore runs. Vedette restarts during it, so a failed poll keeps polling; done once the restored
+ * organization is there. */
+export const useSetupRestoreRun = (enabled: boolean) => useQuery({
+  queryKey: ['core', 'setup-restore'], enabled, retry: false,
+  queryFn: () => api.get<SetupRestoreRun | null>('/core/setup/restore'),
+  refetchInterval: (q) => (q.state.data?.status === 'done' || q.state.data?.status === 'reverted' || q.state.data?.status === 'failed' ? false : 3000),
+})
 
 // ---- đăng nhập ----
 export const useAuthOptions = () => useQuery({ queryKey: ['core', 'auth-options'], queryFn: () => api.get<AuthOptions>('/core/auth-options'), retry: false })
@@ -189,8 +200,23 @@ export async function saveInventoryScope(lan: string[], scopeConfirmed: boolean)
 
 // ---- khôi phục sao lưu trên hộp (S-CORE-1, D-377) ----
 export const useBoxBackups = () => useQuery({ queryKey: ['core', 'backups'], queryFn: () => api.get<BoxBackups>('/core/data/backups'), retry: false })
-/** Polled while a restore runs: Vedette restarts during it, so a failed poll is retried, not shown. */
-export const useRestoreRun = () => useQuery({ queryKey: ['core', 'restore-run'], queryFn: () => api.get<RestoreRun | null>('/core/data/restore/run'), refetchInterval: (q) => (q.state.data?.status === 'running' ? 3000 : false) })
+/** Polled while a restore runs: Vedette restarts during it, so a failed poll is retried, not shown. The host makes the Before
+ * restore copy during the run, so the list of backups is read again when a run this page saw running ends (A13-1). */
+export const useRestoreRun = () => {
+  const qc = useQueryClient()
+  return useQuery({
+    queryKey: ['core', 'restore-run'],
+    queryFn: async () => {
+      const before = qc.getQueryData<RestoreRun | null>(['core', 'restore-run'])
+      const run = await api.get<RestoreRun | null>('/core/data/restore/run')
+      if (before?.status === 'running' && run && run.status !== 'running') void qc.invalidateQueries({ queryKey: ['core', 'backups'] })
+      return run
+    },
+    refetchInterval: (q) => (q.state.data?.status === 'running' ? 3000 : false),
+  })
+}
+/** The decryption key, once, behind the password and two-step code (D-518). */
+export const useDownloadKey = () => useMutation({ mutationFn: (v: { password: string; code?: string }) => download('/core/data/key', 'vedette.key', v) })
 export const useRestore = () => {
   const qc = useQueryClient()
   return useMutation({

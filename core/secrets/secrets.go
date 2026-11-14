@@ -350,6 +350,44 @@ func (s *Store) open(ctx context.Context, q coredb.DBTX, id, purpose string) ([]
 	return pt, nil
 }
 
+// maxCheckedRows bounds CountOpenable on a database that came from outside the box.
+const maxCheckedRows = 10000
+
+// CountOpenable reports how many rows of core_secret in q this store's key decrypts (opened) out of how many it tried
+// (total, at most 10000). It is for a key file checked against a backup's database before a restore puts it on the box
+// (D-518): no plaintext leaves it, and Restrict and Reserve do not apply, since nothing is read out.
+func (s *Store) CountOpenable(ctx context.Context, q coredb.DBTX) (opened, total int, err error) {
+	// ponytail: a hand-written query (sqlc has no list of every secret); move it to core/store/queries if a second caller needs it.
+	rows, err := q.QueryContext(ctx, `SELECT id, purpose FROM core_secret LIMIT ?`, maxCheckedRows)
+	if err != nil {
+		return 0, 0, fmt.Errorf("secrets: list: %w", err)
+	}
+	type row struct{ id, purpose string }
+	var all []row
+	for rows.Next() {
+		var r row
+		if err := rows.Scan(&r.id, &r.purpose); err != nil {
+			_ = rows.Close()
+			return 0, 0, fmt.Errorf("secrets: list: %w", err)
+		}
+		all = append(all, r)
+	}
+	if err := errors.Join(rows.Err(), rows.Close()); err != nil {
+		return 0, 0, fmt.Errorf("secrets: list: %w", err)
+	}
+	for _, r := range all {
+		_, err := s.open(ctx, q, r.id, r.purpose)
+		switch {
+		case err == nil:
+			opened++
+		case errors.Is(err, ErrDecrypt), errors.Is(err, ErrInvalid), errors.Is(err, ErrNotFound):
+		default:
+			return 0, 0, err
+		}
+	}
+	return opened, len(all), nil
+}
+
 // Replace re-encrypts secret id with a new value (new nonce) and returns the new last4 ("" if none).
 // purpose must match the stored one.
 func (s *Store) Replace(ctx context.Context, tx *sql.Tx, id, purpose string, plaintext []byte, keepLast4 bool) (last4 string, err error) {

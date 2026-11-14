@@ -16,6 +16,7 @@ import { CREDENTIALED_IN_UI } from '@/lib/credentialed'
 import { errMsg } from './parts'
 import { EMAIL_RE, isBareIp, isPrivateCidr, MIN_PASSWORD, normaliseCidr } from './util'
 import type { BundleId, SetupPayload } from './types'
+import { SetupRestore } from './SetupRestore'
 
 // D-462: three steps. Alert channels need credentials the admin often lacks at install time: Settings → Alert channels, and Home reminds until one is on.
 const STEPS = ['account', 'network', 'modules'] as const
@@ -49,13 +50,14 @@ export default function SetupPage() {
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [formError, setFormError] = useState<string | null>(null)
   const [finished, setFinished] = useState(false)
+  const [restoring, setRestoring] = useState(false) // D-518: restore from a backup instead of a new organization
   const heading = useRef<HTMLHeadingElement>(null)
   const idx = STEPS.indexOf(step)
   useEffect(() => { heading.current?.focus() }, [step])
 
   if (status.isPending) return <div className="p-8"><Loading /></div>
   if (status.error) return <div className="p-8"><ErrorState error={status.error} onRetry={() => void status.refetch()} /></div>
-  if (status.data?.complete && !finished) return <Navigate to="/login" replace />
+  if (status.data?.complete && !finished && !restoring) return <Navigate to="/login" replace />
 
   const set = (patch: Partial<State>) => setS((x) => ({ ...x, ...patch }))
 
@@ -139,6 +141,19 @@ export default function SetupPage() {
     try { await submit.mutateAsync({ sample: true }); navigate('/', { replace: true }) } catch (err) { setFinished(false); setFormError(errMsg(err, t)) }
   }
 
+  if (restoring) {
+    return (
+      <main className="mx-auto min-h-dvh w-full max-w-2xl px-4 py-10">
+        <h1 className="text-2xl font-semibold tracking-[-0.01em]">{t('setup.title')}</h1>
+        <section className="mt-6 rounded-md border border-rule bg-surface p-5" aria-labelledby="restore-title">
+          <h2 id="restore-title" className="text-lg font-semibold">{t('setup.restore.title')}</h2>
+          <p className="mt-1 text-sm text-muted">{t('setup.restore.desc')}</p>
+          <SetupRestore install={install} onBack={() => setRestoring(false)} />
+        </section>
+      </main>
+    )
+  }
+
   return (
     <main className="mx-auto min-h-dvh w-full max-w-2xl px-4 py-10">
       <h1 className="text-2xl font-semibold tracking-[-0.01em]">{t('setup.title')}</h1>
@@ -160,6 +175,15 @@ export default function SetupPage() {
             <p className="text-[13px] text-muted">{t('setup.sample.desc')}</p>
           </div>
           <Button onClick={() => void startWithSample()} disabled={submit.isPending}>{t('setup.sample.button')}</Button>
+        </section>
+      ) : null}
+      {step === 'account' ? (
+        <section className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-md border border-rule px-5 py-3" aria-labelledby="restore-entry">
+          <div className="grid max-w-md gap-0.5">
+            <h2 id="restore-entry" className="text-sm font-semibold">{t('setup.restore.entryTitle')}</h2>
+            <p className="text-[13px] text-muted">{t('setup.restore.entryDesc')}</p>
+          </div>
+          <Button onClick={() => setRestoring(true)}>{t('setup.restore.entryButton')}</Button>
         </section>
       ) : null}
       <section className="mt-6 rounded-md border border-rule bg-surface p-5" aria-labelledby="step-title">

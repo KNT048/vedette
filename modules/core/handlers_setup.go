@@ -43,6 +43,11 @@ const (
 
 const defaultTimezone = "Asia/Ho_Chi_Minh" // the column default of core_org.timezone
 
+// firstRunBusy is the 409 of a first-run operation while another runs (D-518).
+func firstRunBusy() *apierr.Error {
+	return apierr.New(409, codeBusy, "A backup is being uploaded or restored on this box, or setup is being finished. Wait for it to end.")
+}
+
 func alreadySetup() *apierr.Error {
 	return apierr.New(409, CodeAlreadySetup, "This box is already set up. Sign in with the administrator account.")
 }
@@ -210,31 +215,17 @@ func (h *APIHandlers) CorePostCoreSetup(ctx context.Context, req *oas.CorePostCo
 	if err != nil {
 		return nil, err
 	}
-	refund, werr := h.auth.BeginSetupAttempt(ip)
-	if werr != nil {
-		return nil, werr
+	// Setup and a first-run restore never overlap (D-518): a restore that ran on would replace the organization just made.
+	if !h.firstRun.TryLock() {
+		return nil, firstRunBusy()
 	}
-	want, ok, err := h.storedSetupCode(ctx)
-	if err != nil {
-		refund() // not a guess: nothing was judged
+	defer h.firstRun.Unlock()
+	if h.restoring != nil && h.restoring(ctx) {
+		return nil, firstRunBusy()
+	}
+	if err := h.CheckSetupCode(ctx, req.SetupCode.Or("")); err != nil {
 		return nil, err
 	}
-	if !ok {
-		// No code is stored: setup finished between the check above and the read (the winner deleted it),
-		// or this box has not made one yet. The loser of a race is told the truth and keeps its guess.
-		if done, err := h.setupDone(ctx); err != nil {
-			refund()
-			return nil, err
-		} else if done {
-			refund()
-			return nil, alreadySetup()
-		}
-		return nil, invalidSetupCode()
-	}
-	if !setupCodesEqual(req.SetupCode.Or(""), want) {
-		return nil, invalidSetupCode()
-	}
-	refund() // the right code gives its count back
 
 	org := strings.TrimSpace(req.Org.Or(""))
 	if !validOrgName(org) {
@@ -343,6 +334,9 @@ func (h *APIHandlers) CorePostCoreSetup(ctx context.Context, req *oas.CorePostCo
 	// After the modules of the bundle are on, so that their listeners of inventory.settings.changed take it.
 	if scopeTx != nil {
 		h.scope.Settle(context.WithoutCancel(ctx), scopeTx, true)
+	}
+	if h.dropUploads != nil {
+		h.dropUploads() // a backup someone uploaded and did not restore is not kept on a box that is set up
 	}
 	setSession(x, sess, "")
 	return &oas.CorePostCoreSetupOK{Ok: true}, nil

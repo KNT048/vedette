@@ -87,6 +87,47 @@ func (h *APIHandlers) storedSetupCode(ctx context.Context) (code string, ok bool
 	return string(b), true, nil
 }
 
+// CheckSetupCode is the gate of every first-run operation (POST /core/setup, and the restore from a backup of D-518): setup
+// must still be open (409 already_setup) and given must be the stored code (403 invalid_setup_code). Every judged guess counts
+// against the client address (auth.BeginSetupAttempt, 429 rate_limited); the right code gives its count back.
+func (h *APIHandlers) CheckSetupCode(ctx context.Context, given string) error {
+	if done, err := h.setupDone(ctx); err != nil {
+		return err
+	} else if done {
+		return alreadySetup()
+	}
+	_, ip, err := exchange(ctx)
+	if err != nil {
+		return err
+	}
+	refund, werr := h.auth.BeginSetupAttempt(ip)
+	if werr != nil {
+		return werr
+	}
+	want, ok, err := h.storedSetupCode(ctx)
+	if err != nil {
+		refund() // not a guess: nothing was judged
+		return err
+	}
+	if !ok {
+		// No code is stored: setup finished between the check above and the read (the winner deleted it),
+		// or this box has not made one yet. The loser of a race is told the truth and keeps its guess.
+		if done, err := h.setupDone(ctx); err != nil {
+			refund()
+			return err
+		} else if done {
+			refund()
+			return alreadySetup()
+		}
+		return invalidSetupCode()
+	}
+	if !setupCodesEqual(given, want) {
+		return invalidSetupCode()
+	}
+	refund() // the right code gives its count back
+	return nil
+}
+
 // EnsureSetupCode is called once at start-up. While setup is open it returns the code (making and storing
 // it the first time); once setup is done it removes any code that is left and returns "". The caller prints
 // a non-empty code in the log: that is the one place the code is meant to be read, the same way the first

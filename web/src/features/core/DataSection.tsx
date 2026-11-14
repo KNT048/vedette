@@ -13,7 +13,7 @@ import { resetMockDb } from '@/mocks/db'
 /** Sample data exists only in the preview (mock) build; a real box answers 400 sample_unavailable, so the release build does not offer to restore it (issue #244). */
 const isPreview = () => import.meta.env.VITE_API_MOCK !== 'off'
 import { useQueryClient } from '@tanstack/react-query'
-import { useBoxBackups, usePurge, useRestore, useRestoreRun } from './api'
+import { useAccount, useBoxBackups, useDownloadKey, usePurge, useRestore, useRestoreRun } from './api'
 import { useInstallKind, useModuleAvailable } from '@/lib/modules'
 import { ContainerBackup, InstallPending } from './ContainerOnly'
 import type { BoxBackup } from './types'
@@ -77,6 +77,7 @@ export default function DataSection() {
         <>
           <Section title={t('data.backup.title')} description={t('data.backup.desc')}>
             <Button disabled={gate.disabled} title={gate.title} onClick={dl('/core/data/backup', `vedette-backup-${day}.tar.gz`)}><Download />{t('data.backup.button')}</Button>
+            <KeyAside disabled={gate.disabled} title={gate.title} />
           </Section>
           <Section title={t('data.restore.title')} description={t('data.restore.desc')}>
             <BoxBackups disabled={gate.disabled} title={gate.title} />
@@ -230,6 +231,51 @@ function BoxBackups({ disabled, title }: { disabled: boolean; title?: string }) 
           <DialogFooter>
             <Button onClick={() => setPick(null)}>{t('common:cancel')}</Button>
             <Button variant="danger" disabled={!sure || !password || restore.isPending} onClick={() => void doRestore()}>{t('data.restore.ask.confirm')}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  )
+}
+
+/** A13-2 (D-518): the downloaded backup has no decryption key, so on another box it cannot bring back saved secrets or two-step
+ * sign-in. The key is downloaded once, behind the password (and two-step code), to keep apart from the backups. */
+function KeyAside({ disabled, title }: { disabled: boolean; title?: string }) {
+  const { t } = useTranslation('core')
+  const me = useMe().data
+  const sso = useAccount().data?.user.sso === true // no Vedette password to confirm with (D-518, deferred)
+  const key = useDownloadKey()
+  const [open, setOpen] = useState(false)
+  const [password, setPassword] = useState('')
+  const [code, setCode] = useState('')
+  const [err, setErr] = useState<string | null>(null)
+  async function save() {
+    setErr(null)
+    try {
+      const file = await key.mutateAsync({ password, ...(code.trim() ? { code: code.trim() } : {}) })
+      setOpen(false)
+      toast.success(t('data.key.saved', { file }))
+    } catch (e) { setErr(errMsg(e, t)) }
+  }
+  return (
+    <div className="mt-4 grid max-w-3xl gap-2 rounded-md border border-rule bg-sunken p-3">
+      <p className="text-sm font-medium">{t('data.key.title')}</p>
+      <p className="text-[13px] text-muted">{t('data.key.desc')}</p>
+      {sso ? <p className="text-[13px]">{t('data.key.sso')}</p> : <div><Button disabled={disabled} title={title} onClick={() => { setErr(null); setPassword(''); setCode(''); setOpen(true) }}><Download />{t('data.key.button')}</Button></div>}
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent title={t('data.key.ask.title')} description={t('data.key.ask.body')}>
+          <Field label={t('data.restore.ask.password')} htmlFor="key-password">
+            <Input id="key-password" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />
+          </Field>
+          {me?.twofa ? (
+            <Field label={t('data.restore.ask.code')} htmlFor="key-code" hint={me.twofa_method === 'email' ? t('data.key.ask.codeEmail') : t('data.purge.ask.codeApp')}>
+              <Input id="key-code" inputMode="numeric" autoComplete="one-time-code" value={code} onChange={(e) => setCode(e.target.value)} />
+            </Field>
+          ) : null}
+          {err ? <p role="alert" className="text-sm text-danger">{err}</p> : null}
+          <DialogFooter>
+            <Button onClick={() => setOpen(false)}>{t('common:cancel')}</Button>
+            <Button variant="primary" disabled={!password || key.isPending} onClick={() => void save()}>{t('data.key.ask.confirm')}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

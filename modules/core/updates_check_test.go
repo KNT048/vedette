@@ -157,7 +157,7 @@ func newUpdEnv(t *testing.T, o osOpts) *updEnv {
 	h, err := core.NewOSHandlers(core.OSConfig{
 		DB: e.env.DB, Auth: e.env.Svc, Audit: e.env.Audit, Log: e.logger(), Host: host,
 		DataDir: e.m.CoreData, KeyPath: filepath.Join(e.m.CoreData, "vedette.key"),
-		Zone: e.h.OrgTimeZone, Clock: e.clock.Now, Gate: e.purgeGate,
+		Zone: e.h.OrgTimeZone, Setup: e.h, Clock: e.clock.Now, Gate: e.purgeGate,
 		Version: version, ReleaseBase: base, HTTPClient: e.srv.Client(), Trust: e.srv.rel.Keys, Wake: o.wake,
 	})
 	if err != nil {

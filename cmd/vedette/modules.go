@@ -154,7 +154,7 @@ type moduleWiring struct {
 // (core first). TestWiredModulesFollowDependencies checks the order against the manifests.
 func wiredModules() []moduleWiring {
 	return []moduleWiring{
-		{ID: "core", Migrations: core.Migrations, Jobs: coreJobs},
+		{ID: "core", Migrations: core.Migrations, Jobs: coreJobs, BodyLimits: core.BodyLimits},
 		{ID: "auth-oidc", Migrations: authoidc.Migrations}, // depends on core only (MANIFEST); no job: a pending flow is pruned at the next start
 		{ID: "feeds", Migrations: feeds.Migrations, Jobs: feedsJobs, BodyLimits: feeds.BodyLimits},
 		{ID: "inventory", Migrations: inventory.Migrations, Jobs: inventoryJobs},

@@ -468,6 +468,10 @@
       "data.restore": "Restore a backup kept on the box",
       "data.restore_failed": "Restore of a backup refused",
       "data.restore_done": "Restore of a backup ended",
+      "data.restore_upload": "Upload a backup on a new box",
+      "data.restore_import": "Store an uploaded backup on the box",
+      "data.restore_import_failed": "Storing an uploaded backup failed",
+      "data.key_download": "Download the decryption key",
       "exposure.box_ip_settings": "Change how the box public address is found",
       "exposure.commitment": "Confirm scan permission for the public address",
       "exposure.ip_ignore": "Ignore public address",
@@ -1129,6 +1133,19 @@
       "desc": "Settings, users (with their password hashes, never the passwords themselves), modules, devices, findings and the log. No AI keys or tokens. Keep the file as safe as the box: the hashes could be attacked offline.",
       "button": "Download backup"
     },
+    "key": {
+      "title": "Keep the decryption key apart",
+      "desc": "The backup file has no decryption key. On another box it brings back your devices, findings, users and settings, but not the saved secrets (AI and feed keys, alert channel passwords, tokens), and users with two-step sign-in cannot sign in. Download the key once and keep it somewhere other than your backups, like an emergency kit: with both files a new box comes back whole.",
+      "button": "Download decryption key",
+      "sso": "You sign in with single sign-on, so there is no Vedette password to confirm this download with. An administrator who signs in with a password can download the key.",
+      "saved": "Saved {{file}}. Keep it apart from your backups: whoever has both can read the saved secrets.",
+      "ask": {
+        "title": "Download the decryption key?",
+        "body": "Anyone with this key and a backup can read the saved secrets. Keep it offline, away from the backups. The download is recorded in the audit log.",
+        "codeEmail": "Click Download once to get a code by email, then type it here and click again.",
+        "confirm": "Download"
+      }
+    },
     "restore": {
       "title": "Backups on this box",
       "desc": "Copies the operating system helper keeps on the box: the ones you made and the ones the box takes by itself before an operating system install, a Vedette update or a restore. Restoring one puts the box's data back to that moment.",
@@ -1454,6 +1471,46 @@
       "title": "Just want a look?",
       "desc": "Use sample data: 30 made-up devices, a few findings, and you are signed in at once as the sample administrator. Restore or delete it in Settings, Data.",
       "button": "Use sample data"
+    },
+    "restore": {
+      "entryTitle": "Moving to a new box?",
+      "entryDesc": "Restore from a backup you downloaded in Settings, Data on your old box, instead of creating a new organization.",
+      "entryButton": "Restore from a backup",
+      "title": "Restore from a backup",
+      "desc": "Your organization, users, devices, findings and settings come back as they were in the backup. You sign in with your password from the old box.",
+      "file": "Backup file",
+      "fileHint": "The vedette-backup-<date>.tar.gz file that Download backup saved.",
+      "fileMissing": "Choose the backup file.",
+      "key": "Decryption key file (optional)",
+      "keyHint": "The vedette-key-<date>.key file that Download decryption key saved. With it, saved secrets and two-step sign-in come back.",
+      "keyBad": "This is not a Vedette decryption key file.",
+      "noKey": {
+        "title": "Without the decryption key:",
+        "secrets": "Saved secrets (AI and feed keys, alert channel passwords, tokens) are lost and must be entered again.",
+        "twofa": "Users who sign in with two-step cannot sign in until an administrator resets it in Settings, Users."
+      },
+      "check": "Check the backup",
+      "checking": "Uploading and checking…",
+      "checkedLabel": "What the backup holds",
+      "checked": "Backup of {{org}}, made {{when}}, with {{users}} active users.",
+      "withKey": "The key file is checked against the backup when you restore.",
+      "keyNotNeeded": "This backup holds no saved secrets, so the key file is not needed: the box keeps its own key.",
+      "lost": {
+        "secrets": "{{n}} saved secrets will be lost and must be entered again.",
+        "twofa": "{{n}} users sign in with two-step and will not be able to sign in.",
+        "noAdmin": "No administrator could sign in after this restore: every one uses two-step sign-in or single sign-on. Add the key file. Without it, the box is not usable until an administrator is reset from the box console (RUNBOOK, section 7)."
+      },
+      "understand": "I understand that without the key these are lost",
+      "restore": "Restore",
+      "importing": "Storing the backup…",
+      "running": "Restoring the backup of {{org}}. Vedette restarts during the restore; this page reconnects by itself.",
+      "reconnect": "Waiting for Vedette to come back. If this stays for more than two minutes, reload the page: after a restore the box may show a new certificate, which you accept as on your first visit.",
+      "done": "Your data is back. Sign in with your email and password from the old box.",
+      "signIn": "Go to sign in",
+      "reverted": "The restored data did not start correctly, so the box went back to a fresh install. Nothing was lost; check the backup file and try again.",
+      "failed": "The restore failed: {{error}}",
+      "again": "Try again",
+      "container": "A container-only install has no system helper, so it cannot restore a backup here. Your backup is the copy of the vedette_data volume (it includes the key): restore it with the commands below, from docs/INSTALL-CONTAINER.md section 6, then open this page again."
     }
   },
   "preview": {

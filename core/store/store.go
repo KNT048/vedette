@@ -462,8 +462,12 @@ var migrationTableRE = regexp.MustCompile(`^core_migration_[a-z][a-z0-9_]{0,40}$
 // SchemaVersions reports the highest applied migration of every module as "module=version,..." sorted by
 // module, in the grammar of the backup manifest (docs/specs/host-api.md 6.11): the module is the part of the
 // goose table name after core_migration_ (a module id has hyphens, the table has underscores).
-func (db *DB) SchemaVersions(ctx context.Context) (string, error) {
-	rows, err := db.r.QueryContext(ctx, "SELECT name FROM sqlite_master WHERE type = 'table' AND name GLOB 'core_migration_*' ORDER BY name")
+func (db *DB) SchemaVersions(ctx context.Context) (string, error) { return SchemaVersionsOf(ctx, db.r) }
+
+// SchemaVersionsOf is SchemaVersions of any database handle: a backup a person uploaded is read with it before it is
+// restored (D-518), so a backup made by a newer Vedette is refused with words instead of a core that does not start.
+func SchemaVersionsOf(ctx context.Context, q *sql.DB) (string, error) {
+	rows, err := q.QueryContext(ctx, "SELECT name FROM sqlite_master WHERE type = 'table' AND name GLOB 'core_migration_*' ORDER BY name")
 	if err != nil {
 		return "", fmt.Errorf("store: list migration tables: %w", err)
 	}
@@ -486,7 +490,7 @@ func (db *DB) SchemaVersions(ctx context.Context) (string, error) {
 		}
 		var v sql.NullInt64
 		// t matched migrationTableRE: lower-case letters, digits and underscores, safe to quote as an identifier.
-		if err := db.r.QueryRowContext(ctx, `SELECT max(version_id) FROM "`+t+`" WHERE is_applied`).Scan(&v); err != nil {
+		if err := q.QueryRowContext(ctx, `SELECT max(version_id) FROM "`+t+`" WHERE is_applied`).Scan(&v); err != nil {
 			return "", fmt.Errorf("store: read %s: %w", t, err)
 		}
 		if v.Valid && v.Int64 > 0 {
@@ -494,6 +498,29 @@ func (db *DB) SchemaVersions(ctx context.Context) (string, error) {
 		}
 	}
 	return strings.Join(pairs, ","), nil
+}
+
+// SchemaObjectsOf reports the triggers, views and virtual tables of a database, "type name" -> its SQL with runs of white space
+// made one space. They are the objects that run code of the file's own when the database is used: a backup a person uploads must
+// have exactly the ones this software's migrations make (D-518).
+func SchemaObjectsOf(ctx context.Context, q *sql.DB) (map[string]string, error) {
+	rows, err := q.QueryContext(ctx, `SELECT type, name, coalesce(sql, '') FROM sqlite_master WHERE type IN ('trigger', 'view') OR (type = 'table' AND sql LIKE 'CREATE VIRTUAL%')`)
+	if err != nil {
+		return nil, fmt.Errorf("store: list schema objects: %w", err)
+	}
+	out := map[string]string{}
+	for rows.Next() {
+		var typ, name, text string
+		if err := rows.Scan(&typ, &name, &text); err != nil {
+			_ = rows.Close()
+			return nil, fmt.Errorf("store: list schema objects: %w", err)
+		}
+		out[typ+" "+name] = strings.Join(strings.Fields(text), " ")
+	}
+	if err := errors.Join(rows.Err(), rows.Close()); err != nil {
+		return nil, fmt.Errorf("store: list schema objects: %w", err)
+	}
+	return out, nil
 }
 
 var moduleRE = regexp.MustCompile(`^[a-z][a-z0-9-]{0,31}$`)
@@ -505,6 +532,16 @@ var ErrMigration = errors.New("store: invalid migration")
 // core_migration_<module>. Migrations are forward-only: a file with a Down section is refused.
 // Running it again changes nothing.
 func Migrate(ctx context.Context, db *DB, module string, fsys fs.FS) error {
+	return migrate(ctx, db, module, fsys, -1)
+}
+
+// MigrateTo is Migrate up to version (inclusive): the schema a module had at that version. A backup a person uploads is compared
+// with the schema objects this software's migrations make at the backup's own versions (D-518).
+func MigrateTo(ctx context.Context, db *DB, module string, fsys fs.FS, version int64) error {
+	return migrate(ctx, db, module, fsys, version)
+}
+
+func migrate(ctx context.Context, db *DB, module string, fsys fs.FS, upTo int64) error {
 	if !moduleRE.MatchString(module) {
 		return fmt.Errorf("%w: module id %q must match %s", ErrMigration, module, moduleRE)
 	}
@@ -516,7 +553,12 @@ func Migrate(ctx context.Context, db *DB, module string, fsys fs.FS) error {
 	if err != nil {
 		return fmt.Errorf("store: migrate %s: %w", module, err)
 	}
-	results, err := p.Up(ctx)
+	var results []*goose.MigrationResult
+	if upTo < 0 {
+		results, err = p.Up(ctx)
+	} else {
+		results, err = p.UpTo(ctx, upTo)
+	}
 	for _, r := range results {
 		db.log.InfoContext(ctx, "migration applied", "module", module, "version", r.Source.Version,
 			"file", r.Source.Path, "duration", r.Duration.Round(time.Millisecond))

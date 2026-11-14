@@ -84,7 +84,7 @@ type osOpts struct {
 
 func newOSEnv(t *testing.T, o osOpts) *osEnv {
 	t.Helper()
-	e := &osEnv{world: newWorld(t), m: opstest.NewMachine(t), clock: servertest.NewClock(time.Date(2026, 11, 9, 12, 0, 0, 0, time.UTC))}
+	e := &osEnv{world: newWorldWith(t, func(hc *core.HandlersConfig) { hc.Schema = []core.SchemaSet{{Module: "core", FS: core.Migrations}} }), m: opstest.NewMachine(t), clock: servertest.NewClock(time.Date(2026, 11, 9, 12, 0, 0, 0, time.UTC))}
 	e.free.Store(100 << 30)
 	ho := e.m.Ops(e.clock.Now, func(_ *ops.Config, d *ops.Deps) {
 		d.LockHeld = func(string) (bool, error) { return e.lock.Load(), nil }
@@ -126,7 +126,7 @@ func (e *osEnv) newHandlers(t *testing.T, host core.Host, behind time.Duration) 
 	h, err := core.NewOSHandlers(core.OSConfig{
 		DB: e.env.DB, Auth: e.env.Svc, Audit: e.env.Audit, Log: e.logger(), Host: host,
 		DataDir: e.m.CoreData, KeyPath: filepath.Join(e.m.CoreData, "vedette.key"),
-		Zone: e.h.OrgTimeZone, Clock: func() time.Time { return e.clock.Now().Add(-behind) }, Gate: e.purgeGate,
+		Zone: e.h.OrgTimeZone, Setup: e.h, Clock: func() time.Time { return e.clock.Now().Add(-behind) }, Gate: e.purgeGate,
 		Installed: func() { e.installed.Add(1) },
 	})
 	if err != nil {
@@ -135,7 +135,7 @@ func (e *osEnv) newHandlers(t *testing.T, host core.Host, behind time.Duration) 
 	t.Cleanup(h.Close)
 	api, err := server.New(server.Config{
 		API:  fullOSAPI{Fallback: server.Fallback{Log: e.logger()}, ModuleHandlers: core.NewModuleHandlers(e.env.DB, e.reg), APIHandlers: e.h, OSHandlers: h},
-		Auth: e.env.Svc.Sessions, Modules: e.reg, Log: e.logger(),
+		Auth: e.env.Svc.Sessions, Modules: e.reg, Log: e.logger(), BodyLimits: core.BodyLimits,
 	})
 	if err != nil {
 		t.Fatal(err)

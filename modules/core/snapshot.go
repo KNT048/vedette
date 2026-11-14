@@ -94,11 +94,10 @@ func (s *snapshotter) create(ctx context.Context, withKey bool) (snap snapshot, 
 			return snapshot{}, errLowDisk
 		}
 	}
-	var raw [16]byte
-	if _, err := rand.Read(raw[:]); err != nil {
-		return snapshot{}, fmt.Errorf("core: snapshot id: %w", err)
+	id, err := newSnapshotID()
+	if err != nil {
+		return snapshot{}, err
 	}
-	id := hex.EncodeToString(raw[:])
 	dir := filepath.Join(s.dir, id)
 	meta := filepath.Join(s.dir, id+".meta") // written beside the directory, renamed in as the last step: the host never sees half a file
 	if err := os.Mkdir(dir, 0o700); err != nil {
@@ -122,21 +121,41 @@ func (s *snapshotter) create(ctx context.Context, withKey bool) (snap snapshot, 
 	if err != nil {
 		return snapshot{}, err
 	}
+	if err := s.writeMeta(id, schema, withKey); err != nil {
+		return snapshot{}, err
+	}
+	return snapshot{ID: id, dir: dir}, nil
+}
+
+// writeMeta writes snapshot.json of snapshots/<id>/, the last file of a snapshot: beside the directory first, then renamed
+// in, so the host never sees half a file.
+func (s *snapshotter) writeMeta(id, schema string, withKey bool) error {
+	meta := filepath.Join(s.dir, id+".meta")
 	b, err := json.Marshal(struct {
 		CreatedAt   string `json:"created_at"`
 		DBSchema    string `json:"db_schema"`
 		IncludesKey bool   `json:"includes_key"`
 	}{s.now().UTC().Truncate(time.Second).Format(time.RFC3339), schema, withKey})
 	if err != nil {
-		return snapshot{}, fmt.Errorf("core: snapshot metadata: %w", err)
+		return fmt.Errorf("core: snapshot metadata: %w", err)
 	}
 	if err := os.WriteFile(meta, b, 0o600); err != nil {
-		return snapshot{}, fmt.Errorf("core: snapshot metadata: %w", err)
+		return fmt.Errorf("core: snapshot metadata: %w", err)
 	}
-	if err := os.Rename(meta, filepath.Join(dir, snapshotMetaFile)); err != nil {
-		return snapshot{}, fmt.Errorf("core: snapshot metadata: %w", err)
+	if err := os.Rename(meta, filepath.Join(s.dir, id, snapshotMetaFile)); err != nil {
+		_ = os.Remove(meta)
+		return fmt.Errorf("core: snapshot metadata: %w", err)
 	}
-	return snapshot{ID: id, dir: dir}, nil
+	return nil
+}
+
+// newSnapshotID is a fresh id of snapshots/: 32 lowercase hex characters.
+func newSnapshotID() (string, error) {
+	var raw [16]byte
+	if _, err := rand.Read(raw[:]); err != nil {
+		return "", fmt.Errorf("core: snapshot id: %w", err)
+	}
+	return hex.EncodeToString(raw[:]), nil
 }
 
 // copyKey copies the master key file (at most 4096 bytes) with mode 0600. The key never goes into a snapshot

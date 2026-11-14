@@ -9389,6 +9389,84 @@ func (s *Server) handleCoreGetCoreSetupModulesRequest(args [0]string, argsEscape
 	}
 }
 
+// handleCoreGetCoreSetupRestoreRequest handles core_get_core_setup_restore operation.
+//
+// The first-run restore while setup is open: running, or how it ended (reverted, failed); null before
+// one. Once setup is done it is done (a restore that succeeded brings an organization that finished
+// setup), whoever finished setup: nothing more than GET /setup says.
+//
+// GET /core/setup/restore
+func (s *Server) handleCoreGetCoreSetupRestoreRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err error
+	)
+
+	var rawBody []byte
+
+	var response NilCoreGetCoreSetupRestoreOK
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    CoreGetCoreSetupRestoreOperation,
+			OperationSummary: "The first-run restore while setup is open: running, or how it ended (reverted, failed); null before one. Once setup is done it is done (a restore that succeeded brings an organization that finished setup), whoever finished setup: nothing more than GET /setup says",
+			OperationID:      "core_get_core_setup_restore",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params:           middleware.Parameters{},
+			Raw:              r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = struct{}
+			Response = NilCoreGetCoreSetupRestoreOK
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			nil,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.CoreGetCoreSetupRestore(ctx)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.CoreGetCoreSetupRestore(ctx)
+	}
+	if err != nil {
+		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
+			if err := encodeErrorResponse(errRes, w); err != nil {
+				defer recordError("Internal", err)
+			}
+			return
+		}
+		if errors.Is(err, ht.ErrNotImplemented) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+		if err := encodeErrorResponse(s.h.NewError(ctx, err), w); err != nil {
+			defer recordError("Internal", err)
+		}
+		return
+	}
+
+	if err := encodeCoreGetCoreSetupRestoreResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleCoreGetCoreUpdatesRequest handles core_get_core_updates operation.
 //
 // Versions, new builds, history and security advisories of Vedette.
@@ -12929,6 +13007,151 @@ func (s *Server) handleCorePostCoreConnectionsIDTestRequest(args [1]string, args
 	}
 }
 
+// handleCorePostCoreDataKeyRequest handles core_post_core_data_key operation.
+//
+// Download the decryption key once, to keep apart from the backups (D-518): without it a backup
+// restores on another box with its saved secrets and two-step sign-in lost. The current password (400
+// wrong_password, counted like a failed sign-in, 429 rate_limited) and, when two-step sign-in is on, a
+// fresh code (400 code_required / invalid_code), as for the purge; audited (data.key_download). The 32
+// bytes of vedette.key, never logged.
+//
+// POST /core/data/key
+func (s *Server) handleCorePostCoreDataKeyRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: CorePostCoreDataKeyOperation,
+			ID:   "core_post_core_data_key",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securitySession(ctx, CorePostCoreDataKeyOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Session",
+					Err:              err,
+				}
+				if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
+					defer recordError("Security:Session", err)
+				}
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
+				defer recordError("Security", err)
+			}
+			return
+		}
+	}
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeCorePostCoreDataKeyRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response CorePostCoreDataKeyOK
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    CorePostCoreDataKeyOperation,
+			OperationSummary: "Download the decryption key once, to keep apart from the backups (D-518): without it a backup restores on another box with its saved secrets and two-step sign-in lost. The current password (400 wrong_password, counted like a failed sign-in, 429 rate_limited) and, when two-step sign-in is on, a fresh code (400 code_required / invalid_code), as for the purge; audited (data.key_download). The 32 bytes of vedette.key, never logged",
+			OperationID:      "core_post_core_data_key",
+			Body:             request,
+			RawBody:          rawBody,
+			Params:           middleware.Parameters{},
+			Raw:              r,
+		}
+
+		type (
+			Request  = *CorePostCoreDataKeyReq
+			Params   = struct{}
+			Response = CorePostCoreDataKeyOK
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			nil,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.CorePostCoreDataKey(ctx, request)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.CorePostCoreDataKey(ctx, request)
+	}
+	if err != nil {
+		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
+			if err := encodeErrorResponse(errRes, w); err != nil {
+				defer recordError("Internal", err)
+			}
+			return
+		}
+		if errors.Is(err, ht.ErrNotImplemented) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+		if err := encodeErrorResponse(s.h.NewError(ctx, err), w); err != nil {
+			defer recordError("Internal", err)
+		}
+		return
+	}
+
+	if err := encodeCorePostCoreDataKeyResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleCorePostCoreDataPurgeRequest handles core_post_core_data_purge operation.
 //
 // Delete all data back to a fresh install and replace the decryption key (D-154). Needs the exact
@@ -13975,6 +14198,222 @@ func (s *Server) handleCorePostCoreSetupRequest(args [0]string, argsEscaped bool
 	}
 
 	if err := encodeCorePostCoreSetupResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleCorePostCoreSetupRestoreRequest handles core_post_core_setup_restore operation.
+//
+// First-run restore, step 2 (D-518): restore the uploaded backup as the box's data, with the setup
+// code. With key (the key file downloaded from Settings -> Data, base64) the saved secrets and
+// two-step sign-in come back; a key that is not 32 bytes is 400 invalid_key, one that opens none of
+// the backup's secrets 400 wrong_key, before anything changes. Without key, a backup that holds
+// secrets needs confirm_without_key: true (409 confirm_required). 404 upload_unknown when the upload
+// is gone (older than an hour); 409 already_setup, busy, low_disk, schema_newer, not_appliance as for
+// a restore.
+//
+// POST /core/setup/restore
+func (s *Server) handleCorePostCoreSetupRestoreRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: CorePostCoreSetupRestoreOperation,
+			ID:   "core_post_core_setup_restore",
+		}
+	)
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeCorePostCoreSetupRestoreRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response *CorePostCoreSetupRestoreAccepted
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    CorePostCoreSetupRestoreOperation,
+			OperationSummary: "First-run restore, step 2 (D-518): restore the uploaded backup as the box's data, with the setup code. With key (the key file downloaded from Settings -> Data, base64) the saved secrets and two-step sign-in come back; a key that is not 32 bytes is 400 invalid_key, one that opens none of the backup's secrets 400 wrong_key, before anything changes. Without key, a backup that holds secrets needs confirm_without_key: true (409 confirm_required). 404 upload_unknown when the upload is gone (older than an hour); 409 already_setup, busy, low_disk, schema_newer, not_appliance as for a restore",
+			OperationID:      "core_post_core_setup_restore",
+			Body:             request,
+			RawBody:          rawBody,
+			Params:           middleware.Parameters{},
+			Raw:              r,
+		}
+
+		type (
+			Request  = *CorePostCoreSetupRestoreReq
+			Params   = struct{}
+			Response = *CorePostCoreSetupRestoreAccepted
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			nil,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.CorePostCoreSetupRestore(ctx, request)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.CorePostCoreSetupRestore(ctx, request)
+	}
+	if err != nil {
+		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
+			if err := encodeErrorResponse(errRes, w); err != nil {
+				defer recordError("Internal", err)
+			}
+			return
+		}
+		if errors.Is(err, ht.ErrNotImplemented) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+		if err := encodeErrorResponse(s.h.NewError(ctx, err), w); err != nil {
+			defer recordError("Internal", err)
+		}
+		return
+	}
+
+	if err := encodeCorePostCoreSetupRestoreResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleCorePostCoreSetupRestoreUploadRequest handles core_post_core_setup_restore_upload operation.
+//
+// First-run restore, step 1 (D-518): upload a backup downloaded from Settings -> Data (the .tar.gz as
+// the body). Only before setup is done (409 already_setup) and with the setup code (403
+// invalid_setup_code, 429 rate_limited like setup). The box checks the file (400 not_a_backup: not a
+// Vedette backup, damaged, or of a box never set up; 409 schema_newer: made by a newer Vedette), keeps
+// it for an hour and says what it holds and what the decryption key changes. 409 not_appliance on a
+// container-only install, 409 busy while another upload is checked, 409 low_disk, 413 over 4 GiB.
+//
+// POST /core/setup/restore/upload
+func (s *Server) handleCorePostCoreSetupRestoreUploadRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: CorePostCoreSetupRestoreUploadOperation,
+			ID:   "core_post_core_setup_restore_upload",
+		}
+	)
+	params, err := decodeCorePostCoreSetupRestoreUploadParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeCorePostCoreSetupRestoreUploadRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response *CorePostCoreSetupRestoreUploadOK
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    CorePostCoreSetupRestoreUploadOperation,
+			OperationSummary: "First-run restore, step 1 (D-518): upload a backup downloaded from Settings -> Data (the .tar.gz as the body). Only before setup is done (409 already_setup) and with the setup code (403 invalid_setup_code, 429 rate_limited like setup). The box checks the file (400 not_a_backup: not a Vedette backup, damaged, or of a box never set up; 409 schema_newer: made by a newer Vedette), keeps it for an hour and says what it holds and what the decryption key changes. 409 not_appliance on a container-only install, 409 busy while another upload is checked, 409 low_disk, 413 over 4 GiB",
+			OperationID:      "core_post_core_setup_restore_upload",
+			Body:             request,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "X-Setup-Code",
+					In:   "header",
+				}: params.XSetupCode,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = CorePostCoreSetupRestoreUploadReq
+			Params   = CorePostCoreSetupRestoreUploadParams
+			Response = *CorePostCoreSetupRestoreUploadOK
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackCorePostCoreSetupRestoreUploadParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.CorePostCoreSetupRestoreUpload(ctx, request, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.CorePostCoreSetupRestoreUpload(ctx, request, params)
+	}
+	if err != nil {
+		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
+			if err := encodeErrorResponse(errRes, w); err != nil {
+				defer recordError("Internal", err)
+			}
+			return
+		}
+		if errors.Is(err, ht.ErrNotImplemented) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+		if err := encodeErrorResponse(s.h.NewError(ctx, err), w); err != nil {
+			defer recordError("Internal", err)
+		}
+		return
+	}
+
+	if err := encodeCorePostCoreSetupRestoreUploadResponse(response, w); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)

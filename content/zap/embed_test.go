@@ -42,7 +42,7 @@ func TestBaseline_IsZAPConfig(t *testing.T) {
 	for _, id := range []int{10020, 10021, 10035, 10038, 10055, 10010, 10011, 10054, 10098, 10202, 2} {
 		want[id] = Warn
 	}
-	for _, id := range []int{10003, 10036, 10037, 90022, 10023, 10062, 10040, 10105} {
+	for _, id := range []int{10003, 10036, 10037, 90022, 10023, 10062, 10040, 10105, 10041, 10042, 10097, 10052, 10056} {
 		want[id] = Fail
 	}
 	if !maps.Equal(rules, want) {

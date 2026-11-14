@@ -18,7 +18,7 @@ import (
 // Vedette's ZAP rule list and the versions ZAP reads (D-565, CONTRACT INV-24). content/zap/vedette-baseline.conf is the one list:
 // the host hands it to ZAP with -c, and exposure applies it itself when it reads a report (so it holds before -c is wired, and on
 // snapshots stored before it): an IGNORE rule's alert is dropped, a FAIL rule's alert is "Fix this" (shown first), any other alert is
-// "Hardening" with ZAP's own risk. Three rules carry a version: 10003 (a JavaScript library and the CVEs Retire.js lists for it),
+// "Hardening" with ZAP's own risk, except that an unlisted rule ZAP rates high or medium is "Fix this". Three rules carry a version: 10003 (a JavaScript library and the CVEs Retire.js lists for it),
 // 10036 (the Server header) and 10037 (X-Powered-By). Those versions are compared with today's exploited CVEs when a snapshot is read.
 
 // WebSoftware is a product and version ZAP read on a page (WebFindingRow.Software). All of it came from the scanned server, so it is
@@ -32,8 +32,8 @@ type WebSoftware struct {
 
 // The web finding groups (WebFindingRow.Group).
 const (
-	webGroupFix       = "fix"       // a FAIL rule of the list
-	webGroupHardening = "hardening" // a WARN rule, or a rule the list does not name
+	webGroupFix       = "fix"       // a FAIL rule of the list, or an unlisted rule ZAP rates high or medium
+	webGroupHardening = "hardening" // a WARN rule, or an unlisted rule ZAP rates low or info
 )
 
 const (
@@ -56,8 +56,15 @@ var (
 	cveInTextRE = regexp.MustCompile(`\bCVE-(?:19|20)[0-9]{2}-[0-9]{4,7}\b`)
 	// Retire.js's sentence in ZAP's otherinfo (retire add-on, retire.rule.otherinfo): "The identified library {0}, version {1} is vulnerable."
 	retireRE = regexp.MustCompile(`The identified library ([A-Za-z0-9][A-Za-z0-9._-]{0,59}), version ([0-9][0-9A-Za-z.+-]{0,31}) is vulnerable`)
-	// One product/version token of a Server or X-Powered-By header ("Apache/2.4.49", "PHP/7.4.3", "OpenSSL/1.1.1d").
-	headerTokenRE = regexp.MustCompile(`^([A-Za-z][A-Za-z0-9_-]{0,39})/([0-9]{1,4}(?:\.[0-9]{1,6}){0,3}[a-z]?)$`)
+	// One product/version token of a Server or X-Powered-By header ("Apache/2.4.49", "PHP/7.4.3", "OpenSSL/1.1.1d"), with the package
+	// suffix a distribution build adds ("PHP/7.4.3-4ubuntu2.24", "PHP/8.2.7-1~deb12u1"): the upstream version is compared, and the
+	// distribution it names marks the match as maybe backported.
+	headerTokenRE = regexp.MustCompile(`^([A-Za-z][A-Za-z0-9_-]{0,39})/([0-9]{1,4}(?:\.[0-9]{1,6}){0,3}[a-z]?)(?:-([0-9A-Za-z.+~]{1,40}))?$`)
+	// The distribution a package suffix names: Ubuntu's "ubuntu", Debian's "deb" (and "+deb", "~deb"), Red Hat's "el8".
+	suffixDistro = []struct {
+		re     *regexp.Regexp
+		distro string
+	}{{regexp.MustCompile(`ubuntu`), "Ubuntu"}, {regexp.MustCompile(`deb[0-9]`), "Debian"}, {regexp.MustCompile(`(^|[.+~_])el[0-9]`), "Red Hat"}}
 )
 
 // mustZapRules reads the embedded list; a broken file (content/zap TestBaseline_IsZAPConfig fails on it) applies no rule.
@@ -82,12 +89,19 @@ func mustHeaderCPE(data []byte) map[string]string {
 	return out
 }
 
-// webGroup is the group of an alert of rule pluginID, and keep is false for an IGNORE rule.
-func webGroup(pluginID string) (group string, keep bool) {
+// webGroup is the group of an alert of rule pluginID with ZAP's risk, and keep is false for an IGNORE rule. A rule the list does not
+// name (a rule the list missed, or one a newer ZAP added) is "fix" when ZAP rates it high or medium: never "hardening" with a High
+// chip on it (review r1 M2).
+func webGroup(pluginID, risk string) (group string, keep bool) {
 	switch zapRules[pluginID] {
 	case zapdata.Ignore:
 		return "", false
 	case zapdata.Fail:
+		return webGroupFix, true
+	case zapdata.Warn:
+		return webGroupHardening, true
+	}
+	if risk == "high" || risk == "medium" {
 		return webGroupFix, true
 	}
 	return webGroupHardening, true
@@ -118,7 +132,7 @@ func parseZAPWithRules(raw []byte, page string) ([]WebFindingRow, error) {
 	soft := zapSoftware(raw, page, len(rows))
 	out := []WebFindingRow{}
 	for i, r := range rows {
-		g, keep := webGroup(r.PluginID)
+		g, keep := webGroup(r.PluginID, r.Risk)
 		if !keep {
 			continue
 		}
@@ -232,9 +246,24 @@ func headerSoftware(texts []string) []WebSoftware {
 			}
 		}
 		for _, tok := range strings.FieldsFunc(t, func(r rune) bool { return strings.ContainsRune(" \t();,:[]\"'", r) }) {
-			if m := headerTokenRE.FindStringSubmatch(tok); m != nil {
-				out = addSoftware(out, WebSoftware{Product: m[1], Version: m[2], CVEs: []string{}, Distro: distro})
+			m := headerTokenRE.FindStringSubmatch(tok)
+			if m == nil {
+				continue
 			}
+			d := distro
+			if m[3] != "" { // a distribution build: compared by its upstream version only when the suffix names the distribution
+				d = ""
+				for _, x := range suffixDistro {
+					if x.re.MatchString(strings.ToLower(m[3])) {
+						d = x.distro
+						break
+					}
+				}
+				if d == "" {
+					continue
+				}
+			}
+			out = addSoftware(out, WebSoftware{Product: m[1], Version: m[2], CVEs: []string{}, Distro: d})
 		}
 	}
 	return out
@@ -281,19 +310,20 @@ func cleanSoftware(pluginID string, in []WebSoftware) []WebSoftware {
 }
 
 // webOnRead applies today's rule list to the web findings of a snapshot as it is read, also one stored before the list existed:
-// IGNORE alerts dropped, group set, software checked again, "Fix this" first.
-func webOnRead(rows []WebFindingRow) []WebFindingRow {
-	out := []WebFindingRow{}
+// IGNORE alerts dropped (dropped counts them), group set, software checked again, "Fix this" first.
+func webOnRead(rows []WebFindingRow) (out []WebFindingRow, dropped int) {
+	out = []WebFindingRow{}
 	for _, r := range rows {
-		g, keep := webGroup(r.PluginID)
+		g, keep := webGroup(r.PluginID, r.Risk)
 		if !keep {
+			dropped++
 			continue
 		}
 		r.Group, r.Software = g, cleanSoftware(r.PluginID, r.Software)
 		out = append(out, r)
 	}
 	sortWebGroups(out)
-	return out
+	return out, dropped
 }
 
 // ExploitedLookup is implemented by a Matcher that can also look CVE ids up in today's list of exploited vulnerabilities (D-565: the
@@ -314,7 +344,17 @@ const (
 // unless nmap already read a version of that product on that port. A row never replaces one already there for the same address, port
 // and CVE. A failed comparison is a "Not checked" line, never "no exploited CVE".
 func (s *Service) withWebVersions(ctx context.Context, snap *Snapshot) {
-	snap.WebFindings = webOnRead(snap.WebFindings)
+	var dropped int
+	snap.WebFindings, dropped = webOnRead(snap.WebFindings)
+	if dropped > 0 { // a snapshot stored before the list: its "web" line counted alerts that are no longer shown (review r1 L6)
+		snap.Checks = slices.Clone(snap.Checks)
+		for i, c := range snap.Checks {
+			if c.Kind == "web" {
+				snap.Checks[i].Text = clipText(c.Text+fmt.Sprintf(" %d of them hidden: Vedette's rule list treats them as noise.", dropped), maxLineText)
+				break
+			}
+		}
+	}
 	type hit struct {
 		host   string
 		port   int
@@ -363,7 +403,7 @@ func (s *Service) withWebVersions(ctx context.Context, snap *Snapshot) {
 		snap.Vulns = append(snap.Vulns, v)
 		return true
 	}
-	matched, failed := 0, false
+	matched, failed := 0, "" // failed: the "Not checked" line of a comparison that did not run
 	if len(js) > 0 {
 		var listed []VulnRow
 		var err error
@@ -376,9 +416,11 @@ func (s *Service) withWebVersions(ctx context.Context, snap *Snapshot) {
 			slices.Sort(ids)
 			listed, err = look.Exploited(ctx, slices.Compact(ids))
 		}
-		if !ok || err != nil {
-			failed = true
-			s.logWebVersions(ctx, snap, err)
+		switch {
+		case !ok:
+			failed = notWebVersionsMatcher
+		case err != nil:
+			failed = s.webVersionsFailed(ctx, snap, err)
 		}
 		byCVE := map[string]VulnRow{}
 		for _, v := range listed {
@@ -391,7 +433,7 @@ func (s *Service) withWebVersions(ctx context.Context, snap *Snapshot) {
 					continue
 				}
 				if add(VulnRow{IP: h.host, Port: h.port, CVE: c, Name: clipText(v.Name, maxWebName), Basis: "js_library", DateAdded: v.DateAdded, Ransomware: v.Ransomware,
-					Summary: fmt.Sprintf("A page on port %d loads the JavaScript library %s %s (seen by ZAP); Retire.js lists %s for that version, and CISA lists it as exploited. Update the library.", h.port, h.w.Product, h.w.Version, c)}) {
+					Summary: jsSummary(h.port, h.w.Product, h.w.Version, c)}) {
 					matched++
 				}
 			}
@@ -401,8 +443,7 @@ func (s *Service) withWebVersions(ctx context.Context, snap *Snapshot) {
 		row := ServiceRow{IP: h.host, Port: h.port, Name: "http", Product: h.w.Product, Version: h.w.Version, CPE: "cpe:/" + headerCPE[strings.ToLower(h.w.Product)] + ":" + h.w.Version, Extra: h.w.Distro}
 		m, err := s.cfg.Matcher.Match(ctx, []ServiceRow{row})
 		if err != nil {
-			failed = true
-			s.logWebVersions(ctx, snap, err)
+			failed = s.webVersionsFailed(ctx, snap, err)
 			break
 		}
 		var mine []VulnRow
@@ -417,8 +458,8 @@ func (s *Service) withWebVersions(ctx context.Context, snap *Snapshot) {
 			}
 		}
 	}
-	if failed {
-		snap.NotChecked = append(snap.NotChecked, NotCheckedRow{Kind: "cve", Text: notWebVersionsFail})
+	if failed != "" {
+		snap.NotChecked = append(snap.NotChecked, NotCheckedRow{Kind: "cve", Text: failed})
 		return
 	}
 	snap.Checks = append(snap.Checks, CheckRow{Kind: "cve", At: store.FormatTS(s.clock()), Text: fmt.Sprintf(
@@ -426,12 +467,23 @@ func (s *Service) withWebVersions(ctx context.Context, snap *Snapshot) {
 		len(js), len(hdr), plural(matched, "exploited CVE")+" matched")})
 }
 
-func (s *Service) logWebVersions(ctx context.Context, snap *Snapshot, err error) {
+// webVersionsFailed is the "Not checked" line of a comparison that did not run: the reason of an *Unavailable as is (the Feeds module
+// is off: trying again does not help), otherwise the error is logged and the line says to try again.
+// jsSummary is the sentence of a js_library row (the mock's jsVulns in web/src/features/exposure/data.ts says the same). A library
+// version is weaker evidence than a server version in range: it does not show the site calls the affected function, and the risk is
+// to the visitors' browsers, not the server (review r1 M3).
+func jsSummary(port int, product, version, cve string) string {
+	return fmt.Sprintf("A page on port %d loads the JavaScript library %s %s (seen by ZAP). Retire.js lists %s for that version and CISA lists it as exploited. "+
+		"A library version alone does not show that the site uses the affected function; the risk is to visitors' browsers, not the server. Update the library.", port, product, version, cve)
+}
+
+func (s *Service) webVersionsFailed(ctx context.Context, snap *Snapshot, err error) string {
 	var un *Unavailable
-	if err == nil || errors.As(err, &un) {
-		return
+	if errors.As(err, &un) {
+		return "Versions ZAP read on the web pages were not compared with exploited vulnerabilities: " + clipText(un.Reason, 200)
 	}
 	s.cfg.Log.ErrorContext(ctx, "exposure: comparing the versions ZAP read with exploited vulnerabilities failed", "snapshot", snap.ID, "error", err)
+	return notWebVersionsFail
 }
 
 // nmapRead says nmap -sV already read a version of the same product (the CPE's product part, so an alias vendor counts) on host:port.

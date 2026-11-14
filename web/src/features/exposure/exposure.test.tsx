@@ -1157,6 +1157,50 @@ describe('exposure: services and exploited vulnerabilities of the box IP (S-EXP-
     expect(within(services).queryByText('1 exploited')).toBeNull()
   })
 
+  it('D-565 (review r1 M1): a JavaScript library CVE on a page is listed but not counted on the service of that port', async () => {
+    const at = new Date(Date.now() - 864e5).toISOString()
+    const date = at.slice(0, 10)
+    const snap = { id: 'sn-x', date, scanned_at: at, hosts: [], ports: [{ ip: '203.0.113.10', port: 443, service: 'https' }], admin_panels: [], certs: [], counts: { subdomains: 0, ips: 1, ports: 1, admin_panels: 0, certs_expiring: 0 },
+      services: [{ ip: '203.0.113.10', port: 443, name: 'https', product: 'nginx', version: '1.24.0', cpe: 'cpe:/a:igor_sysoev:nginx:1.24.0', extra: '' }],
+      vulns: [{ ip: '203.0.113.10', port: 443, cve: 'CVE-2020-11023', name: 'JQuery Cross-Site Scripting (XSS) Vulnerability', basis: 'js_library', date_added: '2025-01-23', ransomware: false, backport: '', template: '', template_result: '',
+        summary: 'A page on port 443 loads the JavaScript library jquery 3.4.1 (seen by ZAP). Retire.js lists CVE-2020-11023 for that version and CISA lists it as exploited. A library version alone does not show that the site uses the affected function; the risk is to visitors\' browsers, not the server. Update the library.' }],
+      templates: [], version_gaps: [], web_findings: [], checks: [], not_checked: [] }
+    server.use(
+      http.get('*/api/v1/exposure/targets/xt-2/snapshots', () => HttpResponse.json({ items: [{ id: snap.id, date, scanned_at: at, counts: snap.counts }] })),
+      http.get('*/api/v1/exposure/targets/xt-2/snapshots/:date', () => HttpResponse.json(snap)),
+    )
+    renderApp('/exposure/xt-2')
+    const row = within(await screen.findByRole('table', { name: 'Exploited vulnerabilities that match the services on this IP' })).getByRole('row', { name: /CVE-2020-11023/ })
+    expect(within(row).getByText('JavaScript library version, seen by ZAP')).toBeInTheDocument()
+    expect(within(row).getByText(/the risk is to visitors' browsers, not the server/)).toBeInTheDocument()
+    const services = screen.getByRole('table', { name: 'Services identified on the open ports (nmap -sV)' })
+    expect(within(services).queryByText('1 exploited')).toBeNull()
+  })
+
+  it('D-565 (review r1 L2): a domain whose page header names a version with an exploited CVE gets the section in the words of a domain; axe clean', async () => {
+    const at = new Date(Date.now() - 864e5).toISOString()
+    const date = at.slice(0, 10)
+    const snap = { id: 'sn-d', date, scanned_at: at, hosts: [{ name: 'www.acme.example', ip: '198.51.100.20' }], ports: [{ ip: '198.51.100.20', port: 443, service: 'https' }], admin_panels: [], certs: [],
+      counts: { subdomains: 1, ips: 1, ports: 1, admin_panels: 0, certs_expiring: 0 }, services: [], templates: [],
+      vulns: [{ ip: 'www.acme.example', port: 443, cve: 'CVE-2021-41773', name: 'Apache HTTP Server Path Traversal Vulnerability', basis: 'version', date_added: '2021-11-03', ransomware: false, backport: '', template: '', template_result: '',
+        summary: 'www.acme.example runs Apache 2.4.49. Its version is inside the range affected by CVE-2021-41773 (= 2.4.49); no scan has confirmed it yet, so this is only suspected. The version was seen in the Server header by ZAP.' }],
+      version_gaps: [], checks: [], not_checked: [],
+      web_findings: [{ site: 'https://www.acme.example/', plugin_id: '10036', name: 'Server Leaks Version Information via "Server" HTTP Response Header Field', risk: 'low', confidence: 'high', cwe: 200, description: 'The server is leaking version information.',
+        solution: 'Hide the version.', urls: ['https://www.acme.example/'], count: 1, group: 'fix', software: [{ product: 'Apache', version: '2.4.49', cves: [], distro: '' }] }] }
+    server.use(
+      http.get('*/api/v1/exposure/targets/xt-1/snapshots', () => HttpResponse.json({ items: [{ id: snap.id, date, scanned_at: at, counts: snap.counts }] })),
+      http.get('*/api/v1/exposure/targets/xt-1/snapshots/:date', () => HttpResponse.json(snap)),
+    )
+    renderApp('/exposure/xt-1')
+    const section = await screen.findByRole('region', { name: 'Exploited vulnerabilities' })
+    expect(within(section).getByText(/for a domain these are the versions ZAP read on its web pages/)).toBeInTheDocument()
+    expect(within(section).queryByText(/each open port of this box's own public IP/)).toBeNull()
+    const table = within(section).getByRole('table', { name: "Exploited vulnerabilities that match the versions ZAP read on this domain's pages" })
+    expect(within(table).getByText(/seen in the Server header by ZAP/)).toBeInTheDocument()
+    expect(within(section).queryByRole('table', { name: 'Services identified on the open ports (nmap -sV)' })).toBeNull()
+    await expectNoA11yViolations()
+  })
+
   it('a template match reads "Confirmed by template", a template that did not match reads "No match reported" and never "not vulnerable" (INV-23)', async () => {
     const at = new Date(Date.now() - 864e5).toISOString()
     const date = at.slice(0, 10)

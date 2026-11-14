@@ -8,10 +8,11 @@ import { PortMark } from './PortMark'
 import type { ServiceRow, Snapshot, VulnRow } from './types'
 
 /** S-EXP-2 (INV-19, INV-20): the services nmap -sV identified on the box's own public IP and their exploited CVEs (CISA KEV). */
-export function VulnSection({ s }: { s: Snapshot }) {
+export function VulnSection({ s, domain = false }: { s: Snapshot; domain?: boolean }) {
   const { t } = useTranslation('exposure')
   // A match on a distribution package (backport) weighs less: it is counted apart and shown in the neutral tone.
-  const on = (r: ServiceRow) => s.vulns.filter((v) => v.ip === r.ip && v.port === r.port)
+  // A JavaScript library's CVE runs in the visitors' browsers, not in the service on that port: not counted on it (D-565, review r1 M1).
+  const on = (r: ServiceRow) => s.vulns.filter((v) => v.ip === r.ip && v.port === r.port && v.basis !== 'js_library')
   const count = (r: ServiceRow) => on(r).filter((v) => !v.backport).length
   const maybe = (r: ServiceRow) => on(r).filter((v) => v.backport).length
   // INV-22: a service or CVE on a port kept from an earlier scan carries the port's mark
@@ -37,13 +38,13 @@ export function VulnSection({ s }: { s: Snapshot }) {
   ]
   const why = s.not_checked.find((n) => n.kind === 'services' || n.kind === 'cve')
   return (
-    <Section id="vulns" title={t('vulns.title')} description={t('vulns.description')}>
+    <Section id="vulns" title={t('vulns.title')} description={t(domain ? 'vulns.descriptionDomain' : 'vulns.description')}>
       {s.services.length === 0 && s.vulns.length === 0 ? (
         <EmptyState title={t('vulns.noneIdentifiedTitle')}>{why?.text ?? t('vulns.noneIdentifiedBody')}</EmptyState>
       ) : (
         <div className="grid gap-4">
           {s.vulns.length > 0 ? (
-            <DataTable caption={t('vulns.caption')} data={s.vulns} columns={vulnCols} pageSize={20} rowTone={(r) => (r.backport ? undefined : 'warn')} />
+            <DataTable caption={t(domain ? 'vulns.captionDomain' : 'vulns.caption')} data={s.vulns} columns={vulnCols} pageSize={20} rowTone={(r) => (r.backport ? undefined : 'warn')} />
           ) : s.not_checked.some((n) => n.kind === 'cve') ? (
             <p role="status" className="text-sm text-warn">{s.not_checked.find((n) => n.kind === 'cve')!.text}</p>
           ) : (

@@ -3,6 +3,7 @@ package exposure
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -31,13 +32,14 @@ func zapReportOf(t *testing.T, page string, alerts ...zapAlert) []byte {
 }
 
 // INV-24, D-565: the rule list applies when a report is read: an IGNORE rule's alert is dropped, a FAIL rule's alert is "fix" and
-// comes first, a WARN rule's or an unlisted rule's alert is "hardening" with ZAP's own risk; inside each group the riskiest first.
+// comes first, a WARN rule's alert is "hardening"; an unlisted rule is "fix" when ZAP rates it high or medium, else "hardening" (review
+// r1 M2); inside each group the riskiest first.
 func TestContract_INV24_RulesGroupTheAlerts(t *testing.T) {
 	t.Parallel()
 	in := func(id, risk string) zapAlert {
 		return zapAlert{PluginID: id, Alert: "rule " + id, Risk: risk, Confidence: "2", Instances: []map[string]string{{"uri": zapPage}}}
 	}
-	raw := zapReportOf(t, zapPage, in("10096", "0"), in("10020", "2"), in("10036", "1"), in("99999", "3"), in("10109", "0"), in("10038", "2"), in("90022", "2"), in("10063", "1"))
+	raw := zapReportOf(t, zapPage, in("10096", "0"), in("10020", "2"), in("10036", "1"), in("99999", "3"), in("10109", "0"), in("10038", "2"), in("90022", "2"), in("10063", "1"), in("99998", "1"), in("99997", "2"), in("10042", "2"))
 	rows, err := parseZAPWithRules(raw, zapPage)
 	if err != nil {
 		t.Fatal(err)
@@ -49,13 +51,13 @@ func TestContract_INV24_RulesGroupTheAlerts(t *testing.T) {
 			t.Fatalf("software is nil: %+v", r)
 		}
 	}
-	want := []string{"fix:90022:medium", "fix:10036:low", "hardening:99999:high", "hardening:10020:medium", "hardening:10038:medium"}
+	want := []string{"fix:99999:high", "fix:90022:medium", "fix:99997:medium", "fix:10042:medium", "fix:10036:low", "hardening:10020:medium", "hardening:10038:medium", "hardening:99998:low"}
 	if !slices.Equal(got, want) {
 		t.Fatalf("rows = %q", got)
 	}
 	// A snapshot stored before the list (no group, IGNORE alerts kept) reads the same way.
 	old := []WebFindingRow{{PluginID: "10109", Risk: "info"}, {PluginID: "10020", Risk: "medium"}, {PluginID: "10105", Risk: "low"}}
-	if r := webOnRead(old); len(r) != 2 || r[0].PluginID != "10105" || r[0].Group != webGroupFix || r[1].Group != webGroupHardening || r[1].Software == nil {
+	if r, dropped := webOnRead(old); dropped != 1 || len(r) != 2 || r[0].PluginID != "10105" || r[0].Group != webGroupFix || r[1].Group != webGroupHardening || r[1].Software == nil {
 		t.Fatalf("on read = %+v", r)
 	}
 }
@@ -112,6 +114,12 @@ func TestContract_INV24_HeaderVersions(t *testing.T) {
 		{"Apache/2.4.49.1.2", "[]"},
 		{"A/1 B/2 C/3 D/4 E/5", "[{A 1 [] } {B 2 [] } {C 3 [] } {D 4 [] }]"},
 		{strings.Repeat("x", maxZapEvidence) + " Apache/2.4.49", "[]"},
+		// a distribution build (review r1 L4): the upstream version, and the distribution its suffix names; an unknown suffix is not read
+		{"X-Powered-By: PHP/7.4.3-4ubuntu2.24", "[{PHP 7.4.3 [] Ubuntu}]"},
+		{"PHP/8.2.7-1~deb12u1", "[{PHP 8.2.7 [] Debian}]"},
+		{"Apache/2.4.37-62.el8 (Red Hat)", "[{Apache 2.4.37 [] Red Hat}]"},
+		{"PHP/7.4.3-custom1", "[]"},
+		{"PHP/7.4.3-" + strings.Repeat("u", 41), "[]"},
 	}
 	for _, tc := range tests {
 		raw := zapReportOf(t, zapPage, zapAlert{PluginID: "10036", Alert: "Server Leaks Version", Risk: "1", Confidence: "3",
@@ -125,7 +133,7 @@ func TestContract_INV24_HeaderVersions(t *testing.T) {
 		}
 	}
 	// Only the three rules carry software; a stored row of another rule loses any it claims.
-	if r := webOnRead([]WebFindingRow{{PluginID: "10020", Software: []WebSoftware{{Product: "Apache", Version: "2.4.49"}}}}); len(r[0].Software) != 0 {
+	if r, _ := webOnRead([]WebFindingRow{{PluginID: "10020", Software: []WebSoftware{{Product: "Apache", Version: "2.4.49"}}}}); len(r[0].Software) != 0 {
 		t.Fatalf("%+v", r)
 	}
 }
@@ -207,7 +215,8 @@ func TestContract_INV24_ZAPVersionsBecomeExploitedRows(t *testing.T) {
 		}
 		got[k] = v
 	}
-	if v := got["80:CVE-2020-11023"]; v.Basis != "js_library" || v.Name == "" || v.DateAdded == nil || !strings.Contains(v.Summary, "jquery 3.4.1") {
+	if v := got["80:CVE-2020-11023"]; v.Basis != "js_library" || v.Name == "" || v.DateAdded == nil || !strings.Contains(v.Summary, "jquery 3.4.1") ||
+		!strings.Contains(v.Summary, "does not show that the site uses the affected function; the risk is to visitors' browsers, not the server") { // review r1 M3
 		t.Fatalf("js row = %+v (all %+v)", v, s.Vulns)
 	}
 	if _, ok := got["80:CVE-2020-11022"]; ok {
@@ -233,11 +242,48 @@ func TestContract_INV24_ZAPVersionsBecomeExploitedRows(t *testing.T) {
 		t.Fatalf("checks = %+v", s.Checks)
 	}
 
-	// The list cannot be read: a "Not checked" line, never "no exploited CVE".
-	m.lookErr = &Unavailable{Reason: "feeds off"}
+	// The list cannot be read: a "Not checked" line, never "no exploited CVE"; a reason the page may show is said as is, since trying
+	// again does not help while the Feeds module is off (review r1 L1).
+	m.lookErr = &Unavailable{Reason: "the Feeds module is off."}
 	snap := s
+	e.svc.withVulns(e.ctx(), &snap)
+	if n := notChecked(snap); !slices.Contains(n, "Versions ZAP read on the web pages were not compared with exploited vulnerabilities: the Feeds module is off.") || slices.Contains(n, notWebVersionsFail) {
+		t.Fatalf("not checked = %q", n)
+	}
+	m.lookErr = errors.New("disk")
+	snap = s
 	e.svc.withVulns(e.ctx(), &snap)
 	if !slices.Contains(notChecked(snap), notWebVersionsFail) {
 		t.Fatalf("not checked = %q", notChecked(snap))
+	}
+}
+
+// Review r1 L5: at the cap the "Fix this" rows are kept before any hardening row, even a riskier one.
+func TestContract_INV24_CapKeepsFixFirst(t *testing.T) {
+	t.Parallel()
+	var in []WebFindingRow
+	for i := range maxWebFindings + 50 {
+		in = append(in, WebFindingRow{Site: zapPage, PluginID: "10038", Name: fmt.Sprint("csp ", i), Risk: "medium", Confidence: "high", Group: webGroupHardening})
+	}
+	for i := range 3 {
+		in = append(in, WebFindingRow{Site: zapPage, PluginID: "10036", Name: fmt.Sprint("server ", i), Risk: "low", Confidence: "high", Group: webGroupFix})
+	}
+	out := sanitizeWeb(in)
+	if len(out) != maxWebFindings || out[0].PluginID != "10036" || out[2].PluginID != "10036" || out[3].PluginID != "10038" {
+		t.Fatalf("kept %d, first %+v", len(out), out[:4])
+	}
+}
+
+// Review r1 L6: a snapshot stored before the list counted alerts the page no longer shows; its "web" line says how many are hidden.
+func TestContract_INV24_OldSnapshotSaysWhatIsHidden(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	snap := Snapshot{Content: Content{
+		WebFindings: []WebFindingRow{{Site: zapPage, PluginID: "10109", Risk: "info"}, {Site: zapPage, PluginID: "10096", Risk: "low"}, {Site: zapPage, PluginID: "10020", Risk: "medium"}},
+		Checks:      []CheckRow{{Kind: "web", Text: "Passive web scan (ZAP baseline: spider and passive rules, no form sent) of 1 page: " + zapPage + ". 3 alerts."}},
+	}}
+	e.svc.withVulns(e.ctx(), &snap)
+	if len(snap.WebFindings) != 1 || !strings.HasSuffix(snap.Checks[0].Text, "3 alerts. 2 of them hidden: Vedette's rule list treats them as noise.") {
+		t.Fatalf("findings %+v, checks %+v", snap.WebFindings, snap.Checks)
 	}
 }

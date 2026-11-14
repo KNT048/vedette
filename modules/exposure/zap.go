@@ -341,7 +341,7 @@ func cleanWebRow(r WebFindingRow) (WebFindingRow, bool) {
 	return r, true
 }
 
-// sanitizeWeb keeps the rows that pass cleanWebRow, the highest risk first, at most maxWebFindings.
+// sanitizeWeb keeps the rows that pass cleanWebRow, "Fix this" first and the highest risk first inside each group, at most maxWebFindings.
 func sanitizeWeb(in []WebFindingRow) []WebFindingRow {
 	out := []WebFindingRow{}
 	for _, r := range in {
@@ -349,7 +349,7 @@ func sanitizeWeb(in []WebFindingRow) []WebFindingRow {
 			out = append(out, r)
 		}
 	}
-	slices.SortStableFunc(out, func(a, b WebFindingRow) int { return slices.Index(zapRisks, b.Risk) - slices.Index(zapRisks, a.Risk) })
+	sortWebGroups(out) // D-565: "Fix this" first, so the cap never cuts them before hardening rows (review r1 L5)
 	if len(out) > maxWebFindings {
 		out = out[:maxWebFindings]
 	}
@@ -505,7 +505,7 @@ func (s *Service) webPassive(ctx context.Context, st ScanTarget, c Content) (Con
 		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "web", Text: fmt.Sprintf("Passive web scan (ZAP): %s not scanned (at most %d pages are scanned in one scan, and the pages after one that could not run are not tried).", plural(left, "more web port"), MaxWebScans)})
 	}
 	if len(c.WebFindings) > maxWebFindings {
-		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "web", Text: fmt.Sprintf("%s of the web scan are not shown: only the %d highest-risk are kept.", plural(len(c.WebFindings)-maxWebFindings, "alert"), maxWebFindings)})
+		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "web", Text: fmt.Sprintf("%s of the web scan are not shown: only %d are kept, the ones to fix first, then the highest risk.", plural(len(c.WebFindings)-maxWebFindings, "alert"), maxWebFindings)})
 	}
 	if len(scanned) > 0 {
 		c.Checks = append(c.Checks, CheckRow{Kind: "web", At: store.FormatTS(s.clock()), Text: clipText(fmt.Sprintf(

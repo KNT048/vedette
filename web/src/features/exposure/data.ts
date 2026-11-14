@@ -195,7 +195,7 @@ function jsVulns(web: WebFinding[]): VulnRow[] {
     const port = Number(u.port) || (u.protocol === 'https:' ? 443 : 80)
     return w.software.flatMap((sw) => sw.cves.filter((cve) => JS_KEV[cve]).map((cve): VulnRow => ({
       ip: u.hostname, port, cve, name: JS_KEV[cve]!, basis: 'js_library', date_added: '2025-01-23', ransomware: false, backport: '', template: '', template_result: '',
-      summary: `A page on port ${port} loads the JavaScript library ${sw.product} ${sw.version} (seen by ZAP); Retire.js lists ${cve} for that version, and CISA lists it as exploited. Update the library.`,
+      summary: `A page on port ${port} loads the JavaScript library ${sw.product} ${sw.version} (seen by ZAP). Retire.js lists ${cve} for that version and CISA lists it as exploited. A library version alone does not show that the site uses the affected function; the risk is to visitors' browsers, not the server. Update the library.`,
     })))
   })
 }

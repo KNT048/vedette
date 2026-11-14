@@ -2048,6 +2048,7 @@ describe('inventory: D-471 naming, versions, Software tab (S-INV-2)', () => {
     assetsStore.update((l) => l.map((a) => (a.id === id ? { ...a, software: [...a.software, { ...a.software[0]!, id: 'sw-agent-office', version: '2021', source: 'agent' as const, confidence: 0.95 }] } : a)))
     renderApp(`/devices/${id}?tab=software`)
     expect(await screen.findByText('The device reports 2021 (Agent).', undefined, T)).toBeInTheDocument()
+    await waitFor(() => expect(screen.queryByText('Checking findings')).not.toBeInTheDocument(), T) // the Open findings column (W11-1) has its list: the row is drawn for good
     await user.click(screen.getByRole('button', { name: 'Use version 2021 for Microsoft Office' }))
     await waitFor(() => expect(find(id).software.find((s) => s.source === 'manual')!.version).toBe('2021'), T)
     await waitFor(() => expect(screen.queryByText(/The device reports/)).not.toBeInTheDocument(), T)

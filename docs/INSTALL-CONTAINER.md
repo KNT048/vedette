@@ -62,7 +62,7 @@ The verifier of the appliance does the same checks for you (`docs/DEPLOYMENT.md`
 
 ## 2. Say where it lives
 
-Open `vedette.env` and fill two lines. In the repository copy the three image lines are empty on purpose; a release fills them. These two lines are the only settings that are yours: do not edit the compose files, because every update replaces all four files (section 5) and you copy just these two lines across.
+Open `vedette.env` and fill two lines. In the repository copy the three image lines are empty on purpose; a release fills them. These two lines are the only settings that are yours: do not edit the compose files, because every update replaces all four files (section 5) and you copy just these two lines across. (A port that another program already holds is the one exception, and it goes in a file of your own: section 4, "Other host ports".)
 
 ```sh
 VEDETTE_BIND_IP=192.168.10.5        # the address of THIS machine the web page is served on (127.0.0.1 to try it from this machine only)
@@ -83,9 +83,9 @@ docker compose --env-file vedette.env ps             # core is "healthy" within 
 docker logs vedette-core 2>&1 | grep setup_code      # podman logs vedette-core ...
 ```
 
-The log line holds the one-time setup code (`"setup_code":"..."`). It is printed again at every start while setup is open and stops when the first administrator exists. Open `https://<VEDETTE_HOSTS>:8443`, enter the code, and follow the setup. The certificate is self-signed and made by the box on first start, so your browser warns once; it is kept in the data volume. Opening the page by a name or address that is not in `VEDETTE_HOSTS` shows "This address is not one Vedette answers to": use the one you set, or change the line and run `up -d` again.
+The log line holds the one-time setup code (`"setup_code":"..."`). It is printed again at every start while setup is open and stops when the first administrator exists. Open `https://<VEDETTE_HOSTS>:8443`, enter the code, and follow the setup. The certificate is self-signed and made by the box on first start, so your browser warns once; it is kept in the data volume. Opening the page by a name or address that is not in `VEDETTE_HOSTS` shows a short page "This address is not one Vedette answers to" (HTTP 421) that names the address you typed and links here: use the one you set, or add it to the line and run `up -d` again. The page does not list the names the box answers to. A script or API client (an `/api/` path, or no `text/html` in `Accept`) gets the same 421 as the JSON error `misdirected_request` (D-542).
 
-Check from another machine that only what you meant is open (`nmap` is yours to run on your own network): port 8443 on `VEDETTE_BIND_IP` and nothing else; ports 8444 and 8765 are on `127.0.0.1` only.
+Check from another machine that only what you meant is open (`nmap` is yours to run on your own network): port 8443 on `VEDETTE_BIND_IP` and nothing else; ports 8444 and 8765 are on `127.0.0.1` only. On this machine (Linux) `ss -Hltnup | awk '$5 ~ /:(8443|8444|8765|514|6514)$/'` lists what listens on Vedette's ports (with Docker, `docker-proxy` holds a published port unless you turned the userland proxy off); with the ports file below, look for your ports instead.
 
 ## 4. Add the sensors, or the syslog receiver (optional)
 
@@ -97,6 +97,41 @@ docker compose --env-file vedette.env -f compose.yaml -f compose.syslog.yaml up 
 ```
 
 Keep the same `-f` list on every later command (`ps`, `down`, `pull`, `up`), or compose treats the other containers as strays. Then switch the modules on in Settings → Modules. The sensor runs as uid 0, group 65532 (to read its credentials), with only `NET_RAW` (Docker gives an added capability only to root; Podman gives it to any user), read-only, on the host network; the scan worker runs as uid 65532 with no capability at all (there is no nmap here). The sensor reads the card you prepared; choose it under Sensors once the sensor has reported (the list is what the sensor sees). A sensor started rootless still reports, but cannot open the card: Sensors then shows "Reporting, not capturing" with the reason (D-399); start it as root.
+
+### Other host ports (a port is already taken)
+
+If another program on this machine already holds 8443, 514 or 6514 (a syslog daemon, another Vedette, a web server), `up` stops with "address already in use". The host ports are written in `compose.yaml` and `compose.syslog.yaml`; there is no variable for them, and the release files stay as they are (section 2). Write a file of your own instead, for example `compose.ports.yaml` in the same folder, and put it **last** on every `-f` list. An update replaces only the four release files, so yours stays; when the notes of a release say its compose ports changed, compare your file with the new `compose.yaml`.
+
+```yaml
+# compose.ports.yaml: yours, not part of any release. "!override" replaces the whole list of core's ports, so list every port you want.
+# Only the left number (this machine's port) is yours to change; the right one is the port inside the container and never changes.
+services:
+  core:
+    ports: !override
+      - "${VEDETTE_BIND_IP:?VEDETTE_BIND_IP is empty}:18443:8443"      # the web page, was 8443
+      - "127.0.0.1:8444:8444"                                          # the sensor link, this machine only: keep it (below)
+      - "127.0.0.1:8765:8765"                                          # the MCP server, this machine only
+      # the next three only if you run compose.syslog.yaml; without that file leave them out, or they open syslog anyway
+      - "${VEDETTE_BIND_IP:?VEDETTE_BIND_IP is empty}:1514:5514/udp"   # syslog, was 514
+      - "${VEDETTE_BIND_IP:?VEDETTE_BIND_IP is empty}:1514:5514/tcp"
+      - "${VEDETTE_BIND_IP:?VEDETTE_BIND_IP is empty}:16514:5515/tcp"  # syslog over TLS, was 6514
+```
+
+```sh
+docker compose --env-file vedette.env -f compose.yaml -f compose.syslog.yaml -f compose.ports.yaml config | grep -E 'host_ip|published'   # read it first
+docker compose --env-file vedette.env -f compose.yaml -f compose.syslog.yaml -f compose.ports.yaml up -d
+```
+
+`!override` needs Docker Compose 2.24.4 or later (Docker's [merge reference](https://docs.docker.com/reference/compose-file/merge/#replace-value)), also as the provider of `podman compose`; checked with 2.40.3 and 5.1.0. Without the tag, or with the file anywhere but last, compose adds your lines to the ones of the release and still publishes 8443 next to 18443: `config` shows every `published` port, so read it before `up`.
+
+What moving a port changes:
+
+- **8443, the web page.** Open `https://<VEDETTE_HOSTS>:18443`. `VEDETTE_HOSTS` and the certificate hold names and addresses, never a port, so neither changes. **The links the box writes keep `:8443`**: core takes the port of its links from its own listener inside the container (`-listen=:8443`), not from the publish line. Those are the links in notifications and approval requests, the sign-in code mail, the test message, the block-list URL, URL honey tokens, and the osquery install commands under Devices; with 8443 moved they point at a port where Vedette does not answer. So keep 8443 when you use alerts with links, approvals or osquery agents, and move it only for a trial of the page; telling the box its outside port is not possible yet. Do not change `-listen` instead: the health check asks `127.0.0.1:8443` inside the container, so core would never be healthy and the sensors, which wait for it, would not start.
+- **8444, the sensor link.** Keep it. The sensor and the scan worker of `compose.sensors.yaml` run on the host network and reach core at `https://127.0.0.1:8444`, which is written in their command lines; with 8444 moved they cannot report. Only a machine without the sensors can move it.
+- **8765, the MCP server.** Your MCP client, and the SSH tunnel from another machine, use the new port.
+- **514 and 6514, syslog.** Point your devices at the new port (on a device that can only send to 514, keep 514 and stop the other syslog's network input instead). The port field of a log source still hints "Usually 514, or 6514 for TLS". A port above 1023 has one gain on rootless Docker or Podman: it needs no `net.ipv4.ip_unprivileged_port_start`.
+- **The firewall.** Allow the new port, not the old one, on your network firewall. A rule in Docker's `DOCKER-USER` chain sees the packet after Docker's port translation, so it sees the container port (8443, 5514, 5515); match the port people connect to with `-m conntrack --ctorigdstport 18443` ([Docker, iptables](https://docs.docker.com/engine/network/firewall-iptables/)).
+- **Vedette never calls itself.** A webhook, feed, AI provider or SIEM address on this machine is refused at Vedette's own ports 8443, 8444, 8765, 514 and 6514, so the box cannot loop back into its own API. That list is fixed: with the page moved to 18443, do not enter this machine's address at 18443 anywhere in Vedette; and a program of yours that now holds 8443 or 514 on this machine cannot be such a target.
 
 ## 5. Update, and check what you run
 

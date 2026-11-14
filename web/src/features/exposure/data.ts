@@ -1,7 +1,7 @@
 // Sample data and scan-result generator of the exposure mock. 203.0.113.0/24 is the documentation range (RFC 5737), not real IPs.
 import { daysAgo } from '@/mocks/db'
 import { dateText } from './dates'
-import { CERT_WARN_DAYS, type AdminRow, type BoxIpSettings, type CertRow, type Counts, type GapRow, type HostRow, type IgnoredIp, type NotCheckedRow, type PortRow, type ServiceRow, type Snapshot, type Target, type TargetKind, type VulnRow } from './types'
+import { CERT_WARN_DAYS, type AdminRow, type BoxIpSettings, type CertRow, type Counts, type GapRow, type HostRow, type IgnoredIp, type NotCheckedRow, type OutsideView, type PortRow, type ServiceRow, type Snapshot, type Target, type TargetKind, type VulnRow } from './types'
 
 export const BOX_EGRESS_IP = '203.0.113.10'
 /** The sample company has two public IPs behind a load balancer: the box leaves through both. */
@@ -219,4 +219,16 @@ export function seedSnapshots(): Record<string, Snapshot[]> {
     'xt-1': [makeSnapshot('sn-1', daysAgo(14), old), makeSnapshot('sn-2', daysAgo(7), mid), makeSnapshot('sn-3', daysAgo(1), full)],
     'xt-2': [makeSnapshot('sn-4', daysAgo(8), boxOld, BOX_EGRESS_IP), makeSnapshot('sn-5', daysAgo(1), box, BOX_EGRESS_IP)],
   }
+}
+
+/** D-558: what the mock's Shodan InternetDB knows. The box's own IP: the FortiGate on 443, the TCP-wrapped 8443, and its admin page on 10443
+ * that the router shows only to the outside (our scan from inside does not see it); 18443 opened after Shodan's last pass. Any other IP: no record. */
+export function outsideAnswer(ip: string): Pick<OutsideView, 'found' | 'ports' | 'hostnames' | 'cpes' | 'tags' | 'vulns'> {
+  if (ip !== BOX_EGRESS_IP) return { found: false, ports: [], hostnames: [], cpes: [], tags: [], vulns: [] }
+  return { found: true, ports: [443, 8443, 10443], hostnames: ['vpn.acme.example'], cpes: ['cpe:/o:fortinet:fortios'], tags: ['self-signed', 'vpn'], vulns: ['CVE-2023-27997', 'CVE-2024-21762'] }
+}
+
+/** Sample: an administrator asked Shodan about the box's own IP two days ago; the other IP was never sent. */
+export function seedOutside(): Record<string, Omit<OutsideView, 'scan_ports' | 'scan_at'>> {
+  return { 'xt-2': { ip: BOX_EGRESS_IP, checked_at: daysAgo(2), checked_by: 'admin@acme.example', ...outsideAnswer(BOX_EGRESS_IP) } }
 }

@@ -11,7 +11,7 @@ import (
 	"github.com/knt048/vedette/core/server"
 )
 
-// ExposureHandlers implements the 15 exposure operations (modules/exposure/CONTRACT.md). Embed it in the
+// ExposureHandlers implements the 17 exposure operations (modules/exposure/CONTRACT.md). Embed it in the
 // composite handler. Roles are enforced by the server pipeline before a handler runs, never here.
 //
 //nolint:revive // the name is distinct on purpose: it is embedded in cmd/vedette next to inventory.Handlers
@@ -227,4 +227,35 @@ func (h *ExposureHandlers) ExposureGetExposureTargetsIDDiff(ctx context.Context,
 		return nil, ToAPIError(err)
 	}
 	return into[oas.ExposureGetExposureTargetsIDDiffOK](d)
+}
+
+// ExposureGetExposureTargetsIDOutside implements exposure_get_exposure_targets_id_outside (viewer): Shodan's last answer about this
+// IP of the box, null when nobody has asked (D-558, INV-21). It sends nothing.
+func (h *ExposureHandlers) ExposureGetExposureTargetsIDOutside(ctx context.Context, params oas.ExposureGetExposureTargetsIDOutsideParams) (oas.NilExposureGetExposureTargetsIDOutsideOK, error) {
+	v, err := h.svc.Outside(ctx, params.ID)
+	if err != nil {
+		return oas.NilExposureGetExposureTargetsIDOutsideOK{}, ToAPIError(err)
+	}
+	if v == nil {
+		return oas.NilExposureGetExposureTargetsIDOutsideOK{Null: true}, nil
+	}
+	out, err := into[oas.ExposureGetExposureTargetsIDOutsideOK](*v)
+	if err != nil {
+		return oas.NilExposureGetExposureTargetsIDOutsideOK{}, err
+	}
+	return oas.NewNilExposureGetExposureTargetsIDOutsideOK(*out), nil
+}
+
+// ExposurePostExposureTargetsIDOutside implements exposure_post_exposure_targets_id_outside (admin): an administrator's click sends
+// this IP of the box to Shodan InternetDB (D-558, INV-21).
+func (h *ExposureHandlers) ExposurePostExposureTargetsIDOutside(ctx context.Context, params oas.ExposurePostExposureTargetsIDOutsideParams) (*oas.ExposurePostExposureTargetsIDOutsideOK, error) {
+	user, err := actor(ctx)
+	if err != nil {
+		return nil, err
+	}
+	v, err := h.svc.CheckOutside(ctx, user, params.ID)
+	if err != nil {
+		return nil, ToAPIError(err)
+	}
+	return into[oas.ExposurePostExposureTargetsIDOutsideOK](v)
 }

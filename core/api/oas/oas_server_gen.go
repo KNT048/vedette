@@ -849,6 +849,14 @@ type Handler interface {
 	//
 	// GET /exposure/targets/{id}/diff
 	ExposureGetExposureTargetsIDDiff(ctx context.Context, params ExposureGetExposureTargetsIDDiffParams) (*ExposureGetExposureTargetsIDDiffOK, error)
+	// ExposureGetExposureTargetsIDOutside implements exposure_get_exposure_targets_id_outside operation.
+	//
+	// What the Internet sees (D-558): the last answer of Shodan InternetDB about this public IP of the
+	// box, with the open ports of Vedette's own newest scan of it; null when nobody has asked yet. Reading
+	// sends nothing.
+	//
+	// GET /exposure/targets/{id}/outside
+	ExposureGetExposureTargetsIDOutside(ctx context.Context, params ExposureGetExposureTargetsIDOutsideParams) (NilExposureGetExposureTargetsIDOutsideOK, error)
 	// ExposureGetExposureTargetsIDSnapshots implements exposure_get_exposure_targets_id_snapshots operation.
 	//
 	// Scan days of a target, newest first.
@@ -886,6 +894,18 @@ type Handler interface {
 	//
 	// POST /exposure/targets
 	ExposurePostExposureTargets(ctx context.Context, req *ExposurePostExposureTargetsReq) (*ExposurePostExposureTargetsCreated, error)
+	// ExposurePostExposureTargetsIDOutside implements exposure_post_exposure_targets_id_outside operation.
+	//
+	// Ask Shodan InternetDB what it has seen on this public IP (D-558). Only an administrator's click
+	// sends it: no job, no polling. Only a public IP of this box that is verified and still the one the
+	// box goes out through (the same check as before a scan, INV-13) is sent: 400 bad_value for a domain,
+	// 409 not_verified, expired or ip_not_current otherwise. One HTTPS GET of
+	// https://internetdb.shodan.io/, nothing else sent; 404 there is a normal answer (found false). At
+	// most one check a minute on the box (429 rate_limited); 502 unreachable when Shodan does not answer
+	// or its answer cannot be read. The answer is kept (one per IP) and every request sent is audited.
+	//
+	// POST /exposure/targets/{id}/outside
+	ExposurePostExposureTargetsIDOutside(ctx context.Context, params ExposurePostExposureTargetsIDOutsideParams) (*ExposurePostExposureTargetsIDOutsideOK, error)
 	// ExposurePostExposureTargetsIDScan implements exposure_post_exposure_targets_id_scan operation.
 	//
 	// Scan now. Answers at once with 202 and the run (ScanRun, status running): the scan itself goes on in

@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
-import type { BoxIpDetectResult, BoxIpSettings, Diff, ScanRun, Snapshot, SnapshotMeta, Target, TargetList, VerifyResult } from './types'
+import type { BoxIpDetectResult, BoxIpSettings, Diff, OutsideView, ScanRun, Snapshot, SnapshotMeta, Target, TargetList, VerifyResult } from './types'
 
 export const useTargets = () => useQuery({ queryKey: ['exposure', 'targets'], queryFn: () => api.get<TargetList>('/exposure/targets') })
 export const useTarget = (id: string) => useQuery({ queryKey: ['exposure', 'target', id], queryFn: () => api.get<Target>(`/exposure/targets/${encodeURIComponent(id)}`), retry: false })
@@ -71,4 +71,17 @@ export function useScan() {
 export function useStopScan() {
   const inv = useInvalidate()
   return useMutation({ mutationFn: () => api.post<ScanRun>('/exposure/scan/stop'), onSuccess: inv, onError: inv })
+}
+
+/** D-558: Shodan's last answer about this IP of the box (null before the first check). Reading sends nothing. */
+export const useOutside = (id: string) => useQuery({ queryKey: ['exposure', 'outside', id], queryFn: () => api.get<OutsideView | null>(`/exposure/targets/${encodeURIComponent(id)}/outside`) })
+/** Sends this IP of the box to Shodan InternetDB (admin). Only called after the person confirmed what is sent. */
+export function useCheckOutside() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => api.post<OutsideView>(`/exposure/targets/${encodeURIComponent(id)}/outside`),
+    onSuccess: (v, id) => { qc.setQueryData(['exposure', 'outside', id], v) },
+    // a refusal may have found the IP paused (INV-13), which the page must then show
+    onError: () => qc.invalidateQueries({ queryKey: ['exposure', 'target'] }),
+  })
 }

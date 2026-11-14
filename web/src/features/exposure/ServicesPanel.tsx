@@ -45,7 +45,7 @@ export function VulnSection({ s, domain = false }: { s: Snapshot; domain?: boole
   ]
   // D-527 (deep scan, testing terms accepted): what nuclei's deep templates matched (an exposed .git, an admin panel, a technology).
   // A matched row of a CVE the list above already shows as "Confirmed by template" is not repeated.
-  const deep = s.templates
+  const deep = (s.templates ?? []) // a snapshot read from an older box may not carry the list
     .filter((r) => r.severity !== undefined && r.outcome === 'matched' && !(r.cve && s.vulns.some((v) => v.ip === r.ip && v.port === r.port && v.cve === r.cve)))
     .sort((a, b) => SEVERITY_ORDER[a.severity!] - SEVERITY_ORDER[b.severity!])
   const deepCols: ColumnDef<TemplateRow>[] = [

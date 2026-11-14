@@ -56836,17 +56836,22 @@ func (s *FindingsGetFindingsIDOKEvidence) SetTemplate(val OptString) {
 type FindingsGetFindingsIDOKFixedIn struct {
 	// At most 5, newest first.
 	Branches []FindingsGetFindingsIDOKFixedInBranchesItem `json:"branches"`
-	// "Ubuntu" or "Debian" when the device runs one and the version has no distribution marker: the page
-	// adds "if you installed it from the distribution's packages, install its security updates instead";
-	// empty otherwise.
+	// "Ubuntu" or "Debian" when the device runs one, empty otherwise. distro: whose security updates to
+	// install (empty = the distribution). Other kinds: set only when the software is not known to come
+	// from the package database (typed by a person, read by a scan, or an agent row stored before
+	// inventory kept the flag); the page adds "if you installed it from the distribution's packages,
+	// install its security updates instead".
 	Distro string `json:"distro"`
-	// The fixed release (fixed), the last affected release (up_to); empty for branches.
+	// The fixed release (fixed), the last affected release (up_to), the upstream fixed release as a
+	// reference when NVD names one (distro: the backport may keep the package's number below it); empty
+	// for branches.
 	Fixed string `json:"fixed"`
 	// Fixed = the device version is inside a range that ends before `fixed`, and `fixed` is outside every
 	// range that applies; up_to = inside a range whose end `fixed` is itself affected (no fixed release
 	// named); branches = the version is unknown or unreadable, `branches` lists the fix of each release
-	// line; distro = the version is a distribution package's (marker such as ubuntu, +deb12, .el9), no
-	// number is named.
+	// line; distro = a package of the distribution, whose security updates carry the fix under their own
+	// numbers: an agent read it from the device's package database (deb/rpm), or the version carries a
+	// marker such as ubuntu, +deb12, .el9.
 	Kind FindingsGetFindingsIDOKFixedInKind `json:"kind"`
 	// Release lines with a fix left out of branches.
 	More int `json:"more"`
@@ -56967,8 +56972,9 @@ func (s *FindingsGetFindingsIDOKFixedInBranchesItem) SetFixed(val string) {
 // Fixed = the device version is inside a range that ends before `fixed`, and `fixed` is outside every
 // range that applies; up_to = inside a range whose end `fixed` is itself affected (no fixed release
 // named); branches = the version is unknown or unreadable, `branches` lists the fix of each release
-// line; distro = the version is a distribution package's (marker such as ubuntu, +deb12, .el9), no
-// number is named.
+// line; distro = a package of the distribution, whose security updates carry the fix under their own
+// numbers: an agent read it from the device's package database (deb/rpm), or the version carries a
+// marker such as ubuntu, +deb12, .el9.
 type FindingsGetFindingsIDOKFixedInKind string
 
 const (
@@ -61838,17 +61844,22 @@ func (s *FindingsPostFindingsIDAiOKEvidence) SetTemplate(val OptString) {
 type FindingsPostFindingsIDAiOKFixedIn struct {
 	// At most 5, newest first.
 	Branches []FindingsPostFindingsIDAiOKFixedInBranchesItem `json:"branches"`
-	// "Ubuntu" or "Debian" when the device runs one and the version has no distribution marker: the page
-	// adds "if you installed it from the distribution's packages, install its security updates instead";
-	// empty otherwise.
+	// "Ubuntu" or "Debian" when the device runs one, empty otherwise. distro: whose security updates to
+	// install (empty = the distribution). Other kinds: set only when the software is not known to come
+	// from the package database (typed by a person, read by a scan, or an agent row stored before
+	// inventory kept the flag); the page adds "if you installed it from the distribution's packages,
+	// install its security updates instead".
 	Distro string `json:"distro"`
-	// The fixed release (fixed), the last affected release (up_to); empty for branches.
+	// The fixed release (fixed), the last affected release (up_to), the upstream fixed release as a
+	// reference when NVD names one (distro: the backport may keep the package's number below it); empty
+	// for branches.
 	Fixed string `json:"fixed"`
 	// Fixed = the device version is inside a range that ends before `fixed`, and `fixed` is outside every
 	// range that applies; up_to = inside a range whose end `fixed` is itself affected (no fixed release
 	// named); branches = the version is unknown or unreadable, `branches` lists the fix of each release
-	// line; distro = the version is a distribution package's (marker such as ubuntu, +deb12, .el9), no
-	// number is named.
+	// line; distro = a package of the distribution, whose security updates carry the fix under their own
+	// numbers: an agent read it from the device's package database (deb/rpm), or the version carries a
+	// marker such as ubuntu, +deb12, .el9.
 	Kind FindingsPostFindingsIDAiOKFixedInKind `json:"kind"`
 	// Release lines with a fix left out of branches.
 	More int `json:"more"`
@@ -61969,8 +61980,9 @@ func (s *FindingsPostFindingsIDAiOKFixedInBranchesItem) SetFixed(val string) {
 // Fixed = the device version is inside a range that ends before `fixed`, and `fixed` is outside every
 // range that applies; up_to = inside a range whose end `fixed` is itself affected (no fixed release
 // named); branches = the version is unknown or unreadable, `branches` lists the fix of each release
-// line; distro = the version is a distribution package's (marker such as ubuntu, +deb12, .el9), no
-// number is named.
+// line; distro = a package of the distribution, whose security updates carry the fix under their own
+// numbers: an agent read it from the device's package database (deb/rpm), or the version carries a
+// marker such as ubuntu, +deb12, .el9.
 type FindingsPostFindingsIDAiOKFixedInKind string
 
 const (
@@ -64740,17 +64752,22 @@ func (s *FindingsPostFindingsIDAppliedOKEvidence) SetTemplate(val OptString) {
 type FindingsPostFindingsIDAppliedOKFixedIn struct {
 	// At most 5, newest first.
 	Branches []FindingsPostFindingsIDAppliedOKFixedInBranchesItem `json:"branches"`
-	// "Ubuntu" or "Debian" when the device runs one and the version has no distribution marker: the page
-	// adds "if you installed it from the distribution's packages, install its security updates instead";
-	// empty otherwise.
+	// "Ubuntu" or "Debian" when the device runs one, empty otherwise. distro: whose security updates to
+	// install (empty = the distribution). Other kinds: set only when the software is not known to come
+	// from the package database (typed by a person, read by a scan, or an agent row stored before
+	// inventory kept the flag); the page adds "if you installed it from the distribution's packages,
+	// install its security updates instead".
 	Distro string `json:"distro"`
-	// The fixed release (fixed), the last affected release (up_to); empty for branches.
+	// The fixed release (fixed), the last affected release (up_to), the upstream fixed release as a
+	// reference when NVD names one (distro: the backport may keep the package's number below it); empty
+	// for branches.
 	Fixed string `json:"fixed"`
 	// Fixed = the device version is inside a range that ends before `fixed`, and `fixed` is outside every
 	// range that applies; up_to = inside a range whose end `fixed` is itself affected (no fixed release
 	// named); branches = the version is unknown or unreadable, `branches` lists the fix of each release
-	// line; distro = the version is a distribution package's (marker such as ubuntu, +deb12, .el9), no
-	// number is named.
+	// line; distro = a package of the distribution, whose security updates carry the fix under their own
+	// numbers: an agent read it from the device's package database (deb/rpm), or the version carries a
+	// marker such as ubuntu, +deb12, .el9.
 	Kind FindingsPostFindingsIDAppliedOKFixedInKind `json:"kind"`
 	// Release lines with a fix left out of branches.
 	More int `json:"more"`
@@ -64871,8 +64888,9 @@ func (s *FindingsPostFindingsIDAppliedOKFixedInBranchesItem) SetFixed(val string
 // Fixed = the device version is inside a range that ends before `fixed`, and `fixed` is outside every
 // range that applies; up_to = inside a range whose end `fixed` is itself affected (no fixed release
 // named); branches = the version is unknown or unreadable, `branches` lists the fix of each release
-// line; distro = the version is a distribution package's (marker such as ubuntu, +deb12, .el9), no
-// number is named.
+// line; distro = a package of the distribution, whose security updates carry the fix under their own
+// numbers: an agent read it from the device's package database (deb/rpm), or the version carries a
+// marker such as ubuntu, +deb12, .el9.
 type FindingsPostFindingsIDAppliedOKFixedInKind string
 
 const (
@@ -67663,17 +67681,22 @@ func (s *FindingsPostFindingsIDStatusOKEvidence) SetTemplate(val OptString) {
 type FindingsPostFindingsIDStatusOKFixedIn struct {
 	// At most 5, newest first.
 	Branches []FindingsPostFindingsIDStatusOKFixedInBranchesItem `json:"branches"`
-	// "Ubuntu" or "Debian" when the device runs one and the version has no distribution marker: the page
-	// adds "if you installed it from the distribution's packages, install its security updates instead";
-	// empty otherwise.
+	// "Ubuntu" or "Debian" when the device runs one, empty otherwise. distro: whose security updates to
+	// install (empty = the distribution). Other kinds: set only when the software is not known to come
+	// from the package database (typed by a person, read by a scan, or an agent row stored before
+	// inventory kept the flag); the page adds "if you installed it from the distribution's packages,
+	// install its security updates instead".
 	Distro string `json:"distro"`
-	// The fixed release (fixed), the last affected release (up_to); empty for branches.
+	// The fixed release (fixed), the last affected release (up_to), the upstream fixed release as a
+	// reference when NVD names one (distro: the backport may keep the package's number below it); empty
+	// for branches.
 	Fixed string `json:"fixed"`
 	// Fixed = the device version is inside a range that ends before `fixed`, and `fixed` is outside every
 	// range that applies; up_to = inside a range whose end `fixed` is itself affected (no fixed release
 	// named); branches = the version is unknown or unreadable, `branches` lists the fix of each release
-	// line; distro = the version is a distribution package's (marker such as ubuntu, +deb12, .el9), no
-	// number is named.
+	// line; distro = a package of the distribution, whose security updates carry the fix under their own
+	// numbers: an agent read it from the device's package database (deb/rpm), or the version carries a
+	// marker such as ubuntu, +deb12, .el9.
 	Kind FindingsPostFindingsIDStatusOKFixedInKind `json:"kind"`
 	// Release lines with a fix left out of branches.
 	More int `json:"more"`
@@ -67794,8 +67817,9 @@ func (s *FindingsPostFindingsIDStatusOKFixedInBranchesItem) SetFixed(val string)
 // Fixed = the device version is inside a range that ends before `fixed`, and `fixed` is outside every
 // range that applies; up_to = inside a range whose end `fixed` is itself affected (no fixed release
 // named); branches = the version is unknown or unreadable, `branches` lists the fix of each release
-// line; distro = the version is a distribution package's (marker such as ubuntu, +deb12, .el9), no
-// number is named.
+// line; distro = a package of the distribution, whose security updates carry the fix under their own
+// numbers: an agent read it from the device's package database (deb/rpm), or the version carries a
+// marker such as ubuntu, +deb12, .el9.
 type FindingsPostFindingsIDStatusOKFixedInKind string
 
 const (

@@ -6,6 +6,8 @@
 // - osquery lịch truy vấn: JSON "schedule" (query, interval giây, snapshot, platform). https://osquery.readthedocs.io/en/stable/deployment/configuration/
 // - osquery bảng: os_version, deb_packages, rpm_packages, programs, system_info, interface_details, interface_addresses, kernel_info (D-516: cột
 //   `version` là kernel đang chạy, "7.0.0-43-generic", câu một dòng riêng; hộp gắn nó vào danh sách gói để dòng Kernel lấy đúng ảnh kernel đang chạy). https://osquery.io/schema/
+//   (D-524: `os_revision` đọc cột `revision` của os_version, chỉ có trên Windows từ osquery 5.12: UBR, bản vá tháng, "22631.4460"; osquery tự đọc
+//   HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\UBR, lịch không có bảng registry, D-169 (1). https://github.com/osquery/osquery/blob/5.12.1/specs/os_version.table)
 //   (D-169 (7): `interfaces` cho hộp biết MAC/IP của máy để khớp thiết bị; bỏ cpu_brand, physical_memory, patches vì kho không có trường nào cho chúng.)
 // - osquery cài: gói chính thức do CHÍNH HỘP phục vụ (D-404: hộp là nguồn duy nhất, không pkg.osquery.io, không Chocolatey), kiểm SHA-256 bằng giá trị trên
 //   trang đã đăng nhập rồi mới cài: `dpkg -i` / `rpm -Uvh` (https://osquery.readthedocs.io/en/stable/installation/install-linux/); MSI cài vào
@@ -34,6 +36,7 @@ export const OSQUERY_SCHEDULE = JSON.stringify({
     rpm_packages: { query: 'SELECT name, version, release, arch, epoch FROM rpm_packages;', interval: 3600, snapshot: true, platform: 'linux' },
     programs: { query: 'SELECT name, version, publisher, install_date FROM programs;', interval: 3600, snapshot: true, platform: 'windows' },
     kernel_info: { query: 'SELECT version FROM kernel_info;', interval: 3600, snapshot: true, platform: 'linux' },
+    os_revision: { query: 'SELECT name, version, revision, arch FROM os_version;', interval: 3600, snapshot: true, platform: 'windows' },
   },
 }, null, 2)
 

@@ -5,6 +5,7 @@ import (
 	_ "embed"
 	"encoding/json"
 	"regexp"
+	"strconv"
 	"strings"
 	"unicode/utf8"
 
@@ -97,6 +98,9 @@ func debUpstream(v string) string {
 // A row whose Source names another epoch or upstream version than the binary's ("foo (2:1.0-1)" for "1:3.0-1", a package
 // built from another source release) gives no full version either, so NVD decides it (review L1); the signed kernel
 // sources (linux-signed*) are the exception, their binaries carry the kernel's own version.
+//
+// A "windows_os" row (withWindows: the node's Windows release with its update revision, D-524) gives the operating system's own row
+// (windowsRow), first in the list.
 func mapPackages(snaps map[string][]row, limit int) (items []observe.Software, dropped int) {
 	seen := map[string]int{} // key -> index in items
 	add := func(display, vendor, product, version string, mapped, packaged bool, pkgVersion, pkgSource string) {
@@ -126,6 +130,11 @@ func mapPackages(snaps map[string][]row, limit int) (items []observe.Software, d
 			s.KevKeys = []string{strings.ToLower(vendor) + "|" + strings.ToLower(product)}
 		}
 		items = append(items, s)
+	}
+	for _, r := range snaps["windows_os"] { // the operating system first, so a list cut at limit keeps it (D-524)
+		if s, ok := windowsRow(winOS{name: r["name"], version: r["version"], target: r["target"]}); ok && len(items) < limit {
+			items = append(items, s)
+		}
 	}
 	running := runningImages(snaps["deb_packages"])
 	for _, r := range snaps["deb_packages"] {
@@ -278,6 +287,119 @@ func observations(hint observe.AssetHint, snaps map[string][]row, mac string) []
 	}
 	if mac != "" && len(out) > 0 { // the card's MAC, once per request that records something (hintConfidence in the inventory)
 		out = append(out, observe.Observation{AssetHint: hint, Field: observe.MAC, Value: mac, Source: observe.Agent, Confidence: 0.9})
+	}
+	return out
+}
+
+// ---- Windows release and update revision (D-524) ----
+
+// winOS is a Windows machine's release with its monthly update revision: what the os_revision query gives (Wazuh: its os version),
+// stored on the node because the package list may come in another request. version is "10.0.22631.4460"; target is the NVD
+// target_hw of the machine ("x64", "x86", "arm64", "" when not known).
+type winOS struct{ name, version, target string }
+
+// winBuildRE is the version of Windows 10, 11 and Server 2016 and later as osquery gives it ("10.0.22631"); winFullRE the same with
+// the update revision (Wazuh). Older releases (6.x) are named by NVD without build ranges, so they are left out.
+var (
+	winBuildRE = regexp.MustCompile(`^10\.0\.[1-9][0-9]{4}$`)
+	winFullRE  = regexp.MustCompile(`^10\.0\.[1-9][0-9]{4}\.[1-9][0-9]{0,5}$`)
+)
+
+// parseWinOS reads the os_revision row: a Windows 10/11/Server version and a revision 1..999999 written as osquery writes an
+// integer (no sign, no leading zero, no space). Anything else is not taken (the agent's data is untrusted, INV-7): a revision 0
+// or a missing one would place the machine at the release's first build and so inside every range of that release.
+func parseWinOS(rows []row) (winOS, bool) {
+	if len(rows) == 0 {
+		return winOS{}, false
+	}
+	r := rows[0]
+	rev, err := strconv.Atoi(r["revision"])
+	if err != nil || rev < 1 || rev > 999999 || strconv.Itoa(rev) != r["revision"] || !winBuildRE.MatchString(r["version"]) || !fits(r["name"]) {
+		return winOS{}, false
+	}
+	return winOS{name: r["name"], version: r["version"] + "." + r["revision"], target: winTarget(r["arch"])}, true
+}
+
+// winTarget is the NVD target_hw of the architecture osquery reads from WMI (Win32_OperatingSystem.OSArchitecture: "64-bit",
+// translated on some systems, "64 bits", "64-Bit"; "ARM 64-bit Processor" on ARM); "" when it names neither.
+func winTarget(arch string) string {
+	a := strings.ToLower(arch)
+	switch {
+	case strings.Contains(a, "arm"):
+		return "arm64"
+	case strings.Contains(a, "64"):
+		return "x64"
+	case strings.Contains(a, "32"):
+		return "x86"
+	}
+	return ""
+}
+
+type winRelease struct{ display, product string }
+
+// winReleases maps a build to its release, client then server, under the NVD product name NVD's Windows ranges use
+// ("cpe:2.3:o:microsoft:windows_11_23h2:*:…:x64:*" up to 10.0.22631.5189). A build only one kind has leaves the other empty.
+// Sources: Microsoft's release information pages (the D-504 tables) and NVD's configurations of CVE-2025-29824.
+var winReleases = map[string][2]winRelease{
+	"10240": {{"Windows 10 1507", "windows_10_1507"}, {}},
+	"14393": {{"Windows 10 1607", "windows_10_1607"}, {"Windows Server 2016", "windows_server_2016"}},
+	"17763": {{"Windows 10 1809", "windows_10_1809"}, {"Windows Server 2019", "windows_server_2019"}},
+	"19044": {{"Windows 10 21H2", "windows_10_21h2"}, {}},
+	"19045": {{"Windows 10 22H2", "windows_10_22h2"}, {}},
+	"20348": {{}, {"Windows Server 2022", "windows_server_2022"}},
+	"22621": {{"Windows 11 22H2", "windows_11_22h2"}, {}},
+	"22631": {{"Windows 11 23H2", "windows_11_23h2"}, {}},
+	"25398": {{}, {"Windows Server 2022 23H2", "windows_server_2022_23h2"}},
+	"26100": {{"Windows 11 24H2", "windows_11_24h2"}, {"Windows Server 2025", "windows_server_2025"}},
+	"26200": {{"Windows 11 25H2", "windows_11_25h2"}, {}},
+}
+
+// windowsRow is the operating system's own software row: vendor microsoft, the release as product ("Windows 11 23H2", which
+// findings reads as NVD's windows_11_23h2), the full version with its update revision, the KEV key of CISA's "Microsoft | Windows"
+// (the one the catalog's Windows entries carry) and a CPE that names the release and the machine's target_hw, so NVD's Windows
+// ranges are compared with the patched build. false for a build not in winReleases (a release NVD has no build ranges for, or one
+// not added yet): no row, as before D-524.
+func windowsRow(w winOS) (observe.Software, bool) {
+	parts := strings.Split(w.version, ".")
+	if !winFullRE.MatchString(w.version) || len(parts) != 4 {
+		return observe.Software{}, false
+	}
+	pair := winReleases[parts[2]]
+	rel := pair[0]
+	if strings.Contains(strings.ToLower(w.name), "server") {
+		rel = pair[1]
+	}
+	if rel.product == "" {
+		return observe.Software{}, false
+	}
+	target := cmp.Or(w.target, "*")
+	return observe.Software{Display: rel.display, Vendor: "microsoft", Product: rel.display, Version: w.version,
+		CPE:     "cpe:2.3:o:microsoft:" + rel.product + ":" + w.version + ":*:*:*:*:*:" + target + ":*",
+		KevKeys: []string{"microsoft|windows"}, Confidence: softwareConfidence}, true
+}
+
+// withWindows puts the node's Windows release on a copy of the snapshots: a "windows_os" row the package mapper turns into the
+// operating system's software row, when the request has a Windows package list (programs), and the full version on the
+// os_version row of the same build, so the device's OS reads "Microsoft Windows 11 Pro 10.0.22631.4460". A zero w leaves the
+// snapshots as they are.
+func withWindows(snaps map[string][]row, w winOS) map[string][]row {
+	if w.version == "" {
+		return snaps
+	}
+	out := make(map[string][]row, len(snaps)+1)
+	for k, v := range snaps {
+		out[k] = v
+	}
+	if len(snaps["programs"]) > 0 {
+		out["windows_os"] = []row{{"name": w.name, "version": w.version, "target": w.target}}
+	}
+	if rows := snaps["os_version"]; len(rows) > 0 && rows[0]["platform"] == "windows" && strings.HasPrefix(w.version, rows[0]["version"]+".") {
+		r := make(row, len(rows[0]))
+		for k, v := range rows[0] {
+			r[k] = v
+		}
+		r["version"], r["build"] = w.version, ""
+		out["os_version"] = append([]row{r}, rows[1:]...)
 	}
 	return out
 }

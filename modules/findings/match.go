@@ -599,6 +599,9 @@ func decide(in swInfo, v Vuln, multi bool) (t Tri, within VersionRange, every bo
 		}
 		return No, VersionRange{}, false, p // the entry names only operating-system releases, and not this device's (D-500)
 	}
+	if !applicable && !multi && windowsOthersOnly(in, v) {
+		return No, VersionRange{}, false, proofNone // D-524: only other Windows releases; no finding, and no proof
+	}
 	if !applicable && multi {
 		// CISA's "Multiple Products" names no product: only NVD's list can tie the entry to this software (D-505, W3-7).
 		switch {

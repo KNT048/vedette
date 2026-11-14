@@ -26,6 +26,11 @@ var schedule = []scheduleQuery{
 	// D-516: the running kernel release ("7.0.0-43-generic"), its own one-row query (a column on every package row would make a
 	// big host's package list longer than osquery's logger_tls_max_linesize, and osquery drops such a line whole).
 	{name: "kernel_info", query: "SELECT version FROM kernel_info;", interval: 3600, platform: "linux"},
+	// D-524: Windows's monthly update revision (UBR, the 4460 of 10.0.22631.4460), without which no Windows range of NVD can be
+	// read. osquery (5.12 and later) reads it from the registry itself (HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion, value
+	// UBR) into os_version.revision, a Windows-only column: a query of its own, so the os_version query above stays valid on Linux
+	// and an older osquery without the column fails this query alone. No registry table in the schedule (D-169 (1)).
+	{name: "os_revision", query: "SELECT name, version, revision, arch FROM os_version;", interval: 3600, platform: "windows"},
 }
 
 // The first report (D-503). osquery 5.12 runs a scheduled query when the Unix time is a multiple of its (splayed, ±10 %) interval, never at
@@ -43,6 +48,7 @@ const (
 var firstReport = map[string]string{
 	"os_version": "os_version", "system_info": "system_info", "interfaces": "interfaces",
 	"deb_packages": "packages", "rpm_packages": "packages", "programs": "packages", "kernel_info": "packages",
+	"os_revision": "os_version",
 }
 
 // hasAnswer says whether the comma-separated list holds the answer.

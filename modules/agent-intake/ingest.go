@@ -47,7 +47,11 @@ func (s *Service) Log(ctx context.Context, src netip.Addr, in logIn) error {
 	if err != nil {
 		return err
 	}
-	in.snaps = withKernel(in.snaps, kernel)
+	win, err := s.nodeWindows(ctx, n, in)
+	if err != nil {
+		return err
+	}
+	in.snaps = withWindows(withKernel(in.snaps, kernel), win)
 	taken, err := s.deliver(ctx, src.Unmap().WithZone(""), hint, mac, n.id, in)
 	if err != nil {
 		return err
@@ -77,6 +81,24 @@ func (s *Service) nodeKernel(ctx context.Context, n nodeRow, in logIn) (string, 
 		return "", fmt.Errorf("agentintake: store the kernel: %w", err)
 	}
 	return k, nil
+}
+
+// nodeWindows is the Windows release and update revision of the node (D-524): the one this request's os_revision snapshot gives,
+// stored on the node when it changed, else the one stored. Zero when the node never gave a usable one (Linux, an osquery older than
+// 5.12, a revision that is not a positive integer).
+func (s *Service) nodeWindows(ctx context.Context, n nodeRow, in logIn) (winOS, error) {
+	w, ok := parseWinOS(in.snaps["os_revision"])
+	if !ok || w == n.win {
+		return n.win, nil
+	}
+	err := s.db.Write(ctx, func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(ctx, `UPDATE intake_osquery_nodes SET win_name = ?, win_version = ?, win_target = ? WHERE id = ?`, w.name, w.version, w.target, n.id)
+		return err
+	})
+	if err != nil {
+		return winOS{}, fmt.Errorf("agentintake: store the windows release: %w", err)
+	}
+	return w, nil
 }
 
 // withKernel puts the running kernel release on every deb_packages row (column "kernel", as the Wazuh path does), on a copy: the

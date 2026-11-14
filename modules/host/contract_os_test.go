@@ -126,6 +126,8 @@ func startSys(t *testing.T, muts ...mut) *sysEnv {
 		d.Installing = &e.installing
 		d.AfterFunc = e.timers.after
 		d.FreeBytes = func(string) (uint64, error) { return 100 << 30, nil }
+		// a fixed fence key (D-591): the host's own key file and the scan container's copy need root to own, which a test is not
+		d.FenceKey = bytes.Repeat([]byte{7}, 32)
 	}}, muts...)
 	e.o = m.Ops(e.clock.Now, all...)
 	e.h = servertest.Start(t, e.o.Commands(), func(o *server.Options) {

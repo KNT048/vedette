@@ -1318,7 +1318,7 @@ func TestContract_INV17_BuiltUnitsFollowTheCapabilityAndNetworkTable(t *testing.
 			volumes: []string{keys + "passive.volume:/var/lib/vedette-creds:ro"},
 			exec:    "passive --core https://127.0.0.1:8444 --creds /var/lib/vedette-creds/sensor.pem"},
 		api.ServiceScan: {network: "host", addCaps: []string{"NET_RAW"}, user: "10003:10004", wants: []string{"vedette-core.service"},
-			volumes: []string{keys + "active.volume:/var/lib/vedette-creds:ro"},
+			volumes: []string{keys + "active.volume:/var/lib/vedette-creds:ro", "/var/lib/vedette-fence:/var/lib/vedette-fence:ro"}, // D-591: the fence key and domain list, read-only, scan only
 			exec:    "active --core https://127.0.0.1:8444 --creds /var/lib/vedette-creds/sensor.pem"},
 		// The image's user is 1000:0 from the start and the unit adds no capability (deploy/containers/honeypot/init.py, D-162). :U gives the
 		// log volume to that user (UserNS=auto picks the range at start).

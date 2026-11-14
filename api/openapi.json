@@ -25833,6 +25833,10 @@
                     "has_template": {
                       "type": "boolean"
                     },
+                    "source": {
+                      "description": "Which list the entry is on: \"cisa-kev\", \"vulncheck-kev\" (VulnCheck KEV, D-557) or the id of a custom feed; texts name it, an entry of VulnCheck is never called CISA's",
+                      "type": "string"
+                    },
                     "display": {
                       "type": "string"
                     },
@@ -26601,6 +26605,10 @@
                               "has_template": {
                                 "type": "boolean"
                               },
+                              "source": {
+                                "description": "Which list the entry is on: \"cisa-kev\", \"vulncheck-kev\" (VulnCheck KEV, D-557) or the id of a custom feed; texts name it, an entry of VulnCheck is never called CISA's",
+                                "type": "string"
+                              },
                               "display": {
                                 "type": "string"
                               }
@@ -26982,6 +26990,11 @@
                   },
                   "url": {
                     "description": "Built-in: a mirror address. Empty string resets it to the default",
+                    "type": "string",
+                    "maxLength": 500
+                  },
+                  "api_key": {
+                    "description": "VulnCheck KEV only, write-only: the customer's own API key (8 to 500 characters, no spaces). Saving it turns the feed on; an empty string removes the key, turns the feed off and deletes what it loaded",
                     "type": "string",
                     "maxLength": 500
                   }
@@ -28249,6 +28262,14 @@
                                   },
                                   "has_template": {
                                     "type": "boolean"
+                                  },
+                                  "source": {
+                                    "description": "Which list the entry is on (D-557): texts and the source badge name it; an entry of VulnCheck KEV is never called CISA's",
+                                    "type": "string",
+                                    "enum": [
+                                      "cisa-kev",
+                                      "vulncheck-kev"
+                                    ]
                                   }
                                 },
                                 "required": [
@@ -28864,6 +28885,14 @@
                             },
                             "has_template": {
                               "type": "boolean"
+                            },
+                            "source": {
+                              "description": "Which list the entry is on (D-557): texts and the source badge name it; an entry of VulnCheck KEV is never called CISA's",
+                              "type": "string",
+                              "enum": [
+                                "cisa-kev",
+                                "vulncheck-kev"
+                              ]
                             }
                           },
                           "required": [
@@ -30021,6 +30050,14 @@
                             },
                             "has_template": {
                               "type": "boolean"
+                            },
+                            "source": {
+                              "description": "Which list the entry is on (D-557): texts and the source badge name it; an entry of VulnCheck KEV is never called CISA's",
+                              "type": "string",
+                              "enum": [
+                                "cisa-kev",
+                                "vulncheck-kev"
+                              ]
                             }
                           },
                           "required": [
@@ -31180,6 +31217,14 @@
                             },
                             "has_template": {
                               "type": "boolean"
+                            },
+                            "source": {
+                              "description": "Which list the entry is on (D-557): texts and the source badge name it; an entry of VulnCheck KEV is never called CISA's",
+                              "type": "string",
+                              "enum": [
+                                "cisa-kev",
+                                "vulncheck-kev"
+                              ]
                             }
                           },
                           "required": [
@@ -32351,6 +32396,14 @@
                             },
                             "has_template": {
                               "type": "boolean"
+                            },
+                            "source": {
+                              "description": "Which list the entry is on (D-557): texts and the source badge name it; an entry of VulnCheck KEV is never called CISA's",
+                              "type": "string",
+                              "enum": [
+                                "cisa-kev",
+                                "vulncheck-kev"
+                              ]
                             }
                           },
                           "required": [
@@ -50156,6 +50209,7 @@
                                   "inventory",
                                   "findings",
                                   "kev",
+                                  "vulncheck-kev",
                                   "incidents"
                                 ]
                               },
@@ -50862,6 +50916,7 @@
                                   "inventory",
                                   "findings",
                                   "kev",
+                                  "vulncheck-kev",
                                   "incidents"
                                 ]
                               },

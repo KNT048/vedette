@@ -37,6 +37,7 @@ type Finding struct {
 	FirstSeen        time.Time
 	ResolvedAt       time.Time // zero = not closed
 	ResolvedBy       string    // who closed it ("" = open)
+	Source           string    // the exploited list of the CVE ("vulncheck-kev" names VulnCheck KEV among the report's sources); "" = CISA or unknown
 	AcceptedUntil    time.Time // risk_accepted: the last day of the acceptance (D-498); zero otherwise
 }
 

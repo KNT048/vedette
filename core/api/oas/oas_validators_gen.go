@@ -31941,6 +31941,36 @@ func (s *FeedsPutFeedsSourcesIDReq) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
+		if value, ok := s.APIKey.Get(); ok {
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:     0,
+					MinLengthSet:  false,
+					MaxLength:     500,
+					MaxLengthSet:  true,
+					Email:         false,
+					Hostname:      false,
+					Regex:         nil,
+					MinNumeric:    0,
+					MinNumericSet: false,
+					MaxNumeric:    0,
+					MaxNumericSet: false,
+				}).Validate(string(value)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "api_key",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if value, ok := s.IntervalHours.Get(); ok {
 			if err := func() error {
 				if err := (validate.Int{
@@ -32935,10 +32965,39 @@ func (s *FindingsGetFindingsIDOKKev) Validate() error {
 			Error: err,
 		})
 	}
+	if err := func() error {
+		if value, ok := s.Source.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "source",
+			Error: err,
+		})
+	}
 	if len(failures) > 0 {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s FindingsGetFindingsIDOKKevSource) Validate() error {
+	switch s {
+	case "cisa-kev":
+		return nil
+	case "vulncheck-kev":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s *FindingsGetFindingsIDOKPack) Validate() error {
@@ -33702,10 +33761,39 @@ func (s *FindingsGetFindingsOKItemsItemKev) Validate() error {
 			Error: err,
 		})
 	}
+	if err := func() error {
+		if value, ok := s.Source.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "source",
+			Error: err,
+		})
+	}
 	if len(failures) > 0 {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s FindingsGetFindingsOKItemsItemKevSource) Validate() error {
+	switch s {
+	case "cisa-kev":
+		return nil
+	case "vulncheck-kev":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s FindingsGetFindingsOKItemsItemSeverity) Validate() error {
@@ -34936,10 +35024,39 @@ func (s *FindingsPostFindingsIDAiOKKev) Validate() error {
 			Error: err,
 		})
 	}
+	if err := func() error {
+		if value, ok := s.Source.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "source",
+			Error: err,
+		})
+	}
 	if len(failures) > 0 {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s FindingsPostFindingsIDAiOKKevSource) Validate() error {
+	switch s {
+	case "cisa-kev":
+		return nil
+	case "vulncheck-kev":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s *FindingsPostFindingsIDAiOKPack) Validate() error {
@@ -36208,10 +36325,39 @@ func (s *FindingsPostFindingsIDAppliedOKKev) Validate() error {
 			Error: err,
 		})
 	}
+	if err := func() error {
+		if value, ok := s.Source.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "source",
+			Error: err,
+		})
+	}
 	if len(failures) > 0 {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s FindingsPostFindingsIDAppliedOKKevSource) Validate() error {
+	switch s {
+	case "cisa-kev":
+		return nil
+	case "vulncheck-kev":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s *FindingsPostFindingsIDAppliedOKPack) Validate() error {
@@ -37486,10 +37632,39 @@ func (s *FindingsPostFindingsIDStatusOKKev) Validate() error {
 			Error: err,
 		})
 	}
+	if err := func() error {
+		if value, ok := s.Source.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "source",
+			Error: err,
+		})
+	}
 	if len(failures) > 0 {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s FindingsPostFindingsIDStatusOKKevSource) Validate() error {
+	switch s {
+	case "cisa-kev":
+		return nil
+	case "vulncheck-kev":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s *FindingsPostFindingsIDStatusOKPack) Validate() error {
@@ -57083,6 +57258,8 @@ func (s ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemID) Validate() error 
 		return nil
 	case "kev":
 		return nil
+	case "vulncheck-kev":
+		return nil
 	case "incidents":
 		return nil
 	default:
@@ -58446,6 +58623,8 @@ func (s ReportsGetReportsWeeklyPreviewOKReportSourcesItemID) Validate() error {
 	case "findings":
 		return nil
 	case "kev":
+		return nil
+	case "vulncheck-kev":
 		return nil
 	case "incidents":
 		return nil

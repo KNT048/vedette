@@ -3,7 +3,8 @@ import { Link, useNavigate, useSearchParams } from 'react-router'
 import { Trans, useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { X } from 'lucide-react'
-import { PageHeader } from '@/components/common/PageHeader'
+import { Notice, PageHeader } from '@/components/common/PageHeader'
+import { KpiStrip, PageTabs } from '@/components/common/PageFrame'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { EmptyState, QueryState, RequireModule, SampleDataNote } from '@/components/common/States'
 import { Button } from '@/components/ui/button'
@@ -22,15 +23,15 @@ import { errMsg } from './errors'
 import { RiskChip } from './Risk'
 import type { BulkAction, FindingRow, VersionNeeded } from './types'
 
-type Filter = 'open' | 'confirmed' | 'suspected' | 'accepted' | 'resolved' | 'all'
-const match: Record<Filter, (f: FindingRow) => boolean> = {
+/** The three lists (D-543): Open = confirmed + suspected, Accepted risk, Handled = patched / mitigated / false positive / not relevant. */
+type Tab = 'open' | 'accepted' | 'handled'
+const inTab: Record<Tab, (f: FindingRow) => boolean> = {
   open: (f) => isOpen(f.status),
-  confirmed: (f) => f.status === 'confirmed',
-  suspected: (f) => f.status === 'suspected',
   accepted: (f) => f.status === 'risk_accepted',
-  resolved: (f) => !isOpen(f.status),
-  all: () => true,
+  handled: (f) => !isOpen(f.status) && f.status !== 'risk_accepted',
 }
+/** Inside Open: `?status=confirmed|suspected` narrows it (the KPI "confirmed" cell links there). */
+type OpenStatus = 'all' | 'confirmed' | 'suspected'
 /** Độ chắc chắn (D-484): tất cả / đã xác nhận hoặc theo phiên bản / chỉ khớp tên sản phẩm. */
 type Certainty = 'all' | 'likely' | 'unverified'
 const certain: Record<Certainty, (f: FindingRow) => boolean> = { all: () => true, likely: (f) => !unverified(f), unverified }
@@ -103,8 +104,9 @@ function List() {
   const cve = params.get('cve')?.toUpperCase() ?? ''
   const device = params.get('device') ?? ''
   const product = params.get('product') ?? ''
+  const severity = params.get('severity') ?? ''
+  const status: OpenStatus = params.get('status') === 'confirmed' ? 'confirmed' : params.get('status') === 'suspected' ? 'suspected' : 'all'
   const setParam = (k: string, v: string) => { if (v) params.set(k, v); else params.delete(k); setParams(params, { replace: true }) }
-  const [filter, setFilter] = useState<Filter>('open')
   const [certainty, setCertainty] = useState<Certainty>('all')
   const [search, setSearch] = useState('')
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set())
@@ -118,14 +120,26 @@ function List() {
   const devices = [...new Map((items ?? []).map((f) => [f.asset_id, name(f)])).entries()].sort((a, b) => a[1].localeCompare(b[1]))
   const products = [...new Set((items ?? []).map((f) => f.kev?.display ?? '').filter(Boolean))].sort()
   const s = search.trim().toLowerCase()
-  const rows = (items ?? []).filter(match[filter]).filter(certain[certainty])
-    .filter((f) => (!cve || f.cve === cve) && (!device || f.asset_id === device) && (!product || f.kev?.display === product))
+  const rowsFor = (tab: Tab) => (items ?? []).filter(inTab[tab]).filter(certain[certainty])
+    .filter((f) => tab !== 'open' || status === 'all' || f.status === status)
+    .filter((f) => (!cve || f.cve === cve) && (!device || f.asset_id === device) && (!product || f.kev?.display === product) && (!severity || f.severity === severity))
     .filter((f) => !s || [f.cve, name(f), f.asset?.ip ?? '', f.kev?.display ?? ''].some((v) => v.toLowerCase().includes(s)))
+  // The tab being shown decides which rows are selectable: selection is cleared on a tab change by the filter below (hidden rows never stay selected).
+  const tabId = (['open', 'accepted', 'handled'] as Tab[]).find((x) => x === params.get('tab')) ?? 'open'
+  const rows = rowsFor(tabId)
   // Only what is shown can stay selected: changing a filter never acts on hidden rows.
   const shown = rows.filter((r) => selected.has(r.id)).map((r) => r.id)
   const allShown = rows.length > 0 && shown.length === rows.length
   const toggle = (id: string, on: boolean) => setSelected((s) => { const n = new Set(s); if (on) n.add(id); else n.delete(id); return n })
   const toggleAll = (on: boolean) => setSelected(on ? new Set(rows.map((r) => r.id)) : new Set())
+
+  const week = new Date(Date.now() + 7 * 86_400_000).toISOString().slice(0, 10)
+  const kpis = items ? [
+    { value: open, label: t('kpi.open'), to: '?tab=open' },
+    { value: confirmed, label: t('kpi.confirmed'), to: '?tab=open&status=confirmed' },
+    { value: items.filter((f) => isOpen(f.status) && f.severity === 'critical').length, label: t('kpi.critical'), to: '?tab=open&severity=critical' },
+    { value: items.filter((f) => f.status === 'risk_accepted' && f.accepted_until && f.accepted_until <= week).length, label: t('kpi.ending'), to: '?tab=accepted' },
+  ] : []
 
   const pick = (r: FindingRow) => (
     // A click on the box selects; it never opens the finding (the row click does).
@@ -149,22 +163,19 @@ function List() {
     { id: 'seen', header: t('col.lastSeen'), accessorFn: (r) => r.last_seen, cell: ({ row: { original: r } }) => <span className="whitespace-nowrap text-[13px] text-muted" title={fmtDateTime(r.last_seen)}>{fmtRelative(r.last_seen)}</span> },
   ]
 
-  return (
+  const panel = (tab: Tab) => (
     <>
-      <PageHeader
-        title={!items ? t('titleLoading') : open === 0 ? t('titleNone') : t('title', { count: open, confirmed })}
-        stories={['S-MIT-1', 'S-SCAN-3']}
-        meta={t('intro')}
-        actions={<SampleDataNote />}
-      />
       <div className="mb-3 grid gap-2">
         <div className="flex flex-wrap items-center gap-2">
           <div className="max-w-full overflow-x-auto">
-            <Segmented<Filter> label={t('filterLabel')} value={filter} onChange={setFilter} options={(['open', 'confirmed', 'suspected', 'accepted', 'resolved', 'all'] as Filter[]).map((v) => ({ value: v, label: t(`filters.${v}`) }))} />
+            {tab === 'open' ? <Segmented<OpenStatus> label={t('filterLabel')} value={status} onChange={(v) => setParam('status', v === 'all' ? '' : v)} options={(['all', 'confirmed', 'suspected'] as OpenStatus[]).map((v) => ({ value: v, label: t(`filters.${v}`) }))} /> : null}
           </div>
           <div className="max-w-full overflow-x-auto">
             <Segmented<Certainty> label={t('certainty.label')} value={certainty} onChange={setCertainty} options={(['all', 'likely', 'unverified'] as Certainty[]).map((v) => ({ value: v, label: t(`certainty.${v}`) }))} />
           </div>
+          {severity ? (
+            <Button size="sm" onClick={() => setParam('severity', '')}><X />{t('clearSeverity', { severity: t(`common:severity.${severity}`) })}</Button>
+          ) : null}
           {cve ? (
             <Button size="sm" onClick={() => setParam('cve', '')}><X />{t('clearCve', { cve })}</Button>
           ) : null}
@@ -189,7 +200,7 @@ function List() {
           </div>
         ) : null}
       </div>
-      {q.data?.version_needed.length ? <VersionNeededList items={q.data.version_needed} /> : null}
+      {tab === 'open' && q.data?.version_needed.length ? <VersionNeededList items={q.data.version_needed} /> : null}
       <QueryState query={q}>
         {() => (
           <DataTable
@@ -218,7 +229,7 @@ function List() {
             )}
             rowTone={(r) => (r.status === 'confirmed' ? 'danger' : r.status === 'suspected' && !unverified(r) ? 'warn' : undefined)}
             empty={
-              <EmptyState title={cve ? t('emptyCve', { cve }) : filter === 'open' ? t('emptyOpen') : t('emptyFilter')}>
+              <EmptyState title={cve ? t('emptyCve', { cve }) : tab === 'open' ? t('emptyOpen') : t('emptyFilter')}>
                 {t('emptyHelp')}{' '}
                 <Link to="/devices" className="text-accent underline underline-offset-4">{t('emptyDevices')}</Link>{' '}
                 <Link to="/scans" className="text-accent underline underline-offset-4">{t('emptyScan')}</Link>
@@ -227,6 +238,23 @@ function List() {
           />
         )}
       </QueryState>
+    </>
+  )
+
+  return (
+    <>
+      <PageHeader
+        title={!items ? t('titleLoading') : open === 0 ? t('titleNone') : t('title', { count: open, confirmed })}
+        stories={['S-MIT-1', 'S-SCAN-3']}
+        meta={t('intro')}
+        actions={<SampleDataNote />}
+      />
+      {kpis.length ? <KpiStrip label={t('kpi.label')} items={kpis} /> : null}
+      <PageTabs label={t('tabs.label')} tabs={[
+        { id: 'open', label: t('tabs.open'), panel: panel('open'), badge: { count: confirmed, label: t('tabs.openBadge') } },
+        { id: 'accepted', label: t('tabs.accepted'), panel: panel('accepted') },
+        { id: 'handled', label: t('tabs.handled'), panel: panel('handled') },
+      ]} />
       <BulkDialog ids={shown} open={bulkOpen} onOpenChange={setBulkOpen} opener={opener} onDone={() => setSelected(new Set())} />
     </>
   )
@@ -236,9 +264,9 @@ function List() {
 function VersionNeededList({ items }: { items: VersionNeeded[] }) {
   const { t } = useTranslation('findings')
   return (
-    <section aria-labelledby="version-needed-title" className="mb-3 rounded-md border border-warn/50 bg-warn-soft/60 px-3 py-2 text-[13px]">
-      <h2 id="version-needed-title" className="font-medium">{t('versionNeeded.title', { count: items.length })}</h2>
-      <p className="text-muted">{t('versionNeeded.help')}</p>
+    <section aria-labelledby="version-needed-title">
+    <Notice tone="warn" title={<span id="version-needed-title">{t('versionNeeded.title', { count: items.length })}</span>}>
+      <p>{t('versionNeeded.help')}</p>
       <ul className="mt-1 grid gap-0.5">
         {items.map((n) => {
           // One naming rule (D-471, W5-1): the API's `asset.name`. A hand-added product IS the device ("Microsoft Office (no device)"):
@@ -255,6 +283,7 @@ function VersionNeededList({ items }: { items: VersionNeeded[] }) {
           )
         })}
       </ul>
+    </Notice>
     </section>
   )
 }

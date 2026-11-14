@@ -51,9 +51,13 @@ func (n notifyFindings) Finding(ctx context.Context, id string) (notify.FindingI
 		info.Product = "A product on your network"
 	}
 	info.Title = plainText(info.Product+" is being exploited ("+info.CVE+")", noticeTitleMax)
-	what := "CISA lists " + info.CVE + " as exploited in real attacks."
+	list := "CISA"
+	if kev.Source == findings.SourceVulnCheck {
+		list = "VulnCheck KEV" // its entries are never called CISA's, and VulnCheck asks for its name wherever its data is shown (D-557)
+	}
+	what := list + " lists " + info.CVE + " as exploited in real attacks."
 	if name := plainText(kev.Name, noticeNameMax); name != "" {
-		what = "CISA lists " + info.CVE + " (" + name + ") as exploited in real attacks."
+		what = list + " lists " + info.CVE + " (" + name + ") as exploited in real attacks."
 	}
 	info.What = what + " A device in your inventory runs " + info.Product + "."
 	info.Action = plainText(kev.RequiredAction, noticeActionMax)

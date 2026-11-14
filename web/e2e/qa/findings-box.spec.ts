@@ -78,9 +78,10 @@ test.describe('findings: list (S-MIT-1)', () => {
     await shot(page, 'findings-box', `${info.project.name}-list`)
     await page.getByRole('button', { name: 'Suspected', exact: true }).click()
     await expect(rows.first()).toBeVisible()
-    await page.getByRole('button', { name: 'Resolved', exact: true }).click()
-    await expect(rows.first().or(page.getByText('No findings in this status.').first()).first()).toBeVisible()
-    await page.getByRole('button', { name: 'All', exact: true }).click()
+    await page.getByRole('tab', { name: /^Handled/ }).click()
+    await expect(rows.first().or(page.getByText('No findings in this list.').first()).first()).toBeVisible()
+    await page.getByRole('tab', { name: /^Open/ }).click()
+    await page.getByRole('button', { name: 'All unresolved', exact: true }).click()
     await expect(rows.first()).toBeVisible()
     await page.goto(`/findings?cve=${PACK_CVE.toLowerCase()}`) // lower case in the address bar
     await expect(page.getByRole('button', { name: new RegExp(`Clear ${PACK_CVE} filter`) })).toBeVisible()

@@ -185,7 +185,7 @@ func planError(err, ready error) error {
 func (p responsePlanner) factsOf(ctx context.Context, cve string) string {
 	if p.facts != nil {
 		if c, ok, err := p.facts.CVE(ctx, cve); err == nil && ok {
-			return fmt.Sprintf("CVE: %s\nVendor: %s\nProduct: %s\nName: %s\nDescription: %s\nRequired action (CISA): %s\nUsed in ransomware campaigns: %t\n", c.CVE, c.Vendor, c.Product, c.Name, c.Description, c.RequiredAction, c.Ransomware)
+			return fmt.Sprintf("CVE: %s\nVendor: %s\nProduct: %s\nName: %s\nDescription: %s\nExploited-list source: %s\nRequired action (from that source): %s\nUsed in ransomware campaigns: %t\n", c.CVE, c.Vendor, c.Product, c.Name, c.Description, ai.ListLabel(c.Source), c.RequiredAction, c.Ransomware)
 		}
 	}
 	return "CVE: " + cve + "\n"

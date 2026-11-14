@@ -28,7 +28,7 @@
 - W3-1 (2026-11-13): `nvd_pull.go` (thử lại, tạm dừng/đi tiếp, dòng tiến độ `Service.live`), `Request.HeaderTimeout`/`slowHeaders` và `StatusError.RetryAfter` trong `fetch.go`, `lockFeed` gộp lượt kéo trùng (`busy`). Người đọc: `FeedsSettings.tsx` (feed `never` có `error` là dòng tiến độ: không kèm câu "Fetched at the next scheduled check"; Fetch now trả feed có `error` mà `status` không phải `error` ⇒ toast thông tin). Test: `nvd_pull_test.go`, `TestFeedLockIsContextAwareAndPruned`, `TestContract_INV8_*`, `feeds.test.tsx` W3-1.
 - **findings** (qua `cmd/vedette` `findingsFeeds.Vulns`): mọi quyết định theo phiên bản dựa vào các mục này; đổi hình `AffectedRow` hay bỏ mục ⇒ finding đổi (`modules/findings` `TestGolden_*`).
 - **cmd/vedette**: `feeds.ranges.updated` → `Inventory.RematchAll` lần đầu (trong `notify.WithBaseline`), sau đó `Inventory.RematchMany` với vendor/product của các CVE trong sự kiện (review H3); `findingsFeeds.Vulns` giữ danh sách theo `Store.MatchStamp` (đổi cách ghi `feeds_vuln`/`feeds_affected_cve` mà không đổi `last_fetch`, `updated_at` hay số hàng ⇒ findings đọc danh sách cũ).
-- **PRIVACY.md** luồng 1, Settings → Privacy (`locales/en/core.json` `privacy.flow.1`), `THIRD_PARTY_NOTICES.md`, `sourcesMock.ts` (danh sách có sẵn: 13 sau D-516), export policy (`feeds_affected*`).
+- **PRIVACY.md** luồng 1, Settings → Privacy (`locales/en/core.json` `privacy.flow.1`), `THIRD_PARTY_NOTICES.md`, `sourcesMock.ts` (danh sách có sẵn: 14 sau D-516 và D-557), export policy (`feeds_affected*`).
 
 ## Modifying: `CVEOrgRecordURL`/`ParseCVERecord`, feed `cve-org`, `feeds_affected_cve.source`, `Store.RangesFromCVEOrg` (D-556)
 
@@ -44,6 +44,15 @@
 - **cmd/vedette**: `feeds.ranges.updated` dùng chung với D-500 (rematch theo CVE; lần đầu trong `notify.WithBaseline`).
 - **PRIVACY.md** luồng 1 + Settings → Privacy (`privacy.flow.1`), `THIRD_PARTY_NOTICES.md` (dữ liệu Canonical CC BY-SA 4.0, Debian không nêu giấy phép; `github.com/ulikunitz/xz`), `sourcesMock.ts`, `conformance.test.ts` (thứ tự feed có sẵn), export policy (`feeds_distro_fix`). `Request.Stream` là đường đọc luồng duy nhất: guard đích, chuyển hướng và trần giống `Fetch`.
 - Thêm tên mã Ubuntu/Debian mới: `ubuntuCodenames`, `debianReleases` trong `distro.go` (ponytail; thiếu ⇒ lý do "release … is not known" ở Settings → Feeds).
+
+## Modifying: `vulncheck.go`, feed `vulncheck-kev`, `isKEVSource`, the `source_id IN ('cisa-kev', 'vulncheck-kev')` reads (D-557)
+
+- **findings / inventory** (qua `cmd/vedette` `findingsFeeds`, `wiring`): `KevVulns`/`KevVulnsByCVE`/`KevCVEsByKeys`/`KevProducts`/`KevPairs` trả cả mục VulnCheck: finding mới của CVE nguồn `vulncheck-kev`, `required_action` mang câu nguồn. Bỏ nguồn thứ hai khỏi các truy vấn ⇒ finding của CVE chỉ VulnCheck có sẽ không còn khớp.
+- **cve-org**: `cveOrgTodo`/`applyCVEOrg` dùng cả hai nguồn để chọn và dọn CVE.
+- **reports** (`cmd/vedette/reports.go` `reportsKEV.Entries`): bỏ hàng không phải `cisa-kev` (không phân phối lại dữ liệu VulnCheck). Home/weekly/announced/EPSS chỉ đọc `cisa-kev`.
+- **handlers_sources.go** `PUT /feeds/sources/{id}`: `api_key` chỉ cho feed BYOK, `isBYOK`, `saveFeedKey`; `toFeedDTO` hiện `auth.secret_last4` của feed BYOK. Contract: `FeedPatch.api_key` (contract.ts, `api/openapi.json`, `core/api/oas`).
+- **cmd/vedette**: `Store.MatchStamp` thêm `vulncheck-kev`; export policy không đổi (không bảng/cột mới; `feeds_vuln` vẫn xuất cả hàng `vulncheck-kev`, xem D-557).
+- **PRIVACY.md** luồng 1, Settings → Privacy (`privacy.flow.1`), `THIRD_PARTY_NOTICES.md`, `sourcesMock.ts` (danh sách có sẵn: 11), `FeedsSettings.tsx`/`FeedDialogs.tsx` (`needsKey`, ô khoá).
 
 ## Modifying: `Fetcher.Fetch(ctx, Request)` (một GET tới đúng URL)
 - **feeds** job kéo và `POST /feeds/sources/{id}/fetch`. Chuyển hướng: chỉ cùng host (`ErrRedirect`), không hạ https→http, tối đa 5 bước, bỏ `Referer`. Đổi chính sách này = đổi host nào hộp có thể liên lạc (INV-1, INV-13, `PRIVACY.md`).

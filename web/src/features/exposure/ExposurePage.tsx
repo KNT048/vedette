@@ -15,6 +15,7 @@ import { fmtRelative } from '@/lib/format'
 import { useCan } from '@/lib/session'
 import { AnchorRedirect, ScrollToHash } from './anchors'
 import { BoxIpPanel } from './BoxIpPanel'
+import { GreenboneSetting } from './GreenbonePanel'
 import { CommitChip, OwnerChip } from './OwnerChip'
 import { ScanProgress } from './ScanProgress'
 import { useAddTarget, useTargets } from './api'
@@ -74,6 +75,7 @@ export default function ExposurePage() {
                     <TargetsTable items={d.items.filter((x) => x.kind === 'domain')} />
                   </Section>
                   <BoxIpPanel items={d.items.filter((x) => x.kind === 'ip')} settings={d.box_ip} ignored={d.ignored} />
+                  <GreenboneSetting />
                 </> },
                 { id: 'open', label: t('tabs.open'), panel: open.length > 0 ? <OpenPorts ports={open} total={ports} gateway={d.gateway} /> : <EmptyState title={t('openEmpty')} /> },
                 { id: 'outside', label: t('tabs.outside'), panel: <OutsideList items={d.items.filter((x) => x.kind === 'ip')} /> },

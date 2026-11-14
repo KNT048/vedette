@@ -1,14 +1,16 @@
 // Sample data and scan-result generator of the exposure mock. 203.0.113.0/24 is the documentation range (RFC 5737), not real IPs.
 import { daysAgo } from '@/mocks/db'
 import { dateText } from './dates'
-import { CERT_WARN_DAYS, type AdminRow, type BoxIpSettings, type CertRow, type Counts, type GapRow, type HostRow, type IgnoredIp, type NotCheckedRow, type OutsideView, type PortRow, type ServiceRow, type Snapshot, type Target, type TargetKind, type VulnRow, type WebFinding } from './types'
+import { CERT_WARN_DAYS, type AdminRow, type BoxIpSettings, type CertRow, type Counts, type GapRow, type GreenboneResult, type HostRow, type IgnoredIp, type NotCheckedRow, type OutsideView, type PortRow, type ServiceRow, type Snapshot, type Target, type TargetKind, type VulnRow, type WebFinding } from './types'
 
 export const BOX_EGRESS_IP = '203.0.113.10'
 /** The sample company has two public IPs behind a load balancer: the box leaves through both. */
 export const BOX_EGRESS_IP_2 = '203.0.113.11'
 
 /** What one scan found; services: what nmap -sV read on the box's own IP (S-EXP-2). The mock plays a box whose nmap -sV is set up. */
-export interface Content { hosts: HostRow[]; ports: PortRow[]; admin_panels: AdminRow[]; certs: CertRow[]; services?: ServiceRow[]; web_findings?: WebFinding[] }
+export interface Content { hosts: HostRow[]; ports: PortRow[]; admin_panels: AdminRow[]; certs: CertRow[]; services?: ServiceRow[]; web_findings?: WebFinding[]
+  /** INV-25: Greenbone's results when it ran on this IP; greenboneNote: the "Not checked" line when it did not (default: it is off). */
+  greenbone?: GreenboneResult[]; greenboneNote?: string }
 /** txt_ok = the DNS TXT record is currently present (domains). expires_at = verified_at + 30 days (IPs; verified_at is the last time the box saw the IP). The scan module reads this shape. */
 export interface StoredTarget { id: string; kind: TargetKind; value: string; token: string; method: Target['method']; verified_at: string | null; expires_at: string | null; txt_ok: boolean; checks: number; last_check: Target['last_check']; created_at: string; last_scan_at: string | null }
 export const VERIFY_DAYS = 30
@@ -184,6 +186,33 @@ function webFindings(c: Content, ip: boolean): WebFinding[] {
   return webPages(c, ip).flatMap((site, i) => WEB_ALERTS.slice(0, i === 0 ? 3 : 2).map((a, j) => ({ ...a, site, count: 5 + j, urls: [site, `${site}login`, `${site}static/app.js`] })))
 }
 
+/** The mock's Greenbone on the box's own IP (INV-25): what an outside look without logging in typically reports there. */
+export function boxGreenbone(): GreenboneResult[] {
+  const ip = BOX_EGRESS_IP
+  return [
+    { ip, port: '18443/tcp', severity: 9.8, name: 'Apache HTTP Server 2.4.49 Path Traversal and RCE', qod: 99, cves: ['CVE-2021-41773', 'CVE-2021-42013'], solution: 'Update to version 2.4.51 or later.', oid: '1.3.6.1.4.1.25623.1.0.117711' },
+    { ip, port: '443/tcp', severity: 5.0, name: 'SSL/TLS: Report Weak Cipher Suites', qod: 98, cves: ['CVE-2013-2566', 'CVE-2015-2808'], solution: 'Disable the reported weak cipher suites in the TLS settings of the service.', oid: '1.3.6.1.4.1.25623.1.0.103440' },
+    { ip, port: 'general/tcp', severity: 2.6, name: 'TCP Timestamps Information Disclosure', qod: 80, cves: [], solution: 'Turn off TCP timestamps on the device that answers, if it allows it.', oid: '1.3.6.1.4.1.25623.1.0.80091' },
+  ]
+}
+/** The exploited CVEs of the mock's list that Greenbone may name (INV-25: only these become rows of basis greenbone). */
+const KEV_NAMES: Record<string, string> = { 'CVE-2021-41773': APACHE_TRAVERSAL, 'CVE-2021-42013': APACHE_TRAVERSAL }
+export const GREENBONE_OFF = 'Optional deep scan with Greenbone (OpenVAS) is off. An administrator can turn it on under Settings on the External exposure page.'
+
+function withGreenbone(snap: Snapshot, c: Content, at: string, ip?: string): Snapshot {
+  if (!ip) return { ...snap, not_checked: [...snap.not_checked, { kind: 'greenbone', text: "Greenbone (OpenVAS) runs on the box's own verified public IP only, never on the names of a domain." }] }
+  if (!c.greenbone) return { ...snap, not_checked: [...snap.not_checked, { kind: 'greenbone', text: c.greenboneNote ?? GREENBONE_OFF }] }
+  const rows = [...c.greenbone].sort((a, b) => b.severity - a.severity)
+  const cves = new Set(rows.flatMap((r) => r.cves))
+  // After every other row and never instead of one: a CVE matched by version and named by Greenbone shows twice.
+  const vulns: VulnRow[] = rows.flatMap((r) => r.cves.filter((id) => KEV_NAMES[id]).map((id): VulnRow => ({
+    ip: r.ip, port: Number.parseInt(r.port, 10) || 0, cve: id, name: KEV_NAMES[id]!, basis: 'greenbone', qod: r.qod, date_added: '2021-11-03', ransomware: false, backport: '', template: '', template_result: '',
+    summary: `Scanner: Greenbone, QoD ${r.qod}. Its test "${r.name}" names this CVE. Greenbone looked from outside without logging in.`,
+  })))
+  return { ...snap, greenbone: rows, vulns: [...snap.vulns, ...vulns], checks: [...snap.checks, { kind: 'greenbone', at,
+    text: `Greenbone (OpenVAS) scanned ${ip} from outside without logging in (Full and fast without brute force, default accounts or denial of service; safe checks on; port list All IANA assigned TCP): ${plural(rows.length, 'result')} with QoD 70 or more, ${plural(cves.size, 'CVE')} named.` }] }
+}
+
 export function makeSnapshot(id: string, at: string, c: Content, extraIp?: string): Snapshot {
   const services = c.services ?? []
   const m = matchServices(services)
@@ -191,7 +220,7 @@ export function makeSnapshot(id: string, at: string, c: Content, extraIp?: strin
   const pages = webPages(c, extraIp !== undefined)
   const l = lines(c, at, extraIp !== undefined, m)
   if (pages.length > 0) l.checks.push({ kind: 'web', at, text: `Passive web scan (ZAP baseline: spider and passive rules, no form sent) of ${plural(pages.length, 'page')}: ${pages.join(', ')}. ${plural(web_findings.length, 'alert')}.` })
-  return { id, date: dateOf(at), scanned_at: at, hosts: c.hosts, ports: c.ports, admin_panels: c.admin_panels, certs: c.certs, services, templates: [], web_findings, ...l, vulns: m.vulns, version_gaps: m.version_gaps, counts: countsOf(c, extraIp) }
+  return withGreenbone({ id, date: dateOf(at), scanned_at: at, hosts: c.hosts, ports: c.ports, admin_panels: c.admin_panels, certs: c.certs, services, templates: [], web_findings, greenbone: [], ...l, vulns: m.vulns, version_gaps: m.version_gaps, counts: countsOf(c, extraIp) }, c, at, extraIp)
 }
 
 const plusDays = (iso: string, d: number) => new Date(Date.parse(iso) + d * 864e5).toISOString()
@@ -244,7 +273,8 @@ export function seedSnapshots(): Record<string, Snapshot[]> {
   const box = boxIpNow()
   const boxOld: Content = { ...box, ports: box.ports.filter((p) => p.port !== 18443), services: box.services!.filter((s) => s.port !== 18443) }
   // INV-22: yesterday's scan did not see the TCP-wrapped 8443 (a slow answer): it still counts as open and says so until the next scan agrees.
-  const boxMissed: Content = { ...box, ports: box.ports.map((p) => (p.port === 8443 ? { ...p, last_seen: dateOf(daysAgo(8)), misses: 1 } : p)) }
+  // INV-25: yesterday's scan ended with Greenbone, which also names the two Apache CVEs (shown next to the version rows, never instead of them).
+  const boxMissed: Content = { ...box, ports: box.ports.map((p) => (p.port === 8443 ? { ...p, last_seen: dateOf(daysAgo(8)), misses: 1 } : p)), greenbone: boxGreenbone() }
   return {
     'xt-1': [makeSnapshot('sn-1', daysAgo(14), old), makeSnapshot('sn-2', daysAgo(7), mid), makeSnapshot('sn-3', daysAgo(1), full)],
     'xt-2': [makeSnapshot('sn-4', daysAgo(8), boxOld, BOX_EGRESS_IP), makeSnapshot('sn-5', daysAgo(1), boxMissed, BOX_EGRESS_IP)],

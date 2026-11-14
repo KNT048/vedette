@@ -9023,7 +9023,7 @@ func (s *CoreGetCorePrivacyOKFlowsItem) Validate() error {
 			MinSet:        true,
 			Min:           1,
 			MaxSet:        true,
-			Max:           15,
+			Max:           16,
 			MinExclusive:  false,
 			MaxExclusive:  false,
 			MultipleOfSet: false,
@@ -10992,7 +10992,7 @@ func (s *CorePatchCorePrivacyOKFlowsItem) Validate() error {
 			MinSet:        true,
 			Min:           1,
 			MaxSet:        true,
-			Max:           15,
+			Max:           16,
 			MinExclusive:  false,
 			MaxExclusive:  false,
 			MultipleOfSet: false,
@@ -23080,6 +23080,127 @@ func (s ExposureDeleteExposureTargetsIDIgnore) Validate() error {
 	}
 }
 
+func (s *ExposureGetExposureGreenboneOK) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.Preflight.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "preflight",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.State.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "state",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *ExposureGetExposureGreenboneOKPreflight) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if value, ok := s.DiskFreeBytes.Get(); ok {
+			if err := func() error {
+				if err := (validate.Int{
+					MinSet:        true,
+					Min:           -9007199254740991,
+					MaxSet:        true,
+					Max:           9007199254740991,
+					MinExclusive:  false,
+					MaxExclusive:  false,
+					MultipleOfSet: false,
+					MultipleOf:    0,
+					Pattern:       nil,
+				}).Validate(int64(value)); err != nil {
+					return errors.Wrap(err, "int")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "disk_free_bytes",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.MemoryBytes.Get(); ok {
+			if err := func() error {
+				if err := (validate.Int{
+					MinSet:        true,
+					Min:           -9007199254740991,
+					MaxSet:        true,
+					Max:           9007199254740991,
+					MinExclusive:  false,
+					MaxExclusive:  false,
+					MultipleOfSet: false,
+					MultipleOf:    0,
+					Pattern:       nil,
+				}).Validate(int64(value)); err != nil {
+					return errors.Wrap(err, "int")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "memory_bytes",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s ExposureGetExposureGreenboneOKState) Validate() error {
+	switch s {
+	case "unavailable":
+		return nil
+	case "off":
+		return nil
+	case "starting":
+		return nil
+	case "loading":
+		return nil
+	case "ready":
+		return nil
+	case "error":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
 func (s *ExposureGetExposureScanOK) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
@@ -23121,6 +23242,8 @@ func (s ExposureGetExposureScanOKPhase) Validate() error {
 	case "probing":
 		return nil
 	case "saving":
+		return nil
+	case "greenbone":
 		return nil
 	case "done":
 		return nil
@@ -24036,6 +24159,34 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOK) Validate() error {
 		})
 	}
 	if err := func() error {
+		if s.Greenbone == nil {
+			return errors.New("nil is invalid value")
+		}
+		var failures []validate.FieldError
+		for i, elem := range s.Greenbone {
+			if err := func() error {
+				if err := elem.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "greenbone",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if s.Hosts == nil {
 			return errors.New("nil is invalid value")
 		}
@@ -24403,6 +24554,61 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKCounts) Validate() error {
 	return nil
 }
 
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneItem) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if s.Cves == nil {
+			return errors.New("nil is invalid value")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "cves",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9007199254740991,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Qod)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "qod",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Float{}).Validate(float64(s.Severity)); err != nil {
+			return errors.Wrap(err, "float")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "severity",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
 func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
@@ -24697,6 +24903,34 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItem) Validate() error 
 		})
 	}
 	if err := func() error {
+		if value, ok := s.Qod.Get(); ok {
+			if err := func() error {
+				if err := (validate.Int{
+					MinSet:        true,
+					Min:           -9007199254740991,
+					MaxSet:        true,
+					Max:           9007199254740991,
+					MinExclusive:  false,
+					MaxExclusive:  false,
+					MultipleOfSet: false,
+					MultipleOf:    0,
+					Pattern:       nil,
+				}).Validate(int64(value)); err != nil {
+					return errors.Wrap(err, "int")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "qod",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := s.TemplateResult.Validate(); err != nil {
 			return err
 		}
@@ -24720,6 +24954,8 @@ func (s ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasis) Validate() er
 	case "product":
 		return nil
 	case "template":
+		return nil
+	case "greenbone":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -26125,6 +26361,8 @@ func (s ExposurePostExposureScanStopOKPhase) Validate() error {
 		return nil
 	case "saving":
 		return nil
+	case "greenbone":
+		return nil
 	case "done":
 		return nil
 	default:
@@ -26722,6 +26960,8 @@ func (s ExposurePostExposureTargetsIDScanAcceptedPhase) Validate() error {
 		return nil
 	case "saving":
 		return nil
+	case "greenbone":
+		return nil
 	case "done":
 		return nil
 	default:
@@ -27263,6 +27503,127 @@ func (s *ExposurePutExposureBoxIPSettingsReq) Validate() error {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s *ExposurePutExposureGreenboneOK) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.Preflight.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "preflight",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.State.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "state",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *ExposurePutExposureGreenboneOKPreflight) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if value, ok := s.DiskFreeBytes.Get(); ok {
+			if err := func() error {
+				if err := (validate.Int{
+					MinSet:        true,
+					Min:           -9007199254740991,
+					MaxSet:        true,
+					Max:           9007199254740991,
+					MinExclusive:  false,
+					MaxExclusive:  false,
+					MultipleOfSet: false,
+					MultipleOf:    0,
+					Pattern:       nil,
+				}).Validate(int64(value)); err != nil {
+					return errors.Wrap(err, "int")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "disk_free_bytes",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.MemoryBytes.Get(); ok {
+			if err := func() error {
+				if err := (validate.Int{
+					MinSet:        true,
+					Min:           -9007199254740991,
+					MaxSet:        true,
+					Max:           9007199254740991,
+					MinExclusive:  false,
+					MaxExclusive:  false,
+					MultipleOfSet: false,
+					MultipleOf:    0,
+					Pattern:       nil,
+				}).Validate(int64(value)); err != nil {
+					return errors.Wrap(err, "int")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "memory_bytes",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s ExposurePutExposureGreenboneOKState) Validate() error {
+	switch s {
+	case "unavailable":
+		return nil
+	case "off":
+		return nil
+	case "starting":
+		return nil
+	case "loading":
+		return nil
+	case "ready":
+		return nil
+	case "error":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s *FeedsGetFeedsCveIDOK) Validate() error {

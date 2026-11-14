@@ -157,6 +157,27 @@ func (sc scope) count() int {
 	return max(n, 0)
 }
 
+// within is the part of the scope inside the prefixes ps, with the same exclusions (CIDR blocks are nested or disjoint, so
+// the overlap of two is the smaller one or nothing).
+func (sc scope) within(ps []netip.Prefix) scope {
+	var in []netip.Prefix
+	for _, r := range sc.ranges {
+		for _, p := range ps {
+			if !p.Addr().Is4() {
+				continue
+			}
+			p = p.Masked()
+			switch {
+			case r.Contains(p.Addr()) && r.Bits() <= p.Bits():
+				in = append(in, p)
+			case p.Contains(r.Addr()) && p.Bits() <= r.Bits():
+				in = append(in, r)
+			}
+		}
+	}
+	return scope{ranges: mergePrefixes(in), excl: sc.excl}
+}
+
 // InScope reports whether ip is inside LANRanges and outside Exclusions, the same rule as the inventory's
 // (SYS-7), applied to a settings snapshot already in memory.
 func (st Settings) InScope(ip netip.Addr) bool { return newScope(st).contains(ip) }

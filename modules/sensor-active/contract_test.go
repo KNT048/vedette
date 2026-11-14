@@ -249,8 +249,8 @@ func TestContract_INV4_RateAndFlags(t *testing.T) {
 		t.Fatalf("%d runs, want 3", len(calls))
 	}
 	want := [][]string{
-		{"--privileged", "-sn", "-n", "--max-rate", "100", "-oX", "-"},
-		{"--privileged", "-sS", "-sV", "-O", "--script", "rdp-ntlm-info,http-ntlm-info,http-title,ssl-cert", "-n", "--max-rate", "100", "--top-ports", "1000", "--host-timeout", "30m", "-oX", "-", "192.168.10.20"},
+		{"--privileged", "-sn", "-PE", "-PP", "-PS21,22,23,80,135,139,443,445,554,3389,8000,8080,9100", "-PA80,443", "-n", "--max-rate", "100", "-oX", "-"},
+		{"--privileged", "-sS", "-sV", "-O", "--script", "rdp-ntlm-info,http-ntlm-info,http-title,ssl-cert", "-n", "--max-rate", "100", "--max-retries", "3", "--top-ports", "1000", "--host-timeout", "30m", "-oX", "-", "192.168.10.20"},
 		{"--privileged", "-sS", "-n", "-T2", "--max-retries", "1", "--max-rate", "1", "--host-timeout", "15m", "--top-ports", "100", "-oX", "-", "192.168.10.30"},
 	}
 	for i, w := range want {

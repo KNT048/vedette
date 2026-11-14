@@ -17,10 +17,10 @@ import { API, audit, body, currentUser, DOMAIN_RE, fail, guard, IPV4_RE } from '
 import { auditStore, isOn } from '@/mocks/stores'
 import { canonHash, GENESIS } from '@/lib/chain'
 import { collection, newId, nowIso, type Collection } from '@/mocks/db'
-import { BOX_EGRESS_IP, BOX_EGRESS_IP_2, DEFAULT_INTERVAL, outsideAnswer, seedOutside, EXPIRING_DAYS, makeSnapshot, MAX_INTERVAL, MIN_INTERVAL, randomToken, scanContent, seedBoxIp, seedIgnored, seedSnapshots, seedTargets, VERIFY_DAYS, type StoredTarget } from './data'
+import { BOX_EGRESS_IP, BOX_EGRESS_IP_2, boxGreenbone, DEFAULT_INTERVAL, outsideAnswer, seedOutside, EXPIRING_DAYS, makeSnapshot, MAX_INTERVAL, MIN_INTERVAL, randomToken, scanContent, seedBoxIp, seedIgnored, seedSnapshots, seedTargets, VERIFY_DAYS, type Content, type StoredTarget } from './data'
 import { NOTICE_TEMPLATE, NOTICE_VERSION, PORT_NOT_SEEN, VERSION_NOT_READ } from './contract'
 import { dateText, dateTimeText } from './dates'
-import type { BoxIpSettings, Commitment, Diff, DiffChange, DiffItem, IgnoredIp, OutsideView, ScanRun, Snapshot, Target } from './types'
+import type { BoxIpSettings, Commitment, Diff, DiffChange, DiffItem, Greenbone, IgnoredIp, OutsideView, ScanRun, Snapshot, Target } from './types'
 
 const targets = collection<StoredTarget[]>('exp_targets', seedTargets, () => [])
 const snapshots = collection<Record<string, Snapshot[]>>('exp_snapshots', seedSnapshots, () => ({}))
@@ -50,6 +50,29 @@ const probe = collection<{ deep_at: string | null; full_ok_at?: string | null }>
 const outside = collection<Record<string, Omit<OutsideView, 'scan_ports' | 'scan_at'>>>('exp_outside', seedOutside, () => ({}))
 /** When the box last asked Shodan: at most once a minute on the box (in memory, as on the box). */
 let outsideAskedMs = 0
+/** D-563: the optional deep scan with Greenbone, off by default. The mock box has 16 GB of memory and 180 GB free; localStorage keys
+ * "vedette-mock-box-memory" and "vedette-mock-box-disk" (bytes) play a smaller box. After Enable it is "starting" for 3 seconds, then "loading"
+ * its feed until 15 seconds (about 2 hours on a real box), then ready. */
+const greenbone = collection<{ enabled: boolean; changed_by: string | null; changed_at: string | null }>('exp_greenbone', () => ({ enabled: false, changed_by: null, changed_at: null }), () => ({ enabled: false, changed_by: null, changed_at: null }))
+const measured = (key: string, fallback: number) => { const v = Number(localStorage.getItem(key)); return Number.isFinite(v) && v > 0 ? v : fallback }
+const gbText = (n: number) => `${(n / 1e9).toFixed(1)} GB`
+function greenboneView(): Greenbone {
+  const g = greenbone.get()
+  const mem = measured('vedette-mock-box-memory', 16e9), disk = measured('vedette-mock-box-disk', 180e9)
+  const reason = mem < 8e9 ? `This box has ${gbText(mem)} of memory; Greenbone needs at least 8.0 GB.` : disk < 60e9 ? `This box has ${gbText(disk)} of free disk space; Greenbone needs at least 60.0 GB free.` : null
+  const since = g.changed_at ? Date.now() - Date.parse(g.changed_at) : 0
+  const state = !g.enabled ? 'off' : since < 3000 ? 'starting' : since < 15000 ? 'loading' : 'ready'
+  return { state, reason: state === 'loading' ? 'Greenbone is loading its feed (first time takes about 2 hours)' : null, changed_by: g.changed_by, changed_at: g.changed_at,
+    preflight: { memory_bytes: mem, disk_free_bytes: disk, ok: reason === null, reason } }
+}
+/** What a scan of an IP gets from Greenbone in the mock: its results on the box's own IP when ready, else the line that says why not. */
+function greenboneFor(ip: string): Pick<Content, 'greenbone' | 'greenboneNote'> {
+  const v = greenboneView()
+  if (v.state === 'ready') return { greenbone: ip === BOX_EGRESS_IP ? boxGreenbone() : [] }
+  if (v.state === 'off') return {}
+  return { greenboneNote: v.state === 'loading' ? 'Greenbone (OpenVAS) did not scan: it is loading its feed (the first time takes about 2 hours).' : 'Greenbone (OpenVAS) did not scan: it is still starting.' }
+}
+
 /** Shodan's answer beside the open ports of our own newest scan of that IP (null when never scanned). */
 function outsideView(id: string): OutsideView | null {
   const o = outside.get()[id]
@@ -174,7 +197,7 @@ function items(s: Snapshot): Map<string, Entry> {
   for (const a of s.admin_panels) m.set(`a:${a.url}`, { kind: 'admin', key: `a:${a.url}`, label: a.url, detail: a.product })
   for (const c of s.certs) m.set(`c:${c.host}`, { kind: 'cert', key: `c:${c.host}`, label: c.host, detail: c.issuer, exp: c.expires_at })
   for (const x of s.services) m.set(`s:${x.ip}:${x.port}`, { kind: 'service', key: `s:${x.ip}:${x.port}`, label: `${x.ip}:${x.port}`, detail: x.product ? `${x.product} ${x.version}`.trim() : x.name, product: x.product, version: x.version })
-  for (const v of s.vulns) m.set(`v:${v.ip}:${v.port}:${v.cve}`, { kind: 'vuln', key: `v:${v.ip}:${v.port}:${v.cve}`, label: `${v.cve} on ${v.ip}:${v.port}`, detail: v.name })
+  for (const v of s.vulns.filter((x) => x.basis !== 'greenbone')) m.set(`v:${v.ip}:${v.port}:${v.cve}`, { kind: 'vuln', key: `v:${v.ip}:${v.port}:${v.cve}`, label: `${v.cve} on ${v.ip}:${v.port}`, detail: v.name })
   return m
 }
 function diff(a: Snapshot, b: Snapshot): Diff {
@@ -502,7 +525,7 @@ export const handlers = [
     // Like the box: 202 with the run at once, and the phases move on while the page polls GET /exposure/scan. The mock has no one-at-a-time or 10-minute limit
     // (its tests scan an IP several times in a row). The result is stored when the run is done.
     const at = nowIso()
-    const snap = makeSnapshot(newId('sn'), at, scanContent(t), t.kind === 'ip' ? t.value : undefined)
+    const snap = makeSnapshot(newId('sn'), at, t.kind === 'ip' ? { ...scanContent(t), ...greenboneFor(t.value) } : scanContent(t), t.kind === 'ip' ? t.value : undefined)
     const run: ScanRun = { id: newId('sr'), target_id: t.id, target_value: t.value, by: currentUser()?.email ?? '', started_at: at, finished_at: null, status: 'running', phase: 'queued', snapshot_id: null, error: null }
     mockRunStore.set({ run, startedMs: Date.now(), snap })
     return HttpResponse.json(run, { status: 202 })
@@ -548,6 +571,24 @@ export const handlers = [
     outside.update((m) => ({ ...m, [t.id]: { ip: t.value, checked_at: nowIso(), checked_by: currentUser()?.email ?? '', ...a } }))
     audit('exposure.outside_view', t.value, a.found ? `sent to internetdb.shodan.io; Shodan lists ${a.ports.length} ports and ${a.vulns.length} CVEs` : 'sent to internetdb.shodan.io; Shodan has no record of it')
     return HttpResponse.json(outsideView(t.id))
+  }),
+
+  http.get(`${API}/exposure/greenbone`, () => {
+    const denied = guard('viewer'); if (denied) return denied
+    return HttpResponse.json(greenboneView())
+  }),
+
+  // Admin only. On: the preflight refuses with the measured numbers (409 low_memory, low_disk). Off: its containers stop, its data is kept.
+  http.put(`${API}/exposure/greenbone`, async ({ request }) => {
+    const denied = guard('admin'); if (denied) return denied
+    const b = await body<{ enabled: boolean }>(request)
+    if (typeof b.enabled !== 'boolean') return fail(400, 'bad_body', 'enabled must be true or false.')
+    const before = greenboneView()
+    if (b.enabled === (before.state !== 'off')) return HttpResponse.json(before)
+    if (b.enabled && !before.preflight.ok) return fail(409, before.preflight.memory_bytes! < 8e9 ? 'low_memory' : 'low_disk', before.preflight.reason!)
+    greenbone.set({ enabled: b.enabled, changed_by: currentUser()?.email ?? null, changed_at: nowIso() })
+    audit('exposure.greenbone', 'Greenbone (OpenVAS)', b.enabled ? `enabled (memory ${gbText(before.preflight.memory_bytes!)}, free disk ${gbText(before.preflight.disk_free_bytes!)})` : 'disabled (data kept)')
+    return HttpResponse.json(greenboneView())
   }),
 
   http.get(`${API}/exposure/targets/:id/snapshots`, ({ params }) => {

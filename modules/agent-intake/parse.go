@@ -44,6 +44,7 @@ var columns = map[string][]string{
 	"kernel_info":  {"version"}, // the running kernel release (D-516)
 	"rpm_packages": {"name", "version", "release", "arch", "epoch"},
 	"programs":     {"name", "version", "publisher", "install_date"},
+	"os_revision":  {"name", "version", "revision", "arch"}, // Windows's update revision (D-524)
 }
 
 // cleanValue trims a text from a node and reports whether it can be kept: valid UTF-8, at most max runes, no control or invisible

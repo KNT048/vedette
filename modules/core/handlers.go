@@ -32,6 +32,14 @@ import (
 // implement disjoint operations. The handlers are thin: the rules live in core/auth, the checks of the
 // contract (route table, roles, CSRF) in core/server.
 type APIHandlers struct {
+	// firstRun is held by one first-run operation at a time: POST /core/setup, a backup upload or a first-run restore (D-518).
+	// restoring (OSHandlers.restoreRunning) keeps setup closed while a first-run restore runs on the host after its request
+	// ended, and dropUploads (OSHandlers' snapshotter.dropUploads) removes a staged upload once setup is done. Both are nil
+	// without a host; NewOSHandlers sets them before the server serves.
+	firstRun    sync.Mutex
+	restoring   func(context.Context) bool
+	dropUploads func()
+
 	db      *store.DB
 	auth    *auth.Service
 	reg     *modreg.Registry

@@ -54,6 +54,20 @@ describe('first-run restore from a backup file (D-518)', () => {
     await screen.findByText(/Your data is back/)
   })
 
+  it('a backup with no saved secrets: the key file is not needed and not sent', async () => {
+    const u = user()
+    server.use(http.post('*/api/v1/core/setup/restore/upload', () => HttpResponse.json({ id: 'a'.repeat(32), created_at: '2026-11-01T08:30:00Z', org: 'Acme Manufacturing', users: 2, twofa_users: 0, admins_without_key: 2, secrets: 0 })))
+    let sent: Record<string, unknown> = {}
+    server.use(http.post('*/api/v1/core/setup/restore', async ({ request }) => { sent = await request.json() as Record<string, unknown>; return HttpResponse.json({ status: 'running', error: null }, { status: 202 }) }))
+    await checkBackup(u)
+    await u.upload(screen.getByLabelText('Decryption key file (optional)'), new File([new Uint8Array(32).fill(7)], 'vedette-key-2026-11-01.key'))
+    await u.click(screen.getByRole('button', { name: 'Check the backup' }))
+    await screen.findByText(/the key file is not needed: the box keeps its own key/)
+    await u.click(screen.getByRole('button', { name: 'Restore' }))
+    await waitFor(() => expect(sent.upload_id).toBe('a'.repeat(32)))
+    expect(sent.key).toBeUndefined()
+  })
+
   it('a wrong setup code is said next to the code', async () => {
     const u = user()
     renderApp('/setup', { role: null, setupComplete: false })

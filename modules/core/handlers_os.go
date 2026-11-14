@@ -77,8 +77,7 @@ type OSHandlers struct {
 
 	upd updCheck // the check side of the software update (updates_check.go)
 
-	setup   *APIHandlers // the setup code gate of the first-run restore (restore_upload.go)
-	upMu    sync.Mutex   // one backup upload or first-run restore at a time
+	setup   *APIHandlers // the setup code gate, the first-run lock and the migrations of the first-run restore (restore_upload.go)
 	keyPath string       // the master key file, for its download (POST /core/data/key)
 }
 
@@ -163,6 +162,9 @@ func NewOSHandlers(c OSConfig) (*OSHandlers, error) {
 		}
 		h.pkgDir = filepath.Join(c.DataDir, hostPackagesDir)
 		h.sweepHostPackages()
+	}
+	if c.Host != nil {
+		c.Setup.restoring, c.Setup.dropUploads = h.restoreRunning, h.snaps.dropUploads
 	}
 	h.ctx, h.cancel = context.WithCancel(context.Background())
 	h.urun.retry = c.UpdateRetry

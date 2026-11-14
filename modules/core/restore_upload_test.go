@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/knt048/vedette/core/auth/authtest"
@@ -59,7 +60,7 @@ func tarGz(t *testing.T, ms ...member) []byte {
 const manifestOK = `{"version":1,"db_schema":"core=1","created_at":"2026-11-01T08:30:00Z","includes_secrets":false}`
 
 // backupDB is the database of another box: this world's schema, an organization that finished setup, and one secret
-// sealed with key. extra runs on it before it is read back.
+// sealed with key (none when key is nil). extra runs on it before it is read back.
 func (e *osEnv) backupDB(key []byte, extra ...string) []byte {
 	e.t.Helper()
 	path := filepath.Join(e.t.TempDir(), "other.db")
@@ -77,19 +78,21 @@ func (e *osEnv) backupDB(key []byte, extra ...string) []byte {
 			e.t.Fatal(err)
 		}
 	}
-	st, err := secrets.New(key)
-	if err != nil {
-		e.t.Fatal(err)
-	}
-	tx, err := db.BeginTx(e.t.Context(), nil)
-	if err != nil {
-		e.t.Fatal(err)
-	}
-	if _, _, err := st.Seal(e.t.Context(), tx, "test_secret", []byte("an ai key"), false); err != nil {
-		e.t.Fatal(err)
-	}
-	if err := tx.Commit(); err != nil {
-		e.t.Fatal(err)
+	if key != nil { // nil: no secret of its own
+		st, err := secrets.New(key)
+		if err != nil {
+			e.t.Fatal(err)
+		}
+		tx, err := db.BeginTx(e.t.Context(), nil)
+		if err != nil {
+			e.t.Fatal(err)
+		}
+		if _, _, err := st.Seal(e.t.Context(), tx, "test_secret", []byte("an ai key"), false); err != nil {
+			e.t.Fatal(err)
+		}
+		if err := tx.Commit(); err != nil {
+			e.t.Fatal(err)
+		}
 	}
 	_ = db.Close()
 	b, err := os.ReadFile(path) //nolint:gosec // a test temp file
@@ -270,5 +273,153 @@ func TestDataKeyDownload(t *testing.T) {
 	}
 	if strings.Contains(e.logs.String(), string(want)) || strings.Contains(e.logs.String(), base64.StdEncoding.EncodeToString(want)) {
 		t.Error("the key is in the log")
+	}
+}
+
+func backupOf(t *testing.T, db []byte) []byte {
+	t.Helper()
+	return tarGz(t, member{name: "manifest.json", data: []byte(manifestOK)}, member{name: "vedette.db", data: db})
+}
+
+// A backup whose triggers or views are not exactly the ones the migrations make at its versions is refused: one more trigger
+// (an account made administrator at every sign-in), a missing append-only trigger of the audit log, an extra view (M1).
+func TestSetupRestoreRefusesChangedSchemaObjects(t *testing.T) {
+	t.Parallel()
+	e, _ := newRestoreEnv(t)
+	code := e.openSetup()
+	key := newKey(t)
+	for name, stmt := range map[string]string{
+		"extra trigger":   `CREATE TRIGGER evil AFTER INSERT ON core_session BEGIN UPDATE core_user SET role = 'admin'; END`,
+		"dropped audit":   `DROP TRIGGER core_audit_no_delete`,
+		"extra view":      `CREATE VIEW core_user_list AS SELECT email FROM core_user`,
+		"changed trigger": `DROP TRIGGER core_audit_no_update; CREATE TRIGGER core_audit_no_update BEFORE UPDATE ON core_audit BEGIN SELECT 1; END`,
+	} {
+		if r := e.upload(code, backupOf(t, e.backupDB(key, stmt))); r.Code != 400 || r.code() != "not_a_backup" {
+			t.Errorf("%s: %d %s", name, r.Code, r.Raw)
+		}
+	}
+	if dirs := e.snapshotDirs(); len(dirs) != 0 {
+		t.Fatalf("a refused upload left %v", dirs)
+	}
+}
+
+// failingBody fails the test if anything reads it: a wrong setup code must be refused before the upload is read.
+type failingBody struct{ read bool }
+
+func (b *failingBody) Read([]byte) (int, error) { b.read = true; return 0, io.ErrUnexpectedEOF }
+
+func TestSetupRestoreUploadIsNotReadWithoutTheCode(t *testing.T) {
+	t.Parallel()
+	e, _ := newRestoreEnv(t)
+	e.openSetup()
+	body := &failingBody{}
+	r := e.client().request("POST", "/core/setup/restore/upload", nil, func(q *http.Request) {
+		q.Body, q.ContentLength = io.NopCloser(body), 1<<20
+		q.Header.Set("Content-Type", "application/octet-stream")
+		q.Header.Set("X-Setup-Code", "WRONG-CODE0-00000-00000")
+	})
+	wantStatus(t, r, 403, "invalid_setup_code")
+	if body.read {
+		t.Fatal("the upload was read before the setup code was accepted")
+	}
+}
+
+// gateBody says when the handler starts reading it and then waits, so the test acts while an upload is in progress.
+type gateBody struct {
+	started, release chan struct{}
+	once             sync.Once
+}
+
+func (g *gateBody) Read([]byte) (int, error) {
+	g.once.Do(func() { close(g.started) })
+	<-g.release
+	return 0, io.EOF
+}
+
+// First-run setup and a first-run restore never overlap (M2): setup answers 409 busy while an upload is read and while the
+// restore runs on the host; an upload left behind is removed when setup finishes (L1).
+func TestSetupRestoreAndSetupDoNotOverlap(t *testing.T) {
+	t.Parallel()
+	e, _ := newRestoreEnv(t)
+	code := e.openSetup()
+	setup := setupBody(code)
+	setup["admin"] = map[string]any{"name": "Nia New", "email": "nia@acme.example", "password": authtest.Password}
+
+	g := &gateBody{started: make(chan struct{}), release: make(chan struct{})}
+	done := make(chan reply, 1)
+	go func() {
+		done <- e.client().request("POST", "/core/setup/restore/upload", nil, func(q *http.Request) {
+			q.Body, q.ContentLength = io.NopCloser(g), -1
+			q.Header.Set("Content-Type", "application/octet-stream")
+			q.Header.Set("X-Setup-Code", code)
+		})
+	}()
+	<-g.started
+	wantStatus(t, e.client().post("/core/setup", setup), 409, "busy")
+	close(g.release)
+	wantStatus(t, <-done, 400, "not_a_backup")
+
+	key := newKey(t)
+	up := e.upload(code, backupOf(t, e.backupDB(key)))
+	wantOK(t, up, 200)
+	wantOK(t, e.client().post("/core/setup/restore", map[string]any{"setup_code": code, "upload_id": up.str("id"), "key": base64.StdEncoding.EncodeToString(key)}), 202)
+	wantStatus(t, e.client().post("/core/setup", setup), 409, "busy") // the restore runs on the host
+}
+
+func TestSetupRestoreUploadIsDroppedWhenSetupFinishes(t *testing.T) {
+	t.Parallel()
+	e, _ := newRestoreEnv(t)
+	code := e.openSetup()
+	wantOK(t, e.upload(code, backupOf(t, e.backupDB(newKey(t)))), 200)
+	if len(e.snapshotDirs()) != 1 {
+		t.Fatalf("staged = %v", e.snapshotDirs())
+	}
+	setup := setupBody(code)
+	setup["admin"] = map[string]any{"name": "Nia New", "email": "nia@acme.example", "password": authtest.Password}
+	wantOK(t, e.client().post("/core/setup", setup), 200)
+	if dirs := e.snapshotDirs(); len(dirs) != 0 {
+		t.Fatalf("an upload stayed on a box that is set up: %v", dirs)
+	}
+}
+
+// A backup with no saved secret has nothing to check a key against: the key file is not installed, the box keeps its own (L2).
+func TestSetupRestoreIgnoresAKeyItCannotCheck(t *testing.T) {
+	t.Parallel()
+	e, f := newRestoreEnv(t)
+	code := e.openSetup()
+	up := e.upload(code, backupOf(t, e.backupDB(nil, `DELETE FROM core_secret`)))
+	wantOK(t, up, 200)
+	if up.JSON["secrets"] != float64(0) {
+		t.Fatalf("upload = %s", up.Raw)
+	}
+	wantOK(t, e.client().post("/core/setup/restore", map[string]any{"setup_code": code, "upload_id": up.str("id"), "key": base64.StdEncoding.EncodeToString(make([]byte, 32))}), 202)
+	bl, err := e.hh.Client.StateBackups(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, b := range bl.Backups {
+		if strings.HasPrefix(b.Label, "Uploaded backup") && b.IncludesSecrets {
+			t.Fatalf("an unchecked key went with the import: %+v", b)
+		}
+	}
+	if f.calls != 1 {
+		t.Fatalf("restore calls = %d", f.calls)
+	}
+}
+
+// The key download asks for the two-step code of an account that has one, before anything is written.
+func TestDataKeyDownloadNeedsTheTwoStepCode(t *testing.T) {
+	t.Parallel()
+	e, _ := newRestoreEnv(t)
+	err := e.env.DB.Write(t.Context(), func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(t.Context(), `UPDATE core_user SET twofa_method = 'app' WHERE email = 'admin@acme.example'`)
+		return err
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantStatus(t, e.admin.post("/core/data/key", map[string]any{"password": authtest.Password}), 400, "code_required")
+	if e.count("data.key_download") != 0 {
+		t.Errorf("actions = %v", e.actions())
 	}
 }

@@ -13,7 +13,7 @@ import { resetMockDb } from '@/mocks/db'
 /** Sample data exists only in the preview (mock) build; a real box answers 400 sample_unavailable, so the release build does not offer to restore it (issue #244). */
 const isPreview = () => import.meta.env.VITE_API_MOCK !== 'off'
 import { useQueryClient } from '@tanstack/react-query'
-import { useBoxBackups, useDownloadKey, usePurge, useRestore, useRestoreRun } from './api'
+import { useAccount, useBoxBackups, useDownloadKey, usePurge, useRestore, useRestoreRun } from './api'
 import { useInstallKind, useModuleAvailable } from '@/lib/modules'
 import { ContainerBackup, InstallPending } from './ContainerOnly'
 import type { BoxBackup } from './types'
@@ -243,6 +243,7 @@ function BoxBackups({ disabled, title }: { disabled: boolean; title?: string }) 
 function KeyAside({ disabled, title }: { disabled: boolean; title?: string }) {
   const { t } = useTranslation('core')
   const me = useMe().data
+  const sso = useAccount().data?.user.sso === true // no Vedette password to confirm with (D-518, deferred)
   const key = useDownloadKey()
   const [open, setOpen] = useState(false)
   const [password, setPassword] = useState('')
@@ -260,7 +261,7 @@ function KeyAside({ disabled, title }: { disabled: boolean; title?: string }) {
     <div className="mt-4 grid max-w-3xl gap-2 rounded-md border border-rule bg-sunken p-3">
       <p className="text-sm font-medium">{t('data.key.title')}</p>
       <p className="text-[13px] text-muted">{t('data.key.desc')}</p>
-      <div><Button disabled={disabled} title={title} onClick={() => { setErr(null); setPassword(''); setCode(''); setOpen(true) }}><Download />{t('data.key.button')}</Button></div>
+      {sso ? <p className="text-[13px]">{t('data.key.sso')}</p> : <div><Button disabled={disabled} title={title} onClick={() => { setErr(null); setPassword(''); setCode(''); setOpen(true) }}><Download />{t('data.key.button')}</Button></div>}
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent title={t('data.key.ask.title')} description={t('data.key.ask.body')}>
           <Field label={t('data.restore.ask.password')} htmlFor="key-password">

@@ -84,7 +84,7 @@ type osOpts struct {
 
 func newOSEnv(t *testing.T, o osOpts) *osEnv {
 	t.Helper()
-	e := &osEnv{world: newWorld(t), m: opstest.NewMachine(t), clock: servertest.NewClock(time.Date(2026, 11, 9, 12, 0, 0, 0, time.UTC))}
+	e := &osEnv{world: newWorldWith(t, func(hc *core.HandlersConfig) { hc.Schema = []core.SchemaSet{{Module: "core", FS: core.Migrations}} }), m: opstest.NewMachine(t), clock: servertest.NewClock(time.Date(2026, 11, 9, 12, 0, 0, 0, time.UTC))}
 	e.free.Store(100 << 30)
 	ho := e.m.Ops(e.clock.Now, func(_ *ops.Config, d *ops.Deps) {
 		d.LockHeld = func(string) (bool, error) { return e.lock.Load(), nil }

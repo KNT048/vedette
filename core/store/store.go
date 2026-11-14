@@ -500,6 +500,29 @@ func SchemaVersionsOf(ctx context.Context, q *sql.DB) (string, error) {
 	return strings.Join(pairs, ","), nil
 }
 
+// SchemaObjectsOf reports the triggers, views and virtual tables of a database, "type name" -> its SQL with runs of white space
+// made one space. They are the objects that run code of the file's own when the database is used: a backup a person uploads must
+// have exactly the ones this software's migrations make (D-518).
+func SchemaObjectsOf(ctx context.Context, q *sql.DB) (map[string]string, error) {
+	rows, err := q.QueryContext(ctx, `SELECT type, name, coalesce(sql, '') FROM sqlite_master WHERE type IN ('trigger', 'view') OR (type = 'table' AND sql LIKE 'CREATE VIRTUAL%')`)
+	if err != nil {
+		return nil, fmt.Errorf("store: list schema objects: %w", err)
+	}
+	out := map[string]string{}
+	for rows.Next() {
+		var typ, name, text string
+		if err := rows.Scan(&typ, &name, &text); err != nil {
+			_ = rows.Close()
+			return nil, fmt.Errorf("store: list schema objects: %w", err)
+		}
+		out[typ+" "+name] = strings.Join(strings.Fields(text), " ")
+	}
+	if err := errors.Join(rows.Err(), rows.Close()); err != nil {
+		return nil, fmt.Errorf("store: list schema objects: %w", err)
+	}
+	return out, nil
+}
+
 var moduleRE = regexp.MustCompile(`^[a-z][a-z0-9-]{0,31}$`)
 
 // ErrMigration is wrapped by migration failures caused by bad input (module id, Down sections).
@@ -509,6 +532,16 @@ var ErrMigration = errors.New("store: invalid migration")
 // core_migration_<module>. Migrations are forward-only: a file with a Down section is refused.
 // Running it again changes nothing.
 func Migrate(ctx context.Context, db *DB, module string, fsys fs.FS) error {
+	return migrate(ctx, db, module, fsys, -1)
+}
+
+// MigrateTo is Migrate up to version (inclusive): the schema a module had at that version. A backup a person uploads is compared
+// with the schema objects this software's migrations make at the backup's own versions (D-518).
+func MigrateTo(ctx context.Context, db *DB, module string, fsys fs.FS, version int64) error {
+	return migrate(ctx, db, module, fsys, version)
+}
+
+func migrate(ctx context.Context, db *DB, module string, fsys fs.FS, upTo int64) error {
 	if !moduleRE.MatchString(module) {
 		return fmt.Errorf("%w: module id %q must match %s", ErrMigration, module, moduleRE)
 	}
@@ -520,7 +553,12 @@ func Migrate(ctx context.Context, db *DB, module string, fsys fs.FS) error {
 	if err != nil {
 		return fmt.Errorf("store: migrate %s: %w", module, err)
 	}
-	results, err := p.Up(ctx)
+	var results []*goose.MigrationResult
+	if upTo < 0 {
+		results, err = p.Up(ctx)
+	} else {
+		results, err = p.UpTo(ctx, upTo)
+	}
 	for _, r := range results {
 		db.log.InfoContext(ctx, "migration applied", "module", module, "version", r.Source.Version,
 			"file", r.Source.Path, "duration", r.Duration.Round(time.Millisecond))

@@ -113,7 +113,7 @@ func memberLimit(name string) int64 {
 func Read(r io.Reader, sink Sink) error {
 	zr, err := gzip.NewReader(r)
 	if err != nil {
-		return fmt.Errorf("%w: not gzip", ErrArchive)
+		return fmt.Errorf("%w: not gzip: %w", ErrArchive, err) // the cause too: a body cut by its size cap is not a damaged file
 	}
 	defer func() { _ = zr.Close() }()
 	zr.Multistream(false)
@@ -127,7 +127,7 @@ func Read(r io.Reader, sink Sink) error {
 			break
 		}
 		if err != nil {
-			return fmt.Errorf("%w: unreadable tar", ErrArchive)
+			return fmt.Errorf("%w: unreadable tar: %w", ErrArchive, err)
 		}
 		if hdr.Typeflag != tar.TypeReg {
 			return fmt.Errorf("%w: a member is not a regular file", ErrArchive)
@@ -160,5 +160,15 @@ func Read(r io.Reader, sink Sink) error {
 	if next == 0 {
 		return fmt.Errorf("%w: empty", ErrArchive)
 	}
+	// The gzip trailer (CRC-32 and size) is checked only when the stream is read to its end: a file damaged in transit fails
+	// here instead of restoring wrong rows. What follows the tar end is padding; more than maxTrailing bytes of it is refused.
+	if n, err := io.Copy(io.Discard, io.LimitReader(zr, maxTrailing+1)); err != nil {
+		return fmt.Errorf("%w: damaged: %w", ErrArchive, err)
+	} else if n > maxTrailing {
+		return fmt.Errorf("%w: data after the end of the archive", ErrArchive)
+	}
 	return nil
 }
+
+// maxTrailing is how much padding after the tar end Read accepts (a tar writer pads to its record size, 10 KiB by default).
+const maxTrailing = 1 << 20

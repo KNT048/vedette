@@ -70,7 +70,7 @@ export function SetupRestore({ install, onBack }: { install?: InstallKind; onBac
     if (!checked) return
     setErrors({})
     let key: string | undefined
-    if (keyFile) {
+    if (keyFile && checked.secrets > 0) { // nothing to check a key against: the box keeps its own (D-518)
       const k = await keyBase64(keyFile)
       if (!k) { setErrors({ key: t('setup.restore.keyBad') }); return }
       key = k
@@ -132,7 +132,7 @@ export function SetupRestore({ install, onBack }: { install?: InstallKind; onBac
       {checked ? (
         <div className="grid gap-2 rounded-md border border-rule p-3 text-sm" aria-label={t('setup.restore.checkedLabel')}>
           <p>{t('setup.restore.checked', { org: checked.org, when: fmtDateTime(checked.created_at), users: checked.users })}</p>
-          {keyFile ? <p className="text-[13px] text-muted">{t('setup.restore.withKey')}</p> : null}
+          {keyFile ? <p className="text-[13px] text-muted">{t(checked.secrets > 0 ? 'setup.restore.withKey' : 'setup.restore.keyNotNeeded')}</p> : null}
           {noKeyLoss ? (
             <>
               <ul className="list-disc pl-5 text-[13px]">

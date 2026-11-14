@@ -1137,6 +1137,7 @@
       "title": "Keep the decryption key apart",
       "desc": "The backup file has no decryption key. On another box it brings back your devices, findings, users and settings, but not the saved secrets (AI and feed keys, alert channel passwords, tokens), and users with two-step sign-in cannot sign in. Download the key once and keep it somewhere other than your backups, like an emergency kit: with both files a new box comes back whole.",
       "button": "Download decryption key",
+      "sso": "You sign in with single sign-on, so there is no Vedette password to confirm this download with. An administrator who signs in with a password can download the key.",
       "saved": "Saved {{file}}. Keep it apart from your backups: whoever has both can read the saved secrets.",
       "ask": {
         "title": "Download the decryption key?",
@@ -1493,6 +1494,7 @@
       "checkedLabel": "What the backup holds",
       "checked": "Backup of {{org}}, made {{when}}, with {{users}} active users.",
       "withKey": "The key file is checked against the backup when you restore.",
+      "keyNotNeeded": "This backup holds no saved secrets, so the key file is not needed: the box keeps its own key.",
       "lost": {
         "secrets": "{{n}} saved secrets will be lost and must be entered again.",
         "twofa": "{{n}} users sign in with two-step and will not be able to sign in.",

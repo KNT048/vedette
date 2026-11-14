@@ -9,6 +9,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
+	"maps"
 	"net/http"
 	"net/url"
 	"os"
@@ -200,7 +202,7 @@ func (s *snapshotter) openUpload(id string) (upload, error) {
 	return upload{snapshot: snapshot{ID: id, dir: dir}, meta: m}, nil
 }
 
-// dropUploads removes every staged upload (a directory of ours with upload.json): the box keeps one at a time.
+// dropUploads removes every staged upload: the box keeps one at a time, and none once setup is done.
 func (s *snapshotter) dropUploads() {
 	ents, err := os.ReadDir(s.dir)
 	if err != nil {
@@ -208,10 +210,20 @@ func (s *snapshotter) dropUploads() {
 	}
 	for _, e := range ents {
 		if e.IsDir() && snapshotIDRE.MatchString(e.Name()) {
-			if _, err := os.Lstat(filepath.Join(s.dir, e.Name(), uploadMetaFile)); err == nil {
-				_ = os.RemoveAll(filepath.Join(s.dir, e.Name()))
-			}
+			s.dropUpload(e.Name())
 		}
+	}
+}
+
+// dropUpload removes the staged upload id: a directory of ours with upload.json and no snapshot.json (one being imported is
+// left to its own request).
+func (s *snapshotter) dropUpload(id string) {
+	dir := filepath.Join(s.dir, id)
+	if _, err := os.Lstat(filepath.Join(dir, snapshotMetaFile)); err == nil {
+		return
+	}
+	if _, err := os.Lstat(filepath.Join(dir, uploadMetaFile)); err == nil {
+		_ = os.RemoveAll(dir)
 	}
 }
 
@@ -248,7 +260,7 @@ type inspection struct {
 // nothing in the file's schema runs a function) and checks it is a Vedette database this software can run: SQLite's
 // quick_check, no module newer than live (409 schema_newer), an organization that finished setup. With key it counts the
 // secrets the key opens. The file is untrusted: only counts and the organization name come out of it.
-func inspectBackup(ctx context.Context, path, live string, key []byte) (inspection, error) {
+func inspectBackup(ctx context.Context, path, live string, key []byte, reference func(context.Context, string) (map[string]string, error)) (inspection, error) {
 	var ins inspection
 	damaged := notABackup("The database in this backup is damaged. Choose another backup.")
 	f, err := os.Open(path) //nolint:gosec // a staged upload's fixed name
@@ -281,6 +293,20 @@ func inspectBackup(ctx context.Context, path, live string, key []byte) (inspecti
 	}
 	if schemaNewer(ins.schema, live) {
 		return ins, apierr.New(409, api.CodeSchemaNewer, "This backup was made by a newer Vedette. Install that version (or a later one) on this box first, then restore.")
+	}
+	// Triggers and views run on the live box once it is restored: a file changed at rest could plant one (a hidden account made
+	// administrator again at every sign-in) or drop one (the append-only audit log). Only the ones Vedette's own migrations make
+	// at these versions are accepted, with their exact text.
+	got, err := store.SchemaObjectsOf(ctx, db)
+	if err != nil {
+		return ins, damaged
+	}
+	want, err := reference(ctx, ins.schema)
+	if err != nil {
+		return ins, err
+	}
+	if !maps.Equal(got, want) {
+		return ins, notABackup("The database in this backup was changed: its triggers or views are not the ones Vedette makes. Choose another backup.")
 	}
 	org, err := coredb.New(db).GetOrg(ctx)
 	if errors.Is(err, sql.ErrNoRows) || (err == nil && org.SetupComplete == 0) {
@@ -318,6 +344,37 @@ func inspectBackup(ctx context.Context, path, live string, key []byte) (inspecti
 	return ins, nil
 }
 
+// schemaObjects is what this software's migrations make at schema ("module=version,..."): the triggers, views and virtual
+// tables an uploaded database must have, no more and no fewer (INV-38). It migrates a scratch database in a private temporary
+// directory with the migrations the purge rebuilds a fresh install from (HandlersConfig.Schema, in the order they run), and
+// removes it. Without them nothing matches and every upload is refused.
+func (h *OSHandlers) schemaObjects(ctx context.Context, schema string) (map[string]string, error) {
+	at := map[string]int64{}
+	for p := range strings.SplitSeq(schema, ",") {
+		if m, v, ok := strings.Cut(p, "="); ok {
+			at[m], _ = strconv.ParseInt(v, 10, 64)
+		}
+	}
+	dir, err := os.MkdirTemp("", "vedette-schema-")
+	if err != nil {
+		return nil, fmt.Errorf("core: schema reference: %w", err)
+	}
+	defer func() { _ = os.RemoveAll(dir) }()
+	db, err := store.Open(ctx, filepath.Join(dir, "schema.db"), slog.New(slog.DiscardHandler))
+	if err != nil {
+		return nil, err //nolint:wrapcheck // store's error names what failed
+	}
+	defer func() { _ = db.Close() }()
+	for _, m := range h.setup.schema {
+		if v, ok := at[strings.ReplaceAll(m.Module, "-", "_")]; ok {
+			if err := store.MigrateTo(ctx, db, m.Module, m.FS, v); err != nil {
+				return nil, err //nolint:wrapcheck // store's error names the module
+			}
+		}
+	}
+	return store.SchemaObjectsOf(ctx, db.Reader()) //nolint:wrapcheck // store's error names what failed
+}
+
 // schemaNewer reports whether backup ("module=version,...") has a module at a higher version than live, or one live does
 // not have (the host's own early check, host/ops schemaNewer).
 func schemaNewer(backup, live string) bool {
@@ -349,15 +406,17 @@ func (h *OSHandlers) CorePostCoreSetupRestoreUpload(ctx context.Context, req oas
 	if err := h.needHost(); err != nil {
 		return nil, err
 	}
+	if !h.setup.firstRun.TryLock() { // held to the end: setup cannot finish meanwhile (D-518)
+		return nil, firstRunBusy()
+	}
+	defer h.setup.firstRun.Unlock()
 	if err := h.setup.CheckSetupCode(ctx, params.XSetupCode.Or("")); err != nil {
 		return nil, err
 	}
-	if !h.upMu.TryLock() {
-		return nil, apierr.New(409, codeBusy, "Another backup is being uploaded or restored. Wait for it to finish.")
-	}
-	defer h.upMu.Unlock()
 	if x, ok := server.ExchangeFrom(ctx); ok {
-		_ = http.NewResponseController(x.W).SetReadDeadline(time.Now().Add(uploadTimeout)) // the server's 60 s is for requests, not files
+		if err := http.NewResponseController(x.W).SetReadDeadline(time.Now().Add(uploadTimeout)); err != nil { // the server's 60 s is for requests, not files
+			h.log.WarnContext(ctx, "core: the upload keeps the server's read timeout; a large backup may be cut", "error", err)
+		}
 	}
 	live, err := h.db.SchemaVersions(ctx)
 	if err != nil {
@@ -368,11 +427,13 @@ func (h *OSHandlers) CorePostCoreSetupRestoreUpload(ctx context.Context, req oas
 	if err != nil {
 		return nil, err
 	}
-	ins, err := inspectBackup(ctx, up.db(), live, nil)
+	ins, err := inspectBackup(ctx, up.db(), live, nil, h.schemaObjects)
 	if err != nil {
 		up.remove()
 		return nil, err
 	}
+	id := up.ID
+	time.AfterFunc(uploadMaxAge, func() { h.snaps.dropUpload(id) }) // not kept past the hour step 2 accepts it for
 	c := caller{Principal: server.Principal{Email: setupActor}}
 	if err := h.record(ctx, c, false, "data.restore_upload", "backup", "backup of "+up.meta.CreatedAt.Format(time.RFC3339)); err != nil {
 		up.remove()
@@ -393,6 +454,10 @@ func (h *OSHandlers) CorePostCoreSetupRestore(ctx context.Context, req *oas.Core
 	if err := h.needHost(); err != nil {
 		return nil, err
 	}
+	if !h.setup.firstRun.TryLock() { // held to the end: setup cannot finish while this imports and starts the restore (D-518)
+		return nil, firstRunBusy()
+	}
+	defer h.setup.firstRun.Unlock()
 	if err := h.setup.CheckSetupCode(ctx, req.SetupCode); err != nil {
 		return nil, err
 	}
@@ -404,10 +469,6 @@ func (h *OSHandlers) CorePostCoreSetupRestore(ctx context.Context, req *oas.Core
 		}
 		key = b
 	}
-	if !h.upMu.TryLock() {
-		return nil, apierr.New(409, codeBusy, "Another backup is being uploaded or restored. Wait for it to finish.")
-	}
-	defer h.upMu.Unlock()
 	up, err := h.snaps.openUpload(req.UploadID)
 	if err != nil {
 		return nil, err
@@ -416,9 +477,15 @@ func (h *OSHandlers) CorePostCoreSetupRestore(ctx context.Context, req *oas.Core
 	if err != nil {
 		return nil, err
 	}
-	ins, err := inspectBackup(ctx, up.db(), live, key)
+	ins, err := inspectBackup(ctx, up.db(), live, key, h.schemaObjects)
 	if err != nil {
 		return nil, err
+	}
+	if ins.secrets == 0 {
+		// Nothing to check the key against: an unchecked file never becomes the box's master key. The box keeps its own and
+		// the page says so. (A key that opens some secrets but not all is right: rows a keyless restore left, like an old box
+		// CA, stay sealed under another key by design, D-351.)
+		key = nil
 	}
 	switch {
 	case key != nil && ins.secrets > 0 && ins.opened == 0:
@@ -426,11 +493,14 @@ func (h *OSHandlers) CorePostCoreSetupRestore(ctx context.Context, req *oas.Core
 	case key == nil && ins.secrets > 0 && !req.ConfirmWithoutKey.Or(false):
 		return nil, apierr.New(409, codeConfirmReq, "Without the decryption key the saved secrets are lost and users with two-step sign-in cannot sign in. Add the key file, or confirm to restore without it.")
 	}
-	unlock, err := h.lockRestore(ctx)
-	if err != nil {
+	if done, err := h.setup.SetupDone(ctx); err != nil { // the first-run lock keeps setup from finishing; said again before the import
 		return nil, err
+	} else if done {
+		return nil, alreadySetup()
 	}
-	defer unlock()
+	if h.busy(ctx) || h.restoreRunning(ctx) { // asked again under lockRestore below; refused here before the host copies the upload
+		return nil, apierr.New(409, codeBusy, "An update or a restore is running. Wait for it to finish, then restore.")
+	}
 	if err := h.snaps.seal(up, key, ins.schema); err != nil {
 		up.remove()
 		return nil, h.snapshotFailure(ctx, err)
@@ -463,12 +533,21 @@ func (h *OSHandlers) CorePostCoreSetupRestore(ctx context.Context, req *oas.Core
 		b.BackupID = res.BackupID
 		return nil
 	})
-	if !keep {
+	if keep {
+		time.AfterFunc(uploadMaxAge, up.remove) // the host may still read it: gone after the hour, before the start-up sweep
+	} else {
 		up.remove() // the host copied it, or the import failed: either way an upload is not used twice
 	}
 	if err != nil {
 		return nil, err
 	}
+	// The restore locks are taken only now: the import may wait up to 16 minutes, and an update must answer busy meanwhile, not
+	// wait. The first-run lock already keeps a second upload or restore out.
+	unlock, err := h.lockRestore(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer unlock()
 	rec, err := h.startRestore(ctx, c, false, b)
 	if err != nil {
 		return nil, err

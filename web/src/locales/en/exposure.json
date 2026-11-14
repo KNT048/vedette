@@ -161,7 +161,7 @@
     "deepIp": "Deep scan: the testing terms of this IP are accepted, so every scan goes to the depth they describe (every TCP port, service versions, vulnerability checks, some of which confirm a flaw by sending the exploit request in a harmless form, and OpenVAS when it is on).",
     "deepDomain": "Deep scan: the testing terms of this domain are accepted, so every public IPv4 address a name under it resolves to is scanned to the depth they describe, whatever serves it (at most 3 addresses a run).",
     "deepNotDisruptive": "Disruptive checks are not included.",
-    "deepDisruptive": "Disruptive checks are included: denial of service, password guessing, default-password sign-ins and exploit checks built to change data.",
+    "deepDisruptive": "Disruptive checks are included: denial of service, password guessing, default-password sign-ins and exploit checks that send more than a harmless read.",
     "noticeTitle": "Pressing Scan now records this confirmation",
     "noticeChanged": "The confirmation text changed: it now names service identification, safe checks for known exploited vulnerabilities and a passive web scan. An administrator confirms once with the next Scan now.",
     "noticeWho": "Vedette keeps who confirmed it, when, for which target and this exact sentence.",

@@ -43623,7 +43623,7 @@ type ExposureDeleteExposureTargetsIDTermsOKTerms struct {
 	At time.Time `json:"at"`
 	By string    `json:"by"`
 	// The extra tick: denial of service, password guessing, default-password sign-ins and exploit checks
-	// built to change data too.
+	// that send more than a harmless read too.
 	Disruptive bool `json:"disruptive"`
 	// The exact terms the administrator accepted, with the tick's sentence as the last line when ticked.
 	Text    string `json:"text"`
@@ -45464,7 +45464,7 @@ type ExposureGetExposureTargetsIDOKTerms struct {
 	At time.Time `json:"at"`
 	By string    `json:"by"`
 	// The extra tick: denial of service, password guessing, default-password sign-ins and exploit checks
-	// built to change data too.
+	// that send more than a harmless read too.
 	Disruptive bool `json:"disruptive"`
 	// The exact terms the administrator accepted, with the tick's sentence as the last line when ticked.
 	Text    string `json:"text"`
@@ -48702,7 +48702,7 @@ type ExposureGetExposureTargetsOKItemsItemTerms struct {
 	At time.Time `json:"at"`
 	By string    `json:"by"`
 	// The extra tick: denial of service, password guessing, default-password sign-ins and exploit checks
-	// built to change data too.
+	// that send more than a harmless read too.
 	Disruptive bool `json:"disruptive"`
 	// The exact terms the administrator accepted, with the tick's sentence as the last line when ticked.
 	Text    string `json:"text"`
@@ -49594,7 +49594,7 @@ type ExposurePostExposureBoxIPVerifyOKItemsItemTerms struct {
 	At time.Time `json:"at"`
 	By string    `json:"by"`
 	// The extra tick: denial of service, password guessing, default-password sign-ins and exploit checks
-	// built to change data too.
+	// that send more than a harmless read too.
 	Disruptive bool `json:"disruptive"`
 	// The exact terms the administrator accepted, with the tick's sentence as the last line when ticked.
 	Text    string `json:"text"`
@@ -50741,7 +50741,7 @@ type ExposurePostExposureTargetsCreatedTerms struct {
 	At time.Time `json:"at"`
 	By string    `json:"by"`
 	// The extra tick: denial of service, password guessing, default-password sign-ins and exploit checks
-	// built to change data too.
+	// that send more than a harmless read too.
 	Disruptive bool `json:"disruptive"`
 	// The exact terms the administrator accepted, with the tick's sentence as the last line when ticked.
 	Text    string `json:"text"`
@@ -52074,7 +52074,7 @@ type ExposurePostExposureTargetsIDVerifyOKTargetTerms struct {
 	At time.Time `json:"at"`
 	By string    `json:"by"`
 	// The extra tick: denial of service, password guessing, default-password sign-ins and exploit checks
-	// built to change data too.
+	// that send more than a harmless read too.
 	Disruptive bool `json:"disruptive"`
 	// The exact terms the administrator accepted, with the tick's sentence as the last line when ticked.
 	Text    string `json:"text"`
@@ -53349,7 +53349,7 @@ type ExposurePutExposureTargetsIDTermsOKTerms struct {
 	At time.Time `json:"at"`
 	By string    `json:"by"`
 	// The extra tick: denial of service, password guessing, default-password sign-ins and exploit checks
-	// built to change data too.
+	// that send more than a harmless read too.
 	Disruptive bool `json:"disruptive"`
 	// The exact terms the administrator accepted, with the tick's sentence as the last line when ticked.
 	Text    string `json:"text"`

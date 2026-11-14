@@ -76,6 +76,7 @@ const (
 	deepFenceDown  = "the Vedette host did not give this domain's fence token, so nothing was sent."
 	deepNoNmap     = "service identification did not finish, so its ports are not known this run: it goes back in line."
 	notDeepOutside = "%s: reached only through a name that points (CNAME) outside this domain, so the disruptive checks were not run there."
+	notDeepNoCNAME = "%s: the box could not confirm right before the scan that its name stays inside this domain (CNAME lookup), so the disruptive checks were not run there."
 )
 
 var fenceTokenRE = regexp.MustCompile(`^[0-9a-f]{32}$`)
@@ -155,6 +156,9 @@ func (s *Service) deepGate(ctx context.Context, st ScanTarget, ip netip.Addr, na
 		s.cfg.Log.ErrorContext(ctx, "exposure: checking whether a domain's address is the box's own failed", "target", st.Value, "ip", ip, "error", err)
 		return st, deepUnchecked, nil
 	case box:
+		if out.Mode.Disruptive && len(names) > 0 { // r2-M1: the box's own IP reached through a name: the same CNAME rule
+			out.Mode.Disruptive = s.cnameInZone(ctx, names, st.Value)
+		}
 		return out, "", nil
 	case len(names) == 0: // a step of the box's pipeline (no scope) whose address is not the box's any more
 		return st, deepNotBox, nil
@@ -200,7 +204,44 @@ func (s *Service) deepGate(ctx context.Context, st ScanTarget, ip netip.Addr, na
 		return st, deepFenceDown, nil
 	}
 	out.Domain = &DomainScope{Domain: st.Value, Name: name, Token: tok}
+	if out.Mode.Disruptive { // r2-M1: fail closed: the disruptive checks only when the name is seen to stay inside the domain now
+		out.Mode.Disruptive = s.cnameInZone(ctx, []string{name}, st.Value)
+	}
 	return out, "", nil
+}
+
+// CNAMEResolver looks up a name's canonical name; *net.Resolver satisfies it (it answers the name itself when there is no CNAME).
+type CNAMEResolver interface {
+	LookupCNAME(ctx context.Context, host string) (string, error)
+}
+
+// maxCNAMEChecks bounds the names cnameInZone looks up for one step (review r1 L3: a bound, not one lookup per name of a CDN address).
+const maxCNAMEChecks = 3
+
+// cnameInZone says, right before a step, that a name under domain among names is seen now to resolve inside the domain: its canonical
+// name (the end of its CNAME chain) is itself or a name under the domain (review r2 M1). A lookup error, a time-out, an answer that is
+// not a host name, an outside name or a Resolver without LookupCNAME all say no: then the disruptive checks are dropped (fail closed),
+// because the owner of an outside name chooses the address.
+func (s *Service) cnameInZone(ctx context.Context, names []string, domain string) bool {
+	cr, ok := s.cfg.Resolver.(CNAMEResolver)
+	if !ok {
+		return false
+	}
+	tried := 0
+	for _, n := range names {
+		if !underDomain(n, domain) || tried >= maxCNAMEChecks {
+			continue
+		}
+		tried++
+		lctx, cancel := context.WithTimeout(ctx, nameLookupTimeout)
+		cn, err := cr.LookupCNAME(lctx, n)
+		cancel()
+		cn = strings.ToLower(strings.TrimSuffix(cn, "."))
+		if err == nil && (cn == n || underDomain(cn, domain)) {
+			return true
+		}
+	}
+	return false
 }
 
 // clearDeep drops what a runner says about the deep scan from its rows (the runner's report is untrusted, INV-10): the deep state of
@@ -391,6 +432,9 @@ func (s *Service) deepIP(ctx context.Context, st ScanTarget, a deepAddr, c *Cont
 		if ipKey(p.IP) == a.ip.String() {
 			sub.Ports = append(sub.Ports, p)
 		}
+	}
+	if st.Mode.Disruptive && !stD.Mode.Disruptive { // r2-M1: the CNAME re-check could not confirm the name stays in the domain
+		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "deep", Text: clipText(fmt.Sprintf(notDeepNoCNAME, label), maxLineText)})
 	}
 	how := "this box's own verified IP"
 	if stD.Domain != nil {

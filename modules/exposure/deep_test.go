@@ -23,9 +23,19 @@ const (
 // deepDNS answers TXT like fakeResolver and A records from a, so the core-side re-check of a name can be steered (no real DNS).
 type deepDNS struct {
 	*fakeResolver
-	mu  sync.Mutex
-	a   map[string][]string
-	err error
+	mu       sync.Mutex
+	a        map[string][]string
+	err      error
+	cnameErr error // LookupCNAME answers it when set; otherwise the name itself (no CNAME)
+}
+
+func (d *deepDNS) LookupCNAME(_ context.Context, host string) (string, error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if d.cnameErr != nil {
+		return "", d.cnameErr
+	}
+	return host + ".", nil
 }
 
 func (d *deepDNS) LookupNetIP(_ context.Context, _ string, host string) ([]netip.Addr, error) {
@@ -445,11 +455,12 @@ func TestContract_INV28_Deep_WithdrawStopsTheDeepStep(t *testing.T) {
 	}
 }
 
-// D-571 (LEGAL-2): a domain's terms say the scan reaches third-party hosting, CDN and proxies, name the IP-level tools and the
-// customer's responsibility; an IP's text is unchanged; the version is 2026-11-14c.
+// D-571 (LEGAL-2, reviews r1 H1 and r2): a domain's terms say the scan reaches third-party hosting, CDN and proxies, name the IP-level
+// tools, the customer's responsibility and the CNAME rule; an IP keeps its "yours alone" sentence; both say what runs without the tick
+// and what the tick adds; the version is 2026-11-14d.
 func TestContract_INV28_Deep_DomainTermsText(t *testing.T) {
 	t.Parallel()
-	if TermsVersion != "2026-11-14c" {
+	if TermsVersion != "2026-11-14d" {
 		t.Fatalf("version %s", TermsVersion)
 	}
 	dom := termsFor(KindDomain, "acme.example").Text
@@ -478,7 +489,9 @@ func TestContract_INV28_Deep_DomainTermsText(t *testing.T) {
 		for _, want := range []string{
 			"including checks that confirm a flaw by sending the exploit request itself in a harmless form (for example reading a file or running a harmless command)",
 			"through a known authentication bypass",
-			"Checks that can crash a service, guess passwords, sign in with default passwords or are built to change data run only with the disruptive checks below.",
+			"Some checks, OpenVAS's in particular, may write a harmless test file or record to confirm a flaw and then try to remove it.",
+			"Checks that can crash a service, guess passwords or sign in with default passwords, and the exploit checks of nuclei and nmap that send more than a harmless read, run only with the disruptive checks below.",
+			"including the public anonymous login a service may offer (for example anonymous FTP)",
 		} {
 			if !strings.Contains(text, want) {
 				t.Errorf("terms lack %q", want)
@@ -488,7 +501,7 @@ func TestContract_INV28_Deep_DomainTermsText(t *testing.T) {
 			t.Errorf("terms say exploit checks run only with the tick: %q", text)
 		}
 	}
-	if d := termsFor(KindDomain, "acme.example").Disruptive; !strings.Contains(d, "exploit checks built to send data that changes something on the target") {
+	if d := termsFor(KindDomain, "acme.example").Disruptive; !strings.Contains(d, "exploit checks that send more than a harmless read, such as nuclei's POST exploit requests that may create or change data and nmap's SQL injection probes") {
 		t.Errorf("disruptive tick = %q", d)
 	}
 	e := newEnv(t)
@@ -659,5 +672,30 @@ func TestContract_INV28_Deep_RefusedTakesNoPlace(t *testing.T) {
 				t.Fatalf("run %d: %s = %+v", run, ip, a)
 			}
 		}
+	}
+}
+
+// review r2 M1: the CNAME rule fails closed: with the tick on, a name whose CNAME cannot be looked up right before the step (here every
+// CNAME lookup fails, and the runner's row has no CNAME) gets no disruptive checks, and a line says why.
+func TestContract_INV28_Deep_CNAMELookupFailsClosed(t *testing.T) {
+	t.Parallel()
+	d := newDeepEnv(t)
+	d.svc.cfg.DomainFence = &fakeFence{}
+	d.acceptTerms(d.dom.ID, true)
+	d.dns.mu.Lock()
+	d.dns.cnameErr = errors.New("timeout")
+	d.dns.mu.Unlock()
+	s := d.scan()
+	st, called := d.seams.call(ipB)
+	if !called || !st.Mode.Full || st.Mode.Disruptive {
+		t.Fatalf("ipB step = %+v (called %v)", st.Mode, called)
+	}
+	for _, c := range d.seams.templates {
+		if c.st.Mode.Disruptive {
+			t.Fatalf("templates with the disruptive checks: %+v", c)
+		}
+	}
+	if !hasLine(s, ipB+" (api.acme.example, www.acme.example): the box could not confirm right before the scan that its name stays inside this domain (CNAME lookup)") {
+		t.Fatalf("not checked %q", notChecked(s))
 	}
 }

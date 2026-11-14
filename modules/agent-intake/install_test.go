@@ -198,6 +198,50 @@ func TestInstall_LinuxScriptDoesNotShareNamesWithOsRelease(t *testing.T) {
 	}
 }
 
+// D-596 (first run on Windows Server 2025, 2026-11-14): curl.exe's Schannel cannot verify the box with a CA file (it asks for the box CA's
+// revocation status, which has none, and does not match an IP address in the certificate), so the Windows script makes every request to the
+// box with .NET and a per-request check pinned to the CA it embeds: no curl.exe, nothing that skips the check, nothing put into a Windows
+// certificate store, no machine-wide callback, revocation off only inside that check, and a failed download stops the script.
+// ponytail: text checks (no PowerShell in CI, SYS-1); the behaviour is proven on the lab's Windows Server VM.
+func TestInstall_WindowsPinsTheBoxCAWithoutCurl(t *testing.T) {
+	ps1 := readFile(t, "scripts/osquery.ps1")
+	for _, bad := range []string{"$Curl", "curl.exe -", "-k ", "SkipCertificateCheck", "ServicePointManager]::ServerCertificateValidationCallback",
+		"ServicePointManager.ServerCertificateValidationCallback", "X509Store", "Import-Certificate", "certutil", "Cert:\\",
+		"CheckCertificateRevocationList", "Invoke-WebRequest", "Invoke-RestMethod"} {
+		if strings.Contains(ps1, bad) {
+			t.Errorf("the Windows script holds %q", bad)
+		}
+	}
+	for _, want := range []string{
+		"$CaPem = @'\n@@CA@@\n'@\n",                                     // one embedded copy...
+		"$CaPem | Set-Content -Path $Ca -Encoding ascii",                // ...is what osqueryd pins (--tls_server_certs)
+		"[VedetteBox]::Pin($CaPem, ([Uri]$Box).Host)",                   // ...and what every request of the script pins
+		"r.ServerCertificateValidationCallback = Check;",                // per request
+		"chain.ChainPolicy.RevocationMode = X509RevocationMode.NoCheck", // only for this chain
+		"chain.ChainPolicy.ExtraStore.AddRange(pins);",
+		"if ((s.Status & ~waived) != 0) { return false; }",
+		"if (Same(e.Certificate.RawData, p.RawData)) { return true; }",
+		"(errors & SslPolicyErrors.RemoteCertificateNameMismatch) != 0 && !IpInSan(leaf, host)",
+		"ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;",
+		"r.AllowAutoRedirect = false;",
+	} {
+		if !strings.Contains(ps1, want) {
+			t.Errorf("the Windows script lost %q", want)
+		}
+	}
+	at, prev := 0, ""
+	for _, step := range []string{"if ($Uninstall) {", "[VedetteBox]::Pin(", "Get-FromBox 'SHA256SUMS'", "Get-FromBox $File", "Get-FileHash", "Start-Process msiexec -ArgumentList '/i'"} {
+		i := strings.Index(ps1[at:], step)
+		if i < 0 {
+			t.Fatalf("the Windows script: %q is missing or comes before %q", step, prev)
+		}
+		at, prev = at+i+len(step), step
+	}
+	if !strings.Contains(ps1, "catch { throw \"Could not download $Name from $Box (") {
+		t.Error("a failed download must stop the Windows script with the reason, before anything is installed")
+	}
+}
+
 // A normal first install exits 0 once the machine has enrolled: osquery's first report comes a few minutes later (D-503) and is not waited
 // for (S-INV-4, supervisor decision 2026-11-13). The only non-zero end after the install is "did not enrol" (3); success is THIS machine's host_last_seen (status, by host_identifier) appearing or moving
 // past what it was before the restart, never the token-wide counts. Both scripts set --config_refresh=300, without which osquery keeps

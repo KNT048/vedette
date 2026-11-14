@@ -7,6 +7,8 @@
 #   3. writes the enroll secret and osquery.flags, sets the osqueryd service to Automatic and starts it; with a token this machine does
 #      not hold yet, it first removes osquery's database (osquery.db: the old node key and unsent results) so that it enrols under the new token
 #   4. waits until this machine has enrolled (not for its first report, due within a few minutes) and exits 0
+# Every request to the box checks that its certificate chains to the CA embedded below. Nothing is added to the Windows certificate
+# store, and no other server is trusted.
 param([string]$Token = '', [switch]$Uninstall)
 $ErrorActionPreference = 'Stop'
 $Box = '@@BOX@@'
@@ -15,7 +17,9 @@ $Dir = 'C:\Program Files\osquery'
 $Ca = Join-Path $Dir 'vedette-ca.pem'
 $Db = Join-Path $Dir 'osquery.db'   # osqueryd's default --database_path: its node key and its unsent results
 $Secret = Join-Path $Dir 'enroll.secret'
-$Curl = Join-Path $env:SystemRoot 'System32\curl.exe'   # ships with Windows Server 2019 and later; it can use our CA file with --cacert
+$CaPem = @'
+@@CA@@
+'@
 
 if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) { throw 'Run PowerShell as Administrator.' }
 
@@ -30,7 +34,151 @@ if ($Uninstall) {
 }
 
 if (-not $Token) { throw 'Missing -Token. Copy the install command from Vedette, Devices, Scope and sensors.' }
-if (-not (Test-Path $Curl)) { throw 'curl.exe was not found. Use Windows Server 2019 or later, or follow Advanced: manual setup in Vedette.' }
+
+# HTTPS to the box with .NET, not curl.exe (D-596): curl.exe's Schannel asks for the revocation status of the box CA, which has none, and
+# with a CA file it does not match an IP address in the certificate, so it cannot reach a box at its default (IPv4) address. The check
+# below accepts the box only when its certificate chain contains a certificate embedded in this script, every signature and date in the
+# chain is valid, the certificate is for server use, and it names the box address (Windows' own name check, or the IP address entry
+# when Windows does not match one). It is set on each request of this script, never for the whole machine; TLS 1.2.
+if (-not ('VedetteBox' -as [type])) {
+  Add-Type -Language CSharp -IgnoreWarnings -TypeDefinition @'
+using System;
+using System.IO;
+using System.Net;
+using System.Net.Security;
+using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
+using System.Text;
+using System.Text.RegularExpressions;
+
+public static class VedetteBox {
+  static X509Certificate2Collection pins = new X509Certificate2Collection();
+  static string host = "";
+
+  public static void Pin(string pem, string boxHost) {
+    pins.Clear();
+    foreach (Match m in Regex.Matches(pem, "-----BEGIN CERTIFICATE-----([A-Za-z0-9+/=\\s]+)-----END CERTIFICATE-----")) {
+      pins.Add(new X509Certificate2(Convert.FromBase64String(Regex.Replace(m.Groups[1].Value, "\\s", ""))));
+    }
+    if (pins.Count == 0) { throw new InvalidOperationException("This script holds no box certificate. Copy the command again from Vedette."); }
+    host = boxHost.Trim('[', ']');
+    ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
+  }
+
+  static bool Check(object sender, X509Certificate cert, X509Chain sent, SslPolicyErrors errors) {
+    if (cert == null || pins.Count == 0 || (errors & SslPolicyErrors.RemoteCertificateNotAvailable) != 0) { return false; }
+    X509Certificate2 leaf = new X509Certificate2(cert);
+    if ((errors & SslPolicyErrors.RemoteCertificateNameMismatch) != 0 && !IpInSan(leaf, host)) { return false; }
+    X509Chain chain = new X509Chain(false);
+    try {
+      chain.ChainPolicy.RevocationMode = X509RevocationMode.NoCheck; // the box CA has no CRL or OCSP; the pin below replaces the store
+      chain.ChainPolicy.VerificationFlags = X509VerificationFlags.AllowUnknownCertificateAuthority;
+      chain.ChainPolicy.ApplicationPolicy.Add(new Oid("1.3.6.1.5.5.7.3.1")); // serverAuth
+      chain.ChainPolicy.ExtraStore.AddRange(pins);
+      if (sent != null) { foreach (X509ChainElement e in sent.ChainElements) { chain.ChainPolicy.ExtraStore.Add(e.Certificate); } }
+      if (!chain.Build(leaf)) { return false; }
+      // AllowUnknownCertificateAuthority only waives "not in the Windows store"; anything else (a bad signature, an expired certificate,
+      // usage) refuses. NotTimeNested is ignored as Windows itself does: each certificate's own dates are still checked (NotTimeValid).
+      X509ChainStatusFlags waived = X509ChainStatusFlags.UntrustedRoot | X509ChainStatusFlags.PartialChain | X509ChainStatusFlags.NotTimeNested;
+      foreach (X509ChainStatus s in chain.ChainStatus) {
+        if ((s.Status & ~waived) != 0) { return false; }
+      }
+      foreach (X509ChainElement e in chain.ChainElements) {
+        foreach (X509Certificate2 p in pins) {
+          if (Same(e.Certificate.RawData, p.RawData)) { return true; }
+        }
+      }
+      return false;
+    } finally { chain.Reset(); }
+  }
+
+  static bool Same(byte[] a, byte[] b) {
+    if (a.Length != b.Length) { return false; }
+    for (int i = 0; i < a.Length; i++) { if (a[i] != b[i]) { return false; } }
+    return true;
+  }
+
+  // The DER header at d[i]: tag, where the content starts and its length; false when it does not fit in d.
+  static bool Header(byte[] d, int i, out int tag, out int start, out int len) {
+    tag = 0; start = 0; len = 0;
+    if (i < 0 || i + 2 > d.Length) { return false; }
+    tag = d[i];
+    int l = d[i + 1];
+    start = i + 2;
+    if (l >= 0x80) {
+      int n = l & 0x7f;
+      if (n < 1 || n > 2 || start + n > d.Length) { return false; }
+      l = 0;
+      for (int k = 0; k < n; k++) { l = (l << 8) | d[start + k]; }
+      start += n;
+    }
+    len = l;
+    return start + len <= d.Length;
+  }
+
+  // True when the box address is an IP address and the certificate's subjectAltName has that iPAddress entry ([7], RFC 5280 4.2.1.6).
+  static bool IpInSan(X509Certificate2 leaf, string h) {
+    IPAddress want;
+    if (!IPAddress.TryParse(h, out want)) { return false; }
+    byte[] w = want.GetAddressBytes();
+    foreach (X509Extension x in leaf.Extensions) {
+      if (x.Oid == null || x.Oid.Value != "2.5.29.17") { continue; }
+      byte[] d = x.RawData;
+      int tag, s, n;
+      if (!Header(d, 0, out tag, out s, out n) || tag != 0x30) { return false; }
+      int end = s + n;
+      for (int i = s; i < end; i = s + n) {
+        if (!Header(d, i, out tag, out s, out n) || s + n > end) { return false; }
+        if (tag == 0x87 && n == w.Length) {
+          byte[] got = new byte[n];
+          Array.Copy(d, s, got, 0, n);
+          if (Same(got, w)) { return true; }
+        }
+      }
+    }
+    return false;
+  }
+
+  static HttpWebRequest Open(string url, string method) {
+    HttpWebRequest r = (HttpWebRequest)WebRequest.Create(url);
+    if (r.RequestUri.Scheme != Uri.UriSchemeHttps) { throw new InvalidOperationException("Not an https address: " + url); }
+    r.Method = method;
+    r.ServerCertificateValidationCallback = Check;
+    r.Proxy = null;              // straight to the box on the LAN, like osqueryd
+    r.AllowAutoRedirect = false; // the box never redirects
+    r.Timeout = 30000;
+    r.ReadWriteTimeout = 300000;
+    return r;
+  }
+
+  public static void Download(string url, string path) {
+    using (HttpWebResponse res = (HttpWebResponse)Open(url, "GET").GetResponse()) {
+      if (res.StatusCode != HttpStatusCode.OK) { throw new WebException("The box answered " + (int)res.StatusCode + " for " + url); }
+      using (Stream body = res.GetResponseStream()) {
+        using (FileStream f = File.Create(path)) { body.CopyTo(f); }
+      }
+    }
+  }
+
+  public static string PostJson(string url, string bearer, string json) {
+    HttpWebRequest r = Open(url, "POST");
+    r.ContentType = "application/json";
+    r.Headers[HttpRequestHeader.Authorization] = "Bearer " + bearer;
+    byte[] b = Encoding.UTF8.GetBytes(json);
+    r.ContentLength = b.Length;
+    using (Stream o = r.GetRequestStream()) { o.Write(b, 0, b.Length); }
+    using (HttpWebResponse res = (HttpWebResponse)r.GetResponse()) {
+      using (StreamReader rd = new StreamReader(res.GetResponseStream(), Encoding.UTF8)) { return rd.ReadToEnd(); }
+    }
+  }
+}
+'@
+}
+[VedetteBox]::Pin($CaPem, ([Uri]$Box).Host)
+function Get-FromBox([string]$Name, [string]$To) {
+  try { [VedetteBox]::Download("$Box/api/v1/install/osquery/$Name", $To) }
+  catch { throw "Could not download $Name from $Box ($($_.Exception.GetBaseException().Message)). Nothing was installed." }
+}
 
 # The name this machine enrols under is chosen here (--host_identifier=specified), so the status check below asks for exactly that name.
 $hostId = [regex]::Replace([System.Net.Dns]::GetHostName(), '[^A-Za-z0-9._-]', '')
@@ -39,13 +187,11 @@ $Tmp = Join-Path $env:TEMP ('vedette-osquery-' + [guid]::NewGuid())
 New-Item -ItemType Directory -Path $Tmp | Out-Null
 try {
   New-Item -ItemType Directory -Force -Path $Dir | Out-Null
-  @'
-@@CA@@
-'@ | Set-Content -Path $Ca -Encoding ascii
+  $CaPem | Set-Content -Path $Ca -Encoding ascii
 
   $File = "osquery-$Version.msi"
-  & $Curl -fsS --cacert $Ca "$Box/api/v1/install/osquery/SHA256SUMS" -o (Join-Path $Tmp 'SHA256SUMS')
-  & $Curl -fsS --cacert $Ca "$Box/api/v1/install/osquery/$File" -o (Join-Path $Tmp $File)
+  Get-FromBox 'SHA256SUMS' (Join-Path $Tmp 'SHA256SUMS')
+  Get-FromBox $File (Join-Path $Tmp $File)
   $want = ((Get-Content (Join-Path $Tmp 'SHA256SUMS')) | Where-Object { $_ -match [regex]::Escape($File) + '$' } | Select-Object -First 1) -split '\s+' | Select-Object -First 1
   $got = (Get-FileHash (Join-Path $Tmp $File) -Algorithm SHA256).Hash
   if (-not $want -or $got -ne $want.ToUpper()) { throw "Checksum of $File does not match. Nothing was installed." }
@@ -77,11 +223,9 @@ try {
   Set-Service osqueryd -StartupType Automatic
   # status for THIS machine: sent its name (the host_identifier set above), it returns host_last_seen, when the box last heard from a machine of
   # this token with that name (null = none yet). Success = osqueryd runs and that value appeared or moved since before the restart.
-  $statusBody = Join-Path $Tmp 'status.json'
-  Set-Content -Path $statusBody -Value ('{"host_identifier":"' + $hostId + '"}') -Encoding ascii -NoNewline
   function Get-Seen {
-    $r = $null
-    try { $r = & $Curl -fsS --cacert $Ca -X POST -H "Authorization: Bearer $Token" -H 'Content-Type: application/json' --data-binary "@$statusBody" "$Box/api/v1/intake/osquery/status" } catch { $r = $null }
+    $r = ''
+    try { $r = [VedetteBox]::PostJson("$Box/api/v1/intake/osquery/status", $Token, '{"host_identifier":"' + $hostId + '"}') } catch { $r = '' }
     if ("$r" -match '"host_last_seen":"([^"]*)"') { return $Matches[1] }
     return ''
   }

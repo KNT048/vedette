@@ -4,6 +4,7 @@ import { EmptyState } from '@/components/common/States'
 import { Chip } from '@/components/common/StatusChip'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { dateText, dateTimeText } from './dates'
+import { PortMark } from './PortMark'
 import type { ServiceRow, Snapshot, VulnRow } from './types'
 
 /** S-EXP-2 (INV-19, INV-20): the services nmap -sV identified on the box's own public IP and their exploited CVEs (CISA KEV). */
@@ -13,8 +14,10 @@ export function VulnSection({ s }: { s: Snapshot }) {
   const on = (r: ServiceRow) => s.vulns.filter((v) => v.ip === r.ip && v.port === r.port)
   const count = (r: ServiceRow) => on(r).filter((v) => !v.backport).length
   const maybe = (r: ServiceRow) => on(r).filter((v) => v.backport).length
+  // INV-22: a service or CVE on a port kept from an earlier scan carries the port's mark
+  const mark = (ip: string, port: number) => <PortMark p={s.ports.find((x) => x.ip === ip && x.port === port) ?? {}} />
   const serviceCols: ColumnDef<ServiceRow>[] = [
-    { id: 'port', header: t('col.port'), accessorFn: (r) => r.port, cell: ({ row }) => <span className="tabular-nums">{row.original.port}</span> },
+    { id: 'port', header: t('col.port'), accessorFn: (r) => r.port, cell: ({ row }) => <span className="grid gap-1"><span className="tabular-nums">{row.original.port}</span>{mark(row.original.ip, row.original.port)}</span> },
     { id: 'service', header: t('col.service'), accessorFn: (r) => r.name, cell: ({ row }) => row.original.name === 'tcpwrapped' ? <span title={t('vulns.tcpwrapped')}>{t('vulns.tcpwrappedShort')}</span> : row.original.name },
     { id: 'product', header: t('col.product'), accessorFn: (r) => r.product, cell: ({ row }) => row.original.product || <span className="text-muted">{t('vulns.noProduct')}</span> },
     { id: 'version', header: t('col.version'), accessorFn: (r) => r.version, cell: ({ row }) => row.original.version || <span className="text-muted">{t('vulns.noVersion')}</span> },
@@ -25,7 +28,7 @@ export function VulnSection({ s }: { s: Snapshot }) {
   ]
   const vulnCols: ColumnDef<VulnRow>[] = [
     { id: 'cve', header: t('col.cve'), accessorFn: (r) => r.cve, cell: ({ row }) => <span className="grid gap-0.5"><span className="font-medium">{row.original.cve}</span><span className="text-[12px] text-muted">{row.original.name}</span></span> },
-    { id: 'port', header: t('col.port'), accessorFn: (r) => r.port, cell: ({ row }) => <span className="tabular-nums">{row.original.port}</span> },
+    { id: 'port', header: t('col.port'), accessorFn: (r) => r.port, cell: ({ row }) => <span className="grid gap-1"><span className="tabular-nums">{row.original.port}</span>{mark(row.original.ip, row.original.port)}</span> },
     { id: 'basis', header: t('col.basis'), accessorFn: (r) => r.basis, cell: ({ row }) => row.original.backport ? <Chip tone="off">{t('vulns.basis.backport', { distro: row.original.backport })}</Chip> : <Chip tone="warn">{t(`vulns.basis.${row.original.basis}`)}</Chip> },
     { id: 'listed', header: t('col.listed'), accessorFn: (r) => r.date_added ?? '', cell: ({ row }) => (
       <span className="grid gap-1">{row.original.date_added ? dateText(row.original.date_added) : t('common:unknown')}{row.original.ransomware ? <Chip tone="danger">{t('vulns.ransomware')}</Chip> : null}</span>

@@ -14,7 +14,7 @@ import (
 // of the sets its depth allows in the image's own index, and says so in the heartbeat. Nothing reaches a network.
 
 func (r *nrig) fullJob(disruptive bool) sensorlink.Job {
-	j := r.ownIPJob(id1)
+	j := r.ownIPJob()
 	j.Nuclei.Rate, j.Nuclei.Depth, j.Nuclei.Disruptive = nucleiargv.FullRate, nucleiargv.DepthFull, disruptive
 	return j
 }
@@ -23,7 +23,7 @@ func TestFullNucleiRunsTheDeepSetBehindTheFence(t *testing.T) {
 	t.Parallel()
 	eg := &fakeEgress{answers: []string{"8.8.8.8"}}
 	r := startNuclei(t, printJSONL, func(c *worker.Config) { c.Egress = eg })
-	editIndex(t, r.pack.Index, "CVE-2024-2", func(m map[string]any) { m["sets"] = []string{"deep"}; delete(m, "own_ip"); delete(m, "cve") })
+	editIndex(t, r.pack.Index, func(m map[string]any) { m["sets"] = []string{"deep"}; delete(m, "own_ip"); delete(m, "cve") })
 	r.core.push(r.fullJob(false))
 	if got := r.core.next(t); got.res.Status != "done" || eg.count() != 1 {
 		t.Fatalf("result = %+v after %d rounds", got.res, eg.count())
@@ -45,25 +45,25 @@ func TestFullNucleiRefusesWhatItsDepthDoesNotAllow(t *testing.T) {
 	}{
 		"a disruptive template without the tick": {
 			func(t *testing.T, r *nrig) {
-				editIndex(t, r.pack.Index, "CVE-2024-2", func(m map[string]any) { m["sets"] = []string{"kev", "disruptive"} })
+				editIndex(t, r.pack.Index, func(m map[string]any) { m["sets"] = []string{"kev", "disruptive"} })
 			},
 			func(r *nrig) sensorlink.Job { return r.fullJob(false) },
 		},
 		"a KEV-only template at full depth": {
 			func(t *testing.T, r *nrig) {
-				editIndex(t, r.pack.Index, "CVE-2024-2", func(m map[string]any) { m["sets"] = []string{"kev"} })
+				editIndex(t, r.pack.Index, func(m map[string]any) { m["sets"] = []string{"kev"} })
 			},
 			func(r *nrig) sensorlink.Job { return r.fullJob(true) },
 		},
 		"a deep-only template in an own_ip job": {
 			func(t *testing.T, r *nrig) {
-				editIndex(t, r.pack.Index, "CVE-2024-2", func(m map[string]any) { m["sets"] = []string{"deep"}; delete(m, "own_ip") })
+				editIndex(t, r.pack.Index, func(m map[string]any) { m["sets"] = []string{"deep"}; delete(m, "own_ip") })
 			},
-			func(r *nrig) sensorlink.Job { return r.ownIPJob(id1) },
+			func(r *nrig) sensorlink.Job { return r.ownIPJob() },
 		},
 		"a PUT in the file": {
 			func(t *testing.T, r *nrig) {
-				rewrite(t, r.pack.Index, r.pack.File("CVE-2024-2"), "CVE-2024-2", "id: CVE-2024-2\nhttp:\n  - raw:\n      - |\n        PUT /x HTTP/1.1\n        Host: {{Hostname}}\n")
+				rewrite(t, r.pack.Index, r.pack.File("CVE-2024-2"), "id: CVE-2024-2\nhttp:\n  - raw:\n      - |\n        PUT /x HTTP/1.1\n        Host: {{Hostname}}\n")
 			},
 			func(r *nrig) sensorlink.Job { return r.fullJob(true) },
 		},

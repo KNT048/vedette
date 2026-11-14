@@ -14,7 +14,7 @@ func TestNucleiRefusesATemplateThatChangesTheTarget(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			r := startNuclei(t, printJSONL)
-			rewrite(t, r.pack.Index, r.pack.File("CVE-2024-2"), "CVE-2024-2", body)
+			rewrite(t, r.pack.Index, r.pack.File("CVE-2024-2"), body)
 			r.core.push(r.job(id1))
 			if got := r.core.next(t); got.res.Status != "refused" || got.res.Reason != "invalid_job" || r.nu.Argv() != "" {
 				t.Fatalf("result = %+v, argv %q", got.res, r.nu.Argv())

@@ -45,8 +45,12 @@ const (
 	// GreenboneMinQoD is the lowest quality of detection a result is read with (Greenbone's own default filter is 70).
 	GreenboneMinQoD = 70
 
-	gmpMaxAnswer  = 1 << 20 // bytes of an answer other than a report
-	gmpMaxReport  = 8 << 20 // bytes of a report; a bigger one is refused, never cut
+	gmpMaxAnswer = 1 << 20 // bytes of an answer other than a report
+	gmpMaxReport = 8 << 20 // bytes of a report; a bigger one is refused, never cut
+	// gmpMaxPrefs bounds the one answer that lists every preference of a scan config (readBack, N45-5): a copy of "Full and fast"
+	// carries the scanner preferences and every NVT preference of the feed (some hundreds of rows of a few hundred bytes each;
+	// the N100's size is not measured yet, the cap leaves room for ten times the estimate). A bigger answer is refused, never cut.
+	gmpMaxPrefs   = 4 << 20
 	gmpCmdTimeout = 2 * time.Minute
 	gmpMaxResults = 2000 // results a report may hold before it is refused
 	gmpMaxCVEs    = 50   // CVE ids kept per result
@@ -410,11 +414,15 @@ func (g *gmpConn) readBack(ctx context.Context, id string, lv gbLevel) error {
 			return &Unavailable{Reason: "OpenVAS did not keep the family \"" + f + "\" " + onOff(lv.disruptive) + " in Vedette's scan config " + lv.name + ", so nothing was started."}
 		}
 	}
+	// N45-5: gvmd matches get_preferences preference="safe_checks" against NVT preferences only (no nvt_oid given), and
+	// safe_checks is a scanner preference: the N100's gvmd answered that filter with an empty 200, so the read-back said "not
+	// kept" while the value was stored. The whole list of the config holds it as the preference named safe_checks whose nvt oid
+	// is empty (measured on the N100: `<nvt oid=""><name></name></nvt>…<name>safe_checks</name>…<value>yes</value>`).
 	var p gmpPrefs
-	if _, err := g.do(ctx, "get_preferences", `<get_preferences config_id="`+id+`" preference="safe_checks"/>`, gmpMaxAnswer, &p); err != nil {
+	if _, err := g.do(ctx, "get_preferences", `<get_preferences config_id="`+id+`"/>`, gmpMaxPrefs, &p); err != nil {
 		return err
 	}
-	if x, ok := p.find("safe_checks"); !ok || strings.TrimSpace(x.Value) != lv.safeChecks {
+	if x, ok := p.scanner("safe_checks"); !ok || strings.TrimSpace(x.Value) != lv.safeChecks {
 		return &Unavailable{Reason: "OpenVAS did not keep safe checks " + onOff(lv.safeChecks == "yes") + " in Vedette's scan config " + lv.name + ", so nothing was started."}
 	}
 	return nil
@@ -438,6 +446,9 @@ func (g *gmpConn) modifyConfig(ctx context.Context, name, body string) error {
 }
 
 type gmpPref struct {
+	NVT struct {
+		OID string `xml:"oid,attr"`
+	} `xml:"nvt"`
 	ID     string `xml:"id"`
 	Name   string `xml:"name"`
 	HRName string `xml:"hr_name"`
@@ -452,6 +463,17 @@ type gmpPrefs struct {
 func (p gmpPrefs) find(name string) (gmpPref, bool) {
 	for _, x := range p.Prefs {
 		if strings.TrimSpace(x.Name) == name || strings.TrimSpace(x.HRName) == name {
+			return x, true
+		}
+	}
+	return gmpPref{}, false
+}
+
+// scanner finds a scanner preference (no NVT: an empty or absent nvt oid) by its name; an NVT preference of the same name does not
+// count (N45-5).
+func (p gmpPrefs) scanner(name string) (gmpPref, bool) {
+	for _, x := range p.Prefs {
+		if strings.TrimSpace(x.NVT.OID) == "" && strings.TrimSpace(x.Name) == name {
 			return x, true
 		}
 	}

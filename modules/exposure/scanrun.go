@@ -87,6 +87,9 @@ func (s *Service) begin(ctx context.Context, user string, t Target, reason Block
 	if s.run != nil && s.run.view.Status == RunRunning {
 		return nil, ErrScanBusy
 	}
+	if s.feedSync {
+		return nil, ErrScanFeedSync
+	}
 	now := s.clock()
 	last, had := s.lastScan[t.ID]
 	if had && now.Sub(last) < ScanEvery && !last.After(now) {
@@ -316,10 +319,13 @@ func (s *Service) Close() {
 	s.runMu.Lock()
 	s.closed = true
 	s.runMu.Unlock()
-	g := s.gb() // a Greenbone start that is still pulling images ends with the box
+	g := s.gb() // a Greenbone start that is still pulling images, or its feed update, ends with the box
 	g.mu.Lock()
 	if g.upCancel != nil {
 		g.upCancel()
+	}
+	if g.syncCancel != nil {
+		g.syncCancel()
 	}
 	g.mu.Unlock()
 	if run := s.cancelRun("the box (shutting down)"); run != nil {

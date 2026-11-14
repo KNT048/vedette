@@ -90,7 +90,7 @@ export const WebFinding = z.object({
 // S-EXP-2 (INV-25, D-563): the optional deep scan. Greenbone looked at the IP from outside without logging in; QoD >= 70 only.
 export const GreenboneResult = z.object({
   ip: z.string(), port: z.string().describe('"443/tcp", "general/tcp"; "" when Greenbone gave none'),
-  severity: z.number().describe('CVSS score, 0.1 to 10'), name: z.string().describe('Name of Greenbone\'s test; plain text'),
+  severity: z.number().describe('CVSS score, 0.1 to 10. Below 4.0 (Low) it is a hardening note, shown apart and never counted as an alert (D-564)'), name: z.string().describe('Name of Greenbone\'s test; plain text'),
   qod: z.number().int().describe('Quality of detection, 70 to 100'), cves: z.array(z.string()).describe('CVE ids the test names'),
   solution: z.string().describe('Greenbone\'s advice, plain text, clipped'), oid: z.string().describe('OID of the test; "" when not read'),
 })
@@ -161,7 +161,7 @@ export const OutsideView = z.object({
 /** D-563: the optional deep scan with Greenbone (OpenVAS), off by default. Greenbone runs as its own containers next to Vedette. */
 export const GreenboneState = z.enum(['unavailable', 'off', 'starting', 'loading', 'ready', 'error'])
 export const Greenbone = z.object({
-  state: GreenboneState.describe('unavailable: not set up on this box; loading: Greenbone is loading its feed (the first time takes about 2 hours), a phase and not a hang'),
+  state: GreenboneState.describe('unavailable: not set up on this box, or held back while its own active checks on a public IP are reviewed (D-564, reason says which); loading: Greenbone is loading its feed (the first time takes about 2 hours) or its weekly feed update, a phase and not a hang'),
   reason: z.string().nullable().describe('Why, for unavailable and error; the feed sentence for loading; null otherwise'),
   changed_by: z.string().nullable().describe('Who last turned it on or off'), changed_at: z.iso.datetime().nullable(),
   preflight: z.object({
@@ -170,6 +170,12 @@ export const Greenbone = z.object({
     ok: z.boolean().describe('Both meet the thresholds: 8 GB (decimal) of memory and 60 GB free'),
     reason: z.string().nullable().describe('Why it cannot be enabled, with the measured number, e.g. "This box has 7.1 GB of memory; Greenbone needs at least 8.0 GB."'),
   }),
+  feed_sync: z.object({
+    last_at: z.iso.datetime().nullable().describe('When the weekly feed update was last tried; null before the first'),
+    ok: z.boolean().nullable().describe('Whether it worked; null before the first'),
+    note: z.string().nullable().describe('What happened, e.g. "Not updated: this box has 41.3 GB of free disk space; Greenbone needs at least 60.0 GB free."'),
+    next_at: z.iso.datetime().nullable().describe('When the next one is due: a week after the last that worked (or after enabling), a day after one that did not; null while Greenbone is off or unavailable'),
+  }).describe('The weekly update of Greenbone\'s feed while it is enabled (D-564): never during a scan, refused below 60 GB free, audited'),
 })
 
 export const BoxIpDetectResult = z.object({ items: z.array(Target).describe('The public IPs the box saw this time, each added or renewed'), message: z.string() })
@@ -192,7 +198,7 @@ export const endpoints = defineEndpoints([
   { method: 'get', path: '/exposure/targets/{id}/outside', summary: 'What the Internet sees (D-558): the last answer of Shodan InternetDB about this public IP of the box, with the open ports of Vedette\'s own newest scan of it; null when nobody has asked yet. Reading sends nothing', stories: ['S-EXP-1'], role: 'viewer', params: id, response: OutsideView.nullable(), example: { params: { id: 'xt-2' } } },
   { method: 'post', path: '/exposure/targets/{id}/outside', summary: 'Ask Shodan InternetDB what it has seen on this public IP (D-558). Only an administrator\'s click sends it: no job, no polling. Only a public IP of this box that is verified and still the one the box goes out through (the same check as before a scan, INV-13) is sent: 400 bad_value for a domain, 409 not_verified, expired or ip_not_current otherwise. One HTTPS GET of https://internetdb.shodan.io/<ip>, nothing else sent; 404 there is a normal answer (found false). At most one check a minute on the box (429 rate_limited); 502 unreachable when Shodan does not answer or its answer cannot be read. The answer is kept (one per IP) and every request sent is audited', stories: ['S-EXP-1'], role: 'admin', params: id, response: OutsideView },
   { method: 'get', path: '/exposure/greenbone', summary: 'The optional deep scan with Greenbone (OpenVAS, D-563): its state and this box\'s memory and free disk against the thresholds. Reading may ask Greenbone whether it is ready; it never starts a scan', stories: ['S-EXP-2'], role: 'viewer', response: Greenbone },
-  { method: 'put', path: '/exposure/greenbone', summary: 'Turn the optional deep scan with Greenbone on or off (off by default). On: refused with 409 low_memory or low_disk and the measured numbers below 8 GB of memory or 60 GB free; else Greenbone starts in the background (starting, then loading while it loads its feed, about 2 hours the first time). Off: no scan uses it, its containers stop and its data is kept (502 host_error when they could not be stopped). 501 not_implemented when Greenbone is not available on this box. Audited', stories: ['S-EXP-2'], role: 'admin', body: z.object({ enabled: z.boolean() }), response: Greenbone },
+  { method: 'put', path: '/exposure/greenbone', summary: 'Turn the optional deep scan with Greenbone on or off (off by default). On: refused with 409 low_memory or low_disk and the measured numbers below 8 GB of memory or 60 GB free; else Greenbone starts in the background (starting, then loading while it loads its feed, about 2 hours the first time). Off: no scan uses it, its containers stop and its data is kept (502 host_error when they could not be stopped). 501 not_implemented when Greenbone is not available on this box; 409 under_review while its own active checks on a public IP are reviewed (D-564), with nothing recorded or downloaded. Audited', stories: ['S-EXP-2'], role: 'admin', body: z.object({ enabled: z.boolean() }), response: Greenbone },
   { method: 'get', path: '/exposure/targets/{id}/snapshots', summary: 'Scan days of a target, newest first', stories: ['S-EXP-1'], role: 'viewer', params: id, response: z.object({ items: z.array(SnapshotMeta) }), example: idEx },
   { method: 'get', path: '/exposure/targets/{id}/snapshots/{date}', summary: 'Scan result of one day', stories: ['S-EXP-1', 'S-EXP-2'], role: 'viewer', params: z.object({ id: z.string(), date: isoDate }), response: Snapshot, example: { params: { id: 'xt-1', date: day(1) } } },
   { method: 'get', path: '/exposure/targets/{id}/diff', summary: 'Compare two scan days: newly exposed, gone, changed', stories: ['S-EXP-1', 'S-EXP-2'], role: 'viewer', params: id, query: z.object({ from: isoDate, to: isoDate }), response: Diff, example: { params: { id: 'xt-1' }, query: { from: day(7), to: day(1) } } },

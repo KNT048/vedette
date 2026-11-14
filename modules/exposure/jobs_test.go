@@ -252,11 +252,14 @@ func TestJobs_Registration(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	js := Jobs(e.svc)
-	if len(js) != 1 || js[0].Module != "exposure" || js[0].Name != "auto-detect" || js[0].Every != JobTick || js[0].Run == nil {
+	if len(js) != 2 || js[0].Module != "exposure" || js[0].Name != "auto-detect" || js[0].Every != JobTick || js[0].Run == nil ||
+		js[1].Module != "exposure" || js[1].Name != "greenbone-feed" || js[1].Every != GreenboneSyncTick || js[1].Run == nil {
 		t.Fatalf("jobs = %+v", js)
 	}
 	sched := jobs.New(slog.New(slog.DiscardHandler), servertest.NewGate(), nil)
-	if err := sched.Add(js[0]); err != nil {
-		t.Fatal(err)
+	for _, j := range js {
+		if err := sched.Add(j); err != nil {
+			t.Fatal(err)
+		}
 	}
 }

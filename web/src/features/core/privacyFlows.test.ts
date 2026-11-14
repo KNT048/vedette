@@ -27,6 +27,11 @@ describe('Settings → Privacy flows match PRIVACY.md', () => {
     for (const text of [plain(r[1]!), flows['15']!.name ?? '']) expect(text).toMatch(/only when an administrator clicks it/)
     for (const text of [plain(r[4]!), flows['15']!.control]) expect(text).toMatch(/if nobody clicks, nothing is sent/)
   })
+  it('flow 16 (Greenbone, D-563) says what it downloads word for word, the weekly feed update included (D-564)', () => {
+    const r = rows.get(16)!
+    expect(flows['16']!.what).toBe(`${plain(r[2]!)}.`)
+    expect(flows['16']!.what).toMatch(/then once a week while it stays enabled, when Vedette updates the feed/)
+  })
   it('flow 3 is a lead sentence and one item per AI job, word for word (D-407)', () => {
     const [lead, list] = rows.get(3)![2]!.split('<ul>')
     const items = list!.replace(/<\/ul>$/, '').split('</li>').filter(Boolean).map((i) => plain(i.replace(/^<li>/, '')))

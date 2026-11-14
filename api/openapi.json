@@ -21599,7 +21599,7 @@
                         "ready",
                         "error"
                       ],
-                      "description": "unavailable: not set up on this box; loading: Greenbone is loading its feed (the first time takes about 2 hours), a phase and not a hang"
+                      "description": "unavailable: not set up on this box, or held back while its own active checks on a public IP are reviewed (D-564, reason says which); loading: Greenbone is loading its feed (the first time takes about 2 hours) or its weekly feed update, a phase and not a hang"
                     },
                     "reason": {
                       "description": "Why, for unavailable and error; the feed sentence for loading; null otherwise",
@@ -21675,6 +21675,59 @@
                         "reason"
                       ],
                       "additionalProperties": false
+                    },
+                    "feed_sync": {
+                      "type": "object",
+                      "properties": {
+                        "last_at": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "When the weekly feed update was last tried; null before the first"
+                        },
+                        "ok": {
+                          "description": "Whether it worked; null before the first",
+                          "type": [
+                            "boolean",
+                            "null"
+                          ]
+                        },
+                        "note": {
+                          "description": "What happened, e.g. \"Not updated: this box has 41.3 GB of free disk space; Greenbone needs at least 60.0 GB free.\"",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "next_at": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "When the next one is due: a week after the last that worked (or after enabling), a day after one that did not; null while Greenbone is off or unavailable"
+                        }
+                      },
+                      "required": [
+                        "last_at",
+                        "ok",
+                        "note",
+                        "next_at"
+                      ],
+                      "additionalProperties": false,
+                      "description": "The weekly update of Greenbone's feed while it is enabled (D-564): never during a scan, refused below 60 GB free, audited"
                     }
                   },
                   "required": [
@@ -21682,7 +21735,8 @@
                     "reason",
                     "changed_by",
                     "changed_at",
-                    "preflight"
+                    "preflight",
+                    "feed_sync"
                   ],
                   "additionalProperties": false
                 }
@@ -21703,7 +21757,7 @@
       },
       "put": {
         "operationId": "exposure_put_exposure_greenbone",
-        "summary": "Turn the optional deep scan with Greenbone on or off (off by default). On: refused with 409 low_memory or low_disk and the measured numbers below 8 GB of memory or 60 GB free; else Greenbone starts in the background (starting, then loading while it loads its feed, about 2 hours the first time). Off: no scan uses it, its containers stop and its data is kept (502 host_error when they could not be stopped). 501 not_implemented when Greenbone is not available on this box. Audited",
+        "summary": "Turn the optional deep scan with Greenbone on or off (off by default). On: refused with 409 low_memory or low_disk and the measured numbers below 8 GB of memory or 60 GB free; else Greenbone starts in the background (starting, then loading while it loads its feed, about 2 hours the first time). Off: no scan uses it, its containers stop and its data is kept (502 host_error when they could not be stopped). 501 not_implemented when Greenbone is not available on this box; 409 under_review while its own active checks on a public IP are reviewed (D-564), with nothing recorded or downloaded. Audited",
         "tags": [
           "exposure"
         ],
@@ -21748,7 +21802,7 @@
                         "ready",
                         "error"
                       ],
-                      "description": "unavailable: not set up on this box; loading: Greenbone is loading its feed (the first time takes about 2 hours), a phase and not a hang"
+                      "description": "unavailable: not set up on this box, or held back while its own active checks on a public IP are reviewed (D-564, reason says which); loading: Greenbone is loading its feed (the first time takes about 2 hours) or its weekly feed update, a phase and not a hang"
                     },
                     "reason": {
                       "description": "Why, for unavailable and error; the feed sentence for loading; null otherwise",
@@ -21824,6 +21878,59 @@
                         "reason"
                       ],
                       "additionalProperties": false
+                    },
+                    "feed_sync": {
+                      "type": "object",
+                      "properties": {
+                        "last_at": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "When the weekly feed update was last tried; null before the first"
+                        },
+                        "ok": {
+                          "description": "Whether it worked; null before the first",
+                          "type": [
+                            "boolean",
+                            "null"
+                          ]
+                        },
+                        "note": {
+                          "description": "What happened, e.g. \"Not updated: this box has 41.3 GB of free disk space; Greenbone needs at least 60.0 GB free.\"",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "next_at": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "When the next one is due: a week after the last that worked (or after enabling), a day after one that did not; null while Greenbone is off or unavailable"
+                        }
+                      },
+                      "required": [
+                        "last_at",
+                        "ok",
+                        "note",
+                        "next_at"
+                      ],
+                      "additionalProperties": false,
+                      "description": "The weekly update of Greenbone's feed while it is enabled (D-564): never during a scan, refused below 60 GB free, audited"
                     }
                   },
                   "required": [
@@ -21831,7 +21938,8 @@
                     "reason",
                     "changed_by",
                     "changed_at",
-                    "preflight"
+                    "preflight",
+                    "feed_sync"
                   ],
                   "additionalProperties": false
                 }
@@ -24655,7 +24763,7 @@
                           },
                           "severity": {
                             "type": "number",
-                            "description": "CVSS score, 0.1 to 10"
+                            "description": "CVSS score, 0.1 to 10. Below 4.0 (Low) it is a hardening note, shown apart and never counted as an alert (D-564)"
                           },
                           "name": {
                             "type": "string",

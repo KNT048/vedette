@@ -476,11 +476,15 @@
       "ready": "Greenbone is ready. The next scan of an IP of this box uses it."
     },
     "loading": "Greenbone is loading its feed (first time takes about 2 hours)",
-    "what": "It looks at your public IP from outside without logging in, with Greenbone's \"Full and fast\" tests minus brute force, default accounts and denial of service, and with safe checks on.",
+    "what": "It looks at your public IP from outside without logging in, with Greenbone's \"Full and fast\" tests minus brute force, default accounts, denial of service and generic web application scanning, and with safe checks on.",
     "apart": "Its results are shown in their own section of each scan. They never replace or hide what Vedette found by version, and finding nothing is not proof that nothing is affected.",
+    "weekly": "While it is on, Vedette updates Greenbone's feed once a week, never during a scan, and only with 60 GB free.",
     "offKeeps": "Turning it off stops its containers and keeps its images and data, so turning it on again does not download them again.",
     "memory": "Memory of this box",
     "disk": "Free disk space",
+    "feedLast": "Last feed update",
+    "feedNever": "Not yet: the first one is a week after it is turned on",
+    "feedNext": "Next feed update",
     "needs": "Needs about 50 GB of disk and about 2 hours to load Greenbone's feed the first time. The box must have at least 8 GB of memory and 60 GB free.",
     "enable": "Enable Greenbone",
     "disable": "Turn off Greenbone",
@@ -493,12 +497,15 @@
     "noCve": "None named",
     "results": {
       "title": "Greenbone results (unauthenticated, QoD ≥ 70)",
-      "header": "Greenbone looked at this IP from outside without logging in. Finding nothing is not proof the services are not affected (distributions backport fixes).",
+      "header": "Greenbone looked at this IP from outside without logging in. Finding nothing is not proof the services are not affected (distributions backport fixes). For the same reason, on Ubuntu or Debian a result read from a version banner can be a false positive, so Vedette's own package-based result wins when both exist.",
       "caption": "What Greenbone reported on this IP",
-      "noneTitle": "Greenbone reported nothing with QoD 70 or more",
+      "noneTitle": "Greenbone reported no high or medium result with QoD 70 or more",
       "noneBody": "That is one outside look without logging in, not proof that the services are not affected. The exploited CVEs above still stand.",
       "notRunTitle": "Greenbone did not scan this time",
-      "notRunBody": "Greenbone is not set up for this scan."
+      "notRunBody": "Greenbone is not set up for this scan.",
+      "notesTitle": "Hardening notes (Low)",
+      "notesHeader": "Greenbone's Low results are hardening suggestions, such as weak SSH settings or TCP timestamps. They are not alerts and are not counted anywhere.",
+      "notesCaption": "Greenbone's hardening notes on this IP"
     }
   },
   "web": {

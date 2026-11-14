@@ -12,6 +12,8 @@ import type { Greenbone, GreenboneResult, Snapshot } from './types'
 
 const STATE_TONE: Record<Greenbone['state'], Tone> = { unavailable: 'off', off: 'off', starting: 'accent', loading: 'accent', ready: 'ok', error: 'danger' }
 /** Decimal GB with one decimal, as the box measures it (8 GB = 8e9 bytes, D-563). */
+/** Greenbone's own classes: Low is 0.1 to 3.9 (D-564 G3: a hardening note). */
+const LOW_BELOW = 4
 const gb = (n: number | null) => (n === null ? null : `${(n / 1e9).toFixed(1)} GB`)
 
 /**
@@ -39,20 +41,24 @@ function GreenboneBody({ g }: { g: Greenbone }) {
     onError: (e) => toast.error(e instanceof Error ? e.message : String(e)),
   })
   const p = g.preflight
+  const f = g.feed_sync
   return (
     <Panel className="grid max-w-3xl gap-4 p-4">
       <p className="flex flex-wrap items-center gap-2 text-sm font-medium" role="status">
         <Chip tone={STATE_TONE[g.state]}>{t(`greenbone.state.${g.state}`)}</Chip>
-        {g.state === 'loading' ? t('greenbone.loading') : g.state === 'error' || g.state === 'unavailable' ? g.reason : t(`greenbone.stateText.${g.state}`)}
+        {g.state === 'loading' ? g.reason ?? t('greenbone.loading') : g.state === 'error' || g.state === 'unavailable' ? g.reason : t(`greenbone.stateText.${g.state}`)}
       </p>
       {g.state === 'unavailable' ? null : (
         <>
           <ul className="grid list-disc gap-1.5 pl-5 text-[13px] text-muted">
-            <li>{t('greenbone.what')}</li><li>{t('greenbone.apart')}</li><li>{t('greenbone.offKeeps')}</li>
+            <li>{t('greenbone.what')}</li><li>{t('greenbone.apart')}</li><li>{t('greenbone.weekly')}</li><li>{t('greenbone.offKeeps')}</li>
           </ul>
           <KeyValue items={[
             { label: t('greenbone.memory'), value: gb(p.memory_bytes) ?? t('common:unknown') },
             { label: t('greenbone.disk'), value: gb(p.disk_free_bytes) ?? t('common:unknown') },
+            // D-564 G6: the weekly feed update, its last outcome and when the next one is due
+            ...(on || f.last_at ? [{ label: t('greenbone.feedLast'), value: f.last_at ? `${dateTimeText(f.last_at)}. ${f.note ?? ''}` : t('greenbone.feedNever') }] : []),
+            ...(f.next_at ? [{ label: t('greenbone.feedNext'), value: dateTimeText(f.next_at) }] : []),
           ]} />
           {!on ? <p className="text-[13px]">{t('greenbone.needs')}</p> : null}
           {!on && !p.ok ? <p role="alert" className="text-sm text-warn">{p.reason}</p> : null}
@@ -71,10 +77,15 @@ function GreenboneBody({ g }: { g: Greenbone }) {
   )
 }
 
-/** S-EXP-2 (INV-25): what Greenbone reported on this IP. Apart from the exploited CVEs, and never "nothing found = not affected". */
+/**
+ * S-EXP-2 (INV-25): what Greenbone reported on this IP. Apart from the exploited CVEs, and never "nothing found = not affected". D-564 G3:
+ * High and Medium results are its findings; Low results are hardening notes in their own group, not alerts and not counted anywhere.
+ */
 export function GreenboneSection({ s }: { s: Snapshot }) {
   const { t } = useTranslation('exposure')
   const rows = s.greenbone ?? [] // a snapshot read from an older box has no list
+  const findings = rows.filter((r) => r.severity >= LOW_BELOW)
+  const notes = rows.filter((r) => r.severity < LOW_BELOW)
   const ran = s.checks.some((c) => c.kind === 'greenbone')
   const why = s.not_checked.find((n) => n.kind === 'greenbone')
   const cols: ColumnDef<GreenboneResult>[] = [
@@ -91,14 +102,21 @@ export function GreenboneSection({ s }: { s: Snapshot }) {
     { id: 'solution', header: t('greenbone.col.solution'), enableSorting: false, accessorFn: (r) => r.solution, cell: ({ row }) => <span className="text-[13px]">{row.original.solution}</span> },
   ]
   return (
-    <Section id="greenbone-results" title={t('greenbone.results.title')} description={t('greenbone.results.header')}>
-      {rows.length > 0 ? (
-        <DataTable caption={t('greenbone.results.caption')} data={rows} columns={cols} pageSize={20} initialSort={[{ id: 'severity', desc: true }]} rowTone={(r) => (r.severity >= 7 ? 'warn' : undefined)} />
-      ) : ran ? (
-        <EmptyState title={t('greenbone.results.noneTitle')}>{t('greenbone.results.noneBody')}</EmptyState>
-      ) : (
-        <EmptyState title={t('greenbone.results.notRunTitle')}>{why?.text ?? t('greenbone.results.notRunBody')}</EmptyState>
-      )}
-    </Section>
+    <>
+      <Section id="greenbone-results" title={t('greenbone.results.title')} description={t('greenbone.results.header')}>
+        {findings.length > 0 ? (
+          <DataTable caption={t('greenbone.results.caption')} data={findings} columns={cols} pageSize={20} initialSort={[{ id: 'severity', desc: true }]} rowTone={(r) => (r.severity >= 7 ? 'warn' : undefined)} />
+        ) : ran ? (
+          <EmptyState title={t('greenbone.results.noneTitle')}>{t('greenbone.results.noneBody')}</EmptyState>
+        ) : (
+          <EmptyState title={t('greenbone.results.notRunTitle')}>{why?.text ?? t('greenbone.results.notRunBody')}</EmptyState>
+        )}
+      </Section>
+      {notes.length > 0 ? (
+        <Section id="greenbone-notes" title={t('greenbone.results.notesTitle')} description={t('greenbone.results.notesHeader')}>
+          <DataTable caption={t('greenbone.results.notesCaption')} data={notes} columns={cols} pageSize={20} initialSort={[{ id: 'severity', desc: true }]} />
+        </Section>
+      ) : null}
+    </>
   )
 }

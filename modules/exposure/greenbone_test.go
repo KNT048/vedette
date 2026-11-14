@@ -2,6 +2,8 @@ package exposure
 
 import (
 	"context"
+	"database/sql"
+	"encoding/base64"
 	"encoding/xml"
 	"errors"
 	"io"
@@ -13,6 +15,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/knt048/vedette/core/api/oas"
 )
 
 const gbReportID = "5f2c5a6e-1b7d-4c1e-9a55-0c0f1f2e3d4a"
@@ -52,6 +56,8 @@ type fakeGVM struct {
 	prefs      map[string]string // the checkboxes of "Options for Brute Force NVTs" in Vedette's config
 	noPref     bool              // the feed has no "Disable default account checks"
 	keepNo     bool              // gvmd ignores the change of the checkboxes
+	noWebPref  bool              // the feed has no "Enable generic web application scanning"
+	keepWeb    bool              // gvmd ignores the change of that checkbox only
 	inUse      bool              // modify_config refused: a task uses the config
 	leftover   string            // the state of a task an earlier scan left behind; "" none
 	fail       map[string]bool   // commands answered with 400
@@ -133,15 +139,16 @@ func (f *fakeGVM) answer(cmd string, body string) string {
 		if f.inUse {
 			return `<modify_config_response status="400" status_text="Config is in use"/>`
 		}
-		if strings.Contains(body, gmpBruteOID+":") && !f.keepNo {
-			for _, n := range gmpBruteOff {
-				if strings.Contains(body, ":checkbox:"+n+"<") {
-					if f.prefs == nil {
-						f.prefs = map[string]string{}
-					}
-					f.prefs[n] = "yes"
-				}
+		for _, c := range gmpSafePrefs {
+			if !strings.Contains(body, c.oid+":") || !strings.Contains(body, ":checkbox:"+c.name+"<") || f.keepNo || (f.keepWeb && c.oid == gmpGlobalOID) {
+				continue
 			}
+			if f.prefs == nil {
+				f.prefs = map[string]string{}
+			}
+			v := body[strings.Index(body, "<value>")+len("<value>") : strings.Index(body, "</value>")]
+			b, _ := base64.StdEncoding.DecodeString(v)
+			f.prefs[c.name] = string(b)
 		}
 		if strings.Contains(body, "family_selection") {
 			f.families = nil
@@ -166,7 +173,16 @@ func (f *fakeGVM) answer(cmd string, body string) string {
 			if x, ok := f.prefs[n]; ok {
 				return x
 			}
+			if n == "Enable generic web application scanning" {
+				return "yes" // as if a feed default or a hand edit had turned it on: Vedette must set it off
+			}
 			return "no"
+		}
+		if strings.Contains(body, gmpGlobalOID) {
+			if f.noWebPref {
+				return ok(`<preference><nvt oid="` + gmpGlobalOID + `"/><id>1</id><name>HTTP User-Agent</name><type>entry</type><value>x</value></preference>`)
+			}
+			return ok(`<preference><nvt oid="` + gmpGlobalOID + `"><name>Global variable settings</name></nvt><id>12</id><hr_name>Enable generic web application scanning</hr_name><name>Enable generic web application scanning</name><type>checkbox</type><value>` + v("Enable generic web application scanning") + `</value></preference>`)
 		}
 		out := `<preference><nvt oid="` + gmpBruteOID + `"><name>Options for Brute Force NVTs</name></nvt><id>3</id><hr_name>Disable brute force checks</hr_name><name>Disable brute force checks</name><type>checkbox</type><value>` + v("Disable brute force checks") + `</value></preference>`
 		if !f.noPref {
@@ -249,7 +265,23 @@ type fakeGB struct {
 	downErr error
 	dialErr error
 	upGate  chan struct{} // when set, Up waits for it
+	syncs   int
+	syncErr error
+	onSync  func() // runs (without the lock) inside SyncFeed
 }
+
+func (h *fakeGB) SyncFeed(context.Context) error {
+	h.mu.Lock()
+	h.syncs++
+	hook, err := h.onSync, h.syncErr
+	h.mu.Unlock()
+	if hook != nil {
+		hook()
+	}
+	return err
+}
+
+func (h *fakeGB) syncCount() int { h.mu.Lock(); defer h.mu.Unlock(); return h.syncs }
 
 func (h *fakeGB) Up(ctx context.Context) error {
 	h.mu.Lock()
@@ -315,9 +347,17 @@ func (l *gbLog) RecordGreenboneProbe(_ context.Context, p GreenboneProbe) error 
 
 const gib = 1 << 30
 
-// gbEnv is an env with Greenbone wired: 16 GiB of memory, 200 GB free, a ready gvmd with the fixture report, a probe log, and no
-// waiting between polls.
+// gbEnv is an env with Greenbone wired and the G1 gate open (D-564: the tests of what it does once kien opens it): 16 GiB of
+// memory, 200 GB free, a ready gvmd with the fixture report, a probe log, and no waiting between polls.
 func gbEnv(t *testing.T) (*env, *fakeGB) {
+	t.Helper()
+	e, h := gbEnvClosed(t)
+	e.svc.gb().publicScan = true
+	return e, h
+}
+
+// gbEnvClosed is gbEnv with the G1 gate as it ships: closed.
+func gbEnvClosed(t *testing.T) (*env, *fakeGB) {
 	t.Helper()
 	e := newEnv(t)
 	gvm := &fakeGVM{report: gbFixture(t)}
@@ -612,7 +652,7 @@ func TestContract_INV25_ScansTheVerifiedIP(t *testing.T) {
 		t.Fatalf("greenbone = %+v", s.Greenbone)
 	}
 	gvm := h.gvm
-	if v := gvm.prefsOf(); v["Disable brute force checks"] != "yes" || v["Disable default account checks"] != "yes" {
+	if v := gvm.prefsOf(); v["Disable brute force checks"] != "yes" || v["Disable default account checks"] != "yes" || v["Enable generic web application scanning"] != "no" {
 		t.Fatalf("brute-force options = %v", v)
 	}
 	if !slices.Equal(gvm.families, []string{"General", "Web application abuses"}) {
@@ -808,6 +848,9 @@ func TestContract_INV25_SafeConfigFailsClosed(t *testing.T) {
 		{"option not kept", func(g *fakeGVM) { g.keepNo = true }, `Greenbone (OpenVAS) did not scan: Greenbone did not keep "Disable brute force checks" on`},
 		{"config of another user", func(g *fakeGVM) { g.hasConfig, g.owner = true, "someone" }, "belongs to another Greenbone user"},
 		{"config in use", func(g *fakeGVM) { g.inUse = true }, "is used by a task Vedette did not start"},
+		// D-564 G2: generic web application scanning must read back off
+		{"web scanning option missing", func(g *fakeGVM) { g.noWebPref = true }, `Greenbone's feed has no "Enable generic web application scanning" option, so Vedette cannot make sure no generic web attack`},
+		{"web scanning not kept off", func(g *fakeGVM) { g.keepWeb = true }, `Greenbone did not keep "Enable generic web application scanning" off`},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -998,5 +1041,160 @@ func TestContract_INV25_GreenboneEnabled(t *testing.T) {
 	e.enable()
 	if !e.svc.GreenboneEnabled(e.ctx()) {
 		t.Fatal("off after enable")
+	}
+}
+
+// ---- D-564 ----
+
+// G1: while the gate is closed, the page says Greenbone is not available yet and why, enabling is 409 under_review with nothing
+// recorded, started or downloaded, and a scan never asks gvmd anything, even with the setting left on by an older version.
+func TestContract_INV25_G1GateHoldsGreenboneBack(t *testing.T) {
+	t.Parallel()
+	if greenbonePublicScan {
+		t.Fatal("the G1 gate ships open; kien has not decided (D-564)")
+	}
+	e, h := gbEnvClosed(t)
+	v, err := e.svc.GreenboneSetting(e.ctx())
+	if err != nil || v.State != GBUnavailable || str(v.Reason) != "Greenbone deep scan is not available yet: its own active checks on a public IP are being reviewed." {
+		t.Fatalf("view = %+v, %v", v, err)
+	}
+	_, err = e.svc.SetGreenbone(e.ctx(), "admin@acme.example", true)
+	wantAPI(t, err, 409, "under_review")
+	if on, _, _, _ := loadGreenbone(e.ctx(), e.db.Reader()); on || slices.Contains(e.auditActions(), "exposure.greenbone") {
+		t.Fatal("the refused enable was recorded")
+	}
+	if err := e.db.Write(e.ctx(), func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(e.ctx(), `UPDATE exp_setting SET greenbone = 1, greenbone_at = '2020-01-01T00:00:00Z' WHERE id = 1`)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	s := e.scanIP(Content{})
+	if !slices.Contains(notChecked(s), NotYetGreenbone) || len(s.Greenbone) != 0 {
+		t.Fatalf("not checked = %q", notChecked(s))
+	}
+	o, err := e.svc.greenboneStep(e.ctx(), ScanTarget{Kind: KindIP, Value: ipA, User: "admin@acme.example"})
+	if err != nil || len(o.not) != 1 || o.not[0].Text != NotYetGreenbone {
+		t.Fatalf("step = %+v, %v", o, err)
+	}
+	if err := e.svc.RunGreenboneSync(e.ctx()); err != nil {
+		t.Fatal(err)
+	}
+	h.with(func(h *fakeGB) {
+		if h.ups != 0 || h.dials != 0 || h.syncs != 0 {
+			t.Errorf("ups %d, dials %d, syncs %d", h.ups, h.dials, h.syncs)
+		}
+	})
+}
+
+// G3: the check line tells high and medium results from the Low ones, which are hardening notes.
+func TestContract_INV25_LowIsAHardeningNote(t *testing.T) {
+	t.Parallel()
+	e, _ := gbEnv(t)
+	e.enable()
+	s := e.scanIP(Content{})
+	if !slices.ContainsFunc(s.Checks, func(c CheckRow) bool {
+		return c.Kind == "greenbone" && strings.Contains(c.Text, "4 results with QoD 70 or more (2 high or medium, 2 hardening notes)")
+	}) {
+		t.Fatalf("checks = %+v", s.Checks)
+	}
+}
+
+// G6: the feed is updated a week after Greenbone was enabled, then weekly; never while a scan holds the slot, and no scan starts
+// while it runs; the state is "loading" meanwhile; below 60 GB free it is refused and says why, and tried again a day later; each
+// update tried is one audit row, and the setting shows the last and the next.
+func TestContract_INV25_WeeklyFeedUpdate(t *testing.T) {
+	t.Parallel()
+	e, h := gbEnv(t)
+	run := func() {
+		t.Helper()
+		if err := e.svc.RunGreenboneSync(e.ctx()); err != nil {
+			t.Fatal(err)
+		}
+	}
+	e.advance(2 * GreenboneSyncEvery)
+	run()
+	if h.syncCount() != 0 {
+		t.Fatal("updated while off")
+	}
+	e.enable()
+	run()
+	if h.syncCount() != 0 {
+		t.Fatal("updated right after enable")
+	}
+	e.advance(GreenboneSyncEvery)
+	e.svc.runMu.Lock()
+	e.svc.run = &scanRun{view: ScanRun{Status: RunRunning}}
+	e.svc.runMu.Unlock()
+	run()
+	if h.syncCount() != 0 {
+		t.Fatal("updated during a scan")
+	}
+	e.svc.runMu.Lock()
+	e.svc.run = nil
+	e.svc.runMu.Unlock()
+	ips := e.detect(ipA)
+	if _, err := e.commit(ips[0].ID); err != nil {
+		t.Fatal(err)
+	}
+	e.svc.SetRunner(&fakeRunner{content: Content{}})
+	var during GreenboneView
+	var scanErr error
+	h.with(func(h *fakeGB) {
+		h.onSync = func() {
+			during, _ = e.svc.GreenboneSetting(e.ctx())
+			_, scanErr = e.svc.Scan(e.ctx(), "admin@acme.example", ips[0].ID)
+		}
+	})
+	run()
+	if h.syncCount() != 1 || during.State != GBLoading || str(during.Reason) != "Greenbone is loading its weekly feed update" {
+		t.Fatalf("syncs %d, during = %+v", h.syncCount(), during)
+	}
+	wantAPI(t, scanErr, 409, "busy")
+	v := e.gbState()
+	if v.FeedSync.OK == nil || !*v.FeedSync.OK || v.FeedSync.LastAt == nil || v.FeedSync.NextAt == nil {
+		t.Fatalf("feed sync = %+v", v.FeedSync)
+	}
+	last, _ := parseTS(*v.FeedSync.LastAt)
+	if next, _ := parseTS(*v.FeedSync.NextAt); !next.Equal(last.Add(GreenboneSyncEvery)) {
+		t.Fatalf("next = %s, last %s", *v.FeedSync.NextAt, *v.FeedSync.LastAt)
+	}
+	h.with(func(h *fakeGB) { h.onSync = nil })
+	e.svc.gb().diskFree = func(string) (int64, error) { return 41_300_000_000, nil }
+	e.advance(GreenboneSyncEvery)
+	run()
+	v = e.gbState()
+	if h.syncCount() != 1 || v.FeedSync.OK == nil || *v.FeedSync.OK || str(v.FeedSync.Note) != "Not updated: this box has 41.3 GB of free disk space; Greenbone needs at least 60.0 GB free." {
+		t.Fatalf("syncs %d, feed sync = %+v", h.syncCount(), v.FeedSync)
+	}
+	e.svc.gb().diskFree = func(string) (int64, error) { return 200e9, nil }
+	e.advance(gbSyncRetry)
+	run()
+	var notes []string
+	for _, a := range e.audits() {
+		if a.Action == "exposure.greenbone_sync" {
+			notes = append(notes, a.Detail)
+		}
+	}
+	if h.syncCount() != 2 || len(notes) != 3 || !strings.HasPrefix(notes[0], "Updated") || !strings.HasPrefix(notes[1], "Not updated: this box has 41.3 GB") {
+		t.Fatalf("syncs %d, audit %q", h.syncCount(), notes)
+	}
+}
+
+// D-564: the setting with its feed update fits the API schema, before the first update and after one.
+func TestContract_INV25_SettingFitsTheSchema(t *testing.T) {
+	t.Parallel()
+	e, _ := gbEnv(t)
+	e.enable()
+	v := e.gbState()
+	if _, err := into[oas.ExposureGetExposureGreenboneOK](v); err != nil || v.FeedSync.NextAt == nil {
+		t.Fatalf("before the first update: %v, %+v", err, v.FeedSync)
+	}
+	e.advance(GreenboneSyncEvery)
+	if err := e.svc.RunGreenboneSync(e.ctx()); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := into[oas.ExposurePutExposureGreenboneOK](e.gbState()); err != nil {
+		t.Fatal(err)
 	}
 }

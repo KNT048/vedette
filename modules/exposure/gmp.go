@@ -40,6 +40,9 @@ const (
 	// "Disable default account checks" set the KB keys that credential tests in other families read, so turning the families off
 	// alone does not stop them (review r1 M2).
 	gmpBruteOID = "1.3.6.1.4.1.25623.1.0.103697"
+	// gmpGlobalOID is the feed's "Global variable settings" (family Settings): its checkbox "Enable generic web application scanning"
+	// turns on the generic SQL injection and XSS fuzzing of the web application tests, which K-6 excludes (D-564 G2).
+	gmpGlobalOID = "1.3.6.1.4.1.25623.1.0.12288"
 	// GreenbonePortList is the name of the port list the scan uses.
 	GreenbonePortList = "All IANA assigned TCP"
 	// GreenboneMinQoD is the lowest quality of detection a result is read with (Greenbone's own default filter is 70).
@@ -57,8 +60,18 @@ const (
 // The families the copied config turns off: nothing that guesses passwords, logs in with default accounts or tries to crash a service.
 var gmpOffFamilies = []string{"Brute force attacks", "Default Accounts", "Denial of Service"}
 
-// The preferences of gmpBruteOID that must be "yes" in Vedette's config before a task starts; their ids are read from gvmd.
-var gmpBruteOff = []string{"Disable brute force checks", "Disable default account checks"}
+// gmpCheckbox is one checkbox of an NVT's preferences that Vedette's config must hold before a task starts: set on every scan and
+// read back (fail closed). Its id is read from gvmd. why ends the sentence when the feed does not have it.
+type gmpCheckbox struct {
+	oid, name, value, why string
+}
+
+// gmpSafePrefs are the checkboxes of the safe config (D-563 (4b), D-564 G2), in the order they are set.
+var gmpSafePrefs = []gmpCheckbox{
+	{gmpBruteOID, "Disable brute force checks", "yes", "no password is tried"},
+	{gmpBruteOID, "Disable default account checks", "yes", "no password is tried"},
+	{gmpGlobalOID, "Enable generic web application scanning", "no", "no generic web attack (SQL injection, XSS) is sent"},
+}
 
 // GMPLogin is the GMP user and password the host created for Vedette when it set Greenbone up (kept in core/secrets, never logged).
 type GMPLogin struct {
@@ -275,8 +288,8 @@ func (g *gmpConn) readiness(ctx context.Context) (loading bool, err error) {
 
 // safeConfig returns the id of Vedette's config, creating it once as a copy of "Full and fast" (reused by name only when the GMP user
 // owns it), and on every scan puts back what Vedette relies on, so a half-made or edited copy is put right: the brute-force,
-// default-account and DoS families off, the two checkboxes of "Options for Brute Force NVTs" on (read back: fail closed), and
-// safe_checks on. A config used by a task Vedette did not start cannot be changed: that is said, and nothing starts.
+// default-account and DoS families off, the two checkboxes of "Options for Brute Force NVTs" on and "Enable generic web application
+// scanning" of "Global variable settings" off (D-564 G2; all read back: fail closed), and safe_checks on. A config used by a task Vedette did not start cannot be changed: that is said, and nothing starts.
 func (g *gmpConn) safeConfig(ctx context.Context, user string) (string, error) {
 	var full gmpConfigs
 	if _, err := g.do(ctx, "get_configs", `<get_configs config_id="`+gmpFullAndFast+`" families="1"/>`, gmpMaxAnswer, &full); err != nil {
@@ -336,23 +349,8 @@ func (g *gmpConn) safeConfig(ctx context.Context, user string) (string, error) {
 	if err := g.modifyConfig(ctx, `<modify_config config_id="`+id+`"><preference><name>safe_checks</name><value>`+yes+`</value></preference></modify_config>`); err != nil {
 		return "", err
 	}
-	brute, err := g.brutePrefs(ctx, id)
-	if err != nil {
+	if err := g.safePrefs(ctx, id); err != nil {
 		return "", err
-	}
-	for _, name := range brute {
-		if err := g.modifyConfig(ctx, `<modify_config config_id="`+id+`"><preference><nvt oid="`+gmpBruteOID+`"/><name>`+esc(name)+`</name><value>`+yes+`</value></preference></modify_config>`); err != nil {
-			return "", err
-		}
-	}
-	var after gmpPrefs
-	if _, err := g.do(ctx, "get_preferences", `<get_preferences nvt_oid="`+gmpBruteOID+`" config_id="`+id+`"/>`, gmpMaxAnswer, &after); err != nil {
-		return "", err
-	}
-	for _, want := range gmpBruteOff {
-		if p, ok := after.find(want); !ok || strings.TrimSpace(p.Value) != "yes" {
-			return "", &Unavailable{Reason: "Greenbone did not keep \"" + want + "\" on in Vedette's scan config, so nothing was started."}
-		}
 	}
 	return id, nil
 }
@@ -390,23 +388,52 @@ func (p gmpPrefs) find(name string) (gmpPref, bool) {
 
 var gmpPrefID = regexp.MustCompile(`^[0-9]{1,4}$`)
 
-// brutePrefs reads the two checkboxes of "Options for Brute Force NVTs" from gvmd and returns their full names
-// ("<oid>:<id>:checkbox:<name>", the form modify_config takes for an NVT preference). Either one missing or not a checkbox: fail
-// closed, nothing starts.
-func (g *gmpConn) brutePrefs(ctx context.Context, config string) ([]string, error) {
-	var p gmpPrefs
-	if _, err := g.do(ctx, "get_preferences", `<get_preferences nvt_oid="`+gmpBruteOID+`" config_id="`+config+`"/>`, gmpMaxAnswer, &p); err != nil {
-		return nil, err
+// safePrefs sets each checkbox of gmpSafePrefs in the config and reads them back. Its id is read from gvmd and it is sent in the
+// form modify_config takes for an NVT preference ("<oid>:<id>:checkbox:<name>"). One missing from the feed, not a checkbox, or not
+// kept: fail closed, nothing starts.
+func (g *gmpConn) safePrefs(ctx context.Context, config string) error {
+	prefs := func(oid string) (gmpPrefs, error) {
+		var p gmpPrefs
+		_, err := g.do(ctx, "get_preferences", `<get_preferences nvt_oid="`+oid+`" config_id="`+config+`"/>`, gmpMaxAnswer, &p)
+		return p, err
 	}
-	var out []string
-	for _, want := range gmpBruteOff {
-		x, ok := p.find(want)
-		if !ok || strings.TrimSpace(x.Type) != "checkbox" || !gmpPrefID.MatchString(strings.TrimSpace(x.ID)) {
-			return nil, &Unavailable{Reason: "Greenbone's feed has no \"" + want + "\" option, so Vedette cannot make sure no password is tried; nothing was started."}
+	for _, oid := range []string{gmpBruteOID, gmpGlobalOID} {
+		before, err := prefs(oid)
+		if err != nil {
+			return err
 		}
-		out = append(out, gmpBruteOID+":"+strings.TrimSpace(x.ID)+":checkbox:"+want)
+		for _, c := range gmpSafePrefs {
+			if c.oid != oid {
+				continue
+			}
+			x, ok := before.find(c.name)
+			if !ok || strings.TrimSpace(x.Type) != "checkbox" || !gmpPrefID.MatchString(strings.TrimSpace(x.ID)) {
+				return &Unavailable{Reason: "Greenbone's feed has no \"" + c.name + "\" option, so Vedette cannot make sure " + c.why + "; nothing was started."}
+			}
+			full := oid + ":" + strings.TrimSpace(x.ID) + ":checkbox:" + c.name
+			if err := g.modifyConfig(ctx, `<modify_config config_id="`+config+`"><preference><nvt oid="`+oid+`"/><name>`+esc(full)+`</name><value>`+
+				base64.StdEncoding.EncodeToString([]byte(c.value))+`</value></preference></modify_config>`); err != nil {
+				return err
+			}
+		}
+		after, err := prefs(oid)
+		if err != nil {
+			return err
+		}
+		for _, c := range gmpSafePrefs {
+			if c.oid != oid {
+				continue
+			}
+			if x, ok := after.find(c.name); !ok || strings.TrimSpace(x.Value) != c.value {
+				state := "on"
+				if c.value == "no" {
+					state = "off"
+				}
+				return &Unavailable{Reason: "Greenbone did not keep \"" + c.name + "\" " + state + " in Vedette's scan config, so nothing was started."}
+			}
+		}
 	}
-	return out, nil
+	return nil
 }
 
 type gmpPortLists struct {

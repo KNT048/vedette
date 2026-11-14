@@ -1002,7 +1002,9 @@ type Handler interface {
 	// low_memory or low_disk and the measured numbers below 8 GB of memory or 60 GB free; else Greenbone
 	// starts in the background (starting, then loading while it loads its feed, about 2 hours the first
 	// time). Off: no scan uses it, its containers stop and its data is kept (502 host_error when they
-	// could not be stopped). 501 not_implemented when Greenbone is not available on this box. Audited.
+	// could not be stopped). 501 not_implemented when Greenbone is not available on this box; 409
+	// under_review while its own active checks on a public IP are reviewed (D-564), with nothing recorded
+	// or downloaded. Audited.
 	//
 	// PUT /exposure/greenbone
 	ExposurePutExposureGreenbone(ctx context.Context, req *ExposurePutExposureGreenboneReq) (*ExposurePutExposureGreenboneOK, error)

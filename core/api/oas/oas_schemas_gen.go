@@ -42754,12 +42754,16 @@ type ExposureDeleteExposureTargetsIDNoContent struct{}
 type ExposureGetExposureGreenboneOK struct {
 	ChangedAt NilDateTime `json:"changed_at"`
 	// Who last turned it on or off.
-	ChangedBy NilString                               `json:"changed_by"`
+	ChangedBy NilString `json:"changed_by"`
+	// The weekly update of Greenbone's feed while it is enabled (D-564): never during a scan, refused
+	// below 60 GB free, audited.
+	FeedSync  ExposureGetExposureGreenboneOKFeedSync  `json:"feed_sync"`
 	Preflight ExposureGetExposureGreenboneOKPreflight `json:"preflight"`
 	// Why, for unavailable and error; the feed sentence for loading; null otherwise.
 	Reason NilString `json:"reason"`
-	// Unavailable: not set up on this box; loading: Greenbone is loading its feed (the first time takes
-	// about 2 hours), a phase and not a hang.
+	// Unavailable: not set up on this box, or held back while its own active checks on a public IP are
+	// reviewed (D-564, reason says which); loading: Greenbone is loading its feed (the first time takes
+	// about 2 hours) or its weekly feed update, a phase and not a hang.
 	State ExposureGetExposureGreenboneOKState `json:"state"`
 }
 
@@ -42771,6 +42775,11 @@ func (s *ExposureGetExposureGreenboneOK) GetChangedAt() NilDateTime {
 // GetChangedBy returns the value of ChangedBy.
 func (s *ExposureGetExposureGreenboneOK) GetChangedBy() NilString {
 	return s.ChangedBy
+}
+
+// GetFeedSync returns the value of FeedSync.
+func (s *ExposureGetExposureGreenboneOK) GetFeedSync() ExposureGetExposureGreenboneOKFeedSync {
+	return s.FeedSync
 }
 
 // GetPreflight returns the value of Preflight.
@@ -42798,6 +42807,11 @@ func (s *ExposureGetExposureGreenboneOK) SetChangedBy(val NilString) {
 	s.ChangedBy = val
 }
 
+// SetFeedSync sets the value of FeedSync.
+func (s *ExposureGetExposureGreenboneOK) SetFeedSync(val ExposureGetExposureGreenboneOKFeedSync) {
+	s.FeedSync = val
+}
+
 // SetPreflight sets the value of Preflight.
 func (s *ExposureGetExposureGreenboneOK) SetPreflight(val ExposureGetExposureGreenboneOKPreflight) {
 	s.Preflight = val
@@ -42811,6 +42825,61 @@ func (s *ExposureGetExposureGreenboneOK) SetReason(val NilString) {
 // SetState sets the value of State.
 func (s *ExposureGetExposureGreenboneOK) SetState(val ExposureGetExposureGreenboneOKState) {
 	s.State = val
+}
+
+// The weekly update of Greenbone's feed while it is enabled (D-564): never during a scan, refused
+// below 60 GB free, audited.
+type ExposureGetExposureGreenboneOKFeedSync struct {
+	// When the weekly feed update was last tried; null before the first.
+	LastAt NilDateTime `json:"last_at"`
+	// When the next one is due: a week after the last that worked (or after enabling), a day after one
+	// that did not; null while Greenbone is off or unavailable.
+	NextAt NilDateTime `json:"next_at"`
+	// What happened, e.g. "Not updated: this box has 41.3 GB of free disk space; Greenbone needs at least
+	// 60.0 GB free.".
+	Note NilString `json:"note"`
+	// Whether it worked; null before the first.
+	Ok NilBool `json:"ok"`
+}
+
+// GetLastAt returns the value of LastAt.
+func (s *ExposureGetExposureGreenboneOKFeedSync) GetLastAt() NilDateTime {
+	return s.LastAt
+}
+
+// GetNextAt returns the value of NextAt.
+func (s *ExposureGetExposureGreenboneOKFeedSync) GetNextAt() NilDateTime {
+	return s.NextAt
+}
+
+// GetNote returns the value of Note.
+func (s *ExposureGetExposureGreenboneOKFeedSync) GetNote() NilString {
+	return s.Note
+}
+
+// GetOk returns the value of Ok.
+func (s *ExposureGetExposureGreenboneOKFeedSync) GetOk() NilBool {
+	return s.Ok
+}
+
+// SetLastAt sets the value of LastAt.
+func (s *ExposureGetExposureGreenboneOKFeedSync) SetLastAt(val NilDateTime) {
+	s.LastAt = val
+}
+
+// SetNextAt sets the value of NextAt.
+func (s *ExposureGetExposureGreenboneOKFeedSync) SetNextAt(val NilDateTime) {
+	s.NextAt = val
+}
+
+// SetNote sets the value of Note.
+func (s *ExposureGetExposureGreenboneOKFeedSync) SetNote(val NilString) {
+	s.Note = val
+}
+
+// SetOk sets the value of Ok.
+func (s *ExposureGetExposureGreenboneOKFeedSync) SetOk(val NilBool) {
+	s.Ok = val
 }
 
 type ExposureGetExposureGreenboneOKPreflight struct {
@@ -42865,8 +42934,9 @@ func (s *ExposureGetExposureGreenboneOKPreflight) SetReason(val NilString) {
 	s.Reason = val
 }
 
-// Unavailable: not set up on this box; loading: Greenbone is loading its feed (the first time takes
-// about 2 hours), a phase and not a hang.
+// Unavailable: not set up on this box, or held back while its own active checks on a public IP are
+// reviewed (D-564, reason says which); loading: Greenbone is loading its feed (the first time takes
+// about 2 hours) or its weekly feed update, a phase and not a hang.
 type ExposureGetExposureGreenboneOKState string
 
 const (
@@ -44905,7 +44975,8 @@ type ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneItem struct {
 	Port string `json:"port"`
 	// Quality of detection, 70 to 100.
 	Qod int `json:"qod"`
-	// CVSS score, 0.1 to 10.
+	// CVSS score, 0.1 to 10. Below 4.0 (Low) it is a hardening note, shown apart and never counted as an
+	// alert (D-564).
 	Severity float64 `json:"severity"`
 	// Greenbone's advice, plain text, clipped.
 	Solution string `json:"solution"`
@@ -49941,12 +50012,16 @@ func (s *ExposurePutExposureBoxIPSettingsReq) SetIntervalMin(val int) {
 type ExposurePutExposureGreenboneOK struct {
 	ChangedAt NilDateTime `json:"changed_at"`
 	// Who last turned it on or off.
-	ChangedBy NilString                               `json:"changed_by"`
+	ChangedBy NilString `json:"changed_by"`
+	// The weekly update of Greenbone's feed while it is enabled (D-564): never during a scan, refused
+	// below 60 GB free, audited.
+	FeedSync  ExposurePutExposureGreenboneOKFeedSync  `json:"feed_sync"`
 	Preflight ExposurePutExposureGreenboneOKPreflight `json:"preflight"`
 	// Why, for unavailable and error; the feed sentence for loading; null otherwise.
 	Reason NilString `json:"reason"`
-	// Unavailable: not set up on this box; loading: Greenbone is loading its feed (the first time takes
-	// about 2 hours), a phase and not a hang.
+	// Unavailable: not set up on this box, or held back while its own active checks on a public IP are
+	// reviewed (D-564, reason says which); loading: Greenbone is loading its feed (the first time takes
+	// about 2 hours) or its weekly feed update, a phase and not a hang.
 	State ExposurePutExposureGreenboneOKState `json:"state"`
 }
 
@@ -49958,6 +50033,11 @@ func (s *ExposurePutExposureGreenboneOK) GetChangedAt() NilDateTime {
 // GetChangedBy returns the value of ChangedBy.
 func (s *ExposurePutExposureGreenboneOK) GetChangedBy() NilString {
 	return s.ChangedBy
+}
+
+// GetFeedSync returns the value of FeedSync.
+func (s *ExposurePutExposureGreenboneOK) GetFeedSync() ExposurePutExposureGreenboneOKFeedSync {
+	return s.FeedSync
 }
 
 // GetPreflight returns the value of Preflight.
@@ -49985,6 +50065,11 @@ func (s *ExposurePutExposureGreenboneOK) SetChangedBy(val NilString) {
 	s.ChangedBy = val
 }
 
+// SetFeedSync sets the value of FeedSync.
+func (s *ExposurePutExposureGreenboneOK) SetFeedSync(val ExposurePutExposureGreenboneOKFeedSync) {
+	s.FeedSync = val
+}
+
 // SetPreflight sets the value of Preflight.
 func (s *ExposurePutExposureGreenboneOK) SetPreflight(val ExposurePutExposureGreenboneOKPreflight) {
 	s.Preflight = val
@@ -49998,6 +50083,61 @@ func (s *ExposurePutExposureGreenboneOK) SetReason(val NilString) {
 // SetState sets the value of State.
 func (s *ExposurePutExposureGreenboneOK) SetState(val ExposurePutExposureGreenboneOKState) {
 	s.State = val
+}
+
+// The weekly update of Greenbone's feed while it is enabled (D-564): never during a scan, refused
+// below 60 GB free, audited.
+type ExposurePutExposureGreenboneOKFeedSync struct {
+	// When the weekly feed update was last tried; null before the first.
+	LastAt NilDateTime `json:"last_at"`
+	// When the next one is due: a week after the last that worked (or after enabling), a day after one
+	// that did not; null while Greenbone is off or unavailable.
+	NextAt NilDateTime `json:"next_at"`
+	// What happened, e.g. "Not updated: this box has 41.3 GB of free disk space; Greenbone needs at least
+	// 60.0 GB free.".
+	Note NilString `json:"note"`
+	// Whether it worked; null before the first.
+	Ok NilBool `json:"ok"`
+}
+
+// GetLastAt returns the value of LastAt.
+func (s *ExposurePutExposureGreenboneOKFeedSync) GetLastAt() NilDateTime {
+	return s.LastAt
+}
+
+// GetNextAt returns the value of NextAt.
+func (s *ExposurePutExposureGreenboneOKFeedSync) GetNextAt() NilDateTime {
+	return s.NextAt
+}
+
+// GetNote returns the value of Note.
+func (s *ExposurePutExposureGreenboneOKFeedSync) GetNote() NilString {
+	return s.Note
+}
+
+// GetOk returns the value of Ok.
+func (s *ExposurePutExposureGreenboneOKFeedSync) GetOk() NilBool {
+	return s.Ok
+}
+
+// SetLastAt sets the value of LastAt.
+func (s *ExposurePutExposureGreenboneOKFeedSync) SetLastAt(val NilDateTime) {
+	s.LastAt = val
+}
+
+// SetNextAt sets the value of NextAt.
+func (s *ExposurePutExposureGreenboneOKFeedSync) SetNextAt(val NilDateTime) {
+	s.NextAt = val
+}
+
+// SetNote sets the value of Note.
+func (s *ExposurePutExposureGreenboneOKFeedSync) SetNote(val NilString) {
+	s.Note = val
+}
+
+// SetOk sets the value of Ok.
+func (s *ExposurePutExposureGreenboneOKFeedSync) SetOk(val NilBool) {
+	s.Ok = val
 }
 
 type ExposurePutExposureGreenboneOKPreflight struct {
@@ -50052,8 +50192,9 @@ func (s *ExposurePutExposureGreenboneOKPreflight) SetReason(val NilString) {
 	s.Reason = val
 }
 
-// Unavailable: not set up on this box; loading: Greenbone is loading its feed (the first time takes
-// about 2 hours), a phase and not a hang.
+// Unavailable: not set up on this box, or held back while its own active checks on a public IP are
+// reviewed (D-564, reason says which); loading: Greenbone is loading its feed (the first time takes
+// about 2 hours) or its weekly feed update, a phase and not a hang.
 type ExposurePutExposureGreenboneOKState string
 
 const (

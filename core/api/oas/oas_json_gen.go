@@ -85998,6 +85998,10 @@ func (s *ExposureGetExposureGreenboneOK) encodeFields(e *jx.Encoder) {
 		s.ChangedBy.Encode(e)
 	}
 	{
+		e.FieldStart("feed_sync")
+		s.FeedSync.Encode(e)
+	}
+	{
 		e.FieldStart("preflight")
 		s.Preflight.Encode(e)
 	}
@@ -86011,12 +86015,13 @@ func (s *ExposureGetExposureGreenboneOK) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfExposureGetExposureGreenboneOK = [5]string{
+var jsonFieldsNameOfExposureGetExposureGreenboneOK = [6]string{
 	0: "changed_at",
 	1: "changed_by",
-	2: "preflight",
-	3: "reason",
-	4: "state",
+	2: "feed_sync",
+	3: "preflight",
+	4: "reason",
+	5: "state",
 }
 
 // Decode decodes ExposureGetExposureGreenboneOK from json.
@@ -86048,8 +86053,18 @@ func (s *ExposureGetExposureGreenboneOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"changed_by\"")
 			}
-		case "preflight":
+		case "feed_sync":
 			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				if err := s.FeedSync.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"feed_sync\"")
+			}
+		case "preflight":
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				if err := s.Preflight.Decode(d); err != nil {
 					return err
@@ -86059,7 +86074,7 @@ func (s *ExposureGetExposureGreenboneOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"preflight\"")
 			}
 		case "reason":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				if err := s.Reason.Decode(d); err != nil {
 					return err
@@ -86069,7 +86084,7 @@ func (s *ExposureGetExposureGreenboneOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"reason\"")
 			}
 		case "state":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				if err := s.State.Decode(d); err != nil {
 					return err
@@ -86088,7 +86103,7 @@ func (s *ExposureGetExposureGreenboneOK) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00011111,
+		0b00111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -86130,6 +86145,145 @@ func (s *ExposureGetExposureGreenboneOK) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *ExposureGetExposureGreenboneOK) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *ExposureGetExposureGreenboneOKFeedSync) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *ExposureGetExposureGreenboneOKFeedSync) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("last_at")
+		s.LastAt.Encode(e, json.EncodeDateTime)
+	}
+	{
+		e.FieldStart("next_at")
+		s.NextAt.Encode(e, json.EncodeDateTime)
+	}
+	{
+		e.FieldStart("note")
+		s.Note.Encode(e)
+	}
+	{
+		e.FieldStart("ok")
+		s.Ok.Encode(e)
+	}
+}
+
+var jsonFieldsNameOfExposureGetExposureGreenboneOKFeedSync = [4]string{
+	0: "last_at",
+	1: "next_at",
+	2: "note",
+	3: "ok",
+}
+
+// Decode decodes ExposureGetExposureGreenboneOKFeedSync from json.
+func (s *ExposureGetExposureGreenboneOKFeedSync) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ExposureGetExposureGreenboneOKFeedSync to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "last_at":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.LastAt.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"last_at\"")
+			}
+		case "next_at":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				if err := s.NextAt.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"next_at\"")
+			}
+		case "note":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				if err := s.Note.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"note\"")
+			}
+		case "ok":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				if err := s.Ok.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"ok\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode ExposureGetExposureGreenboneOKFeedSync")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00001111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfExposureGetExposureGreenboneOKFeedSync) {
+					name = jsonFieldsNameOfExposureGetExposureGreenboneOKFeedSync[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *ExposureGetExposureGreenboneOKFeedSync) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ExposureGetExposureGreenboneOKFeedSync) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -100821,6 +100975,10 @@ func (s *ExposurePutExposureGreenboneOK) encodeFields(e *jx.Encoder) {
 		s.ChangedBy.Encode(e)
 	}
 	{
+		e.FieldStart("feed_sync")
+		s.FeedSync.Encode(e)
+	}
+	{
 		e.FieldStart("preflight")
 		s.Preflight.Encode(e)
 	}
@@ -100834,12 +100992,13 @@ func (s *ExposurePutExposureGreenboneOK) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfExposurePutExposureGreenboneOK = [5]string{
+var jsonFieldsNameOfExposurePutExposureGreenboneOK = [6]string{
 	0: "changed_at",
 	1: "changed_by",
-	2: "preflight",
-	3: "reason",
-	4: "state",
+	2: "feed_sync",
+	3: "preflight",
+	4: "reason",
+	5: "state",
 }
 
 // Decode decodes ExposurePutExposureGreenboneOK from json.
@@ -100871,8 +101030,18 @@ func (s *ExposurePutExposureGreenboneOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"changed_by\"")
 			}
-		case "preflight":
+		case "feed_sync":
 			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				if err := s.FeedSync.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"feed_sync\"")
+			}
+		case "preflight":
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				if err := s.Preflight.Decode(d); err != nil {
 					return err
@@ -100882,7 +101051,7 @@ func (s *ExposurePutExposureGreenboneOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"preflight\"")
 			}
 		case "reason":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				if err := s.Reason.Decode(d); err != nil {
 					return err
@@ -100892,7 +101061,7 @@ func (s *ExposurePutExposureGreenboneOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"reason\"")
 			}
 		case "state":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				if err := s.State.Decode(d); err != nil {
 					return err
@@ -100911,7 +101080,7 @@ func (s *ExposurePutExposureGreenboneOK) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00011111,
+		0b00111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -100953,6 +101122,145 @@ func (s *ExposurePutExposureGreenboneOK) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *ExposurePutExposureGreenboneOK) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *ExposurePutExposureGreenboneOKFeedSync) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *ExposurePutExposureGreenboneOKFeedSync) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("last_at")
+		s.LastAt.Encode(e, json.EncodeDateTime)
+	}
+	{
+		e.FieldStart("next_at")
+		s.NextAt.Encode(e, json.EncodeDateTime)
+	}
+	{
+		e.FieldStart("note")
+		s.Note.Encode(e)
+	}
+	{
+		e.FieldStart("ok")
+		s.Ok.Encode(e)
+	}
+}
+
+var jsonFieldsNameOfExposurePutExposureGreenboneOKFeedSync = [4]string{
+	0: "last_at",
+	1: "next_at",
+	2: "note",
+	3: "ok",
+}
+
+// Decode decodes ExposurePutExposureGreenboneOKFeedSync from json.
+func (s *ExposurePutExposureGreenboneOKFeedSync) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ExposurePutExposureGreenboneOKFeedSync to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "last_at":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.LastAt.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"last_at\"")
+			}
+		case "next_at":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				if err := s.NextAt.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"next_at\"")
+			}
+		case "note":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				if err := s.Note.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"note\"")
+			}
+		case "ok":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				if err := s.Ok.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"ok\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode ExposurePutExposureGreenboneOKFeedSync")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00001111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfExposurePutExposureGreenboneOKFeedSync) {
+					name = jsonFieldsNameOfExposurePutExposureGreenboneOKFeedSync[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *ExposurePutExposureGreenboneOKFeedSync) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ExposurePutExposureGreenboneOKFeedSync) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }

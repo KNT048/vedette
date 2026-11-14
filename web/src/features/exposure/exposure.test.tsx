@@ -1238,8 +1238,21 @@ describe('exposure: services and exploited vulnerabilities of the box IP (S-EXP-
 })
 
 describe('exposure: optional deep scan with Greenbone (S-EXP-2, INV-25, D-563)', () => {
-  afterEach(() => { localStorage.removeItem('vedette-mock-box-memory'); localStorage.removeItem('vedette-mock-box-disk') })
+  // D-564 G1: the box ships with Greenbone held back; these tests play the gate opened, the first one below the box as it ships
+  beforeEach(() => localStorage.setItem('vedette-mock-greenbone-public', '1'))
+  afterEach(() => { localStorage.removeItem('vedette-mock-box-memory'); localStorage.removeItem('vedette-mock-box-disk'); localStorage.removeItem('vedette-mock-greenbone-public') })
   const section = () => screen.findByRole('region', { name: 'Optional deep scan: Greenbone (OpenVAS)' })
+
+  it('D-564 G1: held back while its own active checks on a public IP are reviewed: the page says so, offers nothing, Enable is 409 under_review', async () => {
+    localStorage.removeItem('vedette-mock-greenbone-public')
+    renderApp('/exposure')
+    const s = await section()
+    expect(await within(s).findByText('Greenbone deep scan is not available yet: its own active checks on a public IP are being reviewed.')).toBeInTheDocument()
+    expect(within(s).queryByRole('button')).toBeNull()
+    const r = await call('PUT', '/exposure/greenbone', { enabled: true })
+    expect([r.status, r.json.error.code]).toEqual([409, 'under_review'])
+    expect(auditStore.get().some((a) => a.action === 'exposure.greenbone')).toBe(false)
+  })
 
   it('off by default: shows the box\'s numbers and what it needs before Enable; an administrator enables it and it starts; axe clean', async () => {
     renderApp('/exposure')
@@ -1253,6 +1266,9 @@ describe('exposure: optional deep scan with Greenbone (S-EXP-2, INV-25, D-563)',
     expect(await within(s).findByText('Starting')).toBeInTheDocument()
     expect(within(s).getByRole('button', { name: 'Turn off Greenbone' })).toBeInTheDocument()
     expect(auditStore.get().some((a) => a.action === 'exposure.greenbone' && a.detail === 'enabled (memory 16.0 GB, free disk 180.0 GB)')).toBe(true)
+    // D-564 G6: the weekly feed update shows when it last ran and when the next one is due
+    expect(within(s).getByText('Not yet: the first one is a week after it is turned on')).toBeInTheDocument()
+    expect(within(s).getByText('Next feed update')).toBeInTheDocument()
   })
 
   it('the refusal shows the measured numbers: 7.1 GB of memory, then too little disk', async () => {
@@ -1272,7 +1288,7 @@ describe('exposure: optional deep scan with Greenbone (S-EXP-2, INV-25, D-563)',
 
   it('loading its feed is a visible phase; only an administrator can change it', async () => {
     server.use(http.get('*/api/v1/exposure/greenbone', () => HttpResponse.json({ state: 'loading', reason: 'Greenbone is loading its feed (first time takes about 2 hours)', changed_by: 'admin@acme.example', changed_at: new Date().toISOString(),
-      preflight: { memory_bytes: 16e9, disk_free_bytes: 120e9, ok: true, reason: null } })))
+      preflight: { memory_bytes: 16e9, disk_free_bytes: 120e9, ok: true, reason: null }, feed_sync: { last_at: null, ok: null, note: null, next_at: null } })))
     renderApp('/exposure', { role: 'viewer' })
     const s = await section()
     expect(await within(s).findByText('Greenbone is loading its feed (first time takes about 2 hours)')).toBeInTheDocument()
@@ -1281,24 +1297,29 @@ describe('exposure: optional deep scan with Greenbone (S-EXP-2, INV-25, D-563)',
 
   it('not available on this box: says so and offers nothing', async () => {
     server.use(http.get('*/api/v1/exposure/greenbone', () => HttpResponse.json({ state: 'unavailable', reason: 'Greenbone is not available on this box.', changed_by: null, changed_at: null,
-      preflight: { memory_bytes: 16e9, disk_free_bytes: 120e9, ok: true, reason: null } })))
+      preflight: { memory_bytes: 16e9, disk_free_bytes: 120e9, ok: true, reason: null }, feed_sync: { last_at: null, ok: null, note: null, next_at: null } })))
     renderApp('/exposure')
     const s = await section()
     expect(await within(s).findByText('Greenbone is not available on this box.')).toBeInTheDocument()
     expect(within(s).queryByRole('button')).toBeNull()
   })
 
-  it('results: their own section with the unauthenticated header, severity first, QoD and CVEs; axe clean', async () => {
+  it('results: their own section with the unauthenticated header, severity first, QoD and CVEs; Low results are hardening notes apart (D-564 G3); axe clean', async () => {
     renderApp('/exposure/xt-2')
     const s = await screen.findByRole('region', { name: 'Greenbone results (unauthenticated, QoD ≥ 70)' })
-    expect(within(s).getByText('Greenbone looked at this IP from outside without logging in. Finding nothing is not proof the services are not affected (distributions backport fixes).')).toBeInTheDocument()
+    expect(within(s).getByText(/Finding nothing is not proof the services are not affected \(distributions backport fixes\)\. For the same reason, on Ubuntu or Debian a result read from a version banner can be a false positive, so Vedette's own package-based result wins when both exist\./)).toBeInTheDocument()
     const rows = within(within(s).getByRole('table', { name: 'What Greenbone reported on this IP' })).getAllByRole('row').slice(1)
-    expect(rows).toHaveLength(3)
+    expect(rows).toHaveLength(2)
     expect(within(rows[0]!).getByText('High 9.8')).toBeInTheDocument()
     expect(within(rows[0]!).getByText('99%')).toBeInTheDocument()
     expect(within(rows[0]!).getByText('CVE-2021-41773')).toBeInTheDocument()
-    expect(within(rows[2]!).getByText('None named')).toBeInTheDocument()
-    expect(within(screen.getByRole('list', { name: 'Checked' })).getByText(/Greenbone \(OpenVAS\) scanned 203\.0\.113\.10 from outside without logging in/)).toBeInTheDocument()
+    expect(within(s).queryByText('Low 2.6')).toBeNull()
+    const notes = await screen.findByRole('region', { name: 'Hardening notes (Low)' })
+    const noteRows = within(within(notes).getByRole('table', { name: "Greenbone's hardening notes on this IP" })).getAllByRole('row').slice(1)
+    expect(noteRows).toHaveLength(1)
+    expect(within(noteRows[0]!).getByText('Low 2.6')).toBeInTheDocument()
+    expect(within(noteRows[0]!).getByText('None named')).toBeInTheDocument()
+    expect(within(screen.getByRole('list', { name: 'Checked' })).getByText(/Greenbone \(OpenVAS\) scanned 203\.0\.113\.10 from outside without logging in.*\(2 high or medium, 1 hardening note\)/)).toBeInTheDocument()
     await expectNoA11yViolations()
   })
 

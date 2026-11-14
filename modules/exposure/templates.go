@@ -30,15 +30,15 @@ const (
 	TemplatesTimeout = 5 * time.Minute
 
 	maxTemplateJobs = 64
-	maxJobTags      = 3
-	maxTemplateRows = 32 // per service
-	maxTemplatesLn  = 6  // template ids named in the "what was checked" line
+	maxTemplateRows = 128 // per service: TemplatesPerJob x 4 jobs; matched results are kept first
+	maxTemplatesLn  = 6   // template ids named in the "what was checked" line
 
 	// NotSetUpTemplates is the line of every scan of an IP while no TemplateScanner is wired.
 	NotSetUpTemplates = "Not checked: safe exploited-vulnerability templates are not set up on this box yet."
 	notTemplatesDom   = "Safe templates for exploited vulnerabilities: they run on the box's own verified public IP only, for the services identified there."
 	notTemplatesNoSvc = "Safe templates for exploited vulnerabilities did not run: no services were identified."
 	notTemplatesNoCmp = "Safe templates for exploited vulnerabilities did not run: the identified services could not be compared with the list of exploited vulnerabilities."
+	notTemplatesGate  = "Safe templates for exploited vulnerabilities did not run: this IP can no longer be scanned (it was removed, paused, no longer verified or needs the scan confirmed again), so nothing was sent."
 	notTemplatesNoLog = "Safe templates for exploited vulnerabilities did not run: the probe log could not be written, and nothing is sent without it."
 	notTemplatesFail  = "Safe templates for exploited vulnerabilities failed, so no service was confirmed by them. The box log has the error."
 	notTemplatesSlow  = "Safe templates for exploited vulnerabilities did not finish within 5 minutes, so the ones that had not finished are not reported."
@@ -53,15 +53,14 @@ const (
 
 type (
 	// TemplateJob is what the scanner is asked to check on one open port of the box's own IP: the exploited CVEs the comparison
-	// matched there (the scanner runs the safe template of each CVE that has one, at most TemplatesPerJob) and product tags for
-	// templates that name no CVE. Scheme is "http", "https" or "" (a service that is not web: the scanner decides or skips). Host
+	// matched there. The scanner runs the safe template of each of those CVEs that has one (at most TemplatesPerJob) and nothing
+	// else: no template is chosen by tag, severity or banner words (D-561). Scheme is "http", "https" or "" (a service that is not web: the scanner decides or skips). Host
 	// is the IP itself: never a name. Scope is always ScopeOwnIP and RPS at most TemplateRPS.
 	TemplateJob struct {
 		Port   int      `json:"port"`
 		Scheme string   `json:"scheme"`
 		Host   string   `json:"host"`
 		CVEs   []string `json:"cves"`
-		Tags   []string `json:"tags"`
 		Scope  string   `json:"scope"`
 		RPS    int      `json:"rps"`
 	}
@@ -75,7 +74,11 @@ type (
 	}
 	// TemplateScan is the answer of one ScanTemplates: a result per template that ran. A CVE the scanner has no safe template
 	// for has no result, which is not an error.
-	TemplateScan struct{ Results []TemplateResult }
+	TemplateScan struct {
+		Results []TemplateResult
+		// Sent are the ids of the templates the scanner logged and sent (one id per template, whatever its outcome).
+		Sent []string
+	}
 	// TemplateRow is a TemplateResult as a service row keeps it.
 	TemplateRow struct {
 		IP       string `json:"ip"`
@@ -100,6 +103,12 @@ type (
 // keeps its own fences (scope own_ip, the worker checks again that ip is the box's own egress, at most TemplateRPS requests a
 // second, no template that sends a credential or changes anything, D-125/D-126, D-559 K-6). A step that could not run for a reason
 // the page may show returns *Unavailable.
+//
+// Obligations of the implementation (D-561, LEGAL §3): (1) it re-runs the gate exactly as the service scanner does (ScannableIP with
+// the actor ScanTarget.User) right before sending; (2) it resolves each CVE of a job to its template id in the verified index and
+// writes a probe-log row with that template id, the target and the time BEFORE it sends the template, and returns the ids it sent
+// in TemplateScan.Sent (exposure keeps them in the "what was checked" list); exposure's own pre-call rows name the CVEs planned,
+// not templates sent; (3) it fills TemplateResult.CVE.
 type TemplateScanner interface {
 	ScanTemplates(ctx context.Context, t ScanTarget, ip netip.Addr, jobs []TemplateJob) (TemplateScan, error)
 }
@@ -113,7 +122,6 @@ type ProbeLog interface {
 var (
 	cveID      = regexp.MustCompile(`^CVE-[0-9]{4}-[0-9]{4,7}$`)
 	templateID = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$`)
-	tagWord    = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]{0,31}$`)
 )
 
 // runTemplates is the template step of a scan of an IP, after service identification (INV-23). Only a stop of the run ends the scan
@@ -139,10 +147,22 @@ func (s *Service) runTemplates(ctx context.Context, st ScanTarget, ip netip.Addr
 		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "templates", Text: notTemplatesNoCmp})
 		return c, nil
 	}
-	jobs := buildJobs(ip, c.Services, m.Vulns)
+	jobs, skipped := buildJobs(ip, c.Services, m.Vulns)
+	if skipped > 0 {
+		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "templates", Text: fmt.Sprintf("Safe templates for exploited vulnerabilities: %s were not run, over the limit of %d jobs a scan.", plural(skipped, "exploited CVE"), maxTemplateJobs)})
+	}
 	if len(jobs) == 0 {
 		c.Checks = append(c.Checks, CheckRow{Kind: "templates", At: store.FormatTS(s.clock()),
 			Text: "Safe templates for exploited vulnerabilities: none needed, no identified service matched an exploited CVE."})
+		return c, nil
+	}
+	// M1: the gate of the run is minutes old (the runner and nmap came first): the target must still be verified, committed to the
+	// sentence in force, not paused and still the box's own IP right before anything is logged or sent.
+	if _, reason, gerr := s.gate(ctx, st.User, st.ID); gerr != nil || reason != "" {
+		if ctx.Err() != nil {
+			return c, ctx.Err()
+		}
+		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "templates", Text: notTemplatesGate})
 		return c, nil
 	}
 	if s.cfg.Probes == nil {
@@ -165,7 +185,7 @@ func (s *Service) runTemplates(ctx context.Context, st ScanTarget, ip netip.Addr
 	case err == nil:
 		rows := sanitizeTemplateResults(res.Results, jobs)
 		c.Templates = templateRows(c.Services, ip, rows)
-		c.Checks = append(c.Checks, CheckRow{Kind: "templates", At: store.FormatTS(s.clock()), Text: templatesLine(jobs, rows)})
+		c.Checks = append(c.Checks, CheckRow{Kind: "templates", At: store.FormatTS(s.clock()), Text: templatesLine(jobs, rows, sentIDs(res.Sent))})
 	case ctx.Err() != nil:
 		return c, err
 	case errors.As(err, &un):
@@ -182,7 +202,7 @@ func (s *Service) runTemplates(ctx context.Context, st ScanTarget, ip netip.Addr
 // buildJobs makes the jobs of a scan: one or more per port that has an exploited CVE, none for any other port, each with at most
 // TemplatesPerJob CVEs. Ports come from the freshly identified services, never from a port an earlier scan saw (INV-22: kept rows are
 // not probed).
-func buildJobs(ip netip.Addr, services []ServiceRow, vulns []VulnRow) []TemplateJob {
+func buildJobs(ip netip.Addr, services []ServiceRow, vulns []VulnRow) (jobs []TemplateJob, skipped int) {
 	byPort := map[int][]string{}
 	for _, v := range vulns {
 		if v.IP == ip.String() && cveID.MatchString(v.CVE) {
@@ -194,7 +214,6 @@ func buildJobs(ip netip.Addr, services []ServiceRow, vulns []VulnRow) []Template
 		ports = append(ports, p)
 	}
 	sort.Ints(ports)
-	var jobs []TemplateJob
 	for _, p := range ports {
 		var svc ServiceRow
 		for _, x := range services {
@@ -207,15 +226,16 @@ func buildJobs(ip netip.Addr, services []ServiceRow, vulns []VulnRow) []Template
 		}
 		cves := dedupe(byPort[p])
 		sort.Strings(cves)
-		for i := 0; i < len(cves) && len(jobs) < maxTemplateJobs; i += TemplatesPerJob {
-			j := TemplateJob{Port: p, Scheme: schemeOf(svc), Host: ip.String(), CVEs: cves[i:min(i+TemplatesPerJob, len(cves))], Scope: ScopeOwnIP, RPS: TemplateRPS}
-			if i == 0 {
-				j.Tags = tagsOf(svc)
+		for i := 0; i < len(cves); i += TemplatesPerJob {
+			chunk := cves[i:min(i+TemplatesPerJob, len(cves))]
+			if len(jobs) >= maxTemplateJobs {
+				skipped += len(chunk)
+				continue
 			}
-			jobs = append(jobs, j)
+			jobs = append(jobs, TemplateJob{Port: p, Scheme: schemeOf(svc), Host: ip.String(), CVEs: chunk, Scope: ScopeOwnIP, RPS: TemplateRPS})
 		}
 	}
-	return jobs
+	return jobs, skipped
 }
 
 func dedupe(in []string) []string {
@@ -230,39 +250,26 @@ func dedupe(in []string) []string {
 	return out
 }
 
-// schemeOf reads the web scheme from nmap's service name ("http", "https", "ssl/http", "http-proxy"); anything else is "".
+// schemeOf says how to speak to a web service. nmap's XML keeps TLS in a separate tunnel="ssl" attribute that the sensor-active parser
+// does not pass on (deferred: .ai/deferred/feat-exposure-kev-templates-mlee.md), so a TLS service arrives named just "http". Until it does:
+// a name with "https" ("https", "https-alt") or the "ssl/http" nmap prints is https, and so is a web service on a well-known TLS port
+// (443, 8443, 9443); any other web service is http, and a name that is not web is "".
 func schemeOf(r ServiceRow) string {
 	n := strings.ToLower(r.Name)
 	switch {
-	case n == "https" || strings.HasPrefix(n, "ssl/http"):
+	case strings.Contains(n, "https") || strings.HasPrefix(n, "ssl/http"):
 		return "https"
 	case strings.HasPrefix(n, "http"):
+		if r.Port == 443 || r.Port == 8443 || r.Port == 9443 {
+			return "https"
+		}
 		return "http"
 	}
 	return ""
 }
 
-// tagsOf names the product for templates that carry no CVE: the vendor and product of the CPE nmap printed, else the first word of the product.
-func tagsOf(r ServiceRow) []string {
-	var words []string
-	if parts := strings.Split(strings.TrimPrefix(r.CPE, "cpe:/"), ":"); strings.HasPrefix(r.CPE, "cpe:/") && len(parts) >= 3 {
-		words = append(words, parts[1], strings.SplitN(parts[2], "_", 2)[0])
-	}
-	if f := strings.Fields(strings.ToLower(r.Product)); len(f) > 0 {
-		words = append(words, f[0])
-	}
-	var out []string
-	for _, w := range dedupe(words) {
-		w = strings.ToLower(w)
-		if tagWord.MatchString(w) && len(out) < maxJobTags {
-			out = append(out, w)
-		}
-	}
-	return out
-}
-
-// probesOf is the probe log of the step: one row per template to be run (the CVE id names it: nuclei names the template of a CVE
-// after it) and per tag, written before the scanner is called.
+// probesOf is the probe log of the step: one row per CVE to be checked (the CVE id names the template: nuclei names the template of a CVE
+// after it), written before the scanner is called.
 func probesOf(ip netip.Addr, jobs []TemplateJob) []TemplateProbe {
 	var out []TemplateProbe
 	add := func(port int, name string) {
@@ -272,9 +279,6 @@ func probesOf(ip netip.Addr, jobs []TemplateJob) []TemplateProbe {
 	for _, j := range jobs {
 		for _, c := range j.CVEs {
 			add(j.Port, c)
-		}
-		for _, t := range j.Tags {
-			add(j.Port, "tag:"+t)
 		}
 	}
 	return out
@@ -295,6 +299,7 @@ func sanitizeTemplateResults(in []TemplateResult, jobs []TemplateJob) []Template
 	var out []TemplateResult
 	n := map[int]int{}
 	seen := map[string]bool{}
+	in = matchedFirst(in, func(r TemplateResult) string { return r.Outcome })
 	for _, r := range in {
 		ok := cves[r.Port] != nil && templateID.MatchString(r.Template) && n[r.Port] < maxTemplateRows &&
 			(r.CVE == "" || cves[r.Port][r.CVE]) && (r.CVE == "" || cveID.MatchString(r.CVE)) &&
@@ -325,8 +330,9 @@ func templateRows(services []ServiceRow, ip netip.Addr, rs []TemplateResult) []T
 	return out
 }
 
-// templatesLine is the "what was checked" line: how many templates ran on how many ports, with their outcomes and names (INV-19).
-func templatesLine(jobs []TemplateJob, rs []TemplateResult) string {
+// templatesLine is the "what was checked" line: how many templates were sent on how many ports, with their outcomes and the ids the
+// scanner says it sent (INV-19, INV-23).
+func templatesLine(jobs []TemplateJob, rs []TemplateResult, sent []string) string {
 	ports := map[int]bool{}
 	asked := 0
 	for _, j := range jobs {
@@ -334,7 +340,7 @@ func templatesLine(jobs []TemplateJob, rs []TemplateResult) string {
 		asked += len(j.CVEs)
 	}
 	var matched, none, failed int
-	var names []string
+	names := sent
 	for _, r := range rs {
 		switch r.Outcome {
 		case OutcomeMatched:
@@ -344,21 +350,22 @@ func templatesLine(jobs []TemplateJob, rs []TemplateResult) string {
 		default:
 			failed++
 		}
-		names = append(names, r.Template)
+		if len(sent) == 0 {
+			names = append(names, r.Template)
+		}
 	}
-	if len(rs) == 0 {
-		return fmt.Sprintf("Safe templates for exploited vulnerabilities (nuclei, at most %d requests a second, own IP only): none ran on %s; none of the %s has a safe template.",
-			TemplateRPS, plural(len(ports), "port"), plural(asked, "exploited CVE"))
+	head := fmt.Sprintf("Safe templates for exploited vulnerabilities (nuclei, at most %d requests a second, own IP only)", TemplateRPS)
+	if len(rs) == 0 && len(names) == 0 {
+		return fmt.Sprintf("%s: the scanner reported no result for the %s asked about on %s.", head, plural(asked, "exploited CVE"), plural(len(ports), "port"))
 	}
-	text := fmt.Sprintf("Safe templates for exploited vulnerabilities (nuclei, at most %d requests a second, own IP only): %s on %s, %d matched, %d no match, %d error",
-		TemplateRPS, plural(len(rs), "template"), plural(len(ports), "port"), matched, none, failed)
+	text := fmt.Sprintf("%s: %s sent on %s, %d matched, %d no match, %d error", head, plural(max(len(names), len(rs)), "template"), plural(len(ports), "port"), matched, none, failed)
 	if asked > len(rs) {
-		text += fmt.Sprintf("; %s without a safe template", plural(asked-len(rs), "exploited CVE"))
+		text += fmt.Sprintf("; no result for %s of %d asked about", plural(asked-len(rs), "CVE"), asked)
 	}
 	if len(names) > maxTemplatesLn {
-		names = append(names[:maxTemplatesLn], fmt.Sprintf("%d more", len(rs)-maxTemplatesLn))
+		names = append(names[:maxTemplatesLn:maxTemplatesLn], fmt.Sprintf("%d more", len(names)-maxTemplatesLn))
 	}
-	return text + ". " + strings.Join(names, ", ") + "."
+	return clipText(text+". "+strings.Join(names, ", ")+".", maxLineText) // sanitizeChecks drops a longer line
 }
 
 // sanitizeTemplates limits the template rows of a snapshot: only the services it has, ids and outcomes of the right shape, at most
@@ -372,6 +379,7 @@ func sanitizeTemplates(in []TemplateRow, services []ServiceRow) []TemplateRow {
 	}
 	out := []TemplateRow{}
 	n := map[netip.AddrPort]int{}
+	in = matchedFirst(in, func(r TemplateRow) string { return r.Outcome })
 	for _, r := range in {
 		ip, err := netip.ParseAddr(r.IP)
 		if err != nil || r.Port < 1 || r.Port > 65535 {
@@ -417,4 +425,25 @@ func markTemplates(vulns []VulnRow, rows []TemplateRow) {
 			vulns[i].Summary = strings.TrimSpace(v.Summary + " The safe template " + t.Template + " could not finish, so it neither confirmed nor ruled this out.")
 		}
 	}
+}
+
+// matchedFirst orders results so that a cap never drops a match in favour of a no-match or an error (the rest keep their order).
+func matchedFirst[T any](in []T, outcome func(T) string) []T {
+	out := make([]T, len(in))
+	copy(out, in)
+	sort.SliceStable(out, func(i, j int) bool { return outcome(out[i]) == OutcomeMatched && outcome(out[j]) != OutcomeMatched })
+	return out
+}
+
+// sentIDs keeps the template ids the scanner says it sent: well-formed, no repeats, at most 4 jobs' worth per call.
+func sentIDs(in []string) []string {
+	out := []string{}
+	seen := map[string]bool{}
+	for _, id := range in {
+		if templateID.MatchString(id) && !seen[id] && len(out) < TemplatesPerJob*maxTemplateJobs {
+			seen[id] = true
+			out = append(out, id)
+		}
+	}
+	return out
 }

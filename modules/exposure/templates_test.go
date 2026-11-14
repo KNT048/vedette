@@ -82,10 +82,10 @@ func TestContract_INV23_TemplateOutcomesOnTheRows(t *testing.T) {
 	}
 	j := f.jobs[0][0]
 	if j.Port != 80 || j.Scheme != "http" || j.Host != ipA || j.Scope != ScopeOwnIP || j.RPS != TemplateRPS ||
-		!slices.Equal(j.CVEs, []string{"CVE-2021-41773", "CVE-2021-42013"}) || !slices.Contains(j.Tags, "apache") {
+		!slices.Equal(j.CVEs, []string{"CVE-2021-41773", "CVE-2021-42013"}) {
 		t.Fatalf("job = %+v", j)
 	}
-	if f.logged[0] != len(j.CVEs)+len(j.Tags) || !strings.Contains(f.log.rows[0].Request, ipA+":80") {
+	if f.logged[0] != len(j.CVEs) || !strings.Contains(f.log.rows[0].Request, ipA+":80") {
 		t.Fatalf("probe rows at the call = %d, rows = %+v", f.logged[0], f.log.rows)
 	}
 	a, b := vulnOf(s, "CVE-2021-41773"), vulnOf(s, "CVE-2021-42013")
@@ -105,7 +105,7 @@ func TestContract_INV23_TemplateOutcomesOnTheRows(t *testing.T) {
 			line = c.Text
 		}
 	}
-	if !strings.Contains(line, "2 templates on 1 port, 1 matched, 1 no match, 0 error") || !strings.Contains(line, "CVE-2021-41773") {
+	if !strings.Contains(line, "2 templates sent on 1 port, 1 matched, 1 no match, 0 error") || !strings.Contains(line, "CVE-2021-41773") {
 		t.Fatalf("checks line = %q", line)
 	}
 	if s2, err := e.svc.SnapshotOf(e.ctx(), e.detectedID(ipA), s.Date); err != nil || len(s2.Templates) != 2 || vulnOf(s2, "CVE-2021-41773").Basis != "template" {
@@ -162,8 +162,8 @@ func TestContract_INV23_JobSizeAndWhoGetsOne(t *testing.T) {
 		vulns = append(vulns, VulnRow{IP: ipA, Port: 80, CVE: fmt.Sprintf("CVE-2021-%04d", 1000+i)})
 	}
 	vulns = append(vulns, VulnRow{IP: ipA, Port: 9999, CVE: "CVE-2021-9999"}) // not an identified port: no job
-	jobs := buildJobs(ip, []ServiceRow{{IP: ipA, Port: 80, Name: "https"}}, vulns)
-	if len(jobs) != 3 || len(jobs[0].CVEs) != TemplatesPerJob || len(jobs[2].CVEs) != 6 || jobs[0].Scheme != "https" || jobs[1].Tags != nil {
+	jobs, skipped := buildJobs(ip, []ServiceRow{{IP: ipA, Port: 80, Name: "https"}}, vulns)
+	if len(jobs) != 3 || skipped != 0 || len(jobs[0].CVEs) != TemplatesPerJob || len(jobs[2].CVEs) != 6 || jobs[0].Scheme != "https" {
 		t.Fatalf("jobs = %+v", jobs)
 	}
 
@@ -220,5 +220,87 @@ func TestContract_INV23_SanitizeResults(t *testing.T) {
 	}, jobs)
 	if len(got) != 2 || got[0].Outcome != OutcomeMatched || got[1].Template != "apache-tag" {
 		t.Fatalf("got = %+v", got)
+	}
+}
+
+// INV-23: nmap's XML keeps TLS in a tunnel attribute the parser does not pass on, so a TLS web service arrives as plain "http": the
+// scheme falls back to the well-known TLS ports.
+func TestContract_INV23_SchemeOfTLSServices(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name string
+		port int
+		want string
+	}{{"http", 443, "https"}, {"http", 8443, "https"}, {"ssl/http", 9000, "https"}, {"https-alt", 8080, "https"}, {"http", 80, "http"}, {"http-proxy", 3128, "http"}, {"ssh", 22, ""}} {
+		if got := schemeOf(ServiceRow{Name: tc.name, Port: tc.port}); got != tc.want {
+			t.Errorf("schemeOf(%s:%d) = %q, want %q", tc.name, tc.port, got, tc.want)
+		}
+	}
+}
+
+// INV-23: a match is never dropped to the cap, and jobs over the limit are said, not hidden.
+func TestContract_INV23_MatchSurvivesTheCapAndSkippedJobsAreSaid(t *testing.T) {
+	t.Parallel()
+	var in []TemplateResult
+	cves := []string{}
+	for i := 0; i < 40; i++ {
+		c := fmt.Sprintf("CVE-2021-%04d", 2000+i)
+		cves = append(cves, c)
+		o := OutcomeNoMatch
+		if i == 39 {
+			o = OutcomeMatched
+		}
+		in = append(in, TemplateResult{Port: 80, Template: c, CVE: c, Outcome: o})
+	}
+	got := sanitizeTemplateResults(in, []TemplateJob{{Port: 80, CVEs: cves}})
+	if len(got) != 40 || got[0].Outcome != OutcomeMatched {
+		t.Fatalf("got %d, first %+v", len(got), got[0])
+	}
+	var many []TemplateResult
+	for i := 0; i < 300; i++ {
+		c := fmt.Sprintf("CVE-2021-%04d", 3000+i)
+		o := OutcomeNoMatch
+		if i == 299 {
+			o = OutcomeMatched
+		}
+		many = append(many, TemplateResult{Port: 80, Template: c, CVE: c, Outcome: o})
+	}
+	rows := sanitizeTemplates(templateRows([]ServiceRow{{IP: ipA, Port: 80}}, netip.MustParseAddr(ipA), many), []ServiceRow{{IP: ipA, Port: 80}})
+	if len(rows) != maxTemplateRows || rows[0].Outcome != OutcomeMatched {
+		t.Fatalf("rows = %d, first %+v", len(rows), rows[0])
+	}
+	var vulns []VulnRow
+	for i := 0; i < TemplatesPerJob*maxTemplateJobs+5; i++ {
+		vulns = append(vulns, VulnRow{IP: ipA, Port: 80, CVE: fmt.Sprintf("CVE-2022-%05d", i)})
+	}
+	jobs, skipped := buildJobs(netip.MustParseAddr(ipA), []ServiceRow{{IP: ipA, Port: 80, Name: "http"}}, vulns)
+	if len(jobs) != maxTemplateJobs || skipped != 5 {
+		t.Fatalf("jobs = %d, skipped = %d", len(jobs), skipped)
+	}
+}
+
+// fakeServicesThen is a ServiceScanner whose scan ends by changing the world, as an admin or a full check can while the scan runs.
+type fakeServicesThen struct {
+	ServiceScanner
+	after func()
+}
+
+func (f fakeServicesThen) ScanServices(ctx context.Context, t ScanTarget, ip netip.Addr) (ServiceScan, error) {
+	r, err := f.ServiceScanner.ScanServices(ctx, t, ip)
+	f.after()
+	return r, err
+}
+
+// INV-23 (M1): the gate runs again right before the step: an IP that became paused while nmap ran gets no probe log row and no call.
+func TestContract_INV23_GateRunsAgainBeforeTheTemplates(t *testing.T) {
+	t.Parallel()
+	e, f := tplEnv(t)
+	e.svc.cfg.Services = fakeServicesThen{ServiceScanner: e.svc.cfg.Services, after: func() {
+		e.advance(time.Minute)
+		e.fullAs(ipB) // a full check that does not see A pauses it
+	}}
+	s := e.scanIP(Content{})
+	if len(f.jobs) != 0 || len(f.log.rows) != 0 || !slices.Contains(notChecked(s), notTemplatesGate) {
+		t.Fatalf("calls = %d, rows = %d, not checked = %q", len(f.jobs), len(f.log.rows), notChecked(s))
 	}
 }

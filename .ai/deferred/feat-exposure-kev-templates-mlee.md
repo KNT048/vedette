@@ -1,0 +1,8 @@
+# feat/exposure-kev-templates-mlee (D-561, S-EXP-2 slice b, exposure half)
+
+- [ ] 2026-11-14 — Trưởng: implement `exposure.TemplateScanner` in `cmd/vedette` over sensor-active's external job and wire `Config.Templates` — vì sao để sau: the scan container, worker and wiring are Kiên-side — ở đâu: `cmd/vedette/exposure.go`, `cmd/vedette/exposureservices.go` (model), `modules/exposure/templates.go` (the seam and its doc)
+- [ ] 2026-11-14 — Trưởng: wire `Config.Probes` (`exposure.ProbeLog.RecordTemplateProbes`) to `scan.Service.RecordExternalProbes` (rows: ID, IP, Label, Template, Request) — vì sao để sau: cmd/vedette wiring — ở đâu: `cmd/vedette/exposure.go`, `modules/scan/external.go`
+- [ ] 2026-11-14 — Trưởng: nucleiargv takes `Scope own_ip` (only the job's ip:port, no redirects to another host, templates tagged safe only, `-rate-limit 5`, ≤ 32 templates per job, no template that sends a credential, D-559 K-6) — vì sao để sau: scan module runner — ở đâu: `modules/scan/…/nucleiargv`
+- [ ] 2026-11-14 — Trưởng: sensorlink job gets a `Scope` field and the spec/schema is updated — vì sao để sau: `sensor/sensorlink` is Kiên-side — ở đâu: `sensor/sensorlink`, `docs/` sensor-link spec
+- [ ] 2026-11-14 — Trưởng: the worker re-checks right before nuclei that the job's IP is the box's own egress (like nmap -sV, D-514) and returns per-template ids with `matched`/`no_match`/`error` and the CVE each template is for — vì sao để sau: worker is Kiên-side — ở đâu: scan worker
+- [ ] 2026-11-14 — Slice c / later: a domain's names get nuclei web templates by name (K-5), and the non-KEV pack (K-6) — vì sao để sau: slice c — ở đâu: `modules/exposure/identify.go` (`notTemplatesDom` says domains get none today)

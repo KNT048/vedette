@@ -17,7 +17,7 @@ import (
 	"github.com/knt048/vedette/core/store"
 )
 
-// Config is what NewService needs. Publisher, Runner, TwoStep, Gateway, Services, Matcher, Outside, Location and Clock may be nil.
+// Config is what NewService needs. Publisher, Runner, TwoStep, Gateway, Services, Templates, Probes, Matcher, Outside, Location and Clock may be nil.
 type Config struct {
 	DB        *store.DB
 	Audit     *audit.Log
@@ -28,6 +28,8 @@ type Config struct {
 	TwoStep   TwoStep          // nil: nobody has two-step sign-in, so no first scan can record the commitment (D-473)
 	Gateway   Gateway          // nil: the page makes no claim about which device answers the open ports (D-492)
 	Services  ServiceScanner   // nil: every scan of an IP says service identification is not set up (INV-19)
+	Templates TemplateScanner  // nil: every scan of an IP says the safe exploited-vulnerability templates are not set up (INV-23)
+	Probes    ProbeLog         // nil: the template step does not run (nothing is sent without a probe log row, LEGAL §3)
 	Matcher   Matcher          // nil: identified services are not compared with exploited CVEs, and the page says so (INV-20)
 	Outside   *InternetDB      // nil: "Check what Shodan has seen" answers 501 (INV-21); cmd/vedette wires Shodan InternetDB
 	Location  *time.Location   // the day of a snapshot (nil: time.Local)

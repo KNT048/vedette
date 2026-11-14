@@ -43939,6 +43939,8 @@ type ExposureGetExposureTargetsIDSnapshotsDateOK struct {
 	Ports       []ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem       `json:"ports"`
 	ScannedAt   time.Time                                                    `json:"scanned_at"`
 	Services    []ExposureGetExposureTargetsIDSnapshotsDateOKServicesItem    `json:"services"`
+	// The safe templates that ran on the services (INV-23); the box ran no template when empty.
+	Templates   []ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItem   `json:"templates"`
 	VersionGaps []ExposureGetExposureTargetsIDSnapshotsDateOKVersionGapsItem `json:"version_gaps"`
 	// Computed on read against today's CISA list, not stored.
 	Vulns []ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItem `json:"vulns"`
@@ -43997,6 +43999,11 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOK) GetScannedAt() time.Time {
 // GetServices returns the value of Services.
 func (s *ExposureGetExposureTargetsIDSnapshotsDateOK) GetServices() []ExposureGetExposureTargetsIDSnapshotsDateOKServicesItem {
 	return s.Services
+}
+
+// GetTemplates returns the value of Templates.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOK) GetTemplates() []ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItem {
+	return s.Templates
 }
 
 // GetVersionGaps returns the value of VersionGaps.
@@ -44062,6 +44069,11 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOK) SetScannedAt(val time.Time
 // SetServices sets the value of Services.
 func (s *ExposureGetExposureTargetsIDSnapshotsDateOK) SetServices(val []ExposureGetExposureTargetsIDSnapshotsDateOKServicesItem) {
 	s.Services = val
+}
+
+// SetTemplates sets the value of Templates.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOK) SetTemplates(val []ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItem) {
+	s.Templates = val
 }
 
 // SetVersionGaps sets the value of VersionGaps.
@@ -44211,7 +44223,7 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKCertsItem) SetIssuer(val str
 
 type ExposureGetExposureTargetsIDSnapshotsDateOKChecksItem struct {
 	At time.Time `json:"at"`
-	// Ports, names, services or cve.
+	// Ports, names, services, templates or cve.
 	Kind string `json:"kind"`
 	Text string `json:"text"`
 }
@@ -44330,7 +44342,7 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKHostsItem) SetName(val strin
 }
 
 type ExposureGetExposureTargetsIDSnapshotsDateOKNotCheckedItem struct {
-	// Udp, ports, non_exploited, services or cve.
+	// Udp, ports, non_exploited, services, templates or cve.
 	Kind string `json:"kind"`
 	Text string `json:"text"`
 }
@@ -44525,6 +44537,113 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKServicesItem) SetVersion(val
 	s.Version = val
 }
 
+type ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItem struct {
+	// The CVE the template is for; "" for a template chosen by product tag.
+	Cve      string                                                          `json:"cve"`
+	IP       string                                                          `json:"ip"`
+	Outcome  ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemOutcome `json:"outcome"`
+	Port     int                                                             `json:"port"`
+	Template string                                                          `json:"template"`
+}
+
+// GetCve returns the value of Cve.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItem) GetCve() string {
+	return s.Cve
+}
+
+// GetIP returns the value of IP.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItem) GetIP() string {
+	return s.IP
+}
+
+// GetOutcome returns the value of Outcome.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItem) GetOutcome() ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemOutcome {
+	return s.Outcome
+}
+
+// GetPort returns the value of Port.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItem) GetPort() int {
+	return s.Port
+}
+
+// GetTemplate returns the value of Template.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItem) GetTemplate() string {
+	return s.Template
+}
+
+// SetCve sets the value of Cve.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItem) SetCve(val string) {
+	s.Cve = val
+}
+
+// SetIP sets the value of IP.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItem) SetIP(val string) {
+	s.IP = val
+}
+
+// SetOutcome sets the value of Outcome.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItem) SetOutcome(val ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemOutcome) {
+	s.Outcome = val
+}
+
+// SetPort sets the value of Port.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItem) SetPort(val int) {
+	s.Port = val
+}
+
+// SetTemplate sets the value of Template.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItem) SetTemplate(val string) {
+	s.Template = val
+}
+
+type ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemOutcome string
+
+const (
+	ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemOutcomeMatched ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemOutcome = "matched"
+	ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemOutcomeNoMatch ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemOutcome = "no_match"
+	ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemOutcomeError   ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemOutcome = "error"
+)
+
+// AllValues returns all ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemOutcome values.
+func (ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemOutcome) AllValues() []ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemOutcome {
+	return []ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemOutcome{
+		ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemOutcomeMatched,
+		ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemOutcomeNoMatch,
+		ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemOutcomeError,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemOutcome) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemOutcomeMatched:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemOutcomeNoMatch:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemOutcomeError:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemOutcome) UnmarshalText(data []byte) error {
+	switch ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemOutcome(data) {
+	case ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemOutcomeMatched:
+		*s = ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemOutcomeMatched
+		return nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemOutcomeNoMatch:
+		*s = ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemOutcomeNoMatch
+		return nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemOutcomeError:
+		*s = ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemOutcomeError
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type ExposureGetExposureTargetsIDSnapshotsDateOKVersionGapsItem struct {
 	// Exploited CVEs of the product that only a version would decide.
 	Cves     []string `json:"cves"`
@@ -44577,7 +44696,8 @@ type ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItem struct {
 	// The distribution the service names (Debian, Ubuntu…), which may have backported the fix without
 	// changing the version; "" when none.
 	Backport string `json:"backport"`
-	// Version: the version is inside an NVD range; product: only the product matches.
+	// Version: the version is inside an NVD range; product: only the product matches; template: a safe
+	// template matched (INV-23), the strongest evidence.
 	Basis ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasis `json:"basis"`
 	Cve   string                                                    `json:"cve"`
 	// When CISA listed it as exploited.
@@ -44587,6 +44707,11 @@ type ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItem struct {
 	Port       int       `json:"port"`
 	Ransomware bool      `json:"ransomware"`
 	Summary    string    `json:"summary"`
+	// Id of the safe template that ran for this CVE; "" when none ran.
+	Template string `json:"template"`
+	// What that template did: matched (basis becomes template), no_match (one check, never "not
+	// vulnerable") or error; "" when none ran.
+	TemplateResult ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemTemplateResult `json:"template_result"`
 }
 
 // GetBackport returns the value of Backport.
@@ -44634,6 +44759,16 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItem) GetSummary() stri
 	return s.Summary
 }
 
+// GetTemplate returns the value of Template.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItem) GetTemplate() string {
+	return s.Template
+}
+
+// GetTemplateResult returns the value of TemplateResult.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItem) GetTemplateResult() ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemTemplateResult {
+	return s.TemplateResult
+}
+
 // SetBackport sets the value of Backport.
 func (s *ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItem) SetBackport(val string) {
 	s.Backport = val
@@ -44679,12 +44814,24 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItem) SetSummary(val st
 	s.Summary = val
 }
 
-// Version: the version is inside an NVD range; product: only the product matches.
+// SetTemplate sets the value of Template.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItem) SetTemplate(val string) {
+	s.Template = val
+}
+
+// SetTemplateResult sets the value of TemplateResult.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItem) SetTemplateResult(val ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemTemplateResult) {
+	s.TemplateResult = val
+}
+
+// Version: the version is inside an NVD range; product: only the product matches; template: a safe
+// template matched (INV-23), the strongest evidence.
 type ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasis string
 
 const (
-	ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasisVersion ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasis = "version"
-	ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasisProduct ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasis = "product"
+	ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasisVersion  ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasis = "version"
+	ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasisProduct  ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasis = "product"
+	ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasisTemplate ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasis = "template"
 )
 
 // AllValues returns all ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasis values.
@@ -44692,6 +44839,7 @@ func (ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasis) AllValues() []E
 	return []ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasis{
 		ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasisVersion,
 		ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasisProduct,
+		ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasisTemplate,
 	}
 }
 
@@ -44701,6 +44849,8 @@ func (s ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasis) MarshalText()
 	case ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasisVersion:
 		return []byte(s), nil
 	case ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasisProduct:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasisTemplate:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -44715,6 +44865,66 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasis) UnmarshalTex
 		return nil
 	case ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasisProduct:
 		*s = ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasisProduct
+		return nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasisTemplate:
+		*s = ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasisTemplate
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// What that template did: matched (basis becomes template), no_match (one check, never "not
+// vulnerable") or error; "" when none ran.
+type ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemTemplateResult string
+
+const (
+	ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemTemplateResultEmpty   ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemTemplateResult = ""
+	ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemTemplateResultMatched ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemTemplateResult = "matched"
+	ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemTemplateResultNoMatch ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemTemplateResult = "no_match"
+	ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemTemplateResultError   ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemTemplateResult = "error"
+)
+
+// AllValues returns all ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemTemplateResult values.
+func (ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemTemplateResult) AllValues() []ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemTemplateResult {
+	return []ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemTemplateResult{
+		ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemTemplateResultEmpty,
+		ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemTemplateResultMatched,
+		ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemTemplateResultNoMatch,
+		ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemTemplateResultError,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemTemplateResult) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemTemplateResultEmpty:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemTemplateResultMatched:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemTemplateResultNoMatch:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemTemplateResultError:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemTemplateResult) UnmarshalText(data []byte) error {
+	switch ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemTemplateResult(data) {
+	case ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemTemplateResultEmpty:
+		*s = ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemTemplateResultEmpty
+		return nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemTemplateResultMatched:
+		*s = ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemTemplateResultMatched
+		return nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemTemplateResultNoMatch:
+		*s = ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemTemplateResultNoMatch
+		return nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemTemplateResultError:
+		*s = ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemTemplateResultError
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)

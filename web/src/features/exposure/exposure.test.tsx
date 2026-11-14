@@ -1155,6 +1155,29 @@ describe('exposure: services and exploited vulnerabilities of the box IP (S-EXP-
     expect(within(services).queryByText('1 exploited')).toBeNull()
   })
 
+  it('a template match reads "Confirmed by template", a template that did not match reads "No match reported" and never "not vulnerable" (INV-23)', async () => {
+    const at = new Date(Date.now() - 864e5).toISOString()
+    const date = at.slice(0, 10)
+    const v = (cve: string, basis: string, template_result: string, summary: string) => ({ ip: '203.0.113.10', port: 80, cve, name: 'Apache HTTP Server Path Traversal Vulnerability', basis, date_added: '2021-11-03', ransomware: false, backport: '', template: cve, template_result, summary })
+    const snap = { id: 'sn-t', date, scanned_at: at, hosts: [], ports: [{ ip: '203.0.113.10', port: 80, service: 'http' }], admin_panels: [], certs: [], counts: { subdomains: 0, ips: 1, ports: 1, admin_panels: 0, certs_expiring: 0 },
+      services: [{ ip: '203.0.113.10', port: 80, name: 'http', product: 'Apache httpd', version: '2.4.49', cpe: 'cpe:/a:apache:http_server:2.4.49', extra: '' }],
+      templates: [{ ip: '203.0.113.10', port: 80, cve: 'CVE-2021-41773', template: 'CVE-2021-41773', outcome: 'matched' }, { ip: '203.0.113.10', port: 80, cve: 'CVE-2021-42013', template: 'CVE-2021-42013', outcome: 'no_match' }],
+      vulns: [v('CVE-2021-41773', 'template', 'matched', 'Confirmed by template CVE-2021-41773: the safe check got the answer of an affected service.'),
+        v('CVE-2021-42013', 'version', 'no_match', 'In range. No match reported by the safe template CVE-2021-42013: that is one check, not proof that this service is not affected.')],
+      version_gaps: [], checks: [], not_checked: [] }
+    server.use(
+      http.get('*/api/v1/exposure/targets/xt-2/snapshots', () => HttpResponse.json({ items: [{ id: snap.id, date, scanned_at: at, counts: snap.counts }] })),
+      http.get('*/api/v1/exposure/targets/xt-2/snapshots/:date', () => HttpResponse.json(snap)),
+    )
+    renderApp('/exposure/xt-2')
+    const table = await screen.findByRole('table', { name: 'Exploited vulnerabilities that match the services on this IP' })
+    expect(within(within(table).getByRole('row', { name: /CVE-2021-41773/ })).getByText('Confirmed by template CVE-2021-41773', { selector: 'span' })).toBeInTheDocument()
+    const none = within(table).getByRole('row', { name: /CVE-2021-42013/ })
+    expect(within(none).getByText('Version in range')).toBeInTheDocument()
+    expect(within(none).getByText(/No match reported by the safe template CVE-2021-42013/)).toBeInTheDocument()
+    expect(within(none).queryByText(/not vulnerable/i)).toBeNull()
+  })
+
   it('a domain has no vulnerability section and says where service identification runs', async () => {
     renderApp('/exposure/xt-1')
     expect(await screen.findByRole('list', { name: 'Not checked' })).toBeInTheDocument()

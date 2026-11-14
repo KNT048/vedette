@@ -3,8 +3,8 @@ import { api, ApiError } from '@/lib/api'
 import type { Assignments } from '@/features/ai/types'
 import type { ActionRequest, AiState, ApprovalView, Allowlist, Blocklist, Catalog, CatalogAction, CatalogInput, EventView, IncidentPanel, LogEntry, Metrics, PlanList, ProposeResult, Rule, RuleInput, RunSummary, SettingsInput, SettingsView, Simulation, Template, TriggerInfo } from './types'
 
-export const usePlans = (finding?: string) =>
-  useQuery({ queryKey: ['response', 'plans', finding ?? 'all'], queryFn: () => api.get<PlanList>(`/response/plans${finding ? `?finding=${encodeURIComponent(finding)}` : ''}`) })
+export const usePlans = (finding?: string, enabled = true) =>
+  useQuery({ queryKey: ['response', 'plans', finding ?? 'all'], queryFn: () => api.get<PlanList>(`/response/plans${finding ? `?finding=${encodeURIComponent(finding)}` : ''}`), enabled })
 export const useActions = () => useQuery({ queryKey: ['response', 'actions'], queryFn: () => api.get<{ items: ActionRequest[] }>('/response/actions'), refetchInterval: 30_000 })
 export const useSettings = (enabled = true) => useQuery({ queryKey: ['response', 'settings'], queryFn: () => api.get<SettingsView>('/response/settings'), enabled })
 export const useRules = () => useQuery({ queryKey: ['response', 'rules'], queryFn: () => api.get<{ items: Rule[] }>('/response/rules') })

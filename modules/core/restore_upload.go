@@ -218,7 +218,7 @@ func (s *snapshotter) dropUploads() {
 // seal turns the staged upload into a snapshot of the host contract: the key (when given) and snapshot.json, written last.
 func (s *snapshotter) seal(up upload, key []byte, schema string) error {
 	if key != nil {
-		f, err := os.OpenFile(filepath.Join(up.dir, snapshotKeyFile), os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600) //nolint:gosec // a fixed name inside the upload's directory
+		f, err := os.OpenFile(filepath.Join(up.dir, snapshotKeyFile), os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
 		if err != nil {
 			return fmt.Errorf("core: write the key: %w", err)
 		}

@@ -41,7 +41,8 @@ export function SetupRestore({ install, onBack }: { install?: InstallKind; onBac
   const [sure, setSure] = useState(false)
   const [started, setStarted] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
-  const run = useSetupRestoreRun(started).data
+  const poll = useSetupRestoreRun(started)
+  const run = poll.data
 
   if (install === 'container') {
     return (
@@ -98,7 +99,13 @@ export function SetupRestore({ install, onBack }: { install?: InstallKind; onBac
             <p role="alert" className="text-sm text-danger">{run.status === 'reverted' ? t('setup.restore.reverted') : t('setup.restore.failed', { error: run.error ?? '' })}</p>
             <div><Button onClick={() => { setStarted(false); setChecked(null); setFile(null); setSure(false) }}>{t('setup.restore.again')}</Button></div>
           </>
-        ) : <p role="status" className="text-sm">{t('setup.restore.running', { org: checked?.org ?? '' })}</p>}
+        ) : (
+          <>
+            <p role="status" className="text-sm">{t('setup.restore.running', { org: checked?.org ?? '' })}</p>
+            {/* The restored box may serve a new certificate (box CA, D-351): a browser that accepted the old one then fails every poll. */}
+            {poll.isError ? <p className="text-[13px] text-muted">{t('setup.restore.reconnect')}</p> : null}
+          </>
+        )}
       </div>
     )
   }

@@ -1502,6 +1502,7 @@
       "restore": "Restore",
       "importing": "Storing the backup…",
       "running": "Restoring the backup of {{org}}. Vedette restarts during the restore; this page reconnects by itself.",
+      "reconnect": "Waiting for Vedette to come back. If this stays for more than two minutes, reload the page: after a restore the box may show a new certificate, which you accept as on your first visit.",
       "done": "Your data is back. Sign in with your email and password from the old box.",
       "signIn": "Go to sign in",
       "reverted": "The restored data did not start correctly, so the box went back to a fresh install. Nothing was lost; check the backup file and try again.",

@@ -40,6 +40,16 @@ type GreenboneHost interface {
 	SyncFeed(ctx context.Context) error
 }
 
+// HostBusy is the error of a GreenboneHost call the host refused for now (rate limited, busy with another run, restarting): the
+// call may be sent again later. RetryAfter is the host's hint (0: none). gbStartUp retries an Up refused so with backoff until it
+// runs or OpenVAS is turned off (kf-scan item 6: at a box restart greenbone.up got 429 rate_limited and OpenVAS stayed failed).
+type HostBusy struct {
+	Reason     string
+	RetryAfter time.Duration
+}
+
+func (e *HostBusy) Error() string { return "exposure: the host refused for now: " + e.Reason }
+
 // GreenboneProbe is the probe log row written before Greenbone's task starts (LEGAL §3): the target address, the port list, the
 // scan config and a note that Greenbone sends many probes (they cannot be logged one by one: the scanner is Greenbone's).
 type GreenboneProbe struct {
@@ -111,8 +121,13 @@ const (
 	// GreenboneLoadGrace: a slow gvmd within this time after Up, or after it last said it was loading, reads as "loading".
 	GreenboneLoadGrace = 4 * time.Hour
 	gbUpTimeout        = 60 * time.Minute // the first Up pulls about 9 GB of images (25 minutes on the N100)
-	gbDownTimeout      = 5 * time.Minute
-	gbPollDefault      = 15 * time.Second
+	// gbUpRetryFirst and gbUpRetryLongest bound the wait before an Up the host refused for now (HostBusy) is sent again: doubling from the
+	// first to the second, never shorter than the host's own Retry-After and never longer than the second. The host's limit is per minute, so the first retry
+	// usually runs.
+	gbUpRetryFirst   = 15 * time.Second
+	gbUpRetryLongest = 5 * time.Minute
+	gbDownTimeout    = 5 * time.Minute
+	gbPollDefault    = 15 * time.Second
 	// GreenboneSyncEvery is how often Greenbone's feed is updated while it is enabled (D-564 G6); a failed or refused update is tried
 	// again after gbSyncRetry. The first one is due a week after Greenbone was enabled (enabling loads the feed).
 	GreenboneSyncEvery = 7 * 24 * time.Hour
@@ -226,6 +241,7 @@ type gbState struct {
 	diskFree func(dir string) (int64, error)
 	poll     time.Duration
 	cap      time.Duration
+	upRetry  time.Duration // > 0: the fixed wait between Ups the host refused for now (tests)
 }
 
 // gb returns the Greenbone state, made on first use.
@@ -512,14 +528,15 @@ func (s *Service) gbStartUp(ctx context.Context) {
 		g.mu.Unlock()
 		return
 	}
-	uctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), gbUpTimeout)
+	uctx, cancel := context.WithCancel(context.WithoutCancel(ctx))
 	g.upping, g.upCancel, g.upErr, g.probeAt = true, cancel, "", time.Time{}
+	fixed := g.upRetry
 	g.upWG.Add(1)
 	g.mu.Unlock()
 	go func() {
 		defer g.upWG.Done()
 		defer cancel()
-		err := s.cfg.Greenbone.Up(uctx)
+		err := s.upUntilTaken(uctx, fixed)
 		g.mu.Lock()
 		defer g.mu.Unlock()
 		g.upping, g.upCancel = false, nil
@@ -536,6 +553,41 @@ func (s *Service) gbStartUp(ctx context.Context) {
 			}
 		}
 	}()
+}
+
+// upUntilTaken sends Up, each attempt bounded by gbUpTimeout, and sends it again after a wait while the host refuses it for now
+// (HostBusy: 429 rate_limited, busy, restarting), until it runs, fails otherwise, or ctx ends (turned off, module off, box stopping).
+// The page says "starting" meanwhile (upping stays set).
+func (s *Service) upUntilTaken(ctx context.Context, fixed time.Duration) error {
+	wait := gbUpRetryFirst
+	for {
+		actx, cancel := context.WithTimeout(ctx, gbUpTimeout)
+		err := s.cfg.Greenbone.Up(actx)
+		cancel()
+		var busy *HostBusy
+		if !errors.As(err, &busy) || ctx.Err() != nil {
+			return err
+		}
+		d := upWait(wait, busy.RetryAfter)
+		if fixed > 0 {
+			d = fixed
+		}
+		s.cfg.Log.WarnContext(ctx, "exposure: the host refused to start Greenbone for now; trying again", "reason", busy.Reason, "after", d.String())
+		t := time.NewTimer(d)
+		select {
+		case <-ctx.Done():
+			t.Stop()
+			return context.Canceled
+		case <-t.C:
+		}
+		wait = min(wait*2, gbUpRetryLongest)
+	}
+}
+
+// upWait is the wait before the next Up: the backoff, or the host's Retry-After when longer, never past gbUpRetryLongest (review
+// r1 L8: a host answering a long Retry-After must not leave OpenVAS "starting" for that long).
+func upWait(backoff, hint time.Duration) time.Duration {
+	return min(max(backoff, hint), gbUpRetryLongest)
 }
 
 // gbStatus is the state of an enabled Greenbone: starting while Up runs (or right after it, until the socket answers), error when

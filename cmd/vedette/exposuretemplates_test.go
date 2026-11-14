@@ -151,12 +151,16 @@ func TestExposureTemplatesSilentTemplateIsNotRun(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if f.last() != "done CVE-2018-13379=matched CVE-2019-19781=" || len(f.done) != 2 { // "" is written as no_response
+		want := "done CVE-2018-13379=matched CVE-2019-19781=" // "" is written as no_response
+		if tc.notRun {
+			want += scan.ProbeNotRun
+		}
+		if f.last() != want || len(f.done) != 2 {
 			t.Fatalf("host errors %v: events %q", tc.hostErrors, f.events)
 		}
 		line := "Safe templates for exploited vulnerabilities on port 18443: nuclei printed no result for 1 of 2, so they did not run (CVE-2019-19781)."
-		if tc.notRun != strings.HasPrefix(f.done[1].Request, notRunRequest) || tc.notRun != slices.Contains(got.NotChecked, line) ||
-			len(got.Sent) != 2 || strings.HasPrefix(f.done[0].Request, notRunRequest) {
+		if tc.notRun != (f.done[1].Result == scan.ProbeNotRun) || tc.notRun != slices.Contains(got.NotChecked, line) ||
+			len(got.Sent) != 2 || f.done[0].Result != "matched" {
 			t.Fatalf("host errors %v: rows %+v, scan %+v", tc.hostErrors, f.done, got)
 		}
 	}
@@ -190,6 +194,29 @@ func TestExposureTemplatesUnavailableReasons(t *testing.T) {
 		if !errors.As(err, &un) || !strings.Contains(un.Reason, want) {
 			t.Errorf("%v: %v", in, err)
 		}
+		// kf-scan item 5: the worker's refusal (its own-IP fence) completes the logged rows as refused; nothing was sent
+		refused := errors.Is(in, sensoractive.ErrWorkerRefused)
+		if refused != (f.last() == "done CVE-2018-13379="+scan.ProbeRefused) {
+			t.Errorf("%v: rows %q", in, f.events)
+		}
+	}
+}
+
+// N45-1, review r1 M7/L7: a run whose output had lines that cannot be a result of the job is kept; a template whose only lines were
+// skipped ran (no match reported, never "not run"), and its probe row says why after its request text.
+func TestExposureTemplatesSkippedLinesAreNoted(t *testing.T) {
+	t.Parallel()
+	f := &templatesFake{gateOK: true, answer: func(sensoractive.NucleiRequest) nucleiout.Outcome {
+		return nucleiout.Outcome{Results: []nucleiout.Result{{Template: "CVE-2018-13379", Target: "8.8.8.8:18443"}},
+			Skipped: nucleiout.Skipped{Lines: 2, Templates: []string{"CVE-2019-19781"}, Template: "CVE-2019-19781", Host: "8.8.4.4", Port: "443"}}
+	}}
+	got, err := f.scanner().ScanTemplates(t.Context(), exposure.ScanTarget{User: "u"}, ownPublicIP, []exposure.TemplateJob{ownJob("CVE-2018-13379", "CVE-2019-19781")})
+	if err != nil || len(got.Results) != 2 || got.Results[1].Outcome != exposure.OutcomeNoMatch || len(f.done) != 2 || len(got.NotChecked) != 0 {
+		t.Fatalf("%+v %v %q", got, err, f.events)
+	}
+	if f.done[1].Result != "not_matched" || !strings.HasPrefix(f.done[1].Request, "nuclei CVE-2019-19781") ||
+		!strings.Contains(f.done[1].Request, "[not counted: 2 nuclei line(s) that could not be a result of this check") || strings.Contains(f.done[0].Request, "not counted") {
+		t.Fatalf("rows %+v", f.done)
 	}
 }
 
@@ -315,5 +342,45 @@ func TestExposureTemplatesNothingSentWithoutTheProbeLog(t *testing.T) {
 	var un *exposure.Unavailable
 	if !errors.As(err, &un) || un.Reason != templatesNoLog || len(f.reqs) != 0 {
 		t.Fatalf("%v, %d runs", err, len(f.reqs))
+	}
+}
+
+// Review r2 M3/L5: a template a skipped line said matched is inconclusive (error, no finding, "check by hand" on its probe row), never
+// "no match reported"; when more templates had skipped lines than Skipped names, a template without a result says it may be over
+// the cap.
+func TestExposureTemplatesSkippedMatchIsInconclusive(t *testing.T) {
+	t.Parallel()
+	f := &templatesFake{gateOK: true, answer: func(sensoractive.NucleiRequest) nucleiout.Outcome {
+		return nucleiout.Outcome{Skipped: nucleiout.Skipped{Lines: 30, Matched: 1, MatchedTemplates: []string{"CVE-2018-13379"}, Templates: []string{"CVE-2018-13379"},
+			MoreTemplates: 1, Template: "CVE-2018-13379", Host: "(unreadable)"}}
+	}}
+	got, err := f.scanner().ScanTemplates(t.Context(), exposure.ScanTarget{User: "u"}, ownPublicIP, []exposure.TemplateJob{ownJob("CVE-2018-13379", "CVE-2019-19781")})
+	if err != nil || len(got.Results) != 1 || got.Results[0].Outcome != exposure.OutcomeError || len(f.done) != 2 {
+		t.Fatalf("%+v %v %q", got, err, f.events)
+	}
+	if f.done[0].Result != "" || !strings.Contains(f.done[0].Request, "[nuclei reported a match it could not tie to this address; check by hand]") {
+		t.Fatalf("row %+v", f.done[0])
+	}
+	if f.done[1].Result != scan.ProbeNotRun || !strings.Contains(f.done[1].Request, "not run (over the cap of 20 templates per run)") {
+		t.Fatalf("row %+v", f.done[1])
+	}
+}
+
+// kf-scan item 5 (with #789 review r2 L-6): the rows of a job that never reached the target say refused: the worker's own-IP or
+// domain fence before nuclei started, an invalid job, no worker for domain_ip; a domain fence that stopped nuclei mid-run does not.
+func TestRefusedBeforeSending(t *testing.T) {
+	t.Parallel()
+	for err, want := range map[error]bool{
+		fmt.Errorf("%w (not_own_ip): %w", sensoractive.ErrWorkerRefused, sensoractive.ErrNotOwnIP): true,
+		fmt.Errorf("%w (invalid_job)", sensoractive.ErrWorkerRefused):                              true,
+		sensoractive.ErrDomainUnsupported:                                                          true,
+		&sensoractive.DomainRefusedError{Reason: "not_owned"}:                                      true,
+		&sensoractive.DomainRefusedError{Reason: "name_moved", MidRun: true}:                       false,
+		sensoractive.ErrNucleiBusy:                                                                 false,
+		errors.New("nuclei exited 1"):                                                              false,
+	} {
+		if got := refusedBeforeSending(err); got != want {
+			t.Errorf("%v: %v, want %v", err, got, want)
+		}
 	}
 }

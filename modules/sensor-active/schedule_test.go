@@ -271,11 +271,11 @@ func TestProbeRowsAreCompact(t *testing.T) {
 		t.Fatal(err)
 	}
 	if got := e.str(`SELECT group_concat(shape || ' ' || rate || ' ' || hosts || ' ' || targets, '; ') FROM sa_probe`); got !=
-		"sweep 100 64 192.168.10.1-192.168.10.64; sweep 100 62 192.168.10.65-192.168.10.126; normal 100 1 192.168.10.20" {
+		"sweep 100 64 192.168.10.1-192.168.10.64; sweep 100 62 192.168.10.65-192.168.10.126; normal 100 1 192.168.10.20; extra_ports 100 1 192.168.10.20" {
 		t.Fatalf("probe rows = %q", got)
 	}
 	probes, err := e.svc.Probes(e.ctx(), e.base.Add(-time.Hour), 100)
-	if err != nil || len(probes) != 3 {
+	if err != nil || len(probes) != 4 {
 		t.Fatalf("Probes = %d rows, %v", len(probes), err)
 	}
 	if probes[1].Target != "192.168.10.65-192.168.10.126" || probes[1].Shape != "sweep" || probes[1].Rate != 100 || probes[2].Target != "192.168.10.20" {

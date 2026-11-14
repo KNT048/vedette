@@ -596,6 +596,11 @@ describe('inventory: device detail (S-INV-1)', () => {
     await user.click(within(screen.getByRole('list', { name: 'This device at a glance' })).getByRole('link', { name: '3 Open services' }))
     const services = await screen.findByRole('table', { name: 'Services open on the device' }, T)
     expect(within(services).getByText('8080/tcp')).toBeInTheDocument()
+    // kf-scan item 2: what nmap -sV read is shown per port: service, product and version in their own columns
+    expect(within(services).getAllByRole('columnheader').map((h) => h.textContent?.trim())).toEqual(expect.arrayContaining(['Port', 'Service', 'Product', 'Version']))
+    const row8080 = within(services).getByText('8080/tcp').closest('tr') as HTMLElement
+    expect(within(row8080).getByText('QNAP QTS')).toBeInTheDocument()
+    expect(within(row8080).getByText('5.1.0')).toBeInTheDocument()
     await user.click(screen.getByRole('tab', { name: 'Software' }))
     const sw = await screen.findByRole('table', { name: 'Software on the device' }, T)
     expect(within(sw).getByRole('link', { name: 'CVE-2022-27593' })).toHaveAttribute('href', '/findings/f-1')

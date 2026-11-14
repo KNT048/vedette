@@ -71,31 +71,124 @@ type line struct {
 	MatcherName   string `json:"matcher-name"`
 }
 
-// Parse reads a whole run. templates are the job's template ids and targets its host:port pairs; anything outside
-// them is an error.
+// Skipped says what Read left out (N45-1, review r1 M6/M7, r2 M3/L5): Lines lines of the job's templates whose JSON is valid but
+// that cannot be a result of the job: about a host:port the job did not name, a target that cannot be read, no matcher-status, a
+// match with an error. Matched counts the ones that said matched; MatchedTemplates are their templates (every one, all of the
+// job's): such a template never reads "no match reported", its result is inconclusive (InconclusiveNote). Templates are the first
+// MaxSkippedTemplates distinct templates of the skipped lines and MoreTemplates how many more there were; Template, Host and Port
+// are the first line's (Host is "(unreadable)" when its target could not be read; each checked and clipped, safe to log and store).
+type Skipped struct {
+	Lines, Matched   int
+	MatchedTemplates []string
+	Templates        []string
+	MoreTemplates    int
+	Template, Host   string
+	Port             string
+}
+
+// InconclusiveNote is the note of a template a skipped line said matched (review r2 M3): no finding, never "no match".
+const InconclusiveNote = "nuclei reported a match it could not tie to this address; check by hand"
+
+// OverCapNote is the note of a template without a result when more templates had skipped lines than Skipped names (review r2 L5).
+const OverCapNote = " [not run (over the cap of 20 templates per run)]"
+
+// MaxSkippedHost caps the host of a skipped line as it is logged and stored; MaxSkippedTemplates the templates Skipped names.
+const (
+	MaxSkippedHost      = 64
+	MaxSkippedTemplates = 20
+)
+
+// unreadable is the Host of a skipped line whose target could not be read: never the raw text.
+const unreadable = "(unreadable)"
+
+// Note is the text the probe log and the core log carry for the skipped lines; "" when nothing was skipped. It goes after the
+// request text of a probe row (AppendNote), so it never hides what was sent.
+func (s Skipped) Note() string {
+	if s.Lines == 0 {
+		return ""
+	}
+	m := ""
+	if s.Matched > 0 {
+		m = fmt.Sprintf(", %d said matched", s.Matched)
+	}
+	return fmt.Sprintf(" [not counted: %d nuclei line(s) that could not be a result of this check (another address, an unreadable target, no match status, or a match with an error)%s; first: %s on %s:%s]", s.Lines, m, s.Template, s.Host, s.Port)
+}
+
+// AppendNote puts note after request within limit characters: the note is cut, never the request (review r1 L7).
+func AppendNote(request, note string, limit int) string {
+	room := limit - utf8.RuneCountInString(request)
+	if room <= 0 || note == "" {
+		return request
+	}
+	if r := []rune(note); len(r) > room {
+		note = string(r[:room])
+	}
+	return request + note
+}
+
+// errSkip marks a line Read skips: valid JSON of one of the job's templates that cannot be a result of the job.
+var errSkip = errors.New("a line that cannot be a result of the job")
+
+// Parse reads a whole run (Read) and returns its results only.
 func Parse(out []byte, templates, targets []string) ([]Result, error) {
+	res, _, err := Read(out, templates, targets)
+	return res, err
+}
+
+// Read reads a whole run. templates are the job's template ids and targets its host:port pairs. Output over the cap, a line that
+// is not valid JSON (or is ambiguous) and a line for a template outside the job throw the run away; any other line that cannot be a
+// result of the job is skipped and counted in Skipped (N45-1, review r1 M6).
+func Read(out []byte, templates, targets []string) ([]Result, Skipped, error) {
+	var skip Skipped
 	if len(out) > nucleiargv.MaxOutput {
-		return nil, fmt.Errorf("nucleiout: output of %d bytes is over the %d cap", len(out), nucleiargv.MaxOutput)
+		return nil, skip, fmt.Errorf("nucleiout: output of %d bytes is over the %d cap", len(out), nucleiargv.MaxOutput)
 	}
 	limit := max(MaxLines, LinesPerTemplate*len(templates)) // a full run of 200 templates (D-527): 8000
 	var res []Result
+	over := map[string]bool{} // templates of skipped lines past MaxSkippedTemplates
 	for i, raw := range bytes.Split(out, []byte("\n")) {
 		raw = bytes.TrimSpace(raw)
 		if len(raw) == 0 {
 			continue
 		}
-		if len(res) == limit {
-			return nil, fmt.Errorf("nucleiout: more than %d lines", limit)
+		if len(res)+skip.Lines == limit {
+			return nil, skip, fmt.Errorf("nucleiout: more than %d lines", limit)
 		}
 		r, err := parseLine(raw, templates, targets)
+		if errors.Is(err, errSkip) {
+			if skip.Lines == 0 {
+				skip.Template, skip.Host, skip.Port = r.Template, unreadable, ""
+				if h, p, ok := strings.Cut(r.Target, ":"); ok {
+					skip.Host, skip.Port = h, p
+				}
+			}
+			skip.Lines++
+			if r.Matched {
+				skip.Matched++
+				if !slices.Contains(skip.MatchedTemplates, r.Template) {
+					skip.MatchedTemplates = append(skip.MatchedTemplates, r.Template) // one of the job's: bounded by it
+				}
+			}
+			switch {
+			case slices.Contains(skip.Templates, r.Template):
+			case len(skip.Templates) < MaxSkippedTemplates:
+				skip.Templates = append(skip.Templates, r.Template)
+			case !over[r.Template]:
+				over[r.Template] = true
+				skip.MoreTemplates++
+			}
+			continue
+		}
 		if err != nil {
-			return nil, fmt.Errorf("nucleiout: line %d: %w", i+1, err)
+			return nil, skip, fmt.Errorf("nucleiout: line %d: %w", i+1, err)
 		}
 		res = append(res, r)
 	}
-	return res, nil
+	return res, skip, nil
 }
 
+// parseLine reads one line. A line Read skips returns errSkip with only Template, Target (the foreign host:port, or "" when it
+// could not be read; its host a plain name or address of at most MaxSkippedHost characters) and Matched set.
 func parseLine(raw []byte, templates, targets []string) (Result, error) {
 	if raw[0] != '{' {
 		return Result{}, errors.New("not a JSON object")
@@ -110,15 +203,12 @@ func parseLine(raw []byte, templates, targets []string) (Result, error) {
 	if !slices.Contains(templates, l.TemplateID) {
 		return Result{}, errors.New("a template the job did not ask for")
 	}
+	// From here the line is valid JSON of one of the job's templates: what cannot be a result of the job is skipped and counted
+	// (review r1 M6), never a reason to throw the run away.
 	target := targetOf(l.Host, l.Port)
-	if target == "" || !slices.Contains(targets, target) {
-		return Result{}, errors.New("a target the job did not name")
-	}
-	if l.MatcherStatus == nil {
-		return Result{}, errors.New("no matcher-status")
-	}
-	if *l.MatcherStatus && l.Error != "" {
-		return Result{}, errors.New("a match with an error")
+	matched := l.MatcherStatus != nil && *l.MatcherStatus
+	if target == "" || l.MatcherStatus == nil || !slices.Contains(targets, target) || (matched && l.Error != "") {
+		return Result{Template: l.TemplateID, Target: target, Matched: matched}, errSkip
 	}
 	return Result{
 		Template: l.TemplateID, Target: target, Matched: *l.MatcherStatus,
@@ -166,6 +256,9 @@ func hostOf(s string) string {
 		return ""
 	}
 	host, port, hasPort := strings.Cut(rest, ":")
+	if !plainHost(host) {
+		return ""
+	}
 	switch {
 	case hasPort:
 		n, err := strconv.Atoi(port)
@@ -183,6 +276,21 @@ func hostOf(s string) string {
 		return ""
 	}
 	return host + ":" + port
+}
+
+// plainHost: an address or a DNS name of letters, digits, dots and hyphens, at most MaxSkippedHost characters. A job names only
+// IPv4 addresses; a name can only be a skipped line's (a redirect elsewhere), which is logged and stored, so it must be plain.
+func plainHost(h string) bool {
+	if h == "" || len(h) > MaxSkippedHost {
+		return false
+	}
+	for _, c := range []byte(h) {
+		ok := c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || c == '.' || c == '-'
+		if !ok {
+			return false
+		}
+	}
+	return true
 }
 
 // unsafeRune is a character evidence may not hold: anything of the categories Cc (controls), Cf (format: bidi

@@ -229,8 +229,12 @@ func (f *fakeGVM) answer(cmd string, body string) string {
 		if c == nil {
 			return `<get_preferences_response status="404" status_text="Failed to find config"/>`
 		}
-		if strings.Contains(body, "preference=safe_checks") {
-			return ok(`<preference><name>safe_checks</name><value>` + c.prefs["safe_checks"] + `</value></preference>`)
+		if strings.Contains(body, "preference=") && !strings.Contains(body, "nvt_oid=") {
+			return ok("") // N45-5, as the N100's gvmd answers: preference= without nvt_oid matches NVT preferences only
+		}
+		if !strings.Contains(body, "nvt_oid=") { // the whole list: scanner preferences (empty nvt oid) and NVT ones, as the N100's gvmd prints them
+			return ok(`<preference><nvt oid="1.3.6.1.4.1.25623.1.0.100315"><name>Ping Host</name></nvt><id>5</id><hr_name>safe_checks</hr_name><name>safe_checks</name><type>checkbox</type><value>no</value></preference>` +
+				`<preference><nvt oid=""><name></name></nvt><id></id><hr_name>safe_checks</hr_name><name>safe_checks</name><type></type><value>` + c.prefs["safe_checks"] + `</value><default>1</default></preference>`)
 		}
 		v := func(n string) string { return c.prefs[n] }
 		if strings.Contains(body, gmpGlobalOID) {
@@ -317,6 +321,7 @@ type fakeGB struct {
 	downs   int
 	dials   int
 	upErr   error
+	upErrs  []error // answered first, one per Up, before upErr
 	downErr error
 	dialErr error
 	upGate  chan struct{} // when set, Up waits for it
@@ -354,6 +359,9 @@ func (h *fakeGB) Up(ctx context.Context) error {
 	h.mu.Lock()
 	h.ups++
 	gate, err := h.upGate, h.upErr
+	if len(h.upErrs) > 0 {
+		err, h.upErrs = h.upErrs[0], h.upErrs[1:]
+	}
 	h.mu.Unlock()
 	if gate != nil {
 		select {
@@ -1353,5 +1361,28 @@ func TestContract_INV25_TurnOffWaitsForTheFeedUpdate(t *testing.T) {
 	}
 	if !strings.HasPrefix(last, "Not updated: it was stopped") {
 		t.Fatalf("audit = %q", last)
+	}
+}
+
+// N45-5: the two answers of the N100's gvmd, as measured. The filtered one (preference="safe_checks", no nvt_oid) is empty, so it
+// can never say "not kept"; the read-back now reads the whole list, where safe_checks is the preference with an empty nvt oid.
+func TestSafeChecksIsTheScannerPreference(t *testing.T) {
+	t.Parallel()
+	read := func(answer string) gmpPrefs {
+		var p gmpPrefs
+		if _, err := decodeGMP(strings.NewReader(answer), "get_preferences", &p); err != nil {
+			t.Fatal(err)
+		}
+		return p
+	}
+	if _, ok := read(`<get_preferences_response status="200" status_text="OK"></get_preferences_response>`).scanner("safe_checks"); ok {
+		t.Fatal("the empty filtered answer holds safe_checks")
+	}
+	all := read(`<get_preferences_response status="200" status_text="OK">` +
+		`<preference><nvt oid="1.3.6.1.4.1.25623.1.0.100315"><name>Ping Host</name></nvt><id>5</id><hr_name>safe_checks</hr_name><name>safe_checks</name><type>checkbox</type><value>no</value></preference>` +
+		`<preference><nvt oid=""><name></name></nvt><id></id><hr_name>safe_checks</hr_name><name>safe_checks</name><type></type><value>yes</value><default>1</default></preference>` +
+		`</get_preferences_response>`)
+	if x, ok := all.scanner("safe_checks"); !ok || x.Value != "yes" {
+		t.Fatalf("scanner safe_checks = %+v %v", x, ok)
 	}
 }

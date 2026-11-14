@@ -18,9 +18,16 @@ type ExternalProbe struct {
 	Request  string
 	Answered bool
 	// Result, when set, is the result of a template probe of exposure's safe checks (D-561, D-520): matched or not_matched (a
-	// probe that got no usable answer stays no_response). It wins over Answered; any other value is not written.
+	// probe that got no usable answer stays no_response), ProbeNotRun (handed to nuclei, which did not run it) or ProbeRefused (the
+	// scan worker refused the job: nothing was sent; kf-scan item 5). It wins over Answered; any other value is not written.
 	Result string
 }
+
+// Probe-log results of a template probe that never reached the target (migration 0007).
+const (
+	ProbeNotRun  = "not_run"
+	ProbeRefused = "refused"
+)
 
 // RecordExternalProbes writes probes of the external-surface scan: before they go out (result no_response, "sent, no answer
 // yet": a box that stops mid-scan leaves that), and again with the same IDs after, when something answered (banner) and with
@@ -31,7 +38,7 @@ func (s *Service) RecordExternalProbes(ctx context.Context, ps []ExternalProbe) 
 		for _, p := range ps {
 			result := "no_response"
 			switch {
-			case p.Result == "matched" || p.Result == "not_matched":
+			case p.Result == "matched" || p.Result == "not_matched" || p.Result == ProbeNotRun || p.Result == ProbeRefused:
 				result = p.Result
 			case p.Answered:
 				result = "banner"

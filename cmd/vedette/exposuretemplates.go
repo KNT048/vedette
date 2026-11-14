@@ -71,10 +71,9 @@ const (
 	runSlow   = "Safe templates for exploited vulnerabilities did not finish within 5 minutes, so the ones that had not finished are not reported (%s)."
 	runFailed = "Safe templates for exploited vulnerabilities on port %d did not run: %s"
 	// notRunKEV and notRunFull are the lines of templates a finished run printed nothing for (review r1 M1): nuclei did not run them;
-	// notRunRequest starts their probe-log rows.
-	notRunKEV     = "Safe templates for exploited vulnerabilities on port %d: nuclei printed no result for %d of %d, so they did not run (%s)."
-	notRunFull    = "Deep templates on port %d: nuclei printed no result for %d of %d templates sent to it, so they did not run."
-	notRunRequest = "Not run (nuclei printed nothing for it): "
+	// their probe-log rows have the result not_run (kf-scan item 5).
+	notRunKEV  = "Safe templates for exploited vulnerabilities on port %d: nuclei printed no result for %d of %d, so they did not run (%s)."
+	notRunFull = "Deep templates on port %d: nuclei printed no result for %d of %d templates sent to it, so they did not run."
 )
 
 // templateRun is one nuclei job: at most nucleiargv.MaxTemplates templates on one port, or nucleiargv.MaxFullTemplates for a full
@@ -238,7 +237,7 @@ func (a exposureTemplateScan) send(ctx context.Context, actor string, ip netip.A
 					strings.TrimPrefix(what, "domain_ip "+r.domain.Domain+" via "+finalName(r.domain)), rate, tp.Request)
 			}
 			d, f := r.domain.Domain, finalName(r.domain)
-			over := utf8.RuneCountInString(notRunRequest+line(d, f)) - probeRequestMax
+			over := utf8.RuneCountInString(line(d, f)) - probeRequestMax
 			if over <= 0 {
 				return line(d, f)
 			}
@@ -268,6 +267,14 @@ func (a exposureTemplateScan) send(ctx context.Context, actor string, ip netip.A
 	got, err = a.run(ctx, sensoractive.NucleiRequest{PackVersion: ix.Version, PackSHA256: ix.SHA256, Templates: ids,
 		Targets: []nucleiargv.Target{r.target}, Rate: rate, MaxHostErrors: templatesHostErrors, Scope: scope,
 		Depth: depth, Disruptive: r.full && r.disruptive, Domain: dom})
+	if err != nil && ctx.Err() == nil && refusedBeforeSending(err) { // kf-scan item 5: nothing was sent; the rows say refused
+		for i := range rows {
+			rows[i].Result = scan.ProbeRefused
+		}
+		if perr := a.probes(context.WithoutCancel(ctx), rows); perr != nil {
+			a.log.WarnContext(ctx, "exposure: completing the probe log of the safe templates failed", "ip", ip.String(), "error", perr)
+		}
+	}
 	if un, ok := domainErr(err, r.domain, ip.String()); ok && ctx.Err() == nil {
 		return nil, nucleiout.Outcome{}, nil, un
 	}
@@ -275,10 +282,22 @@ func (a exposureTemplateScan) send(ctx context.Context, actor string, ip netip.A
 		return nil, nucleiout.Outcome{}, nil, templatesErr(ctx, ip, err)
 	}
 	res = outcomes(r, got)
+	if sk := got.Skipped; sk.Lines > 0 { // N45-1: lines that cannot be a result of the job were skipped, the run is kept
+		a.log.WarnContext(ctx, "exposure: nuclei printed lines that cannot be a result of the job; skipped, the run is kept", "ip", ip.String(), "port", r.port,
+			"lines", sk.Lines, "matched", sk.Matched, "template", sk.Template, "host", sk.Host, "skipped_port", sk.Port)
+		for i := range rows {
+			if slices.Contains(sk.MatchedTemplates, rows[i].Template) { // review r2 M3: first, so the cut never drops it
+				rows[i].Request = nucleiout.AppendNote(rows[i].Request, " ["+nucleiout.InconclusiveNote+"]", probeRequestMax)
+			}
+			if slices.Contains(sk.Templates, rows[i].Template) { // after the request, cut to the row (review r1 L7)
+				rows[i].Request = nucleiout.AppendNote(rows[i].Request, sk.Note(), probeRequestMax)
+			}
+		}
+	}
 	// N44-4, review r1 M1: with -ms nuclei prints a line for every template it executes (a failure line when nothing matched), so a
 	// template of a finished run with no line and no unreachable target (outcomes gives it no result) was not run: dropped at load or
-	// not parsed. Its probe row says so and keeps no_response (the probe log has no "not run" result; scan migration, deferred), and
-	// the caller adds a "Not checked" line (it stays in Sent: it was logged and handed to nuclei). "No match reported" is only a template nuclei says it ran.
+	// not parsed. Its probe row has the result not_run (scan migration 0007, kf-scan item 5), and the caller adds a "Not checked"
+	// line (it stays in Sent: it was logged and handed to nuclei). "No match reported" is only a template nuclei says it ran.
 	for i := range rows {
 		rows[i].Result = ""
 		ran := false
@@ -290,7 +309,10 @@ func (a exposureTemplateScan) send(ctx context.Context, actor string, ip netip.A
 		}
 		if !ran {
 			silent = append(silent, rows[i].Template)
-			rows[i].Request = notRunRequest + rows[i].Request
+			rows[i].Result = scan.ProbeNotRun
+			if got.Skipped.MoreTemplates > 0 { // review r2 L5: it may be one of the templates past the cap Skipped names
+				rows[i].Request = nucleiout.AppendNote(rows[i].Request, nucleiout.OverCapNote, probeRequestMax)
+			}
 		}
 	}
 	if len(silent) > 0 {
@@ -300,6 +322,17 @@ func (a exposureTemplateScan) send(ctx context.Context, actor string, ip netip.A
 		a.log.WarnContext(ctx, "exposure: completing the probe log of the safe templates failed", "ip", ip.String(), "error", err)
 	}
 	return res, got, silent, nil
+}
+
+// refusedBeforeSending says the job never reached the target: the scan worker refused it (its own-IP fence, the domain fence before
+// nuclei started, an invalid job), or no worker that runs domain_ip jobs was there. A domain fence that stopped nuclei mid-run is
+// not one: requests went out.
+func refusedBeforeSending(err error) bool {
+	var dr *sensoractive.DomainRefusedError
+	if errors.As(err, &dr) {
+		return !dr.MidRun
+	}
+	return errors.Is(err, sensoractive.ErrWorkerRefused) || errors.Is(err, sensoractive.ErrDomainUnsupported)
 }
 
 // outcomes reads a run's parsed lines (nucleiout already kept only the job's templates and target, fail closed) into one result per
@@ -322,6 +355,13 @@ func outcomes(r templateRun, o nucleiout.Outcome) []exposure.TemplateResult {
 			outcome = exposure.OutcomeMatched
 		case failed || !seen && unreachable:
 			outcome = exposure.OutcomeError
+		case slices.Contains(o.Skipped.MatchedTemplates, tp.ID):
+			// review r2 M3: a line said matched but could not be tied to this address: inconclusive, never "no match reported",
+			// never a finding; the probe row says to check by hand
+			outcome = exposure.OutcomeError
+		case !seen && slices.Contains(o.Skipped.Templates, tp.ID):
+			// review r1 M7: nuclei ran it (it printed lines), but every line named another address or none readable: "no match
+			// reported", with the note on its probe row, never "not run"
 		case !seen:
 			continue
 		}

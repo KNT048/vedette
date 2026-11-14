@@ -342,7 +342,7 @@ func TestContract_INV10_UntrustedOutputFailsClosed(t *testing.T) {
 	t.Parallel()
 	r := newRunEnv(t)
 	r.eng.reply = func(nucleiargv.Job) (Output, error) {
-		return Output{JSONL: []byte(`{"template-id":"CVE-2022-27593","host":"http://192.168.10.99:80","matcher-status":true}`)}, nil // a host the job did not name
+		return Output{JSONL: []byte(`{"template-id":"CVE-2021-44228","host":"http://192.168.10.21:5000","matcher-status":true}`)}, nil // a template the job did not name
 	}
 	v := r.start("a-nas02")
 	r.wait()
@@ -355,6 +355,54 @@ func TestContract_INV10_UntrustedOutputFailsClosed(t *testing.T) {
 	r.wait()
 	if rowOf(r.run(v.ID), "a-nas02", "no_response") == nil || len(r.findings.confirms) != 0 {
 		t.Fatal("truncated output was used")
+	}
+}
+
+// N45-1: a line about an address the job did not name is skipped, not a reason to throw the run away: the match on the job's own
+// target is still confirmed, and the probe row of the skipped line's template says what was skipped.
+func TestForeignTargetLineIsSkippedAndTheRunKept(t *testing.T) {
+	t.Parallel()
+	r := newRunEnv(t)
+	own := lines("CVE-2022-27593")
+	r.eng.reply = func(j nucleiargv.Job) (Output, error) {
+		out, _ := own(j)
+		out.JSONL = append(out.JSONL, []byte(`{"template-id":"CVE-2022-27593","host":"192.168.10.99","port":"11443","matcher-status":true}`+"\n")...)
+		return out, nil
+	}
+	v := r.start("a-nas02")
+	r.wait()
+	got := r.run(v.ID)
+	if rowOf(got, "a-nas02", "matched") == nil || !slices.Equal(r.findings.confirms, []string{"a-nas02|CVE-2022-27593"}) {
+		t.Fatalf("%+v %v", got.Results, r.findings.confirms)
+	}
+	ps, err := r.svc.Probes(r.ctx())
+	if err != nil || len(ps) != 1 || ps[0].Result != "matched" ||
+		!strings.HasPrefix(ps[0].Request, "GET /photo") || !strings.HasSuffix(ps[0].Request, " [not counted: 1 nuclei line(s) that could not be a result of this check (another address, an unreadable target, no match status, or a match with an error), 1 said matched; first: CVE-2022-27593 on 192.168.10.99:11443]") {
+		t.Fatalf("%+v %v", ps, err)
+	}
+}
+
+// Review r2 M3: a line that said matched but cannot be tied to the device (a match with an error on its own target, an unreadable
+// target) is skipped, yet the CVE never reads "no match reported": no_response with a note to check by hand, and no finding.
+func TestSkippedMatchIsInconclusiveNeverNoMatch(t *testing.T) {
+	t.Parallel()
+	for name, line := range map[string]string{
+		"a match with an error":     `{"template-id":"CVE-2022-27593","host":"http://192.168.10.21:5000","matcher-status":true,"error":"sibling request failed"}`,
+		"an unreadable target":      `{"template-id":"CVE-2022-27593","host":"nas.lan","port":"5000","matcher-status":true}`,
+		"the target in a bad shape": `{"template-id":"CVE-2022-27593","host":"http://192.168.10.21:5000","port":"8080","matcher-status":true}`,
+	} {
+		r := newRunEnv(t)
+		r.eng.reply = func(nucleiargv.Job) (Output, error) { return Output{JSONL: []byte(line + "\n")}, nil }
+		v := r.start("a-nas02")
+		r.wait()
+		got := r.run(v.ID)
+		row := rowOf(got, "a-nas02", "no_response")
+		if row == nil || row.Note != "CVE-2022-27593: nuclei reported a match it could not tie to this address; check by hand." || rowOf(got, "a-nas02", "not_matched") != nil || len(r.findings.confirms) != 0 {
+			t.Fatalf("%s: rows %+v, confirms %v", name, got.Results, r.findings.confirms)
+		}
+		if ps, err := r.svc.Probes(r.ctx()); err != nil || len(ps) != 1 || ps[0].Result != "no_response" {
+			t.Fatalf("%s: probes %+v %v", name, ps, err)
+		}
 	}
 }
 

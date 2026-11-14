@@ -245,9 +245,14 @@ func TestContract_INV4_RateAndFlags(t *testing.T) {
 		t.Fatal(err)
 	}
 	calls := e.nm.calls(t)
-	if len(calls) != 3 {
-		t.Fatalf("%d runs, want 3", len(calls))
+	if len(calls) != 4 {
+		t.Fatalf("%d runs, want 4", len(calls))
 	}
+	// D-592: the normal scan is followed by the extra ports at the same rate; the gentle scan never
+	if x := calls[2]; !slices.Contains(x, "-p") || x[slices.Index(x, "--max-rate")+1] != "100" || x[len(x)-1] != "192.168.10.20" {
+		t.Errorf("extra run argv = %q", x)
+	}
+	calls = slices.Delete(calls, 2, 3)
 	want := [][]string{
 		{"--privileged", "-sn", "-PE", "-PP", "-PS21,22,23,80,135,139,443,445,554,3389,8000,8080,9100", "-PA80,443", "-n", "--max-rate", "100", "-oX", "-"},
 		{"--privileged", "-sS", "-sV", "-O", "--script", "rdp-ntlm-info,http-ntlm-info,http-title,ssl-cert", "-n", "--max-rate", "100", "--max-retries", "3", "--top-ports", "1000", "--host-timeout", "30m", "-oX", "-", "192.168.10.20"},
@@ -485,7 +490,7 @@ func TestContract_INV9_ProbeLog(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(probes) != len(calls) || len(probes) != 2 {
+	if len(probes) != len(calls) || len(probes) != 3 { // the sweep, the device's top 1000 and its extra ports (D-592)
 		t.Fatalf("%d probe rows for %d runs", len(probes), len(calls))
 	}
 	for i, p := range probes {
@@ -516,8 +521,8 @@ func TestContract_INV9_ProbeLog(t *testing.T) {
 	if err != nil || n != 1 {
 		t.Fatalf("Prune = %d, %v; want 1", n, err)
 	}
-	if got := e.count(`SELECT count(*) FROM sa_probe`); got != 3 {
-		t.Fatalf("%d rows after pruning, want 3 (2 runs + the 100 day old one)", got)
+	if got := e.count(`SELECT count(*) FROM sa_probe`); got != 4 {
+		t.Fatalf("%d rows after pruning, want 4 (3 runs + the 100 day old one)", got)
 	}
 }
 
@@ -586,7 +591,7 @@ func TestQueueSurvivesARestart(t *testing.T) {
 	for _, c := range e.nm.calls(t) {
 		kinds = append(kinds, c[1])
 	}
-	if !slices.Equal(kinds, []string{"-sn", "-sS"}) { // the day's sweep, then the queued device
+	if !slices.Equal(kinds, []string{"-sn", "-sS", "-sS"}) { // the day's sweep, then the queued device (top 1000, then the extra ports, D-592)
 		t.Fatalf("runs = %v", kinds)
 	}
 	if n, _ := e.svc.QueueLen(e.ctx()); n != 0 {

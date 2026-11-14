@@ -189,7 +189,7 @@ func TestDomainTemplateRowKeepsTheRequest(t *testing.T) {
 		t.Fatal(err)
 	}
 	req := rows[0].Request
-	if !strings.HasSuffix(req, "): "+tp.Request) || utf8.RuneCountInString(notRunRequest+req) > probeRequestMax || !strings.Contains(req, "b.example via …") || !strings.Contains(req, "example.net, deep scan") {
+	if !strings.HasSuffix(req, "): "+tp.Request) || utf8.RuneCountInString(req) > probeRequestMax || !strings.Contains(req, "b.example via …") || !strings.Contains(req, "example.net, deep scan") {
 		t.Fatalf("row (%d) %q", utf8.RuneCountInString(req), req)
 	}
 }

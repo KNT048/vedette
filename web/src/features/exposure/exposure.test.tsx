@@ -1172,6 +1172,24 @@ describe('exposure: services and exploited vulnerabilities of the box IP (S-EXP-
     expect(within(changed).getByText('Changed')).toBeInTheDocument()
   })
 
+  it('review r1 L4: with no exploited CVE but deep-scan rows, the empty state is not an all-clear and points to them', async () => {
+    const at = new Date(Date.now() - 864e5).toISOString()
+    const date = at.slice(0, 10)
+    const ip = '203.0.113.10'
+    const snap = { id: 'sn-d', date, scanned_at: at, hosts: [], ports: [{ ip, port: 8080, service: 'http' }], admin_panels: [], certs: [], counts: { subdomains: 0, ips: 1, ports: 1, admin_panels: 0, certs_expiring: 0 },
+      services: [{ ip, port: 8080, name: 'http', product: 'nginx', version: '1.27.0', cpe: '', extra: '' }], web_findings: [], greenbone: [], vulns: [], version_gaps: [], checks: [], not_checked: [],
+      templates: [{ ip, port: 8080, cve: '', template: 'git-config', outcome: 'matched', name: 'Git Configuration - Detect', severity: 'medium' }] }
+    server.use(
+      http.get('*/api/v1/exposure/targets/xt-2/snapshots', () => HttpResponse.json({ items: [{ id: snap.id, date, scanned_at: at, counts: snap.counts }] })),
+      http.get('*/api/v1/exposure/targets/xt-2/snapshots/:date', () => HttpResponse.json(snap)),
+    )
+    renderApp('/exposure/xt-2')
+    const section = await screen.findByRole('region', { name: 'Exploited vulnerabilities' })
+    expect(await within(section).findByText('No exploited vulnerability matched the identified versions')).toBeInTheDocument()
+    expect(within(section).queryByText('No exploited vulnerability matches the identified services')).toBeNull()
+    expect(within(section).getByRole('table', { name: 'Found by the deep scan (nuclei templates that matched)' })).toBeInTheDocument()
+  })
+
   it('without service identification on the box the page says so, and claims nothing about vulnerabilities', async () => {
     const at = new Date(Date.now() - 864e5).toISOString()
     const date = at.slice(0, 10)

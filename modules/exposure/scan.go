@@ -6,11 +6,13 @@ import (
 	"errors"
 	"fmt"
 	"net/netip"
+	"slices"
 	"strings"
 	"time"
 	"unicode/utf8"
 
 	"github.com/knt048/vedette/core/store"
+	"github.com/knt048/vedette/modules/scan/commonports"
 )
 
 // ScanIDPrefix is how the scan module names an external target ("ext:<id>").
@@ -492,6 +494,10 @@ func carryNotSeen(c Content, prev Snapshot, how map[string]scope) Content {
 		have[key{ipKey(p.IP), p.Port}] = true
 	}
 	kept := map[key]bool{}
+	// N44-5 review r1 M2: a scan that says it did not probe every TCP port (not deep, the terms withdrawn or asked again, a deep nmap
+	// that did not finish) did not check a port outside the runner's fixed list, so such a port an earlier deep scan found is kept as
+	// it was, never "missed" or closed.
+	partial := slices.ContainsFunc(c.NotChecked, func(n NotCheckedRow) bool { return n.Kind == "ports" })
 	for _, p := range prev.Ports {
 		k := key{ipKey(p.IP), p.Port}
 		if have[k] || len(c.Ports) >= maxContentRows {
@@ -506,6 +512,9 @@ func carryNotSeen(c Content, prev Snapshot, how map[string]scope) Content {
 			if p.Port == 80 || p.Port == 443 {
 				sc = scopeChecked
 			}
+		}
+		if sc == scopeChecked && partial && !slices.Contains(commonports.Numbers(), p.Port) {
+			sc = scopeKept
 		}
 		switch sc {
 		case scopeGone:

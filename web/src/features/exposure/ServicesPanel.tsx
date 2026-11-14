@@ -69,7 +69,8 @@ export function VulnSection({ s, domain = false }: { s: Snapshot; domain?: boole
           ) : s.not_checked.some((n) => n.kind === 'cve') ? (
             <p role="status" className="text-sm text-warn">{s.not_checked.find((n) => n.kind === 'cve')!.text}</p>
           ) : (
-            <EmptyState title={t('vulns.noneTitle')}>{t('vulns.noneBody')}</EmptyState>
+            // review r1 L4: not an all-clear when the deep scan's table below has rows
+            <EmptyState title={t(deep.length > 0 ? 'vulns.noneTitleDeep' : 'vulns.noneTitle')}>{t(deep.length > 0 ? 'vulns.noneBodyDeep' : 'vulns.noneBody')}</EmptyState>
           )}
           {s.version_gaps.length > 0 ? (
             <ul aria-label={t('vulns.gapsLabel')} className="grid gap-1 text-sm">

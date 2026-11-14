@@ -27,14 +27,14 @@ const (
 	// flaw by sending the exploit request in a harmless form, OpenVAS checks that may write a harmless test file or record, known
 	// authentication bypasses and the public anonymous login; the tick adds what PRIVACY flow 9 lists for it. TERMS.md says the same.
 	// 2026-11-14d: the texts of review r2 (an acceptance of a 2026-11-14c text is asked again).
-	// 2026-11-14e (N44-1): the web line says what TERMS.md says, a spider that may submit forms, while the active ZAP scan (FULL-3)
-	// is not built; the domain's list names "the web scan (ZAP)".
+	// 2026-11-14e (N44-1, review r1 L2): the web line says what TERMS.md says, word for word (follows links, may submit forms), while
+	// the active ZAP scan (FULL-3) is not built; the domain's list names "the web scan (ZAP)".
 	termsTemplate       = termsHead + termsOwnIP + termsTail
 	termsTemplateDomain = termsHead + termsDomain + termsTail
 	termsHead           = "I confirm that my company owns {value} and that I am authorized to test it in depth. Once I accept, every scan of {value} is a deep scan, and Vedette's tools may send it:\n" +
 		"All ports: every TCP port, and the service and version behind each one.\n" +
 		"Vulnerability checks: tests for known vulnerabilities, including checks that confirm a flaw by sending the exploit request itself in a harmless form (for example reading a file or running a harmless command). Some checks, OpenVAS's in particular, may write a harmless test file or record to confirm a flaw and then try to remove it. Checks that can crash a service, guess passwords or sign in with default passwords, and the exploit checks of nuclei and nmap that send more than a harmless read, run only with the disruptive checks below.\n" +
-		"Web scanning: a spider that follows the links of the web pages and reads what it finds, and that may submit forms and send attack payloads such as SQL injection and cross-site scripting probes, which can create records, send e-mails from forms or change data.\n" +
+		"Web scanning: a scan of the web pages that follows links and may submit forms.\n" +
 		"Authentication checks: whether login pages, admin interfaces and services let anyone in without a password, through a known authentication bypass or with weak settings, including the public anonymous login a service may offer (for example anonymous FTP). Passwords are not guessed and default or well-known passwords are not tried unless the disruptive checks below are ticked.\n"
 	termsOwnIP = "Accept only if {value} is yours alone: not an address shared through your Internet provider (carrier-grade NAT), a hosting provider's NAT or proxy, or a CDN or hosted service that serves your names. Their servers are not yours to test. "
 	// termsDomain: plan 2026-11-14 §3.5 word for word, then kien's LEGAL-2 (2026-11-14 18:4x): the third party in front of the names

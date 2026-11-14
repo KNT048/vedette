@@ -56,7 +56,14 @@ func exposureService(d deps) *exposure.Service {
 		cfg.Publisher = d.Bus
 	}
 	// S-EXP-2 (INV-19, INV-20, D-553): identified services are compared with exploited CVEs when a snapshot is read. cfg.Services, the
-	// scan container's nmap -sV on the box's own IP (sensor-active ScanExternal), is not wired yet: every scan of an IP says so.
+	// scan container's nmap -sV on the box's own IP (sensor-active ScanExternal), is built (exposureServiceScan, D-514) and NOT wired:
+	// no -sV runs on any box before kien words the commitment sentence that names service identification. Then, in one commit with
+	// PRIVACY flow 9, Settings -> Privacy, the nmap row of THIRD_PARTY_NOTICES and a new NoticeVersion
+	// (.ai/deferred/feat-exposure-services-mlee.md: "wire cfg.Services + PRIVACY flow 9 + THIRD_PARTY + notice version"):
+	//	cfg.Services = exposureServicesFor(d, func(ctx context.Context, actor string, ip netip.Addr) (bool, error) {
+	//		return exposureService(d).ScannableIP(ctx, actor, ip) // called at scan time, after this function returned
+	//	})
+	// Until then every scan of an IP says "Service identification (nmap -sV) is not set up on this box yet."
 	clock := d.Clock
 	if clock == nil {
 		clock = time.Now

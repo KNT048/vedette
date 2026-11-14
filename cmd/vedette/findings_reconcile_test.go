@@ -121,3 +121,32 @@ func TestWiringReconcileAfterALostBaselineIsSilentForBacklogAndAnnouncesRecentNe
 		t.Fatalf("a second reconcile queued %d notices in total, want still 1", n)
 	}
 }
+
+// D-488 follow-up: the findings adapter carries where a software row came from, so "What to do" tells a package of the
+// distribution to take its security updates and keeps the upstream number for a row a person typed.
+func TestFindingsInputCarriesWhereSoftwareCameFrom(t *testing.T) {
+	s := newStack(t)
+	ctx := t.Context()
+	id, err := s.d.Inventory.EnsureBox(ctx, inventory.BoxInfo{Hostname: "boxkien"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	pkg := inventory.SoftwareItem{Display: "OpenSSL", Vendor: "OpenSSL", Product: "OpenSSL", Version: "3.0.2", KevKeys: []string{"openssl|openssl"}, Confidence: 0.95, Packaged: true}
+	if err := s.d.Inventory.UpsertSoftware(ctx, id, []inventory.SoftwareItem{pkg}, "agent"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.d.Inventory.AddSoftware(ctx, "admin@example.com", id, inventory.AddInput{Vendor: "Jenkins", Product: "Jenkins", Version: "2.426.1"}); err != nil {
+		t.Fatal(err)
+	}
+	a, ok, err := (findingsInventory{s.d.Inventory}).MatchInput(ctx, id)
+	if err != nil || !ok {
+		t.Fatalf("match input: %v %v", ok, err)
+	}
+	got := map[string]string{}
+	for _, sw := range a.Software {
+		got[sw.Product] = fmt.Sprintf("%s %v", sw.Source, sw.Packaged)
+	}
+	if got["OpenSSL"] != "agent true" || got["Jenkins"] != "manual false" {
+		t.Fatalf("software origin for findings: %v", got)
+	}
+}

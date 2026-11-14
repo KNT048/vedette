@@ -1,13 +1,16 @@
-package exposure
+package egressip
 
 import (
 	"context"
 	"crypto/x509"
 	"errors"
+	"go/parser"
+	"go/token"
 	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/netip"
+	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
@@ -18,6 +21,12 @@ import (
 )
 
 // The three public services are httptest servers; no test contacts the real ones.
+
+const (
+	ipA = "8.8.8.8"
+	ipB = "8.8.4.4"
+	ipC = "9.9.9.9"
+)
 
 type fakeService struct {
 	srv   *httptest.Server
@@ -57,8 +66,8 @@ func status(code int) http.HandlerFunc {
 	return func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(code) }
 }
 
-// prober builds a PublicServiceProber over the three fake services, trusting their certificates.
-func prober(t *testing.T, fs ...*fakeService) *PublicServiceProber {
+// prober builds a Prober over the three fake services, trusting their certificates.
+func prober(t *testing.T, fs ...*fakeService) *Prober {
 	t.Helper()
 	pool := x509.NewCertPool()
 	var urls []string
@@ -76,14 +85,14 @@ func prober(t *testing.T, fs ...*fakeService) *PublicServiceProber {
 		_, port, _ := net.SplitHostPort(addr)
 		return (&net.Dialer{}).DialContext(ctx, network, "127.0.0.1:"+port)
 	}
-	p, err := NewPublicServiceProber(urls, tr, 30*time.Second) // wall clock: a generous ceiling, not a speed check
+	p, err := New(urls, tr, 30*time.Second) // wall clock: a generous ceiling, not a speed check
 	if err != nil {
 		t.Fatal(err)
 	}
 	return p
 }
 
-func round(t *testing.T, p *PublicServiceProber) (netip.Addr, error) {
+func round(t *testing.T, p *Prober) (netip.Addr, error) {
 	t.Helper()
 	return p.Round(t.Context())
 }
@@ -214,9 +223,9 @@ func (l *pipeListener) dial(ctx context.Context) (net.Conn, error) {
 	}
 }
 
-// pipeProber builds a PublicServiceProber over three in-memory services, svc0.test .. svc2.test. The transport's TLS dial returns
+// pipeProber builds a Prober over three in-memory services, svc0.test .. svc2.test. The transport's TLS dial returns
 // the plain pipe (TLS itself is covered by the httptest tests above). Call it inside a bubble; the servers stop with the test.
-func pipeProber(t *testing.T, timeout time.Duration, hs ...http.HandlerFunc) *PublicServiceProber {
+func pipeProber(t *testing.T, timeout time.Duration, hs ...http.HandlerFunc) *Prober {
 	t.Helper()
 	lns := map[string]*pipeListener{}
 	var urls []string
@@ -237,7 +246,7 @@ func pipeProber(t *testing.T, timeout time.Duration, hs ...http.HandlerFunc) *Pu
 		}
 		return l.dial(ctx)
 	}}
-	p, err := NewPublicServiceProber(urls, tr, timeout)
+	p, err := New(urls, tr, timeout)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -324,17 +333,17 @@ func TestProbe_NonGlobalAnswersAreRefused(t *testing.T) {
 func TestProbe_Constructor(t *testing.T) {
 	t.Parallel()
 	good := []string{"https://a.example", "https://b.example/ip", "https://c.example"}
-	if _, err := NewPublicServiceProber(good, nil, 0); err != nil {
+	if _, err := New(good, nil, 0); err != nil {
 		t.Fatal(err)
 	}
-	if p, err := NewPublicServiceProber(nil, nil, 0); err != nil || len(p.urls) != 3 || p.urls[0] != "https://checkip.amazonaws.com" || p.urls[1] != "https://icanhazip.com" || p.urls[2] != "https://ifconfig.me/ip" {
+	if p, err := New(nil, nil, 0); err != nil || len(p.urls) != 3 || p.urls[0] != "https://checkip.amazonaws.com" || p.urls[1] != "https://icanhazip.com" || p.urls[2] != "https://ifconfig.me/ip" {
 		t.Fatalf("defaults = %+v %v", p, err)
 	}
 	for _, bad := range [][]string{
 		good[:2], append(append([]string{}, good...), "https://d.example"), {"http://a.example", good[1], good[2]},
 		{"https://u:p@a.example", good[1], good[2]}, {"ftp://a.example", good[1], good[2]}, {"https://", good[1], good[2]}, {"", good[1], good[2]},
 	} {
-		if _, err := NewPublicServiceProber(bad, nil, 0); err == nil {
+		if _, err := New(bad, nil, 0); err == nil {
 			t.Errorf("%v accepted", bad)
 		}
 	}
@@ -345,16 +354,55 @@ func FuzzParseAnswer(f *testing.F) {
 		f.Add([]byte(s))
 	}
 	f.Fuzz(func(t *testing.T, b []byte) {
-		a, err := parseAnswer(b)
+		a, err := ParseAnswer(b)
 		if err != nil {
 			return
 		}
 		want := netip.MustParseAddr(strings.TrimSpace(string(b))).Unmap()
 		if a != want {
-			t.Fatalf("parseAnswer(%q) = %v, want %v", b, a, want)
+			t.Fatalf("ParseAnswer(%q) = %v, want %v", b, a, want)
 		}
 		if len(b) > maxAnswerBody || !a.IsValid() || !a.IsGlobalUnicast() || a.Zone() != "" || a.Is4In6() {
-			t.Fatalf("parseAnswer(%q) accepted %v", b, a)
+			t.Fatalf("ParseAnswer(%q) accepted %v", b, a)
 		}
 	})
+}
+
+// IsPublicIPv4 refuses every address that is not on the Internet (exposure INV-3, nmapargv's external shape, D-514).
+func TestIsPublicIPv4(t *testing.T) {
+	t.Parallel()
+	for _, s := range []string{"8.8.8.8", "1.1.1.1", "100.128.0.1", "::ffff:8.8.8.8"} {
+		if !IsPublicIPv4(netip.MustParseAddr(s)) {
+			t.Errorf("%s refused", s)
+		}
+	}
+	for _, s := range []string{"10.0.0.1", "172.16.0.1", "192.168.1.1", "100.64.0.1", "127.0.0.1", "169.254.169.254", "0.0.0.1", "192.0.2.1",
+		"198.51.100.1", "203.0.113.5", "198.18.0.1", "224.0.0.1", "240.0.0.1", "255.255.255.255", "2001:4860:4860::8888", "::1"} {
+		if IsPublicIPv4(netip.MustParseAddr(s)) {
+			t.Errorf("%s accepted", s)
+		}
+	}
+}
+
+// The sensor binary links this package (the worker's own-IP fence, D-514): standard library only.
+func TestIsALeaf(t *testing.T) {
+	t.Parallel()
+	files, err := filepath.Glob("*.go")
+	if err != nil || len(files) == 0 {
+		t.Fatalf("no sources found: %v", err)
+	}
+	for _, f := range files {
+		if strings.HasSuffix(f, "_test.go") {
+			continue
+		}
+		af, err := parser.ParseFile(token.NewFileSet(), f, nil, parser.ImportsOnly)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, im := range af.Imports {
+			if p, _ := strconv.Unquote(im.Path.Value); strings.Contains(strings.SplitN(p, "/", 2)[0], ".") {
+				t.Errorf("%s imports %q: only the standard library is allowed in egressip", f, p)
+			}
+		}
+	}
 }

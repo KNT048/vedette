@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/knt048/vedette/core/observe"
+	"github.com/knt048/vedette/modules/inventory"
 	"github.com/knt048/vedette/modules/notify"
 )
 
@@ -46,5 +47,17 @@ func TestDeviceStateOfANewDevice(t *testing.T) {
 	}
 	if one, err := dir.DeviceStates(ctx, []string{"no-such-device"}); len(one) != 0 || err != nil {
 		t.Errorf("a device the inventory does not have: %+v %v", one, err)
+	}
+}
+
+// #716 Opus LOW (d): DeviceRefs puts the kind in Display when a device has no software, so a declared device (named after its first
+// product) whose Display equals its kind is not named from the ref: DeviceStates asks inventory.Names, as the Devices page names it.
+func TestRefNameOfADeclaredDeviceWhoseProductIsItsKind(t *testing.T) {
+	t.Parallel()
+	if _, sure := refName(inventory.DeviceRef{Origin: "manual", Kind: "firewall", Display: "firewall", IP: "192.168.30.1"}); sure {
+		t.Error("a declared device whose Display is its kind was named from the ref")
+	}
+	if n, sure := refName(inventory.DeviceRef{Origin: "discovered", Kind: "switch", Display: "switch", Vendor: "Juniper Networks", IP: "—"}); !sure || n != "Juniper Networks" {
+		t.Errorf("discovered device = %q, %v", n, sure)
 	}
 }

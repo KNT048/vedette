@@ -92,6 +92,9 @@ type Service struct {
 	snmpMu  sync.Mutex // one snmp job at a time (a Test or a batch of the window's round)
 
 	ver atomic.Uint64 // bumped by every SettingsChanged; a run that sees it move before nmap starts stops
+	// stops is bumped by every Stop (the module turned off): a picked run or an external one that was still waiting for runMu when
+	// it came sees it move once it has the lock, and stops instead of starting (#723 review L4).
+	stops atomic.Uint64
 
 	mu      sync.Mutex
 	cur     *running // the job holding runMu, for SettingsChanged
@@ -128,6 +131,9 @@ type running struct {
 	// picked: the identification of a device a person picked in Scan now (IdentifyDevice, D-501). Like the vulnerability scan
 	// it is part of, it runs at once: the window does not apply (its deadline is maxRun). Every other rule does.
 	picked bool
+	// external: service identification on the box's own public IP for exposure (ScanExternal, D-514). Its consent is exposure's,
+	// so the LAN settings, window and scope do not bind it; only Stop (the module turned off) and its own context end it.
+	external bool
 }
 
 // New returns the service.
@@ -388,9 +394,24 @@ func (s *Service) probe(ctx context.Context, jobID string, kind nmapargv.Kind, r
 	rctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	res, runErr := s.prober.Probe(rctx, args)
-
+	all, result, err := runOutcome(ctx, rctx, res, runErr)
 	var hosts []host
-	var result string
+	if err == nil {
+		hosts = onlyTargets(all, targets)
+		result = fmt.Sprintf("ok: %d hosts up", len(hosts))
+	}
+	s.finishProbe(ctx, probeID, result)
+	if err != nil {
+		return nil, err
+	}
+	return hosts, nil
+}
+
+// runOutcome turns the end of one nmap run into every host nmap reported up (parseNmapXML: the caller keeps the ones it asked
+// about), and, when the run failed, the result of its probe row and the error: a stop (ctx or rctx over), a failure of nmap or the
+// worker, output over the limit, or output that is not valid (INV-7). It is shared by the LAN runs (probe) and the external one
+// (ScanExternal, D-514); on success the caller writes the result.
+func runOutcome(ctx, rctx context.Context, res Output, runErr error) (hosts []host, result string, err error) {
 	switch {
 	case rctx.Err() != nil || ctx.Err() != nil:
 		result, err = stoppedText, ErrStopped
@@ -410,6 +431,10 @@ func (s *Service) probe(ctx context.Context, jobID string, kind nmapargv.Kind, r
 			result = "failed: nmap_missing"
 		case errors.Is(runErr, ErrWorkerLost):
 			result = "failed: worker_lost"
+		case errors.Is(runErr, ErrNotOwnIP):
+			result = "refused: the scan worker found the address is not the box's own public IP now; nmap did not run"
+		case errors.Is(runErr, ErrEgressUnverified):
+			result = "refused: the scan worker could not reach the public IP services to check the address; nmap did not run"
 		case errors.Is(runErr, ErrWorkerRefused):
 			result = "failed: the worker refused the job"
 		case errors.Is(runErr, ErrResultRejected):
@@ -421,19 +446,11 @@ func (s *Service) probe(ctx context.Context, jobID string, kind nmapargv.Kind, r
 	case res.Truncated:
 		result, err = "failed: output over the size limit, discarded", errXMLTooBig
 	default:
-		var all []host
-		if all, err = parseNmapXML(res.XML); err != nil {
+		if hosts, err = parseNmapXML(res.XML); err != nil {
 			result = "failed: output not valid, discarded"
-		} else {
-			hosts = onlyTargets(all, targets)
-			result = fmt.Sprintf("ok: %d hosts up", len(hosts))
 		}
 	}
-	s.finishProbe(ctx, probeID, result)
-	if err != nil {
-		return nil, err
-	}
-	return hosts, nil
+	return hosts, result, err
 }
 
 // Reasons of the inventory's ScanPolicy that are states of the box, not of the device.
@@ -470,6 +487,7 @@ func (s *Service) setTargets(t []netip.Addr, rate int) {
 // Stop cancels the run in progress, whatever it is: the module was turned off (SYS-5). The scheduler stops the jobs it runs; an
 // identification for Scan now runs on the scan module's goroutine, so only this reaches it (D-501, review L3).
 func (s *Service) Stop() {
+	s.stops.Add(1)
 	s.mu.Lock()
 	cur, snmp := s.cur, s.snmpCur
 	s.mu.Unlock()
@@ -1096,6 +1114,7 @@ func (s *Service) lockWithin(ctx context.Context, d time.Duration) bool {
 // A refusal publishes sensor.scan.blocked and sends nothing. The result says what was recorded, or why nothing was; err is
 // ErrStopped when the run was stopped, ErrNotFound for an unknown device, or a failure of nmap, the worker or storage.
 func (s *Service) IdentifyDevice(ctx context.Context, assetID string) (Identification, error) {
+	stops := s.stops.Load()
 	if !s.lockWithin(ctx, busyWait) { // discovery is running nmap: Scan now does not wait for a sweep that may last the whole window
 		if ctx.Err() != nil {
 			return Identification{}, ErrStopped
@@ -1103,6 +1122,9 @@ func (s *Service) IdentifyDevice(ctx context.Context, assetID string) (Identific
 		return Identification{Why: WhyBusy}, nil
 	}
 	defer s.runMu.Unlock()
+	if s.stops.Load() != stops { // the module was turned off while it waited (#723 review L4)
+		return Identification{}, ErrStopped
+	}
 	jctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	s.setCur(&running{cancel: cancel, asset: assetID, picked: true})
@@ -1423,12 +1445,12 @@ func (s *Service) SettingsChanged(ctx context.Context) error {
 	var targets []netip.Addr
 	var rate int
 	var deadline time.Time
-	var picked bool
+	var picked, external bool
 	if cur != nil {
-		targets, rate, deadline, picked = slices.Clone(cur.targets), cur.rate, cur.deadline, cur.picked
+		targets, rate, deadline, picked, external = slices.Clone(cur.targets), cur.rate, cur.deadline, cur.picked, cur.external
 	}
 	s.mu.Unlock()
-	if cur == nil {
+	if cur == nil || external { // an external run is not under the LAN settings (D-514)
 		return nil
 	}
 	st, err := s.inv.Settings(ctx)

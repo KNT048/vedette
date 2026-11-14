@@ -85,7 +85,7 @@ Trạng thái theo bản rà v1 2026-11-12 (`origin/main` 4ec006d6; chứng cứ
 2. WP-30: `make e2e-real` xanh cho **mọi module**. Không còn `test.fixme` cho phần đã xây; `KNOWN_501` và `KNOWN_404` chỉ còn những endpoint ngoài phạm vi, có ghi lý do. **Một phần:** `KNOWN_*` đã rỗng (#335); còn 11 `test.fixme` (ai ×4, scan ×4, logs ×2, notify ×1) và chưa có lượt chạy đầy đủ sau các PR 11-12.
 3. WP-31: mọi phát hiện High/Medium đã đóng; danh sách LAB đã chạy trên VM. **Một phần:** phát hiện không cần lab đã đóng; danh sách LAB chưa chạy (decoy và nc hit đạt trên .141, lần 3c).
 4. WP-08: bản phát hành ký được (cosign, minisign); `install.sh` cài sạch trên VM lab; nâng cấp và quay lui đã thử. **Một phần:** khoá nhúng (#313), `.deb` và tự cập nhật thử trên ubuntu2404/debian13 (#518, #562), cài sạch Ubuntu 26.04 đạt; chưa có job phát hành (bake `install.sh`, đẩy ghcr, ký image), `make vuln-scan` còn đỏ.
-5. WP-32: RUNBOOK đủ cho cài đặt, quản trị, sao lưu, khôi phục. **Một phần:** viết xong (#303, #322); thiếu danh sách gói của `--uninstall`, cách xử lý `quick_check` hỏng, kiểm cổng, sao lưu volume khoá container-only.
+5. WP-32: RUNBOOK đủ cho cài đặt, quản trị, sao lưu, khôi phục. **Một phần:** viết xong (#303, #322); danh sách gói của `--uninstall` (§1.3 bảng), `quick_check` hỏng trên container-only (§5.8), kiểm cổng bằng `ss` (§1.1 bước 4, §1.3), sao lưu volume khoá `vedette_data` (§1.2): docs/runbook-install-gaps (E13).
 6. `docs/QA.md`: các dòng đã kiểm; `docs/project-map/completion-log.md` đã ghi; `.ai/deferred/*` đã đóng hoặc chuyển có lý do. **Mở:** QA walk 1 đến 3 xong (#455, #461, #558-#560); lượt dọn 2026-11-13 đã đóng 11 dòng đã xong và chuyển 174 dòng sang #377…#395, còn 79 file có dòng mở; completion-log chưa cập nhật cho 11-12.
 
 ## Lưu ý máy Kiên

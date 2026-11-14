@@ -1,5 +1,6 @@
-// Package nmapargv builds and checks the only five nmap command lines Vedette ever runs (D-84 (7), D-113, D-501, D-511).
-// It is a leaf: standard library only (plus core/localnet, itself standard library only, D-461), no database and
+// Package nmapargv builds and checks the only six nmap command lines Vedette ever runs (D-84 (7), D-113, D-501, D-511, D-514).
+// It is a leaf: standard library only (plus core/localnet and core/egressip for which addresses are local or public, D-461,
+// D-514, and modules/scan/commonports for the external shape's ports, all standard library only), no database and
 // no core/exec, because the sensor binary links it and
 // both sides (core before it hands a job over, the worker before it starts nmap) use the same code (SYS-2).
 package nmapargv
@@ -10,14 +11,17 @@ import (
 	"net/netip"
 	"slices"
 	"strconv"
+	"strings"
 
+	"github.com/knt048/vedette/core/egressip"
 	"github.com/knt048/vedette/core/localnet"
+	"github.com/knt048/vedette/modules/scan/commonports"
 )
 
-// Kind says which of the five nmap command lines is built (D-84 (7), D-501, D-511).
+// Kind says which of the six nmap command lines is built (D-84 (7), D-501, D-511, D-514).
 type Kind int
 
-// The five kinds, one per command shape.
+// The six kinds, one per command shape.
 const (
 	Sweep    Kind = iota // host discovery: -sn
 	Normal               // service and OS identification
@@ -27,10 +31,33 @@ const (
 	// the gentle command line plus http-title and ssl-cert on the web and TLS ports it finds open (one GET of / and one TLS
 	// handshake per port), each script capped by --script-timeout. A fragile device keeps Gentle exactly.
 	GentleTitles
+	// External is service identification on the box's own verified public IP for exposure (D-514, exposure INV-19): -sV over the
+	// fixed TCP list of the surface scan (commonports), at ExternalRate, with no -O and no --script (only what -sV runs itself). It
+	// is the only shape whose target is public, and it takes exactly one; every other shape takes local addresses only. Whether
+	// the address is the box's own is not grammar: core checks it before it hands the job out, the worker again before nmap.
+	External
 )
 
 // kinds is every Kind, in the order Validate and KindOf try them.
-var kinds = []Kind{Sweep, Normal, Gentle, Versions, GentleTitles}
+var kinds = []Kind{Sweep, Normal, Gentle, Versions, GentleTitles, External}
+
+// ExternalRate is the fixed --max-rate of the external shape (packets a second): 98 ports with 2 retries are a few hundred SYNs,
+// a few seconds at this rate, gentle on the customer's own router (plan exposure-real-vulns §3).
+const ExternalRate = 100
+
+// ExternalPorts is the -p value of the external shape: the ports of commonports.List, ascending, comma-separated.
+var ExternalPorts = func() string {
+	ns := commonports.Numbers()
+	ss := make([]string, len(ns))
+	for i, n := range ns {
+		ss[i] = strconv.Itoa(n)
+	}
+	return strings.Join(ss, ",")
+}()
+
+// externalHostTimeout bounds -sV on the one host, inside exposure's 5-minute step (ServicesTimeout there) with room for the
+// wait for the nmap slot and the own-IP checks.
+const externalHostTimeout = "3m"
 
 // IsGentle reports whether the shape is one of the gentle scans (Gentle, GentleTitles): rate 1, top 100 ports, no -sV or -O, so it
 // never says anything about software and only adds ports (D-45, D-350 (5)).
@@ -91,11 +118,14 @@ func (k Kind) Name() string {
 		return "versions"
 	case GentleTitles:
 		return "gentle_titles"
+	case External:
+		return "external"
 	}
 	return ""
 }
 
-// Flags is the whole flag part of the command line of a kind: the only five shapes nmap is ever run with.
+// Flags is the whole flag part of the command line of a kind: the only six shapes nmap is ever run with. The external shape takes
+// only ExternalRate (any other rate is an error, so a job can never carry a faster one).
 // -sV makes nmap run the scripts of its "version" category, -O has its own timing; the only other scripts are the fixed
 // Scripts list of the normal and versions shapes (D-504); no category, no -A and no -sC exists (FORBID-3, FORBID-6). The gentle
 // shape has neither -sV, -O nor a script: on a fragile device even the version scripts are too much (PLC protocol probes). The
@@ -117,6 +147,12 @@ func Flags(kind Kind, rate int) ([]string, error) {
 		return []string{flagPrivileged, "-sS", "-sV", flagScript, Scripts, flagNoDNS, flagMaxRate, r, flagTopPorts, "1000", flagHostTimeout, normalHostTimeout}, nil
 	case GentleTitles:
 		return []string{flagPrivileged, "-sS", flagScript, TitleScripts, flagScriptTimeout, titleScriptTimeout, flagNoDNS, flagTiming, flagMaxRetries, "1", flagMaxRate, "1", flagHostTimeout, gentleHostTimeout, flagTopPorts, "100"}, nil
+	case External:
+		if rate != ExternalRate {
+			return nil, fmt.Errorf("nmapargv: the external shape runs at %d packets/s, not %d", ExternalRate, rate)
+		}
+		// -Pn: the box's own address need not answer a ping (routers drop it); it is up by definition.
+		return []string{flagPrivileged, "-sS", "-sV", "-Pn", flagNoDNS, flagMaxRate, r, flagMaxRetries, "2", flagHostTimeout, externalHostTimeout, "-p", ExternalPorts}, nil
 	}
 	return nil, errors.New("nmapargv: unknown scan kind")
 }
@@ -140,11 +176,30 @@ func atoi(s string) (int, bool) {
 // rest of 100/8, multicast, reserved and broadcast are all outside 10/8, 172.16/12, 192.168/16 and 100.64/10).
 func validTarget(a netip.Addr) bool { return a.IsValid() && a.Zone() == "" && localnet.Addr(a) }
 
-// Build builds an nmap command line only from private IPv4 addresses, an integer rate and the fixed
-// flags above (INV-4, FORBID-3). The shape is: the flags of the kind, -oX -, then the targets.
+// validExternal: the external shape names one public IPv4 address (egressip.IsPublicIPv4: not private, CGNAT, loopback,
+// link-local, documentation, multicast or reserved), written as plain IPv4 (D-514).
+func validExternal(a netip.Addr) bool { return a.Is4() && a.Zone() == "" && egressip.IsPublicIPv4(a) }
+
+// targetRule checks the targets of a kind: one public address for the external shape, 1..MaxBatch local ones for the others.
+func targetRule(kind Kind, n int) (ok func(netip.Addr) bool, err error) {
+	if kind == External {
+		if n != 1 {
+			return nil, fmt.Errorf("nmapargv: the external shape takes exactly one target, got %d", n)
+		}
+		return validExternal, nil
+	}
+	if n == 0 || n > MaxBatch {
+		return nil, fmt.Errorf("nmapargv: a run needs 1 to %d targets, got %d", MaxBatch, n)
+	}
+	return validTarget, nil
+}
+
+// Build builds an nmap command line only from private IPv4 addresses (the external shape: one public one), an integer rate and
+// the fixed flags above (INV-4, FORBID-3). The shape is: the flags of the kind, -oX -, then the targets.
 func Build(kind Kind, rate int, targets []netip.Addr) ([]string, error) {
-	if len(targets) == 0 || len(targets) > MaxBatch {
-		return nil, fmt.Errorf("nmapargv: a run needs 1 to %d targets, got %d", MaxBatch, len(targets))
+	valid, err := targetRule(kind, len(targets))
+	if err != nil {
+		return nil, err
 	}
 	args, err := Flags(kind, rate)
 	if err != nil {
@@ -152,8 +207,8 @@ func Build(kind Kind, rate int, targets []netip.Addr) ([]string, error) {
 	}
 	args = append(args, flagXML, "-")
 	for _, t := range targets {
-		if !validTarget(t) {
-			return nil, fmt.Errorf("nmapargv: target %q is not a private IPv4 address", t)
+		if !valid(t) {
+			return nil, fmt.Errorf("nmapargv: target %q is not allowed in the %s shape", t, kind.Name())
 		}
 		args = append(args, t.String())
 	}
@@ -161,9 +216,10 @@ func Build(kind Kind, rate int, targets []netip.Addr) ([]string, error) {
 }
 
 // Validate is the Validate func of the nmap Binary: it re-checks the whole argv before the process
-// starts, independently of how Build made it (SYS-2). It accepts exactly the five shapes of Flags
-// (sweep, normal, gentle, versions, gentle_titles), where only the rate of sweep, normal and versions varies, then "-oX -", then 1 to MaxBatch
-// canonical, unique, private IPv4 addresses. Everything else is rejected.
+// starts, independently of how Build made it (SYS-2). It accepts exactly the six shapes of Flags
+// (sweep, normal, gentle, versions, gentle_titles, external), where only the rate of sweep, normal and versions varies, then
+// "-oX -", then 1 to MaxBatch canonical, unique, private IPv4 addresses (external: exactly one canonical public IPv4 address).
+// Everything else is rejected.
 func Validate(args []string) error {
 	i := slices.Index(args, flagXML)
 	if i < 0 || i+1 >= len(args) || args[i+1] != "-" {
@@ -176,21 +232,23 @@ func Validate(args []string) error {
 			rate = n
 		}
 	}
-	if !slices.ContainsFunc(kinds, func(k Kind) bool {
+	k := slices.IndexFunc(kinds, func(k Kind) bool {
 		want, err := Flags(k, rate)
 		return err == nil && slices.Equal(flags, want)
-	}) {
-		return fmt.Errorf("flags %q are not one of the five allowed command shapes", flags)
+	})
+	if k < 0 {
+		return fmt.Errorf("flags %q are not one of the six allowed command shapes", flags)
 	}
 	targets := args[i+2:]
-	if len(targets) == 0 || len(targets) > MaxBatch {
-		return fmt.Errorf("a run needs 1 to %d targets, got %d", MaxBatch, len(targets))
+	valid, err := targetRule(kinds[k], len(targets))
+	if err != nil {
+		return err
 	}
 	uniq := make(map[string]bool, len(targets))
 	for _, t := range targets {
 		a, err := netip.ParseAddr(t)
-		if err != nil || !validTarget(a) || a.String() != t || uniq[t] {
-			return fmt.Errorf("target %q is not a canonical, unique, private IPv4 address", t)
+		if err != nil || !valid(a) || a.String() != t || uniq[t] {
+			return fmt.Errorf("target %q is not a canonical, unique address the %s shape allows", t, kinds[k].Name())
 		}
 		uniq[t] = true
 	}

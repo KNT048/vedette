@@ -132,8 +132,8 @@ func TestFixedIn_ReviewCases(t *testing.T) {
 	}
 	for _, ver := range []string{"2.426.1-1ubuntu2", "2.426.1-1+deb12u2", "2.426.1-3.el9"} {
 		jenkins.Version = ver
-		if f := FixedInFor(Asset{ID: "a", Name: "ci", OS: "Ubuntu 22.04.4 LTS", Software: []Software{jenkins}}, jv); f == nil || f.Kind != "distro" || f.Fixed != "" || f.Distro != "Ubuntu" {
-			t.Errorf("version %q: %+v, want kind distro with no number", ver, f)
+		if f := FixedInFor(Asset{ID: "a", Name: "ci", OS: "Ubuntu 22.04.4 LTS", Software: []Software{jenkins}}, jv); f == nil || f.Kind != "distro" || f.Fixed != "2.442" || f.Distro != "Ubuntu" {
+			t.Errorf("version %q: %+v, want kind distro with the upstream 2.442 as reference", ver, f)
 		}
 	}
 	jenkins.Version = "2.426.1"
@@ -174,5 +174,42 @@ func TestFixedIn_BranchesAreShort(t *testing.T) {
 	f := FixedInFor(Asset{ID: "a", Name: "dev", Software: []Software{sw}}, Vuln{CVE: "CVE-2024-0001", Vendor: "Acme", Product: "Gate", Affected: aff})
 	if f == nil || len(f.Branches) != 5 || f.More != 2 || f.Branches[0].Fixed != "7.7.7" || f.Branches[0].Branch != "7.0" {
 		t.Errorf("got %+v", f)
+	}
+}
+
+// D-488 follow-up (inventory INV-28 (3)): an agent row read from the package database is told to take the distribution's
+// security updates, with the upstream release only as a reference; a row a person typed keeps the upstream number, and a
+// row whose origin is not known (stored before inventory kept the flag, or no source) keeps the conditional wording.
+func TestFixedIn_PackagedAgentRow(t *testing.T) {
+	ssl := Software{ID: "s-o", Display: "OpenSSL", Vendor: "OpenSSL", Product: "OpenSSL", Version: "3.0.2", KevKeys: []string{"openssl|openssl"}}
+	v := Vuln{CVE: "CVE-2024-0004", Vendor: "OpenSSL", Product: "OpenSSL", Affected: []Affected{{CPE: "cpe:2.3:a:openssl:openssl:*:*:*:*:*:*:*:*", Range: VersionRange{StartIncl: "3.0.0", EndExcl: "3.0.7"}}}}
+	on := func(osName string, s Software) *FixedIn {
+		return FixedInFor(Asset{ID: "a", Name: "web", OS: osName, Software: []Software{s}}, v)
+	}
+	pkg := ssl
+	pkg.Source, pkg.Packaged = "agent", true
+	if f := on("Ubuntu 22.04.4 LTS", pkg); f == nil || f.Kind != "distro" || f.Fixed != "3.0.7" || f.Distro != "Ubuntu" || f.Version != "3.0.2" {
+		t.Errorf("packaged agent row on Ubuntu: %+v, want distro Ubuntu with upstream 3.0.7", f)
+	}
+	if f := on("Rocky Linux 9.4", pkg); f == nil || f.Kind != "distro" || f.Fixed != "3.0.7" || f.Distro != "" {
+		t.Errorf("packaged agent row on a distribution Vedette does not name: %+v, want distro with no name", f)
+	}
+	if g := FixedInForAll(Asset{ID: "a", Name: "web", OS: "Ubuntu 22.04.4 LTS", Software: []Software{pkg}}, []Vuln{v})[v.CVE]; g == nil || g.Kind != "distro" {
+		t.Errorf("weekly report group of a packaged row: %+v, want distro", g)
+	}
+	manual := ssl
+	manual.Source = "manual"
+	unknown := ssl // no source: a caller that does not know it
+	old := ssl     // an agent row stored before inventory kept the flag
+	old.Source = "agent"
+	notAgent := ssl // the flag means nothing outside an agent row
+	notAgent.Source, notAgent.Packaged = "scan", true
+	for name, s := range map[string]Software{"manual": manual, "unknown source": unknown, "agent row before the flag": old, "scan": notAgent} {
+		if f := on("Ubuntu 22.04.4 LTS", s); f == nil || f.Kind != "fixed" || f.Fixed != "3.0.7" || f.Distro != "Ubuntu" {
+			t.Errorf("%s on Ubuntu: %+v, want fixed 3.0.7 with the Ubuntu condition", name, f)
+		}
+	}
+	if f := on("", manual); f == nil || f.Kind != "fixed" || f.Distro != "" {
+		t.Errorf("manual row with no OS: %+v, want fixed with no condition", f)
 	}
 }

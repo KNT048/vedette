@@ -359,8 +359,14 @@ func TestWiringApproveInDevicesClosesTheNewDeviceIncident(t *testing.T) {
 	s := newStack(t)
 	s.enableNotify()
 	ctx := t.Context()
-	if err := s.d.DB.Write(ctx, func(tx *sql.Tx) error { // not a fresh box: the device gets its own incident, not the first-discovery summary
-		_, err := tx.ExecContext(ctx, `UPDATE notify_box SET first_run_at = ?`, time.Now().AddDate(0, -1, 0).UTC().Format("2006-01-02T15:04:05.000Z"))
+	// not a fresh box, and the passive sensor is past its learning (inventory INV-28, D-554): the device gets its own incident, not the
+	// first-discovery summary
+	monthAgo := time.Now().AddDate(0, -1, 0).UTC().Format("2006-01-02T15:04:05.000Z")
+	if err := s.d.DB.Write(ctx, func(tx *sql.Tx) error {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO inv_source (source, first_seen) VALUES ('passive', ?)`, monthAgo); err != nil {
+			return err
+		}
+		_, err := tx.ExecContext(ctx, `UPDATE notify_box SET first_run_at = ?`, monthAgo)
 		return err
 	}); err != nil {
 		t.Fatal(err)
@@ -483,5 +489,30 @@ func TestWiringScanWindowFollowsTheOrganizationTimeZone(t *testing.T) {
 	}
 	if len(nm.calls(t)) == 0 {
 		t.Fatal("02:00 in the organization zone is inside the window, but nothing was scanned")
+	}
+}
+
+// D-554 (MK-1): on a box notify has run on for a month, the first report of a new source (here the passive sensor) is a learning one:
+// inventory's Record sends learning:true and notify folds the device into the one discovery summary, not an incident of its own.
+func TestWiringALearningSensorFoldsItsDevicesIntoTheSummary(t *testing.T) {
+	t.Parallel()
+	s := newStack(t)
+	s.enableNotify()
+	ctx := t.Context()
+	if err := s.d.DB.Write(ctx, func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(ctx, `UPDATE notify_box SET first_run_at = ?`, time.Now().AddDate(0, -1, 0).UTC().Format("2006-01-02T15:04:05.000Z"))
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.d.Inventory.Record(ctx, []observe.Observation{
+		{AssetHint: observe.AssetHint{MAC: "aa:bb:cc:00:01:46", IP: netip.MustParseAddr("192.168.18.146")}, Field: observe.Hostname, Value: "printer-2", Source: observe.Passive, Confidence: 0.7},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	list, err := newNotify(s.d).Incidents(ctx)
+	if err != nil || len(list) != 1 || list[0].Link != "/devices" || list[0].Title != "1 device found on your network: approve it in Devices" ||
+		len(list[0].Devices) != 1 || list[0].Devices[0].Name != "printer-2 (192.168.18.146)" || !strings.Contains(list[0].What, "A sensor started watching") {
+		t.Fatalf("incidents = %+v, %v", list, err)
 	}
 }

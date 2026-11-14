@@ -326,12 +326,6 @@ func webOnRead(rows []WebFindingRow) (out []WebFindingRow, dropped int) {
 	return out, dropped
 }
 
-// ExploitedLookup is implemented by a Matcher that can also look CVE ids up in today's list of exploited vulnerabilities (D-565: the
-// CVEs Retire.js names for a JavaScript library ZAP saw). It returns a row (CVE, Name, DateAdded, Ransomware) for each listed id.
-type ExploitedLookup interface {
-	Exploited(ctx context.Context, cves []string) ([]VulnRow, error)
-}
-
 // The lines of the version comparison of the web scan (INV-24, D-565).
 const (
 	notWebVersionsMatcher = "Versions ZAP read on the web pages were not compared with exploited vulnerabilities: the comparison is not set up on this box yet."
@@ -405,7 +399,7 @@ func (s *Service) withWebVersions(ctx context.Context, snap *Snapshot) {
 	}
 	matched, failed := 0, "" // failed: the "Not checked" line of a comparison that did not run
 	if len(js) > 0 {
-		var listed []VulnRow
+		var listed map[string]KEVEntry // ExploitedLookup (greenbone.go): the CVEs Retire.js names that today's list carries (D-565)
 		var err error
 		look, ok := s.cfg.Matcher.(ExploitedLookup)
 		if ok {
@@ -422,13 +416,9 @@ func (s *Service) withWebVersions(ctx context.Context, snap *Snapshot) {
 		case err != nil:
 			failed = s.webVersionsFailed(ctx, snap, err)
 		}
-		byCVE := map[string]VulnRow{}
-		for _, v := range listed {
-			byCVE[v.CVE] = v
-		}
 		for _, h := range js {
 			for _, c := range h.w.CVEs {
-				v, ok := byCVE[c]
+				v, ok := listed[c]
 				if !ok {
 					continue
 				}

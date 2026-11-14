@@ -242,7 +242,8 @@ func TestExposureMatcher_ZAPVersions(t *testing.T) {
 	vulns := exposureGolden(t)
 	m := exposureMatcher{vulns: func(context.Context) ([]findings.Vuln, error) { return vulns, nil }, now: func() time.Time { return time.Date(2026, 11, 13, 0, 0, 0, 0, time.UTC) }}
 	got, err := m.Exploited(t.Context(), []string{"CVE-2021-41773", "CVE-2000-0001"})
-	if err != nil || len(got) != 1 || got[0].CVE != "CVE-2021-41773" || got[0].Name != "Apache HTTP Server Path Traversal Vulnerability" || got[0].DateAdded == nil || *got[0].DateAdded != "2021-11-03" {
+	e, ok := got["CVE-2021-41773"]
+	if err != nil || len(got) != 1 || !ok || e.Name != "Apache HTTP Server Path Traversal Vulnerability" || e.DateAdded == nil || *e.DateAdded != "2021-11-03" {
 		t.Fatalf("%+v %v", got, err)
 	}
 	var cpes map[string]string

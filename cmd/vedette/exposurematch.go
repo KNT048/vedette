@@ -126,19 +126,19 @@ func (m exposureMatcher) Match(ctx context.Context, svcs []exposure.ServiceRow) 
 	return out, nil
 }
 
-// Exploited is exposure's ExploitedLookup (D-565): the CVE ids among cves that today's list carries, with their name, date and
-// ransomware flag (the CVEs Retire.js names for a JavaScript library ZAP saw on a page).
-func (m exposureMatcher) Exploited(ctx context.Context, cves []string) ([]exposure.VulnRow, error) {
+// Exploited is exposure's ExploitedLookup (D-565, D-563): the CVE ids among cves that today's list carries, with their name, date and
+// ransomware flag (the CVEs Retire.js names for a JavaScript library ZAP saw on a page, and those Greenbone names).
+func (m exposureMatcher) Exploited(ctx context.Context, cves []string) (map[string]exposure.KEVEntry, error) {
 	vulns, err := m.vulns(ctx)
 	if err != nil {
 		return nil, err
 	}
-	out := []exposure.VulnRow{}
+	out := map[string]exposure.KEVEntry{}
 	for _, v := range vulns {
 		if slices.Contains(cves, v.CVE) {
 			row := exposure.VulnRow{CVE: v.CVE}
 			kevRow(&row, v)
-			out = append(out, row)
+			out[v.CVE] = exposure.KEVEntry{Name: row.Name, DateAdded: row.DateAdded, Ransomware: row.Ransomware}
 		}
 	}
 	return out, nil

@@ -14634,7 +14634,7 @@
                           "id": {
                             "type": "integer",
                             "minimum": 1,
-                            "maximum": 15
+                            "maximum": 16
                           },
                           "state": {
                             "type": "string",
@@ -14662,7 +14662,7 @@
                         ],
                         "additionalProperties": false
                       },
-                      "description": "Exactly the 15 flows listed in PRIVACY.md"
+                      "description": "Exactly the 16 flows listed in PRIVACY.md"
                     },
                     "telemetry": {
                       "type": "object",
@@ -14769,7 +14769,7 @@
                           "id": {
                             "type": "integer",
                             "minimum": 1,
-                            "maximum": 15
+                            "maximum": 16
                           },
                           "state": {
                             "type": "string",
@@ -14797,7 +14797,7 @@
                         ],
                         "additionalProperties": false
                       },
-                      "description": "Exactly the 15 flows listed in PRIVACY.md"
+                      "description": "Exactly the 16 flows listed in PRIVACY.md"
                     },
                     "telemetry": {
                       "type": "object",
@@ -21570,6 +21570,287 @@
         }
       }
     },
+    "/exposure/greenbone": {
+      "get": {
+        "operationId": "exposure_get_exposure_greenbone",
+        "summary": "The optional deep scan with Greenbone (OpenVAS, D-563): its state and this box's memory and free disk against the thresholds. Reading may ask Greenbone whether it is ready; it never starts a scan",
+        "tags": [
+          "exposure"
+        ],
+        "x-stories": [
+          "S-EXP-2"
+        ],
+        "x-min-role": "viewer",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "state": {
+                      "type": "string",
+                      "enum": [
+                        "unavailable",
+                        "off",
+                        "starting",
+                        "loading",
+                        "ready",
+                        "error"
+                      ],
+                      "description": "unavailable: not set up on this box; loading: Greenbone is loading its feed (the first time takes about 2 hours), a phase and not a hang"
+                    },
+                    "reason": {
+                      "description": "Why, for unavailable and error; the feed sentence for loading; null otherwise",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "changed_by": {
+                      "description": "Who last turned it on or off",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "changed_at": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "preflight": {
+                      "type": "object",
+                      "properties": {
+                        "memory_bytes": {
+                          "anyOf": [
+                            {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "MemTotal of the box; null when it could not be read"
+                        },
+                        "disk_free_bytes": {
+                          "anyOf": [
+                            {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "Free space of the box data directory's filesystem; null when it could not be read"
+                        },
+                        "ok": {
+                          "type": "boolean",
+                          "description": "Both meet the thresholds: 8 GB (decimal) of memory and 60 GB free"
+                        },
+                        "reason": {
+                          "description": "Why it cannot be enabled, with the measured number, e.g. \"This box has 7.1 GB of memory; Greenbone needs at least 8.0 GB.\"",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "memory_bytes",
+                        "disk_free_bytes",
+                        "ok",
+                        "reason"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "state",
+                    "reason",
+                    "changed_by",
+                    "changed_at",
+                    "preflight"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "operationId": "exposure_put_exposure_greenbone",
+        "summary": "Turn the optional deep scan with Greenbone on or off (off by default). On: refused with 409 low_memory or low_disk and the measured numbers below 8 GB of memory or 60 GB free; else Greenbone starts in the background (starting, then loading while it loads its feed, about 2 hours the first time). Off: no scan uses it, its containers stop and its data is kept (502 host_error when they could not be stopped). 501 not_implemented when Greenbone is not available on this box. Audited",
+        "tags": [
+          "exposure"
+        ],
+        "x-stories": [
+          "S-EXP-2"
+        ],
+        "x-min-role": "admin",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "enabled": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "enabled"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "state": {
+                      "type": "string",
+                      "enum": [
+                        "unavailable",
+                        "off",
+                        "starting",
+                        "loading",
+                        "ready",
+                        "error"
+                      ],
+                      "description": "unavailable: not set up on this box; loading: Greenbone is loading its feed (the first time takes about 2 hours), a phase and not a hang"
+                    },
+                    "reason": {
+                      "description": "Why, for unavailable and error; the feed sentence for loading; null otherwise",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "changed_by": {
+                      "description": "Who last turned it on or off",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "changed_at": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "preflight": {
+                      "type": "object",
+                      "properties": {
+                        "memory_bytes": {
+                          "anyOf": [
+                            {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "MemTotal of the box; null when it could not be read"
+                        },
+                        "disk_free_bytes": {
+                          "anyOf": [
+                            {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "Free space of the box data directory's filesystem; null when it could not be read"
+                        },
+                        "ok": {
+                          "type": "boolean",
+                          "description": "Both meet the thresholds: 8 GB (decimal) of memory and 60 GB free"
+                        },
+                        "reason": {
+                          "description": "Why it cannot be enabled, with the measured number, e.g. \"This box has 7.1 GB of memory; Greenbone needs at least 8.0 GB.\"",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "memory_bytes",
+                        "disk_free_bytes",
+                        "ok",
+                        "reason"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "state",
+                    "reason",
+                    "changed_by",
+                    "changed_at",
+                    "preflight"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/exposure/scan": {
       "get": {
         "operationId": "exposure_get_exposure_scan",
@@ -21636,12 +21917,13 @@
                             "queued",
                             "probing",
                             "saving",
+                            "greenbone",
                             "done"
                           ],
-                          "description": "queued: accepted, about to start; probing: the Vulnerability scans module is scanning the target; saving: the result is being stored; done: the snapshot exists. A failed or stopped run keeps the phase it reached"
+                          "description": "queued: accepted, about to start; probing: the Vulnerability scans module is scanning the target; saving: the result is being stored; greenbone: the snapshot of the other steps is stored and the optional Greenbone scan runs (up to 90 minutes, D-563), the box's one scan slot stays busy; done: the snapshot exists. A failed or stopped run keeps the phase it reached"
                         },
                         "snapshot_id": {
-                          "description": "The new snapshot when status is done",
+                          "description": "The new snapshot when status is done; also when a run was stopped during its Greenbone step, whose earlier results are kept",
                           "type": [
                             "string",
                             "null"
@@ -21771,12 +22053,13 @@
                         "queued",
                         "probing",
                         "saving",
+                        "greenbone",
                         "done"
                       ],
-                      "description": "queued: accepted, about to start; probing: the Vulnerability scans module is scanning the target; saving: the result is being stored; done: the snapshot exists. A failed or stopped run keeps the phase it reached"
+                      "description": "queued: accepted, about to start; probing: the Vulnerability scans module is scanning the target; saving: the result is being stored; greenbone: the snapshot of the other steps is stored and the optional Greenbone scan runs (up to 90 minutes, D-563), the box's one scan slot stays busy; done: the snapshot exists. A failed or stopped run keeps the phase it reached"
                     },
                     "snapshot_id": {
-                      "description": "The new snapshot when status is done",
+                      "description": "The new snapshot when status is done; also when a run was stopped during its Greenbone step, whose earlier results are kept",
                       "type": [
                         "string",
                         "null"
@@ -23753,12 +24036,13 @@
                         "queued",
                         "probing",
                         "saving",
+                        "greenbone",
                         "done"
                       ],
-                      "description": "queued: accepted, about to start; probing: the Vulnerability scans module is scanning the target; saving: the result is being stored; done: the snapshot exists. A failed or stopped run keeps the phase it reached"
+                      "description": "queued: accepted, about to start; probing: the Vulnerability scans module is scanning the target; saving: the result is being stored; greenbone: the snapshot of the other steps is stored and the optional Greenbone scan runs (up to 90 minutes, D-563), the box's one scan slot stays busy; done: the snapshot exists. A failed or stopped run keeps the phase it reached"
                     },
                     "snapshot_id": {
-                      "description": "The new snapshot when status is done",
+                      "description": "The new snapshot when status is done; also when a run was stopped during its Greenbone step, whose earlier results are kept",
                       "type": [
                         "string",
                         "null"
@@ -24241,7 +24525,7 @@
                         "properties": {
                           "kind": {
                             "type": "string",
-                            "description": "ports, names, services, templates, cve or web"
+                            "description": "ports, names, services, templates, cve, web or greenbone"
                           },
                           "text": {
                             "type": "string"
@@ -24267,7 +24551,7 @@
                         "properties": {
                           "kind": {
                             "type": "string",
-                            "description": "udp, ports, non_exploited, services, templates, cve or web"
+                            "description": "udp, ports, non_exploited, services, templates, cve, web or greenbone"
                           },
                           "text": {
                             "type": "string"
@@ -24400,6 +24684,62 @@
                         "additionalProperties": false
                       }
                     },
+                    "greenbone": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "ip": {
+                            "type": "string"
+                          },
+                          "port": {
+                            "type": "string",
+                            "description": "\"443/tcp\", \"general/tcp\"; \"\" when Greenbone gave none"
+                          },
+                          "severity": {
+                            "type": "number",
+                            "description": "CVSS score, 0.1 to 10"
+                          },
+                          "name": {
+                            "type": "string",
+                            "description": "Name of Greenbone's test; plain text"
+                          },
+                          "qod": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991,
+                            "description": "Quality of detection, 70 to 100"
+                          },
+                          "cves": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            },
+                            "description": "CVE ids the test names"
+                          },
+                          "solution": {
+                            "type": "string",
+                            "description": "Greenbone's advice, plain text, clipped"
+                          },
+                          "oid": {
+                            "type": "string",
+                            "description": "OID of the test; \"\" when not read"
+                          }
+                        },
+                        "required": [
+                          "ip",
+                          "port",
+                          "severity",
+                          "name",
+                          "qod",
+                          "cves",
+                          "solution",
+                          "oid"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "description": "Results of the optional deep scan with Greenbone (INV-25); empty when it did not run (the not_checked lines of kind greenbone say why)"
+                    },
                     "vulns": {
                       "type": "array",
                       "items": {
@@ -24425,9 +24765,10 @@
                               "version",
                               "product",
                               "template",
+                              "greenbone",
                               "js_library"
                             ],
-                            "description": "version: the version is inside an NVD range (from nmap, or from a Server or X-Powered-By header ZAP read, D-565); product: only the product matches; template: a safe template matched (INV-23), the strongest evidence; js_library: Retire.js names this CVE for a JavaScript library version ZAP saw on a page (D-565)"
+                            "description": "version: the version is inside an NVD range (from nmap, or from a Server or X-Powered-By header ZAP read, D-565); product: only the product matches; template: a safe template matched (INV-23), the strongest evidence; greenbone: Greenbone named this CVE and it is on the list (INV-25), shown next to any other row of the same CVE, never instead of it; js_library: Retire.js names this CVE for a JavaScript library version ZAP saw on a page (D-565)"
                           },
                           "summary": {
                             "type": "string"
@@ -24464,6 +24805,12 @@
                               "error"
                             ],
                             "description": "What that template did: matched (basis becomes template), no_match (one check, never \"not vulnerable\") or error; \"\" when none ran"
+                          },
+                          "qod": {
+                            "description": "Basis greenbone only: Greenbone's quality of detection, 70 to 100",
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
                           }
                         },
                         "required": [
@@ -24531,6 +24878,7 @@
                     "checks",
                     "not_checked",
                     "web_findings",
+                    "greenbone",
                     "vulns",
                     "version_gaps"
                   ],

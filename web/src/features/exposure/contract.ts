@@ -60,16 +60,17 @@ export const ServiceRow = z.object({
   version: z.string().describe('"" when the service sent none'), cpe: z.string().describe('The CPE 2.2 URI nmap printed; "" when none'),
   extra: z.string().describe('nmap\'s extrainfo, e.g. (Debian); "" when none'),
 })
-export const CheckRow = z.object({ kind: z.string().describe('ports, names, services, templates, cve or web'), text: z.string(), at: z.iso.datetime() })
-export const NotCheckedRow = z.object({ kind: z.string().describe('udp, ports, non_exploited, services, templates, cve or web'), text: z.string() })
-export const VulnBasis = z.enum(['version', 'product', 'template', 'js_library'])
+export const CheckRow = z.object({ kind: z.string().describe('ports, names, services, templates, cve, web or greenbone'), text: z.string(), at: z.iso.datetime() })
+export const NotCheckedRow = z.object({ kind: z.string().describe('udp, ports, non_exploited, services, templates, cve, web or greenbone'), text: z.string() })
+export const VulnBasis = z.enum(['version', 'product', 'template', 'greenbone', 'js_library'])
 export const VulnRow = z.object({
   ip: z.string(), port: z.number().int(), cve: z.string(), name: z.string(),
-  basis: VulnBasis.describe('version: the version is inside an NVD range (from nmap, or from a Server or X-Powered-By header ZAP read, D-565); product: only the product matches; template: a safe template matched (INV-23), the strongest evidence; js_library: Retire.js names this CVE for a JavaScript library version ZAP saw on a page (D-565)'),
+  basis: VulnBasis.describe('version: the version is inside an NVD range (from nmap, or from a Server or X-Powered-By header ZAP read, D-565); product: only the product matches; template: a safe template matched (INV-23), the strongest evidence; greenbone: Greenbone named this CVE and it is on the list (INV-25), shown next to any other row of the same CVE, never instead of it; js_library: Retire.js names this CVE for a JavaScript library version ZAP saw on a page (D-565)'),
   summary: z.string(), date_added: isoDate.nullable().describe('When CISA listed it as exploited'), ransomware: z.boolean(),
   backport: z.string().describe('The distribution the service names (Debian, Ubuntu…), which may have backported the fix without changing the version; "" when none'),
   template: z.string().describe('Id of the safe template that ran for this CVE; "" when none ran'),
   template_result: z.enum(['', 'matched', 'no_match', 'error']).describe('What that template did: matched (basis becomes template), no_match (one check, never "not vulnerable") or error; "" when none ran'),
+  qod: z.number().int().optional().describe('Basis greenbone only: Greenbone\'s quality of detection, 70 to 100'),
 })
 export const TemplateRow = z.object({
   ip: z.string(), port: z.number().int(), cve: z.string().describe('The CVE the template is for (one the job asked about)'),
@@ -93,10 +94,19 @@ export const WebFinding = z.object({
   software: z.array(WebSoftware).describe('D-565: versions ZAP read (10003 JavaScript library, 10036 Server header, 10037 X-Powered-By); [] for other rules'),
 })
 
+// S-EXP-2 (INV-25, D-563): the optional deep scan. Greenbone looked at the IP from outside without logging in; QoD >= 70 only.
+export const GreenboneResult = z.object({
+  ip: z.string(), port: z.string().describe('"443/tcp", "general/tcp"; "" when Greenbone gave none'),
+  severity: z.number().describe('CVSS score, 0.1 to 10'), name: z.string().describe('Name of Greenbone\'s test; plain text'),
+  qod: z.number().int().describe('Quality of detection, 70 to 100'), cves: z.array(z.string()).describe('CVE ids the test names'),
+  solution: z.string().describe('Greenbone\'s advice, plain text, clipped'), oid: z.string().describe('OID of the test; "" when not read'),
+})
+
 export const Snapshot = z.object({
   id: z.string(), date: isoDate, scanned_at: z.iso.datetime(),
   hosts: z.array(HostRow), ports: z.array(PortRow), admin_panels: z.array(AdminRow), certs: z.array(CertRow), counts: Counts,
   services: z.array(ServiceRow), templates: z.array(TemplateRow).describe('The safe templates that ran on the services (INV-23); the box ran no template when empty'), checks: z.array(CheckRow), not_checked: z.array(NotCheckedRow), web_findings: z.array(WebFinding),
+  greenbone: z.array(GreenboneResult).describe('Results of the optional deep scan with Greenbone (INV-25); empty when it did not run (the not_checked lines of kind greenbone say why)'),
   vulns: z.array(VulnRow).describe('Computed on read against today\'s CISA list, not stored'), version_gaps: z.array(GapRow),
 })
 export const SnapshotMeta = Snapshot.pick({ id: true, date: true, scanned_at: true, counts: true })
@@ -130,13 +140,13 @@ export const Gateway = z.object({
   open_exploited: z.number().int().describe('Open findings (exploited vulnerabilities, confirmed or suspected) of that device; 0 when device_id is null'),
 })
 export const TargetList = z.object({ items: z.array(Target), box_ip: BoxIpSettings, ignored: z.array(IgnoredIp).describe('The Ignored list, newest first'), gateway: Gateway.nullable().describe('null unless one of the box\'s own IPs has an open port in its newest scan; then who probably answers it (D-492)') })
-export const ScanPhase = z.enum(['queued', 'probing', 'saving', 'done'])
+export const ScanPhase = z.enum(['queued', 'probing', 'saving', 'greenbone', 'done'])
 export const ScanRun = z.object({
   id: z.string(), target_id: z.string(), target_value: z.string(), by: z.string().describe('Who pressed Scan now (an e-mail)'),
   started_at: z.iso.datetime(), finished_at: z.iso.datetime().nullable(),
   status: z.enum(['running', 'done', 'failed', 'stopped']),
-  phase: ScanPhase.describe('queued: accepted, about to start; probing: the Vulnerability scans module is scanning the target; saving: the result is being stored; done: the snapshot exists. A failed or stopped run keeps the phase it reached'),
-  snapshot_id: z.string().nullable().describe('The new snapshot when status is done'),
+  phase: ScanPhase.describe('queued: accepted, about to start; probing: the Vulnerability scans module is scanning the target; saving: the result is being stored; greenbone: the snapshot of the other steps is stored and the optional Greenbone scan runs (up to 90 minutes, D-563), the box\'s one scan slot stays busy; done: the snapshot exists. A failed or stopped run keeps the phase it reached'),
+  snapshot_id: z.string().nullable().describe('The new snapshot when status is done; also when a run was stopped during its Greenbone step, whose earlier results are kept'),
   error: z.object({ code: z.string(), message: z.string() }).nullable().describe('Why the run failed, in the same codes and texts the synchronous scan used (unreachable, too_many, module_off ...); null otherwise'),
 })
 
@@ -153,6 +163,20 @@ export const OutsideView = z.object({
   vulns: z.array(z.string()).describe('CVE IDs Shodan lists from the software versions it saw; Vedette has not confirmed them'),
   scan_ports: z.array(z.number().int()).nullable().describe('Open ports of Vedette\'s own newest scan of this IP, sorted; null when it was never scanned'),
   scan_at: z.iso.datetime().nullable().describe('When that scan ran; null when never'),
+})
+
+/** D-563: the optional deep scan with Greenbone (OpenVAS), off by default. Greenbone runs as its own containers next to Vedette. */
+export const GreenboneState = z.enum(['unavailable', 'off', 'starting', 'loading', 'ready', 'error'])
+export const Greenbone = z.object({
+  state: GreenboneState.describe('unavailable: not set up on this box; loading: Greenbone is loading its feed (the first time takes about 2 hours), a phase and not a hang'),
+  reason: z.string().nullable().describe('Why, for unavailable and error; the feed sentence for loading; null otherwise'),
+  changed_by: z.string().nullable().describe('Who last turned it on or off'), changed_at: z.iso.datetime().nullable(),
+  preflight: z.object({
+    memory_bytes: z.number().int().nullable().describe('MemTotal of the box; null when it could not be read'),
+    disk_free_bytes: z.number().int().nullable().describe('Free space of the box data directory\'s filesystem; null when it could not be read'),
+    ok: z.boolean().describe('Both meet the thresholds: 8 GB (decimal) of memory and 60 GB free'),
+    reason: z.string().nullable().describe('Why it cannot be enabled, with the measured number, e.g. "This box has 7.1 GB of memory; Greenbone needs at least 8.0 GB."'),
+  }),
 })
 
 export const BoxIpDetectResult = z.object({ items: z.array(Target).describe('The public IPs the box saw this time, each added or renewed'), message: z.string() })
@@ -174,6 +198,8 @@ export const endpoints = defineEndpoints([
   { method: 'post', path: '/exposure/scan/stop', summary: 'Stop the scan that runs now (status stopped, nothing is saved; audited). 409 not_running when no scan runs', stories: ['S-EXP-1'], role: 'operator', response: ScanRun },
   { method: 'get', path: '/exposure/targets/{id}/outside', summary: 'What the Internet sees (D-558): the last answer of Shodan InternetDB about this public IP of the box, with the open ports of Vedette\'s own newest scan of it; null when nobody has asked yet. Reading sends nothing', stories: ['S-EXP-1'], role: 'viewer', params: id, response: OutsideView.nullable(), example: { params: { id: 'xt-2' } } },
   { method: 'post', path: '/exposure/targets/{id}/outside', summary: 'Ask Shodan InternetDB what it has seen on this public IP (D-558). Only an administrator\'s click sends it: no job, no polling. Only a public IP of this box that is verified and still the one the box goes out through (the same check as before a scan, INV-13) is sent: 400 bad_value for a domain, 409 not_verified, expired or ip_not_current otherwise. One HTTPS GET of https://internetdb.shodan.io/<ip>, nothing else sent; 404 there is a normal answer (found false). At most one check a minute on the box (429 rate_limited); 502 unreachable when Shodan does not answer or its answer cannot be read. The answer is kept (one per IP) and every request sent is audited', stories: ['S-EXP-1'], role: 'admin', params: id, response: OutsideView },
+  { method: 'get', path: '/exposure/greenbone', summary: 'The optional deep scan with Greenbone (OpenVAS, D-563): its state and this box\'s memory and free disk against the thresholds. Reading may ask Greenbone whether it is ready; it never starts a scan', stories: ['S-EXP-2'], role: 'viewer', response: Greenbone },
+  { method: 'put', path: '/exposure/greenbone', summary: 'Turn the optional deep scan with Greenbone on or off (off by default). On: refused with 409 low_memory or low_disk and the measured numbers below 8 GB of memory or 60 GB free; else Greenbone starts in the background (starting, then loading while it loads its feed, about 2 hours the first time). Off: no scan uses it, its containers stop and its data is kept (502 host_error when they could not be stopped). 501 not_implemented when Greenbone is not available on this box. Audited', stories: ['S-EXP-2'], role: 'admin', body: z.object({ enabled: z.boolean() }), response: Greenbone },
   { method: 'get', path: '/exposure/targets/{id}/snapshots', summary: 'Scan days of a target, newest first', stories: ['S-EXP-1'], role: 'viewer', params: id, response: z.object({ items: z.array(SnapshotMeta) }), example: idEx },
   { method: 'get', path: '/exposure/targets/{id}/snapshots/{date}', summary: 'Scan result of one day', stories: ['S-EXP-1', 'S-EXP-2'], role: 'viewer', params: z.object({ id: z.string(), date: isoDate }), response: Snapshot, example: { params: { id: 'xt-1', date: day(1) } } },
   { method: 'get', path: '/exposure/targets/{id}/diff', summary: 'Compare two scan days: newly exposed, gone, changed', stories: ['S-EXP-1', 'S-EXP-2'], role: 'viewer', params: id, query: z.object({ from: isoDate, to: isoDate }), response: Diff, example: { params: { id: 'xt-1' }, query: { from: day(7), to: day(1) } } },

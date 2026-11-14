@@ -11,7 +11,7 @@ import (
 	"github.com/knt048/vedette/core/server"
 )
 
-// ExposureHandlers implements the 17 exposure operations (modules/exposure/CONTRACT.md). Embed it in the
+// ExposureHandlers implements the 19 exposure operations (modules/exposure/CONTRACT.md). Embed it in the
 // composite handler. Roles are enforced by the server pipeline before a handler runs, never here.
 //
 //nolint:revive // the name is distinct on purpose: it is embedded in cmd/vedette next to inventory.Handlers
@@ -258,4 +258,26 @@ func (h *ExposureHandlers) ExposurePostExposureTargetsIDOutside(ctx context.Cont
 		return nil, ToAPIError(err)
 	}
 	return into[oas.ExposurePostExposureTargetsIDOutsideOK](v)
+}
+
+// ExposureGetExposureGreenbone implements exposure_get_exposure_greenbone: the optional deep scan's state and this box's preflight.
+func (h *ExposureHandlers) ExposureGetExposureGreenbone(ctx context.Context) (*oas.ExposureGetExposureGreenboneOK, error) {
+	v, err := h.svc.GreenboneSetting(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return into[oas.ExposureGetExposureGreenboneOK](v)
+}
+
+// ExposurePutExposureGreenbone implements exposure_put_exposure_greenbone: turn Greenbone on or off (admin).
+func (h *ExposureHandlers) ExposurePutExposureGreenbone(ctx context.Context, req *oas.ExposurePutExposureGreenboneReq) (*oas.ExposurePutExposureGreenboneOK, error) {
+	user, err := actor(ctx)
+	if err != nil {
+		return nil, err
+	}
+	v, err := h.svc.SetGreenbone(ctx, user, req.Enabled)
+	if err != nil {
+		return nil, ToAPIError(err)
+	}
+	return into[oas.ExposurePutExposureGreenboneOK](v)
 }

@@ -158,12 +158,12 @@ func (f *fakeLookupMatcher) Match(_ context.Context, s []ServiceRow) (Matches, e
 	return out, nil
 }
 
-func (f *fakeLookupMatcher) Exploited(_ context.Context, cves []string) ([]VulnRow, error) {
+func (f *fakeLookupMatcher) Exploited(_ context.Context, cves []string) (map[string]KEVEntry, error) {
 	f.looked = append(f.looked, cves)
-	var out []VulnRow
+	out := map[string]KEVEntry{}
 	for _, c := range cves {
 		if v, ok := f.listed[c]; ok {
-			out = append(out, v)
+			out[c] = KEVEntry{Name: v.Name, DateAdded: v.DateAdded, Ransomware: v.Ransomware}
 		}
 	}
 	return out, f.lookErr

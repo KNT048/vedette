@@ -46,7 +46,7 @@ type (
 	// range) or "product" (only the product matches: no version range could decide). DateAdded is the day CISA listed it. Backport
 	// names the distribution the service says it is packaged by ("Debian"), "" when none: a distribution backports fixes without
 	// changing the upstream version, so a version in range is weaker evidence there (INV-20). Basis "template": a safe template
-	// matched (INV-23). Template is the id of the template that ran for this CVE and TemplateResult its outcome ("matched",
+	// matched (INV-23). Basis "greenbone": Greenbone named the CVE and it is on the list (INV-25), next to any other row. Template is the id of the template that ran for this CVE and TemplateResult its outcome ("matched",
 	// "no_match", "error"; "" when none ran). Basis "js_library": Retire.js names the CVE for a JavaScript library version ZAP saw on a
 	// page (D-565, zaprules.go); IP is then the page's host, a name for a domain.
 	VulnRow struct {
@@ -61,6 +61,7 @@ type (
 		Backport       string  `json:"backport"`
 		Template       string  `json:"template"`
 		TemplateResult string  `json:"template_result"`
+		QoD            int     `json:"qod,omitempty"` // basis "greenbone": Greenbone's quality of detection (INV-25)
 	}
 	// GapRow is a service whose product has exploited CVEs that only a version would decide, and nmap read no version.
 	GapRow struct {
@@ -218,7 +219,12 @@ func plural(n int, noun string) string {
 // "Not checked" line, never "no exploited CVE".
 func (s *Service) withVulns(ctx context.Context, snap *Snapshot) {
 	snap.Vulns, snap.VersionGaps = []VulnRow{}, []GapRow{}
-	defer s.withWebVersions(ctx, snap) // D-565: the rule list and the versions ZAP read, after the services
+	s.withServiceVulns(ctx, snap)
+	s.withWebVersions(ctx, snap)    // D-565: the rule list and the versions ZAP read, after the services
+	s.withGreenboneVulns(ctx, snap) // INV-25: after every other row, never changing one
+}
+
+func (s *Service) withServiceVulns(ctx context.Context, snap *Snapshot) {
 	if len(snap.Services) == 0 {
 		return
 	}

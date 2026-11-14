@@ -77,16 +77,22 @@ def main(debs, status, out):
 
 
 def inventory(rootfs, out):
-    """One line per component added to the base image: `deb <name> <version>` and `pip <name> <version> <license>`, for the audit
+    """One line per component added to the base image or changed in it: `deb <name> <version>`, `deb <name> <version> (over the
+    base's <version>)` for a security update laid over the base (D-594), and `pip <name> <version> <license>`, for the audit
     (THIRD_PARTY_NOTICES.md) and for whoever inspects the image. The pip licenses are what each package declares."""
     import importlib.metadata as md
 
-    lines = []
-    base = {p for p, _ in stanzas("/target/status")}
-    for pkg, block in stanzas(os.path.join(rootfs, "var/lib/dpkg/status")):
+    def version(block):
         v = re.search(r"^Version: (.+)$", block, re.M)
+        return v.group(1) if v else "?"
+
+    lines = []
+    base = {p: version(b) for p, b in stanzas("/target/status")}
+    for pkg, block in stanzas(os.path.join(rootfs, "var/lib/dpkg/status")):
         if pkg not in base:
-            lines.append("deb %s %s" % (pkg, v.group(1) if v else "?"))
+            lines.append("deb %s %s" % (pkg, version(block)))
+        elif version(block) != base[pkg]:
+            lines.append("deb %s %s (over the base's %s)" % (pkg, version(block), base[pkg]))
     for d in md.distributions(path=[os.path.join(rootfs, "opt/opencanary/lib")]):
         m = d.metadata
         lic = m.get("License-Expression") or ""

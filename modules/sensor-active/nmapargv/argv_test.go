@@ -92,13 +92,16 @@ func TestBuildRefuses(t *testing.T) {
 	}
 }
 
-// The four shapes written out apart from the code under test (INV-4, SYS-2; versions: D-501).
+// The six shapes written out apart from the code under test (INV-4, SYS-2; versions: D-501; external: D-514).
 var (
 	shapeSweep    = []string{"--privileged", "-sn", "-n", "--max-rate", "50", "-oX", "-", "192.168.10.1"}
 	shapeNormal   = []string{"--privileged", "-sS", "-sV", "-O", "--script", "rdp-ntlm-info,http-ntlm-info,http-title,ssl-cert", "-n", "--max-rate", "100", "--top-ports", "1000", "--host-timeout", "30m", "-oX", "-", "192.168.10.20"}
 	shapeGentle   = []string{"--privileged", "-sS", "-n", "-T2", "--max-retries", "1", "--max-rate", "1", "--host-timeout", "15m", "--top-ports", "100", "-oX", "-", "192.168.10.30"}
 	shapeVersions = []string{"--privileged", "-sS", "-sV", "--script", "rdp-ntlm-info,http-ntlm-info,http-title,ssl-cert", "-n", "--max-rate", "25", "--top-ports", "1000", "--host-timeout", "30m", "-oX", "-", "192.168.10.40"}
 	shapeTitles   = []string{"--privileged", "-sS", "--script", "http-title,ssl-cert", "--script-timeout", "20s", "-n", "-T2", "--max-retries", "1", "--max-rate", "1", "--host-timeout", "15m", "--top-ports", "100", "-oX", "-", "192.168.10.50"}
+	// D-514: the ports written out here are those of modules/scan/commonports (TestExternalPortsAreTheSurfaceList).
+	externalPorts = "21,22,23,25,53,80,81,88,102,110,111,135,139,143,179,389,443,445,465,502,515,554,587,631,636,873,993,995,1080,1194,1433,1521,1723,1883,2049,2082,2083,2086,2087,2222,2375,2376,2379,3000,3128,3306,3389,4443,4899,5000,5001,5060,5061,5432,5601,5672,5900,5901,5938,5984,5985,5986,6379,6443,7001,7002,7547,8000,8006,8008,8009,8080,8081,8088,8089,8090,8123,8291,8443,8728,8729,8834,8880,8883,8888,9000,9042,9090,9100,9200,9443,10000,10250,10443,11211,27017,34567,37777"
+	shapeExternal = []string{"--privileged", "-sS", "-sV", "-Pn", "-n", "--max-rate", "100", "--max-retries", "2", "--host-timeout", "3m", "-p", externalPorts, "-oX", "-", "8.8.8.8"}
 )
 
 // INV-4, SYS-2: the validator accepts exactly three command shapes, with only the rate (of sweep and normal)
@@ -183,7 +186,7 @@ func TestValidate(t *testing.T) {
 			t.Errorf("%s: accepted %q", name, argv)
 		}
 	}
-	for name, argv := range map[string][]string{"sweep": shapeSweep, "normal": shapeNormal, "gentle": shapeGentle, "versions": shapeVersions, "gentle_titles": shapeTitles, "two targets": with(shapeSweep, "192.168.10.2")} {
+	for name, argv := range map[string][]string{"sweep": shapeSweep, "normal": shapeNormal, "gentle": shapeGentle, "versions": shapeVersions, "gentle_titles": shapeTitles, "external": shapeExternal, "two targets": with(shapeSweep, "192.168.10.2")} {
 		if err := Validate(argv); err != nil {
 			t.Errorf("%s: a good argv is rejected: %v", name, err)
 		}
@@ -223,7 +226,7 @@ func TestValidateRefusesNonPrivateTargets(t *testing.T) {
 // private is the oracle's own idea of RFC 1918 and RFC 6598 (100.64-127.x, D-461), not netip's or localnet's.
 var private = regexp.MustCompile(`^(10\.([0-9]{1,3}\.){2}[0-9]{1,3}|192\.168\.[0-9]{1,3}\.[0-9]{1,3}|172\.(1[6-9]|2[0-9]|3[01])\.[0-9]{1,3}\.[0-9]{1,3}|100\.(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\.[0-9]{1,3}\.[0-9]{1,3})$`)
 
-// shapeOracle knows the four shapes and nothing else: the flags before "-oX" must be one of them, with the
+// shapeOracle knows the six shapes and nothing else: the flags before "-oX" must be one of them, with the
 // rate of sweep, normal and versions written as plain digits between 1 and 1000.
 func shapeOracle(flags []string) bool {
 	rate := regexp.MustCompile(`^([1-9][0-9]{0,2}|1000)$`)
@@ -233,12 +236,47 @@ func shapeOracle(flags []string) bool {
 			slices.Equal(flags[:at], want[:at]) && slices.Equal(flags[at+1:], want[at+1:])
 	}
 	return withRate(shapeSweep, 4) || withRate(shapeNormal, 8) || withRate(shapeVersions, 7) || slices.Equal(flags, shapeGentle[:slices.Index(shapeGentle, "-oX")]) ||
-		slices.Equal(flags, shapeTitles[:slices.Index(shapeTitles, "-oX")])
+		slices.Equal(flags, shapeTitles[:slices.Index(shapeTitles, "-oX")]) || externalOracle(flags)
+}
+
+func externalOracle(flags []string) bool {
+	return slices.Equal(flags, shapeExternal[:slices.Index(shapeExternal, "-oX")])
+}
+
+// public is the oracle's own idea of a public IPv4 address: dotted decimal without leading zeros, outside 0/8, 10/8, 100.64/10,
+// 127/8, 169.254/16, 172.16/12, 192.0.0/24, 192.0.2/24, 192.88.99/24, 192.168/16, 198.18/15, 198.51.100/24, 203.0.113/24 and 224/3.
+func public(s string) bool {
+	if !regexp.MustCompile(`^(0|[1-9][0-9]{0,2})(\.(0|[1-9][0-9]{0,2})){3}$`).MatchString(s) {
+		return false
+	}
+	var o [4]int
+	for i, p := range strings.Split(s, ".") {
+		n := 0
+		for _, c := range p {
+			n = n*10 + int(c-'0')
+		}
+		if n > 255 {
+			return false
+		}
+		o[i] = n
+	}
+	a, b, c := o[0], o[1], o[2]
+	switch {
+	case a == 0 || a == 10 || a == 127 || a >= 224:
+		return false
+	case a == 100 && b >= 64 && b <= 127, a == 169 && b == 254, a == 172 && b >= 16 && b <= 31, a == 192 && b == 168, a == 198 && (b == 18 || b == 19):
+		return false
+	case a == 192 && b == 0 && (c == 0 || c == 2), a == 192 && b == 88 && c == 99, a == 198 && b == 51 && c == 100, a == 203 && b == 0 && c == 113:
+		return false
+	}
+	return true
 }
 
 func FuzzValidate(f *testing.F) {
 	for _, s := range [][]string{
-		shapeSweep, shapeNormal, shapeGentle, shapeVersions, shapeTitles,
+		shapeSweep, shapeNormal, shapeGentle, shapeVersions, shapeTitles, shapeExternal,
+		append(slices.Clone(shapeExternal[:len(shapeExternal)-1]), "192.168.1.1"),
+		append(slices.Clone(shapeExternal), "1.1.1.1"),
 		{"--privileged", "-sn", "-n", "--max-rate", "1000", "-oX", "-", "10.0.0.1", "10.0.0.2"},
 		{"--privileged", "-A", "-oX", "-", "10.0.0.1"},
 		{"--privileged", "-sS", "--script", "vuln", "-oX", "-", "10.0.0.1"},
@@ -252,9 +290,15 @@ func FuzzValidate(f *testing.F) {
 		}
 		i := slices.Index(argv, "-oX")
 		if i < 0 || i+1 >= len(argv) || argv[i+1] != "-" || !shapeOracle(argv[:i]) {
-			t.Fatalf("accepted an argv that is not one of the five shapes: %q", argv)
+			t.Fatalf("accepted an argv that is not one of the six shapes: %q", argv)
 		}
 		targets := argv[i+2:]
+		if externalOracle(argv[:i]) { // D-514: one public address, never a local one, never two
+			if len(targets) != 1 || !public(targets[0]) || private.MatchString(targets[0]) {
+				t.Fatalf("accepted the external shape with targets %q", targets)
+			}
+			return
+		}
 		if len(targets) < 1 || len(targets) > MaxBatch {
 			t.Fatalf("accepted %d targets: %q", len(targets), argv)
 		}
@@ -275,7 +319,11 @@ func TestParseInvertsBuild(t *testing.T) {
 		kind Kind
 		rate int
 		want int
-	}{{Sweep, 50, 50}, {Normal, 1000, 1000}, {Gentle, 500, 1}, {GentleTitles, 500, 1}} {
+	}{{Sweep, 50, 50}, {Normal, 1000, 1000}, {Gentle, 500, 1}, {GentleTitles, 500, 1}, {External, ExternalRate, ExternalRate}} {
+		ts := ts
+		if c.kind == External {
+			ts = addrs(t, "8.8.8.8")
+		}
 		argv, err := Build(c.kind, c.rate, ts)
 		if err != nil {
 			t.Fatal(err)
@@ -301,7 +349,7 @@ func TestParseInvertsBuild(t *testing.T) {
 // that nothing is lost or invented on the way (L8).
 func FuzzParseBuild(f *testing.F) {
 	for _, s := range [][]string{
-		shapeSweep, shapeNormal, shapeGentle, shapeVersions, shapeTitles,
+		shapeSweep, shapeNormal, shapeGentle, shapeVersions, shapeTitles, shapeExternal,
 		{"--privileged", "-sn", "-n", "--max-rate", "1000", "-oX", "-", "10.0.0.1", "10.0.0.2"},
 		{"--privileged", "-sn", "-n", "--max-rate", "1", "-oX", "-", "172.16.0.1"},
 	} {
@@ -324,4 +372,70 @@ func FuzzParseBuild(f *testing.F) {
 			t.Fatalf("kind %v has no name", kind)
 		}
 	})
+}
+
+// D-514: the external shape is -sV on the fixed TCP list of the surface scan, one public address, the fixed rate, no -O, no
+// script; it is the only shape that names a public address, and only one.
+func TestExternalShape(t *testing.T) {
+	t.Parallel()
+	got, err := Build(External, ExternalRate, addrs(t, "8.8.8.8"))
+	if err != nil || !slices.Equal(got, shapeExternal) {
+		t.Fatalf("argv = %q %v\nwant   %q", got, err, shapeExternal)
+	}
+	for _, a := range got {
+		if a == "-O" || strings.HasPrefix(a, "--script") || a == "-A" || a == "-sC" || strings.HasPrefix(a, "--version") || a == "-sU" {
+			t.Fatalf("external argv has %q", a)
+		}
+	}
+	for name, c := range map[string]struct {
+		rate    int
+		targets []netip.Addr
+	}{
+		"another rate":          {101, addrs(t, "8.8.8.8")},
+		"a slower rate":         {10, addrs(t, "8.8.8.8")},
+		"two targets":           {ExternalRate, addrs(t, "8.8.8.8", "1.1.1.1")},
+		"no target":             {ExternalRate, nil},
+		"a private target":      {ExternalRate, addrs(t, "192.168.1.1")},
+		"a CGNAT target":        {ExternalRate, addrs(t, "100.64.0.1")},
+		"a documentation range": {ExternalRate, addrs(t, "203.0.113.5")},
+		"loopback":              {ExternalRate, addrs(t, "127.0.0.1")},
+		"link-local (metadata)": {ExternalRate, addrs(t, "169.254.169.254")},
+		"mapped IPv6":           {ExternalRate, addrs(t, "::ffff:8.8.8.8")},
+		"IPv6":                  {ExternalRate, addrs(t, "2001:4860:4860::8888")},
+		"multicast":             {ExternalRate, addrs(t, "224.0.0.1")},
+	} {
+		if _, err := Build(External, c.rate, c.targets); err == nil {
+			t.Errorf("%s: accepted", name)
+		}
+	}
+	with := func(base []string, extra ...string) []string { return append(slices.Clone(base), extra...) }
+	set := func(i int, v string) []string { a := slices.Clone(shapeExternal); a[i] = v; return a }
+	bad := map[string][]string{
+		"two public targets":             with(shapeExternal, "1.1.1.1"),
+		"a private target":               set(len(shapeExternal)-1, "192.168.10.1"),
+		"a public target in a LAN shape": with(shapeSweep[:len(shapeSweep)-1], "8.8.8.8"),
+		"another port list":              set(slices.Index(shapeExternal, "-p")+1, "1-65535"),
+		"a port added":                   set(slices.Index(shapeExternal, "-p")+1, externalPorts+",65000"),
+		"no -Pn":                         slices.DeleteFunc(slices.Clone(shapeExternal), func(a string) bool { return a == "-Pn" }),
+		"another rate":                   set(slices.Index(shapeExternal, "--max-rate")+1, "1000"),
+		"a longer host timeout":          set(slices.Index(shapeExternal, "--host-timeout")+1, "30m"),
+		"with -O":                        with([]string{"--privileged", "-sS", "-sV", "-O"}, shapeExternal[3:]...),
+		"with scripts":                   with([]string{"--privileged", "-sS", "-sV", "--script", "vuln"}, shapeExternal[3:]...),
+	}
+	for name, argv := range bad {
+		if err := Validate(argv); err == nil {
+			t.Errorf("%s: accepted", name)
+		}
+	}
+	if k, ok := KindOf("external"); !ok || k != External {
+		t.Fatal("KindOf(external)")
+	}
+}
+
+// The -p list is the surface scan's, the one list of modules/scan/commonports (D-514): written out above apart from the code.
+func TestExternalPortsAreTheSurfaceList(t *testing.T) {
+	t.Parallel()
+	if ExternalPorts != externalPorts {
+		t.Fatalf("ExternalPorts = %s", ExternalPorts)
+	}
 }

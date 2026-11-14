@@ -87,6 +87,10 @@ type Config struct {
 	// SNMPTimeout is how long one SNMP request waits for its answer (default SNMPTimeout; tests make it short).
 	SNMPTimeout time.Duration
 
+	// Egress is the public-IP check of the own-IP fence of the external shape (D-514): *egressip.Prober in production, a fake in
+	// tests. nil: every external job is refused (not_own_ip).
+	Egress EgressProber
+
 	Now       func() time.Time // the clock of the lease
 	Sleep     func(ctx context.Context, d time.Duration) error
 	Wait      time.Duration // long-poll wait (default 25 s)
@@ -109,6 +113,11 @@ type Worker struct {
 	wait      time.Duration
 	heartbeat time.Duration
 	tick      time.Duration
+
+	egress   EgressProber
+	egressMu sync.Mutex // one fence check at a time; guards the two fields below
+	egressIP netip.Addr // the address the latest yes was for
+	egressAt time.Time  // when
 
 	mu     sync.Mutex
 	lastOK time.Time            // the latest successful poll
@@ -138,7 +147,7 @@ func New(c Config) (*Worker, error) {
 	if c.Link == nil {
 		return nil, errors.New("worker: a Link is required")
 	}
-	w := &Worker{link: c.Link, nmapPath: c.NmapPath, snmpDial: c.SNMPDial, snmpWait: cmp.Or(c.SNMPTimeout, SNMPTimeout), version: c.Version, log: c.Log, now: c.Now, sleep: c.Sleep, wait: c.Wait, heartbeat: c.Heartbeat, tick: c.Tick}
+	w := &Worker{link: c.Link, nmapPath: c.NmapPath, snmpDial: c.SNMPDial, snmpWait: cmp.Or(c.SNMPTimeout, SNMPTimeout), version: c.Version, log: c.Log, now: c.Now, sleep: c.Sleep, wait: c.Wait, heartbeat: c.Heartbeat, tick: c.Tick, egress: c.Egress}
 	if w.log == nil {
 		w.log = slog.New(slog.DiscardHandler)
 	}
@@ -407,6 +416,15 @@ func (w *Worker) execute(ctx, jctx context.Context, cur *activeJob) *sensorlink.
 	}
 	rctx, cancel := context.WithTimeout(jctx, time.Duration(cur.job.TimeoutS)*time.Second)
 	defer cancel()
+	if cur.job.Shape == nmapargv.External.Name() { // argvOf proved it has one public target
+		if ok, reason := w.ownIP(rctx, netip.MustParseAddr(cur.job.Targets[0])); !ok {
+			if context.Cause(jctx) != nil {
+				return stopped()
+			}
+			w.log.WarnContext(ctx, "sensor_active_external_job_refused", "id", cur.job.ID, "reason", reason)
+			return &sensorlink.JobResult{Status: "refused", Reason: reason, ExitCode: -1}
+		}
+	}
 	out, err := w.runner.Run(rctx, "nmap", argv, nil)
 	return w.finish(ctx, jctx, rctx, cur, out, err, "nmap_missing", (*sensorlink.JobResult).SetXML)
 }
@@ -483,8 +501,9 @@ func (w *Worker) post(ctx context.Context, id string, res *sensorlink.JobResult)
 }
 
 // argvOf is the job grammar of the table in sensor-protocol.md 6.4, checked here again and not trusted from core: a known
-// shape, a rate of 1..1000 (a gentle job carries 1), 1..64 canonical unique private IPv4 targets (nmapargv.Build and
-// Validate refuse a public address, 65 targets and anything else), a timeout of 1..7200 seconds. The argv is built here from
+// shape, a rate of 1..1000 (a gentle job carries 1, an external one nmapargv.ExternalRate), 1..64 canonical unique private IPv4
+// targets (the external shape: exactly one public one; nmapargv.Build and Validate refuse anything else), a timeout of 1..7200
+// seconds. The argv is built here from
 // those fields; no argv comes over the wire (D-111 (3)).
 func argvOf(j sensorlink.Job) ([]string, error) {
 	kind, ok := nmapargv.KindOf(j.Shape)

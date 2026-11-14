@@ -5,6 +5,8 @@ import (
 	"regexp"
 	"strings"
 	"unicode"
+
+	"github.com/knt048/vedette/core/egressip"
 )
 
 // domainRE is a plain host name: labels of letters, digits and inner dashes, at least two labels, a
@@ -41,33 +43,6 @@ func isIPv6(v string) bool {
 	return err == nil && a.Is6()
 }
 
-// Address ranges the box never verifies (INV-3). IsPrivate, IsLoopback, IsLinkLocalUnicast and the
-// multicast tests of net/netip cover the rest; these are the shared-carrier and the special-purpose
-// blocks that are not "private" in net/netip's sense. The documentation ranges (RFC 5737) are in the
-// list: no real box leaves the Internet through them.
-var reservedRanges = func() []netip.Prefix {
-	var out []netip.Prefix
-	for _, p := range []string{
-		"0.0.0.0/8", "100.64.0.0/10", "192.0.0.0/24", "192.0.2.0/24", "192.88.99.0/24",
-		"198.18.0.0/15", "198.51.100.0/24", "203.0.113.0/24", "224.0.0.0/3",
-	} {
-		out = append(out, netip.MustParsePrefix(p))
-	}
-	return out
-}()
-
-// IsPublicIPv4 reports whether a is a global unicast IPv4 address the box may verify: not private,
-// loopback, link-local, shared carrier (CGNAT 100.64.0.0/10), documentation, multicast or reserved.
-// IPv6 is refused for now (ponytail: the scan module targets IPv4; IPv6 is a later story).
-func IsPublicIPv4(a netip.Addr) bool {
-	a = a.Unmap()
-	if !a.Is4() || !a.IsGlobalUnicast() || a.IsPrivate() || a.IsLoopback() || a.IsLinkLocalUnicast() {
-		return false
-	}
-	for _, p := range reservedRanges {
-		if p.Contains(a) {
-			return false
-		}
-	}
-	return true
-}
+// IsPublicIPv4 reports whether a is a global unicast IPv4 address the box may verify (INV-3): egressip.IsPublicIPv4, the rule the
+// scan container's own-IP fence and nmapargv's external shape use too (D-514).
+func IsPublicIPv4(a netip.Addr) bool { return egressip.IsPublicIPv4(a) }

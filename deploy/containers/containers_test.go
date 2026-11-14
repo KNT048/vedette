@@ -201,6 +201,14 @@ func TestScanBaseVerifiesNucleiAndPlacesThePack(t *testing.T) {
 	if !strings.Contains(text, "ARG SCAN_PACK_VERSION") || !strings.Contains(text, `index.json is not pack version ${SCAN_PACK_VERSION}`) {
 		t.Error("scan-base must fail when index.json is not the pinned pack version (a stale pack)")
 	}
+	// D-514 (#723 review M1): the worker's own-IP fence speaks HTTPS, so the image carries the CA bundle and its copyright, checked present
+	// in the pinned Go image when it is built.
+	for _, want := range []string{"COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt",
+		"COPY --from=build /usr/share/doc/ca-certificates/copyright", "test -s /etc/ssl/certs/ca-certificates.crt"} {
+		if !strings.Contains(text, want) {
+			t.Errorf("scan-base/Containerfile: missing %q (the CA bundle of the own-IP fence)", want)
+		}
+	}
 	if strings.Contains(text, "nuclei -update") || strings.Contains(text, "-ut") {
 		t.Error("no template download or update in the image")
 	}

@@ -4,14 +4,17 @@ import (
 	"go/parser"
 	"go/token"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
 )
 
 // The sensor binary links this package, so its non-test files may import the standard library only: no
-// core/store, no database, no other Vedette package (D-113) but core/localnet, which is standard library only itself
-// (its own test, D-461). A standard-library path has no dot in its first element.
+// core/store, no database, no other Vedette package (D-113) but core/localnet, core/egressip and modules/scan/commonports, which
+// are standard library only themselves (their own tests, D-461, D-514). A standard-library path has no dot in its first element.
+var allowedImports = []string{"github.com/knt048/vedette/core/localnet", "github.com/knt048/vedette/core/egressip", "github.com/knt048/vedette/modules/scan/commonports"}
+
 func TestIsALeaf(t *testing.T) {
 	t.Parallel()
 	files, err := filepath.Glob("*.go")
@@ -28,7 +31,7 @@ func TestIsALeaf(t *testing.T) {
 		}
 		for _, im := range af.Imports {
 			p, _ := strconv.Unquote(im.Path.Value)
-			if first, _, _ := strings.Cut(p, "/"); strings.Contains(first, ".") && p != "github.com/knt048/vedette/core/localnet" {
+			if first, _, _ := strings.Cut(p, "/"); strings.Contains(first, ".") && !slices.Contains(allowedImports, p) {
 				t.Errorf("%s imports %q: only the standard library is allowed in nmapargv", f, p)
 			}
 		}

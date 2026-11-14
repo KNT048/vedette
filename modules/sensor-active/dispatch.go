@@ -112,6 +112,7 @@ type djob struct {
 	finished  bool
 	res       *sensorlink.JobResult
 	err       error
+	exclusive bool // an own_ip nuclei job (D-520): refused with ErrNucleiBusy instead of waiting for a busy slot
 	cancelled bool // the probe stopped after the worker had the job: cancel it
 	cancelOut bool // a poll reply has carried the cancel
 
@@ -299,6 +300,10 @@ func (d *Dispatcher) await(ctx context.Context, s *slot, j *djob) error {
 	j.ctxDone, j.ctxErr = ctx.Done(), ctx.Err
 
 	d.mu.Lock()
+	if j.exclusive && (s.pending != nil || s.running != nil && !s.running.finished) { // under the same lock as the hand-over (#review L4)
+		d.mu.Unlock()
+		return ErrNucleiBusy
+	}
 	if s.pending != nil {
 		d.mu.Unlock()
 		return errors.New("sensoractive: a probe is already waiting for the worker") // the service runs one at a time
@@ -516,6 +521,9 @@ func (d *Dispatcher) pollLocked(running []string) (rep sensorlink.JobsReply, rea
 		}
 		if s == d.snmpSlot && !d.snmp {
 			continue // the latest heartbeat says this worker runs no snmp job (protocol 4, or a downgrade since RunSNMP checked): wait
+		}
+		if n := s.pending.spec.Nuclei; n != nil && n.Scope != "" && !d.nuclei.OwnIP {
+			continue // the latest heartbeat says this worker runs no own_ip job (older than D-520, or a downgrade since RunNuclei checked): wait
 		}
 		j := s.pending
 		secs := s.maxSeconds

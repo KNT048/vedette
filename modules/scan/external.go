@@ -17,6 +17,9 @@ type ExternalProbe struct {
 	Template string
 	Request  string
 	Answered bool
+	// Result, when set, is the result of a template probe of exposure's safe checks (D-561, D-520): matched or not_matched (a
+	// probe that got no usable answer stays no_response). It wins over Answered; any other value is not written.
+	Result string
 }
 
 // RecordExternalProbes writes probes of the external-surface scan: before they go out (result no_response, "sent, no answer
@@ -27,7 +30,10 @@ func (s *Service) RecordExternalProbes(ctx context.Context, ps []ExternalProbe) 
 	err := s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
 		for _, p := range ps {
 			result := "no_response"
-			if p.Answered {
+			switch {
+			case p.Result == "matched" || p.Result == "not_matched":
+				result = p.Result
+			case p.Answered:
 				result = "banner"
 			}
 			if _, err := tx.ExecContext(ctx, `INSERT INTO scan_probe (id, ts, run_id, ip, label, template, request, result) VALUES (?, ?, NULL, ?, ?, ?, ?, ?)

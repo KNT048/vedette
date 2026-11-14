@@ -249,7 +249,11 @@ func build(src, out, version string) (Report, error) {
 	_, _ = fmt.Fprintf(label, "%s\n", version) // a hash.Hash never fails to write
 	ix := pack.Index{Version: version}
 	for _, k := range all {
-		_, _ = fmt.Fprintf(label, "%s\t%s\n", k.tpl.Path, k.tpl.SHA256)
+		mark := "" // the own_ip mark is part of what the label covers (review round 2 L2)
+		if k.tpl.OwnIP {
+			mark = "\town_ip"
+		}
+		_, _ = fmt.Fprintf(label, "%s\t%s%s\n", k.tpl.Path, k.tpl.SHA256, mark)
 		ix.Templates = append(ix.Templates, k.tpl)
 		dst := filepath.Join(out, "templates", filepath.FromSlash(k.tpl.Path))
 		if err := os.MkdirAll(filepath.Dir(dst), 0o750); err != nil {
@@ -329,7 +333,123 @@ func qualify(rel string, body []byte) (pack.Template, string) {
 		return zero, "request"
 	}
 	sum := sha256.Sum256(body)
-	return pack.Template{ID: id, CVE: cve, Path: rel, SHA256: hex.EncodeToString(sum[:]), Tags: tags, Request: req}, ""
+	return pack.Template{ID: id, CVE: cve, Path: rel, SHA256: hex.EncodeToString(sum[:]), Tags: tags, Request: req, OwnIP: ownIPSafe(rel, doc, tags, body)}, ""
+}
+
+// ownIPKeys are the keys of an http block an own_ip template may have: the request (raw, or path with method and headers) and
+// how its answer is read. Anything else (body, payloads, digest credentials, unsafe raw sockets, a newer feature) is not judged
+// and so not allowed.
+var ownIPKeys = []string{"raw", "path", "method", "headers", "matchers", "matchers-condition", "extractors", "stop-at-first-match",
+	"redirects", "host-redirects", "max-redirects", "cookie-reuse", "req-condition", "max-size", "read-all", "disable-path-automerge",
+	"skip-variables-check", "iterate-all", "id", "name"}
+
+// credName is a header or variable name that carries a credential.
+var credName = regexp.MustCompile(`(?i)auth|cookie|token|key|session|secret|pass|user|login|cred`)
+
+// ownIPSafe is the D-520 decision for one template that qualified: may it run on the box's own public IP? Conservative (the lead's
+// rule): only http checks under http/, every request GET or HEAD with no body (raw requests read line by line, path requests by
+// their method key), no header or variable that carries a credential, no injection-shaped payload in a request target or header
+// value (pack.RequestPayloadOK), no refused tag (pack.OwnIPRefusedTag), and the file passes the worker's own text check
+// (pack.OwnIPText), so the worker never refuses what the builder allowed.
+func ownIPSafe(rel string, doc map[string]any, tags []string, body []byte) bool {
+	if !strings.HasPrefix(rel, "http/") || doc["tcp"] != nil || doc["ssl"] != nil || slices.ContainsFunc(tags, pack.OwnIPRefusedTag) || pack.OwnIPText(body) != nil {
+		return false
+	}
+	if vars, ok := doc["variables"].(map[string]any); ok {
+		for k := range vars {
+			if credName.MatchString(k) {
+				return false
+			}
+		}
+	} else if doc["variables"] != nil {
+		return false
+	}
+	blocks, _ := doc["http"].([]any)
+	if len(blocks) == 0 {
+		return false
+	}
+	for _, b := range blocks {
+		m, ok := b.(map[string]any)
+		if !ok {
+			return false
+		}
+		for k := range m {
+			if !slices.Contains(ownIPKeys, k) {
+				return false
+			}
+		}
+		if h, has := m["headers"]; has {
+			hm, ok := h.(map[string]any)
+			if !ok {
+				return false
+			}
+			for k, v := range hm {
+				vs, _ := v.(string)
+				if credName.MatchString(k) || pack.RequestPayloadOK(vs) != nil {
+					return false
+				}
+			}
+		}
+		raws, hasRaw := m["raw"].([]any)
+		paths, hasPath := m["path"].([]any)
+		switch {
+		case hasRaw == hasPath: // exactly one way of making requests
+			return false
+		case hasPath:
+			for _, p := range paths {
+				ps, ok := p.(string)
+				if !ok || pack.RequestPayloadOK(ps) != nil { // review round 2 M1: no injection-shaped payload in a GET
+					return false
+				}
+			}
+			if meth, has := m["method"]; has {
+				ms, _ := meth.(string)
+				if !strings.EqualFold(ms, "GET") && !strings.EqualFold(ms, "HEAD") {
+					return false
+				}
+			}
+		default:
+			if _, has := m["method"]; has {
+				return false
+			}
+			for _, r := range raws {
+				rs, ok := r.(string)
+				if !ok || !rawGetOnly(rs) {
+					return false
+				}
+			}
+		}
+	}
+	return true
+}
+
+// rawGetOnly reads one raw request: its request line (after any @ annotations) is GET or HEAD, no header carries a credential,
+// and nothing follows the blank line that ends the headers.
+func rawGetOnly(r string) bool {
+	lines := strings.Split(strings.ReplaceAll(r, "\r\n", "\n"), "\n")
+	i := 0
+	for i < len(lines) && (strings.TrimSpace(lines[i]) == "" || strings.HasPrefix(strings.TrimSpace(lines[i]), "@")) {
+		i++
+	}
+	if i == len(lines) {
+		return false
+	}
+	f := strings.Fields(lines[i])
+	if len(f) < 2 || f[0] != "GET" && f[0] != "HEAD" || pack.RequestPayloadOK(f[1]) != nil {
+		return false
+	}
+	for i++; i < len(lines) && strings.TrimSpace(lines[i]) != ""; i++ {
+		name, value, ok := strings.Cut(lines[i], ":")
+		if !ok || credName.MatchString(name) || pack.RequestPayloadOK(strings.TrimSpace(value)) != nil {
+			return false
+		}
+	}
+	for ; i < len(lines); i++ {
+		if strings.TrimSpace(lines[i]) != "" {
+			return false // a body
+		}
+	}
+	return true
 }
 
 // unsafeHTTPKeys are the keys of an http block that turn one check into many requests or into attack traffic: fuzzing, payload

@@ -298,7 +298,7 @@ core-image: webui-dist check-min-sequence
 
 # The safe template pack: pinned download of nuclei-templates, filter, index (scripts/scanpack). Rebuilt (the folder removed first) whenever pins.env or the builder changes.
 scan-pack: $(PACK_DIR)/index.json
-$(PACK_DIR)/index.json: deploy/containers/pins.env $(wildcard scripts/scanpack/*.go)
+$(PACK_DIR)/index.json: deploy/containers/pins.env $(wildcard scripts/scanpack/*.go) $(wildcard modules/scan/pack/*.go)
 	rm -rf $(PACK_DIR)
 	go run ./scripts/scanpack -src-version $(NUCLEI_TEMPLATES_VERSION) -src-sha256 $(NUCLEI_TEMPLATES_SHA256) -version $(SCAN_PACK_VERSION) -out $(PACK_DIR)
 	# core plans jobs against the same index (scan S5): a committed copy, embedded by content/nucleipack; a test holds it to pins.env

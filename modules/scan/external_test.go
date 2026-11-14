@@ -32,3 +32,26 @@ func TestExternalProbesAreInTheProbeLog(t *testing.T) {
 		t.Fatalf("after: %+v %v", l, err)
 	}
 }
+
+// D-520: a template probe of exposure's safe checks is completed with its outcome (matched, not_matched); any other result is not
+// written (the row keeps the meaning of Answered).
+func TestExternalTemplateProbeResult(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	ps := []ExternalProbe{
+		{ID: "tp-1", IP: "203.0.114.7", Label: "203.0.114.7:18443", Template: "CVE-2021-41773", Request: "GET /icons/.%2e/ (nuclei)", Result: "matched"},
+		{ID: "tp-2", IP: "203.0.114.7", Label: "203.0.114.7:18443", Template: "CVE-2021-42013", Request: "GET /icons/ (nuclei)", Result: "not_matched"},
+		{ID: "tp-3", IP: "203.0.114.7", Label: "203.0.114.7:18443", Template: "CVE-2024-1", Request: "GET / (nuclei)", Result: "stopped"},
+	}
+	if err := e.svc.RecordExternalProbes(e.ctx(), ps); err != nil {
+		t.Fatal(err)
+	}
+	l, err := e.svc.Probes(e.ctx())
+	got := map[string]string{}
+	for _, r := range l {
+		got[r.Template] = r.Result
+	}
+	if err != nil || got["CVE-2021-41773"] != "matched" || got["CVE-2021-42013"] != "not_matched" || got["CVE-2024-1"] != "no_response" {
+		t.Fatalf("%v %v", got, err)
+	}
+}

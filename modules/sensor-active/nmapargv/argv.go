@@ -55,6 +55,50 @@ var ExternalPorts = func() string {
 	return strings.Join(ss, ",")
 }()
 
+// LANPorts is the -p value of the normal and versions shapes (D-523): commonports.LAN (nmap 7.95's top 1000 plus the surface
+// scan's list, without the OT ports), ascending, consecutive ports written as a range the way nmap prints its own scaninfo. A
+// written-out list instead of --top-ports 1000, whose ports move with the nmap package Debian ships.
+var LANPorts = portSpec(commonports.LAN())
+
+// portSpec writes ascending, distinct ports as nmap's -p syntax, consecutive ports as a range: 1,3-4,6.
+func portSpec(ns []int) string {
+	var b strings.Builder
+	for i := 0; i < len(ns); {
+		j := i
+		for j+1 < len(ns) && ns[j+1] == ns[j]+1 {
+			j++
+		}
+		if b.Len() > 0 {
+			b.WriteByte(',')
+		}
+		b.WriteString(strconv.Itoa(ns[i]))
+		if j > i {
+			b.WriteString("-" + strconv.Itoa(ns[j]))
+		}
+		i = j + 1
+	}
+	return b.String()
+}
+
+// The host discovery probes of the sweep (D-523). nmap's own -sn default for an address outside the box's segment is an ICMP
+// echo, a SYN to 443, an ACK to 80 and an ICMP timestamp request (https://nmap.org/book/man-host-discovery.html); a Windows PC
+// with its firewall on drops all four. The Nmap book's strategy chapter asks for a diverse set and ranks 80, 443, 21, 23, 22 and
+// 3389 among the SYN ports most likely to answer (https://nmap.org/book/host-discovery-strategies.html); 135, 139 and 445 are
+// Windows, 554 and 8000 cameras and recorders, 8080 web admin pages, 9100 printers. On the box's own Ethernet segment nmap
+// sends one ARP request instead and none of these (it does that for any -P option when it has raw sockets).
+const (
+	sweepSYNPorts = "21,22,23,80,135,139,443,445,554,3389,8000,8080,9100"
+	sweepACKPorts = "80,443"
+)
+
+// SweepProbes is the most packets the sweep sends one address behind a router: -PE and -PP (one ICMP packet each), one SYN per
+// port of -PS and one ACK per port of -PA. nmap stops probing an address once it answers.
+var SweepProbes = 2 + strings.Count(sweepSYNPorts, ",") + 1 + strings.Count(sweepACKPorts, ",") + 1
+
+// lanMaxRetries caps the retransmissions of a normal or versions scan's port probes (D-523): nmap's default allows ten, -T4 six
+// (https://nmap.org/book/man-performance.html); a LAN loses few packets, and a lossy Wi-Fi client stops stretching a run.
+const lanMaxRetries = "3"
+
 // externalHostTimeout bounds -sV on the one host, inside exposure's 5-minute step (ServicesTimeout there) with room for the
 // wait for the nmap slot and the own-IP checks.
 const externalHostTimeout = "3m"
@@ -130,7 +174,10 @@ func (k Kind) Name() string {
 // Scripts list of the normal and versions shapes (D-504); no category, no -A and no -sC exists (FORBID-3, FORBID-6). The gentle
 // shape has neither -sV, -O nor a script: on a fragile device even the version scripts are too much (PLC protocol probes). The
 // versions shape is the normal one without -O: OS detection sends malformed probes that are the riskiest part for an OT stack,
-// and a device of unknown kind may be one (D-501).
+// and a device of unknown kind may be one (D-501). D-523 tuned the shapes to nmap's own guidance: the sweep's discovery probes
+// (SweepProbes), --osscan-limit on the normal shape, --max-retries 3 and the written-out LANPorts on normal and versions. No
+// shape names --allports (version detection then also probes TCP 9100, where some printers print whatever they are sent,
+// https://nmap.org/book/man-version-detection.html).
 func Flags(kind Kind, rate int) ([]string, error) {
 	if rate < 1 || rate > 1000 {
 		return nil, fmt.Errorf("nmapargv: rate %d is outside 1..1000", rate)
@@ -138,13 +185,15 @@ func Flags(kind Kind, rate int) ([]string, error) {
 	r := strconv.Itoa(rate)
 	switch kind {
 	case Sweep:
-		return []string{flagPrivileged, "-sn", flagNoDNS, flagMaxRate, r}, nil
+		return []string{flagPrivileged, "-sn", "-PE", "-PP", "-PS" + sweepSYNPorts, "-PA" + sweepACKPorts, flagNoDNS, flagMaxRate, r}, nil
 	case Normal:
-		return []string{flagPrivileged, "-sS", "-sV", "-O", flagScript, Scripts, flagNoDNS, flagMaxRate, r, flagTopPorts, "1000", flagHostTimeout, normalHostTimeout}, nil
+		// --osscan-limit: OS detection only on a host with at least one open and one closed port, without which its guess is
+		// unreliable (https://nmap.org/book/osdetect-usage.html); the device then shows no OS rather than a wrong one.
+		return []string{flagPrivileged, "-sS", "-sV", "-O", "--osscan-limit", flagScript, Scripts, flagNoDNS, flagMaxRate, r, flagMaxRetries, lanMaxRetries, flagHostTimeout, normalHostTimeout, "-p", LANPorts}, nil
 	case Gentle:
 		return []string{flagPrivileged, "-sS", flagNoDNS, flagTiming, flagMaxRetries, "1", flagMaxRate, "1", flagHostTimeout, gentleHostTimeout, flagTopPorts, "100"}, nil
 	case Versions:
-		return []string{flagPrivileged, "-sS", "-sV", flagScript, Scripts, flagNoDNS, flagMaxRate, r, flagTopPorts, "1000", flagHostTimeout, normalHostTimeout}, nil
+		return []string{flagPrivileged, "-sS", "-sV", flagScript, Scripts, flagNoDNS, flagMaxRate, r, flagMaxRetries, lanMaxRetries, flagHostTimeout, normalHostTimeout, "-p", LANPorts}, nil
 	case GentleTitles:
 		return []string{flagPrivileged, "-sS", flagScript, TitleScripts, flagScriptTimeout, titleScriptTimeout, flagNoDNS, flagTiming, flagMaxRetries, "1", flagMaxRate, "1", flagHostTimeout, gentleHostTimeout, flagTopPorts, "100"}, nil
 	case External:

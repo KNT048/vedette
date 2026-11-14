@@ -178,4 +178,10 @@ func TestScope(t *testing.T) {
 	if got := (Settings{Enabled: true, ScopeConfirmed: true, LANRanges: []string{"10.0.0.0/24"}, Days: []int{1}, From: "01:00", To: "05:00", Rate: 10}).sweepWarning(); got != "" {
 		t.Errorf("a /24 at 10 packets/s fits: %q", got)
 	}
+	// D-523: 65536 addresses at 50 packets/s are 22 minutes on the box's own segment but up to 17 packets each behind a router,
+	// over six hours: more than the 23:00-05:00 window. The warning names both.
+	want := "a sweep of about 65536 addresses at 50 packets/s needs about 22m0s on the box's own network segment (one packet per address) and up to 6h11m0s behind a router (up to 17 packets per address), but a window lasts 6h0m0s; one pass may take several days"
+	if got := (Settings{Enabled: true, ScopeConfirmed: true, LANRanges: []string{"10.0.0.0/16"}, Days: []int{1}, From: "23:00", To: "05:00", Rate: 50}).sweepWarning(); got != want {
+		t.Errorf("sweepWarning = %q", got)
+	}
 }

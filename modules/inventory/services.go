@@ -13,8 +13,8 @@ import (
 
 // Bounds of a list of open ports (INV-23, D-350).
 const (
-	// maxServices is the most services one source may report for one device: nmap's normal scan reads its top 1000 ports
-	// (sensor-active nmapargv), so a full list fits. Five sensor sources at most, so a device holds at most 5000 rows.
+	// maxServices is the most services one source may report for one device: nmap's normal scan reads 1031 ports (sensor-active
+	// nmapargv, D-523), so only a device that answers on every port has more, and sensor-active cuts its list at this cap. Five sensor sources at most, so a device holds at most 5000 rows.
 	maxServices   = 1000
 	maxSvcName    = 100 // the CHECK of inv_service.name
 	maxSvcProduct = 200 // the CHECK of inv_service.product (= maxObsValue, the cap of cleanText)

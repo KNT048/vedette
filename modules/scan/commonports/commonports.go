@@ -1,5 +1,6 @@
 // Package commonports is the one list of TCP ports Vedette probes on the box's own public IP (D-229): the scan module's surface
-// scan connects to each of them, and sensor-active's external nmap shape (-sV, D-514) names exactly these with -p. It is a leaf
+// scan connects to each of them, and sensor-active's external nmap shape (-sV, D-514) names exactly these with -p. LAN (lan.go,
+// D-523) joins them with nmap 7.95's top 1000 for the -p of the LAN normal and versions shapes. It is a leaf
 // with no import at all: the sensor binary links it through nmapargv (TestBinaryDependencies).
 package commonports
 

@@ -209,17 +209,20 @@ func (s *Service) Health(ctx context.Context) Health {
 	return h
 }
 
-// sweepWarning is set when the addresses of the scope divided by the rate take longer than one window: the
-// sweep then needs several days, resuming each day where the window cut it (an estimate: one packet per
-// address, while -sn sends up to four to a host outside the segment).
+// sweepWarning is set when a sweep of the scope may take longer than one window: it then needs several days, resuming
+// each day where the window cut it. An address on the box's own segment costs one ARP request; one behind a router costs
+// up to nmapargv.SweepProbes packets (D-523), and which ranges are routed is not known here, so the warning is set when the
+// routed cost does not fit and names both.
 func (st Settings) sweepWarning() string {
 	if st.allowed() != nil || st.Rate < 1 {
 		return ""
 	}
 	n := newScope(st).count()
-	need := time.Duration(n) * time.Second / time.Duration(st.Rate)
-	if have := st.windowLength(); have > 0 && need > have {
-		return fmt.Sprintf("a sweep of about %d addresses at %d packets/s needs about %s but a window lasts %s; one pass will take several days", n, st.Rate, need.Round(time.Minute), have)
+	local := time.Duration(n) * time.Second / time.Duration(st.Rate)
+	routed := local * time.Duration(nmapargv.SweepProbes)
+	if have := st.windowLength(); have > 0 && routed > have {
+		return fmt.Sprintf("a sweep of about %d addresses at %d packets/s needs about %s on the box's own network segment (one packet per address) and up to %s behind a router (up to %d packets per address), but a window lasts %s; one pass may take several days",
+			n, st.Rate, local.Round(time.Minute), routed.Round(time.Minute), nmapargv.SweepProbes, have)
 	}
 	return ""
 }

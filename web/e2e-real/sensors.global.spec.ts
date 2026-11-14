@@ -51,7 +51,10 @@ const orgClock = (hours: number) => new Intl.DateTimeFormat('en-GB', { timeZone:
 const shape = (line: string) => (line.includes(' -sn ') ? 'sweep' : line.includes(' -T2 ') ? 'gentle' : 'normal')
 const targetsOf = (line: string) => line.slice(line.indexOf('-oX - ') + 6).split(' ')
 const GENTLE = '--privileged -sS -n -T2 --max-retries 1 --max-rate 1 --host-timeout 15m --top-ports 100 -oX - '
-const NORMAL = '--privileged -sS -sV -O --script rdp-ntlm-info,http-ntlm-info,http-title,ssl-cert -n --max-rate 50 --top-ports 1000 --host-timeout 30m -oX - '
+// D-523: the sweep's discovery probes; the normal line names its ports (nmap 7.95's top 1000 plus the surface list, as ranges)
+const SWEEP = '--privileged -sn -PE -PP -PS21,22,23,80,135,139,443,445,554,3389,8000,8080,9100 -PA80,443 -n --max-rate 50'
+const NORMAL = '--privileged -sS -sV -O --osscan-limit --script rdp-ntlm-info,http-ntlm-info,http-title,ssl-cert -n --max-rate 50 --max-retries 3 --host-timeout 30m -p 1,3-4,6-7,9,13,'
+const normalLine = (ip: string) => new RegExp(`^${NORMAL.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[0-9,-]+,65000,65129,65389 -oX - ${ip.replaceAll('.', '\\.')}$`)
 
 test.beforeAll(async () => {
   const c = await as('admin')
@@ -318,13 +321,15 @@ test('window open: a sweep of the confirmed range only, then one scan per device
     const allowed = Array.from({ length: 254 }, (_, i) => `192.168.10.${i + 1}`).filter((ip) => Number(ip.split('.')[3]) < 240)
     expect(swept.sort((a, b) => Number(a.split('.')[3]) - Number(b.split('.')[3])), 'the sweep covers the range minus the exclusion, once').toEqual(allowed)
     expect(runs.join('\n'), 'no address outside the range is ever an argument').not.toContain('203.0.113.9')
-    for (const l of sweeps) expect(l.startsWith('--privileged -sn -n --max-rate 50 -oX - '), `sweep flags: ${l.slice(0, 60)}`).toBe(true)
+    for (const l of sweeps) expect(l.startsWith(`${SWEEP} -oX - `), `sweep flags: ${l.slice(0, 60)}`).toBe(true)
     // INV-5 / D-84: the unclassified devices got the gentle scan, one target each, no -O, no -sV, no --script; the router (classified) the normal one
     const scans = runs.filter((l) => shape(l) !== 'sweep')
     const gentle = scans.filter((l) => shape(l) === 'gentle')
     expect(gentle.map((l) => l.slice(GENTLE.length)).sort(), 'gentle: the three unclassified devices, each once').toEqual(['192.168.10.2', '192.168.10.21', '192.168.10.5'])
     for (const l of gentle) { expect(l.startsWith(GENTLE), l).toBe(true); expect(l).not.toMatch(/ -O | -sV |--script/) }
-    expect(scans.filter((l) => shape(l) === 'normal'), 'normal: the router').toEqual([`${NORMAL}${ROUTER.ip}`])
+    const normal = scans.filter((l) => shape(l) === 'normal')
+    expect(normal, 'normal: the router').toHaveLength(1)
+    expect(normal[0], 'normal: the router').toMatch(normalLine(ROUTER.ip))
     // the sweep made two new devices from what answered, and nothing from the host outside the range or the host that was down
     await expect.poll(async () => made(await devices(c)).map((d) => d.ip).sort(), { timeout: 20_000 }).toEqual(['192.168.10.1', '192.168.10.2', '192.168.10.21', '192.168.10.5'])
     const list = made(await devices(c))
@@ -411,7 +416,7 @@ test('the probe log has one row per nmap run, written with the shape, the flags 
     // the targets of the sweep are collapsed to ranges, and the hole of the exclusion shows: .240-.255 is in none of them
     expect(sweeps.map((x) => x.targets)).toEqual(['192.168.10.1-192.168.10.64', '192.168.10.65-192.168.10.128', '192.168.10.129-192.168.10.192', '192.168.10.193-192.168.10.239'])
     expect(sweeps.map((x) => x.hosts)).toEqual([64, 64, 64, 47])
-    for (const x of sweeps) expect(x).toMatchObject({ rate: 50, flags: '--privileged -sn -n --max-rate 50' })
+    for (const x of sweeps) expect(x).toMatchObject({ rate: 50, flags: SWEEP })
     for (const x of rows.filter((y) => y.shape === 'gentle')) expect(x).toMatchObject({ rate: 1, hosts: 1, flags: GENTLE.replace(' -oX - ', '').trim() })
     expect(rows.every((x) => x.job_id.startsWith('saj-') && x.result.startsWith('ok')), 'every run ended ok').toBe(true)
     expect(JSON.stringify(rows), 'the public host was never a target').not.toContain('203.0.113.9')

@@ -25,6 +25,12 @@
 - **scan** sở hữu runner (`cmd/vedette` `scanRunner`, `modules/scan/surface`, D-229): đổi `ScanTarget`/`Content` phải sửa adapter `contentOf` và `TestExposureRunnerResult`. Ba lỗi là câu người dùng đọc (toast của Scan now); mock `exposure` trả đúng `module_off` khi module `scan` tắt.
 - **response** (`new_port`) và **reports** đọc ảnh chụp do runner tạo; runner không lưu gì khi lỗi.
 
+## Modifying: `HostRow` (`source`, `cname`, `ips`), `HostIP`, `sanitizeHost`, `surfaceNotChecked`, `NotWordlistWildcard` (INV-27, D-567)
+- **scan** (`modules/scan/surface` khám phá và gán `box|public|private`, `cmd/vedette` `contentOf` chép sang): đổi tên trường hay giá trị `class` phải sửa adapter, `TestExposureRunnerResult` và `contract.ts` `HostRow`/`HostIp`.
+- **web/features/exposure**: `SurfacePanel.tsx` (tab Surface của domain: đếm theo loại, CNAME, nguồn, dòng "Not checked" `wordlist`/`by_name`/`address_family`), mock `data.ts` (`acmeNow` có mọi loại, `surfaceNotChecked` cùng câu với backend). `ResultsPanel` và so sánh ngày vẫn đọc `name`/`ip`: một tên không có IPv4 có `ip` rỗng (mục so sánh "subdomain" có detail rỗng).
+- **PRIVACY.md luồng 9** và `core.json` `privacy.flow.9`: các tra cứu DNS (A, AAAA, CNAME, MX, NS, kiểm wildcard, danh sách tên) qua resolver của hộp. Thêm loại truy vấn hay nơi hỏi = sửa cả hai cùng commit.
+- `coveredBy`/`moved` (INV-22) dùng `ip`: tên chỉ IPv6 có `ip` rỗng, coi như đã rời địa chỉ IPv4 cũ.
+
 ## Modifying: `StartScan`, `ScanRun`, `CurrentScan`, `StopScan`, `execute` (INV-18, D-493), `GET /exposure/scan`, `POST /exposure/scan/stop`
 - **web/features/exposure**: `ScanProgress.tsx` (trang Exposure và trang mục tiêu) hỏi `GET /exposure/scan` mỗi 2 giây khi `status` là `running`, hiện `phase`, nút Stop cho operator, và làm mới ảnh chụp khi lượt kết thúc; nút Scan now của `TargetPage` bị khoá khi một lượt chạy. Thêm phase = sửa `ScanPhase` trong `contract.ts`, `progress.phase.*` trong `locales/en/exposure.json` và mock.
 - **cmd/vedette** `exposure.go`: đăng ký `Registry.OnChange` để tắt module huỷ lượt đang chạy (SYS-5); `scanRunner` (module `scan`) vẫn có công tắc riêng. Đổi context của lượt quét về context của request sẽ làm lượt quét chết cùng kết nối.

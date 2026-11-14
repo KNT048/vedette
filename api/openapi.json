@@ -24486,7 +24486,7 @@
     "/exposure/targets/{id}/scan": {
       "post": {
         "operationId": "exposure_post_exposure_targets_id_scan",
-        "summary": "Scan now. Answers at once with 202 and the run (ScanRun, status running): the scan itself goes on in the background and the page polls GET /exposure/scan. The checks below still answer synchronously. 409 when not verified, verification expired or the DNS TXT record is gone (re-checked right before the scan); 409 ip_not_current when an IP is no longer the one the box goes out through (the latest check, or a fresh full check just before the scan, must see it); 400 commitment_required when the commitment is missing and the caller is an operator (an administrator must run the first scan). For an administrator that first scan IS the confirmation (D-473, amends D-26): it needs two-step sign-in on the account (403 twofa_required otherwise) and `notice_version` of the sentence shown next to the button (400 commitment_required when left out, 409 notice_changed when it is not the current one); the commitment is then recorded with who, when and that exact sentence, and the scan goes on. A target whose commitment is of the current sentence records nothing again; one of an older sentence (D-559) is asked again once: it counts as missing (operators get 400 commitment_required \"the confirmation text changed\"), a request without notice_version gets 409 notice_changed, and the administrator's press replaces it. After those checks the Vulnerability scans module does the scan (D-229, D-57 (7)): ports are scanned only on the box's own verified public IPs; a domain's names from certificate transparency are listed and get one GET of / by name on ports 80 and 443. 409 module_off while that module is off; 409 busy while another scan runs on the box; 429 rate_limited within 10 minutes of the target's last scan. Failures that come while the scan runs (400 too_many when the domain has more than 300 names in the logs; 502 unreachable when the certificate-transparency search (crt.sh) does not answer or the scan does not finish within 5 minutes; module_off when the module is switched off meanwhile) end the run as status failed with that code and text, and nothing is saved. Every attempt is audited",
+        "summary": "Scan now. Answers at once with 202 and the run (ScanRun, status running): the scan itself goes on in the background and the page polls GET /exposure/scan. The checks below still answer synchronously. 409 when not verified, verification expired or the DNS TXT record is gone (re-checked right before the scan); 409 ip_not_current when an IP is no longer the one the box goes out through (the latest check, or a fresh full check just before the scan, must see it); 400 commitment_required when the commitment is missing and the caller is an operator (an administrator must run the first scan). For an administrator that first scan IS the confirmation (D-473, amends D-26): it needs two-step sign-in on the account (403 twofa_required otherwise) and `notice_version` of the sentence shown next to the button (400 commitment_required when left out, 409 notice_changed when it is not the current one); the commitment is then recorded with who, when and that exact sentence, and the scan goes on. A target whose commitment is of the current sentence records nothing again; one of an older sentence (D-559) is asked again once: it counts as missing (operators get 400 commitment_required \"the confirmation text changed\"), a request without notice_version gets 409 notice_changed, and the administrator's press replaces it. After those checks the Vulnerability scans module does the scan (D-229, D-57 (7)): ports are scanned only on the box's own verified public IPs; a domain's names from certificate transparency, its MX and NS records and a list of common names (looked up through the box's DNS resolver) are listed with the kind of each address (INV-27) and get one GET of / by name on ports 80 and 443; only the box's own address is scanned beyond that. 409 module_off while that module is off; 409 busy while another scan runs on the box; 429 rate_limited within 10 minutes of the target's last scan. Failures that come while the scan runs (400 too_many when the domain has more than 300 names in the logs; 502 unreachable when the certificate-transparency search (crt.sh) does not answer or the scan does not finish within 5 minutes; module_off when the module is switched off meanwhile) end the run as status failed with that code and text, and nothing is saved. Every attempt is audited",
         "tags": [
           "exposure"
         ],
@@ -24824,7 +24824,66 @@
                             "type": "string"
                           },
                           "ip": {
+                            "type": "string",
+                            "description": "The first IPv4 address; \"\" when the name has none (IPv6 only, or a CNAME that leads nowhere)"
+                          },
+                          "source": {
+                            "description": "Where the name was found: a certificate-transparency log, the domain itself, its MX or NS records, or the list of common names. Missing on a snapshot older than D-567: its classes are unknown",
+                            "type": "string",
+                            "enum": [
+                              "ct",
+                              "dns",
+                              "mx",
+                              "ns",
+                              "wordlist"
+                            ]
+                          },
+                          "cname": {
+                            "description": "The final CNAME target",
                             "type": "string"
+                          },
+                          "ips": {
+                            "description": "Every address of the name with its kind (at most 16)",
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "ip": {
+                                  "type": "string"
+                                },
+                                "family": {
+                                  "type": "string",
+                                  "enum": [
+                                    "ipv4",
+                                    "ipv6"
+                                  ],
+                                  "description": "IPv6 is listed, not scanned yet"
+                                },
+                                "class": {
+                                  "type": "string",
+                                  "enum": [
+                                    "box",
+                                    "public",
+                                    "private"
+                                  ],
+                                  "description": "box: this box's verified, current IP; public: any other public address; private: not a public address (or an IPv6 special-purpose range), never dialed"
+                                },
+                                "contacted": {
+                                  "description": "The check by name (one GET / on ports 80 and 443) went to this address: the name's first public IPv4. Missing or false: not contacted",
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "ip",
+                                "family",
+                                "class"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "lookup_failed": {
+                            "description": "The name's address lookup got no answer this time: the row is the previous scan's, carried forward (not gone)",
+                            "type": "boolean"
                           }
                         },
                         "required": [
@@ -25096,7 +25155,7 @@
                         "properties": {
                           "kind": {
                             "type": "string",
-                            "description": "udp, ports, non_exploited, services, templates, cve, web or greenbone"
+                            "description": "udp, ports, non_exploited, services, templates, cve, web, greenbone; a domain's surface (INV-27): wordlist (common names not tried: wildcard DNS), by_name (names on other public addresses: checked by name only), address_family (IPv6 not scanned), lookup (names whose address lookup got no answer: left as the last scan found them)"
                           },
                           "text": {
                             "type": "string"

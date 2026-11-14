@@ -187,10 +187,24 @@ type VerifyResult struct {
 // The content of a scan, as the scan module hands it over (INV-10: it came from other hosts, so it is
 // untrusted and the service limits it before storing).
 type (
-	// HostRow is a subdomain and the address it points at.
+	// HostRow is a name under the domain (INV-27, D-567). IP is the first of its IPv4 addresses ("" when it has none). Source, CNAME
+	// and IPs come from scans since D-567; a row of an older snapshot has no source and the kinds of its addresses are unknown.
 	HostRow struct {
-		Name string `json:"name"`
-		IP   string `json:"ip"`
+		Name   string   `json:"name"`
+		IP     string   `json:"ip"`
+		Source string   `json:"source,omitempty"`
+		CNAME  string   `json:"cname,omitempty"`
+		IPs    []HostIP `json:"ips,omitempty"`
+		// LookupFailed: the name's address lookup got no clear answer this time; the row is the previous scan's, carried forward.
+		LookupFailed bool `json:"lookup_failed,omitempty"`
+	}
+	// HostIP is one address of a name with its kind (INV-27): box (this box's verified, current IP), public (any other public
+	// address) or private (never dialed). Contacted: the check by name (GET / on 80 and 443) went to this address.
+	HostIP struct {
+		IP        string `json:"ip"`
+		Family    string `json:"family"`
+		Class     string `json:"class"`
+		Contacted bool   `json:"contacted,omitempty"`
 	}
 	// PortRow is an open port.
 	// LastSeen and Misses are set only on a port this scan did not report, kept from an earlier scan (INV-22, D-560): LastSeen is the
@@ -235,6 +249,9 @@ type Content struct {
 	NotChecked  []NotCheckedRow `json:"not_checked"`
 	WebFindings []WebFindingRow `json:"web_findings"` // INV-24: alerts of the passive web scan (ZAP), not exploited CVEs
 	Greenbone   []GreenboneRow  `json:"greenbone"`    // INV-25: results of the optional deep scan (Greenbone, QoD >= 70)
+	// Unresolved are the names whose address lookup got no clear answer this time (INV-27): not stored as such; saveScan carries
+	// their previous rows forward (carryHosts).
+	Unresolved []string `json:"-"`
 	// FULL-4 (Trưởng), for Mlee: the NSE script results of a deep scan (D-526), stored in exp_snapshot.scripts (migration 0010).
 	// Not in the API yet ("-"): the snapshot schema of api/openapi.json has no such field and the response decoder refuses unknown
 	// ones; showing them is the page's step (contract.ts, openapi, then this tag becomes "scripts").

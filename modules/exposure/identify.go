@@ -229,6 +229,7 @@ func (s *Service) identify(ctx context.Context, st ScanTarget, c Content) (Conte
 	if st.Kind != KindIP {
 		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "ports", Text: notOtherPortsDom}, NotCheckedRow{Kind: "services", Text: notServicesDom},
 			NotCheckedRow{Kind: "non_exploited", Text: notNonExploited}, NotCheckedRow{Kind: "templates", Text: notTemplatesDom})
+		c.NotChecked = append(c.NotChecked, surfaceNotChecked(c.Hosts)...) // INV-27
 		return c, nil
 	}
 	// FULL-4 (Trưởng), for Mlee: a deep scan probes every TCP port (D-526), so its "ports" line is said only when that run did not
@@ -335,7 +336,7 @@ func identificationIncomplete(c Content) (bool, string) {
 // runnerCheck says what the scan module's surface scan checked (INV-12), for a runner that reports no check lines of its own.
 func runnerCheck(k Kind, c Content, at string) CheckRow {
 	if k == KindDomain {
-		return CheckRow{Kind: "names", At: at, Text: fmt.Sprintf("Names under the domain from certificate-transparency logs (crt.sh): %s; each checked by name on ports 80 and 443 (one GET / and the certificate on 443). %s open in all.",
+		return CheckRow{Kind: "names", At: at, Text: fmt.Sprintf("Names under the domain from certificate-transparency logs (crt.sh), the domain's MX and NS records and a list of common names, looked up through the box's DNS resolver: %s; each checked by name on ports 80 and 443 (one GET / and the certificate on 443). %s open in all.",
 			plural(len(c.Hosts), "name"), plural(len(c.Ports), "port"))}
 	}
 	return CheckRow{Kind: "ports", At: at, Text: fmt.Sprintf("TCP connect to the fixed list of commonly exposed ports, then one GET / on each open web port and a TLS handshake on each TLS port: %s open.",

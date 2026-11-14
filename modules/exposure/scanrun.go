@@ -196,13 +196,16 @@ func (s *Service) saveScan(ctx context.Context, user string, t Target, content C
 	defer cancel()
 	// INV-22: carry what the last observation (a scan today counts) had open and this scan did not report. One scan runs at a time, so
 	// reading it before the write is safe; the address gate (ScannableIP) must not run inside the write transaction.
-	if prev, ok, err := previousSnapshot(wctx, s.cfg.DB.Reader(), t.ID, date); err != nil {
+	prev, ok, err := previousSnapshot(wctx, s.cfg.DB.Reader(), t.ID, date)
+	if err != nil {
 		return Snapshot{}, err
-	} else if ok {
+	}
+	content = carryHosts(content, prev, ok) // INV-27: names whose lookup failed keep their last rows, so their addresses are not "moved"
+	if ok {
 		content = carryNotSeen(content, prev, s.coveredBy(wctx, user, t, content, prev))
 	}
 	snap.Content, snap.Counts = content, countsOf(content, extra, at)
-	err := s.write(wctx, func(tx *sql.Tx, emit func(string, any)) error {
+	err = s.write(wctx, func(tx *sql.Tx, emit func(string, any)) error {
 		if _, err := loadTarget(wctx, tx, t.ID); err != nil { // deleted while the scan ran
 			return err
 		}

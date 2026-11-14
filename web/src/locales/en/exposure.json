@@ -54,7 +54,8 @@
     "results": "Results",
     "ownership": "Ownership",
     "outsideView": "Outside view",
-    "needsYou": "needs you"
+    "needsYou": "needs you",
+    "surface": "Surface"
   },
   "outsideList": {
     "description": "What Shodan InternetDB sees from outside for each public IP of this box. Open an IP to ask again.",
@@ -239,6 +240,51 @@
     "basis": "Basis",
     "listed": "Listed as exploited",
     "why": "Why it matches"
+  },
+  "surface": {
+    "title": "Surface",
+    "description": "Every name under this domain the newest scan found: where it was found, its CNAME and the addresses it points at.",
+    "emptyBody": "Select Scan now to map the names under this domain: certificate-transparency logs, its MX and NS records and a short list of common names, looked up through this box's DNS resolver.",
+    "from": "From the scan of {{date}}.",
+    "caption": "Names under this domain and their addresses",
+    "filter": "Filter names",
+    "older": "This scan ran before the surface map: where each name was found and what kind of address it points at show from the next scan.",
+    "none": "none",
+    "noAddress": "No address",
+    "dangling": "No address: the CNAME leads nowhere",
+    "ipv6": "IPv6 is not scanned yet.",
+    "lookupFailed": "Lookup failed this time: shown as the last scan found it",
+    "notChecked": "Not checked on the surface",
+    "col": {
+      "cname": "CNAME",
+      "addresses": "Addresses"
+    },
+    "source": {
+      "ct": "Found in a certificate log",
+      "dns": "The domain itself",
+      "mx": "Found in the MX records",
+      "ns": "Found in the NS records",
+      "wordlist": "Found by a common name"
+    },
+    "count": {
+      "names": "Names",
+      "box": "Names on this box",
+      "public": "Names on other public addresses",
+      "private": "Names on private addresses",
+      "ipv6": "Names with IPv6 addresses (not scanned)"
+    },
+    "class": {
+      "box": "This box",
+      "public": "Public",
+      "private": "Private"
+    },
+    "note": {
+      "box": "This box's verified address: scanned",
+      "public": "Checked by name on ports 80 and 443. Deep scan of this name comes with the next update.",
+      "private": "Private address: never contacted",
+      "notContacted": "Not contacted: the check by name used {{ip}}.",
+      "notContactedAny": "Not contacted."
+    }
   },
   "hosts": {
     "title": "Subdomains",

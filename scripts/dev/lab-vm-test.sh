@@ -120,6 +120,10 @@ expect "lan-up: link down refused" 1 'enp4s0 has no carrier' -- --dry-run lan-up
 expect "lan-up: virtual NIC refused" 1 'br0 is not a physical NIC' -- --dry-run lan-up br0
 expect "lan-up: wired NIC needs root" 1 'lan-up needs root' -- lan-up eth9
 expect "lan-up dry-run: macvtap passthru" 0 'ip link add link eth9 name vlab0 type macvtap mode passthru' -- --dry-run lan-up eth9
+expect "lan-up dry-run: macvtap bridge" 0 'ip link add link eth9 name vlab0 type macvtap mode bridge' -- --dry-run lan-up eth9 --bridge
+expect "lan-up --bridge: Wi-Fi still refused" 1 'wlp3s0 is wireless: refused' -- --dry-run lan-up wlp3s0 --bridge
+expect "lan-up --bridge: no carrier refused" 1 'enp2s0 has no carrier' -- --dry-run lan-up enp2s0 --bridge
+expect "lan-up: unknown flag" 2 'usage' -- --dry-run lan-up eth9 --tap
 expect "lan-up: the lab link itself" 1 'is the lab link itself' -- lan-up vlab0
 
 if [ "$fail" = 0 ]; then echo "lab-vm-test: PASS"; else echo "lab-vm-test: FAIL"; fi

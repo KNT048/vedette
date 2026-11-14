@@ -356,9 +356,7 @@ func TestWazuh_PullFillsTheInventory(t *testing.T) {
 	r.save()
 	r.pull()
 	st, e, agents, pkgs := r.state()
-	// openssh, htop (the snap is dropped), 7-Zip and Windows Server 2022 itself (D-524: its os version has the update revision); the
-	// NAT'd agent's openssl is not written
-	if st != "connected" || e != "" || agents != 4 || pkgs != 4 {
+	if st != "connected" || e != "" || agents != 4 || pkgs != 3 { // openssh, htop (the snap is dropped), 7-Zip; the NAT'd agent's openssl is not written
 		t.Fatalf("state %s %q agents=%d packages=%d", st, e, agents, pkgs)
 	}
 	d, ok := r.device(ipLinux)
@@ -377,9 +375,6 @@ func TestWazuh_PullFillsTheInventory(t *testing.T) {
 	}
 	if z, ok := swByProduct(win, "7-Zip"); !ok || z.Vendor != "7-Zip" || *z.Version != "23.01" {
 		t.Fatalf("7-zip %+v", win.Software)
-	}
-	if os, ok := swByProduct(win, "Windows Server 2022"); !ok || os.Vendor != "microsoft" || *os.Version != "10.0.20348.2700" || len(os.Kev) != 1 {
-		t.Fatalf("the Windows row (D-524) %+v", win.Software)
 	}
 	// The NAT'd agent (its ip is not among its own addresses) and the manager on 127.0.0.1 are skipped: nothing at 203.0.113.9.
 	if _, ok := r.device("203.0.113.9"); ok || r.deviceCount() != 2 {
@@ -741,7 +736,7 @@ func TestWazuh_ALongPassGoesOnAtTheNextTick(t *testing.T) {
 	r.clock.Advance(time.Minute) // the next tick, not the next interval
 	r.pull()
 	st, _, agents, pkgs := r.state()
-	if st != "connected" || agents != 4 || pkgs != 4 { // as TestWazuh_PullFillsTheInventory: with the Windows row (D-524)
+	if st != "connected" || agents != 4 || pkgs != 3 {
 		t.Fatalf("after the pass ended: %s agents=%d packages=%d", st, agents, pkgs)
 	}
 	n := 0

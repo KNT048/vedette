@@ -48,7 +48,7 @@ const (
 var firstReport = map[string]string{
 	"os_version": "os_version", "system_info": "system_info", "interfaces": "interfaces",
 	"deb_packages": "packages", "rpm_packages": "packages", "programs": "packages", "kernel_info": "packages",
-	"os_revision": "os_version",
+	"os_revision": "os_revision", // its own answer (D-524): asked every minute until a usable revision came, not until os_version did
 }
 
 // hasAnswer says whether the comma-separated list holds the answer.

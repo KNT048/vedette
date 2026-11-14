@@ -126,7 +126,7 @@ func withKernel(snaps map[string][]row, kernel string) map[string][]row {
 }
 
 // answers is the fixed order of the first report's answers (schedule.go firstReport), so the stored list is canonical.
-var answers = []string{"os_version", "system_info", "interfaces", "packages"}
+var answers = []string{"os_version", "system_info", "interfaces", "packages", "os_revision"}
 
 // firstReport records which answers of the first report the inventory took from this node (the config stops asking for them every
 // minute), and approves the device in the name of the token's maker once per node, as soon as the inventory has it (D-503). mac is the
@@ -366,6 +366,9 @@ func (s *Service) markResult(ctx context.Context, n nodeRow, ip netip.Addr, mac 
 func (s *Service) deliver(ctx context.Context, src netip.Addr, hint observe.AssetHint, mac, node string, in logIn) (taken []string, err error) {
 	if _, ok := in.snaps["interfaces"]; ok {
 		taken = append(taken, "interfaces")
+	}
+	if _, ok := parseWinOS(in.snaps["os_revision"]); ok { // stored on the node before deliver (nodeWindows); only a usable one counts
+		taken = append(taken, "os_revision")
 	}
 	if obs := observations(hint, in.snaps, mac); len(obs) > 0 {
 		if err := s.record(ctx, obs); err != nil {

@@ -18,8 +18,8 @@ func TestScheduleAsksTheWindowsRevisionOfWindowsOnly(t *testing.T) {
 	if q.platform != "windows" || q.interval != 3600 || !strings.Contains(q.query, "revision") || !strings.HasSuffix(q.query, "FROM os_version;") {
 		t.Fatalf("os_revision: %+v", q)
 	}
-	if firstReport["os_revision"] != "os_version" {
-		t.Fatalf("os_revision belongs to the first report's os_version answer: %q", firstReport["os_revision"])
+	if firstReport["os_revision"] != "os_revision" || !slices.Contains(answers, "os_revision") {
+		t.Fatalf("os_revision is an answer of its own of the first report: %q", firstReport["os_revision"])
 	}
 	for _, q := range schedule {
 		if strings.Contains(strings.ToLower(q.query), "registry") {
@@ -74,79 +74,48 @@ func TestParseWinOS(t *testing.T) {
 	}
 }
 
-// The OS row names the release as NVD's ranges do, client or server by the name, with the full version and the CISA key.
-func TestWindowsRow(t *testing.T) {
-	s, ok := windowsRow(winOS{name: "Microsoft Windows 11 Pro", version: "10.0.22631.4460", target: "x64"})
-	if !ok || s.Display != "Windows 11 23H2" || s.Vendor != "microsoft" || s.Product != "Windows 11 23H2" || s.Version != "10.0.22631.4460" ||
-		s.CPE != "cpe:2.3:o:microsoft:windows_11_23h2:10.0.22631.4460:*:*:*:*:*:x64:*" || !slices.Equal(s.KevKeys, []string{"microsoft|windows"}) || s.Guess || s.Packaged {
-		t.Fatalf("Windows 11 23H2: %+v %v", s, ok)
-	}
-	for _, c := range []struct{ name, version, product string }{
-		{"Microsoft Windows Server 2025 Standard", "10.0.26100.2314", "windows_server_2025"},
-		{"Microsoft Windows 11 Enterprise", "10.0.26100.2314", "windows_11_24h2"},
-		{"Microsoft Windows Server 2019 Datacenter", "10.0.17763.6532", "windows_server_2019"},
-		{"Microsoft Windows 10 Pro", "10.0.19045.5131", "windows_10_22h2"},
-		{"Microsoft Windows Server 2022 Standard", "10.0.20348.2849", "windows_server_2022"},
-	} {
-		s, ok := windowsRow(winOS{name: c.name, version: c.version})
-		if !ok || s.CPE != "cpe:2.3:o:microsoft:"+c.product+":"+c.version+":*:*:*:*:*:*:*" {
-			t.Errorf("%s %s: %+v %v", c.name, c.version, s, ok)
-		}
-	}
-	for _, w := range []winOS{
-		{name: "Microsoft Windows 10 Pro", version: "10.0.18363.1556"},    // a release not in the table: no row, as before
-		{name: "Microsoft Windows 10 Pro", version: "10.0.20348.2849"},    // a server-only build named as a client
-		{name: "Microsoft Windows 11 Pro", version: "10.0.22631"},         // no revision
-		{name: "Microsoft Windows Server 2012 R2", version: "6.3.9600.1"}, // NVD names 6.x without build ranges
-	} {
-		if s, ok := windowsRow(w); ok {
-			t.Errorf("%+v: row %+v", w, s)
-		}
-	}
-}
-
-// The node's release goes into the package list of a Windows request and onto its os_version row; Linux requests stay as they are.
+// The node's release shows on the OS: on the request's os_version row of the same build, or from the revision's own row alone. Another
+// build, Linux, or no release leave the snapshots as they are, and no software row is made (matching is D-524's follow-up).
 func TestWithWindows(t *testing.T) {
 	w := winOS{name: "Microsoft Windows 11 Pro", version: "10.0.22631.4460", target: "x64"}
-	in := map[string][]row{
-		"os_version": {{"name": "Microsoft Windows 11 Pro", "version": "10.0.22631", "build": "22631", "platform": "windows"}},
-		"programs":   {{"name": "7-Zip 24.08 (x64)", "version": "24.08"}},
+	osv := func(build string) []row {
+		return []row{{"name": "Microsoft Windows 11 Pro", "version": "10.0." + build, "build": build, "platform": "windows"}}
 	}
+	osText := func(snaps map[string][]row) string {
+		t.Helper()
+		obs := observations(observe.AssetHint{}, snaps, "")
+		if len(obs) == 0 {
+			return ""
+		}
+		return obs[0].Value
+	}
+	in := map[string][]row{"os_version": osv("22631"), "programs": {{"name": "7-Zip 24.08 (x64)", "version": "24.08"}}}
 	out := withWindows(in, w)
-	if in["os_version"][0]["version"] != "10.0.22631" || in["windows_os"] != nil {
+	if in["os_version"][0]["version"] != "10.0.22631" {
 		t.Fatal("the request's snapshots were changed")
 	}
-	obs := observations(observe.AssetHint{}, out, "")
-	if len(obs) == 0 || obs[0].Value != "Microsoft Windows 11 Pro 10.0.22631.4460" {
-		t.Fatalf("OS: %+v", obs)
+	if got := osText(out); got != "Microsoft Windows 11 Pro 10.0.22631.4460" {
+		t.Fatalf("OS: %q", got)
 	}
-	items, _ := mapPackages(out, 1) // a list cut at its limit keeps the operating system
-	if len(items) != 1 || items[0].Product != "Windows 11 23H2" {
+	if items, _ := mapPackages(out, maxRows); len(items) != 1 || items[0].Product == "Windows 11 23H2" {
 		t.Fatalf("items: %+v", items)
 	}
-	// another build than the stored one (the machine was upgraded, its revision not reported yet): the OS keeps the build text
-	up := withWindows(map[string][]row{"os_version": {{"name": "Microsoft Windows 11 Pro", "version": "10.0.26100", "build": "26100", "platform": "windows"}}}, w)
-	if obs := observations(observe.AssetHint{}, up, ""); obs[0].Value != "Microsoft Windows 11 Pro 10.0.26100 build 26100" {
-		t.Fatalf("another build: %q", obs[0].Value)
+	// the revision alone (its first report): the OS at once, typed by its name
+	alone := map[string][]row{"os_revision": {{"name": "Microsoft Windows 11 Pro", "version": "10.0.22631", "revision": "4460", "arch": "64-bit"}}}
+	if got := osText(withWindows(alone, w)); got != "Microsoft Windows 11 Pro 10.0.22631.4460" {
+		t.Fatalf("revision alone: %q", got)
+	}
+	// a stored release the revision row of this request does not give (it was refused): no OS from the stored value alone
+	bad := map[string][]row{"os_revision": {{"name": "Microsoft Windows 11 Pro", "version": "10.0.22631", "revision": "0"}}}
+	if got := withWindows(bad, w); got["os_version"] != nil {
+		t.Fatalf("a refused revision made an OS: %v", got)
+	}
+	// another build than the stored one (a feature update whose revision is not reported yet): the OS keeps the build text
+	if got := osText(withWindows(map[string][]row{"os_version": osv("26100")}, w)); got != "Microsoft Windows 11 Pro 10.0.26100 build 26100" {
+		t.Fatalf("another build: %q", got)
 	}
 	linux := map[string][]row{"deb_packages": {{"name": "bash", "version": "5.3-1"}}}
-	if got := withWindows(linux, winOS{}); len(got) != 1 || got["windows_os"] != nil {
+	if got := withWindows(linux, winOS{}); len(got) != 1 {
 		t.Fatalf("no Windows release: %v", got)
-	}
-}
-
-func TestWazuhWindows(t *testing.T) {
-	var a wzAgent
-	a.OS.Name, a.OS.Version, a.OS.Platform = "Microsoft Windows Server 2022 Standard", "10.0.20348.2700", "windows"
-	if w := wazuhWindows(a); w != (winOS{name: "Microsoft Windows Server 2022 Standard", version: "10.0.20348.2700"}) {
-		t.Fatalf("full version: %+v", w)
-	}
-	a.OS.Version = "10.0.20348" // no revision: nothing
-	if w := wazuhWindows(a); w != (winOS{}) {
-		t.Fatalf("no revision: %+v", w)
-	}
-	a.OS.Version, a.OS.Platform = "10.0.20348.2700", "ubuntu"
-	if w := wazuhWindows(a); w != (winOS{}) {
-		t.Fatalf("not Windows: %+v", w)
 	}
 }

@@ -238,6 +238,27 @@ func (c *Client) ZapBaseline(ctx context.Context, args api.ZapBaselineArgs, requ
 	return run, err
 }
 
+// Greenbone runs one of the OpenVAS commands (api.CmdGreenboneUp with api.GreenboneUpArgs, api.CmdGreenboneDown or
+// api.CmdGreenboneSyncFeed with nil; D-529) and follows the run until it ends, read again every two seconds like ZapBaseline. ctx bounds
+// the wait only: the run goes on at the host until its own limit, or until greenbone.down stops it.
+func (c *Client) Greenbone(ctx context.Context, command string, args any, requestID, actor string) (api.Run, error) {
+	switch command {
+	case api.CmdGreenboneUp, api.CmdGreenboneDown, api.CmdGreenboneSyncFeed:
+	default:
+		return api.Run{}, fmt.Errorf("host: %q is not an OpenVAS command", command)
+	}
+	run, err := c.Run(ctx, command, args, requestID, actor)
+	for err == nil && !run.Status.Terminal() {
+		select {
+		case <-ctx.Done():
+			return run, ctx.Err()
+		case <-time.After(2 * time.Second):
+		}
+		run, err = c.GetRun(ctx, run.RunID)
+	}
+	return run, err
+}
+
 // DownloadZapReport opens GET /v1/zap/{id}/content, the report of the last zap.baseline (at most api.MaxZapReport bytes, as the host
 // says; the caller bounds its read too). The caller closes the body.
 func (c *Client) DownloadZapReport(ctx context.Context, reportID string) (io.ReadCloser, int64, error) {

@@ -17,7 +17,7 @@ import (
 func TestUnitTemplatesArePinned(t *testing.T) {
 	t.Parallel()
 	pins := map[string]string{
-		api.ServiceCore:     "3c31737ee0e5a833853b6d5afe4477c8ac4fe11bc72918e9f6ad8093e6103287",
+		api.ServiceCore:     "8101e880bea9032a90da71c8cfd7a3f25b7b2ba19b906daaffb89b4017c5cda9",
 		api.ServiceSensor:   "f5d4534fbbb920e1e832df910410e6bee23c74e49e58d291fd675fa17db18d35",
 		api.ServiceHoneypot: "706dfc118a9d8553eadc8813afb7d4c0ad3457bd646fdb7cd6f9c1c23c35e486",
 		api.ServiceScan:     "6fa3b00fb71cc9d6648fd4e55b37802cb9638e9a044e582351722dfdd0ddc5dc",

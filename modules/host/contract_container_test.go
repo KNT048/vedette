@@ -1310,6 +1310,7 @@ func TestContract_INV17_BuiltUnitsFollowTheCapabilityAndNetworkTable(t *testing.
 				"/var/lib/vedette-honeypot/config:/var/lib/vedette/honeypot/config",
 				"vedette-hp-log.volume:/var/lib/vedette/honeypot/log:ro,noexec", // the size-capped tmpfs volume (D-318)
 				"/run/vedette:/run/vedette",
+				"/run/vedette-greenbone:/run/vedette-greenbone:ro", // gvmd's socket only (D-529); a missing folder = OpenVAS "starting"
 				keys + "passive.volume:/var/lib/vedette-creds/passive",
 				keys + "active.volume:/var/lib/vedette-creds/active",
 			}},

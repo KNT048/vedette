@@ -136,6 +136,8 @@ type Deps struct {
 	// ZapLookupIP is the A-record lookup of a domain page's name (default: the system resolver), to check it points at the page's IP.
 	ZapLookupIP func(ctx context.Context, name string) ([]netip.Addr, error)
 	ZapUID      int
+	// GreenboneUID owns gvmd's socket directory (default 1001, the user gvmd of Greenbone's image, D-529); tests give their own uid.
+	GreenboneUID int
 }
 
 // Ops holds the state of the system commands.
@@ -222,6 +224,16 @@ type Ops struct {
 	zapPulling bool
 	zapPullErr string
 	zapExec    zapExecFn
+
+	// The OpenVAS commands (greenbone.go, D-529): gbSem holds the one operation that runs, gbCancel (guarded by gbMu) ends it for
+	// greenbone.down. gbExec replaces the runner in internal tests.
+	gbSem    chan struct{}
+	gbMu     sync.Mutex
+	gbCancel func()
+	gbGen    uint64 // bumped by every greenbone.down: an up or feed update that waited from before it gives up (guarded by gbMu)
+	gbExec   zapExecFn
+	// gbOnQueue, internal tests only, is called by an up or feed update once it has its generation, before it waits for the slot.
+	gbOnQueue func()
 }
 
 // Notifier is what Ops needs from the server once it runs: an audit line for things the host does
@@ -331,7 +343,7 @@ func NewWithDeps(cfg Config, d Deps) (*Ops, error) {
 	if err != nil {
 		return nil, fmt.Errorf("ops: %w", err)
 	}
-	o := &Ops{cfg: cfg, d: d, log: cfg.Logger, runner: runner, installing: d.Installing}
+	o := &Ops{cfg: cfg, d: d, log: cfg.Logger, runner: runner, installing: d.Installing, gbSem: make(chan struct{}, 1)}
 	for _, dir := range []string{"os", "backups", "exports", "tmp", "net", "containers", "containers/units", "releases",
 		suDirName, filepath.Join(suDirName, suStagedName), filepath.Join(suDirName, suPackagesName)} {
 		if err := privDir(filepath.Join(cfg.StateDir, dir), cfg.OwnerUID); err != nil {
@@ -356,6 +368,7 @@ func (o *Ops) Commands() []server.Command {
 		o.cmdDecoyAdd(), o.cmdDecoyRemove(), o.cmdDecoySetPorts(),
 		o.cmdContainerStart(), o.cmdContainerStop(), o.cmdContainerPull(), o.cmdContainerRollback(),
 		o.cmdHostSelfUpdate(), o.cmdZapBaseline(),
+		o.cmdGreenboneUp(), o.cmdGreenboneDown(), o.cmdGreenboneSyncFeed(),
 	}
 }
 
@@ -458,6 +471,7 @@ func (o *Ops) Start(ctx context.Context, n Notifier) {
 	o.mu.Unlock()
 	o.sweepTmp("releases", "containers")        // temp files of a write cut short (container.pull state)
 	o.zapAtStart(ctx)                           // a passive web scan this process's predecessor did not finish: container, rule, files (D-521)
+	o.gbAtStart()                               // /run/vedette-greenbone, which core's unit mounts for OpenVAS's socket (D-529)
 	_ = os.RemoveAll(o.stateFile(layoutParent)) // a bundle image staged by a pull that was cut short (D-452): GiBs
 	// the containers' AppArmor profile, loaded when the kernel lacks it (D-458): beside startHP, joined before READY, never blocks
 	aaDone := make(chan struct{})

@@ -126,6 +126,9 @@ func (s *Service) execute(ctx context.Context, run *scanRun, r Runner, user stri
 	if err == nil {
 		content, err = s.webPassive(ctx, st, content) // INV-24: passive web scan of its web ports
 	}
+	if err == nil {
+		content, err = s.greenboneScan(ctx, st, content) // INV-25: the optional deep scan, last, when enabled and ready
+	}
 	if err == nil && ctx.Err() != nil { // stopped just as it finished: nothing is stored
 		err = context.Cause(ctx)
 	}
@@ -285,6 +288,12 @@ func (s *Service) Close() {
 	s.runMu.Lock()
 	s.closed = true
 	s.runMu.Unlock()
+	g := s.gb() // a Greenbone start that is still pulling images ends with the box
+	g.mu.Lock()
+	if g.upCancel != nil {
+		g.upCancel()
+	}
+	g.mu.Unlock()
 	if run := s.cancelRun("the box (shutting down)"); run != nil {
 		select {
 		case <-run.done:

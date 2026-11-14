@@ -15624,7 +15624,7 @@ func (s *CoreGetCoreOidcOKRoleMapItemRole) UnmarshalText(data []byte) error {
 }
 
 type CoreGetCorePrivacyOK struct {
-	// Exactly the 15 flows listed in PRIVACY.md.
+	// Exactly the 16 flows listed in PRIVACY.md.
 	Flows       []CoreGetCorePrivacyOKFlowsItem `json:"flows"`
 	Telemetry   CoreGetCorePrivacyOKTelemetry   `json:"telemetry"`
 	UpdateCheck bool                            `json:"update_check"`
@@ -19709,7 +19709,7 @@ func (s *CorePatchCoreAccountReq) SetName(val string) {
 }
 
 type CorePatchCorePrivacyOK struct {
-	// Exactly the 15 flows listed in PRIVACY.md.
+	// Exactly the 16 flows listed in PRIVACY.md.
 	Flows       []CorePatchCorePrivacyOKFlowsItem `json:"flows"`
 	Telemetry   CorePatchCorePrivacyOKTelemetry   `json:"telemetry"`
 	UpdateCheck bool                              `json:"update_check"`
@@ -42751,6 +42751,191 @@ func (s *ExposureDeleteExposureTargetsIDIgnore) UnmarshalText(data []byte) error
 // ExposureDeleteExposureTargetsIDNoContent is response for ExposureDeleteExposureTargetsID operation.
 type ExposureDeleteExposureTargetsIDNoContent struct{}
 
+type ExposureGetExposureGreenboneOK struct {
+	ChangedAt NilDateTime `json:"changed_at"`
+	// Who last turned it on or off.
+	ChangedBy NilString                               `json:"changed_by"`
+	Preflight ExposureGetExposureGreenboneOKPreflight `json:"preflight"`
+	// Why, for unavailable and error; the feed sentence for loading; null otherwise.
+	Reason NilString `json:"reason"`
+	// Unavailable: not set up on this box; loading: Greenbone is loading its feed (the first time takes
+	// about 2 hours), a phase and not a hang.
+	State ExposureGetExposureGreenboneOKState `json:"state"`
+}
+
+// GetChangedAt returns the value of ChangedAt.
+func (s *ExposureGetExposureGreenboneOK) GetChangedAt() NilDateTime {
+	return s.ChangedAt
+}
+
+// GetChangedBy returns the value of ChangedBy.
+func (s *ExposureGetExposureGreenboneOK) GetChangedBy() NilString {
+	return s.ChangedBy
+}
+
+// GetPreflight returns the value of Preflight.
+func (s *ExposureGetExposureGreenboneOK) GetPreflight() ExposureGetExposureGreenboneOKPreflight {
+	return s.Preflight
+}
+
+// GetReason returns the value of Reason.
+func (s *ExposureGetExposureGreenboneOK) GetReason() NilString {
+	return s.Reason
+}
+
+// GetState returns the value of State.
+func (s *ExposureGetExposureGreenboneOK) GetState() ExposureGetExposureGreenboneOKState {
+	return s.State
+}
+
+// SetChangedAt sets the value of ChangedAt.
+func (s *ExposureGetExposureGreenboneOK) SetChangedAt(val NilDateTime) {
+	s.ChangedAt = val
+}
+
+// SetChangedBy sets the value of ChangedBy.
+func (s *ExposureGetExposureGreenboneOK) SetChangedBy(val NilString) {
+	s.ChangedBy = val
+}
+
+// SetPreflight sets the value of Preflight.
+func (s *ExposureGetExposureGreenboneOK) SetPreflight(val ExposureGetExposureGreenboneOKPreflight) {
+	s.Preflight = val
+}
+
+// SetReason sets the value of Reason.
+func (s *ExposureGetExposureGreenboneOK) SetReason(val NilString) {
+	s.Reason = val
+}
+
+// SetState sets the value of State.
+func (s *ExposureGetExposureGreenboneOK) SetState(val ExposureGetExposureGreenboneOKState) {
+	s.State = val
+}
+
+type ExposureGetExposureGreenboneOKPreflight struct {
+	// Free space of the box data directory's filesystem; null when it could not be read.
+	DiskFreeBytes NilInt `json:"disk_free_bytes"`
+	// MemTotal of the box; null when it could not be read.
+	MemoryBytes NilInt `json:"memory_bytes"`
+	// Both meet the thresholds: 8 GB (decimal) of memory and 60 GB free.
+	Ok bool `json:"ok"`
+	// Why it cannot be enabled, with the measured number, e.g. "This box has 7.1 GB of memory; Greenbone
+	// needs at least 8.0 GB.".
+	Reason NilString `json:"reason"`
+}
+
+// GetDiskFreeBytes returns the value of DiskFreeBytes.
+func (s *ExposureGetExposureGreenboneOKPreflight) GetDiskFreeBytes() NilInt {
+	return s.DiskFreeBytes
+}
+
+// GetMemoryBytes returns the value of MemoryBytes.
+func (s *ExposureGetExposureGreenboneOKPreflight) GetMemoryBytes() NilInt {
+	return s.MemoryBytes
+}
+
+// GetOk returns the value of Ok.
+func (s *ExposureGetExposureGreenboneOKPreflight) GetOk() bool {
+	return s.Ok
+}
+
+// GetReason returns the value of Reason.
+func (s *ExposureGetExposureGreenboneOKPreflight) GetReason() NilString {
+	return s.Reason
+}
+
+// SetDiskFreeBytes sets the value of DiskFreeBytes.
+func (s *ExposureGetExposureGreenboneOKPreflight) SetDiskFreeBytes(val NilInt) {
+	s.DiskFreeBytes = val
+}
+
+// SetMemoryBytes sets the value of MemoryBytes.
+func (s *ExposureGetExposureGreenboneOKPreflight) SetMemoryBytes(val NilInt) {
+	s.MemoryBytes = val
+}
+
+// SetOk sets the value of Ok.
+func (s *ExposureGetExposureGreenboneOKPreflight) SetOk(val bool) {
+	s.Ok = val
+}
+
+// SetReason sets the value of Reason.
+func (s *ExposureGetExposureGreenboneOKPreflight) SetReason(val NilString) {
+	s.Reason = val
+}
+
+// Unavailable: not set up on this box; loading: Greenbone is loading its feed (the first time takes
+// about 2 hours), a phase and not a hang.
+type ExposureGetExposureGreenboneOKState string
+
+const (
+	ExposureGetExposureGreenboneOKStateUnavailable ExposureGetExposureGreenboneOKState = "unavailable"
+	ExposureGetExposureGreenboneOKStateOff         ExposureGetExposureGreenboneOKState = "off"
+	ExposureGetExposureGreenboneOKStateStarting    ExposureGetExposureGreenboneOKState = "starting"
+	ExposureGetExposureGreenboneOKStateLoading     ExposureGetExposureGreenboneOKState = "loading"
+	ExposureGetExposureGreenboneOKStateReady       ExposureGetExposureGreenboneOKState = "ready"
+	ExposureGetExposureGreenboneOKStateError       ExposureGetExposureGreenboneOKState = "error"
+)
+
+// AllValues returns all ExposureGetExposureGreenboneOKState values.
+func (ExposureGetExposureGreenboneOKState) AllValues() []ExposureGetExposureGreenboneOKState {
+	return []ExposureGetExposureGreenboneOKState{
+		ExposureGetExposureGreenboneOKStateUnavailable,
+		ExposureGetExposureGreenboneOKStateOff,
+		ExposureGetExposureGreenboneOKStateStarting,
+		ExposureGetExposureGreenboneOKStateLoading,
+		ExposureGetExposureGreenboneOKStateReady,
+		ExposureGetExposureGreenboneOKStateError,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureGetExposureGreenboneOKState) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureGetExposureGreenboneOKStateUnavailable:
+		return []byte(s), nil
+	case ExposureGetExposureGreenboneOKStateOff:
+		return []byte(s), nil
+	case ExposureGetExposureGreenboneOKStateStarting:
+		return []byte(s), nil
+	case ExposureGetExposureGreenboneOKStateLoading:
+		return []byte(s), nil
+	case ExposureGetExposureGreenboneOKStateReady:
+		return []byte(s), nil
+	case ExposureGetExposureGreenboneOKStateError:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureGetExposureGreenboneOKState) UnmarshalText(data []byte) error {
+	switch ExposureGetExposureGreenboneOKState(data) {
+	case ExposureGetExposureGreenboneOKStateUnavailable:
+		*s = ExposureGetExposureGreenboneOKStateUnavailable
+		return nil
+	case ExposureGetExposureGreenboneOKStateOff:
+		*s = ExposureGetExposureGreenboneOKStateOff
+		return nil
+	case ExposureGetExposureGreenboneOKStateStarting:
+		*s = ExposureGetExposureGreenboneOKStateStarting
+		return nil
+	case ExposureGetExposureGreenboneOKStateLoading:
+		*s = ExposureGetExposureGreenboneOKStateLoading
+		return nil
+	case ExposureGetExposureGreenboneOKStateReady:
+		*s = ExposureGetExposureGreenboneOKStateReady
+		return nil
+	case ExposureGetExposureGreenboneOKStateError:
+		*s = ExposureGetExposureGreenboneOKStateError
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type ExposureGetExposureScanOK struct {
 	// Who pressed Scan now (an e-mail).
 	By string `json:"by"`
@@ -44291,12 +44476,15 @@ type ExposureGetExposureTargetsIDSnapshotsDateOK struct {
 	Checks      []ExposureGetExposureTargetsIDSnapshotsDateOKChecksItem      `json:"checks"`
 	Counts      ExposureGetExposureTargetsIDSnapshotsDateOKCounts            `json:"counts"`
 	Date        string                                                       `json:"date"`
-	Hosts       []ExposureGetExposureTargetsIDSnapshotsDateOKHostsItem       `json:"hosts"`
-	ID          string                                                       `json:"id"`
-	NotChecked  []ExposureGetExposureTargetsIDSnapshotsDateOKNotCheckedItem  `json:"not_checked"`
-	Ports       []ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem       `json:"ports"`
-	ScannedAt   time.Time                                                    `json:"scanned_at"`
-	Services    []ExposureGetExposureTargetsIDSnapshotsDateOKServicesItem    `json:"services"`
+	// Results of the optional deep scan with Greenbone (INV-25); empty when it did not run (the
+	// not_checked lines of kind greenbone say why).
+	Greenbone  []ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneItem  `json:"greenbone"`
+	Hosts      []ExposureGetExposureTargetsIDSnapshotsDateOKHostsItem      `json:"hosts"`
+	ID         string                                                      `json:"id"`
+	NotChecked []ExposureGetExposureTargetsIDSnapshotsDateOKNotCheckedItem `json:"not_checked"`
+	Ports      []ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem      `json:"ports"`
+	ScannedAt  time.Time                                                   `json:"scanned_at"`
+	Services   []ExposureGetExposureTargetsIDSnapshotsDateOKServicesItem   `json:"services"`
 	// The safe templates that ran on the services (INV-23); the box ran no template when empty.
 	Templates   []ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItem   `json:"templates"`
 	VersionGaps []ExposureGetExposureTargetsIDSnapshotsDateOKVersionGapsItem `json:"version_gaps"`
@@ -44328,6 +44516,11 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOK) GetCounts() ExposureGetExp
 // GetDate returns the value of Date.
 func (s *ExposureGetExposureTargetsIDSnapshotsDateOK) GetDate() string {
 	return s.Date
+}
+
+// GetGreenbone returns the value of Greenbone.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOK) GetGreenbone() []ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneItem {
+	return s.Greenbone
 }
 
 // GetHosts returns the value of Hosts.
@@ -44403,6 +44596,11 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOK) SetCounts(val ExposureGetE
 // SetDate sets the value of Date.
 func (s *ExposureGetExposureTargetsIDSnapshotsDateOK) SetDate(val string) {
 	s.Date = val
+}
+
+// SetGreenbone sets the value of Greenbone.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOK) SetGreenbone(val []ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneItem) {
+	s.Greenbone = val
 }
 
 // SetHosts sets the value of Hosts.
@@ -44592,7 +44790,7 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKCertsItem) SetIssuer(val str
 
 type ExposureGetExposureTargetsIDSnapshotsDateOKChecksItem struct {
 	At time.Time `json:"at"`
-	// Ports, names, services, templates, cve or web.
+	// Ports, names, services, templates, cve, web or greenbone.
 	Kind string `json:"kind"`
 	Text string `json:"text"`
 }
@@ -44685,6 +44883,104 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKCounts) SetSubdomains(val in
 	s.Subdomains = val
 }
 
+type ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneItem struct {
+	// CVE ids the test names.
+	Cves []string `json:"cves"`
+	IP   string   `json:"ip"`
+	// Name of Greenbone's test; plain text.
+	Name string `json:"name"`
+	// OID of the test; "" when not read.
+	Oid string `json:"oid"`
+	// "443/tcp", "general/tcp"; "" when Greenbone gave none.
+	Port string `json:"port"`
+	// Quality of detection, 70 to 100.
+	Qod int `json:"qod"`
+	// CVSS score, 0.1 to 10.
+	Severity float64 `json:"severity"`
+	// Greenbone's advice, plain text, clipped.
+	Solution string `json:"solution"`
+}
+
+// GetCves returns the value of Cves.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneItem) GetCves() []string {
+	return s.Cves
+}
+
+// GetIP returns the value of IP.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneItem) GetIP() string {
+	return s.IP
+}
+
+// GetName returns the value of Name.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneItem) GetName() string {
+	return s.Name
+}
+
+// GetOid returns the value of Oid.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneItem) GetOid() string {
+	return s.Oid
+}
+
+// GetPort returns the value of Port.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneItem) GetPort() string {
+	return s.Port
+}
+
+// GetQod returns the value of Qod.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneItem) GetQod() int {
+	return s.Qod
+}
+
+// GetSeverity returns the value of Severity.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneItem) GetSeverity() float64 {
+	return s.Severity
+}
+
+// GetSolution returns the value of Solution.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneItem) GetSolution() string {
+	return s.Solution
+}
+
+// SetCves sets the value of Cves.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneItem) SetCves(val []string) {
+	s.Cves = val
+}
+
+// SetIP sets the value of IP.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneItem) SetIP(val string) {
+	s.IP = val
+}
+
+// SetName sets the value of Name.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneItem) SetName(val string) {
+	s.Name = val
+}
+
+// SetOid sets the value of Oid.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneItem) SetOid(val string) {
+	s.Oid = val
+}
+
+// SetPort sets the value of Port.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneItem) SetPort(val string) {
+	s.Port = val
+}
+
+// SetQod sets the value of Qod.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneItem) SetQod(val int) {
+	s.Qod = val
+}
+
+// SetSeverity sets the value of Severity.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneItem) SetSeverity(val float64) {
+	s.Severity = val
+}
+
+// SetSolution sets the value of Solution.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneItem) SetSolution(val string) {
+	s.Solution = val
+}
+
 type ExposureGetExposureTargetsIDSnapshotsDateOKHostsItem struct {
 	IP   string `json:"ip"`
 	Name string `json:"name"`
@@ -44711,7 +45007,7 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKHostsItem) SetName(val strin
 }
 
 type ExposureGetExposureTargetsIDSnapshotsDateOKNotCheckedItem struct {
-	// Udp, ports, non_exploited, services, templates, cve or web.
+	// Udp, ports, non_exploited, services, templates, cve, web or greenbone.
 	Kind string `json:"kind"`
 	Text string `json:"text"`
 }
@@ -45066,16 +45362,19 @@ type ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItem struct {
 	// changing the version; "" when none.
 	Backport string `json:"backport"`
 	// Version: the version is inside an NVD range; product: only the product matches; template: a safe
-	// template matched (INV-23), the strongest evidence.
+	// template matched (INV-23), the strongest evidence; greenbone: Greenbone named this CVE and it is on
+	// the list (INV-25), shown next to any other row of the same CVE, never instead of it.
 	Basis ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasis `json:"basis"`
 	Cve   string                                                    `json:"cve"`
 	// When CISA listed it as exploited.
-	DateAdded  NilString `json:"date_added"`
-	IP         string    `json:"ip"`
-	Name       string    `json:"name"`
-	Port       int       `json:"port"`
-	Ransomware bool      `json:"ransomware"`
-	Summary    string    `json:"summary"`
+	DateAdded NilString `json:"date_added"`
+	IP        string    `json:"ip"`
+	Name      string    `json:"name"`
+	Port      int       `json:"port"`
+	// Basis greenbone only: Greenbone's quality of detection, 70 to 100.
+	Qod        OptInt `json:"qod"`
+	Ransomware bool   `json:"ransomware"`
+	Summary    string `json:"summary"`
 	// Id of the safe template that ran for this CVE; "" when none ran.
 	Template string `json:"template"`
 	// What that template did: matched (basis becomes template), no_match (one check, never "not
@@ -45116,6 +45415,11 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItem) GetName() string 
 // GetPort returns the value of Port.
 func (s *ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItem) GetPort() int {
 	return s.Port
+}
+
+// GetQod returns the value of Qod.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItem) GetQod() OptInt {
+	return s.Qod
 }
 
 // GetRansomware returns the value of Ransomware.
@@ -45173,6 +45477,11 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItem) SetPort(val int) 
 	s.Port = val
 }
 
+// SetQod sets the value of Qod.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItem) SetQod(val OptInt) {
+	s.Qod = val
+}
+
 // SetRansomware sets the value of Ransomware.
 func (s *ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItem) SetRansomware(val bool) {
 	s.Ransomware = val
@@ -45194,13 +45503,15 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItem) SetTemplateResult
 }
 
 // Version: the version is inside an NVD range; product: only the product matches; template: a safe
-// template matched (INV-23), the strongest evidence.
+// template matched (INV-23), the strongest evidence; greenbone: Greenbone named this CVE and it is on
+// the list (INV-25), shown next to any other row of the same CVE, never instead of it.
 type ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasis string
 
 const (
-	ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasisVersion  ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasis = "version"
-	ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasisProduct  ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasis = "product"
-	ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasisTemplate ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasis = "template"
+	ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasisVersion   ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasis = "version"
+	ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasisProduct   ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasis = "product"
+	ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasisTemplate  ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasis = "template"
+	ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasisGreenbone ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasis = "greenbone"
 )
 
 // AllValues returns all ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasis values.
@@ -45209,6 +45520,7 @@ func (ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasis) AllValues() []E
 		ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasisVersion,
 		ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasisProduct,
 		ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasisTemplate,
+		ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasisGreenbone,
 	}
 }
 
@@ -45220,6 +45532,8 @@ func (s ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasis) MarshalText()
 	case ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasisProduct:
 		return []byte(s), nil
 	case ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasisTemplate:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasisGreenbone:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -45237,6 +45551,9 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasis) UnmarshalTex
 		return nil
 	case ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasisTemplate:
 		*s = ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasisTemplate
+		return nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasisGreenbone:
+		*s = ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasisGreenbone
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -49589,6 +49906,205 @@ func (s *ExposurePutExposureBoxIPSettingsReq) SetAuto(val bool) {
 // SetIntervalMin sets the value of IntervalMin.
 func (s *ExposurePutExposureBoxIPSettingsReq) SetIntervalMin(val int) {
 	s.IntervalMin = val
+}
+
+type ExposurePutExposureGreenboneOK struct {
+	ChangedAt NilDateTime `json:"changed_at"`
+	// Who last turned it on or off.
+	ChangedBy NilString                               `json:"changed_by"`
+	Preflight ExposurePutExposureGreenboneOKPreflight `json:"preflight"`
+	// Why, for unavailable and error; the feed sentence for loading; null otherwise.
+	Reason NilString `json:"reason"`
+	// Unavailable: not set up on this box; loading: Greenbone is loading its feed (the first time takes
+	// about 2 hours), a phase and not a hang.
+	State ExposurePutExposureGreenboneOKState `json:"state"`
+}
+
+// GetChangedAt returns the value of ChangedAt.
+func (s *ExposurePutExposureGreenboneOK) GetChangedAt() NilDateTime {
+	return s.ChangedAt
+}
+
+// GetChangedBy returns the value of ChangedBy.
+func (s *ExposurePutExposureGreenboneOK) GetChangedBy() NilString {
+	return s.ChangedBy
+}
+
+// GetPreflight returns the value of Preflight.
+func (s *ExposurePutExposureGreenboneOK) GetPreflight() ExposurePutExposureGreenboneOKPreflight {
+	return s.Preflight
+}
+
+// GetReason returns the value of Reason.
+func (s *ExposurePutExposureGreenboneOK) GetReason() NilString {
+	return s.Reason
+}
+
+// GetState returns the value of State.
+func (s *ExposurePutExposureGreenboneOK) GetState() ExposurePutExposureGreenboneOKState {
+	return s.State
+}
+
+// SetChangedAt sets the value of ChangedAt.
+func (s *ExposurePutExposureGreenboneOK) SetChangedAt(val NilDateTime) {
+	s.ChangedAt = val
+}
+
+// SetChangedBy sets the value of ChangedBy.
+func (s *ExposurePutExposureGreenboneOK) SetChangedBy(val NilString) {
+	s.ChangedBy = val
+}
+
+// SetPreflight sets the value of Preflight.
+func (s *ExposurePutExposureGreenboneOK) SetPreflight(val ExposurePutExposureGreenboneOKPreflight) {
+	s.Preflight = val
+}
+
+// SetReason sets the value of Reason.
+func (s *ExposurePutExposureGreenboneOK) SetReason(val NilString) {
+	s.Reason = val
+}
+
+// SetState sets the value of State.
+func (s *ExposurePutExposureGreenboneOK) SetState(val ExposurePutExposureGreenboneOKState) {
+	s.State = val
+}
+
+type ExposurePutExposureGreenboneOKPreflight struct {
+	// Free space of the box data directory's filesystem; null when it could not be read.
+	DiskFreeBytes NilInt `json:"disk_free_bytes"`
+	// MemTotal of the box; null when it could not be read.
+	MemoryBytes NilInt `json:"memory_bytes"`
+	// Both meet the thresholds: 8 GB (decimal) of memory and 60 GB free.
+	Ok bool `json:"ok"`
+	// Why it cannot be enabled, with the measured number, e.g. "This box has 7.1 GB of memory; Greenbone
+	// needs at least 8.0 GB.".
+	Reason NilString `json:"reason"`
+}
+
+// GetDiskFreeBytes returns the value of DiskFreeBytes.
+func (s *ExposurePutExposureGreenboneOKPreflight) GetDiskFreeBytes() NilInt {
+	return s.DiskFreeBytes
+}
+
+// GetMemoryBytes returns the value of MemoryBytes.
+func (s *ExposurePutExposureGreenboneOKPreflight) GetMemoryBytes() NilInt {
+	return s.MemoryBytes
+}
+
+// GetOk returns the value of Ok.
+func (s *ExposurePutExposureGreenboneOKPreflight) GetOk() bool {
+	return s.Ok
+}
+
+// GetReason returns the value of Reason.
+func (s *ExposurePutExposureGreenboneOKPreflight) GetReason() NilString {
+	return s.Reason
+}
+
+// SetDiskFreeBytes sets the value of DiskFreeBytes.
+func (s *ExposurePutExposureGreenboneOKPreflight) SetDiskFreeBytes(val NilInt) {
+	s.DiskFreeBytes = val
+}
+
+// SetMemoryBytes sets the value of MemoryBytes.
+func (s *ExposurePutExposureGreenboneOKPreflight) SetMemoryBytes(val NilInt) {
+	s.MemoryBytes = val
+}
+
+// SetOk sets the value of Ok.
+func (s *ExposurePutExposureGreenboneOKPreflight) SetOk(val bool) {
+	s.Ok = val
+}
+
+// SetReason sets the value of Reason.
+func (s *ExposurePutExposureGreenboneOKPreflight) SetReason(val NilString) {
+	s.Reason = val
+}
+
+// Unavailable: not set up on this box; loading: Greenbone is loading its feed (the first time takes
+// about 2 hours), a phase and not a hang.
+type ExposurePutExposureGreenboneOKState string
+
+const (
+	ExposurePutExposureGreenboneOKStateUnavailable ExposurePutExposureGreenboneOKState = "unavailable"
+	ExposurePutExposureGreenboneOKStateOff         ExposurePutExposureGreenboneOKState = "off"
+	ExposurePutExposureGreenboneOKStateStarting    ExposurePutExposureGreenboneOKState = "starting"
+	ExposurePutExposureGreenboneOKStateLoading     ExposurePutExposureGreenboneOKState = "loading"
+	ExposurePutExposureGreenboneOKStateReady       ExposurePutExposureGreenboneOKState = "ready"
+	ExposurePutExposureGreenboneOKStateError       ExposurePutExposureGreenboneOKState = "error"
+)
+
+// AllValues returns all ExposurePutExposureGreenboneOKState values.
+func (ExposurePutExposureGreenboneOKState) AllValues() []ExposurePutExposureGreenboneOKState {
+	return []ExposurePutExposureGreenboneOKState{
+		ExposurePutExposureGreenboneOKStateUnavailable,
+		ExposurePutExposureGreenboneOKStateOff,
+		ExposurePutExposureGreenboneOKStateStarting,
+		ExposurePutExposureGreenboneOKStateLoading,
+		ExposurePutExposureGreenboneOKStateReady,
+		ExposurePutExposureGreenboneOKStateError,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePutExposureGreenboneOKState) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePutExposureGreenboneOKStateUnavailable:
+		return []byte(s), nil
+	case ExposurePutExposureGreenboneOKStateOff:
+		return []byte(s), nil
+	case ExposurePutExposureGreenboneOKStateStarting:
+		return []byte(s), nil
+	case ExposurePutExposureGreenboneOKStateLoading:
+		return []byte(s), nil
+	case ExposurePutExposureGreenboneOKStateReady:
+		return []byte(s), nil
+	case ExposurePutExposureGreenboneOKStateError:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePutExposureGreenboneOKState) UnmarshalText(data []byte) error {
+	switch ExposurePutExposureGreenboneOKState(data) {
+	case ExposurePutExposureGreenboneOKStateUnavailable:
+		*s = ExposurePutExposureGreenboneOKStateUnavailable
+		return nil
+	case ExposurePutExposureGreenboneOKStateOff:
+		*s = ExposurePutExposureGreenboneOKStateOff
+		return nil
+	case ExposurePutExposureGreenboneOKStateStarting:
+		*s = ExposurePutExposureGreenboneOKStateStarting
+		return nil
+	case ExposurePutExposureGreenboneOKStateLoading:
+		*s = ExposurePutExposureGreenboneOKStateLoading
+		return nil
+	case ExposurePutExposureGreenboneOKStateReady:
+		*s = ExposurePutExposureGreenboneOKStateReady
+		return nil
+	case ExposurePutExposureGreenboneOKStateError:
+		*s = ExposurePutExposureGreenboneOKStateError
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposurePutExposureGreenboneReq struct {
+	Enabled bool `json:"enabled"`
+}
+
+// GetEnabled returns the value of Enabled.
+func (s *ExposurePutExposureGreenboneReq) GetEnabled() bool {
+	return s.Enabled
+}
+
+// SetEnabled sets the value of Enabled.
+func (s *ExposurePutExposureGreenboneReq) SetEnabled(val bool) {
+	s.Enabled = val
 }
 
 // FeedsDeleteFeedsCustomIDNoContent is response for FeedsDeleteFeedsCustomID operation.

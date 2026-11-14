@@ -1256,6 +1256,16 @@ func (UnimplementedHandler) ExposureDeleteExposureTargetsID(ctx context.Context,
 	return ht.ErrNotImplemented
 }
 
+// ExposureGetExposureGreenbone implements exposure_get_exposure_greenbone operation.
+//
+// The optional deep scan with Greenbone (OpenVAS, D-563): its state and this box's memory and free
+// disk against the thresholds. Reading may ask Greenbone whether it is ready; it never starts a scan.
+//
+// GET /exposure/greenbone
+func (UnimplementedHandler) ExposureGetExposureGreenbone(ctx context.Context) (r *ExposureGetExposureGreenboneOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // ExposureGetExposureScan implements exposure_get_exposure_scan operation.
 //
 // The scan that runs now, or the last one (status done, failed or stopped, with its error or
@@ -1420,6 +1430,19 @@ func (UnimplementedHandler) ExposurePostExposureTargetsIDVerify(ctx context.Cont
 //
 // PUT /exposure/box-ip/settings
 func (UnimplementedHandler) ExposurePutExposureBoxIPSettings(ctx context.Context, req *ExposurePutExposureBoxIPSettingsReq) (r *ExposurePutExposureBoxIPSettingsOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ExposurePutExposureGreenbone implements exposure_put_exposure_greenbone operation.
+//
+// Turn the optional deep scan with Greenbone on or off (off by default). On: refused with 409
+// low_memory or low_disk and the measured numbers below 8 GB of memory or 60 GB free; else Greenbone
+// starts in the background (starting, then loading while it loads its feed, about 2 hours the first
+// time). Off: no scan uses it, its containers stop and its data is kept (502 host_error when they
+// could not be stopped). 501 not_implemented when Greenbone is not available on this box. Audited.
+//
+// PUT /exposure/greenbone
+func (UnimplementedHandler) ExposurePutExposureGreenbone(ctx context.Context, req *ExposurePutExposureGreenboneReq) (r *ExposurePutExposureGreenboneOK, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

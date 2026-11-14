@@ -17,7 +17,7 @@ import (
 	"github.com/knt048/vedette/core/store"
 )
 
-// Config is what NewService needs. Publisher, Runner, TwoStep, Gateway, Services, Templates, Web, Probes, Matcher, Outside, Location and Clock may be nil.
+// Config is what NewService needs. Publisher, Runner, TwoStep, Gateway, Services, Templates, Web, Greenbone, Probes, Matcher, Outside, Location and Clock may be nil.
 type Config struct {
 	DB        *store.DB
 	Audit     *audit.Log
@@ -30,6 +30,8 @@ type Config struct {
 	Services  ServiceScanner   // nil: every scan of an IP says service identification is not set up (INV-19)
 	Templates TemplateScanner  // nil: every scan of an IP says the safe exploited-vulnerability templates are not set up (INV-23)
 	Web       WebScanner       // nil: every scan says the passive web scan (ZAP) is not set up (INV-24)
+	Greenbone GreenboneHost    // nil: the setting and every scan of an IP say "Greenbone is not available on this box" (INV-25)
+	DataDir   string           // the box data directory: Greenbone's preflight measures the free space of its filesystem (INV-25)
 	Probes    ProbeLog         // nil: the template and web steps do not run (nothing is sent without a probe log row, LEGAL §3)
 	Matcher   Matcher          // nil: identified services are not compared with exploited CVEs, and the page says so (INV-20)
 	Outside   *InternetDB      // nil: "Check what Shodan has seen" answers 501 (INV-21); cmd/vedette wires Shodan InternetDB
@@ -55,6 +57,9 @@ type Service struct {
 	run         *scanRun             // the scan that runs now, or the last one (INV-18); one at a time on the box (D-229): a second one is 409 busy; a restart forgets it
 	lastScan    map[string]time.Time // when each target's last scan started (ScanEvery; kept in memory, a restart forgets it)
 	lastOutside time.Time            // when the box last asked Shodan (OutsideEvery; kept in memory, a restart forgets it)
+
+	gbOnce sync.Once
+	gbs    *gbState // Greenbone's state in memory (INV-25); made by gb()
 }
 
 // NewService returns the service. DB, Audit, Resolver, Prober and Log are required.

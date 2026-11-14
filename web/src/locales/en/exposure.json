@@ -458,10 +458,46 @@
       "version": "Version in range",
       "product": "Product only",
       "template": "Confirmed by template {{id}}",
-      "backport": "Version in range, but {{distro}} may have backported the fix"
+      "backport": "Version in range, but {{distro}} may have backported the fix",
+      "greenbone": "Scanner: Greenbone, QoD {{qod}}"
     },
     "countBackport_one": "{{count}} maybe patched",
     "countBackport_other": "{{count}} maybe patched"
+  },
+  "greenbone": {
+    "title": "Optional deep scan: Greenbone (OpenVAS)",
+    "description": "Greenbone is a free vulnerability scanner that runs as its own containers next to Vedette. When it is on, each scan of the box's own verified public IP ends with a Greenbone scan of that IP. Off by default.",
+    "state": { "unavailable": "Not available", "off": "Off", "starting": "Starting", "loading": "Loading its feed", "ready": "Ready", "error": "Error" },
+    "stateText": {
+      "off": "Greenbone is off. Scans do not use it.",
+      "starting": "Greenbone is starting. The first start downloads its images (about 9 GB).",
+      "ready": "Greenbone is ready. The next scan of an IP of this box uses it."
+    },
+    "loading": "Greenbone is loading its feed (first time takes about 2 hours)",
+    "what": "It looks at your public IP from outside without logging in, with Greenbone's \"Full and fast\" tests minus brute force, default accounts and denial of service, and with safe checks on.",
+    "apart": "Its results are shown in their own section of each scan. They never replace or hide what Vedette found by version, and finding nothing is not proof that nothing is affected.",
+    "offKeeps": "Turning it off stops its containers and keeps its images and data, so turning it on again does not download them again.",
+    "memory": "Memory of this box",
+    "disk": "Free disk space",
+    "needs": "Needs about 50 GB of disk and about 2 hours to load Greenbone's feed the first time. The box must have at least 8 GB of memory and 60 GB free.",
+    "enable": "Enable Greenbone",
+    "disable": "Turn off Greenbone",
+    "changedOn": "Turned on by {{by}}, {{time}}",
+    "changedOff": "Turned off by {{by}}, {{time}}",
+    "toastOn": "Greenbone is starting. Loading its feed takes about 2 hours the first time.",
+    "toastOff": "Greenbone is off. Its data is kept.",
+    "col": { "severity": "Severity", "name": "Name", "port": "Port", "qod": "QoD", "cves": "CVEs", "solution": "Solution" },
+    "sev": { "high": "High {{score}}", "medium": "Medium {{score}}", "low": "Low {{score}}" },
+    "noCve": "None named",
+    "results": {
+      "title": "Greenbone results (unauthenticated, QoD ≥ 70)",
+      "header": "Greenbone looked at this IP from outside without logging in. Finding nothing is not proof the services are not affected (distributions backport fixes).",
+      "caption": "What Greenbone reported on this IP",
+      "noneTitle": "Greenbone reported nothing with QoD 70 or more",
+      "noneBody": "That is one outside look without logging in, not proof that the services are not affected. The exploited CVEs above still stand.",
+      "notRunTitle": "Greenbone did not scan this time",
+      "notRunBody": "Greenbone is not set up for this scan."
+    }
   },
   "web": {
     "title": "Web findings (passive)",

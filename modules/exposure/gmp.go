@@ -1,0 +1,516 @@
+package exposure
+
+import (
+	"context"
+	"encoding/base64"
+	"encoding/xml"
+	"errors"
+	"fmt"
+	"io"
+	"net"
+	"regexp"
+	"slices"
+	"strconv"
+	"strings"
+	"time"
+)
+
+// A minimal client of the Greenbone Management Protocol (GMP, XML over the gvmd unix socket) for the optional deep scan
+// (S-EXP-2, CONTRACT INV-25, D-563). It speaks only the commands the scan needs: authenticate, get_feeds and get_configs
+// (readiness), create/modify_config, get_port_lists, create_target, create_task, start_task, get_tasks, get_reports, stop_task and
+// the deletes that clean up after a scan. gvmd is a separate program in Greenbone's own containers; nothing of it is linked here.
+//
+// Every answer is untrusted input (rules/security.md): one answer is at most a few MiB (gmpMaxAnswer, gmpMaxReport), it is parsed
+// strictly into the fields the scan reads (encoding/xml expands no external entity and reads only UTF-8), a status that is not 2xx
+// is an error, and an id that is not a UUID is refused before it is put into the next command.
+
+// Fixed objects of a Greenbone Community Edition install (its feed's data objects).
+const (
+	gmpFullAndFast = "daba56c8-73ec-11df-a475-002264764cea" // scan config "Full and fast"
+	gmpIANATCP     = "33d0cd82-57c6-11e1-8ed1-406186ea4fc5" // port list "All IANA assigned TCP"
+	gmpOpenVAS     = "08b69003-5fc2-4037-a479-93b440211c73" // scanner "OpenVAS Default"
+
+	// GreenboneConfigName is the scan config Vedette creates once (a copy of "Full and fast") and reuses by name.
+	GreenboneConfigName = "vedette-safe-full-and-fast"
+	// GreenbonePortList is the name of the port list the scan uses.
+	GreenbonePortList = "All IANA assigned TCP"
+	// GreenboneMinQoD is the lowest quality of detection a result is read with (Greenbone's own default filter is 70).
+	GreenboneMinQoD = 70
+
+	gmpMaxAnswer  = 1 << 20 // bytes of an answer other than a report
+	gmpMaxReport  = 8 << 20 // bytes of a report; a bigger one is refused, never cut
+	gmpCmdTimeout = 2 * time.Minute
+	gmpMaxResults = 2000 // results a report may hold before it is refused
+	gmpMaxCVEs    = 50   // CVE ids kept per result
+	gmpMaxName    = 200
+	gmpMaxText    = 400
+)
+
+// The families the copied config turns off: nothing that guesses passwords, logs in with default accounts or tries to crash a service.
+var gmpOffFamilies = []string{"Brute force attacks", "Default Accounts", "Denial of Service"}
+
+// GMPLogin is the GMP user and password the host created for Vedette when it set Greenbone up (kept in core/secrets, never logged).
+type GMPLogin struct {
+	User     string
+	Password string // handed over by the host, never stored or logged by this package
+}
+
+// The errors of the GMP client. ErrGMPBad is an answer this client does not read (too big, not XML of the expected shape, an id that
+// is not a UUID): the scan says it could not read Greenbone's answer and never reads it as "nothing found".
+var (
+	ErrGMPBad      = errors.New("exposure: unreadable GMP answer")
+	errGMPNotFound = errors.New("exposure: GMP: not found")
+	errGMPAuth     = errors.New("exposure: GMP: authentication failed")
+)
+
+// gmpStatusError is a GMP answer with a status that is not 2xx; Text is gvmd's status_text, clipped and printable.
+type gmpStatusError struct {
+	Cmd, Status, Text string
+}
+
+func (e *gmpStatusError) Error() string {
+	return fmt.Sprintf("exposure: GMP %s: %s %s", e.Cmd, e.Status, e.Text)
+}
+
+var gmpUUID = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
+
+// gmpConn is one GMP session over a connection from GreenboneHost.Dial.
+type gmpConn struct {
+	conn net.Conn
+}
+
+// capReader reads at most n bytes and then fails, so an answer over the cap is an error and not a cut document.
+type capReader struct {
+	r io.Reader
+	n int64
+}
+
+var errGMPTooBig = errors.New("exposure: GMP answer over the size cap")
+
+func (c *capReader) Read(p []byte) (int, error) {
+	if c.n <= 0 {
+		return 0, errGMPTooBig
+	}
+	if int64(len(p)) > c.n {
+		p = p[:c.n]
+	}
+	n, err := c.r.Read(p)
+	c.n -= int64(n)
+	return n, err
+}
+
+// do sends one command and reads its one answer into v (nil: only the status is read). The answer must be the element
+// "<cmd>_response" with a 2xx status; it returns the answer's id attribute (the id of what a create made). A cancelled ctx closes
+// the wait at once.
+func (g *gmpConn) do(ctx context.Context, cmd, body string, limit int64, v any) (string, error) {
+	if err := g.conn.SetDeadline(time.Now().Add(gmpCmdTimeout)); err != nil {
+		return "", fmt.Errorf("exposure: GMP %s: %w", cmd, err)
+	}
+	stop := context.AfterFunc(ctx, func() { _ = g.conn.SetDeadline(time.Unix(1, 0)) })
+	defer stop()
+	if _, err := io.WriteString(g.conn, body); err != nil {
+		return "", ctxOr(ctx, fmt.Errorf("exposure: GMP %s: sending: %w", cmd, err))
+	}
+	id, err := decodeGMP(&capReader{r: g.conn, n: limit}, cmd, v)
+	if err != nil {
+		return "", ctxOr(ctx, err)
+	}
+	return id, nil
+}
+
+func ctxOr(ctx context.Context, err error) error {
+	if ctx.Err() != nil {
+		return ctx.Err()
+	}
+	return err
+}
+
+// decodeGMP reads exactly one answer element of command cmd from r into v and checks its status (fail closed): nothing but an
+// XML declaration, comments and white space may come before it (a DOCTYPE is refused), and its name must be "<cmd>_response".
+func decodeGMP(r io.Reader, cmd string, v any) (string, error) {
+	bad := func(err error) (string, error) {
+		if errors.Is(err, errGMPTooBig) {
+			return "", fmt.Errorf("%w: %s answer over the size cap", ErrGMPBad, cmd)
+		}
+		return "", fmt.Errorf("%w: %s: %w", ErrGMPBad, cmd, err)
+	}
+	dec := xml.NewDecoder(r)
+	dec.Strict = true
+	for {
+		tok, err := dec.Token()
+		if err != nil {
+			return bad(err)
+		}
+		switch t := tok.(type) {
+		case xml.ProcInst, xml.Comment:
+			continue
+		case xml.CharData:
+			if len(strings.TrimSpace(string(t))) == 0 {
+				continue
+			}
+		case xml.StartElement:
+			return finishGMP(dec, t, cmd, v)
+		}
+		return "", fmt.Errorf("%w: %s: unexpected content before the answer", ErrGMPBad, cmd)
+	}
+}
+
+func finishGMP(dec *xml.Decoder, start xml.StartElement, cmd string, v any) (string, error) {
+	if start.Name.Local != cmd+"_response" || start.Name.Space != "" {
+		return "", fmt.Errorf("%w: %s answered with <%s>", ErrGMPBad, cmd, clipText(start.Name.Local, 40))
+	}
+	attr := map[string]string{}
+	for _, a := range start.Attr {
+		attr[a.Name.Local] = a.Value
+	}
+	var err error
+	if v == nil {
+		err = dec.Skip()
+	} else {
+		err = dec.DecodeElement(v, &start)
+	}
+	if err != nil {
+		if errors.Is(err, errGMPTooBig) {
+			return "", fmt.Errorf("%w: %s answer over the size cap", ErrGMPBad, cmd)
+		}
+		return "", fmt.Errorf("%w: %s: %w", ErrGMPBad, cmd, err)
+	}
+	st := attr["status"]
+	switch {
+	case len(st) == 3 && st[0] == '2':
+		return attr["id"], nil
+	case st == "400" && cmd == "authenticate", st == "401", st == "403":
+		return "", errGMPAuth
+	case st == "404":
+		return "", errGMPNotFound
+	case len(st) == 3 && (st[0] == '4' || st[0] == '5'):
+		return "", &gmpStatusError{Cmd: cmd, Status: st, Text: plainText(attr["status_text"], 160)}
+	}
+	return "", fmt.Errorf("%w: %s status %q", ErrGMPBad, cmd, clipText(st, 10))
+}
+
+// esc is text put into a command, escaped for XML.
+func esc(s string) string {
+	var b strings.Builder
+	_ = xml.EscapeText(&b, []byte(s))
+	return b.String()
+}
+
+// id refuses an id from an answer that is not a UUID before it goes into a command.
+func gmpID(s, what string) (string, error) {
+	if !gmpUUID.MatchString(s) {
+		return "", fmt.Errorf("%w: %s id %q", ErrGMPBad, what, clipText(s, 40))
+	}
+	return s, nil
+}
+
+func (g *gmpConn) authenticate(ctx context.Context, l GMPLogin) error {
+	_, err := g.do(ctx, "authenticate", "<authenticate><credentials><username>"+esc(l.User)+"</username><password>"+esc(l.Password)+"</password></credentials></authenticate>", gmpMaxAnswer, nil)
+	return err
+}
+
+type gmpFeeds struct {
+	Feeds []struct {
+		Type    string    `xml:"type"`
+		Syncing *struct{} `xml:"currently_syncing"`
+	} `xml:"feed"`
+}
+
+type gmpConfig struct {
+	ID       string `xml:"id,attr"`
+	Name     string `xml:"name"`
+	Families []struct {
+		Name string `xml:"name"`
+	} `xml:"families>family"`
+}
+
+type gmpConfigs struct {
+	Configs []gmpConfig `xml:"config"`
+}
+
+// readiness says whether Greenbone can scan: its feeds are not syncing and the "Full and fast" config is there (the feed's data
+// objects are loaded). loading is true while the first feed load (about 2 hours) or a feed update runs.
+func (g *gmpConn) readiness(ctx context.Context) (loading bool, err error) {
+	var f gmpFeeds
+	if _, err := g.do(ctx, "get_feeds", "<get_feeds/>", gmpMaxAnswer, &f); err != nil {
+		return false, err
+	}
+	if len(f.Feeds) == 0 {
+		return true, nil
+	}
+	for _, x := range f.Feeds {
+		if x.Syncing != nil {
+			return true, nil
+		}
+	}
+	var c gmpConfigs
+	switch _, err := g.do(ctx, "get_configs", `<get_configs config_id="`+gmpFullAndFast+`"/>`, gmpMaxAnswer, &c); {
+	case errors.Is(err, errGMPNotFound):
+		return true, nil
+	case err != nil:
+		return false, err
+	}
+	return !slices.ContainsFunc(c.Configs, func(x gmpConfig) bool { return x.ID == gmpFullAndFast }), nil
+}
+
+// safeConfig returns the id of Vedette's config, creating it once as a copy of "Full and fast", and (again on every scan, so a
+// half-made or edited copy is put right) turns the brute-force, default-account and DoS families off and safe_checks on.
+func (g *gmpConn) safeConfig(ctx context.Context) (string, error) {
+	var full gmpConfigs
+	if _, err := g.do(ctx, "get_configs", `<get_configs config_id="`+gmpFullAndFast+`" families="1"/>`, gmpMaxAnswer, &full); err != nil {
+		return "", err
+	}
+	if len(full.Configs) != 1 || full.Configs[0].ID != gmpFullAndFast || len(full.Configs[0].Families) == 0 {
+		return "", fmt.Errorf("%w: the Full and fast config has no families", ErrGMPBad)
+	}
+	var mine gmpConfigs
+	if _, err := g.do(ctx, "get_configs", `<get_configs filter="name=`+GreenboneConfigName+` rows=-1"/>`, gmpMaxAnswer, &mine); err != nil {
+		return "", err
+	}
+	id := ""
+	for _, c := range mine.Configs {
+		if c.Name == GreenboneConfigName {
+			id = c.ID
+			break
+		}
+	}
+	if id == "" {
+		var err error
+		if id, err = g.do(ctx, "create_config", "<create_config><copy>"+gmpFullAndFast+"</copy><name>"+GreenboneConfigName+
+			"</name><comment>Vedette: Full and fast without brute force, default accounts or denial of service; safe checks on.</comment></create_config>", gmpMaxAnswer, nil); err != nil {
+			return "", err
+		}
+	}
+	if _, err := gmpID(id, "config"); err != nil {
+		return "", err
+	}
+	var sel strings.Builder
+	sel.WriteString(`<modify_config config_id="` + id + `"><family_selection><growing>1</growing>`)
+	kept := 0
+	for _, f := range full.Configs[0].Families {
+		name := strings.TrimSpace(f.Name)
+		if name == "" || slices.Contains(gmpOffFamilies, name) {
+			continue
+		}
+		kept++
+		sel.WriteString("<family><name>" + esc(name) + "</name><all>1</all><growing>1</growing></family>")
+	}
+	if kept == 0 {
+		return "", fmt.Errorf("%w: no family left to scan with", ErrGMPBad)
+	}
+	sel.WriteString("</family_selection></modify_config>")
+	if _, err := g.do(ctx, "modify_config", sel.String(), gmpMaxAnswer, nil); err != nil {
+		return "", err
+	}
+	if _, err := g.do(ctx, "modify_config", `<modify_config config_id="`+id+`"><preference><name>safe_checks</name><value>`+
+		base64.StdEncoding.EncodeToString([]byte("yes"))+`</value></preference></modify_config>`, gmpMaxAnswer, nil); err != nil {
+		return "", err
+	}
+	return id, nil
+}
+
+type gmpPortLists struct {
+	Lists []struct {
+		ID   string `xml:"id,attr"`
+		Name string `xml:"name"`
+	} `xml:"port_list"`
+}
+
+// portList checks that the predefined "All IANA assigned TCP" list is there under its fixed id.
+func (g *gmpConn) portList(ctx context.Context) (string, error) {
+	var p gmpPortLists
+	if _, err := g.do(ctx, "get_port_lists", `<get_port_lists port_list_id="`+gmpIANATCP+`"/>`, gmpMaxAnswer, &p); err != nil {
+		return "", err
+	}
+	if len(p.Lists) != 1 || p.Lists[0].ID != gmpIANATCP || p.Lists[0].Name != GreenbonePortList {
+		return "", fmt.Errorf("%w: the port list %q is not there", ErrGMPBad, GreenbonePortList)
+	}
+	return gmpIANATCP, nil
+}
+
+// createTarget makes the target of one scan: exactly the one address, the port list, alive test "Consider Alive" (the box's own
+// IP may not answer ping from inside).
+func (g *gmpConn) createTarget(ctx context.Context, name, ip, portList string) (string, error) {
+	id, err := g.do(ctx, "create_target", "<create_target><name>"+esc(name)+"</name><hosts>"+esc(ip)+`</hosts><port_list id="`+portList+
+		`"/><alive_tests>Consider Alive</alive_tests></create_target>`, gmpMaxAnswer, nil)
+	if err != nil {
+		return "", err
+	}
+	return gmpID(id, "target")
+}
+
+func (g *gmpConn) createTask(ctx context.Context, name, target, config string) (string, error) {
+	id, err := g.do(ctx, "create_task", "<create_task><name>"+esc(name)+`</name><comment>Started by Vedette (external exposure, optional deep scan).</comment><config id="`+
+		config+`"/><target id="`+target+`"/><scanner id="`+gmpOpenVAS+`"/></create_task>`, gmpMaxAnswer, nil)
+	if err != nil {
+		return "", err
+	}
+	return gmpID(id, "task")
+}
+
+type gmpStarted struct {
+	ReportID string `xml:"report_id"`
+}
+
+func (g *gmpConn) startTask(ctx context.Context, task string) (string, error) {
+	var s gmpStarted
+	if _, err := g.do(ctx, "start_task", `<start_task task_id="`+task+`"/>`, gmpMaxAnswer, &s); err != nil {
+		return "", err
+	}
+	return gmpID(strings.TrimSpace(s.ReportID), "report")
+}
+
+type gmpTasks struct {
+	Tasks []struct {
+		ID       string `xml:"id,attr"`
+		Status   string `xml:"status"`
+		Progress string `xml:"progress"`
+	} `xml:"task"`
+}
+
+// The task states gvmd reports that end a scan.
+const (
+	gmpDone = "Done"
+)
+
+var gmpTaskStates = []string{"New", "Requested", "Queued", "Running", "Stop Requested", "Stopped", "Done", "Interrupted", "Processing", "Delete Requested", "Ultimate Delete Requested"}
+
+// taskStatus is one poll of the task: its state (one of gvmd's words) and progress (-1 when gvmd gives none).
+func (g *gmpConn) taskStatus(ctx context.Context, task string) (string, int, error) {
+	var t gmpTasks
+	if _, err := g.do(ctx, "get_tasks", `<get_tasks task_id="`+task+`"/>`, gmpMaxAnswer, &t); err != nil {
+		return "", 0, err
+	}
+	if len(t.Tasks) != 1 || t.Tasks[0].ID != task {
+		return "", 0, fmt.Errorf("%w: get_tasks did not answer about the task", ErrGMPBad)
+	}
+	st := strings.TrimSpace(t.Tasks[0].Status)
+	if !slices.Contains(gmpTaskStates, st) {
+		return "", 0, fmt.Errorf("%w: task state %q", ErrGMPBad, clipText(st, 30))
+	}
+	p, err := strconv.Atoi(strings.TrimSpace(t.Tasks[0].Progress))
+	if err != nil || p < -1 || p > 100 {
+		p = -1
+	}
+	return st, p, nil
+}
+
+// report reads the results of a finished task with QoD at least GreenboneMinQoD, levels high, medium and low (log notes are not read).
+func (g *gmpConn) report(ctx context.Context, report, ip string) ([]GreenboneRow, int, error) {
+	r := &gmpReport{}
+	if _, err := g.do(ctx, "get_reports", `<get_reports report_id="`+report+`" details="1" ignore_pagination="1" filter="min_qod=`+
+		strconv.Itoa(GreenboneMinQoD)+` levels=hml apply_overrides=0 rows=-1 first=1 sort-reverse=severity"/>`, gmpMaxReport, r); err != nil {
+		return nil, 0, err
+	}
+	return parseGMPReport(r, report, ip)
+}
+
+// cleanup stops (when running) and deletes the task with its report and the target: the scan is over or was stopped, and gvmd
+// must not keep scanning or keep one target and task per scan.
+func (g *gmpConn) cleanup(ctx context.Context, task, target string, running bool) {
+	if task != "" {
+		if running {
+			_, _ = g.do(ctx, "stop_task", `<stop_task task_id="`+task+`"/>`, gmpMaxAnswer, nil)
+		}
+		_, _ = g.do(ctx, "delete_task", `<delete_task task_id="`+task+`" ultimate="1"/>`, gmpMaxAnswer, nil)
+	}
+	if target != "" {
+		_, _ = g.do(ctx, "delete_target", `<delete_target target_id="`+target+`" ultimate="1"/>`, gmpMaxAnswer, nil)
+	}
+}
+
+// ---- the report (untrusted) ----
+
+type gmpReport struct {
+	Report []struct {
+		ID    string `xml:"id,attr"`
+		Inner struct {
+			ID      string      `xml:"id,attr"`
+			Results *gmpResults `xml:"results"`
+		} `xml:"report"`
+	} `xml:"report"`
+}
+
+type gmpResults struct {
+	Result []gmpResult `xml:"result"`
+}
+
+type gmpResult struct {
+	Name string `xml:"name"`
+	Host struct {
+		Text string `xml:",chardata"`
+	} `xml:"host"`
+	Port string `xml:"port"`
+	NVT  struct {
+		OID      string   `xml:"oid,attr"`
+		Name     string   `xml:"name"`
+		Solution string   `xml:"solution"`
+		Refs     []gmpRef `xml:"refs>ref"`
+	} `xml:"nvt"`
+	Severity *string `xml:"severity"`
+	QoD      *string `xml:"qod>value"`
+}
+
+var (
+	gmpPort = regexp.MustCompile(`^[A-Za-z0-9-]{1,16}/[A-Za-z0-9-]{1,16}$`)
+	gmpOID  = regexp.MustCompile(`^[0-9]+(\.[0-9]+){1,15}$`)
+)
+
+// parseGMPReport turns a get_reports answer into rows. It is strict and fails closed (ErrGMPBad): not exactly one report with the
+// asked id, no results list, more than gmpMaxResults results, or a result without a number as its severity (0 to 10) and QoD
+// (0 to 100). A result of another host is dropped (the target held one address), one below GreenboneMinQoD too (whatever the filter
+// did). Text is plain, printable and clipped; a port that is not "22/tcp" or "general/tcp" is ""; CVE ids are checked, without
+// repeats, at most gmpMaxCVEs. It returns the rows and how many results the report held.
+func parseGMPReport(r *gmpReport, report, ip string) ([]GreenboneRow, int, error) {
+	if len(r.Report) != 1 || r.Report[0].ID != report || r.Report[0].Inner.Results == nil {
+		return nil, 0, fmt.Errorf("%w: get_reports did not answer with the one report asked for", ErrGMPBad)
+	}
+	res := r.Report[0].Inner.Results.Result
+	if len(res) > gmpMaxResults {
+		return nil, 0, fmt.Errorf("%w: more than %d results", ErrGMPBad, gmpMaxResults)
+	}
+	rows := []GreenboneRow{}
+	for _, x := range res {
+		if x.Severity == nil || x.QoD == nil {
+			return nil, 0, fmt.Errorf("%w: a result without severity or QoD", ErrGMPBad)
+		}
+		sev, err := strconv.ParseFloat(strings.TrimSpace(*x.Severity), 64)
+		if err != nil || sev < -3 || sev > 10 { // gvmd marks log/false-positive/error results with 0, -1, -3
+			return nil, 0, fmt.Errorf("%w: severity %q", ErrGMPBad, clipText(*x.Severity, 20))
+		}
+		qod, err := strconv.Atoi(strings.TrimSpace(*x.QoD))
+		if err != nil || qod < 0 || qod > 100 {
+			return nil, 0, fmt.Errorf("%w: QoD %q", ErrGMPBad, clipText(*x.QoD, 20))
+		}
+		if strings.TrimSpace(x.Host.Text) != ip || qod < GreenboneMinQoD || sev <= 0 {
+			continue
+		}
+		name := plainText(x.NVT.Name, gmpMaxName)
+		if name == "" {
+			name = plainText(x.Name, gmpMaxName)
+		}
+		row, ok := cleanGreenboneRow(GreenboneRow{Severity: sev, Name: name, Port: strings.TrimSpace(x.Port), QoD: qod, OID: strings.TrimSpace(x.NVT.OID),
+			Solution: plainText(x.NVT.Solution, gmpMaxText), CVEs: gmpCVEs(x.NVT.Refs)})
+		if !ok {
+			return nil, 0, fmt.Errorf("%w: a result without a name", ErrGMPBad)
+		}
+		rows = append(rows, row)
+	}
+	return rows, len(res), nil
+}
+
+type gmpRef struct {
+	Type string `xml:"type,attr"`
+	ID   string `xml:"id,attr"`
+}
+
+func gmpCVEs(refs []gmpRef) []string {
+	out := []string{}
+	for _, r := range refs {
+		id := strings.ToUpper(strings.TrimSpace(r.ID))
+		if strings.EqualFold(r.Type, "cve") && cveID.MatchString(id) && !slices.Contains(out, id) && len(out) < gmpMaxCVEs {
+			out = append(out, id)
+		}
+	}
+	return out
+}

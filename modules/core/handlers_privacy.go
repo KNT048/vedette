@@ -97,6 +97,8 @@ func (h *APIHandlers) privacyFlows(ctx context.Context, p privacySetting) []oas.
 		{ID: 14, State: state(wazuh && h.reg.Enabled("agent-intake")), Control: rs},
 		// D-558: Shodan InternetDB is asked only when an administrator clicks in External exposure (no job)
 		{ID: 15, State: cond(h.reg.Enabled("exposure")), Control: rs},
+		// D-563: Greenbone's own containers download its images and feed only after an administrator enables it in External exposure
+		{ID: 16, State: cond(h.reg.Enabled("exposure")), Control: rs},
 	}
 }
 

@@ -60,7 +60,7 @@ function Body({ d }: { d: PrivacyState }) {
           {f.id === 11 ? <Link className="text-accent underline-offset-4 hover:underline" to="/settings/modules">{t('privacy.flow.11.link')}</Link> : null}
           {f.id === 10 && !container ? <Link className="text-accent underline-offset-4 hover:underline" to="/settings/network">{t('privacy.flow.10.link')}</Link> : null}
           {f.id === 1 ? <Link className="text-accent underline-offset-4 hover:underline" to="/settings/feeds">{t('privacy.flow.1.link')}</Link> : null}
-          {f.id === 15 ? <Link className="text-accent underline-offset-4 hover:underline" to="/exposure">{t('privacy.flow.15.link')}</Link> : null}
+          {f.id === 15 || f.id === 16 ? <Link className="text-accent underline-offset-4 hover:underline" to="/exposure">{t(`privacy.flow.${f.id}.link`)}</Link> : null}
         </span>
       )
   }
@@ -75,7 +75,7 @@ function Body({ d }: { d: PrivacyState }) {
     <>
       <ReadOnlyNote role="admin" />
       <Section title={t('privacy.flows')} description={t('privacy.flowsDesc')}>
-        <DataTable data={d.flows} columns={columns} caption={t('privacy.flows')} pageSize={15} mobileRow={(f) => (
+        <DataTable data={d.flows} columns={columns} caption={t('privacy.flows')} pageSize={20} mobileRow={(f) => (
           <div className="grid gap-1.5">
             <div className="flex flex-wrap items-center justify-between gap-2"><span className="font-medium">{f.id}. {t(`privacy.flow.${f.id}.name`)}</span>{stateChip(f)}</div>
             <div className="text-[13px]">{whatCell(f)}</div>

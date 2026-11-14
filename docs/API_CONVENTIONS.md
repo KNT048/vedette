@@ -103,7 +103,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `bad_app_id` | 400 | App ID is the number of your Zalo app, shown in Zalo Developers next to the app name. | module notify (Zalo OA, D-483) |
 | `bad_app_token` | 400 | The app-level token starts with xapp- and needs the connections:write scope. Copy it again from Basic Information. | module notify (validator dùng chung) |
 | `bad_approver_address` | 400 | The approver address is not valid for this channel. | module notify (validator dùng chung) |
-| `bad_body` | 400 | enabled must be true or false. | `PATCH /honeypot/trap-ips/{id}` |
+| `bad_body` | 400 | enabled must be true or false. | `PATCH /honeypot/trap-ips/{id}`; `PUT /exposure/greenbone` (mock) |
 | `bad_bot_token` | 400 | The bot token starts with xoxb-. Copy it from OAuth & Permissions after installing the app. | module notify (validator dùng chung) |
 | `bad_channel_id` | 400 | A Slack channel ID looks like C04ABCDEF12. Open the channel details in Slack and copy the ID at the bottom. | module notify (validator dùng chung) |
 | `bad_chat_id` | 400 | Chat ID is a number (groups look like -1001234567890) or a public @channel_name. Send the bot a message, then open getUp | module notify (validator dùng chung) |
@@ -383,7 +383,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `unknown` | 404 | This link is not valid. | `POST /response/approve/{token}` |
 | `unknown_cve` | 404 | This CVE is not on the exploited list the box holds. The AI only explains CVEs the box has data for. | `POST /ai/cve/{id}/explain`; `POST /ai/cve/{id}/news` |
 
-#### HTTP 409 (97 mã)
+#### HTTP 409 (98 mã)
 
 | Code | HTTP | Thông điệp mẫu (EN, từ mock) | Endpoint dùng |
 |---|---|---|---|
@@ -455,7 +455,8 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `txt_missing` | 409 | The DNS TXT record vedette-verify=${t.token} is no longer on ${t.value}, so it cannot be scanned. Add the record back, t | `POST /exposure/targets/{id}/scan` |
 | `dpkg_locked` | 409 | Another package manager is running on the box (for example automatic updates). Try again in a minute. Backend [ĐX] (WP-07b phần 2): host `dpkg_locked`, kèm `retry_after`. | `POST /core/updates/os/check`; `POST /core/updates/os/install` |
 | `dpkg_inconsistent` | 409 | The package database on the box is in a broken state. Run dpkg --audit on the box and repair it before updating. Backend [ĐX]: host `dpkg_inconsistent`. | `POST /core/updates/os/install` |
-| `low_disk` | 409 | There is not enough free disk space for this. Free some space on the box and try again. Backend [ĐX]: host `low_disk`. | `POST /core/updates/os/install`; `GET /core/data/backup` |
+| `low_disk` | 409 | There is not enough free disk space for this. Free some space on the box and try again. Backend [ĐX]: host `low_disk`. | `POST /core/updates/os/install`; `GET /core/data/backup`; `PUT /exposure/greenbone` (enabling Greenbone with less than 60 GB free, with the measured number: "This box has 41.3 GB of free disk space; Greenbone needs at least 60.0 GB free.", D-563) |
+| `low_memory` | 409 | This box has 7.1 GB of memory; Greenbone needs at least 8.0 GB. (the measured MemTotal, decimal GB, D-563) | `PUT /exposure/greenbone` |
 | `no_check_yet` | 409 | The box has not looked for operating system updates yet. Click Check now. Backend [ĐX]: host `no_check_yet`. `GET /core/updates/os` không trả mã này nữa (D-407): hộp chưa kiểm trả 200 với `os` null; settings và reboot cũng trả trạng thái với `os` null. | `POST /core/updates/os/install` |
 | `not_appliance` | 409 | This install has no operating system helper (container-only install), so Vedette cannot update or back up the operating system from here. Backend [ĐX] (D-55): không có socket `vedette-host`, hoặc bản phát hành OS ngoài bảng hỗ trợ của host. Cũng là câu trả lời khi bật một module cần host (`needs_host`) trên bản chỉ container (D-381): "Module {id} needs vedette-host, which only the appliance install has. This is a container-only install, so it cannot run here." (mock có nhánh này). | `GET /core/updates/os`; `POST /core/updates/os/check`; `POST /core/updates/os/install`; `PATCH /core/updates/os/settings`; `POST /core/updates/os/reboot`; `DELETE /core/updates/os/reboot`; `GET /core/data/backup`; `POST /core/updates/apply`, `POST /core/updates/rollback` (D-342: no `vedette-host`, or core does not run from a pinned container: "Vedette itself does not run from a pinned container on this box, so it cannot update itself from here."); `PATCH /modules/{id}`, `POST /core/setup` (D-381: module `needs_host` trên bản chỉ container) |
 | `reboot_limit_reached` | 409 | The box has already rebooted three times in 24 hours. Wait before rebooting again. Backend [ĐX]: host `reboot_limit_reached`. | `POST /core/updates/os/reboot` |
@@ -539,7 +540,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `apt_failed` | 502 | The package manager failed. See the update output for the reason. Backend [ĐX]: host `apt_failed`, `stale_check`. | `POST /core/updates/os/check` |
 | `effect_not_verified` | 502 | The change was made but could not be confirmed on the box. Check the setting again. Backend [ĐX]: host `effect_not_verified`. | `PATCH /core/updates/os/settings` |
 | `health_check_failed` | 502 | The updates were installed but a health check failed afterwards. Check the services on the box. Backend [ĐX]: host `health_check_failed`; trong lần chạy cài đặt nó hiện ở dòng cuối của `OsRun.lines`. | `POST /core/updates/os/check` |
-| `host_error` | 502 | The operating system helper could not do this. The details are in the box log. Backend [ĐX]: mọi mã host còn lại (`internal`, `timeout`, `command_failed`, `backup_unknown`, ...) hoặc câu trả lời không dùng được; chi tiết chỉ ở log. | `GET /core/updates/os`; `POST /core/updates/os/check`; `POST /core/updates/os/install`; `PATCH /core/updates/os/settings`; `POST /core/updates/os/reboot`; `DELETE /core/updates/os/reboot`; `GET /core/data/backup` |
+| `host_error` | 502 | The operating system helper could not do this. The details are in the box log. Backend [ĐX]: mọi mã host còn lại (`internal`, `timeout`, `command_failed`, `backup_unknown`, ...) hoặc câu trả lời không dùng được; chi tiết chỉ ở log. | `GET /core/updates/os`; `POST /core/updates/os/check`; `POST /core/updates/os/install`; `PATCH /core/updates/os/settings`; `POST /core/updates/os/reboot`; `DELETE /core/updates/os/reboot`; `GET /core/data/backup`; `PUT /exposure/greenbone` (turning Greenbone off when its containers did not stop: "Greenbone is off for scans, but its containers did not stop: <reason>.", D-563) |
 | `snapshot_rejected` | 502 | The helper could not take over a copy of the box's data. Check the box clock and the permissions of the data folder, then try again. Backend [ĐX]: host `snapshot_required`, `snapshot_invalid`, `db_unreadable`, `key_unreadable` (lỗi triển khai hoặc lệch đồng hồ, không phải lỗi người dùng). | `POST /core/updates/os/install`; `GET /core/data/backup` |
 | `snapshot_failed` | 502 | Vedette could not write a copy of its data to the box's data folder. Check that the folder is writable and the disk is healthy, then try again. Backend [ĐX]: core không ghi được snapshot (thư mục `snapshots/` không ghi được, tệp khoá không đọc được, lỗi I/O); đĩa đầy hoặc ít chỗ trống hơn cỡ cơ sở dữ liệu thì là `low_disk` (409). Không bao giờ là 500. | `POST /core/updates/os/install`; `GET /core/data/backup` |
 | `update_check_failed` | 502 | The update information did not pass Vedette's signature checks, so nothing new is offered and nothing was installed. The details are in the box log. Chỉ backend (D-341): index hoặc manifest sai chữ ký, sai dạng, quá 256 KiB, `sequence` lùi, `manifest_sha256` khác, URL manifest ngoài kho phát hành của dự án, khoá bị thu hồi. Câu khác cùng mã: index đã lưu không còn xác minh được ("The update information this box stored earlier no longer verifies…"), `schema` mới hơn ("…cannot read the newer update information. Reinstall it with the installer of a newer release."), bản dựng không có khoá ("…has no release signing keys…"). Không bao giờ lặp lại chữ từ máy chủ ngoài. | `POST /core/updates/check` |
@@ -563,7 +564,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 
 | Code | HTTP | Thông điệp mẫu (EN) | Endpoint dùng |
 |---|---|---|---|
-| `not_implemented` | 501 | This part of the box is not built yet. | thao tác có trong hợp đồng nhưng module chưa có backend (`oas.UnimplementedHandler`; giao diện dùng mock cho module đó, WP-05) |
+| `not_implemented` | 501 | This part of the box is not built yet. | thao tác có trong hợp đồng nhưng module chưa có backend (`oas.UnimplementedHandler`; giao diện dùng mock cho module đó, WP-05); `PUT /exposure/greenbone` when the box has no Greenbone ("Greenbone is not available on this box.", D-563) |
 
 #### HTTP 504 (1 mã)
 

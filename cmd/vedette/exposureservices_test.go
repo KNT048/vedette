@@ -114,7 +114,7 @@ func TestExposureServiceScanEndToEndWithAFakeWorker(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.Ports != 98 || len(got.Services) != 4 || got.Services[2] != (exposure.ServiceRow{IP: "8.8.8.8", Port: 8443, Name: "http", Product: "Apache httpd", Version: "2.4.49", CPE: "cpe:/a:apache:http_server:2.4.49", Extra: "(Unix)"}) {
+	if got.Ports != 98 || len(got.Services) != 4 || got.Services[2] != (exposure.ServiceRow{IP: "8.8.8.8", Port: 8443, Name: "ssl/http", Product: "Apache httpd", Version: "2.4.49", CPE: "cpe:/a:apache:http_server:2.4.49", Extra: "(Unix)"}) { // tunnel="ssl" (D-522)
 		t.Fatalf("got %+v", got)
 	}
 	jobs := w.received()
@@ -139,7 +139,12 @@ func TestExposureServiceScanEndToEndWithAFakeWorker(t *testing.T) {
 	refusal("the worker's fence", &sensorlink.JobResult{Status: "refused", Reason: "not_own_ip", ExitCode: -1}, "no longer reaches the Internet through 8.8.8.8")
 	refusal("the worker could not check", &sensorlink.JobResult{Status: "refused", Reason: "egress_unverified", ExitCode: -1}, "could not reach the public IP services to check that 8.8.8.8")
 	refusal("an older worker", &sensorlink.JobResult{Status: "refused", Reason: "invalid_job", ExitCode: -1}, "may be older than the rest of Vedette")
-	refusal("nmap gave up", xmlResult(nmapFixture(t, "external_timedout.xml")), "gave up on the address after 3 minutes")
+	mu.Lock()
+	answer = xmlResult(nmapFixture(t, "external_timedout.xml"))
+	mu.Unlock()
+	if _, err := sc.ScanServices(ctx, target, ownPublicIP); !errors.Is(err, exposure.ErrServicesTimedOut) { // D-522: its own line
+		t.Fatalf("nmap gave up: err = %v", err)
+	}
 
 	before := len(w.received())
 	g.mu.Lock()
@@ -180,20 +185,26 @@ func TestExposureServiceScanReasons(t *testing.T) {
 		"module off": {exposureServiceScan{on: func() bool { return false }, scan: func(context.Context, netip.Addr, sensoractive.OwnEgress) (sensoractive.External, error) {
 			panic("scanned while the module is off")
 		}, gate: yes}, "Active discovery module is off"},
-		"busy":            {exposureServiceScan{scan: scanErr(sensoractive.ErrBusy), gate: yes}, "busy with another scan"},
-		"no time left":    {exposureServiceScan{scan: scanErr(sensoractive.ErrNoTime), gate: yes}, "too little of the 5 minutes"},
-		"no check":        {exposureServiceScan{scan: scanErr(fmt.Errorf("%w: %w", sensoractive.ErrWorkerRefused, sensoractive.ErrEgressUnverified)), gate: yes}, "could not reach the public IP services"},
-		"stopped":         {exposureServiceScan{scan: scanErr(sensoractive.ErrStopped), gate: yes}, "module was turned off"},
-		"no worker":       {exposureServiceScan{scan: scanErr(sensoractive.ErrWorkerUnavailable), gate: yes}, "scan container is not available"},
-		"no nmap":         {exposureServiceScan{scan: scanErr(sensoractive.ErrNmapMissing), gate: yes}, "scan container is not available"},
-		"not the box's":   {exposureServiceScan{scan: scanErr(sensoractive.ErrNotOwnIP), gate: yes}, "no longer reaches the Internet through 8.8.8.8"},
-		"refused, other":  {exposureServiceScan{scan: scanErr(sensoractive.ErrWorkerRefused), gate: yes}, "refused the job"},
-		"nmap gave up on": {exposureServiceScan{scan: scanErr(sensoractive.ErrHostTimedOut), gate: yes}, "gave up"},
+		"busy":           {exposureServiceScan{scan: scanErr(sensoractive.ErrBusy), gate: yes}, "busy with another scan"},
+		"no time left":   {exposureServiceScan{scan: scanErr(sensoractive.ErrNoTime), gate: yes}, "too little of the 5 minutes"},
+		"no check":       {exposureServiceScan{scan: scanErr(fmt.Errorf("%w: %w", sensoractive.ErrWorkerRefused, sensoractive.ErrEgressUnverified)), gate: yes}, "could not reach the public IP services"},
+		"stopped":        {exposureServiceScan{scan: scanErr(sensoractive.ErrStopped), gate: yes}, "module was turned off"},
+		"no worker":      {exposureServiceScan{scan: scanErr(sensoractive.ErrWorkerUnavailable), gate: yes}, "scan container is not available"},
+		"no nmap":        {exposureServiceScan{scan: scanErr(sensoractive.ErrNmapMissing), gate: yes}, "scan container is not available"},
+		"not the box's":  {exposureServiceScan{scan: scanErr(sensoractive.ErrNotOwnIP), gate: yes}, "no longer reaches the Internet through 8.8.8.8"},
+		"refused, other": {exposureServiceScan{scan: scanErr(sensoractive.ErrWorkerRefused), gate: yes}, "refused the job"},
 	} {
 		_, err := c.sc.ScanServices(t.Context(), exposure.ScanTarget{User: "a"}, ip)
 		var un *exposure.Unavailable
 		if !errors.As(err, &un) || !strings.Contains(un.Reason, c.want) {
 			t.Errorf("%s: err = %v", name, err)
+		}
+	}
+	// D-522 (N5): nmap ran but its result says nothing about the services; exposure writes the line of each sentinel
+	for in, want := range map[error]error{sensoractive.ErrHostTimedOut: exposure.ErrServicesTimedOut, sensoractive.ErrAnswersEverywhere: exposure.ErrAnswersEverywhere} {
+		sc := exposureServiceScan{scan: scanErr(in), gate: yes}
+		if _, err := sc.ScanServices(t.Context(), exposure.ScanTarget{User: "a"}, ip); !errors.Is(err, want) {
+			t.Errorf("%v: err = %v, want %v", in, err, want)
 		}
 	}
 	ctx, cancel := context.WithCancel(t.Context())

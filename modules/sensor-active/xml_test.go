@@ -1,6 +1,7 @@
 package sensoractive
 
 import (
+	"maps"
 	"net/netip"
 	"os"
 	"strings"
@@ -221,6 +222,28 @@ func TestServicesOfKeepsOnlyWhatTheInventoryAccepts(t *testing.T) {
 	}
 	if n := len(servicesOf(many)); n != maxServices {
 		t.Fatalf("%d services, want the cap %d", n, maxServices)
+	}
+}
+
+// D-522 (N1): nmap's XML keeps TLS in tunnel="ssl"; the inventory gets nmap's text form "ssl/http", which the vulnerability scan
+// reads as https on any port (4443 here). A name without a tunnel, and a tunnel without a name, keep their meaning.
+func TestServiceNameCarriesTheTLSTunnel(t *testing.T) {
+	t.Parallel()
+	xmlText := `<?xml version="1.0"?><nmaprun><host><status state="up"/><address addr="192.168.18.20" addrtype="ipv4"/><ports>
+<port protocol="tcp" portid="4443"><state state="open"/><service name="http" product="lighttpd" tunnel="ssl" method="probed" conf="10"/></port>
+<port protocol="tcp" portid="8080"><state state="open"/><service name="http" product="nginx" method="probed" conf="10"/></port>
+<port protocol="tcp" portid="9999"><state state="open"/><service tunnel="ssl" method="probed" conf="3"/></port>
+</ports></host></nmaprun>`
+	hosts, err := parseNmapXML([]byte(xmlText))
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := map[int]string{}
+	for _, s := range servicesOf(hosts[0]) {
+		got[s.Port] = s.Name
+	}
+	if want := map[int]string{4443: "ssl/http", 8080: "http", 9999: "ssl"}; !maps.Equal(got, want) {
+		t.Fatalf("names = %v, want %v", got, want)
 	}
 }
 

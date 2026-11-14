@@ -12,6 +12,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/knt048/vedette/core/store"
+	"github.com/knt048/vedette/modules/scan/commonports"
 )
 
 // Service identification on the box's own public IP and the comparison with exploited CVEs (S-EXP-2, CONTRACT INV-19, INV-20,
@@ -25,7 +26,7 @@ type (
 	ServiceRow struct {
 		IP      string `json:"ip"`
 		Port    int    `json:"port"`
-		Name    string `json:"name"`    // nmap's service name: "http", "ssh", "tcpwrapped"
+		Name    string `json:"name"`    // nmap's service name: "http", "ssl/http" (tunnel="ssl", D-522), "ssh", "tcpwrapped"
 		Product string `json:"product"` // "Apache httpd"; "" when nmap named none
 		Version string `json:"version"` // "2.4.49"; "" when the service sent none
 		CPE     string `json:"cpe"`     // the application CPE 2.2 URI nmap printed ("cpe:/a:apache:http_server:2.4.49"); "" when none
@@ -109,6 +110,15 @@ type Unavailable struct{ Reason string }
 
 func (e *Unavailable) Error() string { return e.Reason }
 
+// The errors of a ServiceScanner whose nmap ran but whose result says nothing about the services (D-522, N5; TUNE-1a, a change
+// to Mlee's module by the scan side): ErrAnswersEverywhere, the address answered on more than commonports.MaxBelievableOpen
+// ports (a router or SYN proxy answering for all of them), so its rows are not services; ErrServicesTimedOut, nmap hit its
+// 3-minute limit on the address and printed no port table. Each is its own "Not checked" line, never "0 services".
+var (
+	ErrAnswersEverywhere = errors.New("exposure: the address answers on almost every port")
+	ErrServicesTimedOut  = errors.New("exposure: service identification did not finish within 3 minutes")
+)
+
 // The lines of what a scan did not check (INV-19). They are sentences the page shows under "Not checked".
 const (
 	notUDP           = "UDP ports: the scan connects over TCP only."
@@ -120,8 +130,11 @@ const (
 	NotSetUpServices = "Service identification (nmap -sV) is not set up on this box yet."
 	notServicesFail  = "Service identification (nmap -sV) failed, so no service versions were read. The box log has the error."
 	notServicesSlow  = "Service identification (nmap -sV) did not finish within 5 minutes, so no service versions were read."
-	notMatcher       = "Comparison with exploited vulnerabilities is not set up on this box yet."
-	notMatchFail     = "The list of exploited vulnerabilities could not be read, so the identified services were not compared. Try again later."
+	// D-522 (N5): the lines of ErrServicesTimedOut and ErrAnswersEverywhere.
+	notServicesGaveUp    = "Service identification (nmap -sV) did not finish within 3 minutes, nmap's limit for one address, so no service versions were read. This does not mean no services are open; scan again later."
+	notAnswersEverywhere = "This address answers on almost every port (a router or firewall answering for them), so service identification and the template checks were skipped."
+	notMatcher           = "Comparison with exploited vulnerabilities is not set up on this box yet."
+	notMatchFail         = "The list of exploited vulnerabilities could not be read, so the identified services were not compared. Try again later."
 )
 
 // Limits of what identification hands over (INV-19). Ports are at most 65535 per IP, and the scan probes a fixed list of about
@@ -164,6 +177,10 @@ func (s *Service) identify(ctx context.Context, st ScanTarget, c Content) (Conte
 	if err != nil { // an IP target's value is a canonical public IPv4 (INV-2, INV-3): never reached
 		return c, fmt.Errorf("exposure: identifying services on %q: %w", st.Value, err)
 	}
+	if answersEverywhere(c.Ports, ip) { // D-522 (N5): the surface scan already saw it; nmap -sV is not sent at all
+		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "services", Text: notAnswersEverywhere})
+		return c, nil
+	}
 	sctx, cancel := context.WithTimeout(ctx, ServicesTimeout)
 	defer cancel()
 	res, err := s.cfg.Services.ScanServices(sctx, st, ip)
@@ -184,6 +201,11 @@ func (s *Service) identify(ctx context.Context, st ScanTarget, c Content) (Conte
 		c.Checks = append(c.Checks, CheckRow{Kind: "services", Text: text, At: store.FormatTS(s.clock())})
 	case ctx.Err() != nil: // the run was stopped: nothing is stored
 		return c, err
+	case errors.Is(err, ErrAnswersEverywhere): // nmap saw it although the surface scan did not: no rows, no templates
+		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "services", Text: notAnswersEverywhere})
+		return c, nil
+	case errors.Is(err, ErrServicesTimedOut):
+		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "services", Text: notServicesGaveUp})
 	case errors.As(err, &un):
 		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "services", Text: "Service identification (nmap -sV) did not run: " + clipText(un.Reason, 200)})
 	case sctx.Err() != nil:
@@ -193,6 +215,17 @@ func (s *Service) identify(ctx context.Context, st ScanTarget, c Content) (Conte
 		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "services", Text: notServicesFail})
 	}
 	return s.runTemplates(ctx, st, ip, c) // INV-23: safe templates for the exploited CVEs the services match
+}
+
+// answersEverywhere says the surface scan saw more than commonports.MaxBelievableOpen ports of ip open (D-522, N5).
+func answersEverywhere(ports []PortRow, ip netip.Addr) bool {
+	n := 0
+	for _, p := range ports {
+		if p.IP == ip.String() {
+			n++
+		}
+	}
+	return n > commonports.MaxBelievableOpen
 }
 
 // runnerCheck says what the scan module's surface scan checked (INV-12), for a runner that reports no check lines of its own.

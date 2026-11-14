@@ -576,18 +576,27 @@ func dismissed(status string) bool {
 }
 
 // endpoints are where nuclei sends requests on a device: its known web services first, then its other TCP ports
-// (network templates), at most nucleiargv.MaxTargets; a device with no known port gets ports 80 and 443.
+// (network templates), at most nucleiargv.MaxTargets; a device with no known port gets ports 80 and 443. TLS comes from the
+// service name: nmap's tunnel="ssl" reaches the inventory as "ssl/http" (D-522, N1), and a port that any source names TLS is
+// only spoken to over https (a plain-HTTP request to it is a wasted probe and a silent miss).
 func endpoints(d Device) []nucleiargv.Target {
+	isTLS := func(name string) bool { return strings.Contains(name, "https") || strings.HasPrefix(name, "ssl/http") }
+	tls := map[int]bool{}
+	for _, sv := range d.Services {
+		if isTLS(strings.ToLower(sv.Name)) {
+			tls[sv.Port] = true
+		}
+	}
 	var web, other []nucleiargv.Target
 	for _, sv := range d.Services {
 		name := strings.ToLower(sv.Name)
 		switch {
-		case strings.Contains(name, "https") || strings.HasPrefix(name, "ssl/http"):
-			web = append(web, nucleiargv.Target{Host: d.IP, Port: sv.Port, Scheme: "https"})
-		case strings.HasPrefix(name, "http") || name == "www":
-			web = append(web, nucleiargv.Target{Host: d.IP, Port: sv.Port, Scheme: "http"})
-		default:
+		case !isTLS(name) && !strings.HasPrefix(name, "http") && name != "www":
 			other = append(other, nucleiargv.Target{Host: d.IP, Port: sv.Port})
+		case tls[sv.Port]:
+			web = append(web, nucleiargv.Target{Host: d.IP, Port: sv.Port, Scheme: "https"})
+		default:
+			web = append(web, nucleiargv.Target{Host: d.IP, Port: sv.Port, Scheme: "http"})
 		}
 	}
 	all := append(web, other...)

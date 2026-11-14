@@ -26,12 +26,15 @@ const KindExternal = "external"
 // time was left for the run, #723 review L5), ErrNotOwnIP (the fence in core or in the worker saw the box leave through another
 // address) or ErrEgressUnverified (the worker could not reach the public IP services to check). ErrHostTimedOut: nmap ran and
 // gave up on the host at its --host-timeout, so it printed no port table and nothing can be said of the services.
+// ErrAnswersEverywhere: nmap saw more than commonports.MaxBelievableOpen ports open, the shape of a router or firewall that
+// answers for every port (D-522, N5): its -sV rows describe that device, not services, so they are discarded.
 var (
-	ErrBusy             = errors.New("sensoractive: the scan container's nmap is busy with another scan")
-	ErrNoTime           = errors.New("sensoractive: too little time was left for service identification")
-	ErrNotOwnIP         = errors.New("sensoractive: the address is not the box's own public IP now")
-	ErrEgressUnverified = errors.New("sensoractive: the public IP services could not be reached to check the address")
-	ErrHostTimedOut     = errors.New("sensoractive: nmap gave up on the address before it finished")
+	ErrBusy              = errors.New("sensoractive: the scan container's nmap is busy with another scan")
+	ErrNoTime            = errors.New("sensoractive: too little time was left for service identification")
+	ErrNotOwnIP          = errors.New("sensoractive: the address is not the box's own public IP now")
+	ErrEgressUnverified  = errors.New("sensoractive: the public IP services could not be reached to check the address")
+	ErrHostTimedOut      = errors.New("sensoractive: nmap gave up on the address before it finished")
+	ErrAnswersEverywhere = errors.New("sensoractive: the address answers on almost every port")
 )
 
 // OwnEgress says whether ip is the box's own verified public egress now: exposure's gate (verified, committed, seen by the
@@ -164,8 +167,11 @@ func (s *Service) probeExternal(ctx context.Context, jobID string, ip netip.Addr
 	if err == nil {
 		if ext, err = externalOf(hosts, ip); err != nil {
 			result = "failed: output not valid, discarded"
-			if errors.Is(err, ErrHostTimedOut) {
+			switch {
+			case errors.Is(err, ErrHostTimedOut):
 				result = "failed: nmap gave up on the address at its host timeout"
+			case errors.Is(err, ErrAnswersEverywhere):
+				result = "failed: the address answers on almost every port; the service results were discarded"
 			}
 		} else {
 			result = fmt.Sprintf("ok: %d open ports", len(ext.Services))
@@ -184,7 +190,8 @@ func (s *Service) probeExternal(ctx context.Context, jobID string, ip netip.Addr
 // externalOf reads the services of an external run from every host nmap reported up. Beyond the limits of parseNmapXML (INV-7)
 // it fails closed on anything but exactly one host, the asked address (-Pn reports it up; none means nmap printed nothing usable
 // for it, never "no open port", #723 review L3), a port that is not TCP or not in the probed list, and a port twice: an answer
-// outside what was asked is not believed in part (D-514).
+// outside what was asked is not believed in part (D-514). More than commonports.MaxBelievableOpen open ports is
+// ErrAnswersEverywhere (D-522).
 func externalOf(hosts []host, ip netip.Addr) (External, error) {
 	ext := External{Services: []ExternalService{}, Ports: len(externalPorts)}
 	switch {
@@ -209,6 +216,9 @@ func externalOf(hosts []host, ip netip.Addr) (External, error) {
 			}
 		}
 		ext.Services = append(ext.Services, ExternalService{Port: p.number, Name: p.name, Product: p.product, Version: p.version, CPE: cpe, Extra: p.info})
+	}
+	if len(ext.Services) > commonports.MaxBelievableOpen { // D-522 (N5): a router or SYN proxy answering for every port
+		return External{}, ErrAnswersEverywhere
 	}
 	return ext, nil
 }

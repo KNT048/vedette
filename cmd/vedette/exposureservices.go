@@ -34,7 +34,6 @@ const (
 	servicesNoWork  = "the scan container is not available (it has not reported, or it has no nmap). Settings, Sensors says why."
 	servicesNotOwn  = "this box no longer reaches the Internet through %s, so its ports were not probed."
 	servicesOld     = "the scan container refused the job; it may be older than the rest of Vedette. Update the box, then scan again."
-	servicesGaveUp  = "nmap gave up on the address after 3 minutes before it finished, so no service versions were read."
 	servicesStopped = "the scan was stopped: the Active discovery module was turned off."
 )
 
@@ -73,8 +72,10 @@ func (a exposureServiceScan) ScanServices(ctx context.Context, t exposure.ScanTa
 		return exposure.ServiceScan{}, &exposure.Unavailable{Reason: servicesNoWork}
 	case errors.Is(err, sensoractive.ErrWorkerRefused):
 		return exposure.ServiceScan{}, &exposure.Unavailable{Reason: servicesOld}
-	case errors.Is(err, sensoractive.ErrHostTimedOut):
-		return exposure.ServiceScan{}, &exposure.Unavailable{Reason: servicesGaveUp}
+	case errors.Is(err, sensoractive.ErrHostTimedOut): // D-522 (N5): its own line, never "did not run" nor "0 services"
+		return exposure.ServiceScan{}, exposure.ErrServicesTimedOut
+	case errors.Is(err, sensoractive.ErrAnswersEverywhere): // D-522 (N5): a router or SYN proxy answering for every port
+		return exposure.ServiceScan{}, exposure.ErrAnswersEverywhere
 	default:
 		return exposure.ServiceScan{}, err // logged by exposure, shown as a failure without its text
 	}

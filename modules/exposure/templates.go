@@ -266,17 +266,18 @@ func dedupe(in []string) []string {
 	return out
 }
 
-// schemeOf says how to speak to a web service. nmap's XML keeps TLS in a separate tunnel="ssl" attribute that the sensor-active parser
-// does not pass on (deferred: .ai/deferred/feat-exposure-kev-templates-mlee.md), so a TLS service arrives named just "http". Until it does:
-// a name with "https" ("https", "https-alt") or the "ssl/http" nmap prints is https, and so is a web service on a well-known TLS port
-// (443, 8443, 9443); any other web service is http, and a name that is not web is "".
+// schemeOf says how to speak to a web service. The sensor-active parser carries nmap's tunnel="ssl" as the "ssl/" prefix nmap's own
+// text output prints (D-522, N1; TUNE-1a, a change to Mlee's module by the scan side), so TLS comes from the data: a name with
+// "https" ("https", "https-alt", "ssl/https") or "ssl/http" is https, on any port (FortiGate 10443, Proxmox 8006, 4443…). A plain
+// "http" is http. The well-known TLS ports (443, 8443, 9443) make an "http" https only when nmap read nothing else about the service
+// (no product, no version: a row stored before D-522, when the tunnel was lost). A name that is not web is "".
 func schemeOf(r ServiceRow) string {
 	n := strings.ToLower(r.Name)
 	switch {
 	case strings.Contains(n, "https") || strings.HasPrefix(n, "ssl/http"):
 		return "https"
 	case strings.HasPrefix(n, "http"):
-		if r.Port == 443 || r.Port == 8443 || r.Port == 9443 {
+		if r.Product == "" && r.Version == "" && (r.Port == 443 || r.Port == 8443 || r.Port == 9443) {
 			return "https"
 		}
 		return "http"

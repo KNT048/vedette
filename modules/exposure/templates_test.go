@@ -225,18 +225,69 @@ func TestContract_INV23_SanitizeResults(t *testing.T) {
 	}
 }
 
-// INV-23: nmap's XML keeps TLS in a tunnel attribute the parser does not pass on, so a TLS web service arrives as plain "http": the
-// scheme falls back to the well-known TLS ports.
+// INV-23, D-522 (N1): TLS comes from the data ("ssl/http" is nmap's tunnel="ssl"), on any port; a plain "http" that nmap identified
+// is http even on 443; the well-known TLS ports only decide for an "http" nmap read nothing else about.
 func TestContract_INV23_SchemeOfTLSServices(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
-		name string
-		port int
-		want string
-	}{{"http", 443, "https"}, {"http", 8443, "https"}, {"ssl/http", 9000, "https"}, {"https-alt", 8080, "https"}, {"http", 80, "http"}, {"http-proxy", 3128, "http"}, {"ssh", 22, ""}} {
-		if got := schemeOf(ServiceRow{Name: tc.name, Port: tc.port}); got != tc.want {
-			t.Errorf("schemeOf(%s:%d) = %q, want %q", tc.name, tc.port, got, tc.want)
+		name, product string
+		port          int
+		want          string
+	}{{"http", "", 443, "https"}, {"http", "", 8443, "https"}, {"ssl/http", "", 9000, "https"}, {"ssl/http", "lighttpd", 4443, "https"},
+		{"https-alt", "", 8080, "https"}, {"http", "", 80, "http"}, {"http", "nginx", 443, "http"}, {"http-proxy", "", 3128, "http"}, {"ssh", "", 22, ""}} {
+		if got := schemeOf(ServiceRow{Name: tc.name, Product: tc.product, Port: tc.port}); got != tc.want {
+			t.Errorf("schemeOf(%s %s:%d) = %q, want %q", tc.name, tc.product, tc.port, got, tc.want)
 		}
+	}
+}
+
+// D-522 (N1): an HTTPS admin page on 4443 that nmap read as name="http" tunnel="ssl" reaches the template step as "ssl/http" and its
+// job speaks https, so the KEV template really runs over TLS instead of "No match reported" from a plain-HTTP request.
+func TestContract_INV23_TLSOnANonStandardPortGetsHTTPS(t *testing.T) {
+	t.Parallel()
+	e, f := tplEnv(t)
+	e.svc.cfg.Services = &fakeServices{scan: ServiceScan{Ports: 98, Services: []ServiceRow{
+		{IP: ipA, Port: 4443, Name: "ssl/http", Product: "Apache httpd", Version: "2.4.49", CPE: "cpe:/a:apache:http_server:2.4.49"}}}}
+	e.svc.cfg.Matcher = &fakeMatcher{m: Matches{Compared: 1, Listed: 1500, Vulns: []VulnRow{{IP: ipA, Port: 4443, CVE: "CVE-2021-41773", Basis: "version"}}}}
+	e.scanIP(Content{Ports: []PortRow{{IP: ipA, Port: 4443}}})
+	if len(f.jobs) != 1 || len(f.jobs[0]) != 1 || f.jobs[0][0].Port != 4443 || f.jobs[0][0].Scheme != "https" {
+		t.Fatalf("jobs = %+v", f.jobs)
+	}
+}
+
+// D-522 (N5): an address that answers on more than 40 of the 98 ports (a router or SYN proxy) gets one "Not checked" line: the
+// surface scan saw it, so nmap is not even asked; nmap seeing it, or nmap's 3-minute limit, are their own lines; no template runs.
+func TestContract_INV19_AnswersEverywhereAndTimedOut(t *testing.T) {
+	t.Parallel()
+	var tarpit []PortRow
+	for p := 1; p <= 60; p++ {
+		tarpit = append(tarpit, PortRow{IP: ipA, Port: p})
+	}
+	for name, tc := range map[string]struct {
+		ports   []PortRow
+		svcErr  error
+		want    string
+		scanned int
+	}{
+		"60 open on the surface": {ports: tarpit, want: notAnswersEverywhere, scanned: 0},
+		"nmap saw it":            {ports: []PortRow{{IP: ipA, Port: 80}}, svcErr: ErrAnswersEverywhere, want: notAnswersEverywhere, scanned: 1},
+		"nmap timed out":         {ports: []PortRow{{IP: ipA, Port: 80}}, svcErr: ErrServicesTimedOut, want: notServicesGaveUp, scanned: 1},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			e, f := tplEnv(t)
+			sv := &fakeServices{scan: ServiceScan{Ports: 98, Services: []ServiceRow{{IP: ipA, Port: 80, Name: "http", Product: "Apache httpd", Version: "2.4.49"}}}, err: tc.svcErr}
+			e.svc.cfg.Services = sv
+			s := e.scanIP(Content{Ports: tc.ports})
+			if len(sv.calls) != tc.scanned || !slices.Contains(notChecked(s), tc.want) || len(s.Services) != 0 || len(f.jobs) != 0 {
+				t.Fatalf("calls %d, jobs %d, services %+v, not checked %q", len(sv.calls), len(f.jobs), s.Services, notChecked(s))
+			}
+			for _, c := range s.Checks {
+				if c.Kind == "services" {
+					t.Fatalf("a services check line for a result that says nothing: %q", c.Text)
+				}
+			}
+		})
 	}
 }
 

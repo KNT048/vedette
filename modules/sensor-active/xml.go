@@ -201,6 +201,19 @@ func (h *host) countState(state string, n int) {
 	}
 }
 
+// serviceName is the name of a <service> as nmap's own text output prints it (D-522, N1): nmap's XML keeps TLS apart, in
+// tunnel="ssl", so an HTTPS admin page on 4443 is name="http" tunnel="ssl"; it becomes "ssl/http", which every consumer
+// (scan endpoints, exposure schemeOf and ZAP) reads as TLS. Without it nuclei spoke plain HTTP to a TLS port and found nothing.
+func serviceName(a map[string]string) string {
+	if a["tunnel"] != "ssl" {
+		return a["name"]
+	}
+	if a["name"] == "" {
+		return "ssl"
+	}
+	return "ssl/" + a["name"]
+}
+
 func attrs(el xml.StartElement) map[string]string {
 	m := make(map[string]string, len(el.Attr))
 	for _, a := range el.Attr {
@@ -330,7 +343,7 @@ func parseNmapXML(data []byte) ([]host, error) {
 				}
 			case "nmaprun/host/ports/port/service":
 				if port != nil {
-					port.name, port.product, port.version, port.info = text(a["name"]), text(a["product"]), text(a["version"]), text(a["extrainfo"])
+					port.name, port.product, port.version, port.info = text(serviceName(a)), text(a["product"]), text(a["version"]), text(a["extrainfo"])
 					port.devType = text(a["devicetype"])
 					port.conf = num(a["conf"], 10)
 				}

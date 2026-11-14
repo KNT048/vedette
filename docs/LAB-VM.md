@@ -121,3 +121,24 @@ Two system units bring it back after a host reboot: a root oneshot that runs `la
 `SUDO_USER=<user>`; ExecStop `lan-down`), and a oneshot with `RemainAfterExit=yes` as that user, after it, that runs
 `start <vm> --lan` (ExecStop `stop <vm>`, TimeoutStartSec 900). Inside the VM: a swap file, the deploy keys in root's
 `authorized_keys`, and `/etc/cloud/cloud-init.disabled` once it is set up, so a reboot keeps the hostname and keys.
+
+## Windows (WIN-LAB, `scripts/dev/lab-win.sh`)
+
+A Windows Server 2025 VM for walking osquery on Windows (TUNE-5/5b; agent-intake INV-2 supports Windows Server x64). It is
+Microsoft's 180-day Evaluation, installed unattended: `fetch` downloads the ISO from Microsoft's CDN and checks the pinned sha256
+(Microsoft publishes none for the Evaluation ISO; the pin is the measured hash of the HTTPS download). `create` makes a 60 GB disk and
+an answer ISO (Autounattend.xml, Desktop Experience, a random Administrator password kept 0600 in `~/.cache/vedette-lab/winlab`, a
+first-logon script that turns on Windows' own OpenSSH Server with the lab key). `start` installs on the first boot (about 15 min on a
+Ryzen/N100-class host) and then waits for SSH on 127.0.0.1:22050. Only inbox drivers: SATA disk and CD-ROMs, e1000e NIC. The
+evaluation has to be activated over the Internet within 10 days.
+
+**Enrol it from its own LAN address.** agent-intake binds an agent by the TCP source address of its requests (INV-12). Behind passt
+that is the host's address, so the Windows packages would land on the host's own device. Give it a NIC of its own on the LAN:
+
+```sh
+sudo LAB_LAN_LINK=vlabw0 scripts/dev/lab-vm.sh lan-up enp2s0 --bridge winlab   # its own bridge macvtap with its MAC
+LAB_MEM_MB=3072 scripts/dev/lab-win.sh start --lan
+```
+
+With `--lan` passt has 10.0.2.15/24 (SSH from the host only) and the LAN NIC carries the default route (interface metric 10 vs 500).
+Mlee's box (.141) runs it next to the Debian test box: a Linux lab VM uses `vlab0`, the Windows VM `vlabw0`.

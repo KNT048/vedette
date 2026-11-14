@@ -205,6 +205,12 @@ type (
 		Family    string `json:"family"`
 		Class     string `json:"class"`
 		Contacted bool   `json:"contacted,omitempty"`
+		// D-571 (FULL-5 slice 3): Deep is what this run's deep scan did with the address (DeepScanned, DeepWaiting, DeepFence,
+		// DeepRefused; "" when the domain's testing terms are not accepted, or for an IPv6 or private address); LastDeep when an
+		// earlier or this run last deep-scanned it (rotation, D-571); NextInLine its place among the addresses left by the cap.
+		Deep       string `json:"deep,omitempty"`
+		LastDeep   string `json:"last_deep,omitempty"`
+		NextInLine int    `json:"next_in_line,omitempty"`
 	}
 	// PortRow is an open port.
 	// LastSeen and Misses are set only on a port this scan did not report, kept from an earlier scan (INV-22, D-560): LastSeen is the

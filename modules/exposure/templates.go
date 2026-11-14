@@ -236,8 +236,19 @@ func (s *Service) runTemplates(ctx context.Context, st ScanTarget, ip netip.Addr
 		return c, nil
 	}
 	// M1: the gate of the run is minutes old (the runner and nmap came first): the target must still be verified, committed to the
-	// sentence in force, not paused and still the box's own IP right before anything is logged or sent.
-	if _, reason, gerr := s.gate(ctx, st.User, st.ID); gerr != nil || reason != "" {
+	// sentence in force, not paused and still the box's own IP right before anything is logged or sent. D-571: an address of a
+	// domain gets the core half of the domain fence again (deepGate), with the terms and the scope as they are now.
+	if st.Kind == KindDomain {
+		var line string
+		var gerr error
+		if st, line, gerr = s.deepGate(ctx, st, ip, scopeNames(st)); gerr != nil {
+			return c, gerr
+		}
+		if line != "" {
+			c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "templates", Text: "Templates did not run: " + line})
+			return c, nil
+		}
+	} else if _, reason, gerr := s.gate(ctx, st.User, st.ID); gerr != nil || reason != "" {
 		if ctx.Err() != nil {
 			return c, ctx.Err()
 		}

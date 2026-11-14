@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/netip"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/knt048/vedette/core/store"
 )
@@ -16,16 +17,30 @@ import (
 // tick, off by default, adds the disruptive checks (ScanMode.Disruptive). Without an acceptance a target keeps the K-4 scope of the
 // Scan now sentence (D-559): passive web scan, read-only nuclei (D-520), no Greenbone. It can be withdrawn at any time; a new
 // TermsVersion asks again. The texts are the only copy: the API sends them with the target in it and the page shows what it got;
-// the mock's copy (contract.ts TERMS_TEMPLATE, TERMS_DISRUPTIVE) is held equal by a test, and each version's text is pinned.
+// the mock's copy (contract.ts TERMS_TEMPLATE, TERMS_TEMPLATE_DOMAIN, TERMS_DISRUPTIVE) is held equal by a test, and each version's text is pinned.
 const (
-	TermsVersion  = "2026-11-14b"
-	termsTemplate = "I confirm that my company owns {value} and that I am authorized to test it in depth. Once I accept, every scan of {value} is a deep scan, and Vedette's tools may send it:\n" +
+	TermsVersion = "2026-11-14c"
+	// termsTemplate is the text of an IP target, unchanged since 2026-11-14b; termsTemplateDomain is a domain's (D-571, FULL-5 slice 3,
+	// LEGAL-2): the "yours alone" sentence becomes what reaches every address a name under the domain resolves to and who answers for
+	// a provider's permission. Both share the head and the tail, so the list of tools is the same.
+	termsTemplate       = termsHead + termsOwnIP + termsTail
+	termsTemplateDomain = termsHead + termsDomain + termsTail
+	termsHead           = "I confirm that my company owns {value} and that I am authorized to test it in depth. Once I accept, every scan of {value} is a deep scan, and Vedette's tools may send it:\n" +
 		"All ports: every TCP port, and the service and version behind each one.\n" +
 		"Version and exploit-confirming checks: tests for known vulnerabilities, some of which confirm a flaw by sending the exploit request itself (for example reading a file or running a harmless command).\n" +
 		"An active web scan that submits forms: a spider and an active scan that fill in and send forms and send attack payloads such as SQL injection and cross-site scripting probes. It can create records, send e-mails from forms or change data.\n" +
-		"Authentication checks: whether login pages, admin interfaces and services let anyone in without a password or with weak settings. Passwords are not guessed unless the disruptive checks below are ticked.\n" +
-		"Accept only if {value} is yours alone: not an address shared through your Internet provider (carrier-grade NAT), a hosting provider's NAT or proxy, or a CDN or hosted service that serves your names. Their servers are not yours to test. " +
-		"The deep scan can load or slow the services on {value} and may create, change or delete data. Run scans when you can accept that, and keep a backup. " +
+		"Authentication checks: whether login pages, admin interfaces and services let anyone in without a password or with weak settings. Passwords are not guessed unless the disruptive checks below are ticked.\n"
+	termsOwnIP = "Accept only if {value} is yours alone: not an address shared through your Internet provider (carrier-grade NAT), a hosting provider's NAT or proxy, or a CDN or hosted service that serves your names. Their servers are not yours to test. "
+	// termsDomain: plan 2026-11-14 §3.5 word for word, then kien's LEGAL-2 (2026-11-14 18:4x): the IP-level tools by name, then
+	// TERMS.md's own sentences (D-544, #783) on what verifying a name proves, third-party hosting, CDN and proxies, the customer's
+	// responsibility, and that Vedette does not check who owns the addresses, so the two texts never disagree.
+	termsDomain = "Every name under {value} that resolves to a public address is scanned at this depth, whatever serves it: your own server, a hosting provider or a CDN. " +
+		"If a provider serves a name, its testing policy applies to you (for example, Cloudflare and AWS forbid denial-of-service tests); leave the disruptive checks off unless that provider allows them. " +
+		"Vedette sends all ports, OpenVAS, nuclei and the active web scan (ZAP) to each address a name under {value} resolves to. " +
+		"Verifying a name proves you control its DNS, not that you own the machines behind it or may test them. " +
+		"With shared or cloud hosting, a CDN or a proxy, that address can also serve other people's systems: you are responsible for having the provider's permission. " +
+		"Vedette does not check who owns those addresses. "
+	termsTail = "The deep scan can load or slow the services on {value} and may create, change or delete data. Run scans when you can accept that, and keep a backup. " +
 		"An administrator can withdraw this acceptance at any time. Vedette is provided as is under the Apache-2.0 license; its author, Kien Nguyen, is not responsible for how you use it."
 	// termsDisruptive is the one extra tick, off by default: what it adds to the deep scan.
 	termsDisruptive = "Include disruptive checks (denial of service, brute-force and default-password logins): these can crash your service or lock accounts."
@@ -78,9 +93,14 @@ type TermsNotice struct {
 	Disruptive string `json:"disruptive"`
 }
 
-// termsFor is the current terms for one target (a domain or an IP has no braces, so the value cannot substitute again).
-func termsFor(value string) TermsNotice {
-	return TermsNotice{Version: TermsVersion, Text: strings.ReplaceAll(termsTemplate, "{value}", value), Disruptive: termsDisruptive}
+// termsFor is the current terms for one target: a domain's text or an IP's (D-571); a domain or an IP has no braces, so the value
+// cannot substitute again.
+func termsFor(k Kind, value string) TermsNotice {
+	tmpl := termsTemplate
+	if k == KindDomain {
+		tmpl = termsTemplateDomain
+	}
+	return TermsNotice{Version: TermsVersion, Text: strings.ReplaceAll(tmpl, "{value}", value), Disruptive: termsDisruptive}
 }
 
 // cgnat is the shared address space of carrier-grade NAT (RFC 6598).
@@ -178,7 +198,7 @@ func (s *Service) AcceptTerms(ctx context.Context, who Actor, id, version string
 				return err
 			}
 		}
-		n := termsFor(t.Value)
+		n := termsFor(t.Kind, t.Value)
 		text, flag := n.Text, "disruptive checks: no"
 		if disruptive {
 			text, flag = n.Text+"\n"+n.Disruptive, "disruptive checks: yes"
@@ -191,7 +211,7 @@ func (s *Service) AcceptTerms(ctx context.Context, who Actor, id, version string
 			return err
 		}
 		value = t.Value
-		return s.audit(ctx, tx, who.Email, "exposure.terms_accept", t.Value, what+" ("+flag+", user "+who.ID+", two-step: "+method+", terms "+n.Version+"): "+text)
+		return s.audit(ctx, tx, who.Email, "exposure.terms_accept", t.Value, auditClip(what+" ("+flag+", user "+who.ID+", two-step: "+method+", terms "+n.Version+"): "+text))
 	})
 	if err != nil {
 		return TargetView{}, fmt.Errorf("exposure: accepting the testing terms: %w", err)
@@ -200,6 +220,21 @@ func (s *Service) AcceptTerms(ctx context.Context, who Actor, id, version string
 		s.stopRunAbove(ctx, id, value, newMode, who.Email, "exposure.terms_accept", "the disruptive checks were taken out of this target's testing terms")
 	}
 	return s.Target(ctx, id)
+}
+
+// auditDetailMax is core/audit's limit on a detail, in characters.
+const auditDetailMax = 2000
+
+// termsClipNote ends an audit detail whose terms text was cut (D-571: a domain's text with a long name, and the tick's sentence, can pass
+// auditDetailMax). The whole text stays in the target's row (terms_text) and each version's text is pinned in code.
+const termsClipNote = " … (cut here; the whole text is stored with the acceptance and pinned to its version)"
+
+// auditClip keeps an audit detail within auditDetailMax characters, cutting its end and saying so.
+func auditClip(d string) string {
+	if utf8.RuneCountInString(d) <= auditDetailMax {
+		return d
+	}
+	return clipText(d, auditDetailMax-utf8.RuneCountInString(termsClipNote)) + termsClipNote
 }
 
 // above says whether mode a may do more than mode b (D-566 review r1 M1).

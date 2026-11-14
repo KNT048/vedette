@@ -402,15 +402,20 @@ func ipKey(s string) string {
 
 // coveredBy decides, for each address of the previous observation that this scan reported no port on, whether the scan checked it.
 // An IP target is checked by every successful scan; a domain scan port-scans only the addresses its names point at that are
-// scannable IP targets (the gate the runner asked, ScannableIP). A scan that did not check an address says nothing about its ports.
+// scannable IP targets (the gate the runner asked, ScannableIP), and the addresses its deep scan reached this run (D-571). A scan that did not check an address says nothing about its ports.
 func (s *Service) coveredBy(ctx context.Context, user string, t Target, c Content, prev Snapshot) map[string]scope {
 	reported := map[string]bool{}
 	for _, p := range c.Ports {
 		reported[ipKey(p.IP)] = true
 	}
-	pointed := map[string]bool{}
+	pointed, deep := map[string]bool{}, map[string]bool{}
 	for _, h := range c.Hosts {
 		pointed[ipKey(h.IP)] = true
+		for _, a := range h.IPs {
+			if a.Deep == DeepScanned { // D-571: this run's deep scan port-scanned it
+				deep[ipKey(a.IP)] = true
+			}
+		}
 	}
 	out := map[string]scope{}
 	for _, p := range prev.Ports {
@@ -419,7 +424,7 @@ func (s *Service) coveredBy(ctx context.Context, user string, t Target, c Conten
 			continue
 		}
 		switch {
-		case reported[k] || (t.Kind == KindIP && k == ipKey(t.Value)):
+		case reported[k] || (t.Kind == KindIP && k == ipKey(t.Value)) || deep[k]:
 			out[k] = scopeChecked
 		case t.Kind != KindDomain || moved(k, pointed, prev.Hosts, c.Hosts):
 			out[k] = scopeGone

@@ -1,7 +1,7 @@
 // Sample data and scan-result generator of the exposure mock. 203.0.113.0/24 is the documentation range (RFC 5737), not real IPs.
 import { daysAgo } from '@/mocks/db'
 import { dateText } from './dates'
-import { CERT_WARN_DAYS, type AdminRow, type BoxIpSettings, type CertRow, type Counts, type GapRow, type GreenboneResult, type HostClass, type HostIp, type HostRow, type IgnoredIp, type NotCheckedRow, type OutsideView, type PortRow, type ServiceRow, type Snapshot, type Target, type TargetKind, type VulnRow, type WebFinding } from './types'
+import { CERT_WARN_DAYS, type AdminRow, type BoxIpSettings, type CertRow, type CheckRow, type Counts, type GapRow, type GreenboneResult, type HostClass, type HostIp, type HostRow, type IgnoredIp, type NotCheckedRow, type OutsideView, type PortRow, type ServiceRow, type Snapshot, type Target, type TargetKind, type VulnRow, type WebFinding } from './types'
 
 export const BOX_EGRESS_IP = '203.0.113.10'
 /** The sample company has two public IPs behind a load balancer: the box leaves through both. */
@@ -10,7 +10,9 @@ export const BOX_EGRESS_IP_2 = '203.0.113.11'
 /** What one scan found; services: what nmap -sV read on the box's own IP (S-EXP-2). The mock plays a box whose nmap -sV is set up. */
 export interface Content { hosts: HostRow[]; ports: PortRow[]; admin_panels: AdminRow[]; certs: CertRow[]; services?: ServiceRow[]; web_findings?: WebFinding[]
   /** INV-25: Greenbone's results when it ran on this IP; greenboneNote: the "Not checked" line when it did not (default: it is off). */
-  greenbone?: GreenboneResult[]; greenboneNote?: string }
+  greenbone?: GreenboneResult[]; greenboneNote?: string
+  /** D-571: the lines of a domain's deep scan (set by withDeep when its testing terms are accepted). */
+  deep?: { checks: CheckRow[]; lines: NotCheckedRow[] } }
 /** txt_ok = the DNS TXT record is currently present (domains). expires_at = verified_at + 30 days (IPs; verified_at is the last time the box saw the IP). The scan module reads this shape. */
 export interface StoredTarget { id: string; kind: TargetKind; value: string; token: string; method: Target['method']; verified_at: string | null; expires_at: string | null; txt_ok: boolean; checks: number; last_check: Target['last_check']; created_at: string; last_scan_at: string | null }
 export const VERIFY_DAYS = 30
@@ -144,13 +146,13 @@ const NOT_UDP = 'UDP ports: the scan connects over TCP only.'
 const NOT_EXPLOITED = 'Vulnerabilities that are not known to be exploited: only the CISA list of exploited vulnerabilities (KEV) is compared.'
 
 /** INV-27: what a domain's surface did not scan, in the box's sentences (modules/exposure/surface.go). */
-function surfaceNotChecked(hosts: HostRow[]): NotCheckedRow[] {
+function surfaceNotChecked(hosts: HostRow[], deep = false): NotCheckedRow[] {
   const ips = hosts.flatMap((h) => h.ips ?? [])
   const byName = hosts.filter((h) => (h.ips ?? []).some((a) => a.family === 'ipv4' && a.class === 'public')).length
   const v6 = ips.filter((a) => a.family === 'ipv6').length
   const failed = hosts.filter((h) => h.lookup_failed).length
   return [
-    ...(byName > 0 ? [{ kind: 'by_name', text: `Names on public addresses that are not this box's (${plural(byName, 'name')}): checked by name on ports 80 and 443 only; the deep scan of each name comes with the next update.` }] : []),
+    ...(byName > 0 && !deep ? [{ kind: 'by_name', text: `Names on public addresses that are not this box's (${plural(byName, 'name')}): checked by name on ports 80 and 443 only; accept this domain's testing terms (Ownership tab) for the deep scan of each address.` }] : []),
     ...(v6 > 0 ? [{ kind: 'address_family', text: `IPv6 addresses (${v6} listed): IPv6 is not scanned yet.` }] : []),
     ...(failed > 0 ? [{ kind: 'lookup', text: `Names whose address lookup got no answer this time (${plural(failed, 'name')}): shown as the last scan found them.` }] : []),
   ]
@@ -160,14 +162,18 @@ function surfaceNotChecked(hosts: HostRow[]): NotCheckedRow[] {
 function lines(c: Content, at: string, ip: boolean, m: ReturnType<typeof matchServices>): Pick<Snapshot, 'checks' | 'not_checked'> {
   const services = c.services ?? []
   if (!ip) {
+    const deep = !!c.deep
     return {
-      checks: [{ kind: 'names', at, text: `Names under the domain from certificate-transparency logs (crt.sh), the domain's MX and NS records and a list of common names, looked up through the box's DNS resolver: ${plural(c.hosts.length, 'name')}; each checked by name on ports 80 and 443 (one GET / and the certificate on 443). ${plural(c.ports.length, 'port')} open in all.` }],
+      checks: [{ kind: 'names', at, text: `Names under the domain from certificate-transparency logs (crt.sh), the domain's MX and NS records and a list of common names, looked up through the box's DNS resolver: ${plural(c.hosts.length, 'name')}; each checked by name on ports 80 and 443 (one GET / and the certificate on 443). ${plural(c.ports.length, 'port')} open in all.` }, ...(c.deep?.checks ?? [])],
       not_checked: [
         { kind: 'udp', text: NOT_UDP },
-        { kind: 'ports', text: "Other ports of the names under this domain: names get web checks by name only; ports are scanned only on the box's own verified public IP." },
-        { kind: 'services', text: "Service identification (nmap -sV): it runs on the box's own verified public IP only, not on the names of a domain." },
+        ...(deep ? [] : [
+          { kind: 'ports', text: "Other ports of the names under this domain: names get web checks by name only; ports are scanned only on the box's own verified public IP." },
+          { kind: 'services', text: "Service identification (nmap -sV): it runs on the box's own verified public IP only, not on the names of a domain." },
+        ]),
         { kind: 'non_exploited', text: NOT_EXPLOITED },
-        ...surfaceNotChecked(c.hosts),
+        ...surfaceNotChecked(c.hosts, deep),
+        ...(c.deep?.lines ?? []),
       ],
     }
   }
@@ -239,7 +245,7 @@ const KEV_NAMES: Record<string, string> = { 'CVE-2021-41773': APACHE_TRAVERSAL, 
 export const GREENBONE_OFF = 'Optional deep scan with OpenVAS is off. An administrator can turn it on under Settings on the External exposure page.'
 
 function withGreenbone(snap: Snapshot, c: Content, at: string, ip?: string): Snapshot {
-  if (!ip) return { ...snap, not_checked: [...snap.not_checked, { kind: 'greenbone', text: "OpenVAS runs on the box's own verified public IP only, never on the names of a domain." }] }
+  if (!ip) return { ...snap, not_checked: [...snap.not_checked, { kind: 'greenbone', text: c.deep ? (c.greenboneNote ?? GREENBONE_OFF) : "OpenVAS runs on the box's own verified public IP only, never on the names of a domain." }] }
   if (!c.greenbone) return { ...snap, not_checked: [...snap.not_checked, { kind: 'greenbone', text: c.greenboneNote ?? GREENBONE_OFF }] }
   const rows = [...c.greenbone].sort((a, b) => b.severity - a.severity)
   const cves = new Set(rows.flatMap((r) => r.cves))
@@ -264,6 +270,48 @@ export function makeSnapshot(id: string, at: string, c: Content, extraIp?: strin
   const jsLibs = web_findings.filter((w) => w.plugin_id === '10003').reduce((n, w) => n + w.software.length, 0)
   if (jsLibs > 0) l.checks.push({ kind: 'cve', at, text: `Versions ZAP read on the web pages compared with today's CISA list of exploited vulnerabilities (${jsLibs} from JavaScript libraries, 0 from Server or X-Powered-By headers): ${plural(js.length, 'exploited CVE')} matched.` })
   return withGreenbone({ id, date: dateOf(at), scanned_at: at, hosts: c.hosts, ports: c.ports, admin_panels: c.admin_panels, certs: c.certs, services, templates: [], web_findings, greenbone: [], ...l, vulns: [...m.vulns, ...js], version_gaps: m.version_gaps, counts: countsOf(c, extraIp) }, c, at, extraIp)
+}
+
+/** D-571: at most this many addresses of a domain's names get the deep scan in one run (modules/exposure/deep.go MaxDeepIPs). */
+export const MAX_DEEP_IPS = 3
+
+/** D-571: the mock's deep scan of a domain whose testing terms are accepted (modules/exposure/deep.go). The public IPv4 addresses of its
+ * names in turn, the least recently scanned first, at most MAX_DEEP_IPS; the mock box has the domain fence, so every public address may
+ * get it. Each scanned address answers nginx on 443; the others wait their turn and say so. */
+export function withDeep(c: Content, at: string, last: Record<string, string> = {}): Content {
+  const names = new Map<string, string[]>()
+  const priv = new Set<string>()
+  for (const h of c.hosts) {
+    if (h.lookup_failed) continue
+    for (const a of h.ips ?? []) {
+      if (a.family !== 'ipv4') continue
+      if (a.class === 'private') { priv.add(a.ip); continue }
+      names.set(a.ip, [...(names.get(a.ip) ?? []), h.name].sort())
+    }
+  }
+  const order = [...names.keys()].sort((a, b) => (last[a] ?? '').localeCompare(last[b] ?? '') || a.localeCompare(b, undefined, { numeric: true }))
+  const label = (ip: string) => `${ip} (${names.get(ip)!.join(', ')})`
+  const state: Record<string, Pick<HostIp, 'deep' | 'last_deep' | 'next_in_line'>> = {}
+  const services: ServiceRow[] = [...(c.services ?? [])]
+  const ports = [...c.ports]
+  const checks: CheckRow[] = []
+  const lines: NotCheckedRow[] = []
+  order.forEach((ip, i) => {
+    if (i < MAX_DEEP_IPS) {
+      state[ip] = { deep: 'scanned', last_deep: at }
+      services.push(S(ip, 443, 'https', 'nginx', '1.24.0', 'cpe:/a:f5:nginx:1.24.0'))
+      if (!ports.some((p) => p.ip === ip && p.port === 443)) ports.push(P(ip, 443, 'https', 'nginx 1.24.0'))
+      checks.push({ kind: 'deep', at, text: `${label(ip)}: deep scan at the testing terms depth (${c.hosts.some((h) => h.ips?.some((a) => a.ip === ip && a.class === 'box')) ? "this box's own verified IP" : `through the domain fence, name ${names.get(ip)![0]}`}).` })
+      checks.push({ kind: 'services', at, text: `${label(ip)}: Service identification (nmap -sV) on 65535 TCP ports: 1 service identified.` })
+      return
+    }
+    const n = i - MAX_DEEP_IPS + 1
+    state[ip] = { deep: 'waiting', next_in_line: n, ...(last[ip] ? { last_deep: last[ip] } : {}) }
+    lines.push({ kind: 'deep', text: `${label(ip)}: not scanned this run (at most ${MAX_DEEP_IPS} addresses get the deep scan in one run), ${last[ip] ? `last scanned at depth ${dateText(last[ip])}` : 'never scanned at depth'}; next in line (${n}).` })
+  })
+  if (priv.size > 0) lines.push({ kind: 'deep', text: `Private addresses (${plural(priv.size, 'address')}): listed, never contacted.` })
+  const hosts = c.hosts.map((h) => ({ ...h, ...(h.ips ? { ips: h.ips.map((a) => ({ ...a, ...(state[a.ip] ?? {}) })) } : {}) }))
+  return { ...c, hosts, ports, services, deep: { checks, lines } }
 }
 
 const plusDays = (iso: string, d: number) => new Date(Date.parse(iso) + d * 864e5).toISOString()

@@ -18,7 +18,10 @@ export function VulnSection({ s, domain = false }: { s: Snapshot; domain?: boole
   const maybe = (r: ServiceRow) => on(r).filter((v) => v.backport).length
   // INV-22: a service or CVE on a port kept from an earlier scan carries the port's mark
   const mark = (ip: string, port: number) => <PortMark p={s.ports.find((x) => x.ip === ip && x.port === port) ?? {}} />
+  // D-571: a domain's services and CVEs are on several addresses (its deep scan): each row says which
+  const ipCol = <T extends { ip: string }>(): ColumnDef<T>[] => (domain ? [{ id: 'ip', header: t('col.ip'), accessorFn: (r) => r.ip, cell: ({ row }) => <span className="font-mono text-[13px]">{row.original.ip}</span> }] : [])
   const serviceCols: ColumnDef<ServiceRow>[] = [
+    ...ipCol<ServiceRow>(),
     { id: 'port', header: t('col.port'), accessorFn: (r) => r.port, cell: ({ row }) => <span className="grid gap-1"><span className="tabular-nums">{row.original.port}</span>{mark(row.original.ip, row.original.port)}</span> },
     { id: 'service', header: t('col.service'), accessorFn: (r) => r.name, cell: ({ row }) => row.original.name === 'tcpwrapped' ? <span title={t('vulns.tcpwrapped')}>{t('vulns.tcpwrappedShort')}</span> : row.original.name },
     { id: 'product', header: t('col.product'), accessorFn: (r) => r.product, cell: ({ row }) => row.original.product || <span className="text-muted">{t('vulns.noProduct')}</span> },
@@ -30,6 +33,7 @@ export function VulnSection({ s, domain = false }: { s: Snapshot; domain?: boole
   ]
   const vulnCols: ColumnDef<VulnRow>[] = [
     { id: 'cve', header: t('col.cve'), accessorFn: (r) => r.cve, cell: ({ row }) => <span className="grid gap-0.5"><span className="font-medium">{row.original.cve}</span><span className="text-[12px] text-muted">{row.original.name}</span></span> },
+    ...ipCol<VulnRow>(),
     { id: 'port', header: t('col.port'), accessorFn: (r) => r.port, cell: ({ row }) => <span className="grid gap-1"><span className="tabular-nums">{row.original.port}</span>{mark(row.original.ip, row.original.port)}</span> },
     { id: 'basis', header: t('col.basis'), accessorFn: (r) => r.basis, cell: ({ row }) => row.original.basis === 'template' ? <Chip tone="danger">{t('vulns.basis.template', { id: row.original.template })}</Chip> : row.original.basis === 'greenbone' ? <Chip tone="warn">{t('vulns.basis.greenbone', { qod: row.original.qod ?? 0 })}</Chip> : row.original.backport ? <Chip tone="off">{t('vulns.basis.backport', { distro: row.original.backport })}</Chip> : <Chip tone="warn">{t(`vulns.basis.${row.original.basis}`)}</Chip> },
     { id: 'listed', header: t('col.listed'), accessorFn: (r) => r.date_added ?? '', cell: ({ row }) => (
@@ -41,7 +45,7 @@ export function VulnSection({ s, domain = false }: { s: Snapshot; domain?: boole
   // D-522 (TUNE-1a review M1): identification did not complete, so the title must not read as "nothing is there"
   const unidentified = why?.kind === 'services'
   return (
-    <Section id="vulns" title={t('vulns.title')} description={t(domain ? 'vulns.descriptionDomain' : 'vulns.description')}>
+    <Section id="vulns" title={t('vulns.title')} description={t(domain ? (s.services.length > 0 ? 'vulns.descriptionDomainDeep' : 'vulns.descriptionDomain') : 'vulns.description')}>
       {s.services.length === 0 && s.vulns.length === 0 ? (
         <EmptyState title={t(unidentified ? 'vulns.notIdentifiedTitle' : 'vulns.noneIdentifiedTitle')}>{why?.text ?? t('vulns.noneIdentifiedBody')}</EmptyState>
       ) : (

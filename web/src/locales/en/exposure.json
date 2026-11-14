@@ -271,7 +271,9 @@
       "box": "Names on this box",
       "public": "Names on other public addresses",
       "private": "Names on private addresses",
-      "ipv6": "Names with IPv6 addresses (not scanned)"
+      "ipv6": "Names with IPv6 addresses (not scanned)",
+      "deep": "Addresses deep-scanned this run",
+      "waiting": "Addresses next in line"
     },
     "class": {
       "box": "This box",
@@ -280,10 +282,18 @@
     },
     "note": {
       "box": "This box's verified address: scanned",
-      "public": "Checked by name on ports 80 and 443. Deep scan of this name comes with the next update.",
+      "public": "Checked by name on ports 80 and 443. Accept this domain's testing terms for the deep scan of this address.",
       "private": "Private address: never contacted",
       "notContacted": "Not contacted: the check by name used {{ip}}.",
       "notContactedAny": "Not contacted."
+    },
+    "deep": {
+      "scanned": "Deep-scanned at the testing terms depth, {{time}}",
+      "waiting": "Not scanned this run (at most 3 addresses a run): next in line ({{n}}). {{last}}",
+      "last": "Last deep-scanned {{time}}.",
+      "never": "Never deep-scanned.",
+      "fence": "Checked by name only: the deep scan of an address that is not this box's needs the Vedette host's domain fence (update the box).",
+      "refused": "Not scanned at depth: the check right before the scan refused it, so nothing was sent (see Not checked)."
     }
   },
   "hosts": {
@@ -515,7 +525,8 @@
       "greenbone": "Scanner: OpenVAS, QoD {{qod}}"
     },
     "countBackport_one": "{{count}} maybe patched",
-    "countBackport_other": "{{count}} maybe patched"
+    "countBackport_other": "{{count}} maybe patched",
+    "descriptionDomainDeep": "The deep scan identifies the service and version on every open port of each address this domain's names resolve to (nmap -sV), and ZAP reads versions on its pages; both are compared with the exploited lists (CISA KEV, and VulnCheck KEV if you turned it on) and their NVD version ranges. Only exploited vulnerabilities are compared, so an empty list does not prove a service is safe."
   },
   "terms": {
     "title": "Testing terms (deep scan)",
@@ -539,7 +550,14 @@
   "greenbone": {
     "title": "Optional deep scan: OpenVAS",
     "description": "OpenVAS (Greenbone Community Edition, free, with the Greenbone Community Feed; not the paid Greenbone Enterprise) is an open-source vulnerability scanner that runs as its own containers next to Vedette. When it is on, each scan of the box's own verified public IP whose testing terms are accepted ends with an OpenVAS scan of that IP. Off by default.",
-    "state": { "unavailable": "Not available", "off": "Off", "starting": "Starting", "loading": "Loading its feed", "ready": "Ready", "error": "Error" },
+    "state": {
+      "unavailable": "Not available",
+      "off": "Off",
+      "starting": "Starting",
+      "loading": "Loading its feed",
+      "ready": "Ready",
+      "error": "Error"
+    },
     "stateText": {
       "off": "OpenVAS is off. Scans do not use it.",
       "starting": "OpenVAS is starting. The first start downloads its images (about 9 GB).",
@@ -564,8 +582,19 @@
     "changedOff": "Turned off by {{by}}, {{time}}",
     "toastOn": "OpenVAS is starting. Loading its feed takes about 2 hours the first time.",
     "toastOff": "OpenVAS is off. Its data is kept.",
-    "col": { "severity": "Severity", "name": "Name", "port": "Port", "qod": "QoD", "cves": "CVEs", "solution": "Solution" },
-    "sev": { "high": "High {{score}}", "medium": "Medium {{score}}", "low": "Low {{score}}" },
+    "col": {
+      "severity": "Severity",
+      "name": "Name",
+      "port": "Port",
+      "qod": "QoD",
+      "cves": "CVEs",
+      "solution": "Solution"
+    },
+    "sev": {
+      "high": "High {{score}}",
+      "medium": "Medium {{score}}",
+      "low": "Low {{score}}"
+    },
     "noCve": "None named",
     "results": {
       "title": "OpenVAS results (unauthenticated, QoD ≥ 70)",
@@ -585,17 +614,41 @@
     "description": "ZAP looked at the pages without sending forms; these are things it noticed. They are hints from reading the pages and the server's answers, not known exploited vulnerabilities. When ZAP reads a version that has an exploited CVE (a JavaScript library, a Server or X-Powered-By header), that CVE is listed with the exploited CVEs.",
     "caption": "What ZAP noticed on the web pages",
     "group": {
-      "fix": { "title": "Fix this", "description": "Things to change: a vulnerable JavaScript library, a server that gives away its version, an error page that shows internals, a password sent without encryption.", "caption": "Web findings to fix" },
-      "hardening": { "title": "Hardening", "description": "Settings that make the site harder to attack: missing security headers, cookie flags, cross-site settings. Each row keeps ZAP's own risk.", "caption": "Web hardening suggestions" }
+      "fix": {
+        "title": "Fix this",
+        "description": "Things to change: a vulnerable JavaScript library, a server that gives away its version, an error page that shows internals, a password sent without encryption.",
+        "caption": "Web findings to fix"
+      },
+      "hardening": {
+        "title": "Hardening",
+        "description": "Settings that make the site harder to attack: missing security headers, cookie flags, cross-site settings. Each row keeps ZAP's own risk.",
+        "caption": "Web hardening suggestions"
+      }
     },
     "software": "{{product}} {{version}}",
     "noneTitle": "ZAP noticed nothing on the pages it looked at",
     "noneBody": "That does not prove the pages are safe: ZAP only reads what the server sends, and sends no forms.",
     "notScannedTitle": "No page was scanned",
     "notScannedBody": "The passive web scan did not look at any page in this scan.",
-    "col": { "risk": "Risk", "alert": "What ZAP noticed", "confidence": "Confidence", "pages": "Pages", "fix": "What ZAP suggests" },
-    "risk": { "high": "High", "medium": "Medium", "low": "Low", "info": "Info" },
-    "confidence": { "low": "Low", "medium": "Medium", "high": "High", "confirmed": "Confirmed" },
+    "col": {
+      "risk": "Risk",
+      "alert": "What ZAP noticed",
+      "confidence": "Confidence",
+      "pages": "Pages",
+      "fix": "What ZAP suggests"
+    },
+    "risk": {
+      "high": "High",
+      "medium": "Medium",
+      "low": "Low",
+      "info": "Info"
+    },
+    "confidence": {
+      "low": "Low",
+      "medium": "Medium",
+      "high": "High",
+      "confirmed": "Confirmed"
+    },
     "cwe": "CWE-{{id}}",
     "cweLink": "CWE-{{id}} (opens the MITRE page in a new tab)",
     "pagesMore_one": "{{count}} page in all",
@@ -642,5 +695,30 @@
     "vulnsTitle_other": "{{count}} CVEs Shodan lists",
     "vulnsNote": "Shodan guesses these from the software versions it saw. They are Shodan's claim: Vedette has not confirmed them, and the Exploited vulnerabilities above are Vedette's own check.",
     "vuln": "Shodan lists {{cve}}; Vedette has not confirmed it."
+  },
+  "deep": {
+    "title": "Deep scan by address",
+    "description": "With this domain's testing terms accepted, each public IPv4 address its names resolve to gets the deep scan, whatever serves it: every TCP port, service versions, exploited vulnerabilities, templates, a web scan by name and OpenVAS when it is on. At most 3 addresses a run, the least recently scanned first; the others follow in the next runs.",
+    "caption": "Addresses of this domain's names and their deep scan",
+    "col": {
+      "names": "Names that led to it",
+      "state": "Deep scan",
+      "found": "Found"
+    },
+    "state": {
+      "scanned": "Scanned this run",
+      "waiting": "Next in line",
+      "fence": "Needs the domain fence",
+      "refused": "Refused at the check"
+    },
+    "next": "Number {{n}} in line.",
+    "last": "Last deep-scanned {{time}}.",
+    "never": "Never deep-scanned.",
+    "found": "{{services}} services, {{vulns}} exploited CVEs, {{web}} web alerts, {{openvas}} OpenVAS results",
+    "why": {
+      "waiting": "Not scanned this run: the cap of 3 addresses was reached.",
+      "fence": "Checked by name only: this box needs the Vedette host's domain fence (update the box).",
+      "refused": "The check right before the scan refused it (the name moved, or the terms changed), so nothing was sent."
+    }
   }
 }

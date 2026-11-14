@@ -12,6 +12,7 @@ import { useDiff, useSnapshot, useSnapshots } from './api'
 import { ChecksSection, VulnSection } from './ServicesPanel'
 import { WebSection } from './WebPanel'
 import { GreenboneSection } from './GreenbonePanel'
+import { DeepSection } from './DeepPanel'
 import { PortMark, PortMarkNote } from './PortMark'
 import { PORT_NOT_SEEN, VERSION_NOT_READ } from './contract'
 import { CERT_WARN_DAYS, type AdminRow, type CertRow, type DiffItem, type DiffChange, type HostRow, type PortRow, type Snapshot, type Target } from './types'
@@ -108,9 +109,10 @@ function SnapshotView({ target, s }: { target: Target; s: Snapshot }) {
       <Section title={t('cert.title')} description={t('cert.description', { days: CERT_WARN_DAYS })}>
         <DataTable caption={t('cert.caption')} data={s.certs} columns={certCols} pageSize={20} initialSort={[{ id: 'expires', desc: false }]} empty={t('cert.empty')} />
       </Section>
-      {target.kind === 'ip' || s.vulns.length > 0 ? <VulnSection s={s} domain={target.kind === 'domain'} /> : null /* D-565: a domain's page can carry versions ZAP read */}
+      {target.kind === 'domain' ? <DeepSection s={s} /> : null /* D-571: the deep scan per address, with the names that led to it */}
+      {target.kind === 'ip' || s.vulns.length > 0 || s.services.length > 0 ? <VulnSection s={s} domain={target.kind === 'domain'} /> : null /* D-565: a domain's page can carry versions ZAP read; D-571: and its addresses' services */}
       <WebSection s={s} />
-      {target.kind === 'ip' ? <GreenboneSection s={s} /> : null}
+      {target.kind === 'ip' || (s.greenbone ?? []).length > 0 ? <GreenboneSection s={s} /> : null}
       <ChecksSection s={s} />
     </div>
   )

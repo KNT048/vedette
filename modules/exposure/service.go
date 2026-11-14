@@ -17,27 +17,30 @@ import (
 	"github.com/knt048/vedette/core/store"
 )
 
-// Config is what NewService needs. Publisher, Runner, TwoStep, Gateway, Services, Templates, Web, Greenbone, Probes, Matcher, Outside, Location and Clock may be nil.
+// Config is what NewService needs. Publisher, Runner, TwoStep, Gateway, Services, Templates, Web, Greenbone, DomainFence, Probes, Matcher, Outside, Location and Clock may be nil.
 type Config struct {
 	DB        *store.DB
 	Audit     *audit.Log
-	Resolver  Resolver         // DNS TXT lookups of domain verification
-	Prober    EgressProber     // the three public IP services (PublicServiceProber); tests pass a fake
-	Publisher Publisher        // nil: no events
-	Runner    Runner           // nil: scanning answers 501 until the scan module registers one
-	TwoStep   TwoStep          // nil: nobody has two-step sign-in, so no first scan can record the commitment (D-473)
-	Gateway   Gateway          // nil: the page makes no claim about which device answers the open ports (D-492)
-	Services  ServiceScanner   // nil: every scan of an IP says service identification is not set up (INV-19)
-	Templates TemplateScanner  // nil: every scan of an IP says the safe exploited-vulnerability templates are not set up (INV-23)
-	Web       WebScanner       // nil: every scan says the passive web scan (ZAP) is not set up (INV-24)
-	Greenbone GreenboneHost    // nil: the setting and every scan of an IP say "Greenbone is not available on this box" (INV-25)
-	DataDir   string           // the box data directory: Greenbone's preflight measures the free space of its filesystem (INV-25)
-	Probes    ProbeLog         // nil: the template and web steps do not run (nothing is sent without a probe log row, LEGAL §3)
-	Matcher   Matcher          // nil: identified services are not compared with exploited CVEs, and the page says so (INV-20)
-	Outside   *InternetDB      // nil: "Check what Shodan has seen" answers 501 (INV-21); cmd/vedette wires Shodan InternetDB
-	Location  *time.Location   // the day of a snapshot (nil: time.Local)
-	Log       *slog.Logger     //
-	Clock     func() time.Time // nil: time.Now
+	Resolver  Resolver        // DNS TXT lookups of domain verification
+	Prober    EgressProber    // the three public IP services (PublicServiceProber); tests pass a fake
+	Publisher Publisher       // nil: no events
+	Runner    Runner          // nil: scanning answers 501 until the scan module registers one
+	TwoStep   TwoStep         // nil: nobody has two-step sign-in, so no first scan can record the commitment (D-473)
+	Gateway   Gateway         // nil: the page makes no claim about which device answers the open ports (D-492)
+	Services  ServiceScanner  // nil: every scan of an IP says service identification is not set up (INV-19)
+	Templates TemplateScanner // nil: every scan of an IP says the safe exploited-vulnerability templates are not set up (INV-23)
+	Web       WebScanner      // nil: every scan says the passive web scan (ZAP) is not set up (INV-24)
+	Greenbone GreenboneHost   // nil: the setting and every scan of an IP say "Greenbone is not available on this box" (INV-25)
+	// DomainFence nil: a domain's deep scan (D-571) reaches only the box's own verified IP; every other public address of its names
+	// gets a "needs the domain fence" line and nothing more than the by-name checks.
+	DomainFence DomainFence
+	DataDir     string           // the box data directory: Greenbone's preflight measures the free space of its filesystem (INV-25)
+	Probes      ProbeLog         // nil: the template and web steps do not run (nothing is sent without a probe log row, LEGAL §3)
+	Matcher     Matcher          // nil: identified services are not compared with exploited CVEs, and the page says so (INV-20)
+	Outside     *InternetDB      // nil: "Check what Shodan has seen" answers 501 (INV-21); cmd/vedette wires Shodan InternetDB
+	Location    *time.Location   // the day of a snapshot (nil: time.Local)
+	Log         *slog.Logger     //
+	Clock       func() time.Time // nil: time.Now
 }
 
 // Service owns the exp_ tables. Every mutation runs in one transaction with its core_audit row (SYS-3);
@@ -233,7 +236,7 @@ func (s *Service) view(t Target, latest map[string]latestResult, c checks, now t
 		n := noticeFor(t.Value)
 		v.CommitmentNotice = &n
 	}
-	v.Terms, v.TermsNotice, v.FullScan = t.Terms, termsFor(t.Value), t.mode().Full
+	v.Terms, v.TermsNotice, v.FullScan = t.Terms, termsFor(t.Kind, t.Value), t.mode().Full
 	b := t.blocked(now)
 	if b == "" && t.Kind == KindIP && c.paused(t) {
 		b = BlockedNotCurrent // the latest full check did not see this IP (INV-13): the same answer the scan gate gives

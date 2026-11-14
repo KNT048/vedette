@@ -140,16 +140,25 @@ func (s *Service) execute(ctx context.Context, run *scanRun, r Runner, user stri
 	s.setPhase(run, PhaseProbing)
 	st := ScanTarget{ID: t.ID, Kind: t.Kind, Value: t.Value, User: user, Mode: run.mode}
 	content, err := r.Scan(ctx, st)
+	content.Hosts = clearDeep(content.Hosts) // D-571: the deep state of a run is exposure's own, never the runner's
 	if err == nil {
 		content, err = s.identify(ctx, st, content) // INV-19: service identification of the box's own IP, and what was checked
 	}
 	if err == nil {
-		content, err = s.webPassive(ctx, st, content) // INV-24: passive web scan of its web ports
+		content, err = s.webPassive(ctx, byName(st), content) // INV-24: passive web scan of its web ports
+	}
+	var deep []deepAddr
+	if err == nil && st.Kind == KindDomain && st.Mode.Full { // D-571: each address of the names at the domain's terms depth
+		content, deep, err = s.deepDomain(ctx, st, content)
 	}
 	gb, pending := false, ""
 	if err == nil { // INV-25: the optional deep scan runs last, after the snapshot of the other steps is stored
 		var line string
-		if gb, line, err = s.greenbonePlan(ctx, st); gb {
+		gb, line, err = s.greenbonePlan(ctx, st)
+		if gb && st.Kind == KindDomain && len(deep) == 0 {
+			gb, line = false, notGBNoDeep
+		}
+		if gb {
 			pending = gbPending(s.momentText(s.clock()))
 			line = pending
 		}
@@ -166,7 +175,13 @@ func (s *Service) execute(ctx context.Context, run *scanRun, r Runner, user stri
 	}
 	if err == nil && gb { // a stop now keeps the snapshot above; Greenbone's outcome (or that it was stopped) is added to it
 		s.setPhase(run, PhaseGreenbone)
-		o, gerr := s.greenboneStep(ctx, st)
+		var o gbOutcome
+		var gerr error
+		if st.Kind == KindDomain {
+			o, gerr = s.greenboneDomain(ctx, st, deep)
+		} else {
+			o, gerr = s.greenboneStep(ctx, st)
+		}
 		if gerr != nil {
 			o.not = append([]NotCheckedRow{{Kind: "greenbone", Text: notGBStopped}}, o.not...)
 			if o.audit == "" {
@@ -180,6 +195,15 @@ func (s *Service) execute(ctx context.Context, run *scanRun, r Runner, user stri
 		err = context.Cause(ctx)
 	}
 	s.finish(ctx, run, user, t, err)
+}
+
+// byName is the ScanTarget of a domain's by-name passive web pass (INV-24): always the K-4 scope, whatever the terms (D-571). The deep
+// scan by name of each address, with the terms' mode and the domain's scope, is deepDomain's.
+func byName(st ScanTarget) ScanTarget {
+	if st.Kind == KindDomain {
+		st.Mode = ScanMode{}
+	}
+	return st
 }
 
 func (s *Service) saveScan(ctx context.Context, user string, t Target, content Content) (Snapshot, error) {

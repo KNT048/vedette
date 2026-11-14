@@ -12,6 +12,7 @@ const (
 	DecoderEPSS   Decoder = "epss"   // EPSSBatchURLs and ParseEPSS (api.first.org JSON)
 	DecoderNuclei Decoder = "nuclei" // ParseNucleiCVEs
 	DecoderNVD    Decoder = "nvd"    // NVDPageURL and ParseNVD (NVD CVE API 2.0, ?hasKev; D-500)
+	DecoderCVEOrg Decoder = "cveorg" // CVEOrgRecordURL and ParseCVERecord (cvelistV5 records; D-556)
 )
 
 // Source is a built-in feed (D-36). Built-ins cannot be deleted (INV-4): the
@@ -23,7 +24,7 @@ type Source struct {
 	Format        Format
 	URL           string // default address; Reset restores it
 	License       string
-	IntervalHours int // default schedule: 1 for the CISA list (S-FEED-1, D-485), 24 for the other vulnerability feeds, 6 for IOC
+	IntervalHours int // default schedule: 1 for the CISA list (S-FEED-1, D-485) and CVE.org (D-556), 24 for the other vulnerability feeds, 6 for IOC
 	Decoder       Decoder
 	Parser        *Parser // set when Decoder == DecoderParser
 	MaxRows       int     // row limit of this source; 0 means MaxRows (50,000)
@@ -60,12 +61,17 @@ func linesParser() *Parser {
 // sentence (https://nvd.nist.gov/developers/terms-of-use).
 const nvdNotice = "Public domain. This product uses the NVD API but is not endorsed or certified by the NVD."
 
+// cveOrgNotice is the licence line of the CVE.org feed: the CVE Program Terms of Use allow copies that reproduce MITRE's
+// copyright designation and the licence (https://www.cve.org/Legal/TermsOfUse; THIRD_PARTY_NOTICES.md has the clause).
+const cveOrgNotice = "CVE Program Terms of Use. CVE records © The MITRE Corporation."
+
 // builtinSources is the default list of sourcesMock.ts. Hosts must match the
 // list in PRIVACY.md (INV-13) except where the report says otherwise.
 var builtinSources = []Source{
 	{ID: "cisa-kev", Name: "CISA KEV", Kind: KindVulnerabilities, Format: FormatJSON, URL: "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json", License: "CC0", IntervalHours: 1, Decoder: DecoderKEV},
 	{ID: "first-epss", Name: "FIRST EPSS", Kind: KindVulnerabilities, Format: FormatJSON, URL: "https://api.first.org/data/v1/epss", License: "Attribution: EPSS by FIRST", IntervalHours: 24, Decoder: DecoderEPSS},
 	{ID: "nvd-kev", Name: "NVD affected versions", Kind: KindVulnerabilities, Format: FormatJSON, URL: "https://services.nvd.nist.gov/rest/json/cves/2.0", License: nvdNotice, IntervalHours: 24, Decoder: DecoderNVD},
+	{ID: "cve-org", Name: "CVE.org affected versions", Kind: KindVulnerabilities, Format: FormatJSON, URL: "https://raw.githubusercontent.com/CVEProject/cvelistV5/main/cves", License: cveOrgNotice, IntervalHours: 1, Decoder: DecoderCVEOrg},
 	{ID: "nuclei-templates", Name: "nuclei-templates", Kind: KindVulnerabilities, Format: FormatJSON, URL: "https://raw.githubusercontent.com/projectdiscovery/nuclei-templates/main/cves.json", License: "MIT", IntervalHours: 24, Decoder: DecoderNuclei},
 	{ID: "ipsum", Name: "IPsum", Kind: KindIOC, Format: FormatLines, URL: "https://raw.githubusercontent.com/stamparm/ipsum/master/levels/3.txt", License: "Unlicense", IntervalHours: 6, Decoder: DecoderParser, Parser: linesParser(), Aggregate: true, Upstreams: []string{"et-open", "abusech-feodo"}},
 	{ID: "et-open", Name: "ET Open compromised IPs", Kind: KindIOC, Format: FormatLines, URL: "https://rules.emergingthreats.net/blockrules/compromised-ips.txt", License: "BSD", IntervalHours: 6, Decoder: DecoderParser, Parser: linesParser()},

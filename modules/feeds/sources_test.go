@@ -26,7 +26,7 @@ func TestContract_INV1_BuiltinSourcesAreDeclaredHTTPS(t *testing.T) {
 			t.Errorf("%s: %v", s.ID, err)
 		}
 		want := map[Kind]int{KindVulnerabilities: 24, KindIOC: 6}[s.Kind]
-		if s.ID == "cisa-kev" { // hourly: Home promises data at most an hour old (S-FEED-1, D-485); a 304 keeps it cheap
+		if s.ID == "cisa-kev" || s.ID == "cve-org" { // hourly: Home promises data at most an hour old (S-FEED-1, D-485); a 304 keeps it cheap
 			want = 1
 		}
 		if s.IntervalHours != want {
@@ -44,8 +44,8 @@ func TestContract_INV1_BuiltinSourcesAreDeclaredHTTPS(t *testing.T) {
 			t.Errorf("%s: dedicated decoder must not carry a parser", s.ID)
 		}
 	}
-	if len(seenID) != 9 {
-		t.Fatalf("expected the 9 built-ins of sourcesMock.ts, got %d", len(seenID))
+	if len(seenID) != 10 {
+		t.Fatalf("expected the 10 built-ins of sourcesMock.ts, got %d", len(seenID))
 	}
 }
 

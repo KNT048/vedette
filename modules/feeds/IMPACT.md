@@ -28,7 +28,14 @@
 - W3-1 (2026-11-13): `nvd_pull.go` (thử lại, tạm dừng/đi tiếp, dòng tiến độ `Service.live`), `Request.HeaderTimeout`/`slowHeaders` và `StatusError.RetryAfter` trong `fetch.go`, `lockFeed` gộp lượt kéo trùng (`busy`). Người đọc: `FeedsSettings.tsx` (feed `never` có `error` là dòng tiến độ: không kèm câu "Fetched at the next scheduled check"; Fetch now trả feed có `error` mà `status` không phải `error` ⇒ toast thông tin). Test: `nvd_pull_test.go`, `TestFeedLockIsContextAwareAndPruned`, `TestContract_INV8_*`, `feeds.test.tsx` W3-1.
 - **findings** (qua `cmd/vedette` `findingsFeeds.Vulns`): mọi quyết định theo phiên bản dựa vào các mục này; đổi hình `AffectedRow` hay bỏ mục ⇒ finding đổi (`modules/findings` `TestGolden_*`).
 - **cmd/vedette**: `feeds.ranges.updated` → `Inventory.RematchAll` lần đầu (trong `notify.WithBaseline`), sau đó `Inventory.RematchMany` với vendor/product của các CVE trong sự kiện (review H3); `findingsFeeds.Vulns` giữ danh sách theo `Store.MatchStamp` (đổi cách ghi `feeds_vuln`/`feeds_affected_cve` mà không đổi `last_fetch`, `updated_at` hay số hàng ⇒ findings đọc danh sách cũ).
-- **PRIVACY.md** luồng 1, Settings → Privacy (`locales/en/core.json` `privacy.flow.1`), `THIRD_PARTY_NOTICES.md`, `sourcesMock.ts` (danh sách có sẵn: 9), export policy (`feeds_affected*`).
+- **PRIVACY.md** luồng 1, Settings → Privacy (`locales/en/core.json` `privacy.flow.1`), `THIRD_PARTY_NOTICES.md`, `sourcesMock.ts` (danh sách có sẵn: 10), export policy (`feeds_affected*`).
+
+## Modifying: `CVEOrgRecordURL`/`ParseCVERecord`, feed `cve-org`, `feeds_affected_cve.source`, `Store.RangesFromCVEOrg` (D-556)
+
+- **findings** (qua `cmd/vedette` `findingsFeeds.Vulns`, `rangesFrom`): CVE có hàng `source='cve.org'`/`'cve.org-partial'` mang `Vuln.RangesFrom = findings.RangesCVEOrg`/`RangesCVEOrgPartial` (partial: không bao giờ đóng finding); `FixedIn.Source` thành "CVE.org affected versions (from the CVE record's CNA)" và trang hiện đúng nguồn đó (`Recommendation.tsx`), câu bằng chứng nói "the CVE.org record" thay "NVD" (`TestCVEOrgRangesNameTheirSource`). CPE của hàng là hãng/sản phẩm CISA đã chuẩn hoá: findings khớp nó qua `norm` của hãng/sản phẩm thiết bị và khoá KEV; đổi cách dựng CPE ⇒ finding đổi.
+- **nvd-kev**: `applyAffected` đếm và xoá chỉ hàng `source='nvd'`; `records` và lượt đầu (`first`) của NVD chỉ tính hàng NVD.
+- **cmd/vedette**: `Store.MatchStamp` thêm `cve-org`; export policy (`feeds_affected_cve.source`, `feeds_cveorg_checked`) trong `modules/core/export_policy.go`.
+- **PRIVACY.md** luồng 1, Settings → Privacy (`locales/en/core.json` `privacy.flow.1`), `THIRD_PARTY_NOTICES.md` (điều khoản CVE Program), `sourcesMock.ts` và `conformance.test.ts` (danh sách có sẵn: 10).
 
 ## Modifying: `Fetcher.Fetch(ctx, Request)` (một GET tới đúng URL)
 - **feeds** job kéo và `POST /feeds/sources/{id}/fetch`. Chuyển hướng: chỉ cùng host (`ErrRedirect`), không hạ https→http, tối đa 5 bước, bỏ `Referer`. Đổi chính sách này = đổi host nào hộp có thể liên lạc (INV-1, INV-13, `PRIVACY.md`).

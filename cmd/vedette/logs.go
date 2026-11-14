@@ -138,16 +138,27 @@ func (a logsInventory) DevicesByIP(ctx context.Context, ips []string) (map[strin
 	for _, ip := range ips {
 		want[ip] = true
 	}
-	out := map[string]logs.Device{}
+	ipOf := map[string]string{}
+	var ids []string
 	for _, d := range devs {
-		if !want[d.IP] {
-			continue
+		if want[d.IP] {
+			ipOf[d.ID] = d.IP
+			ids = append(ids, d.ID)
 		}
-		name := d.IP
-		if d.Hostname != nil && *d.Hostname != "" {
-			name = *d.Hostname
+	}
+	// The name is the Devices page's (D-471, W8-2): one light read of the matches. No address beside it: the sources list and a log
+	// incident already show the sender's IP.
+	st, err := notifyDevices(a).DeviceStates(ctx, ids)
+	if err != nil {
+		return nil, err
+	}
+	out := map[string]logs.Device{}
+	for id, ip := range ipOf {
+		name := ip
+		if d, ok := st[id]; ok && d.Name != "" {
+			name = d.Name
 		}
-		out[d.IP] = logs.Device{ID: d.ID, Name: name}
+		out[ip] = logs.Device{ID: id, Name: name}
 	}
 	return out, nil
 }

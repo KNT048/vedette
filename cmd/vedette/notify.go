@@ -55,26 +55,31 @@ func (u notifyUsers) EmailCodeUsers(ctx context.Context) (int, error) {
 	return n, nil
 }
 
-// notifyDevices implements notify.DeviceDirectory over the inventory: the name a person gave the device
-// (hostname, else the IP, else the kind of device), so a notice says "FortiGate" and not an asset id.
+// notifyDevices implements notify.DeviceDirectory over the inventory: the device as the Devices page names it (D-471), with its
+// address when that is not the name already (W8-2, D-552), so a notice says "byn (192.168.18.181)" and not an asset id.
 type notifyDevices struct{ inv *inventory.Service }
 
 func (a notifyDevices) DeviceName(ctx context.Context, assetID string) (string, bool, error) {
-	refs, err := a.inv.DeviceRefs(ctx, []string{assetID})
+	st, err := a.DeviceStates(ctx, []string{assetID})
 	if err != nil {
 		return "", false, err
 	}
-	r, ok := refs[assetID]
+	d, ok := st[assetID]
 	if !ok {
 		return "", false, nil
 	}
-	if r.Hostname != nil && *r.Hostname != "" {
-		return *r.Hostname, true, nil
+	return labelled(d.Name, d.Address), true, nil
+}
+
+// labelled is a device's name with its address in brackets when that is not the name already (notify's deviceLabel, D-552).
+func labelled(name, addr string) string {
+	switch {
+	case name == "":
+		return addr
+	case addr != "" && addr != name:
+		return name + " (" + addr + ")"
 	}
-	if _, err := netip.ParseAddr(r.IP); err == nil { // the inventory shows an em dash when the IP is unknown
-		return r.IP, true, nil
-	}
-	return r.Display, true, nil
+	return name
 }
 
 // DeviceStates is notify's view of devices for their unknown_device incidents (D-552, W8-2): the name of the Devices page

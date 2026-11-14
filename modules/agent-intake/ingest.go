@@ -43,11 +43,64 @@ func (s *Service) Log(ctx context.Context, src netip.Addr, in logIn) error {
 	// the hint a node could write onto any device whose MAC it names. It goes in as a 0.9 observation only, which the inventory
 	// refuses when another device owns that MAC (D-265 (4)).
 	hint := observe.AssetHint{IP: ip}
+	kernel, err := s.nodeKernel(ctx, n, in)
+	if err != nil {
+		return err
+	}
+	in.snaps = withKernel(in.snaps, kernel)
 	taken, err := s.deliver(ctx, src.Unmap().WithZone(""), hint, mac, n.id, in)
 	if err != nil {
 		return err
 	}
 	return s.firstReport(ctx, n, hint, mac, taken)
+}
+
+// nodeKernel is the running kernel release of the node (D-516): the one this request's kernel_info snapshot gives, stored on the node
+// when it changed, else the one stored. "" when the node never gave a usable one.
+func (s *Service) nodeKernel(ctx context.Context, n nodeRow, in logIn) (string, error) {
+	rows := in.snaps["kernel_info"]
+	if len(rows) == 0 {
+		return n.kernel, nil
+	}
+	k := strings.ToLower(rows[0]["version"])
+	if !kernelReleaseRE.MatchString(k) {
+		return n.kernel, nil
+	}
+	if k == n.kernel {
+		return k, nil
+	}
+	err := s.db.Write(ctx, func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(ctx, `UPDATE intake_osquery_nodes SET kernel = ? WHERE id = ?`, k, n.id)
+		return err
+	})
+	if err != nil {
+		return "", fmt.Errorf("agentintake: store the kernel: %w", err)
+	}
+	return k, nil
+}
+
+// withKernel puts the running kernel release on every deb_packages row (column "kernel", as the Wazuh path does), on a copy: the
+// mapper reads it to give the Kernel row the running kernel's image. "" leaves the snapshots as they are.
+func withKernel(snaps map[string][]row, kernel string) map[string][]row {
+	debs := snaps["deb_packages"]
+	if kernel == "" || len(debs) == 0 {
+		return snaps
+	}
+	out := make(map[string][]row, len(snaps))
+	for k, v := range snaps {
+		out[k] = v
+	}
+	rows := make([]row, len(debs))
+	for i, r := range debs {
+		c := make(row, len(r)+1)
+		for k, v := range r {
+			c[k] = v
+		}
+		c["kernel"] = kernel
+		rows[i] = c
+	}
+	out["deb_packages"] = rows
+	return out
 }
 
 // answers is the fixed order of the first report's answers (schedule.go firstReport), so the stored list is canonical.

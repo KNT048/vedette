@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState, type MouseEvent, type RefObject } from 'react'
-import { Link, useNavigate } from 'react-router'
+import { Link, useNavigate, useSearchParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { PageHeader, Section } from '@/components/common/PageHeader'
+import { PageHeader } from '@/components/common/PageHeader'
+import { KpiStrip, PageTabs } from '@/components/common/PageFrame'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { EmptyState, QueryState, RequireModule, SampleDataNote } from '@/components/common/States'
 import { SeverityChip } from '@/components/common/StatusChip'
@@ -17,11 +18,15 @@ import { useModules } from '@/lib/modules'
 import { useCan } from '@/lib/session'
 import { useBulkIncidents, useChannels, useIncidents } from './api'
 import { MAX_BULK_INCIDENTS } from './contract'
-import { DeliveryBadges, IncidentStatusChip, kindKey } from './shared'
+import { DeliveryBadges, IncidentStatusChip, kindKey, needsFix } from './shared'
+import { X } from 'lucide-react'
 import { INCIDENT_KINDS, type Incident, type IncidentKind } from './types'
 
 const link = 'text-accent underline-offset-4 hover:underline'
 type BulkStatus = 'acknowledged' | 'resolved'
+/** The two lists (D-543): Open = new + acknowledged, Resolved. `?severity=urgent` (high and critical) and `?sent=no` narrow Open; the KPI cells link there. */
+type Tab = 'open' | 'resolved'
+const urgent = (i: Incident) => i.severity === 'high' || i.severity === 'critical'
 
 /** Tells the page which rows the table shows now (page, sort, filter), so the select-all banner never speaks of another page. */
 function PageWatch({ ids, onChange }: { ids: string[]; onChange: (key: string) => void }) {
@@ -88,7 +93,11 @@ function Content() {
   const admin = useCan('admin')
   const channels = useChannels({ retry: false, enabled: admin }) // not asked of a role that would get 403
   const noChannel = channels.data !== undefined && !channels.data.channels.some((c) => c.enabled)
-  const [filter, setFilter] = useState<'open' | 'all'>('open')
+  const [params, setParams] = useSearchParams()
+  const tab: Tab = params.get('tab') === 'resolved' ? 'resolved' : 'open'
+  const onlyUrgent = params.get('severity') === 'urgent'
+  const onlyUnsent = params.get('sent') === 'no'
+  const setParam = (k: string, v: string) => { const p = new URLSearchParams(params); if (v) p.set(k, v); else p.delete(k); setParams(p, { replace: true }) }
   const [kind, setKind] = useState<IncidentKind | 'all'>('all')
   // a container-only install cannot run the honeypot (module state available=false, D-381): no trap can be touched, so no trap filter
   const noTraps = useModules().data?.modules.find((m) => m.id === 'honeypot')?.available === false
@@ -99,7 +108,15 @@ function Content() {
   const opener = useRef<HTMLButtonElement>(null)
   const fresh = q.data?.incidents.filter((a) => a.status === 'new').length ?? 0
   const title = !q.data ? t('incidents.titleLoading') : fresh === 0 ? t('incidents.titleNone') : t('incidents.title', { count: fresh })
-  const rows = (q.data?.incidents ?? []).filter((a) => (filter === 'all' || a.status !== 'resolved') && (kind === 'all' || a.kind === kind))
+  const all = q.data?.incidents ?? []
+  const openRows = all.filter((a) => a.status !== 'resolved')
+  const rowsFor = (x: Tab) => all.filter((a) => (x === 'open' ? a.status !== 'resolved' && (!onlyUrgent || urgent(a)) && (!onlyUnsent || needsFix(a.not_sent)) : a.status === 'resolved') && (kind === 'all' || a.kind === kind))
+  const rows = rowsFor(tab)
+  const kpis = q.data ? [
+    { value: openRows.length, label: t('kpi.open'), to: '?tab=open' },
+    { value: openRows.filter(urgent).length, label: t('kpi.urgent'), to: '?tab=open&severity=urgent' },
+    { value: openRows.filter((a) => needsFix(a.not_sent)).length, label: t('kpi.notSent'), to: '?tab=open&sent=no' },
+  ] : []
   // Only what is shown can stay selected: changing a filter never acts on hidden rows (as on Findings, D-484).
   const shown = rows.filter((r) => selected.has(r.id)).map((r) => r.id)
   // Gmail pattern (Opus r1 MED-3): the header box selects the page the table shows; a banner then offers every matching incident.
@@ -117,7 +134,7 @@ function Content() {
   )
   const open = (s: BulkStatus) => (e: MouseEvent<HTMLButtonElement>) => { opener.current = e.currentTarget; setBulk(s) }
   const columns: ColumnDef<Incident>[] = [
-    ...(can ? [{ id: 'select', enableSorting: false, header: ({ table }) => {
+    ...(can && tab === 'open' ? [{ id: 'select', enableSorting: false, header: ({ table }) => {
       const page = table.getRowModel().rows.map((r) => r.original.id)
       const on = page.filter((id) => selected.has(id)).length
       const set = (v: boolean) => {
@@ -139,54 +156,62 @@ function Content() {
     { id: 'sent', header: t('incidents.col.sent'), enableSorting: false, cell: ({ row }) => <DeliveryBadges sends={row.original.sends} notSent={row.original.not_sent} admin={admin} /> },
     { id: 'respond', header: t('incidents.col.respond'), enableSorting: false, cell: ({ row }) => <RespondLink i={row.original} /> },
   ]
+  const panel = (
+    <QueryState query={q}>
+      {() => (
+        <>
+          <div className="mb-3 flex flex-wrap gap-2">
+            <Segmented className="max-w-full overflow-x-auto" label={t('incidents.kindFilter')} value={kind} onChange={(v) => { setKind(v); setPageIds(null) }} options={[{ value: 'all', label: t('incidents.kf.all') }, ...kinds.map((k) => ({ value: k, label: t(`incidents.kf.${k}`) }))]} />
+            {tab === 'open' && onlyUrgent ? <Button size="sm" onClick={() => setParam('severity', '')}><X />{t('incidents.clearUrgent')}</Button> : null}
+            {tab === 'open' && onlyUnsent ? <Button size="sm" onClick={() => setParam('sent', '')}><X />{t('incidents.clearUnsent')}</Button> : null}
+          </div>
+          {tab === 'open' && can && shown.length > 0 ? (
+            <div role="region" aria-label={t('bulk.region')} className="mb-3 flex flex-wrap items-center gap-2 rounded-md border border-rule bg-sunken px-3 py-2 text-sm">
+              <span className="font-medium">{t('bulk.selected', { count: shown.length })}</span>
+              {shown.length > MAX_BULK_INCIDENTS ? <span className="text-[13px] text-danger">{t('bulk.tooMany', { max: MAX_BULK_INCIDENTS })}</span> : null}
+              <Button size="sm" disabled={shown.length > MAX_BULK_INCIDENTS} onClick={open('acknowledged')}>{t('detail.acknowledge')}</Button>
+              <Button size="sm" variant="primary" disabled={shown.length > MAX_BULK_INCIDENTS} onClick={open('resolved')}>{t('detail.resolve')}</Button>
+              <Button size="sm" onClick={clear}>{t('bulk.clear')}</Button>
+              {pageAll ? (
+                <span className="flex basis-full flex-wrap items-center gap-2 text-[13px]">
+                  {shown.length === rows.length ? t('bulk.everySelected', { count: rows.length }) : (
+                    <>{t('bulk.pageSelected', { count: pageIds.length })}<Button size="sm" variant="link" onClick={() => setSelected(new Set(rows.map((r) => r.id)))}>{t('bulk.selectEvery', { count: rows.length })}</Button></>
+                  )}
+                </span>
+              ) : null}
+            </div>
+          ) : null}
+          {rows.length === 0 ? (
+            <EmptyState title={tab === 'open' ? t('incidents.emptyOpenTitle') : t('incidents.emptyResolvedTitle')} action={noChannel ? <Link to="/settings/channels" className={link}>{t('incidents.setupChannels')}</Link> : undefined}>{t(noTraps ? 'incidents.emptyBodyNoTraps' : 'incidents.emptyBody')}</EmptyState>
+          ) : (
+            <DataTable caption={t('incidents.caption')} data={rows} columns={columns} onRowClick={(r) => navigate(`/incidents/${r.id}`)} rowTone={(r) => (r.status === 'new' ? (r.severity === 'critical' ? 'danger' : 'warn') : undefined)} initialSort={[{ id: 'seen', desc: true }]}
+              mobileRow={(r) => (
+                <div className="flex items-start gap-3">
+                  {can && tab === 'open' ? <span className="pt-0.5">{pick(r)}</span> : null}
+                  <div className="grid flex-1 gap-1.5">
+                    <div className="flex items-start justify-between gap-3">
+                      <Link to={`/incidents/${r.id}`} onClick={(e) => e.stopPropagation()} className={`font-medium ${link}`}>{r.title}</Link>
+                      <SeverityChip severity={r.severity} />
+                    </div>
+                    <p className="text-[13px] text-muted">{t(kindKey(r))}, {r.devices.map((x) => x.name).join(', ')}, {t('incidents.times', { count: r.count })}</p>
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px]"><Handled i={r} /><DeliveryBadges sends={r.sends} notSent={r.not_sent} admin={admin} /><Seen i={r} /></div>
+                    <div><RespondLink i={r} /></div>
+                  </div>
+                </div>
+              )} />
+          )}
+        </>
+      )}
+    </QueryState>
+  )
   return (
     <>
-      <PageHeader title={title} stories={['S-ALERT-3']} meta={q.data ? <span className="inline-flex flex-wrap items-center gap-2">{t('incidents.meta')} {t('incidents.retention')}<SampleDataNote /></span> : null} />
-      <QueryState query={q}>
-        {() => (
-          <Section id="list" title={t('incidents.caption')}>
-            <div className="mb-3 flex flex-wrap gap-2">
-              <Segmented className="max-w-full overflow-x-auto" label={t('incidents.kindFilter')} value={kind} onChange={(v) => { setKind(v); setPageIds(null) }} options={[{ value: 'all', label: t('incidents.kf.all') }, ...kinds.map((k) => ({ value: k, label: t(`incidents.kf.${k}`) }))]} />
-              <Segmented className="max-w-full overflow-x-auto" label={t('incidents.filter')} value={filter} onChange={(v) => { setFilter(v); setPageIds(null) }} options={[{ value: 'open', label: t('incidents.open') }, { value: 'all', label: t('incidents.all') }]} />
-            </div>
-            {can && shown.length > 0 ? (
-              <div role="region" aria-label={t('bulk.region')} className="mb-3 flex flex-wrap items-center gap-2 rounded-md border border-rule bg-sunken px-3 py-2 text-sm">
-                <span className="font-medium">{t('bulk.selected', { count: shown.length })}</span>
-                {shown.length > MAX_BULK_INCIDENTS ? <span className="text-[13px] text-danger">{t('bulk.tooMany', { max: MAX_BULK_INCIDENTS })}</span> : null}
-                <Button size="sm" disabled={shown.length > MAX_BULK_INCIDENTS} onClick={open('acknowledged')}>{t('detail.acknowledge')}</Button>
-                <Button size="sm" variant="primary" disabled={shown.length > MAX_BULK_INCIDENTS} onClick={open('resolved')}>{t('detail.resolve')}</Button>
-                <Button size="sm" onClick={clear}>{t('bulk.clear')}</Button>
-                {pageAll ? (
-                  <span className="flex basis-full flex-wrap items-center gap-2 text-[13px]">
-                    {shown.length === rows.length ? t('bulk.everySelected', { count: rows.length }) : (
-                      <>{t('bulk.pageSelected', { count: pageIds.length })}<Button size="sm" variant="link" onClick={() => setSelected(new Set(rows.map((r) => r.id)))}>{t('bulk.selectEvery', { count: rows.length })}</Button></>
-                    )}
-                  </span>
-                ) : null}
-              </div>
-            ) : null}
-            {rows.length === 0 ? (
-              <EmptyState title={filter === 'open' ? t('incidents.emptyOpenTitle') : t('incidents.emptyAllTitle')} action={noChannel ? <Link to="/settings/channels" className={link}>{t('incidents.setupChannels')}</Link> : undefined}>{t(noTraps ? 'incidents.emptyBodyNoTraps' : 'incidents.emptyBody')}</EmptyState>
-            ) : (
-              <DataTable caption={t('incidents.caption')} data={rows} columns={columns} onRowClick={(r) => navigate(`/incidents/${r.id}`)} rowTone={(r) => (r.status === 'new' ? (r.severity === 'critical' ? 'danger' : 'warn') : undefined)} initialSort={[{ id: 'seen', desc: true }]}
-                mobileRow={(r) => (
-                  <div className="flex items-start gap-3">
-                    {can ? <span className="pt-0.5">{pick(r)}</span> : null}
-                    <div className="grid flex-1 gap-1.5">
-                      <div className="flex items-start justify-between gap-3">
-                        <Link to={`/incidents/${r.id}`} onClick={(e) => e.stopPropagation()} className={`font-medium ${link}`}>{r.title}</Link>
-                        <SeverityChip severity={r.severity} />
-                      </div>
-                      <p className="text-[13px] text-muted">{t(kindKey(r))}, {r.devices.map((x) => x.name).join(', ')}, {t('incidents.times', { count: r.count })}</p>
-                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px]"><Handled i={r} /><DeliveryBadges sends={r.sends} notSent={r.not_sent} admin={admin} /><Seen i={r} /></div>
-                      <div><RespondLink i={r} /></div>
-                    </div>
-                  </div>
-                )} />
-            )}
-          </Section>
-        )}
-      </QueryState>
+      <PageHeader title={title} stories={['S-ALERT-3', 'S-UI-1']} meta={q.data ? <span className="inline-flex flex-wrap items-center gap-2">{t('incidents.meta')} {t('incidents.retention')}<SampleDataNote /></span> : null} />
+      {kpis.length ? <KpiStrip label={t('kpi.label')} items={kpis} /> : null}
+      <PageTabs label={t('tabs.label')} tabs={[
+        { id: 'open', label: t('tabs.open'), panel, badge: { count: openRows.filter(urgent).length, label: t('tabs.openBadge') } },
+        { id: 'resolved', label: t('tabs.resolved'), panel },
+      ]} />
       <BulkDialog ids={shown} status={bulk} onOpenChange={(v) => { if (!v) setBulk(null) }} opener={opener} onDone={clear} />
     </>
   )

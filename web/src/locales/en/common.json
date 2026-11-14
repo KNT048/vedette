@@ -62,6 +62,7 @@
     "passive": "Passive",
     "scan": "Confirmation scan",
     "kev": "CISA KEV",
+    "vulncheck-kev": "VulnCheck KEV",
     "epss": "FIRST EPSS",
     "nuclei": "nuclei-templates",
     "project": "Vedette"

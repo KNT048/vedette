@@ -53,6 +53,9 @@ type Software struct {
 	// inventory INV-28 (3)); only an "agent" row counts.
 	Source   string
 	Packaged bool
+	// PkgVersion and PkgSource: a packaged deb row's full Debian version ("1:9.6p1-3ubuntu13.14") and source package
+	// ("openssh"), read against what Ubuntu or Debian say about the CVE (Vuln.Distro, D-516); "" otherwise.
+	PkgVersion, PkgSource string
 }
 
 // Asset is what the matcher needs to know about a device.
@@ -83,7 +86,11 @@ type Vuln struct {
 	EPSS       float64   // 0 when unknown
 	DateAdded  time.Time // when CISA added the entry to KEV; zero when unknown (Reconcile treats that as backlog)
 	Affected   []Affected
+	Source     string // "" or "cisa-kev": the CISA list; "vulncheck-kev": VulnCheck KEV (D-557); names the list in evidence texts
 	RangesFrom string // where Affected comes from: "" NVD, RangesCVEOrg or RangesCVEOrgPartial the CNA's CVE.org record (D-556)
+	// Distro is what Ubuntu and Debian say about the CVE in their own packages (D-516): per release and source package,
+	// fixed in a version or not affected. Empty when the distribution feeds are off or have no word on it.
+	Distro []DistroFix
 }
 
 // RangesCVEOrg and RangesCVEOrgPartial mark a Vuln whose affected versions come from the CNA's CVE.org record because
@@ -93,6 +100,17 @@ const (
 	RangesCVEOrg        = "cve.org"
 	RangesCVEOrgPartial = "cve.org-partial"
 )
+
+// listName is how texts name the list the entry is on: VulnCheck's entries are never called CISA's (D-557).
+func (v Vuln) listName() string {
+	if v.Source == SourceVulnCheck {
+		return "VulnCheck KEV"
+	}
+	return "CISA"
+}
+
+// SourceVulnCheck is Vuln.Source and KevInfo.Source of an entry only VulnCheck KEV lists.
+const SourceVulnCheck = "vulncheck-kev"
 
 func (v Vuln) fromCVEOrg() bool {
 	return v.RangesFrom == RangesCVEOrg || v.RangesFrom == RangesCVEOrgPartial
@@ -107,6 +125,16 @@ func (v Vuln) rangesBy(first bool) string {
 		return "The CVE.org record"
 	}
 	return "the CVE.org record"
+}
+
+// DistroFix is one distribution's word on a CVE for one source package of one release (feeds.DistroFix).
+type DistroFix struct {
+	Distro  string // "ubuntu" or "debian"
+	Release string // "24.04", "12"
+	Package string // source package
+	Status  string // "fixed" or "not_affected"
+	Fixed   string // the first fixed version (status fixed)
+	Pro     bool   // the fix is in Ubuntu Pro (ESM) only
 }
 
 // Evidence is the explanation shown with a finding.
@@ -280,8 +308,8 @@ func MatchAsset(a Asset, vulns []Vuln, have map[string]bool, now time.Time) Matc
 				res.Unlisted = append(res.Unlisted, *unlisted)
 				if othersOnly && isMultiProduct(v.Product) && settled(v, now) { // D-506 is about "Multiple Products" only (not D-510's series)
 					r := *unlisted
-					r.Evidence.Summary = fmt.Sprintf("Closed by Vedette: CISA lists %s for several %s products; NVD names %s, not %s (settled: CISA added it over a year ago). Vedette checks it again whenever NVD's data for it changes.",
-						v.CVE, clean(v.Vendor), nvdProducts(v.Vendor, v.Affected), orList(unnamed))
+					r.Evidence.Summary = fmt.Sprintf("Closed by Vedette: %s lists %s for several %s products; NVD names %s, not %s (settled: %s added it over a year ago). Vedette checks it again whenever NVD's data for it changes.",
+						v.listName(), v.CVE, clean(v.Vendor), nvdProducts(v.Vendor, v.Affected), orList(unnamed), v.listName())
 					res.Retired = append(res.Retired, r)
 				}
 			}
@@ -376,8 +404,11 @@ func matchOne(a Asset, s Software, in swInfo, v Vuln, now time.Time) (Match, out
 		return Match{}, outNone
 	}
 	if named, out := otherSeries(a.Model, v); out { // D-510: CISA names other Juniper series than the device's model; no proof about the version
-		note := fmt.Sprintf("CISA lists %s for Juniper %s only; this device's model is %s. Check the vendor advisory and close it if it does not apply.", v.CVE, orList(named), clean(a.Model))
+		note := fmt.Sprintf("%s lists %s for Juniper %s only; this device's model is %s. Check the vendor advisory and close it if it does not apply.", v.listName(), v.CVE, orList(named), clean(a.Model))
 		return Match{CVE: v.CVE, SoftwareID: s.ID, SoftwareDisplay: clean(s.Display), Evidence: Evidence{Summary: note, CheckedAt: now}}, outRuledOut
+	}
+	if d, ok := distroVerdict(in, v); ok { // D-516: the distribution's own word on its package comes before NVD's upstream ranges
+		return distroMatch(a, s, in, v, d, now)
 	}
 	multi := isMultiProduct(v.Product)
 	tri, within, every, proof := decide(in, v, multi)
@@ -420,7 +451,7 @@ func matchOne(a Asset, s Software, in swInfo, v Vuln, now time.Time) (Match, out
 		m.Evidence.Summary = fmt.Sprintf("%s runs %s. %s lists every version of it as affected by %s; no scan has confirmed it yet, so this is only suspected.", name, sw, v.rangesBy(true), v.CVE)
 	case multi:
 		m.Confidence = ConfVendorOnly
-		m.Evidence.Summary = fmt.Sprintf("%s runs %s. CISA lists this flaw for several %s products; check the advisory to see whether yours is one of them.", name, sw, clean(v.Vendor))
+		m.Evidence.Summary = fmt.Sprintf("%s runs %s. %s lists this flaw for several %s products; check the advisory to see whether yours is one of them.", name, sw, v.listName(), clean(v.Vendor))
 	default:
 		m.Evidence.Summary = fmt.Sprintf("%s runs %s. Vedette has not checked whether this version is in the affected range; compare it with the vendor advisory or run a scan.", name, sw)
 	}
@@ -446,6 +477,8 @@ type swInfo struct {
 	osVer string
 	// packaged: an agent read the software from the device's package database (Software.Packaged).
 	packaged bool
+	// pkgVer and pkgSrc: the full Debian version and source package of a packaged row (D-516), "" otherwise.
+	pkgVer, pkgSrc string
 }
 
 func newSWInfo(s Software, osName string) swInfo {
@@ -462,6 +495,9 @@ func newSWInfo(s Software, osName string) swInfo {
 	}
 	in.given = versionGiven(in.ver)
 	in.packaged = s.Packaged && s.Source == "agent"
+	if in.packaged {
+		in.pkgVer, in.pkgSrc = s.PkgVersion, s.PkgSource
+	}
 	if n := (identity{vendor: norm(s.Vendor), product: norm(s.Product)}); n.ok() {
 		in.ids = append(append(in.ids, n), cpeAliases[n]...)
 	}

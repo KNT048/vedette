@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 import { CodeBlock } from '@/components/common/CodeBlock'
 import { AiBlock } from '@/components/common/AiBlock'
 import { Chip } from '@/components/common/StatusChip'
+import { Notice } from '@/components/common/PageHeader'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Segmented } from '@/components/ui/segmented'
@@ -61,7 +62,13 @@ export function FixedInNote({ finding }: { finding: FindingDetail }) {
   const product = finding.kev?.display || t('rec.theSoftware')
   let text: string
   let extra: string | null = f.distro ? t('rec.fixedIfDistro', { distro: f.distro, product }) : null
-  if (f.kind === 'fixed') text = t('rec.fixedIn', { fixed: f.fixed, device, version: f.version })
+  let source = t('rec.fixedSource', { source: f.source })
+  if (f.kind === 'distro' && f.distro_fixed) {
+    // D-516: the distribution's own fixed package for this release
+    text = t('rec.fixedDistroIn', { fixed: f.distro_fixed, distro: f.distro, release: f.distro_release, device, product, version: f.version })
+    extra = f.distro_pro ? t('rec.fixedDistroPro') : null
+    source = t('rec.fixedSourceDistro', { source: f.source })
+  } else if (f.kind === 'fixed') text = t('rec.fixedIn', { fixed: f.fixed, device, version: f.version })
   else if (f.kind === 'up_to') text = t('rec.fixedUpTo', { fixed: f.fixed, device, version: f.version })
   else if (f.kind === 'distro') {
     text = t(f.distro ? 'rec.fixedDistro' : 'rec.fixedDistroAny', { device, product, version: f.version, distro: f.distro })
@@ -76,7 +83,7 @@ export function FixedInNote({ finding }: { finding: FindingDetail }) {
     <div className="grid max-w-3xl gap-1" data-testid="fixed-in">
       <p className="text-sm font-medium">{text}</p>
       {extra ? <p className="text-[13px]">{extra}</p> : null}
-      <p className="text-[12px] text-muted">{t('rec.fixedSource', { source: f.source })}</p>
+      <p className="text-[12px] text-muted">{source}</p>
     </div>
   )
 }
@@ -236,6 +243,7 @@ const hostOf = (u: string) => { try { return new URL(u).hostname.replace(/^www\.
 export function NoPack({ finding }: { finding: FindingDetail }) {
   const { t } = useTranslation('findings')
   const k: KevInfo | null = finding.kev
+  const vc = k?.source === 'vulncheck-kev'
   const vendor = k?.links.filter((u) => linkKind(u) === 'vendor') ?? []
   const other = k?.links.filter((u) => linkKind(u) !== 'vendor') ?? []
   const device = finding.asset?.name || t('removedDevice')
@@ -245,15 +253,12 @@ export function NoPack({ finding }: { finding: FindingDetail }) {
   const updatable = isOpen(finding.status) && softwareFor(sw.data?.asset.software, finding.cve).length > 0
   return (
     <div className="grid gap-5">
-      <div className="rounded-md border border-dashed border-warn bg-warn-soft/60 px-4 py-3">
-        <p className="font-medium">{t('rec.noPack')}</p>
-        <p className="mt-1 max-w-3xl text-sm">{t('rec.noPackBody')}</p>
-      </div>
+      <Notice tone="warn" title={t('rec.noPack')} className="mb-0">{t('rec.noPackBody')}</Notice>
       {k ? (
         <>
           <div className="grid gap-2">
-            <h3 className="text-sm font-semibold">{t('rec.cisaTitle')}</h3>
-            <p className="text-[13px] text-muted">{t('rec.sourceHint', { date: fmtDate(k.date_added) })}</p>
+            <h3 className="text-sm font-semibold">{t(vc ? 'rec.vulncheckTitle' : 'rec.cisaTitle')}</h3>
+            <p className="text-[13px] text-muted">{t(vc ? 'rec.sourceHintVulnCheck' : 'rec.sourceHint', { date: fmtDate(k.date_added) })}</p>
             <blockquote lang="en" className="max-w-3xl border-l-2 border-rule pl-3 text-sm">{k.required_action}</blockquote>
             {k.due_date ? <p className="text-sm font-medium">{t('rec.dueDate', { date: fmtDate(k.due_date) })}</p> : null}
             {k.ransomware ? <p className="text-[13px]">{t('rec.ransomware')}</p> : null}

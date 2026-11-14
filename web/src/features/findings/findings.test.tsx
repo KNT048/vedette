@@ -10,6 +10,7 @@ import { server } from '@/test/server'
 import { makeQueryClient } from '@/app/App'
 import { aiConfigStore, aiRunsStore, assetsStore, auditStore, findingsStore, modulesStore, sessionStore } from '@/mocks/stores'
 import { feature } from './index'
+import { accepted } from './mocks'
 import { FixedInNote } from './Recommendation'
 import { dayAfter, untilBounds, untilOk } from './accept'
 import type { FindingDetail } from './types'
@@ -38,6 +39,25 @@ describe('findings: danh sách (S-MIT-1)', () => {
     await waitFor(() => expect(within(screen.getByRole('table')).getAllByRole('row')).toHaveLength(4))
     await userEvent.click(screen.getByRole('button', { name: 'Suspected' }))
     await waitFor(() => expect(within(screen.getByRole('table')).getAllByRole('row')).toHaveLength(3))
+  })
+
+  it('D-543: KPI cells link to the lists; Open / Accepted risk / Handled are tabs; narrower filters survive a tab change; "?status=" narrows Open', async () => {
+    findingsStore.update((l) => l.map((f) => (f.id === 'f-2' ? { ...f, status: 'not_relevant' as const } : f.id === 'f-3' ? { ...f, status: 'patched' as const } : f)))
+    accepted.update((m) => ({ ...m, 'f-2': dayAfter(new Date(), 3) }))
+    renderApp('/findings?device=a-nas02&status=confirmed')
+    const strip = await screen.findByRole('list', { name: 'Findings at a glance' })
+    expect(within(strip).getAllByRole('link').map((a) => a.getAttribute('href'))).toEqual(['/findings?tab=open', '/findings?tab=open&status=confirmed', '/findings?tab=open&severity=critical', '/findings?tab=accepted'])
+    expect(within(within(strip).getByRole('link', { name: /Accepted risks ending/ })).getByText('1')).toBeInTheDocument()
+    const table = await screen.findByRole('table', { name: 'Findings list' })
+    expect(within(table).getAllByRole('row')).toHaveLength(2)
+    await userEvent.click(screen.getByRole('tab', { name: /Accepted risk/ }))
+    expect(await screen.findByRole('tab', { name: /Accepted risk/, selected: true })).toBeInTheDocument()
+    // the device filter stayed: f-2 is on another device
+    expect(await screen.findByText('No findings in this list.')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('tab', { name: /Handled/ }))
+    expect(await screen.findByText('No findings in this list.')).toBeInTheDocument()
+    renderApp('/findings?tab=handled')
+    expect((await screen.findAllByText('SRV-AD')).length).toBeGreaterThan(0)
   })
 
   it('không còn phát hiện chưa xử lý thì nói rõ và chỉ việc làm tiếp', async () => {
@@ -185,7 +205,7 @@ describe('findings: f-2, f-3 chưa có khuyến nghị đã xác nhận (D-21)',
 
   it('D-488: "What to do" nói phiên bản vá cho đúng thiết bị, đúng nhánh, và không bịa khi NVD không cho', () => {
     const note = (fixed_in: FindingDetail['fixed_in']) => render(<FixedInNote finding={{ asset: { name: 'FortiGate-60F' }, fixed_in } as FindingDetail} />)
-    const src = { source: 'NVD affected versions', more: 0, no_fix: 0, distro: '', branches: [] }
+    const src = { source: 'NVD affected versions', more: 0, no_fix: 0, distro: '', branches: [], distro_fixed: '', distro_release: '', distro_pro: false }
     const a = note({ ...src, kind: 'fixed', version: '7.4.1', fixed: '7.4.3' })
     expect(screen.getByText('Fixed in 7.4.3: upgrade FortiGate-60F from 7.4.1 to 7.4.3 or later.')).toBeInTheDocument()
     expect(screen.getByText(/Source: NVD affected versions/)).toBeInTheDocument()
@@ -224,6 +244,15 @@ describe('findings: f-2, f-3 chưa có khuyến nghị đã xác nhận (D-21)',
     expect(screen.getByText(/cannot read the version "7\.0\.x" of FortiGate-60F.*7\.0 \u2192 7\.0\.9, no fixed release named for 4 more line\(s\)/)).toBeInTheDocument()
     expect(screen.queryByText(/has no version yet/)).not.toBeInTheDocument()
     e.unmount()
+    // D-516: the distribution's own fixed package for the device's release, with its source
+    const u = render(<FixedInNote finding={{ asset: { name: 'web-01' }, kev: { display: 'OpenSSH' }, fixed_in: { ...src, kind: 'distro', version: '1:9.6p1-3ubuntu13.4', fixed: '', distro: 'Ubuntu', distro_fixed: '1:9.6p1-3ubuntu13.5', distro_release: '24.04', source: 'Ubuntu security data' } } as unknown as FindingDetail} />)
+    expect(screen.getByText("Fixed in 1:9.6p1-3ubuntu13.5 for Ubuntu 24.04: web-01 has OpenSSH 1:9.6p1-3ubuntu13.4 from Ubuntu's packages. Install Ubuntu's security updates for it (for example apt upgrade).")).toBeInTheDocument()
+    expect(screen.getByText('Source: Ubuntu security data.')).toBeInTheDocument()
+    expect(screen.queryByText(/backports|If you installed|Ubuntu Pro/)).not.toBeInTheDocument()
+    u.unmount()
+    const pro = note({ ...src, kind: 'distro', version: '1:2.25.1-1ubuntu3.14', fixed: '', distro: 'Ubuntu', distro_fixed: '1:2.25.1-1ubuntu3.14+esm6', distro_release: '20.04', distro_pro: true, source: 'Ubuntu security data' })
+    expect(screen.getByText(/Ubuntu Pro \(ESM\) only/)).toBeInTheDocument()
+    pro.unmount()
     note(null)
     expect(screen.queryByTestId('fixed-in')).not.toBeInTheDocument()
   })
@@ -434,11 +463,11 @@ describe('findings: customer walk 1 (D-484)', () => {
   })
 
   it('W1-12: a closed finding in the selection keeps its status and reason; the toast says so', async () => {
-    findingsStore.update((l) => l.map((f) => (f.id === 'f-1' ? { ...f, status: 'patched' as const, resolution_note: 'Updated to 6.1.2' } : f)))
     renderApp('/findings')
     await screen.findByRole('table', { name: 'Findings list' })
-    await userEvent.click(screen.getByRole('button', { name: 'All' }))
     await userEvent.click(screen.getByRole('checkbox', { name: 'Select all 3 findings shown' }))
+    // Someone else closes one of the three while they are selected.
+    findingsStore.update((l) => l.map((f) => (f.id === 'f-1' ? { ...f, status: 'patched' as const, resolution_note: 'Updated to 6.1.2' } : f)))
     await userEvent.click(within(screen.getByRole('region', { name: 'Selected findings' })).getByRole('button', { name: 'Mark as handled' }))
     const dlg = await screen.findByRole('dialog', { name: 'Mark 3 findings as handled' })
     await userEvent.click(within(dlg).getByRole('radio', { name: /Not relevant/ }))

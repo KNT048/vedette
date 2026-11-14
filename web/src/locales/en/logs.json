@@ -281,5 +281,19 @@
     "fingerprint_box_ca": "CA SHA-256 fingerprint",
     "fingerprint_self_signed": "Certificate SHA-256 fingerprint",
     "fingerprint_issued": "SHA-256 fingerprint of the first certificate"
+  },
+  "kpi": {
+    "label": "Logs at a glance",
+    "bad": "Connections to known-bad addresses",
+    "new": "New destinations",
+    "sources": "Sources reporting",
+    "lines": "Lines per hour"
+  },
+  "tabs": {
+    "label": "Logs sections",
+    "digest": "Digest",
+    "events": "Events",
+    "sources": "Sources",
+    "retention": "Retention"
   }
 }

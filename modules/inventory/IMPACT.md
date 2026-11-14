@@ -5,6 +5,9 @@
 - **Tên máy dễ đọc thắng UUID** (`merge.go` `better`, M5-186): đổi điều kiện là đổi tên hiện trên mọi trang và tiêu đề incident thiết bị mới (notify đọc hostname).
 - **`approved_at`**: GUI đọc ("Approved in the last 24 h", KPI của /devices) và notify qua `DeviceRef.ApprovedAt` (D-474); `modules/core/export_policy.go` liệt kê cột (bản xuất JSON).
 
+## Modifying: `inv_software.pkg_version`/`pkg_source`, `SoftwareItem`/`MatchSoftware.PkgVersion/PkgSource` (D-516)
+- **findings** (qua `findingsInventory` ở `cmd/vedette/wiring.go`): so với `Vuln.Distro`; bỏ hay đổi nghĩa (gói nhị phân thay vì gói nguồn, số upstream thay vì đầy đủ) ⇒ finding gói distro không đóng/mở đúng. **agent-intake** (`mapPackages`, `MapDebPackages`) và **cmd/vedette** `boxPackages` là người ghi; `core/observe.Software.PkgVersion/PkgSource` là đường vào. Export policy liệt kê hai cột.
+
 ## Modifying: thời gian học, `inventory.asset.approved`, `MatchSoftware.Source/Packaged`, `DeviceRef.Model/Origin/ApprovedAt` (D-474, INV-28)
 - **notify** (Mlee; người đọc duy nhất của `learning` và `inventory.asset.approved`): gộp thiết bị `learning:true` vào một tóm tắt lần khám phá đầu; đóng incident thiết bị mới với "approved by <actor>" (`modules/notify/events.go` `assetApproved`; `actor` của `asset.deleted` cho "deleted by <actor>"); đọc `DeviceRefs` thay cho `Device` từng thiết bị. Đổi tên sự kiện, tên trường JSON (`learning`, `actor`), `LearningWindow` hay luật "chỉ duyệt của người, chỉ khi đang chờ" = notify im lặng sai (không lỗi biên dịch). `cmd/vedette` `TestWiringApproveInDevicesClosesTheNewDeviceIncident` giữ đường đó.
 - **findings** (Mlee; `findingsInventory` ở `cmd/vedette/wiring.go` chuyển `MatchSoftware` sang cổng của findings): `Source` + `Packaged` quyết câu `fixed_in` "install your distribution's security updates". `Packaged` sai = lời khuyên sai cho gói không phải của bản phân phối.
@@ -52,6 +55,10 @@
 
 ## Modifying: `inventory.Service.Device/Devices/Detail/Names` (GetAsset/ListAssets của bản nháp)
 - **findings** (`FindingAsset`; D-57 (6)), **notify** (`devices[]` của incident), **honeypot/logs/response** (thiết bị nguồn), **reports**, **ai**, **mcp-server** (`search_assets`).
+
+## Modifying: `SoftwareView.kev_cves` và cột Open findings của trang thiết bị (W11-1)
+- **Web** (`DevicePage.tsx` `useOpenFindings`/`OpenCves`): cột là `kev_cves` của dòng ∩ CVE của finding **mở** (`isOpen` của findings: suspected, confirmed) trong `GET /findings?asset=<id>` (cùng khoá truy vấn với khung Findings của trang). Đổi luật `isOpen`, dạng `FindingList` hay ý nghĩa `kev_cves` (ví dụ chỉ còn CVE trong khoảng phiên bản) = đổi cột; giữ ba test W11-1 trong `inventory.test.tsx`. Finding khớp không qua khoá KEV của dòng (chỉ qua OS tự nêu, hay CPE không có trong `kev_cves`) không hiện ở dòng nào; vẫn ở khung Findings.
+- **findings** (Mlee; `rematch.ts` `softwareFor`, `DevicePanel.tsx`, `Updated.tsx`) đọc `kev_cves` như "các CVE của sản phẩm" để chọn phần mềm của một finding; vì vậy API giữ danh sách không so phiên bản, chỉ trang thiết bị lọc.
 
 ## Modifying: sự kiện `inventory.asset.deleted`, `inventory.match.changed`, `inventory.asset.discovered`, `inventory.asset.approved`
 - **findings** (xoá/tạo finding qua `inventory.asset.deleted`, `inventory.match.changed`), **notify** (incident `unknown_device`, `learning`, `actor` của duyệt/xoá; D-474), **sensor-active** (quét lần đầu thiết bị mong manh).

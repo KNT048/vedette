@@ -166,7 +166,7 @@ func (a findingsInventory) MatchInput(ctx context.Context, assetID string) (find
 	}
 	for i, s := range d.Software {
 		out.Software[i] = findings.Software{ID: s.ID, Display: s.Display, Vendor: s.Vendor, Product: s.Product, Version: s.Version, KevKeys: s.KevKeys, CPE: s.CPE,
-			Source: s.Source, Packaged: s.Packaged}
+			Source: s.Source, Packaged: s.Packaged, PkgVersion: s.PkgVersion, PkgSource: s.PkgSource}
 	}
 	return out, true, nil
 }
@@ -196,7 +196,7 @@ func (a findingsFeeds) KevInfo(ctx context.Context, cves []string) (map[string]f
 			due = &v.DueDate
 		}
 		out[v.CVE] = findings.KevInfo{Name: v.Name, Vendor: v.Vendor, Product: v.Product, Display: feeds.DisplayOf(v.Vendor, v.Product),
-			RequiredAction: v.RequiredAction, Links: v.Links, DateAdded: v.DateAdded, DueDate: due, Ransomware: v.Ransomware, EPSS: v.EPSS, HasTemplate: v.HasTemplate}
+			RequiredAction: v.RequiredAction, Links: v.Links, DateAdded: v.DateAdded, DueDate: due, Ransomware: v.Ransomware, EPSS: v.EPSS, HasTemplate: v.HasTemplate, Source: v.SourceID}
 	}
 	return out, nil
 }
@@ -240,13 +240,20 @@ func (a findingsFeeds) readVulns(ctx context.Context) ([]findings.Vuln, error) {
 	if err != nil {
 		return nil, err
 	}
+	distro, err := a.st.DistroFixes(ctx) // D-516: Ubuntu's and Debian's word on their own packages
+	if err != nil {
+		return nil, err
+	}
 	out := make([]findings.Vuln, len(rows))
 	for i, v := range rows {
-		out[i] = findings.Vuln{CVE: v.CVE, Vendor: v.Vendor, Product: v.Product, Name: v.Name, Ransomware: v.Ransomware}
+		out[i] = findings.Vuln{CVE: v.CVE, Vendor: v.Vendor, Product: v.Product, Name: v.Name, Ransomware: v.Ransomware, Source: v.SourceID}
 		out[i].RangesFrom = rangesFrom(fromCVEOrg[v.CVE])
 		for _, r := range affected[v.CVE] {
 			out[i].Affected = append(out[i].Affected, findings.Affected{CPE: r.CPE,
 				Range: findings.VersionRange{StartIncl: r.StartIncl, StartExcl: r.StartExcl, EndIncl: r.EndIncl, EndExcl: r.EndExcl}})
+		}
+		for _, d := range distro[v.CVE] {
+			out[i].Distro = append(out[i].Distro, findings.DistroFix{Distro: d.Distro, Release: d.Release, Package: d.Package, Status: d.Status, Fixed: d.Fixed, Pro: d.Pro})
 		}
 		if t, err := time.Parse(time.DateOnly, v.DateAdded); err == nil { // an unreadable date stays zero: backlog, never news
 			out[i].DateAdded = t

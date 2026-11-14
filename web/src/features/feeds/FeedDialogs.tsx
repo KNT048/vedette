@@ -6,6 +6,8 @@ import { Dialog, DialogClose, DialogContent, DialogFooter } from '@/components/u
 import { Field, Input, Select } from '@/components/ui/input'
 import { Segmented } from '@/components/ui/segmented'
 import { ApiError } from '@/lib/api'
+import { useFindings } from '@/features/findings/api'
+import { isOpen } from '@/features/findings/basis'
 import { blockedFeedHost, checkFeedUrl, defaultParser, everyLabel, FORMATS } from './defaults'
 import { useDeleteCustomFeed, usePatchFeed, useSaveCustomFeed } from './api'
 import { ParserEditor } from './ParserEditor'
@@ -32,25 +34,53 @@ export function BuiltinDialog({ feed, onClose }: { feed: Feed; onClose: () => vo
   const [hours, setHours] = useState(feed.interval_hours)
   const [url, setUrl] = useState(feed.url)
   const [err, setErr] = useState<string>()
+  const byok = feed.id === 'vulncheck-kev'
+  const last4 = feed.auth.secret_last4
+  const [key, setKey] = useState('')
+  const [keyErr, setKeyErr] = useState<string>()
+  const [confirmRemove, setConfirmRemove] = useState(false)
+  const found = useFindings()
+  // open findings whose CVE only VulnCheck KEV lists: what removing the key leaves without a source (review M2)
+  const onlyVulnCheck = byok ? (found.data?.items ?? []).filter((r) => isOpen(r.status) && r.kev?.source === 'vulncheck-kev').length : 0
   const urlErr = err ?? (serverField(patch.error) === 'url' ? (patch.error as Error).message : undefined)
   function submit(e: React.FormEvent) {
     e.preventDefault()
-    const c = (checkFeedUrl(url) === 'ok' && blockedFeedHost(url)) || checkFeedUrl(url)
+    const c = byok ? 'ok' : (checkFeedUrl(url) === 'ok' && blockedFeedHost(url)) || checkFeedUrl(url)
     if (c !== 'ok') { setErr(t(`dialog.err.${c}`)); document.getElementById('bf-url')?.focus(); return }
-    patch.mutate({ id: feed.id, interval_hours: hours, url: url.trim() }, { onSuccess: () => { toast.success(t('dialog.saved', { name: feed.name })); onClose() }, onError: () => document.getElementById('bf-url')?.focus() })
+    if (byok && key && (key.length < 8 || /\s/.test(key))) { setKeyErr(t('dialog.err.secretShape')); document.getElementById('bf-key')?.focus(); return }
+    patch.mutate({ id: feed.id, interval_hours: hours, ...(byok ? {} : { url: url.trim() }), ...(byok && key ? { api_key: key } : {}) }, { onSuccess: () => { toast.success(t('dialog.saved', { name: feed.name })); onClose() }, onError: () => document.getElementById('bf-url')?.focus() })
   }
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose() }}>
       <DialogContent title={t('dialog.builtinTitle', { name: feed.name })} description={t('dialog.builtinBody')}>
         <form noValidate onSubmit={submit} className="grid gap-4" aria-label={t('dialog.builtinTitle', { name: feed.name })}>
           <Interval id="bf-hours" value={hours} onChange={setHours} />
-          <Field label={t('dialog.address')} htmlFor="bf-url" hint={t('dialog.mirrorHint')} error={urlErr}>
-            <Input id="bf-url" value={url} onChange={(e) => { setUrl(e.target.value); setErr(undefined) }} inputMode="url" autoComplete="off" aria-invalid={urlErr ? true : undefined} aria-describedby={urlErr ? 'bf-url-error' : 'bf-url-hint'} />
-          </Field>
-          <div className="flex flex-wrap items-center gap-3 text-[13px] text-muted">
-            <Button type="button" size="sm" disabled={url === feed.default_url} onClick={() => { setUrl(feed.default_url ?? ''); setErr(undefined) }}>{t('dialog.reset')}</Button>
-            <span className="break-all">{t('dialog.defaultIs', { url: feed.default_url })}</span>
-          </div>
+          {byok ? <p className="text-[13px] text-muted">{t('dialog.vulncheckNoMirror')}</p> : (
+            <>
+              <Field label={t('dialog.address')} htmlFor="bf-url" hint={t('dialog.mirrorHint')} error={urlErr}>
+                <Input id="bf-url" value={url} onChange={(e) => { setUrl(e.target.value); setErr(undefined) }} inputMode="url" autoComplete="off" aria-invalid={urlErr ? true : undefined} aria-describedby={urlErr ? 'bf-url-error' : 'bf-url-hint'} />
+              </Field>
+              <div className="flex flex-wrap items-center gap-3 text-[13px] text-muted">
+                <Button type="button" size="sm" disabled={url === feed.default_url} onClick={() => { setUrl(feed.default_url ?? ''); setErr(undefined) }}>{t('dialog.reset')}</Button>
+                <span className="break-all">{t('dialog.defaultIs', { url: feed.default_url })}</span>
+              </div>
+            </>
+          )}
+          {byok ? (
+            <Field label={t('dialog.vulncheckKey')} htmlFor="bf-key" error={keyErr ?? (serverField(patch.error) === 'auth' ? (patch.error as Error).message : undefined)} hint={last4 ? t('dialog.vulncheckKeySaved', { last4 }) : t('dialog.vulncheckKeyHint')}>
+              <Input id="bf-key" type="password" value={key} onChange={(e) => { setKey(e.target.value); setKeyErr(undefined) }} autoComplete="off" placeholder={last4 ? `••••${last4}` : ''} aria-invalid={keyErr ? true : undefined} />
+              {last4 && !confirmRemove ? <Button type="button" size="sm" onClick={() => setConfirmRemove(true)}>{t('dialog.vulncheckKeyRemove')}</Button> : null}
+              {last4 && confirmRemove ? (
+                <div role="alert" className="grid gap-2 rounded-md border border-warn bg-warn-soft/60 p-3 text-sm">
+                  <p>{t('dialog.vulncheckRemoveBody', { count: onlyVulnCheck, n: onlyVulnCheck })}</p>
+                  <span className="flex gap-2">
+                    <Button type="button" size="sm" variant="primary" disabled={patch.isPending} onClick={() => patch.mutate({ id: feed.id, api_key: '' }, { onSuccess: () => { toast.success(t('dialog.vulncheckKeyRemoved', { name: feed.name })); onClose() } })}>{t('dialog.vulncheckRemoveConfirm')}</Button>
+                    <Button type="button" size="sm" onClick={() => setConfirmRemove(false)}>{t('common:cancel')}</Button>
+                  </span>
+                </div>
+              ) : null}
+            </Field>
+          ) : null}
           {patch.error && !serverField(patch.error) ? <p role="alert" className="text-sm text-danger">{(patch.error as Error).message}</p> : null}
           <DialogFooter>
             <DialogClose asChild><Button type="button">{t('common:cancel')}</Button></DialogClose>

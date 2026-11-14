@@ -489,7 +489,7 @@ func (s *Service) noteNoLongerMatching(ctx context.Context, tx *sql.Tx, assetID 
 			regraded++
 		}
 		h := HistoryEntry{TS: now, User: SystemUser, Action: "no_longer_matches",
-			Note: "The device no longer matches this entry: its software or version changed, the version is outside the affected versions, or CISA changed the entry. Close it yourself if it does not apply."}
+			Note: "The device no longer matches this entry: its software or version changed, the version is outside the affected versions, or the exploited list changed the entry. Close it yourself if it does not apply."}
 		if sw, ok := awaiting[cve]; ok {
 			h.Note = clean(sw) + " on this device has no version Vedette can read, so this CVE is no longer listed on its own: it is counted in \"Add the version\". Add the version to check it, or close this yourself."
 		} else if note, ok := unlisted[cve]; ok {

@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { CodeBlock } from '@/components/common/CodeBlock'
+import { Notice } from '@/components/common/PageHeader'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog'
 import { Field, Input, Select } from '@/components/ui/input'
@@ -108,7 +109,7 @@ export function SourceFormDialog({ open, onOpenChange, source, sender, onAdded }
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent title={source ? t('form.editTitle') : t('form.addTitle')} description={source ? undefined : t('form.addDesc')}>
         <form onSubmit={submit} className="grid gap-4" noValidate>
-          {error && !error.field ? <p role="alert" className="rounded-md border border-danger/40 bg-danger-soft px-3 py-2 text-sm">{error.message}</p> : null}
+          {error && !error.field ? <Notice tone="danger" role="alert" title={error.message} /> : null}
           {kind ? (
             <div className="flex flex-wrap items-start justify-between gap-2 rounded-md border border-rule bg-sunken px-3 py-2">
               <div className="grid gap-0.5 text-sm">
@@ -164,7 +165,7 @@ export function ConfigDialog({ source, boxIp, lan, onClose }: { source: LogSourc
         const ctx = { ip, port: source.port, proto: source.proto }
         return (
           <DialogContent wide title={t('config.title', { name: source.name })} description={t('config.target', { ip, port: source.port, proto: source.proto.toUpperCase(), sender: source.sender_ip })}>
-            {boxIp ? null : <p role="alert" className="rounded-md border border-warn/40 bg-warn-soft px-3 py-2 text-sm">{lan ? t('config.noIpLan', { lan, placeholder: BOX_PLACEHOLDER }) : t('config.noIp', { placeholder: BOX_PLACEHOLDER })}</p>}
+            {boxIp ? null : <Notice tone="warn" role="alert" title={lan ? t('config.noIpLan', { lan, placeholder: BOX_PLACEHOLDER }) : t('config.noIp', { placeholder: BOX_PLACEHOLDER })} />}
             {source.proto === 'tls' ? <p className="rounded-md border border-rule bg-sunken px-3 py-2 text-[13px]">{t(source.client_cert_sha256 ? 'config.tlsTrustPinned' : 'config.tlsTrust')}</p> : null}
             <p className="text-sm">{e.intro}</p>
             <p className="rounded-md border border-rule bg-sunken px-3 py-2 text-[13px]"><span className="font-medium">{t('config.reads')}: </span>{e.readsNote}</p>

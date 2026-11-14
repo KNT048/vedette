@@ -40,6 +40,7 @@ export const Finding = z.object({
 export const KevInfo = z.object({
   name: z.string(), vendor: z.string(), product: z.string(), display: z.string(), required_action: z.string(), links: z.array(z.string()),
   date_added: z.string(), due_date: z.string().nullable(), ransomware: z.boolean(), epss: z.number().nullable(), has_template: z.boolean(),
+  source: z.enum(['cisa-kev', 'vulncheck-kev']).optional().describe('Which list the entry is on (D-557): texts and the source badge name it; an entry of VulnCheck KEV is never called CISA\'s'),
 })
 export const FindingAsset = z.object({
   id: z.string(), name: z.string().describe('The name the Devices page shows: hostname, else vendor and model, else the IP, else the software; never the internal id (D-484)'),
@@ -86,7 +87,10 @@ export const FixedIn = z.object({
   more: z.number().int().min(0).describe('Release lines with a fix left out of branches'),
   no_fix: z.number().int().min(0).describe('Release lines NVD gives no fixed release for (a range that ends at an affected version)'),
   distro: z.string().describe('"Ubuntu" or "Debian" when the device runs one, empty otherwise. distro: whose security updates to install (empty = the distribution). Other kinds: set only when the software is not known to come from the package database (typed by a person, read by a scan, or an agent row stored before inventory kept the flag); the page adds "if you installed it from the distribution\'s packages, install its security updates instead"'),
-  source: z.string().describe('Where the versions come from: "NVD affected versions", or "CVE.org affected versions (from the CVE record\'s CNA)" when NVD has none (D-556)'),
+  distro_fixed: z.string().describe('D-516, kind distro only: the version of the distribution\'s package that fixes the CVE on the device\'s release (Ubuntu security data, Debian Security Tracker); `version` is then the device\'s full package version. Empty when the distribution\'s data does not say'),
+  distro_release: z.string().describe('The device\'s release with distro_fixed ("24.04", "12"); empty otherwise'),
+  distro_pro: z.boolean().describe('distro_fixed is in Ubuntu Pro (ESM) only'),
+  source: z.string().describe('Where the versions come from: "NVD affected versions", "CVE.org affected versions (from the CVE record\'s CNA)" when NVD has none (D-556), or with distro_fixed "Ubuntu security data" / "Debian Security Tracker" (D-516)'),
 })
 export const FindingDetail = FindingRow.extend({
   fixed_in: FixedIn.nullable().describe('The release that fixes this finding on this device, from the NVD affected versions (D-488); null = NVD gives none, the page shows CISA and the vendor advisory only'),

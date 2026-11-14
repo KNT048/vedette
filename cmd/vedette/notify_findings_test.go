@@ -140,3 +140,22 @@ func TestPlainTextClipsAndFlattens(t *testing.T) {
 		t.Fatalf("got %q", got)
 	}
 }
+
+// D-557: the alert for an entry only VulnCheck KEV lists says so, and never says CISA lists it.
+func TestWiringNoticeNamesVulnCheckAsTheSource(t *testing.T) {
+	t.Parallel()
+	s := newStack(t)
+	s.telegramOn()
+	s.kev("CVE-2026-4003", "Fortinet", "FortiOS")
+	if err := s.d.DB.Write(t.Context(), func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(t.Context(), `UPDATE feeds_vuln SET source_id = 'vulncheck-kev' WHERE cve = 'CVE-2026-4003'`)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	s.addFortiGate()
+	got := s.queuedNotices()
+	if len(got) != 1 || !strings.HasPrefix(got[0].What, "VulnCheck KEV lists CVE-2026-4003 (") || strings.Contains(got[0].What, "CISA") {
+		t.Fatalf("notices: %+v", got)
+	}
+}

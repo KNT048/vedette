@@ -43612,15 +43612,33 @@ func (s *ExposureGetExposureTargetsIDOKMethod) UnmarshalText(data []byte) error 
 }
 
 type ExposureGetExposureTargetsIDOKOpenPortsItem struct {
-	IP      string    `json:"ip"`
+	IP string `json:"ip"`
+	// Set only on a port the newest scan did not report, kept from an earlier scan: the day a scan last
+	// saw it open (INV-22).
+	LastSeen OptString `json:"last_seen"`
+	// With last_seen: how many scans in a row that checked the address missed the port (1 = missed by the
+	// last scan).
+	Misses  OptInt    `json:"misses"`
 	Port    int       `json:"port"`
 	Product OptString `json:"product"`
 	Service string    `json:"service"`
+	// The newest scan did not check the address: the row is as an earlier scan left it.
+	Unchecked OptBool `json:"unchecked"`
 }
 
 // GetIP returns the value of IP.
 func (s *ExposureGetExposureTargetsIDOKOpenPortsItem) GetIP() string {
 	return s.IP
+}
+
+// GetLastSeen returns the value of LastSeen.
+func (s *ExposureGetExposureTargetsIDOKOpenPortsItem) GetLastSeen() OptString {
+	return s.LastSeen
+}
+
+// GetMisses returns the value of Misses.
+func (s *ExposureGetExposureTargetsIDOKOpenPortsItem) GetMisses() OptInt {
+	return s.Misses
 }
 
 // GetPort returns the value of Port.
@@ -43638,9 +43656,24 @@ func (s *ExposureGetExposureTargetsIDOKOpenPortsItem) GetService() string {
 	return s.Service
 }
 
+// GetUnchecked returns the value of Unchecked.
+func (s *ExposureGetExposureTargetsIDOKOpenPortsItem) GetUnchecked() OptBool {
+	return s.Unchecked
+}
+
 // SetIP sets the value of IP.
 func (s *ExposureGetExposureTargetsIDOKOpenPortsItem) SetIP(val string) {
 	s.IP = val
+}
+
+// SetLastSeen sets the value of LastSeen.
+func (s *ExposureGetExposureTargetsIDOKOpenPortsItem) SetLastSeen(val OptString) {
+	s.LastSeen = val
+}
+
+// SetMisses sets the value of Misses.
+func (s *ExposureGetExposureTargetsIDOKOpenPortsItem) SetMisses(val OptInt) {
+	s.Misses = val
 }
 
 // SetPort sets the value of Port.
@@ -43656,6 +43689,11 @@ func (s *ExposureGetExposureTargetsIDOKOpenPortsItem) SetProduct(val OptString) 
 // SetService sets the value of Service.
 func (s *ExposureGetExposureTargetsIDOKOpenPortsItem) SetService(val string) {
 	s.Service = val
+}
+
+// SetUnchecked sets the value of Unchecked.
+func (s *ExposureGetExposureTargetsIDOKOpenPortsItem) SetUnchecked(val OptBool) {
+	s.Unchecked = val
 }
 
 // Expired only exists for IPs: the box has not seen this IP for more than 30 days.
@@ -44318,15 +44356,33 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKNotCheckedItem) SetText(val 
 }
 
 type ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem struct {
-	IP      string    `json:"ip"`
+	IP string `json:"ip"`
+	// Set only on a port the newest scan did not report, kept from an earlier scan: the day a scan last
+	// saw it open (INV-22).
+	LastSeen OptString `json:"last_seen"`
+	// With last_seen: how many scans in a row that checked the address missed the port (1 = missed by the
+	// last scan).
+	Misses  OptInt    `json:"misses"`
 	Port    int       `json:"port"`
 	Product OptString `json:"product"`
 	Service string    `json:"service"`
+	// The newest scan did not check the address: the row is as an earlier scan left it.
+	Unchecked OptBool `json:"unchecked"`
 }
 
 // GetIP returns the value of IP.
 func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem) GetIP() string {
 	return s.IP
+}
+
+// GetLastSeen returns the value of LastSeen.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem) GetLastSeen() OptString {
+	return s.LastSeen
+}
+
+// GetMisses returns the value of Misses.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem) GetMisses() OptInt {
+	return s.Misses
 }
 
 // GetPort returns the value of Port.
@@ -44344,9 +44400,24 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem) GetService() stri
 	return s.Service
 }
 
+// GetUnchecked returns the value of Unchecked.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem) GetUnchecked() OptBool {
+	return s.Unchecked
+}
+
 // SetIP sets the value of IP.
 func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem) SetIP(val string) {
 	s.IP = val
+}
+
+// SetLastSeen sets the value of LastSeen.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem) SetLastSeen(val OptString) {
+	s.LastSeen = val
+}
+
+// SetMisses sets the value of Misses.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem) SetMisses(val OptInt) {
+	s.Misses = val
 }
 
 // SetPort sets the value of Port.
@@ -44362,6 +44433,11 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem) SetProduct(val Op
 // SetService sets the value of Service.
 func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem) SetService(val string) {
 	s.Service = val
+}
+
+// SetUnchecked sets the value of Unchecked.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem) SetUnchecked(val OptBool) {
+	s.Unchecked = val
 }
 
 type ExposureGetExposureTargetsIDSnapshotsDateOKServicesItem struct {
@@ -45526,15 +45602,33 @@ func (s *ExposureGetExposureTargetsOKItemsItemMethod) UnmarshalText(data []byte)
 }
 
 type ExposureGetExposureTargetsOKItemsItemOpenPortsItem struct {
-	IP      string    `json:"ip"`
+	IP string `json:"ip"`
+	// Set only on a port the newest scan did not report, kept from an earlier scan: the day a scan last
+	// saw it open (INV-22).
+	LastSeen OptString `json:"last_seen"`
+	// With last_seen: how many scans in a row that checked the address missed the port (1 = missed by the
+	// last scan).
+	Misses  OptInt    `json:"misses"`
 	Port    int       `json:"port"`
 	Product OptString `json:"product"`
 	Service string    `json:"service"`
+	// The newest scan did not check the address: the row is as an earlier scan left it.
+	Unchecked OptBool `json:"unchecked"`
 }
 
 // GetIP returns the value of IP.
 func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItem) GetIP() string {
 	return s.IP
+}
+
+// GetLastSeen returns the value of LastSeen.
+func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItem) GetLastSeen() OptString {
+	return s.LastSeen
+}
+
+// GetMisses returns the value of Misses.
+func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItem) GetMisses() OptInt {
+	return s.Misses
 }
 
 // GetPort returns the value of Port.
@@ -45552,9 +45646,24 @@ func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItem) GetService() string
 	return s.Service
 }
 
+// GetUnchecked returns the value of Unchecked.
+func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItem) GetUnchecked() OptBool {
+	return s.Unchecked
+}
+
 // SetIP sets the value of IP.
 func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItem) SetIP(val string) {
 	s.IP = val
+}
+
+// SetLastSeen sets the value of LastSeen.
+func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItem) SetLastSeen(val OptString) {
+	s.LastSeen = val
+}
+
+// SetMisses sets the value of Misses.
+func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItem) SetMisses(val OptInt) {
+	s.Misses = val
 }
 
 // SetPort sets the value of Port.
@@ -45570,6 +45679,11 @@ func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItem) SetProduct(val OptS
 // SetService sets the value of Service.
 func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItem) SetService(val string) {
 	s.Service = val
+}
+
+// SetUnchecked sets the value of Unchecked.
+func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItem) SetUnchecked(val OptBool) {
+	s.Unchecked = val
 }
 
 // Expired only exists for IPs: the box has not seen this IP for more than 30 days.
@@ -46228,15 +46342,33 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItemMethod) UnmarshalText(data []
 }
 
 type ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem struct {
-	IP      string    `json:"ip"`
+	IP string `json:"ip"`
+	// Set only on a port the newest scan did not report, kept from an earlier scan: the day a scan last
+	// saw it open (INV-22).
+	LastSeen OptString `json:"last_seen"`
+	// With last_seen: how many scans in a row that checked the address missed the port (1 = missed by the
+	// last scan).
+	Misses  OptInt    `json:"misses"`
 	Port    int       `json:"port"`
 	Product OptString `json:"product"`
 	Service string    `json:"service"`
+	// The newest scan did not check the address: the row is as an earlier scan left it.
+	Unchecked OptBool `json:"unchecked"`
 }
 
 // GetIP returns the value of IP.
 func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) GetIP() string {
 	return s.IP
+}
+
+// GetLastSeen returns the value of LastSeen.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) GetLastSeen() OptString {
+	return s.LastSeen
+}
+
+// GetMisses returns the value of Misses.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) GetMisses() OptInt {
+	return s.Misses
 }
 
 // GetPort returns the value of Port.
@@ -46254,9 +46386,24 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) GetService() s
 	return s.Service
 }
 
+// GetUnchecked returns the value of Unchecked.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) GetUnchecked() OptBool {
+	return s.Unchecked
+}
+
 // SetIP sets the value of IP.
 func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) SetIP(val string) {
 	s.IP = val
+}
+
+// SetLastSeen sets the value of LastSeen.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) SetLastSeen(val OptString) {
+	s.LastSeen = val
+}
+
+// SetMisses sets the value of Misses.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) SetMisses(val OptInt) {
+	s.Misses = val
 }
 
 // SetPort sets the value of Port.
@@ -46272,6 +46419,11 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) SetProduct(val
 // SetService sets the value of Service.
 func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) SetService(val string) {
 	s.Service = val
+}
+
+// SetUnchecked sets the value of Unchecked.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) SetUnchecked(val OptBool) {
+	s.Unchecked = val
 }
 
 // Expired only exists for IPs: the box has not seen this IP for more than 30 days.
@@ -47162,15 +47314,33 @@ func (s *ExposurePostExposureTargetsCreatedMethod) UnmarshalText(data []byte) er
 }
 
 type ExposurePostExposureTargetsCreatedOpenPortsItem struct {
-	IP      string    `json:"ip"`
+	IP string `json:"ip"`
+	// Set only on a port the newest scan did not report, kept from an earlier scan: the day a scan last
+	// saw it open (INV-22).
+	LastSeen OptString `json:"last_seen"`
+	// With last_seen: how many scans in a row that checked the address missed the port (1 = missed by the
+	// last scan).
+	Misses  OptInt    `json:"misses"`
 	Port    int       `json:"port"`
 	Product OptString `json:"product"`
 	Service string    `json:"service"`
+	// The newest scan did not check the address: the row is as an earlier scan left it.
+	Unchecked OptBool `json:"unchecked"`
 }
 
 // GetIP returns the value of IP.
 func (s *ExposurePostExposureTargetsCreatedOpenPortsItem) GetIP() string {
 	return s.IP
+}
+
+// GetLastSeen returns the value of LastSeen.
+func (s *ExposurePostExposureTargetsCreatedOpenPortsItem) GetLastSeen() OptString {
+	return s.LastSeen
+}
+
+// GetMisses returns the value of Misses.
+func (s *ExposurePostExposureTargetsCreatedOpenPortsItem) GetMisses() OptInt {
+	return s.Misses
 }
 
 // GetPort returns the value of Port.
@@ -47188,9 +47358,24 @@ func (s *ExposurePostExposureTargetsCreatedOpenPortsItem) GetService() string {
 	return s.Service
 }
 
+// GetUnchecked returns the value of Unchecked.
+func (s *ExposurePostExposureTargetsCreatedOpenPortsItem) GetUnchecked() OptBool {
+	return s.Unchecked
+}
+
 // SetIP sets the value of IP.
 func (s *ExposurePostExposureTargetsCreatedOpenPortsItem) SetIP(val string) {
 	s.IP = val
+}
+
+// SetLastSeen sets the value of LastSeen.
+func (s *ExposurePostExposureTargetsCreatedOpenPortsItem) SetLastSeen(val OptString) {
+	s.LastSeen = val
+}
+
+// SetMisses sets the value of Misses.
+func (s *ExposurePostExposureTargetsCreatedOpenPortsItem) SetMisses(val OptInt) {
+	s.Misses = val
 }
 
 // SetPort sets the value of Port.
@@ -47206,6 +47391,11 @@ func (s *ExposurePostExposureTargetsCreatedOpenPortsItem) SetProduct(val OptStri
 // SetService sets the value of Service.
 func (s *ExposurePostExposureTargetsCreatedOpenPortsItem) SetService(val string) {
 	s.Service = val
+}
+
+// SetUnchecked sets the value of Unchecked.
+func (s *ExposurePostExposureTargetsCreatedOpenPortsItem) SetUnchecked(val OptBool) {
+	s.Unchecked = val
 }
 
 // Expired only exists for IPs: the box has not seen this IP for more than 30 days.
@@ -48282,15 +48472,33 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTargetMethod) UnmarshalText(data [
 }
 
 type ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem struct {
-	IP      string    `json:"ip"`
+	IP string `json:"ip"`
+	// Set only on a port the newest scan did not report, kept from an earlier scan: the day a scan last
+	// saw it open (INV-22).
+	LastSeen OptString `json:"last_seen"`
+	// With last_seen: how many scans in a row that checked the address missed the port (1 = missed by the
+	// last scan).
+	Misses  OptInt    `json:"misses"`
 	Port    int       `json:"port"`
 	Product OptString `json:"product"`
 	Service string    `json:"service"`
+	// The newest scan did not check the address: the row is as an earlier scan left it.
+	Unchecked OptBool `json:"unchecked"`
 }
 
 // GetIP returns the value of IP.
 func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) GetIP() string {
 	return s.IP
+}
+
+// GetLastSeen returns the value of LastSeen.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) GetLastSeen() OptString {
+	return s.LastSeen
+}
+
+// GetMisses returns the value of Misses.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) GetMisses() OptInt {
+	return s.Misses
 }
 
 // GetPort returns the value of Port.
@@ -48308,9 +48516,24 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) GetService() 
 	return s.Service
 }
 
+// GetUnchecked returns the value of Unchecked.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) GetUnchecked() OptBool {
+	return s.Unchecked
+}
+
 // SetIP sets the value of IP.
 func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) SetIP(val string) {
 	s.IP = val
+}
+
+// SetLastSeen sets the value of LastSeen.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) SetLastSeen(val OptString) {
+	s.LastSeen = val
+}
+
+// SetMisses sets the value of Misses.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) SetMisses(val OptInt) {
+	s.Misses = val
 }
 
 // SetPort sets the value of Port.
@@ -48326,6 +48549,11 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) SetProduct(va
 // SetService sets the value of Service.
 func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) SetService(val string) {
 	s.Service = val
+}
+
+// SetUnchecked sets the value of Unchecked.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) SetUnchecked(val OptBool) {
+	s.Unchecked = val
 }
 
 // Expired only exists for IPs: the box has not seen this IP for more than 30 days.
@@ -48573,7 +48801,10 @@ type FeedsGetFeedsCveIDOK struct {
 	Product        string                            `json:"product"`
 	Ransomware     bool                              `json:"ransomware"`
 	RequiredAction string                            `json:"required_action"`
-	Vendor         string                            `json:"vendor"`
+	// Which list the entry is on: "cisa-kev", "vulncheck-kev" (VulnCheck KEV, D-557) or the id of a custom
+	// feed; texts name it, an entry of VulnCheck is never called CISA's.
+	Source OptString `json:"source"`
+	Vendor string    `json:"vendor"`
 }
 
 // GetCve returns the value of Cve.
@@ -48644,6 +48875,11 @@ func (s *FeedsGetFeedsCveIDOK) GetRansomware() bool {
 // GetRequiredAction returns the value of RequiredAction.
 func (s *FeedsGetFeedsCveIDOK) GetRequiredAction() string {
 	return s.RequiredAction
+}
+
+// GetSource returns the value of Source.
+func (s *FeedsGetFeedsCveIDOK) GetSource() OptString {
+	return s.Source
 }
 
 // GetVendor returns the value of Vendor.
@@ -48719,6 +48955,11 @@ func (s *FeedsGetFeedsCveIDOK) SetRansomware(val bool) {
 // SetRequiredAction sets the value of RequiredAction.
 func (s *FeedsGetFeedsCveIDOK) SetRequiredAction(val string) {
 	s.RequiredAction = val
+}
+
+// SetSource sets the value of Source.
+func (s *FeedsGetFeedsCveIDOK) SetSource(val OptString) {
+	s.Source = val
 }
 
 // SetVendor sets the value of Vendor.
@@ -49569,7 +49810,10 @@ type FeedsGetFeedsSearch1TextVulnsItem struct {
 	Product        string   `json:"product"`
 	Ransomware     bool     `json:"ransomware"`
 	RequiredAction string   `json:"required_action"`
-	Vendor         string   `json:"vendor"`
+	// Which list the entry is on: "cisa-kev", "vulncheck-kev" (VulnCheck KEV, D-557) or the id of a custom
+	// feed; texts name it, an entry of VulnCheck is never called CISA's.
+	Source OptString `json:"source"`
+	Vendor string    `json:"vendor"`
 }
 
 // GetCve returns the value of Cve.
@@ -49635,6 +49879,11 @@ func (s *FeedsGetFeedsSearch1TextVulnsItem) GetRansomware() bool {
 // GetRequiredAction returns the value of RequiredAction.
 func (s *FeedsGetFeedsSearch1TextVulnsItem) GetRequiredAction() string {
 	return s.RequiredAction
+}
+
+// GetSource returns the value of Source.
+func (s *FeedsGetFeedsSearch1TextVulnsItem) GetSource() OptString {
+	return s.Source
 }
 
 // GetVendor returns the value of Vendor.
@@ -49705,6 +49954,11 @@ func (s *FeedsGetFeedsSearch1TextVulnsItem) SetRansomware(val bool) {
 // SetRequiredAction sets the value of RequiredAction.
 func (s *FeedsGetFeedsSearch1TextVulnsItem) SetRequiredAction(val string) {
 	s.RequiredAction = val
+}
+
+// SetSource sets the value of Source.
+func (s *FeedsGetFeedsSearch1TextVulnsItem) SetSource(val OptString) {
+	s.Source = val
 }
 
 // SetVendor sets the value of Vendor.
@@ -55348,10 +55602,18 @@ func (s *FeedsPutFeedsSourcesIDOKStatus) UnmarshalText(data []byte) error {
 }
 
 type FeedsPutFeedsSourcesIDReq struct {
-	Enabled       OptBool `json:"enabled"`
-	IntervalHours OptInt  `json:"interval_hours"`
+	// VulnCheck KEV only, write-only: the customer's own API key (8 to 500 characters, no spaces). Saving
+	// it turns the feed on; an empty string removes the key, turns the feed off and deletes what it loaded.
+	APIKey        OptString `json:"api_key"`
+	Enabled       OptBool   `json:"enabled"`
+	IntervalHours OptInt    `json:"interval_hours"`
 	// Built-in: a mirror address. Empty string resets it to the default.
 	URL OptString `json:"url"`
+}
+
+// GetAPIKey returns the value of APIKey.
+func (s *FeedsPutFeedsSourcesIDReq) GetAPIKey() OptString {
+	return s.APIKey
 }
 
 // GetEnabled returns the value of Enabled.
@@ -55367,6 +55629,11 @@ func (s *FeedsPutFeedsSourcesIDReq) GetIntervalHours() OptInt {
 // GetURL returns the value of URL.
 func (s *FeedsPutFeedsSourcesIDReq) GetURL() OptString {
 	return s.URL
+}
+
+// SetAPIKey sets the value of APIKey.
+func (s *FeedsPutFeedsSourcesIDReq) SetAPIKey(val OptString) {
+	s.APIKey = val
 }
 
 // SetEnabled sets the value of Enabled.
@@ -57115,6 +57382,14 @@ type FindingsGetFindingsIDOKFixedIn struct {
 	// inventory kept the flag); the page adds "if you installed it from the distribution's packages,
 	// install its security updates instead".
 	Distro string `json:"distro"`
+	// D-516, kind distro only: the version of the distribution's package that fixes the CVE on the
+	// device's release (Ubuntu security data, Debian Security Tracker); `version` is then the device's
+	// full package version. Empty when the distribution's data does not say.
+	DistroFixed string `json:"distro_fixed"`
+	// Distro_fixed is in Ubuntu Pro (ESM) only.
+	DistroPro bool `json:"distro_pro"`
+	// The device's release with distro_fixed ("24.04", "12"); empty otherwise.
+	DistroRelease string `json:"distro_release"`
 	// The fixed release (fixed), the last affected release (up_to), the upstream fixed release as a
 	// reference when NVD names one (distro: the backport may keep the package's number below it); empty
 	// for branches.
@@ -57130,8 +57405,9 @@ type FindingsGetFindingsIDOKFixedIn struct {
 	More int `json:"more"`
 	// Release lines NVD gives no fixed release for (a range that ends at an affected version).
 	NoFix int `json:"no_fix"`
-	// Where the versions come from: "NVD affected versions", or "CVE.org affected versions (from the CVE
-	// record's CNA)" when NVD has none (D-556).
+	// Where the versions come from: "NVD affected versions", "CVE.org affected versions (from the CVE
+	// record's CNA)" when NVD has none (D-556), or with distro_fixed "Ubuntu security data" / "Debian
+	// Security Tracker" (D-516).
 	Source string `json:"source"`
 	// The device's version; for branches empty when it has none, else the text Vedette cannot read.
 	Version string `json:"version"`
@@ -57145,6 +57421,21 @@ func (s *FindingsGetFindingsIDOKFixedIn) GetBranches() []FindingsGetFindingsIDOK
 // GetDistro returns the value of Distro.
 func (s *FindingsGetFindingsIDOKFixedIn) GetDistro() string {
 	return s.Distro
+}
+
+// GetDistroFixed returns the value of DistroFixed.
+func (s *FindingsGetFindingsIDOKFixedIn) GetDistroFixed() string {
+	return s.DistroFixed
+}
+
+// GetDistroPro returns the value of DistroPro.
+func (s *FindingsGetFindingsIDOKFixedIn) GetDistroPro() bool {
+	return s.DistroPro
+}
+
+// GetDistroRelease returns the value of DistroRelease.
+func (s *FindingsGetFindingsIDOKFixedIn) GetDistroRelease() string {
+	return s.DistroRelease
 }
 
 // GetFixed returns the value of Fixed.
@@ -57185,6 +57476,21 @@ func (s *FindingsGetFindingsIDOKFixedIn) SetBranches(val []FindingsGetFindingsID
 // SetDistro sets the value of Distro.
 func (s *FindingsGetFindingsIDOKFixedIn) SetDistro(val string) {
 	s.Distro = val
+}
+
+// SetDistroFixed sets the value of DistroFixed.
+func (s *FindingsGetFindingsIDOKFixedIn) SetDistroFixed(val string) {
+	s.DistroFixed = val
+}
+
+// SetDistroPro sets the value of DistroPro.
+func (s *FindingsGetFindingsIDOKFixedIn) SetDistroPro(val bool) {
+	s.DistroPro = val
+}
+
+// SetDistroRelease sets the value of DistroRelease.
+func (s *FindingsGetFindingsIDOKFixedIn) SetDistroRelease(val string) {
+	s.DistroRelease = val
 }
 
 // SetFixed sets the value of Fixed.
@@ -57362,7 +57668,10 @@ type FindingsGetFindingsIDOKKev struct {
 	Product        string     `json:"product"`
 	Ransomware     bool       `json:"ransomware"`
 	RequiredAction string     `json:"required_action"`
-	Vendor         string     `json:"vendor"`
+	// Which list the entry is on (D-557): texts and the source badge name it; an entry of VulnCheck KEV is
+	// never called CISA's.
+	Source OptFindingsGetFindingsIDOKKevSource `json:"source"`
+	Vendor string                              `json:"vendor"`
 }
 
 // GetDateAdded returns the value of DateAdded.
@@ -57413,6 +57722,11 @@ func (s *FindingsGetFindingsIDOKKev) GetRansomware() bool {
 // GetRequiredAction returns the value of RequiredAction.
 func (s *FindingsGetFindingsIDOKKev) GetRequiredAction() string {
 	return s.RequiredAction
+}
+
+// GetSource returns the value of Source.
+func (s *FindingsGetFindingsIDOKKev) GetSource() OptFindingsGetFindingsIDOKKevSource {
+	return s.Source
 }
 
 // GetVendor returns the value of Vendor.
@@ -57470,9 +57784,57 @@ func (s *FindingsGetFindingsIDOKKev) SetRequiredAction(val string) {
 	s.RequiredAction = val
 }
 
+// SetSource sets the value of Source.
+func (s *FindingsGetFindingsIDOKKev) SetSource(val OptFindingsGetFindingsIDOKKevSource) {
+	s.Source = val
+}
+
 // SetVendor sets the value of Vendor.
 func (s *FindingsGetFindingsIDOKKev) SetVendor(val string) {
 	s.Vendor = val
+}
+
+// Which list the entry is on (D-557): texts and the source badge name it; an entry of VulnCheck KEV is
+// never called CISA's.
+type FindingsGetFindingsIDOKKevSource string
+
+const (
+	FindingsGetFindingsIDOKKevSourceCisaKev      FindingsGetFindingsIDOKKevSource = "cisa-kev"
+	FindingsGetFindingsIDOKKevSourceVulncheckKev FindingsGetFindingsIDOKKevSource = "vulncheck-kev"
+)
+
+// AllValues returns all FindingsGetFindingsIDOKKevSource values.
+func (FindingsGetFindingsIDOKKevSource) AllValues() []FindingsGetFindingsIDOKKevSource {
+	return []FindingsGetFindingsIDOKKevSource{
+		FindingsGetFindingsIDOKKevSourceCisaKev,
+		FindingsGetFindingsIDOKKevSourceVulncheckKev,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsIDOKKevSource) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsIDOKKevSourceCisaKev:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKKevSourceVulncheckKev:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsIDOKKevSource) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsIDOKKevSource(data) {
+	case FindingsGetFindingsIDOKKevSourceCisaKev:
+		*s = FindingsGetFindingsIDOKKevSourceCisaKev
+		return nil
+	case FindingsGetFindingsIDOKKevSourceVulncheckKev:
+		*s = FindingsGetFindingsIDOKKevSourceVulncheckKev
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type FindingsGetFindingsIDOKPack struct {
@@ -59346,7 +59708,10 @@ type FindingsGetFindingsOKItemsItemKev struct {
 	Product        string     `json:"product"`
 	Ransomware     bool       `json:"ransomware"`
 	RequiredAction string     `json:"required_action"`
-	Vendor         string     `json:"vendor"`
+	// Which list the entry is on (D-557): texts and the source badge name it; an entry of VulnCheck KEV is
+	// never called CISA's.
+	Source OptFindingsGetFindingsOKItemsItemKevSource `json:"source"`
+	Vendor string                                     `json:"vendor"`
 }
 
 // GetDateAdded returns the value of DateAdded.
@@ -59397,6 +59762,11 @@ func (s *FindingsGetFindingsOKItemsItemKev) GetRansomware() bool {
 // GetRequiredAction returns the value of RequiredAction.
 func (s *FindingsGetFindingsOKItemsItemKev) GetRequiredAction() string {
 	return s.RequiredAction
+}
+
+// GetSource returns the value of Source.
+func (s *FindingsGetFindingsOKItemsItemKev) GetSource() OptFindingsGetFindingsOKItemsItemKevSource {
+	return s.Source
 }
 
 // GetVendor returns the value of Vendor.
@@ -59454,9 +59824,57 @@ func (s *FindingsGetFindingsOKItemsItemKev) SetRequiredAction(val string) {
 	s.RequiredAction = val
 }
 
+// SetSource sets the value of Source.
+func (s *FindingsGetFindingsOKItemsItemKev) SetSource(val OptFindingsGetFindingsOKItemsItemKevSource) {
+	s.Source = val
+}
+
 // SetVendor sets the value of Vendor.
 func (s *FindingsGetFindingsOKItemsItemKev) SetVendor(val string) {
 	s.Vendor = val
+}
+
+// Which list the entry is on (D-557): texts and the source badge name it; an entry of VulnCheck KEV is
+// never called CISA's.
+type FindingsGetFindingsOKItemsItemKevSource string
+
+const (
+	FindingsGetFindingsOKItemsItemKevSourceCisaKev      FindingsGetFindingsOKItemsItemKevSource = "cisa-kev"
+	FindingsGetFindingsOKItemsItemKevSourceVulncheckKev FindingsGetFindingsOKItemsItemKevSource = "vulncheck-kev"
+)
+
+// AllValues returns all FindingsGetFindingsOKItemsItemKevSource values.
+func (FindingsGetFindingsOKItemsItemKevSource) AllValues() []FindingsGetFindingsOKItemsItemKevSource {
+	return []FindingsGetFindingsOKItemsItemKevSource{
+		FindingsGetFindingsOKItemsItemKevSourceCisaKev,
+		FindingsGetFindingsOKItemsItemKevSourceVulncheckKev,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsOKItemsItemKevSource) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsOKItemsItemKevSourceCisaKev:
+		return []byte(s), nil
+	case FindingsGetFindingsOKItemsItemKevSourceVulncheckKev:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsOKItemsItemKevSource) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsOKItemsItemKevSource(data) {
+	case FindingsGetFindingsOKItemsItemKevSourceCisaKev:
+		*s = FindingsGetFindingsOKItemsItemKevSourceCisaKev
+		return nil
+	case FindingsGetFindingsOKItemsItemKevSourceVulncheckKev:
+		*s = FindingsGetFindingsOKItemsItemKevSourceVulncheckKev
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type FindingsGetFindingsOKItemsItemSeverity string
@@ -62124,6 +62542,14 @@ type FindingsPostFindingsIDAiOKFixedIn struct {
 	// inventory kept the flag); the page adds "if you installed it from the distribution's packages,
 	// install its security updates instead".
 	Distro string `json:"distro"`
+	// D-516, kind distro only: the version of the distribution's package that fixes the CVE on the
+	// device's release (Ubuntu security data, Debian Security Tracker); `version` is then the device's
+	// full package version. Empty when the distribution's data does not say.
+	DistroFixed string `json:"distro_fixed"`
+	// Distro_fixed is in Ubuntu Pro (ESM) only.
+	DistroPro bool `json:"distro_pro"`
+	// The device's release with distro_fixed ("24.04", "12"); empty otherwise.
+	DistroRelease string `json:"distro_release"`
 	// The fixed release (fixed), the last affected release (up_to), the upstream fixed release as a
 	// reference when NVD names one (distro: the backport may keep the package's number below it); empty
 	// for branches.
@@ -62139,8 +62565,9 @@ type FindingsPostFindingsIDAiOKFixedIn struct {
 	More int `json:"more"`
 	// Release lines NVD gives no fixed release for (a range that ends at an affected version).
 	NoFix int `json:"no_fix"`
-	// Where the versions come from: "NVD affected versions", or "CVE.org affected versions (from the CVE
-	// record's CNA)" when NVD has none (D-556).
+	// Where the versions come from: "NVD affected versions", "CVE.org affected versions (from the CVE
+	// record's CNA)" when NVD has none (D-556), or with distro_fixed "Ubuntu security data" / "Debian
+	// Security Tracker" (D-516).
 	Source string `json:"source"`
 	// The device's version; for branches empty when it has none, else the text Vedette cannot read.
 	Version string `json:"version"`
@@ -62154,6 +62581,21 @@ func (s *FindingsPostFindingsIDAiOKFixedIn) GetBranches() []FindingsPostFindings
 // GetDistro returns the value of Distro.
 func (s *FindingsPostFindingsIDAiOKFixedIn) GetDistro() string {
 	return s.Distro
+}
+
+// GetDistroFixed returns the value of DistroFixed.
+func (s *FindingsPostFindingsIDAiOKFixedIn) GetDistroFixed() string {
+	return s.DistroFixed
+}
+
+// GetDistroPro returns the value of DistroPro.
+func (s *FindingsPostFindingsIDAiOKFixedIn) GetDistroPro() bool {
+	return s.DistroPro
+}
+
+// GetDistroRelease returns the value of DistroRelease.
+func (s *FindingsPostFindingsIDAiOKFixedIn) GetDistroRelease() string {
+	return s.DistroRelease
 }
 
 // GetFixed returns the value of Fixed.
@@ -62194,6 +62636,21 @@ func (s *FindingsPostFindingsIDAiOKFixedIn) SetBranches(val []FindingsPostFindin
 // SetDistro sets the value of Distro.
 func (s *FindingsPostFindingsIDAiOKFixedIn) SetDistro(val string) {
 	s.Distro = val
+}
+
+// SetDistroFixed sets the value of DistroFixed.
+func (s *FindingsPostFindingsIDAiOKFixedIn) SetDistroFixed(val string) {
+	s.DistroFixed = val
+}
+
+// SetDistroPro sets the value of DistroPro.
+func (s *FindingsPostFindingsIDAiOKFixedIn) SetDistroPro(val bool) {
+	s.DistroPro = val
+}
+
+// SetDistroRelease sets the value of DistroRelease.
+func (s *FindingsPostFindingsIDAiOKFixedIn) SetDistroRelease(val string) {
+	s.DistroRelease = val
 }
 
 // SetFixed sets the value of Fixed.
@@ -62371,7 +62828,10 @@ type FindingsPostFindingsIDAiOKKev struct {
 	Product        string     `json:"product"`
 	Ransomware     bool       `json:"ransomware"`
 	RequiredAction string     `json:"required_action"`
-	Vendor         string     `json:"vendor"`
+	// Which list the entry is on (D-557): texts and the source badge name it; an entry of VulnCheck KEV is
+	// never called CISA's.
+	Source OptFindingsPostFindingsIDAiOKKevSource `json:"source"`
+	Vendor string                                 `json:"vendor"`
 }
 
 // GetDateAdded returns the value of DateAdded.
@@ -62422,6 +62882,11 @@ func (s *FindingsPostFindingsIDAiOKKev) GetRansomware() bool {
 // GetRequiredAction returns the value of RequiredAction.
 func (s *FindingsPostFindingsIDAiOKKev) GetRequiredAction() string {
 	return s.RequiredAction
+}
+
+// GetSource returns the value of Source.
+func (s *FindingsPostFindingsIDAiOKKev) GetSource() OptFindingsPostFindingsIDAiOKKevSource {
+	return s.Source
 }
 
 // GetVendor returns the value of Vendor.
@@ -62479,9 +62944,57 @@ func (s *FindingsPostFindingsIDAiOKKev) SetRequiredAction(val string) {
 	s.RequiredAction = val
 }
 
+// SetSource sets the value of Source.
+func (s *FindingsPostFindingsIDAiOKKev) SetSource(val OptFindingsPostFindingsIDAiOKKevSource) {
+	s.Source = val
+}
+
 // SetVendor sets the value of Vendor.
 func (s *FindingsPostFindingsIDAiOKKev) SetVendor(val string) {
 	s.Vendor = val
+}
+
+// Which list the entry is on (D-557): texts and the source badge name it; an entry of VulnCheck KEV is
+// never called CISA's.
+type FindingsPostFindingsIDAiOKKevSource string
+
+const (
+	FindingsPostFindingsIDAiOKKevSourceCisaKev      FindingsPostFindingsIDAiOKKevSource = "cisa-kev"
+	FindingsPostFindingsIDAiOKKevSourceVulncheckKev FindingsPostFindingsIDAiOKKevSource = "vulncheck-kev"
+)
+
+// AllValues returns all FindingsPostFindingsIDAiOKKevSource values.
+func (FindingsPostFindingsIDAiOKKevSource) AllValues() []FindingsPostFindingsIDAiOKKevSource {
+	return []FindingsPostFindingsIDAiOKKevSource{
+		FindingsPostFindingsIDAiOKKevSourceCisaKev,
+		FindingsPostFindingsIDAiOKKevSourceVulncheckKev,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDAiOKKevSource) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDAiOKKevSourceCisaKev:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKKevSourceVulncheckKev:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDAiOKKevSource) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDAiOKKevSource(data) {
+	case FindingsPostFindingsIDAiOKKevSourceCisaKev:
+		*s = FindingsPostFindingsIDAiOKKevSourceCisaKev
+		return nil
+	case FindingsPostFindingsIDAiOKKevSourceVulncheckKev:
+		*s = FindingsPostFindingsIDAiOKKevSourceVulncheckKev
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type FindingsPostFindingsIDAiOKPack struct {
@@ -65033,6 +65546,14 @@ type FindingsPostFindingsIDAppliedOKFixedIn struct {
 	// inventory kept the flag); the page adds "if you installed it from the distribution's packages,
 	// install its security updates instead".
 	Distro string `json:"distro"`
+	// D-516, kind distro only: the version of the distribution's package that fixes the CVE on the
+	// device's release (Ubuntu security data, Debian Security Tracker); `version` is then the device's
+	// full package version. Empty when the distribution's data does not say.
+	DistroFixed string `json:"distro_fixed"`
+	// Distro_fixed is in Ubuntu Pro (ESM) only.
+	DistroPro bool `json:"distro_pro"`
+	// The device's release with distro_fixed ("24.04", "12"); empty otherwise.
+	DistroRelease string `json:"distro_release"`
 	// The fixed release (fixed), the last affected release (up_to), the upstream fixed release as a
 	// reference when NVD names one (distro: the backport may keep the package's number below it); empty
 	// for branches.
@@ -65048,8 +65569,9 @@ type FindingsPostFindingsIDAppliedOKFixedIn struct {
 	More int `json:"more"`
 	// Release lines NVD gives no fixed release for (a range that ends at an affected version).
 	NoFix int `json:"no_fix"`
-	// Where the versions come from: "NVD affected versions", or "CVE.org affected versions (from the CVE
-	// record's CNA)" when NVD has none (D-556).
+	// Where the versions come from: "NVD affected versions", "CVE.org affected versions (from the CVE
+	// record's CNA)" when NVD has none (D-556), or with distro_fixed "Ubuntu security data" / "Debian
+	// Security Tracker" (D-516).
 	Source string `json:"source"`
 	// The device's version; for branches empty when it has none, else the text Vedette cannot read.
 	Version string `json:"version"`
@@ -65063,6 +65585,21 @@ func (s *FindingsPostFindingsIDAppliedOKFixedIn) GetBranches() []FindingsPostFin
 // GetDistro returns the value of Distro.
 func (s *FindingsPostFindingsIDAppliedOKFixedIn) GetDistro() string {
 	return s.Distro
+}
+
+// GetDistroFixed returns the value of DistroFixed.
+func (s *FindingsPostFindingsIDAppliedOKFixedIn) GetDistroFixed() string {
+	return s.DistroFixed
+}
+
+// GetDistroPro returns the value of DistroPro.
+func (s *FindingsPostFindingsIDAppliedOKFixedIn) GetDistroPro() bool {
+	return s.DistroPro
+}
+
+// GetDistroRelease returns the value of DistroRelease.
+func (s *FindingsPostFindingsIDAppliedOKFixedIn) GetDistroRelease() string {
+	return s.DistroRelease
 }
 
 // GetFixed returns the value of Fixed.
@@ -65103,6 +65640,21 @@ func (s *FindingsPostFindingsIDAppliedOKFixedIn) SetBranches(val []FindingsPostF
 // SetDistro sets the value of Distro.
 func (s *FindingsPostFindingsIDAppliedOKFixedIn) SetDistro(val string) {
 	s.Distro = val
+}
+
+// SetDistroFixed sets the value of DistroFixed.
+func (s *FindingsPostFindingsIDAppliedOKFixedIn) SetDistroFixed(val string) {
+	s.DistroFixed = val
+}
+
+// SetDistroPro sets the value of DistroPro.
+func (s *FindingsPostFindingsIDAppliedOKFixedIn) SetDistroPro(val bool) {
+	s.DistroPro = val
+}
+
+// SetDistroRelease sets the value of DistroRelease.
+func (s *FindingsPostFindingsIDAppliedOKFixedIn) SetDistroRelease(val string) {
+	s.DistroRelease = val
 }
 
 // SetFixed sets the value of Fixed.
@@ -65280,7 +65832,10 @@ type FindingsPostFindingsIDAppliedOKKev struct {
 	Product        string     `json:"product"`
 	Ransomware     bool       `json:"ransomware"`
 	RequiredAction string     `json:"required_action"`
-	Vendor         string     `json:"vendor"`
+	// Which list the entry is on (D-557): texts and the source badge name it; an entry of VulnCheck KEV is
+	// never called CISA's.
+	Source OptFindingsPostFindingsIDAppliedOKKevSource `json:"source"`
+	Vendor string                                      `json:"vendor"`
 }
 
 // GetDateAdded returns the value of DateAdded.
@@ -65331,6 +65886,11 @@ func (s *FindingsPostFindingsIDAppliedOKKev) GetRansomware() bool {
 // GetRequiredAction returns the value of RequiredAction.
 func (s *FindingsPostFindingsIDAppliedOKKev) GetRequiredAction() string {
 	return s.RequiredAction
+}
+
+// GetSource returns the value of Source.
+func (s *FindingsPostFindingsIDAppliedOKKev) GetSource() OptFindingsPostFindingsIDAppliedOKKevSource {
+	return s.Source
 }
 
 // GetVendor returns the value of Vendor.
@@ -65388,9 +65948,57 @@ func (s *FindingsPostFindingsIDAppliedOKKev) SetRequiredAction(val string) {
 	s.RequiredAction = val
 }
 
+// SetSource sets the value of Source.
+func (s *FindingsPostFindingsIDAppliedOKKev) SetSource(val OptFindingsPostFindingsIDAppliedOKKevSource) {
+	s.Source = val
+}
+
 // SetVendor sets the value of Vendor.
 func (s *FindingsPostFindingsIDAppliedOKKev) SetVendor(val string) {
 	s.Vendor = val
+}
+
+// Which list the entry is on (D-557): texts and the source badge name it; an entry of VulnCheck KEV is
+// never called CISA's.
+type FindingsPostFindingsIDAppliedOKKevSource string
+
+const (
+	FindingsPostFindingsIDAppliedOKKevSourceCisaKev      FindingsPostFindingsIDAppliedOKKevSource = "cisa-kev"
+	FindingsPostFindingsIDAppliedOKKevSourceVulncheckKev FindingsPostFindingsIDAppliedOKKevSource = "vulncheck-kev"
+)
+
+// AllValues returns all FindingsPostFindingsIDAppliedOKKevSource values.
+func (FindingsPostFindingsIDAppliedOKKevSource) AllValues() []FindingsPostFindingsIDAppliedOKKevSource {
+	return []FindingsPostFindingsIDAppliedOKKevSource{
+		FindingsPostFindingsIDAppliedOKKevSourceCisaKev,
+		FindingsPostFindingsIDAppliedOKKevSourceVulncheckKev,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDAppliedOKKevSource) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDAppliedOKKevSourceCisaKev:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKKevSourceVulncheckKev:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDAppliedOKKevSource) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDAppliedOKKevSource(data) {
+	case FindingsPostFindingsIDAppliedOKKevSourceCisaKev:
+		*s = FindingsPostFindingsIDAppliedOKKevSourceCisaKev
+		return nil
+	case FindingsPostFindingsIDAppliedOKKevSourceVulncheckKev:
+		*s = FindingsPostFindingsIDAppliedOKKevSourceVulncheckKev
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type FindingsPostFindingsIDAppliedOKPack struct {
@@ -67963,6 +68571,14 @@ type FindingsPostFindingsIDStatusOKFixedIn struct {
 	// inventory kept the flag); the page adds "if you installed it from the distribution's packages,
 	// install its security updates instead".
 	Distro string `json:"distro"`
+	// D-516, kind distro only: the version of the distribution's package that fixes the CVE on the
+	// device's release (Ubuntu security data, Debian Security Tracker); `version` is then the device's
+	// full package version. Empty when the distribution's data does not say.
+	DistroFixed string `json:"distro_fixed"`
+	// Distro_fixed is in Ubuntu Pro (ESM) only.
+	DistroPro bool `json:"distro_pro"`
+	// The device's release with distro_fixed ("24.04", "12"); empty otherwise.
+	DistroRelease string `json:"distro_release"`
 	// The fixed release (fixed), the last affected release (up_to), the upstream fixed release as a
 	// reference when NVD names one (distro: the backport may keep the package's number below it); empty
 	// for branches.
@@ -67978,8 +68594,9 @@ type FindingsPostFindingsIDStatusOKFixedIn struct {
 	More int `json:"more"`
 	// Release lines NVD gives no fixed release for (a range that ends at an affected version).
 	NoFix int `json:"no_fix"`
-	// Where the versions come from: "NVD affected versions", or "CVE.org affected versions (from the CVE
-	// record's CNA)" when NVD has none (D-556).
+	// Where the versions come from: "NVD affected versions", "CVE.org affected versions (from the CVE
+	// record's CNA)" when NVD has none (D-556), or with distro_fixed "Ubuntu security data" / "Debian
+	// Security Tracker" (D-516).
 	Source string `json:"source"`
 	// The device's version; for branches empty when it has none, else the text Vedette cannot read.
 	Version string `json:"version"`
@@ -67993,6 +68610,21 @@ func (s *FindingsPostFindingsIDStatusOKFixedIn) GetBranches() []FindingsPostFind
 // GetDistro returns the value of Distro.
 func (s *FindingsPostFindingsIDStatusOKFixedIn) GetDistro() string {
 	return s.Distro
+}
+
+// GetDistroFixed returns the value of DistroFixed.
+func (s *FindingsPostFindingsIDStatusOKFixedIn) GetDistroFixed() string {
+	return s.DistroFixed
+}
+
+// GetDistroPro returns the value of DistroPro.
+func (s *FindingsPostFindingsIDStatusOKFixedIn) GetDistroPro() bool {
+	return s.DistroPro
+}
+
+// GetDistroRelease returns the value of DistroRelease.
+func (s *FindingsPostFindingsIDStatusOKFixedIn) GetDistroRelease() string {
+	return s.DistroRelease
 }
 
 // GetFixed returns the value of Fixed.
@@ -68033,6 +68665,21 @@ func (s *FindingsPostFindingsIDStatusOKFixedIn) SetBranches(val []FindingsPostFi
 // SetDistro sets the value of Distro.
 func (s *FindingsPostFindingsIDStatusOKFixedIn) SetDistro(val string) {
 	s.Distro = val
+}
+
+// SetDistroFixed sets the value of DistroFixed.
+func (s *FindingsPostFindingsIDStatusOKFixedIn) SetDistroFixed(val string) {
+	s.DistroFixed = val
+}
+
+// SetDistroPro sets the value of DistroPro.
+func (s *FindingsPostFindingsIDStatusOKFixedIn) SetDistroPro(val bool) {
+	s.DistroPro = val
+}
+
+// SetDistroRelease sets the value of DistroRelease.
+func (s *FindingsPostFindingsIDStatusOKFixedIn) SetDistroRelease(val string) {
+	s.DistroRelease = val
 }
 
 // SetFixed sets the value of Fixed.
@@ -68210,7 +68857,10 @@ type FindingsPostFindingsIDStatusOKKev struct {
 	Product        string     `json:"product"`
 	Ransomware     bool       `json:"ransomware"`
 	RequiredAction string     `json:"required_action"`
-	Vendor         string     `json:"vendor"`
+	// Which list the entry is on (D-557): texts and the source badge name it; an entry of VulnCheck KEV is
+	// never called CISA's.
+	Source OptFindingsPostFindingsIDStatusOKKevSource `json:"source"`
+	Vendor string                                     `json:"vendor"`
 }
 
 // GetDateAdded returns the value of DateAdded.
@@ -68261,6 +68911,11 @@ func (s *FindingsPostFindingsIDStatusOKKev) GetRansomware() bool {
 // GetRequiredAction returns the value of RequiredAction.
 func (s *FindingsPostFindingsIDStatusOKKev) GetRequiredAction() string {
 	return s.RequiredAction
+}
+
+// GetSource returns the value of Source.
+func (s *FindingsPostFindingsIDStatusOKKev) GetSource() OptFindingsPostFindingsIDStatusOKKevSource {
+	return s.Source
 }
 
 // GetVendor returns the value of Vendor.
@@ -68318,9 +68973,57 @@ func (s *FindingsPostFindingsIDStatusOKKev) SetRequiredAction(val string) {
 	s.RequiredAction = val
 }
 
+// SetSource sets the value of Source.
+func (s *FindingsPostFindingsIDStatusOKKev) SetSource(val OptFindingsPostFindingsIDStatusOKKevSource) {
+	s.Source = val
+}
+
 // SetVendor sets the value of Vendor.
 func (s *FindingsPostFindingsIDStatusOKKev) SetVendor(val string) {
 	s.Vendor = val
+}
+
+// Which list the entry is on (D-557): texts and the source badge name it; an entry of VulnCheck KEV is
+// never called CISA's.
+type FindingsPostFindingsIDStatusOKKevSource string
+
+const (
+	FindingsPostFindingsIDStatusOKKevSourceCisaKev      FindingsPostFindingsIDStatusOKKevSource = "cisa-kev"
+	FindingsPostFindingsIDStatusOKKevSourceVulncheckKev FindingsPostFindingsIDStatusOKKevSource = "vulncheck-kev"
+)
+
+// AllValues returns all FindingsPostFindingsIDStatusOKKevSource values.
+func (FindingsPostFindingsIDStatusOKKevSource) AllValues() []FindingsPostFindingsIDStatusOKKevSource {
+	return []FindingsPostFindingsIDStatusOKKevSource{
+		FindingsPostFindingsIDStatusOKKevSourceCisaKev,
+		FindingsPostFindingsIDStatusOKKevSourceVulncheckKev,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDStatusOKKevSource) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDStatusOKKevSourceCisaKev:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKKevSourceVulncheckKev:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDStatusOKKevSource) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDStatusOKKevSource(data) {
+	case FindingsPostFindingsIDStatusOKKevSourceCisaKev:
+		*s = FindingsPostFindingsIDStatusOKKevSourceCisaKev
+		return nil
+	case FindingsPostFindingsIDStatusOKKevSourceVulncheckKev:
+		*s = FindingsPostFindingsIDStatusOKKevSourceVulncheckKev
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type FindingsPostFindingsIDStatusOKPack struct {
@@ -117994,6 +118697,52 @@ func (o OptExposurePostExposureTargetsIDScanReq) Or(d ExposurePostExposureTarget
 	return d
 }
 
+// NewOptFindingsGetFindingsIDOKKevSource returns new OptFindingsGetFindingsIDOKKevSource with value set to v.
+func NewOptFindingsGetFindingsIDOKKevSource(v FindingsGetFindingsIDOKKevSource) OptFindingsGetFindingsIDOKKevSource {
+	return OptFindingsGetFindingsIDOKKevSource{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptFindingsGetFindingsIDOKKevSource is optional FindingsGetFindingsIDOKKevSource.
+type OptFindingsGetFindingsIDOKKevSource struct {
+	Value FindingsGetFindingsIDOKKevSource
+	Set   bool
+}
+
+// IsSet returns true if OptFindingsGetFindingsIDOKKevSource was set.
+func (o OptFindingsGetFindingsIDOKKevSource) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptFindingsGetFindingsIDOKKevSource) Reset() {
+	var v FindingsGetFindingsIDOKKevSource
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptFindingsGetFindingsIDOKKevSource) SetTo(v FindingsGetFindingsIDOKKevSource) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptFindingsGetFindingsIDOKKevSource) Get() (v FindingsGetFindingsIDOKKevSource, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptFindingsGetFindingsIDOKKevSource) Or(d FindingsGetFindingsIDOKKevSource) FindingsGetFindingsIDOKKevSource {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptFindingsGetFindingsIDOKPackFirewallItemAlternative returns new OptFindingsGetFindingsIDOKPackFirewallItemAlternative with value set to v.
 func NewOptFindingsGetFindingsIDOKPackFirewallItemAlternative(v FindingsGetFindingsIDOKPackFirewallItemAlternative) OptFindingsGetFindingsIDOKPackFirewallItemAlternative {
 	return OptFindingsGetFindingsIDOKPackFirewallItemAlternative{
@@ -118034,6 +118783,98 @@ func (o OptFindingsGetFindingsIDOKPackFirewallItemAlternative) Get() (v Findings
 
 // Or returns value if set, or given parameter if does not.
 func (o OptFindingsGetFindingsIDOKPackFirewallItemAlternative) Or(d FindingsGetFindingsIDOKPackFirewallItemAlternative) FindingsGetFindingsIDOKPackFirewallItemAlternative {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptFindingsGetFindingsOKItemsItemKevSource returns new OptFindingsGetFindingsOKItemsItemKevSource with value set to v.
+func NewOptFindingsGetFindingsOKItemsItemKevSource(v FindingsGetFindingsOKItemsItemKevSource) OptFindingsGetFindingsOKItemsItemKevSource {
+	return OptFindingsGetFindingsOKItemsItemKevSource{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptFindingsGetFindingsOKItemsItemKevSource is optional FindingsGetFindingsOKItemsItemKevSource.
+type OptFindingsGetFindingsOKItemsItemKevSource struct {
+	Value FindingsGetFindingsOKItemsItemKevSource
+	Set   bool
+}
+
+// IsSet returns true if OptFindingsGetFindingsOKItemsItemKevSource was set.
+func (o OptFindingsGetFindingsOKItemsItemKevSource) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptFindingsGetFindingsOKItemsItemKevSource) Reset() {
+	var v FindingsGetFindingsOKItemsItemKevSource
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptFindingsGetFindingsOKItemsItemKevSource) SetTo(v FindingsGetFindingsOKItemsItemKevSource) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptFindingsGetFindingsOKItemsItemKevSource) Get() (v FindingsGetFindingsOKItemsItemKevSource, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptFindingsGetFindingsOKItemsItemKevSource) Or(d FindingsGetFindingsOKItemsItemKevSource) FindingsGetFindingsOKItemsItemKevSource {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptFindingsPostFindingsIDAiOKKevSource returns new OptFindingsPostFindingsIDAiOKKevSource with value set to v.
+func NewOptFindingsPostFindingsIDAiOKKevSource(v FindingsPostFindingsIDAiOKKevSource) OptFindingsPostFindingsIDAiOKKevSource {
+	return OptFindingsPostFindingsIDAiOKKevSource{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptFindingsPostFindingsIDAiOKKevSource is optional FindingsPostFindingsIDAiOKKevSource.
+type OptFindingsPostFindingsIDAiOKKevSource struct {
+	Value FindingsPostFindingsIDAiOKKevSource
+	Set   bool
+}
+
+// IsSet returns true if OptFindingsPostFindingsIDAiOKKevSource was set.
+func (o OptFindingsPostFindingsIDAiOKKevSource) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptFindingsPostFindingsIDAiOKKevSource) Reset() {
+	var v FindingsPostFindingsIDAiOKKevSource
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptFindingsPostFindingsIDAiOKKevSource) SetTo(v FindingsPostFindingsIDAiOKKevSource) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptFindingsPostFindingsIDAiOKKevSource) Get() (v FindingsPostFindingsIDAiOKKevSource, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptFindingsPostFindingsIDAiOKKevSource) Or(d FindingsPostFindingsIDAiOKKevSource) FindingsPostFindingsIDAiOKKevSource {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -118086,6 +118927,52 @@ func (o OptFindingsPostFindingsIDAiOKPackFirewallItemAlternative) Or(d FindingsP
 	return d
 }
 
+// NewOptFindingsPostFindingsIDAppliedOKKevSource returns new OptFindingsPostFindingsIDAppliedOKKevSource with value set to v.
+func NewOptFindingsPostFindingsIDAppliedOKKevSource(v FindingsPostFindingsIDAppliedOKKevSource) OptFindingsPostFindingsIDAppliedOKKevSource {
+	return OptFindingsPostFindingsIDAppliedOKKevSource{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptFindingsPostFindingsIDAppliedOKKevSource is optional FindingsPostFindingsIDAppliedOKKevSource.
+type OptFindingsPostFindingsIDAppliedOKKevSource struct {
+	Value FindingsPostFindingsIDAppliedOKKevSource
+	Set   bool
+}
+
+// IsSet returns true if OptFindingsPostFindingsIDAppliedOKKevSource was set.
+func (o OptFindingsPostFindingsIDAppliedOKKevSource) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptFindingsPostFindingsIDAppliedOKKevSource) Reset() {
+	var v FindingsPostFindingsIDAppliedOKKevSource
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptFindingsPostFindingsIDAppliedOKKevSource) SetTo(v FindingsPostFindingsIDAppliedOKKevSource) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptFindingsPostFindingsIDAppliedOKKevSource) Get() (v FindingsPostFindingsIDAppliedOKKevSource, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptFindingsPostFindingsIDAppliedOKKevSource) Or(d FindingsPostFindingsIDAppliedOKKevSource) FindingsPostFindingsIDAppliedOKKevSource {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptFindingsPostFindingsIDAppliedOKPackFirewallItemAlternative returns new OptFindingsPostFindingsIDAppliedOKPackFirewallItemAlternative with value set to v.
 func NewOptFindingsPostFindingsIDAppliedOKPackFirewallItemAlternative(v FindingsPostFindingsIDAppliedOKPackFirewallItemAlternative) OptFindingsPostFindingsIDAppliedOKPackFirewallItemAlternative {
 	return OptFindingsPostFindingsIDAppliedOKPackFirewallItemAlternative{
@@ -118126,6 +119013,52 @@ func (o OptFindingsPostFindingsIDAppliedOKPackFirewallItemAlternative) Get() (v 
 
 // Or returns value if set, or given parameter if does not.
 func (o OptFindingsPostFindingsIDAppliedOKPackFirewallItemAlternative) Or(d FindingsPostFindingsIDAppliedOKPackFirewallItemAlternative) FindingsPostFindingsIDAppliedOKPackFirewallItemAlternative {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptFindingsPostFindingsIDStatusOKKevSource returns new OptFindingsPostFindingsIDStatusOKKevSource with value set to v.
+func NewOptFindingsPostFindingsIDStatusOKKevSource(v FindingsPostFindingsIDStatusOKKevSource) OptFindingsPostFindingsIDStatusOKKevSource {
+	return OptFindingsPostFindingsIDStatusOKKevSource{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptFindingsPostFindingsIDStatusOKKevSource is optional FindingsPostFindingsIDStatusOKKevSource.
+type OptFindingsPostFindingsIDStatusOKKevSource struct {
+	Value FindingsPostFindingsIDStatusOKKevSource
+	Set   bool
+}
+
+// IsSet returns true if OptFindingsPostFindingsIDStatusOKKevSource was set.
+func (o OptFindingsPostFindingsIDStatusOKKevSource) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptFindingsPostFindingsIDStatusOKKevSource) Reset() {
+	var v FindingsPostFindingsIDStatusOKKevSource
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptFindingsPostFindingsIDStatusOKKevSource) SetTo(v FindingsPostFindingsIDStatusOKKevSource) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptFindingsPostFindingsIDStatusOKKevSource) Get() (v FindingsPostFindingsIDStatusOKKevSource, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptFindingsPostFindingsIDStatusOKKevSource) Or(d FindingsPostFindingsIDStatusOKKevSource) FindingsPostFindingsIDStatusOKKevSource {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -123331,10 +124264,11 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportSourcesItem) SetID(val ReportsG
 type ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemID string
 
 const (
-	ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemIDInventory ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemID = "inventory"
-	ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemIDFindings  ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemID = "findings"
-	ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemIDKev       ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemID = "kev"
-	ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemIDIncidents ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemID = "incidents"
+	ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemIDInventory    ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemID = "inventory"
+	ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemIDFindings     ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemID = "findings"
+	ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemIDKev          ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemID = "kev"
+	ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemIDVulncheckKev ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemID = "vulncheck-kev"
+	ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemIDIncidents    ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemID = "incidents"
 )
 
 // AllValues returns all ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemID values.
@@ -123343,6 +124277,7 @@ func (ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemID) AllValues() []Repor
 		ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemIDInventory,
 		ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemIDFindings,
 		ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemIDKev,
+		ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemIDVulncheckKev,
 		ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemIDIncidents,
 	}
 }
@@ -123355,6 +124290,8 @@ func (s ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemID) MarshalText() ([]
 	case ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemIDFindings:
 		return []byte(s), nil
 	case ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemIDKev:
+		return []byte(s), nil
+	case ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemIDVulncheckKev:
 		return []byte(s), nil
 	case ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemIDIncidents:
 		return []byte(s), nil
@@ -123374,6 +124311,9 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemID) UnmarshalText(da
 		return nil
 	case ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemIDKev:
 		*s = ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemIDKev
+		return nil
+	case ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemIDVulncheckKev:
+		*s = ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemIDVulncheckKev
 		return nil
 	case ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemIDIncidents:
 		*s = ReportsGetReportsWeeklyHistoryIDOKReportSourcesItemIDIncidents
@@ -125540,10 +126480,11 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportSourcesItem) SetID(val ReportsGet
 type ReportsGetReportsWeeklyPreviewOKReportSourcesItemID string
 
 const (
-	ReportsGetReportsWeeklyPreviewOKReportSourcesItemIDInventory ReportsGetReportsWeeklyPreviewOKReportSourcesItemID = "inventory"
-	ReportsGetReportsWeeklyPreviewOKReportSourcesItemIDFindings  ReportsGetReportsWeeklyPreviewOKReportSourcesItemID = "findings"
-	ReportsGetReportsWeeklyPreviewOKReportSourcesItemIDKev       ReportsGetReportsWeeklyPreviewOKReportSourcesItemID = "kev"
-	ReportsGetReportsWeeklyPreviewOKReportSourcesItemIDIncidents ReportsGetReportsWeeklyPreviewOKReportSourcesItemID = "incidents"
+	ReportsGetReportsWeeklyPreviewOKReportSourcesItemIDInventory    ReportsGetReportsWeeklyPreviewOKReportSourcesItemID = "inventory"
+	ReportsGetReportsWeeklyPreviewOKReportSourcesItemIDFindings     ReportsGetReportsWeeklyPreviewOKReportSourcesItemID = "findings"
+	ReportsGetReportsWeeklyPreviewOKReportSourcesItemIDKev          ReportsGetReportsWeeklyPreviewOKReportSourcesItemID = "kev"
+	ReportsGetReportsWeeklyPreviewOKReportSourcesItemIDVulncheckKev ReportsGetReportsWeeklyPreviewOKReportSourcesItemID = "vulncheck-kev"
+	ReportsGetReportsWeeklyPreviewOKReportSourcesItemIDIncidents    ReportsGetReportsWeeklyPreviewOKReportSourcesItemID = "incidents"
 )
 
 // AllValues returns all ReportsGetReportsWeeklyPreviewOKReportSourcesItemID values.
@@ -125552,6 +126493,7 @@ func (ReportsGetReportsWeeklyPreviewOKReportSourcesItemID) AllValues() []Reports
 		ReportsGetReportsWeeklyPreviewOKReportSourcesItemIDInventory,
 		ReportsGetReportsWeeklyPreviewOKReportSourcesItemIDFindings,
 		ReportsGetReportsWeeklyPreviewOKReportSourcesItemIDKev,
+		ReportsGetReportsWeeklyPreviewOKReportSourcesItemIDVulncheckKev,
 		ReportsGetReportsWeeklyPreviewOKReportSourcesItemIDIncidents,
 	}
 }
@@ -125564,6 +126506,8 @@ func (s ReportsGetReportsWeeklyPreviewOKReportSourcesItemID) MarshalText() ([]by
 	case ReportsGetReportsWeeklyPreviewOKReportSourcesItemIDFindings:
 		return []byte(s), nil
 	case ReportsGetReportsWeeklyPreviewOKReportSourcesItemIDKev:
+		return []byte(s), nil
+	case ReportsGetReportsWeeklyPreviewOKReportSourcesItemIDVulncheckKev:
 		return []byte(s), nil
 	case ReportsGetReportsWeeklyPreviewOKReportSourcesItemIDIncidents:
 		return []byte(s), nil
@@ -125583,6 +126527,9 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportSourcesItemID) UnmarshalText(data
 		return nil
 	case ReportsGetReportsWeeklyPreviewOKReportSourcesItemIDKev:
 		*s = ReportsGetReportsWeeklyPreviewOKReportSourcesItemIDKev
+		return nil
+	case ReportsGetReportsWeeklyPreviewOKReportSourcesItemIDVulncheckKev:
+		*s = ReportsGetReportsWeeklyPreviewOKReportSourcesItemIDVulncheckKev
 		return nil
 	case ReportsGetReportsWeeklyPreviewOKReportSourcesItemIDIncidents:
 		*s = ReportsGetReportsWeeklyPreviewOKReportSourcesItemIDIncidents

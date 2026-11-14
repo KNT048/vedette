@@ -18,6 +18,9 @@ export const fmtClock = (iso: string) => new Intl.DateTimeFormat('en-GB', { hour
 /** Lý do có chỗ sửa (D-551): liên kết tới Settings, Alert channels; chỉ admin mở được trang đó. */
 const FIXABLE: NotSentReason[] = ['no_channel', 'channels_off', 'channel_off', 'channel_removed', 'below_min_severity', 'quiet_hours', 'failed']
 
+/** Open incidents no channel has and that will not go out by themselves (queued / quiet hours do): the KPI "not sent" and `?sent=no`. */
+export const needsFix = (n: NotSent | null) => !!n && ['no_channel', 'channels_off', 'channel_off', 'channel_removed', 'below_min_severity', 'failed'].includes(n.reason)
+
 /** The fix link of a not-sent reason, for an admin; nothing for the others or a reason with nothing to fix. */
 export function NotSentFix({ notSent, admin }: { notSent: NotSent | null; admin: boolean }) {
   const { t } = useTranslation('notify')

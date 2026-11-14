@@ -44,7 +44,7 @@ export const WeeklyReport = z.object({
   top_risks: z.array(TopRisk).max(3).optional().describe('The three biggest open risks, by product (D-485); absent in reports sent before it'),
   new_findings: z.array(FindingRow), resolved: z.array(FindingRow), open: z.array(FindingRow), actions: z.array(ActionItem),
   happened: Happened.nullable().optional().describe('Absent or null when notify is off, or in reports sent before D-490'),
-  sources: z.array(z.object({ id: z.enum(['inventory', 'findings', 'kev', 'incidents']), at: iso })).describe('Sources of the figures in the report; incidents only when notify is on (D-490)'),
+  sources: z.array(z.object({ id: z.enum(['inventory', 'findings', 'kev', 'vulncheck-kev', 'incidents']), at: iso })).describe('Sources of the figures in the report; incidents only when notify is on (D-490)'),
   ai_summary: AiSummary.nullable(),
 })
 export const WeeklyPreview = z.object({ report: WeeklyReport, ai_available: z.boolean() })

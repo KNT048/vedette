@@ -110,6 +110,7 @@ type CVEEntry struct {
 	Name            string   `json:"name"`
 	Description     string   `json:"description"`
 	RequiredAction  string   `json:"required_action"`
+	Source          string   `json:"source"` // the list that has it: "cisa-kev", "vulncheck-kev" (VulnCheck KEV, D-557) or a custom feed's id
 	DateAdded       string   `json:"date_added"`
 	DueDate         *string  `json:"due_date"`
 	Ransomware      bool     `json:"ransomware"`

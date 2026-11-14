@@ -61,7 +61,13 @@ export function FixedInNote({ finding }: { finding: FindingDetail }) {
   const product = finding.kev?.display || t('rec.theSoftware')
   let text: string
   let extra: string | null = f.distro ? t('rec.fixedIfDistro', { distro: f.distro, product }) : null
-  if (f.kind === 'fixed') text = t('rec.fixedIn', { fixed: f.fixed, device, version: f.version })
+  let source = t('rec.fixedSource')
+  if (f.kind === 'distro' && f.distro_fixed) {
+    // D-516: the distribution's own fixed package for this release
+    text = t('rec.fixedDistroIn', { fixed: f.distro_fixed, distro: f.distro, release: f.distro_release, device, product, version: f.version })
+    extra = f.distro_pro ? t('rec.fixedDistroPro') : null
+    source = t('rec.fixedSourceDistro', { source: f.source })
+  } else if (f.kind === 'fixed') text = t('rec.fixedIn', { fixed: f.fixed, device, version: f.version })
   else if (f.kind === 'up_to') text = t('rec.fixedUpTo', { fixed: f.fixed, device, version: f.version })
   else if (f.kind === 'distro') {
     text = t(f.distro ? 'rec.fixedDistro' : 'rec.fixedDistroAny', { device, product, version: f.version, distro: f.distro })
@@ -76,7 +82,7 @@ export function FixedInNote({ finding }: { finding: FindingDetail }) {
     <div className="grid max-w-3xl gap-1" data-testid="fixed-in">
       <p className="text-sm font-medium">{text}</p>
       {extra ? <p className="text-[13px]">{extra}</p> : null}
-      <p className="text-[12px] text-muted">{t('rec.fixedSource')}</p>
+      <p className="text-[12px] text-muted">{source}</p>
     </div>
   )
 }

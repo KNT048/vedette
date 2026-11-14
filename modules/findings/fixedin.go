@@ -26,7 +26,13 @@ type FixedIn struct {
 	// package database (a person typed it, a scan read it, or an agent row stored before inventory kept the flag), so the
 	// page names the upstream number and adds "if you installed it from <distro>'s packages, install its security updates instead".
 	Distro string `json:"distro"`
-	Source string `json:"source"` // always FixedInSource
+	// DistroFixed, DistroRelease and DistroPro (D-516, kind distro only): the version of the distribution's package that fixes
+	// the CVE on the device's release ("1:9.6p1-3ubuntu13.5" for Ubuntu "24.04"), and whether only Ubuntu Pro has it; Version
+	// is then the device's full package version. "" when the distribution's data does not say.
+	DistroFixed   string `json:"distro_fixed"`
+	DistroRelease string `json:"distro_release"`
+	DistroPro     bool   `json:"distro_pro"`
+	Source        string `json:"source"` // FixedInSource, or DistroSource when DistroFixed is set
 }
 
 // FixedBranch is the fix of one release line, the line named by the start of its range ("7.4" -> "7.4.3"); Branch is
@@ -58,6 +64,8 @@ func FixedInFor(a Asset, v Vuln) *FixedIn {
 		switch {
 		case f == nil:
 			return 0
+		case f.DistroFixed != "": // the distribution's own fixed package: the most definite answer (D-516)
+			return 6
 		case f.Kind == "fixed":
 			return 5
 		case f.Kind == "up_to":
@@ -136,6 +144,13 @@ func fixedPartsOf(in swInfo, v Vuln, key []identity) fixedParts {
 }
 
 func fixedInSoftware(in swInfo, v Vuln, key []identity) *FixedIn {
+	if d, ok := distroVerdict(in, v); ok { // D-516: the distribution's word on its own package
+		if d.kind != distroNeeded {
+			return nil // fixed here or not affected: nothing to install
+		}
+		return &FixedIn{Kind: "distro", Version: clean(in.pkgVer), Distro: d.name, DistroFixed: clean(d.fixed), DistroRelease: d.release,
+			DistroPro: d.pro, Branches: []FixedBranch{}, Source: DistroSource(d.name)}
+	}
 	p := fixedPartsOf(in, v, key)
 	usable, outside := p.usable, p.outside
 	// A package of the distribution: an agent read it from the package database, or its version says so (D-488). A row

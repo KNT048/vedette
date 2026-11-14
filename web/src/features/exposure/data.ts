@@ -39,7 +39,7 @@ export function countsOf(c: Content, extraIp?: string): Counts {
   return { subdomains: c.hosts.length, ips: ips.size, ports: c.ports.length, admin_panels: c.admin_panels.length, certs_expiring: c.certs.filter((x) => new Date(x.expires_at).getTime() <= limit).length }
 }
 
-const H = (ip: string, cls: HostClass): HostIp => ({ ip, family: 'ipv4', class: cls })
+const H = (ip: string, cls: HostClass, contacted = cls !== 'private'): HostIp => ({ ip, family: 'ipv4', class: cls, ...(contacted ? { contacted } : {}) })
 
 // acme.example: latest result before today's scan. The two older snapshots are trimmed copies of it.
 const P = (ip: string, port: number, service: string, product?: string): PortRow => ({ ip, port, service, product })
@@ -50,7 +50,7 @@ function acmeNow(): Content {
     hosts: [
       { name: 'acme.example', ip: '203.0.113.20', source: 'dns', ips: [H('203.0.113.20', 'box'), { ip: '2001:db8::20', family: 'ipv6', class: 'public' }] },
       { name: 'www.acme.example', ip: '203.0.113.20', source: 'ct', ips: [H('203.0.113.20', 'box')] },
-      { name: 'mail.acme.example', ip: '203.0.113.21', source: 'mx', ips: [H('203.0.113.21', 'public')] },
+      { name: 'mail.acme.example', ip: '203.0.113.21', source: 'mx', ips: [H('203.0.113.21', 'public'), H('203.0.113.25', 'public', false)] },
       { name: 'vpn.acme.example', ip: '203.0.113.22', source: 'ct', ips: [H('203.0.113.22', 'box')] },
       { name: 'nas.acme.example', ip: '203.0.113.23', source: 'wordlist', ips: [H('203.0.113.23', 'box')] },
       { name: 'cdn.acme.example', ip: '198.51.100.30', source: 'ct', cname: 'acme.example.cdn.cloudflare.net', ips: [H('198.51.100.30', 'public')] },

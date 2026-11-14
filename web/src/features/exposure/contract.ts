@@ -68,7 +68,8 @@ export const Target = z.object({
 export const HostClass = z.enum(['box', 'public', 'private'])
 export const HostIp = z.object({
   ip: z.string(), family: z.enum(['ipv4', 'ipv6']).describe('IPv6 is listed, not scanned yet'),
-  class: HostClass.describe('box: this box\'s verified, current IP; public: any other public address (checked by name on 80 and 443); private: not a public address, never dialed'),
+  class: HostClass.describe('box: this box\'s verified, current IP; public: any other public address; private: not a public address (or an IPv6 special-purpose range), never dialed'),
+  contacted: z.boolean().optional().describe('The check by name (one GET / on ports 80 and 443) went to this address: the name\'s first public IPv4. Missing or false: not contacted'),
 })
 export const HostRow = z.object({
   name: z.string(), ip: z.string().describe('The first IPv4 address; "" when the name has none (IPv6 only, or a CNAME that leads nowhere)'),
@@ -88,7 +89,7 @@ export const ServiceRow = z.object({
   extra: z.string().describe('nmap\'s extrainfo, e.g. (Debian); "" when none'),
 })
 export const CheckRow = z.object({ kind: z.string().describe('ports, names, services, templates, cve, web or greenbone'), text: z.string(), at: z.iso.datetime() })
-export const NotCheckedRow = z.object({ kind: z.string().describe('udp, ports, non_exploited, services, templates, cve, web, greenbone; a domain\'s surface (INV-27): wordlist (common names not tried: wildcard DNS), by_name (names on other public addresses: checked by name only), address_family (IPv6 not scanned)'), text: z.string() })
+export const NotCheckedRow = z.object({ kind: z.string().describe('udp, ports, non_exploited, services, templates, cve, web, greenbone; a domain\'s surface (INV-27): wordlist (common names not tried: wildcard DNS), by_name (names on other public addresses: checked by name only), address_family (IPv6 not scanned), lookup (names whose address lookup got no answer: left as the last scan found them)'), text: z.string() })
 export const VulnBasis = z.enum(['version', 'product', 'template', 'greenbone', 'js_library'])
 export const VulnRow = z.object({
   ip: z.string(), port: z.number().int(), cve: z.string(), name: z.string(),

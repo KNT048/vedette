@@ -46165,9 +46165,12 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKHostsItem) SetSource(val Opt
 }
 
 type ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItem struct {
-	// Box: this box's verified, current IP; public: any other public address (checked by name on 80 and
-	// 443); private: not a public address, never dialed.
+	// Box: this box's verified, current IP; public: any other public address; private: not a public
+	// address (or an IPv6 special-purpose range), never dialed.
 	Class ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemClass `json:"class"`
+	// The check by name (one GET / on ports 80 and 443) went to this address: the name's first public
+	// IPv4. Missing or false: not contacted.
+	Contacted OptBool `json:"contacted"`
 	// IPv6 is listed, not scanned yet.
 	Family ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemFamily `json:"family"`
 	IP     string                                                            `json:"ip"`
@@ -46176,6 +46179,11 @@ type ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItem struct {
 // GetClass returns the value of Class.
 func (s *ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItem) GetClass() ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemClass {
 	return s.Class
+}
+
+// GetContacted returns the value of Contacted.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItem) GetContacted() OptBool {
+	return s.Contacted
 }
 
 // GetFamily returns the value of Family.
@@ -46193,6 +46201,11 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItem) SetClass(v
 	s.Class = val
 }
 
+// SetContacted sets the value of Contacted.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItem) SetContacted(val OptBool) {
+	s.Contacted = val
+}
+
 // SetFamily sets the value of Family.
 func (s *ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItem) SetFamily(val ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemFamily) {
 	s.Family = val
@@ -46203,8 +46216,8 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItem) SetIP(val 
 	s.IP = val
 }
 
-// Box: this box's verified, current IP; public: any other public address (checked by name on 80 and
-// 443); private: not a public address, never dialed.
+// Box: this box's verified, current IP; public: any other public address; private: not a public
+// address (or an IPv6 special-purpose range), never dialed.
 type ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemClass string
 
 const (
@@ -46362,7 +46375,8 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemSource) UnmarshalTe
 type ExposureGetExposureTargetsIDSnapshotsDateOKNotCheckedItem struct {
 	// Udp, ports, non_exploited, services, templates, cve, web, greenbone; a domain's surface (INV-27):
 	// wordlist (common names not tried: wildcard DNS), by_name (names on other public addresses: checked
-	// by name only), address_family (IPv6 not scanned).
+	// by name only), address_family (IPv6 not scanned), lookup (names whose address lookup got no answer:
+	// left as the last scan found them).
 	Kind string `json:"kind"`
 	Text string `json:"text"`
 }

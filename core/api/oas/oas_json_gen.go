@@ -93021,6 +93021,12 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItem) encodeFiel
 		s.Class.Encode(e)
 	}
 	{
+		if s.Contacted.Set {
+			e.FieldStart("contacted")
+			s.Contacted.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("family")
 		s.Family.Encode(e)
 	}
@@ -93030,10 +93036,11 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItem) encodeFiel
 	}
 }
 
-var jsonFieldsNameOfExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItem = [3]string{
+var jsonFieldsNameOfExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItem = [4]string{
 	0: "class",
-	1: "family",
-	2: "ip",
+	1: "contacted",
+	2: "family",
+	3: "ip",
 }
 
 // Decode decodes ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItem from json.
@@ -93055,8 +93062,18 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItem) Decode(d *
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"class\"")
 			}
+		case "contacted":
+			if err := func() error {
+				s.Contacted.Reset()
+				if err := s.Contacted.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"contacted\"")
+			}
 		case "family":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				if err := s.Family.Decode(d); err != nil {
 					return err
@@ -93066,7 +93083,7 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItem) Decode(d *
 				return errors.Wrap(err, "decode field \"family\"")
 			}
 		case "ip":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.IP = string(v)
@@ -93087,7 +93104,7 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItem) Decode(d *
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000111,
+		0b00001101,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.

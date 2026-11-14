@@ -30,8 +30,14 @@ const maxHostIPs = 32
 const (
 	// NotWordlistWildcard is the line of a scan that did not try the common names: the domain answers any name.
 	NotWordlistWildcard = "Common names (a list of about 150, such as vpn, mail and remote): not tried, because this domain answers any name (wildcard DNS), so every one would look real."
-	notIPv6             = "IPv6 addresses (%d listed): IPv6 is not scanned yet."
-	notByNameOnly       = "Names on public addresses that are not this box's (%s): checked by name on ports 80 and 443 only; the deep scan of each name comes with the next update."
+	// NotWordlistNoAnswer: the wildcard check got no clear answer, so the common names were not tried (a missed wildcard would list
+	// every one of them).
+	NotWordlistNoAnswer = "Common names (a list of about 150, such as vpn, mail and remote): not tried, because the wildcard check got no answer from the DNS resolver."
+	// NotWordlistCut: some common names got no answer in the time the scan gives DNS lookups.
+	NotWordlistCut = "Common names (a list of about 150, such as vpn, mail and remote): not all tried, because some lookups got no answer from the DNS resolver in time."
+	notIPv6        = "IPv6 addresses (%d listed): IPv6 is not scanned yet."
+	notResolved    = "Names whose address lookup got no answer this time (%s): left as the last scan found them."
+	notByNameOnly  = "Names on public addresses that are not this box's (%s): checked by name on ports 80 and 443 only; the deep scan of each name comes with the next update."
 )
 
 // sanitizeHost limits one host row (INV-10): text bounded, a source and kinds from their lists, addresses that parse (the family is
@@ -54,10 +60,13 @@ func sanitizeHost(h HostRow, txt func(string) string) HostRow {
 		if ip.Is6() {
 			fam = "ipv6"
 		}
-		out.IPs = append(out.IPs, HostIP{IP: ip.String(), Family: fam, Class: a.Class})
+		out.IPs = append(out.IPs, HostIP{IP: ip.String(), Family: fam, Class: a.Class, Contacted: a.Contacted && ip.Is4() && a.Class != ClassPrivate})
 	}
 	return out
 }
+
+// NotResolved is the line of a scan that left out n names whose address lookup got no clear answer (INV-22: their earlier state stands).
+func NotResolved(n int) string { return fmt.Sprintf(notResolved, plural(n, "name")) }
 
 // surfaceNotChecked is what a domain's surface did not scan: names on public IPv4 addresses that are not the box's (by name only),
 // and IPv6 addresses. It reads the rows before they are limited (identify runs first), so the family comes from the address.

@@ -30,8 +30,8 @@ export function SurfacePanel({ target, blockedText }: { target: Target; blockedT
 
 function SurfaceView({ s }: { s: Snapshot }) {
   const { t } = useTranslation('exposure')
-  const ips = s.hosts.flatMap((h) => h.ips ?? [])
-  const count = (c: HostClass) => ips.filter((a) => a.class === c && a.family === 'ipv4').length
+  // Every tile but "IP addresses" counts names (one name, many addresses; many names, one address): a name counts once per kind.
+  const names = (has: (a: HostIp) => boolean) => s.hosts.filter((h) => (h.ips ?? []).some(has)).length
   const classified = s.hosts.some((h) => h.source)
   const lines = s.not_checked.filter((n) => SURFACE_LINES.has(n.kind))
   const cols: ColumnDef<HostRow>[] = [
@@ -51,8 +51,8 @@ function SurfaceView({ s }: { s: Snapshot }) {
         <KeyValue items={[
           { label: t('surface.count.names'), value: s.hosts.length },
           { label: t('count.ips'), value: s.counts.ips },
-          ...CLASSES.map((c) => ({ label: t(`surface.count.${c}`), value: count(c) })),
-          { label: t('surface.count.ipv6'), value: ips.filter((a) => a.family === 'ipv6').length },
+          ...CLASSES.map((c) => ({ label: t(`surface.count.${c}`), value: names((a) => a.class === c && a.family === 'ipv4') })),
+          { label: t('surface.count.ipv6'), value: names((a) => a.family === 'ipv6') },
         ]} />
       </Panel>
       {!classified && s.hosts.length > 0 ? <Notice tone="off" role="note" title={t('surface.older')} /> : null}
@@ -71,16 +71,20 @@ function Addresses({ h }: { h: HostRow }) {
   const { t } = useTranslation('exposure')
   if (!h.source) return <span className="text-[13px]">{h.ip || t('surface.none')}</span>
   if (!h.ips || h.ips.length === 0) return <span className="text-[13px] text-muted">{h.cname ? t('surface.dangling') : t('surface.noAddress')}</span>
-  return <ul className="grid gap-1.5">{h.ips.map((a) => <li key={a.ip} className="grid gap-0.5"><Address a={a} /></li>)}</ul>
+  const used = h.ips.find((a) => a.contacted)?.ip
+  return <ul className="grid gap-1.5">{h.ips.map((a) => <li key={a.ip} className="grid gap-0.5"><Address a={a} used={used} /></li>)}</ul>
 }
 
-function Address({ a }: { a: HostIp }) {
+/** The note says what happened to this address: the check by name went to one address of a name only (`contacted`). */
+function Address({ a, used }: { a: HostIp; used: string | undefined }) {
   const { t } = useTranslation('exposure')
   return (
     <>
       <span className="flex flex-wrap items-center gap-2"><span className="break-all font-mono text-[13px]">{a.ip}</span><Chip tone={TONE[a.class]}>{t(`surface.class.${a.class}`)}</Chip></span>
       <span className="text-[12px] text-muted">
-        {a.family === 'ipv6' && a.class !== 'private' ? t('surface.ipv6') : t(`surface.note.${a.class}`)}
+        {a.family === 'ipv6' && a.class !== 'private' ? t('surface.ipv6')
+          : a.class === 'public' && !a.contacted ? (used ? t('surface.note.notContacted', { ip: used }) : t('surface.note.notContactedAny'))
+          : t(`surface.note.${a.class}`)}
       </span>
     </>
   )

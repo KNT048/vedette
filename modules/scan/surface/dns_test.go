@@ -11,18 +11,38 @@ import (
 	"sync"
 	"testing"
 	"testing/synctest"
+	"time"
 )
 
 // fakeDNS is the box's resolver in the discovery tests: no DNS query is sent. wildcard answers every name under it that the maps do
-// not hold.
+// not hold; fail gives a server failure (not "no such name") for the addresses of those names; hang makes lookups of unknown names
+// wait for their context (a resolver that does not answer); unrooted counts names not asked fully qualified.
 type fakeDNS struct {
 	a        map[string][]netip.Addr
 	cname    map[string]string
 	mx       []*net.MX
 	ns       []*net.NS
 	wildcard string
+	fail     map[string]bool
+	hang     bool // lookups of names the maps do not hold, after the first hangAfter of them, wait for their context
+	hanged   int
 	mu       sync.Mutex
 	asked    int
+	unrooted int
+
+	hangAfter int
+}
+
+var errServFail = &net.DNSError{Err: "server misbehaving", IsTemporary: true}
+
+func (f *fakeDNS) name(host string) string {
+	n, err := rootedName(host)
+	if err != nil {
+		f.mu.Lock()
+		f.unrooted++
+		f.mu.Unlock()
+	}
+	return n
 }
 
 func (f *fakeDNS) count() {
@@ -31,13 +51,27 @@ func (f *fakeDNS) count() {
 	f.mu.Unlock()
 }
 
-func (f *fakeDNS) LookupNetIP(_ context.Context, network, host string) ([]netip.Addr, error) {
+func (f *fakeDNS) LookupNetIP(ctx context.Context, network, host string) ([]netip.Addr, error) {
 	f.count()
+	host = f.name(host)
 	if network != "ip" {
 		return nil, fmt.Errorf("network %q", network)
 	}
+	if f.fail[host] {
+		return nil, errServFail
+	}
 	if a, ok := f.a[host]; ok {
 		return slices.Clone(a), nil
+	}
+	if f.hang {
+		f.mu.Lock()
+		f.hanged++
+		wait := f.hanged > f.hangAfter
+		f.mu.Unlock()
+		if wait {
+			<-ctx.Done()
+			return nil, &net.DNSError{Err: "i/o timeout", IsTimeout: true}
+		}
 	}
 	if f.wildcard != "" && strings.HasSuffix(host, "."+f.wildcard) {
 		return addrs("198.51.100.99"), nil
@@ -47,6 +81,7 @@ func (f *fakeDNS) LookupNetIP(_ context.Context, network, host string) ([]netip.
 
 func (f *fakeDNS) LookupCNAME(_ context.Context, host string) (string, error) {
 	f.count()
+	host = f.name(host)
 	if c, ok := f.cname[host]; ok {
 		return c, nil
 	}
@@ -56,8 +91,17 @@ func (f *fakeDNS) LookupCNAME(_ context.Context, host string) (string, error) {
 	return "", notFound(host)
 }
 
-func (f *fakeDNS) LookupMX(context.Context, string) ([]*net.MX, error) { f.count(); return f.mx, nil }
-func (f *fakeDNS) LookupNS(context.Context, string) ([]*net.NS, error) { f.count(); return f.ns, nil }
+func (f *fakeDNS) LookupMX(_ context.Context, n string) ([]*net.MX, error) {
+	f.count()
+	f.name(n)
+	return f.mx, nil
+}
+
+func (f *fakeDNS) LookupNS(_ context.Context, n string) ([]*net.NS, error) {
+	f.count()
+	f.name(n)
+	return f.ns, nil
+}
 
 func ctNames(names ...string) string {
 	var b strings.Builder
@@ -77,6 +121,9 @@ func hostLines(hs []Host) []string {
 		line := h.Name + " " + h.Source + " cname=" + h.CNAME
 		for _, a := range h.Addrs {
 			line += fmt.Sprintf(" %s/%s", a.IP, a.Class)
+			if a.Contacted {
+				line += "/contacted"
+			}
 		}
 		out = append(out, line)
 	}
@@ -91,7 +138,7 @@ func TestDiscoveryAndKinds(t *testing.T) {
 		dns := &fakeDNS{
 			a: map[string][]netip.Addr{
 				"acme.example":          addrs("198.51.100.20"),
-				"www.acme.example":      addrs("104.16.1.1"),
+				"www.acme.example":      addrs("104.16.1.2", "104.16.1.1"),
 				"shop.acme.example":     addrs("23.227.38.65"),
 				"v6only.acme.example":   addrs("2606:4700::5", "fd00::1"),
 				"intranet.acme.example": addrs("10.0.0.5"),
@@ -116,21 +163,21 @@ func TestDiscoveryAndKinds(t *testing.T) {
 			t.Fatal(err)
 		}
 		want := []string{
-			"acme.example dns cname= 198.51.100.20/public",
+			"acme.example dns cname= 198.51.100.20/public/contacted",
 			"docs.acme.example ct cname=acme.github.io",
 			"intranet.acme.example ct cname= 10.0.0.5/private",
-			"mail.acme.example mx cname= 3.5.140.1/public",
-			"ns1.acme.example ns cname= 198.51.100.53/public",
-			"shop.acme.example ct cname=shops.myshopify.com 23.227.38.65/public",
+			"mail.acme.example mx cname= 3.5.140.1/public/contacted",
+			"ns1.acme.example ns cname= 198.51.100.53/public/contacted",
+			"shop.acme.example ct cname=shops.myshopify.com 23.227.38.65/public/contacted",
 			"v6only.acme.example ct cname= 2606:4700::5/public fd00::1/private",
-			"vpn.acme.example wordlist cname= 203.0.113.10/box",
-			"www.acme.example ct cname=acme.example.cdn.cloudflare.net 104.16.1.1/public",
+			"vpn.acme.example wordlist cname= 203.0.113.10/box/contacted",
+			"www.acme.example ct cname=acme.example.cdn.cloudflare.net 104.16.1.1/public/contacted 104.16.1.2/public",
 		}
 		if g := hostLines(got.Hosts); !slices.Equal(g, want) {
 			t.Fatalf("hosts:\n%s\nwant:\n%s", strings.Join(g, "\n"), strings.Join(want, "\n"))
 		}
-		if got.WordlistSkipped {
-			t.Fatal("wordlist skipped without a wildcard")
+		if got.Wordlist != "" || got.Unresolved != 0 || dns.unrooted != 0 {
+			t.Fatalf("wordlist %q, unresolved %d, %d names not asked fully qualified", got.Wordlist, got.Unresolved, dns.unrooted)
 		}
 		for _, h := range got.Hosts {
 			if (h.Name == "v6only.acme.example" || h.Name == "docs.acme.example") && h.IP.IsValid() {
@@ -148,7 +195,7 @@ func TestDiscoveryAndKinds(t *testing.T) {
 		}
 		dnsRows := 0
 		for _, r := range log.requests() {
-			if strings.HasPrefix(r, "dns acme.example DNS lookups via the box's resolver") {
+			if strings.HasPrefix(r, "dns acme.example ") && strings.Contains(r, "DNS lookups via the box's resolver") {
 				dnsRows++
 			}
 		}
@@ -169,8 +216,8 @@ func TestWildcardSkipsTheWordlist(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if !got.WordlistSkipped || len(got.Hosts) != 1 || dns.asked > 10 {
-			t.Fatalf("skipped %v, hosts %v, %d lookups", got.WordlistSkipped, hostLines(got.Hosts), dns.asked)
+		if got.Wordlist != WordlistWildcard || len(got.Hosts) != 1 || dns.asked > 10 {
+			t.Fatalf("wordlist %q, hosts %v, %d lookups", got.Wordlist, hostLines(got.Hosts), dns.asked)
 		}
 	})
 }
@@ -226,7 +273,7 @@ func TestHostileDNSAnswers(t *testing.T) {
 		}
 		// Only the first maxMailNS MX hosts are read and the three hostile ones among them are dropped: 2 + 7 names in all, the 7 MX
 		// names resolving to nothing (not shown).
-		if len(got.Hosts) != 2 || got.Hosts[1].CNAME != "" || !slices.ContainsFunc(log.requests(), func(r string) bool { return strings.HasSuffix(r, "; 9 names true") }) {
+		if len(got.Hosts) != 2 || got.Hosts[1].CNAME != "" || !slices.ContainsFunc(log.requests(), func(r string) bool { return strings.HasPrefix(r, "dns acme.example 9 names listed; ") }) {
 			t.Fatalf("hosts %v", hostLines(got.Hosts))
 		}
 		apex := got.Hosts[0]
@@ -234,4 +281,62 @@ func TestHostileDNSAnswers(t *testing.T) {
 			t.Fatalf("apex: %d addresses, want %d", len(apex.Addrs), maxAddrs)
 		}
 	})
+}
+
+// Review r1 L1, M1: only "no such name" means no wildcard. A wildcard check that gets no answer skips the wordlist (fail closed); a
+// wordlist whose lookups time out is cut and says so; neither stops the scan, and the DNS phase stays within dnsBudget.
+func TestWordlistFailsClosedAndStaysInItsBudget(t *testing.T) {
+	t.Parallel()
+	for _, c := range []struct {
+		name      string
+		hangAfter int
+		want      string
+	}{{"wildcard check unanswered", 0, WordlistNoAnswer}, {"common names time out", 2, WordlistCut}} {
+		synctest.Test(t, func(t *testing.T) {
+			dns := &fakeDNS{a: map[string][]netip.Addr{"acme.example": addrs("198.51.100.20")}, hang: true, hangAfter: c.hangAfter}
+			var asked []string
+			start := time.Now()
+			got, err := newScanner(t, &fakeNet{open: map[string]handler{}}, dns, ctAnswer(200, "[]", &asked), &probeLog{}).
+				Domain(t.Context(), "acme.example", func(context.Context, netip.Addr) bool { return false })
+			if err != nil || got.Wordlist != c.want || len(got.Hosts) != 1 {
+				t.Fatalf("%s: err %v, wordlist %q, hosts %v", c.name, err, got.Wordlist, hostLines(got.Hosts))
+			}
+			if took := time.Since(start); took > dnsBudget+2*pageTimeout {
+				t.Fatalf("%s: took %v", c.name, took)
+			}
+		})
+	}
+}
+
+// Review r1 L4 (INV-22): a name whose address lookup fails (a server failure, not "no such name") is left out and counted, even when
+// its CNAME answered, so exposure keeps its earlier state instead of reading it as moved.
+func TestFailedLookupIsLeftOutNotMoved(t *testing.T) {
+	t.Parallel()
+	synctest.Test(t, func(t *testing.T) {
+		dns := &fakeDNS{
+			a:     map[string][]netip.Addr{"acme.example": addrs("198.51.100.20")},
+			cname: map[string]string{"www.acme.example": "edge.cdn.example."},
+			fail:  map[string]bool{"www.acme.example": true},
+		}
+		var asked []string
+		got, err := newScanner(t, &fakeNet{open: map[string]handler{}}, dns, ctAnswer(200, ctNames("www.acme.example"), &asked), &probeLog{}).
+			Domain(t.Context(), "acme.example", func(context.Context, netip.Addr) bool { return false })
+		if err != nil || got.Unresolved != 1 || len(got.Hosts) != 1 || got.Hosts[0].Name != "acme.example" {
+			t.Fatalf("err %v, unresolved %d, hosts %v", err, got.Unresolved, hostLines(got.Hosts))
+		}
+	})
+}
+
+// Review r1 L6: the IPv6 special-purpose ranges are not public addresses (display only: IPv6 is never dialed).
+func TestPublicV6(t *testing.T) {
+	t.Parallel()
+	for a, want := range map[string]bool{
+		"2606:4700::5": true, "2a00:1450:4001::1": true,
+		"64:ff9b::a00:1": false, "2002:a00:1::1": false, "2001:0:4136::1": false, "100::1": false, "2001:db8::1": false,
+		"3fff::1": false, "fec0::1": false, "fd00::1": false, "fe80::1": false, "::1": false, "::ffff:8.8.8.8": false,
+	} {
+		if got := publicV6(netip.MustParseAddr(a)); got != want {
+			t.Errorf("%s: %v, want %v", a, got, want)
+		}
+	}
 }

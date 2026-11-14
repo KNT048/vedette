@@ -331,7 +331,7 @@ type scanProbeLog struct{ d deps }
 func (l scanProbeLog) Record(ctx context.Context, ps []surface.Probe) error {
 	rows := make([]scan.ExternalProbe, len(ps))
 	for i, p := range ps {
-		ip := "" // the DNS row of a domain scan goes to the box's resolver, not to one address
+		ip := p.Label // the DNS row of a domain scan goes to the box's resolver, not one address: its target is the domain (never empty, scan_probe CHECK)
 		if p.Addr.IsValid() {
 			ip = p.Addr.String()
 		}
@@ -434,12 +434,16 @@ func contentOf(r surface.Result) exposure.Content {
 			if a.IP.Is6() {
 				fam = "ipv6"
 			}
-			row.IPs = append(row.IPs, exposure.HostIP{IP: a.IP.String(), Family: fam, Class: a.Class})
+			row.IPs = append(row.IPs, exposure.HostIP{IP: a.IP.String(), Family: fam, Class: a.Class, Contacted: a.Contacted})
 		}
 		c.Hosts = append(c.Hosts, row)
 	}
-	if r.WordlistSkipped {
-		c.NotChecked = append(c.NotChecked, exposure.NotCheckedRow{Kind: "wordlist", Text: exposure.NotWordlistWildcard})
+	if text := map[string]string{surface.WordlistWildcard: exposure.NotWordlistWildcard, surface.WordlistNoAnswer: exposure.NotWordlistNoAnswer,
+		surface.WordlistCut: exposure.NotWordlistCut}[r.Wordlist]; text != "" {
+		c.NotChecked = append(c.NotChecked, exposure.NotCheckedRow{Kind: "wordlist", Text: text})
+	}
+	if r.Unresolved > 0 {
+		c.NotChecked = append(c.NotChecked, exposure.NotCheckedRow{Kind: "lookup", Text: exposure.NotResolved(r.Unresolved)})
 	}
 	for _, p := range r.Ports {
 		c.Ports = append(c.Ports, exposure.PortRow{IP: p.IP.String(), Port: p.Port, Service: p.Service, Product: p.Product})

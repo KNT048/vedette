@@ -120,11 +120,11 @@ func TestExposureRunnerResult(t *testing.T) {
 	t.Parallel()
 	ip := netip.MustParseAddr("203.0.113.10")
 	f := &fakeSurface{res: surface.Result{
-		Hosts:           []surface.Host{{Name: "acme.example", IP: ip, Source: "dns", Addrs: []surface.Addr{{IP: ip, Class: "box"}, {IP: netip.MustParseAddr("2606:4700::5"), Class: "public"}}}},
-		WordlistSkipped: true,
-		Ports:           []surface.Port{{IP: ip, Port: 443, Service: "https", Product: "FortiGate"}, {IP: ip, Port: 3000, Service: "http"}},
-		Admin:           []surface.Admin{{URL: "https://acme.example", Product: "FortiGate", IP: ip, Port: 443, Danger: true}, {URL: "http://acme.example:3000", Product: "Grafana", IP: ip, Port: 3000}},
-		Certs:           []surface.Cert{{Host: "acme.example", Issuer: "R11", NotAfter: time.Date(2027, 1, 2, 3, 4, 5, 0, time.UTC)}},
+		Hosts:    []surface.Host{{Name: "acme.example", IP: ip, Source: "dns", Addrs: []surface.Addr{{IP: ip, Class: "box"}, {IP: netip.MustParseAddr("2606:4700::5"), Class: "public"}}}},
+		Wordlist: surface.WordlistNoAnswer, Unresolved: 2,
+		Ports: []surface.Port{{IP: ip, Port: 443, Service: "https", Product: "FortiGate"}, {IP: ip, Port: 3000, Service: "http"}},
+		Admin: []surface.Admin{{URL: "https://acme.example", Product: "FortiGate", IP: ip, Port: 443, Danger: true}, {URL: "http://acme.example:3000", Product: "Grafana", IP: ip, Port: 3000}},
+		Certs: []surface.Cert{{Host: "acme.example", Issuer: "R11", NotAfter: time.Date(2027, 1, 2, 3, 4, 5, 0, time.UTC)}},
 	}}
 	var asked []string
 	scope := func(_ context.Context, actor string, a netip.Addr) (bool, error) {
@@ -141,7 +141,7 @@ func TestExposureRunnerResult(t *testing.T) {
 	}
 	if f.domain != "acme.example" || len(c.Hosts) != 1 || !reflect.DeepEqual(c.Hosts[0], exposure.HostRow{Name: "acme.example", IP: "203.0.113.10", Source: "dns",
 		IPs: []exposure.HostIP{{IP: "203.0.113.10", Family: "ipv4", Class: "box"}, {IP: "2606:4700::5", Family: "ipv6", Class: "public"}}}) ||
-		len(c.NotChecked) != 1 || c.NotChecked[0].Kind != "wordlist" ||
+		len(c.NotChecked) != 2 || c.NotChecked[0].Text != exposure.NotWordlistNoAnswer || c.NotChecked[1].Kind != "lookup" ||
 		len(c.Ports) != 2 || c.Ports[0] != (exposure.PortRow{IP: "203.0.113.10", Port: 443, Service: "https", Product: "FortiGate"}) ||
 		len(c.AdminPanels) != 2 || c.AdminPanels[0].Risk != "danger" || c.AdminPanels[1].Risk != "warn" ||
 		len(c.Certs) != 1 || c.Certs[0] != (exposure.CertRow{Host: "acme.example", Issuer: "R11", ExpiresAt: "2027-01-02T03:04:05Z"}) {
@@ -227,17 +227,17 @@ func exposureScanNeverProbesNonPublic(t *testing.T) {
 type resolverFunc func(host string) []netip.Addr
 
 func (f resolverFunc) LookupNetIP(_ context.Context, _, host string) ([]netip.Addr, error) {
-	if a := f(host); a != nil {
+	if a := f(strings.TrimSuffix(host, ".")); a != nil {
 		return a, nil
 	}
-	return nil, errors.New("no such host")
+	return nil, &net.DNSError{Err: "no such host", Name: host, IsNotFound: true}
 }
 
 func (f resolverFunc) LookupCNAME(_ context.Context, host string) (string, error) {
-	if f(host) != nil {
-		return host + ".", nil
+	if f(strings.TrimSuffix(host, ".")) != nil {
+		return host, nil
 	}
-	return "", errors.New("no such host")
+	return "", &net.DNSError{Err: "no such host", Name: host, IsNotFound: true}
 }
 func (resolverFunc) LookupMX(context.Context, string) ([]*net.MX, error) {
 	return nil, errors.New("no such host")
@@ -253,3 +253,22 @@ func (f roundTrip) RoundTrip(r *http.Request) (*http.Response, error) { return f
 type nopProbes struct{}
 
 func (nopProbes) Record(context.Context, []surface.Probe) error { return nil }
+
+// Review r1 H1: the dns row of a domain scan goes through the adapter into the real scan_probe table (ip NOT NULL, 1 to 253
+// characters): its target is the domain, so the row is written and the scan goes on.
+func TestExposureDNSProbeRowFitsTheProbeLog(t *testing.T) {
+	t.Parallel()
+	d := testServices(t)
+	p := surface.Probe{ID: "xp-dns", Label: "acme.example", Kind: "dns", Request: "DNS lookups via the box's resolver"}
+	if err := (scanProbeLog{d: d}).Record(t.Context(), []surface.Probe{p}); err != nil {
+		t.Fatalf("before: %v", err)
+	}
+	p.Answered, p.Request = true, "5 names listed; "+p.Request
+	if err := (scanProbeLog{d: d}).Record(t.Context(), []surface.Probe{p}); err != nil {
+		t.Fatalf("after: %v", err)
+	}
+	rows, err := scanService(d).Probes(t.Context())
+	if err != nil || len(rows) != 1 || rows[0].IP != "acme.example" || rows[0].Template != "exposure: dns" || rows[0].Result != "banner" {
+		t.Fatalf("rows %+v, %v", rows, err)
+	}
+}

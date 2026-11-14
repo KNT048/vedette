@@ -197,11 +197,12 @@ type (
 		IPs    []HostIP `json:"ips,omitempty"`
 	}
 	// HostIP is one address of a name with its kind (INV-27): box (this box's verified, current IP), public (any other public
-	// address) or private (never dialed).
+	// address) or private (never dialed). Contacted: the check by name (GET / on 80 and 443) went to this address.
 	HostIP struct {
-		IP     string `json:"ip"`
-		Family string `json:"family"`
-		Class  string `json:"class"`
+		IP        string `json:"ip"`
+		Family    string `json:"family"`
+		Class     string `json:"class"`
+		Contacted bool   `json:"contacted,omitempty"`
 	}
 	// PortRow is an open port.
 	// LastSeen and Misses are set only on a port this scan did not report, kept from an earlier scan (INV-22, D-560): LastSeen is the

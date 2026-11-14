@@ -45,7 +45,9 @@ import (
 
 // Bounds of one scan (D-229). Nothing is cut: a domain has at most maxNames names (more is ErrTooManyNames), so at most
 // 2 × maxNames HTTP checks, and the port scan covers only verified IP targets (exposure holds at most 20). The time cap is the
-// sum of the phases at their worst, so it stops a scan only when something hangs.
+// sum of the phases at their worst, so it stops a scan only when something hangs: crt.sh twice at ctTimeout (90 s), the DNS phase
+// (dnsBudget, 60 s, which cuts itself short and says so), the port scan (20 addresses × 98 ports at dialRate, about 8 s), the
+// pages (2 × maxNames at pageTimeout, pageParallel at a time, about 113 s): about 271 s, under scanTimeout.
 const (
 	maxPageBody     = 64 << 10 // bytes read of a page
 	dialTimeout     = 1500 * time.Millisecond
@@ -168,14 +170,16 @@ type (
 		Issuer   string
 		NotAfter time.Time
 	}
-	// Result is what one scan found. WordlistSkipped: a domain scan did not try the common names because the domain answers any
-	// name (wildcard DNS).
+	// Result is what one scan found. Wordlist: why a domain scan did not try every common name (WordlistWildcard,
+	// WordlistNoAnswer, WordlistCut), "" when it did. Unresolved: names whose address lookup gave no clear answer; they are left out,
+	// so their earlier state stands (exposure INV-22).
 	Result struct {
-		Hosts           []Host
-		Ports           []Port
-		Admin           []Admin
-		Certs           []Cert
-		WordlistSkipped bool
+		Hosts      []Host
+		Ports      []Port
+		Admin      []Admin
+		Certs      []Cert
+		Wordlist   string
+		Unresolved int
 	}
 )
 
@@ -197,8 +201,10 @@ func (s *Scanner) Domain(ctx context.Context, domain string, mayScanPorts func(c
 		return Result{}, s.stopped(ctx, err)
 	}
 	s.log.InfoContext(ctx, "exposure_scan_ct", "domain", domain, "names", len(ct))
-	probe := []Probe{{ID: probeID(), Label: domain, Kind: "dns", Request: fmt.Sprintf(
-		"DNS lookups via the box's resolver: A, AAAA, CNAME of %d names; MX, NS of %s; wildcard check; up to %d common names", len(ct), domain, len(wordlist.Labels()))}}
+	// The domain is the label (and the target column); the text leads with the counts, so the 300-character clip of the probe log
+	// never cuts them.
+	const asked = "DNS lookups via the box's resolver: A, AAAA, CNAME of %d names from certificates; MX, NS; wildcard check; up to %d common names"
+	probe := []Probe{{ID: probeID(), Label: domain, Kind: "dns", Request: fmt.Sprintf(asked, len(ct), len(wordlist.Labels()))}}
 	if err := s.record(ctx, probe, false); err != nil {
 		return Result{}, err
 	}
@@ -207,17 +213,21 @@ func (s *Scanner) Domain(ctx context.Context, domain string, mayScanPorts func(c
 		return Result{}, s.stopped(ctx, err)
 	}
 	probe[0].Answered = slices.ContainsFunc(d.names, func(n string) bool { return len(d.answers[n].addrs) > 0 })
-	probe[0].Request += fmt.Sprintf("; %d names", len(d.names))
+	probe[0].Request = fmt.Sprintf("%d names listed; ", len(d.names)) + probe[0].Request
 	if err := s.record(ctx, probe, true); err != nil {
 		return Result{}, err
 	}
-	s.log.InfoContext(ctx, "exposure_scan_dns", "domain", domain, "names", len(d.names), "wordlist_skipped", d.skipped)
-	res := Result{WordlistSkipped: d.skipped}
+	res := Result{Wordlist: d.wordlist}
 	var jobs []fetchJob
 	var public []netip.Addr
+	contacted := map[string]netip.Addr{}
 	for _, n := range d.names {
 		a := d.answers[n]
-		if len(a.addrs) == 0 && a.cname == "" {
+		switch {
+		case a.failed:
+			res.Unresolved++ // no clear answer: left out, so nothing reads it as gone or moved (exposure INV-22)
+			continue
+		case len(a.addrs) == 0 && a.cname == "":
 			continue // a name from an old certificate that no longer resolves
 		}
 		h := Host{Name: n, Source: d.source[n], CNAME: a.cname}
@@ -227,6 +237,7 @@ func (s *Scanner) Domain(ctx context.Context, domain string, mayScanPorts func(c
 		res.Hosts = append(res.Hosts, h)
 		if i := slices.IndexFunc(a.addrs, s.public); i >= 0 { // the checks by name go to its first public address, the same every day
 			at := hostAddr{host: n, ip: a.addrs[i]}
+			contacted[n] = a.addrs[i]
 			jobs = append(jobs, fetchJob{hostAddr: at, port: portByNumber[80]}, fetchJob{hostAddr: at, port: portByNumber[443]})
 		}
 		for _, ip := range a.addrs {
@@ -235,6 +246,7 @@ func (s *Scanner) Domain(ctx context.Context, domain string, mayScanPorts func(c
 			}
 		}
 	}
+	s.log.InfoContext(ctx, "exposure_scan_dns", "domain", domain, "names", len(d.names), "wordlist", d.wordlist, "unresolved", res.Unresolved)
 	if err := ctx.Err(); err != nil {
 		return Result{}, s.stopped(ctx, err)
 	}
@@ -251,7 +263,7 @@ func (s *Scanner) Domain(ctx context.Context, domain string, mayScanPorts func(c
 		return Result{}, s.stopped(ctx, err)
 	}
 	for i := range res.Hosts {
-		res.Hosts[i].Addrs = s.classify(d.answers[res.Hosts[i].Name].addrs, box)
+		res.Hosts[i].Addrs = s.classify(d.answers[res.Hosts[i].Name].addrs, box, contacted[res.Hosts[i].Name])
 	}
 	open, err := s.scanPorts(ctx, ips)
 	if err != nil {

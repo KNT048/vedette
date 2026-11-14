@@ -22,6 +22,35 @@ import (
 func TestScanReadsTheOrgTimeZone(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
+	d := testServices(t)
+	db := d.DB
+	// a zone far from the machine's own, so the test fails wherever the process zone is used (UTC on CI, +07 here)
+	err := db.Write(ctx, func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(ctx, `INSERT INTO core_org (id, name, timezone, setup_complete, data_mode, install_id) VALUES (1, 'Acme', 'America/New_York', 1, 'clean', 'ins-test')
+ON CONFLICT (id) DO UPDATE SET timezone = excluded.timezone`)
+		return err
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	svc := scanService(d)
+	days, from, to, freq, at, on := []int{1, 2, 3, 4, 5, 6, 7}, "22:00", "05:00", "daily", "02:00", true
+	if _, err := svc.SaveConfig(ctx, "admin@acme.example", scan.Patch{Days: days, From: &from, To: &to, SchedEnabled: &on, SchedFrequency: &freq, SchedAt: &at}); err != nil {
+		t.Fatal(err)
+	}
+	v, err := svc.Config(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := "2026-11-11T07:00:00.000Z"; v.NextRun == nil || *v.NextRun != want { // 02:00 in New York (UTC-5)
+		t.Fatalf("next_run %v, want %s: the schedule is not read in the organization's time zone", deref(v.NextRun), want)
+	}
+}
+
+// testServices is a box's services on a migrated database in a temporary directory: the real tables, nothing else running.
+func testServices(t *testing.T) deps {
+	t.Helper()
+	ctx := t.Context()
 	log := slog.New(slog.DiscardHandler)
 	dir := t.TempDir()
 	keyPath := filepath.Join(dir, "k")
@@ -51,25 +80,5 @@ func TestScanReadsTheOrgTimeZone(t *testing.T) {
 	if err := buildServices(ctx, &d); err != nil {
 		t.Fatal(err)
 	}
-	// a zone far from the machine's own, so the test fails wherever the process zone is used (UTC on CI, +07 here)
-	err = db.Write(ctx, func(tx *sql.Tx) error {
-		_, err := tx.ExecContext(ctx, `INSERT INTO core_org (id, name, timezone, setup_complete, data_mode, install_id) VALUES (1, 'Acme', 'America/New_York', 1, 'clean', 'ins-test')
-ON CONFLICT (id) DO UPDATE SET timezone = excluded.timezone`)
-		return err
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	svc := scanService(d)
-	days, from, to, freq, at, on := []int{1, 2, 3, 4, 5, 6, 7}, "22:00", "05:00", "daily", "02:00", true
-	if _, err := svc.SaveConfig(ctx, "admin@acme.example", scan.Patch{Days: days, From: &from, To: &to, SchedEnabled: &on, SchedFrequency: &freq, SchedAt: &at}); err != nil {
-		t.Fatal(err)
-	}
-	v, err := svc.Config(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if want := "2026-11-11T07:00:00.000Z"; v.NextRun == nil || *v.NextRun != want { // 02:00 in New York (UTC-5)
-		t.Fatalf("next_run %v, want %s: the schedule is not read in the organization's time zone", deref(v.NextRun), want)
-	}
+	return d
 }

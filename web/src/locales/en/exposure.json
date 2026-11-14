@@ -267,10 +267,10 @@
     },
     "count": {
       "names": "Names",
-      "box": "On this box",
-      "public": "On other public addresses",
-      "private": "Private addresses",
-      "ipv6": "IPv6 addresses (not scanned)"
+      "box": "Names on this box",
+      "public": "Names on other public addresses",
+      "private": "Names on private addresses",
+      "ipv6": "Names with IPv6 addresses (not scanned)"
     },
     "class": {
       "box": "This box",
@@ -280,7 +280,9 @@
     "note": {
       "box": "This box's verified address: scanned",
       "public": "Checked by name on ports 80 and 443. Deep scan of this name comes with the next update.",
-      "private": "Private address: never contacted"
+      "private": "Private address: never contacted",
+      "notContacted": "Not contacted: the check by name used {{ip}}.",
+      "notContactedAny": "Not contacted."
     }
   },
   "hosts": {

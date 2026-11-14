@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/netip"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 	"unicode"
@@ -86,6 +87,36 @@ type ServiceScanner interface {
 type ServiceScan struct {
 	Services []ServiceRow
 	Ports    int
+	// FULL-4 (Trưởng), for Mlee: the NSE script results of a deep scan (ScanMode.Full, D-526): nmap's "default", "safe" and
+	// "vuln" scripts (and "dos", "brute" with the disruptive tick) on the open ports and the host. Untrusted; sanitizeScripts
+	// limits them before they are stored. nil for a scan that is not deep.
+	Scripts []ScriptRow
+}
+
+// ScriptRow is one NSE script result of a deep scan (FULL-4 (Trưởng), for Mlee: D-526). Port is the open TCP port it ran on, 0
+// for a script about the whole host (smb-vuln-ms17-010 is one); ID is nmap's script name; Output its text (printable, line breaks
+// kept, at most maxScriptOutput runes; "Output not stored: it can hold credentials." for a script that can print them);
+// Findings the findings of nmap's vulns library, read by the scanner from the script's structured output only (never from text a
+// service controls).
+type ScriptRow struct {
+	IP       string          `json:"ip"`
+	Port     int             `json:"port"`
+	ID       string          `json:"id"`
+	Output   string          `json:"output"`
+	Findings []ScriptFinding `json:"findings"`
+}
+
+// ScriptFinding is one finding of a script (FULL-4 (Trưởng), for Mlee: D-526): State "vulnerable" (the script confirmed it),
+// "likely" (LIKELY VULNERABLE) or "not_vulnerable"; Title the script's name for it; CVEs its CVE ids.
+type ScriptFinding struct {
+	State string   `json:"state"`
+	Title string   `json:"title"`
+	CVEs  []string `json:"cves"`
+}
+
+// vulnerable says the row has a finding the script confirmed.
+func (r ScriptRow) vulnerable() bool {
+	return slices.ContainsFunc(r.Findings, func(f ScriptFinding) bool { return f.State == "vulnerable" })
 }
 
 // Matcher compares identified services with the exploited CVEs: the CISA KEV list with the NVD version ranges the feeds keep
@@ -157,6 +188,35 @@ const (
 // "Not checked" line and the rest of the scan is kept.
 const ServicesTimeout = 5 * time.Minute
 
+// FULL-4 (Trưởng), for Mlee: the step bound of a deep scan (D-526). nmap's full shapes give up on the address after 60 minutes
+// (nmapargv.FullHostTimeout, its --host-timeout); the scanner also waits up to 2 minutes for the box's one nmap slot and checks
+// the address and the terms again (about a minute), so the step gets 70 minutes. FullHostLimit is nmap's limit as the line of
+// ErrServicesTimedOut says it. cmd/vedette holds both to nmapargv in a test.
+const (
+	FullServicesTimeout = 70 * time.Minute
+	FullHostLimit       = 60 * time.Minute
+)
+
+// FULL-4 (Trưởng), for Mlee: the lines of a deep scan's service step (D-526), with its own bounds in them (%d minutes).
+const (
+	notOtherPortsDeep        = "Every TCP port: the deep scan's nmap run did not finish, so only the fixed list of commonly exposed ports was checked."
+	notDeepSlow              = "The deep scan (nmap on every TCP port, with its scripts) did not finish within %d minutes, so no service versions were read."
+	notDeepGaveUp            = "The deep scan (nmap on every TCP port, with its scripts) did not finish within %d minutes, nmap's limit for one address, so no service versions were read. Services may still be open there; scan again later."
+	notAnswersEverywhereDeep = "More than 40 TCP ports answered the deep scan, more than a normal box exposes: a router or firewall that answers for every port looks like this, so its service and script results and the template checks were skipped. If real services run here, forward only the ports you use."
+)
+
+// FULL-4 (Trưởng), for Mlee: limits of the script results kept per scan (D-526). sensor-active already cut each output to
+// maxScriptOutput runes; a deep scan of a box with a few web ports prints a few dozen results, so maxScripts keeps all of a real
+// one (findings first, sanitizeScripts) and bounds what a hostile answer can make the snapshot hold (300 × 2000 runes).
+const (
+	maxScripts        = 300
+	maxScriptOutput   = 2000
+	maxScriptFindings = 20
+	maxScriptCVEs     = 20
+)
+
+var scriptIDRE = regexp.MustCompile(`^[a-z0-9][a-z0-9_.-]{0,63}$`) // nmap's script names
+
 // identify is the service step of a scan (INV-19), after the runner and before the snapshot is stored: the line of what the
 // runner checked, the lines of what a scan never checks, then service identification of the box's own IP. Without a
 // ServiceScanner the scan records NotSetUpServices and is stored as before. Only a stop of the run ends the scan here: a failed
@@ -171,8 +231,19 @@ func (s *Service) identify(ctx context.Context, st ScanTarget, c Content) (Conte
 			NotCheckedRow{Kind: "non_exploited", Text: notNonExploited}, NotCheckedRow{Kind: "templates", Text: notTemplatesDom})
 		return c, nil
 	}
-	c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "ports", Text: notOtherPortsIP}, NotCheckedRow{Kind: "non_exploited", Text: notNonExploited})
+	// FULL-4 (Trưởng), for Mlee: a deep scan probes every TCP port (D-526), so its "ports" line is said only when that run did not
+	// finish (notDeep); the bound of its step and the numbers of its lines are its own.
+	limit, slow, gaveUp, everywhere := ServicesTimeout, notServicesSlow, notServicesGaveUp, notAnswersEverywhere
+	notDeep := func() {}
+	if st.Mode.Full {
+		limit, slow, gaveUp, everywhere = FullServicesTimeout, fmt.Sprintf(notDeepSlow, int(FullServicesTimeout/time.Minute)), fmt.Sprintf(notDeepGaveUp, int(FullHostLimit/time.Minute)), notAnswersEverywhereDeep
+		notDeep = func() { c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "ports", Text: notOtherPortsDeep}) }
+	} else {
+		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "ports", Text: notOtherPortsIP})
+	}
+	c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "non_exploited", Text: notNonExploited})
 	if s.cfg.Services == nil {
+		notDeep()
 		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "services", Text: NotSetUpServices})
 		return s.runTemplates(ctx, st, netip.Addr{}, c) // no services, so it only says why it did not run
 	}
@@ -181,10 +252,11 @@ func (s *Service) identify(ctx context.Context, st ScanTarget, c Content) (Conte
 		return c, fmt.Errorf("exposure: identifying services on %q: %w", st.Value, err)
 	}
 	if answersEverywhere(c.Ports, ip) { // D-522 (N5): the surface scan already saw it; nmap -sV is not sent at all
+		notDeep()
 		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "services", Text: notAnswersEverywhere})
 		return c, nil
 	}
-	sctx, cancel := context.WithTimeout(ctx, ServicesTimeout)
+	sctx, cancel := context.WithTimeout(ctx, limit)
 	defer cancel()
 	res, err := s.cfg.Services.ScanServices(sctx, st, ip)
 	var un *Unavailable
@@ -201,21 +273,37 @@ func (s *Service) identify(ctx context.Context, st ScanTarget, c Content) (Conte
 		if res.Ports > 0 {
 			text = fmt.Sprintf("Service identification (nmap -sV) on %s: %s identified.", plural(res.Ports, "TCP port"), plural(len(got), "service"))
 		}
+		if st.Mode.Full { // FULL-4 (Trưởng), for Mlee: the script results of the deep scan, kept apart from the services
+			vuln := 0
+			for _, r := range sanitizeScripts(res.Scripts) {
+				if r.IP == ip.String() {
+					c.Scripts = append(c.Scripts, r)
+					if r.vulnerable() {
+						vuln++
+					}
+				}
+			}
+			text += fmt.Sprintf(" nmap's scripts: %s, %d saying VULNERABLE.", plural(len(c.Scripts), "result"), vuln)
+		}
 		c.Checks = append(c.Checks, CheckRow{Kind: "services", Text: text, At: store.FormatTS(s.clock())})
 	case ctx.Err() != nil: // the run was stopped: nothing is stored
 		return c, err
 	case errors.Is(err, ErrAnswersEverywhere): // nmap saw it although the surface scan did not: no rows, no templates
-		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "services", Text: notAnswersEverywhere})
+		notDeep()
+		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "services", Text: everywhere})
 		return c, nil
 	case errors.Is(err, ErrServicesTimedOut):
-		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "services", Text: notServicesGaveUp})
+		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "services", Text: gaveUp})
 	case errors.As(err, &un):
 		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "services", Text: "Service identification (nmap -sV) did not run: " + clipText(un.Reason, 200)})
 	case sctx.Err() != nil:
-		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "services", Text: notServicesSlow})
+		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "services", Text: slow})
 	default:
 		s.cfg.Log.ErrorContext(ctx, "exposure: service identification failed", "target", st.Value, "error", err)
 		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "services", Text: notServicesFail})
+	}
+	if err != nil {
+		notDeep()
 	}
 	return s.runTemplates(ctx, st, ip, c) // INV-23: safe templates for the exploited CVEs the services match
 }
@@ -391,6 +479,52 @@ func sanitizeServices(in []ServiceRow) []ServiceRow {
 			Version: field(r.Version, maxVersion), CPE: cpeURI(r.CPE), Extra: field(r.Extra, maxProduct)})
 	}
 	return out
+}
+
+// FULL-4 (Trưởng), for Mlee: sanitizeScripts keeps the script rows of an IPv4 address and a port 0..65535 (0: the host) with an
+// id of nmap's form (others are dropped), each output printable with its line breaks and cut to maxScriptOutput runes, each
+// finding of a known state (at most maxScriptFindings) with a printable title and CVE ids of the right form (at most
+// maxScriptCVEs); the rows with a VULNERABLE finding first, then those with a LIKELY one, at most maxScripts, so the cap drops the
+// rest first (INV-10, D-526).
+func sanitizeScripts(in []ScriptRow) []ScriptRow {
+	out := []ScriptRow{}
+	for _, r := range in {
+		ip, err := netip.ParseAddr(r.IP)
+		if err != nil || !ip.Is4() || r.Port < 0 || r.Port > 65535 || !scriptIDRE.MatchString(r.ID) {
+			continue
+		}
+		findings := []ScriptFinding{}
+		for _, f := range r.Findings {
+			if len(findings) == maxScriptFindings || !slices.Contains([]string{"vulnerable", "likely", "not_vulnerable"}, f.State) {
+				continue
+			}
+			cves := []string{}
+			for _, c := range f.CVEs {
+				if len(cves) < maxScriptCVEs && cveID.MatchString(c) && !slices.Contains(cves, c) {
+					cves = append(cves, c)
+				}
+			}
+			findings = append(findings, ScriptFinding{State: f.State, Title: field(f.Title, maxProduct), CVEs: cves})
+		}
+		text := strings.Map(func(r rune) rune {
+			if r != '\n' && unicode.In(r, unicode.Cc, unicode.Cf, unicode.Zl, unicode.Zp) {
+				return -1
+			}
+			return r
+		}, strings.ToValidUTF8(r.Output, ""))
+		out = append(out, ScriptRow{IP: ip.String(), Port: r.Port, ID: r.ID, Output: strings.TrimSpace(clipText(text, maxScriptOutput)), Findings: findings})
+	}
+	rank := func(r ScriptRow) int {
+		switch {
+		case r.vulnerable():
+			return 0
+		case slices.ContainsFunc(r.Findings, func(f ScriptFinding) bool { return f.State == "likely" }):
+			return 1
+		}
+		return 2
+	}
+	slices.SortStableFunc(out, func(a, b ScriptRow) int { return rank(a) - rank(b) })
+	return out[:min(len(out), maxScripts)]
 }
 
 // sanitizeChecks keeps at most maxLines check lines with a kind of the right shape, a text and a time; others are dropped.

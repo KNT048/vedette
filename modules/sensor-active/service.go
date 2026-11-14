@@ -449,10 +449,16 @@ func runOutcome(ctx, rctx context.Context, res Output, runErr error) (hosts []ho
 			result = "failed: nmap_missing"
 		case errors.Is(runErr, ErrWorkerLost):
 			result = "failed: worker_lost"
+		case errors.Is(runErr, ErrStoppedMidRun) && errors.Is(runErr, ErrNotOwnIP):
+			result = "stopped: while nmap ran, the scan worker found the address is no longer the box's own public IP; output discarded"
+		case errors.Is(runErr, ErrStoppedMidRun):
+			result = "stopped: while nmap ran, the scan worker could no longer reach the public IP services to check the address; output discarded"
 		case errors.Is(runErr, ErrNotOwnIP):
 			result = "refused: the scan worker found the address is not the box's own public IP now; nmap did not run"
 		case errors.Is(runErr, ErrEgressUnverified):
 			result = "refused: the scan worker could not reach the public IP services to check the address; nmap did not run"
+		case errors.Is(runErr, ErrFullUnsupported):
+			result = "refused: the scan worker is older and runs no deep scan; nmap did not run"
 		case errors.Is(runErr, ErrWorkerRefused):
 			result = "failed: the worker refused the job"
 		case errors.Is(runErr, ErrResultRejected):
@@ -729,7 +735,7 @@ func (s *Service) setCursor(ctx context.Context, a netip.Addr) {
 // and the job is "stopped" (POST-3). Hosts found are recorded in the inventory by MAC; devices that are new
 // there reach the queue through inventory.asset.discovered.
 func (s *Service) DiscoverRanges(ctx context.Context) (Result, error) {
-	s.runMu.Lock()
+	s.lockRun(ctx)
 	defer s.runMu.Unlock()
 	jctx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -931,7 +937,7 @@ func (s *Service) setCur(r *running) {
 // arrives while it is still checking reaches it (H2). A refusal by policy or scope publishes
 // sensor.scan.blocked and sends nothing. reason says why it was asked ("discovered", ...).
 func (s *Service) ScanDevice(ctx context.Context, assetID, reason string) error {
-	s.runMu.Lock()
+	s.lockRun(ctx)
 	defer s.runMu.Unlock()
 	jctx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -1101,6 +1107,23 @@ func pickedPlan(dec Decision, rate int) (kind nmapargv.Kind, r int, why string) 
 // busyWait is how long an identification waits for discovery's nmap run to end: the scan of one device, or a small sweep, ends
 // within it; between the devices of its queue, discovery lets go of the lock.
 const busyWait = 2 * time.Minute
+
+// lockRun takes runMu for a run of the window (a sweep or a queued device), waiting as long as it takes, as before D-526. A deep
+// scan of the box's public IP for exposure (nmapargv.ExternalFull) holds the slot for up to an hour; the window's runs then wait
+// for it and go on afterwards with the window and the settings checked again (permit, probe), and the log says why they started
+// late. A Scan now of a device does not wait that long: IdentifyDevice says busy after busyWait.
+func (s *Service) lockRun(ctx context.Context) {
+	if s.runMu.TryLock() {
+		return
+	}
+	s.mu.Lock()
+	ext := s.cur != nil && s.cur.external
+	s.mu.Unlock()
+	if ext {
+		s.log.InfoContext(ctx, "sensoractive: waiting for the nmap slot: an exposure scan of the box's public IP holds it (a deep scan takes up to an hour)")
+	}
+	s.runMu.Lock()
+}
 
 // lockWithin takes runMu, trying every half second for at most d; false when it could not (or ctx ended).
 func (s *Service) lockWithin(ctx context.Context, d time.Duration) bool {

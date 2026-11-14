@@ -441,7 +441,7 @@ const (
 	WhyOSNoPatch   = "os_no_patch_level" // the device named its Windows release (NTLM), not its monthly update level (D-504)
 	WhyGentleOnly  = "gentle_only"       // fragile: only the gentle scan ran (no -sV, no -O), which never records software
 	WhyTimedOut    = "timed_out"         // nmap's host timeout ended the scan before it printed ports
-	WhyBusy        = "busy"              // discovery was running nmap; one nmap at a time, so nothing ran
+	WhyBusy        = "busy"              // discovery, or an exposure scan of the public IP (up to an hour when deep, D-526), was running nmap; one nmap at a time, so nothing ran
 	WhyUnavailable = "unavailable"       // nmap is not available (the worker in the scan container)
 )
 

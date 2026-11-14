@@ -2,7 +2,9 @@
 # Lab VMs for the LAB checks (D-315, docs/LAB-VM.md): Ubuntu 24.04 and Debian 13 cloud images under plain QEMU/KVM, no libvirt.
 # One VM up at a time, 2 vCPU / 2.5 GiB, a qcow2 overlay on a verified base image, a cloud-init NoCloud seed (user `lab`, a dedicated
 # SSH key, passwordless sudo). Network: passt (user mode, no host network change), SSH on 127.0.0.1:<port>; optional `lan` mode adds a
-# second NIC on a macvtap (passthru) over a WIRED host NIC, made by the root subcommand `lan-up` and never over Wi-Fi.
+# second NIC on a macvtap over a WIRED host NIC, made by the root subcommand `lan-up` and never over Wi-Fi: passthru (the NIC is the
+# VM's alone, the host must not use it) or, with --bridge, bridge mode (the host keeps its link, address and routes; the VM gets its
+# own MAC on the wire; host<->VM traffic does not pass, a macvtap limit).
 # Dev tooling, not product code. Host: Debian/Ubuntu (apt, dpkg), x86_64, Linux with /dev/kvm; other hosts are refused.
 # Root only for `setup` (apt + kvm group) and `lan-up`/`lan-down` (one macvtap link); never iptables/nft, netplan or the host's
 # addresses and routes. State under ~/.cache/vedette-lab/ (never /tmp); `destroy` removes only that VM's directory.
@@ -44,7 +46,8 @@ usage: $prog [--dry-run] <command>
   destroy <vm>          stop, then remove only ~/.cache/vedette-lab/<vm>
   ssh [cmd...]          SSH to the running VM as lab (a command times out after ${T_SSH}s)
   status                VMs, ports, base images, lan link
-  lan-up <nic>          (root) macvtap passthru link $LAN_LINK over a WIRED NIC with carrier, tap handed to \$SUDO_USER
+  lan-up <nic> [--bridge]  (root) macvtap link $LAN_LINK over a WIRED NIC with carrier, tap handed to \$SUDO_USER: passthru
+                        (a NIC the host does not use) or --bridge (the host keeps using the NIC; host<->VM traffic does not pass)
   lan-down              (root) delete $LAN_LINK
 vm: ${VMS// / | }
 --dry-run prints what would run and changes nothing.
@@ -518,8 +521,11 @@ cmd_status() {
 # --- root: lan mode ----------------------------------------------------------------------------------------------------------
 
 cmd_lan_up() {
-	[ $# -eq 1 ] || usage 2
-	local nic=$1 sys=/sys/class/net
+	local nic="" mode=passthru sys=/sys/class/net a
+	for a in "$@"; do
+		case $a in --bridge) mode=bridge ;; -*) usage 2 ;; *) [ -z "$nic" ] || usage 2; nic=$a ;; esac
+	done
+	[ -n "$nic" ] || usage 2
 	printf '%s' "$nic" | grep -Eq '^[A-Za-z0-9_.-]{1,15}$' || die "bad interface name '$nic'"
 	[ "$nic" != "$LAN_LINK" ] || die "$nic is the lab link itself"
 	# A test points this at a fake sysfs; root always reads the real one.
@@ -531,21 +537,24 @@ cmd_lan_up() {
 	[ -e "$sys/$nic/device" ] || die "$nic is not a physical NIC (no device link): refused"
 	[ "$(cat "$sys/$nic/carrier" 2>/dev/null || echo 0)" = 1 ] || die "$nic has no carrier (cable unplugged or link down): refused"
 	if [ "$DRY" = 1 ]; then
-		say "dry-run: would run  ip link add link $nic name $LAN_LINK type macvtap mode passthru; ip link set $LAN_LINK up; chown \$SUDO_USER /dev/tap<ifindex>"
+		say "dry-run: would run  ip link add link $nic name $LAN_LINK type macvtap mode $mode; ip link set $LAN_LINK up; chown \$SUDO_USER /dev/tap<ifindex>"
 		return 0
 	fi
 	root_user lan-up
 	command -v ip >/dev/null || die "ip (iproute2) is missing"
 	if [ -d "/sys/class/net/$LAN_LINK" ]; then
-		ip -d -o link show "$LAN_LINK" | grep -q ' macvtap mode passthru ' || die "$LAN_LINK exists and is not our macvtap: refused"
+		ip -d -o link show "$LAN_LINK" | grep -q " macvtap mode $mode " || die "$LAN_LINK exists and is not our macvtap in $mode mode: refused (lan-down first)"
 		[ "$(basename "$(readlink -f /sys/class/net/$LAN_LINK/lower_* 2>/dev/null)")" = "$nic" ] || die "$LAN_LINK exists on another NIC; lan-down first"
 	else
-		# Passthru hands every frame of the NIC to the VM: the host must not be using it.
-		[ -z "$(timeout "$T_QUICK" ip -o route show default dev "$nic")$(timeout "$T_QUICK" ip -6 -o route show default dev "$nic")" ] ||
-			die "$nic carries a default route of this host: refused (lan mode needs a NIC the host does not use)"
-		[ -z "$(timeout "$T_QUICK" ip -o addr show dev "$nic" scope global)" ] ||
-			die "$nic has a global address on this host: refused (passthru would cut the host's traffic on it; use a NIC the host does not use)"
-		timeout "$T_QUICK" ip link add link "$nic" name "$LAN_LINK" type macvtap mode passthru
+		if [ "$mode" = passthru ]; then
+			# Passthru hands every frame of the NIC to the VM: the host must not be using it (--bridge is for a NIC the host uses).
+			[ -z "$(timeout "$T_QUICK" ip -o route show default dev "$nic")$(timeout "$T_QUICK" ip -6 -o route show default dev "$nic")" ] ||
+				die "$nic carries a default route of this host: refused (passthru needs a NIC the host does not use; --bridge keeps the host's use)"
+			[ -z "$(timeout "$T_QUICK" ip -o addr show dev "$nic" scope global)" ] ||
+				die "$nic has a global address on this host: refused (passthru would cut the host's traffic on it; --bridge keeps the host's use)"
+		fi
+		# bridge: a second MAC on the NIC; the host's own link, addresses and routes are not touched (no address, no route is added)
+		timeout "$T_QUICK" ip link add link "$nic" name "$LAN_LINK" type macvtap mode "$mode"
 		timeout "$T_QUICK" ip link set "$LAN_LINK" up
 	fi
 	local idx tap
@@ -555,7 +564,7 @@ cmd_lan_up() {
 	[ -c "$tap" ] || die "$tap did not appear"
 	chown "$RUSER:" "$tap"
 	chmod 0600 "$tap"
-	say "lan: $LAN_LINK (macvtap passthru on $nic), $tap owned by $RUSER; start a VM with --lan"
+	say "lan: $LAN_LINK (macvtap $mode on $nic), $tap owned by $RUSER; start a VM with --lan"
 }
 
 cmd_lan_down() {

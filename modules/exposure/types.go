@@ -235,6 +235,10 @@ type Content struct {
 	NotChecked  []NotCheckedRow `json:"not_checked"`
 	WebFindings []WebFindingRow `json:"web_findings"` // INV-24: alerts of the passive web scan (ZAP), not exploited CVEs
 	Greenbone   []GreenboneRow  `json:"greenbone"`    // INV-25: results of the optional deep scan (Greenbone, QoD >= 70)
+	// FULL-4 (Trưởng), for Mlee: the NSE script results of a deep scan (D-526), stored in exp_snapshot.scripts (migration 0010).
+	// Not in the API yet ("-"): the snapshot schema of api/openapi.json has no such field and the response decoder refuses unknown
+	// ones; showing them is the page's step (contract.ts, openapi, then this tag becomes "scripts").
+	Scripts []ScriptRow `json:"-"`
 }
 
 // Snapshot is the result of one scan day (contract.ts Snapshot). Vulns and VersionGaps are not stored: they are computed when the

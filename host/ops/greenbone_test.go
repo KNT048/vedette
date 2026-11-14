@@ -40,6 +40,15 @@ func TestGreenboneArgvIsFixedAndValidated(t *testing.T) {
 		"podman exists":     gbGvmdExistsArgv(),
 		"podman inspect":    gbImageIDArgv("vulnerability-tests"),
 		"podman rmi":        {"rmi", strings.Repeat("ab", 32)},
+		"podman stop gvmd":  gbStopGvmdArgv(),
+		"podman drop":       gbDropArgv(),
+		"podman schemas":    gbSchemasArgv(),
+		"podman label":      gbLeanLabelArgv("cert-bund-data"),
+		"podman rm scap":    gbLeanRmArgv("scap-data"),
+		"podman rm dfn":     gbLeanRmArgv("dfn-cert-data"),
+		"podman vol exists": gbVolumeExistsArgv(gbProject + "_cert_data_vol"),
+		"podman vol rm":     gbVolumeRmArgv(gbProject + "_scap_data_vol"),
+		"podman inspect sc": gbImageIDArgv("scap-data"),
 		"systemctl enabled": argsPodmanSocketEnabled,
 		"systemctl en":      argsPodmanSocketEnable,
 		"systemctl start":   argsPodmanSocketStart,
@@ -78,7 +87,22 @@ func TestGreenboneArgvIsFixedAndValidated(t *testing.T) {
 		"podman down -v":            gbComposeArgv("down", "-v"),
 		"podman rm":                 gbComposeArgv("rm", "-f"),
 		"podman pull everything":    gbComposeArgv("pull"),
-		"podman pull another":       swap(gbPullFeedArgv(), "scap-data", "gvmd"),
+		"podman pull another":       swap(gbPullFeedArgv(), "notus-data", "gvmd"),
+		"podman pull scap again":    append(gbPullFeedArgv(), "scap-data"),
+		"podman stop another":       gbComposeArgv("stop", "pg-gvm"),
+		"podman drop elsewhere":     swap(gbDropArgv(), gbPgContainer, "vedette-core"),
+		"podman drop other sql":     swap(gbDropArgv(), "--command="+gbDropSQL, "--command=DROP SCHEMA public CASCADE"),
+		"podman drop another db":    swap(gbDropArgv(), "-d", "-h"),
+		"podman psql as root":       append([]string{"exec", "-u", "root"}, gbDropArgv()[1:]...),
+		"podman rm gvmd":            gbLeanRmArgv("gvmd"),
+		"podman label of gvmd":      gbLeanLabelArgv("gvmd"),
+		"podman other query":        swap(gbSchemasArgv(), "--command="+gbSchemasSQL, "--command=SELECT * FROM users"),
+		"podman psql short option":  append(swap(gbDropArgv(), "--command="+gbDropSQL, "-"+"c"), gbDropSQL),
+		"podman rm pg":              {"rm", "--force", "--ignore", gbPgContainer},
+		"podman rm volumes too":     {"rm", "--force", "--ignore", "--volumes", gbProject + "-scap-data-1"},
+		"podman vol rm psql":        gbVolumeRmArgv(gbProject + "_psql_data_vol"),
+		"podman vol rm force":       {"volume", "rm", "-f", gbProject + "_scap_data_vol"},
+		"podman vol prune":          {"volume", "prune", "-f"},
 		"podman up one more":        append(gbUpFeedArgv(), "gsad"),
 		"podman exec elsewhere":     swap(gbLoginArgv(gbTestPW), gbGvmdContainer, "vedette-core"),
 		"podman exec as root":       swap(gbLoginArgv(gbTestPW), "gvmd", "root"),
@@ -158,6 +182,23 @@ type gbWorld struct {
 	images    map[string]string // feed service -> image ID
 	newImages map[string]string // what the pull changes
 	pullCode  int
+	// gbLean (D-593): the SCAP/CERT containers there are (service -> its label io.vedette.started-by), the volumes there are, what
+	// the schema query prints (the schemas that hold data; a drop that works empties it), the exit codes of the drop tries in turn
+	// (then 0; dropFail: always 2), and of compose stop gvmd, a volume rm that fails, image IDs whose rmi is refused, compose up
+	// failing once gvmd was stopped (gvmd does not start again), a hook at compose stop gvmd, whether gvmd ran when the drop came,
+	// and what compose ps printed before compose stop gvmd.
+	ctrs        map[string]string
+	volumes     map[string]bool
+	schemas     string
+	dropCodes   []int
+	dropFail    bool
+	stopCode    int
+	volRmCode   int
+	rmiRefused  map[string]bool
+	restartFail bool
+	onStopGvmd  func()
+	dropLive    bool
+	beforeOff   string
 }
 
 func newGBWorld(t *testing.T, osRelease string) *gbWorld {
@@ -182,6 +223,7 @@ func newGBWorld(t *testing.T, osRelease string) *gbWorld {
 	for i, s := range gbFeedServices {
 		w.images[s] = strings.Repeat(string(rune('a'+i)), 64)
 	}
+	w.volumes, w.ctrs, w.rmiRefused = map[string]bool{}, map[string]string{}, map[string]bool{}
 	w.logw = &syncWriter{w: w.log}
 	logger := slog.New(slog.NewTextHandler(w.logw, &slog.HandlerOptions{Level: slog.LevelDebug}))
 	o, err := NewWithDeps(Config{StateDir: state, CoreUnit: "vedette-core.service", OwnerUID: os.Getuid(), CoreGID: os.Getgid(), Logger: logger}, Deps{
@@ -259,6 +301,15 @@ func (w *gbWorld) exec(ctx context.Context, name string, _ io.Reader, args ...st
 	case name == binSystemctl && slices.Equal(args, argsPodmanSocketActive):
 		return vexec.Result{Stdout: []byte("active\n")}, 0, nil
 	case slices.Equal(args, gbUpArgv()):
+		w.mu.Lock()
+		if w.beforeOff != "" { // compose up starts the gvmd that compose stop gvmd stopped
+			if w.restartFail {
+				w.mu.Unlock()
+				return vexec.Result{}, 1, nil
+			}
+			w.running, w.beforeOff = w.beforeOff, ""
+		}
+		w.mu.Unlock()
 		if w.upIn != nil {
 			w.upIn <- struct{}{}
 		}
@@ -270,7 +321,7 @@ func (w *gbWorld) exec(ctx context.Context, name string, _ io.Reader, args ...st
 			}
 		}
 		return vexec.Result{}, 0, nil
-	case len(args) == 11 && args[0] == "exec":
+	case len(args) == 11 && args[0] == "exec" && args[1] == "-u": // the login (the drop is exec too)
 		w.mu.Lock()
 		defer w.mu.Unlock()
 		w.pws = append(w.pws, strings.TrimPrefix(args[10], "--new-password="))
@@ -307,8 +358,66 @@ func (w *gbWorld) exec(ctx context.Context, name string, _ io.Reader, args ...st
 		return vexec.Result{}, 0, nil
 	case slices.Equal(args, gbStopArgv()):
 		w.mu.Lock()
-		w.running = ""
+		// compose stop leaves the services whose profile is off (the old SCAP/CERT containers); ps still lists them
+		w.running = strings.Join(slices.DeleteFunc(strings.Fields(w.running), func(x string) bool { return !slices.Contains(gbLeanServices, x) }), "\n")
 		w.mu.Unlock()
+		return vexec.Result{}, 0, nil
+	case slices.Equal(args, gbStopGvmdArgv()):
+		w.mu.Lock()
+		hook := w.onStopGvmd
+		if w.stopCode == 0 {
+			w.beforeOff, w.running = w.running, strings.Replace(w.running, "gvmd\n", "", 1)
+		}
+		code := w.stopCode
+		w.mu.Unlock()
+		if hook != nil {
+			hook()
+		}
+		return vexec.Result{}, code, nil
+	case slices.Equal(args, gbSchemasArgv()):
+		w.mu.Lock()
+		defer w.mu.Unlock()
+		return vexec.Result{Stdout: []byte(w.schemas)}, 0, nil
+	case slices.Equal(args, gbDropArgv()):
+		w.mu.Lock()
+		defer w.mu.Unlock()
+		w.dropLive = w.dropLive || slices.Contains(strings.Fields(w.running), "gvmd")
+		code := 0
+		switch {
+		case w.dropFail:
+			code = 2
+		case len(w.dropCodes) > 0:
+			code, w.dropCodes = w.dropCodes[0], w.dropCodes[1:]
+		}
+		if code == 0 {
+			w.schemas = ""
+		}
+		return vexec.Result{}, code, nil
+	case len(args) == 5 && args[0] == "container" && args[1] == "inspect":
+		w.mu.Lock()
+		defer w.mu.Unlock()
+		label, ok := w.ctrs[strings.TrimSuffix(strings.TrimPrefix(args[4], gbProject+"-"), "-1")]
+		if !ok {
+			return vexec.Result{Stderr: []byte("Error: no such container")}, 125, nil
+		}
+		return vexec.Result{Stdout: []byte(label + "\n")}, 0, nil
+	case len(args) == 4 && args[0] == "rm":
+		w.mu.Lock()
+		defer w.mu.Unlock()
+		delete(w.ctrs, strings.TrimSuffix(strings.TrimPrefix(args[3], gbProject+"-"), "-1"))
+		return vexec.Result{}, 0, nil
+	case len(args) == 3 && args[0] == "volume":
+		w.mu.Lock()
+		defer w.mu.Unlock()
+		switch {
+		case args[1] == "exists" && w.volumes[args[2]]:
+			return vexec.Result{}, 0, nil
+		case args[1] == "exists":
+			return vexec.Result{}, 1, nil
+		case w.volRmCode != 0:
+			return vexec.Result{}, w.volRmCode, nil
+		}
+		delete(w.volumes, args[2])
 		return vexec.Result{}, 0, nil
 	case slices.Equal(args, gbPullFeedArgv()):
 		w.mu.Lock()
@@ -324,8 +433,17 @@ func (w *gbWorld) exec(ctx context.Context, name string, _ io.Reader, args ...st
 	case len(args) == 5 && args[0] == "image" && args[1] == "inspect":
 		w.mu.Lock()
 		defer w.mu.Unlock()
-		return vexec.Result{Stdout: []byte("sha256:" + w.images[strings.TrimPrefix(args[4], gbRegistry)] + "\n")}, 0, nil
+		id, ok := w.images[strings.TrimPrefix(args[4], gbRegistry)]
+		if !ok {
+			return vexec.Result{Stderr: []byte("Error: no such image")}, 125, nil
+		}
+		return vexec.Result{Stdout: []byte("sha256:" + id + "\n")}, 0, nil
 	case len(args) == 2 && args[0] == "rmi":
+		w.mu.Lock()
+		defer w.mu.Unlock()
+		if w.rmiRefused[args[1]] {
+			return vexec.Result{Stderr: []byte("Error: image is in use by a container")}, 2, nil
+		}
 		return vexec.Result{}, 0, nil
 	}
 	w.t.Errorf("unexpected call %s", line)
@@ -386,6 +504,7 @@ func testGreenboneFirstStart(t *testing.T) {
 		"podman " + strings.Join(gbUpArgv(), " "),
 		ps, // up checks the services and returns: the login is gvmd's from the creation of its user (N42-4)
 	}
+	want = append(want, gbLeanFreshCalls()...) // a new box has no SCAP/CERT data to remove (D-593); once
 	synctest.Wait()
 	exists := "podman " + strings.Join(gbGvmdExistsArgv(), " ")
 	want = append(want, gbLoginLine, exists, gbLoginLine, exists, gbLoginLine) // the re-sync in the background, until it takes
@@ -825,8 +944,8 @@ func TestGreenboneDown_CancelsTheRunningUpAndOneThatWaits(t *testing.T) {
 func TestGreenboneSyncFeed_PullsStartsAndRemovesTheReplacedFeedImages(t *testing.T) {
 	t.Parallel()
 	w := newGBWorld(t, ubuntu2604)
-	oldVT, oldScap := w.images["vulnerability-tests"], w.images["scap-data"]
-	w.newImages["vulnerability-tests"], w.newImages["scap-data"] = strings.Repeat("1", 64), strings.Repeat("2", 64)
+	oldVT, oldScap := w.images["vulnerability-tests"], w.images["notus-data"]
+	w.newImages["vulnerability-tests"], w.newImages["notus-data"] = strings.Repeat("1", 64), strings.Repeat("2", 64)
 	sync := func() error {
 		return w.o.gbOp(t.Context(), false, gbSyncLimit, func(ctx context.Context) error { return w.o.gbSyncFeed(ctx, nolog) })
 	}
@@ -849,11 +968,11 @@ func TestGreenboneSyncFeed_PullsStartsAndRemovesTheReplacedFeedImages(t *testing
 	if i, j := slices.Index(c, "podman "+strings.Join(gbPullFeedArgv(), " ")), slices.Index(c, "podman "+strings.Join(gbUpFeedArgv(), " ")); i < 0 || j < i {
 		t.Fatalf("calls %q", c)
 	}
-	if got := strings.Join(gbPullFeedArgv()[7:], " "); got != "pull notus-data vulnerability-tests scap-data dfn-cert-data cert-bund-data report-formats data-objects" {
+	if got := strings.Join(gbPullFeedArgv()[7:], " "); got != "pull notus-data vulnerability-tests report-formats data-objects" { // no SCAP/CERT (D-593)
 		t.Fatalf("the feed pull is %q", got)
 	}
 	w.calls, w.pullCode = nil, 1
-	w.newImages["notus-data"] = strings.Repeat("3", 64)
+	w.newImages["data-objects"] = strings.Repeat("3", 64)
 	if err := sync(); err == nil {
 		t.Fatal("a failed pull is not a failure")
 	}
@@ -876,5 +995,248 @@ func TestGreenboneUpArgs_RefuseAPasswordOfAnotherShape(t *testing.T) {
 	}
 	if err := gbArgs(api.GreenboneUpArgs{Password: gbTestPW}); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// gbLeanFreshCalls are gbLean's calls on a lean box: no SCAP/CERT container, no schema holding data, no volume: a few reads.
+func gbLeanFreshCalls() []string {
+	var c []string
+	for _, s := range gbLeanServices {
+		c = append(c, "podman "+strings.Join(gbLeanLabelArgv(s), " "))
+	}
+	c = append(c, "podman "+strings.Join(gbSchemasArgv(), " "))
+	for _, v := range gbLeanVolumes {
+		c = append(c, "podman "+strings.Join(gbVolumeExistsArgv(v), " "))
+	}
+	return c
+}
+
+// gbLeanWorld is a box whose OpenVAS ran the SCAP/CERT services under Vedette's label: their containers, both volumes, both schemas
+// with data, the three images.
+func gbLeanWorld(t *testing.T) *gbWorld {
+	t.Helper()
+	w := newGBWorld(t, ubuntu2604)
+	for i, s := range gbLeanServices {
+		w.ctrs[s] = "vedette-host"
+		w.images[s] = strings.Repeat(string(rune('7'+i)), 64)
+	}
+	for _, v := range gbLeanVolumes {
+		w.volumes[v] = true
+	}
+	w.schemas = "scap\ncert\n"
+	w.o.d.Sleep = func(ctx context.Context, _ time.Duration) bool { return ctx.Err() == nil } // every pause ends at once
+	return w
+}
+
+func gbP(a []string) string { return "podman " + strings.Join(a, " ") }
+
+// gbLeanCalls is what one gbLean pass ran (the login re-sync left out).
+func (w *gbWorld) leanCalls() []string {
+	c := w.Calls()
+	i := slices.Index(c, gbP(gbLeanLabelArgv(gbLeanServices[0])))
+	if i < 0 {
+		return nil
+	}
+	return slices.DeleteFunc(c[i:], func(l string) bool { return l == gbLoginLine || l == gbP(gbGvmdExistsArgv()) })
+}
+
+// LEAN-1 stage A (D-593, review r1): on a box whose OpenVAS ran the SCAP/CERT data, the up removes the three containers first, then,
+// while a schema holds data, stops gvmd, drops the schemas (PostgreSQL still starting is asked again) and starts gvmd again, then
+// removes the volumes and the images of Vedette's containers. Each up decides from the box: once all is gone a pass only reads;
+// what failed (or what an older build brought back) is done at the next up.
+func TestGreenboneUp_RemovesTheSCAPAndCERTDataOfAnEarlierOpenVAS(t *testing.T) {
+	t.Parallel()
+	for _, c := range []string{"upgraded", "postgres starting", "drop fails", "volume stays"} {
+		synctest.Test(t, func(t *testing.T) {
+			w := gbLeanWorld(t)
+			switch c {
+			case "postgres starting":
+				w.dropCodes = []int{2, 2}
+			case "drop fails":
+				w.dropFail = true
+			case "volume stays":
+				w.volRmCode = 1
+			}
+			var said []string
+			up := func() error {
+				return w.o.gbOp(t.Context(), false, gbUpLimit, func(ctx context.Context) error {
+					return w.o.gbUp(ctx, func(s string) { said = append(said, s) }, gbTestPW)
+				})
+			}
+			if err := up(); err != nil {
+				t.Fatal(err)
+			}
+			synctest.Wait()
+			drops := map[string]int{"upgraded": 1, "postgres starting": 3, "drop fails": gbDropTries, "volume stays": 1}[c]
+			var want []string
+			for _, s := range gbLeanServices {
+				want = append(want, gbP(gbLeanLabelArgv(s)), gbP(gbLeanRmArgv(s)))
+			}
+			want = append(want, gbP(gbSchemasArgv()), gbP(gbStopGvmdArgv()))
+			for range drops {
+				want = append(want, gbP(gbDropArgv()))
+			}
+			want = append(want, gbP(gbUpArgv()), gbP(gbPsArgv()))
+			for _, v := range gbLeanVolumes {
+				want = append(want, gbP(gbVolumeExistsArgv(v)), gbP(gbVolumeRmArgv(v)))
+			}
+			for _, s := range gbLeanServices {
+				want = append(want, gbP(gbImageIDArgv(s)), "podman rmi "+w.images[s])
+			}
+			if got := w.leanCalls(); !slices.Equal(got, want) {
+				t.Fatalf("%s: calls\n%q\nwant\n%q", c, got, want)
+			}
+			if w.dropLive || !strings.Contains(w.running, "gvmd") || len(w.ctrs) != 0 {
+				t.Fatalf("%s: dropped while gvmd ran %t, running %q, containers left %v", c, w.dropLive, w.running, w.ctrs)
+			}
+			wantSaid := map[string]string{"upgraded": "3 container(s), gvmd's schemas true, 2 volume(s), 3 image(s)", "postgres starting": "3 container(s), gvmd's schemas true, 2 volume(s), 3 image(s)",
+				"drop fails": "3 container(s), gvmd's schemas false, 2 volume(s), 3 image(s)", "volume stays": "3 container(s), gvmd's schemas true, 0 volume(s), 3 image(s)"}[c]
+			if !slices.ContainsFunc(said, func(s string) bool { return strings.Contains(s, wantSaid) }) {
+				t.Fatalf("%s: the up said %q, want %q", c, said, wantSaid)
+			}
+			if c == "drop fails" || c == "volume stays" {
+				if !strings.Contains(w.logs(), "the next start of OpenVAS tries again") {
+					t.Fatalf("%s: the failure is not in the log: %s", c, w.logs())
+				}
+			}
+			// the next up: only reads once all is gone; what is left is done again (gvmd stopped only while a schema holds data)
+			w.mu.Lock()
+			w.calls, w.dropFail = nil, false
+			w.mu.Unlock()
+			if err := up(); err != nil {
+				t.Fatal(err)
+			}
+			synctest.Wait()
+			got := w.leanCalls()
+			switch c {
+			case "drop fails":
+				if !slices.Contains(got, gbP(gbStopGvmdArgv())) || w.schemas != "" {
+					t.Fatalf("%s: the second up did not drop: %q", c, got)
+				}
+			case "volume stays":
+				if slices.Contains(got, gbP(gbStopGvmdArgv())) || !slices.Contains(got, gbP(gbVolumeRmArgv(gbLeanVolumes[0]))) {
+					t.Fatalf("%s: the second up %q, want the volumes again and gvmd left alone", c, got)
+				}
+			default:
+				if !slices.Equal(got, gbLeanFreshCalls()) {
+					t.Fatalf("%s: second up %q, want only the reads", c, got)
+				}
+			}
+		})
+	}
+}
+
+// Review r1 L2: an older build brought the data back (rollback, then this build again): the next up removes it again.
+func TestGreenboneUp_SCAPAndCERTDataBroughtBackAreRemovedAgain(t *testing.T) {
+	t.Parallel()
+	synctest.Test(t, func(t *testing.T) {
+		w := gbLeanWorld(t)
+		for range 2 {
+			if err := w.up(t.Context()); err != nil {
+				t.Fatal(err)
+			}
+			synctest.Wait()
+			if w.schemas != "" || len(w.volumes) != 0 || len(w.ctrs) != 0 {
+				t.Fatalf("left: schemas %q volumes %v containers %v", w.schemas, w.volumes, w.ctrs)
+			}
+			w.mu.Lock() // the rollback's OpenVAS
+			w.schemas, w.volumes[gbLeanVolumes[0]], w.ctrs["scap-data"] = "scap\n", true, "vedette-host"
+			w.mu.Unlock()
+		}
+	})
+}
+
+// Review r1 H1, L4, L7: an image is removed only when the container that used it carried Vedette's label (a customer's own
+// Greenbone, or the supervisor's trial without the label, keeps it); a refused rmi is logged and the rest goes on.
+func TestGreenboneUp_OnlyTheImagesOfVedettesContainersAreRemoved(t *testing.T) {
+	t.Parallel()
+	synctest.Test(t, func(t *testing.T) {
+		w := gbLeanWorld(t)
+		w.ctrs["scap-data"] = ""                        // not Vedette's
+		delete(w.ctrs, "dfn-cert-data")                 // no container at all
+		w.rmiRefused[w.images["cert-bund-data"]] = true // another container uses it
+		if err := w.up(t.Context()); err != nil {
+			t.Fatal(err)
+		}
+		synctest.Wait()
+		got := w.leanCalls()
+		if slices.ContainsFunc(got, func(l string) bool {
+			return strings.Contains(l, w.images["scap-data"]) || strings.Contains(l, w.images["dfn-cert-data"]) || l == gbP(gbImageIDArgv("scap-data"))
+		}) {
+			t.Fatalf("an image without Vedette's container was touched: %q", got)
+		}
+		if !slices.Contains(got, "podman rmi "+w.images["cert-bund-data"]) || !strings.Contains(w.logs(), "removing the image of cert-bund-data") {
+			t.Fatalf("the refused rmi: %q; log %s", got, w.logs())
+		}
+		if len(w.volumes) != 0 || w.schemas != "" || len(w.ctrs) != 0 {
+			t.Fatalf("the rest did not go on: volumes %v schemas %q containers %v", w.volumes, w.schemas, w.ctrs)
+		}
+	})
+}
+
+// Review r1 M1, L3, L7: a stop of gvmd that fails drops nothing (the containers are removed first anyway, so a down works); a gvmd
+// that does not start again fails the up and nothing more is removed; a cancel between the stop and the drop ends the pass with the
+// cancel, drops nothing and removes nothing more; a down right after deploy, before any up, ignores the old data containers.
+func TestGreenboneUp_SCAPAndCERTCleanupFailures(t *testing.T) {
+	t.Parallel()
+	for _, c := range []string{"stop fails", "gvmd does not restart", "cancel", "down first"} {
+		synctest.Test(t, func(t *testing.T) {
+			w := gbLeanWorld(t)
+			ctx, cancel := context.WithCancel(t.Context())
+			defer cancel()
+			var err error
+			switch c {
+			case "stop fails":
+				w.stopCode = 1
+			case "gvmd does not restart":
+				w.restartFail = true
+			case "cancel":
+				w.onStopGvmd = cancel
+			case "down first":
+				w.running += "scap-data\ncert-bund-data\ndfn-cert-data\n" // an upgraded box right after deploy, before any up
+				if err := w.o.gbOp(ctx, true, gbDownLimit, func(ctx context.Context) error { return w.o.gbDown(ctx, nolog) }); err != nil {
+					t.Fatalf("down with the old data containers running: %v", err)
+				}
+				return
+			}
+			err = w.o.gbLean(ctx, nolog)
+			synctest.Wait()
+			got := w.leanCalls()
+			if w.dropLive || len(w.ctrs) != 0 {
+				t.Fatalf("%s: dropped while gvmd ran %t, containers left %v", c, w.dropLive, w.ctrs)
+			}
+			switch c {
+			case "stop fails":
+				if err != nil || slices.Contains(got, gbP(gbDropArgv())) || w.schemas == "" || !slices.Contains(got, gbP(gbUpArgv())) || !strings.Contains(w.logs(), "stopping gvmd") {
+					t.Fatalf("%s: %v %q", c, err, got)
+				}
+			case "gvmd does not restart":
+				var f *server.Failure
+				if !errors.As(err, &f) || f.Code != api.CodeGreenboneFailed || slices.ContainsFunc(got, func(l string) bool {
+					return strings.HasPrefix(l, "podman volume") || strings.HasPrefix(l, "podman rmi")
+				}) {
+					t.Fatalf("%s: %v %q, want greenbone_failed and nothing more removed", c, err, got)
+				}
+			case "cancel":
+				if !errors.Is(err, context.Canceled) || slices.Contains(got, gbP(gbDropArgv())) || slices.ContainsFunc(got, func(l string) bool {
+					return strings.HasPrefix(l, "podman volume") || strings.HasPrefix(l, "podman rmi")
+				}) {
+					t.Fatalf("%s: %v %q, want the cancel and nothing more", c, err, got)
+				}
+			}
+		})
+	}
+}
+
+// Review r1 M2: docker-compose 2.24.0-2.24.3 ignore the !override tag of compose.vedette.yaml, so the floor is 2.24.4.
+func TestGreenboneProviderFloorIs2_24_4(t *testing.T) {
+	t.Parallel()
+	for v, ok := range map[string]bool{"2.24.3": false, "v2.24.3": false, "2.23.9": false, "1.29.2": false, "2.24.4": true, "2.24.6": true,
+		"2.40.3+ds1-0ubuntu1": true, "2.26.1": true, "3.0.0": true, "": false} {
+		w := newGBWorld(t, ubuntu2604)
+		w.version = v
+		if got := w.o.gbProviderOK(t.Context()); got != ok {
+			t.Errorf("%q: accepted %t, want %t", v, got, ok)
+		}
 	}
 }

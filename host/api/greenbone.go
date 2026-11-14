@@ -10,7 +10,7 @@ const (
 	CmdGreenboneUp = "greenbone.up"
 	// CmdGreenboneDown stops the project and keeps its volumes; it first cancels an up or a feed update that runs.
 	CmdGreenboneDown = "greenbone.down"
-	// CmdGreenboneSyncFeed is Greenbone's feed update: pull the seven feed data images, then start those services again.
+	// CmdGreenboneSyncFeed is Greenbone's feed update: pull the four feed data images Vedette runs (D-593), then start those services again.
 	CmdGreenboneSyncFeed = "greenbone.sync_feed"
 )
 

@@ -47,6 +47,7 @@ type fakeGVM struct {
 	cmds       []string // command names in the order they came
 	authFail   bool
 	syncing    bool       // get_feeds reports a feed that is still loading
+	dataSync   bool       // gvmd's own feed lock is taken: its GVMD_DATA feed is syncing (the lock is one for every feed of gvmd)
 	noFAF      bool       // "Full and fast" is not there yet (404)
 	states     []string   // get_tasks answers in turn; the last repeats
 	report     string     // the get_reports answer
@@ -148,7 +149,14 @@ func (f *fakeGVM) answer(cmd string, body string) string {
 		if f.syncing {
 			sync = "<currently_syncing><timestamp>x</timestamp></currently_syncing>"
 		}
-		return ok("<feed><type>NVT</type><name>Greenbone Community Feed</name>" + sync + "</feed><feed><type>SCAP</type></feed>")
+		lock := ""
+		if f.dataSync {
+			lock = "<currently_syncing><timestamp>x</timestamp></currently_syncing>"
+		}
+		// as gvmd answers without the SCAP and CERT data (D-593): a feed whose feed.xml is missing is left out
+		return ok("<feed><type>NVT</type><name>Greenbone Community Feed</name>" + sync + "</feed><feed><type>GVMD_DATA</type><name>Greenbone Community gvmd Data Feed</name>" + lock + "</feed>")
+	case "get_info", "get_resource_names": // gvmd 26.43.0 without SCAP/CERT (gmp.c)
+		return "<" + cmd + `_response status="400" status_text="The SCAP database is required"/>`
 	case "get_configs":
 		switch {
 		case strings.Contains(body, "filter="):
@@ -1385,4 +1393,33 @@ func TestSafeChecksIsTheScannerPreference(t *testing.T) {
 	if x, ok := all.scanner("safe_checks"); !ok || x.Value != "yes" {
 		t.Fatalf("scanner safe_checks = %+v %v", x, ok)
 	}
+}
+
+// D-593 (LEAN-1 stage A): Greenbone runs without its SCAP and CERT data. gvmd's get_feeds then lists only the NVT and gvmd data feeds;
+// readiness waits for nothing else (gvmd's own feed lock shows on the gvmd data feed), a whole scan works, and the client never sends
+// a command that needs the SCAP or CERT database (get_info, get_resource_names) or asks for a report format (format_id: the
+// report-formats data are a stage B candidate).
+func TestContract_INV25_NeedsNoSCAPOrCERTData(t *testing.T) {
+	t.Parallel()
+	e, h := gbEnv(t)
+	e.enable()
+	h.gvm.with(func(g *fakeGVM) { g.dataSync = true })
+	if v := e.gbState(); v.State != GBLoading {
+		t.Fatalf("gvmd's feed lock taken = %+v", v)
+	}
+	h.gvm.with(func(g *fakeGVM) { g.dataSync = false })
+	if v := e.gbState(); v.State != GBReady {
+		t.Fatalf("NVT and gvmd data loaded, no SCAP or CERT feed = %+v", v)
+	}
+	h.gvm.with(func(g *fakeGVM) { g.states = []string{"Running", "Done"} })
+	if s := e.scanIP(Content{}); len(s.Greenbone) != 4 {
+		t.Fatalf("greenbone = %+v", s.Greenbone)
+	}
+	h.gvm.with(func(g *fakeGVM) {
+		for i, c := range g.cmds {
+			if c == "get_info" || c == "get_resource_names" || strings.Contains(g.bodies[i], "format_id") {
+				t.Errorf("sent %s %q, which needs the SCAP/CERT data or a report format", c, g.bodies[i])
+			}
+		}
+	})
 }

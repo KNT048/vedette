@@ -1,9 +1,9 @@
-# Vedette's override of Greenbone's official compose.yaml (D-529, FULL-2, LEAN-1). vedette-host always runs the two together:
+# Vedette's override of Greenbone's official compose.yaml (D-529, FULL-2, LEAN-1, D-593). vedette-host always runs the two together:
 #   podman compose -p greenbone-community-edition -f compose.yaml -f compose.vedette.yaml ...
 # Every change Vedette makes to Greenbone's project is here, nothing in compose.yaml:
 #
 # 1. The gvmd socket goes to core and to nothing else. gvmd's /run/gvmd is the host directory /run/vedette-greenbone/gvmd instead of
-#    the project's volume gvmd_socket_vol (compose merges a service's volumes by their target, so this entry replaces that one).
+#    the project's volume gvmd_socket_vol (gvmd's volume list is Vedette's below, item 2).
 #    vedette-host makes the directory (0755, owned by gvmd's fixed uid 1001 of Greenbone's gvmd image) before every start; core's
 #    Quadlet unit mounts its parent /run/vedette-greenbone, which the host makes at its own start, so core never depends on a volume
 #    compose creates and starts normally while OpenVAS is off. gvmd listens with mode 666 (GVMD_ARGS of Greenbone's start-gvmd), so the
@@ -20,8 +20,20 @@
 #      openvas     prints the scanner's configuration and then follows its log ("shows logs of openvas" in the official file):
 #                  the scans run in ospd-openvas, which starts the scanner itself and reads the same configuration volume.
 #    No service that stays depends on one of them (the test checks it). The profile "disabled" is never activated.
+#    The SCAP and CERT data are off too (LEAN-1 stage A, D-593):
+#      scap-data       CVE, CPE and EPSS data for gvmd's SecInfo pages and its CVE scanner;
+#      cert-bund-data  CERT-Bund advisories, and
+#      dfn-cert-data   DFN-CERT advisories, for the SecInfo pages and the CERT references of a result.
+#    Vedette never asks gvmd for them: the CVE ids of a result come from the vulnerability test's own references (VT feed), and the
+#    only GMP commands that need the SCAP or CERT database (get_info, get_resource_names) are never sent (exposure's test holds it).
+#    gvmd then has no feed.xml or timestamp of either: it makes the two schemas once, empty, and from then on reports them current
+#    (gvmd 26.43.0's manage_sql_secinfo.c; D-593 has the lines). Compose merges lists and maps, so taking entries out of gvmd needs
+#    compose's own tags (docker-compose 2.24.4 or newer, the host's floor; 2.24.0-2.24.3 ignore !override without a word):
+#    `!override` replaces gvmd's volume list with Greenbone's own less the two data mounts, and `!reset` removes the three
+#    dependencies. The test checks both against compose.yaml.
 # 3. Every service that runs carries the label io.vedette.started-by=vedette-host, so `podman ps --filter label=...` shows what
-#    Vedette started. The label never makes a container Vedette's to remove: uninstall leaves the whole project alone (D-529).
+#    Vedette started. The label never makes a container Vedette's to remove: uninstall leaves the whole project alone (D-529). One
+#    use only (D-593): an image of the SCAP/CERT data is removed only when the container that ran it carried this label.
 # 4. gvmd's admin user is created with Vedette's GMP login (N42-4, D-590). vedette-host writes core's GMP password to
 #    /var/lib/vedette-host/greenbone/gvmd-admin-password (the directory root's 0700, the file uid 1001 0400) before every start; it
 #    is the file secret vedette-gmp-password, which docker-compose v2 bind-mounts read-only at /run/secrets/vedette-gmp-password
@@ -38,12 +50,24 @@ services:
       - 'PASSWORD="$$(cat /run/secrets/vedette-gmp-password)" && [ -n "$$PASSWORD" ] && USER=admin && export USER PASSWORD && exec /usr/local/bin/start-gvmd'
     secrets:
       - vedette-gmp-password
-    volumes:
+    # Greenbone's list in its order, without scap_data_vol:/var/lib/gvm/scap-data/ and cert_data_vol:/var/lib/gvm/cert-data, and with
+    # the host directory of item 1 in place of gvmd_socket_vol:/run/gvmd.
+    volumes: !override
+      - gvmd_data_vol:/var/lib/gvm
+      - data_objects_vol:/var/lib/gvm/data-objects/gvmd
+      - vt_data_vol:/var/lib/openvas/plugins
+      - psql_data_vol:/var/lib/postgresql
       - type: bind
         source: /run/vedette-greenbone/gvmd
         target: /run/gvmd
         bind:
           create_host_path: false
+      - ospd_openvas_socket_vol:/run/ospd
+      - psql_socket_vol:/var/run/postgresql
+    depends_on:
+      scap-data: !reset null
+      cert-bund-data: !reset null
+      dfn-cert-data: !reset null
     labels:
       io.vedette.started-by: vedette-host
 
@@ -59,20 +83,17 @@ services:
     profiles: [disabled]
   openvas:
     profiles: [disabled]
+  scap-data:
+    profiles: [disabled]
+  cert-bund-data:
+    profiles: [disabled]
+  dfn-cert-data:
+    profiles: [disabled]
 
   vulnerability-tests:
     labels:
       io.vedette.started-by: vedette-host
   notus-data:
-    labels:
-      io.vedette.started-by: vedette-host
-  scap-data:
-    labels:
-      io.vedette.started-by: vedette-host
-  cert-bund-data:
-    labels:
-      io.vedette.started-by: vedette-host
-  dfn-cert-data:
     labels:
       io.vedette.started-by: vedette-host
   data-objects:

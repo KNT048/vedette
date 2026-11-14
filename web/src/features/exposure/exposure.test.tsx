@@ -1121,7 +1121,7 @@ describe('exposure: services and exploited vulnerabilities of the box IP (S-EXP-
     const at = new Date(Date.now() - 864e5).toISOString()
     const date = at.slice(0, 10)
     const snap = { id: 'sn-x', date, scanned_at: at, hosts: [], ports: [{ ip: '203.0.113.10', port: 443, service: 'https' }], admin_panels: [], certs: [], counts: { subdomains: 0, ips: 1, ports: 1, admin_panels: 0, certs_expiring: 0 },
-      services: [], vulns: [], version_gaps: [], checks: [{ kind: 'ports', text: 'TCP connect to the fixed list of commonly exposed ports, then one GET / on each open web port and a TLS handshake on each TLS port: 1 port open.', at }],
+      services: [], web_findings: [], vulns: [], version_gaps: [], checks: [{ kind: 'ports', text: 'TCP connect to the fixed list of commonly exposed ports, then one GET / on each open web port and a TLS handshake on each TLS port: 1 port open.', at }],
       not_checked: [{ kind: 'udp', text: 'UDP ports: the scan connects over TCP only.' }, { kind: 'services', text: 'Service identification (nmap -sV) is not set up on this box yet.' }] }
     server.use(
       http.get('*/api/v1/exposure/targets/xt-2/snapshots', () => HttpResponse.json({ items: [{ id: snap.id, date, scanned_at: at, counts: snap.counts }] })),
@@ -1142,7 +1142,7 @@ describe('exposure: services and exploited vulnerabilities of the box IP (S-EXP-
       services: [{ ip: '203.0.113.10', port: 25, name: 'smtp', product: 'Exim smtpd', version: '4.89', cpe: 'cpe:/a:exim:exim:4.89', extra: 'Debian' }],
       vulns: [{ ip: '203.0.113.10', port: 25, cve: 'CVE-2019-10149', name: 'Exim Mail Transfer Agent (MTA) Improper Input Validation', basis: 'version', date_added: '2021-11-03', ransomware: false, backport: 'Debian',
         summary: '203.0.113.10 runs Exim smtpd 4.89. Its version is inside the range affected by CVE-2019-10149 (>= 4.87, <= 4.91); no scan has confirmed it yet, so this is only suspected. Debian may have backported the fix without changing the version: check the installed package version against Debian\'s security tracker.' }],
-      version_gaps: [], checks: [], not_checked: [] }
+      version_gaps: [], web_findings: [], checks: [], not_checked: [] }
     server.use(
       http.get('*/api/v1/exposure/targets/xt-2/snapshots', () => HttpResponse.json({ items: [{ id: snap.id, date, scanned_at: at, counts: snap.counts }] })),
       http.get('*/api/v1/exposure/targets/xt-2/snapshots/:date', () => HttpResponse.json(snap)),
@@ -1166,7 +1166,7 @@ describe('exposure: services and exploited vulnerabilities of the box IP (S-EXP-
       templates: [{ ip: '203.0.113.10', port: 80, cve: 'CVE-2021-41773', template: 'CVE-2021-41773', outcome: 'matched' }, { ip: '203.0.113.10', port: 80, cve: 'CVE-2021-42013', template: 'CVE-2021-42013', outcome: 'no_match' }],
       vulns: [v('CVE-2021-41773', 'template', 'matched', 'Confirmed by template CVE-2021-41773: the safe check got the answer of an affected service.'),
         v('CVE-2021-42013', 'version', 'no_match', 'In range. No match reported by the safe template CVE-2021-42013: that is one check, not proof that this service is not affected.')],
-      version_gaps: [], checks: [], not_checked: [] }
+      version_gaps: [], web_findings: [], checks: [], not_checked: [] }
     server.use(
       http.get('*/api/v1/exposure/targets/xt-2/snapshots', () => HttpResponse.json({ items: [{ id: snap.id, date, scanned_at: at, counts: snap.counts }] })),
       http.get('*/api/v1/exposure/targets/xt-2/snapshots/:date', () => HttpResponse.json(snap)),
@@ -1178,6 +1178,51 @@ describe('exposure: services and exploited vulnerabilities of the box IP (S-EXP-
     expect(within(none).getByText('Version in range')).toBeInTheDocument()
     expect(within(none).getByText(/No match reported by the safe template CVE-2021-42013/)).toBeInTheDocument()
     expect(within(none).queryByText(/not vulnerable/i)).toBeNull()
+  })
+
+  it('INV-24: passive web findings sit apart from the exploited CVEs, riskiest first, with the CWE link, three sample pages and the advice; axe clean', async () => {
+    renderApp('/exposure/xt-2')
+    const section = await screen.findByRole('region', { name: 'Web findings (passive)' })
+    expect(within(section).getByText(/ZAP looked at the pages without sending forms; these are things it noticed\./)).toBeInTheDocument()
+    const table = within(section).getByRole('table', { name: 'What ZAP noticed on the web pages' })
+    const rows = within(table).getAllByRole('row').slice(1)
+    expect(within(rows[0]!).getByText('Medium')).toBeInTheDocument()
+    expect(within(rows[rows.length - 1]!).getByText('Info')).toBeInTheDocument()
+    const csp = within(table).getAllByRole('row', { name: /Content Security Policy/ })[0]!
+    expect(within(csp).getByRole('link', { name: 'CWE-693 (opens the MITRE page in a new tab)' })).toHaveAttribute('href', 'https://cwe.mitre.org/data/definitions/693.html')
+    expect(within(csp).getAllByText(/^https:\/\/203\.0\.113\.10/)).toHaveLength(3)
+    expect(within(csp).getByText('5 pages in all')).toBeInTheDocument()
+    expect(within(csp).getByText(/configured to set the Content-Security-Policy header/)).toBeInTheDocument()
+    // not mixed into the exploited CVE table
+    const vulns = screen.getByRole('table', { name: 'Exploited vulnerabilities that match the services on this IP' })
+    expect(within(vulns).queryByText(/Content Security Policy/)).toBeNull()
+    expect(within(screen.getByRole('list', { name: 'Checked' })).getByText(/Passive web scan \(ZAP baseline: spider and passive rules, no form sent\) of 2 pages/)).toBeInTheDocument()
+    await expectNoA11yViolations()
+  })
+
+  it('INV-24: a scan that looked at no page says why; a page with no alert does not claim the page is safe', async () => {
+    const at = new Date(Date.now() - 864e5).toISOString()
+    const date = at.slice(0, 10)
+    const snap = { id: 'sn-x', date, scanned_at: at, hosts: [], ports: [], admin_panels: [], certs: [], counts: { subdomains: 0, ips: 1, ports: 0, admin_panels: 0, certs_expiring: 0 },
+      services: [], templates: [], web_findings: [], vulns: [], version_gaps: [], checks: [] as unknown[], not_checked: [{ kind: 'web', text: 'Passive web scan (ZAP) is not set up on this box yet.' }] }
+    server.use(
+      http.get('*/api/v1/exposure/targets/xt-2/snapshots', () => HttpResponse.json({ items: [{ id: snap.id, date, scanned_at: at, counts: snap.counts }] })),
+      http.get('*/api/v1/exposure/targets/xt-2/snapshots/:date', () => HttpResponse.json(snap)),
+    )
+    renderApp('/exposure/xt-2')
+    const section = await screen.findByRole('region', { name: 'Web findings (passive)' })
+    expect(await within(section).findByText('No page was scanned')).toBeInTheDocument()
+    expect(within(section).getByText('Passive web scan (ZAP) is not set up on this box yet.')).toBeInTheDocument()
+    expect(within(section).queryByRole('table')).toBeNull()
+    snap.checks = [{ kind: 'web', text: 'Passive web scan (ZAP baseline: spider and passive rules, no form sent) of 1 page: https://203.0.113.10/. 0 alerts.', at }]
+    renderApp('/exposure/xt-2')
+    expect((await screen.findAllByText('ZAP noticed nothing on the pages it looked at')).length).toBeGreaterThan(0)
+  })
+
+  it('INV-24: a domain gets web findings for its own names', async () => {
+    renderApp('/exposure/xt-1')
+    const section = await screen.findByRole('region', { name: 'Web findings (passive)' })
+    expect(within(section).getAllByText(/^https:\/\/(www\.)?acme\.example\//).length).toBeGreaterThan(0)
   })
 
   it('a domain has no vulnerability section and says where service identification runs', async () => {

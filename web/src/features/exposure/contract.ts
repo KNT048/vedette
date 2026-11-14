@@ -60,8 +60,8 @@ export const ServiceRow = z.object({
   version: z.string().describe('"" when the service sent none'), cpe: z.string().describe('The CPE 2.2 URI nmap printed; "" when none'),
   extra: z.string().describe('nmap\'s extrainfo, e.g. (Debian); "" when none'),
 })
-export const CheckRow = z.object({ kind: z.string().describe('ports, names, services, templates or cve'), text: z.string(), at: z.iso.datetime() })
-export const NotCheckedRow = z.object({ kind: z.string().describe('udp, ports, non_exploited, services, templates or cve'), text: z.string() })
+export const CheckRow = z.object({ kind: z.string().describe('ports, names, services, templates, cve or web'), text: z.string(), at: z.iso.datetime() })
+export const NotCheckedRow = z.object({ kind: z.string().describe('udp, ports, non_exploited, services, templates, cve or web'), text: z.string() })
 export const VulnBasis = z.enum(['version', 'product', 'template'])
 export const VulnRow = z.object({
   ip: z.string(), port: z.number().int(), cve: z.string(), name: z.string(),
@@ -77,10 +77,19 @@ export const TemplateRow = z.object({
 })
 export const GapRow = z.object({ ip: z.string(), port: z.number().int(), software: z.string(), cves: z.array(z.string()).describe('Exploited CVEs of the product that only a version would decide') })
 
+// S-EXP-2 (INV-24, D-562): what ZAP's passive web scan (spider and passive rules, no form sent) noticed on a scanned page. Not exploited CVEs.
+export const WebRisk = z.enum(['high', 'medium', 'low', 'info'])
+export const WebFinding = z.object({
+  site: z.string().describe('The page ZAP scanned, e.g. https://203.0.113.10:18443/'), plugin_id: z.string(),
+  name: z.string().describe('ZAP\'s alert name; plain text'), risk: WebRisk, confidence: z.enum(['low', 'medium', 'high', 'confirmed']),
+  cwe: z.number().int().describe('CWE number, 0 when ZAP names none'), description: z.string().describe('Plain text, clipped'), solution: z.string().describe('ZAP\'s advice, plain text, clipped'),
+  urls: z.array(z.string()).describe('At most 3 sample pages of the site that showed it'), count: z.number().int().describe('How many pages showed it'),
+})
+
 export const Snapshot = z.object({
   id: z.string(), date: isoDate, scanned_at: z.iso.datetime(),
   hosts: z.array(HostRow), ports: z.array(PortRow), admin_panels: z.array(AdminRow), certs: z.array(CertRow), counts: Counts,
-  services: z.array(ServiceRow), templates: z.array(TemplateRow).describe('The safe templates that ran on the services (INV-23); the box ran no template when empty'), checks: z.array(CheckRow), not_checked: z.array(NotCheckedRow),
+  services: z.array(ServiceRow), templates: z.array(TemplateRow).describe('The safe templates that ran on the services (INV-23); the box ran no template when empty'), checks: z.array(CheckRow), not_checked: z.array(NotCheckedRow), web_findings: z.array(WebFinding),
   vulns: z.array(VulnRow).describe('Computed on read against today\'s CISA list, not stored'), version_gaps: z.array(GapRow),
 })
 export const SnapshotMeta = Snapshot.pick({ id: true, date: true, scanned_at: true, counts: true })

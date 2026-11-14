@@ -58,6 +58,13 @@
 - **core** `export_policy.go`: ba cột JSON mới được xuất (`TestExport_PolicyClassifiesEveryColumn`).
 - **response** (`new_port`) đọc `Diff.Added` kind `port`: kind mới không đổi nó.
 
+## Modifying: `WebScanner`, `WebScan`, `ParseZAPReport`, `webURLs`, `webPassive`, `WebFindingRow`, `Snapshot.web_findings`, cột `exp_snapshot.web_findings` (INV-24, D-562)
+- **host** (Trưởng): thao tác `vedette-host` `zap.baseline` (container ZAP một lần, mạng `vedette-zap` chỉ ra tới địa chỉ:cổng đó, ghim ảnh `ZAP_IMAGE` trong `pins.env`, gỡ cài đặt xoá ảnh và mạng) và adapter `cmd/vedette` nối `Config.Web`; exposure ghi hàng Probe log của từng trang trước khi gọi (`Config.Probes` phải hiện thực thêm `WebProbeLog`), adapter ghim ZAP vào `WebPage.IP`, ghi thêm URL spider đã bò và tự kiểm lại IP của hộp / token TXT ở mỗi lần gọi. Đổi cách chọn URL ở `webURLs` là đổi cái được phép gửi tới ZAP (LEGAL §3, PRIVACY luồng 9).
+- **PRIVACY luồng 6 và 9, THIRD_PARTY_NOTICES (hàng ZAP)**, `web/src/locales/en/core.json` (Settings → Privacy, `privacyFlows.test.ts` so luồng 6 từng chữ): đổi cái ZAP đọc hay kéo là đổi cả ba.
+- **web/features/exposure**: `WebPanel.tsx` (mục "Web findings (passive)", cho IP và domain), `contract.ts` (`WebFinding`, nguồn OpenAPI → `core/api/oas` sinh lại).
+- **core** `export_policy.go`: cột JSON mới được xuất (`TestExport_PolicyClassifiesEveryColumn`).
+- `findings`, `response`, `reports`, `alerts`: không đọc `web_findings`; cảnh báo ZAP không thành finding hay tin cảnh báo.
+
 ## Disabling this module
 - Trang External exposure mất; `scan` chỉ quét mục tiêu nội bộ; luồng PRIVACY 9 dừng (job không chạy, kể cả lượt dò đầy đủ trước khi quét).
 - Mục tiêu, cam kết, ảnh chụp, cài đặt và danh sách bỏ qua giữ; `reports` bỏ mục bề mặt ngoài.

@@ -123,6 +123,9 @@ func (s *Service) execute(ctx context.Context, run *scanRun, r Runner, user stri
 	if err == nil {
 		content, err = s.identify(ctx, st, content) // INV-19: service identification of the box's own IP, and what was checked
 	}
+	if err == nil {
+		content, err = s.webPassive(ctx, st, content) // INV-24: passive web scan of its web ports
+	}
 	if err == nil && ctx.Err() != nil { // stopped just as it finished: nothing is stored
 		err = context.Cause(ctx)
 	}

@@ -1,0 +1,40 @@
+{
+  "@programName": "ZAP",
+  "@version": "2.15.0",
+  "@generated": "Fri, 13 Nov 2026 10:00:00",
+  "site": [
+    {
+      "@name": "http://203.0.113.10:18443",
+      "@host": "203.0.113.10",
+      "@port": "18443",
+      "@ssl": "false",
+      "alerts": [
+        {
+          "pluginid": "10020", "alertRef": "10020-1", "alert": "Missing Anti-clickjacking Header", "name": "Missing Anti-clickjacking Header",
+          "riskcode": "2", "confidence": "2", "riskdesc": "Medium (Medium)",
+          "desc": "<p>The response does not protect against 'ClickJacking' attacks.</p>",
+          "instances": [
+            {"uri": "http://203.0.113.10:18443/", "method": "GET", "param": "x-frame-options"},
+            {"uri": "http://203.0.113.10:18443/a", "method": "GET"},
+            {"uri": "http://203.0.113.10:18443/b", "method": "GET"},
+            {"uri": "http://203.0.113.10:18443/c", "method": "GET"},
+            {"uri": "http://evil.example/offsite", "method": "GET"}
+          ],
+          "count": "5", "solution": "<p>Modern Web browsers support the Content-Security-Policy and X-Frame-Options HTTP headers.</p>",
+          "reference": "<p>https://example</p>", "cweid": "1021", "wascid": "15", "sourceid": "3"
+        },
+        {
+          "pluginid": "10036", "alert": "Server Leaks Version Information via \"Server\" HTTP Response Header Field",
+          "riskcode": "1", "confidence": "3", "desc": "<p>The web/application server is leaking version information.</p>",
+          "instances": [{"uri": "http://203.0.113.10:18443/"}], "solution": "<p>Configure the server to hide it.</p>", "cweid": "200"
+        },
+        {
+          "pluginid": "10109", "alert": "Modern Web Application", "riskcode": "0", "confidence": "2", "desc": "<p>The application appears to be a modern web application.</p>",
+          "instances": [{"uri": "http://203.0.113.10:18443/"}], "solution": "<p>This is an informational alert.</p>", "cweid": "-1"
+        },
+        {"pluginid": "10099", "alert": "A rule that is a false positive", "riskcode": "3", "confidence": "0", "instances": [], "cweid": "0"}
+      ]
+    },
+    {"@name": "http://cdn.example.org", "@host": "cdn.example.org", "@port": "80", "alerts": [{"pluginid": "1", "alert": "x", "riskcode": "3", "confidence": "3"}]}
+  ]
+}

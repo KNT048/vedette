@@ -39,8 +39,18 @@ func TestFullSetsOfTheCommittedPack(t *testing.T) {
 			}
 		}
 	}
-	if n["kev"] != 928 || n["own_ip"] != 186 {
-		t.Errorf("KEV set %d, own_ip %d: D-527 must not change the KEV set of D-528 (928, 186)", n["kev"], n["own_ip"])
+	if n["kev"] != 338 || n["own_ip"] != 186 {
+		t.Errorf("KEV set %d, own_ip %d: D-527 must not change the KEV set of D-528 step 2 (338, 186)", n["kev"], n["own_ip"])
+	}
+	// D-528 step 2: without the tick only read-only GETs and the reviewed list (4 non-GET http checks, the TLS handshakes)
+	post := 0
+	for _, tp := range ix.Templates {
+		if tp.FullSet() == pack.SetDeep && !strings.HasPrefix(tp.Request, "GET ") && !strings.HasPrefix(tp.Request, "HEAD ") && !strings.HasPrefix(tp.Path, "ssl/") {
+			post++
+		}
+	}
+	if post > 4 {
+		t.Errorf("%d deep templates are not GET or HEAD: only the reviewed ones may be", post)
 	}
 	if n["deep"] < 5000 || n["disruptive"] < 300 {
 		t.Errorf("deep %d, disruptive %d: the rule changed, look again before shipping", n["deep"], n["disruptive"])

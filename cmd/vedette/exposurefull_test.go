@@ -56,7 +56,7 @@ func TestExposureFullTechTagsChooseTheTemplates(t *testing.T) {
 	m := &modes{list: []exposure.ScanMode{{Full: true}}}
 	a := f.scanner()
 	a.mode = m.now
-	got, err := a.ScanTemplates(t.Context(), fullTarget(false), ownPublicIP, []exposure.TemplateJob{fullJobOf("CVE-2021-41773")})
+	got, err := a.ScanTemplates(t.Context(), fullTarget(false), ownPublicIP, []exposure.TemplateJob{fullJobOf("CVE-2018-13379")})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -85,7 +85,7 @@ func TestExposureFullTechTagsChooseTheTemplates(t *testing.T) {
 			}
 		}
 	}
-	for _, want := range []string{"git-config", "CVE-2021-41773"} {
+	for _, want := range []string{"git-config", "CVE-2018-13379"} {
 		if !slices.Contains(later, want) {
 			t.Errorf("%s not chosen", want)
 		}
@@ -200,7 +200,8 @@ func TestExposureFullDisruptiveOnlyWhileTicked(t *testing.T) {
 	}
 }
 
-// A port that is not web runs the network templates of its service, never an http one.
+// A port that is not web runs the network templates of its service and, when nmap saw TLS, the TLS checks; never an http one. (Pack
+// 2026.11.5 has no network template without the tick: they all name a fixed port or wait for a reviewer, D-528 step 2.)
 func TestExposureFullOtherPortRunsItsNetworkTemplates(t *testing.T) {
 	t.Parallel()
 	ix, err := nucleipack.Index()
@@ -211,17 +212,17 @@ func TestExposureFullOtherPortRunsItsNetworkTemplates(t *testing.T) {
 	a := f.scanner()
 	a.mode = (&modes{list: []exposure.ScanMode{{Full: true}}}).now
 	j := fullJobOf()
-	j.Scheme, j.Service, j.Product, j.CPE = "", "ssh", "OpenSSH", ""
+	j.Scheme, j.Service, j.Product, j.CPE = "", "ssl/imap", "Dovecot imapd", ""
 	if _, err := a.ScanTemplates(t.Context(), fullTarget(false), ownPublicIP, []exposure.TemplateJob{j}); err != nil {
 		t.Fatal(err)
 	}
 	if len(f.reqs) == 0 {
-		t.Fatal("no network template ran on an ssh port")
+		t.Fatal("no TLS check ran on an imaps port")
 	}
 	for _, r := range f.reqs {
 		for _, id := range r.Templates {
-			if tp, _ := ix.Get(id); !strings.HasPrefix(tp.Path, "network/") {
-				t.Errorf("%s (%s) on an ssh port", id, tp.Path)
+			if tp, _ := ix.Get(id); !strings.HasPrefix(tp.Path, "network/") && !strings.HasPrefix(tp.Path, "ssl/") {
+				t.Errorf("%s (%s) on an imaps port", id, tp.Path)
 			}
 		}
 	}

@@ -144,7 +144,7 @@ func TestBuildSets(t *testing.T) {
 		"nginx-version":        {"deep"},
 		"git-config":           {"deep"},
 		"nginx-admin-panel":    {"deep"},
-		"some-sqli":            {"deep"},
+		"some-sqli":            {"disruptive"}, // D-528 step 2: a POST nobody reviewed runs only behind the tick
 		"tomcat-default-login": {"disruptive"},
 		"dos-x":                {"disruptive"},
 	}
@@ -177,7 +177,7 @@ func TestBuildSets(t *testing.T) {
 			t.Errorf("nothing left out for %q: %+v", reason, rep.Left)
 		}
 	}
-	if rep.Sets["kev"] != 1 || rep.Sets["deep"] != 5 || rep.Sets["disruptive"] != 2 || rep.Sets["generic"] != 1 {
+	if rep.Sets["kev"] != 1 || rep.Sets["deep"] != 4 || rep.Sets["disruptive"] != 3 || rep.Sets["generic"] != 1 {
 		t.Errorf("report per set %v", rep.Sets)
 	}
 }

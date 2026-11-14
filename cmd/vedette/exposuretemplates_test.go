@@ -24,7 +24,8 @@ import (
 
 // The template scanner of exposure (INV-23, D-561, D-520) over fakes of the gate, the probe log and the Dispatcher: no process runs
 // and no packet leaves. The pack is the committed index core plans with: CVE-2018-13379 and CVE-2019-19781 are read-only GETs it marks
-// own_ip; CVE-2021-41773 (a POST that runs a command after its GETs) and CVE-2014-3704 (sqli) are in it but not marked (D-520).
+// own_ip; CVE-2001-0537 (Cisco IOS exec/show/config through the URL) and CVE-2010-0738 (a HEAD with an action parameter) are in it
+// but not marked (D-520).
 
 type templatesFake struct {
 	events  []string // in order: gate, log <ids>, run <ids>, done <id=result...>
@@ -108,7 +109,7 @@ func TestExposureTemplatesLogBeforeSendingAndMapResults(t *testing.T) {
 		}}
 	}}
 	got, err := f.scanner().ScanTemplates(t.Context(), exposure.ScanTarget{User: "u-admin"}, ownPublicIP,
-		[]exposure.TemplateJob{ownJob("CVE-2018-13379", "CVE-2019-19781", "CVE-2021-41773", "CVE-2014-3704", "CVE-2099-0001")})
+		[]exposure.TemplateJob{ownJob("CVE-2018-13379", "CVE-2019-19781", "CVE-2001-0537", "CVE-2010-0738", "CVE-2099-0001")})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -124,7 +125,7 @@ func TestExposureTemplatesLogBeforeSendingAndMapResults(t *testing.T) {
 		{Port: 18443, Template: "CVE-2018-13379", CVE: "CVE-2018-13379", Outcome: exposure.OutcomeMatched},
 		{Port: 18443, Template: "CVE-2019-19781", CVE: "CVE-2019-19781", Outcome: exposure.OutcomeNoMatch},
 	}
-	notes := []string{"Safe templates for exploited vulnerabilities: CVE-2021-41773, CVE-2014-3704 on port 18443: not run on a public IP: this check is not a read-only request."}
+	notes := []string{"Safe templates for exploited vulnerabilities: CVE-2001-0537, CVE-2010-0738 on port 18443: not run on a public IP: this check is not a read-only request."}
 	if !slices.Equal(got.Results, wantRes) || !slices.Equal(got.Sent, []string{"CVE-2018-13379", "CVE-2019-19781"}) || !slices.Equal(got.NotChecked, notes) {
 		t.Fatalf("scan %+v", got)
 	}
@@ -173,8 +174,8 @@ func TestExposureTemplatesOutcomes(t *testing.T) {
 		t.Fatalf("%+v %v", got, err)
 	}
 	f = &templatesFake{gateOK: true}
-	got, err = f.scanner().ScanTemplates(t.Context(), exposure.ScanTarget{}, ownPublicIP, []exposure.TemplateJob{ownJob("CVE-2014-3704", "CVE-2021-41773", "CVE-2099-0001")})
-	if err != nil || len(got.Results)+len(got.Sent) != 0 || len(f.events) != 0 || len(got.NotChecked) != 1 || !strings.Contains(got.NotChecked[0], "CVE-2014-3704, CVE-2021-41773 on port") {
+	got, err = f.scanner().ScanTemplates(t.Context(), exposure.ScanTarget{}, ownPublicIP, []exposure.TemplateJob{ownJob("CVE-2010-0738", "CVE-2001-0537", "CVE-2099-0001")})
+	if err != nil || len(got.Results)+len(got.Sent) != 0 || len(f.events) != 0 || len(got.NotChecked) != 1 || !strings.Contains(got.NotChecked[0], "CVE-2010-0738, CVE-2001-0537 on port") {
 		t.Fatalf("%+v %v %q", got, err, f.events)
 	}
 }

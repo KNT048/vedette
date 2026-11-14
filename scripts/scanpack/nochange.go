@@ -1,6 +1,9 @@
 package main
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
+	"fmt"
 	"regexp"
 	"slices"
 	"strings"
@@ -65,16 +68,73 @@ var denylist = map[string]string{ //nolint:gosec // G101: template ids and reaso
 	"CVE-2018-14933": "NUUO: cmd=writeuploaddir changes the upload directory setting",
 	"CVE-2023-1389":  "TP-Link: operation=write sets the router's country",
 	"CVE-2021-44077": "ServiceDesk Plus: ImportTechnicians uploads a file",
-}
-
-// reviewedOK are templates the state-change patterns would refuse and a person read as making no change (review of D-528,
-// 2026-11-14): the password-reset or registration path only carries a read-only command, and no account or password changes. The
-// destination and third-party rules still apply to them.
-var reviewedOK = map[string]string{
-	"CVE-2018-7600":  "Drupal: the register form's AJAX callback renders passthru of cat /etc/passwd; the form fails, no account is made",
-	"CVE-2019-15107": "Webmin backdoor: password_change.cgi for a user that does not exist (rootxx) runs cat /etc/passwd; no password changes",
-	"CVE-2024-32113": "OFBiz: forgotPassword/../ProgramExport runs id and ipconfig in a Groovy exception; no reset",
-	"CVE-2024-36104": "OFBiz: forgotPassword/../ProgramExport runs id and ipconfig in a Groovy exception; no reset",
+	// D-528 step 2: named by review kev r1 (H-1, M-1, M-2, L-1) and FULL-4b r2 (H1, M-new, L-a, L-b, L-d); never at any depth
+	"CVE-2024-5910":               "Palo Alto Expedition: GET restoreAdmin.php restores the admin password to its default",
+	"cacti-weathermap-file-write": "Cacti Weathermap: GET editor.php set_map_properties writes configs/poc.conf",
+	"tamronos-user-creation":      "TamronOS: GET /api/manager/submit creates an admin",
+	"CVE-2024-2621":               "GET pwd_update.php with an always-true condition sets user 1's password",
+	"CVE-2024-29972":              "Zyxel NAS: GET remote_help-cgi enables the NsaRescueAngel backdoor account and SSH",
+	"CVE-2019-5129":               "AVideo: the base64Url command writes a file into the web root",
+	"una-cms-rce":                 "UNA CMS: the gadget writes a PHP webshell cache_public/sh.phtml and leaves it",
+	"CVE-2015-3306":               "ProFTPD mod_copy: site cpto copies files into /tmp and the web root",
+	"CVE-2021-25281":              "Salt: pillar_roots.write writes a file",
+	"CVE-2023-26469":              "Jorani: writes PHP into the application log, then deletes the log",
+	"CVE-2019-11869":              "Yuzo: saves a script into an option shown on every page",
+	"CVE-2018-3810":               "Smart Google Code Inserter: savegooglecode stores a script on every page",
+	"CVE-2024-34061":              "changedetection.io: POST /settings replaces all settings",
+	"CVE-2019-11370":              "Carel pCOWeb: setdb writes the SNMP contact",
+	"CVE-2019-16931":              "Visualizer: update-chart changes chart 7",
+	"CVE-2021-29441":              "Nacos: publishes a config entry",
+	"CVE-2021-20091":              "Buffalo: config injection turns telnetd on",
+	"sanhuismg-radius-rce":        "Sanhui SMG: save=1&enable_radius=1 changes the RADIUS settings",
+	"CVE-2024-6846":               "WP chatbot: purges the error logs",
+	"CVE-2026-2614":               "MLflow: creates a registered model and a version",
+	"CVE-2026-88062":              "OmniRoute: creates a persistent agent carrying a command",
+	"CVE-2026-82329":              "JFrog: registry/join registers a node and returns a token",
+	"CVE-2026-20253":              "Splunk: postgres recovery backup creates or truncates files",
+	"CVE-2023-25135":              "vBulletin: user/save may register a user and mail pown.net",
+	"CVE-2020-6287":               "SAP RECON: creates an administrator sapRpoc6351 with a published password",
+	"CVE-2021-25032":              "PublishPress Capabilities: makes every later signup an administrator",
+	"CVE-2023-22463":              "KubePi: creates a user with a forged admin token",
+	"CVE-2023-6875":               "POST SMTP: registers a mobile-app device in the plugin's options",
+	"CVE-2016-10960":              "wSecure Lite: rewrites the plugin's PHP config with injected code",
+	"CVE-2019-10068":              "Kentico: the payload writes an executable's base64 to disk",
+	"CVE-2022-0827":               "BestBooks: inserts an accounting transaction",
+	"CVE-2025-69200":              "phpMyFAQ: writes a configuration backup ZIP with the DB credentials",
+	"CVE-2023-27587":              "ReadToMyShoe: adds an article and makes the target call Google's TTS API",
+	"CVE-2023-3277":               "MStore: apple_login may register an unknown e-mail",
+	"CVE-2023-22893":              "Strapi: the Cognito callback may create an account",
+	"CVE-2022-2461":               "Transposh: stores a translation",
+	"CVE-2021-27358":              "Grafana: creates a snapshot",
+	"CVE-2023-48022":              "Ray: submits a job whose record persists",
+	"CVE-2019-7192":               "QNAP: setSlideshow creates a slideshow share",
+	"CVE-2019-7195":               "QNAP: setSlideshow creates a slideshow share",
+	"CVE-2024-11972":              "Hunk Companion: plugin install makes WordPress query wordpress.org",
+	"CVE-2018-1000861":            "Jenkins: @Grab makes Ivy reach Maven Central",
+	"CVE-2023-48788":              "FortiClient EMS: registers or overwrites an endpoint row",
+	"CVE-2020-10199":              "Nexus: logs in as admin/admin123 and creates a repository",
+	"CVE-2022-0769":               "SQL inside a vote update: sets vote_score",
+	"CVE-2021-24442":              "inserts a poll vote",
+	"CVE-2024-6028":               "inserts a quiz result",
+	"CVE-2025-5287":               "adds a like",
+	"CVE-2022-0747":               "an upvote action writes a row",
+	"CVE-2022-0760":               "an upvote action writes a row",
+	"CVE-2020-27481":              "cancels booking 1337 if it exists",
+	"CVE-2022-0846":               "dk_speakout_sendmail sends mail",
+	"CVE-2025-2075":               "sets a role to administrator after a login",
+	"CVE-2025-1023":               "ChurchCRM: Action=ADD adds a record",
+	"CVE-2018-7602":               "Drupal: cancels or deletes a node after a login",
+	"CVE-2023-38192":              "SuperWebMailer: tries superadmincreate.php",
+	"CVE-2024-1212":               "Kemp: access/set enableapi tries to change a setting",
+	"CVE-2018-17283":              "OpManager: setManaged manage=false and reads the API key",
+	"CVE-2017-9791":               "Struts showcase: saveGangster saves a record",
+	"CVE-2026-23829":              "SMTP: submits a mail through any SMTP service (MAIL FROM, RCPT TO, DATA)",
+	"CVE-2021-24943":              "rtec_send_unregister_link mails a random domain",
+	"CVE-2022-0954":               "save_option changes an option once credentials exist",
+	"CVE-2022-30073":              "creates admin testme2 once credentials exist",
+	"CVE-2021-24554":              "action=delete once credentials exist",
+	"CVE-2022-0535":               "changes settings once credentials exist",
+	"CVE-2022-0949":               "inserts a fingerprint row",
 }
 
 var (
@@ -140,7 +200,14 @@ func changeReason(id string, doc map[string]any, body []byte, tags []string) (wh
 		}
 		if h, ok := b["headers"].(map[string]any); ok {
 			for k, v := range h {
-				if s, ok := v.(string); ok && !refererLike(k) {
+				s, ok := v.(string)
+				if !ok {
+					continue
+				}
+				if hp := hostHeaderParty(k, s); hp != "" {
+					return "third party", hp
+				}
+				if !refererLike(k) {
 					parts = append(parts, part{s, post})
 				}
 			}
@@ -159,6 +226,9 @@ func changeReason(id string, doc map[string]any, body []byte, tags []string) (wh
 			if !netHostOK.MatchString(h) {
 				return "destination", h
 			}
+		}
+		if p, has := b["port"]; has && fmt.Sprint(p) != "{{Port}}" { // review kev r1 M-3: a fixed port is not the job's port
+			return "destination", fmt.Sprintf("port: %v", p)
 		}
 		if in, ok := b["inputs"].([]any); ok {
 			for _, x := range in {
@@ -182,7 +252,11 @@ func changeReason(id string, doc map[string]any, body []byte, tags []string) (wh
 			}
 		}
 	}
-	_, reviewed := reviewedOK[id]
+	if v := undefinedCredential(doc, body); v != "" {
+		return "undefined credential", v
+	}
+	sum := sha256.Sum256(body)
+	reviewed, _ := reviewedState(id, hex.EncodeToString(sum[:]))
 	for _, p := range parts {
 		if c := pack.ChangeInRequest(p.text, p.post); c != "" && !reviewed {
 			return "state change", c + ": " + clip(p.text)
@@ -223,7 +297,70 @@ func rawReason(r string) (post bool, why, detail string) {
 	if !strings.HasPrefix(f[1], "/") && !strings.HasPrefix(f[1], "?") && !strings.HasPrefix(f[1], "*") && !strings.HasPrefix(f[1], "{{") {
 		return false, "destination", clip(lines[i])
 	}
+	for i++; i < len(lines) && strings.TrimSpace(lines[i]) != ""; i++ {
+		if name, value, ok := strings.Cut(lines[i], ":"); ok {
+			if hp := hostHeaderParty(strings.TrimSpace(name), strings.TrimSpace(value)); hp != "" {
+				return false, "third party", hp
+			}
+		}
+	}
 	return f[0] == "POST", "", ""
+}
+
+// hostHeaders name the host a target builds links or routes with: a third party there can be poisoned into a reset link or a
+// proxied request (review kev r1 L-4). Their values are read as hosts.
+var hostHeaders = []string{"host", "x-forwarded-host", "x-host", "x-original-host", "x-forwarded-server", "forwarded"}
+
+// hostHeaderParty is the value of a host header that names a party on the Internet other than the job's address, or "".
+func hostHeaderParty(name, value string) string {
+	if !slices.Contains(hostHeaders, strings.ToLower(name)) {
+		return ""
+	}
+	var hosts []string
+	if strings.EqualFold(name, "forwarded") {
+		for _, kv := range strings.FieldsFunc(value, func(r rune) bool { return r == ';' || r == ',' }) {
+			if k, v, ok := strings.Cut(strings.TrimSpace(kv), "="); ok && strings.EqualFold(k, "host") {
+				hosts = append(hosts, strings.Trim(v, `"`))
+			}
+		}
+	} else {
+		hosts = strings.Split(value, ",")
+	}
+	for _, h := range hosts {
+		if h = strings.TrimSpace(h); h != "" && pack.ThirdPartyHost(h) {
+			return name + ": " + h
+		}
+	}
+	return ""
+}
+
+// credVarRE are the user name, password and e-mail expressions of a template: Vedette never supplies them (no -var), so a template
+// that uses one it does not define waits for a value a later version might pass (review FULL-4b r2 L-b).
+var credVarRE = regexp.MustCompile(`\{\{\s*(username|password|user|pass|email)\s*\}\}`)
+
+// undefinedCredential is the first credential expression a template uses without defining it in variables or payloads, or "".
+func undefinedCredential(doc map[string]any, body []byte) string {
+	defined := map[string]bool{}
+	if v, ok := doc["variables"].(map[string]any); ok {
+		for k := range v {
+			defined[k] = true
+		}
+	}
+	for _, key := range []string{"http", "tcp"} {
+		for _, b := range blocks(doc, key) {
+			if p, ok := b["payloads"].(map[string]any); ok {
+				for k := range p {
+					defined[k] = true
+				}
+			}
+		}
+	}
+	for _, m := range credVarRE.FindAllStringSubmatch(string(body), -1) {
+		if !defined[m[1]] {
+			return m[0]
+		}
+	}
+	return ""
 }
 
 // rawParts is a raw request as data that is sent: every line but its Origin and Referer headers (a CORS or referrer check names

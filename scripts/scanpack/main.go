@@ -212,6 +212,7 @@ func build(src, out, version string) (Report, error) {
 		body []byte
 	}
 	var all []kept
+	var queue []reviewRow
 	ids := map[string]bool{}
 	err := filepath.WalkDir(src, func(p string, d os.DirEntry, err error) error {
 		if err != nil {
@@ -233,6 +234,11 @@ func build(src, out, version string) (Report, error) {
 		if reason == "" && ids[tpl.ID] {
 			reason = "id"
 		}
+		// D-528 step 2: a KEV template out of the KEV set (left out, or only behind the tick) waits for a person
+		// (docs/research/kev-review-queue.md)
+		if (reason == "not reviewed" || reason == "state name" || reason == "" && !tpl.InKEV()) && kevCandidate(body) {
+			queue = append(queue, queueRow(rel, body, reason))
+		}
 		if reason != "" {
 			rep.Left[reason]++
 			return nil
@@ -243,6 +249,12 @@ func build(src, out, version string) (Report, error) {
 	})
 	if err != nil {
 		return rep, err
+	}
+	if err := writeQueue(filepath.Join(out, "review-queue.md"), version, queue); err != nil {
+		return rep, err
+	}
+	if n := rep.Left["stale review"]; n > 0 { // D-528 step 2: a reviewed template changed: a person reads it again before it ships
+		return rep, fmt.Errorf("%d templates of reviewed.tsv changed since they were read (their sha256 differs): read them again and update the list", n)
 	}
 	if len(all) == 0 || len(all) > pack.MaxTemplates {
 		return rep, fmt.Errorf("a pack has 1 to %d templates, this one %d", pack.MaxTemplates, len(all))
@@ -337,16 +349,9 @@ func qualify(rel string, body []byte) (pack.Template, string) {
 	if !requestRE.MatchString(req) {
 		return zero, "request"
 	}
-	var sets []string
 	kr := kevReason(doc, body, tags, cve)
-	if kr == "" {
-		sets = append(sets, pack.SetKEV)
-	}
 	fs, fr := fullSet(rel, doc, body, tags)
-	if fs != "" {
-		sets = append(sets, fs)
-	}
-	if len(sets) == 0 {
+	if kr != "" && fs == "" {
 		if fr != "dir" {
 			return zero, fr
 		}
@@ -355,14 +360,34 @@ func qualify(rel string, body []byte) (pack.Template, string) {
 	if why, _ := changeReason(id, doc, body, tags); why != "" { // D-528, every set: no state change, no other destination, no third party
 		return zero, why
 	}
+	// D-528 step 2: without the tick (the KEV set, the deep set) only a read-only GET or a reviewed template; a template whose
+	// name says a change is in no set; any other goes behind the tick (disruptive) when it is of a full set, and waits for a reader
+	sum := sha256.Sum256(body)
+	ownIP := kr == "" && ownIPSafe(rel, doc, tags, body)
+	switch why, _ := noTickReason(id, nameOf(info), rel, hex.EncodeToString(sum[:]), doc, ownIP); why {
+	case "":
+	case "not reviewed":
+		kr = why
+		if fs == pack.SetDeep {
+			fs = pack.SetDisruptive
+		}
+		if fs == "" {
+			return zero, why
+		}
+	default: // "state name": never at any depth; "stale review": the build stops
+		return zero, why
+	}
+	var sets []string
+	if kr == "" {
+		sets = append(sets, pack.SetKEV)
+	}
+	if fs != "" {
+		sets = append(sets, fs)
+	}
 	if kr != "" { // outside the KEV set the cve may be empty or the first of several
 		cve = firstCVE(info)
 	}
-	sum := sha256.Sum256(body)
-	t := pack.Template{ID: id, CVE: cve, Path: rel, SHA256: hex.EncodeToString(sum[:]), Tags: tags, Request: req, Sets: sets}
-	if kr == "" {
-		t.OwnIP = ownIPSafe(rel, doc, tags, body)
-	}
+	t := pack.Template{ID: id, CVE: cve, Path: rel, SHA256: hex.EncodeToString(sum[:]), Tags: tags, Request: req, Sets: sets, OwnIP: ownIP}
 	if fs != "" {
 		t.Name, t.Severity = nameOf(info), severityOf(info)
 		t.Generic = fs == pack.SetDeep && genericDir(rel) && !namesProduct(info)

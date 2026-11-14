@@ -1,0 +1,30 @@
+# Reviewed allowlist of the nuclei pack (D-528 step 2): templates that are not read-only GETs, read by a person and found to change
+# nothing on the target. One a line: id<TAB>sha256 of the file read<TAB>why it changes nothing. A changed file (another sha256) stops
+# `make scan-pack` until it is read again. Candidates: docs/research/kev-review-queue.md. Reviewers: say who and when in the reason.
+CVE-2018-7600	e1b6bd9bb4fdcb6d450067e80b4535cdda3be55f630107571c3695b837fcd54f	Drupal: the register form's AJAX callback renders passthru of cat /etc/passwd; name is missing so the form fails and no account is made (D-528 author and review kev r1 L-2, 2026-11-14)
+CVE-2019-15107	af7bc39c42403d8e9a0d2c764f3239300bb5c415334fc3b1a5f3a30f1be56e81	Webmin backdoor: password_change.cgi for user rootxx, which does not exist, runs cat /etc/passwd through old; no password changes (D-528 author and review kev r1 L-2, 2026-11-14)
+CVE-2024-32113	44ac4cf3c8e3abf71da5e47372b75332fe8e11d6972afd92218a7ceb99bb9ba0	OFBiz: forgotPassword/../ProgramExport throws an exception carrying the output of id and ipconfig; nothing is reset or stored (D-528 author and review kev r1 L-2, 2026-11-14)
+CVE-2024-36104	e42743d1ba743f5b4f55cde49bd9c698624a36549fb5b257b1ceb493caf53382	OFBiz: the same ProgramExport check with the Groovy in \u escapes, decoded by review kev r1: id and ipconfig only; nothing stored (D-528 author and review kev r1 L-2, 2026-11-14)
+# ssl/: TLS handshakes to the job's address and port only (address {{Host}}:{{Port}}), reading the certificate, the version or the
+# cipher; no application data is sent. revoked-ssl-certificate is not listed: a revocation check may ask the CA's OCSP or CRL server,
+# a third party. (FULL-4b, D-527 author, 2026-11-14)
+deprecated-tls	eddb5bd44d68955aab0ef060083271db8ea0fd495bdf50859d5d1d54ea421531	TLS handshake only: tries old TLS versions and reads which one the service accepts
+ssl-issuer	8f23f60ac081e460503b0a6e15d5da30c39bc8bcdf85fce674326385a755fc71	TLS handshake only: reads the certificate's issuer
+emudhra-compromised-ca	03c79481a82a251468ea8f46154420563f5c77e6378f6b2e564bf278a534b5ba	TLS handshake only: matches the certificate's issuer against a compromised CA
+expired-ssl	23e2fa79491ae665e809b9af4b6636f7b4c21ad7d05c5d54801ecd0c29a16088	TLS handshake only: reads the certificate's expiry
+fortianalyzer-certificate	7c5f9dfefcbb413c646c46e79b0baebc96969f63efa6ede6291c47c5b0962441	TLS handshake only: matches the certificate's subject to FortiAnalyzer
+fortiauthenticator-certificate	6a7807e38435484b88321205ccaf88f5abbfc34ce16c1a191f63cec276acebd1	TLS handshake only: matches the certificate's subject to FortiAuthenticator
+fortiddos-certificate	c4f2770a263337581dc0452cfee816b6c197d35553fb3da3dc89f3dbe83cb975	TLS handshake only: matches the certificate's subject to FortiDDoS
+fortigate-certificate	d190c5d6ffd3fe2ecf166725e9aa7dc8f9e230444039d8d5158fa6279158fa24	TLS handshake only: matches the certificate's subject to FortiGate
+fortiswitch-certificate	f2ef5241e357cc3a1f462d41032cb6af56a9e528545a268d5909230a5042bbcf	TLS handshake only: matches the certificate's subject to FortiSwitch
+fortiweb-certificate	c58c5d521b5ee5d8e64c628ce8d820ab4cc99f2ccdec81b284028a0e1ed68e46	TLS handshake only: matches the certificate's subject to FortiWeb
+fortiwifi-certificate	9ac0e8910f925f8ad13bb7221235609fdfafddd734e5616abf3473c6aae87cf3	TLS handshake only: matches the certificate's subject to FortiWiFi
+insecure-cipher-suite-detect	9be7e9eaecf50fbd412e7f41e3455e8f7f612111ac26e897993ea66d0c3fdc02	TLS handshake only: offers insecure cipher suites and reads which one is accepted
+kubernetes-fake-certificate	48f8d65cda1485f2bca2d5cdc02f5fdd4c0331dcf96d694c76e8390bdc4e3cfa	TLS handshake only: matches the Kubernetes ingress fake certificate
+mismatched-ssl-certificate	8946b8e66ea6c2d5f13810f15c321e35a6a1e212cbd07daa8c3882a41f808fa9	TLS handshake only: compares the certificate's names with the host
+self-signed-ssl	bfdadaaa257aba1ba29c095d0d44237a44a2d5ceb4f58cf0993ec1a484af6fc1	TLS handshake only: reads whether the certificate is self-signed
+ssl-dns-names	c8abd6991f3c294503ce6b4d593e48d431ae6d3e75eced30a9365b06deeaf3fa	TLS handshake only: reads the certificate's DNS names
+tls-version	3a6f237e5df5389726233a1aed71f00252f3f3f5afd486469ce8776b2421b61f	TLS handshake only: reads the TLS versions the service accepts
+untrusted-root-certificate	d9d1c176cca2e23233d17fabd56b693630d0c35ad713891d599c2636f095275e	TLS handshake only: checks the chain against the local trust store
+weak-cipher-suites	956fa0117f123ba9125caec8ff0ad32a1fb76cf879c1bb7d5303570558da66ee	TLS handshake only: offers weak cipher suites and reads which one is accepted
+wildcard-tls	ab50ab7e2b5c6a83e1f549406cea0b666cd24f63e4f245b33c2f497a5043322c	TLS handshake only: reads whether the certificate is a wildcard

@@ -239,7 +239,7 @@ func TestE2EScanFakes(t *testing.T) {
 	if got.Version != want.Version || got.SHA256 != want.SHA256 || len(got.Templates) != len(want.Templates) {
 		t.Fatalf("index %s %s %d, want %s %s %d", got.Version, got.SHA256, len(got.Templates), want.Version, want.SHA256, len(want.Templates))
 	}
-	tpl := got.ForCVE("CVE-2002-1131")[0]
+	tpl := got.ForCVE("CVE-2008-6668")[0] // PACK_CVES.match of web/e2e-real/scan.global.spec.ts
 	body, err := os.ReadFile(filepath.Join(f.templates, filepath.FromSlash(tpl.Path)))
 	if sum := sha256.Sum256(body); err != nil || hex.EncodeToString(sum[:]) != tpl.SHA256 {
 		t.Fatalf("the file of %s does not match its index entry: %v", tpl.ID, err)

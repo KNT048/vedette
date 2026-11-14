@@ -15,6 +15,7 @@ import { emailCodes } from './emailCode'
 import { CHECK_FAILURES, checkScenario, mockSign, MOCK_IDP_USER } from './mocks'
 import { saveSsoFlow, takeSsoFlow } from './ssoFlow'
 import type { Role } from '@/lib/session'
+import { restartWait } from './BoxRestarting'
 import { nav, compareVersion, toBase64 } from './util'
 
 // D-408: the offline bundle is hidden in the GUI for v1 (BUNDLE_IN_UI false) but its code is kept, so this file runs the bundle as
@@ -561,7 +562,7 @@ describe('core: dữ liệu', () => {
     expect(within(dlg).getByText(/Kept: the TLS certificate, the system journal.*network settings/)).toBeInTheDocument()
     await u.click(confirm)
     await u.click(within(await screen.findByRole('dialog', { name: 'All data deleted' })).getByRole('button', { name: 'Continue to setup' })) // the mock box has a honeypot: what stays is said before leaving
-    await waitFor(() => expect(spy).toHaveBeenCalledTimes(1))
+    await waitFor(() => expect(spy).toHaveBeenCalled())
     expect(orgStore.get().setup_complete).toBe(false)
     expect(sessionStore.get().userId).toBeNull()
     spy.mockRestore()
@@ -609,7 +610,7 @@ describe('core: dữ liệu', () => {
     await u.type(within(dlg).getByLabelText('Two-step code'), await totpAt(secret, Date.now()))
     await u.click(within(dlg).getByRole('button', { name: 'Delete everything' }))
     await u.click(within(await screen.findByRole('dialog', { name: 'All data deleted' })).getByRole('button', { name: 'Continue to setup' })) // the mock box has a honeypot: what stays is said before leaving
-    await waitFor(() => expect(spy).toHaveBeenCalledTimes(1))
+    await waitFor(() => expect(spy).toHaveBeenCalled())
     spy.mockRestore()
   })
 
@@ -625,9 +626,38 @@ describe('core: dữ liệu', () => {
     await u.click(within(dlg).getByRole('button', { name: 'Delete everything' }))
     const done = await screen.findByRole('dialog', { name: 'All data deleted' })
     expect(within(done).getByText(/set up without the helper/)).toBeInTheDocument()
-    expect(spy).not.toHaveBeenCalled() // the page waits for the administrator
+
     await u.click(within(done).getByRole('button', { name: 'Continue to setup' }))
-    expect(spy).toHaveBeenCalledTimes(1)
+    expect(spy).toHaveBeenCalled()
+    spy.mockRestore()
+  })
+
+  it('A13-4: after Delete all data the app is replaced by a restarting page that polls only /setup and moves to setup when it is open', async () => {
+    const u = user()
+    const spy = vi.spyOn(nav, 'toSetup').mockImplementation(() => {})
+    let setupOpen = false
+    const calls: string[] = []
+    server.events.on('request:start', ({ request }) => { calls.push(new URL(request.url).pathname) })
+    server.use(http.get(`${location.origin}/api/v1/setup`, () => HttpResponse.json({ complete: !setupOpen, org: '', data_mode: 'clean' })))
+    renderApp('/settings/data')
+    await u.click(await screen.findByRole('button', { name: 'Delete all data' }))
+    const dlg = await screen.findByRole('dialog', { name: 'Delete all data on the box?' })
+    await u.type(within(dlg).getByLabelText(/Type the organization name/), 'Sample Company')
+    await u.type(within(dlg).getByLabelText('Your current password'), 'vedette-demo')
+    restartWait.firstMs = 0 // no real sleeping
+    await u.click(within(dlg).getByRole('button', { name: 'Delete everything' }))
+    await screen.findByRole('dialog', { name: 'All data deleted' }) // the mock box has a honeypot: what stays is said on the waiting page
+    expect(await screen.findByText(/deleting your data and restarting/)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Delete all data' })).not.toBeInTheDocument()
+    const polls = () => calls.slice(calls.indexOf('/api/v1/core/data/purge') + 1).filter((p) => p.endsWith('/setup'))
+    await waitFor(() => expect(polls().length).toBeGreaterThan(0)) // polls: still up, setup not open
+    expect(spy).not.toHaveBeenCalled()
+    setupOpen = true
+    await waitFor(() => expect(spy).toHaveBeenCalledTimes(1))
+    const after = calls.slice(calls.indexOf('/api/v1/core/data/purge') + 1)
+    expect(after.filter((p) => !p.endsWith('/setup'))).toEqual([])
+    server.events.removeAllListeners()
+    restartWait.firstMs = 1000
     spy.mockRestore()
   })
 

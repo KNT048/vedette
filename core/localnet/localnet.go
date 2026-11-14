@@ -3,9 +3,10 @@
 // (10/8, 172.16/12, 192.168/16) and the shared address space of RFC 6598 (100.64.0.0/10: carrier-grade NAT inside an ISP or
 // a company network, Tailscale), D-461. Only 100.64/10: the rest of 100/8 is public.
 //
-// It is not a public-address test: the guards that ask "is this on the Internet" (feeds, webhooks, SIEM, exposure, the block
-// list) keep refusing 100.64/10 by their own rules. Standard library only: the sensor binary links it through nmapargv and
-// nucleiargv.
+// Addr is not a public-address test: the guards that ask "is this on the Internet" (feeds, webhooks, SIEM, the block list) keep
+// refusing 100.64/10 by their own rules. Public is the one public-address rule of the scans of the box's own public IP (exposure
+// INV-3; core/egressip.IsPublicIPv4 is it, and nucleiargv applies it to the own_ip scope, D-520). Standard library only: the sensor
+// binary links it through nmapargv, nucleiargv and core/egressip.
 package localnet
 
 import (
@@ -32,4 +33,28 @@ func Addr(a netip.Addr) bool {
 // 100.0.0.0/8 and 10.0.0.0/7 are not.
 func Prefix(p netip.Prefix) bool {
 	return p.IsValid() && p.Addr().Is4() && slices.ContainsFunc(blocks, func(b netip.Prefix) bool { return b.Bits() <= p.Bits() && b.Contains(p.Addr()) })
+}
+
+// Address ranges that are never public (exposure INV-3). IsPrivate, IsLoopback, IsLinkLocalUnicast and the multicast tests of
+// net/netip cover the rest; these are the shared-carrier and the special-purpose blocks that are not "private" in net/netip's
+// sense. The documentation ranges (RFC 5737) are in the list: no real box leaves the Internet through them.
+var reservedRanges = func() []netip.Prefix {
+	var out []netip.Prefix
+	for _, p := range []string{
+		"0.0.0.0/8", "100.64.0.0/10", "192.0.0.0/24", "192.0.2.0/24", "192.88.99.0/24",
+		"198.18.0.0/15", "198.51.100.0/24", "203.0.113.0/24", "224.0.0.0/3",
+	} {
+		out = append(out, netip.MustParsePrefix(p))
+	}
+	return out
+}()
+
+// Public reports whether a is a global unicast IPv4 address (an IPv4-mapped one counts as its IPv4 address): not private,
+// loopback, link-local, shared carrier (100.64.0.0/10), documentation, multicast or reserved. IPv6 is never public here.
+func Public(a netip.Addr) bool {
+	a = a.Unmap()
+	if !a.Is4() || !a.IsGlobalUnicast() || a.IsPrivate() || a.IsLoopback() || a.IsLinkLocalUnicast() {
+		return false
+	}
+	return !slices.ContainsFunc(reservedRanges, func(p netip.Prefix) bool { return p.Contains(a) })
 }

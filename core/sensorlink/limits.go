@@ -11,7 +11,7 @@ import (
 // Limits of the protocol (sensor-protocol.md section 9). They are starting points to measure again, not measurements.
 const (
 	ProtoHeader  = "X-Vedette-Proto"
-	ProtoVersion = "5" // 5: snmp jobs, snmp in the active heartbeat and the result (D-512); 4: capture_error in the passive heartbeat (D-399); 3: host_errors on a nuclei result (D-165); 2: nuclei jobs (D-133)
+	ProtoVersion = "5" // 5: snmp jobs, snmp in the active heartbeat and the result (D-512), and (D-520, before 5 was first released) the scope of a nuclei job and own_ip in the nuclei heartbeat; 4: capture_error in the passive heartbeat (D-399); 3: host_errors on a nuclei result (D-165); 2: nuclei jobs (D-133)
 	// ProtoPrevious is the one older protocol core still takes (D-459): a sensor or scan worker one protocol behind core, while
 	// an update runs (core switches first) and after a sensor's switch that went back by itself. Never a newer one, never two
 	// behind. A bump sets it to the old ProtoVersion (TestProtoPreviousIsOneBelow) and must keep core able to serve that peer:
@@ -19,7 +19,11 @@ const (
 	// must first add what does not exist yet: the request's protocol passed to the handler and the old shape sent to a
 	// ProtoPrevious peer, with a test. 4 over 3 only added capture_error to a request, so nothing differs in core's replies. 5 over 4
 	// adds a job kind to a reply, but core sends an snmp job only to a worker whose heartbeat said snmp (a field of protocol 5), so a
-	// worker of protocol 4 gets the replies of protocol 4 (sensoractive TestSNMPNeverGoesToAWorkerOfProtocol4).
+	// worker of protocol 4 gets the replies of protocol 4 (sensoractive TestSNMPNeverGoesToAWorkerOfProtocol4). The same holds for
+	// what D-520 added to 5 before its first release (no new number: the latest release, v0.1.0-beta.1, speaks 4, and a 6 would
+	// leave it no update path, D-410): own_ip in the nuclei heartbeat is optional (absent = false), core leaves the scope out of a
+	// LAN job and sends an own_ip job only to a worker whose heartbeat said own_ip (sensoractive
+	// TestOwnIPNucleiNeverGoesToAWorkerWithoutOwnIP).
 	ProtoPrevious = "4"
 	PathPrefix    = "/sensor/v1"
 

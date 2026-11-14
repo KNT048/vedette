@@ -427,7 +427,8 @@ const multiProducts = "multiple products"
 // a product with no device has no entry. A normal product matches the devices with a software row carrying
 // its key. A "Multiple products" entry matches exactly only a software row declared with that product (the
 // "I have it" device); a device that has any software of the vendor, or that the vendor made, matches by
-// vendor only.
+// vendor only. Display is the software row that matched (KF-3: not the device's first row by name, "3cpio" on
+// an Ubuntu box whose OpenSSH matched), the device's own display when only its maker matched.
 func (s *Service) DevicesRunning(ctx context.Context, products []ProductQuery) (map[string][]DeviceMatch, error) {
 	out := map[string][]DeviceMatch{}
 	for _, p := range products {
@@ -442,12 +443,21 @@ func (s *Service) DevicesRunning(ctx context.Context, products []ProductQuery) (
 		if err != nil {
 			return nil, err
 		}
+		shown, err := s.softwareNames(ctx, `SELECT s.asset_id, min(s.display) FROM inv_software_kev k JOIN inv_software s ON s.id = k.software_id
+			WHERE k.kev_key = ? AND (? = 0 OR lower(s.product) = ?) GROUP BY s.asset_id`, nil, key, boolInt(multi), product)
+		if err != nil {
+			return nil, err
+		}
 		var byVendor []string
 		if multi {
 			prefix := vendor + "|"
 			byVendor, err = s.assetIDs(ctx, `SELECT DISTINCT s.asset_id FROM inv_software_kev k JOIN inv_software s ON s.id = k.software_id WHERE substr(k.kev_key, 1, ?) = ?
 				UNION SELECT id FROM inv_asset WHERE lower(vendor) = ?`, len(prefix), prefix, vendor)
 			if err != nil {
+				return nil, err
+			}
+			if shown, err = s.softwareNames(ctx, `SELECT s.asset_id, min(s.display) FROM inv_software_kev k JOIN inv_software s ON s.id = k.software_id
+				WHERE substr(k.kev_key, 1, ?) = ? GROUP BY s.asset_id`, shown, len(prefix), prefix); err != nil {
 				return nil, err
 			}
 		}
@@ -458,6 +468,11 @@ func (s *Service) DevicesRunning(ctx context.Context, products []ProductQuery) (
 		var list []DeviceMatch
 		for _, id := range slices.Concat(exact, byVendor) {
 			if r, ok := refs[id]; ok {
+				if d, ok := shown[id]; ok {
+					r.Display = d
+				} else if slices.Contains(byVendor, id) {
+					r.Display = r.Kind // only the maker matched: no software row to name
+				}
 				list = append(list, DeviceMatch{DeviceRef: r, Exact: slices.Contains(exact, id)})
 				delete(refs, id) // a device once, the exact answer first
 			}
@@ -474,6 +489,29 @@ func boolInt(b bool) int {
 		return 1
 	}
 	return 0
+}
+
+// softwareNames adds to into (a new map when nil) the software display of each asset the query returns (asset_id, display), keeping
+// one already there: an exact match names its own row before a vendor-only one.
+func (s *Service) softwareNames(ctx context.Context, query string, into map[string]string, args ...any) (map[string]string, error) {
+	if into == nil {
+		into = map[string]string{}
+	}
+	rows, err := s.db.Reader().QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("inventory: match products: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	for rows.Next() {
+		var id, display string
+		if err := rows.Scan(&id, &display); err != nil {
+			return nil, fmt.Errorf("inventory: match products: %w", err)
+		}
+		if _, ok := into[id]; !ok {
+			into[id] = display
+		}
+	}
+	return into, rows.Err()
 }
 
 func (s *Service) assetIDs(ctx context.Context, query string, args ...any) ([]string, error) {

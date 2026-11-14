@@ -320,6 +320,25 @@ func TestContract_INV20_BackportsAndUnlistedNames(t *testing.T) {
 	}
 }
 
+// INV-20, D-547 (KF-4, N45-3): an exploited CVE the matcher ruled out because the service names another platform is not listed, and
+// a "checked" line says which and why.
+func TestContract_INV20_RuledOutByPlatformIsACheckLine(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	e.svc.cfg.Services = &fakeServices{scan: ServiceScan{Services: []ServiceRow{
+		{IP: ipA, Port: 10022, Name: "ssh", Product: "OpenSSH", Version: "9.6p1 Ubuntu 3ubuntu13.20", Extra: "Ubuntu Linux; protocol 2.0", CPE: "cpe:/a:openbsd:openssh:9.6p1"},
+	}}}
+	why := "CVE-2026-123158 affects only OpenSSH built with musl libc and without PAM; the software reports 9.6p1 Ubuntu 3ubuntu13.20 Ubuntu Linux; protocol 2.0."
+	e.svc.cfg.Matcher = &fakeMatcher{m: Matches{Compared: 1, Listed: 1500, RuledOut: []RuledOutRow{{IP: ipA, Port: 10022, CVE: "CVE-2026-123158", Reason: why}}}}
+	s := e.scanIP(Content{})
+	if len(s.Vulns) != 0 {
+		t.Fatalf("vulns = %+v", s.Vulns)
+	}
+	if got := s.Checks[len(s.Checks)-1].Text; got != "CVE-2026-123158 on port 10022 is not listed: "+why {
+		t.Fatalf("last check line = %q", got)
+	}
+}
+
 // INV-20 (review LOW-5): a version not read this time is not a change of version, and the CVEs it matched are not "gone".
 func TestContract_INV20_DiffVersionNotRead(t *testing.T) {
 	t.Parallel()

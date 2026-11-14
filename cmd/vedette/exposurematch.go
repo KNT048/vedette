@@ -98,7 +98,7 @@ func (m exposureMatcher) Match(ctx context.Context, svcs []exposure.ServiceRow) 
 		}
 		id := fmt.Sprintf("%s:%d", s.IP, s.Port)
 		where[id] = s
-		a.Software = append(a.Software, findings.Software{ID: id, Display: display, Version: s.Version, CPE: cpe, KevKeys: keys})
+		a.Software = append(a.Software, findings.Software{ID: id, Display: display, Version: s.Version, Banner: s.Extra, CPE: cpe, KevKeys: keys})
 	}
 	if len(order) == 0 {
 		return out, nil
@@ -117,6 +117,10 @@ func (m exposureMatcher) Match(ctx context.Context, svcs []exposure.ServiceRow) 
 				kevRow(&row, *v)
 			}
 			out.Vulns = append(out.Vulns, row)
+		}
+		for _, x := range res.OtherPlatform { // D-547: the banner names another platform than the one the CVE affects
+			s := where[x.SoftwareID]
+			out.RuledOut = append(out.RuledOut, exposure.RuledOutRow{IP: s.IP, Port: s.Port, CVE: x.CVE, Reason: x.Evidence.Summary})
 		}
 		for _, n := range res.NeedVersion {
 			s := where[n.SoftwareID]

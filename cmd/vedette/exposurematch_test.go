@@ -144,6 +144,41 @@ func TestExposureMatcher_NmapServicesAgainstKEV(t *testing.T) {
 	}
 }
 
+// KF-4 / N45-3 (D-547): the n45 public IP's port 10022 sends "OpenSSH 9.6p1 Ubuntu 3ubuntu13.20": the Alpine-only CVE-2026-123158 is
+// not listed and comes back as ruled out with its reason; the office firewall's "OpenSSH 10.2" (no platform) keeps it, with the
+// condition (KF-5).
+func TestExposureMatcher_PlatformLimitedCVE(t *testing.T) {
+	t.Parallel()
+	vulns := exposureGolden(t)
+	m := exposureMatcher{vulns: func(context.Context) ([]findings.Vuln, error) { return vulns, nil }, now: func() time.Time { return time.Date(2026, 11, 14, 0, 0, 0, 0, time.UTC) }}
+	got, err := m.Match(t.Context(), []exposure.ServiceRow{
+		{IP: "203.0.113.10", Port: 10022, Name: "ssh", Product: "OpenSSH", Version: "9.6p1 Ubuntu 3ubuntu13.20", Extra: "Ubuntu Linux; protocol 2.0", CPE: "cpe:/a:openbsd:openssh:9.6p1"},
+		{IP: "203.0.113.20", Port: 22222, Name: "ssh", Product: "OpenSSH", Version: "10.2", Extra: "protocol 2.0", CPE: "cpe:/a:openbsd:openssh:10.2"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var on10022, on22222 bool
+	for _, v := range got.Vulns {
+		if v.CVE != "CVE-2026-123158" {
+			continue
+		}
+		on10022 = on10022 || v.Port == 10022
+		if v.Port == 22222 {
+			on22222 = true
+			if v.Basis != "version" || !strings.Contains(v.Summary, "It affects only OpenSSH built with musl libc and without PAM") || strings.Contains(v.Summary, "run a scan") {
+				t.Errorf("22222: %+v", v)
+			}
+		}
+	}
+	if on10022 || !on22222 {
+		t.Fatalf("CVE-2026-123158 on 10022 %v (want not listed), on 22222 %v (want listed): %+v", on10022, on22222, got.Vulns)
+	}
+	if len(got.RuledOut) != 1 || got.RuledOut[0].Port != 10022 || got.RuledOut[0].CVE != "CVE-2026-123158" || !strings.Contains(got.RuledOut[0].Reason, "Ubuntu") {
+		t.Fatalf("ruled out = %+v", got.RuledOut)
+	}
+}
+
 func TestExposureMatcher_CPE23(t *testing.T) {
 	t.Parallel()
 	for in, want := range map[string]string{

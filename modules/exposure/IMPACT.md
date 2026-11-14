@@ -127,3 +127,6 @@
 
 ## Modifying: the probe-log result of a template (`cmd/vedette/exposuretemplates.go` `send`, N44-4; Trưởng's adapter, flagged)
 - With `-ms` nuclei prints a line for each template it runs; a template a finished run printed no line for (and no unreachable target) was not run: its probe row's request starts "Not run (nuclei printed nothing for it): " (result stays `no_response`: the probe log has no `not_run` value yet, deferred), core logs a WARN, and `TemplateScan.NotChecked` gets "nuclei printed no result for k of n …" (review r1 M1). "No match reported" is only a template nuclei printed a failure line for. `TestExposureTemplatesSilentTemplateIsNotRun`, `TestExposureFullSilentTemplatesAreNotRun`.
+
+## Modifying: `Matches.RuledOut` (D-547)
+- **cmd/vedette** `exposurematch.go` điền nó từ `findings.MatchResult.OtherPlatform`; **GUI** không đổi (dòng "checked" sẵn có hiện câu). Một dòng là văn bản không tin cậy (banner của dịch vụ đã qua `clean` của findings), cắt 400 ký tự.

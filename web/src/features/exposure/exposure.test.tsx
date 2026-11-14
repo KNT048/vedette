@@ -135,7 +135,7 @@ describe('exposure: list (S-EXP-1)', () => {
   it('module off says where to turn it on', async () => {
     modulesStore.update((l) => l.map((m) => (m.id === 'exposure' ? { ...m, enabled: false } : m)))
     renderApp('/exposure?tab=open')
-    expect(await screen.findByText('External surface module is off')).toBeInTheDocument()
+    expect(await screen.findByText('External exposure module is off')).toBeInTheDocument()
   })
 
   it('registers the sidebar entry in the right group', () => {
@@ -1432,6 +1432,15 @@ describe('exposure: optional deep scan with Greenbone (S-EXP-2, INV-25, D-563)',
     const s = await section()
     expect(await within(s).findByText('OpenVAS is loading its feed (first time takes about 2 hours)')).toBeInTheDocument()
     expect(within(s).getByRole('button', { name: 'Turn off OpenVAS' })).toBeDisabled()
+  })
+
+  it('ready before its first weekly update: the first full feed load is done, never "not yet" (N45-4)', async () => {
+    server.use(http.get('*/api/v1/exposure/greenbone', () => HttpResponse.json({ state: 'ready', reason: null, changed_by: 'admin@acme.example', changed_at: '2026-11-14T13:00:00Z',
+      preflight: { memory_bytes: 16e9, disk_free_bytes: 120e9, ok: true, reason: null }, feed_sync: { last_at: null, ok: null, note: null, next_at: '2026-11-21T13:00:00Z' }, enabled: true })))
+    renderApp('/exposure')
+    const s = await section()
+    expect(await within(s).findByText(/^First full feed load done \(OpenVAS turned on .+\); the weekly update has not run yet$/)).toBeInTheDocument()
+    expect(within(s).queryByText(/^Not yet: the first one/)).toBeNull()
   })
 
   it('not available on this box: says so and offers nothing', async () => {

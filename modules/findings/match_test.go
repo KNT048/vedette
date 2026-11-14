@@ -30,7 +30,7 @@ func TestMatchAsset_ProductBasisTextsMatchMock(t *testing.T) {
 	if m.Basis != BasisProduct || m.Confidence != 0.5 || m.Severity != SeverityMedium || !m.Evidence.CheckedAt.Equal(t0) {
 		t.Fatalf("match = %+v", m)
 	}
-	want := "nas01 runs Photo Station 6.1.2. Vedette has not checked whether this version is in the affected range; compare it with the vendor advisory or run a scan."
+	want := "nas01 runs Photo Station 6.1.2. NVD lists no affected versions for CVE-2022-27593 yet, so Vedette cannot tell whether this version is affected; compare it with the vendor advisory."
 	if m.Evidence.Summary != want {
 		t.Fatalf("summary = %q", m.Evidence.Summary)
 	}

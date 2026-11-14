@@ -161,10 +161,11 @@ func TestGolden_PatchedUbuntuServer(t *testing.T) {
 		got = append(got, m.CVE+" "+string(m.Basis))
 	}
 	slices.Sort(got)
-	// The true few: upstream ranges that include these exact versions (kernel 7.0.0 < 7.0.10, 7.1.3, 7.0.x;
-	// OpenSSH < 10.6). Ubuntu may have backported the fixes; D-500 records that the distro's own fixed
-	// versions are the follow-up. CVE-2021-3493 lists only Ubuntu releases before 20.10: ruled out by the OS.
-	want := []string{"CVE-2026-123158 version", "CVE-2026-46300 version", "CVE-2026-53266 version", "CVE-2026-53362 version"}
+	// The true few: upstream ranges that include these exact versions (kernel 7.0.0 < 7.0.10, 7.1.3, 7.0.x).
+	// Ubuntu may have backported the fixes; D-500 records that the distro's own fixed versions are the follow-up.
+	// CVE-2021-3493 lists only Ubuntu releases before 20.10: ruled out by the OS. CVE-2026-123158 (OpenSSH < 10.6) affects
+	// only OpenSSH built with musl and without PAM (Alpine): ruled out by the OS too (D-547, KF-4).
+	want := []string{"CVE-2026-46300 version", "CVE-2026-53266 version", "CVE-2026-53362 version"}
 	if !slices.Equal(got, want) || len(res.NeedVersion) != 0 {
 		t.Fatalf("findings %v, items %+v; want %v", got, res.NeedVersion, want)
 	}
@@ -191,7 +192,7 @@ func TestGolden_PatchedUbuntuServer(t *testing.T) {
 	if !slices.Equal(kept, want) || len(res.New) != 0 || len(kept)+len(closed) != len(flood) {
 		t.Fatalf("kept %v, closed %d of %d flood findings; want %v kept, the rest closed", kept, len(closed), len(flood), want)
 	}
-	for _, c := range cves("CVE-2014-0160 CVE-2014-6271 CVE-2021-4034 CVE-2021-3156 CVE-2023-4911 CVE-2016-5195 CVE-2022-0847 CVE-2021-3493") {
+	for _, c := range cves("CVE-2014-0160 CVE-2014-6271 CVE-2021-4034 CVE-2021-3156 CVE-2023-4911 CVE-2016-5195 CVE-2022-0847 CVE-2021-3493 CVE-2026-123158") {
 		if flood[c] && !slices.Contains(closed, c) {
 			t.Errorf("%s is not closed", c)
 		}

@@ -140,6 +140,30 @@ func TestDevicesRunningYesMaybeNo(t *testing.T) {
 	}
 }
 
+// KF-3 (customer walk 3, kien's firewall test): the CVE page named an Ubuntu box's match "3cpio" because the device's first
+// software row by name was shown; the row that carries the product's key is named, and a package of another name never matches.
+func TestDevicesRunningNamesTheMatchingSoftware(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	hint := observe.AssetHint{IP: netip.MustParseAddr("192.0.2.60")}
+	if err := e.svc.ReplaceSoftware(e.ctx(), hint, observe.Agent, []observe.Software{
+		{Display: "3cpio", Vendor: "3cpio", Product: "3cpio", Version: "0.5.1", Confidence: 0.95, Packaged: true},
+		{Display: "OpenSSH", Vendor: "OpenBSD", Product: "OpenSSH", Version: "9.6p1", KevKeys: []string{"openbsd|openssh"}, Confidence: 0.95, Packaged: true},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	got, err := e.svc.DevicesRunning(e.ctx(), []inventory.ProductQuery{{Vendor: "OpenBSD", Product: "OpenSSH"}, {Vendor: "3cpio", Product: "OpenSSH"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if m := got["openbsd|openssh"]; len(m) != 1 || !m[0].Exact || m[0].Display != "OpenSSH" {
+		t.Errorf("openssh: %+v, want the device once, exact, named by its OpenSSH row (not 3cpio)", m)
+	}
+	if m, ok := got["3cpio|openssh"]; ok {
+		t.Errorf("a key no row carries matched: %+v", m)
+	}
+}
+
 func TestMatchInputAndDeviceRefs(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)

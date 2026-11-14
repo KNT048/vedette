@@ -56,6 +56,9 @@ type Software struct {
 	// PkgVersion and PkgSource: a packaged deb row's full Debian version ("1:9.6p1-3ubuntu13.14") and source package
 	// ("openssh"), read against what Ubuntu or Debian say about the CVE (Vuln.Distro, D-516); "" otherwise.
 	PkgVersion, PkgSource string
+	// Banner is what a service says about its build beside the version (nmap's extrainfo, "Ubuntu Linux; protocol 2.0"); "" when
+	// none. Untrusted; only read for the platform it names (D-547).
+	Banner string
 }
 
 // Asset is what the matcher needs to know about a device.
@@ -155,6 +158,7 @@ type Match struct {
 	Confidence      float64
 	Severity        Severity
 	Evidence        Evidence
+	why             string // D-547: the platform sentence of a match ruled out by the platform (MatchResult.OtherPlatform)
 }
 
 // MatchResult separates what is new from what the asset already has, so the
@@ -179,6 +183,11 @@ type MatchResult struct {
 	// matcher would not create such a finding on a fresh device either: the service closes an open one of basis product
 	// (never version, scan or a person's) with Evidence.Summary as its note. Each one is also in Unlisted.
 	Retired []Match
+	// OtherPlatform lists, whatever the device already has, the CVEs ruled out only because the evidence names another platform
+	// than the one the CVE affects (D-547: CVE-2026-123158 on an OpenSSH that says it is Ubuntu's build). Evidence.Summary is
+	// the reason ("… affects only …; the software reports 9.6p1 Ubuntu 3ubuntu13.20."), for a page that lists none of them, such as
+	// exposure's. A device that has the finding also gets it in NotAffected, with the sentence that closes it.
+	OtherPlatform []Match
 }
 
 // SettledKEV is how long a "Multiple Products" entry must have been in KEV before NVD's product list for it is taken as
@@ -261,7 +270,7 @@ func MatchAsset(a Asset, vulns []Vuln, have map[string]bool, now time.Time) Matc
 			continue
 		}
 		seen[v.CVE] = true
-		var best, proved, unlisted *Match
+		var best, proved, unlisted, platform *Match
 		unproved := false    // a software of this product with a No that proves nothing, or one that needs a version
 		othersOnly := true   // every software keyed to the entry is one NVD's list leaves out (D-506)
 		var unnamed []string // their names, for the D-506 sentence
@@ -274,6 +283,9 @@ func MatchAsset(a Asset, vulns []Vuln, have map[string]bool, now time.Time) Matc
 			case outNotAffected:
 				if proved == nil {
 					proved = &m
+				}
+				if m.why != "" && platform == nil {
+					platform = &m
 				}
 			case outRuledOut:
 				unproved = true
@@ -301,6 +313,11 @@ func MatchAsset(a Asset, vulns []Vuln, have map[string]bool, now time.Time) Matc
 					res.NeedVersion[i].CVEs = append(c, v.CVE)
 				}
 			}
+		}
+		if best == nil && platform != nil && !unproved {
+			r := *platform
+			r.Evidence.Summary, r.why = r.why, ""
+			res.OtherPlatform = append(res.OtherPlatform, r)
 		}
 		if best == nil {
 			switch {
@@ -410,6 +427,10 @@ func matchOne(a Asset, s Software, in swInfo, v Vuln, now time.Time) (Match, out
 		note := fmt.Sprintf("%s lists %s for Juniper %s only; this device's model is %s. Check the vendor advisory and close it if it does not apply.", v.listName(), v.CVE, orList(named), clean(a.Model))
 		return Match{CVE: v.CVE, SoftwareID: s.ID, SoftwareDisplay: clean(s.Display), Evidence: Evidence{Summary: note, CheckedAt: now}}, outRuledOut
 	}
+	if why, out := platformRuledOut(in, v.CVE); out { // D-547: the platform it runs on is not one the CVE affects
+		note := "Not affected: " + why + " Vedette closed this by itself and reopens it if a later match says the device is affected."
+		return Match{CVE: v.CVE, SoftwareID: s.ID, SoftwareDisplay: clean(s.Display), Evidence: Evidence{Summary: note, CheckedAt: now}, why: why}, outNotAffected
+	}
 	if d, ok := distroVerdict(in, v); ok { // D-516: the distribution's own word on its package comes before NVD's upstream ranges
 		return distroMatch(a, s, in, v, d, now)
 	}
@@ -469,9 +490,12 @@ func matchOne(a Asset, s Software, in swInfo, v Vuln, now time.Time) (Match, out
 		m.Evidence.Summary = fmt.Sprintf("%s runs %s. %s lists this flaw for several %s products; check the advisory to see whether yours is one of them.", name, sw, v.listName(), clean(v.Vendor))
 	case w.note != "": // D-546: why NVD's Windows data does not decide it
 		m.Evidence.Summary = fmt.Sprintf("%s runs %s. %s", name, sw, w.note)
+	case len(v.Affected) == 0: // N45-3: no "run a scan" (the page may show the result of the scan that just ran)
+		m.Evidence.Summary = fmt.Sprintf("%s runs %s. %s lists no affected versions for %s yet, so Vedette cannot tell whether this version is affected; compare it with the vendor advisory.", name, sw, v.rangesBy(true), v.CVE)
 	default:
-		m.Evidence.Summary = fmt.Sprintf("%s runs %s. Vedette has not checked whether this version is in the affected range; compare it with the vendor advisory or run a scan.", name, sw)
+		m.Evidence.Summary = fmt.Sprintf("%s runs %s. Vedette cannot compare version %s with the versions %s lists as affected by %s; compare it with the vendor advisory.", name, sw, clean(in.ver), v.rangesBy(false), v.CVE)
 	}
+	m.Evidence.Summary += platformCondition(v.CVE) // D-547, KF-5: the platform is not known (or is one it affects)
 	m.Evidence.CheckedAt = now
 	return m, outMatch
 }
@@ -501,6 +525,10 @@ type swInfo struct {
 	// osName is the device's operating system as inventory folds it ("Microsoft Windows 10 Enterprise LTSC 2019 10.0.17763.6532"):
 	// a Windows LTSC/LTSB edition is still serviced when its release has ended (D-546).
 	osName string
+	// banner: Software.Banner. netSeen: a scan or sensor saw the row as a network service, so the device's OS says nothing
+	// about the platform of its build (D-547).
+	banner  string
+	netSeen bool
 }
 
 func newSWInfo(s Software, osName string) swInfo {
@@ -517,6 +545,8 @@ func newSWInfo(s Software, osName string) swInfo {
 		in.ver, _ = in.cpe.Version.Literal()
 	}
 	in.given = versionGiven(in.ver)
+	in.banner = s.Banner
+	in.netSeen = s.Source == "nmap" || s.Source == "scan" || s.Source == "passive"
 	in.packaged = s.Packaged && s.Source == "agent"
 	if in.packaged {
 		in.pkgVer, in.pkgSrc = s.PkgVersion, s.PkgSource

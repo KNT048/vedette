@@ -17,6 +17,7 @@
 !host
 !deploy/containers/scan-base/pack
 !deploy/containers/honeypot
+!deploy/containers/security-deb.sh
 !deploy/osquery
 !scripts/hostlicenses
 !deploy/containers/scan-base/nuclei

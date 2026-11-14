@@ -6,6 +6,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec" //nolint:depguard // the test runs go and make with fixed argv, no shell; SYS-1 is about the product
@@ -78,6 +79,18 @@ func TestPinsAreExact(t *testing.T) {
 	}
 	if !regexp.MustCompile(`^[0-9]+\.[0-9]+$`).MatchString(p["NMAP_MIN_VERSION"]) {
 		t.Errorf("NMAP_MIN_VERSION=%q is the floor, major.minor, of the nmap the box installs", p["NMAP_MIN_VERSION"])
+	}
+	// D-594: a Debian security update laid over the base: an exact Debian version, a debian-security snapshot time, a hash per architecture
+	if !regexp.MustCompile(`^[0-9]+:[A-Za-z0-9.+~-]+$`).MatchString(p["ZLIB1G_VERSION"]) {
+		t.Errorf("ZLIB1G_VERSION=%q must be the exact Debian version, epoch included", p["ZLIB1G_VERSION"])
+	}
+	if !regexp.MustCompile(`^[0-9]{8}T[0-9]{6}Z$`).MatchString(p["ZLIB1G_SNAPSHOT"]) {
+		t.Errorf("ZLIB1G_SNAPSHOT=%q must be a snapshot.debian.org timestamp (yyyymmddThhmmssZ)", p["ZLIB1G_SNAPSHOT"])
+	}
+	for _, k := range []string{"ZLIB1G_SHA256_AMD64", "ZLIB1G_SHA256_ARM64"} {
+		if !sha256RE.MatchString(p[k]) {
+			t.Errorf("%s=%q must be a lower-case SHA-256", k, p[k])
+		}
 	}
 	if _, has := p["NMAP_VERSION"]; has {
 		t.Error("nmap is not pinned to an exact version (D-146 (11)): security fixes must flow in")
@@ -622,6 +635,94 @@ func TestDevComposePassesEveryBuildArg(t *testing.T) {
 			if !strings.Contains(compose, "  "+m[1]+": ") {
 				t.Errorf("%s: ARG %s is not in deploy/compose/compose.yaml x-build-args", f, m[1])
 			}
+		}
+	}
+}
+
+// D-594: the two published images on DEBIAN_IMAGE (scan-base, honeypot) lay the pinned zlib1g security update over the base, on the
+// build machine (security-deb.sh checks the hash and writes the dpkg status), with every pin of pins.env passed by make, and scan-base's
+// final stage copies the result; the build context lets the script in.
+func TestDebianImagesTakeThePinnedSecurityUpdate(t *testing.T) {
+	t.Parallel()
+	call := `sh /usr/local/bin/security-deb.sh zlib1g zlib "${ZLIB1G_VERSION}" "${ZLIB1G_SNAPSHOT}" "$z" "${TARGETARCH}" /target/status `
+	for _, f := range []string{"scan-base/Containerfile", "honeypot/Containerfile"} {
+		text := read(t, f)
+		for _, want := range []string{
+			"ARG ZLIB1G_VERSION\n", "ARG ZLIB1G_SNAPSHOT\n", "ARG ZLIB1G_SHA256_AMD64\n", "ARG ZLIB1G_SHA256_ARM64\n",
+			`amd64) z="${ZLIB1G_SHA256_AMD64}" ;; arm64) z="${ZLIB1G_SHA256_ARM64}" ;;`, call,
+			"COPY deploy/containers/security-deb.sh /usr/local/bin/security-deb.sh\n", "COPY --from=base /var/lib/dpkg/status /target/status\n",
+		} {
+			if !strings.Contains(text, want) {
+				t.Errorf("%s: missing %q", f, want)
+			}
+		}
+	}
+	stages := stagesOf(read(t, "scan-base/Containerfile"))
+	if final := stages[len(stages)-1]; final.from != "FROM base" || !strings.Contains(final.body, "COPY --from=security /overlay/ /\n") {
+		t.Errorf("scan-base: the final stage must be FROM base and copy the security overlay, got %q", final.from)
+	}
+	hp := read(t, "honeypot/Containerfile")
+	if !strings.Contains(hp, call+"/rootfs; \\\n    cp /rootfs/var/lib/dpkg/status /target/updated-status; \\\n") ||
+		!strings.Contains(hp, "-o Dir::State::status=/target/updated-status ") || !strings.Contains(hp, "assemble.py debs /dl /target/updated-status /rootfs") {
+		t.Error("honeypot: apt and assemble.py must work from the updated status, /target/status stays the base's (for the inventory)")
+	}
+	mk := read(t, "../../Makefile")
+	for _, k := range []string{"ZLIB1G_VERSION", "ZLIB1G_SNAPSHOT", "ZLIB1G_SHA256_AMD64", "ZLIB1G_SHA256_ARM64"} {
+		if !regexp.MustCompile(`(?m)^PIN_ARGS := .* ` + k + `[ ,]`).MatchString(mk) {
+			t.Errorf("Makefile PIN_ARGS does not pass %s", k)
+		}
+	}
+	if !strings.Contains(read(t, "../../.dockerignore"), "\n!deploy/containers/security-deb.sh\n") {
+		t.Error(".dockerignore must let deploy/containers/security-deb.sh into the build context")
+	}
+}
+
+// D-594: security-deb.sh refuses, before any download and without creating its output, a base that already has the pinned version or a
+// newer one (the overlay must be retired, never downgrade the base), a base of another architecture, a package the base lacks, and an
+// argument with a newline. Offline: every case fails before the network is reached. Needs dpkg (--compare-versions), as on CI's Ubuntu.
+func TestSecurityDebRefusesBeforeDownloading(t *testing.T) {
+	t.Parallel()
+	if _, err := exec.LookPath("dpkg"); err != nil {
+		t.Skip("dpkg is not installed (Debian/Ubuntu only)")
+	}
+	p := pins(t)
+	ver, sha := p["ZLIB1G_VERSION"], p["ZLIB1G_SHA256_AMD64"]
+	stanza := func(pkg, arch, v string) string {
+		return "Package: " + pkg + "\nStatus: install ok installed\nArchitecture: " + arch + "\nVersion: " + v + "\n\n"
+	}
+	for _, c := range []struct{ name, status, version, want string }{
+		{"base at the pinned version", stanza("zlib1g-dev", "amd64", "1:1.0") + stanza("zlib1g", "amd64", ver), ver, "DEBIAN_IMAGE carries the fix"},
+		{"base newer than the pin", stanza("zlib1g", "amd64", strings.Replace(ver, "deb13u1", "deb13u2", 1)), ver, "DEBIAN_IMAGE carries the fix"},
+		{"base of another architecture", stanza("zlib1g", "arm64", "1:1.0"), ver, "is not for amd64"},
+		{"package matched as text, not as a regex", stanza("zlib1gX", "amd64", "1:1.0"), ver, "not in the base image's dpkg status"},
+		{"newline in an argument", stanza("zlib1g", "amd64", "1:1.0"), ver + "\nx", "holds a newline"},
+	} {
+		dir := t.TempDir()
+		status, out := filepath.Join(dir, "status"), filepath.Join(dir, "out")
+		if err := os.WriteFile(status, []byte(c.status), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		//nolint:gosec // fixed argv: the repository's script, the pins and paths this test made
+		cmd := exec.CommandContext(ctx, "sh", "security-deb.sh", "zlib1g", "zlib", c.version, p["ZLIB1G_SNAPSHOT"], sha, "amd64", status, out)
+		b, err := cmd.CombinedOutput()
+		cancel()
+		var ee *exec.ExitError
+		if !errors.As(err, &ee) || ee.ExitCode() != 1 || !strings.Contains(string(b), c.want) {
+			t.Errorf("%s: want exit 1 and %q, got %v: %s", c.name, c.want, err, b)
+		}
+		if strings.Contains(string(b), "http://") {
+			t.Errorf("%s: tried a download: %s", c.name, b)
+		}
+		if _, err := os.Stat(out); !os.IsNotExist(err) {
+			t.Errorf("%s: the output folder exists (%v)", c.name, err)
+		}
+	}
+	// the refusal of a fixed base names every place to clean up (D-594 L1): the nine of pins.env's comment
+	for _, place := range []string{"(1) deploy/containers/pins.env", "(2) scan-base/Containerfile", "(3) honeypot/Containerfile", "(4) Makefile PIN_ARGS",
+		"(5) deploy/compose/compose.yaml", "(6) .dockerignore", "(7) deploy/containers/containers_test.go", "(8) scripts/dev/images-check.sh", "(9) THIRD_PARTY_NOTICES.md"} {
+		if !strings.Contains(read(t, "security-deb.sh"), place) || !strings.Contains(read(t, "pins.env"), place) {
+			t.Errorf("security-deb.sh's refusal and the pins.env comment must both name %q", place)
 		}
 	}
 }

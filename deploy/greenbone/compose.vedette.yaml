@@ -8,7 +8,8 @@
 #    Quadlet unit mounts its parent /run/vedette-greenbone, which the host makes at its own start, so core never depends on a volume
 #    compose creates and starts normally while OpenVAS is off. gvmd listens with mode 666 (GVMD_ARGS of Greenbone's start-gvmd), so the
 #    parent is what keeps others out: 0750, root, core's group. Only root and core reach the socket; gvmd does not need the parent
-#    (the runtime bind-mounts gvmd/ straight onto /run/gvmd), and a host account that happens to have uid 1001 cannot reach gvmd/.
+#    (the runtime bind-mounts gvmd/ straight onto /run/gvmd), and a host account that happens to have uid 1001 cannot reach gvmd/
+#    by its path (it can through /proc/<gvmd's pid>/root, and read gvmd's environment: a known limit, D-590).
 # 2. Only what Vedette uses runs (kien, LEAN-1). Vedette talks GMP to gvmd over that socket; Greenbone's web interface and its
 #    helpers are never started, so nothing of Greenbone listens on a port of the box (the official nginx publishes 443 and 9392):
 #      gsa         the web interface's static files, copied into a volume for nginx;
@@ -21,8 +22,22 @@
 #    No service that stays depends on one of them (the test checks it). The profile "disabled" is never activated.
 # 3. Every service that runs carries the label io.vedette.started-by=vedette-host, so `podman ps --filter label=...` shows what
 #    Vedette started. The label never makes a container Vedette's to remove: uninstall leaves the whole project alone (D-529).
+# 4. gvmd's admin user is created with Vedette's GMP login (N42-4, D-590). vedette-host writes core's GMP password to
+#    /var/lib/vedette-host/greenbone/gvmd-admin-password (the directory root's 0700, the file uid 1001 0400) before every start; it
+#    is the file secret vedette-gmp-password, which docker-compose v2 bind-mounts read-only at /run/secrets/vedette-gmp-password
+#    (no swarm; its uid/gid/mode keys are not used, the file's own owner and mode apply). gvmd's command reads it into PASSWORD and
+#    runs the image's own CMD, start-gvmd (as uid gvmd: the image's entrypoint runs it through gosu), which creates the user with
+#    `gvmd --create-user=$USER --password=$PASSWORD` before it starts the daemon, so the login is right from the first start however
+#    long gvmd then loads its feed. A missing or empty file ends the container before start-gvmd: gvmd never makes its default
+#    admin/admin login. Nothing is printed. ($$ is compose's escape of $.)
 services:
   gvmd:
+    command:
+      - /bin/sh
+      - -c
+      - 'PASSWORD="$$(cat /run/secrets/vedette-gmp-password)" && [ -n "$$PASSWORD" ] && USER=admin && export USER PASSWORD && exec /usr/local/bin/start-gvmd'
+    secrets:
+      - vedette-gmp-password
     volumes:
       - type: bind
         source: /run/vedette-greenbone/gvmd
@@ -87,3 +102,7 @@ services:
   ospd-openvas:
     labels:
       io.vedette.started-by: vedette-host
+
+secrets:
+  vedette-gmp-password:
+    file: /var/lib/vedette-host/greenbone/gvmd-admin-password

@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
+	"path/filepath"
 	"regexp"
 	"slices"
 	"strconv"
@@ -31,12 +33,24 @@ import (
 // The two compose files ship in the vedette-host package (deploy/greenbone): Greenbone's file, unmodified apart from the digest pins, and
 // Vedette's override (the gvmd socket on a host directory, the web interface and its helpers off, labels).
 //
-// The GMP password is core's (core/secrets); it reaches the host as the args of greenbone.up and leaves it only as the argv of gvmd's
-// own command for it (Greenbone's documented way: https://greenbone.github.io/docs/latest/22.4/container/workflows.html, "Setting up an
-// admin user password"). That argv is visible in the box's process list (podman exec, then gvmd in the container) while the command
-// runs, at most 65 seconds (the image's own timeout ends a gvmd that hangs on its lock), one try at a time, to local users of the box
-// only, never to a container; gvmd has no other way to take it. It is never logged, audited (the server redacts the key "password"),
-// stored by the host or put in an error. A stack whose login could not be set is stopped: it never runs with gvmd's default login.
+// The GMP password is core's (core/secrets); it reaches the host as the args of greenbone.up (N42-4, D-590). Before compose up the host
+// writes it to <state>/greenbone/gvmd-admin-password (the directory root's 0700, the file gvmd's uid 1001, 0400, through a temp file and
+// a rename; the state directory must be the shipped /var/lib/vedette-host, which compose.vedette.yaml names), and the override gives it
+// to gvmd as a compose file secret (a read-only bind mount at /run/secrets/vedette-gmp-password); gvmd's command reads it into PASSWORD
+// and runs the image's own start-gvmd, which creates the admin user with it before the daemon starts (`gvmd --create-user=admin
+// --password=$PASSWORD`; a missing or empty file stops the container before that). A volume created by an OpenVAS enabled after D-590
+// therefore never has gvmd's default login, however long gvmd then loads its feed (well over the 20 minutes the earlier login wait
+// allowed on the N100). A volume created before D-590 was created as admin/admin and keeps that password until the re-sync takes;
+// meanwhile only root and core reach gvmd's socket through /run/vedette-greenbone (D-590 records the limits). The file stays on disk:
+// a recreated gvmd and the re-sync at the host's start need it.
+// The re-sync (gbResync) sets the password with gvmd's own command (Greenbone's documented way:
+// https://greenbone.github.io/docs/latest/22.4/container/workflows.html, "Setting up an admin user password") after every up, and
+// at the host's start when gvmd runs: `gvmd --new-password` waits on gvmd's lock while the feed loads, each try ended by the image's
+// timeout, the pause between tries doubling from 10 seconds to 5 minutes, with no wall-clock bound; it goes on while gvmd's container
+// exists in any state (a gvmd that restarts mid-load does not end it) and ends when it takes, at greenbone.down, at the next up, or
+// when the host stops. The password is visible in the box's process list as the argv of `gvmd --create-user` (once per gvmd start,
+// seconds) and of each re-sync try (at most 65 seconds each, one at a time), to local users of the box. It is never logged, audited
+// (the server redacts the key "password") or put in an error.
 
 const (
 	gbProject       = "greenbone-community-edition"
@@ -60,9 +74,17 @@ const (
 	gbDownQueue  = 2 * time.Minute  // how long a down waits for the operation it cancelled to end
 	gbStepWait   = 2 * time.Minute  // one podman, systemctl or apt-get update call other than the long ones
 	gbAptWait    = 15 * time.Minute // the install of the provider package
-	gbLoginEvery = 10 * time.Second // how often the login is tried while gvmd starts
-	gbLoginWait  = 20 * time.Minute // gvmd migrates its database and creates its admin user before the login can be set
+	gbLoginEvery = 10 * time.Second // the first pause of the background re-sync of the login; it doubles up to gbLoginMax
+	gbLoginMax   = 5 * time.Minute
 	gbLoginTry   = 90 * time.Second // one try: the image's `timeout -k 5 60` ends gvmd first, podman exec then returns
+	gbLoginLog   = time.Hour        // a re-sync that has not taken says so once an hour
+
+	// gbPasswordDir and gbPasswordName: the GMP password for gvmd's start, <state>/greenbone/gvmd-admin-password. gbPasswordShipped is
+	// that path with the shipped state directory: compose.vedette.yaml names it as the secret vedette-gmp-password (the two must agree,
+	// TestGreenboneOverrideNamesThePasswordFile), so OpenVAS runs only with -state-dir /var/lib/vedette-host.
+	gbPasswordDir     = "greenbone"
+	gbPasswordName    = "gvmd-admin-password" //nolint:gosec // G101: a file name, not a credential
+	gbPasswordShipped = "/var/lib/vedette-host/" + gbPasswordDir + "/" + gbPasswordName
 )
 
 // gbFeedServices are the seven feed data services of Greenbone's feed update, in the order of its workflow page.
@@ -109,10 +131,13 @@ func gbLoginArgv(password string) []string {
 	return []string{"exec", "-u", "gvmd", gbGvmdContainer, "timeout", "-k", "5", "60", "gvmd", "--user=" + api.GreenboneUser, "--new-password=" + password}
 }
 
+// gbGvmdExistsArgv asks whether gvmd's container exists, in any state (exit 0 yes, 1 no): the re-sync goes on while it does.
+func gbGvmdExistsArgv() []string { return []string{"container", "exists", gbGvmdContainer} }
+
 // isGreenbonePodmanArgv says whether args is one of the fixed podman shapes of the OpenVAS commands. The login's password must be
 // 48 lower-case hex characters; nothing else varies. (rmi <image ID> is validatePodman's own shape.)
 func isGreenbonePodmanArgv(args []string) bool {
-	fixed := [][]string{gbUpArgv(), gbStopArgv(), gbPsArgv(), gbPullFeedArgv(), gbUpFeedArgv(), gbVersionArgv()}
+	fixed := [][]string{gbUpArgv(), gbStopArgv(), gbPsArgv(), gbPullFeedArgv(), gbUpFeedArgv(), gbVersionArgv(), gbGvmdExistsArgv()}
 	for _, s := range gbFeedServices {
 		fixed = append(fixed, gbImageIDArgv(s))
 	}
@@ -216,6 +241,10 @@ func (o *Ops) gbOp(ctx context.Context, preempt bool, limit time.Duration, f fun
 		if o.gbCancel != nil {
 			o.gbCancel()
 		}
+		if o.gbResyncStop != nil { // the background re-sync of the login ends too (gbResync)
+			o.gbResyncStop()
+			o.gbResyncStop = nil
+		}
 	}
 	gen := o.gbGen
 	onQueue := o.gbOnQueue
@@ -311,15 +340,187 @@ func (o *Ops) gbUp(ctx context.Context, logf func(string), password string) erro
 		o.log.ErrorContext(ctx, "greenbone: the socket directory", "error", err.Error())
 		return fail(api.CodeGreenboneFailed, "OpenVAS: the host could not prepare "+api.GreenboneSocketDir+". The box log has the details.")
 	}
+	if _, file := o.gbPasswordPath(); file != o.path(gbPasswordShipped) {
+		return fail(api.CodeGreenboneFailed, "OpenVAS needs vedette-host's state directory at /var/lib/vedette-host (its compose override names the GMP login file "+gbPasswordShipped+"), but this host runs with "+o.cfg.StateDir+".")
+	}
+	if err := o.gbPasswordWrite(password); err != nil {
+		o.log.ErrorContext(ctx, "greenbone: the GMP password file", "error", err.Error()) // the path and the cause, never the value
+		return fail(api.CodeGreenboneFailed, "OpenVAS: the host could not write the GMP login for gvmd under "+filepath.Dir(gbPasswordShipped)+". The box log has the details.")
+	}
 	logf("starting OpenVAS (Greenbone Community Edition, project " + gbProject + "); the first start downloads about 9 GB of images and the feed")
 	if _, code, err := o.gbStep(ctx, gbUpLimit, binPodman, gbUpArgv()...); err != nil || code != 0 {
 		return o.gbFailed(ctx, "podman compose up", code, err)
 	}
-	if err := o.gbLogin(ctx, password); err != nil {
+	if err := o.gbRunning(ctx); err != nil {
 		return err
 	}
-	logf("the GMP login is set")
-	return o.gbRunning(ctx)
+	o.gbResyncStart(func() bool { return ctx.Err() == nil }, password) //nolint:contextcheck // the re-sync outlives the up on purpose: the process's context, ended by down or the next up
+	logf("OpenVAS runs; gvmd creates its admin user with Vedette's GMP login, and the host sets the login again in the background once gvmd has loaded its feed (an existing volume keeps its own)")
+	return nil
+}
+
+// gbPasswordPath is the directory and the file of the GMP password for gvmd's start, in the state directory.
+func (o *Ops) gbPasswordPath() (dir, file string) {
+	return o.stateFile(gbPasswordDir), o.stateFile(gbPasswordDir, gbPasswordName)
+}
+
+// gbPasswordWrite puts the GMP password where compose.vedette.yaml gives it to gvmd as a file secret: the directory root's (the host's
+// owner uid) and 0700, the file gvmd's uid and 0400, through a temp file made 0400 and owned by gvmd before the password is written,
+// then a rename; temp files a write cut short left behind are removed first. Only root and gvmd read it; the runtime bind-mounts the
+// file itself, so gvmd needs no way through the directory. A directory of another owner or open to others is refused, not repaired.
+// Never logged.
+func (o *Ops) gbPasswordWrite(password string) error {
+	dir, file := o.gbPasswordPath()
+	if err := privDir(dir, o.cfg.OwnerUID); err != nil {
+		return err
+	}
+	if stale, err := filepath.Glob(filepath.Join(dir, ".tmp-*")); err == nil {
+		for _, s := range stale {
+			_ = os.Remove(s)
+		}
+	}
+	uid, gid := gbGvmdUID, gbGvmdUID
+	if o.d.GreenboneUID > 0 { // tests: their own uid, their group left as it is
+		uid, gid = o.d.GreenboneUID, -1
+	}
+	f, err := os.CreateTemp(dir, ".tmp-*")
+	if err != nil {
+		return fmt.Errorf("ops: write the GMP password file: %w", err)
+	}
+	tmp := f.Name()
+	ok := false
+	defer func() {
+		if !ok {
+			_ = f.Close()
+			_ = os.Remove(tmp)
+		}
+	}()
+	for _, step := range []func() error{
+		func() error { return f.Chmod(0o400) },
+		func() error { return f.Chown(uid, gid) },
+		func() error { _, err := f.WriteString(password + "\n"); return err },
+		f.Sync,
+		f.Close,
+		func() error { return os.Rename(tmp, file) },
+	} {
+		if err := step(); err != nil {
+			return fmt.Errorf("ops: write the GMP password file: %w", err)
+		}
+	}
+	ok = true
+	syncDir(dir)
+	return nil
+}
+
+// gbResyncStart starts the background re-sync of the login (gbResync) in place of one that runs. It runs on the process's own
+// context, not the caller's. ok is asked under gbMu, where a down bumps the generation and cancels the operation that runs: an up
+// passes "my context is not cancelled", the resume at the host's start "no down and no up since I looked", so a re-sync never starts
+// after the down that ended its up, and a resume never replaces the re-sync of a newer up.
+func (o *Ops) gbResyncStart(ok func() bool, password string) {
+	o.mu.Lock()
+	parent := o.loopCtx
+	o.mu.Unlock()
+	if parent == nil {
+		parent = context.Background()
+	}
+	o.gbMu.Lock()
+	defer o.gbMu.Unlock()
+	if !ok() {
+		return
+	}
+	if o.gbResyncStop != nil {
+		o.gbResyncStop()
+	}
+	ctx, cancel := context.WithCancel(parent)
+	o.gbResyncStop = cancel
+	go o.gbResync(ctx, cancel, password)
+}
+
+// gbResume, at the host's start (review r1 M1): a host that restarted while gvmd loaded its feed lost the re-sync of its up, and core
+// does not send greenbone.up again while its own state says OpenVAS was started. When the password file is there and compose lists
+// gvmd as running, the re-sync starts again with the file's password. A stopped project (OpenVAS turned off) is left alone. Run beside
+// Start, never blocking it; nothing of the password is logged.
+func (o *Ops) gbResume(ctx context.Context) {
+	o.gbMu.Lock()
+	gen := o.gbGen
+	o.gbMu.Unlock()
+	password, err := o.gbPasswordRead()
+	if err != nil {
+		if !errors.Is(err, os.ErrNotExist) {
+			o.log.ErrorContext(ctx, "greenbone: the GMP password file could not be read at start; the login is set again at the next start of OpenVAS", "error", err.Error())
+		}
+		return
+	}
+	out, code, err := o.gbStep(ctx, gbStepWait, binPodman, gbPsArgv()...)
+	if err != nil || code != 0 || !slices.Contains(strings.Fields(out), "gvmd") {
+		return
+	}
+	o.gbResyncStart(func() bool { return o.gbGen == gen && o.gbResyncStop == nil }, password) //nolint:contextcheck // the re-sync runs on the process's context (loopCtx), like ctx here
+}
+
+// gbPasswordRead reads the password file (never through a symlink, at most 64 bytes) and accepts only the 48 hex characters core makes.
+func (o *Ops) gbPasswordRead() (string, error) {
+	_, file := o.gbPasswordPath()
+	f, err := os.OpenFile(file, os.O_RDONLY|syscall.O_NOFOLLOW, 0) //nolint:gosec // the host's own file in its state directory
+	if err != nil {
+		return "", err
+	}
+	defer func() { _ = f.Close() }()
+	b := make([]byte, 64)
+	n, err := io.ReadFull(f, b)
+	if err != nil && !errors.Is(err, io.ErrUnexpectedEOF) {
+		return "", fmt.Errorf("ops: read the GMP password file: %w", err)
+	}
+	if pw := strings.TrimSuffix(string(b[:n]), "\n"); gbPasswordRE.MatchString(pw) {
+		return pw, nil
+	}
+	return "", errors.New("ops: the GMP password file does not hold a password of the expected form")
+}
+
+// gbResync sets the GMP password on gvmd with gvmd's own command until it takes: a volume created before D-590 (as admin/admin), or
+// one whose admin user has another password (core's data restored without the volumes, W4-1), keeps it, and gvmd takes a new one only
+// once its main process has loaded its feed and released its lock, which on a first start can take hours (N42-4). The pause between
+// tries doubles from gbLoginEvery to gbLoginMax (review r1 M3). No wall-clock bound: it goes on while gvmd's container exists, in any
+// state (a gvmd that restarts mid-load does not end it), and ends when the password takes, when ctx ends (greenbone.down, the next up,
+// the host stopping), or when the container is gone. One try at a time, each ended by the image's timeout; the first failure is
+// logged, then one line an hour (tries and the last exit code); the argv and the output are never logged or read.
+func (o *Ops) gbResync(ctx context.Context, cancel context.CancelFunc, password string) {
+	defer cancel()
+	wait := gbLoginEvery
+	var logged time.Time
+	for tries := 1; ; tries++ {
+		_, code, err := o.gbStep(ctx, gbLoginTry, binPodman, gbLoginArgv(password)...)
+		if err != nil {
+			code = -1
+		}
+		switch {
+		case ctx.Err() != nil:
+			return
+		case code == 0:
+			o.log.InfoContext(ctx, "greenbone: gvmd took Vedette's GMP login", "tries", tries)
+			return
+		case !o.gbGvmdExists(ctx):
+			o.log.WarnContext(ctx, "greenbone: gvmd's container is gone; the GMP login is set again at the next start of OpenVAS", "tries", tries, "exit_code", code)
+			return
+		case tries == 1:
+			o.log.InfoContext(ctx, "greenbone: gvmd did not take the GMP login yet (it loads its feed first); the host tries again in the background", "exit_code", code)
+			logged = o.d.Now()
+		case o.d.Now().Sub(logged) >= gbLoginLog:
+			o.log.InfoContext(ctx, "greenbone: gvmd still does not take the GMP login; the host keeps trying", "tries", tries, "exit_code", code)
+			logged = o.d.Now()
+		}
+		if !o.d.Sleep(ctx, wait) {
+			return
+		}
+		wait = min(2*wait, gbLoginMax)
+	}
+}
+
+// gbGvmdExists says whether gvmd's container exists, in any state; when podman cannot tell, it says yes, so the re-sync keeps trying
+// (at most every gbLoginMax).
+func (o *Ops) gbGvmdExists(ctx context.Context) bool {
+	_, code, err := o.gbStep(ctx, gbStepWait, binPodman, gbGvmdExistsArgv()...)
+	return err != nil || code != 1
 }
 
 // gbPodmanSocketOn makes sure podman's API socket listens (docker-compose talks to it). vedette-host enables it only when it was not
@@ -450,34 +651,6 @@ func gbDir(path string, uid, gid int, perm os.FileMode) error {
 		}
 	}
 	return nil
-}
-
-// gbLogin sets the GMP password on gvmd, again every few seconds while gvmd still migrates its database or has not made its admin
-// user yet (a first start, or a volume that was wiped, W4-1); one try at a time, each ended by the image's timeout. Its output is
-// never read or logged. When it never takes, the project is stopped: it must not run on gvmd's default login (review r1 L2).
-func (o *Ops) gbLogin(parent context.Context, password string) error {
-	ctx, cancel := context.WithTimeout(parent, gbLoginWait)
-	defer cancel()
-	for tries := 1; ; tries++ {
-		_, code, err := o.gbStep(ctx, gbLoginTry, binPodman, gbLoginArgv(password)...)
-		if err == nil && code == 0 {
-			return nil
-		}
-		if o.d.Sleep(ctx, gbLoginEvery) {
-			continue
-		}
-		if parent.Err() != nil { // turned off, or up's own bound: gbOp says which, and the down that follows stops it
-			return parent.Err()
-		}
-		o.log.ErrorContext(ctx, "greenbone: setting the GMP login failed; stopping OpenVAS", "tries", tries, "exit_code", code) // never the argv
-		sctx, scancel := context.WithTimeout(context.WithoutCancel(parent), gbDownLimit)
-		defer scancel()
-		if _, scode, serr := o.gbStep(sctx, gbDownLimit, binPodman, gbStopArgv()...); serr != nil || scode != 0 {
-			o.log.ErrorContext(sctx, "greenbone: stopping OpenVAS after the login failed did not work", "exit_code", scode)
-			return fail(api.CodeGreenboneFailed, "OpenVAS started, but its manager (gvmd) did not take Vedette's login within 20 minutes, and stopping it failed. Turn OpenVAS off. The box log has the details.")
-		}
-		return fail(api.CodeGreenboneFailed, "OpenVAS started, but its manager (gvmd) did not take Vedette's login within 20 minutes, so it was stopped again (it never runs on its default login). The box log has the details.")
-	}
 }
 
 func (o *Ops) gbRunning(ctx context.Context) error {

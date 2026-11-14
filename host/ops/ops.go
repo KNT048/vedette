@@ -231,7 +231,10 @@ type Ops struct {
 	gbMu     sync.Mutex
 	gbCancel func()
 	gbGen    uint64 // bumped by every greenbone.down: an up or feed update that waited from before it gives up (guarded by gbMu)
-	gbExec   zapExecFn
+	// gbResyncStop ends the background re-sync of the GMP login an up started (gbResync; guarded by gbMu): greenbone.down and the next
+	// up call it.
+	gbResyncStop context.CancelFunc
+	gbExec       zapExecFn
 	// gbOnQueue, internal tests only, is called by an up or feed update once it has its generation, before it waits for the slot.
 	gbOnQueue func()
 }
@@ -472,6 +475,7 @@ func (o *Ops) Start(ctx context.Context, n Notifier) {
 	o.sweepTmp("releases", "containers")        // temp files of a write cut short (container.pull state)
 	o.zapAtStart(ctx)                           // a passive web scan this process's predecessor did not finish: container, rule, files (D-521)
 	o.gbAtStart()                               // /run/vedette-greenbone, which core's unit mounts for OpenVAS's socket (D-529)
+	go o.gbResume(lctx)                         // the re-sync of OpenVAS's login a restart cut short (D-590, review r1 M1); never blocks the start
 	_ = os.RemoveAll(o.stateFile(layoutParent)) // a bundle image staged by a pull that was cut short (D-452): GiBs
 	// the containers' AppArmor profile, loaded when the kernel lacks it (D-458): beside startHP, joined before READY, never blocks
 	aaDone := make(chan struct{})

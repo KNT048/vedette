@@ -317,6 +317,19 @@ func attrs(el xml.StartElement) map[string]string {
 	return m
 }
 
+// readAttrs are the attributes the parser reads (the a["…"] keys of parseNmapXML and serviceName; TestReadAttrsAreTheParsersKeys
+// keeps the two in step). Only they are capped at maxAttrLen, a script's output apart (maxScriptOutput). Every other attribute nmap
+// prints is never read and bounded only by maxOutput (N42-3, D-590): nmap echoes its whole command line in <nmaprun args> (the
+// --script list of the full shapes alone is about 4.8 KB, 6.2 KB disruptive), the -p list in <scaninfo services>, and the fingerprint
+// of a port it cannot identify in <service servicefp> (about 6 KB, from what the target answered). Capping them refused whole runs.
+var readAttrs = map[string]bool{
+	"accuracy": true, "addr": true, "addrtype": true, "conf": true, "count": true, "devicetype": true, "extrainfo": true, "id": true,
+	"key": true, "name": true, "osfamily": true, "osgen": true, "output": true, "portid": true, "product": true, "protocol": true,
+	"state": true, "timedout": true, "tunnel": true, "type": true, "vendor": true, "version": true,
+}
+
+const maxAttrLen = 4096 // longest attribute that is read, a script's output apart
+
 func clamp(n, lo, hi int) int { return max(lo, min(hi, n)) }
 
 func num(s string, hi int) int {
@@ -386,8 +399,9 @@ func parseNmapXML(data []byte) ([]host, error) {
 			}
 			for _, a := range t.Attr {
 				// A script's printed output (a certificate with many names, a long page title) may be longer than any other
-				// attribute; it is bounded apart below, so a long one never refuses the whole run (D-511).
-				if limit := 4096; len(a.Value) > limit && (t.Name.Local != "script" || a.Name.Local != "output") {
+				// attribute; it is bounded apart below, so a long one never refuses the whole run (D-511). Attributes the parser
+				// never reads are not capped one by one (readAttrs; the whole document is bounded by maxOutput).
+				if len(a.Value) > maxAttrLen && readAttrs[a.Name.Local] && (t.Name.Local != "script" || a.Name.Local != "output") {
 					return nil, fmt.Errorf("%w: attribute too long", errXMLInvalid)
 				}
 			}

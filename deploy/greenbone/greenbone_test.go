@@ -1,13 +1,14 @@
 // Package greenbone checks the two compose files of OpenVAS (Greenbone Community Edition, D-529, FULL-2, LEAN-1) that the vedette-host
 // package ships: Greenbone's official file is unmodified apart from its digest pins, the pins are those of pins.env, and Vedette's
-// override hands gvmd's socket to the host directory core mounts, publishes no port and runs only what Vedette's GMP path uses. It
-// starts nothing: the N100 walk of D-529 checks the effect.
+// override hands gvmd's socket to the host directory core mounts, gives gvmd Vedette's GMP login at the creation of its admin user
+// (D-590), publishes no port and runs only what Vedette's GMP path uses. It starts no container: the N100 walk of D-529 checks the effect.
 package greenbone
 
 import (
 	"crypto/sha256"
 	"encoding/hex"
 	"os"
+	"os/exec" //nolint:depguard // the test runs the override's own gvmd command under /bin/sh, as the container would; SYS-1 is about the product
 	"path/filepath"
 	"regexp"
 	"slices"
@@ -133,9 +134,14 @@ func TestGreenbonePinsAgree(t *testing.T) {
 }
 
 type override struct {
+	Secrets map[string]struct {
+		File string `yaml:"file"`
+	} `yaml:"secrets"`
 	Services map[string]struct {
 		Profiles []string          `yaml:"profiles"`
 		Labels   map[string]string `yaml:"labels"`
+		Command  []string          `yaml:"command"`
+		Secrets  []string          `yaml:"secrets"`
 		Volumes  []struct {
 			Type   string `yaml:"type"`
 			Source string `yaml:"source"`
@@ -173,8 +179,8 @@ func TestOverrideOnlyHandsOverTheSocketAndRunsWhatVedetteUses(t *testing.T) {
 		if s.Labels["io.vedette.started-by"] != "vedette-host" || len(s.Labels) != 1 {
 			t.Errorf("%s: labels %v, want exactly io.vedette.started-by=vedette-host", name, s.Labels)
 		}
-		if name != "gvmd" && len(s.Volumes) > 0 {
-			t.Errorf("%s: the override mounts something; only gvmd's socket directory is handed over", name)
+		if name != "gvmd" && (len(s.Volumes) > 0 || len(s.Command) > 0 || len(s.Secrets) > 0) {
+			t.Errorf("%s: the override mounts something or changes its command; only gvmd's socket directory and login are handed over", name)
 		}
 	}
 	slices.Sort(gotOff)
@@ -202,6 +208,70 @@ func TestOverrideOnlyHandsOverTheSocketAndRunsWhatVedetteUses(t *testing.T) {
 				t.Errorf("%s depends on %s, which the override turns off", name, dep)
 			}
 		}
+	}
+}
+
+// N42-4 (D-590): gvmd takes Vedette's GMP login at the creation of its admin user. The override gives gvmd the host's password file
+// as its only secret, and its command reads it and runs the image's own start-gvmd; a missing or empty file never reaches start-gvmd
+// (which would create admin/admin). The command runs here under /bin/sh as compose hands it over ($$ → $), with the two paths moved
+// into a temporary directory and a start-gvmd that prints what it got.
+func TestOverrideGivesGvmdTheLoginAtItsCreation(t *testing.T) {
+	t.Parallel()
+	dec := yaml.NewDecoder(strings.NewReader(string(read(t, "compose.vedette.yaml"))))
+	dec.KnownFields(true)
+	var ov override
+	if err := dec.Decode(&ov); err != nil {
+		t.Fatal(err)
+	}
+	const secret, file = "vedette-gmp-password", "/var/lib/vedette-host/greenbone/gvmd-admin-password" //nolint:gosec // G101: the secret's name and path (host/ops gbPasswordFile), not a credential
+	if len(ov.Secrets) != 1 || ov.Secrets[secret].File != file {
+		t.Fatalf("secrets %+v, want only %s from %s", ov.Secrets, secret, file)
+	}
+	gvmd := ov.Services["gvmd"]
+	if !slices.Equal(gvmd.Secrets, []string{secret}) {
+		t.Fatalf("gvmd's secrets %v", gvmd.Secrets)
+	}
+	if len(gvmd.Command) != 3 || gvmd.Command[0] != "/bin/sh" || gvmd.Command[1] != "-c" {
+		t.Fatalf("gvmd's command %q, want /bin/sh -c <script>", gvmd.Command)
+	}
+	script := strings.ReplaceAll(gvmd.Command[2], "$$", "$")
+	for _, want := range []string{"/run/secrets/" + secret, "USER=" + api.GreenboneUser, "exec /usr/local/bin/start-gvmd"} {
+		if !strings.Contains(script, want) {
+			t.Fatalf("gvmd's command %q lacks %q", script, want)
+		}
+	}
+	if strings.Contains(script, "echo") || strings.Contains(script, "set -x") {
+		t.Fatalf("gvmd's command prints something: %q", script)
+	}
+	dir := t.TempDir()
+	start := filepath.Join(dir, "start-gvmd")
+	if err := os.WriteFile(start, []byte("#!/bin/sh\nprintf '%s|%s' \"$USER\" \"$PASSWORD\"\n"), 0o700); err != nil { //nolint:gosec // a fake start-gvmd that must run
+		t.Fatal(err)
+	}
+	pw := filepath.Join(dir, "secret")
+	script = strings.NewReplacer("/run/secrets/"+secret, pw, "/usr/local/bin/start-gvmd", start).Replace(script)
+	run := func() (string, error) {
+		out, err := exec.CommandContext(t.Context(), "/bin/sh", "-c", script).Output() //nolint:gosec // the override's own command, run as compose would
+		return string(out), err
+	}
+	const want = "0123456789abcdef0123456789abcdef0123456789abcdef"
+	if err := os.WriteFile(pw, []byte(want+"\n"), 0o400); err != nil {
+		t.Fatal(err)
+	}
+	if out, err := run(); err != nil || out != api.GreenboneUser+"|"+want {
+		t.Fatalf("with the file: %q, %v; want start-gvmd to get %s and the password", out, err, api.GreenboneUser)
+	}
+	if err := os.Remove(pw); err != nil {
+		t.Fatal(err)
+	}
+	if out, err := run(); err == nil || out != "" {
+		t.Fatalf("without the file: %q, %v; want the container to end before start-gvmd", out, err)
+	}
+	if err := os.WriteFile(pw, nil, 0o400); err != nil {
+		t.Fatal(err)
+	}
+	if out, err := run(); err == nil || out != "" {
+		t.Fatalf("with an empty file: %q, %v; want the container to end before start-gvmd", out, err)
 	}
 }
 

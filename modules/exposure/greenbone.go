@@ -152,7 +152,7 @@ const (
 	notGBNotCompared = "The CVEs OpenVAS named were not compared with the list of exploited vulnerabilities: that comparison is not set up on this box yet."
 	gbLoadingReason  = "OpenVAS is loading its feed (first time takes about 2 hours)"
 	gbNotAnswering   = "OpenVAS does not answer on its socket. Turn it off and on again to restart it."
-	gbAuthFailed     = "Vedette could not sign in to OpenVAS (GMP). The login the box created for it was refused."
+	gbAuthFailed     = "Vedette could not sign in to OpenVAS (GMP): it refused the login the box set for it. If OpenVAS has finished loading its feed, turn it off and on again so the box sets the login again."
 	gbUnreadable     = "OpenVAS answered in a way Vedette could not read."
 	gbBusyReason     = "OpenVAS is busy loading its feed and answers slowly; Vedette will ask again."
 	gbSlowReason     = "OpenVAS did not answer within 2 minutes."
@@ -162,6 +162,10 @@ const (
 	notGBTerms      = "OpenVAS did not scan: accept the testing terms for this target to run OpenVAS (Ownership tab)."
 	gbSyncingReason = "OpenVAS is loading its weekly feed update"
 )
+
+// gbLoginPending: a refused login within the load grace after Up. A volume of an earlier start keeps its admin password until gvmd
+// has loaded its feed and the host sets Vedette's (host-api §6.16, D-590); the sentence claims neither cause.
+const gbLoginPending = "OpenVAS may still be loading its feed or setting Vedette's login; Vedette will ask again."
 
 // The answers of the setting.
 var (
@@ -597,6 +601,12 @@ func (s *Service) gbProbe(ctx context.Context, upAt time.Time) (string, string) 
 	case err == nil:
 		return GBReady, ""
 	case errors.Is(err, errGMPAuth):
+		// N42-4 (D-590): gvmd has Vedette's login from the creation of its user, but a volume from an earlier start keeps its own
+		// password until gvmd has loaded its feed and the host sets it again; within the load grace after Up that is the loading
+		// phase, not a dead end.
+		if s.clock().Sub(upAt) < GreenboneLoadGrace {
+			return GBLoading, gbLoginPending
+		}
 		return GBError, gbAuthFailed
 	case errors.Is(err, errGMPSlow) || errors.Is(err, context.DeadlineExceeded):
 		// gvmd answers slowly while it loads its feed (D-494): within the first hours after Up, or soon after it last said it was

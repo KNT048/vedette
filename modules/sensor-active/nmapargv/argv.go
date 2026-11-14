@@ -121,13 +121,21 @@ const (
 	// that hangs on a service cannot eat the host's hour, and a brute-force script of the disruptive shape stops after 5 minutes
 	// (unpwdb's own time limit is 10 minutes at the default timing).
 	fullScriptTimeout = "5m"
-	// FullScripts is the --script expression of ExternalFull: what the terms describe, without denial of service and password
-	// guessing (the extra tick). "external" scripts send data to third parties (whois, geolocation, vulners.com…), a new data flow
-	// leaving the box (rules/legal.md, PRIVACY); "broadcast" scripts send on the box's own LAN, not to the target. No --script-args.
-	FullScripts = "(default or safe or vuln) and not (dos or brute or external or broadcast)"
-	// DisruptiveScripts is the --script expression of ExternalDisruptive: the denial-of-service and brute-force scripts too.
-	DisruptiveScripts = "(default or safe or vuln or dos or brute) and not (external or broadcast)"
 )
+
+// FullScripts is the --script value of ExternalFull: an explicit list (scripts.go, review r1 M2/M3), never a category expression,
+// so a newer nmap's scripts stay out until reviewed. What the terms describe, without denial of service and password guessing
+// (the extra tick); no "external" script (third parties: whois, geolocation, vulners.com…), no "broadcast" one (the box's own LAN)
+// and none of excludedScripts. No --script-args.
+var FullScripts = strings.Join(fullScripts, ",")
+
+// DisruptiveScripts is the --script value of ExternalDisruptive: FullScripts plus disruptiveExtra (denial of service, brute force
+// and the login and crash checks of disruptiveMoved), sorted.
+var DisruptiveScripts = func() string {
+	all := slices.Concat(fullScripts, disruptiveExtra)
+	slices.Sort(all)
+	return strings.Join(all, ",")
+}()
 
 // IsExternal reports whether the shape is one of the three whose single target is the box's own public IP (External,
 // ExternalFull, ExternalDisruptive): the own-IP fences apply to all three.

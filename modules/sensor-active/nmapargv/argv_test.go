@@ -103,9 +103,9 @@ var (
 	externalPorts = "21,22,23,25,53,80,81,88,102,110,111,135,139,143,179,389,443,445,465,502,515,554,587,631,636,873,993,995,1080,1194,1433,1521,1723,1883,2049,2082,2083,2086,2087,2222,2375,2376,2379,3000,3128,3306,3389,4443,4899,5000,5001,5060,5061,5432,5601,5672,5900,5901,5938,5984,5985,5986,6379,6443,7001,7002,7547,8000,8006,8008,8009,8080,8081,8088,8089,8090,8123,8291,8443,8728,8729,8834,8880,8883,8888,9000,9042,9090,9100,9200,9443,10000,10250,10443,11211,27017,34567,37777"
 	shapeExternal = []string{"--privileged", "-sS", "-sV", "-Pn", "-n", "--max-rate", "100", "--max-retries", "2", "--host-timeout", "3m", "-p", externalPorts, "-oX", "-", "8.8.8.8"}
 	// D-526: the two full shapes of a target whose testing terms are accepted.
-	shapeFull = []string{"--privileged", "-sS", "-sV", "-Pn", "-n", "-p-", "--script", "(default or safe or vuln) and not (dos or brute or external or broadcast)",
+	shapeFull = []string{"--privileged", "-sS", "-sV", "-Pn", "-n", "-p-", "--script", FullScripts,
 		"--script-timeout", "5m", "--max-rate", "300", "--max-retries", "2", "--host-timeout", "60m", "-oX", "-", "8.8.8.8"}
-	shapeDisruptive = []string{"--privileged", "-sS", "-sV", "-Pn", "-n", "-p-", "--script", "(default or safe or vuln or dos or brute) and not (external or broadcast)",
+	shapeDisruptive = []string{"--privileged", "-sS", "-sV", "-Pn", "-n", "-p-", "--script", DisruptiveScripts,
 		"--script-timeout", "5m", "--max-rate", "300", "--max-retries", "2", "--host-timeout", "60m", "-oX", "-", "8.8.8.8"}
 )
 
@@ -539,8 +539,8 @@ func TestNoShapeWidensScripts(t *testing.T) {
 		allowed[n] = true
 	}
 	expr := map[Kind]string{
-		ExternalFull:       "(default or safe or vuln) and not (dos or brute or external or broadcast)",
-		ExternalDisruptive: "(default or safe or vuln or dos or brute) and not (external or broadcast)",
+		ExternalFull:       FullScripts,
+		ExternalDisruptive: DisruptiveScripts,
 	}
 	for _, k := range kinds {
 		rate := 50

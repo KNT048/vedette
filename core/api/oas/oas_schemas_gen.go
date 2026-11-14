@@ -169551,14 +169551,17 @@ type ScanGetScansRunsOKItemsItemIdentificationItem struct {
 	// The box's sentence for the reason, shown as is.
 	Note string `json:"note"`
 	// Null: software with a version was recorded and compared with the KEV list. Otherwise why nothing
-	// was: host_down (no answer), no_open_ports (all closed), filtered (probes dropped), no_version
-	// (services gave no product or version), os_unconfirmed (only an OS guess: shown, never matched until
-	// a person adds the OS with its version), os_no_patch_level (the device named its Windows release and
-	// build in its NTLM answer, not its monthly update level: shown, never matched until a person adds it
-	// with its full version, D-504), os_low_confidence (OS guess under 85%), scope_not_confirmed, box (the
-	// box or a decoy), regular_scan_never, gentle_only (fragile: gentle scan only), timed_out, busy
-	// (discovery was running nmap), unavailable (nmap not available or Active discovery off),
-	// declared_by_hand, scanning_off, not_approved, out_of_scope, no_ip, not_scanned (D-501).
+	// was: host_down (no answer), no_open_ports (all closed), filtered (scan incomplete: the device
+	// answered but no port it was asked about did; the device or a firewall dropped or slowed the probes;
+	// never shown as a fact that it filters), no_version (services gave no product or version),
+	// os_unconfirmed (only an OS guess: shown, never matched until a person adds the OS with its version),
+	// os_no_patch_level (the device named its Windows release and build in its NTLM answer, not its
+	// monthly update level: shown, never matched until a person adds it with its full version, D-504),
+	// os_low_confidence (OS guess under 85%), scope_not_confirmed, box (the box or a decoy),
+	// regular_scan_never, gentle_only (fragile: gentle scan only), timed_out (scan incomplete: nmap gave
+	// up on the host), busy (discovery was running nmap), unavailable (nmap not available or Active
+	// discovery off), declared_by_hand, scanning_off, not_approved, out_of_scope, no_ip, not_scanned
+	// (D-501).
 	Reason   NilScanGetScansRunsOKItemsItemIdentificationItemReason `json:"reason"`
 	TargetID string                                                 `json:"target_id"`
 }
@@ -171539,14 +171542,17 @@ type ScanPostScansRunsCreatedIdentificationItem struct {
 	// The box's sentence for the reason, shown as is.
 	Note string `json:"note"`
 	// Null: software with a version was recorded and compared with the KEV list. Otherwise why nothing
-	// was: host_down (no answer), no_open_ports (all closed), filtered (probes dropped), no_version
-	// (services gave no product or version), os_unconfirmed (only an OS guess: shown, never matched until
-	// a person adds the OS with its version), os_no_patch_level (the device named its Windows release and
-	// build in its NTLM answer, not its monthly update level: shown, never matched until a person adds it
-	// with its full version, D-504), os_low_confidence (OS guess under 85%), scope_not_confirmed, box (the
-	// box or a decoy), regular_scan_never, gentle_only (fragile: gentle scan only), timed_out, busy
-	// (discovery was running nmap), unavailable (nmap not available or Active discovery off),
-	// declared_by_hand, scanning_off, not_approved, out_of_scope, no_ip, not_scanned (D-501).
+	// was: host_down (no answer), no_open_ports (all closed), filtered (scan incomplete: the device
+	// answered but no port it was asked about did; the device or a firewall dropped or slowed the probes;
+	// never shown as a fact that it filters), no_version (services gave no product or version),
+	// os_unconfirmed (only an OS guess: shown, never matched until a person adds the OS with its version),
+	// os_no_patch_level (the device named its Windows release and build in its NTLM answer, not its
+	// monthly update level: shown, never matched until a person adds it with its full version, D-504),
+	// os_low_confidence (OS guess under 85%), scope_not_confirmed, box (the box or a decoy),
+	// regular_scan_never, gentle_only (fragile: gentle scan only), timed_out (scan incomplete: nmap gave
+	// up on the host), busy (discovery was running nmap), unavailable (nmap not available or Active
+	// discovery off), declared_by_hand, scanning_off, not_approved, out_of_scope, no_ip, not_scanned
+	// (D-501).
 	Reason   NilScanPostScansRunsCreatedIdentificationItemReason `json:"reason"`
 	TargetID string                                              `json:"target_id"`
 }
@@ -172229,14 +172235,17 @@ type ScanPostScansRunsIDStopOKIdentificationItem struct {
 	// The box's sentence for the reason, shown as is.
 	Note string `json:"note"`
 	// Null: software with a version was recorded and compared with the KEV list. Otherwise why nothing
-	// was: host_down (no answer), no_open_ports (all closed), filtered (probes dropped), no_version
-	// (services gave no product or version), os_unconfirmed (only an OS guess: shown, never matched until
-	// a person adds the OS with its version), os_no_patch_level (the device named its Windows release and
-	// build in its NTLM answer, not its monthly update level: shown, never matched until a person adds it
-	// with its full version, D-504), os_low_confidence (OS guess under 85%), scope_not_confirmed, box (the
-	// box or a decoy), regular_scan_never, gentle_only (fragile: gentle scan only), timed_out, busy
-	// (discovery was running nmap), unavailable (nmap not available or Active discovery off),
-	// declared_by_hand, scanning_off, not_approved, out_of_scope, no_ip, not_scanned (D-501).
+	// was: host_down (no answer), no_open_ports (all closed), filtered (scan incomplete: the device
+	// answered but no port it was asked about did; the device or a firewall dropped or slowed the probes;
+	// never shown as a fact that it filters), no_version (services gave no product or version),
+	// os_unconfirmed (only an OS guess: shown, never matched until a person adds the OS with its version),
+	// os_no_patch_level (the device named its Windows release and build in its NTLM answer, not its
+	// monthly update level: shown, never matched until a person adds it with its full version, D-504),
+	// os_low_confidence (OS guess under 85%), scope_not_confirmed, box (the box or a decoy),
+	// regular_scan_never, gentle_only (fragile: gentle scan only), timed_out (scan incomplete: nmap gave
+	// up on the host), busy (discovery was running nmap), unavailable (nmap not available or Active
+	// discovery off), declared_by_hand, scanning_off, not_approved, out_of_scope, no_ip, not_scanned
+	// (D-501).
 	Reason   NilScanPostScansRunsIDStopOKIdentificationItemReason `json:"reason"`
 	TargetID string                                               `json:"target_id"`
 }

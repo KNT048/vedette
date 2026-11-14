@@ -46,7 +46,6 @@ Giới hạn free đo 2026-11-06: GitHub Actions không giới hạn cho repo pu
 | cisagov/vulnrichment | git | giờ | CC0 | SSVC, CWE, CPE bổ sung |
 | CVE.org cvelistV5 | git pull | giờ | public | bản ghi nhanh nhất, `affected[]` |
 | FIRST EPSS | CSV ngày | ngày | ghi nguồn | epss, Δ7 ngày |
-| CIRCL Vulnerability-Lookup | API sightings + dump | giờ | AGPL (dữ liệu dùng qua API) | sightings exploited/poc/patched (Shadowserver) |
 | nuclei-templates | git log | giờ | MIT | template mới = có check; subset `kev,vkev` vào content pack |
 | GHSA, OSV | git/API | giờ | CC-BY / Apache | PURL cho gói |
 | NVD 2.0 | API key | 2 giờ | free | CPE/CVSS bổ sung (chậm) |

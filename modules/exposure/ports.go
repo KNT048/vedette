@@ -66,11 +66,14 @@ type ScanTarget struct {
 type DomainScope struct {
 	Domain string // the verified domain (the target's value)
 	Name   string // the domain itself or a name under it that resolved to the address right before the step
-	Token  string // the domain's box-bound token (32 hex), from DomainFence
+	Token  string // the domain's box-bound token (16 hex, D-591), from DomainFence
+	// Chain is Name's CNAME chain as core saw it right before the step ("www.acme.example -> acme.edge.example.net"; just the name
+	// without a CNAME; "" when the lookup failed), written in the step's probe-log row (review r1 M4, D-591).
+	Chain string
 }
 
 // DomainFence gives the box-bound token of a verified domain (FULL-5 slice 2, Trưởng's host op exposure.token: hex HMAC-SHA256 of the
-// host's fence key over the domain, first 32 characters, plan 2026-11-14 §5). Core never holds the key. Config.DomainFence nil means
+// host's fence key over the domain, first 16 characters (D-591), plan 2026-11-14 §5). Core never holds the key. Config.DomainFence nil means
 // this box has no domain fence: no deep step goes to a public address that is not the box's own verified IP (D-571).
 type DomainFence interface {
 	Token(ctx context.Context, domain string) (string, error)

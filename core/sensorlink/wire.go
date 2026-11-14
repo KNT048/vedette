@@ -124,6 +124,24 @@ type ActiveHeartbeat struct {
 	// SNMP (protocol 5, D-512) says the worker runs snmp jobs. A worker of protocol 4 leaves it out: core then never sends it one,
 	// so the jobs reply such a worker gets keeps the shape of protocol 4.
 	SNMP bool `json:"snmp,omitempty"`
+	// DomainIP (protocol 5, D-591, FULL-5 slice 2) says the worker runs domain_ip jobs (nmap's full shapes and nuclei at depth full
+	// on an address a name under a verified domain resolves to): it holds the box's fence key and checks the domain fence itself
+	// (core/domainfence). A worker without the key (a remote sensor, a container-only install, an older worker) leaves it out: core
+	// then never sends it one.
+	DomainIP bool `json:"domain_ip,omitempty"`
+}
+
+// ScopeDomainIP is the scope of a domain_ip job (D-591): one public IPv4 target that is not the box's own egress, reached because a
+// name under a verified domain resolves to it; the job carries Domain and the worker checks the domain fence before the tool starts.
+const ScopeDomainIP = "domain_ip"
+
+// DomainScope is what a domain_ip job carries for the worker's fence (plan 2026-11-14 §5): the verified domain, the name under it that
+// resolved to the job's one target, and the box-bound token core got from vedette-host (exposure.token). The worker re-derives the
+// token from its own key; core's word is not trusted for it.
+type DomainScope struct {
+	Domain string `json:"domain"`
+	Name   string `json:"name"`
+	Token  string `json:"token"`
 }
 
 // HeartbeatNmap says whether the worker can run nmap.
@@ -183,6 +201,10 @@ type Job struct {
 	Shape   string   // nmap
 	Rate    int      // nmap
 	Targets []string // nmap
+	// Scope and Domain (protocol 5, D-591): an nmap job of a full shape with Scope ScopeDomainIP carries Domain (its one target is the
+	// address); "" and nil on every other nmap job, which keeps the shape an older worker knows.
+	Scope  string
+	Domain *DomainScope
 
 	Nuclei *NucleiJob // nuclei, nil for the others
 	SNMP   *SNMPJob   // snmp, nil for the others
@@ -368,6 +390,8 @@ type NucleiJob struct {
 	// if it did, strict decoding refuses it and nothing runs.
 	Depth      string `json:"depth,omitempty"`
 	Disruptive bool   `json:"disruptive,omitempty"`
+	// Domain (D-591): the fence fields of a job of scope domain_ip (depth full only); nil on every other job.
+	Domain *DomainScope `json:"domain,omitempty"`
 }
 
 // JobPack names the pack a job was planned against.
@@ -384,12 +408,14 @@ type NucleiTarget struct {
 }
 
 type nmapWire struct {
-	ID       string   `json:"id"`
-	Kind     string   `json:"kind,omitempty"`
-	Shape    string   `json:"shape"`
-	Rate     int      `json:"rate"`
-	Targets  []string `json:"targets"`
-	TimeoutS int      `json:"timeout_s"`
+	ID       string       `json:"id"`
+	Kind     string       `json:"kind,omitempty"`
+	Shape    string       `json:"shape"`
+	Rate     int          `json:"rate"`
+	Targets  []string     `json:"targets"`
+	TimeoutS int          `json:"timeout_s"`
+	Scope    string       `json:"scope,omitempty"`
+	Domain   *DomainScope `json:"domain,omitempty"`
 }
 
 type nucleiWire struct {
@@ -410,7 +436,7 @@ type snmpWire struct {
 func (j Job) MarshalJSON() ([]byte, error) {
 	switch j.Kind {
 	case "", KindNmap:
-		return json.Marshal(nmapWire{ID: j.ID, Kind: j.Kind, Shape: j.Shape, Rate: j.Rate, Targets: j.Targets, TimeoutS: j.TimeoutS})
+		return json.Marshal(nmapWire{ID: j.ID, Kind: j.Kind, Shape: j.Shape, Rate: j.Rate, Targets: j.Targets, TimeoutS: j.TimeoutS, Scope: j.Scope, Domain: j.Domain})
 	case KindNuclei:
 		if j.Nuclei == nil {
 			return nil, errors.New("sensorlink: a nuclei job without its fields")
@@ -449,7 +475,7 @@ func (j *Job) UnmarshalJSON(raw []byte) error {
 		if err := strict(&w); err != nil {
 			return err
 		}
-		*j = Job{ID: w.ID, Kind: w.Kind, Shape: w.Shape, Rate: w.Rate, Targets: w.Targets, TimeoutS: w.TimeoutS}
+		*j = Job{ID: w.ID, Kind: w.Kind, Shape: w.Shape, Rate: w.Rate, Targets: w.Targets, TimeoutS: w.TimeoutS, Scope: w.Scope, Domain: w.Domain}
 	case KindNuclei:
 		var w nucleiWire
 		if err := strict(&w); err != nil {
@@ -518,7 +544,9 @@ var (
 	nmapVerRE  = regexp.MustCompile(`^[0-9A-Za-z._+-]{0,32}$`)
 	hostPortRE = regexp.MustCompile(`^[0-9]{1,3}(\.[0-9]{1,3}){3}:[0-9]{1,5}$`)
 	etagRE     = regexp.MustCompile(`^"[A-Za-z0-9._:-]{1,64}"$`)
-	resultCode = map[string]bool{"": true, "invalid_job": true, "busy": true, "nmap_missing": true, "nuclei_missing": true, "pack_mismatch": true, "pack_invalid": true, "exec_failed": true, "deadline": true, "cancelled": true, "not_own_ip": true, "egress_unverified": true}
+	resultCode = map[string]bool{"": true, "invalid_job": true, "busy": true, "nmap_missing": true, "nuclei_missing": true, "pack_mismatch": true, "pack_invalid": true, "exec_failed": true, "deadline": true, "cancelled": true, "not_own_ip": true, "egress_unverified": true,
+		// D-591: the refusals of the domain fence (core/domainfence.Reasons; invalid_job is above)
+		"token_foreign": true, "target_not_owned": true, "name_moved": true, "ownership_unchecked": true, "cname_outside": true}
 	resultStat = map[string]bool{"done": true, "failed": true, "stopped": true, "refused": true}
 )
 

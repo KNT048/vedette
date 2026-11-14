@@ -44,6 +44,9 @@ const (
 	webUnchecked  = "the box could not confirm that the target is still yours (the public IP services or DNS did not answer, or did not agree), so nothing was sent."
 	webFence      = "the box could not set up the network fence that keeps ZAP to this one address and port, so ZAP was not started. The box log has the reason."
 	webOldHost    = "the box's host helper (vedette-host) is older than this version of Vedette. Update the box, then scan again."
+	// D-591: the domain fence of the host takes only the token bound to this box.
+	webForeign  = "the Vedette host did not recognise this box's token for the domain, so nothing was sent. Update the box."
+	webNoFenceK = "the Vedette host has no usable domain fence key, so nothing was sent. Its log says why."
 )
 
 var hostActorRE = regexp.MustCompile(`^[a-zA-Z0-9_.@-]{1,54}$`)
@@ -136,6 +139,10 @@ func webReason(code string, t exposure.ScanTarget, page exposure.WebPage) string
 		return fmt.Sprintf(webNotOwnIP, page.IP)
 	case api.CodeOwnershipUnchecked:
 		return webUnchecked
+	case api.CodeTokenForeign:
+		return webForeign
+	case api.CodeFenceUnavailable:
+		return webNoFenceK
 	case api.CodeZapFenceFailed:
 		return webFence
 	}
@@ -150,7 +157,8 @@ func exposureWebFor(d deps) exposureWebScan {
 		return v.Token, err
 	}}
 	if d.HostSocket != "" {
-		w.host = hostclient.New(d.HostSocket)
+		c := hostclient.New(d.HostSocket)
+		w.host = c
 	}
 	return w
 }

@@ -684,14 +684,38 @@ func (s *Service) greenboneStep(ctx context.Context, st ScanTarget) (gbOutcome, 
 // the box's, the domain's TXT carries it, and scope.Name resolves to ip now. A nil error means the host allows that one scan. Without
 // it OpenVAS never scans such an address.
 type GreenboneFence interface {
-	CheckDomainIP(ctx context.Context, scope DomainScope, ip netip.Addr) error
+	CheckDomainIP(ctx context.Context, scope DomainScope, ip netip.Addr, c FenceCheck) error
+}
+
+// FenceCheck is how GreenboneFence checks (D-591): Disruptive asks the CNAME rule too (a name whose CNAME leaves the domain is refused,
+// review r1 M3); Recheck is the check of a task that runs, which the host answers from DNS, never from its cache (review r1 M2).
+type FenceCheck struct {
+	Disruptive bool
+	Recheck    bool
 }
 
 // The lines of OpenVAS on a domain's address that is not the box's (D-571).
 const (
 	notGBNoFence = "OpenVAS did not scan: this box's host does not check the domain fence for OpenVAS yet (update the box), so nothing was sent."
 	notGBFenced  = "OpenVAS did not scan: the Vedette host's domain fence refused this address, so nothing was sent."
+	// notGBFencedMid is the reason of a task the host's fence stopped while it ran (D-591): the TXT record or the name moved.
+	notGBFencedMid = "the Vedette host's domain fence stopped it while it ran (the domain's TXT record or the name's address changed), and its results were discarded."
 )
+
+// gbFenceRecheck is how often a running OpenVAS task on a domain's address asks the host's fence again (the own_ip re-check's period).
+const gbFenceRecheck = 3 * time.Minute
+
+// domainNote is what the OpenVAS probe row adds for a domain's address (D-591, review r1 M4): the domain, the name and its CNAME chain.
+func domainNote(st ScanTarget) string {
+	if st.Domain == nil {
+		return ""
+	}
+	chain := st.Domain.Chain
+	if chain == "" {
+		chain = st.Domain.Name + " (CNAME not known)"
+	}
+	return "Address of " + st.Domain.Domain + " (domain fence), name " + st.Domain.Name + ", CNAME chain " + chain + ". " // first: the note is clipped at its end (review r1 L4)
+}
 
 // greenboneAt is greenboneStep on one address: an IP target's own, or an address a domain's deep scan reached (D-571), whose ScanTarget
 // then carries the domain (and, for an address that is not the box's, its scope, which the host checks through GreenboneFence).
@@ -722,7 +746,7 @@ func (s *Service) greenboneAt(ctx context.Context, st ScanTarget, ip netip.Addr)
 		if !ok {
 			return line(notGBNoFence, "not done: no domain fence for OpenVAS")
 		}
-		if err := f.CheckDomainIP(ctx, *st.Domain, ip); err != nil {
+		if err := f.CheckDomainIP(ctx, *st.Domain, ip, FenceCheck{Disruptive: st.Mode.Disruptive}); err != nil {
 			if ctx.Err() != nil {
 				return gbOutcome{}, ctx.Err()
 			}
@@ -740,7 +764,7 @@ func (s *Service) greenboneAt(ctx context.Context, st ScanTarget, ip netip.Addr)
 	g.mu.Unlock()
 	gctx, cancel := context.WithTimeout(ctx, limit)
 	defer cancel()
-	rows, _, problems, err := s.runGreenbone(gctx, st, ip, plog, poll)
+	rows, problems, err := s.runGreenbone(gctx, st, ip, plog, poll)
 	var out gbOutcome
 	if len(problems) > 0 {
 		s.cfg.Log.ErrorContext(ctx, "exposure: Greenbone left something behind", "target", st.Value, "problems", problems)
@@ -844,71 +868,84 @@ var errGBNoLog = errors.New("exposure: the Greenbone probe log row could not be 
 // port list, a target of exactly ip, a task, the probe log row, start, a poll every `poll` until gvmd says Done, then the report (QoD >= GreenboneMinQoD).
 // The task, its report and the target are deleted afterwards (stopped first when cut short), and what could not be is returned in
 // problems.
-func (s *Service) runGreenbone(ctx context.Context, st ScanTarget, ip netip.Addr, plog GreenboneProbeLog, poll time.Duration) (rows []GreenboneRow, total int, problems []string, err error) {
+func (s *Service) runGreenbone(ctx context.Context, st ScanTarget, ip netip.Addr, plog GreenboneProbeLog, poll time.Duration) (rows []GreenboneRow, problems []string, err error) {
 	dctx, cancel := context.WithTimeout(ctx, gbDialTimeout)
 	conn, login, err := s.cfg.Greenbone.Dial(dctx)
 	cancel()
 	if err != nil {
-		return nil, 0, nil, err
+		return nil, nil, err
 	}
 	defer func() { _ = conn.Close() }()
 	g := &gmpConn{conn: conn}
 	if err := g.authenticate(ctx, login); err != nil {
-		return nil, 0, nil, err
+		return nil, nil, err
 	}
 	if problems, err = g.leftovers(ctx, login.User); err != nil { // never a second task of Vedette's beside one still running
-		return nil, 0, problems, err
+		return nil, problems, err
 	}
 	lv := levelOf(st.Mode)
 	config, err := g.levelConfig(ctx, login.User, lv)
 	if err != nil {
-		return nil, 0, problems, err
+		return nil, problems, err
 	}
 	ports, err := g.portList(ctx)
 	if err != nil {
-		return nil, 0, problems, err
+		return nil, problems, err
 	}
 	name := gbObjectPrefix + ip.String() + "-" + store.NewID("gb")
 	target, err := g.createTarget(ctx, name, ip.String(), ports)
 	if err != nil {
-		return nil, 0, problems, err
+		return nil, problems, err
 	}
 	task, running := "", false
 	defer func() { problems = append(problems, s.gbCleanup(ctx, task, target, running)...) }()
 	if task, err = g.createTask(ctx, name, target, config); err != nil {
-		return nil, 0, problems, err
+		return nil, problems, err
 	}
 	if err := plog.RecordGreenboneProbe(ctx, GreenboneProbe{ID: store.NewID("pb"), IP: ip.String(), PortList: GreenbonePortList,
-		Config: lv.name + " (" + lv.text + ")", Note: gbNote}); err != nil { // LEGAL §3: logged before the task starts
+		Config: lv.name + " (" + lv.text + ")", Note: domainNote(st) + gbNote}); err != nil { // LEGAL §3: logged before the task starts
 		if ctx.Err() != nil {
-			return nil, 0, problems, ctx.Err()
+			return nil, problems, ctx.Err()
 		}
 		s.cfg.Log.ErrorContext(ctx, "exposure: writing the Greenbone probe log failed", "target", st.Value, "error", err)
-		return nil, 0, problems, errGBNoLog
+		return nil, problems, errGBNoLog
 	}
 	report, err := g.startTask(ctx, task)
 	if err != nil {
 		running = true // it may have started: stop it to be sure
-		return nil, 0, problems, err
+		return nil, problems, err
 	}
 	running = true
+	checked := s.clock()
 	for {
+		// D-591, review r1 L2: an address of a domain that is not the box's is checked again by the host's fence every gbFenceRecheck
+		// while the task runs; the first answer that is not a yes stops the task (gbCleanup) and discards what it found.
+		if f, ok := s.cfg.Greenbone.(GreenboneFence); ok && st.Domain != nil && s.clock().Sub(checked) >= gbFenceRecheck {
+			checked = s.clock()
+			if err := f.CheckDomainIP(ctx, *st.Domain, ip, FenceCheck{Disruptive: st.Mode.Disruptive, Recheck: true}); err != nil {
+				if ctx.Err() != nil {
+					return nil, problems, ctx.Err()
+				}
+				s.cfg.Log.ErrorContext(ctx, "exposure: the domain fence stopped OpenVAS", "target", st.Value, "ip", ip, "error", err)
+				return nil, problems, &Unavailable{Reason: notGBFencedMid}
+			}
+		}
 		state, _, err := g.taskStatus(ctx, task)
 		if err != nil {
-			return nil, 0, problems, err
+			return nil, problems, err
 		}
 		switch state {
 		case gmpDone:
 			running = false
-			rows, total, err := g.report(ctx, report, ip.String())
-			return rows, total, problems, err
+			rows, _, err := g.report(ctx, report, ip.String())
+			return rows, problems, err
 		case "Stopped", "Interrupted":
 			running = false
-			return nil, 0, problems, &Unavailable{Reason: "OpenVAS ended the scan as " + strings.ToLower(state) + "."}
+			return nil, problems, &Unavailable{Reason: "OpenVAS ended the scan as " + strings.ToLower(state) + "."}
 		}
 		select {
 		case <-ctx.Done():
-			return nil, 0, problems, ctx.Err()
+			return nil, problems, ctx.Err()
 		case <-time.After(poll):
 		}
 	}

@@ -34,7 +34,7 @@ func reportsService(d deps) *reports.Service {
 	if s := reportsServices[d.DB]; s != nil {
 		return s
 	}
-	cfg := reports.Config{DB: d.DB, Audit: d.Audit, Inventory: reportsInventory{d.Inventory}, Findings: reportsFindings{d.Findings}, KEV: reportsKEV{&d},
+	cfg := reports.Config{DB: d.DB, Audit: d.Audit, Inventory: reportsInventory{d.Inventory}, Findings: reportsFindings{d.Findings, &d}, KEV: reportsKEV{&d},
 		Remedies: reportsRemedies{d: &d, feed: findingsFeeds{cache: &vulnCache{}}}, Incidents: reportsIncidents{&d},
 		Mail: reportsMailer{newNotify(&d)}, AI: reportsAI{d.AI}, OrgName: d.Core.OrgName, Zone: orgZone(&d), Log: d.Log, Clock: d.Clock}
 	if d.Reg != nil { // a nil *modreg.Registry inside the interface would not compare equal to nil
@@ -90,18 +90,53 @@ func (a reportsInventory) Devices(ctx context.Context) ([]reports.Device, error)
 
 // ---- findings -> reports ----
 
-type reportsFindings struct{ svc *findings.Service }
+type reportsFindings struct {
+	svc *findings.Service
+	d   *deps
+}
 
 func (a reportsFindings) All(ctx context.Context) ([]reports.Finding, error) {
 	recs, err := a.svc.List(ctx, "")
 	if err != nil {
 		return nil, err
 	}
+	source := a.vulnCheckCVEs(ctx, recs)
 	out := make([]reports.Finding, len(recs))
 	for i, r := range recs {
-		out[i] = reports.Finding{ID: r.ID, AssetID: r.AssetID, CVE: r.CVE, Status: string(r.Status), Severity: string(r.Severity), FirstSeen: r.FirstSeen, ResolvedAt: r.ResolvedAt, ResolvedBy: r.ResolvedBy, AcceptedUntil: r.AcceptedUntil}
+		out[i] = reports.Finding{Source: source[r.CVE], ID: r.ID, AssetID: r.AssetID, CVE: r.CVE, Status: string(r.Status), Severity: string(r.Severity), FirstSeen: r.FirstSeen, ResolvedAt: r.ResolvedAt, ResolvedBy: r.ResolvedBy, AcceptedUntil: r.AcceptedUntil}
 	}
 	return out, nil
+}
+
+// vulnCheckCVEs is the CVEs of these findings that only VulnCheck KEV lists, so the report can name it among its sources (D-557).
+// A feeds store that cannot be read gives none: the report is then missing a source line, never wrong about a figure.
+func (a reportsFindings) vulnCheckCVEs(ctx context.Context, recs []findings.Record) map[string]string {
+	out := map[string]string{}
+	if a.d == nil || (a.d.Reg != nil && !a.d.Reg.Enabled("feeds")) {
+		return out
+	}
+	fs, err := feedsService(*a.d)
+	if err != nil {
+		return out
+	}
+	seen := map[string]bool{}
+	var cves []string
+	for _, r := range recs {
+		if !seen[r.CVE] {
+			seen[r.CVE] = true
+			cves = append(cves, r.CVE)
+		}
+	}
+	rows, err := fs.Store().KevVulnsByCVE(ctx, cves)
+	if err != nil {
+		return out
+	}
+	for _, v := range rows {
+		if v.SourceID == "vulncheck-kev" {
+			out[v.CVE] = v.SourceID
+		}
+	}
+	return out
 }
 
 // ---- feeds -> reports ----
@@ -123,6 +158,9 @@ func (a reportsKEV) Entries(ctx context.Context) ([]reports.KEVEntry, time.Time,
 	}
 	out := make([]reports.KEVEntry, 0, len(rows))
 	for _, v := range rows {
+		if v.SourceID != "cisa-kev" {
+			continue // VulnCheck KEV (D-557) stays on the box: a report is a document that may be shared
+		}
 		day, err := time.Parse(time.DateOnly, v.DateAdded)
 		if err != nil {
 			continue // a row with an odd date is not counted in any week

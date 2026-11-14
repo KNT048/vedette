@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 import { CodeBlock } from '@/components/common/CodeBlock'
 import { AiBlock } from '@/components/common/AiBlock'
 import { Chip } from '@/components/common/StatusChip'
+import { Notice } from '@/components/common/PageHeader'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Segmented } from '@/components/ui/segmented'
@@ -242,6 +243,7 @@ const hostOf = (u: string) => { try { return new URL(u).hostname.replace(/^www\.
 export function NoPack({ finding }: { finding: FindingDetail }) {
   const { t } = useTranslation('findings')
   const k: KevInfo | null = finding.kev
+  const vc = k?.source === 'vulncheck-kev'
   const vendor = k?.links.filter((u) => linkKind(u) === 'vendor') ?? []
   const other = k?.links.filter((u) => linkKind(u) !== 'vendor') ?? []
   const device = finding.asset?.name || t('removedDevice')
@@ -251,15 +253,12 @@ export function NoPack({ finding }: { finding: FindingDetail }) {
   const updatable = isOpen(finding.status) && softwareFor(sw.data?.asset.software, finding.cve).length > 0
   return (
     <div className="grid gap-5">
-      <div className="rounded-md border border-dashed border-warn bg-warn-soft/60 px-4 py-3">
-        <p className="font-medium">{t('rec.noPack')}</p>
-        <p className="mt-1 max-w-3xl text-sm">{t('rec.noPackBody')}</p>
-      </div>
+      <Notice tone="warn" title={t('rec.noPack')} className="mb-0">{t('rec.noPackBody')}</Notice>
       {k ? (
         <>
           <div className="grid gap-2">
-            <h3 className="text-sm font-semibold">{t('rec.cisaTitle')}</h3>
-            <p className="text-[13px] text-muted">{t('rec.sourceHint', { date: fmtDate(k.date_added) })}</p>
+            <h3 className="text-sm font-semibold">{t(vc ? 'rec.vulncheckTitle' : 'rec.cisaTitle')}</h3>
+            <p className="text-[13px] text-muted">{t(vc ? 'rec.sourceHintVulnCheck' : 'rec.sourceHint', { date: fmtDate(k.date_added) })}</p>
             <blockquote lang="en" className="max-w-3xl border-l-2 border-rule pl-3 text-sm">{k.required_action}</blockquote>
             {k.due_date ? <p className="text-sm font-medium">{t('rec.dueDate', { date: fmtDate(k.due_date) })}</p> : null}
             {k.ransomware ? <p className="text-[13px]">{t('rec.ransomware')}</p> : null}

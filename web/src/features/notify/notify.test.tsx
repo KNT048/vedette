@@ -54,20 +54,34 @@ describe('notify: incidents (S-ALERT-3, D-52)', () => {
     expect(within(table).getByRole('link', { name: 'Respond to PC-HR-01 touched the SMB trap on FILESRV-OLD' })).toHaveAttribute('href', '/response?incident=al-4')
   })
 
-  it('the All filter also shows resolved and acknowledged incidents; the kind filter narrows', async () => {
+  it('D-543: Open holds new and acknowledged, Resolved the closed ones (?tab=); the kind filter narrows; the KPI cells link to the lists', async () => {
     renderApp('/incidents')
+    const strip = await screen.findByRole('list', { name: 'Incidents at a glance' })
+    expect(within(strip).getAllByRole('link').map((a) => a.getAttribute('href'))).toEqual(['/incidents?tab=open', '/incidents?tab=open&severity=urgent', '/incidents?tab=open&sent=no'])
+    expect(within(within(strip).getByRole('link', { name: /High and critical open/ })).getByText('2')).toBeInTheDocument()
     await screen.findByRole('table', { name: 'Incidents' })
+    expect(screen.getByText('A new unknown device appeared: 192.168.10.157')).toBeInTheDocument() // acknowledged stays in Open
     expect(screen.queryByText(/192\.168\.10\.157 touched/)).not.toBeInTheDocument()
-    await userEvent.click(screen.getByRole('button', { name: /^All$/ }))
+    await userEvent.click(screen.getByRole('tab', { name: 'Resolved' }))
     expect(await screen.findByText('192.168.10.157 touched the RDP trap on FILESRV-OLD')).toBeInTheDocument()
+    expect(screen.queryByText('A new unknown device appeared: 192.168.10.157')).not.toBeInTheDocument()
+    expect(screen.queryByRole('checkbox', { name: /Select all/ })).not.toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Trap touches' }))
+    expect(within(screen.getByRole('table', { name: 'Incidents' })).getAllByRole('row')).toHaveLength(2)
+  })
+
+  it('D-543: ?severity=urgent narrows Open to high and critical and the chip clears it', async () => {
+    renderApp('/incidents?tab=open&severity=urgent')
+    await screen.findByRole('table', { name: 'Incidents' })
     expect(within(screen.getByRole('table', { name: 'Incidents' })).getAllByRole('row')).toHaveLength(3)
+    await userEvent.click(screen.getByRole('button', { name: 'Showing high and critical only' }))
+    expect(within(screen.getByRole('table', { name: 'Incidents' })).getAllByRole('row')).toHaveLength(5)
   })
 
   it('an incident Vedette closed by itself says why on the list and the detail (D-550)', async () => {
     renderApp('/incidents')
     await screen.findByRole('table', { name: 'Incidents' })
-    await userEvent.click(screen.getByRole('button', { name: /^All$/ }))
+    await userEvent.click(screen.getByRole('tab', { name: 'Resolved' }))
     expect(await screen.findByText(/^Closed by Vedette: no new activity for 7 days\. /)).toBeInTheDocument()
     renderApp('/incidents/in-10')
     expect(await screen.findByText(/Closed by Vedette: no new activity for 7 days\. Resolved at /)).toBeInTheDocument()
@@ -281,7 +295,7 @@ describe('notify: why not sent, bulk acknowledge and resolve (S-ALERT-3, D-551)'
   it('"Not sent" says why, with the fix link for an admin only; the detail says the same', async () => {
     const view = renderApp('/incidents')
     await screen.findByRole('table', { name: 'Incidents' })
-    await userEvent.click(screen.getByRole('button', { name: /^All$/ }))
+    await userEvent.click(screen.getByRole('tab', { name: 'Resolved' }))
     const row = (await screen.findByText('NAS-BACKUP logged a configuration change at night')).closest('tr')!
     expect(within(row).getByText('Not sent: this incident is low, and your channels only send medium and above.')).toBeInTheDocument()
     expect(within(row).getByRole('link', { name: 'Change the minimum severity' })).toHaveAttribute('href', '/settings/channels')

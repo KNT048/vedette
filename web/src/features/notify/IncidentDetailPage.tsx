@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { RotateCcw } from 'lucide-react'
-import { KeyValue, PageHeader, Section } from '@/components/common/PageHeader'
+import { KeyValue, Notice, PageHeader, Section } from '@/components/common/PageHeader'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { EmptyState, QueryState, RequireModule } from '@/components/common/States'
 import { Chip, SeverityChip } from '@/components/common/StatusChip'
@@ -102,7 +102,7 @@ function Content() {
               )}
             </Section>
             <Section id="log" title={t('detail.logTitle')}>
-              {a.not_sent?.reason === 'failed' ? <p className="mb-3 flex flex-wrap items-baseline gap-x-3 text-sm">{a.not_sent.text}<NotSentFix notSent={a.not_sent} admin={admin} /></p> : null}
+              {a.not_sent?.reason === 'failed' ? <Notice tone="warn" title={a.not_sent.text} actions={<NotSentFix notSent={a.not_sent} admin={admin} />} /> : null}
               {a.sends.length ? <DataTable caption={t('detail.logCaption')} data={a.sends} columns={log} initialSort={[{ id: 'time', desc: true }]} /> : <EmptyState title={t('detail.noSendsTitle')} />}
             </Section>
             <Handle d={d} />

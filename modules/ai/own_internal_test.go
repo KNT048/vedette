@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/netip"
+	"strings"
 	"testing"
 	"time"
 
@@ -48,5 +49,15 @@ func TestD446_StoredLocalhostProfileLoadsAndIsRefusedAtCall(t *testing.T) {
 	_, err = cl.Complete(ctx, provider.Request{MaxTokens: 1, Messages: []provider.Message{{Role: provider.RoleUser, Text: "hi"}}})
 	if !errors.Is(err, provider.ErrOwnAddress) {
 		t.Errorf("call of a stored localhost profile: %v", err)
+	}
+}
+
+// D-557: the prompt names the list the entry is on; an entry of VulnCheck KEV is never called CISA's.
+func TestFeedBlockNamesTheSourceList(t *testing.T) {
+	t.Parallel()
+	vc := feedBlock(CVEFacts{CVE: "CVE-2026-1", RequiredAction: "Reported as exploited by VulnCheck KEV.", Source: "vulncheck-kev"}).Text
+	cisa := feedBlock(CVEFacts{CVE: "CVE-2026-2", Source: "cisa-kev"}).Text
+	if !strings.Contains(vc, "Exploited-list source: VulnCheck KEV\n") || strings.Contains(vc, "CISA") || !strings.Contains(cisa, "Exploited-list source: CISA KEV\n") {
+		t.Fatalf("vulncheck:\n%s\ncisa:\n%s", vc, cisa)
 	}
 }

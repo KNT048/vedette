@@ -18,6 +18,7 @@ const DEFS: Def[] = [
   { id: 'first-epss', name: 'FIRST EPSS', kind: 'vulnerabilities', format: 'json', url: 'https://api.first.org/data/v1/epss', license: 'Attribution: EPSS by FIRST', records: 262140 },
   { id: 'nvd-kev', name: 'NVD affected versions', kind: 'vulnerabilities', format: 'json', url: 'https://services.nvd.nist.gov/rest/json/cves/2.0', license: 'Public domain. This product uses the NVD API but is not endorsed or certified by the NVD.', records: 1779 },
   { id: 'cve-org', name: 'CVE.org affected versions', kind: 'vulnerabilities', format: 'json', url: 'https://raw.githubusercontent.com/CVEProject/cvelistV5/main/cves', license: 'CVE Program Terms of Use. CVE records © The MITRE Corporation.', records: 41 },
+  { id: 'vulncheck-kev', name: 'VulnCheck KEV', kind: 'vulnerabilities', format: 'json', url: 'https://api.vulncheck.com/v3/index/vulncheck-kev', license: 'VulnCheck Known Exploited Vulnerabilities (VulnCheck KEV), used with your own free VulnCheck Community key. Data stays on this box.', records: 37 },
   // D-516: Ubuntu and Debian say which package version fixes a CVE (backports); each file covers every release
   { id: 'ubuntu-osv', name: 'Ubuntu fixed versions', kind: 'vulnerabilities', format: 'json', url: 'https://security-metadata.canonical.com/osv/osv-all.tar.xz', license: 'CC BY-SA 4.0, Canonical Ltd. Ubuntu security data.', records: 2131 },
   { id: 'ubuntu-vex', name: 'Ubuntu not affected', kind: 'vulnerabilities', format: 'json', url: 'https://security-metadata.canonical.com/vex/vex-all.tar.xz', license: 'CC BY-SA 4.0, Canonical Ltd. Ubuntu security data.', records: 3294 },
@@ -30,13 +31,15 @@ const DEFS: Def[] = [
   { id: 'hagezi-tif', name: 'hagezi TIF', kind: 'ioc', format: 'lines', url: 'https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/tif.mini-onlydomains.txt', license: 'GPL-3.0, unmodified', records: 438900 },
 ]
 
-interface BuiltinState { enabled: boolean; interval_hours: number; url: string; last_fetch: string | null; records: number | null; status: 'ok' | 'error' | 'never'; error: string | null }
+interface BuiltinState { key_last4?: string | null; enabled: boolean; interval_hours: number; url: string; last_fetch: string | null; records: number | null; status: 'ok' | 'error' | 'never'; error: string | null }
 interface Config { builtin: Record<string, BuiltinState>; custom: Feed[] }
 
+// The built-in feed that needs the customer's own API key: off until one is saved (D-557).
+const BYOK = 'vulncheck-kev'
 const ago = (h: number) => new Date(Date.now() - h * 36e5).toISOString()
 const seedBuiltin = (clean: boolean): Record<string, BuiltinState> => Object.fromEntries(DEFS.map((d, i) => [d.id, {
-  enabled: true, interval_hours: d.kind === 'ioc' ? 6 : d.id === 'cisa-kev' || d.id === 'cve-org' ? 1 : 24, url: d.url,
-  last_fetch: clean ? null : ago(1 + i * 0.7), records: clean ? null : d.records, status: clean ? 'never' as const : 'ok' as const, error: null,
+  enabled: d.id !== BYOK, interval_hours: d.kind === 'ioc' || d.id === BYOK ? 6 : d.id === 'cisa-kev' || d.id === 'cve-org' ? 1 : 24, url: d.url,
+  last_fetch: clean || d.id === BYOK ? null : ago(1 + i * 0.7), records: clean || d.id === BYOK ? null : d.records, status: clean || d.id === BYOK ? 'never' as const : 'ok' as const, error: null,
 }]))
 
 function seedCustom(): Feed[] {
@@ -51,7 +54,7 @@ const config = collection<Config>('feeds_config', () => ({ builtin: seedBuiltin(
 
 const builtinFeed = (d: Def, s: BuiltinState): Feed => ({
   id: d.id, builtin: true, name: d.name, kind: d.kind, format: d.format, url: s.url, default_url: d.url, enabled: s.enabled, interval_hours: s.interval_hours,
-  auth: { type: 'none', header_name: null, username: null, secret_last4: null }, parser: null, last_fetch: s.last_fetch, records: s.records, status: s.status, error: s.error, license: d.license, answered_by: d.id === 'cisa-kev' && s.last_fetch ? 'CISA' : null,
+  auth: { type: s.key_last4 ? 'bearer' : 'none', header_name: null, username: null, secret_last4: s.key_last4 ?? null }, parser: null, last_fetch: s.last_fetch, records: s.records, status: s.status, error: s.error, license: d.license, answered_by: d.id === 'cisa-kev' && s.last_fetch ? 'CISA' : null,
 })
 /** What Home needs to know about the CISA list (D-92): turned off, loaded at least once, or never loaded (with the last error). */
 export function kevStatus(): FeedStatus['kev'] {
@@ -125,9 +128,16 @@ export const sourceHandlers = [
       if (blockedFeedHost(url)) return fail(400, 'blocked_host', blockedFeedHost(url) === 'own' ? OWN_TEXT : BLOCKED_TEXT)
     }
     const name = def?.name ?? cust!.name
-    if (def) config.update((x) => ({ ...x, builtin: { ...x.builtin, [id]: { ...x.builtin[id]!, ...(p.data.enabled !== undefined && { enabled: p.data.enabled }), ...(p.data.interval_hours !== undefined && { interval_hours: p.data.interval_hours }), ...(url !== undefined && { url }) } } }))
+    const key = p.data.api_key?.trim()
+    if (key !== undefined && id !== BYOK) return fail(400, 'invalid_auth', 'This feed does not use an API key.')
+    if (key && (key.length < 8 || /\s/.test(key))) return fail(400, 'invalid_auth', 'The secret must be 8 to 500 characters with no spaces.')
+    if (p.data.enabled && id === BYOK && !key && !c.builtin[id]?.key_last4) return fail(400, 'invalid_auth', 'Add your VulnCheck API key to turn this feed on.')
+    if (def && key !== undefined) { // saving a key turns the feed on; removing it turns the feed off and drops what it loaded
+      config.update((x) => ({ ...x, builtin: { ...x.builtin, [id]: { ...x.builtin[id]!, key_last4: key ? key.slice(-4) : null, enabled: p.data.enabled ?? !!key, ...(!key && { last_fetch: null, records: null, status: 'never' as const, error: null }) } } }))
+    }
+    if (def) config.update((x) => ({ ...x, builtin: { ...x.builtin, [id]: { ...x.builtin[id]!, ...(p.data.enabled !== undefined && key === undefined && { enabled: p.data.enabled }), ...(p.data.interval_hours !== undefined && { interval_hours: p.data.interval_hours }), ...(url !== undefined && { url }) } } }))
     else config.update((x) => ({ ...x, custom: x.custom.map((f) => f.id === id ? { ...f, ...(p.data.enabled !== undefined && { enabled: p.data.enabled }), ...(p.data.interval_hours !== undefined && { interval_hours: p.data.interval_hours }), ...(url !== undefined && { url }) } : f) }))
-    audit('feeds.update', name, [p.data.enabled !== undefined && (p.data.enabled ? 'enabled' : 'disabled'), p.data.interval_hours !== undefined && `every ${p.data.interval_hours} h`, url !== undefined && 'address changed'].filter(Boolean).join(', '))
+    audit('feeds.update', name, [key !== undefined && (key ? 'API key saved' : 'API key removed'), p.data.enabled !== undefined && (p.data.enabled ? 'enabled' : 'disabled'), p.data.interval_hours !== undefined && `every ${p.data.interval_hours} h`, url !== undefined && 'address changed'].filter(Boolean).join(', '))
     return HttpResponse.json(allFeeds(config.get()).find((f) => f.id === id))
   }),
 

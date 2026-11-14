@@ -500,3 +500,13 @@ func TestMatchAsset_KevKeyAloneProvesNothing(t *testing.T) {
 		t.Fatalf("own name: result = %+v", res)
 	}
 }
+
+// D-557: an entry only VulnCheck KEV lists is never called CISA's in the evidence text that stays on the finding.
+func TestMatchAsset_NamesTheListOfTheEntry(t *testing.T) {
+	t.Parallel()
+	a := Asset{ID: "a", Name: "fw", Software: []Software{{ID: "s", Display: "FortiOS", Version: "7.0.1", KevKeys: []string{"fortinet|fortios"}}}}
+	v := Vuln{CVE: "CVE-2023-0001", Vendor: "Fortinet", Product: "Multiple Products", Source: SourceVulnCheck, Affected: []Affected{{CPE: "cpe:2.3:o:fortinet:*:*:*:*:*:*:*:*:*"}}}
+	if got := MatchAsset(a, []Vuln{v}, nil, t0).New[0].Evidence.Summary; !strings.Contains(got, "VulnCheck KEV lists this flaw") || strings.Contains(got, "CISA") {
+		t.Fatalf("summary = %q", got)
+	}
+}

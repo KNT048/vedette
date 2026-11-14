@@ -81,7 +81,7 @@ func TestSeedBuiltinsMergesAndKeepsAdminChoices(t *testing.T) {
 	}
 	for i, b := range BuiltinSources() {
 		r := rows[i]
-		if r.ID != b.ID || !r.Builtin || !r.Enabled || r.IntervalHours != b.IntervalHours || r.URL != b.URL || r.DefaultURL == nil || *r.DefaultURL != b.URL || r.Status != "never" || r.Parser != nil {
+		if r.ID != b.ID || !r.Builtin || r.Enabled == b.BYOK || r.IntervalHours != b.IntervalHours || r.URL != b.URL || r.DefaultURL == nil || *r.DefaultURL != b.URL || r.Status != "never" || r.Parser != nil {
 			t.Errorf("row %d = %+v", i, r)
 		}
 	}

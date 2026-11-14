@@ -10,6 +10,7 @@ import { server } from '@/test/server'
 import { makeQueryClient } from '@/app/App'
 import { aiConfigStore, aiRunsStore, assetsStore, auditStore, findingsStore, modulesStore, sessionStore } from '@/mocks/stores'
 import { feature } from './index'
+import { accepted } from './mocks'
 import { FixedInNote } from './Recommendation'
 import { dayAfter, untilBounds, untilOk } from './accept'
 import type { FindingDetail } from './types'
@@ -38,6 +39,25 @@ describe('findings: danh sách (S-MIT-1)', () => {
     await waitFor(() => expect(within(screen.getByRole('table')).getAllByRole('row')).toHaveLength(4))
     await userEvent.click(screen.getByRole('button', { name: 'Suspected' }))
     await waitFor(() => expect(within(screen.getByRole('table')).getAllByRole('row')).toHaveLength(3))
+  })
+
+  it('D-543: KPI cells link to the lists; Open / Accepted risk / Handled are tabs; narrower filters survive a tab change; "?status=" narrows Open', async () => {
+    findingsStore.update((l) => l.map((f) => (f.id === 'f-2' ? { ...f, status: 'not_relevant' as const } : f.id === 'f-3' ? { ...f, status: 'patched' as const } : f)))
+    accepted.update((m) => ({ ...m, 'f-2': dayAfter(new Date(), 3) }))
+    renderApp('/findings?device=a-nas02&status=confirmed')
+    const strip = await screen.findByRole('list', { name: 'Findings at a glance' })
+    expect(within(strip).getAllByRole('link').map((a) => a.getAttribute('href'))).toEqual(['/findings?tab=open', '/findings?tab=open&status=confirmed', '/findings?tab=open&severity=critical', '/findings?tab=accepted'])
+    expect(within(within(strip).getByRole('link', { name: /Accepted risks ending/ })).getByText('1')).toBeInTheDocument()
+    const table = await screen.findByRole('table', { name: 'Findings list' })
+    expect(within(table).getAllByRole('row')).toHaveLength(2)
+    await userEvent.click(screen.getByRole('tab', { name: /Accepted risk/ }))
+    expect(await screen.findByRole('tab', { name: /Accepted risk/, selected: true })).toBeInTheDocument()
+    // the device filter stayed: f-2 is on another device
+    expect(await screen.findByText('No findings in this list.')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('tab', { name: /Handled/ }))
+    expect(await screen.findByText('No findings in this list.')).toBeInTheDocument()
+    renderApp('/findings?tab=handled')
+    expect((await screen.findAllByText('SRV-AD')).length).toBeGreaterThan(0)
   })
 
   it('không còn phát hiện chưa xử lý thì nói rõ và chỉ việc làm tiếp', async () => {
@@ -443,11 +463,11 @@ describe('findings: customer walk 1 (D-484)', () => {
   })
 
   it('W1-12: a closed finding in the selection keeps its status and reason; the toast says so', async () => {
-    findingsStore.update((l) => l.map((f) => (f.id === 'f-1' ? { ...f, status: 'patched' as const, resolution_note: 'Updated to 6.1.2' } : f)))
     renderApp('/findings')
     await screen.findByRole('table', { name: 'Findings list' })
-    await userEvent.click(screen.getByRole('button', { name: 'All' }))
     await userEvent.click(screen.getByRole('checkbox', { name: 'Select all 3 findings shown' }))
+    // Someone else closes one of the three while they are selected.
+    findingsStore.update((l) => l.map((f) => (f.id === 'f-1' ? { ...f, status: 'patched' as const, resolution_note: 'Updated to 6.1.2' } : f)))
     await userEvent.click(within(screen.getByRole('region', { name: 'Selected findings' })).getByRole('button', { name: 'Mark as handled' }))
     const dlg = await screen.findByRole('dialog', { name: 'Mark 3 findings as handled' })
     await userEvent.click(within(dlg).getByRole('radio', { name: /Not relevant/ }))

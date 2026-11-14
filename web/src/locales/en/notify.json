@@ -413,9 +413,6 @@
     "titleLoading": "Incidents",
     "meta": "Something happening on your network now. Vulnerabilities to patch are in Findings.",
     "retention": "History and resolved incidents are kept for 1 year.",
-    "filter": "Filter incidents",
-    "open": "Open",
-    "all": "All",
     "caption": "Incidents",
     "col": {
       "incident": "Incident",
@@ -458,7 +455,6 @@
     "respond": "Respond",
     "respondFor": "Respond to {{title}}",
     "emptyOpenTitle": "No open incidents",
-    "emptyAllTitle": "No incidents yet",
     "emptyBody": "When a trap is touched, a machine connects to a known-bad address, a log looks wrong or an unknown device appears, it shows up here and is sent through the channels you turned on.",
     "emptyBodyNoTraps": "When a machine connects to a known-bad address, a log looks wrong or an unknown device appears, it shows up here and is sent through the channels you turned on.",
     "setupChannels": "Set up alert channels",
@@ -471,7 +467,10 @@
       "below_min_severity": "Change the minimum severity",
       "quiet_hours": "Quiet hours settings",
       "failed": "Test the channel"
-    }
+    },
+    "emptyResolvedTitle": "No resolved incidents",
+    "clearUrgent": "Showing high and critical only",
+    "clearUnsent": "Showing not sent only"
   },
   "detail": {
     "meta": "First seen {{time}}.",
@@ -596,7 +595,12 @@
     "fresh": "Vedette has just told Telegram to keep this bot's messages. If you sent yours earlier, send it again now, then press Find my chat again.",
     "pick": "Chats your bot has seen, newest first",
     "option": "{{name}} - {{kind}}, ID {{id}}",
-    "kind": { "private": "private chat", "group": "group", "supergroup": "group", "channel": "channel" }
+    "kind": {
+      "private": "private chat",
+      "group": "group",
+      "supergroup": "group",
+      "channel": "channel"
+    }
   },
   "tg": {
     "unsaved": "Save to send this person a confirm link on Telegram, privately. The bot can write to them only after they press Start once in a private chat with the bot; otherwise a note in this chat asks them to. They confirm the link while signed in to Vedette as themselves."
@@ -636,5 +640,17 @@
     "alreadyResolved_other": "{{count}} were already resolved and kept their state.",
     "alreadyAcknowledged_one": "{{count}} was already acknowledged.",
     "alreadyAcknowledged_other": "{{count}} were already acknowledged."
+  },
+  "kpi": {
+    "label": "Incidents at a glance",
+    "open": "Open incidents",
+    "urgent": "High and critical open",
+    "notSent": "Open, not sent"
+  },
+  "tabs": {
+    "label": "Incident lists",
+    "open": "Open",
+    "resolved": "Resolved",
+    "openBadge": "open, high or critical"
   }
 }

@@ -88,7 +88,7 @@ const (
 
 	cveEntrySchema = `{"type":"object","additionalProperties":false,"required":["cve","vendor","product","name","description","required_action","date_added","due_date","ransomware","epss","has_scan_template","links"],"properties":{` +
 		`"cve":{"type":"string"},"vendor":{"type":"string"},"product":{"type":"string"},"name":{"type":"string"},"description":{"type":"string"},` +
-		`"required_action":{"type":"string"},"date_added":{"type":"string","format":"date"},"due_date":{"type":["string","null"],"format":"date"},` +
+		`"required_action":{"type":"string"},"source":{"type":"string","description":"The list that has it: cisa-kev, vulncheck-kev (VulnCheck KEV) or a feed the administrator added."},"date_added":{"type":"string","format":"date"},"due_date":{"type":["string","null"],"format":"date"},` +
 		`"ransomware":{"type":"boolean","description":"Known to be used in ransomware campaigns."},"epss":` + numOrNull + `,` +
 		`"has_scan_template":{"type":"boolean","description":"The box has a check that can confirm it by scanning."},"links":{"type":"array","maxItems":10,"items":{"type":"string"}}}}`
 	hotSchema = `{"type":"object","additionalProperties":false,"required":["cve","vendor","product","date_added","ransomware","epss","has_scan_template"],"properties":{` +
@@ -132,7 +132,7 @@ var Tools = []Tool{
 	},
 	{
 		Name: "lookup_cve", Title: "Look up a CVE", Scope: ScopeFeeds,
-		Description: "Look a CVE up in the exploited-vulnerability lists on the box (CISA KEV and the feeds the administrator added). listed is false when no list has it.",
+		Description: "Look a CVE up in the exploited-vulnerability lists on the box (CISA KEV, VulnCheck KEV when the administrator turned it on, and the feeds the administrator added); the entry names its list in source. listed is false when no list has it.",
 		Input:       json.RawMessage(`{"type":"object","additionalProperties":false,"required":["cve"],"properties":{"cve":{"type":"string","pattern":"^[Cc][Vv][Ee]-[0-9]{4}-[0-9]{4,7}$","description":"For example CVE-2024-3400."}}}`),
 		Output:      json.RawMessage(`{"type":"object","additionalProperties":false,"required":["cve","listed","entry"],"properties":{"cve":{"type":"string"},"listed":{"type":"boolean"},"entry":{"oneOf":[{"type":"null"},` + cveEntrySchema + `]}}}`),
 		run:         lookupCVE,

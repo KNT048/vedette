@@ -10,9 +10,11 @@ const PAGES = [
   { path: '/scans', second: 'Auto rescan', id: 'auto', other: 'Probe log' },
   { path: '/response', second: 'Log', id: 'log', other: 'Rules' },
   { path: '/logs', second: 'Sources', id: 'sources', other: 'Events' },
+  { path: '/findings', second: 'Accepted risk', id: 'accepted', other: 'Handled' },
   { path: '/reports', second: 'Data protection assessment', id: 'pdpl', other: 'Weekly report' },
   // D-543: the other Kiên-side pages on the frame
   { path: '/honeypot', second: 'Services', id: 'services', other: 'Tokens' },
+  { path: '/incidents', second: 'Resolved', id: 'resolved', other: 'Open' },
   // exposure: the list and one IP target (Results is the first tab, Ownership the second)
   { path: '/exposure', second: 'Open exposures', id: 'open', other: 'Targets' },
   { path: '/exposure/xt-2', second: 'Ownership', id: 'ownership', other: 'Results' },
@@ -51,8 +53,8 @@ test.describe('page frame (S-UI-1)', () => {
       expect(inView, `${p.path}: open tab scrolled into the tab row`).toBe(true)
       await shot(page, 'frame', `${p.path.slice(1).replaceAll('/', '-')}-${device(page)}`)
       await expectAccessible(page, p.path)
-      await page.getByRole('tab', { name: p.other, exact: true }).click()
-      await expect(page.getByRole('tab', { name: p.other, exact: true })).toHaveAttribute('aria-selected', 'true')
+      await page.getByRole('tab', { name: p.other }).click() // not exact: a tab with a badge reads "Open 2 open, high or critical"
+      await expect(page.getByRole('tab', { name: p.other })).toHaveAttribute('aria-selected', 'true')
       expect(errors).toEqual([])
     })
   }

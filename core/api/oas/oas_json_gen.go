@@ -86698,6 +86698,8 @@ func (s *ExposureGetExposureScanOKPhase) Decode(d *jx.Decoder) error {
 		*s = ExposureGetExposureScanOKPhaseProbing
 	case ExposureGetExposureScanOKPhaseSaving:
 		*s = ExposureGetExposureScanOKPhaseSaving
+	case ExposureGetExposureScanOKPhaseGreenbone:
+		*s = ExposureGetExposureScanOKPhaseGreenbone
 	case ExposureGetExposureScanOKPhaseDone:
 		*s = ExposureGetExposureScanOKPhaseDone
 	default:
@@ -96585,6 +96587,8 @@ func (s *ExposurePostExposureScanStopOKPhase) Decode(d *jx.Decoder) error {
 		*s = ExposurePostExposureScanStopOKPhaseProbing
 	case ExposurePostExposureScanStopOKPhaseSaving:
 		*s = ExposurePostExposureScanStopOKPhaseSaving
+	case ExposurePostExposureScanStopOKPhaseGreenbone:
+		*s = ExposurePostExposureScanStopOKPhaseGreenbone
 	case ExposurePostExposureScanStopOKPhaseDone:
 		*s = ExposurePostExposureScanStopOKPhaseDone
 	default:
@@ -98716,6 +98720,8 @@ func (s *ExposurePostExposureTargetsIDScanAcceptedPhase) Decode(d *jx.Decoder) e
 		*s = ExposurePostExposureTargetsIDScanAcceptedPhaseProbing
 	case ExposurePostExposureTargetsIDScanAcceptedPhaseSaving:
 		*s = ExposurePostExposureTargetsIDScanAcceptedPhaseSaving
+	case ExposurePostExposureTargetsIDScanAcceptedPhaseGreenbone:
+		*s = ExposurePostExposureTargetsIDScanAcceptedPhaseGreenbone
 	case ExposurePostExposureTargetsIDScanAcceptedPhaseDone:
 		*s = ExposurePostExposureTargetsIDScanAcceptedPhaseDone
 	default:

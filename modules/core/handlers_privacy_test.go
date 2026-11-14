@@ -50,7 +50,7 @@ func TestPrivacy_GetDefaultsAndShape(t *testing.T) {
 		9: {"off", "reason", nil}, 10: {"on", "reason", nil}, 11: {"off", "reason", nil}, 12: {"off", "reason", nil},
 		13: {"off", "reason", nil}, // mcp-server is off by default (D-234)
 		15: {"off", "reason", nil}, // exposure is off by default; on, Shodan is asked only on a click (D-558)
-		16: {"off", "reason", nil}, // exposure is off by default; on, Greenbone downloads only once an administrator enables it (D-563)
+		16: {"off", "reason", nil}, // Greenbone is off by default (D-563)
 	}
 	for id, w := range want {
 		if f[id] != w {

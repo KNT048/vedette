@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"os"
 	"regexp"
 	"slices"
 	"strconv"
@@ -30,8 +31,15 @@ const (
 	gmpIANATCP     = "33d0cd82-57c6-11e1-8ed1-406186ea4fc5" // port list "All IANA assigned TCP"
 	gmpOpenVAS     = "08b69003-5fc2-4037-a479-93b440211c73" // scanner "OpenVAS Default"
 
-	// GreenboneConfigName is the scan config Vedette creates once (a copy of "Full and fast") and reuses by name.
+	// GreenboneConfigName is the scan config Vedette creates once (a copy of "Full and fast") and reuses by name, only when the GMP
+	// user Vedette signs in as owns it.
 	GreenboneConfigName = "vedette-safe-full-and-fast"
+	// gbObjectPrefix starts the name of every target and task Vedette creates, so a scan can find and remove its own leftovers.
+	gbObjectPrefix = "vedette-scan-"
+	// gmpBruteOID is the feed's "Options for Brute Force NVTs" (family Settings): its checkboxes "Disable brute force checks" and
+	// "Disable default account checks" set the KB keys that credential tests in other families read, so turning the families off
+	// alone does not stop them (review r1 M2).
+	gmpBruteOID = "1.3.6.1.4.1.25623.1.0.103697"
 	// GreenbonePortList is the name of the port list the scan uses.
 	GreenbonePortList = "All IANA assigned TCP"
 	// GreenboneMinQoD is the lowest quality of detection a result is read with (Greenbone's own default filter is 70).
@@ -49,6 +57,9 @@ const (
 // The families the copied config turns off: nothing that guesses passwords, logs in with default accounts or tries to crash a service.
 var gmpOffFamilies = []string{"Brute force attacks", "Default Accounts", "Denial of Service"}
 
+// The preferences of gmpBruteOID that must be "yes" in Vedette's config before a task starts; their ids are read from gvmd.
+var gmpBruteOff = []string{"Disable brute force checks", "Disable default account checks"}
+
 // GMPLogin is the GMP user and password the host created for Vedette when it set Greenbone up (kept in core/secrets, never logged).
 type GMPLogin struct {
 	User     string
@@ -61,6 +72,8 @@ var (
 	ErrGMPBad      = errors.New("exposure: unreadable GMP answer")
 	errGMPNotFound = errors.New("exposure: GMP: not found")
 	errGMPAuth     = errors.New("exposure: GMP: authentication failed")
+	// errGMPSlow: gvmd did not answer within the command's deadline. It is slow, not unreadable (review r1 M3).
+	errGMPSlow = errors.New("exposure: GMP: no answer in time")
 )
 
 // gmpStatusError is a GMP answer with a status that is not 2xx; Text is gvmd's status_text, clipped and printable.
@@ -109,6 +122,9 @@ func (g *gmpConn) do(ctx context.Context, cmd, body string, limit int64, v any) 
 	stop := context.AfterFunc(ctx, func() { _ = g.conn.SetDeadline(time.Unix(1, 0)) })
 	defer stop()
 	if _, err := io.WriteString(g.conn, body); err != nil {
+		if errors.Is(err, os.ErrDeadlineExceeded) {
+			err = errGMPSlow
+		}
 		return "", ctxOr(ctx, fmt.Errorf("exposure: GMP %s: sending: %w", cmd, err))
 	}
 	id, err := decodeGMP(&capReader{r: g.conn, n: limit}, cmd, v)
@@ -128,12 +144,7 @@ func ctxOr(ctx context.Context, err error) error {
 // decodeGMP reads exactly one answer element of command cmd from r into v and checks its status (fail closed): nothing but an
 // XML declaration, comments and white space may come before it (a DOCTYPE is refused), and its name must be "<cmd>_response".
 func decodeGMP(r io.Reader, cmd string, v any) (string, error) {
-	bad := func(err error) (string, error) {
-		if errors.Is(err, errGMPTooBig) {
-			return "", fmt.Errorf("%w: %s answer over the size cap", ErrGMPBad, cmd)
-		}
-		return "", fmt.Errorf("%w: %s: %w", ErrGMPBad, cmd, err)
-	}
+	bad := func(err error) (string, error) { return "", gmpReadErr(cmd, err) }
 	dec := xml.NewDecoder(r)
 	dec.Strict = true
 	for {
@@ -170,10 +181,7 @@ func finishGMP(dec *xml.Decoder, start xml.StartElement, cmd string, v any) (str
 		err = dec.DecodeElement(v, &start)
 	}
 	if err != nil {
-		if errors.Is(err, errGMPTooBig) {
-			return "", fmt.Errorf("%w: %s answer over the size cap", ErrGMPBad, cmd)
-		}
-		return "", fmt.Errorf("%w: %s: %w", ErrGMPBad, cmd, err)
+		return "", gmpReadErr(cmd, err)
 	}
 	st := attr["status"]
 	switch {
@@ -187,6 +195,17 @@ func finishGMP(dec *xml.Decoder, start xml.StartElement, cmd string, v any) (str
 		return "", &gmpStatusError{Cmd: cmd, Status: st, Text: plainText(attr["status_text"], 160)}
 	}
 	return "", fmt.Errorf("%w: %s status %q", ErrGMPBad, cmd, clipText(st, 10))
+}
+
+// gmpReadErr sorts an error met while reading an answer: a deadline is errGMPSlow, anything else ErrGMPBad.
+func gmpReadErr(cmd string, err error) error {
+	switch {
+	case errors.Is(err, os.ErrDeadlineExceeded):
+		return fmt.Errorf("%w: %s", errGMPSlow, cmd)
+	case errors.Is(err, errGMPTooBig):
+		return fmt.Errorf("%w: %s answer over the size cap", ErrGMPBad, cmd)
+	}
+	return fmt.Errorf("%w: %s: %w", ErrGMPBad, cmd, err)
 }
 
 // esc is text put into a command, escaped for XML.
@@ -219,6 +238,7 @@ type gmpFeeds struct {
 type gmpConfig struct {
 	ID       string `xml:"id,attr"`
 	Name     string `xml:"name"`
+	Owner    string `xml:"owner>name"`
 	Families []struct {
 		Name string `xml:"name"`
 	} `xml:"families>family"`
@@ -253,9 +273,11 @@ func (g *gmpConn) readiness(ctx context.Context) (loading bool, err error) {
 	return !slices.ContainsFunc(c.Configs, func(x gmpConfig) bool { return x.ID == gmpFullAndFast }), nil
 }
 
-// safeConfig returns the id of Vedette's config, creating it once as a copy of "Full and fast", and (again on every scan, so a
-// half-made or edited copy is put right) turns the brute-force, default-account and DoS families off and safe_checks on.
-func (g *gmpConn) safeConfig(ctx context.Context) (string, error) {
+// safeConfig returns the id of Vedette's config, creating it once as a copy of "Full and fast" (reused by name only when the GMP user
+// owns it), and on every scan puts back what Vedette relies on, so a half-made or edited copy is put right: the brute-force,
+// default-account and DoS families off, the two checkboxes of "Options for Brute Force NVTs" on (read back: fail closed), and
+// safe_checks on. A config used by a task Vedette did not start cannot be changed: that is said, and nothing starts.
+func (g *gmpConn) safeConfig(ctx context.Context, user string) (string, error) {
 	var full gmpConfigs
 	if _, err := g.do(ctx, "get_configs", `<get_configs config_id="`+gmpFullAndFast+`" families="1"/>`, gmpMaxAnswer, &full); err != nil {
 		return "", err
@@ -267,12 +289,20 @@ func (g *gmpConn) safeConfig(ctx context.Context) (string, error) {
 	if _, err := g.do(ctx, "get_configs", `<get_configs filter="name=`+GreenboneConfigName+` rows=-1"/>`, gmpMaxAnswer, &mine); err != nil {
 		return "", err
 	}
-	id := ""
+	id, foreign := "", false
 	for _, c := range mine.Configs {
-		if c.Name == GreenboneConfigName {
-			id = c.ID
-			break
+		if c.Name != GreenboneConfigName {
+			continue
 		}
+		if c.Owner != user {
+			foreign = true
+			continue
+		}
+		id = c.ID
+		break
+	}
+	if id == "" && foreign {
+		return "", &Unavailable{Reason: "a scan config named " + GreenboneConfigName + " belongs to another Greenbone user, so Vedette did not use it. Rename or delete it in Greenbone."}
 	}
 	if id == "" {
 		var err error
@@ -299,14 +329,84 @@ func (g *gmpConn) safeConfig(ctx context.Context) (string, error) {
 		return "", fmt.Errorf("%w: no family left to scan with", ErrGMPBad)
 	}
 	sel.WriteString("</family_selection></modify_config>")
-	if _, err := g.do(ctx, "modify_config", sel.String(), gmpMaxAnswer, nil); err != nil {
+	yes := base64.StdEncoding.EncodeToString([]byte("yes"))
+	if err := g.modifyConfig(ctx, sel.String()); err != nil {
 		return "", err
 	}
-	if _, err := g.do(ctx, "modify_config", `<modify_config config_id="`+id+`"><preference><name>safe_checks</name><value>`+
-		base64.StdEncoding.EncodeToString([]byte("yes"))+`</value></preference></modify_config>`, gmpMaxAnswer, nil); err != nil {
+	if err := g.modifyConfig(ctx, `<modify_config config_id="`+id+`"><preference><name>safe_checks</name><value>`+yes+`</value></preference></modify_config>`); err != nil {
 		return "", err
+	}
+	brute, err := g.brutePrefs(ctx, id)
+	if err != nil {
+		return "", err
+	}
+	for _, name := range brute {
+		if err := g.modifyConfig(ctx, `<modify_config config_id="`+id+`"><preference><nvt oid="`+gmpBruteOID+`"/><name>`+esc(name)+`</name><value>`+yes+`</value></preference></modify_config>`); err != nil {
+			return "", err
+		}
+	}
+	var after gmpPrefs
+	if _, err := g.do(ctx, "get_preferences", `<get_preferences nvt_oid="`+gmpBruteOID+`" config_id="`+id+`"/>`, gmpMaxAnswer, &after); err != nil {
+		return "", err
+	}
+	for _, want := range gmpBruteOff {
+		if p, ok := after.find(want); !ok || strings.TrimSpace(p.Value) != "yes" {
+			return "", &Unavailable{Reason: "Greenbone did not keep \"" + want + "\" on in Vedette's scan config, so nothing was started."}
+		}
 	}
 	return id, nil
+}
+
+// modifyConfig sends one modify_config; gvmd's refusal because a task uses the config is said as such (review r1 M4).
+func (g *gmpConn) modifyConfig(ctx context.Context, body string) error {
+	_, err := g.do(ctx, "modify_config", body, gmpMaxAnswer, nil)
+	var se *gmpStatusError
+	if errors.As(err, &se) && strings.Contains(strings.ToLower(se.Text), "in use") {
+		return &Unavailable{Reason: "Greenbone's scan config " + GreenboneConfigName + " is used by a task Vedette did not start, so its safe settings could not be set again and nothing was started. Delete that task in Greenbone."}
+	}
+	return err
+}
+
+type gmpPref struct {
+	ID     string `xml:"id"`
+	Name   string `xml:"name"`
+	HRName string `xml:"hr_name"`
+	Type   string `xml:"type"`
+	Value  string `xml:"value"`
+}
+
+type gmpPrefs struct {
+	Prefs []gmpPref `xml:"preference"`
+}
+
+func (p gmpPrefs) find(name string) (gmpPref, bool) {
+	for _, x := range p.Prefs {
+		if strings.TrimSpace(x.Name) == name || strings.TrimSpace(x.HRName) == name {
+			return x, true
+		}
+	}
+	return gmpPref{}, false
+}
+
+var gmpPrefID = regexp.MustCompile(`^[0-9]{1,4}$`)
+
+// brutePrefs reads the two checkboxes of "Options for Brute Force NVTs" from gvmd and returns their full names
+// ("<oid>:<id>:checkbox:<name>", the form modify_config takes for an NVT preference). Either one missing or not a checkbox: fail
+// closed, nothing starts.
+func (g *gmpConn) brutePrefs(ctx context.Context, config string) ([]string, error) {
+	var p gmpPrefs
+	if _, err := g.do(ctx, "get_preferences", `<get_preferences nvt_oid="`+gmpBruteOID+`" config_id="`+config+`"/>`, gmpMaxAnswer, &p); err != nil {
+		return nil, err
+	}
+	var out []string
+	for _, want := range gmpBruteOff {
+		x, ok := p.find(want)
+		if !ok || strings.TrimSpace(x.Type) != "checkbox" || !gmpPrefID.MatchString(strings.TrimSpace(x.ID)) {
+			return nil, &Unavailable{Reason: "Greenbone's feed has no \"" + want + "\" option, so Vedette cannot make sure no password is tried; nothing was started."}
+		}
+		out = append(out, gmpBruteOID+":"+strings.TrimSpace(x.ID)+":checkbox:"+want)
+	}
+	return out, nil
 }
 
 type gmpPortLists struct {
@@ -406,17 +506,89 @@ func (g *gmpConn) report(ctx context.Context, report, ip string) ([]GreenboneRow
 }
 
 // cleanup stops (when running) and deletes the task with its report and the target: the scan is over or was stopped, and gvmd
-// must not keep scanning or keep one target and task per scan.
-func (g *gmpConn) cleanup(ctx context.Context, task, target string, running bool) {
+// must not keep scanning or keep one target and task per scan. It returns what failed ("stop_task: …"), for the log, the audit
+// row and the page.
+func (g *gmpConn) cleanup(ctx context.Context, task, target string, running bool) []string {
+	var failed []string
+	try := func(cmd, body string) {
+		if _, err := g.do(ctx, cmd, body, gmpMaxAnswer, nil); err != nil {
+			failed = append(failed, cmd+": "+clipText(err.Error(), 160))
+		}
+	}
 	if task != "" {
 		if running {
-			_, _ = g.do(ctx, "stop_task", `<stop_task task_id="`+task+`"/>`, gmpMaxAnswer, nil)
+			try("stop_task", `<stop_task task_id="`+task+`"/>`)
 		}
-		_, _ = g.do(ctx, "delete_task", `<delete_task task_id="`+task+`" ultimate="1"/>`, gmpMaxAnswer, nil)
+		try("delete_task", `<delete_task task_id="`+task+`" ultimate="1"/>`)
 	}
 	if target != "" {
-		_, _ = g.do(ctx, "delete_target", `<delete_target target_id="`+target+`" ultimate="1"/>`, gmpMaxAnswer, nil)
+		try("delete_target", `<delete_target target_id="`+target+`" ultimate="1"/>`)
 	}
+	return failed
+}
+
+type gmpObjects struct {
+	Tasks []struct {
+		ID     string `xml:"id,attr"`
+		Name   string `xml:"name"`
+		Owner  string `xml:"owner>name"`
+		Status string `xml:"status"`
+	} `xml:"task"`
+	Targets []struct {
+		ID    string `xml:"id,attr"`
+		Name  string `xml:"name"`
+		Owner string `xml:"owner>name"`
+	} `xml:"target"`
+}
+
+// The task states in which gvmd may still be scanning.
+var gmpActive = []string{"Requested", "Queued", "Running", "Stop Requested", "Processing"}
+
+// errGBStillStopping: an earlier task of Vedette's is still being stopped, so a new one does not start (it would run beside it).
+var errGBStillStopping = &Unavailable{Reason: "an earlier Greenbone scan of Vedette is still stopping, so a new one was not started. Try again in a few minutes."}
+
+// leftovers stops and deletes the tasks and targets an earlier scan of Vedette's left behind (a stop that failed, a restart of the
+// box in the middle of a scan), owned by user and named with gbObjectPrefix, before a new task starts: Vedette never leaves a task
+// of its own running beside a new one. A task that could not be stopped or deleted is an error and nothing new starts; a target that
+// could not be deleted is only said.
+func (g *gmpConn) leftovers(ctx context.Context, user string) (problems []string, err error) {
+	var o gmpObjects
+	if _, err := g.do(ctx, "get_tasks", `<get_tasks filter="name~`+gbObjectPrefix+` rows=-1"/>`, gmpMaxAnswer, &o); err != nil {
+		return nil, err
+	}
+	for _, t := range o.Tasks {
+		id, idErr := gmpID(t.ID, "task")
+		if idErr != nil || t.Owner != user || !strings.HasPrefix(t.Name, gbObjectPrefix) {
+			continue
+		}
+		st := strings.TrimSpace(t.Status)
+		if slices.Contains(gmpActive, st) && st != "Stop Requested" {
+			if _, err := g.do(ctx, "stop_task", `<stop_task task_id="`+id+`"/>`, gmpMaxAnswer, nil); err != nil {
+				return problems, fmt.Errorf("stopping the earlier task %s: %w", id, err)
+			}
+		}
+		if _, err := g.do(ctx, "delete_task", `<delete_task task_id="`+id+`" ultimate="1"/>`, gmpMaxAnswer, nil); err != nil {
+			if slices.Contains(gmpActive, st) {
+				return problems, errGBStillStopping
+			}
+			return problems, fmt.Errorf("deleting the earlier task %s: %w", id, err)
+		}
+		problems = append(problems, "an earlier task of Vedette's ("+st+") was removed before this scan")
+	}
+	o = gmpObjects{}
+	if _, err := g.do(ctx, "get_targets", `<get_targets filter="name~`+gbObjectPrefix+` rows=-1"/>`, gmpMaxAnswer, &o); err != nil {
+		return problems, err
+	}
+	for _, t := range o.Targets {
+		id, idErr := gmpID(t.ID, "target")
+		if idErr != nil || t.Owner != user || !strings.HasPrefix(t.Name, gbObjectPrefix) {
+			continue
+		}
+		if _, err := g.do(ctx, "delete_target", `<delete_target target_id="`+id+`" ultimate="1"/>`, gmpMaxAnswer, nil); err != nil {
+			problems = append(problems, "an earlier target of Vedette's could not be deleted: "+clipText(err.Error(), 160))
+		}
+	}
+	return problems, nil
 }
 
 // ---- the report (untrusted) ----
@@ -489,7 +661,7 @@ func parseGMPReport(r *gmpReport, report, ip string) ([]GreenboneRow, int, error
 		if name == "" {
 			name = plainText(x.Name, gmpMaxName)
 		}
-		row, ok := cleanGreenboneRow(GreenboneRow{Severity: sev, Name: name, Port: strings.TrimSpace(x.Port), QoD: qod, OID: strings.TrimSpace(x.NVT.OID),
+		row, ok := cleanGreenboneRow(GreenboneRow{IP: ip, Severity: sev, Name: name, Port: strings.TrimSpace(x.Port), QoD: qod, OID: strings.TrimSpace(x.NVT.OID),
 			Solution: plainText(x.NVT.Solution, gmpMaxText), CVEs: gmpCVEs(x.NVT.Refs)})
 		if !ok {
 			return nil, 0, fmt.Errorf("%w: a result without a name", ErrGMPBad)

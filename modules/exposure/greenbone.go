@@ -99,11 +99,14 @@ const (
 	maxGreenboneRows = 200 // rows kept per snapshot, the highest severity first
 	gbProbeEvery     = 30 * time.Second
 	gbDialTimeout    = 15 * time.Second
-	gbUpTimeout      = 60 * time.Minute // the first Up pulls about 9 GB of images (25 minutes on the N100)
-	gbDownTimeout    = 5 * time.Minute
-	gbPollDefault    = 15 * time.Second
-	gbNote           = "Greenbone sends many probes: every test of the config on every port of the list. They are not logged one by one."
-	gbConfigText     = "Full and fast without brute force, default accounts or denial of service; safe checks on"
+	gbProbeBudget    = 2 * time.Minute // the GMP commands of one readiness check, apart from the dial
+	// GreenboneLoadGrace: a slow gvmd within this time after Up, or after it last said it was loading, reads as "loading".
+	GreenboneLoadGrace = 4 * time.Hour
+	gbUpTimeout        = 60 * time.Minute // the first Up pulls about 9 GB of images (25 minutes on the N100)
+	gbDownTimeout      = 5 * time.Minute
+	gbPollDefault      = 15 * time.Second
+	gbNote             = "Greenbone sends many probes: every test of the config on every port of the list. They are not logged one by one."
+	gbConfigText       = "Full and fast without brute force, default accounts or denial of service; safe checks on"
 )
 
 // The states of the Greenbone setting (contract.ts GreenboneState).
@@ -133,6 +136,10 @@ const (
 	gbNotAnswering        = "Greenbone does not answer on its socket. Turn it off and on again to restart it."
 	gbAuthFailed          = "Vedette could not sign in to Greenbone (GMP). The login the box created for it was refused."
 	gbUnreadable          = "Greenbone answered in a way Vedette could not read."
+	gbBusyReason          = "Greenbone is busy loading its feed and answers slowly; Vedette will ask again."
+	gbSlowReason          = "Greenbone did not answer within 2 minutes."
+	notGBSlowAnswer       = "Greenbone (OpenVAS) did not answer within 2 minutes, so its results are not shown."
+	notGBStopped          = "Greenbone (OpenVAS) was stopped before it finished, so its results are not shown. The results of the other checks above are kept."
 )
 
 // The answers of the setting.
@@ -168,6 +175,8 @@ type gbState struct {
 	upCancel context.CancelFunc
 	upErr    string
 	upAt     time.Time
+	off      bool      // turned off since the box started: no Up may start until it is turned on again (review r1 L3)
+	loadAt   time.Time // when gvmd last said it was loading its feed: a slow answer soon after is "loading", not an error
 	probeAt  time.Time
 	state    string
 	reason   string
@@ -302,6 +311,10 @@ func (s *Service) SetGreenbone(ctx context.Context, user string, enabled bool) (
 		if err := s.saveGreenbone(ctx, user, true, detail); err != nil {
 			return GreenboneView{}, err
 		}
+		g := s.gb()
+		g.mu.Lock()
+		g.off = false
+		g.mu.Unlock()
 		s.gbStartUp(ctx)
 		return s.GreenboneSetting(ctx)
 	}
@@ -313,7 +326,7 @@ func (s *Service) SetGreenbone(ctx context.Context, user string, enabled bool) (
 	if g.upCancel != nil {
 		g.upCancel()
 	}
-	g.upErr, g.upAt, g.probeAt = "", time.Time{}, time.Time{}
+	g.off, g.upErr, g.upAt, g.probeAt = true, "", time.Time{}, time.Time{}
 	g.mu.Unlock()
 	dctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), gbDownTimeout)
 	defer cancel()
@@ -342,6 +355,12 @@ func (s *Service) saveGreenbone(ctx context.Context, user string, on bool, detai
 	})
 }
 
+// GreenboneEnabled says whether an administrator has Greenbone enabled (privacy flow 16, D-563); false when it cannot be read.
+func (s *Service) GreenboneEnabled(ctx context.Context) bool {
+	on, _, _, err := loadGreenbone(ctx, s.cfg.DB.Reader())
+	return err == nil && on && s.cfg.Greenbone != nil
+}
+
 func loadGreenbone(ctx context.Context, q querier) (on bool, by, at *string, err error) {
 	var v int
 	var b, a sql.NullString
@@ -362,7 +381,7 @@ func loadGreenbone(ctx context.Context, q querier) (on bool, by, at *string, err
 func (s *Service) gbStartUp(ctx context.Context) {
 	g := s.gb()
 	g.mu.Lock()
-	if g.upping {
+	if g.upping || g.off { // off: a read or a scan that saw "on" just before an administrator turned it off must not start it again
 		g.mu.Unlock()
 		return
 	}
@@ -424,8 +443,8 @@ func (s *Service) gbStatus(ctx context.Context, fresh bool) (string, string) {
 
 func (s *Service) gbProbe(ctx context.Context, upAt time.Time) (string, string) {
 	dctx, cancel := context.WithTimeout(ctx, gbDialTimeout)
-	defer cancel()
 	conn, login, err := s.cfg.Greenbone.Dial(dctx)
+	cancel()
 	if err != nil {
 		if s.clock().Sub(upAt) < GreenboneStartGrace {
 			return GBStarting, ""
@@ -435,72 +454,105 @@ func (s *Service) gbProbe(ctx context.Context, upAt time.Time) (string, string) 
 	}
 	defer func() { _ = conn.Close() }()
 	g := &gmpConn{conn: conn}
-	if err := g.authenticate(dctx, login); err != nil {
-		if errors.Is(err, errGMPAuth) {
-			return GBError, gbAuthFailed
-		}
-		s.cfg.Log.ErrorContext(ctx, "exposure: Greenbone sign-in failed", "error", err)
-		return GBError, gbUnreadable
+	pctx, cancel := context.WithTimeout(ctx, gbProbeBudget) // GMP has its own budget, apart from the dial's (review r1 M3)
+	defer cancel()
+	err = g.authenticate(pctx, login)
+	loading := false
+	if err == nil {
+		loading, err = g.readiness(pctx)
 	}
-	loading, err := g.readiness(dctx)
+	gs := s.gb()
 	switch {
-	case err != nil:
-		s.cfg.Log.ErrorContext(ctx, "exposure: asking Greenbone whether it is ready failed", "error", err)
-		return GBError, gbUnreadable
-	case loading:
+	case err == nil && loading:
+		gs.mu.Lock()
+		gs.loadAt = s.clock()
+		gs.mu.Unlock()
 		return GBLoading, gbLoadingReason
+	case err == nil:
+		return GBReady, ""
+	case errors.Is(err, errGMPAuth):
+		return GBError, gbAuthFailed
+	case errors.Is(err, errGMPSlow) || errors.Is(err, context.DeadlineExceeded):
+		// gvmd answers slowly while it loads its feed (D-494): within the first hours after Up, or soon after it last said it was
+		// loading, that is the loading phase, not an error.
+		gs.mu.Lock()
+		loadAt := gs.loadAt
+		gs.mu.Unlock()
+		if s.clock().Sub(upAt) < GreenboneLoadGrace || (!loadAt.IsZero() && s.clock().Sub(loadAt) < GreenboneLoadGrace) {
+			return GBLoading, gbBusyReason
+		}
+		return GBError, gbSlowReason
 	}
-	return GBReady, ""
+	s.cfg.Log.ErrorContext(ctx, "exposure: asking Greenbone whether it is ready failed", "error", err)
+	return GBError, gbUnreadable
 }
 
-// greenboneScan is the deep-scan step of a scan (INV-25), after service identification, the templates and the passive web scan, and
-// before the snapshot is stored. It runs only for an IP target that passed this run's gate, only when Greenbone is enabled and ready,
-// after the gate is checked again and the probe log row is written. Like the other steps, only a stop of the run ends the scan here;
-// everything else is a line of what was checked or not checked.
-func (s *Service) greenboneScan(ctx context.Context, st ScanTarget, c Content) (Content, error) {
-	line := func(text string) (Content, error) {
-		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "greenbone", Text: clipText(text, maxLineText)})
-		return c, nil
-	}
+// greenbonePlan decides, before the snapshot is stored, whether the Greenbone step runs in this scan (INV-25): only for an IP target
+// that passed this run's gate, only when Greenbone is wired, enabled and answers ready now (asked again, not from the cache). When it
+// does not run, line says why, for "Not checked".
+func (s *Service) greenbonePlan(ctx context.Context, st ScanTarget) (run bool, line string, err error) {
 	if st.Kind != KindIP {
-		return line(notGBDomain)
+		return false, notGBDomain, nil
 	}
 	if s.cfg.Greenbone == nil {
-		return line(NotAvailableGreenbone)
+		return false, NotAvailableGreenbone, nil
 	}
 	on, _, _, err := loadGreenbone(ctx, s.cfg.DB.Reader())
 	if err != nil {
-		return c, err
+		return false, "", err
 	}
 	if !on {
-		return line(notGBOff)
+		return false, notGBOff, nil
 	}
-	switch state, reason := s.gbStatus(ctx, true); state { // asked again: a scan uses Greenbone only when it is ready now
+	switch state, reason := s.gbStatus(ctx, true); state {
 	case GBReady:
+		return true, "", nil
 	case GBLoading:
-		return line(notGBLoading)
+		return false, notGBLoading, nil
 	case GBStarting:
-		return line(notGBStarting)
+		return false, notGBStarting, nil
 	default:
-		return line("Greenbone (OpenVAS) did not scan: " + reason)
+		return false, clipText("Greenbone (OpenVAS) did not scan: "+reason, maxLineText), nil
+	}
+}
+
+// gbPending is the "Not checked" line a snapshot carries while its Greenbone step runs (review r1 M5): the snapshot of the other
+// steps is stored first, and this line is replaced when Greenbone ends. A restart of the box in between leaves it, and it says so.
+func gbPending(at string) string {
+	return "Greenbone (OpenVAS) started at " + at + " and runs for up to 90 minutes; its results are added here when it finishes. If none appear, it was stopped before it finished (a stop or a restart of the box)."
+}
+
+// gbOutcome is what the Greenbone step adds to the stored snapshot.
+type gbOutcome struct {
+	rows   []GreenboneRow
+	checks []CheckRow
+	not    []NotCheckedRow
+	audit  string // the detail of the exposure.greenbone_scan audit row
+}
+
+// greenboneStep is the deep scan itself (INV-25), after the snapshot of the other steps is stored: the gate again, the probe log row,
+// then runGreenbone, at most the cap. Only a stop of the run returns an error; every other outcome is a line.
+func (s *Service) greenboneStep(ctx context.Context, st ScanTarget) (gbOutcome, error) {
+	line := func(text, audit string) (gbOutcome, error) {
+		return gbOutcome{not: []NotCheckedRow{{Kind: "greenbone", Text: clipText(text, maxLineText)}}, audit: audit}, nil
 	}
 	ip, err := netip.ParseAddr(st.Value)
 	if err != nil { // an IP target's value is a canonical public IPv4 (INV-2, INV-3): never reached
-		return c, fmt.Errorf("exposure: Greenbone on %q: %w", st.Value, err)
+		return gbOutcome{}, fmt.Errorf("exposure: Greenbone on %q: %w", st.Value, err)
 	}
 	// The gate of the run is many minutes old by now: the target must still be verified, committed, not paused and the box's own IP.
 	if _, reason, gerr := s.gate(ctx, st.User, st.ID); gerr != nil || reason != "" {
 		if ctx.Err() != nil {
-			return c, ctx.Err()
+			return gbOutcome{}, ctx.Err()
 		}
 		if gerr != nil {
 			s.cfg.Log.ErrorContext(ctx, "exposure: the gate before Greenbone failed", "target", st.Value, "error", gerr)
 		}
-		return line(notGBGate)
+		return line(notGBGate, "not done: the gate refused")
 	}
 	plog, _ := s.cfg.Probes.(GreenboneProbeLog)
 	if plog == nil {
-		return line(notGBNoLog)
+		return line(notGBNoLog, "not done: no probe log")
 	}
 	g := s.gb()
 	g.mu.Lock()
@@ -508,127 +560,197 @@ func (s *Service) greenboneScan(ctx context.Context, st ScanTarget, c Content) (
 	g.mu.Unlock()
 	gctx, cancel := context.WithTimeout(ctx, limit)
 	defer cancel()
-	rows, total, err := s.runGreenbone(gctx, st, ip, plog, poll)
+	rows, _, problems, err := s.runGreenbone(gctx, st, ip, plog, poll)
+	var out gbOutcome
+	if len(problems) > 0 {
+		s.cfg.Log.ErrorContext(ctx, "exposure: Greenbone left something behind", "target", st.Value, "problems", problems)
+		out.not = append(out.not, NotCheckedRow{Kind: "greenbone", Text: clipText("Greenbone: "+strings.Join(problems, "; ")+". The next scan stops and removes Vedette's leftover tasks before it starts.", maxLineText)})
+	}
+	add := func(text, audit string) (gbOutcome, error) {
+		out.not = append([]NotCheckedRow{{Kind: "greenbone", Text: clipText(text, maxLineText)}}, out.not...)
+		out.audit = audit
+		if len(problems) > 0 {
+			out.audit += "; " + strings.Join(problems, "; ")
+		}
+		return out, nil
+	}
 	var un *Unavailable
 	switch {
 	case err == nil:
-	case ctx.Err() != nil: // the run was stopped: nothing is stored
-		return c, err
+	case ctx.Err() != nil: // the run was stopped
+		out.audit = "stopped"
+		if len(problems) > 0 {
+			out.audit += "; " + strings.Join(problems, "; ")
+		}
+		return out, err
 	case errors.Is(err, errGBNoLog):
-		return line(notGBNoLog)
+		return add(notGBNoLog, "not done: the probe log could not be written")
 	case gctx.Err() != nil:
-		return line(notGBSlow)
+		return add(notGBSlow, "not done: did not finish within 90 minutes")
 	case errors.As(err, &un):
-		return line("Greenbone (OpenVAS) did not scan: " + un.Reason)
+		return add("Greenbone (OpenVAS) did not scan: "+un.Reason, "not done: "+un.Reason)
+	case errors.Is(err, errGMPSlow):
+		return add(notGBSlowAnswer, "not done: no answer in time")
 	case errors.Is(err, ErrGMPBad):
 		s.cfg.Log.ErrorContext(ctx, "exposure: unreadable Greenbone answer", "target", st.Value, "error", err)
-		return line(notGBUnread)
+		return add(notGBUnread, "not done: unreadable answer")
 	default:
 		s.cfg.Log.ErrorContext(ctx, "exposure: Greenbone failed", "target", st.Value, "error", err)
-		return line(notGBFail)
+		return add(notGBFail, "failed")
 	}
-	c.Greenbone = rows
 	cves := map[string]bool{}
 	for _, r := range rows {
 		for _, id := range r.CVEs {
 			cves[id] = true
 		}
 	}
-	c.Checks = append(c.Checks, CheckRow{Kind: "greenbone", At: store.FormatTS(s.clock()), Text: clipText(fmt.Sprintf(
+	out.rows = rows
+	out.checks = []CheckRow{{Kind: "greenbone", At: store.FormatTS(s.clock()), Text: clipText(fmt.Sprintf(
 		"Greenbone (OpenVAS) scanned %s from outside without logging in (%s; port list %s): %s with QoD %d or more, %s named.",
-		ip, gbConfigText, GreenbonePortList, plural(len(rows), "result"), GreenboneMinQoD, plural(len(cves), "CVE")), maxLineText)})
-	if total > len(rows) && len(rows) >= maxGreenboneRows {
-		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "greenbone", Text: fmt.Sprintf("Greenbone: only the %d highest-severity results are kept.", maxGreenboneRows)})
+		ip, gbConfigText, GreenbonePortList, plural(len(rows), "result"), GreenboneMinQoD, plural(len(cves), "CVE")), maxLineText)}}
+	if len(rows) > maxGreenboneRows {
+		out.not = append(out.not, NotCheckedRow{Kind: "greenbone", Text: fmt.Sprintf("Greenbone: only the %d highest-severity of %d results are kept.", maxGreenboneRows, len(rows))})
 	}
-	return c, nil
+	out.audit = fmt.Sprintf("done: %s, %s", plural(len(rows), "result"), plural(len(cves), "CVE"))
+	if len(problems) > 0 {
+		out.audit += "; " + strings.Join(problems, "; ")
+	}
+	return out, nil
+}
+
+// addGreenbone writes the outcome of the Greenbone step into the snapshot stored before it (review r1 M5): the pending line is replaced
+// by the outcome's lines, its rows and check are added, and one exposure.greenbone_scan audit row says how it ended, in the same
+// transaction. It runs on its own context, so a stop or a shutdown still records it. A snapshot that is gone (the target was deleted
+// meanwhile) is left alone.
+func (s *Service) addGreenbone(ctx context.Context, user string, t Target, snap *Snapshot, pending string, o gbOutcome) {
+	not := []NotCheckedRow{}
+	for _, n := range snap.NotChecked {
+		if n.Kind != "greenbone" || n.Text != pending {
+			not = append(not, n)
+		}
+	}
+	c := snap.Content
+	c.NotChecked = append(not, o.not...)
+	c.Checks = append(slices.Clone(snap.Checks), o.checks...)
+	c.Greenbone = o.rows
+	c = sanitize(c)
+	snap.Content = c
+	wctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), saveTimeout)
+	defer cancel()
+	err := s.write(wctx, func(tx *sql.Tx, _ func(string, any)) error {
+		d, err := snapshotDocs(c, snap.Counts)
+		if err != nil {
+			return err
+		}
+		if _, err := tx.ExecContext(wctx, `UPDATE exp_snapshot SET checks = ?, not_checked = ?, greenbone = ? WHERE id = ?`, d[6], d[7], d[9], snap.ID); err != nil {
+			return fmt.Errorf("adding Greenbone's results: %w", err)
+		}
+		return s.audit(wctx, tx, user, "exposure.greenbone_scan", t.Value, clipText(o.audit, 500))
+	})
+	if err != nil {
+		s.cfg.Log.ErrorContext(wctx, "exposure: storing Greenbone's results failed", "target", t.Value, "error", err)
+	}
 }
 
 var errGBNoLog = errors.New("exposure: the Greenbone probe log row could not be written")
 
-// runGreenbone is one scan over GMP: the safe config and the port list (made once, reused by name), a target of exactly ip, a task,
-// the probe log row, start, a poll every `poll` until gvmd says Done, then the report (QoD >= GreenboneMinQoD). The task, its report
-// and the target are deleted afterwards, and a scan cut short is stopped first.
-func (s *Service) runGreenbone(ctx context.Context, st ScanTarget, ip netip.Addr, plog GreenboneProbeLog, poll time.Duration) ([]GreenboneRow, int, error) {
+// runGreenbone is one scan over GMP: Vedette's leftover tasks and targets removed first, the safe config and the port list, a target
+// of exactly ip, a task, the probe log row, start, a poll every `poll` until gvmd says Done, then the report (QoD >= GreenboneMinQoD).
+// The task, its report and the target are deleted afterwards (stopped first when cut short), and what could not be is returned in
+// problems.
+func (s *Service) runGreenbone(ctx context.Context, st ScanTarget, ip netip.Addr, plog GreenboneProbeLog, poll time.Duration) (rows []GreenboneRow, total int, problems []string, err error) {
 	dctx, cancel := context.WithTimeout(ctx, gbDialTimeout)
 	conn, login, err := s.cfg.Greenbone.Dial(dctx)
 	cancel()
 	if err != nil {
-		return nil, 0, err
+		return nil, 0, nil, err
 	}
 	defer func() { _ = conn.Close() }()
 	g := &gmpConn{conn: conn}
 	if err := g.authenticate(ctx, login); err != nil {
-		return nil, 0, err
+		return nil, 0, nil, err
 	}
-	config, err := g.safeConfig(ctx)
+	if problems, err = g.leftovers(ctx, login.User); err != nil { // never a second task of Vedette's beside one still running
+		return nil, 0, problems, err
+	}
+	config, err := g.safeConfig(ctx, login.User)
 	if err != nil {
-		return nil, 0, err
+		return nil, 0, problems, err
 	}
 	ports, err := g.portList(ctx)
 	if err != nil {
-		return nil, 0, err
+		return nil, 0, problems, err
 	}
-	name := "vedette " + ip.String() + " " + store.NewID("gb")
+	name := gbObjectPrefix + ip.String() + "-" + store.NewID("gb")
 	target, err := g.createTarget(ctx, name, ip.String(), ports)
 	if err != nil {
-		return nil, 0, err
+		return nil, 0, problems, err
 	}
 	task, running := "", false
-	defer func() { s.gbCleanup(ctx, task, target, running) }()
+	defer func() { problems = append(problems, s.gbCleanup(ctx, task, target, running)...) }()
 	if task, err = g.createTask(ctx, name, target, config); err != nil {
-		return nil, 0, err
+		return nil, 0, problems, err
 	}
 	if err := plog.RecordGreenboneProbe(ctx, GreenboneProbe{ID: store.NewID("pb"), IP: ip.String(), PortList: GreenbonePortList,
 		Config: GreenboneConfigName + " (" + gbConfigText + ")", Note: gbNote}); err != nil { // LEGAL §3: logged before the task starts
 		if ctx.Err() != nil {
-			return nil, 0, ctx.Err()
+			return nil, 0, problems, ctx.Err()
 		}
 		s.cfg.Log.ErrorContext(ctx, "exposure: writing the Greenbone probe log failed", "target", st.Value, "error", err)
-		return nil, 0, errGBNoLog
+		return nil, 0, problems, errGBNoLog
 	}
 	report, err := g.startTask(ctx, task)
 	if err != nil {
-		return nil, 0, err
+		running = true // it may have started: stop it to be sure
+		return nil, 0, problems, err
 	}
 	running = true
 	for {
 		state, _, err := g.taskStatus(ctx, task)
 		if err != nil {
-			return nil, 0, err
+			return nil, 0, problems, err
 		}
 		switch state {
 		case gmpDone:
 			running = false
-			return g.report(ctx, report, ip.String())
+			rows, total, err := g.report(ctx, report, ip.String())
+			return rows, total, problems, err
 		case "Stopped", "Interrupted":
 			running = false
-			return nil, 0, &Unavailable{Reason: "Greenbone ended the scan as " + strings.ToLower(state) + "."}
+			return nil, 0, problems, &Unavailable{Reason: "Greenbone ended the scan as " + strings.ToLower(state) + "."}
 		}
 		select {
 		case <-ctx.Done():
-			return nil, 0, ctx.Err()
+			return nil, 0, problems, ctx.Err()
 		case <-time.After(poll):
 		}
 	}
 }
 
 // gbCleanup stops (when it still runs) and deletes the scan's task, report and target over a new session on its own short context:
-// the scan's session may be cut in the middle of an answer (a stop, the cap), and gvmd must not keep scanning.
-func (s *Service) gbCleanup(ctx context.Context, task, target string, running bool) {
+// the scan's session may be cut in the middle of an answer (a stop, the cap), and gvmd must not keep scanning. Every failure is
+// logged and returned (review r1 M4); a task that is left is removed by the next scan before it starts.
+func (s *Service) gbCleanup(ctx context.Context, task, target string, running bool) []string {
 	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 30*time.Second)
 	defer cancel()
+	fail := func(err error) []string {
+		s.cfg.Log.ErrorContext(ctx, "exposure: cleaning up after Greenbone failed", "task", task, "target", target, "error", err)
+		return []string{"the task could not be cleaned up: " + clipText(err.Error(), 160)}
+	}
 	conn, login, err := s.cfg.Greenbone.Dial(ctx)
 	if err != nil {
-		s.cfg.Log.ErrorContext(ctx, "exposure: cleaning up after Greenbone failed", "task", task, "error", err)
-		return
+		return fail(err)
 	}
 	defer func() { _ = conn.Close() }()
 	g := &gmpConn{conn: conn}
 	if err := g.authenticate(ctx, login); err != nil {
-		s.cfg.Log.ErrorContext(ctx, "exposure: cleaning up after Greenbone failed", "task", task, "error", err)
-		return
+		return fail(err)
 	}
-	g.cleanup(ctx, task, target, running)
+	failed := g.cleanup(ctx, task, target, running)
+	for _, f := range failed {
+		s.cfg.Log.ErrorContext(ctx, "exposure: cleaning up after Greenbone failed", "task", task, "target", target, "step", f)
+	}
+	return failed
 }
 
 // cleanGreenboneRow is the one check a Greenbone row passes before it is stored (INV-10, INV-25); ok is false for a row that is not one.

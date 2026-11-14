@@ -70,6 +70,8 @@
 - **PRIVACY luồng 9 và 16, THIRD_PARTY_NOTICES (hàng Greenbone CE và Community Feed)**, `web/src/locales/en/core.json` `privacy.flow.9/16`, danh sách luồng ở `modules/core/handlers_privacy.go` và mock `features/core/mocks.ts`: đổi cái Greenbone quét hay tải là đổi cả ba (rules/legal.md).
 - **web/features/exposure**: `GreenbonePanel.tsx` (cài đặt ở tab Targets, mục "Greenbone results" của IP), `ServicesPanel.tsx` (chip "Scanner: Greenbone, QoD N"; dòng greenbone không cộng vào số CVE của dịch vụ), `api.ts` (`useGreenbone`, `useSetGreenbone`), `contract.ts` (`Greenbone`, `GreenboneResult`, `Snapshot.greenbone`, `VulnBasis` thêm `greenbone`, `VulnRow.qod`) là nguồn OpenAPI → `core/api/oas` sinh lại; mock `data.ts`/`mocks.ts` giữ cùng câu chữ.
 - **core/server** `contractRoutes` và `api/route-modules.json` có hai route mới; **core** `export_policy.go` xuất bốn cột mới (`TestExport_PolicyClassifiesEveryColumn`); `docs/API_CONVENTIONS.md` có `low_memory` (mới) và `low_disk`/`host_error`/`not_implemented` thêm route này.
+- **modules/core** `handlers_privacy.go`: luồng 16 `on` chỉ khi `PrivacyFacts` (cmd/vedette `privacyFacts`) có `GreenboneEnabled` trả true; nối nó tới `Service.GreenboneEnabled` là việc của Trưởng (deferred).
+- **web/features/exposure** `ScanProgress.tsx`: phase `greenbone` và lượt `stopped` có `snapshot_id` ("The Greenbone part … was stopped. The results of the other checks are saved below").
 - **findings / response / reports**: basis `greenbone` mới với người đọc `VulnRow` theo `version`/`product`/`template`; không thành finding; `Diff` bỏ qua nó.
 
 ## Disabling this module

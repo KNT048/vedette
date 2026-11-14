@@ -428,11 +428,13 @@
       "queued": "Starting",
       "probing": "Probing the target",
       "saving": "Saving the result",
+      "greenbone": "Greenbone scan running (up to 90 minutes). The results of the other checks are already saved; other scans on this box wait until it ends",
       "done": "Done"
     },
     "stop": "Stop",
     "done": "Scan of {{value}} finished. The new result is below.",
     "stopped": "The scan of {{value}} was stopped. Nothing was saved.",
+    "stoppedKept": "The Greenbone part of the scan of {{value}} was stopped. The results of the other checks are saved below.",
     "failed": "The scan of {{value}} failed and nothing was saved. Try again."
   },
   "vulns": {

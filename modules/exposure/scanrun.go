@@ -21,7 +21,10 @@ const (
 	PhaseQueued  = "queued"  // accepted, the goroutine has not started the scan yet
 	PhaseProbing = "probing" // the scan module's runner is scanning the target
 	PhaseSaving  = "saving"  // the result is being limited and stored
-	PhaseDone    = "done"    // the snapshot exists
+	// PhaseGreenbone: the snapshot of the other steps is stored and Greenbone scans the IP (up to 90 minutes, INV-25); the box's one
+	// scan slot stays busy until it ends.
+	PhaseGreenbone = "greenbone"
+	PhaseDone      = "done" // the snapshot exists
 )
 
 // saveTimeout bounds the write of a finished scan, which must not depend on the request that started it.
@@ -66,7 +69,8 @@ func (e *stoppedBy) Error() string { return "stopped by " + e.by }
 
 // begin registers a run and starts it in the background, or refuses (INV-1, INV-18): the gate's reason, no runner (501), another
 // run (409 busy), the same target within ScanEvery (429). The run's context comes from the Service, not from the request, so the
-// scan goes on after the 202 has been sent; it ends when the runner returns, at the 5-minute cap of the runner, or on StopScan.
+// scan goes on after the 202 has been sent; it ends when its last step returns (each step has its own cap: 5 minutes for the runner,
+// service identification and the templates, 8 minutes a page for ZAP, 90 minutes for the optional Greenbone step), or on StopScan.
 func (s *Service) begin(ctx context.Context, user string, t Target, reason BlockedReason) (*scanRun, error) {
 	if reason != "" {
 		return nil, s.refusal(t, reason, s.clock())
@@ -126,8 +130,16 @@ func (s *Service) execute(ctx context.Context, run *scanRun, r Runner, user stri
 	if err == nil {
 		content, err = s.webPassive(ctx, st, content) // INV-24: passive web scan of its web ports
 	}
-	if err == nil {
-		content, err = s.greenboneScan(ctx, st, content) // INV-25: the optional deep scan, last, when enabled and ready
+	gb, pending := false, ""
+	if err == nil { // INV-25: the optional deep scan runs last, after the snapshot of the other steps is stored
+		var line string
+		if gb, line, err = s.greenbonePlan(ctx, st); gb {
+			pending = gbPending(s.momentText(s.clock()))
+			line = pending
+		}
+		if err == nil {
+			content.NotChecked = append(content.NotChecked, NotCheckedRow{Kind: "greenbone", Text: line})
+		}
 	}
 	if err == nil && ctx.Err() != nil { // stopped just as it finished: nothing is stored
 		err = context.Cause(ctx)
@@ -135,6 +147,18 @@ func (s *Service) execute(ctx context.Context, run *scanRun, r Runner, user stri
 	if err == nil {
 		s.setPhase(run, PhaseSaving)
 		run.snap, err = s.saveScan(ctx, user, t, content)
+	}
+	if err == nil && gb { // a stop now keeps the snapshot above; Greenbone's outcome (or that it was stopped) is added to it
+		s.setPhase(run, PhaseGreenbone)
+		o, gerr := s.greenboneStep(ctx, st)
+		if gerr != nil {
+			o.not = append([]NotCheckedRow{{Kind: "greenbone", Text: notGBStopped}}, o.not...)
+			if o.audit == "" {
+				o.audit = "stopped"
+			}
+			err = gerr
+		}
+		s.addGreenbone(ctx, user, t, &run.snap, pending, o)
 	}
 	if err != nil && ctx.Err() != nil && (errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded)) { // the run was cut short; any other error is the real one
 		err = context.Cause(ctx)
@@ -187,7 +211,8 @@ func (s *Service) saveScan(ctx context.Context, user string, t Target, content C
 
 // finish records the end of a run: the audit row of one that ended without a snapshot, and the final state the page reads.
 func (s *Service) finish(ctx context.Context, run *scanRun, user string, t Target, err error) {
-	if err != nil {
+	kept := run.snap.ID != "" // stopped during the Greenbone step: the snapshot of the other steps is stored and already audited
+	if err != nil && !kept {
 		s.auditFailedScan(ctx, user, t, err)
 	}
 	s.runMu.Lock()
@@ -202,6 +227,9 @@ func (s *Service) finish(ctx context.Context, run *scanRun, user string, t Targe
 		v.Status, v.Phase, v.SnapshotID = RunDone, PhaseDone, &run.snap.ID
 	case errors.As(err, &sb):
 		v.Status = RunStopped
+		if kept {
+			v.SnapshotID = &run.snap.ID
+		}
 	case errors.As(err, &ae):
 		v.Status, v.Error = RunFailed, &RunError{Code: ae.Code, Message: ae.Message}
 	default:

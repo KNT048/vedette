@@ -97,9 +97,17 @@ func (h *APIHandlers) privacyFlows(ctx context.Context, p privacySetting) []oas.
 		{ID: 14, State: state(wazuh && h.reg.Enabled("agent-intake")), Control: rs},
 		// D-558: Shodan InternetDB is asked only when an administrator clicks in External exposure (no job)
 		{ID: 15, State: cond(h.reg.Enabled("exposure")), Control: rs},
-		// D-563: Greenbone's own containers download its images and feed only after an administrator enables it in External exposure
-		{ID: 16, State: cond(h.reg.Enabled("exposure")), Control: rs},
+		// D-563: Greenbone's own containers download its images and feed only while an administrator has it enabled in External
+		// exposure, whether the module is on or not; the binary answers through an optional GreenboneEnabled on PrivacyFacts (no answer: off)
+		{ID: 16, State: state(greenboneOn(ctx, h.facts)), Control: rs},
 	}
+}
+
+// greenboneOn is flow 16's state (D-563): on while Greenbone is enabled. Core does not read exposure's tables; the binary's
+// PrivacyFacts may answer it, and a binary that does not (no Greenbone wired, so nothing can be enabled) means off.
+func greenboneOn(ctx context.Context, f PrivacyFacts) bool {
+	g, ok := f.(interface{ GreenboneEnabled(context.Context) bool })
+	return ok && g.GreenboneEnabled(ctx)
 }
 
 // privacyView builds the answer of GET and PATCH /core/privacy. D-82: the anonymous signal is never sent, so

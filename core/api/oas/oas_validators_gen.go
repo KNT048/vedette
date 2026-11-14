@@ -23243,6 +23243,8 @@ func (s ExposureGetExposureScanOKPhase) Validate() error {
 		return nil
 	case "saving":
 		return nil
+	case "greenbone":
+		return nil
 	case "done":
 		return nil
 	default:
@@ -26359,6 +26361,8 @@ func (s ExposurePostExposureScanStopOKPhase) Validate() error {
 		return nil
 	case "saving":
 		return nil
+	case "greenbone":
+		return nil
 	case "done":
 		return nil
 	default:
@@ -26955,6 +26959,8 @@ func (s ExposurePostExposureTargetsIDScanAcceptedPhase) Validate() error {
 	case "probing":
 		return nil
 	case "saving":
+		return nil
+	case "greenbone":
 		return nil
 	case "done":
 		return nil

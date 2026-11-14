@@ -42945,10 +42945,12 @@ type ExposureGetExposureScanOK struct {
 	FinishedAt NilDateTime                       `json:"finished_at"`
 	ID         string                            `json:"id"`
 	// Queued: accepted, about to start; probing: the Vulnerability scans module is scanning the target;
-	// saving: the result is being stored; done: the snapshot exists. A failed or stopped run keeps the
-	// phase it reached.
+	// saving: the result is being stored; greenbone: the snapshot of the other steps is stored and the
+	// optional Greenbone scan runs (up to 90 minutes, D-563), the box's one scan slot stays busy; done:
+	// the snapshot exists. A failed or stopped run keeps the phase it reached.
 	Phase ExposureGetExposureScanOKPhase `json:"phase"`
-	// The new snapshot when status is done.
+	// The new snapshot when status is done; also when a run was stopped during its Greenbone step, whose
+	// earlier results are kept.
 	SnapshotID  NilString                       `json:"snapshot_id"`
 	StartedAt   time.Time                       `json:"started_at"`
 	Status      ExposureGetExposureScanOKStatus `json:"status"`
@@ -43082,15 +43084,17 @@ func (s *ExposureGetExposureScanOKError) SetMessage(val string) {
 }
 
 // Queued: accepted, about to start; probing: the Vulnerability scans module is scanning the target;
-// saving: the result is being stored; done: the snapshot exists. A failed or stopped run keeps the
-// phase it reached.
+// saving: the result is being stored; greenbone: the snapshot of the other steps is stored and the
+// optional Greenbone scan runs (up to 90 minutes, D-563), the box's one scan slot stays busy; done:
+// the snapshot exists. A failed or stopped run keeps the phase it reached.
 type ExposureGetExposureScanOKPhase string
 
 const (
-	ExposureGetExposureScanOKPhaseQueued  ExposureGetExposureScanOKPhase = "queued"
-	ExposureGetExposureScanOKPhaseProbing ExposureGetExposureScanOKPhase = "probing"
-	ExposureGetExposureScanOKPhaseSaving  ExposureGetExposureScanOKPhase = "saving"
-	ExposureGetExposureScanOKPhaseDone    ExposureGetExposureScanOKPhase = "done"
+	ExposureGetExposureScanOKPhaseQueued    ExposureGetExposureScanOKPhase = "queued"
+	ExposureGetExposureScanOKPhaseProbing   ExposureGetExposureScanOKPhase = "probing"
+	ExposureGetExposureScanOKPhaseSaving    ExposureGetExposureScanOKPhase = "saving"
+	ExposureGetExposureScanOKPhaseGreenbone ExposureGetExposureScanOKPhase = "greenbone"
+	ExposureGetExposureScanOKPhaseDone      ExposureGetExposureScanOKPhase = "done"
 )
 
 // AllValues returns all ExposureGetExposureScanOKPhase values.
@@ -43099,6 +43103,7 @@ func (ExposureGetExposureScanOKPhase) AllValues() []ExposureGetExposureScanOKPha
 		ExposureGetExposureScanOKPhaseQueued,
 		ExposureGetExposureScanOKPhaseProbing,
 		ExposureGetExposureScanOKPhaseSaving,
+		ExposureGetExposureScanOKPhaseGreenbone,
 		ExposureGetExposureScanOKPhaseDone,
 	}
 }
@@ -43111,6 +43116,8 @@ func (s ExposureGetExposureScanOKPhase) MarshalText() ([]byte, error) {
 	case ExposureGetExposureScanOKPhaseProbing:
 		return []byte(s), nil
 	case ExposureGetExposureScanOKPhaseSaving:
+		return []byte(s), nil
+	case ExposureGetExposureScanOKPhaseGreenbone:
 		return []byte(s), nil
 	case ExposureGetExposureScanOKPhaseDone:
 		return []byte(s), nil
@@ -43130,6 +43137,9 @@ func (s *ExposureGetExposureScanOKPhase) UnmarshalText(data []byte) error {
 		return nil
 	case ExposureGetExposureScanOKPhaseSaving:
 		*s = ExposureGetExposureScanOKPhaseSaving
+		return nil
+	case ExposureGetExposureScanOKPhaseGreenbone:
+		*s = ExposureGetExposureScanOKPhaseGreenbone
 		return nil
 	case ExposureGetExposureScanOKPhaseDone:
 		*s = ExposureGetExposureScanOKPhaseDone
@@ -47658,10 +47668,12 @@ type ExposurePostExposureScanStopOK struct {
 	FinishedAt NilDateTime                            `json:"finished_at"`
 	ID         string                                 `json:"id"`
 	// Queued: accepted, about to start; probing: the Vulnerability scans module is scanning the target;
-	// saving: the result is being stored; done: the snapshot exists. A failed or stopped run keeps the
-	// phase it reached.
+	// saving: the result is being stored; greenbone: the snapshot of the other steps is stored and the
+	// optional Greenbone scan runs (up to 90 minutes, D-563), the box's one scan slot stays busy; done:
+	// the snapshot exists. A failed or stopped run keeps the phase it reached.
 	Phase ExposurePostExposureScanStopOKPhase `json:"phase"`
-	// The new snapshot when status is done.
+	// The new snapshot when status is done; also when a run was stopped during its Greenbone step, whose
+	// earlier results are kept.
 	SnapshotID  NilString                            `json:"snapshot_id"`
 	StartedAt   time.Time                            `json:"started_at"`
 	Status      ExposurePostExposureScanStopOKStatus `json:"status"`
@@ -47795,15 +47807,17 @@ func (s *ExposurePostExposureScanStopOKError) SetMessage(val string) {
 }
 
 // Queued: accepted, about to start; probing: the Vulnerability scans module is scanning the target;
-// saving: the result is being stored; done: the snapshot exists. A failed or stopped run keeps the
-// phase it reached.
+// saving: the result is being stored; greenbone: the snapshot of the other steps is stored and the
+// optional Greenbone scan runs (up to 90 minutes, D-563), the box's one scan slot stays busy; done:
+// the snapshot exists. A failed or stopped run keeps the phase it reached.
 type ExposurePostExposureScanStopOKPhase string
 
 const (
-	ExposurePostExposureScanStopOKPhaseQueued  ExposurePostExposureScanStopOKPhase = "queued"
-	ExposurePostExposureScanStopOKPhaseProbing ExposurePostExposureScanStopOKPhase = "probing"
-	ExposurePostExposureScanStopOKPhaseSaving  ExposurePostExposureScanStopOKPhase = "saving"
-	ExposurePostExposureScanStopOKPhaseDone    ExposurePostExposureScanStopOKPhase = "done"
+	ExposurePostExposureScanStopOKPhaseQueued    ExposurePostExposureScanStopOKPhase = "queued"
+	ExposurePostExposureScanStopOKPhaseProbing   ExposurePostExposureScanStopOKPhase = "probing"
+	ExposurePostExposureScanStopOKPhaseSaving    ExposurePostExposureScanStopOKPhase = "saving"
+	ExposurePostExposureScanStopOKPhaseGreenbone ExposurePostExposureScanStopOKPhase = "greenbone"
+	ExposurePostExposureScanStopOKPhaseDone      ExposurePostExposureScanStopOKPhase = "done"
 )
 
 // AllValues returns all ExposurePostExposureScanStopOKPhase values.
@@ -47812,6 +47826,7 @@ func (ExposurePostExposureScanStopOKPhase) AllValues() []ExposurePostExposureSca
 		ExposurePostExposureScanStopOKPhaseQueued,
 		ExposurePostExposureScanStopOKPhaseProbing,
 		ExposurePostExposureScanStopOKPhaseSaving,
+		ExposurePostExposureScanStopOKPhaseGreenbone,
 		ExposurePostExposureScanStopOKPhaseDone,
 	}
 }
@@ -47824,6 +47839,8 @@ func (s ExposurePostExposureScanStopOKPhase) MarshalText() ([]byte, error) {
 	case ExposurePostExposureScanStopOKPhaseProbing:
 		return []byte(s), nil
 	case ExposurePostExposureScanStopOKPhaseSaving:
+		return []byte(s), nil
+	case ExposurePostExposureScanStopOKPhaseGreenbone:
 		return []byte(s), nil
 	case ExposurePostExposureScanStopOKPhaseDone:
 		return []byte(s), nil
@@ -47843,6 +47860,9 @@ func (s *ExposurePostExposureScanStopOKPhase) UnmarshalText(data []byte) error {
 		return nil
 	case ExposurePostExposureScanStopOKPhaseSaving:
 		*s = ExposurePostExposureScanStopOKPhaseSaving
+		return nil
+	case ExposurePostExposureScanStopOKPhaseGreenbone:
+		*s = ExposurePostExposureScanStopOKPhaseGreenbone
 		return nil
 	case ExposurePostExposureScanStopOKPhaseDone:
 		*s = ExposurePostExposureScanStopOKPhaseDone
@@ -48764,10 +48784,12 @@ type ExposurePostExposureTargetsIDScanAccepted struct {
 	FinishedAt NilDateTime                                       `json:"finished_at"`
 	ID         string                                            `json:"id"`
 	// Queued: accepted, about to start; probing: the Vulnerability scans module is scanning the target;
-	// saving: the result is being stored; done: the snapshot exists. A failed or stopped run keeps the
-	// phase it reached.
+	// saving: the result is being stored; greenbone: the snapshot of the other steps is stored and the
+	// optional Greenbone scan runs (up to 90 minutes, D-563), the box's one scan slot stays busy; done:
+	// the snapshot exists. A failed or stopped run keeps the phase it reached.
 	Phase ExposurePostExposureTargetsIDScanAcceptedPhase `json:"phase"`
-	// The new snapshot when status is done.
+	// The new snapshot when status is done; also when a run was stopped during its Greenbone step, whose
+	// earlier results are kept.
 	SnapshotID  NilString                                       `json:"snapshot_id"`
 	StartedAt   time.Time                                       `json:"started_at"`
 	Status      ExposurePostExposureTargetsIDScanAcceptedStatus `json:"status"`
@@ -48901,15 +48923,17 @@ func (s *ExposurePostExposureTargetsIDScanAcceptedError) SetMessage(val string) 
 }
 
 // Queued: accepted, about to start; probing: the Vulnerability scans module is scanning the target;
-// saving: the result is being stored; done: the snapshot exists. A failed or stopped run keeps the
-// phase it reached.
+// saving: the result is being stored; greenbone: the snapshot of the other steps is stored and the
+// optional Greenbone scan runs (up to 90 minutes, D-563), the box's one scan slot stays busy; done:
+// the snapshot exists. A failed or stopped run keeps the phase it reached.
 type ExposurePostExposureTargetsIDScanAcceptedPhase string
 
 const (
-	ExposurePostExposureTargetsIDScanAcceptedPhaseQueued  ExposurePostExposureTargetsIDScanAcceptedPhase = "queued"
-	ExposurePostExposureTargetsIDScanAcceptedPhaseProbing ExposurePostExposureTargetsIDScanAcceptedPhase = "probing"
-	ExposurePostExposureTargetsIDScanAcceptedPhaseSaving  ExposurePostExposureTargetsIDScanAcceptedPhase = "saving"
-	ExposurePostExposureTargetsIDScanAcceptedPhaseDone    ExposurePostExposureTargetsIDScanAcceptedPhase = "done"
+	ExposurePostExposureTargetsIDScanAcceptedPhaseQueued    ExposurePostExposureTargetsIDScanAcceptedPhase = "queued"
+	ExposurePostExposureTargetsIDScanAcceptedPhaseProbing   ExposurePostExposureTargetsIDScanAcceptedPhase = "probing"
+	ExposurePostExposureTargetsIDScanAcceptedPhaseSaving    ExposurePostExposureTargetsIDScanAcceptedPhase = "saving"
+	ExposurePostExposureTargetsIDScanAcceptedPhaseGreenbone ExposurePostExposureTargetsIDScanAcceptedPhase = "greenbone"
+	ExposurePostExposureTargetsIDScanAcceptedPhaseDone      ExposurePostExposureTargetsIDScanAcceptedPhase = "done"
 )
 
 // AllValues returns all ExposurePostExposureTargetsIDScanAcceptedPhase values.
@@ -48918,6 +48942,7 @@ func (ExposurePostExposureTargetsIDScanAcceptedPhase) AllValues() []ExposurePost
 		ExposurePostExposureTargetsIDScanAcceptedPhaseQueued,
 		ExposurePostExposureTargetsIDScanAcceptedPhaseProbing,
 		ExposurePostExposureTargetsIDScanAcceptedPhaseSaving,
+		ExposurePostExposureTargetsIDScanAcceptedPhaseGreenbone,
 		ExposurePostExposureTargetsIDScanAcceptedPhaseDone,
 	}
 }
@@ -48930,6 +48955,8 @@ func (s ExposurePostExposureTargetsIDScanAcceptedPhase) MarshalText() ([]byte, e
 	case ExposurePostExposureTargetsIDScanAcceptedPhaseProbing:
 		return []byte(s), nil
 	case ExposurePostExposureTargetsIDScanAcceptedPhaseSaving:
+		return []byte(s), nil
+	case ExposurePostExposureTargetsIDScanAcceptedPhaseGreenbone:
 		return []byte(s), nil
 	case ExposurePostExposureTargetsIDScanAcceptedPhaseDone:
 		return []byte(s), nil
@@ -48949,6 +48976,9 @@ func (s *ExposurePostExposureTargetsIDScanAcceptedPhase) UnmarshalText(data []by
 		return nil
 	case ExposurePostExposureTargetsIDScanAcceptedPhaseSaving:
 		*s = ExposurePostExposureTargetsIDScanAcceptedPhaseSaving
+		return nil
+	case ExposurePostExposureTargetsIDScanAcceptedPhaseGreenbone:
+		*s = ExposurePostExposureTargetsIDScanAcceptedPhaseGreenbone
 		return nil
 	case ExposurePostExposureTargetsIDScanAcceptedPhaseDone:
 		*s = ExposurePostExposureTargetsIDScanAcceptedPhaseDone

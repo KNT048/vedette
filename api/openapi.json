@@ -21917,12 +21917,13 @@
                             "queued",
                             "probing",
                             "saving",
+                            "greenbone",
                             "done"
                           ],
-                          "description": "queued: accepted, about to start; probing: the Vulnerability scans module is scanning the target; saving: the result is being stored; done: the snapshot exists. A failed or stopped run keeps the phase it reached"
+                          "description": "queued: accepted, about to start; probing: the Vulnerability scans module is scanning the target; saving: the result is being stored; greenbone: the snapshot of the other steps is stored and the optional Greenbone scan runs (up to 90 minutes, D-563), the box's one scan slot stays busy; done: the snapshot exists. A failed or stopped run keeps the phase it reached"
                         },
                         "snapshot_id": {
-                          "description": "The new snapshot when status is done",
+                          "description": "The new snapshot when status is done; also when a run was stopped during its Greenbone step, whose earlier results are kept",
                           "type": [
                             "string",
                             "null"
@@ -22052,12 +22053,13 @@
                         "queued",
                         "probing",
                         "saving",
+                        "greenbone",
                         "done"
                       ],
-                      "description": "queued: accepted, about to start; probing: the Vulnerability scans module is scanning the target; saving: the result is being stored; done: the snapshot exists. A failed or stopped run keeps the phase it reached"
+                      "description": "queued: accepted, about to start; probing: the Vulnerability scans module is scanning the target; saving: the result is being stored; greenbone: the snapshot of the other steps is stored and the optional Greenbone scan runs (up to 90 minutes, D-563), the box's one scan slot stays busy; done: the snapshot exists. A failed or stopped run keeps the phase it reached"
                     },
                     "snapshot_id": {
-                      "description": "The new snapshot when status is done",
+                      "description": "The new snapshot when status is done; also when a run was stopped during its Greenbone step, whose earlier results are kept",
                       "type": [
                         "string",
                         "null"
@@ -24034,12 +24036,13 @@
                         "queued",
                         "probing",
                         "saving",
+                        "greenbone",
                         "done"
                       ],
-                      "description": "queued: accepted, about to start; probing: the Vulnerability scans module is scanning the target; saving: the result is being stored; done: the snapshot exists. A failed or stopped run keeps the phase it reached"
+                      "description": "queued: accepted, about to start; probing: the Vulnerability scans module is scanning the target; saving: the result is being stored; greenbone: the snapshot of the other steps is stored and the optional Greenbone scan runs (up to 90 minutes, D-563), the box's one scan slot stays busy; done: the snapshot exists. A failed or stopped run keeps the phase it reached"
                     },
                     "snapshot_id": {
-                      "description": "The new snapshot when status is done",
+                      "description": "The new snapshot when status is done; also when a run was stopped during its Greenbone step, whose earlier results are kept",
                       "type": [
                         "string",
                         "null"

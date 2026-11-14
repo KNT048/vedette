@@ -5,6 +5,7 @@ import (
 	"encoding/xml"
 	"errors"
 	"io"
+	"maps"
 	"net"
 	"os"
 	"slices"
@@ -47,6 +48,24 @@ type fakeGVM struct {
 	families   []string // families sent in the last family_selection
 	logAtStart int      // probe rows in the log when start_task came
 	log        *gbLog
+	owner      string            // owner of Vedette's config; "" = vedette
+	prefs      map[string]string // the checkboxes of "Options for Brute Force NVTs" in Vedette's config
+	noPref     bool              // the feed has no "Disable default account checks"
+	keepNo     bool              // gvmd ignores the change of the checkboxes
+	inUse      bool              // modify_config refused: a task uses the config
+	leftover   string            // the state of a task an earlier scan left behind; "" none
+	fail       map[string]bool   // commands answered with 400
+	hang       map[string]bool   // commands never answered
+	onPoll     func()            // runs (without the lock) at each poll of the task
+	bodies     []string          // every command's attributes and body
+}
+
+const leftoverTask = "cccccccc-dddd-4eee-8fff-000000000000"
+
+func (f *fakeGVM) prefsOf() map[string]string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return maps.Clone(f.prefs)
 }
 
 // with changes the fake under its lock (the session goroutines read it).
@@ -59,9 +78,23 @@ func (f *fakeGVM) seen(cmd string) bool {
 }
 
 func (f *fakeGVM) answer(cmd string, body string) string {
+	if cmd == "get_tasks" && strings.Contains(body, "task_id=") {
+		f.mu.Lock()
+		hook := f.onPoll
+		f.mu.Unlock()
+		if hook != nil {
+			hook()
+		}
+	}
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.cmds = append(f.cmds, cmd)
+	f.cmds, f.bodies = append(f.cmds, cmd), append(f.bodies, body)
+	if f.hang[cmd] {
+		return ""
+	}
+	if f.fail[cmd] {
+		return "<" + cmd + `_response status="400" status_text="Bogus"/>`
+	}
 	ok := func(inner string) string {
 		return "<" + cmd + `_response status="200" status_text="OK">` + inner + "</" + cmd + "_response>"
 	}
@@ -81,7 +114,11 @@ func (f *fakeGVM) answer(cmd string, body string) string {
 		switch {
 		case strings.Contains(body, "filter="):
 			if f.hasConfig {
-				return ok(`<config id="11111111-2222-4333-8444-555555555555"><name>` + GreenboneConfigName + `</name></config>`)
+				owner := f.owner
+				if owner == "" {
+					owner = "vedette"
+				}
+				return ok(`<config id="11111111-2222-4333-8444-555555555555"><name>` + GreenboneConfigName + `</name><owner><name>` + owner + `</name></owner></config>`)
 			}
 			return ok("")
 		case f.noFAF:
@@ -93,6 +130,19 @@ func (f *fakeGVM) answer(cmd string, body string) string {
 		f.hasConfig = true
 		return `<create_config_response status="201" status_text="OK, resource created" id="11111111-2222-4333-8444-555555555555"/>`
 	case "modify_config":
+		if f.inUse {
+			return `<modify_config_response status="400" status_text="Config is in use"/>`
+		}
+		if strings.Contains(body, gmpBruteOID+":") && !f.keepNo {
+			for _, n := range gmpBruteOff {
+				if strings.Contains(body, ":checkbox:"+n+"<") {
+					if f.prefs == nil {
+						f.prefs = map[string]string{}
+					}
+					f.prefs[n] = "yes"
+				}
+			}
+		}
 		if strings.Contains(body, "family_selection") {
 			f.families = nil
 			for _, part := range strings.Split(body, "<family><name>")[1:] {
@@ -111,7 +161,36 @@ func (f *fakeGVM) answer(cmd string, body string) string {
 			f.logAtStart = len(f.log.rows)
 		}
 		return `<start_task_response status="202" status_text="OK, request submitted"><report_id>` + gbReportID + `</report_id></start_task_response>`
+	case "get_preferences":
+		v := func(n string) string {
+			if x, ok := f.prefs[n]; ok {
+				return x
+			}
+			return "no"
+		}
+		out := `<preference><nvt oid="` + gmpBruteOID + `"><name>Options for Brute Force NVTs</name></nvt><id>3</id><hr_name>Disable brute force checks</hr_name><name>Disable brute force checks</name><type>checkbox</type><value>` + v("Disable brute force checks") + `</value></preference>`
+		if !f.noPref {
+			out += `<preference><nvt oid="` + gmpBruteOID + `"/><id>4</id><hr_name>Disable default account checks</hr_name><name>Disable default account checks</name><type>checkbox</type><value>` + v("Disable default account checks") + `</value></preference>`
+		}
+		return ok(out)
+	case "get_targets":
+		if f.leftover != "" {
+			return ok(`<target id="dddddddd-eeee-4fff-8000-111111111111"><name>vedette-scan-old</name><owner><name>vedette</name></owner></target>`)
+		}
+		return ok("")
+	case "stop_task", "delete_task":
+		if strings.Contains(body, leftoverTask) && cmd == "delete_task" {
+			f.leftover = ""
+		}
+		return ok("")
 	case "get_tasks":
+		if strings.Contains(body, "filter=") {
+			out := `<task id="eeeeeeee-ffff-4000-8111-222222222222"><name>vedette-scan-theirs</name><owner><name>someone</name></owner><status>Running</status></task>`
+			if f.leftover != "" {
+				out += `<task id="` + leftoverTask + `"><name>vedette-scan-old</name><owner><name>vedette</name></owner><status>` + f.leftover + `</status></task>`
+			}
+			return ok(out)
+		}
 		st := "Done"
 		if len(f.states) > 0 {
 			st = f.states[0]
@@ -149,7 +228,11 @@ func (f *fakeGVM) serve(conn net.Conn) {
 		for _, a := range se.Attr {
 			attrs += " " + a.Name.Local + "=" + a.Value
 		}
-		if _, err := io.WriteString(conn, f.answer(se.Name.Local, attrs+raw.Inner)); err != nil {
+		a := f.answer(se.Name.Local, attrs+raw.Inner)
+		if a == "" { // a command gvmd never answers
+			continue
+		}
+		if _, err := io.WriteString(conn, a); err != nil {
 			return
 		}
 	}
@@ -200,6 +283,15 @@ func (h *fakeGB) Dial(context.Context) (net.Conn, GMPLogin, error) {
 	client, server := net.Pipe()
 	go h.gvm.serve(server)
 	return client, GMPLogin{User: "vedette", Password: "s3cret<&>"}, nil
+}
+
+func (f *fakeGVM) leftoverState() string { f.mu.Lock(); defer f.mu.Unlock(); return f.leftover }
+
+// touched says a command named the id.
+func (f *fakeGVM) touched(id string) bool {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return slices.ContainsFunc(f.bodies, func(b string) bool { return strings.Contains(b, id) })
 }
 
 func (h *fakeGB) with(fn func(*fakeGB)) { h.mu.Lock(); defer h.mu.Unlock(); fn(h) }
@@ -275,7 +367,7 @@ func TestContract_INV25_ParsesTheReport(t *testing.T) {
 		t.Fatalf("total %d, rows = %+v", total, rows)
 	}
 	terrapin := rows[1]
-	if terrapin.Name != "SSH Transport Protocol Prefix Truncation Attack (Terrapin Attack)" || terrapin.Port != "22/tcp" || terrapin.QoD != 70 || terrapin.Severity != 5.9 ||
+	if terrapin.IP != ipA || terrapin.Name != "SSH Transport Protocol Prefix Truncation Attack (Terrapin Attack)" || terrapin.Port != "22/tcp" || terrapin.QoD != 70 || terrapin.Severity != 5.9 ||
 		!slices.Equal(terrapin.CVEs, []string{"CVE-2023-48795"}) || strings.ContainsAny(terrapin.Solution, "<>") || terrapin.OID != "1.3.6.1.4.1.25623.1.0.151396" {
 		t.Fatalf("terrapin = %+v", terrapin)
 	}
@@ -516,10 +608,13 @@ func TestContract_INV25_ScansTheVerifiedIP(t *testing.T) {
 	e.enable()
 	h.gvm.with(func(g *fakeGVM) { g.states = []string{"Requested", "Running", "Done"} })
 	s := e.scanIP(Content{})
-	if len(s.Greenbone) != 4 || s.Greenbone[0].Severity != 9.8 {
+	if len(s.Greenbone) != 4 || s.Greenbone[0].Severity != 9.8 || s.Greenbone[0].IP != ipA || s.Greenbone[3].IP != ipA {
 		t.Fatalf("greenbone = %+v", s.Greenbone)
 	}
 	gvm := h.gvm
+	if v := gvm.prefsOf(); v["Disable brute force checks"] != "yes" || v["Disable default account checks"] != "yes" {
+		t.Fatalf("brute-force options = %v", v)
+	}
 	if !slices.Equal(gvm.families, []string{"General", "Web application abuses"}) {
 		t.Fatalf("families = %q", gvm.families)
 	}
@@ -527,7 +622,7 @@ func TestContract_INV25_ScansTheVerifiedIP(t *testing.T) {
 	if len(l.rows) != 1 || l.rows[0].IP != ipA || l.rows[0].PortList != GreenbonePortList || !strings.Contains(l.rows[0].Note, "many probes") || gvm.logAtStart != 1 {
 		t.Fatalf("probe log = %+v, rows at start %d", l.rows, gvm.logAtStart)
 	}
-	if !gvm.seen("delete_task") || !gvm.seen("delete_target") || gvm.seen("stop_task") {
+	if !gvm.seen("delete_task") || !gvm.seen("delete_target") || gvm.seen("stop_task") || !slices.Contains(e.auditActions(), "exposure.greenbone_scan") {
 		t.Fatalf("cmds = %q", gvm.cmds)
 	}
 	if !slices.Contains(checkKinds(s), "greenbone") {
@@ -655,7 +750,7 @@ func TestContract_INV25_GreenboneNeverReplacesAVersionRow(t *testing.T) {
 	if s.Vulns[0] != version {
 		t.Fatalf("version row changed: %+v", s.Vulns[0])
 	}
-	if s.Vulns[1].QoD != 99 || s.Vulns[1].Port != 443 || !strings.HasPrefix(s.Vulns[1].Summary, "Scanner: Greenbone, QoD 99.") {
+	if s.Vulns[1].QoD != 99 || s.Vulns[1].Port != 443 || s.Vulns[1].IP != ipA || !strings.HasPrefix(s.Vulns[1].Summary, "Scanner: Greenbone, QoD 99.") {
 		t.Fatalf("greenbone row = %+v", s.Vulns[1])
 	}
 	// without the lookup, Greenbone's CVEs stay in its own section and the page says they were not compared
@@ -696,4 +791,212 @@ func entriesOf(s Snapshot) []string {
 		out = append(out, k)
 	}
 	return out
+}
+
+// ---- review r1 ----
+
+// M2, L2, M4: the brute-force and default-account checkboxes must be read back "yes", a config of another GMP user is not taken, and a
+// config a foreign task uses is said as such; in each case no task is started.
+func TestContract_INV25_SafeConfigFailsClosed(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name string
+		set  func(*fakeGVM)
+		want string
+	}{
+		{"option missing from the feed", func(g *fakeGVM) { g.noPref = true }, `Greenbone (OpenVAS) did not scan: Greenbone's feed has no "Disable default account checks" option`},
+		{"option not kept", func(g *fakeGVM) { g.keepNo = true }, `Greenbone (OpenVAS) did not scan: Greenbone did not keep "Disable brute force checks" on`},
+		{"config of another user", func(g *fakeGVM) { g.hasConfig, g.owner = true, "someone" }, "belongs to another Greenbone user"},
+		{"config in use", func(g *fakeGVM) { g.inUse = true }, "is used by a task Vedette did not start"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			e, h := gbEnv(t)
+			e.enable()
+			h.gvm.with(tc.set)
+			s := e.scanIP(Content{})
+			if h.gvm.seen("create_task") || h.gvm.seen("start_task") || !slices.ContainsFunc(notChecked(s), func(l string) bool { return strings.Contains(l, tc.want) }) {
+				t.Fatalf("cmds %q, not checked %q", h.gvm.cmds, notChecked(s))
+			}
+		})
+	}
+}
+
+// M4: a task an earlier scan left running is stopped and deleted before a new one starts; a task of another GMP user is not touched;
+// one that cannot be deleted while it stops blocks the new task; a failed cleanup is logged, audited and said on the page.
+func TestContract_INV25_LeftoversAndCleanup(t *testing.T) {
+	t.Parallel()
+	e, h := gbEnv(t)
+	e.enable()
+	h.gvm.with(func(g *fakeGVM) { g.leftover = "Running" })
+	s := e.scanIP(Content{})
+	if len(s.Greenbone) != 4 || h.gvm.leftoverState() != "" || h.gvm.touched("eeeeeeee-ffff-4000-8111-222222222222") {
+		t.Fatalf("rows %d, leftover %q, cmds %q", len(s.Greenbone), h.gvm.leftoverState(), h.gvm.cmds)
+	}
+	e2, h2 := gbEnv(t)
+	e2.enable()
+	h2.gvm.with(func(g *fakeGVM) { g.leftover, g.fail = "Stop Requested", map[string]bool{"delete_task": true} })
+	s2 := e2.scanIP(Content{})
+	if h2.gvm.seen("create_task") || !slices.ContainsFunc(notChecked(s2), func(l string) bool { return strings.Contains(l, "still stopping") }) {
+		t.Fatalf("cmds %q, not checked %q", h2.gvm.cmds, notChecked(s2))
+	}
+	e3, h3 := gbEnv(t)
+	e3.enable()
+	h3.gvm.with(func(g *fakeGVM) { g.fail = map[string]bool{"delete_target": true} })
+	s3 := e3.scanIP(Content{})
+	if len(s3.Greenbone) != 4 || !slices.ContainsFunc(notChecked(s3), func(l string) bool {
+		return strings.Contains(l, "delete_target") && strings.Contains(l, "The next scan stops")
+	}) {
+		t.Fatalf("not checked %q", notChecked(s3))
+	}
+	var detail string
+	for _, a := range e3.audits() {
+		if a.Action == "exposure.greenbone_scan" {
+			detail = a.Detail
+		}
+	}
+	if !strings.HasPrefix(detail, "done: 4 results") || !strings.Contains(detail, "delete_target") {
+		t.Fatalf("audit = %q", detail)
+	}
+}
+
+// M5: the snapshot of the other steps is stored before Greenbone starts and the run shows its own phase; Greenbone's rows are added
+// to that snapshot when it ends.
+func TestContract_INV25_SnapshotFirstThenGreenbone(t *testing.T) {
+	t.Parallel()
+	e, h := gbEnv(t)
+	e.enable()
+	var stored int
+	var phase string
+	h.gvm.with(func(g *fakeGVM) {
+		g.states = []string{"Running", "Done"}
+		g.onPoll = func() {
+			if stored == 0 {
+				_ = e.db.Reader().QueryRowContext(context.Background(), `SELECT count(*) FROM exp_snapshot WHERE not_checked LIKE '%runs for up to 90 minutes%'`).Scan(&stored)
+				if r := e.svc.CurrentScan(); r != nil {
+					phase = r.Phase
+				}
+			}
+		}
+	})
+	s := e.scanIP(Content{})
+	if stored != 1 || phase != PhaseGreenbone {
+		t.Fatalf("stored before Greenbone = %d, phase %q", stored, phase)
+	}
+	if len(s.Greenbone) != 4 || slices.ContainsFunc(notChecked(s), func(l string) bool { return strings.Contains(l, "runs for up to 90 minutes") }) {
+		t.Fatalf("greenbone %d, not checked %q", len(s.Greenbone), notChecked(s))
+	}
+}
+
+// M5: a stop during the Greenbone step keeps the snapshot of the other steps, says Greenbone was stopped, stops gvmd's task, and
+// writes one exposure.scan row (the snapshot) and one exposure.greenbone_scan row (stopped).
+func TestContract_INV25_StopKeepsTheEarlierResults(t *testing.T) {
+	t.Parallel()
+	e, h := gbEnv(t)
+	e.enable()
+	e.svc.gb().poll = time.Millisecond
+	h.gvm.with(func(g *fakeGVM) {
+		g.states = []string{"Running"}
+		g.onPoll = func() { e.svc.cancelRun("admin@acme.example") }
+	})
+	ips := e.detect(ipA)
+	if _, err := e.commit(ips[0].ID); err != nil {
+		t.Fatal(err)
+	}
+	e.svc.SetRunner(&fakeRunner{content: Content{Ports: []PortRow{{ipA, 443, "https", "", "", 0, false}}}})
+	if _, err := e.svc.Scan(e.ctx(), "admin@acme.example", ips[0].ID); err == nil {
+		t.Fatal("a stopped run reads as done")
+	}
+	run := e.svc.CurrentScan()
+	if run == nil || run.Status != RunStopped || run.SnapshotID == nil {
+		t.Fatalf("run = %+v", run)
+	}
+	snap, err := e.svc.SnapshotOf(e.ctx(), ips[0].ID, run.StartedAt[:10])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(snap.Ports) != 1 || !slices.Contains(notChecked(snap), notGBStopped) || !h.gvm.seen("stop_task") {
+		t.Fatalf("ports %d, not checked %q, cmds %q", len(snap.Ports), notChecked(snap), h.gvm.cmds)
+	}
+	var rows []string
+	for _, a := range e.audits() {
+		if a.Action == "exposure.scan" || a.Action == "exposure.greenbone_scan" {
+			rows = append(rows, a.Action+" "+a.Detail)
+		}
+	}
+	if len(rows) != 2 || !strings.HasPrefix(rows[1], "exposure.greenbone_scan stopped") {
+		t.Fatalf("audit = %q", rows)
+	}
+}
+
+// M3: a deadline is slow, not unreadable; a slow gvmd soon after Up reads as loading, later as an error that says it was slow.
+func TestContract_INV25_SlowIsNotUnreadable(t *testing.T) {
+	t.Parallel()
+	if _, err := decodeGMP(deadlineReader{}, "get_feeds", nil); !errors.Is(err, errGMPSlow) || errors.Is(err, ErrGMPBad) {
+		t.Fatalf("err = %v", err)
+	}
+	e, h := gbEnv(t)
+	e.enable()
+	h.gvm.with(func(g *fakeGVM) { g.hang = map[string]bool{"get_feeds": true} })
+	g := e.svc.gb()
+	g.mu.Lock()
+	upAt := g.upAt
+	g.mu.Unlock()
+	ctx, cancel := context.WithTimeout(e.ctx(), 50*time.Millisecond)
+	defer cancel()
+	if st, why := e.svc.gbProbe(ctx, upAt); st != GBLoading || why != gbBusyReason {
+		t.Fatalf("soon after Up = %s %q", st, why)
+	}
+	ctx2, cancel2 := context.WithTimeout(e.ctx(), 50*time.Millisecond)
+	defer cancel2()
+	if st, why := e.svc.gbProbe(ctx2, upAt.Add(-GreenboneLoadGrace)); st != GBError || why != gbSlowReason {
+		t.Fatalf("long after Up = %s %q", st, why)
+	}
+}
+
+type deadlineReader struct{}
+
+func (deadlineReader) Read([]byte) (int, error) { return 0, os.ErrDeadlineExceeded }
+
+// L3: a read or a scan that saw "on" just before an administrator turned Greenbone off never starts it again.
+func TestContract_INV25_OffIsNotUndoneByAPoll(t *testing.T) {
+	t.Parallel()
+	e, h := gbEnv(t)
+	e.enable()
+	if _, err := e.svc.SetGreenbone(e.ctx(), "admin@acme.example", false); err != nil {
+		t.Fatal(err)
+	}
+	e.svc.gbStatus(e.ctx(), true) // what a GET that read "on" before the switch does next
+	e.svc.gb().upWG.Wait()
+	h.with(func(h *fakeGB) {
+		if h.ups != 1 {
+			t.Errorf("ups = %d", h.ups)
+		}
+	})
+}
+
+// L1: the note about results that are not kept appears only when more than 200 are kept.
+func TestContract_INV25_TruncationNote(t *testing.T) {
+	t.Parallel()
+	rows := make([]GreenboneRow, maxGreenboneRows+5)
+	for i := range rows {
+		rows[i] = GreenboneRow{IP: ipA, Port: "80/tcp", Severity: 5, Name: "x", QoD: 80}
+	}
+	if got := sanitizeGreenbone(rows); len(got) != maxGreenboneRows {
+		t.Fatalf("kept %d", len(got))
+	}
+}
+
+// L5: flow 16 follows the setting.
+func TestContract_INV25_GreenboneEnabled(t *testing.T) {
+	t.Parallel()
+	e, _ := gbEnv(t)
+	if e.svc.GreenboneEnabled(e.ctx()) {
+		t.Fatal("on by default")
+	}
+	e.enable()
+	if !e.svc.GreenboneEnabled(e.ctx()) {
+		t.Fatal("off after enable")
+	}
 }

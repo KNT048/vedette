@@ -133,13 +133,13 @@ export const Gateway = z.object({
   open_exploited: z.number().int().describe('Open findings (exploited vulnerabilities, confirmed or suspected) of that device; 0 when device_id is null'),
 })
 export const TargetList = z.object({ items: z.array(Target), box_ip: BoxIpSettings, ignored: z.array(IgnoredIp).describe('The Ignored list, newest first'), gateway: Gateway.nullable().describe('null unless one of the box\'s own IPs has an open port in its newest scan; then who probably answers it (D-492)') })
-export const ScanPhase = z.enum(['queued', 'probing', 'saving', 'done'])
+export const ScanPhase = z.enum(['queued', 'probing', 'saving', 'greenbone', 'done'])
 export const ScanRun = z.object({
   id: z.string(), target_id: z.string(), target_value: z.string(), by: z.string().describe('Who pressed Scan now (an e-mail)'),
   started_at: z.iso.datetime(), finished_at: z.iso.datetime().nullable(),
   status: z.enum(['running', 'done', 'failed', 'stopped']),
-  phase: ScanPhase.describe('queued: accepted, about to start; probing: the Vulnerability scans module is scanning the target; saving: the result is being stored; done: the snapshot exists. A failed or stopped run keeps the phase it reached'),
-  snapshot_id: z.string().nullable().describe('The new snapshot when status is done'),
+  phase: ScanPhase.describe('queued: accepted, about to start; probing: the Vulnerability scans module is scanning the target; saving: the result is being stored; greenbone: the snapshot of the other steps is stored and the optional Greenbone scan runs (up to 90 minutes, D-563), the box\'s one scan slot stays busy; done: the snapshot exists. A failed or stopped run keeps the phase it reached'),
+  snapshot_id: z.string().nullable().describe('The new snapshot when status is done; also when a run was stopped during its Greenbone step, whose earlier results are kept'),
   error: z.object({ code: z.string(), message: z.string() }).nullable().describe('Why the run failed, in the same codes and texts the synchronous scan used (unreachable, too_many, module_off ...); null otherwise'),
 })
 

@@ -756,30 +756,9 @@ func hostSources(t *testing.T) map[string]*ast.File {
 	return files
 }
 
-// shellLiteralExceptions are the reviewed declarations where a shell word is an argv word of a fixed command line, never a
-// shell: "<file>:<declaration name>" -> why. The exception covers that one const/var/func only.
-var shellLiteralExceptions = map[string]string{
-	"host/ops/zapconf.go:zapConfFlag": `"-c" is zap-baseline.py's rules-file option in zap.baseline's fixed argv (D-525); no shell runs`,
-}
-
 func TestContract_FORBID1_NoShellNoGenericExec(t *testing.T) {
 	t.Parallel()
-	used := map[string]bool{}
 	for path, f := range hostSources(t) {
-		file := strings.TrimPrefix(filepath.ToSlash(path), "../../")
-		excepted := map[ast.Node]string{} // shell literals inside a reviewed declaration -> its key
-		for _, u := range declUnits(f) {
-			for _, n := range u.names {
-				if key := file + ":" + n; shellLiteralExceptions[key] != "" {
-					ast.Inspect(u.node, func(m ast.Node) bool {
-						if lit, ok := m.(*ast.BasicLit); ok {
-							excepted[lit] = key
-						}
-						return true
-					})
-				}
-			}
-		}
 		for _, imp := range f.Imports {
 			switch imp.Path.Value {
 			case `"os/exec"`:
@@ -798,20 +777,11 @@ func TestContract_FORBID1_NoShellNoGenericExec(t *testing.T) {
 				}
 			case *ast.BasicLit:
 				if x.Kind == token.STRING && slices.Contains([]string{`"sh"`, `"/bin/sh"`, `"bash"`, `"/bin/bash"`, `"-c"`, `"/bin/sh -c"`}, x.Value) {
-					if key, ok := excepted[x]; ok && x.Value == `"-c"` {
-						used[key] = true
-						return true
-					}
 					t.Errorf("%s contains the shell literal %s", path, x.Value)
 				}
 			}
 			return true
 		})
-	}
-	for k := range shellLiteralExceptions {
-		if !used[k] {
-			t.Errorf("the reviewed exception %s suppressed no shell literal: remove it", k)
-		}
 	}
 }
 

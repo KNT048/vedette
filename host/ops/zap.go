@@ -15,7 +15,6 @@ import (
 	"slices"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/knt048/vedette/core/egressip"
@@ -44,7 +43,7 @@ import (
 //  5. The container: --rm, --read-only (tmpfs for ZAP's home, podman's own for /tmp and /run), --cap-drop ALL, no-new-privileges,
 //     Vedette's AppArmor profile (D-458), 1 GiB without swap, 256 pids, the image's zap user, a JVM heap of 512 MiB, -silent (no
 //     update check, no call home), spider 1 minute, passive rules 5 minutes, no form posted (the traditional runner, --autooff,
-//     D-525), the host's fixed rules file (-c, zapConf), never -a (active scan), -j (AJAX spider) or -u.
+//     D-525), never -a (active scan), -j (AJAX spider) or -u.
 //  6. After the run, on every path: the container is removed (only one that carries zapLabel) and must then be proven gone, and only
 //     then is the nft table deleted (a ZAP that may still run keeps its fence); then the work directory and the marker zap/active go.
 //     What cannot be proven gone keeps the table and the marker, is audited (zap_cleanup_incomplete), and is tried again by the next
@@ -216,8 +215,7 @@ func zapRmArgv() []string         { return []string{"rm", "--force", "--ignore",
 const zapMountOpts = ":rw,nosuid,nodev,noexec"
 
 // zapRunArgv is the one podman run. addHost is "<name>:<ip>" for a domain's page and "" for an IP's; wrk is the work directory.
-// --autooff pins zap-baseline.py's traditional runner, where the -z spider options apply (D-525); -c names the rules file the host
-// wrote into wrk (zapConf), and no other.
+// --autooff pins zap-baseline.py's traditional runner, where the -z spider options apply (D-525).
 func zapRunArgv(pageURL, addHost, wrk string) []string {
 	a := []string{"--module", AppArmorConfModule, "run", "--rm", "--pull=never", "--name", zapContainer, "--label", zapLabel, "--network", zapNetwork, "--dns", "none"}
 	if addHost != "" {
@@ -226,7 +224,7 @@ func zapRunArgv(pageURL, addHost, wrk string) []string {
 	return append(a, "--cap-drop", "ALL", "--security-opt", "no-new-privileges", "--read-only", "--tmpfs", zapTmpfs,
 		"--volume", wrk+":"+zapWorkDir+zapMountOpts, "--user", "1000:1000", "--memory=1g", "--memory-swap=1g", "--pids-limit=256", "--no-healthcheck",
 		"--workdir", zapCwd,
-		zapImage, "zap-baseline.py", "--autooff", "-t", pageURL, "-m", "1", "-T", "5", zapConfFlag, zapConfName, "-J", zapReportName, "-z", zapOptions)
+		zapImage, "zap-baseline.py", "--autooff", "-t", pageURL, "-m", "1", "-T", "5", "-J", zapReportName, "-z", zapOptions)
 }
 
 func (p zapPage) runArgv(wrk string) []string {
@@ -468,26 +466,25 @@ func (o *Ops) zapBaseline(ctx context.Context, logf func(string), p zapPage) (an
 		return nil, err
 	}
 	if err := privDir(o.zapDir(), o.cfg.OwnerUID); err != nil {
-		return nil, fail(api.CodeZapFenceFailed, "The host could not prepare its folder for the web scan.")
+		return nil, fail(api.CodeZapFailed, "The host could not prepare its folder for the web scan.")
 	}
 	o.zapClearReports()
 	// From here on the box holds things of this run: the marker says so to the next start if this process dies.
 	if err := writeFileAtomic(filepath.Join(o.zapDir(), "active"), []byte(p.url+"\n"), 0o600); err != nil {
-		return nil, fail(api.CodeZapFenceFailed, "The host could not prepare its folder for the web scan.")
+		return nil, fail(api.CodeZapFailed, "The host could not prepare its folder for the web scan.")
 	}
 	defer func() { _ = o.zapCleanup(context.WithoutCancel(ctx)) }()
 	if err := o.zapFence(ctx, p); err != nil {
 		return nil, err
 	}
+	// A work folder that cannot be made is the host's own disk, not the fence: zap_failed, so the page's line does not send the
+	// operator to the network (review TUNE-3 L3).
 	wrk := filepath.Join(o.zapDir(), "wrk")
 	if err := os.Mkdir(wrk, 0o700); err != nil {
-		return nil, fail(api.CodeZapFenceFailed, "The host could not prepare the work folder of the web scan.")
+		return nil, fail(api.CodeZapFailed, "The host could not prepare the work folder of the web scan.")
 	}
 	if err := os.Chown(wrk, o.zapOwner(), o.zapOwner()); err != nil {
-		return nil, fail(api.CodeZapFenceFailed, "The host could not prepare the work folder of the web scan.")
-	}
-	if err := o.zapWriteConf(wrk); err != nil {
-		return nil, fail(api.CodeZapFenceFailed, "The host could not prepare the work folder of the web scan.")
+		return nil, fail(api.CodeZapFailed, "The host could not prepare the work folder of the web scan.")
 	}
 	logf("passive web scan of " + p.url + " pinned to " + p.ip.String() + ":" + strconv.Itoa(p.port) + " (ZAP baseline, spider 1 minute, passive rules)")
 	_, code, err := o.zx()(ctx, binPodman, nil, p.runArgv(wrk)...)
@@ -502,6 +499,8 @@ func (o *Ops) zapBaseline(ctx context.Context, logf func(string), p zapPage) (an
 		logf("ZAP ended with exit code " + strconv.Itoa(code))
 		msg := "ZAP ended without a report (exit code " + strconv.Itoa(code) + ")."
 		switch {
+		case code == 3: // the traditional runner ends so when it cannot reach the page, finds no URL there, or cannot start (D-525)
+			msg = "ZAP ended without a report (exit code 3): it could not reach the page from this box, found no page there, or could not start."
 		case code == 137:
 			msg = "ZAP was stopped, most likely because it reached the 1 GiB memory limit (exit code 137)."
 		case code >= zapNoRun && code <= zapNoRun+2:
@@ -515,23 +514,6 @@ func (o *Ops) zapBaseline(ctx context.Context, logf func(string), p zapPage) (an
 	}
 	logf("ZAP finished with exit code " + strconv.Itoa(code) + "; report " + strconv.FormatInt(size, 10) + " bytes")
 	return api.ZapBaselineResult{ReportID: id, Size: size, ExitCode: code}, nil
-}
-
-// zapWriteConf writes the rules file zapConf into the fresh work directory: a new file (never through a link or over one), 0600,
-// owned by the image's zap user, who reads it as -c.
-func (o *Ops) zapWriteConf(wrk string) error {
-	f, err := os.OpenFile(filepath.Join(wrk, zapConfName), os.O_WRONLY|os.O_CREATE|os.O_EXCL|syscall.O_NOFOLLOW, 0o600) //nolint:gosec // a fixed name in the host's own fresh work directory
-	if err != nil {
-		return err
-	}
-	_, err = f.WriteString(zapConf)
-	if err == nil {
-		err = f.Chown(o.zapOwner(), o.zapOwner())
-	}
-	if cerr := f.Close(); err == nil {
-		err = cerr
-	}
-	return err
 }
 
 // zapOwner is the uid the work directory is given to (Deps.ZapUID in tests, the image's zap user otherwise).

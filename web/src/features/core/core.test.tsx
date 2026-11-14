@@ -453,11 +453,11 @@ describe('core: quyền riêng tư (S-CORE-4)', () => {
     expect((await screen.findAllByText('Your own feeds right now: intel.partner.example.')).length).toBeGreaterThan(0)
     expect(document.body.textContent).not.toContain('s3cret')
   })
-  it('hiện đủ 14 luồng; tín hiệu ẩn danh ghi "không gửi", không công tắc, không payload (D-82, D-153)', async () => {
+  it('hiện đủ 15 luồng; tín hiệu ẩn danh ghi "không gửi", không công tắc, không payload (D-82, D-153)', async () => {
     renderApp('/settings/privacy')
     const table = await screen.findByRole('table', { name: 'Data flows that leave the box' })
-    expect(within(table).getAllByRole('row')).toHaveLength(15)
-    for (const n of ['MCP server, read by tools you connect', 'Pull feeds directly from their sources', 'Anonymous signal', 'AI assistant', 'Data sources that need a key', 'Notifications', 'Update check', 'Forwarding to a SIEM', 'News about a CVE', 'External exposure', 'Time sync', 'Single sign-on', 'Connections you add']) expect(within(table).getAllByText(new RegExp(n)).length).toBeGreaterThan(0)
+    expect(within(table).getAllByRole('row')).toHaveLength(16)
+    for (const n of ['MCP server, read by tools you connect', 'Pull feeds directly from their sources', 'Anonymous signal', 'AI assistant', 'Data sources that need a key', 'Notifications', 'Update check', 'Forwarding to a SIEM', 'News about a CVE', 'External exposure', 'Time sync', 'Single sign-on', 'Connections you add', 'Outside view of your public IP']) expect(within(table).getAllByText(new RegExp(n)).length).toBeGreaterThan(0)
     expect(screen.queryByRole('switch', { name: 'Send anonymous signal' })).toBeNull()
     expect(document.querySelector('pre code')).toBeNull()
     expect(screen.getByText(/Anonymous signal: not sent\. The box sends nothing to the Vedette project\./)).toBeInTheDocument()

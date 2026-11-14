@@ -15,6 +15,7 @@ import { ScanProgress } from './ScanProgress'
 import { CommitmentPanel } from './CommitmentPanel'
 import { OwnerChip } from './OwnerChip'
 import { RemoveDialog } from './RemoveDialog'
+import { OutsidePanel } from './OutsidePanel'
 import { ResultsPanel } from './ResultsPanel'
 import { VerifyPanel } from './VerifyPanel'
 import type { Target } from './types'
@@ -85,6 +86,7 @@ function TargetView({ target }: { target: Target }) {
         </Section>
       ) : null}
       <ResultsPanel target={target} blockedText={blocked} />
+      {target.kind === 'ip' ? <OutsidePanel target={target} /> : null}
     </>
   )
 }

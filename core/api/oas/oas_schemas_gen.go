@@ -46266,13 +46266,23 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneItem) SetSolution(v
 }
 
 type ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRun struct {
+	// A domain's run: the OpenVAS state of each deep-scanned address (D-571); [] for an IP.
+	Addresses []ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunAddressesItem `json:"addresses"`
 	// When the OpenVAS step started; null when it did not.
 	StartedAt NilDateTime `json:"started_at"`
 	// Running: OpenVAS scans now (the other results are saved); done: it finished; partial: the 90-minute
 	// cap stopped it and its rows are what it had found by then; not_run: it did not scan (the not_checked
-	// line of kind greenbone says why); failed: it failed or its answer could not be read; stopped: a
-	// Stop, the module or a restart of the box ended it.
+	// line of kind greenbone says why; also a task that stayed queued for 90 minutes); failed: it failed
+	// or its answer could not be read; stopped: a Stop, the module or a restart of the box ended it (a
+	// domain keeps the rows of the addresses that finished); ended: it scanned and ended before it
+	// finished by itself (OpenVAS stopped or interrupted it, or the domain fence did), with the rows it
+	// had found if any.
 	State ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunState `json:"state"`
+}
+
+// GetAddresses returns the value of Addresses.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRun) GetAddresses() []ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunAddressesItem {
+	return s.Addresses
 }
 
 // GetStartedAt returns the value of StartedAt.
@@ -46285,6 +46295,11 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRun) GetState() Exp
 	return s.State
 }
 
+// SetAddresses sets the value of Addresses.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRun) SetAddresses(val []ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunAddressesItem) {
+	s.Addresses = val
+}
+
 // SetStartedAt sets the value of StartedAt.
 func (s *ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRun) SetStartedAt(val NilDateTime) {
 	s.StartedAt = val
@@ -46295,10 +46310,114 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRun) SetState(val E
 	s.State = val
 }
 
+type ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunAddressesItem struct {
+	IP    string                                                                    `json:"ip"`
+	State ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunAddressesItemState `json:"state"`
+}
+
+// GetIP returns the value of IP.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunAddressesItem) GetIP() string {
+	return s.IP
+}
+
+// GetState returns the value of State.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunAddressesItem) GetState() ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunAddressesItemState {
+	return s.State
+}
+
+// SetIP sets the value of IP.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunAddressesItem) SetIP(val string) {
+	s.IP = val
+}
+
+// SetState sets the value of State.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunAddressesItem) SetState(val ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunAddressesItemState) {
+	s.State = val
+}
+
+type ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunAddressesItemState string
+
+const (
+	ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunAddressesItemStateRunning ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunAddressesItemState = "running"
+	ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunAddressesItemStateDone    ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunAddressesItemState = "done"
+	ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunAddressesItemStatePartial ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunAddressesItemState = "partial"
+	ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunAddressesItemStateNotRun  ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunAddressesItemState = "not_run"
+	ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunAddressesItemStateFailed  ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunAddressesItemState = "failed"
+	ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunAddressesItemStateStopped ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunAddressesItemState = "stopped"
+	ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunAddressesItemStateEnded   ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunAddressesItemState = "ended"
+)
+
+// AllValues returns all ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunAddressesItemState values.
+func (ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunAddressesItemState) AllValues() []ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunAddressesItemState {
+	return []ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunAddressesItemState{
+		ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunAddressesItemStateRunning,
+		ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunAddressesItemStateDone,
+		ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunAddressesItemStatePartial,
+		ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunAddressesItemStateNotRun,
+		ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunAddressesItemStateFailed,
+		ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunAddressesItemStateStopped,
+		ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunAddressesItemStateEnded,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunAddressesItemState) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunAddressesItemStateRunning:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunAddressesItemStateDone:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunAddressesItemStatePartial:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunAddressesItemStateNotRun:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunAddressesItemStateFailed:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunAddressesItemStateStopped:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunAddressesItemStateEnded:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunAddressesItemState) UnmarshalText(data []byte) error {
+	switch ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunAddressesItemState(data) {
+	case ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunAddressesItemStateRunning:
+		*s = ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunAddressesItemStateRunning
+		return nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunAddressesItemStateDone:
+		*s = ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunAddressesItemStateDone
+		return nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunAddressesItemStatePartial:
+		*s = ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunAddressesItemStatePartial
+		return nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunAddressesItemStateNotRun:
+		*s = ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunAddressesItemStateNotRun
+		return nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunAddressesItemStateFailed:
+		*s = ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunAddressesItemStateFailed
+		return nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunAddressesItemStateStopped:
+		*s = ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunAddressesItemStateStopped
+		return nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunAddressesItemStateEnded:
+		*s = ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunAddressesItemStateEnded
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 // Running: OpenVAS scans now (the other results are saved); done: it finished; partial: the 90-minute
 // cap stopped it and its rows are what it had found by then; not_run: it did not scan (the not_checked
-// line of kind greenbone says why); failed: it failed or its answer could not be read; stopped: a
-// Stop, the module or a restart of the box ended it.
+// line of kind greenbone says why; also a task that stayed queued for 90 minutes); failed: it failed
+// or its answer could not be read; stopped: a Stop, the module or a restart of the box ended it (a
+// domain keeps the rows of the addresses that finished); ended: it scanned and ended before it
+// finished by itself (OpenVAS stopped or interrupted it, or the domain fence did), with the rows it
+// had found if any.
 type ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunState string
 
 const (
@@ -46308,6 +46427,7 @@ const (
 	ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunStateNotRun  ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunState = "not_run"
 	ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunStateFailed  ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunState = "failed"
 	ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunStateStopped ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunState = "stopped"
+	ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunStateEnded   ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunState = "ended"
 )
 
 // AllValues returns all ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunState values.
@@ -46319,6 +46439,7 @@ func (ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunState) AllValues() 
 		ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunStateNotRun,
 		ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunStateFailed,
 		ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunStateStopped,
+		ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunStateEnded,
 	}
 }
 
@@ -46336,6 +46457,8 @@ func (s ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunState) MarshalTex
 	case ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunStateFailed:
 		return []byte(s), nil
 	case ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunStateStopped:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunStateEnded:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -46362,6 +46485,9 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunState) Unmarshal
 		return nil
 	case ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunStateStopped:
 		*s = ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunStateStopped
+		return nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunStateEnded:
+		*s = ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunStateEnded
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)

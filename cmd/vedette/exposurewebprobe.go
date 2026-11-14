@@ -20,9 +20,15 @@ var _ exposure.GreenboneProbeLog = exposureProbeLog{}
 // fails.
 func (l exposureProbeLog) RecordGreenboneProbe(ctx context.Context, p exposure.GreenboneProbe) error {
 	return scanService(l.d).RecordExternalProbes(ctx, []scan.ExternalProbe{{
-		ID: p.ID, IP: p.IP, Label: p.IP, Template: "exposure: OpenVAS (Greenbone CE), config " + p.Config,
-		Request: fmt.Sprintf("planned: OpenVAS scan of %s, port list %s. %s", p.IP, p.PortList, p.Note),
+		ID: p.ID, IP: p.IP, Label: p.IP, Template: "exposure: OpenVAS (Greenbone CE), config " + p.Config, Request: greenboneProbeRequest(p),
 	}})
+}
+
+// greenboneProbeRequest is the probe row's text: the domain fence note first, then the port list (exposure clips it, with the count),
+// then the note on OpenVAS's many probes. The scan module clips the text at 300 characters, so the fence note (LEGAL §3: why a
+// non-box address was probed) is never the part that is cut (D-595 review M4).
+func greenboneProbeRequest(p exposure.GreenboneProbe) string {
+	return fmt.Sprintf("planned: OpenVAS scan of %s. %sPort list %s. %s", p.IP, p.Fence, p.PortList, p.Note)
 }
 
 // RecordWebProbe writes the row of one page before zap.baseline is asked (exposure INV-24): the address and port ZAP is pinned to,

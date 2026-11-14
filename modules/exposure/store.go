@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/netip"
 	"slices"
 	"strings"
 	"time"
@@ -368,9 +369,10 @@ func loadSnapshot(ctx context.Context, q querier, targetID, date string) (Snapsh
 	return s, true, nil
 }
 
-// storedGreenboneRun is the state of a stored OpenVAS step (N49-3, D-595), checked: a state that is not one, or a start that is not a
-// time, is not believed. A snapshot older than the column ('{}') gets the state its lines say: a check row is done; the old waiting
-// line or the stop line is stopped (nothing runs it any more); a failure line is failed; else it did not run.
+// storedGreenboneRun is the state of a stored OpenVAS step (N49-3, D-595), checked: a state that is not one, a start that is not a
+// time, or an address that is not one is not believed. A snapshot older than the column ('{}') gets the state its lines say (a
+// domain's lines carry the address in front, review L1): a check row is done; the old waiting line or the stop line is stopped (nothing
+// runs it any more); a failure line is failed; else it did not run.
 func storedGreenboneRun(r GreenboneRun, c Content) GreenboneRun {
 	if r.StartedAt != nil {
 		if t, err := time.Parse(time.RFC3339Nano, *r.StartedAt); err != nil {
@@ -380,6 +382,13 @@ func storedGreenboneRun(r GreenboneRun, c Content) GreenboneRun {
 			r.StartedAt = &at
 		}
 	}
+	addrs := []GreenboneAddr{}
+	for _, a := range r.Addresses {
+		if ip, err := netip.ParseAddr(a.IP); err == nil && ip.String() == a.IP && slices.Contains(gbRunStates, a.State) && len(addrs) < maxGBAddrs {
+			addrs = append(addrs, a)
+		}
+	}
+	r.Addresses = addrs
 	if slices.Contains(gbRunStates, r.State) {
 		return r
 	}
@@ -387,17 +396,21 @@ func storedGreenboneRun(r GreenboneRun, c Content) GreenboneRun {
 	for _, n := range c.NotChecked {
 		switch {
 		case n.Kind != "greenbone":
-		case strings.HasPrefix(n.Text, "OpenVAS started at "), n.Text == notGBStopped:
+		case strings.Contains(n.Text, "OpenVAS started at "), strings.HasSuffix(n.Text, notGBStopped):
 			r.State = GBRunStopped
-		case n.Text == notGBFail, n.Text == notGBUnread, n.Text == notGBSlowAnswer, n.Text == notGBSlowOld:
+		case r.State == GBRunStopped:
+		case strings.HasSuffix(n.Text, notGBFail), strings.HasSuffix(n.Text, notGBUnread), strings.HasSuffix(n.Text, notGBSlowAnswer), strings.HasSuffix(n.Text, notGBSlowOld):
 			r.State = GBRunFailed
 		}
 	}
-	if slices.ContainsFunc(c.Checks, func(k CheckRow) bool { return k.Kind == "greenbone" }) {
+	if r.State != GBRunStopped && slices.ContainsFunc(c.Checks, func(k CheckRow) bool { return k.Kind == "greenbone" }) {
 		r.State = GBRunDone
 	}
 	return r
 }
+
+// maxGBAddrs bounds the addresses of a stored OpenVAS state (a domain's run reaches at most MaxDeepIPs).
+const maxGBAddrs = 16
 
 // previousSnapshot returns the newest snapshot of `date` or an earlier day (the last observation: a scan earlier today counts), or
 // ok=false when there is none.

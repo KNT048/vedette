@@ -16,6 +16,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/knt048/vedette/core/api/oas"
@@ -73,6 +74,10 @@ type fakeGVM struct {
 	stopTo      string          // after a stop_task of the scan's task, get_tasks says this state ("" keeps the states)
 	portRange   string          // the port_range of the last create_port_list
 	hadLeftover bool            // an earlier scan's task was listed: its port list is there too
+	ranges      []string        // the port_range of every create_port_list
+	lastHost    string          // the hosts of the last create_target: the report's rows of ipA are this address's
+	ran         bool            // the task was served "Running" once: its progress is 50 from then on, -1 before
+	hangOnce    map[string]bool // commands not answered the first time they come
 }
 
 const leftoverTask = "cccccccc-dddd-4eee-8fff-000000000000"
@@ -135,6 +140,10 @@ func (f *fakeGVM) answer(cmd string, body string) string {
 	defer f.mu.Unlock()
 	f.cmds, f.bodies = append(f.cmds, cmd), append(f.bodies, body)
 	if f.hang[cmd] {
+		return ""
+	}
+	if f.hangOnce[cmd] {
+		delete(f.hangOnce, cmd)
 		return ""
 	}
 	if f.fail[cmd] {
@@ -232,8 +241,10 @@ func (f *fakeGVM) answer(cmd string, body string) string {
 		return ok("")
 	case "create_port_list":
 		f.portRange = body[strings.Index(body, "<port_range>")+len("<port_range>") : strings.Index(body, "</port_range>")]
+		f.ranges = append(f.ranges, f.portRange)
 		return `<create_port_list_response status="201" status_text="OK, resource created" id="ffffffff-aaaa-4bbb-8ccc-dddddddddddd"/>`
 	case "create_target":
+		f.lastHost = body[strings.Index(body, "<hosts>")+len("<hosts>") : strings.Index(body, "</hosts>")]
 		return `<create_target_response status="201" status_text="OK, resource created" id="aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee"/>`
 	case "create_task":
 		f.taskConfig = body[strings.Index(body, `config id="`)+len(`config id="`):]
@@ -297,8 +308,16 @@ func (f *fakeGVM) answer(cmd string, body string) string {
 				f.states = f.states[1:]
 			}
 		}
-		return ok(`<task id="bbbbbbbb-cccc-4ddd-8eee-ffffffffffff"><name>x</name><status>` + st + `</status><progress>50</progress></task>`)
+		f.ran = f.ran || st == "Running"
+		progress := "-1"
+		if f.ran {
+			progress = "50"
+		}
+		return ok(`<task id="bbbbbbbb-cccc-4ddd-8eee-ffffffffffff"><name>x</name><status>` + st + `</status><progress>` + progress + `</progress></task>`)
 	case "get_reports":
+		if f.lastHost != "" {
+			return strings.ReplaceAll(f.report, ipA, f.lastHost)
+		}
 		return f.report
 	}
 	return ok("")
@@ -922,64 +941,170 @@ func TestContract_INV25_WhenItDoesNotRun(t *testing.T) {
 	})
 }
 
-// INV-25, D-595: a scan that does not finish within the cap is stopped, and what it had found by then is read and shown with the line
-// that says so (never "not shown" when rows exist); the task is then deleted. When that report cannot be read, the old line stays.
+// gbEmptyReport is a report of the scan's task with no result.
+const gbEmptyReport = `<get_reports_response status="200" status_text="OK"><report id="` + gbReportID + `"><report id="` + gbReportID + `"><results></results></report></report></get_reports_response>`
+
+// gbAudit is the detail of the last exposure.greenbone_scan audit row.
+func (e *env) gbAudit() string {
+	var detail string
+	for _, a := range e.audits() {
+		if a.Action == "exposure.greenbone_scan" {
+			detail = a.Detail
+		}
+	}
+	return detail
+}
+
+// INV-25, D-595: what the 90-minute cap leaves, on the bubble's clock (testing/synctest: the cap and the polls are the real 90 minutes and
+// 15 seconds, and no test waits for them). A task that scanned is stopped and what it had found is shown with the line that says so;
+// one that never left Requested did not run (review M2); one that reached Done after the stop is done; a report the cap cut while gvmd
+// had finished, or a task still stopping when the 5-minute budget ends, is read again over a new session (review L5); only a report
+// that cannot be read at all says "not shown".
 func TestContract_INV25_Timeout(t *testing.T) {
 	t.Parallel()
-	t.Run("partial rows", func(t *testing.T) {
-		t.Parallel()
+	for _, tc := range []struct {
+		name          string
+		set           func(*fakeGVM)
+		poll          time.Duration
+		state, line   string
+		rows          int
+		check, prefix string // the check line's start ("" none), the audit's start
+	}{
+		{"partial rows", func(g *fakeGVM) { g.states, g.stopTo = []string{"Running"}, "Stopped" }, gbPollDefault, GBRunPartial, notGBPartial, 4,
+			"OpenVAS partly scanned " + ipA, "stopped after 90 minutes: 4 results, "},
+		{"partial without rows", func(g *fakeGVM) { g.states, g.stopTo, g.report = []string{"Running"}, "Stopped", gbEmptyReport }, gbPollDefault, GBRunPartial, notGBPartialNone, 0,
+			"OpenVAS partly scanned " + ipA, "stopped after 90 minutes: 0 results"},
+		{"never left Requested", func(g *fakeGVM) { g.states, g.stopTo, g.report = []string{"Requested"}, "Stopped", gbEmptyReport }, gbPollDefault, GBRunNotRun, notGBQueued, 0,
+			"", "not done: did not start scanning within 90 minutes"},
+		{"Done right after the stop", func(g *fakeGVM) { g.states, g.stopTo = []string{"Running"}, "Done" }, gbPollDefault, GBRunDone, "", 4,
+			"OpenVAS scanned " + ipA, "done: 4 results"},
+		// Done comes at the third poll (89 minutes), and its report read hangs into the cap: read again over a new session
+		{"the cap cut the report of a finished task", func(g *fakeGVM) {
+			g.states, g.hangOnce = []string{"Running", "Running", "Done"}, map[string]bool{"get_reports": true}
+		}, 89 * time.Minute / 2, GBRunDone, "", 4, "OpenVAS scanned " + ipA, "done: 4 results"},
+		{"still stopping when the budget ends", func(g *fakeGVM) { g.states, g.stopTo = []string{"Running"}, "Stop Requested" }, gbPollDefault, GBRunPartial, notGBPartial, 4,
+			"OpenVAS partly scanned " + ipA, "stopped after 90 minutes: 4 results"},
+		{"report unreadable", func(g *fakeGVM) {
+			g.states, g.stopTo, g.fail = []string{"Running"}, "Stopped", map[string]bool{"get_reports": true}
+		}, gbPollDefault, GBRunFailed, notGBSlow, 0, "", "not done: did not finish within 90 minutes"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			synctest.Test(t, func(t *testing.T) {
+				e, h := gbEnv(t)
+				e.enable()
+				h.gvm.with(tc.set)
+				e.svc.gb().poll = tc.poll
+				s := e.scanIP(gbOpen())
+				if s.GreenboneRun.State != tc.state || len(s.Greenbone) != tc.rows || (tc.line != "" && !slices.Contains(notChecked(s), tc.line)) {
+					t.Fatalf("run %+v, rows %d, not checked %q, cmds %q", s.GreenboneRun, len(s.Greenbone), notChecked(s), h.gvm.cmds)
+				}
+				gb := slices.IndexFunc(s.Checks, func(c CheckRow) bool { return c.Kind == "greenbone" })
+				if (tc.check == "") != (gb < 0) || (gb >= 0 && !strings.HasPrefix(s.Checks[gb].Text, tc.check)) {
+					t.Fatalf("checks %+v", s.Checks)
+				}
+				if tc.state != GBRunPartial && slices.ContainsFunc(notChecked(s), func(l string) bool { return strings.Contains(l, "these are the results") }) {
+					t.Fatalf("not checked %q", notChecked(s))
+				}
+				if d := e.gbAudit(); !strings.HasPrefix(d, tc.prefix) {
+					t.Fatalf("audit %q", d)
+				}
+				if !h.gvm.seen("delete_task") || !h.gvm.seen("delete_port_list") {
+					t.Fatalf("cmds %q", h.gvm.cmds)
+				}
+				h.gvm.mu.Lock()
+				reads, stops := 0, 0
+				for _, c := range h.gvm.cmds {
+					reads += map[bool]int{true: 1}[c == "get_reports"]
+					stops += map[bool]int{true: 1}[c == "stop_task"]
+				}
+				h.gvm.mu.Unlock()
+				if tc.name == "the cap cut the report of a finished task" && (reads != 2 || stops != 0) {
+					t.Fatalf("get_reports %d, stop_task %d: the report was not read again", reads, stops)
+				}
+			})
+		})
+	}
+}
+
+// review L6: a Stop while the task is being stopped at the cap reads nothing more: the step is stopped, the task stopped and deleted.
+func TestContract_INV25_StopDuringTheCap(t *testing.T) {
+	t.Parallel()
+	synctest.Test(t, func(t *testing.T) {
 		e, h := gbEnv(t)
 		e.enable()
-		h.gvm.with(func(g *fakeGVM) { g.states, g.stopTo = []string{"Running"}, "Stopped" })
-		e.svc.gb().poll, e.svc.gb().cap = time.Millisecond, 50*time.Millisecond
-		s := e.scanIP(gbOpen())
-		if len(s.Greenbone) != 4 || !slices.Contains(notChecked(s), notGBPartial) || slices.Contains(notChecked(s), notGBSlow) || !h.gvm.seen("stop_task") ||
-			!h.gvm.seen("get_reports") || !h.gvm.seen("delete_task") || !h.gvm.seen("delete_port_list") {
-			t.Fatalf("rows %d, not checked %q, cmds %q", len(s.Greenbone), notChecked(s), h.gvm.cmds)
-		}
-		if s.GreenboneRun.State != GBRunPartial || !slices.ContainsFunc(s.Checks, func(c CheckRow) bool {
-			return c.Kind == "greenbone" && strings.HasPrefix(c.Text, "OpenVAS partly scanned "+ipA)
-		}) {
-			t.Fatalf("run %+v, checks %+v", s.GreenboneRun, s.Checks)
-		}
-		var detail string
-		for _, a := range e.audits() {
-			if a.Action == "exposure.greenbone_scan" {
-				detail = a.Detail
+		e.svc.gb().poll = gbPollDefault
+		h.gvm.with(func(g *fakeGVM) {
+			g.states, g.stopTo = []string{"Running"}, "Stop Requested"
+			g.onPoll = func() {
+				if h.gvm.seen("stop_task") { // a poll of gbPartial: the customer presses Stop
+					e.svc.cancelRun("admin@acme.example")
+				}
 			}
-		}
-		if !strings.HasPrefix(detail, "stopped after 90 minutes: 4 results found by then") {
-			t.Fatalf("audit %q", detail)
-		}
-	})
-	t.Run("partial without rows", func(t *testing.T) {
-		t.Parallel()
-		e, h := gbEnv(t)
-		e.enable()
-		h.gvm.with(func(g *fakeGVM) {
-			g.states, g.stopTo = []string{"Running"}, "Stopped"
-			g.report = `<get_reports_response status="200" status_text="OK"><report id="` + gbReportID + `"><report id="` + gbReportID + `"><results></results></report></report></get_reports_response>`
 		})
-		e.svc.gb().poll, e.svc.gb().cap = time.Millisecond, 50*time.Millisecond
-		s := e.scanIP(gbOpen())
-		if len(s.Greenbone) != 0 || !slices.Contains(notChecked(s), notGBPartialNone) || s.GreenboneRun.State != GBRunPartial {
-			t.Fatalf("rows %d, not checked %q, run %+v", len(s.Greenbone), notChecked(s), s.GreenboneRun)
+		ips := e.detect(ipA)
+		if _, err := e.commit(ips[0].ID); err != nil {
+			t.Fatal(err)
+		}
+		e.acceptTerms(ips[0].ID, false)
+		e.svc.SetRunner(&fakeRunner{content: gbOpen()})
+		if _, err := e.svc.Scan(e.ctx(), "admin@acme.example", ips[0].ID); err == nil {
+			t.Fatal("a stopped run reads as done")
+		}
+		run := e.svc.CurrentScan()
+		snap, err := e.svc.SnapshotOf(e.ctx(), ips[0].ID, run.StartedAt[:10])
+		if err != nil || snap.GreenboneRun.State != GBRunStopped || len(snap.Greenbone) != 0 || !slices.Contains(notChecked(snap), notGBStopped) || !h.gvm.seen("delete_task") {
+			t.Fatalf("run %+v, not checked %q, cmds %q, %v", snap.GreenboneRun, notChecked(snap), h.gvm.cmds, err)
 		}
 	})
-	t.Run("report unreadable", func(t *testing.T) {
-		t.Parallel()
-		e, h := gbEnv(t)
-		e.enable()
-		h.gvm.with(func(g *fakeGVM) {
-			g.states, g.stopTo = []string{"Running"}, "Stopped"
-			g.fail = map[string]bool{"get_reports": true}
+}
+
+// review M3 of D-595: a scan OpenVAS ended by itself (Stopped or Interrupted without Vedette's stop) is "ended", never "did not scan":
+// the line says why, and the rows its report holds are shown; a report that cannot be read claims no count.
+func TestContract_INV25_EndedByOpenVAS(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name string
+		fail bool
+		rows int
+	}{{"report read", false, 4}, {"report unreadable", true, 0}} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			e, h := gbEnv(t)
+			e.enable()
+			h.gvm.with(func(g *fakeGVM) {
+				g.states = []string{"Running", "Interrupted"}
+				if tc.fail {
+					g.fail = map[string]bool{"get_reports": true}
+				}
+			})
+			s := e.scanIP(gbOpen())
+			line := notGBEnded + "OpenVAS ended the scan by itself as interrupted."
+			if s.GreenboneRun.State != GBRunEnded || len(s.Greenbone) != tc.rows || !slices.ContainsFunc(notChecked(s), func(l string) bool { return strings.HasPrefix(l, line) }) ||
+				slices.ContainsFunc(notChecked(s), func(l string) bool { return strings.HasPrefix(l, "OpenVAS did not scan") }) || h.gvm.seen("stop_task") {
+				t.Fatalf("run %+v, rows %d, not checked %q, cmds %q", s.GreenboneRun, len(s.Greenbone), notChecked(s), h.gvm.cmds)
+			}
+			if has := slices.ContainsFunc(s.Checks, func(c CheckRow) bool { return c.Kind == "greenbone" }); has == tc.fail {
+				t.Fatalf("checks %+v", s.Checks)
+			}
 		})
-		e.svc.gb().poll, e.svc.gb().cap = time.Millisecond, 50*time.Millisecond
-		s := e.scanIP(gbOpen())
-		if !slices.Contains(notChecked(s), notGBSlow) || len(s.Greenbone) != 0 || !h.gvm.seen("stop_task") || !h.gvm.seen("delete_task") || s.GreenboneRun.State != GBRunFailed {
-			t.Fatalf("not checked %q, cmds %q, run %+v", notChecked(s), h.gvm.cmds, s.GreenboneRun)
-		}
-	})
+	}
+}
+
+// review M4 of D-595: the probe row's port list is clipped with its count, so a row of 40 five-digit ports keeps what follows it.
+func TestGreenboneProbePortsAreClipped(t *testing.T) {
+	t.Parallel()
+	var ports []int
+	for p := range 40 {
+		ports = append(ports, 10000+p)
+	}
+	got := gbProbePorts(ports)
+	if len(got) > 70 || !strings.HasPrefix(got, "T:10000,10001,") || !strings.HasSuffix(got, ",… (40 ports)") {
+		t.Fatalf("%q", got)
+	}
+	if got := gbProbePorts([]int{22, 443}); got != "T:22,443" {
+		t.Fatalf("%q", got)
+	}
 }
 
 // kevLookup is a Matcher that also says which CVE ids are on the list.
@@ -1625,6 +1750,8 @@ func TestContract_INV25_OneStateForTheHeading(t *testing.T) {
 	}{
 		{old("OpenVAS started at 14 Nov 2026, 18:16 and runs for up to 90 minutes; its results are added here when it finishes."), GBRunStopped},
 		{old(notGBSlowOld), GBRunFailed},
+		{old("8.8.4.4 (www.acme.example): " + notGBFail), GBRunFailed}, // review L1: a domain's line carries its address
+		{old("8.8.4.4 (www.acme.example): "+notGBOff, notGBStopped), GBRunStopped},
 		{old(notGBOff), GBRunNotRun},
 		{Content{}, GBRunNotRun},
 	} {
@@ -1635,5 +1762,29 @@ func TestContract_INV25_OneStateForTheHeading(t *testing.T) {
 	bad := "18:16"
 	if got := storedGreenboneRun(GreenboneRun{State: GBRunDone, StartedAt: &bad}, Content{}); got.StartedAt != nil {
 		t.Fatalf("a start that is not a time was kept: %+v", got)
+	}
+}
+
+// review L4 of D-595: at start-up the database itself is corrected: a step a restart left "running" is stored as stopped with the line
+// that says so, for every reader; a step that ended is left alone.
+func TestContract_INV25_StartUpStopsWhatARestartCutOff(t *testing.T) {
+	t.Parallel()
+	e, _ := gbEnv(t)
+	e.enable()
+	s := e.scanIP(gbOpen())
+	if err := e.db.Write(e.ctx(), func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(e.ctx(), `UPDATE exp_snapshot SET greenbone_run = '{"state":"running","started_at":"2026-11-09T10:00:00.000Z","addresses":[]}', not_checked = ? WHERE id = ?`,
+			`[{"kind":"greenbone","text":"`+gbPending+`"}]`, s.ID)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	e.svc.GreenboneAtStart(e.ctx())
+	var state, lines string
+	if err := e.db.Reader().QueryRowContext(e.ctx(), `SELECT json_extract(greenbone_run, '$.state'), not_checked FROM exp_snapshot WHERE id = ?`, s.ID).Scan(&state, &lines); err != nil {
+		t.Fatal(err)
+	}
+	if state != GBRunStopped || !strings.Contains(lines, notGBCutOff) || strings.Contains(lines, gbPending) {
+		t.Fatalf("state %q, lines %s", state, lines)
 	}
 }

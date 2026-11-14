@@ -25400,9 +25400,10 @@
                             "partial",
                             "not_run",
                             "failed",
-                            "stopped"
+                            "stopped",
+                            "ended"
                           ],
-                          "description": "running: OpenVAS scans now (the other results are saved); done: it finished; partial: the 90-minute cap stopped it and its rows are what it had found by then; not_run: it did not scan (the not_checked line of kind greenbone says why); failed: it failed or its answer could not be read; stopped: a Stop, the module or a restart of the box ended it"
+                          "description": "running: OpenVAS scans now (the other results are saved); done: it finished; partial: the 90-minute cap stopped it and its rows are what it had found by then; not_run: it did not scan (the not_checked line of kind greenbone says why; also a task that stayed queued for 90 minutes); failed: it failed or its answer could not be read; stopped: a Stop, the module or a restart of the box ended it (a domain keeps the rows of the addresses that finished); ended: it scanned and ended before it finished by itself (OpenVAS stopped or interrupted it, or the domain fence did), with the rows it had found if any"
                         },
                         "started_at": {
                           "anyOf": [
@@ -25416,11 +25417,41 @@
                             }
                           ],
                           "description": "When the OpenVAS step started; null when it did not"
+                        },
+                        "addresses": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "ip": {
+                                "type": "string"
+                              },
+                              "state": {
+                                "type": "string",
+                                "enum": [
+                                  "running",
+                                  "done",
+                                  "partial",
+                                  "not_run",
+                                  "failed",
+                                  "stopped",
+                                  "ended"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "ip",
+                              "state"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "description": "A domain's run: the OpenVAS state of each deep-scanned address (D-571); [] for an IP"
                         }
                       },
                       "required": [
                         "state",
-                        "started_at"
+                        "started_at",
+                        "addresses"
                       ],
                       "additionalProperties": false
                     },

@@ -201,7 +201,7 @@ func TestTerms_WithdrawStopsTheRunningScan(t *testing.T) {
 			})
 		}
 	})
-	e.svc.SetRunner(&fakeRunner{content: Content{}})
+	e.svc.SetRunner(&fakeRunner{content: gbOpen()}) // D-595: OpenVAS runs only with an open port to check
 	if _, err := e.svc.Scan(e.ctx(), "admin@acme.example", id); err == nil {
 		t.Fatal("the scan was not stopped")
 	}

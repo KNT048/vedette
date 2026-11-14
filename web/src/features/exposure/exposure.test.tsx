@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
@@ -1492,7 +1492,9 @@ describe('exposure: the OpenVAS heading follows its one state, its start in the 
   const ip = '203.0.113.10'
   const started = '2026-11-14T18:16:00.000Z'
   const high = { ip, port: '443/tcp', severity: 7.5, name: 'Weak TLS', qod: 98, cves: [], solution: 'Fix TLS.', oid: '1.3.6.1.4.1.25623.1.0.1' }
-  const showing = async (greenbone_run: { state: string; started_at: string | null }, greenbone: unknown[], not_checked: { kind: string; text: string }[]) => {
+  type Run = { state: string; started_at: string | null; addresses?: { ip: string; state: string }[] }
+  const showing = async (run: Run, greenbone: unknown[], not_checked: { kind: string; text: string }[]) => {
+    const greenbone_run = { addresses: [], ...run }
     const at = new Date(Date.now() - 864e5).toISOString()
     const date = at.slice(0, 10)
     const snap = { id: 'sn-g', date, scanned_at: at, hosts: [], ports: [{ ip, port: 443, service: 'https' }], admin_panels: [], certs: [], counts: { subdomains: 0, ips: 1, ports: 1, admin_panels: 0, certs_expiring: 0 },
@@ -1504,8 +1506,12 @@ describe('exposure: the OpenVAS heading follows its one state, its start in the 
     renderApp('/exposure/xt-2')
     return screen.findByRole('region', { name: 'OpenVAS results (unauthenticated, QoD ≥ 70)' })
   }
-  // the time every other part of the page shows: the viewer's time zone, never the box's text
-  const local = (iso: string) => { const d = new Date(iso); return `${d.getDate()} Nov ${d.getFullYear()}, ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}` }
+  // the time every other part of the page shows: the viewer's time zone, never the box's text. D-595 review L6: pinned to a zone that is
+  // not UTC (CI runs in UTC), so going back to the box's UTC text fails: 18:16 UTC is 01:16 the next day in Ho Chi Minh City (UTC+7).
+  let tz: string | undefined
+  beforeAll(() => { tz = process.env.TZ; process.env.TZ = 'Asia/Ho_Chi_Minh' })
+  afterAll(() => { if (tz === undefined) delete process.env.TZ; else process.env.TZ = tz })
+  const local = (iso: string) => { expect(iso).toBe(started); return '15 Nov 2026, 01:16' }
 
   it('running: "OpenVAS is scanning" with its start in the viewer\'s time zone, never "did not scan"', async () => {
     const s = await showing({ state: 'running', started_at: started }, [], [{ kind: 'greenbone', text: 'OpenVAS is scanning and runs for up to 90 minutes; its results are added here when it finishes. If none appear, it was stopped before it finished (a stop or a restart of the box).' }])
@@ -1529,6 +1535,56 @@ describe('exposure: the OpenVAS heading follows its one state, its start in the 
     expect(within(s).queryByText('OpenVAS reported no high or medium result with QoD 70 or more')).toBeNull()
   })
 
+  it('review M1: a domain stopped on its second address shows the rows of the first, with the line that says so', async () => {
+    const s = await showing({ state: 'stopped', started_at: started, addresses: [{ ip, state: 'done' }, { ip: '203.0.113.11', state: 'stopped' }] }, [high],
+      [{ kind: 'greenbone', text: 'OpenVAS was stopped before it had scanned every address; the results of the addresses it finished are shown. The results of the other checks above are kept.' }])
+    expect(await within(s).findByRole('status')).toHaveTextContent('OpenVAS was stopped before it had scanned every address; these are the results of the addresses it finished.')
+    expect(within(within(s).getByRole('table', { name: 'What OpenVAS reported on this IP' })).getByText('Weak TLS')).toBeInTheDocument()
+    expect(within(s).queryByText(/not shown/)).toBeNull()
+  })
+
+  const ended = 'OpenVAS stopped before it finished: OpenVAS ended the scan by itself as interrupted.'
+  it('review M3: a scan OpenVAS ended by itself is "ended", never "did not scan"', async () => {
+    const s = await showing({ state: 'ended', started_at: started }, [], [{ kind: 'greenbone', text: ended }])
+    expect(await within(s).findByText('OpenVAS ended the scan before it finished')).toBeInTheDocument()
+    expect(within(s).getByText(ended)).toBeInTheDocument()
+    expect(within(s).queryByText('OpenVAS did not scan this time')).toBeNull()
+  })
+
+  it('review M3: the rows of a scan OpenVAS ended are shown with the line that says so', async () => {
+    const s = await showing({ state: 'ended', started_at: started }, [high], [{ kind: 'greenbone', text: ended }])
+    expect(await within(s).findByRole('status')).toHaveTextContent('OpenVAS ended the scan before it finished; these are the results it had found by then.')
+    expect(within(s).getByRole('table', { name: 'What OpenVAS reported on this IP' })).toBeInTheDocument()
+  })
+
+  it('review L2: a domain\'s body is the line of an address in the run\'s state, not the first OpenVAS line', async () => {
+    const s = await showing({ state: 'failed', started_at: started, addresses: [{ ip: '203.0.113.11', state: 'not_run' }, { ip, state: 'failed' }] }, [], [
+      { kind: 'greenbone', text: '203.0.113.11 (www.acme.example): OpenVAS did not scan: this scan found no open port to check.' },
+      { kind: 'greenbone', text: `${ip} (shop.acme.example): OpenVAS failed, so its results are not shown. The box log has the error.` },
+    ])
+    expect(await within(s).findByText('OpenVAS did not finish this scan')).toBeInTheDocument()
+    expect(within(s).getByText(`${ip} (shop.acme.example): OpenVAS failed, so its results are not shown. The box log has the error.`)).toBeInTheDocument()
+    expect(within(s).queryByText(/found no open port/)).toBeNull()
+  })
+
+  it('review L6: when the run enters the OpenVAS phase the page reads the saved snapshot again, without waiting for OpenVAS', async () => {
+    const at = new Date().toISOString()
+    let phase = 'probing'
+    let lists = 0
+    server.use(
+      http.get('*/api/v1/exposure/scan', () => HttpResponse.json({ id: 'sr-gb', target_id: 'xt-2', target_value: ip, by: 'admin@acme.example', started_at: at, finished_at: null,
+        status: 'running', phase, snapshot_id: null, error: null, stop_reason: null })),
+      http.get('*/api/v1/exposure/targets/xt-2/snapshots', () => { lists++; return HttpResponse.json({ items: [] }) }),
+    )
+    renderApp('/exposure/xt-2')
+    expect(await screen.findByText('Probing the target')).toBeInTheDocument()
+    await waitFor(() => expect(lists).toBeGreaterThan(0))
+    const before = lists
+    phase = 'greenbone'
+    expect(await screen.findByText(/^OpenVAS scan running/, {}, { timeout: 5000 })).toBeInTheDocument()
+    await waitFor(() => expect(lists).toBeGreaterThan(before))
+  })
+
   it.each([
     ['done', 'OpenVAS reported no high or medium result with QoD 70 or more', 'That is one outside look'],
     ['not_run', 'OpenVAS did not scan this time', 'OpenVAS did not scan: this scan found no open port to check.'],
@@ -1539,7 +1595,7 @@ describe('exposure: the OpenVAS heading follows its one state, its start in the 
     const s = await showing({ state, started_at: state === 'not_run' ? null : started }, [], line)
     expect(await within(s).findByText(title)).toBeInTheDocument()
     expect(within(s).getByText(new RegExp(body.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')))).toBeInTheDocument()
-    for (const other of ['OpenVAS is scanning', 'OpenVAS did not scan this time', 'OpenVAS did not finish this scan', 'OpenVAS was stopped before it finished'].filter((x) => x !== title)) {
+    for (const other of ['OpenVAS is scanning', 'OpenVAS did not scan this time', 'OpenVAS did not finish this scan', 'OpenVAS was stopped before it finished', 'OpenVAS ended the scan before it finished'].filter((x) => x !== title)) {
       expect(within(s).queryByText(other)).toBeNull()
     }
   })

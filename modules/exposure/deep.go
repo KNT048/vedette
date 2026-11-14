@@ -490,9 +490,15 @@ func (s *Service) deepIP(ctx context.Context, st ScanTarget, a deepAddr, c *Cont
 // (gbRunOf). Only a stop of the run returns an error, with what was done before it.
 func (s *Service) greenboneDomain(ctx context.Context, st ScanTarget, addrs []deepAddr, ports []PortRow) (out gbOutcome, err error) {
 	var audits, states []string
-	defer func() { out.state = gbRunOf(states) }()
+	defer func() { // review M1 of D-595: each address's state; one the stop never reached did not run
+		for _, a := range addrs[len(out.addrs):] {
+			out.addrs = append(out.addrs, GreenboneAddr{IP: a.ip.String(), State: GBRunNotRun})
+		}
+		out.state = gbRunOf(states)
+	}()
 	merge := func(a deepAddr, o gbOutcome) {
 		states = append(states, o.state)
+		out.addrs = append(out.addrs, GreenboneAddr{IP: a.ip.String(), State: o.state})
 		out.rows = append(out.rows, o.rows...)
 		out.checks = append(out.checks, o.checks...)
 		for _, n := range o.not {
@@ -508,6 +514,8 @@ func (s *Service) greenboneDomain(ctx context.Context, st ScanTarget, addrs []de
 		stD, line, err := s.deepGate(ctx, deepMode(st, a), a.ip, a.names)
 		if err != nil {
 			out.audit = strings.Join(append(audits, a.ip.String()+": stopped"), "; ")
+			states = append(states, GBRunStopped)
+			out.addrs = append(out.addrs, GreenboneAddr{IP: a.ip.String(), State: GBRunStopped})
 			return out, err
 		}
 		if line != "" {

@@ -147,12 +147,13 @@ func TestOpenVASStopsWhenTheHostsFenceSaysNoMidRun(t *testing.T) {
 	st := ScanTarget{ID: "t", Kind: KindDomain, Value: "acme.example", User: "admin@acme.example", Mode: ScanMode{Full: true, Disruptive: true},
 		Domain: &DomainScope{Domain: "acme.example", Name: "www.acme.example", Token: deepToken, Chain: "www.acme.example -> web.acme.example"}}
 	type res struct {
+		r   gbResult
 		err error
 	}
 	done := make(chan res, 1)
 	go func() {
-		_, _, _, err := e.svc.runGreenbone(e.ctx(), GreenboneTimeout, st, netip.MustParseAddr(ipB), []int{443}, h.gvm.log, time.Millisecond)
-		done <- res{err}
+		r, err := e.svc.runGreenbone(e.ctx(), GreenboneTimeout, st, netip.MustParseAddr(ipB), []int{443}, h.gvm.log, time.Millisecond)
+		done <- res{r, err}
 	}()
 	tick := time.NewTicker(time.Millisecond) // the task's start is a state of the fake gvmd: look until it is there
 	defer tick.Stop()
@@ -168,11 +169,11 @@ func TestOpenVASStopsWhenTheHostsFenceSaysNoMidRun(t *testing.T) {
 	case <-time.After(30 * time.Second):
 		t.Fatal("the task was not stopped")
 	}
-	var un *Unavailable
-	if !errors.As(r.err, &un) || un.Reason != notGBFencedMid || fg.calls != 1 || fg.last != (FenceCheck{Disruptive: true, Recheck: true}) || !h.gvm.seen("stop_task") {
-		t.Fatalf("err %v, cmds %q", r.err, h.gvm.cmds)
+	// D-595 review M3: the fence ended a scan that ran: its own end (state "ended"), its rows discarded, the task stopped
+	if r.err != nil || r.r.end != gbEndFenced || len(r.r.rows) != 0 || fg.calls != 1 || fg.last != (FenceCheck{Disruptive: true, Recheck: true}) || !h.gvm.seen("stop_task") {
+		t.Fatalf("result %+v, err %v, cmds %q", r.r, r.err, h.gvm.cmds)
 	}
-	if rows := h.gvm.log.rows; len(rows) != 1 || !strings.Contains(rows[0].Note, "CNAME chain www.acme.example -> web.acme.example") {
+	if rows := h.gvm.log.rows; len(rows) != 1 || !strings.Contains(rows[0].Fence, "CNAME chain www.acme.example -> web.acme.example") {
 		t.Fatalf("probe rows %+v", rows)
 	}
 }

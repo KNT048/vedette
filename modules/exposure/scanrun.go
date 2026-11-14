@@ -179,13 +179,17 @@ func (s *Service) execute(ctx context.Context, run *scanRun, r Runner, user stri
 		err = context.Cause(ctx)
 	}
 	if err == nil {
-		s.setPhase(run, PhaseSaving)
-		run.snap, err = s.saveScan(ctx, user, t, content, gbRun)
+		id := store.NewID("sn")
+		s.runMu.Lock() // review L3 of D-595: its "running" is live from the moment it is stored, never read as cut off
+		run.view.Phase = PhaseSaving
+		if gb {
+			run.gbSnap = id
+		}
+		s.runMu.Unlock()
+		run.snap, err = s.saveScan(ctx, user, t, content, id, gbRun)
 	}
 	if err == nil && gb { // a stop now keeps the snapshot above; Greenbone's outcome (or that it was stopped) is added to it
-		s.runMu.Lock()
-		run.view.Phase, run.gbSnap = PhaseGreenbone, run.snap.ID
-		s.runMu.Unlock()
+		s.setPhase(run, PhaseGreenbone)
 		var o gbOutcome
 		var gerr error
 		if st.Kind == KindDomain {
@@ -194,7 +198,11 @@ func (s *Service) execute(ctx context.Context, run *scanRun, r Runner, user stri
 			o, gerr = s.greenboneStep(ctx, st, gbIP)
 		}
 		if gerr != nil {
-			o.not = append([]NotCheckedRow{{Kind: "greenbone", Text: notGBStopped}}, o.not...)
+			line := notGBStopped
+			if len(o.rows) > 0 { // review M1 of D-595: a domain keeps and shows the rows of the addresses that finished
+				line = notGBStoppedSome
+			}
+			o.not = append([]NotCheckedRow{{Kind: "greenbone", Text: line}}, o.not...)
 			if o.audit == "" {
 				o.audit = "stopped"
 			}
@@ -218,7 +226,7 @@ func byName(st ScanTarget) ScanTarget {
 	return st
 }
 
-func (s *Service) saveScan(ctx context.Context, user string, t Target, content Content, gbRun GreenboneRun) (Snapshot, error) {
+func (s *Service) saveScan(ctx context.Context, user string, t Target, content Content, id string, gbRun GreenboneRun) (Snapshot, error) {
 	at := s.clock()
 	content = sanitize(content)
 	extra := ""
@@ -226,7 +234,7 @@ func (s *Service) saveScan(ctx context.Context, user string, t Target, content C
 		extra = t.Value
 	}
 	date := at.In(s.cfg.Location).Format(dayFormat)
-	snap := Snapshot{ID: store.NewID("sn"), Date: date, ScannedAt: store.FormatTS(at), GreenboneRun: gbRun,
+	snap := Snapshot{ID: id, Date: date, ScannedAt: store.FormatTS(at), GreenboneRun: gbRun,
 		Vulns: []VulnRow{}, VersionGaps: []GapRow{}} // computed when read (INV-20); never null in an answer
 	wctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), saveTimeout)
 	defer cancel()

@@ -143,10 +143,11 @@ export const GreenboneResult = z.object({
 
 // N49-3, N49-2 (D-595): the one state of the snapshot's OpenVAS step, which its heading follows, and when it started (shown in the viewer's
 // time zone like every other time of the page).
-export const GreenboneRunState = z.enum(['running', 'done', 'partial', 'not_run', 'failed', 'stopped'])
+export const GreenboneRunState = z.enum(['running', 'done', 'partial', 'not_run', 'failed', 'stopped', 'ended'])
 export const GreenboneRun = z.object({
-  state: GreenboneRunState.describe('running: OpenVAS scans now (the other results are saved); done: it finished; partial: the 90-minute cap stopped it and its rows are what it had found by then; not_run: it did not scan (the not_checked line of kind greenbone says why); failed: it failed or its answer could not be read; stopped: a Stop, the module or a restart of the box ended it'),
+  state: GreenboneRunState.describe('running: OpenVAS scans now (the other results are saved); done: it finished; partial: the 90-minute cap stopped it and its rows are what it had found by then; not_run: it did not scan (the not_checked line of kind greenbone says why; also a task that stayed queued for 90 minutes); failed: it failed or its answer could not be read; stopped: a Stop, the module or a restart of the box ended it (a domain keeps the rows of the addresses that finished); ended: it scanned and ended before it finished by itself (OpenVAS stopped or interrupted it, or the domain fence did), with the rows it had found if any'),
   started_at: z.iso.datetime().nullable().describe('When the OpenVAS step started; null when it did not'),
+  addresses: z.array(z.object({ ip: z.string(), state: GreenboneRunState })).describe('A domain\'s run: the OpenVAS state of each deep-scanned address (D-571); [] for an IP'),
 })
 
 export const Snapshot = z.object({

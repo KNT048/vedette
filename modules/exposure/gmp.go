@@ -617,13 +617,14 @@ func (g *gmpConn) taskStatus(ctx context.Context, task string) (string, int, err
 }
 
 // report reads the results of a finished task (or of one stopped at the cap: gvmd writes what it found when it stops, D-595) with QoD at least GreenboneMinQoD, levels high, medium and low (log notes are not read).
-func (g *gmpConn) report(ctx context.Context, report, ip string) ([]GreenboneRow, int, error) {
+func (g *gmpConn) report(ctx context.Context, report, ip string) ([]GreenboneRow, error) {
 	r := &gmpReport{}
 	if _, err := g.do(ctx, "get_reports", `<get_reports report_id="`+report+`" details="1" ignore_pagination="1" filter="min_qod=`+
 		strconv.Itoa(GreenboneMinQoD)+` levels=hml apply_overrides=0 rows=-1 first=1 sort-reverse=severity"/>`, gmpMaxReport, r); err != nil {
-		return nil, 0, err
+		return nil, err
 	}
-	return parseGMPReport(r, report, ip)
+	rows, _, err := parseGMPReport(r, report, ip)
+	return rows, err
 }
 
 // cleanup stops (when running) and deletes the task with its report, the target and the port list (in that order: gvmd refuses to

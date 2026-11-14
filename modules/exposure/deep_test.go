@@ -10,6 +10,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -746,5 +747,68 @@ func TestContract_INV28_Deep_KeepRuleIsPerAddress(t *testing.T) {
 	}
 	if c, ok := port(s, ipC); !ok || !c.Unchecked {
 		t.Fatalf("ipC: %+v %v", c, ok)
+	}
+}
+
+// allowGB is fakeGB whose host checks the domain fence and says yes.
+type allowGB struct{ *fakeGB }
+
+func (allowGB) CheckDomainIP(context.Context, DomainScope, netip.Addr, FenceCheck) error { return nil }
+
+// D-595 review M1, L6: a domain's OpenVAS checks each address's own open ports; a Stop while the second address scans keeps the rows
+// the first one stored, with each address's state, and the run reads as stopped (the page shows those rows under that heading).
+func TestContract_INV28_Deep_OpenVASStoppedKeepsTheFinishedAddress(t *testing.T) {
+	t.Parallel()
+	e, h := gbEnv(t)
+	e.terms = nil
+	e.enable()
+	e.svc.cfg.Greenbone = allowGB{h}
+	dns := &deepDNS{fakeResolver: e.dns, a: map[string][]string{"www.acme.example": {ipB}}}
+	e.svc.cfg.Resolver, e.svc.cfg.DomainFence = dns, &fakeFence{}
+	e.svc.cfg.Services = &deepSeams{extra: []ServiceRow{{IP: ipB, Port: 8443, Name: "https", Product: "nginx"}}}
+	box := e.detect(ipA)
+	if _, err := e.commit(box[0].ID); err != nil {
+		t.Fatal(err)
+	}
+	dom := e.committedDomain()
+	e.acceptTerms(dom.ID, false)
+	var polls atomic.Int32
+	h.gvm.with(func(g *fakeGVM) {
+		g.states = []string{"Done", "Running"} // the first address finishes at once, the second scans
+		g.onPoll = func() {
+			if polls.Add(1) == 2 {
+				e.svc.cancelRun("admin@acme.example")
+			}
+		}
+	})
+	e.svc.gb().poll = time.Millisecond
+	e.svc.SetRunner(&fakeRunner{content: Content{Hosts: []HostRow{
+		{Name: "acme.example", IP: ipA, Source: "dns", IPs: []HostIP{{IP: ipA, Family: "ipv4", Class: ClassBox}}},
+		{Name: "www.acme.example", IP: ipB, Source: "ct", IPs: []HostIP{{IP: ipB, Family: "ipv4", Class: ClassPublic}}},
+	}, Ports: []PortRow{}}})
+	if _, err := e.svc.Scan(e.ctx(), "admin@acme.example", dom.ID); err == nil {
+		t.Fatal("a stopped run reads as done")
+	}
+	run := e.svc.CurrentScan()
+	s, err := e.svc.SnapshotOf(e.ctx(), dom.ID, run.StartedAt[:10])
+	if err != nil {
+		t.Fatal(err)
+	}
+	h.gvm.mu.Lock()
+	ranges := slices.Clone(h.gvm.ranges)
+	h.gvm.mu.Unlock()
+	slices.Sort(ranges)
+	if !slices.Equal(ranges, []string{"T:443", "T:443,8443"}) {
+		t.Fatalf("port lists %q", ranges)
+	}
+	addrs := s.GreenboneRun.Addresses
+	if s.GreenboneRun.State != GBRunStopped || len(addrs) != 2 || addrs[0].State != GBRunDone || addrs[1].State != GBRunStopped {
+		t.Fatalf("run %+v", s.GreenboneRun)
+	}
+	if len(s.Greenbone) == 0 || slices.ContainsFunc(s.Greenbone, func(r GreenboneRow) bool { return r.IP != addrs[0].IP }) {
+		t.Fatalf("rows %+v of %s", s.Greenbone, addrs[0].IP)
+	}
+	if !slices.Contains(notChecked(s), notGBStoppedSome) || slices.Contains(notChecked(s), notGBStopped) { // never "not shown" over rows it shows
+		t.Fatalf("not checked %q", notChecked(s))
 	}
 }

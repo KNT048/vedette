@@ -57115,6 +57115,14 @@ type FindingsGetFindingsIDOKFixedIn struct {
 	// inventory kept the flag); the page adds "if you installed it from the distribution's packages,
 	// install its security updates instead".
 	Distro string `json:"distro"`
+	// D-516, kind distro only: the version of the distribution's package that fixes the CVE on the
+	// device's release (Ubuntu security data, Debian Security Tracker); `version` is then the device's
+	// full package version. Empty when the distribution's data does not say.
+	DistroFixed string `json:"distro_fixed"`
+	// Distro_fixed is in Ubuntu Pro (ESM) only.
+	DistroPro bool `json:"distro_pro"`
+	// The device's release with distro_fixed ("24.04", "12"); empty otherwise.
+	DistroRelease string `json:"distro_release"`
 	// The fixed release (fixed), the last affected release (up_to), the upstream fixed release as a
 	// reference when NVD names one (distro: the backport may keep the package's number below it); empty
 	// for branches.
@@ -57130,8 +57138,9 @@ type FindingsGetFindingsIDOKFixedIn struct {
 	More int `json:"more"`
 	// Release lines NVD gives no fixed release for (a range that ends at an affected version).
 	NoFix int `json:"no_fix"`
-	// Where the versions come from: "NVD affected versions", or "CVE.org affected versions (from the CVE
-	// record's CNA)" when NVD has none (D-556).
+	// Where the versions come from: "NVD affected versions", "CVE.org affected versions (from the CVE
+	// record's CNA)" when NVD has none (D-556), or with distro_fixed "Ubuntu security data" / "Debian
+	// Security Tracker" (D-516).
 	Source string `json:"source"`
 	// The device's version; for branches empty when it has none, else the text Vedette cannot read.
 	Version string `json:"version"`
@@ -57145,6 +57154,21 @@ func (s *FindingsGetFindingsIDOKFixedIn) GetBranches() []FindingsGetFindingsIDOK
 // GetDistro returns the value of Distro.
 func (s *FindingsGetFindingsIDOKFixedIn) GetDistro() string {
 	return s.Distro
+}
+
+// GetDistroFixed returns the value of DistroFixed.
+func (s *FindingsGetFindingsIDOKFixedIn) GetDistroFixed() string {
+	return s.DistroFixed
+}
+
+// GetDistroPro returns the value of DistroPro.
+func (s *FindingsGetFindingsIDOKFixedIn) GetDistroPro() bool {
+	return s.DistroPro
+}
+
+// GetDistroRelease returns the value of DistroRelease.
+func (s *FindingsGetFindingsIDOKFixedIn) GetDistroRelease() string {
+	return s.DistroRelease
 }
 
 // GetFixed returns the value of Fixed.
@@ -57185,6 +57209,21 @@ func (s *FindingsGetFindingsIDOKFixedIn) SetBranches(val []FindingsGetFindingsID
 // SetDistro sets the value of Distro.
 func (s *FindingsGetFindingsIDOKFixedIn) SetDistro(val string) {
 	s.Distro = val
+}
+
+// SetDistroFixed sets the value of DistroFixed.
+func (s *FindingsGetFindingsIDOKFixedIn) SetDistroFixed(val string) {
+	s.DistroFixed = val
+}
+
+// SetDistroPro sets the value of DistroPro.
+func (s *FindingsGetFindingsIDOKFixedIn) SetDistroPro(val bool) {
+	s.DistroPro = val
+}
+
+// SetDistroRelease sets the value of DistroRelease.
+func (s *FindingsGetFindingsIDOKFixedIn) SetDistroRelease(val string) {
+	s.DistroRelease = val
 }
 
 // SetFixed sets the value of Fixed.
@@ -62124,6 +62163,14 @@ type FindingsPostFindingsIDAiOKFixedIn struct {
 	// inventory kept the flag); the page adds "if you installed it from the distribution's packages,
 	// install its security updates instead".
 	Distro string `json:"distro"`
+	// D-516, kind distro only: the version of the distribution's package that fixes the CVE on the
+	// device's release (Ubuntu security data, Debian Security Tracker); `version` is then the device's
+	// full package version. Empty when the distribution's data does not say.
+	DistroFixed string `json:"distro_fixed"`
+	// Distro_fixed is in Ubuntu Pro (ESM) only.
+	DistroPro bool `json:"distro_pro"`
+	// The device's release with distro_fixed ("24.04", "12"); empty otherwise.
+	DistroRelease string `json:"distro_release"`
 	// The fixed release (fixed), the last affected release (up_to), the upstream fixed release as a
 	// reference when NVD names one (distro: the backport may keep the package's number below it); empty
 	// for branches.
@@ -62139,8 +62186,9 @@ type FindingsPostFindingsIDAiOKFixedIn struct {
 	More int `json:"more"`
 	// Release lines NVD gives no fixed release for (a range that ends at an affected version).
 	NoFix int `json:"no_fix"`
-	// Where the versions come from: "NVD affected versions", or "CVE.org affected versions (from the CVE
-	// record's CNA)" when NVD has none (D-556).
+	// Where the versions come from: "NVD affected versions", "CVE.org affected versions (from the CVE
+	// record's CNA)" when NVD has none (D-556), or with distro_fixed "Ubuntu security data" / "Debian
+	// Security Tracker" (D-516).
 	Source string `json:"source"`
 	// The device's version; for branches empty when it has none, else the text Vedette cannot read.
 	Version string `json:"version"`
@@ -62154,6 +62202,21 @@ func (s *FindingsPostFindingsIDAiOKFixedIn) GetBranches() []FindingsPostFindings
 // GetDistro returns the value of Distro.
 func (s *FindingsPostFindingsIDAiOKFixedIn) GetDistro() string {
 	return s.Distro
+}
+
+// GetDistroFixed returns the value of DistroFixed.
+func (s *FindingsPostFindingsIDAiOKFixedIn) GetDistroFixed() string {
+	return s.DistroFixed
+}
+
+// GetDistroPro returns the value of DistroPro.
+func (s *FindingsPostFindingsIDAiOKFixedIn) GetDistroPro() bool {
+	return s.DistroPro
+}
+
+// GetDistroRelease returns the value of DistroRelease.
+func (s *FindingsPostFindingsIDAiOKFixedIn) GetDistroRelease() string {
+	return s.DistroRelease
 }
 
 // GetFixed returns the value of Fixed.
@@ -62194,6 +62257,21 @@ func (s *FindingsPostFindingsIDAiOKFixedIn) SetBranches(val []FindingsPostFindin
 // SetDistro sets the value of Distro.
 func (s *FindingsPostFindingsIDAiOKFixedIn) SetDistro(val string) {
 	s.Distro = val
+}
+
+// SetDistroFixed sets the value of DistroFixed.
+func (s *FindingsPostFindingsIDAiOKFixedIn) SetDistroFixed(val string) {
+	s.DistroFixed = val
+}
+
+// SetDistroPro sets the value of DistroPro.
+func (s *FindingsPostFindingsIDAiOKFixedIn) SetDistroPro(val bool) {
+	s.DistroPro = val
+}
+
+// SetDistroRelease sets the value of DistroRelease.
+func (s *FindingsPostFindingsIDAiOKFixedIn) SetDistroRelease(val string) {
+	s.DistroRelease = val
 }
 
 // SetFixed sets the value of Fixed.
@@ -65033,6 +65111,14 @@ type FindingsPostFindingsIDAppliedOKFixedIn struct {
 	// inventory kept the flag); the page adds "if you installed it from the distribution's packages,
 	// install its security updates instead".
 	Distro string `json:"distro"`
+	// D-516, kind distro only: the version of the distribution's package that fixes the CVE on the
+	// device's release (Ubuntu security data, Debian Security Tracker); `version` is then the device's
+	// full package version. Empty when the distribution's data does not say.
+	DistroFixed string `json:"distro_fixed"`
+	// Distro_fixed is in Ubuntu Pro (ESM) only.
+	DistroPro bool `json:"distro_pro"`
+	// The device's release with distro_fixed ("24.04", "12"); empty otherwise.
+	DistroRelease string `json:"distro_release"`
 	// The fixed release (fixed), the last affected release (up_to), the upstream fixed release as a
 	// reference when NVD names one (distro: the backport may keep the package's number below it); empty
 	// for branches.
@@ -65048,8 +65134,9 @@ type FindingsPostFindingsIDAppliedOKFixedIn struct {
 	More int `json:"more"`
 	// Release lines NVD gives no fixed release for (a range that ends at an affected version).
 	NoFix int `json:"no_fix"`
-	// Where the versions come from: "NVD affected versions", or "CVE.org affected versions (from the CVE
-	// record's CNA)" when NVD has none (D-556).
+	// Where the versions come from: "NVD affected versions", "CVE.org affected versions (from the CVE
+	// record's CNA)" when NVD has none (D-556), or with distro_fixed "Ubuntu security data" / "Debian
+	// Security Tracker" (D-516).
 	Source string `json:"source"`
 	// The device's version; for branches empty when it has none, else the text Vedette cannot read.
 	Version string `json:"version"`
@@ -65063,6 +65150,21 @@ func (s *FindingsPostFindingsIDAppliedOKFixedIn) GetBranches() []FindingsPostFin
 // GetDistro returns the value of Distro.
 func (s *FindingsPostFindingsIDAppliedOKFixedIn) GetDistro() string {
 	return s.Distro
+}
+
+// GetDistroFixed returns the value of DistroFixed.
+func (s *FindingsPostFindingsIDAppliedOKFixedIn) GetDistroFixed() string {
+	return s.DistroFixed
+}
+
+// GetDistroPro returns the value of DistroPro.
+func (s *FindingsPostFindingsIDAppliedOKFixedIn) GetDistroPro() bool {
+	return s.DistroPro
+}
+
+// GetDistroRelease returns the value of DistroRelease.
+func (s *FindingsPostFindingsIDAppliedOKFixedIn) GetDistroRelease() string {
+	return s.DistroRelease
 }
 
 // GetFixed returns the value of Fixed.
@@ -65103,6 +65205,21 @@ func (s *FindingsPostFindingsIDAppliedOKFixedIn) SetBranches(val []FindingsPostF
 // SetDistro sets the value of Distro.
 func (s *FindingsPostFindingsIDAppliedOKFixedIn) SetDistro(val string) {
 	s.Distro = val
+}
+
+// SetDistroFixed sets the value of DistroFixed.
+func (s *FindingsPostFindingsIDAppliedOKFixedIn) SetDistroFixed(val string) {
+	s.DistroFixed = val
+}
+
+// SetDistroPro sets the value of DistroPro.
+func (s *FindingsPostFindingsIDAppliedOKFixedIn) SetDistroPro(val bool) {
+	s.DistroPro = val
+}
+
+// SetDistroRelease sets the value of DistroRelease.
+func (s *FindingsPostFindingsIDAppliedOKFixedIn) SetDistroRelease(val string) {
+	s.DistroRelease = val
 }
 
 // SetFixed sets the value of Fixed.
@@ -67963,6 +68080,14 @@ type FindingsPostFindingsIDStatusOKFixedIn struct {
 	// inventory kept the flag); the page adds "if you installed it from the distribution's packages,
 	// install its security updates instead".
 	Distro string `json:"distro"`
+	// D-516, kind distro only: the version of the distribution's package that fixes the CVE on the
+	// device's release (Ubuntu security data, Debian Security Tracker); `version` is then the device's
+	// full package version. Empty when the distribution's data does not say.
+	DistroFixed string `json:"distro_fixed"`
+	// Distro_fixed is in Ubuntu Pro (ESM) only.
+	DistroPro bool `json:"distro_pro"`
+	// The device's release with distro_fixed ("24.04", "12"); empty otherwise.
+	DistroRelease string `json:"distro_release"`
 	// The fixed release (fixed), the last affected release (up_to), the upstream fixed release as a
 	// reference when NVD names one (distro: the backport may keep the package's number below it); empty
 	// for branches.
@@ -67978,8 +68103,9 @@ type FindingsPostFindingsIDStatusOKFixedIn struct {
 	More int `json:"more"`
 	// Release lines NVD gives no fixed release for (a range that ends at an affected version).
 	NoFix int `json:"no_fix"`
-	// Where the versions come from: "NVD affected versions", or "CVE.org affected versions (from the CVE
-	// record's CNA)" when NVD has none (D-556).
+	// Where the versions come from: "NVD affected versions", "CVE.org affected versions (from the CVE
+	// record's CNA)" when NVD has none (D-556), or with distro_fixed "Ubuntu security data" / "Debian
+	// Security Tracker" (D-516).
 	Source string `json:"source"`
 	// The device's version; for branches empty when it has none, else the text Vedette cannot read.
 	Version string `json:"version"`
@@ -67993,6 +68119,21 @@ func (s *FindingsPostFindingsIDStatusOKFixedIn) GetBranches() []FindingsPostFind
 // GetDistro returns the value of Distro.
 func (s *FindingsPostFindingsIDStatusOKFixedIn) GetDistro() string {
 	return s.Distro
+}
+
+// GetDistroFixed returns the value of DistroFixed.
+func (s *FindingsPostFindingsIDStatusOKFixedIn) GetDistroFixed() string {
+	return s.DistroFixed
+}
+
+// GetDistroPro returns the value of DistroPro.
+func (s *FindingsPostFindingsIDStatusOKFixedIn) GetDistroPro() bool {
+	return s.DistroPro
+}
+
+// GetDistroRelease returns the value of DistroRelease.
+func (s *FindingsPostFindingsIDStatusOKFixedIn) GetDistroRelease() string {
+	return s.DistroRelease
 }
 
 // GetFixed returns the value of Fixed.
@@ -68033,6 +68174,21 @@ func (s *FindingsPostFindingsIDStatusOKFixedIn) SetBranches(val []FindingsPostFi
 // SetDistro sets the value of Distro.
 func (s *FindingsPostFindingsIDStatusOKFixedIn) SetDistro(val string) {
 	s.Distro = val
+}
+
+// SetDistroFixed sets the value of DistroFixed.
+func (s *FindingsPostFindingsIDStatusOKFixedIn) SetDistroFixed(val string) {
+	s.DistroFixed = val
+}
+
+// SetDistroPro sets the value of DistroPro.
+func (s *FindingsPostFindingsIDStatusOKFixedIn) SetDistroPro(val bool) {
+	s.DistroPro = val
+}
+
+// SetDistroRelease sets the value of DistroRelease.
+func (s *FindingsPostFindingsIDStatusOKFixedIn) SetDistroRelease(val string) {
+	s.DistroRelease = val
 }
 
 // SetFixed sets the value of Fixed.

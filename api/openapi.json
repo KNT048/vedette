@@ -28535,9 +28535,21 @@
                               "type": "string",
                               "description": "\"Ubuntu\" or \"Debian\" when the device runs one, empty otherwise. distro: whose security updates to install (empty = the distribution). Other kinds: set only when the software is not known to come from the package database (typed by a person, read by a scan, or an agent row stored before inventory kept the flag); the page adds \"if you installed it from the distribution's packages, install its security updates instead\""
                             },
+                            "distro_fixed": {
+                              "type": "string",
+                              "description": "D-516, kind distro only: the version of the distribution's package that fixes the CVE on the device's release (Ubuntu security data, Debian Security Tracker); `version` is then the device's full package version. Empty when the distribution's data does not say"
+                            },
+                            "distro_release": {
+                              "type": "string",
+                              "description": "The device's release with distro_fixed (\"24.04\", \"12\"); empty otherwise"
+                            },
+                            "distro_pro": {
+                              "type": "boolean",
+                              "description": "distro_fixed is in Ubuntu Pro (ESM) only"
+                            },
                             "source": {
                               "type": "string",
-                              "description": "Where the versions come from: \"NVD affected versions\", or \"CVE.org affected versions (from the CVE record's CNA)\" when NVD has none (D-556)"
+                              "description": "Where the versions come from: \"NVD affected versions\", \"CVE.org affected versions (from the CVE record's CNA)\" when NVD has none (D-556), or with distro_fixed \"Ubuntu security data\" / \"Debian Security Tracker\" (D-516)"
                             }
                           },
                           "required": [
@@ -28548,6 +28560,9 @@
                             "more",
                             "no_fix",
                             "distro",
+                            "distro_fixed",
+                            "distro_release",
+                            "distro_pro",
                             "source"
                           ],
                           "additionalProperties": false
@@ -29677,9 +29692,21 @@
                               "type": "string",
                               "description": "\"Ubuntu\" or \"Debian\" when the device runs one, empty otherwise. distro: whose security updates to install (empty = the distribution). Other kinds: set only when the software is not known to come from the package database (typed by a person, read by a scan, or an agent row stored before inventory kept the flag); the page adds \"if you installed it from the distribution's packages, install its security updates instead\""
                             },
+                            "distro_fixed": {
+                              "type": "string",
+                              "description": "D-516, kind distro only: the version of the distribution's package that fixes the CVE on the device's release (Ubuntu security data, Debian Security Tracker); `version` is then the device's full package version. Empty when the distribution's data does not say"
+                            },
+                            "distro_release": {
+                              "type": "string",
+                              "description": "The device's release with distro_fixed (\"24.04\", \"12\"); empty otherwise"
+                            },
+                            "distro_pro": {
+                              "type": "boolean",
+                              "description": "distro_fixed is in Ubuntu Pro (ESM) only"
+                            },
                             "source": {
                               "type": "string",
-                              "description": "Where the versions come from: \"NVD affected versions\", or \"CVE.org affected versions (from the CVE record's CNA)\" when NVD has none (D-556)"
+                              "description": "Where the versions come from: \"NVD affected versions\", \"CVE.org affected versions (from the CVE record's CNA)\" when NVD has none (D-556), or with distro_fixed \"Ubuntu security data\" / \"Debian Security Tracker\" (D-516)"
                             }
                           },
                           "required": [
@@ -29690,6 +29717,9 @@
                             "more",
                             "no_fix",
                             "distro",
+                            "distro_fixed",
+                            "distro_release",
+                            "distro_pro",
                             "source"
                           ],
                           "additionalProperties": false
@@ -30821,9 +30851,21 @@
                               "type": "string",
                               "description": "\"Ubuntu\" or \"Debian\" when the device runs one, empty otherwise. distro: whose security updates to install (empty = the distribution). Other kinds: set only when the software is not known to come from the package database (typed by a person, read by a scan, or an agent row stored before inventory kept the flag); the page adds \"if you installed it from the distribution's packages, install its security updates instead\""
                             },
+                            "distro_fixed": {
+                              "type": "string",
+                              "description": "D-516, kind distro only: the version of the distribution's package that fixes the CVE on the device's release (Ubuntu security data, Debian Security Tracker); `version` is then the device's full package version. Empty when the distribution's data does not say"
+                            },
+                            "distro_release": {
+                              "type": "string",
+                              "description": "The device's release with distro_fixed (\"24.04\", \"12\"); empty otherwise"
+                            },
+                            "distro_pro": {
+                              "type": "boolean",
+                              "description": "distro_fixed is in Ubuntu Pro (ESM) only"
+                            },
                             "source": {
                               "type": "string",
-                              "description": "Where the versions come from: \"NVD affected versions\", or \"CVE.org affected versions (from the CVE record's CNA)\" when NVD has none (D-556)"
+                              "description": "Where the versions come from: \"NVD affected versions\", \"CVE.org affected versions (from the CVE record's CNA)\" when NVD has none (D-556), or with distro_fixed \"Ubuntu security data\" / \"Debian Security Tracker\" (D-516)"
                             }
                           },
                           "required": [
@@ -30834,6 +30876,9 @@
                             "more",
                             "no_fix",
                             "distro",
+                            "distro_fixed",
+                            "distro_release",
+                            "distro_pro",
                             "source"
                           ],
                           "additionalProperties": false
@@ -31977,9 +32022,21 @@
                               "type": "string",
                               "description": "\"Ubuntu\" or \"Debian\" when the device runs one, empty otherwise. distro: whose security updates to install (empty = the distribution). Other kinds: set only when the software is not known to come from the package database (typed by a person, read by a scan, or an agent row stored before inventory kept the flag); the page adds \"if you installed it from the distribution's packages, install its security updates instead\""
                             },
+                            "distro_fixed": {
+                              "type": "string",
+                              "description": "D-516, kind distro only: the version of the distribution's package that fixes the CVE on the device's release (Ubuntu security data, Debian Security Tracker); `version` is then the device's full package version. Empty when the distribution's data does not say"
+                            },
+                            "distro_release": {
+                              "type": "string",
+                              "description": "The device's release with distro_fixed (\"24.04\", \"12\"); empty otherwise"
+                            },
+                            "distro_pro": {
+                              "type": "boolean",
+                              "description": "distro_fixed is in Ubuntu Pro (ESM) only"
+                            },
                             "source": {
                               "type": "string",
-                              "description": "Where the versions come from: \"NVD affected versions\", or \"CVE.org affected versions (from the CVE record's CNA)\" when NVD has none (D-556)"
+                              "description": "Where the versions come from: \"NVD affected versions\", \"CVE.org affected versions (from the CVE record's CNA)\" when NVD has none (D-556), or with distro_fixed \"Ubuntu security data\" / \"Debian Security Tracker\" (D-516)"
                             }
                           },
                           "required": [
@@ -31990,6 +32047,9 @@
                             "more",
                             "no_fix",
                             "distro",
+                            "distro_fixed",
+                            "distro_release",
+                            "distro_pro",
                             "source"
                           ],
                           "additionalProperties": false

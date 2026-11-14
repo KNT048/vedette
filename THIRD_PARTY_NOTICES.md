@@ -31,6 +31,7 @@ Pure Go, no cgo. Versions pinned in `go.mod`/`go.sum`; licenses read from each m
 | modernc.org/sqlite | v1.61.1 | BSD-3-Clause | embedded: SQLite engine transpiled to Go (database/sql driver) in `core/store`; also carries musl and SQLite's public-domain code, see the module's `LICENSE-3RD-PARTY.md` |
 | github.com/ledongthuc/pdf | v0.0.0-20261020125853-5e46805f718e | BSD-3-Clause | embedded, but run only in a child process: reads the text of a PDF that an administrator adds to the AI knowledge base (`core/pdftext`, started by `vedette pdftext` through `core/exec`, D-264); a fork of `rsc.io/pdf`, no dependency of its own; the file is read in memory, never run; the child has RLIMIT_AS (start-up size + 512 MiB), RLIMIT_CPU 60 s, a 60 s wall-clock kill and capped output, because the library has fatal errors and endless loops that `recover()` cannot stop |
 | github.com/gosnmp/gosnmp | v1.47.0 | BSD-2-Clause | embedded in `vedette-sensor` (the worker of the `scan` container, `modules/sensor-active/worker`, D-512): read-only SNMP v2c and v3 (USM: SHA/SHA-256 authentication, AES-128 privacy) GETs of the system group and ENTITY-MIB index 1 of approved devices in the confirmed scan scope; standard library only; its test-only modules (testify, golang/mock) are not linked |
+| github.com/ulikunitz/xz | v0.5.17 | BSD-3-Clause | embedded: unpacks Canonical's `osv-all.tar.xz` and `vex-all.tar.xz` while they download (`modules/feeds`, built-in feeds `ubuntu-osv` and `ubuntu-vex`, D-516); pure Go, no cgo |
 | github.com/pressly/goose/v3 | v3.29.0 | MIT | embedded: runs the embedded SQL migrations at start-up (`core/store.Migrate`); forward-only, no Down |
 | modernc.org/libc, modernc.org/mathutil, modernc.org/memory | v1.79.0, v1.7.1, v1.12.1 | BSD-3-Clause | embedded: runtime of modernc.org/sqlite |
 | github.com/ncruces/go-strftime | v1.1.0 | MIT | embedded: via modernc.org/sqlite |
@@ -181,6 +182,15 @@ httpx, naabu, subfinder and dnsx (MIT), planned here before, are not used: the e
 | Spamhaus DROP | not used in v1 (D-367) | name not used in marketing |
 
 Real data in the current build (`web/src/mocks/fixtures/`, `make fixtures`): CISA KEV (CC0), FIRST EPSS (attribution), the CVE list of nuclei-templates (MIT). Sources are shown on every screen.
+
+## Distribution security data each box pulls (built-in feeds, on by default; D-516)
+
+Each box downloads these files itself, keeps on its own disk only the rows of the CVEs on the CISA list (source package, release, fixed version or "not affected") and shows them to its own operator as evidence on a finding. The project redistributes none of it: no snapshot, database or fixture copied from these sources is in the repository or in a release (the tests use fixtures written for them). Data the program only stores and shows is not code linked into it, so these terms put no licence duty on Vedette's code.
+
+| Source | Terms | How it is used |
+|---|---|---|
+| Ubuntu OSV and VEX security data (`security-metadata.canonical.com/osv/osv-all.tar.xz`, `/vex/vex-all.tar.xz`) | CC BY-SA 4.0, Canonical Ltd. (https://security-metadata.canonical.com/osv/LICENSE, https://security-metadata.canonical.com/vex/LICENSE) | data: OSV gives the first Ubuntu package version that fixes a CVE per release and source package (`ubuntu-osv`); VEX gives the packages Ubuntu says are not affected (`ubuntu-vex`). Attribution on the feed row ("CC BY-SA 4.0, Canonical Ltd.") and on each finding the data decides ("Ubuntu security data"). Share-alike would apply to adapted data the project shared; it shares none |
+| Debian Security Tracker JSON (`security-tracker.debian.org/tracker/data/json`) | **no licence stated** for the JSON or for the tracker's data (salsa.debian.org/security-tracker-team/security-tracker has no licence file at its root, checked 2026-11-14) | data: the fixed version or "not affected" per Debian release and source package (`debian-tracker`). Used as Trivy and Grype use it: fetched by each box from Debian, attributed ("Debian Security Tracker" on the feed row and on each finding it decides), never redistributed |
 
 ## Public pages each box reads for CVE news (only when a person presses the button; S-AI-3, D-280, D-281)
 

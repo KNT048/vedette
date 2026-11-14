@@ -116,6 +116,9 @@ type pullPlan struct {
 
 	iocs    []iocInput
 	hasIOCs bool
+
+	distro    []DistroFix // ubuntu-osv, ubuntu-vex, debian-tracker (D-516): the feed's rows, replaced whole
+	hasDistro bool
 }
 
 func (s *Service) get(ctx context.Context, req Request) (*Response, error) {
@@ -249,6 +252,8 @@ func (s *Service) build(ctx context.Context, src sourceRow) (pullPlan, error) {
 		return s.buildNVD(ctx, src, p)
 	case DecoderCVEOrg:
 		return s.buildCVEOrg(ctx, src, p)
+	case DecoderUbuntuOSV, DecoderUbuntuVEX, DecoderDebianTracker:
+		return s.buildDistro(ctx, src, p, dec)
 	}
 	auth, err := s.authFor(ctx, src)
 	if err != nil {
@@ -487,6 +492,9 @@ func (s *Service) pullOne(ctx context.Context, id, actor string) (sourceRow, int
 	if errors.Is(perr, errNVDPaused) { // W3-1: the pages so far are kept and the pull goes on later; nothing is written
 		return s.live(src), 0, nil, nil
 	}
+	if errors.Is(perr, errDistroWaits) { // D-516: no CISA list yet, so nothing to keep; the feed stays due and pulls after it
+		return s.live(src), 0, nil, nil
+	}
 	if perr != nil {
 		s.Log.WarnContext(ctx, "feed pull failed", "feed", src.ID, "name", src.Name, "error", perr) // the name too: an admin knows the feed by it (D-420 (2))
 		p = pullPlan{out: outcome{Err: userError(perr, src.URL)}}
@@ -578,6 +586,10 @@ func (s *Service) pullOne(ctx context.Context, id, actor string) (sourceRow, int
 					return err
 				}
 				p.out.Records = total
+			case p.hasDistro:
+				if rangesChanged, rangesFirst, err = applyDistro(ctx, tx, src.ID, p.distro); err != nil {
+					return err
+				}
 			}
 			return finish(tx, p.out)
 		})

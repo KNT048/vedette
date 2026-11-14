@@ -21448,6 +21448,13 @@
                             "additionalProperties": false,
                             "description": "The current testing terms for this target, to accept or to read again"
                           },
+                          "terms_warning": {
+                            "description": "GET of one IP target only: the box reaches the Internet through carrier-grade NAT (its gateway is in 100.64.0.0/10), so the address is probably shared; the disruptive tick is refused (409 shared_address) while it shows (D-566)",
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
                           "full_scan": {
                             "type": "boolean",
                             "description": "Scans of this target are deep scans: the current testing terms are accepted. Otherwise the K-4 scope of the Scan now sentence"
@@ -22140,6 +22147,13 @@
                             }
                           ],
                           "description": "Why the run failed, in the same codes and texts the synchronous scan used (unreachable, too_many, module_off ...); null otherwise"
+                        },
+                        "stop_reason": {
+                          "description": "Why the box stopped this run when it was not a person's Stop, e.g. \"the testing terms of this target were withdrawn\" (D-566)",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
                         }
                       },
                       "required": [
@@ -22276,6 +22290,13 @@
                         }
                       ],
                       "description": "Why the run failed, in the same codes and texts the synchronous scan used (unreachable, too_many, module_off ...); null otherwise"
+                    },
+                    "stop_reason": {
+                      "description": "Why the box stopped this run when it was not a person's Stop, e.g. \"the testing terms of this target were withdrawn\" (D-566)",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
                     }
                   },
                   "required": [
@@ -22571,6 +22592,13 @@
                             ],
                             "additionalProperties": false,
                             "description": "The current testing terms for this target, to accept or to read again"
+                          },
+                          "terms_warning": {
+                            "description": "GET of one IP target only: the box reaches the Internet through carrier-grade NAT (its gateway is in 100.64.0.0/10), so the address is probably shared; the disruptive tick is refused (409 shared_address) while it shows (D-566)",
+                            "type": [
+                              "string",
+                              "null"
+                            ]
                           },
                           "full_scan": {
                             "type": "boolean",
@@ -23178,6 +23206,13 @@
                       "additionalProperties": false,
                       "description": "The current testing terms for this target, to accept or to read again"
                     },
+                    "terms_warning": {
+                      "description": "GET of one IP target only: the box reaches the Internet through carrier-grade NAT (its gateway is in 100.64.0.0/10), so the address is probably shared; the disruptive tick is refused (409 shared_address) while it shows (D-566)",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
                     "full_scan": {
                       "type": "boolean",
                       "description": "Scans of this target are deep scans: the current testing terms are accepted. Otherwise the K-4 scope of the Scan now sentence"
@@ -23674,6 +23709,13 @@
                       ],
                       "additionalProperties": false,
                       "description": "The current testing terms for this target, to accept or to read again"
+                    },
+                    "terms_warning": {
+                      "description": "GET of one IP target only: the box reaches the Internet through carrier-grade NAT (its gateway is in 100.64.0.0/10), so the address is probably shared; the disruptive tick is refused (409 shared_address) while it shows (D-566)",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
                     },
                     "full_scan": {
                       "type": "boolean",
@@ -24469,6 +24511,13 @@
                         }
                       ],
                       "description": "Why the run failed, in the same codes and texts the synchronous scan used (unreachable, too_many, module_off ...); null otherwise"
+                    },
+                    "stop_reason": {
+                      "description": "Why the box stopped this run when it was not a person's Stop, e.g. \"the testing terms of this target were withdrawn\" (D-566)",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
                     }
                   },
                   "required": [
@@ -25257,7 +25306,7 @@
     "/exposure/targets/{id}/terms": {
       "delete": {
         "operationId": "exposure_delete_exposure_targets_id_terms",
-        "summary": "Withdraw the testing terms of a target (FULL-1, D-566): always possible; the next scan runs in the K-4 scope again. Audited (exposure.terms_revoke) when there was an acceptance",
+        "summary": "Withdraw the testing terms of a target (FULL-1, D-566): always possible; the next scan runs in the K-4 scope again, and a deep scan of this target that runs now is stopped (ScanRun.stop_reason). Audited (exposure.terms_revoke) when there was an acceptance",
         "tags": [
           "exposure"
         ],
@@ -25523,6 +25572,13 @@
                       "additionalProperties": false,
                       "description": "The current testing terms for this target, to accept or to read again"
                     },
+                    "terms_warning": {
+                      "description": "GET of one IP target only: the box reaches the Internet through carrier-grade NAT (its gateway is in 100.64.0.0/10), so the address is probably shared; the disruptive tick is refused (409 shared_address) while it shows (D-566)",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
                     "full_scan": {
                       "type": "boolean",
                       "description": "Scans of this target are deep scans: the current testing terms are accepted. Otherwise the K-4 scope of the Scan now sentence"
@@ -25704,7 +25760,7 @@
       },
       "put": {
         "operationId": "exposure_put_exposure_targets_id_terms",
-        "summary": "Accept the testing terms of a verified target (FULL-1, D-566): every scan of it is then a deep scan; disruptive adds denial-of-service, brute-force and default-password checks (off by default). Admin with two-step sign-in (403 twofa_required); 409 notice_changed when version is not the current terms_notice.version; 409 not_verified or expired. Also records the Scan now commitment when the target has none of the current sentence. Accepting what is accepted changes nothing. Audited (exposure.terms_accept, with the flag)",
+        "summary": "Accept the testing terms of a verified target (FULL-1, D-566): every scan of it is then a deep scan; disruptive adds denial-of-service, brute-force and default-password checks (off by default). Admin with two-step sign-in (403 twofa_required); 409 notice_changed when version is not the current terms_notice.version; 409 not_verified, expired or ip_not_current (a paused IP); 409 shared_address for disruptive on an IP behind carrier-grade NAT (terms_warning). Lowering or withdrawing them stops a scan of this target that runs above the new level (ScanRun.stop_reason). Also records the Scan now commitment when the target has none of the current sentence. Accepting what is accepted changes nothing. Audited (exposure.terms_accept, with the flag)",
         "tags": [
           "exposure"
         ],
@@ -25993,6 +26049,13 @@
                       ],
                       "additionalProperties": false,
                       "description": "The current testing terms for this target, to accept or to read again"
+                    },
+                    "terms_warning": {
+                      "description": "GET of one IP target only: the box reaches the Internet through carrier-grade NAT (its gateway is in 100.64.0.0/10), so the address is probably shared; the disruptive tick is refused (409 shared_address) while it shows (D-566)",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
                     },
                     "full_scan": {
                       "type": "boolean",
@@ -26451,6 +26514,13 @@
                           ],
                           "additionalProperties": false,
                           "description": "The current testing terms for this target, to accept or to read again"
+                        },
+                        "terms_warning": {
+                          "description": "GET of one IP target only: the box reaches the Internet through carrier-grade NAT (its gateway is in 100.64.0.0/10), so the address is probably shared; the disruptive tick is refused (409 shared_address) while it shows (D-566)",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
                         },
                         "full_scan": {
                           "type": "boolean",

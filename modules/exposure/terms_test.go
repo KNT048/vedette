@@ -5,10 +5,14 @@ import (
 	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
+	"errors"
+	"net/netip"
 	"os"
 	"regexp"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 )
 
 var termsAdmin = Actor{ID: "u-admin", Email: "admin@acme.example", Admin: true}
@@ -160,10 +164,117 @@ func TestTermsMatchTheContractOfTheGUI(t *testing.T) {
 func TestTermsTextIsPinnedToItsVersion(t *testing.T) {
 	t.Parallel()
 	pinned := map[string]string{
-		"2026-11-14": "e3cafa3e881a321c3ae62f23c5d6fd32ac7e34c7715dbc1138636682854bfd27",
+		"2026-11-14":  "e3cafa3e881a321c3ae62f23c5d6fd32ac7e34c7715dbc1138636682854bfd27",
+		"2026-11-14b": "220bd0f322cfe435686be56c09855532b3c18d92cfb2efae9d06126a96f58604",
 	}
 	sum := sha256.Sum256([]byte(termsTemplate + "\x00" + termsDisruptive))
 	if got := pinned[TermsVersion]; got != hex.EncodeToString(sum[:]) {
 		t.Fatalf("the terms for version %s have hash %x: change TermsVersion (and contract.ts) when the text changes, then pin the new hash", TermsVersion, sum)
 	}
+}
+
+// review r1 M1: withdrawing the terms stops a deep scan of the target that runs now: during the Greenbone step gvmd's task is stopped,
+// the run ends stopped with the reason, the earlier results are kept, and the audit row says a scan was stopped.
+func TestTerms_WithdrawStopsTheRunningScan(t *testing.T) {
+	t.Parallel()
+	e, h := gbEnv(t)
+	e.enable()
+	e.svc.gb().poll = time.Millisecond
+	id := e.detect(ipA)[0].ID
+	if _, err := e.commit(id); err != nil {
+		t.Fatal(err)
+	}
+	e.acceptTerms(id, true)
+	var once sync.Once
+	h.gvm.with(func(g *fakeGVM) {
+		g.states = []string{"Running"}
+		g.onPoll = func() {
+			once.Do(func() {
+				if _, err := e.svc.RevokeTerms(context.Background(), "admin@acme.example", id); err != nil {
+					t.Error(err)
+				}
+			})
+		}
+	})
+	e.svc.SetRunner(&fakeRunner{content: Content{}})
+	if _, err := e.svc.Scan(e.ctx(), "admin@acme.example", id); err == nil {
+		t.Fatal("the scan was not stopped")
+	}
+	run := e.svc.CurrentScan()
+	if run == nil || run.Status != RunStopped || run.SnapshotID == nil || run.StopReason == nil || *run.StopReason != "the testing terms of this target were withdrawn" || !h.gvm.seen("stop_task") {
+		t.Fatalf("run = %+v, cmds %q", run, h.gvm.cmds)
+	}
+	if r := e.auditDetails("exposure.terms_revoke"); len(r) != 1 || !strings.HasSuffix(r[0], stoppedNote) {
+		t.Fatalf("audit = %q", r)
+	}
+}
+
+// review r1 M1: taking the disruptive tick out stops a disruptive run; raising the level, or another target's change, does not.
+func TestTerms_LoweringStopsOnlyARunAbove(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	id := e.detect(ipA)[0].ID
+	e.acceptTerms(id, true)
+	var cause error
+	fake := func(m ScanMode, target string) {
+		e.svc.runMu.Lock()
+		e.svc.run = &scanRun{view: ScanRun{TargetID: target, Status: RunRunning}, mode: m, cancel: func(c error) { cause = c }}
+		e.svc.runMu.Unlock()
+		cause = nil
+	}
+	fake(ScanMode{Full: true, Disruptive: true}, "other")
+	e.acceptTerms(id, false)
+	if cause != nil {
+		t.Fatal("stopped a scan of another target")
+	}
+	fake(ScanMode{Full: true}, id)
+	e.acceptTerms(id, true)
+	if cause != nil {
+		t.Fatal("raising the level stopped the scan")
+	}
+	fake(ScanMode{Full: true, Disruptive: true}, id)
+	e.acceptTerms(id, false)
+	var sb *stoppedBy
+	if !errors.As(cause, &sb) || sb.why != "the disruptive checks were taken out of this target's testing terms" {
+		t.Fatalf("cause = %v", cause)
+	}
+	if acc := e.auditDetails("exposure.terms_accept"); !strings.Contains(acc[len(acc)-1], stoppedNote) {
+		t.Fatalf("audit = %q", acc)
+	}
+}
+
+// review r1 M2: behind carrier-grade NAT the terms step warns that the address is probably shared and refuses the disruptive tick;
+// the deep scan can still be accepted. The terms say the address must be the customer's alone.
+func TestTerms_CarrierGradeNAT(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	id := e.detect(ipA)[0].ID
+	if v := e.target(id); v.TermsWarning != nil || !strings.Contains(v.TermsNotice.Text, "Accept only if "+ipA+" is yours alone") {
+		t.Fatalf("view = %+v", v)
+	}
+	e.svc.cfg.Gateway = &fakeGateway{g: GatewayDevice{IP: netip.MustParseAddr("100.64.0.1")}}
+	if v := e.target(id); v.TermsWarning == nil || !strings.Contains(*v.TermsWarning, "carrier-grade NAT (its gateway 100.64.0.1 is in 100.64.0.0/10)") {
+		t.Fatalf("view = %+v", v)
+	}
+	e.svc.cfg.TwoStep = func(context.Context, string) (string, error) { return "app", nil }
+	_, err := e.svc.AcceptTerms(e.ctx(), termsAdmin, id, TermsVersion, true)
+	wantAPI(t, err, 409, "shared_address")
+	if v := e.acceptTerms(id, false); !v.FullScan {
+		t.Fatalf("deep scan refused: %+v", v)
+	}
+}
+
+// review r1 L2: a paused IP (the latest full check did not see it) cannot accept the terms.
+func TestTerms_PausedIPCannotAccept(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	id := e.committedIP(ipA).ID
+	e.advance(time.Minute)
+	e.fullAs(ipB)
+	if !e.isPaused(id) {
+		t.Fatal("not paused")
+	}
+	e.svc.cfg.TwoStep = func(context.Context, string) (string, error) { return "app", nil }
+	_, err := e.svc.AcceptTerms(e.ctx(), termsAdmin, id, TermsVersion, false)
+	wantAPI(t, err, 409, "ip_not_current")
 }

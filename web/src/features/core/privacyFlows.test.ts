@@ -37,6 +37,11 @@ describe('Settings → Privacy flows match PRIVACY.md', () => {
     expect(plain(rows.get(9)![2]!)).toMatch(/the box checks again right before it that it still goes out through that IP/)
     expect(flows['9']!.what).toMatch(/one probe-log row for the run written before it starts \(the box checks again right before it that the IP is still its own\)\. For the names of your domain, one web-page check by name on ports 80 and 443\./)
   })
+  it('flow 9: the testing terms can be withdrawn per target, the same words in both (D-566 review r1 L3)', () => {
+    const sentence = "Withdraw a target's testing terms (Ownership tab) to keep its scans to the Scan now scope"
+    expect(plain(rows.get(9)![4]!)).toContain(sentence)
+    expect(flows['9']!.control).toContain(`${sentence}.`)
+  })
   it('flow 3 is a lead sentence and one item per AI job, word for word (D-407)', () => {
     const [lead, list] = rows.get(3)![2]!.split('<ul>')
     const items = list!.replace(/<\/ul>$/, '').split('</li>').filter(Boolean).map((i) => plain(i.replace(/^<li>/, '')))

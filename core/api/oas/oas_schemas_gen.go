@@ -42786,6 +42786,10 @@ type ExposureDeleteExposureTargetsIDTermsOK struct {
 	Terms NilExposureDeleteExposureTargetsIDTermsOKTerms `json:"terms"`
 	// The current testing terms for this target, to accept or to read again.
 	TermsNotice ExposureDeleteExposureTargetsIDTermsOKTermsNotice `json:"terms_notice"`
+	// GET of one IP target only: the box reaches the Internet through carrier-grade NAT (its gateway is in
+	// 100.64.0.0/10), so the address is probably shared; the disruptive tick is refused (409
+	// shared_address) while it shows (D-566).
+	TermsWarning OptNilString `json:"terms_warning"`
 	// Domain: the token in the TXT record vedette-verify= (not secret, it is public in DNS). IP: empty
 	// string.
 	Token string `json:"token"`
@@ -42880,6 +42884,11 @@ func (s *ExposureDeleteExposureTargetsIDTermsOK) GetTerms() NilExposureDeleteExp
 // GetTermsNotice returns the value of TermsNotice.
 func (s *ExposureDeleteExposureTargetsIDTermsOK) GetTermsNotice() ExposureDeleteExposureTargetsIDTermsOKTermsNotice {
 	return s.TermsNotice
+}
+
+// GetTermsWarning returns the value of TermsWarning.
+func (s *ExposureDeleteExposureTargetsIDTermsOK) GetTermsWarning() OptNilString {
+	return s.TermsWarning
 }
 
 // GetToken returns the value of Token.
@@ -42985,6 +42994,11 @@ func (s *ExposureDeleteExposureTargetsIDTermsOK) SetTerms(val NilExposureDeleteE
 // SetTermsNotice sets the value of TermsNotice.
 func (s *ExposureDeleteExposureTargetsIDTermsOK) SetTermsNotice(val ExposureDeleteExposureTargetsIDTermsOKTermsNotice) {
 	s.TermsNotice = val
+}
+
+// SetTermsWarning sets the value of TermsWarning.
+func (s *ExposureDeleteExposureTargetsIDTermsOK) SetTermsWarning(val OptNilString) {
+	s.TermsWarning = val
 }
 
 // SetToken sets the value of Token.
@@ -43882,11 +43896,14 @@ type ExposureGetExposureScanOK struct {
 	Phase ExposureGetExposureScanOKPhase `json:"phase"`
 	// The new snapshot when status is done; also when a run was stopped during its Greenbone step, whose
 	// earlier results are kept.
-	SnapshotID  NilString                       `json:"snapshot_id"`
-	StartedAt   time.Time                       `json:"started_at"`
-	Status      ExposureGetExposureScanOKStatus `json:"status"`
-	TargetID    string                          `json:"target_id"`
-	TargetValue string                          `json:"target_value"`
+	SnapshotID NilString                       `json:"snapshot_id"`
+	StartedAt  time.Time                       `json:"started_at"`
+	Status     ExposureGetExposureScanOKStatus `json:"status"`
+	// Why the box stopped this run when it was not a person's Stop, e.g. "the testing terms of this target
+	// were withdrawn" (D-566).
+	StopReason  OptNilString `json:"stop_reason"`
+	TargetID    string       `json:"target_id"`
+	TargetValue string       `json:"target_value"`
 }
 
 // GetBy returns the value of By.
@@ -43927,6 +43944,11 @@ func (s *ExposureGetExposureScanOK) GetStartedAt() time.Time {
 // GetStatus returns the value of Status.
 func (s *ExposureGetExposureScanOK) GetStatus() ExposureGetExposureScanOKStatus {
 	return s.Status
+}
+
+// GetStopReason returns the value of StopReason.
+func (s *ExposureGetExposureScanOK) GetStopReason() OptNilString {
+	return s.StopReason
 }
 
 // GetTargetID returns the value of TargetID.
@@ -43977,6 +43999,11 @@ func (s *ExposureGetExposureScanOK) SetStartedAt(val time.Time) {
 // SetStatus sets the value of Status.
 func (s *ExposureGetExposureScanOK) SetStatus(val ExposureGetExposureScanOKStatus) {
 	s.Status = val
+}
+
+// SetStopReason sets the value of StopReason.
+func (s *ExposureGetExposureScanOK) SetStopReason(val OptNilString) {
+	s.StopReason = val
 }
 
 // SetTargetID sets the value of TargetID.
@@ -44598,6 +44625,10 @@ type ExposureGetExposureTargetsIDOK struct {
 	Terms NilExposureGetExposureTargetsIDOKTerms `json:"terms"`
 	// The current testing terms for this target, to accept or to read again.
 	TermsNotice ExposureGetExposureTargetsIDOKTermsNotice `json:"terms_notice"`
+	// GET of one IP target only: the box reaches the Internet through carrier-grade NAT (its gateway is in
+	// 100.64.0.0/10), so the address is probably shared; the disruptive tick is refused (409
+	// shared_address) while it shows (D-566).
+	TermsWarning OptNilString `json:"terms_warning"`
 	// Domain: the token in the TXT record vedette-verify= (not secret, it is public in DNS). IP: empty
 	// string.
 	Token string `json:"token"`
@@ -44692,6 +44723,11 @@ func (s *ExposureGetExposureTargetsIDOK) GetTerms() NilExposureGetExposureTarget
 // GetTermsNotice returns the value of TermsNotice.
 func (s *ExposureGetExposureTargetsIDOK) GetTermsNotice() ExposureGetExposureTargetsIDOKTermsNotice {
 	return s.TermsNotice
+}
+
+// GetTermsWarning returns the value of TermsWarning.
+func (s *ExposureGetExposureTargetsIDOK) GetTermsWarning() OptNilString {
+	return s.TermsWarning
 }
 
 // GetToken returns the value of Token.
@@ -44797,6 +44833,11 @@ func (s *ExposureGetExposureTargetsIDOK) SetTerms(val NilExposureGetExposureTarg
 // SetTermsNotice sets the value of TermsNotice.
 func (s *ExposureGetExposureTargetsIDOK) SetTermsNotice(val ExposureGetExposureTargetsIDOKTermsNotice) {
 	s.TermsNotice = val
+}
+
+// SetTermsWarning sets the value of TermsWarning.
+func (s *ExposureGetExposureTargetsIDOK) SetTermsWarning(val OptNilString) {
+	s.TermsWarning = val
 }
 
 // SetToken sets the value of Token.
@@ -47309,6 +47350,10 @@ type ExposureGetExposureTargetsOKItemsItem struct {
 	Terms NilExposureGetExposureTargetsOKItemsItemTerms `json:"terms"`
 	// The current testing terms for this target, to accept or to read again.
 	TermsNotice ExposureGetExposureTargetsOKItemsItemTermsNotice `json:"terms_notice"`
+	// GET of one IP target only: the box reaches the Internet through carrier-grade NAT (its gateway is in
+	// 100.64.0.0/10), so the address is probably shared; the disruptive tick is refused (409
+	// shared_address) while it shows (D-566).
+	TermsWarning OptNilString `json:"terms_warning"`
 	// Domain: the token in the TXT record vedette-verify= (not secret, it is public in DNS). IP: empty
 	// string.
 	Token string `json:"token"`
@@ -47403,6 +47448,11 @@ func (s *ExposureGetExposureTargetsOKItemsItem) GetTerms() NilExposureGetExposur
 // GetTermsNotice returns the value of TermsNotice.
 func (s *ExposureGetExposureTargetsOKItemsItem) GetTermsNotice() ExposureGetExposureTargetsOKItemsItemTermsNotice {
 	return s.TermsNotice
+}
+
+// GetTermsWarning returns the value of TermsWarning.
+func (s *ExposureGetExposureTargetsOKItemsItem) GetTermsWarning() OptNilString {
+	return s.TermsWarning
 }
 
 // GetToken returns the value of Token.
@@ -47508,6 +47558,11 @@ func (s *ExposureGetExposureTargetsOKItemsItem) SetTerms(val NilExposureGetExpos
 // SetTermsNotice sets the value of TermsNotice.
 func (s *ExposureGetExposureTargetsOKItemsItem) SetTermsNotice(val ExposureGetExposureTargetsOKItemsItemTermsNotice) {
 	s.TermsNotice = val
+}
+
+// SetTermsWarning sets the value of TermsWarning.
+func (s *ExposureGetExposureTargetsOKItemsItem) SetTermsWarning(val OptNilString) {
+	s.TermsWarning = val
 }
 
 // SetToken sets the value of Token.
@@ -48186,6 +48241,10 @@ type ExposurePostExposureBoxIPVerifyOKItemsItem struct {
 	Terms NilExposurePostExposureBoxIPVerifyOKItemsItemTerms `json:"terms"`
 	// The current testing terms for this target, to accept or to read again.
 	TermsNotice ExposurePostExposureBoxIPVerifyOKItemsItemTermsNotice `json:"terms_notice"`
+	// GET of one IP target only: the box reaches the Internet through carrier-grade NAT (its gateway is in
+	// 100.64.0.0/10), so the address is probably shared; the disruptive tick is refused (409
+	// shared_address) while it shows (D-566).
+	TermsWarning OptNilString `json:"terms_warning"`
 	// Domain: the token in the TXT record vedette-verify= (not secret, it is public in DNS). IP: empty
 	// string.
 	Token string `json:"token"`
@@ -48280,6 +48339,11 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) GetTerms() NilExposurePostE
 // GetTermsNotice returns the value of TermsNotice.
 func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) GetTermsNotice() ExposurePostExposureBoxIPVerifyOKItemsItemTermsNotice {
 	return s.TermsNotice
+}
+
+// GetTermsWarning returns the value of TermsWarning.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) GetTermsWarning() OptNilString {
+	return s.TermsWarning
 }
 
 // GetToken returns the value of Token.
@@ -48385,6 +48449,11 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) SetTerms(val NilExposurePos
 // SetTermsNotice sets the value of TermsNotice.
 func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) SetTermsNotice(val ExposurePostExposureBoxIPVerifyOKItemsItemTermsNotice) {
 	s.TermsNotice = val
+}
+
+// SetTermsWarning sets the value of TermsWarning.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) SetTermsWarning(val OptNilString) {
+	s.TermsWarning = val
 }
 
 // SetToken sets the value of Token.
@@ -49017,11 +49086,14 @@ type ExposurePostExposureScanStopOK struct {
 	Phase ExposurePostExposureScanStopOKPhase `json:"phase"`
 	// The new snapshot when status is done; also when a run was stopped during its Greenbone step, whose
 	// earlier results are kept.
-	SnapshotID  NilString                            `json:"snapshot_id"`
-	StartedAt   time.Time                            `json:"started_at"`
-	Status      ExposurePostExposureScanStopOKStatus `json:"status"`
-	TargetID    string                               `json:"target_id"`
-	TargetValue string                               `json:"target_value"`
+	SnapshotID NilString                            `json:"snapshot_id"`
+	StartedAt  time.Time                            `json:"started_at"`
+	Status     ExposurePostExposureScanStopOKStatus `json:"status"`
+	// Why the box stopped this run when it was not a person's Stop, e.g. "the testing terms of this target
+	// were withdrawn" (D-566).
+	StopReason  OptNilString `json:"stop_reason"`
+	TargetID    string       `json:"target_id"`
+	TargetValue string       `json:"target_value"`
 }
 
 // GetBy returns the value of By.
@@ -49062,6 +49134,11 @@ func (s *ExposurePostExposureScanStopOK) GetStartedAt() time.Time {
 // GetStatus returns the value of Status.
 func (s *ExposurePostExposureScanStopOK) GetStatus() ExposurePostExposureScanStopOKStatus {
 	return s.Status
+}
+
+// GetStopReason returns the value of StopReason.
+func (s *ExposurePostExposureScanStopOK) GetStopReason() OptNilString {
+	return s.StopReason
 }
 
 // GetTargetID returns the value of TargetID.
@@ -49112,6 +49189,11 @@ func (s *ExposurePostExposureScanStopOK) SetStartedAt(val time.Time) {
 // SetStatus sets the value of Status.
 func (s *ExposurePostExposureScanStopOK) SetStatus(val ExposurePostExposureScanStopOKStatus) {
 	s.Status = val
+}
+
+// SetStopReason sets the value of StopReason.
+func (s *ExposurePostExposureScanStopOK) SetStopReason(val OptNilString) {
+	s.StopReason = val
 }
 
 // SetTargetID sets the value of TargetID.
@@ -49305,6 +49387,10 @@ type ExposurePostExposureTargetsCreated struct {
 	Terms NilExposurePostExposureTargetsCreatedTerms `json:"terms"`
 	// The current testing terms for this target, to accept or to read again.
 	TermsNotice ExposurePostExposureTargetsCreatedTermsNotice `json:"terms_notice"`
+	// GET of one IP target only: the box reaches the Internet through carrier-grade NAT (its gateway is in
+	// 100.64.0.0/10), so the address is probably shared; the disruptive tick is refused (409
+	// shared_address) while it shows (D-566).
+	TermsWarning OptNilString `json:"terms_warning"`
 	// Domain: the token in the TXT record vedette-verify= (not secret, it is public in DNS). IP: empty
 	// string.
 	Token string `json:"token"`
@@ -49399,6 +49485,11 @@ func (s *ExposurePostExposureTargetsCreated) GetTerms() NilExposurePostExposureT
 // GetTermsNotice returns the value of TermsNotice.
 func (s *ExposurePostExposureTargetsCreated) GetTermsNotice() ExposurePostExposureTargetsCreatedTermsNotice {
 	return s.TermsNotice
+}
+
+// GetTermsWarning returns the value of TermsWarning.
+func (s *ExposurePostExposureTargetsCreated) GetTermsWarning() OptNilString {
+	return s.TermsWarning
 }
 
 // GetToken returns the value of Token.
@@ -49504,6 +49595,11 @@ func (s *ExposurePostExposureTargetsCreated) SetTerms(val NilExposurePostExposur
 // SetTermsNotice sets the value of TermsNotice.
 func (s *ExposurePostExposureTargetsCreated) SetTermsNotice(val ExposurePostExposureTargetsCreatedTermsNotice) {
 	s.TermsNotice = val
+}
+
+// SetTermsWarning sets the value of TermsWarning.
+func (s *ExposurePostExposureTargetsCreated) SetTermsWarning(val OptNilString) {
+	s.TermsWarning = val
 }
 
 // SetToken sets the value of Token.
@@ -50270,11 +50366,14 @@ type ExposurePostExposureTargetsIDScanAccepted struct {
 	Phase ExposurePostExposureTargetsIDScanAcceptedPhase `json:"phase"`
 	// The new snapshot when status is done; also when a run was stopped during its Greenbone step, whose
 	// earlier results are kept.
-	SnapshotID  NilString                                       `json:"snapshot_id"`
-	StartedAt   time.Time                                       `json:"started_at"`
-	Status      ExposurePostExposureTargetsIDScanAcceptedStatus `json:"status"`
-	TargetID    string                                          `json:"target_id"`
-	TargetValue string                                          `json:"target_value"`
+	SnapshotID NilString                                       `json:"snapshot_id"`
+	StartedAt  time.Time                                       `json:"started_at"`
+	Status     ExposurePostExposureTargetsIDScanAcceptedStatus `json:"status"`
+	// Why the box stopped this run when it was not a person's Stop, e.g. "the testing terms of this target
+	// were withdrawn" (D-566).
+	StopReason  OptNilString `json:"stop_reason"`
+	TargetID    string       `json:"target_id"`
+	TargetValue string       `json:"target_value"`
 }
 
 // GetBy returns the value of By.
@@ -50315,6 +50414,11 @@ func (s *ExposurePostExposureTargetsIDScanAccepted) GetStartedAt() time.Time {
 // GetStatus returns the value of Status.
 func (s *ExposurePostExposureTargetsIDScanAccepted) GetStatus() ExposurePostExposureTargetsIDScanAcceptedStatus {
 	return s.Status
+}
+
+// GetStopReason returns the value of StopReason.
+func (s *ExposurePostExposureTargetsIDScanAccepted) GetStopReason() OptNilString {
+	return s.StopReason
 }
 
 // GetTargetID returns the value of TargetID.
@@ -50365,6 +50469,11 @@ func (s *ExposurePostExposureTargetsIDScanAccepted) SetStartedAt(val time.Time) 
 // SetStatus sets the value of Status.
 func (s *ExposurePostExposureTargetsIDScanAccepted) SetStatus(val ExposurePostExposureTargetsIDScanAcceptedStatus) {
 	s.Status = val
+}
+
+// SetStopReason sets the value of StopReason.
+func (s *ExposurePostExposureTargetsIDScanAccepted) SetStopReason(val OptNilString) {
+	s.StopReason = val
 }
 
 // SetTargetID sets the value of TargetID.
@@ -50610,6 +50719,10 @@ type ExposurePostExposureTargetsIDVerifyOKTarget struct {
 	Terms NilExposurePostExposureTargetsIDVerifyOKTargetTerms `json:"terms"`
 	// The current testing terms for this target, to accept or to read again.
 	TermsNotice ExposurePostExposureTargetsIDVerifyOKTargetTermsNotice `json:"terms_notice"`
+	// GET of one IP target only: the box reaches the Internet through carrier-grade NAT (its gateway is in
+	// 100.64.0.0/10), so the address is probably shared; the disruptive tick is refused (409
+	// shared_address) while it shows (D-566).
+	TermsWarning OptNilString `json:"terms_warning"`
 	// Domain: the token in the TXT record vedette-verify= (not secret, it is public in DNS). IP: empty
 	// string.
 	Token string `json:"token"`
@@ -50704,6 +50817,11 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTarget) GetTerms() NilExposurePost
 // GetTermsNotice returns the value of TermsNotice.
 func (s *ExposurePostExposureTargetsIDVerifyOKTarget) GetTermsNotice() ExposurePostExposureTargetsIDVerifyOKTargetTermsNotice {
 	return s.TermsNotice
+}
+
+// GetTermsWarning returns the value of TermsWarning.
+func (s *ExposurePostExposureTargetsIDVerifyOKTarget) GetTermsWarning() OptNilString {
+	return s.TermsWarning
 }
 
 // GetToken returns the value of Token.
@@ -50809,6 +50927,11 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTarget) SetTerms(val NilExposurePo
 // SetTermsNotice sets the value of TermsNotice.
 func (s *ExposurePostExposureTargetsIDVerifyOKTarget) SetTermsNotice(val ExposurePostExposureTargetsIDVerifyOKTargetTermsNotice) {
 	s.TermsNotice = val
+}
+
+// SetTermsWarning sets the value of TermsWarning.
+func (s *ExposurePostExposureTargetsIDVerifyOKTarget) SetTermsWarning(val OptNilString) {
+	s.TermsWarning = val
 }
 
 // SetToken sets the value of Token.
@@ -51869,6 +51992,10 @@ type ExposurePutExposureTargetsIDTermsOK struct {
 	Terms NilExposurePutExposureTargetsIDTermsOKTerms `json:"terms"`
 	// The current testing terms for this target, to accept or to read again.
 	TermsNotice ExposurePutExposureTargetsIDTermsOKTermsNotice `json:"terms_notice"`
+	// GET of one IP target only: the box reaches the Internet through carrier-grade NAT (its gateway is in
+	// 100.64.0.0/10), so the address is probably shared; the disruptive tick is refused (409
+	// shared_address) while it shows (D-566).
+	TermsWarning OptNilString `json:"terms_warning"`
 	// Domain: the token in the TXT record vedette-verify= (not secret, it is public in DNS). IP: empty
 	// string.
 	Token string `json:"token"`
@@ -51963,6 +52090,11 @@ func (s *ExposurePutExposureTargetsIDTermsOK) GetTerms() NilExposurePutExposureT
 // GetTermsNotice returns the value of TermsNotice.
 func (s *ExposurePutExposureTargetsIDTermsOK) GetTermsNotice() ExposurePutExposureTargetsIDTermsOKTermsNotice {
 	return s.TermsNotice
+}
+
+// GetTermsWarning returns the value of TermsWarning.
+func (s *ExposurePutExposureTargetsIDTermsOK) GetTermsWarning() OptNilString {
+	return s.TermsWarning
 }
 
 // GetToken returns the value of Token.
@@ -52068,6 +52200,11 @@ func (s *ExposurePutExposureTargetsIDTermsOK) SetTerms(val NilExposurePutExposur
 // SetTermsNotice sets the value of TermsNotice.
 func (s *ExposurePutExposureTargetsIDTermsOK) SetTermsNotice(val ExposurePutExposureTargetsIDTermsOKTermsNotice) {
 	s.TermsNotice = val
+}
+
+// SetTermsWarning sets the value of TermsWarning.
+func (s *ExposurePutExposureTargetsIDTermsOK) SetTermsWarning(val OptNilString) {
+	s.TermsWarning = val
 }
 
 // SetToken sets the value of Token.

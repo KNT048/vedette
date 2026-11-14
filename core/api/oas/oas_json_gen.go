@@ -86066,6 +86066,12 @@ func (s *ExposureDeleteExposureTargetsIDTermsOK) encodeFields(e *jx.Encoder) {
 		s.TermsNotice.Encode(e)
 	}
 	{
+		if s.TermsWarning.Set {
+			e.FieldStart("terms_warning")
+			s.TermsWarning.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("token")
 		e.Str(s.Token)
 	}
@@ -86083,7 +86089,7 @@ func (s *ExposureDeleteExposureTargetsIDTermsOK) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfExposureDeleteExposureTargetsIDTermsOK = [21]string{
+var jsonFieldsNameOfExposureDeleteExposureTargetsIDTermsOK = [22]string{
 	0:  "blocked_reason",
 	1:  "commitment",
 	2:  "commitment_notice",
@@ -86101,10 +86107,11 @@ var jsonFieldsNameOfExposureDeleteExposureTargetsIDTermsOK = [21]string{
 	14: "status",
 	15: "terms",
 	16: "terms_notice",
-	17: "token",
-	18: "validity",
-	19: "value",
-	20: "verified_at",
+	17: "terms_warning",
+	18: "token",
+	19: "validity",
+	20: "value",
+	21: "verified_at",
 }
 
 // Decode decodes ExposureDeleteExposureTargetsIDTermsOK from json.
@@ -86309,8 +86316,18 @@ func (s *ExposureDeleteExposureTargetsIDTermsOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"terms_notice\"")
 			}
+		case "terms_warning":
+			if err := func() error {
+				s.TermsWarning.Reset()
+				if err := s.TermsWarning.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"terms_warning\"")
+			}
 		case "token":
-			requiredBitSet[2] |= 1 << 1
+			requiredBitSet[2] |= 1 << 2
 			if err := func() error {
 				v, err := d.Str()
 				s.Token = string(v)
@@ -86322,7 +86339,7 @@ func (s *ExposureDeleteExposureTargetsIDTermsOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"token\"")
 			}
 		case "validity":
-			requiredBitSet[2] |= 1 << 2
+			requiredBitSet[2] |= 1 << 3
 			if err := func() error {
 				if err := s.Validity.Decode(d); err != nil {
 					return err
@@ -86332,7 +86349,7 @@ func (s *ExposureDeleteExposureTargetsIDTermsOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"validity\"")
 			}
 		case "value":
-			requiredBitSet[2] |= 1 << 3
+			requiredBitSet[2] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.Value = string(v)
@@ -86344,7 +86361,7 @@ func (s *ExposureDeleteExposureTargetsIDTermsOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"value\"")
 			}
 		case "verified_at":
-			requiredBitSet[2] |= 1 << 4
+			requiredBitSet[2] |= 1 << 5
 			if err := func() error {
 				if err := s.VerifiedAt.Decode(d, json.DecodeDateTime); err != nil {
 					return err
@@ -86365,7 +86382,7 @@ func (s *ExposureDeleteExposureTargetsIDTermsOK) Decode(d *jx.Decoder) error {
 	for i, mask := range [3]uint8{
 		0b11111111,
 		0b11111111,
-		0b00011111,
+		0b00111101,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -88219,6 +88236,12 @@ func (s *ExposureGetExposureScanOK) encodeFields(e *jx.Encoder) {
 		s.Status.Encode(e)
 	}
 	{
+		if s.StopReason.Set {
+			e.FieldStart("stop_reason")
+			s.StopReason.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("target_id")
 		e.Str(s.TargetID)
 	}
@@ -88228,17 +88251,18 @@ func (s *ExposureGetExposureScanOK) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfExposureGetExposureScanOK = [10]string{
-	0: "by",
-	1: "error",
-	2: "finished_at",
-	3: "id",
-	4: "phase",
-	5: "snapshot_id",
-	6: "started_at",
-	7: "status",
-	8: "target_id",
-	9: "target_value",
+var jsonFieldsNameOfExposureGetExposureScanOK = [11]string{
+	0:  "by",
+	1:  "error",
+	2:  "finished_at",
+	3:  "id",
+	4:  "phase",
+	5:  "snapshot_id",
+	6:  "started_at",
+	7:  "status",
+	8:  "stop_reason",
+	9:  "target_id",
+	10: "target_value",
 }
 
 // Decode decodes ExposureGetExposureScanOK from json.
@@ -88336,8 +88360,18 @@ func (s *ExposureGetExposureScanOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"status\"")
 			}
+		case "stop_reason":
+			if err := func() error {
+				s.StopReason.Reset()
+				if err := s.StopReason.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"stop_reason\"")
+			}
 		case "target_id":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.TargetID = string(v)
@@ -88349,7 +88383,7 @@ func (s *ExposureGetExposureScanOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"target_id\"")
 			}
 		case "target_value":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				v, err := d.Str()
 				s.TargetValue = string(v)
@@ -88371,7 +88405,7 @@ func (s *ExposureGetExposureScanOK) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00000011,
+		0b00000110,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -89513,6 +89547,12 @@ func (s *ExposureGetExposureTargetsIDOK) encodeFields(e *jx.Encoder) {
 		s.TermsNotice.Encode(e)
 	}
 	{
+		if s.TermsWarning.Set {
+			e.FieldStart("terms_warning")
+			s.TermsWarning.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("token")
 		e.Str(s.Token)
 	}
@@ -89530,7 +89570,7 @@ func (s *ExposureGetExposureTargetsIDOK) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfExposureGetExposureTargetsIDOK = [21]string{
+var jsonFieldsNameOfExposureGetExposureTargetsIDOK = [22]string{
 	0:  "blocked_reason",
 	1:  "commitment",
 	2:  "commitment_notice",
@@ -89548,10 +89588,11 @@ var jsonFieldsNameOfExposureGetExposureTargetsIDOK = [21]string{
 	14: "status",
 	15: "terms",
 	16: "terms_notice",
-	17: "token",
-	18: "validity",
-	19: "value",
-	20: "verified_at",
+	17: "terms_warning",
+	18: "token",
+	19: "validity",
+	20: "value",
+	21: "verified_at",
 }
 
 // Decode decodes ExposureGetExposureTargetsIDOK from json.
@@ -89756,8 +89797,18 @@ func (s *ExposureGetExposureTargetsIDOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"terms_notice\"")
 			}
+		case "terms_warning":
+			if err := func() error {
+				s.TermsWarning.Reset()
+				if err := s.TermsWarning.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"terms_warning\"")
+			}
 		case "token":
-			requiredBitSet[2] |= 1 << 1
+			requiredBitSet[2] |= 1 << 2
 			if err := func() error {
 				v, err := d.Str()
 				s.Token = string(v)
@@ -89769,7 +89820,7 @@ func (s *ExposureGetExposureTargetsIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"token\"")
 			}
 		case "validity":
-			requiredBitSet[2] |= 1 << 2
+			requiredBitSet[2] |= 1 << 3
 			if err := func() error {
 				if err := s.Validity.Decode(d); err != nil {
 					return err
@@ -89779,7 +89830,7 @@ func (s *ExposureGetExposureTargetsIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"validity\"")
 			}
 		case "value":
-			requiredBitSet[2] |= 1 << 3
+			requiredBitSet[2] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.Value = string(v)
@@ -89791,7 +89842,7 @@ func (s *ExposureGetExposureTargetsIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"value\"")
 			}
 		case "verified_at":
-			requiredBitSet[2] |= 1 << 4
+			requiredBitSet[2] |= 1 << 5
 			if err := func() error {
 				if err := s.VerifiedAt.Decode(d, json.DecodeDateTime); err != nil {
 					return err
@@ -89812,7 +89863,7 @@ func (s *ExposureGetExposureTargetsIDOK) Decode(d *jx.Decoder) error {
 	for i, mask := range [3]uint8{
 		0b11111111,
 		0b11111111,
-		0b00011111,
+		0b00111101,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -95686,6 +95737,12 @@ func (s *ExposureGetExposureTargetsOKItemsItem) encodeFields(e *jx.Encoder) {
 		s.TermsNotice.Encode(e)
 	}
 	{
+		if s.TermsWarning.Set {
+			e.FieldStart("terms_warning")
+			s.TermsWarning.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("token")
 		e.Str(s.Token)
 	}
@@ -95703,7 +95760,7 @@ func (s *ExposureGetExposureTargetsOKItemsItem) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfExposureGetExposureTargetsOKItemsItem = [21]string{
+var jsonFieldsNameOfExposureGetExposureTargetsOKItemsItem = [22]string{
 	0:  "blocked_reason",
 	1:  "commitment",
 	2:  "commitment_notice",
@@ -95721,10 +95778,11 @@ var jsonFieldsNameOfExposureGetExposureTargetsOKItemsItem = [21]string{
 	14: "status",
 	15: "terms",
 	16: "terms_notice",
-	17: "token",
-	18: "validity",
-	19: "value",
-	20: "verified_at",
+	17: "terms_warning",
+	18: "token",
+	19: "validity",
+	20: "value",
+	21: "verified_at",
 }
 
 // Decode decodes ExposureGetExposureTargetsOKItemsItem from json.
@@ -95929,8 +95987,18 @@ func (s *ExposureGetExposureTargetsOKItemsItem) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"terms_notice\"")
 			}
+		case "terms_warning":
+			if err := func() error {
+				s.TermsWarning.Reset()
+				if err := s.TermsWarning.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"terms_warning\"")
+			}
 		case "token":
-			requiredBitSet[2] |= 1 << 1
+			requiredBitSet[2] |= 1 << 2
 			if err := func() error {
 				v, err := d.Str()
 				s.Token = string(v)
@@ -95942,7 +96010,7 @@ func (s *ExposureGetExposureTargetsOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"token\"")
 			}
 		case "validity":
-			requiredBitSet[2] |= 1 << 2
+			requiredBitSet[2] |= 1 << 3
 			if err := func() error {
 				if err := s.Validity.Decode(d); err != nil {
 					return err
@@ -95952,7 +96020,7 @@ func (s *ExposureGetExposureTargetsOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"validity\"")
 			}
 		case "value":
-			requiredBitSet[2] |= 1 << 3
+			requiredBitSet[2] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.Value = string(v)
@@ -95964,7 +96032,7 @@ func (s *ExposureGetExposureTargetsOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"value\"")
 			}
 		case "verified_at":
-			requiredBitSet[2] |= 1 << 4
+			requiredBitSet[2] |= 1 << 5
 			if err := func() error {
 				if err := s.VerifiedAt.Decode(d, json.DecodeDateTime); err != nil {
 					return err
@@ -95985,7 +96053,7 @@ func (s *ExposureGetExposureTargetsOKItemsItem) Decode(d *jx.Decoder) error {
 	for i, mask := range [3]uint8{
 		0b11111111,
 		0b11111111,
-		0b00011111,
+		0b00111101,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -97492,6 +97560,12 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) encodeFields(e *jx.Encoder)
 		s.TermsNotice.Encode(e)
 	}
 	{
+		if s.TermsWarning.Set {
+			e.FieldStart("terms_warning")
+			s.TermsWarning.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("token")
 		e.Str(s.Token)
 	}
@@ -97509,7 +97583,7 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) encodeFields(e *jx.Encoder)
 	}
 }
 
-var jsonFieldsNameOfExposurePostExposureBoxIPVerifyOKItemsItem = [21]string{
+var jsonFieldsNameOfExposurePostExposureBoxIPVerifyOKItemsItem = [22]string{
 	0:  "blocked_reason",
 	1:  "commitment",
 	2:  "commitment_notice",
@@ -97527,10 +97601,11 @@ var jsonFieldsNameOfExposurePostExposureBoxIPVerifyOKItemsItem = [21]string{
 	14: "status",
 	15: "terms",
 	16: "terms_notice",
-	17: "token",
-	18: "validity",
-	19: "value",
-	20: "verified_at",
+	17: "terms_warning",
+	18: "token",
+	19: "validity",
+	20: "value",
+	21: "verified_at",
 }
 
 // Decode decodes ExposurePostExposureBoxIPVerifyOKItemsItem from json.
@@ -97735,8 +97810,18 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) Decode(d *jx.Decoder) error
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"terms_notice\"")
 			}
+		case "terms_warning":
+			if err := func() error {
+				s.TermsWarning.Reset()
+				if err := s.TermsWarning.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"terms_warning\"")
+			}
 		case "token":
-			requiredBitSet[2] |= 1 << 1
+			requiredBitSet[2] |= 1 << 2
 			if err := func() error {
 				v, err := d.Str()
 				s.Token = string(v)
@@ -97748,7 +97833,7 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) Decode(d *jx.Decoder) error
 				return errors.Wrap(err, "decode field \"token\"")
 			}
 		case "validity":
-			requiredBitSet[2] |= 1 << 2
+			requiredBitSet[2] |= 1 << 3
 			if err := func() error {
 				if err := s.Validity.Decode(d); err != nil {
 					return err
@@ -97758,7 +97843,7 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) Decode(d *jx.Decoder) error
 				return errors.Wrap(err, "decode field \"validity\"")
 			}
 		case "value":
-			requiredBitSet[2] |= 1 << 3
+			requiredBitSet[2] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.Value = string(v)
@@ -97770,7 +97855,7 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) Decode(d *jx.Decoder) error
 				return errors.Wrap(err, "decode field \"value\"")
 			}
 		case "verified_at":
-			requiredBitSet[2] |= 1 << 4
+			requiredBitSet[2] |= 1 << 5
 			if err := func() error {
 				if err := s.VerifiedAt.Decode(d, json.DecodeDateTime); err != nil {
 					return err
@@ -97791,7 +97876,7 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) Decode(d *jx.Decoder) error
 	for i, mask := range [3]uint8{
 		0b11111111,
 		0b11111111,
-		0b00011111,
+		0b00111101,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -99131,6 +99216,12 @@ func (s *ExposurePostExposureScanStopOK) encodeFields(e *jx.Encoder) {
 		s.Status.Encode(e)
 	}
 	{
+		if s.StopReason.Set {
+			e.FieldStart("stop_reason")
+			s.StopReason.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("target_id")
 		e.Str(s.TargetID)
 	}
@@ -99140,17 +99231,18 @@ func (s *ExposurePostExposureScanStopOK) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfExposurePostExposureScanStopOK = [10]string{
-	0: "by",
-	1: "error",
-	2: "finished_at",
-	3: "id",
-	4: "phase",
-	5: "snapshot_id",
-	6: "started_at",
-	7: "status",
-	8: "target_id",
-	9: "target_value",
+var jsonFieldsNameOfExposurePostExposureScanStopOK = [11]string{
+	0:  "by",
+	1:  "error",
+	2:  "finished_at",
+	3:  "id",
+	4:  "phase",
+	5:  "snapshot_id",
+	6:  "started_at",
+	7:  "status",
+	8:  "stop_reason",
+	9:  "target_id",
+	10: "target_value",
 }
 
 // Decode decodes ExposurePostExposureScanStopOK from json.
@@ -99248,8 +99340,18 @@ func (s *ExposurePostExposureScanStopOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"status\"")
 			}
+		case "stop_reason":
+			if err := func() error {
+				s.StopReason.Reset()
+				if err := s.StopReason.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"stop_reason\"")
+			}
 		case "target_id":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.TargetID = string(v)
@@ -99261,7 +99363,7 @@ func (s *ExposurePostExposureScanStopOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"target_id\"")
 			}
 		case "target_value":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				v, err := d.Str()
 				s.TargetValue = string(v)
@@ -99283,7 +99385,7 @@ func (s *ExposurePostExposureScanStopOK) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00000011,
+		0b00000110,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -99618,6 +99720,12 @@ func (s *ExposurePostExposureTargetsCreated) encodeFields(e *jx.Encoder) {
 		s.TermsNotice.Encode(e)
 	}
 	{
+		if s.TermsWarning.Set {
+			e.FieldStart("terms_warning")
+			s.TermsWarning.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("token")
 		e.Str(s.Token)
 	}
@@ -99635,7 +99743,7 @@ func (s *ExposurePostExposureTargetsCreated) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfExposurePostExposureTargetsCreated = [21]string{
+var jsonFieldsNameOfExposurePostExposureTargetsCreated = [22]string{
 	0:  "blocked_reason",
 	1:  "commitment",
 	2:  "commitment_notice",
@@ -99653,10 +99761,11 @@ var jsonFieldsNameOfExposurePostExposureTargetsCreated = [21]string{
 	14: "status",
 	15: "terms",
 	16: "terms_notice",
-	17: "token",
-	18: "validity",
-	19: "value",
-	20: "verified_at",
+	17: "terms_warning",
+	18: "token",
+	19: "validity",
+	20: "value",
+	21: "verified_at",
 }
 
 // Decode decodes ExposurePostExposureTargetsCreated from json.
@@ -99861,8 +99970,18 @@ func (s *ExposurePostExposureTargetsCreated) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"terms_notice\"")
 			}
+		case "terms_warning":
+			if err := func() error {
+				s.TermsWarning.Reset()
+				if err := s.TermsWarning.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"terms_warning\"")
+			}
 		case "token":
-			requiredBitSet[2] |= 1 << 1
+			requiredBitSet[2] |= 1 << 2
 			if err := func() error {
 				v, err := d.Str()
 				s.Token = string(v)
@@ -99874,7 +99993,7 @@ func (s *ExposurePostExposureTargetsCreated) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"token\"")
 			}
 		case "validity":
-			requiredBitSet[2] |= 1 << 2
+			requiredBitSet[2] |= 1 << 3
 			if err := func() error {
 				if err := s.Validity.Decode(d); err != nil {
 					return err
@@ -99884,7 +100003,7 @@ func (s *ExposurePostExposureTargetsCreated) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"validity\"")
 			}
 		case "value":
-			requiredBitSet[2] |= 1 << 3
+			requiredBitSet[2] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.Value = string(v)
@@ -99896,7 +100015,7 @@ func (s *ExposurePostExposureTargetsCreated) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"value\"")
 			}
 		case "verified_at":
-			requiredBitSet[2] |= 1 << 4
+			requiredBitSet[2] |= 1 << 5
 			if err := func() error {
 				if err := s.VerifiedAt.Decode(d, json.DecodeDateTime); err != nil {
 					return err
@@ -99917,7 +100036,7 @@ func (s *ExposurePostExposureTargetsCreated) Decode(d *jx.Decoder) error {
 	for i, mask := range [3]uint8{
 		0b11111111,
 		0b11111111,
-		0b00011111,
+		0b00111101,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -101605,6 +101724,12 @@ func (s *ExposurePostExposureTargetsIDScanAccepted) encodeFields(e *jx.Encoder) 
 		s.Status.Encode(e)
 	}
 	{
+		if s.StopReason.Set {
+			e.FieldStart("stop_reason")
+			s.StopReason.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("target_id")
 		e.Str(s.TargetID)
 	}
@@ -101614,17 +101739,18 @@ func (s *ExposurePostExposureTargetsIDScanAccepted) encodeFields(e *jx.Encoder) 
 	}
 }
 
-var jsonFieldsNameOfExposurePostExposureTargetsIDScanAccepted = [10]string{
-	0: "by",
-	1: "error",
-	2: "finished_at",
-	3: "id",
-	4: "phase",
-	5: "snapshot_id",
-	6: "started_at",
-	7: "status",
-	8: "target_id",
-	9: "target_value",
+var jsonFieldsNameOfExposurePostExposureTargetsIDScanAccepted = [11]string{
+	0:  "by",
+	1:  "error",
+	2:  "finished_at",
+	3:  "id",
+	4:  "phase",
+	5:  "snapshot_id",
+	6:  "started_at",
+	7:  "status",
+	8:  "stop_reason",
+	9:  "target_id",
+	10: "target_value",
 }
 
 // Decode decodes ExposurePostExposureTargetsIDScanAccepted from json.
@@ -101722,8 +101848,18 @@ func (s *ExposurePostExposureTargetsIDScanAccepted) Decode(d *jx.Decoder) error 
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"status\"")
 			}
+		case "stop_reason":
+			if err := func() error {
+				s.StopReason.Reset()
+				if err := s.StopReason.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"stop_reason\"")
+			}
 		case "target_id":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.TargetID = string(v)
@@ -101735,7 +101871,7 @@ func (s *ExposurePostExposureTargetsIDScanAccepted) Decode(d *jx.Decoder) error 
 				return errors.Wrap(err, "decode field \"target_id\"")
 			}
 		case "target_value":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				v, err := d.Str()
 				s.TargetValue = string(v)
@@ -101757,7 +101893,7 @@ func (s *ExposurePostExposureTargetsIDScanAccepted) Decode(d *jx.Decoder) error 
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00000011,
+		0b00000110,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -102283,6 +102419,12 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTarget) encodeFields(e *jx.Encoder
 		s.TermsNotice.Encode(e)
 	}
 	{
+		if s.TermsWarning.Set {
+			e.FieldStart("terms_warning")
+			s.TermsWarning.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("token")
 		e.Str(s.Token)
 	}
@@ -102300,7 +102442,7 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTarget) encodeFields(e *jx.Encoder
 	}
 }
 
-var jsonFieldsNameOfExposurePostExposureTargetsIDVerifyOKTarget = [21]string{
+var jsonFieldsNameOfExposurePostExposureTargetsIDVerifyOKTarget = [22]string{
 	0:  "blocked_reason",
 	1:  "commitment",
 	2:  "commitment_notice",
@@ -102318,10 +102460,11 @@ var jsonFieldsNameOfExposurePostExposureTargetsIDVerifyOKTarget = [21]string{
 	14: "status",
 	15: "terms",
 	16: "terms_notice",
-	17: "token",
-	18: "validity",
-	19: "value",
-	20: "verified_at",
+	17: "terms_warning",
+	18: "token",
+	19: "validity",
+	20: "value",
+	21: "verified_at",
 }
 
 // Decode decodes ExposurePostExposureTargetsIDVerifyOKTarget from json.
@@ -102526,8 +102669,18 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTarget) Decode(d *jx.Decoder) erro
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"terms_notice\"")
 			}
+		case "terms_warning":
+			if err := func() error {
+				s.TermsWarning.Reset()
+				if err := s.TermsWarning.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"terms_warning\"")
+			}
 		case "token":
-			requiredBitSet[2] |= 1 << 1
+			requiredBitSet[2] |= 1 << 2
 			if err := func() error {
 				v, err := d.Str()
 				s.Token = string(v)
@@ -102539,7 +102692,7 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTarget) Decode(d *jx.Decoder) erro
 				return errors.Wrap(err, "decode field \"token\"")
 			}
 		case "validity":
-			requiredBitSet[2] |= 1 << 2
+			requiredBitSet[2] |= 1 << 3
 			if err := func() error {
 				if err := s.Validity.Decode(d); err != nil {
 					return err
@@ -102549,7 +102702,7 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTarget) Decode(d *jx.Decoder) erro
 				return errors.Wrap(err, "decode field \"validity\"")
 			}
 		case "value":
-			requiredBitSet[2] |= 1 << 3
+			requiredBitSet[2] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.Value = string(v)
@@ -102561,7 +102714,7 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTarget) Decode(d *jx.Decoder) erro
 				return errors.Wrap(err, "decode field \"value\"")
 			}
 		case "verified_at":
-			requiredBitSet[2] |= 1 << 4
+			requiredBitSet[2] |= 1 << 5
 			if err := func() error {
 				if err := s.VerifiedAt.Decode(d, json.DecodeDateTime); err != nil {
 					return err
@@ -102582,7 +102735,7 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTarget) Decode(d *jx.Decoder) erro
 	for i, mask := range [3]uint8{
 		0b11111111,
 		0b11111111,
-		0b00011111,
+		0b00111101,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -105058,6 +105211,12 @@ func (s *ExposurePutExposureTargetsIDTermsOK) encodeFields(e *jx.Encoder) {
 		s.TermsNotice.Encode(e)
 	}
 	{
+		if s.TermsWarning.Set {
+			e.FieldStart("terms_warning")
+			s.TermsWarning.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("token")
 		e.Str(s.Token)
 	}
@@ -105075,7 +105234,7 @@ func (s *ExposurePutExposureTargetsIDTermsOK) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfExposurePutExposureTargetsIDTermsOK = [21]string{
+var jsonFieldsNameOfExposurePutExposureTargetsIDTermsOK = [22]string{
 	0:  "blocked_reason",
 	1:  "commitment",
 	2:  "commitment_notice",
@@ -105093,10 +105252,11 @@ var jsonFieldsNameOfExposurePutExposureTargetsIDTermsOK = [21]string{
 	14: "status",
 	15: "terms",
 	16: "terms_notice",
-	17: "token",
-	18: "validity",
-	19: "value",
-	20: "verified_at",
+	17: "terms_warning",
+	18: "token",
+	19: "validity",
+	20: "value",
+	21: "verified_at",
 }
 
 // Decode decodes ExposurePutExposureTargetsIDTermsOK from json.
@@ -105301,8 +105461,18 @@ func (s *ExposurePutExposureTargetsIDTermsOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"terms_notice\"")
 			}
+		case "terms_warning":
+			if err := func() error {
+				s.TermsWarning.Reset()
+				if err := s.TermsWarning.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"terms_warning\"")
+			}
 		case "token":
-			requiredBitSet[2] |= 1 << 1
+			requiredBitSet[2] |= 1 << 2
 			if err := func() error {
 				v, err := d.Str()
 				s.Token = string(v)
@@ -105314,7 +105484,7 @@ func (s *ExposurePutExposureTargetsIDTermsOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"token\"")
 			}
 		case "validity":
-			requiredBitSet[2] |= 1 << 2
+			requiredBitSet[2] |= 1 << 3
 			if err := func() error {
 				if err := s.Validity.Decode(d); err != nil {
 					return err
@@ -105324,7 +105494,7 @@ func (s *ExposurePutExposureTargetsIDTermsOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"validity\"")
 			}
 		case "value":
-			requiredBitSet[2] |= 1 << 3
+			requiredBitSet[2] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.Value = string(v)
@@ -105336,7 +105506,7 @@ func (s *ExposurePutExposureTargetsIDTermsOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"value\"")
 			}
 		case "verified_at":
-			requiredBitSet[2] |= 1 << 4
+			requiredBitSet[2] |= 1 << 5
 			if err := func() error {
 				if err := s.VerifiedAt.Decode(d, json.DecodeDateTime); err != nil {
 					return err
@@ -105357,7 +105527,7 @@ func (s *ExposurePutExposureTargetsIDTermsOK) Decode(d *jx.Decoder) error {
 	for i, mask := range [3]uint8{
 		0b11111111,
 		0b11111111,
-		0b00011111,
+		0b00111101,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.

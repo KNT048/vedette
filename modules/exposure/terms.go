@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"net/netip"
 	"strings"
 
 	"github.com/knt048/vedette/core/store"
@@ -17,12 +18,13 @@ import (
 // TermsVersion asks again. The texts are the only copy: the API sends them with the target in it and the page shows what it got;
 // the mock's copy (contract.ts TERMS_TEMPLATE, TERMS_DISRUPTIVE) is held equal by a test, and each version's text is pinned.
 const (
-	TermsVersion  = "2026-11-14"
+	TermsVersion  = "2026-11-14b"
 	termsTemplate = "I confirm that my company owns {value} and that I am authorized to test it in depth. Once I accept, every scan of {value} is a deep scan, and Vedette's tools may send it:\n" +
 		"All ports: every TCP port, and the service and version behind each one.\n" +
 		"Version and exploit-confirming checks: tests for known vulnerabilities, some of which confirm a flaw by sending the exploit request itself (for example reading a file or running a harmless command).\n" +
 		"An active web scan that submits forms: a spider and an active scan that fill in and send forms and send attack payloads such as SQL injection and cross-site scripting probes. It can create records, send e-mails from forms or change data.\n" +
 		"Authentication checks: whether login pages, admin interfaces and services let anyone in without a password or with weak settings. Passwords are not guessed unless the disruptive checks below are ticked.\n" +
+		"Accept only if {value} is yours alone: not an address shared through your Internet provider (carrier-grade NAT), a hosting provider's NAT or proxy, or a CDN or hosted service that serves your names. Their servers are not yours to test. " +
 		"The deep scan can load or slow the services on {value} and may create, change or delete data. Run scans when you can accept that, and keep a backup. " +
 		"An administrator can withdraw this acceptance at any time. Vedette is provided as is under the Apache-2.0 license; its author, Kien Nguyen, is not responsible for how you use it."
 	// termsDisruptive is the one extra tick, off by default: what it adds to the deep scan.
@@ -69,6 +71,30 @@ func termsFor(value string) TermsNotice {
 	return TermsNotice{Version: TermsVersion, Text: strings.ReplaceAll(termsTemplate, "{value}", value), Disruptive: termsDisruptive}
 }
 
+// cgnat is the shared address space of carrier-grade NAT (RFC 6598).
+var cgnat = netip.MustParsePrefix("100.64.0.0/10")
+
+// sharedAddress is the warning of the terms step of an IP target when the box's default gateway is in 100.64.0.0/10 (D-566 review r1
+// M2): the box then reaches the Internet through carrier-grade NAT, so its public IP is the provider's, shared with other customers,
+// and its open ports are the provider's. The disruptive tick is refused while it shows. ponytail: only the box's own gateway is
+// known here (a home router whose WAN side is CGNAT is not seen); upgrade: the host reports the router's WAN address (UPnP or the
+// second hop of a traceroute). "" when not known to be shared (no Gateway wired, or the lookup failed).
+func (s *Service) sharedAddress(ctx context.Context, t Target) string {
+	if t.Kind != KindIP || s.cfg.Gateway == nil {
+		return ""
+	}
+	g, err := s.cfg.Gateway.Gateway(ctx)
+	if err != nil {
+		s.cfg.Log.WarnContext(ctx, "exposure: reading the gateway for the testing terms", "err", err)
+		return ""
+	}
+	if !g.IP.IsValid() || !cgnat.Contains(g.IP.Unmap()) {
+		return ""
+	}
+	return fmt.Sprintf("This box reaches the Internet through carrier-grade NAT (its gateway %s is in 100.64.0.0/10), so %s is probably shared with your provider's other customers and its open ports are the provider's. "+
+		"The disruptive checks cannot be accepted for it; accept the deep scan only if your provider confirms the address is yours alone.", g.IP, t.Value)
+}
+
 func errTermsChanged() *APIError {
 	return apiErr(409, "notice_changed", "The testing terms changed since this page loaded. Read them again, then accept them again.")
 }
@@ -96,6 +122,17 @@ func (s *Service) AcceptTerms(ctx context.Context, who Actor, id, version string
 	if version != TermsVersion {
 		return TargetView{}, errTermsChanged()
 	}
+	if disruptive {
+		t, err := loadTarget(ctx, s.cfg.DB.Reader(), id)
+		if err != nil {
+			return TargetView{}, err
+		}
+		if w := s.sharedAddress(ctx, t); w != "" {
+			return TargetView{}, apiErr(409, "shared_address", "%s", w)
+		}
+	}
+	newMode := ScanMode{Full: true, Disruptive: disruptive}
+	stopping := s.runAbove(id, newMode) != nil // the tick taken back while a disruptive scan runs (review r1 M1)
 	err = s.write(ctx, func(tx *sql.Tx, _ func(string, any)) error {
 		t, err := loadTarget(ctx, tx, id)
 		if err != nil {
@@ -107,6 +144,15 @@ func (s *Service) AcceptTerms(ctx context.Context, who Actor, id, version string
 			return apiErr(409, "not_verified", "Verify ownership first; only then can the testing terms be accepted.")
 		case statusExpired:
 			return apiErr(409, "expired", "Verification of %s has expired. Verify it again first.", t.Value)
+		}
+		if t.Kind == KindIP { // paused: the box no longer goes out through it, so it is not shown to be the box's own now (review r1 L2)
+			c, err := s.loadChecks(ctx, tx)
+			if err != nil {
+				return err
+			}
+			if c.paused(t) {
+				return apiErr(409, "ip_not_current", "This box no longer reaches the Internet through %s; it was last seen %s. Its testing terms can be accepted once the box uses it again.", t.Value, s.momentText(t.VerifiedAt))
+			}
 		}
 		if t.Terms.current() && t.Terms.Disruptive == disruptive {
 			return nil
@@ -132,17 +178,50 @@ func (s *Service) AcceptTerms(ctx context.Context, who Actor, id, version string
 		if err := setTerms(ctx, tx, id, &Terms{Version: n.Version, By: who.Email, At: store.FormatTS(now), Text: text, Disruptive: disruptive, UserID: who.ID, Method: method}); err != nil {
 			return err
 		}
-		return s.audit(ctx, tx, who.Email, "exposure.terms_accept", t.Value, what+" ("+flag+", user "+who.ID+", two-step: "+method+", terms "+n.Version+"): "+text)
+		detail := what + " (" + flag + ", user " + who.ID + ", two-step: " + method + ", terms " + n.Version + ")"
+		if stopping {
+			detail += stoppedNote
+		}
+		return s.audit(ctx, tx, who.Email, "exposure.terms_accept", t.Value, detail+": "+text)
 	})
 	if err != nil {
 		return TargetView{}, fmt.Errorf("exposure: accepting the testing terms: %w", err)
 	}
+	s.stopRunAbove(id, newMode, who.Email, "the disruptive checks were taken out of this target's testing terms")
 	return s.Target(ctx, id)
 }
 
-// RevokeTerms is DELETE /exposure/targets/{id}/terms (admin, FULL-1): always possible; the next scan runs in the K-4 scope again.
-// A scan that runs now keeps the mode it started with, except Greenbone, whose step checks the terms again right before it starts.
+// above says whether mode a may do more than mode b (D-566 review r1 M1).
+func (a ScanMode) above(b ScanMode) bool {
+	return (a.Full && !b.Full) || (a.Disruptive && !b.Disruptive)
+}
+
+// runAbove is the run of target id that runs now with a mode above m, or nil (D-566 review r1 M1).
+func (s *Service) runAbove(id string, m ScanMode) *scanRun {
+	s.runMu.Lock()
+	defer s.runMu.Unlock()
+	if r := s.run; r != nil && r.view.Status == RunRunning && r.view.TargetID == id && r.mode.above(m) {
+		return r
+	}
+	return nil
+}
+
+// stopRunAbove cancels the run of target id when its mode is above m (D-566 review r1 M1): withdrawing or lowering the terms must
+// reach a scan that runs now, the case where the service is being hurt. Every step reads the run's context: the Greenbone step stops
+// gvmd's task (stop_task) and keeps the snapshot of the earlier steps, as a Stop does.
+func (s *Service) stopRunAbove(id string, m ScanMode, user, why string) {
+	if r := s.runAbove(id, m); r != nil {
+		r.cancel(&stoppedBy{by: user + " (" + why + ")", why: why})
+	}
+}
+
+// stoppedNote is what the audit row of a terms change adds when it stopped the running scan.
+const stoppedNote = "; the scan of this target that was running was stopped"
+
+// RevokeTerms is DELETE /exposure/targets/{id}/terms (admin, FULL-1): always possible; the next scan runs in the K-4 scope again, and
+// a scan of this target that runs now at full depth is stopped (review r1 M1).
 func (s *Service) RevokeTerms(ctx context.Context, user, id string) (TargetView, error) {
+	stopping := s.runAbove(id, ScanMode{}) != nil
 	err := s.write(ctx, func(tx *sql.Tx, _ func(string, any)) error {
 		t, err := loadTarget(ctx, tx, id)
 		if err != nil {
@@ -154,11 +233,16 @@ func (s *Service) RevokeTerms(ctx context.Context, user, id string) (TargetView,
 		if err := setTerms(ctx, tx, id, nil); err != nil {
 			return err
 		}
-		return s.audit(ctx, tx, user, "exposure.terms_revoke", t.Value, "withdrawn (terms "+t.Terms.Version+", disruptive checks: "+yesNo(t.Terms.Disruptive)+", accepted by "+t.Terms.By+" at "+t.Terms.At+")")
+		detail := "withdrawn (terms " + t.Terms.Version + ", disruptive checks: " + yesNo(t.Terms.Disruptive) + ", accepted by " + t.Terms.By + " at " + t.Terms.At + ")"
+		if stopping {
+			detail += stoppedNote
+		}
+		return s.audit(ctx, tx, user, "exposure.terms_revoke", t.Value, detail)
 	})
 	if err != nil {
 		return TargetView{}, fmt.Errorf("exposure: withdrawing the testing terms: %w", err)
 	}
+	s.stopRunAbove(id, ScanMode{}, user, "the testing terms of this target were withdrawn")
 	return s.Target(ctx, id)
 }
 

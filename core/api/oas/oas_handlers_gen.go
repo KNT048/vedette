@@ -17254,7 +17254,8 @@ func (s *Server) handleExposureDeleteExposureTargetsIDRequest(args [1]string, ar
 // handleExposureDeleteExposureTargetsIDTermsRequest handles exposure_delete_exposure_targets_id_terms operation.
 //
 // Withdraw the testing terms of a target (FULL-1, D-566): always possible; the next scan runs in the
-// K-4 scope again. Audited (exposure.terms_revoke) when there was an acceptance.
+// K-4 scope again, and a deep scan of this target that runs now is stopped (ScanRun.stop_reason).
+// Audited (exposure.terms_revoke) when there was an acceptance.
 //
 // DELETE /exposure/targets/{id}/terms
 func (s *Server) handleExposureDeleteExposureTargetsIDTermsRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -17333,7 +17334,7 @@ func (s *Server) handleExposureDeleteExposureTargetsIDTermsRequest(args [1]strin
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    ExposureDeleteExposureTargetsIDTermsOperation,
-			OperationSummary: "Withdraw the testing terms of a target (FULL-1, D-566): always possible; the next scan runs in the K-4 scope again. Audited (exposure.terms_revoke) when there was an acceptance",
+			OperationSummary: "Withdraw the testing terms of a target (FULL-1, D-566): always possible; the next scan runs in the K-4 scope again, and a deep scan of this target that runs now is stopped (ScanRun.stop_reason). Audited (exposure.terms_revoke) when there was an acceptance",
 			OperationID:      "exposure_delete_exposure_targets_id_terms",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -19653,9 +19654,11 @@ func (s *Server) handleExposurePutExposureGreenboneRequest(args [0]string, argsE
 // Accept the testing terms of a verified target (FULL-1, D-566): every scan of it is then a deep scan;
 // disruptive adds denial-of-service, brute-force and default-password checks (off by default). Admin
 // with two-step sign-in (403 twofa_required); 409 notice_changed when version is not the current
-// terms_notice.version; 409 not_verified or expired. Also records the Scan now commitment when the
-// target has none of the current sentence. Accepting what is accepted changes nothing. Audited
-// (exposure.terms_accept, with the flag).
+// terms_notice.version; 409 not_verified, expired or ip_not_current (a paused IP); 409 shared_address
+// for disruptive on an IP behind carrier-grade NAT (terms_warning). Lowering or withdrawing them stops
+// a scan of this target that runs above the new level (ScanRun.stop_reason). Also records the Scan now
+// commitment when the target has none of the current sentence. Accepting what is accepted changes
+// nothing. Audited (exposure.terms_accept, with the flag).
 //
 // PUT /exposure/targets/{id}/terms
 func (s *Server) handleExposurePutExposureTargetsIDTermsRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -19749,7 +19752,7 @@ func (s *Server) handleExposurePutExposureTargetsIDTermsRequest(args [1]string, 
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    ExposurePutExposureTargetsIDTermsOperation,
-			OperationSummary: "Accept the testing terms of a verified target (FULL-1, D-566): every scan of it is then a deep scan; disruptive adds denial-of-service, brute-force and default-password checks (off by default). Admin with two-step sign-in (403 twofa_required); 409 notice_changed when version is not the current terms_notice.version; 409 not_verified or expired. Also records the Scan now commitment when the target has none of the current sentence. Accepting what is accepted changes nothing. Audited (exposure.terms_accept, with the flag)",
+			OperationSummary: "Accept the testing terms of a verified target (FULL-1, D-566): every scan of it is then a deep scan; disruptive adds denial-of-service, brute-force and default-password checks (off by default). Admin with two-step sign-in (403 twofa_required); 409 notice_changed when version is not the current terms_notice.version; 409 not_verified, expired or ip_not_current (a paused IP); 409 shared_address for disruptive on an IP behind carrier-grade NAT (terms_warning). Lowering or withdrawing them stops a scan of this target that runs above the new level (ScanRun.stop_reason). Also records the Scan now commitment when the target has none of the current sentence. Accepting what is accepted changes nothing. Audited (exposure.terms_accept, with the flag)",
 			OperationID:      "exposure_put_exposure_targets_id_terms",
 			Body:             request,
 			RawBody:          rawBody,

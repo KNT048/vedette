@@ -1259,7 +1259,8 @@ func (UnimplementedHandler) ExposureDeleteExposureTargetsID(ctx context.Context,
 // ExposureDeleteExposureTargetsIDTerms implements exposure_delete_exposure_targets_id_terms operation.
 //
 // Withdraw the testing terms of a target (FULL-1, D-566): always possible; the next scan runs in the
-// K-4 scope again. Audited (exposure.terms_revoke) when there was an acceptance.
+// K-4 scope again, and a deep scan of this target that runs now is stopped (ScanRun.stop_reason).
+// Audited (exposure.terms_revoke) when there was an acceptance.
 //
 // DELETE /exposure/targets/{id}/terms
 func (UnimplementedHandler) ExposureDeleteExposureTargetsIDTerms(ctx context.Context, params ExposureDeleteExposureTargetsIDTermsParams) (r *ExposureDeleteExposureTargetsIDTermsOK, _ error) {
@@ -1462,9 +1463,11 @@ func (UnimplementedHandler) ExposurePutExposureGreenbone(ctx context.Context, re
 // Accept the testing terms of a verified target (FULL-1, D-566): every scan of it is then a deep scan;
 // disruptive adds denial-of-service, brute-force and default-password checks (off by default). Admin
 // with two-step sign-in (403 twofa_required); 409 notice_changed when version is not the current
-// terms_notice.version; 409 not_verified or expired. Also records the Scan now commitment when the
-// target has none of the current sentence. Accepting what is accepted changes nothing. Audited
-// (exposure.terms_accept, with the flag).
+// terms_notice.version; 409 not_verified, expired or ip_not_current (a paused IP); 409 shared_address
+// for disruptive on an IP behind carrier-grade NAT (terms_warning). Lowering or withdrawing them stops
+// a scan of this target that runs above the new level (ScanRun.stop_reason). Also records the Scan now
+// commitment when the target has none of the current sentence. Accepting what is accepted changes
+// nothing. Audited (exposure.terms_accept, with the flag).
 //
 // PUT /exposure/targets/{id}/terms
 func (UnimplementedHandler) ExposurePutExposureTargetsIDTerms(ctx context.Context, req *ExposurePutExposureTargetsIDTermsReq, params ExposurePutExposureTargetsIDTermsParams) (r *ExposurePutExposureTargetsIDTermsOK, _ error) {

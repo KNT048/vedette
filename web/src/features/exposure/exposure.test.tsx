@@ -1359,6 +1359,25 @@ describe('exposure: testing terms per target (S-EXP-2, FULL-1, D-566)', () => {
     expect(auditStore.get().some((a) => a.action === 'exposure.terms_revoke')).toBe(true)
   })
 
+  it('review r1 M2: behind carrier-grade NAT the step warns and the disruptive tick cannot be ticked', async () => {
+    const v = (await call('GET', '/exposure/targets/xt-2')).json as Record<string, unknown>
+    const warning = 'This box reaches the Internet through carrier-grade NAT (its gateway 100.64.0.1 is in 100.64.0.0/10), so 203.0.113.10 is probably shared with your provider\'s other customers and its open ports are the provider\'s. The disruptive checks cannot be accepted for it; accept the deep scan only if your provider confirms the address is yours alone.'
+    server.use(http.get('*/api/v1/exposure/targets/xt-2', () => HttpResponse.json({ ...v, terms_warning: warning })))
+    renderApp('/exposure/xt-2?tab=ownership')
+    const s = await screen.findByRole('region', { name: 'Testing terms (deep scan)' })
+    expect(await within(s).findByRole('alert')).toHaveTextContent(warning)
+    expect(within(s).getByRole('checkbox')).toBeDisabled()
+    expect(within(s).getByText(/is yours alone: not an address shared through your Internet provider \(carrier-grade NAT\)/)).toBeInTheDocument()
+  })
+
+  it('review r1 M1: a run the box stopped because the terms were withdrawn says why', async () => {
+    const at = new Date().toISOString()
+    server.use(http.get('*/api/v1/exposure/scan', () => HttpResponse.json({ id: 'sr-1', target_id: 'xt-2', target_value: '203.0.113.10', by: 'admin@acme.example', started_at: at, finished_at: at,
+      status: 'stopped', phase: 'greenbone', snapshot_id: 'sn-1', error: null, stop_reason: 'the testing terms of this target were withdrawn' })))
+    renderApp('/exposure/xt-2')
+    expect(await screen.findByText(/The Greenbone part of the scan of 203\.0\.113\.10 was stopped\..*The box stopped it because the testing terms of this target were withdrawn\./)).toBeInTheDocument()
+  })
+
   it('without two-step the acceptance is refused; a stale version is 409; a viewer cannot accept', async () => {
     withTwoStep(false)
     const v = (await call('GET', '/exposure/targets/xt-1')).json as { terms_notice: { version: string } }

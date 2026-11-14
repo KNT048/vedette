@@ -279,7 +279,18 @@ func (s *Service) Targets(ctx context.Context) ([]TargetView, error) {
 
 // Target returns one target, or an error wrapping ErrNotFound.
 func (s *Service) Target(ctx context.Context, id string) (TargetView, error) {
-	return s.targetView(ctx, s.cfg.DB.Reader(), id)
+	v, err := s.targetView(ctx, s.cfg.DB.Reader(), id)
+	if err != nil || v.Kind != KindIP {
+		return v, err
+	}
+	t, err := loadTarget(ctx, s.cfg.DB.Reader(), id)
+	if err != nil {
+		return TargetView{}, fmt.Errorf("exposure: reading target: %w", err)
+	}
+	if w := s.sharedAddress(ctx, t); w != "" { // D-566 review r1 M2: on the one target page only, not on every list
+		v.TermsWarning = &w
+	}
+	return v, nil
 }
 
 func (s *Service) targetView(ctx context.Context, q querier, id string) (TargetView, error) {

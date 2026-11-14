@@ -42,6 +42,7 @@ export function ScanProgress() {
   return (
     <p role="alert" className="mb-6 max-w-3xl text-sm text-warn">
       {run.status === 'stopped' ? t(run.snapshot_id ? 'progress.stoppedKept' : 'progress.stopped', { value: run.target_value }) : (run.error?.message ?? t('progress.failed', { value: run.target_value }))}
+      {run.status === 'stopped' && run.stop_reason ? ` ${t('progress.stopReason', { why: run.stop_reason })}` : null}
     </p>
   )
 }

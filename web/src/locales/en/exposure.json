@@ -435,6 +435,7 @@
     "done": "Scan of {{value}} finished. The new result is below.",
     "stopped": "The scan of {{value}} was stopped. Nothing was saved.",
     "stoppedKept": "The Greenbone part of the scan of {{value}} was stopped. The results of the other checks are saved below.",
+    "stopReason": "The box stopped it because {{why}}.",
     "failed": "The scan of {{value}} failed and nothing was saved. Try again."
   },
   "vulns": {
@@ -480,6 +481,7 @@
     "withdraw": "Withdraw",
     "who": "Only an administrator with two-step sign-in can accept them; who and when go in the audit log. Withdrawing is always possible.",
     "needVerified": "Verify ownership first; only then can the testing terms be accepted.",
+    "stops": "Withdrawing them, or taking the disruptive checks out, stops a scan of this target that is running at the higher level.",
     "toastAccepted": "Testing terms accepted. The next scan is a deep scan.",
     "toastWithdrawn": "Testing terms withdrawn. The next scan is in the Scan now scope."
   },

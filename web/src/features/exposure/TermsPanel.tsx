@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { Panel } from '@/components/common/PageHeader'
+import { Notice, Panel } from '@/components/common/PageHeader'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/input'
@@ -39,8 +39,9 @@ export function TermsPanel({ target }: { target: Target }) {
         <ul className="grid list-disc gap-1.5 pl-5">{lines.slice(1, -1).map((l) => <li key={l}>{l}</li>)}</ul>
         <p>{lines[lines.length - 1]}</p>
       </div>
+      {target.terms_warning ? <Notice tone="warn" role="alert" className="mb-0" title={target.terms_warning} /> : null}
       <div className="flex items-start gap-2">
-        <Checkbox id={`terms-disruptive-${target.id}`} className="mt-0.5" checked={disruptive} disabled={!!locked} onCheckedChange={(v) => setDisruptive(v === true)} />
+        <Checkbox id={`terms-disruptive-${target.id}`} className="mt-0.5" checked={disruptive} disabled={!!locked || !!target.terms_warning} onCheckedChange={(v) => setDisruptive(v === true)} />
         <Label htmlFor={`terms-disruptive-${target.id}`} className="font-normal">{n.disruptive}</Label>
       </div>
       <div className="flex flex-wrap items-center gap-3">
@@ -55,7 +56,7 @@ export function TermsPanel({ target }: { target: Target }) {
           </Button>
         ) : null}
       </div>
-      {locked ? <p className="text-[13px] text-muted">{locked}</p> : <p className="text-[13px] text-muted">{t('terms.who')}</p>}
+      {locked ? <p className="text-[13px] text-muted">{locked}</p> : <p className="text-[13px] text-muted">{t('terms.who')} {t('terms.stops')}</p>}
     </Panel>
   )
 }

@@ -125,9 +125,12 @@ type TargetView struct {
 	CommitmentNotice *Notice `json:"commitment_notice"`
 	// Terms is the acceptance of the testing terms (FULL-1), nil when none; TermsNotice is the current text with this target in it,
 	// always sent (the page shows it to accept, or to read again after a new version). FullScan says scans run at full depth.
-	Terms         *Terms         `json:"terms"`
-	TermsNotice   TermsNotice    `json:"terms_notice"`
-	FullScan      bool           `json:"full_scan"`
+	Terms       *Terms      `json:"terms"`
+	TermsNotice TermsNotice `json:"terms_notice"`
+	FullScan    bool        `json:"full_scan"`
+	// TermsWarning says, on GET /exposure/targets/{id} of an IP, that the box goes out through carrier-grade NAT (the disruptive
+	// tick is then refused); nil otherwise and in lists (D-566 review r1 M2).
+	TermsWarning  *string        `json:"terms_warning,omitempty"`
 	Scannable     bool           `json:"scannable"`
 	BlockedReason *BlockedReason `json:"blocked_reason"`
 	CreatedAt     string         `json:"created_at"`

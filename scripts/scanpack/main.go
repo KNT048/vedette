@@ -7,8 +7,9 @@
 // out, never repaired, when it has any of: no KEV tag, a tag of nucleiargv.ForbiddenTags or oast, a mention of
 // interactsh, a top-level key other than id, info, variables, http, tcp, ssl (headless, code, javascript, file, dns, whois,
 // websocket, flow, self-contained and everything a later nuclei adds), not exactly one CVE, an id nuclei would take for a flag, or no
-// printable request line for the probe log. The product never runs this: it ships the result. Network, for a maintainer only:
-// github.com and codeload.github.com, 60 s limit.
+// printable request line for the probe log. Next to that KEV set, D-527 adds the deep and disruptive sets that a full job (testing
+// terms accepted) runs: see fullSet. Each index entry names its sets. The product never runs this: it ships the result. Network, for
+// a maintainer only: github.com and codeload.github.com, 60 s limit.
 package main
 
 import (
@@ -98,7 +99,7 @@ func run(srcVersion, srcSHA, version, in, out string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Printf("scanpack: %d templates kept, left out: %v\n", rep.Kept, rep.Left)
+	fmt.Printf("scanpack: %d templates kept, per set: %v, left out: %v\n", rep.Kept, rep.Sets, rep.Left)
 	return nil
 }
 
@@ -193,6 +194,7 @@ func unpack(raw []byte, wantSHA, dir string) error {
 type Report struct {
 	Kept int
 	Left map[string]int
+	Sets map[string]int // templates per set (a template may be in two), and how many deep ones are generic
 }
 
 // build writes out/templates/<path> for every template that qualifies, and out/index.json. out must not hold anything yet.
@@ -245,15 +247,31 @@ func build(src, out, version string) (Report, error) {
 		return rep, fmt.Errorf("a pack has 1 to %d templates, this one %d", pack.MaxTemplates, len(all))
 	}
 	sort.Slice(all, func(i, j int) bool { return all[i].tpl.Path < all[j].tpl.Path })
+	tpls := make([]pack.Template, len(all))
+	for i := range all {
+		tpls[i] = all[i].tpl
+	}
+	products := pack.ProductTags(tpls)
 	label := sha256.New()
 	_, _ = fmt.Fprintf(label, "%s\n", version) // a hash.Hash never fails to write
 	ix := pack.Index{Version: version}
-	for _, k := range all {
-		mark := "" // the own_ip mark is part of what the label covers (review round 2 L2)
+	rep.Sets = map[string]int{}
+	for i := range all {
+		k := &all[i]
+		if k.tpl.Generic && slices.ContainsFunc(k.tpl.Tags, func(t string) bool { return products[t] }) {
+			k.tpl.Generic = false // a tag names a product a technologies template detects: it runs when that product is found
+		}
+		mark := "" // the own_ip mark is part of what the label covers (review round 2 L2), and the sets (D-527)
 		if k.tpl.OwnIP {
 			mark = "\town_ip"
 		}
-		_, _ = fmt.Fprintf(label, "%s\t%s%s\n", k.tpl.Path, k.tpl.SHA256, mark)
+		_, _ = fmt.Fprintf(label, "%s\t%s%s\t%s\n", k.tpl.Path, k.tpl.SHA256, mark, strings.Join(k.tpl.Sets, ","))
+		for _, s := range k.tpl.Sets {
+			rep.Sets[s]++
+		}
+		if k.tpl.Generic {
+			rep.Sets["generic"]++
+		}
 		ix.Templates = append(ix.Templates, k.tpl)
 		dst := filepath.Join(out, "templates", filepath.FromSlash(k.tpl.Path))
 		if err := os.MkdirAll(filepath.Dir(dst), 0o750); err != nil {
@@ -284,7 +302,9 @@ func build(src, out, version string) (Report, error) {
 	return rep, nil
 }
 
-// qualify decides one file: the index entry, or the reason it is left out.
+// qualify decides one file: the index entry with its sets, or the reason it is left out. A template is in the KEV set by the
+// rule of D-125/D-520 (kevReason), and in the deep or disruptive set by the rule of D-527 (fullSet); the reason of a template in
+// neither is the full rule's when the template sits in a folder of a full set, else the KEV rule's.
 func qualify(rel string, body []byte) (pack.Template, string) {
 	var zero pack.Template
 	if !nucleiargv.ValidTemplatePath(rel) {
@@ -302,38 +322,238 @@ func qualify(rel string, body []byte) (pack.Template, string) {
 			return zero, "protocol"
 		}
 	}
-	if hasUnsafeHTTP(doc) {
-		return zero, "http feature"
-	}
-	lower := strings.ToLower(string(body))
-	if strings.Contains(lower, "interactsh") {
-		return zero, "interactsh"
-	}
 	id, _ := doc["id"].(string)
 	if !idRE.MatchString(id) {
 		return zero, "id"
 	}
 	info, _ := doc["info"].(map[string]any)
 	tags := tagsOf(info)
-	forbidden := append(nucleiargv.ForbiddenTags(), "oast")
-	for _, t := range tags {
-		if slices.Contains(forbidden, t) {
-			return zero, "forbidden tag"
-		}
-	}
-	if !slices.ContainsFunc(pack.SafeTags, func(s string) bool { return slices.Contains(tags, s) }) {
+	if len(tags) == 0 { // a template is chosen and fenced by its tags: one without is not judged
 		return zero, "tags"
 	}
 	cve := cveOf(info)
-	if cve == "" {
-		return zero, "cve"
-	}
 	req := requestOf(doc)
 	if !requestRE.MatchString(req) {
 		return zero, "request"
 	}
+	var sets []string
+	kr := kevReason(doc, body, tags, cve)
+	if kr == "" {
+		sets = append(sets, pack.SetKEV)
+	}
+	fs, fr := fullSet(rel, doc, body, tags)
+	if fs != "" {
+		sets = append(sets, fs)
+	}
+	if len(sets) == 0 {
+		if fr != "dir" {
+			return zero, fr
+		}
+		return zero, kr
+	}
+	if kr != "" { // outside the KEV set the cve may be empty or the first of several
+		cve = firstCVE(info)
+	}
 	sum := sha256.Sum256(body)
-	return pack.Template{ID: id, CVE: cve, Path: rel, SHA256: hex.EncodeToString(sum[:]), Tags: tags, Request: req, OwnIP: ownIPSafe(rel, doc, tags, body)}, ""
+	t := pack.Template{ID: id, CVE: cve, Path: rel, SHA256: hex.EncodeToString(sum[:]), Tags: tags, Request: req, Sets: sets}
+	if kr == "" {
+		t.OwnIP = ownIPSafe(rel, doc, tags, body)
+	}
+	if fs != "" {
+		t.Name, t.Severity = nameOf(info), severityOf(info)
+		t.Generic = fs == pack.SetDeep && genericDir(rel) && !namesProduct(info)
+	}
+	return t, ""
+}
+
+// kevReason is the KEV rule of D-125 (unchanged by D-527): the KEV tags, no forbidden or oast tag, no interactsh, no fuzzing,
+// payloads or race, and exactly one CVE. "" when the template is in the KEV set.
+func kevReason(doc map[string]any, body []byte, tags []string, cve string) string {
+	switch {
+	case hasUnsafeHTTP(doc):
+		return "http feature"
+	case strings.Contains(strings.ToLower(string(body)), "interactsh"):
+		return "interactsh"
+	case slices.ContainsFunc(tags, func(t string) bool { return slices.Contains(append(nucleiargv.ForbiddenTags(), "oast"), t) }):
+		return "forbidden tag"
+	case !slices.ContainsFunc(pack.SafeTags, func(s string) bool { return slices.Contains(tags, s) }):
+		return "tags"
+	case cve == "":
+		return "cve"
+	}
+	return ""
+}
+
+// The folders of the full sets (D-527). deepDirs are the categories a deep external scan uses: nuclei's cves, vulnerabilities,
+// exposures, misconfiguration, exposed-panels and technologies, plus cnvd (product vulnerabilities by their Chinese id, like cves),
+// iot (the vulnerabilities of routers, cameras and NAS, what a home or office public IP shows), miscellaneous (directory listing,
+// TRACE, security.txt: hardening notes) and on the network side cves, vulnerabilities, exposures, misconfig, detection (the service
+// fingerprints), enumeration and backdoor, and every ssl template but the C2 fingerprints (protocol, cipher and certificate checks).
+// Left out: osint, token-spray and credential-stuffing (they send to third-party sites or try credentials), takeovers (a DNS name,
+// never an IP), fuzzing, honeypot, c2, jarm and global-matchers (threat intelligence and passive matchers, not the customer's
+// exposure). disruptiveDirs are the default-login folders: they try passwords.
+var (
+	deepDirs = []string{"http/cves/", "http/cnvd/", "http/vulnerabilities/", "http/exposures/", "http/misconfiguration/", "http/exposed-panels/",
+		"http/technologies/", "http/miscellaneous/", "http/iot/", "network/cves/", "network/vulnerabilities/", "network/exposures/",
+		"network/misconfig/", "network/detection/", "network/enumeration/", "network/backdoor/", "ssl/"}
+	notDeepDirs    = []string{"ssl/c2/"}
+	disruptiveDirs = []string{"http/default-logins/", "network/default-login/"}
+	// genericDirs are the categories whose templates a full job runs on every web port when they name no product.
+	genericDirs = []string{"http/exposures/", "http/misconfiguration/", "http/exposed-panels/", "http/miscellaneous/"}
+)
+
+func under(rel string, dirs []string) bool {
+	return slices.ContainsFunc(dirs, func(d string) bool { return strings.HasPrefix(rel, d) })
+}
+
+func genericDir(rel string) bool { return under(rel, genericDirs) }
+
+// fullKeys are the keys of an http block that turn a check into fuzzing, parallel or pipelined traffic: never at any depth.
+var fullKeys = []string{"fuzzing", "race", "race_count", "pipeline", "threads"}
+
+// maxPayloadValues bounds the requests a payload list may make: the product of the lengths of a block's inline lists.
+const maxPayloadValues = 64
+
+// fullSet is the D-527 rule: the set of a template at full depth (SetDeep or SetDisruptive) with "", or "" with the reason it is
+// left out. Always out: a folder of no full set ("dir"), the tags intrusive, fuzz and oast and any mention of interactsh (an
+// out-of-band server is a third party), fuzzing, race, pipeline and thread keys, a payload read from a file (it is not in the pack)
+// or a list of more than maxPayloadValues requests, and a request method pack.FullMethodOK refuses (PUT, DELETE, PATCH…). Disruptive:
+// a default-login folder or a tag of nucleiargv.DisruptiveTags (dos, brute-force, default-login, authenticated).
+func fullSet(rel string, doc map[string]any, body []byte, tags []string) (string, string) {
+	disruptive := under(rel, disruptiveDirs)
+	if !disruptive && (!under(rel, deepDirs) || under(rel, notDeepDirs)) {
+		return "", "dir"
+	}
+	if slices.ContainsFunc(tags, func(t string) bool { return t == "intrusive" || t == "fuzz" || t == "oast" }) {
+		return "", "forbidden tag"
+	}
+	if pack.NeedsOAST(body) { // a matcher that only names interactsh (tech-detect) is no use of it
+		return "", "interactsh"
+	}
+	if pack.FullText(body) != nil {
+		return "", "method"
+	}
+	for _, key := range []string{"http", "tcp", "ssl"} {
+		blocks, _ := doc[key].([]any)
+		for _, b := range blocks {
+			m, ok := b.(map[string]any)
+			if !ok {
+				return "", "yaml"
+			}
+			if slices.ContainsFunc(fullKeys, func(k string) bool { _, has := m[k]; return has }) {
+				return "", "http feature"
+			}
+			if meth, has := m["method"]; has {
+				ms, _ := meth.(string)
+				if !pack.FullMethodOK(strings.ToUpper(ms)) {
+					return "", "method"
+				}
+			}
+			raws, _ := m["raw"].([]any)
+			for _, r := range raws {
+				rs, _ := r.(string)
+				if f := strings.Fields(firstLine(rs)); len(f) == 0 || !pack.FullMethodOK(f[0]) {
+					return "", "method"
+				}
+			}
+			if p, has := m["payloads"]; has && !payloadsInline(p) {
+				return "", "payloads"
+			}
+		}
+	}
+	if disruptive || slices.ContainsFunc(tags, func(t string) bool { return slices.Contains(nucleiargv.DisruptiveTags(), t) }) {
+		return pack.SetDisruptive, ""
+	}
+	return pack.SetDeep, ""
+}
+
+// firstLine is the request line of a raw request: its first line that is not blank or an @ annotation.
+func firstLine(raw string) string {
+	for _, l := range strings.Split(strings.ReplaceAll(raw, "\r\n", "\n"), "\n") {
+		if l = strings.TrimSpace(l); l != "" && !strings.HasPrefix(l, "@") {
+			return l
+		}
+	}
+	return ""
+}
+
+// payloadsInline says whether every payload of a block is an inline list (a string names a file, which is not in the pack) and
+// together they make at most maxPayloadValues requests.
+func payloadsInline(p any) bool {
+	m, ok := p.(map[string]any)
+	if !ok {
+		return false
+	}
+	n := 1
+	for _, v := range m {
+		l, ok := v.([]any)
+		if !ok || len(l) == 0 {
+			return false
+		}
+		n *= len(l)
+		if n > maxPayloadValues {
+			return false
+		}
+	}
+	return true
+}
+
+// nameOf is info.name as one printable ASCII line: other runes become "?", cut at 120 bytes.
+func nameOf(info map[string]any) string {
+	s, _ := info["name"].(string)
+	b := []byte(strings.TrimSpace(s))
+	for i, c := range b {
+		if c < ' ' || c > '~' {
+			b[i] = '?'
+		}
+	}
+	if len(b) > 120 {
+		b = b[:120]
+	}
+	if len(b) == 0 {
+		return "unnamed"
+	}
+	return string(b)
+}
+
+// severityOf is info.severity when it is one of nuclei's, else "unknown".
+func severityOf(info map[string]any) string {
+	s, _ := info["severity"].(string)
+	s = strings.ToLower(strings.TrimSpace(s))
+	switch s {
+	case "info", "low", "medium", "high", "critical":
+		return s
+	}
+	return "unknown"
+}
+
+// namesProduct says whether the template's metadata names a vendor or a product.
+func namesProduct(info map[string]any) bool {
+	md, _ := info["metadata"].(map[string]any)
+	return md["vendor"] != nil || md["product"] != nil
+}
+
+// firstCVE is the first CVE id of info.classification.cve-id, "" when there is none: a deep entry keeps it so a job of that CVE
+// finds it (pack.FullForCVE).
+func firstCVE(info map[string]any) string {
+	cls, _ := info["classification"].(map[string]any)
+	var ids []string
+	switch v := cls["cve-id"].(type) {
+	case string:
+		ids = strings.Split(v, ",")
+	case []any:
+		for _, e := range v {
+			if s, ok := e.(string); ok {
+				ids = append(ids, s)
+			}
+		}
+	}
+	for _, id := range ids {
+		if id = strings.ToUpper(strings.TrimSpace(id)); cveRE.MatchString(id) {
+			return id
+		}
+	}
+	return ""
 }
 
 // ownIPKeys are the keys of an http block an own_ip template may have: the request (raw, or path with method and headers) and

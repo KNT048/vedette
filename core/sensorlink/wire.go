@@ -141,6 +141,10 @@ type HeartbeatNuclei struct {
 	// OwnIP (protocol 5, D-520) says the worker runs nuclei jobs of scope own_ip, with its own-IP fence. An older worker leaves it
 	// out: core then never sends it one.
 	OwnIP bool `json:"own_ip,omitempty"`
+
+	// FULL-4 (D-527, protocol 5 before its first release): Full says the worker runs nuclei jobs of depth full (the deep scan of the
+	// box's own public IP, with the own-IP fence and the pack's sets). An older worker leaves it out: core then never sends it one.
+	Full bool `json:"full,omitempty"`
 }
 
 // HeartbeatPack names the template pack baked into the scan image.
@@ -353,6 +357,14 @@ type NucleiJob struct {
 	Rate          int            `json:"rate"`
 	MaxHostErrors int            `json:"max_host_errors"`
 	Scope         string         `json:"scope,omitempty"`
+
+	// FULL-4 (D-527, protocol 5 before its first release, as scope): the depth of an own_ip job. Depth is "" (the read-only KEV
+	// checks of D-520) or "full" (the deep scan of a target whose testing terms were accepted: nucleiargv's full shape, templates of
+	// the pack's deep set); Disruptive (full only) adds the disruptive set (the extra tick of the terms). Core leaves both out of
+	// every other job and sends a full one only to a worker whose heartbeat said nuclei.full, so an older decoder never gets one;
+	// if it did, strict decoding refuses it and nothing runs.
+	Depth      string `json:"depth,omitempty"`
+	Disruptive bool   `json:"disruptive,omitempty"`
 }
 
 // JobPack names the pack a job was planned against.

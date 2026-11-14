@@ -66,7 +66,11 @@ func exposureService(d deps) *exposure.Service {
 	cfg.Services = exposureServicesFor(d, gate)
 	// INV-23 (D-561, D-520): the exploited CVEs matched on a port are checked with their safe nuclei templates by the scan container,
 	// scope own_ip, each template in the scan module's probe log first. Named by the same commitment sentence (K-4).
-	cfg.Templates, cfg.Probes = exposureTemplatesFor(d, gate), exposureProbeLog{d: d}
+	// FULL-4 (D-527): a target whose testing terms are accepted gets the deep templates; ModeNow is read again right before each run.
+	mode := func(ctx context.Context, actor, id string) (exposure.ScanMode, error) {
+		return exposureService(d).ModeNow(ctx, actor, id)
+	}
+	cfg.Templates, cfg.Probes = exposureTemplatesFor(d, gate, mode), exposureProbeLog{d: d}
 	clock := d.Clock
 	if clock == nil {
 		clock = time.Now

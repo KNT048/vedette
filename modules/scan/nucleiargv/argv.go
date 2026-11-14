@@ -13,6 +13,11 @@
 //     tell the box's own IP from anyone's: the worker checks right before nuclei that the box leaves the Internet through
 //     that address (core/egressip, the same fence as nmap's external shape), and refuses the job otherwise.
 //
+// An own_ip job has a depth (D-527): "" is the shape above (the KEV templates the pack marks own_ip); DepthFull is the deep scan of
+// a target whose testing terms were accepted (exposure FULL-1): the same one public IPv4 and the same worker fence, at FullRate with
+// FullConcurrency templates at a time, up to MaxFullTemplates templates a run, and -etags of FullForbiddenTags: dos only with
+// Disruptive, the extra tick of the terms. A LAN job has no depth.
+//
 // No domain in any scope: a name could resolve to loopback or the metadata address.
 //
 // The flags are those of the nuclei version pinned in the scan image; a new pinned version is checked against this
@@ -50,7 +55,8 @@ const (
 )
 
 // forbiddenTags are the template tags that may never run (INV-4, FORBID-2): the pack refuses them, and nuclei is told
-// to exclude them as a second fence. One list for both; unexported so nobody can change it after fixedFlags read it.
+// to exclude them as a second fence. One list for both; unexported so nobody can change it after fixedFlags read it. The one
+// exception (D-527): dos runs in a full job with the extra tick of the terms, from the pack's disruptive set only.
 var forbiddenTags = []string{"dos", "intrusive", "fuzz"}
 
 // ForbiddenTags returns a copy of the tags that may never run.
@@ -75,6 +81,42 @@ var ownIPForbiddenTags = []string{"default-login", "brute-force", "sqli", "time-
 
 // OwnIPForbiddenTags returns a copy of the tags an own_ip job never runs, forbiddenTags included.
 func OwnIPForbiddenTags() []string { return append(slices.Clone(forbiddenTags), ownIPForbiddenTags...) }
+
+// DepthFull is the depth of an own_ip job of a target whose testing terms were accepted (D-527).
+const DepthFull = "full"
+
+// The full shape (D-527). nuclei's own defaults are -rl 150 -c 25 -bs 25 (docs.projectdiscovery.io/tools/nuclei/running, Rate
+// Limits), sized for many hosts from a big machine; a full job has one host (so -bs 1) behind the customer's own uplink and runs on an
+// N100 (4 cores) next to core: 20 requests a second (the scan module's ceiling, MaxRate) with 10 templates in flight, so a target
+// that answers within half a second keeps the rate busy. To be measured on the N100 (the lead's checklist in D-527).
+const (
+	FullRate         = 20
+	FullConcurrency  = 10
+	MaxFullTemplates = 200 // per run: 200 ids of at most 100 bytes keep the jobs reply under sensorlink's 64 KiB, and -ms lines under nucleiout.MaxLines
+)
+
+// disruptiveTags are the tags of the disruptive checks (D-527): only a full job with the extra tick of the terms runs them.
+// brute-force and default-login try passwords, authenticated logs in with a user name and password of the template's own, dos may
+// stop the service.
+var disruptiveTags = []string{"dos", "brute-force", "default-login", "authenticated"}
+
+// DisruptiveTags returns a copy of the tags of the disruptive checks.
+func DisruptiveTags() []string { return slices.Clone(disruptiveTags) }
+
+// FullForbiddenTags is the -etags of a full job: without the tick forbiddenTags and the disruptive tags (a second fence behind the
+// pack's sets); with it forbiddenTags without dos (intrusive and fuzz write, delete or change state: never, at any depth).
+func FullForbiddenTags(disruptive bool) []string {
+	if disruptive {
+		return slices.DeleteFunc(slices.Clone(forbiddenTags), func(t string) bool { return t == "dos" })
+	}
+	out := slices.Clone(forbiddenTags)
+	for _, t := range disruptiveTags {
+		if !slices.Contains(out, t) {
+			out = append(out, t)
+		}
+	}
+	return out
+}
 
 // fixedFlags is the part of every line that never changes:
 //
@@ -110,13 +152,36 @@ var ownIPFlags = func() []string {
 	return f
 }()
 
-// flagsOf is the fixed part of a scope's line; nil for a scope that does not exist.
-func flagsOf(scope string) []string {
-	switch scope {
-	case "", ScopeLAN:
+// fullFlags are fixedFlags with the -etags of a full job (FullForbiddenTags), -c FullConcurrency, and two more:
+//
+//	-or -ot   no request and response pair and no encoded template in a finding's line (nuclei 3.11.1 -omit-raw, -omit-template):
+//	          up to MaxFullTemplates templates on one page could otherwise print its body once per match, past MaxOutput; a full
+//	          result keeps the template id, name, severity and port, never the evidence
+//
+// fullDisruptiveFlags are those of a full job with the tick.
+var fullFlags, fullDisruptiveFlags = fullFlagsOf(false), fullFlagsOf(true)
+
+func fullFlagsOf(disruptive bool) []string {
+	f := slices.Clone(fixedFlags)
+	f[slices.Index(f, "-etags")+1] = strings.Join(FullForbiddenTags(disruptive), ",")
+	f[slices.Index(f, "-c")+1] = strconv.Itoa(FullConcurrency)
+	return append(f, "-or", "-ot")
+}
+
+// flagsOf is the fixed part of a job's line; nil for a scope or depth that does not exist, or a combination that may not be
+// (a depth outside own_ip, the tick without the depth).
+func flagsOf(scope, depth string, disruptive bool) []string {
+	switch {
+	case depth == "" && disruptive:
+		return nil
+	case depth == "" && (scope == "" || scope == ScopeLAN):
 		return fixedFlags
-	case ScopeOwnIP:
+	case depth == "" && scope == ScopeOwnIP:
 		return ownIPFlags
+	case depth == DepthFull && scope == ScopeOwnIP && disruptive:
+		return fullDisruptiveFlags
+	case depth == DepthFull && scope == ScopeOwnIP:
+		return fullFlags
 	}
 	return nil
 }
@@ -129,6 +194,8 @@ type Job struct {
 	Rate          int      // requests per second, 1..MaxRate
 	MaxHostErrors int      // nuclei stops sending to a target after this many errors in a row (INV-6), 2..20
 	Scope         string   // ScopeLAN ("" too) or ScopeOwnIP
+	Depth         string   // "" or DepthFull (own_ip only, D-527): 1..MaxFullTemplates templates at FullRate
+	Disruptive    bool     // a full job with the extra tick of the terms: dos is not excluded (D-527)
 }
 
 // Target is one place nuclei sends requests to: a host and a port, with the scheme of the HTTP templates, or no
@@ -188,17 +255,22 @@ func (t Target) valid(scope string) bool {
 }
 
 // Build builds the nuclei command line of a job: the fixed flags of its scope, -rl, -mhe, one -t per template file, then one
-// -u per target. It refuses a job outside the limits above; an own_ip job takes exactly one public target at OwnIPRate.
+// -u per target. It refuses a job outside the limits above; an own_ip job takes exactly one public target at OwnIPRate, a full one
+// at FullRate with up to MaxFullTemplates templates.
 func Build(j Job) ([]string, error) {
-	flags := flagsOf(j.Scope)
+	flags := flagsOf(j.Scope, j.Depth, j.Disruptive)
 	if flags == nil {
-		return nil, fmt.Errorf("nucleiargv: scope %.20q is not lan or own_ip", j.Scope)
+		return nil, fmt.Errorf("nucleiargv: scope %.20q with depth %.20q (disruptive %t) is not a shape of a job", j.Scope, j.Depth, j.Disruptive)
 	}
-	if j.Scope == ScopeOwnIP && (len(j.Targets) != 1 || j.Rate != OwnIPRate) {
-		return nil, fmt.Errorf("nucleiargv: an own_ip run takes exactly one target at %d requests a second, got %d at %d", OwnIPRate, len(j.Targets), j.Rate)
+	rate, most := OwnIPRate, MaxTemplates
+	if j.Depth == DepthFull {
+		rate, most = FullRate, MaxFullTemplates
 	}
-	if len(j.Templates) == 0 || len(j.Templates) > MaxTemplates {
-		return nil, fmt.Errorf("nucleiargv: a run needs 1 to %d templates, got %d", MaxTemplates, len(j.Templates))
+	if j.Scope == ScopeOwnIP && (len(j.Targets) != 1 || j.Rate != rate) {
+		return nil, fmt.Errorf("nucleiargv: an own_ip run of depth %.20q takes exactly one target at %d requests a second, got %d at %d", j.Depth, rate, len(j.Targets), j.Rate)
+	}
+	if len(j.Templates) == 0 || len(j.Templates) > most {
+		return nil, fmt.Errorf("nucleiargv: a run needs 1 to %d templates, got %d", most, len(j.Templates))
 	}
 	for i, p := range j.Templates {
 		if !ValidTemplatePath(p) || slices.Contains(j.Templates[:i], p) {
@@ -249,15 +321,18 @@ func Validate(args []string) error {
 
 // parse reads the job back from an argv of Build's shape; the fixed flags say the scope.
 func parse(args []string) (Job, error) {
-	n := len(fixedFlags)
 	var j Job
+	prefix := func(f []string) bool { return len(args) >= len(f)+8 && slices.Equal(args[:len(f)], f) }
+	var n int
 	switch {
-	case len(args) < n+8:
-		return Job{}, errors.New("nucleiargv: the fixed flags are not the allowed ones")
-	case slices.Equal(args[:n], fixedFlags):
-		j.Scope = ScopeLAN
-	case slices.Equal(args[:n], ownIPFlags):
-		j.Scope = ScopeOwnIP
+	case prefix(fixedFlags):
+		j.Scope, n = ScopeLAN, len(fixedFlags)
+	case prefix(ownIPFlags):
+		j.Scope, n = ScopeOwnIP, len(ownIPFlags)
+	case prefix(fullFlags):
+		j.Scope, j.Depth, n = ScopeOwnIP, DepthFull, len(fullFlags)
+	case prefix(fullDisruptiveFlags):
+		j.Scope, j.Depth, j.Disruptive, n = ScopeOwnIP, DepthFull, true, len(fullDisruptiveFlags)
 	default:
 		return Job{}, errors.New("nucleiargv: the fixed flags are not the allowed ones")
 	}

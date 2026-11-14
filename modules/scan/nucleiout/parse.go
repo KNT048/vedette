@@ -44,7 +44,13 @@ type Result struct {
 	Request  string // cleaned and capped
 	Response string // cleaned and capped
 	Error    string // cleaned and capped; non-empty when the target did not answer properly (INV-6)
+	// MatcherName is the name of the matcher that matched, cleaned and capped at MaxMatcherName (D-527: a technologies template
+	// such as tech-detect names the product it found there; core keeps only a name that is a product tag of the pack).
+	MatcherName string
 }
+
+// MaxMatcherName caps a matcher name.
+const MaxMatcherName = 64
 
 // line is the part of nuclei's JSON line core reads.
 type line struct {
@@ -55,6 +61,7 @@ type line struct {
 	Request       string `json:"request"`
 	Response      string `json:"response"`
 	Error         string `json:"error"`
+	MatcherName   string `json:"matcher-name"`
 }
 
 // Parse reads a whole run. templates are the job's template ids and targets its host:port pairs; anything outside
@@ -108,6 +115,7 @@ func parseLine(raw []byte, templates, targets []string) (Result, error) {
 	return Result{
 		Template: l.TemplateID, Target: target, Matched: *l.MatcherStatus,
 		Request: Clean(l.Request, MaxRequest), Response: Clean(l.Response, MaxResponse), Error: Clean(l.Error, MaxError),
+		MatcherName: Clean(l.MatcherName, MaxMatcherName),
 	}, nil
 }
 

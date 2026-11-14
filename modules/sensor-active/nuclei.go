@@ -39,8 +39,11 @@ var (
 	ErrOwnIPUnsupported = errors.New("sensoractive: the scan container's worker is older and runs no own-IP nuclei job")
 	// ErrNucleiBusy: an own_ip job found the nuclei slot holding another job (a Scan now of the LAN may run up to an hour), and
 	// exposure's 5-minute step does not queue behind it (D-520). Nothing was sent.
-	ErrNucleiBusy  = errors.New("sensoractive: the scan container's nuclei is busy with another scan")
-	errJSONLTooBig = errors.New("nuclei output is larger than the limit")
+	ErrNucleiBusy = errors.New("sensoractive: the scan container's nuclei is busy with another scan")
+	// ErrFullUnsupported: the worker's latest heartbeat does not say full (FULL-4, D-527): a job of depth full is never sent to it.
+	// Nothing was sent.
+	ErrFullUnsupported = errors.New("sensoractive: the scan container's worker is older and runs no deep nuclei job")
+	errJSONLTooBig     = errors.New("nuclei output is larger than the limit")
 )
 
 // NucleiRequest is one nuclei run (D-125 (1), D-136 (4) and (6)): template ids from the pack index, never paths; targets that
@@ -54,6 +57,10 @@ type NucleiRequest struct {
 	Rate                    int    // requests per second, 1..nucleiargv.MaxRate (own_ip: nucleiargv.OwnIPRate)
 	MaxHostErrors           int    // nucleiargv.MinHostErrors..MaxHostErrors
 	Scope                   string // "" (LAN) or nucleiargv.ScopeOwnIP
+	// FULL-4 (D-527): an own_ip run of depth nucleiargv.DepthFull (1..nucleiargv.MaxFullTemplates at nucleiargv.FullRate), and
+	// with Disruptive the disruptive set too. Sent only to a worker whose heartbeat said nuclei.full.
+	Depth      string
+	Disruptive bool
 }
 
 // Scanner is the seam the scan module calls (the smallest one: scan's own Engine asks only Ready, and the run is what S5 adds).
@@ -105,7 +112,7 @@ func (r NucleiRequest) check() error {
 	if r.Scope == nucleiargv.ScopeLAN { // the wire says LAN by leaving the scope out: a worker of protocol 5 reads the job it knows
 		return errors.New(`the LAN scope is "" in a request`)
 	}
-	if _, err := nucleiargv.Build(nucleiargv.Job{Templates: paths, Targets: r.Targets, Rate: r.Rate, MaxHostErrors: r.MaxHostErrors, Scope: r.Scope}); err != nil {
+	if _, err := nucleiargv.Build(nucleiargv.Job{Templates: paths, Targets: r.Targets, Rate: r.Rate, MaxHostErrors: r.MaxHostErrors, Scope: r.Scope, Depth: r.Depth, Disruptive: r.Disruptive}); err != nil {
 		return err
 	}
 	return nil
@@ -141,6 +148,14 @@ func (d *Dispatcher) RunNuclei(ctx context.Context, r NucleiRequest) (nucleiout.
 			return nucleiout.Outcome{}, ErrOwnIPUnsupported
 		}
 	}
+	if r.Depth != "" { // FULL-4 (D-527): only a worker that said full
+		d.mu.Lock()
+		ok := d.nuclei.Full
+		d.mu.Unlock()
+		if !ok {
+			return nucleiout.Outcome{}, ErrFullUnsupported
+		}
+	}
 	if err := ctx.Err(); err != nil {
 		return nucleiout.Outcome{}, err
 	}
@@ -151,6 +166,8 @@ func (d *Dispatcher) RunNuclei(ctx context.Context, r NucleiRequest) (nucleiout.
 		Rate:          r.Rate,
 		MaxHostErrors: r.MaxHostErrors,
 		Scope:         r.Scope,
+		Depth:         r.Depth,
+		Disruptive:    r.Disruptive,
 	}}
 	hostPort := make([]string, len(r.Targets))
 	for i, t := range r.Targets {

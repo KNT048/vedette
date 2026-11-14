@@ -19,10 +19,13 @@ const (
 	// CodeZapPullFailed: the last download of the ZAP image failed; the next call tries again.
 	CodeZapPullFailed = "zap_image_pull_failed"
 	// CodeTargetNotOwned: the host's own re-check says the page is not the box's own address (IP target), or the domain no longer
-	// has its TXT token or the page's name no longer points at the IP (domain target).
+	// has its TXT token (domain target).
 	CodeTargetNotOwned = "target_not_owned"
 	// CodeZapCleaningUp: an earlier run's container could not be proven gone yet, so its fence is kept and no new run starts.
 	CodeZapCleaningUp = "zap_cleaning_up"
+	// CodeZapNameMoved: the page's name no longer resolves to the IP ZAP would be pinned to (a moved record, or a CDN or load balancer
+	// that answers with another subset of its addresses). This page only: the domain's TXT record was there.
+	CodeZapNameMoved = "zap_name_moved"
 	// CodeOwnershipUnchecked: the host could not re-check (the public-IP services or DNS did not answer), so nothing was sent.
 	CodeOwnershipUnchecked = "ownership_unchecked"
 	// CodeZapFenceFailed: the network vedette-zap or its egress rule could not be set up and proven, so ZAP was not started.

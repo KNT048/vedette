@@ -39,7 +39,8 @@ const (
 	webPulling    = "the ZAP image (about 1.2 GB) is being downloaded to this box. Scan again in a few minutes."
 	webPullFailed = "the download of the ZAP image from ghcr.io failed (the box may not reach ghcr.io, or its disk is full). Scan again to try once more; the box log has the reason."
 	webNotOwnIP   = "this box no longer reaches the Internet through %s, so its pages were not scanned."
-	webNotOwnDom  = "%s no longer has its vedette-verify TXT record, or %s no longer points at %s, so the page was not scanned."
+	webNotOwnDom  = "%s no longer has its vedette-verify TXT record, so its pages were not scanned."
+	webNameMoved  = "%s now points at other addresses than %s, the one the surface scan saw (a moved record, or a CDN or load balancer answering with other addresses), so this page was not scanned. Scan again to check it at its current address."
 	webUnchecked  = "the box could not confirm that the target is still yours (the public IP services or DNS did not answer, or did not agree), so nothing was sent."
 	webFence      = "the box could not set up the network fence that keeps ZAP to this one address and port, so ZAP was not started. The box log has the reason."
 	webOldHost    = "the box's host helper (vedette-host) is older than this version of Vedette. Update the box, then scan again."
@@ -88,6 +89,9 @@ func (w exposureWebScan) Baseline(ctx context.Context, t exposure.ScanTarget, pa
 		if run.Error != nil {
 			code = run.Error.Code
 		}
+		if code == api.CodeZapNameMoved { // this page only: exposure goes on with the next page
+			return exposure.WebScan{}, &exposure.PageSkipped{Reason: fmt.Sprintf(webNameMoved, page.Host, page.IP)}
+		}
 		if why := webReason(code, t, page); why != "" {
 			return exposure.WebScan{}, &exposure.Unavailable{Reason: why}
 		}
@@ -124,7 +128,7 @@ func webReason(code string, t exposure.ScanTarget, page exposure.WebPage) string
 		return webPullFailed
 	case api.CodeTargetNotOwned:
 		if t.Kind == exposure.KindDomain {
-			return fmt.Sprintf(webNotOwnDom, t.Value, page.Host, page.IP)
+			return fmt.Sprintf(webNotOwnDom, t.Value)
 		}
 		return fmt.Sprintf(webNotOwnIP, page.IP)
 	case api.CodeOwnershipUnchecked:

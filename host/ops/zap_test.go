@@ -606,7 +606,7 @@ func TestZapBaseline_TheHostChecksOwnershipBeforeAnythingIsSent(t *testing.T) {
 		"egress unknown":            {Deps{ZapEgress: down}, zapIPPage, api.CodeOwnershipUnchecked},
 		"the token is gone":         {Deps{ZapTXT: noTXT}, zapDomainPage, api.CodeTargetNotOwned},
 		"DNS did not answer":        {Deps{ZapTXT: dnsDown}, zapDomainPage, api.CodeOwnershipUnchecked},
-		"the name points elsewhere": {Deps{ZapLookupIP: elsewhere}, zapDomainPage, api.CodeTargetNotOwned},
+		"the name points elsewhere": {Deps{ZapLookupIP: elsewhere}, zapDomainPage, api.CodeZapNameMoved},
 		"A lookup did not answer":   {Deps{ZapLookupIP: aDown}, zapDomainPage, api.CodeOwnershipUnchecked},
 	} {
 		w := newZapWorld(t, tc.d)
@@ -837,4 +837,33 @@ func TestZapPull_AnUnreadableDiskIsNotPulledInto(t *testing.T) {
 			t.Fatalf("reason %q, calls %q", reason, w.Calls())
 		}
 	})
+}
+
+// Review 2 L3: the runner's validator of nft sees only the argv, so the ruleset is checked in zapStep; no other code of the host may
+// hand nft to the runner.
+func TestZapOnlyZapStepFeedsNft(t *testing.T) {
+	t.Parallel()
+	files, err := filepath.Glob("*.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	direct := regexp.MustCompile(`\b(execIn|exec|zx\(\)|Run)\([^)]*\bbinNft\b`)
+	for _, f := range files {
+		if strings.HasSuffix(f, "_test.go") {
+			continue
+		}
+		b, err := os.ReadFile(f) //nolint:gosec // a source file of this package
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(string(b), "binNft") {
+			continue
+		}
+		if !slices.Contains([]string{"bins.go", "exported.go", "zap.go"}, f) {
+			t.Errorf("%s names nft: only zap.go runs it, through zapStep", f)
+		}
+		if m := direct.FindString(string(b)); m != "" {
+			t.Errorf("%s runs nft without zapStep: %s", f, m)
+		}
+	}
 }

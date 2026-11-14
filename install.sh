@@ -1035,6 +1035,7 @@ remove_images() {
 	# the ZAP image of the passive web scan (D-521), by its pinned digest only: a zaproxy image of any other digest, or ours that someone
 	# also tagged (podman pulls ours by digest, with no tag), is the administrator's
 	zap=$(pm image inspect --format '{{.Id}} {{len .RepoTags}}' "$ZAP_IMAGE") || zap=
+	[ -z "${ZAP_STUCK:-}" ] || zap= # Vedette's ZAP container could not be removed: its image stays (remove_zap said so)
 	case $zap in
 	"") ;;
 	*" 0") rmi_ours "${zap% 0}" ;;
@@ -1055,15 +1056,39 @@ remove_images() {
 # gives them (io.vedette.owner=vedette-host); a container or network of that name without it is someone else's and stays (podman_others
 # then counts it)
 remove_zap() {
+	ZAP_STUCK=
 	if [ "$(pm container inspect --format '{{index .Config.Labels "io.vedette.owner"}}' vedette-zap)" = vedette-host ]; then
-		pm rm -f -t 5 vedette-zap >/dev/null || warn "podman could not remove the container vedette-zap: left in place"
+		if ! pm rm -f -t 5 vedette-zap >/dev/null; then
+			ZAP_STUCK=1
+			warn "Vedette's ZAP container vedette-zap could not be removed: it, its network vedette-zap, the ZAP image, the nft table inet vedette_zap and podman stay. Run podman rm -f vedette-zap, then --uninstall again"
+		fi
 	elif pm container exists vedette-zap; then
 		warn "the container vedette-zap is not Vedette's (no label io.vedette.owner=vedette-host): left in place"
 	fi
-	if [ "$(pm network inspect --format '{{index .Labels "io.vedette.owner"}}' vedette-zap)" = vedette-host ]; then
+	if [ -n "$ZAP_STUCK" ]; then
+		:
+	elif [ "$(pm network inspect --format '{{index .Labels "io.vedette.owner"}}' vedette-zap)" = vedette-host ]; then
 		remove_ours network vedette-zap
 	elif pm network exists vedette-zap; then
 		warn "the network vedette-zap is not Vedette's (no label io.vedette.owner=vedette-host): left in place"
+	fi
+}
+
+# remove_zap_fence: the nft table of the passive web scan (zap.baseline, D-521), only when podman says plainly that there is no
+# container vedette-zap (exit 1 of "container exists") and has not been found hung: a ZAP that may still run keeps its fence (any other
+# answer, or no answer). Without podman there is no container. The table matches only the bridge vedette-zap0, so keeping it costs
+# nothing.
+remove_zap_fence() {
+	have nft || return 0
+	zap_rc=1
+	if have podman; then
+		zap_rc=0
+		pm container exists vedette-zap >/dev/null || zap_rc=$?
+	fi
+	if [ "$zap_rc" -eq 1 ] && [ ! -e "$TMP/podman.hung" ]; then
+		nft delete table inet vedette_zap >/dev/null 2>&1 || true
+	elif nft list table inet vedette_zap >/dev/null 2>&1; then
+		warn "kept the nft table inet vedette_zap: podman did not confirm that the container vedette-zap is gone (nft delete table inet vedette_zap once it is)"
 	fi
 }
 
@@ -1201,6 +1226,8 @@ podman_stays() {
 	elif [ -n "$OTHERS" ]; then
 		if printf '%s\n' "$OTHERS" | grep -qE '^(container|pod) '; then PODMAN_IN_USE=1; fi
 		KEEP_PODMAN=$(others_text)
+		# Vedette's own ZAP container that podman could not remove is counted with the others (podman must stay for it), but it is ours
+		if [ -n "${ZAP_STUCK:-}" ] && [ "$OTHERS" = "container vedette-zap" ]; then KEEP_PODMAN="Vedette's ZAP container vedette-zap could not be removed (podman rm -f vedette-zap, then --uninstall again)"; fi
 	fi
 }
 
@@ -1349,9 +1376,8 @@ do_uninstall() {
 		remove_ours network vedette-int
 		remove_zap
 	fi
-	# the egress fence of a passive web scan the host did not get to clean up (zap.baseline, D-521), after its container: only ever
-	# Vedette's table (a container of the host's that podman could not remove keeps it: its fence must outlive it)
-	if have nft && ! { have podman && pm container exists vedette-zap; }; then nft delete table inet vedette_zap >/dev/null 2>&1 || true; fi
+	# the egress fence of a passive web scan the host did not get to clean up (zap.baseline, D-521), after its container
+	remove_zap_fence
 	if have podman; then
 		for v in vedette-creds-passive vedette-creds-active vedette-hp-log; do
 			remove_ours volume "$v"

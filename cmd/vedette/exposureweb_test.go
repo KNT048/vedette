@@ -109,7 +109,7 @@ func TestExposureWeb_HowARunThatDidNotScanReachesThePage(t *testing.T) {
 		"busy":              {webIPTarget, webIPPage, zapRun(t, api.StatusRefused, api.CodeBusy, nil), nil, webBusy},
 		"cleaning up":       {webIPTarget, webIPPage, zapRun(t, api.StatusRefused, api.CodeZapCleaningUp, nil), nil, webCleaningUp},
 		"IP not the box's":  {webIPTarget, webIPPage, zapRun(t, api.StatusRefused, api.CodeTargetNotOwned, nil), nil, "this box no longer reaches the Internet through 93.184.216.34, so its pages were not scanned."},
-		"TXT gone":          {webDomTarget, webDomPage, zapRun(t, api.StatusRefused, api.CodeTargetNotOwned, nil), nil, "example.com no longer has its vedette-verify TXT record, or www.example.com no longer points at 93.184.216.34, so the page was not scanned."},
+		"TXT gone":          {webDomTarget, webDomPage, zapRun(t, api.StatusRefused, api.CodeTargetNotOwned, nil), nil, "example.com no longer has its vedette-verify TXT record, so its pages were not scanned."},
 		"not checked":       {webIPTarget, webIPPage, zapRun(t, api.StatusFailed, api.CodeOwnershipUnchecked, nil), nil, webUnchecked},
 		"no fence":          {webIPTarget, webIPPage, zapRun(t, api.StatusFailed, api.CodeZapFenceFailed, nil), nil, webFence},
 		"old host":          {webIPTarget, webIPPage, api.Run{}, &hostclient.Error{Status: 404, Code: api.CodeUnknownCommand}, webOldHost},
@@ -188,4 +188,17 @@ type zapHostFunc struct {
 func (z zapHostFunc) ZapBaseline(ctx context.Context, args api.ZapBaselineArgs, id, actor string) (api.Run, error) {
 	z.before()
 	return z.fakeZapHost.ZapBaseline(ctx, args, id, actor)
+}
+
+// Review 2 N2: a page whose name now points elsewhere is a skip of that page alone, with a sentence that does not blame the TXT record.
+func TestExposureWeb_AMovedNameSkipsThatPageOnly(t *testing.T) {
+	t.Parallel()
+	h := &fakeZapHost{run: zapRun(t, api.StatusRefused, api.CodeZapNameMoved, nil)}
+	w := exposureWebScan{host: h, token: func(context.Context, string) (string, error) { return "0123456789abcdef", nil }}
+	_, err := w.Baseline(t.Context(), webDomTarget, webDomPage)
+	var skip *exposure.PageSkipped
+	var un *exposure.Unavailable
+	if !errors.As(err, &skip) || errors.As(err, &un) || !strings.HasPrefix(skip.Reason, "www.example.com now points at other addresses than 93.184.216.34") || strings.Contains(skip.Reason, "TXT") {
+		t.Fatalf("%v", err)
+	}
 }

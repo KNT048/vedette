@@ -290,6 +290,8 @@ var (
 	nftDeleteArgv = []string{"delete", "table", "inet", zapTable}
 )
 
+// validateNft sees the argv only: the ruleset nft -f - reads on standard input is checked by zapStep (zapRulesetOK), the one caller
+// that gives nft a standard input (TestZapOnlyZapStepFeedsNft holds that).
 func validateNft(args []string) error {
 	if slices.Equal(args, nftLoadArgv) || slices.Equal(args, nftListArgv) || slices.Equal(args, nftDeleteArgv) {
 		return nil
@@ -586,12 +588,13 @@ func (o *Ops) zapOwned(ctx context.Context, p zapPage) error {
 		return refuse412(api.CodeTargetNotOwned, p.domain+" no longer has its vedette-verify TXT record, so its pages were not scanned.")
 	}
 	// The address the fence opens must be one the name points at now: core's word for it is not enough (review M1).
+	// A name that now answers with other addresses (a moved record, a CDN's rotating subset) stops this page only (zap_name_moved).
 	addrs, err := o.zapLookupIP(cctx, p.host)
 	if err != nil && (!errors.As(err, &nf) || !nf.NotFound()) {
 		return fail(api.CodeOwnershipUnchecked, "The DNS lookup of "+p.host+" failed, so the host could not check that it points at "+p.ip.String()+", and nothing was sent.")
 	}
 	if !slices.ContainsFunc(addrs, func(a netip.Addr) bool { return a.Unmap() == p.ip }) {
-		return refuse412(api.CodeTargetNotOwned, p.host+" no longer points at "+p.ip.String()+", so its page was not scanned.")
+		return refuse412(api.CodeZapNameMoved, p.host+" no longer points at "+p.ip.String()+", so this page was not scanned.")
 	}
 	return nil
 }

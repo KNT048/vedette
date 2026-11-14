@@ -63,7 +63,11 @@ func exposureService(d deps) *exposure.Service {
 	gate := func(ctx context.Context, actor string, ip netip.Addr) (bool, error) {
 		return exposureService(d).ScannableIP(ctx, actor, ip) // called at scan time, after this function returned
 	}
-	cfg.Services = exposureServicesFor(d, gate)
+	// FULL-4 (D-526): a deep scan asks exposure's ModeNow right before its job leaves core, beside the gate.
+	modeNow := func(ctx context.Context, actor, id string) (exposure.ScanMode, error) {
+		return exposureService(d).ModeNow(ctx, actor, id) // called at scan time, after this function returned
+	}
+	cfg.Services = exposureServicesFor(d, gate, modeNow)
 	// INV-23 (D-561, D-520): the exploited CVEs matched on a port are checked with their safe nuclei templates by the scan container,
 	// scope own_ip, each template in the scan module's probe log first. Named by the same commitment sentence (K-4).
 	// FULL-4 (D-527): a target whose testing terms are accepted gets the deep templates; ModeNow is read again right before each run.

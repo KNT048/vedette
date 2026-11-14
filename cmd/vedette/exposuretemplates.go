@@ -278,7 +278,7 @@ func templatesErr(ctx context.Context, ip netip.Addr, err error) error {
 	switch {
 	case ctx.Err() != nil:
 		return ctx.Err()
-	case errors.Is(err, sensoractive.ErrOwnIPUnsupported), errors.Is(err, sensoractive.ErrFullUnsupported): // D-527: a worker without full gets no full job
+	case errors.Is(err, sensoractive.ErrOwnIPUnsupported), errors.Is(err, sensoractive.ErrNucleiFullUnsupported): // D-527: a worker without full gets no full job
 		reason = templatesOld
 	case errors.Is(err, sensoractive.ErrNucleiBusy):
 		reason = templatesBusy

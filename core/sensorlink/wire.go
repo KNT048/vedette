@@ -130,6 +130,9 @@ type ActiveHeartbeat struct {
 type HeartbeatNmap struct {
 	Present bool   `json:"present"`
 	Version string `json:"version"`
+	// Full (protocol 5, D-526) says the worker runs the external_full and external_disruptive shapes, behind its own-IP fence. An
+	// older worker leaves it out: core then never sends it one.
+	Full bool `json:"full,omitempty"`
 }
 
 // HeartbeatNuclei says whether the worker can run nuclei (D-125 (1)): Present is "the pinned binary runs -version"; Pack is

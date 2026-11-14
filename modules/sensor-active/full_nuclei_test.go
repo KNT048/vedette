@@ -25,7 +25,7 @@ func TestFullNucleiOnlyToAWorkerThatSaidFull(t *testing.T) {
 	}
 	d := sa.NewDispatcher(sa.DispatcherOptions{Tick: 10 * time.Millisecond})
 	beat(d, false)
-	if _, err := d.RunNuclei(t.Context(), full); !errors.Is(err, sa.ErrFullUnsupported) {
+	if _, err := d.RunNuclei(t.Context(), full); !errors.Is(err, sa.ErrNucleiFullUnsupported) {
 		t.Fatalf("%v", err)
 	}
 	if rep, _ := d.Jobs(t.Context(), 10*time.Millisecond, nil); len(rep.Jobs) != 0 {

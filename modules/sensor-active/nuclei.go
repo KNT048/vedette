@@ -40,10 +40,10 @@ var (
 	// ErrNucleiBusy: an own_ip job found the nuclei slot holding another job (a Scan now of the LAN may run up to an hour), and
 	// exposure's 5-minute step does not queue behind it (D-520). Nothing was sent.
 	ErrNucleiBusy = errors.New("sensoractive: the scan container's nuclei is busy with another scan")
-	// ErrFullUnsupported: the worker's latest heartbeat does not say full (FULL-4, D-527): a job of depth full is never sent to it.
+	// ErrNucleiFullUnsupported: the worker's latest heartbeat does not say nuclei.full (FULL-4, D-527): a job of depth full is never sent to it.
 	// Nothing was sent.
-	ErrFullUnsupported = errors.New("sensoractive: the scan container's worker is older and runs no deep nuclei job")
-	errJSONLTooBig     = errors.New("nuclei output is larger than the limit")
+	ErrNucleiFullUnsupported = errors.New("sensoractive: the scan container's worker is older and runs no deep nuclei job")
+	errJSONLTooBig           = errors.New("nuclei output is larger than the limit")
 )
 
 // NucleiRequest is one nuclei run (D-125 (1), D-136 (4) and (6)): template ids from the pack index, never paths; targets that
@@ -153,7 +153,7 @@ func (d *Dispatcher) RunNuclei(ctx context.Context, r NucleiRequest) (nucleiout.
 		ok := d.nuclei.Full
 		d.mu.Unlock()
 		if !ok {
-			return nucleiout.Outcome{}, ErrFullUnsupported
+			return nucleiout.Outcome{}, ErrNucleiFullUnsupported
 		}
 	}
 	if err := ctx.Err(); err != nil {

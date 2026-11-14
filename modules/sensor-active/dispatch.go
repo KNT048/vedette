@@ -279,6 +279,14 @@ func (d *Dispatcher) Probe(ctx context.Context, argv []string) (Output, error) {
 	if err := d.usable(); err != nil {
 		return Output{}, err
 	}
+	if kind.IsFull() { // D-526: only a worker whose heartbeat says it runs the full shapes gets one (pollLocked again at hand-over)
+		d.mu.Lock()
+		ok := d.nmap.Full
+		d.mu.Unlock()
+		if !ok {
+			return Output{}, ErrFullUnsupported
+		}
+	}
 	if err := ctx.Err(); err != nil {
 		return Output{}, err
 	}
@@ -397,6 +405,13 @@ func (d *Dispatcher) outcome(j *djob) (Output, error) {
 		// The fence could not ask the public IP services (no route, DNS, TLS, no agreement): nothing is known, so nothing is sent.
 		d.log.Warn("sensor_active_worker_refused_external_job", "reason", res.Reason)
 		return Output{}, fmt.Errorf("%w (%s): %w", ErrWorkerRefused, res.Reason, ErrEgressUnverified)
+	case res.Status == "stopped" && res.Reason == "not_own_ip":
+		// The re-check of a running full job (D-526, review r1 H1): nmap ran and was killed, its output discarded.
+		d.log.Warn("sensor_active_worker_stopped_external_job", "reason", res.Reason)
+		return Output{}, fmt.Errorf("%w (%s): %w", ErrStoppedMidRun, res.Reason, ErrNotOwnIP)
+	case res.Status == "stopped" && res.Reason == "egress_unverified":
+		d.log.Warn("sensor_active_worker_stopped_external_job", "reason", res.Reason)
+		return Output{}, fmt.Errorf("%w (%s): %w", ErrStoppedMidRun, res.Reason, ErrEgressUnverified)
 	case res.Status == "refused":
 		d.log.Error("sensor_active_worker_refused_job", "reason", res.Reason) // core and worker disagree on the grammar, or the worker is not what it should be
 		return Output{}, fmt.Errorf("%w (%s)", ErrWorkerRefused, res.Reason)
@@ -527,6 +542,9 @@ func (d *Dispatcher) pollLocked(running []string) (rep sensorlink.JobsReply, rea
 		}
 		if n := s.pending.spec.Nuclei; n != nil && n.Depth != "" && !d.nuclei.Full {
 			continue // FULL-4 (D-527): the same for a job of depth full and nuclei.full
+		}
+		if k, _ := nmapargv.KindOf(s.pending.spec.Shape); s == d.nmapSlot && k.IsFull() && !d.nmap.Full {
+			continue // the latest heartbeat says this worker runs no full shape (older than D-526, or a downgrade since Probe checked): wait
 		}
 		j := s.pending
 		secs := s.maxSeconds

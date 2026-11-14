@@ -48,7 +48,7 @@ func writeFakeNmap(t *testing.T, o fakeOpts) *fakeNmap {
 	log := filepath.Join(dir, "argv.log")
 	body := fmt.Sprintf(`#!/bin/sh
 LOG=%q
-if [ "$1" = "--version" ]; then echo "Nmap version 7.94SVN ( https://nmap.org )"; exit 0; fi
+if [ "$1" = "--version" ]; then echo "Nmap version 7.95 ( https://nmap.org )"; exit 0; fi
 n=$(grep -c '^--$' "$LOG" 2>/dev/null)
 [ -z "$n" ] && n=0
 printf '%%s\n' "$@" >> "$LOG"

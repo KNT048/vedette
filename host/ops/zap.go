@@ -74,12 +74,16 @@ const (
 
 	zapWorkDir    = "/zap/wrk" //nolint:gosec // a path inside the ZAP container, not a credential
 	zapReportName = "out.json"
-	// zapTmpfs is ZAP's home: podman copies the image's /home/zap into it (tmpcopyup, its default), and it counts against --memory.
-	zapTmpfs = "/home/zap:rw,size=256m,mode=0700,uid=1000,gid=1000"
-	// zapCwd is the container's working directory: zap-baseline.py's traditional runner (--autooff) writes ZAP's output to zap.out
-	// in the current directory (zap_common.start_zap), and the image's WORKDIR /zap is on the read-only root. ZAP's home is writable
-	// and bounded (zapTmpfs), so it goes there (D-525).
-	zapCwd = "/home/zap"
+	// zapTmpfs is ZAP's home: podman copies the image's /home/zap into it (tmpcopyup, its default, keeping the zap user's own files
+	// its), and it counts against --memory. mode=1777 (sticky, like /tmp) lets the zap user write in it: podman refuses the tmpfs
+	// options uid= and gid= ("unknown mount option", podman 5.7 on the N100, n39: ZAP never started), and the tmpfs belongs to this
+	// one container. Plain tmpfs options only, so every podman the installer supports accepts it.
+	zapTmpfs = "/home/zap:rw,size=256m,mode=1777"
+	// zapCwd is the container's working directory: zap-baseline.py's traditional runner (--autooff) writes ZAP's own log to zap.out
+	// in the current directory (zap_common.start_zap), and the image's WORKDIR /zap is on the read-only root (D-525). It is the work
+	// mount, so zap.out outlives the container and the host logs its last lines when ZAP fails (zaptmpfs review M: on the tmpfs
+	// ZAP's own reason for a failed start was lost with the container).
+	zapCwd = zapWorkDir
 	// zapOptions are ZAP's own options (-z): -silent (no update check, no unsolicited request), a heap of half the container's memory
 	// (zap.sh reads -Xmx from its arguments; without it it takes a quarter of the HOST's memory on cgroup v2, 1.75 GiB on the N100),
 	// no form handled or posted by the spider and one spider thread, gentle on a fragile site (D-562 (1), exposure INV-24). The spider
@@ -494,7 +498,7 @@ func (o *Ops) zapBaseline(ctx context.Context, logf func(string), p zapPage) (an
 		return nil, fail(api.CodeZapFailed, "The host could not prepare the work folder of the web scan.")
 	}
 	logf("passive web scan of " + p.url + " pinned to " + p.ip.String() + ":" + strconv.Itoa(p.port) + " (ZAP baseline, spider 1 minute, passive rules)")
-	_, code, err := o.zx()(ctx, binPodman, nil, p.runArgv(wrk)...)
+	res, code, err := o.zx()(ctx, binPodman, nil, p.runArgv(wrk)...)
 	slow := ctx.Err() != nil
 	switch {
 	case slow:
@@ -504,6 +508,9 @@ func (o *Ops) zapBaseline(ctx context.Context, logf func(string), p zapPage) (an
 		return nil, fail(api.CodeZapFailed, "The host could not start ZAP.")
 	case code < 0 || code > 2:
 		logf("ZAP ended with exit code " + strconv.Itoa(code))
+		// the box log carries ZAP's (or podman's) own last words: the page sends the reader there (n39)
+		o.log.ErrorContext(ctx, "zap.baseline: ZAP ended without a report", "exit_code", code, "stderr", lastLines(res.Stderr, 10, 2000),
+			"stdout", lastLines(res.Stdout, 10, 2000), "truncated", res.Truncated, "zap_out", zapOutTail(wrk))
 		msg := "ZAP ended without a report (exit code " + strconv.Itoa(code) + ")."
 		switch {
 		case code == 3: // the traditional runner ends so when it cannot reach the page, finds no URL there, or cannot start (D-525)
@@ -866,4 +873,32 @@ func (o *Ops) zapReport(id string) (server.File, error) {
 		return server.File{}, server.NewReadError(404, api.CodeZapReportUnknown, "There is no such report: the host keeps only the last one, until the next scan or start.")
 	}
 	return server.File{Body: f, Size: st.Size(), Name: "zap-report.json", Type: "application/json"}, nil
+}
+
+// lastLines is the last n lines of out, at most limit bytes of valid UTF-8: the tail of a tool's output for the box log.
+func lastLines(out []byte, n, limit int) string {
+	lines := strings.Split(strings.TrimRight(string(out), "\n"), "\n")
+	if len(lines) > n {
+		lines = lines[len(lines)-n:]
+	}
+	s := strings.Join(lines, "\n")
+	if len(s) > limit {
+		s = s[len(s)-limit:]
+	}
+	return strings.ToValidUTF8(s, "")
+}
+
+// zapOutTail is the end of ZAP's own log (zap.out in the work folder, zapCwd) for the box log: at most its last 4 KiB, its last 15
+// lines, "" when it is not a regular file (never followed through a link).
+func zapOutTail(wrk string) string {
+	f, st, err := openRegularNoFollow(filepath.Join(wrk, "zap.out"))
+	if err != nil {
+		return ""
+	}
+	defer func() { _ = f.Close() }()
+	const tail = 4 << 10
+	off := max(st.Size()-tail, 0)
+	b := make([]byte, tail)
+	n, _ := f.ReadAt(b, off)
+	return lastLines(b[:n], 15, tail)
 }

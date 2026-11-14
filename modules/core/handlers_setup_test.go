@@ -279,6 +279,13 @@ func TestSetupNeedsTheTermsAndKeepsTheAcceptance(t *testing.T) {
 	if n := w.env.Count(t, "SELECT count(*) FROM core_audit WHERE action = 'core.terms_accept' AND user = 'admin@acme.example' AND target = 'version "+vedette.TermsVersion()+"'"); n != 1 {
 		t.Fatalf("core.terms_accept rows = %d", n)
 	}
+	// Who accepted is said to administrators only (viewers cannot list users); the date and version to everyone.
+	viewer, _ := w.signIn("vic@acme.example", "viewer")
+	v := viewer.get("/core/terms")
+	wantOK(t, v, 200)
+	if va, _ := v.JSON["accepted"].(map[string]any); va == nil || va["by"] != nil || va["version"] != vedette.TermsVersion() || va["at"] != acc["at"] {
+		t.Fatalf("GET /core/terms as a viewer = %s", v.Raw)
+	}
 }
 
 // A custom bundle turns on exactly the chosen modules (and what they need), and the medium bundle adds to the small one.

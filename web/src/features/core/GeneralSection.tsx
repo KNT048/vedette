@@ -60,7 +60,7 @@ function Terms({ s }: { s: TermsState }) {
     <section className="mt-8 grid max-w-xl gap-2" aria-labelledby="terms-title">
       <h2 id="terms-title" className="text-base font-semibold">{t('general.terms.title')}</h2>
       <p className="text-sm">{a
-        ? t(a.via === 'restore' ? 'general.terms.byRestore' : 'general.terms.by', { by: a.by, when: fmtDateTime(a.at), version: a.version })
+        ? t(a.by === null ? 'general.terms.at' : a.via === 'restore' ? 'general.terms.byRestore' : 'general.terms.by', { by: a.by, when: fmtDateTime(a.at), version: a.version })
         : t('general.terms.none')}</p>
       {a && a.version !== s.version ? <p className="text-[13px] text-muted">{t('general.terms.changed', { version: s.version })}</p> : null}
       <div><Button size="sm" aria-expanded={open} aria-controls="terms-text" onClick={() => setOpen((x) => !x)}>{t(open ? 'general.terms.hide' : 'general.terms.read')}</Button></div>

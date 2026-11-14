@@ -33688,7 +33688,7 @@ func (s *CoreGetCoreTermsOKAccepted) encodeFields(e *jx.Encoder) {
 	}
 	{
 		e.FieldStart("by")
-		e.Str(s.By)
+		s.By.Encode(e)
 	}
 	{
 		e.FieldStart("version")
@@ -33731,9 +33731,7 @@ func (s *CoreGetCoreTermsOKAccepted) Decode(d *jx.Decoder) error {
 		case "by":
 			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
-				v, err := d.Str()
-				s.By = string(v)
-				if err != nil {
+				if err := s.By.Decode(d); err != nil {
 					return err
 				}
 				return nil

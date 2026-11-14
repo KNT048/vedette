@@ -16463,8 +16463,9 @@ func (s *CoreGetCoreTermsOK) SetVersion(val string) {
 type CoreGetCoreTermsOKAccepted struct {
 	At time.Time `json:"at"`
 	// The email of the administrator setup created, or "setup" for the operator who restored the box from
-	// a backup with the setup code.
-	By string `json:"by"`
+	// a backup with the setup code; null unless the caller is an administrator (viewers and operators
+	// cannot list users).
+	By NilString `json:"by"`
 	// The version accepted.
 	Version string `json:"version"`
 	// Setup = in the first-run setup; restore = before the first-run restore from a backup.
@@ -16477,7 +16478,7 @@ func (s *CoreGetCoreTermsOKAccepted) GetAt() time.Time {
 }
 
 // GetBy returns the value of By.
-func (s *CoreGetCoreTermsOKAccepted) GetBy() string {
+func (s *CoreGetCoreTermsOKAccepted) GetBy() NilString {
 	return s.By
 }
 
@@ -16497,7 +16498,7 @@ func (s *CoreGetCoreTermsOKAccepted) SetAt(val time.Time) {
 }
 
 // SetBy sets the value of By.
-func (s *CoreGetCoreTermsOKAccepted) SetBy(val string) {
+func (s *CoreGetCoreTermsOKAccepted) SetBy(val NilString) {
 	s.By = val
 }
 

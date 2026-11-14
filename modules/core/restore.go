@@ -24,9 +24,10 @@ import (
 // keeps only a copy in core_setting data.restore, and the first read of the run in a process (the Data page
 // polls it, and reconnects to it after the restart) asks the host for the latest backup.restore and settles it
 // into whichever database core now runs on: one audit row data.restore_done per run, the copy, and the removal
-// of the snapshot. ponytail: no start-up pass (it would spend a host request on every start); a box restored
-// and never opened again keeps its end unaudited and its snapshot until the start-up sweep (1 hour), upgrade:
-// a start-up pass once the host's rate limit has room for it.
+// of the snapshot. The one start-up pass is after a first-run restore, which leaves a marker file (D-544,
+// settleFirstRunRestore). ponytail: no start-up pass otherwise (it would spend a host request on every start); a box
+// restored from Settings -> Data and never opened again keeps its end unaudited and its snapshot until the start-up
+// sweep (1 hour), upgrade: a start-up pass once the host's rate limit has room for it.
 const (
 	keyRestore     = "data.restore"
 	restoreTimeout = 35 * time.Minute // backup.restore's own limit is 30 minutes
@@ -441,12 +442,19 @@ func (h *OSHandlers) settleRestore(ctx context.Context, run api.Run) error {
 			return err
 		}
 		if rec.Status == "done" && run.Actor == setupActor {
-			// A first-run restore succeeded: this is the restored database, and the operator accepted the terms of this
-			// software before it started (POST /core/setup/restore refuses without, D-544).
-			return acceptTerms(ctx, tx, h.audit, termsAcceptance{By: setupActor, At: run.StartedAt.UTC(), Version: vedette.TermsVersion(), Via: "restore"})
+			// A first-run restore succeeded: this is the restored database, and the operator accepted the terms before it
+			// started (POST /core/setup/restore refuses without, D-544): the version shown and the time, from the marker.
+			t, ok := h.readTermsMarker()
+			if !ok { // the marker is gone (another disk, removed by hand): the version of this software, the start of the run
+				t = firstRunTerms{Version: vedette.TermsVersion(), At: run.StartedAt.UTC()}
+			}
+			return acceptTerms(ctx, tx, h.audit, termsAcceptance{By: setupActor, At: t.At, Version: t.Version, Via: "restore"})
 		}
 		return nil
 	})
+	if err == nil && run.Actor == setupActor {
+		h.dropTermsMarker() // the first-run restore is settled, whichever way it ended
+	}
 	if err != nil {
 		return fmt.Errorf("core: settle restore: %w", err)
 	}

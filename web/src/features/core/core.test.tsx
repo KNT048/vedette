@@ -47,7 +47,10 @@ describe('core: cài đặt ban đầu', () => {
     expect(within(screen.getByRole('list', { name: 'Setup steps' })).getAllByRole('listitem').map((li) => li.textContent)).toEqual(['1Terms of use', '2Account', '3Network', '4Modules'])
     const text = screen.getByRole('region', { name: 'Terms of use of Vedette' })
     expect(text).toHaveTextContent(/provided as-is, without warranty/)
-    expect(text).toHaveTextContent(/that provider's machines/)
+    expect(text).toHaveTextContent(/It tests your systems the way an attacker would/)
+    expect(text).toHaveTextContent(/Disruptive checks \(denial of service, password guessing\) are off by default/)
+    expect(text).toHaveTextContent(/A verified name is scanned at full depth on every IP address it resolves to/)
+    expect(text).toHaveTextContent(`By ticking "${AGREE}"`) // the text quotes the box it asks you to tick
     expect(text).toHaveTextContent(`Version ${TERMS_VERSION}.`)
     expect(screen.queryByLabelText('Setup code')).toBeNull() // nothing is typed, and no restore offered, before the tick
     expect(screen.queryByRole('button', { name: 'Restore from a backup' })).toBeNull()

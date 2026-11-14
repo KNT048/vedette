@@ -20,6 +20,7 @@ import (
 	"github.com/knt048/vedette/core/auth"
 	"github.com/knt048/vedette/core/localnet"
 	"github.com/knt048/vedette/core/modreg"
+	"github.com/knt048/vedette/core/server"
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/core/store/coredb"
 )
@@ -73,7 +74,8 @@ func acceptTerms(ctx context.Context, tx *sql.Tx, log *audit.Log, a termsAccepta
 }
 
 // CoreGetCoreTerms implements GET /core/terms (viewer): the version of the terms of use this software ships and the
-// acceptance stored on this box, null when there is none (a box set up before D-544).
+// acceptance stored on this box, null when there is none (a box set up before D-544). Who accepted is said to
+// administrators only: viewers and operators cannot list users either.
 func (h *APIHandlers) CoreGetCoreTerms(ctx context.Context) (*oas.CoreGetCoreTermsOK, error) {
 	out := &oas.CoreGetCoreTermsOK{Version: vedette.TermsVersion(), Accepted: oas.NilCoreGetCoreTermsOKAccepted{Null: true}}
 	raw, err := coredb.New(h.db.Reader()).GetSetting(ctx, keyTerms)
@@ -87,7 +89,11 @@ func (h *APIHandlers) CoreGetCoreTerms(ctx context.Context) (*oas.CoreGetCoreTer
 	if err := json.Unmarshal([]byte(raw), &a); err != nil {
 		return nil, fmt.Errorf("core: terms acceptance is not valid: %w", err)
 	}
-	out.Accepted = oas.NewNilCoreGetCoreTermsOKAccepted(oas.CoreGetCoreTermsOKAccepted{By: a.By, At: a.At, Version: a.Version, Via: oas.CoreGetCoreTermsOKAcceptedVia(a.Via)})
+	by := oas.NilString{Null: true}
+	if p, ok := server.PrincipalFrom(ctx); ok && p.Role == routes.Admin {
+		by = oas.NewNilString(a.By)
+	}
+	out.Accepted = oas.NewNilCoreGetCoreTermsOKAccepted(oas.CoreGetCoreTermsOKAccepted{By: by, At: a.At, Version: a.Version, Via: oas.CoreGetCoreTermsOKAcceptedVia(a.Via)})
 	return out, nil
 }
 

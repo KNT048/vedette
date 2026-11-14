@@ -24,6 +24,7 @@ type restoreHost struct {
 	calls   int
 	lists   int      // ListRuns calls
 	end     *api.Run // when set, backup.restore answers this run as already ended
+	listErr error    // when set, ListRuns fails with it
 }
 
 func (f *restoreHost) StateBackups(context.Context) (api.BackupList, error) {
@@ -49,6 +50,9 @@ func (f *restoreHost) ListRuns(context.Context, int) ([]api.Run, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.lists++
+	if f.listErr != nil {
+		return nil, f.listErr
+	}
 	return slices.Clone(f.runs), nil
 }
 

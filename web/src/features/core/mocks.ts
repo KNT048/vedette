@@ -146,7 +146,9 @@ const generalHandlers = [
   http.get(`${API}/core/terms`, () => {
     const denied = guard('viewer')
     if (denied) return denied
-    return HttpResponse.json({ version: TERMS_VERSION, accepted: termsStore.get() } satisfies TermsState)
+    const a = termsStore.get()
+    // Who accepted is said to administrators only, as the user list is (D-544).
+    return HttpResponse.json({ version: TERMS_VERSION, accepted: a && currentUser()?.role !== 'admin' ? { ...a, by: null } : a } satisfies TermsState)
   }),
   http.get(`${API}/core/general`, () => {
     const denied = guard('viewer')

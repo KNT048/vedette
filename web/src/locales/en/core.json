@@ -36,7 +36,8 @@
       "title": "Terms of use",
       "by": "Accepted by {{by}} on {{when}} during first-time setup (version {{version}}).",
       "byRestore": "Accepted on {{when}} by the operator who restored this box from a backup with the setup code (version {{version}}).",
-      "none": "No acceptance is recorded on this box: it was set up before Vedette asked for one.",
+      "at": "Accepted on {{when}} (version {{version}}). Administrators see who accepted them.",
+      "none": "No acceptance is recorded in this box's data: it was set up, or restored from a backup made, before Vedette asked for one.",
       "changed": "The terms changed since then: this version of Vedette ships version {{version}}.",
       "read": "Read the terms of use",
       "hide": "Hide the terms of use"

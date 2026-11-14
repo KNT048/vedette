@@ -7,7 +7,9 @@ import (
 	"crypto/rand"
 	"database/sql"
 	"encoding/base64"
+	"errors"
 	"io"
+	"io/fs"
 	"net/http"
 	"net/url"
 	"os"
@@ -337,8 +339,9 @@ func (g *gateBody) Read([]byte) (int, error) {
 	return 0, io.EOF
 }
 
-// D-544: a first-run restore needs the terms of use too, before the host is asked; once the restore is done, the restored
-// database keeps that the operator who restored it accepted them (settled there, with its audit row).
+// D-544: a first-run restore needs the terms of use too, before the host is asked. Core starts on the restored database (an
+// organization that finished setup) and settles the run once from the marker the restore left next to the database: the
+// restored data keeps the acceptance (who: setup, the version shown, when it was ticked) with its audit row.
 func TestSetupRestoreNeedsTheTermsAndADoneRestoreKeepsThem(t *testing.T) {
 	t.Parallel()
 	e, f := newRestoreEnv(t)
@@ -353,16 +356,75 @@ func TestSetupRestoreNeedsTheTermsAndADoneRestoreKeepsThem(t *testing.T) {
 	}
 	body["accept_terms"] = true
 	wantOK(t, e.client().post("/core/setup/restore", body), 202)
+	marker := filepath.Join(e.m.CoreData, "first-run-terms.json")
+	if _, err := os.Stat(marker); err != nil {
+		t.Fatalf("no terms marker beside the database: %v", err)
+	}
 	f.finish(api.StatusSucceeded, api.BackupRestoreResult{RestoredBackupID: "eeee0000eeee0000eeee0000eeee0000", PreRestoreBackupID: "dddd0000dddd0000dddd0000dddd0000"}, "")
-	e.newHandlers(t, f, 0) // core comes back (the fake host does not swap the data: this database stands for the restored one)
-	if got := e.client().get("/core/setup/restore"); got.str("status") != "done" {
-		t.Fatalf("after = %s", got.Raw)
+	e.setZone("UTC")       // the restored database: an organization that finished setup (the fake host swaps nothing)
+	e.newHandlers(t, f, 0) // core starts on it
+	if got := e.client().get("/core/setup/restore"); got.Code != 200 || got.str("status") != "done" {
+		t.Fatalf("after = %d %s", got.Code, got.Raw)
 	}
 	if n := e.env.Count(t, "SELECT count(*) FROM core_setting WHERE key = 'terms.accepted' AND value LIKE '%\"by\":\"setup\"%' AND value LIKE '%\"via\":\"restore\"%' AND value LIKE '%"+vedette.TermsVersion()+"%'"); n != 1 {
 		t.Fatal("the restored database does not keep the acceptance of the terms")
 	}
 	if n := e.env.Count(t, "SELECT count(*) FROM core_audit WHERE action = 'core.terms_accept' AND user = 'setup'"); n != 1 {
 		t.Fatalf("core.terms_accept rows = %d", n)
+	}
+	if _, err := os.Stat(marker); !errors.Is(err, fs.ErrNotExist) {
+		t.Fatalf("the terms marker stayed after the restore was settled: %v", err)
+	}
+}
+
+// D-544: GET /core/setup/restore on a box that is set up never reaches the host; a first-run restore whose host is down at
+// start-up is asked about once, and the page still reads done.
+func TestSetupRestoreDoneNeverAsksTheHost(t *testing.T) {
+	t.Parallel()
+	e, f := newRestoreEnv(t)
+	code := e.openSetup()
+	key := newKey(t)
+	up := e.upload(code, backupOf(t, e.backupDB(key)))
+	wantOK(t, up, 200)
+	wantOK(t, e.client().post("/core/setup/restore", map[string]any{"setup_code": code, "accept_terms": true, "upload_id": up.str("id"), "key": base64.StdEncoding.EncodeToString(key)}), 202)
+	f.finish(api.StatusSucceeded, api.BackupRestoreResult{RestoredBackupID: "eeee0000eeee0000eeee0000eeee0000"}, "")
+	f.mu.Lock()
+	f.listErr, f.lists = errors.New("the host does not answer"), 0
+	f.mu.Unlock()
+	e.setZone("UTC")
+	e.newHandlers(t, f, 0)
+	for range 3 {
+		if got := e.client().get("/core/setup/restore"); got.Code != 200 || got.str("status") != "done" {
+			t.Fatalf("done = %d %s", got.Code, got.Raw)
+		}
+	}
+	f.mu.Lock()
+	lists := f.lists
+	f.mu.Unlock()
+	if lists != 1 {
+		t.Fatalf("the host was asked %d times, want once (at start-up)", lists)
+	}
+	if n := e.env.Count(t, "SELECT count(*) FROM core_setting WHERE key = 'terms.accepted'"); n != 0 {
+		t.Fatal("an unsettled restore recorded an acceptance")
+	}
+}
+
+// D-544: a restore from Settings -> Data (an administrator, on a box that is set up) is not a first-run restore: it records
+// no acceptance of the terms.
+func TestSettingsRestoreRecordsNoTermsAcceptance(t *testing.T) {
+	t.Parallel()
+	e, f := newRestoreEnv(t)
+	wantOK(t, e.admin.post("/core/data/restore", map[string]any{"backup_id": "bbbb0000bbbb0000bbbb0000bbbb0000", "confirm_data_loss": true, "password": authtest.Password}), 202)
+	f.finish(api.StatusSucceeded, api.BackupRestoreResult{RestoredBackupID: "bbbb0000bbbb0000bbbb0000bbbb0000", PreRestoreBackupID: "dddd0000dddd0000dddd0000dddd0000"}, "")
+	e.newHandlers(t, f, 0)
+	if got := e.admin.get("/core/data/restore/run"); got.str("status") != "done" {
+		t.Fatalf("run = %s", got.Raw)
+	}
+	if n := e.env.Count(t, "SELECT count(*) FROM core_setting WHERE key = 'terms.accepted'"); n != 0 {
+		t.Fatal("a Settings -> Data restore recorded an acceptance of the terms")
+	}
+	if e.count("core.terms_accept") != 0 {
+		t.Fatalf("actions = %v", e.actions())
 	}
 }
 

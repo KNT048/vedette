@@ -43,7 +43,7 @@ export const SetupPayload = z.object({
 export const TermsState = z.object({
   version: z.string().describe('The version of TERMS.md this box ships: its Version date and the first 8 hex digits of its SHA-256, like 2026-11-14.3f2a9c1b'),
   accepted: z.object({
-    by: z.string().describe('The email of the administrator setup created, or "setup" for the operator who restored the box from a backup with the setup code'),
+    by: z.string().nullable().describe('The email of the administrator setup created, or "setup" for the operator who restored the box from a backup with the setup code; null unless the caller is an administrator (viewers and operators cannot list users)'),
     at: ts,
     version: z.string().describe('The version accepted'),
     via: z.enum(['setup', 'restore']).describe('setup = in the first-run setup; restore = before the first-run restore from a backup'),

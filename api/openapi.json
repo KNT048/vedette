@@ -15433,8 +15433,11 @@
                           "type": "object",
                           "properties": {
                             "by": {
-                              "type": "string",
-                              "description": "The email of the administrator setup created, or \"setup\" for the operator who restored the box from a backup with the setup code"
+                              "description": "The email of the administrator setup created, or \"setup\" for the operator who restored the box from a backup with the setup code; null unless the caller is an administrator (viewers and operators cannot list users)",
+                              "type": [
+                                "string",
+                                "null"
+                              ]
                             },
                             "at": {
                               "type": "string",

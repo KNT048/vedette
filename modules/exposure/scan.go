@@ -380,7 +380,7 @@ func sanitize(c Content) Content {
 	}
 	return Content{Hosts: nz(out.Hosts), Ports: nz(out.Ports), AdminPanels: nz(out.AdminPanels), Certs: nz(out.Certs), Unresolved: out.Unresolved,
 		Services: sanitizeServices(c.Services), Templates: sanitizeTemplates(c.Templates, sanitizeServices(c.Services)), Checks: sanitizeChecks(c.Checks), NotChecked: sanitizeNotChecked(c.NotChecked), WebFindings: sanitizeWeb(c.WebFindings),
-		Greenbone: sanitizeGreenbone(c.Greenbone)}
+		Greenbone: sanitizeGreenbone(c.Greenbone), Scripts: sanitizeScripts(c.Scripts)} // FULL-4 (Trưởng), for Mlee: Scripts (D-526)
 }
 
 // scope says what the scan did with an address whose ports the previous observation listed (INV-22).

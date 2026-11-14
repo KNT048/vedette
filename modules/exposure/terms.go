@@ -58,6 +58,18 @@ func (t Target) mode() ScanMode {
 	return ScanMode{Full: full, Disruptive: full && t.Terms.Disruptive}
 }
 
+// ModeNow is the scan mode of target id right before a deep job leaves core (FULL-4, D-526/D-527; added by Trưởng for the scanner
+// adapters in cmd/vedette, flagged for Mlee): exposure's gate again with actor, then the terms as stored now. A target the gate
+// refuses, or whose terms were withdrawn or are of an older version meanwhile, is the zero ScanMode (the K-4 scope); the tick taken
+// back keeps Full without Disruptive. The ScanTarget.Mode of the run is minutes old by then, like the gate of the run.
+func (s *Service) ModeNow(ctx context.Context, actor, id string) (ScanMode, error) {
+	t, reason, err := s.gate(ctx, actor, id)
+	if err != nil || reason != "" {
+		return ScanMode{}, err
+	}
+	return t.mode(), nil
+}
+
 // TermsNotice is the terms as the page shows them (contract.ts TermsNotice): the version, the text with the target in it (one
 // paragraph per line) and the sentence of the extra tick.
 type TermsNotice struct {

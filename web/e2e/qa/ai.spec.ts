@@ -217,6 +217,7 @@ test.describe('ai: sample data', () => {
     await page.goto('/assistant')
     await page.getByRole('button', { name: 'Which machines still expose RDP?' }).click()
     await expect(page.getByText(/Model qwen3:8b \(Company Ollama server\)/)).toBeVisible() // dự phòng của "Ask your data"
+    await page.getByRole('tab', { name: 'Usage', exact: true }).click()
     const log = page.getByRole('table', { name: 'Log of AI calls' })
     await expect(log.getByText('Fallback used').first()).toBeVisible()
     await shot(page, 'ai', `fallback-${device(page)}`)
@@ -265,6 +266,7 @@ test.describe('ai: sample data', () => {
     await page.getByRole('button', { name: 'Which machines still expose RDP?' }).click()
     await page.getByRole('button', { name: 'Which devices are not approved yet?' }).click() // by now the month has passed 1,000 tokens, whatever the date
     await expect(page.getByRole('alert')).toContainText("This month's AI budget of 1,000 tokens is used up")
+    await page.getByRole('tab', { name: 'Usage', exact: true }).click()
     await expect(page.getByText(/This month's budget is used up/)).toBeVisible()
     await expect(page.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '1000')
     await shot(page, 'ai', `assistant-capped-${device(page)}`)
@@ -315,7 +317,7 @@ test.describe('ai: sample data', () => {
     await expect(btn).toBeDisabled()
     await expect(btn).toHaveAttribute('title', /No AI profile yet/)
     await expectAccessible(page, 'logs, no AI profile')
-    await page.goto('/assistant')
+    await page.goto('/assistant?tab=usage')
     await expect(page.getByRole('heading', { name: 'Token meter' })).toBeVisible()
   })
 
@@ -330,6 +332,7 @@ test.describe('ai: sample data', () => {
     }).toPass({ timeout: 60_000 })
     await expect(s).toBeDisabled()
     await expect(page.getByRole('button', { name: 'Ask', exact: true })).toBeDisabled()
+    await page.getByRole('tab', { name: 'Usage', exact: true }).click()
     await expect(page.getByRole('progressbar')).toBeVisible()
     await page.goto('/settings/ai')
     await expect(page.getByText(/Admin/).first()).toBeVisible() // trang cài đặt AI chỉ dành cho quản trị: nói cần vai gì

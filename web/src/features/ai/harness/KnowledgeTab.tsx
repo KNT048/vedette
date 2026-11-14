@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { Section, Panel } from '@/components/common/PageHeader'
+import { Notice, Section, Panel } from '@/components/common/PageHeader'
 import { EmptyState, QueryState } from '@/components/common/States'
 import { Chip } from '@/components/common/StatusChip'
 import { Button } from '@/components/ui/button'
@@ -59,7 +59,7 @@ export default function KnowledgeTab() {
                     {list.map((p) => <option key={p.id} value={p.id} disabled={!p.usable}>{p.name} ({t(`profiles.location.${p.location}`)}){!p.usable ? ` - ${t('assign.optNoKey')}` : ''}</option>)}
                   </Select>
                 </Field>
-                {chosen?.location === 'cloud' ? <p role="alert" className="rounded-md border border-warn/50 bg-warn-soft px-3 py-2 text-sm">{t('harness.knowledge.cloudWarn', { host: hostOf(chosen.base_url) })}</p> : null}
+                {chosen?.location === 'cloud' ? <Notice tone="warn" role="alert" title={t('harness.knowledge.cloudWarn', { host: hostOf(chosen.base_url) })} /> : null}
                 {chosen?.location === 'internal' ? <p className="text-[13px] text-muted">{t('harness.knowledge.internalNote')}</p> : null}
                 <ActionError error={index.error} />
               </Panel>
@@ -68,7 +68,7 @@ export default function KnowledgeTab() {
               actions={<><Button variant="primary" onClick={() => file.current?.click()} disabled={add.isPending || !k.index_profile} title={!k.index_profile ? t('harness.knowledge.needIndex') : undefined}>{add.isPending ? t('harness.knowledge.uploading') : t('harness.knowledge.upload')}</Button>
                 <input ref={file} type="file" hidden tabIndex={-1} aria-hidden="true" accept=".pdf,.md,.txt,.docx" onChange={(e) => { void onFile(e) }} data-testid="kb-file" /></>}>
               <div className="grid gap-3">
-                {pickErr ? <p role="alert" className="rounded-md border border-danger/40 bg-danger-soft px-3 py-2 text-sm">{pickErr}</p> : null}
+                {pickErr ? <Notice tone="danger" role="alert" title={pickErr} /> : null}
                 <ActionError error={add.error} />
                 {k.items.length === 0 ? <EmptyState title={t('harness.knowledge.empty')}>{t('harness.knowledge.emptyBody')}</EmptyState> : (
                   <List label={t('harness.knowledge.title')}>

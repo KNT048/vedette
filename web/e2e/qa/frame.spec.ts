@@ -13,6 +13,7 @@ const PAGES = [
   // D-543: the other Kiên-side pages on the frame
   { path: '/honeypot', second: 'Services', id: 'services', other: 'Tokens' },
   { path: '/devices/a-nas02', second: 'Software', id: 'software', other: 'Observations' },
+  { path: '/assistant', second: 'Usage', id: 'usage', other: 'Ask' },
 ] as const
 
 const device = (page: Page) => ((page.viewportSize()?.width ?? 1366) < 600 ? 'phone' : 'desktop')

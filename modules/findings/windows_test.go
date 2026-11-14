@@ -153,7 +153,7 @@ func TestMatchAsset_D546_SiblingRelease(t *testing.T) {
 	// a server is never a client's sibling, even on the same build
 	only24 := nvdWindows("CVE-2099-0002", "2026-10-01", nvdRow{"windows_11_24h2", "*", "*", "10.0.26100.7092"})
 	w, m = oneMatch(t, winPC(26100, true, "6899", "x64"), only24, false)
-	wantMatch(t, "Server 2025 on a client-only entry", w, m, "new", BasisProduct, SeverityMedium, "has not checked")
+	wantMatch(t, "Server 2025 on a client-only entry", w, m, "new", BasisProduct, SeverityMedium, "cannot compare version")
 	// NVD's row ends at a build of another release of the line (windows_10_22h2 < 10.0.19044.3324): read at that build
 	w, m = oneMatch(t, winPC(19045, false, "3200", "x64"), cve36884, false)
 	wantMatch(t, "10 22H2 unpatched", w, m, "new", BasisVersion, SeverityHigh, "before 10.0.19045.3324")
@@ -217,7 +217,7 @@ func TestMatchAsset_D546_NewerThanEveryListedRelease(t *testing.T) {
 	other.CVE = "CVE-2099-0003"
 	other.Affected = append(slices.Clone(other.Affected), Affected{CPE: "cpe:2.3:a:microsoft:server_message_block:1.0:*:*:*:*:*:*:*"})
 	w, m = oneMatch(t, pc, other, true, cve62215)
-	wantMatch(t, "a non-Windows row", w, m, "existing", BasisProduct, SeverityMedium, "has not checked")
+	wantMatch(t, "a non-Windows row", w, m, "existing", BasisProduct, SeverityMedium, "cannot compare version")
 }
 
 // Review L1: a target the release's rows do not list proves nothing; review L2: "-" rows stay not checked; family rows of every
@@ -296,7 +296,7 @@ func TestMatchAsset_D546_BuildTheTableLacks(t *testing.T) {
 	a := Asset{ID: "a-new", Name: "pc-02", Software: []Software{{ID: "s", Display: "Windows 11 Pro", Vendor: "microsoft", Product: "Windows (build 28000)",
 		Version: "10.0.28000.1", Source: "agent", KevKeys: []string{"microsoft|windows"}}}}
 	w, m := oneMatch(t, a, cve62215, false)
-	wantMatch(t, "build 28000", w, m, "new", BasisProduct, SeverityMedium, "has not checked")
+	wantMatch(t, "build 28000", w, m, "new", BasisProduct, SeverityMedium, "cannot compare version")
 }
 
 // Review r1 LOW-1 and LOW-2: a release row of every version with no range, and a bound without the revision, prove nothing either

@@ -284,7 +284,7 @@ func (d *Dispatcher) ProbeDomain(ctx context.Context, argv []string, scope senso
 }
 
 func (d *Dispatcher) probe(ctx context.Context, argv []string, scope *sensorlink.DomainScope) (Output, error) {
-	kind, rate, targets, err := nmapargv.Parse(argv)
+	kind, rate, ports, targets, err := nmapargv.ParseFor(argv)
 	if err != nil {
 		return Output{}, fmt.Errorf("sensoractive: %w", err)
 	}
@@ -297,6 +297,14 @@ func (d *Dispatcher) probe(ctx context.Context, argv []string, scope *sensorlink
 		d.mu.Unlock()
 		if !ok {
 			return Output{}, ErrFullUnsupported
+		}
+	}
+	if kind == nmapargv.PortVersions { // D-592: only a worker whose heartbeat says it takes a job's ports gets one
+		d.mu.Lock()
+		ok := d.nmap.Ports
+		d.mu.Unlock()
+		if !ok {
+			return Output{}, ErrPortsUnsupported
 		}
 	}
 	if scope != nil {
@@ -313,7 +321,7 @@ func (d *Dispatcher) probe(ctx context.Context, argv []string, scope *sensorlink
 	if err := ctx.Err(); err != nil {
 		return Output{}, err
 	}
-	j := &djob{spec: sensorlink.Job{ID: randomHex(), Kind: sensorlink.KindNmap, Shape: kind.Name(), Rate: rate, Targets: make([]string, len(targets))}}
+	j := &djob{spec: sensorlink.Job{ID: randomHex(), Kind: sensorlink.KindNmap, Shape: kind.Name(), Rate: rate, Targets: make([]string, len(targets)), Ports: ports}}
 	if scope != nil {
 		j.spec.Scope, j.spec.Domain = sensorlink.ScopeDomainIP, scope
 	}
@@ -573,6 +581,9 @@ func (d *Dispatcher) pollLocked(running []string) (rep sensorlink.JobsReply, rea
 		}
 		if (s.pending.spec.Domain != nil || s.pending.spec.Nuclei != nil && s.pending.spec.Nuclei.Domain != nil) && !d.domainIP {
 			continue // D-591: the latest heartbeat says this worker holds no fence key (or a downgrade since the job was asked): wait
+		}
+		if k, _ := nmapargv.KindOf(s.pending.spec.Shape); s == d.nmapSlot && k == nmapargv.PortVersions && !d.nmap.Ports {
+			continue // the latest heartbeat says this worker takes no port list (older than D-592, or a downgrade since Probe checked): wait
 		}
 		if k, _ := nmapargv.KindOf(s.pending.spec.Shape); s == d.nmapSlot && k.IsFull() && !d.nmap.Full {
 			continue // the latest heartbeat says this worker runs no full shape (older than D-526, or a downgrade since Probe checked): wait

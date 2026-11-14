@@ -282,11 +282,13 @@ func (a exposureTemplateScan) send(ctx context.Context, actor string, ip netip.A
 		return nil, nucleiout.Outcome{}, nil, templatesErr(ctx, ip, err)
 	}
 	res = outcomes(r, got)
-	if sk := got.Skipped; sk.Lines > 0 { // N45-1: lines about an address the job did not name were skipped, the run is kept
-		a.log.WarnContext(ctx, "exposure: nuclei printed lines for an address the job did not name; skipped, the run is kept", "ip", ip.String(), "port", r.port,
-			"lines", sk.Lines, "template", sk.Template, "host", sk.Host, "skipped_port", sk.Port)
-		if i := slices.IndexFunc(rows, func(p scan.ExternalProbe) bool { return p.Template == sk.Template }); i >= 0 {
-			rows[i].Request = sk.Note() + rows[i].Request
+	if sk := got.Skipped; sk.Lines > 0 { // N45-1: lines that cannot be a result of the job were skipped, the run is kept
+		a.log.WarnContext(ctx, "exposure: nuclei printed lines that cannot be a result of the job; skipped, the run is kept", "ip", ip.String(), "port", r.port,
+			"lines", sk.Lines, "matched", sk.Matched, "template", sk.Template, "host", sk.Host, "skipped_port", sk.Port)
+		for i := range rows {
+			if slices.Contains(sk.Templates, rows[i].Template) { // after the request, cut to the row (review r1 L7)
+				rows[i].Request = nucleiout.AppendNote(rows[i].Request, sk.Note(), probeRequestMax)
+			}
 		}
 	}
 	// N44-4, review r1 M1: with -ms nuclei prints a line for every template it executes (a failure line when nothing matched), so a
@@ -347,6 +349,9 @@ func outcomes(r templateRun, o nucleiout.Outcome) []exposure.TemplateResult {
 			outcome = exposure.OutcomeMatched
 		case failed || !seen && unreachable:
 			outcome = exposure.OutcomeError
+		case !seen && slices.Contains(o.Skipped.Templates, tp.ID):
+			// review r1 M7: nuclei ran it (it printed lines), but every line named another address or none readable: "no match
+			// reported", with the note on its probe row, never "not run"
 		case !seen:
 			continue
 		}

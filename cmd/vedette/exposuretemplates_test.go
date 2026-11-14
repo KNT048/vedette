@@ -202,20 +202,20 @@ func TestExposureTemplatesUnavailableReasons(t *testing.T) {
 	}
 }
 
-// N45-1: a run whose output had lines for an address the job did not name is kept; the probe row of the first skipped line's
-// template says what was skipped.
+// N45-1, review r1 M7/L7: a run whose output had lines that cannot be a result of the job is kept; a template whose only lines were
+// skipped ran (no match reported, never "not run"), and its probe row says why after its request text.
 func TestExposureTemplatesSkippedLinesAreNoted(t *testing.T) {
 	t.Parallel()
 	f := &templatesFake{gateOK: true, answer: func(sensoractive.NucleiRequest) nucleiout.Outcome {
-		return nucleiout.Outcome{Results: []nucleiout.Result{{Template: "CVE-2018-13379", Target: "8.8.8.8:18443"}, {Template: "CVE-2019-19781", Target: "8.8.8.8:18443"}},
-			Skipped: nucleiout.Skipped{Lines: 2, Template: "CVE-2019-19781", Host: "8.8.4.4", Port: "443"}}
+		return nucleiout.Outcome{Results: []nucleiout.Result{{Template: "CVE-2018-13379", Target: "8.8.8.8:18443"}},
+			Skipped: nucleiout.Skipped{Lines: 2, Templates: []string{"CVE-2019-19781"}, Template: "CVE-2019-19781", Host: "8.8.4.4", Port: "443"}}
 	}}
 	got, err := f.scanner().ScanTemplates(t.Context(), exposure.ScanTarget{User: "u"}, ownPublicIP, []exposure.TemplateJob{ownJob("CVE-2018-13379", "CVE-2019-19781")})
-	if err != nil || len(got.Results) != 2 || len(f.done) != 2 {
+	if err != nil || len(got.Results) != 2 || got.Results[1].Outcome != exposure.OutcomeNoMatch || len(f.done) != 2 || len(got.NotChecked) != 0 {
 		t.Fatalf("%+v %v %q", got, err, f.events)
 	}
-	if !strings.HasPrefix(f.done[1].Request, "Skipped 2 nuclei line(s) for an address the job did not name (first: CVE-2019-19781 on 8.8.4.4:443). nuclei CVE-2019-19781") ||
-		strings.HasPrefix(f.done[0].Request, "Skipped") {
+	if f.done[1].Result != "not_matched" || !strings.HasPrefix(f.done[1].Request, "nuclei CVE-2019-19781") ||
+		!strings.Contains(f.done[1].Request, "[not counted: 2 nuclei line(s) whose answers named another address") || strings.Contains(f.done[0].Request, "not counted") {
 		t.Fatalf("rows %+v", f.done)
 	}
 }

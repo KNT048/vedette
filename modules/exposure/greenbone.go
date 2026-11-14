@@ -122,7 +122,7 @@ const (
 	GreenboneLoadGrace = 4 * time.Hour
 	gbUpTimeout        = 60 * time.Minute // the first Up pulls about 9 GB of images (25 minutes on the N100)
 	// gbUpRetryFirst and gbUpRetryLongest bound the wait before an Up the host refused for now (HostBusy) is sent again: doubling from the
-	// first to the second, never shorter than the host's own Retry-After. The host's limit is per minute, so the first retry
+	// first to the second, never shorter than the host's own Retry-After and never longer than the second. The host's limit is per minute, so the first retry
 	// usually runs.
 	gbUpRetryFirst   = 15 * time.Second
 	gbUpRetryLongest = 5 * time.Minute
@@ -568,7 +568,7 @@ func (s *Service) upUntilTaken(ctx context.Context, fixed time.Duration) error {
 		if !errors.As(err, &busy) || ctx.Err() != nil {
 			return err
 		}
-		d := max(wait, busy.RetryAfter)
+		d := upWait(wait, busy.RetryAfter)
 		if fixed > 0 {
 			d = fixed
 		}
@@ -582,6 +582,12 @@ func (s *Service) upUntilTaken(ctx context.Context, fixed time.Duration) error {
 		}
 		wait = min(wait*2, gbUpRetryLongest)
 	}
+}
+
+// upWait is the wait before the next Up: the backoff, or the host's Retry-After when longer, never past gbUpRetryLongest (review
+// r1 L8: a host answering a long Retry-After must not leave OpenVAS "starting" for that long).
+func upWait(backoff, hint time.Duration) time.Duration {
+	return min(max(backoff, hint), gbUpRetryLongest)
 }
 
 // gbStatus is the state of an enabled Greenbone: starting while Up runs (or right after it, until the socket answers), error when

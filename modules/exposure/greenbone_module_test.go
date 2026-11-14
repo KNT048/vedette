@@ -85,3 +85,18 @@ func TestGreenboneUpAtStartIsRetriedWhileTheHostIsBusy(t *testing.T) {
 		}
 	})
 }
+
+// Review r1 L8: the host's Retry-After lengthens the wait, never past five minutes.
+func TestGreenboneUpWaitCapsTheHostsHint(t *testing.T) {
+	t.Parallel()
+	for _, c := range []struct{ backoff, hint, want time.Duration }{
+		{15 * time.Second, 0, 15 * time.Second},
+		{15 * time.Second, time.Minute, time.Minute},
+		{15 * time.Second, 24 * time.Hour, 5 * time.Minute},
+		{5 * time.Minute, 0, 5 * time.Minute},
+	} {
+		if got := upWait(c.backoff, c.hint); got != c.want {
+			t.Errorf("upWait(%s, %s) = %s, want %s", c.backoff, c.hint, got, c.want)
+		}
+	}
+}

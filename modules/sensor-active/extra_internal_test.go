@@ -9,7 +9,7 @@ import (
 )
 
 // D-592: the Extra run's open ports join the first run's host (SSH moved to 22222 is identified with the rest); a port both runs
-// saw keeps the first run's answer; a first run that timed out keeps its meaning; a host only the Extra run saw up is taken from it.
+// saw keeps the first run's answer; a first run that timed out keeps its meaning; a host only the Extra run saw is left out here.
 func TestMergeExtra(t *testing.T) {
 	t.Parallel()
 	ip := netip.MustParseAddr("192.168.10.20")
@@ -28,7 +28,7 @@ func TestMergeExtra(t *testing.T) {
 	if got := mergeExtra(timedOut, extra, ip); len(got[0].ports) != 0 {
 		t.Fatalf("a timed-out first run took ports: %+v", got[0])
 	}
-	if got := mergeExtra(nil, extra, ip); len(got) != 1 || len(got[0].ports) != 2 {
+	if got := mergeExtra(nil, extra, ip); len(got) != 0 { // review r1 M5: probeDevice records the Extra run alone then
 		t.Fatalf("only the extra run saw it: %+v", got)
 	}
 	if sw := softwareOf(mergeExtra([]host{{addr: ip}}, extra, ip)[0]); !slices.ContainsFunc(sw, func(s observe.Software) bool { return s.Version == "9.6p1" }) {

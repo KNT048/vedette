@@ -1,6 +1,7 @@
 package nmapargv
 
 import (
+	"net/netip"
 	"slices"
 	"testing"
 
@@ -42,22 +43,47 @@ func TestExtraPorts(t *testing.T) {
 	}
 }
 
-// D-592: the weekly scan of every port: -p-, no -O, the four reviewed scripts, at most AllPortsMaxRate, one retry, 90 minutes.
+// D-592 (review r1 H2): the weekly scan is port discovery only: -p-, no -sV, no script, no -O, at most AllPortsMaxRate, one retry,
+// 90 minutes. Its follow-up reads at most MaxPortVersions ascending ports with -sV and the four scripts, on one target.
 func TestAllPortsShape(t *testing.T) {
 	t.Parallel()
-	got, err := Build(AllPorts, 100, nil)
-	if err == nil {
-		t.Fatalf("no target accepted: %q", got)
-	}
 	if _, err := Flags(AllPorts, AllPortsMaxRate+1); err == nil {
 		t.Fatal("a rate over AllPortsMaxRate was accepted")
 	}
 	f, err := Flags(AllPorts, 60)
-	want := []string{"--privileged", "-sS", "-sV", "--script", Scripts, "-n", "--max-rate", "60", "--max-retries", "1", "-p-", "--host-timeout", "90m"}
+	want := []string{"--privileged", "-sS", "-n", "--max-rate", "60", "--max-retries", "1", "-p-", "--host-timeout", "90m"}
 	if err != nil || !slices.Equal(f, want) {
 		t.Fatalf("flags = %q %v", f, err)
 	}
 	if k, ok := KindOf("all_ports"); !ok || k != AllPorts || k.IsGentle() || k.IsExternal() {
 		t.Fatalf("KindOf(all_ports) = %v %v", k, ok)
+	}
+	ip := netip.MustParseAddr("192.168.10.20")
+	argv, err := BuildFor(PortVersions, 50, []int{22222, 40000}, []netip.Addr{ip})
+	if err != nil || Validate(argv) != nil || !slices.Contains(argv, "22222,40000") || !slices.Contains(argv, "-sV") || slices.Contains(argv, "-O") {
+		t.Fatalf("port_versions argv %q %v", argv, err)
+	}
+	k, rate, ports, targets, err := ParseFor(argv)
+	if err != nil || k != PortVersions || rate != 50 || !slices.Equal(ports, []int{22222, 40000}) || len(targets) != 1 {
+		t.Fatalf("ParseFor = %v %d %v %v %v", k, rate, ports, targets, err)
+	}
+	many := make([]int, MaxPortVersions+1)
+	for i := range many {
+		many[i] = i + 1
+	}
+	for name, ps := range map[string][]int{"none": nil, "too many": many, "unsorted": {80, 22}, "zero": {0}, "two targets": {22}} {
+		ts := []netip.Addr{ip}
+		if name == "two targets" {
+			ts = append(ts, netip.MustParseAddr("192.168.10.21"))
+		}
+		if _, err := BuildFor(PortVersions, 50, ps, ts); err == nil {
+			t.Errorf("%s: accepted", name)
+		}
+	}
+	if _, err := BuildFor(Normal, 50, []int{22}, []netip.Addr{ip}); err == nil {
+		t.Error("a port list on the normal shape was accepted")
+	}
+	if k, ok := KindOf("port_versions"); !ok || k != PortVersions {
+		t.Fatalf("KindOf(port_versions) = %v %v", k, ok)
 	}
 }

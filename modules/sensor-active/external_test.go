@@ -311,3 +311,24 @@ func TestMigration0005KeepsTheProbeCounter(t *testing.T) {
 		t.Fatal("an unknown shape was accepted")
 	}
 }
+
+// D-592: a worker whose heartbeat does not say it takes a job's ports never gets a port_versions job: Probe refuses before anything is
+// queued, and the weekly scan records the open ports without versions.
+func TestPortVersionsNeedsAWorkerThatSaysSo(t *testing.T) {
+	t.Parallel()
+	d := sa.NewDispatcher(sa.DispatcherOptions{Tick: 20 * time.Millisecond})
+	if _, err := d.ActiveHeartbeat(t.Context(), &sensorlink.ActiveHeartbeat{Version: "1.0.0", Nmap: sensorlink.HeartbeatNmap{Present: true, Version: "7.95"}}); err != nil {
+		t.Fatal(err)
+	}
+	argv, err := nmapargv.BuildFor(nmapargv.PortVersions, 50, []int{40000}, []netip.Addr{netip.MustParseAddr("192.168.10.20")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := d.Probe(t.Context(), argv); !errors.Is(err, sa.ErrPortsUnsupported) {
+		t.Fatalf("err = %v", err)
+	}
+	rep, err := d.Jobs(t.Context(), 0, nil)
+	if err != nil || len(rep.Jobs) != 0 {
+		t.Fatalf("jobs = %+v %v", rep.Jobs, err)
+	}
+}

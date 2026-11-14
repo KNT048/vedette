@@ -48,8 +48,8 @@ const (
 	gmpMaxAnswer = 1 << 20 // bytes of an answer other than a report
 	gmpMaxReport = 8 << 20 // bytes of a report; a bigger one is refused, never cut
 	// gmpMaxPrefs bounds the one answer that lists every preference of a scan config (readBack, N45-5): a copy of "Full and fast"
-	// carries the scanner preferences and every NVT preference of the feed (some hundreds of rows of a few hundred bytes each;
-	// the N100's size is not measured yet, the cap leaves room for ten times the estimate). A bigger answer is refused, never cut.
+	// carries the scanner preferences and every NVT preference of the feed (measured on the N100's gvmd, 2026-11-14: 394 KB, 1,301
+	// preferences; the cap leaves room for ten times that). A bigger answer is refused, never cut.
 	gmpMaxPrefs   = 4 << 20
 	gmpCmdTimeout = 2 * time.Minute
 	gmpMaxResults = 2000 // results a report may hold before it is refused

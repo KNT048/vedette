@@ -146,16 +146,9 @@ func TestParse_RefusesTheWholeOutput(t *testing.T) {
 		"string":                  ok + "\n\"x\"",
 		"repeated key":            `{"template-id":"CVE-2022-27593","template-id":"CVE-2024-3400",` + h + `,"matcher-status":true}`,
 		"key differing by case":   `{"template-id":"CVE-2022-27593","Template-ID":"CVE-2024-3400",` + h + `,"matcher-status":true}`,
-		"no matcher-status":       `{"template-id":"CVE-2022-27593",` + h + `}`,
 		"matcher-status a string": `{"template-id":"CVE-2022-27593",` + h + `,"matcher-status":"true"}`,
 		"template not in the job": `{"template-id":"CVE-2021-44228",` + h + `,"matcher-status":true}`,
 		"no template":             `{` + h + `,"matcher-status":true}`,
-		"no port, no scheme":      `{"template-id":"CVE-2022-27593","host":"192.168.10.21","matcher-status":true}`,
-		"user-info trick":         `{"template-id":"CVE-2022-27593","host":"http://192.168.10.21:5000@10.0.0.9:80","matcher-status":true}`,
-		"host with a space":       `{"template-id":"CVE-2022-27593","host":"http://evil example:5000","matcher-status":true}`,
-		"foreign, no status":      `{"template-id":"CVE-2022-27593","host":"http://192.168.10.99:5000"}`,
-		"no host":                 `{"template-id":"CVE-2022-27593","matcher-status":true}`,
-		"match with an error":     `{"template-id":"CVE-2022-27593",` + h + `,"matcher-status":true,"error":"timeout"}`,
 		"deep nesting":            `{"template-id":"CVE-2022-27593",` + h + `,"matcher-status":true,"meta":` + strings.Repeat(`{"a":`, 40) + `1` + strings.Repeat(`}`, 40) + `}`,
 		"trailing data":           ok + ` {}`,
 		"request not a string":    `{"template-id":"CVE-2022-27593",` + h + `,"matcher-status":true,"request":{}}`,
@@ -194,8 +187,11 @@ func TestRead_SkipsALineForAnotherTarget(t *testing.T) {
 	if res[1].Target != "192.168.10.21:443" || !res[1].Matched || res[2].Target != "192.168.10.21:22" {
 		t.Fatalf("the job's targets in another spelling: %+v", res)
 	}
-	if n := skip.Note(); n != "Skipped 4 nuclei line(s) for an address the job did not name (first: CVE-2022-27593 on 192.168.10.99:5000). " {
+	if n := skip.Note(); n != " [not counted: 4 nuclei line(s) whose answers named another address or none readable, 3 said matched; first: CVE-2022-27593 on 192.168.10.99:5000]" {
 		t.Fatalf("note %q", n)
+	}
+	if !slices.Equal(skip.Templates, []string{"CVE-2022-27593", "CVE-2024-3400"}) {
+		t.Fatalf("skipped templates %q", skip.Templates)
 	}
 	if (Skipped{}).Note() != "" {
 		t.Fatal("a note with nothing skipped")
@@ -204,6 +200,45 @@ func TestRead_SkipsALineForAnotherTarget(t *testing.T) {
 	many := bytes.Repeat([]byte(lines[1]+"\n"), MaxLines+1)
 	if _, _, err := Read(many, templates, targets); err == nil {
 		t.Fatal("more than MaxLines skipped lines were read")
+	}
+}
+
+// Review r1 M6: a line of one of the job's templates whose target cannot be read (a bare name, IPv6, a name with "_", host:port
+// with no port, user info), with no matcher-status, or a match with an error, is skipped and counted like a foreign one: the run is
+// kept. The host of such a line is never stored raw. Only broken JSON, a template outside the job and output over the cap reject.
+func TestRead_SkipsLinesThatCannotBeAResult(t *testing.T) {
+	t.Parallel()
+	lines := []string{
+		ok,
+		`{"template-id":"CVE-2022-27593","host":"fw.lan","port":"443","matcher-status":false}`,
+		`{"template-id":"CVE-2022-27593","host":"[::1]","port":"443","matcher-status":false}`,
+		`{"template-id":"CVE-2022-27593","host":"https://[::1]:443","matcher-status":false}`,
+		`{"template-id":"CVE-2022-27593","host":"my_host.lan:443","matcher-status":false}`,
+		`{"template-id":"CVE-2022-27593","host":"192.168.10.21","port":"","matcher-status":true}`,
+		`{"template-id":"CVE-2022-27593","host":"http://192.168.10.21:5000@10.0.0.9:80","matcher-status":true}`,
+		`{"template-id":"CVE-2024-3400","host":"http://192.168.10.21:5000"}`,
+		`{"template-id":"CVE-2024-3400","host":"http://192.168.10.21:5000","matcher-status":true,"error":"timeout"}`,
+	}
+	res, skip, err := Read([]byte(strings.Join(lines, "\n")), templates, targets)
+	if err != nil || len(res) != 1 || skip.Lines != 8 || skip.Matched != 3 || skip.Host != "(unreadable)" || skip.Port != "" || skip.Template != "CVE-2022-27593" {
+		t.Fatalf("res %+v skip %+v err %v", res, skip, err)
+	}
+	for name, in := range map[string]string{
+		"broken JSON":          ok + "\n{",
+		"a template not asked": `{"template-id":"CVE-2021-44228","host":"fw.lan","port":"443","matcher-status":false}`,
+		"a status of a string": `{"template-id":"CVE-2022-27593","host":"fw.lan","port":"443","matcher-status":"false"}`,
+	} {
+		if _, _, err := Read([]byte(in), templates, targets); err == nil {
+			t.Errorf("%s: accepted", name)
+		}
+	}
+	// the note goes after the request and is cut, never the request
+	req := strings.Repeat("r", 290)
+	if got := AppendNote(req, skip.Note(), 300); !strings.HasPrefix(got, req) || len([]rune(got)) != 300 {
+		t.Fatalf("AppendNote = %q", got)
+	}
+	if got := AppendNote(strings.Repeat("r", 301), skip.Note(), 300); got != strings.Repeat("r", 301) {
+		t.Fatal("AppendNote cut the request")
 	}
 }
 

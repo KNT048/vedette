@@ -377,7 +377,7 @@ func TestForeignTargetLineIsSkippedAndTheRunKept(t *testing.T) {
 	}
 	ps, err := r.svc.Probes(r.ctx())
 	if err != nil || len(ps) != 1 || ps[0].Result != "matched" ||
-		!strings.HasPrefix(ps[0].Request, "Skipped 1 nuclei line(s) for an address the job did not name (first: CVE-2022-27593 on 192.168.10.99:11443). GET /photo") {
+		!strings.HasPrefix(ps[0].Request, "GET /photo") || !strings.HasSuffix(ps[0].Request, " [not counted: 1 nuclei line(s) whose answers named another address or none readable, 1 said matched; first: CVE-2022-27593 on 192.168.10.99:11443]") {
 		t.Fatalf("%+v %v", ps, err)
 	}
 }

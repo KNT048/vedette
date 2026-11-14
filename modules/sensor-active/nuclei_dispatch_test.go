@@ -534,9 +534,7 @@ func TestNucleiResultsAreChecked(t *testing.T) {
 		"a template the job did not ask": {jsonlResult([]byte(`{"template-id":"CVE-2099-1","host":"192.168.10.20:8080","matcher-status":true}` + "\n")), func(e error) bool { return errors.Is(e, sa.ErrResultRejected) }},
 		"one hostile line among good":    {jsonlResult(append(append([]byte{}, good...), []byte("not json\n")...)), func(e error) bool { return errors.Is(e, sa.ErrResultRejected) }},
 		"a repeated key":                 {jsonlResult([]byte(`{"template-id":"CVE-2024-1","template-id":"CVE-2024-2","host":"10.0.0.7:22","matcher-status":true}` + "\n")), func(e error) bool { return errors.Is(e, sa.ErrResultRejected) }},
-		"a match with an error":          {jsonlResult([]byte(`{"template-id":"CVE-2024-1","host":"10.0.0.7:22","matcher-status":true,"error":"x"}` + "\n")), func(e error) bool { return errors.Is(e, sa.ErrResultRejected) }},
 		"a line that is an array":        {jsonlResult([]byte("[1,2]\n")), func(e error) bool { return errors.Is(e, sa.ErrResultRejected) }},
-		"a line with no matcher-status":  {jsonlResult([]byte(`{"template-id":"CVE-2024-1","host":"10.0.0.7:22"}` + "\n")), func(e error) bool { return errors.Is(e, sa.ErrResultRejected) }},
 		// D-165: host_errors is checked against the request, fail closed.
 		"host_errors names another target":     {withHostErrors(good, sensorlink.HostError{Target: "192.168.10.99:80", Errors: 1}), func(e error) bool { return errors.Is(e, sa.ErrResultRejected) }},
 		"unreachable below the job's limit":    {withHostErrors(good, sensorlink.HostError{Target: "10.0.0.7:22", Errors: 2, Unreachable: true}), func(e error) bool { return errors.Is(e, sa.ErrResultRejected) }},
@@ -629,6 +627,9 @@ func TestRunNucleiSkipsALineForAnotherTarget(t *testing.T) {
 	j := r.poll(t, "", 5*time.Second).Jobs[0]
 	out := `{"template-id":"CVE-2024-1","host":"192.168.10.99:8080","matcher-status":true}` + "\n" +
 		`{"template-id":"CVE-2024-2","host":"192.168.10.20:22","matcher-status":true}` + "\n" +
+		`{"template-id":"CVE-2024-1","host":"10.0.0.7:22"}` + "\n" + // no matcher-status (review r1 M6: skipped too)
+		`{"template-id":"CVE-2024-2","host":"10.0.0.7:22","matcher-status":true,"error":"x"}` + "\n" + // a match with an error
+		`{"template-id":"CVE-2024-1","host":"fw.lan","port":"22","matcher-status":false}` + "\n" + // a target that cannot be a job's
 		`{"template-id":"CVE-2024-1","host":"10.0.0.7:22","matcher-status":false}` + "\n"
 	if err := r.worker.PostResult(t.Context(), j.ID, jsonlResult([]byte(out))); err != nil {
 		t.Fatal(err)

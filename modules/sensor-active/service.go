@@ -100,10 +100,17 @@ type Service struct {
 	// stops is bumped by every Stop (the module turned off): a picked run or an external one that was still waiting for runMu when
 	// it came sees it move once it has the lock, and stops instead of starting (#723 review L4).
 	stops atomic.Uint64
+	// urgent counts the runs waiting in lockWithin (a Scan now identification, an exposure scan): while it is above zero the
+	// weekly scan of every port gives the slot up (review r1 M1).
+	urgent atomic.Int32
 
 	mu      sync.Mutex
 	cur     *running // the job holding runMu, for SettingsChanged
 	snmpCur *snmpRun // the snmp batch holding snmpMu, for SettingsChanged, AssetChanged and Stop
+	// allPortsHeld are the devices whose weekly run failed in the window that started at allPortsHeldIn: the round leaves them
+	// to the next window (review r1 L3).
+	allPortsHeld   map[string]bool
+	allPortsHeldIn time.Time
 	// firstUntil is set while the first pass of a new box runs (firstPass, D-501): until then the window counts as open. Zero otherwise.
 	firstUntil time.Time
 }
@@ -139,6 +146,9 @@ type running struct {
 	// external: service identification on the box's own public IP for exposure (ScanExternal, D-514). Its consent is exposure's,
 	// so the LAN settings, window and scope do not bind it; only Stop (the module turned off) and its own context end it.
 	external bool
+	// weekly: the weekly scan of every port of a device (D-592), with its -sV follow-up. A Scan now identification or an exposure
+	// scan stops it (lockWithin, review r1 M1); it stays due.
+	weekly bool
 }
 
 // New returns the service.
@@ -366,8 +376,8 @@ var errDeadline = fmt.Errorf("%w: its deadline passed", ErrStopped)
 // without a log line) and nmap started, unless a SettingsChanged arrived in between. The deadline is the
 // window's end or maxRun; when it passes, or ctx is cancelled, exec kills the process group and the batch is
 // dropped (PRE-3, POST-3).
-func (s *Service) probe(ctx context.Context, jobID string, kind nmapargv.Kind, rate int, targets []netip.Addr) ([]host, error) {
-	if _, err := nmapargv.Build(kind, rate, targets); err != nil {
+func (s *Service) probe(ctx context.Context, jobID string, kind nmapargv.Kind, rate int, targets []netip.Addr, ports ...int) ([]host, error) {
+	if _, err := nmapargv.BuildFor(kind, rate, ports, targets); err != nil {
 		return nil, err
 	}
 	v0 := s.ver.Load()
@@ -391,7 +401,7 @@ func (s *Service) probe(ctx context.Context, jobID string, kind nmapargv.Kind, r
 		return nil, ErrStopped
 	}
 	rate = min(rate, st.Rate)
-	args, err := nmapargv.Build(kind, rate, targets)
+	args, err := nmapargv.BuildFor(kind, rate, ports, targets)
 	if err != nil {
 		return nil, err
 	}
@@ -403,7 +413,7 @@ func (s *Service) probe(ctx context.Context, jobID string, kind nmapargv.Kind, r
 		return nil, ErrStopped
 	}
 	s.setDeadline(s.clock().Add(timeout))
-	probeID, err := s.insertProbe(ctx, jobID, kind, rate, targets, probeNote{})
+	probeID, err := s.insertProbe(ctx, jobID, kind, rate, targets, probeNote{}, ports...)
 	if err != nil {
 		return nil, err
 	}
@@ -460,6 +470,8 @@ func runOutcome(ctx, rctx context.Context, res Output, runErr error) (hosts []ho
 			result = "refused: the scan worker found the address is not the box's own public IP now; nmap did not run"
 		case errors.Is(runErr, ErrEgressUnverified):
 			result = "refused: the scan worker could not reach the public IP services to check the address; nmap did not run"
+		case errors.Is(runErr, ErrPortsUnsupported):
+			result = "refused: the scan worker is older and takes no port list; nmap did not run"
 		case errors.Is(runErr, ErrFullUnsupported):
 			result = "refused: the scan worker is older and runs no deep scan; nmap did not run"
 		case errors.Is(runErr, ErrWorkerRefused):
@@ -561,11 +573,11 @@ func compactTargets(ts []netip.Addr) string {
 	return strings.Join(parts, ",")
 }
 
-func (s *Service) insertProbe(ctx context.Context, jobID string, kind nmapargv.Kind, rate int, targets []netip.Addr, note probeNote) (int64, error) {
+func (s *Service) insertProbe(ctx context.Context, jobID string, kind nmapargv.Kind, rate int, targets []netip.Addr, note probeNote, ports ...int) (int64, error) {
 	if kind.IsGentle() {
 		rate = 1
 	}
-	flags, err := nmapargv.Flags(kind, rate)
+	flags, err := nmapargv.FlagsFor(kind, rate, ports)
 	if err != nil {
 		return 0, err
 	}
@@ -952,8 +964,17 @@ func (s *Service) scanDevice(ctx context.Context, assetID, reason string, all bo
 	defer s.runMu.Unlock()
 	jctx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	s.setCur(&running{cancel: cancel, asset: assetID})
+	// The weekly run is registered with its kind before its policy is read (review r1 L2), so a change of the device in between
+	// reaches it.
+	cur := &running{cancel: cancel, asset: assetID, weekly: all}
+	if all {
+		cur.kind = nmapargv.AllPorts
+	}
+	s.setCur(cur)
 	defer s.setCur(nil)
+	if all && s.urgent.Load() > 0 { // a Scan now identification or an exposure scan waits for the slot: it goes first (review r1 M1)
+		return ErrStopped
+	}
 	// A run stopped by a settings or device change while it checks is not a failure: whatever the storage
 	// read then returns (context canceled), the caller sees ErrStopped and does not count an attempt.
 	stopped := func(err error) error {
@@ -1002,10 +1023,20 @@ func (s *Service) scanDevice(ctx context.Context, assetID, reason string, all bo
 		s.blocked(ctx, assetID, "out_of_scope")
 		return fmt.Errorf("%w: out_of_scope", ErrBlocked)
 	}
+	// Defence in depth (review r1 L1): the box's own addresses and its decoys are never scanned, whatever the policy of the row says.
+	box, err := s.inv.BoxIPs(jctx)
+	if err != nil {
+		return stopped(err)
+	}
+	if slices.Contains(box, asset.IP) {
+		s.blocked(ctx, assetID, reasonBox)
+		return fmt.Errorf("%w: %s", ErrBlocked, reasonBox)
+	}
 	kind, rate := nmapargv.Normal, st.Rate
 	if dec.Rate > 0 {
 		rate = min(rate, dec.Rate)
 	}
+	normalRate := rate
 	if dec.FirstGentle {
 		kind, rate = gentleShape(dec), 1
 	}
@@ -1022,7 +1053,13 @@ func (s *Service) scanDevice(ctx context.Context, assetID, reason string, all bo
 	if err != nil {
 		return err
 	}
-	hosts, err := s.probeDevice(jctx, id, kind, rate, asset.IP)
+	var hosts []host
+	recKind := kind
+	if all {
+		hosts, err = s.probeAllPorts(jctx, id, assetID, asset.IP, rate, normalRate)
+	} else {
+		hosts, recKind, err = s.probeDevice(jctx, id, kind, rate, asset.IP)
+	}
 	s.setAsset("") // nmap is done: a change of the device now has nothing to stop
 	if err == nil {
 		// nmap finished: the gentle scan happened, whatever becomes of recording its results (D-45, L2)
@@ -1030,7 +1067,7 @@ func (s *Service) scanDevice(ctx context.Context, assetID, reason string, all bo
 		if dec.FirstGentle {
 			markErr = s.inv.MarkFirstScan(context.WithoutCancel(ctx), assetID)
 		}
-		err = errors.Join(markErr, s.recordDevice(ctx, assetID, asset.IP, hosts, kind))
+		err = errors.Join(markErr, s.recordDevice(ctx, assetID, asset.IP, hosts, recKind))
 	}
 	switch {
 	case err == nil:
@@ -1045,8 +1082,10 @@ func (s *Service) scanDevice(ctx context.Context, assetID, reason string, all bo
 
 // recordDevice stores what a service scan found about ip. A host that did not answer changes nothing. A host that hit the host
 // timeout keeps its software and services: nmap printed no port table for it, so an empty list would wrongly remove them. Only a
-// normal scan (top 1000 ports, -sV) replaces the device's nmap services and software; a gentle one (top 100, no -sV) only adds the
-// ports it saw and leaves the software alone, so it never wipes what a normal scan found (D-350 (5), D-501).
+// normal or versions scan (top 1000 ports and the extra ports, -sV) replaces the device's nmap services and software; every other
+// run only adds the ports it saw and leaves the software alone, so it never wipes what a normal scan found (D-350 (5), D-501): a
+// gentle one (top 100, no -sV), an Extra run that alone saw the device (review r1 M5), and the weekly scan of every port with its
+// -sV follow-up (D-592, review r1 M3: no -O, so replacing the software would drop the OS guess).
 func (s *Service) recordDevice(ctx context.Context, assetID string, ip netip.Addr, hosts []host, kind nmapargv.Kind) error {
 	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), finishTimeout)
 	defer cancel()
@@ -1063,9 +1102,8 @@ func (s *Service) recordDevice(ctx context.Context, assetID string, ip netip.Add
 	if h.timedOut {
 		return nil
 	}
-	// A gentle scan has no -sV and no -O, so it says nothing about software: replacing the list with its empty one would remove what
-	// a normal scan found, an OS that findings were matched on among them (D-501).
-	if !kind.IsGentle() {
+	full := kind == nmapargv.Normal || kind == nmapargv.Versions
+	if full {
 		if err := s.sw.ReplaceSoftware(ctx, observe.AssetHint{IP: ip}, observe.Nmap, softwareOf(h)); err != nil {
 			return fmt.Errorf("sensoractive: recording software: %w", err)
 		}
@@ -1073,14 +1111,19 @@ func (s *Service) recordDevice(ctx context.Context, assetID string, ip netip.Add
 	if s.svc != nil {
 		list := servicesOf(h)
 		write := s.svc.AddServices
-		switch kind {
-		case nmapargv.Normal, nmapargv.Versions: // both read nmap's top 1000 and nmapargv.ExtraPorts with -sV (probeDevice)
+		switch {
+		case full: // both read nmap's top 1000 and nmapargv.ExtraPorts with -sV (probeDevice)
 			write = s.svc.ReplaceServices
-			// the open ports the last weekly scan of every port found outside that list stay until the next weekly scan (D-592)
+			if err := s.keepNormalPorts(ctx, assetID, list); err != nil {
+				return err
+			}
+			// the open ports the last weekly scan of every port found outside that list stay until the next weekly scan, or 14
+			// days after it at most (D-592, review r1 M4)
 			list = withExtra(list, s.allPortsExtra(ctx, assetID))
-		case nmapargv.AllPorts: // every port with -sV: the whole list, and the ports outside LANPorts kept for the normal scans
-			write = s.svc.ReplaceServices
-			s.keepAllPortsExtra(ctx, assetID, list)
+		case kind == nmapargv.AllPorts: // every open port (the follow-up's services on the ones it read): added, and kept for the normal scans
+			if err := s.keepAllPortsExtra(ctx, assetID, list); err != nil {
+				return err
+			}
 		}
 		if err := write(ctx, observe.AssetHint{IP: ip}, observe.Nmap, list); err != nil {
 			return fmt.Errorf("sensoractive: recording services: %w", err)
@@ -1092,31 +1135,33 @@ func (s *Service) recordDevice(ctx context.Context, assetID string, ip netip.Add
 // probeDevice is the nmap work of one device scan: the run of kind, and after a normal or versions scan the Extra run over
 // nmapargv.ExtraPorts (the surface list and the reviewed admin ports) at the same rate, merged into the same host (D-592): a service
 // moved to 22222 or 11443 is identified like one on its usual port. Each run has its own probe row. When the Extra run fails or is
-// stopped, the first run's result is kept (it finished; POST-3) and the reason logged.
-func (s *Service) probeDevice(ctx context.Context, jobID string, kind nmapargv.Kind, rate int, ip netip.Addr) ([]host, error) {
+// stopped, the first run's result is kept (it finished; POST-3) and the reason logged. When only the Extra run saw the device up, the
+// result is recorded as an Extra one (its ports added; services and software of the normal scan untouched; review r1 M5): kind is
+// what recordDevice should record.
+func (s *Service) probeDevice(ctx context.Context, jobID string, kind nmapargv.Kind, rate int, ip netip.Addr) ([]host, nmapargv.Kind, error) {
 	hosts, err := s.probe(ctx, jobID, kind, rate, []netip.Addr{ip})
 	if err != nil || (kind != nmapargv.Normal && kind != nmapargv.Versions) {
-		return hosts, err
+		return hosts, kind, err
 	}
 	extra, err := s.probe(ctx, jobID, nmapargv.Extra, rate, []netip.Addr{ip})
 	if err != nil {
 		s.log.WarnContext(ctx, "sensoractive: the scan of the extra ports did not finish; the device keeps the top 1000 ports' result", "ip", ip.String(), "error", err)
-		return hosts, nil
+		return hosts, kind, nil
 	}
-	return mergeExtra(hosts, extra, ip), nil
+	if !slices.ContainsFunc(hosts, func(h host) bool { return h.addr == ip }) {
+		return extra, nmapargv.Extra, nil
+	}
+	return mergeExtra(hosts, extra, ip), kind, nil
 }
 
 // mergeExtra adds to the device's host of the first run what the Extra run found: its open ports the first run did not list (with
 // their scripts), and its NTLM answer when the first run had none. A first run that timed out keeps its meaning (no port table: the
-// services are not replaced), and a device only the Extra run saw up is taken from it.
+// services are not replaced). A device the first run did not see is left as it is (probeDevice records the Extra run alone then).
 func mergeExtra(hosts, extra []host, ip netip.Addr) []host {
 	j := slices.IndexFunc(extra, func(h host) bool { return h.addr == ip })
-	if j < 0 {
-		return hosts
-	}
 	i := slices.IndexFunc(hosts, func(h host) bool { return h.addr == ip })
-	if i < 0 {
-		return append(hosts, extra[j])
+	if j < 0 || i < 0 {
+		return hosts
 	}
 	h, x := &hosts[i], extra[j]
 	if h.timedOut {
@@ -1200,11 +1245,16 @@ func (s *Service) lockRun(ctx context.Context) {
 	s.runMu.Lock()
 }
 
-// lockWithin takes runMu, trying every half second for at most d; false when it could not (or ctx ended).
+// lockWithin takes runMu, trying every half second for at most d; false when it could not (or ctx ended). Its callers (a Scan now
+// identification, an exposure scan) go before the weekly scan of every port (review r1 M1): a weekly run that holds the slot is
+// stopped (it stays due; its partial result is dropped), and the weekly round starts no device while one waits.
 func (s *Service) lockWithin(ctx context.Context, d time.Duration) bool {
 	if s.runMu.TryLock() {
 		return true
 	}
+	s.urgent.Add(1)
+	defer s.urgent.Add(-1)
+	s.stopWeekly()
 	give := time.NewTimer(d)
 	defer give.Stop()
 	tick := time.NewTicker(500 * time.Millisecond)
@@ -1216,10 +1266,21 @@ func (s *Service) lockWithin(ctx context.Context, d time.Duration) bool {
 		case <-give.C:
 			return s.runMu.TryLock()
 		case <-tick.C:
+			s.stopWeekly()
 			if s.runMu.TryLock() {
 				return true
 			}
 		}
+	}
+}
+
+// stopWeekly cancels the weekly scan of every port that holds the slot, if one does.
+func (s *Service) stopWeekly() {
+	s.mu.Lock()
+	cur := s.cur
+	s.mu.Unlock()
+	if cur != nil && cur.weekly {
+		cur.cancel()
 	}
 }
 
@@ -1305,14 +1366,14 @@ func (s *Service) IdentifyDevice(ctx context.Context, assetID string) (Identific
 	if err != nil {
 		return Identification{}, err
 	}
-	hosts, err := s.probeDevice(jctx, id, kind, rate, asset.IP)
+	hosts, recKind, err := s.probeDevice(jctx, id, kind, rate, asset.IP)
 	s.setAsset("")
 	if err == nil {
 		var markErr error
 		if dec.FirstGentle && kind.IsGentle() {
 			markErr = s.inv.MarkFirstScan(context.WithoutCancel(ctx), assetID)
 		}
-		err = errors.Join(markErr, s.recordDevice(ctx, assetID, asset.IP, hosts, kind))
+		err = errors.Join(markErr, s.recordDevice(ctx, assetID, asset.IP, hosts, recKind))
 	}
 	switch {
 	case err == nil:
@@ -1326,6 +1387,9 @@ func (s *Service) IdentifyDevice(ctx context.Context, assetID string) (Identific
 			return Identification{Why: WhyUnavailable}, nil
 		}
 		return Identification{}, err
+	}
+	if recKind == nmapargv.Extra { // the identification scan (top 1000) did not see it; only its extra ports were added (review r1 M5)
+		return Identification{Why: WhyHostDown}, nil
 	}
 	found, why := identified(hosts, asset.IP, kind)
 	return Identification{Found: found, Why: why}, nil
@@ -1588,8 +1652,13 @@ func (s *Service) SettingsChanged(ctx context.Context) error {
 	sc := newScope(st)
 	if slices.ContainsFunc(targets, func(t netip.Addr) bool { return !sc.contains(t) }) {
 		cur.cancel()
+		return nil
 	}
-	return nil
+	// the settings may have changed the device's own policy (fragile kinds, regular-scan kinds): check it as AssetChanged does
+	s.mu.Lock()
+	asset := cur.asset
+	s.mu.Unlock()
+	return s.checkRun(ctx, asset)
 }
 
 // AssetChanged reacts to inventory.asset.updated and .deleted: if the device being scanned now no longer passes
@@ -1598,14 +1667,21 @@ func (s *Service) SettingsChanged(ctx context.Context) error {
 // only if the policy still lets it be scanned later). Other devices are not the run's business.
 func (s *Service) AssetChanged(ctx context.Context, assetID string) error {
 	s.snmpChanged(ctx, assetID)
+	return s.checkRun(ctx, assetID)
+}
+
+// checkRun stops the device run in progress when it is assetID's and the inventory's policy no longer lets it run as it does
+// (AssetChanged; SettingsChanged too, since a change of the fragile kinds or the regular-scan kinds changes devices without an
+// event of their own: review r1 M2).
+func (s *Service) checkRun(ctx context.Context, assetID string) error {
 	s.mu.Lock()
 	cur := s.cur
-	var gentle, picked bool
+	var gentle, picked, weekly bool
 	var rate int
 	var kind nmapargv.Kind
-	match := cur != nil && cur.asset == assetID
+	match := cur != nil && cur.asset == assetID && assetID != ""
 	if match {
-		gentle, rate, picked, kind = cur.gentle, cur.rate, cur.picked, cur.kind
+		gentle, rate, picked, kind, weekly = cur.gentle, cur.rate, cur.picked, cur.kind, cur.weekly
 	}
 	s.mu.Unlock()
 	if !match {
@@ -1622,8 +1698,14 @@ func (s *Service) AssetChanged(ctx context.Context, assetID string) error {
 	}
 	// A gentle scan with titles stops when the device may no longer have them: made fragile, by a person or by a kind (FORBID-6, D-511).
 	titlesGone := kind == nmapargv.GentleTitles && dec.Fragile
-	// The weekly scan of every port stops when the device may no longer have it (fragile, kind unknown, never: D-592, FORBID-5).
-	allGone := kind == nmapargv.AllPorts && (dec.Fragile || dec.Unclassified || dec.Never)
+	// The weekly scan of every port stops when the device may no longer have it (fragile, kind unknown, never, a rate too low:
+	// D-592, FORBID-5).
+	allGone := false
+	if weekly && err == nil {
+		st, serr := s.inv.Settings(ctx)
+		_, why := allPortsPlan(dec, st)
+		allGone = serr != nil || why != ""
+	}
 	if err != nil || !dec.Allowed || (dec.FirstGentle && !gentle) || (dec.Rate > 0 && dec.Rate < rate) || titlesGone || allGone {
 		cur.cancel() // fail closed
 		if errors.Is(err, ErrNotFound) {

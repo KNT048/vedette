@@ -151,6 +151,9 @@ type HeartbeatNmap struct {
 	// Full (protocol 5, D-526) says the worker runs the external_full and external_disruptive shapes, behind its own-IP fence. An
 	// older worker leaves it out: core then never sends it one.
 	Full bool `json:"full,omitempty"`
+	// Ports (protocol 5, D-592) says the worker runs the port_versions shape, whose job carries its ports. An older worker leaves it
+	// out: core then never sends it one (the weekly scan of every port then records the open ports without their versions).
+	Ports bool `json:"ports,omitempty"`
 }
 
 // HeartbeatNuclei says whether the worker can run nuclei (D-125 (1)): Present is "the pinned binary runs -version"; Pack is
@@ -205,6 +208,9 @@ type Job struct {
 	// address); "" and nil on every other nmap job, which keeps the shape an older worker knows.
 	Scope  string
 	Domain *DomainScope
+	// Ports (protocol 5, D-592) are the ports of a port_versions job (1..20, ascending); nil on every other nmap job, which keeps the
+	// shape an older worker knows. Sent only to a worker whose heartbeat says nmap.ports.
+	Ports []int
 
 	Nuclei *NucleiJob // nuclei, nil for the others
 	SNMP   *SNMPJob   // snmp, nil for the others
@@ -416,6 +422,7 @@ type nmapWire struct {
 	TimeoutS int          `json:"timeout_s"`
 	Scope    string       `json:"scope,omitempty"`
 	Domain   *DomainScope `json:"domain,omitempty"`
+	Ports    []int        `json:"ports,omitempty"`
 }
 
 type nucleiWire struct {
@@ -436,7 +443,7 @@ type snmpWire struct {
 func (j Job) MarshalJSON() ([]byte, error) {
 	switch j.Kind {
 	case "", KindNmap:
-		return json.Marshal(nmapWire{ID: j.ID, Kind: j.Kind, Shape: j.Shape, Rate: j.Rate, Targets: j.Targets, TimeoutS: j.TimeoutS, Scope: j.Scope, Domain: j.Domain})
+		return json.Marshal(nmapWire{ID: j.ID, Kind: j.Kind, Shape: j.Shape, Rate: j.Rate, Targets: j.Targets, TimeoutS: j.TimeoutS, Scope: j.Scope, Domain: j.Domain, Ports: j.Ports})
 	case KindNuclei:
 		if j.Nuclei == nil {
 			return nil, errors.New("sensorlink: a nuclei job without its fields")
@@ -475,7 +482,7 @@ func (j *Job) UnmarshalJSON(raw []byte) error {
 		if err := strict(&w); err != nil {
 			return err
 		}
-		*j = Job{ID: w.ID, Kind: w.Kind, Shape: w.Shape, Rate: w.Rate, Targets: w.Targets, TimeoutS: w.TimeoutS, Scope: w.Scope, Domain: w.Domain}
+		*j = Job{ID: w.ID, Kind: w.Kind, Shape: w.Shape, Rate: w.Rate, Targets: w.Targets, TimeoutS: w.TimeoutS, Scope: w.Scope, Domain: w.Domain, Ports: w.Ports}
 	case KindNuclei:
 		var w nucleiWire
 		if err := strict(&w); err != nil {

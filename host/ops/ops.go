@@ -25,6 +25,8 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net"
+	"net/netip"
 	"os"
 	"path/filepath"
 	"strings"
@@ -126,6 +128,14 @@ type Deps struct {
 	// the fake world starts the applier in a goroutine. PID is this process's pid for started.json (default os.Getpid).
 	StartUnit func(argv []string) error
 	PID       func() int
+	// ZapEgress and ZapTXT are zap.baseline's re-check of ownership (D-521): the box's public IP by the two-of-three rule of
+	// core/egressip, and the TXT records of a domain (default: egressip's three services, the system resolver). ZapUID is the owner
+	// of the scan's work directory (default 1000, the image's zap user). Tests answer for them.
+	ZapEgress func(ctx context.Context) (netip.Addr, error)
+	ZapTXT    func(ctx context.Context, name string) ([]string, error)
+	// ZapLookupIP is the A-record lookup of a domain page's name (default: the system resolver), to check it points at the page's IP.
+	ZapLookupIP func(ctx context.Context, name string) ([]netip.Addr, error)
+	ZapUID      int
 }
 
 // Ops holds the state of the system commands.
@@ -204,6 +214,14 @@ type Ops struct {
 
 	bkMu sync.Mutex // guards backups/index.json
 	exMu sync.Mutex // guards exports/index.json
+
+	// zap.baseline (zap.go): zapMu guards one run at a time (zapBusy) and the background pull of the image (zapPulling, and the
+	// reason the last pull failed). zapExec replaces the runner in internal tests.
+	zapMu      sync.Mutex
+	zapBusy    bool
+	zapPulling bool
+	zapPullErr string
+	zapExec    zapExecFn
 }
 
 // Notifier is what Ops needs from the server once it runs: an audit line for things the host does
@@ -337,7 +355,7 @@ func (o *Ops) Commands() []server.Command {
 		o.cmdNetApply(), o.cmdNetConfirm(), o.cmdNetRevert(),
 		o.cmdDecoyAdd(), o.cmdDecoyRemove(), o.cmdDecoySetPorts(),
 		o.cmdContainerStart(), o.cmdContainerStop(), o.cmdContainerPull(), o.cmdContainerRollback(),
-		o.cmdHostSelfUpdate(),
+		o.cmdHostSelfUpdate(), o.cmdZapBaseline(),
 	}
 }
 
@@ -345,7 +363,7 @@ func (o *Ops) Commands() []server.Command {
 func (o *Ops) Readers() server.Readers {
 	return server.Readers{
 		OS: o.readOS, Backups: o.readBackups, Net: o.readNet, Containers: o.readContainers, Host: o.readHost, Packages: o.readPackages, HPTouches: o.readHPTouches,
-		BackupContent: o.backupContent, ExportContent: o.exportContent,
+		BackupContent: o.backupContent, ExportContent: o.exportContent, ZapReport: o.zapReport,
 	}
 }
 
@@ -409,6 +427,16 @@ func sleepCtx(ctx context.Context, d time.Duration) bool {
 	}
 }
 
+// lookupTXT asks the system resolver for the TXT records of name (zap.baseline's re-check of a domain, D-521).
+func lookupTXT(ctx context.Context, name string) ([]string, error) {
+	return net.DefaultResolver.LookupTXT(ctx, name)
+}
+
+// lookupIPv4 asks the system resolver for the IPv4 addresses of name (zap.baseline's check that a page's name points at its IP).
+func lookupIPv4(ctx context.Context, name string) ([]netip.Addr, error) {
+	return net.DefaultResolver.LookupNetIP(ctx, "ip4", name)
+}
+
 func fail(code, msg string) *server.Failure { return &server.Failure{Code: code, Message: msg} }
 
 func refuse412(code, msg string) *server.Refusal {
@@ -429,6 +457,7 @@ func (o *Ops) Start(ctx context.Context, n Notifier) {
 	o.loopCtx, o.loopStop = lctx, stop
 	o.mu.Unlock()
 	o.sweepTmp("releases", "containers")        // temp files of a write cut short (container.pull state)
+	o.zapAtStart(ctx)                           // a passive web scan this process's predecessor did not finish: container, rule, files (D-521)
 	_ = os.RemoveAll(o.stateFile(layoutParent)) // a bundle image staged by a pull that was cut short (D-452): GiBs
 	// the containers' AppArmor profile, loaded when the kernel lacks it (D-458): beside startHP, joined before READY, never blocks
 	aaDone := make(chan struct{})

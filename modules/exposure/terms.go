@@ -132,7 +132,7 @@ func (s *Service) AcceptTerms(ctx context.Context, who Actor, id, version string
 		}
 	}
 	newMode := ScanMode{Full: true, Disruptive: disruptive}
-	stopping := s.runAbove(id, newMode) != nil // the tick taken back while a disruptive scan runs (review r1 M1)
+	value := ""
 	err = s.write(ctx, func(tx *sql.Tx, _ func(string, any)) error {
 		t, err := loadTarget(ctx, tx, id)
 		if err != nil {
@@ -178,16 +178,15 @@ func (s *Service) AcceptTerms(ctx context.Context, who Actor, id, version string
 		if err := setTerms(ctx, tx, id, &Terms{Version: n.Version, By: who.Email, At: store.FormatTS(now), Text: text, Disruptive: disruptive, UserID: who.ID, Method: method}); err != nil {
 			return err
 		}
-		detail := what + " (" + flag + ", user " + who.ID + ", two-step: " + method + ", terms " + n.Version + ")"
-		if stopping {
-			detail += stoppedNote
-		}
-		return s.audit(ctx, tx, who.Email, "exposure.terms_accept", t.Value, detail+": "+text)
+		value = t.Value
+		return s.audit(ctx, tx, who.Email, "exposure.terms_accept", t.Value, what+" ("+flag+", user "+who.ID+", two-step: "+method+", terms "+n.Version+"): "+text)
 	})
 	if err != nil {
 		return TargetView{}, fmt.Errorf("exposure: accepting the testing terms: %w", err)
 	}
-	s.stopRunAbove(id, newMode, who.Email, "the disruptive checks were taken out of this target's testing terms")
+	if value != "" { // the terms changed: the tick taken back stops a disruptive scan that runs (review r1 M1)
+		s.stopRunAbove(ctx, id, value, newMode, who.Email, "exposure.terms_accept", "the disruptive checks were taken out of this target's testing terms")
+	}
 	return s.Target(ctx, id)
 }
 
@@ -196,32 +195,37 @@ func (a ScanMode) above(b ScanMode) bool {
 	return (a.Full && !b.Full) || (a.Disruptive && !b.Disruptive)
 }
 
-// runAbove is the run of target id that runs now with a mode above m, or nil (D-566 review r1 M1).
-func (s *Service) runAbove(id string, m ScanMode) *scanRun {
-	s.runMu.Lock()
-	defer s.runMu.Unlock()
-	if r := s.run; r != nil && r.view.Status == RunRunning && r.view.TargetID == id && r.mode.above(m) {
-		return r
-	}
-	return nil
-}
-
 // stopRunAbove cancels the run of target id when its mode is above m (D-566 review r1 M1): withdrawing or lowering the terms must
 // reach a scan that runs now, the case where the service is being hurt. Every step reads the run's context: the Greenbone step stops
-// gvmd's task (stop_task) and keeps the snapshot of the earlier steps, as a Stop does.
-func (s *Service) stopRunAbove(id string, m ScanMode, user, why string) {
-	if r := s.runAbove(id, m); r != nil {
+// gvmd's task (stop_task) and keeps the snapshot of the earlier steps, as a Stop does. The run is found and cancelled under runMu in
+// one step, and only a run really cancelled gets its own audit row (review r2 L1), on the action of the terms change, after its row.
+func (s *Service) stopRunAbove(ctx context.Context, id, value string, m ScanMode, user, action, why string) {
+	s.runMu.Lock()
+	r := s.run
+	stop := r != nil && r.view.Status == RunRunning && r.view.TargetID == id && r.mode.above(m)
+	if stop {
 		r.cancel(&stoppedBy{by: user + " (" + why + ")", why: why})
+	}
+	s.runMu.Unlock()
+	if !stop {
+		return
+	}
+	wctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), saveTimeout)
+	defer cancel()
+	if err := s.write(wctx, func(tx *sql.Tx, _ func(string, any)) error {
+		return s.audit(wctx, tx, user, action, value, stoppedNote+" ("+why+")")
+	}); err != nil {
+		s.cfg.Log.ErrorContext(wctx, "exposure: auditing the stop of a scan by a terms change failed", "target", value, "error", err)
 	}
 }
 
-// stoppedNote is what the audit row of a terms change adds when it stopped the running scan.
-const stoppedNote = "; the scan of this target that was running was stopped"
+// stoppedNote is the audit row written when a terms change really stopped the running scan.
+const stoppedNote = "the scan of this target that was running was stopped"
 
 // RevokeTerms is DELETE /exposure/targets/{id}/terms (admin, FULL-1): always possible; the next scan runs in the K-4 scope again, and
 // a scan of this target that runs now at full depth is stopped (review r1 M1).
 func (s *Service) RevokeTerms(ctx context.Context, user, id string) (TargetView, error) {
-	stopping := s.runAbove(id, ScanMode{}) != nil
+	value := ""
 	err := s.write(ctx, func(tx *sql.Tx, _ func(string, any)) error {
 		t, err := loadTarget(ctx, tx, id)
 		if err != nil {
@@ -233,16 +237,15 @@ func (s *Service) RevokeTerms(ctx context.Context, user, id string) (TargetView,
 		if err := setTerms(ctx, tx, id, nil); err != nil {
 			return err
 		}
-		detail := "withdrawn (terms " + t.Terms.Version + ", disruptive checks: " + yesNo(t.Terms.Disruptive) + ", accepted by " + t.Terms.By + " at " + t.Terms.At + ")"
-		if stopping {
-			detail += stoppedNote
-		}
-		return s.audit(ctx, tx, user, "exposure.terms_revoke", t.Value, detail)
+		value = t.Value
+		return s.audit(ctx, tx, user, "exposure.terms_revoke", t.Value, "withdrawn (terms "+t.Terms.Version+", disruptive checks: "+yesNo(t.Terms.Disruptive)+", accepted by "+t.Terms.By+" at "+t.Terms.At+")")
 	})
 	if err != nil {
 		return TargetView{}, fmt.Errorf("exposure: withdrawing the testing terms: %w", err)
 	}
-	s.stopRunAbove(id, ScanMode{}, user, "the testing terms of this target were withdrawn")
+	if value != "" {
+		s.stopRunAbove(ctx, id, value, ScanMode{}, user, "exposure.terms_revoke", "the testing terms of this target were withdrawn")
+	}
 	return s.Target(ctx, id)
 }
 

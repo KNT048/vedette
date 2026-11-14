@@ -186,10 +186,12 @@ func TestTerms_WithdrawStopsTheRunningScan(t *testing.T) {
 	}
 	e.acceptTerms(id, true)
 	var once sync.Once
+	revoked := make(chan struct{})
 	h.gvm.with(func(g *fakeGVM) {
 		g.states = []string{"Running"}
 		g.onPoll = func() {
 			once.Do(func() {
+				defer close(revoked)
 				if _, err := e.svc.RevokeTerms(context.Background(), "admin@acme.example", id); err != nil {
 					t.Error(err)
 				}
@@ -200,11 +202,12 @@ func TestTerms_WithdrawStopsTheRunningScan(t *testing.T) {
 	if _, err := e.svc.Scan(e.ctx(), "admin@acme.example", id); err == nil {
 		t.Fatal("the scan was not stopped")
 	}
+	<-revoked // the withdrawal writes its stop row after the cancel; the run may end first
 	run := e.svc.CurrentScan()
 	if run == nil || run.Status != RunStopped || run.SnapshotID == nil || run.StopReason == nil || *run.StopReason != "the testing terms of this target were withdrawn" || !h.gvm.seen("stop_task") {
 		t.Fatalf("run = %+v, cmds %q", run, h.gvm.cmds)
 	}
-	if r := e.auditDetails("exposure.terms_revoke"); len(r) != 1 || !strings.HasSuffix(r[0], stoppedNote) {
+	if r := e.auditDetails("exposure.terms_revoke"); len(r) != 2 || r[1] != stoppedNote+" (the testing terms of this target were withdrawn)" {
 		t.Fatalf("audit = %q", r)
 	}
 }
@@ -238,7 +241,14 @@ func TestTerms_LoweringStopsOnlyARunAbove(t *testing.T) {
 	if !errors.As(cause, &sb) || sb.why != "the disruptive checks were taken out of this target's testing terms" {
 		t.Fatalf("cause = %v", cause)
 	}
-	if acc := e.auditDetails("exposure.terms_accept"); !strings.Contains(acc[len(acc)-1], stoppedNote) {
+	acc := e.auditDetails("exposure.terms_accept")
+	stops := 0
+	for _, d := range acc {
+		if strings.HasPrefix(d, stoppedNote) {
+			stops++
+		}
+	}
+	if stops != 1 || !strings.HasPrefix(acc[len(acc)-1], stoppedNote) { // review r2 L1: only the stop that happened is written
 		t.Fatalf("audit = %q", acc)
 	}
 }
@@ -277,4 +287,32 @@ func TestTerms_PausedIPCannotAccept(t *testing.T) {
 	e.svc.cfg.TwoStep = func(context.Context, string) (string, error) { return "app", nil }
 	_, err := e.svc.AcceptTerms(e.ctx(), termsAdmin, id, TermsVersion, false)
 	wantAPI(t, err, 409, "ip_not_current")
+}
+
+// review r2 M1: a withdrawal committed while the scan's gate runs (the full public-IP check) is seen when the run registers: the run
+// starts in the K-4 scope, not at the mode the gate read.
+func TestTerms_WithdrawDuringTheGateStartsTheK4Scope(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	id := e.committedIP(ipA).ID
+	e.acceptTerms(id, true)
+	e.advance(time.Hour) // the gate runs a full check again
+	var once sync.Once
+	e.prober.mu.Lock()
+	e.prober.onRound = func() {
+		once.Do(func() {
+			if _, err := e.svc.RevokeTerms(context.Background(), "admin@acme.example", id); err != nil {
+				t.Error(err)
+			}
+		})
+	}
+	e.prober.mu.Unlock()
+	r := &modeRunner{}
+	e.svc.SetRunner(r)
+	if _, err := e.svc.Scan(e.ctx(), "admin@acme.example", id); err != nil {
+		t.Fatal(err)
+	}
+	if e.prober.count() == 0 || len(r.modes) != 1 || r.modes[0] != (ScanMode{}) {
+		t.Fatalf("rounds %d, modes %+v", e.prober.count(), r.modes)
+	}
 }

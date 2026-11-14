@@ -485,6 +485,7 @@
     "withdraw": "Withdraw",
     "who": "Only an administrator with two-step sign-in can accept them; who and when go in the audit log. Withdrawing is always possible.",
     "needVerified": "Verify ownership first; only then can the testing terms be accepted.",
+    "cgnatLimit": "Vedette can tell carrier-grade NAT only when this box's own gateway is in 100.64.0.0/10; it cannot see your router's outside address. If your router gets its address from your provider's shared range, ask your provider before accepting.",
     "stops": "Withdrawing them, or taking the disruptive checks out, stops a scan of this target that is running at the higher level.",
     "toastAccepted": "Testing terms accepted. The next scan is a deep scan.",
     "toastWithdrawn": "Testing terms withdrawn. The next scan is in the Scan now scope."

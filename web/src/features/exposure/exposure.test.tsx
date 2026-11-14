@@ -1422,7 +1422,15 @@ describe('exposure: testing terms per target (S-EXP-2, FULL-1, D-566)', () => {
     const s = await screen.findByRole('region', { name: 'Testing terms (deep scan)' })
     expect(await within(s).findByRole('alert')).toHaveTextContent(warning)
     expect(within(s).getByRole('checkbox')).toBeDisabled()
+    expect(within(s).queryByText(/Vedette can tell carrier-grade NAT only when/)).toBeNull()
     expect(within(s).getByText(/is yours alone: not an address shared through your Internet provider \(carrier-grade NAT\)/)).toBeInTheDocument()
+  })
+
+  it('review r2 L2: without a warning, an IP target says what Vedette cannot see', async () => {
+    renderApp('/exposure/xt-2?tab=ownership')
+    const s = await screen.findByRole('region', { name: 'Testing terms (deep scan)' })
+    expect(await within(s).findByText("Vedette can tell carrier-grade NAT only when this box's own gateway is in 100.64.0.0/10; it cannot see your router's outside address. If your router gets its address from your provider's shared range, ask your provider before accepting.")).toBeInTheDocument()
+    expect(within(s).getByRole('checkbox')).toBeEnabled()
   })
 
   it('review r1 M1: a run the box stopped because the terms were withdrawn says why', async () => {

@@ -103,11 +103,17 @@ func (s *Service) begin(ctx context.Context, user string, t Target, reason Block
 		return nil, apiErr(429, "rate_limited", "%s was scanned at %s. Scan it again after %s: at most one scan of a target every %d minutes.",
 			t.Value, s.momentText(last), s.momentText(next), int(ScanEvery/time.Minute))
 	}
+	// The run's mode comes from a fresh read of the terms under runMu (D-566 review r2 M1): a withdrawal committed while the gate ran
+	// is seen here, and one that comes later finds this run registered and stops it (stopRunAbove takes runMu too).
+	fresh, err := loadTarget(ctx, s.cfg.DB.Reader(), t.ID)
+	if err != nil {
+		return nil, fmt.Errorf("exposure: reading the testing terms before the scan: %w", err)
+	}
 	s.lastScan[t.ID] = now
 	rctx, cancel := context.WithCancelCause(context.WithoutCancel(ctx)) // the request's values, never its cancellation
 	run := &scanRun{
 		view:   ScanRun{ID: store.NewID("sr"), TargetID: t.ID, TargetValue: t.Value, By: user, StartedAt: store.FormatTS(now), Status: RunRunning, Phase: PhaseQueued},
-		cancel: cancel, done: make(chan struct{}), prevLast: last, hadPrevLast: had, mode: t.mode(),
+		cancel: cancel, done: make(chan struct{}), prevLast: last, hadPrevLast: had, mode: fresh.mode(),
 	}
 	s.run = run
 	go s.execute(rctx, run, r, user, t)

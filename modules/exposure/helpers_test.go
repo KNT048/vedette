@@ -49,6 +49,8 @@ type fakeProber struct {
 	ips   []string
 	down  bool
 	calls int
+	// onRound, when set, runs (without the lock) at the start of each round: a hook inside a check, such as the scan gate's
+	onRound func()
 }
 
 func (p *fakeProber) set(ips ...string) { p.mu.Lock(); p.ips, p.down = ips, false; p.mu.Unlock() }
@@ -56,6 +58,12 @@ func (p *fakeProber) offline()          { p.mu.Lock(); p.down = true; p.mu.Unloc
 func (p *fakeProber) count() int        { p.mu.Lock(); defer p.mu.Unlock(); return p.calls }
 
 func (p *fakeProber) Round(context.Context) (netip.Addr, error) {
+	p.mu.Lock()
+	hook := p.onRound
+	p.mu.Unlock()
+	if hook != nil {
+		hook()
+	}
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	i := p.calls

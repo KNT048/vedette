@@ -39,7 +39,8 @@ export function TermsPanel({ target }: { target: Target }) {
         <ul className="grid list-disc gap-1.5 pl-5">{lines.slice(1, -1).map((l) => <li key={l}>{l}</li>)}</ul>
         <p>{lines[lines.length - 1]}</p>
       </div>
-      {target.terms_warning ? <Notice tone="warn" role="alert" className="mb-0" title={target.terms_warning} /> : null}
+      {target.terms_warning ? <Notice tone="warn" role="alert" className="mb-0" title={target.terms_warning} />
+        : target.kind === 'ip' ? <p className="text-[13px] text-muted">{t('terms.cgnatLimit')}</p> : null}
       <div className="flex items-start gap-2">
         <Checkbox id={`terms-disruptive-${target.id}`} className="mt-0.5" checked={disruptive} disabled={!!locked || !!target.terms_warning} onCheckedChange={(v) => setDisruptive(v === true)} />
         <Label htmlFor={`terms-disruptive-${target.id}`} className="font-normal">{n.disruptive}</Label>

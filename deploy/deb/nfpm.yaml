@@ -108,3 +108,6 @@ scripts:
 
 deb:
   compression: gzip
+  # where to report a problem (D-541): reportbug and apt show read Bugs; GitHub Issues, not a personal address
+  fields:
+    Bugs: https://github.com/KNT048/vedette/issues

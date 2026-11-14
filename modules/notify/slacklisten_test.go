@@ -41,6 +41,7 @@ type fakeSlack struct {
 	mu        sync.Mutex
 	posts     []map[string]any // chat.postMessage bodies
 	replies   []map[string]any // bodies posted to response URLs
+	replied   chan struct{}    // a signal per reply (dropped when full: reply re-reads replies on every wake)
 	hosts     []string         // every Host the server saw
 	reqs      []string         // every Host+path the server saw
 	auths     []string         // Authorization headers of the Web API
@@ -61,7 +62,7 @@ type slackConn struct{ out chan []byte }
 
 func newFakeSlack(t *testing.T) *fakeSlack {
 	t.Helper()
-	f := &fakeSlack{conns: make(chan *slackConn, 16), acks: make(chan string, 64), postTS: slTS, team: slTeam}
+	f := &fakeSlack{conns: make(chan *slackConn, 16), acks: make(chan string, 64), replied: make(chan struct{}, 64), postTS: slTS, team: slTeam}
 	f.srv = httptest.NewTLSServer(http.HandlerFunc(f.serve))
 	t.Cleanup(f.srv.Close)
 	return f
@@ -130,6 +131,10 @@ func (f *fakeSlack) serve(w http.ResponseWriter, r *http.Request) {
 		f.mu.Lock()
 		f.replies = append(f.replies, m)
 		f.mu.Unlock()
+		select {
+		case f.replied <- struct{}{}:
+		default:
+		}
 		_, _ = io.WriteString(w, "ok")
 	default:
 		http.NotFound(w, r)
@@ -235,10 +240,11 @@ func (f *fakeSlack) ack(t *testing.T, want string) {
 	}
 }
 
+// reply takes the oldest private reply, waiting for one (the wait is a hang guard: every caller first made sure one is due).
 func (f *fakeSlack) reply(t *testing.T) map[string]any {
 	t.Helper()
-	deadline := time.Now().Add(10 * time.Second)
-	for time.Now().Before(deadline) {
+	guard := time.After(10 * time.Second)
+	for {
 		f.mu.Lock()
 		if len(f.replies) > 0 {
 			r := f.replies[0]
@@ -247,10 +253,13 @@ func (f *fakeSlack) reply(t *testing.T) map[string]any {
 			return r
 		}
 		f.mu.Unlock()
-		time.Sleep(10 * time.Millisecond) //nolint:forbidigo // test polling of a fake
+		select {
+		case <-f.replied:
+		case <-guard:
+			t.Fatal("no private reply was sent")
+			return nil
+		}
 	}
-	t.Fatal("no private reply was sent")
-	return nil
 }
 
 func (f *fakeSlack) noReply(t *testing.T) {
@@ -363,6 +372,16 @@ func (se *slEnv) request() {
 	se.t.Helper()
 	if _, err := se.svc.SendApprovalRequest(se.ctx(), se.approvalReq("act-1", channel.Slack)); err != nil {
 		se.t.Fatal(err)
+	}
+}
+
+// decidedOnce waits for the notify.approval.decided of one press: its worker has decided it and is ending.
+func (se *slEnv) decidedOnce(t *testing.T, env string) {
+	t.Helper()
+	select {
+	case <-se.decided:
+	case <-time.After(10 * time.Second):
+		t.Fatalf("press %s was not decided", env)
 	}
 }
 
@@ -552,10 +571,16 @@ func TestContract_SYS2_SlackReplyAddressIsHooksSlackComOnly(t *testing.T) {
 		id := "bad-" + string(rune('a'+i))
 		c.out <- slPress{env: id, respURL: u}.json()
 		se.sl.ack(t, id)
+		// The ack is sent before the press is handled and Decide runs on one of 4 workers: without this wait the presses pile up,
+		// the good one finds every worker taken and is answered "busy" instead of decided (flaky on a loaded runner, run 43615446435).
+		se.decidedOnce(t, id)
 	}
-	c.out <- slPress{env: "good"}.json() // the one that ends the wait: every earlier press was fully handled before it
+	c.out <- slPress{env: "good"}.json() // the one that ends the wait: every earlier press was decided before it
 	se.sl.ack(t, "good")
-	se.sl.reply(t)
+	if r := se.sl.reply(t); r["text"] != "Approved. Block 203.0.113.9 is being run." {
+		t.Fatalf("reply %v", r)
+	}
+	se.decidedOnce(t, "good")
 	se.sl.noReply(t)
 	se.sl.mu.Lock()
 	for _, r := range se.sl.reqs {
@@ -691,4 +716,52 @@ func TestContract_SLACK_PressAfterTheChannelWasTurnedOffIsNotDecided(t *testing.
 	se.sl.ack(t, "env-2")
 	se.sl.noReply(t)
 	se.noDecision(t)
+}
+
+// A press that finds every decision worker taken is answered "busy" and not decided (the reply has its own slots: it used to need a
+// decision slot and was always dropped).
+func TestContract_SLACK_PressWhenEveryWorkerIsTakenIsAnsweredBusy(t *testing.T) {
+	se := newSLEnv(t)
+	hold := make(chan struct{})
+	se.dec.each = hold // Decide blocks until the test takes its value: the first presses hold every decision worker
+	released := make(chan struct{})
+	t.Cleanup(func() { close(released) }) // runs after the listener stopped (cleanups run last-in first-out)
+	se.request()
+	c, _ := se.listen()
+	t.Cleanup(func() { // a failed test leaves workers in Decide: let them end so the listener can stop
+		go func() {
+			for {
+				select {
+				case <-hold:
+				case <-released:
+					return
+				}
+			}
+		}()
+	})
+	for i := range 4 { // the read loop takes a worker for a press before it reads the next envelope
+		id := "w" + string(rune('0'+i))
+		c.out <- slPress{env: id}.json()
+		se.sl.ack(t, id)
+	}
+	c.out <- slPress{env: "late"}.json()
+	se.sl.ack(t, "late")
+	if r := se.sl.reply(t); r["text"] != "Vedette is busy. Press the button again in a minute." {
+		t.Fatalf("reply %v", r)
+	}
+	for i := range 4 {
+		select {
+		case <-hold:
+		case <-time.After(10 * time.Second):
+			t.Fatalf("worker %d never reached Decide", i)
+		}
+	}
+	for range 4 {
+		if r := se.sl.reply(t); r["text"] != "Approved. Block 203.0.113.9 is being run." {
+			t.Fatalf("reply %v", r)
+		}
+	}
+	if got := se.dec.got(); len(got) != 4 {
+		t.Fatalf("Decide called %d times, want 4 (the busy press is not decided)", len(got))
+	}
 }

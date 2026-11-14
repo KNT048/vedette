@@ -149,9 +149,8 @@ func (s *Service) listenSlack(ctx context.Context) error {
 	if s.cfg.Decisions == nil {
 		return nil
 	}
-	sem := make(chan struct{}, slackWorkers)
-	var wg sync.WaitGroup
-	defer wg.Wait()
+	work := &slackWork{decide: make(chan struct{}, slackWorkers), reply: make(chan struct{}, slackWorkers)}
+	defer work.wg.Wait()
 	quick := 0
 	for ctx.Err() == nil {
 		c, err := loadChannel(ctx, s.cfg.DB.Reader(), channel.Slack)
@@ -172,7 +171,7 @@ func (s *Service) listenSlack(ctx context.Context) error {
 			}
 		}
 		started := time.Now()
-		err = s.serveSlack(ctx, c, sem, &wg)
+		err = s.serveSlack(ctx, c, work)
 		if ctx.Err() != nil {
 			return nil
 		}
@@ -190,8 +189,16 @@ func (s *Service) listenSlack(ctx context.Context) error {
 
 var errSlackDisconnect = errors.New("notify: slack: asked to reconnect")
 
+// slackWork bounds what the read loop hands to other goroutines: decisions (Decide, then its reply) and lone replies ("not valid",
+// "busy"). Each has its own slots, so the "busy" reply still goes out when every decision slot is taken (it used to wait for a
+// decision slot, which is full exactly then, and was always dropped).
+type slackWork struct {
+	decide, reply chan struct{}
+	wg            sync.WaitGroup
+}
+
 // serveSlack runs one Socket Mode connection until Slack asks to reconnect, the channel changes, ctx ends or the connection fails.
-func (s *Service) serveSlack(ctx context.Context, c channelRow, sem chan struct{}, wg *sync.WaitGroup) error {
+func (s *Service) serveSlack(ctx context.Context, c channelRow, work *slackWork) error {
 	bot, err := s.slackBot(ctx, s.cfg.DB.Reader(), c)
 	if err != nil {
 		return err
@@ -231,7 +238,7 @@ func (s *Service) serveSlack(ctx context.Context, c channelRow, sem chan struct{
 			return errSlackDisconnect
 		case channel.SlackPressKind:
 			if seen.add(env.EnvelopeID) { // Slack sends an envelope again when it was not acked in time: decide it once
-				s.takeSlackPress(ctx, bot, c, team, env.Press, sem, wg)
+				s.takeSlackPress(ctx, bot, c, team, env.Press, work)
 			}
 		}
 	}
@@ -258,19 +265,19 @@ func (s *Service) watchChannel(ctx context.Context, cancel context.CancelCauseFu
 // takeSlackPress checks one press on the read loop and hands the decision to a worker, so a slow Decide never holds the loop. A press
 // of another workspace or channel is ignored (no reply: it is not ours to answer); one that is not ours to decide is answered "not
 // valid" and never reaches Decide.
-func (s *Service) takeSlackPress(ctx context.Context, bot *channel.SlackBot, c channelRow, team string, p channel.SlackPress, sem chan struct{}, wg *sync.WaitGroup) {
+func (s *Service) takeSlackPress(ctx context.Context, bot *channel.SlackBot, c channelRow, team string, p channel.SlackPress, work *slackWork) {
 	// Replies are slow HTTP calls and Slack wants every ack within 3 seconds: none of them runs on the read loop (review: replies held acks).
 	reply := func(text string) {
 		if p.ResponseURL == "" {
 			return
 		}
 		select {
-		case sem <- struct{}{}:
-			wg.Go(func() {
-				defer func() { <-sem }()
+		case work.reply <- struct{}{}:
+			work.wg.Go(func() {
+				defer func() { <-work.reply }()
 				s.replySlack(ctx, bot, p.ResponseURL, text)
 			})
-		default: // every worker is busy: this private reply is dropped (best effort)
+		default: // every reply slot is taken: this private reply is dropped (best effort)
 		}
 	}
 	if p.Invalid {
@@ -296,13 +303,13 @@ func (s *Service) takeSlackPress(ctx context.Context, bot *channel.SlackBot, c c
 		return
 	}
 	select {
-	case sem <- struct{}{}:
+	case work.decide <- struct{}{}:
 	default:
 		reply(answerBusy)
 		return
 	}
-	wg.Go(func() {
-		defer func() { <-sem }()
+	work.wg.Go(func() {
+		defer func() { <-work.decide }()
 		s.decideSlackPress(ctx, bot, p)
 	})
 }

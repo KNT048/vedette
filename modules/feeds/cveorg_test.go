@@ -75,6 +75,7 @@ func TestParseCVERecord_Conversion(t *testing.T) {
 		{"text version", `{"vendor":"Acme","product":"Gateway","versions":[{"version":"All versions","status":"affected"}]}`, CVEOrgUnusable, nil},
 		{"comparison in the version", `{"vendor":"Acme","product":"Gateway","versions":[{"version":"< 2.4","status":"affected"}]}`, CVEOrgUnusable, nil},
 		{"reversed range (review M1)", `{"vendor":"Acme","product":"Gateway","versions":[{"version":"3.0.5","lessThan":"3.0","status":"affected"}]}`, CVEOrgUnusable, nil},
+		{"same numbers, reversed suffix (review r2)", `{"vendor":"Acme","product":"Gateway","versions":[{"version":"3.0.5-h2","lessThan":"3.0.5-h1","status":"affected"}]}`, CVEOrgUnusable, nil},
 		{"empty range", `{"vendor":"Acme","product":"Gateway","versions":[{"version":"3.0","lessThan":"3.0","status":"affected"}]}`, CVEOrgUnusable, nil},
 		{"an unaffected backport inside the range (review M2)", `{"vendor":"Acme","product":"Gateway","versions":[{"version":"1.0","lessThan":"2.0","status":"affected"},{"version":"1.5.3","status":"unaffected"}]}`, CVEOrgUnusable, nil},
 		{"an unaffected hotfix of the range's line", `{"vendor":"Acme","product":"Gateway","versions":[{"version":"10.2.0","lessThan":"10.2.9-h1","status":"affected"},{"version":"10.2.5-h6","status":"unaffected"}]}`, CVEOrgUnusable, nil},

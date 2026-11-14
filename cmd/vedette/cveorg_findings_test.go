@@ -23,6 +23,7 @@ func TestCVEOrgRecordsThroughTheMatcher(t *testing.T) {
 	ivanti := `{"vendor":"Ivanti","product":"Connect Secure","defaultStatus":"unknown","versions":[{"version":"9.1","status":"affected"},{"version":"22.6","status":"affected"}]}`
 	junos := `{"vendor":"Juniper Networks","product":"Junos OS","defaultStatus":"unaffected","versions":[{"version":"21.4","lessThan":"21.4R3-S5","status":"affected","versionType":"semver"}]}`
 	reversed := `{"vendor":"Acme","product":"Gateway","defaultStatus":"unaffected","versions":[{"version":"3.0.5","lessThan":"3.0","status":"affected"}]}`
+	citrix := `{"vendor":"Citrix","product":"NetScaler ADC","defaultStatus":"unaffected","versions":[{"version":"13.1","lessThan":"13.1-51.15","status":"affected","versionType":"semver"}]}`
 	hole := `{"vendor":"Acme","product":"Gateway","defaultStatus":"unaffected","versions":[{"version":"1.0","lessThan":"2.0","status":"affected"},{"version":"1.5.3","status":"unaffected"}]}`
 	for _, c := range []struct {
 		name, vendor, product, affected, version string
@@ -36,6 +37,7 @@ func TestCVEOrgRecordsThroughTheMatcher(t *testing.T) {
 		{"partial list, an older branch it does not list (H2)", "Acme", "Gateway", partial, "2.9", "product"},
 		{"branch names with unknown default (H2)", "Ivanti", "Connect Secure", ivanti, "22.6R2", "product"},
 		{"Junos needs its own comparator (H1)", "Juniper", "Junos OS", junos, "21.4R3.15", "product"},
+		{"Citrix build written with dots needs its own comparator (review R2-M1)", "Citrix", "NetScaler ADC", citrix, "13.1.49.13", "product"},
 		{"reversed range (M1)", "Acme", "Gateway", reversed, "3.0.2", "product"},
 		{"unaffected backport inside the range (M2)", "Acme", "Gateway", hole, "1.5.3", "product"},
 	} {

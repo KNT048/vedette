@@ -61,8 +61,9 @@ type CVEOrgResult struct {
 
 // cveOrgSkipVendors are the vendors whose NVD rows findings reads with a comparator of their own: CNA versions written
 // another way would reach the generic one and could close an affected device (review H1 of F6a). Juniper: Junos
-// "21.4R3-S5" (D-510); Microsoft: Office editions and Windows builds.
-var cveOrgSkipVendors = map[string]bool{"juniper": true, "microsoft": true}
+// "21.4R3-S5" (D-510); Microsoft: Office editions and Windows builds; Citrix: builds written "13.1-49.13" or "13.1.49.13"
+// (review R2-M1 of F6a).
+var cveOrgSkipVendors = map[string]bool{"juniper": true, "microsoft": true, "citrix": true}
 
 type cveRecord struct {
 	DataType    string `json:"dataType"`
@@ -252,9 +253,9 @@ func cnaRows(a cnaAffected, vendor, product string) (rows []AffectedRow, complet
 			}
 			r.StartIncl = start
 		}
-		if start != "" && end != "" { // a reversed or empty range is a typo, not data (review M1)
+		if start != "" && end != "" { // a reversed, empty or unordered range is a typo, not data (review M1)
 			c, ok := cmpLead(start, end)
-			if !ok || c > 0 || c == 0 && start == end && !incl {
+			if !ok || c > 0 || c == 0 && (start != end || !incl) { // equal numbers, other texts ("3.0.5-h2" to "3.0.5-h1"): no order to trust
 				return nil, false, false
 			}
 		}

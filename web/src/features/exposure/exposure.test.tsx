@@ -1120,7 +1120,7 @@ describe('exposure: services and exploited vulnerabilities of the box IP (S-EXP-
       // Greenbone also names it (INV-25): its row sits next to the version row and never replaces it
       const rows = within(vulns).getAllByRole('row', { name: new RegExp(cve) })
       expect(rows).toHaveLength(2)
-      expect(within(rows[1]!).getByText('Scanner: Greenbone, QoD 99')).toBeInTheDocument()
+      expect(within(rows[1]!).getByText('Scanner: OpenVAS, QoD 99')).toBeInTheDocument()
       const row = rows[0]!
       expect(within(row).getByText('Version in range')).toBeInTheDocument()
       expect(within(row).getByText('18443')).toBeInTheDocument()
@@ -1334,75 +1334,103 @@ describe('exposure: services and exploited vulnerabilities of the box IP (S-EXP-
 })
 
 describe('exposure: optional deep scan with Greenbone (S-EXP-2, INV-25, D-563)', () => {
-  afterEach(() => { localStorage.removeItem('vedette-mock-box-memory'); localStorage.removeItem('vedette-mock-box-disk') })
-  const section = () => screen.findByRole('region', { name: 'Optional deep scan: Greenbone (OpenVAS)' })
+  afterEach(() => { for (const k of ['memory', 'swap', 'disk']) localStorage.removeItem(`vedette-mock-box-${k}`) })
+  const section = () => screen.findByRole('region', { name: 'Optional deep scan: OpenVAS' })
 
   it('off by default: shows the box\'s numbers and what it needs before Enable; an administrator enables it and it starts; axe clean', async () => {
     renderApp('/exposure')
     const s = await section()
     expect(await within(s).findByText('Off')).toBeInTheDocument()
-    expect(within(s).getByText("Needs about 50 GB of disk and about 2 hours to load Greenbone's feed the first time. The box must have at least 8 GB of memory and 60 GB free.")).toBeInTheDocument()
+    expect(within(s).getByText("Needs about 50 GB of disk and about 2 hours to load the OpenVAS feed the first time. The box must have at least 6 GB of memory (under 8 GB, also 2 GB of swap) and 60 GB free.")).toBeInTheDocument()
+    expect(within(s).queryByText(/uses swap/)).toBeNull()
     expect(within(s).getByText('16.0 GB')).toBeInTheDocument()
     expect(within(s).getByText('180.0 GB')).toBeInTheDocument()
     await expectNoA11yViolations()
-    await userEvent.click(within(s).getByRole('button', { name: 'Enable Greenbone' }))
+    await userEvent.click(within(s).getByRole('button', { name: 'Enable OpenVAS' }))
     expect(await within(s).findByText('Starting')).toBeInTheDocument()
-    expect(within(s).getByRole('button', { name: 'Turn off Greenbone' })).toBeInTheDocument()
+    expect(within(s).getByRole('button', { name: 'Turn off OpenVAS' })).toBeInTheDocument()
     expect(auditStore.get().some((a) => a.action === 'exposure.greenbone' && a.detail === 'enabled (memory 16.0 GB, free disk 180.0 GB)')).toBe(true)
     // D-564 G6: the weekly feed update shows when it last ran and when the next one is due
     expect(within(s).getByText('Not yet: the first one is a week after it is turned on')).toBeInTheDocument()
     expect(within(s).getByText('Next feed update')).toBeInTheDocument()
   })
 
-  it('the refusal shows the measured numbers: 7.1 GB of memory, then too little disk', async () => {
+  it('D-569: a 7.1 GB box may enable it, with the swap note', async () => {
     localStorage.setItem('vedette-mock-box-memory', '7100000000')
     renderApp('/exposure')
     const s = await section()
-    expect(await within(s).findByRole('alert')).toHaveTextContent('This box has 7.1 GB of memory; Greenbone needs at least 8.0 GB.')
-    expect(within(s).getByRole('button', { name: 'Enable Greenbone' })).toBeDisabled()
+    expect(await within(s).findByText('The first feed load uses swap on a box under 8 GB (on a 7 GB box it used about 2 GB of swap).')).toBeInTheDocument()
+    expect(within(s).queryByRole('alert')).toBeNull()
+    expect(within(s).getByRole('button', { name: 'Enable OpenVAS' })).toBeEnabled()
+  })
+
+  it('D-569: under 8 GB without 2 GB of swap it is refused with both numbers; at exactly 8 GB no swap is needed and no note shows', async () => {
+    localStorage.setItem('vedette-mock-box-memory', '7100000000')
+    localStorage.setItem('vedette-mock-box-swap', '0')
+    const { unmount } = renderApp('/exposure')
+    let s = await section()
+    expect(await within(s).findByRole('alert')).toHaveTextContent('This box has 7.1 GB of memory and 0.0 GB of swap; with less than 8.0 GB of memory OpenVAS needs at least 2.0 GB of swap for its first feed load.')
+    expect(within(s).getByRole('button', { name: 'Enable OpenVAS' })).toBeDisabled()
+    const r = await call('PUT', '/exposure/greenbone', { enabled: true })
+    expect([r.status, r.json.error.code]).toEqual([409, 'low_memory'])
+    unmount()
+    localStorage.setItem('vedette-mock-box-memory', '8000000000')
+    renderApp('/exposure')
+    s = await section()
+    expect(await within(s).findByText('8.0 GB')).toBeInTheDocument()
+    expect(within(s).queryByText(/uses swap/)).toBeNull()
+    expect(within(s).getByRole('button', { name: 'Enable OpenVAS' })).toBeEnabled()
+  })
+
+  it('the refusal shows the measured numbers: 5.9 GB of memory, then too little disk', async () => {
+    localStorage.setItem('vedette-mock-box-memory', '5900000000')
+    renderApp('/exposure')
+    const s = await section()
+    expect(await within(s).findByRole('alert')).toHaveTextContent('This box has 5.9 GB of memory; OpenVAS needs at least 6.0 GB.')
+    expect(within(s).getByRole('button', { name: 'Enable OpenVAS' })).toBeDisabled()
     const r = await call('PUT', '/exposure/greenbone', { enabled: true })
     expect(r.status).toBe(409)
     expect(r.json.error.code).toBe('low_memory')
     localStorage.setItem('vedette-mock-box-memory', '8300000000')
     localStorage.setItem('vedette-mock-box-disk', '41300000000')
     const d = await call('PUT', '/exposure/greenbone', { enabled: true })
-    expect([d.status, d.json.error.code, d.json.error.message]).toEqual([409, 'low_disk', 'This box has 41.3 GB of free disk space; Greenbone needs at least 60.0 GB free.'])
+    expect([d.status, d.json.error.code, d.json.error.message]).toEqual([409, 'low_disk', 'This box has 41.3 GB of free disk space; OpenVAS needs at least 60.0 GB free.'])
   })
 
   it('loading its feed is a visible phase; only an administrator can change it', async () => {
-    server.use(http.get('*/api/v1/exposure/greenbone', () => HttpResponse.json({ state: 'loading', reason: 'Greenbone is loading its feed (first time takes about 2 hours)', changed_by: 'admin@acme.example', changed_at: new Date().toISOString(),
+    server.use(http.get('*/api/v1/exposure/greenbone', () => HttpResponse.json({ state: 'loading', reason: 'OpenVAS is loading its feed (first time takes about 2 hours)', changed_by: 'admin@acme.example', changed_at: new Date().toISOString(),
       preflight: { memory_bytes: 16e9, disk_free_bytes: 120e9, ok: true, reason: null }, feed_sync: { last_at: null, ok: null, note: null, next_at: null }, enabled: true })))
     renderApp('/exposure', { role: 'viewer' })
     const s = await section()
-    expect(await within(s).findByText('Greenbone is loading its feed (first time takes about 2 hours)')).toBeInTheDocument()
-    expect(within(s).getByRole('button', { name: 'Turn off Greenbone' })).toBeDisabled()
+    expect(await within(s).findByText('OpenVAS is loading its feed (first time takes about 2 hours)')).toBeInTheDocument()
+    expect(within(s).getByRole('button', { name: 'Turn off OpenVAS' })).toBeDisabled()
   })
 
   it('not available on this box: says so and offers nothing', async () => {
-    server.use(http.get('*/api/v1/exposure/greenbone', () => HttpResponse.json({ state: 'unavailable', reason: 'Greenbone is not available on this box.', changed_by: null, changed_at: null,
+    server.use(http.get('*/api/v1/exposure/greenbone', () => HttpResponse.json({ state: 'unavailable', reason: 'OpenVAS is not available on this box.', changed_by: null, changed_at: null,
       preflight: { memory_bytes: 16e9, disk_free_bytes: 120e9, ok: true, reason: null }, feed_sync: { last_at: null, ok: null, note: null, next_at: null }, enabled: false })))
     renderApp('/exposure')
     const s = await section()
-    expect(await within(s).findByText('Greenbone is not available on this box.')).toBeInTheDocument()
+    expect(await within(s).findByText('OpenVAS is not available on this box.')).toBeInTheDocument()
     expect(within(s).queryByRole('button')).toBeNull()
   })
 
   it('results: their own section with the unauthenticated header, severity first, QoD and CVEs; Low results are hardening notes apart (D-564 G3); axe clean', async () => {
     renderApp('/exposure/xt-2')
-    const s = await screen.findByRole('region', { name: 'Greenbone results (unauthenticated, QoD ≥ 70)' })
+    const s = await screen.findByRole('region', { name: 'OpenVAS results (unauthenticated, QoD ≥ 70)' })
     expect(within(s).getByText(/Finding nothing is not proof the services are not affected \(distributions backport fixes\)\. For the same reason, on Ubuntu or Debian a result read from a version banner can be a false positive, so Vedette's own package-based result wins when both exist\./)).toBeInTheDocument()
-    const rows = within(within(s).getByRole('table', { name: 'What Greenbone reported on this IP' })).getAllByRole('row').slice(1)
+    const rows = within(within(s).getByRole('table', { name: 'What OpenVAS reported on this IP' })).getAllByRole('row').slice(1)
     expect(rows).toHaveLength(2)
     expect(within(rows[0]!).getByText('High 9.8')).toBeInTheDocument()
     expect(within(rows[0]!).getByText('99%')).toBeInTheDocument()
     expect(within(rows[0]!).getByText('CVE-2021-41773')).toBeInTheDocument()
     expect(within(s).queryByText('Low 2.6')).toBeNull()
     const notes = await screen.findByRole('region', { name: 'Hardening notes (Low)' })
-    const noteRows = within(within(notes).getByRole('table', { name: "Greenbone's hardening notes on this IP" })).getAllByRole('row').slice(1)
+    const noteRows = within(within(notes).getByRole('table', { name: "OpenVAS hardening notes on this IP" })).getAllByRole('row').slice(1)
     expect(noteRows).toHaveLength(1)
     expect(within(noteRows[0]!).getByText('Low 2.6')).toBeInTheDocument()
     expect(within(noteRows[0]!).getByText('None named')).toBeInTheDocument()
-    expect(within(screen.getByRole('list', { name: 'Checked' })).getByText(/Greenbone \(OpenVAS\) scanned 203\.0\.113\.10 from outside without logging in.*\(2 high or medium, 1 hardening note\)/)).toBeInTheDocument()
+    expect(within(screen.getByRole('list', { name: 'Checked' })).getByText(/OpenVAS scanned 203\.0\.113\.10 from outside without logging in.*\(2 high or medium, 1 hardening note\)/)).toBeInTheDocument()
     await expectNoA11yViolations()
   })
 
@@ -1410,16 +1438,16 @@ describe('exposure: optional deep scan with Greenbone (S-EXP-2, INV-25, D-563)',
     renderApp('/exposure/xt-2')
     const pick = await screen.findByRole('combobox', { name: 'Snapshot of' })
     await userEvent.selectOptions(pick, within(pick).getAllByRole('option').at(-1)!)
-    const s = await screen.findByRole('region', { name: 'Greenbone results (unauthenticated, QoD ≥ 70)' })
-    expect(await within(s).findByText('Greenbone did not scan this time')).toBeInTheDocument()
-    expect(within(s).getByText(/Optional deep scan with Greenbone \(OpenVAS\) is off/)).toBeInTheDocument()
+    const s = await screen.findByRole('region', { name: 'OpenVAS results (unauthenticated, QoD ≥ 70)' })
+    expect(await within(s).findByText('OpenVAS did not scan this time')).toBeInTheDocument()
+    expect(within(s).getByText(/Optional deep scan with OpenVAS is off/)).toBeInTheDocument()
     expect(within(s).queryByRole('table')).toBeNull()
   })
 
   it('a domain has no Greenbone section', async () => {
     renderApp('/exposure/xt-1')
     expect(await screen.findByRole('list', { name: 'Not checked' })).toBeInTheDocument()
-    expect(screen.queryByRole('region', { name: 'Greenbone results (unauthenticated, QoD ≥ 70)' })).toBeNull()
+    expect(screen.queryByRole('region', { name: 'OpenVAS results (unauthenticated, QoD ≥ 70)' })).toBeNull()
   })
 })
 
@@ -1479,7 +1507,7 @@ describe('exposure: testing terms per target (S-EXP-2, FULL-1, D-566)', () => {
     server.use(http.get('*/api/v1/exposure/scan', () => HttpResponse.json({ id: 'sr-1', target_id: 'xt-2', target_value: '203.0.113.10', by: 'admin@acme.example', started_at: at, finished_at: at,
       status: 'stopped', phase: 'greenbone', snapshot_id: 'sn-1', error: null, stop_reason: 'the testing terms of this target were withdrawn' })))
     renderApp('/exposure/xt-2')
-    expect(await screen.findByText(/The Greenbone part of the scan of 203\.0\.113\.10 was stopped\..*The box stopped it because the testing terms of this target were withdrawn\./)).toBeInTheDocument()
+    expect(await screen.findByText(/The OpenVAS part of the scan of 203\.0\.113\.10 was stopped\..*The box stopped it because the testing terms of this target were withdrawn\./)).toBeInTheDocument()
   })
 
   it('without two-step the acceptance is refused; a stale version is 409; a viewer cannot accept', async () => {

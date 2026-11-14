@@ -3,6 +3,7 @@ package exposure
 import (
 	"context"
 	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/netip"
@@ -10,6 +11,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"testing/synctest"
 	"time"
 )
 
@@ -19,7 +21,6 @@ type shodan struct {
 	status int
 	body   string
 	paths  []string
-	hold   bool   // send the headers, then never finish the body (until the client gives up)
 	onAsk  func() // called when a request arrives (a test cancels the person's request here)
 }
 
@@ -36,17 +37,10 @@ func newShodan(t *testing.T) (*shodan, *InternetDB) {
 	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		f.mu.Lock()
 		f.paths = append(f.paths, r.URL.Path)
-		status, body, hold, onAsk := f.status, f.body, f.hold, f.onAsk
+		status, body, onAsk := f.status, f.body, f.onAsk
 		f.mu.Unlock()
 		if onAsk != nil {
 			onAsk()
-		}
-		if hold {
-			w.WriteHeader(http.StatusOK)
-			_, _ = w.Write([]byte(`{"ip":"8.8.8.8",`))
-			w.(http.Flusher).Flush()
-			<-r.Context().Done()
-			return
 		}
 		if status == http.StatusFound {
 			http.Redirect(w, r, "https://example.com/", status)
@@ -301,18 +295,37 @@ func TestHandlers_OutsideRolesAndShapes(t *testing.T) {
 	}
 }
 
-// A body that never ends hits the client's deadline: no answer, nothing kept (INV-10).
+// A body that never ends hits the client's deadline: no answer, nothing kept (INV-10). It runs in a synctest bubble on the real
+// 10 s outsideTimeout with no network: the body blocks until the client gives up, so the outcome never depends on the machine's
+// speed (issue #775: a real TLS server and a 200 ms timeout failed once under load).
 func TestInternetDB_SlowAnswerHitsTheDeadline(t *testing.T) {
 	t.Parallel()
-	f, db := newShodan(t)
-	f.mu.Lock()
-	f.hold = true
-	f.mu.Unlock()
-	db.client.Timeout = 200 * time.Millisecond // outsideTimeout is 10 s on the box
-	_, err := db.Lookup(t.Context(), netip.MustParseAddr(ipA))
-	if !errors.Is(err, ErrOutsideDown) {
-		t.Fatalf("error %v, want %v", err, ErrOutsideDown)
-	}
+	synctest.Test(t, func(t *testing.T) {
+		db := &InternetDB{base: "https://internetdb.test", client: &http.Client{Timeout: outsideTimeout, Transport: endlessBody{}}}
+		start := time.Now()
+		_, err := db.Lookup(t.Context(), netip.MustParseAddr(ipA))
+		if !errors.Is(err, ErrOutsideDown) {
+			t.Fatalf("error %v, want %v", err, ErrOutsideDown)
+		}
+		if waited := time.Since(start); waited != outsideTimeout {
+			t.Fatalf("gave up after %v, want %v", waited, outsideTimeout)
+		}
+	})
+}
+
+// endlessBody answers 200 with a body that sends its first bytes and then nothing until the request is cancelled.
+type endlessBody struct{}
+
+func (endlessBody) RoundTrip(r *http.Request) (*http.Response, error) {
+	return &http.Response{StatusCode: http.StatusOK, Header: http.Header{}, Request: r,
+		Body: io.NopCloser(io.MultiReader(strings.NewReader(`{"ip":"8.8.8.8",`), blockUntil{r.Context()}))}, nil
+}
+
+type blockUntil struct{ ctx context.Context }
+
+func (b blockUntil) Read([]byte) (int, error) {
+	<-b.ctx.Done()
+	return 0, b.ctx.Err()
 }
 
 // M1 of review r1: once the request has gone to Shodan, the person closing the page does not lose the audit row or the answer.

@@ -196,8 +196,14 @@ type Report struct {
 	Left map[string]int
 }
 
-// build writes out/templates/<path> for every template that qualifies, and out/index.json. out must not hold anything yet.
+// build writes out/templates/<path> for every template that qualifies, and out/index.json. out must not hold anything yet. The
+// templates a person read are those of reviewed.tsv.
 func build(src, out, version string) (Report, error) {
+	return buildWith(src, out, version, reviewedState)
+}
+
+// buildWith is build with the allowlist of read templates given (a test passes one for its fixture templates).
+func buildWith(src, out, version string, rv allowlist) (Report, error) {
 	rep := Report{Left: map[string]int{}}
 	if !versionRE.MatchString(version) {
 		return rep, fmt.Errorf("version %q is not AAAA.M.N", version)
@@ -210,6 +216,7 @@ func build(src, out, version string) (Report, error) {
 		body []byte
 	}
 	var all []kept
+	var queue []reviewRow
 	ids := map[string]bool{}
 	err := filepath.WalkDir(src, func(p string, d os.DirEntry, err error) error {
 		if err != nil {
@@ -227,12 +234,15 @@ func build(src, out, version string) (Report, error) {
 		if err != nil {
 			return err
 		}
-		tpl, reason := qualify(rel, body)
+		tpl, reason := qualifyWith(rel, body, rv)
 		if reason == "" && ids[tpl.ID] {
 			reason = "id"
 		}
 		if reason != "" {
 			rep.Left[reason]++
+			if reason == "likely read-only" || reason == "not reviewed" || reason == "state name" { // D-528 step 2: waits for a person (docs/research/kev-review-queue.md)
+				queue = append(queue, queueRow(rel, body, reason))
+			}
 			return nil
 		}
 		ids[tpl.ID] = true
@@ -241,6 +251,12 @@ func build(src, out, version string) (Report, error) {
 	})
 	if err != nil {
 		return rep, err
+	}
+	if err := writeQueue(filepath.Join(out, "review-queue.md"), version, queue); err != nil {
+		return rep, err
+	}
+	if n := rep.Left["stale review"]; n > 0 { // D-528 step 2: a reviewed template changed: a person reads it again before it ships
+		return rep, fmt.Errorf("%d templates of reviewed.tsv changed since they were read (their sha256 differs): read them again and update the list", n)
 	}
 	if len(all) == 0 || len(all) > pack.MaxTemplates {
 		return rep, fmt.Errorf("a pack has 1 to %d templates, this one %d", pack.MaxTemplates, len(all))
@@ -287,6 +303,10 @@ func build(src, out, version string) (Report, error) {
 
 // qualify decides one file: the index entry, or the reason it is left out.
 func qualify(rel string, body []byte) (pack.Template, string) {
+	return qualifyWith(rel, body, reviewedState)
+}
+
+func qualifyWith(rel string, body []byte, rv allowlist) (pack.Template, string) {
 	var zero pack.Template
 	if !nucleiargv.ValidTemplatePath(rel) {
 		return zero, "path"
@@ -297,6 +317,12 @@ func qualify(rel string, body []byte) (pack.Template, string) {
 	var doc map[string]any
 	if err := yaml.Unmarshal(body, &doc); err != nil || doc == nil {
 		return zero, "yaml"
+	}
+	sum := sha256.Sum256(body)
+	if id, _ := doc["id"].(string); id != "" { // review r1 M-4: a reviewed file that changed stops the build, whatever else it now fails
+		if _, stale := rv(id, hex.EncodeToString(sum[:])); stale {
+			return zero, "stale review"
+		}
 	}
 	for k := range doc {
 		if !slices.Contains(allowedKeys, k) {
@@ -332,12 +358,16 @@ func qualify(rel string, body []byte) (pack.Template, string) {
 	if why, _ := changeReason(id, doc, body, tags); why != "" { // D-528: no state change, no other destination, no third party
 		return zero, why
 	}
+	name, _ := info["name"].(string)
+	if why, _ := noTickReason(id, name, rel, hex.EncodeToString(sum[:]), doc, rv); why != "" { // D-528 step 2: reviewed by sha256, else queued
+		return zero, why
+	}
+	ownIP := ownIPSafe(rel, doc, tags, body)
 	req := requestOf(doc)
 	if !requestRE.MatchString(req) {
 		return zero, "request"
 	}
-	sum := sha256.Sum256(body)
-	return pack.Template{ID: id, CVE: cve, Path: rel, SHA256: hex.EncodeToString(sum[:]), Tags: tags, Request: req, OwnIP: ownIPSafe(rel, doc, tags, body)}, ""
+	return pack.Template{ID: id, CVE: cve, Path: rel, SHA256: hex.EncodeToString(sum[:]), Tags: tags, Request: req, OwnIP: ownIP}, ""
 }
 
 // ownIPKeys are the keys of an http block an own_ip template may have: the request (raw, or path with method and headers) and

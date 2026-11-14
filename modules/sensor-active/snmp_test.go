@@ -382,8 +382,11 @@ func TestSNMPRoundOncePerWindow(t *testing.T) {
 	var targets []string
 	for _, tg := range jobs[0].Targets {
 		targets = append(targets, tg.IP)
-		if tg.IP == "192.168.10.24" && !slices.Equal(tg.Credentials, []int{0, 1}) || tg.IP == "192.168.10.20" && !slices.Equal(tg.Credentials, []int{0}) {
-			t.Errorf("%s tries %v", tg.IP, tg.Credentials)
+		// which credential a target tries first follows creation order (created_at, id); both are made in the same second here,
+		// so the order is the ids' (random): compare the set (#776)
+		names := credNames(jobs[0].Credentials, tg.Credentials)
+		if tg.IP == "192.168.10.24" && !slices.Equal(names, []string{"community-1", "community-2"}) || tg.IP == "192.168.10.20" && !slices.Equal(names, []string{"community-1"}) {
+			t.Errorf("%s tries %v", tg.IP, names)
 		}
 	}
 	if !slices.Equal(targets, []string{"192.168.10.20", "192.168.10.24"}) {
@@ -493,4 +496,14 @@ func TestSNMPNeverGoesToAWorkerOfProtocol4(t *testing.T) {
 	if o := <-ch; !errors.Is(o.err, sa.ErrResultRejected) {
 		t.Fatalf("an answer for another target: %+v", o)
 	}
+}
+
+// credNames is the sorted communities of the credentials a target tries (idx into the job's credential list).
+func credNames(creds []sensorlink.SNMPCredential, idx []int) []string {
+	var out []string
+	for _, i := range idx {
+		out = append(out, creds[i].Community)
+	}
+	slices.Sort(out)
+	return out
 }

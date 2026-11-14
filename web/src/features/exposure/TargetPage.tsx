@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { ArrowLeft, Play, Trash2 } from 'lucide-react'
@@ -43,6 +43,7 @@ function TargetView({ target }: { target: Target }) {
   const { t } = useTranslation('exposure')
   const operator = useCan('operator')
   const scan = useScan()
+  const [params, setParams] = useSearchParams()
   const running = useScanRun().data?.status === 'running'
   const admin = useCan('admin')
   // D-473: an administrator's first Scan now is the D-26 confirmation. The sentence (version and text) comes from the API and is shown beside the button as received.
@@ -61,6 +62,8 @@ function TargetView({ target }: { target: Target }) {
 
   function run() {
     scan.mutate({ id: target.id, noticeVersion: notice?.version }, {
+      // After Scan now the person wants the results, not the tab they pressed it from.
+      onSuccess: () => { const p = new URLSearchParams(params); p.set('tab', 'results'); setParams(p, { replace: true }) },
       onError: (e) => { if ((e as { code?: string }).code !== 'twofa_required') toast.error(errMsg(e)) },
     })
   }

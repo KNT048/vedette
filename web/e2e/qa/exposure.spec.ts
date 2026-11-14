@@ -99,7 +99,10 @@ test('clean install: no sample targets, the box finds its two IPs by itself; a d
   await shot(page, 'exposure', `commitment-${isMobile ? 'mobile' : 'desktop'}`)
   await expect(scan).toBeEnabled()
   await scan.click()
+  await expect(page.getByRole('tab', { name: 'Results', selected: true })).toBeVisible() // a finished scan lands on the results
+  await page.getByRole('tab', { name: /^Ownership/ }).click()
   await expect(page.getByText(/Confirmed by admin@testco\.example on .*, by pressing Scan now\./)).toBeVisible()
+  await page.getByRole('tab', { name: 'Results' }).click()
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(/subdomain\(s\), \d+ admin interface\(s\)/)
   await expect(page.getByRole('table', { name: 'Ports open to the Internet' })).toBeVisible()
   await expect(page.getByText('At least two scan days are needed to compare')).toBeVisible()
@@ -254,6 +257,7 @@ test('clean install: Detect now refuses private and CGNAT results; a public IP g
   await box.getByRole('link', { name: '198.51.100.7' }).click()
   await expect(page).toHaveURL(/\/exposure\/xt-/)
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(/198\.51\.100\.7 is ready for its first scan/)
+  await page.getByRole('tab', { name: /^Ownership/ }).click()
   await expect(page.getByText('Last seen by the box')).toBeVisible()
   await expect(page.getByText('Expires on')).toBeVisible()
   await expect(page.getByText('Valid', { exact: true })).toBeVisible()
@@ -268,7 +272,10 @@ test('clean install: Detect now refuses private and CGNAT results; a public IP g
   await turnOnTwoStep(page, 'a-very-long-password-123')
   await page.reload()
   await page.getByRole('button', { name: 'Scan now' }).click()
+  await expect(page.getByRole('tab', { name: 'Results', selected: true })).toBeVisible() // a finished scan lands on the results
+  await page.getByRole('tab', { name: /^Ownership/ }).click()
   await expect(page.getByText(/Confirmed by admin@testco\.example on .*, by pressing Scan now\./)).toBeVisible()
+  await page.getByRole('tab', { name: 'Results' }).click()
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(/198\.51\.100\.7: \d+ open port\(s\)/)
   // Scan-time check (D-79): the box no longer goes out through this IP, so the scan is paused, the IP stays, and it works again when the box is back.
   await expect(page.getByRole('button', { name: 'Scan now' })).toBeEnabled()
@@ -277,6 +284,7 @@ test('clean install: Detect now refuses private and CGNAT results; a public IP g
   await page.getByRole('button', { name: 'Scan now' }).click()
   // The pause stays on the page, not only in a toast: heading, card, locked button with the reason, and "Paused" in the list.
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(/198\.51\.100\.7 is paused: the box no longer goes out through it/)
+  await page.getByRole('tab', { name: /^Ownership/ }).click() // the heading and the locked button say it on every tab; the card is on Ownership
   await expect(page.getByRole('alert').filter({ hasText: /Scans paused: the box no longer reaches the Internet through this IP \(last seen \d{1,2} \w{3} \d{4}, \d{2}:\d{2}\)/ })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Scan now' })).toBeDisabled()
   await expect(page.locator('#scan-reason')).toContainText('no longer goes out through 198.51.100.7')
@@ -296,6 +304,7 @@ test('clean install: Detect now refuses private and CGNAT results; a public IP g
   // The box is back: Verify again (a full check) sees the IP and the pause ends.
   await setEgress(page, '198.51.100.7')
   await page.locator('#box-ip').getByRole('link', { name: '198.51.100.7' }).click()
+  await page.getByRole('tab', { name: /^Ownership/ }).click()
   await page.getByRole('button', { name: 'Verify again' }).click()
   await expect(page.getByRole('button', { name: 'Scan now' })).toBeEnabled()
   await page.getByRole('button', { name: 'Scan now' }).click()
@@ -423,6 +432,7 @@ test('clean install: IPv6 is refused like IPv4, an IP page offers the same Remov
   // The IP's own page: Delete opens the same dialog as the list, ticked by default.
   await box.getByRole('link').first().click()
   await expect(page).toHaveURL(/\/exposure\/xt-/)
+  await page.getByRole('tab', { name: /^Ownership/ }).click()
   await expect(page.getByText(/verified because (this|the) box reaches the Internet through it/i)).toHaveCount(1)
   await expect(page.getByText(/Verify again runs a full check/)).toBeVisible()
   await page.getByRole('button', { name: 'Delete target' }).click()

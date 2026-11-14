@@ -442,7 +442,7 @@
     "never": "Vedette has not asked Shodan about {{ip}}. Nothing is sent until an administrator chooses Check what Shodan has seen.",
     "notEligible": "Only a verified public IP that the box goes out through now can be checked with Shodan.",
     "confirmTitle": "Send {{ip}} to Shodan?",
-    "confirmBody": "Your public IP {{ip}} is sent to Shodan (internetdb.shodan.io). Shodan learns that someone asked about it. Nothing else is sent.",
+    "confirmBody": "Your public IP {{ip}} is sent to Shodan (internetdb.shodan.io). Shodan learns that someone asked about it. Nothing else is sent to Shodan. First the box may re-check that it still goes out through {{ip}} (the same check as before a scan).",
     "send": "Send",
     "toast": "Shodan answered for {{ip}}.",
     "asked": "Asked Shodan on {{time}} ({{by}}). Shodan updates this data about once a week and does not say when it last saw this IP.",

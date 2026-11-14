@@ -533,9 +533,9 @@ export const handlers = [
     if (!t) return notFound()
     if (t.kind !== 'ip') return fail(400, 'bad_value', 'Only a public IP of this box can be checked with Shodan, not a domain.')
     const v = view(t)
-    if (v.status === 'unverified') return fail(409, 'not_verified', `${t.value} has no ownership proof, so it cannot be scanned. Finish verification first.`)
-    if (v.status === 'expired') return fail(409, 'expired', `Verification of ${t.value} expired on ${fmt(t.expires_at!)}, so it cannot be scanned. Verify it again first.`)
-    const paused = ipPaused(t); if (paused) return paused
+    if (v.status === 'unverified') return fail(409, 'not_verified', `${t.value} has no ownership proof, so it cannot be checked with Shodan. Finish verification first.`)
+    if (v.status === 'expired') return fail(409, 'expired', `Verification of ${t.value} expired on ${fmt(t.expires_at!)}, so it cannot be checked with Shodan. Verify it again first.`)
+    if (ipPaused(t)) return fail(409, 'ip_not_current', `This box no longer reaches the Internet through ${t.value}; it was last seen ${t.verified_at ? dateTimeText(t.verified_at) : 'never'}. It is not sent to Shodan until the box uses it again.`)
     if (Date.now() - outsideAskedMs < 60_000) return fail(429, 'rate_limited', 'The box asked Shodan less than a minute ago. Try again in a minute: it asks at most once a minute.')
     outsideAskedMs = Date.now()
     const a = outsideAnswer(t.value)

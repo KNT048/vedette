@@ -41,8 +41,23 @@ var (
 	ErrOutsideDown = apiErr(502, "unreachable", "Shodan InternetDB (internetdb.shodan.io) did not answer, so nothing was saved. Check that this box can make outgoing HTTPS connections, then try again in a few minutes.")
 	ErrOutsideBad  = apiErr(502, "unreachable", "Shodan InternetDB sent an answer Vedette cannot read, so nothing was saved. Try again later.")
 	ErrOutsideIP   = apiErr(400, "bad_value", "Only a public IP of this box can be checked with Shodan, not a domain.")
-	ErrOutsideOff  = apiErr(501, "not_implemented", "Checking with Shodan is not set up on this box.")
+	ErrOutsideV4   = apiErr(400, "bad_value", "Only a public IPv4 address of this box can be checked with Shodan.")
+	// ErrOutsideLimited: InternetDB answered 429 (it limits requests per asking IP, for example a shared office or carrier address).
+	ErrOutsideLimited = apiErr(502, "unreachable", "Shodan is limiting requests from this box's IP right now, so nothing was saved. Try again later.")
+	ErrOutsideOff     = apiErr(501, "not_implemented", "Checking with Shodan is not set up on this box.")
 )
+
+// outsideRefusal is the answer when a target may not be sent to Shodan (INV-21): the same conditions as a scan, in the words of
+// this check.
+func (s *Service) outsideRefusal(t Target, r BlockedReason, now time.Time) error {
+	switch r {
+	case BlockedUnverified:
+		return apiErr(409, "not_verified", "%s has no ownership proof, so it cannot be checked with Shodan. Finish verification first.", t.Value)
+	case BlockedExpired:
+		return apiErr(409, "expired", "Verification of %s expired on %s, so it cannot be checked with Shodan. Verify it again first.", t.Value, s.dayText(t.expiresAt(now)))
+	}
+	return apiErr(409, "ip_not_current", "This box no longer reaches the Internet through %s; it was last seen %s. It is not sent to Shodan until the box uses it again.", t.Value, s.momentText(t.VerifiedAt))
+}
 
 func outsideTooSoon() *APIError {
 	return apiErr(429, "rate_limited", "The box asked Shodan less than a minute ago. Try again in a minute: it asks at most once a minute.")
@@ -110,7 +125,13 @@ func (d *InternetDB) Lookup(ctx context.Context, ip netip.Addr) (OutsideAnswer, 
 	case err != nil:
 		return OutsideAnswer{}, fmt.Errorf("exposure: reading Shodan's answer: %w: %w", ErrOutsideDown, err)
 	case resp.StatusCode == http.StatusNotFound:
+		// Only InternetDB's own "no record" ({"detail": "..."}) means no record: a 404 page of a proxy or an edge is not Shodan's answer.
+		if !isNoRecord(body) {
+			return OutsideAnswer{}, fmt.Errorf("exposure: a 404 that is not InternetDB's: %w", ErrOutsideBad)
+		}
 		return OutsideAnswer{Found: false, Ports: []int{}, Hostnames: []string{}, CPEs: []string{}, Tags: []string{}, Vulns: []string{}}, nil
+	case resp.StatusCode == http.StatusTooManyRequests:
+		return OutsideAnswer{}, fmt.Errorf("exposure: Shodan answered 429: %w", ErrOutsideLimited)
 	case resp.StatusCode != http.StatusOK:
 		return OutsideAnswer{}, fmt.Errorf("exposure: Shodan answered %d: %w", resp.StatusCode, ErrOutsideDown)
 	case len(body) > outsideMaxBody:
@@ -121,6 +142,19 @@ func (d *InternetDB) Lookup(ctx context.Context, ip netip.Addr) (OutsideAnswer, 
 		return OutsideAnswer{}, fmt.Errorf("exposure: %w: %w", ErrOutsideBad, err)
 	}
 	return a, nil
+}
+
+// isNoRecord: InternetDB's 404 body, one JSON object with a string detail (`{"detail":"No information available"}`).
+func isNoRecord(body []byte) bool {
+	var v struct {
+		Detail *string `json:"detail"`
+	}
+	dec := json.NewDecoder(bytes.NewReader(body))
+	if err := dec.Decode(&v); err != nil || v.Detail == nil {
+		return false
+	}
+	_, err := dec.Token()
+	return errors.Is(err, io.EOF)
 }
 
 var (
@@ -276,8 +310,12 @@ func (s *Service) CheckOutside(ctx context.Context, user, id string) (OutsideVie
 	if t.Kind != KindIP {
 		return OutsideView{}, ErrOutsideIP
 	}
+	ip, err := netip.ParseAddr(t.Value)
+	if err != nil || !ip.Is4() {
+		return OutsideView{}, ErrOutsideV4
+	}
 	if r := t.blocked(s.clock()); r == BlockedUnverified || r == BlockedExpired {
-		return OutsideView{}, s.refusal(t, r, s.clock())
+		return OutsideView{}, s.outsideRefusal(t, r, s.clock())
 	}
 	current, err := s.stillCurrent(ctx, user, t)
 	if err != nil {
@@ -287,28 +325,31 @@ func (s *Service) CheckOutside(ctx context.Context, user, id string) (OutsideVie
 		if t, err = loadTarget(ctx, s.cfg.DB.Reader(), id); err != nil {
 			return OutsideView{}, fmt.Errorf("exposure: checking with Shodan: %w", err)
 		}
-		return OutsideView{}, s.refusal(t, BlockedNotCurrent, s.clock())
-	}
-	ip, err := netip.ParseAddr(t.Value)
-	if err != nil || !ip.Is4() {
-		return OutsideView{}, ErrOutsideIP
+		return OutsideView{}, s.outsideRefusal(t, BlockedNotCurrent, s.clock())
 	}
 	if !s.takeOutsideTurn() {
 		return OutsideView{}, outsideTooSoon()
 	}
-	ans, lerr := s.cfg.Outside.Lookup(ctx, ip)
-	err = s.write(ctx, func(tx *sql.Tx, _ func(string, any)) error {
+	// From here the request goes to Shodan: it, the audit row and the answer must not depend on the person's browser staying on
+	// the page (INV-21), like the save of a finished scan.
+	sctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), outsideTimeout+saveTimeout)
+	defer cancel()
+	ans, lerr := s.cfg.Outside.Lookup(sctx, ip)
+	err = s.write(sctx, func(tx *sql.Tx, _ func(string, any)) error {
 		if lerr != nil {
-			return s.audit(ctx, tx, user, "exposure.outside_view", t.Value, "sent to internetdb.shodan.io; failed: "+outsideFailure(lerr))
+			return s.audit(sctx, tx, user, "exposure.outside_view", t.Value, "sent to internetdb.shodan.io; failed: "+outsideFailure(lerr))
 		}
-		if _, err := loadTarget(ctx, tx, id); err != nil { // deleted meanwhile: nothing to keep the answer with
-			return err
+		if _, err := loadTarget(sctx, tx, id); err != nil { // deleted meanwhile: nothing to keep the answer with
+			if aerr := s.audit(sctx, tx, user, "exposure.outside_view", t.Value, "sent to internetdb.shodan.io; the target was deleted meanwhile, answer not kept"); aerr != nil {
+				return aerr
+			}
+			return nil
 		}
 		doc, err := json.Marshal(ans)
 		if err != nil {
 			return err
 		}
-		if _, err := tx.ExecContext(ctx, `INSERT INTO exp_outside (target_id, ip, checked_at, checked_by, found, answer) VALUES (?, ?, ?, ?, ?, ?)
+		if _, err := tx.ExecContext(sctx, `INSERT INTO exp_outside (target_id, ip, checked_at, checked_by, found, answer) VALUES (?, ?, ?, ?, ?, ?)
 			ON CONFLICT (target_id) DO UPDATE SET ip = excluded.ip, checked_at = excluded.checked_at, checked_by = excluded.checked_by, found = excluded.found, answer = excluded.answer`,
 			id, t.Value, store.FormatTS(s.clock()), user, boolInt(ans.Found), string(doc)); err != nil {
 			return fmt.Errorf("storing Shodan's answer: %w", err)
@@ -317,25 +358,28 @@ func (s *Service) CheckOutside(ctx context.Context, user, id string) (OutsideVie
 		if ans.Found {
 			detail = fmt.Sprintf("sent to internetdb.shodan.io; Shodan lists %d ports and %d CVEs", len(ans.Ports), len(ans.Vulns))
 		}
-		return s.audit(ctx, tx, user, "exposure.outside_view", t.Value, detail)
+		return s.audit(sctx, tx, user, "exposure.outside_view", t.Value, detail)
 	})
 	if lerr != nil {
 		if err != nil {
-			s.cfg.Log.ErrorContext(ctx, "auditing a Shodan request failed", "error", err)
+			s.cfg.Log.ErrorContext(sctx, "auditing a Shodan request failed", "error", err)
 		}
 		var ae *APIError
 		if errors.As(lerr, &ae) {
 			return OutsideView{}, ae
 		}
-		s.cfg.Log.WarnContext(ctx, "asking Shodan failed", "error", lerr)
+		s.cfg.Log.WarnContext(sctx, "asking Shodan failed", "error", lerr)
 		return OutsideView{}, ErrOutsideDown
 	}
 	if err != nil {
 		return OutsideView{}, fmt.Errorf("exposure: checking with Shodan: %w", err)
 	}
-	v, err := s.outsideView(ctx, s.cfg.DB.Reader(), id)
-	if err != nil || v == nil {
+	v, err := s.outsideView(sctx, s.cfg.DB.Reader(), id)
+	if err != nil {
 		return OutsideView{}, fmt.Errorf("exposure: reading the outside view: %w", err)
+	}
+	if v == nil {
+		return OutsideView{}, fmt.Errorf("exposure: checking with Shodan: %w", ErrNotFound)
 	}
 	return *v, nil
 }
@@ -357,6 +401,8 @@ func outsideFailure(err error) string {
 	switch {
 	case errors.Is(err, ErrOutsideBad):
 		return "the answer could not be read"
+	case errors.Is(err, ErrOutsideLimited):
+		return "Shodan is limiting requests (429)"
 	case errors.Is(err, ErrOutsideDown):
 		return "no usable answer"
 	}

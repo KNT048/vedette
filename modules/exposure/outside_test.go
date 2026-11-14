@@ -1,6 +1,7 @@
 package exposure
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -18,6 +19,8 @@ type shodan struct {
 	status int
 	body   string
 	paths  []string
+	hold   bool   // send the headers, then never finish the body (until the client gives up)
+	onAsk  func() // called when a request arrives (a test cancels the person's request here)
 }
 
 func (f *shodan) set(status int, body string) {
@@ -33,8 +36,18 @@ func newShodan(t *testing.T) (*shodan, *InternetDB) {
 	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		f.mu.Lock()
 		f.paths = append(f.paths, r.URL.Path)
-		status, body := f.status, f.body
+		status, body, hold, onAsk := f.status, f.body, f.hold, f.onAsk
 		f.mu.Unlock()
+		if onAsk != nil {
+			onAsk()
+		}
+		if hold {
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`{"ip":"8.8.8.8",`))
+			w.(http.Flusher).Flush()
+			<-r.Context().Done()
+			return
+		}
 		if status == http.StatusFound {
 			http.Redirect(w, r, "https://example.com/", status)
 			return
@@ -99,7 +112,9 @@ func TestInternetDB_RefusesWhatItCannotTrust(t *testing.T) {
 		"ports of the wrong":  {200, `{"ip":"8.8.8.8","ports":["22"]}`, ErrOutsideBad},
 		"two objects":         {200, `{"ip":"8.8.8.8"}{"ip":"8.8.8.8"}`, ErrOutsideBad},
 		"an array":            {200, `[{"ip":"8.8.8.8"}]`, ErrOutsideBad},
-		"rate limited":        {429, `{"detail":"slow down"}`, ErrOutsideDown},
+		"rate limited":        {429, `{"detail":"slow down"}`, ErrOutsideLimited},
+		"404 of a proxy":      {404, `<html>Not Found</html>`, ErrOutsideBad},
+		"404 without detail":  {404, `{"error":"x"}`, ErrOutsideBad},
 		"server error":        {500, ``, ErrOutsideDown},
 		"redirect not follow": {302, ``, ErrOutsideDown},
 	} {
@@ -158,6 +173,9 @@ func TestContract_INV21_OnlyTheBoxsOwnCurrentIPIsSent(t *testing.T) {
 	e.advance(31 * 24 * time.Hour)
 	_, err = e.svc.CheckOutside(ctx, admin, ip.ID)
 	wantAPI(t, err, 409, "expired")
+	if !strings.Contains(err.Error(), "cannot be checked with Shodan") {
+		t.Fatalf("refusal speaks of the wrong action: %v", err)
+	}
 
 	// Seen again, but the box now goes out through another address: paused (INV-13), nothing sent.
 	e.detect(ipA)
@@ -165,6 +183,9 @@ func TestContract_INV21_OnlyTheBoxsOwnCurrentIPIsSent(t *testing.T) {
 	e.prober.set(ipB)
 	_, err = e.svc.CheckOutside(ctx, admin, ip.ID)
 	wantAPI(t, err, 409, "ip_not_current")
+	if !strings.Contains(err.Error(), "not sent to Shodan") {
+		t.Fatalf("refusal speaks of the wrong action: %v", err)
+	}
 	if got := f.asked(); len(got) != 0 {
 		t.Fatalf("Shodan was asked %v before a check was allowed", got)
 	}
@@ -277,5 +298,72 @@ func TestHandlers_OutsideRolesAndShapes(t *testing.T) {
 	}
 	if code, body := e.call("GET", "/exposure/targets/"+ip.ID+"/outside", "viewer", ""); code != 200 || body["ip"] != ipA {
 		t.Fatalf("GET after = %d %v", code, body)
+	}
+}
+
+// A body that never ends hits the client's deadline: no answer, nothing kept (INV-10).
+func TestInternetDB_SlowAnswerHitsTheDeadline(t *testing.T) {
+	t.Parallel()
+	f, db := newShodan(t)
+	f.mu.Lock()
+	f.hold = true
+	f.mu.Unlock()
+	db.client.Timeout = 200 * time.Millisecond // outsideTimeout is 10 s on the box
+	_, err := db.Lookup(t.Context(), netip.MustParseAddr(ipA))
+	if !errors.Is(err, ErrOutsideDown) {
+		t.Fatalf("error %v, want %v", err, ErrOutsideDown)
+	}
+}
+
+// M1 of review r1: once the request has gone to Shodan, the person closing the page does not lose the audit row or the answer.
+func TestContract_INV21_ARequestSentIsKeptWhenThePersonLeaves(t *testing.T) {
+	t.Parallel()
+	e, f := outsideEnv(t)
+	ip := e.detect(ipA)[0]
+	ctx, cancel := context.WithCancel(e.ctx())
+	defer cancel()
+	f.mu.Lock()
+	f.onAsk = cancel
+	f.mu.Unlock()
+	if _, err := e.svc.CheckOutside(ctx, "admin@acme.example", ip.ID); err != nil {
+		t.Fatal(err)
+	}
+	if ctx.Err() == nil {
+		t.Fatal("the request was not cancelled")
+	}
+	if n := e.count(`SELECT count(*) FROM core_audit WHERE action = 'exposure.outside_view' AND target = ?`, ipA); n != 1 {
+		t.Fatalf("%d audit rows, want 1", n)
+	}
+	if n := e.count(`SELECT count(*) FROM exp_outside WHERE target_id = ?`, ip.ID); n != 1 {
+		t.Fatalf("%d answers kept, want 1", n)
+	}
+}
+
+// The limit is one request a minute on the box, whatever the target, and two clicks at once send one request.
+func TestContract_INV21_OneRequestAMinuteOnTheBox(t *testing.T) {
+	t.Parallel()
+	e, f := outsideEnv(t)
+	items := e.detect(ipA, ipB)
+	if len(items) != 2 {
+		t.Fatalf("detected %d IPs", len(items))
+	}
+	var wg sync.WaitGroup
+	errs := make([]error, 2)
+	for i := range 2 {
+		wg.Go(func() { _, errs[i] = e.svc.CheckOutside(e.ctx(), "admin@acme.example", items[0].ID) })
+	}
+	wg.Wait()
+	if (errs[0] == nil) == (errs[1] == nil) {
+		t.Fatalf("two clicks at once: %v, %v; want one answer and one 429", errs[0], errs[1])
+	}
+	for _, err := range errs {
+		if err != nil {
+			wantAPI(t, err, 429, "rate_limited")
+		}
+	}
+	_, err := e.svc.CheckOutside(e.ctx(), "admin@acme.example", items[1].ID)
+	wantAPI(t, err, 429, "rate_limited")
+	if n := len(f.asked()); n != 1 {
+		t.Fatalf("asked %d times, want 1", n)
 	}
 }

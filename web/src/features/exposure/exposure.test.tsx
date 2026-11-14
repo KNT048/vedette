@@ -1143,7 +1143,7 @@ describe('exposure: what the Internet sees, Shodan InternetDB (S-EXP-1, D-558)',
     expect(await screen.findByText(/Vedette has not asked Shodan about 203\.0\.113\.11/)).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Check what Shodan has seen' }))
     const dialog = await screen.findByRole('dialog', { name: 'Send 203.0.113.11 to Shodan?' })
-    expect(within(dialog).getByText('Your public IP 203.0.113.11 is sent to Shodan (internetdb.shodan.io). Shodan learns that someone asked about it. Nothing else is sent.')).toBeInTheDocument()
+    expect(within(dialog).getByText('Your public IP 203.0.113.11 is sent to Shodan (internetdb.shodan.io). Shodan learns that someone asked about it. Nothing else is sent to Shodan. First the box may re-check that it still goes out through 203.0.113.11 (the same check as before a scan).')).toBeInTheDocument()
     expect(posts).toEqual([])
     await user.click(within(dialog).getByRole('button', { name: 'Cancel' }))
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())

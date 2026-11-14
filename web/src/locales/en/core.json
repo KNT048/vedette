@@ -1025,7 +1025,7 @@
       },
       "15": {
         "name": "Outside view of your public IP (only when an administrator clicks it)",
-        "what": "One of this box's own verified public IPs, in one HTTPS request to Shodan InternetDB, only when an administrator selects \"Check what Shodan has seen\" on that IP's page in External exposure and then confirms that the IP is sent to Shodan. Nothing else is sent: no key, no account, no other data of yours. Shodan sees the box's IP address and learns that someone asked about that IP. Only an IP the box has verified and still goes out through is sent, at most once a minute; every request is in the audit log. Nothing runs on a schedule or in the background.",
+        "what": "One of this box's own verified public IPs, in one HTTPS request to Shodan InternetDB, only when an administrator selects \"Check what Shodan has seen\" on that IP's page in External exposure and then confirms that the IP is sent to Shodan. Nothing else is sent: no key, no account, no other data of yours. Shodan sees the box's IP address and learns that someone asked about that IP. Only an IP the box has verified and still goes out through is sent: before it is sent, the box may first re-check its public IP (flow 9). At most once a minute; every request is in the audit log. Nothing runs on a schedule or in the background.",
         "to": "`internetdb.shodan.io` (Shodan). No Vedette-run server",
         "control": "It is off until an administrator clicks: if nobody clicks, nothing is sent. Turn off the External exposure module to remove the button.",
         "link": "Open External exposure"

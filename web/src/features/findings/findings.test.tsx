@@ -519,7 +519,7 @@ describe('findings: accept risk until a day (D-498, S-MIT-1)', () => {
 })
 
 describe('findings: "I updated <software>" (D-499, S-MIT-1, item 14)', () => {
-  const device = (source: 'manual' | 'nmap', version = '7.2.0') => http.get('*/api/v1/inventory/devices/:id', () => HttpResponse.json({ asset: { id: 'a-srvad', software: [
+  const device = (source: 'manual' | 'nmap' | 'agent', version = '7.2.0') => http.get('*/api/v1/inventory/devices/:id', () => HttpResponse.json({ asset: { id: 'a-srvad', software: [
     { id: 's-srvad', display: 'FortiOS', vendor: 'Fortinet', product: 'FortiOS', version, source, confidence: 1, kev_cves: ['CVE-2026-96951'] },
   ] } }))
 
@@ -569,6 +569,16 @@ describe('findings: "I updated <software>" (D-499, S-MIT-1, item 14)', () => {
     expect(within(dlg).queryByLabelText('New version')).toBeNull()
     expect(within(dlg).getByText('Vedette reads this version from the device. Run a scan of SRV-AD to check.')).toBeInTheDocument()
     expect(within(dlg).getByRole('link', { name: 'Scan SRV-AD' })).toHaveAttribute('href', '/scans?target=a-srvad')
+  })
+
+  it('software an agent reads (the Windows row of osquery, D-546): no version box, no scan, the agent reports it', async () => {
+    server.use(device('agent'))
+    renderApp('/findings/f-3')
+    await userEvent.click(await screen.findByRole('button', { name: 'I updated it' }))
+    const dlg = await screen.findByRole('dialog', { name: 'I updated FortiOS' })
+    expect(within(dlg).queryByLabelText('New version')).toBeNull()
+    expect(within(dlg).queryByRole('link', { name: 'Scan SRV-AD' })).toBeNull()
+    expect(within(dlg).getByText(/^The agent on SRV-AD reports the new version by itself/)).toBeInTheDocument()
   })
 })
 

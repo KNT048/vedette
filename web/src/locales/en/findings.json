@@ -295,6 +295,7 @@
     "stillNone": "None still match this version.",
     "pending": "Vedette is checking the new version; this list updates in a moment.",
     "scanned": "Vedette reads this version from the device. Run a scan of {{device}} to check.",
+    "agent": "The agent on {{device}} reports the new version by itself, at most two hours after the update is installed. The findings the update fixes then close by themselves.",
     "scan": "Scan {{device}}"
   },
   "clearSeverity": "Clear {{severity}} filter",

@@ -85,9 +85,14 @@ func (s *Service) nodeKernel(ctx context.Context, n nodeRow, in logIn) (string, 
 
 // nodeWindows is the Windows release and update revision of the node (D-524): the one this request's os_revision snapshot gives,
 // stored on the node when it changed, else the one stored. Zero when the node never gave a usable one (Linux, an osquery older than
-// 5.12, a revision that is not a positive integer).
+// 5.12, a revision that is not a positive integer). A request whose os_version row is of another build than the stored one and that
+// gives no usable revision clears the stored one (D-546, review M2): the machine took a feature update, and its old release must
+// not stay its operating-system row until the next revision report; the device then has no Windows row for that while.
 func (s *Service) nodeWindows(ctx context.Context, n nodeRow, in logIn) (winOS, error) {
 	w, ok := parseWinOS(in.snaps["os_revision"])
+	if !ok && n.win.version != "" && !sameWinBuild(in.snaps, n.win) {
+		w, ok = winOS{}, true
+	}
 	if !ok || w == n.win {
 		return n.win, nil
 	}
@@ -393,7 +398,11 @@ func (s *Service) deliver(ctx context.Context, src netip.Addr, hint observe.Asse
 	if !s.allowReplace(ctx, src, node) {
 		return taken, nil
 	}
-	taken = append(taken, "packages")
+	// A Windows list without the operating system's row (its revision not reported yet) is not the first report's package answer:
+	// the first hour keeps asking for it, so the row comes within minutes, not with the next hourly list (D-546, review M3).
+	if len(in.snaps["programs"]) == 0 || in.snaps["windows_os"] != nil {
+		taken = append(taken, "packages")
+	}
 	if err := s.cfg.Software.ReplaceSoftware(ctx, hint, observe.Agent, items); err != nil {
 		if transient(err) {
 			return nil, fmt.Errorf("agentintake: software: %w", err)

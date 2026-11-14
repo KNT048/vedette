@@ -338,6 +338,10 @@ func osSoftwareID(assetID string) string { return "os:" + assetID }
 // readable version, all of whose KEV keys are the OS row's, gives way to it: the device's own version decides instead of
 // "add the version" (review M3 of #703).
 func deviceSoftware(a Asset) []Software {
+	return withoutCoveredWindows(deviceOSSoftware(a)) // D-546, review M4: the agent's Windows release row covers a person's "Windows 11"
+}
+
+func deviceOSSoftware(a Asset) []Software {
 	for _, d := range deviceOSes {
 		m := d.re.FindStringSubmatch(a.StatedOS)
 		if m == nil {

@@ -86,6 +86,12 @@ func FixedInFor(a Asset, v Vuln) *FixedIn {
 			continue
 		}
 		in := newSWInfo(s, a.OS)
+		if f, ok := windowsFixedIn(in, v); ok { // D-546
+			if rank(f) > rank(best) {
+				best = f
+			}
+			continue
+		}
 		if f := fixedInSoftware(in, v, key); rank(f) > rank(best) {
 			best = f
 		}
@@ -362,6 +368,9 @@ func FixedInForAll(a Asset, vulns []Vuln) map[string]*GroupFix {
 			}
 		}
 		g := groupFixOf(in, mine)
+		if _, ok := winDevice(in); ok {
+			g = windowsGroupFix(in, mine) // D-546
+		}
 		if g == nil {
 			continue
 		}

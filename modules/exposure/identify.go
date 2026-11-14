@@ -245,7 +245,26 @@ func (s *Service) identify(ctx context.Context, st ScanTarget, c Content) (Conte
 	if err != nil { // an IP target's value is a canonical public IPv4 (INV-2, INV-3): never reached
 		return c, fmt.Errorf("exposure: identifying services on %q: %w", st.Value, err)
 	}
-	return s.identifyIP(ctx, st, ip, c)
+	c, err = s.identifyIP(ctx, st, ip, c)
+	// N44-5: a port only service identification found (a deep scan probes every TCP port, the runner a fixed list) is an open port
+	// of the target too: the counts, the first sentence, the day diff, INV-22 and the outside view (INV-21) read the ports.
+	c.Ports = addServicePorts(c.Ports, c.Services, ip.String())
+	return c, err
+}
+
+// addServicePorts appends a PortRow for each service on ip whose port the rows do not have yet.
+func addServicePorts(ports []PortRow, services []ServiceRow, ip string) []PortRow {
+	have := map[string]bool{}
+	for _, p := range ports {
+		have[fmt.Sprintf("%s:%d", ipKey(p.IP), p.Port)] = true
+	}
+	for _, r := range services {
+		if k := fmt.Sprintf("%s:%d", r.IP, r.Port); !have[k] && r.IP == ip {
+			have[k] = true
+			ports = append(ports, PortRow{IP: r.IP, Port: r.Port, Service: r.Name, Product: strings.TrimSpace(r.Product + " " + r.Version)})
+		}
+	}
+	return ports
 }
 
 // identifyIP is service identification of one address, then its templates (INV-19, INV-23): an IP target's own address, or one address

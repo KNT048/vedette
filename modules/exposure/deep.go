@@ -444,16 +444,7 @@ func (s *Service) deepIP(ctx context.Context, st ScanTarget, a deepAddr, c *Cont
 	if sub, err = s.identifyIP(ctx, stD, a.ip, sub); err != nil {
 		return DeepIncomplete, err
 	}
-	have := map[string]bool{}
-	for _, p := range c.Ports {
-		have[fmt.Sprintf("%s:%d", ipKey(p.IP), p.Port)] = true
-	}
-	for _, r := range sub.Services { // an open port the deep scan found is an open port of the domain (counts, the day diff, INV-22)
-		if k := fmt.Sprintf("%s:%d", r.IP, r.Port); !have[k] && r.IP == a.ip.String() {
-			have[k] = true
-			c.Ports = append(c.Ports, PortRow{IP: r.IP, Port: r.Port, Service: r.Name, Product: strings.TrimSpace(r.Product + " " + r.Version)})
-		}
-	}
+	c.Ports = addServicePorts(c.Ports, sub.Services, a.ip.String()) // an open port the deep scan found is an open port of the domain (counts, the day diff, INV-22)
 	c.Services = append(c.Services, sub.Services...)
 	c.Scripts = append(c.Scripts, sub.Scripts...)
 	c.Templates = append(c.Templates, sub.Templates...)

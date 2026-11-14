@@ -125,6 +125,8 @@ func (a exposureTemplateScan) baselineInstead(ctx context.Context, t exposure.Sc
 // fullPortScan runs the deep templates of one port, appending to out what was sent and found.
 func (a exposureTemplateScan) fullPortScan(ctx context.Context, t exposure.ScanTarget, ip netip.Addr, ix *pack.Index, products map[string]bool, p fullPort, out *exposure.TemplateScan) error {
 	sent := map[string]bool{}
+	var silent []string // review r1 M1: handed to nuclei, no line printed: not run
+	handed := 0
 	run := func(tmpls []pack.Template) (map[string][]string, error) { // template id -> matcher names of its matching lines
 		found := map[string][]string{}
 		for c := range slices.Chunk(tmpls, nucleiargv.MaxFullTemplates) {
@@ -136,11 +138,12 @@ func (a exposureTemplateScan) fullPortScan(ctx context.Context, t exposure.ScanT
 			if len(c) == 0 {
 				continue
 			}
-			res, o, err := a.send(ctx, t.User, ip, ix, templateRun{port: p.port, target: p.target, tmpls: c, full: true, disruptive: m.Disruptive})
+			res, o, quiet, err := a.send(ctx, t.User, ip, ix, templateRun{port: p.port, target: p.target, tmpls: c, full: true, disruptive: m.Disruptive})
 			if err != nil {
 				return nil, err
 			}
 			out.Results = append(out.Results, res...)
+			silent, handed = append(silent, quiet...), handed+len(c)
 			for _, tp := range c {
 				sent[tp.ID] = true
 				out.Sent = append(out.Sent, tp.ID)
@@ -175,6 +178,9 @@ func (a exposureTemplateScan) fullPortScan(ctx context.Context, t exposure.ScanT
 		}
 	}
 	_, err = run(plan)
+	if len(silent) > 0 {
+		out.NotChecked = append(out.NotChecked, fmt.Sprintf(notRunFull, p.port, len(silent), handed))
+	}
 	return err
 }
 

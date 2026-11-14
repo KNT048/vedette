@@ -30,7 +30,7 @@ type Config struct {
 	Services  ServiceScanner  // nil: every scan of an IP says service identification is not set up (INV-19)
 	Templates TemplateScanner // nil: every scan of an IP says the safe exploited-vulnerability templates are not set up (INV-23)
 	Web       WebScanner      // nil: every scan says the passive web scan (ZAP) is not set up (INV-24)
-	Greenbone GreenboneHost   // nil: the setting and every scan of an IP say "Greenbone is not available on this box" (INV-25)
+	Greenbone GreenboneHost   // nil: the setting and every scan of an IP say NotAvailableGreenbone, "OpenVAS is not available on this box." (INV-25)
 	// DomainFence nil: a domain's deep scan (D-571) reaches only the box's own verified IP; every other public address of its names
 	// gets a "needs the domain fence" line and nothing more than the by-name checks.
 	DomainFence DomainFence

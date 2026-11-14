@@ -68,6 +68,11 @@ const (
 	// runSlow and runFailed are the lines of the runs that were not reported after earlier ones were kept (review M2, L2).
 	runSlow   = "Safe templates for exploited vulnerabilities did not finish within 5 minutes, so the ones that had not finished are not reported (%s)."
 	runFailed = "Safe templates for exploited vulnerabilities on port %d did not run: %s"
+	// notRunKEV and notRunFull are the lines of templates a finished run printed nothing for (review r1 M1): nuclei did not run them;
+	// notRunRequest starts their probe-log rows.
+	notRunKEV     = "Safe templates for exploited vulnerabilities on port %d: nuclei printed no result for %d of %d, so they did not run (%s)."
+	notRunFull    = "Deep templates on port %d: nuclei printed no result for %d of %d templates sent to it, so they did not run."
+	notRunRequest = "Not run (nuclei printed nothing for it): "
 )
 
 // templateRun is one nuclei job: at most nucleiargv.MaxTemplates templates on one port, or nucleiargv.MaxFullTemplates for a full
@@ -102,11 +107,14 @@ func (a exposureTemplateScan) scanBaseline(ctx context.Context, t exposure.ScanT
 	runs, notes := templateRuns(ix, ip, jobs)
 	out := exposure.TemplateScan{NotChecked: notes}
 	for i, r := range runs {
-		res, err := a.runOne(ctx, t.User, ip, ix, r)
+		res, silent, err := a.runOne(ctx, t.User, ip, ix, r)
 		if err == nil {
 			out.Results = append(out.Results, res...)
-			for _, tp := range r.tmpls {
+			for _, tp := range r.tmpls { // handed to nuclei and logged; the ones it did not run are counted below
 				out.Sent = append(out.Sent, tp.ID)
+			}
+			if len(silent) > 0 {
+				out.NotChecked = append(out.NotChecked, fmt.Sprintf(notRunKEV, r.port, len(silent), len(r.tmpls), namesOf(silent)))
 			}
 			continue
 		}
@@ -181,21 +189,22 @@ func templateRuns(ix *pack.Index, ip netip.Addr, jobs []exposure.TemplateJob) (r
 
 // runOne is one run, in this order: the gate (obligation 1), the probe rows with the real template ids (obligation 2, LEGAL §3),
 // the job, the results with their CVE (obligation 3), the probe rows completed.
-func (a exposureTemplateScan) runOne(ctx context.Context, actor string, ip netip.Addr, ix *pack.Index, r templateRun) ([]exposure.TemplateResult, error) {
-	res, _, err := a.send(ctx, actor, ip, ix, r)
-	return res, err
+func (a exposureTemplateScan) runOne(ctx context.Context, actor string, ip netip.Addr, ix *pack.Index, r templateRun) ([]exposure.TemplateResult, []string, error) {
+	res, _, silent, err := a.send(ctx, actor, ip, ix, r)
+	return res, silent, err
 }
 
 // send is runOne with the parsed lines of the run too (a full run reads the matcher names of the technologies templates, D-527).
-func (a exposureTemplateScan) send(ctx context.Context, actor string, ip netip.Addr, ix *pack.Index, r templateRun) ([]exposure.TemplateResult, nucleiout.Outcome, error) {
+// silent are the templates nuclei printed nothing for (not run, review r1 M1).
+func (a exposureTemplateScan) send(ctx context.Context, actor string, ip netip.Addr, ix *pack.Index, r templateRun) (res []exposure.TemplateResult, got nucleiout.Outcome, silent []string, err error) {
 	ok, err := a.gate(ctx, actor, ip)
 	switch {
 	case ctx.Err() != nil:
-		return nil, nucleiout.Outcome{}, ctx.Err()
+		return nil, nucleiout.Outcome{}, nil, ctx.Err()
 	case err != nil:
-		return nil, nucleiout.Outcome{}, fmt.Errorf("vedette: checking that %s may still be scanned: %w", ip, err)
+		return nil, nucleiout.Outcome{}, nil, fmt.Errorf("vedette: checking that %s may still be scanned: %w", ip, err)
 	case !ok:
-		return nil, nucleiout.Outcome{}, &exposure.Unavailable{Reason: fmt.Sprintf(templatesNotOwn, ip)}
+		return nil, nucleiout.Outcome{}, nil, &exposure.Unavailable{Reason: fmt.Sprintf(templatesNotOwn, ip)}
 	}
 	rate, depth, what := nucleiargv.OwnIPRate, "", "own IP"
 	if r.full { // FULL-4 (D-527)
@@ -213,30 +222,43 @@ func (a exposureTemplateScan) send(ctx context.Context, actor string, ip netip.A
 	}
 	if err := a.probes(ctx, rows); err != nil {
 		if ctx.Err() != nil {
-			return nil, nucleiout.Outcome{}, ctx.Err()
+			return nil, nucleiout.Outcome{}, nil, ctx.Err()
 		}
 		a.log.ErrorContext(ctx, "exposure: writing the probe log of the safe templates failed", "ip", ip.String(), "error", err)
-		return nil, nucleiout.Outcome{}, &exposure.Unavailable{Reason: templatesNoLog}
+		return nil, nucleiout.Outcome{}, nil, &exposure.Unavailable{Reason: templatesNoLog}
 	}
-	got, err := a.run(ctx, sensoractive.NucleiRequest{PackVersion: ix.Version, PackSHA256: ix.SHA256, Templates: ids,
+	got, err = a.run(ctx, sensoractive.NucleiRequest{PackVersion: ix.Version, PackSHA256: ix.SHA256, Templates: ids,
 		Targets: []nucleiargv.Target{r.target}, Rate: rate, MaxHostErrors: templatesHostErrors, Scope: nucleiargv.ScopeOwnIP,
 		Depth: depth, Disruptive: r.full && r.disruptive})
 	if err != nil {
-		return nil, nucleiout.Outcome{}, templatesErr(ctx, ip, err)
+		return nil, nucleiout.Outcome{}, nil, templatesErr(ctx, ip, err)
 	}
-	res := outcomes(r, got)
+	res = outcomes(r, got)
+	// N44-4, review r1 M1: with -ms nuclei prints a line for every template it executes (a failure line when nothing matched), so a
+	// template of a finished run with no line and no unreachable target (outcomes gives it no result) was not run: dropped at load or
+	// not parsed. Its probe row says so and keeps no_response (the probe log has no "not run" result; scan migration, deferred), and
+	// the caller adds a "Not checked" line (it stays in Sent: it was logged and handed to nuclei). "No match reported" is only a template nuclei says it ran.
 	for i := range rows {
 		rows[i].Result = ""
+		ran := false
 		for _, x := range res {
 			if x.Template == rows[i].Template {
+				ran = true
 				rows[i].Result = map[string]string{exposure.OutcomeMatched: "matched", exposure.OutcomeNoMatch: "not_matched"}[x.Outcome]
 			}
 		}
+		if !ran {
+			silent = append(silent, rows[i].Template)
+			rows[i].Request = notRunRequest + rows[i].Request
+		}
+	}
+	if len(silent) > 0 {
+		a.log.WarnContext(ctx, "exposure: nuclei printed nothing for templates of a finished run, so they did not run", "ip", ip.String(), "port", r.port, "not_run", len(silent), "of", len(rows), "full", r.full)
 	}
 	if err := a.probes(context.WithoutCancel(ctx), rows); err != nil { // the rows stay "sent, no answer": the results still count
 		a.log.WarnContext(ctx, "exposure: completing the probe log of the safe templates failed", "ip", ip.String(), "error", err)
 	}
-	return res, got, nil
+	return res, got, silent, nil
 }
 
 // outcomes reads a run's parsed lines (nucleiout already kept only the job's templates and target, fail closed) into one result per

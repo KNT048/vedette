@@ -336,3 +336,80 @@ func TestContract_INV20_DiffVersionNotRead(t *testing.T) {
 		t.Fatalf("version read again: %+v", d)
 	}
 }
+
+// N44-5: a port that only service identification found (the deep scan's nmap probes every TCP port; the runner a fixed list) is an
+// open port of the snapshot, so the counts, the first sentence and the outside view (INV-21 scan_ports) name it.
+func TestServicePortsAreOpenPorts(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	deep := false
+	e.terms = &deep
+	e.svc.cfg.Services = &fakeServices{scan: ServiceScan{Ports: 65535, Services: []ServiceRow{
+		{IP: ipA, Port: 5060, Name: "sip"}, {IP: ipA, Port: 10022, Name: "ssh", Product: "OpenSSH", Version: "9.6p1"}, {IP: ipA, Port: 2000, Name: "cisco-sccp"}}}}
+	s := e.scanIP(Content{Ports: []PortRow{{IP: ipA, Port: 5060, Service: "sip"}}})
+	var got []int
+	for _, p := range s.Ports {
+		got = append(got, p.Port)
+	}
+	if !slices.Equal(got, []int{5060, 10022, 2000}) || s.Counts.Ports != 3 || s.Ports[1].Product != "OpenSSH 9.6p1" {
+		t.Fatalf("ports %+v counts %+v", s.Ports, s.Counts)
+	}
+}
+
+// matchSSH is a Matcher that names one exploited CVE on each OpenSSH service it is given.
+type matchSSH struct{}
+
+func (matchSSH) Match(_ context.Context, ss []ServiceRow) (Matches, error) {
+	m := Matches{Compared: len(ss), Listed: 1500, Vulns: []VulnRow{}}
+	for _, s := range ss {
+		if s.Product == "OpenSSH" {
+			m.Vulns = append(m.Vulns, VulnRow{IP: s.IP, Port: s.Port, CVE: "CVE-2026-123158", Name: "OpenSSH", Basis: "version", Summary: "In range."})
+		}
+	}
+	return m, nil
+}
+
+// review r1 M2: a port only a deep scan found (10022, outside the fixed list) is kept, unchecked, with its service and exploited CVE,
+// by scans that do not probe every port (here: the terms withdrawn); it is never "missed" or closed by them.
+func TestDeepOnlyPortIsKeptByScansThatDoNotProbeIt(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	deep := false
+	e.terms = &deep
+	e.svc.cfg.Matcher = matchSSH{}
+	sv := &fakeServices{scan: ServiceScan{Ports: 65535, Services: []ServiceRow{
+		{IP: ipA, Port: 5060, Name: "sip"}, {IP: ipA, Port: 10022, Name: "ssh", Product: "OpenSSH", Version: "9.6p1"}}}}
+	e.svc.cfg.Services = sv
+	first := e.scanIP(Content{Ports: []PortRow{{IP: ipA, Port: 5060, Service: "sip"}}})
+	if len(first.Ports) != 2 || len(first.Vulns) != 1 {
+		t.Fatalf("deep scan: ports %+v vulns %+v", first.Ports, first.Vulns)
+	}
+	ts, err := e.svc.Targets(e.ctx())
+	if err != nil || len(ts) != 1 {
+		t.Fatal(ts, err)
+	}
+	if _, err := e.svc.RevokeTerms(e.ctx(), "admin@acme.example", ts[0].ID); err != nil {
+		t.Fatal(err)
+	}
+	sv.scan = ServiceScan{Ports: 98, Services: []ServiceRow{{IP: ipA, Port: 5060, Name: "sip"}}}
+	for i := range 2 {
+		e.advance(day)
+		s, err := e.svc.Scan(e.ctx(), "admin@acme.example", ts[0].ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		got, err := e.svc.SnapshotOf(e.ctx(), ts[0].ID, s.Date)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var p PortRow
+		for _, x := range got.Ports {
+			if x.Port == 10022 {
+				p = x
+			}
+		}
+		if p.Port != 10022 || !p.Unchecked || p.Misses != 0 || len(got.Vulns) != 1 || got.Vulns[0].Port != 10022 {
+			t.Fatalf("non-deep scan %d: port %+v, ports %+v, vulns %+v", i+1, p, got.Ports, got.Vulns)
+		}
+	}
+}

@@ -52,6 +52,9 @@ func TestOwnIPTemplatesOfTheCommittedPack(t *testing.T) {
 		"CVE-2020-36333",                   // resets a WordPress site by GET
 		"CVE-2022-36804",                   // a command by GET
 		"CVE-2021-41773", "CVE-2021-42013", // a POST that runs a command after the GETs
+		"CVE-2025-2636",  // an SQL comment injection by GET that dumps wp_users (review round 2 M1)
+		"CVE-2024-52875", // a CRLF header injection and a base64 <script> by GET
+		"CVE-2024-11740", // a shortcode injection through %27 by GET
 	} {
 		tp, ok := byID[id]
 		if !ok {

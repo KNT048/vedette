@@ -144,7 +144,7 @@ Today the request waits up to 5 minutes, and nmap, nuclei and ZAP add minutes mo
   - **kien decides** the template classes.
   - At most 300 templates; measure nuclei RSS.
 - **N100:** on the same httpd 2.4.49 forward, CVE-2021-41773 becomes "confirmed by template", and the probe log lists each template id.
-  - **D-520 changes this acceptance:** only read-only templates run on a public IP, and the CVE-2021-41773/-42013 templates end with a POST that runs a command, so on httpd 2.4.49 the page now says "not run on a public IP: this check is not a read-only request". The acceptance needs a KEV service whose template is marked `own_ip` (196 of 988, for example a GET file read); the lead picks it.
+  - **D-520 changes this acceptance:** only read-only templates run on a public IP, and the CVE-2021-41773/-42013 templates end with a POST that runs a command, so on httpd 2.4.49 the page now says "not run on a public IP: this check is not a read-only request". The acceptance needs a KEV service whose template is marked `own_ip` (186 of 988, for example a GET file read); the lead picks it.
 
 ### Slice c: ZAP baseline one-shot container for web ports ([T] host + image pin)
 - **Host op:** a new vedette-host operation `zap.baseline` with fixed argv: `podman run --rm --pull=never --network vedette-zap --add-host <name>:<ip> --cap-drop ALL --read-only --tmpfs /zap/wrk --memory=1g --pids-limit=256 <digest> zap-baseline.py -t <url> -m 1 -T 5 -J out.json -z "-silent -config spider.processform=false -config spider.postform=false"`.

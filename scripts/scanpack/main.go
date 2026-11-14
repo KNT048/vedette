@@ -249,7 +249,11 @@ func build(src, out, version string) (Report, error) {
 	_, _ = fmt.Fprintf(label, "%s\n", version) // a hash.Hash never fails to write
 	ix := pack.Index{Version: version}
 	for _, k := range all {
-		_, _ = fmt.Fprintf(label, "%s\t%s\n", k.tpl.Path, k.tpl.SHA256)
+		mark := "" // the own_ip mark is part of what the label covers (review round 2 L2)
+		if k.tpl.OwnIP {
+			mark = "\town_ip"
+		}
+		_, _ = fmt.Fprintf(label, "%s\t%s%s\n", k.tpl.Path, k.tpl.SHA256, mark)
 		ix.Templates = append(ix.Templates, k.tpl)
 		dst := filepath.Join(out, "templates", filepath.FromSlash(k.tpl.Path))
 		if err := os.MkdirAll(filepath.Dir(dst), 0o750); err != nil {
@@ -344,8 +348,9 @@ var credName = regexp.MustCompile(`(?i)auth|cookie|token|key|session|secret|pass
 
 // ownIPSafe is the D-520 decision for one template that qualified: may it run on the box's own public IP? Conservative (the lead's
 // rule): only http checks under http/, every request GET or HEAD with no body (raw requests read line by line, path requests by
-// their method key), no header or variable that carries a credential, no refused tag (pack.OwnIPRefusedTag), and the file passes
-// the worker's own text check (pack.OwnIPText), so the worker never refuses what the builder allowed.
+// their method key), no header or variable that carries a credential, no injection-shaped payload in a request target or header
+// value (pack.RequestPayloadOK), no refused tag (pack.OwnIPRefusedTag), and the file passes the worker's own text check
+// (pack.OwnIPText), so the worker never refuses what the builder allowed.
 func ownIPSafe(rel string, doc map[string]any, tags []string, body []byte) bool {
 	if !strings.HasPrefix(rel, "http/") || doc["tcp"] != nil || doc["ssl"] != nil || slices.ContainsFunc(tags, pack.OwnIPRefusedTag) || pack.OwnIPText(body) != nil {
 		return false
@@ -378,18 +383,25 @@ func ownIPSafe(rel string, doc map[string]any, tags []string, body []byte) bool 
 			if !ok {
 				return false
 			}
-			for k := range hm {
-				if credName.MatchString(k) {
+			for k, v := range hm {
+				vs, _ := v.(string)
+				if credName.MatchString(k) || pack.RequestPayloadOK(vs) != nil {
 					return false
 				}
 			}
 		}
 		raws, hasRaw := m["raw"].([]any)
-		_, hasPath := m["path"].([]any)
+		paths, hasPath := m["path"].([]any)
 		switch {
 		case hasRaw == hasPath: // exactly one way of making requests
 			return false
 		case hasPath:
+			for _, p := range paths {
+				ps, ok := p.(string)
+				if !ok || pack.RequestPayloadOK(ps) != nil { // review round 2 M1: no injection-shaped payload in a GET
+					return false
+				}
+			}
 			if meth, has := m["method"]; has {
 				ms, _ := meth.(string)
 				if !strings.EqualFold(ms, "GET") && !strings.EqualFold(ms, "HEAD") {
@@ -422,13 +434,13 @@ func rawGetOnly(r string) bool {
 	if i == len(lines) {
 		return false
 	}
-	method, _, _ := strings.Cut(strings.TrimSpace(lines[i]), " ")
-	if method != "GET" && method != "HEAD" {
+	f := strings.Fields(lines[i])
+	if len(f) < 2 || f[0] != "GET" && f[0] != "HEAD" || pack.RequestPayloadOK(f[1]) != nil {
 		return false
 	}
 	for i++; i < len(lines) && strings.TrimSpace(lines[i]) != ""; i++ {
-		name, _, ok := strings.Cut(lines[i], ":")
-		if !ok || credName.MatchString(name) {
+		name, value, ok := strings.Cut(lines[i], ":")
+		if !ok || credName.MatchString(name) || pack.RequestPayloadOK(strings.TrimSpace(value)) != nil {
 			return false
 		}
 	}

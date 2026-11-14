@@ -308,7 +308,7 @@ func TestContract_INV23_GateRunsAgainBeforeTheTemplates(t *testing.T) {
 }
 
 // D-520: the scanner's own "Not checked" sentences (a CVE whose template is not a read-only request, a run that did not finish) are
-// shown next to the results it kept, at most maxTemplateNotes of them.
+// shown next to the results it kept, at most maxTemplateNotes of them, the last saying how many more there were.
 func TestContract_INV23_ScannerNotCheckedLines(t *testing.T) {
 	t.Parallel()
 	e, f := tplEnv(t)
@@ -325,6 +325,7 @@ func TestContract_INV23_ScannerNotCheckedLines(t *testing.T) {
 		}
 	}
 	if vulnOf(s, "CVE-2021-41773").Basis != "template" || n != maxTemplateNotes ||
+		!slices.ContainsFunc(s.NotChecked, func(r NotCheckedRow) bool { return strings.HasSuffix(r.Text, "and 4 more lines like these.") }) ||
 		!slices.ContainsFunc(s.NotChecked, func(r NotCheckedRow) bool { return strings.Contains(r.Text, "not a read-only request") }) {
 		t.Fatalf("%d lines: %+v", n, s.NotChecked)
 	}

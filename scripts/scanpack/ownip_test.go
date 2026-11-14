@@ -32,6 +32,10 @@ func TestOwnIPDecision(t *testing.T) {
 		"tag ssrf":                                        strings.Replace(httpKEV, "tags: cve,", "tags: ssrf,cve,", 1),
 		"an unknown http key":                             strings.Replace(httpKEV, "  - method: GET\n", "  - method: GET\n    unsafe: true\n", 1),
 		"a third-party request":                           strings.Replace(httpKEV, "login.esp", "x?url=http://oast.me", 1),
+		"an SQL comment in a path":                        strings.Replace(httpKEV, "login.esp", "x?t=wp_users--%20-", 1),
+		"a quote in a raw target":                         strings.Replace(rawGet, "GET /icons/.%2e/etc/passwd", "GET /?x=%27]", 1),
+		"a script in a header value":                      strings.Replace(httpKEV, "  - method: GET\n", "  - method: GET\n    headers:\n      Referer: \"<script>\"\n", 1),
+		"a crlf tag":                                      strings.Replace(httpKEV, "tags: cve,", "tags: crlf,cve,", 1),
 		"a network check":                                 strings.Replace(httpKEV, "http:\n  - method: GET\n    path:\n      - \"{{BaseURL}}/global-protect/login.esp\"\n", "tcp:\n  - host:\n      - \"{{Hostname}}\"\n    inputs:\n      - data: \"GET / HTTP/1.0\\r\\n\\r\\n\"\n", 1),
 	}
 	for name, text := range allowed {

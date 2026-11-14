@@ -59,10 +59,15 @@ func TestTheCommittedIndexIsThePinnedPack(t *testing.T) {
 	if ix.Version != pins["SCAN_PACK_VERSION"] {
 		t.Errorf("index version %s, pins.env SCAN_PACK_VERSION %s", ix.Version, pins["SCAN_PACK_VERSION"])
 	}
-	// the label of scripts/scanpack: sha256 of the version line, then "path<TAB>sha256" per template sorted by path
+	// the label of scripts/scanpack: sha256 of the version line, then "path<TAB>sha256" (with "<TAB>own_ip" when marked, D-520) per
+	// template sorted by path
 	lines := make([]string, 0, len(ix.Templates))
 	for _, tpl := range ix.Templates {
-		lines = append(lines, tpl.Path+"\t"+tpl.SHA256+"\n")
+		mark := ""
+		if tpl.OwnIP {
+			mark = "\town_ip"
+		}
+		lines = append(lines, tpl.Path+"\t"+tpl.SHA256+mark+"\n")
 	}
 	sort.Strings(lines)
 	h := sha256.New()

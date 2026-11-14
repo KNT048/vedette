@@ -165,3 +165,26 @@ func TestOwnIPText(t *testing.T) {
 		t.Error("an rce entry marked own_ip accepted")
 	}
 }
+
+// Review round 2 M1: a request target or header value with an injection-shaped payload is refused, plain or percent-encoded; the
+// read-only file reads of the pack pass.
+func TestRequestPayloadOK(t *testing.T) {
+	t.Parallel()
+	for _, ok := range []string{"{{BaseURL}}/remote/fgt_lang?lang=/../../../..//////////dev/cmdb/sslvpn_websession", "/vpn/../vpns/cfg/smb.conf",
+		"{{BaseURL}}/static/link/%2e%2e/etc/passwd", "{{Hostname}}", "*/*"} {
+		if err := RequestPayloadOK(ok); err != nil {
+			t.Errorf("%s refused: %v", ok, err)
+		}
+	}
+	for _, bad := range []string{
+		"/?instawp-database-manager=x&table_name=wp_users--%20-", "/?__wpdmxp=%27][/wpdm_package]", "/a?b='x'", "/a?b=%22x",
+		"/a?b=1;id", "/a?b=1%3bid", "/a?b=%0d%0aSet-Cookie:x", `/a?b=\r\nX`, "/a?q=<script>alert(1)</script>", "/a?q=%3cscript%3e",
+		"/a?u=javascript:alert(1)", "/nonauth/guestConfirm.cs?dest=Cgo8c2NyaXB0PmFsZXJ0KGRvY3VtZW50LmRvbWFpbik8L3NjcmlwdD4%3d",
+		"/a?id=1 UNION SELECT 1", "/a?id=1%20union%20select%201", "/a?x=sleep(5)", "/a?x=benchmark(1,md5(1))", "/a/{{randstr}}",
+		"/a?x=${7*7}", "/a?x=#{7*7}", "/a?x={{7*7}}", "/a?x={{", "/a?x=%252d%252d",
+	} {
+		if RequestPayloadOK(bad) == nil {
+			t.Errorf("%s accepted", bad)
+		}
+	}
+}

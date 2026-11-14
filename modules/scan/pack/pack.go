@@ -7,6 +7,7 @@
 package pack
 
 import (
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"regexp"
@@ -135,7 +136,7 @@ func (t Template) check() error {
 
 // ownIPRefusedParts refuse a tag that contains them (conservative: "commerce" or "salesforce" are refused for "rce" too).
 var ownIPRefusedParts = []string{"sqli", "injection", "xss", "ssti", "rce", "login", "brute", "upload", "write", "deserializ", "password",
-	"passwd", "reset", "cmdi", "jndi", "auth", "credential", "creds", "intrusive", "fuzz", "dos", "ssrf"}
+	"passwd", "reset", "cmdi", "jndi", "auth", "credential", "creds", "intrusive", "fuzz", "dos", "ssrf", "crlf"}
 
 // OwnIPRefusedTag says whether a template with this tag may never run on the box's own public IP (D-559 K-6, D-520): a tag of
 // nucleiargv.OwnIPForbiddenTags, or one that contains a part of ownIPRefusedParts.
@@ -172,9 +173,32 @@ func OwnIPText(body []byte) error {
 			return fmt.Errorf("it holds %q", m)
 		}
 	}
+	inHeaders := false // the lines after a raw request line, up to the blank line, are its headers
 	for _, l := range strings.Split(string(body), "\n") {
-		if m := rawLineRE.FindStringSubmatch(l); m != nil && m[1] != "GET" && m[1] != "HEAD" {
-			return fmt.Errorf("a %s request", m[1])
+		t := strings.TrimSpace(l)
+		if m := rawLineRE.FindStringSubmatch(l); m != nil {
+			if m[1] != "GET" && m[1] != "HEAD" {
+				return fmt.Errorf("a %s request", m[1])
+			}
+			if err := RequestPayloadOK(strings.Fields(t)[1]); err != nil {
+				return err
+			}
+			inHeaders = true
+			continue
+		}
+		switch {
+		case t == "" || strings.HasPrefix(t, "- |") || strings.HasSuffix(t, ":"):
+			inHeaders = false
+		case inHeaders:
+			if _, v, ok := strings.Cut(t, ":"); ok {
+				if err := RequestPayloadOK(strings.TrimSpace(v)); err != nil {
+					return fmt.Errorf("a header: %w", err)
+				}
+			}
+		case strings.Contains(t, "{{BaseURL}}") || strings.Contains(t, "{{RootURL}}"): // a path entry
+			if err := RequestPayloadOK(strings.Trim(strings.TrimSpace(strings.TrimPrefix(t, "-")), `"'`)); err != nil {
+				return err
+			}
 		}
 		if m := methodRE.FindStringSubmatch(l); m != nil && !strings.EqualFold(m[1], "GET") && !strings.EqualFold(m[1], "HEAD") {
 			return fmt.Errorf("method %q", m[1])
@@ -187,6 +211,81 @@ func OwnIPText(body []byte) error {
 		}
 	}
 	return nil
+}
+
+// nucleiVars are the only {{…}} expressions a request of an own_ip template may hold: nuclei's own address variables.
+var nucleiVars = []string{"{{BaseURL}}", "{{RootURL}}", "{{Hostname}}"}
+
+var (
+	exprRE   = regexp.MustCompile(`\{\{[^}]*\}\}`)
+	sqlRE    = regexp.MustCompile(`\b(union|select)\b`)
+	base64RE = regexp.MustCompile(`[A-Za-z0-9+/_-]{8,}={0,2}`)
+)
+
+// RequestPayloadOK refuses a request target (path and query) or a header value that carries an injection-shaped payload (D-520,
+// review round 2 M1), on the text and on its percent-decoded form: a quote, a "--" comment, a ";" in the query, a CR or LF, a
+// script or javascript: (also inside a base64 blob), SQL words (union, select, sleep(, benchmark(), a template expression other
+// than nuclei's address variables, ${ or #{. Conservative: false refusals are accepted.
+func RequestPayloadOK(s string) error {
+	for _, e := range exprRE.FindAllString(s, -1) {
+		if !slices.Contains(nucleiVars, e) {
+			return fmt.Errorf("the expression %.40q", e)
+		}
+	}
+	if strings.Count(s, "{{") != len(exprRE.FindAllString(s, -1)) {
+		return errors.New("an unclosed expression")
+	}
+	if strings.Contains(s, `\r`) || strings.Contains(s, `\n`) {
+		return errors.New("a CR or LF")
+	}
+	d := strings.ToLower(percentDecode(percentDecode(s)))
+	if _, q, ok := strings.Cut(d, "?"); ok && strings.Contains(q, ";") {
+		return errors.New("a ; in the query")
+	}
+	for _, m := range []string{"'", `"`, "`", "--", "\r", "\n", "<script", "javascript:", "sleep(", "benchmark(", "${", "#{"} {
+		if strings.Contains(d, m) {
+			return fmt.Errorf("%q", m)
+		}
+	}
+	if sqlRE.MatchString(d) {
+		return errors.New("an SQL word")
+	}
+	for _, tok := range base64RE.FindAllString(percentDecode(percentDecode(s)), -1) {
+		for _, enc := range []*base64.Encoding{base64.StdEncoding, base64.RawStdEncoding, base64.URLEncoding, base64.RawURLEncoding} {
+			if b, err := enc.DecodeString(tok); err == nil {
+				if l := strings.ToLower(string(b)); strings.Contains(l, "<script") || strings.Contains(l, "javascript:") {
+					return errors.New("a script in base64")
+				}
+			}
+		}
+	}
+	return nil
+}
+
+// percentDecode decodes %XX escapes and leaves anything else as it is.
+func percentDecode(s string) string {
+	var b strings.Builder
+	for i := 0; i < len(s); i++ {
+		if s[i] == '%' && i+2 < len(s) && isHex(s[i+1]) && isHex(s[i+2]) {
+			b.WriteByte(unhex(s[i+1])<<4 | unhex(s[i+2]))
+			i += 2
+			continue
+		}
+		b.WriteByte(s[i])
+	}
+	return b.String()
+}
+
+func isHex(c byte) bool { return '0' <= c && c <= '9' || 'a' <= c && c <= 'f' || 'A' <= c && c <= 'F' }
+
+func unhex(c byte) byte {
+	switch {
+	case c <= '9':
+		return c - '0'
+	case c >= 'a':
+		return c - 'a' + 10
+	}
+	return c - 'A' + 10
 }
 
 // RunsUnderProtocols says whether a template path sits in a directory of a protocol nuclei runs (-pt http,tcp,ssl in

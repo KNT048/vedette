@@ -195,7 +195,11 @@ func (s *Service) runTemplates(ctx context.Context, st ScanTarget, ip netip.Addr
 		rows, notKept := sanitizeTemplateResults(res.Results, jobs)
 		c.Templates = templateRows(c.Services, ip, rows)
 		c.Checks = append(c.Checks, CheckRow{Kind: "templates", At: store.FormatTS(s.clock()), Text: templatesLine(jobs, rows, sentIDs(res.Sent), notKept)})
-		for _, n := range res.NotChecked[:min(len(res.NotChecked), maxTemplateNotes)] { // D-520: why some CVEs have no result
+		notes := res.NotChecked            // D-520: why some CVEs have no result
+		if len(notes) > maxTemplateNotes { // the last line says how many were left out (review round 2 L3)
+			notes = append(notes[:maxTemplateNotes-1:maxTemplateNotes-1], fmt.Sprintf("Safe templates for exploited vulnerabilities: and %d more lines like these.", len(notes)-maxTemplateNotes+1))
+		}
+		for _, n := range notes {
 			c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "templates", Text: clipText(n, maxLineText)})
 		}
 	case ctx.Err() != nil:

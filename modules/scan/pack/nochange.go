@@ -121,6 +121,40 @@ func notThirdParty(h string) bool {
 	return a.IsLoopback() || a.IsPrivate() || a.IsLinkLocalUnicast() || a.IsUnspecified() || netip.MustParsePrefix("100.64.0.0/10").Contains(a)
 }
 
+// ThirdPartyHost says whether a host (a name or address, with or without a port, IPv6 in brackets) is a party on the Internet other
+// than the job's address (notThirdParty).
+func ThirdPartyHost(h string) bool {
+	h = strings.ToLower(strings.TrimSpace(h))
+	if strings.HasPrefix(h, "[") {
+		h, _, _ = strings.Cut(h, "]")
+		h = strings.TrimPrefix(h, "[")
+	} else if j := strings.LastIndexByte(h, ':'); j > 0 && strings.Count(h, ":") == 1 {
+		h = h[:j]
+	}
+	return !notThirdParty(h)
+}
+
+// userinfoHost is the part of a URL's userinfo a lenient parser could read as the host: the user name without bytes outside
+// printable ASCII, when it holds a dot or such a byte; "" otherwise (a plain user name such as "admin").
+func userinfoHost(userinfo string) string {
+	user, _, _ := strings.Cut(userinfo, ":")
+	odd := false
+	clean := strings.Map(func(r rune) rune {
+		if r < 0x21 || r > 0x7e {
+			odd = true
+			return -1
+		}
+		return r
+	}, user)
+	if !odd && !strings.Contains(clean, ".") || clean == "" {
+		return ""
+	}
+	return clean
+}
+
+// PercentDecode decodes %XX escapes twice (a request part as a server would read it after a second decoding).
+func PercentDecode(s string) string { return percentDecode(percentDecode(s)) }
+
 // ThirdPartyURL is the first absolute URL in a request part whose host is a party on the Internet other than the job's address
 // (notThirdParty), also inside a base64 token, or "".
 func ThirdPartyURL(part string) string {
@@ -129,18 +163,16 @@ func ThirdPartyURL(part string) string {
 		for _, m := range absURLRE.FindAllStringSubmatch(s, -1) {
 			host := strings.ToLower(m[2])
 			if i := strings.LastIndexByte(host, '@'); i >= 0 {
+				// review kev r1 H-2: a parser may take the userinfo for the host (http://oast.me%EF%BF%BD@localhost), so a
+				// userinfo that holds a dot name or a byte outside printable ASCII is checked as a host too
+				if u := userinfoHost(host[:i]); u != "" && ThirdPartyHost(u) {
+					return m[0]
+				}
 				host = host[i+1:]
 			}
-			if strings.HasPrefix(host, "[") {
-				host, _, _ = strings.Cut(host, "]")
-				host = strings.TrimPrefix(host, "[")
-			} else if j := strings.LastIndexByte(host, ':'); j > 0 {
-				host = host[:j]
+			if ThirdPartyHost(host) {
+				return m[0]
 			}
-			if notThirdParty(host) {
-				continue
-			}
-			return m[0]
 		}
 		return ""
 	}

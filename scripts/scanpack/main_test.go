@@ -11,6 +11,8 @@ import (
 	"strings"
 	"testing"
 
+	"go.yaml.in/yaml/v3"
+
 	"github.com/knt048/vedette/modules/scan/pack"
 )
 
@@ -100,6 +102,15 @@ func readFile(t *testing.T, p string) []byte {
 	return b
 }
 
+func mustYAML(t *testing.T, text string) map[string]any {
+	t.Helper()
+	var doc map[string]any
+	if err := yaml.Unmarshal([]byte(text), &doc); err != nil {
+		t.Fatal(err)
+	}
+	return doc
+}
+
 func sum(s string) string {
 	h := sha256.Sum256([]byte(s))
 	return hex.EncodeToString(h[:])
@@ -146,11 +157,11 @@ func TestBuildKeepsOnlySafeKEVTemplates(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	rep, err := build(src, out, "2026.11.1")
+	rep, err := buildWith(src, out, "2026.11.1", allowAny) // every fixture read: this test is about the other rules
 	if err != nil {
 		t.Fatal(err)
 	}
-	if rep.Kept != 3 {
+	if rep.Kept != 2 || rep.Left["destination"] != 1 { // D-528: the tcp template names its own port (27017), and is not reviewed
 		t.Fatalf("kept %d templates, report %+v", rep.Kept, rep)
 	}
 	if b, err := os.ReadFile(filepath.Join(out, "LICENSE-nuclei-templates.md")); err != nil || string(b) != "MIT License" { //nolint:gosec // a test file under t.TempDir()
@@ -161,7 +172,7 @@ func TestBuildKeepsOnlySafeKEVTemplates(t *testing.T) {
 	if err != nil {
 		t.Fatalf("the index does not pass pack.Parse: %v", err)
 	}
-	if ix.Version != "2026.11.1" || len(ix.Templates) != 3 {
+	if ix.Version != "2026.11.1" || len(ix.Templates) != 2 {
 		t.Fatalf("index = %+v", ix)
 	}
 	for _, tpl := range ix.Templates {
@@ -176,8 +187,8 @@ func TestBuildKeepsOnlySafeKEVTemplates(t *testing.T) {
 	if got := ix.ForCVE("CVE-2022-27593"); len(got) != 1 || got[0].Request != "GET /photo/p/api/video.php HTTP/1.1" {
 		t.Errorf("request line of the raw template = %+v", got)
 	}
-	if got := ix.ForCVE("CVE-2025-14847"); len(got) != 1 || !strings.HasPrefix(got[0].Request, "TCP {{Hostname}}:27017") {
-		t.Errorf("request line of the tcp template = %+v", got)
+	if got := requestOf(mustYAML(t, tcpKEV)); !strings.HasPrefix(got, "TCP {{Hostname}}:27017") {
+		t.Errorf("request line of the tcp template = %q", got)
 	}
 	// nothing but regular files and directories (the worker refuses anything else, anywhere in the tree)
 	err = filepath.WalkDir(filepath.Join(out, "templates"), func(p string, d os.DirEntry, err error) error {
@@ -210,7 +221,7 @@ func TestBuildIsDeterministic(t *testing.T) {
 	write(t, src, "http/cves/2022/CVE-2022-27593.yaml", rawKEV)
 	a, b := t.TempDir(), t.TempDir()
 	for _, out := range []string{a, b} {
-		if _, err := build(src, out, "2026.11.1"); err != nil {
+		if _, err := buildWith(src, out, "2026.11.1", allowAny); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -233,7 +244,7 @@ func TestBuildRefusesAnEmptyPackAndAnExistingOutput(t *testing.T) {
 	write(t, src, "http/y.yaml", httpKEV)
 	out := t.TempDir()
 	write(t, out, "old", "x")
-	if _, err := build(src, out, "2026.11.1"); err == nil {
+	if _, err := buildWith(src, out, "2026.11.1", allowAny); err == nil {
 		t.Fatal("the output directory must be empty or new: a stale file would ship")
 	}
 }

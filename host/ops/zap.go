@@ -42,7 +42,8 @@ import (
 //     another host or port, a DNS lookup or a call home to zaproxy.org fails at the network layer.
 //  5. The container: --rm, --read-only (tmpfs for ZAP's home, podman's own for /tmp and /run), --cap-drop ALL, no-new-privileges,
 //     Vedette's AppArmor profile (D-458), 1 GiB without swap, 256 pids, the image's zap user, a JVM heap of 512 MiB, -silent (no
-//     update check, no call home), spider 1 minute, passive rules 5 minutes, no form posted, never -a (active scan) or -u.
+//     update check, no call home), spider 1 minute, passive rules 5 minutes, no form posted (the traditional runner, --autooff,
+//     D-525), never -a (active scan), -j (AJAX spider) or -u.
 //  6. After the run, on every path: the container is removed (only one that carries zapLabel) and must then be proven gone, and only
 //     then is the nft table deleted (a ZAP that may still run keeps its fence); then the work directory and the marker zap/active go.
 //     What cannot be proven gone keeps the table and the marker, is audited (zap_cleanup_incomplete), and is tried again by the next
@@ -75,9 +76,16 @@ const (
 	zapReportName = "out.json"
 	// zapTmpfs is ZAP's home: podman copies the image's /home/zap into it (tmpcopyup, its default), and it counts against --memory.
 	zapTmpfs = "/home/zap:rw,size=256m,mode=0700,uid=1000,gid=1000"
+	// zapCwd is the container's working directory: zap-baseline.py's traditional runner (--autooff) writes ZAP's output to zap.out
+	// in the current directory (zap_common.start_zap), and the image's WORKDIR /zap is on the read-only root. ZAP's home is writable
+	// and bounded (zapTmpfs), so it goes there (D-525).
+	zapCwd = "/home/zap"
 	// zapOptions are ZAP's own options (-z): -silent (no update check, no unsolicited request), a heap of half the container's memory
 	// (zap.sh reads -Xmx from its arguments; without it it takes a quarter of the HOST's memory on cgroup v2, 1.75 GiB on the N100),
-	// no form handled or posted by the spider and one spider thread, gentle on a fragile site (D-562 (1), exposure INV-24).
+	// no form handled or posted by the spider and one spider thread, gentle on a fragile site (D-562 (1), exposure INV-24). The spider
+	// options hold only because the run is --autooff (D-525): the traditional runner starts the spider through ZAP's API with these
+	// options, while the Automation Framework runner (2.17.0's default) gives its spider job the job's own defaults (processForm and
+	// postForm true, two threads per core), which replace them. The cap of 10 alerts per rule is zap-baseline.py's own (zap_tune).
 	zapOptions = "-silent -Xmx512m -config spider.processform=false -config spider.postform=false -config spider.thread=1"
 
 	// zapPageLimit bounds everything of one page up to the end of podman run, from the moment the run starts: the checks, the fence,
@@ -207,6 +215,7 @@ func zapRmArgv() []string         { return []string{"rm", "--force", "--ignore",
 const zapMountOpts = ":rw,nosuid,nodev,noexec"
 
 // zapRunArgv is the one podman run. addHost is "<name>:<ip>" for a domain's page and "" for an IP's; wrk is the work directory.
+// --autooff pins zap-baseline.py's traditional runner, where the -z spider options apply (D-525).
 func zapRunArgv(pageURL, addHost, wrk string) []string {
 	a := []string{"--module", AppArmorConfModule, "run", "--rm", "--pull=never", "--name", zapContainer, "--label", zapLabel, "--network", zapNetwork, "--dns", "none"}
 	if addHost != "" {
@@ -214,7 +223,8 @@ func zapRunArgv(pageURL, addHost, wrk string) []string {
 	}
 	return append(a, "--cap-drop", "ALL", "--security-opt", "no-new-privileges", "--read-only", "--tmpfs", zapTmpfs,
 		"--volume", wrk+":"+zapWorkDir+zapMountOpts, "--user", "1000:1000", "--memory=1g", "--memory-swap=1g", "--pids-limit=256", "--no-healthcheck",
-		zapImage, "zap-baseline.py", "-t", pageURL, "-m", "1", "-T", "5", "-J", zapReportName, "-z", zapOptions)
+		"--workdir", zapCwd,
+		zapImage, "zap-baseline.py", "--autooff", "-t", pageURL, "-m", "1", "-T", "5", "-J", zapReportName, "-z", zapOptions)
 }
 
 func (p zapPage) runArgv(wrk string) []string {
@@ -456,23 +466,25 @@ func (o *Ops) zapBaseline(ctx context.Context, logf func(string), p zapPage) (an
 		return nil, err
 	}
 	if err := privDir(o.zapDir(), o.cfg.OwnerUID); err != nil {
-		return nil, fail(api.CodeZapFenceFailed, "The host could not prepare its folder for the web scan.")
+		return nil, fail(api.CodeZapFailed, "The host could not prepare its folder for the web scan.")
 	}
 	o.zapClearReports()
 	// From here on the box holds things of this run: the marker says so to the next start if this process dies.
 	if err := writeFileAtomic(filepath.Join(o.zapDir(), "active"), []byte(p.url+"\n"), 0o600); err != nil {
-		return nil, fail(api.CodeZapFenceFailed, "The host could not prepare its folder for the web scan.")
+		return nil, fail(api.CodeZapFailed, "The host could not prepare its folder for the web scan.")
 	}
 	defer func() { _ = o.zapCleanup(context.WithoutCancel(ctx)) }()
 	if err := o.zapFence(ctx, p); err != nil {
 		return nil, err
 	}
+	// A work folder that cannot be made is the host's own disk, not the fence: zap_failed, so the page's line does not send the
+	// operator to the network (review TUNE-3 L3).
 	wrk := filepath.Join(o.zapDir(), "wrk")
 	if err := os.Mkdir(wrk, 0o700); err != nil {
-		return nil, fail(api.CodeZapFenceFailed, "The host could not prepare the work folder of the web scan.")
+		return nil, fail(api.CodeZapFailed, "The host could not prepare the work folder of the web scan.")
 	}
 	if err := os.Chown(wrk, o.zapOwner(), o.zapOwner()); err != nil {
-		return nil, fail(api.CodeZapFenceFailed, "The host could not prepare the work folder of the web scan.")
+		return nil, fail(api.CodeZapFailed, "The host could not prepare the work folder of the web scan.")
 	}
 	logf("passive web scan of " + p.url + " pinned to " + p.ip.String() + ":" + strconv.Itoa(p.port) + " (ZAP baseline, spider 1 minute, passive rules)")
 	_, code, err := o.zx()(ctx, binPodman, nil, p.runArgv(wrk)...)
@@ -487,6 +499,8 @@ func (o *Ops) zapBaseline(ctx context.Context, logf func(string), p zapPage) (an
 		logf("ZAP ended with exit code " + strconv.Itoa(code))
 		msg := "ZAP ended without a report (exit code " + strconv.Itoa(code) + ")."
 		switch {
+		case code == 3: // the traditional runner ends so when it cannot reach the page, finds no URL there, or cannot start (D-525)
+			msg = "ZAP ended without a report (exit code 3): it could not reach the page from this box, found no page there, or could not start."
 		case code == 137:
 			msg = "ZAP was stopped, most likely because it reached the 1 GiB memory limit (exit code 137)."
 		case code >= zapNoRun && code <= zapNoRun+2:

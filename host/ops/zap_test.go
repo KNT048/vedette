@@ -101,14 +101,21 @@ func TestZapRunArgvIsFixedAndValidated(t *testing.T) {
 	got := p.runArgv(wrk)
 	want := strings.Fields("--module /usr/lib/vedette/apparmor-containers.conf run --rm --pull=never --name vedette-zap --label io.vedette.owner=vedette-host --network vedette-zap --dns none" +
 		" --add-host www.example.com:" + zapTestIP + " --cap-drop ALL --security-opt no-new-privileges --read-only --tmpfs /home/zap:rw,size=256m,mode=0700,uid=1000,gid=1000" +
-		" --volume /var/lib/vedette-host/zap/wrk:/zap/wrk:rw,nosuid,nodev,noexec --user 1000:1000 --memory=1g --memory-swap=1g --pids-limit=256 --no-healthcheck " + zapImage +
-		" zap-baseline.py -t https://www.example.com/ -m 1 -T 5 -J out.json -z")
+		" --volume /var/lib/vedette-host/zap/wrk:/zap/wrk:rw,nosuid,nodev,noexec --user 1000:1000 --memory=1g --memory-swap=1g --pids-limit=256 --no-healthcheck" +
+		" --workdir /home/zap " + zapImage +
+		" zap-baseline.py --autooff -t https://www.example.com/ -m 1 -T 5 -J out.json -z")
 	want = append(want, "-silent -Xmx512m -config spider.processform=false -config spider.postform=false -config spider.thread=1")
 	if !slices.Equal(got, want) {
 		t.Fatalf("argv\n%q\nwant\n%q", got, want)
 	}
-	if slices.Contains(got, "-a") || slices.Contains(got, "-u") || slices.Contains(got, "-j") {
-		t.Fatal("an active scan, a config URL or the AJAX spider is in the argv")
+	// K-5 (D-559): never alpha/active rules, a config file or URL, the AJAX or client spider, a context, a scan user or a hook.
+	for _, f := range []string{"-a", "-u", "-c", "-j", "--ajax-spider", "--client-spider", "-n", "-U", "-P", "--hook", "--auto"} {
+		if slices.Contains(got, f) {
+			t.Fatalf("%s is in the argv", f)
+		}
+	}
+	if !strings.Contains(zapOptions, "spider.processform=false") || !strings.Contains(zapOptions, "spider.postform=false") || !slices.Contains(got, "--autooff") {
+		t.Fatal("the spider may post forms: its options or the traditional runner they need (--autooff, D-525) are gone")
 	}
 	validate := validatePodmanIn("/var/lib/vedette-host")
 	if err := validate(got); err != nil {
@@ -140,6 +147,10 @@ func TestZapRunArgvIsFixedAndValidated(t *testing.T) {
 		"no label":             set(got, at(got, "--label")+1, "io.vedette.owner=someone"),
 		"another image":        set(got, at(got, zapImage), "docker.io/library/debian:latest"),
 		"options changed":      set(got, len(got)-1, "-config spider.postform=true"),
+		"a rules file":         append(slices.Clone(got), "-c", "x.conf"),
+		"the AF runner":        slices.Delete(slices.Clone(got), at(got, "--autooff"), at(got, "--autooff")+1),
+		"the AJAX spider":      append(slices.Clone(got), "-j"),
+		"another workdir":      set(got, at(got, "--workdir")+1, "/zap"),
 		"no AppArmor module":   set(got, 1, "/tmp/x.conf"),
 	} {
 		if validate(bad) == nil {
@@ -541,7 +552,12 @@ func TestZapBaseline_AFailureStillCleansUp(t *testing.T) {
 		set  func(*zapWorld)
 		code string
 	}{
-		"exit 3":                      {func(w *zapWorld) { w.runCode = 3 }, api.CodeZapFailed},
+		"exit 3": {func(w *zapWorld) { w.runCode = 3 }, api.CodeZapFailed},
+		"the work folder is taken": {func(w *zapWorld) { // the disk, not the fence: ZAP never runs, and the page's line is not "network fence"
+			if err := os.MkdirAll(filepath.Join(w.o.zapDir(), "wrk"), 0o700); err != nil {
+				w.t.Fatal(err)
+			}
+		}, api.CodeZapFailed},
 		"out of memory":               {func(w *zapWorld) { w.runCode = 137 }, api.CodeZapFailed},
 		"no report":                   {func(w *zapWorld) { w.report = nil }, api.CodeZapFailed},
 		"the report is a symlink":     {func(w *zapWorld) { w.linkReport = true }, api.CodeZapFailed},

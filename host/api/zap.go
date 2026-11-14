@@ -30,7 +30,8 @@ const (
 	CodeOwnershipUnchecked = "ownership_unchecked"
 	// CodeZapFenceFailed: the network vedette-zap or its egress rule could not be set up and proven, so ZAP was not started.
 	CodeZapFenceFailed = "zap_fence_failed"
-	// CodeZapFailed: ZAP ran but did not end with a report (exit 3 or another code, or no report file).
+	// CodeZapFailed: ZAP ran but did not end with a report (exit 3 or another code, or no report file), or the host could not
+	// prepare the run's work folder.
 	CodeZapFailed = "zap_failed"
 	// CodeZapTimedOut: ZAP did not finish within the host's bound; the container was removed.
 	CodeZapTimedOut = "zap_timed_out"

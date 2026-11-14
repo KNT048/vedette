@@ -1,0 +1,5 @@
+# Deferred — fix/kev-pack-no-writes (D-528)
+
+- [ ] 2026-11-14 — A person's full read of the 928 remaining KEV templates for requests that change settings or data without a word the D-528 patterns know (the pass read only the requests naming reset, save, update, install, write or import; exploit templates often confirm by doing) — why later: about 900 templates, a review job of its own — where: scripts/scanpack/nochange.go denylist, D-528 (3).
+- [ ] 2026-11-14 — Host-side egress fence for the scan container during a nuclei job (only the job's target addresses, like zap.baseline's nft fence; review FULL-4b r1 H2): the pack rule keeps third-party URLs out of the templates, but nuclei itself has no destination fence — why later: a host op, Trưởng's host work — where: host/ops, deploy/containers/scan.
+- [ ] 2026-11-14 — N100 check after deploy: a LAN Scan now and an exposure Scan now still run (pack 2026.11.3 in the scan image, core and worker agree; no job refused invalid_job by `pack.NoChangeText`) — why later: needs a deploy (lead) — where: N100, Scans and Exposure pages.

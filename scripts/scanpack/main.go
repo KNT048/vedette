@@ -7,7 +7,8 @@
 // out, never repaired, when it has any of: no KEV tag, a tag of nucleiargv.ForbiddenTags or oast, a mention of
 // interactsh, a top-level key other than id, info, variables, http, tcp, ssl (headless, code, javascript, file, dns, whois,
 // websocket, flow, self-contained and everything a later nuclei adds), not exactly one CVE, an id nuclei would take for a flag, or no
-// printable request line for the probe log. The product never runs this: it ships the result. Network, for a maintainer only:
+// printable request line for the probe log, or anything of the state-change, destination and third-party rule of D-528
+// (nochange.go). The product never runs this: it ships the result. Network, for a maintainer only:
 // github.com and codeload.github.com, 60 s limit.
 package main
 
@@ -327,6 +328,9 @@ func qualify(rel string, body []byte) (pack.Template, string) {
 	cve := cveOf(info)
 	if cve == "" {
 		return zero, "cve"
+	}
+	if why, _ := changeReason(id, doc, body, tags); why != "" { // D-528: no state change, no other destination, no third party
+		return zero, why
 	}
 	req := requestOf(doc)
 	if !requestRE.MatchString(req) {

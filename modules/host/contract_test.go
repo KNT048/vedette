@@ -46,7 +46,7 @@ const (
 // against the spec); the container commands follow in later slices. Sorted.
 var documentedCommands = []string{
 	"backup.create", "backup.purge", "backup.restore", "container.pull", "container.rollback", "container.start", "container.stop", "decoy_ip.add", "decoy_ip.remove", "decoy_ip.set_ports", "host.self_update", "logs.export", "net.apply", "net.confirm", "net.revert",
-	"os.auto_security.set", "os.check", "os.install", "os.reboot", "os.reboot.cancel",
+	"os.auto_security.set", "os.check", "os.install", "os.reboot", "os.reboot.cancel", "zap.baseline",
 }
 
 // netArgs mirrors how a real command validates: name regex, netip for IPs, enum, HH:MM.
@@ -796,6 +796,7 @@ var networkLiteralExceptions = map[string]string{
 	"host/ops/decoy.go:fieldIP":                 `"ip" names the ip argument in errors and audit lines`,
 	"host/api/decoy.go:ProtoTCP":                `"tcp" names the protocol of a decoy port in the nft allow-list (D-466); nothing listens or dials`,
 	"host/api/decoy.go:ProtoUDP":                `"udp" names the protocol of a decoy port in the nft allow-list (D-466); nothing listens or dials`,
+	"host/api/zap.go:ZapKindIP":                 `"ip" names exposure's target kind in a zap.baseline request (D-521); nothing listens or dials`,
 	"cmd/vedette-host/notify.go:unixDatagram":   `the sd_notify client sends one datagram on the unix socket systemd gave (no listener, no IP network)`,
 }
 

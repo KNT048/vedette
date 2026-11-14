@@ -42,6 +42,7 @@ const (
 	routeStateHPTouches
 	routeBackupContent
 	routeExportContent
+	routeZapReport
 )
 
 // route maps method and path to a handler kind; anything else is not part of the API (spec section 7).
@@ -74,6 +75,10 @@ func route(method, path string) (kind routeKind, arg string) {
 	case method == http.MethodGet && strings.HasPrefix(path, "/v1/exports/"):
 		if id, ok := strings.CutSuffix(strings.TrimPrefix(path, "/v1/exports/"), "/content"); ok && !strings.Contains(id, "/") {
 			return routeExportContent, id
+		}
+	case method == http.MethodGet && strings.HasPrefix(path, "/v1/zap/"):
+		if id, ok := strings.CutSuffix(strings.TrimPrefix(path, "/v1/zap/"), "/content"); ok && !strings.Contains(id, "/") {
+			return routeZapReport, id
 		}
 	case method == http.MethodGet && strings.HasPrefix(path, "/v1/runs/"):
 		rest := strings.TrimPrefix(path, "/v1/runs/")
@@ -174,7 +179,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		s.handleEvents(w, r, arg)
 	case routeAudit:
 		s.handleAudit(w, r)
-	case routeStateOS, routeStateBackups, routeStateNet, routeStateContainers, routeStateHost, routeStatePackages, routeStateHPTouches, routeBackupContent, routeExportContent:
+	case routeStateOS, routeStateBackups, routeStateNet, routeStateContainers, routeStateHost, routeStatePackages, routeStateHPTouches, routeBackupContent, routeExportContent, routeZapReport:
 		s.serveRead(w, r, kind, arg)
 	case routeNone, routeCommand:
 		// handled above
@@ -203,6 +208,8 @@ func (s *Server) readerAvailable(kind routeKind) bool {
 		return rd.BackupContent != nil
 	case routeExportContent:
 		return rd.ExportContent != nil
+	case routeZapReport:
+		return rd.ZapReport != nil
 	case routeNone, routeInfo, routeRuns, routeRun, routeEvents, routeAudit, routeCommand:
 		return true
 	}

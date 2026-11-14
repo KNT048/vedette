@@ -88,7 +88,7 @@ func (s *Service) begin(ctx context.Context, user string, t Target, reason Block
 		return nil, ErrScanBusy
 	}
 	if s.feedSync {
-		return nil, ErrScanFeedSync
+		return nil, s.errScanFeedSync(s.feedSyncAt)
 	}
 	now := s.clock()
 	last, had := s.lastScan[t.ID]
@@ -327,7 +327,9 @@ func (s *Service) Close() {
 	if g.syncCancel != nil {
 		g.syncCancel()
 	}
+	syncDone := g.syncDone
 	g.mu.Unlock()
+	s.waitSync(syncDone) // the host must not keep pulling the feed after the box stops (review r1 L2)
 	if run := s.cancelRun("the box (shutting down)"); run != nil {
 		select {
 		case <-run.done:

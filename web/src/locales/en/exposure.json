@@ -488,6 +488,7 @@
     "needs": "Needs about 50 GB of disk and about 2 hours to load Greenbone's feed the first time. The box must have at least 8 GB of memory and 60 GB free.",
     "enable": "Enable Greenbone",
     "disable": "Turn off Greenbone",
+    "heldOn": "It is still turned on from before: turn it off to stop its containers. Its data is kept.",
     "changedOn": "Turned on by {{by}}, {{time}}",
     "changedOff": "Turned off by {{by}}, {{time}}",
     "toastOn": "Greenbone is starting. Loading its feed takes about 2 hours the first time.",

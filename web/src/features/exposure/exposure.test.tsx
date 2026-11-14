@@ -1254,6 +1254,17 @@ describe('exposure: optional deep scan with Greenbone (S-EXP-2, INV-25, D-563)',
     expect(auditStore.get().some((a) => a.action === 'exposure.greenbone')).toBe(false)
   })
 
+  it('D-564 review r1 M1: held back after it was turned on, Turn off is still offered and works', async () => {
+    expect((await call('PUT', '/exposure/greenbone', { enabled: true })).status).toBe(200)
+    localStorage.removeItem('vedette-mock-greenbone-public')
+    renderApp('/exposure')
+    const s = await section()
+    expect(await within(s).findByText('Greenbone deep scan is not available yet: its own active checks on a public IP are being reviewed.')).toBeInTheDocument()
+    await userEvent.click(within(s).getByRole('button', { name: 'Turn off Greenbone' }))
+    await waitFor(() => expect(within(s).queryByRole('button')).toBeNull())
+    expect(auditStore.get().some((a) => a.action === 'exposure.greenbone' && a.detail === 'disabled (data kept)')).toBe(true)
+  })
+
   it('off by default: shows the box\'s numbers and what it needs before Enable; an administrator enables it and it starts; axe clean', async () => {
     renderApp('/exposure')
     const s = await section()
@@ -1288,7 +1299,7 @@ describe('exposure: optional deep scan with Greenbone (S-EXP-2, INV-25, D-563)',
 
   it('loading its feed is a visible phase; only an administrator can change it', async () => {
     server.use(http.get('*/api/v1/exposure/greenbone', () => HttpResponse.json({ state: 'loading', reason: 'Greenbone is loading its feed (first time takes about 2 hours)', changed_by: 'admin@acme.example', changed_at: new Date().toISOString(),
-      preflight: { memory_bytes: 16e9, disk_free_bytes: 120e9, ok: true, reason: null }, feed_sync: { last_at: null, ok: null, note: null, next_at: null } })))
+      preflight: { memory_bytes: 16e9, disk_free_bytes: 120e9, ok: true, reason: null }, feed_sync: { last_at: null, ok: null, note: null, next_at: null }, enabled: true })))
     renderApp('/exposure', { role: 'viewer' })
     const s = await section()
     expect(await within(s).findByText('Greenbone is loading its feed (first time takes about 2 hours)')).toBeInTheDocument()
@@ -1297,7 +1308,7 @@ describe('exposure: optional deep scan with Greenbone (S-EXP-2, INV-25, D-563)',
 
   it('not available on this box: says so and offers nothing', async () => {
     server.use(http.get('*/api/v1/exposure/greenbone', () => HttpResponse.json({ state: 'unavailable', reason: 'Greenbone is not available on this box.', changed_by: null, changed_at: null,
-      preflight: { memory_bytes: 16e9, disk_free_bytes: 120e9, ok: true, reason: null }, feed_sync: { last_at: null, ok: null, note: null, next_at: null } })))
+      preflight: { memory_bytes: 16e9, disk_free_bytes: 120e9, ok: true, reason: null }, feed_sync: { last_at: null, ok: null, note: null, next_at: null }, enabled: false })))
     renderApp('/exposure')
     const s = await section()
     expect(await within(s).findByText('Greenbone is not available on this box.')).toBeInTheDocument()

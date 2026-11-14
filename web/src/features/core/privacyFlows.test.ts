@@ -30,7 +30,12 @@ describe('Settings → Privacy flows match PRIVACY.md', () => {
   it('flow 16 (Greenbone, D-563) says what it downloads word for word, the weekly feed update included (D-564)', () => {
     const r = rows.get(16)!
     expect(flows['16']!.what).toBe(`${plain(r[2]!)}.`)
-    expect(flows['16']!.what).toMatch(/then once a week while it stays enabled, when Vedette updates the feed/)
+    expect(flows['16']!.what).toMatch(/^Vedette's system helper vedette-host has this box's container engine download/) // review r1 M2: who downloads
+    expect(flows['16']!.what).toMatch(/then once a week while it stays enabled \(Vedette's feed update/)
+  })
+  it('flow 9: Greenbone is re-checked against the IP like the other steps, and the name check is not Greenbone\'s (D-564 review r1 L3)', () => {
+    expect(plain(rows.get(9)![2]!)).toMatch(/the box checks again right before it that it still goes out through that IP/)
+    expect(flows['9']!.what).toMatch(/one probe-log row for the run written before it starts \(the box checks again right before it that the IP is still its own\)\. For the names of your domain, one web-page check by name on ports 80 and 443\./)
   })
   it('flow 3 is a lead sentence and one item per AI job, word for word (D-407)', () => {
     const [lead, list] = rows.get(3)![2]!.split('<ul>')

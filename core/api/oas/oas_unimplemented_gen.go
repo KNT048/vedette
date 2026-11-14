@@ -1440,8 +1440,8 @@ func (UnimplementedHandler) ExposurePutExposureBoxIPSettings(ctx context.Context
 // starts in the background (starting, then loading while it loads its feed, about 2 hours the first
 // time). Off: no scan uses it, its containers stop and its data is kept (502 host_error when they
 // could not be stopped). 501 not_implemented when Greenbone is not available on this box; 409
-// under_review while its own active checks on a public IP are reviewed (D-564), with nothing recorded
-// or downloaded. Audited.
+// under_review for enabled: true while its own active checks on a public IP are reviewed (D-564), with
+// nothing recorded or downloaded; enabled: false is always accepted. Audited.
 //
 // PUT /exposure/greenbone
 func (UnimplementedHandler) ExposurePutExposureGreenbone(ctx context.Context, req *ExposurePutExposureGreenboneReq) (r *ExposurePutExposureGreenboneOK, _ error) {

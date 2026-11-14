@@ -42755,6 +42755,9 @@ type ExposureGetExposureGreenboneOK struct {
 	ChangedAt NilDateTime `json:"changed_at"`
 	// Who last turned it on or off.
 	ChangedBy NilString `json:"changed_by"`
+	// The stored switch. It can be true while the state is unavailable (held back after it was turned on,
+	// D-564); the page then still offers Turn off, which the API accepts.
+	Enabled bool `json:"enabled"`
 	// The weekly update of Greenbone's feed while it is enabled (D-564): never during a scan, refused
 	// below 60 GB free, audited.
 	FeedSync  ExposureGetExposureGreenboneOKFeedSync  `json:"feed_sync"`
@@ -42775,6 +42778,11 @@ func (s *ExposureGetExposureGreenboneOK) GetChangedAt() NilDateTime {
 // GetChangedBy returns the value of ChangedBy.
 func (s *ExposureGetExposureGreenboneOK) GetChangedBy() NilString {
 	return s.ChangedBy
+}
+
+// GetEnabled returns the value of Enabled.
+func (s *ExposureGetExposureGreenboneOK) GetEnabled() bool {
+	return s.Enabled
 }
 
 // GetFeedSync returns the value of FeedSync.
@@ -42805,6 +42813,11 @@ func (s *ExposureGetExposureGreenboneOK) SetChangedAt(val NilDateTime) {
 // SetChangedBy sets the value of ChangedBy.
 func (s *ExposureGetExposureGreenboneOK) SetChangedBy(val NilString) {
 	s.ChangedBy = val
+}
+
+// SetEnabled sets the value of Enabled.
+func (s *ExposureGetExposureGreenboneOK) SetEnabled(val bool) {
+	s.Enabled = val
 }
 
 // SetFeedSync sets the value of FeedSync.
@@ -50013,6 +50026,9 @@ type ExposurePutExposureGreenboneOK struct {
 	ChangedAt NilDateTime `json:"changed_at"`
 	// Who last turned it on or off.
 	ChangedBy NilString `json:"changed_by"`
+	// The stored switch. It can be true while the state is unavailable (held back after it was turned on,
+	// D-564); the page then still offers Turn off, which the API accepts.
+	Enabled bool `json:"enabled"`
 	// The weekly update of Greenbone's feed while it is enabled (D-564): never during a scan, refused
 	// below 60 GB free, audited.
 	FeedSync  ExposurePutExposureGreenboneOKFeedSync  `json:"feed_sync"`
@@ -50033,6 +50049,11 @@ func (s *ExposurePutExposureGreenboneOK) GetChangedAt() NilDateTime {
 // GetChangedBy returns the value of ChangedBy.
 func (s *ExposurePutExposureGreenboneOK) GetChangedBy() NilString {
 	return s.ChangedBy
+}
+
+// GetEnabled returns the value of Enabled.
+func (s *ExposurePutExposureGreenboneOK) GetEnabled() bool {
+	return s.Enabled
 }
 
 // GetFeedSync returns the value of FeedSync.
@@ -50063,6 +50084,11 @@ func (s *ExposurePutExposureGreenboneOK) SetChangedAt(val NilDateTime) {
 // SetChangedBy sets the value of ChangedBy.
 func (s *ExposurePutExposureGreenboneOK) SetChangedBy(val NilString) {
 	s.ChangedBy = val
+}
+
+// SetEnabled sets the value of Enabled.
+func (s *ExposurePutExposureGreenboneOK) SetEnabled(val bool) {
+	s.Enabled = val
 }
 
 // SetFeedSync sets the value of FeedSync.

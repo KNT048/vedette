@@ -36,6 +36,8 @@ function GreenboneBody({ g }: { g: Greenbone }) {
   const set = useSetGreenbone()
   const locked = !can ? t('common:needRole', { role: t('common:role.admin') }) : undefined
   const on = g.state !== 'off' && g.state !== 'unavailable'
+  // D-564: held back after it was turned on, its containers may still run: Turn off stays offered (review r1 M1)
+  const heldOn = g.state === 'unavailable' && g.enabled
   const change = (enabled: boolean) => set.mutate(enabled, {
     onSuccess: () => toast.success(enabled ? t('greenbone.toastOn') : t('greenbone.toastOff')),
     onError: (e) => toast.error(e instanceof Error ? e.message : String(e)),
@@ -48,7 +50,12 @@ function GreenboneBody({ g }: { g: Greenbone }) {
         <Chip tone={STATE_TONE[g.state]}>{t(`greenbone.state.${g.state}`)}</Chip>
         {g.state === 'loading' ? g.reason ?? t('greenbone.loading') : g.state === 'error' || g.state === 'unavailable' ? g.reason : t(`greenbone.stateText.${g.state}`)}
       </p>
-      {g.state === 'unavailable' ? null : (
+      {heldOn ? (
+        <div className="flex flex-wrap items-center gap-3">
+          <Button onClick={() => change(false)} disabled={!can || set.isPending} title={locked}>{t('greenbone.disable')}</Button>
+          <span className="text-[12px] text-muted">{t('greenbone.heldOn')}</span>
+        </div>
+      ) : g.state === 'unavailable' ? null : (
         <>
           <ul className="grid list-disc gap-1.5 pl-5 text-[13px] text-muted">
             <li>{t('greenbone.what')}</li><li>{t('greenbone.apart')}</li><li>{t('greenbone.weekly')}</li><li>{t('greenbone.offKeeps')}</li>

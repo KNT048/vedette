@@ -121,6 +121,7 @@ const (
 	GreenboneSyncEvery = 7 * 24 * time.Hour
 	gbSyncRetry        = 24 * time.Hour
 	gbSyncTimeout      = 60 * time.Minute // pulling the seven feed images
+	gbSyncStopWait     = 30 * time.Second // how long Turn off and Close wait for a cancelled feed update to end (review r1 L2)
 	gbNote             = "Greenbone sends many probes: every test of the config on every port of the list. They are not logged one by one."
 	gbConfigText       = "Full and fast without brute force, default accounts, denial of service or generic web application scanning; safe checks on"
 	// GreenboneLowBelow: a result below this severity is Low (Greenbone's own classes: Low 0.1 to 3.9, Medium 4.0 to 6.9, High 7.0
@@ -168,7 +169,6 @@ const (
 var (
 	ErrGreenboneUnavailable = apiErr(501, "not_implemented", NotAvailableGreenbone)
 	ErrGreenboneUnderReview = apiErr(409, "under_review", NotYetGreenbone)
-	ErrScanFeedSync         = apiErr(409, "busy", "Greenbone is loading its weekly feed update, which holds the box's scanner for a few minutes. Try the scan again after it.")
 )
 
 // GreenboneView is the setting as the page sees it (contract.ts Greenbone). Reason says why for error and unavailable. Preflight is
@@ -180,6 +180,9 @@ type GreenboneView struct {
 	ChangedAt *string            `json:"changed_at"`
 	Preflight GreenbonePreflight `json:"preflight"`
 	FeedSync  GreenboneFeedSync  `json:"feed_sync"`
+	// Enabled is the stored switch: it can be true while the state is unavailable (the G1 gate closed after it was turned on), and
+	// then the page still offers Turn off (review r1 M1).
+	Enabled bool `json:"enabled"`
 }
 
 // GreenboneFeedSync is the weekly feed update as the setting shows it (D-564 G6): when it was last tried, whether it worked and what
@@ -213,8 +216,9 @@ type gbState struct {
 	syncing  bool // the weekly feed update runs (D-564 G6): the state is "loading"
 	// syncCancel ends the feed update when Greenbone is turned off or the box stops.
 	syncCancel context.CancelFunc
-	publicScan bool      // the G1 gate (greenbonePublicScan); only tests open it
-	loadAt     time.Time // when gvmd last said it was loading its feed: a slow answer soon after is "loading", not an error
+	syncDone   chan struct{} // closed when the running feed update has returned; nil when none runs
+	publicScan bool          // the G1 gate (greenbonePublicScan); only tests open it
+	loadAt     time.Time     // when gvmd last said it was loading its feed: a slow answer soon after is "loading", not an error
 	probeAt    time.Time
 	state      string
 	reason     string
@@ -320,7 +324,7 @@ func (s *Service) GreenboneSetting(ctx context.Context) (GreenboneView, error) {
 	if err != nil {
 		return GreenboneView{}, err
 	}
-	v.ChangedBy, v.ChangedAt = by, at
+	v.ChangedBy, v.ChangedAt, v.Enabled = by, at, on
 	if v.FeedSync, err = loadGreenboneSync(ctx, s.cfg.DB.Reader()); err != nil {
 		return GreenboneView{}, err
 	}
@@ -335,6 +339,9 @@ func (s *Service) GreenboneSetting(ctx context.Context) (GreenboneView, error) {
 	}
 	if at != nil {
 		if n, ok := nextSync(*at, v.FeedSync); ok {
+			if now := s.clock(); n.Before(now) { // due, waiting for a free scan slot or a ready Greenbone: never a date in the past
+				n = now
+			}
 			next := store.FormatTS(n)
 			v.FeedSync.NextAt = &next
 		}
@@ -392,8 +399,10 @@ func (s *Service) SetGreenbone(ctx context.Context, user string, enabled bool) (
 	if g.syncCancel != nil { // a feed update that runs ends before the project stops
 		g.syncCancel()
 	}
+	syncDone := g.syncDone
 	g.off, g.upErr, g.upAt, g.probeAt = true, "", time.Time{}, time.Time{}
 	g.mu.Unlock()
+	s.waitSync(syncDone)
 	dctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), gbDownTimeout)
 	defer cancel()
 	if err := s.cfg.Greenbone.Down(dctx); err != nil {
@@ -970,24 +979,26 @@ func loadGreenboneSync(ctx context.Context, q querier) (GreenboneFeedSync, error
 }
 
 // nextSync is when the next feed update is due: GreenboneSyncEvery after the last one that worked, gbSyncRetry after one that did
-// not, and GreenboneSyncEvery after Greenbone was enabled when none ran yet (enabling loads the feed). ok is false when a stored time
-// cannot be read.
+// not, and GreenboneSyncEvery after Greenbone was last turned on when no update ran since (turning it on loads the feed; review r1
+// L1). ok is false when a stored time cannot be read. It may be in the past (due, not yet run); the page shows it as now.
 func nextSync(enabledAt string, f GreenboneFeedSync) (time.Time, bool) {
+	on, err := parseTS(enabledAt)
+	if err != nil {
+		return time.Time{}, false
+	}
 	if f.LastAt != nil {
 		at, err := parseTS(*f.LastAt)
 		if err != nil {
 			return time.Time{}, false
 		}
-		if f.OK != nil && *f.OK {
-			return at.Add(GreenboneSyncEvery), true
+		if !at.Before(on) {
+			if f.OK != nil && *f.OK {
+				return at.Add(GreenboneSyncEvery), true
+			}
+			return at.Add(gbSyncRetry), true
 		}
-		return at.Add(gbSyncRetry), true
 	}
-	at, err := parseTS(enabledAt)
-	if err != nil {
-		return time.Time{}, false
-	}
-	return at.Add(GreenboneSyncEvery), true
+	return on.Add(GreenboneSyncEvery), true
 }
 
 // RunGreenboneSync is the body of the weekly feed-update job (D-564 G6). While Greenbone is enabled and ready, once the update is
@@ -1018,7 +1029,7 @@ func (s *Service) RunGreenboneSync(ctx context.Context) error {
 		s.runMu.Unlock()
 		return nil
 	}
-	s.feedSync = true
+	s.feedSync, s.feedSyncAt = true, s.clock()
 	s.runMu.Unlock()
 	defer func() {
 		s.runMu.Lock()
@@ -1039,12 +1050,14 @@ func (s *Service) RunGreenboneSync(ctx context.Context) error {
 		return nil
 	}
 	sctx, cancel := context.WithTimeout(ctx, gbSyncTimeout)
-	g.syncing, g.syncCancel = true, cancel
+	done := make(chan struct{})
+	g.syncing, g.syncCancel, g.syncDone = true, cancel, done
 	g.mu.Unlock()
 	err = s.cfg.Greenbone.SyncFeed(sctx)
 	cancel()
+	close(done)
 	g.mu.Lock()
-	g.syncing, g.syncCancel = false, nil
+	g.syncing, g.syncCancel, g.syncDone = false, nil, nil
 	g.loadAt, g.probeAt = s.clock(), time.Time{} // gvmd now loads the new data: a slow answer is "loading", and the page asks again
 	off := g.off
 	g.mu.Unlock()
@@ -1078,4 +1091,24 @@ func (s *Service) recordSync(ctx context.Context, ok bool, note string) error {
 		}
 		return s.audit(wctx, tx, SystemUser, "exposure.greenbone_sync", "Greenbone (OpenVAS)", note)
 	})
+}
+
+// errScanFeedSync is the 409 busy of a scan asked while the feed update holds the slot (review r1 L4): the real bound, and when it
+// started.
+func (s *Service) errScanFeedSync(started time.Time) *APIError {
+	return apiErr(409, "busy", "Greenbone is loading its weekly feed update (started %s), which holds the box's scanner while it runs, at most %d minutes. Try the scan again after it.",
+		s.momentText(started), int(gbSyncTimeout/time.Minute))
+}
+
+// waitSync waits, at most gbSyncStopWait, for a feed update that was just cancelled to end (review r1 L2): the host must not pull or
+// start the feed images after Greenbone is stopped.
+func (s *Service) waitSync(done <-chan struct{}) {
+	if done == nil {
+		return
+	}
+	select {
+	case <-done:
+	case <-time.After(gbSyncStopWait):
+		s.cfg.Log.Error("exposure: Greenbone's feed update did not end within 30 seconds of being cancelled")
+	}
 }

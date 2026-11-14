@@ -85998,6 +85998,10 @@ func (s *ExposureGetExposureGreenboneOK) encodeFields(e *jx.Encoder) {
 		s.ChangedBy.Encode(e)
 	}
 	{
+		e.FieldStart("enabled")
+		e.Bool(s.Enabled)
+	}
+	{
 		e.FieldStart("feed_sync")
 		s.FeedSync.Encode(e)
 	}
@@ -86015,13 +86019,14 @@ func (s *ExposureGetExposureGreenboneOK) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfExposureGetExposureGreenboneOK = [6]string{
+var jsonFieldsNameOfExposureGetExposureGreenboneOK = [7]string{
 	0: "changed_at",
 	1: "changed_by",
-	2: "feed_sync",
-	3: "preflight",
-	4: "reason",
-	5: "state",
+	2: "enabled",
+	3: "feed_sync",
+	4: "preflight",
+	5: "reason",
+	6: "state",
 }
 
 // Decode decodes ExposureGetExposureGreenboneOK from json.
@@ -86053,8 +86058,20 @@ func (s *ExposureGetExposureGreenboneOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"changed_by\"")
 			}
-		case "feed_sync":
+		case "enabled":
 			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Bool()
+				s.Enabled = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"enabled\"")
+			}
+		case "feed_sync":
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				if err := s.FeedSync.Decode(d); err != nil {
 					return err
@@ -86064,7 +86081,7 @@ func (s *ExposureGetExposureGreenboneOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"feed_sync\"")
 			}
 		case "preflight":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				if err := s.Preflight.Decode(d); err != nil {
 					return err
@@ -86074,7 +86091,7 @@ func (s *ExposureGetExposureGreenboneOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"preflight\"")
 			}
 		case "reason":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				if err := s.Reason.Decode(d); err != nil {
 					return err
@@ -86084,7 +86101,7 @@ func (s *ExposureGetExposureGreenboneOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"reason\"")
 			}
 		case "state":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				if err := s.State.Decode(d); err != nil {
 					return err
@@ -86103,7 +86120,7 @@ func (s *ExposureGetExposureGreenboneOK) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00111111,
+		0b01111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -100975,6 +100992,10 @@ func (s *ExposurePutExposureGreenboneOK) encodeFields(e *jx.Encoder) {
 		s.ChangedBy.Encode(e)
 	}
 	{
+		e.FieldStart("enabled")
+		e.Bool(s.Enabled)
+	}
+	{
 		e.FieldStart("feed_sync")
 		s.FeedSync.Encode(e)
 	}
@@ -100992,13 +101013,14 @@ func (s *ExposurePutExposureGreenboneOK) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfExposurePutExposureGreenboneOK = [6]string{
+var jsonFieldsNameOfExposurePutExposureGreenboneOK = [7]string{
 	0: "changed_at",
 	1: "changed_by",
-	2: "feed_sync",
-	3: "preflight",
-	4: "reason",
-	5: "state",
+	2: "enabled",
+	3: "feed_sync",
+	4: "preflight",
+	5: "reason",
+	6: "state",
 }
 
 // Decode decodes ExposurePutExposureGreenboneOK from json.
@@ -101030,8 +101052,20 @@ func (s *ExposurePutExposureGreenboneOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"changed_by\"")
 			}
-		case "feed_sync":
+		case "enabled":
 			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Bool()
+				s.Enabled = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"enabled\"")
+			}
+		case "feed_sync":
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				if err := s.FeedSync.Decode(d); err != nil {
 					return err
@@ -101041,7 +101075,7 @@ func (s *ExposurePutExposureGreenboneOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"feed_sync\"")
 			}
 		case "preflight":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				if err := s.Preflight.Decode(d); err != nil {
 					return err
@@ -101051,7 +101085,7 @@ func (s *ExposurePutExposureGreenboneOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"preflight\"")
 			}
 		case "reason":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				if err := s.Reason.Decode(d); err != nil {
 					return err
@@ -101061,7 +101095,7 @@ func (s *ExposurePutExposureGreenboneOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"reason\"")
 			}
 		case "state":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				if err := s.State.Decode(d); err != nil {
 					return err
@@ -101080,7 +101114,7 @@ func (s *ExposurePutExposureGreenboneOK) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00111111,
+		0b01111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.

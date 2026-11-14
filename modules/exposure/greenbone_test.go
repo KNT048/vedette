@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/knt048/vedette/core/api/oas"
+	"github.com/knt048/vedette/core/store"
 )
 
 const gbReportID = "5f2c5a6e-1b7d-4c1e-9a55-0c0f1f2e3d4a"
@@ -268,15 +269,27 @@ type fakeGB struct {
 	syncs   int
 	syncErr error
 	onSync  func() // runs (without the lock) inside SyncFeed
+	// syncStarted, when set, makes SyncFeed say it started and then run until its context is cancelled (review r1 L2)
+	syncStarted   chan struct{}
+	syncEnded     bool
+	downAfterSync bool // Down came after the feed update had returned
 }
 
-func (h *fakeGB) SyncFeed(context.Context) error {
+func (h *fakeGB) SyncFeed(ctx context.Context) error {
 	h.mu.Lock()
 	h.syncs++
-	hook, err := h.onSync, h.syncErr
+	hook, err, started := h.onSync, h.syncErr, h.syncStarted
 	h.mu.Unlock()
 	if hook != nil {
 		hook()
+	}
+	if started != nil {
+		close(started)
+		<-ctx.Done()
+		h.mu.Lock()
+		h.syncEnded = true
+		h.mu.Unlock()
+		return ctx.Err()
 	}
 	return err
 }
@@ -302,6 +315,7 @@ func (h *fakeGB) Down(context.Context) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	h.downs++
+	h.downAfterSync = h.syncEnded
 	return h.downErr
 }
 
@@ -1085,6 +1099,14 @@ func TestContract_INV25_G1GateHoldsGreenboneBack(t *testing.T) {
 			t.Errorf("ups %d, dials %d, syncs %d", h.ups, h.dials, h.syncs)
 		}
 	})
+	// review r1 M1: left on from before, it is still said to be on and Turn off still stops its containers
+	if v, err := e.svc.GreenboneSetting(e.ctx()); err != nil || v.State != GBUnavailable || !v.Enabled {
+		t.Fatalf("held back while on = %+v, %v", v, err)
+	}
+	v, err = e.svc.SetGreenbone(e.ctx(), "admin@acme.example", false)
+	if err != nil || v.Enabled || v.State != GBUnavailable || h.downs != 1 || !slices.Contains(e.auditActions(), "exposure.greenbone") {
+		t.Fatalf("turn off while held back = %+v, %v, downs %d", v, err, h.downs)
+	}
 }
 
 // G3: the check line tells high and medium results from the Low ones, which are hardening notes.
@@ -1151,6 +1173,9 @@ func TestContract_INV25_WeeklyFeedUpdate(t *testing.T) {
 		t.Fatalf("syncs %d, during = %+v", h.syncCount(), during)
 	}
 	wantAPI(t, scanErr, 409, "busy")
+	if ae := (*APIError)(nil); !errors.As(scanErr, &ae) || !strings.Contains(ae.Message, "at most 60 minutes") || !strings.Contains(ae.Message, "(started ") { // review r1 L4
+		t.Fatalf("busy = %v", scanErr)
+	}
 	v := e.gbState()
 	if v.FeedSync.OK == nil || !*v.FeedSync.OK || v.FeedSync.LastAt == nil || v.FeedSync.NextAt == nil {
 		t.Fatalf("feed sync = %+v", v.FeedSync)
@@ -1196,5 +1221,69 @@ func TestContract_INV25_SettingFitsTheSchema(t *testing.T) {
 	}
 	if _, err := into[oas.ExposurePutExposureGreenboneOK](e.gbState()); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// review r1 L1: the next update counts from the later of the last update and the last time Greenbone was turned on, and the page
+// never shows a past date.
+func TestContract_INV25_NextFeedUpdate(t *testing.T) {
+	t.Parallel()
+	yes, no := true, false
+	ts := func(s string) *string { return &s }
+	cases := []struct {
+		name string
+		f    GreenboneFeedSync
+		want string
+	}{
+		{"none yet", GreenboneFeedSync{}, "2026-03-08T00:00:00.000Z"},
+		{"last worked after enabling", GreenboneFeedSync{LastAt: ts("2026-03-03T00:00:00.000Z"), OK: &yes}, "2026-03-10T00:00:00.000Z"},
+		{"last failed after enabling", GreenboneFeedSync{LastAt: ts("2026-03-03T00:00:00.000Z"), OK: &no}, "2026-03-04T00:00:00.000Z"},
+		{"last before turned on again", GreenboneFeedSync{LastAt: ts("2025-12-01T00:00:00.000Z"), OK: &yes}, "2026-03-08T00:00:00.000Z"},
+	}
+	for _, tc := range cases {
+		got, ok := nextSync("2026-03-01T00:00:00.000Z", tc.f)
+		if !ok || store.FormatTS(got) != tc.want {
+			t.Errorf("%s: next = %s, want %s", tc.name, store.FormatTS(got), tc.want)
+		}
+	}
+	e, _ := gbEnv(t)
+	e.enable()
+	e.advance(3 * GreenboneSyncEvery) // due long ago: Greenbone was not ready, or scans held the slot
+	v := e.gbState()
+	if next, _ := parseTS(str(v.FeedSync.NextAt)); next.Before(e.clock.Now()) {
+		t.Fatalf("next = %s, now %s", str(v.FeedSync.NextAt), e.clock.Now())
+	}
+}
+
+// review r1 L2: Turn off cancels a running feed update and waits for it to end before it stops Greenbone.
+func TestContract_INV25_TurnOffWaitsForTheFeedUpdate(t *testing.T) {
+	t.Parallel()
+	e, h := gbEnv(t)
+	e.enable()
+	e.advance(GreenboneSyncEvery)
+	started := make(chan struct{})
+	h.with(func(h *fakeGB) { h.syncStarted = started })
+	errc := make(chan error, 1)
+	go func() { errc <- e.svc.RunGreenboneSync(e.ctx()) }()
+	<-started
+	if _, err := e.svc.SetGreenbone(e.ctx(), "admin@acme.example", false); err != nil {
+		t.Fatal(err)
+	}
+	if err := <-errc; err != nil {
+		t.Fatal(err)
+	}
+	h.with(func(h *fakeGB) {
+		if h.downs != 1 || !h.downAfterSync {
+			t.Errorf("downs %d, after the update ended %v", h.downs, h.downAfterSync)
+		}
+	})
+	var last string
+	for _, a := range e.audits() {
+		if a.Action == "exposure.greenbone_sync" {
+			last = a.Detail
+		}
+	}
+	if !strings.HasPrefix(last, "Not updated: it was stopped") {
+		t.Fatalf("audit = %q", last)
 	}
 }

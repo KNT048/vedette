@@ -12,8 +12,9 @@ import (
 
 // exposureServiceScan is exposure's ServiceScanner over sensor-active's ScanExternal (S-EXP-2, exposure INV-19, D-514): nmap -sV
 // in the scan container on the box's own verified public IP. It is BUILT, NOT WIRED: exposureService leaves cfg.Services unset
-// until kien words the commitment sentence that names service identification (.ai/deferred/feat-exposure-services-mlee.md,
-// plan exposure-real-vulns §3); PRIVACY flow 9 and THIRD_PARTY_NOTICES change in the same commit as the wiring.
+// until the wiring commit (.ai/deferred/feat-exposure-services-mlee.md, plan exposure-real-vulns §3); the commitment sentence of
+// NoticeVersion 2026-11-14 (D-559) already covers -sV, so the wiring leaves NoticeVersion alone. PRIVACY flow 9 and THIRD_PARTY_NOTICES
+// change in the same commit as the wiring.
 //
 // The fence (exposure INV-13): right before the job is handed out, sensor-active asks gate, which is exposure's own
 // ScannableIP (verified, committed, seen by the public-IP check within 5 minutes, else a fresh full check, with the person who

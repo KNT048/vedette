@@ -57,9 +57,10 @@ func exposureService(d deps) *exposure.Service {
 	}
 	// S-EXP-2 (INV-19, INV-20, D-553): identified services are compared with exploited CVEs when a snapshot is read. cfg.Services, the
 	// scan container's nmap -sV on the box's own IP (sensor-active ScanExternal), is built (exposureServiceScan, D-514) and NOT wired:
-	// no -sV runs on any box before kien words the commitment sentence that names service identification. Then, in one commit with
-	// PRIVACY flow 9, Settings -> Privacy, the nmap row of THIRD_PARTY_NOTICES and a new NoticeVersion
-	// (.ai/deferred/feat-exposure-services-mlee.md: "wire cfg.Services + PRIVACY flow 9 + THIRD_PARTY + notice version"):
+	// no -sV runs before the wiring commit. The commitment sentence is done: NoticeVersion 2026-11-14 (D-559) already names service
+	// identification, safe checks for known exploited vulnerabilities and a passive web scan, so the wiring must NOT change NoticeVersion
+	// (a second bump would ask every customer again). The wiring commit is cfg.Services + PRIVACY flow 9 + Settings -> Privacy + the nmap
+	// row of THIRD_PARTY_NOTICES (.ai/deferred/feat-exposure-services-mlee.md):
 	//	cfg.Services = exposureServicesFor(d, func(ctx context.Context, actor string, ip netip.Addr) (bool, error) {
 	//		return exposureService(d).ScannableIP(ctx, actor, ip) // called at scan time, after this function returned
 	//	})

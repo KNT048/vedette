@@ -17,6 +17,7 @@ import { OwnerChip } from './OwnerChip'
 import { RemoveDialog } from './RemoveDialog'
 import { useDetectBoxIp, useRestoreIgnored, useSaveBoxIpSettings } from './api'
 import type { BoxIpSettings, IgnoredIp, Target } from './types'
+import { blockedKey } from './types'
 
 const PRESETS = [1, 5, 10, 15, 30, 60, 120, 360, 720, 1440]
 const errMsg = (e: unknown) => (e instanceof Error ? e.message : String(e))
@@ -51,7 +52,7 @@ export function BoxIpPanel({ items, settings, ignored }: { items: Target[]; sett
     { id: 'status', header: t('boxIp.col.status'), accessorFn: (r) => r.status, cell: ({ row }) => <OwnerChip target={row.original} /> },
     { id: 'seen', header: t('boxIp.col.seen'), accessorFn: (r) => r.verified_at ?? '', cell: ({ row }) => <span title={dateTimeText(row.original.verified_at)}>{fmtRelative(row.original.verified_at)}</span> },
     { id: 'expires', header: t('boxIp.col.expires'), accessorFn: (r) => r.expires_at ?? '', cell: ({ row }) => <span>{dateText(row.original.expires_at)}</span> },
-    { id: 'scan', header: t('boxIp.col.scan'), enableSorting: false, cell: ({ row }) => (row.original.blocked_reason ? <span className="text-[13px] text-warn">{t(`blocked.${row.original.blocked_reason}`)}</span> : <span className="text-[13px]">{t('targets.ready')}</span>) },
+    { id: 'scan', header: t('boxIp.col.scan'), enableSorting: false, cell: ({ row }) => (row.original.blocked_reason ? <span className="text-[13px] text-warn">{t(`blocked.${blockedKey(row.original)}`)}</span> : <span className="text-[13px]">{t('targets.ready')}</span>) },
     { id: 'remove', header: t('boxIp.col.remove'), enableSorting: false, cell: ({ row }) => <RemoveButton target={row.original} onRemove={setRemoving} /> },
   ]
 
@@ -105,7 +106,7 @@ export function BoxIpPanel({ items, settings, ignored }: { items: Target[]; sett
               </div>
               <div className="flex flex-wrap items-center gap-2"><OwnerChip target={r} /></div>
               <p className="text-[13px] text-muted">{t('boxIp.col.seen')}: {fmtRelative(r.verified_at)}. {t('boxIp.col.expires')}: {dateText(r.expires_at)}.</p>
-              <p className="text-[13px] text-muted">{r.blocked_reason ? t(`blocked.${r.blocked_reason}`) : t('targets.ready')}</p>
+              <p className="text-[13px] text-muted">{r.blocked_reason ? t(`blocked.${blockedKey(r)}`) : t('targets.ready')}</p>
             </div>
           )}
           empty={<EmptyState title={t('boxIp.empty.title')}>{settings.auto ? t('boxIp.empty.on', { every: every(settings.interval_min) }) : t('boxIp.empty.off')}</EmptyState>} />

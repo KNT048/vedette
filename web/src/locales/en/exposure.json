@@ -62,7 +62,8 @@
     "expiresIn_one": "Expires in {{count}} day",
     "expiresIn_other": "Expires in {{count}} days",
     "commitYes": "Commitment confirmed",
-    "commitNo": "Not confirmed yet"
+    "commitNo": "Not confirmed yet",
+    "commitAgain": "Needs confirming again"
   },
   "blocked": {
     "unverified": "Needs ownership proof",
@@ -70,11 +71,13 @@
     "txt_missing": "TXT record missing",
     "ip_not_current": "Paused",
     "no_commitment": "Needs an admin's first scan",
+    "no_commitment_again": "Needs confirming again",
     "reasonLong": {
       "unverified": "Cannot scan yet: {{value}} has no ownership proof. Do step 1 below first.",
       "expired": "Cannot scan yet: the verification of {{value}} has expired. Verify it again in step 1 below.",
       "txt_missing": "Cannot scan yet: Vedette no longer finds the DNS TXT record on {{value}}. Add it back in step 1 below, then check again.",
       "ip_not_current": "Cannot scan right now: the box no longer goes out through {{value}}. Step 1 below says how to check again.",
+      "no_commitment_again": "Cannot scan yet: the confirmation text changed. An administrator confirms {{value}} once with the next Scan now.",
       "no_commitment": "Cannot scan yet: an administrator must run the first scan of {{value}}. Pressing Scan now records that your company owns it and that the scan is authorized."
     }
   },
@@ -113,6 +116,7 @@
       "expired": "{{value}} cannot be scanned yet: verification expired",
       "txt_missing": "{{value}} cannot be scanned yet: DNS TXT record missing",
       "ip_not_current": "{{value}} is paused: the box no longer goes out through it",
+      "no_commitment_again": "{{value}} cannot be scanned yet: the confirmation text changed; an administrator confirms once with the next Scan now",
       "no_commitment": "{{value}} cannot be scanned yet: an administrator must run the first scan",
       "result": "{{value}}: {{subs}} subdomain(s), {{admin}} admin interface(s) exposed to the Internet",
       "resultIp": "{{value}}: {{ports}} open port(s), {{admin}} admin interface(s) exposed to the Internet",
@@ -126,6 +130,7 @@
     "running": "Scanning",
     "safe": "Non-intrusive scan: no exploitation, no disruption. Aimed only at this target.",
     "noticeTitle": "Pressing Scan now records this confirmation",
+    "noticeChanged": "The confirmation text changed: it now names service identification, safe checks for known exploited vulnerabilities and a passive web scan. An administrator confirms once with the next Scan now.",
     "noticeWho": "Vedette keeps who confirmed it, when, for which target and this exact sentence.",
     "needTwoStep": "Turn on two-step sign-in for your account before the first scan of {{value}}: that scan records your confirmation of ownership and authorization.",
     "needTwoStepLink": "Turn on two-step sign-in"

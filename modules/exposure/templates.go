@@ -38,11 +38,13 @@ const (
 	NotSetUpTemplates = "Not checked: safe exploited-vulnerability templates are not set up on this box yet."
 	notTemplatesDom   = "Safe templates for exploited vulnerabilities: they run on the box's own verified public IP only, for the services identified there."
 	notTemplatesNoSvc = "Safe templates for exploited vulnerabilities did not run: no services were identified."
-	notTemplatesNoCmp = "Safe templates for exploited vulnerabilities did not run: the identified services could not be compared with the list of exploited vulnerabilities."
-	notTemplatesGate  = "Safe templates for exploited vulnerabilities did not run: this IP can no longer be scanned (it was removed, paused, no longer verified or needs the scan confirmed again), so nothing was sent."
-	notTemplatesNoLog = "Safe templates for exploited vulnerabilities did not run: the probe log could not be written, and nothing is sent without it."
-	notTemplatesFail  = "Safe templates for exploited vulnerabilities failed, so no service was confirmed by them. The box log has the error."
-	notTemplatesSlow  = "Safe templates for exploited vulnerabilities did not finish within 5 minutes, so the ones that had not finished are not reported."
+	// notTemplatesNoIdent replaces notTemplatesNoSvc when identification itself did not complete (D-522): no claim about services.
+	notTemplatesNoIdent = "Safe templates for exploited vulnerabilities did not run: service identification did not run or did not finish."
+	notTemplatesNoCmp   = "Safe templates for exploited vulnerabilities did not run: the identified services could not be compared with the list of exploited vulnerabilities."
+	notTemplatesGate    = "Safe templates for exploited vulnerabilities did not run: this IP can no longer be scanned (it was removed, paused, no longer verified or needs the scan confirmed again), so nothing was sent."
+	notTemplatesNoLog   = "Safe templates for exploited vulnerabilities did not run: the probe log could not be written, and nothing is sent without it."
+	notTemplatesFail    = "Safe templates for exploited vulnerabilities failed, so no service was confirmed by them. The box log has the error."
+	notTemplatesSlow    = "Safe templates for exploited vulnerabilities did not finish within 5 minutes, so the ones that had not finished are not reported."
 )
 
 // The outcomes of one template on one service.
@@ -136,7 +138,11 @@ func (s *Service) runTemplates(ctx context.Context, st ScanTarget, ip netip.Addr
 		return c, nil
 	}
 	if len(c.Services) == 0 {
-		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "templates", Text: notTemplatesNoSvc})
+		text := notTemplatesNoSvc
+		if gap, _ := identificationIncomplete(c); gap {
+			text = notTemplatesNoIdent
+		}
+		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "templates", Text: text})
 		return c, nil
 	}
 	if s.cfg.Matcher == nil {
@@ -267,17 +273,18 @@ func dedupe(in []string) []string {
 }
 
 // schemeOf says how to speak to a web service. The sensor-active parser carries nmap's tunnel="ssl" as the "ssl/" prefix nmap's own
-// text output prints (D-522, N1; TUNE-1a, a change to Mlee's module by the scan side), so TLS comes from the data: a name with
-// "https" ("https", "https-alt", "ssl/https") or "ssl/http" is https, on any port (FortiGate 10443, Proxmox 8006, 4443…). A plain
-// "http" is http. The well-known TLS ports (443, 8443, 9443) make an "http" https only when nmap read nothing else about the service
-// (no product, no version: a row stored before D-522, when the tunnel was lost). A name that is not web is "".
+// text output prints (D-522, N1; TUNE-1a, a change to Mlee's module by the scan side), so a name with "https" ("https",
+// "https-alt", "ssl/https") or "ssl/http" is https on any port (FortiGate 10443, Proxmox 8006, 4443…). Any other "http…" is https
+// on the well-known TLS ports 443, 8443 and 9443 and http elsewhere: a TLS server answers nmap's plain GET with its plaintext error
+// page ("The plain HTTP request was sent to HTTPS port"), which nmap can match as plain "http" with a product and no tunnel, so on
+// those ports TLS is the safer guess (ZAP's isTLSService guesses the same). A name that is not web is "".
 func schemeOf(r ServiceRow) string {
 	n := strings.ToLower(r.Name)
 	switch {
 	case strings.Contains(n, "https") || strings.HasPrefix(n, "ssl/http"):
 		return "https"
 	case strings.HasPrefix(n, "http"):
-		if r.Product == "" && r.Version == "" && (r.Port == 443 || r.Port == 8443 || r.Port == 9443) {
+		if r.Port == 443 || r.Port == 8443 || r.Port == 9443 {
 			return "https"
 		}
 		return "http"

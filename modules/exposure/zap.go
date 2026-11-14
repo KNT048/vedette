@@ -89,13 +89,17 @@ const (
 // The lines of the passive web scan under "Not checked" (INV-24).
 const (
 	// notSetUpWeb is the line of every scan while no WebScanner is wired (the ZAP container is not set up on this box).
-	notSetUpWeb  = "Passive web scan (ZAP) is not set up on this box yet." //nolint:gosec // a sentence about the passive web scan, not a credential
-	notWebNoLog  = "Passive web scan (ZAP) did not run: the probe log is not available, and nothing is sent without it."
-	notWebNone   = "Passive web scan (ZAP): no web port was identified, so no page was scanned."
-	notWebFail   = "Passive web scan (ZAP) failed, so the page was not checked. The box log has the error."
-	notWebSlow   = "Passive web scan (ZAP) did not finish within 8 minutes, so the page was not checked."
-	notWebUnread = "Passive web scan (ZAP) returned a report that could not be read, so the page was not checked."
-	notWebNoPage = "ZAP reported no page at this address (no answer, a different protocol or a blocked request), so nothing was checked there."
+	notSetUpWeb = "Passive web scan (ZAP) is not set up on this box yet." //nolint:gosec // a sentence about the passive web scan, not a credential
+	notWebNoLog = "Passive web scan (ZAP) did not run: the probe log is not available, and nothing is sent without it."
+	notWebNone  = "Passive web scan (ZAP): no web port was identified, so no page was scanned."
+	// D-522: the line of an IP scan whose service identification did not complete (notWebNone would read as "no web site"),
+	// and of an address that answers on every port (its "open" web ports are the router's, not sites).
+	notWebNoIdent = "Passive web scan (ZAP) did not run: service identification did not run or did not finish, so the web ports are not known."
+	notWebTarpit  = "Passive web scan (ZAP) did not run: this address answers on more ports than a normal box exposes, so its web ports cannot be told apart."
+	notWebFail    = "Passive web scan (ZAP) failed, so the page was not checked. The box log has the error."
+	notWebSlow    = "Passive web scan (ZAP) did not finish within 8 minutes, so the page was not checked."
+	notWebUnread  = "Passive web scan (ZAP) returned a report that could not be read, so the page was not checked."
+	notWebNoPage  = "ZAP reported no page at this address (no answer, a different protocol or a blocked request), so nothing was checked there."
 )
 
 // WebFindingRow is one ZAP alert on one scanned page (contract.ts WebFinding): a passive rule matched something in the responses.
@@ -430,7 +434,14 @@ func (s *Service) webPassive(ctx context.Context, st ScanTarget, c Content) (Con
 	}
 	pages, left := webPages(st, c)
 	if len(pages) == 0 {
-		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "web", Text: notWebNone})
+		text := notWebNone
+		if gap, why := identificationIncomplete(c); gap && st.Kind == KindIP {
+			text = notWebNoIdent
+			if why == notAnswersEverywhere {
+				text = notWebTarpit
+			}
+		}
+		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "web", Text: text})
 		return c, nil
 	}
 	plog, _ := s.cfg.Probes.(WebProbeLog)

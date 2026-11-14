@@ -36,10 +36,12 @@ export function VulnSection({ s }: { s: Snapshot }) {
     { id: 'why', header: t('col.why'), enableSorting: false, accessorFn: (r) => r.summary, cell: ({ row }) => <span className="text-[13px]">{row.original.summary}</span> },
   ]
   const why = s.not_checked.find((n) => n.kind === 'services' || n.kind === 'cve')
+  // D-522 (TUNE-1a review M1): identification did not complete, so the title must not read as "nothing is there"
+  const unidentified = why?.kind === 'services'
   return (
     <Section id="vulns" title={t('vulns.title')} description={t('vulns.description')}>
       {s.services.length === 0 ? (
-        <EmptyState title={t('vulns.noneIdentifiedTitle')}>{why?.text ?? t('vulns.noneIdentifiedBody')}</EmptyState>
+        <EmptyState title={t(unidentified ? 'vulns.notIdentifiedTitle' : 'vulns.noneIdentifiedTitle')}>{why?.text ?? t('vulns.noneIdentifiedBody')}</EmptyState>
       ) : (
         <div className="grid gap-4">
           {s.vulns.length > 0 ? (

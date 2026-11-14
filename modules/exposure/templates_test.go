@@ -225,16 +225,17 @@ func TestContract_INV23_SanitizeResults(t *testing.T) {
 	}
 }
 
-// INV-23, D-522 (N1): TLS comes from the data ("ssl/http" is nmap's tunnel="ssl"), on any port; a plain "http" that nmap identified
-// is http even on 443; the well-known TLS ports only decide for an "http" nmap read nothing else about.
+// INV-23, D-522 (N1): TLS comes from the data ("ssl/http" is nmap's tunnel="ssl"), on any port; any other "http" is https on the
+// well-known TLS ports (a TLS server's plaintext error page can make nmap read "http nginx" there, review M2) and http elsewhere.
 func TestContract_INV23_SchemeOfTLSServices(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
 		name, product string
 		port          int
 		want          string
-	}{{"http", "", 443, "https"}, {"http", "", 8443, "https"}, {"ssl/http", "", 9000, "https"}, {"ssl/http", "lighttpd", 4443, "https"},
-		{"https-alt", "", 8080, "https"}, {"http", "", 80, "http"}, {"http", "nginx", 443, "http"}, {"http-proxy", "", 3128, "http"}, {"ssh", "", 22, ""}} {
+	}{{"http", "", 443, "https"}, {"http", "", 8443, "https"}, {"http", "nginx", 443, "https"}, {"http", "Apache httpd", 9443, "https"},
+		{"ssl/http", "", 9000, "https"}, {"ssl/http", "lighttpd", 4443, "https"}, {"https-alt", "", 8080, "https"},
+		{"http", "", 80, "http"}, {"http", "nginx", 4443, "http"}, {"http-proxy", "", 3128, "http"}, {"ssh", "", 22, ""}} {
 		if got := schemeOf(ServiceRow{Name: tc.name, Product: tc.product, Port: tc.port}); got != tc.want {
 			t.Errorf("schemeOf(%s %s:%d) = %q, want %q", tc.name, tc.product, tc.port, got, tc.want)
 		}
@@ -256,35 +257,64 @@ func TestContract_INV23_TLSOnANonStandardPortGetsHTTPS(t *testing.T) {
 }
 
 // D-522 (N5): an address that answers on more than 40 of the 98 ports (a router or SYN proxy) gets one "Not checked" line: the
-// surface scan saw it, so nmap is not even asked; nmap seeing it, or nmap's 3-minute limit, are their own lines; no template runs.
+// surface scan saw it, so nmap is not even asked (exactly 40 is still scanned; ports of another address do not count; an
+// IPv4-mapped address counts as itself); nmap seeing it, or nmap's 3-minute limit, are their own lines. No template and no web
+// page runs, and no line says "no services" (review M1): the template and web lines say why they did not run.
 func TestContract_INV19_AnswersEverywhereAndTimedOut(t *testing.T) {
 	t.Parallel()
-	var tarpit []PortRow
-	for p := 1; p <= 60; p++ {
-		tarpit = append(tarpit, PortRow{IP: ipA, Port: p})
+	open := func(n int, ip string) []PortRow {
+		var out []PortRow
+		for p := 1; p <= n; p++ {
+			out = append(out, PortRow{IP: ip, Port: p})
+		}
+		return out
 	}
+	one := []PortRow{{IP: ipA, Port: 80}}
 	for name, tc := range map[string]struct {
 		ports   []PortRow
 		svcErr  error
-		want    string
+		want    []string // lines that must be under "Not checked"
 		scanned int
 	}{
-		"60 open on the surface": {ports: tarpit, want: notAnswersEverywhere, scanned: 0},
-		"nmap saw it":            {ports: []PortRow{{IP: ipA, Port: 80}}, svcErr: ErrAnswersEverywhere, want: notAnswersEverywhere, scanned: 1},
-		"nmap timed out":         {ports: []PortRow{{IP: ipA, Port: 80}}, svcErr: ErrServicesTimedOut, want: notServicesGaveUp, scanned: 1},
+		"41 open on the surface": {ports: open(41, ipA), want: []string{notAnswersEverywhere, notWebTarpit}},
+		"60 open, IPv4-mapped":   {ports: open(60, "::ffff:"+ipA), want: []string{notAnswersEverywhere, notWebTarpit}},
+		"exactly 40 open":        {ports: open(40, ipA), scanned: 1},
+		"60 open on another IP":  {ports: append(open(60, ipB), one...), scanned: 1},
+		"nmap saw it":            {ports: one, svcErr: ErrAnswersEverywhere, want: []string{notAnswersEverywhere, notWebTarpit}, scanned: 1},
+		"nmap timed out":         {ports: one, svcErr: ErrServicesTimedOut, want: []string{notServicesGaveUp, notTemplatesNoIdent, notWebNoIdent}, scanned: 1},
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			e, f := tplEnv(t)
-			sv := &fakeServices{scan: ServiceScan{Ports: 98, Services: []ServiceRow{{IP: ipA, Port: 80, Name: "http", Product: "Apache httpd", Version: "2.4.49"}}}, err: tc.svcErr}
-			e.svc.cfg.Services = sv
+			sv := &fakeServices{scan: ServiceScan{Ports: 98, Services: []ServiceRow{{IP: ipA, Port: 80, Name: "http", Product: "Apache httpd", Version: "2.4.49", CPE: "cpe:/a:apache:http_server:2.4.49"}}}, err: tc.svcErr}
+			web := &fakeWeb{report: func(string) []byte { return nil }}
+			e.svc.cfg.Services, e.svc.cfg.Web = sv, web
 			s := e.scanIP(Content{Ports: tc.ports})
-			if len(sv.calls) != tc.scanned || !slices.Contains(notChecked(s), tc.want) || len(s.Services) != 0 || len(f.jobs) != 0 {
-				t.Fatalf("calls %d, jobs %d, services %+v, not checked %q", len(sv.calls), len(f.jobs), s.Services, notChecked(s))
+			if len(sv.calls) != tc.scanned {
+				t.Fatalf("service scanner called %d times, want %d", len(sv.calls), tc.scanned)
+			}
+			if tc.want == nil { // under the bound: identified and checked as usual
+				if len(s.Services) != 1 || len(f.jobs) != 1 || slices.Contains(notChecked(s), notAnswersEverywhere) {
+					t.Fatalf("services %+v, jobs %d, not checked %q", s.Services, len(f.jobs), notChecked(s))
+				}
+				return
+			}
+			for _, w := range tc.want {
+				if !slices.Contains(notChecked(s), w) {
+					t.Errorf("missing line %q in %q", w, notChecked(s))
+				}
+			}
+			if len(s.Services) != 0 || len(f.jobs) != 0 || len(web.asked) != 0 {
+				t.Fatalf("services %+v, template jobs %d, web pages %v", s.Services, len(f.jobs), web.asked)
+			}
+			for _, n := range notChecked(s) {
+				if l := strings.ToLower(n); strings.Contains(l, "no services") || strings.Contains(l, "no service was identified") || strings.Contains(l, "no web port was identified") {
+					t.Errorf("a line claims nothing is there: %q", n)
+				}
 			}
 			for _, c := range s.Checks {
-				if c.Kind == "services" {
-					t.Fatalf("a services check line for a result that says nothing: %q", c.Text)
+				if c.Kind == "services" || c.Kind == "templates" {
+					t.Fatalf("a %s check line for a result that says nothing: %q", c.Kind, c.Text)
 				}
 			}
 		})

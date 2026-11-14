@@ -29,6 +29,8 @@
     "on": "on {{ip}}",
     "software": "answers as {{product}}",
     "attacked": "Commonly attacked",
+    "notSeen": "Not seen in the last scan",
+    "notSeenNote": "Last seen {{date}}. Not seen in the last scan; Vedette will confirm on the next scan. Until then it counts as open.",
     "details": "Scan details",
     "purpose": "Is that on purpose?",
     "purposePlain": "Is that on purpose? If not, close it on your router or firewall.",
@@ -276,6 +278,7 @@
     },
     "certChanged": "Expiry changed from {{from}} to {{to}}",
     "serviceChanged": "Changed from {{from}} to {{to}}",
+    "portNotSeen": "Not seen in the last scan; Vedette will confirm on the next scan",
     "versionNotRead": "Version not read this time (was {{from}}); its exploited CVEs are not known to be gone"
   },
   "delete": {

@@ -16,6 +16,7 @@ import { BoxIpPanel } from './BoxIpPanel'
 import { CommitChip, OwnerChip } from './OwnerChip'
 import { ScanProgress } from './ScanProgress'
 import { useAddTarget, useTargets } from './api'
+import { dateText } from './dates'
 import { portLabel, riskOf } from './services'
 import type { Gateway, PortRow, Target } from './types'
 import { blockedKey } from './types'
@@ -79,8 +80,10 @@ function OpenPorts({ ports, total, gateway }: { ports: (PortRow & { target: Targ
                 <span className="text-muted">{t('open.on', { ip: p.ip })}</span>
                 {p.product ? <span className="text-muted">{t('open.software', { product: p.product })}</span> : null}
                 {risk ? <Chip tone="warn">{t('open.attacked')}</Chip> : null}
+                {p.last_seen ? <Chip tone="off">{t('open.notSeen')}</Chip> : null}
                 <Link className="text-[13px] text-accent underline-offset-4 hover:underline" to={`/exposure/${p.target.id}`}>{t('open.details')}</Link>
               </p>
+              {p.last_seen ? <p className="text-[13px] text-muted">{t('open.notSeenNote', { date: dateText(p.last_seen) })}</p> : null}
               <p className="text-[13px] text-muted">{risk ? `${t(`risky.${risk}`)} ${t('open.purpose')}` : t('open.purposePlain')}</p>
             </div>
           )

@@ -21166,6 +21166,11 @@
                                     },
                                     "product": {
                                       "type": "string"
+                                    },
+                                    "last_seen": {
+                                      "description": "Set only on a port the newest scan did not see: the day an earlier scan last saw it open. It still counts as open until a second scan agrees (INV-22)",
+                                      "type": "string",
+                                      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
                                     }
                                   },
                                   "required": [
@@ -21804,6 +21809,11 @@
                                     },
                                     "product": {
                                       "type": "string"
+                                    },
+                                    "last_seen": {
+                                      "description": "Set only on a port the newest scan did not see: the day an earlier scan last saw it open. It still counts as open until a second scan agrees (INV-22)",
+                                      "type": "string",
+                                      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
                                     }
                                   },
                                   "required": [
@@ -22325,6 +22335,11 @@
                               },
                               "product": {
                                 "type": "string"
+                              },
+                              "last_seen": {
+                                "description": "Set only on a port the newest scan did not see: the day an earlier scan last saw it open. It still counts as open until a second scan agrees (INV-22)",
+                                "type": "string",
+                                "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
                               }
                             },
                             "required": [
@@ -22737,6 +22752,11 @@
                               },
                               "product": {
                                 "type": "string"
+                              },
+                              "last_seen": {
+                                "description": "Set only on a port the newest scan did not see: the day an earlier scan last saw it open. It still counts as open until a second scan agrees (INV-22)",
+                                "type": "string",
+                                "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
                               }
                             },
                             "required": [
@@ -23641,6 +23661,11 @@
                           },
                           "product": {
                             "type": "string"
+                          },
+                          "last_seen": {
+                            "description": "Set only on a port the newest scan did not see: the day an earlier scan last saw it open. It still counts as open until a second scan agrees (INV-22)",
+                            "type": "string",
+                            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
                           }
                         },
                         "required": [
@@ -24293,6 +24318,11 @@
                                   },
                                   "product": {
                                     "type": "string"
+                                  },
+                                  "last_seen": {
+                                    "description": "Set only on a port the newest scan did not see: the day an earlier scan last saw it open. It still counts as open until a second scan agrees (INV-22)",
+                                    "type": "string",
+                                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
                                   }
                                 },
                                 "required": [

@@ -143,7 +143,8 @@ func (s *Service) saveScan(ctx context.Context, user string, t Target, content C
 	if t.Kind == KindIP {
 		extra = t.Value
 	}
-	snap := Snapshot{ID: store.NewID("sn"), Date: at.In(s.cfg.Location).Format(dayFormat), ScannedAt: store.FormatTS(at), Content: content, Counts: countsOf(content, extra, at),
+	date := at.In(s.cfg.Location).Format(dayFormat)
+	snap := Snapshot{ID: store.NewID("sn"), Date: date, ScannedAt: store.FormatTS(at),
 		Vulns: []VulnRow{}, VersionGaps: []GapRow{}} // computed when read (INV-20); never null in an answer
 	wctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), saveTimeout)
 	defer cancel()
@@ -151,6 +152,14 @@ func (s *Service) saveScan(ctx context.Context, user string, t Target, content C
 		if _, err := loadTarget(wctx, tx, t.ID); err != nil { // deleted while the scan ran
 			return err
 		}
+		prev, hadPrev, err := previousSnapshot(wctx, tx, t.ID, date)
+		if err != nil {
+			return err
+		}
+		if hadPrev {
+			content = carryNotSeen(content, prev) // INV-22: a port seen last time and not now is "not seen" once, "closed" the second time
+		}
+		snap.Content, snap.Counts = content, countsOf(content, extra, at)
 		if err := upsertSnapshot(wctx, tx, t.ID, snap); err != nil {
 			return err
 		}

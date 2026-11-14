@@ -1100,6 +1100,19 @@ describe('exposure: services and exploited vulnerabilities of the box IP (S-EXP-
     expect(within(within(diff).getByRole('row', { name: /Service.*203\.0\.113\.10:18443/ })).getByText('Apache httpd 2.4.49')).toBeInTheDocument()
   })
 
+  it('INV-22: a port the newest scan did not see says "not seen", still counts as open, and the compare does not call it closed', async () => {
+    renderApp('/exposure/xt-2')
+    const ports = await screen.findByRole('table', { name: 'Ports open to the Internet' })
+    const row = within(ports).getByRole('row', { name: /\b8443\b/ })
+    expect(within(row).getByText('Not seen in the last scan')).toBeInTheDocument()
+    expect(within(row).getByText(/Vedette will confirm on the next scan\. Until then it counts as open\./)).toBeInTheDocument()
+    expect(within(ports).getAllByText('Not seen in the last scan')).toHaveLength(1)
+    const diff = await screen.findByRole('table', { name: 'Changes between two scan days' })
+    const changed = await within(diff).findByRole('row', { name: /Open port.*203\.0\.113\.10:8443/ })
+    expect(within(changed).getByText('Not seen in the last scan; Vedette will confirm on the next scan')).toBeInTheDocument()
+    expect(within(changed).getByText('Changed')).toBeInTheDocument()
+  })
+
   it('without service identification on the box the page says so, and claims nothing about vulnerabilities', async () => {
     const at = new Date(Date.now() - 864e5).toISOString()
     const date = at.slice(0, 10)

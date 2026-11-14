@@ -184,11 +184,13 @@ type (
 		IP   string `json:"ip"`
 	}
 	// PortRow is an open port.
+	// LastSeen is set only on a port the scan did not see: the day an earlier scan last saw it open (INV-22, D-560).
 	PortRow struct {
-		IP      string `json:"ip"`
-		Port    int    `json:"port"`
-		Service string `json:"service"`
-		Product string `json:"product,omitempty"`
+		IP       string `json:"ip"`
+		Port     int    `json:"port"`
+		Service  string `json:"service"`
+		Product  string `json:"product,omitempty"`
+		LastSeen string `json:"last_seen,omitempty"`
 	}
 	// AdminRow is an admin page that is open to the Internet. Risk is "danger" or "warn".
 	AdminRow struct {

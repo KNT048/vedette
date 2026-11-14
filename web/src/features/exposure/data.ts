@@ -215,9 +215,11 @@ export function seedSnapshots(): Record<string, Snapshot[]> {
   // The box's own IP, scanned a week ago and yesterday: the router forward to the old Apache on 18443 is new since then.
   const box = boxIpNow()
   const boxOld: Content = { ...box, ports: box.ports.filter((p) => p.port !== 18443), services: box.services!.filter((s) => s.port !== 18443) }
+  // INV-22: yesterday's scan did not see the TCP-wrapped 8443 (a slow answer): it still counts as open and says so until the next scan agrees.
+  const boxMissed: Content = { ...box, ports: box.ports.map((p) => (p.port === 8443 ? { ...p, last_seen: dateOf(daysAgo(8)) } : p)) }
   return {
     'xt-1': [makeSnapshot('sn-1', daysAgo(14), old), makeSnapshot('sn-2', daysAgo(7), mid), makeSnapshot('sn-3', daysAgo(1), full)],
-    'xt-2': [makeSnapshot('sn-4', daysAgo(8), boxOld, BOX_EGRESS_IP), makeSnapshot('sn-5', daysAgo(1), box, BOX_EGRESS_IP)],
+    'xt-2': [makeSnapshot('sn-4', daysAgo(8), boxOld, BOX_EGRESS_IP), makeSnapshot('sn-5', daysAgo(1), boxMissed, BOX_EGRESS_IP)],
   }
 }
 

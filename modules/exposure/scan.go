@@ -372,6 +372,42 @@ func sanitize(c Content) Content {
 		Services: sanitizeServices(c.Services), Checks: sanitizeChecks(c.Checks), NotChecked: sanitizeNotChecked(c.NotChecked)}
 }
 
+// carryNotSeen keeps, in the newest scan, each port (and the service read on it) that the previous scan day saw open and this one did
+// not, marked LastSeen = that day (INV-22, D-560): one scan that missed a port (packet loss, a slow host) must not read as a fix.
+// A port the previous day already carried as not seen and that is missing again is dropped: two scans in a row did not see it, it is
+// closed. A port seen again is a normal row. The rows count as open ports until then.
+func carryNotSeen(c Content, prev Snapshot) Content {
+	type key struct {
+		ip   string
+		port int
+	}
+	seen := map[key]bool{}
+	for _, p := range c.Ports {
+		seen[key{p.IP, p.Port}] = true
+	}
+	carried := map[key]bool{}
+	for _, p := range prev.Ports {
+		k := key{p.IP, p.Port}
+		if p.LastSeen != "" || seen[k] || len(c.Ports) >= maxContentRows {
+			continue
+		}
+		p.LastSeen = prev.Date
+		c.Ports = append(c.Ports, p)
+		carried[k] = true
+	}
+	have := map[key]bool{}
+	for _, x := range c.Services {
+		have[key{x.IP, x.Port}] = true
+	}
+	for _, x := range prev.Services {
+		k := key{x.IP, x.Port}
+		if carried[k] && !have[k] && len(c.Services) < maxContentRows {
+			c.Services = append(c.Services, x)
+		}
+	}
+	return c
+}
+
 // ---- reading results (INV-8) ----
 
 // Snapshots lists the scan days of a target, newest first.
@@ -427,11 +463,15 @@ type diffEntry struct {
 	exp string
 	// service and vuln entries: where ("ip:port"); service entries: product and version
 	at, product, version string
+	lastSeen             string // port entries: set when the scan did not see the port (INV-22)
 }
 
 // VersionNotRead is the "to" of a service whose version the newer scan did not read, where the older one did (INV-20): not a
 // change of version, and its exploited CVEs are not "gone".
 const VersionNotRead = "version not read this time"
+
+// PortNotSeen is the "to" of a port that an earlier scan saw and the newer one did not (INV-22): not "closed" until a second scan agrees.
+const PortNotSeen = "not seen in the last scan"
 
 // entries lists what a snapshot shows, keyed so two days can be compared (the keys are those of the mock).
 func entries(s Snapshot) (map[string]diffEntry, []string) {
@@ -452,7 +492,7 @@ func entries(s Snapshot) (map[string]diffEntry, []string) {
 		if p.Product != "" {
 			detail += ", " + p.Product
 		}
-		add(diffEntry{DiffItem: DiffItem{Kind: "port", Key: key, Label: fmt.Sprintf("%s:%d", p.IP, p.Port), Detail: strings.TrimPrefix(detail, ", ")}})
+		add(diffEntry{DiffItem: DiffItem{Kind: "port", Key: key, Label: fmt.Sprintf("%s:%d", p.IP, p.Port), Detail: strings.TrimPrefix(detail, ", ")}, lastSeen: p.LastSeen})
 	}
 	for _, a := range s.AdminPanels {
 		add(diffEntry{DiffItem: DiffItem{Kind: "admin", Key: "a:" + a.URL, Label: a.URL, Detail: a.Product}})
@@ -481,6 +521,8 @@ func diff(a, b Snapshot) Diff {
 		switch {
 		case !ok:
 			d.Added = append(d.Added, v.DiffItem)
+		case v.Kind == "port" && o.lastSeen == "" && v.lastSeen != "": // seen before, not in this scan: still open until a second scan agrees
+			d.Changed = append(d.Changed, DiffChange{DiffItem: v.DiffItem, From: o.Detail, To: PortNotSeen})
 		case v.Kind == "cert" && o.exp != v.exp:
 			d.Changed = append(d.Changed, DiffChange{DiffItem: v.DiffItem, From: o.exp, To: v.exp})
 		case v.Kind == "service" && versionUnread(o, v):
@@ -497,6 +539,9 @@ func diff(a, b Snapshot) Diff {
 		}
 		if s, ok := B["s:"+o.at]; o.Kind == "vuln" && ok && versionUnread(A["s:"+o.at], s) {
 			continue // its service's version was not read this time: the CVE is not known to be gone
+		}
+		if o.Kind == "port" && o.lastSeen != "" { // the older day carried it as not seen and the newer one has none: confirmed closed
+			o.Detail = fmt.Sprintf("%s (closed: not seen in two scans, %s and %s)", o.Detail, a.Date, b.Date)
 		}
 		d.Removed = append(d.Removed, o.DiffItem)
 	}

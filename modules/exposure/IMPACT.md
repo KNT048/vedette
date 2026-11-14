@@ -38,6 +38,11 @@
 - **cmd/vedette** `exposure.go` dựng `NewInternetDB("", nil)`; **core** `export_policy.go` xuất `exp_outside` (`answer` là JSON).
 - **web/features/exposure**: `OutsidePanel.tsx` (trang mục tiêu IP, bước xác nhận trước khi gửi, so cổng), `api.ts` (`useOutside`, `useCheckOutside`), mock `mocks.ts`/`data.ts` (`outsideAnswer`, `seedOutside`), `contract.ts` là nguồn OpenAPI của `OutsideView` và hai route; `core/server/modules_test.go` `contractRoutes` và `api/route-modules.json` có hai route mới.
 
+## Modifying: `PortRow.LastSeen`, `carryNotSeen`, `previousSnapshot`, `PortNotSeen`, nhánh `port` của `diff` (INV-22, D-560)
+- **response** (`new_port`) qua `cmd/vedette/exposureports.go`: so cổng mở của hai ngày; hàng "not seen" có mặt cả hai ngày nên không sinh `exposure.port.opened`. Bỏ hàng giữ lại (hoặc đếm nó là đóng) làm cổng bị lỡ một lần rồi thấy lại sinh một cảnh báo "cổng mới" giả.
+- **web/features/exposure**: `ExposurePage.tsx` `OpenPorts` và cột Note của `ResultsPanel.tsx` hiện chip "Not seen in the last scan" từ `last_seen`; `Compare` đọc `PORT_NOT_SEEN` của `contract.ts` (bằng `PortNotSeen`); mock `data.ts` (`boxMissed`), `mocks.ts` `diff` giữ cùng quy tắc. `contract.ts` là nguồn OpenAPI của `PortRow.last_seen`.
+- `Counts.Ports`, `latestResults`/`open_ports`, `gateway` và CVE tính lúc đọc (INV-20) đều đọc hàng giữ lại như cổng mở: đổi chỗ này là đổi cái "đã sửa" nghĩa là gì. **core** `export_policy.go` không đổi (cột `ports` vẫn là JSON).
+
 ## Modifying: trường `Snapshot`/`Diff`
 - **SPA** `ResultsPanel`, `TargetPage`; **reports**. `contract.ts` là nguồn OpenAPI.
 

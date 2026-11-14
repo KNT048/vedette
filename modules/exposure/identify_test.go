@@ -121,7 +121,7 @@ func TestContract_INV19_NoServiceScannerSaysNotSetUp(t *testing.T) {
 	e := newEnv(t)
 	m := &fakeMatcher{}
 	e.svc.cfg.Matcher = m
-	s := e.scanIP(Content{Ports: []PortRow{{ipA, 443, "https", "nginx"}}})
+	s := e.scanIP(Content{Ports: []PortRow{{ipA, 443, "https", "nginx", ""}}})
 	if len(s.Ports) != 1 || len(s.Services) != 0 || len(s.Vulns) != 0 || len(s.VersionGaps) != 0 {
 		t.Fatalf("snapshot = %+v", s)
 	}
@@ -227,7 +227,7 @@ func TestContract_INV19_UnavailableAndFailedSteps(t *testing.T) {
 			if !tc.noMatch {
 				e.svc.cfg.Matcher = &fakeMatcher{err: tc.matchErr}
 			}
-			s := e.scanIP(Content{Ports: []PortRow{{ipA, 22, "ssh", ""}}})
+			s := e.scanIP(Content{Ports: []PortRow{{ipA, 22, "ssh", "", ""}}})
 			if !slices.Contains(notChecked(s), tc.want) || len(s.Ports) != 1 || len(s.Vulns) != 0 {
 				t.Fatalf("snapshot = %+v", s)
 			}

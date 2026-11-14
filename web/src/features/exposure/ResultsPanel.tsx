@@ -10,7 +10,7 @@ import { dateText } from './dates'
 import { riskOf } from './services'
 import { useDiff, useSnapshot, useSnapshots } from './api'
 import { ChecksSection, VulnSection } from './ServicesPanel'
-import { VERSION_NOT_READ } from './contract'
+import { PORT_NOT_SEEN, VERSION_NOT_READ } from './contract'
 import { CERT_WARN_DAYS, type AdminRow, type CertRow, type DiffItem, type DiffChange, type HostRow, type PortRow, type Snapshot, type Target } from './types'
 
 const daysLeft = (iso: string) => Math.ceil((new Date(iso).getTime() - Date.now()) / 864e5)
@@ -63,7 +63,12 @@ function SnapshotView({ target, s }: { target: Target; s: Snapshot }) {
     { id: 'product', header: t('col.product'), accessorFn: (r) => r.product ?? '', cell: ({ row }) => row.original.product ?? <span className="text-muted">{t('common:unknown')}</span> },
     { id: 'note', header: t('col.note'), enableSorting: false, cell: ({ row }) => {
       const risk = riskOf(row.original)
-      return risk ? <span className="grid gap-1"><Chip tone="warn">{t('open.attacked')}</Chip><span className="text-[12px] text-muted">{t(`risky.${risk}`)} {t('open.purpose')}</span></span> : null
+      const seen = row.original.last_seen
+      if (!risk && !seen) return null
+      return <span className="grid gap-1">
+        {seen ? <><Chip tone="off">{t('open.notSeen')}</Chip><span className="text-[12px] text-muted">{t('open.notSeenNote', { date: dateText(seen) })}</span></> : null}
+        {risk ? <><Chip tone="warn">{t('open.attacked')}</Chip><span className="text-[12px] text-muted">{t(`risky.${risk}`)} {t('open.purpose')}</span></> : null}
+      </span>
     } },
   ]
   const adminCols: ColumnDef<AdminRow>[] = [
@@ -126,6 +131,7 @@ function Compare({ target, dates, label }: { target: Target; dates: string[]; la
     { id: 'detail', header: t('diff.col.detail'), accessorFn: (r) => r.item.detail, cell: ({ row }) => {
       const r = row.original
       if (r.change !== 'changed') return r.item.detail
+      if (r.item.kind === 'port' && r.to === PORT_NOT_SEEN) return t('diff.portNotSeen')
       if (r.item.kind === 'service') return r.to === VERSION_NOT_READ ? t('diff.versionNotRead', { from: r.from }) : t('diff.serviceChanged', { from: r.from, to: r.to })
       return t('diff.certChanged', { from: dateText(r.from), to: dateText(r.to) })
     } },

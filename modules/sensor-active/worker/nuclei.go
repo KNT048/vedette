@@ -123,16 +123,22 @@ func (w *Worker) nucleiArgv(j sensorlink.Job) ([]string, *sensorlink.JobResult, 
 			return nil, refusal("invalid_job"), fmt.Errorf("template %.100q is not in the pack", id)
 		}
 		chosen[i], paths[i] = ix.Templates[k], ix.Templates[k].Path
-		if nj.Scope == nucleiargv.ScopeOwnIP && slices.ContainsFunc(chosen[i].Tags, func(tag string) bool { return slices.Contains(nucleiargv.OwnIPForbiddenTags(), tag) }) {
-			return nil, refusal("invalid_job"), fmt.Errorf("template %.100q is of a class the own_ip scope never runs (D-559 K-6)", id)
+		if nj.Scope == nucleiargv.ScopeOwnIP && !chosen[i].OwnIP { // the image's own index decides, never core (D-520)
+			return nil, refusal("invalid_job"), fmt.Errorf("template %.100q is not marked for the own_ip scope in the pack", id)
 		}
 	}
 	if err := checkTree(w.nucleiCfg.tmplDir); err != nil {
 		return nil, refusal("pack_invalid"), err
 	}
 	for _, t := range chosen {
-		if err := checkFile(w.nucleiCfg.tmplDir, t); err != nil {
+		body, err := checkFile(w.nucleiCfg.tmplDir, t)
+		if err != nil {
 			return nil, refusal("pack_invalid"), err
+		}
+		if nj.Scope == nucleiargv.ScopeOwnIP { // the last fence: the worker reads the file itself (D-520)
+			if err := pack.OwnIPText(body); err != nil {
+				return nil, refusal("invalid_job"), fmt.Errorf("template %.100q may not run on a public IP: %w", t.ID, err)
+			}
 		}
 	}
 	argv, err := nucleiargv.Build(nucleiargv.Job{Templates: paths, Targets: targets, Rate: nj.Rate, MaxHostErrors: nj.MaxHostErrors, Scope: nj.Scope})
@@ -184,33 +190,34 @@ func checkTree(dir string) error {
 	return nil
 }
 
-// checkFile hashes one template file with Lstat first and accepts a regular file only, then compares with the index.
-func checkFile(dir string, t pack.Template) error {
+// checkFile reads one template file with Lstat first and accepts a regular file only, compares its hash with the index and
+// returns its bytes (at most maxTemplateFile).
+func checkFile(dir string, t pack.Template) ([]byte, error) {
 	root, err := os.OpenRoot(dir) // Open below it cannot leave the directory by a link, whatever the file system holds
 	if err != nil {
-		return fmt.Errorf("the pack: %w", err)
+		return nil, fmt.Errorf("the pack: %w", err)
 	}
 	defer func() { _ = root.Close() }()
 	fi, err := root.Lstat(t.Path)
 	if err != nil {
-		return fmt.Errorf("template %.100q: %w", t.ID, err)
+		return nil, fmt.Errorf("template %.100q: %w", t.ID, err)
 	}
 	if !fi.Mode().IsRegular() || fi.Size() > maxTemplateFile {
-		return fmt.Errorf("template %.100q is not a regular file of a sane size", t.ID)
+		return nil, fmt.Errorf("template %.100q is not a regular file of a sane size", t.ID)
 	}
 	f, err := root.Open(t.Path)
 	if err != nil {
-		return fmt.Errorf("template %.100q: %w", t.ID, err)
+		return nil, fmt.Errorf("template %.100q: %w", t.ID, err)
 	}
 	defer func() { _ = f.Close() }()
-	h := sha256.New()
-	if _, err := io.Copy(h, io.LimitReader(f, maxTemplateFile+1)); err != nil {
-		return fmt.Errorf("template %.100q: %w", t.ID, err)
+	body, err := io.ReadAll(io.LimitReader(f, maxTemplateFile+1))
+	if err != nil {
+		return nil, fmt.Errorf("template %.100q: %w", t.ID, err)
 	}
-	if hex.EncodeToString(h.Sum(nil)) != t.SHA256 {
-		return fmt.Errorf("template %.100q does not match its hash in the index", t.ID)
+	if sum := sha256.Sum256(body); len(body) > maxTemplateFile || hex.EncodeToString(sum[:]) != t.SHA256 {
+		return nil, fmt.Errorf("template %.100q does not match its hash in the index", t.ID)
 	}
-	return nil
+	return body, nil
 }
 
 // freshHome empties nuclei's HOME (a directory on a tmpfs): nothing a run, or an image layer, left in it is read.
@@ -283,7 +290,7 @@ func (w *Worker) nucleiStatus(ctx context.Context) sensorlink.HeartbeatNuclei {
 	if !w.nucleiCfg.on {
 		return sensorlink.HeartbeatNuclei{}
 	}
-	hb := sensorlink.HeartbeatNuclei{OwnIP: true} // D-520: this worker runs own_ip jobs behind its own-IP fence (D-520)
+	hb := sensorlink.HeartbeatNuclei{OwnIP: w.egress != nil} // D-520: own_ip jobs only behind the own-IP fence; without its checker every one would be refused
 	rctx, cancel := context.WithTimeout(ctx, 20*time.Second)
 	defer cancel()
 	if res, err := w.runner.Run(rctx, nucleiVer, []string{"-version", "-duc"}, nil); err == nil {

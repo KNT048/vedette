@@ -9,6 +9,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/knt048/vedette/content/nucleipack"
@@ -22,16 +23,19 @@ import (
 )
 
 // The template scanner of exposure (INV-23, D-561, D-520) over fakes of the gate, the probe log and the Dispatcher: no process runs
-// and no packet leaves. The pack is the committed index core plans with (CVE-2021-41773 and -42013 are in it; CVE-2014-3704 is
-// tagged sqli, a class the own_ip scope never runs, D-559 K-6).
+// and no packet leaves. The pack is the committed index core plans with: CVE-2018-13379 and CVE-2019-19781 are read-only GETs it marks
+// own_ip; CVE-2021-41773 (a POST that runs a command after its GETs) and CVE-2014-3704 (sqli) are in it but not marked (D-520).
 
 type templatesFake struct {
-	events []string // in order: gate, log <ids>, run <ids>, done <id=result...>
-	gateOK bool
-	runErr error
-	answer func(r sensoractive.NucleiRequest) nucleiout.Outcome
-	reqs   []sensoractive.NucleiRequest
-	actor  string
+	events  []string // in order: gate, log <ids>, run <ids>, done <id=result...>
+	gateOK  bool
+	logErr  error
+	runErr  error
+	runErrs map[int]error // by call number, after runErr
+	block   int           // this call (1-based) waits for its context to end
+	answer  func(r sensoractive.NucleiRequest) nucleiout.Outcome
+	reqs    []sensoractive.NucleiRequest
+	actor   string
 }
 
 func (f *templatesFake) scanner() exposureTemplateScan {
@@ -42,6 +46,9 @@ func (f *templatesFake) scanner() exposureTemplateScan {
 			return f.gateOK, nil
 		},
 		probes: func(_ context.Context, ps []scan.ExternalProbe) error {
+			if f.logErr != nil {
+				return f.logErr
+			}
 			var b strings.Builder
 			for _, p := range ps {
 				if p.Result == "" && !strings.HasPrefix(f.last(), "run") {
@@ -60,9 +67,16 @@ func (f *templatesFake) scanner() exposureTemplateScan {
 			f.events = append(f.events, kind+b.String())
 			return nil
 		},
-		run: func(_ context.Context, r sensoractive.NucleiRequest) (nucleiout.Outcome, error) {
+		run: func(ctx context.Context, r sensoractive.NucleiRequest) (nucleiout.Outcome, error) {
 			f.reqs = append(f.reqs, r)
 			f.events = append(f.events, "run "+strings.Join(r.Templates, " "))
+			if len(f.reqs) == f.block {
+				<-ctx.Done()
+				return nucleiout.Outcome{}, ctx.Err()
+			}
+			if err := f.runErrs[len(f.reqs)]; err != nil {
+				return nucleiout.Outcome{}, err
+			}
 			if f.runErr != nil {
 				return nucleiout.Outcome{}, f.runErr
 			}
@@ -89,16 +103,16 @@ func TestExposureTemplatesLogBeforeSendingAndMapResults(t *testing.T) {
 	t.Parallel()
 	f := &templatesFake{gateOK: true, answer: func(sensoractive.NucleiRequest) nucleiout.Outcome {
 		return nucleiout.Outcome{Results: []nucleiout.Result{
-			{Template: "CVE-2021-41773", Target: "8.8.8.8:18443", Matched: true},
-			{Template: "CVE-2021-42013", Target: "8.8.8.8:18443"},
+			{Template: "CVE-2018-13379", Target: "8.8.8.8:18443", Matched: true},
+			{Template: "CVE-2019-19781", Target: "8.8.8.8:18443"},
 		}}
 	}}
 	got, err := f.scanner().ScanTemplates(t.Context(), exposure.ScanTarget{User: "u-admin"}, ownPublicIP,
-		[]exposure.TemplateJob{ownJob("CVE-2021-41773", "CVE-2021-42013", "CVE-2014-3704", "CVE-2099-0001")})
+		[]exposure.TemplateJob{ownJob("CVE-2018-13379", "CVE-2019-19781", "CVE-2021-41773", "CVE-2014-3704", "CVE-2099-0001")})
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := []string{"gate", "log CVE-2021-41773 CVE-2021-42013", "run CVE-2021-41773 CVE-2021-42013", "done CVE-2021-41773=matched CVE-2021-42013=not_matched"}
+	want := []string{"gate", "log CVE-2018-13379 CVE-2019-19781", "run CVE-2018-13379 CVE-2019-19781", "done CVE-2018-13379=matched CVE-2019-19781=not_matched"}
 	if !slices.Equal(f.events, want) || f.actor != "u-admin" {
 		t.Fatalf("events %q actor %q", f.events, f.actor)
 	}
@@ -107,10 +121,11 @@ func TestExposureTemplatesLogBeforeSendingAndMapResults(t *testing.T) {
 		t.Fatalf("request %+v", r)
 	}
 	wantRes := []exposure.TemplateResult{
-		{Port: 18443, Template: "CVE-2021-41773", CVE: "CVE-2021-41773", Outcome: exposure.OutcomeMatched},
-		{Port: 18443, Template: "CVE-2021-42013", CVE: "CVE-2021-42013", Outcome: exposure.OutcomeNoMatch},
+		{Port: 18443, Template: "CVE-2018-13379", CVE: "CVE-2018-13379", Outcome: exposure.OutcomeMatched},
+		{Port: 18443, Template: "CVE-2019-19781", CVE: "CVE-2019-19781", Outcome: exposure.OutcomeNoMatch},
 	}
-	if !slices.Equal(got.Results, wantRes) || !slices.Equal(got.Sent, []string{"CVE-2021-41773", "CVE-2021-42013"}) {
+	notes := []string{"Safe templates for exploited vulnerabilities: CVE-2021-41773, CVE-2014-3704 on port 18443: not run on a public IP: this check is not a read-only request."}
+	if !slices.Equal(got.Results, wantRes) || !slices.Equal(got.Sent, []string{"CVE-2018-13379", "CVE-2019-19781"}) || !slices.Equal(got.NotChecked, notes) {
 		t.Fatalf("scan %+v", got)
 	}
 }
@@ -119,7 +134,7 @@ func TestExposureTemplatesLogBeforeSendingAndMapResults(t *testing.T) {
 func TestExposureTemplatesGateRefusesBeforeAnything(t *testing.T) {
 	t.Parallel()
 	f := &templatesFake{gateOK: false}
-	_, err := f.scanner().ScanTemplates(t.Context(), exposure.ScanTarget{User: "u"}, ownPublicIP, []exposure.TemplateJob{ownJob("CVE-2021-41773")})
+	_, err := f.scanner().ScanTemplates(t.Context(), exposure.ScanTarget{User: "u"}, ownPublicIP, []exposure.TemplateJob{ownJob("CVE-2018-13379")})
 	var un *exposure.Unavailable
 	if !errors.As(err, &un) || !strings.Contains(un.Reason, "no longer reaches the Internet through 8.8.8.8") || !slices.Equal(f.events, []string{"gate"}) {
 		t.Fatalf("%v %q", err, f.events)
@@ -138,7 +153,7 @@ func TestExposureTemplatesUnavailableReasons(t *testing.T) {
 		sensoractive.ErrPackMismatch:          "another template pack",
 	} {
 		f := &templatesFake{gateOK: true, runErr: in}
-		_, err := f.scanner().ScanTemplates(t.Context(), exposure.ScanTarget{}, ownPublicIP, []exposure.TemplateJob{ownJob("CVE-2021-41773")})
+		_, err := f.scanner().ScanTemplates(t.Context(), exposure.ScanTarget{}, ownPublicIP, []exposure.TemplateJob{ownJob("CVE-2018-13379")})
 		var un *exposure.Unavailable
 		if !errors.As(err, &un) || !strings.Contains(un.Reason, want) {
 			t.Errorf("%v: %v", in, err)
@@ -146,27 +161,27 @@ func TestExposureTemplatesUnavailableReasons(t *testing.T) {
 	}
 }
 
-// A template without a line on an address that stopped answering is an error, never a "no match"; a CVE whose only template is of
-// a K-6 class, or that has none, is not sent at all.
+// A template without a line on an address that stopped answering is an error, never a "no match"; a CVE whose template the pack
+// does not mark own_ip, or that has none, is not sent at all, and the first gets its "not a read-only request" line.
 func TestExposureTemplatesOutcomes(t *testing.T) {
 	t.Parallel()
 	f := &templatesFake{gateOK: true, answer: func(sensoractive.NucleiRequest) nucleiout.Outcome {
 		return nucleiout.Outcome{HostErrors: []nucleiout.HostError{{Target: "8.8.8.8:18443", Errors: 3, Unreachable: true}}}
 	}}
-	got, err := f.scanner().ScanTemplates(t.Context(), exposure.ScanTarget{}, ownPublicIP, []exposure.TemplateJob{ownJob("CVE-2021-41773")})
+	got, err := f.scanner().ScanTemplates(t.Context(), exposure.ScanTarget{}, ownPublicIP, []exposure.TemplateJob{ownJob("CVE-2018-13379")})
 	if err != nil || len(got.Results) != 1 || got.Results[0].Outcome != exposure.OutcomeError {
 		t.Fatalf("%+v %v", got, err)
 	}
 	f = &templatesFake{gateOK: true}
-	got, err = f.scanner().ScanTemplates(t.Context(), exposure.ScanTarget{}, ownPublicIP, []exposure.TemplateJob{ownJob("CVE-2014-3704", "CVE-2099-0001")})
-	if err != nil || len(got.Results)+len(got.Sent) != 0 || len(f.events) != 0 {
+	got, err = f.scanner().ScanTemplates(t.Context(), exposure.ScanTarget{}, ownPublicIP, []exposure.TemplateJob{ownJob("CVE-2014-3704", "CVE-2021-41773", "CVE-2099-0001")})
+	if err != nil || len(got.Results)+len(got.Sent) != 0 || len(f.events) != 0 || len(got.NotChecked) != 1 || !strings.Contains(got.NotChecked[0], "CVE-2014-3704, CVE-2021-41773 on port") {
 		t.Fatalf("%+v %v %q", got, err, f.events)
 	}
 }
 
 // D-520 end to end through the production builder (exposureTemplatesFor: the module switch, the pack index, the Dispatcher, the scan
 // module's probe log) with a fake worker that says own_ip over the real mutual-TLS link: the job is scope own_ip on the one address
-// and port, the probe log holds a row per template id with its outcome, and CVE-2021-41773 comes back matched.
+// and port, the probe log holds a row per template id with its outcome, and CVE-2018-13379 comes back matched.
 func TestExposureTemplatesEndToEndWithAFakeWorker(t *testing.T) {
 	t.Parallel()
 	s := newStack(t)
@@ -193,8 +208,8 @@ func TestExposureTemplatesEndToEndWithAFakeWorker(t *testing.T) {
 			for _, j := range rep.Jobs {
 				jobs <- j
 				res := &sensorlink.JobResult{Status: "done"}
-				res.SetJSONL([]byte(`{"template-id":"CVE-2021-41773","host":"8.8.8.8","port":"18443","matcher-status":true}` + "\n" +
-					`{"template-id":"CVE-2021-42013","host":"8.8.8.8","port":"18443","matcher-status":false}` + "\n"))
+				res.SetJSONL([]byte(`{"template-id":"CVE-2018-13379","host":"8.8.8.8","port":"18443","matcher-status":true}` + "\n" +
+					`{"template-id":"CVE-2019-19781","host":"8.8.8.8","port":"18443","matcher-status":false}` + "\n"))
 				_ = c.PostResult(ctx, j.ID, res)
 			}
 		}
@@ -207,11 +222,11 @@ func TestExposureTemplatesEndToEndWithAFakeWorker(t *testing.T) {
 	}
 	g := &gateFor{ok: true}
 	got, err := exposureTemplatesFor(*s.d, g.gate).ScanTemplates(t.Context(), exposure.ScanTarget{User: "ops@acme.example"}, ownPublicIP,
-		[]exposure.TemplateJob{ownJob("CVE-2021-41773", "CVE-2021-42013")})
+		[]exposure.TemplateJob{ownJob("CVE-2018-13379", "CVE-2019-19781")})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(got.Results) != 2 || got.Results[0].Outcome != exposure.OutcomeMatched || got.Results[0].CVE != "CVE-2021-41773" || len(got.Sent) != 2 {
+	if len(got.Results) != 2 || got.Results[0].Outcome != exposure.OutcomeMatched || got.Results[0].CVE != "CVE-2018-13379" || len(got.Sent) != 2 {
 		t.Fatalf("scan %+v", got)
 	}
 	j := <-jobs
@@ -223,7 +238,50 @@ func TestExposureTemplatesEndToEndWithAFakeWorker(t *testing.T) {
 	for _, r := range rows {
 		results[r.Template] = r.Result
 	}
-	if err != nil || results["CVE-2021-41773"] != "matched" || results["CVE-2021-42013"] != "not_matched" || len(g.actors) != 1 || g.actors[0] != "ops@acme.example" {
+	if err != nil || results["CVE-2018-13379"] != "matched" || results["CVE-2019-19781"] != "not_matched" || len(g.actors) != 1 || g.actors[0] != "ops@acme.example" {
 		t.Fatalf("probe log %v %v, gate asked as %v", results, err, g.actors)
+	}
+}
+
+// Review M2 and L2: when exposure's 5 minutes run out in a later run, or a later run fails, the results of the earlier runs are kept
+// (the probe log holds them as matched) and the page says why the rest has none; a stop of the scan still drops the step.
+func TestExposureTemplatesLaterRunsDoNotLoseEarlierResults(t *testing.T) {
+	t.Parallel()
+	answer := func(r sensoractive.NucleiRequest) nucleiout.Outcome {
+		return nucleiout.Outcome{Results: []nucleiout.Result{{Template: r.Templates[0], Target: fmt.Sprintf("8.8.8.8:%d", r.Targets[0].Port), Matched: true}}}
+	}
+	jobs := []exposure.TemplateJob{ownJob("CVE-2018-13379"), ownJob("CVE-2019-19781")}
+	jobs[1].Port = 18444
+	synctest.Test(t, func(t *testing.T) {
+		f := &templatesFake{gateOK: true, answer: answer, block: 2}
+		ctx, cancel := context.WithTimeout(t.Context(), exposure.TemplatesTimeout)
+		defer cancel()
+		got, err := f.scanner().ScanTemplates(ctx, exposure.ScanTarget{}, ownPublicIP, jobs)
+		if err != nil || len(got.Results) != 1 || got.Results[0].Outcome != exposure.OutcomeMatched || len(got.NotChecked) != 1 ||
+			!strings.Contains(got.NotChecked[0], "did not finish within 5 minutes") || !strings.Contains(got.NotChecked[0], "CVE-2019-19781") {
+			t.Fatalf("timeout: %+v %v", got, err)
+		}
+	})
+	f := &templatesFake{gateOK: true, answer: answer, runErrs: map[int]error{2: sensoractive.ErrNucleiBusy}}
+	got, err := f.scanner().ScanTemplates(t.Context(), exposure.ScanTarget{}, ownPublicIP, jobs)
+	if err != nil || len(got.Results) != 1 || len(got.NotChecked) != 1 || !strings.Contains(got.NotChecked[0], "on port 18444 did not run: the scan container's nuclei was busy") {
+		t.Fatalf("failure: %+v %v", got, err)
+	}
+	ctx, cancel := context.WithCancel(t.Context())
+	f = &templatesFake{gateOK: true, answer: answer, block: 2}
+	go cancel()
+	if _, err := f.scanner().ScanTemplates(ctx, exposure.ScanTarget{}, ownPublicIP, jobs); !errors.Is(err, context.Canceled) {
+		t.Fatalf("stop: %v", err)
+	}
+}
+
+// Review L5: the probe log cannot be written, so nothing is sent and the page says why.
+func TestExposureTemplatesNothingSentWithoutTheProbeLog(t *testing.T) {
+	t.Parallel()
+	f := &templatesFake{gateOK: true, logErr: errors.New("disk full")}
+	_, err := f.scanner().ScanTemplates(t.Context(), exposure.ScanTarget{}, ownPublicIP, []exposure.TemplateJob{ownJob("CVE-2018-13379")})
+	var un *exposure.Unavailable
+	if !errors.As(err, &un) || un.Reason != templatesNoLog || len(f.reqs) != 0 {
+		t.Fatalf("%v, %d runs", err, len(f.reqs))
 	}
 }

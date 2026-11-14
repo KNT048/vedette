@@ -46,6 +46,7 @@ func NewPack(t testing.TB, ids ...string) *Pack {
 		SHA256  string   `json:"sha256"`
 		Tags    []string `json:"tags"`
 		Request string   `json:"request"`
+		OwnIP   bool     `json:"own_ip,omitempty"`
 	}
 	var ts []tmpl
 	for i, id := range ids {
@@ -59,7 +60,7 @@ func NewPack(t testing.TB, ids ...string) *Pack {
 			t.Fatal(err)
 		}
 		h := sha256.Sum256(body)
-		ts = append(ts, tmpl{ID: id, CVE: fmt.Sprintf("CVE-2024-%04d", i+1), Path: rel, SHA256: hex.EncodeToString(h[:]), Tags: []string{"kev"}, Request: "GET / HTTP/1.1"})
+		ts = append(ts, tmpl{ID: id, CVE: fmt.Sprintf("CVE-2024-%04d", i+1), Path: rel, SHA256: hex.EncodeToString(h[:]), Tags: []string{"kev"}, Request: "GET / HTTP/1.1", OwnIP: true})
 		p.Paths[id] = rel
 	}
 	raw, err := json.Marshal(map[string]any{"version": p.Version, "sha256": p.SHA256, "templates": ts})

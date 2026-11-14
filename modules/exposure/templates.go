@@ -29,9 +29,10 @@ const (
 	// TemplatesTimeout bounds the step, like ServicesTimeout.
 	TemplatesTimeout = 5 * time.Minute
 
-	maxTemplateJobs = 64
-	maxTemplateRows = 128 // per service: TemplatesPerJob x 4 jobs; matched results are kept first
-	maxTemplatesLn  = 6   // template ids named in the "what was checked" line
+	maxTemplateJobs  = 64
+	maxTemplateRows  = 128 // per service: TemplatesPerJob x 4 jobs; matched results are kept first
+	maxTemplatesLn   = 6   // template ids named in the "what was checked" line
+	maxTemplateNotes = 8   // "Not checked" lines a scanner may add
 
 	// NotSetUpTemplates is the line of every scan of an IP while no TemplateScanner is wired.
 	NotSetUpTemplates = "Not checked: safe exploited-vulnerability templates are not set up on this box yet."
@@ -78,6 +79,9 @@ type (
 		Results []TemplateResult
 		// Sent are the ids of the templates the scanner logged and sent (one id per template, whatever its outcome).
 		Sent []string
+		// NotChecked are sentences for "Not checked" from the scanner (D-520): the CVEs whose template may not run on a public IP,
+		// and a run that failed or did not finish after earlier ones were kept. At most maxTemplateNotes, each cut to maxLineText.
+		NotChecked []string
 	}
 	// TemplateRow is a TemplateResult as a service row keeps it.
 	TemplateRow struct {
@@ -191,6 +195,9 @@ func (s *Service) runTemplates(ctx context.Context, st ScanTarget, ip netip.Addr
 		rows, notKept := sanitizeTemplateResults(res.Results, jobs)
 		c.Templates = templateRows(c.Services, ip, rows)
 		c.Checks = append(c.Checks, CheckRow{Kind: "templates", At: store.FormatTS(s.clock()), Text: templatesLine(jobs, rows, sentIDs(res.Sent), notKept)})
+		for _, n := range res.NotChecked[:min(len(res.NotChecked), maxTemplateNotes)] { // D-520: why some CVEs have no result
+			c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "templates", Text: clipText(n, maxLineText)})
+		}
 	case ctx.Err() != nil:
 		return c, err
 	case errors.As(err, &un):
@@ -428,7 +435,7 @@ func markTemplates(vulns []VulnRow, rows []TemplateRow) {
 		switch t.Outcome {
 		case OutcomeMatched:
 			vulns[i].Basis = "template"
-			vulns[i].Summary = strings.TrimSpace("Confirmed by template " + t.Template + ": the safe check got the answer of an affected service. " + v.Summary)
+			vulns[i].Summary = strings.TrimSpace("Confirmed by template " + t.Template + ": the safe check got the answer of an affected service at this box's public address (whatever the router forwards that port to). " + v.Summary)
 		case OutcomeNoMatch:
 			vulns[i].Summary = strings.TrimSpace(v.Summary + " No match reported by the safe template " + t.Template + ": that is one check, not proof that this service is not affected.")
 		default:

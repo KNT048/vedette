@@ -124,3 +124,44 @@ func TestForbiddenTagsAreTheExcludedTags(t *testing.T) {
 		t.Fatal("ForbiddenTags hands out the shared slice")
 	}
 }
+
+// D-520: the worker's own text check of a template file before an own_ip job, and the index rule for an entry marked own_ip.
+func TestOwnIPText(t *testing.T) {
+	t.Parallel()
+	ok := "id: x\nhttp:\n  - raw:\n      - |\n        GET /a HTTP/1.1\n        Host: {{Hostname}}\n  - method: GET\n    path:\n      - \"{{BaseURL}}/etc/passwd\"\n"
+	if err := OwnIPText([]byte(ok)); err != nil {
+		t.Fatalf("a GET check refused: %v", err)
+	}
+	for name, body := range map[string]string{
+		"a POST raw":       strings.Replace(ok, "GET /a", "POST /a", 1),
+		"a PUT method":     strings.Replace(ok, "method: GET", "method: put", 1),
+		"a body":           strings.Replace(ok, "  - method: GET\n", "  - method: GET\n    body: x\n", 1),
+		"an authorization": strings.Replace(ok, "Host: {{Hostname}}", "Host: {{Hostname}}\n        Authorization: Basic eA==", 1),
+		"a password var":   strings.Replace(ok, "/etc/passwd", "/login?p={{password}}", 1),
+		"a command":        strings.Replace(ok, "/etc/passwd", "/x?c=%60id%60", 1),
+		"a third party":    strings.Replace(ok, "/etc/passwd", "/x?u=http://oast.me", 1),
+		"a delete":         strings.Replace(ok, "/etc/passwd", "/api/delete?id=1", 1),
+		"a password query": strings.Replace(ok, "/etc/passwd", "/x?password=a", 1),
+	} {
+		if OwnIPText([]byte(body)) == nil {
+			t.Errorf("%s: accepted", name)
+		}
+	}
+	for tag, want := range map[string]bool{"rce": true, "time-based-sqli": true, "ssti": true, "authenticated": true, "auth-bypass": true,
+		"file-write": true, "ssrf": true, "lfi": false, "apache": false, "exposure": false} {
+		if OwnIPRefusedTag(tag) != want {
+			t.Errorf("OwnIPRefusedTag(%s) != %v", tag, want)
+		}
+	}
+	entry := `{"version":"2026.11.2","sha256":"` + strings.Repeat("a", 64) + `","templates":[{"id":"CVE-2024-1234","cve":"CVE-2024-1234","path":"http/a.yaml","sha256":"` +
+		strings.Repeat("b", 64) + `","tags":["kev"],"request":"%s","own_ip":true}]}`
+	if _, err := Parse([]byte(strings.Replace(entry, "%s", "GET /a", 1))); err != nil {
+		t.Errorf("a GET entry marked own_ip refused: %v", err)
+	}
+	if _, err := Parse([]byte(strings.Replace(entry, "%s", "POST /a", 1))); err == nil {
+		t.Error("a POST entry marked own_ip accepted")
+	}
+	if _, err := Parse([]byte(strings.Replace(strings.Replace(entry, "%s", "GET /a", 1), `["kev"]`, `["kev","rce"]`, 1))); err == nil {
+		t.Error("an rce entry marked own_ip accepted")
+	}
+}

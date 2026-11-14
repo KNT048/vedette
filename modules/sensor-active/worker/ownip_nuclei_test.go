@@ -1,6 +1,8 @@
 package worker_test
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"os"
 	"slices"
@@ -68,7 +70,8 @@ func TestOwnIPNucleiRefusedWhenTheEgressIsNotOwn(t *testing.T) {
 }
 
 // The grammar of the scope, checked again in the worker before the fence is asked: a private target, two targets, another rate, an
-// unknown scope, a public target without the scope, and a template of a class K-6 keeps off the public IP are invalid_job.
+// unknown scope, a public target without the scope, a template the image's index does not mark own_ip, and a template file that
+// fails the worker's own text check (a POST, a credential) are invalid_job (D-520).
 func TestOwnIPNucleiGrammar(t *testing.T) {
 	t.Parallel()
 	for name, mut := range map[string]func(*testing.T, *nrig, *sensorlink.NucleiJob){
@@ -76,10 +79,18 @@ func TestOwnIPNucleiGrammar(t *testing.T) {
 		"two targets": func(_ *testing.T, _ *nrig, n *sensorlink.NucleiJob) {
 			n.Targets = append(n.Targets, sensorlink.NucleiTarget{Host: "8.8.8.8", Port: 80})
 		},
-		"rate 20":          func(_ *testing.T, _ *nrig, n *sensorlink.NucleiJob) { n.Rate = 20 },
-		"unknown scope":    func(_ *testing.T, _ *nrig, n *sensorlink.NucleiJob) { n.Scope = "internet" },
-		"public in lan":    func(_ *testing.T, _ *nrig, n *sensorlink.NucleiJob) { n.Scope = "" },
-		"a K-6 class":      func(t *testing.T, r *nrig, _ *sensorlink.NucleiJob) { retag(t, r.pack.Index, "CVE-2024-2", "sqli") },
+		"rate 20":       func(_ *testing.T, _ *nrig, n *sensorlink.NucleiJob) { n.Rate = 20 },
+		"unknown scope": func(_ *testing.T, _ *nrig, n *sensorlink.NucleiJob) { n.Scope = "internet" },
+		"public in lan": func(_ *testing.T, _ *nrig, n *sensorlink.NucleiJob) { n.Scope = "" },
+		"not own_ip in the index": func(t *testing.T, r *nrig, _ *sensorlink.NucleiJob) {
+			editIndex(t, r.pack.Index, "CVE-2024-2", func(m map[string]any) { delete(m, "own_ip") })
+		},
+		"a POST in the file": func(t *testing.T, r *nrig, _ *sensorlink.NucleiJob) {
+			rewrite(t, r.pack.Index, r.pack.File("CVE-2024-2"), "CVE-2024-2", "id: CVE-2024-2\nhttp:\n  - raw:\n      - |\n        POST /x HTTP/1.1\n        Host: {{Hostname}}\n")
+		},
+		"a credential in the file": func(t *testing.T, r *nrig, _ *sensorlink.NucleiJob) {
+			rewrite(t, r.pack.Index, r.pack.File("CVE-2024-2"), "CVE-2024-2", "id: CVE-2024-2\nhttp:\n  - path:\n      - \"{{BaseURL}}/login?user=admin&password=admin\"\n")
+		},
 		"not in the index": func(_ *testing.T, _ *nrig, n *sensorlink.NucleiJob) { n.Templates = []string{"CVE-2099-1"} },
 	} {
 		t.Run(name, func(t *testing.T) {
@@ -96,8 +107,18 @@ func TestOwnIPNucleiGrammar(t *testing.T) {
 	}
 }
 
-// retag adds tag to template id in the index file.
-func retag(t *testing.T, index, id, tag string) {
+// rewrite replaces the file of template id with body and its hash in the index, so only the own_ip text check can refuse it.
+func rewrite(t *testing.T, index, file, id, body string) {
+	t.Helper()
+	if err := os.WriteFile(file, []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	sum := sha256.Sum256([]byte(body))
+	editIndex(t, index, id, func(m map[string]any) { m["sha256"] = hex.EncodeToString(sum[:]) })
+}
+
+// editIndex changes the entry of template id in the index file.
+func editIndex(t *testing.T, index, id string, edit func(map[string]any)) {
 	t.Helper()
 	raw, err := os.ReadFile(index) //nolint:gosec // a test's temp file
 	if err != nil {
@@ -109,7 +130,7 @@ func retag(t *testing.T, index, id, tag string) {
 	}
 	for _, x := range ix["templates"].([]any) {
 		if m := x.(map[string]any); m["id"] == id {
-			m["tags"] = append(m["tags"].([]any), tag)
+			edit(m)
 		}
 	}
 	if raw, err = json.Marshal(ix); err != nil {

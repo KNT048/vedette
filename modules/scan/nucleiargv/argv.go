@@ -65,10 +65,13 @@ const (
 // OwnIPRate is the only rate of the own_ip scope (requests a second, D-561): one public address, the customer's own.
 const OwnIPRate = 5
 
-// ownIPForbiddenTags are the classes D-559 K-6 keeps off the box's own public IP on top of forbiddenTags: nothing that tries a
-// login or a credential, guesses, injects or uploads. Core and the worker leave a template that carries one out of an own_ip
-// job; nuclei is told to exclude them as well (-etags of ownIPFlags), the second fence.
-var ownIPForbiddenTags = []string{"default-login", "brute-force", "sqli", "xss", "injection", "file-upload"}
+// ownIPForbiddenTags are the tags D-559 K-6 (as the lead narrowed it for D-520) keeps off the box's own public IP on top of
+// forbiddenTags: nothing that tries a login or a credential, guesses, injects, runs a command or uploads. The real fence is the
+// pack's per-template own_ip decision (pack.Template.OwnIP, made when the pack is built and checked again by the worker on the
+// template file, D-520): a template of these tags is never marked own_ip. nuclei is told to exclude them as well (-etags of
+// ownIPFlags); how nuclei 3.11.1 applies -etags to a template named with -t is not lab-checked, so nothing relies on it.
+var ownIPForbiddenTags = []string{"default-login", "brute-force", "sqli", "time-based-sqli", "xss", "injection", "code-injection",
+	"argument-injection", "ssti", "file-upload", "rce", "authenticated", "login"}
 
 // OwnIPForbiddenTags returns a copy of the tags an own_ip job never runs, forbiddenTags included.
 func OwnIPForbiddenTags() []string { return append(slices.Clone(forbiddenTags), ownIPForbiddenTags...) }

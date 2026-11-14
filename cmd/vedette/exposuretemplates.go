@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/netip"
 	"slices"
+	"strings"
 
 	"github.com/knt048/vedette/content/nucleipack"
 	"github.com/knt048/vedette/core/store"
@@ -25,13 +26,15 @@ import (
 //
 // Two fences before a packet leaves, both fail closed: (1) core: right before each run, exposure's ScannableIP with the person who
 // pressed Scan now as the actor (verified, committed, the box's own IP seen within 5 minutes, else a fresh full check); (2) the
-// worker: nucleiargv's own_ip grammar (one public IPv4, the job's port, 5 requests a second, K-6 classes excluded) and its own
-// check, with the three public IP services, that the box goes out through that address. No argv goes over the wire.
+// worker: nucleiargv's own_ip grammar (one public IPv4, the job's port, 5 requests a second), the own_ip mark of each template in
+// its own index and its own read of each template file (pack.OwnIPText), and its own check, with the three public IP services,
+// that the box goes out through that address. No argv goes over the wire.
 //
 // Templates come only from the verified pack core plans with (content/nucleipack, the index of the image; the worker refuses a job
 // planned for another pack): the template of each CVE of a job (pack.ForCVE; in the KEV pack its id is the CVE id), none chosen by
-// tag, none of a class of nucleiargv.OwnIPForbiddenTags (D-559 K-6). Each template is a row of the probe log, with its real id,
-// before its run is handed out (LEGAL §3), and is completed with its outcome after.
+// tag, and only one the pack marks own_ip (pack.Template.OwnIP: http GET or HEAD only, no body, no credential, no command, D-520).
+// A CVE whose template is not marked gets a "not run on a public IP" line. Each template is a row of the probe log, with its real
+// id, before its run is handed out (LEGAL §3), and is completed with its outcome after.
 type exposureTemplateScan struct {
 	on     func() bool                 // sensor-active is on: it runs the scan container
 	pack   func() (*pack.Index, error) // the pack core plans with
@@ -56,6 +59,13 @@ const (
 	templatesNoCheck = "the scan container could not reach the public IP services to check that %s is still this box's address, so nothing was sent. Check that the box can reach checkip.amazonaws.com, icanhazip.com and ifconfig.me over HTTPS."
 	templatesNotOwn  = "this box no longer reaches the Internet through %s, so nothing was sent."
 	templatesNoLog   = "the probe log could not be written, and nothing is sent without it."
+	templatesFailed  = "they failed. The box log has the error."
+
+	// notReadOnly is the line of the CVEs of a port whose template may not run on a public IP (D-520).
+	notReadOnly = "Safe templates for exploited vulnerabilities: %s on port %d: not run on a public IP: this check is not a read-only request."
+	// runSlow and runFailed are the lines of the runs that were not reported after earlier ones were kept (review M2, L2).
+	runSlow   = "Safe templates for exploited vulnerabilities did not finish within 5 minutes, so the ones that had not finished are not reported (%s)."
+	runFailed = "Safe templates for exploited vulnerabilities on port %d did not run: %s"
 )
 
 // templateRun is one nuclei job: at most nucleiargv.MaxTemplates templates on one port.
@@ -76,51 +86,84 @@ func (a exposureTemplateScan) ScanTemplates(ctx context.Context, t exposure.Scan
 	if err != nil {
 		return exposure.TemplateScan{}, err
 	}
-	runs := templateRuns(ix, ip, jobs)
-	var out exposure.TemplateScan
+	runs, notes := templateRuns(ix, ip, jobs)
+	out := exposure.TemplateScan{NotChecked: notes}
 	for i, r := range runs {
 		res, err := a.runOne(ctx, t.User, ip, ix, r)
-		if err != nil {
-			if i == 0 || ctx.Err() != nil {
-				return exposure.TemplateScan{}, err
+		if err == nil {
+			out.Results = append(out.Results, res...)
+			for _, tp := range r.tmpls {
+				out.Sent = append(out.Sent, tp.ID)
 			}
-			// Some ports were checked: keep their results; the CVEs of the rest read "no result" on the page.
-			a.log.WarnContext(ctx, "exposure: a run of the safe templates failed, the ones before it are kept", "ip", ip.String(), "port", r.port, "error", err)
-			break
+			continue
 		}
-		out.Results = append(out.Results, res...)
-		for _, tp := range r.tmpls {
-			out.Sent = append(out.Sent, tp.ID)
+		var un *exposure.Unavailable
+		switch {
+		case i == 0 || errors.Is(ctx.Err(), context.Canceled): // nothing kept yet, or the scan was stopped: exposure says why
+			return exposure.TemplateScan{}, err
+		case ctx.Err() != nil: // exposure's 5 minutes ran out: keep what earlier runs found, as the probe log does (review M2)
+			out.NotChecked = append(out.NotChecked, fmt.Sprintf(runSlow, cveList(runs[i:])))
+		case errors.As(err, &un):
+			out.NotChecked = append(out.NotChecked, fmt.Sprintf(runFailed, r.port, un.Reason))
+		default:
+			a.log.ErrorContext(ctx, "exposure: a run of the safe templates failed, the ones before it are kept", "ip", ip.String(), "port", r.port, "error", err)
+			out.NotChecked = append(out.NotChecked, fmt.Sprintf(runFailed, r.port, templatesFailed))
 		}
+		return out, nil // the runs after it are not sent (review L2: the page says so)
 	}
 	return out, nil
 }
 
+// cveList names the CVEs of runs, at most six and a count of the rest.
+func cveList(runs []templateRun) string {
+	var ids []string
+	for _, r := range runs {
+		for _, tp := range r.tmpls {
+			ids = append(ids, tp.CVE)
+		}
+	}
+	return namesOf(ids)
+}
+
+func namesOf(ids []string) string {
+	if len(ids) > 6 {
+		return strings.Join(ids[:6], ", ") + fmt.Sprintf(" and %d more", len(ids)-6)
+	}
+	return strings.Join(ids, ", ")
+}
+
 // templateRuns turns exposure's jobs into nuclei runs: for each job of ip (scope own_ip), the pack's templates of its CVEs that the
-// own_ip scope runs, at most nucleiargv.MaxTemplates a run. A CVE the pack has no template for is left out (no result, not an
-// error); a job for another address or scope is left out (exposure never makes one).
-func templateRuns(ix *pack.Index, ip netip.Addr, jobs []exposure.TemplateJob) []templateRun {
-	forbidden := nucleiargv.OwnIPForbiddenTags()
-	var runs []templateRun
+// pack marks own_ip, at most nucleiargv.MaxTemplates a run. A CVE the pack has no template for is left out (no result, not an
+// error); a CVE whose templates are all unmarked gets a notReadOnly line; a job for another address or scope is left out (exposure
+// never makes one).
+func templateRuns(ix *pack.Index, ip netip.Addr, jobs []exposure.TemplateJob) (runs []templateRun, notes []string) {
 	for _, j := range jobs {
 		if j.Scope != exposure.ScopeOwnIP || j.Host != ip.String() {
 			continue
 		}
 		var tmpls []pack.Template
+		var refused []string
 		for _, cve := range j.CVEs {
-			for _, tp := range ix.ForCVE(cve) {
-				if !slices.ContainsFunc(tp.Tags, func(tag string) bool { return slices.Contains(forbidden, tag) }) &&
-					!slices.ContainsFunc(tmpls, func(x pack.Template) bool { return x.ID == tp.ID }) {
-					tmpls = append(tmpls, tp)
+			all := ix.ForCVE(cve)
+			ok := 0
+			for _, tp := range all {
+				if tp.OwnIP && !slices.ContainsFunc(tmpls, func(x pack.Template) bool { return x.ID == tp.ID }) {
+					tmpls, ok = append(tmpls, tp), ok+1
 				}
 			}
+			if len(all) > 0 && ok == 0 {
+				refused = append(refused, cve)
+			}
+		}
+		if len(refused) > 0 {
+			notes = append(notes, fmt.Sprintf(notReadOnly, namesOf(refused), j.Port))
 		}
 		target := nucleiargv.Target{Host: ip.String(), Port: j.Port, Scheme: j.Scheme}
 		for c := range slices.Chunk(tmpls, nucleiargv.MaxTemplates) {
 			runs = append(runs, templateRun{port: j.Port, target: target, tmpls: c})
 		}
 	}
-	return runs
+	return runs, notes
 }
 
 // runOne is one run, in this order: the gate (obligation 1), the probe rows with the real template ids (obligation 2, LEGAL §3),

@@ -43,7 +43,7 @@ This needs `PublicServiceProber`/`parseAnswer` and `IsPublicIPv4` to move into a
 | `modules/sensor-active/migrations/sqlite/0003_*.sql` **[T]** | `sa_probe.shape` CHECK adds `external`. |
 | `modules/sensor-active/service.go` **[T]** | `ScanExternal(ctx, actor, ip)`: takes `runMu` within `busyWait`, writes the `sa_probe` row first, parses the XML into services and software. It never writes inventory. |
 | `modules/sensor-active/worker` **[T]** | Shape `external`: the own-IP check runs before nmap. Otherwise the job is refused with `not_own_ip`. |
-| `core/sensorlink/wire.go`, `docs/specs/sensor-protocol.md` **[T]** | Slice b adds nuclei `Scope "lan"\|"own_ip"`. An old worker refuses the job, so it fails closed. The protocol version is bumped. |
+| `core/sensorlink/wire.go`, `docs/specs/sensor-protocol.md` **[T]** | Slice b adds nuclei `Scope "lan"\|"own_ip"` and `nuclei.own_ip` in the heartbeat (D-520): core sends an own_ip job only to a worker that said `own_ip`, and an older worker that still got one fails its strict decode, so it fails closed. No new protocol number: they join protocol 5 before its first release (v0.1.0-beta.1 speaks 4; a 6 would leave it no update path, D-410). |
 | `modules/scan/nucleiargv/argv.go` **[T]** | `validHost` scope `own_ip`: one public IPv4, re-checked by the worker. |
 | `cmd/vedette/scan.go` `exposureRunner` **[T/scan]** | New phases after the surface scan. |
 | `modules/inventory/catalog.go` **[T]** | Export `KevKeysForCPE(ctx, cpe)` (today it is the unexported `keysForCPE`, D-501). |
@@ -144,6 +144,7 @@ Today the request waits up to 5 minutes, and nmap, nuclei and ZAP add minutes mo
   - **kien decides** the template classes.
   - At most 300 templates; measure nuclei RSS.
 - **N100:** on the same httpd 2.4.49 forward, CVE-2021-41773 becomes "confirmed by template", and the probe log lists each template id.
+  - **D-520 changes this acceptance:** only read-only templates run on a public IP, and the CVE-2021-41773/-42013 templates end with a POST that runs a command, so on httpd 2.4.49 the page now says "not run on a public IP: this check is not a read-only request". The acceptance needs a KEV service whose template is marked `own_ip` (196 of 988, for example a GET file read); the lead picks it.
 
 ### Slice c: ZAP baseline one-shot container for web ports ([T] host + image pin)
 - **Host op:** a new vedette-host operation `zap.baseline` with fixed argv: `podman run --rm --pull=never --network vedette-zap --add-host <name>:<ip> --cap-drop ALL --read-only --tmpfs /zap/wrk --memory=1g --pids-limit=256 <digest> zap-baseline.py -t <url> -m 1 -T 5 -J out.json -z "-silent -config spider.processform=false -config spider.postform=false"`.

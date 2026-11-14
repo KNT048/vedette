@@ -1,8 +1,10 @@
 package sensoractive_test
 
 import (
+	"context"
 	"errors"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/knt048/vedette/core/sensorlink"
@@ -98,4 +100,25 @@ func TestOwnIPNucleiGrammarBeforeDispatch(t *testing.T) {
 	if rep, _ := d.Jobs(t.Context(), 10*time.Millisecond, nil); len(rep.Jobs) != 0 {
 		t.Fatalf("a job went out: %+v", rep.Jobs)
 	}
+}
+
+// Review L5: a heartbeat that drops own_ip after RunNuclei accepted the job (a downgrade of the scan container) holds the job back:
+// it is never handed to that worker, and it ends when its caller's context does.
+func TestOwnIPNucleiHeldBackWhenTheHeartbeatDropsOwnIP(t *testing.T) {
+	t.Parallel()
+	synctest.Test(t, func(t *testing.T) {
+		d := sa.NewDispatcher(sa.DispatcherOptions{Tick: 10 * time.Millisecond})
+		beatOwnIP(t, d, true)
+		ctx, cancel := context.WithCancel(t.Context())
+		ch := runNuclei(ctx, d, ownIPReq())
+		synctest.Wait() // the job is pending in the nuclei slot
+		beatOwnIP(t, d, false)
+		if rep, _ := d.Jobs(t.Context(), time.Second, nil); len(rep.Jobs) != 0 {
+			t.Fatalf("a job went to a worker without own_ip: %+v", rep.Jobs)
+		}
+		cancel()
+		if got := <-ch; !errors.Is(got.err, context.Canceled) {
+			t.Fatalf("%+v", got)
+		}
+	})
 }

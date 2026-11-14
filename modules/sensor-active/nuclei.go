@@ -133,16 +133,12 @@ func (d *Dispatcher) RunNuclei(ctx context.Context, r NucleiRequest) (nucleiout.
 	if err := d.checkPack(r); err != nil {
 		return nucleiout.Outcome{}, err
 	}
-	if r.Scope == nucleiargv.ScopeOwnIP { // D-520: only a worker that said own_ip, and never queued behind a scan of the LAN
+	if r.Scope == nucleiargv.ScopeOwnIP { // D-520: only a worker that said own_ip (and never queued behind a scan of the LAN: await)
 		d.mu.Lock()
 		ok := d.nuclei.OwnIP
-		busy := d.nucSlot.pending != nil || d.nucSlot.running != nil && !d.nucSlot.running.finished
 		d.mu.Unlock()
-		switch {
-		case !ok:
+		if !ok {
 			return nucleiout.Outcome{}, ErrOwnIPUnsupported
-		case busy:
-			return nucleiout.Outcome{}, ErrNucleiBusy
 		}
 	}
 	if err := ctx.Err(); err != nil {
@@ -161,7 +157,7 @@ func (d *Dispatcher) RunNuclei(ctx context.Context, r NucleiRequest) (nucleiout.
 		spec.Nuclei.Targets[i] = sensorlink.NucleiTarget{Host: t.Host, Port: t.Port, Scheme: t.Scheme}
 		hostPort[i] = t.Host + ":" + strconv.Itoa(t.Port)
 	}
-	j := &djob{spec: spec}
+	j := &djob{spec: spec, exclusive: r.Scope == nucleiargv.ScopeOwnIP}
 	if err := d.await(ctx, d.nucSlot, j); err != nil {
 		if errors.Is(err, ErrWorkerUnavailable) {
 			return nucleiout.Outcome{}, ErrScanWorkerUnavailable

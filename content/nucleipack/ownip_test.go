@@ -38,18 +38,13 @@ func TestOwnIPTemplatesOfTheCommittedPack(t *testing.T) {
 	for _, tp := range ix.Templates {
 		byID[tp.ID] = tp
 	}
-	for _, id := range []string{
-		"CVE-2021-29203",                                                    // PATCH: resets an HPE password
-		"CVE-2024-2862",                                                     // PUT: changes an LG password
-		"CVE-2024-50334",                                                    // PUT /api;/config
-		"CVE-2024-6396",                                                     // file-write
+	for _, id := range []string{ // (the PATCH/PUT password resets and the file write of this list left the pack with D-528)
 		"CVE-2020-9043", "CVE-2025-2075", "CVE-2018-7602", "CVE-2022-37061", // log in with credentials (wp-login, user/login, dologin)
 		"CVE-2019-9733",                    // tag login
 		"CVE-2025-4396",                    // time-based-sqli
 		"CVE-2022-31499",                   // a command in a delay
 		"CVE-2026-0768",                    // code-injection
 		"CVE-2007-3010",                    // a command in the query
-		"CVE-2020-36333",                   // resets a WordPress site by GET
 		"CVE-2022-36804",                   // a command by GET
 		"CVE-2021-41773", "CVE-2021-42013", // a POST that runs a command after the GETs
 		"CVE-2025-2636",  // an SQL comment injection by GET that dumps wp_users (review round 2 M1)

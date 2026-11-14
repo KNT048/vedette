@@ -339,7 +339,8 @@ describe('findings: đổi trạng thái và quyền', () => {
     expect(f.resolution_note).toBe('Đã lên Photo Station 6.1.2')
     expect(f.resolved_by).toBe('admin@acme.example')
     expect(auditStore.get().some((a) => a.action === 'findings.status')).toBe(true)
-    expect(screen.getByText('Đã lên Photo Station 6.1.2')).toBeInTheDocument()
+    // the note leads the page (closed notice) and stays in History
+    expect(screen.getAllByText('Đã lên Photo Station 6.1.2')).toHaveLength(2)
     view.unmount()
     renderApp('/findings')
     expect(await screen.findByRole('heading', { level: 1, name: '2 unresolved findings, 0 confirmed' })).toBeInTheDocument()
@@ -568,5 +569,52 @@ describe('findings: "I updated <software>" (D-499, S-MIT-1, item 14)', () => {
     expect(within(dlg).queryByLabelText('New version')).toBeNull()
     expect(within(dlg).getByText('Vedette reads this version from the device. Run a scan of SRV-AD to check.')).toBeInTheDocument()
     expect(within(dlg).getByRole('link', { name: 'Scan SRV-AD' })).toHaveAttribute('href', '/scans?target=a-srvad')
+  })
+})
+
+describe('findings: a closed finding opens with why it was closed (S-MIT-1, W12-1)', () => {
+  const close = (patch: Partial<Pick<FindingDetail, 'resolved_by' | 'resolved_at' | 'resolution_note'>> & { status: 'not_relevant' | 'false_positive' }) => findingsStore.update((l) => l.map((f) => (f.id === 'f-2' ? { ...f, ...patch } : f)))
+  const AT = '2026-11-12T09:00:00Z'
+
+  it('closed by Vedette from distro data: the reason leads, the open-finding blocks sit under "Before it was closed"', async () => {
+    close({ status: 'not_relevant', resolved_by: 'system', resolved_at: AT, resolution_note: 'Ubuntu 24.04 fixed it in 1:9.6p1-3ubuntu13.14; this device has 1:9.6p1-3ubuntu13.14.' })
+    renderApp('/findings/f-2')
+    const n = await screen.findByTestId('closed-notice')
+    expect(n).toHaveTextContent(/^Vedette closed this as not relevant on /)
+    expect(n).toHaveTextContent('Ubuntu 24.04 fixed it in 1:9.6p1-3ubuntu13.14')
+    expect(within(n).getByRole('button', { name: 'Reopen finding' })).toBeEnabled()
+    const before = screen.getByTestId('before-closed')
+    expect(before).not.toHaveAttribute('open')
+    expect(within(before).getByText('Before it was closed: evidence, how to check, what to do')).toBeInTheDocument()
+    expect(before).toContainElement(screen.getByRole('heading', { name: 'Evidence' }))
+    // the notice comes before the blocks in the page
+    expect(n.compareDocumentPosition(before) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it('closed by a person: name, day and note', async () => {
+    close({ status: 'false_positive', resolved_by: 'admin@acme.example', resolved_at: AT, resolution_note: 'Lab network, not ours' })
+    renderApp('/findings/f-2')
+    const n = await screen.findByTestId('closed-notice')
+    expect(n).toHaveTextContent(/^Closed as a false positive by admin@acme\.example on /)
+    expect(n).toHaveTextContent('Lab network, not ours')
+    await userEvent.click(within(n).getByRole('button', { name: 'Reopen finding' }))
+    await waitFor(() => expect(screen.queryByTestId('closed-notice')).not.toBeInTheDocument())
+  })
+
+  it('risk accepted: the end day, who and the reason', async () => {
+    accepted.update((m) => ({ ...m, 'f-2': '2027-02-12' }))
+    close({ status: 'not_relevant', resolved_by: 'admin@acme.example', resolved_at: AT, resolution_note: 'No patch window before March' })
+    renderApp('/findings/f-2')
+    const n = await screen.findByTestId('closed-notice')
+    expect(n).toHaveTextContent(/^Risk accepted until 12 Feb 2027 by admin@acme\.example on /)
+    expect(n).toHaveTextContent('No patch window before March')
+    expect(n).toHaveTextContent('It reopens by itself after that day')
+  })
+
+  it('an open finding is unchanged: no notice, blocks not folded', async () => {
+    renderApp('/findings/f-2')
+    expect(await screen.findByRole('heading', { name: 'Evidence' })).toBeInTheDocument()
+    expect(screen.queryByTestId('closed-notice')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('before-closed')).not.toBeInTheDocument()
   })
 })

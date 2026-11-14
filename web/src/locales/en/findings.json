@@ -153,7 +153,7 @@
     "fixedDistroBelowAny": "The distribution backports fixes, so the package's version number may stay below {{fixed}}, the upstream release that fixes it.",
     "fixedIfDistro": "If you installed {{product}} from {{distro}}'s packages, install its security updates instead (for example apt upgrade): {{distro}} backports the fix under its own version number, so the number above may never appear.",
     "fixedNoFix": "no fixed release named for {{count}} more line(s)",
-    "fixedBranch": "{{branch}} \u2192 {{fixed}}",
+    "fixedBranch": "{{branch}} → {{fixed}}",
     "fixedBranchPlain": "{{fixed}}",
     "fixedMore": "and {{count}} more",
     "fixedSource": "Source: {{source}}. Check the vendor advisory before you upgrade.",
@@ -311,5 +311,17 @@
     "accepted": "Accepted risk",
     "handled": "Handled",
     "openBadge": "confirmed, need you"
+  },
+  "closed": {
+    "vedette": "Vedette",
+    "by": " by {{who}}",
+    "on": " on {{when}}",
+    "patched": "Closed as patched{{who}}{{when}}",
+    "mitigated": "Closed as mitigated{{who}}{{when}}. Patching is still needed to remove it",
+    "false_positive": "Closed as a false positive{{who}}{{when}}",
+    "not_relevant": "Closed as not relevant{{who}}{{when}}",
+    "systemNotRelevant": "Vedette closed this as not relevant{{when}}",
+    "risk_accepted": "Risk accepted until {{date}}{{who}}{{when}}. It reopens by itself after that day",
+    "before": "Before it was closed: evidence, how to check, what to do"
   }
 }

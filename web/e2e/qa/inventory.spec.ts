@@ -221,7 +221,7 @@ test.describe('P2 IT person, day to day: list, add by hand, CSV, detail', () => 
       return res.json() as Promise<{ id: string }>
     }, long)
     for (let i = 0; i < 24; i++) await page.evaluate(async ([id, k]) => { await fetch(`/api/v1/inventory/devices/${id}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ kind: k }) }) }, [r.id, i % 2 ? 'nas' : 'router'] as const)
-    await page.goto(`/devices/${r.id}`)
+    await page.goto(`/devices/${r.id}?tab=observations`)
     await expect(h1(page)).toContainText(long)
     // desktop shows a table, phones show a list: count whichever is visible
     const shown = (await page.getByRole('table', { name: 'Observations for this device' }).getByRole('row').count()) + (await page.getByRole('list', { name: 'Observations for this device' }).getByRole('listitem').count())
@@ -234,7 +234,7 @@ test.describe('P2 IT person, day to day: list, add by hand, CSV, detail', () => 
   })
 
   test('add software to a device, then remove it', async ({ page }) => {
-    await page.goto('/devices/a-nas02')
+    await page.goto('/devices/a-nas02?tab=software')
     await page.getByRole('button', { name: 'Add software' }).click()
     const dialog = page.getByRole('dialog')
     await dialog.getByRole('combobox').fill('wordpress')

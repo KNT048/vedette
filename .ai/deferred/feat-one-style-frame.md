@@ -1,0 +1,5 @@
+# Deferred: feat/one-style-frame (D-543, S-UI-1)
+
+- [ ] 2026-11-14 — Emily's pages (Home, Findings, Exposure, Incidents, Logs, Assistant) adopt the frame, `Notice` and tabs — vì sao để sau: Mlee owns those modules and other AIs are editing exposure, feeds and findings now — ở đâu: docs/plans/2026-11-14-one-style.md "Per page" — Moved to Mlee through that plan (supervisor routes it)
+- [ ] 2026-11-14 — Hand-made notice boxes in Kiên-side files (inventory AgentsSection/SnmpSection, core NetworkSection/ConnectionsSection, response ResponseSettings/RuleEditor, single ones in scan/reports) move to `Notice` — vì sao để sau: each has tests on its text and role, and some files are being edited by other AIs; done when the file is next touched — ở đâu: docs/plans/2026-11-14-one-style.md "Kiên side"
+- [ ] 2026-11-14 — Tabs inside long Settings sections (Box network, Updates, My account) and on /devices/setup (with #agents/#snmp redirects) — vì sao để sau: needs a story criterion first (D-464 keeps Settings as short forms) — ở đâu: docs/plans/2026-11-14-one-style.md "Kiên side"

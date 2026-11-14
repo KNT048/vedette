@@ -72,7 +72,7 @@ Mới/đổi so với bản 90 ngày: `PUT /exposure/box-ip/settings` (mới), `
 Không route `/exposure/*`, không job, không yêu cầu HTTPS ra ngoài (luồng 9 ngừng; luồng 15 không còn nút). Câu trả lời của Shodan đã lưu giữ nguyên. `scan` mất mục tiêu ngoài. Mục tiêu, ảnh chụp, cam kết, cài đặt giữ nguyên; bật lại thì job dò ngay lần đầu (IP đang dùng được gia hạn, IP không thấy quá 30 ngày vẫn `expired`).
 
 ## Story và quyết định
-S-EXP-1 (D-558: "What the Internet sees"), S-EXP-2 (`[chưa]`: phần exposure đã có, máy quét nmap -sV chưa nối, D-553); D-5 luật ANM; D-25 xác thực mục tiêu (90 ngày nay là 30 ngày tự gia hạn + chế độ tự phát hiện, kien 2026-11-09; ghi vào DECISIONS.md do kien); D-26 một ô cam kết.
+S-EXP-1 (D-558: "What the Internet sees"), S-EXP-2 (`[chưa]`: phần exposure đã có, máy quét nmap -sV đã nối 2026-11-14, D-553, D-559); D-5 luật ANM; D-25 xác thực mục tiêu (90 ngày nay là 30 ngày tự gia hạn + chế độ tự phát hiện, kien 2026-11-09; ghi vào DECISIONS.md do kien); D-26 một ô cam kết.
 
 ## Không khớp / câu hỏi mở
 - ~~IP phân giải từ subdomain (có thể thuộc CDN/bên thứ ba) có được quét cổng không?~~ Không, theo D-57 (7) và LEGAL §3 (D-229 làm đúng thế): tên dưới domain đã xác thực được liệt kê và chỉ được kiểm trang web theo tên ở cổng 80 và 443 (một GET `/`, cert của 443); địa chỉ chúng trỏ tới chỉ bị quét cổng khi chính nó là IP đã xác thực của hộp (`ScannableIP`). Tên trỏ tới địa chỉ không công khai được liệt kê, không bao giờ bị dò.

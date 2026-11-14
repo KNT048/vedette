@@ -82,7 +82,7 @@ func (a exposureTemplateScan) scanFull(ctx context.Context, t exposure.ScanTarge
 		}
 		var un *exposure.Unavailable
 		switch {
-		case len(out.Sent) == 0 && errors.Is(err, errNotFull) && ctx.Err() == nil: // review r1 L3: withdrawn before anything deep went out
+		case len(out.Sent) == 0 && errors.Is(err, errNotFull) && ctx.Err() == nil && t.Domain == nil: // review r1 L3: withdrawn before anything deep went out
 			return a.baselineInstead(ctx, t, ip, ix, jobs)
 		case len(out.Sent) == 0 || errors.Is(ctx.Err(), context.Canceled): // nothing sent yet, or the scan was stopped: exposure says why
 			return exposure.TemplateScan{}, err
@@ -136,7 +136,7 @@ func (a exposureTemplateScan) fullPortScan(ctx context.Context, t exposure.ScanT
 			if len(c) == 0 {
 				continue
 			}
-			res, o, err := a.send(ctx, t.User, ip, ix, templateRun{port: p.port, target: p.target, tmpls: c, full: true, disruptive: m.Disruptive})
+			res, o, err := a.send(ctx, t.User, ip, ix, templateRun{port: p.port, target: p.target, tmpls: c, full: true, disruptive: m.Disruptive, domain: t.Domain})
 			if err != nil {
 				return nil, err
 			}

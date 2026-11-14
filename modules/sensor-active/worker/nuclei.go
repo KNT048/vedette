@@ -104,8 +104,16 @@ func (w *Worker) nucleiArgv(j sensorlink.Job) ([]string, *sensorlink.JobResult, 
 		return nil, refusal("invalid_job"), fmt.Errorf("a nuclei job needs its fields and a timeout of 1..%d s", MaxNucleiTimeout)
 	}
 	targets := targetsOf(nj)
+	scope := nj.Scope
+	switch { // D-591: a domain_ip job is the full own_ip shape (one public target) with its fence fields; no other job carries any
+	case nj.Scope == sensorlink.ScopeDomainIP && nj.Domain != nil && nj.Depth == nucleiargv.DepthFull:
+		scope = nucleiargv.ScopeOwnIP
+	case nj.Scope != sensorlink.ScopeDomainIP && nj.Domain == nil:
+	default:
+		return nil, refusal("invalid_job"), fmt.Errorf("scope %.20q with depth %.20q is not a shape of a job", nj.Scope, nj.Depth)
+	}
 	job := func(paths []string) nucleiargv.Job {
-		return nucleiargv.Job{Templates: paths, Targets: targets, Rate: nj.Rate, MaxHostErrors: nj.MaxHostErrors, Scope: nj.Scope, Depth: nj.Depth, Disruptive: nj.Disruptive}
+		return nucleiargv.Job{Templates: paths, Targets: targets, Rate: nj.Rate, MaxHostErrors: nj.MaxHostErrors, Scope: scope, Depth: nj.Depth, Disruptive: nj.Disruptive}
 	}
 	if _, err := nucleiargv.Build(job(placeholderPaths(len(nj.Templates)))); err != nil {
 		return nil, refusal("invalid_job"), err
@@ -259,6 +267,11 @@ func (w *Worker) executeNuclei(ctx, jctx context.Context, cur *activeJob) *senso
 	}
 	rctx, cancel := context.WithTimeout(jctx, time.Duration(cur.job.TimeoutS)*time.Second)
 	defer cancel()
+	if cur.job.Nuclei.Scope == sensorlink.ScopeDomainIP { // nucleiArgv proved it is a full job with one public target: the domain fence (D-591)
+		if res := w.domainFence(ctx, rctx, jctx, cur, w.domainJob(cur.job), "nuclei"); res != nil {
+			return res
+		}
+	}
 	if cur.job.Nuclei.Scope == nucleiargv.ScopeOwnIP { // nucleiArgv proved it has one public target: the own-IP fence of D-514, D-520
 		if ok, reason := w.ownIP(rctx, netip.MustParseAddr(cur.job.Nuclei.Targets[0].Host)); !ok {
 			if context.Cause(jctx) != nil {

@@ -20,7 +20,7 @@ func TestUnitTemplatesArePinned(t *testing.T) {
 		api.ServiceCore:     "8101e880bea9032a90da71c8cfd7a3f25b7b2ba19b906daaffb89b4017c5cda9",
 		api.ServiceSensor:   "f5d4534fbbb920e1e832df910410e6bee23c74e49e58d291fd675fa17db18d35",
 		api.ServiceHoneypot: "706dfc118a9d8553eadc8813afb7d4c0ad3457bd646fdb7cd6f9c1c23c35e486",
-		api.ServiceScan:     "6fa3b00fb71cc9d6648fd4e55b37802cb9638e9a044e582351722dfdd0ddc5dc",
+		api.ServiceScan:     "844480262869d496d97b9cda5cf2bdd8f13e83b9a9dcb054fc8a286dd49ab730",
 	}
 	texts := map[string]string{api.ServiceCore: coreUnitText, api.ServiceSensor: sensorUnitText, api.ServiceHoneypot: honeypotUnitText, api.ServiceScan: scanUnitText}
 	for svc, text := range texts {
@@ -126,10 +126,11 @@ func TestOurUnitAcceptsAnEarlierTemplateOnlyByteForByte(t *testing.T) {
 	if _, _, _, err := o.ourUnitAge(api.ServiceHoneypot, []byte(old)); !errors.Is(err, errUnitNotOurs) {
 		t.Errorf("a pre-D-318 honeypot unit: %v", err)
 	}
-	// sensor and scan have one earlier template (before D-458's AppArmor module): those bytes are theirs and stale, one more byte is not.
+	// sensor and scan's first earlier template is the one before D-458's AppArmor module (scan has a second, before D-591's fence key
+	// mount): those bytes are theirs and stale, one more byte is not.
 	for _, svc := range []string{api.ServiceSensor, api.ServiceScan} {
-		if l := legacyTemplates[svc]; len(l) != 1 {
-			t.Fatalf("%s: %d legacy templates, and this test expects one", svc, len(l))
+		if l := legacyTemplates[svc]; len(l) < 1 {
+			t.Fatalf("%s: %d legacy templates, and this test expects at least one", svc, len(l))
 		}
 		f := goldFill(true)
 		old, err := services[svc].render(legacyTemplates[svc][0], f)

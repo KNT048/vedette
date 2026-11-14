@@ -15,6 +15,7 @@ import (
 	"testing"
 	"testing/synctest"
 
+	"github.com/knt048/vedette/core/domainfence"
 	vexec "github.com/knt048/vedette/core/exec"
 	"github.com/knt048/vedette/host/api"
 	"github.com/knt048/vedette/host/server"
@@ -22,9 +23,12 @@ import (
 
 // zap.baseline (D-521): the argv, the egress rule and the flow of a run, against a fake podman and nft that never run anything.
 
-const (
-	zapTestIP  = "93.184.216.34"
-	zapTestTok = "0123456789abcdef"
+const zapTestIP = "93.184.216.34"
+
+// zapTestKey is the fence key of every zap world (Deps.FenceKey); zapTestTok is example.com's box-bound token under it (D-591).
+var (
+	zapTestKey = []byte("zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz")
+	zapTestTok = domainfence.Token(zapTestKey, "example.com")
 )
 
 func zapIP(t *testing.T) netip.Addr { t.Helper(); return netip.MustParseAddr(zapTestIP) }
@@ -328,6 +332,12 @@ func newZapWorld(t *testing.T, d Deps) *zapWorld {
 	}
 	if d.FreeBytes == nil {
 		d.FreeBytes = func(string) (uint64, error) { return 64 << 30, nil }
+	}
+	if d.FenceKey == nil {
+		d.FenceKey = zapTestKey
+	}
+	if d.FenceCNAME == nil { // no CNAME: the name is its own canonical name
+		d.FenceCNAME = func(_ context.Context, name string) (string, error) { return name + ".", nil }
 	}
 	if d.ZapTXT == nil {
 		d.ZapTXT = func(context.Context, string) ([]string, error) {

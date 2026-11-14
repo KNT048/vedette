@@ -400,7 +400,7 @@ func (s *Service) probe(ctx context.Context, jobID string, kind nmapargv.Kind, r
 		return nil, ErrStopped
 	}
 	s.setDeadline(s.clock().Add(timeout))
-	probeID, err := s.insertProbe(ctx, jobID, kind, rate, targets)
+	probeID, err := s.insertProbe(ctx, jobID, kind, rate, targets, "")
 	if err != nil {
 		return nil, err
 	}
@@ -558,7 +558,7 @@ func compactTargets(ts []netip.Addr) string {
 	return strings.Join(parts, ",")
 }
 
-func (s *Service) insertProbe(ctx context.Context, jobID string, kind nmapargv.Kind, rate int, targets []netip.Addr) (int64, error) {
+func (s *Service) insertProbe(ctx context.Context, jobID string, kind nmapargv.Kind, rate int, targets []netip.Addr, note string) (int64, error) {
 	if kind.IsGentle() {
 		rate = 1
 	}
@@ -568,8 +568,8 @@ func (s *Service) insertProbe(ctx context.Context, jobID string, kind nmapargv.K
 	}
 	var id int64
 	err = s.db.Write(ctx, func(tx *sql.Tx) error {
-		res, err := tx.ExecContext(ctx, `INSERT INTO sa_probe (time, job_id, shape, rate, hosts, flags, targets, result) VALUES (?, ?, ?, ?, ?, ?, ?, 'started')`,
-			s.now(), jobID, kind.Name(), rate, len(targets), strings.Join(flags, " "), compactTargets(targets))
+		res, err := tx.ExecContext(ctx, `INSERT INTO sa_probe (time, job_id, shape, rate, hosts, flags, targets, result) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+			s.now(), jobID, kind.Name(), rate, len(targets), strings.Join(flags, " "), compactTargets(targets), note+"started")
 		if err != nil {
 			return err
 		}

@@ -61,6 +61,9 @@ type NucleiRequest struct {
 	// with Disruptive the disruptive set too. Sent only to a worker whose heartbeat said nuclei.full.
 	Depth      string
 	Disruptive bool
+	// Domain (D-591): a job of Scope sensorlink.ScopeDomainIP (depth full, one public target that is not the box's own egress) and
+	// its fence fields; sent only to a worker whose heartbeat says domain_ip, which checks the domain fence itself.
+	Domain *sensorlink.DomainScope
 }
 
 // Scanner is the seam the scan module calls (the smallest one: scan's own Engine asks only Ready, and the run is what S5 adds).
@@ -112,7 +115,15 @@ func (r NucleiRequest) check() error {
 	if r.Scope == nucleiargv.ScopeLAN { // the wire says LAN by leaving the scope out: a worker of protocol 5 reads the job it knows
 		return errors.New(`the LAN scope is "" in a request`)
 	}
-	if _, err := nucleiargv.Build(nucleiargv.Job{Templates: paths, Targets: r.Targets, Rate: r.Rate, MaxHostErrors: r.MaxHostErrors, Scope: r.Scope, Depth: r.Depth, Disruptive: r.Disruptive}); err != nil {
+	scope := r.Scope
+	switch { // D-591: domain_ip is the full own_ip shape with the fence fields; nothing else carries them
+	case r.Scope == sensorlink.ScopeDomainIP && r.Domain != nil && r.Depth == nucleiargv.DepthFull:
+		scope = nucleiargv.ScopeOwnIP
+	case r.Scope != sensorlink.ScopeDomainIP && r.Domain == nil:
+	default:
+		return errors.New("a domain_ip request is a full one with its domain fields, and only it carries them")
+	}
+	if _, err := nucleiargv.Build(nucleiargv.Job{Templates: paths, Targets: r.Targets, Rate: r.Rate, MaxHostErrors: r.MaxHostErrors, Scope: scope, Depth: r.Depth, Disruptive: r.Disruptive}); err != nil {
 		return err
 	}
 	return nil
@@ -148,6 +159,14 @@ func (d *Dispatcher) RunNuclei(ctx context.Context, r NucleiRequest) (nucleiout.
 			return nucleiout.Outcome{}, ErrOwnIPUnsupported
 		}
 	}
+	if r.Domain != nil { // D-591: only a worker that holds the fence key
+		d.mu.Lock()
+		ok := d.domainIP
+		d.mu.Unlock()
+		if !ok {
+			return nucleiout.Outcome{}, ErrDomainUnsupported
+		}
+	}
 	if r.Depth != "" { // FULL-4 (D-527): only a worker that said full
 		d.mu.Lock()
 		ok := d.nuclei.Full
@@ -168,13 +187,14 @@ func (d *Dispatcher) RunNuclei(ctx context.Context, r NucleiRequest) (nucleiout.
 		Scope:         r.Scope,
 		Depth:         r.Depth,
 		Disruptive:    r.Disruptive,
+		Domain:        r.Domain,
 	}}
 	hostPort := make([]string, len(r.Targets))
 	for i, t := range r.Targets {
 		spec.Nuclei.Targets[i] = sensorlink.NucleiTarget{Host: t.Host, Port: t.Port, Scheme: t.Scheme}
 		hostPort[i] = t.Host + ":" + strconv.Itoa(t.Port)
 	}
-	j := &djob{spec: spec, exclusive: r.Scope == nucleiargv.ScopeOwnIP}
+	j := &djob{spec: spec, exclusive: r.Scope == nucleiargv.ScopeOwnIP || r.Scope == sensorlink.ScopeDomainIP}
 	if err := d.await(ctx, d.nucSlot, j); err != nil {
 		if errors.Is(err, ErrWorkerUnavailable) {
 			return nucleiout.Outcome{}, ErrScanWorkerUnavailable
@@ -232,6 +252,8 @@ func (d *Dispatcher) nucleiOutcome(j *djob) ([]byte, error) {
 	case res.Status == "refused" && res.Reason == "egress_unverified":
 		d.log.Warn("sensor_active_worker_refused_own_ip_job", "reason", res.Reason)
 		return nil, fmt.Errorf("%w (%s): %w", ErrWorkerRefused, res.Reason, ErrEgressUnverified)
+	case j.spec.Nuclei != nil && j.spec.Nuclei.Domain != nil && domainReason(res):
+		return nil, d.domainRefused(res)
 	case res.Status == "refused" && res.Reason == "pack_invalid":
 		d.mu.Lock()
 		d.packInvalid, d.packInvalidSHA = true, d.nuclei.Pack.SHA256 // until the image holds another pack

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/fs"
 	"net"
+	"net/netip"
 	"os"
 
 	"github.com/knt048/vedette/host/api"
@@ -24,8 +25,28 @@ import (
 // exposure. It is never logged, audited or put in an error (the host's audit line redacts it by its key).
 type exposureGreenbone struct {
 	host   greenboneHostClient
+	fence  fenceCheckHost // D-591: the host's own domain fence for OpenVAS on an address that is not the box's
 	login  func(ctx context.Context) (string, error)
 	socket string
+}
+
+// fenceCheckHost is the host's exposure.fence_check (*hostclient.Client).
+type fenceCheckHost interface {
+	ExposureFenceCheck(ctx context.Context, args api.ExposureFenceCheckArgs, requestID, actor string) (string, error)
+}
+
+// CheckDomainIP implements exposure.GreenboneFence (D-591): vedette-host checks the domain fence itself (its key, the TXT record, the
+// name's address now) right before the task starts and every 3 minutes while it runs. A nil error is a yes.
+func (g exposureGreenbone) CheckDomainIP(ctx context.Context, scope exposure.DomainScope, ip netip.Addr) error {
+	if g.fence == nil {
+		return errors.New("openvas: no host to check the domain fence")
+	}
+	id, err := newUUID()
+	if err != nil {
+		return err
+	}
+	_, err = g.fence.ExposureFenceCheck(ctx, api.ExposureFenceCheckArgs{Domain: scope.Domain, Name: scope.Name, IP: ip.String(), Token: scope.Token}, id, gbActor)
+	return err
 }
 
 // greenboneHostClient is what OpenVAS needs of the host client (*hostclient.Client).
@@ -52,7 +73,8 @@ func exposureGreenboneFor(d deps) exposure.GreenboneHost {
 	if d.HostSocket == "" || d.Secrets == nil || d.DB == nil {
 		return nil
 	}
-	return exposureGreenbone{host: hostclient.New(d.HostSocket), socket: api.GreenboneSocket, login: func(ctx context.Context) (string, error) {
+	c := hostclient.New(d.HostSocket)
+	return exposureGreenbone{host: c, fence: c, socket: api.GreenboneSocket, login: func(ctx context.Context) (string, error) {
 		b, err := d.Secrets.OpenOrCreate(ctx, d.DB, gbSecretPurpose, gbSecretSize)
 		if err != nil {
 			return "", fmt.Errorf("openvas: the GMP password: %w", err)

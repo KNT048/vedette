@@ -322,12 +322,29 @@ func newToken() string {
 	return hex.EncodeToString(b)
 }
 
+// domainToken is the TXT token a new domain gets (D-591, plan 2026-11-14 §5): the box-bound token of the DomainFence, so the
+// executors' fence can derive it themselves and the domain's deep scan of addresses that are not the box's can run; without a fence
+// (a container-only install), or when the host does not answer, a random one as before (that domain then gets the by-name checks and
+// the box's own IP only, until it is verified again with the box-bound value).
+func (s *Service) domainToken(ctx context.Context, domain string) string {
+	if s.cfg.DomainFence == nil {
+		return newToken()
+	}
+	tok, err := s.cfg.DomainFence.Token(ctx, domain)
+	if err != nil || !fenceTokenRE.MatchString(tok) {
+		s.cfg.Log.ErrorContext(ctx, "exposure: the domain fence gave no token; the domain gets a random one", "domain", domain, "error", err)
+		return newToken()
+	}
+	return tok
+}
+
 // AddDomain adds a domain to prove (POST /exposure/targets, PRE-4). A public IP is never added here (INV-2).
 func (s *Service) AddDomain(ctx context.Context, user, raw string) (TargetView, error) {
 	value, err := normalizeDomain(raw)
 	if err != nil {
 		return TargetView{}, err
 	}
+	token := s.domainToken(ctx, value)
 	var id string
 	err = s.write(ctx, func(tx *sql.Tx, _ func(string, any)) error {
 		if _, dup, err := loadTargetByValue(ctx, tx, value); err != nil {
@@ -341,7 +358,7 @@ func (s *Service) AddDomain(ctx context.Context, user, raw string) (TargetView, 
 			return ErrTooMany
 		}
 		id = store.NewID("xt")
-		if err := insertTarget(ctx, tx, Target{ID: id, Kind: KindDomain, Value: value, Token: newToken(), CreatedAt: s.clock()}); err != nil {
+		if err := insertTarget(ctx, tx, Target{ID: id, Kind: KindDomain, Value: value, Token: token, CreatedAt: s.clock()}); err != nil {
 			return err
 		}
 		return s.audit(ctx, tx, user, "exposure.target_add", value, "")

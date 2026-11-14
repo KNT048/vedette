@@ -264,3 +264,54 @@ func (c *Client) Greenbone(ctx context.Context, command string, args any, reques
 func (c *Client) DownloadZapReport(ctx context.Context, reportID string) (io.ReadCloser, int64, error) {
 	return c.download(ctx, "/v1/zap/"+url.PathEscape(reportID)+"/content")
 }
+
+// FenceError is a domain fence command (exposure.token, exposure.fence_check; D-591) that ended without a result: the host's code
+// (token_foreign, target_not_owned, name_moved, cname_outside, ownership_unchecked, fence_unavailable, unknown_command for an older
+// host, …) and its message.
+type FenceError struct {
+	Code    string
+	Message string
+}
+
+func (e *FenceError) Error() string { return "host: " + e.Code + ": " + e.Message }
+
+// runQuick runs a short read-only command and follows it to its end (every 200 ms), returning its result or a *FenceError.
+func runQuick[T any](ctx context.Context, c *Client, command string, args any, requestID, actor string) (T, error) {
+	var zero T
+	run, err := c.Run(ctx, command, args, requestID, actor)
+	for err == nil && !run.Status.Terminal() {
+		select {
+		case <-ctx.Done():
+			return zero, ctx.Err()
+		case <-time.After(200 * time.Millisecond):
+		}
+		run, err = c.GetRun(ctx, run.RunID)
+	}
+	var he *Error
+	switch {
+	case errors.As(err, &he):
+		return zero, &FenceError{Code: he.Code, Message: he.Message}
+	case err != nil:
+		return zero, err
+	case run.Status != api.StatusSucceeded:
+		fe := &FenceError{Code: string(run.Status)}
+		if run.Error != nil {
+			fe.Code, fe.Message = run.Error.Code, run.Error.Message
+		}
+		return zero, fe
+	}
+	return ResultOf[T](run)
+}
+
+// ExposureToken runs exposure.token (D-591): the box-bound token of a verified domain.
+func (c *Client) ExposureToken(ctx context.Context, domain, requestID, actor string) (string, error) {
+	r, err := runQuick[api.ExposureTokenResult](ctx, c, api.CmdExposureToken, api.ExposureTokenArgs{Domain: domain}, requestID, actor)
+	return r.Token, err
+}
+
+// ExposureFenceCheck runs exposure.fence_check (D-591): the host's own domain fence for an OpenVAS scan; nil error is a yes, with the
+// name's CNAME chain.
+func (c *Client) ExposureFenceCheck(ctx context.Context, args api.ExposureFenceCheckArgs, requestID, actor string) (string, error) {
+	r, err := runQuick[api.ExposureFenceCheckResult](ctx, c, api.CmdExposureFenceCheck, args, requestID, actor)
+	return r.Chain, err
+}

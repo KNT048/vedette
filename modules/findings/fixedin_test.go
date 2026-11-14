@@ -176,3 +176,26 @@ func TestFixedIn_BranchesAreShort(t *testing.T) {
 		t.Errorf("got %+v", f)
 	}
 }
+
+// D-556: ranges from the vendor's CVE.org record, written by feeds under CISA's own vendor and product, decide by
+// version like NVD's, and every sentence names their source.
+func TestCVEOrgRangesNameTheirSource(t *testing.T) {
+	v := Vuln{CVE: "CVE-2024-3400", Vendor: "Palo Alto Networks", Product: "PAN-OS", RangesFrom: RangesCVEOrg, Affected: []Affected{
+		{CPE: "cpe:2.3:*:paloaltonetworks:panos:*:*:*:*:*:*:*:*", Range: VersionRange{StartIncl: "10.2.0", EndExcl: "10.2.9-h1"}},
+		{CPE: "cpe:2.3:*:paloaltonetworks:panos:*:*:*:*:*:*:*:*", Range: VersionRange{StartIncl: "11.1.0", EndExcl: "11.1.2-h3"}}}}
+	fw := func(ver string) Asset {
+		return Asset{ID: "a", Name: "fw", Software: []Software{{ID: "s", Display: "PAN-OS", Vendor: "Palo Alto Networks", Product: "PAN-OS", Version: ver,
+			KevKeys: []string{KevKey("Palo Alto Networks", "PAN-OS")}}}}
+	}
+	res := MatchAsset(fw("10.2.5"), []Vuln{v}, nil, t0)
+	if len(res.New) != 1 || res.New[0].Basis != BasisVersion {
+		t.Fatalf("10.2.5: %+v", res)
+	}
+	if f := FixedInFor(fw("10.2.5"), v); f == nil || f.Fixed != "10.2.9-h1" || f.Source != FixedInSourceCVEOrg {
+		t.Fatalf("fixed in: %+v", f)
+	}
+	res = MatchAsset(fw("10.1.9"), []Vuln{v}, map[string]bool{"CVE-2024-3400": true}, t0)
+	if len(res.NotAffected) != 1 || !strings.Contains(res.NotAffected[0].Evidence.Summary, "outside every version range the vendor's CVE.org record lists") {
+		t.Fatalf("10.1.9: %+v", res)
+	}
+}

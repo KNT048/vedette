@@ -86,7 +86,7 @@ export const FixedIn = z.object({
   more: z.number().int().min(0).describe('Release lines with a fix left out of branches'),
   no_fix: z.number().int().min(0).describe('Release lines NVD gives no fixed release for (a range that ends at an affected version)'),
   distro: z.string().describe('"Ubuntu" or "Debian" when the device runs one and the version has no distribution marker: the page adds "if you installed it from the distribution\'s packages, install its security updates instead"; empty otherwise'),
-  source: z.string().describe('Where the versions come from: "NVD affected versions"'),
+  source: z.string().describe('Where the versions come from: "NVD affected versions", or "CVE.org (vendor) affected versions" when NVD has none (D-556)'),
 })
 export const FindingDetail = FindingRow.extend({
   fixed_in: FixedIn.nullable().describe('The release that fixes this finding on this device, from the NVD affected versions (D-488); null = NVD gives none, the page shows CISA and the vendor advisory only'),

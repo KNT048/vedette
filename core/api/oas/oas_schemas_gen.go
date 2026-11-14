@@ -56852,7 +56852,8 @@ type FindingsGetFindingsIDOKFixedIn struct {
 	More int `json:"more"`
 	// Release lines NVD gives no fixed release for (a range that ends at an affected version).
 	NoFix int `json:"no_fix"`
-	// Where the versions come from: "NVD affected versions".
+	// Where the versions come from: "NVD affected versions", or "CVE.org (vendor) affected versions" when
+	// NVD has none (D-556).
 	Source string `json:"source"`
 	// The device's version; for branches empty when it has none, else the text Vedette cannot read.
 	Version string `json:"version"`
@@ -61854,7 +61855,8 @@ type FindingsPostFindingsIDAiOKFixedIn struct {
 	More int `json:"more"`
 	// Release lines NVD gives no fixed release for (a range that ends at an affected version).
 	NoFix int `json:"no_fix"`
-	// Where the versions come from: "NVD affected versions".
+	// Where the versions come from: "NVD affected versions", or "CVE.org (vendor) affected versions" when
+	// NVD has none (D-556).
 	Source string `json:"source"`
 	// The device's version; for branches empty when it has none, else the text Vedette cannot read.
 	Version string `json:"version"`
@@ -64756,7 +64758,8 @@ type FindingsPostFindingsIDAppliedOKFixedIn struct {
 	More int `json:"more"`
 	// Release lines NVD gives no fixed release for (a range that ends at an affected version).
 	NoFix int `json:"no_fix"`
-	// Where the versions come from: "NVD affected versions".
+	// Where the versions come from: "NVD affected versions", or "CVE.org (vendor) affected versions" when
+	// NVD has none (D-556).
 	Source string `json:"source"`
 	// The device's version; for branches empty when it has none, else the text Vedette cannot read.
 	Version string `json:"version"`
@@ -67679,7 +67682,8 @@ type FindingsPostFindingsIDStatusOKFixedIn struct {
 	More int `json:"more"`
 	// Release lines NVD gives no fixed release for (a range that ends at an affected version).
 	NoFix int `json:"no_fix"`
-	// Where the versions come from: "NVD affected versions".
+	// Where the versions come from: "NVD affected versions", or "CVE.org (vendor) affected versions" when
+	// NVD has none (D-556).
 	Source string `json:"source"`
 	// The device's version; for branches empty when it has none, else the text Vedette cannot read.
 	Version string `json:"version"`

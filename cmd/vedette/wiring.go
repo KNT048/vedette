@@ -198,8 +198,9 @@ func (a findingsFeeds) KevInfo(ctx context.Context, cves []string) (map[string]f
 	return out, nil
 }
 
-// Vulns returns the CISA list for matching, each CVE with the NVD affected versions feeds pulled (nvd-kev, D-500).
-// A CVE NVD has not answered for has none, and findings then cannot decide by version.
+// Vulns returns the CISA list for matching, each CVE with the NVD affected versions feeds pulled (nvd-kev, D-500), or
+// those of the vendor's CVE.org record when NVD has none (cve-org, D-556). A CVE with neither has none, and findings then
+// cannot decide by version.
 func (a findingsFeeds) Vulns(ctx context.Context) ([]findings.Vuln, error) {
 	stamp := ""
 	if a.cache != nil {
@@ -232,9 +233,16 @@ func (a findingsFeeds) readVulns(ctx context.Context) ([]findings.Vuln, error) {
 	if err != nil {
 		return nil, err
 	}
+	fromCVEOrg, err := a.st.RangesFromCVEOrg(ctx) // D-556: ranges of the vendor's CVE.org record where NVD has none
+	if err != nil {
+		return nil, err
+	}
 	out := make([]findings.Vuln, len(rows))
 	for i, v := range rows {
 		out[i] = findings.Vuln{CVE: v.CVE, Vendor: v.Vendor, Product: v.Product, Name: v.Name, Ransomware: v.Ransomware}
+		if fromCVEOrg[v.CVE] {
+			out[i].RangesFrom = findings.RangesCVEOrg
+		}
 		for _, r := range affected[v.CVE] {
 			out[i].Affected = append(out[i].Affected, findings.Affected{CPE: r.CPE,
 				Range: findings.VersionRange{StartIncl: r.StartIncl, StartExcl: r.StartExcl, EndIncl: r.EndIncl, EndExcl: r.EndExcl}})

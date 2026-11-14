@@ -78,6 +78,21 @@ type Vuln struct {
 	EPSS       float64   // 0 when unknown
 	DateAdded  time.Time // when CISA added the entry to KEV; zero when unknown (Reconcile treats that as backlog)
 	Affected   []Affected
+	RangesFrom string // where Affected comes from: "" NVD, RangesCVEOrg the vendor's CVE.org record (D-556)
+}
+
+// RangesCVEOrg marks a Vuln whose affected versions come from the CNA's CVE.org record because NVD has none (D-556).
+const RangesCVEOrg = "cve.org"
+
+// rangesBy names the source of v's affected versions in a sentence (first: at its start).
+func (v Vuln) rangesBy(first bool) string {
+	switch {
+	case v.RangesFrom != RangesCVEOrg:
+		return "NVD"
+	case first:
+		return "The vendor's CVE.org record"
+	}
+	return "the vendor's CVE.org record"
 }
 
 // Evidence is the explanation shown with a finding.
@@ -360,7 +375,7 @@ func matchOne(a Asset, s Software, in swInfo, v Vuln, now time.Time) (Match, out
 		}
 		return Match{}, outRuledOut
 	case tri == No:
-		note := fmt.Sprintf("Not affected: version %s of %s is outside every version range NVD lists for %s. Vedette closed this by itself and reopens it if a later match says the device is affected.", clean(in.ver), clean(s.Display), v.CVE)
+		note := fmt.Sprintf("Not affected: version %s of %s is outside every version range %s lists for %s. Vedette closed this by itself and reopens it if a later match says the device is affected.", clean(in.ver), clean(s.Display), v.rangesBy(false), v.CVE)
 		if proof == proofOS {
 			note = fmt.Sprintf("Not affected: %s lists only operating-system releases other than this device's (%s). Vedette closed this by itself and reopens it if a later match says the device is affected.", v.CVE, clean(a.OS))
 		}
@@ -385,7 +400,7 @@ func matchOne(a Asset, s Software, in swInfo, v Vuln, now time.Time) (Match, out
 		}
 		m.Evidence.Summary = fmt.Sprintf("%s runs %s. Its version is inside the range affected by %s (%s); no scan has confirmed it yet, so this is only suspected.", name, sw, v.CVE, clean(within.String()))
 	case every && !in.given:
-		m.Evidence.Summary = fmt.Sprintf("%s runs %s. NVD lists every version of it as affected by %s; no scan has confirmed it yet, so this is only suspected.", name, sw, v.CVE)
+		m.Evidence.Summary = fmt.Sprintf("%s runs %s. %s lists every version of it as affected by %s; no scan has confirmed it yet, so this is only suspected.", name, sw, v.rangesBy(true), v.CVE)
 	case multi:
 		m.Confidence = ConfVendorOnly
 		m.Evidence.Summary = fmt.Sprintf("%s runs %s. CISA lists this flaw for several %s products; check the advisory to see whether yours is one of them.", name, sw, clean(v.Vendor))

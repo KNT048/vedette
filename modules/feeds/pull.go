@@ -109,6 +109,10 @@ type pullPlan struct {
 	affectedFull bool                     // a full pull: CVEs not in affected are dropped
 	hasAffected  bool
 
+	cveOrg        map[string][]AffectedRow // cve-org (D-556): the CVEs whose record gave ranges
+	cveOrgChecked []string                 // every CVE whose record was read
+	hasCVEOrg     bool
+
 	iocs    []iocInput
 	hasIOCs bool
 }
@@ -242,6 +246,8 @@ func (s *Service) build(ctx context.Context, src sourceRow) (pullPlan, error) {
 		return s.buildEPSS(ctx, src, p)
 	case DecoderNVD:
 		return s.buildNVD(ctx, src, p)
+	case DecoderCVEOrg:
+		return s.buildCVEOrg(ctx, src, p)
 	}
 	auth, err := s.authFor(ctx, src)
 	if err != nil {
@@ -554,7 +560,7 @@ func (s *Service) pullOne(ctx context.Context, id, actor string) (sourceRow, int
 				}
 			case p.hasAffected:
 				var before int
-				if err := tx.QueryRowContext(ctx, `SELECT count(*) FROM feeds_affected_cve`).Scan(&before); err != nil {
+				if err := tx.QueryRowContext(ctx, `SELECT count(*) FROM feeds_affected_cve WHERE source = 'nvd'`).Scan(&before); err != nil {
 					return fmt.Errorf("feeds: count affected: %w", err)
 				}
 				rangesFirst = before == 0
@@ -563,6 +569,19 @@ func (s *Service) pullOne(ctx context.Context, id, actor string) (sourceRow, int
 					return err
 				}
 				p.out.Records = total // the CVEs the box has versions for, not only those this (incremental) pull got
+			case p.hasCVEOrg:
+				var before int
+				if err := tx.QueryRowContext(ctx, `SELECT count(*) FROM feeds_affected_cve WHERE source = 'cve.org'`).Scan(&before); err != nil {
+					return fmt.Errorf("feeds: count affected: %w", err)
+				}
+				// the first fill is backlog, like NVD's (D-78); a new CISA entry still alerts, by its own new_kev event,
+				// published before this one and matched against these ranges
+				rangesFirst = before == 0
+				var total int
+				if rangesChanged, total, err = applyCVEOrg(ctx, tx, p.cveOrg, p.cveOrgChecked, p.out.Finished); err != nil {
+					return err
+				}
+				p.out.Records = total
 			}
 			return finish(tx, p.out)
 		})
@@ -630,7 +649,7 @@ func (s *Service) pullOne(ctx context.Context, id, actor string) (sourceRow, int
 func (s *Service) pull(ctx context.Context, id, actor string) (sourceRow, error) {
 	row, fresh, evs, err := s.pullOne(ctx, id, actor)
 	if err == nil && id == "cisa-kev" && row.Status == "ok" {
-		for _, dep := range []string{"first-epss", "nvd-kev"} {
+		for _, dep := range []string{"first-epss", "nvd-kev", cveOrgFeedID} { // CVE.org after NVD: only what NVD left without ranges (D-556)
 			if s.busy(dep) {
 				continue // already being pulled (a person's "Fetch now"): never a second pull of it
 			}

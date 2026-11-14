@@ -23,6 +23,8 @@ async function resetStorage(page: Page) {
 }
 async function startWithSample(page: Page) {
   await resetStorage(page)
+  await page.getByRole('checkbox', { name: 'I have read, understood and agree to the terms of use' }).click() // D-544: the terms of use come first
+  await page.getByRole('button', { name: 'Continue' }).click()
   await page.getByRole('button', { name: 'Use sample data' }).click()
   await expect(page).not.toHaveURL(/\/setup/)
   await expect(page.getByRole('heading', { level: 1 }).first()).toBeVisible()
@@ -30,6 +32,8 @@ async function startWithSample(page: Page) {
 /** Cài sạch đi hết các bước, chọn gói "Mid-size business" (có logs), bỏ qua kênh. */
 async function cleanInstall(page: Page, lan = '192.168.10.0/24') {
   await resetStorage(page)
+  await page.getByRole('checkbox', { name: 'I have read, understood and agree to the terms of use' }).click() // D-544: the terms of use come first
+  await page.getByRole('button', { name: 'Continue' }).click()
   await page.getByLabel('Setup code').fill('setup-code-demo') // D-75: the code the mock accepts
   await page.getByLabel('Organization name').fill('Test Company')
   await page.getByLabel('Administrator name').fill('Test Admin')

@@ -6,10 +6,12 @@ import { QueryState } from '@/components/common/States'
 import { Button } from '@/components/ui/button'
 import { Field, Input } from '@/components/ui/input'
 import { ApiError } from '@/lib/api'
-import { useGeneral, useSaveGeneral } from './api'
+import { fmtDateTime } from '@/lib/format'
+import { useGeneral, useSaveGeneral, useTerms } from './api'
 import { errMsg, ReadOnlyNote, useGate } from './parts'
 import { browserTimeZone, TIMEZONES, validTimeZone } from './util'
-import type { GeneralSettings } from './types'
+import type { GeneralSettings, TermsState } from './types'
+import { TermsText } from './TermsText'
 
 function Form({ initial }: { initial: GeneralSettings }) {
   const { t } = useTranslation('core')
@@ -49,14 +51,34 @@ function Form({ initial }: { initial: GeneralSettings }) {
   )
 }
 
+/** D-544: who accepted the terms of use on this box, when and which version, and the text to read again. */
+function Terms({ s }: { s: TermsState }) {
+  const { t } = useTranslation('core')
+  const [open, setOpen] = useState(false)
+  const a = s.accepted
+  return (
+    <section className="mt-8 grid max-w-xl gap-2" aria-labelledby="terms-title">
+      <h2 id="terms-title" className="text-base font-semibold">{t('general.terms.title')}</h2>
+      <p className="text-sm">{a
+        ? t(a.via === 'restore' ? 'general.terms.byRestore' : 'general.terms.by', { by: a.by, when: fmtDateTime(a.at), version: a.version })
+        : t('general.terms.none')}</p>
+      {a && a.version !== s.version ? <p className="text-[13px] text-muted">{t('general.terms.changed', { version: s.version })}</p> : null}
+      <div><Button size="sm" aria-expanded={open} aria-controls="terms-text" onClick={() => setOpen((x) => !x)}>{t(open ? 'general.terms.hide' : 'general.terms.read')}</Button></div>
+      {open ? <TermsText id="terms-text" /> : null}
+    </section>
+  )
+}
+
 export default function GeneralSection() {
   const { t } = useTranslation('core')
   const q = useGeneral()
+  const terms = useTerms()
   return (
     <>
       <PageHeader title={q.data ? t('general.title', { name: q.data.name }) : t('settings.general')} stories={['S-CORE-1']} />
       <ReadOnlyNote role="admin" />
       <QueryState query={q}>{(d) => <Form initial={d} />}</QueryState>
+      <QueryState query={terms}>{(d) => <Terms s={d} />}</QueryState>
     </>
   )
 }

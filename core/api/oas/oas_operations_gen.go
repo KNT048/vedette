@@ -76,6 +76,7 @@ const (
 	CoreGetCorePrivacyOperation                             OperationName = "CoreGetCorePrivacy"
 	CoreGetCoreSetupModulesOperation                        OperationName = "CoreGetCoreSetupModules"
 	CoreGetCoreSetupRestoreOperation                        OperationName = "CoreGetCoreSetupRestore"
+	CoreGetCoreTermsOperation                               OperationName = "CoreGetCoreTerms"
 	CoreGetCoreUpdatesOperation                             OperationName = "CoreGetCoreUpdates"
 	CoreGetCoreUpdatesBundleOperation                       OperationName = "CoreGetCoreUpdatesBundle"
 	CoreGetCoreUpdatesOsOperation                           OperationName = "CoreGetCoreUpdatesOs"

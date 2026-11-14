@@ -61,6 +61,7 @@
   "GET /core/privacy": "core",
   "GET /core/setup/modules": "core",
   "GET /core/setup/restore": "core",
+  "GET /core/terms": "core",
   "GET /core/updates": "core",
   "GET /core/updates/bundle": "core",
   "GET /core/updates/os": "core",

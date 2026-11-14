@@ -16,6 +16,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/knt048/vedette"
 	"github.com/knt048/vedette/core/auth/authtest"
 	"github.com/knt048/vedette/core/secrets"
 	"github.com/knt048/vedette/host/api"
@@ -181,7 +182,7 @@ func TestSetupRestoreIsRefusedAfterSetup(t *testing.T) {
 	good := tarGz(t, member{name: "manifest.json", data: []byte(manifestOK)}, member{name: "vedette.db", data: e.backupDB(newKey(t))})
 	e.setZone("UTC") // an organization that finished setup
 	wantStatus(t, e.upload(code, good), 409, "already_setup")
-	wantStatus(t, e.client().post("/core/setup/restore", map[string]any{"setup_code": code, "upload_id": strings.Repeat("a", 32)}), 409, "already_setup")
+	wantStatus(t, e.client().post("/core/setup/restore", map[string]any{"setup_code": code, "accept_terms": true, "upload_id": strings.Repeat("a", 32)}), 409, "already_setup")
 	if r := e.client().get("/core/setup/restore"); r.Code != 200 || r.str("status") != "done" { // setup is done: nothing more than GET /setup says
 		t.Fatalf("status after setup = %d %s", r.Code, r.Raw)
 	}
@@ -202,7 +203,7 @@ func TestSetupRestoreChecksTheKeyThenImportsAndRestores(t *testing.T) {
 	wantOK(t, up, 200)
 	id := up.str("id")
 	restore := func(extra map[string]any) reply {
-		b := map[string]any{"setup_code": code, "upload_id": id}
+		b := map[string]any{"setup_code": code, "accept_terms": true, "upload_id": id}
 		for k, v := range extra {
 			b[k] = v
 		}
@@ -336,6 +337,35 @@ func (g *gateBody) Read([]byte) (int, error) {
 	return 0, io.EOF
 }
 
+// D-544: a first-run restore needs the terms of use too, before the host is asked; once the restore is done, the restored
+// database keeps that the operator who restored it accepted them (settled there, with its audit row).
+func TestSetupRestoreNeedsTheTermsAndADoneRestoreKeepsThem(t *testing.T) {
+	t.Parallel()
+	e, f := newRestoreEnv(t)
+	code := e.openSetup()
+	key := newKey(t)
+	up := e.upload(code, backupOf(t, e.backupDB(key)))
+	wantOK(t, up, 200)
+	body := map[string]any{"setup_code": code, "upload_id": up.str("id"), "key": base64.StdEncoding.EncodeToString(key)}
+	wantStatus(t, e.client().post("/core/setup/restore", body), 400, "terms_not_accepted")
+	if f.calls != 0 {
+		t.Fatalf("the host was asked to restore %d times", f.calls)
+	}
+	body["accept_terms"] = true
+	wantOK(t, e.client().post("/core/setup/restore", body), 202)
+	f.finish(api.StatusSucceeded, api.BackupRestoreResult{RestoredBackupID: "eeee0000eeee0000eeee0000eeee0000", PreRestoreBackupID: "dddd0000dddd0000dddd0000dddd0000"}, "")
+	e.newHandlers(t, f, 0) // core comes back (the fake host does not swap the data: this database stands for the restored one)
+	if got := e.client().get("/core/setup/restore"); got.str("status") != "done" {
+		t.Fatalf("after = %s", got.Raw)
+	}
+	if n := e.env.Count(t, "SELECT count(*) FROM core_setting WHERE key = 'terms.accepted' AND value LIKE '%\"by\":\"setup\"%' AND value LIKE '%\"via\":\"restore\"%' AND value LIKE '%"+vedette.TermsVersion()+"%'"); n != 1 {
+		t.Fatal("the restored database does not keep the acceptance of the terms")
+	}
+	if n := e.env.Count(t, "SELECT count(*) FROM core_audit WHERE action = 'core.terms_accept' AND user = 'setup'"); n != 1 {
+		t.Fatalf("core.terms_accept rows = %d", n)
+	}
+}
+
 // First-run setup and a first-run restore never overlap (M2): setup answers 409 busy while an upload is read and while the
 // restore runs on the host; an upload left behind is removed when setup finishes (L1).
 func TestSetupRestoreAndSetupDoNotOverlap(t *testing.T) {
@@ -362,7 +392,7 @@ func TestSetupRestoreAndSetupDoNotOverlap(t *testing.T) {
 	key := newKey(t)
 	up := e.upload(code, backupOf(t, e.backupDB(key)))
 	wantOK(t, up, 200)
-	wantOK(t, e.client().post("/core/setup/restore", map[string]any{"setup_code": code, "upload_id": up.str("id"), "key": base64.StdEncoding.EncodeToString(key)}), 202)
+	wantOK(t, e.client().post("/core/setup/restore", map[string]any{"setup_code": code, "accept_terms": true, "upload_id": up.str("id"), "key": base64.StdEncoding.EncodeToString(key)}), 202)
 	wantStatus(t, e.client().post("/core/setup", setup), 409, "busy") // the restore runs on the host
 }
 
@@ -392,7 +422,7 @@ func TestSetupRestoreIgnoresAKeyItCannotCheck(t *testing.T) {
 	if up.JSON["secrets"] != float64(0) {
 		t.Fatalf("upload = %s", up.Raw)
 	}
-	wantOK(t, e.client().post("/core/setup/restore", map[string]any{"setup_code": code, "upload_id": up.str("id"), "key": base64.StdEncoding.EncodeToString(make([]byte, 32))}), 202)
+	wantOK(t, e.client().post("/core/setup/restore", map[string]any{"setup_code": code, "accept_terms": true, "upload_id": up.str("id"), "key": base64.StdEncoding.EncodeToString(make([]byte, 32))}), 202)
 	bl, err := e.hh.Client.StateBackups(t.Context())
 	if err != nil {
 		t.Fatal(err)

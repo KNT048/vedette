@@ -873,6 +873,19 @@ func encodeCoreGetCoreSetupRestoreResponse(response NilCoreGetCoreSetupRestoreOK
 	return nil
 }
 
+func encodeCoreGetCoreTermsResponse(response *CoreGetCoreTermsOK, w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(200)
+
+	e := new(jx.Encoder)
+	response.Encode(e)
+	if _, err := e.WriteTo(w); err != nil {
+		return errors.Wrap(err, "write")
+	}
+
+	return nil
+}
+
 func encodeCoreGetCoreUpdatesResponse(response *CoreGetCoreUpdatesOK, w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(200)

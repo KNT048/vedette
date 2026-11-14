@@ -309,7 +309,7 @@ run_runtime() {
 	mods='"core"'
 	[ "$with_sensors" = 1 ] && mods='"core","feeds","inventory","sensor-passive","sensor-active"'
 	# the bodies go on stdin (printf is a builtin): the setup code and the password never stand in curl's argv (/proc/<pid>/cmdline)
-	out=$(printf '{"org":"Smoke","admin":{"name":"Smoke Admin","email":"smoke@example.com","password":"%s"},"lan":["192.168.10.0/24"],"commitment":true,"bundle":"custom","modules":[%s],"setup_code":"%s"}' "$pass" "$mods" "$code" |
+	out=$(printf '{"org":"Smoke","admin":{"name":"Smoke Admin","email":"smoke@example.com","password":"%s"},"lan":["192.168.10.0/24"],"commitment":true,"bundle":"custom","modules":[%s],"setup_code":"%s","accept_terms":true}' "$pass" "$mods" "$code" |
 		api -w ' %{http_code}' -X POST "$base/core/setup" --data-binary @- || true)
 	[[ $out == *' 2'?? ]] || {
 		die "setup through the API failed: ${out:0:300}" || return 0

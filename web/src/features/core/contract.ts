@@ -37,6 +37,17 @@ export const SetupPayload = z.object({
   bundle: BundleId.optional(),
   modules: z.array(ModuleId).optional(),
   setup_code: z.string().optional().describe('The one-time setup code the box prints in its log while setup is open (D-75). Required to create the first administrator: missing or wrong gives 403 invalid_setup_code, 429 rate_limited after repeated wrong tries'),
+  accept_terms: z.boolean().optional().describe('true = the administrator read, understood and agrees to the terms of use (TERMS.md, D-544). Required to create the first administrator: anything else gives 400 terms_not_accepted, judged right after the setup code'),
+})
+/** D-544: the terms of use accepted on this box (Settings -> General). */
+export const TermsState = z.object({
+  version: z.string().describe('The version of TERMS.md this box ships: its Version date and the first 8 hex digits of its SHA-256, like 2026-11-14.3f2a9c1b'),
+  accepted: z.object({
+    by: z.string().describe('The email of the administrator setup created, or "setup" for the operator who restored the box from a backup with the setup code'),
+    at: ts,
+    version: z.string().describe('The version accepted'),
+    via: z.enum(['setup', 'restore']).describe('setup = in the first-run setup; restore = before the first-run restore from a backup'),
+  }).nullable().describe('null on a box set up before the terms step existed, or restored from such a backup and not yet settled'),
 })
 
 // ---- chung ----
@@ -282,13 +293,14 @@ export const endpoints = defineEndpoints([
   { method: 'post', path: '/core/setup/restore/upload', summary: 'First-run restore, step 1 (D-518): upload a backup downloaded from Settings -> Data (the .tar.gz as the body). Only before setup is done (409 already_setup) and with the setup code (403 invalid_setup_code, 429 rate_limited like setup). The box checks the file (400 not_a_backup: not a Vedette backup, damaged, or of a box never set up; 409 schema_newer: made by a newer Vedette), keeps it for an hour and says what it holds and what the decryption key changes. 409 not_appliance on a container-only install, 409 busy while another upload is checked, 409 low_disk, 413 over 4 GiB', stories: ['S-CORE-1'], role: 'public',
     headers: z.object({ 'X-Setup-Code': z.string().optional().describe('The setup code from the box\'s log, as for POST /core/setup') }), body: 'file', response: BackupUpload },
   { method: 'post', path: '/core/setup/restore', status: 202, summary: 'First-run restore, step 2 (D-518): restore the uploaded backup as the box\'s data, with the setup code. With key (the key file downloaded from Settings -> Data, base64) the saved secrets and two-step sign-in come back; a key that is not 32 bytes is 400 invalid_key, one that opens none of the backup\'s secrets 400 wrong_key, before anything changes. Without key, a backup that holds secrets needs confirm_without_key: true (409 confirm_required). 404 upload_unknown when the upload is gone (older than an hour); 409 already_setup, busy, low_disk, schema_newer, not_appliance as for a restore', stories: ['S-CORE-1'], role: 'public',
-    body: z.object({ setup_code: z.string(), upload_id: z.string(), key: z.string().optional().describe('The decryption key file, base64'), confirm_without_key: z.boolean().optional().describe('Required (true) without key when the backup holds secrets: they are lost and two-step users cannot sign in') }), response: SetupRestoreRun },
+    body: z.object({ setup_code: z.string(), upload_id: z.string(), key: z.string().optional().describe('The decryption key file, base64'), confirm_without_key: z.boolean().optional().describe('Required (true) without key when the backup holds secrets: they are lost and two-step users cannot sign in'), accept_terms: z.boolean().optional().describe('true = the operator read, understood and agrees to the terms of use (D-544); anything else gives 400 terms_not_accepted, judged right after the setup code') }), response: SetupRestoreRun },
   { method: 'get', path: '/core/setup/restore', summary: 'The first-run restore while setup is open: running, or how it ended (reverted, failed); null before one. Once setup is done it is done (a restore that succeeded brings an organization that finished setup), whoever finished setup: nothing more than GET /setup says', stories: ['S-CORE-1'], role: 'public', response: SetupRestoreRun.nullable() },
   { method: 'post', path: '/core/setup', summary: 'First-run setup: create the organization and administrator, choose a module bundle, or use sample data. A bundle leaves out the modules this install cannot run (available false, D-381); naming one under custom gives 409 not_appliance', stories: ['S-CORE-1'], role: 'public', body: SetupPayload, response: Ok },
   { method: 'get', path: '/core/auth-options', summary: 'Whether the sign-in page shows the SSO button', stories: ['S-CORE-3'], role: 'public', response: AuthOptions },
   { method: 'post', path: '/auth/oidc/start', summary: 'Start an SSO sign-in (D-194): returns the identity provider address to open, with state, nonce and a PKCE challenge, and a binding the page keeps until the callback. 400 oidc_off when SSO is off or not set up, 502 idp_unreachable when the discovery document cannot be read, 429 rate_limited', stories: ['S-CORE-3'], role: 'public', response: OidcStart },
   { method: 'post', path: '/auth/oidc/callback', summary: 'Finish an SSO sign-in (D-194, D-195): the page posts the code and state from /sso/callback with its binding; the box exchanges the code, checks the ID token and signs the person in like a password sign-in (session and CSRF cookies). 400 sso_expired, 400 sso_failed, 403 no_access, 403 email_unverified, 403 disabled, 409 email_in_use, 502 idp_unreachable', stories: ['S-CORE-3'], role: 'public', body: OidcCallback, response: Ok },
   // chung
+  { method: 'get', path: '/core/terms', summary: 'The terms of use this box ships and who accepted them, when and which version (D-544); the text is TERMS.md, which the interface carries', stories: ['S-CORE-1'], role: 'viewer', response: TermsState },
   { method: 'get', path: '/core/general', summary: 'Organization name and time zone', stories: ['S-CORE-1'], role: 'viewer', response: GeneralSettings },
   { method: 'put', path: '/core/general', summary: 'Save organization name and time zone', stories: ['S-CORE-1'], role: 'admin', body: GeneralSettings, response: GeneralSettings },
   // tài khoản

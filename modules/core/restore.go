@@ -10,6 +10,7 @@ import (
 	"slices"
 	"time"
 
+	"github.com/knt048/vedette"
 	"github.com/knt048/vedette/core/api/oas"
 	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/audit"
@@ -436,7 +437,15 @@ func (h *OSHandlers) settleRestore(ctx context.Context, run api.Run) error {
 		if err := h.putSetting(ctx, tx, keyRestore, rec, "system"); err != nil {
 			return err
 		}
-		return h.audit.Append(ctx, tx, audit.Entry{User: rec.User, Action: "data.restore_done", Target: rec.BackupID, Detail: cutAtRune(detail, auditMaxDetail)})
+		if err := h.audit.Append(ctx, tx, audit.Entry{User: rec.User, Action: "data.restore_done", Target: rec.BackupID, Detail: cutAtRune(detail, auditMaxDetail)}); err != nil {
+			return err
+		}
+		if rec.Status == "done" && run.Actor == setupActor {
+			// A first-run restore succeeded: this is the restored database, and the operator accepted the terms of this
+			// software before it started (POST /core/setup/restore refuses without, D-544).
+			return acceptTerms(ctx, tx, h.audit, termsAcceptance{By: setupActor, At: run.StartedAt.UTC(), Version: vedette.TermsVersion(), Via: "restore"})
+		}
+		return nil
 	})
 	if err != nil {
 		return fmt.Errorf("core: settle restore: %w", err)

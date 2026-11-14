@@ -6,6 +6,7 @@ import { aiConfigStore, assetsStore, auditStore, emailChannelReady, findingsStor
 import { collection, dataMode, daysAgo, newId, nowIso, peek, resetMockDb, setDataMode } from '@/mocks/db'
 import type { Role } from '@/lib/session'
 import type { ModuleId } from '@/lib/modules'
+import { TERMS_VERSION } from 'virtual:terms'
 import { BUNDLES } from './bundles'
 import { inventorySettingsStore } from '@/features/inventory/mocks'
 import { cidrRange, overlapping } from '@/features/inventory/validate'
@@ -16,7 +17,7 @@ import { connectorsStore } from '@/mocks/connectors'
 import { newSecret, verifyTotp } from './totp'
 import { checkCode, clearCode, issueCode, maskEmail, sentBody } from './emailCode'
 import { CIDR_RE, compareVersion, fromBase64, GUESSABLE_PASSWORD, guessablePassword, isPrivateCidr, LOCAL_RANGE_NAMES, MIN_PASSWORD, validTimeZone } from './util'
-import type { AccountSession, AdminUser, BoxBackup, RestoreRun, Advisory, AuditQuery, AuditRow, ManagedPackage, McpToken, OidcConfig, PrivacyFlow, SetupPayload, UpdateAvailable, UpdateChannel, UpdateComponent, UpdateHistory, UpdateCheckError, UpdateRun, UpdatesState } from './types'
+import type { AccountSession, AdminUser, BoxBackup, RestoreRun, Advisory, AuditQuery, AuditRow, ManagedPackage, McpToken, OidcConfig, PrivacyFlow, SetupPayload, TermsState, UpdateAvailable, UpdateChannel, UpdateComponent, UpdateHistory, UpdateCheckError, UpdateRun, UpdatesState } from './types'
 
 const ROLES: Role[] = ['viewer', 'operator', 'admin']
 const hex = (n: number) => [...crypto.getRandomValues(new Uint8Array(n))].map((b) => b.toString(16).padStart(2, '0')).join('')
@@ -27,6 +28,11 @@ export const MOCK_SETUP_CODE = 'setup-code-demo'
 const tempPassword = () => `${hex(3)}-${hex(3)}-${hex(3)}-${hex(2)}`
 
 // ---------- Cài đặt ban đầu ----------
+// D-544: the acceptance of the terms of use (core_setting terms.accepted on the box). The sample box was set up by its
+// administrator a month ago; a clean box has none until setup.
+const termsStore = collection<TermsState['accepted']>('core_terms', () => ({ by: 'admin@acme.example', at: daysAgo(30), version: TERMS_VERSION, via: 'setup' }), () => null)
+const TERMS_REFUSED = 'Read the terms of use and tick that you agree to them before you go on.'
+
 const setupHandlers = [
   // Công khai, chỉ id/tầng/phụ thuộc (không lộ module nào đang bật) để bước chọn gói vẽ được danh sách.
   http.get(`${API}/core/setup/modules`, () => HttpResponse.json({ modules: modulesStore.get().map(({ id, tier, depends }) => ({ id, tier, depends, available: moduleAvailable(id) })), install: installStore.get().kind, lan: installStore.get().kind === 'appliance' && !orgStore.get().setup_complete ? '192.168.10.0/24' : null })),
@@ -43,8 +49,9 @@ const setupHandlers = [
   }),
   http.post(`${API}/core/setup/restore`, async ({ request }) => {
     if (orgStore.get().setup_complete) return fail(409, 'already_setup', 'This box is already set up. Sign in with the administrator account.')
-    const b = await body<{ setup_code?: string; upload_id?: string; key?: string; confirm_without_key?: boolean }>(request)
+    const b = await body<{ setup_code?: string; upload_id?: string; key?: string; confirm_without_key?: boolean; accept_terms?: boolean }>(request)
     if (String(b.setup_code ?? '').trim() !== MOCK_SETUP_CODE) return fail(403, 'invalid_setup_code', 'The setup code is missing or wrong. Find it in the box\'s log: it is printed there each time Vedette starts while setup is open.')
+    if (b.accept_terms !== true) return fail(400, 'terms_not_accepted', TERMS_REFUSED)
     if (!/^[0-9a-f]{32}$/.test(String(b.upload_id ?? ''))) return fail(404, 'upload_unknown', 'The uploaded backup is no longer on the box (an upload is kept for an hour). Upload it again.')
     if (b.key) {
       let n = 0
@@ -54,6 +61,7 @@ const setupHandlers = [
     resetMockDb()
     setDataMode('sample')
     orgStore.update((o) => ({ ...o, setup_complete: true }))
+    termsStore.set({ by: 'setup', at: nowIso(), version: TERMS_VERSION, via: 'restore' }) // the box writes it when the restore is settled
     audit('data.restore', 'uploaded backup')
     return HttpResponse.json({ status: 'running', error: null }, { status: 202 })
   }),
@@ -74,6 +82,7 @@ const setupHandlers = [
     // D-75: creating the first administrator needs the code the box printed in its log. It is judged before the
     // other fields, so a wrong code learns nothing about them. The sample path above creates no account.
     if (String(b.setup_code ?? '').trim() !== MOCK_SETUP_CODE) return fail(403, 'invalid_setup_code', 'The setup code is missing or wrong. Find it in the box\'s log: it is printed there each time Vedette starts while setup is open.')
+    if (b.accept_terms !== true) return fail(400, 'terms_not_accepted', TERMS_REFUSED) // the first step of the form (D-544)
     const org = String(b.org ?? '').trim()
     if (org.length < 2 || org.length > 80) return fail(400, 'invalid_org', 'The organization name is 2 to 80 characters.')
     const a = b.admin ?? { name: '', email: '', password: '' }
@@ -126,12 +135,19 @@ const setupHandlers = [
     audit('user.create', email, 'role admin')
     audit('auth.login', email)
     audit('core.setup', org, `bundle ${b.bundle}, ${lan.length} ranges${b.commitment ? ', active-scan commitment confirmed' : ''}`)
+    termsStore.set({ by: email, at: nowIso(), version: TERMS_VERSION, via: 'setup' })
+    audit('core.terms_accept', `version ${TERMS_VERSION}`, 'terms of use accepted in the first-run setup')
     return HttpResponse.json({ ok: true })
   }),
 ]
 
 // ---------- Chung ----------
 const generalHandlers = [
+  http.get(`${API}/core/terms`, () => {
+    const denied = guard('viewer')
+    if (denied) return denied
+    return HttpResponse.json({ version: TERMS_VERSION, accepted: termsStore.get() } satisfies TermsState)
+  }),
   http.get(`${API}/core/general`, () => {
     const denied = guard('viewer')
     if (denied) return denied

@@ -14,9 +14,16 @@ import type { RestoreRun } from './types'
 const user = () => userEvent.setup()
 const gzip = () => new File([new Uint8Array([0x1f, 0x8b, 8, 0, 0, 0, 0, 0])], 'vedette-backup-2026-11-01.tar.gz', { type: 'application/gzip' })
 
-async function checkBackup(u: ReturnType<typeof user>) {
+/** D-544: the restore is offered on the Account step, after the terms of use were ticked on the first. */
+async function openRestore(u: ReturnType<typeof user>) {
   renderApp('/setup', { role: null, setupComplete: false })
+  await u.click(await screen.findByRole('checkbox', { name: 'I have read, understood and agree to the terms of use' }))
+  await u.click(screen.getByRole('button', { name: 'Continue' }))
   await u.click(await screen.findByRole('button', { name: 'Restore from a backup' }))
+}
+
+async function checkBackup(u: ReturnType<typeof user>) {
+  await openRestore(u)
   await u.type(screen.getByLabelText('Setup code'), MOCK_SETUP_CODE)
   await u.upload(screen.getByLabelText('Backup file'), gzip())
 }
@@ -66,12 +73,12 @@ describe('first-run restore from a backup file (D-518)', () => {
     await u.click(screen.getByRole('button', { name: 'Restore' }))
     await waitFor(() => expect(sent.upload_id).toBe('a'.repeat(32)))
     expect(sent.key).toBeUndefined()
+    expect(sent.accept_terms).toBe(true) // the box refuses a restore without it (D-544)
   })
 
   it('a wrong setup code is said next to the code', async () => {
     const u = user()
-    renderApp('/setup', { role: null, setupComplete: false })
-    await u.click(await screen.findByRole('button', { name: 'Restore from a backup' }))
+    await openRestore(u)
     await u.type(screen.getByLabelText('Setup code'), 'nope')
     await u.upload(screen.getByLabelText('Backup file'), gzip())
     await u.click(screen.getByRole('button', { name: 'Check the backup' }))

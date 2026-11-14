@@ -9,8 +9,10 @@ import (
 	"net/netip"
 	"slices"
 	"strings"
+	"time"
 	"unicode/utf8"
 
+	"github.com/knt048/vedette"
 	"github.com/knt048/vedette/core/api/oas"
 	"github.com/knt048/vedette/core/api/routes"
 	"github.com/knt048/vedette/core/apierr"
@@ -39,7 +41,55 @@ const (
 	CodeInvalidBundle     = "invalid_bundle"
 	CodeInvalidModule     = "invalid_module"
 	CodeSampleUnavailable = "sample_unavailable"
+	CodeTermsNotAccepted  = "terms_not_accepted"
 )
+
+// keyTerms is core_setting terms.accepted: the acceptance of the terms of use (TERMS.md, D-544) on this box.
+const keyTerms = "terms.accepted"
+
+// termsAcceptance is core_setting terms.accepted.
+type termsAcceptance struct {
+	By      string    `json:"by"` // the administrator setup created, or setupActor for a first-run restore
+	At      time.Time `json:"at"`
+	Version string    `json:"version"` // vedette.TermsVersion() of the software that asked
+	Via     string    `json:"via"`     // setup | restore
+}
+
+func termsNotAccepted() *apierr.Error {
+	return apierr.New(400, CodeTermsNotAccepted, "Read the terms of use and tick that you agree to them before you go on.")
+}
+
+// acceptTerms stores the acceptance of the terms of use in tx with its audit row (D-544): one row per acceptance, by the
+// person who accepted. The setting is replaced: the latest acceptance on this box is the one Settings -> General shows.
+func acceptTerms(ctx context.Context, tx *sql.Tx, log *audit.Log, a termsAcceptance) error {
+	b, err := json.Marshal(a)
+	if err != nil {
+		return fmt.Errorf("core: encode terms acceptance: %w", err)
+	}
+	if err := coredb.New(tx).UpsertSetting(ctx, coredb.UpsertSettingParams{Key: keyTerms, Value: string(b), UpdatedAt: store.FormatTS(a.At), UpdatedBy: a.By}); err != nil {
+		return fmt.Errorf("core: store terms acceptance: %w", err)
+	}
+	return log.Append(ctx, tx, audit.Entry{User: a.By, Action: "core.terms_accept", Target: "version " + a.Version, Detail: "terms of use accepted in the first-run " + a.Via})
+}
+
+// CoreGetCoreTerms implements GET /core/terms (viewer): the version of the terms of use this software ships and the
+// acceptance stored on this box, null when there is none (a box set up before D-544).
+func (h *APIHandlers) CoreGetCoreTerms(ctx context.Context) (*oas.CoreGetCoreTermsOK, error) {
+	out := &oas.CoreGetCoreTermsOK{Version: vedette.TermsVersion(), Accepted: oas.NilCoreGetCoreTermsOKAccepted{Null: true}}
+	raw, err := coredb.New(h.db.Reader()).GetSetting(ctx, keyTerms)
+	if isNoRows(err) {
+		return out, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("core: read terms acceptance: %w", err)
+	}
+	var a termsAcceptance
+	if err := json.Unmarshal([]byte(raw), &a); err != nil {
+		return nil, fmt.Errorf("core: terms acceptance is not valid: %w", err)
+	}
+	out.Accepted = oas.NewNilCoreGetCoreTermsOKAccepted(oas.CoreGetCoreTermsOKAccepted{By: a.By, At: a.At, Version: a.Version, Via: oas.CoreGetCoreTermsOKAcceptedVia(a.Via)})
+	return out, nil
+}
 
 const defaultTimezone = "Asia/Ho_Chi_Minh" // the column default of core_org.timezone
 
@@ -199,8 +249,9 @@ func (h *APIHandlers) wantedModules(req *oas.CorePostCoreSetupReq) (map[string]b
 // CorePostCoreSetup implements POST /core/setup (public): first-run setup. It creates the organization, the
 // first administrator and a session for them (the response sets the session and CSRF cookies, as a sign-in does; no device cookie), turns the chosen bundle on and writes core_audit, all in one
 // transaction, and only while setup is not done (INV-15). Creating the administrator needs the one-time
-// setup code from the box's log (D-75). Order of refusals: already set up (also for sample data), the build has no
-// sample data, setup code, then the fields in the order of the form.
+// setup code from the box's log (D-75) and the acceptance of the terms of use (D-544), stored with who, when and which
+// version. Order of refusals: already set up (also for sample data), the build has no sample data, setup code, the terms,
+// then the fields in the order of the form.
 func (h *APIHandlers) CorePostCoreSetup(ctx context.Context, req *oas.CorePostCoreSetupReq) (*oas.CorePostCoreSetupOK, error) {
 	if done, err := h.setupDone(ctx); err != nil {
 		return nil, err
@@ -225,6 +276,9 @@ func (h *APIHandlers) CorePostCoreSetup(ctx context.Context, req *oas.CorePostCo
 	}
 	if err := h.CheckSetupCode(ctx, req.SetupCode.Or("")); err != nil {
 		return nil, err
+	}
+	if !req.AcceptTerms.Or(false) { // the first step of the form (D-544)
+		return nil, termsNotAccepted()
 	}
 
 	org := strings.TrimSpace(req.Org.Or(""))
@@ -318,6 +372,9 @@ func (h *APIHandlers) CorePostCoreSetup(ctx context.Context, req *oas.CorePostCo
 			detail += ", active-scan commitment confirmed"
 		}
 		if err := h.audit.Append(ctx, tx, audit.Entry{User: email, Action: "core.setup", Target: org, Detail: detail}); err != nil {
+			return err
+		}
+		if err := acceptTerms(ctx, tx, h.audit, termsAcceptance{By: email, At: h.now().UTC(), Version: vedette.TermsVersion(), Via: "setup"}); err != nil {
 			return err
 		}
 		return h.dropSetupCode(ctx, tx)

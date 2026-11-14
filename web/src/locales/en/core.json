@@ -31,7 +31,16 @@
     "timezone": "Time zone",
     "timezoneHint": "Used for scan windows, quiet hours and the weekly report. Start typing a city or region to search.",
     "timezoneError": "Pick a time zone from the list, for example Europe/Berlin or UTC.",
-    "useBrowserZone": "Use this browser's time zone ({{zone}})"
+    "useBrowserZone": "Use this browser's time zone ({{zone}})",
+    "terms": {
+      "title": "Terms of use",
+      "by": "Accepted by {{by}} on {{when}} during first-time setup (version {{version}}).",
+      "byRestore": "Accepted on {{when}} by the operator who restored this box from a backup with the setup code (version {{version}}).",
+      "none": "No acceptance is recorded on this box: it was set up before Vedette asked for one.",
+      "changed": "The terms changed since then: this version of Vedette ships version {{version}}.",
+      "read": "Read the terms of use",
+      "hide": "Hide the terms of use"
+    }
   },
   "modules": {
     "title": "{{on}} of {{total}} modules are on",
@@ -277,7 +286,8 @@
       },
       "core": {
         "setup": "First-run setup",
-        "general": "Change general settings"
+        "general": "Change general settings",
+        "terms_accept": "Accept the terms of use"
       },
       "user": {
         "create": "Create user",
@@ -1411,9 +1421,10 @@
   },
   "setup": {
     "title": "First-time Vedette setup",
-    "subtitle": "Three steps, a few minutes. You can change every step later in Settings, and set up alert channels there once setup is done.",
+    "subtitle": "Four steps, a few minutes. You can change your choices later in Settings, and set up alert channels there once setup is done.",
     "steps": "Setup steps",
     "step": {
+      "terms": "Terms of use",
       "account": "Account",
       "network": "Network",
       "modules": "Modules"
@@ -1421,6 +1432,14 @@
     "back": "Back",
     "next": "Continue",
     "finish": "Finish setup",
+    "terms": {
+      "title": "Terms of use",
+      "desc": "Read the terms of use of Vedette. You accept them once, for this box.",
+      "region": "Terms of use of Vedette",
+      "agree": "I have read, understood and agree to the terms of use",
+      "needTick": "Tick that you agree to the terms of use to continue.",
+      "version": "Version {{version}}. The same text is TERMS.md in the source code, and Settings, General shows it again later."
+    },
     "account": {
       "title": "Organization and administrator account",
       "desc": "This account is the first administrator, with full control over settings.",
@@ -1535,7 +1554,8 @@
       "reverted": "The restored data did not start correctly, so the box went back to a fresh install. Nothing was lost; check the backup file and try again.",
       "failed": "The restore failed: {{error}}",
       "again": "Try again",
-      "container": "A container-only install has no system helper, so it cannot restore a backup here. Your backup is the copy of the vedette_data volume (it includes the key): restore it with the commands below, from docs/INSTALL-CONTAINER.md section 6, then open this page again."
+      "container": "A container-only install has no system helper, so it cannot restore a backup here. Your backup is the copy of the vedette_data volume (it includes the key): restore it with the commands below, from docs/INSTALL-CONTAINER.md section 6, then open this page again.",
+      "terms": "You accepted the terms of use on the first step; the restored box records that acceptance."
     }
   },
   "preview": {

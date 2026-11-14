@@ -10,6 +10,7 @@ import { assetsStore, auditStore, modulesStore, orgStore, sessionStore, usersSto
 import { encode } from 'uqr'
 import { newSecret, totpAt } from './totp'
 import { collection } from '@/mocks/db'
+import { TERMS_VERSION } from 'virtual:terms'
 import { MOCK_SETUP_CODE } from './mocks'
 import { emailCodes } from './emailCode'
 import { CHECK_FAILURES, checkScenario, mockSign, MOCK_IDP_USER } from './mocks'
@@ -31,10 +32,41 @@ const user = () => userEvent.setup()
 
 const NOHASH = { prev_hash: '0'.repeat(64), hash: '0'.repeat(64) } // rows written straight into the store, the chain is not under test here
 
+const AGREE = 'I have read, understood and agree to the terms of use'
+/** D-544: the first step of setup: tick the terms of use, then Continue. */
+async function acceptTerms(u: ReturnType<typeof user>) {
+  await u.click(await screen.findByRole('checkbox', { name: AGREE }))
+  await u.click(screen.getByRole('button', { name: 'Continue' }))
+}
+
 describe('core: cài đặt ban đầu', () => {
-  it('đi hết 3 bước (D-462: không có bước kênh), tạo quản trị, đặt setup_complete và vào trang chủ', async () => {
+  it('D-544: the terms of use come first; Continue stays off with its reason until they are ticked, and Back keeps the tick', async () => {
     const u = user()
     renderApp('/setup', { role: null, setupComplete: false })
+    expect(await screen.findByRole('heading', { level: 2, name: 'Terms of use' })).toBeInTheDocument()
+    expect(within(screen.getByRole('list', { name: 'Setup steps' })).getAllByRole('listitem').map((li) => li.textContent)).toEqual(['1Terms of use', '2Account', '3Network', '4Modules'])
+    const text = screen.getByRole('region', { name: 'Terms of use of Vedette' })
+    expect(text).toHaveTextContent(/provided as-is, without warranty/)
+    expect(text).toHaveTextContent(/that provider's machines/)
+    expect(text).toHaveTextContent(`Version ${TERMS_VERSION}.`)
+    expect(screen.queryByLabelText('Setup code')).toBeNull() // nothing is typed, and no restore offered, before the tick
+    expect(screen.queryByRole('button', { name: 'Restore from a backup' })).toBeNull()
+    const next = screen.getByRole('button', { name: 'Continue' })
+    expect(next).toBeDisabled()
+    expect(next).toHaveAccessibleDescription('Tick that you agree to the terms of use to continue.')
+    await expectNoA11yViolations()
+    await u.click(screen.getByRole('checkbox', { name: AGREE }))
+    expect(next).toBeEnabled()
+    await u.click(next)
+    expect(await screen.findByRole('heading', { level: 2, name: 'Organization and administrator account' })).toBeInTheDocument()
+    await u.click(screen.getByRole('button', { name: 'Back' }))
+    expect(await screen.findByRole('checkbox', { name: AGREE })).toBeChecked()
+  })
+
+  it('đi hết 4 bước (D-462: không có bước kênh; D-544: điều khoản trước), tạo quản trị, đặt setup_complete và vào trang chủ', async () => {
+    const u = user()
+    renderApp('/setup', { role: null, setupComplete: false })
+    await acceptTerms(u)
     expect(await screen.findByRole('heading', { level: 2, name: 'Organization and administrator account' })).toBeInTheDocument()
     await expectNoA11yViolations()
     // lỗi ở bước 1: mật khẩu ngắn
@@ -87,7 +119,7 @@ describe('core: cài đặt ban đầu', () => {
     expect(screen.getByRole('checkbox', { name: /^Inventory/ })).toBeChecked()
     expect(screen.getByRole('checkbox', { name: /^Vulnerability feeds/ })).toBeChecked()
     // D-462: Modules is the last step; there is no Continue and no Alerts step
-    expect(within(screen.getByRole('list', { name: 'Setup steps' })).getAllByRole('listitem').map((li) => li.textContent)).toEqual(['Account', 'Network', '3Modules'])
+    expect(within(screen.getByRole('list', { name: 'Setup steps' })).getAllByRole('listitem').map((li) => li.textContent)).toEqual(['Terms of use', 'Account', 'Network', '4Modules'])
     expect(screen.queryByRole('button', { name: 'Continue' })).toBeNull()
     await u.click(screen.getByRole('button', { name: 'Finish setup' }))
     expect(await screen.findByRole('heading', { level: 1, name: /^Today/ })).toBeInTheDocument()
@@ -103,11 +135,15 @@ describe('core: cài đặt ban đầu', () => {
     expect(inv.scope_confirmed_by).toBe('lan@abc.vn')
     expect(inv.active.enabled).toBe(true)
     expect(auditStore.get().some((a) => a.action === 'core.setup' && a.detail?.includes('commitment confirmed'))).toBe(true)
+    // D-544: the acceptance is kept with who, when and which version, and Settings → General shows it
+    const terms = (await (await fetch(`${location.origin}/api/v1/core/terms`)).json()) as { version: string; accepted: { by: string; version: string; via: string } | null }
+    expect(terms.accepted).toMatchObject({ by: 'lan@abc.vn', version: TERMS_VERSION, via: 'setup' })
   })
 
   it('D-462: xong cài đặt mới (chưa có kênh), Home nhắc "No alert channel yet" và dẫn tới Settings → Alert channels', async () => {
     const u = user()
     renderApp('/setup', { role: null, setupComplete: false })
+    await acceptTerms(u)
     await u.type(await screen.findByLabelText('Setup code'), MOCK_SETUP_CODE)
     await u.type(screen.getByLabelText('Organization name'), 'XYZ Company')
     await u.type(screen.getByLabelText('Administrator name'), 'Nam')
@@ -144,6 +180,7 @@ describe('core: cài đặt ban đầu', () => {
   it('D-75: a wrong setup code sends you back to the first step with the error on the code field; nothing is created', async () => {
     const u = user()
     renderApp('/setup', { role: null, setupComplete: false })
+    await acceptTerms(u)
     await u.type(await screen.findByLabelText('Setup code'), 'not-the-code')
     await u.type(screen.getByLabelText('Organization name'), 'XYZ Company')
     await u.type(screen.getByLabelText('Administrator name'), 'Nam')
@@ -178,6 +215,7 @@ describe('core: cài đặt ban đầu', () => {
     server.events.on('request:start', seen)
     try {
       renderApp('/setup', { role: null, setupComplete: false })
+      await acceptTerms(u)
       await u.type(await screen.findByLabelText('Setup code'), MOCK_SETUP_CODE)
       await u.type(screen.getByLabelText('Organization name'), 'XYZ Company')
       await u.type(screen.getByLabelText('Administrator name'), 'Nam')
@@ -209,6 +247,7 @@ describe('core: cài đặt ban đầu', () => {
     const gate = new Promise<void>((r) => { release = r })
     server.use(http.post('*/api/v1/core/setup', async () => { await gate; return HttpResponse.json({ error: { code: 'internal', message: 'Something failed on the box.' } }, { status: 500 }) }))
     renderApp('/setup', { role: null, setupComplete: false })
+    await acceptTerms(u)
     await u.type(await screen.findByLabelText('Setup code'), MOCK_SETUP_CODE)
     await u.type(screen.getByLabelText('Organization name'), 'XYZ Company')
     await u.type(screen.getByLabelText('Administrator name'), 'Nam')
@@ -230,6 +269,7 @@ describe('core: cài đặt ban đầu', () => {
   it('D-462 review: ranges the box refuses on Finish send you back to the Network step with its sentence under the list', async () => {
     const u = user()
     renderApp('/setup', { role: null, setupComplete: false })
+    await acceptTerms(u)
     await u.type(await screen.findByLabelText('Setup code'), MOCK_SETUP_CODE)
     await u.type(screen.getByLabelText('Organization name'), 'XYZ Company')
     await u.type(screen.getByLabelText('Administrator name'), 'Nam')
@@ -257,7 +297,11 @@ describe('core: cài đặt ban đầu', () => {
       expect(r.status).toBe(403)
       expect(((await r.json()) as { error: { code: string } }).error.code).toBe('invalid_setup_code')
     }
-    const bad = await post({ setup_code: MOCK_SETUP_CODE, org: '' })
+    // D-544: then the terms of use, then the fields
+    const unticked = await post({ setup_code: MOCK_SETUP_CODE, org: '' })
+    expect(unticked.status).toBe(400)
+    expect(((await unticked.json()) as { error: { code: string } }).error.code).toBe('terms_not_accepted')
+    const bad = await post({ setup_code: MOCK_SETUP_CODE, accept_terms: true, org: '' })
     expect(((await bad.json()) as { error: { code: string } }).error.code).toBe('invalid_org')
     expect(orgStore.get().setup_complete).toBe(false)
   })
@@ -265,6 +309,7 @@ describe('core: cài đặt ban đầu', () => {
   it('sample data signs in the sample administrator at once', async () => {
     const u = user()
     renderApp('/setup', { role: null, setupComplete: false })
+    await acceptTerms(u)
     await u.click(await screen.findByRole('button', { name: 'Use sample data' }))
     expect(await screen.findByRole('heading', { level: 1, name: /^Today/ })).toBeInTheDocument()
     expect(orgStore.get().setup_complete).toBe(true)
@@ -282,7 +327,7 @@ describe('core: cài đặt ban đầu', () => {
 
   it('the LAN range typed in setup is stored where Devices → Scope keeps ranges, and the commitment with it', async () => {
     orgStore.update((o) => ({ ...o, setup_complete: false }))
-    const res = await fetch(`${location.origin}/api/v1/core/setup`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ setup_code: MOCK_SETUP_CODE, org: 'ABC Company', admin: { name: 'Lan', email: 'lan@abc.vn', password: 'mat-khau-dai-123' }, lan: ['192.168.18.0/24', '10.1.0.0/16'], bundle: 'smb', commitment: true }) })
+    const res = await fetch(`${location.origin}/api/v1/core/setup`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ setup_code: MOCK_SETUP_CODE, accept_terms: true, org: 'ABC Company', admin: { name: 'Lan', email: 'lan@abc.vn', password: 'mat-khau-dai-123' }, lan: ['192.168.18.0/24', '10.1.0.0/16'], bundle: 'smb', commitment: true }) })
     expect(res.status).toBe(200)
     const st = (await (await fetch(`${location.origin}/api/v1/inventory/settings`)).json()) as { lan_ranges: string[]; scope_confirmed_at: string | null; scope_confirmed_by: string | null }
     expect(st.lan_ranges).toEqual(['192.168.18.0/24', '10.1.0.0/16'])
@@ -294,7 +339,7 @@ describe('core: cài đặt ban đầu', () => {
 
   it('setup takes a network in the RFC 6598 shared address space (100.64/10) and refuses the rest of 100/8, with the backend sentence (D-461)', async () => {
     orgStore.update((o) => ({ ...o, setup_complete: false }))
-    const body = (lan: string[]) => JSON.stringify({ setup_code: MOCK_SETUP_CODE, org: 'ABC Company', admin: { name: 'Lan', email: 'lan@abc.vn', password: 'mat-khau-dai-123' }, lan, bundle: 'smb', commitment: true })
+    const body = (lan: string[]) => JSON.stringify({ setup_code: MOCK_SETUP_CODE, accept_terms: true, org: 'ABC Company', admin: { name: 'Lan', email: 'lan@abc.vn', password: 'mat-khau-dai-123' }, lan, bundle: 'smb', commitment: true })
     const pub = await fetch(`${location.origin}/api/v1/core/setup`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: body(['100.128.0.0/24']) })
     expect(pub.status).toBe(400)
     expect(((await pub.json()) as { error: { code: string; message: string } }).error).toEqual(expect.objectContaining({ code: 'public_range', message: '100.128.0.0/24 is not a private range (10.x, 172.16-31.x, 192.168.x, 100.64-127.x). Add public addresses later under External exposure.' }))
@@ -306,33 +351,34 @@ describe('core: cài đặt ban đầu', () => {
 
   it('setup refuses overlapping LAN ranges like Devices → Scope does, and nothing is set up (#350)', async () => {
     orgStore.update((o) => ({ ...o, setup_complete: false }))
-    const res = await fetch(`${location.origin}/api/v1/core/setup`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ setup_code: MOCK_SETUP_CODE, org: 'ABC Company', admin: { name: 'Lan', email: 'lan@abc.vn', password: 'mat-khau-dai-123' }, lan: ['192.168.0.0/16', '192.168.18.0/24'], bundle: 'smb', commitment: true }) })
+    const res = await fetch(`${location.origin}/api/v1/core/setup`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ setup_code: MOCK_SETUP_CODE, accept_terms: true, org: 'ABC Company', admin: { name: 'Lan', email: 'lan@abc.vn', password: 'mat-khau-dai-123' }, lan: ['192.168.0.0/16', '192.168.18.0/24'], bundle: 'smb', commitment: true }) })
     expect(res.status).toBe(400)
     expect(((await res.json()) as { error: { code: string } }).error.code).toBe('overlap_range')
     expect(orgStore.get().setup_complete).toBe(false)
-    const same = await fetch(`${location.origin}/api/v1/core/setup`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ setup_code: MOCK_SETUP_CODE, org: 'ABC Company', admin: { name: 'Lan', email: 'lan@abc.vn', password: 'mat-khau-dai-123' }, lan: ['192.168.18.0/24', '192.168.18.7/24'], bundle: 'smb', commitment: true }) })
+    const same = await fetch(`${location.origin}/api/v1/core/setup`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ setup_code: MOCK_SETUP_CODE, accept_terms: true, org: 'ABC Company', admin: { name: 'Lan', email: 'lan@abc.vn', password: 'mat-khau-dai-123' }, lan: ['192.168.18.0/24', '192.168.18.7/24'], bundle: 'smb', commitment: true }) })
     expect(same.status).toBe(200) // the same network written twice is not an overlap
   })
 
   it('setup writes the same audit rows as the backend, oldest first: the administrator, the sign-in, the setup', async () => {
     orgStore.update((o) => ({ ...o, setup_complete: false }))
-    const res = await fetch(`${location.origin}/api/v1/core/setup`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ setup_code: MOCK_SETUP_CODE, org: 'ABC Company', admin: { name: 'Lan', email: 'lan@abc.vn', password: 'mat-khau-dai-123' }, lan: ['192.168.18.0/24'], bundle: 'smb', commitment: true }) })
+    const res = await fetch(`${location.origin}/api/v1/core/setup`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ setup_code: MOCK_SETUP_CODE, accept_terms: true, org: 'ABC Company', admin: { name: 'Lan', email: 'lan@abc.vn', password: 'mat-khau-dai-123' }, lan: ['192.168.18.0/24'], bundle: 'smb', commitment: true }) })
     expect(res.status).toBe(200)
     const rows = [...auditStore.get()].reverse()
     expect(rows.map((r) => [r.user, r.action, r.target])).toEqual([
       ['lan@abc.vn', 'user.create', 'lan@abc.vn'],
       ['lan@abc.vn', 'auth.login', 'lan@abc.vn'],
       ['lan@abc.vn', 'core.setup', 'ABC Company'],
+      ['lan@abc.vn', 'core.terms_accept', `version ${TERMS_VERSION}`],
     ])
   })
 
-  it('W2-8: a box not set up never asks /me (its 401 would be logged by the browser) and step 1 has no Back', async () => {
+  it('W2-8: a box not set up never asks /me (its 401 would be logged by the browser) and step 1 (terms, D-544) has no Back', async () => {
     const asked: string[] = []
     const seen = ({ request }: { request: Request }) => { asked.push(new URL(request.url).pathname) }
     server.events.on('request:start', seen)
     try {
       renderApp('/', { role: null, setupComplete: false })
-      expect(await screen.findByLabelText('Setup code')).toBeInTheDocument()
+      expect(await screen.findByRole('checkbox', { name: AGREE })).toBeInTheDocument()
       expect(screen.queryByRole('button', { name: 'Back' })).toBeNull()
       expect(screen.getByRole('button', { name: 'Continue' })).toBeInTheDocument()
       expect(asked.some((p) => p.endsWith('/me'))).toBe(false)

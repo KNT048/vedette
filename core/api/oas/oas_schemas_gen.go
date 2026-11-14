@@ -16431,6 +16431,128 @@ func (s *CoreGetCoreSetupRestoreOKStatus) UnmarshalText(data []byte) error {
 	}
 }
 
+type CoreGetCoreTermsOK struct {
+	// Null on a box set up before the terms step existed, or restored from such a backup and not yet
+	// settled.
+	Accepted NilCoreGetCoreTermsOKAccepted `json:"accepted"`
+	// The version of TERMS.md this box ships: its Version date and the first 8 hex digits of its SHA-256,
+	// like 2026-11-14.3f2a9c1b.
+	Version string `json:"version"`
+}
+
+// GetAccepted returns the value of Accepted.
+func (s *CoreGetCoreTermsOK) GetAccepted() NilCoreGetCoreTermsOKAccepted {
+	return s.Accepted
+}
+
+// GetVersion returns the value of Version.
+func (s *CoreGetCoreTermsOK) GetVersion() string {
+	return s.Version
+}
+
+// SetAccepted sets the value of Accepted.
+func (s *CoreGetCoreTermsOK) SetAccepted(val NilCoreGetCoreTermsOKAccepted) {
+	s.Accepted = val
+}
+
+// SetVersion sets the value of Version.
+func (s *CoreGetCoreTermsOK) SetVersion(val string) {
+	s.Version = val
+}
+
+type CoreGetCoreTermsOKAccepted struct {
+	At time.Time `json:"at"`
+	// The email of the administrator setup created, or "setup" for the operator who restored the box from
+	// a backup with the setup code.
+	By string `json:"by"`
+	// The version accepted.
+	Version string `json:"version"`
+	// Setup = in the first-run setup; restore = before the first-run restore from a backup.
+	Via CoreGetCoreTermsOKAcceptedVia `json:"via"`
+}
+
+// GetAt returns the value of At.
+func (s *CoreGetCoreTermsOKAccepted) GetAt() time.Time {
+	return s.At
+}
+
+// GetBy returns the value of By.
+func (s *CoreGetCoreTermsOKAccepted) GetBy() string {
+	return s.By
+}
+
+// GetVersion returns the value of Version.
+func (s *CoreGetCoreTermsOKAccepted) GetVersion() string {
+	return s.Version
+}
+
+// GetVia returns the value of Via.
+func (s *CoreGetCoreTermsOKAccepted) GetVia() CoreGetCoreTermsOKAcceptedVia {
+	return s.Via
+}
+
+// SetAt sets the value of At.
+func (s *CoreGetCoreTermsOKAccepted) SetAt(val time.Time) {
+	s.At = val
+}
+
+// SetBy sets the value of By.
+func (s *CoreGetCoreTermsOKAccepted) SetBy(val string) {
+	s.By = val
+}
+
+// SetVersion sets the value of Version.
+func (s *CoreGetCoreTermsOKAccepted) SetVersion(val string) {
+	s.Version = val
+}
+
+// SetVia sets the value of Via.
+func (s *CoreGetCoreTermsOKAccepted) SetVia(val CoreGetCoreTermsOKAcceptedVia) {
+	s.Via = val
+}
+
+// Setup = in the first-run setup; restore = before the first-run restore from a backup.
+type CoreGetCoreTermsOKAcceptedVia string
+
+const (
+	CoreGetCoreTermsOKAcceptedViaSetup   CoreGetCoreTermsOKAcceptedVia = "setup"
+	CoreGetCoreTermsOKAcceptedViaRestore CoreGetCoreTermsOKAcceptedVia = "restore"
+)
+
+// AllValues returns all CoreGetCoreTermsOKAcceptedVia values.
+func (CoreGetCoreTermsOKAcceptedVia) AllValues() []CoreGetCoreTermsOKAcceptedVia {
+	return []CoreGetCoreTermsOKAcceptedVia{
+		CoreGetCoreTermsOKAcceptedViaSetup,
+		CoreGetCoreTermsOKAcceptedViaRestore,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CoreGetCoreTermsOKAcceptedVia) MarshalText() ([]byte, error) {
+	switch s {
+	case CoreGetCoreTermsOKAcceptedViaSetup:
+		return []byte(s), nil
+	case CoreGetCoreTermsOKAcceptedViaRestore:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CoreGetCoreTermsOKAcceptedVia) UnmarshalText(data []byte) error {
+	switch CoreGetCoreTermsOKAcceptedVia(data) {
+	case CoreGetCoreTermsOKAcceptedViaSetup:
+		*s = CoreGetCoreTermsOKAcceptedViaSetup
+		return nil
+	case CoreGetCoreTermsOKAcceptedViaRestore:
+		*s = CoreGetCoreTermsOKAcceptedViaRestore
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type CoreGetCoreUpdatesBundleOK struct {
 	Data io.Reader
 }
@@ -28093,8 +28215,12 @@ func (s *CorePostCoreSetupOK) SetOk(val bool) {
 }
 
 type CorePostCoreSetupReq struct {
-	Admin  OptCorePostCoreSetupReqAdmin  `json:"admin"`
-	Bundle OptCorePostCoreSetupReqBundle `json:"bundle"`
+	// True = the administrator read, understood and agrees to the terms of use (TERMS.md, D-544). Required
+	// to create the first administrator: anything else gives 400 terms_not_accepted, judged right after
+	// the setup code.
+	AcceptTerms OptBool                       `json:"accept_terms"`
+	Admin       OptCorePostCoreSetupReqAdmin  `json:"admin"`
+	Bundle      OptCorePostCoreSetupReqBundle `json:"bundle"`
 	// True = the user confirms the ranges belong to their company and they may scan them actively.
 	Commitment OptBool                           `json:"commitment"`
 	Lan        []string                          `json:"lan"`
@@ -28106,6 +28232,11 @@ type CorePostCoreSetupReq struct {
 	// first administrator: missing or wrong gives 403 invalid_setup_code, 429 rate_limited after repeated
 	// wrong tries.
 	SetupCode OptString `json:"setup_code"`
+}
+
+// GetAcceptTerms returns the value of AcceptTerms.
+func (s *CorePostCoreSetupReq) GetAcceptTerms() OptBool {
+	return s.AcceptTerms
 }
 
 // GetAdmin returns the value of Admin.
@@ -28146,6 +28277,11 @@ func (s *CorePostCoreSetupReq) GetSample() OptBool {
 // GetSetupCode returns the value of SetupCode.
 func (s *CorePostCoreSetupReq) GetSetupCode() OptString {
 	return s.SetupCode
+}
+
+// SetAcceptTerms sets the value of AcceptTerms.
+func (s *CorePostCoreSetupReq) SetAcceptTerms(val OptBool) {
+	s.AcceptTerms = val
 }
 
 // SetAdmin sets the value of Admin.
@@ -28516,6 +28652,9 @@ func (s *CorePostCoreSetupRestoreAcceptedStatus) UnmarshalText(data []byte) erro
 }
 
 type CorePostCoreSetupRestoreReq struct {
+	// True = the operator read, understood and agrees to the terms of use (D-544); anything else gives 400
+	// terms_not_accepted, judged right after the setup code.
+	AcceptTerms OptBool `json:"accept_terms"`
 	// Required (true) without key when the backup holds secrets: they are lost and two-step users cannot
 	// sign in.
 	ConfirmWithoutKey OptBool `json:"confirm_without_key"`
@@ -28523,6 +28662,11 @@ type CorePostCoreSetupRestoreReq struct {
 	Key       OptString `json:"key"`
 	SetupCode string    `json:"setup_code"`
 	UploadID  string    `json:"upload_id"`
+}
+
+// GetAcceptTerms returns the value of AcceptTerms.
+func (s *CorePostCoreSetupRestoreReq) GetAcceptTerms() OptBool {
+	return s.AcceptTerms
 }
 
 // GetConfirmWithoutKey returns the value of ConfirmWithoutKey.
@@ -28543,6 +28687,11 @@ func (s *CorePostCoreSetupRestoreReq) GetSetupCode() string {
 // GetUploadID returns the value of UploadID.
 func (s *CorePostCoreSetupRestoreReq) GetUploadID() string {
 	return s.UploadID
+}
+
+// SetAcceptTerms sets the value of AcceptTerms.
+func (s *CorePostCoreSetupRestoreReq) SetAcceptTerms(val OptBool) {
+	s.AcceptTerms = val
 }
 
 // SetConfirmWithoutKey sets the value of ConfirmWithoutKey.
@@ -102160,6 +102309,51 @@ func (o NilCoreGetCoreSetupRestoreOK) Get() (v CoreGetCoreSetupRestoreOK, ok boo
 
 // Or returns value if set, or given parameter if does not.
 func (o NilCoreGetCoreSetupRestoreOK) Or(d CoreGetCoreSetupRestoreOK) CoreGetCoreSetupRestoreOK {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilCoreGetCoreTermsOKAccepted returns new NilCoreGetCoreTermsOKAccepted with value set to v.
+func NewNilCoreGetCoreTermsOKAccepted(v CoreGetCoreTermsOKAccepted) NilCoreGetCoreTermsOKAccepted {
+	return NilCoreGetCoreTermsOKAccepted{
+		Value: v,
+	}
+}
+
+// NilCoreGetCoreTermsOKAccepted is nullable CoreGetCoreTermsOKAccepted.
+type NilCoreGetCoreTermsOKAccepted struct {
+	Value CoreGetCoreTermsOKAccepted
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilCoreGetCoreTermsOKAccepted) SetTo(v CoreGetCoreTermsOKAccepted) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilCoreGetCoreTermsOKAccepted) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilCoreGetCoreTermsOKAccepted) SetToNull() {
+	o.Null = true
+	var v CoreGetCoreTermsOKAccepted
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilCoreGetCoreTermsOKAccepted) Get() (v CoreGetCoreTermsOKAccepted, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilCoreGetCoreTermsOKAccepted) Or(d CoreGetCoreTermsOKAccepted) CoreGetCoreTermsOKAccepted {
 	if v, ok := o.Get(); ok {
 		return v
 	}

@@ -19,6 +19,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/knt048/vedette"
 	"github.com/knt048/vedette/core/api/oas"
 	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/secrets"
@@ -461,6 +462,9 @@ func (h *OSHandlers) CorePostCoreSetupRestore(ctx context.Context, req *oas.Core
 	if err := h.setup.CheckSetupCode(ctx, req.SetupCode); err != nil {
 		return nil, err
 	}
+	if !req.AcceptTerms.Or(false) { // a new operator takes the box over: the same terms as setup (D-544)
+		return nil, termsNotAccepted()
+	}
 	var key []byte
 	if k := strings.TrimSpace(req.Key.Or("")); k != "" {
 		b, err := base64.StdEncoding.DecodeString(k)
@@ -512,6 +516,9 @@ func (h *OSHandlers) CorePostCoreSetupRestore(ctx context.Context, req *oas.Core
 	if key != nil {
 		detail = "backup of " + up.meta.CreatedAt.Format(time.RFC3339) + ", with the key"
 	}
+	// The acceptance is said here, in the fresh database the pre_restore backup keeps; the restored database gets its
+	// terms.accepted row when the run is settled there (settleRestore).
+	detail += ", terms of use " + vedette.TermsVersion() + " accepted"
 	err = h.act(ctx, c, false, "data.restore_import", "backup", detail, func(id, actor string) error {
 		label := "Uploaded backup of " + up.meta.CreatedAt.Format("2006-01-02 15:04") // labelRE of the host: letters, digits, space, : and -
 		run, err := h.host.BackupCreate(ctx, api.BackupCreateArgs{Kind: "manual", IncludeSecrets: key != nil, Label: label, Snapshot: up.ID}, id, actor)
@@ -564,6 +571,14 @@ func (h *OSHandlers) CoreGetCoreSetupRestore(ctx context.Context) (oas.NilCoreGe
 	if done, err := h.setup.SetupDone(ctx); err != nil {
 		return oas.NilCoreGetCoreSetupRestoreOK{}, err
 	} else if done {
+		// The page of a first-run restore reads done right after the restart: settle the run into the restored database now
+		// (its end and the operator's acceptance of the terms, D-544), once per process, so they do not wait for Settings ->
+		// Data. Nothing of it reaches the answer.
+		if !h.restoreSynced.Load() && h.needHost() == nil {
+			if _, err := h.restoreLatest(ctx); err != nil {
+				h.log.WarnContext(ctx, "core: could not settle the restore run", "error", err)
+			}
+		}
 		return oas.NilCoreGetCoreSetupRestoreOK{Value: oas.CoreGetCoreSetupRestoreOK{Status: oas.CoreGetCoreSetupRestoreOKStatusDone, Error: oas.NilString{Null: true}}}, nil
 	}
 	if err := h.needHost(); err != nil {

@@ -32,7 +32,8 @@ export function LogTab() {
     <Section title={t('log.title')} description={t('log.description')} stories={['S-RESP-2', 'S-AI-8']}
       actions={chain === null ? <Chip tone="off">{t('log.checking')}</Chip> : chain.ok ? <Chip tone="ok">{t('log.verified')}</Chip> : <Chip tone="danger">{t('log.broken', { n: (chain.broken_at ?? 0) + 1 })}</Chip>}>
       {items.length ? (
-        <div className="overflow-x-auto rounded-md border border-rule">
+        // a phone scrolls the table sideways: the box takes focus so the keyboard can scroll it too (axe scrollable-region-focusable)
+        <div className="overflow-x-auto rounded-md border border-rule" tabIndex={0}>
           <table className="w-full text-sm">
             <caption className="sr-only">{t('log.title')}</caption>
             <thead><tr className="border-b border-rule text-left text-[12px] text-muted">

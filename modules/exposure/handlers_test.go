@@ -28,7 +28,13 @@ type httpEnv struct {
 
 func newHTTPEnv(t *testing.T) *httpEnv {
 	t.Helper()
-	e := newEnv(t)
+	return httpOn(newEnv(t))
+}
+
+// httpOn serves the API of an env that a test already set up (ports, scans).
+func httpOn(e *env) *httpEnv {
+	t := e.t
+	t.Helper()
 	gate := servertest.NewGate()
 	h, err := server.New(server.Config{
 		API:     exposureOnly{Fallback: server.Fallback{Log: slog.New(slog.DiscardHandler)}, ExposureHandlers: NewExposureHandlers(e.svc)},

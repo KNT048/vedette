@@ -42,6 +42,14 @@ export function scheduledPause(): Response | null {
   return fail(429, 'budget_reached', text, { retry_after: Math.max(Math.ceil((renewsOn().getTime() - Date.now()) / 1000), 1) })
 }
 
+/** W5-4/W5-5: a scheduled job whose every profile has used its own monthly budget is stopped like the shared pause (backend run.go,
+ *  Actor "system": no call, no activity row, 429 budget_reached naming the profile). The text, or null while a profile can take it. */
+export function scheduledProfileStop(job: AiJob): string | null {
+  const cands = aiCandidates(job)
+  if (cands.length === 0 || cands.some((p) => profileUsed(p) < p.monthly_budget)) return null
+  return `The monthly budget of the AI profile ${cands[cands.length - 1]!.name} is used up and no other profile could take ${JOB_NAME[job]}, so nothing was sent. An administrator can raise the profile's budget or add a fallback profile in Settings, AI assistant; it renews on ${renewDay()}.`
+}
+
 // Lịch sử mẫu để đồng hồ và nhật ký có số liệu ngay (dữ liệu mẫu, không phải lần gọi thật). Cài sạch: rỗng.
 const sampleRuns = collection<AiRun[]>('ai_sample_runs', () => {
   const at = (back: number, min: number) => new Date(Math.min(Date.now() - 60_000 * (back + 1), startOfToday() - back * DAY + min * 6e4)).toISOString()

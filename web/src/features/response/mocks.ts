@@ -9,7 +9,7 @@ import { connectorsStore } from '@/mocks/connectors'
 import { aiAvailable, aiCandidates, assetsStore, findingsStore, recordAiRun, usersStore } from '@/mocks/stores'
 import { boxAddress } from '@/mocks/network'
 import type { Finding } from '@/lib/types'
-import { scheduledPause } from '@/features/ai/mocks'
+import { scheduledPause, scheduledProfileStop } from '@/features/ai/mocks'
 import { aiState, afterReject, metrics, propose, resume } from './ai'
 import { RISK_PHRASE } from './contract'
 import { AI_PROOF, TRIGGERS } from './data'
@@ -166,6 +166,8 @@ export const handlers = [
           if (status.findings.length < 20) status.findings.push({ finding_id: f.id, cve: f.cve, asset_name: name ?? assetsStore.get().find((a) => a.id === f.asset_id)?.hostname ?? f.asset_id, outcome, reason })
         }
         if (scheduledPause()) { add('ai_unavailable', PLAN_PAUSED); continue } // from 80 % of the month's AI budget the scheduled plan job is paused (backend: 429 budget_reached, no row)
+        const profileStop = scheduledProfileStop('response-plan') // W5-5: every profile of the job used its own budget (backend: 429 budget_reached, no row)
+        if (profileStop) { add('ai_unavailable', `The AI cannot be used now, so this run stopped: ${profileStop}`); continue }
         if (plansStore.get().some((p) => p.finding_id === f.id)) { add('has_plan', PLAN_HAS); continue }
         if (status.asked >= 3) { add('later', PLAN_LATER); continue }
         const p = draft(f); if (!p) continue

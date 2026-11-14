@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"slices"
 	"strings"
 	"testing"
@@ -225,5 +226,23 @@ func TestExposureFullOtherPortRunsItsNetworkTemplates(t *testing.T) {
 				t.Errorf("%s (%s) on an imaps port", id, tp.Path)
 			}
 		}
+	}
+}
+
+// review r1 M1: a deep run that printed nothing for its templates (with -ms nuclei prints a line for each one it runs) says they did
+// not run, in one "Not checked" line a port, and their probe rows say "Not run"; none reads "No match reported".
+func TestExposureFullSilentTemplatesAreNotRun(t *testing.T) {
+	t.Parallel()
+	f := &templatesFake{gateOK: true, answer: func(sensoractive.NucleiRequest) nucleiout.Outcome { return nucleiout.Outcome{} }}
+	a := f.scanner()
+	a.mode = (&modes{list: []exposure.ScanMode{{Full: true}}}).now
+	got, err := a.ScanTemplates(t.Context(), fullTarget(false), ownPublicIP, []exposure.TemplateJob{fullJobOf()})
+	n := 0
+	for _, r := range f.reqs {
+		n += len(r.Templates)
+	}
+	want := fmt.Sprintf(notRunFull, 18443, n, n)
+	if err != nil || n == 0 || !slices.Contains(got.NotChecked, want) || len(f.done) == 0 || f.done[0].Result != "" || !strings.HasPrefix(f.done[0].Request, notRunRequest) {
+		t.Fatalf("err %v, notes %q, want %q, last rows %+v", err, got.NotChecked, want, f.done)
 	}
 }

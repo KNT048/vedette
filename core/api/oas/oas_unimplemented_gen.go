@@ -1279,8 +1279,9 @@ func (UnimplementedHandler) ExposureDeleteExposureTargetsIDTerms(ctx context.Con
 
 // ExposureGetExposureGreenbone implements exposure_get_exposure_greenbone operation.
 //
-// The optional deep scan with Greenbone (OpenVAS, D-563): its state and this box's memory and free
-// disk against the thresholds. Reading may ask Greenbone whether it is ready; it never starts a scan.
+// The optional deep scan with OpenVAS (Greenbone Community Edition, D-563, D-568): its state and this
+// box's memory and free disk against the thresholds. Reading may ask OpenVAS whether it is ready; it
+// never starts a scan.
 //
 // GET /exposure/greenbone
 func (UnimplementedHandler) ExposureGetExposureGreenbone(ctx context.Context) (r *ExposureGetExposureGreenboneOK, _ error) {
@@ -1458,12 +1459,12 @@ func (UnimplementedHandler) ExposurePutExposureBoxIPSettings(ctx context.Context
 
 // ExposurePutExposureGreenbone implements exposure_put_exposure_greenbone operation.
 //
-// Turn the optional deep scan with Greenbone on or off (off by default). On: refused with 409
-// low_memory or low_disk and the measured numbers below 6 GB of memory (D-569) or 60 GB free; else
-// Greenbone starts in the background (starting, then loading while it loads its feed, about 2 hours
-// the first time). Off: no scan uses it, its containers stop and its data is kept (502 host_error when
-// they could not be stopped). 501 not_implemented when Greenbone is not available on this box. A scan
-// uses it only on a target whose testing terms are accepted (D-566). Audited.
+// Turn the optional deep scan with OpenVAS on or off (off by default). On: refused with 409 low_memory
+// or low_disk and the measured numbers below 6 GB of memory (D-569) or 60 GB free; else OpenVAS starts
+// in the background (starting, then loading while it loads its feed, about 2 hours the first time).
+// Off: no scan uses it, its containers stop and its data is kept (502 host_error when they could not
+// be stopped). 501 not_implemented when OpenVAS is not available on this box. A scan uses it only on a
+// target whose testing terms are accepted (D-566). Audited.
 //
 // PUT /exposure/greenbone
 func (UnimplementedHandler) ExposurePutExposureGreenbone(ctx context.Context, req *ExposurePutExposureGreenboneReq) (r *ExposurePutExposureGreenboneOK, _ error) {

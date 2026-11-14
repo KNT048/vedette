@@ -722,12 +722,14 @@ describe('core: dữ liệu', () => {
 
   it('the release build (VITE_API_MOCK=off) does not offer to restore sample data a real box does not have (issue #244)', async () => {
     vi.stubEnv('VITE_API_MOCK', 'off')
+    // a release build asks /me only when the box's readable CSRF cookie says a session exists (N44-2)
+    document.cookie = '__Host-vedette_csrf=t; Path=/; Secure'
     try {
       renderApp('/settings/data')
       await screen.findByRole('button', { name: 'Download backup' })
       expect(screen.queryByRole('button', { name: 'Restore sample data' })).not.toBeInTheDocument()
       expect(screen.queryByText(/Trial build only/)).not.toBeInTheDocument()
-    } finally { vi.unstubAllEnvs() }
+    } finally { vi.unstubAllEnvs(); document.cookie = '__Host-vedette_csrf=; Path=/; Secure; Max-Age=0' }
   })
 
   it('khôi phục dữ liệu mẫu gọi reset rồi tải lại', async () => {

@@ -6,6 +6,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/netip"
+	"slices"
+	"strings"
 	"time"
 
 	"github.com/knt048/vedette/core/store"
@@ -288,12 +291,16 @@ func upsertSnapshot(ctx context.Context, tx *sql.Tx, targetID string, snap Snaps
 	if err != nil {
 		return err
 	}
+	run, err := json.Marshal(snap.GreenboneRun)
+	if err != nil {
+		return fmt.Errorf("encoding snapshot: %w", err)
+	}
 	if _, err := tx.ExecContext(ctx, `DELETE FROM exp_snapshot WHERE target_id = ? AND date = ?`, targetID, snap.Date); err != nil {
 		return fmt.Errorf("replacing snapshot: %w", err)
 	}
-	_, err = tx.ExecContext(ctx, `INSERT INTO exp_snapshot (id, target_id, date, scanned_at, hosts, ports, admin_panels, certs, counts, services, checks, not_checked, web_findings, greenbone, scripts)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		snap.ID, targetID, snap.Date, snap.ScannedAt, d[0], d[1], d[2], d[3], d[4], d[5], d[6], d[7], d[8], d[9], d[10])
+	_, err = tx.ExecContext(ctx, `INSERT INTO exp_snapshot (id, target_id, date, scanned_at, hosts, ports, admin_panels, certs, counts, services, checks, not_checked, web_findings, greenbone, scripts, greenbone_run)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		snap.ID, targetID, snap.Date, snap.ScannedAt, d[0], d[1], d[2], d[3], d[4], d[5], d[6], d[7], d[8], d[9], d[10], string(run))
 	if err != nil {
 		return fmt.Errorf("inserting snapshot: %w", err)
 	}
@@ -327,10 +334,10 @@ func listSnapshotMetas(ctx context.Context, q querier, targetID string) ([]Snaps
 // loadSnapshot returns the snapshot of one day, or ok=false when there is none.
 func loadSnapshot(ctx context.Context, q querier, targetID, date string) (Snapshot, bool, error) {
 	var s Snapshot
-	var hosts, ports, admin, certs, counts, services, checks, notChecked, web, gb, scripts string
+	var hosts, ports, admin, certs, counts, services, checks, notChecked, web, gb, scripts, gbRun string
 	var stored []storedService
-	err := q.QueryRowContext(ctx, `SELECT id, date, scanned_at, hosts, ports, admin_panels, certs, counts, services, checks, not_checked, web_findings, greenbone, scripts FROM exp_snapshot WHERE target_id = ? AND date = ?`, targetID, date).
-		Scan(&s.ID, &s.Date, &s.ScannedAt, &hosts, &ports, &admin, &certs, &counts, &services, &checks, &notChecked, &web, &gb, &scripts) // FULL-4 (Trưởng), for Mlee: scripts
+	err := q.QueryRowContext(ctx, `SELECT id, date, scanned_at, hosts, ports, admin_panels, certs, counts, services, checks, not_checked, web_findings, greenbone, scripts, greenbone_run FROM exp_snapshot WHERE target_id = ? AND date = ?`, targetID, date).
+		Scan(&s.ID, &s.Date, &s.ScannedAt, &hosts, &ports, &admin, &certs, &counts, &services, &checks, &notChecked, &web, &gb, &scripts, &gbRun) // FULL-4 (Trưởng), for Mlee: scripts
 	if errors.Is(err, sql.ErrNoRows) {
 		return Snapshot{}, false, nil
 	}
@@ -341,7 +348,8 @@ func loadSnapshot(ctx context.Context, q querier, targetID, date string) (Snapsh
 		doc string
 		to  any
 	}{{hosts, &s.Hosts}, {ports, &s.Ports}, {admin, &s.AdminPanels}, {certs, &s.Certs}, {counts, &s.Counts},
-		{services, &stored}, {checks, &s.Checks}, {notChecked, &s.NotChecked}, {web, &s.WebFindings}, {gb, &s.Greenbone}, {scripts, &s.Scripts}} {
+		{services, &stored}, {checks, &s.Checks}, {notChecked, &s.NotChecked}, {web, &s.WebFindings}, {gb, &s.Greenbone}, {scripts, &s.Scripts},
+		{gbRun, &s.GreenboneRun}} {
 		if err := json.Unmarshal([]byte(d.doc), d.to); err != nil {
 			return Snapshot{}, false, fmt.Errorf("snapshot %s: %w", s.ID, err)
 		}
@@ -354,8 +362,55 @@ func loadSnapshot(ctx context.Context, q querier, targetID, date string) (Snapsh
 	s.Content = Content{Hosts: nz(s.Hosts), Ports: nz(s.Ports), AdminPanels: nz(s.AdminPanels), Certs: nz(s.Certs),
 		Services: s.Services, Templates: s.Templates, Checks: nz(s.Checks), NotChecked: nz(s.NotChecked), WebFindings: nz(s.WebFindings), Greenbone: nz(s.Greenbone),
 		Scripts: nz(s.Scripts)}
+	s.GreenboneRun = storedGreenboneRun(s.GreenboneRun, s.Content)
+	if s.GreenboneRun.State == GBRunStopped {
+		s.NotChecked = gbCutOff(s.NotChecked)
+	}
 	return s, true, nil
 }
+
+// storedGreenboneRun is the state of a stored OpenVAS step (N49-3, D-595), checked: a state that is not one, a start that is not a
+// time, or an address that is not one is not believed. A snapshot older than the column ('{}') gets the state its lines say (a
+// domain's lines carry the address in front, review L1): a check row is done; the old waiting line or the stop line is stopped (nothing
+// runs it any more); a failure line is failed; else it did not run.
+func storedGreenboneRun(r GreenboneRun, c Content) GreenboneRun {
+	if r.StartedAt != nil {
+		if t, err := time.Parse(time.RFC3339Nano, *r.StartedAt); err != nil {
+			r.StartedAt = nil
+		} else {
+			at := store.FormatTS(t)
+			r.StartedAt = &at
+		}
+	}
+	addrs := []GreenboneAddr{}
+	for _, a := range r.Addresses {
+		if ip, err := netip.ParseAddr(a.IP); err == nil && ip.String() == a.IP && slices.Contains(gbRunStates, a.State) && len(addrs) < maxGBAddrs {
+			addrs = append(addrs, a)
+		}
+	}
+	r.Addresses = addrs
+	if slices.Contains(gbRunStates, r.State) {
+		return r
+	}
+	r.State = GBRunNotRun
+	for _, n := range c.NotChecked {
+		switch {
+		case n.Kind != "greenbone":
+		case strings.Contains(n.Text, "OpenVAS started at "), strings.HasSuffix(n.Text, notGBStopped):
+			r.State = GBRunStopped
+		case r.State == GBRunStopped:
+		case strings.HasSuffix(n.Text, notGBFail), strings.HasSuffix(n.Text, notGBUnread), strings.HasSuffix(n.Text, notGBSlowAnswer), strings.HasSuffix(n.Text, notGBSlowOld):
+			r.State = GBRunFailed
+		}
+	}
+	if r.State != GBRunStopped && slices.ContainsFunc(c.Checks, func(k CheckRow) bool { return k.Kind == "greenbone" }) {
+		r.State = GBRunDone
+	}
+	return r
+}
+
+// maxGBAddrs bounds the addresses of a stored OpenVAS state (a domain's run reaches at most MaxDeepIPs).
+const maxGBAddrs = 16
 
 // previousSnapshot returns the newest snapshot of `date` or an earlier day (the last observation: a scan earlier today counts), or
 // ok=false when there is none.

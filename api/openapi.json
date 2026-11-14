@@ -25389,6 +25389,72 @@
                       },
                       "description": "Results of the optional deep scan with Greenbone (INV-25); empty when it did not run (the not_checked lines of kind greenbone say why)"
                     },
+                    "greenbone_run": {
+                      "type": "object",
+                      "properties": {
+                        "state": {
+                          "type": "string",
+                          "enum": [
+                            "running",
+                            "done",
+                            "partial",
+                            "not_run",
+                            "failed",
+                            "stopped",
+                            "ended"
+                          ],
+                          "description": "running: OpenVAS scans now (the other results are saved); done: it finished; partial: the 90-minute cap stopped it and its rows are what it had found by then; not_run: it did not scan (the not_checked line of kind greenbone says why; also a task that stayed queued for 90 minutes); failed: it failed or its answer could not be read; stopped: a Stop, the module or a restart of the box ended it (a domain keeps the rows of the addresses that finished); ended: it scanned and ended before it finished without a stop from Vedette (OpenVAS reports it stopped or interrupted, or the domain fence stopped it), with the rows it had found if any; a task OpenVAS ended before it was seen scanning is not_run"
+                        },
+                        "started_at": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "When the OpenVAS step started; null when it did not"
+                        },
+                        "addresses": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "ip": {
+                                "type": "string"
+                              },
+                              "state": {
+                                "type": "string",
+                                "enum": [
+                                  "running",
+                                  "done",
+                                  "partial",
+                                  "not_run",
+                                  "failed",
+                                  "stopped",
+                                  "ended"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "ip",
+                              "state"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "description": "A domain's run: the OpenVAS state of each deep-scanned address (D-571); [] for an IP"
+                        }
+                      },
+                      "required": [
+                        "state",
+                        "started_at",
+                        "addresses"
+                      ],
+                      "additionalProperties": false
+                    },
                     "vulns": {
                       "type": "array",
                       "items": {
@@ -25528,6 +25594,7 @@
                     "not_checked",
                     "web_findings",
                     "greenbone",
+                    "greenbone_run",
                     "vulns",
                     "version_gaps"
                   ],

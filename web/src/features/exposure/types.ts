@@ -40,6 +40,7 @@ export type OutsideView = z.infer<typeof C.OutsideView>
 export type Greenbone = z.infer<typeof C.Greenbone>
 export type Terms = z.infer<typeof C.Terms>
 export type GreenboneResult = z.infer<typeof C.GreenboneResult>
+export type GreenboneRun = z.infer<typeof C.GreenboneRun>
 
 /** The label key of a blocked target: a commitment of an older sentence reads as asked again, not as a missing first scan (D-559). */
 export function blockedKey(t: Pick<Target, 'blocked_reason' | 'commitment'>): string {

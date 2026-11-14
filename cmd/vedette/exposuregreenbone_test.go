@@ -218,10 +218,22 @@ func TestExposureGreenbone_WiredWithPrivacyFlow16(t *testing.T) {
 		t.Fatal("the test made the host socket")
 	}
 	// LEGAL §3: the probe log has the scan's row before the task starts (the scan module's table, Scans -> Probe log).
-	if err := (exposureProbeLog{d: *box.d}).RecordGreenboneProbe(t.Context(), exposure.GreenboneProbe{ID: "pb_gb1", IP: "93.184.216.34", PortList: "All IANA assigned TCP", Config: "full", Note: "many probes"}); err != nil {
+	if err := (exposureProbeLog{d: *box.d}).RecordGreenboneProbe(t.Context(), exposure.GreenboneProbe{ID: "pb_gb1", IP: "93.184.216.34", PortList: "T:22,443", Config: "full", Note: "many probes"}); err != nil {
 		t.Fatal(err)
 	}
-	if n := box.count(`SELECT COUNT(*) FROM scan_probe WHERE id = 'pb_gb1' AND ip = '93.184.216.34' AND template LIKE 'exposure: OpenVAS%' AND request LIKE '%All IANA assigned TCP%'`); n != 1 {
+	if n := box.count(`SELECT COUNT(*) FROM scan_probe WHERE id = 'pb_gb1' AND ip = '93.184.216.34' AND template LIKE 'exposure: OpenVAS%' AND request LIKE '%Port list T:22,443.%'`); n != 1 {
 		t.Fatalf("probe rows %d", n)
+	}
+}
+
+// D-595 review M4: the domain fence note comes before the port list, so the scan module's 300-character clip never cuts it, even with
+// the longest list exposure sends (clipped with its count) and a long name and CNAME chain.
+func TestGreenboneProbeRequestKeepsTheFenceNote(t *testing.T) {
+	t.Parallel()
+	fence := "Address of acme.example (domain fence), name shop.eu-west.acme.example, CNAME chain shop.eu-west.acme.example -> acme-shop.edge.cdn.example.net. "
+	r := greenboneProbeRequest(exposure.GreenboneProbe{IP: "203.0.113.250", Fence: fence, PortList: "T:10000,10001,10002,10003,10004,10005,10006,10007,… (40 ports)",
+		Note: "OpenVAS sends many probes: every test of the config on every port of the list. They are not logged one by one."})
+	if clipped := string([]rune(r)[:min(300, len([]rune(r)))]); !strings.Contains(clipped, fence) || !strings.Contains(clipped, "(40 ports)") {
+		t.Fatalf("clipped request %q", clipped)
 	}
 }

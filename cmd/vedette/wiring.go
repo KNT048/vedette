@@ -163,7 +163,8 @@ func (a findingsInventory) MatchInput(ctx context.Context, assetID string) (find
 		}
 	}
 	for i, s := range d.Software {
-		out.Software[i] = findings.Software{ID: s.ID, Display: s.Display, Vendor: s.Vendor, Product: s.Product, Version: s.Version, KevKeys: s.KevKeys, CPE: s.CPE}
+		out.Software[i] = findings.Software{ID: s.ID, Display: s.Display, Vendor: s.Vendor, Product: s.Product, Version: s.Version, KevKeys: s.KevKeys, CPE: s.CPE,
+			Source: s.Source, Packaged: s.Packaged}
 	}
 	return out, true, nil
 }

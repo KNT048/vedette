@@ -77,6 +77,9 @@ func exposureService(d deps) *exposure.Service {
 	}
 	cfg.Matcher = m
 	cfg.Web = exposureWebFor(d) // INV-24, D-521: ZAP's passive baseline through vedette-host's zap.baseline
+	// INV-25, D-529 (FULL-2): OpenVAS (Greenbone CE) through vedette-host's greenbone.* commands, off until an administrator enables it.
+	// DataDir is the disk preflight's filesystem. privacyFacts.GreenboneEnabled (flow 16) reads this same service (review r2).
+	cfg.Greenbone, cfg.DataDir = exposureGreenboneFor(d), d.DataDir
 	if exposureTestConfig != nil {
 		exposureTestConfig(&cfg)
 	}
@@ -93,6 +96,15 @@ func exposureService(d deps) *exposure.Service {
 		})
 	}
 	return svc
+}
+
+// exposureAtStart starts OpenVAS again when an administrator had it enabled and the module is on (review r1 L4, D-529): without it
+// the first scan after a restart or an update of the box finds it "still starting" and skips it. The module switch does the same
+// (exposure's ModuleSwitched).
+func exposureAtStart(ctx context.Context, d deps) {
+	if d.Reg == nil || d.Reg.Enabled(exposure.ModuleID) {
+		exposureService(d).GreenboneAtStart(ctx)
+	}
 }
 
 // exposureJobs is the Jobs func of the exposure entry in wiredModules.

@@ -286,7 +286,7 @@ func isZapPodmanArgv(args []string) bool {
 // with its work folder under this state directory.
 func validatePodmanIn(stateDir string) func([]string) error {
 	return func(args []string) error {
-		if isZapRunArgv(stateDir, args) {
+		if isZapRunArgv(stateDir, args) || isGreenbonePodmanArgv(args) { // OpenVAS: greenbone.go (D-529)
 			return nil
 		}
 		return validatePodman(args)

@@ -424,6 +424,61 @@ func loadGreenbone(ctx context.Context, q querier) (on bool, by, at *string, err
 	return v == 1, by, at, nil
 }
 
+// GreenboneAtStart starts Greenbone again when an administrator has it enabled (review r1 L4): the box calls it at start-up and the
+// module switch calls it when the module is turned on, so the first scan after a restart or an update does not find it "still
+// starting". It does nothing when no GreenboneHost is wired, when it is off, or when the setting cannot be read (logged).
+// FULL-2 (Trưởng), for Mlee: the hook the host half needed; it only calls gbStartUp.
+func (s *Service) GreenboneAtStart(ctx context.Context) {
+	if s.cfg.Greenbone == nil {
+		return
+	}
+	on, _, _, err := loadGreenbone(ctx, s.cfg.DB.Reader())
+	if err != nil {
+		s.cfg.Log.ErrorContext(ctx, "exposure: reading the Greenbone setting at start failed", "error", err)
+		return
+	}
+	if on {
+		s.gbStartUp(ctx)
+	}
+}
+
+// gbModuleOff stops Greenbone's containers when the External exposure module is switched off while Greenbone is enabled (D-529): no
+// scan or feed update can use them then, and a 4 GB stack should not keep running for nothing. An Up or a feed update that runs is
+// cancelled first; the stop runs in the background (the registry's goroutine must not wait). The setting stays enabled, so switching
+// the module on again starts it (GreenboneAtStart).
+// FULL-2 (Trưởng), for Mlee: the simplest truthful answer to the open line of feat-exposure-greenbone-mlee.md (module off).
+func (s *Service) gbModuleOff() {
+	if s.cfg.Greenbone == nil {
+		return
+	}
+	ctx := context.Background()
+	on, _, _, err := loadGreenbone(ctx, s.cfg.DB.Reader())
+	if err != nil || !on {
+		return
+	}
+	g := s.gb()
+	g.mu.Lock()
+	if g.upCancel != nil {
+		g.upCancel()
+	}
+	if g.syncCancel != nil {
+		g.syncCancel()
+	}
+	syncDone := g.syncDone
+	g.upErr, g.upAt, g.probeAt = "", time.Time{}, time.Time{}
+	g.upWG.Add(1)
+	g.mu.Unlock()
+	go func() {
+		defer g.upWG.Done()
+		s.waitSync(syncDone)
+		dctx, cancel := context.WithTimeout(ctx, gbDownTimeout)
+		defer cancel()
+		if err := s.cfg.Greenbone.Down(dctx); err != nil {
+			s.cfg.Log.ErrorContext(dctx, "exposure: stopping Greenbone after the module was switched off failed", "error", err)
+		}
+	}()
+}
+
 // gbStartUp runs Up in the background on the Service's own context (not the request's): the first start pulls images for about
 // 25 minutes. It does nothing while an Up runs.
 func (s *Service) gbStartUp(ctx context.Context) {

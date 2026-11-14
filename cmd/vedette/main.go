@@ -377,6 +377,7 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 	defer d.OS.Close()
 	defer d.Response.Close()         // ends the approval requests still being sent before the database closes
 	defer exposureService(d).Close() // INV-18: the run that runs ends with its audit row before the database closes
+	exposureAtStart(ctx, d)          // OpenVAS enabled before this start runs again (D-529)
 	defer scanService(d).Close()     // stop a live scan and wait for it before the database closes (scan review M4)
 	if o.hostSocket != "" && (filepath.Base(o.db) != "vedette.db" || filepath.Base(o.key) != "vedette.key" || filepath.Dir(o.key) != filepath.Dir(o.db)) {
 		log.WarnContext(ctx, "backup restore through vedette-host needs the database and key at <core_data>/vedette.db and <core_data>/vedette.key", "db", o.db, "key", o.key)

@@ -641,6 +641,16 @@ func (p privacyFacts) ConnectionsConfigured(ctx context.Context) bool {
 	return err != nil || on
 }
 
+// GreenboneEnabled: flow 16 (OpenVAS's images and feed, D-563, D-529) is on while an administrator has OpenVAS enabled on this box,
+// whether the module is on or not (turning the module off stops the containers, D-529; the badge then errs on the side of "on"). It reads the exposure service that
+// carries cfg.Greenbone, so the badge and the containers cannot disagree (review r2); without vedette-host nothing can be enabled.
+func (p privacyFacts) GreenboneEnabled(ctx context.Context) bool {
+	if p.d == nil || p.d.DB == nil {
+		return false
+	}
+	return exposureService(*p.d).GreenboneEnabled(ctx)
+}
+
 // WazuhConnected: flow 14 is on while agent-intake has a Wazuh server saved (D-309); the caller checks that the module is on. A store
 // that cannot be read counts as "on", like the others.
 func (p privacyFacts) WazuhConnected(ctx context.Context) bool {

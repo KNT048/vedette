@@ -1347,6 +1347,7 @@ do_uninstall() {
 		[ -n "$KEEP_DATA" ] || say "and DELETE the database and the master key in /var/lib/vedette (no way back), /etc/vedette and the users vedette and vedette-sensor"
 		say "podman, the packages it runs with and /var/lib/containers stay when podman holds anything that is not Vedette's (containers, pods,"
 		say "networks, volumes, images)${KEEP_DATA:+ and always with --keep-data}; only Vedette's own containers, images, volumes and network are removed from it"
+		say "OpenVAS, if it was ever enabled, stays as it is: Greenbone's own containers, images and feed volumes are not Vedette's (D-529)"
 		die "run again with --yes to do it"
 	fi
 	if [ -d "$STATE" ]; then TMP=$(mktemp -d "$STATE/tmp.XXXXXX"); else TMP=$(mktemp -d /var/tmp/vedette-install.XXXXXX); fi
@@ -1356,6 +1357,10 @@ do_uninstall() {
 	for u in vedette-honeypot vedette-scan vedette-sensor vedette-core vedette-host "$REGISTRY_UNIT" vedette-int-network vedette-creds-passive-volume vedette-creds-active-volume vedette-hp-log-volume; do
 		systemctl stop "$u.service" >/dev/null 2>&1 || true
 	done
+	# OpenVAS (D-529): vedette-host runs Greenbone's own project under Greenbone's own name. It is not Vedette's, and nothing here
+	# touches it, its containers, volumes or images, the provider package or the socket folder (TestInstallSh_UninstallNeverNamesOpenVAS);
+	# its containers are someone else's to podman_stays, so podman stays with them (W4-1). vedette-greenbone below is a container name
+	# Vedette never made (no unit, D-123 (2)), kept so an old box is cleaned.
 	if have podman; then
 		for c in vedette-honeypot vedette-scan vedette-sensor vedette-core vedette-greenbone; do
 			pm rm -f -t 5 "$c" >/dev/null || true

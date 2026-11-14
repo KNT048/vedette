@@ -22,6 +22,7 @@ import (
 // tokenHost is what the fence needs of the host client (*hostclient.Client).
 type tokenHost interface {
 	ExposureToken(ctx context.Context, domain, requestID, actor string) (string, error)
+	ExposureTokenForget(ctx context.Context, domain, requestID, actor string) error
 }
 
 // hostDomainFence is exposure's DomainFence over vedette-host's exposure.token.
@@ -34,10 +35,25 @@ func (f hostDomainFence) Token(ctx context.Context, domain string) (string, erro
 	}
 	tok, err := f.host.ExposureToken(ctx, domain, id, "exposure")
 	var fe *hostclient.FenceError
-	if errors.As(err, &fe) && fe.Code == api.CodeFenceDomainsFull { // review r1 H1: the host's cap, said as such
+	switch {
+	case err == nil:
+		return tok, nil
+	case errors.As(err, &fe) && fe.Code == api.CodeFenceDomainsFull: // review r1 H1: the host's cap, said as such
 		return "", exposure.ErrFenceFull
+	case errors.As(err, &fe) && (fe.Code == api.CodeBusy || fe.Code == api.CodeRateLimited), !errors.As(err, &fe):
+		// review r2 M-B: transient (busy, or no answer: a transport error, a time-out): "try again"
+		return "", exposure.ErrFenceDown
 	}
-	return tok, err
+	return "", err // an older host (unknown_command), an unusable key or list: exposure falls back to a random token
+}
+
+// Forget gives a domain's fence slot back to the host (exposure.token_forget, review r2 M-A).
+func (f hostDomainFence) Forget(ctx context.Context, domain string) error {
+	id, err := newUUID()
+	if err != nil {
+		return err
+	}
+	return f.host.ExposureTokenForget(ctx, domain, id, "exposure")
 }
 
 // scopeOf is the wire form of exposure's domain scope.
@@ -61,10 +77,25 @@ func finalName(d *exposure.DomainScope) string {
 	return d.Name
 }
 
+// probeRequestMax is what scan_probe.request keeps (modules/scan/external.go clips the request there).
+const probeRequestMax = 300
+
+// keepEnd is s, or "…" and its last n-1 runes when it is longer than n (the end of a name is its registrable part).
+func keepEnd(s string, n int) string {
+	r := []rune(s)
+	if len(r) <= n {
+		return s
+	}
+	if n <= 1 {
+		return string(r[len(r)-max(n, 0):])
+	}
+	return "…" + string(r[len(r)-n+1:])
+}
+
 // The reasons exposure shows when the scan container's domain fence refused or stopped a step (after "… did not run: ").
 const (
 	domainNoKey   = "the scan container has no domain fence key (an older box, or a sensor that is not the box's own), so nothing was sent to an address that is not this box's. Update the box."
-	domainForeign = "the scan container did not recognise this box's token for the domain (its copy of the box's fence key differs from the host's), so nothing was sent. Restart or update the box."
+	domainForeign = "the scan container did not recognise this box's token for the domain (its copy of the box's fence key or domain list differs from the host's), so nothing was sent. Restart or update the box."
 	domainNotOwn  = "%s does not have its TXT record vedette-verify=%s now, so the scan container sent nothing. Add it (keep the current one), then scan again."
 	domainMoved   = "%s no longer points at %s (checked by the scan container right before the step), so nothing was sent there."
 	domainNoDNS   = "the scan container could not look up the domain's TXT record or the name's address (DNS did not answer), so nothing was sent."

@@ -40,6 +40,10 @@ const (
 	fenceScanDir     = "/var/lib/vedette-fence"
 	fenceTimeout     = 2 * time.Minute // exposure.fence_check: three lookups of at most 10 s each, with room
 	auditDomainAdded = "fence_domain_added"
+	// the line of a domain whose audit was written but whose list write failed (review r2 L-1), and the removal's two
+	auditDomainNotAdded   = "fence_domain_not_added"
+	auditDomainRemoved    = "fence_domain_removed"
+	auditDomainNotRemoved = "fence_domain_not_removed"
 )
 
 // fenceResolver is the system resolver as the fence asks it, through the seams the zap tests already answer for (ZapTXT, ZapLookupIP)
@@ -165,47 +169,121 @@ func (o *Ops) fenceScanDir(mode os.FileMode) error {
 }
 
 // fenceScanCopy writes one file for the scan container in fenceScanDir: 0400, owned by the sensor user, rewritten only when the
-// bytes differ (root writes through the directory's 0500).
+// bytes differ (root writes through the directory's 0500). A new file is made whole beside the old one, given its owner and mode, and
+// renamed over it (review r2 L-2): a reader sees the old file or the new one, never one it may not read.
 func (o *Ops) fenceScanCopy(name string, data []byte) error {
-	p := filepath.Join(o.path(fenceScanDir), name)
-	if have, err := os.ReadFile(p); err != nil || string(have) != string(data) { //nolint:gosec // a fixed path under fenceScanDir
-		if err := writeFileAtomic(p, data, 0o400); err != nil {
+	dir := o.path(fenceScanDir)
+	p := filepath.Join(dir, name)
+	if have, err := os.ReadFile(p); err == nil && string(have) == string(data) { //nolint:gosec // a fixed path under fenceScanDir
+		if err := os.Lchown(p, o.cfg.SensorUID, o.cfg.SensorGID); err != nil {
+			return err
+		}
+		return os.Chmod(p, 0o400)
+	}
+	f, err := os.CreateTemp(dir, ".tmp-*")
+	if err != nil {
+		return err
+	}
+	tmp := f.Name()
+	defer func() { _ = os.Remove(tmp) }() // gone after the rename; left only on a failure
+	_, werr := f.Write(data)
+	for _, err := range []error{werr, f.Sync(), f.Chown(o.cfg.SensorUID, o.cfg.SensorGID), f.Chmod(0o400), f.Close()} {
+		if err != nil {
+			_ = f.Close()
 			return err
 		}
 	}
-	if err := os.Lchown(p, o.cfg.SensorUID, o.cfg.SensorGID); err != nil {
+	if err := os.Rename(tmp, p); err != nil {
 		return err
 	}
-	return os.Chmod(p, 0o400)
+	syncDir(dir)
+	return nil
 }
 
-// issueToken is exposure.token's work: a domain already on the list gets its token; a new one is added (at most fenceMaxDomains),
-// written to the state file and the scan container's copy, and audited, before its token is given.
+// fenceScanList rewrites the worker's copy of the list from the host's (review r2 L-3: at every fence op, not only on a change, so a
+// copy that once failed to write is put right by the next op), logged when it fails.
+func (o *Ops) fenceScanList(list map[string]bool) {
+	if o.cfg.SensorUID <= 0 || o.d.FenceKey != nil {
+		return
+	}
+	if err := o.fenceScanCopy(fenceScanList, domainfence.ListText(list)); err != nil {
+		o.log.Error("the scan container's copy of the domain fence list could not be written", "error", err.Error())
+	}
+}
+
+// issueToken is exposure.token's work: a domain already on the list gets its token; a new one (at most fenceMaxDomains) is audited
+// first (review r2 L-1: a crash after it over-reports, never hides a domain), then written to the state file, then to the scan
+// container's copy, before its token is given.
 func (o *Ops) issueToken(domain string) (string, error) {
 	o.fenceMu.Lock()
 	defer o.fenceMu.Unlock()
 	if o.fenceList[domain] {
+		o.fenceScanList(o.fenceList)
 		return o.fence.Token(domain), nil
 	}
 	if len(o.fenceList) >= fenceMaxDomains {
-		return "", refuse409(api.CodeFenceDomainsFull, "The host has already issued domain fence tokens for its limit of "+strconv.Itoa(fenceMaxDomains)+" domains, so "+domain+" gets none.")
+		return "", refuse409(api.CodeFenceDomainsFull, "The host has already issued domain fence tokens for its limit of "+strconv.Itoa(fenceMaxDomains)+" domains, so "+domain+" gets none. Deleting a domain target frees its place.")
 	}
 	next := maps.Clone(o.fenceList)
 	next[domain] = true
-	if err := writeFileAtomic(o.stateFile(fenceListName), domainfence.ListText(next), 0o600); err != nil {
-		return "", fail(api.CodeFenceUnavailable, "The host could not record the domain in its fence list.")
-	}
 	if err := o.noteErr(api.CmdExposureToken, auditDomainAdded, map[string]any{"domain": domain, "domains": len(next)}); err != nil {
-		_ = writeFileAtomic(o.stateFile(fenceListName), domainfence.ListText(o.fenceList), 0o600) // not audited: not added
 		return "", fail(api.CodeFenceUnavailable, "The host could not audit the new domain, so it issued no token.")
 	}
-	o.fenceList = next
-	if o.cfg.SensorUID > 0 && o.d.FenceKey == nil {
-		if err := o.fenceScanCopy(fenceScanList, domainfence.ListText(next)); err != nil {
-			o.log.Error("the scan container's copy of the domain fence list could not be written", "error", err.Error())
-		}
+	if err := writeFileAtomic(o.stateFile(fenceListName), domainfence.ListText(next), 0o600); err != nil {
+		o.note(api.CmdExposureToken, auditDomainNotAdded, map[string]any{"domain": domain})
+		return "", fail(api.CodeFenceUnavailable, "The host could not record the domain in its fence list.")
 	}
+	o.fenceList = next
+	o.fenceScanList(next)
 	return o.fence.Token(domain), nil
+}
+
+// forgetToken is exposure.token_forget's work (review r2 M-A): the domain off the list (audited first, then the state file, then the
+// scan container's copy); a domain not on the list changes nothing (idempotent) but the copy is written again.
+func (o *Ops) forgetToken(domain string) (bool, error) {
+	o.fenceMu.Lock()
+	defer o.fenceMu.Unlock()
+	if !o.fenceList[domain] {
+		o.fenceScanList(o.fenceList)
+		return false, nil
+	}
+	next := maps.Clone(o.fenceList)
+	delete(next, domain)
+	if err := o.noteErr(api.CmdExposureTokenForget, auditDomainRemoved, map[string]any{"domain": domain, "domains": len(next)}); err != nil {
+		return false, fail(api.CodeFenceUnavailable, "The host could not audit the removal, so the domain stays on its fence list.")
+	}
+	if err := writeFileAtomic(o.stateFile(fenceListName), domainfence.ListText(next), 0o600); err != nil {
+		o.note(api.CmdExposureTokenForget, auditDomainNotRemoved, map[string]any{"domain": domain})
+		return false, fail(api.CodeFenceUnavailable, "The host could not write its fence list, so the domain stays on it.")
+	}
+	o.fenceList = next
+	o.fenceScanList(next)
+	return true, nil
+}
+
+// cmdExposureTokenForget is exposure.token_forget (host-api §6.17). Read only for the system, no lock.
+func (o *Ops) cmdExposureTokenForget() server.Command {
+	return server.Define(server.Spec[api.ExposureTokenArgs]{
+		Name: api.CmdExposureTokenForget, Write: false, Timeout: 10 * time.Second,
+		Validate: func(a *api.ExposureTokenArgs) error { return tokenArgs(*a) },
+		Run: func(_ context.Context, _ *server.RunContext, a api.ExposureTokenArgs) (any, error) {
+			return o.exposureTokenForget(a)
+		},
+	})
+}
+
+func (o *Ops) exposureTokenForget(a api.ExposureTokenArgs) (any, error) {
+	if err := tokenArgs(a); err != nil {
+		return nil, err
+	}
+	if o.fence == nil {
+		return nil, fail(api.CodeFenceUnavailable, "The host has no usable domain fence; its log says why.")
+	}
+	removed, err := o.forgetToken(a.Domain)
+	if err != nil {
+		return nil, err
+	}
+	return api.ExposureTokenForgetResult{Removed: removed}, nil
 }
 
 // noteErr is note that says whether the audit line was written (no notifier, as in a test without a server, counts as written: nothing

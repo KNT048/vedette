@@ -312,3 +312,96 @@ func fenceCode(err error) string {
 	}
 	return "?" + err.Error()
 }
+
+// Review r2 M-A: exposure.token_forget takes a domain off the list (audited), is idempotent, and frees a slot under the cap.
+func TestExposureTokenForget(t *testing.T) {
+	t.Parallel()
+	w := newZapWorld(t, Deps{})
+	rec := &noteRec{}
+	w.o.noteOnly = rec
+	for i := range fenceMaxDomains - 1 { // example.com is listed already: the list is full after these
+		if _, err := w.o.exposureToken(api.ExposureTokenArgs{Domain: "d" + strconv.Itoa(i) + ".example"}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := w.o.exposureToken(api.ExposureTokenArgs{Domain: "new.example"}); fenceCode(err) != api.CodeFenceDomainsFull {
+		t.Fatalf("full: %v", err)
+	}
+	got, err := w.o.exposureTokenForget(api.ExposureTokenArgs{Domain: "d0.example"})
+	if err != nil || !got.(api.ExposureTokenForgetResult).Removed || w.o.fenceListed("d0.example") || rec.codes[len(rec.codes)-1] != auditDomainRemoved+" d0.example" { //nolint:forcetypeassert // the op's own result
+		t.Fatalf("forget: %+v %v, notes %q", got, err, rec.codes)
+	}
+	n := len(rec.codes)
+	got, err = w.o.exposureTokenForget(api.ExposureTokenArgs{Domain: "d0.example"})
+	if err != nil || got.(api.ExposureTokenForgetResult).Removed || len(rec.codes) != n { //nolint:forcetypeassert // the op's own result
+		t.Fatalf("forget again: %+v %v", got, err)
+	}
+	if l, _ := w.o.loadFenceList(); l["d0.example"] || len(l) != fenceMaxDomains-1 {
+		t.Fatalf("state list %v", l)
+	}
+	if _, err := w.o.exposureToken(api.ExposureTokenArgs{Domain: "new.example"}); err != nil {
+		t.Fatalf("the freed slot: %v", err)
+	}
+	if _, err := w.o.exposureTokenForget(api.ExposureTokenArgs{Domain: "Bad..example"}); err == nil {
+		t.Fatal("a bad domain was accepted")
+	}
+}
+
+// Review r2 L-3 and L-7: a fence op writes the worker's copy again even when nothing changed (a damaged copy is put right); a key that
+// cannot be used leaves the scan container's directory in place (0500, no key copy), so the scan unit still starts without domain_ip.
+func TestFenceScanCopyIsRewrittenAndSurvivesABadKey(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	state := filepath.Join(root, "state")
+	if err := os.Mkdir(state, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	dir := filepath.Join(root, fenceScanDir)
+	t.Cleanup(func() { _ = os.Chmod(dir, 0o700) }) //nolint:gosec // a directory: the 0500 one, so the test's TempDir can be removed
+	cfg := Config{StateDir: state, CoreUnit: "vedette-core.service", OwnerUID: os.Getuid(), SensorUID: os.Getuid(), SensorGID: os.Getgid(), Logger: slog.New(slog.DiscardHandler)}
+	o, err := NewWithDeps(cfg, Deps{Root: root})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = os.Chmod(dir, 0o700)                                //nolint:gosec // as root would: the host writes through the 0500 directory
+	if _, err := o.issueToken("acme.example"); err != nil { // new: listed and copied
+		t.Fatal(err)
+	}
+	list := filepath.Join(dir, fenceScanList)
+	_ = os.Remove(list)
+	if err := os.WriteFile(list, []byte("garbage"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := o.issueToken("acme.example"); err != nil {
+		t.Fatal(err)
+	}
+	b, _ := os.ReadFile(list) //nolint:gosec // a test path
+	if fi, err := os.Lstat(list); err != nil || string(b) != "acme.example\n" || fi.Mode().Perm() != 0o400 {
+		t.Fatalf("copy %q %v %v", b, fi, err)
+	}
+	o.Close()
+
+	root2 := t.TempDir()
+	state2 := filepath.Join(root2, "state")
+	if err := os.Mkdir(state2, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(state2, fenceKeyName), []byte("short"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	dir2 := filepath.Join(root2, fenceScanDir)
+	t.Cleanup(func() { _ = os.Chmod(dir2, 0o700) }) //nolint:gosec // as above
+	cfg.StateDir = state2
+	o2, err := NewWithDeps(cfg, Deps{Root: root2})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer o2.Close()
+	fi, err := os.Lstat(dir2)
+	if err != nil || !fi.IsDir() || fi.Mode().Perm() != 0o500 || o2.fence != nil {
+		t.Fatalf("dir %v %v, fence %v", fi, err, o2.fence)
+	}
+	if _, err := os.Lstat(filepath.Join(dir2, fenceKeyName)); err == nil {
+		t.Fatal("a key copy was written from an unusable key")
+	}
+}

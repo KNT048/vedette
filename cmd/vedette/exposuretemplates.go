@@ -8,6 +8,7 @@ import (
 	"net/netip"
 	"slices"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/knt048/vedette/content/nucleipack"
 	"github.com/knt048/vedette/core/sensorlink"
@@ -227,6 +228,24 @@ func (a exposureTemplateScan) send(ctx context.Context, actor string, ip netip.A
 			what += ", disruptive checks"
 		}
 	}
+	request := func(tp pack.Template) string {
+		return fmt.Sprintf("nuclei %s to %s (%s, at most %d requests a second): %s", tp.ID, r.target.Input(), what, rate, tp.Request)
+	}
+	if r.domain != nil { // review r2 L-5: the template's request is kept whole; only the domain part shrinks to fit the row
+		request = func(tp pack.Template) string {
+			line := func(d, f string) string {
+				return fmt.Sprintf("nuclei %s to %s (domain_ip %s via %s%s, at most %d requests a second): %s", tp.ID, r.target.Input(), d, f,
+					strings.TrimPrefix(what, "domain_ip "+r.domain.Domain+" via "+finalName(r.domain)), rate, tp.Request)
+			}
+			d, f := r.domain.Domain, finalName(r.domain)
+			over := utf8.RuneCountInString(notRunRequest+line(d, f)) - probeRequestMax
+			if over <= 0 {
+				return line(d, f)
+			}
+			keep := max(len(d)+len(f)-over-2, 2)
+			return line(keepEnd(d, keep/2), keepEnd(f, keep-keep/2))
+		}
+	}
 	scope, dom := nucleiargv.ScopeOwnIP, (*sensorlink.DomainScope)(nil)
 	if r.domain != nil {
 		sc := scopeOf(r.domain)
@@ -237,7 +256,7 @@ func (a exposureTemplateScan) send(ctx context.Context, actor string, ip netip.A
 	for i, tp := range r.tmpls {
 		ids[i] = tp.ID
 		rows[i] = scan.ExternalProbe{ID: store.NewID("tp"), IP: ip.String(), Label: fmt.Sprintf("%s:%d", ip, r.port), Template: tp.ID,
-			Request: fmt.Sprintf("nuclei %s to %s (%s, at most %d requests a second): %s", tp.ID, r.target.Input(), what, rate, tp.Request)}
+			Request: request(tp)}
 	}
 	if err := a.probes(ctx, rows); err != nil {
 		if ctx.Err() != nil {

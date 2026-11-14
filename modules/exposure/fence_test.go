@@ -2,16 +2,20 @@ package exposure
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"net/netip"
+	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 )
 
-// D-591 (FULL-5 slice 2): a new domain gets the box-bound token from the DomainFence (a random one without a host; none, and no
-// domain, when the host does not answer); an OpenVAS task on a
+// D-591 (FULL-5 slice 2): a new domain gets the box-bound token from the DomainFence; a random one without a host, or when the host
+// cannot give one for a reason that does not pass (review r2 M-B); none, and no domain, when the host is only busy or does not answer.
+// A doomed add asks the host nothing, a failed add and a deleted domain give the slot back (review r2 M-A). An OpenVAS task on a
 // domain's address that is not the box's asks the host's fence again every 3 minutes while it runs and is stopped by a no; its probe
 // row names the domain, the name and the CNAME chain.
 
@@ -23,14 +27,20 @@ func TestAddDomainTakesTheBoxBoundToken(t *testing.T) {
 	if err != nil || v.Token != deepToken {
 		t.Fatalf("token %q, %v", v.Token, err)
 	}
-	// review r1 M1: a host that does not answer adds no domain (no random token on a box with a host)
+	// review r2 M-B: a host that is busy or does not answer: "try again", no domain
 	e2 := newEnv(t)
-	e2.svc.cfg.DomainFence = failingFence{}
+	e2.svc.cfg.DomainFence = failingFence{err: ErrFenceDown}
 	if _, err := e2.svc.AddDomain(e2.ctx(), "admin@acme.example", "acme.example"); !errors.Is(err, ErrFenceDown) {
 		t.Fatalf("a host that does not answer: %v", err)
 	}
 	if l, err := e2.svc.Targets(e2.ctx()); err != nil || len(l) != 0 {
 		t.Fatalf("targets %+v %v", l, err)
+	}
+	// review r2 M-B: a host that cannot give one (older, unusable key): the random token, the domain is added
+	e4 := newEnv(t)
+	e4.svc.cfg.DomainFence = failingFence{err: errors.New("host: unknown_command")}
+	if v, err := e4.svc.AddDomain(e4.ctx(), "admin@acme.example", "acme.example"); err != nil || len(v.Token) != 16 || v.Token == deepToken {
+		t.Fatalf("an older host: token %q, %v", v.Token, err)
 	}
 	// a container-only install (no host, no fence) keeps the random token
 	e3 := newEnv(t)
@@ -40,9 +50,75 @@ func TestAddDomainTakesTheBoxBoundToken(t *testing.T) {
 	}
 }
 
-type failingFence struct{}
+type failingFence struct{ err error }
 
-func (failingFence) Token(context.Context, string) (string, error) { return "", errors.New("no host") }
+func (f failingFence) Token(context.Context, string) (string, error) { return "", f.err }
+
+// slotFence counts the tokens asked and the slots given back; during runs once inside Token (the moment between the host's answer
+// and core's write).
+type slotFence struct {
+	asked, forgot []string
+	during        func()
+}
+
+func (f *slotFence) Token(_ context.Context, domain string) (string, error) {
+	f.asked = append(f.asked, domain)
+	if f.during != nil {
+		f.during()
+		f.during = nil
+	}
+	return deepToken, nil
+}
+
+func (f *slotFence) Forget(_ context.Context, domain string) error {
+	f.forgot = append(f.forgot, domain)
+	return nil
+}
+
+// Review r2 M-A: a duplicate or a full list asks the host for nothing; an add that fails after the host's answer gives the slot back
+// (unless the domain was added meanwhile: that target keeps it); deleting a domain target gives its slot back, an IP's does not.
+func TestDomainFenceSlots(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	f := &slotFence{}
+	e.svc.cfg.DomainFence = f
+	if _, err := e.svc.AddDomain(e.ctx(), "admin@acme.example", "acme.example"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.svc.AddDomain(e.ctx(), "admin@acme.example", "acme.example"); err == nil || len(f.asked) != 1 {
+		t.Fatalf("a duplicate: %v, asked %q", err, f.asked)
+	}
+	fill := func(n int) {
+		err := e.svc.write(e.ctx(), func(tx *sql.Tx, _ func(string, any)) error {
+			for i := range n {
+				if err := insertTarget(e.ctx(), tx, Target{ID: "xt-fill" + strconv.Itoa(i), Kind: KindDomain, Value: "fill" + strconv.Itoa(i) + ".example", Token: "0123456789abcdef", CreatedAt: e.clock.Now()}); err != nil {
+					return err
+				}
+			}
+			return nil
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	f.during = func() { fill(MaxTargets - 1) } // the list fills up between the host's answer and the write
+	if _, err := e.svc.AddDomain(e.ctx(), "admin@acme.example", "late.example"); !errors.Is(err, ErrTooMany) || !slices.Equal(f.forgot, []string{"late.example"}) {
+		t.Fatalf("a failed add: %v, forgot %q", err, f.forgot)
+	}
+	if _, err := e.svc.AddDomain(e.ctx(), "admin@acme.example", "more.example"); !errors.Is(err, ErrTooMany) || slices.Contains(f.asked, "more.example") {
+		t.Fatalf("a full list: %v, asked %q", err, f.asked)
+	}
+	ts, _ := e.svc.Targets(e.ctx())
+	var id string
+	for _, v := range ts {
+		if v.Value == "acme.example" {
+			id = v.ID
+		}
+	}
+	if err := e.svc.Delete(e.ctx(), "admin@acme.example", id); err != nil || f.forgot[len(f.forgot)-1] != "acme.example" {
+		t.Fatalf("delete: %v, forgot %q", err, f.forgot)
+	}
+}
 
 // fencedGB is fakeGB whose host checks the domain fence and says no (the TXT record went while the task ran).
 type fencedGB struct {

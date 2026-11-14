@@ -291,7 +291,7 @@ func TestDomainList(t *testing.T) {
 		t.Fatal("a line that is not a domain was accepted")
 	}
 	p := filepath.Join(t.TempDir(), "domains")
-	listed := FileList(p)
+	listed := fileList(p, func() {})
 	if listed("a.example") {
 		t.Fatal("a missing list listed a domain")
 	}
@@ -301,5 +301,20 @@ func TestDomainList(t *testing.T) {
 	}
 	if f, _ := New(key1, world(), nil, nil); f.Check(t.Context(), job(), false).Reason != TokenForeign {
 		t.Fatal("a fence without a list let a domain through")
+	}
+}
+
+// Review r2 L-2: a copy that cannot be read at a check (the host's rename, an instant) is read once more after the wait before the
+// domain is refused, so a re-check of a running scan is not killed by it.
+func TestFileListReadsAMissingCopyAgain(t *testing.T) {
+	t.Parallel()
+	p := filepath.Join(t.TempDir(), "domains")
+	waited := 0
+	listed := fileList(p, func() { waited++; _ = writeFile(p, []byte("acme.example\n")) })
+	if !listed("acme.example") || waited != 1 {
+		t.Fatalf("waited %d", waited)
+	}
+	if listed("other.example") || waited != 1 {
+		t.Fatalf("a readable list that lacks the domain waited (%d)", waited)
 	}
 }

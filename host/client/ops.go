@@ -315,3 +315,9 @@ func (c *Client) ExposureFenceCheck(ctx context.Context, args api.ExposureFenceC
 	r, err := runQuick[api.ExposureFenceCheckResult](ctx, c, api.CmdExposureFenceCheck, args, requestID, actor)
 	return r.Chain, err
 }
+
+// ExposureTokenForget runs exposure.token_forget (review r2 M-A): the host takes the domain off its fence list (idempotent).
+func (c *Client) ExposureTokenForget(ctx context.Context, domain, requestID, actor string) error {
+	_, err := runQuick[api.ExposureTokenForgetResult](ctx, c, api.CmdExposureTokenForget, api.ExposureTokenArgs{Domain: domain}, requestID, actor)
+	return err
+}

@@ -12,6 +12,9 @@ const (
 	// CmdExposureFenceCheck checks a domain_ip scan with the host's own fence (core/domainfence): the token is this box's, the domain's
 	// TXT record carries it, the name resolves to the address now (and, for a disruptive scan, the name stays inside the domain).
 	CmdExposureFenceCheck = "exposure.fence_check"
+	// CmdExposureTokenForget takes a domain off the host's fence list (a deleted domain target, an add that failed): its slot is free
+	// again and every executor refuses the domain. Idempotent; args ExposureTokenArgs.
+	CmdExposureTokenForget = "exposure.token_forget"
 )
 
 // Refusal codes of the domain fence (with CodeTargetNotOwned and CodeOwnershipUnchecked of zap.baseline).
@@ -52,4 +55,9 @@ type ExposureFenceCheckArgs struct {
 // ExposureFenceCheckResult is the result of a check that said yes: the CNAME chain of the name ("a -> b"), for the probe log.
 type ExposureFenceCheckResult struct {
 	Chain string `json:"chain"`
+}
+
+// ExposureTokenForgetResult is the result of exposure.token_forget: whether the domain was on the list.
+type ExposureTokenForgetResult struct {
+	Removed bool `json:"removed"`
 }

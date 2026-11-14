@@ -322,24 +322,60 @@ func newToken() string {
 	return hex.EncodeToString(b)
 }
 
-// domainToken is the TXT token a new domain gets (D-591, plan 2026-11-14 §5): the box-bound token of the DomainFence, so the
-// executors' fence can derive it themselves and the domain's deep scan of addresses that are not the box's can run. Without a fence (a
-// container-only install) a random one as before. With a fence that does not answer, no token and no domain (review r1 M1): the
-// host's own refusal (its cap of domains) as it is, anything else ErrFenceDown.
-func (s *Service) domainToken(ctx context.Context, domain string) (string, error) {
+// domainToken is the TXT token a new domain gets (D-591, plan 2026-11-14 §5) and whether it came from the host (fromHost: the host
+// listed the domain, so a failed add must give the slot back). With a DomainFence: the box-bound token, so the executors' fence can
+// derive it themselves and the domain's deep scan of addresses that are not the box's can run; the host's own refusal (its cap) and a
+// transient error (busy, no answer: ErrFenceDown, "try again") are answered as they are; any other failure (an older host without the
+// op, a damaged key or list) falls back to a random token, logged with the reason (review r2 M-B): the domain is added and verified as
+// on a container-only install, its passive scan works on any verified token, and its deep steps to addresses that are not the box's
+// say they need the box-bound TXT value. Without a fence (a container-only install) a random one, as before.
+func (s *Service) domainToken(ctx context.Context, domain string) (tok string, fromHost bool, err error) {
 	if s.cfg.DomainFence == nil {
-		return newToken(), nil
+		return newToken(), false, nil
 	}
-	tok, err := s.cfg.DomainFence.Token(ctx, domain)
+	tok, err = s.cfg.DomainFence.Token(ctx, domain)
 	var ae *APIError
 	switch {
 	case errors.As(err, &ae):
-		return "", err
-	case err != nil || !fenceTokenRE.MatchString(tok):
-		s.cfg.Log.ErrorContext(ctx, "exposure: the domain fence gave no token; the domain is not added", "domain", domain, "error", err)
-		return "", ErrFenceDown
+		return "", false, err
+	case err == nil && fenceTokenRE.MatchString(tok):
+		return tok, true, nil
 	}
-	return tok, nil
+	s.cfg.Log.ErrorContext(ctx, "exposure: the domain fence gave no token; the domain gets a random one, so its deep scan of addresses that are not the box's needs the box fixed", "domain", domain, "error", err)
+	return newToken(), false, nil
+}
+
+// DomainFenceForget is implemented by a DomainFence that can give a domain's slot back to the host (exposure.token_forget, review r2
+// M-A): a deleted domain target, or an add that failed after the host issued the token.
+type DomainFenceForget interface {
+	Forget(ctx context.Context, domain string) error
+}
+
+// forgetDomain gives domain's slot back to the host, best effort (logged: the slot stays taken until the next delete of it).
+func (s *Service) forgetDomain(ctx context.Context, domain string) {
+	f, ok := s.cfg.DomainFence.(DomainFenceForget)
+	if !ok {
+		return
+	}
+	if err := f.Forget(context.WithoutCancel(ctx), domain); err != nil {
+		s.cfg.Log.ErrorContext(ctx, "exposure: the host did not give the domain's fence slot back", "domain", domain, "error", err)
+	}
+}
+
+// addChecks are AddDomain's checks of the list (a duplicate, the cap of targets), run once in a read before the host is asked for a
+// token, so a doomed add takes no host slot (review r2 M-A), and again in the write.
+func addChecks(ctx context.Context, q querier, value string) error {
+	if _, dup, err := loadTargetByValue(ctx, q, value); err != nil {
+		return err
+	} else if dup {
+		return duplicate(value)
+	}
+	if n, err := countTargets(ctx, q); err != nil {
+		return err
+	} else if n >= MaxTargets {
+		return ErrTooMany
+	}
+	return nil
 }
 
 // AddDomain adds a domain to prove (POST /exposure/targets, PRE-4). A public IP is never added here (INV-2).
@@ -348,21 +384,20 @@ func (s *Service) AddDomain(ctx context.Context, user, raw string) (TargetView, 
 	if err != nil {
 		return TargetView{}, err
 	}
-	token, err := s.domainToken(ctx, value)
+	if err := addChecks(ctx, s.cfg.DB.Reader(), value); err != nil {
+		return TargetView{}, fmt.Errorf("exposure: adding domain: %w", err)
+	}
+	token, fromHost, err := s.domainToken(ctx, value)
 	if err != nil {
 		return TargetView{}, fmt.Errorf("exposure: adding domain: %w", err)
 	}
 	var id string
+	dupNow := false
 	err = s.write(ctx, func(tx *sql.Tx, _ func(string, any)) error {
-		if _, dup, err := loadTargetByValue(ctx, tx, value); err != nil {
+		if err := addChecks(ctx, tx, value); err != nil {
+			var ae *APIError
+			dupNow = errors.As(err, &ae) && ae.Code == "duplicate"
 			return err
-		} else if dup {
-			return duplicate(value)
-		}
-		if n, err := countTargets(ctx, tx); err != nil {
-			return err
-		} else if n >= MaxTargets {
-			return ErrTooMany
 		}
 		id = store.NewID("xt")
 		if err := insertTarget(ctx, tx, Target{ID: id, Kind: KindDomain, Value: value, Token: token, CreatedAt: s.clock()}); err != nil {
@@ -371,6 +406,9 @@ func (s *Service) AddDomain(ctx context.Context, user, raw string) (TargetView, 
 		return s.audit(ctx, tx, user, "exposure.target_add", value, "")
 	})
 	if err != nil {
+		if fromHost && !dupNow { // review r2 M-A: a failed add never takes a slot (a target added meanwhile keeps its own)
+			s.forgetDomain(ctx, value)
+		}
 		return TargetView{}, fmt.Errorf("exposure: adding domain: %w", err)
 	}
 	return s.Target(ctx, id)
@@ -386,11 +424,14 @@ func (s *Service) Delete(ctx context.Context, user, id string) error {
 // INV-14): detection never adds it again and nothing scans it, until somebody restores it. Only an IP can be ignored; a
 // full list (MaxIgnored) refuses. Both changes are audited as the person.
 func (s *Service) Remove(ctx context.Context, user, id string, ignore bool) error {
+	var kind Kind
+	var value string
 	err := s.write(ctx, func(tx *sql.Tx, _ func(string, any)) error {
 		t, err := loadTarget(ctx, tx, id)
 		if err != nil {
 			return err
 		}
+		kind, value = t.Kind, t.Value
 		if ignore {
 			if t.Kind != KindIP {
 				return ErrOnlyIPCanBeIgnored
@@ -417,6 +458,9 @@ func (s *Service) Remove(ctx context.Context, user, id string, ignore bool) erro
 	})
 	if err != nil {
 		return fmt.Errorf("exposure: deleting target: %w", err)
+	}
+	if kind == KindDomain { // review r2 M-A: the deleted domain's fence slot goes back to the host
+		s.forgetDomain(ctx, value)
 	}
 	return nil
 }

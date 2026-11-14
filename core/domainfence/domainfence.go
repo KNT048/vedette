@@ -325,20 +325,37 @@ func ListText(domains map[string]bool) []byte {
 }
 
 // FileList is a listed func over a list file (the scan container's read-only copy): the file is read again at every check, so a
-// domain the host adds counts at once; a file that is missing, not a regular file or not a list lists nothing (fail closed).
+// domain the host adds counts at once. A copy that cannot be read (missing, not a regular file, not a list) is read once more after a
+// second (review r2 L-2: the host replaces it by a rename, and a re-check of a running scan must not be killed by an instant of it),
+// and then lists nothing (fail closed).
 func FileList(path string) func(domain string) bool {
+	return fileList(path, func() { <-time.After(time.Second) })
+}
+
+func fileList(path string, wait func()) func(domain string) bool {
 	return func(domain string) bool {
-		fi, err := os.Lstat(path)
-		if err != nil || !fi.Mode().IsRegular() || fi.Size() > MaxListSize {
-			return false
-		}
-		b, err := os.ReadFile(path) //nolint:gosec // the process's own configured path, Lstat-ed as a regular file above
+		l, err := readList(path)
 		if err != nil {
-			return false
+			wait()
+			l, err = readList(path)
 		}
-		l, err := ParseList(b)
 		return err == nil && l[domain]
 	}
+}
+
+func readList(path string) (map[string]bool, error) {
+	fi, err := os.Lstat(path)
+	if err != nil {
+		return nil, err
+	}
+	if !fi.Mode().IsRegular() || fi.Size() > MaxListSize {
+		return nil, errors.New("domainfence: the domain list is not a regular file of a sane size")
+	}
+	b, err := os.ReadFile(path) //nolint:gosec // the process's own configured path, Lstat-ed as a regular file above
+	if err != nil {
+		return nil, err
+	}
+	return ParseList(b)
 }
 
 // NewKey is KeySize random bytes.

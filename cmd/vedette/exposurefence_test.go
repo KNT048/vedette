@@ -6,13 +6,17 @@ import (
 	"net/netip"
 	"strings"
 	"testing"
+	"unicode/utf8"
 
+	"github.com/knt048/vedette/content/nucleipack"
 	"github.com/knt048/vedette/core/domainfence"
 	"github.com/knt048/vedette/core/sensorlink"
 	"github.com/knt048/vedette/host/api"
 	"github.com/knt048/vedette/modules/exposure"
 	"github.com/knt048/vedette/modules/scan"
+	"github.com/knt048/vedette/modules/scan/nucleiargv"
 	"github.com/knt048/vedette/modules/scan/nucleiout"
+	"github.com/knt048/vedette/modules/scan/pack"
 	sensoractive "github.com/knt048/vedette/modules/sensor-active"
 	"github.com/knt048/vedette/modules/sensor-active/nmapargv"
 )
@@ -155,5 +159,37 @@ func TestOpenVASAsksTheHostsFence(t *testing.T) {
 	}
 	if (exposureGreenbone{}).CheckDomainIP(t.Context(), *testScope, ownPublicIP, exposure.FenceCheck{}) == nil {
 		t.Fatal("no host, and the fence said yes")
+	}
+}
+
+// Review r2 L-5: with a long domain and a long CDN final name, a nuclei probe row keeps the template's own request whole and fits
+// scan_probe.request with room for the "Not run" prefix; only the domain part is shortened.
+func TestDomainTemplateRowKeepsTheRequest(t *testing.T) {
+	t.Parallel()
+	ix, err := nucleipack.Index()
+	if err != nil {
+		t.Fatal(err)
+	}
+	long := &exposure.DomainScope{Domain: strings.Repeat("a", 60) + "." + strings.Repeat("b", 60) + ".example", Name: "www.x.example",
+		Token: testScope.Token, Chain: "www.x.example -> " + strings.Repeat("e", 60) + "." + strings.Repeat("d", 60) + ".edgekey.example.net"}
+	f := &templatesFake{answer: func(sensoractive.NucleiRequest) nucleiout.Outcome { return nucleiout.Outcome{} }}
+	a := f.scanner()
+	var rows []scan.ExternalProbe
+	inner := a.probes
+	a.probes = func(ctx context.Context, ps []scan.ExternalProbe) error {
+		rows = append(rows, ps...)
+		return inner(ctx, ps)
+	}
+	tp, ok := ix.Get("CVE-2018-13379")
+	if !ok {
+		t.Fatal("no template")
+	}
+	r := templateRun{port: 18443, target: nucleiargv.Target{Host: ownPublicIP.String(), Port: 18443, Scheme: "http"}, tmpls: []pack.Template{tp}, full: true, disruptive: true, domain: long}
+	if _, _, _, err := a.send(t.Context(), "u-admin", ownPublicIP, ix, r); err != nil {
+		t.Fatal(err)
+	}
+	req := rows[0].Request
+	if !strings.HasSuffix(req, "): "+tp.Request) || utf8.RuneCountInString(notRunRequest+req) > probeRequestMax || !strings.Contains(req, "b.example via …") || !strings.Contains(req, "example.net, deep scan") {
+		t.Fatalf("row (%d) %q", utf8.RuneCountInString(req), req)
 	}
 }

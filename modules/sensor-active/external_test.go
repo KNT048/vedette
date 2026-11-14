@@ -49,7 +49,13 @@ func (w workerEgress) Round(context.Context) (netip.Addr, error) { return w.addr
 // printing testdata/external.xml and the worker's own-IP fence seeing egress.
 func externalEnv(t *testing.T, egress netip.Addr) *env {
 	t.Helper()
-	fx, err := filepath.Abs(filepath.Join("testdata", "external.xml"))
+	return externalEnvWith(t, egress, "external.xml")
+}
+
+// externalEnvWith is externalEnv with the fake nmap printing testdata/name.
+func externalEnvWith(t *testing.T, egress netip.Addr, name string) *env {
+	t.Helper()
+	fx, err := filepath.Abs(filepath.Join("testdata", name))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -81,7 +87,7 @@ func TestScanExternalThroughTheWorker(t *testing.T) {
 	e := externalEnv(t, boxIP)
 	e.inv.set(func(s *sa.Settings) { s.Enabled, s.LANRanges = false, nil })
 	own := &ownFence{ok: []netip.Addr{boxIP}}
-	got, err := e.svc.ScanExternal(e.ctx(), boxIP, own)
+	got, err := e.svc.ScanExternal(e.ctx(), boxIP, nmapargv.External, own)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -109,12 +115,110 @@ func TestScanExternalThroughTheWorker(t *testing.T) {
 	}
 }
 
+// deepFence is ownFence with the DeepGate of a full run (D-526): the shape the target's terms allow now, as exposure's ModeNow
+// says it in production; err fails the check.
+type deepFence struct {
+	ownFence
+	now   nmapargv.Kind
+	err   error
+	asked []nmapargv.Kind
+}
+
+func (f *deepFence) ShapeNow(_ context.Context, asked nmapargv.Kind) (nmapargv.Kind, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.asked = append(f.asked, asked)
+	return f.now, f.err
+}
+
+// D-526: the deep scan of an accepted target through the real worker: both fences asked right before the job, the probe row with
+// the full shape and its flags (migration 0006), every TCP port and the scripts read. The disruptive tick taken back meanwhile runs
+// the full shape without the disruptive scripts; a gate that allows more than asked never widens the run.
+func TestScanExternalFullThroughTheWorker(t *testing.T) {
+	t.Parallel()
+	for name, c := range map[string]struct {
+		asked, now, want nmapargv.Kind
+	}{
+		"full":                  {nmapargv.ExternalFull, nmapargv.ExternalFull, nmapargv.ExternalFull},
+		"disruptive":            {nmapargv.ExternalDisruptive, nmapargv.ExternalDisruptive, nmapargv.ExternalDisruptive},
+		"the tick taken back":   {nmapargv.ExternalDisruptive, nmapargv.ExternalFull, nmapargv.ExternalFull},
+		"never more than asked": {nmapargv.ExternalFull, nmapargv.ExternalDisruptive, nmapargv.ExternalFull},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			e := externalEnvWith(t, boxIP, "external_full.xml")
+			own := &deepFence{ownFence: ownFence{ok: []netip.Addr{boxIP}}, now: c.now}
+			got, err := e.svc.ScanExternal(e.ctx(), boxIP, c.asked, own)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got.Ports != 65535 || len(got.Services) != 3 || len(got.Scripts) != 5 || own.asked[0] != c.asked || len(own.asked) != 1 || own.ownFence.asked != 1 {
+				t.Fatalf("got %d ports %d services %d scripts, gate asked %v", got.Ports, len(got.Services), len(got.Scripts), own.asked)
+			}
+			want, _ := nmapargv.Build(c.want, nmapargv.FullRate, []netip.Addr{boxIP})
+			if calls := e.nm.calls(t); len(calls) != 1 || !slices.Equal(calls[0], want) {
+				t.Fatalf("nmap argv = %q, want %q", calls, want)
+			}
+			if s := e.str(`SELECT shape || '|' || rate || '|' || result FROM sa_probe`); s != c.want.Name()+"|300|ok: 3 open ports, 5 script results" {
+				t.Fatalf("probe row = %s", s)
+			}
+			if f := e.str(`SELECT flags FROM sa_probe`); !strings.Contains(f, " -p- --script ") {
+				t.Fatalf("flags = %s", f)
+			}
+		})
+	}
+}
+
+// D-526: the terms withdrawn or of an older version right before the job (the gate says External), a gate that fails, or a fence
+// without a DeepGate: nothing is sent, no probe row, and the run never falls back to the External shape by itself.
+func TestScanExternalFullRefusedByTheDeepGate(t *testing.T) {
+	t.Parallel()
+	e := externalEnvWith(t, boxIP, "external_full.xml")
+	for name, c := range map[string]struct {
+		own  sa.OwnEgress
+		want error
+	}{
+		"terms withdrawn": {&deepFence{ownFence: ownFence{ok: []netip.Addr{boxIP}}, now: nmapargv.External}, sa.ErrNotDeep},
+		"no DeepGate":     {&ownFence{ok: []netip.Addr{boxIP}}, sa.ErrNotDeep},
+		"the gate fails":  {&deepFence{ownFence: ownFence{ok: []netip.Addr{boxIP}}, now: nmapargv.ExternalFull, err: errors.New("database is locked")}, nil},
+	} {
+		_, err := e.svc.ScanExternal(e.ctx(), boxIP, nmapargv.ExternalFull, c.own)
+		if err == nil || c.want != nil && !errors.Is(err, c.want) || c.want == nil && errors.Is(err, sa.ErrNotDeep) {
+			t.Fatalf("%s: err = %v", name, err)
+		}
+	}
+	if n := len(e.nm.calls(t)); n != 0 || e.count(`SELECT count(*) FROM sa_probe`) != 0 {
+		t.Fatalf("nmap ran %d times, %d probe rows", n, e.count(`SELECT count(*) FROM sa_probe`))
+	}
+}
+
+// D-526: a worker whose heartbeat does not say it runs the full shapes (older than protocol 5's field) never gets one: Probe refuses
+// before anything is queued (pollLocked holds a pending one back the same way for a worker that stopped saying it since).
+func TestFullShapeNeedsAWorkerThatSaysSo(t *testing.T) {
+	t.Parallel()
+	d := sa.NewDispatcher(sa.DispatcherOptions{Tick: 20 * time.Millisecond})
+	if _, err := d.ActiveHeartbeat(t.Context(), &sensorlink.ActiveHeartbeat{Version: "1.0.0", Nmap: sensorlink.HeartbeatNmap{Present: true, Version: "7.94SVN"}}); err != nil {
+		t.Fatal(err)
+	}
+	argv, err := nmapargv.Build(nmapargv.ExternalFull, nmapargv.FullRate, []netip.Addr{boxIP})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := d.Probe(t.Context(), argv); !errors.Is(err, sa.ErrFullUnsupported) {
+		t.Fatalf("err = %v", err)
+	}
+	rep, err := d.Jobs(t.Context(), 0, nil)
+	if err != nil || len(rep.Jobs) != 0 {
+		t.Fatalf("jobs = %+v %v", rep.Jobs, err)
+	}
+}
+
 // INV-13 of exposure, the core half of the fence: an address that is not the box's own now gets no job, no probe row, no packet.
 func TestScanExternalRefusedByTheCoreFence(t *testing.T) {
 	t.Parallel()
 	e := externalEnv(t, boxIP)
 	for name, own := range map[string]sa.OwnEgress{"not the box's": &ownFence{}, "no fence": nil} {
-		if _, err := e.svc.ScanExternal(e.ctx(), boxIP, own); !errors.Is(err, sa.ErrNotOwnIP) {
+		if _, err := e.svc.ScanExternal(e.ctx(), boxIP, nmapargv.External, own); !errors.Is(err, sa.ErrNotOwnIP) {
 			t.Fatalf("%s: err = %v", name, err)
 		}
 	}
@@ -131,7 +235,7 @@ func TestScanExternalRefusedByTheCoreFence(t *testing.T) {
 func TestScanExternalRefusedByTheWorkerFence(t *testing.T) {
 	t.Parallel()
 	e := externalEnv(t, netip.MustParseAddr("1.1.1.1"))
-	_, err := e.svc.ScanExternal(e.ctx(), boxIP, &ownFence{ok: []netip.Addr{boxIP}})
+	_, err := e.svc.ScanExternal(e.ctx(), boxIP, nmapargv.External, &ownFence{ok: []netip.Addr{boxIP}})
 	if !errors.Is(err, sa.ErrNotOwnIP) {
 		t.Fatalf("err = %v", err)
 	}
@@ -149,7 +253,7 @@ func TestScanExternalRefusesANonPublicAddress(t *testing.T) {
 	e := externalEnv(t, boxIP)
 	for _, s := range []string{"192.168.10.20", "100.64.0.1", "127.0.0.1", "203.0.113.5"} {
 		ip := netip.MustParseAddr(s)
-		if _, err := e.svc.ScanExternal(e.ctx(), ip, &ownFence{ok: []netip.Addr{ip}}); err == nil || errors.Is(err, sa.ErrNotOwnIP) {
+		if _, err := e.svc.ScanExternal(e.ctx(), ip, nmapargv.External, &ownFence{ok: []netip.Addr{ip}}); err == nil || errors.Is(err, sa.ErrNotOwnIP) {
 			t.Fatalf("%s: err = %v", s, err)
 		}
 	}

@@ -241,6 +241,7 @@ test.describe('domains as an administrator (S-EXP-1, INV-1, INV-6, INV-7, PRE-4)
       await expect(scan).toBeDisabled()
       await expect(page.locator('#scan-reason')).toHaveText(`Cannot scan yet: ${value} has no ownership proof. Do step 1 below first.`)
       await expect(scan).toHaveAttribute('aria-describedby', 'scan-reason')
+      await page.getByRole('tab', { name: /^Ownership/ }).click() // the DNS record and Check are on the Ownership tab
       const verify = page.locator('#step-verify')
       await expect(verify.getByText(`Add a TXT record to the DNS of ${value}.`)).toBeVisible()
       await expect(verify.getByText('TXT', { exact: true })).toBeVisible()
@@ -254,6 +255,7 @@ test.describe('domains as an administrator (S-EXP-1, INV-1, INV-6, INV-7, PRE-4)
       // D-473: there is no confirm step: no record panel before the first scan, and nothing to tick
       await expect(page.locator('#step-commit')).toHaveCount(0)
       await expect(page.getByRole('checkbox')).toHaveCount(0)
+      await page.getByRole('tab', { name: 'Results' }).click()
       await expect(page.getByText('No scan results yet')).toBeVisible()
       await expectAccessible(page, 'unverified domain')
       await noVietnamese(page, 'unverified domain')
@@ -375,6 +377,7 @@ test.describe('roles (PRE-4, PRE-1, PRE-2)', () => {
         await expect(page.getByRole('button', { name: 'Delete target' })).toHaveAttribute('title', NEEDS_ADMIN)
         await expect(page.getByRole('button', { name: 'Scan now' })).toBeDisabled() // blocked for everyone: no proof
         await expect(page.locator('#scan-reason')).toHaveText(`Cannot scan yet: ${value} has no ownership proof. Do step 1 below first.`)
+        await page.getByRole('tab', { name: /^Ownership/ }).click()
         const check = page.locator('#step-verify').getByRole('button', { name: 'Check', exact: true })
         if (operator) {
           await expect(check).toBeEnabled() // an operator may re-check ownership (not pressed: real DNS)

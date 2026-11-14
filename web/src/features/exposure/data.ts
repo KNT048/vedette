@@ -1,14 +1,14 @@
 // Sample data and scan-result generator of the exposure mock. 203.0.113.0/24 is the documentation range (RFC 5737), not real IPs.
 import { daysAgo } from '@/mocks/db'
 import { dateText } from './dates'
-import { CERT_WARN_DAYS, type AdminRow, type BoxIpSettings, type CertRow, type Counts, type GapRow, type HostRow, type IgnoredIp, type NotCheckedRow, type OutsideView, type PortRow, type ServiceRow, type Snapshot, type Target, type TargetKind, type VulnRow } from './types'
+import { CERT_WARN_DAYS, type AdminRow, type BoxIpSettings, type CertRow, type Counts, type GapRow, type HostRow, type IgnoredIp, type NotCheckedRow, type OutsideView, type PortRow, type ServiceRow, type Snapshot, type Target, type TargetKind, type VulnRow, type WebFinding } from './types'
 
 export const BOX_EGRESS_IP = '203.0.113.10'
 /** The sample company has two public IPs behind a load balancer: the box leaves through both. */
 export const BOX_EGRESS_IP_2 = '203.0.113.11'
 
 /** What one scan found; services: what nmap -sV read on the box's own IP (S-EXP-2). The mock plays a box whose nmap -sV is set up. */
-export interface Content { hosts: HostRow[]; ports: PortRow[]; admin_panels: AdminRow[]; certs: CertRow[]; services?: ServiceRow[] }
+export interface Content { hosts: HostRow[]; ports: PortRow[]; admin_panels: AdminRow[]; certs: CertRow[]; services?: ServiceRow[]; web_findings?: WebFinding[] }
 /** txt_ok = the DNS TXT record is currently present (domains). expires_at = verified_at + 30 days (IPs; verified_at is the last time the box saw the IP). The scan module reads this shape. */
 export interface StoredTarget { id: string; kind: TargetKind; value: string; token: string; method: Target['method']; verified_at: string | null; expires_at: string | null; txt_ok: boolean; checks: number; last_check: Target['last_check']; created_at: string; last_scan_at: string | null }
 export const VERIFY_DAYS = 30
@@ -160,10 +160,38 @@ function lines(c: Content, at: string, ip: boolean, m: ReturnType<typeof matchSe
   }
 }
 
+// The mock's passive web scan (INV-24): the pages the box would hand to ZAP (an IP's web ports that nmap named http or https; a domain's names
+// on 443 and 80, at most four), and what ZAP's passive rules typically notice on them.
+function webPages(c: Content, ip: boolean): string[] {
+  const pages: string[] = []
+  if (ip) {
+    for (const s of [...(c.services ?? [])].sort((a, b) => a.port - b.port)) {
+      if (!/^(ssl\/)?http/.test(s.name) || s.name === 'http-proxy') continue
+      const tls = s.name.startsWith('https') || s.port === 443 || s.port === 8443
+      pages.push(`${tls ? 'https' : 'http'}://${s.ip}${s.port === (tls ? 443 : 80) ? '' : `:${s.port}`}/`)
+    }
+  } else {
+    for (const h of c.hosts) for (const port of [443, 80]) if (c.ports.some((p) => p.ip === h.ip && p.port === port)) pages.push(`${port === 443 ? 'https' : 'http'}://${h.name}/`)
+  }
+  return pages.slice(0, 4)
+}
+const WEB_ALERTS: Omit<WebFinding, 'site' | 'urls' | 'count'>[] = [
+  { plugin_id: '10038', name: 'Content Security Policy (CSP) Header Not Set', risk: 'medium', confidence: 'high', cwe: 693, description: 'Content Security Policy (CSP) is an added layer of security that helps to detect and mitigate certain types of attacks.', solution: 'Ensure that your web server, application server, load balancer, etc. is configured to set the Content-Security-Policy header.' },
+  { plugin_id: '10036', name: 'Server Leaks Version Information via "Server" HTTP Response Header Field', risk: 'low', confidence: 'high', cwe: 200, description: 'The web/application server is leaking version information via the "Server" HTTP response header.', solution: 'Ensure that your web server, application server, load balancer, etc. is configured to suppress the "Server" header or provide generic details.' },
+  { plugin_id: '10109', name: 'Modern Web Application', risk: 'info', confidence: 'medium', cwe: 0, description: 'The application appears to be a modern web application.', solution: 'This is an informational alert and no action is necessary.' },
+]
+function webFindings(c: Content, ip: boolean): WebFinding[] {
+  return webPages(c, ip).flatMap((site, i) => WEB_ALERTS.slice(0, i === 0 ? 3 : 2).map((a, j) => ({ ...a, site, count: 5 + j, urls: [site, `${site}login`, `${site}static/app.js`] })))
+}
+
 export function makeSnapshot(id: string, at: string, c: Content, extraIp?: string): Snapshot {
   const services = c.services ?? []
   const m = matchServices(services)
-  return { id, date: dateOf(at), scanned_at: at, hosts: c.hosts, ports: c.ports, admin_panels: c.admin_panels, certs: c.certs, services, ...lines(c, at, extraIp !== undefined, m), vulns: m.vulns, version_gaps: m.version_gaps, counts: countsOf(c, extraIp) }
+  const web_findings = c.web_findings ?? webFindings(c, extraIp !== undefined)
+  const pages = webPages(c, extraIp !== undefined)
+  const l = lines(c, at, extraIp !== undefined, m)
+  if (pages.length > 0) l.checks.push({ kind: 'web', at, text: `Passive web scan (ZAP baseline: spider and passive rules, no form sent) of ${plural(pages.length, 'page')}: ${pages.join(', ')}. ${plural(web_findings.length, 'alert')}.` })
+  return { id, date: dateOf(at), scanned_at: at, hosts: c.hosts, ports: c.ports, admin_panels: c.admin_panels, certs: c.certs, services, web_findings, ...l, vulns: m.vulns, version_gaps: m.version_gaps, counts: countsOf(c, extraIp) }
 }
 
 const plusDays = (iso: string, d: number) => new Date(Date.parse(iso) + d * 864e5).toISOString()

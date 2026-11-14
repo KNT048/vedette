@@ -17,6 +17,7 @@ export type CertRow = z.infer<typeof C.CertRow>
 export type ServiceRow = z.infer<typeof C.ServiceRow>
 export type CheckRow = z.infer<typeof C.CheckRow>
 export type NotCheckedRow = z.infer<typeof C.NotCheckedRow>
+export type WebFinding = z.infer<typeof C.WebFinding>
 export type VulnRow = z.infer<typeof C.VulnRow>
 export type GapRow = z.infer<typeof C.GapRow>
 export type Snapshot = z.infer<typeof C.Snapshot>

@@ -23879,7 +23879,7 @@
                         "properties": {
                           "kind": {
                             "type": "string",
-                            "description": "ports, names, services or cve"
+                            "description": "ports, names, services, cve or web"
                           },
                           "text": {
                             "type": "string"
@@ -23905,7 +23905,7 @@
                         "properties": {
                           "kind": {
                             "type": "string",
-                            "description": "udp, ports, non_exploited, services or cve"
+                            "description": "udp, ports, non_exploited, services, cve or web"
                           },
                           "text": {
                             "type": "string"
@@ -23914,6 +23914,83 @@
                         "required": [
                           "kind",
                           "text"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "web_findings": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "site": {
+                            "type": "string",
+                            "description": "The page ZAP scanned, e.g. https://203.0.113.10:18443/"
+                          },
+                          "plugin_id": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string",
+                            "description": "ZAP's alert name; plain text"
+                          },
+                          "risk": {
+                            "type": "string",
+                            "enum": [
+                              "high",
+                              "medium",
+                              "low",
+                              "info"
+                            ]
+                          },
+                          "confidence": {
+                            "type": "string",
+                            "enum": [
+                              "low",
+                              "medium",
+                              "high",
+                              "confirmed"
+                            ]
+                          },
+                          "cwe": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991,
+                            "description": "CWE number, 0 when ZAP names none"
+                          },
+                          "description": {
+                            "type": "string",
+                            "description": "Plain text, clipped"
+                          },
+                          "solution": {
+                            "type": "string",
+                            "description": "ZAP's advice, plain text, clipped"
+                          },
+                          "urls": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            },
+                            "description": "At most 3 sample pages of the site that showed it"
+                          },
+                          "count": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991,
+                            "description": "How many pages showed it"
+                          }
+                        },
+                        "required": [
+                          "site",
+                          "plugin_id",
+                          "name",
+                          "risk",
+                          "confidence",
+                          "cwe",
+                          "description",
+                          "solution",
+                          "urls",
+                          "count"
                         ],
                         "additionalProperties": false
                       }
@@ -24029,6 +24106,7 @@
                     "services",
                     "checks",
                     "not_checked",
+                    "web_findings",
                     "vulns",
                     "version_gaps"
                   ],

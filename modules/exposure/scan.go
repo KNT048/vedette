@@ -369,7 +369,7 @@ func sanitize(c Content) Content {
 		out.Certs = append(out.Certs, CertRow{Host: txt(x.Host), Issuer: txt(x.Issuer), ExpiresAt: store.FormatTS(t)})
 	}
 	return Content{Hosts: nz(out.Hosts), Ports: nz(out.Ports), AdminPanels: nz(out.AdminPanels), Certs: nz(out.Certs),
-		Services: sanitizeServices(c.Services), Checks: sanitizeChecks(c.Checks), NotChecked: sanitizeNotChecked(c.NotChecked)}
+		Services: sanitizeServices(c.Services), Checks: sanitizeChecks(c.Checks), NotChecked: sanitizeNotChecked(c.NotChecked), WebFindings: sanitizeWeb(c.WebFindings)}
 }
 
 // scope says what the scan did with an address whose ports the previous observation listed (INV-22).

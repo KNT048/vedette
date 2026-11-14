@@ -43941,7 +43941,8 @@ type ExposureGetExposureTargetsIDSnapshotsDateOK struct {
 	Services    []ExposureGetExposureTargetsIDSnapshotsDateOKServicesItem    `json:"services"`
 	VersionGaps []ExposureGetExposureTargetsIDSnapshotsDateOKVersionGapsItem `json:"version_gaps"`
 	// Computed on read against today's CISA list, not stored.
-	Vulns []ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItem `json:"vulns"`
+	Vulns       []ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItem       `json:"vulns"`
+	WebFindings []ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItem `json:"web_findings"`
 }
 
 // GetAdminPanels returns the value of AdminPanels.
@@ -44009,6 +44010,11 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOK) GetVulns() []ExposureGetEx
 	return s.Vulns
 }
 
+// GetWebFindings returns the value of WebFindings.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOK) GetWebFindings() []ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItem {
+	return s.WebFindings
+}
+
 // SetAdminPanels sets the value of AdminPanels.
 func (s *ExposureGetExposureTargetsIDSnapshotsDateOK) SetAdminPanels(val []ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItem) {
 	s.AdminPanels = val
@@ -44072,6 +44078,11 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOK) SetVersionGaps(val []Expos
 // SetVulns sets the value of Vulns.
 func (s *ExposureGetExposureTargetsIDSnapshotsDateOK) SetVulns(val []ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItem) {
 	s.Vulns = val
+}
+
+// SetWebFindings sets the value of WebFindings.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOK) SetWebFindings(val []ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItem) {
+	s.WebFindings = val
 }
 
 type ExposureGetExposureTargetsIDSnapshotsDateOKAdminPanelsItem struct {
@@ -44211,7 +44222,7 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKCertsItem) SetIssuer(val str
 
 type ExposureGetExposureTargetsIDSnapshotsDateOKChecksItem struct {
 	At time.Time `json:"at"`
-	// Ports, names, services or cve.
+	// Ports, names, services, cve or web.
 	Kind string `json:"kind"`
 	Text string `json:"text"`
 }
@@ -44330,7 +44341,7 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKHostsItem) SetName(val strin
 }
 
 type ExposureGetExposureTargetsIDSnapshotsDateOKNotCheckedItem struct {
-	// Udp, ports, non_exploited, services or cve.
+	// Udp, ports, non_exploited, services, cve or web.
 	Kind string `json:"kind"`
 	Text string `json:"text"`
 }
@@ -44715,6 +44726,236 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasis) UnmarshalTex
 		return nil
 	case ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasisProduct:
 		*s = ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasisProduct
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItem struct {
+	Confidence ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemConfidence `json:"confidence"`
+	// How many pages showed it.
+	Count int `json:"count"`
+	// CWE number, 0 when ZAP names none.
+	Cwe int `json:"cwe"`
+	// Plain text, clipped.
+	Description string `json:"description"`
+	// ZAP's alert name; plain text.
+	Name     string                                                         `json:"name"`
+	PluginID string                                                         `json:"plugin_id"`
+	Risk     ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemRisk `json:"risk"`
+	// The page ZAP scanned, e.g. https://203.0.113.10:18443/.
+	Site string `json:"site"`
+	// ZAP's advice, plain text, clipped.
+	Solution string `json:"solution"`
+	// At most 3 sample pages of the site that showed it.
+	Urls []string `json:"urls"`
+}
+
+// GetConfidence returns the value of Confidence.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItem) GetConfidence() ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemConfidence {
+	return s.Confidence
+}
+
+// GetCount returns the value of Count.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItem) GetCount() int {
+	return s.Count
+}
+
+// GetCwe returns the value of Cwe.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItem) GetCwe() int {
+	return s.Cwe
+}
+
+// GetDescription returns the value of Description.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItem) GetDescription() string {
+	return s.Description
+}
+
+// GetName returns the value of Name.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItem) GetName() string {
+	return s.Name
+}
+
+// GetPluginID returns the value of PluginID.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItem) GetPluginID() string {
+	return s.PluginID
+}
+
+// GetRisk returns the value of Risk.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItem) GetRisk() ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemRisk {
+	return s.Risk
+}
+
+// GetSite returns the value of Site.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItem) GetSite() string {
+	return s.Site
+}
+
+// GetSolution returns the value of Solution.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItem) GetSolution() string {
+	return s.Solution
+}
+
+// GetUrls returns the value of Urls.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItem) GetUrls() []string {
+	return s.Urls
+}
+
+// SetConfidence sets the value of Confidence.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItem) SetConfidence(val ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemConfidence) {
+	s.Confidence = val
+}
+
+// SetCount sets the value of Count.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItem) SetCount(val int) {
+	s.Count = val
+}
+
+// SetCwe sets the value of Cwe.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItem) SetCwe(val int) {
+	s.Cwe = val
+}
+
+// SetDescription sets the value of Description.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItem) SetDescription(val string) {
+	s.Description = val
+}
+
+// SetName sets the value of Name.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItem) SetName(val string) {
+	s.Name = val
+}
+
+// SetPluginID sets the value of PluginID.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItem) SetPluginID(val string) {
+	s.PluginID = val
+}
+
+// SetRisk sets the value of Risk.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItem) SetRisk(val ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemRisk) {
+	s.Risk = val
+}
+
+// SetSite sets the value of Site.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItem) SetSite(val string) {
+	s.Site = val
+}
+
+// SetSolution sets the value of Solution.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItem) SetSolution(val string) {
+	s.Solution = val
+}
+
+// SetUrls sets the value of Urls.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItem) SetUrls(val []string) {
+	s.Urls = val
+}
+
+type ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemConfidence string
+
+const (
+	ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemConfidenceLow       ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemConfidence = "low"
+	ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemConfidenceMedium    ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemConfidence = "medium"
+	ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemConfidenceHigh      ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemConfidence = "high"
+	ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemConfidenceConfirmed ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemConfidence = "confirmed"
+)
+
+// AllValues returns all ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemConfidence values.
+func (ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemConfidence) AllValues() []ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemConfidence {
+	return []ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemConfidence{
+		ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemConfidenceLow,
+		ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemConfidenceMedium,
+		ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemConfidenceHigh,
+		ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemConfidenceConfirmed,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemConfidence) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemConfidenceLow:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemConfidenceMedium:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemConfidenceHigh:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemConfidenceConfirmed:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemConfidence) UnmarshalText(data []byte) error {
+	switch ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemConfidence(data) {
+	case ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemConfidenceLow:
+		*s = ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemConfidenceLow
+		return nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemConfidenceMedium:
+		*s = ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemConfidenceMedium
+		return nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemConfidenceHigh:
+		*s = ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemConfidenceHigh
+		return nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemConfidenceConfirmed:
+		*s = ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemConfidenceConfirmed
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemRisk string
+
+const (
+	ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemRiskHigh   ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemRisk = "high"
+	ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemRiskMedium ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemRisk = "medium"
+	ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemRiskLow    ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemRisk = "low"
+	ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemRiskInfo   ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemRisk = "info"
+)
+
+// AllValues returns all ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemRisk values.
+func (ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemRisk) AllValues() []ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemRisk {
+	return []ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemRisk{
+		ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemRiskHigh,
+		ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemRiskMedium,
+		ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemRiskLow,
+		ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemRiskInfo,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemRisk) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemRiskHigh:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemRiskMedium:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemRiskLow:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemRiskInfo:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemRisk) UnmarshalText(data []byte) error {
+	switch ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemRisk(data) {
+	case ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemRiskHigh:
+		*s = ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemRiskHigh
+		return nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemRiskMedium:
+		*s = ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemRiskMedium
+		return nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemRiskLow:
+		*s = ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemRiskLow
+		return nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemRiskInfo:
+		*s = ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemRiskInfo
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)

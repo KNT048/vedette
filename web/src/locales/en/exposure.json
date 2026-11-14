@@ -437,6 +437,23 @@
     "countBackport_one": "{{count}} maybe patched",
     "countBackport_other": "{{count}} maybe patched"
   },
+  "web": {
+    "title": "Web findings (passive)",
+    "description": "ZAP looked at the pages without sending forms; these are things it noticed. They are hints from reading the pages and the server's answers, not known exploited vulnerabilities, so they are not counted with the exploited CVEs above.",
+    "caption": "What ZAP noticed on the web pages",
+    "noneTitle": "ZAP noticed nothing on the pages it looked at",
+    "noneBody": "That does not prove the pages are safe: ZAP only reads what the server sends, and sends no forms.",
+    "notScannedTitle": "No page was scanned",
+    "notScannedBody": "The passive web scan did not look at any page in this scan.",
+    "col": { "risk": "Risk", "alert": "What ZAP noticed", "confidence": "Confidence", "pages": "Pages", "fix": "What ZAP suggests" },
+    "risk": { "high": "High", "medium": "Medium", "low": "Low", "info": "Info" },
+    "confidence": { "low": "Low", "medium": "Medium", "high": "High", "confirmed": "Confirmed" },
+    "cwe": "CWE-{{id}}",
+    "cweLink": "CWE-{{id}} (opens the MITRE page in a new tab)",
+    "pagesMore_one": "{{count}} page in all",
+    "pagesMore_other": "{{count}} pages in all",
+    "scanned": "Scanned: {{pages}}"
+  },
   "checked": {
     "title": "What was checked",
     "description": "What this scan sent and compared, and what it did not check. A scan that did not check something says nothing about it.",

@@ -109,7 +109,8 @@ func TestPlatform_OSIsEvidenceOnlyForTheDevicesOwnRows(t *testing.T) {
 		{"scan row on a Ubuntu device", "nmap", "Ubuntu 24.04.3 LTS", "", "", "", false},
 		{"row of unknown source", "", "Ubuntu 24.04.3 LTS", "", "", "", false},
 		{"SNMP row, OS only a fingerprint or DHCP guess", "snmp", "Microsoft Windows", "", "", "", false},
-		{"SNMP row, the device states its OS", "snmp", "", "Ubuntu 22.04", "", "", true},
+		{"SNMP row, the device states its OS to Vedette's SNMP read", "snmp", "", "Ubuntu 22.04", "", "Ubuntu 22.04", true},
+		{"SNMP row, the OS only in an LLDP frame (review r2 of #800)", "snmp", "", "Ubuntu 22.04", "", "", false},
 	} {
 		a := Asset{ID: "d", Name: "docker1", OS: tc.os, StatedOS: tc.stated, AgentOS: tc.agent, SNMPOS: tc.snmp, Software: []Software{sshRow("10.2", "", tc.source)}}
 		res := MatchAsset(a, []Vuln{sshhole()}, nil, t0)

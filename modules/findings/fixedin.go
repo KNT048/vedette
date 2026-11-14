@@ -1,6 +1,7 @@
 package findings
 
 import (
+	"maps"
 	"regexp"
 	"slices"
 	"strings"
@@ -349,6 +350,10 @@ type GroupFix struct {
 	Kind, Software, Version, Fixed, Distro string
 	// Closed holds the CVEs the release closes: for kind fixed every vulnerability of the software (the release is outside all their ranges); otherwise those the device is affected by through a range that has an end.
 	Closed map[string]bool
+	// Ranged holds the CVEs this software itself is inside a range with an end for (Closed before the widening of kind fixed): the
+	// only ones the update is proved to fix. A CVE with no range for this software (no NVD data, another product of a "Multiple
+	// Products" entry, a range on another row) is not in it (D-545, review r2 #1).
+	Ranged map[string]bool
 }
 
 // FixedInForAll is FixedInFor for the vulnerabilities of the software of one device. It does not take the highest release
@@ -380,7 +385,9 @@ func FixedInForAll(a Asset, vulns []Vuln) map[string]*GroupFix {
 		}
 		g.Software = s.ID
 		for cve := range g.Closed {
-			if o := out[cve]; o == nil || len(g.Closed) > len(o.Closed) {
+			// A group whose own software is inside a ranged entry for the CVE comes first (review r2 #1: a widened group must not
+			// take a CVE from the row whose range it is), then the one that closes the most.
+			if o := out[cve]; o == nil || g.Ranged[cve] && !o.Ranged[cve] || g.Ranged[cve] == o.Ranged[cve] && len(g.Closed) > len(o.Closed) {
 				out[cve] = g
 			}
 		}
@@ -415,7 +422,7 @@ func groupFixOf(in swInfo, vulns []Vuln) *GroupFix {
 	if len(closed) == 0 {
 		return nil
 	}
-	g := &GroupFix{Version: clean(in.ver), Distro: distroName(in), Closed: closed}
+	g := &GroupFix{Version: clean(in.ver), Distro: distroName(in), Closed: closed, Ranged: maps.Clone(closed)}
 	if in.packaged || distroMarked(in.ver) && g.Distro != "" {
 		g.Kind = "distro"
 		return g
@@ -489,22 +496,20 @@ func RowFixes(a Asset, vulns []Vuln) map[string]*RowFix {
 		default:
 			continue
 		}
-		// Review r1 #1: only a CVE whose own version is inside a range with an end (FixedInFor names its fix). groupFixOf widens a
-		// "fixed" release to every entry of the software, also one NVD has no data for or that lists other products (D-505): those
-		// keep their own row, the update proves nothing about them.
-		f := FixedInFor(a, byCVE[cve])
-		if f == nil {
-			continue
-		}
-		switch f.Kind {
-		case "fixed", "up_to", "distro", "esu", "feature_update":
-		default:
+		// Review r1 #1, r2 #1: only a CVE the group's own software is inside a range with an end for (GroupFix.Ranged). groupFixOf
+		// widens a "fixed" release to every entry of the software, also one NVD has no data for, that lists other products (D-505) or
+		// whose range is on another row of the device: those keep their own row, the update proves nothing about them.
+		if !g.Ranged[cve] {
 			continue
 		}
 		s := sws[g.Software]
 		_, win := winDevice(newSWInfo(s, a.OS))
 		group := a.ID + "/" + g.Software
-		pro[group] = pro[group] || f.DistroPro
+		if g.Kind == "distro" {
+			if f := FixedInFor(a, byCVE[cve]); f != nil && f.DistroPro {
+				pro[group] = true
+			}
+		}
 		out[cve] = &RowFix{Group: group, Kind: g.Kind, Windows: win, Software: clean(s.Display), Version: g.Version, Fixed: g.Fixed, Distro: g.Distro}
 	}
 	for _, f := range out {

@@ -150,3 +150,34 @@ func TestApplyMatch_D548_AgentFlagGoesWithTheAgentRow(t *testing.T) {
 		t.Fatalf("%+v %+v", f, f.Evidence)
 	}
 }
+
+// Review r2 #1: a NAS with Photo Station and QTS. The QTS-only CVE (a vendor-keyed "Multiple Products" entry) is QTS's to fix: it is not
+// swallowed into "Upgrade Photo Station … fixes N", though Photo Station's upgrade is outside every range of the list.
+func TestRowFixes_D545_AnotherRowsRangeStaysWithThatRow(t *testing.T) {
+	ps := func(cve, end string) Vuln {
+		return Vuln{CVE: cve, Vendor: "QNAP", Product: "Photo Station", Affected: []Affected{{CPE: "cpe:2.3:a:qnap:photo_station:*:*:*:*:*:*:*:*", Range: VersionRange{EndExcl: end}}}}
+	}
+	qts := Vuln{CVE: "CVE-2099-0009", Vendor: "QNAP", Product: "Multiple Products", Affected: []Affected{{CPE: "cpe:2.3:o:qnap:qts:*:*:*:*:*:*:*:*", Range: VersionRange{EndExcl: "5.1.0"}}}}
+	a := nas("6.1.1")
+	a.Software[0].KevKeys = append(a.Software[0].KevKeys, "qnap|multiple products")
+	a.Software = append(a.Software, Software{ID: "s-qts", Display: "QTS", Vendor: "QNAP", Product: "QTS", Version: "5.0.0", CPE: "cpe:2.3:o:qnap:qts:5.0.0:*:*:*:*:*:*:*", KevKeys: []string{"qnap|qts", "qnap|multiple products"}})
+	got := RowFixes(a, []Vuln{ps("CVE-2099-0001", "6.1.2"), ps("CVE-2099-0002", "6.2.0"), qts})
+	if f := got["CVE-2099-0001"]; f == nil || f.Group != "a-1/s-1" || f.Fixed != "6.2.0" {
+		t.Fatalf("Photo Station: %+v", f)
+	}
+	if f := got[qts.CVE]; f != nil && f.Group == "a-1/s-1" {
+		t.Fatalf("the QTS CVE went into Photo Station's upgrade: %+v", f)
+	}
+	all := FixedInForAll(a, []Vuln{ps("CVE-2099-0001", "6.1.2"), ps("CVE-2099-0002", "6.2.0"), qts})
+	if g := all[qts.CVE]; g == nil || g.Software != "s-qts" || !g.Ranged[qts.CVE] {
+		t.Fatalf("the QTS CVE's group is QTS's (the report counts it there): %+v", g)
+	}
+}
+
+// Review r2 nit: an ended release read through a later sibling's rows says no update for it carries the fix (winFix feature_update).
+func TestMatchAsset_D548_FeatureUpdateSentence(t *testing.T) {
+	_, m := oneMatch(t, winPC(22621, false, "6060", "x64"), cve62215, false) // Windows 11 22H2, out of service, NVD lists 23H2
+	if !m.Evidence.Agent || !strings.Contains(m.Evidence.Summary, "but no update for this release carries it: this device has the flaw until it moves to Windows 11 23H2 or later") {
+		t.Fatalf("%q", m.Evidence.Summary)
+	}
+}

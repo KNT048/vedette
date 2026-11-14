@@ -242,7 +242,9 @@ func (a reportsRemedies) Fixes(ctx context.Context, fs []reports.Finding) (map[s
 		groups := findings.FixedInForAll(as, d.vulns) // by CVE: one group per software of the device
 		for fid, cve := range d.ids {
 			if g := groups[cve]; g != nil {
-				out[fid] = reports.Fix{Kind: g.Kind, Group: g.Software, Version: g.Version, Fixed: g.Fixed, Distro: g.Distro, Closed: true}
+				// Closed only for a CVE the software itself is inside a ranged entry for (GroupFix.Ranged), as the Findings list groups
+				// it (D-545, review r2 #1 of #800): "fixes N" never counts a CVE the upgrade proves nothing about.
+				out[fid] = reports.Fix{Kind: g.Kind, Group: g.Software, Version: g.Version, Fixed: g.Fixed, Distro: g.Distro, Closed: g.Ranged[cve]}
 			}
 		}
 	}

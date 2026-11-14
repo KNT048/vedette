@@ -136,7 +136,7 @@ func platformsIn(text string) []string {
 // platformOS is the device's OS when it is evidence of the platform the row was built for: only for a row the device's own
 // software inventory gave, read against the OS that inventory states. An agent row (osquery, Wazuh, the box's own package list)
 // takes the OS the agent itself reports (Asset.AgentOS), never the folded OS, which on a device the agent says nothing about can be
-// a fingerprint or DHCP guess (review r2 of #790); an SNMP row takes only the OS the device states itself (Asset.StatedOS: LLDP/SNMP).
+// a fingerprint or DHCP guess (review r2 of #790); an SNMP row takes only the OS the device states to Vedette's SNMP read of its address (Asset.SNMPOS).
 // A row a scan saw on a port, a row a person typed and a row of unknown source say nothing about it: a Ubuntu host may run or forward
 // the service from an Alpine container (CVE-2026-123158's references are Docker sshd images), so only the row's own text decides
 // there (review r1 #1, #2). Exception (D-549, N47-1): on network gear that states over SNMP an OS of networkOS (a Junos switch,
@@ -146,7 +146,7 @@ func platformOS(s Software, a Asset) string {
 	case "agent":
 		return a.AgentOS
 	case "snmp":
-		return a.StatedOS
+		return a.SNMPOS // the SNMP answer at the device's own address, never an LLDP frame (review r2)
 	}
 	return networkStated(a)
 }

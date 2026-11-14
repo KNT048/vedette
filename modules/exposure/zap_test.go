@@ -385,16 +385,17 @@ func TestContract_INV24_NothingRunsWithoutTheProbeLog(t *testing.T) {
 	}
 }
 
-// INV-24: sample URLs keep scheme, host and path; the query string, fragment and user info are never stored (they hold session ids).
+// INV-24: sample URLs keep scheme, host and path; the query string, fragment, path parameters (;jsessionid=) and user info are never
+// stored (they hold session ids).
 func TestContract_INV24_SampleURLsHaveNoQueryOrFragment(t *testing.T) {
 	t.Parallel()
 	raw := `{"site":[{"@name":"http://203.0.113.10:18443","alerts":[{"pluginid":"3","alert":"Session ID in URL Rewrite","riskcode":"2","confidence":"2",
-		"instances":[{"uri":"http://203.0.113.10:18443/reset?token=SECRET123&password=hunter2"},{"uri":"http://203.0.113.10:18443/reset#access_token=abc"},{"uri":"http://203.0.113.10:18443"}]}]}]}`
+		"instances":[{"uri":"http://203.0.113.10:18443/reset?token=SECRET123&password=hunter2"},{"uri":"http://203.0.113.10:18443/reset#access_token=abc"},{"uri":"http://203.0.113.10:18443"},{"uri":"http://203.0.113.10:18443/app;jsessionid=ABC123"}]}]}]}`
 	rows, err := ParseZAPReport([]byte(raw), zapPage)
 	if err != nil || len(rows) != 1 {
 		t.Fatalf("%v %v", rows, err)
 	}
-	if !slices.Equal(rows[0].URLs, []string{"http://203.0.113.10:18443/reset", "http://203.0.113.10:18443/"}) {
+	if !slices.Equal(rows[0].URLs, []string{"http://203.0.113.10:18443/reset", "http://203.0.113.10:18443/", "http://203.0.113.10:18443/app"}) {
 		t.Fatalf("urls = %q", rows[0].URLs)
 	}
 }

@@ -259,6 +259,10 @@ func sampleURL(raw, site string) (string, bool) {
 	if err != nil {
 		return "", false
 	}
+	// Path parameters carry session ids too ("/app;jsessionid=…"): the path ends at the first ';' (review r2).
+	if i := strings.IndexByte(u.Path, ';'); i >= 0 {
+		u.Path, u.RawPath = u.Path[:i], ""
+	}
 	if u.Path == "" {
 		u.Path = "/"
 	}

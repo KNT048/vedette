@@ -293,7 +293,7 @@ func TestMatchAsset_D546_PreviewBuildProvesNothing(t *testing.T) {
 // Review r1 M3: a Windows build the release table does not list gets an OS row without a release CPE: every Windows entry is "not
 // checked", not nothing.
 func TestMatchAsset_D546_BuildTheTableLacks(t *testing.T) {
-	a := Asset{ID: "a-new", Name: "pc-02", Software: []Software{{ID: "s", Display: "Windows 11 Pro", Vendor: "microsoft", Product: "Windows 11 Pro",
+	a := Asset{ID: "a-new", Name: "pc-02", Software: []Software{{ID: "s", Display: "Windows 11 Pro", Vendor: "microsoft", Product: "Windows (build 28000)",
 		Version: "10.0.28000.1", Source: "agent", KevKeys: []string{"microsoft|windows"}}}}
 	w, m := oneMatch(t, a, cve62215, false)
 	wantMatch(t, "build 28000", w, m, "new", BasisProduct, SeverityMedium, "has not checked")
@@ -310,5 +310,38 @@ func TestMatchAsset_D546_RowsWithoutARevision(t *testing.T) {
 	for _, ubr := range []string{"1", "5000"} {
 		w, m = oneMatch(t, winPC(22631, false, ubr, "x64"), buildOnly, true)
 		wantMatch(t, "inclusive end 10.0.22631 at ."+ubr, w, m, "existing", BasisProduct, SeverityMedium)
+	}
+}
+
+// Review r2 MEDIUM-2 and LOW-3: "feature update" only for a release Microsoft no longer services (core/winrel Ended). A serviced 24H2
+// read through 25H2's rows takes the month's 26100 build; Windows 10 21H2 is serviced only as LTSC 2021, so a Pro PC on NVD's
+// windows_10_21h2 rows needs a feature update while an LTSC PC takes the build.
+func TestFixedIn_D546_FeatureUpdateOnlyForEndedReleases(t *testing.T) {
+	only25 := nvdWindows("CVE-2099-0013", "2026-10-01", nvdRow{"windows_11_25h2", "*", "*", "10.0.26200.7092"})
+	if f := FixedInFor(winPC(26100, false, "6899", "x64"), only25); f == nil || f.Kind != "fixed" || f.Fixed != "10.0.26100.7092" {
+		t.Errorf("serviced 24H2 through 25H2: %+v", f)
+	}
+	if g := FixedInForAll(winPC(26100, false, "6899", "x64"), []Vuln{only25})[only25.CVE]; g == nil || g.Kind != "fixed" || g.Fixed != "10.0.26100.7092" {
+		t.Errorf("weekly line of a serviced 24H2: %+v", g)
+	}
+	pro := winPC(19044, false, "6000", "x64")
+	pro.OS = "Microsoft Windows 10 Pro 10.0.19044.6000"
+	if f := FixedInFor(pro, cve62215); f == nil || f.Kind != "feature_update" || f.Fixed != "10.0.19044.6575" || len(f.Branches) != 1 || f.Branches[0].Branch != "Windows 10 21H2 LTSC" {
+		t.Errorf("Windows 10 21H2 Pro: %+v", f)
+	}
+	ltsc := winPC(19044, false, "6000", "x64")
+	ltsc.OS = "Microsoft Windows 10 Enterprise LTSC 2021 10.0.19044.6000"
+	if f := FixedInFor(ltsc, cve62215); f == nil || f.Kind != "fixed" || f.Fixed != "10.0.19044.6575" {
+		t.Errorf("Windows 10 LTSC 2021: %+v", f)
+	}
+}
+
+// Review r2 LOW-1: a release whose first public revision the table does not know (Server 2022 23H2) is never closed by the
+// "only older releases listed" proofs, whatever its revision and however old the entry.
+func TestMatchAsset_D546_UnknownFirstRevisionProvesNothing(t *testing.T) {
+	old := nvdWindows("CVE-2099-0014", "2022-03-01", nvdRow{"windows_server_2019", "*", "*", "10.0.17763.2686"}, nvdRow{"windows_server_2022", "*", "*", "10.0.20348.587"})
+	for _, ubr := range []string{"1", "1965"} {
+		w, m := oneMatch(t, winPC(25398, true, ubr, "x64"), old, true, cve62215)
+		wantMatch(t, "Server 2022 23H2 ."+ubr, w, m, "existing", BasisProduct, SeverityMedium, "does not know the first public build of Windows Server 2022 23H2")
 	}
 }

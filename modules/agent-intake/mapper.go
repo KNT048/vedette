@@ -342,8 +342,8 @@ func winTarget(arch string) string {
 // as NVD does with the machine's target_hw ("cpe:2.3:o:microsoft:windows_11_23h2:10.0.22631.4460:*:*:*:*:*:x64:*"), so findings
 // reads NVD's ranges of the release ("< 10.0.22631.5189") against the patched build. Client or server by the name ("Microsoft
 // Windows Server 2022 Datacenter"). A build core/winrel does not list (a release newer than the table) or Azure Local / Azure Stack
-// HCI (a server OS whose name says neither, on builds clients share) still gets a row, named by the machine ("Windows 11 Pro"), with
-// the key and no release CPE: findings then gives each Windows entry an honest "not checked" instead of nothing (review r1 M3).
+// HCI (a server OS whose name says neither, on builds clients share) still gets a row, shown by the machine's name ("Windows 11 Pro"),
+// product "Windows (build 28000)", with the key and no release CPE: findings then gives each Windows entry an honest "not checked" instead of nothing (review r1 M3).
 // false only when the version is not 10.0.<build>.<revision>.
 func windowsRow(w winOS) (observe.Software, bool) {
 	if !winFullRE.MatchString(w.version) {
@@ -356,8 +356,10 @@ func windowsRow(w winOS) (observe.Software, bool) {
 	name := strings.ToLower(w.name)
 	rel, ok := winrel.ByBuild(build, strings.Contains(name, "server"))
 	if !ok || strings.Contains(name, "azure stack hci") || strings.Contains(name, "azure local") {
+		// The product is fixed ("Windows (build 28000)"), never the machine's name: a caption of just "Microsoft Windows" would be NVD's
+		// family product o:microsoft:windows and could match its rows as the software's own (review r2 LOW-2).
 		display := cmp.Or(strings.TrimSpace(strings.TrimPrefix(w.name, "Microsoft ")), "Windows")
-		return observe.Software{Display: display, Vendor: "microsoft", Product: display, Version: w.version,
+		return observe.Software{Display: display, Vendor: "microsoft", Product: "Windows (build " + strconv.Itoa(build) + ")", Version: w.version,
 			KevKeys: []string{"microsoft|windows"}, Confidence: softwareConfidence}, true
 	}
 	return observe.Software{Display: rel.Display, Vendor: "microsoft", Product: rel.Display, Version: w.version,

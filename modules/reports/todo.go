@@ -135,7 +135,7 @@ func topRisks(open []FindingRow, fixes map[string]Fix) (out []TopRisk, kinds []s
 		out = append(out, TopRisk{Product: p.name, Device: nameList(all), Devices: len(all), Open: p.open, Confirmed: p.confirmed,
 			Severity: p.severity, CVE: w.CVE, FindingID: w.ID, Action: sentence})
 		kind := "verify"
-		if p.confirmed > 0 || strings.HasPrefix(lead.class, "fixed") {
+		if p.confirmed > 0 || strings.HasPrefix(lead.class, "fixed") || strings.HasPrefix(lead.class, "feature_update") || strings.HasPrefix(lead.class, "esu") {
 			kind = "fix"
 		}
 		kinds = append(kinds, kind)
@@ -237,6 +237,8 @@ func (g *deviceRisk) class() string {
 		return "distro " + clip(g.fix.Distro, 40)
 	case "up_to":
 		return "up_to"
+	case "feature_update", "esu": // D-546: a step of its own, never merged with devices that need another build or have no fix data
+		return g.fix.Kind + " " + clip(g.fix.Fixed, 40)
 	}
 	if g.confirmed > 0 {
 		return "advisory"

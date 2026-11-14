@@ -498,11 +498,15 @@ type swInfo struct {
 	pkgVer, pkgSrc string
 	// winNamed: the software is a Windows release row and NVD names its release in some entry of the list (D-546).
 	winNamed bool
+	// osName is the device's operating system as inventory folds it ("Microsoft Windows 10 Enterprise LTSC 2019 10.0.17763.6532"):
+	// a Windows LTSC/LTSB edition is still serviced when its release has ended (D-546).
+	osName string
 }
 
 func newSWInfo(s Software, osName string) swInfo {
 	var in swInfo
 	in.os, in.osVer = osIdentity(osName)
+	in.osName = osName
 	if s.CPE != "" {
 		if c, err := ParseCPE(s.CPE); err == nil {
 			in.cpe, in.hasCPE = c, true

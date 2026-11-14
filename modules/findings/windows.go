@@ -38,7 +38,12 @@ type winDev struct {
 	ubr    string // update revision, "4460"
 	rev    int    // the same as a number
 	target string // "x64", "x86", "arm64"; "" when not known
+	ltsc   bool   // the device's OS name says LTSC or LTSB
 }
+
+// ended says Microsoft no longer services the device's release (core/winrel Ended), unless an LTSC/LTSB edition of it still is and
+// the device runs one.
+func (d winDev) ended() bool { return d.rel.Ended && (!d.rel.LTSC || !d.ltsc) }
 
 var (
 	winVersionRE = regexp.MustCompile(`^10\.0\.([1-9][0-9]{4})\.([1-9][0-9]{0,5})$`)
@@ -61,7 +66,8 @@ func winDevice(in swInfo) (winDev, bool) {
 		return winDev{}, false
 	}
 	n, _ := strconv.Atoi(m[2])
-	d := winDev{rel: rel, ubr: m[2], rev: n}
+	os := strings.ToLower(in.osName)
+	d := winDev{rel: rel, ubr: m[2], rev: n, ltsc: strings.Contains(os, "ltsc") || strings.Contains(os, "ltsb")}
 	if t, ok := in.cpe.TargetHW.Literal(); ok && in.cpe.TargetHW.Kind == Value {
 		d.target = t
 	}
@@ -238,11 +244,15 @@ func windowsDecide(in swInfo, v Vuln, named bool, now time.Time) (winVerdict, bo
 	// Every release the entry lists is older than the device's. Both proofs are about the public release: a preview or OEM build below
 	// its first public revision (24H2 shipped on Copilot+ PCs as 26100.712 months before its 26100.1742) is neither "out after the
 	// fix" nor a release NVD's list was about, so it proves nothing (review r1 M1). The release date proves only with that revision known.
-	if d.rel.GARev > 0 && d.rev < d.rel.GARev {
+	if d.rel.GARev == 0 { // review r2 LOW-1: no first public revision known, no proof from the list at any revision
+		return winVerdict{t: Unknown, note: fmt.Sprintf("NVD lists %s only for Windows releases older than %s (%s), but Vedette does not know the first public build of %s, so it cannot tell whether this machine's build carries the fix: compare with Microsoft's advisory.",
+			v.CVE, d.rel.Display, winNames(others), d.rel.Display)}, true
+	}
+	if d.rev < d.rel.GARev {
 		return winVerdict{t: Unknown, note: fmt.Sprintf("NVD lists %s only for Windows releases older than %s (%s), but this machine runs a build from before %s's first public one (10.0.%d.%d), a preview or early build that may lack the fix: install the current updates.",
 			v.CVE, d.rel.Display, winNames(others), d.rel.Display, d.rel.Build, d.rel.GARev)}, true
 	}
-	shipped := v.Source != SourceVulnCheck && !v.DateAdded.IsZero() && !v.DateAdded.Add(winShipMargin).After(d.rel.GA) && d.rel.GARev > 0
+	shipped := v.Source != SourceVulnCheck && !v.DateAdded.IsZero() && !v.DateAdded.Add(winShipMargin).After(d.rel.GA)
 	if shipped || settled(v, now) {
 		why := fmt.Sprintf("%s came out on %s, after %s listed the flaw (%s), so it carries the fix", d.rel.Display, d.rel.GA.Format("2 Jan 2006"), v.listName(), v.DateAdded.Format("2 Jan 2006"))
 		if !shipped {
@@ -389,20 +399,25 @@ func withoutCoveredWindows(sws []Software) []Software {
 	return out
 }
 
-// winFix is what installing the fix of a Yes takes (review r1 M2). "fixed": the month's build at the device's build, which Windows
-// Update offers. "feature_update": the range came from a later sibling release NVD lists and the device's release is not listed, so
-// Microsoft no longer services it: no monthly update fixes it, and fixed is the sibling's build (branch names the sibling). "esu":
-// the fix is above the last revision the release gets without Extended Security Updates (Windows 10 22H2 after October 2025).
+// winFix is what installing the fix of a Yes takes (review r1 M2, r2 MEDIUM-2). "fixed": the month's build at the device's build,
+// which Windows Update offers (a serviced 24H2 read through 25H2's rows takes 10.0.26100.<revision>). "esu": the fix is above the
+// last revision the release gets without Extended Security Updates (Windows 10 22H2 after October 2025). "feature_update": the
+// device's release has ended (core/winrel) and the range came from a later sibling NVD lists instead of it, or only the release's
+// LTSC edition is still serviced and the device does not run it (Windows 10 21H2 Pro on NVD's windows_10_21h2 rows of LTSC 2021):
+// no update for it fixes this; fixed is the build NVD names and branch where it is.
 func winFix(w winVerdict, d winDev) (kind, fixed, branch string) {
 	end := w.within.EndExcl
-	if w.via != "" && w.build > d.rel.Build {
-		r, _ := winrel.ByBuild(w.build, false)
-		return "feature_update", strings.Replace(end, fmt.Sprintf("10.0.%d.", d.rel.Build), fmt.Sprintf("10.0.%d.", w.build), 1), r.Display
-	}
 	if m := winBoundRE.FindStringSubmatch(end); m != nil && d.rel.LastFreeRev > 0 {
 		if n, _ := strconv.Atoi(m[2]); n > d.rel.LastFreeRev {
 			return "esu", end, d.rel.Display
 		}
+	}
+	switch {
+	case w.via != "" && d.ended():
+		r, _ := winrel.ByBuild(w.build, false)
+		return "feature_update", strings.Replace(end, fmt.Sprintf("10.0.%d.", d.rel.Build), fmt.Sprintf("10.0.%d.", w.build), 1), r.Display
+	case w.via == "" && d.ended() && d.rel.LTSC:
+		return "feature_update", end, d.rel.Display + " LTSC"
 	}
 	return "fixed", end, ""
 }

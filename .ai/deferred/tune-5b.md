@@ -20,7 +20,7 @@
   System Service", "Windows Ancillary Function Driver for WinSock"; older: "Graphics Device Interface (GDI)", "DirectX Graphics
   Kernel", "CSRSS", "HTTP.sys", "Ancillary Function Driver (afd.sys)", "ATM Font Driver"). Measure on the N100 feed first (how many
   carry `o:microsoft:windows_*` release rows), then give the row those keys (catalog-driven list) so `windowsDecide` reads them.
-- [ ] **LOW-3 — wording** (owner: Mac (ex-Mlee)): (a) `windows.go` "newer ones among them … check that <release> is still supported"
+- [ ] **LOW-3 (r1) — wording** (owner: Mac (ex-Mlee)): (a) `windows.go` "newer ones among them … check that <release> is still supported"
   also fires when the newer listed releases are of the other kind (Server 2022 on a client-only entry): compute `newest` over the
   device's own kind for that sentence and say "NVD lists only client releases" otherwise; (b) the target-only note names the
   device's release when the rows were a sibling's ("… for Windows 11 25H2 on arm64 only" for 24H2 rows): name the sibling;
@@ -37,11 +37,15 @@
   note "steps the advisory lists beyond the update are not checked", or keep a list of such CVEs open.
 - [ ] **LOW-9 — test gaps** (owner: Mac (ex-Mlee)): `windowsDecide` cases not tested: all-older entry with a family row that `mayBe`
   (undecidable → Unknown); unknown target with mixed Yes/No rows → Unknown; an entry listing only 6.x releases; cross-kind `newest`.
-- [ ] **winrel upkeep** (owner: Mac (ex-Mlee); trigger: each new Windows release GA, and the Patch Tuesday after it): add the release
+- [ ] **winrel upkeep** (owner: Mac (ex-Mlee); trigger: each new Windows release GA, each end of servicing (flip `Ended`, e.g. Windows 10
+  LTSC 2021 in January 2027, Server 2016 in January 2027), and the Patch Tuesday after a GA): add the release
   (build, NVD name once NVD lists it, line, GA date, GA revision) to `core/winrel`; check whether Windows 11 26H1 (build 28000,
-  new Arm devices) and 26H2 exist in NVD's CPE dictionary now. Fill `LastFreeRev` for releases whose servicing ended (23H2
+  new Arm devices) and 26H2 exist in NVD's CPE dictionary now. Review r2 LOW-4: not added in #786 because neither build number is
+  confirmed; a PC on either meanwhile gets the keyless "Windows (build N)" row and ~175 medium "not checked" findings, so do this
+  before the N100 walk meets such a PC. Fill `LastFreeRev` for releases whose servicing ended (23H2
   Enterprise ended 2026-11-10: its last revision; 22H2 22621.6060) once a case needs it. Until then those builds get the
   keyless row (review r1 M3) and every Windows entry is "not checked".
-- [ ] **GA revisions not confirmed** (owner: Mac (ex-Mlee)): `GARev` is set only where known (D-546 r1 list); Server 2016/2019/2022,
-  Server 2022 23H2, 1511–1909 are 0 (no date proof). Server 2025's 2314 and 22H2's 521 are the stricter of the candidate values;
-  confirm from Microsoft's release-information tables.
+- [ ] **GA revisions not confirmed** (owner: Mac (ex-Mlee)): `GARev` 0 (no proof from "only older releases listed") for Server 2022
+  23H2, Windows 10 1511/1703/1709/1803 and the semi-annual servers; values where two candidates existed took the stricter (later) one:
+  22H2 521, Server 2025 2314, 1607 and Server 2016 321, 1809 and Server 2019 134, Server 2022 169. Confirm from Microsoft's
+  release-information tables, 25H2 6584 first (review r2).

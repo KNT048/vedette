@@ -26572,6 +26572,11 @@
                     "description": "Built-in: a mirror address. Empty string resets it to the default",
                     "type": "string",
                     "maxLength": 500
+                  },
+                  "api_key": {
+                    "description": "VulnCheck KEV only, write-only: the customer's own API key (8 to 500 characters, no spaces). Saving it turns the feed on; an empty string removes the key, turns the feed off and deletes what it loaded",
+                    "type": "string",
+                    "maxLength": 500
                   }
                 },
                 "additionalProperties": false

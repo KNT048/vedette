@@ -1,0 +1,2 @@
+- [ ] 2026-11-14 — CIRCL vulnerability-lookup not built (adds nothing beyond NVD + CVE.org for KEV CVEs; no API terms published); build only as a cvelistV5 fallback if the director wants it — vì sao để sau: director decision (D-557 (2)) — ở đâu: docs/decisions/D-557.md
+- [ ] 2026-11-14 — data export (INV-28) still lists feeds_vuln rows with source_id vulncheck-kev; needs a row filter in Kiên-side modules/core/export_policy.go if kien wants them out — vì sao để sau: Kiên-side file — ở đâu: docs/decisions/D-557.md (6)

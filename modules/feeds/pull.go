@@ -249,6 +249,8 @@ func (s *Service) build(ctx context.Context, src sourceRow) (pullPlan, error) {
 		return s.buildNVD(ctx, src, p)
 	case DecoderCVEOrg:
 		return s.buildCVEOrg(ctx, src, p)
+	case DecoderVulnCheck:
+		return s.buildVulnCheck(ctx, src, p)
 	}
 	auth, err := s.authFor(ctx, src)
 	if err != nil {
@@ -534,9 +536,9 @@ func (s *Service) pullOne(ctx context.Context, id, actor string) (sourceRow, int
 			switch {
 			case p.hasVulns:
 				var updated []string
-				if src.ID == "cisa-kev" {
+				if isKEVSource(src.ID) {
 					var have int
-					if err := tx.QueryRowContext(ctx, `SELECT count(*) FROM feeds_vuln WHERE source_id = 'cisa-kev'`).Scan(&have); err != nil {
+					if err := tx.QueryRowContext(ctx, `SELECT count(*) FROM feeds_vuln WHERE source_id = ?`, src.ID).Scan(&have); err != nil {
 						return fmt.Errorf("feeds: count KEV rows: %w", err)
 					}
 					baseline = have == 0
@@ -605,7 +607,7 @@ func (s *Service) pullOne(ctx context.Context, id, actor string) (sourceRow, int
 	var evs []events.Event
 	emit := func(name string, data any) { evs = append(evs, events.Event{Name: name, Data: data}) }
 	kev := 0
-	if src.ID == "cisa-kev" { // only the CISA list makes KEV events; a custom feed's CVEs are not KEV entries
+	if isKEVSource(src.ID) { // only the CISA list and VulnCheck KEV (D-557) make KEV events; a custom feed's CVEs are not KEV entries
 		kev = len(fresh)
 		if baseline {
 			if kev > 0 {
@@ -617,7 +619,7 @@ func (s *Service) pullOne(ctx context.Context, id, actor string) (sourceRow, int
 			}
 		}
 	}
-	if len(changed) > 0 && (src.ID == "cisa-kev" || p.hasTemplates) {
+	if len(changed) > 0 && (isKEVSource(src.ID) || p.hasTemplates) {
 		emit(EventVulnUpdated, VulnUpdatedEvent{CVEs: changed})
 	}
 	if added > 0 || removed > 0 {
@@ -644,8 +646,12 @@ func (s *Service) pullOne(ctx context.Context, id, actor string) (sourceRow, int
 // two pulls follow those of the list.
 func (s *Service) pull(ctx context.Context, id, actor string) (sourceRow, error) {
 	row, fresh, evs, err := s.pullOne(ctx, id, actor)
-	if err == nil && id == "cisa-kev" && row.Status == "ok" {
-		for _, dep := range []string{"first-epss", "nvd-kev", cveOrgFeedID} { // CVE.org after NVD: only what NVD left without ranges (D-556)
+	if err == nil && isKEVSource(id) && row.Status == "ok" {
+		deps := []string{"first-epss", "nvd-kev", cveOrgFeedID} // CVE.org after NVD: only what NVD left without ranges (D-556)
+		if id == vulnCheckFeedID {
+			deps = []string{cveOrgFeedID} // VulnCheck's entries get the CNA's ranges at once (D-557); EPSS and NVD answer for the CISA list only
+		}
+		for _, dep := range deps {
 			if s.busy(dep) {
 				continue // already being pulled (a person's "Fetch now"): never a second pull of it
 			}

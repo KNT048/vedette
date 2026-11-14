@@ -197,10 +197,10 @@ func (s *Store) SeedBuiltins(ctx context.Context, now time.Time) error {
 	return s.db.Write(ctx, func(tx *sql.Tx) error {
 		for _, b := range BuiltinSources() {
 			_, err := tx.ExecContext(ctx, `INSERT INTO feeds_source (id, builtin, name, kind, format, url, default_url, enabled, interval_hours, license, created_at)
-VALUES (?, 1, ?, ?, ?, ?, ?, 1, ?, ?, ?)
+VALUES (?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT(id) DO UPDATE SET name = excluded.name, kind = excluded.kind, format = excluded.format, license = excluded.license,
   url = CASE WHEN url = default_url THEN excluded.url ELSE url END, default_url = excluded.default_url`,
-				b.ID, b.Name, string(b.Kind), string(b.Format), b.URL, b.URL, b.IntervalHours, b.License, store.FormatTS(now))
+				b.ID, b.Name, string(b.Kind), string(b.Format), b.URL, b.URL, boolInt(!b.BYOK), b.IntervalHours, b.License, store.FormatTS(now))
 			if err != nil {
 				return fmt.Errorf("feeds: seed %s: %w", b.ID, err)
 			}
@@ -455,7 +455,7 @@ func (p Product) Key() string { return ProductKey(p.Vendor, p.Product) }
 // KevPairs lists every vendor and product pair of the CISA list (cisa-kev rows only), for the inventory
 // catalog. A custom feed's products are not KEV entries.
 func (s *Store) KevPairs(ctx context.Context) ([]Product, error) {
-	rows, err := s.db.Reader().QueryContext(ctx, `SELECT DISTINCT vendor, product FROM feeds_vuln WHERE source_id = 'cisa-kev' ORDER BY product_key`)
+	rows, err := s.db.Reader().QueryContext(ctx, `SELECT DISTINCT vendor, product FROM feeds_vuln WHERE source_id IN ('cisa-kev', 'vulncheck-kev') ORDER BY product_key`)
 	if err != nil {
 		return nil, fmt.Errorf("feeds: read products: %w", err)
 	}

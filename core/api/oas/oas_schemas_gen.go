@@ -55348,10 +55348,18 @@ func (s *FeedsPutFeedsSourcesIDOKStatus) UnmarshalText(data []byte) error {
 }
 
 type FeedsPutFeedsSourcesIDReq struct {
-	Enabled       OptBool `json:"enabled"`
-	IntervalHours OptInt  `json:"interval_hours"`
+	// VulnCheck KEV only, write-only: the customer's own API key (8 to 500 characters, no spaces). Saving
+	// it turns the feed on; an empty string removes the key, turns the feed off and deletes what it loaded.
+	APIKey        OptString `json:"api_key"`
+	Enabled       OptBool   `json:"enabled"`
+	IntervalHours OptInt    `json:"interval_hours"`
 	// Built-in: a mirror address. Empty string resets it to the default.
 	URL OptString `json:"url"`
+}
+
+// GetAPIKey returns the value of APIKey.
+func (s *FeedsPutFeedsSourcesIDReq) GetAPIKey() OptString {
+	return s.APIKey
 }
 
 // GetEnabled returns the value of Enabled.
@@ -55367,6 +55375,11 @@ func (s *FeedsPutFeedsSourcesIDReq) GetIntervalHours() OptInt {
 // GetURL returns the value of URL.
 func (s *FeedsPutFeedsSourcesIDReq) GetURL() OptString {
 	return s.URL
+}
+
+// SetAPIKey sets the value of APIKey.
+func (s *FeedsPutFeedsSourcesIDReq) SetAPIKey(val OptString) {
+	s.APIKey = val
 }
 
 // SetEnabled sets the value of Enabled.

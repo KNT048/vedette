@@ -12,6 +12,7 @@ func TestContract_INV1_BuiltinSourcesAreDeclaredHTTPS(t *testing.T) {
 		"www.cisa.gov": true, "api.first.org": true, "raw.githubusercontent.com": true,
 		"rules.emergingthreats.net": true, "feodotracker.abuse.ch": true, "check.torproject.org": true,
 		"services.nvd.nist.gov": true, // D-500
+		"api.vulncheck.com":     true, // D-557 (BYOK, off until the customer saves a key)
 	}
 	seenID, seenName := map[string]bool{}, map[string]bool{}
 	for _, s := range BuiltinSources() {
@@ -26,6 +27,9 @@ func TestContract_INV1_BuiltinSourcesAreDeclaredHTTPS(t *testing.T) {
 			t.Errorf("%s: %v", s.ID, err)
 		}
 		want := map[Kind]int{KindVulnerabilities: 24, KindIOC: 6}[s.Kind]
+		if s.ID == vulnCheckFeedID { // the customer's own key, 1,000 requests a minute: a few pages every 6 hours
+			want = 6
+		}
 		if s.ID == "cisa-kev" || s.ID == "cve-org" { // hourly: Home promises data at most an hour old (S-FEED-1, D-485); a 304 keeps it cheap
 			want = 1
 		}
@@ -44,8 +48,8 @@ func TestContract_INV1_BuiltinSourcesAreDeclaredHTTPS(t *testing.T) {
 			t.Errorf("%s: dedicated decoder must not carry a parser", s.ID)
 		}
 	}
-	if len(seenID) != 10 {
-		t.Fatalf("expected the 10 built-ins of sourcesMock.ts, got %d", len(seenID))
+	if len(seenID) != 11 {
+		t.Fatalf("expected the 11 built-ins of sourcesMock.ts, got %d", len(seenID))
 	}
 }
 

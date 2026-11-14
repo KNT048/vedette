@@ -111011,6 +111011,12 @@ func (s *FeedsPutFeedsSourcesIDReq) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *FeedsPutFeedsSourcesIDReq) encodeFields(e *jx.Encoder) {
 	{
+		if s.APIKey.Set {
+			e.FieldStart("api_key")
+			s.APIKey.Encode(e)
+		}
+	}
+	{
 		if s.Enabled.Set {
 			e.FieldStart("enabled")
 			s.Enabled.Encode(e)
@@ -111030,10 +111036,11 @@ func (s *FeedsPutFeedsSourcesIDReq) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfFeedsPutFeedsSourcesIDReq = [3]string{
-	0: "enabled",
-	1: "interval_hours",
-	2: "url",
+var jsonFieldsNameOfFeedsPutFeedsSourcesIDReq = [4]string{
+	0: "api_key",
+	1: "enabled",
+	2: "interval_hours",
+	3: "url",
 }
 
 // Decode decodes FeedsPutFeedsSourcesIDReq from json.
@@ -111044,6 +111051,16 @@ func (s *FeedsPutFeedsSourcesIDReq) Decode(d *jx.Decoder) error {
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
+		case "api_key":
+			if err := func() error {
+				s.APIKey.Reset()
+				if err := s.APIKey.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"api_key\"")
+			}
 		case "enabled":
 			if err := func() error {
 				s.Enabled.Reset()

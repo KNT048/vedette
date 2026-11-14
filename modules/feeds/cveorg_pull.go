@@ -36,7 +36,7 @@ type kevTodo struct{ CVE, Vendor, Product string }
 func (s *Store) cveOrgTodo(ctx context.Context, before time.Time, limit int) ([]kevTodo, error) {
 	rows, err := s.db.Reader().QueryContext(ctx, `SELECT v.cve, v.vendor, v.product FROM feeds_vuln v
 LEFT JOIN feeds_cveorg_checked c ON c.cve = v.cve
-WHERE v.source_id = 'cisa-kev'
+WHERE v.source_id IN ('cisa-kev', 'vulncheck-kev')
   AND NOT EXISTS (SELECT 1 FROM feeds_affected_cve a WHERE a.cve = v.cve AND a.source = 'nvd' AND EXISTS (SELECT 1 FROM feeds_affected r WHERE r.cve = v.cve))
   AND (c.checked_at IS NULL OR c.checked_at < ?)
 ORDER BY c.checked_at IS NOT NULL, c.checked_at, v.date_added DESC, v.cve
@@ -243,7 +243,7 @@ func applyCVEOrg(ctx context.Context, tx *sql.Tx, got map[string]CVEOrgResult, c
 			return nil, false, 0, err
 		}
 	}
-	if _, err := tx.ExecContext(ctx, `DELETE FROM feeds_cveorg_checked WHERE cve NOT IN (SELECT cve FROM feeds_vuln WHERE source_id = 'cisa-kev')`); err != nil {
+	if _, err := tx.ExecContext(ctx, `DELETE FROM feeds_cveorg_checked WHERE cve NOT IN (SELECT cve FROM feeds_vuln WHERE source_id IN ('cisa-kev', 'vulncheck-kev'))`); err != nil {
 		return nil, false, 0, fmt.Errorf("feeds: CVE.org: %w", err)
 	}
 	if err := tx.QueryRowContext(ctx, `SELECT count(*) FROM feeds_affected_cve WHERE source <> 'nvd'`).Scan(&total); err != nil {

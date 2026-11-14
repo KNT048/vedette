@@ -123,6 +123,9 @@ func (a reportsKEV) Entries(ctx context.Context) ([]reports.KEVEntry, time.Time,
 	}
 	out := make([]reports.KEVEntry, 0, len(rows))
 	for _, v := range rows {
+		if v.SourceID != "cisa-kev" {
+			continue // VulnCheck KEV (D-557) stays on the box: a report is a document that may be shared
+		}
 		day, err := time.Parse(time.DateOnly, v.DateAdded)
 		if err != nil {
 			continue // a row with an odd date is not counted in any week

@@ -98,7 +98,9 @@ func toFeedDTO(r sourceRow) feedDTO {
 		Auth: feedAuthDTO{Type: string(r.Auth), HeaderName: r.HeaderName, Username: r.Username, SecretLast4: r.SecretLast4}}
 	if r.Builtin {
 		d.Parser = nil
-		d.Auth = feedAuthDTO{Type: string(AuthNone)}
+		if !isBYOK(r.ID) { // a BYOK feed shows its key's last four characters, like a custom feed (D-557)
+			d.Auth = feedAuthDTO{Type: string(AuthNone)}
+		}
 	}
 	return d
 }

@@ -32,12 +32,17 @@ export function BuiltinDialog({ feed, onClose }: { feed: Feed; onClose: () => vo
   const [hours, setHours] = useState(feed.interval_hours)
   const [url, setUrl] = useState(feed.url)
   const [err, setErr] = useState<string>()
+  const byok = feed.id === 'vulncheck-kev'
+  const last4 = feed.auth.secret_last4
+  const [key, setKey] = useState('')
+  const [keyErr, setKeyErr] = useState<string>()
   const urlErr = err ?? (serverField(patch.error) === 'url' ? (patch.error as Error).message : undefined)
   function submit(e: React.FormEvent) {
     e.preventDefault()
     const c = (checkFeedUrl(url) === 'ok' && blockedFeedHost(url)) || checkFeedUrl(url)
     if (c !== 'ok') { setErr(t(`dialog.err.${c}`)); document.getElementById('bf-url')?.focus(); return }
-    patch.mutate({ id: feed.id, interval_hours: hours, url: url.trim() }, { onSuccess: () => { toast.success(t('dialog.saved', { name: feed.name })); onClose() }, onError: () => document.getElementById('bf-url')?.focus() })
+    if (byok && key && (key.length < 8 || /\s/.test(key))) { setKeyErr(t('dialog.err.secretShape')); document.getElementById('bf-key')?.focus(); return }
+    patch.mutate({ id: feed.id, interval_hours: hours, url: url.trim(), ...(byok && key ? { api_key: key } : {}) }, { onSuccess: () => { toast.success(t('dialog.saved', { name: feed.name })); onClose() }, onError: () => document.getElementById('bf-url')?.focus() })
   }
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose() }}>
@@ -51,6 +56,12 @@ export function BuiltinDialog({ feed, onClose }: { feed: Feed; onClose: () => vo
             <Button type="button" size="sm" disabled={url === feed.default_url} onClick={() => { setUrl(feed.default_url ?? ''); setErr(undefined) }}>{t('dialog.reset')}</Button>
             <span className="break-all">{t('dialog.defaultIs', { url: feed.default_url })}</span>
           </div>
+          {byok ? (
+            <Field label={t('dialog.vulncheckKey')} htmlFor="bf-key" error={keyErr ?? (serverField(patch.error) === 'auth' ? (patch.error as Error).message : undefined)} hint={last4 ? t('dialog.vulncheckKeySaved', { last4 }) : t('dialog.vulncheckKeyHint')}>
+              <Input id="bf-key" type="password" value={key} onChange={(e) => { setKey(e.target.value); setKeyErr(undefined) }} autoComplete="off" placeholder={last4 ? `••••${last4}` : ''} aria-invalid={keyErr ? true : undefined} />
+              {last4 ? <Button type="button" size="sm" disabled={patch.isPending} onClick={() => patch.mutate({ id: feed.id, api_key: '' }, { onSuccess: () => { toast.success(t('dialog.vulncheckKeyRemoved', { name: feed.name })); onClose() } })}>{t('dialog.vulncheckKeyRemove')}</Button> : null}
+            </Field>
+          ) : null}
           {patch.error && !serverField(patch.error) ? <p role="alert" className="text-sm text-danger">{(patch.error as Error).message}</p> : null}
           <DialogFooter>
             <DialogClose asChild><Button type="button">{t('common:cancel')}</Button></DialogClose>

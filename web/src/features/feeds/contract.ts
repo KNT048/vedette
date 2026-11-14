@@ -112,6 +112,7 @@ export const FeedPatch = z.object({
   enabled: z.boolean().optional(),
   interval_hours: z.number().int().min(1).max(168).optional(),
   url: z.string().max(500).optional().describe('Built-in: a mirror address. Empty string resets it to the default'),
+  api_key: z.string().max(500).optional().describe('VulnCheck KEV only, write-only: the customer\'s own API key (8 to 500 characters, no spaces). Saving it turns the feed on; an empty string removes the key, turns the feed off and deletes what it loaded'),
 })
 export const FeedInput = z.object({
   name: z.string().min(1).max(60),

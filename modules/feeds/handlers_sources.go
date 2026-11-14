@@ -81,8 +81,42 @@ func (h *FeedHandlers) FeedsPutFeedsSourcesID(ctx context.Context, req *oas.Feed
 			url = v
 			parts = append(parts, "address changed")
 		}
+		if v, ok := req.APIKey.Get(); ok {
+			if !isBYOK(cur.ID) {
+				return apierr.New(http.StatusBadRequest, "invalid_auth", "This feed does not use an API key.")
+			}
+			key := strings.TrimSpace(v)
+			if key == "" { // removing the key turns the feed off and deletes what it loaded (D-557)
+				enabled = false
+				parts = append(parts, "API key removed")
+			} else {
+				if err := CheckSecret(key); err != nil {
+					return apiError(err)
+				}
+				if _, set := req.Enabled.Get(); !set {
+					enabled = true // saving a key turns the feed on
+				}
+				parts = append(parts, "API key saved")
+			}
+			if err := h.s.saveFeedKey(ctx, tx, cur, key); err != nil {
+				return err
+			}
+		}
+		if enabled && isBYOK(cur.ID) {
+			if _, keySet := req.APIKey.Get(); !keySet && cur.SecretID == nil {
+				return apierr.New(http.StatusBadRequest, "invalid_auth", "Add your VulnCheck API key to turn this feed on.")
+			}
+		}
 		if err := updateSettings(ctx, tx, cur.ID, enabled, hours, url, url != cur.URL); err != nil {
 			return err
+		}
+		if !enabled && isBYOK(cur.ID) {
+			if err := purgeLoaded(ctx, tx, cur.ID); err != nil { // the data of a BYOK feed is the customer's licence: off means gone
+				return err
+			}
+			if _, err := tx.ExecContext(ctx, `UPDATE feeds_source SET last_fetch = NULL, last_success = NULL, records = NULL, status = 'never', error = NULL, etag = NULL, last_modified = NULL WHERE id = ?`, cur.ID); err != nil {
+				return fmt.Errorf("feeds: reset BYOK feed: %w", err)
+			}
 		}
 		if err := h.s.Audit.Append(ctx, tx, audit.Entry{User: p.Email, Action: "feeds.update", Target: cur.Name, Detail: strings.Join(parts, ", ")}); err != nil {
 			return err
@@ -97,6 +131,42 @@ func (h *FeedHandlers) FeedsPutFeedsSourcesID(ctx context.Context, req *oas.Feed
 		h.s.dropNVDRun()
 	}
 	return convert[oas.FeedsPutFeedsSourcesIDOK](toFeedDTO(row))
+}
+
+// isBYOK says whether a built-in feed needs the customer's own API key (D-557).
+func isBYOK(id string) bool {
+	b, ok := BuiltinByID(id)
+	return ok && b.BYOK
+}
+
+// saveFeedKey stores (or, with an empty key, deletes) the API key of a BYOK built-in feed through core/secrets and points
+// the row at it: bearer authentication, only the last four characters kept in the row.
+func (s *Service) saveFeedKey(ctx context.Context, tx *sql.Tx, cur sourceRow, key string) error {
+	switch {
+	case key == "":
+		if _, err := tx.ExecContext(ctx, `UPDATE feeds_source SET auth_type = 'none', secret_id = NULL, secret_last4 = NULL WHERE id = ?`, cur.ID); err != nil {
+			return fmt.Errorf("feeds: clear key: %w", err)
+		}
+		if cur.SecretID != nil { // after the row stopped pointing at it
+			if err := s.Secrets.Delete(ctx, tx, *cur.SecretID); err != nil {
+				return fmt.Errorf("feeds: delete key: %w", err)
+			}
+		}
+		return nil
+	case cur.SecretID != nil:
+		l4, err := s.Secrets.Replace(ctx, tx, *cur.SecretID, secretPurpose, []byte(key), true)
+		if err != nil {
+			return fmt.Errorf("feeds: replace key: %w", err)
+		}
+		_, err = tx.ExecContext(ctx, `UPDATE feeds_source SET auth_type = 'bearer', secret_last4 = ? WHERE id = ?`, l4, cur.ID)
+		return err
+	}
+	id, l4, err := s.Secrets.Seal(ctx, tx, secretPurpose, []byte(key), true)
+	if err != nil {
+		return fmt.Errorf("feeds: seal key: %w", err)
+	}
+	_, err = tx.ExecContext(ctx, `UPDATE feeds_source SET auth_type = 'bearer', secret_id = ?, secret_last4 = ? WHERE id = ?`, id, l4, cur.ID)
+	return err
 }
 
 // ---------- S-FEED-4/5: custom feeds

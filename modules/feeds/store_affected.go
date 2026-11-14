@@ -168,11 +168,11 @@ func readAffected(ctx context.Context, q interface {
 // KevAffected returns the NVD affected entries of the CISA list's CVEs (D-500), for findings. A CVE NVD has not
 // answered for is absent; one NVD lists without a vulnerable entry is present with an empty list.
 func (s *Store) KevAffected(ctx context.Context) (map[string][]AffectedRow, error) {
-	out, err := readAffected(ctx, s.db.Reader(), `WHERE cve IN (SELECT cve FROM feeds_vuln WHERE source_id = 'cisa-kev')`)
+	out, err := readAffected(ctx, s.db.Reader(), `WHERE cve IN (SELECT cve FROM feeds_vuln WHERE source_id IN ('cisa-kev', 'vulncheck-kev'))`)
 	if err != nil {
 		return nil, err
 	}
-	rows, err := s.db.Reader().QueryContext(ctx, `SELECT cve FROM feeds_affected_cve WHERE cve IN (SELECT cve FROM feeds_vuln WHERE source_id = 'cisa-kev')`)
+	rows, err := s.db.Reader().QueryContext(ctx, `SELECT cve FROM feeds_affected_cve WHERE cve IN (SELECT cve FROM feeds_vuln WHERE source_id IN ('cisa-kev', 'vulncheck-kev'))`)
 	if err != nil {
 		return nil, fmt.Errorf("feeds: read affected: %w", err)
 	}
@@ -189,15 +189,15 @@ func (s *Store) KevAffected(ctx context.Context) (map[string][]AffectedRow, erro
 	return out, rows.Err()
 }
 
-// MatchStamp changes whenever what KevVulns and KevAffected return may have changed: the last pull time of the four
-// feeds that write them (cisa-kev, first-epss, nvd-kev, cve-org; each written in the pull's own transaction), and the count and
+// MatchStamp changes whenever what KevVulns and KevAffected return may have changed: the last pull time of the five
+// feeds that write them (cisa-kev, vulncheck-kev, first-epss, nvd-kev, cve-org; each written in the pull's own transaction), and the count and
 // newest change of the CISA rows and of the NVD answers. findings
 // (through cmd/vedette) keeps one read of the list per stamp, instead of reading 33k NVD rows per device (review H3).
 func (s *Store) MatchStamp(ctx context.Context) (string, error) {
 	var stamp sql.NullString
 	err := s.db.Reader().QueryRowContext(ctx, `SELECT (SELECT group_concat(id || '=' || COALESCE(last_fetch, '') || '/' || rev, ',') FROM
-(SELECT id, last_fetch, rev FROM feeds_source WHERE id IN ('cisa-kev', 'cve-org', 'first-epss', 'nvd-kev') ORDER BY id))
-|| ';' || (SELECT count(*) || '/' || COALESCE(max(updated_at), '') FROM feeds_vuln WHERE source_id = 'cisa-kev')
+(SELECT id, last_fetch, rev FROM feeds_source WHERE id IN ('cisa-kev', 'cve-org', 'first-epss', 'nvd-kev', 'vulncheck-kev') ORDER BY id))
+|| ';' || (SELECT count(*) || '/' || COALESCE(max(updated_at), '') FROM feeds_vuln WHERE source_id IN ('cisa-kev', 'vulncheck-kev'))
 || ';' || (SELECT count(*) || '/' || COALESCE(max(updated_at), '') FROM feeds_affected_cve)`).Scan(&stamp)
 	if err != nil {
 		return "", fmt.Errorf("feeds: match stamp: %w", err)

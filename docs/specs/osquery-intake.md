@@ -97,7 +97,7 @@ Chuỗi tin cậy (viết rõ vì lần tải đầu dùng `-k`):
 
 1. Admin tin GUI (phiên đã đăng nhập, TLS tới hộp) → vân tay SHA-256 của script nằm trong lệnh sao chép.
 2. Lần tải đầu bỏ kiểm chứng chỉ (`-k`) vì chưa có CA; rủi ro (kẻ MITM thay script) bị chặn bởi bước so SHA-256 **trước khi chạy**.
-3. Script được so đúng hash → CA nhúng trong script là CA thật → **mọi lần tải sau** (gói osquery, `SHA256SUMS`, `status`) dùng `--cacert` với CA đó, không còn `-k`.
+3. Script được so đúng hash → CA nhúng trong script là CA thật → **mọi lần tải sau** (gói osquery, `SHA256SUMS`, `status`) ghim CA đó, không còn `-k`: Linux bằng `curl --cacert`; Windows bằng .NET (`HttpWebRequest` với hàm kiểm chứng chỉ riêng từng yêu cầu: chuỗi phải chứa đúng chứng chỉ nhúng, không kiểm thu hồi vì CA của hộp không có CRL/OCSP, tên/IP phải khớp; không thêm gì vào kho chứng chỉ Windows), vì `curl.exe --cacert` (Schannel) không kiểm được CA của hộp (D-596).
 4. Gói osquery do hộp **phản chiếu từ bản phát hành chính thức** và đã kiểm checksum phía hộp; máy chủ đích kiểm lại SHA-256 gói theo `SHA256SUMS` (ba file `.deb/.rpm/.msi`) trước khi cài, nên không cần Internet.
 
 Sha256 là của **chính byte script hộp phục vụ** (đã chèn CA, địa chỉ, phiên bản): hộp phải phục vụ byte-giống-nhau cho cùng (địa chỉ, phiên bản, CA); đổi bất kỳ thứ nào đổi hash và GUI hiện hash mới. Script phải **deterministic** (không nhúng thời gian/nonce).
@@ -145,7 +145,7 @@ sequenceDiagram
     A->>M: dán lệnh
     M->>G: GET /install/osquery.sh (curl -k)
     M->>M: so SHA-256 với giá trị trong lệnh (sai: dừng)
-    M->>G: GET SHA256SUMS + gói (--cacert CA nhúng)
+    M->>G: GET SHA256SUMS + gói (ghim CA nhúng: --cacert / .NET trên Windows)
     M->>M: kiểm checksum, cài, ghi enroll.secret + flags
     M->>G: POST /intake/osquery/enroll {enroll_secret}
     G-->>M: node_key

@@ -141,11 +141,21 @@ export const GreenboneResult = z.object({
   solution: z.string().describe('Greenbone\'s advice, plain text, clipped'), oid: z.string().describe('OID of the test; "" when not read'),
 })
 
+// N49-3, N49-2 (D-595): the one state of the snapshot's OpenVAS step, which its heading follows, and when it started (shown in the viewer's
+// time zone like every other time of the page).
+export const GreenboneRunState = z.enum(['running', 'done', 'partial', 'not_run', 'failed', 'stopped', 'ended'])
+export const GreenboneRun = z.object({
+  state: GreenboneRunState.describe('running: OpenVAS scans now (the other results are saved); done: it finished; partial: the 90-minute cap stopped it and its rows are what it had found by then; not_run: it did not scan (the not_checked line of kind greenbone says why; also a task that stayed queued for 90 minutes); failed: it failed or its answer could not be read; stopped: a Stop, the module or a restart of the box ended it (a domain keeps the rows of the addresses that finished); ended: it scanned and ended before it finished without a stop from Vedette (OpenVAS reports it stopped or interrupted, or the domain fence stopped it), with the rows it had found if any; a task OpenVAS ended before it was seen scanning is not_run'),
+  started_at: z.iso.datetime().nullable().describe('When the OpenVAS step started; null when it did not'),
+  addresses: z.array(z.object({ ip: z.string(), state: GreenboneRunState })).describe('A domain\'s run: the OpenVAS state of each deep-scanned address (D-571); [] for an IP'),
+})
+
 export const Snapshot = z.object({
   id: z.string(), date: isoDate, scanned_at: z.iso.datetime(),
   hosts: z.array(HostRow), ports: z.array(PortRow), admin_panels: z.array(AdminRow), certs: z.array(CertRow), counts: Counts,
   services: z.array(ServiceRow), templates: z.array(TemplateRow).describe('The safe templates that ran on the services (INV-23); the box ran no template when empty'), checks: z.array(CheckRow), not_checked: z.array(NotCheckedRow), web_findings: z.array(WebFinding),
   greenbone: z.array(GreenboneResult).describe('Results of the optional deep scan with Greenbone (INV-25); empty when it did not run (the not_checked lines of kind greenbone say why)'),
+  greenbone_run: GreenboneRun,
   vulns: z.array(VulnRow).describe('Computed on read against today\'s CISA list, not stored'), version_gaps: z.array(GapRow),
 })
 export const SnapshotMeta = Snapshot.pick({ id: true, date: true, scanned_at: true, counts: true })

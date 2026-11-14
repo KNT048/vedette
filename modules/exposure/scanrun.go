@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"net/netip"
 	"runtime/debug"
 	"time"
 
@@ -63,6 +64,7 @@ type scanRun struct {
 	prevLast    time.Time // the target's lastScan before this run, put back when the scan module was off (nothing was asked)
 	hadPrevLast bool
 	mode        ScanMode // what this run may do (D-566): set when it starts; withdrawing or lowering the terms stops a run above them
+	gbSnap      string   // the snapshot whose OpenVAS step runs now (set under runMu): its "running" is real (N49-3, D-595)
 }
 
 // stoppedBy is the cause of a run's context when someone stopped it or the module was switched off.
@@ -151,16 +153,23 @@ func (s *Service) execute(ctx context.Context, run *scanRun, r Runner, user stri
 	if err == nil && st.Kind == KindDomain && st.Mode.Full { // D-571: each address of the names at the domain's terms depth
 		content, deep, err = s.deepDomain(ctx, st, content)
 	}
-	gb, pending := false, ""
+	gb, gbRun := false, GreenboneRun{State: GBRunNotRun}
+	var gbIP []int  // the open TCP ports of an IP target OpenVAS checks (N49-4, D-595)
 	if err == nil { // INV-25: the optional deep scan runs last, after the snapshot of the other steps is stored
 		var line string
 		gb, line, err = s.greenbonePlan(ctx, st)
 		if gb && st.Kind == KindDomain && len(deep) == 0 {
 			gb, line = false, notGBNoDeep
 		}
+		if ip, perr := netip.ParseAddr(st.Value); gb && st.Kind == KindIP && perr == nil {
+			gbIP = gbPorts(content.Ports, ip)
+			if l := gbPortsLine(gbIP); l != "" { // no open port to check: OpenVAS is not started at all
+				gb, line = false, l
+			}
+		}
 		if gb {
-			pending = gbPending(s.momentText(s.clock()))
-			line = pending
+			at := store.FormatTS(s.clock())
+			line, gbRun = gbPending, GreenboneRun{State: GBRunRunning, StartedAt: &at}
 		}
 		if err == nil {
 			content.NotChecked = append(content.NotChecked, NotCheckedRow{Kind: "greenbone", Text: line})
@@ -170,26 +179,37 @@ func (s *Service) execute(ctx context.Context, run *scanRun, r Runner, user stri
 		err = context.Cause(ctx)
 	}
 	if err == nil {
-		s.setPhase(run, PhaseSaving)
-		run.snap, err = s.saveScan(ctx, user, t, content)
+		id := store.NewID("sn")
+		s.runMu.Lock() // review L3 of D-595: its "running" is live from the moment it is stored, never read as cut off
+		run.view.Phase = PhaseSaving
+		if gb {
+			run.gbSnap = id
+		}
+		s.runMu.Unlock()
+		run.snap, err = s.saveScan(ctx, user, t, content, id, gbRun)
 	}
 	if err == nil && gb { // a stop now keeps the snapshot above; Greenbone's outcome (or that it was stopped) is added to it
 		s.setPhase(run, PhaseGreenbone)
 		var o gbOutcome
 		var gerr error
 		if st.Kind == KindDomain {
-			o, gerr = s.greenboneDomain(ctx, st, deep)
+			o, gerr = s.greenboneDomain(ctx, st, deep, content.Ports)
 		} else {
-			o, gerr = s.greenboneStep(ctx, st)
+			o, gerr = s.greenboneStep(ctx, st, gbIP)
 		}
 		if gerr != nil {
-			o.not = append([]NotCheckedRow{{Kind: "greenbone", Text: notGBStopped}}, o.not...)
+			line := notGBStopped
+			if len(o.rows) > 0 { // review M1 of D-595: a domain keeps and shows the rows of the addresses that finished
+				line = notGBStoppedSome
+			}
+			o.not = append([]NotCheckedRow{{Kind: "greenbone", Text: line}}, o.not...)
 			if o.audit == "" {
 				o.audit = "stopped"
 			}
+			o.state = GBRunStopped
 			err = gerr
 		}
-		s.addGreenbone(ctx, user, t, &run.snap, pending, o)
+		s.addGreenbone(ctx, user, t, &run.snap, o)
 	}
 	if err != nil && ctx.Err() != nil && (errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded)) { // the run was cut short; any other error is the real one
 		err = context.Cause(ctx)
@@ -206,7 +226,7 @@ func byName(st ScanTarget) ScanTarget {
 	return st
 }
 
-func (s *Service) saveScan(ctx context.Context, user string, t Target, content Content) (Snapshot, error) {
+func (s *Service) saveScan(ctx context.Context, user string, t Target, content Content, id string, gbRun GreenboneRun) (Snapshot, error) {
 	at := s.clock()
 	content = sanitize(content)
 	extra := ""
@@ -214,7 +234,7 @@ func (s *Service) saveScan(ctx context.Context, user string, t Target, content C
 		extra = t.Value
 	}
 	date := at.In(s.cfg.Location).Format(dayFormat)
-	snap := Snapshot{ID: store.NewID("sn"), Date: date, ScannedAt: store.FormatTS(at),
+	snap := Snapshot{ID: id, Date: date, ScannedAt: store.FormatTS(at), GreenboneRun: gbRun,
 		Vulns: []VulnRow{}, VersionGaps: []GapRow{}} // computed when read (INV-20); never null in an answer
 	wctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), saveTimeout)
 	defer cancel()

@@ -585,6 +585,7 @@ func (s *Service) Snapshots(ctx context.Context, id string) ([]SnapshotMeta, err
 
 // SnapshotOf returns the result of one day, or an error wrapping ErrNoSnapshot.
 func (s *Service) SnapshotOf(ctx context.Context, id, date string) (Snapshot, error) {
+	live := s.gbLive() // before the read: a run that ends between the two has already stored its outcome (review L3 of D-595)
 	snap, ok, err := loadSnapshot(ctx, s.cfg.DB.Reader(), id, date)
 	if err != nil {
 		return Snapshot{}, fmt.Errorf("exposure: reading snapshot: %w", err)
@@ -593,7 +594,45 @@ func (s *Service) SnapshotOf(ctx context.Context, id, date string) (Snapshot, er
 		return Snapshot{}, fmt.Errorf("exposure: reading snapshot: %w", ErrNoSnapshot)
 	}
 	s.withVulns(ctx, &snap)
+	if snap.GreenboneRun.State == GBRunRunning && snap.ID != live {
+		cutOff(&snap)
+	}
 	return snap, nil
+}
+
+// gbLive is the snapshot whose OpenVAS step a run of this box scans now ("" none): set from the moment the run stores it until the
+// run ends, after its outcome is stored.
+func (s *Service) gbLive() string {
+	s.runMu.Lock()
+	defer s.runMu.Unlock()
+	if s.run == nil || s.run.view.Status != RunRunning {
+		return ""
+	}
+	return s.run.gbSnap
+}
+
+// cutOff: a snapshot whose OpenVAS step says "running" while no run of this box scans it was left by a restart of the box in the middle
+// of it (N49-3, D-595): it is stopped, so the heading never says "scanning" for ever.
+func cutOff(snap *Snapshot) {
+	snap.GreenboneRun.State = GBRunStopped
+	for i, a := range snap.GreenboneRun.Addresses {
+		if a.State == GBRunRunning {
+			snap.GreenboneRun.Addresses[i].State = GBRunStopped
+		}
+	}
+	snap.NotChecked = gbCutOff(snap.NotChecked)
+}
+
+// gbCutOff replaces the waiting line of an OpenVAS step nothing runs any more (also the one with a time, before D-595) with the line
+// that says it was stopped, so the page never says "scanning" under a "stopped" heading.
+func gbCutOff(rows []NotCheckedRow) []NotCheckedRow {
+	out := slices.Clone(rows)
+	for i, n := range out {
+		if n.Kind == "greenbone" && (n.Text == gbPending || strings.HasPrefix(n.Text, "OpenVAS started at ")) {
+			out[i].Text = notGBCutOff
+		}
+	}
+	return out
 }
 
 // Diff compares two scan days of a target: what appeared, what is gone, what changed (the expiry of a

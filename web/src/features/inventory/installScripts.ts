@@ -1,6 +1,6 @@
 // Hai script cài osquery một dòng lệnh do CHÍNH HỘP phục vụ (S-INV-4): /api/v1/install/osquery.sh và /osquery.ps1.
 // Hộp dùng CA tự ký nên CA được nhúng thẳng trong script; người dùng đối chiếu SHA-256 của script (hiện trong giao diện, kênh đã đăng nhập) trước khi chạy,
-// mọi lần tải sau đó dùng --cacert/CA này (không còn -k). Gói osquery do hộp phản chiếu từ bản phát hành chính thức và kiểm checksum nên máy chủ không cần Internet.
+// mọi lần tải sau đó ghim CA này (không còn -k): Linux bằng curl --cacert, Windows bằng .NET với hàm kiểm chứng chỉ riêng từng yêu cầu (D-596: curl.exe/Schannel không kiểm được CA của hộp). Gói osquery do hộp phản chiếu từ bản phát hành chính thức và kiểm checksum nên máy chủ không cần Internet.
 // Đối chiếu tài liệu (2026-11-06):
 // - Linux: gói .deb/.rpm, dịch vụ systemd "osqueryd" (/usr/lib/systemd/system/osqueryd.service), cấu hình /etc/osquery/, `systemctl enable --now osqueryd`.
 //   https://osquery.readthedocs.io/en/stable/installation/install-linux/ ; cài tay trong agentConfig.ts cũng tải gói từ hộp (D-404), không dùng kho ngoài.
@@ -31,7 +31,7 @@ export function linuxOneLiner(box: string, sha256: string, token: string, action
   // In a subshell, so the exit status of the download, the check or the install survives the cleanup and `exit` never closes the admin's terminal.
   return `(f=$(mktemp) && curl -fsSLk ${box}/api/v1/install/osquery.sh -o "$f" && echo "${sha256}  $f" | sha256sum -c - && sudo sh "$f" ${arg}; r=$?; rm -f "$f"; exit $r)`
 }
-/** Windows PowerShell 5.1: không có -SkipCertificateCheck, nên chỉ lần tải script đầu tiên dùng curl.exe -k (chưa có CA); script đã nhúng CA và dùng --cacert cho mọi lần tải sau.
+/** Windows PowerShell 5.1: không có -SkipCertificateCheck, nên chỉ lần tải script đầu tiên dùng curl.exe -k (chưa có CA); script đã nhúng CA và ghim nó cho mọi lần tải sau (.NET, D-596).
  *  Tên tệp mới mỗi lần (GUID, đuôi .ps1 vì -File cần nó) và xoá sau khi chạy, như bản Linux. */
 export function windowsOneLiner(box: string, sha256: string, token: string, action: 'install' | 'uninstall' = 'install') {
   const arg = action === 'install' ? `-Token '${token}'` : '-Uninstall'

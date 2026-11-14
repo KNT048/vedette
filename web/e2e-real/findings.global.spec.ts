@@ -70,14 +70,15 @@ test.describe('a finding made through the CISA list and a device (S-MIT-1, S-INV
     await noVietnamese(page, 'findings list with a finding')
     await shot(page, 'real', 'findings-list')
 
-    // the status filters: suspected is unresolved; confirmed and resolved do not have it; all does
+    // the status filters: suspected is unresolved; confirmed and the Handled tab do not have it; all unresolved does
     const filter = (name: string) => page.getByRole('button', { name, exact: true })
     const none = page.getByText(`No findings for ${s.cve} in this filter.`)
     await filter('Confirmed').click()
     await expect(none).toBeVisible()
-    await filter('Resolved').click()
+    await page.getByRole('tab', { name: /^Handled/ }).click()
     await expect(none).toBeVisible()
-    for (const name of ['Suspected', 'All', 'Unresolved']) {
+    await page.getByRole('tab', { name: /^Open/ }).click()
+    for (const name of ['Suspected', 'All unresolved']) {
       await filter(name).click()
       await expect(line, name).toBeVisible()
       await expect(none, name).toHaveCount(0)
@@ -211,11 +212,11 @@ test.describe('status changes as an operator (S-MIT-1, INV-3)', () => {
     } finally { await c.dispose() }
     await page.reload()
     await expect(h1(page)).toHaveText(`${s.host}: ${s.cve} marked as false positive`)
-    // the list: resolved now, so the unresolved view does not have it and Resolved does
+    // the list: resolved now, so the unresolved view does not have it and the Handled tab does
     await page.goto(`/findings?cve=${s.cve}`)
     await expect(h1(page)).toHaveText(await headlineNow())
     await expect(page.getByText(`No findings for ${s.cve} in this filter.`)).toBeVisible()
-    await page.getByRole('button', { name: 'Resolved', exact: true }).click()
+    await page.getByRole('tab', { name: /^Handled/ }).click()
     await expect(table(page).getByRole('row').filter({ hasText: s.cve })).toContainText('False positive')
     // reopen
     await page.goto(`/findings/${s.findingId}`)
@@ -246,7 +247,7 @@ test.describe('status changes as an operator (S-MIT-1, INV-3)', () => {
     await expect(h1(page)).toHaveText(`${s.host}: ${s.cve} is mitigated, patching is still needed to remove it`)
     // mitigated is resolved in the list (patching is still needed, but it is no longer "unresolved")
     await page.goto(`/findings?cve=${s.cve}`)
-    await page.getByRole('button', { name: 'Resolved', exact: true }).click()
+    await page.getByRole('tab', { name: /^Handled/ }).click()
     await expect(table(page).getByRole('row').filter({ hasText: s.cve })).toContainText('Mitigated')
     // from mitigated straight to patched is allowed through the dialog of an open finding only after a reopen, so reopen first
     await page.goto(`/findings/${s.findingId}`)

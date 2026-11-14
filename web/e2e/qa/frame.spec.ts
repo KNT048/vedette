@@ -10,6 +10,7 @@ const PAGES = [
   { path: '/scans', second: 'Auto rescan', id: 'auto', other: 'Probe log' },
   { path: '/response', second: 'Log', id: 'log', other: 'Rules' },
   { path: '/logs', second: 'Sources', id: 'sources', other: 'Events' },
+  { path: '/findings', second: 'Accepted risk', id: 'accepted', other: 'Handled' },
   { path: '/reports', second: 'Data protection assessment', id: 'pdpl', other: 'Weekly report' },
   // D-543: the other Kiên-side pages on the frame
   { path: '/honeypot', second: 'Services', id: 'services', other: 'Tokens' },

@@ -42,7 +42,7 @@ export function matchAssetToKev(assetId: string): number {
       evidence: {
         summary: multi
           ? `${name} runs ${sw}. CISA lists this flaw for several ${v.vendor} products; check the advisory to see whether yours is one of them.`
-          : `${name} runs ${sw}. Vedette has not checked whether this version is in the affected range; compare it with the vendor advisory or run a scan.`,
+          : `${name} runs ${sw}. NVD lists no affected versions for ${v.cve} yet, so Vedette cannot tell whether this version is affected; compare it with the vendor advisory.`,
         checked_at: now,
       },
       first_seen: now, last_seen: now, resolved_by: null, resolved_at: null, resolution_note: null,

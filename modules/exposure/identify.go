@@ -135,6 +135,17 @@ type Matches struct {
 	Compared int
 	Unlisted []string
 	Listed   int
+	// RuledOut are the exploited CVEs not listed because the service names another platform than the one the CVE affects
+	// (D-547: an OpenSSH that says it is Ubuntu's build against an Alpine-only flaw); each is a "checked" line with its reason.
+	RuledOut []RuledOutRow
+}
+
+// RuledOutRow is one exploited CVE a Matcher ruled out on a port, with the reason the page shows (untrusted text inside).
+type RuledOutRow struct {
+	IP     string
+	Port   int
+	CVE    string
+	Reason string
 }
 
 // Unavailable is the error of a ServiceScanner or a Matcher whose step did not run, with a reason the page shows as is. Any other
@@ -425,6 +436,13 @@ func (s *Service) withServiceVulns(ctx context.Context, snap *Snapshot) {
 		text += fmt.Sprintf(" %s gave no product to look up, so not compared.", plural(n, "service"))
 	}
 	snap.Checks = append(snap.Checks, CheckRow{Kind: "cve", Text: text, At: store.FormatTS(s.clock())})
+	for i, r := range m.RuledOut { // D-547: not listed, and the page says why (Tenable's and Qualys's "not applicable" reason)
+		if i == maxUnlisted {
+			break
+		}
+		snap.Checks = append(snap.Checks, CheckRow{Kind: "cve", Text: fmt.Sprintf("%s on port %d is not listed: %s", r.CVE, r.Port, clipText(r.Reason, 400)),
+			At: store.FormatTS(s.clock())})
+	}
 	for i, p := range m.Unlisted {
 		if i == maxUnlisted {
 			break

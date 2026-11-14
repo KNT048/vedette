@@ -27,3 +27,8 @@ var NVDCPE []byte
 //
 //go:embed nmap-cpe.json
 var NmapCPE []byte
+
+// PlatformLimits is platform-limits.json: exploited CVEs that affect a product only on some platforms (D-547), read by findings.
+//
+//go:embed platform-limits.json
+var PlatformLimits []byte

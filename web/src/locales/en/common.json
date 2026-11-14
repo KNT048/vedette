@@ -128,7 +128,7 @@
       "summary": "Patch steps, temporary fixes and config snippets that confirmed recommendations add to a finding."
     },
     "exposure": {
-      "name": "External surface",
+      "name": "External exposure",
       "summary": "Domains, IPs, ports and admin panels exposed to the Internet."
     },
     "scan": {

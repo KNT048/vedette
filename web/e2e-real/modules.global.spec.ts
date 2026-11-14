@@ -1,6 +1,6 @@
 // Turning modules off and on on the real backend (S-CORE-1, core INV on modules, SYS-5). Global project: a module switch is box-wide, so
 // this runs alone, and every test puts the switches back. Steps from e2e/qa/core.spec.ts ("modules").
-//   - "External surface" (exposure) is the module that is turned off: nothing depends on it and it keeps a setting of its own (the
+//   - "External exposure" (exposure) is the module that is turned off: nothing depends on it and it keeps a setting of its own (the
 //     box-IP check interval), which is the data that must still be there after it is turned on again.
 //   - "AI assistant" is turned off to make "AI response" (off in the mid-size bundle, needs it) ask for its dependency. (The credentialed
 //     scan is not listed in v1, D-417.)
@@ -34,21 +34,21 @@ test('turn a module off: the page says so, its routes answer 404, its data is ke
     const keep = await api(admin, 'PUT', '/exposure/box-ip/settings', { auto: false, interval_min: 37 })
     expect(keep.status, JSON.stringify(keep.body)).toBe(200)
 
-    await onModulesPage(page, 'External surface')
-    await expect(sw(page, 'External surface')).toBeChecked()
+    await onModulesPage(page, 'External exposure')
+    await expect(sw(page, 'External exposure')).toBeChecked()
     await expectAccessible(page, 'modules')
     await shot(page, 'real', 'modules')
-    await sw(page, 'External surface').click()
-    const ask = page.getByRole('dialog', { name: 'Turn off External surface?' })
+    await sw(page, 'External exposure').click()
+    const ask = page.getByRole('dialog', { name: 'Turn off External exposure?' })
     await expect(ask).toBeVisible()
     await expect(ask.getByText('The module\'s data is kept')).toBeVisible()
     await expect(ask.getByText('No module that is on depends on this one.')).toBeVisible()
     await ask.getByRole('button', { name: 'Cancel' }).click()
     expect(await state(admin, 'exposure'), 'Cancel changes nothing').toBe(true)
-    await sw(page, 'External surface').click()
+    await sw(page, 'External exposure').click()
     await ask.getByRole('button', { name: 'Turn off', exact: true }).click()
-    await toast(page, /External surface is off\. Modules affected: 0\. Data is kept\./)
-    await expect(sw(page, 'External surface')).not.toBeChecked()
+    await toast(page, /External exposure is off\. Modules affected: 0\. Data is kept\./)
+    await expect(sw(page, 'External exposure')).not.toBeChecked()
     expect(await state(admin, 'exposure')).toBe(false)
 
     // the routes of the module answer as if they did not exist; the other modules are untouched
@@ -60,7 +60,7 @@ test('turn a module off: the page says so, its routes answer 404, its data is ke
     expect((await api(admin, 'GET', '/inventory/devices')).status).toBe(200)
     // the page says which module is off and links to the switch; the sidebar entry is gone
     await page.goto('/exposure')
-    await expect(page.getByText('External surface module is off')).toBeVisible()
+    await expect(page.getByText('External exposure module is off')).toBeVisible()
     await expect(page.getByText('Existing data is kept. Turn the module on to get new data here.')).toBeVisible()
     await expect(page.getByRole('navigation').first().getByRole('link', { name: 'External exposure' })).toHaveCount(0)
     await shot(page, 'real', 'module-off-page')
@@ -68,19 +68,19 @@ test('turn a module off: the page says so, its routes answer 404, its data is ke
     await expect(page).toHaveURL(/\/settings\/modules/)
 
     // on again from the same page: the setting made before is still there
-    await page.getByRole('textbox', { name: 'Find a module' }).fill('External surface')
-    await sw(page, 'External surface').click()
-    await toast(page, /External surface is on/)
-    await expect(sw(page, 'External surface')).toBeChecked()
+    await page.getByRole('textbox', { name: 'Find a module' }).fill('External exposure')
+    await sw(page, 'External exposure').click()
+    await toast(page, /External exposure is on/)
+    await expect(sw(page, 'External exposure')).toBeChecked()
     expect(await state(admin, 'exposure')).toBe(true)
     const back = await api<{ box_ip: { auto: boolean; interval_min: number } }>(admin, 'GET', '/exposure/targets')
     expect(back.status).toBe(200)
     expect(back.body.box_ip).toMatchObject({ auto: false, interval_min: 37 })
     await page.goto('/exposure')
     await expect(h1(page)).toBeVisible()
-    await expect(page.getByText('External surface module is off')).toHaveCount(0)
+    await expect(page.getByText('External exposure module is off')).toHaveCount(0)
     await page.reload()
-    await expect(page.getByText('External surface module is off')).toHaveCount(0)
+    await expect(page.getByText('External exposure module is off')).toHaveCount(0)
 
     // both switches are in the audit log
     const log = await api<{ items: { action: string; target: string }[] }>(admin, 'GET', '/core/audit?q=exposure')

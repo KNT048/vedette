@@ -177,7 +177,7 @@ func TestFixedIn_BranchesAreShort(t *testing.T) {
 	}
 }
 
-// D-556: ranges from the vendor's CVE.org record, written by feeds under CISA's own vendor and product, decide by
+// D-556: ranges from the CNA's CVE.org record, written by feeds under CISA's own vendor and product, decide by
 // version like NVD's, and every sentence names their source.
 func TestCVEOrgRangesNameTheirSource(t *testing.T) {
 	v := Vuln{CVE: "CVE-2024-3400", Vendor: "Palo Alto Networks", Product: "PAN-OS", RangesFrom: RangesCVEOrg, Affected: []Affected{
@@ -195,7 +195,7 @@ func TestCVEOrgRangesNameTheirSource(t *testing.T) {
 		t.Fatalf("fixed in: %+v", f)
 	}
 	res = MatchAsset(fw("10.1.9"), []Vuln{v}, map[string]bool{"CVE-2024-3400": true}, t0)
-	if len(res.NotAffected) != 1 || !strings.Contains(res.NotAffected[0].Evidence.Summary, "outside every version range the vendor's CVE.org record lists") {
+	if len(res.NotAffected) != 1 || !strings.Contains(res.NotAffected[0].Evidence.Summary, "outside every version range the CVE.org record lists") {
 		t.Fatalf("10.1.9: %+v", res)
 	}
 }

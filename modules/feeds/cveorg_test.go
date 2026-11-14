@@ -74,6 +74,12 @@ func TestParseCVERecord_Conversion(t *testing.T) {
 		{"x series", `{"vendor":"Acme","product":"Gateway","versions":[{"version":"3.x","status":"affected"}]}`, CVEOrgUnusable, nil},
 		{"text version", `{"vendor":"Acme","product":"Gateway","versions":[{"version":"All versions","status":"affected"}]}`, CVEOrgUnusable, nil},
 		{"comparison in the version", `{"vendor":"Acme","product":"Gateway","versions":[{"version":"< 2.4","status":"affected"}]}`, CVEOrgUnusable, nil},
+		{"reversed range (review M1)", `{"vendor":"Acme","product":"Gateway","versions":[{"version":"3.0.5","lessThan":"3.0","status":"affected"}]}`, CVEOrgUnusable, nil},
+		{"empty range", `{"vendor":"Acme","product":"Gateway","versions":[{"version":"3.0","lessThan":"3.0","status":"affected"}]}`, CVEOrgUnusable, nil},
+		{"an unaffected backport inside the range (review M2)", `{"vendor":"Acme","product":"Gateway","versions":[{"version":"1.0","lessThan":"2.0","status":"affected"},{"version":"1.5.3","status":"unaffected"}]}`, CVEOrgUnusable, nil},
+		{"an unaffected hotfix of the range's line", `{"vendor":"Acme","product":"Gateway","versions":[{"version":"10.2.0","lessThan":"10.2.9-h1","status":"affected"},{"version":"10.2.5-h6","status":"unaffected"}]}`, CVEOrgUnusable, nil},
+		{"a change to affected", `{"vendor":"Acme","product":"Gateway","versions":[{"version":"1.0","lessThan":"2.0","status":"affected","changes":[{"at":"2.0","status":"affected"}]}]}`, CVEOrgUnusable, nil},
+		{"only some platforms (review L3)", `{"vendor":"Acme","product":"Gateway","platforms":["SRX Series"],"versions":[{"version":"1.0","lessThan":"2.0","status":"affected"}]}`, CVEOrgUnusable, nil},
 		{"both bounds", `{"vendor":"Acme","product":"Gateway","versions":[{"version":"1.0","lessThan":"2.0","lessThanOrEqual":"2.0","status":"affected"}]}`, CVEOrgUnusable, nil},
 		{"one bad product of CISA's spoils the CVE", `{"vendor":"Acme","product":"Gateway","versions":[{"version":"1.0","lessThan":"1.5","status":"affected"}]},{"vendor":"Acme","product":"Gateway","versions":[{"version":"2.x","status":"affected"}]}`, CVEOrgUnusable, nil},
 	} {
@@ -84,6 +90,21 @@ func TestParseCVERecord_Conversion(t *testing.T) {
 	}
 	if got, _ := ParseCVERecord(record(`{"vendor":"Acme","product":"Gateway","defaultStatus":"affected"}`), "CVE-2026-1000", "Acme", "Multiple Products"); got.Outcome != CVEOrgNoMatch {
 		t.Errorf("a Multiple Products entry got %+v", got)
+	}
+	// H1: Junos versions need findings' own comparator (D-510): a Juniper record is skipped, never read generically
+	junos := `{"dataType":"CVE_RECORD","dataVersion":"5.1","cveMetadata":{"cveId":"CVE-2026-1000","state":"PUBLISHED"},"containers":{"cna":{"affected":[{"vendor":"Juniper Networks","product":"Junos OS","defaultStatus":"unaffected","versions":[{"version":"21.4","lessThan":"21.4R3-S5","status":"affected","versionType":"semver"}]}]}}}`
+	if got, _ := ParseCVERecord([]byte(junos), "CVE-2026-1000", "Juniper", "Junos OS"); got.Outcome != CVEOrgUnusable || got.Rows != nil {
+		t.Errorf("Junos: %+v", got)
+	}
+	// H2: only a product that says what an unlisted version is gives a complete list
+	for ds, want := range map[string]bool{`"defaultStatus":"unaffected",`: true, `"defaultStatus":"unknown",`: false, ``: false} {
+		got, _ := ParseCVERecord(record(`{"vendor":"Acme","product":"Gateway",`+ds+`"versions":[{"version":"3.0","lessThan":"3.0.5","status":"affected"}]}`), "CVE-2026-1000", "Acme", "Gateway")
+		if got.Outcome != CVEOrgRanges || got.Complete != want {
+			t.Errorf("defaultStatus %q: complete %v, want %v", ds, got.Complete, want)
+		}
+	}
+	if got, _ := ParseCVERecord(record(`{"vendor":"Acme","product":"Gateway","defaultStatus":"unaffected","versions":[{"version":"3.0","lessThan":"3.0.5","status":"affected"}]},{"vendor":"Acme","product":"Gateway","versions":[{"version":"2.0","status":"affected"}]}`), "CVE-2026-1000", "Acme", "Gateway"); got.Complete {
+		t.Error("one partial entry of CISA's product must make the list partial")
 	}
 }
 
@@ -118,6 +139,7 @@ func TestParseCVERecord_Hostile(t *testing.T) {
 		"too large":       append([]byte(`{"dataType":"CVE_RECORD",`), make([]byte, CVEOrgMaxBytes)...),
 		"truncated":       []byte(`{"dataType":"CVE_RECORD","dataVersion":"5.1","cveMetadata":{"cveId":"CVE-2026-0003"`),
 		"nested too deep": []byte(strings.Repeat("[", 20000)),
+		"trailing bytes":  append([]byte(`{"dataType":"CVE_RECORD","dataVersion":"5.1","cveMetadata":{"cveId":"CVE-2026-0003","state":"PUBLISHED"}}`), []byte(`{"x":1}`)...),
 	} {
 		if got, err := ParseCVERecord(data, "CVE-2026-0003", "Acme", "Gateway"); err == nil {
 			t.Errorf("%s: accepted as %+v", name, got)
@@ -203,7 +225,7 @@ func TestContract_CVEOrgRanges(t *testing.T) {
 	}
 	f := e.feed("cve-org")
 	if f.Status != "ok" || f.Records == nil || *f.Records != 1 || f.Error == nil ||
-		*f.Error != "Read 3 CVE.org records of exploited CVEs NVD has no versions for: 1 with the vendor's affected versions, 1 without versions Vedette can compare, 1 not on CVE.org yet." {
+		*f.Error != "Read 3 CVE.org records of exploited CVEs NVD has no versions for: 1 with affected versions from their CNA, 1 without versions Vedette can compare, 1 not on CVE.org yet." {
 		t.Fatalf("feed = %+v %v", f, *f.Error)
 	}
 	if len(*got) != 1 || !slices.Equal((*got)[0].CVEs, []string{"CVE-2024-3400"}) || !(*got)[0].First {
@@ -217,7 +239,7 @@ func TestContract_CVEOrgRanges(t *testing.T) {
 		t.Fatal("a record without versions stored an empty answer")
 	}
 	src, err := e.svc.st.RangesFromCVEOrg(t.Context())
-	if err != nil || !src["CVE-2024-3400"] || len(src) != 1 {
+	if err != nil || src["CVE-2024-3400"] != "cve.org" || len(src) != 1 { // PAN-OS says defaultStatus unaffected: a complete list
 		t.Fatalf("RangesFromCVEOrg = %v %v", src, err)
 	}
 
@@ -232,7 +254,7 @@ func TestContract_CVEOrgRanges(t *testing.T) {
 		_, _, err := applyAffected(t.Context(), tx, map[string][]AffectedRow{"CVE-2024-3400": {}}, false, epoch0)
 		return err
 	})
-	if src, _ := e.svc.st.RangesFromCVEOrg(t.Context()); !src["CVE-2024-3400"] {
+	if src, _ := e.svc.st.RangesFromCVEOrg(t.Context()); src["CVE-2024-3400"] != "cve.org" {
 		t.Fatal("an empty NVD answer dropped the CVE.org ranges")
 	}
 	nvd := []AffectedRow{{CPE: "cpe:2.3:o:paloaltonetworks:pan-os:*:*:*:*:*:*:*:*", StartIncl: "10.2.0", EndExcl: "10.2.9"}}
@@ -281,5 +303,31 @@ func TestCVEOrgPull_Busy(t *testing.T) {
 	}
 	if o.count("/cves/2024/3xxx/CVE-2024-3400.json") != 0 {
 		t.Fatal("went on after the source stayed busy")
+	}
+}
+
+// Review M4, L1: a file the source refuses (403) is stamped and the pull goes on with the others; an answer that is not
+// a CVE record (a proxy page) keeps the ranges stored before.
+func TestCVEOrgPull_OneBadFileDoesNotStopIt(t *testing.T) {
+	t.Parallel()
+	e, o, _ := cveOrgEnv(t)
+	o.serve("/cves/2026/0xxx/CVE-2026-0004.json", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusForbidden) })
+	if err := e.svc.Fetch(t.Context(), "cve-org"); err != nil {
+		t.Fatal(err)
+	}
+	f := e.feed("cve-org")
+	if f.Status != "ok" || *f.Records != 1 || f.Error == nil || !strings.Contains(*f.Error, "1 unreadable") {
+		t.Fatalf("feed = %+v %v", f, *f.Error)
+	}
+	if n := count(t, e.db, `SELECT count(*) FROM feeds_cveorg_checked`); n != 3 {
+		t.Fatalf("%d CVEs stamped, want 3 (the refused one too, so the next pull does not start with it)", n)
+	}
+	o.serve("/cves/2024/3xxx/CVE-2024-3400.json", func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte("<html>sign in</html>")) })
+	e.setNow(e.clock().Add(cveOrgRecheck + time.Hour))
+	if err := e.svc.Fetch(t.Context(), "cve-org"); err != nil {
+		t.Fatal(err)
+	}
+	if src, _ := e.svc.st.RangesFromCVEOrg(t.Context()); src["CVE-2024-3400"] != "cve.org" {
+		t.Fatalf("an unreadable answer dropped the stored ranges: %v", src)
 	}
 }

@@ -83,21 +83,30 @@ type Vuln struct {
 	EPSS       float64   // 0 when unknown
 	DateAdded  time.Time // when CISA added the entry to KEV; zero when unknown (Reconcile treats that as backlog)
 	Affected   []Affected
-	RangesFrom string // where Affected comes from: "" NVD, RangesCVEOrg the vendor's CVE.org record (D-556)
+	RangesFrom string // where Affected comes from: "" NVD, RangesCVEOrg or RangesCVEOrgPartial the CNA's CVE.org record (D-556)
 }
 
-// RangesCVEOrg marks a Vuln whose affected versions come from the CNA's CVE.org record because NVD has none (D-556).
-const RangesCVEOrg = "cve.org"
+// RangesCVEOrg and RangesCVEOrgPartial mark a Vuln whose affected versions come from the CNA's CVE.org record because
+// NVD has none (D-556). Only a complete list (the CNA states what an unlisted version is) may prove "not affected"; on a
+// partial one a version outside every row stays a product match, never closed.
+const (
+	RangesCVEOrg        = "cve.org"
+	RangesCVEOrgPartial = "cve.org-partial"
+)
+
+func (v Vuln) fromCVEOrg() bool {
+	return v.RangesFrom == RangesCVEOrg || v.RangesFrom == RangesCVEOrgPartial
+}
 
 // rangesBy names the source of v's affected versions in a sentence (first: at its start).
 func (v Vuln) rangesBy(first bool) string {
 	switch {
-	case v.RangesFrom != RangesCVEOrg:
+	case !v.fromCVEOrg():
 		return "NVD"
 	case first:
-		return "The vendor's CVE.org record"
+		return "The CVE.org record"
 	}
-	return "the vendor's CVE.org record"
+	return "the CVE.org record"
 }
 
 // Evidence is the explanation shown with a finding.
@@ -372,6 +381,9 @@ func matchOne(a Asset, s Software, in swInfo, v Vuln, now time.Time) (Match, out
 	}
 	multi := isMultiProduct(v.Product)
 	tri, within, every, proof := decide(in, v, multi)
+	if tri == No && v.RangesFrom == RangesCVEOrgPartial { // the CNA's list may skip branches: outside it proves nothing (D-556)
+		tri, proof = Unknown, proofNone
+	}
 	switch {
 	case tri == No && proof == proofNone:
 		if multi && listsOthersOnly(in, v) { // D-505: no proof (NVD's list can lag the advisory); the person reads why

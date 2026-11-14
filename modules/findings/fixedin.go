@@ -40,7 +40,7 @@ type FixedBranch struct {
 // CNA's CVE.org record (D-556).
 const (
 	FixedInSource       = "NVD affected versions"
-	FixedInSourceCVEOrg = "CVE.org (vendor) affected versions"
+	FixedInSourceCVEOrg = "CVE.org affected versions (from the CVE record's CNA)"
 )
 
 const maxFixedBranches = 5
@@ -158,7 +158,7 @@ func fixedInSoftware(in swInfo, v Vuln, key []identity) *FixedIn {
 		return nil
 	}
 	f.Source = FixedInSource
-	if v.RangesFrom == RangesCVEOrg {
+	if v.fromCVEOrg() {
 		f.Source = FixedInSourceCVEOrg
 	}
 	if f.Kind != "distro" {

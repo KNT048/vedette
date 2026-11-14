@@ -32,7 +32,7 @@
 
 ## Modifying: `CVEOrgRecordURL`/`ParseCVERecord`, feed `cve-org`, `feeds_affected_cve.source`, `Store.RangesFromCVEOrg` (D-556)
 
-- **findings** (qua `cmd/vedette` `findingsFeeds.Vulns`): CVE có hàng `source='cve.org'` mang `Vuln.RangesFrom = findings.RangesCVEOrg`; `FixedIn.Source` thành "CVE.org (vendor) affected versions", câu bằng chứng nói "the vendor's CVE.org record" thay "NVD" (`TestCVEOrgRangesNameTheirSource`). CPE của hàng là hãng/sản phẩm CISA đã chuẩn hoá: findings khớp nó qua `norm` của hãng/sản phẩm thiết bị và khoá KEV; đổi cách dựng CPE ⇒ finding đổi.
+- **findings** (qua `cmd/vedette` `findingsFeeds.Vulns`, `rangesFrom`): CVE có hàng `source='cve.org'`/`'cve.org-partial'` mang `Vuln.RangesFrom = findings.RangesCVEOrg`/`RangesCVEOrgPartial` (partial: không bao giờ đóng finding); `FixedIn.Source` thành "CVE.org affected versions (from the CVE record's CNA)" và trang hiện đúng nguồn đó (`Recommendation.tsx`), câu bằng chứng nói "the CVE.org record" thay "NVD" (`TestCVEOrgRangesNameTheirSource`). CPE của hàng là hãng/sản phẩm CISA đã chuẩn hoá: findings khớp nó qua `norm` của hãng/sản phẩm thiết bị và khoá KEV; đổi cách dựng CPE ⇒ finding đổi.
 - **nvd-kev**: `applyAffected` đếm và xoá chỉ hàng `source='nvd'`; `records` và lượt đầu (`first`) của NVD chỉ tính hàng NVD.
 - **cmd/vedette**: `Store.MatchStamp` thêm `cve-org`; export policy (`feeds_affected_cve.source`, `feeds_cveorg_checked`) trong `modules/core/export_policy.go`.
 - **PRIVACY.md** luồng 1, Settings → Privacy (`locales/en/core.json` `privacy.flow.1`), `THIRD_PARTY_NOTICES.md` (điều khoản CVE Program), `sourcesMock.ts` và `conformance.test.ts` (danh sách có sẵn: 10).

@@ -1,7 +1,6 @@
 package feeds
 
 import (
-	"bytes"
 	"encoding/json"
 	"strconv"
 	"strings"
@@ -54,7 +53,16 @@ const (
 type CVEOrgResult struct {
 	Outcome string
 	Rows    []AffectedRow // only with CVEOrgRanges
+	// Complete: every matched CNA product says what a version it does not list is (defaultStatus "unaffected", or
+	// "affected" with nothing unaffected), so a version outside every row is not affected. Without it the list may skip
+	// branches the CNA did not assess: findings may raise a match on its rows but never close one by them (D-556 (4)).
+	Complete bool
 }
+
+// cveOrgSkipVendors are the vendors whose NVD rows findings reads with a comparator of their own: CNA versions written
+// another way would reach the generic one and could close an affected device (review H1 of F6a). Juniper: Junos
+// "21.4R3-S5" (D-510); Microsoft: Office editions and Windows builds.
+var cveOrgSkipVendors = map[string]bool{"juniper": true, "microsoft": true}
 
 type cveRecord struct {
 	DataType    string `json:"dataType"`
@@ -75,6 +83,8 @@ type cnaAffected struct {
 	Product       string       `json:"product"`
 	DefaultStatus string       `json:"defaultStatus"`
 	Versions      []cnaVersion `json:"versions"`
+	Platforms     []string     `json:"platforms"`
+	Modules       []string     `json:"modules"`
 }
 
 type cnaVersion struct {
@@ -90,24 +100,27 @@ type cnaVersion struct {
 }
 
 // ParseCVERecord reads one CVE JSON 5.x record of cve and converts the affected versions the CNA gives for the CISA KEV
-// entry's vendor and product into NVD-shaped rows (D-556). It invents nothing:
+// entry's vendor and product into NVD-shaped rows (D-556). It invents nothing, and when in doubt it skips the CVE
+// (CVEOrgUnusable: no rows, findings keeps its product match):
 //   - only a CNA product whose vendor and product clearly are CISA's (cnaVendorKey, cnaProductKey) is read; a record
-//     that names only others, or a KEV entry for "Multiple Products", is CVEOrgNoMatch;
+//     that names only others, or a KEV entry for "Multiple Products", is CVEOrgNoMatch; a vendor of cveOrgSkipVendors
+//     is CVEOrgUnusable;
 //   - the rows' CPE carries CISA's own vendor and product (normalised, the names findings already matches the entry by),
 //     never a guessed NVD dictionary name;
 //   - "affected" versions become ranges: version + lessThan = [version, lessThan), + lessThanOrEqual = [version, x], a
-//     version alone is that exact version, a start of "0" or "*" is no start, lessThanOrEqual "*" is no end;
-//   - a product whose versions cannot be ranges without guessing (git commits, wildcards, text such as "all", changes
-//     inside a range, everything affected except listed versions) makes the whole CVE CVEOrgUnusable: findings must never
-//     decide on half the list.
+//     version alone is that exact version, a start of "0", "*" or "n/a" is no start, lessThanOrEqual "*" is no end;
+//   - git commits, wildcards, text ("all", "< 2.4"), a reversed range, a status change or an "unaffected" version inside
+//     an affected range (a hotfix hole), "affected except the listed versions", or an entry limited to platforms or
+//     modules make the whole CVE CVEOrgUnusable: findings must never decide on half the list.
 //
-// A record that is not CVE JSON 5.x, is not cve's, or is larger than CVEOrgMaxBytes fails the parse.
+// A record that is not CVE JSON 5.x (one JSON value, nothing after it), is not cve's, or is larger than CVEOrgMaxBytes
+// fails the parse.
 func ParseCVERecord(data []byte, cve, kevVendor, kevProduct string) (CVEOrgResult, error) {
 	if len(data) > CVEOrgMaxBytes {
 		return CVEOrgResult{}, fail(ErrTooLarge, "The CVE.org record is larger than %d MB.", CVEOrgMaxBytes>>20)
 	}
 	var r cveRecord
-	if err := json.NewDecoder(bytes.NewReader(data)).Decode(&r); err != nil {
+	if err := json.Unmarshal(data, &r); err != nil {
 		return CVEOrgResult{}, fail(ErrBadSample, "The CVE.org record is not CVE JSON 5.")
 	}
 	if r.DataType != "CVE_RECORD" || !strings.HasPrefix(r.DataVersion, "5.") || r.Meta.ID != cve {
@@ -129,17 +142,21 @@ func ParseCVERecord(data []byte, cve, kevVendor, kevProduct string) (CVEOrgResul
 	if vk == "" || pk == "" || cpeProduct == "multipleproducts" {
 		return CVEOrgResult{Outcome: CVEOrgNoMatch}, nil
 	}
-	matched := false
+	matched, complete := false, true
 	var rows []AffectedRow
 	for _, a := range aff {
 		if len(a.Vendor) > cveOrgMaxName || len(a.Product) > cveOrgMaxName || cnaVendorKey(a.Vendor) != vk || cnaProductKey(a.Product, a.Vendor) != pk {
 			continue
 		}
 		matched = true
-		got, ok := cnaRows(a, cpeVendor, cpeProduct)
+		if cveOrgSkipVendors[vk] {
+			return CVEOrgResult{Outcome: CVEOrgUnusable}, nil
+		}
+		got, all, ok := cnaRows(a, cpeVendor, cpeProduct)
 		if !ok {
 			return CVEOrgResult{Outcome: CVEOrgUnusable}, nil
 		}
+		complete = complete && all
 		for _, g := range got {
 			if !containsRow(rows, g) {
 				rows = append(rows, g)
@@ -152,13 +169,20 @@ func ParseCVERecord(data []byte, cve, kevVendor, kevProduct string) (CVEOrgResul
 	case len(rows) == 0:
 		return CVEOrgResult{Outcome: CVEOrgNoVersions}, nil
 	}
-	return CVEOrgResult{Outcome: CVEOrgRanges, Rows: rows}, nil
+	return CVEOrgResult{Outcome: CVEOrgRanges, Rows: rows, Complete: complete}, nil
 }
 
-// cnaRows converts the versions of one CNA product; ok false: they cannot be ranges without guessing.
-func cnaRows(a cnaAffected, vendor, product string) (rows []AffectedRow, ok bool) {
-	if len(a.Versions) > cveOrgMaxVersions {
-		return nil, false
+// cnaSpan is one affected range of a CNA product, as read ("" = no bound).
+type cnaSpan struct {
+	start, end string
+	incl       bool
+}
+
+// cnaRows converts the versions of one CNA product; ok false: they cannot be ranges without guessing. complete says
+// whether the product states the status of the versions it does not list.
+func cnaRows(a cnaAffected, vendor, product string) (rows []AffectedRow, complete, ok bool) {
+	if len(a.Versions) > cveOrgMaxVersions || len(a.Platforms) > 0 || len(a.Modules) > 0 {
+		return nil, false, false // only some platforms or modules: the rows would name every device of the product
 	}
 	cpe := func(version string) string {
 		return "cpe:2.3:*:" + vendor + ":" + product + ":" + version + ":*:*:*:*:*:*:*"
@@ -166,17 +190,27 @@ func cnaRows(a cnaAffected, vendor, product string) (rows []AffectedRow, ok bool
 	if strings.EqualFold(a.DefaultStatus, "affected") { // versions not listed are affected
 		for _, v := range a.Versions {
 			if strings.EqualFold(v.Status, "unaffected") {
-				return nil, false // everything but these versions: not a list of ranges
+				return nil, false, false // everything but these versions: not a list of ranges
 			}
 		}
-		return []AffectedRow{{CPE: cpe("*")}}, true // every version is affected
+		return []AffectedRow{{CPE: cpe("*")}}, true, true // every version is affected
 	}
+	var spans []cnaSpan
+	var fixed []string // the unaffected versions the product lists
 	for _, v := range a.Versions {
-		if !strings.EqualFold(v.Status, "affected") { // unaffected adds no range; unknown says nothing
+		start := strings.TrimSpace(v.Version)
+		switch strings.ToLower(v.Status) {
+		case "affected":
+		case "unaffected":
+			if cnaVersionOK(start) && start != "0" {
+				fixed = append(fixed, start)
+			}
+			continue
+		default: // "unknown" says nothing
 			continue
 		}
 		if strings.EqualFold(v.VersionType, "git") || v.LessThan != nil && v.LessThanOrEqual != nil {
-			return nil, false
+			return nil, false, false
 		}
 		end, incl := "", false
 		switch {
@@ -186,23 +220,24 @@ func cnaRows(a cnaAffected, vendor, product string) (rows []AffectedRow, ok bool
 			end, incl = *v.LessThanOrEqual, true
 		}
 		for _, c := range v.Changes {
-			if c.At != end { // a status change inside the range (a hotfix that fixes it): the range has holes
-				return nil, false
+			if c.At != end || !strings.EqualFold(c.Status, "unaffected") { // a status change inside the range (a hotfix): holes
+				return nil, false, false
 			}
 		}
-		start := strings.TrimSpace(v.Version)
 		if v.LessThan == nil && v.LessThanOrEqual == nil {
-			if !cnaVersionOK(v.Version) || start == "0" {
-				return nil, false
+			if !cnaVersionOK(start) || start == "0" {
+				return nil, false, false
 			}
-			rows = append(rows, AffectedRow{CPE: cpe(cpeEscape(v.Version))})
+			rows = append(rows, AffectedRow{CPE: cpe(cpeEscape(start))})
+			spans = append(spans, cnaSpan{start: start, end: start, incl: true})
 			continue
 		}
 		r := AffectedRow{CPE: cpe("*")}
 		switch {
 		case incl && end == "*": // "and every later version"
+			end = ""
 		case !cnaVersionOK(end):
-			return nil, false
+			return nil, false, false
 		case incl:
 			r.EndIncl = end
 		default:
@@ -210,20 +245,97 @@ func cnaRows(a cnaAffected, vendor, product string) (rows []AffectedRow, ok bool
 		}
 		switch strings.ToLower(start) {
 		case "", "0", "*", "n/a", "unspecified": // "affected below the end"
+			start = ""
 		default:
 			if !cnaVersionOK(start) {
-				return nil, false
+				return nil, false, false
 			}
 			r.StartIncl = start
 		}
+		if start != "" && end != "" { // a reversed or empty range is a typo, not data (review M1)
+			c, ok := cmpLead(start, end)
+			if !ok || c > 0 || c == 0 && start == end && !incl {
+				return nil, false, false
+			}
+		}
 		rows = append(rows, r)
+		spans = append(spans, cnaSpan{start: start, end: end, incl: incl})
+	}
+	for _, f := range fixed { // an unaffected version inside an affected range: a backported fix the rows cannot say (review M2)
+		for _, sp := range spans {
+			if within(f, sp) {
+				return nil, false, false
+			}
+		}
 	}
 	for _, r := range rows {
 		if badAffected(r) != "" {
-			return nil, false
+			return nil, false, false
 		}
 	}
-	return rows, true
+	return rows, strings.EqualFold(a.DefaultStatus, "unaffected"), true
+}
+
+// within says whether version v may lie in sp; a comparison it cannot make (the leading numbers are equal but the
+// texts differ, or one has none) counts as inside: when in doubt, skip.
+func within(v string, sp cnaSpan) bool {
+	if sp.start != "" {
+		if c, ok := cmpLead(v, sp.start); ok && c < 0 {
+			return false
+		}
+	}
+	if sp.end != "" {
+		c, ok := cmpLead(v, sp.end)
+		switch {
+		case ok && c > 0:
+			return false
+		case ok && c == 0 && v == sp.end:
+			return sp.incl
+		}
+	}
+	return true
+}
+
+// cmpLead compares the leading dotted numbers of two versions ("10.2.9-h1" -> 10.2.9; a missing part is 0). ok is false
+// when either starts with no number; 0 means the numbers are equal (the rest of the texts may still differ).
+func cmpLead(a, b string) (int, bool) {
+	x, okA := leadNums(a)
+	y, okB := leadNums(b)
+	if !okA || !okB {
+		return 0, false
+	}
+	for i := 0; i < max(len(x), len(y)); i++ {
+		var p, q int
+		if i < len(x) {
+			p = x[i]
+		}
+		if i < len(y) {
+			q = y[i]
+		}
+		if p != q {
+			if p < q {
+				return -1, true
+			}
+			return 1, true
+		}
+	}
+	return 0, true
+}
+
+func leadNums(s string) ([]int, bool) {
+	end := 0
+	for end < len(s) && (s[end] >= '0' && s[end] <= '9' || s[end] == '.') {
+		end++
+	}
+	var out []int
+	for _, part := range strings.Split(strings.TrimRight(s[:end], "."), ".") {
+		n, err := strconv.Atoi(part)
+		if err != nil {
+			return nil, false
+		}
+		out = append(out, n)
+	}
+	return out, len(out) > 0
 }
 
 // cnaVersionOK accepts a version that can be compared: printable, with a digit, no blanks, no wildcard or comparison

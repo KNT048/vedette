@@ -52,7 +52,7 @@ function ApplyButton({ finding, item }: { finding: FindingDetail; item: ApplyIte
   )
 }
 
-/** Phiên bản vá cho đúng thiết bị này, từ khoảng phiên bản NVD (D-488): chỉ nói điều dữ liệu cho, luôn ghi nguồn. */
+/** Phiên bản vá cho đúng thiết bị này, từ khoảng phiên bản NVD hoặc bản ghi CVE.org (D-488, D-556): chỉ nói điều dữ liệu cho, luôn ghi đúng nguồn (`fixed_in.source`). */
 export function FixedInNote({ finding }: { finding: FindingDetail }) {
   const { t } = useTranslation('findings')
   const f = finding.fixed_in
@@ -76,7 +76,7 @@ export function FixedInNote({ finding }: { finding: FindingDetail }) {
     <div className="grid max-w-3xl gap-1" data-testid="fixed-in">
       <p className="text-sm font-medium">{text}</p>
       {extra ? <p className="text-[13px]">{extra}</p> : null}
-      <p className="text-[12px] text-muted">{t('rec.fixedSource')}</p>
+      <p className="text-[12px] text-muted">{t('rec.fixedSource', { source: f.source })}</p>
     </div>
   )
 }

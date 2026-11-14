@@ -109,8 +109,9 @@ type pullPlan struct {
 	affectedFull bool                     // a full pull: CVEs not in affected are dropped
 	hasAffected  bool
 
-	cveOrg        map[string][]AffectedRow // cve-org (D-556): the CVEs whose record gave ranges
-	cveOrgChecked []string                 // every CVE whose record was read
+	cveOrg        map[string]CVEOrgResult // cve-org (D-556): the CVEs whose record gave ranges
+	cveOrgChecked []string                // every CVE whose record was read
+	cveOrgUnread  []string                // CVEs whose record could not be read this time: stamped, stored ranges kept
 	hasCVEOrg     bool
 
 	iocs    []iocInput
@@ -570,15 +571,10 @@ func (s *Service) pullOne(ctx context.Context, id, actor string) (sourceRow, int
 				}
 				p.out.Records = total // the CVEs the box has versions for, not only those this (incremental) pull got
 			case p.hasCVEOrg:
-				var before int
-				if err := tx.QueryRowContext(ctx, `SELECT count(*) FROM feeds_affected_cve WHERE source = 'cve.org'`).Scan(&before); err != nil {
-					return fmt.Errorf("feeds: count affected: %w", err)
-				}
-				// the first fill is backlog, like NVD's (D-78); a new CISA entry still alerts, by its own new_kev event,
-				// published before this one and matched against these ranges
-				rangesFirst = before == 0
+				// ranges of CVEs read for the first time are backlog, like NVD's first fill (D-78); a new CISA entry still
+				// alerts, by its own new_kev event, published before this one and matched against these ranges
 				var total int
-				if rangesChanged, total, err = applyCVEOrg(ctx, tx, p.cveOrg, p.cveOrgChecked, p.out.Finished); err != nil {
+				if rangesChanged, rangesFirst, total, err = applyCVEOrg(ctx, tx, p.cveOrg, p.cveOrgChecked, p.cveOrgUnread, p.out.Finished); err != nil {
 					return err
 				}
 				p.out.Records = total

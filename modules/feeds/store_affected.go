@@ -59,8 +59,8 @@ func applyAffected(ctx context.Context, tx *sql.Tx, got map[string][]AffectedRow
 		if err != nil {
 			return nil, 0, err
 		}
-		if src == rangesCVEOrg && len(rows) == 0 {
-			continue // NVD has no vulnerable entry yet: the vendor's CVE.org ranges stay (D-556)
+		if src != rangesNVD && src != "" && len(rows) == 0 {
+			continue // NVD has no vulnerable entry yet: the CNA's CVE.org ranges stay (D-556)
 		}
 		same, err := sameAffected(ctx, tx, cve, rangesNVD, rows)
 		if err != nil {
@@ -80,10 +80,12 @@ func applyAffected(ctx context.Context, tx *sql.Tx, got map[string][]AffectedRow
 	return changed, total, nil
 }
 
-// Where the ranges of a CVE come from (feeds_affected_cve.source, D-556).
+// Where the ranges of a CVE come from (feeds_affected_cve.source, D-556): NVD, or the CNA's CVE.org record whose list is
+// complete (CVEOrgResult.Complete) or partial.
 const (
-	rangesNVD    = "nvd"
-	rangesCVEOrg = "cve.org"
+	rangesNVD           = "nvd"
+	rangesCVEOrg        = "cve.org"
+	rangesCVEOrgPartial = "cve.org-partial"
 )
 
 // affectedSource is the source of the stored ranges of cve, "" when the box has none.
@@ -213,20 +215,21 @@ func (s *Store) affectedCount(ctx context.Context) (int, error) {
 }
 
 // RangesFromCVEOrg returns the CVEs whose affected versions (KevAffected) come from the CNA's record on CVE.org, not
-// from NVD (D-556), so findings names the right source.
-func (s *Store) RangesFromCVEOrg(ctx context.Context) (map[string]bool, error) {
-	rows, err := s.db.Reader().QueryContext(ctx, `SELECT cve FROM feeds_affected_cve WHERE source = 'cve.org'`)
+// from NVD (D-556), with their source: "cve.org" (a complete list) or "cve.org-partial" (findings may raise a match on
+// it, never close one), so findings names the right source and knows what the rows can prove.
+func (s *Store) RangesFromCVEOrg(ctx context.Context) (map[string]string, error) {
+	rows, err := s.db.Reader().QueryContext(ctx, `SELECT cve, source FROM feeds_affected_cve WHERE source <> 'nvd'`)
 	if err != nil {
 		return nil, fmt.Errorf("feeds: read affected: %w", err)
 	}
 	defer func() { _ = rows.Close() }()
-	out := map[string]bool{}
+	out := map[string]string{}
 	for rows.Next() {
-		var cve string
-		if err := rows.Scan(&cve); err != nil {
+		var cve, src string
+		if err := rows.Scan(&cve, &src); err != nil {
 			return nil, fmt.Errorf("feeds: read affected: %w", err)
 		}
-		out[cve] = true
+		out[cve] = src
 	}
 	return out, rows.Err()
 }

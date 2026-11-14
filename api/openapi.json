@@ -28244,7 +28244,7 @@
                             },
                             "source": {
                               "type": "string",
-                              "description": "Where the versions come from: \"NVD affected versions\", or \"CVE.org (vendor) affected versions\" when NVD has none (D-556)"
+                              "description": "Where the versions come from: \"NVD affected versions\", or \"CVE.org affected versions (from the CVE record's CNA)\" when NVD has none (D-556)"
                             }
                           },
                           "required": [
@@ -29386,7 +29386,7 @@
                             },
                             "source": {
                               "type": "string",
-                              "description": "Where the versions come from: \"NVD affected versions\", or \"CVE.org (vendor) affected versions\" when NVD has none (D-556)"
+                              "description": "Where the versions come from: \"NVD affected versions\", or \"CVE.org affected versions (from the CVE record's CNA)\" when NVD has none (D-556)"
                             }
                           },
                           "required": [
@@ -30530,7 +30530,7 @@
                             },
                             "source": {
                               "type": "string",
-                              "description": "Where the versions come from: \"NVD affected versions\", or \"CVE.org (vendor) affected versions\" when NVD has none (D-556)"
+                              "description": "Where the versions come from: \"NVD affected versions\", or \"CVE.org affected versions (from the CVE record's CNA)\" when NVD has none (D-556)"
                             }
                           },
                           "required": [
@@ -31686,7 +31686,7 @@
                             },
                             "source": {
                               "type": "string",
-                              "description": "Where the versions come from: \"NVD affected versions\", or \"CVE.org (vendor) affected versions\" when NVD has none (D-556)"
+                              "description": "Where the versions come from: \"NVD affected versions\", or \"CVE.org affected versions (from the CVE record's CNA)\" when NVD has none (D-556)"
                             }
                           },
                           "required": [

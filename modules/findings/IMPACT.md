@@ -9,6 +9,11 @@
 - `ConfirmFromScan` trên `false_positive`/`not_relevant`/`risk_accepted`: lần đầu một `template` khớp thì ghi bằng chứng (basis scan, history `rescanned`) và `Notify=true`; cùng `template` lần sau không đổi gì, `Notify=false` (service không cần tự chống trùng). Trường bằng chứng quá 4096 byte bị cắt, có dấu `...[truncated]`.
 - Ghi chú trạng thái đo như GUI: `trim` của JavaScript và độ dài UTF-16 (ngưỡng 3 và 500).
 
+## Modifying: `findings.Service.OnAssetMerged(ctx, from, into)` và người nghe `inventory.asset.merged` (D-515, INV-7)
+- **Người gọi**: `cmd/vedette/wiring.go` nghe `inventory.asset.merged {from, into, actor}` (inventory INV-29, khi một switch LLDP được nối vào thiết bị có IP của nó) qua `on("findings")`; sự kiện tới **trước** `inventory.asset.deleted` của `from` và `inventory.asset.updated` `match=true` của `into` trên cùng bus đồng bộ. Đổi thứ tự hay bỏ người nghe này là `OnAssetDeleted` xoá finding (kèm history, `mit_applied`, `mit_ai_output`) rồi lần khớp lại tạo lại và **notify báo lại** các CVE đó. Khi `OnAssetMerged` lỗi, binary ghi `from` vào một tập trong bộ nhớ và người nghe `deleted` bỏ qua đúng id đó (reconcile lo finding mồ côi).
+- **`ServiceConfig.Applied`** (binary: `mitigationApplied` đọc `mit_applied`): đổi bảng hay nghĩa "đã áp dụng" của mitigation là đổi finding nào thắng khi hai thiết bị cùng có một CVE. Nil = không finding nào được coi là đã áp dụng.
+- **Audit** `findings.merged_with_asset`: nhãn trong `web/src/locales/en/core.json` (`TestEveryAuditActionHasALabel`).
+
 ## Modifying: `findings.Service.UpsertFromMatch(ctx, Asset, []Vuln)` và `OnMatchChanged(ctx, assetID)`
 - **inventory** (sự kiện `inventory.match.changed`; phải cài `findings.Inventory{Assets, MatchInput}`), **feeds** (phải cài `findings.Feeds{KevInfo, Vulns}`; `cmd/vedette/wiring.go` cài từ `feeds.Store.KevVulns/KevVulnsByCVE`, chỉ hàng `cisa-kev`, chưa có khoảng bị ảnh hưởng nên chỉ `basis=product`; `findings.Inventory` từ `inventory.DeviceRefs/MatchInput`), **core/jobs** (khớp lại sau `feeds.vuln.new_kev`). Interface do `findings` định nghĩa, `cmd/vedette` nối cài đặt thật. Đổi quy tắc khớp/tạo/độ nghiêm trọng đổi số finding và tin `notify`.
 

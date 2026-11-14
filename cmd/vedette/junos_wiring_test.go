@@ -119,14 +119,13 @@ func TestWiringLLDPJunosSwitchFindingsOff(t *testing.T) {
 	}
 }
 
-// W1-37, D-515, review H2 of #722: the N100 switch. Its LLDP row holds the Junos findings (one marked a false positive by a person);
-// when it joins the .47 device, the findings move with their status and nothing is created or announced again.
-func TestWiringJoinedSwitchKeepsItsFindings(t *testing.T) {
-	t.Parallel()
-	s := newStack(t)
+// junosSwitch is a stack whose feeds list five Junos EX entries, and the frame the N100 switch's LLDP sends (D-515).
+func junosSwitch(t *testing.T) (s *stack, cves []string, lldp func()) {
+	t.Helper()
+	s = newStack(t)
 	ctx := t.Context()
 	now := time.Now().UTC()
-	cves := []string{"CVE-2023-36844", "CVE-2023-36845", "CVE-2023-36847", "CVE-2023-36851", "CVE-2024-21591"}
+	cves = []string{"CVE-2023-36844", "CVE-2023-36845", "CVE-2023-36847", "CVE-2023-36851", "CVE-2024-21591"}
 	for _, cve := range cves {
 		if err := s.d.DB.Write(ctx, func(tx *sql.Tx) error {
 			ts := store.FormatTS(now)
@@ -145,7 +144,7 @@ func TestWiringJoinedSwitchKeepsItsFindings(t *testing.T) {
 		}
 	}
 	const base, mgmt, ip = "3c:8a:b0:9c:85:80", "3c:8a:b0:9c:85:ff", "192.168.18.47"
-	lldp := func() {
+	lldp = func() {
 		t.Helper()
 		var batch []observe.Observation
 		for f, v := range map[observe.Field]string{observe.MAC: base, observe.Vendor: "Juniper Networks", observe.Kind: "switch", observe.Model: "EX4200-48T", observe.OS: "JUNOS 15.1R7.9"} {
@@ -155,6 +154,16 @@ func TestWiringJoinedSwitchKeepsItsFindings(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+	return s, cves, lldp
+}
+
+// W1-37, D-515, review H2 of #722: the N100 switch. Its LLDP row holds the Junos findings (one marked a false positive by a person);
+// when it joins the .47 device, the findings move with their status and nothing is created or announced again.
+func TestWiringJoinedSwitchKeepsItsFindings(t *testing.T) {
+	t.Parallel()
+	s, cves, lldp := junosSwitch(t)
+	ctx := t.Context()
+	const mgmt, ip = "3c:8a:b0:9c:85:ff", "192.168.18.47"
 	lldp()
 	recs, err := s.d.Findings.List(ctx, "")
 	if err != nil || len(recs) != len(cves) {
@@ -196,5 +205,40 @@ func TestWiringJoinedSwitchKeepsItsFindings(t *testing.T) {
 	}
 	if created != 0 {
 		t.Errorf("%d findings created again", created)
+	}
+}
+
+// Review L5 (round 2) of #722: when findings cannot move a merged device's findings, its asset.deleted does not drop them either; they
+// stay for findings' reconcile. Here both rows hold the Junos CVEs and mitigation's table is gone, so the move fails.
+func TestWiringAFailedMoveKeepsTheFindings(t *testing.T) {
+	t.Parallel()
+	s, cves, lldp := junosSwitch(t)
+	ctx := t.Context()
+	lldp()
+	recs, err := s.d.Findings.List(ctx, "")
+	if err != nil || len(recs) != len(cves) {
+		t.Fatalf("findings of the LLDP row: %d (%v)", len(recs), err)
+	}
+	lldpID := recs[0].AssetID
+	h := observe.AssetHint{MAC: "3c:8a:b0:9c:85:ff", IP: netip.MustParseAddr("192.168.18.47")}
+	var batch []observe.Observation
+	for f, v := range map[observe.Field]string{observe.MAC: h.MAC, observe.Model: "EX4200-48T", observe.OS: "JUNOS 15.1R7.9"} {
+		batch = append(batch, observe.Observation{AssetHint: h, Field: f, Value: v, Source: observe.SNMP, Confidence: 0.9})
+	}
+	if err := s.d.Inventory.Record(ctx, batch); err != nil {
+		t.Fatal(err)
+	}
+	if n := s.count(`SELECT count(*) FROM fnd_finding`); n != 2*len(cves) {
+		t.Fatalf("%d findings, want both rows' %d", n, 2*len(cves))
+	}
+	if err := s.d.DB.Write(ctx, func(tx *sql.Tx) error { _, err := tx.ExecContext(ctx, `DROP TABLE mit_applied`); return err }); err != nil {
+		t.Fatal(err)
+	}
+	lldp()
+	if _, err := s.d.Inventory.Device(ctx, lldpID); err == nil {
+		t.Fatal("the LLDP row was not merged")
+	}
+	if n := s.count(`SELECT count(*) FROM fnd_finding WHERE asset_id = ?`, lldpID); n != len(cves) {
+		t.Errorf("%d findings left on the merged row, want %d for reconcile", n, len(cves))
 	}
 }

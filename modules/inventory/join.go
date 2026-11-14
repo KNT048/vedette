@@ -101,11 +101,17 @@ func sameDevice(ctx context.Context, tx *sql.Tx, id string) (into, why string, e
 	return "", "", nil
 }
 
+// statedPassiveOS is the confidence of an OS a passive sensor read from the device's own LLDP description (sensor-passive
+// ConfLLDPDesc). A lower one is the DHCP client's family guess (ConfDHCPOS, "Linux"), not something the device states.
+const statedPassiveOS = 0.5
+
 // facts is what a device says about itself: the winning kind and host name of any source, and the winning model and OS of a
-// source that states them (a scan's fingerprint is a guess: the N100 switch states JUNOS 15.1R7.9 while nmap guesses JUNOS 12).
+// source that states them (a scan's fingerprint is a guess: the N100 switch states JUNOS 15.1R7.9 while nmap guesses JUNOS 12; so
+// is the OS family a DHCP request hints at).
 func facts(ctx context.Context, tx *sql.Tx, id string) (map[string]string, error) {
 	rows, err := tx.QueryContext(ctx, `SELECT id, field, value, source, confidence, seen_at FROM inv_observation WHERE asset_id = ?
-		AND (field IN ('kind', 'hostname') OR (field IN ('model', 'os') AND source NOT IN ('nmap', 'scan')))`, id)
+		AND (field IN ('kind', 'hostname') OR (field IN ('model', 'os') AND source NOT IN ('nmap', 'scan')
+		AND NOT (field = 'os' AND source = 'passive' AND confidence < ?)))`, id, statedPassiveOS)
 	if err != nil {
 		return nil, fmt.Errorf("inventory: read observations: %w", err)
 	}
@@ -128,10 +134,16 @@ func facts(ctx context.Context, tx *sql.Tx, id string) (map[string]string, error
 	return out, nil
 }
 
-// differ reports two devices that name, model or OS themselves differently: two switches, not one.
+// differ reports two devices that name, model or OS themselves differently: two switches, not one. Host names compare by their
+// first label: reverse DNS says "ex4200.lan" where LLDP says "ex4200".
 func differ(a, b map[string]string) bool {
 	for _, f := range []string{"hostname", "model", "os"} {
-		if a[f] != "" && b[f] != "" && !strings.EqualFold(a[f], b[f]) {
+		x, y := a[f], b[f]
+		if f == "hostname" {
+			x, _, _ = strings.Cut(x, ".")
+			y, _, _ = strings.Cut(y, ".")
+		}
+		if x != "" && y != "" && !strings.EqualFold(x, y) {
 			return true
 		}
 	}

@@ -211,3 +211,17 @@ func TestContract_D515_AMovedObservationKeepsItsEvidence(t *testing.T) {
 		t.Errorf("%d moved observations with their evidence, want 1", n)
 	}
 }
+
+// Review M2 (round 2) of #722: what a device does not state itself keeps nothing apart: nmap's reverse DNS name "ex4200.lan" is the
+// LLDP system name "ex4200", and a DHCP request's OS family guess is no OS.
+func TestContract_D515_ADNSNameAndADHCPGuessDoNotKeepThemApart(t *testing.T) {
+	e := newEnv(t)
+	h := observe.AssetHint{MAC: jnprMgmt, IP: netip.MustParseAddr(jnprIP)}
+	e.record(seenAt(jnprMgmt, jnprIP, "")...)
+	e.record(observe.Observation{AssetHint: h, Field: observe.Hostname, Value: "ex4200.lan", Source: observe.Nmap, Confidence: 0.6},
+		observe.Observation{AssetHint: h, Field: observe.OS, Value: "Linux", Source: observe.Passive, Confidence: 0.4})
+	e.record(lldp(jnprBase, "ex4200")...)
+	if n := e.devices(); n != 1 {
+		t.Errorf("%d devices, want one", n)
+	}
+}

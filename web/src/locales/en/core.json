@@ -354,6 +354,7 @@
       "findings.auto_resolved": "Finding closed: version not affected",
       "findings.regraded": "Finding severity changed",
       "findings.deleted_with_asset": "Finding deleted with its device",
+      "findings.merged_with_asset": "Findings moved to the device their device joined",
       "honeypot.trap_enable": "Turn trap on",
       "honeypot.trap_disable": "Turn trap off",
       "honeypot.decoy_enable": "Turn decoy on",

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/netip"
 	"slices"
+	"strings"
 	"sync"
 	"time"
 
@@ -17,6 +18,7 @@ import (
 	"github.com/knt048/vedette/core/jobs"
 	"github.com/knt048/vedette/core/logexport"
 	"github.com/knt048/vedette/core/server"
+	"github.com/knt048/vedette/core/store"
 	hostclient "github.com/knt048/vedette/host/client"
 	agentintake "github.com/knt048/vedette/modules/agent-intake"
 	authoidc "github.com/knt048/vedette/modules/auth-oidc"
@@ -350,7 +352,8 @@ func buildServices(ctx context.Context, d *deps) error {
 	feed := findingsFeeds{st: fs.Store(), cache: &vulnCache{}}
 	// Backlog: findings the reconcile job creates for old KEV entries are D-78 backlog, silent for notify (findings does not import notify).
 	cfg := findings.ServiceConfig{DB: d.DB, Audit: d.Audit, Inventory: inv, Feeds: feed, Log: d.Log, Clock: d.Clock, Backlog: notify.WithBaseline,
-		HaveSince: findingsHave(fs.Store())} // "I have this" on Home scopes the one device it declared (D-484)
+		HaveSince: findingsHave(fs.Store()), // "I have this" on Home scopes the one device it declared (D-484)
+		Applied:   mitigationApplied(d.DB)}  // a merge keeps the finding a person marked a mitigation item applied on (D-515)
 	if d.Bus != nil {
 		cfg.Publisher = findingsPublisher{d.Bus}
 	}
@@ -435,18 +438,27 @@ func subscribe(d deps) {
 			return err
 		}))
 	}
+	// D-515 (review L5 of #722): a merged device's findings that could not move are not deleted by its asset.deleted, which follows
+	// on the same bus; findings' reconcile deals with them later. The set holds an id only between those two events.
+	var unmoved sync.Map
 	d.Bus.Subscribe(inventory.EventAssetMerged, on("findings", func(ctx context.Context, data any) error {
 		ev, ok := data.(inventory.MergeEvent)
 		if !ok {
 			return fmt.Errorf("unexpected payload %T", data)
 		}
 		_, err := d.Findings.OnAssetMerged(ctx, ev.From, ev.Into)
+		if err != nil {
+			unmoved.Store(ev.From, true)
+		}
 		return err
 	}))
 	d.Bus.Subscribe(inventory.EventAssetDeleted, on("findings", func(ctx context.Context, data any) error {
 		ev, ok := data.(inventory.AssetEvent)
 		if !ok {
 			return fmt.Errorf("unexpected payload %T", data)
+		}
+		if _, skip := unmoved.LoadAndDelete(ev.AssetID); skip {
+			return nil
 		}
 		_, err := d.Findings.OnAssetDeleted(ctx, ev.AssetID)
 		return err
@@ -688,4 +700,29 @@ func inventoryHasAddress(ctx context.Context, inv *inventory.Service, ip netip.A
 		return false, nil
 	}
 	return inv.AddressInUse(ctx, ip.String()) // uncapped (D-178): the 2000 row list forgets the oldest device
+}
+
+// mitigationApplied tells findings which findings have a mitigation item a person marked applied (mit_applied, D-515): the binary
+// reads mitigation's table so that findings does not.
+func mitigationApplied(db *store.DB) func(ctx context.Context, ids []string) (map[string]bool, error) {
+	return func(ctx context.Context, ids []string) (map[string]bool, error) {
+		out := map[string]bool{}
+		args := make([]any, len(ids))
+		for i, id := range ids {
+			args[i] = id
+		}
+		rows, err := db.Reader().QueryContext(ctx, `SELECT DISTINCT finding_id FROM mit_applied WHERE finding_id IN (`+strings.TrimSuffix(strings.Repeat("?,", len(ids)), ",")+`)`, args...)
+		if err != nil {
+			return nil, err
+		}
+		defer func() { _ = rows.Close() }()
+		for rows.Next() {
+			var id string
+			if err := rows.Scan(&id); err != nil {
+				return nil, err
+			}
+			out[id] = true
+		}
+		return out, rows.Err()
+	}
 }

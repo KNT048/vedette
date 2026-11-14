@@ -31,6 +31,9 @@ type ServiceConfig struct {
 	// answered and the CISA date from which that version-less product is matched on that device (INV-11, D-484). Only
 	// that one device is scoped, never the same product on other devices. nil: no such scope.
 	HaveSince func(ctx context.Context) (map[string]Have, error)
+	// Applied reports which of the findings have a mitigation item a person marked applied (mitigation's log, D-515): such a
+	// finding counts as decided when a merge must keep one of two findings of a CVE. nil: none has.
+	Applied func(ctx context.Context, findingIDs []string) (map[string]bool, error)
 }
 
 // Have is the scope of one device declared by "I have this" (INV-11): its software of KEV key Key that has no version
@@ -702,30 +705,85 @@ func (s *Service) OnAssetDeleted(ctx context.Context, assetID string) (int, erro
 }
 
 // OnAssetMerged handles inventory.asset.merged (D-515): device from was the same device as into, so its findings become into's,
-// with their status, history, mitigation log and AI results (those key on the finding id). For a CVE both devices hold, the
-// finding a person decided (resolved_by set and not SystemUser) stays and the other goes; when neither or both were decided, into's
-// stays. Version-needed items move too. It runs before into is matched again, which then finds the moved findings and creates and
-// announces nothing new. It returns how many findings moved.
+// with their status, history, mitigation log and AI results (those key on the finding id). For a CVE both devices hold, the finding
+// that ranks higher stays and the other goes: decided (a person closed it, wrote its history, or marked a mitigation item applied)
+// over confirmed over suspected; on a tie into's stays. Version-needed items move too. One audit row findings.merged_with_asset
+// names both devices, how many findings moved and every decided finding that lost to another decided one. It runs before into is
+// matched again, which then finds the moved findings and creates and announces nothing new. It returns how many findings moved.
 func (s *Service) OnAssetMerged(ctx context.Context, from, into string) (int, error) {
 	ctx, cancel := eventContext(ctx)
 	defer cancel()
 	var n int64
 	err := s.write(ctx, func(tx *sql.Tx, _ time.Time, _ func(string, any)) error {
-		person := `resolved_by IS NOT NULL AND resolved_by <> '` + SystemUser + `'`
-		for _, q := range []string{
-			`DELETE FROM fnd_finding WHERE asset_id = ?2 AND NOT (` + person + `) AND cve IN (SELECT cve FROM fnd_finding WHERE asset_id = ?1 AND ` + person + `)`,
-			`UPDATE fnd_finding SET asset_id = ?2 WHERE asset_id = ?1 AND cve NOT IN (SELECT cve FROM fnd_finding WHERE asset_id = ?2)`,
-		} {
-			res, err := tx.ExecContext(ctx, q, from, into)
-			if err != nil {
-				return fmt.Errorf("findings: moving the findings of a merged device: %w", err)
+		type pair struct{ cve, fromID, intoID string }
+		rows, err := tx.QueryContext(ctx, `SELECT f.cve, f.id, t.id FROM fnd_finding f JOIN fnd_finding t ON t.cve = f.cve AND t.asset_id = ?2 WHERE f.asset_id = ?1 ORDER BY f.cve`, from, into)
+		if err != nil {
+			return fmt.Errorf("findings: reading the findings of a merged device: %w", err)
+		}
+		var both []pair
+		var ids []string
+		for rows.Next() {
+			var p pair
+			if err := rows.Scan(&p.cve, &p.fromID, &p.intoID); err != nil {
+				_ = rows.Close()
+				return fmt.Errorf("findings: reading the findings of a merged device: %w", err)
 			}
-			if n, err = res.RowsAffected(); err != nil {
+			both = append(both, p)
+			ids = append(ids, p.fromID, p.intoID)
+		}
+		if err := rows.Close(); err != nil {
+			return err
+		}
+		applied := map[string]bool{}
+		if s.cfg.Applied != nil && len(ids) > 0 {
+			if applied, err = s.cfg.Applied(ctx, ids); err != nil {
+				return fmt.Errorf("findings: reading the applied mitigation items: %w", err)
+			}
+		}
+		rank := func(id string) (int, error) {
+			var decided bool
+			var status string
+			err := tx.QueryRowContext(ctx, `SELECT status, (resolved_by IS NOT NULL AND resolved_by <> ?2)
+				OR EXISTS (SELECT 1 FROM fnd_finding_history h WHERE h.finding_id = fnd_finding.id AND h.user <> ?2) FROM fnd_finding WHERE id = ?1`, id, SystemUser).Scan(&status, &decided)
+			switch {
+			case err != nil:
+				return 0, fmt.Errorf("findings: reading a finding of a merged device: %w", err)
+			case decided || applied[id]:
+				return 2, nil
+			case status == string(StatusConfirmed):
+				return 1, nil
+			}
+			return 0, nil
+		}
+		var lost []string // decided findings that lost to another decided one
+		for _, p := range both {
+			rf, err := rank(p.fromID)
+			if err != nil {
+				return err
+			}
+			ri, err := rank(p.intoID)
+			if err != nil {
+				return err
+			}
+			loser := p.fromID
+			if rf > ri {
+				loser = p.intoID
+			}
+			if rf == 2 && ri == 2 {
+				lost = append(lost, p.cve+" "+loser)
+			}
+			if _, err := tx.ExecContext(ctx, `DELETE FROM fnd_finding WHERE id = ?`, loser); err != nil {
 				return fmt.Errorf("findings: moving the findings of a merged device: %w", err)
 			}
 		}
+		res, err := tx.ExecContext(ctx, `UPDATE fnd_finding SET asset_id = ?2 WHERE asset_id = ?1`, from, into)
+		if err != nil {
+			return fmt.Errorf("findings: moving the findings of a merged device: %w", err)
+		}
+		if n, err = res.RowsAffected(); err != nil {
+			return fmt.Errorf("findings: moving the findings of a merged device: %w", err)
+		}
 		for _, q := range []string{
-			`DELETE FROM fnd_finding WHERE asset_id = ?1`,
 			`UPDATE OR IGNORE fnd_version_needed SET asset_id = ?2 WHERE asset_id = ?1`,
 			`DELETE FROM fnd_version_needed WHERE asset_id = ?1`,
 		} {
@@ -733,7 +791,14 @@ func (s *Service) OnAssetMerged(ctx context.Context, from, into string) (int, er
 				return fmt.Errorf("findings: moving the findings of a merged device: %w", err)
 			}
 		}
-		return nil
+		if n == 0 && len(both) == 0 {
+			return nil
+		}
+		detail := fmt.Sprintf("from %s: %d findings moved, %d held by both", from, n, len(both))
+		if len(lost) > 0 {
+			detail += "; decided findings removed: " + strings.Join(lost, ", ")
+		}
+		return s.cfg.Audit.Append(ctx, tx, audit.Entry{User: SystemUser, Action: "findings.merged_with_asset", Target: into, Detail: detail})
 	})
 	return int(n), err
 }

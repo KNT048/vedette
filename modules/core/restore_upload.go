@@ -16,6 +16,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -600,15 +601,23 @@ func (h *OSHandlers) writeTermsMarker(t firstRunTerms) error {
 	return nil
 }
 
-// readTermsMarker is the marker, ok false when there is none or it cannot be read (at most 4 KiB, a file core wrote).
+// termsVersionRE is the shape of vedette.TermsVersion: the Version date (or "undated") and 8 hex digits.
+var termsVersionRE = regexp.MustCompile(`^(\d{4}-\d{2}-\d{2}|undated)\.[0-9a-f]{8}$`)
+
+// readTermsMarker is the marker, ok false when there is none or it cannot be trusted: at most 4 KiB, a version of the
+// shape core writes, a time within the last termsMarkerMaxAge and not in the future (validated at the edge: the file sits
+// on disk, and a bad one falls back rather than reaching the database and the audit log).
 func (h *OSHandlers) readTermsMarker() (firstRunTerms, bool) {
 	var t firstRunTerms
 	if h.termsMarker == "" {
 		return t, false
 	}
 	b, err := os.ReadFile(h.termsMarker)
-	if err != nil || len(b) > 4096 || json.Unmarshal(b, &t) != nil || t.Version == "" {
-		return t, false
+	if err != nil || len(b) > 4096 || json.Unmarshal(b, &t) != nil || !termsVersionRE.MatchString(t.Version) {
+		return firstRunTerms{}, false
+	}
+	if now := h.now(); t.At.IsZero() || t.At.After(now) || now.Sub(t.At) > termsMarkerMaxAge {
+		return firstRunTerms{}, false
 	}
 	return t, true
 }
@@ -626,11 +635,11 @@ func (h *OSHandlers) dropTermsMarker() {
 // after the restart whoever opens which page. One host read, bounded; an error waits for the next start or the next read
 // of Settings -> Data, never a retry per request. A run the host still checks is followed to its end.
 func (h *OSHandlers) settleFirstRunRestore() {
-	t, ok := h.readTermsMarker()
-	if !ok {
+	fi, err := os.Stat(h.termsMarker)
+	if err != nil {
 		return
 	}
-	if h.now().Sub(t.At) > termsMarkerMaxAge {
+	if time.Since(fi.ModTime()) > termsMarkerMaxAge { // the file's own age: its content is checked when it is used
 		h.dropTermsMarker()
 		return
 	}

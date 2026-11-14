@@ -445,7 +445,7 @@ func (h *OSHandlers) settleRestore(ctx context.Context, run api.Run) error {
 			// A first-run restore succeeded: this is the restored database, and the operator accepted the terms before it
 			// started (POST /core/setup/restore refuses without, D-544): the version shown and the time, from the marker.
 			t, ok := h.readTermsMarker()
-			if !ok { // the marker is gone (another disk, removed by hand): the version of this software, the start of the run
+			if !ok { // no marker, or one that cannot be trusted: the version of this software, the start of the run
 				t = firstRunTerms{Version: vedette.TermsVersion(), At: run.StartedAt.UTC()}
 			}
 			return acceptTerms(ctx, tx, h.audit, termsAcceptance{By: setupActor, At: t.At, Version: t.Version, Via: "restore"})

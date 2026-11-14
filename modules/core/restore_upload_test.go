@@ -377,6 +377,34 @@ func TestSetupRestoreNeedsTheTermsAndADoneRestoreKeepsThem(t *testing.T) {
 	}
 }
 
+// D-544: a marker that cannot be trusted (another version shape, a time in the future) is not recorded: the restored data
+// gets this software's version and the start of the run, and the marker is gone.
+func TestSetupRestoreIgnoresAMarkerItCannotTrust(t *testing.T) {
+	t.Parallel()
+	e, f := newRestoreEnv(t)
+	code := e.openSetup()
+	key := newKey(t)
+	up := e.upload(code, backupOf(t, e.backupDB(key)))
+	wantOK(t, up, 200)
+	wantOK(t, e.client().post("/core/setup/restore", map[string]any{"setup_code": code, "accept_terms": true, "upload_id": up.str("id"), "key": base64.StdEncoding.EncodeToString(key)}), 202)
+	marker := filepath.Join(e.m.CoreData, "first-run-terms.json")
+	if err := os.WriteFile(marker, []byte(`{"version":"evil 2026-11-14","at":"2099-01-01T00:00:00Z"}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	f.finish(api.StatusSucceeded, api.BackupRestoreResult{RestoredBackupID: "eeee0000eeee0000eeee0000eeee0000"}, "")
+	e.setZone("UTC")
+	e.newHandlers(t, f, 0)
+	if n := e.env.Count(t, "SELECT count(*) FROM core_setting WHERE key = 'terms.accepted' AND value LIKE '%\"version\":\""+vedette.TermsVersion()+"\"%' AND value LIKE '%\"at\":\"2026-11-09T12:00:00Z\"%' AND value NOT LIKE '%evil%'"); n != 1 {
+		t.Fatal("an untrusted marker reached the acceptance, or the fallback was not used")
+	}
+	if e.env.Count(t, "SELECT count(*) FROM core_audit WHERE target LIKE '%evil%'") != 0 {
+		t.Fatal("an untrusted marker reached the audit log")
+	}
+	if _, err := os.Stat(marker); !errors.Is(err, fs.ErrNotExist) {
+		t.Fatalf("the marker stayed: %v", err)
+	}
+}
+
 // D-544: GET /core/setup/restore on a box that is set up never reaches the host; a first-run restore whose host is down at
 // start-up is asked about once, and the page still reads done.
 func TestSetupRestoreDoneNeverAsksTheHost(t *testing.T) {

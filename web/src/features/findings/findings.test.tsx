@@ -190,6 +190,11 @@ describe('findings: f-2, f-3 chưa có khuyến nghị đã xác nhận (D-21)',
     expect(screen.getByText('Fixed in 7.4.3: upgrade FortiGate-60F from 7.4.1 to 7.4.3 or later.')).toBeInTheDocument()
     expect(screen.getByText(/Source: NVD affected versions/)).toBeInTheDocument()
     a.unmount()
+    // D-556: ranges from the CVE.org record name that source, not NVD
+    const o = note({ ...src, source: "CVE.org affected versions (from the CVE record's CNA)", kind: 'fixed', version: '10.2.5', fixed: '10.2.9-h1' })
+    expect(screen.getByText(/Source: CVE\.org affected versions \(from the CVE record's CNA\)\. Check the vendor advisory/)).toBeInTheDocument()
+    expect(screen.queryByText(/NVD/)).not.toBeInTheDocument()
+    o.unmount()
     const b = note({ ...src, kind: 'up_to', version: '5.6.8', fixed: '5.6.10' })
     expect(screen.getByText(/Versions up to 5\.6\.10 are affected, and FortiGate-60F runs 5\.6\.8: upgrade to a release after 5\.6\.10\./)).toBeInTheDocument()
     expect(screen.queryByText(/Fixed in/)).not.toBeInTheDocument()
@@ -216,7 +221,7 @@ describe('findings: f-2, f-3 chưa có khuyến nghị đã xác nhận (D-21)',
     expect(screen.getByText(/If you installed .* from Ubuntu's packages, install its security updates instead/)).toBeInTheDocument()
     g.unmount()
     const e = note({ ...src, kind: 'branches', version: '7.0.x', fixed: '', no_fix: 4, branches: [{ branch: '7.0', fixed: '7.0.9' }] })
-    expect(screen.getByText(/cannot read the version "7\.0\.x" of FortiGate-60F.*7\.0 \u2192 7\.0\.9, NVD names no fixed release for 4 more line\(s\)/)).toBeInTheDocument()
+    expect(screen.getByText(/cannot read the version "7\.0\.x" of FortiGate-60F.*7\.0 \u2192 7\.0\.9, no fixed release named for 4 more line\(s\)/)).toBeInTheDocument()
     expect(screen.queryByText(/has no version yet/)).not.toBeInTheDocument()
     e.unmount()
     // D-516: the distribution's own fixed package for the device's release, with its source

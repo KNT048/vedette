@@ -61,3 +61,29 @@ func TestRefNameOfADeclaredDeviceWhoseProductIsItsKind(t *testing.T) {
 		t.Errorf("discovered device = %q, %v", n, sure)
 	}
 }
+
+// Walk 3 W8-2: a vulnerability notice and a log incident name the device as the Devices page does: a PC with no host name is
+// "Hon Hai Precision Ind. Co.,Ltd.", not its bare IP; the notice adds the address, like the new-device incident.
+func TestFindingAndLogIncidentsUseTheDevicesName(t *testing.T) {
+	t.Parallel()
+	s := newStack(t)
+	ctx := t.Context()
+	const pc, ip = "aa:bb:cc:00:00:21", "192.168.18.181"
+	if err := s.d.Inventory.Record(ctx, []observe.Observation{
+		{AssetHint: observe.AssetHint{MAC: pc, IP: netip.MustParseAddr(ip)}, Field: observe.Vendor, Value: "Hon Hai Precision Ind. Co.,Ltd.", Source: observe.Passive, Confidence: 0.4},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	l, err := s.d.Inventory.Devices(ctx)
+	if err != nil || len(l.Items) != 1 {
+		t.Fatalf("devices %+v %v", l, err)
+	}
+	id, want := l.Items[0].ID, "Hon Hai Precision Ind. Co.,Ltd. ("+ip+")"
+	if name, ok, err := (notifyDevices{s.d.Inventory}).DeviceName(ctx, id); err != nil || !ok || name != want {
+		t.Errorf("notice name %q %v %v, want %q", name, ok, err, want)
+	}
+	got, err := logsInventory{s.d.Inventory}.DevicesByIP(ctx, []string{ip, "192.168.18.9"})
+	if err != nil || len(got) != 1 || got[ip].ID != id || got[ip].Name != "Hon Hai Precision Ind. Co.,Ltd." {
+		t.Errorf("log device %+v %v, want %s and the Devices name", got, err, id)
+	}
+}

@@ -17,6 +17,7 @@ const DEFS: Def[] = [
   { id: 'cisa-kev', name: 'CISA KEV', kind: 'vulnerabilities', format: 'json', url: 'https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json', license: 'CC0', records: (kev as { vulns: unknown[] }).vulns.length },
   { id: 'first-epss', name: 'FIRST EPSS', kind: 'vulnerabilities', format: 'json', url: 'https://api.first.org/data/v1/epss', license: 'Attribution: EPSS by FIRST', records: 262140 },
   { id: 'nvd-kev', name: 'NVD affected versions', kind: 'vulnerabilities', format: 'json', url: 'https://services.nvd.nist.gov/rest/json/cves/2.0', license: 'Public domain. This product uses the NVD API but is not endorsed or certified by the NVD.', records: 1779 },
+  { id: 'cve-org', name: 'CVE.org affected versions', kind: 'vulnerabilities', format: 'json', url: 'https://raw.githubusercontent.com/CVEProject/cvelistV5/main/cves', license: 'CVE Program Terms of Use. CVE records © The MITRE Corporation.', records: 41 },
   // D-516: Ubuntu and Debian say which package version fixes a CVE (backports); each file covers every release
   { id: 'ubuntu-osv', name: 'Ubuntu fixed versions', kind: 'vulnerabilities', format: 'json', url: 'https://security-metadata.canonical.com/osv/osv-all.tar.xz', license: 'CC BY-SA 4.0, Canonical Ltd. Ubuntu security data.', records: 2131 },
   { id: 'ubuntu-vex', name: 'Ubuntu not affected', kind: 'vulnerabilities', format: 'json', url: 'https://security-metadata.canonical.com/vex/vex-all.tar.xz', license: 'CC BY-SA 4.0, Canonical Ltd. Ubuntu security data.', records: 3294 },
@@ -34,7 +35,7 @@ interface Config { builtin: Record<string, BuiltinState>; custom: Feed[] }
 
 const ago = (h: number) => new Date(Date.now() - h * 36e5).toISOString()
 const seedBuiltin = (clean: boolean): Record<string, BuiltinState> => Object.fromEntries(DEFS.map((d, i) => [d.id, {
-  enabled: true, interval_hours: d.kind === 'ioc' ? 6 : d.id === 'cisa-kev' ? 1 : 24, url: d.url,
+  enabled: true, interval_hours: d.kind === 'ioc' ? 6 : d.id === 'cisa-kev' || d.id === 'cve-org' ? 1 : 24, url: d.url,
   last_fetch: clean ? null : ago(1 + i * 0.7), records: clean ? null : d.records, status: clean ? 'never' as const : 'ok' as const, error: null,
 }]))
 

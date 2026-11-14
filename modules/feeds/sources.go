@@ -12,6 +12,7 @@ const (
 	DecoderEPSS   Decoder = "epss"   // EPSSBatchURLs and ParseEPSS (api.first.org JSON)
 	DecoderNuclei Decoder = "nuclei" // ParseNucleiCVEs
 	DecoderNVD    Decoder = "nvd"    // NVDPageURL and ParseNVD (NVD CVE API 2.0, ?hasKev; D-500)
+	DecoderCVEOrg Decoder = "cveorg" // CVEOrgRecordURL and ParseCVERecord (cvelistV5 records; D-556)
 	// The distribution backport data (D-516): ParseUbuntuOSV, ParseUbuntuVEX, ParseDebianTracker, read as a stream.
 	DecoderUbuntuOSV     Decoder = "ubuntu-osv"
 	DecoderUbuntuVEX     Decoder = "ubuntu-vex"
@@ -27,7 +28,7 @@ type Source struct {
 	Format        Format
 	URL           string // default address; Reset restores it
 	License       string
-	IntervalHours int // default schedule: 1 for the CISA list (S-FEED-1, D-485), 24 for the other vulnerability feeds, 6 for IOC
+	IntervalHours int // default schedule: 1 for the CISA list (S-FEED-1, D-485) and CVE.org (D-556), 24 for the other vulnerability feeds, 6 for IOC
 	Decoder       Decoder
 	Parser        *Parser // set when Decoder == DecoderParser
 	MaxRows       int     // row limit of this source; 0 means MaxRows (50,000)
@@ -64,6 +65,10 @@ func linesParser() *Parser {
 // sentence (https://nvd.nist.gov/developers/terms-of-use).
 const nvdNotice = "Public domain. This product uses the NVD API but is not endorsed or certified by the NVD."
 
+// cveOrgNotice is the licence line of the CVE.org feed: the CVE Program Terms of Use allow copies that reproduce MITRE's
+// copyright designation and the licence (https://www.cve.org/Legal/TermsOfUse; THIRD_PARTY_NOTICES.md has the clause).
+const cveOrgNotice = "CVE Program Terms of Use. CVE records © The MITRE Corporation."
+
 // canonicalNotice and debianNotice are the licence lines of the distribution feeds (D-516). Canonical publishes its
 // security metadata under CC BY-SA 4.0 (https://security-metadata.canonical.com/osv/LICENSE); the box keeps and shows it
 // for its own operator and Vedette ships none of it. The Debian Security Tracker states no licence for its JSON; it is
@@ -79,6 +84,7 @@ var builtinSources = []Source{
 	{ID: "cisa-kev", Name: "CISA KEV", Kind: KindVulnerabilities, Format: FormatJSON, URL: "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json", License: "CC0", IntervalHours: 1, Decoder: DecoderKEV},
 	{ID: "first-epss", Name: "FIRST EPSS", Kind: KindVulnerabilities, Format: FormatJSON, URL: "https://api.first.org/data/v1/epss", License: "Attribution: EPSS by FIRST", IntervalHours: 24, Decoder: DecoderEPSS},
 	{ID: "nvd-kev", Name: "NVD affected versions", Kind: KindVulnerabilities, Format: FormatJSON, URL: "https://services.nvd.nist.gov/rest/json/cves/2.0", License: nvdNotice, IntervalHours: 24, Decoder: DecoderNVD},
+	{ID: "cve-org", Name: "CVE.org affected versions", Kind: KindVulnerabilities, Format: FormatJSON, URL: "https://raw.githubusercontent.com/CVEProject/cvelistV5/main/cves", License: cveOrgNotice, IntervalHours: 1, Decoder: DecoderCVEOrg},
 	{ID: ubuntuOSVFeedID, Name: "Ubuntu fixed versions", Kind: KindVulnerabilities, Format: FormatJSON, URL: "https://security-metadata.canonical.com/osv/osv-all.tar.xz", License: canonicalNotice, IntervalHours: 24, Decoder: DecoderUbuntuOSV},
 	{ID: ubuntuVEXFeedID, Name: "Ubuntu not affected", Kind: KindVulnerabilities, Format: FormatJSON, URL: "https://security-metadata.canonical.com/vex/vex-all.tar.xz", License: canonicalNotice, IntervalHours: 24, Decoder: DecoderUbuntuVEX},
 	{ID: debianTrackerFeedID, Name: "Debian security tracker", Kind: KindVulnerabilities, Format: FormatJSON, URL: "https://security-tracker.debian.org/tracker/data/json", License: debianNotice, IntervalHours: 24, Decoder: DecoderDebianTracker},

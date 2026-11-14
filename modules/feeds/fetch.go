@@ -71,7 +71,7 @@ type Request struct {
 	// tens of megabytes and are parsed while they download). The reader stops with ErrTooLarge past MaxBytes, counted
 	// after the transport's gzip decoding; the client's whole-request timeout is lifted, so the context deadline is the
 	// bound. Its error is the error of the fetch.
-	Stream func(io.Reader) error
+	Stream func(io.Reader) error `json:"-"`
 }
 
 // Response is what came back.

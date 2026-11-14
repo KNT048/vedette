@@ -43088,7 +43088,8 @@ type ExposureGetExposureTargetsIDOK struct {
 	// exact sentence shown next to the button.
 	Commitment NilExposureGetExposureTargetsIDOKCommitment `json:"commitment"`
 	// The sentence the first Scan now of an administrator confirms, with this target in it; null once the
-	// target has a commitment.
+	// target has a commitment of the current sentence; an older one is asked again once (D-559), so a
+	// target with a commitment can carry it too.
 	CommitmentNotice NilExposureGetExposureTargetsIDOKCommitmentNotice `json:"commitment_notice"`
 	CreatedAt        time.Time                                         `json:"created_at"`
 	// IP: verified_at + 30 days. Domain: null (the TXT record is re-checked right before every scan).
@@ -45001,7 +45002,8 @@ type ExposureGetExposureTargetsOKItemsItem struct {
 	// exact sentence shown next to the button.
 	Commitment NilExposureGetExposureTargetsOKItemsItemCommitment `json:"commitment"`
 	// The sentence the first Scan now of an administrator confirms, with this target in it; null once the
-	// target has a commitment.
+	// target has a commitment of the current sentence; an older one is asked again once (D-559), so a
+	// target with a commitment can carry it too.
 	CommitmentNotice NilExposureGetExposureTargetsOKItemsItemCommitmentNotice `json:"commitment_notice"`
 	CreatedAt        time.Time                                                `json:"created_at"`
 	// IP: verified_at + 30 days. Domain: null (the TXT record is re-checked right before every scan).
@@ -45702,7 +45704,8 @@ type ExposurePostExposureBoxIPVerifyOKItemsItem struct {
 	// exact sentence shown next to the button.
 	Commitment NilExposurePostExposureBoxIPVerifyOKItemsItemCommitment `json:"commitment"`
 	// The sentence the first Scan now of an administrator confirms, with this target in it; null once the
-	// target has a commitment.
+	// target has a commitment of the current sentence; an older one is asked again once (D-559), so a
+	// target with a commitment can carry it too.
 	CommitmentNotice NilExposurePostExposureBoxIPVerifyOKItemsItemCommitmentNotice `json:"commitment_notice"`
 	CreatedAt        time.Time                                                     `json:"created_at"`
 	// IP: verified_at + 30 days. Domain: null (the TXT record is re-checked right before every scan).
@@ -46635,7 +46638,8 @@ type ExposurePostExposureTargetsCreated struct {
 	// exact sentence shown next to the button.
 	Commitment NilExposurePostExposureTargetsCreatedCommitment `json:"commitment"`
 	// The sentence the first Scan now of an administrator confirms, with this target in it; null once the
-	// target has a commitment.
+	// target has a commitment of the current sentence; an older one is asked again once (D-559), so a
+	// target with a commitment can carry it too.
 	CommitmentNotice NilExposurePostExposureTargetsCreatedCommitmentNotice `json:"commitment_notice"`
 	CreatedAt        time.Time                                             `json:"created_at"`
 	// IP: verified_at + 30 days. Domain: null (the TXT record is re-checked right before every scan).
@@ -47754,7 +47758,8 @@ type ExposurePostExposureTargetsIDVerifyOKTarget struct {
 	// exact sentence shown next to the button.
 	Commitment NilExposurePostExposureTargetsIDVerifyOKTargetCommitment `json:"commitment"`
 	// The sentence the first Scan now of an administrator confirms, with this target in it; null once the
-	// target has a commitment.
+	// target has a commitment of the current sentence; an older one is asked again once (D-559), so a
+	// target with a commitment can carry it too.
 	CommitmentNotice NilExposurePostExposureTargetsIDVerifyOKTargetCommitmentNotice `json:"commitment_notice"`
 	CreatedAt        time.Time                                                      `json:"created_at"`
 	// IP: verified_at + 30 days. Domain: null (the TXT record is re-checked right before every scan).
@@ -57133,8 +57138,9 @@ type FindingsGetFindingsIDOKFixedIn struct {
 	More int `json:"more"`
 	// Release lines NVD gives no fixed release for (a range that ends at an affected version).
 	NoFix int `json:"no_fix"`
-	// Where the versions come from: "NVD affected versions", or with distro_fixed "Ubuntu security data" /
-	// "Debian Security Tracker".
+	// Where the versions come from: "NVD affected versions", "CVE.org affected versions (from the CVE
+	// record's CNA)" when NVD has none (D-556), or with distro_fixed "Ubuntu security data" / "Debian
+	// Security Tracker" (D-516).
 	Source string `json:"source"`
 	// The device's version; for branches empty when it has none, else the text Vedette cannot read.
 	Version string `json:"version"`
@@ -62180,8 +62186,9 @@ type FindingsPostFindingsIDAiOKFixedIn struct {
 	More int `json:"more"`
 	// Release lines NVD gives no fixed release for (a range that ends at an affected version).
 	NoFix int `json:"no_fix"`
-	// Where the versions come from: "NVD affected versions", or with distro_fixed "Ubuntu security data" /
-	// "Debian Security Tracker".
+	// Where the versions come from: "NVD affected versions", "CVE.org affected versions (from the CVE
+	// record's CNA)" when NVD has none (D-556), or with distro_fixed "Ubuntu security data" / "Debian
+	// Security Tracker" (D-516).
 	Source string `json:"source"`
 	// The device's version; for branches empty when it has none, else the text Vedette cannot read.
 	Version string `json:"version"`
@@ -65127,8 +65134,9 @@ type FindingsPostFindingsIDAppliedOKFixedIn struct {
 	More int `json:"more"`
 	// Release lines NVD gives no fixed release for (a range that ends at an affected version).
 	NoFix int `json:"no_fix"`
-	// Where the versions come from: "NVD affected versions", or with distro_fixed "Ubuntu security data" /
-	// "Debian Security Tracker".
+	// Where the versions come from: "NVD affected versions", "CVE.org affected versions (from the CVE
+	// record's CNA)" when NVD has none (D-556), or with distro_fixed "Ubuntu security data" / "Debian
+	// Security Tracker" (D-516).
 	Source string `json:"source"`
 	// The device's version; for branches empty when it has none, else the text Vedette cannot read.
 	Version string `json:"version"`
@@ -68095,8 +68103,9 @@ type FindingsPostFindingsIDStatusOKFixedIn struct {
 	More int `json:"more"`
 	// Release lines NVD gives no fixed release for (a range that ends at an affected version).
 	NoFix int `json:"no_fix"`
-	// Where the versions come from: "NVD affected versions", or with distro_fixed "Ubuntu security data" /
-	// "Debian Security Tracker".
+	// Where the versions come from: "NVD affected versions", "CVE.org affected versions (from the CVE
+	// record's CNA)" when NVD has none (D-556), or with distro_fixed "Ubuntu security data" / "Debian
+	// Security Tracker" (D-516).
 	Source string `json:"source"`
 	// The device's version; for branches empty when it has none, else the text Vedette cannot read.
 	Version string `json:"version"`

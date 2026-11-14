@@ -66,12 +66,12 @@ This needs `PublicServiceProber`/`parseAnswer` and `IsPublicIPv4` to move into a
 
 ## 3. Legal limits
 - **Authorization:** D-5 and D-26 as amended by D-473 (an admin with two-step sign-in records the confirmation on the first Scan now). Ownership is verified: DNS TXT is re-read before every scan, and an IP must be the box's own egress, current at scan time.
-  - **Ask kien:** the deeper scan changes what the person authorizes. The proposal is that the sentence names it ("…service identification, safe vulnerability templates and a passive web scan"), and that existing commitments are asked for again once.
+  - **Decided: D-559** (kien 2026-11-14): the sentence names service identification, safe checks for known exploited vulnerabilities and a passive web scan; existing commitments are asked for again once.
 - **D-57 (7):** names under a verified domain get HTTP checks by name only. nmap and nuclei network templates go only to `ScannableIP` addresses.
-  - **Ask kien:** D-229 narrowed "HTTP checks by name" to one `GET /`. nuclei http templates and ZAP by name need that widened.
+  - **Decided: D-559** (K-5): by-name checks may run nuclei safe http templates and ZAP passive (spider + passive rules, no form posting, no AJAX spider).
 - **LEGAL §3:** active scans only on verified assets. Every probe is logged with target, time and template, at least 90 days, before it is sent. No exploit templates.
 - **Templates (D-125 safe set):** the pack is `kev,vkev` minus {dos, intrusive, fuzz, oast}, with only http/tcp/ssl protocols and `-ni -duc -dr -nh`.
-  - The non-KEV pack (b2) also excludes `default-login`, `brute-force`, `sqli`, `xss`, `injection`, `file-upload` and anything that sends a credential. It allows `ssl`, `tech`, and `exposure`/`misconfig` at severity medium or above. **kien decides.**
+  - The non-KEV pack (b2) also excludes `default-login`, `brute-force`, `sqli`, `xss`, `injection`, `file-upload` and anything that sends a credential. It allows `ssl`, `tech`, and `exposure`/`misconfig` at severity medium or above. **Decided: D-559** (K-6).
 - **ZAP baseline:** passive only: the spider plus passive rules, never the active scan. Form posting is off (`spider.processform=false`, `spider.postform=false`), and there is no AJAX spider.
 - **Rate limits:**
   - nmap: `--max-rate 100`, `--max-retries 2`.

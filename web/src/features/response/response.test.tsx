@@ -6,6 +6,7 @@ import { createMemoryRouter, MemoryRouter, RouterProvider } from 'react-router'
 import { Toaster } from 'sonner'
 import { makeQueryClient } from '@/app/App'
 import { renderApp } from '@/test/render'
+import { server } from '@/test/server'
 import { eachOption } from '@/test/formMatrix'
 import { collection } from '@/mocks/db'
 import { connectorsStore, type Connector } from '@/mocks/connectors'
@@ -15,6 +16,7 @@ import type { Role } from '@/lib/session'
 import type { ActionRequest, AiState, Blocklist, Catalog, Condition, LogEntry, PlanList, ProposeResult, Rule, RuleInput, RunSummary, SettingsView, Simulation } from './types'
 import ResponseSettings from './ResponseSettings'
 import ResponsePage from './ResponsePage'
+import FindingPanel from './FindingPanel'
 import { ActionDialog } from './CatalogEditor'
 import { RequestCard } from './RequestCard'
 import { RuleDialog } from './RuleEditor'
@@ -1489,6 +1491,22 @@ describe('response: screens', () => {
     renderApp('/findings/f-1')
     expect(await screen.findByRole('heading', { name: 'Response plan' })).toBeInTheDocument()
     expect(await screen.findByText(/Turn off virtual IP NAS-PHOTO-443 on FW-HQ/, { selector: 'p' })).toBeInTheDocument()
+  })
+
+  it('response off: the finding page does not call the module, also while the module list loads (W10-1, no 404 in the console)', async () => {
+    modulesStore.update((l) => l.map((m) => (m.id === 'response' ? { ...m, enabled: false } : m)))
+    const asked: string[] = []
+    let modules = false
+    server.events.on('request:start', ({ request }) => {
+      const path = new URL(request.url).pathname
+      if (path.endsWith('/modules')) modules = true
+      if (path.includes('/response/')) asked.push(path)
+    })
+    const { container } = render(<QueryClientProvider client={makeQueryClient()}><MemoryRouter><FindingPanel findingId="f-1" /></MemoryRouter></QueryClientProvider>)
+    await waitFor(() => expect(modules).toBe(true)) // the first render, before the module list arrives, is the one that used to ask
+    await waitFor(() => expect(container).toBeEmptyDOMElement())
+    expect(asked).toEqual([])
+    server.events.removeAllListeners()
   })
 
   it('a requested proposal on the finding page links to the Requests tab (D-464: ?tab=, not #requests)', async () => {

@@ -817,6 +817,34 @@ describe("exposure: an administrator's first Scan now is the confirmation (D-473
     expect((await call('GET', `/exposure/targets/${id}`)).json.commitment).toEqual(first)
     expect(auditStore.get().filter((a) => a.action === 'exposure.commitment' && a.target === 'api.acme.example')).toHaveLength(1)
   })
+
+  it('the list and an operator read an older commitment honestly: needs confirming again, not "Commitment confirmed"', async () => {
+    withTwoStep(true)
+    renderApp('/exposure/xt-6', { role: 'operator' })
+    expect(await screen.findByText(/the confirmation text changed\. An administrator confirms 203\.0\.113\.11 once with the next Scan now/)).toBeInTheDocument()
+    expect(screen.getByText('Needs confirming again')).toBeInTheDocument()
+    expect(screen.queryByText('Commitment confirmed')).not.toBeInTheDocument()
+    expect(screen.queryByText(/must run the first scan/)).not.toBeInTheDocument()
+    expect((await call('POST', '/exposure/targets/xt-6/scan', undefined, 'operator')).json.error.message).toMatch(/confirmation text changed/)
+    expect((await call('POST', '/exposure/targets/xt-6/scan', {})).json.error.code).toBe('notice_changed')
+  })
+
+  it('xt-6 is blocked with the new sentence and the changed line; an operator is refused; the administrator re-confirms once', async () => {
+    withTwoStep(true)
+    const before = (await call('GET', '/exposure/targets/xt-6')).json
+    expect([before.blocked_reason, before.commitment.version, before.commitment_notice.version]).toEqual(['no_commitment', '2026-11-13', NOTICE_VERSION])
+    const op = await call('POST', '/exposure/targets/xt-6/scan', undefined, 'operator')
+    expect([op.json.error.code, op.json.error.message]).toEqual(['commitment_required', expect.stringMatching(/confirmation text changed/)])
+    expect((await call('POST', '/exposure/targets/xt-6/scan', { notice_version: '2026-11-13' })).json.error.code).toBe('notice_changed')
+    renderApp('/exposure/xt-6')
+    const note = await screen.findByRole('note', { name: 'Pressing Scan now records this confirmation' })
+    expect(within(note).getByText(/The confirmation text changed: it now names service identification/)).toBeInTheDocument()
+    expect(within(note).getByText(before.commitment_notice.text)).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Scan now' }))
+    await waitFor(async () => expect((await call('GET', '/exposure/targets/xt-6')).json.commitment.version).toBe(NOTICE_VERSION))
+    expect((await call('GET', '/exposure/targets/xt-6')).json.commitment_notice).toBeNull()
+    expect(auditStore.get().some((a) => a.action === 'exposure.commitment' && a.target === before.value && a.detail?.includes('re-confirmed') && a.detail.includes('2026-11-13'))).toBe(true)
+  })
 })
 
 describe('exposure: delete and roles', () => {

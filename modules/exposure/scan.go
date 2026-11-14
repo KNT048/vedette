@@ -182,6 +182,9 @@ func (s *Service) refusal(t Target, r BlockedReason, now time.Time) error {
 	case BlockedTxtMissing:
 		return apiErr(409, "txt_missing", "The DNS TXT record %s is no longer on %s, so it cannot be scanned. Add the record back, then check again.", txtRecord(t.Token), t.Value)
 	case BlockedNoCommitment:
+		if t.Commitment != nil {
+			return errNeedAdminReconfirm(t.Value)
+		}
 		return errNeedAdminFirstScan(t.Value)
 	case BlockedNotCurrent:
 		return apiErr(409, "ip_not_current", "This box no longer reaches the Internet through %s; it was last seen %s. Scans of it are paused until the box uses it again.", t.Value, s.momentText(t.VerifiedAt))

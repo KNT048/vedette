@@ -32,7 +32,7 @@ type FixedIn struct {
 	DistroFixed   string `json:"distro_fixed"`
 	DistroRelease string `json:"distro_release"`
 	DistroPro     bool   `json:"distro_pro"`
-	Source        string `json:"source"` // FixedInSource, or DistroSource when DistroFixed is set
+	Source        string `json:"source"` // FixedInSource, FixedInSourceCVEOrg (D-556), or DistroSource when DistroFixed is set
 }
 
 // FixedBranch is the fix of one release line, the line named by the start of its range ("7.4" -> "7.4.3"); Branch is
@@ -42,8 +42,12 @@ type FixedBranch struct {
 	Fixed  string `json:"fixed"`
 }
 
-// FixedInSource labels where the fixed versions come from.
-const FixedInSource = "NVD affected versions"
+// FixedInSource labels where the fixed versions come from; FixedInSourceCVEOrg when NVD has none and they come from the
+// CNA's CVE.org record (D-556).
+const (
+	FixedInSource       = "NVD affected versions"
+	FixedInSourceCVEOrg = "CVE.org affected versions (from the CVE record's CNA)"
+)
 
 const maxFixedBranches = 5
 
@@ -169,6 +173,9 @@ func fixedInSoftware(in swInfo, v Vuln, key []identity) *FixedIn {
 		return nil
 	}
 	f.Source = FixedInSource
+	if v.fromCVEOrg() {
+		f.Source = FixedInSourceCVEOrg
+	}
 	if f.Kind != "distro" {
 		f.Distro = distroName(in)
 	}

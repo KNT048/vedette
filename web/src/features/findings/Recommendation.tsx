@@ -52,7 +52,7 @@ function ApplyButton({ finding, item }: { finding: FindingDetail; item: ApplyIte
   )
 }
 
-/** Phiên bản vá cho đúng thiết bị này, từ khoảng phiên bản NVD (D-488): chỉ nói điều dữ liệu cho, luôn ghi nguồn. */
+/** Phiên bản vá cho đúng thiết bị này, từ khoảng phiên bản NVD hoặc bản ghi CVE.org (D-488, D-556): chỉ nói điều dữ liệu cho, luôn ghi đúng nguồn (`fixed_in.source`). */
 export function FixedInNote({ finding }: { finding: FindingDetail }) {
   const { t } = useTranslation('findings')
   const f = finding.fixed_in
@@ -61,7 +61,7 @@ export function FixedInNote({ finding }: { finding: FindingDetail }) {
   const product = finding.kev?.display || t('rec.theSoftware')
   let text: string
   let extra: string | null = f.distro ? t('rec.fixedIfDistro', { distro: f.distro, product }) : null
-  let source = t('rec.fixedSource')
+  let source = t('rec.fixedSource', { source: f.source })
   if (f.kind === 'distro' && f.distro_fixed) {
     // D-516: the distribution's own fixed package for this release
     text = t('rec.fixedDistroIn', { fixed: f.distro_fixed, distro: f.distro, release: f.distro_release, device, product, version: f.version })

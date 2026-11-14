@@ -65,8 +65,8 @@ func TestWiringKEVMatchQueuesOneNoticeWithRealTexts(t *testing.T) {
 	if n.Kind != notify.KindVuln || len(n.CVEs) != 1 || n.CVEs[0] != "CVE-2026-4001" {
 		t.Fatalf("notice kind or CVE wrong: %+v", n)
 	}
-	if len(n.Devices) != 1 || n.Devices[0] != "192.168.30.1" {
-		t.Fatalf("devices = %v, want the device name", n.Devices)
+	if len(n.Devices) != 1 || n.Devices[0] != "FortiGate (192.168.30.1)" { // the Devices name with its address (W8-2)
+		t.Fatalf("devices = %v, want the Devices name", n.Devices)
 	}
 	if n.Product != "FortiGate firewall (FortiOS)" || n.Title != "FortiGate firewall (FortiOS) is being exploited (CVE-2026-4001)" {
 		t.Fatalf("product/title: %q / %q", n.Product, n.Title)

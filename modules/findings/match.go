@@ -86,9 +86,33 @@ type Vuln struct {
 	EPSS       float64   // 0 when unknown
 	DateAdded  time.Time // when CISA added the entry to KEV; zero when unknown (Reconcile treats that as backlog)
 	Affected   []Affected
+	RangesFrom string // where Affected comes from: "" NVD, RangesCVEOrg or RangesCVEOrgPartial the CNA's CVE.org record (D-556)
 	// Distro is what Ubuntu and Debian say about the CVE in their own packages (D-516): per release and source package,
 	// fixed in a version or not affected. Empty when the distribution feeds are off or have no word on it.
 	Distro []DistroFix
+}
+
+// RangesCVEOrg and RangesCVEOrgPartial mark a Vuln whose affected versions come from the CNA's CVE.org record because
+// NVD has none (D-556). Only a complete list (the CNA states what an unlisted version is) may prove "not affected"; on a
+// partial one a version outside every row stays a product match, never closed.
+const (
+	RangesCVEOrg        = "cve.org"
+	RangesCVEOrgPartial = "cve.org-partial"
+)
+
+func (v Vuln) fromCVEOrg() bool {
+	return v.RangesFrom == RangesCVEOrg || v.RangesFrom == RangesCVEOrgPartial
+}
+
+// rangesBy names the source of v's affected versions in a sentence (first: at its start).
+func (v Vuln) rangesBy(first bool) string {
+	switch {
+	case !v.fromCVEOrg():
+		return "NVD"
+	case first:
+		return "The CVE.org record"
+	}
+	return "the CVE.org record"
 }
 
 // DistroFix is one distribution's word on a CVE for one source package of one release (feeds.DistroFix).
@@ -376,6 +400,9 @@ func matchOne(a Asset, s Software, in swInfo, v Vuln, now time.Time) (Match, out
 	}
 	multi := isMultiProduct(v.Product)
 	tri, within, every, proof := decide(in, v, multi)
+	if tri == No && v.RangesFrom == RangesCVEOrgPartial { // the CNA's list may skip branches: outside it proves nothing (D-556)
+		tri, proof = Unknown, proofNone
+	}
 	switch {
 	case tri == No && proof == proofNone:
 		if multi && listsOthersOnly(in, v) { // D-505: no proof (NVD's list can lag the advisory); the person reads why
@@ -384,7 +411,7 @@ func matchOne(a Asset, s Software, in swInfo, v Vuln, now time.Time) (Match, out
 		}
 		return Match{}, outRuledOut
 	case tri == No:
-		note := fmt.Sprintf("Not affected: version %s of %s is outside every version range NVD lists for %s. Vedette closed this by itself and reopens it if a later match says the device is affected.", clean(in.ver), clean(s.Display), v.CVE)
+		note := fmt.Sprintf("Not affected: version %s of %s is outside every version range %s lists for %s. Vedette closed this by itself and reopens it if a later match says the device is affected.", clean(in.ver), clean(s.Display), v.rangesBy(false), v.CVE)
 		if proof == proofOS {
 			note = fmt.Sprintf("Not affected: %s lists only operating-system releases other than this device's (%s). Vedette closed this by itself and reopens it if a later match says the device is affected.", v.CVE, clean(a.OS))
 		}
@@ -409,7 +436,7 @@ func matchOne(a Asset, s Software, in swInfo, v Vuln, now time.Time) (Match, out
 		}
 		m.Evidence.Summary = fmt.Sprintf("%s runs %s. Its version is inside the range affected by %s (%s); no scan has confirmed it yet, so this is only suspected.", name, sw, v.CVE, clean(within.String()))
 	case every && !in.given:
-		m.Evidence.Summary = fmt.Sprintf("%s runs %s. NVD lists every version of it as affected by %s; no scan has confirmed it yet, so this is only suspected.", name, sw, v.CVE)
+		m.Evidence.Summary = fmt.Sprintf("%s runs %s. %s lists every version of it as affected by %s; no scan has confirmed it yet, so this is only suspected.", name, sw, v.rangesBy(true), v.CVE)
 	case multi:
 		m.Confidence = ConfVendorOnly
 		m.Evidence.Summary = fmt.Sprintf("%s runs %s. CISA lists this flaw for several %s products; check the advisory to see whether yours is one of them.", name, sw, clean(v.Vendor))

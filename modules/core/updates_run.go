@@ -1041,7 +1041,7 @@ func serviceName(s string) string {
 	case api.ServiceScan:
 		return "the scanner"
 	case api.ServiceGreenbone:
-		return "Greenbone"
+		return "OpenVAS"
 	}
 	return s
 }

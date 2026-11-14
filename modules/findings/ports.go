@@ -96,6 +96,7 @@ type KevInfo struct {
 	Ransomware     bool     `json:"ransomware"`
 	EPSS           *float64 `json:"epss"`
 	HasTemplate    bool     `json:"has_template"`
+	Source         string   `json:"source"` // "cisa-kev" or "vulncheck-kev": which list the entry is on, so every text names it (D-557)
 }
 
 // Feeds is what findings reads from the feeds module (WP-20; not built yet). findings never reads

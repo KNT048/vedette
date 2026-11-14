@@ -38,9 +38,9 @@ export default function CvePage() {
                     ]} />
                   </Panel>
                 </Section>
-                <Section title={t('cve.description')} description={t('cve.descriptionHint')}>
+                <Section title={t('cve.description')} description={t(v.source === 'vulncheck-kev' ? 'cve.descriptionHintVulnCheck' : 'cve.descriptionHint')}>
                   <p lang="en" className="max-w-[72ch] text-[15px] leading-relaxed">{v.description}</p>
-                  <p lang="en" className="mt-3 max-w-[72ch] text-[13px] text-muted">{t('cve.requiredAction')} {v.required_action}</p>
+                  <p lang="en" className="mt-3 max-w-[72ch] text-[13px] text-muted">{t(v.source === 'vulncheck-kev' ? 'cve.requiredActionVulnCheck' : 'cve.requiredAction')} {v.required_action}</p>
                 </Section>
                 <Section title={t('cve.links')}>
                   <ul className="grid gap-1 text-sm">

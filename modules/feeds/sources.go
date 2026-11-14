@@ -7,12 +7,13 @@ type Decoder string
 
 // Built-in decoders.
 const (
-	DecoderParser Decoder = "parser" // the generic custom-format parser with Source.Parser
-	DecoderKEV    Decoder = "kev"    // ParseKEV
-	DecoderEPSS   Decoder = "epss"   // EPSSBatchURLs and ParseEPSS (api.first.org JSON)
-	DecoderNuclei Decoder = "nuclei" // ParseNucleiCVEs
-	DecoderNVD    Decoder = "nvd"    // NVDPageURL and ParseNVD (NVD CVE API 2.0, ?hasKev; D-500)
-	DecoderCVEOrg Decoder = "cveorg" // CVEOrgRecordURL and ParseCVERecord (cvelistV5 records; D-556)
+	DecoderParser    Decoder = "parser"    // the generic custom-format parser with Source.Parser
+	DecoderKEV       Decoder = "kev"       // ParseKEV
+	DecoderEPSS      Decoder = "epss"      // EPSSBatchURLs and ParseEPSS (api.first.org JSON)
+	DecoderNuclei    Decoder = "nuclei"    // ParseNucleiCVEs
+	DecoderNVD       Decoder = "nvd"       // NVDPageURL and ParseNVD (NVD CVE API 2.0, ?hasKev; D-500)
+	DecoderCVEOrg    Decoder = "cveorg"    // CVEOrgRecordURL and ParseCVERecord (cvelistV5 records; D-556)
+	DecoderVulnCheck Decoder = "vulncheck" // VulnCheckPageURL and ParseVulnCheckPage (the customer's own key; D-557)
 	// The distribution backport data (D-516): ParseUbuntuOSV, ParseUbuntuVEX, ParseDebianTracker, read as a stream.
 	DecoderUbuntuOSV     Decoder = "ubuntu-osv"
 	DecoderUbuntuVEX     Decoder = "ubuntu-vex"
@@ -32,6 +33,9 @@ type Source struct {
 	Decoder       Decoder
 	Parser        *Parser // set when Decoder == DecoderParser
 	MaxRows       int     // row limit of this source; 0 means MaxRows (50,000)
+	// BYOK: the customer's own API key is needed (D-557). The feed is off until one is saved, and what it loaded goes
+	// when the key is removed or the feed is turned off.
+	BYOK bool
 
 	// Aggregate: the list is itself a merge of other lists (IPsum, hagezi TIF).
 	// It never reaches block alone, and counts with one of its Upstreams as one source.
@@ -69,6 +73,10 @@ const nvdNotice = "Public domain. This product uses the NVD API but is not endor
 // copyright designation and the licence (https://www.cve.org/Legal/TermsOfUse; THIRD_PARTY_NOTICES.md has the clause).
 const cveOrgNotice = "CVE Program Terms of Use. CVE records © The MITRE Corporation."
 
+// vulnCheckNotice is the licence line of the VulnCheck feed: VulnCheck KEV is free to use in a product with prominent
+// attribution (https://docs.vulncheck.com/community/vulncheck-kev/attribution); the data stays on the box.
+const vulnCheckNotice = "VulnCheck Known Exploited Vulnerabilities (VulnCheck KEV), used with your own free VulnCheck Community key. Data stays on this box."
+
 // canonicalNotice and debianNotice are the licence lines of the distribution feeds (D-516). Canonical publishes its
 // security metadata under CC BY-SA 4.0 (https://security-metadata.canonical.com/osv/LICENSE); the box keeps and shows it
 // for its own operator and Vedette ships none of it. The Debian Security Tracker states no licence for its JSON; it is
@@ -85,6 +93,7 @@ var builtinSources = []Source{
 	{ID: "first-epss", Name: "FIRST EPSS", Kind: KindVulnerabilities, Format: FormatJSON, URL: "https://api.first.org/data/v1/epss", License: "Attribution: EPSS by FIRST", IntervalHours: 24, Decoder: DecoderEPSS},
 	{ID: "nvd-kev", Name: "NVD affected versions", Kind: KindVulnerabilities, Format: FormatJSON, URL: "https://services.nvd.nist.gov/rest/json/cves/2.0", License: nvdNotice, IntervalHours: 24, Decoder: DecoderNVD},
 	{ID: "cve-org", Name: "CVE.org affected versions", Kind: KindVulnerabilities, Format: FormatJSON, URL: "https://raw.githubusercontent.com/CVEProject/cvelistV5/main/cves", License: cveOrgNotice, IntervalHours: 1, Decoder: DecoderCVEOrg},
+	{ID: vulnCheckFeedID, Name: "VulnCheck KEV", Kind: KindVulnerabilities, Format: FormatJSON, URL: "https://api.vulncheck.com/v3/index/vulncheck-kev", License: vulnCheckNotice, IntervalHours: 6, Decoder: DecoderVulnCheck, BYOK: true},
 	{ID: ubuntuOSVFeedID, Name: "Ubuntu fixed versions", Kind: KindVulnerabilities, Format: FormatJSON, URL: "https://security-metadata.canonical.com/osv/osv-all.tar.xz", License: canonicalNotice, IntervalHours: 24, Decoder: DecoderUbuntuOSV},
 	{ID: ubuntuVEXFeedID, Name: "Ubuntu not affected", Kind: KindVulnerabilities, Format: FormatJSON, URL: "https://security-metadata.canonical.com/vex/vex-all.tar.xz", License: canonicalNotice, IntervalHours: 24, Decoder: DecoderUbuntuVEX},
 	{ID: debianTrackerFeedID, Name: "Debian security tracker", Kind: KindVulnerabilities, Format: FormatJSON, URL: "https://security-tracker.debian.org/tracker/data/json", License: debianNotice, IntervalHours: 24, Decoder: DecoderDebianTracker},

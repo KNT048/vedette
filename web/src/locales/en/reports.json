@@ -199,6 +199,7 @@
       "inventory": "Device inventory",
       "findings": "Findings",
       "kev": "CISA KEV",
+      "vulncheck-kev": "VulnCheck KEV",
       "incidents": "Incidents"
     },
     "col": {

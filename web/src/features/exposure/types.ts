@@ -22,6 +22,7 @@ export type NotCheckedRow = z.infer<typeof C.NotCheckedRow>
 export type WebFinding = z.infer<typeof C.WebFinding>
 export type VulnRow = z.infer<typeof C.VulnRow>
 export type GapRow = z.infer<typeof C.GapRow>
+export type TemplateRow = z.infer<typeof C.TemplateRow>
 export type Snapshot = z.infer<typeof C.Snapshot>
 export type SnapshotMeta = z.infer<typeof C.SnapshotMeta>
 export type DiffKind = z.infer<typeof C.DiffKind>

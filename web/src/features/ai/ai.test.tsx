@@ -12,7 +12,7 @@ import { eachOption } from '@/test/formMatrix'
 import { aiAssignStore, aiAvailable, aiConfigStore, aiProfilesStore, aiRunsStore, assetsStore, installStore, modulesStore, sessionStore } from '@/mocks/stores'
 import type { Role } from '@/lib/session'
 import AiSettings from './AiSettings'
-import { scheduledPause } from './mocks'
+import { scheduledPause, scheduledProfileStop } from './mocks'
 import LogsPanel from './LogsPanel'
 import type { AiProfile } from './types'
 
@@ -244,6 +244,17 @@ describe('ai: token meter, monthly budget, fallback (S-AI-4, D-531)', () => {
     res = scheduledPause()
     err = (await res!.json()).error
     expect(err.message).toMatch(/^This month's AI budget of 10,000,000 tokens is used up/)
+  })
+
+  it('a scheduled job stops when every profile it may use has used its own monthly budget, as on the box (W5-4, W5-5)', () => {
+    aiConfigStore.update((c) => ({ ...c, monthly_budget: 100_000_000 }))
+    aiRunsStore.set([])
+    aiProfilesStore.update((l) => l.map((p) => (p.id === 'p-sonnet' ? { ...p, monthly_budget: 1000 } : p.id === 'p-ollama' ? { ...p, monthly_budget: 100_000_000 } : p)))
+    spend(2000, 'Claude Sonnet')
+    expect(scheduledProfileStop('response-plan')).toBeNull() // the fallback still has room
+    aiProfilesStore.update((l) => l.map((p) => (p.id === 'p-ollama' ? { ...p, monthly_budget: 1000 } : p))) // its sample calls of this month pass 1,000
+    expect(scheduledPause()).toBeNull()
+    expect(scheduledProfileStop('response-plan')).toMatch(/^The monthly budget of the AI profile Company Ollama server is used up and no other profile could take response plans, so nothing was sent\./)
   })
 
   it('Home warns at 80 % and says when the budget is used up; a profile near its own budget is named (D-531)', async () => {

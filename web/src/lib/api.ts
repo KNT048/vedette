@@ -16,10 +16,15 @@ export class ApiError extends Error {
 const lang = () => 'en'
 
 /** Double-submit CSRF (API_CONVENTIONS 7.2): the server sets cookie `__Host-vedette_csrf`, state-changing calls echo it in a header. The mock ignores it. */
+const CSRF_COOKIE = /(?:^|;\s*)__Host-vedette_csrf=([^;]*)/
 function csrfToken(): string | null {
-  const m = document.cookie.match(/(?:^|;\s*)__Host-vedette_csrf=([^;]*)/)
+  const m = document.cookie.match(CSRF_COOKIE)
   return m ? decodeURIComponent(m[1]!) : null
 }
+
+/** N44-2: the box sets and clears this readable cookie together with the HttpOnly session cookie (core/auth Cookies, ClearCookies),
+ *  so without it nobody is signed in on this browser. */
+export const hasSessionCookie = (): boolean => CSRF_COOKIE.test(document.cookie)
 
 async function request<T>(method: string, path: string, body?: unknown, file?: { blob: Blob; headers: Record<string, string> }): Promise<T> {
   const csrf = method === 'GET' ? null : csrfToken()

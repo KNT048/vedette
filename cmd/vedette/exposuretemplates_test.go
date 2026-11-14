@@ -37,6 +37,7 @@ type templatesFake struct {
 	answer  func(r sensoractive.NucleiRequest) nucleiout.Outcome
 	reqs    []sensoractive.NucleiRequest
 	actor   string
+	done    []scan.ExternalProbe // the rows of the last completing write
 }
 
 func (f *templatesFake) scanner() exposureTemplateScan {
@@ -63,7 +64,7 @@ func (f *templatesFake) scanner() exposureTemplateScan {
 			}
 			kind := "log"
 			if strings.HasPrefix(f.last(), "run") {
-				kind = "done"
+				kind, f.done = "done", ps
 			}
 			f.events = append(f.events, kind+b.String())
 			return nil
@@ -128,6 +129,36 @@ func TestExposureTemplatesLogBeforeSendingAndMapResults(t *testing.T) {
 	notes := []string{"Safe templates for exploited vulnerabilities: CVE-2001-0537, CVE-2010-0738 on port 18443: not run on a public IP: this check is not a read-only request."}
 	if !slices.Equal(got.Results, wantRes) || !slices.Equal(got.Sent, []string{"CVE-2018-13379", "CVE-2019-19781"}) || !slices.Equal(got.NotChecked, notes) {
 		t.Fatalf("scan %+v", got)
+	}
+}
+
+// N44-4, review r1 M1: with -ms nuclei prints a line for every template it runs, so a template a finished run printed nothing for was
+// not run: its probe row says "Not run" (and is not "No match reported") and a "Not checked" line counts it. A
+// template that failed because the address stopped answering is an error, not "not run".
+func TestExposureTemplatesSilentTemplateIsNotRun(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		hostErrors []nucleiout.HostError
+		notRun     bool
+	}{
+		{nil, true},
+		{[]nucleiout.HostError{{Target: "8.8.8.8:18443", Errors: 3, Unreachable: true}}, false},
+	} {
+		f := &templatesFake{gateOK: true, answer: func(sensoractive.NucleiRequest) nucleiout.Outcome {
+			return nucleiout.Outcome{Results: []nucleiout.Result{{Template: "CVE-2018-13379", Target: "8.8.8.8:18443", Matched: true}}, HostErrors: tc.hostErrors}
+		}}
+		got, err := f.scanner().ScanTemplates(t.Context(), exposure.ScanTarget{User: "u-admin"}, ownPublicIP, []exposure.TemplateJob{ownJob("CVE-2018-13379", "CVE-2019-19781")})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if f.last() != "done CVE-2018-13379=matched CVE-2019-19781=" || len(f.done) != 2 { // "" is written as no_response
+			t.Fatalf("host errors %v: events %q", tc.hostErrors, f.events)
+		}
+		line := "Safe templates for exploited vulnerabilities on port 18443: nuclei printed no result for 1 of 2, so they did not run (CVE-2019-19781)."
+		if tc.notRun != strings.HasPrefix(f.done[1].Request, notRunRequest) || tc.notRun != slices.Contains(got.NotChecked, line) ||
+			len(got.Sent) != 2 || strings.HasPrefix(f.done[0].Request, notRunRequest) {
+			t.Fatalf("host errors %v: rows %+v, scan %+v", tc.hostErrors, f.done, got)
+		}
 	}
 }
 

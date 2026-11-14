@@ -19,7 +19,7 @@ import (
 // TermsVersion asks again. The texts are the only copy: the API sends them with the target in it and the page shows what it got;
 // the mock's copy (contract.ts TERMS_TEMPLATE, TERMS_TEMPLATE_DOMAIN, TERMS_DISRUPTIVE) is held equal by a test, and each version's text is pinned.
 const (
-	TermsVersion = "2026-11-14d"
+	TermsVersion = "2026-11-14e"
 	// termsTemplate is an IP target's text, termsTemplateDomain a domain's (D-571, FULL-5 slice 3, LEGAL-2): the "yours alone"
 	// sentence becomes what reaches every address a name under the domain resolves to and who answers for a provider's permission.
 	// Both share the head and the tail, so the list of tools is the same. Since 2026-11-14c they say what the deep scan sends without
@@ -27,12 +27,14 @@ const (
 	// flaw by sending the exploit request in a harmless form, OpenVAS checks that may write a harmless test file or record, known
 	// authentication bypasses and the public anonymous login; the tick adds what PRIVACY flow 9 lists for it. TERMS.md says the same.
 	// 2026-11-14d: the texts of review r2 (an acceptance of a 2026-11-14c text is asked again).
+	// 2026-11-14e (N44-1, review r1 L2): the web line says what TERMS.md says, word for word (follows links, may submit forms), while
+	// the active ZAP scan (FULL-3) is not built; the domain's list names "the web scan (ZAP)".
 	termsTemplate       = termsHead + termsOwnIP + termsTail
 	termsTemplateDomain = termsHead + termsDomain + termsTail
 	termsHead           = "I confirm that my company owns {value} and that I am authorized to test it in depth. Once I accept, every scan of {value} is a deep scan, and Vedette's tools may send it:\n" +
 		"All ports: every TCP port, and the service and version behind each one.\n" +
 		"Vulnerability checks: tests for known vulnerabilities, including checks that confirm a flaw by sending the exploit request itself in a harmless form (for example reading a file or running a harmless command). Some checks, OpenVAS's in particular, may write a harmless test file or record to confirm a flaw and then try to remove it. Checks that can crash a service, guess passwords or sign in with default passwords, and the exploit checks of nuclei and nmap that send more than a harmless read, run only with the disruptive checks below.\n" +
-		"An active web scan that submits forms: a spider and an active scan that fill in and send forms and send attack payloads such as SQL injection and cross-site scripting probes. It can create records, send e-mails from forms or change data.\n" +
+		"Web scanning: a scan of the web pages that follows links and may submit forms.\n" +
 		"Authentication checks: whether login pages, admin interfaces and services let anyone in without a password, through a known authentication bypass or with weak settings, including the public anonymous login a service may offer (for example anonymous FTP). Passwords are not guessed and default or well-known passwords are not tried unless the disruptive checks below are ticked.\n"
 	termsOwnIP = "Accept only if {value} is yours alone: not an address shared through your Internet provider (carrier-grade NAT), a hosting provider's NAT or proxy, or a CDN or hosted service that serves your names. Their servers are not yours to test. "
 	// termsDomain: plan 2026-11-14 §3.5 word for word, then kien's LEGAL-2 (2026-11-14 18:4x): the third party in front of the names
@@ -40,7 +42,7 @@ const (
 	// CDN and proxies, the customer's responsibility, and that Vedette does not check who owns the addresses, so the two never disagree.
 	termsDomain = "Every name under {value} that resolves to a public address is scanned at this depth, whatever serves it: your own server, a hosting provider or a CDN. " +
 		"If a provider serves a name, its testing policy applies to you (for example, Cloudflare and AWS forbid denial-of-service tests); leave the disruptive checks off unless that provider allows them. " +
-		"Vedette's tools reach each address a name under {value} resolves to, including a third-party hosting provider, CDN or proxy in front of your names: the scan of all ports, OpenVAS, nuclei and the active web scan (ZAP). " +
+		"Vedette's tools reach each address a name under {value} resolves to, including a third-party hosting provider, CDN or proxy in front of your names: the scan of all ports, OpenVAS, nuclei and the web scan (ZAP). " +
 		"Verifying a name proves you control its DNS, not that you own the machines behind it or may test them. " +
 		"With shared or cloud hosting, a CDN or a proxy, that address can also serve other people's systems: you are responsible for having the provider's permission. " +
 		"Vedette does not check who owns those addresses. " +

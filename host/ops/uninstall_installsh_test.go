@@ -551,8 +551,8 @@ func TestInstallSh_UninstallDecidesAboutPodmanBeforeThePurge(t *testing.T) {
 // host/api.Services, every volume and network the units mount, the registry and local image names and the scan build's. A new name in
 // Go that the script does not know would keep podman on every box (a silent D-463 regression), so it fails here.
 func TestInstallSh_UninstallKnowsVedettesPodmanNames(t *testing.T) {
-	ctrs, vols, imgs := []string{ops.ZapContainer}, []string(nil), []string(nil)
-	nets := []string{ops.IntNetwork, ops.ZapNetwork}
+	var ctrs, vols, imgs []string
+	nets := []string{ops.IntNetwork}
 	for _, s := range api.Services {
 		ctrs = append(ctrs, "vedette-"+s)
 		imgs = append(imgs, release.RegistryPrefix+s, ops.LocalPrefix+s)
@@ -639,6 +639,44 @@ remove_images
 	for _, n := range nets {
 		if !strings.Contains(body, "remove_ours network "+n+"\n") {
 			t.Errorf("do_uninstall does not remove the network %s", n)
+		}
+	}
+	if !strings.Contains(body, "\t\tremove_zap\n") { // the container and network of zap.baseline, by their label (D-521)
+		t.Error("do_uninstall does not call remove_zap")
+	}
+}
+
+// D-521 (review L3, L11): --uninstall removes the container and the network vedette-zap only when they carry the label vedette-host
+// gives them; one of that name without it is someone else's and stays, with a warning.
+func TestInstallSh_RemoveZapOnlyTakesWhatCarriesTheLabel(t *testing.T) {
+	for name, tc := range map[string]struct {
+		label string
+		want  string
+	}{
+		"ours":    {"vedette-host", "rm -f -t 5 " + ops.ZapContainer + "\nnetwork rm " + ops.ZapNetwork + "\n"},
+		"foreign": {"", ""},
+	} {
+		dir := t.TempDir()
+		fakeProgram(t, dir, "podman", `case "$1 $2" in
+"container inspect"|"network inspect") [ -n "$LABEL" ] && echo "$LABEL" ;;
+"container exists"|"network exists") exit 0 ;;
+"ps -a") ;;
+rm*|"network rm") echo "$*" >>"$FAKE/calls" ;;
+*) exit 1 ;;
+esac
+exit 0
+`)
+		out, err := runInstallShFns(t, dir, []string{"FAKE=" + dir, "TMP=" + t.TempDir(), "LABEL=" + tc.label},
+			[]string{"pm", "others_use", "remove_ours", "remove_zap"}, "remove_zap")
+		if err != nil {
+			t.Fatalf("%s: %v\n%s", name, err, out)
+		}
+		calls, _ := os.ReadFile(filepath.Join(dir, "calls")) //nolint:gosec // G304: a file of the test's own temp dir
+		if string(calls) != tc.want {
+			t.Errorf("%s: calls %q, want %q", name, calls, tc.want)
+		}
+		if tc.label == "" && strings.Count(out, "is not Vedette's") != 2 {
+			t.Errorf("%s: no warning for the container and the network:\n%s", name, out)
 		}
 	}
 }

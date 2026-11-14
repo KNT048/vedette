@@ -992,7 +992,7 @@ pm() {
 # container uses stays, and podman_others then counts that container (a forced removal would have deleted it unseen; D-508 review M1)
 others_use() {
 	ou=$(pm ps -a --filter "$1" --format '{{.Names}}') || return 0
-	printf '%s\n' "$ou" | grep -vxE 'vedette-(core|sensor|scan|honeypot|greenbone|zap)' | grep -q .
+	printf '%s\n' "$ou" | grep -vxE 'vedette-(core|sensor|scan|honeypot|greenbone)' | grep -q .
 }
 
 # remove_ours <network|volume> <name>: Vedette's network or volume, never with -f (that removes the containers using it)
@@ -1051,6 +1051,22 @@ remove_images() {
 	done
 }
 
+# remove_zap: the container and the network of the passive web scan (zap.baseline, D-521), only when they carry the label vedette-host
+# gives them (io.vedette.owner=vedette-host); a container or network of that name without it is someone else's and stays (podman_others
+# then counts it)
+remove_zap() {
+	if [ "$(pm container inspect --format '{{index .Config.Labels "io.vedette.owner"}}' vedette-zap)" = vedette-host ]; then
+		pm rm -f -t 5 vedette-zap >/dev/null || warn "podman could not remove the container vedette-zap: left in place"
+	elif pm container exists vedette-zap; then
+		warn "the container vedette-zap is not Vedette's (no label io.vedette.owner=vedette-host): left in place"
+	fi
+	if [ "$(pm network inspect --format '{{index .Labels "io.vedette.owner"}}' vedette-zap)" = vedette-host ]; then
+		remove_ours network vedette-zap
+	elif pm network exists vedette-zap; then
+		warn "the network vedette-zap is not Vedette's (no label io.vedette.owner=vedette-host): left in place"
+	fi
+}
+
 # remove_subid <file> <state name>: the line the package added, and the file if the package made it; never the administrator's own line
 remove_subid() {
 	[ -e "$1" ] && [ -e "$STATE/$2-added" ] || return 0
@@ -1077,7 +1093,7 @@ forwarding_needed_elsewhere() {
 	grep -qsE '^[[:space:]]*net\.ipv[46]\.(ip_forward|conf\.(all|default)\.forwarding)[[:space:]]*=[[:space:]]*1' /etc/sysctl.conf /etc/sysctl.d/*.conf /usr/lib/sysctl.d/*.conf && return 0
 	[ -z "$PODMAN_IN_USE" ] || return 0
 	if have podman; then
-		pm network ls --format '{{.Name}}' | grep -vxE 'podman|vedette-int|vedette-zap' | grep -q . && return 0
+		pm network ls --format '{{.Name}}' | grep -vxE 'podman|vedette-int' | grep -q . && return 0
 	fi
 	return 1
 }
@@ -1115,7 +1131,7 @@ restore_runtime() {
 }
 
 # podman_others: what the rootful podman of this box holds that is not Vedette's, read after Vedette's own containers, volumes, network
-# and images are removed: containers (stopped ones and buildah's too), pods, networks other than podman's default, vedette-int and vedette-zap,
+# and images are removed: containers (stopped ones and buildah's too), pods, networks other than podman's default and vedette-int (a vedette-zap still there after remove_zap is not Vedette's),
 # volumes, and images with a name, one per image ID (a nameless layer is no one's to keep; podman's own localhost/podman-pause is not
 # counted). One "<kind> <name>" line each in OTHERS, in that order, the name cut to printable characters and 64 bytes (podman's output
 # is not trusted). Every answer is kept in memory, never in a file, so a full disk cannot make it read as "nothing" (D-508 review M2).
@@ -1135,8 +1151,8 @@ podman_others() {
 		printf '%s\n' "$o_vol" | sed 's/^/volume /'
 		printf '%s\n' "$o_img" | sed 's/^/image /'
 	} | awk '
-		$1 == "container" && $2 ~ /^vedette-(core|sensor|scan|honeypot|greenbone|zap)$/ { next }
-		$1 == "network" && ($2 == "podman" || $2 == "vedette-int" || $2 == "vedette-zap") { next }
+		$1 == "container" && $2 ~ /^vedette-(core|sensor|scan|honeypot|greenbone)$/ { next }
+		$1 == "network" && ($2 == "podman" || $2 == "vedette-int") { next }
 		$1 == "volume" && $2 ~ /^vedette-(creds-passive|creds-active|hp-log)$/ { next }
 		$1 == "image" && ($3 == "<none>" || $3 == "localhost/podman-pause" || $3 == "localhost/vedette-scan-nmap" || $3 ~ /^(ghcr\.io\/knt048|localhost)\/vedette-(core|sensor|honeypot|scan|greenbone)$/) { next }
 		NF < 2 { next }
@@ -1314,7 +1330,7 @@ do_uninstall() {
 		systemctl stop "$u.service" >/dev/null 2>&1 || true
 	done
 	if have podman; then
-		for c in vedette-honeypot vedette-scan vedette-sensor vedette-core vedette-greenbone vedette-zap; do
+		for c in vedette-honeypot vedette-scan vedette-sensor vedette-core vedette-greenbone; do
 			pm rm -f -t 5 "$c" >/dev/null || true
 		done
 	fi
@@ -1329,11 +1345,14 @@ do_uninstall() {
 	systemctl daemon-reload >/dev/null 2>&1 || true
 	systemctl reset-failed >/dev/null 2>&1 || true
 	remove_forward_rules
-	# the egress fence of a passive web scan the host did not get to clean up (zap.baseline, D-521): only ever Vedette's table
-	if have nft; then nft delete table inet vedette_zap >/dev/null 2>&1 || true; fi
 	if have podman; then
 		remove_ours network vedette-int
-		remove_ours network vedette-zap
+		remove_zap
+	fi
+	# the egress fence of a passive web scan the host did not get to clean up (zap.baseline, D-521), after its container: only ever
+	# Vedette's table (a container of the host's that podman could not remove keeps it: its fence must outlive it)
+	if have nft && ! { have podman && pm container exists vedette-zap; }; then nft delete table inet vedette_zap >/dev/null 2>&1 || true; fi
+	if have podman; then
 		for v in vedette-creds-passive vedette-creds-active vedette-hp-log; do
 			remove_ours volume "$v"
 		done

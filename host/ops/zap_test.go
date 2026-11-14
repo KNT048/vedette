@@ -99,9 +99,9 @@ func TestZapRunArgvIsFixedAndValidated(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := p.runArgv(wrk)
-	want := strings.Fields("--module /usr/lib/vedette/apparmor-containers.conf run --rm --pull=never --name vedette-zap --network vedette-zap --dns none" +
+	want := strings.Fields("--module /usr/lib/vedette/apparmor-containers.conf run --rm --pull=never --name vedette-zap --label io.vedette.owner=vedette-host --network vedette-zap --dns none" +
 		" --add-host www.example.com:" + zapTestIP + " --cap-drop ALL --security-opt no-new-privileges --read-only --tmpfs /home/zap:rw,size=256m,mode=0700,uid=1000,gid=1000" +
-		" --volume /var/lib/vedette-host/zap/wrk:/zap/wrk:rw --user 1000:1000 --memory=1g --memory-swap=1g --pids-limit=256 --no-healthcheck " + zapImage +
+		" --volume /var/lib/vedette-host/zap/wrk:/zap/wrk:rw,nosuid,nodev,noexec --user 1000:1000 --memory=1g --memory-swap=1g --pids-limit=256 --no-healthcheck " + zapImage +
 		" zap-baseline.py -t https://www.example.com/ -m 1 -T 5 -J out.json -z")
 	want = append(want, "-silent -Xmx512m -config spider.processform=false -config spider.postform=false -config spider.thread=1")
 	if !slices.Equal(got, want) {
@@ -110,12 +110,16 @@ func TestZapRunArgvIsFixedAndValidated(t *testing.T) {
 	if slices.Contains(got, "-a") || slices.Contains(got, "-u") || slices.Contains(got, "-j") {
 		t.Fatal("an active scan, a config URL or the AJAX spider is in the argv")
 	}
-	if err := validatePodman(got); err != nil {
+	validate := validatePodmanIn("/var/lib/vedette-host")
+	if err := validate(got); err != nil {
 		t.Fatalf("the validator refuses the builder: %v", err)
+	}
+	if validatePodman(got) == nil || validatePodmanIn("/var/lib/other")(got) == nil {
+		t.Fatal("the run is accepted without its state directory")
 	}
 	ipPage, _ := zapArgs(api.ZapBaselineArgs{URL: "http://" + zapTestIP + ":8080/", Host: zapTestIP, IP: zapTestIP, Port: 8080, Kind: api.ZapKindIP})
 	ipArgv := ipPage.runArgv(wrk)
-	if slices.Contains(ipArgv, "--add-host") || validatePodman(ipArgv) != nil {
+	if slices.Contains(ipArgv, "--add-host") || validate(ipArgv) != nil {
 		t.Fatalf("the argv of an IP page: %q", ipArgv)
 	}
 	set := func(a []string, i int, v string) []string { a = slices.Clone(a); a[i] = v; return a }
@@ -128,22 +132,26 @@ func TestZapRunArgvIsFixedAndValidated(t *testing.T) {
 		"a private IP URL":     set(ipArgv, at(ipArgv, "-t")+1, "http://10.0.0.1:8080/"),
 		"no read-only":         set(got, at(got, "--read-only"), "--privileged"),
 		"another network":      set(got, at(got, "--network")+1, "host"),
-		"a dotdot work dir":    set(got, at(got, "--volume")+1, "/var/lib/../../etc:/zap/wrk:rw"),
-		"the root mounted":     set(got, at(got, "--volume")+1, "/:/zap/wrk:rw"),
+		"a dotdot work dir":    set(got, at(got, "--volume")+1, "/var/lib/../../etc:/zap/wrk:rw,nosuid,nodev,noexec"),
+		"the root mounted":     set(got, at(got, "--volume")+1, "/:/zap/wrk:rw,nosuid,nodev,noexec"),
+		"/etc mounted":         set(got, at(got, "--volume")+1, "/etc:/zap/wrk:rw,nosuid,nodev,noexec"),
+		"another state folder": set(got, at(got, "--volume")+1, "/var/lib/vedette-host/zap:/zap/wrk:rw,nosuid,nodev,noexec"),
+		"exec allowed":         set(got, at(got, "--volume")+1, "/var/lib/vedette-host/zap/wrk:/zap/wrk:rw"),
+		"no label":             set(got, at(got, "--label")+1, "io.vedette.owner=someone"),
 		"another image":        set(got, at(got, zapImage), "docker.io/library/debian:latest"),
 		"options changed":      set(got, len(got)-1, "-config spider.postform=true"),
 		"no AppArmor module":   set(got, 1, "/tmp/x.conf"),
 	} {
-		if validatePodman(bad) == nil {
+		if validate(bad) == nil {
 			t.Errorf("%s: the validator accepts %q", name, bad)
 		}
 	}
-	for _, a := range [][]string{zapImageExistsArgv(), zapPullArgv(), zapNetExistsArgv(), zapNetCreateArgv(), zapNetInspectArgv(), zapRmArgv()} {
+	for _, a := range [][]string{zapImageExistsArgv(), zapPullArgv(), zapNetExistsArgv(), zapNetCreateArgv(), zapNetInspectArgv(), zapCtrExistsArgv(), zapCtrInspectArgv(), zapRmArgv()} {
 		if err := validatePodman(a); err != nil {
 			t.Errorf("%q: %v", a, err)
 		}
 	}
-	for _, bad := range [][]string{{"rm", "--force", "vedette-core"}, {"network", "rm", "vedette-int"}, {"pull", "-q", "ghcr.io/zaproxy/zaproxy:stable"}} {
+	for _, bad := range [][]string{{"rm", "--force", "vedette-core"}, {"network", "rm", "vedette-int"}, {"pull", "-q", "ghcr.io/zaproxy/zaproxy:stable"}, {"container", "inspect", "vedette-zap2"}} {
 		if validatePodman(bad) == nil {
 			t.Errorf("the validator accepts %q", bad)
 		}
@@ -191,6 +199,26 @@ table inet vedette_zap {
 		if validateNft(bad) == nil {
 			t.Errorf("nft accepts %q", bad)
 		}
+	}
+	// What nft -f - may read: exactly one zapRuleset (zapStep checks it; the runner's validator sees only the argv).
+	if !zapRulesetOK(got) {
+		t.Fatal("the generated ruleset is refused")
+	}
+	for name, bad := range map[string]string{
+		"flush first":   "flush ruleset\n" + got,
+		"an accept-all": strings.Replace(got, "\t\tiifname \"vedette-zap0\" drop\n", "", 1),
+		"an include":    got + "include \"/etc/nftables.conf\"\n",
+		"a private IP":  strings.ReplaceAll(got, zapTestIP, "10.0.0.1"),
+		"two addresses": strings.Replace(got, zapTestIP, "1.1.1.1", 1),
+		"empty":         "",
+	} {
+		if zapRulesetOK(bad) {
+			t.Errorf("%s: accepted", name)
+		}
+	}
+	w := newZapWorld(t, Deps{})
+	if _, code, err := w.o.zapStep(t.Context(), binNft, strings.NewReader("flush ruleset\n"), nftLoadArgv...); err == nil || code != -1 || len(w.Calls()) != 0 {
+		t.Fatalf("zapStep gave nft another ruleset: %d %v %q", code, err, w.Calls())
 	}
 }
 
@@ -247,9 +275,12 @@ type zapWorld struct {
 	linkReport bool   // the run writes out.json as a symlink
 	runGate    chan struct{}
 	runStarted chan struct{}
+	ctr        string // the container vedette-zap: "" none, "ours" (carries the label), "foreign"
+	rmCode     int    // exit code of podman rm (-1: it did not answer within its bound)
+	leaveCtr   bool   // the run's container survives podman run (the client was killed at the limit)
 }
 
-const zapOurNet = `[{"name":"vedette-zap","id":"ab","driver":"bridge","network_interface":"vedette-zap0","subnets":[{"subnet":"10.89.3.0/24","gateway":"10.89.3.1"}],"ipv6_enabled":false,"internal":false,"dns_enabled":false}]`
+const zapOurNet = `[{"name":"vedette-zap","id":"ab","driver":"bridge","network_interface":"vedette-zap0","created":"2026-11-14T10:00:00Z","subnets":[{"subnet":"10.89.3.0/24","gateway":"10.89.3.1"}],"ipv6_enabled":false,"internal":false,"dns_enabled":false,"labels":{"io.vedette.owner":"vedette-host"},"ipam_options":{"driver":"host-local"}}]`
 
 func newZapWorld(t *testing.T, d Deps) *zapWorld {
 	t.Helper()
@@ -261,6 +292,14 @@ func newZapWorld(t *testing.T, d Deps) *zapWorld {
 	d.Root, d.ChainTop, d.ZapUID = base, base, os.Getuid()
 	if d.ZapEgress == nil {
 		d.ZapEgress = func(context.Context) (netip.Addr, error) { return netip.MustParseAddr(zapTestIP), nil }
+	}
+	if d.ZapLookupIP == nil {
+		d.ZapLookupIP = func(context.Context, string) ([]netip.Addr, error) {
+			return []netip.Addr{netip.MustParseAddr("1.1.1.1"), netip.MustParseAddr(zapTestIP)}, nil
+		}
+	}
+	if d.FreeBytes == nil {
+		d.FreeBytes = func(string) (uint64, error) { return 64 << 30, nil }
 	}
 	if d.ZapTXT == nil {
 		d.ZapTXT = func(context.Context, string) ([]string, error) {
@@ -343,8 +382,34 @@ func (w *zapWorld) exec(ctx context.Context, name string, stdin io.Reader, args 
 		return vexec.Result{}, 0, nil
 	case slices.Equal(args, zapNetInspectArgv()):
 		return vexec.Result{Stdout: []byte(w.netInspect)}, 0, nil
+	case slices.Equal(args, zapCtrExistsArgv()):
+		w.mu.Lock()
+		defer w.mu.Unlock()
+		if w.ctr != "" {
+			return vexec.Result{}, 0, nil
+		}
+		return vexec.Result{}, 1, nil
+	case slices.Equal(args, zapCtrInspectArgv()):
+		w.mu.Lock()
+		defer w.mu.Unlock()
+		label := `"io.vedette.owner":"vedette-host"`
+		if w.ctr == "foreign" {
+			label = `"maintainer":"someone"`
+		}
+		return vexec.Result{Stdout: []byte(`[{"Id":"cc","Name":"vedette-zap","Config":{"Image":"x","Labels":{` + label + `}}}]`)}, 0, nil
 	case slices.Equal(args, zapRmArgv()):
-		return vexec.Result{}, 0, nil
+		w.mu.Lock()
+		defer w.mu.Unlock()
+		if w.ctr == "foreign" {
+			w.t.Error("a container that is not the host's was removed")
+		}
+		if w.rmCode < 0 {
+			return vexec.Result{}, -1, context.DeadlineExceeded
+		}
+		if w.rmCode == 0 {
+			w.ctr = ""
+		}
+		return vexec.Result{}, w.rmCode, nil
 	case line == "podman run":
 		if w.runStarted != nil {
 			w.runStarted <- struct{}{}
@@ -352,7 +417,12 @@ func (w *zapWorld) exec(ctx context.Context, name string, stdin io.Reader, args 
 		if w.runGate != nil {
 			<-w.runGate
 		}
-		wrk, _ := strings.CutSuffix(args[slices.Index(args, "--volume")+1], ":/zap/wrk:rw")
+		wrk, _ := strings.CutSuffix(args[slices.Index(args, "--volume")+1], ":/zap/wrk:rw,nosuid,nodev,noexec")
+		if w.leaveCtr {
+			w.mu.Lock()
+			w.ctr = "ours"
+			w.mu.Unlock()
+		}
 		out := filepath.Join(wrk, zapReportName)
 		switch {
 		case w.linkReport:
@@ -400,16 +470,19 @@ func nolog(string) {}
 func (w *zapWorld) cleanedUp(t *testing.T) {
 	t.Helper()
 	calls := w.Calls()
-	rm := "podman " + strings.Join(zapRmArgv(), " ")
+	gone := "podman " + strings.Join(zapCtrExistsArgv(), " ")
 	last := -1
 	for i, c := range calls {
-		if c == rm {
+		if c == gone {
 			last = i
 		}
 	}
 	del := slices.Index(calls[max(last, 0):], "nft delete table inet vedette_zap")
-	if !slices.Contains(calls, rm) || last < slices.Index(calls, "podman run") || last < slices.Index(calls, "nft -f -") || del < 0 {
-		t.Errorf("the run did not end with the removal of the container and the rule: %q", calls)
+	if last < 0 || last < slices.Index(calls, "podman run") || last < slices.Index(calls, "nft -f -") || del < 0 {
+		t.Errorf("the run did not end with the container proven gone, then the rule deleted: %q", calls)
+	}
+	if w.ctr != "" {
+		t.Error("the container is still there")
 	}
 	if w.loaded != "" {
 		t.Error("the egress rule is still loaded")
@@ -436,14 +509,14 @@ func TestZapBaseline_ARunIsFencedAndCleanedUp(t *testing.T) {
 		}
 		want := []string{
 			"podman image exists " + zapImage,
-			"podman rm --force --ignore --time 0 vedette-zap",
+			"podman container exists vedette-zap",
 			"podman network exists vedette-zap",
-			"podman network create --driver bridge --interface-name vedette-zap0 --disable-dns vedette-zap",
+			"podman network create --driver bridge --interface-name vedette-zap0 --disable-dns --label io.vedette.owner=vedette-host vedette-zap",
 			"podman network inspect vedette-zap",
 			"nft -f -",
 			"nft -j list table inet vedette_zap",
 			"podman run",
-			"podman rm --force --ignore --time 0 vedette-zap",
+			"podman container exists vedette-zap",
 			"nft delete table inet vedette_zap",
 		}
 		if got := w.Calls(); !slices.Equal(got, want) {
@@ -474,9 +547,19 @@ func TestZapBaseline_AFailureStillCleansUp(t *testing.T) {
 		"the report is a symlink":     {func(w *zapWorld) { w.linkReport = true }, api.CodeZapFailed},
 		"the report is too large":     {func(w *zapWorld) { w.report = make([]byte, api.MaxZapReport+1) }, api.CodeZapReportTooLarge},
 		"the rule does not read back": {func(w *zapWorld) { w.nftOK = false }, api.CodeZapFenceFailed},
-		"someone else's network": {func(w *zapWorld) {
+		"a network with DNS": {func(w *zapWorld) {
 			w.netInspect = strings.Replace(zapOurNet, `"dns_enabled":false`, `"dns_enabled":true`, 1)
 		}, api.CodeZapFenceFailed},
+		"a network without our label": {func(w *zapWorld) {
+			w.netInspect = strings.Replace(zapOurNet, `"vedette-host"`, `"admin"`, 1)
+		}, api.CodeZapFenceFailed},
+		"an unmanaged bridge": {func(w *zapWorld) {
+			w.netInspect = strings.Replace(zapOurNet, `"labels"`, `"options":{"mode":"unmanaged"},"labels"`, 1)
+		}, api.CodeZapFenceFailed},
+		"an internal network": {func(w *zapWorld) {
+			w.netInspect = strings.Replace(zapOurNet, `"internal":false`, `"internal":true`, 1)
+		}, api.CodeZapFenceFailed},
+		"a foreign container": {func(w *zapWorld) { w.ctr = "foreign" }, api.CodeZapFenceFailed},
 	} {
 		w := newZapWorld(t, Deps{})
 		tc.set(w)
@@ -488,6 +571,12 @@ func TestZapBaseline_AFailureStillCleansUp(t *testing.T) {
 		}
 		if slices.Contains(w.Calls(), "podman run") && (tc.code == api.CodeZapFenceFailed) {
 			t.Errorf("%s: ZAP ran without its fence", name)
+		}
+		if w.ctr == "foreign" { // nothing of the run was made, and the container that is not the host's is left alone
+			if c := w.Calls(); len(c) != 3 || c[2] != "podman container inspect vedette-zap" {
+				t.Errorf("%s: calls %q", name, c)
+			}
+			continue
 		}
 		w.cleanedUp(t)
 		if ents, _ := os.ReadDir(w.o.zapDir()); len(ents) != 0 {
@@ -504,15 +593,21 @@ func TestZapBaseline_TheHostChecksOwnershipBeforeAnythingIsSent(t *testing.T) {
 		return []string{"vedette-verify=ffffffffffffffff"}, nil
 	}
 	dnsDown := func(context.Context, string) ([]string, error) { return nil, errors.New("timeout") }
+	elsewhere := func(context.Context, string) ([]netip.Addr, error) {
+		return []netip.Addr{netip.MustParseAddr("1.1.1.1")}, nil
+	}
+	aDown := func(context.Context, string) ([]netip.Addr, error) { return nil, errors.New("timeout") }
 	for name, tc := range map[string]struct {
 		d    Deps
 		page func(*testing.T) zapPage
 		code string
 	}{
-		"not the box's egress": {Deps{ZapEgress: other}, zapIPPage, api.CodeTargetNotOwned},
-		"egress unknown":       {Deps{ZapEgress: down}, zapIPPage, api.CodeOwnershipUnchecked},
-		"the token is gone":    {Deps{ZapTXT: noTXT}, zapDomainPage, api.CodeTargetNotOwned},
-		"DNS did not answer":   {Deps{ZapTXT: dnsDown}, zapDomainPage, api.CodeOwnershipUnchecked},
+		"not the box's egress":      {Deps{ZapEgress: other}, zapIPPage, api.CodeTargetNotOwned},
+		"egress unknown":            {Deps{ZapEgress: down}, zapIPPage, api.CodeOwnershipUnchecked},
+		"the token is gone":         {Deps{ZapTXT: noTXT}, zapDomainPage, api.CodeTargetNotOwned},
+		"DNS did not answer":        {Deps{ZapTXT: dnsDown}, zapDomainPage, api.CodeOwnershipUnchecked},
+		"the name points elsewhere": {Deps{ZapLookupIP: elsewhere}, zapDomainPage, api.CodeTargetNotOwned},
+		"A lookup did not answer":   {Deps{ZapLookupIP: aDown}, zapDomainPage, api.CodeOwnershipUnchecked},
 	} {
 		w := newZapWorld(t, tc.d)
 		_, err := w.o.zapBaseline(t.Context(), nolog, tc.page(t))
@@ -669,4 +764,77 @@ func TestZapPinsAgree(t *testing.T) {
 	if !strings.Contains(string(sh), "\nZAP_IMAGE="+zapImage+"\n") {
 		t.Errorf("install.sh does not set ZAP_IMAGE=%s", zapImage)
 	}
+}
+
+// H1 of review 1: the fence outlives any container of the host that could still run. When the container cannot be removed (rm
+// fails, or does not answer within its bound) the nft table and the marker stay, and the next run refuses until the cleanup works.
+func TestZapBaseline_TheFenceStaysWhileTheContainerMayRun(t *testing.T) {
+	t.Parallel()
+	for name, rmCode := range map[string]int{"rm fails": 125, "rm times out": -1} {
+		w := newZapWorld(t, Deps{})
+		w.leaveCtr, w.rmCode = true, rmCode // podman run returned, its container did not go
+		w.runCode = 3
+		if _, err := w.o.zapBaseline(t.Context(), nolog, zapIPPage(t)); err == nil {
+			t.Fatalf("%s: the run succeeded", name)
+		}
+		w.stillFenced(t, name)
+		// The next run cleans up first, and refuses while it cannot.
+		_, err := w.o.zapBaseline(t.Context(), nolog, zapDomainPage(t))
+		var ref *server.Refusal
+		if !errors.As(err, &ref) || ref.Code != api.CodeZapCleaningUp || ref.Status != 409 {
+			t.Fatalf("%s: a run while the container may run: %v", name, err)
+		}
+		w.stillFenced(t, name)
+		// podman answers again: the next run removes the container, then the table, and runs.
+		w.mu.Lock()
+		w.rmCode, w.leaveCtr, w.runCode = 0, false, 0
+		w.mu.Unlock()
+		if _, err := w.o.zapBaseline(t.Context(), nolog, zapDomainPage(t)); err != nil {
+			t.Fatalf("%s: the run after podman recovered: %v", name, err)
+		}
+		w.cleanedUp(t)
+	}
+}
+
+func TestZapAtStart_TheFenceStaysWhileTheContainerMayRun(t *testing.T) {
+	t.Parallel()
+	for name, rmCode := range map[string]int{"rm fails": 125, "rm times out": -1} {
+		w := newZapWorld(t, Deps{})
+		if err := privDir(w.o.zapDir(), os.Getuid()); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(w.o.zapDir(), "active"), []byte("x"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		w.loaded, w.ctr, w.rmCode = "table inet vedette_zap { }", "ours", rmCode
+		w.o.zapAtStart(t.Context())
+		w.stillFenced(t, name)
+	}
+}
+
+// stillFenced: no nft delete was asked, the table is loaded and the marker is there.
+func (w *zapWorld) stillFenced(t *testing.T, name string) {
+	t.Helper()
+	if slices.Contains(w.Calls(), "nft delete table inet vedette_zap") || w.loaded == "" {
+		t.Errorf("%s: the fence was taken down while the container may run: %q", name, w.Calls())
+	}
+	if _, err := os.Lstat(filepath.Join(w.o.zapDir(), "active")); err != nil {
+		t.Errorf("%s: the marker is gone: %v", name, err)
+	}
+}
+
+func TestZapPull_AnUnreadableDiskIsNotPulledInto(t *testing.T) {
+	t.Parallel()
+	synctest.Test(t, func(t *testing.T) {
+		w := newZapWorld(t, Deps{FreeBytes: func(string) (uint64, error) { return 0, errors.New("statfs") }})
+		w.image = false
+		_, _ = w.o.zapBaseline(context.Background(), nolog, zapIPPage(t))
+		synctest.Wait()
+		w.o.zapMu.Lock()
+		reason := w.o.zapPullErr
+		w.o.zapMu.Unlock()
+		if !strings.Contains(reason, "could not be read") || slices.Contains(w.Calls(), "podman "+strings.Join(zapPullArgv(), " ")) {
+			t.Fatalf("reason %q, calls %q", reason, w.Calls())
+		}
+	})
 }

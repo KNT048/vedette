@@ -18,9 +18,11 @@ const (
 	CodeZapPulling = "zap_image_pulling"
 	// CodeZapPullFailed: the last download of the ZAP image failed; the next call tries again.
 	CodeZapPullFailed = "zap_image_pull_failed"
-	// CodeTargetNotOwned: the host's own re-check says the page is not the box's own address (IP target) or the domain no longer
-	// has its TXT token (domain target).
+	// CodeTargetNotOwned: the host's own re-check says the page is not the box's own address (IP target), or the domain no longer
+	// has its TXT token or the page's name no longer points at the IP (domain target).
 	CodeTargetNotOwned = "target_not_owned"
+	// CodeZapCleaningUp: an earlier run's container could not be proven gone yet, so its fence is kept and no new run starts.
+	CodeZapCleaningUp = "zap_cleaning_up"
 	// CodeOwnershipUnchecked: the host could not re-check (the public-IP services or DNS did not answer), so nothing was sent.
 	CodeOwnershipUnchecked = "ownership_unchecked"
 	// CodeZapFenceFailed: the network vedette-zap or its egress rule could not be set up and proven, so ZAP was not started.
@@ -40,7 +42,8 @@ const MaxZapReport = 4 << 20
 
 // ZapBaselineArgs are the args of zap.baseline. URL is http(s)://Host[:Port]/; IP is the public IPv4 address ZAP is pinned to and
 // Port its TCP port. Kind ip: Host is the IP itself, and the host checks that the box leaves the Internet through it. Kind domain:
-// Host is Domain or a name under it, and the host checks that Domain still has the TXT record vedette-verify=<TXTToken>.
+// Host is Domain or a name under it, and the host checks that Domain still has the TXT record vedette-verify=<TXTToken> and that Host
+// resolves to IP.
 type ZapBaselineArgs struct {
 	URL      string `json:"url"`
 	Host     string `json:"host"`

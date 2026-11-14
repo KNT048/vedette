@@ -28,20 +28,25 @@ import (
 //
 //  1. The arguments (Validate): the URL is exactly http(s)://Host[:Port]/ (no user, query or fragment), IP is a public IPv4 address
 //     (egressip.IsPublicIPv4), Port 1-65535, Host is the IP itself (kind ip) or the verified domain or a name under it (kind domain).
+//     Everything of one page up to the end of the run fits in zapPageLimit, inside exposure's 8 minutes.
 //  2. One run at a time (busy otherwise), and the image is on the box: when it is not, the host starts its download by digest in the
 //     background and refuses (zap_image_pulling): the ~1.2 GB download happens only for a box whose owner pressed Scan now (D-521).
 //  3. The host's own re-check of ownership, right before the run: kind ip, the box leaves the Internet through IP now (core/egressip,
-//     two of three services agree); kind domain, the domain still has its TXT record vedette-verify=<token>. Core asked the same
-//     moments before (exposure INV-13); the host does not take core's word for it.
-//  4. The fence: the podman network vedette-zap (bridge vedette-zap0, no DNS) and the nft table inet vedette_zap, loaded in one
-//     transaction and read back, which drops everything that enters the host from that bridge (forward and input) except TCP to
+//     two of three services agree); kind domain, the domain still has its TXT record vedette-verify=<token> AND the page's name
+//     resolves (A records, system resolver) to the IP ZAP is pinned to. Core asked the same moments before (exposure INV-13); the
+//     host does not take core's word for the IP it opens the fence to.
+//  4. The fence: the podman network vedette-zap (made by the host with zapLabel; bridge vedette-zap0, no DNS, no options, one IPv4
+//     subnet, not internal) and the nft table inet vedette_zap, loaded in one transaction (its text checked against zapRuleset
+//     before nft sees it) and read back, which drops everything that enters the host from that bridge (forward and input) except TCP to
 //     IP:Port. The container gets no resolver (--dns none) and, for a domain, the one name pinned to IP (--add-host), so a redirect to
 //     another host or port, a DNS lookup or a call home to zaproxy.org fails at the network layer.
 //  5. The container: --rm, --read-only (tmpfs for ZAP's home, podman's own for /tmp and /run), --cap-drop ALL, no-new-privileges,
 //     Vedette's AppArmor profile (D-458), 1 GiB without swap, 256 pids, the image's zap user, a JVM heap of 512 MiB, -silent (no
 //     update check, no call home), spider 1 minute, passive rules 5 minutes, no form posted, never -a (active scan) or -u.
-//  6. After the run, on every path: the container is removed by name, the nft table deleted, the work directory removed. A host that
-//     died mid-run does the same at its next start (the marker zap/active).
+//  6. After the run, on every path: the container is removed (only one that carries zapLabel) and must then be proven gone, and only
+//     then is the nft table deleted (a ZAP that may still run keeps its fence); then the work directory and the marker zap/active go.
+//     What cannot be proven gone keeps the table and the marker, is audited (zap_cleanup_incomplete), and is tried again by the next
+//     run, which refuses until it is clean (zap_cleaning_up), and by the next host start.
 //
 // The report is read from the work directory (a bind mount, 0700, owned by the image's zap user; a symlink, a FIFO or a file over
 // MaxZapReport is refused), kept as zap/<id>.json until the next run or host start, and served by GET /v1/zap/{id}/content. It is
@@ -54,6 +59,9 @@ const (
 	zapBridge    = "vedette-zap0" // the bridge podman makes for the network (--interface-name): the nft rules match it
 	zapContainer = "vedette-zap"
 	zapTable     = "vedette_zap"
+	// zapLabel marks the network and the container the host makes: only a thing that carries it is the host's to check, use or
+	// remove (here and in install.sh --uninstall); one of the same name without it is someone else's.
+	zapLabel = "io.vedette.owner=vedette-host"
 
 	// zapImage is ZAP_IMAGE of deploy/containers/pins.env without its tag (a test keeps them equal; install.sh --uninstall names it
 	// too): ZAP 2.17.0 ("stable"), the digest of the multi-architecture index. Upstream does not sign it with our key: integrity is the
@@ -72,12 +80,13 @@ const (
 	// no form handled or posted by the spider and one spider thread, gentle on a fragile site (D-562 (1), exposure INV-24).
 	zapOptions = "-silent -Xmx512m -config spider.processform=false -config spider.postform=false -config spider.thread=1"
 
-	// zapRunLimit bounds podman run: about a minute of JVM start, the spider's minute and at most five of passive rules, inside
-	// exposure's 8 minutes (WebScanTimeout) so that the cleanup and the answer arrive before exposure gives up.
-	zapRunLimit = 7*time.Minute + 30*time.Second
-	zapTimeout  = 9 * time.Minute // the command: the run, the checks before it and the cleanup after it
-	zapStepWait = time.Minute     // one podman or nft call other than the run and the pull
-	zapPullWait = 45 * time.Minute
+	// zapPageLimit bounds everything of one page up to the end of podman run, from the moment the run starts: the checks, the fence,
+	// about a minute of JVM start, the spider's minute and at most five of passive rules. It stays inside exposure's 8 minutes
+	// (WebScanTimeout) with room for the cleanup and core's 2-second polling, so exposure never gives up on a run the host still runs.
+	zapPageLimit = 7 * time.Minute
+	zapTimeout   = 9 * time.Minute // the command: the page's 7 minutes and the cleanup after it
+	zapStepWait  = time.Minute     // one podman or nft call other than the run and the pull
+	zapPullWait  = 45 * time.Minute
 	// zapMinFree is the free space the pull needs under /var/lib/containers: the image unpacks to about 2 GB.
 	zapMinFree = 4 << 30
 	// zapNoRun is podman's own exit code when it could not start the container (125) and the codes of a shell that could not run the
@@ -175,28 +184,36 @@ func zapArgs(a api.ZapBaselineArgs) (zapPage, error) {
 //	image exists <zapImage>
 //	pull -q <zapImage>
 //	network exists vedette-zap
-//	network create --driver bridge --interface-name vedette-zap0 --disable-dns vedette-zap
+//	network create --driver bridge --interface-name vedette-zap0 --disable-dns --label io.vedette.owner=vedette-host vedette-zap
 //	network inspect vedette-zap
-//	rm --force --ignore --time 0 vedette-zap
-//	--module <AppArmorConfModule> run … (zapRunArgv)
+//	container exists vedette-zap
+//	container inspect vedette-zap
+//	rm --force --ignore --time 0 vedette-zap         (only after container inspect showed zapLabel)
+//	--module <AppArmorConfModule> run … (zapRunArgv; validateZapRun: the work folder is exactly <state>/zap/wrk)
 
 func zapImageExistsArgv() []string { return []string{"image", "exists", zapImage} }
 func zapPullArgv() []string        { return []string{"pull", "-q", zapImage} }
 func zapNetExistsArgv() []string   { return []string{"network", "exists", zapNetwork} }
 func zapNetCreateArgv() []string {
-	return []string{"network", "create", "--driver", "bridge", "--interface-name", zapBridge, "--disable-dns", zapNetwork}
+	return []string{"network", "create", "--driver", "bridge", "--interface-name", zapBridge, "--disable-dns", "--label", zapLabel, zapNetwork}
 }
 func zapNetInspectArgv() []string { return []string{"network", "inspect", zapNetwork} }
+func zapCtrExistsArgv() []string  { return []string{"container", "exists", zapContainer} }
+func zapCtrInspectArgv() []string { return []string{"container", "inspect", zapContainer} }
 func zapRmArgv() []string         { return []string{"rm", "--force", "--ignore", "--time", "0", zapContainer} }
+
+// zapMountOpts are the options of the work folder's bind mount: the container writes its report there and nothing in it can be a
+// device, a setuid binary or run.
+const zapMountOpts = ":rw,nosuid,nodev,noexec"
 
 // zapRunArgv is the one podman run. addHost is "<name>:<ip>" for a domain's page and "" for an IP's; wrk is the work directory.
 func zapRunArgv(pageURL, addHost, wrk string) []string {
-	a := []string{"--module", AppArmorConfModule, "run", "--rm", "--pull=never", "--name", zapContainer, "--network", zapNetwork, "--dns", "none"}
+	a := []string{"--module", AppArmorConfModule, "run", "--rm", "--pull=never", "--name", zapContainer, "--label", zapLabel, "--network", zapNetwork, "--dns", "none"}
 	if addHost != "" {
 		a = append(a, "--add-host", addHost)
 	}
 	return append(a, "--cap-drop", "ALL", "--security-opt", "no-new-privileges", "--read-only", "--tmpfs", zapTmpfs,
-		"--volume", wrk+":"+zapWorkDir+":rw", "--user", "1000:1000", "--memory=1g", "--memory-swap=1g", "--pids-limit=256", "--no-healthcheck",
+		"--volume", wrk+":"+zapWorkDir+zapMountOpts, "--user", "1000:1000", "--memory=1g", "--memory-swap=1g", "--pids-limit=256", "--no-healthcheck",
 		zapImage, "zap-baseline.py", "-t", pageURL, "-m", "1", "-T", "5", "-J", zapReportName, "-z", zapOptions)
 }
 
@@ -208,8 +225,9 @@ func (p zapPage) runArgv(wrk string) []string {
 	return zapRunArgv(p.url, addHost, wrk)
 }
 
-// isZapRunArgv: the three values that vary each pass their own check, and the argv is then exactly what zapRunArgv builds of them.
-func isZapRunArgv(a []string) bool {
+// isZapRunArgv: the three values that vary each pass their own check (the work folder is exactly <stateDir>/zap/wrk), and the argv
+// is then exactly what zapRunArgv builds of them.
+func isZapRunArgv(stateDir string, a []string) bool {
 	if len(a) < 4 || a[0] != "--module" || a[2] != "run" {
 		return false
 	}
@@ -227,8 +245,8 @@ func isZapRunArgv(a []string) bool {
 	if i < 0 || i+1 >= len(a) || j < 0 || j+1 >= len(a) {
 		return false
 	}
-	wrk, ok := strings.CutSuffix(a[i+1], ":"+zapWorkDir+":rw")
-	if !ok || !validBuildDir(wrk) {
+	wrk, ok := strings.CutSuffix(a[i+1], ":"+zapWorkDir+zapMountOpts)
+	if !ok || !validBuildDir(wrk) || wrk != filepath.Join(stateDir, "zap", "wrk") {
 		return false
 	}
 	host, _, ok := zapURL(a[j+1])
@@ -243,14 +261,26 @@ func isIPv4Text(s string) bool {
 	return err == nil && a.Is4() && egressip.IsPublicIPv4(a) && a.String() == s
 }
 
-// isZapPodmanArgv says whether args is one of the podman shapes of zap.baseline.
+// isZapPodmanArgv says whether args is one of the fixed podman shapes of zap.baseline other than the run.
 func isZapPodmanArgv(args []string) bool {
-	for _, want := range [][]string{zapImageExistsArgv(), zapPullArgv(), zapNetExistsArgv(), zapNetCreateArgv(), zapNetInspectArgv(), zapRmArgv()} {
+	for _, want := range [][]string{zapImageExistsArgv(), zapPullArgv(), zapNetExistsArgv(), zapNetCreateArgv(), zapNetInspectArgv(),
+		zapCtrExistsArgv(), zapCtrInspectArgv(), zapRmArgv()} {
 		if slices.Equal(args, want) {
 			return true
 		}
 	}
-	return isZapRunArgv(args)
+	return false
+}
+
+// validatePodmanIn is the validator of the host runner's podman: the fixed shapes of validatePodman, and the run of zap.baseline
+// with its work folder under this state directory.
+func validatePodmanIn(stateDir string) func([]string) error {
+	return func(args []string) error {
+		if isZapRunArgv(stateDir, args) {
+			return nil
+		}
+		return validatePodman(args)
+	}
 }
 
 // The nft shapes: the ruleset from standard input (zapRuleset, built here from a netip.Addr and an int), its read-back, its removal.
@@ -279,6 +309,24 @@ func zapRuleset(ip netip.Addr, port int) (string, error) {
 	return "table inet " + zapTable + "\ndelete table inet " + zapTable + "\ntable inet " + zapTable + " {\n" +
 		"\tchain fwd {\n\t\ttype filter hook forward priority -10; policy accept;\n" + allow + "\t}\n" +
 		"\tchain in {\n\t\ttype filter hook input priority -10; policy accept;\n" + allow + "\t}\n}\n", nil
+}
+
+var zapAllowRE = regexp.MustCompile(`(?m)^\t\tiifname "vedette-zap0" ip daddr ([0-9.]{7,15}) tcp dport ([0-9]{1,5}) accept$`)
+
+// zapRulesetOK says whether text is exactly zapRuleset of some public IPv4 address and port: the only text nft -f - is given (the
+// runner's validator sees the argv, not standard input, so zapStep checks it here).
+func zapRulesetOK(text string) bool {
+	m := zapAllowRE.FindStringSubmatch(text)
+	if m == nil {
+		return false
+	}
+	ip, err := netip.ParseAddr(m[1])
+	port, perr := strconv.Atoi(m[2])
+	if err != nil || perr != nil {
+		return false
+	}
+	want, err := zapRuleset(ip, port)
+	return err == nil && text == want
 }
 
 // zapRulesetLoaded checks nft's JSON listing of the table: chains fwd (hook forward) and in (hook input), each with exactly the two
@@ -359,8 +407,16 @@ func (o *Ops) zx() zapExecFn {
 	return o.execIn
 }
 
-// zapStep runs one bounded call and reports its exit code (-1 with the error when it could not run).
+// zapStep runs one bounded call and reports its exit code (-1 with the error when it could not run). nft reads a ruleset from
+// stdin only when it is exactly one zapRuleset.
 func (o *Ops) zapStep(ctx context.Context, name string, stdin io.Reader, args ...string) (vexec.Result, int, error) {
+	if stdin != nil {
+		b, err := io.ReadAll(io.LimitReader(stdin, 4<<10))
+		if err != nil || name != binNft || !zapRulesetOK(string(b)) {
+			return vexec.Result{}, -1, errZapArgv
+		}
+		stdin = bytes.NewReader(b)
+	}
 	cctx, cancel := context.WithTimeout(ctx, zapStepWait)
 	defer cancel()
 	res, code, err := o.zx()(cctx, name, stdin, args...)
@@ -385,11 +441,16 @@ func (o *Ops) zapBaseline(ctx context.Context, logf func(string), p zapPage) (an
 		o.zapBusy = false
 		o.zapMu.Unlock()
 	}()
+	ctx, cancel := context.WithTimeout(ctx, zapPageLimit)
+	defer cancel()
 
 	if ref := o.zapImageReady(ctx); ref != nil {
 		return nil, ref
 	}
 	if err := o.zapOwned(ctx, p); err != nil {
+		return nil, err
+	}
+	if err := o.zapClearStale(ctx); err != nil {
 		return nil, err
 	}
 	if err := privDir(o.zapDir(), o.cfg.OwnerUID); err != nil {
@@ -400,7 +461,7 @@ func (o *Ops) zapBaseline(ctx context.Context, logf func(string), p zapPage) (an
 	if err := writeFileAtomic(filepath.Join(o.zapDir(), "active"), []byte(p.url+"\n"), 0o600); err != nil {
 		return nil, fail(api.CodeZapFenceFailed, "The host could not prepare its folder for the web scan.")
 	}
-	defer o.zapCleanup(context.WithoutCancel(ctx))
+	defer func() { _ = o.zapCleanup(context.WithoutCancel(ctx)) }()
 	if err := o.zapFence(ctx, p); err != nil {
 		return nil, err
 	}
@@ -412,13 +473,11 @@ func (o *Ops) zapBaseline(ctx context.Context, logf func(string), p zapPage) (an
 		return nil, fail(api.CodeZapFenceFailed, "The host could not prepare the work folder of the web scan.")
 	}
 	logf("passive web scan of " + p.url + " pinned to " + p.ip.String() + ":" + strconv.Itoa(p.port) + " (ZAP baseline, spider 1 minute, passive rules)")
-	rctx, cancel := context.WithTimeout(ctx, zapRunLimit)
-	_, code, err := o.zx()(rctx, binPodman, nil, p.runArgv(wrk)...)
-	slow := rctx.Err() != nil
-	cancel()
+	_, code, err := o.zx()(ctx, binPodman, nil, p.runArgv(wrk)...)
+	slow := ctx.Err() != nil
 	switch {
 	case slow:
-		return nil, fail(api.CodeZapTimedOut, "ZAP did not finish within the host's time limit; the container was removed.")
+		return nil, fail(api.CodeZapTimedOut, "ZAP did not finish within the host's time limit of 7 minutes for a page.")
 	case err != nil:
 		o.log.ErrorContext(ctx, "zap.baseline: podman run could not run", "error", err.Error())
 		return nil, fail(api.CodeZapFailed, "The host could not start ZAP.")
@@ -484,7 +543,9 @@ func (o *Ops) zapPull() {
 	ctx, cancel := context.WithTimeout(parent, zapPullWait)
 	defer cancel()
 	reason := ""
-	if free, err := o.d.FreeBytes(o.path("var/lib/containers")); err == nil && free < zapMinFree {
+	if free, err := o.d.FreeBytes(o.path("var/lib/containers")); err != nil {
+		reason = "the free space under /var/lib/containers could not be read"
+	} else if free < zapMinFree {
 		reason = fmt.Sprintf("only %d MiB free under /var/lib/containers, %d MiB needed", free>>20, uint64(zapMinFree)>>20)
 	} else if _, code, err := o.zx()(ctx, binPodman, nil, zapPullArgv()...); err != nil || code != 0 {
 		reason = "podman pull failed: the box may not reach ghcr.io"
@@ -521,12 +582,25 @@ func (o *Ops) zapOwned(ctx context.Context, p zapPage) error {
 	if err != nil && (!errors.As(err, &nf) || !nf.NotFound()) {
 		return fail(api.CodeOwnershipUnchecked, "The DNS lookup of "+p.domain+" failed, so its TXT record could not be checked and nothing was sent.")
 	}
-	for _, v := range vals {
-		if strings.TrimSpace(v) == "vedette-verify="+p.token { // exposure's txtRecord
-			return nil
-		}
+	if !slices.ContainsFunc(vals, func(v string) bool { return strings.TrimSpace(v) == "vedette-verify="+p.token }) { // exposure's txtRecord
+		return refuse412(api.CodeTargetNotOwned, p.domain+" no longer has its vedette-verify TXT record, so its pages were not scanned.")
 	}
-	return refuse412(api.CodeTargetNotOwned, p.domain+" no longer has its vedette-verify TXT record, so its pages were not scanned.")
+	// The address the fence opens must be one the name points at now: core's word for it is not enough (review M1).
+	addrs, err := o.zapLookupIP(cctx, p.host)
+	if err != nil && (!errors.As(err, &nf) || !nf.NotFound()) {
+		return fail(api.CodeOwnershipUnchecked, "The DNS lookup of "+p.host+" failed, so the host could not check that it points at "+p.ip.String()+", and nothing was sent.")
+	}
+	if !slices.ContainsFunc(addrs, func(a netip.Addr) bool { return a.Unmap() == p.ip }) {
+		return refuse412(api.CodeTargetNotOwned, p.host+" no longer points at "+p.ip.String()+", so its page was not scanned.")
+	}
+	return nil
+}
+
+func (o *Ops) zapLookupIP(ctx context.Context, name string) ([]netip.Addr, error) {
+	if o.d.ZapLookupIP != nil {
+		return o.d.ZapLookupIP(ctx, name)
+	}
+	return lookupIPv4(ctx, name)
 }
 
 func (o *Ops) zapEgress(ctx context.Context) (netip.Addr, error) {
@@ -553,9 +627,6 @@ func (o *Ops) zapFence(ctx context.Context, p zapPage) error {
 		o.log.ErrorContext(ctx, "zap.baseline: the network fence could not be set up", "reason", why)
 		return fail(api.CodeZapFenceFailed, "The host could not set up the network fence of the web scan ("+why+"), so ZAP was not started.")
 	}
-	if _, code, err := o.zapStep(ctx, binPodman, nil, zapRmArgv()...); err != nil || code != 0 { // a container a dead run left
-		return refused("a container vedette-zap could not be removed")
-	}
 	_, code, err := o.zapStep(ctx, binPodman, nil, zapNetExistsArgv()...)
 	switch {
 	case err != nil || (code != 0 && code != 1):
@@ -567,7 +638,7 @@ func (o *Ops) zapFence(ctx context.Context, p zapPage) error {
 	}
 	res, code, err := o.zapStep(ctx, binPodman, nil, zapNetInspectArgv()...)
 	if err != nil || code != 0 || res.Truncated || !zapNetworkIsOurs(res.Stdout) {
-		return refused("the network vedette-zap is not the one the host makes: bridge vedette-zap0, no DNS, IPv4 only")
+		return refused("the network vedette-zap is not the one the host makes: label io.vedette.owner=vedette-host, bridge vedette-zap0, no DNS, no options, one IPv4 subnet, not internal")
 	}
 	rules, err := zapRuleset(p.ip, p.port)
 	if err != nil {
@@ -583,49 +654,136 @@ func (o *Ops) zapFence(ctx context.Context, p zapPage) error {
 	return nil
 }
 
-// zapNetworkIsOurs reads podman network inspect: exactly the network vedette-zap, a bridge named vedette-zap0, no DNS, no IPv6.
+// zapNetworkIsOurs reads podman network inspect: exactly the network vedette-zap the host made (its label), a bridge named
+// vedette-zap0 with no driver options (an "unmanaged" bridge on the LAN card, for one, would put ZAP on the LAN below the fence), no
+// DNS, no IPv6, not internal, one IPv4 subnet.
 func zapNetworkIsOurs(out []byte) bool {
 	var nets []struct {
-		Name      string `json:"name"`
-		Driver    string `json:"driver"`
-		Interface string `json:"network_interface"`
-		IPv6      bool   `json:"ipv6_enabled"`
-		DNS       bool   `json:"dns_enabled"`
+		Name      string            `json:"name"`
+		Driver    string            `json:"driver"`
+		Interface string            `json:"network_interface"`
+		IPv6      bool              `json:"ipv6_enabled"`
+		DNS       bool              `json:"dns_enabled"`
+		Internal  bool              `json:"internal"`
+		Labels    map[string]string `json:"labels"`
+		Options   map[string]string `json:"options"`
+		Subnets   []struct {
+			Subnet string `json:"subnet"`
+		} `json:"subnets"`
 	}
 	if json.Unmarshal(out, &nets) != nil || len(nets) != 1 {
 		return false
 	}
 	n := nets[0]
-	return n.Name == zapNetwork && n.Driver == "bridge" && n.Interface == zapBridge && !n.DNS && !n.IPv6
+	key, val, _ := strings.Cut(zapLabel, "=")
+	if len(n.Subnets) != 1 {
+		return false
+	}
+	sub, err := netip.ParsePrefix(n.Subnets[0].Subnet)
+	return n.Name == zapNetwork && n.Driver == "bridge" && n.Interface == zapBridge && !n.DNS && !n.IPv6 && !n.Internal &&
+		n.Labels[key] == val && len(n.Options) == 0 && err == nil && sub.Addr().Is4()
 }
 
-// zapCleanup removes what a run leaves, on every path: the container (podman run was killed, or the host died, while it ran), the
-// egress rule and the work directory; then the marker. A step that fails is logged; the marker stays, so the next start tries again.
-func (o *Ops) zapCleanup(ctx context.Context) {
-	ok := true
+// zapContainerIsOurs reads podman container inspect of vedette-zap: ours says whether it carries zapLabel; ok is false when the
+// answer cannot be read (then nothing is concluded from it).
+func zapContainerIsOurs(out []byte) (ours, ok bool) {
+	var ctrs []struct {
+		Config struct {
+			Labels map[string]string `json:"Labels"`
+		} `json:"Config"`
+	}
+	if len(out) > maxInspectOutput || json.Unmarshal(out, &ctrs) != nil || len(ctrs) != 1 {
+		return false, false
+	}
+	key, val, _ := strings.Cut(zapLabel, "=")
+	return ctrs[0].Config.Labels[key] == val, true
+}
+
+// zapContainerGone removes the container vedette-zap when it is the host's (zapLabel) and says whether no ZAP of the host can still
+// run: gone is true only when podman says no container of that name exists after it, or the one there is someone else's (foreign,
+// never removed). Every answer that cannot be read is "not gone".
+func (o *Ops) zapContainerGone(ctx context.Context) (gone, foreign bool) {
+	exists := func() (bool, bool) { // there, known
+		_, code, err := o.zapStep(ctx, binPodman, nil, zapCtrExistsArgv()...)
+		return err == nil && code == 0, err == nil && (code == 0 || code == 1)
+	}
+	there, known := exists()
+	if !known {
+		return false, false
+	}
+	if !there {
+		return true, false
+	}
+	res, code, err := o.zapStep(ctx, binPodman, nil, zapCtrInspectArgv()...)
+	if err != nil || code != 0 || res.Truncated {
+		return false, false
+	}
+	ours, ok := zapContainerIsOurs(res.Stdout)
+	switch {
+	case !ok:
+		return false, false
+	case !ours:
+		return true, true
+	}
 	if _, code, err := o.zapStep(ctx, binPodman, nil, zapRmArgv()...); err != nil || code != 0 {
-		ok = false
-		o.log.ErrorContext(ctx, "zap.baseline: the container vedette-zap could not be removed")
+		return false, false
+	}
+	there, known = exists()
+	return known && !there, false
+}
+
+// zapClearStale is the start of a run: a container a run left (podman run killed at its limit, the host restarted) or a run whose
+// cleanup did not finish is cleaned up now; until that works the run is refused, and a container of that name that is not the
+// host's stops it.
+func (o *Ops) zapClearStale(ctx context.Context) error {
+	_, merr := os.Lstat(filepath.Join(o.zapDir(), "active"))
+	gone, foreign := o.zapContainerGone(ctx)
+	switch {
+	case foreign:
+		return fail(api.CodeZapFenceFailed, "A container named vedette-zap that is not Vedette's is on this box, so ZAP was not started.")
+	case !gone:
+		o.zapCleanupIncomplete(ctx, "the container of an earlier passive web scan could not be proven gone")
+		return refuse409(api.CodeZapCleaningUp, "The host is still cleaning up an earlier passive web scan.")
+	case merr == nil && !o.zapCleanup(ctx):
+		return refuse409(api.CodeZapCleaningUp, "The host is still cleaning up an earlier passive web scan.")
+	}
+	return nil
+}
+
+func (o *Ops) zapCleanupIncomplete(ctx context.Context, why string) {
+	o.log.ErrorContext(ctx, "zap.baseline: cleanup incomplete; the egress fence and the marker are kept", "reason", why)
+	o.note(api.CmdZapBaseline, "zap_cleanup_incomplete", map[string]any{"reason": why})
+}
+
+// zapCleanup removes what a run leaves, on every path: the container (podman run was killed at its limit, or the host died, while
+// it ran), then, only once no ZAP of the host can still run, the egress rule; then the work directory and the marker. When the
+// container cannot be proven gone the rule and the marker stay (a fence that outlives its container harms nothing; a container that
+// outlives its fence could reach anything), the step is audited, and the next run or host start tries again. It reports whether
+// everything went.
+func (o *Ops) zapCleanup(ctx context.Context) bool {
+	if gone, _ := o.zapContainerGone(ctx); !gone {
+		o.zapCleanupIncomplete(ctx, "the container vedette-zap could not be removed or proven gone")
+		return false
 	}
 	if _, code, err := o.zapStep(ctx, binNft, nil, nftDeleteArgv...); err != nil || code != 0 {
 		// nft exits 1 when the table is not there (a fence that never loaded): the listing says which
 		if _, lc, lerr := o.zapStep(ctx, binNft, nil, nftListArgv...); lerr != nil || lc == 0 {
-			ok = false
-			o.log.ErrorContext(ctx, "zap.baseline: the nft table inet vedette_zap could not be deleted")
+			o.zapCleanupIncomplete(ctx, "the nft table inet vedette_zap could not be deleted")
+			return false
 		}
 	}
 	if err := os.RemoveAll(filepath.Join(o.zapDir(), "wrk")); err != nil {
-		ok = false
+		o.zapCleanupIncomplete(ctx, "the work folder could not be removed")
+		return false
 	}
-	if ok {
-		_ = removeIfThere(filepath.Join(o.zapDir(), "active"))
-	}
+	_ = removeIfThere(filepath.Join(o.zapDir(), "active"))
+	return true
 }
 
 // zapAtStart runs at host start: a run the previous process did not finish is cleaned up, and its reports go.
 func (o *Ops) zapAtStart(ctx context.Context) {
 	if _, err := os.Lstat(filepath.Join(o.zapDir(), "active")); err == nil {
-		o.zapCleanup(ctx)
+		_ = o.zapCleanup(ctx)
 	}
 	o.zapClearReports()
 }

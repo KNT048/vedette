@@ -133,7 +133,9 @@ type Deps struct {
 	// of the scan's work directory (default 1000, the image's zap user). Tests answer for them.
 	ZapEgress func(ctx context.Context) (netip.Addr, error)
 	ZapTXT    func(ctx context.Context, name string) ([]string, error)
-	ZapUID    int
+	// ZapLookupIP is the A-record lookup of a domain page's name (default: the system resolver), to check it points at the page's IP.
+	ZapLookupIP func(ctx context.Context, name string) ([]netip.Addr, error)
+	ZapUID      int
 }
 
 // Ops holds the state of the system commands.
@@ -428,6 +430,11 @@ func sleepCtx(ctx context.Context, d time.Duration) bool {
 // lookupTXT asks the system resolver for the TXT records of name (zap.baseline's re-check of a domain, D-521).
 func lookupTXT(ctx context.Context, name string) ([]string, error) {
 	return net.DefaultResolver.LookupTXT(ctx, name)
+}
+
+// lookupIPv4 asks the system resolver for the IPv4 addresses of name (zap.baseline's check that a page's name points at its IP).
+func lookupIPv4(ctx context.Context, name string) ([]netip.Addr, error) {
+	return net.DefaultResolver.LookupNetIP(ctx, "ip4", name)
 }
 
 func fail(code, msg string) *server.Failure { return &server.Failure{Code: code, Message: msg} }

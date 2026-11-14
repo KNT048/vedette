@@ -17,8 +17,8 @@ import (
 // pins ZAP to page.IP, refuses a non-public address and re-checks ownership itself (the box's own egress for an IP target, the TXT
 // token for a domain, which is why the token goes along); the report comes back by a second read, at most MaxWebReport bytes.
 //
-// Every reason the step did not run that holds for the other pages too (no host, busy, the image is being downloaded, the target is
-// no longer the customer's, the fence could not be set up) is an *exposure.Unavailable with a sentence for the page; a run that
+// Every reason the step did not run that holds for the other pages too (no host, busy, still cleaning up, the image is being
+// downloaded, the target is no longer the customer's, the fence could not be set up) is an *exposure.Unavailable with a sentence for the page; a run that
 // failed on this page (ZAP without a report, the host's time limit) is a plain error, which exposure logs and shows as a failure.
 type exposureWebScan struct {
 	host  zapHost                                                    // nil: no vedette-host on this install
@@ -34,12 +34,13 @@ type zapHost interface {
 // The reasons exposure shows after "Passive web scan (ZAP) did not run: ".
 const (
 	webNoHost     = "this install has no host helper (vedette-host), which runs ZAP's container: the passive web scan needs the appliance install."
-	webBusy       = "another passive web scan was running on this box. Scan again later."
+	webBusy       = "a passive web scan was still running on this box (possibly this scan's previous page). Scan again later."
+	webCleaningUp = "the box is still cleaning up an earlier passive web scan (its container could not be removed yet; the box log has the reason). Scan again later."
 	webPulling    = "the ZAP image (about 1.2 GB) is being downloaded to this box. Scan again in a few minutes."
 	webPullFailed = "the download of the ZAP image from ghcr.io failed (the box may not reach ghcr.io, or its disk is full). Scan again to try once more; the box log has the reason."
 	webNotOwnIP   = "this box no longer reaches the Internet through %s, so its pages were not scanned."
-	webNotOwnDom  = "%s no longer has its vedette-verify TXT record, so its pages were not scanned."
-	webUnchecked  = "the box could not check that the target is still yours (the public IP services or DNS did not answer), so nothing was sent."
+	webNotOwnDom  = "%s no longer has its vedette-verify TXT record, or %s no longer points at %s, so the page was not scanned."
+	webUnchecked  = "the box could not confirm that the target is still yours (the public IP services or DNS did not answer, or did not agree), so nothing was sent."
 	webFence      = "the box could not set up the network fence that keeps ZAP to this one address and port, so ZAP was not started. The box log has the reason."
 	webOldHost    = "the box's host helper (vedette-host) is older than this version of Vedette. Update the box, then scan again."
 )
@@ -115,13 +116,15 @@ func webReason(code string, t exposure.ScanTarget, page exposure.WebPage) string
 	switch code {
 	case api.CodeBusy:
 		return webBusy
+	case api.CodeZapCleaningUp:
+		return webCleaningUp
 	case api.CodeZapPulling:
 		return webPulling
 	case api.CodeZapPullFailed:
 		return webPullFailed
 	case api.CodeTargetNotOwned:
 		if t.Kind == exposure.KindDomain {
-			return fmt.Sprintf(webNotOwnDom, t.Value)
+			return fmt.Sprintf(webNotOwnDom, t.Value, page.Host, page.IP)
 		}
 		return fmt.Sprintf(webNotOwnIP, page.IP)
 	case api.CodeOwnershipUnchecked:

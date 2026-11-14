@@ -47,9 +47,10 @@ type WebPage struct {
 	Port int
 }
 
-// WebProbe is the probe log row of a page ZAP is about to be started on (LEGAL §3). A spider finds its URLs while it runs, so a page
-// is logged before it starts, with the scope ZAP is pinned to (one address and port); the adapter appends what the spider fetched
-// afterwards.
+// WebProbe is the probe log row of a page ZAP is about to be started on (LEGAL §3). A spider finds its URLs while it runs, so the
+// probe-log unit of a ZAP run is the page with its scope, written before it starts: one address and port, the URL, the tool and its
+// options, the time (D-562 as amended by D-521). The spider's own requests stay inside that scope because the host's network fence
+// allows nothing else; they are not logged one by one.
 type WebProbe struct {
 	ID   string
 	IP   string

@@ -227,7 +227,7 @@ func hostBinaries(stateDir, coreUnit string, paths map[string]string, streamLimi
 		{Name: binNetplan, Path: p(binNetplan), Validate: validateNetplan},
 		{Name: binChronyc, Path: p(binChronyc), Validate: validateChronyc},
 		{Name: binIP, Path: p(binIP), Validate: validateIP, MaxOutput: 1 << 20},
-		{Name: binPodman, Path: p(binPodman), Validate: validatePodman, MaxOutput: maxInspectOutput},
+		{Name: binPodman, Path: p(binPodman), Validate: validatePodmanIn(stateDir), MaxOutput: maxInspectOutput},
 		{Name: binIptables, Path: p(binIptables), Validate: validateIptables, MaxOutput: 1 << 20},
 		{Name: binConntrack, Path: p(binConntrack), Validate: validateConntrack, MaxOutput: 1 << 16},
 		// host.self_update (D-316): the start of the applier, and the read-only looks at the staged file and dpkg.

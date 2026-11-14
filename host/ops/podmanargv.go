@@ -286,7 +286,7 @@ func isNmapCheckArgv(a []string) bool {
 // validatePodman is the validator of the podman binary: the shapes above.
 func validatePodman(args []string) error {
 	switch {
-	case isBuildArgv(args), isNmapCheckArgv(args), isVolumeExistsArgv(args), isZapPodmanArgv(args): // zap.baseline's shapes: zap.go
+	case isBuildArgv(args), isNmapCheckArgv(args), isVolumeExistsArgv(args), isZapPodmanArgv(args): // zap.baseline's fixed shapes (its run: validatePodmanIn), zap.go
 		return nil
 	case len(args) == 3 && args[0] == "tag" && imageIDRE.MatchString(args[1]) && isNmapTag(args[2]):
 		return nil

@@ -14,7 +14,9 @@ type FixedIn struct {
 	// range that applies), "up_to" (inside a range that ends at Fixed, itself affected: NVD names no fixed release),
 	// "branches" (the version is not known, or not readable) or "distro" (a package of the distribution, whose security
 	// updates carry the fix under their own numbers: an agent read it from the device's package database, or the version
-	// carries a distribution marker, "2.4.52-1ubuntu4", on Ubuntu/Debian).
+	// carries a distribution marker, "2.4.52-1ubuntu4", on Ubuntu/Debian). A Windows release row (D-546) may also give "feature_update"
+	// (the device's release no longer gets monthly updates: Fixed is the build of Branches[0].Branch, a later release of its line,
+	// that has the fix) or "esu" (Fixed is above the last revision the release gets without Extended Security Updates).
 	Kind     string        `json:"kind"`
 	Version  string        `json:"version"` // the device's version; "" when it has none (branches), the unreadable text when it has one Vedette cannot read
 	Fixed    string        `json:"fixed"`   // fixed (kind fixed), last affected (kind up_to), the upstream fixed release when NVD names one (kind distro: the backport may keep the package's number below it), "" otherwise
@@ -86,6 +88,12 @@ func FixedInFor(a Asset, v Vuln) *FixedIn {
 			continue
 		}
 		in := newSWInfo(s, a.OS)
+		if f, ok := windowsFixedIn(in, v); ok { // D-546
+			if rank(f) > rank(best) {
+				best = f
+			}
+			continue
+		}
 		if f := fixedInSoftware(in, v, key); rank(f) > rank(best) {
 			best = f
 		}
@@ -334,7 +342,9 @@ func lineOf(r VersionRange) string {
 // Kind is "fixed" (Fixed is outside the affected range of ALL the vulnerabilities of the software), "none" (NVD's ranges name no
 // release that clears them all: the advisory decides), "up_to" (NVD names no fixed release, Fixed is the last affected one) or
 // "distro" (the distribution's security updates carry the fix: an agent read it from the package database, or its version carries a
-// distribution marker on Ubuntu/Debian). Software is the id of the software row it is about.
+// distribution marker on Ubuntu/Debian). A Windows release row (D-546) may give "feature_update" (no monthly update clears it: Fixed
+// names the later release of its line that has the fixes; the device needs a feature update) or "esu" (Fixed needs Extended Security
+// Updates). Software is the id of the software row it is about.
 type GroupFix struct {
 	Kind, Software, Version, Fixed, Distro string
 	// Closed holds the CVEs the release closes: for kind fixed every vulnerability of the software (the release is outside all their ranges); otherwise those the device is affected by through a range that has an end.
@@ -362,6 +372,9 @@ func FixedInForAll(a Asset, vulns []Vuln) map[string]*GroupFix {
 			}
 		}
 		g := groupFixOf(in, mine)
+		if _, ok := winDevice(in); ok {
+			g = windowsGroupFix(in, mine) // D-546
+		}
 		if g == nil {
 			continue
 		}

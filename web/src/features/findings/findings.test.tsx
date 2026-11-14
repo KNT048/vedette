@@ -253,6 +253,14 @@ describe('findings: f-2, f-3 chưa có khuyến nghị đã xác nhận (D-21)',
     const pro = note({ ...src, kind: 'distro', version: '1:2.25.1-1ubuntu3.14', fixed: '', distro: 'Ubuntu', distro_fixed: '1:2.25.1-1ubuntu3.14+esm6', distro_release: '20.04', distro_pro: true, source: 'Ubuntu security data' })
     expect(screen.getByText(/Ubuntu Pro \(ESM\) only/)).toBeInTheDocument()
     pro.unmount()
+    // D-546 (review r1 M2): a Windows release Microsoft no longer updates is told to take a feature update, never a build it cannot get
+    const fu = note({ ...src, kind: 'feature_update', version: '10.0.22621.6060', fixed: '10.0.22631.6199', branches: [{ branch: 'Windows 11 23H2', fixed: '10.0.22631.6199' }] })
+    expect(screen.getByText(/^NVD names the fix for Windows 11 23H2 \(10\.0\.22631\.6199\), not for the Windows release FortiGate-60F runs \(10\.0\.22621\.6060\).*a feature update/)).toBeInTheDocument()
+    expect(screen.queryByText(/upgrade FortiGate-60F from/)).not.toBeInTheDocument()
+    fu.unmount()
+    const esu = note({ ...src, kind: 'esu', version: '10.0.19045.6456', fixed: '10.0.19045.6575', branches: [{ branch: 'Windows 10 22H2', fixed: '10.0.19045.6575' }] })
+    expect(screen.getByText(/^Fixed in 10\.0\.19045\.6575, an Extended Security Update: Microsoft updates Windows 10 22H2 past the end of its support only for devices enrolled/)).toBeInTheDocument()
+    esu.unmount()
     note(null)
     expect(screen.queryByTestId('fixed-in')).not.toBeInTheDocument()
   })
@@ -519,7 +527,7 @@ describe('findings: accept risk until a day (D-498, S-MIT-1)', () => {
 })
 
 describe('findings: "I updated <software>" (D-499, S-MIT-1, item 14)', () => {
-  const device = (source: 'manual' | 'nmap', version = '7.2.0') => http.get('*/api/v1/inventory/devices/:id', () => HttpResponse.json({ asset: { id: 'a-srvad', software: [
+  const device = (source: 'manual' | 'nmap' | 'agent', version = '7.2.0') => http.get('*/api/v1/inventory/devices/:id', () => HttpResponse.json({ asset: { id: 'a-srvad', software: [
     { id: 's-srvad', display: 'FortiOS', vendor: 'Fortinet', product: 'FortiOS', version, source, confidence: 1, kev_cves: ['CVE-2026-96951'] },
   ] } }))
 
@@ -569,6 +577,16 @@ describe('findings: "I updated <software>" (D-499, S-MIT-1, item 14)', () => {
     expect(within(dlg).queryByLabelText('New version')).toBeNull()
     expect(within(dlg).getByText('Vedette reads this version from the device. Run a scan of SRV-AD to check.')).toBeInTheDocument()
     expect(within(dlg).getByRole('link', { name: 'Scan SRV-AD' })).toHaveAttribute('href', '/scans?target=a-srvad')
+  })
+
+  it('software an agent reads (the Windows row of osquery, D-546): no version box, no scan, the agent reports it', async () => {
+    server.use(device('agent'))
+    renderApp('/findings/f-3')
+    await userEvent.click(await screen.findByRole('button', { name: 'I updated it' }))
+    const dlg = await screen.findByRole('dialog', { name: 'I updated FortiOS' })
+    expect(within(dlg).queryByLabelText('New version')).toBeNull()
+    expect(within(dlg).queryByRole('link', { name: 'Scan SRV-AD' })).toBeNull()
+    expect(within(dlg).getByText(/^The agent on SRV-AD reports the new version by itself, usually within two hours after the restart/)).toBeInTheDocument()
   })
 })
 

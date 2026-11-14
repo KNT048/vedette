@@ -62136,7 +62136,10 @@ type FindingsGetFindingsIDOKFixedIn struct {
 	// named); branches = the version is unknown or unreadable, `branches` lists the fix of each release
 	// line; distro = a package of the distribution, whose security updates carry the fix under their own
 	// numbers: an agent read it from the device's package database (deb/rpm), or the version carries a
-	// marker such as ubuntu, +deb12, .el9.
+	// marker such as ubuntu, +deb12, .el9; feature_update (D-546) = a Windows release NVD does not list
+	// for the fix, which only a later release of its line (`branches[0].branch`, from build `fixed`) has:
+	// Microsoft no longer updates it, so it needs a feature update; esu (D-546) = the fixing Windows build
+	// `fixed` comes only with Extended Security Updates for `branches[0].branch`.
 	Kind FindingsGetFindingsIDOKFixedInKind `json:"kind"`
 	// Release lines with a fix left out of branches.
 	More int `json:"more"`
@@ -62291,14 +62294,19 @@ func (s *FindingsGetFindingsIDOKFixedInBranchesItem) SetFixed(val string) {
 // named); branches = the version is unknown or unreadable, `branches` lists the fix of each release
 // line; distro = a package of the distribution, whose security updates carry the fix under their own
 // numbers: an agent read it from the device's package database (deb/rpm), or the version carries a
-// marker such as ubuntu, +deb12, .el9.
+// marker such as ubuntu, +deb12, .el9; feature_update (D-546) = a Windows release NVD does not list
+// for the fix, which only a later release of its line (`branches[0].branch`, from build `fixed`) has:
+// Microsoft no longer updates it, so it needs a feature update; esu (D-546) = the fixing Windows build
+// `fixed` comes only with Extended Security Updates for `branches[0].branch`.
 type FindingsGetFindingsIDOKFixedInKind string
 
 const (
-	FindingsGetFindingsIDOKFixedInKindFixed    FindingsGetFindingsIDOKFixedInKind = "fixed"
-	FindingsGetFindingsIDOKFixedInKindUpTo     FindingsGetFindingsIDOKFixedInKind = "up_to"
-	FindingsGetFindingsIDOKFixedInKindBranches FindingsGetFindingsIDOKFixedInKind = "branches"
-	FindingsGetFindingsIDOKFixedInKindDistro   FindingsGetFindingsIDOKFixedInKind = "distro"
+	FindingsGetFindingsIDOKFixedInKindFixed         FindingsGetFindingsIDOKFixedInKind = "fixed"
+	FindingsGetFindingsIDOKFixedInKindUpTo          FindingsGetFindingsIDOKFixedInKind = "up_to"
+	FindingsGetFindingsIDOKFixedInKindBranches      FindingsGetFindingsIDOKFixedInKind = "branches"
+	FindingsGetFindingsIDOKFixedInKindDistro        FindingsGetFindingsIDOKFixedInKind = "distro"
+	FindingsGetFindingsIDOKFixedInKindFeatureUpdate FindingsGetFindingsIDOKFixedInKind = "feature_update"
+	FindingsGetFindingsIDOKFixedInKindEsu           FindingsGetFindingsIDOKFixedInKind = "esu"
 )
 
 // AllValues returns all FindingsGetFindingsIDOKFixedInKind values.
@@ -62308,6 +62316,8 @@ func (FindingsGetFindingsIDOKFixedInKind) AllValues() []FindingsGetFindingsIDOKF
 		FindingsGetFindingsIDOKFixedInKindUpTo,
 		FindingsGetFindingsIDOKFixedInKindBranches,
 		FindingsGetFindingsIDOKFixedInKindDistro,
+		FindingsGetFindingsIDOKFixedInKindFeatureUpdate,
+		FindingsGetFindingsIDOKFixedInKindEsu,
 	}
 }
 
@@ -62321,6 +62331,10 @@ func (s FindingsGetFindingsIDOKFixedInKind) MarshalText() ([]byte, error) {
 	case FindingsGetFindingsIDOKFixedInKindBranches:
 		return []byte(s), nil
 	case FindingsGetFindingsIDOKFixedInKindDistro:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKFixedInKindFeatureUpdate:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKFixedInKindEsu:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -62341,6 +62355,12 @@ func (s *FindingsGetFindingsIDOKFixedInKind) UnmarshalText(data []byte) error {
 		return nil
 	case FindingsGetFindingsIDOKFixedInKindDistro:
 		*s = FindingsGetFindingsIDOKFixedInKindDistro
+		return nil
+	case FindingsGetFindingsIDOKFixedInKindFeatureUpdate:
+		*s = FindingsGetFindingsIDOKFixedInKindFeatureUpdate
+		return nil
+	case FindingsGetFindingsIDOKFixedInKindEsu:
+		*s = FindingsGetFindingsIDOKFixedInKindEsu
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -67296,7 +67316,10 @@ type FindingsPostFindingsIDAiOKFixedIn struct {
 	// named); branches = the version is unknown or unreadable, `branches` lists the fix of each release
 	// line; distro = a package of the distribution, whose security updates carry the fix under their own
 	// numbers: an agent read it from the device's package database (deb/rpm), or the version carries a
-	// marker such as ubuntu, +deb12, .el9.
+	// marker such as ubuntu, +deb12, .el9; feature_update (D-546) = a Windows release NVD does not list
+	// for the fix, which only a later release of its line (`branches[0].branch`, from build `fixed`) has:
+	// Microsoft no longer updates it, so it needs a feature update; esu (D-546) = the fixing Windows build
+	// `fixed` comes only with Extended Security Updates for `branches[0].branch`.
 	Kind FindingsPostFindingsIDAiOKFixedInKind `json:"kind"`
 	// Release lines with a fix left out of branches.
 	More int `json:"more"`
@@ -67451,14 +67474,19 @@ func (s *FindingsPostFindingsIDAiOKFixedInBranchesItem) SetFixed(val string) {
 // named); branches = the version is unknown or unreadable, `branches` lists the fix of each release
 // line; distro = a package of the distribution, whose security updates carry the fix under their own
 // numbers: an agent read it from the device's package database (deb/rpm), or the version carries a
-// marker such as ubuntu, +deb12, .el9.
+// marker such as ubuntu, +deb12, .el9; feature_update (D-546) = a Windows release NVD does not list
+// for the fix, which only a later release of its line (`branches[0].branch`, from build `fixed`) has:
+// Microsoft no longer updates it, so it needs a feature update; esu (D-546) = the fixing Windows build
+// `fixed` comes only with Extended Security Updates for `branches[0].branch`.
 type FindingsPostFindingsIDAiOKFixedInKind string
 
 const (
-	FindingsPostFindingsIDAiOKFixedInKindFixed    FindingsPostFindingsIDAiOKFixedInKind = "fixed"
-	FindingsPostFindingsIDAiOKFixedInKindUpTo     FindingsPostFindingsIDAiOKFixedInKind = "up_to"
-	FindingsPostFindingsIDAiOKFixedInKindBranches FindingsPostFindingsIDAiOKFixedInKind = "branches"
-	FindingsPostFindingsIDAiOKFixedInKindDistro   FindingsPostFindingsIDAiOKFixedInKind = "distro"
+	FindingsPostFindingsIDAiOKFixedInKindFixed         FindingsPostFindingsIDAiOKFixedInKind = "fixed"
+	FindingsPostFindingsIDAiOKFixedInKindUpTo          FindingsPostFindingsIDAiOKFixedInKind = "up_to"
+	FindingsPostFindingsIDAiOKFixedInKindBranches      FindingsPostFindingsIDAiOKFixedInKind = "branches"
+	FindingsPostFindingsIDAiOKFixedInKindDistro        FindingsPostFindingsIDAiOKFixedInKind = "distro"
+	FindingsPostFindingsIDAiOKFixedInKindFeatureUpdate FindingsPostFindingsIDAiOKFixedInKind = "feature_update"
+	FindingsPostFindingsIDAiOKFixedInKindEsu           FindingsPostFindingsIDAiOKFixedInKind = "esu"
 )
 
 // AllValues returns all FindingsPostFindingsIDAiOKFixedInKind values.
@@ -67468,6 +67496,8 @@ func (FindingsPostFindingsIDAiOKFixedInKind) AllValues() []FindingsPostFindingsI
 		FindingsPostFindingsIDAiOKFixedInKindUpTo,
 		FindingsPostFindingsIDAiOKFixedInKindBranches,
 		FindingsPostFindingsIDAiOKFixedInKindDistro,
+		FindingsPostFindingsIDAiOKFixedInKindFeatureUpdate,
+		FindingsPostFindingsIDAiOKFixedInKindEsu,
 	}
 }
 
@@ -67481,6 +67511,10 @@ func (s FindingsPostFindingsIDAiOKFixedInKind) MarshalText() ([]byte, error) {
 	case FindingsPostFindingsIDAiOKFixedInKindBranches:
 		return []byte(s), nil
 	case FindingsPostFindingsIDAiOKFixedInKindDistro:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKFixedInKindFeatureUpdate:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKFixedInKindEsu:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -67501,6 +67535,12 @@ func (s *FindingsPostFindingsIDAiOKFixedInKind) UnmarshalText(data []byte) error
 		return nil
 	case FindingsPostFindingsIDAiOKFixedInKindDistro:
 		*s = FindingsPostFindingsIDAiOKFixedInKindDistro
+		return nil
+	case FindingsPostFindingsIDAiOKFixedInKindFeatureUpdate:
+		*s = FindingsPostFindingsIDAiOKFixedInKindFeatureUpdate
+		return nil
+	case FindingsPostFindingsIDAiOKFixedInKindEsu:
+		*s = FindingsPostFindingsIDAiOKFixedInKindEsu
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -70300,7 +70340,10 @@ type FindingsPostFindingsIDAppliedOKFixedIn struct {
 	// named); branches = the version is unknown or unreadable, `branches` lists the fix of each release
 	// line; distro = a package of the distribution, whose security updates carry the fix under their own
 	// numbers: an agent read it from the device's package database (deb/rpm), or the version carries a
-	// marker such as ubuntu, +deb12, .el9.
+	// marker such as ubuntu, +deb12, .el9; feature_update (D-546) = a Windows release NVD does not list
+	// for the fix, which only a later release of its line (`branches[0].branch`, from build `fixed`) has:
+	// Microsoft no longer updates it, so it needs a feature update; esu (D-546) = the fixing Windows build
+	// `fixed` comes only with Extended Security Updates for `branches[0].branch`.
 	Kind FindingsPostFindingsIDAppliedOKFixedInKind `json:"kind"`
 	// Release lines with a fix left out of branches.
 	More int `json:"more"`
@@ -70455,14 +70498,19 @@ func (s *FindingsPostFindingsIDAppliedOKFixedInBranchesItem) SetFixed(val string
 // named); branches = the version is unknown or unreadable, `branches` lists the fix of each release
 // line; distro = a package of the distribution, whose security updates carry the fix under their own
 // numbers: an agent read it from the device's package database (deb/rpm), or the version carries a
-// marker such as ubuntu, +deb12, .el9.
+// marker such as ubuntu, +deb12, .el9; feature_update (D-546) = a Windows release NVD does not list
+// for the fix, which only a later release of its line (`branches[0].branch`, from build `fixed`) has:
+// Microsoft no longer updates it, so it needs a feature update; esu (D-546) = the fixing Windows build
+// `fixed` comes only with Extended Security Updates for `branches[0].branch`.
 type FindingsPostFindingsIDAppliedOKFixedInKind string
 
 const (
-	FindingsPostFindingsIDAppliedOKFixedInKindFixed    FindingsPostFindingsIDAppliedOKFixedInKind = "fixed"
-	FindingsPostFindingsIDAppliedOKFixedInKindUpTo     FindingsPostFindingsIDAppliedOKFixedInKind = "up_to"
-	FindingsPostFindingsIDAppliedOKFixedInKindBranches FindingsPostFindingsIDAppliedOKFixedInKind = "branches"
-	FindingsPostFindingsIDAppliedOKFixedInKindDistro   FindingsPostFindingsIDAppliedOKFixedInKind = "distro"
+	FindingsPostFindingsIDAppliedOKFixedInKindFixed         FindingsPostFindingsIDAppliedOKFixedInKind = "fixed"
+	FindingsPostFindingsIDAppliedOKFixedInKindUpTo          FindingsPostFindingsIDAppliedOKFixedInKind = "up_to"
+	FindingsPostFindingsIDAppliedOKFixedInKindBranches      FindingsPostFindingsIDAppliedOKFixedInKind = "branches"
+	FindingsPostFindingsIDAppliedOKFixedInKindDistro        FindingsPostFindingsIDAppliedOKFixedInKind = "distro"
+	FindingsPostFindingsIDAppliedOKFixedInKindFeatureUpdate FindingsPostFindingsIDAppliedOKFixedInKind = "feature_update"
+	FindingsPostFindingsIDAppliedOKFixedInKindEsu           FindingsPostFindingsIDAppliedOKFixedInKind = "esu"
 )
 
 // AllValues returns all FindingsPostFindingsIDAppliedOKFixedInKind values.
@@ -70472,6 +70520,8 @@ func (FindingsPostFindingsIDAppliedOKFixedInKind) AllValues() []FindingsPostFind
 		FindingsPostFindingsIDAppliedOKFixedInKindUpTo,
 		FindingsPostFindingsIDAppliedOKFixedInKindBranches,
 		FindingsPostFindingsIDAppliedOKFixedInKindDistro,
+		FindingsPostFindingsIDAppliedOKFixedInKindFeatureUpdate,
+		FindingsPostFindingsIDAppliedOKFixedInKindEsu,
 	}
 }
 
@@ -70485,6 +70535,10 @@ func (s FindingsPostFindingsIDAppliedOKFixedInKind) MarshalText() ([]byte, error
 	case FindingsPostFindingsIDAppliedOKFixedInKindBranches:
 		return []byte(s), nil
 	case FindingsPostFindingsIDAppliedOKFixedInKindDistro:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKFixedInKindFeatureUpdate:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKFixedInKindEsu:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -70505,6 +70559,12 @@ func (s *FindingsPostFindingsIDAppliedOKFixedInKind) UnmarshalText(data []byte) 
 		return nil
 	case FindingsPostFindingsIDAppliedOKFixedInKindDistro:
 		*s = FindingsPostFindingsIDAppliedOKFixedInKindDistro
+		return nil
+	case FindingsPostFindingsIDAppliedOKFixedInKindFeatureUpdate:
+		*s = FindingsPostFindingsIDAppliedOKFixedInKindFeatureUpdate
+		return nil
+	case FindingsPostFindingsIDAppliedOKFixedInKindEsu:
+		*s = FindingsPostFindingsIDAppliedOKFixedInKindEsu
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -73325,7 +73385,10 @@ type FindingsPostFindingsIDStatusOKFixedIn struct {
 	// named); branches = the version is unknown or unreadable, `branches` lists the fix of each release
 	// line; distro = a package of the distribution, whose security updates carry the fix under their own
 	// numbers: an agent read it from the device's package database (deb/rpm), or the version carries a
-	// marker such as ubuntu, +deb12, .el9.
+	// marker such as ubuntu, +deb12, .el9; feature_update (D-546) = a Windows release NVD does not list
+	// for the fix, which only a later release of its line (`branches[0].branch`, from build `fixed`) has:
+	// Microsoft no longer updates it, so it needs a feature update; esu (D-546) = the fixing Windows build
+	// `fixed` comes only with Extended Security Updates for `branches[0].branch`.
 	Kind FindingsPostFindingsIDStatusOKFixedInKind `json:"kind"`
 	// Release lines with a fix left out of branches.
 	More int `json:"more"`
@@ -73480,14 +73543,19 @@ func (s *FindingsPostFindingsIDStatusOKFixedInBranchesItem) SetFixed(val string)
 // named); branches = the version is unknown or unreadable, `branches` lists the fix of each release
 // line; distro = a package of the distribution, whose security updates carry the fix under their own
 // numbers: an agent read it from the device's package database (deb/rpm), or the version carries a
-// marker such as ubuntu, +deb12, .el9.
+// marker such as ubuntu, +deb12, .el9; feature_update (D-546) = a Windows release NVD does not list
+// for the fix, which only a later release of its line (`branches[0].branch`, from build `fixed`) has:
+// Microsoft no longer updates it, so it needs a feature update; esu (D-546) = the fixing Windows build
+// `fixed` comes only with Extended Security Updates for `branches[0].branch`.
 type FindingsPostFindingsIDStatusOKFixedInKind string
 
 const (
-	FindingsPostFindingsIDStatusOKFixedInKindFixed    FindingsPostFindingsIDStatusOKFixedInKind = "fixed"
-	FindingsPostFindingsIDStatusOKFixedInKindUpTo     FindingsPostFindingsIDStatusOKFixedInKind = "up_to"
-	FindingsPostFindingsIDStatusOKFixedInKindBranches FindingsPostFindingsIDStatusOKFixedInKind = "branches"
-	FindingsPostFindingsIDStatusOKFixedInKindDistro   FindingsPostFindingsIDStatusOKFixedInKind = "distro"
+	FindingsPostFindingsIDStatusOKFixedInKindFixed         FindingsPostFindingsIDStatusOKFixedInKind = "fixed"
+	FindingsPostFindingsIDStatusOKFixedInKindUpTo          FindingsPostFindingsIDStatusOKFixedInKind = "up_to"
+	FindingsPostFindingsIDStatusOKFixedInKindBranches      FindingsPostFindingsIDStatusOKFixedInKind = "branches"
+	FindingsPostFindingsIDStatusOKFixedInKindDistro        FindingsPostFindingsIDStatusOKFixedInKind = "distro"
+	FindingsPostFindingsIDStatusOKFixedInKindFeatureUpdate FindingsPostFindingsIDStatusOKFixedInKind = "feature_update"
+	FindingsPostFindingsIDStatusOKFixedInKindEsu           FindingsPostFindingsIDStatusOKFixedInKind = "esu"
 )
 
 // AllValues returns all FindingsPostFindingsIDStatusOKFixedInKind values.
@@ -73497,6 +73565,8 @@ func (FindingsPostFindingsIDStatusOKFixedInKind) AllValues() []FindingsPostFindi
 		FindingsPostFindingsIDStatusOKFixedInKindUpTo,
 		FindingsPostFindingsIDStatusOKFixedInKindBranches,
 		FindingsPostFindingsIDStatusOKFixedInKindDistro,
+		FindingsPostFindingsIDStatusOKFixedInKindFeatureUpdate,
+		FindingsPostFindingsIDStatusOKFixedInKindEsu,
 	}
 }
 
@@ -73510,6 +73580,10 @@ func (s FindingsPostFindingsIDStatusOKFixedInKind) MarshalText() ([]byte, error)
 	case FindingsPostFindingsIDStatusOKFixedInKindBranches:
 		return []byte(s), nil
 	case FindingsPostFindingsIDStatusOKFixedInKindDistro:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKFixedInKindFeatureUpdate:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKFixedInKindEsu:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -73530,6 +73604,12 @@ func (s *FindingsPostFindingsIDStatusOKFixedInKind) UnmarshalText(data []byte) e
 		return nil
 	case FindingsPostFindingsIDStatusOKFixedInKindDistro:
 		*s = FindingsPostFindingsIDStatusOKFixedInKindDistro
+		return nil
+	case FindingsPostFindingsIDStatusOKFixedInKindFeatureUpdate:
+		*s = FindingsPostFindingsIDStatusOKFixedInKindFeatureUpdate
+		return nil
+	case FindingsPostFindingsIDStatusOKFixedInKindEsu:
+		*s = FindingsPostFindingsIDStatusOKFixedInKindEsu
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)

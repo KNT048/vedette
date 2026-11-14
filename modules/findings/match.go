@@ -252,6 +252,9 @@ func MatchAsset(a Asset, vulns []Vuln, have map[string]bool, now time.Time) Matc
 	infos := make([]swInfo, len(sws))
 	for i, s := range sws {
 		infos[i] = newSWInfo(s, a.OS)
+		if d, ok := winDevice(infos[i]); ok {
+			infos[i].winNamed = winNamed(vulns, d.rel.Product) // D-546, review H2
+		}
 	}
 	for _, v := range vulns {
 		if !ValidCVE(v.CVE) || seen[v.CVE] {
@@ -411,7 +414,11 @@ func matchOne(a Asset, s Software, in swInfo, v Vuln, now time.Time) (Match, out
 		return distroMatch(a, s, in, v, d, now)
 	}
 	multi := isMultiProduct(v.Product)
-	tri, within, every, proof := decide(in, v, multi)
+	w, isWin := windowsDecide(in, v, in.winNamed, now) // D-546: a Windows release row by its monthly update
+	tri, within, every, proof := w.t, w.within, false, w.proof
+	if !isWin {
+		tri, within, every, proof = decide(in, v, multi)
+	}
 	if tri == No && v.RangesFrom == RangesCVEOrgPartial { // the CNA's list may skip branches: outside it proves nothing (D-556)
 		tri, proof = Unknown, proofNone
 	}
@@ -424,8 +431,13 @@ func matchOne(a Asset, s Software, in swInfo, v Vuln, now time.Time) (Match, out
 		return Match{}, outRuledOut
 	case tri == No:
 		note := fmt.Sprintf("Not affected: version %s of %s is outside every version range %s lists for %s. Vedette closed this by itself and reopens it if a later match says the device is affected.", clean(in.ver), clean(s.Display), v.rangesBy(false), v.CVE)
-		if proof == proofOS {
+		switch {
+		case proof == proofOS:
 			note = fmt.Sprintf("Not affected: %s lists only operating-system releases other than this device's (%s). Vedette closed this by itself and reopens it if a later match says the device is affected.", v.CVE, clean(a.OS))
+		case proof == proofRelease:
+			note = w.note
+		case w.via != "":
+			note = fmt.Sprintf("Not affected: version %s of %s is outside every version range NVD lists for %s (read with the ranges of %s, which takes the same monthly update). Vedette closed this by itself and reopens it if a later match says the device is affected.", clean(in.ver), clean(s.Display), v.CVE, w.via)
 		}
 		return Match{CVE: v.CVE, SoftwareID: s.ID, SoftwareDisplay: clean(s.Display), Evidence: Evidence{Summary: note, CheckedAt: now}}, outNotAffected
 	case tri == Unknown && !in.given && !every:
@@ -447,11 +459,16 @@ func matchOne(a Asset, s Software, in swInfo, v Vuln, now time.Time) (Match, out
 			m.Severity = SeverityCritical
 		}
 		m.Evidence.Summary = fmt.Sprintf("%s runs %s. Its version is inside the range affected by %s (%s); no scan has confirmed it yet, so this is only suspected.", name, sw, v.CVE, clean(within.String()))
+		if w.via != "" {
+			m.Evidence.Summary = fmt.Sprintf("%s runs %s. Its version is inside the range affected by %s (%s, read with the range NVD gives %s, which takes the same monthly update); no scan has confirmed it yet, so this is only suspected.", name, sw, v.CVE, clean(within.String()), w.via)
+		}
 	case every && !in.given:
 		m.Evidence.Summary = fmt.Sprintf("%s runs %s. %s lists every version of it as affected by %s; no scan has confirmed it yet, so this is only suspected.", name, sw, v.rangesBy(true), v.CVE)
 	case multi:
 		m.Confidence = ConfVendorOnly
 		m.Evidence.Summary = fmt.Sprintf("%s runs %s. %s lists this flaw for several %s products; check the advisory to see whether yours is one of them.", name, sw, v.listName(), clean(v.Vendor))
+	case w.note != "": // D-546: why NVD's Windows data does not decide it
+		m.Evidence.Summary = fmt.Sprintf("%s runs %s. %s", name, sw, w.note)
 	default:
 		m.Evidence.Summary = fmt.Sprintf("%s runs %s. Vedette has not checked whether this version is in the affected range; compare it with the vendor advisory or run a scan.", name, sw)
 	}
@@ -479,11 +496,17 @@ type swInfo struct {
 	packaged bool
 	// pkgVer and pkgSrc: the full Debian version and source package of a packaged row (D-516), "" otherwise.
 	pkgVer, pkgSrc string
+	// winNamed: the software is a Windows release row and NVD names its release in some entry of the list (D-546).
+	winNamed bool
+	// osName is the device's operating system as inventory folds it ("Microsoft Windows 10 Enterprise LTSC 2019 10.0.17763.6532"):
+	// a Windows LTSC/LTSB edition is still serviced when its release has ended (D-546).
+	osName string
 }
 
 func newSWInfo(s Software, osName string) swInfo {
 	var in swInfo
 	in.os, in.osVer = osIdentity(osName)
+	in.osName = osName
 	if s.CPE != "" {
 		if c, err := ParseCPE(s.CPE); err == nil {
 			in.cpe, in.hasCPE = c, true
@@ -632,9 +655,10 @@ func decide(in swInfo, v Vuln, multi bool) (t Tri, within VersionRange, every bo
 type proofKind uint8
 
 const (
-	proofNone  proofKind = iota // no No, or a No that proves nothing about the version
-	proofRange                  // the readable version is outside every applicable NVD entry
-	proofOS                     // the entry lists only releases of the device's distribution, not its release
+	proofNone    proofKind = iota // no No, or a No that proves nothing about the version
+	proofRange                    // the readable version is outside every applicable NVD entry
+	proofOS                       // the entry lists only releases of the device's distribution, not its release
+	proofRelease                  // the entry lists only Windows releases older than the device's, which shipped after the fix or NVD's list is settled (D-546)
 )
 
 // everyVersion reports whether configuration c names the product with nothing else pinned: every version, update,

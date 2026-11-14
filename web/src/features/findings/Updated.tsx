@@ -62,7 +62,9 @@ export function IUpdated({ asset, software, fixed, size }: { asset: FindingAsset
       </Button>
       <Dialog open={open} onOpenChange={show}>
         <DialogContent title={t('updated.title', { software: sw })} description={manual ? t('updated.description', { device, software: sw }) : undefined}>
-          {!manual ? (
+          {software.source === 'agent' ? (
+            <p className="text-sm">{t('updated.agent', { device })}</p>
+          ) : !manual ? (
             <div className="grid gap-3 text-sm">
               <p>{t('updated.scanned', { device })}</p>
               {hasIp(asset) ? (

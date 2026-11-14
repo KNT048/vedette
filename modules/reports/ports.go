@@ -50,7 +50,9 @@ type Findings interface {
 // the same for every finding of that software, with Closed telling whether it closes this finding. Group is the software it is about
 // (CISA gives one phone's CVEs several product names; the software is one). Kind is "fixed" (Fixed is a release outside the affected
 // range of every finding of the software; Version is the device's), "none" (NVD's ranges name no release that clears them all),
-// "up_to" (NVD names no fixed release, Fixed is the last affected one) or "distro" (the distribution's security updates carry it).
+// "up_to" (NVD names no fixed release, Fixed is the last affected one), "distro" (the distribution's security updates carry it),
+// "feature_update" (a Windows release Microsoft no longer updates: Fixed names the later release NVD gives the fix for, D-546) or
+// "esu" (the fixing Windows build Fixed comes only with Extended Security Updates, D-546).
 // Distro names the distribution the device runs ("" = none we know).
 type Fix struct {
 	Kind, Group, Version, Fixed, Distro string

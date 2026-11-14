@@ -69,6 +69,8 @@ export function FixedInNote({ finding }: { finding: FindingDetail }) {
     extra = f.distro_pro ? t('rec.fixedDistroPro') : null
     source = t('rec.fixedSourceDistro', { source: f.source })
   } else if (f.kind === 'fixed') text = t('rec.fixedIn', { fixed: f.fixed, device, version: f.version })
+  else if (f.kind === 'feature_update') text = t('rec.fixedFeatureUpdate', { fixed: f.fixed, device, version: f.version, branch: f.branches[0]?.branch ?? '' })
+  else if (f.kind === 'esu') text = t('rec.fixedEsu', { fixed: f.fixed, device, version: f.version, branch: f.branches[0]?.branch ?? '' })
   else if (f.kind === 'up_to') text = t('rec.fixedUpTo', { fixed: f.fixed, device, version: f.version })
   else if (f.kind === 'distro') {
     text = t(f.distro ? 'rec.fixedDistro' : 'rec.fixedDistroAny', { device, product, version: f.version, distro: f.distro })

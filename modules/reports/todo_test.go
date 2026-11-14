@@ -172,3 +172,58 @@ func TestTopRisksNameAHandAddedProductOnce(t *testing.T) {
 		t.Fatalf("action = %q", got[0].Action)
 	}
 }
+
+// D-546 (review r1 M2): a Windows release Microsoft no longer updates is told to take a feature update, not a build it cannot get;
+// a fix that needs Extended Security Updates says so.
+func TestTopRisksWindowsFeatureUpdateAndESU(t *testing.T) {
+	t.Parallel()
+	open := []FindingRow{fixRow("1", "a1", "pc-01", "Windows 11 22H2", "suspected"), fixRow("2", "a2", "pc-02", "Windows 10 22H2", "suspected")}
+	fx := map[string]Fix{"1": {Kind: "feature_update", Version: "10.0.22621.6060", Fixed: "Windows 11 23H2", Closed: true},
+		"2": {Kind: "esu", Version: "10.0.19045.6456", Fixed: "10.0.19045.6575", Closed: true}}
+	got, _ := topRisks(open, fx)
+	want := map[string]string{
+		"Windows 11 22H2": "Move Windows 11 22H2 on pc-01 to a Windows release Microsoft still services (a feature update): it gets no more monthly updates, and NVD names the fix only for Windows 11 23H2 — fixes 1 exploited vulnerability",
+		"Windows 10 22H2": "Install the Extended Security Update 10.0.19045.6575 or later on Windows 10 22H2 on pc-02, or move it to a Windows release Microsoft still services — fixes 1 exploited vulnerability",
+	}
+	for _, r := range got {
+		if r.Action != want[r.Product] {
+			t.Errorf("%s: %q", r.Product, r.Action)
+		}
+	}
+	if len(got) != 2 {
+		t.Fatalf("risks = %+v", got)
+	}
+}
+
+// D-546 (review r2 MEDIUM-1): devices that need an Extended Security Update, another ESU build, or have no fix data are separate steps:
+// the first device's fix never speaks for the others, and the step is a "fix", not a "verify".
+func TestTopRisksWindowsStepsAreNotMerged(t *testing.T) {
+	t.Parallel()
+	open := []FindingRow{fixRow("1", "a1", "pc-01", "Windows 10 22H2", "suspected"), fixRow("2", "a2", "pc-02", "Windows 10 22H2", "suspected"),
+		fixRow("3", "a3", "pc-03", "Windows 10 22H2", "suspected"), fixRow("4", "a4", "pc-11", "Windows 11 22H2", "suspected"),
+		fixRow("5", "a5", "pc-12", "Windows 11 22H2", "suspected")}
+	fx := map[string]Fix{"1": {Kind: "esu", Version: "10.0.19045.6456", Fixed: "10.0.19045.6575", Closed: true},
+		"2": {Kind: "esu", Version: "10.0.19045.6456", Fixed: "10.0.19045.6693", Closed: true},
+		"4": {Kind: "feature_update", Version: "10.0.22621.6060", Fixed: "Windows 11 23H2", Closed: true}}
+	got, kinds := topRisks(open, fx)
+	if len(got) != 2 {
+		t.Fatalf("risks = %+v", got)
+	}
+	for i, r := range got {
+		if kinds[i] != "fix" {
+			t.Errorf("%s: kind %s", r.Product, kinds[i])
+		}
+		switch r.Product {
+		case "Windows 10 22H2":
+			if !strings.HasPrefix(r.Action, "Install the Extended Security Update 10.0.19045.") || !strings.Contains(r.Action, " on pc-0") ||
+				strings.Contains(r.Action, "and 2 more") || !strings.HasSuffix(r.Action, "; 2 more devices need another step") {
+				t.Errorf("esu line: %q", r.Action)
+			}
+		case "Windows 11 22H2":
+			if !strings.HasPrefix(r.Action, "Move Windows 11 22H2 on pc-11 to") || strings.Contains(r.Action, "pc-12 to") ||
+				!strings.HasSuffix(r.Action, "; 1 more device needs another step") {
+				t.Errorf("feature update line: %q", r.Action)
+			}
+		}
+	}
+}

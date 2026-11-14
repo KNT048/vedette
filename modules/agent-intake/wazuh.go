@@ -612,7 +612,7 @@ func (s *Service) pullAgent(ctx context.Context, c *wazuhClient, a wzAgent) (int
 			return 0, err
 		}
 	}
-	items, dropped := mapPackages(wazuhSnaps(pkgs, wazuhKernel(a)), maxRows)
+	items, dropped := mapPackages(withWindows(wazuhSnaps(pkgs, wazuhKernel(a)), wazuhWindows(a)), maxRows)
 	if dropped > 0 {
 		s.cfg.Log.InfoContext(ctx, "agent-intake: wazuh rows dropped", "agent", a.ID, "rows_not_fitting", dropped)
 	}
@@ -636,6 +636,16 @@ func wazuhFacts(a wzAgent) map[string][]row {
 		"os_version":  {{"name": clean(a.OS.Name), "version": clean(a.OS.Version), "platform": clean(a.OS.Platform)}},
 		"system_info": {{"hostname": clean(a.Name)}},
 	}
+}
+
+// wazuhWindows is the Windows release of a Wazuh agent with its update revision (D-546), when its os version carries one
+// ("10.0.20348.2700"), and the NVD target_hw of its os.arch ("x86_64" → x64; review M1); zero otherwise.
+func wazuhWindows(a wzAgent) winOS {
+	name, ok := cleanValue(a.OS.Name, maxValue)
+	if a.OS.Platform != "windows" || !ok || !fits(name) || !winFullRE.MatchString(a.OS.Version) {
+		return winOS{}
+	}
+	return winOS{name: name, version: a.OS.Version, target: winTarget(a.OS.Arch)}
 }
 
 // wazuhKernel is the running kernel release of a Wazuh agent: the third "|"-separated field of its uname ("Linux |host

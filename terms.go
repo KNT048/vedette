@@ -1,6 +1,6 @@
 // Package vedette holds TERMS.md, the terms of use the first-run setup and the first-run restore ask the operator to
-// accept (D-544). TERMS.md is the one source: the web interface imports the same file, and this package gives core its
-// text and version.
+// accept (D-544). TERMS.md is the one source: the web interface shows the same file, and this package gives core its
+// version.
 package vedette
 
 import (
@@ -11,8 +11,10 @@ import (
 	"sync"
 )
 
+// terms is TERMS.md as it was built in.
+//
 //go:embed TERMS.md
-var Terms string
+var terms string
 
 var termsDate = regexp.MustCompile(`(?m)^Version: (\d{4}-\d{2}-\d{2})$`)
 
@@ -20,9 +22,9 @@ var termsDate = regexp.MustCompile(`(?m)^Version: (\d{4}-\d{2}-\d{2})$`)
 // digits of the file's SHA-256 (for example 2026-11-14.3f2a9c1b), so a change to the text is a new version even when the
 // date line was not bumped.
 var TermsVersion = sync.OnceValue(func() string {
-	sum := sha256.Sum256([]byte(Terms))
+	sum := sha256.Sum256([]byte(terms))
 	date := "undated"
-	if m := termsDate.FindStringSubmatch(Terms); m != nil {
+	if m := termsDate.FindStringSubmatch(terms); m != nil {
 		date = m[1]
 	}
 	return date + "." + hex.EncodeToString(sum[:4])

@@ -307,6 +307,20 @@ describe('notify: why not sent, bulk acknowledge and resolve (S-ALERT-3, D-551)'
     expect(screen.queryByRole('link', { name: 'Change the minimum severity' })).toBeNull()
   })
 
+  it('the Open tab badge counts every open incident; no channel is said once above the table, rows say only "Not sent"; other reasons keep their text', async () => {
+    const real = await getJsonAfterLogin('/notify/incidents') as unknown as { incidents: { id: string; status: string; sends: unknown[]; not_sent: unknown }[] }
+    const open = real.incidents.filter((i) => i.status !== 'resolved')
+    const body = { incidents: real.incidents.map((i, n) => (i.status === 'resolved' ? i : { ...i, sends: [], not_sent: n === 0 ? { reason: 'below_min_severity', text: 'Not sent: this incident is low, and your channels only send medium and above.' } : { reason: 'no_channel', text: 'Not sent: no alert channel is set up.' } })) }
+    server.use(http.get('*/api/v1/notify/incidents', () => HttpResponse.json(body)), http.get('*/api/v1/notify/channels', () => HttpResponse.json({ channels: [{ type: 'webhook', configured: false, enabled: false, fields: {} }], quiet: {}, grouping: {}, email_code_users: 0 })))
+    renderApp('/incidents')
+    await screen.findByRole('table', { name: 'Incidents' })
+    expect(screen.getByRole('tab', { name: new RegExp(`Open ${open.length} open`) })).toBeInTheDocument()
+    expect(await screen.findAllByText('No alert channel is set up, so no incident is sent. Set one up in Settings → Alert channels.')).toHaveLength(1)
+    expect(screen.queryByText('Not sent: no alert channel is set up.')).toBeNull()
+    expect(screen.getAllByText('Not sent').length).toBe(open.length - 1)
+    expect(screen.getAllByText('Not sent: this incident is low, and your channels only send medium and above.')).toHaveLength(1)
+  })
+
   it('select all shown, Resolve with one note: one audit row per incident, the list empties', async () => {
     renderApp('/incidents')
     await screen.findByRole('table', { name: 'Incidents' })

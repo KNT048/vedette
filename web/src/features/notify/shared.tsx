@@ -30,13 +30,15 @@ export function NotSentFix({ notSent, admin }: { notSent: NotSent | null; admin:
 
 /**
  * Last result per channel: "Slack 09:12", or "Email failed" with the reason on hover. With no message on any channel, the box's sentence
- * of why (INV-24, D-551) and, for an admin, the link to fix it.
+ * of why (INV-24, D-551) and, for an admin, the link to fix it. `noChannelShown`: the page carries the one "no channel" notice, so those rows say only "Not sent".
  */
-export function DeliveryBadges({ sends, notSent = null, admin = false }: { sends: SendRecord[]; notSent?: NotSent | null; admin?: boolean }) {
+export function DeliveryBadges({ sends, notSent = null, admin = false, noChannelShown = false }: { sends: SendRecord[]; notSent?: NotSent | null; admin?: boolean; noChannelShown?: boolean }) {
   const { t } = useTranslation('notify')
   const last = new Map<string, SendRecord>()
   for (const s of [...sends].sort((a, b) => a.at.localeCompare(b.at))) last.set(s.channel, s)
   if (last.size === 0) {
+    // the page already said once that no channel is set up: the row does not repeat it (W13-2)
+    if (noChannelShown && notSent?.reason === 'no_channel') return <span className="text-muted">{t('incidents.notSent')}</span>
     return notSent
       ? <span className="grid max-w-[36ch] gap-0.5 text-[13px]"><span className={notSent.reason === 'queued' || notSent.reason === 'quiet_hours' ? 'text-muted' : undefined}>{notSent.text}</span><NotSentFix notSent={notSent} admin={admin} /></span>
       : <span className="text-muted">{t('incidents.notSent')}</span>

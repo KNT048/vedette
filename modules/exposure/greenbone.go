@@ -140,22 +140,24 @@ const (
 	NotAvailableGreenbone = "OpenVAS is not available on this box."
 	notGBOff              = "Optional deep scan with OpenVAS is off. An administrator can turn it on under Settings on the External exposure page."
 	notGBDomain           = "OpenVAS runs on the box's own verified public IP only, never on the names of a domain."
-	notGBStarting         = "OpenVAS did not scan: it is still starting."
-	notGBLoading          = "OpenVAS did not scan: it is loading its feed (the first time takes about 2 hours)."
-	notGBGate             = "OpenVAS did not scan: this IP can no longer be scanned (it was removed, paused, no longer verified or needs the scan confirmed again), so nothing was sent."
-	notGBNoLog            = "OpenVAS did not scan: the probe log is not available, and nothing is sent without it."
-	notGBSlow             = "OpenVAS did not finish within 90 minutes, so its results are not shown."
-	notGBFail             = "OpenVAS failed, so its results are not shown. The box log has the error."
-	notGBUnread           = "OpenVAS returned an answer that could not be read, so its results are not shown."
-	notGBNotCompared      = "The CVEs OpenVAS named were not compared with the list of exploited vulnerabilities: that comparison is not set up on this box yet."
-	gbLoadingReason       = "OpenVAS is loading its feed (first time takes about 2 hours)"
-	gbNotAnswering        = "OpenVAS does not answer on its socket. Turn it off and on again to restart it."
-	gbAuthFailed          = "Vedette could not sign in to OpenVAS (GMP). The login the box created for it was refused."
-	gbUnreadable          = "OpenVAS answered in a way Vedette could not read."
-	gbBusyReason          = "OpenVAS is busy loading its feed and answers slowly; Vedette will ask again."
-	gbSlowReason          = "OpenVAS did not answer within 2 minutes."
-	notGBSlowAnswer       = "OpenVAS did not answer within 2 minutes, so its results are not shown."
-	notGBStopped          = "OpenVAS was stopped before it finished, so its results are not shown. The results of the other checks above are kept."
+	// notGBNoDeep: a domain with accepted terms whose deep scan reached no address this run (D-571).
+	notGBNoDeep      = "OpenVAS did not scan: no address of this domain's names got the deep scan this run."
+	notGBStarting    = "OpenVAS did not scan: it is still starting."
+	notGBLoading     = "OpenVAS did not scan: it is loading its feed (the first time takes about 2 hours)."
+	notGBGate        = "OpenVAS did not scan: this IP can no longer be scanned (it was removed, paused, no longer verified or needs the scan confirmed again), so nothing was sent."
+	notGBNoLog       = "OpenVAS did not scan: the probe log is not available, and nothing is sent without it."
+	notGBSlow        = "OpenVAS did not finish within 90 minutes, so its results are not shown."
+	notGBFail        = "OpenVAS failed, so its results are not shown. The box log has the error."
+	notGBUnread      = "OpenVAS returned an answer that could not be read, so its results are not shown."
+	notGBNotCompared = "The CVEs OpenVAS named were not compared with the list of exploited vulnerabilities: that comparison is not set up on this box yet."
+	gbLoadingReason  = "OpenVAS is loading its feed (first time takes about 2 hours)"
+	gbNotAnswering   = "OpenVAS does not answer on its socket. Turn it off and on again to restart it."
+	gbAuthFailed     = "Vedette could not sign in to OpenVAS (GMP). The login the box created for it was refused."
+	gbUnreadable     = "OpenVAS answered in a way Vedette could not read."
+	gbBusyReason     = "OpenVAS is busy loading its feed and answers slowly; Vedette will ask again."
+	gbSlowReason     = "OpenVAS did not answer within 2 minutes."
+	notGBSlowAnswer  = "OpenVAS did not answer within 2 minutes, so its results are not shown."
+	notGBStopped     = "OpenVAS was stopped before it finished, so its results are not shown. The results of the other checks above are kept."
 	// notGBTerms: Greenbone runs only on a target whose testing terms are accepted (D-566).
 	notGBTerms      = "OpenVAS did not scan: accept the testing terms for this target to run OpenVAS (Ownership tab)."
 	gbSyncingReason = "OpenVAS is loading its weekly feed update"
@@ -615,7 +617,7 @@ func (s *Service) gbProbe(ctx context.Context, upAt time.Time) (string, string) 
 // target's testing terms accepted): only for an IP target that passed this run's gate, only when Greenbone is wired, enabled and answers ready now (asked again, not from the cache). When it
 // does not run, line says why, for "Not checked".
 func (s *Service) greenbonePlan(ctx context.Context, st ScanTarget) (run bool, line string, err error) {
-	if st.Kind != KindIP {
+	if st.Kind != KindIP && !st.Mode.Full { // D-571: a domain with accepted terms gets it on the addresses its deep scan reached
 		return false, notGBDomain, nil
 	}
 	if s.cfg.Greenbone == nil {
@@ -660,12 +662,32 @@ type gbOutcome struct {
 // greenboneStep is the deep scan itself (INV-25), after the snapshot of the other steps is stored: the gate again, the probe log row,
 // then runGreenbone, at most the cap. Only a stop of the run returns an error; every other outcome is a line.
 func (s *Service) greenboneStep(ctx context.Context, st ScanTarget) (gbOutcome, error) {
-	line := func(text, audit string) (gbOutcome, error) {
-		return gbOutcome{not: []NotCheckedRow{{Kind: "greenbone", Text: clipText(text, maxLineText)}}, audit: audit}, nil
-	}
 	ip, err := netip.ParseAddr(st.Value)
 	if err != nil { // an IP target's value is a canonical public IPv4 (INV-2, INV-3): never reached
 		return gbOutcome{}, fmt.Errorf("exposure: Greenbone on %q: %w", st.Value, err)
+	}
+	return s.greenboneAt(ctx, st, ip)
+}
+
+// GreenboneFence is implemented by a GreenboneHost whose host checks the domain fence itself before OpenVAS scans an address of a
+// domain that is not the box's own IP (D-571, plan 2026-11-14 §5: the OpenVAS target is a domain_ip job; Trưởng's half): the token is
+// the box's, the domain's TXT carries it, and scope.Name resolves to ip now. A nil error means the host allows that one scan. Without
+// it OpenVAS never scans such an address.
+type GreenboneFence interface {
+	CheckDomainIP(ctx context.Context, scope DomainScope, ip netip.Addr) error
+}
+
+// The lines of OpenVAS on a domain's address that is not the box's (D-571).
+const (
+	notGBNoFence = "OpenVAS did not scan: this box's host does not check the domain fence for OpenVAS yet (update the box), so nothing was sent."
+	notGBFenced  = "OpenVAS did not scan: the Vedette host's domain fence refused this address, so nothing was sent."
+)
+
+// greenboneAt is greenboneStep on one address: an IP target's own, or an address a domain's deep scan reached (D-571), whose ScanTarget
+// then carries the domain (and, for an address that is not the box's, its scope, which the host checks through GreenboneFence).
+func (s *Service) greenboneAt(ctx context.Context, st ScanTarget, ip netip.Addr) (gbOutcome, error) {
+	line := func(text, audit string) (gbOutcome, error) {
+		return gbOutcome{not: []NotCheckedRow{{Kind: "greenbone", Text: clipText(text, maxLineText)}}, audit: audit}, nil
 	}
 	// The gate of the run is many minutes old by now: the target must still be verified, committed, not paused and the box's own IP.
 	t, reason, gerr := s.gate(ctx, st.User, st.ID)
@@ -679,8 +701,24 @@ func (s *Service) greenboneStep(ctx context.Context, st ScanTarget) (gbOutcome, 
 		return line(notGBGate, "not done: the gate refused")
 	}
 	// The testing terms again (D-566): withdrawn meanwhile, nothing is sent; the tick taken back, the deep config, not the disruptive.
-	if st.Mode = t.mode(); !st.Mode.Full {
+	m := t.mode()
+	if !m.Full {
 		return line(notGBTerms, "not done: the testing terms are not accepted")
+	}
+	// review r1 L1: never above the run's snapshot: a tick taken back stops the run, a tick added while it runs waits for the next one
+	st.Mode = ScanMode{Full: true, Disruptive: m.Disruptive && st.Mode.Disruptive}
+	if st.Domain != nil { // D-571: an address of a domain that is not the box's: the host checks the fence itself, or nothing is sent
+		f, ok := s.cfg.Greenbone.(GreenboneFence)
+		if !ok {
+			return line(notGBNoFence, "not done: no domain fence for OpenVAS")
+		}
+		if err := f.CheckDomainIP(ctx, *st.Domain, ip); err != nil {
+			if ctx.Err() != nil {
+				return gbOutcome{}, ctx.Err()
+			}
+			s.cfg.Log.ErrorContext(ctx, "exposure: the domain fence refused OpenVAS", "target", st.Value, "ip", ip, "error", err)
+			return line(notGBFenced, "not done: the domain fence refused it")
+		}
 	}
 	plog, _ := s.cfg.Probes.(GreenboneProbeLog)
 	if plog == nil {
@@ -770,7 +808,7 @@ func (s *Service) addGreenbone(ctx context.Context, user string, t Target, snap 
 	c := snap.Content
 	c.NotChecked = append(not, o.not...)
 	c.Checks = append(slices.Clone(snap.Checks), o.checks...)
-	c.Greenbone = o.rows
+	c.Greenbone = append(slices.Clone(snap.Greenbone), o.rows...) // a domain's addresses add theirs (D-571); an IP has none before
 	c = sanitize(c)
 	snap.Content = c
 	wctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), saveTimeout)

@@ -227,11 +227,30 @@ func (s *Service) identify(ctx context.Context, st ScanTarget, c Content) (Conte
 	}
 	c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "udp", Text: notUDP})
 	if st.Kind != KindIP {
-		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "ports", Text: notOtherPortsDom}, NotCheckedRow{Kind: "services", Text: notServicesDom},
-			NotCheckedRow{Kind: "non_exploited", Text: notNonExploited}, NotCheckedRow{Kind: "templates", Text: notTemplatesDom})
-		c.NotChecked = append(c.NotChecked, surfaceNotChecked(c.Hosts)...) // INV-27
+		if !st.Mode.Full { // D-571: with the testing terms each address gets the deep scan (deepDomain), whose lines replace these
+			c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "ports", Text: notOtherPortsDom}, NotCheckedRow{Kind: "services", Text: notServicesDom})
+		}
+		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "non_exploited", Text: notNonExploited})
+		if !st.Mode.Full {
+			c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "templates", Text: notTemplatesDom})
+		}
+		c.NotChecked = append(c.NotChecked, surfaceNotChecked(c.Hosts, st.Mode.Full)...) // INV-27
 		return c, nil
 	}
+	if !st.Mode.Full { // FULL-4 (Trưởng), for Mlee: a deep scan probes every TCP port (D-526); its "ports" line is said by identifyIP
+		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "ports", Text: notOtherPortsIP})
+	}
+	c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "non_exploited", Text: notNonExploited})
+	ip, err := netip.ParseAddr(st.Value)
+	if err != nil { // an IP target's value is a canonical public IPv4 (INV-2, INV-3): never reached
+		return c, fmt.Errorf("exposure: identifying services on %q: %w", st.Value, err)
+	}
+	return s.identifyIP(ctx, st, ip, c)
+}
+
+// identifyIP is service identification of one address, then its templates (INV-19, INV-23): an IP target's own address, or one address
+// of a domain's names at the domain's terms depth (D-571, deepIP), whose ScanTarget then carries the domain (and its scope).
+func (s *Service) identifyIP(ctx context.Context, st ScanTarget, ip netip.Addr, c Content) (Content, error) {
 	// FULL-4 (Trưởng), for Mlee: a deep scan probes every TCP port (D-526), so its "ports" line is said only when that run did not
 	// finish (notDeep); the bound of its step and the numbers of its lines are its own.
 	limit, slow, gaveUp, everywhere := ServicesTimeout, notServicesSlow, notServicesGaveUp, notAnswersEverywhere
@@ -239,18 +258,11 @@ func (s *Service) identify(ctx context.Context, st ScanTarget, c Content) (Conte
 	if st.Mode.Full {
 		limit, slow, gaveUp, everywhere = FullServicesTimeout, fmt.Sprintf(notDeepSlow, int(FullServicesTimeout/time.Minute)), fmt.Sprintf(notDeepGaveUp, int(FullHostLimit/time.Minute)), notAnswersEverywhereDeep
 		notDeep = func() { c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "ports", Text: notOtherPortsDeep}) }
-	} else {
-		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "ports", Text: notOtherPortsIP})
 	}
-	c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "non_exploited", Text: notNonExploited})
 	if s.cfg.Services == nil {
 		notDeep()
 		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "services", Text: NotSetUpServices})
 		return s.runTemplates(ctx, st, netip.Addr{}, c) // no services, so it only says why it did not run
-	}
-	ip, err := netip.ParseAddr(st.Value)
-	if err != nil { // an IP target's value is a canonical public IPv4 (INV-2, INV-3): never reached
-		return c, fmt.Errorf("exposure: identifying services on %q: %w", st.Value, err)
 	}
 	if answersEverywhere(c.Ports, ip) { // D-522 (N5): the surface scan already saw it; nmap -sV is not sent at all
 		notDeep()
@@ -300,7 +312,7 @@ func (s *Service) identify(ctx context.Context, st ScanTarget, c Content) (Conte
 	case sctx.Err() != nil:
 		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "services", Text: slow})
 	default:
-		s.cfg.Log.ErrorContext(ctx, "exposure: service identification failed", "target", st.Value, "error", err)
+		s.cfg.Log.ErrorContext(ctx, "exposure: service identification failed", "target", st.Value, "ip", ip, "error", err)
 		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "services", Text: notServicesFail})
 	}
 	if err != nil {

@@ -3,7 +3,7 @@ import { KeyValue, Notice, Panel, Section } from '@/components/common/PageHeader
 import { EmptyState, ErrorState, Loading, QueryState } from '@/components/common/States'
 import { Chip, type Tone } from '@/components/common/StatusChip'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
-import { dateText } from './dates'
+import { dateText, dateTimeText } from './dates'
 import { useSnapshot, useSnapshots } from './api'
 import type { HostClass, HostIp, HostRow, Snapshot, Target } from './types'
 
@@ -11,7 +11,7 @@ import type { HostClass, HostIp, HostRow, Snapshot, Target } from './types'
 // name was found. What serves a name (a CDN or not) does not matter (kien 2026-11-14); each address says what the scan does with it.
 const CLASSES: HostClass[] = ['box', 'public', 'private']
 const TONE: Record<HostClass, Tone> = { box: 'ok', public: 'accent', private: 'off' }
-const SURFACE_LINES = new Set(['wordlist', 'by_name', 'address_family', 'lookup'])
+const SURFACE_LINES = new Set(['wordlist', 'by_name', 'address_family', 'lookup', 'deep'])
 
 export function SurfacePanel({ target, blockedText }: { target: Target; blockedText: string | null }) {
   const { t } = useTranslation('exposure')
@@ -32,6 +32,8 @@ function SurfaceView({ s }: { s: Snapshot }) {
   const { t } = useTranslation('exposure')
   // Every tile but "IP addresses" counts names (one name, many addresses; many names, one address): a name counts once per kind.
   const names = (has: (a: HostIp) => boolean) => s.hosts.filter((h) => (h.ips ?? []).some(has)).length
+  const addrs = (has: (a: HostIp) => boolean) => new Set(s.hosts.flatMap((h) => (h.ips ?? []).filter(has).map((a) => a.ip))).size
+  const deep = s.hosts.some((h) => (h.ips ?? []).some((a) => a.deep))
   const classified = s.hosts.some((h) => h.source)
   const lines = s.not_checked.filter((n) => SURFACE_LINES.has(n.kind))
   const cols: ColumnDef<HostRow>[] = [
@@ -54,6 +56,8 @@ function SurfaceView({ s }: { s: Snapshot }) {
           { label: t('count.ips'), value: s.counts.ips },
           ...CLASSES.map((c) => ({ label: t(`surface.count.${c}`), value: names((a) => a.class === c && a.family === 'ipv4') })),
           { label: t('surface.count.ipv6'), value: names((a) => a.family === 'ipv6') },
+          // D-571: addresses, not names: many names on one address are one deep scan
+          ...(deep ? [{ label: t('surface.count.deep'), value: addrs((a) => a.deep === 'scanned') }, { label: t('surface.count.waiting'), value: addrs((a) => a.deep === 'waiting') }] : []),
         ]} />
       </Panel>
       {!classified && s.hosts.length > 0 ? <Notice tone="off" role="note" title={t('surface.older')} /> : null}
@@ -76,17 +80,24 @@ function Addresses({ h }: { h: HostRow }) {
   return <ul className="grid gap-1.5">{h.ips.map((a) => <li key={a.ip} className="grid gap-0.5"><Address a={a} used={used} /></li>)}</ul>
 }
 
-/** The note says what happened to this address: the check by name went to one address of a name only (`contacted`). */
+/** The note says what happened to this address: what the deep scan did with it (D-571), else the check by name went to one address of a name only (`contacted`). */
 function Address({ a, used }: { a: HostIp; used: string | undefined }) {
   const { t } = useTranslation('exposure')
+  // D-571: what this run's deep scan did with the address: scanned, next in line (with when it was last scanned), or why not
+  const last = a.last_deep ? t('surface.deep.last', { time: dateTimeText(a.last_deep) }) : t('surface.deep.never')
+  const deepNote = (x: HostIp) => x.deep === 'scanned' ? t('surface.deep.scanned', { time: dateTimeText(x.last_deep ?? '') })
+    : x.deep === 'waiting' ? t('surface.deep.waiting', { n: x.next_in_line ?? 1, last })
+    : t(`surface.deep.${x.deep}`)
   return (
     <>
       <span className="flex flex-wrap items-center gap-2"><span className="break-all font-mono text-[13px]">{a.ip}</span><Chip tone={TONE[a.class]}>{t(`surface.class.${a.class}`)}</Chip></span>
-      <span className="text-[12px] text-muted">
-        {a.family === 'ipv6' && a.class !== 'private' ? t('surface.ipv6')
-          : a.class === 'public' && !a.contacted ? (used ? t('surface.note.notContacted', { ip: used }) : t('surface.note.notContactedAny'))
-          : t(`surface.note.${a.class}`)}
-      </span>
+      {a.deep ? <span className={a.deep === 'scanned' ? 'text-[12px] text-ok' : 'text-[12px] text-muted'}>{deepNote(a)}</span> : (
+        <span className="text-[12px] text-muted">
+          {a.family === 'ipv6' && a.class !== 'private' ? t('surface.ipv6')
+            : a.class === 'public' && !a.contacted ? (used ? t('surface.note.notContacted', { ip: used }) : t('surface.note.notContactedAny'))
+            : t(`surface.note.${a.class}`)}
+        </span>
+      )}
     </>
   )
 }

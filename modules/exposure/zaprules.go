@@ -467,8 +467,6 @@ func (s *Service) withWebVersions(ctx context.Context, snap *Snapshot) {
 		len(js), len(hdr), plural(matched, "exploited CVE")+" matched")})
 }
 
-// webVersionsFailed is the "Not checked" line of a comparison that did not run: the reason of an *Unavailable as is (the Feeds module
-// is off: trying again does not help), otherwise the error is logged and the line says to try again.
 // jsSummary is the sentence of a js_library row (the mock's jsVulns in web/src/features/exposure/data.ts says the same). A library
 // version is weaker evidence than a server version in range: it does not show the site calls the affected function, and the risk is
 // to the visitors' browsers, not the server (review r1 M3).
@@ -477,6 +475,8 @@ func jsSummary(port int, product, version, cve string) string {
 		"A library version alone does not show that the site uses the affected function; the risk is to visitors' browsers, not the server. Update the library.", port, product, version, cve)
 }
 
+// webVersionsFailed is the "Not checked" line of a comparison that did not run: the reason of an *Unavailable as is (the Feeds module
+// is off: trying again does not help), otherwise the error is logged and the line says to try again.
 func (s *Service) webVersionsFailed(ctx context.Context, snap *Snapshot, err error) string {
 	var un *Unavailable
 	if errors.As(err, &un) {

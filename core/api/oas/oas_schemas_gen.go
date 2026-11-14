@@ -46275,8 +46275,9 @@ type ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRun struct {
 	// line of kind greenbone says why; also a task that stayed queued for 90 minutes); failed: it failed
 	// or its answer could not be read; stopped: a Stop, the module or a restart of the box ended it (a
 	// domain keeps the rows of the addresses that finished); ended: it scanned and ended before it
-	// finished by itself (OpenVAS stopped or interrupted it, or the domain fence did), with the rows it
-	// had found if any.
+	// finished without a stop from Vedette (OpenVAS reports it stopped or interrupted, or the domain fence
+	// stopped it), with the rows it had found if any; a task OpenVAS ended before it was seen scanning is
+	// not_run.
 	State ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunState `json:"state"`
 }
 
@@ -46416,8 +46417,9 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunAddressesItemSta
 // line of kind greenbone says why; also a task that stayed queued for 90 minutes); failed: it failed
 // or its answer could not be read; stopped: a Stop, the module or a restart of the box ended it (a
 // domain keeps the rows of the addresses that finished); ended: it scanned and ended before it
-// finished by itself (OpenVAS stopped or interrupted it, or the domain fence did), with the rows it
-// had found if any.
+// finished without a stop from Vedette (OpenVAS reports it stopped or interrupted, or the domain fence
+// stopped it), with the rows it had found if any; a task OpenVAS ended before it was seen scanning is
+// not_run.
 type ExposureGetExposureTargetsIDSnapshotsDateOKGreenboneRunState string
 
 const (

@@ -25403,7 +25403,7 @@
                             "stopped",
                             "ended"
                           ],
-                          "description": "running: OpenVAS scans now (the other results are saved); done: it finished; partial: the 90-minute cap stopped it and its rows are what it had found by then; not_run: it did not scan (the not_checked line of kind greenbone says why; also a task that stayed queued for 90 minutes); failed: it failed or its answer could not be read; stopped: a Stop, the module or a restart of the box ended it (a domain keeps the rows of the addresses that finished); ended: it scanned and ended before it finished by itself (OpenVAS stopped or interrupted it, or the domain fence did), with the rows it had found if any"
+                          "description": "running: OpenVAS scans now (the other results are saved); done: it finished; partial: the 90-minute cap stopped it and its rows are what it had found by then; not_run: it did not scan (the not_checked line of kind greenbone says why; also a task that stayed queued for 90 minutes); failed: it failed or its answer could not be read; stopped: a Stop, the module or a restart of the box ended it (a domain keeps the rows of the addresses that finished); ended: it scanned and ended before it finished without a stop from Vedette (OpenVAS reports it stopped or interrupted, or the domain fence stopped it), with the rows it had found if any; a task OpenVAS ended before it was seen scanning is not_run"
                         },
                         "started_at": {
                           "anyOf": [

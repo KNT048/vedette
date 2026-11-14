@@ -177,8 +177,12 @@ const (
 	notGBPartialNone = "OpenVAS was stopped after 90 minutes; by then it had found no result with QoD 70 or more. Finding nothing is not proof the services are not affected."
 	// notGBQueued: the cap passed and the task never left Requested/Queued (review M2 of D-595): nothing was scanned.
 	notGBQueued = "OpenVAS did not start scanning within 90 minutes (the task stayed queued in OpenVAS), so nothing was checked."
-	// notGBEnded starts the line of a scan that ended before it finished by itself (review M3 of D-595); the reason follows.
-	notGBEnded = "OpenVAS stopped before it finished: "
+	// notGBEnded starts the line of a scan that ended before it finished without Vedette's stop (review M3 of D-595); the reason
+	// follows. notGBEndedEarly starts the line of a task OpenVAS ended before it was ever seen scanning (review round 2 N1): nothing was
+	// checked. notGBEndedUnread follows the reason when the ended task's report could not be read.
+	notGBEnded       = "OpenVAS ended the scan before it finished: "
+	notGBEndedEarly  = "OpenVAS did not scan: it ended the task before it started scanning (for example, its scanner was not connected). "
+	notGBEndedUnread = " What it had found could not be read."
 	// notGBNoPorts and notGBTooManyPorts (N49-4, D-595): OpenVAS checks only the ports this run found open.
 	notGBNoPorts      = "OpenVAS did not scan: this scan found no open port to check."
 	notGBTooManyPorts = "OpenVAS did not scan: more than 40 ports answered, more than a normal box exposes (a router or firewall that answers for every port looks like this), so OpenVAS was not sent over them."
@@ -493,7 +497,6 @@ func loadGreenbone(ctx context.Context, q querier) (on bool, by, at *string, err
 // starting". It does nothing when no GreenboneHost is wired, when it is off, or when the setting cannot be read (logged).
 // FULL-2 (Trưởng), for Mlee: the hook the host half needed; it only calls gbStartUp.
 func (s *Service) GreenboneAtStart(ctx context.Context) {
-	s.gbCutOffStored(ctx)
 	if s.cfg.Greenbone == nil {
 		return
 	}
@@ -507,11 +510,12 @@ func (s *Service) GreenboneAtStart(ctx context.Context) {
 	}
 }
 
-// gbCutOffStored corrects, in the database, the snapshots whose OpenVAS step a restart of the box left "running" (review L4 of
-// D-595): at start-up (and when the module is turned on) no run scans them, so they are stopped, with the line that says so, for
-// every reader (the page, an export, a backup), not only when the page reads them. Failures are logged; SnapshotOf still reads them as
-// stopped.
-func (s *Service) gbCutOffStored(ctx context.Context) {
+// CutOffAtStart corrects, in the database, the snapshots whose OpenVAS step a restart of the box left "running" (review L4 of D-595):
+// at process start no run scans them, so they are stopped, with the line that says so, for every reader (the page, an export, a
+// backup), not only when the page reads them. The box calls it once at start-up with the module on, never from the module switch
+// (review round 2 N5: the registry's goroutine must not wait on the writer); a module turned on later keeps such a row until the next
+// start, and SnapshotOf reads it as stopped meanwhile. Failures are logged.
+func (s *Service) CutOffAtStart(ctx context.Context) {
 	live := s.gbLive()
 	err := s.write(ctx, func(tx *sql.Tx, _ func(string, any)) error {
 		rows, err := tx.QueryContext(ctx, `SELECT target_id, date FROM exp_snapshot WHERE json_extract(greenbone_run, '$.state') = 'running'`)
@@ -797,7 +801,7 @@ const (
 	GBRunNotRun  = "not_run" // it did not scan (off, loading, no open port, terms, gate…); a "Not checked" line says why
 	GBRunFailed  = "failed"  // it ran or tried to and failed (an error, an answer that could not be read, the cap without a report)
 	GBRunStopped = "stopped" // a Stop, the module or the box ended it before it finished (also a restart: running with no run behind it)
-	GBRunEnded   = "ended"   // it scanned and ended before it finished by itself: OpenVAS stopped or interrupted it, or the domain fence did
+	GBRunEnded   = "ended"   // it scanned and ended before it finished without Vedette's stop: OpenVAS reports it stopped or interrupted, or the domain fence did
 )
 
 // GreenboneRun is the state of a snapshot's OpenVAS step and when it started (RFC 3339 UTC, nil when it did not), stored with the
@@ -1014,8 +1018,11 @@ func (s *Service) greenboneAt(ctx context.Context, st ScanTarget, ip netip.Addr,
 	case gbEndFenced: // its results were discarded
 		return add(GBRunEnded, notGBEnded+notGBFencedMid, "ended: the domain fence stopped it")
 	case gbEndByGVM:
+		if !res.scanned && len(rows) == 0 { // review round 2 N1: never seen scanning, nothing found: it did not run, no check line
+			return add(GBRunNotRun, notGBEndedEarly+res.reason, "not done: OpenVAS ended the task before it started scanning")
+		}
 		if res.unread { // nothing read: no check line claims a count
-			return add(GBRunEnded, notGBEnded+res.reason, "ended by OpenVAS: its report could not be read")
+			return add(GBRunEnded, notGBEnded+res.reason+notGBEndedUnread, "ended by OpenVAS: its report could not be read")
 		}
 	}
 	cves := map[string]bool{}
@@ -1038,7 +1045,7 @@ func (s *Service) greenboneAt(ctx context.Context, st ScanTarget, ip netip.Addr,
 		if len(rows) == 0 {
 			text = notGBPartialNone
 		}
-	case gbEndByGVM: // review M3: it scanned and OpenVAS ended it; the rows it had found are kept
+	case gbEndByGVM: // review M3: it scanned and OpenVAS ended it (not Vedette); the rows it had found are kept
 		how, out.state, text, audit = "partly scanned", GBRunEnded, notGBEnded+res.reason, "ended by OpenVAS"
 	}
 	out.checks = []CheckRow{{Kind: "greenbone", At: store.FormatTS(s.clock()), Text: clipText(fmt.Sprintf(
@@ -1120,7 +1127,7 @@ const (
 	gbEndDone   = "done"   // gvmd said Done (also right after Vedette's stop at the cap): rows are its report
 	gbEndCap    = "cap"    // the cap stopped it after it had started scanning: rows are what it had found by then
 	gbEndQueued = "queued" // the cap passed and it never started scanning (Requested/Queued, no progress, no row): nothing was checked
-	gbEndByGVM  = "ended"  // gvmd ended it by itself (Stopped/Interrupted without Vedette's stop): rows are what its report holds
+	gbEndByGVM  = "ended"  // gvmd ended it (Stopped/Interrupted without Vedette's stop): rows are what its report holds
 	gbEndFenced = "fenced" // the domain fence stopped it while it ran: its rows are discarded (D-591)
 )
 
@@ -1132,6 +1139,7 @@ type gbResult struct {
 	end      string
 	reason   string
 	unread   bool // gbEndByGVM: its report could not be read
+	scanned  bool // the task was seen scanning (review round 2 N1)
 }
 
 // gbProbePorts is the port list as the probe log row names it (D-595 review M4): the whole "T:…" list while it is short, else its
@@ -1208,6 +1216,7 @@ func (s *Service) runGreenbone(ctx context.Context, limit time.Duration, st Scan
 	if w.end != "" && w.end != gbEndFenced {
 		running = false // gvmd ended it: no stop
 	}
+	res.scanned = w.scanned
 	if w.err == nil {
 		res.rows, res.end, res.reason, res.unread = w.rows, w.end, w.reason, w.unread
 		return res, nil
@@ -1215,13 +1224,13 @@ func (s *Service) runGreenbone(ctx context.Context, limit time.Duration, st Scan
 	if ctx.Err() != nil || gctx.Err() == nil {
 		return res, w.err
 	}
-	// The cap (D-595). A task gvmd had just ended (finished, or ended by itself), whose report read the cap cut: read it again over a
+	// The cap (D-595). A task gvmd had just ended (finished, or ended without Vedette's stop), whose report read the cap cut: read it again over a
 	// new session (review L5); it needs no stop.
 	if w.end == gbEndDone || w.end == gbEndByGVM {
 		rows, rerr := s.gbReadReport(ctx, report, ip)
 		if rerr != nil {
-			if w.end == gbEndByGVM && ctx.Err() == nil { // it ended by itself: say so, claim no count
-				res.end, res.reason, res.unread = w.end, w.reason+" What it had found could not be read.", true
+			if w.end == gbEndByGVM && ctx.Err() == nil { // it ended without Vedette's stop: say so, claim no count
+				res.end, res.reason, res.unread = w.end, w.reason, true
 				return res, nil
 			}
 			return res, rerr
@@ -1261,7 +1270,7 @@ func gbScanning(state string, progress int) bool {
 	return state == "Running" || state == "Processing" || progress > 0
 }
 
-// gbWait polls the started task every `poll` until gvmd ends it, then reads its report. A task gvmd ended by itself (Stopped or
+// gbWait polls the started task every `poll` until gvmd ends it, then reads its report. A task gvmd ended without Vedette's stop (Stopped or
 // Interrupted: Vedette sent no stop) ends as gbEndByGVM with what its report holds (review M3 of D-595); a refusal of the domain fence
 // as gbEndFenced (the task still runs: gbCleanup stops it).
 func (s *Service) gbWait(ctx context.Context, g *gmpConn, st ScanTarget, ip netip.Addr, task, report string, poll time.Duration) (w gbWaited) {
@@ -1293,7 +1302,8 @@ func (s *Service) gbWait(ctx context.Context, g *gmpConn, st ScanTarget, ip neti
 			w.rows, w.err = g.report(ctx, report, ip.String())
 			return w
 		case "Stopped", "Interrupted":
-			w.end, w.reason = gbEndByGVM, "OpenVAS ended the scan by itself as "+strings.ToLower(state)+"."
+			// review round 2 N4: not "by itself": a person may have stopped it in OpenVAS's own interface, or gvmd restarted
+			w.end, w.reason = gbEndByGVM, "OpenVAS reports it as "+strings.ToLower(state)+"; Vedette did not stop it."
 			rows, err := g.report(ctx, report, ip.String())
 			if err != nil { // its report may be missing (Interrupted): the line says it ended; nothing is claimed
 				if ctx.Err() != nil {
@@ -1301,7 +1311,7 @@ func (s *Service) gbWait(ctx context.Context, g *gmpConn, st ScanTarget, ip neti
 					return w
 				}
 				s.cfg.Log.ErrorContext(ctx, "exposure: reading the report of a task OpenVAS ended failed", "target", st.Value, "error", err)
-				w.reason, w.unread = w.reason+" What it had found could not be read.", true
+				w.unread = true
 			}
 			w.rows = rows
 			return w

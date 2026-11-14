@@ -1059,32 +1059,45 @@ func TestContract_INV25_StopDuringTheCap(t *testing.T) {
 	})
 }
 
-// review M3 of D-595: a scan OpenVAS ended by itself (Stopped or Interrupted without Vedette's stop) is "ended", never "did not scan":
-// the line says why, and the rows its report holds are shown; a report that cannot be read claims no count.
+// review M3 of D-595: a scan OpenVAS ended without Vedette's stop (Stopped or Interrupted: a crash, a gvmd restart, a person in
+// OpenVAS's own interface) is "ended", never "did not scan": the line says so, and the rows its report holds are shown; a report that
+// cannot be read claims no count. Review round 2 N1, N4: a task it ended before it was ever seen scanning (Requested -> Interrupted at
+// 0 %, its scanner not connected) did not run: no "partly scanned" check line, and no line says it ended "by itself".
 func TestContract_INV25_EndedByOpenVAS(t *testing.T) {
 	t.Parallel()
+	reason := "OpenVAS reports it as interrupted; Vedette did not stop it."
 	for _, tc := range []struct {
-		name string
-		fail bool
-		rows int
-	}{{"report read", false, 4}, {"report unreadable", true, 0}} {
+		name   string
+		states []string
+		fail   bool
+		rows   int
+		state  string
+		line   string
+		check  bool
+	}{
+		{"report read", []string{"Running", "Interrupted"}, false, 4, GBRunEnded, notGBEnded + reason, true},
+		{"report unreadable", []string{"Running", "Interrupted"}, true, 0, GBRunEnded, notGBEnded + reason + notGBEndedUnread, false},
+		{"never seen scanning", []string{"Requested", "Interrupted"}, false, 0, GBRunNotRun, notGBEndedEarly + reason, false},
+	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			e, h := gbEnv(t)
 			e.enable()
 			h.gvm.with(func(g *fakeGVM) {
-				g.states = []string{"Running", "Interrupted"}
+				g.states = tc.states
 				if tc.fail {
 					g.fail = map[string]bool{"get_reports": true}
 				}
+				if tc.rows == 0 {
+					g.report = gbEmptyReport
+				}
 			})
 			s := e.scanIP(gbOpen())
-			line := notGBEnded + "OpenVAS ended the scan by itself as interrupted."
-			if s.GreenboneRun.State != GBRunEnded || len(s.Greenbone) != tc.rows || !slices.ContainsFunc(notChecked(s), func(l string) bool { return strings.HasPrefix(l, line) }) ||
-				slices.ContainsFunc(notChecked(s), func(l string) bool { return strings.HasPrefix(l, "OpenVAS did not scan") }) || h.gvm.seen("stop_task") {
+			if s.GreenboneRun.State != tc.state || len(s.Greenbone) != tc.rows || !slices.Contains(notChecked(s), tc.line) || h.gvm.seen("stop_task") ||
+				slices.ContainsFunc(notChecked(s), func(l string) bool { return strings.Contains(l, "by itself") }) {
 				t.Fatalf("run %+v, rows %d, not checked %q, cmds %q", s.GreenboneRun, len(s.Greenbone), notChecked(s), h.gvm.cmds)
 			}
-			if has := slices.ContainsFunc(s.Checks, func(c CheckRow) bool { return c.Kind == "greenbone" }); has == tc.fail {
+			if has := slices.ContainsFunc(s.Checks, func(c CheckRow) bool { return c.Kind == "greenbone" }); has != tc.check {
 				t.Fatalf("checks %+v", s.Checks)
 			}
 		})
@@ -1779,7 +1792,7 @@ func TestContract_INV25_StartUpStopsWhatARestartCutOff(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	e.svc.GreenboneAtStart(e.ctx())
+	e.svc.CutOffAtStart(e.ctx())
 	var state, lines string
 	if err := e.db.Reader().QueryRowContext(e.ctx(), `SELECT json_extract(greenbone_run, '$.state'), not_checked FROM exp_snapshot WHERE id = ?`, s.ID).Scan(&state, &lines); err != nil {
 		t.Fatal(err)

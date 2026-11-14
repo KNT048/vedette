@@ -114,7 +114,9 @@ func exposureService(d deps) *exposure.Service {
 // (exposure's ModuleSwitched).
 func exposureAtStart(ctx context.Context, d deps) {
 	if d.Reg == nil || d.Reg.Enabled(exposure.ModuleID) {
-		exposureService(d).GreenboneAtStart(ctx)
+		svc := exposureService(d)
+		svc.CutOffAtStart(ctx) // D-595 review L4: an OpenVAS step a restart left "running" is stored as stopped
+		svc.GreenboneAtStart(ctx)
 	}
 }
 

@@ -104,10 +104,14 @@ const EMPTY_TITLE: Record<GreenboneRun['state'], string> = {
   ended: 'greenbone.results.endedTitle',
 }
 
-/** D-595 review M1, M3: the line above the table when its rows are not those of a finished scan. */
+/** D-595 review M1, M3: the line above the table when its rows are not those of a finished scan. A domain's state is that of one of
+ *  its addresses, so its line speaks of the addresses (review round 2 N2: another address may have finished with full rows). */
 const ROWS_LINE: Partial<Record<GreenboneRun['state'], string>> = {
-  partial: 'greenbone.results.partialLine', stopped: 'greenbone.results.stoppedLine', ended: 'greenbone.results.endedLine',
+  partial: 'greenbone.results.partialLine', ended: 'greenbone.results.endedLine',
 }
+const rowsLine = (run: GreenboneRun) => (run.addresses ?? []).length > 0
+  ? (run.state === 'partial' || run.state === 'stopped' || run.state === 'ended' ? 'greenbone.results.domainLine' : undefined)
+  : ROWS_LINE[run.state]
 
 /**
  * S-EXP-2 (INV-25): what Greenbone reported on this IP. Apart from the exploited CVEs, and never "nothing found = not affected". D-564 G3:
@@ -129,7 +133,9 @@ export function GreenboneSection({ s }: { s: Snapshot }) {
   const why = (addr ? lines.find((n) => n.text.startsWith(`${addr.ip} `) || n.text.startsWith(`${addr.ip}:`)) : undefined) ?? lines[0]
   // D-595 review M1: rows OpenVAS stored are shown whatever the state (a domain stopped on its second address keeps the first's)
   const shown = run.state !== 'running' && findings.length > 0
-  const read = shown || run.state === 'done' || run.state === 'partial' // rows were read: the table, or "found none"
+  // rows were read: the table, or "found none"; review round 2 N3: stored Low rows (hardening notes) show in any state too
+  const read = rows.length > 0 || run.state === 'done' || run.state === 'partial'
+  const line = shown ? rowsLine(run) : undefined
   const started = run.started_at ? dateTimeText(run.started_at) : null
   const cols: ColumnDef<GreenboneResult>[] = [
     { id: 'severity', header: t('greenbone.col.severity'), accessorFn: (r) => r.severity, cell: ({ row }) => {
@@ -151,7 +157,7 @@ export function GreenboneSection({ s }: { s: Snapshot }) {
   return (
     <>
       <Section id="greenbone-results" title={t('greenbone.results.title')} description={t('greenbone.results.header')}>
-        {shown && ROWS_LINE[run.state] ? <p role="status" className="mb-3 text-sm text-warn">{t(ROWS_LINE[run.state]!)}</p> : null}
+        {line ? <p role="status" className="mb-3 text-sm text-warn">{t(line)}</p> : null}
         {shown ? (
           <DataTable caption={t('greenbone.results.caption')} data={findings} columns={cols} pageSize={20} initialSort={[{ id: 'severity', desc: true }]} rowTone={(r) => (r.severity >= 7 ? 'warn' : undefined)} />
         ) : (

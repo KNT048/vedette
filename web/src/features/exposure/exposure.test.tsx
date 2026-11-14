@@ -1538,13 +1538,28 @@ describe('exposure: the OpenVAS heading follows its one state, its start in the 
   it('review M1: a domain stopped on its second address shows the rows of the first, with the line that says so', async () => {
     const s = await showing({ state: 'stopped', started_at: started, addresses: [{ ip, state: 'done' }, { ip: '203.0.113.11', state: 'stopped' }] }, [high],
       [{ kind: 'greenbone', text: 'OpenVAS was stopped before it had scanned every address; the results of the addresses it finished are shown. The results of the other checks above are kept.' }])
-    expect(await within(s).findByRole('status')).toHaveTextContent('OpenVAS was stopped before it had scanned every address; these are the results of the addresses it finished.')
+    expect(await within(s).findByRole('status')).toHaveTextContent('OpenVAS did not finish every address of this domain; these are the results it found. The "Not checked" list below says which address ended early and why.')
     expect(within(within(s).getByRole('table', { name: 'What OpenVAS reported on this IP' })).getByText('Weak TLS')).toBeInTheDocument()
     expect(within(s).queryByText(/not shown/)).toBeNull()
   })
 
-  const ended = 'OpenVAS stopped before it finished: OpenVAS ended the scan by itself as interrupted.'
-  it('review M3: a scan OpenVAS ended by itself is "ended", never "did not scan"', async () => {
+  it('review round 2 N2: a domain whose other address finished never calls its full rows "found by then"', async () => {
+    const s = await showing({ state: 'ended', started_at: started, addresses: [{ ip: '203.0.113.11', state: 'ended' }, { ip, state: 'done' }] }, [high],
+      [{ kind: 'greenbone', text: "203.0.113.11 (www.acme.example): OpenVAS ended the scan before it finished: the Vedette host's domain fence stopped it while it ran." }])
+    expect(await within(s).findByRole('status')).toHaveTextContent(/^OpenVAS did not finish every address of this domain; these are the results it found\./)
+    expect(within(s).queryByText(/found by then/)).toBeNull()
+  })
+
+  it('review round 2 N3: a stopped run whose finished address had only hardening notes shows them', async () => {
+    const low = { ...high, severity: 2.6, name: 'TCP timestamps' }
+    await showing({ state: 'stopped', started_at: started, addresses: [{ ip, state: 'done' }, { ip: '203.0.113.11', state: 'stopped' }] }, [low],
+      [{ kind: 'greenbone', text: 'OpenVAS was stopped before it had scanned every address; the results of the addresses it finished are shown. The results of the other checks above are kept.' }])
+    const notes = await screen.findByRole('region', { name: 'Hardening notes (Low)' })
+    expect(within(notes).getByText('TCP timestamps')).toBeInTheDocument()
+  })
+
+  const ended = 'OpenVAS ended the scan before it finished: OpenVAS reports it as interrupted; Vedette did not stop it.'
+  it('review M3: a scan OpenVAS ended is "ended", never "did not scan"', async () => {
     const s = await showing({ state: 'ended', started_at: started }, [], [{ kind: 'greenbone', text: ended }])
     expect(await within(s).findByText('OpenVAS ended the scan before it finished')).toBeInTheDocument()
     expect(within(s).getByText(ended)).toBeInTheDocument()

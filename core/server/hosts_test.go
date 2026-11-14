@@ -82,7 +82,7 @@ func TestHostAllowlistWildcardMatchesOneLabel(t *testing.T) {
 	}
 }
 
-// A browser opening a page by a refused name gets a short readable page (D-556); the API and other clients keep the JSON error.
+// A browser opening a page by a refused name gets a short readable page (D-542); the API and other clients keep the JSON error.
 // Either way it is 421 and nothing is routed.
 func TestHostAllowlistBrowserPage(t *testing.T) {
 	t.Parallel()

@@ -52,7 +52,7 @@ func HostAllowlistFunc(allowedHost func(host string) bool, next http.Handler) ht
 
 const misdirectedText = "This address is not one Vedette answers to. Open it with the name or address it was set up with."
 
-// misdirectedDoc is where the page sends the administrator: how to set the names the box answers to (D-556).
+// misdirectedDoc is where the page sends the administrator: how to set the names the box answers to (D-542).
 const misdirectedDoc = "https://github.com/KNT048/vedette/blob/main/docs/INSTALL-CONTAINER.md#2-say-where-it-lives"
 
 // wantsPage: a browser loading a page (GET or HEAD that accepts text/html) outside the API. /api/ paths and every other client keep

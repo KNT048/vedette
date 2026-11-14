@@ -68,6 +68,12 @@ sudo scripts/dev/lab-vm.sh lan-down          # after stop
 - The NIC is virtual.
 - The NIC carries the host's default route or a global address. Passthru takes every frame of the NIC.
 
+**`--bridge`** (`sudo scripts/dev/lab-vm.sh lan-up enp2s0 --bridge`) is for a wired NIC the host itself uses (Mlee's box: enp2s0
+carries the host's address and default route). It makes the macvtap in bridge mode: the host keeps its link, address and routes,
+and the VM gets its own MAC on the same wire. Nothing on the host's network config changes (no netplan, no route, no address).
+A macvtap limit: the host and the VM cannot reach each other over it; the VM reaches the LAN (the N100, the router) and the host
+still reaches the VM over passt (127.0.0.1:<port>). The Wi-Fi, carrier and physical-NIC refusals apply to both modes.
+
 On the Ubuntu dev box the uplink is Wi-Fi and `enp2s0` has no cable, so `lan` mode needs a cable. If NetworkManager configures
 `enp2s0` once the cable is in, `lan-up` refuses. Making the NIC unmanaged on the host is a host network change, and only kien can
 decide it.

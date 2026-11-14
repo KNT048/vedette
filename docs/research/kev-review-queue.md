@@ -1,8 +1,20 @@
 # KEV templates waiting for a reviewer (pack 2026.11.4, D-528 step 2)
 
-Written by `make scan-pack` (scripts/scanpack); do not edit by hand. These KEV templates passed every other rule of the pack but are not read-only GETs (or their name says a change), so the LAN scan and the own-IP checks do not run them until a person reads the file and adds `id<TAB>sha256<TAB>reason` to `scripts/scanpack/reviewed.tsv`. Read the requests, not the name: a check is reviewed only if it changes nothing on the target (no account, password, setting, file, record or mail) and reaches no other host. Work in batches by product.
+Written by `make scan-pack` (scripts/scanpack); do not edit by hand. Every template that runs without the disruptive tick (the LAN scan, the own-IP checks) is listed in `scripts/scanpack/reviewed.tsv` with the sha256 of the file a person read. These KEV templates passed every other rule of the pack and wait for that read: when a person has read the file, add `id<TAB>sha256<TAB>reason` to reviewed.tsv. Read the requests, not the name: a check is reviewed only if it changes nothing on the target (no account, password, setting, file, record, mail, service or login) and reaches no other host.
 
-521 templates.
+## Read first: likely read-only (3)
+
+Every request is a GET or HEAD with no body, no credential, no injection-shaped payload and no action word, and the name names no change (rule (a)). Likely, not proven: read each one.
+
+| id | CVE | product | method | why it waits | path | sha256 |
+|---|---|---|---|---|---|---|
+| CVE-2012-3153 | CVE-2012-3153 | oracle fusion_middleware | GET | rule (a): read-only GET, no change in the name | http/cves/2012/CVE-2012-3153.yaml | a6865b1bb4d73afb9c2ad7a283ccfce3feab5c3e155cf7d74093ef08fa607b61 |
+| CVE-2022-2551 | CVE-2022-2551 | snapcreek duplicator | GET | rule (a): read-only GET, no change in the name | http/cves/2022/CVE-2022-2551.yaml | 772cec66918974ad12a9f86acbf26f89b858832449c216b916a41668f8368bb5 |
+| CVE-2026-27944 | CVE-2026-27944 | 0xjacky nginx-ui | GET | rule (a): read-only GET, no change in the name | http/cves/2026/CVE-2026-27944.yaml | e5cc94d49c7430d5a7ac52f12e7a9f64a8aca2994de606240817468d6ca77c05 |
+
+## The rest (521)
+
+POST and other methods, payloads, credentials, actions, or a name that says a change.
 
 | id | CVE | product | method | why it waits | path | sha256 |
 |---|---|---|---|---|---|---|
@@ -355,7 +367,7 @@ Written by `make scan-pack` (scripts/scanpack); do not edit by hand. These KEV t
 | CVE-2023-40748 | CVE-2023-40748 | phpjabbers food_delivery_script | POST | method POST | http/cves/2023/CVE-2023-40748.yaml | 4ab42e2ac93d3f797b99d14dd75bab8480592be0a724b078f031f8bcf01ebbf0 |
 | CVE-2023-41109 | CVE-2023-41109 | patton smartnode_sn200 | POST | method POST /rest/xxxxxxxxxxxxxxx/xxxxxxx?executeAsync HTTP/1.1 | http/cves/2023/CVE-2023-41109.yaml | 587d4d10ad849501b8fd19027afebb67267b79deae98afd6bb9b58cd291c9a19 |
 | CVE-2023-41265 | CVE-2023-41265 | qlik qlik_sense | GET | key unsafe | http/cves/2023/CVE-2023-41265.yaml | 39b943b6a22aaaea74f0dc13b512080958de57df3ce71a6dd510d90d11eb00e4 |
-| CVE-2023-41266 | CVE-2023-41266 | qlik qlik_sense | GET | header Cookie | http/cves/2023/CVE-2023-41266.yaml | de18c0056daec4bc6e4b292cd0333e07b142cdb39810c351d803ed5feea8b55e |
+| CVE-2023-41266 | CVE-2023-41266 | qlik qlik_sense | GET | header X-Qlik-Xrfkey | http/cves/2023/CVE-2023-41266.yaml | de18c0056daec4bc6e4b292cd0333e07b142cdb39810c351d803ed5feea8b55e |
 | CVE-2023-41642 | CVE-2023-41642 | grupposcai realgimm | POST, GET | method POST /RealGimmWeb/Pages/Sistema/LogObjectTrace.aspx HTTP/1.1 | http/cves/2023/CVE-2023-41642.yaml | 71ff863ddad02a5efa5e08f011841230e4fd6a24bfca816e17b869bb399b83bc |
 | CVE-2023-41892 | CVE-2023-41892 | craftcms craft_cms | POST | method POST /index.php HTTP/1.1 | http/cves/2023/CVE-2023-41892.yaml | 8f89b93e18048ca678a5565ab66fecf1594932f9717e23550452034e72e83f39 |
 | CVE-2023-44352 | CVE-2023-44352 | adobe coldfusion | GET | payload: the expression "{{string}}" | http/cves/2023/CVE-2023-44352.yaml | efd9e87ea49a7c98d812b1407d91311f333e1e5162639e5ce0bda9944a54183a |
@@ -527,3 +539,4 @@ Written by `make scan-pack` (scripts/scanpack); do not edit by hand. These KEV t
 | CVE-2026-8713 | CVE-2026-8713 | theme-fusion fusion-builder | GET | the name says a change: Avada (Fusion) Builder <= 3.15.3 - Unauthenticated Arbitrary File Deletion | http/cves/2026/CVE-2026-8713.yaml | e0e465e34d15dc6446c9067ad4fe473e279f7a608dfef7474381ff3ffef4fd85 |
 | CVE-2026-93616 | CVE-2026-93616 | checkpoint quantum_security_management | POST | method POST /cpmws/UpgradeSvcRemote HTTP/1.1 | http/cves/2026/CVE-2026-93616.yaml | 8baf0e72120ef6ced8defad01aca006048cd58c73203a412fc42e79774434907 |
 | CVE-2026-94169 | CVE-2026-94169 | theme-one the-grid | POST | method POST /wp-admin/admin-ajax.php HTTP/1.1 | http/cves/2026/CVE-2026-94169.yaml | c9554cfb1cac31c52dbc85d61bf5950d3793adea991fb527e156062415dc595c |
+

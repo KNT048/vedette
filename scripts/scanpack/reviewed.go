@@ -18,11 +18,12 @@ import (
 )
 
 // D-528 step 2 (lead decision after review kev r1 H-0 and FULL-4b r2 H1, 2026-11-14): word and destination rules cannot tell what a
-// request does to a product, so the sets that run without the extra tick are an allowlist, as Nessus's "safe checks" default is. A
-// template is in them only if (a) it is a read-only GET (readOnlyGET) whose id and name name no state change (stateName), or (b) a
-// person read it and listed it in reviewed.tsv with the SHA-256 of the file they read. Everything else waits in the review queue
+// request does to a product, so the KEV set (the LAN scan and the own-IP checks, no tick) is an allowlist, as Nessus's "safe
+// checks" default is: a template is in it only if a person read it and listed it in reviewed.tsv with the SHA-256 of the file they
+// read (step-2 review r1: the reviewer read every request line of the 338 of 2026.11.4). Rule (a), a read-only GET (readOnlyGET)
+// whose id and name name no state change (stateName), only puts a template in the "read first" group of the review queue
 // (docs/research/kev-review-queue.md). The D-528 step-1 rule (changeReason: denylist, tags, NoChangeText, destination, third party)
-// still applies to both.
+// still applies to every template, listed or not.
 
 // reviewedTSV is the reviewed allowlist: one template a line, "id<TAB>sha256<TAB>why it changes nothing", # for comments.
 //
@@ -65,6 +66,9 @@ func reviewedState(id, sha string) (listed, stale bool) {
 	return ok && e.sha == sha, ok && e.sha != sha
 }
 
+// allowlist is what decides a template was read: reviewedState for a real build; a test passes its own for fixture templates.
+type allowlist func(id, sha string) (listed, stale bool)
+
 // stateNameRE is a template name or id that says the check changes the target (lower case, ids with - read as spaces): a creation,
 // a user or admin added, a takeover, a purge, a write or overwrite, a reset, a restore, an install, an upload, a deletion, an enable,
 // a publish, a registration of something, a backdoor or webshell, persistence, a privilege escalation, a settings or options change,
@@ -83,11 +87,16 @@ func stateName(id, name string) bool {
 // parameter name or value prefix (restoreAdmin.php, ?action=set_map_properties, operation=write, cmd=writeuploaddir, /submit?).
 var getVerbRE = regexp.MustCompile(`(?i)([/?&=_.-]|^)(delete|remove|purge|restore|reset|write|enable|disable|create|submit|save|import|truncate|reboot|restart|shutdown|activate|register|signup)|[?&](action|act|cmd|op|operation|do|task|func|function|mode)=(set|save|update|del|remove|add|create|write|reset|restore|enable|disable|install|upload|import|submit|apply|change|edit)`)
 
-// credHeaderNames are request headers that carry a credential: a GET that sends one tries to log in.
-var credHeaderNames = []string{"authorization", "proxy-authorization", "cookie", "x-api-key", "api-key", "apikey", "x-auth-token", "x-access-token", "token"}
+// credHeader says whether a request header carries a credential or an identity (review r1 L-1): credName (auth, cookie, token, key,
+// session, secret, pass, user, login, cred: Remote-User, X-Api-Token, X-Auth, User-Name too), but User-Agent.
+func credHeader(name string) bool {
+	n := strings.ToLower(strings.TrimSpace(name))
+	return n != "user-agent" && credName.MatchString(n)
+}
 
-// readOnlyGET is rule (a): every request of the template is an http GET or HEAD with no body, none sends a credential (a header of
-// credHeaderNames, a variable named like one, a user name or password expression), every request target and header value passes
+// readOnlyGET is rule (a), which since review r1 only sorts the review queue (likely read-only first): every request of the
+// template is an http GET or HEAD with no body, none sends a credential (a header credHeader names, a variable named like one, a user
+// name or password expression), every request target and header value passes
 // the own_ip payload screen (pack.RequestPayloadOK: no quote, SQL words, script, command separator in the query, template expression
 // other than the job's address) and names no action (getVerbRE). The block keys are those of own_ip (ownIPKeys): anything else
 // (payloads, body, a newer feature) is not judged. Such a check may still confirm a flaw by reading: a path traversal that reads a
@@ -131,7 +140,7 @@ func readOnlyGET(rel string, doc map[string]any) (bool, string) {
 			}
 			for k, v := range hm {
 				vs, _ := v.(string)
-				if slices.Contains(credHeaderNames, strings.ToLower(k)) || pack.RequestPayloadOK(vs) != nil {
+				if credHeader(k) || pack.RequestPayloadOK(vs) != nil {
 					return false, "header " + k
 				}
 			}
@@ -189,7 +198,7 @@ func rawReadOnly(r string, target func(string) string) string {
 	}
 	for i++; i < len(lines) && strings.TrimSpace(lines[i]) != ""; i++ {
 		name, value, ok := strings.Cut(lines[i], ":")
-		if !ok || slices.Contains(credHeaderNames, strings.ToLower(strings.TrimSpace(name))) || pack.RequestPayloadOK(strings.TrimSpace(value)) != nil {
+		if !ok || credHeader(name) || pack.RequestPayloadOK(strings.TrimSpace(value)) != nil {
 			return "header " + clip(lines[i])
 		}
 	}
@@ -204,6 +213,7 @@ func rawReadOnly(r string, target func(string) string) string {
 // reviewRow is one template of the review queue: a KEV template that passed every other rule and waits for a person to read it.
 type reviewRow struct {
 	id, cve, product, method, why, path, sha string
+	first                                    bool // likely read-only (rule (a)): read these first
 }
 
 // queueRow describes a template for the review queue (rel and body are those qualify judged).
@@ -251,12 +261,15 @@ func queueRow(rel string, body []byte, reason string) reviewRow {
 		add("ssl")
 	}
 	r.method = strings.Join(methods, ", ")
-	if reason == "not reviewed" {
+	switch reason {
+	case "likely read-only":
+		r.first, r.why = true, "rule (a): read-only GET, no change in the name"
+	case "state name":
+		r.why = "the name says a change: " + name
+	default:
 		if _, d := readOnlyGET(rel, doc); d != "" {
 			r.why = d
 		}
-	} else {
-		r.why = "the name says a change: " + name
 	}
 	return r
 }
@@ -280,10 +293,24 @@ func writeQueue(path, version string, rows []reviewRow) error {
 	}
 	var b strings.Builder
 	fmt.Fprintf(&b, "# KEV templates waiting for a reviewer (pack %s, D-528 step 2)\n\n", version)
-	b.WriteString("Written by `make scan-pack` (scripts/scanpack); do not edit by hand. These KEV templates passed every other rule of the pack but are not read-only GETs (or their name says a change), so the LAN scan and the own-IP checks do not run them until a person reads the file and adds `id<TAB>sha256<TAB>reason` to `scripts/scanpack/reviewed.tsv`. Read the requests, not the name: a check is reviewed only if it changes nothing on the target (no account, password, setting, file, record or mail) and reaches no other host. Work in batches by product.\n\n")
-	fmt.Fprintf(&b, "%d templates.\n\n| id | CVE | product | method | why it waits | path | sha256 |\n|---|---|---|---|---|---|---|\n", len(rows))
-	for _, r := range rows {
-		fmt.Fprintf(&b, "| %s | %s | %s | %s | %s | %s | %s |\n", cell(r.id), cell(r.cve), cell(r.product), cell(r.method), cell(r.why), cell(r.path), r.sha)
+	b.WriteString("Written by `make scan-pack` (scripts/scanpack); do not edit by hand. Every template that runs without the disruptive tick (the LAN scan, the own-IP checks) is listed in `scripts/scanpack/reviewed.tsv` with the sha256 of the file a person read. These KEV templates passed every other rule of the pack and wait for that read: when a person has read the file, add `id<TAB>sha256<TAB>reason` to reviewed.tsv. Read the requests, not the name: a check is reviewed only if it changes nothing on the target (no account, password, setting, file, record, mail, service or login) and reaches no other host.\n\n")
+	for _, first := range []bool{true, false} {
+		var group []reviewRow
+		for _, r := range rows {
+			if r.first == first {
+				group = append(group, r)
+			}
+		}
+		if first {
+			fmt.Fprintf(&b, "## Read first: likely read-only (%d)\n\nEvery request is a GET or HEAD with no body, no credential, no injection-shaped payload and no action word, and the name names no change (rule (a)). Likely, not proven: read each one.\n\n", len(group))
+		} else {
+			fmt.Fprintf(&b, "## The rest (%d)\n\nPOST and other methods, payloads, credentials, actions, or a name that says a change.\n\n", len(group))
+		}
+		b.WriteString("| id | CVE | product | method | why it waits | path | sha256 |\n|---|---|---|---|---|---|---|\n")
+		for _, r := range group {
+			fmt.Fprintf(&b, "| %s | %s | %s | %s | %s | %s | %s |\n", cell(r.id), cell(r.cve), cell(r.product), cell(r.method), cell(r.why), cell(r.path), r.sha)
+		}
+		b.WriteString("\n")
 	}
 	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
 		return err
@@ -291,23 +318,29 @@ func writeQueue(path, version string, rows []reviewRow) error {
 	return os.WriteFile(path, []byte(b.String()), 0o600)
 }
 
-// noTickReason is rule (a) or (b) for one template that passed changeReason: "" when it may run without the tick, "stale review"
-// when its allowlist entry names another hash, else "state name" or "not reviewed" with why rule (a) did not hold. ownIP is the
-// D-520 decision (ownIPSafe), stricter than readOnlyGET (it also refuses commands, deletes and resets in the text and the refused
-// tags) and already shipped as safe on a public IP: such a template is in without the name rule, whose words ("Arbitrary File
-// Upload") then name the flaw a version read reports, not what the GET does.
-func noTickReason(id, name, rel, sha string, doc map[string]any, ownIP bool) (why, detail string) {
-	listed, stale := reviewedState(id, sha)
+// noTickReason is the KEV rule of D-528 step 2 after review r1 (lead decision): "" only for a template listed in reviewed.tsv with
+// this file's sha256, "stale review" when its entry names another hash, else the queue group of queueReason. Every template that
+// runs without the tick has been read by a person; the own_ip mark (D-520) no longer admits one by itself (review r1 H-2).
+func noTickReason(id, name, rel, sha string, doc map[string]any, rv allowlist) (why, detail string) {
+	listed, stale := rv(id, sha)
 	switch {
 	case stale:
 		return "stale review", "reviewed.tsv names another sha256: read the template again"
-	case listed, ownIP:
+	case listed:
 		return "", ""
-	case stateName(id, name):
+	}
+	return queueReason(id, name, rel, doc)
+}
+
+// queueReason sorts a template nobody has reviewed into the review queue (lead decision, step-2 review r1): "likely read-only" when
+// rule (a) holds (readOnlyGET and no change in the name: read these first), else "state name" or "not reviewed" with why. Rule (a)
+// admits nothing by itself: every template without the tick is in reviewed.tsv.
+func queueReason(id, name, rel string, doc map[string]any) (why, detail string) {
+	if stateName(id, name) {
 		return "state name", name
 	}
 	if ok, d := readOnlyGET(rel, doc); !ok {
 		return "not reviewed", d
 	}
-	return "", ""
+	return "likely read-only", ""
 }

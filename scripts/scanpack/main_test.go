@@ -157,7 +157,7 @@ func TestBuildKeepsOnlySafeKEVTemplates(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	rep, err := build(src, out, "2026.11.1")
+	rep, err := buildWith(src, out, "2026.11.1", allowAny) // every fixture read: this test is about the other rules
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -221,7 +221,7 @@ func TestBuildIsDeterministic(t *testing.T) {
 	write(t, src, "http/cves/2022/CVE-2022-27593.yaml", rawKEV)
 	a, b := t.TempDir(), t.TempDir()
 	for _, out := range []string{a, b} {
-		if _, err := build(src, out, "2026.11.1"); err != nil {
+		if _, err := buildWith(src, out, "2026.11.1", allowAny); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -244,7 +244,7 @@ func TestBuildRefusesAnEmptyPackAndAnExistingOutput(t *testing.T) {
 	write(t, src, "http/y.yaml", httpKEV)
 	out := t.TempDir()
 	write(t, out, "old", "x")
-	if _, err := build(src, out, "2026.11.1"); err == nil {
+	if _, err := buildWith(src, out, "2026.11.1", allowAny); err == nil {
 		t.Fatal("the output directory must be empty or new: a stale file would ship")
 	}
 }

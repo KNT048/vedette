@@ -60,7 +60,7 @@
     "noNetworks": "No network range entered yet.",
     "noInternal": "There are no devices in the inventory yet.",
     "title": "Choose devices to scan",
-    "description": "Confirmation scans send GET requests, plus a short list of other checks a person has read. A check may prove a flaw by reading what it should not (a file through a path traversal, the output of a harmless command such as id), but it creates or changes nothing and sends nothing to anyone else.",
+    "description": "Confirmation scans run only checks a person has read, almost all of them GET requests. A check may prove a flaw by reading what it should not (a file through a path traversal, the output of a harmless command such as id); none of them was found to create or change anything or to send anything to anyone else.",
     "scope": "Confirmed scope: {{networks}}. Vedette never scans any address outside it.",
     "commitment": "Scan scope commitment ticked on {{date}}, confirmed by {{by}}.",
     "noCommitment": "The scan scope commitment is not ticked yet.",
@@ -284,7 +284,7 @@
       "exploit": "Never plants a file, an account or a backdoor and never takes over a device. A check may prove a flaw by making the device read a file or run a harmless command such as id, and keeps the answer as evidence.",
       "dos": "Never floods a service with requests to bring it down.",
       "brute": "Never guesses passwords and never logs in with default ones.",
-      "write": "Sends GET or HEAD requests only, plus the few other checks a person has read and found to change nothing: no account, password, setting, file, record or mail is created, changed or deleted.",
+      "write": "Runs only checks a person has read and found to change nothing (all but a few are GET or HEAD requests): no account, password, setting, file, record or mail is created, changed or deleted, and no service is turned on.",
       "tags": "Only uses nuclei templates of the kev group that pass Vedette's own filter; templates tagged intrusive or denial-of-service are dropped."
     },
     "neverLocked": "Dangerous checks are removed from this Vedette build; there is no switch to turn them on.",

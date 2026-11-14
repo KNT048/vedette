@@ -1,7 +1,335 @@
-# Reviewed allowlist of the nuclei pack (D-528 step 2): templates that are not read-only GETs, read by a person and found to change
-# nothing on the target. One a line: id<TAB>sha256 of the file read<TAB>why it changes nothing. A changed file (another sha256) stops
-# `make scan-pack` until it is read again. Candidates: docs/research/kev-review-queue.md. Reviewers: say who and when in the reason.
+# Reviewed allowlist of the nuclei pack (D-528 step 2, lead decision after step-2 review r1, 2026-11-14): every template that runs
+# without the disruptive tick (the KEV set of the LAN scan and the own-IP checks, and the deep set) is listed here, read by a person
+# and found to change nothing on the target and reach no other host. One a line: id<TAB>sha256 of the file read<TAB>why. A file that
+# changed (another sha256) stops `make scan-pack` until it is read again. Candidates: docs/research/kev-review-queue.md ("read first"
+# group first). Reviewers: say who and when in the reason.
 CVE-2018-7600	e1b6bd9bb4fdcb6d450067e80b4535cdda3be55f630107571c3695b837fcd54f	Drupal: the register form's AJAX callback renders passthru of cat /etc/passwd; name is missing so the form fails and no account is made (D-528 author and review kev r1 L-2, 2026-11-14)
 CVE-2019-15107	af7bc39c42403d8e9a0d2c764f3239300bb5c415334fc3b1a5f3a30f1be56e81	Webmin backdoor: password_change.cgi for user rootxx, which does not exist, runs cat /etc/passwd through old; no password changes (D-528 author and review kev r1 L-2, 2026-11-14)
 CVE-2024-32113	44ac4cf3c8e3abf71da5e47372b75332fe8e11d6972afd92218a7ceb99bb9ba0	OFBiz: forgotPassword/../ProgramExport throws an exception carrying the output of id and ipconfig; nothing is reset or stored (D-528 author and review kev r1 L-2, 2026-11-14)
 CVE-2024-36104	e42743d1ba743f5b4f55cde49bd9c698624a36549fb5b257b1ceb493caf53382	OFBiz: the same ProgramExport check with the Groovy in \u escapes, decoded by review kev r1: id and ipconfig only; nothing stored (D-528 author and review kev r1 L-2, 2026-11-14)
+# The pack of 2026.11.4 as the step-2 reviewer read it (all 435 request lines of the 338 templates), less the eight of review r1
+# H-1, M-2 and M-3 (denylisted) and the three of L-6 left to the queue (CVE-2012-3153 runs a report job, CVE-2026-27944 builds a
+# backup, CVE-2022-2551 may write the installer log).
+CVE-2001-0537	3b4ff286fb78495a2ea292256856f0af0bd3204ee175607d09b8ce084d346ef3	request lines read, step-2 review r1, 2026-11-14
+CVE-2008-6668	baabb57b5a173a1d7b78082062c9bb9d9705511572f651116195667b506772a7	request lines read, step-2 review r1, 2026-11-14
+CVE-2009-1558	be1a9cd1c7b8bdd3c637a7d9eb34c7a207c2566bfc1ee3b93598ed7bb0454646	request lines read, step-2 review r1, 2026-11-14
+CVE-2010-0738	228a214b121fba7e8742e2fee2c2b2acb3bb28c9e13d906d44b46b62b800f17b	request lines read, step-2 review r1, 2026-11-14
+CVE-2010-0759	469b681ca666c750d0d668f4f39fd51a5ae549d5ea795d67e8bcac4a836894df	request lines read, step-2 review r1, 2026-11-14
+CVE-2010-2035	82a3d06c91ab5ceb4306a390fe3e0936e838bf00065fb6581f1b65979b3d34c4	request lines read, step-2 review r1, 2026-11-14
+CVE-2010-2861	173c78ccef398069569957314fc998b24c780e6765ab63a6b31e304815c1b148	request lines read, step-2 review r1, 2026-11-14
+CVE-2011-3315	b76e3501093546720c1593d01f9731afd81bed0583f53987bbc255d16665708c	request lines read, step-2 review r1, 2026-11-14
+CVE-2013-7091	1e72b37f33dcd85296ef9ab8cb8d51d5f945ad6ba2bd2b8aca851003e3b21793	request lines read, step-2 review r1, 2026-11-14
+CVE-2014-2321	57df40015577f367276d359bc57146dfb07c95a6c3a6951357290cbeaa9c73dc	GET /web_shell_cmd.gch loads the page of a web shell that is already there; runs nothing; request lines read, step-2 review r1, 2026-11-14
+CVE-2015-1579	82297cbc26978e7e42806bb63c1ab281525a970891ed4d96257fedaa61c3b608	request lines read, step-2 review r1, 2026-11-14
+CVE-2015-1635	2bc2550ce03da4dd173e72eac500d6c5383d2749ab5dbce6f3c3df1220740504	request lines read, step-2 review r1, 2026-11-14
+CVE-2015-2067	c909e3f4bcffa6f65c12246e8715b641efcc55d984575860a71f64d9a99c823d	request lines read, step-2 review r1, 2026-11-14
+CVE-2015-3035	756f5fef0486bb2e246d4e8708df1f6f745a3f271294bb94e5032dd1320ab629	request lines read, step-2 review r1, 2026-11-14
+CVE-2015-3897	e3a6997a37861151c92f3f4748675f4c3b1a5b35e7657b6f68615b0652df6037	request lines read, step-2 review r1, 2026-11-14
+CVE-2015-4074	62dc3f247d20050aa7185b7a50c4e597ce6006fe88fdc5965e8045f795a92afc	request lines read, step-2 review r1, 2026-11-14
+CVE-2015-5471	eadce9e4464c2de5477b635a5eb0e9391ce8f1abf246a77af7e1f7d0fbe84090	request lines read, step-2 review r1, 2026-11-14
+CVE-2015-9406	1636df230ea6c0429a50bd8c9772c56b2b9a809f05d2290ec6d1bb0d451c4cb8	request lines read, step-2 review r1, 2026-11-14
+CVE-2015-9480	12926c6ea057d016ca518e010bf401c74980e30f5c49657d45bf611b8ed9cf72	request lines read, step-2 review r1, 2026-11-14
+CVE-2016-10367	35174ea57df15dc7f9670bd723e1dee253d2840b8830822bc99a96c957ea8237	request lines read, step-2 review r1, 2026-11-14
+CVE-2016-10924	61d46e4baa7ccb48fe0891f4883f31cc84eff91ad0764a794217fedb8ea35922	request lines read, step-2 review r1, 2026-11-14
+CVE-2016-10972	e881603b36e05ce4e005b5b13d0be784bbf477aaf946c97b8cb90111a767ce85	GET of the theme style.css; a version read; request lines read, step-2 review r1, 2026-11-14
+CVE-2016-2389	79871e6be108eb4eff27eed51f54045ed9981f696cf5940baced4e98bfdde54d	request lines read, step-2 review r1, 2026-11-14
+CVE-2016-3081	25892519d1efc620adce25ed61ee2a1b1957c1e23fd12ec0fb768322d8072bc3	request lines read, step-2 review r1, 2026-11-14
+CVE-2016-6277	177e9f03991eee6b9459b9a30deafd971d6d885d61aa956e54f609a763557a4a	command injection ;cat /etc/passwd, a read; request lines read, step-2 review r1, 2026-11-14
+CVE-2017-1000028	c345c04eecab1a5645810fe3cbe92d9b11b518448537065c589c67d8b50ea6e8	request lines read, step-2 review r1, 2026-11-14
+CVE-2017-10974	e17c0d1bf654a992397af55978afd6b9a6fcb10e5d2a93d9408c3d080d495302	request lines read, step-2 review r1, 2026-11-14
+CVE-2017-11512	3b797b7b99ad8943edc66f7fe49bf4f222e24864b0ac6d47f51b65713071c1b6	request lines read, step-2 review r1, 2026-11-14
+CVE-2017-12542	188bf74c36d0a0346c3bff5a6e189232535dd64a381f50760ada0e2a481266f7	request lines read, step-2 review r1, 2026-11-14
+CVE-2017-12637	b9c4acda3bdcdb71f6a4969ce6d4fa05c680f8deeee2a694219feb5db87300c9	request lines read, step-2 review r1, 2026-11-14
+CVE-2017-15363	8e333347e764773543e8d8e9527c3c51a8a78116caf46912fd4d13e3856ca65f	request lines read, step-2 review r1, 2026-11-14
+CVE-2017-18362	d1ca8c436b312f377a52f74fc63a369fab983a04c7f4a54f2dba80dffb04f48f	request lines read, step-2 review r1, 2026-11-14
+CVE-2017-20194	80c87f97cdd119e8641187fe0c48948769503555b0e2885afea1563d7471509f	request lines read, step-2 review r1, 2026-11-14
+CVE-2017-8225	5a9bbc0851ce687cccd10feed4c39865a6fe4bacb58e3aa38c01b9adbb520e87	request lines read, step-2 review r1, 2026-11-14
+CVE-2018-0127	eb15b23a115c1ef846bdb44b05a664e8b2bcd5a753670cef0acab830c934b228	request lines read, step-2 review r1, 2026-11-14
+CVE-2018-0296	740ba6476b075a256c01d5273efc48a37a8ce50048b79882f3ae760dc295cdcc	request lines read, step-2 review r1, 2026-11-14
+CVE-2018-10088	68888b9ee4825138924173b4f18e49d5d5b69647a2d2660665e3db132b614224	request lines read, step-2 review r1, 2026-11-14
+CVE-2018-11138	f5105b0eac898e453926f06eb5c1f6d17b15235db76f003440cbd5951437c842	request lines read, step-2 review r1, 2026-11-14
+CVE-2018-11409	c0a28ab2ba02a514c7ac0d150b6377b91f9785713dab6ad6dc4097d970ded476	request lines read, step-2 review r1, 2026-11-14
+CVE-2018-11759	0d6c13687a696c40f95a0b1e1071c54189ebc138b631c259b2cfbc01a21a3db5	request lines read, step-2 review r1, 2026-11-14
+CVE-2018-12031	be61806abea3d93a0838f96221b0b477aca76f6135b42d447eea1afe3848a57f	request lines read, step-2 review r1, 2026-11-14
+CVE-2018-1207	6d535ccee6fe737724c5289d72655653cc01434531064a2dda96a7bedaa4bd1f	request lines read, step-2 review r1, 2026-11-14
+CVE-2018-12613	52388720e4b70217ca9d54dd33e3932f56c53b551b31474862f1812a07747bd2	request lines read, step-2 review r1, 2026-11-14
+CVE-2018-13317	a1f030ae7cf8fc2dda6dddd0b0a53eea5361f20883809b9d2e7cc05510627255	request lines read, step-2 review r1, 2026-11-14
+CVE-2018-13379	0953e752633e5657eed0512483be1953a76db91b049466b7c834f798d18cc839	request lines read, step-2 review r1, 2026-11-14
+CVE-2018-13980	336f6ea1bf16ae1abc4d6dade520c8ae6dacf865f72cbcf17366f805feb8ddcf	request lines read, step-2 review r1, 2026-11-14
+CVE-2018-14912	124d55854d82ca6040cfd0b7a92b38a65f4aaba6289714e9e4d56edf7e69a7da	request lines read, step-2 review r1, 2026-11-14
+CVE-2018-14918	d8f8150a0b6dfc0a86aa207d4ca08a304e3d6508a6edfb2aa4f674592343fa49	request lines read, step-2 review r1, 2026-11-14
+CVE-2018-15138	2b67041e3b8c13068f9a41ce19dc06e85a609b902b9799d6ec39c9cc5154ebf4	request lines read, step-2 review r1, 2026-11-14
+CVE-2018-16670	80def702b20a21e40d5eb1466a0efd7c768858917fac4a05b2cbe1b1f4cf5d8f	request lines read, step-2 review r1, 2026-11-14
+CVE-2018-16836	2b6b19bb75563702e6fa0f1d6e336651120a29cc9dbb3e9d675cf5ec5ff60623	request lines read, step-2 review r1, 2026-11-14
+CVE-2018-17246	0a974558b71799d729ee41c1810ed186542fa411cca8318910a28a78197d2c88	request lines read, step-2 review r1, 2026-11-14
+CVE-2018-18809	0120fd616f9941542588029420db1bdb34348812689b89b330d90e991b882f1c	request lines read, step-2 review r1, 2026-11-14
+CVE-2018-19365	7bd771d35124702e1de6cdf650d02a58b962124395c5e9b3db76337231ca5b71	request lines read, step-2 review r1, 2026-11-14
+CVE-2018-20062	8205c2a98a3a756bf5aaa138c97276a482c93852674235cc80656b0ec4efd2b2	request lines read, step-2 review r1, 2026-11-14
+CVE-2018-20463	d994f77c29bfe339b314a49b1adcf89aa692caee4b76bd5a70f34c1fb636789d	request lines read, step-2 review r1, 2026-11-14
+CVE-2018-20470	64fa7ca1b4096ca596348703c72d472967893acebd04ba4edc606b93df0c9a13	request lines read, step-2 review r1, 2026-11-14
+CVE-2018-7422	b6f476134a4fd80855cc651bf45ae781a690f84299dcbc9bdccc6ae553889206	request lines read, step-2 review r1, 2026-11-14
+CVE-2018-9118	bf94ce54887a77b01faa11fdbdb3296a81d4e9e32589cbc65fd99eee3e809cf6	path traversal that reads wp-config.php; request lines read, step-2 review r1, 2026-11-14
+CVE-2018-9205	3c9b3f78036c481dd824b0eafa05f0bf11fd95d98dd9b8b15d93c698a79b6fb8	request lines read, step-2 review r1, 2026-11-14
+CVE-2018-9995	348179478be6eedf2ad20b3c1fb1f2fbc920a90e61e34140c4c1465ab19e6f35	request lines read, step-2 review r1, 2026-11-14
+CVE-2019-11248	3a9c795b403832186cf7f7e3cb7a504e14a1c0e1b8fdeb3b59ed05deae173ac8	request lines read, step-2 review r1, 2026-11-14
+CVE-2019-11510	7b9c551996b394f2615fce3d9b1f60f0cc2f1523850a1d4185bffdea38d454b8	request lines read, step-2 review r1, 2026-11-14
+CVE-2019-11581	463f127150a72095ae7164d064cabeb1470dde6d2296eb136c69f924e47911ed	request lines read, step-2 review r1, 2026-11-14
+CVE-2019-12276	4becf3918f6f2fdabb2b6b9d16ddd84b502150eb7558b95985c5d767bf2d83c1	request lines read, step-2 review r1, 2026-11-14
+CVE-2019-12314	23c4e58af98f1629dfaf0f5120360c5748536e513deb41c08f859e5e0f10a769	request lines read, step-2 review r1, 2026-11-14
+CVE-2019-12593	5bd43992eab62ac26f3971c10ea8fdbb1e21c254605abe074ab62ac457aa63b6	request lines read, step-2 review r1, 2026-11-14
+CVE-2019-13101	af346bace480b69049f06177438be00550a6ec45e491a89cdff9b29eebaec0dc	request lines read, step-2 review r1, 2026-11-14
+CVE-2019-14205	854cee2cf963305a5f122f2fc382c30463691c328023e06c71b8c843e3e5a29d	request lines read, step-2 review r1, 2026-11-14
+CVE-2019-14251	eb8ab104c156d7dd811e2f157a146d40f96da3e512eccabe521684bdb344ac51	request lines read, step-2 review r1, 2026-11-14
+CVE-2019-1653	3429622f9b02794091f817ac4678c5b90fce10d1b994330490a52595f8dd9fa0	request lines read, step-2 review r1, 2026-11-14
+CVE-2019-17270	80551abcd534bdbf6ffc128f66b62b6a20bd92b2b28b9e7259e14b42d3eaaaa8	command=cat /etc/passwd, a read; request lines read, step-2 review r1, 2026-11-14
+CVE-2019-17538	21526ccadc21ff63d585ea6e7a378d19e473f1c252b091ca302df4ab8e5ce908	request lines read, step-2 review r1, 2026-11-14
+CVE-2019-18371	e825fad4be5de8bef7ae0a995da2732ff0649cf883bd391a679604bf4b170982	request lines read, step-2 review r1, 2026-11-14
+CVE-2019-18393	d0a718f5ee5a0231bb79e8a7173e812585e2fcb02dfcb5e4614b6b005a5326bc	request lines read, step-2 review r1, 2026-11-14
+CVE-2019-19781	3dca01ad31b67ebc6c588c4d8abd173a9b95db056369ee86edf9cad87f6b6bdc	request lines read, step-2 review r1, 2026-11-14
+CVE-2019-19985	20e504000fbaa588954c32ff4cbf98b3ea16befa3d39e06e156d6bd84efd51b5	request lines read, step-2 review r1, 2026-11-14
+CVE-2019-20085	a2582a06a5daa3af073316d69b2a6d70c9546397a4ed12f8e8d350a353069875	request lines read, step-2 review r1, 2026-11-14
+CVE-2019-20933	dca406a3de2ec4e0a9e389852a3fdccfbc21b372c9c1e097827c310165baf0d2	request lines read, step-2 review r1, 2026-11-14
+CVE-2019-25152	031e0eba064e762ec742d0f697b93d03f9a413097a3778ca2e16ac926e064b5f	request lines read, step-2 review r1, 2026-11-14
+CVE-2019-25213	a42195c6c8b95eabc24522facb3c3f7d20805bb45201fbab35d43348cd0f2c11	request lines read, step-2 review r1, 2026-11-14
+CVE-2019-2588	43e072883730ab67b1bc93ed3fe86c059c6b7ef1c4a47e30a202b5457b46ba34	request lines read, step-2 review r1, 2026-11-14
+CVE-2019-4716	5c0b6ded7524157885acf58e1bada23e168caaa34de96f74f60a39ddd530d4c9	request lines read, step-2 review r1, 2026-11-14
+CVE-2019-6703	e74516569a221200b4e69631eeb700bb59abbb7f7b7c12465081b1e465c2d75c	GET readme.txt; a version read; request lines read, step-2 review r1, 2026-11-14
+CVE-2019-7254	52a87f06e4a77cd2621eadf93e6396e8da37505a6a1c8f74247ff3204f0cdc8b	request lines read, step-2 review r1, 2026-11-14
+CVE-2019-8982	4815f39506e8d5bea461a195200471a4308db4cd8c990e5edb863ab41a496ea9	request lines read, step-2 review r1, 2026-11-14
+CVE-2019-9618	65e079be483f12fc16111a77042d95c96c7d4b59f77e167adf97637917bdf75a	request lines read, step-2 review r1, 2026-11-14
+CVE-2020-0618	6e4c7a5a4770ac1daad356aa151c73da476707739c4ce17ac4f37a3319e628b5	request lines read, step-2 review r1, 2026-11-14
+CVE-2020-11455	b6f88e9f04e478cdcb81683e4fc476cf42518c513153063966049f9eb603014b	request lines read, step-2 review r1, 2026-11-14
+CVE-2020-11732	b741b5de337527b8f7cac62790702d0eb6279fef82e45a9fdc1fd0ddc4a0dc2d	request lines read, step-2 review r1, 2026-11-14
+CVE-2020-11738	73a177b11e76d53c4e9ca5e5f4e255f4b5dde3d466e30df6084b0e5d25068826	request lines read, step-2 review r1, 2026-11-14
+CVE-2020-11798	254d41712b2307be86096f51b5b33f5fcff452e331360d78078fa5b70d1b98b6	request lines read, step-2 review r1, 2026-11-14
+CVE-2020-11854	9f63fec22c455769f4a30d3233c6ac819f8152c3115c91e121e6674229cc1ff4	request lines read, step-2 review r1, 2026-11-14
+CVE-2020-13158	42ff468a90eaf23650d6a053f9ec391132bf7f7585be2fe9922ad7faa88dd30c	request lines read, step-2 review r1, 2026-11-14
+CVE-2020-13927	e697ebd89aee97abcd394b5fc35ca942b67569961af78def06e58acc3568eeb4	request lines read, step-2 review r1, 2026-11-14
+CVE-2020-14864	363659dea2332b70373acfd1d6d18d122b94802386c764096bad872416507819	request lines read, step-2 review r1, 2026-11-14
+CVE-2020-15227	d0bd0c79ce98199ab0d726c810068788f386be3e1d67267a37d478876ae1ac6f	request lines read, step-2 review r1, 2026-11-14
+CVE-2020-17519	498f560a0f113a6a0744ef2f044498142bf043955e2363000471f74451d00aa6	request lines read, step-2 review r1, 2026-11-14
+CVE-2020-19363	a957ae456532d3db108cd01eaa109e22de784a96ba9caac012978ef69a2b8ec9	request lines read, step-2 review r1, 2026-11-14
+CVE-2020-25078	39acaa85f6494e075dd3a067fb0a15d3434f49fd5d15fe14302906910a7272cb	request lines read, step-2 review r1, 2026-11-14
+CVE-2020-2551	39702d9d5a74637ecf0ae611b7b2292364bdc32c584437dbc0b15ae2484ebe68	request lines read, step-2 review r1, 2026-11-14
+CVE-2020-25540	f96ebebf882e1b16ab32daff364d7e47520983400f9910b942b2da61d7e9e9a6	request lines read, step-2 review r1, 2026-11-14
+CVE-2020-26073	5ddd3b378bdae4a96632578b66dd219d0adc95df96111815cdf12ec35c653291	request lines read, step-2 review r1, 2026-11-14
+CVE-2020-26876	6c4a50a3d38d8cf0d51d52dc14d7839d9753ee304fef33945e59c9473a50cec6	request lines read, step-2 review r1, 2026-11-14
+CVE-2020-27986	286753786799c4d8ac3416bd5a2d5c7c19950354ac452f66be72b049c30c14bc	request lines read, step-2 review r1, 2026-11-14
+CVE-2020-29227	13c1e8bb6acf15bbaa1933408f58015aae758c366c9bd7e8e3a2cefacd3f1dcf	request lines read, step-2 review r1, 2026-11-14
+CVE-2020-3187	14ec552bfdf5138b288c4a3ddcf57a1ab6200f0a732d7d8cf82de5c2880254da	request lines read, step-2 review r1, 2026-11-14
+CVE-2020-3452	7963f6cb7d61cb3b93e01030aca04859fac04868233fb7bbf47f5702e41a9701	request lines read, step-2 review r1, 2026-11-14
+CVE-2020-35234	e924378be73ccebf56324fcef5224ba34a0256abe0297b51377d63f795a3afe0	request lines read, step-2 review r1, 2026-11-14
+CVE-2020-35580	d9402593cb5412df3e8c12d4d1feff3a4de84b9dd6d2e33c47a03408977c6167	request lines read, step-2 review r1, 2026-11-14
+CVE-2020-36705	84f59d270712cbda1a26980a8eeb404a429c74d5fefce880d71f480b48c90dc2	GET /; a version read; request lines read, step-2 review r1, 2026-11-14
+CVE-2020-36719	d4b77cfa5addb18c1f44ad3273e7e0b9c4e2e5d05f040b05f5bf247d056d1f54	request lines read, step-2 review r1, 2026-11-14
+CVE-2020-36723	0a5878fb13b5af69e7c056a61fcd6e96ea5fb10a3e7037878e6a73cdbce72665	request lines read, step-2 review r1, 2026-11-14
+CVE-2020-5284	ec2f7037878e172ded1042505e01f2841aa35b1532cf5c31e09fa9fdb84b890a	request lines read, step-2 review r1, 2026-11-14
+CVE-2020-5410	6c3e190cb1642e85297f3df625d48a2191480f7d8e3d9299c8c265ab20c9174d	request lines read, step-2 review r1, 2026-11-14
+CVE-2020-8209	0b787e70fc65aae2b92a95860c371addb64434a1fb9e3f66a600baa10a88cfa9	request lines read, step-2 review r1, 2026-11-14
+CVE-2020-8497	26f095bf7cb282d1173d203c8e166b9f26adc39929e250ea3761eba58653d70b	request lines read, step-2 review r1, 2026-11-14
+CVE-2020-8982	e132cf060392421bf1f9f5f275cce0b7b6bf864148d9a01f65091132c78629db	request lines read, step-2 review r1, 2026-11-14
+CVE-2021-20090	64a8dc1e7dd095d96a5cbf4b2e091affc89c25fecf64151083b374b5d9e3758a	request lines read, step-2 review r1, 2026-11-14
+CVE-2021-20123	62828588f53157f0a11b0341d0585e60ab00fc43db74fc00cf4a71b985678be6	request lines read, step-2 review r1, 2026-11-14
+CVE-2021-20124	4c4370a691f6f6a7e02747e21ddacf56a21d5bcc9df8549b083a0c78d95dc182	request lines read, step-2 review r1, 2026-11-14
+CVE-2021-21087	83e62be2434f62029e56d09e5b4beffdae498e35b34497423d621427dac84422	request lines read, step-2 review r1, 2026-11-14
+CVE-2021-21234	20666a4f7ad2024a18191e71cfcdd1674761bfbf60de3619add90ea072670d9f	request lines read, step-2 review r1, 2026-11-14
+CVE-2021-21402	0b725430e1ce7a5074021d2f6b4ffe81588576b6d99bc83a448b590ca5078f14	request lines read, step-2 review r1, 2026-11-14
+CVE-2021-21745	8d5df7dfa23b45096a9ec49327e31d6d7f3310014f6ca059b036a28b3124e99d	request lines read, step-2 review r1, 2026-11-14
+CVE-2021-21805	a9f848dc2de026dd1a35ec42cb1f1ef8b65ac02b5251f708e794883db7b81308	command injection running dir, a read; request lines read, step-2 review r1, 2026-11-14
+CVE-2021-21972	469964e74fc4bba0aa9a3d7e95507c88f9915ce90b18cb9d15120cdbba2a0ac8	request lines read, step-2 review r1, 2026-11-14
+CVE-2021-22205	ac8d9f7740bf05e699da89915b053a01766d903b0850b45af9806f6897ec39c0	request lines read, step-2 review r1, 2026-11-14
+CVE-2021-24175	bc6055421e8e826299e3f2cbc03ad13aedcb238bf5889903994016b305035143	request lines read, step-2 review r1, 2026-11-14
+CVE-2021-24227	b2a6b2ff23396ce645d8693e6e33b8fbab918354a183ed0053fb20b4fe6c9c17	request lines read, step-2 review r1, 2026-11-14
+CVE-2021-24295	4587e04316e162e51ef124a1922f800e342b13d80f2088eede830b2a3ab9ecca	request lines read, step-2 review r1, 2026-11-14
+CVE-2021-25864	157e625269cad9bd4745e2f23a546f89adf0daf29a4da4e0e76cdaf7922174dc	request lines read, step-2 review r1, 2026-11-14
+CVE-2021-28169	fbbe7ae8bbfde2b44222a99c98d64fa312c51fba1606db5d0796d4cf4e0f1a43	request lines read, step-2 review r1, 2026-11-14
+CVE-2021-30134	97dbb9983aecaaf7aadbee8688d026eefb9d440e2e9358eb1ded708432c94998	request lines read, step-2 review r1, 2026-11-14
+CVE-2021-30497	b9cad7c3fc01f536fc340a205d41f40efa84b1a5e0611771137dc5001783c79d	request lines read, step-2 review r1, 2026-11-14
+CVE-2021-31602	abd2d7152584575fc278453605e8f02cc185b43e9db6ac7f8ccea46a1fc3d6d5	request lines read, step-2 review r1, 2026-11-14
+CVE-2021-3223	993983c852aaf83b7cfcd6b7194bd4d2af50de91c3ce8aa4ac1f250d31d2fd86	request lines read, step-2 review r1, 2026-11-14
+CVE-2021-32789	eefdd118e7f688e38085b7a264a7075c1ab02d0c6cfc387548e39732c940be99	request lines read, step-2 review r1, 2026-11-14
+CVE-2021-3287	05c8a532e45dc4c97ea406663d19d2dd9e95da6726fc6ddf1023e70aa73d2103	request lines read, step-2 review r1, 2026-11-14
+CVE-2021-33558	83b541329db031c63c8041dc40f81883963640b96cfb2887244bbf31641061f7	request lines read, step-2 review r1, 2026-11-14
+CVE-2021-33564	952017236fb570d0115d4404b2cc0678e94ac75c7997e94235a7ccb2dea4eee1	request lines read, step-2 review r1, 2026-11-14
+CVE-2021-34429	b010d8692b4b9012a243c6167981b6ec52405bed7bed11c06f23c8e3975e717b	request lines read, step-2 review r1, 2026-11-14
+CVE-2021-34473	2d74217ab84782ed5d75a581e185d97d4a96596ade5e7c48bbcc3d803d26b21a	request lines read, step-2 review r1, 2026-11-14
+CVE-2021-35464	653b9cd31c6431881840d7da2fcda0bfe423ec2d7c9b46a2873cabe88c0f2ff1	request lines read, step-2 review r1, 2026-11-14
+CVE-2021-35587	8fa21c74cf4cc649baa2cdf20b8fda1bcfc03dbd833561f43431f175348726ec	request lines read, step-2 review r1, 2026-11-14
+CVE-2021-37305	6b76853b2d63aed4e8a5785b9b67375b2e6b73e5110fa830a562991dcb26c0b4	request lines read, step-2 review r1, 2026-11-14
+CVE-2021-39211	4eb1612de7688778926103841b94adaa4800a4cb477731a434bedca58165de13	request lines read, step-2 review r1, 2026-11-14
+CVE-2021-39226	2112057f865740e0c2ddfb0deb294362c0ad03669b2003b13d836169b5387468	request lines read, step-2 review r1, 2026-11-14
+CVE-2021-39316	49da9bc1dfaf2e0b7473724a720114393906bad1e2c24961085ff80201412242	request lines read, step-2 review r1, 2026-11-14
+CVE-2021-40856	15aa75f51d2f5699e52c1d02b038a1118e9dd0bc8d4f24315c5862e514b87abf	request lines read, step-2 review r1, 2026-11-14
+CVE-2021-40875	e4297b01a5f3e4422af394217f5c494c5b57ff4c18df3804ae3a298416d54df9	request lines read, step-2 review r1, 2026-11-14
+CVE-2021-41277	a2c1ed04d2ccacecbf0410fa9839bcba4484f5e6305da5266f0ece55ecb9a726	request lines read, step-2 review r1, 2026-11-14
+CVE-2021-41569	f87a47a5dd17a65e7830c54f8ff8bb460a3cc37eb270e207a94d2d9a27cca96f	request lines read, step-2 review r1, 2026-11-14
+CVE-2021-43287	42c15c72c20483a2d463d713b8e9d53580675edf83ccad577a89bc094d4731ef	path traversal read; request lines read, step-2 review r1, 2026-11-14
+CVE-2021-43778	5fad9fbf045e378af649ec9fa894edcf0f6e586ab07d3c87939fd4d789283a0d	request lines read, step-2 review r1, 2026-11-14
+CVE-2021-45092	12860940b1f4a7be1f8838b2bb8441a4c90b1d7e0677bf0ee10bc19fdd1dbaf9	request lines read, step-2 review r1, 2026-11-14
+CVE-2021-46417	9e61033f56ec4bc5396dc72e4ad99806694b35c01fbbb25c72ff21da210e8365	request lines read, step-2 review r1, 2026-11-14
+CVE-2022-0218	3af182ddbfe88121c5e7b10a597a5ba6714f4ddcef0b5f5b8dbaff59e3762ee1	request lines read, step-2 review r1, 2026-11-14
+CVE-2022-0342	981de57637f9f099eb8ab653a3817f5cabd8b09ef6492b794893bd24b1f56a7a	request lines read, step-2 review r1, 2026-11-14
+CVE-2022-0540	77d4ade90b1a4674494a70d92b94444dd908d4d90de3291f8a6394640f37b8fa	request lines read, step-2 review r1, 2026-11-14
+CVE-2022-0885	ac2e47af71529b6e0f4d476695fdb940420d2ec7f215e58a40b20f6e0670c526	request lines read, step-2 review r1, 2026-11-14
+CVE-2022-1390	8ebe4368928d7ecb6c6b0a6dc762aa1f36ea3af88e0fa68121d11898650706c1	request lines read, step-2 review r1, 2026-11-14
+CVE-2022-1391	97dc7dcdf7530c374a50480422c364d326242e4f5d81dfab84f371c42d10d008	request lines read, step-2 review r1, 2026-11-14
+CVE-2022-21500	4fe6d02108081d6ff25a62e1a21e411ff66830512dfa90eab65960a52b3d0181	request lines read, step-2 review r1, 2026-11-14
+CVE-2022-2290	2a1178ed25ec9f9cd3405e77b53c8889e54d72a524fbb45440f77bfb9e3e705e	request lines read, step-2 review r1, 2026-11-14
+CVE-2022-2314	675c4ef599aade63df8c8682f3477a915a3ccf9601eadf883f6a6e8e87073e2f	request lines read, step-2 review r1, 2026-11-14
+CVE-2022-23178	9b71e565ca3ac6d88f874d6e1be3ea83bd67eaed40c7e0f135dfc1dcf3de431e	request lines read, step-2 review r1, 2026-11-14
+CVE-2022-23347	372b65949a011659b1af13c5af24c661fce29a3c4d115b5afe847e9dd7195055	request lines read, step-2 review r1, 2026-11-14
+CVE-2022-23397	9b4783905da1d42f06222e65ad4c778a2d970edb9ad410ab54f7fb3e37b654b0	request lines read, step-2 review r1, 2026-11-14
+CVE-2022-2376	122db7c576441e1fa6f59352d3068dcad32f87d1922fcfe7bf790544fb1fb42a	request lines read, step-2 review r1, 2026-11-14
+CVE-2022-24288	1eb33d2308c17e53909efc52c2a8036961dbc9975f2cdeb6c01bddb9da7e2e5e	request lines read, step-2 review r1, 2026-11-14
+CVE-2022-24682	b31472f53b502695393ba637701c9108da5ae66df5cb146401c4fb0ccbfa0a97	request lines read, step-2 review r1, 2026-11-14
+CVE-2022-24716	74505e84fe4f9f079f4938e5b27c86d82c9d041796c55d81cb9ce69bc23cbd26	request lines read, step-2 review r1, 2026-11-14
+CVE-2022-24990	ee1eacfe70c1162c8b1ba4c488bd6c35ad6e5afa17c4fe6201ee86787db10da9	request lines read, step-2 review r1, 2026-11-14
+CVE-2022-26143	5e37c5f794ed5547138c60447d66c18eac24ce70cd03387520426670e3d21735	request lines read, step-2 review r1, 2026-11-14
+CVE-2022-27593	4b4163a405edea7dd706697983bc1937d959126eb3a53fcfe80aaa70e9e62b8c	request lines read, step-2 review r1, 2026-11-14
+CVE-2022-27924	9efbec99afc680e1b31ca3c0c2c7003eb7a0bb2082be412aeca98a6a5eec54e9	request lines read, step-2 review r1, 2026-11-14
+CVE-2022-27925	14843f5a8d4b4389eb4bcd141a98eec320d3bb4015d3ff4b73ade0ee94b47a56	request lines read, step-2 review r1, 2026-11-14
+CVE-2022-28365	3efeef36d8aa50b58e45298abc7ddfa60c10d35916cacacbac60104b09e7ee0f	request lines read, step-2 review r1, 2026-11-14
+CVE-2022-31474	01d226b495cf08e9b8c1247ac190fd62eb681af31b99309aed1d8dceb8dec44a	request lines read, step-2 review r1, 2026-11-14
+CVE-2022-31656	ae1dab95592396fa248e7683a8488ca34568c6e5ae43881dfb50af354c8db257	request lines read, step-2 review r1, 2026-11-14
+CVE-2022-31704	e546b3523720766ce5cee35f9392a2273c7ee3290995719e720447252bc0f606	request lines read, step-2 review r1, 2026-11-14
+CVE-2022-31706	8d5f1e5e65025ef125d79892f7a9cbbeaf677d6d8750f7f61be88be6f93fa979	request lines read, step-2 review r1, 2026-11-14
+CVE-2022-31711	cc0309b1901024461c3e034a1e10b76e563c0fb081a946fe0f687327c5ae8284	request lines read, step-2 review r1, 2026-11-14
+CVE-2022-31847	58610a1592b5315b0efc6dc51c9c1ff0992c7be7bd45b23386219697f8cd1e77	request lines read, step-2 review r1, 2026-11-14
+CVE-2022-32409	48e7022b7c7bb4ec416cd921ff1a908b61dd483e5c15b41d368bfee778a7f84e	request lines read, step-2 review r1, 2026-11-14
+CVE-2022-36642	97d01041d00e81bbaca7d49bf779f3977c8832a0a0fa44687974cf2b529f59c8	request lines read, step-2 review r1, 2026-11-14
+CVE-2022-37299	e2b535430debcfd29d5e207c4500b54257147f5d10129bd529eca1b38acf5e1b	request lines read, step-2 review r1, 2026-11-14
+CVE-2022-4060	b147f31a23d8939ffed220bb91fb4788f2e3e3f63c1ac45092944f61d4aa14bc	exec:head -1 /etc/passwd, a read; request lines read, step-2 review r1, 2026-11-14
+CVE-2022-4063	423ed02d315160fcbca8d5c71cfc3c17bc1f16f167b75470f62527aa2f4dec09	request lines read, step-2 review r1, 2026-11-14
+CVE-2022-40734	dfc82f9f2c3c4c987a9883c503039f4422823aae42d2b098e630a61d39b128bb	request lines read, step-2 review r1, 2026-11-14
+CVE-2022-41840	acc40cd866f26559c16b1facf0fd3f0837e8c6c0734f667eefe404cde2f41161	request lines read, step-2 review r1, 2026-11-14
+CVE-2022-45354	153b7d0e881f2041e6e4623182dcb175ed3ddaa0daba8dc8c2ee9a26d6e3ed41	request lines read, step-2 review r1, 2026-11-14
+CVE-2022-45933	249bd806ff197edfeacbc18f1ff10829e9477682487ec7d735ce81bf22c7a8c8	request lines read, step-2 review r1, 2026-11-14
+CVE-2022-47075	bfefcf2c93961e7475ae8a38f58cef044266d725a6ff3402ca7dc99322b7cc59	request lines read, step-2 review r1, 2026-11-14
+CVE-2022-47615	00c93f32cbea5470869b933d3da597990a836091675ed917687d6f8dc755b486	request lines read, step-2 review r1, 2026-11-14
+CVE-2022-47945	51122079018ca7a49ab427f2cad14be848d0eec1d8c2b40d9ef167efd2de5b72	request lines read, step-2 review r1, 2026-11-14
+CVE-2023-2059	0bdd9bd4d90f589af3e01d10c6d2d50c8bf19dba6995ff7c8fac8f041c790b8c	request lines read, step-2 review r1, 2026-11-14
+CVE-2023-23063	80412e898bad50b5a43729942bd097539a05991ced1b844fd3b6e5e29f40d00c	request lines read, step-2 review r1, 2026-11-14
+CVE-2023-23752	562846ca14ecff169920291945b64eee0c94debbab2c937524f1bd55c37821b5	request lines read, step-2 review r1, 2026-11-14
+CVE-2023-26255	714d7b053c4223516ef7753a973d4b95e5a7c291b8e31b39b722cfdfbb75a2f2	request lines read, step-2 review r1, 2026-11-14
+CVE-2023-26256	1c99bf5b7cbdb3e6b09de7328b84f91831c686d8f190ef5f907fb6c8a66411e8	request lines read, step-2 review r1, 2026-11-14
+CVE-2023-26347	6885a82b6675bf9b8db639d2ce2ab014bbab41d634e7e8d5034a532f8b56a910	request lines read, step-2 review r1, 2026-11-14
+CVE-2023-27482	aba2eba56607508e84f1fa4bfc330b8ffe9729ca2cfadffed99a7b105da6a97d	auth-bypass header X-Hass-Is-Admin on a read request; harmless as sent; request lines read, step-2 review r1, 2026-11-14
+CVE-2023-27640	fd954ed149133da24c94aedcfc40134c2d1195e2af75f6050a30ccf1ba94fc43	request lines read, step-2 review r1, 2026-11-14
+CVE-2023-2796	d78dab308a9d514cc9f7394e5baa8432225026b71711d96ec6a6a0945b3bda2a	request lines read, step-2 review r1, 2026-11-14
+CVE-2023-29298	a1714529caa49519e87a39b29950ae333d6bbd9765d5f89fa78c80f0de4a24e8	request lines read, step-2 review r1, 2026-11-14
+CVE-2023-32235	25b713bdcb1dfdbf97d7221ab0084e9dc2996deff87c7681a3b53d5d91d7ab58	request lines read, step-2 review r1, 2026-11-14
+CVE-2023-33193	d47b0a1ae06eda23ccf56258b9812b807f6d0e6c36465e0b9f773bde7414f070	request lines read, step-2 review r1, 2026-11-14
+CVE-2023-33510	c55a91d46f468cf040bc6df5435f085d5bd289ee7fad72707491b806ec951209	request lines read, step-2 review r1, 2026-11-14
+CVE-2023-34598	90f8c6111b652ffcb9f1d0f2c2fc6e97c67708f49f47478b75bf13f5892633c8	request lines read, step-2 review r1, 2026-11-14
+CVE-2023-35078	cc61d17957365de36af312323fa66961744ece22accc7e30b5476ae39a87f731	request lines read, step-2 review r1, 2026-11-14
+CVE-2023-35082	2b47d35de3734132db621606c551da30fc414c46c17d6ad0eee96ff6168329a3	request lines read, step-2 review r1, 2026-11-14
+CVE-2023-35708	071cf8b4562a5f9166ede7416432bf3592ac052c0bfc0f741b89ffed8da6b53c	MOVEit: a client certificate header whose CN carries a time-based SQL SLEEP(6); reads, slows one request; request lines read, step-2 review r1, 2026-11-14
+CVE-2023-36144	0a610308030609731ae00fc2978726bf03d5d9974eb2a730b418ab96c909fe6b	request lines read, step-2 review r1, 2026-11-14
+CVE-2023-37474	583849ae55208972b7e9a5196e1f2c198251264aa49278fbe16e5448f88016e9	request lines read, step-2 review r1, 2026-11-14
+CVE-2023-38205	fd373b785a5ffddae2c54c3e67b9ed00b2d50ebcb7e75893e892600e73eff7a3	request lines read, step-2 review r1, 2026-11-14
+CVE-2023-38950	dea83caea0852ec5a2eb96f1dced8745fb6c240be1d720b72c2f03b9e15cbf9f	request lines read, step-2 review r1, 2026-11-14
+CVE-2023-39026	fd1182b938b8513ff467b71ca6976d65e8a901bc3b0c504ce7ebcc4185a93584	request lines read, step-2 review r1, 2026-11-14
+CVE-2023-40044	87c48cb353154775c4a8138cabe584bf422b42569c63c24be743946d3ab0954b	request lines read, step-2 review r1, 2026-11-14
+CVE-2023-41599	7e6380ae1df7d40556a25415a4f7f07285e4f13ef95eb0f0e3f2f89571b7f284	request lines read, step-2 review r1, 2026-11-14
+CVE-2023-43261	0e8a18d7eadbc87030c5cdb126a5b41e99041c097b38136a14a3a207a2615efa	request lines read, step-2 review r1, 2026-11-14
+CVE-2023-4666	79d77712a74d4bae41793cb4875f9aebc7ffec707a7697fa25e1b3d516db301f	GET readme.txt; a version read; request lines read, step-2 review r1, 2026-11-14
+CVE-2023-46805	ec56a96b2ee78352748aaebed316dd011167019370e4a1c638c407ab8d1d1ee1	request lines read, step-2 review r1, 2026-11-14
+CVE-2023-47105	0f9fc21d3e1b6bf7f309146c322c042b7b6f47352272f9b60d8208e654d87a24	command injection running id, a read; request lines read, step-2 review r1, 2026-11-14
+CVE-2023-6023	3cc62832059b0b4203107ead2a179117f2d948a819c40285946bd491d6c7f0fe	request lines read, step-2 review r1, 2026-11-14
+CVE-2023-6114	f38d71399162054bacbb75257bd802b529b9187a47da1d80ec5697e6e07e4d26	request lines read, step-2 review r1, 2026-11-14
+CVE-2023-6933	bfd1d29c2b38c557c1a6ca14dd5036ed9f5e7dcafdf91deface542c309681a46	request lines read, step-2 review r1, 2026-11-14
+CVE-2024-0012	cc9bf235558548023ab54f66000ba484b8aeee81623415404181b1dc56e99e12	X-PAN-AUTHCHECK: off on a read request; harmless as sent; request lines read, step-2 review r1, 2026-11-14
+CVE-2024-0204	7116d5c30cce310726dc701cc17f5664d367cf44697366121619effc7f294434	request lines read, step-2 review r1, 2026-11-14
+CVE-2024-11303	f1795c0c1457ac21fecea441eb6afb42d73f54e7e21d33c874ac3c7e3378aec4	request lines read, step-2 review r1, 2026-11-14
+CVE-2024-11868	9de7c715681215c330de0b4fa9a20a6bcbc1032b493cc2315d60ddfc7e0ecdf9	request lines read, step-2 review r1, 2026-11-14
+CVE-2024-1708	2934690f4394e4abaabfd137ac8130147562d5ae72ca4b1eb55e2036685f6d67	request lines read, step-2 review r1, 2026-11-14
+CVE-2024-20440	1e94e7ce9b781904d688f164afa4f0a14de99568f7d96c1f0bc2b0482cd9a04a	request lines read, step-2 review r1, 2026-11-14
+CVE-2024-2053	809e681ff3e000c394015d62061cf6ba65ab57abe375ec411001763fdd1a5261	request lines read, step-2 review r1, 2026-11-14
+CVE-2024-21136	0a100c7fafc2f67f935da631db5eeec263d1df1f58522ee81a10742f2b535bde	request lines read, step-2 review r1, 2026-11-14
+CVE-2024-23334	5c7043526f7ca7c548eb66cb6074b1aba88e97064a70da5a4ec015d98e3a9be1	request lines read, step-2 review r1, 2026-11-14
+CVE-2024-27292	0304f0c2b2588cd6da1ebbf1c6e4dccccca728d8e8e83ab85704ebc456703d69	request lines read, step-2 review r1, 2026-11-14
+CVE-2024-27443	5def98e79ef1774b057be7cc02c554c71174fab6f89346839f8d3038e5cd8388	request lines read, step-2 review r1, 2026-11-14
+CVE-2024-27954	04396081259f139c14beafa2390315c970bfab5171115d35dd1b508d37d3adc0	request lines read, step-2 review r1, 2026-11-14
+CVE-2024-28200	f8013b400df72074b9a9b443f49b012ebe411373fac4e9464ddf97ed4f21e99b	request lines read, step-2 review r1, 2026-11-14
+CVE-2024-28995	84b2875730c3703678d59356d22e04efdc2435f076cc429084bd0849861d99ae	request lines read, step-2 review r1, 2026-11-14
+CVE-2024-29269	d05850858dd54f14f31f301a5a3213f62efef79a07db741bf6f787b5133fdd7f	Cmd=ifconfig, a read; request lines read, step-2 review r1, 2026-11-14
+CVE-2024-30269	40a5216c7e0f82db3d9b0fa5872410d3baf0fcc9633ba9f13a038b87f0b3e601	request lines read, step-2 review r1, 2026-11-14
+CVE-2024-3080	17fcaff834014656ad6be6fb7e26e289336c3061b94416e244bbd74bda77083c	request lines read, step-2 review r1, 2026-11-14
+CVE-2024-31223	fc786114c713a5888bb8b2a6cd7e4dc84846d45eff5193485a7e7927d99159a1	request lines read, step-2 review r1, 2026-11-14
+CVE-2024-32114	e0ba11e65da9a6a58a61dbefdcae5f37428c7ab6b92f2a8f202fecdd56e5c618	request lines read, step-2 review r1, 2026-11-14
+CVE-2024-32735	0c7f93be8d6dd3cb62b9d45e99aec05b0b38b8525ec817f1b93983405f1aab11	request lines read, step-2 review r1, 2026-11-14
+CVE-2024-32870	823fc09ed2de283a041f0771d2aaec147460e1c0d396c4f813808be2d1967013	request lines read, step-2 review r1, 2026-11-14
+CVE-2024-33575	dc212be357d6c502b6206d9b4c9d29d09356024996d01d3e7718de94c2892044	request lines read, step-2 review r1, 2026-11-14
+CVE-2024-37656	c08f9e5011ef7223cd48f4c02b120b83d50b6acfbaf17608584825ecba369b8b	request lines read, step-2 review r1, 2026-11-14
+CVE-2024-38475	a40a3cd508888db113d3cb430cb93ac1026691f458b760107c90ae025d127a49	request lines read, step-2 review r1, 2026-11-14
+CVE-2024-38816	1fe0f63943d689b2f9f8f219c37cda3703ce4585cc6c2a64dd25682329f3d385	request lines read, step-2 review r1, 2026-11-14
+CVE-2024-40711	98768b0554587b732fbea48e7c6d26d9939cefd8c7c7ea1d1c7fd10fca1df24a	request lines read, step-2 review r1, 2026-11-14
+CVE-2024-41713	a5e6eed93418c7ec6fdb82ae8bc1de84ce6151974231f173105905926706dc13	request lines read, step-2 review r1, 2026-11-14
+CVE-2024-42009	c34542d2fa16573f3f57a8a2f8f97cef0bbb791ca1f93b50a96142dcb523887b	request lines read, step-2 review r1, 2026-11-14
+CVE-2024-48914	5d8ff882b6bc125354330846a0c53c07aa7d877e692b7563664ca90570a6dffd	request lines read, step-2 review r1, 2026-11-14
+CVE-2024-4956	53cfc8117f8ad3591d051b719997adbc45d3077b1c17e0c73735561959906a4a	request lines read, step-2 review r1, 2026-11-14
+CVE-2024-50967	0e22a4562239a000635a61d2107263f62f43100333a52ad14fd2c0be07f247d3	request lines read, step-2 review r1, 2026-11-14
+CVE-2024-5334	e1f04ae4c7652dbe71a4d9777619f721aec47aced2a16805e3c3b4bba760a050	request lines read, step-2 review r1, 2026-11-14
+CVE-2024-54763	60a41a569ccce1a3fb2f386058b89726506a2492b883b6b2372bf0e00ba0b10a	request lines read, step-2 review r1, 2026-11-14
+CVE-2024-54764	2b1974a408de7b06b057f6a58f7cfa1cdd0523b423edaa2266d999aba59daec7	request lines read, step-2 review r1, 2026-11-14
+CVE-2024-55457	52d9450c12713373bae61f0ff32e50b3dfa6500901ddab1dae508a6877e69352	request lines read, step-2 review r1, 2026-11-14
+CVE-2024-56159	4add83b47758d66d28656f4d98fe497194cd015e4fe145eb7428c6f696f67ad8	request lines read, step-2 review r1, 2026-11-14
+CVE-2024-57046	f7619fd6e43088d3e472af7116756646c94f5f1d45cab5d2dc7900509bb95177	request lines read, step-2 review r1, 2026-11-14
+CVE-2024-57727	ef997dc83ea1609d278e336bac94e6720713a38243a4feb36bf717490f261785	request lines read, step-2 review r1, 2026-11-14
+CVE-2024-57728	9481e577ba206c74b802209969d39a0eda48eef8328ca8540651b371fe3fbc56	GET /allversions; a version read; request lines read, step-2 review r1, 2026-11-14
+CVE-2024-6235	486ab9e8aec6a1d24bbb23711bea04963dbc90fea893556a8e70c48fb0268518	auth-bypass headers User-Name/Tenant-Name on a read request; harmless as sent; request lines read, step-2 review r1, 2026-11-14
+CVE-2024-7928	656a3a147ef1bd595290935c79245b0a772edb14932b11c3544519cb72e8aadc	request lines read, step-2 review r1, 2026-11-14
+CVE-2024-8181	d5d96e5fa8ac2595fe347c098b87f58d54edd900651e73b141d7b2a5be93cfc0	request lines read, step-2 review r1, 2026-11-14
+CVE-2024-8752	7de3f2e1ec9a3d1e800ee58eb9d4971becafa99b601da40d230a0243253dc2b1	request lines read, step-2 review r1, 2026-11-14
+CVE-2024-8963	e67cf218a40d84d77b3ddb2cc78ccc4f15f790faa63e1279c610f54b9a6b6db3	request lines read, step-2 review r1, 2026-11-14
+CVE-2024-9014	3c58a035e39b8c8e0a4e7c2c2f8d449c4e7a04121e5b9a38ca4ce1052bfd332c	request lines read, step-2 review r1, 2026-11-14
+CVE-2025-0108	d7a34cf957d03b9755f09aedd5095e5941bcffab13cd904400b7e59fe808cf3b	request lines read, step-2 review r1, 2026-11-14
+CVE-2025-0282	29b2f2487cba11319d6021237f966304362dea326aa29ae95e678a03ee3d2dde	request lines read, step-2 review r1, 2026-11-14
+CVE-2025-11371	8b689088586b3907c15a3df96a742a5fefc38ef190c1e377997d6fa4cae0186d	request lines read, step-2 review r1, 2026-11-14
+CVE-2025-11749	41fa0eb8e175dc4b9a11cc52eedfd71b84352ce038df1d9d91f7df47238ac624	request lines read, step-2 review r1, 2026-11-14
+CVE-2025-12055	618fe76e21afc0770534a883368460bddc9086ae98bf83fbeed89d5ad6f6e5f6	request lines read, step-2 review r1, 2026-11-14
+CVE-2025-12480	ea6d982a5c7781b661eb790c566928560ca67bf65d6b0036b433498329768ccf	request lines read, step-2 review r1, 2026-11-14
+CVE-2025-13773	74d691a33278bc3e08631d8bc5f22d9369c973ffbdc9539fce2b8245adc59b0d	request lines read, step-2 review r1, 2026-11-14
+CVE-2025-14437	da35ad78ca0b7a12e55ed9b03089824728e64670a92d7785390802ca83509f2f	request lines read, step-2 review r1, 2026-11-14
+CVE-2025-1743	6e3e45bfca1f1302f5af4d750c625c6920fde2917e033fc4fda25062bca230c4	request lines read, step-2 review r1, 2026-11-14
+CVE-2025-2264	a6fef44d21fe34639191e3b90ee8b27f0bbcb3608506fdf024d6585f3fdec040	request lines read, step-2 review r1, 2026-11-14
+CVE-2025-2294	c3d8361aec8dadf14b61153d0773b63b052d6e052358ddf5e5dc2309dea262ad	request lines read, step-2 review r1, 2026-11-14
+CVE-2025-24963	c33c42fb4181d0f8c8a1cb238f2e0e8f796184279256adfe71ea3237dd6a5d96	request lines read, step-2 review r1, 2026-11-14
+CVE-2025-2505	1a5ef682ed746894418d16963fdc1f855402ceb08a88830af35431f891d2a697	request lines read, step-2 review r1, 2026-11-14
+CVE-2025-26399	a874a68d32c94804a066c915a8688832a69cb62675e0f0f487cd09b82d14b70a	request lines read, step-2 review r1, 2026-11-14
+CVE-2025-27505	dc7a058fabf3d225b8ff0d10fd8288369ef348caba1d8a2481c5fae38c79a6ce	request lines read, step-2 review r1, 2026-11-14
+CVE-2025-27915	7a9edd086944488735280567d09f09902f42040f82c8d4098236ce116a36c66a	request lines read, step-2 review r1, 2026-11-14
+CVE-2025-28367	45d240e248a0a87fcbbe539ad634898659351ff1b3ec51e5759b424f849a4aca	request lines read, step-2 review r1, 2026-11-14
+CVE-2025-31125	dd78e049756bfadcab3e760d5e6b1473c99fc0d34b4e2af59b74f6c5b0800ef3	Vite ?import path traversal read of win.ini; import names a Vite query flag, not an action; request lines read, step-2 review r1, 2026-11-14
+CVE-2025-32429	5cc08bb53e8a24f4dfb50ade6a669ab2dca0ef80d94be0154fd0a8a583005580	request lines read, step-2 review r1, 2026-11-14
+CVE-2025-34026	fb507b00fd1e2f0f8ae9687a3235c57a838adcd7a32ee6dad4a9f6c24121b28f	request lines read, step-2 review r1, 2026-11-14
+CVE-2025-34027	7a8c0f2e2d20b0b6a6fb49a8597481044bb41999abd3bb217365435ac1c59a46	request lines read, step-2 review r1, 2026-11-14
+CVE-2025-34031	7675f3b58393569ce1915608b0880bc1a55da33223df00bc4cee334a4537bf85	request lines read, step-2 review r1, 2026-11-14
+CVE-2025-4008	c459a824e36a46abf8048a360e55fb32e0fa51e64ec3441857068717e2eb44e1	command injection templatefile=$(id), a read; request lines read, step-2 review r1, 2026-11-14
+CVE-2025-40536	702e10e84a1525e122088b5a5904453d5cba27286d76311756c3a75b381ee94f	request lines read, step-2 review r1, 2026-11-14
+CVE-2025-4210	c23a1cea24a6f5729d3ca319d8f5d7eafa91aa43acea11275ea42f9827488b3e	request lines read, step-2 review r1, 2026-11-14
+CVE-2025-44136	f2ff72b88d51dfd13e857112aa6deae100901230959fcfcb83c48f4e0c6e0c1f	request lines read, step-2 review r1, 2026-11-14
+CVE-2025-44137	572c60e382bbfd77b81c118912173b022677ec96bc6204c54ac5937f3517645d	request lines read, step-2 review r1, 2026-11-14
+CVE-2025-44177	5c43eafe1f7e0c60f68d27a0c67ce18951a85fc67b372f33e198b55d32b90613	request lines read, step-2 review r1, 2026-11-14
+CVE-2025-49132	93311d039314cac6ee65a0b0ffdfd5f7628137bd7a4384f186d699ff8f8381c5	request lines read, step-2 review r1, 2026-11-14
+CVE-2025-55747	beb55041279d6fbf5903b1d62dc90e013c802749e29b73cbd501b2cb137f51ee	request lines read, step-2 review r1, 2026-11-14
+CVE-2025-55748	c3713ba183e831e759d4c223af44fb55afbfd18c3d172ea0aade548277897c26	request lines read, step-2 review r1, 2026-11-14
+CVE-2025-55749	29f9cf1b3ec8d5ad0878cc8c6fcbb04b76d3a7a5ed4c15f5bba6d3eb493951b0	request lines read, step-2 review r1, 2026-11-14
+CVE-2025-63387	b94be255459565269e94795310c5ca07060323f828d1f5a9e011e106f608372f	request lines read, step-2 review r1, 2026-11-14
+CVE-2025-66744	41f3d337248e86f61ed1f4ba3e49fd5094e4c59b95a9f98eec19b1a389364e50	request lines read, step-2 review r1, 2026-11-14
+CVE-2025-68043	54538f887010282db293fff436ce140e134b24b3e86e3489547556c5e2f42109	request lines read, step-2 review r1, 2026-11-14
+CVE-2025-71257	b6109ec5bd1570baa438b91f30c930f79f9fb337ee21924c89d20e4ffe6bb3bb	request lines read, step-2 review r1, 2026-11-14
+CVE-2025-8110	bbab890b5f1957ca11233f010a75c789decdcbf843037216e7a993df04f78048	request lines read, step-2 review r1, 2026-11-14
+CVE-2026-1281	475409231f43c2f5896b8ce610eefe945338fd20e6db3819b61a4ae2da5aff56	request lines read, step-2 review r1, 2026-11-14
+CVE-2026-1340	fe7dfec258a567d015802a1e73c69992bb2adec51d915c24211e49b7ef187fc9	request lines read, step-2 review r1, 2026-11-14
+CVE-2026-1557	843f65508458ca9f7dccf7e78928ec7f73efdffca03381a0e85f2d6dd3a59a6b	request lines read, step-2 review r1, 2026-11-14
+CVE-2026-18577	bda8c33c47dc1656b40e2ebca8ad5a80f9b1bd3c9513a8bbc8d5802acec68997	request lines read, step-2 review r1, 2026-11-14
+CVE-2026-2025	830b1514de1beb654b3ca88bb677010a9e0fcb6f68099eb0d40ab6edc132e768	request lines read, step-2 review r1, 2026-11-14
+CVE-2026-21445	7f69621fd3cee9debbe42ffadf6be01b8606d3b8c6dc74e2d3f43921a6867315	request lines read, step-2 review r1, 2026-11-14
+CVE-2026-21589	c86b6cac7cb563a7361666dc6b330444fe3bafa2641fef6d60d25f36541890ac	request lines read, step-2 review r1, 2026-11-14
+CVE-2026-29059	78eb88e0a813cde68983cbe6559503c25c243c4f8e2573682ee27122e702a49b	request lines read, step-2 review r1, 2026-11-14
+CVE-2026-33497	d31513578b95e785d183f612b03abb9453c3df28531777e94f3223f5ef5e7787	request lines read, step-2 review r1, 2026-11-14
+CVE-2026-4020	cf23e6b1a334c6061b458fec610f40570d97afb9414e5f677e771e21f40e8af1	request lines read, step-2 review r1, 2026-11-14
+CVE-2026-44338	ebe2b0deaff3fd6fc58b2bca1ca325885845380f4e3529b4204468fbbb3a1833	request lines read, step-2 review r1, 2026-11-14
+CVE-2026-52806	9b6ae3e47abb0e1b65aa176d38bde8a0606b0d4e3329a2d3fbbe7fa8ff1a7bcf	request lines read, step-2 review r1, 2026-11-14
+CVE-2026-86218	09d694916558be8e6a945280e5258ab497b3365c2d3555c2d1d2a71f905c480e	request lines read, step-2 review r1, 2026-11-14

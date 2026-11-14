@@ -207,6 +207,9 @@ func TestPackage_ControlFields(t *testing.T) {
 		if f["Section"] != "admin" || f["Priority"] != "optional" || f["Homepage"] != "https://github.com/KNT048/vedette" {
 			t.Errorf("%s: Section/Priority/Homepage = %q %q %q", arch, f["Section"], f["Priority"], f["Homepage"])
 		}
+		if f["Bugs"] != "https://github.com/KNT048/vedette/issues" {
+			t.Errorf("%s: Bugs = %q, want GitHub Issues (D-541)", arch, f["Bugs"])
+		}
 	}
 }
 

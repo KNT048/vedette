@@ -41,13 +41,13 @@ type WebScanner interface {
 	Baseline(ctx context.Context, t ScanTarget, page WebPage) (WebScan, error)
 }
 
-// WebPage is one page to scan: URL (http or https, host Host, path /), the address IP and TCP port Port ZAP is pinned to.
 // PageSkipped is a page the WebScanner did not scan for a reason of this page alone (D-521: its name no longer points at the address
 // exposure approved); the scan says why on that page's line and goes on with the next page.
 type PageSkipped struct{ Reason string }
 
 func (e *PageSkipped) Error() string { return e.Reason }
 
+// WebPage is one page to scan: URL (http or https, host Host, path /), the address IP and TCP port Port ZAP is pinned to.
 type WebPage struct {
 	URL  string
 	Host string // the name in the URL: the IP itself for an IP target, a name under the verified domain for a domain

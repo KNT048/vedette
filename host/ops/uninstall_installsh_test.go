@@ -417,6 +417,7 @@ const fakePodmanUsers = `echo "$*" >>"$FAKE/calls"
 case "$1 $2" in
 "ps -a") f=$(printf '%s' "$4" | tr '=/' '__'); cat "$FAKE/users.$f" 2>/dev/null; exit 0 ;;
 "network exists" | "volume exists") exit 0 ;;
+"container exists") exit 1 ;; # no ZAP container (D-521)
 "images --format") cat "$FAKE/images" ;;
 "images -a") ;;
 esac
@@ -442,14 +443,16 @@ func TestInstallSh_UninstallNeverForcesOutSomeoneElsesContainer(t *testing.T) {
 		}
 	}
 	fakeProgram(t, dir, "podman", fakePodmanUsers)
+	fakeProgram(t, dir, "nft", `echo "nft $*" >>"$FAKE/calls"
+`) // the ZAP fence of D-521 (never the real nft)
 	body := installShFunc(t, "do_uninstall")
 	i := strings.Index(body, "\tif have podman; then\n\t\tremove_ours network vedette-int\n")
 	j := strings.Index(body, "\tpodman_stays\n")
 	if i < 0 || j < i {
 		t.Fatalf("do_uninstall has no removal of the network and volumes before podman_stays:\n%s", body)
 	}
-	out, err := runInstallShFns(t, dir, []string{"FAKE=" + dir, "TMP=" + t.TempDir()},
-		[]string{"remove_ours", "rmi_ours", "others_use", "remove_images", "pm"}, body[i:j])
+	out, err := runInstallShFns(t, dir, []string{"FAKE=" + dir, "TMP=" + t.TempDir(), "ZAP_IMAGE=" + ops.ZapImage},
+		[]string{"remove_ours", "rmi_ours", "others_use", "remove_images", "pm", "remove_zap", "remove_zap_fence"}, body[i:j])
 	if err != nil {
 		t.Fatalf("removal: %v\n%s", err, out)
 	}

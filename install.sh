@@ -1039,7 +1039,7 @@ remove_images() {
 	case $zap in
 	"") ;;
 	*" 0") rmi_ours "${zap% 0}" ;;
-	*) warn "the ZAP image $ZAP_IMAGE also has a tag that is not Vedette's: left in place (podman images | grep zaproxy)" ;;
+	*) warn "the ZAP image $ZAP_IMAGE also has a tag that is not Vedette's: left in place (see the image list for zaproxy)" ;;
 	esac
 	pm images -a --filter dangling=true --filter label=io.vedette.build=scan --format '{{.ID}}' | sort -u | while read -r id; do
 		rmi_ours "$id"

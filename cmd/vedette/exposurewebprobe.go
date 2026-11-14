@@ -8,8 +8,10 @@ import (
 	"github.com/knt048/vedette/modules/scan"
 )
 
-// RecordWebProbe makes exposureProbeLog (exposureprobes.go, D-520) exposure's WebProbeLog too (INV-24, LEGAL §3): one row per page
-// before ZAP starts on it.
+// exposureProbeLog (exposureprobes.go, D-520, cfg.Probes) is exposure's WebProbeLog too (INV-24, LEGAL §3): one row per page before
+// ZAP starts on it.
+var _ exposure.WebProbeLog = exposureProbeLog{}
+
 // RecordWebProbe writes the row of one page before zap.baseline is asked (exposure INV-24): the address and port ZAP is pinned to,
 // the tool and its options, the URL. It returns only once the row is written; exposure scans nothing when it fails.
 func (l exposureProbeLog) RecordWebProbe(ctx context.Context, p exposure.WebProbe) error {

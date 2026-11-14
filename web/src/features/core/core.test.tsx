@@ -48,7 +48,7 @@ describe('core: cài đặt ban đầu', () => {
     const text = screen.getByRole('region', { name: 'Terms of use of Vedette' })
     expect(text).toHaveTextContent(/provided as-is, without warranty/)
     expect(text).toHaveTextContent(/It tests your systems the way an attacker would/)
-    expect(text).toHaveTextContent(/every port, service version detection, read-only checks that confirm a vulnerability, and active web scanning/)
+    expect(text).toHaveTextContent(/every port, service version detection, vulnerability checks, including checks that confirm a flaw by sending the exploit request itself in a harmless form/)
     expect(text).toHaveTextContent(/Disruptive checks are off by default and run only when you tick them for a target: denial of service, password guessing, sign-in attempts with default or well-known passwords/)
     expect(text).toHaveTextContent(/A verified name is scanned at full depth on every IP address it resolves to/)
     expect(text).toHaveTextContent(`By ticking "${AGREE}"`) // the text quotes the box it asks you to tick

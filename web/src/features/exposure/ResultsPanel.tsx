@@ -12,6 +12,7 @@ import { useDiff, useSnapshot, useSnapshots } from './api'
 import { ChecksSection, VulnSection } from './ServicesPanel'
 import { WebSection } from './WebPanel'
 import { GreenboneSection } from './GreenbonePanel'
+import { DeepSection } from './DeepPanel'
 import { PortMark, PortMarkNote } from './PortMark'
 import { PORT_NOT_SEEN, VERSION_NOT_READ } from './contract'
 import { CERT_WARN_DAYS, type AdminRow, type CertRow, type DiffItem, type DiffChange, type HostRow, type PortRow, type Snapshot, type Target } from './types'
@@ -90,7 +91,7 @@ function SnapshotView({ target, s }: { target: Target; s: Snapshot }) {
   return (
     <div className="grid gap-8">
       <Panel className="p-4">
-        <p className="mb-3 flex flex-wrap items-center gap-x-2 text-[13px] text-muted"><SourceBadge source="nmap" at={s.scanned_at} />{t('results.sourceNote')}</p>
+        <p className="mb-3 flex flex-wrap items-center gap-x-2 text-[13px] text-muted"><SourceBadge source="nmap" at={s.scanned_at} />{t(!target.full_scan ? 'results.scopeBasic' : target.kind === 'domain' ? 'results.scopeDeepDomain' : 'results.scopeDeepIp')} {t('results.sourceNote')}</p>
         <KeyValue items={[
           ...(target.kind === 'domain' ? [{ label: t('count.subdomains'), value: c.subdomains }] : []),
           { label: t('count.ips'), value: c.ips }, { label: t('count.ports'), value: c.ports },
@@ -108,9 +109,10 @@ function SnapshotView({ target, s }: { target: Target; s: Snapshot }) {
       <Section title={t('cert.title')} description={t('cert.description', { days: CERT_WARN_DAYS })}>
         <DataTable caption={t('cert.caption')} data={s.certs} columns={certCols} pageSize={20} initialSort={[{ id: 'expires', desc: false }]} empty={t('cert.empty')} />
       </Section>
-      {target.kind === 'ip' || s.vulns.length > 0 ? <VulnSection s={s} domain={target.kind === 'domain'} /> : null /* D-565: a domain's page can carry versions ZAP read */}
+      {target.kind === 'domain' ? <DeepSection s={s} /> : null /* D-571: the deep scan per address, with the names that led to it */}
+      {target.kind === 'ip' || s.vulns.length > 0 || s.services.length > 0 ? <VulnSection s={s} domain={target.kind === 'domain'} /> : null /* D-565: a domain's page can carry versions ZAP read; D-571: and its addresses' services */}
       <WebSection s={s} />
-      {target.kind === 'ip' ? <GreenboneSection s={s} /> : null}
+      {target.kind === 'ip' || (s.greenbone ?? []).length > 0 ? <GreenboneSection s={s} /> : null}
       <ChecksSection s={s} />
     </div>
   )

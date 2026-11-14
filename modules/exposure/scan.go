@@ -390,6 +390,9 @@ const (
 	scopeChecked scope = iota // the scan port-scanned it: a port it does not report was missed
 	scopeKept                 // still the domain's address but not scannable now (lapsed, paused, deleted, skipped): the scan did not check it
 	scopeGone                 // no longer an address of the domain: its ports leave with the host
+	// scopeByName: a domain's address that is not the box's and got only the check by name (D-229, ports 80 and 443) this run: those
+	// two ports were checked, any other (found by an earlier deep scan, D-571) was not (review r1 M2).
+	scopeByName
 )
 
 // ipKey is the one spelling of an address that two scans are compared by (an IPv4-mapped form is the same address).
@@ -402,15 +405,20 @@ func ipKey(s string) string {
 
 // coveredBy decides, for each address of the previous observation that this scan reported no port on, whether the scan checked it.
 // An IP target is checked by every successful scan; a domain scan port-scans only the addresses its names point at that are
-// scannable IP targets (the gate the runner asked, ScannableIP). A scan that did not check an address says nothing about its ports.
+// scannable IP targets (the gate the runner asked, ScannableIP), and the addresses its deep scan reached this run (D-571). A scan that did not check an address says nothing about its ports.
 func (s *Service) coveredBy(ctx context.Context, user string, t Target, c Content, prev Snapshot) map[string]scope {
 	reported := map[string]bool{}
 	for _, p := range c.Ports {
 		reported[ipKey(p.IP)] = true
 	}
-	pointed := map[string]bool{}
+	pointed, deep := map[string]bool{}, map[string]bool{}
 	for _, h := range c.Hosts {
 		pointed[ipKey(h.IP)] = true
+		for _, a := range h.IPs {
+			if a.Deep == DeepScanned { // D-571: this run's deep scan port-scanned it
+				deep[ipKey(a.IP)] = true
+			}
+		}
 	}
 	out := map[string]scope{}
 	for _, p := range prev.Ports {
@@ -418,17 +426,27 @@ func (s *Service) coveredBy(ctx context.Context, user string, t Target, c Conten
 		if _, done := out[k]; done {
 			continue
 		}
+		box := func() bool {
+			a, err := netip.ParseAddr(k)
+			if err != nil {
+				return false
+			}
+			ok, err := s.ScannableIP(ctx, user, a)
+			return err == nil && ok
+		}
 		switch {
-		case reported[k] || (t.Kind == KindIP && k == ipKey(t.Value)):
+		case (t.Kind == KindIP && k == ipKey(t.Value)) || deep[k] || (reported[k] && t.Kind != KindDomain):
 			out[k] = scopeChecked
+		case reported[k] && box():
+			out[k] = scopeChecked
+		case reported[k]:
+			out[k] = scopeByName
 		case t.Kind != KindDomain || moved(k, pointed, prev.Hosts, c.Hosts):
 			out[k] = scopeGone
 		default:
 			out[k] = scopeKept
-			if a, err := netip.ParseAddr(k); err == nil {
-				if ok, err := s.ScannableIP(ctx, user, a); err == nil && ok {
-					out[k] = scopeChecked
-				}
+			if box() {
+				out[k] = scopeChecked
 			}
 		}
 	}
@@ -482,7 +500,14 @@ func carryNotSeen(c Content, prev Snapshot, how map[string]scope) Content {
 		if p.LastSeen == "" {
 			p.LastSeen = prev.Date
 		}
-		switch how[k.ip] {
+		sc := how[k.ip]
+		if sc == scopeByName {
+			sc = scopeKept
+			if p.Port == 80 || p.Port == 443 {
+				sc = scopeChecked
+			}
+		}
+		switch sc {
 		case scopeGone:
 			continue
 		case scopeKept:

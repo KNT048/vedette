@@ -74,6 +74,9 @@ function TargetView({ target }: { target: Target }) {
       onError: (e) => { if ((e as { code?: string }).code !== 'twofa_required') toast.error(errMsg(e)) },
     })
   }
+  // N100 finding (D-571): the line under Scan now says what the next scan really does: the deep scan once the testing terms are accepted
+  // (with or without the disruptive checks), else the Scan now scope
+  const scopeText = !target.full_scan ? t('scan.safe') : t(`scan.deep${target.kind === 'domain' ? 'Domain' : 'Ip'}`) + ' ' + t(target.terms?.disruptive ? 'scan.deepDisruptive' : 'scan.deepNotDisruptive')
   return (
     <>
       <PageHeader title={title} stories={['S-EXP-1']}
@@ -86,7 +89,7 @@ function TargetView({ target }: { target: Target }) {
         </>} />
       <ScanProgress />
       {needTwoStep ? <p role="alert" className="-mt-3 mb-6 max-w-3xl text-sm text-warn">{t('scan.needTwoStep', { value: target.value })} <Link to="/account#two-step" className="underline">{t('scan.needTwoStepLink')}</Link></p> : null}
-      {blocked ? <p id="scan-reason" className="-mt-3 mb-6 max-w-3xl text-sm text-warn">{blocked}</p> : <p className="-mt-3 mb-6 max-w-3xl text-[13px] text-muted">{t('scan.safe')}</p>}
+      {blocked ? <p id="scan-reason" className="-mt-3 mb-6 max-w-3xl text-sm text-warn">{blocked}</p> : <p className="-mt-3 mb-6 max-w-3xl text-[13px] text-muted">{scopeText}</p>}
       {notice ? (
         <div id="scan-notice" role="note" aria-label={t('scan.noticeTitle')} className="-mt-3 mb-6 max-w-3xl rounded-md border border-line p-3 text-sm">
           <p className="mb-1 font-medium">{t('scan.noticeTitle')}</p>

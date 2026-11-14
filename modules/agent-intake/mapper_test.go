@@ -197,3 +197,31 @@ func TestKindFromTheOS(t *testing.T) {
 		t.Fatalf("observations %+v", obs)
 	}
 }
+
+// D-516: a deb row carries its full Debian version and source package; binaries of one source that become one row keep the
+// lowest full version (a binary that was not updated keeps its finding); rpm and programs rows carry neither.
+func TestMapDebPackagesKeepsFullVersionAndSource(t *testing.T) {
+	t.Parallel()
+	items, dropped := MapDebPackages([]DebPackage{
+		{Name: "openssh-client", Version: "1:9.6p1-3ubuntu13.14", Source: "openssh"},
+		{Name: "openssh-server", Version: "1:9.6p1-3ubuntu13.5", Source: "openssh"},
+		{Name: "openssh-sftp-server", Version: "1:9.6p1-3ubuntu13.14", Source: "openssh (1:9.6p1-3ubuntu13.14)"},
+		{Name: "sudo", Version: "1.9.15p5-3ubuntu5.24.04.1"}, // osquery leaves source empty when it is the package's own name
+		{Name: "htop", Version: "not a version"},
+	})
+	if dropped != 0 || len(items) != 3 {
+		t.Fatalf("%d items, %d dropped: %+v", len(items), dropped, items)
+	}
+	want := map[string][2]string{"OpenSSH": {"1:9.6p1-3ubuntu13.5", "openssh"}, "Sudo": {"1.9.15p5-3ubuntu5.24.04.1", "sudo"}, "htop": {}}
+	for _, it := range items {
+		if got := [2]string{it.PkgVersion, it.PkgSource}; got != want[it.Product] || !it.Packaged {
+			t.Errorf("%s: %v packaged %v, want %v", it.Product, got, it.Packaged, want[it.Product])
+		}
+	}
+	rpm, _ := mapPackages(map[string][]row{"rpm_packages": {{"name": "sudo", "version": "1.9.5p2"}}, "programs": {{"name": "Google Chrome", "version": "130.0"}}}, 10)
+	for _, it := range rpm {
+		if it.PkgVersion != "" || it.PkgSource != "" {
+			t.Errorf("%s carries a Debian version: %+v", it.Product, it)
+		}
+	}
+}

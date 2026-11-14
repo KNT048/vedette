@@ -163,7 +163,8 @@ func (b boxPackages) Packages(ctx context.Context) ([]inventory.SoftwareItem, er
 	}
 	out := make([]inventory.SoftwareItem, len(sw))
 	for i, s := range sw {
-		out[i] = inventory.SoftwareItem{Display: s.Display, Vendor: s.Vendor, Product: s.Product, Version: s.Version, CPE: s.CPE, KevKeys: s.KevKeys, Packaged: s.Packaged}
+		out[i] = inventory.SoftwareItem{Display: s.Display, Vendor: s.Vendor, Product: s.Product, Version: s.Version, CPE: s.CPE, KevKeys: s.KevKeys, Packaged: s.Packaged,
+			PkgVersion: s.PkgVersion, PkgSource: s.PkgSource}
 	}
 	return out, nil
 }

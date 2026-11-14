@@ -88,6 +88,8 @@ type MatchSoftware struct {
 	Source string
 	// Packaged: an agent row read from the operating system's package database (deb/rpm), so the distribution ships its fixes.
 	Packaged bool
+	// PkgVersion and PkgSource: a packaged deb row's full Debian version and source package, "" otherwise (D-516).
+	PkgVersion, PkgSource string
 }
 
 // MatchDevice is a device with its software, for the matcher of findings.
@@ -118,7 +120,7 @@ func (s *Service) MatchInput(ctx context.Context, id string) (d MatchDevice, ok 
 	if d.StatedOS, err = statedOS(ctx, q, id); err != nil {
 		return MatchDevice{}, false, err
 	}
-	rows, err := q.QueryContext(ctx, `SELECT s.id, s.display, s.vendor, s.product, ifnull(s.version, ''), ifnull(s.cpe, ''), s.source, s.packaged, k.kev_key
+	rows, err := q.QueryContext(ctx, `SELECT s.id, s.display, s.vendor, s.product, ifnull(s.version, ''), ifnull(s.cpe, ''), s.source, s.packaged, ifnull(s.pkg_version, ''), ifnull(s.pkg_source, ''), k.kev_key
 		FROM inv_software s LEFT JOIN inv_software_kev k ON k.software_id = s.id WHERE s.asset_id = ? ORDER BY s.display, s.id, k.kev_key`, id)
 	if err != nil {
 		return MatchDevice{}, false, fmt.Errorf("inventory: read software: %w", err)
@@ -127,7 +129,7 @@ func (s *Service) MatchInput(ctx context.Context, id string) (d MatchDevice, ok 
 	for rows.Next() {
 		var sw MatchSoftware
 		var key sql.NullString
-		if err := rows.Scan(&sw.ID, &sw.Display, &sw.Vendor, &sw.Product, &sw.Version, &sw.CPE, &sw.Source, &sw.Packaged, &key); err != nil {
+		if err := rows.Scan(&sw.ID, &sw.Display, &sw.Vendor, &sw.Product, &sw.Version, &sw.CPE, &sw.Source, &sw.Packaged, &sw.PkgVersion, &sw.PkgSource, &key); err != nil {
 			return MatchDevice{}, false, fmt.Errorf("inventory: read software: %w", err)
 		}
 		if n := len(d.Software); n > 0 && d.Software[n-1].ID == sw.ID {

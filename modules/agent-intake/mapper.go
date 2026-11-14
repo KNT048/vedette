@@ -1,11 +1,13 @@
 package agentintake
 
 import (
+	"cmp"
 	_ "embed"
 	"encoding/json"
 	"strings"
 	"unicode/utf8"
 
+	"github.com/knt048/vedette/core/debver"
 	"github.com/knt048/vedette/core/observe"
 )
 
@@ -83,20 +85,32 @@ func debUpstream(v string) string {
 // the inventory's limits are dropped, and the count is returned. One list per device: the deb, rpm and programs rows are joined (a
 // host has one of them), the same product and version once. deb and rpm rows are Packaged (the distribution's package database,
 // D-474), programs rows are not. At most limit rows are kept; the rows past it are dropped and counted.
+//
+// A deb row also carries its full Debian version and source package (D-516). Binaries of one source that map to the same
+// product and upstream version are one row; when they differ in the full version (openssh-client upgraded,
+// openssh-server not) the row keeps the lowest, so a binary that was not updated keeps its finding.
 func mapPackages(snaps map[string][]row, limit int) (items []observe.Software, dropped int) {
-	seen := map[string]bool{}
-	add := func(display, vendor, product, version string, mapped, packaged bool) {
+	seen := map[string]int{} // key -> index in items
+	add := func(display, vendor, product, version string, mapped, packaged bool, pkgVersion, pkgSource string) {
 		// The key vendor|product must stay within the inventory's 400 bytes, or it refuses the whole list.
 		if !fits(display) || !fits(vendor) || !fits(product) || len(vendor)+len(product)+1 > maxKeyBytes || utf8.RuneCountInString(version) > maxVersion || len(items) >= limit {
 			dropped++
 			return
 		}
 		k := strings.ToLower(vendor) + "\x00" + strings.ToLower(product) + "\x00" + version
-		if seen[k] {
+		if i, ok := seen[k]; ok {
+			if old := items[i].PkgVersion; old != "" && pkgVersion != "" {
+				if c, err := debver.Compare(pkgVersion, old); err == nil && c < 0 {
+					items[i].PkgVersion, items[i].PkgSource = pkgVersion, pkgSource
+				}
+			}
 			return
 		}
-		seen[k] = true
+		seen[k] = len(items)
 		s := observe.Software{Display: display, Vendor: vendor, Product: product, Version: version, Confidence: softwareConfidence, Packaged: packaged}
+		if debver.Valid(pkgVersion) && pkgSource != "" {
+			s.PkgVersion, s.PkgSource = pkgVersion, pkgSource
+		}
 		if mapped {
 			s.KevKeys = []string{strings.ToLower(vendor) + "|" + strings.ToLower(product)}
 		}
@@ -109,19 +123,20 @@ func mapPackages(snaps map[string][]row, limit int) (items []observe.Software, d
 			p, ok = pkgmap.Linux.lookup(strings.ToLower(sourceName(r["source"])))
 		}
 		version := debUpstream(r["version"])
+		src := strings.ToLower(cmp.Or(sourceName(r["source"]), name)) // dpkg leaves Source out when it equals the package name
 		if ok {
-			add(p.Product, p.Vendor, p.Product, version, true, true)
+			add(p.Product, p.Vendor, p.Product, version, true, true, r["version"], src)
 		} else {
-			add(name, name, name, version, false, true)
+			add(name, name, name, version, false, true, r["version"], src)
 		}
 	}
 	for _, r := range snaps["rpm_packages"] {
 		name := r["name"]
 		p, ok := pkgmap.Linux.lookup(strings.ToLower(name))
 		if ok {
-			add(p.Product, p.Vendor, p.Product, r["version"], true, true)
+			add(p.Product, p.Vendor, p.Product, r["version"], true, true, "", "")
 		} else {
-			add(name, name, name, r["version"], false, true)
+			add(name, name, name, r["version"], false, true, "", "")
 		}
 	}
 	for _, r := range snaps["programs"] {
@@ -129,11 +144,11 @@ func mapPackages(snaps map[string][]row, limit int) (items []observe.Software, d
 		p, ok := pkgmap.Windows.lookup(strings.ToLower(name))
 		switch {
 		case ok:
-			add(name, p.Vendor, p.Product, r["version"], true, false)
+			add(name, p.Vendor, p.Product, r["version"], true, false, "", "")
 		case r["publisher"] != "":
-			add(name, r["publisher"], name, r["version"], false, false)
+			add(name, r["publisher"], name, r["version"], false, false, "", "")
 		default:
-			add(name, name, name, r["version"], false, false)
+			add(name, name, name, r["version"], false, false, "", "")
 		}
 	}
 	return items, dropped

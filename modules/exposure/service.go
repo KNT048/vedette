@@ -51,7 +51,9 @@ type Service struct {
 	mu     sync.RWMutex
 	runner Runner
 
-	runMu       sync.Mutex           // guards run, its view, lastScan, lastOutside, off and closed
+	runMu       sync.Mutex           // guards run, its view, lastScan, lastOutside, off, closed, feedSync and feedSyncAt
+	feedSync    bool                 // Greenbone's weekly feed update holds the box's one scan slot (D-564 G6): begin refuses
+	feedSyncAt  time.Time            // when that feed update started (the busy answer says it)
 	off         bool                 // the module is switched off (ModuleSwitched): begin refuses
 	closed      bool                 // the box is shutting down (Close)
 	run         *scanRun             // the scan that runs now, or the last one (INV-18); one at a time on the box (D-229): a second one is 409 busy; a restart forgets it
@@ -229,6 +231,7 @@ func (s *Service) view(t Target, latest map[string]latestResult, c checks, now t
 		n := noticeFor(t.Value)
 		v.CommitmentNotice = &n
 	}
+	v.Terms, v.TermsNotice, v.FullScan = t.Terms, termsFor(t.Value), t.mode().Full
 	b := t.blocked(now)
 	if b == "" && t.Kind == KindIP && c.paused(t) {
 		b = BlockedNotCurrent // the latest full check did not see this IP (INV-13): the same answer the scan gate gives
@@ -276,7 +279,18 @@ func (s *Service) Targets(ctx context.Context) ([]TargetView, error) {
 
 // Target returns one target, or an error wrapping ErrNotFound.
 func (s *Service) Target(ctx context.Context, id string) (TargetView, error) {
-	return s.targetView(ctx, s.cfg.DB.Reader(), id)
+	v, err := s.targetView(ctx, s.cfg.DB.Reader(), id)
+	if err != nil || v.Kind != KindIP {
+		return v, err
+	}
+	t, err := loadTarget(ctx, s.cfg.DB.Reader(), id)
+	if err != nil {
+		return TargetView{}, fmt.Errorf("exposure: reading target: %w", err)
+	}
+	if w := s.sharedAddress(ctx, t); w != "" { // D-566 review r1 M2: on the one target page only, not on every list
+		v.TermsWarning = &w
+	}
+	return v, nil
 }
 
 func (s *Service) targetView(ctx context.Context, q querier, id string) (TargetView, error) {

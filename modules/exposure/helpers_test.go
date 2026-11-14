@@ -49,6 +49,8 @@ type fakeProber struct {
 	ips   []string
 	down  bool
 	calls int
+	// onRound, when set, runs (without the lock) at the start of each round: a hook inside a check, such as the scan gate's
+	onRound func()
 }
 
 func (p *fakeProber) set(ips ...string) { p.mu.Lock(); p.ips, p.down = ips, false; p.mu.Unlock() }
@@ -56,6 +58,12 @@ func (p *fakeProber) offline()          { p.mu.Lock(); p.down = true; p.mu.Unloc
 func (p *fakeProber) count() int        { p.mu.Lock(); defer p.mu.Unlock(); return p.calls }
 
 func (p *fakeProber) Round(context.Context) (netip.Addr, error) {
+	p.mu.Lock()
+	hook := p.onRound
+	p.mu.Unlock()
+	if hook != nil {
+		hook()
+	}
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	i := p.calls
@@ -135,6 +143,7 @@ type env struct {
 	prober *fakeProber
 	dns    *fakeResolver
 	pub    *fakePub
+	terms  *bool // scanIP accepts the testing terms (FULL-1) when set, with the disruptive tick when true
 }
 
 func newEnv(t *testing.T) *env {
@@ -253,6 +262,19 @@ func str(p *string) string {
 		return "<nil>"
 	}
 	return *p
+}
+
+// acceptTerms accepts the testing terms of a target as an administrator with two-step sign-in (FULL-1, D-566).
+func (e *env) acceptTerms(id string, disruptive bool) TargetView {
+	e.t.Helper()
+	if e.svc.cfg.TwoStep == nil {
+		e.svc.cfg.TwoStep = func(context.Context, string) (string, error) { return "app", nil }
+	}
+	v, err := e.svc.AcceptTerms(e.ctx(), Actor{ID: "u-admin", Email: "admin@acme.example", Admin: true}, id, TermsVersion, disruptive)
+	if err != nil {
+		e.t.Fatal(err)
+	}
+	return v
 }
 
 // commit records the commitment the way an administrator's first Scan now does (D-473), without a scan.

@@ -3206,6 +3206,71 @@ func decodeExposureDeleteExposureTargetsIDParams(args [1]string, argsEscaped boo
 	return params, nil
 }
 
+// ExposureDeleteExposureTargetsIDTermsParams is parameters of exposure_delete_exposure_targets_id_terms operation.
+type ExposureDeleteExposureTargetsIDTermsParams struct {
+	ID string
+}
+
+func unpackExposureDeleteExposureTargetsIDTermsParams(packed middleware.Parameters) (params ExposureDeleteExposureTargetsIDTermsParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "id",
+			In:   "path",
+		}
+		params.ID = packed[key].(string)
+	}
+	return params
+}
+
+func decodeExposureDeleteExposureTargetsIDTermsParams(args [1]string, argsEscaped bool, r *http.Request) (params ExposureDeleteExposureTargetsIDTermsParams, _ error) {
+	// Decode path: id.
+	if err := func() error {
+		param := args[0]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[0])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "id",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.ID = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "id",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
 // ExposureGetExposureTargetsIDParams is parameters of exposure_get_exposure_targets_id operation.
 type ExposureGetExposureTargetsIDParams struct {
 	ID string
@@ -3880,6 +3945,71 @@ func unpackExposurePostExposureTargetsIDVerifyParams(packed middleware.Parameter
 }
 
 func decodeExposurePostExposureTargetsIDVerifyParams(args [1]string, argsEscaped bool, r *http.Request) (params ExposurePostExposureTargetsIDVerifyParams, _ error) {
+	// Decode path: id.
+	if err := func() error {
+		param := args[0]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[0])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "id",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.ID = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "id",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
+// ExposurePutExposureTargetsIDTermsParams is parameters of exposure_put_exposure_targets_id_terms operation.
+type ExposurePutExposureTargetsIDTermsParams struct {
+	ID string
+}
+
+func unpackExposurePutExposureTargetsIDTermsParams(packed middleware.Parameters) (params ExposurePutExposureTargetsIDTermsParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "id",
+			In:   "path",
+		}
+		params.ID = packed[key].(string)
+	}
+	return params
+}
+
+func decodeExposurePutExposureTargetsIDTermsParams(args [1]string, argsEscaped bool, r *http.Request) (params ExposurePutExposureTargetsIDTermsParams, _ error) {
 	// Decode path: id.
 	if err := func() error {
 		param := args[0]

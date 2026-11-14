@@ -42,6 +42,8 @@ type ScanRun struct {
 	Phase       string    `json:"phase"`
 	SnapshotID  *string   `json:"snapshot_id"`
 	Error       *RunError `json:"error"`
+	// StopReason says why a stopped run was stopped when it was not a person's Stop (D-566 review r1 M1); nil otherwise.
+	StopReason *string `json:"stop_reason,omitempty"`
 }
 
 // RunError is why a run failed: the code and text of the API error the synchronous scan used to answer.
@@ -60,10 +62,14 @@ type scanRun struct {
 
 	prevLast    time.Time // the target's lastScan before this run, put back when the scan module was off (nothing was asked)
 	hadPrevLast bool
+	mode        ScanMode // what this run may do (D-566): set when it starts; withdrawing or lowering the terms stops a run above them
 }
 
 // stoppedBy is the cause of a run's context when someone stopped it or the module was switched off.
-type stoppedBy struct{ by string }
+type stoppedBy struct {
+	by  string
+	why string // why the box stopped it, for the page (D-566 review r1 M1: the testing terms were withdrawn); "" for a Stop
+}
 
 func (e *stoppedBy) Error() string { return "stopped by " + e.by }
 
@@ -87,6 +93,9 @@ func (s *Service) begin(ctx context.Context, user string, t Target, reason Block
 	if s.run != nil && s.run.view.Status == RunRunning {
 		return nil, ErrScanBusy
 	}
+	if s.feedSync {
+		return nil, s.errScanFeedSync(s.feedSyncAt)
+	}
 	now := s.clock()
 	last, had := s.lastScan[t.ID]
 	if had && now.Sub(last) < ScanEvery && !last.After(now) {
@@ -94,11 +103,17 @@ func (s *Service) begin(ctx context.Context, user string, t Target, reason Block
 		return nil, apiErr(429, "rate_limited", "%s was scanned at %s. Scan it again after %s: at most one scan of a target every %d minutes.",
 			t.Value, s.momentText(last), s.momentText(next), int(ScanEvery/time.Minute))
 	}
+	// The run's mode comes from a fresh read of the terms under runMu (D-566 review r2 M1): a withdrawal committed while the gate ran
+	// is seen here, and one that comes later finds this run registered and stops it (stopRunAbove takes runMu too).
+	fresh, err := loadTarget(ctx, s.cfg.DB.Reader(), t.ID)
+	if err != nil {
+		return nil, fmt.Errorf("exposure: reading the testing terms before the scan: %w", err)
+	}
 	s.lastScan[t.ID] = now
 	rctx, cancel := context.WithCancelCause(context.WithoutCancel(ctx)) // the request's values, never its cancellation
 	run := &scanRun{
 		view:   ScanRun{ID: store.NewID("sr"), TargetID: t.ID, TargetValue: t.Value, By: user, StartedAt: store.FormatTS(now), Status: RunRunning, Phase: PhaseQueued},
-		cancel: cancel, done: make(chan struct{}), prevLast: last, hadPrevLast: had,
+		cancel: cancel, done: make(chan struct{}), prevLast: last, hadPrevLast: had, mode: fresh.mode(),
 	}
 	s.run = run
 	go s.execute(rctx, run, r, user, t)
@@ -122,7 +137,7 @@ func (s *Service) execute(ctx context.Context, run *scanRun, r Runner, user stri
 		}
 	}()
 	s.setPhase(run, PhaseProbing)
-	st := ScanTarget{ID: t.ID, Kind: t.Kind, Value: t.Value, User: user}
+	st := ScanTarget{ID: t.ID, Kind: t.Kind, Value: t.Value, User: user, Mode: run.mode}
 	content, err := r.Scan(ctx, st)
 	if err == nil {
 		content, err = s.identify(ctx, st, content) // INV-19: service identification of the box's own IP, and what was checked
@@ -227,6 +242,10 @@ func (s *Service) finish(ctx context.Context, run *scanRun, user string, t Targe
 		v.Status, v.Phase, v.SnapshotID = RunDone, PhaseDone, &run.snap.ID
 	case errors.As(err, &sb):
 		v.Status = RunStopped
+		if sb.why != "" {
+			why := sb.why
+			v.StopReason = &why
+		}
 		if kept {
 			v.SnapshotID = &run.snap.ID
 		}
@@ -316,12 +335,17 @@ func (s *Service) Close() {
 	s.runMu.Lock()
 	s.closed = true
 	s.runMu.Unlock()
-	g := s.gb() // a Greenbone start that is still pulling images ends with the box
+	g := s.gb() // a Greenbone start that is still pulling images, or its feed update, ends with the box
 	g.mu.Lock()
 	if g.upCancel != nil {
 		g.upCancel()
 	}
+	if g.syncCancel != nil {
+		g.syncCancel()
+	}
+	syncDone := g.syncDone
 	g.mu.Unlock()
+	s.waitSync(syncDone) // the host must not keep pulling the feed after the box stops (review r1 L2)
 	if run := s.cancelRun("the box (shutting down)"); run != nil {
 		select {
 		case <-run.done:

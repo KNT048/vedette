@@ -435,6 +435,7 @@
     "done": "Scan of {{value}} finished. The new result is below.",
     "stopped": "The scan of {{value}} was stopped. Nothing was saved.",
     "stoppedKept": "The Greenbone part of the scan of {{value}} was stopped. The results of the other checks are saved below.",
+    "stopReason": "The box stopped it because {{why}}.",
     "failed": "The scan of {{value}} failed and nothing was saved. Try again."
   },
   "vulns": {
@@ -470,9 +471,28 @@
     "countBackport_one": "{{count}} maybe patched",
     "countBackport_other": "{{count}} maybe patched"
   },
+  "terms": {
+    "title": "Testing terms (deep scan)",
+    "description": "Accept once for this target: every scan of it is then a deep scan, with each tool used to its full capability. Without them, scans stay in the scope of the Scan now sentence: no Greenbone, read-only checks only.",
+    "none": "Not accepted: scans of this target stay in the Scan now scope.",
+    "changed": "The testing terms changed since they were accepted, so scans are back in the Scan now scope until an administrator accepts them again.",
+    "accepted": "Accepted by {{by}}, {{time}}. Every scan of this target is a deep scan.",
+    "withDisruptive": "Disruptive checks are included.",
+    "withoutDisruptive": "Disruptive checks are not included.",
+    "textLabel": "Testing terms",
+    "accept": "Accept the testing terms",
+    "acceptChange": "Accept with this choice",
+    "withdraw": "Withdraw",
+    "who": "Only an administrator with two-step sign-in can accept them; who and when go in the audit log. Withdrawing is always possible.",
+    "needVerified": "Verify ownership first; only then can the testing terms be accepted.",
+    "cgnatLimit": "Vedette can tell carrier-grade NAT only when this box's own gateway is in 100.64.0.0/10; it cannot see your router's outside address. If your router gets its address from your provider's shared range, ask your provider before accepting.",
+    "stops": "Withdrawing them, or taking the disruptive checks out, stops a scan of this target that is running at the higher level.",
+    "toastAccepted": "Testing terms accepted. The next scan is a deep scan.",
+    "toastWithdrawn": "Testing terms withdrawn. The next scan is in the Scan now scope."
+  },
   "greenbone": {
     "title": "Optional deep scan: Greenbone (OpenVAS)",
-    "description": "Greenbone is a free vulnerability scanner that runs as its own containers next to Vedette. When it is on, each scan of the box's own verified public IP ends with a Greenbone scan of that IP. Off by default.",
+    "description": "Greenbone is a free vulnerability scanner that runs as its own containers next to Vedette. When it is on, each scan of the box's own verified public IP whose testing terms are accepted ends with a Greenbone scan of that IP. Off by default.",
     "state": { "unavailable": "Not available", "off": "Off", "starting": "Starting", "loading": "Loading its feed", "ready": "Ready", "error": "Error" },
     "stateText": {
       "off": "Greenbone is off. Scans do not use it.",
@@ -480,14 +500,19 @@
       "ready": "Greenbone is ready. The next scan of an IP of this box uses it."
     },
     "loading": "Greenbone is loading its feed (first time takes about 2 hours)",
-    "what": "It looks at your public IP from outside without logging in, with Greenbone's \"Full and fast\" tests minus brute force, default accounts and denial of service, and with safe checks on.",
+    "what": "It looks at your public IP from outside without logging in, with Greenbone's \"Full and fast\" tests, only once that IP's testing terms are accepted (Ownership tab): every non-disruptive check, active ones and generic web application scanning included, with safe checks on; with the disruptive checks ticked, brute force, default accounts and denial of service too, with safe checks off.",
     "apart": "Its results are shown in their own section of each scan. They never replace or hide what Vedette found by version, and finding nothing is not proof that nothing is affected.",
+    "weekly": "While it is on, Vedette updates Greenbone's feed once a week, never during a scan, and only with 60 GB free.",
     "offKeeps": "Turning it off stops its containers and keeps its images and data, so turning it on again does not download them again.",
     "memory": "Memory of this box",
     "disk": "Free disk space",
+    "feedLast": "Last feed update",
+    "feedNever": "Not yet: the first one is a week after it is turned on",
+    "feedNext": "Next feed update",
     "needs": "Needs about 50 GB of disk and about 2 hours to load Greenbone's feed the first time. The box must have at least 8 GB of memory and 60 GB free.",
     "enable": "Enable Greenbone",
     "disable": "Turn off Greenbone",
+    "heldOn": "It is still turned on from before: turn it off to stop its containers. Its data is kept.",
     "changedOn": "Turned on by {{by}}, {{time}}",
     "changedOff": "Turned off by {{by}}, {{time}}",
     "toastOn": "Greenbone is starting. Loading its feed takes about 2 hours the first time.",
@@ -497,12 +522,15 @@
     "noCve": "None named",
     "results": {
       "title": "Greenbone results (unauthenticated, QoD ≥ 70)",
-      "header": "Greenbone looked at this IP from outside without logging in. Finding nothing is not proof the services are not affected (distributions backport fixes).",
+      "header": "Greenbone looked at this IP from outside without logging in. Finding nothing is not proof the services are not affected (distributions backport fixes). For the same reason, on Ubuntu or Debian a result read from a version banner can be a false positive, so Vedette's own package-based result wins when both exist.",
       "caption": "What Greenbone reported on this IP",
-      "noneTitle": "Greenbone reported nothing with QoD 70 or more",
+      "noneTitle": "Greenbone reported no high or medium result with QoD 70 or more",
       "noneBody": "That is one outside look without logging in, not proof that the services are not affected. The exploited CVEs above still stand.",
       "notRunTitle": "Greenbone did not scan this time",
-      "notRunBody": "Greenbone is not set up for this scan."
+      "notRunBody": "Greenbone is not set up for this scan.",
+      "notesTitle": "Hardening notes (Low)",
+      "notesHeader": "Greenbone's Low results are hardening suggestions, such as weak SSH settings or TCP timestamps. They are not alerts and are not counted anywhere.",
+      "notesCaption": "Greenbone's hardening notes on this IP"
     }
   },
   "web": {

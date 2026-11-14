@@ -14,6 +14,7 @@ import { useDeleteTarget, useScan, useScanRun, useTarget } from './api'
 import { AnchorRedirect, ScrollToHash } from './anchors'
 import { ScanProgress } from './ScanProgress'
 import { CommitmentPanel } from './CommitmentPanel'
+import { TermsPanel } from './TermsPanel'
 import { CommitChip, OwnerChip } from './OwnerChip'
 import { RemoveDialog } from './RemoveDialog'
 import { OutsidePanel } from './OutsidePanel'
@@ -109,6 +110,9 @@ function TargetView({ target }: { target: Target }) {
               <CommitmentPanel target={target} />
             </Section>
           ) : null}
+          <Section id="step-terms" title={t('terms.title')} description={t('terms.description')}>
+            <TermsPanel target={target} />
+          </Section>
         </> },
         ...(target.kind === 'ip' ? [{ id: 'outside', label: t('tabs.outsideView'), panel: <OutsidePanel target={target} /> }] : []),
       ]} />

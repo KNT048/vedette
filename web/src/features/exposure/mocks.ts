@@ -18,12 +18,16 @@ import { auditStore, isOn } from '@/mocks/stores'
 import { canonHash, GENESIS } from '@/lib/chain'
 import { collection, newId, nowIso, type Collection } from '@/mocks/db'
 import { BOX_EGRESS_IP, BOX_EGRESS_IP_2, boxGreenbone, DEFAULT_INTERVAL, outsideAnswer, seedOutside, EXPIRING_DAYS, makeSnapshot, MAX_INTERVAL, MIN_INTERVAL, randomToken, scanContent, seedBoxIp, seedIgnored, seedSnapshots, seedTargets, VERIFY_DAYS, type Content, type StoredTarget } from './data'
-import { NOTICE_TEMPLATE, NOTICE_VERSION, PORT_NOT_SEEN, VERSION_NOT_READ } from './contract'
+import { NOTICE_TEMPLATE, NOTICE_VERSION, PORT_NOT_SEEN, TERMS_DISRUPTIVE, TERMS_TEMPLATE, TERMS_VERSION, VERSION_NOT_READ } from './contract'
 import { dateText, dateTimeText } from './dates'
-import type { BoxIpSettings, Commitment, Diff, DiffChange, DiffItem, Greenbone, IgnoredIp, OutsideView, ScanRun, Snapshot, Target } from './types'
+import type { BoxIpSettings, Commitment, Terms, Diff, DiffChange, DiffItem, Greenbone, IgnoredIp, OutsideView, ScanRun, Snapshot, Target } from './types'
 
 const targets = collection<StoredTarget[]>('exp_targets', seedTargets, () => [])
 const snapshots = collection<Record<string, Snapshot[]>>('exp_snapshots', seedSnapshots, () => ({}))
+/** FULL-1 (D-566): the testing terms each target was given; the box's own IP has them (without the disruptive tick), the rest none. */
+const termsStore = collection<Record<string, Terms>>('exp_terms', () => ({
+  'xt-2': { version: TERMS_VERSION, by: 'admin@acme.example', at: new Date(Date.now() - 20 * 864e5).toISOString(), text: TERMS_TEMPLATE.replaceAll('{value}', BOX_EGRESS_IP), disruptive: false },
+}), () => ({}))
 const commitments = collection<Record<string, Commitment>>('exp_commitments', () => {
   const at = (d: number) => new Date(Date.now() - d * 864e5).toISOString()
   return {
@@ -52,22 +56,27 @@ const outside = collection<Record<string, Omit<OutsideView, 'scan_ports' | 'scan
 let outsideAskedMs = 0
 /** D-563: the optional deep scan with Greenbone, off by default. The mock box has 16 GB of memory and 180 GB free; localStorage keys
  * "vedette-mock-box-memory" and "vedette-mock-box-disk" (bytes) play a smaller box. After Enable it is "starting" for 3 seconds, then "loading"
- * its feed until 15 seconds (about 2 hours on a real box), then ready. */
+ * its feed until 15 seconds (about 2 hours on a real box), then ready. D-566: it scans only a target whose testing terms are accepted. */
 const greenbone = collection<{ enabled: boolean; changed_by: string | null; changed_at: string | null }>('exp_greenbone', () => ({ enabled: false, changed_by: null, changed_at: null }), () => ({ enabled: false, changed_by: null, changed_at: null }))
 const measured = (key: string, fallback: number) => { const v = Number(localStorage.getItem(key)); return Number.isFinite(v) && v > 0 ? v : fallback }
 const gbText = (n: number) => `${(n / 1e9).toFixed(1)} GB`
+const GREENBONE_NO_TERMS = 'Greenbone (OpenVAS) did not scan: accept the testing terms for this target to run Greenbone (Ownership tab).'
+const WEEK_MS = 7 * 24 * 3600 * 1000
 function greenboneView(): Greenbone {
   const g = greenbone.get()
   const mem = measured('vedette-mock-box-memory', 16e9), disk = measured('vedette-mock-box-disk', 180e9)
   const reason = mem < 8e9 ? `This box has ${gbText(mem)} of memory; Greenbone needs at least 8.0 GB.` : disk < 60e9 ? `This box has ${gbText(disk)} of free disk space; Greenbone needs at least 60.0 GB free.` : null
   const since = g.changed_at ? Date.now() - Date.parse(g.changed_at) : 0
   const state = !g.enabled ? 'off' : since < 3000 ? 'starting' : since < 15000 ? 'loading' : 'ready'
+  // D-564 G6: the first weekly feed update is due a week after Enable (the mock never runs it)
+  const next = g.enabled && g.changed_at ? new Date(Date.parse(g.changed_at) + WEEK_MS).toISOString() : null
   return { state, reason: state === 'loading' ? 'Greenbone is loading its feed (first time takes about 2 hours)' : null, changed_by: g.changed_by, changed_at: g.changed_at,
-    preflight: { memory_bytes: mem, disk_free_bytes: disk, ok: reason === null, reason } }
+    preflight: { memory_bytes: mem, disk_free_bytes: disk, ok: reason === null, reason }, feed_sync: { last_at: null, ok: null, note: null, next_at: next }, enabled: g.enabled }
 }
 /** What a scan of an IP gets from Greenbone in the mock: its results on the box's own IP when ready, else the line that says why not. */
-function greenboneFor(ip: string): Pick<Content, 'greenbone' | 'greenboneNote'> {
+function greenboneFor(ip: string, fullScan: boolean): Pick<Content, 'greenbone' | 'greenboneNote'> {
   const v = greenboneView()
+  if (v.state !== 'off' && !fullScan) return { greenboneNote: GREENBONE_NO_TERMS }
   if (v.state === 'ready') return { greenbone: ip === BOX_EGRESS_IP ? boxGreenbone() : [] }
   if (v.state === 'off') return {}
   return { greenboneNote: v.state === 'loading' ? 'Greenbone (OpenVAS) did not scan: it is loading its feed (the first time takes about 2 hours).' : 'Greenbone (OpenVAS) did not scan: it is still starting.' }
@@ -165,6 +174,7 @@ function settledRun(): ScanRun | null {
 
 function view(t: StoredTarget): Target {
   const commitment = commitments.get()[t.id] ?? null
+  const terms = termsStore.get()[t.id] ?? null
   const current = commitment?.version === NOTICE_VERSION // an older sentence counts as not confirmed (D-559)
   const verified = t.verified_at !== null
   const ip = t.kind === 'ip'
@@ -177,6 +187,7 @@ function view(t: StoredTarget): Target {
     id: t.id, kind: t.kind, value: t.value, status: !verified ? 'unverified' : expired ? 'expired' : 'verified', method: t.method, token: t.token,
     verified_at: t.verified_at, expires_at: t.expires_at, validity, last_check: t.last_check, commitment,
     commitment_notice: current ? null : { version: NOTICE_VERSION, text: NOTICE_TEMPLATE.replace('{value}', t.value) },
+    terms, terms_notice: { version: TERMS_VERSION, text: TERMS_TEMPLATE.replaceAll('{value}', t.value), disruptive: TERMS_DISRUPTIVE }, full_scan: terms?.version === TERMS_VERSION,
     scannable: blocked === null, blocked_reason: blocked, created_at: t.created_at, last_scan_at: t.last_scan_at, latest: last ? last.counts : null, open_ports: last ? last.ports.slice(0, 20) : null,
   }
 }
@@ -489,6 +500,45 @@ export const handlers = [
     return HttpResponse.json({ verified: ok, message, target: view(next) })
   }),
 
+  // FULL-1 (D-566): accept the testing terms of a verified target (admin with two-step), with or without the disruptive tick. They
+  // include the ownership sentence, so the Scan now commitment is recorded too when missing.
+  http.put(`${API}/exposure/targets/:id/terms`, async ({ params, request }) => {
+    const denied = guard('admin'); if (denied) return denied
+    const t = find(params.id)
+    if (!t) return notFound()
+    const me = currentUser()!
+    if (!me.twofa && !me.sso) return fail(403, 'twofa_required', 'Turn on two-step sign-in for your account first (My account), then run the first scan again. The first scan records your confirmation that your company owns the target and that you are authorized to scan it.')
+    const b = await body<{ version?: string; disruptive?: boolean }>(request)
+    if (b.version !== TERMS_VERSION) return fail(409, 'notice_changed', 'The testing terms changed since this page loaded. Read them again, then accept them again.')
+    const v = view(t)
+    if (v.status === 'unverified') return fail(409, 'not_verified', 'Verify ownership first; only then can the testing terms be accepted.')
+    if (v.status === 'expired') return fail(409, 'expired', `Verification of ${t.value} has expired. Verify it again first.`)
+    const disruptive = b.disruptive === true
+    if (v.full_scan && v.terms?.disruptive === disruptive) return HttpResponse.json(v)
+    if (v.commitment?.version !== NOTICE_VERSION) {
+      const sentence = NOTICE_TEMPLATE.replace('{value}', t.value)
+      commitments.update((m) => ({ ...m, [t.id]: { by: me.email, at: nowIso(), version: NOTICE_VERSION, sentence } }))
+      audit('exposure.commitment', t.value, `confirmed by accepting the testing terms (notice ${NOTICE_VERSION}): ${sentence}`)
+    }
+    const text = v.terms_notice.text + (disruptive ? `\n${TERMS_DISRUPTIVE}` : '')
+    termsStore.update((m) => ({ ...m, [t.id]: { version: TERMS_VERSION, by: me.email, at: nowIso(), text, disruptive } }))
+    audit('exposure.terms_accept', t.value, `${v.terms ? `accepted again (replaces terms ${v.terms.version}, accepted by ${v.terms.by} at ${v.terms.at}, disruptive checks: ${v.terms.disruptive ? 'yes' : 'no'})` : 'accepted'} (disruptive checks: ${disruptive ? 'yes' : 'no'}, terms ${TERMS_VERSION}): ${text}`)
+    return HttpResponse.json(view(t))
+  }),
+
+  // FULL-1: withdraw the terms; always possible, the next scan is in the K-4 scope again.
+  http.delete(`${API}/exposure/targets/:id/terms`, ({ params }) => {
+    const denied = guard('admin'); if (denied) return denied
+    const t = find(params.id)
+    if (!t) return notFound()
+    const was = termsStore.get()[t.id]
+    if (was) {
+      termsStore.update((m) => { const n = { ...m }; delete n[t.id]; return n })
+      audit('exposure.terms_revoke', t.value, `withdrawn (terms ${was.version}, disruptive checks: ${was.disruptive ? 'yes' : 'no'}, accepted by ${was.by} at ${was.at})`)
+    }
+    return HttpResponse.json(view(t))
+  }),
+
   http.post(`${API}/exposure/targets/:id/scan`, async ({ params, request }) => {
     const denied = guard('operator'); if (denied) return denied
     const t = find(params.id)
@@ -525,7 +575,7 @@ export const handlers = [
     // Like the box: 202 with the run at once, and the phases move on while the page polls GET /exposure/scan. The mock has no one-at-a-time or 10-minute limit
     // (its tests scan an IP several times in a row). The result is stored when the run is done.
     const at = nowIso()
-    const snap = makeSnapshot(newId('sn'), at, t.kind === 'ip' ? { ...scanContent(t), ...greenboneFor(t.value) } : scanContent(t), t.kind === 'ip' ? t.value : undefined)
+    const snap = makeSnapshot(newId('sn'), at, t.kind === 'ip' ? { ...scanContent(t), ...greenboneFor(t.value, v.full_scan) } : scanContent(t), t.kind === 'ip' ? t.value : undefined)
     const run: ScanRun = { id: newId('sr'), target_id: t.id, target_value: t.value, by: currentUser()?.email ?? '', started_at: at, finished_at: null, status: 'running', phase: 'queued', snapshot_id: null, error: null }
     mockRunStore.set({ run, startedMs: Date.now(), snap })
     return HttpResponse.json(run, { status: 202 })
@@ -584,7 +634,7 @@ export const handlers = [
     const b = await body<{ enabled: boolean }>(request)
     if (typeof b.enabled !== 'boolean') return fail(400, 'bad_body', 'enabled must be true or false.')
     const before = greenboneView()
-    if (b.enabled === (before.state !== 'off')) return HttpResponse.json(before)
+    if (b.enabled === before.enabled) return HttpResponse.json(before)
     if (b.enabled && !before.preflight.ok) return fail(409, before.preflight.memory_bytes! < 8e9 ? 'low_memory' : 'low_disk', before.preflight.reason!)
     greenbone.set({ enabled: b.enabled, changed_by: currentUser()?.email ?? null, changed_at: nowIso() })
     audit('exposure.greenbone', 'Greenbone (OpenVAS)', b.enabled ? `enabled (memory ${gbText(before.preflight.memory_bytes!)}, free disk ${gbText(before.preflight.disk_free_bytes!)})` : 'disabled (data kept)')

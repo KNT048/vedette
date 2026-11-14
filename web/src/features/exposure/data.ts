@@ -225,8 +225,9 @@ function withGreenbone(snap: Snapshot, c: Content, at: string, ip?: string): Sna
     ip: r.ip, port: Number.parseInt(r.port, 10) || 0, cve: id, name: KEV_NAMES[id]!, basis: 'greenbone', qod: r.qod, date_added: '2021-11-03', ransomware: false, backport: '', template: '', template_result: '',
     summary: `Scanner: Greenbone, QoD ${r.qod}. Its test "${r.name}" names this CVE. Greenbone looked from outside without logging in.`,
   })))
+  const low = rows.filter((r) => r.severity < 4).length // D-564 G3: Low results are hardening notes
   return { ...snap, greenbone: rows, vulns: [...snap.vulns, ...vulns], checks: [...snap.checks, { kind: 'greenbone', at,
-    text: `Greenbone (OpenVAS) scanned ${ip} from outside without logging in (Full and fast without brute force, default accounts or denial of service; safe checks on; port list All IANA assigned TCP): ${plural(rows.length, 'result')} with QoD 70 or more, ${plural(cves.size, 'CVE')} named.` }] }
+    text: `Greenbone (OpenVAS) scanned ${ip} from outside without logging in (Full and fast without brute force, default accounts, denial of service or generic web application scanning; safe checks on; port list All IANA assigned TCP): ${plural(rows.length, 'result')} with QoD 70 or more (${rows.length - low} high or medium, ${plural(low, 'hardening note')}), ${plural(cves.size, 'CVE')} named.` }] }
 }
 
 export function makeSnapshot(id: string, at: string, c: Content, extraIp?: string): Snapshot {

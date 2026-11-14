@@ -12,18 +12,19 @@ import (
 type FixedIn struct {
 	// Kind is "fixed" (the device's version is inside a range that ends before Fixed, and Fixed is outside every
 	// range that applies), "up_to" (inside a range that ends at Fixed, itself affected: NVD names no fixed release),
-	// "branches" (the version is not known, or not readable) or "distro" (the version carries a distribution marker,
-	// "2.4.52-1ubuntu4": a package of the distribution, whose security updates carry the fix under their own numbers,
-	// so no number is named).
+	// "branches" (the version is not known, or not readable) or "distro" (a package of the distribution, whose security
+	// updates carry the fix under their own numbers: an agent read it from the device's package database, or the version
+	// carries a distribution marker, "2.4.52-1ubuntu4", on Ubuntu/Debian).
 	Kind     string        `json:"kind"`
 	Version  string        `json:"version"` // the device's version; "" when it has none (branches), the unreadable text when it has one Vedette cannot read
-	Fixed    string        `json:"fixed"`   // fixed (kind fixed), last affected (kind up_to), "" otherwise
+	Fixed    string        `json:"fixed"`   // fixed (kind fixed), last affected (kind up_to), the upstream fixed release when NVD names one (kind distro: the backport may keep the package's number below it), "" otherwise
 	Branches []FixedBranch `json:"branches"`
 	More     int           `json:"more"`   // release lines with a fix left out of Branches
 	NoFix    int           `json:"no_fix"` // release lines NVD gives no fixed release for (a range ending at an affected version)
-	// Distro is the distribution ("Ubuntu", "Debian") when the device runs one and the version has no distribution
-	// marker: inventory does not say whether the software came from the distribution's packages, so the page names the
-	// upstream number and adds "if you installed it from <distro>'s packages, install its security updates instead".
+	// Distro is the distribution ("Ubuntu", "Debian") the device runs, "" when it runs none Vedette names. Kind distro: whose
+	// updates to install ("" = "your distribution's"). Other kinds: set only when the row's origin is not known to be the
+	// package database (a person typed it, a scan read it, or an agent row stored before inventory kept the flag), so the
+	// page names the upstream number and adds "if you installed it from <distro>'s packages, install its security updates instead".
 	Distro string `json:"distro"`
 	Source string `json:"source"` // FixedInSource, or FixedInSourceCVEOrg (D-556)
 }
@@ -47,7 +48,8 @@ const maxFixedBranches = 5
 // FixedInFor says which release fixes v on device a, from the NVD ranges in v.Affected, or nil when they do not say.
 // It reads the software the same way the matcher does (the entries that apply, evalAffected) and invents nothing: a
 // fixed release is named only when it lies outside EVERY applicable entry (an iPhone range ending at 18.3 does not
-// make the iPadOS-only 17.7.6 a fix), and never for a distribution's package. Of several software rows of the product,
+// make the iPadOS-only 17.7.6 a fix), and a distribution's package is told to take the distribution's security updates
+// (the upstream number only as a reference). Of several software rows of the product,
 // the one with the most definite answer wins.
 func FixedInFor(a Asset, v Vuln) *FixedIn {
 	multi := isMultiProduct(v.Product)
@@ -140,11 +142,17 @@ func fixedPartsOf(in swInfo, v Vuln, key []identity) fixedParts {
 func fixedInSoftware(in swInfo, v Vuln, key []identity) *FixedIn {
 	p := fixedPartsOf(in, v, key)
 	usable, outside := p.usable, p.outside
+	// A package of the distribution: an agent read it from the package database, or its version says so (D-488). A row
+	// whose origin is not known keeps the upstream answer with the condition (Distro below).
+	distro := in.given && (in.packaged || distroMarked(in.ver) && distroName(in) != "")
 	var f *FixedIn
 	if in.given && versionKnown(in.ver) {
-		f = fixedForVersion(in, usable, outside)
+		f = fixedForVersion(in, usable, outside, distro)
 	} else {
 		f = fixedBranches(in, usable, outside)
+		if f != nil && distro {
+			f = &FixedIn{Kind: "distro", Version: f.Version, Distro: distroName(in)}
+		}
 	}
 	if f == nil {
 		return nil
@@ -162,7 +170,7 @@ func fixedInSoftware(in swInfo, v Vuln, key []identity) *FixedIn {
 	return f
 }
 
-func fixedForVersion(in swInfo, usable []fixedEntry, outside func(string) bool) *FixedIn {
+func fixedForVersion(in swInfo, usable []fixedEntry, outside func(string) bool, distro bool) *FixedIn {
 	var excl, incl []string // end bounds of the ranges the device's version is inside
 	for _, e := range usable {
 		if t, _ := evalAffected(e.c, e.r, in.ver, in.cpe, in.hasCPE); t != Yes {
@@ -177,9 +185,6 @@ func fixedForVersion(in swInfo, usable []fixedEntry, outside func(string) bool) 
 	if len(excl)+len(incl) == 0 {
 		return nil // inside no range, or inside only ranges with no end
 	}
-	if distroMarked(in.ver) && distroName(in) != "" {
-		return &FixedIn{Kind: "distro", Version: clean(in.ver), Distro: distroName(in)} // apt/dnf fix it with backports under their own numbers
-	}
 	asc := func(l []string) []string {
 		slices.SortStableFunc(l, func(a, b string) int {
 			if c, ok := compareBound(a, b); ok {
@@ -189,10 +194,18 @@ func fixedForVersion(in swInfo, usable []fixedEntry, outside func(string) bool) 
 		})
 		return l
 	}
+	fixed := ""
 	for _, x := range asc(excl) { // the nearest release that no entry lists
 		if outside(x) {
-			return &FixedIn{Kind: "fixed", Version: clean(in.ver), Fixed: clean(x)}
+			fixed = clean(x)
+			break
 		}
+	}
+	if distro { // apt/dnf fix it with backports under their own numbers; the upstream release is only a reference
+		return &FixedIn{Kind: "distro", Version: clean(in.ver), Fixed: fixed, Distro: distroName(in)}
+	}
+	if fixed != "" {
+		return &FixedIn{Kind: "fixed", Version: clean(in.ver), Fixed: fixed}
 	}
 	if len(incl) > 0 {
 		l := asc(incl)
@@ -305,7 +318,8 @@ func lineOf(r VersionRange) string {
 // GroupFix is the one release that closes every vulnerability of one installed software on a device (D-490, "one upgrade, one line").
 // Kind is "fixed" (Fixed is outside the affected range of ALL the vulnerabilities of the software), "none" (NVD's ranges name no
 // release that clears them all: the advisory decides), "up_to" (NVD names no fixed release, Fixed is the last affected one) or
-// "distro" (the distribution's security updates carry the fix). Software is the id of the software row it is about.
+// "distro" (the distribution's security updates carry the fix: an agent read it from the package database, or its version carries a
+// distribution marker on Ubuntu/Debian). Software is the id of the software row it is about.
 type GroupFix struct {
 	Kind, Software, Version, Fixed, Distro string
 	// Closed holds the CVEs the release closes: for kind fixed every vulnerability of the software (the release is outside all their ranges); otherwise those the device is affected by through a range that has an end.
@@ -374,7 +388,7 @@ func groupFixOf(in swInfo, vulns []Vuln) *GroupFix {
 		return nil
 	}
 	g := &GroupFix{Version: clean(in.ver), Distro: distroName(in), Closed: closed}
-	if distroMarked(in.ver) && g.Distro != "" {
+	if in.packaged || distroMarked(in.ver) && g.Distro != "" {
 		g.Kind = "distro"
 		return g
 	}

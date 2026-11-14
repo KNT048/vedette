@@ -58,11 +58,15 @@ export function FixedInNote({ finding }: { finding: FindingDetail }) {
   const f = finding.fixed_in
   if (!f) return null
   const device = finding.asset?.name || t('removedDevice')
+  const product = finding.kev?.display || t('rec.theSoftware')
   let text: string
+  let extra: string | null = f.distro ? t('rec.fixedIfDistro', { distro: f.distro, product }) : null
   if (f.kind === 'fixed') text = t('rec.fixedIn', { fixed: f.fixed, device, version: f.version })
   else if (f.kind === 'up_to') text = t('rec.fixedUpTo', { fixed: f.fixed, device, version: f.version })
-  else if (f.kind === 'distro') text = t('rec.fixedDistro', { device, version: f.version, distro: f.distro })
-  else {
+  else if (f.kind === 'distro') {
+    text = t(f.distro ? 'rec.fixedDistro' : 'rec.fixedDistroAny', { device, product, version: f.version, distro: f.distro })
+    extra = f.fixed ? t(f.distro ? 'rec.fixedDistroBelow' : 'rec.fixedDistroBelowAny', { distro: f.distro, fixed: f.fixed }) : null
+  } else {
     const list = f.branches.map((b) => (b.branch ? t('rec.fixedBranch', { branch: b.branch, fixed: b.fixed }) : t('rec.fixedBranchPlain', { fixed: b.fixed })))
     if (f.more > 0) list.push(t('rec.fixedMore', { count: f.more }))
     if (f.no_fix > 0) list.push(t('rec.fixedNoFix', { count: f.no_fix }))
@@ -71,7 +75,7 @@ export function FixedInNote({ finding }: { finding: FindingDetail }) {
   return (
     <div className="grid max-w-3xl gap-1" data-testid="fixed-in">
       <p className="text-sm font-medium">{text}</p>
-      {f.distro && f.kind !== 'distro' ? <p className="text-[13px]">{t('rec.fixedIfDistro', { distro: f.distro, product: finding.kev?.display || t('rec.theSoftware') })}</p> : null}
+      {extra ? <p className="text-[13px]">{extra}</p> : null}
       <p className="text-[12px] text-muted">{t('rec.fixedSource')}</p>
     </div>
   )

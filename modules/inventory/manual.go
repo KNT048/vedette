@@ -9,6 +9,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/knt048/vedette/content/devicetypes"
 	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/store"
 )
@@ -103,10 +104,10 @@ func (s *Service) createManual(ctx context.Context, tx *sql.Tx, o *outbox, a add
 			return "", fmt.Errorf("inventory: check IP: %w", err)
 		}
 	}
-	if kind == "" {
+	if kind == "" { // the catalog's suggestion; a type a person or a CSV gave is kept as it is (review M2 of #722)
 		kind = "unknown"
 		if a.entry != nil {
-			kind = a.entry.kind
+			kind = suggestedKind(a.entry.kind, a)
 		}
 	}
 	now := s.now()
@@ -142,6 +143,17 @@ func (s *Service) createManual(ctx context.Context, tx *sql.Tx, o *outbox, a add
 	}
 	o.add(EventAssetUpdated, AssetEvent{AssetID: id})
 	return id, nil
+}
+
+// suggestedKind is the type a catalog entry or feeds suggests for a declared product (W9-1, D-515). A product with neither an IP nor
+// a name is only a product (NoDevice, "Microsoft Office (no device)"): a computer type (pc, server, web) would name a device nobody
+// declared, so it gets none. An appliance type stays: there the product is the device, and mitigation reads a declared firewall or
+// router.
+func suggestedKind(kind string, a addChecked) string {
+	if a.ip == "" && a.name == "" && slices.Contains([]string{"pc", "server", "web"}, devicetypes.ActsAs(kind)) {
+		return "unknown"
+	}
+	return kind
 }
 
 // requireDevice is the early existence check: a request about a device that is gone is 404 whatever else is

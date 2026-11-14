@@ -81,3 +81,73 @@ func TestHostAllowlistWildcardMatchesOneLabel(t *testing.T) {
 		}
 	}
 }
+
+// A browser opening a page by a refused name gets a short readable page (D-542); the API and other clients keep the JSON error.
+// Either way it is 421 and nothing is routed.
+func TestHostAllowlistBrowserPage(t *testing.T) {
+	t.Parallel()
+	h := server.HostAllowlist([]string{"box.acme.example"}, http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
+		t.Error("a refused Host reached the next handler")
+	}))
+	const browser = "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+	for _, c := range []struct {
+		method, path, accept, host string
+		page                       bool
+	}{
+		{"GET", "/", browser, "Walk3.LAN:8443", true},
+		{"GET", "/devices", browser, "walk3.lan", true},
+		{"HEAD", "/", browser, "walk3.lan", true},
+		{"GET", "/", browser, "a<b>.example", true},
+		{"GET", "/api/v1/setup", browser, "walk3.lan", false},
+		{"GET", "/", "application/json", "walk3.lan", false},
+		{"GET", "/", "", "walk3.lan", false},
+		{"POST", "/", browser, "walk3.lan", false},
+	} {
+		req := httptest.NewRequestWithContext(t.Context(), c.method, c.path, nil)
+		req.Host = c.host
+		if c.accept != "" {
+			req.Header.Set("Accept", c.accept)
+		}
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, req)
+		name := c.method + " " + c.path + " " + c.accept + " " + c.host
+		if rec.Code != http.StatusMisdirectedRequest {
+			t.Errorf("%s = %d", name, rec.Code)
+		}
+		ct, body := rec.Header().Get("Content-Type"), rec.Body.String()
+		if !c.page {
+			if !strings.HasPrefix(ct, "application/json") || !strings.Contains(body, `"code":"misdirected_request"`) {
+				t.Errorf("%s: want the JSON error, got %s %s", name, ct, body)
+			}
+			continue
+		}
+		if ct != "text/html; charset=utf-8" {
+			t.Errorf("%s: Content-Type %q", name, ct)
+		}
+		if c.method == "HEAD" {
+			continue
+		}
+		for _, want := range []string{"This address is not one Vedette answers to", "VEDETTE_HOSTS", "docs/INSTALL-CONTAINER.md"} {
+			if !strings.Contains(body, want) {
+				t.Errorf("%s: page lacks %q:\n%s", name, want, body)
+			}
+		}
+		if strings.Contains(body, "box.acme.example") || strings.Contains(body, "<script") || strings.Contains(body, "style") {
+			t.Errorf("%s: page lists an allowed name, a script or a style:\n%s", name, body)
+		}
+	}
+	// the name the browser sent is shown normalised and escaped, never as markup
+	req := httptest.NewRequestWithContext(t.Context(), "GET", "/", nil)
+	req.Host, req.Header["Accept"] = "a<b>.example", []string{browser}
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+	if b := rec.Body.String(); strings.Contains(b, "<b>") || !strings.Contains(b, "a&lt;b&gt;.example") {
+		t.Errorf("Host not escaped:\n%s", b)
+	}
+	req.Host = "Walk3.LAN:8443"
+	rec = httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+	if !strings.Contains(rec.Body.String(), "<strong>walk3.lan</strong>") {
+		t.Errorf("Host not shown normalised:\n%s", rec.Body)
+	}
+}

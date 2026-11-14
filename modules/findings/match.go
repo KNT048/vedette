@@ -48,6 +48,11 @@ type Software struct {
 	KevKeys []string
 	// CPE is an optional CPE 2.3 string of the software; a malformed one is ignored.
 	CPE string
+	// Source is who reported the row (inventory MatchSoftware.Source: "agent", "manual", "scan", a sensor), "" when unknown.
+	// Packaged: an agent read it from the device's package database (deb/rpm), so the distribution ships its fixes (D-488,
+	// inventory INV-28 (3)); only an "agent" row counts.
+	Source   string
+	Packaged bool
 }
 
 // Asset is what the matcher needs to know about a device.
@@ -427,6 +432,8 @@ type swInfo struct {
 	// os and osVer: the device's operating system as an NVD product ("canonical:ubuntu_linux", "26.04.1"), when known.
 	os    identity
 	osVer string
+	// packaged: an agent read the software from the device's package database (Software.Packaged).
+	packaged bool
 }
 
 func newSWInfo(s Software, osName string) swInfo {
@@ -442,6 +449,7 @@ func newSWInfo(s Software, osName string) swInfo {
 		in.ver, _ = in.cpe.Version.Literal()
 	}
 	in.given = versionGiven(in.ver)
+	in.packaged = s.Packaged && s.Source == "agent"
 	if n := (identity{vendor: norm(s.Vendor), product: norm(s.Product)}); n.ok() {
 		in.ids = append(append(in.ids, n), cpeAliases[n]...)
 	}

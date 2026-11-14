@@ -6,6 +6,7 @@ import (
 	"errors"
 	"go/build"
 	"log/slog"
+	"net"
 	"os"
 	"os/exec" //nolint:depguard // the test re-runs its own binary to send main() a real signal; SYS-1 is about the product
 	"path/filepath"
@@ -206,13 +207,15 @@ func TestBinaryDependencies(t *testing.T) {
 	allowed := []string{
 		"cmd/vedette-sensor",
 		"content/oui",
+		"core/egressip", // the worker's own-IP fence of the external shape and its public-address rule (D-514); standard library only, its own leaf test
 		"core/exec",
 		"core/localnet", // the local networks of nmapargv and nucleiargv (D-461); net/netip and slices only, its own leaf test
 		"core/observe",
 		"core/sensorlink",
 		"internal/jsonstrict",
-		"modules/scan/nucleiargv", // the leaves of scan the worker shares with core (D-125 (2), D-136 (3))
-		"modules/scan/nucleiout",  // the worker counts host errors from nuclei's error log with it (D-165); its own deps_test keeps it a leaf
+		"modules/scan/commonports", // the ports of nmapargv's external shape, the surface scan's list (D-514); it imports nothing
+		"modules/scan/nucleiargv",  // the leaves of scan the worker shares with core (D-125 (2), D-136 (3))
+		"modules/scan/nucleiout",   // the worker counts host errors from nuclei's error log with it (D-165); its own deps_test keeps it a leaf
 		"modules/scan/pack",
 		"modules/sensor-active/nmapargv",
 		"modules/sensor-active/worker",
@@ -306,5 +309,30 @@ func TestNucleiHomeFlagIsRefusedWhenDangerous(t *testing.T) {
 	}
 	if err := validNucleiHome("/tmp/vedette-nuclei"); err != nil {
 		t.Errorf("the default is refused: %v", err)
+	}
+}
+
+// #723 review M2: the own-IP fence connects over IPv4 only, so a dual-stack host's services answer with its IPv4 address.
+func TestEgressTransportDialsIPv4Only(t *testing.T) {
+	t.Parallel()
+	tr := egressTransport()
+	v4, err := new(net.ListenConfig).Listen(t.Context(), "tcp4", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = v4.Close() }()
+	c, err := tr.DialContext(t.Context(), "tcp", v4.Addr().String())
+	if err != nil {
+		t.Fatalf("IPv4: %v", err)
+	}
+	_ = c.Close()
+	v6, err := new(net.ListenConfig).Listen(t.Context(), "tcp6", "[::1]:0")
+	if err != nil {
+		t.Skip("no IPv6 loopback on this machine")
+	}
+	defer func() { _ = v6.Close() }()
+	if c, err := tr.DialContext(t.Context(), "tcp", v6.Addr().String()); err == nil {
+		_ = c.Close()
+		t.Fatal("the fence's transport dialed an IPv6 address")
 	}
 }

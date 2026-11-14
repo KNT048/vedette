@@ -25,7 +25,8 @@ RUN set -eu; \
     GOOS="${TARGETOS}" GOARCH="${TARGETARCH}" CGO_ENABLED=0 GOTOOLCHAIN=local GOFLAGS=-mod=readonly \
     go build -trimpath -ldflags "-s -w -X main.version=${VERSION}" -o /out/vedette-sensor ./cmd/vedette-sensor; \
     CGO_ENABLED=0 GOTOOLCHAIN=local GOFLAGS=-mod=readonly go run ./scripts/hostlicenses -goos "${TARGETOS}" -goarch "${TARGETARCH}" -pkg ./cmd/vedette-sensor -name vedette-sensor -out /out/licenses/third-party-licenses; \
-    CGO_ENABLED=0 GOTOOLCHAIN=local GOFLAGS=-mod=readonly go build -trimpath -o /tools/hostlicenses ./scripts/hostlicenses
+    CGO_ENABLED=0 GOTOOLCHAIN=local GOFLAGS=-mod=readonly go build -trimpath -o /tools/hostlicenses ./scripts/hostlicenses; \
+    test -s /etc/ssl/certs/ca-certificates.crt && test -s /usr/share/doc/ca-certificates/copyright || { echo "the Go image has no ca-certificates" >&2; exit 1; }
 
 FROM --platform=$BUILDPLATFORM ${GOLANG_IMAGE} AS nuclei
 ARG TARGETOS
@@ -82,5 +83,10 @@ COPY --from=pack /usr/local/share/vedette/ /usr/local/share/vedette/
 # Third-party licenses: the Go modules linked into vedette-sensor and into nuclei (scripts/hostlicenses) and the nuclei and template-pack texts.
 COPY --from=build /out/licenses/ /usr/share/doc/vedette/
 COPY --from=pack /usr/share/doc/vedette/ /usr/share/doc/vedette/
+# The trust roots of the worker's own-IP fence (D-514: HTTPS to the three public IP services; Go reads this file). The Debian
+# ca-certificates package of the Go image, which is pinned by digest (pins.env GOLANG_IMAGE), with its copyright file: copied, not
+# installed, so this stage stays COPY-only (no apt, no emulation, D-158).
+COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+COPY --from=build /usr/share/doc/ca-certificates/copyright /usr/share/doc/ca-certificates/copyright
 USER 65532:65532
 ENTRYPOINT ["/vedette-sensor"]

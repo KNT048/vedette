@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE nmaprun>
+<?xml-stylesheet href="file:///usr/share/nmap/nmap.xsl" type="text/xsl"?>
+<!-- hand-written fixture shaped after the nmap DTD (the external shape, D-514); no live network was scanned. 8.8.8.8 stands for
+     the box's own public IP. -->
+<nmaprun scanner="nmap" args="nmap --privileged -sS -sV -Pn -n --max-rate 100 --max-retries 2 --host-timeout 3m -p 21,22,... -oX - 8.8.8.8" start="1762650000" version="7.94" xmloutputversion="1.05">
+<scaninfo type="syn" protocol="tcp" numservices="98" services="21-23,25,53,80-81,88"/>
+<host starttime="1762650001" endtime="1762650181" timedout="true"><status state="up" reason="user-set" reason_ttl="0"/>
+<address addr="8.8.8.8" addrtype="ipv4"/>
+<hostnames/>
+<ports>
+<extraports state="filtered" count="94"><extrareasons reason="no-responses" count="94"/></extraports>
+<port protocol="tcp" portid="22"><state state="open" reason="syn-ack" reason_ttl="52"/><service name="ssh" product="OpenSSH" version="7.4p1 Debian 10+deb9u7" extrainfo="protocol 2.0" ostype="Linux" method="probed" conf="10"><cpe>cpe:/a:openbsd:openssh:7.4p1</cpe><cpe>cpe:/o:linux:linux_kernel</cpe></service></port>
+<port protocol="tcp" portid="443"><state state="open" reason="syn-ack" reason_ttl="52"/><service name="http" product="nginx" tunnel="ssl" method="probed" conf="10"><cpe>cpe:/a:igor_sysoev:nginx</cpe></service></port>
+<port protocol="tcp" portid="8443"><state state="open" reason="syn-ack" reason_ttl="52"/><service name="http" product="Apache httpd" version="2.4.49" extrainfo="(Unix)" tunnel="ssl" method="probed" conf="10"><cpe>cpe:/a:apache:http_server:2.4.49</cpe></service></port>
+<port protocol="tcp" portid="10443"><state state="open" reason="syn-ack" reason_ttl="52"/><service name="tcpwrapped" method="probed" conf="8"/></port>
+</ports>
+<times srtt="9000" rttvar="3000" to="100000"/>
+</host>
+<runstats><finished time="1762650041" timestr="Sun Nov  9 00:00:41 2026" elapsed="41.00" summary="Nmap done" exit="success"/><hosts up="1" down="0" total="1"/></runstats>
+</nmaprun>

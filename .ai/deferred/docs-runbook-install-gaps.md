@@ -1,0 +1,3 @@
+# Deferred: docs/runbook-install-gaps (MW-doc1, MW-doc2, E13)
+
+- [ ] 2026-11-14 — container-only: a moved 8443 publish (compose.ports.yaml, D-542) leaves every link the box writes at `:8443` (notify, approvals, sign-in mail, block-list URL, URL honey tokens, osquery install commands), because `cmd/vedette/boxaddress.go` `baseURL` takes the port from `-listen`; and `core/netguard` `vedettePorts` (self-call guard) knows only the fixed ports — vì sao để sau: needs a product choice (a port in the first `VEDETTE_HOSTS` entry, or a `VEDETTE_PUBLIC_PORT`) and code in cmd/vedette + netguard; the doc tells customers to keep 8443 when they use links — ở đâu: cmd/vedette/boxaddress.go, core/netguard/own.go, docs/INSTALL-CONTAINER.md §4 "Other host ports".

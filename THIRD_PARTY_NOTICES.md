@@ -111,7 +111,7 @@ Packages that `install.sh` asks apt for when they are missing (WP-08h, D-166). A
 | catatonit | GPL-2.0-or-later | appliance only: OS package; the init process Podman runs for the `scan` container (`--init`, D-113) |
 | unattended-upgrades | GPL-2.0-or-later | appliance only: OS package (a dependency of the `vedette-host` package); `vedette-host` writes its apt configuration (D-53) |
 | curl | curl license (MIT-style) | appliance only: OS package; `install.sh` downloads the release files and waits for core with it |
-| ca-certificates | GPL-2.0-or-later (scripts), MPL-2.0 (the Mozilla certificate bundle) | appliance only: OS package; the trust roots for the downloads of `install.sh` and Podman |
+| ca-certificates | GPL-2.0-or-later (scripts), MPL-2.0 (the Mozilla certificate bundle) | appliance: OS package; the trust roots for the downloads of `install.sh` and Podman. `scan` base image (D-514): only the bundle `/etc/ssl/certs/ca-certificates.crt` and `/usr/share/doc/ca-certificates/copyright`, copied unmodified from the Debian package of the digest-pinned Go build image (`deploy/containers/scan-base/Containerfile`), as data: the trust roots of the worker's HTTPS own-IP check |
 | passwd (`useradd`, `groupadd`) | BSD-3-Clause / GPL-2.0-or-later (shadow) | appliance only: OS package; the `vedette-host` package's postinst makes the users `vedette` and `vedette-sensor` with it |
 
 The GPL tools above are separate programs from the distribution, run through `core/exec` with fixed argv; nothing from them is linked into or redistributed with Vedette (rule `legal.md`: GPL/AGPL is never embedded). Licences checked from the Debian copyright files (`metadata.ftp-master.debian.org/changelogs/main/…/stable_copyright`) on 2026-11-10.

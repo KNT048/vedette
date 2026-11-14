@@ -1,6 +1,8 @@
 package server
 
 import (
+	"html"
+	"io"
 	"net"
 	"net/http"
 	"net/netip"
@@ -32,15 +34,58 @@ func HostAllowlistWith(allowed []string, own func(netip.Addr) bool, next http.Ha
 }
 
 // HostAllowlistFunc is HostAllowlist with the test given as a function: HostMatcher's, or one that also accepts a name the box learns
-// while it runs (cmd/vedette: the Box address an administrator saves, D-465).
+// while it runs (cmd/vedette: the Box address an administrator saves, D-465). The refusal is the same for every client (421, nothing
+// routed); only its body differs: a browser opening a page gets a short HTML page (misdirectedPage), an API client the JSON error.
 func HostAllowlistFunc(allowedHost func(host string) bool, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if !allowedHost(r.Host) {
-			apierr.Write(w, apierr.New(http.StatusMisdirectedRequest, apierr.CodeMisdirected, "This address is not one Vedette answers to. Open it with the name or address it was set up with."))
+			if wantsPage(r) {
+				writeMisdirectedPage(w, r.Host)
+				return
+			}
+			apierr.Write(w, apierr.New(http.StatusMisdirectedRequest, apierr.CodeMisdirected, misdirectedText))
 			return
 		}
 		next.ServeHTTP(w, r)
 	})
+}
+
+const misdirectedText = "This address is not one Vedette answers to. Open it with the name or address it was set up with."
+
+// misdirectedDoc is where the page sends the administrator: how to set the names the box answers to (D-542).
+const misdirectedDoc = "https://github.com/KNT048/vedette/blob/main/docs/INSTALL-CONTAINER.md#2-say-where-it-lives"
+
+// wantsPage: a browser loading a page (GET or HEAD that accepts text/html) outside the API. /api/ paths and every other client keep
+// the JSON error, which the interface and scripts branch on.
+func wantsPage(r *http.Request) bool {
+	if r.Method != http.MethodGet && r.Method != http.MethodHead {
+		return false
+	}
+	if r.URL.Path == "/api" || strings.HasPrefix(r.URL.Path, "/api/") {
+		return false
+	}
+	return strings.Contains(strings.ToLower(r.Header.Get("Accept")), "text/html")
+}
+
+// writeMisdirectedPage answers 421 with a plain page: no script, no style (the CSP of Envelope allows neither inline), no list of the
+// names the box answers to (the refused visitor need not learn them). It names the host the browser sent, normalised by hostKey
+// and escaped, so the administrator sees which name to add; a malformed one is left out.
+func writeMisdirectedPage(w http.ResponseWriter, host string) {
+	opened := "a name it was not set up for"
+	if k := hostKey(host); k != "" {
+		opened = "<strong>" + html.EscapeString(k) + "</strong>, a name it was not set up for"
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(http.StatusMisdirectedRequest)
+	_, _ = io.WriteString(w, `<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Vedette: not this address</title></head>
+<body>
+<h1>This address is not one Vedette answers to</h1>
+<p>You opened this box as `+opened+`. Open it with the name or address it was set up with.</p>
+<p>To use this name too, an administrator adds it: on a Docker or Podman install, to the VEDETTE_HOSTS line of vedette.env, then runs <code>up -d</code> again; on the appliance, as the Box address in Settings, Box network.</p>
+<p><a href="`+misdirectedDoc+`">How to set the names Vedette answers to</a></p>
+</body></html>
+`)
 }
 
 // HostMatcher is the test HostAllowlistWith applies to the Host header, for code that must ask the same question again (the agent-intake

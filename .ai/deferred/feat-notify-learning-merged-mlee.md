@@ -1,0 +1,3 @@
+# Deferred: feat/notify-learning-merged-mlee (D-554)
+
+- [ ] 2026-11-14 — `web/e2e-real/sensors.global.spec.ts` "every new device opened one unknown device alert" expects one own incident per device on a fresh e2e box; since D-483 (notify's first-run window) and now D-554 (sensor learning) a fresh box folds them into the one "N devices found" summary, so the spec should expect the summary (or age `notify_box.first_run_at` and `inv_source` first) — vì sao để sau: e2e-real is run by the lead (agents may not run Playwright), cannot verify a spec edit here — ở đâu: `web/e2e-real/sensors.global.spec.ts` ~line 227

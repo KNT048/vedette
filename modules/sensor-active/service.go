@@ -211,6 +211,9 @@ func (s *Service) Health(ctx context.Context) Health {
 	}
 	if st, err := s.inv.Settings(ctx); err == nil {
 		h.Warning = st.sweepWarning(s.localPrefixes(ctx))
+		if h.Warning == "" && st.allowed() == nil && st.Rate < nmapargv.AllPortsMinRate {
+			h.Warning = fmt.Sprintf("the weekly scan of every port of each device needs a scan rate of at least %d packets/s; at %d it does not run, so services on unusual ports are not found", nmapargv.AllPortsMinRate, st.Rate)
+		}
 	}
 	return h
 }
@@ -937,6 +940,13 @@ func (s *Service) setCur(r *running) {
 // arrives while it is still checking reaches it (H2). A refusal by policy or scope publishes
 // sensor.scan.blocked and sends nothing. reason says why it was asked ("discovered", ...).
 func (s *Service) ScanDevice(ctx context.Context, assetID, reason string) error {
+	return s.scanDevice(ctx, assetID, reason, false)
+}
+
+// scanDevice is ScanDevice; all makes it the weekly scan of every port (nmapargv.AllPorts, D-592), which only a device that is not
+// fragile, not of unknown kind and past its gentle scan gets (allPortsPlan): any other answer of the policy is ErrBlocked, nothing
+// sent.
+func (s *Service) scanDevice(ctx context.Context, assetID, reason string, all bool) error {
 	s.lockRun(ctx)
 	defer s.runMu.Unlock()
 	jctx, cancel := context.WithCancel(ctx)
@@ -998,13 +1008,20 @@ func (s *Service) ScanDevice(ctx context.Context, assetID, reason string) error 
 	if dec.FirstGentle {
 		kind, rate = gentleShape(dec), 1
 	}
+	if all {
+		r, why := allPortsPlan(dec, st)
+		if why != "" { // checked again here, under the lock: the device may have turned fragile since it was picked (FORBID-5)
+			return fmt.Errorf("%w: %s", ErrBlocked, why)
+		}
+		kind, rate = nmapargv.AllPorts, r
+	}
 	s.setKind(kind)
 
 	id, err := s.startJob(ctx, KindDevice, reason, 1)
 	if err != nil {
 		return err
 	}
-	hosts, err := s.probe(jctx, id, kind, rate, []netip.Addr{asset.IP})
+	hosts, err := s.probeDevice(jctx, id, kind, rate, asset.IP)
 	s.setAsset("") // nmap is done: a change of the device now has nothing to stop
 	if err == nil {
 		// nmap finished: the gentle scan happened, whatever becomes of recording its results (D-45, L2)
@@ -1012,7 +1029,7 @@ func (s *Service) ScanDevice(ctx context.Context, assetID, reason string) error 
 		if dec.FirstGentle {
 			markErr = s.inv.MarkFirstScan(context.WithoutCancel(ctx), assetID)
 		}
-		err = errors.Join(markErr, s.recordDevice(ctx, asset.IP, hosts, kind))
+		err = errors.Join(markErr, s.recordDevice(ctx, assetID, asset.IP, hosts, kind))
 	}
 	switch {
 	case err == nil:
@@ -1029,7 +1046,7 @@ func (s *Service) ScanDevice(ctx context.Context, assetID, reason string) error 
 // timeout keeps its software and services: nmap printed no port table for it, so an empty list would wrongly remove them. Only a
 // normal scan (top 1000 ports, -sV) replaces the device's nmap services and software; a gentle one (top 100, no -sV) only adds the
 // ports it saw and leaves the software alone, so it never wipes what a normal scan found (D-350 (5), D-501).
-func (s *Service) recordDevice(ctx context.Context, ip netip.Addr, hosts []host, kind nmapargv.Kind) error {
+func (s *Service) recordDevice(ctx context.Context, assetID string, ip netip.Addr, hosts []host, kind nmapargv.Kind) error {
 	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), finishTimeout)
 	defer cancel()
 	i := slices.IndexFunc(hosts, func(h host) bool { return h.addr == ip })
@@ -1053,15 +1070,72 @@ func (s *Service) recordDevice(ctx context.Context, ip netip.Addr, hosts []host,
 		}
 	}
 	if s.svc != nil {
+		list := servicesOf(h)
 		write := s.svc.AddServices
-		if kind == nmapargv.Normal || kind == nmapargv.Versions { // both read the top 1000 ports with -sV
+		switch kind {
+		case nmapargv.Normal, nmapargv.Versions: // both read nmap's top 1000 and nmapargv.ExtraPorts with -sV (probeDevice)
 			write = s.svc.ReplaceServices
+			// the open ports the last weekly scan of every port found outside that list stay until the next weekly scan (D-592)
+			list = withExtra(list, s.allPortsExtra(ctx, assetID))
+		case nmapargv.AllPorts: // every port with -sV: the whole list, and the ports outside LANPorts kept for the normal scans
+			write = s.svc.ReplaceServices
+			s.keepAllPortsExtra(ctx, assetID, list)
 		}
-		if err := write(ctx, observe.AssetHint{IP: ip}, observe.Nmap, servicesOf(h)); err != nil {
+		if err := write(ctx, observe.AssetHint{IP: ip}, observe.Nmap, list); err != nil {
 			return fmt.Errorf("sensoractive: recording services: %w", err)
 		}
 	}
 	return nil
+}
+
+// probeDevice is the nmap work of one device scan: the run of kind, and after a normal or versions scan the Extra run over
+// nmapargv.ExtraPorts (the surface list and the reviewed admin ports) at the same rate, merged into the same host (D-592): a service
+// moved to 22222 or 11443 is identified like one on its usual port. Each run has its own probe row. When the Extra run fails or is
+// stopped, the first run's result is kept (it finished; POST-3) and the reason logged.
+func (s *Service) probeDevice(ctx context.Context, jobID string, kind nmapargv.Kind, rate int, ip netip.Addr) ([]host, error) {
+	hosts, err := s.probe(ctx, jobID, kind, rate, []netip.Addr{ip})
+	if err != nil || (kind != nmapargv.Normal && kind != nmapargv.Versions) {
+		return hosts, err
+	}
+	extra, err := s.probe(ctx, jobID, nmapargv.Extra, rate, []netip.Addr{ip})
+	if err != nil {
+		s.log.WarnContext(ctx, "sensoractive: the scan of the extra ports did not finish; the device keeps the top 1000 ports' result", "ip", ip.String(), "error", err)
+		return hosts, nil
+	}
+	return mergeExtra(hosts, extra, ip), nil
+}
+
+// mergeExtra adds to the device's host of the first run what the Extra run found: its open ports the first run did not list (with
+// their scripts), and its NTLM answer when the first run had none. A first run that timed out keeps its meaning (no port table: the
+// services are not replaced), and a device only the Extra run saw up is taken from it.
+func mergeExtra(hosts, extra []host, ip netip.Addr) []host {
+	j := slices.IndexFunc(extra, func(h host) bool { return h.addr == ip })
+	if j < 0 {
+		return hosts
+	}
+	i := slices.IndexFunc(hosts, func(h host) bool { return h.addr == ip })
+	if i < 0 {
+		return append(hosts, extra[j])
+	}
+	h, x := &hosts[i], extra[j]
+	if h.timedOut {
+		return hosts
+	}
+	for _, p := range x.ports {
+		if slices.ContainsFunc(h.ports, func(q portInfo) bool { return q.number == p.number && q.proto == p.proto }) {
+			continue
+		}
+		h.ports = append(h.ports, p)
+		for _, sc := range x.scripts {
+			if sc.port == p.number {
+				h.scripts = append(h.scripts, sc)
+			}
+		}
+	}
+	if h.ntlm == (ntlmInfo{}) {
+		h.ntlm = x.ntlm
+	}
+	return hosts
 }
 
 // ---- identification for Scan now (D-501) ----
@@ -1230,14 +1304,14 @@ func (s *Service) IdentifyDevice(ctx context.Context, assetID string) (Identific
 	if err != nil {
 		return Identification{}, err
 	}
-	hosts, err := s.probe(jctx, id, kind, rate, []netip.Addr{asset.IP})
+	hosts, err := s.probeDevice(jctx, id, kind, rate, asset.IP)
 	s.setAsset("")
 	if err == nil {
 		var markErr error
 		if dec.FirstGentle && kind.IsGentle() {
 			markErr = s.inv.MarkFirstScan(context.WithoutCancel(ctx), assetID)
 		}
-		err = errors.Join(markErr, s.recordDevice(ctx, asset.IP, hosts, kind))
+		err = errors.Join(markErr, s.recordDevice(ctx, assetID, asset.IP, hosts, kind))
 	}
 	switch {
 	case err == nil:
@@ -1388,7 +1462,11 @@ func (s *Service) Tick(ctx context.Context) error {
 		return err
 	}
 	// Then the window's round of SNMP reads (D-512): the sweep and the queue may have found the devices it reads.
-	return s.snmpRound(ctx, start)
+	if err := s.snmpRound(ctx, start); err != nil {
+		return err
+	}
+	// Then the weekly scans of every port, one device at a time while the window has room for one (D-592).
+	return s.allPortsRound(ctx)
 }
 
 // firstPassDue says the first pass has never started (no sa_first_pass row) and no sweep ever finished on this box (a box from
@@ -1543,7 +1621,9 @@ func (s *Service) AssetChanged(ctx context.Context, assetID string) error {
 	}
 	// A gentle scan with titles stops when the device may no longer have them: made fragile, by a person or by a kind (FORBID-6, D-511).
 	titlesGone := kind == nmapargv.GentleTitles && dec.Fragile
-	if err != nil || !dec.Allowed || (dec.FirstGentle && !gentle) || (dec.Rate > 0 && dec.Rate < rate) || titlesGone {
+	// The weekly scan of every port stops when the device may no longer have it (fragile, kind unknown, never: D-592, FORBID-5).
+	allGone := kind == nmapargv.AllPorts && (dec.Fragile || dec.Unclassified || dec.Never)
+	if err != nil || !dec.Allowed || (dec.FirstGentle && !gentle) || (dec.Rate > 0 && dec.Rate < rate) || titlesGone || allGone {
 		cur.cancel() // fail closed
 		if errors.Is(err, ErrNotFound) {
 			return nil

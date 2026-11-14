@@ -238,7 +238,8 @@ func plainHost(h string) bool {
 		return false
 	}
 	for _, c := range []byte(h) {
-		if !(c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || c == '.' || c == '-') {
+		ok := c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || c == '.' || c == '-'
+		if !ok {
 			return false
 		}
 	}

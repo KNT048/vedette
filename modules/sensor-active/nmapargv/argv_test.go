@@ -87,7 +87,7 @@ func TestBuildRefuses(t *testing.T) {
 			t.Errorf("%s: accepted", name)
 		}
 	}
-	if _, err := Build(Kind(9), 10, many[:1]); err == nil {
+	if _, err := Build(Kind(99), 10, many[:1]); err == nil {
 		t.Error("unknown kind accepted")
 	}
 }
@@ -102,6 +102,12 @@ var (
 	// D-514: the ports written out here are those of modules/scan/commonports (TestExternalPortsAreTheSurfaceList).
 	externalPorts = "21,22,23,25,53,80,81,88,102,110,111,135,139,143,179,389,443,445,465,502,515,554,587,631,636,873,993,995,1080,1194,1433,1521,1723,1883,2049,2082,2083,2086,2087,2222,2375,2376,2379,3000,3128,3306,3389,4443,4899,5000,5001,5060,5061,5432,5601,5672,5900,5901,5938,5984,5985,5986,6379,6443,7001,7002,7547,8000,8006,8008,8009,8080,8081,8088,8089,8090,8123,8291,8443,8728,8729,8834,8880,8883,8888,9000,9042,9090,9100,9200,9443,10000,10250,10443,11211,27017,34567,37777"
 	shapeExternal = []string{"--privileged", "-sS", "-sV", "-Pn", "-n", "--max-rate", "100", "--max-retries", "2", "--host-timeout", "3m", "-p", externalPorts, "-oX", "-", "8.8.8.8"}
+	// D-592: the run after a normal or versions scan over the surface list and the reviewed admin ports.
+	shapeExtra = []string{"--privileged", "-sS", "-sV", "--script", "rdp-ntlm-info,http-ntlm-info,http-title,ssl-cert", "-n", "--max-rate", "100",
+		"--max-retries", "3", "-p", ExtraPorts, "--host-timeout", "30m", "-oX", "-", "192.168.10.20"}
+	// D-592: the weekly scan of every port of a LAN device that is not fragile.
+	shapeAllPorts = []string{"--privileged", "-sS", "-sV", "--script", "rdp-ntlm-info,http-ntlm-info,http-title,ssl-cert", "-n", "--max-rate", "100",
+		"--max-retries", "1", "-p-", "--host-timeout", "90m", "-oX", "-", "192.168.10.20"}
 	// D-526: the two full shapes of a target whose testing terms are accepted.
 	shapeFull = []string{"--privileged", "-sS", "-sV", "-Pn", "-n", "-p-", "--script", FullScripts,
 		"--script-timeout", "5m", "--max-rate", "300", "--max-retries", "2", "--host-timeout", "60m", "-oX", "-", "8.8.8.8"}
@@ -148,6 +154,13 @@ func TestValidate(t *testing.T) {
 		"normal without --host-timeout":        drop(shapeNormal, "--host-timeout", "30m"),
 		"normal with the gentle host timeout":  swap(shapeNormal, "30m", "15m"),
 		"normal with all ports":                swap(shapeNormal, "1000", "65535"),
+		"extra with another port list":         swap(shapeExtra, ExtraPorts, ExtraPorts+",31337"),
+		"extra with -O":                        with(shapeExtra[:3], append([]string{"-O"}, shapeExtra[3:]...)...),
+		"extra on a public address":            swap(shapeExtra, "192.168.10.20", "8.8.8.8"),
+		"all_ports over its rate":              swap(shapeAllPorts, "100", "101"),
+		"all_ports with -O":                    with(shapeAllPorts[:3], append([]string{"-O"}, shapeAllPorts[3:]...)...),
+		"all_ports with more retries":          swap(shapeAllPorts, "1", "3"),
+		"all_ports on a public address":        swap(shapeAllPorts, "192.168.10.20", "8.8.8.8"),
 		"-sS without --top-ports":              drop(shapeNormal, "--top-ports", "1000"),
 		"normal without --max-retries":         drop(shapeNormal, "--max-retries", "3"),
 		"normal with more retries":             swap(shapeNormal, "3", "10"),
@@ -197,7 +210,7 @@ func TestValidate(t *testing.T) {
 			t.Errorf("%s: accepted %q", name, argv)
 		}
 	}
-	for name, argv := range map[string][]string{"sweep": shapeSweep, "normal": shapeNormal, "gentle": shapeGentle, "versions": shapeVersions, "gentle_titles": shapeTitles, "external": shapeExternal, "external_full": shapeFull, "external_disruptive": shapeDisruptive, "two targets": with(shapeSweep, "192.168.10.2")} {
+	for name, argv := range map[string][]string{"sweep": shapeSweep, "normal": shapeNormal, "gentle": shapeGentle, "versions": shapeVersions, "gentle_titles": shapeTitles, "external": shapeExternal, "external_full": shapeFull, "external_disruptive": shapeDisruptive, "all_ports": shapeAllPorts, "extra_ports": shapeExtra, "all_ports slower": swap(shapeAllPorts, "100", "50"), "two targets": with(shapeSweep, "192.168.10.2")} {
 		if err := Validate(argv); err != nil {
 			t.Errorf("%s: a good argv is rejected: %v", name, err)
 		}
@@ -247,7 +260,11 @@ func shapeOracle(flags []string) bool {
 			slices.Equal(flags[:at], want[:at]) && slices.Equal(flags[at+1:], want[at+1:])
 	}
 	at := func(shape []string) int { return slices.Index(shape, "--max-rate") + 1 }
-	return withRate(shapeSweep, at(shapeSweep)) || withRate(shapeNormal, at(shapeNormal)) || withRate(shapeVersions, at(shapeVersions)) || slices.Equal(flags, shapeGentle[:slices.Index(shapeGentle, "-oX")]) ||
+	allPortsRate := regexp.MustCompile(`^([1-9][0-9]?|100)$`) // all_ports: at most 100 (D-592)
+	if a := at(shapeAllPorts); len(flags) > a && allPortsRate.MatchString(flags[a]) && withRate(shapeAllPorts, a) {
+		return true
+	}
+	return withRate(shapeSweep, at(shapeSweep)) || withRate(shapeExtra, at(shapeExtra)) || withRate(shapeNormal, at(shapeNormal)) || withRate(shapeVersions, at(shapeVersions)) || slices.Equal(flags, shapeGentle[:slices.Index(shapeGentle, "-oX")]) ||
 		slices.Equal(flags, shapeTitles[:slices.Index(shapeTitles, "-oX")]) || externalOracle(flags)
 }
 
@@ -287,7 +304,7 @@ func public(s string) bool {
 
 func FuzzValidate(f *testing.F) {
 	for _, s := range [][]string{
-		shapeSweep, shapeNormal, shapeGentle, shapeVersions, shapeTitles, shapeExternal, shapeFull, shapeDisruptive,
+		shapeSweep, shapeNormal, shapeGentle, shapeVersions, shapeTitles, shapeExternal, shapeFull, shapeDisruptive, shapeAllPorts, shapeExtra,
 		append(slices.Clone(shapeExternal[:len(shapeExternal)-1]), "192.168.1.1"),
 		append(slices.Clone(shapeExternal), "1.1.1.1"),
 		{"--privileged", "-sn", "-PE", "-PP", "-PS21,22,23,80,135,139,443,445,554,3389,8000,8080,9100", "-PA80,443", "-n", "--max-rate", "1000", "-oX", "-", "10.0.0.1", "10.0.0.2"},
@@ -362,7 +379,7 @@ func TestParseInvertsBuild(t *testing.T) {
 // that nothing is lost or invented on the way (L8).
 func FuzzParseBuild(f *testing.F) {
 	for _, s := range [][]string{
-		shapeSweep, shapeNormal, shapeGentle, shapeVersions, shapeTitles, shapeExternal, shapeFull, shapeDisruptive,
+		shapeSweep, shapeNormal, shapeGentle, shapeVersions, shapeTitles, shapeExternal, shapeFull, shapeDisruptive, shapeAllPorts, shapeExtra,
 		{"--privileged", "-sn", "-PE", "-PP", "-PS21,22,23,80,135,139,443,445,554,3389,8000,8080,9100", "-PA80,443", "-n", "--max-rate", "1000", "-oX", "-", "10.0.0.1", "10.0.0.2"},
 		{"--privileged", "-sn", "-PE", "-PP", "-PS21,22,23,80,135,139,443,445,554,3389,8000,8080,9100", "-PA80,443", "-n", "--max-rate", "1", "-oX", "-", "172.16.0.1"},
 	} {

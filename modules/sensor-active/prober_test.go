@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	sa "github.com/knt048/vedette/modules/sensor-active"
+	"github.com/knt048/vedette/modules/sensor-active/nmapargv"
 )
 
 // fakeProber records what probe() hands it and answers with a fixture.
@@ -48,8 +49,8 @@ func TestProbeGoesThroughProber(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := []string{"--privileged", "-sS", "-sV", "-O", "--script", "rdp-ntlm-info,http-ntlm-info,http-title,ssl-cert", "-n", "--max-rate", "100", "--max-retries", "3", "--top-ports", "1000", "--host-timeout", "30m", "-oX", "-", "192.168.10.20"}
-	if len(fp.argv) != 1 || !slices.Equal(fp.argv[0], want) {
-		t.Fatalf("Prober got %q, want one call with %q", fp.argv, want)
+	if len(fp.argv) != 2 || !slices.Equal(fp.argv[0], want) || !slices.Contains(fp.argv[1], nmapargv.ExtraPorts) {
+		t.Fatalf("Prober got %q, want a call with %q, then the extra ports (D-592)", fp.argv, want)
 	}
 	if n := len(e.nm.calls(t)); n != 0 {
 		t.Errorf("the module started nmap %d times itself", n)
@@ -60,7 +61,7 @@ func TestProbeGoesThroughProber(t *testing.T) {
 	if fp.probeRow[0] != 1 {
 		t.Errorf("%d probe rows were started when the Prober ran, want 1 (INV-9)", fp.probeRow[0])
 	}
-	if got := e.count(`SELECT COUNT(*) FROM sa_probe WHERE result LIKE 'ok:%'`); got != 1 {
-		t.Errorf("%d finished probe rows, want 1", got)
+	if got := e.count(`SELECT COUNT(*) FROM sa_probe WHERE result LIKE 'ok:%'`); got != 2 {
+		t.Errorf("%d finished probe rows, want 2 (the scan and its extra ports)", got)
 	}
 }

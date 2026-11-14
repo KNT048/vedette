@@ -1,5 +1,5 @@
-// Package nmapargv builds and checks the only eight nmap command lines Vedette ever runs (D-84 (7), D-113, D-501, D-511, D-514,
-// D-526).
+// Package nmapargv builds and checks the only ten nmap command lines Vedette ever runs (D-84 (7), D-113, D-501, D-511, D-514,
+// D-526, D-592).
 // It is a leaf: standard library only (plus core/localnet and core/egressip for which addresses are local or public, D-461,
 // D-514, and modules/scan/commonports for the external shape's ports, all standard library only), no database and
 // no core/exec, because the sensor binary links it and
@@ -20,10 +20,10 @@ import (
 	"github.com/knt048/vedette/modules/scan/commonports"
 )
 
-// Kind says which of the eight nmap command lines is built (D-84 (7), D-501, D-511, D-514, D-526).
+// Kind says which of the ten nmap command lines is built (D-84 (7), D-501, D-511, D-514, D-526, D-592).
 type Kind int
 
-// The eight kinds, one per command shape.
+// The ten kinds, one per command shape.
 const (
 	Sweep    Kind = iota // host discovery: -sn
 	Normal               // service and OS identification
@@ -46,10 +46,33 @@ const (
 	// ExternalDisruptive is ExternalFull with the "dos" and "brute" scripts too (DisruptiveScripts): only with the terms' extra
 	// tick, off by default.
 	ExternalDisruptive
+	// AllPorts is the weekly scan of every TCP port of one LAN device that is not fragile (D-592): the normal shape without -O, on
+	// -p- instead of LANPorts, at most AllPortsMaxRate packets a second, --max-retries 1, bounded by AllPortsHostTimeout. It finds
+	// a service on a port no list names. Local targets only, like every LAN shape.
+	AllPorts
+	// Extra follows every normal or versions scan of a LAN device (D-592): -sS -sV and the four scripts over ExtraPorts (the surface
+	// list and the reviewed admin ports, ports.go), at the same rate, so a service moved off its usual port is identified too. The
+	// device's result is the two runs together.
+	Extra
 )
 
 // kinds is every Kind, in the order Validate and KindOf try them.
-var kinds = []Kind{Sweep, Normal, Gentle, Versions, GentleTitles, External, ExternalFull, ExternalDisruptive}
+var kinds = []Kind{Sweep, Normal, Gentle, Versions, GentleTitles, External, ExternalFull, ExternalDisruptive, AllPorts, Extra}
+
+// The weekly scan of every port of a LAN device (D-592). 65535 SYNs; a port that answers (open, or closed with an RST: the usual
+// case on a LAN host) costs one probe, a port a host firewall drops costs two (--max-retries 1), so at AllPortsMaxRate one run
+// sends at most 131,070 probes: 11 minutes when the device answers, at most 22 when it drops everything, then -sV and the four
+// scripts on the open ports. 100 SYNs of 60 bytes a second are 48 kbit/s on the LAN, and LAN-to-LAN traffic of one segment
+// never passes the router's connection table. AllPortsHostTimeout leaves room for a slower rate (the settings' rate when lower,
+// down to AllPortsMinRate: 44 minutes for a device that drops everything) and for -sV; a run it cuts prints no port table and
+// changes nothing (INV-8).
+const (
+	AllPortsMaxRate     = 100
+	AllPortsMinRate     = 50 // below it the scan does not fit AllPortsHostTimeout safely: the weekly run is not made (Health says why)
+	AllPortsHostTimeout = 90 * time.Minute
+	allPortsHostTimeout = "90m"
+	allPortsRetries     = "1"
+)
 
 // ExternalRate is the fixed --max-rate of the external shape (packets a second): 98 ports with 2 retries are a few hundred SYNs,
 // a few seconds at this rate, gentle on the customer's own router (plan exposure-real-vulns §3).
@@ -217,6 +240,10 @@ func (k Kind) Name() string {
 		return "external_full"
 	case ExternalDisruptive:
 		return "external_disruptive"
+	case AllPorts:
+		return "all_ports"
+	case Extra:
+		return "extra_ports"
 	}
 	return ""
 }
@@ -247,6 +274,13 @@ func Flags(kind Kind, rate int) ([]string, error) {
 		return []string{flagPrivileged, "-sS", flagNoDNS, flagTiming, flagMaxRetries, "1", flagMaxRate, "1", flagHostTimeout, gentleHostTimeout, flagTopPorts, "100"}, nil
 	case Versions:
 		return []string{flagPrivileged, "-sS", "-sV", flagScript, Scripts, flagNoDNS, flagMaxRate, r, flagMaxRetries, lanMaxRetries, flagTopPorts, "1000", flagHostTimeout, normalHostTimeout}, nil
+	case Extra:
+		return []string{flagPrivileged, "-sS", "-sV", flagScript, Scripts, flagNoDNS, flagMaxRate, r, flagMaxRetries, lanMaxRetries, "-p", ExtraPorts, flagHostTimeout, normalHostTimeout}, nil
+	case AllPorts:
+		if rate > AllPortsMaxRate {
+			return nil, fmt.Errorf("nmapargv: the all_ports shape runs at most %d packets/s, not %d", AllPortsMaxRate, rate)
+		}
+		return []string{flagPrivileged, "-sS", "-sV", flagScript, Scripts, flagNoDNS, flagMaxRate, r, flagMaxRetries, allPortsRetries, "-p-", flagHostTimeout, allPortsHostTimeout}, nil
 	case GentleTitles:
 		return []string{flagPrivileged, "-sS", flagScript, TitleScripts, flagScriptTimeout, titleScriptTimeout, flagNoDNS, flagTiming, flagMaxRetries, "1", flagMaxRate, "1", flagHostTimeout, gentleHostTimeout, flagTopPorts, "100"}, nil
 	case External:
@@ -351,7 +385,7 @@ func Validate(args []string) error {
 		return err == nil && slices.Equal(flags, want)
 	})
 	if k < 0 {
-		return fmt.Errorf("flags %q are not one of the eight allowed command shapes", flags)
+		return fmt.Errorf("flags %q are not one of the ten allowed command shapes", flags)
 	}
 	targets := args[i+2:]
 	valid, err := targetRule(kinds[k], len(targets))

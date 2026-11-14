@@ -121,13 +121,13 @@ const (
 	// GreenboneLoadGrace: a slow gvmd within this time after Up, or after it last said it was loading, reads as "loading".
 	GreenboneLoadGrace = 4 * time.Hour
 	gbUpTimeout        = 60 * time.Minute // the first Up pulls about 9 GB of images (25 minutes on the N100)
-	// gbUpRetryMin and gbUpRetryMax bound the wait before an Up the host refused for now (HostBusy) is sent again: doubling from the
+	// gbUpRetryFirst and gbUpRetryLongest bound the wait before an Up the host refused for now (HostBusy) is sent again: doubling from the
 	// first to the second, never shorter than the host's own Retry-After. The host's limit is per minute, so the first retry
 	// usually runs.
-	gbUpRetryMin  = 15 * time.Second
-	gbUpRetryMax  = 5 * time.Minute
-	gbDownTimeout = 5 * time.Minute
-	gbPollDefault = 15 * time.Second
+	gbUpRetryFirst   = 15 * time.Second
+	gbUpRetryLongest = 5 * time.Minute
+	gbDownTimeout    = 5 * time.Minute
+	gbPollDefault    = 15 * time.Second
 	// GreenboneSyncEvery is how often Greenbone's feed is updated while it is enabled (D-564 G6); a failed or refused update is tried
 	// again after gbSyncRetry. The first one is due a week after Greenbone was enabled (enabling loads the feed).
 	GreenboneSyncEvery = 7 * 24 * time.Hour
@@ -559,7 +559,7 @@ func (s *Service) gbStartUp(ctx context.Context) {
 // (HostBusy: 429 rate_limited, busy, restarting), until it runs, fails otherwise, or ctx ends (turned off, module off, box stopping).
 // The page says "starting" meanwhile (upping stays set).
 func (s *Service) upUntilTaken(ctx context.Context, fixed time.Duration) error {
-	wait := gbUpRetryMin
+	wait := gbUpRetryFirst
 	for {
 		actx, cancel := context.WithTimeout(ctx, gbUpTimeout)
 		err := s.cfg.Greenbone.Up(actx)
@@ -580,7 +580,7 @@ func (s *Service) upUntilTaken(ctx context.Context, fixed time.Duration) error {
 			return context.Canceled
 		case <-t.C:
 		}
-		wait = min(wait*2, gbUpRetryMax)
+		wait = min(wait*2, gbUpRetryLongest)
 	}
 }
 

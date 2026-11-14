@@ -218,10 +218,7 @@ func TestRead_EveryShapeOfThePinnedNuclei(t *testing.T) {
 	tpls := []string{"lab-banner", "lab-ssl", "lab-hostredirect", "lab-miss", "lab-tech", "lab-redirect", "lab-otherport"}
 	tgts := []string{"192.168.10.21:10443", "192.168.10.21:10022", "192.168.10.21:443"}
 	for _, f := range []string{"testdata/shapes.jsonl", "testdata/otherport.jsonl"} {
-		out, err := os.ReadFile(f)
-		if err != nil {
-			t.Fatal(err)
-		}
+		out := mustRead(t, f)
 		res, skip, err := Read(out, tpls, tgts)
 		if err != nil || skip.Lines != 0 || len(res) != bytes.Count(out, []byte("\n")) {
 			t.Fatalf("%s: %d results, %+v, %v", f, len(res), skip, err)
@@ -251,7 +248,7 @@ func TestRead_EveryShapeOfThePinnedNuclei(t *testing.T) {
 
 func mustRead(t *testing.T, name string) []byte {
 	t.Helper()
-	b, err := os.ReadFile(name)
+	b, err := os.ReadFile(name) //nolint:gosec // G304: a fixed name under testdata
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -33,6 +33,22 @@ type fakeInv struct {
 	matches  map[string][]MatchedAsset
 	added    []ManualDevice
 	matchErr error
+	// notAffected: CVE -> device ids the platform rules rule out (PlatformChecker, D-549); platformErr makes the check fail.
+	notAffected map[string][]string
+	platformErr error
+}
+
+func (f *fakeInv) NotAffected(_ context.Context, cve, _, _ string, ids []string) (map[string]bool, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.platformErr != nil {
+		return nil, f.platformErr
+	}
+	out := map[string]bool{}
+	for _, id := range ids {
+		out[id] = slices.Contains(f.notAffected[cve], id)
+	}
+	return out, nil
 }
 
 func (f *fakeInv) MatchProducts(_ context.Context, ps []Product) (map[string][]MatchedAsset, error) {
@@ -399,6 +415,25 @@ func TestContract_INV11_YouHaveYesMaybeNo(t *testing.T) {
 	}
 	if _, b = e.get("/feeds/cve/CVE-2026-10002"); at(b, "matched") == nil || len(at(b, "matched").([]any)) != 0 {
 		t.Errorf("no match must be [] with the inventory on: %v", b["matched"])
+	}
+}
+
+// KF-CVEPAGE (D-549): "Do you have it?" on the CVE page leaves out the devices the findings matcher's platform rules prove are not
+// affected (an Ubuntu box for an Alpine-only OpenSSH flaw); a failed check answers by product as before.
+func TestCVEPage_D549_PlatformRulesAgreeWithFindings(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	e.loadKEV()
+	e.inv.matches["synology|diskstation manager"] = []MatchedAsset{{ID: "a1", IP: "10.0.0.5", Display: "NAS", How: HaveYes}, {ID: "a2", IP: "10.0.0.6", Display: "NAS 2", How: HaveYes}}
+	e.inv.notAffected = map[string][]string{"CVE-2026-10001": {"a1"}}
+	if _, b := e.get("/feeds/cve/CVE-2026-10001"); len(at(b, "matched").([]any)) != 1 || at(b, "matched", 0, "id") != "a2" {
+		t.Fatalf("ruled-out device listed: %v", b["matched"])
+	}
+	e.inv.mu.Lock()
+	e.inv.platformErr = errors.New("inventory busy")
+	e.inv.mu.Unlock()
+	if _, b := e.get("/feeds/cve/CVE-2026-10001"); len(at(b, "matched").([]any)) != 2 {
+		t.Fatalf("a failed check must answer by product: %v", b["matched"])
 	}
 }
 

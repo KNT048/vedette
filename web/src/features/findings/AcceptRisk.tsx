@@ -28,9 +28,14 @@ export function AcceptUntil({ id, value, onChange, error }: { id: string; value:
   )
 }
 
-/** The status chip of a finding; "Risk accepted" is the findings module's own closed status (D-498). */
-export function FindingStatusChip({ f }: { f: { status: FindingRow['status']; accepted_until?: string | null } }) {
+/**
+ * The status chip of a finding; "Risk accepted" is the findings module's own closed status (D-498). An open finding whose version the
+ * device's own agent reports is "Detected by the agent" (D-548, like Tenable's and Qualys's agents and Defender Vulnerability Management),
+ * not "Suspected"; "Confirmed" stays what a safe scan template saw.
+ */
+export function FindingStatusChip({ f }: { f: { status: FindingRow['status']; accepted_until?: string | null; evidence?: { agent?: boolean } | null } }) {
   const { t } = useTranslation('findings')
+  if (f.status === 'suspected' && f.evidence?.agent) return <Chip tone="warn" title={t('agentChipHint')}>{t('agentChip')}</Chip>
   if (f.status !== 'risk_accepted') return <StatusChip status={f.status} />
   return <Chip tone="off" title={f.accepted_until ? t('accept.chipUntil', { date: fmtDate(f.accepted_until) }) : undefined}>{t('accept.chip')}</Chip>
 }

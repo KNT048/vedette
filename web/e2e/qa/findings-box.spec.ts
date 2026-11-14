@@ -76,7 +76,7 @@ test.describe('findings: list (S-MIT-1)', () => {
     const rows = rowsOf(page, isMobile)
     await expect(rows.first()).toBeVisible()
     await shot(page, 'findings-box', `${info.project.name}-list`)
-    await page.getByRole('button', { name: 'Suspected', exact: true }).click()
+    await page.getByRole('button', { name: 'Suspected or detected', exact: true }).click()
     await expect(rows.first()).toBeVisible()
     await page.getByRole('tab', { name: /^Handled/ }).click()
     await expect(rows.first().or(page.getByText('No findings in this list.').first()).first()).toBeVisible()

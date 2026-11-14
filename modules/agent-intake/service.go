@@ -311,6 +311,7 @@ type nodeRow struct {
 	approved    bool   // the enrolment's approval was done (D-503)
 	kernel      string // the running kernel release the node last reported (kernel_info, D-516), "" until it has
 	win         winOS  // the Windows release and update revision the node last reported (os_revision, D-524), zero until it has
+	hostname    string // the host name osquery gave at enrolment (host_details.system_info), "" when none
 }
 
 // nodeByKey finds the node whose key hashes to the hash of key; errNodeInvalid when there is none.
@@ -320,8 +321,8 @@ func (s *Service) nodeByKey(ctx context.Context, key string) (nodeRow, error) {
 	var got, seen, enrolled string
 	var ip, mac sql.NullString
 	err := s.db.Reader().QueryRowContext(ctx, `SELECT id, token_id, node_key_hash, last_seen, enrolled_at, bound_ip, bound_mac, reported, approved_at IS NOT NULL, kernel,
-		win_name, win_version, win_target FROM intake_osquery_nodes WHERE node_key_hash = ?`, want).Scan(&n.id, &n.tokenID, &got, &seen, &enrolled, &ip, &mac,
-		&n.reported, &n.approved, &n.kernel, &n.win.name, &n.win.version, &n.win.target)
+		win_name, win_version, win_target, ifnull(hostname, '') FROM intake_osquery_nodes WHERE node_key_hash = ?`, want).Scan(&n.id, &n.tokenID, &got, &seen, &enrolled, &ip, &mac,
+		&n.reported, &n.approved, &n.kernel, &n.win.name, &n.win.version, &n.win.target, &n.hostname)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nodeRow{}, errNodeInvalid
 	}

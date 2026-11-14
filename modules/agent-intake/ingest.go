@@ -56,8 +56,25 @@ func (s *Service) Log(ctx context.Context, src netip.Addr, in logIn) error {
 	if err != nil {
 		return err
 	}
+	if err := s.enrolHostname(ctx, n, hint, in); err != nil {
+		return err
+	}
 	return s.firstReport(ctx, n, hint, mac, taken)
 }
+
+// enrolHostname gives the device the host name osquery sent at enrolment (host_details.system_info.hostname) while its system_info
+// answer has not reached the inventory (W-2, D-548): without it a machine whose system_info is late or never taken is named after its
+// network card's maker ("QEMU virtual NIC") though its agent told its name. It goes in at the agent's rank, below the system_info
+// answer (0.9 < softwareConfidence), so that answer replaces it once it comes; a repeat only moves seen_at (inventory INV-1).
+func (s *Service) enrolHostname(ctx context.Context, n nodeRow, hint observe.AssetHint, in logIn) error {
+	if n.hostname == "" || !fits(n.hostname) || hasAnswer(n.reported, "system_info") || len(in.snaps["system_info"]) > 0 {
+		return nil
+	}
+	return s.record(ctx, []observe.Observation{{AssetHint: hint, Field: observe.Hostname, Value: n.hostname, Source: observe.Agent, Confidence: enrolHostConfidence}})
+}
+
+// enrolHostConfidence is the rank of the enrolment's host name among the agent's observations: below system_info's.
+const enrolHostConfidence = 0.9
 
 // nodeKernel is the running kernel release of the node (D-516): the one this request's kernel_info snapshot gives, stored on the node
 // when it changed, else the one stored. "" when the node never gave a usable one.

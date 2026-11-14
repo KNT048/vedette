@@ -155,7 +155,7 @@ func TestAliases_DataIsValid(t *testing.T) {
 func TestGolden_PatchedUbuntuServer(t *testing.T) {
 	t.Parallel()
 	vulns := goldenVulns(t)
-	res := MatchAsset(Asset{ID: "a", Name: "byn", OS: "Ubuntu 26.04.1 LTS", Software: ubuntuServer()}, vulns, nil, t0)
+	res := MatchAsset(Asset{ID: "a", Name: "byn", OS: "Ubuntu 26.04.1 LTS", AgentOS: "Ubuntu 26.04.1 LTS", Software: ubuntuServer()}, vulns, nil, t0)
 	var got []string
 	for _, m := range res.New {
 		got = append(got, m.CVE+" "+string(m.Basis))
@@ -171,7 +171,7 @@ func TestGolden_PatchedUbuntuServer(t *testing.T) {
 	}
 	// W3-2, D-530: the box already has the old flood (every KEV CVE of these products, by product). The four stay; every
 	// other one is proved outside its ranges (or, CVE-2021-3493, outside the OS releases it lists) and closes by itself.
-	byn := Asset{ID: "a", Name: "byn", OS: "Ubuntu 26.04.1 LTS", Software: ubuntuServer()}
+	byn := Asset{ID: "a", Name: "byn", OS: "Ubuntu 26.04.1 LTS", AgentOS: "Ubuntu 26.04.1 LTS", Software: ubuntuServer()}
 	flood := map[string]bool{}
 	for _, v := range vulns {
 		for _, sw := range byn.Software {

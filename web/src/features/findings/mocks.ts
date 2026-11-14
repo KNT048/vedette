@@ -8,7 +8,7 @@ import { versionNeeded } from '@/mocks/match'
 import type { Asset, Finding } from '@/lib/types'
 import { untilOk } from './accept'
 import { compromise, packs } from './packs'
-import type { AiResult, ApplyItem, FindingAsset, FindingDetail, FindingRow, FirewallGuide, KevInfo, MitigationPack, StatusAction } from './types'
+import type { AiResult, ApplyItem, FindingAsset, FindingDetail, FindingRow, FirewallGuide, KevInfo, MitigationPack, RowFix, StatusAction } from './types'
 import { fmtDate } from '@/lib/format'
 import { displayName } from '@/features/inventory/nameOf'
 
@@ -20,6 +20,9 @@ const aiOutputs = collection<Record<string, AiResult>>('mit_ai_outputs', () => (
 // D-498: accepted risks, finding id → last day. The shared store keeps them as not_relevant (closed for every other mock);
 // the findings API answers risk_accepted with accepted_until, and the day after it they reopen by themselves.
 export const accepted = collection<Record<string, string>>('fnd_risk_accepted', () => ({}))
+// D-545: the update that fixes a finding with others (FindingRow.fix), finding id → fix. The box computes it from NVD's ranges, which
+// the mock does not have, so it is empty unless a test or a sample sets it.
+export const fixes = collection<Record<string, RowFix>>('fnd_fixes', () => ({}))
 
 const APPLY_ITEMS: ApplyItem[] = ['patch', 'workaround', 'fortigate', 'mikrotik', 'generic']
 const ACTIONS: StatusAction[] = ['patched', 'mitigated', 'false_positive', 'not_relevant', 'accept_risk', 'reopen']
@@ -49,7 +52,9 @@ function assetView(a: Asset | undefined): FindingAsset | null {
 
 function row(f: Finding): FindingRow {
   const until = accepted.get()[f.id] ?? null
-  return { ...f, status: until ? 'risk_accepted' : f.status, accepted_until: until, asset: assetView(assetsStore.get().find((a) => a.id === f.asset_id)), kev: kevInfo(f.cve) }
+  const status = until ? 'risk_accepted' : f.status
+  return { ...f, status, accepted_until: until, asset: assetView(assetsStore.get().find((a) => a.id === f.asset_id)), kev: kevInfo(f.cve),
+    fix: status === 'confirmed' || status === 'suspected' ? fixes.get()[f.id] ?? null : null }
 }
 
 const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` }
@@ -92,6 +97,13 @@ function recheckFor(f: Finding, k: KevInfo | null, a: FindingAsset | null) {
     }
   }
   const reachable = !!a && a.ip !== '—'
+  if (f.evidence?.agent) { // D-548: the agent reports the installed version; nothing to look up (mitigation genericRecheck)
+    return { steps: [
+      `Nothing to look up: the agent on ${a?.name ?? 'the device'} reports the installed version of ${k?.display ?? 'the software'}, and Vedette compared it with the affected versions (Evidence above).`,
+      'Install the update (What to do below). The agent reports the new version by itself, usually within two hours (after the restart the update needs), and Vedette then closes this finding by itself.',
+      ...(k?.has_template && reachable ? ['This CVE also has a safe scan template: "Rescan this device" checks it from the network.'] : []),
+    ] }
+  }
   return {
     steps: f.basis === 'scan' && reachable
       ? ['Run the scan template again with the "Rescan this device" button.']

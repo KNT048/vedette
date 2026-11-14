@@ -1,6 +1,6 @@
 # Mitigation Contract
 
-> Tier: standard · Story: S-MIT-1 (phần "What to do"), S-MIT-3, S-MIT-4, S-AI-2 · Last verified: 2026-11-12 (gói ký trong image, D-345..D-349; WP-21: bộ nạp gói, nhà cung cấp "What to do", `applied|ai`, migration `mit_*`, có test; đã nối vào `cmd/vedette`: `Vendors` từ inventory, `Provider` đăng ký vào findings, `ActionHandlers`; `AI` là bản giả luôn "không có" (409 `ai_unavailable`) tới khi nối `ai` (WP-25); `Loader` nạp gói ký trong image qua job `load-packs`, D-345..D-349)
+> Tier: standard · Story: S-MIT-1 (phần "What to do"), S-MIT-3, S-MIT-4, S-AI-2 · Last verified: 2026-11-15 (D-548: `genericRecheck` của finding agent, INV-7); trước đó 2026-11-12 (gói ký trong image, D-345..D-349; WP-21: bộ nạp gói, nhà cung cấp "What to do", `applied|ai`, migration `mit_*`, có test; đã nối vào `cmd/vedette`: `Vendors` từ inventory, `Provider` đăng ký vào findings, `ActionHandlers`; `AI` là bản giả luôn "không có" (409 `ai_unavailable`) tới khi nối `ai` (WP-25); `Loader` nạp gói ký trong image qua job `load-packs`, D-345..D-349)
 
 Mitigation là phần **"What to do"** của một finding: gói giảm thiểu đã xác nhận, "Đã áp dụng", dấu hiệu "Tôi đã bị chưa?", giải thích AI. Finding (khớp, trạng thái, vòng đời) thuộc module `findings` (D-57(6)); `mitigation` phụ thuộc `findings`, tắt `mitigation` không mất phát hiện hay cảnh báo. GUI: `web/src/features/findings/{Recommendation.tsx,packs.ts}` và phần `pack`/`ai`/`applied` của trang finding. Nguồn hành vi: `findings/{contract,mocks,packs}.ts`.
 
@@ -11,6 +11,7 @@ Mitigation là phần **"What to do"** của một finding: gói giảm thiểu 
 - **INV-4**: Mỗi `CodeStep` có `side_effect` phải hiện trước khi người dùng sao chép lệnh; `{IP}`/`{HOST}` thay bằng giá trị thiết bị, đã escape (giá trị thiết bị là dữ liệu không tin cậy).
 - **INV-5**: `firewall[].detected=true` khi `inventory` có thiết bị của hãng đó.
 - **INV-6**: Dấu hiệu "Tôi đã bị chưa?" và lệnh kiểm tra chỉ là văn bản từ nội dung ký; Vedette không bao giờ chạy chúng.
+- **INV-7** (D-548): `recheck` khi không có gói (`genericRecheck`) cho finding có `evidence.agent`: "Nothing to look up: the agent on <thiết bị> reports the installed version of <phần mềm> …", rồi cài bản cập nhật (agent tự báo phiên bản mới, thường trong hai giờ; Vedette tự đóng finding), thêm dòng "Rescan this device" khi CVE có mẫu và thiết bị có IP; không bao giờ "About screen". `TestGenericRecheck_D548_AgentVersionIsNotAskedFor`.
 
 ## Preconditions / Postconditions
 - **PRE-1** (`Guidance(finding)`, nguồn của phần "What to do" trong `GET /findings/{id}`): finding tồn tại (do `findings` kiểm). **POST-1**: trả `pack`, `compromise`, `recheck`, `ai`, `ai_available {explain, config}`, `applied`; thiết bị thay vào `{IP}`/`{HOST}` theo INV-4. `recheck` chung (gói không có) gọi thiết bị bằng `AssetView.Name` (không bao giờ id), không giả định trang quản trị, và chỉ nhắc "Rescan this device" khi thiết bị có IP (D-484, W1-32).

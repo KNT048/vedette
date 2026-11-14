@@ -450,3 +450,42 @@ func groupFixOf(in swInfo, vulns []Vuln) *GroupFix {
 	g.Kind = "none"
 	return g
 }
+
+// RowFix is FindingRow.fix (D-545): the one update that fixes a finding together with the other open findings of the same software on
+// the same device, so the list can show one item ("Install the latest cumulative update for Windows Server 2025 (build 26100.2314 or
+// later): fixes 44 exploited vulnerabilities") instead of one row per CVE. Only an update a person can install: GroupFix kinds fixed,
+// esu, feature_update and distro (none and up_to name no release).
+type RowFix struct {
+	Group    string `json:"group"`    // "<device id>/<software id>": the findings with the same group take the same update
+	Kind     string `json:"kind"`     // fixed, esu, feature_update or distro (GroupFix.Kind)
+	Windows  bool   `json:"windows"`  // a Windows release row (D-546): the update is the monthly cumulative update of Windows Update
+	Software string `json:"software"` // the software row's display name
+	Version  string `json:"version"`  // the installed version
+	Fixed    string `json:"fixed"`    // the release or build that fixes them all (feature_update: the release to move to); "" for distro
+	Distro   string `json:"distro"`   // distro: "Ubuntu" or "Debian", "" for the distribution's
+}
+
+// RowFixes is FixedInForAll as FindingRow.fix, by CVE, for the vulnerabilities of a device's open findings (vulns: only those, as the
+// report does, so a release is named against what the device has).
+func RowFixes(a Asset, vulns []Vuln) map[string]*RowFix {
+	groups := FixedInForAll(a, vulns)
+	if len(groups) == 0 {
+		return nil
+	}
+	sws := map[string]Software{}
+	for _, s := range deviceSoftware(a) {
+		sws[s.ID] = s
+	}
+	out := make(map[string]*RowFix, len(groups))
+	for cve, g := range groups {
+		switch g.Kind {
+		case "fixed", "esu", "feature_update", "distro":
+		default:
+			continue
+		}
+		s := sws[g.Software]
+		_, win := winDevice(newSWInfo(s, a.OS))
+		out[cve] = &RowFix{Group: a.ID + "/" + g.Software, Kind: g.Kind, Windows: win, Software: clean(s.Display), Version: g.Version, Fixed: g.Fixed, Distro: g.Distro}
+	}
+	return out
+}

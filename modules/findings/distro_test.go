@@ -46,7 +46,8 @@ func TestDistroDecidesForAPackagedRow(t *testing.T) {
 	// installed below the fixed version: a version finding that names the distribution's fix
 	r = on("Ubuntu 24.04.1 LTS", ssh("1:9.6p1-3ubuntu13.4", "agent"), false)
 	if len(r.New) != 1 || r.New[0].Basis != BasisVersion || r.New[0].Severity != SeverityHigh ||
-		r.New[0].Evidence.Summary != "web-01 runs OpenSSH 1:9.6p1-3ubuntu13.4 from Ubuntu 24.04's packages. Ubuntu fixed CVE-2026-10001 in openssh 1:9.6p1-3ubuntu13.5 (Ubuntu security data); no scan has confirmed it yet, so this is only suspected." {
+		!r.New[0].Evidence.Agent || // D-548: the agent read the installed package: a detection, no "only suspected"
+		r.New[0].Evidence.Summary != "The agent on web-01 reports OpenSSH 1:9.6p1-3ubuntu13.4 installed from Ubuntu 24.04's packages. Ubuntu fixed CVE-2026-10001 in openssh 1:9.6p1-3ubuntu13.5 (Ubuntu security data), so this device has the flaw until it installs Ubuntu's security updates." {
 		t.Fatalf("unpatched: %+v", r.New)
 	}
 	f := FixedInFor(Asset{ID: "a", Name: "web-01", OS: "Ubuntu 24.04.1 LTS", Software: []Software{ssh("1:9.6p1-3ubuntu13.4", "agent")}}, v)
@@ -57,7 +58,7 @@ func TestDistroDecidesForAPackagedRow(t *testing.T) {
 	if r := on("Debian GNU/Linux 12 (bookworm)", ssh("1:9.2p1-2+deb12u5", "agent"), true); len(r.NotAffected) != 1 || !strings.Contains(r.NotAffected[0].Evidence.Summary, "(Debian Security Tracker)") {
 		t.Fatalf("Debian 12 patched: %+v", r)
 	}
-	if r := on("Debian 12", ssh("9.2p1-2+deb12u9", "agent"), false); len(r.New) != 1 || !strings.Contains(r.New[0].Evidence.Summary, "inside the range affected by") {
+	if r := on("Debian 12", ssh("9.2p1-2+deb12u9", "agent"), false); len(r.New) != 1 || !strings.Contains(r.New[0].Evidence.Summary, "affected by CVE-2026-10001 (before") {
 		t.Fatalf("Debian 12 without the epoch is another upstream than 1:9.2p1-2+deb12u5, so NVD decides: %+v", r.New)
 	}
 	// a fix only Ubuntu Pro has: below it, the page says so
@@ -74,7 +75,7 @@ func TestDistroDecidesForAPackagedRow(t *testing.T) {
 		"a row with no full version": {"Ubuntu 24.04.1 LTS", ssh("", "agent")},
 		"a device with no OS":        {"", ssh("1:9.6p1-3ubuntu13.14", "agent")},
 	} {
-		if r := on(c.os, c.s, false); len(r.New) != 1 || !strings.Contains(r.New[0].Evidence.Summary, "inside the range affected by") {
+		if r := on(c.os, c.s, false); len(r.New) != 1 || !strings.Contains(r.New[0].Evidence.Summary, "affected by CVE-2026-10001 (before") {
 			t.Errorf("%s: %+v, want NVD's version finding", name, r.New)
 		}
 	}

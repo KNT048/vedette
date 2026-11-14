@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"time"
 
 	catalogdata "github.com/knt048/vedette/content/catalog"
 )
@@ -70,7 +71,13 @@ var platformWords = []struct {
 	{"windows", "Windows", regexp.MustCompile(`(?i)\bwindows\b`)},
 	{"macos", "macOS", regexp.MustCompile(`(?i)\b(mac ?os|os x)\b`)},
 	{"bsd", "a BSD", regexp.MustCompile(`(?i)\b(freebsd|openbsd|netbsd)\b`)},
+	{"junos", "Juniper Junos OS", regexp.MustCompile(`(?i)\bjunos\b`)},
 }
+
+// networkOS are the platforms of network gear whose own statement of its OS (LLDP, SNMP) also says what a service a scan sees on it
+// runs on (D-549, N47-1): a Junos switch does not forward its management address to an Alpine container. Only Junos for now: RouterOS
+// and Cisco IOS XE can host containers, so a service seen on them may still be one.
+var networkOS = []string{"junos"}
 
 func platformName(id string) string {
 	for _, w := range platformWords {
@@ -112,15 +119,20 @@ func platformsIn(text string) []string {
 
 // platformOS is the device's OS when it is evidence of the platform the row was built for: only for a row the device's own
 // software inventory gave, read against the OS that inventory states. An agent row (osquery, Wazuh, the box's own package list)
-// takes the device's OS, which the agent's own report outranks every guess for; an SNMP row takes only the OS the device states
-// itself (Asset.StatedOS: LLDP/SNMP), never a fingerprint or DHCP guess. A row a scan saw on a port, a row a person typed and a
-// row of unknown source say nothing about it: a Ubuntu host may run or forward the service from an Alpine container
-// (CVE-2026-123158's references are Docker sshd images), so only the row's own text decides there (review r1 #1, #2).
+// takes the OS the agent itself reports (Asset.AgentOS), never the folded OS, which on a device the agent says nothing about can be
+// a fingerprint or DHCP guess (review r2 of #790); an SNMP row takes only the OS the device states itself (Asset.StatedOS: LLDP/SNMP).
+// A row a scan saw on a port, a row a person typed and a row of unknown source say nothing about it: a Ubuntu host may run or forward
+// the service from an Alpine container (CVE-2026-123158's references are Docker sshd images), so only the row's own text decides
+// there (review r1 #1, #2). Exception (D-549, N47-1): on network gear whose stated OS is one of networkOS (a Junos switch), that
+// statement counts for every row, since such gear runs no container behind its own address.
 func platformOS(s Software, a Asset) string {
 	switch s.Source {
 	case "agent":
-		return a.OS
+		return a.AgentOS
 	case "snmp":
+		return a.StatedOS
+	}
+	if slices.ContainsFunc(platformsIn(a.StatedOS), func(id string) bool { return slices.Contains(networkOS, id) }) {
 		return a.StatedOS
 	}
 	return ""
@@ -178,4 +190,17 @@ func platformCondition(cve string) string {
 		return ""
 	}
 	return fmt.Sprintf(" It affects only %s: %s (%s).", l.Affects, l.Check, l.Source)
+}
+
+// PlatformRuledOut says whether the platform rules of D-547 prove the KEV entry (cve of vendor and product) does not affect the device:
+// every software row keyed to it is ruled out by its platform (MatchAsset's OtherPlatform). The CVE page's "Do you have it?" (feeds)
+// asks it so it agrees with the device's findings (D-549, KF-CVEPAGE): an Ubuntu box whose OpenSSH finding of an Alpine-only CVE is
+// closed is not listed as running it. It reads no NVD range and no distribution data (feeds has the entry only): the distribution's
+// word (D-516), which could say its own package is affected after all, is not read here; no entry of the list has such a word today.
+func PlatformRuledOut(a Asset, cve, vendor, product string, now time.Time) bool {
+	if _, ok := platformLimits[cve]; !ok {
+		return false
+	}
+	r := MatchAsset(a, []Vuln{{CVE: cve, Vendor: vendor, Product: product}}, map[string]bool{cve: true}, now)
+	return len(r.OtherPlatform) > 0
 }

@@ -27,7 +27,10 @@ export const Finding = z.object({
   severity: Severity,
   confidence: z.number().min(0).max(1),
   basis: z.enum(['scan', 'version', 'product']).describe('scan = confirmed by a scan template; version = suspected by version; product = only the product matches'),
-  evidence: z.object({ summary: z.string(), template: z.string().optional(), request: z.string().optional(), response: z.string().optional(), checked_at: iso }).nullable(),
+  evidence: z.object({
+    summary: z.string(), template: z.string().optional(), request: z.string().optional(), response: z.string().optional(), checked_at: iso,
+    agent: z.boolean().optional().describe('D-548: the version compared is the one the device\'s own agent (osquery, Wazuh) reports installed: a detection, shown as "Detected by the agent", with nothing for the person to look up'),
+  }).nullable(),
   first_seen: iso,
   last_seen: iso,
   resolved_by: z.string().nullable(),
@@ -46,7 +49,19 @@ export const FindingAsset = z.object({
   id: z.string(), name: z.string().describe('The name the Devices page shows: hostname, else vendor and model, else the IP, else the software; never the internal id (D-484)'),
   hostname: z.string().nullable(), ip: z.string().describe('"—" when the device has no IP address'), kind: AssetKind, display: z.string(),
 })
-export const FindingRow = Finding.extend({ asset: FindingAsset.nullable(), kev: KevInfo.nullable().describe('Read from KEV, not from the project recommendation pack') })
+export const RowFix = z.object({
+  group: z.string().describe('"<device id>/<software id>": the open findings with the same group are fixed by the same update'),
+  kind: z.enum(['fixed', 'esu', 'feature_update', 'distro']).describe('fixed = upgrade to `fixed` (a Windows release: the monthly cumulative update with build `fixed` or later); esu = that build needs Extended Security Updates; feature_update = no update of this release fixes them, move to release `fixed`; distro = install the distribution\'s security updates for the package'),
+  windows: z.boolean().describe('A Windows release row (D-546): the update is the monthly cumulative update Windows Update offers'),
+  software: z.string().describe('Display name of the software row'),
+  version: z.string().describe('The installed version'),
+  fixed: z.string().describe('The release or build that fixes them all; feature_update: the release to move to; empty for distro'),
+  distro: z.string().describe('distro: "Ubuntu" or "Debian", empty for the distribution\'s'),
+}).describe('D-545: one update fixes this finding together with the device\'s other open findings of the same software (top-tier: one item per missing update)')
+export const FindingRow = Finding.extend({
+  asset: FindingAsset.nullable(), kev: KevInfo.nullable().describe('Read from KEV, not from the project recommendation pack'),
+  fix: RowFix.nullable().optional().describe('GET /findings only, open findings: the update that fixes it with others (D-545); null when there is none to name'),
+})
 
 export const CodeStep = z.object({
   title: z.string(), code: z.string(), note: z.string().optional(),

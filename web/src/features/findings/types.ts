@@ -6,6 +6,8 @@ export type KevInfo = z.infer<typeof C.KevInfo>
 export type FindingAsset = z.infer<typeof C.FindingAsset>
 /** Phát hiện + thiết bị + thông tin KEV (đọc từ KEV thật, không phải từ gói khuyến nghị của dự án). */
 export type FindingRow = z.infer<typeof C.FindingRow>
+/** D-545: the update that fixes several open findings of one software on one device. */
+export type RowFix = z.infer<typeof C.RowFix>
 /** D-500: a software without a usable version: one item, not one finding per CVE. */
 export type VersionNeeded = z.infer<typeof C.VersionNeeded>
 export type CodeStep = z.infer<typeof C.CodeStep>

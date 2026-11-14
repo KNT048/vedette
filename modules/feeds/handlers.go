@@ -226,6 +226,25 @@ func (s *Service) matchOf(ctx context.Context, products []Product) (map[string][
 	return m, true
 }
 
+// withoutNotAffected drops the devices the platform rules prove are not affected by v (D-549, PlatformChecker). A failed check keeps
+// the list by product (INV-10: the inventory degrades the answer, never fails it).
+func (s *Service) withoutNotAffected(ctx context.Context, v VulnRow, m []MatchedAsset) []MatchedAsset {
+	pc, ok := s.Inventory.(PlatformChecker)
+	if !ok || len(m) == 0 {
+		return m
+	}
+	ids := make([]string, len(m))
+	for i, a := range m {
+		ids[i] = a.ID
+	}
+	out, err := pc.NotAffected(ctx, v.CVE, v.Vendor, v.Product, ids)
+	if err != nil {
+		s.Log.WarnContext(ctx, "the platform check of a CVE failed; answering by product", "cve", v.CVE, "error", err)
+		return m
+	}
+	return slices.DeleteFunc(slices.Clone(m), func(a MatchedAsset) bool { return out[a.ID] })
+}
+
 // FeedsGetFeedsHot implements GET /feeds/hot (S-FEED-1, PRE-2, POST-2): the vulnerabilities added in the
 // window, grouped by product; rows are ordered you_have=yes first, then the number of CVEs, then the top EPSS.
 func (h *FeedHandlers) FeedsGetFeedsHot(ctx context.Context, params oas.FeedsGetFeedsHotParams) (*oas.FeedsGetFeedsHotOK, error) {
@@ -401,7 +420,7 @@ func (h *FeedHandlers) FeedsGetFeedsCveID(ctx context.Context, params oas.FeedsG
 		Matched *[]MatchedAsset `json:"matched"`
 	}{vulnDTO: toVulnDTO(v)}
 	if on {
-		m := match[v.Key()]
+		m := h.s.withoutNotAffected(ctx, v, match[v.Key()])
 		if m == nil {
 			m = []MatchedAsset{}
 		}

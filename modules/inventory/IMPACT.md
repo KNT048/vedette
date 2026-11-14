@@ -106,3 +106,6 @@
 
 ## Modifying: `AddServices` (D-592 review r2 M2)
 - A partial look that names a product updates that port's name, product, version and confidence: **sensor-active** sends the -sV follow-up of the weekly scan of every port through it. A gentle look names no product and changes only `seen_at` and `detail`. Making AddServices overwrite on an empty product would wipe what a normal scan read.
+
+## Modifying: `MatchDevice.AgentOS` (D-549)
+- **findings** (qua `cmd/vedette/wiring.go` `findingsInventory.MatchInput` → `findings.Asset.AgentOS`): bằng chứng nền tảng của dòng agent (findings INV-16); cả trang CVE của feeds (`feedsInventory.NotAffected`). Đổi nguồn hay thứ tự ⇒ finding nền tảng đóng/mở lại.

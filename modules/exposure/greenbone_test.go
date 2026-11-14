@@ -2,6 +2,7 @@ package exposure
 
 import (
 	"context"
+	"database/sql"
 	"encoding/base64"
 	"encoding/xml"
 	"errors"
@@ -19,6 +20,7 @@ import (
 
 	"github.com/knt048/vedette/core/api/oas"
 	"github.com/knt048/vedette/core/store"
+	"github.com/knt048/vedette/modules/scan/commonports"
 )
 
 const gbReportID = "5f2c5a6e-1b7d-4c1e-9a55-0c0f1f2e3d4a"
@@ -43,31 +45,34 @@ func readReport(raw string) ([]GreenboneRow, int, error) {
 // ---- a fake gvmd: answers GMP commands over a net.Pipe ----
 
 type fakeGVM struct {
-	mu         sync.Mutex
-	cmds       []string // command names in the order they came
-	authFail   bool
-	syncing    bool       // get_feeds reports a feed that is still loading
-	dataSync   bool       // gvmd's own feed lock is taken: its GVMD_DATA feed is syncing (the lock is one for every feed of gvmd)
-	noFAF      bool       // "Full and fast" is not there yet (404)
-	states     []string   // get_tasks answers in turn; the last repeats
-	report     string     // the get_reports answer
-	configs    []*fakeCfg // Vedette's configs, made by create_config
-	foreign    string     // a config of this name belongs to another GMP user
-	taskConfig string     // the config of the last create_task
-	logAtStart int        // probe rows in the log when start_task came
-	log        *gbLog
-	noPref     bool            // the feed has no "Disable default account checks"
-	keepNo     bool            // gvmd ignores the change of the checkboxes
-	noWebPref  bool            // the feed has no "Enable generic web application scanning"
-	keepWeb    bool            // gvmd ignores the change of that checkbox only
-	keepSafe   bool            // gvmd ignores the change of safe_checks
-	keepFamily bool            // gvmd ignores the family selection
-	inUse      bool            // modify_config refused: a task uses the config
-	leftover   string          // the state of a task an earlier scan left behind; "" none
-	fail       map[string]bool // commands answered with 400
-	hang       map[string]bool // commands never answered
-	onPoll     func()          // runs (without the lock) at each poll of the task
-	bodies     []string        // every command's attributes and body
+	mu          sync.Mutex
+	cmds        []string // command names in the order they came
+	authFail    bool
+	syncing     bool       // get_feeds reports a feed that is still loading
+	dataSync    bool       // gvmd's own feed lock is taken: its GVMD_DATA feed is syncing (the lock is one for every feed of gvmd)
+	noFAF       bool       // "Full and fast" is not there yet (404)
+	states      []string   // get_tasks answers in turn; the last repeats
+	report      string     // the get_reports answer
+	configs     []*fakeCfg // Vedette's configs, made by create_config
+	foreign     string     // a config of this name belongs to another GMP user
+	taskConfig  string     // the config of the last create_task
+	logAtStart  int        // probe rows in the log when start_task came
+	log         *gbLog
+	noPref      bool            // the feed has no "Disable default account checks"
+	keepNo      bool            // gvmd ignores the change of the checkboxes
+	noWebPref   bool            // the feed has no "Enable generic web application scanning"
+	keepWeb     bool            // gvmd ignores the change of that checkbox only
+	keepSafe    bool            // gvmd ignores the change of safe_checks
+	keepFamily  bool            // gvmd ignores the family selection
+	inUse       bool            // modify_config refused: a task uses the config
+	leftover    string          // the state of a task an earlier scan left behind; "" none
+	fail        map[string]bool // commands answered with 400
+	hang        map[string]bool // commands never answered
+	onPoll      func()          // runs (without the lock) at each poll of the task
+	bodies      []string        // every command's attributes and body
+	stopTo      string          // after a stop_task of the scan's task, get_tasks says this state ("" keeps the states)
+	portRange   string          // the port_range of the last create_port_list
+	hadLeftover bool            // an earlier scan's task was listed: its port list is there too
 }
 
 const leftoverTask = "cccccccc-dddd-4eee-8fff-000000000000"
@@ -220,7 +225,14 @@ func (f *fakeGVM) answer(cmd string, body string) string {
 		}
 		return ok("")
 	case "get_port_lists":
-		return ok(`<port_list id="` + gmpIANATCP + `"><name>All IANA assigned TCP</name></port_list>`)
+		if f.hadLeftover { // the earlier scan left its port list too
+			return ok(`<port_list id="99999999-eeee-4fff-8000-111111111111"><name>vedette-scan-old</name><owner><name>vedette</name></owner></port_list>` +
+				`<port_list id="88888888-eeee-4fff-8000-111111111111"><name>vedette-scan-theirs</name><owner><name>someone</name></owner></port_list>`)
+		}
+		return ok("")
+	case "create_port_list":
+		f.portRange = body[strings.Index(body, "<port_range>")+len("<port_range>") : strings.Index(body, "</port_range>")]
+		return `<create_port_list_response status="201" status_text="OK, resource created" id="ffffffff-aaaa-4bbb-8ccc-dddddddddddd"/>`
 	case "create_target":
 		return `<create_target_response status="201" status_text="OK, resource created" id="aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee"/>`
 	case "create_task":
@@ -265,11 +277,15 @@ func (f *fakeGVM) answer(cmd string, body string) string {
 		if strings.Contains(body, leftoverTask) && cmd == "delete_task" {
 			f.leftover = ""
 		}
+		if cmd == "stop_task" && f.stopTo != "" && strings.Contains(body, "bbbbbbbb-cccc-4ddd-8eee-ffffffffffff") {
+			f.states = []string{f.stopTo}
+		}
 		return ok("")
 	case "get_tasks":
 		if strings.Contains(body, "filter=") {
 			out := `<task id="eeeeeeee-ffff-4000-8111-222222222222"><name>vedette-scan-theirs</name><owner><name>someone</name></owner><status>Running</status></task>`
 			if f.leftover != "" {
+				f.hadLeftover = true
 				out += `<task id="` + leftoverTask + `"><name>vedette-scan-old</name><owner><name>vedette</name></owner><status>` + f.leftover + `</status></task>`
 			}
 			return ok(out)
@@ -430,6 +446,11 @@ func (l *gbLog) RecordGreenboneProbe(_ context.Context, p GreenboneProbe) error 
 }
 
 const gib = 1 << 30
+
+// gbOpen is the content of a scan that found ports 22 and 443 open on ipA: OpenVAS checks those (N49-4, D-595).
+func gbOpen() Content {
+	return Content{Ports: []PortRow{{IP: ipA, Port: 443, Service: "https"}, {IP: ipA, Port: 22, Service: "ssh"}}}
+}
 
 // gbEnv is an env with Greenbone wired, two-step sign-in on, and the IP of scanIP with its testing terms accepted (D-566), without the
 // disruptive tick: 16 GiB of memory, 200 GB free, a ready gvmd with the fixture report, a probe log, and no waiting between polls.
@@ -723,7 +744,7 @@ func TestContract_INV25_SeamNilWording(t *testing.T) {
 	}
 	_, err = e.svc.SetGreenbone(e.ctx(), "admin@acme.example", true)
 	wantAPI(t, err, 501, "not_implemented")
-	s := e.scanIP(Content{})
+	s := e.scanIP(gbOpen())
 	if !slices.Contains(notChecked(s), NotAvailableGreenbone) || len(s.Greenbone) != 0 {
 		t.Fatalf("not checked = %q", notChecked(s))
 	}
@@ -739,7 +760,7 @@ func TestContract_INV25_ScansTheVerifiedIP(t *testing.T) {
 	e, h := gbEnv(t)
 	e.enable()
 	h.gvm.with(func(g *fakeGVM) { g.states = []string{"Requested", "Running", "Done"} })
-	s := e.scanIP(Content{})
+	s := e.scanIP(gbOpen())
 	if len(s.Greenbone) != 4 || s.Greenbone[0].Severity != 9.8 || s.Greenbone[0].IP != ipA || s.Greenbone[3].IP != ipA {
 		t.Fatalf("greenbone = %+v", s.Greenbone)
 	}
@@ -752,14 +773,83 @@ func TestContract_INV25_ScansTheVerifiedIP(t *testing.T) {
 		t.Fatalf("families = %q", c.families)
 	}
 	l := gvm.log
-	if len(l.rows) != 1 || l.rows[0].IP != ipA || l.rows[0].PortList != GreenbonePortList || !strings.Contains(l.rows[0].Note, "many probes") || gvm.logAtStart != 1 {
+	if len(l.rows) != 1 || l.rows[0].IP != ipA || l.rows[0].PortList != "T:22,443" || !strings.Contains(l.rows[0].Note, "many probes") || gvm.logAtStart != 1 {
 		t.Fatalf("probe log = %+v, rows at start %d", l.rows, gvm.logAtStart)
 	}
-	if !gvm.seen("delete_task") || !gvm.seen("delete_target") || gvm.seen("stop_task") || !slices.Contains(e.auditActions(), "exposure.greenbone_scan") {
+	if !gvm.seen("delete_task") || !gvm.seen("delete_target") || !gvm.seen("delete_port_list") || gvm.seen("stop_task") || !slices.Contains(e.auditActions(), "exposure.greenbone_scan") {
 		t.Fatalf("cmds = %q", gvm.cmds)
 	}
-	if !slices.Contains(checkKinds(s), "greenbone") {
+	if !slices.ContainsFunc(s.Checks, func(c CheckRow) bool {
+		return c.Kind == "greenbone" && strings.HasPrefix(c.Text, "OpenVAS scanned "+ipA)
+	}) {
 		t.Fatalf("checks = %+v", s.Checks)
+	}
+	if s.GreenboneRun.State != GBRunDone || s.GreenboneRun.StartedAt == nil {
+		t.Fatalf("greenbone_run = %+v", s.GreenboneRun)
+	}
+}
+
+// N49-4 (D-595): OpenVAS checks only the ports the run found open: a port list "T:<those ports>" of its own made before the target,
+// the target on that list with alive test "Consider Alive" (no ping, no IANA list), and the list deleted after the target.
+func TestContract_INV25_PortListOfTheOpenPorts(t *testing.T) {
+	t.Parallel()
+	e, h := gbEnv(t)
+	e.enable()
+	c := gbOpen()
+	c.Ports = append(c.Ports, PortRow{IP: ipA, Port: 443, Service: "https"}, PortRow{IP: ipB, Port: 8080, Service: "http"}) // a repeat, another address
+	s := e.scanIP(c)
+	gvm := h.gvm
+	gvm.mu.Lock()
+	defer gvm.mu.Unlock()
+	order := func(cmd string) int { return slices.Index(gvm.cmds, cmd) }
+	if gvm.portRange != "T:22,443" || order("create_port_list") < 0 || order("create_port_list") > order("create_target") ||
+		order("delete_target") > slices.Index(gvm.cmds, "delete_port_list") {
+		t.Fatalf("port range %q, cmds %q", gvm.portRange, gvm.cmds)
+	}
+	target := gvm.bodies[order("create_target")]
+	if !strings.Contains(target, `<port_list id="ffffffff-aaaa-4bbb-8ccc-dddddddddddd"/>`) || !strings.Contains(target, "<alive_tests>Consider Alive</alive_tests>") ||
+		!strings.Contains(target, "<hosts>"+ipA+"</hosts>") {
+		t.Fatalf("create_target = %q", target)
+	}
+	if !strings.Contains(gvm.bodies[slices.Index(gvm.cmds, "delete_port_list")], "port_list_id=ffffffff-aaaa-4bbb-8ccc-dddddddddddd") {
+		t.Fatalf("cmds %q", gvm.cmds)
+	}
+	if !slices.ContainsFunc(s.Checks, func(c CheckRow) bool {
+		return c.Kind == "greenbone" && strings.Contains(c.Text, "; TCP ports 22, 443)")
+	}) {
+		t.Fatalf("checks = %+v", s.Checks)
+	}
+}
+
+// N49-4 (D-595): a scan that found no open port does not start OpenVAS (no pending line, nothing sent) and says why; more
+// than the believable number of open ports (a box that answers on every port) is not sent either.
+func TestContract_INV25_NoOpenPortNoOpenVAS(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name    string
+		content Content
+		want    string
+	}{
+		{"none", Content{}, notGBNoPorts},
+		{"another address only", Content{Ports: []PortRow{{IP: ipB, Port: 443, Service: "https"}}}, notGBNoPorts},
+		{"answers everywhere", func() Content {
+			var c Content
+			for p := range commonports.MaxBelievableOpen + 1 {
+				c.Ports = append(c.Ports, PortRow{IP: ipA, Port: 1000 + p, Service: "x"})
+			}
+			return c
+		}(), notGBTooManyPorts},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			e, h := gbEnv(t)
+			e.enable()
+			s := e.scanIP(tc.content)
+			if h.gvm.seen("create_port_list") || h.gvm.seen("create_target") || h.gvm.seen("start_task") || !slices.Contains(notChecked(s), tc.want) ||
+				slices.ContainsFunc(notChecked(s), func(l string) bool { return l == gbPending }) || s.GreenboneRun.State != GBRunNotRun || s.GreenboneRun.StartedAt != nil {
+				t.Fatalf("cmds %q, not checked %q, run %+v", h.gvm.cmds, notChecked(s), s.GreenboneRun)
+			}
+		})
 	}
 }
 
@@ -784,7 +874,7 @@ func TestContract_INV25_WhenItDoesNotRun(t *testing.T) {
 	t.Run("off", func(t *testing.T) {
 		t.Parallel()
 		e, h := gbEnv(t)
-		s := e.scanIP(Content{})
+		s := e.scanIP(gbOpen())
 		if h.dialCount() != 0 || h.ups != 0 || !slices.Contains(notChecked(s), notGBOff) {
 			t.Fatalf("dials %d, not checked %q", h.dialCount(), notChecked(s))
 		}
@@ -794,7 +884,7 @@ func TestContract_INV25_WhenItDoesNotRun(t *testing.T) {
 		e, h := gbEnv(t)
 		e.enable()
 		h.gvm.with(func(g *fakeGVM) { g.syncing = true })
-		s := e.scanIP(Content{})
+		s := e.scanIP(gbOpen())
 		if h.gvm.seen("create_target") || !slices.Contains(notChecked(s), notGBLoading) {
 			t.Fatalf("cmds %q, not checked %q", h.gvm.cmds, notChecked(s))
 		}
@@ -825,24 +915,71 @@ func TestContract_INV25_WhenItDoesNotRun(t *testing.T) {
 		e, h := gbEnv(t)
 		e.enable()
 		h.gvm.log.err = errors.New("disk full")
-		s := e.scanIP(Content{})
+		s := e.scanIP(gbOpen())
 		if h.gvm.seen("start_task") || !slices.Contains(notChecked(s), notGBNoLog) {
 			t.Fatalf("cmds %q, not checked %q", h.gvm.cmds, notChecked(s))
 		}
 	})
 }
 
-// INV-25: a scan that does not finish within the cap says so, and the task is stopped and deleted.
+// INV-25, D-595: a scan that does not finish within the cap is stopped, and what it had found by then is read and shown with the line
+// that says so (never "not shown" when rows exist); the task is then deleted. When that report cannot be read, the old line stays.
 func TestContract_INV25_Timeout(t *testing.T) {
 	t.Parallel()
-	e, h := gbEnv(t)
-	e.enable()
-	h.gvm.with(func(g *fakeGVM) { g.states = []string{"Running"} })
-	e.svc.gb().poll, e.svc.gb().cap = time.Millisecond, 50*time.Millisecond
-	s := e.scanIP(Content{})
-	if !slices.Contains(notChecked(s), notGBSlow) || len(s.Greenbone) != 0 || !h.gvm.seen("stop_task") || !h.gvm.seen("delete_task") {
-		t.Fatalf("not checked %q, cmds %q", notChecked(s), h.gvm.cmds)
-	}
+	t.Run("partial rows", func(t *testing.T) {
+		t.Parallel()
+		e, h := gbEnv(t)
+		e.enable()
+		h.gvm.with(func(g *fakeGVM) { g.states, g.stopTo = []string{"Running"}, "Stopped" })
+		e.svc.gb().poll, e.svc.gb().cap = time.Millisecond, 50*time.Millisecond
+		s := e.scanIP(gbOpen())
+		if len(s.Greenbone) != 4 || !slices.Contains(notChecked(s), notGBPartial) || slices.Contains(notChecked(s), notGBSlow) || !h.gvm.seen("stop_task") ||
+			!h.gvm.seen("get_reports") || !h.gvm.seen("delete_task") || !h.gvm.seen("delete_port_list") {
+			t.Fatalf("rows %d, not checked %q, cmds %q", len(s.Greenbone), notChecked(s), h.gvm.cmds)
+		}
+		if s.GreenboneRun.State != GBRunPartial || !slices.ContainsFunc(s.Checks, func(c CheckRow) bool {
+			return c.Kind == "greenbone" && strings.HasPrefix(c.Text, "OpenVAS partly scanned "+ipA)
+		}) {
+			t.Fatalf("run %+v, checks %+v", s.GreenboneRun, s.Checks)
+		}
+		var detail string
+		for _, a := range e.audits() {
+			if a.Action == "exposure.greenbone_scan" {
+				detail = a.Detail
+			}
+		}
+		if !strings.HasPrefix(detail, "stopped after 90 minutes: 4 results found by then") {
+			t.Fatalf("audit %q", detail)
+		}
+	})
+	t.Run("partial without rows", func(t *testing.T) {
+		t.Parallel()
+		e, h := gbEnv(t)
+		e.enable()
+		h.gvm.with(func(g *fakeGVM) {
+			g.states, g.stopTo = []string{"Running"}, "Stopped"
+			g.report = `<get_reports_response status="200" status_text="OK"><report id="` + gbReportID + `"><report id="` + gbReportID + `"><results></results></report></report></get_reports_response>`
+		})
+		e.svc.gb().poll, e.svc.gb().cap = time.Millisecond, 50*time.Millisecond
+		s := e.scanIP(gbOpen())
+		if len(s.Greenbone) != 0 || !slices.Contains(notChecked(s), notGBPartialNone) || s.GreenboneRun.State != GBRunPartial {
+			t.Fatalf("rows %d, not checked %q, run %+v", len(s.Greenbone), notChecked(s), s.GreenboneRun)
+		}
+	})
+	t.Run("report unreadable", func(t *testing.T) {
+		t.Parallel()
+		e, h := gbEnv(t)
+		e.enable()
+		h.gvm.with(func(g *fakeGVM) {
+			g.states, g.stopTo = []string{"Running"}, "Stopped"
+			g.fail = map[string]bool{"get_reports": true}
+		})
+		e.svc.gb().poll, e.svc.gb().cap = time.Millisecond, 50*time.Millisecond
+		s := e.scanIP(gbOpen())
+		if !slices.Contains(notChecked(s), notGBSlow) || len(s.Greenbone) != 0 || !h.gvm.seen("stop_task") || !h.gvm.seen("delete_task") || s.GreenboneRun.State != GBRunFailed {
+			t.Fatalf("not checked %q, cmds %q, run %+v", notChecked(s), h.gvm.cmds, s.GreenboneRun)
+		}
+	})
 }
 
 // kevLookup is a Matcher that also says which CVE ids are on the list.
@@ -871,7 +1008,7 @@ func TestContract_INV25_GreenboneNeverReplacesAVersionRow(t *testing.T) {
 	e.svc.cfg.Services = &fakeServices{scan: ServiceScan{Services: []ServiceRow{{IP: ipA, Port: 443, Name: "https", Product: "Apache httpd", Version: "2.4.49"}}}}
 	e.svc.cfg.Matcher = &kevLookup{fakeMatcher: fakeMatcher{m: Matches{Compared: 1, Vulns: []VulnRow{version}}},
 		kev: map[string]KEVEntry{"CVE-2021-41773": {Name: "Apache path traversal"}, "CVE-2023-48795": {Name: "Terrapin"}}}
-	s := e.scanIP(Content{})
+	s := e.scanIP(gbOpen())
 	var basis []string
 	for _, v := range s.Vulns {
 		basis = append(basis, v.CVE+" "+v.Basis)
@@ -952,7 +1089,7 @@ func TestContract_INV25_SafeConfigFailsClosed(t *testing.T) {
 			e, h := gbEnv(t)
 			e.enable()
 			h.gvm.with(tc.set)
-			s := e.scanIP(Content{})
+			s := e.scanIP(gbOpen())
 			if h.gvm.seen("create_task") || h.gvm.seen("start_task") || !slices.ContainsFunc(notChecked(s), func(l string) bool { return strings.Contains(l, tc.want) }) {
 				t.Fatalf("cmds %q, not checked %q", h.gvm.cmds, notChecked(s))
 			}
@@ -960,28 +1097,33 @@ func TestContract_INV25_SafeConfigFailsClosed(t *testing.T) {
 	}
 }
 
-// M4: a task an earlier scan left running is stopped and deleted before a new one starts; a task of another GMP user is not touched;
+// M4: a task an earlier scan left running is stopped and deleted before a new one starts (its target and port list too); a task or
+// port list of another GMP user is not touched;
 // one that cannot be deleted while it stops blocks the new task; a failed cleanup is logged, audited and said on the page.
 func TestContract_INV25_LeftoversAndCleanup(t *testing.T) {
 	t.Parallel()
 	e, h := gbEnv(t)
 	e.enable()
 	h.gvm.with(func(g *fakeGVM) { g.leftover = "Running" })
-	s := e.scanIP(Content{})
+	s := e.scanIP(gbOpen())
 	if len(s.Greenbone) != 4 || h.gvm.leftoverState() != "" || h.gvm.touched("eeeeeeee-ffff-4000-8111-222222222222") {
 		t.Fatalf("rows %d, leftover %q, cmds %q", len(s.Greenbone), h.gvm.leftoverState(), h.gvm.cmds)
+	}
+	// N49-4: its leftover port list too (after the targets), never another user's
+	if !h.gvm.touched("99999999-eeee-4fff-8000-111111111111") || h.gvm.touched("88888888-eeee-4fff-8000-111111111111") {
+		t.Fatalf("cmds %q, bodies %q", h.gvm.cmds, h.gvm.bodies)
 	}
 	e2, h2 := gbEnv(t)
 	e2.enable()
 	h2.gvm.with(func(g *fakeGVM) { g.leftover, g.fail = "Stop Requested", map[string]bool{"delete_task": true} })
-	s2 := e2.scanIP(Content{})
+	s2 := e2.scanIP(gbOpen())
 	if h2.gvm.seen("create_task") || !slices.ContainsFunc(notChecked(s2), func(l string) bool { return strings.Contains(l, "still stopping") }) {
 		t.Fatalf("cmds %q, not checked %q", h2.gvm.cmds, notChecked(s2))
 	}
 	e3, h3 := gbEnv(t)
 	e3.enable()
 	h3.gvm.with(func(g *fakeGVM) { g.fail = map[string]bool{"delete_target": true} })
-	s3 := e3.scanIP(Content{})
+	s3 := e3.scanIP(gbOpen())
 	if len(s3.Greenbone) != 4 || !slices.ContainsFunc(notChecked(s3), func(l string) bool {
 		return strings.Contains(l, "delete_target") && strings.Contains(l, "The next scan stops")
 	}) {
@@ -1006,6 +1148,7 @@ func TestContract_INV25_SnapshotFirstThenGreenbone(t *testing.T) {
 	e.enable()
 	var stored int
 	var phase string
+	var during GreenboneRun
 	h.gvm.with(func(g *fakeGVM) {
 		g.states = []string{"Running", "Done"}
 		g.onPoll = func() {
@@ -1013,13 +1156,21 @@ func TestContract_INV25_SnapshotFirstThenGreenbone(t *testing.T) {
 				_ = e.db.Reader().QueryRowContext(context.Background(), `SELECT count(*) FROM exp_snapshot WHERE not_checked LIKE '%runs for up to 90 minutes%'`).Scan(&stored)
 				if r := e.svc.CurrentScan(); r != nil {
 					phase = r.Phase
+					if snap, err := e.svc.SnapshotOf(context.Background(), r.TargetID, r.StartedAt[:10]); err == nil {
+						during = snap.GreenboneRun
+					}
 				}
 			}
 		}
 	})
-	s := e.scanIP(Content{})
+	s := e.scanIP(gbOpen())
 	if stored != 1 || phase != PhaseGreenbone {
 		t.Fatalf("stored before Greenbone = %d, phase %q", stored, phase)
+	}
+	// N49-3, N49-2 (D-595): while it scans, the snapshot says so, with the start as a timestamp (the page formats it), and no box-time text
+	if during.State != GBRunRunning || during.StartedAt == nil || *during.StartedAt != store.FormatTS(e.clock.Now()) || s.GreenboneRun.State != GBRunDone ||
+		s.GreenboneRun.StartedAt == nil || *s.GreenboneRun.StartedAt != *during.StartedAt {
+		t.Fatalf("during %+v, after %+v", during, s.GreenboneRun)
 	}
 	if len(s.Greenbone) != 4 || slices.ContainsFunc(notChecked(s), func(l string) bool { return strings.Contains(l, "runs for up to 90 minutes") }) {
 		t.Fatalf("greenbone %d, not checked %q", len(s.Greenbone), notChecked(s))
@@ -1054,8 +1205,8 @@ func TestContract_INV25_StopKeepsTheEarlierResults(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(snap.Ports) != 1 || !slices.Contains(notChecked(snap), notGBStopped) || !h.gvm.seen("stop_task") {
-		t.Fatalf("ports %d, not checked %q, cmds %q", len(snap.Ports), notChecked(snap), h.gvm.cmds)
+	if len(snap.Ports) != 1 || !slices.Contains(notChecked(snap), notGBStopped) || !h.gvm.seen("stop_task") || snap.GreenboneRun.State != GBRunStopped {
+		t.Fatalf("ports %d, not checked %q, cmds %q, run %+v", len(snap.Ports), notChecked(snap), h.gvm.cmds, snap.GreenboneRun)
 	}
 	var rows []string
 	for _, a := range e.audits() {
@@ -1150,7 +1301,7 @@ func TestContract_INV25_TermsDecideGreenbone(t *testing.T) {
 	e.terms = nil
 	e.enable()
 	before := h.dialCount() // reading the setting may ask gvmd whether it is ready; the scan must not
-	s := e.scanIP(Content{})
+	s := e.scanIP(gbOpen())
 	if !slices.Contains(notChecked(s), notGBTerms) || len(s.Greenbone) != 0 || h.dialCount() != before {
 		t.Fatalf("not checked %q, dials %d -> %d", notChecked(s), before, h.dialCount())
 	}
@@ -1187,7 +1338,7 @@ func TestContract_INV25_TermsDecideGreenbone(t *testing.T) {
 		t.Fatal(err)
 	}
 	dials := h.dialCount()
-	o, err := e.svc.greenboneStep(e.ctx(), ScanTarget{ID: id, Kind: KindIP, Value: ipA, User: "admin@acme.example", Mode: ScanMode{Full: true, Disruptive: true}})
+	o, err := e.svc.greenboneStep(e.ctx(), ScanTarget{ID: id, Kind: KindIP, Value: ipA, User: "admin@acme.example", Mode: ScanMode{Full: true, Disruptive: true}}, []int{443})
 	if err != nil || len(o.not) != 1 || o.not[0].Text != notGBTerms || h.dialCount() != dials {
 		t.Fatalf("step = %+v, %v, dials %d -> %d", o, err, dials, h.dialCount())
 	}
@@ -1198,7 +1349,7 @@ func TestContract_INV25_LowIsAHardeningNote(t *testing.T) {
 	t.Parallel()
 	e, _ := gbEnv(t)
 	e.enable()
-	s := e.scanIP(Content{})
+	s := e.scanIP(gbOpen())
 	if !slices.ContainsFunc(s.Checks, func(c CheckRow) bool {
 		return c.Kind == "greenbone" && strings.Contains(c.Text, "4 results with QoD 70 or more (2 high or medium, 2 hardening notes)")
 	}) {
@@ -1412,7 +1563,7 @@ func TestContract_INV25_NeedsNoSCAPOrCERTData(t *testing.T) {
 		t.Fatalf("NVT and gvmd data loaded, no SCAP or CERT feed = %+v", v)
 	}
 	h.gvm.with(func(g *fakeGVM) { g.states = []string{"Running", "Done"} })
-	if s := e.scanIP(Content{}); len(s.Greenbone) != 4 {
+	if s := e.scanIP(gbOpen()); len(s.Greenbone) != 4 {
 		t.Fatalf("greenbone = %+v", s.Greenbone)
 	}
 	h.gvm.with(func(g *fakeGVM) {
@@ -1422,4 +1573,67 @@ func TestContract_INV25_NeedsNoSCAPOrCERTData(t *testing.T) {
 			}
 		}
 	})
+}
+
+// N49-3 (D-595): one state for the OpenVAS heading. A snapshot left "running" by a restart of the box (no run scans it now) reads as
+// stopped; a snapshot older than the column gets the state its lines say; a stored state that is not one is not believed.
+func TestContract_INV25_OneStateForTheHeading(t *testing.T) {
+	t.Parallel()
+	e, _ := gbEnv(t)
+	e.enable()
+	s := e.scanIP(gbOpen())
+	id := e.ipTarget(ipA)
+	for _, tc := range []struct{ run, want string }{
+		{`{"state":"running","started_at":"2026-11-09T10:00:00.000Z"}`, GBRunStopped}, // a restart in the middle: nothing scans it now
+		{`{"state":"partial","started_at":"2026-11-09T10:00:00.000Z"}`, GBRunPartial},
+		{`{"state":"bogus"}`, GBRunDone}, // not believed: the lines say (this scan has a greenbone check row)
+		{`{}`, GBRunDone},
+	} {
+		if err := e.db.Write(e.ctx(), func(tx *sql.Tx) error {
+			_, err := tx.ExecContext(e.ctx(), `UPDATE exp_snapshot SET greenbone_run = ? WHERE id = ?`, tc.run, s.ID)
+			return err
+		}); err != nil {
+			t.Fatal(err)
+		}
+		got, err := e.svc.SnapshotOf(e.ctx(), id, s.Date)
+		if err != nil || got.GreenboneRun.State != tc.want {
+			t.Fatalf("%s: %+v, %v", tc.run, got.GreenboneRun, err)
+		}
+	}
+	// the waiting line of a step a restart cut off says it was stopped, never "scanning"; so does an old line with a box time
+	if err := e.db.Write(e.ctx(), func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(e.ctx(), `UPDATE exp_snapshot SET greenbone_run = '{"state":"running","started_at":"2026-11-09T10:00:00.000Z"}', not_checked = ? WHERE id = ?`,
+			`[{"kind":"greenbone","text":"`+gbPending+`"},{"kind":"greenbone","text":"OpenVAS started at 14 Nov 2026, 18:16 and runs for up to 90 minutes."}]`, s.ID)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	got, err := e.svc.SnapshotOf(e.ctx(), id, s.Date)
+	if err != nil || got.GreenboneRun.State != GBRunStopped || !slices.Equal(notChecked(got)[:2], []string{notGBCutOff, notGBCutOff}) {
+		t.Fatalf("run %+v, not checked %q, %v", got.GreenboneRun, notChecked(got), err)
+	}
+	old := func(lines ...string) Content {
+		c := Content{}
+		for _, l := range lines {
+			c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "greenbone", Text: l})
+		}
+		return c
+	}
+	for _, tc := range []struct {
+		c    Content
+		want string
+	}{
+		{old("OpenVAS started at 14 Nov 2026, 18:16 and runs for up to 90 minutes; its results are added here when it finishes."), GBRunStopped},
+		{old(notGBSlowOld), GBRunFailed},
+		{old(notGBOff), GBRunNotRun},
+		{Content{}, GBRunNotRun},
+	} {
+		if got := storedGreenboneRun(GreenboneRun{}, tc.c); got.State != tc.want || got.StartedAt != nil {
+			t.Fatalf("%+v: %+v", tc.c.NotChecked, got)
+		}
+	}
+	bad := "18:16"
+	if got := storedGreenboneRun(GreenboneRun{State: GBRunDone, StartedAt: &bad}, Content{}); got.StartedAt != nil {
+		t.Fatalf("a start that is not a time was kept: %+v", got)
+	}
 }

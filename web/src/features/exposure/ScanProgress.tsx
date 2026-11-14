@@ -18,15 +18,22 @@ export function ScanProgress() {
   const { data: run } = useScanRun()
   const stop = useStopScan()
   const wasRunning = useRef<string | null>(null)
+  const savedFor = useRef<string | null>(null)
   const status = run?.status
+  const phase = run?.phase
   useEffect(() => {
     if (!run) return
+    // N49-3 (D-595): the other results are saved when OpenVAS starts: show them, with "OpenVAS is scanning", without waiting 90 minutes
+    if (run.status === 'running' && run.phase === 'greenbone' && savedFor.current !== run.id) {
+      savedFor.current = run.id
+      void qc.invalidateQueries({ queryKey: ['exposure'] })
+    }
     if (run.status === 'running') { wasRunning.current = run.id; return }
     if (wasRunning.current !== run.id) return
     wasRunning.current = null
     void qc.invalidateQueries({ queryKey: ['exposure'] })
     if (run.status === 'done') toast.success(t('progress.done', { value: run.target_value }))
-  }, [run, status, qc, t])
+  }, [run, status, phase, qc, t])
   if (!run) return null
   if (run.status === 'running') {
     return (

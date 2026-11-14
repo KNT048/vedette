@@ -3,6 +3,7 @@ package exposure
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
@@ -16,6 +17,7 @@ import (
 	"time"
 
 	"github.com/knt048/vedette/core/store"
+	"github.com/knt048/vedette/modules/scan/commonports"
 )
 
 // Optional deep scan with Greenbone Community Edition (OpenVAS), off by default (S-EXP-2, CONTRACT INV-25, D-563, plan
@@ -137,6 +139,8 @@ const (
 	gbSyncTimeout      = 60 * time.Minute // pulling the four feed images (D-593)
 	gbSyncStopWait     = 30 * time.Second // how long Turn off and Close wait for a cancelled feed update to end (review r1 L2)
 	gbNote             = "OpenVAS sends many probes: every test of the config on every port of the list. They are not logged one by one."
+	// gbStopBudget bounds what follows the cap (D-595): stop the task, wait for gvmd to say it stopped, read what it found by then.
+	gbStopBudget = 5 * time.Minute
 	// GreenboneLowBelow: a result below this severity is Low (Greenbone's own classes: Low 0.1 to 3.9, Medium 4.0 to 6.9, High 7.0
 	// to 10). Low results are hardening notes (D-564 G3): shown apart, never counted as alerts.
 	GreenboneLowBelow = 4.0
@@ -158,23 +162,33 @@ const (
 	notGBOff              = "Optional deep scan with OpenVAS is off. An administrator can turn it on under Settings on the External exposure page."
 	notGBDomain           = "OpenVAS runs on the box's own verified public IP only, never on the names of a domain."
 	// notGBNoDeep: a domain with accepted terms whose deep scan reached no address this run (D-571).
-	notGBNoDeep      = "OpenVAS did not scan: no address of this domain's names got the deep scan this run."
-	notGBStarting    = "OpenVAS did not scan: it is still starting."
-	notGBLoading     = "OpenVAS did not scan: it is loading its feed (the first time takes about 2 hours)."
-	notGBGate        = "OpenVAS did not scan: this IP can no longer be scanned (it was removed, paused, no longer verified or needs the scan confirmed again), so nothing was sent."
-	notGBNoLog       = "OpenVAS did not scan: the probe log is not available, and nothing is sent without it."
-	notGBSlow        = "OpenVAS did not finish within 90 minutes, so its results are not shown."
-	notGBFail        = "OpenVAS failed, so its results are not shown. The box log has the error."
-	notGBUnread      = "OpenVAS returned an answer that could not be read, so its results are not shown."
-	notGBNotCompared = "The CVEs OpenVAS named were not compared with the list of exploited vulnerabilities: that comparison is not set up on this box yet."
-	gbLoadingReason  = "OpenVAS is loading its feed (first time takes about 2 hours)"
-	gbNotAnswering   = "OpenVAS does not answer on its socket. Turn it off and on again to restart it."
-	gbAuthFailed     = "Vedette could not sign in to OpenVAS (GMP): it refused the login the box set for it. If OpenVAS has finished loading its feed, turn it off and on again so the box sets the login again."
-	gbUnreadable     = "OpenVAS answered in a way Vedette could not read."
-	gbBusyReason     = "OpenVAS is busy loading its feed and answers slowly; Vedette will ask again."
-	gbSlowReason     = "OpenVAS did not answer within 2 minutes."
-	notGBSlowAnswer  = "OpenVAS did not answer within 2 minutes, so its results are not shown."
-	notGBStopped     = "OpenVAS was stopped before it finished, so its results are not shown. The results of the other checks above are kept."
+	notGBNoDeep   = "OpenVAS did not scan: no address of this domain's names got the deep scan this run."
+	notGBStarting = "OpenVAS did not scan: it is still starting."
+	notGBLoading  = "OpenVAS did not scan: it is loading its feed (the first time takes about 2 hours)."
+	notGBGate     = "OpenVAS did not scan: this IP can no longer be scanned (it was removed, paused, no longer verified or needs the scan confirmed again), so nothing was sent."
+	notGBNoLog    = "OpenVAS did not scan: the probe log is not available, and nothing is sent without it."
+	notGBSlow     = "OpenVAS did not finish within 90 minutes, and what it had found by then could not be read, so its results are not shown."
+	// notGBSlowOld is notGBSlow before D-595, read only to give a snapshot older than greenbone_run its state.
+	notGBSlowOld = "OpenVAS did not finish within 90 minutes, so its results are not shown."
+	// notGBPartial and notGBPartialNone: the cap stopped the task and its report was read (D-595): the rows found by then are shown.
+	notGBPartial     = "OpenVAS was stopped after 90 minutes; these are the results it had found by then."
+	notGBPartialNone = "OpenVAS was stopped after 90 minutes; by then it had found no result with QoD 70 or more. Finding nothing is not proof the services are not affected."
+	// notGBNoPorts and notGBTooManyPorts (N49-4, D-595): OpenVAS checks only the ports this run found open.
+	notGBNoPorts      = "OpenVAS did not scan: this scan found no open port to check."
+	notGBTooManyPorts = "OpenVAS did not scan: more than 40 ports answered, more than a normal box exposes (a router or firewall that answers for every port looks like this), so OpenVAS was not sent over them."
+	notGBFail         = "OpenVAS failed, so its results are not shown. The box log has the error."
+	notGBUnread       = "OpenVAS returned an answer that could not be read, so its results are not shown."
+	notGBNotCompared  = "The CVEs OpenVAS named were not compared with the list of exploited vulnerabilities: that comparison is not set up on this box yet."
+	gbLoadingReason   = "OpenVAS is loading its feed (first time takes about 2 hours)"
+	gbNotAnswering    = "OpenVAS does not answer on its socket. Turn it off and on again to restart it."
+	gbAuthFailed      = "Vedette could not sign in to OpenVAS (GMP): it refused the login the box set for it. If OpenVAS has finished loading its feed, turn it off and on again so the box sets the login again."
+	gbUnreadable      = "OpenVAS answered in a way Vedette could not read."
+	gbBusyReason      = "OpenVAS is busy loading its feed and answers slowly; Vedette will ask again."
+	gbSlowReason      = "OpenVAS did not answer within 2 minutes."
+	notGBSlowAnswer   = "OpenVAS did not answer within 2 minutes, so its results are not shown."
+	notGBStopped      = "OpenVAS was stopped before it finished, so its results are not shown. The results of the other checks above are kept."
+	// notGBCutOff replaces the waiting line of a step nothing runs any more (a restart of the box in the middle of it, N49-3, D-595).
+	notGBCutOff = "OpenVAS was stopped before it finished (the box restarted or the scan was stopped), so its results are not shown. The results of the other checks above are kept."
 	// notGBTerms: Greenbone runs only on a target whose testing terms are accepted (D-566).
 	notGBTerms      = "OpenVAS did not scan: accept the testing terms for this target to run OpenVAS (Ownership tab)."
 	gbSyncingReason = "OpenVAS is loading its weekly feed update"
@@ -711,9 +725,28 @@ func (s *Service) greenbonePlan(ctx context.Context, st ScanTarget) (run bool, l
 
 // gbPending is the "Not checked" line a snapshot carries while its Greenbone step runs (review r1 M5): the snapshot of the other
 // steps is stored first, and this line is replaced when Greenbone ends. A restart of the box in between leaves it, and it says so.
-func gbPending(at string) string {
-	return "OpenVAS started at " + at + " and runs for up to 90 minutes; its results are added here when it finishes. If none appear, it was stopped before it finished (a stop or a restart of the box)."
+// It names no time (N49-2, D-595): the page shows GreenboneRun.StartedAt in the viewer's time zone, like every other time on it.
+const gbPending = "OpenVAS is scanning and runs for up to 90 minutes; its results are added here when it finishes. If none appear, it was stopped before it finished (a stop or a restart of the box)."
+
+// The states of a snapshot's OpenVAS step (GreenboneRun.State, contract.ts GreenboneRun; N49-3, D-595): the one source the page reads
+// its OpenVAS heading from.
+const (
+	GBRunRunning = "running" // the snapshot of the other steps is stored and OpenVAS scans now
+	GBRunDone    = "done"    // it finished; its rows (maybe none) are the snapshot's
+	GBRunPartial = "partial" // the cap stopped it; its rows are what it had found by then
+	GBRunNotRun  = "not_run" // it did not scan (off, loading, no open port, terms, gate…); a "Not checked" line says why
+	GBRunFailed  = "failed"  // it ran or tried to and failed (an error, an answer that could not be read, the cap without a report)
+	GBRunStopped = "stopped" // a Stop, the module or the box ended it before it finished (also a restart: running with no run behind it)
+)
+
+// GreenboneRun is the state of a snapshot's OpenVAS step and when it started (RFC 3339 UTC, nil when it did not), stored with the
+// snapshot (exp_snapshot.greenbone_run, migration 0011).
+type GreenboneRun struct {
+	State     string  `json:"state"`
+	StartedAt *string `json:"started_at"`
 }
+
+var gbRunStates = []string{GBRunRunning, GBRunDone, GBRunPartial, GBRunNotRun, GBRunFailed, GBRunStopped}
 
 // gbOutcome is what the Greenbone step adds to the stored snapshot.
 type gbOutcome struct {
@@ -721,16 +754,52 @@ type gbOutcome struct {
 	checks []CheckRow
 	not    []NotCheckedRow
 	audit  string // the detail of the exposure.greenbone_scan audit row
+	state  string // GreenboneRun.State after the step
+}
+
+// gbRunOf is the state of OpenVAS over several addresses of a domain (D-571): stopped, else partial, else done, else failed, else not run.
+func gbRunOf(states []string) string {
+	for _, st := range []string{GBRunStopped, GBRunPartial, GBRunDone, GBRunFailed} {
+		if slices.Contains(states, st) {
+			return st
+		}
+	}
+	return GBRunNotRun
+}
+
+// gbPorts is what OpenVAS checks on ip (N49-4, D-595): the TCP ports this run found open there (the surface scan and service
+// identification), ascending, without repeats; a row an earlier scan left (not seen, not checked) is not one.
+func gbPorts(rows []PortRow, ip netip.Addr) []int {
+	var out []int
+	for _, p := range rows {
+		if ipKey(p.IP) == ip.String() && p.Port >= 1 && p.Port <= 65535 && p.Misses == 0 && !p.Unchecked && !slices.Contains(out, p.Port) {
+			out = append(out, p.Port)
+		}
+	}
+	slices.Sort(out)
+	return out
+}
+
+// gbPortsLine is why OpenVAS does not scan these ports, "" when it may: none (nothing to check), or more than
+// commonports.MaxBelievableOpen (the shape of a router or SYN proxy answering for every port, D-522).
+func gbPortsLine(ports []int) string {
+	switch {
+	case len(ports) == 0:
+		return notGBNoPorts
+	case len(ports) > commonports.MaxBelievableOpen:
+		return notGBTooManyPorts
+	}
+	return ""
 }
 
 // greenboneStep is the deep scan itself (INV-25), after the snapshot of the other steps is stored: the gate again, the probe log row,
 // then runGreenbone, at most the cap. Only a stop of the run returns an error; every other outcome is a line.
-func (s *Service) greenboneStep(ctx context.Context, st ScanTarget) (gbOutcome, error) {
+func (s *Service) greenboneStep(ctx context.Context, st ScanTarget, ports []int) (gbOutcome, error) {
 	ip, err := netip.ParseAddr(st.Value)
 	if err != nil { // an IP target's value is a canonical public IPv4 (INV-2, INV-3): never reached
 		return gbOutcome{}, fmt.Errorf("exposure: Greenbone on %q: %w", st.Value, err)
 	}
-	return s.greenboneAt(ctx, st, ip)
+	return s.greenboneAt(ctx, st, ip, ports)
 }
 
 // GreenboneFence is implemented by a GreenboneHost whose host checks the domain fence itself before OpenVAS scans an address of a
@@ -772,10 +841,14 @@ func domainNote(st ScanTarget) string {
 }
 
 // greenboneAt is greenboneStep on one address: an IP target's own, or an address a domain's deep scan reached (D-571), whose ScanTarget
-// then carries the domain (and, for an address that is not the box's, its scope, which the host checks through GreenboneFence).
-func (s *Service) greenboneAt(ctx context.Context, st ScanTarget, ip netip.Addr) (gbOutcome, error) {
+// then carries the domain (and, for an address that is not the box's, its scope, which the host checks through GreenboneFence). ports
+// are the TCP ports this run found open there (gbPorts): OpenVAS checks those only (N49-4, D-595).
+func (s *Service) greenboneAt(ctx context.Context, st ScanTarget, ip netip.Addr, ports []int) (gbOutcome, error) {
 	line := func(text, audit string) (gbOutcome, error) {
-		return gbOutcome{not: []NotCheckedRow{{Kind: "greenbone", Text: clipText(text, maxLineText)}}, audit: audit}, nil
+		return gbOutcome{not: []NotCheckedRow{{Kind: "greenbone", Text: clipText(text, maxLineText)}}, audit: audit, state: GBRunNotRun}, nil
+	}
+	if l := gbPortsLine(ports); l != "" { // nothing is sent: no open port to check, or an address that answers on every port
+		return line(l, "not done: "+strings.TrimPrefix(l, "OpenVAS did not scan: "))
 	}
 	// The gate of the run is many minutes old by now: the target must still be verified, committed, not paused and the box's own IP.
 	t, reason, gerr := s.gate(ctx, st.User, st.ID)
@@ -816,17 +889,15 @@ func (s *Service) greenboneAt(ctx context.Context, st ScanTarget, ip netip.Addr)
 	g.mu.Lock()
 	poll, limit := g.poll, g.cap
 	g.mu.Unlock()
-	gctx, cancel := context.WithTimeout(ctx, limit)
-	defer cancel()
-	rows, problems, err := s.runGreenbone(gctx, st, ip, plog, poll)
+	rows, problems, partial, err := s.runGreenbone(ctx, limit, st, ip, ports, plog, poll)
 	var out gbOutcome
 	if len(problems) > 0 {
 		s.cfg.Log.ErrorContext(ctx, "exposure: Greenbone left something behind", "target", st.Value, "problems", problems)
 		out.not = append(out.not, NotCheckedRow{Kind: "greenbone", Text: clipText("OpenVAS: "+strings.Join(problems, "; ")+". The next scan stops and removes Vedette's leftover tasks before it starts.", maxLineText)})
 	}
-	add := func(text, audit string) (gbOutcome, error) {
+	add := func(state, text, audit string) (gbOutcome, error) {
 		out.not = append([]NotCheckedRow{{Kind: "greenbone", Text: clipText(text, maxLineText)}}, out.not...)
-		out.audit = audit
+		out.audit, out.state = audit, state
 		if len(problems) > 0 {
 			out.audit += "; " + strings.Join(problems, "; ")
 		}
@@ -836,25 +907,25 @@ func (s *Service) greenboneAt(ctx context.Context, st ScanTarget, ip netip.Addr)
 	switch {
 	case err == nil:
 	case ctx.Err() != nil: // the run was stopped
-		out.audit = "stopped"
+		out.audit, out.state = "stopped", GBRunStopped
 		if len(problems) > 0 {
 			out.audit += "; " + strings.Join(problems, "; ")
 		}
 		return out, err
 	case errors.Is(err, errGBNoLog):
-		return add(notGBNoLog, "not done: the probe log could not be written")
-	case gctx.Err() != nil:
-		return add(notGBSlow, "not done: did not finish within 90 minutes")
+		return add(GBRunNotRun, notGBNoLog, "not done: the probe log could not be written")
+	case errors.Is(err, errGBCap):
+		return add(GBRunFailed, notGBSlow, "not done: did not finish within 90 minutes, and its report could not be read")
 	case errors.As(err, &un):
-		return add("OpenVAS did not scan: "+un.Reason, "not done: "+un.Reason)
+		return add(GBRunNotRun, "OpenVAS did not scan: "+un.Reason, "not done: "+un.Reason)
 	case errors.Is(err, errGMPSlow):
-		return add(notGBSlowAnswer, "not done: no answer in time")
+		return add(GBRunFailed, notGBSlowAnswer, "not done: no answer in time")
 	case errors.Is(err, ErrGMPBad):
 		s.cfg.Log.ErrorContext(ctx, "exposure: unreadable Greenbone answer", "target", st.Value, "error", err)
-		return add(notGBUnread, "not done: unreadable answer")
+		return add(GBRunFailed, notGBUnread, "not done: unreadable answer")
 	default:
 		s.cfg.Log.ErrorContext(ctx, "exposure: Greenbone failed", "target", st.Value, "error", err)
-		return add(notGBFail, "failed")
+		return add(GBRunFailed, notGBFail, "failed")
 	}
 	cves := map[string]bool{}
 	for _, r := range rows {
@@ -868,14 +939,28 @@ func (s *Service) greenboneAt(ctx context.Context, st ScanTarget, ip netip.Addr)
 			low++
 		}
 	}
-	out.rows = rows
+	out.rows, out.state = rows, GBRunDone
+	how := "scanned"
+	if partial { // the "Not checked" line above says it was stopped after 90 minutes
+		how, out.state = "partly scanned", GBRunPartial
+	}
 	out.checks = []CheckRow{{Kind: "greenbone", At: store.FormatTS(s.clock()), Text: clipText(fmt.Sprintf(
-		"OpenVAS scanned %s from outside without logging in (%s; port list %s): %s with QoD %d or more (%d high or medium, %s), %s named.",
-		ip, levelOf(st.Mode).text, GreenbonePortList, plural(len(rows), "result"), GreenboneMinQoD, len(rows)-low, plural(low, "hardening note"), plural(len(cves), "CVE")), maxLineText)}}
+		"OpenVAS %s %s from outside without logging in (%s; %s): %s with QoD %d or more (%d high or medium, %s), %s named.",
+		how, ip, levelOf(st.Mode).text, gbPortsText(ports), plural(len(rows), "result"), GreenboneMinQoD, len(rows)-low, plural(low, "hardening note"), plural(len(cves), "CVE")), maxLineText)}}
+	if partial { // D-595: never "not shown" when rows exist; the line says they are what it had found by the cap
+		text := notGBPartial
+		if len(rows) == 0 {
+			text = notGBPartialNone
+		}
+		out.not = append([]NotCheckedRow{{Kind: "greenbone", Text: text}}, out.not...)
+	}
 	if len(rows) > maxGreenboneRows {
 		out.not = append(out.not, NotCheckedRow{Kind: "greenbone", Text: fmt.Sprintf("OpenVAS: only the %d highest-severity of %d results are kept.", maxGreenboneRows, len(rows))})
 	}
 	out.audit = fmt.Sprintf("done: %s, %s", plural(len(rows), "result"), plural(len(cves), "CVE"))
+	if partial {
+		out.audit = fmt.Sprintf("stopped after 90 minutes: %s found by then, %s", plural(len(rows), "result"), plural(len(cves), "CVE"))
+	}
 	if len(problems) > 0 {
 		out.audit += "; " + strings.Join(problems, "; ")
 	}
@@ -886,12 +971,21 @@ func (s *Service) greenboneAt(ctx context.Context, st ScanTarget, ip netip.Addr)
 // by the outcome's lines, its rows and check are added, and one exposure.greenbone_scan audit row says how it ended, in the same
 // transaction. It runs on its own context, so a stop or a shutdown still records it. A snapshot that is gone (the target was deleted
 // meanwhile) is left alone.
-func (s *Service) addGreenbone(ctx context.Context, user string, t Target, snap *Snapshot, pending string, o gbOutcome) {
+func (s *Service) addGreenbone(ctx context.Context, user string, t Target, snap *Snapshot, o gbOutcome) {
 	not := []NotCheckedRow{}
 	for _, n := range snap.NotChecked {
-		if n.Kind != "greenbone" || n.Text != pending {
+		if n.Kind != "greenbone" || n.Text != gbPending {
 			not = append(not, n)
 		}
+	}
+	snap.GreenboneRun.State = o.state // N49-3: the heading follows this, the one state of the step
+	if !slices.Contains(gbRunStates, o.state) || o.state == GBRunRunning {
+		snap.GreenboneRun.State = GBRunFailed // never reached: every outcome names its state
+	}
+	run, err := json.Marshal(snap.GreenboneRun)
+	if err != nil {
+		s.cfg.Log.ErrorContext(ctx, "exposure: encoding Greenbone's state failed", "target", t.Value, "error", err)
+		return
 	}
 	c := snap.Content
 	c.NotChecked = append(not, o.not...)
@@ -901,12 +995,12 @@ func (s *Service) addGreenbone(ctx context.Context, user string, t Target, snap 
 	snap.Content = c
 	wctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), saveTimeout)
 	defer cancel()
-	err := s.write(wctx, func(tx *sql.Tx, _ func(string, any)) error {
+	err = s.write(wctx, func(tx *sql.Tx, _ func(string, any)) error {
 		d, err := snapshotDocs(c, snap.Counts)
 		if err != nil {
 			return err
 		}
-		if _, err := tx.ExecContext(wctx, `UPDATE exp_snapshot SET checks = ?, not_checked = ?, greenbone = ? WHERE id = ?`, d[6], d[7], d[9], snap.ID); err != nil {
+		if _, err := tx.ExecContext(wctx, `UPDATE exp_snapshot SET checks = ?, not_checked = ?, greenbone = ?, greenbone_run = ? WHERE id = ?`, d[6], d[7], d[9], string(run), snap.ID); err != nil {
 			return fmt.Errorf("adding Greenbone's results: %w", err)
 		}
 		return s.audit(wctx, tx, user, "exposure.greenbone_scan", t.Value, clipText(o.audit, 500))
@@ -918,58 +1012,102 @@ func (s *Service) addGreenbone(ctx context.Context, user string, t Target, snap 
 
 var errGBNoLog = errors.New("exposure: the Greenbone probe log row could not be written")
 
-// runGreenbone is one scan over GMP: Vedette's leftover tasks and targets removed first, the config of the scan's level (D-566) and the
-// port list, a target of exactly ip, a task, the probe log row, start, a poll every `poll` until gvmd says Done, then the report (QoD >= GreenboneMinQoD).
-// The task, its report and the target are deleted afterwards (stopped first when cut short), and what could not be is returned in
-// problems.
-func (s *Service) runGreenbone(ctx context.Context, st ScanTarget, ip netip.Addr, plog GreenboneProbeLog, poll time.Duration) (rows []GreenboneRow, problems []string, err error) {
-	dctx, cancel := context.WithTimeout(ctx, gbDialTimeout)
+// errGBCap: the cap ended the scan and what it had found could not be read (it ended before the task started, or the stop or the
+// report failed after it).
+var errGBCap = errors.New("exposure: OpenVAS did not finish within the cap")
+
+// gbPortsText names the ports OpenVAS checked in its check line (at most maxLineText): which, while that stays short, else how many.
+// The probe log row has the whole list.
+func gbPortsText(ports []int) string {
+	if r := strings.TrimPrefix(gbPortRange(ports), "T:"); len(r) <= 16 {
+		return "TCP ports " + strings.ReplaceAll(r, ",", ", ")
+	}
+	return fmt.Sprintf("the %d open TCP ports", len(ports))
+}
+
+// runGreenbone is one scan over GMP: Vedette's leftover tasks, targets and port lists removed first, the config of the scan's level
+// (D-566), a port list of exactly the open ports (N49-4, D-595), a target of exactly ip, a task, the probe log row, start, a poll every
+// `poll` until gvmd says Done, then the report (QoD >= GreenboneMinQoD). At most limit: when it passes with the task running, the task
+// is stopped and what it had found by then is read (partial, D-595); a stop of the run (ctx) reads nothing. The task, its report, the
+// target and the port list are deleted afterwards (stopped first when cut short), and what could not be is returned in problems.
+func (s *Service) runGreenbone(ctx context.Context, limit time.Duration, st ScanTarget, ip netip.Addr, ports []int, plog GreenboneProbeLog, poll time.Duration) (rows []GreenboneRow, problems []string, partial bool, err error) {
+	gctx, cancel := context.WithTimeout(ctx, limit)
+	defer cancel()
+	defer func() { // the cap, not a stop of the run, ended it and nothing could be read
+		if err != nil && ctx.Err() == nil && gctx.Err() != nil && !errors.Is(err, errGBNoLog) {
+			err = errGBCap
+		}
+	}()
+	dctx, dcancel := context.WithTimeout(gctx, gbDialTimeout)
 	conn, login, err := s.cfg.Greenbone.Dial(dctx)
-	cancel()
+	dcancel()
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, false, err
 	}
 	defer func() { _ = conn.Close() }()
 	g := &gmpConn{conn: conn}
-	if err := g.authenticate(ctx, login); err != nil {
-		return nil, nil, err
+	if err := g.authenticate(gctx, login); err != nil {
+		return nil, nil, false, err
 	}
-	if problems, err = g.leftovers(ctx, login.User); err != nil { // never a second task of Vedette's beside one still running
-		return nil, problems, err
+	if problems, err = g.leftovers(gctx, login.User); err != nil { // never a second task of Vedette's beside one still running
+		return nil, problems, false, err
 	}
 	lv := levelOf(st.Mode)
-	config, err := g.levelConfig(ctx, login.User, lv)
+	config, err := g.levelConfig(gctx, login.User, lv)
 	if err != nil {
-		return nil, problems, err
-	}
-	ports, err := g.portList(ctx)
-	if err != nil {
-		return nil, problems, err
+		return nil, problems, false, err
 	}
 	name := gbObjectPrefix + ip.String() + "-" + store.NewID("gb")
-	target, err := g.createTarget(ctx, name, ip.String(), ports)
+	portList, err := g.createPortList(gctx, name, ports)
 	if err != nil {
-		return nil, problems, err
+		return nil, problems, false, err
 	}
-	task, running := "", false
-	defer func() { problems = append(problems, s.gbCleanup(ctx, task, target, running)...) }()
-	if task, err = g.createTask(ctx, name, target, config); err != nil {
-		return nil, problems, err
+	task, target, running := "", "", false
+	defer func() { problems = append(problems, s.gbCleanup(ctx, task, target, portList, running)...) }()
+	if target, err = g.createTarget(gctx, name, ip.String(), portList); err != nil {
+		return nil, problems, false, err
 	}
-	if err := plog.RecordGreenboneProbe(ctx, GreenboneProbe{ID: store.NewID("pb"), IP: ip.String(), PortList: GreenbonePortList,
+	if task, err = g.createTask(gctx, name, target, config); err != nil {
+		return nil, problems, false, err
+	}
+	if err := plog.RecordGreenboneProbe(gctx, GreenboneProbe{ID: store.NewID("pb"), IP: ip.String(), PortList: gbPortRange(ports),
 		Config: lv.name + " (" + lv.text + ")", Note: domainNote(st) + gbNote}); err != nil { // LEGAL §3: logged before the task starts
-		if ctx.Err() != nil {
-			return nil, problems, ctx.Err()
+		if gctx.Err() != nil {
+			return nil, problems, false, gctx.Err()
 		}
 		s.cfg.Log.ErrorContext(ctx, "exposure: writing the Greenbone probe log failed", "target", st.Value, "error", err)
-		return nil, problems, errGBNoLog
+		return nil, problems, false, errGBNoLog
 	}
-	report, err := g.startTask(ctx, task)
+	report, err := g.startTask(gctx, task)
 	if err != nil {
 		running = true // it may have started: stop it to be sure
-		return nil, problems, err
+		return nil, problems, false, err
 	}
 	running = true
+	rows, ended, err := s.gbWait(gctx, g, st, ip, task, report, poll)
+	if ended {
+		running = false
+	}
+	if err != nil && ctx.Err() == nil && gctx.Err() != nil && !ended { // the cap: stop the task and read what it found by then (D-595)
+		rows, stopped, perr := s.gbPartial(ctx, task, report, ip, poll)
+		if stopped {
+			running = false
+		}
+		if perr != nil {
+			if ctx.Err() != nil {
+				return nil, problems, false, ctx.Err()
+			}
+			s.cfg.Log.ErrorContext(ctx, "exposure: reading what Greenbone found before the cap failed", "target", st.Value, "error", perr)
+			return nil, problems, false, errGBCap
+		}
+		return rows, problems, true, nil
+	}
+	return rows, problems, false, err
+}
+
+// gbWait polls the started task every `poll` until gvmd ends it, then reads its report; ended says gvmd ended the task (it needs no
+// stop).
+func (s *Service) gbWait(ctx context.Context, g *gmpConn, st ScanTarget, ip netip.Addr, task, report string, poll time.Duration) (rows []GreenboneRow, ended bool, err error) {
 	checked := s.clock()
 	for {
 		// D-591, review r1 L2: an address of a domain that is not the box's is checked again by the host's fence every gbFenceRecheck
@@ -978,37 +1116,71 @@ func (s *Service) runGreenbone(ctx context.Context, st ScanTarget, ip netip.Addr
 			checked = s.clock()
 			if err := f.CheckDomainIP(ctx, *st.Domain, ip, FenceCheck{Disruptive: st.Mode.Disruptive, Recheck: true}); err != nil {
 				if ctx.Err() != nil {
-					return nil, problems, ctx.Err()
+					return nil, false, ctx.Err()
 				}
 				s.cfg.Log.ErrorContext(ctx, "exposure: the domain fence stopped OpenVAS", "target", st.Value, "ip", ip, "error", err)
-				return nil, problems, &Unavailable{Reason: notGBFencedMid}
+				return nil, false, &Unavailable{Reason: notGBFencedMid}
 			}
 		}
 		state, _, err := g.taskStatus(ctx, task)
 		if err != nil {
-			return nil, problems, err
+			return nil, false, err
 		}
 		switch state {
 		case gmpDone:
-			running = false
 			rows, _, err := g.report(ctx, report, ip.String())
-			return rows, problems, err
+			return rows, true, err
 		case "Stopped", "Interrupted":
-			running = false
-			return nil, problems, &Unavailable{Reason: "OpenVAS ended the scan as " + strings.ToLower(state) + "."}
+			return nil, true, &Unavailable{Reason: "OpenVAS ended the scan as " + strings.ToLower(state) + "."}
 		}
 		select {
 		case <-ctx.Done():
-			return nil, problems, ctx.Err()
+			return nil, false, ctx.Err()
 		case <-time.After(poll):
 		}
 	}
 }
 
-// gbCleanup stops (when it still runs) and deletes the scan's task, report and target over a new session on its own short context:
-// the scan's session may be cut in the middle of an answer (a stop, the cap), and gvmd must not keep scanning. Every failure is
-// logged and returned (review r1 M4); a task that is left is removed by the next scan before it starts.
-func (s *Service) gbCleanup(ctx context.Context, task, target string, running bool) []string {
+// gbPartial is what follows the cap (D-595): over a new session (the scan's may be cut in the middle of an answer), stop the task,
+// wait until gvmd says it stopped (it writes what it found to its database when it stops, GSM manual 9.8), then read its report with
+// the same filter as a finished one. stopped says gvmd ended the task. A stop of the run (ctx) ends it at once.
+func (s *Service) gbPartial(ctx context.Context, task, report string, ip netip.Addr, poll time.Duration) (rows []GreenboneRow, stopped bool, err error) {
+	ctx, cancel := context.WithTimeout(ctx, gbStopBudget)
+	defer cancel()
+	conn, login, err := s.cfg.Greenbone.Dial(ctx)
+	if err != nil {
+		return nil, false, err
+	}
+	defer func() { _ = conn.Close() }()
+	g := &gmpConn{conn: conn}
+	if err := g.authenticate(ctx, login); err != nil {
+		return nil, false, err
+	}
+	if _, err := g.do(ctx, "stop_task", `<stop_task task_id="`+task+`"/>`, gmpMaxAnswer, nil); err != nil {
+		return nil, false, err
+	}
+	for {
+		state, _, err := g.taskStatus(ctx, task)
+		if err != nil {
+			return nil, false, err
+		}
+		if state == "Stopped" || state == gmpDone || state == "Interrupted" {
+			break
+		}
+		select {
+		case <-ctx.Done():
+			return nil, false, ctx.Err()
+		case <-time.After(poll):
+		}
+	}
+	rows, _, err = g.report(ctx, report, ip.String())
+	return rows, true, err
+}
+
+// gbCleanup stops (when it still runs) and deletes the scan's task, report, target and port list over a new session on its own short
+// context: the scan's session may be cut in the middle of an answer (a stop, the cap), and gvmd must not keep scanning. Every failure
+// is logged and returned (review r1 M4); a task that is left is removed by the next scan before it starts.
+func (s *Service) gbCleanup(ctx context.Context, task, target, ports string, running bool) []string {
 	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 30*time.Second)
 	defer cancel()
 	fail := func(err error) []string {
@@ -1024,7 +1196,7 @@ func (s *Service) gbCleanup(ctx context.Context, task, target string, running bo
 	if err := g.authenticate(ctx, login); err != nil {
 		return fail(err)
 	}
-	failed := g.cleanup(ctx, task, target, running)
+	failed := g.cleanup(ctx, task, target, ports, running)
 	for _, f := range failed {
 		s.cfg.Log.ErrorContext(ctx, "exposure: cleaning up after Greenbone failed", "task", task, "target", target, "step", f)
 	}

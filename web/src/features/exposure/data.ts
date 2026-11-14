@@ -257,8 +257,8 @@ function withGreenbone(snap: Snapshot, c: Content, at: string, ip?: string): Sna
     summary: `Scanner: OpenVAS, QoD ${r.qod}. Its test "${r.name}" names this CVE. OpenVAS looked from outside without logging in.`,
   })))
   const low = rows.filter((r) => r.severity < 4).length // D-564 G3: Low results are hardening notes
-  return { ...snap, greenbone: rows, vulns: [...snap.vulns, ...vulns], checks: [...snap.checks, { kind: 'greenbone', at,
-    text: `OpenVAS scanned ${ip} from outside without logging in (Full and fast without brute force, default accounts, denial of service or generic web application scanning; safe checks on; port list All IANA assigned TCP): ${plural(rows.length, 'result')} with QoD 70 or more (${rows.length - low} high or medium, ${plural(low, 'hardening note')}), ${plural(cves.size, 'CVE')} named.` }] }
+  return { ...snap, greenbone: rows, greenbone_run: { state: 'done', started_at: at }, vulns: [...snap.vulns, ...vulns], checks: [...snap.checks, { kind: 'greenbone', at,
+    text: `OpenVAS scanned ${ip} from outside without logging in (Full and fast, every non-disruptive check (active ones and generic web scanning included); safe checks on; TCP ports ${snap.ports.filter((p) => p.ip === ip).map((p) => p.port).sort((x, y) => x - y).join(', ')}): ${plural(rows.length, 'result')} with QoD 70 or more (${rows.length - low} high or medium, ${plural(low, 'hardening note')}), ${plural(cves.size, 'CVE')} named.` }] }
 }
 
 export function makeSnapshot(id: string, at: string, c: Content, extraIp?: string): Snapshot {
@@ -271,7 +271,7 @@ export function makeSnapshot(id: string, at: string, c: Content, extraIp?: strin
   const js = jsVulns(web_findings)
   const jsLibs = web_findings.filter((w) => w.plugin_id === '10003').reduce((n, w) => n + w.software.length, 0)
   if (jsLibs > 0) l.checks.push({ kind: 'cve', at, text: `Versions ZAP read on the web pages compared with today's CISA list of exploited vulnerabilities (${jsLibs} from JavaScript libraries, 0 from Server or X-Powered-By headers): ${plural(js.length, 'exploited CVE')} matched.` })
-  return withGreenbone({ id, date: dateOf(at), scanned_at: at, hosts: c.hosts, ports: c.ports, admin_panels: c.admin_panels, certs: c.certs, services, templates: c.templates ?? [], web_findings, greenbone: [], ...l, vulns: [...m.vulns, ...js], version_gaps: m.version_gaps, counts: countsOf(c, extraIp) }, c, at, extraIp)
+  return withGreenbone({ id, date: dateOf(at), scanned_at: at, hosts: c.hosts, ports: c.ports, admin_panels: c.admin_panels, certs: c.certs, services, templates: c.templates ?? [], web_findings, greenbone: [], greenbone_run: { state: 'not_run', started_at: null }, ...l, vulns: [...m.vulns, ...js], version_gaps: m.version_gaps, counts: countsOf(c, extraIp) }, c, at, extraIp)
 }
 
 /** D-571: at most this many addresses of a domain's names get the deep scan in one run (modules/exposure/deep.go MaxDeepIPs). */

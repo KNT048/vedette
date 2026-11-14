@@ -593,7 +593,34 @@ func (s *Service) SnapshotOf(ctx context.Context, id, date string) (Snapshot, er
 		return Snapshot{}, fmt.Errorf("exposure: reading snapshot: %w", ErrNoSnapshot)
 	}
 	s.withVulns(ctx, &snap)
+	s.gbRunNow(&snap)
 	return snap, nil
+}
+
+// gbRunNow: a snapshot whose OpenVAS step says "running" while no run of this box scans it now was left by a restart of the box in
+// the middle of it (N49-3, D-595): it reads as stopped, so the heading never says "scanning" for ever.
+func (s *Service) gbRunNow(snap *Snapshot) {
+	if snap.GreenboneRun.State != GBRunRunning {
+		return
+	}
+	s.runMu.Lock()
+	defer s.runMu.Unlock()
+	if s.run == nil || s.run.view.Status != RunRunning || s.run.gbSnap != snap.ID {
+		snap.GreenboneRun.State = GBRunStopped
+		snap.NotChecked = gbCutOff(snap.NotChecked)
+	}
+}
+
+// gbCutOff replaces the waiting line of an OpenVAS step nothing runs any more (also the one with a time, before D-595) with the line
+// that says it was stopped, so the page never says "scanning" under a "stopped" heading.
+func gbCutOff(rows []NotCheckedRow) []NotCheckedRow {
+	out := slices.Clone(rows)
+	for i, n := range out {
+		if n.Kind == "greenbone" && (n.Text == gbPending || strings.HasPrefix(n.Text, "OpenVAS started at ")) {
+			out[i].Text = notGBCutOff
+		}
+	}
+	return out
 }
 
 // Diff compares two scan days of a target: what appeared, what is gone, what changed (the expiry of a

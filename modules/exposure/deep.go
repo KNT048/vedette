@@ -486,11 +486,13 @@ func (s *Service) deepIP(ctx context.Context, st ScanTarget, a deepAddr, c *Cont
 
 // greenboneDomain is OpenVAS on the addresses a domain's deep scan reached this run (D-571), one after the other, after the snapshot of
 // the other steps is stored: each re-checked right before (deepGate), then greenboneAt. Their outcomes are one, each line with the
-// address in front. Only a stop of the run returns an error, with what was done before it.
-func (s *Service) greenboneDomain(ctx context.Context, st ScanTarget, addrs []deepAddr) (gbOutcome, error) {
-	var out gbOutcome
-	var audits []string
+// address in front; each checks the ports this run found open on its address (N49-4, D-595). Their state is the strongest of theirs
+// (gbRunOf). Only a stop of the run returns an error, with what was done before it.
+func (s *Service) greenboneDomain(ctx context.Context, st ScanTarget, addrs []deepAddr, ports []PortRow) (out gbOutcome, err error) {
+	var audits, states []string
+	defer func() { out.state = gbRunOf(states) }()
 	merge := func(a deepAddr, o gbOutcome) {
+		states = append(states, o.state)
 		out.rows = append(out.rows, o.rows...)
 		out.checks = append(out.checks, o.checks...)
 		for _, n := range o.not {
@@ -509,10 +511,10 @@ func (s *Service) greenboneDomain(ctx context.Context, st ScanTarget, addrs []de
 			return out, err
 		}
 		if line != "" {
-			merge(a, gbOutcome{not: []NotCheckedRow{{Kind: "greenbone", Text: "OpenVAS did not scan: " + line}}, audit: "not done: the re-check refused it"})
+			merge(a, gbOutcome{not: []NotCheckedRow{{Kind: "greenbone", Text: "OpenVAS did not scan: " + line}}, audit: "not done: the re-check refused it", state: GBRunNotRun})
 			continue
 		}
-		o, err := s.greenboneAt(ctx, stD, a.ip)
+		o, err := s.greenboneAt(ctx, stD, a.ip, gbPorts(ports, a.ip))
 		merge(a, o)
 		if err != nil {
 			return out, err

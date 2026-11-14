@@ -18,8 +18,8 @@ import (
 
 // A minimal client of the Greenbone Management Protocol (GMP, XML over the gvmd unix socket) for the optional deep scan
 // (S-EXP-2, CONTRACT INV-25, D-563). It speaks only the commands the scan needs: authenticate, get_feeds and get_configs
-// (readiness), create/modify_config, get_port_lists, create_target, create_task, start_task, get_tasks, get_reports, stop_task and
-// the deletes that clean up after a scan. gvmd is a separate program in Greenbone's own containers; nothing of it is linked here.
+// (readiness), create/modify_config, create_port_list, create_target, create_task, start_task, get_tasks, get_reports, stop_task and
+// the deletes that clean up after a scan (get_port_lists only to find Vedette's leftover port lists). gvmd is a separate program in Greenbone's own containers; nothing of it is linked here.
 //
 // Every answer is untrusted input (rules/security.md): one answer is at most a few MiB (gmpMaxAnswer, gmpMaxReport), it is parsed
 // strictly into the fields the scan reads (encoding/xml expands no external entity and reads only UTF-8), a status that is not 2xx
@@ -28,10 +28,10 @@ import (
 // Fixed objects of a Greenbone Community Edition install (its feed's data objects).
 const (
 	gmpFullAndFast = "daba56c8-73ec-11df-a475-002264764cea" // scan config "Full and fast"
-	gmpIANATCP     = "33d0cd82-57c6-11e1-8ed1-406186ea4fc5" // port list "All IANA assigned TCP"
 	gmpOpenVAS     = "08b69003-5fc2-4037-a479-93b440211c73" // scanner "OpenVAS Default"
 
-	// gbObjectPrefix starts the name of every target and task Vedette creates, so a scan can find and remove its own leftovers.
+	// gbObjectPrefix starts the name of every port list, target and task Vedette creates, so a scan can find and remove its own
+	// leftovers.
 	gbObjectPrefix = "vedette-scan-"
 	// gmpBruteOID is the feed's "Options for Brute Force NVTs" (family Settings): its checkboxes "Disable brute force checks" and
 	// "Disable default account checks" set the KB keys that credential tests in other families read, so turning the families off
@@ -40,8 +40,6 @@ const (
 	// gmpGlobalOID is the feed's "Global variable settings" (family Settings): its checkbox "Enable generic web application scanning"
 	// turns on the generic SQL injection and XSS fuzzing of the web application tests; the testing terms cover it (D-566).
 	gmpGlobalOID = "1.3.6.1.4.1.25623.1.0.12288"
-	// GreenbonePortList is the name of the port list the scan uses.
-	GreenbonePortList = "All IANA assigned TCP"
 	// GreenboneMinQoD is the lowest quality of detection a result is read with (Greenbone's own default filter is 70).
 	GreenboneMinQoD = 70
 
@@ -526,27 +524,33 @@ func (g *gmpConn) levelPrefs(ctx context.Context, config string, lv gbLevel) err
 	return nil
 }
 
-type gmpPortLists struct {
-	Lists []struct {
-		ID   string `xml:"id,attr"`
-		Name string `xml:"name"`
-	} `xml:"port_list"`
+// gbPortRange is the port_range of a scan's own port list (N49-4, D-595): the TCP ports this run found open, "T:22,80,443". Greenbone's
+// port_range is comma-separated entries, each optionally prefixed with T: or U:, an entry without one being TCP (GSM manual 9.7.1).
+func gbPortRange(ports []int) string {
+	parts := make([]string, len(ports))
+	for i, p := range ports {
+		parts[i] = strconv.Itoa(p)
+	}
+	return "T:" + strings.Join(parts, ",")
 }
 
-// portList checks that the predefined "All IANA assigned TCP" list is there under its fixed id.
-func (g *gmpConn) portList(ctx context.Context) (string, error) {
-	var p gmpPortLists
-	if _, err := g.do(ctx, "get_port_lists", `<get_port_lists port_list_id="`+gmpIANATCP+`"/>`, gmpMaxAnswer, &p); err != nil {
+// createPortList makes the port list of one scan (N49-4, D-595): exactly the open TCP ports the run found, so OpenVAS runs its tests on
+// them instead of its own port discovery over the ~5,800 ports of "All IANA assigned TCP" (Greenbone's own advice: tune the port list
+// to the ports in use; a firewall that drops the rest makes the port scan wait for each one). It is deleted with the target.
+func (g *gmpConn) createPortList(ctx context.Context, name string, ports []int) (string, error) {
+	if len(ports) == 0 {
+		return "", fmt.Errorf("exposure: GMP create_port_list: no port")
+	}
+	id, err := g.do(ctx, "create_port_list", "<create_port_list><name>"+esc(name)+"</name><comment>Started by Vedette (external exposure): the open TCP ports of this scan.</comment><port_range>"+
+		gbPortRange(ports)+"</port_range></create_port_list>", gmpMaxAnswer, nil)
+	if err != nil {
 		return "", err
 	}
-	if len(p.Lists) != 1 || p.Lists[0].ID != gmpIANATCP || p.Lists[0].Name != GreenbonePortList {
-		return "", fmt.Errorf("%w: the port list %q is not there", ErrGMPBad, GreenbonePortList)
-	}
-	return gmpIANATCP, nil
+	return gmpID(id, "port list")
 }
 
-// createTarget makes the target of one scan: exactly the one address, the port list, alive test "Consider Alive" (the box's own
-// IP may not answer ping from inside).
+// createTarget makes the target of one scan: exactly the one address, the scan's own port list, alive test "Consider Alive" (no ping
+// or alive sweep first: the run already found the ports open, and the box's own IP may not answer ping from inside).
 func (g *gmpConn) createTarget(ctx context.Context, name, ip, portList string) (string, error) {
 	id, err := g.do(ctx, "create_target", "<create_target><name>"+esc(name)+"</name><hosts>"+esc(ip)+`</hosts><port_list id="`+portList+
 		`"/><alive_tests>Consider Alive</alive_tests></create_target>`, gmpMaxAnswer, nil)
@@ -612,7 +616,7 @@ func (g *gmpConn) taskStatus(ctx context.Context, task string) (string, int, err
 	return st, p, nil
 }
 
-// report reads the results of a finished task with QoD at least GreenboneMinQoD, levels high, medium and low (log notes are not read).
+// report reads the results of a finished task (or of one stopped at the cap: gvmd writes what it found when it stops, D-595) with QoD at least GreenboneMinQoD, levels high, medium and low (log notes are not read).
 func (g *gmpConn) report(ctx context.Context, report, ip string) ([]GreenboneRow, int, error) {
 	r := &gmpReport{}
 	if _, err := g.do(ctx, "get_reports", `<get_reports report_id="`+report+`" details="1" ignore_pagination="1" filter="min_qod=`+
@@ -622,10 +626,10 @@ func (g *gmpConn) report(ctx context.Context, report, ip string) ([]GreenboneRow
 	return parseGMPReport(r, report, ip)
 }
 
-// cleanup stops (when running) and deletes the task with its report and the target: the scan is over or was stopped, and gvmd
-// must not keep scanning or keep one target and task per scan. It returns what failed ("stop_task: …"), for the log, the audit
-// row and the page.
-func (g *gmpConn) cleanup(ctx context.Context, task, target string, running bool) []string {
+// cleanup stops (when running) and deletes the task with its report, the target and the port list (in that order: gvmd refuses to
+// delete a port list a target still uses): the scan is over or was stopped, and gvmd must not keep scanning or keep one target and
+// task per scan. It returns what failed ("stop_task: …"), for the log, the audit row and the page.
+func (g *gmpConn) cleanup(ctx context.Context, task, target, ports string, running bool) []string {
 	var failed []string
 	try := func(cmd, body string) {
 		if _, err := g.do(ctx, cmd, body, gmpMaxAnswer, nil); err != nil {
@@ -640,6 +644,9 @@ func (g *gmpConn) cleanup(ctx context.Context, task, target string, running bool
 	}
 	if target != "" {
 		try("delete_target", `<delete_target target_id="`+target+`" ultimate="1"/>`)
+	}
+	if ports != "" {
+		try("delete_port_list", `<delete_port_list port_list_id="`+ports+`" ultimate="1"/>`)
 	}
 	return failed
 }
@@ -656,6 +663,11 @@ type gmpObjects struct {
 		Name  string `xml:"name"`
 		Owner string `xml:"owner>name"`
 	} `xml:"target"`
+	PortLists []struct {
+		ID    string `xml:"id,attr"`
+		Name  string `xml:"name"`
+		Owner string `xml:"owner>name"`
+	} `xml:"port_list"`
 }
 
 // The task states in which gvmd may still be scanning.
@@ -664,10 +676,10 @@ var gmpActive = []string{"Requested", "Queued", "Running", "Stop Requested", "Pr
 // errGBStillStopping: an earlier task of Vedette's is still being stopped, so a new one does not start (it would run beside it).
 var errGBStillStopping = &Unavailable{Reason: "an earlier OpenVAS scan of Vedette is still stopping, so a new one was not started. Try again in a few minutes."}
 
-// leftovers stops and deletes the tasks and targets an earlier scan of Vedette's left behind (a stop that failed, a restart of the
+// leftovers stops and deletes the tasks, targets and port lists an earlier scan of Vedette's left behind (a stop that failed, a restart of the
 // box in the middle of a scan), owned by user and named with gbObjectPrefix, before a new task starts: Vedette never leaves a task
 // of its own running beside a new one. A task that could not be stopped or deleted is an error and nothing new starts; a target that
-// could not be deleted is only said.
+// or port list that could not be deleted is only said.
 func (g *gmpConn) leftovers(ctx context.Context, user string) (problems []string, err error) {
 	var o gmpObjects
 	if _, err := g.do(ctx, "get_tasks", `<get_tasks filter="name~`+gbObjectPrefix+` rows=-1"/>`, gmpMaxAnswer, &o); err != nil {
@@ -703,6 +715,19 @@ func (g *gmpConn) leftovers(ctx context.Context, user string) (problems []string
 		}
 		if _, err := g.do(ctx, "delete_target", `<delete_target target_id="`+id+`" ultimate="1"/>`, gmpMaxAnswer, nil); err != nil {
 			problems = append(problems, "an earlier target of Vedette's could not be deleted: "+clipText(err.Error(), 160))
+		}
+	}
+	o = gmpObjects{} // N49-4: after the targets, which use them
+	if _, err := g.do(ctx, "get_port_lists", `<get_port_lists filter="name~`+gbObjectPrefix+` rows=-1"/>`, gmpMaxAnswer, &o); err != nil {
+		return problems, err
+	}
+	for _, p := range o.PortLists {
+		id, idErr := gmpID(p.ID, "port list")
+		if idErr != nil || p.Owner != user || !strings.HasPrefix(p.Name, gbObjectPrefix) {
+			continue
+		}
+		if _, err := g.do(ctx, "delete_port_list", `<delete_port_list port_list_id="`+id+`" ultimate="1"/>`, gmpMaxAnswer, nil); err != nil {
+			problems = append(problems, "an earlier port list of Vedette's could not be deleted: "+clipText(err.Error(), 160))
 		}
 	}
 	return problems, nil

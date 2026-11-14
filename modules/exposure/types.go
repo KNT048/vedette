@@ -275,9 +275,12 @@ type Snapshot struct {
 	Date      string `json:"date"`
 	ScannedAt string `json:"scanned_at"`
 	Content
-	Vulns       []VulnRow `json:"vulns"`
-	VersionGaps []GapRow  `json:"version_gaps"`
-	Counts      Counts    `json:"counts"`
+	// GreenboneRun is the state of the snapshot's OpenVAS step and when it started (N49-3, N49-2, D-595): the page's OpenVAS heading
+	// follows it, and shows the start in the viewer's time zone.
+	GreenboneRun GreenboneRun `json:"greenbone_run"`
+	Vulns        []VulnRow    `json:"vulns"`
+	VersionGaps  []GapRow     `json:"version_gaps"`
+	Counts       Counts       `json:"counts"`
 }
 
 // SnapshotMeta is a snapshot without its lists.

@@ -1488,6 +1488,63 @@ describe('exposure: optional deep scan with Greenbone (S-EXP-2, INV-25, D-563)',
   })
 })
 
+describe('exposure: the OpenVAS heading follows its one state, its start in the page\'s time (N49-3, N49-2, D-595)', () => {
+  const ip = '203.0.113.10'
+  const started = '2026-11-14T18:16:00.000Z'
+  const high = { ip, port: '443/tcp', severity: 7.5, name: 'Weak TLS', qod: 98, cves: [], solution: 'Fix TLS.', oid: '1.3.6.1.4.1.25623.1.0.1' }
+  const showing = async (greenbone_run: { state: string; started_at: string | null }, greenbone: unknown[], not_checked: { kind: string; text: string }[]) => {
+    const at = new Date(Date.now() - 864e5).toISOString()
+    const date = at.slice(0, 10)
+    const snap = { id: 'sn-g', date, scanned_at: at, hosts: [], ports: [{ ip, port: 443, service: 'https' }], admin_panels: [], certs: [], counts: { subdomains: 0, ips: 1, ports: 1, admin_panels: 0, certs_expiring: 0 },
+      services: [], templates: [], web_findings: [], vulns: [], version_gaps: [], checks: [], not_checked, greenbone, greenbone_run }
+    server.use(
+      http.get('*/api/v1/exposure/targets/xt-2/snapshots', () => HttpResponse.json({ items: [{ id: snap.id, date, scanned_at: at, counts: snap.counts }] })),
+      http.get('*/api/v1/exposure/targets/xt-2/snapshots/:date', () => HttpResponse.json(snap)),
+    )
+    renderApp('/exposure/xt-2')
+    return screen.findByRole('region', { name: 'OpenVAS results (unauthenticated, QoD ≥ 70)' })
+  }
+  // the time every other part of the page shows: the viewer's time zone, never the box's text
+  const local = (iso: string) => { const d = new Date(iso); return `${d.getDate()} Nov ${d.getFullYear()}, ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}` }
+
+  it('running: "OpenVAS is scanning" with its start in the viewer\'s time zone, never "did not scan"', async () => {
+    const s = await showing({ state: 'running', started_at: started }, [], [{ kind: 'greenbone', text: 'OpenVAS is scanning and runs for up to 90 minutes; its results are added here when it finishes. If none appear, it was stopped before it finished (a stop or a restart of the box).' }])
+    expect(await within(s).findByText('OpenVAS is scanning')).toBeInTheDocument()
+    expect(within(s).getByText(`OpenVAS started at ${local(started)} and runs for up to 90 minutes. The results of the other checks are already saved; its results are added here when it finishes.`)).toBeInTheDocument()
+    expect(within(s).queryByText('OpenVAS did not scan this time')).toBeNull()
+    expect(within(s).queryByRole('table')).toBeNull()
+  })
+
+  it('partial: the rows found by the 90-minute cap, with the line that says so', async () => {
+    const s = await showing({ state: 'partial', started_at: started }, [high], [{ kind: 'greenbone', text: 'OpenVAS was stopped after 90 minutes; these are the results it had found by then.' }])
+    expect(await within(s).findByRole('status')).toHaveTextContent('OpenVAS was stopped after 90 minutes; these are the results it had found by then.')
+    expect(within(within(s).getByRole('table', { name: 'What OpenVAS reported on this IP' })).getByText('Weak TLS')).toBeInTheDocument()
+    expect(within(s).getByText(`OpenVAS started at ${local(started)}.`)).toBeInTheDocument()
+    expect(within(s).queryByText(/not shown/)).toBeNull()
+  })
+
+  it('partial without a high or medium row says it was stopped, not that it found nothing', async () => {
+    const s = await showing({ state: 'partial', started_at: started }, [], [{ kind: 'greenbone', text: 'OpenVAS was stopped after 90 minutes; by then it had found no result with QoD 70 or more.' }])
+    expect(await within(s).findByText('OpenVAS was stopped after 90 minutes')).toBeInTheDocument()
+    expect(within(s).queryByText('OpenVAS reported no high or medium result with QoD 70 or more')).toBeNull()
+  })
+
+  it.each([
+    ['done', 'OpenVAS reported no high or medium result with QoD 70 or more', 'That is one outside look'],
+    ['not_run', 'OpenVAS did not scan this time', 'OpenVAS did not scan: this scan found no open port to check.'],
+    ['failed', 'OpenVAS did not finish this scan', 'OpenVAS failed, so its results are not shown. The box log has the error.'],
+    ['stopped', 'OpenVAS was stopped before it finished', 'OpenVAS was stopped before it finished (the box restarted or the scan was stopped), so its results are not shown. The results of the other checks above are kept.'],
+  ])('%s: its own heading and why', async (state, title, body) => {
+    const line = state === 'done' ? [] : [{ kind: 'greenbone', text: body }]
+    const s = await showing({ state, started_at: state === 'not_run' ? null : started }, [], line)
+    expect(await within(s).findByText(title)).toBeInTheDocument()
+    expect(within(s).getByText(new RegExp(body.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')))).toBeInTheDocument()
+    for (const other of ['OpenVAS is scanning', 'OpenVAS did not scan this time', 'OpenVAS did not finish this scan', 'OpenVAS was stopped before it finished'].filter((x) => x !== title)) {
+      expect(within(s).queryByText(other)).toBeNull()
+    }
+  })
+})
+
 describe('exposure: testing terms per target (S-EXP-2, FULL-1, D-566)', () => {
   const withTwoStep = (on: boolean) => usersStore.update((l) => l.map((x) => (x.id === 'u-admin' ? { ...x, twofa: on } : x)))
 

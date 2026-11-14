@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { useCan } from '@/lib/session'
 import { dateTimeText } from './dates'
 import { useGreenbone, useSetGreenbone } from './api'
-import type { Greenbone, GreenboneResult, Snapshot } from './types'
+import type { Greenbone, GreenboneResult, GreenboneRun, Snapshot } from './types'
 
 /** D-569: under 8 GB (decimal) the first feed load uses swap, so the box then needs 2 GB of swap; it passes from 6 GB. */
 const SWAP_BELOW = 8e9
@@ -90,17 +90,34 @@ function GreenboneBody({ g }: { g: Greenbone }) {
   )
 }
 
+/** A snapshot read from a box older than greenbone_run (or the mock's stored days) has none: the lines say what happened. */
+function runOf(s: Snapshot): GreenboneRun {
+  const run = (s as Partial<Snapshot>).greenbone_run
+  if (run) return run
+  return { state: s.checks.some((c) => c.kind === 'greenbone') ? 'done' : 'not_run', started_at: null }
+}
+
+/** N49-3 (D-595): the heading of a state that has no table to show. */
+const EMPTY_TITLE: Record<GreenboneRun['state'], string> = {
+  running: 'greenbone.results.runningTitle', done: 'greenbone.results.noneTitle', partial: 'greenbone.results.partialNoneTitle',
+  not_run: 'greenbone.results.notRunTitle', failed: 'greenbone.results.failedTitle', stopped: 'greenbone.results.stoppedTitle',
+}
+
 /**
  * S-EXP-2 (INV-25): what Greenbone reported on this IP. Apart from the exploited CVEs, and never "nothing found = not affected". D-564 G3:
  * High and Medium results are its findings; Low results are hardening notes in their own group, not alerts and not counted anywhere.
+ * N49-3 (D-595): the heading follows the step's one state (greenbone_run): scanning, finished, stopped at the 90-minute cap with what it
+ * had found by then, not run, failed, stopped. N49-2: its start is shown in the viewer's time zone, like every other time of the page.
  */
 export function GreenboneSection({ s }: { s: Snapshot }) {
   const { t } = useTranslation('exposure')
   const rows = s.greenbone ?? [] // a snapshot read from an older box has no list
+  const run = runOf(s)
   const findings = rows.filter((r) => r.severity >= LOW_BELOW)
   const notes = rows.filter((r) => r.severity < LOW_BELOW)
-  const ran = s.checks.some((c) => c.kind === 'greenbone')
   const why = s.not_checked.find((n) => n.kind === 'greenbone')
+  const read = run.state === 'done' || run.state === 'partial' // rows were read: the table, or "found none"
+  const started = run.started_at ? dateTimeText(run.started_at) : null
   const cols: ColumnDef<GreenboneResult>[] = [
     { id: 'severity', header: t('greenbone.col.severity'), accessorFn: (r) => r.severity, cell: ({ row }) => {
       const v = row.original.severity
@@ -114,18 +131,22 @@ export function GreenboneSection({ s }: { s: Snapshot }) {
     ) },
     { id: 'solution', header: t('greenbone.col.solution'), enableSorting: false, accessorFn: (r) => r.solution, cell: ({ row }) => <span className="text-[13px]">{row.original.solution}</span> },
   ]
+  const emptyBody = run.state === 'running' ? (started ? t('greenbone.results.runningBody', { time: started }) : t('greenbone.results.runningBodyNoTime'))
+    : run.state === 'done' ? t('greenbone.results.noneBody')
+    : run.state === 'partial' ? t('greenbone.results.partialNoneBody')
+    : why?.text ?? t(run.state === 'not_run' ? 'greenbone.results.notRunBody' : run.state === 'failed' ? 'greenbone.results.failedBody' : 'greenbone.results.stoppedBody')
   return (
     <>
       <Section id="greenbone-results" title={t('greenbone.results.title')} description={t('greenbone.results.header')}>
-        {findings.length > 0 ? (
+        {run.state === 'partial' && findings.length > 0 ? <p role="status" className="mb-3 text-sm text-warn">{t('greenbone.results.partialLine')}</p> : null}
+        {read && findings.length > 0 ? (
           <DataTable caption={t('greenbone.results.caption')} data={findings} columns={cols} pageSize={20} initialSort={[{ id: 'severity', desc: true }]} rowTone={(r) => (r.severity >= 7 ? 'warn' : undefined)} />
-        ) : ran ? (
-          <EmptyState title={t('greenbone.results.noneTitle')}>{t('greenbone.results.noneBody')}</EmptyState>
         ) : (
-          <EmptyState title={t('greenbone.results.notRunTitle')}>{why?.text ?? t('greenbone.results.notRunBody')}</EmptyState>
+          <EmptyState title={t(EMPTY_TITLE[run.state])}>{emptyBody}</EmptyState>
         )}
+        {started && run.state !== 'running' ? <p className="mt-2 text-[12px] text-muted">{t('greenbone.results.startedAt', { time: started })}</p> : null}
       </Section>
-      {notes.length > 0 ? (
+      {read && notes.length > 0 ? (
         <Section id="greenbone-notes" title={t('greenbone.results.notesTitle')} description={t('greenbone.results.notesHeader')}>
           <DataTable caption={t('greenbone.results.notesCaption')} data={notes} columns={cols} pageSize={20} initialSort={[{ id: 'severity', desc: true }]} />
         </Section>

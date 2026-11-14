@@ -78,7 +78,7 @@ describe('first sign-in with an administrator-set password (D-180)', () => {
     await u.type(screen.getByLabelText('Repeat new password'), 'a-brand-new-long-password')
     await u.click(screen.getByRole('button', { name: 'Save and continue' }))
     await waitFor(() => expect(usersStore.get().find((x) => x.id === 'u-new')!.temp_password_expires_at).toBeNull())
-    expect(await screen.findByRole('heading', { name: 'Where you are signed in' })).toBeInTheDocument() // /account
+    expect(await screen.findByRole('tablist', { name: 'Parts of My account' })).toBeInTheDocument() // /account (its tabs, D-519)
     expect(usersStore.get().find((x) => x.id === 'u-new')!.password).toBe('a-brand-new-long-password')
   })
 

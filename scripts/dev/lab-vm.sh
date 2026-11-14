@@ -13,9 +13,10 @@ umask 077
 
 prog=lab-vm.sh
 VMS="ubuntu2404 ubuntu2604 debian13"
-MEM_MB=2560
-CPUS=2
-DISK_SIZE=20G
+# a test box that runs OpenVAS (docs/LAB-VM.md "A persistent test box") sets these; create reads LAB_DISK_SIZE, start the other two
+MEM_MB=${LAB_MEM_MB:-2560}
+CPUS=${LAB_CPUS:-2}
+DISK_SIZE=${LAB_DISK_SIZE:-20G}
 MEM_HEADROOM_MB=1536   # start refuses below MEM_MB + this of MemAvailable
 MEM_MAX_PCT=90         # and when the box would pass this share of its memory with the VM up
 LAN_LINK=vlab0         # the only link lan-up/lan-down ever create or delete
@@ -46,8 +47,9 @@ usage: $prog [--dry-run] <command>
   destroy <vm>          stop, then remove only ~/.cache/vedette-lab/<vm>
   ssh [cmd...]          SSH to the running VM as lab (a command times out after ${T_SSH}s)
   status                VMs, ports, base images, lan link
-  lan-up <nic> [--bridge]  (root) macvtap link $LAN_LINK over a WIRED NIC with carrier, tap handed to \$SUDO_USER: passthru
-                        (a NIC the host does not use) or --bridge (the host keeps using the NIC; host<->VM traffic does not pass)
+  lan-up <nic> [--bridge <vm>]  (root) macvtap link $LAN_LINK over a WIRED NIC with carrier, tap handed to \$SUDO_USER: passthru
+                        (a NIC the host does not use) or --bridge (the host keeps using the NIC; host<->VM traffic does not pass;
+                        the link takes <vm>'s lan MAC, since a bridge-mode macvtap only receives frames for its own MAC)
   lan-down              (root) delete $LAN_LINK
 vm: ${VMS// / | }
 --dry-run prints what would run and changes nothing.
@@ -277,7 +279,9 @@ write_seed_files() { # write_seed_files <vm> <dir>
 		echo "  ed25519_public: $(cut -d' ' -f1,2 "$t/host_ed25519.pub")"
 	} >"$t/user-data"
 	printf 'instance-id: %s-%s\nlocal-hostname: %s\n' "$host" "$(date +%s)" "$host" >"$t/meta-data"
-	# Both NICs by MAC: the passt NIC always, the lan NIC only when `start --lan` attaches it (optional, lower priority route).
+	# Both NICs by MAC: the passt NIC always, the lan NIC only when `start --lan` attaches it (optional). With the lan NIC the VM is a
+	# box on the LAN: its default route and its LAN subnet are the lan NIC's, and the passt NIC (10.0.2.0/24 then, see start) only
+	# carries SSH from the host.
 	cat >"$t/network-config" <<EOF
 version: 2
 ethernets:
@@ -285,13 +289,15 @@ ethernets:
     match:
       macaddress: "$(vm_nat_mac "$vm")"
     dhcp4: true
+    dhcp4-overrides:
+      route-metric: 300
   lan:
     match:
       macaddress: "$(vm_lan_mac "$vm")"
     dhcp4: true
     optional: true
     dhcp4-overrides:
-      route-metric: 200
+      route-metric: 100
 EOF
 }
 
@@ -388,6 +394,10 @@ cmd_start() {
 	fi
 	mem_guard
 	[ "$lan" = 0 ] || lan_tap
+	if [ "$lan" = 1 ] && ip -d -o link show "$LAN_LINK" 2>/dev/null | grep -q " macvtap mode bridge " &&
+		[ "$(cat "/sys/class/net/$LAN_LINK/address")" != "$(vm_lan_mac "$vm")" ]; then
+		die "--lan: $LAN_LINK is a bridge-mode macvtap made for another VM (it only receives frames for its own MAC): sudo $0 lan-down; sudo $0 lan-up <nic> --bridge $vm"
+	fi
 	if [ "$DRY" = 0 ] && [ -n "$(ss -Htln "sport = :$port" 2>/dev/null)" ]; then die "port 127.0.0.1:$port is in use"; fi
 
 	# QEMU starts passt itself (`-netdev passt`) and hands it one end of a socketpair; passt exits when QEMU does. Not a passt of
@@ -404,7 +414,12 @@ cmd_start() {
 		-device virtio-rng-pci
 		-qmp "unix:$d/qmp.sock,server=on,wait=off"
 		-pidfile "$d/qemu.pid" -daemonize)
-	[ "$lan" = 0 ] || qemu_argv+=(-netdev "tap,id=n1,fd=3" -device "virtio-net-pci,netdev=n1,mac=$(vm_lan_mac "$vm"),romfile=")
+	if [ "$lan" = 1 ]; then
+		# passt hands the guest the host's own address by default; next to the lan NIC that is a second interface on the same subnet
+		# (the box would scan and report itself as the host). With --lan the passt NIC gets a subnet of its own instead.
+		qemu_argv=("${qemu_argv[@]/#passt,id=n0,/passt,id=n0,param=--address=10.0.2.15,param=--netmask=24,param=--gateway=10.0.2.2,}")
+		qemu_argv+=(-netdev "tap,id=n1,fd=3" -device "virtio-net-pci,netdev=n1,mac=$(vm_lan_mac "$vm"),romfile=")
+	fi
 	if [ "$DRY" = 1 ]; then
 		echo "+ ${qemu_argv[*]}${TAP:+ 3<>$TAP}"
 		return 0
@@ -521,11 +536,23 @@ cmd_status() {
 # --- root: lan mode ----------------------------------------------------------------------------------------------------------
 
 cmd_lan_up() {
-	local nic="" mode=passthru sys=/sys/class/net a
+	local nic="" mode=passthru sys=/sys/class/net a vm="" mac=""
 	for a in "$@"; do
-		case $a in --bridge) mode=bridge ;; -*) usage 2 ;; *) [ -z "$nic" ] || usage 2; nic=$a ;; esac
+		case $a in
+		--bridge) mode=bridge ;;
+		-*) usage 2 ;;
+		*) if [ -z "$nic" ]; then nic=$a; elif [ "$mode" = bridge ] && [ -z "$vm" ]; then vm=$a; else usage 2; fi ;;
+		esac
 	done
 	[ -n "$nic" ] || usage 2
+	# A bridge-mode macvtap delivers only frames sent to its own MAC (passthru delivers all): the VM's lan NIC must use that MAC,
+	# and the VM's network-config matches the lan NIC by vm_lan_mac, so the link takes that MAC (measured on Mlee's box 2026-11-14:
+	# the router's DHCP offers to the VM's MAC never reached the guest).
+	if [ "$mode" = bridge ]; then
+		[ -n "$vm" ] || die "--bridge needs the VM that will use the link: lan-up $nic --bridge <vm>"
+		check_vm "$vm"
+		mac=$(vm_lan_mac "$vm")
+	fi
 	printf '%s' "$nic" | grep -Eq '^[A-Za-z0-9_.-]{1,15}$' || die "bad interface name '$nic'"
 	[ "$nic" != "$LAN_LINK" ] || die "$nic is the lab link itself"
 	# A test points this at a fake sysfs; root always reads the real one.
@@ -537,7 +564,7 @@ cmd_lan_up() {
 	[ -e "$sys/$nic/device" ] || die "$nic is not a physical NIC (no device link): refused"
 	[ "$(cat "$sys/$nic/carrier" 2>/dev/null || echo 0)" = 1 ] || die "$nic has no carrier (cable unplugged or link down): refused"
 	if [ "$DRY" = 1 ]; then
-		say "dry-run: would run  ip link add link $nic name $LAN_LINK type macvtap mode $mode; ip link set $LAN_LINK up; chown \$SUDO_USER /dev/tap<ifindex>"
+		say "dry-run: would run  ip link add link $nic name $LAN_LINK type macvtap mode $mode${mac:+ address $mac}; ip link set $LAN_LINK up; chown \$SUDO_USER /dev/tap<ifindex>"
 		return 0
 	fi
 	root_user lan-up
@@ -545,6 +572,7 @@ cmd_lan_up() {
 	if [ -d "/sys/class/net/$LAN_LINK" ]; then
 		ip -d -o link show "$LAN_LINK" | grep -q " macvtap mode $mode " || die "$LAN_LINK exists and is not our macvtap in $mode mode: refused (lan-down first)"
 		[ "$(basename "$(readlink -f /sys/class/net/$LAN_LINK/lower_* 2>/dev/null)")" = "$nic" ] || die "$LAN_LINK exists on another NIC; lan-down first"
+		[ -z "$mac" ] || [ "$(cat "/sys/class/net/$LAN_LINK/address")" = "$mac" ] || die "$LAN_LINK exists with another VM's MAC; lan-down first"
 	else
 		if [ "$mode" = passthru ]; then
 			# Passthru hands every frame of the NIC to the VM: the host must not be using it (--bridge is for a NIC the host uses).
@@ -554,7 +582,7 @@ cmd_lan_up() {
 				die "$nic has a global address on this host: refused (passthru would cut the host's traffic on it; --bridge keeps the host's use)"
 		fi
 		# bridge: a second MAC on the NIC; the host's own link, addresses and routes are not touched (no address, no route is added)
-		timeout "$T_QUICK" ip link add link "$nic" name "$LAN_LINK" type macvtap mode "$mode"
+		timeout "$T_QUICK" ip link add link "$nic" name "$LAN_LINK" ${mac:+address "$mac"} type macvtap mode "$mode"
 		timeout "$T_QUICK" ip link set "$LAN_LINK" up
 	fi
 	local idx tap
@@ -564,7 +592,7 @@ cmd_lan_up() {
 	[ -c "$tap" ] || die "$tap did not appear"
 	chown "$RUSER:" "$tap"
 	chmod 0600 "$tap"
-	say "lan: $LAN_LINK (macvtap $mode on $nic), $tap owned by $RUSER; start a VM with --lan"
+	say "lan: $LAN_LINK (macvtap $mode on $nic${vm:+, MAC of $vm}), $tap owned by $RUSER; start ${vm:-a VM} with --lan"
 }
 
 cmd_lan_down() {

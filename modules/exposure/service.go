@@ -17,7 +17,7 @@ import (
 	"github.com/knt048/vedette/core/store"
 )
 
-// Config is what NewService needs. Publisher, Runner, TwoStep, Gateway, Services, Matcher, Location and Clock may be nil.
+// Config is what NewService needs. Publisher, Runner, TwoStep, Gateway, Services, Matcher, Outside, Location and Clock may be nil.
 type Config struct {
 	DB        *store.DB
 	Audit     *audit.Log
@@ -29,6 +29,7 @@ type Config struct {
 	Gateway   Gateway          // nil: the page makes no claim about which device answers the open ports (D-492)
 	Services  ServiceScanner   // nil: every scan of an IP says service identification is not set up (INV-19)
 	Matcher   Matcher          // nil: identified services are not compared with exploited CVEs, and the page says so (INV-20)
+	Outside   *InternetDB      // nil: "Check what Shodan has seen" answers 501 (INV-21); cmd/vedette wires Shodan InternetDB
 	Location  *time.Location   // the day of a snapshot (nil: time.Local)
 	Log       *slog.Logger     //
 	Clock     func() time.Time // nil: time.Now
@@ -45,11 +46,12 @@ type Service struct {
 	mu     sync.RWMutex
 	runner Runner
 
-	runMu    sync.Mutex           // guards run, its view, lastScan, off and closed
-	off      bool                 // the module is switched off (ModuleSwitched): begin refuses
-	closed   bool                 // the box is shutting down (Close)
-	run      *scanRun             // the scan that runs now, or the last one (INV-18); one at a time on the box (D-229): a second one is 409 busy; a restart forgets it
-	lastScan map[string]time.Time // when each target's last scan started (ScanEvery; kept in memory, a restart forgets it)
+	runMu       sync.Mutex           // guards run, its view, lastScan, lastOutside, off and closed
+	off         bool                 // the module is switched off (ModuleSwitched): begin refuses
+	closed      bool                 // the box is shutting down (Close)
+	run         *scanRun             // the scan that runs now, or the last one (INV-18); one at a time on the box (D-229): a second one is 409 busy; a restart forgets it
+	lastScan    map[string]time.Time // when each target's last scan started (ScanEvery; kept in memory, a restart forgets it)
+	lastOutside time.Time            // when the box last asked Shodan (OutsideEvery; kept in memory, a restart forgets it)
 }
 
 // NewService returns the service. DB, Audit, Resolver, Prober and Log are required.

@@ -193,11 +193,12 @@ Read on the box, never stored or redistributed as they are: the box keeps only t
 | Vendor advisory pages (the 16 hosts in PRIVACY.md flow 8) | each vendor's site terms | data: the visible text of one advisory page the CVE links to, cut to 6000 bytes |
 | Feeds of watchTowr Labs, GreyNoise, SANS Internet Storm Center, Rapid7, Unit 42, Google Project Zero | each site's terms; public RSS/Atom | data: the posts that name the CVE (title, date, link, text around the mention) |
 
-## Public service each box asks for external exposure (only when a person scans a verified domain; S-EXP-1, D-229)
+## Public services each box asks for external exposure (only when a person scans a verified domain or checks a verified IP; S-EXP-1, D-229, D-558)
 
 | Source | Terms | How it is used |
 |---|---|---|
 | crt.sh (`crt.sh`, certificate-transparency search run by Sectigo) | public service, no key; the certificates it lists are public CT log entries | data: the host names in the unexpired certificates of the verified domain (`?q=%.<domain>&output=json&exclude=expired`), at most 300 (more: nothing is scanned), listed as subdomains and checked by name on ports 80 and 443; never stored apart from the snapshot's host list |
+| Shodan InternetDB (`internetdb.shodan.io`, run by Shodan) | public service, no key, no account; Shodan's own terms for it: "Free for non-commercial use: you can use it at a company, you can't use it to build commercial products that you charge money for" ([blog.shodan.io/introducing-the-internetdb-api](https://blog.shodan.io/introducing-the-internetdb-api/), [internetdb.shodan.io](https://internetdb.shodan.io/): "If you're using the InternetDB API to make money then you need an enterprise license"). Vedette is free and each box asks only about its own IP for its own owner; nothing is resold or redistributed | data: when an administrator clicks and confirms, one GET of `/<ip>` for one of the box's own verified public IPs; the open ports, host names, CPEs, tags and CVE IDs of the answer are checked, limited and kept as the last answer of that IP (shown as Shodan's claim, never as a Vedette finding); the project redistributes nothing (D-558) |
 
 ## Data each box fetches with the user's own key (never through the project)
 

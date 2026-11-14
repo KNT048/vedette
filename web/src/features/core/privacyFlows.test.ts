@@ -22,6 +22,11 @@ describe('Settings → Privacy flows match PRIVACY.md', () => {
     expect(flows['6']!.to).toBe(plain(r[3]!))
     expect(flows['6']!.control).toBe(plain(r[4]!))
   })
+  it('flow 15 (Shodan, D-558) is sent only on an administrator\'s click, in PRIVACY.md and on the page', () => {
+    const r = rows.get(15)!
+    for (const text of [plain(r[1]!), flows['15']!.name]) expect(text).toMatch(/only when an administrator clicks it/)
+    for (const text of [plain(r[4]!), flows['15']!.control]) expect(text).toMatch(/if nobody clicks, nothing is sent/)
+  })
   it('flow 3 is a lead sentence and one item per AI job, word for word (D-407)', () => {
     const [lead, list] = rows.get(3)![2]!.split('<ul>')
     const items = list!.replace(/<\/ul>$/, '').split('</li>').filter(Boolean).map((i) => plain(i.replace(/^<li>/, '')))

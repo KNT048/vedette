@@ -388,7 +388,7 @@ describe('Settings → Privacy: flow 12, Connections you add', () => {
     const table = await screen.findByRole('table', { name: 'Data flows that leave the box' })
     return { table, row: within(table).getByText(/12\. Connections you add/).closest('tr') as HTMLElement }
   }
-  it('lists 14 flows; flow 12 is on while a connection is enabled and links to Connections', async () => {
+  it('lists 15 flows; flow 12 is on while a connection is enabled and links to Connections', async () => {
     renderApp('/settings/privacy')
     const { table, row: r } = await row()
     expect(within(table).getAllByRole('row')).toHaveLength(15)
@@ -400,7 +400,7 @@ describe('Settings → Privacy: flow 12, Connections you add', () => {
     as('u-admin')
     connectorsStore.update((l) => l.map((c) => ({ ...c, enabled: false })))
     const body = (await (await api('/core/privacy')).json()) as { flows: { id: number; state: string; control: string }[] }
-    expect(body.flows).toHaveLength(14)
+    expect(body.flows).toHaveLength(15)
     expect(body.flows[11]).toEqual({ id: 12, state: 'off', control: 'reason' })
     connectorsStore.update((l) => l.map((c, i) => (i === 0 ? { ...c, enabled: true } : c)))
     expect(((await (await api('/core/privacy')).json()) as typeof body).flows[11]).toEqual({ id: 12, state: 'on', control: 'reason' })

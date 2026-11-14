@@ -428,7 +428,7 @@ func gbEnv(t *testing.T) (*env, *fakeGB) {
 	e.svc.cfg.TwoStep = func(context.Context, string) (string, error) { return "app", nil }
 	e.terms = new(bool)
 	g := e.svc.gb()
-	g.memTotal = func() (int64, error) { return 16 * gib, nil }
+	g.memInfo = func() (int64, int64, error) { return 16 * gib, 0, nil }
 	g.diskFree = func(string) (int64, error) { return 200e9, nil }
 	g.poll = 0
 	return e, h
@@ -562,21 +562,26 @@ func FuzzDecodeGMPReport(f *testing.F) {
 func TestContract_INV25_Preflight(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
-		name      string
-		mem, disk int64
-		code      string
-		text      string
+		name            string
+		mem, swap, disk int64
+		code            string
+		text            string
 	}{
-		{"5.9 GB of memory", 5_900_000_000, 200e9, "low_memory", "This box has 5.9 GB of memory; OpenVAS needs at least 6.0 GB."},
-		{"low disk", 16 * gib, 41_300_000_000, "low_disk", "This box has 41.3 GB of free disk space; OpenVAS needs at least 60.0 GB free."},
-		{"7.1 GB of memory", 7_100_000_000, 60e9, "", ""},
+		{"5.9 GB of memory", 5_900_000_000, 4e9, 200e9, "low_memory", "This box has 5.9 GB of memory; OpenVAS needs at least 6.0 GB."},
+		{"just under 6 GB reads 5.9", 5_999_999_999, 4e9, 200e9, "low_memory", "This box has 5.9 GB of memory; OpenVAS needs at least 6.0 GB."},
+		{"low disk", 16 * gib, 0, 41_300_000_000, "low_disk", "This box has 41.3 GB of free disk space; OpenVAS needs at least 60.0 GB free."},
+		{"7.1 GB of memory, no swap", 7_100_000_000, 0, 60e9, "low_memory", "This box has 7.1 GB of memory and 0.0 GB of swap; with less than 8.0 GB of memory OpenVAS needs at least 2.0 GB of swap for its first feed load."},
+		{"7.1 GB of memory, 1.9 GB of swap", 7_100_000_000, 1_999_999_999, 60e9, "low_memory", "This box has 7.1 GB of memory and 1.9 GB of swap; with less than 8.0 GB of memory OpenVAS needs at least 2.0 GB of swap for its first feed load."},
+		{"exactly 6 GB with 2 GB of swap", 6_000_000_000, 2e9, 60e9, "", ""},
+		{"7.1 GB of memory with swap", 7_100_000_000, 4e9, 60e9, "", ""},
+		{"exactly 8 GB needs no swap", 8_000_000_000, 0, 60e9, "", ""},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			e, h := gbEnv(t)
 			g := e.svc.gb()
-			g.memTotal = func() (int64, error) { return tc.mem, nil }
+			g.memInfo = func() (int64, int64, error) { return tc.mem, tc.swap, nil }
 			g.diskFree = func(string) (int64, error) { return tc.disk, nil }
 			before, err := e.svc.GreenboneSetting(e.ctx())
 			if err != nil {
@@ -603,15 +608,18 @@ func TestContract_INV25_Preflight(t *testing.T) {
 			}
 		})
 	}
-	if v := parseOrZero("MemTotal:        7965424 kB\nMemFree: 1 kB\n"); v != 7965424*1024 {
-		t.Fatalf("meminfo = %d", v)
+	if m, sw, err := parseMemInfo("MemTotal:        7965424 kB\nMemFree: 1 kB\nSwapTotal: 4194300 kB\n"); err != nil || m != 7965424*1024 || sw != 4194300*1024 {
+		t.Fatalf("meminfo = %d %d %v", m, sw, err)
+	}
+	if m, sw, err := parseMemInfo("MemTotal: 7965424 kB\nSwapTotal: -5 kB\n"); err != nil || m != 7965424*1024 || sw != 0 {
+		t.Fatalf("bad swap = %d %d %v", m, sw, err)
 	}
 	if v := parseOrZero("MemTotal: lots kB\n"); v != 0 {
 		t.Fatalf("bad meminfo = %d", v)
 	}
 }
 
-func parseOrZero(s string) int64 { v, _ := parseMemTotal(s); return v }
+func parseOrZero(s string) int64 { v, _, _ := parseMemInfo(s); return v }
 
 // INV-25: the states: off, starting while Up runs, loading while a feed syncs or "Full and fast" is missing (a phase, not a hang),
 // ready, error with the reason; disable stops the project, keeps the data and is audited like enable.
@@ -666,7 +674,7 @@ func TestContract_INV25_StateMachine(t *testing.T) {
 			details = append(details, a.Detail)
 		}
 	}
-	if len(details) != 2 || details[0] != "enabled (memory 17.2 GB, free disk 200.0 GB)" || details[1] != "disabled (data kept)" {
+	if len(details) != 2 || details[0] != "enabled (memory 17.1 GB, free disk 200.0 GB)" || details[1] != "disabled (data kept)" {
 		t.Fatalf("audit = %q", details)
 	}
 	// Up fails: error with the reason, until it is turned off and on again

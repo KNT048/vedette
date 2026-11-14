@@ -89,8 +89,12 @@ type GreenboneRow struct {
 const (
 	// GreenboneMinMemory is the least memory (MemTotal) the box needs before OpenVAS may be enabled: 6 GB decimal (D-569). The trial
 	// on the 7 GB N100 next to Vedette peaked at about 4.0 GB used, with about 2 GB of swap during the first feed import and
-	// 1.9 to 2.4 GB during the scan, so a 7 GB box passes; below 8 GB the page notes that the first feed load may use swap.
+	// 1.9 to 2.4 GB during the scan, so a 7 GB box with swap passes; below 8 GB the box must have GreenboneMinSwap and the page notes the swap use.
 	GreenboneMinMemory = 6_000_000_000
+	// GreenboneSwapBelow is the memory under which the box also needs GreenboneMinSwap of swap (SwapTotal): the trial's 7 GB box
+	// used about 2 GB of swap for the first feed load, so a box under 8 GB without that much swap would run out of memory (D-569).
+	GreenboneSwapBelow = 8_000_000_000
+	GreenboneMinSwap   = 2_000_000_000
 	// GreenboneMinDisk is the least free space of the box data directory's filesystem: images 9 GB + feed volumes 41 GB measured, plus
 	// room for the reports and updates. ponytail: statfs of the data dir, since podman keeps its volumes on the same filesystem by
 	// default; upgrade: the host measures podman's own storage (graphroot) and reports it.
@@ -212,7 +216,7 @@ type gbState struct {
 	state      string
 	reason     string
 	// injectable for tests
-	memTotal func() (int64, error)
+	memInfo  func() (mem, swap int64, err error)
 	diskFree func(dir string) (int64, error)
 	poll     time.Duration
 	cap      time.Duration
@@ -221,32 +225,41 @@ type gbState struct {
 // gb returns the Greenbone state, made on first use.
 func (s *Service) gb() *gbState {
 	s.gbOnce.Do(func() {
-		s.gbs = &gbState{memTotal: memTotal, diskFree: diskFree, poll: gbPollDefault, cap: GreenboneTimeout}
+		s.gbs = &gbState{memInfo: memInfo, diskFree: diskFree, poll: gbPollDefault, cap: GreenboneTimeout}
 	})
 	return s.gbs
 }
 
-// memTotal reads MemTotal from /proc/meminfo, in bytes.
-func memTotal() (int64, error) {
+// memInfo reads MemTotal and SwapTotal from /proc/meminfo, in bytes.
+func memInfo() (mem, swap int64, err error) {
 	b, err := os.ReadFile("/proc/meminfo")
 	if err != nil {
-		return 0, fmt.Errorf("reading /proc/meminfo: %w", err)
+		return 0, 0, fmt.Errorf("reading /proc/meminfo: %w", err)
 	}
-	return parseMemTotal(string(b))
+	return parseMemInfo(string(b))
 }
 
-func parseMemTotal(meminfo string) (int64, error) {
+// parseMemInfo fails closed: no valid MemTotal is an error; a missing or bad SwapTotal counts as no swap.
+func parseMemInfo(meminfo string) (mem, swap int64, err error) {
 	for _, line := range strings.Split(meminfo, "\n") {
 		f := strings.Fields(line)
-		if len(f) == 3 && f[0] == "MemTotal:" && f[2] == "kB" {
-			kb, err := strconv.ParseInt(f[1], 10, 64)
-			if err != nil || kb <= 0 || kb > 1<<40 {
-				break
-			}
-			return kb * 1024, nil
+		if len(f) != 3 || f[2] != "kB" || (f[0] != "MemTotal:" && f[0] != "SwapTotal:") {
+			continue
+		}
+		kb, err := strconv.ParseInt(f[1], 10, 64)
+		if err != nil || kb < 0 || kb > 1<<40 {
+			kb = 0
+		}
+		if f[0] == "MemTotal:" {
+			mem = kb * 1024
+		} else {
+			swap = kb * 1024
 		}
 	}
-	return 0, errors.New("no MemTotal line in /proc/meminfo")
+	if mem <= 0 {
+		return 0, 0, errors.New("no MemTotal line in /proc/meminfo")
+	}
+	return mem, swap, nil
 }
 
 // diskFree is the space an unprivileged writer may use on dir's filesystem, in bytes.
@@ -261,8 +274,11 @@ func diskFree(dir string) (int64, error) {
 	return int64(st.Bavail) * int64(st.Bsize), nil //nolint:gosec,unconvert // block counts of a real filesystem fit; Bsize differs in type between Linux and macOS
 }
 
-// gbText is a byte count as the page says it: decimal GB with one decimal ("7.1 GB").
-func gbText(n int64) string { return strconv.FormatFloat(float64(n)/1e9, 'f', 1, 64) + " GB" }
+// gbText is a byte count as the page says it: decimal GB with one decimal, rounded down ("7.1 GB"), so a number just under a
+// threshold never reads as the threshold itself.
+func gbText(n int64) string {
+	return strconv.FormatFloat(float64(n/100_000_000)/10, 'f', 1, 64) + " GB"
+}
 
 // preflight measures the box against the thresholds (INV-25). The reason names the measured number and the threshold.
 func (s *Service) preflight() GreenbonePreflight {
@@ -273,12 +289,15 @@ func (s *Service) preflight() GreenbonePreflight {
 			p.OK, p.Code, p.Reason = false, code, &why
 		}
 	}
-	if m, err := g.memTotal(); err != nil {
+	if m, swap, err := g.memInfo(); err != nil {
 		refuse("low_memory", "Vedette could not read how much memory this box has, so OpenVAS cannot be enabled.")
 	} else {
 		p.MemoryBytes = &m
 		if m < GreenboneMinMemory {
 			refuse("low_memory", fmt.Sprintf("This box has %s of memory; OpenVAS needs at least %s.", gbText(m), gbText(GreenboneMinMemory)))
+		} else if m < GreenboneSwapBelow && swap < GreenboneMinSwap {
+			refuse("low_memory", fmt.Sprintf("This box has %s of memory and %s of swap; with less than %s of memory OpenVAS needs at least %s of swap for its first feed load.",
+				gbText(m), gbText(swap), gbText(GreenboneSwapBelow), gbText(GreenboneMinSwap)))
 		}
 	}
 	if d, err := g.diskFree(s.cfg.DataDir); err != nil {

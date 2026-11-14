@@ -55,17 +55,19 @@ const outside = collection<Record<string, Omit<OutsideView, 'scan_ports' | 'scan
 /** When the box last asked Shodan: at most once a minute on the box (in memory, as on the box). */
 let outsideAskedMs = 0
 /** D-563: the optional deep scan with Greenbone, off by default. The mock box has 16 GB of memory and 180 GB free; localStorage keys
- * "vedette-mock-box-memory" and "vedette-mock-box-disk" (bytes) play a smaller box. After Enable it is "starting" for 3 seconds, then "loading"
+ * "vedette-mock-box-memory", "vedette-mock-box-swap" (default 4 GB) and "vedette-mock-box-disk" (bytes) play a smaller box. After Enable it is "starting" for 3 seconds, then "loading"
  * its feed until 15 seconds (about 2 hours on a real box), then ready. D-566: it scans only a target whose testing terms are accepted. */
 const greenbone = collection<{ enabled: boolean; changed_by: string | null; changed_at: string | null }>('exp_greenbone', () => ({ enabled: false, changed_by: null, changed_at: null }), () => ({ enabled: false, changed_by: null, changed_at: null }))
 const measured = (key: string, fallback: number) => { const v = Number(localStorage.getItem(key)); return Number.isFinite(v) && v > 0 ? v : fallback }
-const gbText = (n: number) => `${(n / 1e9).toFixed(1)} GB`
+const gbText = (n: number) => `${(Math.floor(n / 1e8) / 10).toFixed(1)} GB`
 const GREENBONE_NO_TERMS = 'OpenVAS did not scan: accept the testing terms for this target to run OpenVAS (Ownership tab).'
 const WEEK_MS = 7 * 24 * 3600 * 1000
 function greenboneView(): Greenbone {
   const g = greenbone.get()
   const mem = measured('vedette-mock-box-memory', 16e9), disk = measured('vedette-mock-box-disk', 180e9)
-  const reason = mem < 6e9 ? `This box has ${gbText(mem)} of memory; OpenVAS needs at least 6.0 GB.` : disk < 60e9 ? `This box has ${gbText(disk)} of free disk space; OpenVAS needs at least 60.0 GB free.` : null
+  const swap = localStorage.getItem('vedette-mock-box-swap') === null ? 4e9 : Math.max(0, Number(localStorage.getItem('vedette-mock-box-swap')) || 0)
+  const reason = mem < 6e9 ? `This box has ${gbText(mem)} of memory; OpenVAS needs at least 6.0 GB.`
+    : mem < 8e9 && swap < 2e9 ? `This box has ${gbText(mem)} of memory and ${gbText(swap)} of swap; with less than 8.0 GB of memory OpenVAS needs at least 2.0 GB of swap for its first feed load.` : disk < 60e9 ? `This box has ${gbText(disk)} of free disk space; OpenVAS needs at least 60.0 GB free.` : null
   const since = g.changed_at ? Date.now() - Date.parse(g.changed_at) : 0
   const state = !g.enabled ? 'off' : since < 3000 ? 'starting' : since < 15000 ? 'loading' : 'ready'
   // D-564 G6: the first weekly feed update is due a week after Enable (the mock never runs it)

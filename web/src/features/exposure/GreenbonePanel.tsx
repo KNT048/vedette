@@ -10,14 +10,14 @@ import { dateTimeText } from './dates'
 import { useGreenbone, useSetGreenbone } from './api'
 import type { Greenbone, GreenboneResult, Snapshot } from './types'
 
-/** D-569: under 8 GB (decimal) the first feed load may use swap; the box still passes from 6 GB. */
+/** D-569: under 8 GB (decimal) the first feed load uses swap, so the box then needs 2 GB of swap; it passes from 6 GB. */
 const SWAP_BELOW = 8e9
 
 const STATE_TONE: Record<Greenbone['state'], Tone> = { unavailable: 'off', off: 'off', starting: 'accent', loading: 'accent', ready: 'ok', error: 'danger' }
 /** Decimal GB with one decimal, as the box measures it (8 GB = 8e9 bytes, D-563). */
 /** Greenbone's own classes: Low is 0.1 to 3.9 (D-564 G3: a hardening note). */
 const LOW_BELOW = 4
-const gb = (n: number | null) => (n === null ? null : `${(n / 1e9).toFixed(1)} GB`)
+const gb = (n: number | null) => (n === null ? null : `${(Math.floor(n / 1e8) / 10).toFixed(1)} GB`) // rounded down, as the box says it
 
 /**
  * S-EXP-2 (INV-25, D-563): the optional deep scan with Greenbone (OpenVAS), off by default, admin only. The box measures its memory and
@@ -71,7 +71,7 @@ function GreenboneBody({ g }: { g: Greenbone }) {
             ...(f.next_at ? [{ label: t('greenbone.feedNext'), value: dateTimeText(f.next_at) }] : []),
           ]} />
           {!on ? <p className="text-[13px]">{t('greenbone.needs')}</p> : null}
-          {!on && p.ok && p.memory_bytes != null && p.memory_bytes < SWAP_BELOW ? <p className="text-[13px] text-muted">{t('greenbone.swapNote')}</p> : null}
+          {(!on || g.state === 'loading') && p.ok && p.memory_bytes != null && p.memory_bytes < SWAP_BELOW ? <p className="text-[13px] text-muted">{t('greenbone.swapNote')}</p> : null}
           {!on && !p.ok ? <p role="alert" className="text-sm text-warn">{p.reason}</p> : null}
           <div className="flex flex-wrap items-center gap-3">
             {on ? (

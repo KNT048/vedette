@@ -1293,15 +1293,15 @@ describe('exposure: services and exploited vulnerabilities of the box IP (S-EXP-
 })
 
 describe('exposure: optional deep scan with Greenbone (S-EXP-2, INV-25, D-563)', () => {
-  afterEach(() => { localStorage.removeItem('vedette-mock-box-memory'); localStorage.removeItem('vedette-mock-box-disk') })
+  afterEach(() => { for (const k of ['memory', 'swap', 'disk']) localStorage.removeItem(`vedette-mock-box-${k}`) })
   const section = () => screen.findByRole('region', { name: 'Optional deep scan: OpenVAS' })
 
   it('off by default: shows the box\'s numbers and what it needs before Enable; an administrator enables it and it starts; axe clean', async () => {
     renderApp('/exposure')
     const s = await section()
     expect(await within(s).findByText('Off')).toBeInTheDocument()
-    expect(within(s).getByText("Needs about 50 GB of disk and about 2 hours to load the OpenVAS feed the first time. The box must have at least 6 GB of memory and 60 GB free.")).toBeInTheDocument()
-    expect(within(s).queryByText(/may use swap/)).toBeNull()
+    expect(within(s).getByText("Needs about 50 GB of disk and about 2 hours to load the OpenVAS feed the first time. The box must have at least 6 GB of memory (under 8 GB, also 2 GB of swap) and 60 GB free.")).toBeInTheDocument()
+    expect(within(s).queryByText(/uses swap/)).toBeNull()
     expect(within(s).getByText('16.0 GB')).toBeInTheDocument()
     expect(within(s).getByText('180.0 GB')).toBeInTheDocument()
     await expectNoA11yViolations()
@@ -1318,8 +1318,24 @@ describe('exposure: optional deep scan with Greenbone (S-EXP-2, INV-25, D-563)',
     localStorage.setItem('vedette-mock-box-memory', '7100000000')
     renderApp('/exposure')
     const s = await section()
-    expect(await within(s).findByText('The first feed load may use swap on a box under 8 GB (the 7 GB test box used about 2 GB of swap).')).toBeInTheDocument()
+    expect(await within(s).findByText('The first feed load uses swap on a box under 8 GB (on a 7 GB box it used about 2 GB of swap).')).toBeInTheDocument()
     expect(within(s).queryByRole('alert')).toBeNull()
+    expect(within(s).getByRole('button', { name: 'Enable OpenVAS' })).toBeEnabled()
+  })
+
+  it('D-569: under 8 GB without 2 GB of swap it is refused with both numbers; at exactly 8 GB no swap is needed and no note shows', async () => {
+    localStorage.setItem('vedette-mock-box-memory', '7100000000')
+    localStorage.setItem('vedette-mock-box-swap', '0')
+    const { unmount } = renderApp('/exposure')
+    let s = await section()
+    expect(await within(s).findByRole('alert')).toHaveTextContent('This box has 7.1 GB of memory and 0.0 GB of swap; with less than 8.0 GB of memory OpenVAS needs at least 2.0 GB of swap for its first feed load.')
+    expect(within(s).getByRole('button', { name: 'Enable OpenVAS' })).toBeDisabled()
+    unmount()
+    localStorage.setItem('vedette-mock-box-memory', '8000000000')
+    renderApp('/exposure')
+    s = await section()
+    expect(await within(s).findByText('8.0 GB')).toBeInTheDocument()
+    expect(within(s).queryByText(/uses swap/)).toBeNull()
     expect(within(s).getByRole('button', { name: 'Enable OpenVAS' })).toBeEnabled()
   })
 

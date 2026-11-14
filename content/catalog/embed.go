@@ -22,3 +22,8 @@ var KEVProducts []byte
 //
 //go:embed nvd-cpe.json
 var NVDCPE []byte
+
+// NmapCPE maps a CPE nmap -sV prints to the NVD CPE products of the same software (W11-2; cmd/vedette exposurematch.go).
+//
+//go:embed nmap-cpe.json
+var NmapCPE []byte

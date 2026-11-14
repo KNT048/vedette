@@ -309,6 +309,7 @@ type nodeRow struct {
 	boundMAC    string
 	reported    string // the answers of the first report the inventory took (schedule.go firstReport), comma-separated
 	approved    bool   // the enrolment's approval was done (D-503)
+	kernel      string // the running kernel release the node last reported (kernel_info, D-516), "" until it has
 }
 
 // nodeByKey finds the node whose key hashes to the hash of key; errNodeInvalid when there is none.
@@ -317,8 +318,8 @@ func (s *Service) nodeByKey(ctx context.Context, key string) (nodeRow, error) {
 	var n nodeRow
 	var got, seen, enrolled string
 	var ip, mac sql.NullString
-	err := s.db.Reader().QueryRowContext(ctx, `SELECT id, token_id, node_key_hash, last_seen, enrolled_at, bound_ip, bound_mac, reported, approved_at IS NOT NULL
-		FROM intake_osquery_nodes WHERE node_key_hash = ?`, want).Scan(&n.id, &n.tokenID, &got, &seen, &enrolled, &ip, &mac, &n.reported, &n.approved)
+	err := s.db.Reader().QueryRowContext(ctx, `SELECT id, token_id, node_key_hash, last_seen, enrolled_at, bound_ip, bound_mac, reported, approved_at IS NOT NULL, kernel
+		FROM intake_osquery_nodes WHERE node_key_hash = ?`, want).Scan(&n.id, &n.tokenID, &got, &seen, &enrolled, &ip, &mac, &n.reported, &n.approved, &n.kernel)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nodeRow{}, errNodeInvalid
 	}

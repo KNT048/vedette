@@ -76,7 +76,8 @@ var exportPolicy = map[string]tablePolicy{
 	"exp_target":             {export: "id kind value method verified_at commitment_by commitment_at commitment_version commitment_sentence commitment_user_id commitment_method created_at last_scan_at", json: "last_check", skip: "token"},
 	"feeds_affected":         {export: "cve cpe start_incl start_excl end_incl end_excl"}, // D-500: public NVD data
 	"feeds_affected_cve":     {export: "cve updated_at source"},
-	"feeds_cveorg_checked":   {export: "cve checked_at"}, // D-556: when each CVE.org record was read
+	"feeds_cveorg_checked":   {export: "cve checked_at"},                                                // D-556: when each CVE.org record was read
+	"feeds_distro_fix":       {export: "source_id distro release package cve status fixed_version pro"}, // D-516: public Ubuntu/Debian data
 	"feeds_fetch_log":        {export: "id source_id started_at finished_at status records_accepted records_rejected error bytes etag last_modified", json: "reject_reasons"},
 	"feeds_ioc":              {export: "id type value first_seen last_seen"},
 	"feeds_ioc_source":       {export: "ioc_id source_id last_seen confidence seen"},
@@ -96,7 +97,7 @@ var exportPolicy = map[string]tablePolicy{
 	"inv_observation":        {export: "id asset_id field value source confidence seen_at evidence"},
 	"inv_service":            {export: "id asset_id port proto name product version detail source confidence seen_at"},
 	"inv_setting":            {export: "key updated_at updated_by", json: "value"},
-	"inv_software":           {export: "id asset_id display vendor product version cpe source confidence seen_at packaged"},
+	"inv_software":           {export: "id asset_id display vendor product version cpe source confidence seen_at packaged pkg_version pkg_source"},
 	"inv_source":             {export: "source first_seen"},
 	"inv_software_kev":       {export: "software_id kev_key"},
 	"mit_ai_output":          {export: "finding_id skill model profile created_at activity_id", json: "payload"},
@@ -116,7 +117,7 @@ var exportPolicy = map[string]tablePolicy{
 	"notify_send":            {export: "id kind ref_id channel at ok error what link recipient delayed", json: "message", url: "to"},
 	"intake_agent_tokens":    {export: "id name kind last4 created_at expires_at last_received created_by", skip: "token_hash"},                                                                                                                   // the hash never leaves (agent-intake INV-3)
 	"intake_wazuh":           {export: "id username password_last4 interval_minutes tls_pin tls_pin_first_seen generation status last_sync next_pull agents packages error resume_after pass_packages updated_at", url: "url", skip: "secret_id"}, // the password stays in core_secret (agent-intake INV-6)
-	"intake_osquery_nodes":   {export: "id token_id host_identifier hostname platform osquery_version enrolled_at last_seen last_result_at bound_ip bound_mac reported approved_at", skip: "node_key_hash"},                                       // the key hash never leaves
+	"intake_osquery_nodes":   {export: "id token_id host_identifier hostname platform osquery_version enrolled_at last_seen last_result_at bound_ip bound_mac reported approved_at kernel", skip: "node_key_hash"},                                // the key hash never leaves
 	"intake_prune_clock":     {export: "id last_run"},                                                                                                                                                                                             // when node-prune last ran (agent-intake POST-4)
 	"mcp_tokens":             {export: "id name last4 created_at last_used", json: "scopes", skip: "token_hash"},                                                                                                                                  // the hash never leaves (mcp-server INV-3)
 	"notify_send_notice":     {export: "send_id notice_id"},

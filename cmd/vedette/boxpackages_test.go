@@ -38,7 +38,8 @@ func TestBoxPackagesMapsTheHostsDpkgList(t *testing.T) {
 		t.Fatalf("items %+v", items)
 	}
 	ssh := items[slices.IndexFunc(items, func(i inventory.SoftwareItem) bool { return i.Product == "OpenSSH" })]
-	if ssh.Vendor != "OpenBSD" || ssh.Version != "9.6p1" || !slices.Equal(ssh.KevKeys, []string{"openbsd|openssh"}) {
+	if ssh.Vendor != "OpenBSD" || ssh.Version != "9.6p1" || !slices.Equal(ssh.KevKeys, []string{"openbsd|openssh"}) ||
+		ssh.PkgVersion != "1:9.6p1-3ubuntu13.5" || ssh.PkgSource != "openssh" { // D-516: the full version and source go to findings
 		t.Errorf("openssh-server mapped to %+v", ssh)
 	}
 }

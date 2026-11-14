@@ -205,7 +205,7 @@ describe('findings: f-2, f-3 chưa có khuyến nghị đã xác nhận (D-21)',
 
   it('D-488: "What to do" nói phiên bản vá cho đúng thiết bị, đúng nhánh, và không bịa khi NVD không cho', () => {
     const note = (fixed_in: FindingDetail['fixed_in']) => render(<FixedInNote finding={{ asset: { name: 'FortiGate-60F' }, fixed_in } as FindingDetail} />)
-    const src = { source: 'NVD affected versions', more: 0, no_fix: 0, distro: '', branches: [] }
+    const src = { source: 'NVD affected versions', more: 0, no_fix: 0, distro: '', branches: [], distro_fixed: '', distro_release: '', distro_pro: false }
     const a = note({ ...src, kind: 'fixed', version: '7.4.1', fixed: '7.4.3' })
     expect(screen.getByText('Fixed in 7.4.3: upgrade FortiGate-60F from 7.4.1 to 7.4.3 or later.')).toBeInTheDocument()
     expect(screen.getByText(/Source: NVD affected versions/)).toBeInTheDocument()
@@ -244,6 +244,15 @@ describe('findings: f-2, f-3 chưa có khuyến nghị đã xác nhận (D-21)',
     expect(screen.getByText(/cannot read the version "7\.0\.x" of FortiGate-60F.*7\.0 \u2192 7\.0\.9, no fixed release named for 4 more line\(s\)/)).toBeInTheDocument()
     expect(screen.queryByText(/has no version yet/)).not.toBeInTheDocument()
     e.unmount()
+    // D-516: the distribution's own fixed package for the device's release, with its source
+    const u = render(<FixedInNote finding={{ asset: { name: 'web-01' }, kev: { display: 'OpenSSH' }, fixed_in: { ...src, kind: 'distro', version: '1:9.6p1-3ubuntu13.4', fixed: '', distro: 'Ubuntu', distro_fixed: '1:9.6p1-3ubuntu13.5', distro_release: '24.04', source: 'Ubuntu security data' } } as unknown as FindingDetail} />)
+    expect(screen.getByText("Fixed in 1:9.6p1-3ubuntu13.5 for Ubuntu 24.04: web-01 has OpenSSH 1:9.6p1-3ubuntu13.4 from Ubuntu's packages. Install Ubuntu's security updates for it (for example apt upgrade).")).toBeInTheDocument()
+    expect(screen.getByText('Source: Ubuntu security data.')).toBeInTheDocument()
+    expect(screen.queryByText(/backports|If you installed|Ubuntu Pro/)).not.toBeInTheDocument()
+    u.unmount()
+    const pro = note({ ...src, kind: 'distro', version: '1:2.25.1-1ubuntu3.14', fixed: '', distro: 'Ubuntu', distro_fixed: '1:2.25.1-1ubuntu3.14+esm6', distro_release: '20.04', distro_pro: true, source: 'Ubuntu security data' })
+    expect(screen.getByText(/Ubuntu Pro \(ESM\) only/)).toBeInTheDocument()
+    pro.unmount()
     note(null)
     expect(screen.queryByTestId('fixed-in')).not.toBeInTheDocument()
   })

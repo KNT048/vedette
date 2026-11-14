@@ -15,7 +15,7 @@ export const VerifyMethod = z.enum(['dns_txt', 'box_egress'])
 
 export const Counts = z.object({ subdomains: z.number().int(), ips: z.number().int(), ports: z.number().int(), admin_panels: z.number().int(), certs_expiring: z.number().int() })
 
-export const PortRow = z.object({ ip: z.string(), port: z.number().int(), service: z.string(), product: z.string().optional() })
+export const PortRow = z.object({ ip: z.string(), port: z.number().int(), service: z.string(), product: z.string().optional(), last_seen: isoDate.optional().describe('Set only on a port the newest scan did not report, kept from an earlier scan: the day a scan last saw it open (INV-22)'), misses: z.number().int().optional().describe('With last_seen: how many scans in a row that checked the address missed the port (1 = missed by the last scan)'), unchecked: z.boolean().optional().describe('The newest scan did not check the address: the row is as an earlier scan left it') })
 
 /** The sentence an administrator's first Scan now confirms (D-473). The backend owns the text (modules/exposure/notice.go) and sends it with the target's name in it; the page shows what it received. These two constants are the mock's copy, held equal to the backend's by a Go test. */
 export const NOTICE_VERSION = '2026-11-14'
@@ -81,6 +81,8 @@ export const SnapshotMeta = Snapshot.pick({ id: true, date: true, scanned_at: tr
 
 /** The "to" of a service whose version the newer scan did not read (INV-20): not a change of version, and its CVEs are not gone. */
 export const VERSION_NOT_READ = 'version not read this time'
+/** The `to` of a changed port that the newer scan did not see (INV-22). */
+export const PORT_NOT_SEEN = 'missed by the last scan'
 export const DiffKind = z.enum(['subdomain', 'port', 'admin', 'cert', 'service', 'vuln'])
 export const DiffItem = z.object({ kind: DiffKind, key: z.string(), label: z.string(), detail: z.string() })
 export const DiffChange = DiffItem.extend({ from: z.string(), to: z.string() })

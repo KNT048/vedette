@@ -4,7 +4,8 @@
 // - osquery TLS: cờ config_plugin/logger_plugin=tls, enroll_secret_path, tls_server_certs, tls_hostname (kèm cổng, không https://), enroll/config/logger_tls_endpoint, host_identifier.
 //   https://osquery.readthedocs.io/en/stable/deployment/remote/
 // - osquery lịch truy vấn: JSON "schedule" (query, interval giây, snapshot, platform). https://osquery.readthedocs.io/en/stable/deployment/configuration/
-// - osquery bảng: os_version, deb_packages, rpm_packages, programs, system_info, interface_details, interface_addresses. https://osquery.io/schema/
+// - osquery bảng: os_version, deb_packages, rpm_packages, programs, system_info, interface_details, interface_addresses, kernel_info (D-516: cột
+//   `version` là kernel đang chạy, "7.0.0-43-generic", câu một dòng riêng; hộp gắn nó vào danh sách gói để dòng Kernel lấy đúng ảnh kernel đang chạy). https://osquery.io/schema/
 //   (D-169 (7): `interfaces` cho hộp biết MAC/IP của máy để khớp thiết bị; bỏ cpu_brand, physical_memory, patches vì kho không có trường nào cho chúng.)
 // - osquery cài: gói chính thức do CHÍNH HỘP phục vụ (D-404: hộp là nguồn duy nhất, không pkg.osquery.io, không Chocolatey), kiểm SHA-256 bằng giá trị trên
 //   trang đã đăng nhập rồi mới cài: `dpkg -i` / `rpm -Uvh` (https://osquery.readthedocs.io/en/stable/installation/install-linux/); MSI cài vào
@@ -32,6 +33,7 @@ export const OSQUERY_SCHEDULE = JSON.stringify({
     deb_packages: { query: 'SELECT name, version, arch, source FROM deb_packages;', interval: 3600, snapshot: true, platform: 'linux' },
     rpm_packages: { query: 'SELECT name, version, release, arch, epoch FROM rpm_packages;', interval: 3600, snapshot: true, platform: 'linux' },
     programs: { query: 'SELECT name, version, publisher, install_date FROM programs;', interval: 3600, snapshot: true, platform: 'windows' },
+    kernel_info: { query: 'SELECT version FROM kernel_info;', interval: 3600, snapshot: true, platform: 'linux' },
   },
 }, null, 2)
 

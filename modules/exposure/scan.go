@@ -372,6 +372,146 @@ func sanitize(c Content) Content {
 		Services: sanitizeServices(c.Services), Checks: sanitizeChecks(c.Checks), NotChecked: sanitizeNotChecked(c.NotChecked)}
 }
 
+// scope says what the scan did with an address whose ports the previous observation listed (INV-22).
+type scope int
+
+const (
+	scopeChecked scope = iota // the scan port-scanned it: a port it does not report was missed
+	scopeKept                 // still the domain's address but not scannable now (lapsed, paused, deleted, skipped): the scan did not check it
+	scopeGone                 // no longer an address of the domain: its ports leave with the host
+)
+
+// ipKey is the one spelling of an address that two scans are compared by (an IPv4-mapped form is the same address).
+func ipKey(s string) string {
+	if a, err := netip.ParseAddr(s); err == nil {
+		return a.Unmap().String()
+	}
+	return s
+}
+
+// coveredBy decides, for each address of the previous observation that this scan reported no port on, whether the scan checked it.
+// An IP target is checked by every successful scan; a domain scan port-scans only the addresses its names point at that are
+// scannable IP targets (the gate the runner asked, ScannableIP). A scan that did not check an address says nothing about its ports.
+func (s *Service) coveredBy(ctx context.Context, user string, t Target, c Content, prev Snapshot) map[string]scope {
+	reported := map[string]bool{}
+	for _, p := range c.Ports {
+		reported[ipKey(p.IP)] = true
+	}
+	pointed := map[string]bool{}
+	for _, h := range c.Hosts {
+		pointed[ipKey(h.IP)] = true
+	}
+	out := map[string]scope{}
+	for _, p := range prev.Ports {
+		k := ipKey(p.IP)
+		if _, done := out[k]; done {
+			continue
+		}
+		switch {
+		case reported[k] || (t.Kind == KindIP && k == ipKey(t.Value)):
+			out[k] = scopeChecked
+		case t.Kind != KindDomain || moved(k, pointed, prev.Hosts, c.Hosts):
+			out[k] = scopeGone
+		default:
+			out[k] = scopeKept
+			if a, err := netip.ParseAddr(k); err == nil {
+				if ok, err := s.ScannableIP(ctx, user, a); err == nil && ok {
+					out[k] = scopeChecked
+				}
+			}
+		}
+	}
+	return out
+}
+
+// moved says an address left a domain: it had names in the previous observation, and each of them is in this scan with another
+// address. An address no known name pointed at (a name's second address), or a name this scan did not resolve (a failed lookup),
+// is not "moved": the scan did not check it (INV-22).
+func moved(ip string, pointed map[string]bool, before, now []HostRow) bool {
+	if pointed[ip] {
+		return false
+	}
+	at := map[string]string{}
+	for _, h := range now {
+		at[h.Name] = ipKey(h.IP)
+	}
+	named := false
+	for _, h := range before {
+		if ipKey(h.IP) != ip {
+			continue
+		}
+		named = true
+		if to, ok := at[h.Name]; !ok || to == ip {
+			return false
+		}
+	}
+	return named
+}
+
+// carryNotSeen keeps, in the newest scan, the ports of the previous observation that this scan did not report (INV-22, D-560): one
+// scan that missed a port (packet loss, a slow host) must not read as a fix. A port on an address the scan checked gets one more
+// miss and is dropped (closed) at the second miss in a row, scans counted, not days; a port on an address the scan did not check is
+// kept as it was, with no miss; a port the scan reports is a normal row. A port a scan reports again starts from zero. The service
+// read on a kept port is kept too, so its exploited CVEs stay until the port is closed. Kept rows count as open ports.
+func carryNotSeen(c Content, prev Snapshot, how map[string]scope) Content {
+	type key struct {
+		ip   string
+		port int
+	}
+	have := map[key]bool{}
+	for _, p := range c.Ports {
+		have[key{ipKey(p.IP), p.Port}] = true
+	}
+	kept := map[key]bool{}
+	for _, p := range prev.Ports {
+		k := key{ipKey(p.IP), p.Port}
+		if have[k] || len(c.Ports) >= maxContentRows {
+			continue
+		}
+		if p.LastSeen == "" {
+			p.LastSeen = prev.Date
+		}
+		switch how[k.ip] {
+		case scopeGone:
+			continue
+		case scopeKept:
+			p.Unchecked = true
+		case scopeChecked:
+			p.Unchecked = false
+			if p.Misses >= 1 {
+				continue // missed by two scans in a row: closed
+			}
+			p.Misses = 1
+		}
+		have[k] = true
+		kept[k] = true
+		c.Ports = append(c.Ports, p)
+	}
+	haveSvc := map[key]bool{}
+	for _, x := range c.Services {
+		haveSvc[key{ipKey(x.IP), x.Port}] = true
+	}
+	for _, x := range prev.Services {
+		k := key{ipKey(x.IP), x.Port}
+		if kept[k] && !haveSvc[k] && len(c.Services) < maxContentRows {
+			haveSvc[k] = true
+			c.Services = append(c.Services, x)
+		}
+	}
+	return c
+}
+
+// keptPorts counts the rows of a snapshot that an earlier scan reported (INV-22).
+func keptPorts(ports []PortRow) int {
+	n := 0
+	for _, p := range ports {
+		if p.LastSeen != "" {
+			n++
+		}
+	}
+	return n
+}
+
 // ---- reading results (INV-8) ----
 
 // Snapshots lists the scan days of a target, newest first.
@@ -427,11 +567,16 @@ type diffEntry struct {
 	exp string
 	// service and vuln entries: where ("ip:port"); service entries: product and version
 	at, product, version string
+	lastSeen             string // port entries kept from an earlier scan: the day a scan last saw it (INV-22)
+	missed               bool   // port entries: the last scan that checked the address missed it
 }
 
 // VersionNotRead is the "to" of a service whose version the newer scan did not read, where the older one did (INV-20): not a
 // change of version, and its exploited CVEs are not "gone".
 const VersionNotRead = "version not read this time"
+
+// PortNotSeen is the "to" of a port that an earlier scan saw and the newer scan missed (INV-22): not "closed" until a second scan also misses it.
+const PortNotSeen = "missed by the last scan"
 
 // entries lists what a snapshot shows, keyed so two days can be compared (the keys are those of the mock).
 func entries(s Snapshot) (map[string]diffEntry, []string) {
@@ -452,7 +597,7 @@ func entries(s Snapshot) (map[string]diffEntry, []string) {
 		if p.Product != "" {
 			detail += ", " + p.Product
 		}
-		add(diffEntry{DiffItem: DiffItem{Kind: "port", Key: key, Label: fmt.Sprintf("%s:%d", p.IP, p.Port), Detail: strings.TrimPrefix(detail, ", ")}})
+		add(diffEntry{DiffItem: DiffItem{Kind: "port", Key: key, Label: fmt.Sprintf("%s:%d", p.IP, p.Port), Detail: strings.TrimPrefix(detail, ", ")}, lastSeen: p.LastSeen, missed: p.Misses > 0})
 	}
 	for _, a := range s.AdminPanels {
 		add(diffEntry{DiffItem: DiffItem{Kind: "admin", Key: "a:" + a.URL, Label: a.URL, Detail: a.Product}})
@@ -481,6 +626,8 @@ func diff(a, b Snapshot) Diff {
 		switch {
 		case !ok:
 			d.Added = append(d.Added, v.DiffItem)
+		case v.Kind == "port" && !o.missed && v.missed: // seen before, missed by the last scan: still open until a second scan agrees
+			d.Changed = append(d.Changed, DiffChange{DiffItem: v.DiffItem, From: o.Detail, To: PortNotSeen})
 		case v.Kind == "cert" && o.exp != v.exp:
 			d.Changed = append(d.Changed, DiffChange{DiffItem: v.DiffItem, From: o.exp, To: v.exp})
 		case v.Kind == "service" && versionUnread(o, v):
@@ -497,6 +644,9 @@ func diff(a, b Snapshot) Diff {
 		}
 		if s, ok := B["s:"+o.at]; o.Kind == "vuln" && ok && versionUnread(A["s:"+o.at], s) {
 			continue // its service's version was not read this time: the CVE is not known to be gone
+		}
+		if o.Kind == "port" && o.missed { // the older day had it as missed once and the newer one has none: confirmed closed
+			o.Detail = fmt.Sprintf("%s (closed: missed by two scans in a row, last seen %s)", o.Detail, o.lastSeen)
 		}
 		d.Removed = append(d.Removed, o.DiffItem)
 	}

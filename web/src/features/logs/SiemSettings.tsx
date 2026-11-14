@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Send } from 'lucide-react'
-import { PageHeader } from '@/components/common/PageHeader'
+import { Notice, PageHeader } from '@/components/common/PageHeader'
 import { CodeBlock } from '@/components/common/CodeBlock'
 import { QueryState, RequireModule } from '@/components/common/States'
 import { Button } from '@/components/ui/button'
@@ -64,7 +64,7 @@ function SiemForm({ cfg }: { cfg: SiemConfig }) {
 
   return (
     <form onSubmit={onSave} className="grid max-w-2xl gap-5" noValidate>
-      {error ? <p role="alert" className="rounded-md border border-danger/40 bg-danger-soft px-3 py-2 text-sm">{error}</p> : null}
+      {error ? <Notice tone="danger" role="alert" title={error} className="mb-0" /> : null}
       <div className="flex items-center gap-3">
         <Switch id="siem-enabled" checked={enabled} onCheckedChange={setEnabled} disabled={!isAdmin} />
         <Label htmlFor="siem-enabled">{t('siem.enabled')}</Label>

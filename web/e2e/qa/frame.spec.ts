@@ -15,7 +15,11 @@ const PAGES = [
   // D-543: the other Kiên-side pages on the frame
   { path: '/honeypot', second: 'Services', id: 'services', other: 'Tokens' },
   { path: '/incidents', second: 'Resolved', id: 'resolved', other: 'Open' },
+  // exposure: the list and one IP target (Results is the first tab, Ownership the second)
+  { path: '/exposure', second: 'Open exposures', id: 'open', other: 'Targets' },
+  { path: '/exposure/xt-2', second: 'Ownership', id: 'ownership', other: 'Results' },
   { path: '/devices/a-nas02', second: 'Software', id: 'software', other: 'Observations' },
+  { path: '/assistant', second: 'Usage', id: 'usage', other: 'Ask' },
 ] as const
 
 const device = (page: Page) => ((page.viewportSize()?.width ?? 1366) < 600 ? 'phone' : 'desktop')

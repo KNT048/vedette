@@ -3,7 +3,8 @@ import { Link, useNavigate } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Plus } from 'lucide-react'
-import { PageHeader, Section, Panel } from '@/components/common/PageHeader'
+import { Notice, PageHeader, Section, Panel } from '@/components/common/PageHeader'
+import { KpiStrip, PageTabs } from '@/components/common/PageFrame'
 import { EmptyState, QueryState, RequireModule, SampleDataNote } from '@/components/common/States'
 import { Chip } from '@/components/common/StatusChip'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
@@ -12,14 +13,19 @@ import { Dialog, DialogContent, DialogFooter, DialogTrigger } from '@/components
 import { Field, Input } from '@/components/ui/input'
 import { fmtRelative } from '@/lib/format'
 import { useCan } from '@/lib/session'
+import { AnchorRedirect, ScrollToHash } from './anchors'
 import { BoxIpPanel } from './BoxIpPanel'
 import { CommitChip, OwnerChip } from './OwnerChip'
 import { ScanProgress } from './ScanProgress'
 import { useAddTarget, useTargets } from './api'
+import { OutsideList } from './OutsidePanel'
 import { PortMark, PortMarkNote } from './PortMark'
 import { portLabel, riskOf } from './services'
 import type { Gateway, PortRow, Target } from './types'
 import { blockedKey } from './types'
+
+// Old #anchor → tab (before the tabs these were stacked blocks of one page).
+const ANCHOR_TAB: Record<string, string> = { targets: 'targets', 'box-ip': 'targets', 'box-ignored': 'targets', open: 'open', 'outside-list': 'outside' }
 
 export default function ExposurePage() {
   const { t } = useTranslation('exposure')
@@ -48,18 +54,34 @@ export default function ExposurePage() {
       <PageHeader title={title} stories={['S-EXP-1']} actions={<AddTarget />}
         meta={<span className="flex flex-wrap items-center gap-2"><SampleDataNote />{certs > 0 ? `${t('meta.certs', { count: certs })} ` : null}{t('meta.rule')}</span>} />
       <ScanProgress />
+      <Notice tone="accent" title={t('rule')} />
+      <AnchorRedirect map={ANCHOR_TAB} />
       <QueryState query={{ data, error, isPending, refetch }}>
-        {(d) => (
-          <>
-            {open.length > 0 ? <OpenPorts ports={open} total={ports} gateway={d.gateway} /> : null}
-            <Section id="targets" title={t('targets.title')} description={t('targets.description')}>
-              <TargetsTable items={d.items.filter((x) => x.kind === 'domain')} />
-            </Section>
-            <BoxIpPanel items={d.items.filter((x) => x.kind === 'ip')} settings={d.box_ip} ignored={d.ignored} />
-          </>
-        )}
+        {(d) => {
+          const lastScan = d.items.map((x) => x.last_scan_at).filter((x): x is string => !!x).sort().at(-1)
+          const kpis = d.items.length > 0 ? [
+            { value: d.items.filter((x) => x.status !== 'unverified' && !!x.commitment).length, label: t('kpi.targets'), to: '?tab=targets' },
+            { value: ports, label: t('kpi.open'), to: '?tab=open' },
+            { value: lastScan ? fmtRelative(lastScan) : t('kpi.never'), label: t('kpi.scan'), to: '?tab=targets' },
+          ] : []
+          return (
+            <>
+              <ScrollToHash />
+              {kpis.length ? <KpiStrip label={t('kpi.label')} items={kpis} /> : null}
+              <PageTabs label={t('tabs.label')} tabs={[
+                { id: 'targets', label: t('tabs.targets'), panel: <>
+                  <Section id="targets" title={t('targets.title')} description={t('targets.description')}>
+                    <TargetsTable items={d.items.filter((x) => x.kind === 'domain')} />
+                  </Section>
+                  <BoxIpPanel items={d.items.filter((x) => x.kind === 'ip')} settings={d.box_ip} ignored={d.ignored} />
+                </> },
+                { id: 'open', label: t('tabs.open'), panel: open.length > 0 ? <OpenPorts ports={open} total={ports} gateway={d.gateway} /> : <EmptyState title={t('openEmpty')} /> },
+                { id: 'outside', label: t('tabs.outside'), panel: <OutsideList items={d.items.filter((x) => x.kind === 'ip')} /> },
+              ]} />
+            </>
+          )
+        }}
       </QueryState>
-      <Panel className="max-w-3xl p-4 text-[13px] text-muted">{t('rule')}</Panel>
     </RequireModule>
   )
 }
@@ -103,10 +125,8 @@ function GatewayNote({ g }: { g: Gateway }) {
   const text = !g.ip ? t('gateway.unknown') : !known ? t('gateway.notListed', { ip })
     : g.open_exploited > 0 ? t('gateway.known', { name, ip, count: g.open_exploited }) : t('gateway.none', { name, ip })
   return (
-    <div data-testid="gateway-note"><Panel className="mb-3 grid gap-1 px-4 py-3 text-sm">
-      <p>{text}</p>
-      {known && g.open_exploited > 0 ? <Link className="w-fit text-[13px] text-accent underline-offset-4 hover:underline" to={`/findings?device=${encodeURIComponent(g.device_id ?? '')}`}>{t('gateway.link', { name })}</Link> : null}
-    </Panel></div>
+    <Notice tone="accent" data-testid="gateway-note" title={text}
+      actions={known && g.open_exploited > 0 ? <Link className="text-[13px] text-accent underline-offset-4 hover:underline" to={`/findings?device=${encodeURIComponent(g.device_id ?? '')}`}>{t('gateway.link', { name })}</Link> : undefined} />
   )
 }
 

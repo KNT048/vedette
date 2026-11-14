@@ -18,14 +18,23 @@ describe('feeds: home (S-FEED-1, S-FEED-2)', () => {
     await expectNoA11yViolations()
   })
 
+  it('the strip under the title links to findings, this week\'s exploited CVEs, devices to review and incidents (S-UI-1)', async () => {
+    renderApp('/')
+    const strip = await screen.findByRole('list', { name: 'Today at a glance' })
+    await waitFor(() => expect(within(strip).getAllByRole('link')).toHaveLength(4))
+    const hrefs = within(strip).getAllByRole('link').map((a) => a.getAttribute('href'))
+    expect(hrefs).toEqual(['/findings?tab=open&status=confirmed', '/#hot', '/devices?tab=review', '/incidents?tab=open'])
+    expect(screen.queryByRole('tablist')).not.toBeInTheDocument()
+  })
+
   it('"I have this" adds a manual device', async () => {
-    const before = assetsStore.get().length
+    const manual = () => assetsStore.get().filter((a) => a.origin === 'manual').length // Home's device count may seed the box's own row
+    const before = manual()
     renderApp('/')
     const buttons = await screen.findAllByRole('button', { name: 'I have this' })
     await userEvent.click(buttons[0]!)
     expect(await screen.findByText('Alerts on for this product')).toBeInTheDocument()
-    expect(assetsStore.get().length).toBe(before + 1)
-    expect(assetsStore.get()[0]!.origin).toBe('manual')
+    expect(manual()).toBe(before + 1)
   })
 
   it('a viewer cannot press "I have this"', async () => {

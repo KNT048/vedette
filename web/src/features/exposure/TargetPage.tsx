@@ -1,15 +1,17 @@
 import { useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { ArrowLeft, Play, Trash2 } from 'lucide-react'
-import { PageHeader, Section } from '@/components/common/PageHeader'
+import { Notice, PageHeader, Section } from '@/components/common/PageHeader'
+import { PageTabs } from '@/components/common/PageFrame'
 import { QueryState, RequireModule } from '@/components/common/States'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog'
 import { dateTimeText } from './dates'
 import { useCan } from '@/lib/session'
 import { useDeleteTarget, useScan, useScanRun, useTarget } from './api'
+import { AnchorRedirect, ScrollToHash } from './anchors'
 import { ScanProgress } from './ScanProgress'
 import { CommitmentPanel } from './CommitmentPanel'
 import { CommitChip, OwnerChip } from './OwnerChip'
@@ -19,6 +21,9 @@ import { ResultsPanel } from './ResultsPanel'
 import { VerifyPanel } from './VerifyPanel'
 import type { Target } from './types'
 import { blockedKey } from './types'
+
+// Old #anchor → tab (before the tabs these were stacked blocks of one page).
+const ANCHOR_TAB: Record<string, string> = { 'step-verify': 'ownership', 'step-commit': 'ownership', results: 'results', compare: 'results', outside: 'outside' }
 
 const errMsg = (e: unknown) => (e instanceof Error ? e.message : String(e))
 
@@ -38,6 +43,7 @@ function TargetView({ target }: { target: Target }) {
   const { t } = useTranslation('exposure')
   const operator = useCan('operator')
   const scan = useScan()
+  const [params, setParams] = useSearchParams()
   const running = useScanRun().data?.status === 'running'
   const admin = useCan('admin')
   // D-473: an administrator's first Scan now is the D-26 confirmation. The sentence (version and text) comes from the API and is shown beside the button as received.
@@ -51,8 +57,18 @@ function TargetView({ target }: { target: Target }) {
     : c ? (target.kind === 'domain' ? t('target.title.result', { value: target.value, subs: c.subdomains, admin: c.admin_panels }) : t('target.title.resultIp', { value: target.value, ports: c.ports, admin: c.admin_panels }))
     : t('target.title.ready', { value: target.value })
 
+  // The person has something to do on the Ownership tab: prove ownership, or the proof expired or went missing.
+  const needsOwnership = target.status === 'unverified' || target.validity === 'expired' || target.blocked_reason === 'txt_missing'
+
+  // A paused or blocked ownership is a page-level state: it shows above the tabs whatever tab is open.
+  const stateNotice = target.kind === 'domain' ? (target.status !== 'unverified' && target.blocked_reason === 'txt_missing' ? t('verify.txtMissing') : null)
+    : target.blocked_reason === 'ip_not_current' ? t('verify.paused', { time: dateTimeText(target.verified_at) })
+    : target.validity === 'expired' ? t('verify.ipExpired') : null
+
   function run() {
     scan.mutate({ id: target.id, noticeVersion: notice?.version }, {
+      // After Scan now the person wants the results, not the tab they pressed it from.
+      onSuccess: () => { const p = new URLSearchParams(params); p.set('tab', 'results'); setParams(p, { replace: true }) },
       onError: (e) => { if ((e as { code?: string }).code !== 'twofa_required') toast.error(errMsg(e)) },
     })
   }
@@ -78,16 +94,24 @@ function TargetView({ target }: { target: Target }) {
         </div>
       ) : null}
       {!operator ? <p className="-mt-3 mb-6 max-w-3xl text-[13px] text-muted">{t('target.viewOnly')}</p> : null}
-      <Section id="step-verify" title={t('step.verify')} description={target.kind === 'domain' ? t('step.verifyHintDomain') : t('step.verifyHintIp')}>
-        <VerifyPanel target={target} />
-      </Section>
-      {target.commitment ? (
-        <Section id="step-commit" title={t('step.commit')} description={t('step.commitHint')}>
-          <CommitmentPanel target={target} />
-        </Section>
-      ) : null}
-      <ResultsPanel target={target} blockedText={blocked} />
-      {target.kind === 'ip' ? <OutsidePanel target={target} /> : null}
+      {stateNotice ? <Notice tone={target.validity === 'expired' && target.kind === 'ip' ? 'danger' : 'warn'} role="alert" title={stateNotice}
+        actions={<Button onClick={() => { const p = new URLSearchParams(params); p.set('tab', 'ownership'); setParams(p, { replace: true }) }}>{t('verify.goOwnership')}</Button>} /> : null}
+      <AnchorRedirect map={target.kind === 'ip' ? ANCHOR_TAB : { ...ANCHOR_TAB, outside: 'results' }} />
+      <ScrollToHash />
+      <PageTabs label={t('tabs.label')} tabs={[
+        { id: 'results', label: t('tabs.results'), panel: <ResultsPanel target={target} blockedText={blocked} /> },
+        { id: 'ownership', label: t('tabs.ownership'), badge: needsOwnership ? { count: 1, label: t('tabs.needsYou') } : undefined, panel: <>
+          <Section id="step-verify" title={t('step.verify')} description={target.kind === 'domain' ? t('step.verifyHintDomain') : t('step.verifyHintIp')}>
+            <VerifyPanel target={target} />
+          </Section>
+          {target.commitment ? (
+            <Section id="step-commit" title={t('step.commit')} description={t('step.commitHint')}>
+              <CommitmentPanel target={target} />
+            </Section>
+          ) : null}
+        </> },
+        ...(target.kind === 'ip' ? [{ id: 'outside', label: t('tabs.outsideView'), panel: <OutsidePanel target={target} /> }] : []),
+      ]} />
     </>
   )
 }

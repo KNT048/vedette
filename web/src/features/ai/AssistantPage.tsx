@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { PageHeader, Panel, Section } from '@/components/common/PageHeader'
+import { KpiStrip, PageTabs, type PageTab } from '@/components/common/PageFrame'
 import { AiBlock } from '@/components/common/AiBlock'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { EmptyState, ModuleOff, QueryState } from '@/components/common/States'
@@ -30,12 +31,20 @@ export default function AssistantPage() {
   const title = gate.state === 'off' ? t('page.titleOff')
     : gate.state === 'unconfigured' ? t('page.titleUnconfigured')
       : u ? t('page.title', { used: fmtNumber(u.month.total), cap: fmtNumber(u.monthly_budget) }) : t('page.titleLoading')
+  const tabs: PageTab[] = [{ id: 'ask', label: t('page.tabAsk'), panel: <Ask /> }]
+  // Chưa nối AI và chưa từng chạy: đồng hồ 0/trần và nhật ký trống chỉ gây nhiễu; màn trống ở tab Ask đã nói việc cần làm.
+  // Trong lúc tải vẫn có tab Usage: số tab đổi 1 → 2 sẽ dựng lại tab Ask và mất chữ người dùng đang gõ.
+  if (gate.state !== 'off' && !(gate.state === 'unconfigured' && u && u.month.total === 0)) {
+    tabs.push({ id: 'usage', label: t('page.tabUsage'), panel: <><Meter query={usage} renews={cfg.data?.renews_on} /><RunLog /><ActivityPanel /></> })
+  }
   return (
     <>
       <PageHeader title={title} meta={cfg.data?.configured ? t('page.meta', { tier: t(`settings.tier.${cfg.data.tier}.name`) }) : undefined} stories={['S-AI-4', 'S-AI-5', 'S-AI-6', 'S-AI-8']} />
-      <Ask />
-      {/* Chưa nối AI và chưa từng chạy: đồng hồ 0/trần và nhật ký trống chỉ gây nhiễu; màn trống ở trên đã nói việc cần làm. */}
-      {!on || (gate.state === 'unconfigured' && u && u.month.total === 0) ? null : <><Meter query={usage} renews={cfg.data?.renews_on} /><RunLog /><ActivityPanel /></>}
+      {/* S-UI-1: the meter is a KPI only when a person acts on it (80 % of the month's budget or more); below that the title already says it. */}
+      {on && u && budgetPct(u.month.total, u.monthly_budget) >= 80 ? (
+        <KpiStrip label={t('page.kpiLabel')} items={[{ value: `${fmtNumber(u.month.total)} / ${fmtNumber(u.monthly_budget)}`, label: t('page.kpiTokens'), to: '?tab=usage' }]} />
+      ) : null}
+      <PageTabs label={t('page.tabs')} tabs={tabs} />
     </>
   )
 }

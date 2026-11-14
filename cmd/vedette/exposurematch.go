@@ -2,11 +2,13 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"slices"
 	"strings"
 	"time"
 
+	catalogdata "github.com/knt048/vedette/content/catalog"
 	"github.com/knt048/vedette/modules/exposure"
 	"github.com/knt048/vedette/modules/findings"
 )
@@ -67,6 +69,14 @@ func (m exposureMatcher) Match(ctx context.Context, svcs []exposure.ServiceRow) 
 		}
 		base := cpeBase(cpe)
 		keys := byCPE[base]
+		for _, alt := range nmapAliases[base] { // nmap's old vendor name (igor_sysoev:nginx) for the product NVD lists (f5:nginx), W11-2
+			if len(keys) > 0 {
+				break
+			}
+			if keys = byCPE[alt]; len(keys) > 0 {
+				base, cpe = alt, "cpe:2.3:"+alt+cpe[len("cpe:2.3:")+len(cpeBase(cpe)):] // the version compares against the ranges NVD keeps under alt
+			}
+		}
 		if lookup != nil {
 			extra := slices.DeleteFunc(slices.Clone(lookup(s.CPE)), func(k string) bool { return !listed[k] }) // a new slice: byCPE's lists are shared
 			keys = slices.Concat(keys, extra)
@@ -118,6 +128,25 @@ func (m exposureMatcher) Match(ctx context.Context, svcs []exposure.ServiceRow) 
 		}
 	}
 	return out, nil
+}
+
+// nmapAliases is content/catalog/nmap-cpe.json: "part:vendor:product" of a CPE nmap prints to the NVD names of the same software.
+var nmapAliases = mustNmapAliases(catalogdata.NmapCPE)
+
+func mustNmapAliases(data []byte) map[string][]string {
+	var rows map[string]json.RawMessage
+	out := map[string][]string{}
+	if err := json.Unmarshal(data, &rows); err != nil {
+		return out // TestNmapAliases_DataIsValid fails on it; the matcher only loses aliases
+	}
+	for k, raw := range rows {
+		var l []string
+		if k == "_about" || json.Unmarshal(raw, &l) != nil {
+			continue
+		}
+		out[k] = l
+	}
+	return out
 }
 
 // kevKeysByCPE maps "part:vendor:product" of every CPE an NVD configuration of a KEV entry names to the KEV keys of those entries.

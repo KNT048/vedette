@@ -89,7 +89,7 @@ describe('exposure: list (S-EXP-1)', () => {
       latest: { subdomains: 0, ips: 1, ports: 2, admin_panels: 0, certs_expiring: 0 },
       open_ports: [{ ip: '203.0.113.10', port: 5060, service: 'sip' }, { ip: '203.0.113.10', port: 10443, service: 'https', product: 'nginx' }] }
     server.use(http.get('*/api/v1/exposure/targets', () => HttpResponse.json({ items: [ip], box_ip: { auto: true, interval_min: 60, last_run: null, retry_in_min: null }, ignored: [] })))
-    renderApp('/exposure')
+    renderApp('/exposure?tab=open')
     expect(await screen.findByRole('heading', { level: 1, name: '2 ports are open to the Internet: SIP 5060, HTTPS 10443' })).toBeInTheDocument()
     const open = screen.getByRole('region', { name: '2 ports open to the Internet' })
     expect(within(open).getAllByText('Commonly attacked')).toHaveLength(1) // SIP only; HTTPS is not called out
@@ -118,7 +118,7 @@ describe('exposure: list (S-EXP-1)', () => {
       'Vedette cannot see which gateway your network uses from here, so it cannot say which device answers these ports.', null],
   ])('D-492: open ports and the gateway, %s', async (_n, gateway, text, href) => {
     server.use(http.get('*/api/v1/exposure/targets', () => HttpResponse.json({ items: [gwTarget()], box_ip: { auto: true, interval_min: 60, last_run: null, retry_in_min: null }, ignored: [], gateway })))
-    renderApp('/exposure')
+    renderApp('/exposure?tab=open')
     const note = await screen.findByTestId('gateway-note')
     expect(within(note).getByText(text)).toBeInTheDocument()
     if (href) expect(within(note).getByRole('link')).toHaveAttribute('href', href)
@@ -127,14 +127,14 @@ describe('exposure: list (S-EXP-1)', () => {
 
   it('D-492: no gateway note when the server sends none', async () => {
     server.use(http.get('*/api/v1/exposure/targets', () => HttpResponse.json({ items: [gwTarget()], box_ip: { auto: true, interval_min: 60, last_run: null, retry_in_min: null }, ignored: [], gateway: null })))
-    renderApp('/exposure')
+    renderApp('/exposure?tab=open')
     await screen.findByRole('region', { name: '1 port open to the Internet' })
     expect(screen.queryByTestId('gateway-note')).toBeNull()
   })
 
   it('module off says where to turn it on', async () => {
     modulesStore.update((l) => l.map((m) => (m.id === 'exposure' ? { ...m, enabled: false } : m)))
-    renderApp('/exposure')
+    renderApp('/exposure?tab=open')
     expect(await screen.findByText('External surface module is off')).toBeInTheDocument()
   })
 
@@ -154,6 +154,7 @@ describe('exposure: a verified and confirmed domain', () => {
     expect(within(admin).getByText('Close now')).toBeInTheDocument()
     const certs = await screen.findByRole('table', { name: 'Certificates by expiry date' })
     expect(within(within(certs).getByRole('row', { name: /mail\.acme\.example/ })).getByText(/\d+ days left/)).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('tab', { name: 'Ownership' }))
     expect(screen.getByText(/Vedette re-checks the record right before every scan/)).toBeInTheDocument()
     expect(screen.getByText(/Confirmed by admin@acme\.example/)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Scan now' })).not.toBeDisabled()
@@ -206,7 +207,7 @@ describe('exposure: a verified and confirmed domain', () => {
 
 describe('exposure: domain ownership = DNS TXT only', () => {
   it('unverified domain: scan locked with a reason, TXT record shown, first check not found, second found', async () => {
-    renderApp('/exposure/xt-3')
+    renderApp('/exposure/xt-3?tab=ownership')
     expect(await screen.findByRole('heading', { level: 1, name: 'acme-demo.example cannot be scanned yet: awaiting ownership proof' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Scan now' })).toBeDisabled()
     expect(screen.getByText(/has no ownership proof/)).toBeInTheDocument()
@@ -221,7 +222,7 @@ describe('exposure: domain ownership = DNS TXT only', () => {
   })
 
   it('a verified domain whose TXT record is gone cannot be scanned, in the UI and in the API', async () => {
-    renderApp('/exposure/xt-5')
+    renderApp('/exposure/xt-5?tab=ownership')
     expect(await screen.findByRole('heading', { level: 1, name: 'old-site.example cannot be scanned yet: DNS TXT record missing' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Scan now' })).toBeDisabled()
     const r = await call('POST', '/exposure/targets/xt-5/scan')
@@ -301,7 +302,7 @@ describe('exposure: public IP = only an IP this box uses to reach the Internet',
   })
 
   it('the IP page shows status, dates and the same-IP rule', async () => {
-    renderApp('/exposure/xt-2')
+    renderApp('/exposure/xt-2?tab=ownership')
     expect(await screen.findByText('Last seen by the box')).toBeInTheDocument()
     expect(screen.getByText('Expires on')).toBeInTheDocument()
     expect(screen.getByText('Valid')).toBeInTheDocument()
@@ -771,6 +772,7 @@ describe("exposure: an administrator's first Scan now is the confirmation (D-473
     expect(within(note).getByText(sent.text)).toBeInTheDocument()
     expect(sent.text).toContain('fresh.acme.example')
     await userEvent.click(screen.getByRole('button', { name: 'Scan now' }))
+    await userEvent.click(screen.getByRole('tab', { name: 'Ownership' }))
     expect(await screen.findByText(/Confirmed by .+ on .+, by pressing Scan now\./)).toBeInTheDocument()
     const c = (await call('GET', `/exposure/targets/${id}`)).json
     expect(c.commitment).toMatchObject({ by: 'admin@acme.example', version: sent.version, sentence: sent.text })
@@ -894,7 +896,7 @@ describe('exposure: QA pass fixes (paused IP, copy, dates, IPv6, remove dialog, 
     await pause()
     expect((await call('GET', '/exposure/targets/xt-2')).json).toMatchObject({ status: 'verified', scannable: false, blocked_reason: 'ip_not_current' })
     expect((await call('GET', '/exposure/targets')).json.items.find((x: { id: string }) => x.id === 'xt-2')).toMatchObject({ scannable: false, blocked_reason: 'ip_not_current' })
-    renderApp('/exposure/xt-2')
+    renderApp('/exposure/xt-2?tab=ownership')
     expect(await screen.findByRole('heading', { level: 1, name: /203\.0\.113\.10 is paused/ })).toBeInTheDocument()
     expect(screen.getByText(/Scans paused: the box no longer reaches the Internet through this IP \(last seen \d{1,2} \w{3} \d{4}, \d{2}:\d{2}\)/)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Scan now' })).toBeDisabled()
@@ -948,13 +950,13 @@ describe('exposure: QA pass fixes (paused IP, copy, dates, IPv6, remove dialog, 
   })
 
   it('2. the IP page says that the box reaches the Internet through the IP only once', async () => {
-    renderApp('/exposure/xt-2')
+    renderApp('/exposure/xt-2?tab=ownership')
     await screen.findByRole('heading', { level: 1 })
     expect(screen.getAllByText(/verified because (this|the) box reaches the Internet through it/i)).toHaveLength(1)
   })
 
   it('3. Verify again says it is a full check (5 rounds, 15 requests), not "three times"', async () => {
-    renderApp('/exposure/xt-2')
+    renderApp('/exposure/xt-2?tab=ownership')
     const hint = await screen.findByText(/Works only while this box currently reaches the Internet through 203\.0\.113\.10/)
     expect(hint.textContent).toMatch(/full check/)
     expect(hint.textContent).toMatch(/15 requests/)
@@ -1163,9 +1165,39 @@ describe('exposure: services and exploited vulnerabilities of the box IP (S-EXP-
   })
 })
 
+describe('exposure: one page style (S-UI-1, D-543)', () => {
+  it('the list has a KPI strip and Targets / Open exposures / What the Internet sees tabs; old #anchors land on their tab', async () => {
+    const view = renderApp('/exposure')
+    const strip = await screen.findByRole('list', { name: 'External exposure at a glance' })
+    expect(within(strip).getAllByRole('link').map((a) => a.getAttribute('href'))).toEqual(['/exposure?tab=targets', '/exposure?tab=open', '/exposure?tab=targets'])
+    expect(screen.getByRole('tab', { name: 'Targets', selected: true })).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('tab', { name: 'What the Internet sees' }))
+    expect(await screen.findByTestId('outside-answer')).toBeInTheDocument()
+    view.unmount()
+    for (const [hash, tab] of [['open', 'Open exposures'], ['box-ip', 'Targets'], ['outside-list', 'What the Internet sees']] as const) {
+      const v = renderApp(`/exposure?x=1#${hash}`)
+      expect(await screen.findByRole('tab', { name: tab, selected: true })).toBeInTheDocument()
+      v.unmount()
+    }
+  })
+
+  it('an IP page has Results / Ownership / Outside view; a domain page has no Outside view; old #anchors land on their tab', async () => {
+    const ip = renderApp('/exposure/xt-2')
+    expect(await screen.findByRole('tab', { name: 'Outside view' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Results', selected: true })).toBeInTheDocument()
+    ip.unmount()
+    const v = renderApp('/exposure/xt-2#step-verify')
+    expect(await screen.findByRole('tab', { name: 'Ownership', selected: true })).toBeInTheDocument()
+    v.unmount()
+    renderApp('/exposure/xt-1')
+    expect(await screen.findByRole('tab', { name: 'Ownership' })).toBeInTheDocument()
+    expect(screen.queryByRole('tab', { name: 'Outside view' })).not.toBeInTheDocument()
+  })
+})
+
 describe('exposure: what the Internet sees, Shodan InternetDB (S-EXP-1, D-558)', () => {
   it('shows Shodan\'s ports beside our own scan, the differences called out, and Shodan\'s CVEs as its claim; axe clean', async () => {
-    renderApp('/exposure/xt-2')
+    renderApp('/exposure/xt-2?tab=outside')
     expect(await screen.findByRole('heading', { name: 'What the Internet sees' })).toBeInTheDocument()
     const answer = await screen.findByTestId('outside-answer')
     expect(within(answer).getByText('Shodan and our scan both saw 443 open.')).toBeInTheDocument()
@@ -1182,7 +1214,7 @@ describe('exposure: what the Internet sees, Shodan InternetDB (S-EXP-1, D-558)',
     const posts: string[] = []
     server.events.on('request:start', ({ request }) => { if (request.method === 'POST' && new URL(request.url).pathname.endsWith('/outside')) posts.push(request.url) })
     const user = userEvent.setup()
-    renderApp('/exposure/xt-6')
+    renderApp('/exposure/xt-6?tab=outside')
     expect(await screen.findByText(/Vedette has not asked Shodan about 203\.0\.113\.11/)).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Check what Shodan has seen' }))
     const dialog = await screen.findByRole('dialog', { name: 'Send 203.0.113.11 to Shodan?' })
@@ -1203,7 +1235,7 @@ describe('exposure: what the Internet sees, Shodan InternetDB (S-EXP-1, D-558)',
   })
 
   it('a viewer sees the answer but cannot send', async () => {
-    renderApp('/exposure/xt-2', { role: 'viewer' })
+    renderApp('/exposure/xt-2?tab=outside', { role: 'viewer' })
     expect(await screen.findByTestId('outside-answer')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Check again' })).toBeDisabled()
   })

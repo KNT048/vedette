@@ -72,6 +72,7 @@ func exposureService(d deps) *exposure.Service {
 		m.catalog = d.Inventory.KevKeysByCPE
 	}
 	cfg.Matcher = m
+	cfg.Web = exposureWebFor(d) // INV-24, D-521: ZAP's passive baseline through vedette-host's zap.baseline
 	if exposureTestConfig != nil {
 		exposureTestConfig(&cfg)
 	}

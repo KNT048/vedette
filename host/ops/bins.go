@@ -59,6 +59,8 @@ var prodPaths = map[string]string{
 	binBusctl: "/usr/bin/busctl",
 	// the AppArmor profile of the containers (D-458): the apparmor package puts the parser in /usr/sbin on Debian and Ubuntu.
 	binAppArmorParser: "/usr/sbin/apparmor_parser",
+	// zap.baseline's egress fence (D-521): the nftables package (install.sh installs it) puts nft in /usr/sbin on Debian and Ubuntu.
+	binNft: "/usr/sbin/nft",
 }
 
 // The fixed timers of unattended security updates (spec 6.3).
@@ -237,6 +239,8 @@ func hostBinaries(stateDir, coreUnit string, paths map[string]string, streamLimi
 		{Name: binBusctl, Path: p(binBusctl), Validate: exactly(argsListInhibitors...), MaxOutput: maxInhibitOutput},
 		// D-458: the one load of the containers' AppArmor profile at Start, when the kernel does not list it.
 		{Name: binAppArmorParser, Path: p(binAppArmorParser), Validate: validateAppArmorParser, MaxOutput: 1 << 16},
+		// zap.baseline (D-521): load, read back and delete the one table inet vedette_zap.
+		{Name: binNft, Path: p(binNft), Validate: validateNft, MaxOutput: 1 << 20},
 	}
 }
 

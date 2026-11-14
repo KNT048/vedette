@@ -551,8 +551,8 @@ func TestInstallSh_UninstallDecidesAboutPodmanBeforeThePurge(t *testing.T) {
 // host/api.Services, every volume and network the units mount, the registry and local image names and the scan build's. A new name in
 // Go that the script does not know would keep podman on every box (a silent D-463 regression), so it fails here.
 func TestInstallSh_UninstallKnowsVedettesPodmanNames(t *testing.T) {
-	var ctrs, vols, imgs []string
-	nets := []string{ops.IntNetwork}
+	ctrs, vols, imgs := []string{ops.ZapContainer}, []string(nil), []string(nil)
+	nets := []string{ops.IntNetwork, ops.ZapNetwork}
 	for _, s := range api.Services {
 		ctrs = append(ctrs, "vedette-"+s)
 		imgs = append(imgs, release.RegistryPrefix+s, ops.LocalPrefix+s)
@@ -598,11 +598,12 @@ func TestInstallSh_UninstallKnowsVedettesPodmanNames(t *testing.T) {
 "volume ls") cat "$FAKE/vol" ;;
 "images --format") cat "$FAKE/img" ;;
 "images -a") ;;
+"image inspect") [ "$5" = "$ZAP_IMAGE" ] && echo "zapimg 0" ;;
 rmi*) echo "$*" >>"$FAKE/calls" ;;
 esac
 exit 0
 `)
-	out, err := runInstallShFns(t, dir, []string{"FAKE=" + dir, "TMP=" + t.TempDir(), "OTHERS=", "LC_ALL=C"},
+	out, err := runInstallShFns(t, dir, []string{"FAKE=" + dir, "TMP=" + t.TempDir(), "OTHERS=", "LC_ALL=C", "ZAP_IMAGE=" + ops.ZapImage},
 		[]string{"pm", "podman_others", "others_use", "rmi_ours", "remove_images"},
 		`podman_others
 printf 'others=[%s]\n' "$OTHERS"
@@ -620,6 +621,9 @@ remove_images
 		if !strings.Contains(string(calls), fmt.Sprintf("rmi -f id%02d\n", i)) {
 			t.Errorf("remove_images leaves %s:\n%s", n, calls)
 		}
+	}
+	if !strings.Contains(string(calls), "rmi -f zapimg\n") {
+		t.Errorf("remove_images leaves the ZAP image (D-521):\n%s", calls)
 	}
 	body := installShFunc(t, "do_uninstall")
 	for _, c := range ctrs {

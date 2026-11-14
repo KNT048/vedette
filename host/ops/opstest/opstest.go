@@ -29,7 +29,7 @@ import (
 
 // Bins are the binary names of the command runner.
 var Bins = []string{"apt-get", "apt-config", "dpkg", "systemctl", "journalctl", "netplan", "chronyc", ops.BinIP, "podman", ops.BinIptables, ops.BinConntrack,
-	"systemd-run", "dpkg-deb", "dpkg-query", "busctl", ops.BinAppArmorParser}
+	"systemd-run", "dpkg-deb", "dpkg-query", "busctl", ops.BinAppArmorParser, ops.BinNft}
 
 // BootID is the boot id a fresh machine has.
 const BootID = "11111111-2222-4333-8444-555555555555"

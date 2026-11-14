@@ -63,6 +63,16 @@ const BinIP = binIP
 // BinConntrack is the name of conntrack in the command runner.
 const BinConntrack = binConntrack
 
+// BinNft is the name of nft in the command runner (zap.baseline's egress fence, D-521).
+const BinNft = binNft
+
+// The names of zap.baseline's things in podman (D-521): install.sh --uninstall removes them, and a test ties the two.
+const (
+	ZapNetwork   = zapNetwork
+	ZapContainer = zapContainer
+	ZapImage     = zapImage
+)
+
 // BinAppArmorParser is the name of apparmor_parser in the command runner (D-458).
 const BinAppArmorParser = binAppArmorParser
 

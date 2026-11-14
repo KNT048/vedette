@@ -2,7 +2,7 @@ import { lazy, Suspense, useState } from 'react'
 import { useSearchParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { PageHeader, Section, Panel } from '@/components/common/PageHeader'
+import { Notice, PageHeader, Section, Panel } from '@/components/common/PageHeader'
 import { DataTable } from '@/components/common/DataTable'
 import { EmptyState, Loading, QueryState } from '@/components/common/States'
 import { Chip } from '@/components/common/StatusChip'
@@ -174,10 +174,11 @@ function ProfilesSection({ profiles, assign }: { profiles: AiProfile[]; assign: 
           ]} />
       )}
       {result ? (
-        <p role="status" className="mt-3 flex flex-wrap items-center gap-2 text-sm">
-          {result.ok ? <><Chip tone="ok">{t('profiles.testOk')}</Chip>{t('profiles.testDetail', { name: result.name, ms: result.ok.latency_ms, input: result.ok.tokens_in, output: result.ok.tokens_out })} {t(result.ok.capabilities.tools ? 'profiles.capTools' : 'profiles.capNoTools')}</>
-            : <span role="alert" className="rounded-md border border-danger/40 bg-danger-soft px-3 py-2">{result.name}: {result.error}</span>}
-        </p>
+        result.ok ? (
+          <p role="status" className="mt-3 flex flex-wrap items-center gap-2 text-sm">
+            <Chip tone="ok">{t('profiles.testOk')}</Chip>{t('profiles.testDetail', { name: result.name, ms: result.ok.latency_ms, input: result.ok.tokens_in, output: result.ok.tokens_out })} {t(result.ok.capabilities.tools ? 'profiles.capTools' : 'profiles.capNoTools')}
+          </p>
+        ) : <Notice tone="danger" role="alert" title={`${result.name}: ${result.error}`} className="mt-3 mb-0" />
       ) : null}
       {edit ? <ProfileDialog key={typeof edit === 'string' ? 'new' : edit.id} profile={edit === 'new' ? null : edit} existing={profiles} onClose={() => setEdit(null)} /> : null}
       {del ? <RemoveDialog profile={del} assign={assign} onClose={() => setDel(null)} /> : null}

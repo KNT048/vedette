@@ -15,7 +15,11 @@ const PAGES = [
   // D-543: the other Kiên-side pages on the frame
   { path: '/honeypot', second: 'Services', id: 'services', other: 'Tokens' },
   { path: '/incidents', second: 'Resolved', id: 'resolved', other: 'Open' },
+  // exposure: the list and one IP target (Results is the first tab, Ownership the second)
+  { path: '/exposure', second: 'Open exposures', id: 'open', other: 'Targets' },
+  { path: '/exposure/xt-2', second: 'Ownership', id: 'ownership', other: 'Results' },
   { path: '/devices/a-nas02', second: 'Software', id: 'software', other: 'Observations' },
+  { path: '/assistant', second: 'Usage', id: 'usage', other: 'Ask' },
   // D-519: long Settings sections and the setup page split into tabs
   { path: '/settings/network', second: 'Box address', id: 'box-address', other: 'Time' },
   { path: '/settings/account', second: 'Sessions', id: 'sessions', other: 'Profile' },

@@ -48,7 +48,6 @@ export function VerifyPanel({ target }: { target: Target }) {
           {verified ? (
             <>
               <p className="max-w-3xl text-sm">{t('verify.doneDomain', { time: dateTimeText(target.verified_at) })}</p>
-              {target.blocked_reason === 'txt_missing' ? <p role="alert" className="max-w-3xl rounded-md border border-warn/50 bg-warn-soft/60 px-3 py-2 text-sm">{t('verify.txtMissing')}</p> : null}
             </>
           ) : <p className="max-w-3xl text-sm">{t('verify.dnsIntro', { value: target.value })}</p>}
           {!verified || target.blocked_reason === 'txt_missing' ? (
@@ -71,8 +70,6 @@ export function VerifyPanel({ target }: { target: Target }) {
             { label: t('verify.verifiedOn'), value: dateTimeText(target.verified_at) },
             { label: t('verify.expiresOn'), value: dateText(target.expires_at) },
           ]} />
-          {target.validity === 'expired' ? <p role="alert" className="max-w-3xl rounded-md border border-danger/40 bg-danger-soft px-3 py-2 text-sm">{t('verify.ipExpired')}</p> : null}
-          {paused ? <p role="alert" className="max-w-3xl rounded-md border border-warn/50 bg-warn-soft/60 px-3 py-2 text-sm">{t('verify.paused', { time: dateTimeText(target.verified_at) })}</p> : null}
         </>
       )}
       {recheck}

@@ -123904,6 +123904,10 @@ func (s *FindingsGetFindingsIDOKFixedInKind) Decode(d *jx.Decoder) error {
 		*s = FindingsGetFindingsIDOKFixedInKindBranches
 	case FindingsGetFindingsIDOKFixedInKindDistro:
 		*s = FindingsGetFindingsIDOKFixedInKindDistro
+	case FindingsGetFindingsIDOKFixedInKindFeatureUpdate:
+		*s = FindingsGetFindingsIDOKFixedInKindFeatureUpdate
+	case FindingsGetFindingsIDOKFixedInKindEsu:
+		*s = FindingsGetFindingsIDOKFixedInKindEsu
 	default:
 		*s = FindingsGetFindingsIDOKFixedInKind(v)
 	}
@@ -131918,6 +131922,10 @@ func (s *FindingsPostFindingsIDAiOKFixedInKind) Decode(d *jx.Decoder) error {
 		*s = FindingsPostFindingsIDAiOKFixedInKindBranches
 	case FindingsPostFindingsIDAiOKFixedInKindDistro:
 		*s = FindingsPostFindingsIDAiOKFixedInKindDistro
+	case FindingsPostFindingsIDAiOKFixedInKindFeatureUpdate:
+		*s = FindingsPostFindingsIDAiOKFixedInKindFeatureUpdate
+	case FindingsPostFindingsIDAiOKFixedInKindEsu:
+		*s = FindingsPostFindingsIDAiOKFixedInKindEsu
 	default:
 		*s = FindingsPostFindingsIDAiOKFixedInKind(v)
 	}
@@ -137833,6 +137841,10 @@ func (s *FindingsPostFindingsIDAppliedOKFixedInKind) Decode(d *jx.Decoder) error
 		*s = FindingsPostFindingsIDAppliedOKFixedInKindBranches
 	case FindingsPostFindingsIDAppliedOKFixedInKindDistro:
 		*s = FindingsPostFindingsIDAppliedOKFixedInKindDistro
+	case FindingsPostFindingsIDAppliedOKFixedInKindFeatureUpdate:
+		*s = FindingsPostFindingsIDAppliedOKFixedInKindFeatureUpdate
+	case FindingsPostFindingsIDAppliedOKFixedInKindEsu:
+		*s = FindingsPostFindingsIDAppliedOKFixedInKindEsu
 	default:
 		*s = FindingsPostFindingsIDAppliedOKFixedInKind(v)
 	}
@@ -143754,6 +143766,10 @@ func (s *FindingsPostFindingsIDStatusOKFixedInKind) Decode(d *jx.Decoder) error 
 		*s = FindingsPostFindingsIDStatusOKFixedInKindBranches
 	case FindingsPostFindingsIDStatusOKFixedInKindDistro:
 		*s = FindingsPostFindingsIDStatusOKFixedInKindDistro
+	case FindingsPostFindingsIDStatusOKFixedInKindFeatureUpdate:
+		*s = FindingsPostFindingsIDStatusOKFixedInKindFeatureUpdate
+	case FindingsPostFindingsIDStatusOKFixedInKindEsu:
+		*s = FindingsPostFindingsIDStatusOKFixedInKindEsu
 	default:
 		*s = FindingsPostFindingsIDStatusOKFixedInKind(v)
 	}

@@ -295,6 +295,12 @@ func (l *line) sentence(product string) string {
 			s += fmt.Sprintf(" (if you installed it from %s's packages, install its security updates instead)", d)
 		}
 		return s
+	case "feature_update": // D-546: a Windows release Microsoft no longer updates; only a later release has the fix
+		return fmt.Sprintf("Move %s%s to a Windows release Microsoft still services (a feature update): it gets no more monthly updates, and NVD names the fix only for %s — fixes %s",
+			product, on, clip(fx.Fixed, 40), plural(closed, "exploited vulnerability", "exploited vulnerabilities"))
+	case "esu": // D-546: the fixing build comes only with Extended Security Updates
+		return fmt.Sprintf("Install the Extended Security Update %s or later on %s%s, or move it to a Windows release Microsoft still services — fixes %s",
+			clip(fx.Fixed, 40), product, on, plural(closed, "exploited vulnerability", "exploited vulnerabilities"))
 	case "none":
 		return fmt.Sprintf("NVD names no single release that fixes all %s of %s%s: check the vendor advisory", plural(l.open, "exploited vulnerability", "exploited vulnerabilities"), product, on)
 	case "distro":

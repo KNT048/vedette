@@ -34638,6 +34638,10 @@ func (s FindingsGetFindingsIDOKFixedInKind) Validate() error {
 		return nil
 	case "distro":
 		return nil
+	case "feature_update":
+		return nil
+	case "esu":
+		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
@@ -36697,6 +36701,10 @@ func (s FindingsPostFindingsIDAiOKFixedInKind) Validate() error {
 		return nil
 	case "distro":
 		return nil
+	case "feature_update":
+		return nil
+	case "esu":
+		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
@@ -37997,6 +38005,10 @@ func (s FindingsPostFindingsIDAppliedOKFixedInKind) Validate() error {
 	case "branches":
 		return nil
 	case "distro":
+		return nil
+	case "feature_update":
+		return nil
+	case "esu":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -39304,6 +39316,10 @@ func (s FindingsPostFindingsIDStatusOKFixedInKind) Validate() error {
 	case "branches":
 		return nil
 	case "distro":
+		return nil
+	case "feature_update":
+		return nil
+	case "esu":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)

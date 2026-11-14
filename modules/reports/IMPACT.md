@@ -13,7 +13,7 @@
 - Reports là **người tiêu thụ** của `inventory`, findings (core), `feeds`; đổi ngữ nghĩa trạng thái finding (`confirmed/suspected/mitigated/patched/false_positive/not_relevant/risk_accepted`; `risk_accepted` của D-498 là đã đóng nhưng **không** tính vào "đã xử lý" của tuần: `Counts.Accepted`/`AcceptedUntil` và dòng "Risk accepted: N (until …)"; cần `Finding.AcceptedUntil` do adapter `cmd/vedette/reports.go` điền từ findings) hoặc loại thiết bị → báo cáo đếm sai nhưng không báo lỗi. Cần test hợp đồng ở `inventory`.
 
 ## Modifying: `notify.Service.IncidentsSince` (class of an incident) / `findings.FixedInForAll` (via `reportsRemedies`, `reportsIncidents`) — D-490
-- **reports**: `modules/logs/authfail.go` titles ("N failed logins from …", "A login from … was ACCEPTED after …") are how notify's `incidentClass` tells failed-login from accepted-login incidents (`TestIncidentsSinceCountsEveryClassBeyondTheListCap`); `findings.GroupFix` kinds `fixed|none|up_to|distro` feed the action sentence (`todo.go`).
+- **reports**: `modules/logs/authfail.go` titles ("N failed logins from …", "A login from … was ACCEPTED after …") are how notify's `incidentClass` tells failed-login from accepted-login incidents (`TestIncidentsSinceCountsEveryClassBeyondTheListCap`); `findings.GroupFix` kinds `fixed|none|up_to|distro|feature_update|esu` feed the action sentence (`todo.go`; the last two from a Windows release row, D-546: "Move … to a Windows release Microsoft still services", "Install the Extended Security Update …").
 
 ## Modifying: `notify.Service.SendReport(ctx, to, ReportMail) error` / `EmailReady`
 - **notify**: đổi chữ ký/lỗi → `status`/`error` trong lịch sử sai.

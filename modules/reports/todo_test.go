@@ -172,3 +172,25 @@ func TestTopRisksNameAHandAddedProductOnce(t *testing.T) {
 		t.Fatalf("action = %q", got[0].Action)
 	}
 }
+
+// D-546 (review r1 M2): a Windows release Microsoft no longer updates is told to take a feature update, not a build it cannot get;
+// a fix that needs Extended Security Updates says so.
+func TestTopRisksWindowsFeatureUpdateAndESU(t *testing.T) {
+	t.Parallel()
+	open := []FindingRow{fixRow("1", "a1", "pc-01", "Windows 11 22H2", "suspected"), fixRow("2", "a2", "pc-02", "Windows 10 22H2", "suspected")}
+	fx := map[string]Fix{"1": {Kind: "feature_update", Version: "10.0.22621.6060", Fixed: "Windows 11 23H2", Closed: true},
+		"2": {Kind: "esu", Version: "10.0.19045.6456", Fixed: "10.0.19045.6575", Closed: true}}
+	got, _ := topRisks(open, fx)
+	want := map[string]string{
+		"Windows 11 22H2": "Move Windows 11 22H2 on pc-01 to a Windows release Microsoft still services (a feature update): it gets no more monthly updates, and NVD names the fix only for Windows 11 23H2 — fixes 1 exploited vulnerability",
+		"Windows 10 22H2": "Install the Extended Security Update 10.0.19045.6575 or later on Windows 10 22H2 on pc-02, or move it to a Windows release Microsoft still services — fixes 1 exploited vulnerability",
+	}
+	for _, r := range got {
+		if r.Action != want[r.Product] {
+			t.Errorf("%s: %q", r.Product, r.Action)
+		}
+	}
+	if len(got) != 2 {
+		t.Fatalf("risks = %+v", got)
+	}
+}

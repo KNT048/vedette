@@ -32,6 +32,12 @@ func TestReleasesTable(t *testing.T) {
 	if r, ok := ByBuild(26200, false); !ok || r.Product != "windows_11_25h2" || r.Line != 26100 {
 		t.Errorf("25H2: %+v", r)
 	}
+	if r, _ := ByBuild(26100, false); r.GARev != 1742 || r.LastFreeRev != 0 {
+		t.Errorf("24H2 revisions: %+v", r)
+	}
+	if r, _ := ByBuild(19045, false); r.LastFreeRev <= r.GARev {
+		t.Errorf("10 22H2 revisions: %+v", r)
+	}
 	if r, ok := ByBuild(26100, true); !ok || r.Product != "windows_server_2025" || r.Line != 26100 {
 		t.Errorf("Server 2025: %+v", r)
 	}

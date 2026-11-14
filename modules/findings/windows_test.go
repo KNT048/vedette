@@ -131,8 +131,13 @@ func TestMatchAsset_D546_OwnReleaseByUpdateRevision(t *testing.T) {
 func TestMatchAsset_D546_OutOfServiceRelease(t *testing.T) {
 	w, m := oneMatch(t, winPC(22621, false, "6060", "x64"), cve62215, false) // 22H2's last update, October 2025
 	wantMatch(t, "22H2 after its end", w, m, "new", BasisVersion, SeverityHigh, "before 10.0.22621.6199", "Windows 11 23H2")
-	if f := FixedInFor(winPC(22621, false, "6060", "x64"), cve62215); f == nil || f.Fixed != "10.0.22621.6199" {
+	// review r1 M2: no update for 22H2 brings it to .6199: "What to do" says a feature update, naming where the fix is
+	if f := FixedInFor(winPC(22621, false, "6060", "x64"), cve62215); f == nil || f.Kind != "feature_update" || f.Fixed != "10.0.22631.6199" ||
+		len(f.Branches) != 1 || f.Branches[0].Branch != "Windows 11 23H2" {
 		t.Errorf("fixed_in of a sibling: %+v", f)
+	}
+	if g := FixedInForAll(winPC(22621, false, "6060", "x64"), []Vuln{cve62215, cve29824})[cve62215.CVE]; g == nil || g.Kind != "feature_update" || g.Fixed != "Windows 11 23H2" {
+		t.Errorf("weekly line of a sibling: %+v", g)
 	}
 	w, m = oneMatch(t, winPC(22000, false, "3260", "x64"), cve62215, true)
 	wantMatch(t, "11 21H2", w, m, "existing", BasisProduct, SeverityMedium, "newer ones among them", "check that Windows 11 21H2 is still supported")
@@ -256,5 +261,54 @@ func TestFixedInForAll_D546_Windows(t *testing.T) {
 	f := g[cve29824.CVE]
 	if f == nil || f.Kind != "fixed" || f.Fixed != "10.0.22631.6199" || !f.Closed[cve62215.CVE] || f.Closed[cve36884.CVE] {
 		t.Fatalf("group: %+v", f)
+	}
+}
+
+// Review r1 M2: a fix above the last revision Windows 10 22H2 gets without Extended Security Updates says so; one below it is a
+// plain monthly update.
+func TestFixedIn_D546_ExtendedSecurityUpdates(t *testing.T) {
+	pc := winPC(19045, false, "6456", "x64") // October 2025, the last free update
+	if f := FixedInFor(pc, cve62215); f == nil || f.Kind != "esu" || f.Fixed != "10.0.19045.6575" {
+		t.Errorf("fix after the end of free updates: %+v", f)
+	}
+	if g := FixedInForAll(pc, []Vuln{cve62215})[cve62215.CVE]; g == nil || g.Kind != "esu" || g.Fixed != "10.0.19045.6575" {
+		t.Errorf("weekly line: %+v", g)
+	}
+	if f := FixedInFor(winPC(19045, false, "5000", "x64"), cve33073); f == nil || f.Kind != "fixed" || f.Fixed != "10.0.19045.5965" {
+		t.Errorf("a free monthly update: %+v", f)
+	}
+}
+
+// Review r1 M1: a preview or OEM build below the release's first public revision proves nothing by the release's date or by NVD's
+// settled list; the first public build does.
+func TestMatchAsset_D546_PreviewBuildProvesNothing(t *testing.T) {
+	v := cve36884
+	v.CVE, v.DateAdded = "CVE-2099-0010", winDay("2024-06-20")
+	w, m := oneMatch(t, winPC(26100, false, "712", "arm64"), v, true, cve62215)
+	wantMatch(t, "24H2 at 26100.712", w, m, "existing", BasisProduct, SeverityMedium, "before Windows 11 24H2's first public one (10.0.26100.1742)")
+	w, m = oneMatch(t, winPC(26100, false, "1742", "arm64"), v, true, cve62215)
+	wantMatch(t, "24H2 at its GA build", w, m, "notaffected", "", "", "came out on 1 Oct 2024")
+}
+
+// Review r1 M3: a Windows build the release table does not list gets an OS row without a release CPE: every Windows entry is "not
+// checked", not nothing.
+func TestMatchAsset_D546_BuildTheTableLacks(t *testing.T) {
+	a := Asset{ID: "a-new", Name: "pc-02", Software: []Software{{ID: "s", Display: "Windows 11 Pro", Vendor: "microsoft", Product: "Windows 11 Pro",
+		Version: "10.0.28000.1", Source: "agent", KevKeys: []string{"microsoft|windows"}}}}
+	w, m := oneMatch(t, a, cve62215, false)
+	wantMatch(t, "build 28000", w, m, "new", BasisProduct, SeverityMedium, "has not checked")
+}
+
+// Review r1 LOW-1 and LOW-2: a release row of every version with no range, and a bound without the revision, prove nothing either
+// way: "not checked", never high and never closed.
+func TestMatchAsset_D546_RowsWithoutARevision(t *testing.T) {
+	every := Vuln{CVE: "CVE-2099-0011", Vendor: "Microsoft", Product: "Windows", Affected: []Affected{{CPE: "cpe:2.3:o:microsoft:windows_11_23h2:*:*:*:*:*:*:*:*"}}}
+	w, m := oneMatch(t, winPC(22631, false, "9999", "x64"), every, false)
+	wantMatch(t, "every version of 23H2", w, m, "new", BasisProduct, SeverityMedium)
+	buildOnly := Vuln{CVE: "CVE-2099-0012", Vendor: "Microsoft", Product: "Windows", Affected: []Affected{{CPE: "cpe:2.3:o:microsoft:windows_11_23h2:*:*:*:*:*:*:*:*",
+		Range: VersionRange{EndIncl: "10.0.22631"}}}}
+	for _, ubr := range []string{"1", "5000"} {
+		w, m = oneMatch(t, winPC(22631, false, ubr, "x64"), buildOnly, true)
+		wantMatch(t, "inclusive end 10.0.22631 at ."+ubr, w, m, "existing", BasisProduct, SeverityMedium)
 	}
 }

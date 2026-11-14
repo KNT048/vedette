@@ -36,12 +36,13 @@ import (
 type winDev struct {
 	rel    winrel.Release
 	ubr    string // update revision, "4460"
+	rev    int    // the same as a number
 	target string // "x64", "x86", "arm64"; "" when not known
 }
 
 var (
 	winVersionRE = regexp.MustCompile(`^10\.0\.([1-9][0-9]{4})\.([1-9][0-9]{0,5})$`)
-	winBoundRE   = regexp.MustCompile(`^10\.0\.([1-9][0-9]{4})(?:\.[0-9]{1,6})?$`)
+	winBoundRE   = regexp.MustCompile(`^10\.0\.([1-9][0-9]{4})\.([0-9]{1,6})$`) // a bound without the revision is not read (review r1 LOW-2)
 )
 
 // winDevice reads the software as a Windows release row: an operating-system CPE of a release core/winrel lists and a version of
@@ -59,7 +60,8 @@ func winDevice(in swInfo) (winDev, bool) {
 	if !ok || m == nil || m[1] != strconv.Itoa(rel.Build) {
 		return winDev{}, false
 	}
-	d := winDev{rel: rel, ubr: m[2]}
+	n, _ := strconv.Atoi(m[2])
+	d := winDev{rel: rel, ubr: m[2], rev: n}
 	if t, ok := in.cpe.TargetHW.Literal(); ok && in.cpe.TargetHW.Kind == Value {
 		d.target = t
 	}
@@ -164,6 +166,7 @@ type winVerdict struct {
 	within VersionRange // the range that matched, at the device's build (for the evidence and fixed_in)
 	proof  proofKind
 	via    string // the sibling releases whose rows decided ("Windows 11 24H2"); "" when the device's own did
+	build  int    // Yes: the build of the range that matched (a sibling's when via is set)
 	note   string // the evidence of an Unknown that says more than "not checked", or of a proofRelease close
 }
 
@@ -232,8 +235,14 @@ func windowsDecide(in swInfo, v Vuln, named bool, now time.Time) (winVerdict, bo
 		return winVerdict{t: Unknown, note: fmt.Sprintf("NVD lists %s only for Windows releases older than %s (%s), and has not named %s in any entry yet, so its data cannot tell: compare with Microsoft's advisory.",
 			v.CVE, d.rel.Display, winNames(others), d.rel.Display)}, true
 	}
-	// Every release the entry lists is older than the device's.
-	shipped := v.Source != SourceVulnCheck && !v.DateAdded.IsZero() && !v.DateAdded.Add(winShipMargin).After(d.rel.GA)
+	// Every release the entry lists is older than the device's. Both proofs are about the public release: a preview or OEM build below
+	// its first public revision (24H2 shipped on Copilot+ PCs as 26100.712 months before its 26100.1742) is neither "out after the
+	// fix" nor a release NVD's list was about, so it proves nothing (review r1 M1). The release date proves only with that revision known.
+	if d.rel.GARev > 0 && d.rev < d.rel.GARev {
+		return winVerdict{t: Unknown, note: fmt.Sprintf("NVD lists %s only for Windows releases older than %s (%s), but this machine runs a build from before %s's first public one (10.0.%d.%d), a preview or early build that may lack the fix: install the current updates.",
+			v.CVE, d.rel.Display, winNames(others), d.rel.Display, d.rel.Build, d.rel.GARev)}, true
+	}
+	shipped := v.Source != SourceVulnCheck && !v.DateAdded.IsZero() && !v.DateAdded.Add(winShipMargin).After(d.rel.GA) && d.rel.GARev > 0
 	if shipped || settled(v, now) {
 		why := fmt.Sprintf("%s came out on %s, after %s listed the flaw (%s), so it carries the fix", d.rel.Display, d.rel.GA.Format("2 Jan 2006"), v.listName(), v.DateAdded.Format("2 Jan 2006"))
 		if !shipped {
@@ -258,6 +267,7 @@ func winRows(rows []fixedEntry, d winDev, v Vuln) winVerdict {
 	var ts []Tri
 	var targets []string
 	var yes *VersionRange
+	yesBuild := 0
 	for _, e := range rows {
 		tgt, lit := e.c.TargetHW.Literal()
 		if e.c.TargetHW.Kind == Value && lit {
@@ -266,10 +276,10 @@ func winRows(rows []fixedEntry, d winDev, v Vuln) winVerdict {
 				continue
 			}
 		}
-		t, r := winEval(e.c, e.r, d)
+		t, r, b := winEval(e.c, e.r, d)
 		ts = append(ts, t)
 		if t == Yes && (yes == nil || widerEnd(r, *yes)) {
-			yes = &r
+			yes, yesBuild = &r, b
 		}
 	}
 	every := func(want Tri) bool { return !slices.ContainsFunc(ts, func(t Tri) bool { return t != want }) }
@@ -278,7 +288,7 @@ func winRows(rows []fixedEntry, d winDev, v Vuln) winVerdict {
 		return winVerdict{t: Unknown, note: fmt.Sprintf("NVD lists %s for %s on %s only, and this device is %s, so NVD's data cannot tell: compare with Microsoft's advisory.",
 			v.CVE, d.rel.Display, orList(targets), d.target)}
 	case yes != nil && (d.target != "" || every(Yes)):
-		return winVerdict{t: Yes, within: *yes}
+		return winVerdict{t: Yes, within: *yes, build: yesBuild}
 	case every(No):
 		return winVerdict{t: No, proof: proofRange}
 	}
@@ -287,28 +297,23 @@ func winRows(rows []fixedEntry, d winDev, v Vuln) winVerdict {
 
 // winEval reads one row of the device's release line with its update revision. The bounds must be builds of that line
 // ("10.0.22631.5189" for a 22621 or 22631 device): the device's revision is compared at the bound's build, and the range that
-// matched is given at the device's build. Anything else the row pins or bounds (another build, "-", an update) is Unknown.
-func winEval(c CPE, r VersionRange, d winDev) (Tri, VersionRange) {
+// matched is given at the device's build, with the bound's build. Anything else the row pins or bounds (another build, a bound
+// without the revision, "-", an update) is Unknown, and so is a release row of every version with no range: for a Windows release
+// that means NVD recorded no fixed build, not that no update fixes it (review r1 LOW-1).
+func winEval(c CPE, r VersionRange, d winDev) (Tri, VersionRange, int) {
 	for _, a := range []Attr{c.Update, c.Edition, c.Language, c.SWEdition, c.TargetSW, c.Other} {
 		if a.Kind != Any {
-			return Unknown, r
+			return Unknown, r, 0
 		}
 	}
 	if r.IsZero() {
-		switch c.Version.Kind {
-		case Any:
-			return Yes, r // every version of the release
-		case Value:
-			lit, ok := c.Version.Literal()
-			if !ok {
-				return Unknown, r
-			}
-			r = VersionRange{StartIncl: lit, EndIncl: lit}
-		default:
-			return Unknown, r // "-": no build to compare (review L2: windows_server_2019:- stays not checked)
+		lit, ok := c.Version.Literal()
+		if c.Version.Kind != Value || !ok {
+			return Unknown, r, 0 // every version, or "-": no build to compare (review L2: windows_server_2019:- stays not checked)
 		}
+		r = VersionRange{StartIncl: lit, EndIncl: lit}
 	} else if c.Version.Kind != Any {
-		return Unknown, r
+		return Unknown, r, 0
 	}
 	build := 0
 	for _, b := range []string{r.StartIncl, r.StartExcl, r.EndIncl, r.EndExcl} {
@@ -317,11 +322,11 @@ func winEval(c CPE, r VersionRange, d winDev) (Tri, VersionRange) {
 		}
 		m := winBoundRE.FindStringSubmatch(b)
 		if m == nil {
-			return Unknown, r
+			return Unknown, r, 0
 		}
 		n, _ := strconv.Atoi(m[1])
 		if build != 0 && n != build || !d.sameLine(n) {
-			return Unknown, r
+			return Unknown, r, 0
 		}
 		build = n
 	}
@@ -332,7 +337,7 @@ func winEval(c CPE, r VersionRange, d winDev) (Tri, VersionRange) {
 		}
 		return strings.Replace(b, fmt.Sprintf("10.0.%d", build), fmt.Sprintf("10.0.%d", d.rel.Build), 1)
 	}
-	return t, VersionRange{StartIncl: at(r.StartIncl), StartExcl: at(r.StartExcl), EndIncl: at(r.EndIncl), EndExcl: at(r.EndExcl)}
+	return t, VersionRange{StartIncl: at(r.StartIncl), StartExcl: at(r.StartExcl), EndIncl: at(r.EndIncl), EndExcl: at(r.EndExcl)}, build
 }
 
 // winNamed says whether any entry of the list names the release NVD calls product (review H2: a release NVD has never named, or a
@@ -384,18 +389,41 @@ func withoutCoveredWindows(sws []Software) []Software {
 	return out
 }
 
-// windowsFixedIn is FixedInFor of a Windows release row: the build of the month that fixes it, at the device's build. ok is false
-// when windowsDecide does not read the entry.
+// winFix is what installing the fix of a Yes takes (review r1 M2). "fixed": the month's build at the device's build, which Windows
+// Update offers. "feature_update": the range came from a later sibling release NVD lists and the device's release is not listed, so
+// Microsoft no longer services it: no monthly update fixes it, and fixed is the sibling's build (branch names the sibling). "esu":
+// the fix is above the last revision the release gets without Extended Security Updates (Windows 10 22H2 after October 2025).
+func winFix(w winVerdict, d winDev) (kind, fixed, branch string) {
+	end := w.within.EndExcl
+	if w.via != "" && w.build > d.rel.Build {
+		r, _ := winrel.ByBuild(w.build, false)
+		return "feature_update", strings.Replace(end, fmt.Sprintf("10.0.%d.", d.rel.Build), fmt.Sprintf("10.0.%d.", w.build), 1), r.Display
+	}
+	if m := winBoundRE.FindStringSubmatch(end); m != nil && d.rel.LastFreeRev > 0 {
+		if n, _ := strconv.Atoi(m[2]); n > d.rel.LastFreeRev {
+			return "esu", end, d.rel.Display
+		}
+	}
+	return "fixed", end, ""
+}
+
+// windowsFixedIn is FixedInFor of a Windows release row (winFix). ok is false when windowsDecide does not read the entry.
 func windowsFixedIn(in swInfo, v Vuln) (*FixedIn, bool) {
 	w, ok := windowsDecide(in, v, true, time.Time{})
 	if !ok {
 		return nil, false
 	}
+	d, _ := winDevice(in)
 	switch {
 	case w.t != Yes:
 		return nil, true
 	case w.within.EndExcl != "":
-		return &FixedIn{Kind: "fixed", Version: clean(in.ver), Fixed: clean(w.within.EndExcl), Branches: []FixedBranch{}, Source: FixedInSource}, true
+		kind, fixed, branch := winFix(w, d)
+		f := &FixedIn{Kind: kind, Version: clean(in.ver), Fixed: clean(fixed), Branches: []FixedBranch{}, Source: FixedInSource}
+		if branch != "" {
+			f.Branches = []FixedBranch{{Branch: clean(branch), Fixed: clean(fixed)}}
+		}
+		return f, true
 	case w.within.EndIncl != "":
 		return &FixedIn{Kind: "up_to", Version: clean(in.ver), Fixed: clean(w.within.EndIncl), Branches: []FixedBranch{}, Source: FixedInSource}, true
 	}
@@ -403,16 +431,26 @@ func windowsFixedIn(in swInfo, v Vuln) (*FixedIn, bool) {
 }
 
 // windowsGroupFix is groupFixOf for a Windows release row: one monthly update fixes every entry it is affected by through a range
-// with an end, the latest of those ends. nil when none.
+// with an end, the latest of those ends (kind fixed, or esu when that needs Extended Security Updates). When one of them can only
+// be fixed by a feature update, the line is that (kind feature_update, Fixed the release that has the fix): no monthly update
+// clears the device. nil when none.
 func windowsGroupFix(in swInfo, vulns []Vuln) *GroupFix {
+	d, _ := winDevice(in)
 	closed := map[string]bool{}
-	fixed := ""
+	fixed, kind, branch := "", "fixed", ""
 	for _, v := range vulns {
 		w, ok := windowsDecide(in, v, true, time.Time{})
 		if !ok || w.t != Yes || w.within.EndExcl == "" {
 			continue
 		}
 		closed[v.CVE] = true
+		k, _, b := winFix(w, d)
+		switch {
+		case k == "feature_update":
+			kind, branch = k, b
+		case k == "esu" && kind == "fixed":
+			kind = k
+		}
 		if c, ok := compareBound(w.within.EndExcl, fixed); fixed == "" || ok && c > 0 {
 			fixed = w.within.EndExcl
 		}
@@ -420,7 +458,10 @@ func windowsGroupFix(in swInfo, vulns []Vuln) *GroupFix {
 	if len(closed) == 0 {
 		return nil
 	}
-	return &GroupFix{Kind: "fixed", Version: clean(in.ver), Fixed: clean(fixed), Closed: closed}
+	if kind == "feature_update" {
+		fixed = branch
+	}
+	return &GroupFix{Kind: kind, Version: clean(in.ver), Fixed: clean(fixed), Closed: closed}
 }
 
 // winNames names releases for a sentence: "windows 10 1809, windows 11 23h2 and 2 more".

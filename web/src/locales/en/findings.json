@@ -144,6 +144,8 @@
     "fixTitle": "Fixed version and vendor advisory",
     "noFixedVersion": "Vedette does not have the fixed version for this CVE yet. The vendor advisory says which version fixes it.",
     "fixedIn": "Fixed in {{fixed}}: upgrade {{device}} from {{version}} to {{fixed}} or later.",
+    "fixedFeatureUpdate": "NVD names the fix for {{branch}} ({{fixed}}), not for the Windows release {{device}} runs ({{version}}): Microsoft no longer updates that release, so no monthly update brings it this fix. Move {{device}} to a Windows release Microsoft still services (a feature update). If Windows Update still offers it monthly updates, install the latest and check Microsoft's advisory.",
+    "fixedEsu": "Fixed in {{fixed}}, an Extended Security Update: Microsoft updates {{branch}} past the end of its support only for devices enrolled in Extended Security Updates. If {{device}} (now {{version}}) is enrolled, install it; otherwise move {{device}} to a Windows release Microsoft still services.",
     "fixedUpTo": "Versions up to {{fixed}} are affected, and {{device}} runs {{version}}: upgrade to a release after {{fixed}}. The version data does not name it; the vendor advisory does.",
     "fixedBranches": "{{device}} has no version yet, so Vedette lists the fix of each release line: {{list}}. Add the version to see the one for this device.",
     "fixedUnreadable": "Vedette cannot read the version \"{{version}}\" of {{device}}, so it lists the fix of each release line: {{list}}. Correct the version on the Devices page to see the one for this device.",
@@ -295,7 +297,7 @@
     "stillNone": "None still match this version.",
     "pending": "Vedette is checking the new version; this list updates in a moment.",
     "scanned": "Vedette reads this version from the device. Run a scan of {{device}} to check.",
-    "agent": "The agent on {{device}} reports the new version by itself, at most two hours after the update is installed. The findings the update fixes then close by themselves.",
+    "agent": "The agent on {{device}} reports the new version by itself, usually within two hours after the restart that finishes the update. The findings the update fixes then close by themselves.",
     "scan": "Scan {{device}}"
   },
   "clearSeverity": "Clear {{severity}} filter",

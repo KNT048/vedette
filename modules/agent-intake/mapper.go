@@ -341,8 +341,10 @@ func winTarget(arch string) string {
 // the full version with its update revision, the KEV key of CISA's "Microsoft | Windows" entries and a CPE that names the release
 // as NVD does with the machine's target_hw ("cpe:2.3:o:microsoft:windows_11_23h2:10.0.22631.4460:*:*:*:*:*:x64:*"), so findings
 // reads NVD's ranges of the release ("< 10.0.22631.5189") against the patched build. Client or server by the name ("Microsoft
-// Windows Server 2022 Datacenter"). false for a build core/winrel does not list (a release NVD has no ranges for, Azure Stack HCI):
-// no row, as before.
+// Windows Server 2022 Datacenter"). A build core/winrel does not list (a release newer than the table) or Azure Local / Azure Stack
+// HCI (a server OS whose name says neither, on builds clients share) still gets a row, named by the machine ("Windows 11 Pro"), with
+// the key and no release CPE: findings then gives each Windows entry an honest "not checked" instead of nothing (review r1 M3).
+// false only when the version is not 10.0.<build>.<revision>.
 func windowsRow(w winOS) (observe.Software, bool) {
 	if !winFullRE.MatchString(w.version) {
 		return observe.Software{}, false
@@ -351,9 +353,12 @@ func windowsRow(w winOS) (observe.Software, bool) {
 	if err != nil {
 		return observe.Software{}, false
 	}
-	rel, ok := winrel.ByBuild(build, strings.Contains(strings.ToLower(w.name), "server"))
-	if !ok {
-		return observe.Software{}, false
+	name := strings.ToLower(w.name)
+	rel, ok := winrel.ByBuild(build, strings.Contains(name, "server"))
+	if !ok || strings.Contains(name, "azure stack hci") || strings.Contains(name, "azure local") {
+		display := cmp.Or(strings.TrimSpace(strings.TrimPrefix(w.name, "Microsoft ")), "Windows")
+		return observe.Software{Display: display, Vendor: "microsoft", Product: display, Version: w.version,
+			KevKeys: []string{"microsoft|windows"}, Confidence: softwareConfidence}, true
 	}
 	return observe.Software{Display: rel.Display, Vendor: "microsoft", Product: rel.Display, Version: w.version,
 		CPE:     "cpe:2.3:o:microsoft:" + rel.Product + ":" + w.version + ":*:*:*:*:*:" + cmp.Or(w.target, "*") + ":*",

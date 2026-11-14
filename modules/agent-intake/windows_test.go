@@ -102,13 +102,25 @@ func TestWindowsRow(t *testing.T) {
 		}
 	}
 	for _, w := range []winOS{
-		{name: "Microsoft Windows 10 Pro", version: "10.0.20348.2849"},    // a server-only build named as a client (Azure Stack HCI)
 		{name: "Microsoft Windows 11 Pro", version: "10.0.22631"},         // no revision
-		{name: "Microsoft Windows 11 Pro", version: "10.0.27000.1"},       // a build the table does not list yet
 		{name: "Microsoft Windows Server 2012 R2", version: "6.3.9600.1"}, // NVD names 6.x without build ranges
 	} {
 		if s, ok := windowsRow(w); ok {
 			t.Errorf("%+v: row %+v", w, s)
+		}
+	}
+	// review r1 M3, LOW-4: a build the table does not list yet, a server-only build named as a client, Azure Local on a build clients
+	// share: a row named by the machine, keyed to Windows, without a release CPE (findings: "not checked", not nothing)
+	for _, c := range []struct{ name, version, display string }{
+		{"Microsoft Windows 11 Pro", "10.0.28000.1", "Windows 11 Pro"},
+		{"Microsoft Windows 10 Pro", "10.0.20348.2849", "Windows 10 Pro"},
+		{"Microsoft Azure Stack HCI", "10.0.26100.4652", "Azure Stack HCI"},
+		{"Microsoft Azure Local", "10.0.26100.4652", "Azure Local"},
+	} {
+		s, ok := windowsRow(winOS{name: c.name, version: c.version, target: "x64"})
+		if !ok || s.Display != c.display || s.Product != c.display || s.Vendor != "microsoft" || s.Version != c.version || s.CPE != "" ||
+			!slices.Equal(s.KevKeys, []string{"microsoft|windows"}) {
+			t.Errorf("%s %s: %+v %v", c.name, c.version, s, ok)
 		}
 	}
 }

@@ -472,6 +472,7 @@
       "exposure.commitment": "Confirm scan permission for the public address",
       "exposure.ip_ignore": "Ignore public address",
       "exposure.ip_restore": "Stop ignoring public address",
+      "exposure.outside_view": "Ask Shodan what it has seen on a public address",
       "exposure.scan": "Scan public address",
       "exposure.target_add": "Add public address to check",
       "exposure.target_delete": "Delete public address to check",

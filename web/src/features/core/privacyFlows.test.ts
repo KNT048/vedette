@@ -11,7 +11,7 @@ for (const line of readFileSync(resolve(__dirname, '../../../../PRIVACY.md'), 'u
   const m = /^\| (\d+)( \(container-only\))? \| /.exec(line)
   if (m) (m[2] ? containerRows : rows).set(Number(m[1]!), line.replace(/^\||\|$/g, '').split(/ \| /).map((c) => c.trim()))
 }
-type Texts = { what: string; to: string; control: string; items?: string[] }
+type Texts = { name?: string; what: string; to: string; control: string; items?: string[] }
 const flows = (core as { privacy: { flow: Record<string, Texts & { container?: Texts }> } }).privacy.flow
 const plain = (s: string) => s.replaceAll('**', '')
 
@@ -24,7 +24,7 @@ describe('Settings → Privacy flows match PRIVACY.md', () => {
   })
   it('flow 15 (Shodan, D-558) is sent only on an administrator\'s click, in PRIVACY.md and on the page', () => {
     const r = rows.get(15)!
-    for (const text of [plain(r[1]!), flows['15']!.name]) expect(text).toMatch(/only when an administrator clicks it/)
+    for (const text of [plain(r[1]!), flows['15']!.name ?? '']) expect(text).toMatch(/only when an administrator clicks it/)
     for (const text of [plain(r[4]!), flows['15']!.control]) expect(text).toMatch(/if nobody clicks, nothing is sent/)
   })
   it('flow 3 is a lead sentence and one item per AI job, word for word (D-407)', () => {

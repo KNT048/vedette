@@ -391,7 +391,7 @@ describe('Settings → Privacy: flow 12, Connections you add', () => {
   it('lists 15 flows; flow 12 is on while a connection is enabled and links to Connections', async () => {
     renderApp('/settings/privacy')
     const { table, row: r } = await row()
-    expect(within(table).getAllByRole('row')).toHaveLength(15)
+    expect(within(table).getAllByRole('row')).toHaveLength(16) // header + 15 flows
     expect(within(r).getByText('Running')).toBeInTheDocument()
     expect(within(r).getByText(/Only the address you typed for each connection/)).toBeInTheDocument()
     expect(within(r).getByRole('link', { name: 'Open connections' })).toHaveAttribute('href', '/settings/connections')

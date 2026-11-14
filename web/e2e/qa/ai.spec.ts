@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test, type Locator, type Page } from '@playwright/test'
 import { collectErrors, expectAccessible, shot } from '../helpers'
 import { DIACRITICS, finishClean, sampleStart } from './clean'
 
@@ -22,6 +22,11 @@ const noHorizontalScroll = async (page: Page) => expect(await page.evaluate(() =
 const device = (page: Page) => (page.viewportSize()?.width ?? 1366) < 700 ? 'mobile' : 'desktop'
 const noVietnamese = async (page: Page) => expect(await page.locator('body').innerText()).not.toMatch(DIACRITICS)
 const addProfile = (page: Page) => page.getByRole('button', { name: 'Add AI profile' }).first().click()
+
+// The server address sits under "Advanced" (D-475): open it once per dialog before filling it.
+const openAdvanced = async (dlg: Locator) => {
+  if (!(await dlg.locator('#pf-base_url').isVisible())) await dlg.getByText('Advanced', { exact: true }).click()
+}
 
 test.describe('ai: clean install', () => {
   test('no profile yet: every page guides to add one; no sample data; no console errors', async ({ page }) => {
@@ -67,15 +72,16 @@ test.describe('ai: clean install', () => {
     await dlg.getByRole('button', { name: 'Test connection' }).click()
     await expect(dlg.getByRole('alert')).toContainText('The provider rejected the key')
     await dlg.getByLabel('API key').fill('sk-ant-demo-key-9z9z')
-    await dlg.getByLabel('Server address').fill('https://unreachable.example.com')
+    await openAdvanced(dlg)
+    await dlg.getByLabel('Server address', { exact: true }).fill('https://unreachable.example.com')
     await dlg.getByRole('button', { name: 'Test connection' }).click()
     await expect(dlg.getByRole('alert')).toContainText('Could not connect to unreachable.example.com')
-    await dlg.getByLabel('Server address').fill('https://api.anthropic.com')
+    await dlg.getByLabel('Server address', { exact: true }).fill('https://api.anthropic.com')
     await dlg.getByRole('button', { name: 'Test connection' }).click()
     await expect(dlg.getByText('Connected')).toBeVisible()
     await dlg.getByLabel('Monthly budget for this profile (tokens)').fill('50')
     await dlg.getByRole('button', { name: 'Add profile' }).click()
-    await expect(dlg.getByText(/The cap must be a whole number/)).toBeVisible()
+    await expect(dlg.getByText(/The budget must be a whole number/)).toBeVisible()
     await dlg.getByLabel('Monthly budget for this profile (tokens)').fill('20000')
     await dlg.getByLabel('API key').press('Enter') // Enter gửi form
     await expect(page.getByText('AI profile added').first()).toBeVisible()
@@ -107,13 +113,13 @@ test.describe('ai: clean install', () => {
     const dlg = page.getByRole('dialog', { name: 'Add AI profile' })
     const kind = dlg.getByLabel('Provider type')
     await kind.selectOption({ label: 'OpenAI' })
-    await expect(dlg.getByLabel('Server address')).toHaveValue('https://api.openai.com/v1')
+    await expect(dlg.getByLabel('Server address', { exact: true })).toHaveValue('https://api.openai.com/v1')
     await expect(dlg.getByLabel('Model')).toHaveValue('gpt-6-luna')
     await kind.selectOption({ label: 'Google Gemini' })
-    await expect(dlg.getByLabel('Server address')).toHaveValue('https://generativelanguage.googleapis.com/v1beta')
+    await expect(dlg.getByLabel('Server address', { exact: true })).toHaveValue('https://generativelanguage.googleapis.com')
     await expect(dlg.getByLabel('Model')).toHaveValue('gemini-3.6-flash')
     await kind.selectOption({ label: 'OpenAI-compatible (Ollama, vLLM, LM Studio)' })
-    await expect(dlg.getByLabel('Server address')).toHaveValue('http://host.containers.internal:11434/v1')
+    await expect(dlg.getByLabel('Server address', { exact: true })).toHaveValue('http://host.containers.internal:11434/v1')
     await expect(dlg.getByRole('radio', { name: /Inside your network/ })).toBeChecked()
     await expect(dlg.getByText(/may leave if it forwards to a cloud provider/)).toBeVisible()
     await expect(dlg.getByRole('checkbox', { name: /I understand/ })).toHaveCount(0) // nội bộ: không cần xác nhận gửi ra ngoài
@@ -123,11 +129,12 @@ test.describe('ai: clean install', () => {
     await expect(dlg.getByLabel('API style')).toBeVisible()
     await dlg.getByLabel('API style').selectOption({ label: 'Anthropic Messages' })
     await dlg.getByLabel('Profile name').fill('Gateway')
-    await dlg.getByLabel('Server address').fill('http://10.0.0.5:8080')
+    await openAdvanced(dlg)
+    await dlg.getByLabel('Server address', { exact: true }).fill('http://10.0.0.5:8080')
     await dlg.getByLabel('Model').fill('my-model')
     await dlg.getByRole('button', { name: 'Test connection' }).click() // đám mây + http: bị từ chối đúng ô
     await expect(dlg.getByText(/must start with https:\/\//)).toBeVisible()
-    await expect(dlg.getByLabel('Server address')).toHaveAttribute('aria-invalid', 'true')
+    await expect(dlg.getByLabel('Server address', { exact: true })).toHaveAttribute('aria-invalid', 'true')
     await dlg.getByRole('radio', { name: /Inside your network/ }).click()
     await dlg.getByRole('button', { name: 'Add profile' }).click()
     await expect(page.getByText('AI profile added').first()).toBeVisible()
@@ -209,7 +216,8 @@ test.describe('ai: sample data', () => {
     await page.goto('/settings/ai')
     await page.getByRole('button', { name: 'Edit Claude Sonnet' }).click() // hồ sơ chính của "Ask your data"
     const dlg = page.getByRole('dialog', { name: 'Edit Claude Sonnet' })
-    await dlg.getByLabel('Server address').fill('https://timeout.example.com')
+    await openAdvanced(dlg)
+    await dlg.getByLabel('Server address', { exact: true }).fill('https://timeout.example.com')
     await dlg.getByLabel('API key').fill('sk-ant-demo-key-9z9z') // another address needs the key again (the stored key never follows it)
     await dlg.getByRole('checkbox', { name: /I understand/ }).check()
     await dlg.getByRole('button', { name: 'Save', exact: true }).click()

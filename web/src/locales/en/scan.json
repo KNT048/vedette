@@ -60,7 +60,7 @@
     "noNetworks": "No network range entered yet.",
     "noInternal": "There are no devices in the inventory yet.",
     "title": "Choose devices to scan",
-    "description": "Confirmation scans use safe templates: read-only, no exploitation, nothing that can crash a device.",
+    "description": "Confirmation scans send GET requests, plus a short list of other checks a person has read. A check may prove a flaw by reading what it should not (a file through a path traversal, the output of a harmless command such as id), but it creates or changes nothing and sends nothing to anyone else.",
     "scope": "Confirmed scope: {{networks}}. Vedette never scans any address outside it.",
     "commitment": "Scan scope commitment ticked on {{date}}, confirmed by {{by}}.",
     "noCommitment": "The scan scope commitment is not ticked yet.",
@@ -279,13 +279,13 @@
     "stopAfterOption": "{{count}} failed requests",
     "neverTitle": "What Vedette never does",
     "neverDescription": "Applies to every scan and cannot be turned off.",
-    "neverHeadline": "No exploitation, no denial of service",
+    "neverHeadline": "No changes, no denial of service",
     "never": {
-      "exploit": "Never runs exploit code and never takes over a device.",
+      "exploit": "Never plants a file, an account or a backdoor and never takes over a device. A check may prove a flaw by making the device read a file or run a harmless command such as id, and keeps the answer as evidence.",
       "dos": "Never floods a service with requests to bring it down.",
-      "brute": "Never guesses passwords.",
-      "write": "Never writes, edits or deletes data on a device: read requests only.",
-      "tags": "Only uses nuclei's safe templates (kev group); templates tagged intrusive or denial-of-service are dropped."
+      "brute": "Never guesses passwords and never logs in with default ones.",
+      "write": "Sends GET or HEAD requests only, plus the few other checks a person has read and found to change nothing: no account, password, setting, file, record or mail is created, changed or deleted.",
+      "tags": "Only uses nuclei templates of the kev group that pass Vedette's own filter; templates tagged intrusive or denial-of-service are dropped."
     },
     "neverLocked": "Dangerous checks are removed from this Vedette build; there is no switch to turn them on.",
     "schedTitle": "Schedule",

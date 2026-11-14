@@ -247,7 +247,7 @@ test.describe('scan: admin sets safety', () => {
     await page.reload()
     await expect(page.getByLabel('One IP or network per line')).toHaveValue('192.168.10.250\n192.168.20.0/24')
     await expect(page.locator('#rate')).toHaveValue('10')
-    await expect(page.getByText('No exploitation, no denial of service')).toBeVisible()
+    await expect(page.getByText('No changes, no denial of service')).toBeVisible()
   })
 
   // D-417: v1 does not offer the credentialed scan (no backend yet); the GUI is kept for post-v1, so the walk is kept, skipped.

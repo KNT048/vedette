@@ -210,6 +210,7 @@ func build(src, out, version string) (Report, error) {
 		body []byte
 	}
 	var all []kept
+	var queue []reviewRow
 	ids := map[string]bool{}
 	err := filepath.WalkDir(src, func(p string, d os.DirEntry, err error) error {
 		if err != nil {
@@ -233,6 +234,9 @@ func build(src, out, version string) (Report, error) {
 		}
 		if reason != "" {
 			rep.Left[reason]++
+			if reason == "not reviewed" || reason == "state name" { // D-528 step 2: waits for a person (docs/research/kev-review-queue.md)
+				queue = append(queue, queueRow(rel, body, reason))
+			}
 			return nil
 		}
 		ids[tpl.ID] = true
@@ -241,6 +245,12 @@ func build(src, out, version string) (Report, error) {
 	})
 	if err != nil {
 		return rep, err
+	}
+	if err := writeQueue(filepath.Join(out, "review-queue.md"), version, queue); err != nil {
+		return rep, err
+	}
+	if n := rep.Left["stale review"]; n > 0 { // D-528 step 2: a reviewed template changed: a person reads it again before it ships
+		return rep, fmt.Errorf("%d templates of reviewed.tsv changed since they were read (their sha256 differs): read them again and update the list", n)
 	}
 	if len(all) == 0 || len(all) > pack.MaxTemplates {
 		return rep, fmt.Errorf("a pack has 1 to %d templates, this one %d", pack.MaxTemplates, len(all))
@@ -332,12 +342,17 @@ func qualify(rel string, body []byte) (pack.Template, string) {
 	if why, _ := changeReason(id, doc, body, tags); why != "" { // D-528: no state change, no other destination, no third party
 		return zero, why
 	}
+	sum := sha256.Sum256(body)
+	name, _ := info["name"].(string)
+	ownIP := ownIPSafe(rel, doc, tags, body)
+	if why, _ := noTickReason(id, name, rel, hex.EncodeToString(sum[:]), doc, ownIP); why != "" { // D-528 step 2: a read-only GET or reviewed
+		return zero, why
+	}
 	req := requestOf(doc)
 	if !requestRE.MatchString(req) {
 		return zero, "request"
 	}
-	sum := sha256.Sum256(body)
-	return pack.Template{ID: id, CVE: cve, Path: rel, SHA256: hex.EncodeToString(sum[:]), Tags: tags, Request: req, OwnIP: ownIPSafe(rel, doc, tags, body)}, ""
+	return pack.Template{ID: id, CVE: cve, Path: rel, SHA256: hex.EncodeToString(sum[:]), Tags: tags, Request: req, OwnIP: ownIP}, ""
 }
 
 // ownIPKeys are the keys of an http block an own_ip template may have: the request (raw, or path with method and headers) and

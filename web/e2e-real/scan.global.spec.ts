@@ -277,7 +277,7 @@ test('roles: a viewer reads, an operator may start and stop (and meets the same 
 // nuclei that sends nothing (cmd/vedette/e2escan_test.go). The devices carry a real finding: a KEV entry of a CVE of the pack, for a made-up
 // product, pulled through the CISA feed's mirror address (findings-seed.ts); the nuclei-templates feed is pointed at a loopback list of the
 // same CVEs first, so the entries have `has_template` and announce a new KEV with a template (INV-9). ----
-const PACK_CVES = { match: 'CVE-2002-1131', stop: 'CVE-2005-3128', next: 'CVE-2010-0738', dead: 'CVE-2007-0885', off: 'CVE-2008-2398', pick: 'CVE-2009-0545' } as const
+const PACK_CVES = { match: 'CVE-2008-6668', stop: 'CVE-2009-1558', next: 'CVE-2010-0738', dead: 'CVE-2010-0759', off: 'CVE-2010-2035', pick: 'CVE-2011-3315' } as const // all in pack 2026.11.4 (D-528 step 2)
 /** The pack path of a CVE's one template (a pack template is http/cves/<year>/<id>.yaml for these). */
 const tplPath = (cve: string) => `http/cves/${cve.slice(4, 8)}/${cve}.yaml`
 interface Row { target_id: string; label: string; ip: string; template: string | null; result: string; finding_id: string | null; note: string }

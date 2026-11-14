@@ -55,6 +55,7 @@ type Readers struct {
 	HPTouches     func(ctx context.Context) (any, error) // GET /v1/state/hp-touches (new connection attempts to the decoys, D-466 M2)
 	BackupContent func(id string) (File, error)          // GET /v1/backups/{id}/content
 	ExportContent func(id string) (File, error)          // GET /v1/exports/{id}/content
+	ZapReport     func(id string) (File, error)          // GET /v1/zap/{id}/content (the report of the last zap.baseline, D-521)
 }
 
 var hexIDRE = regexp.MustCompile(`^[0-9a-f]{32}$`)
@@ -82,6 +83,8 @@ func (s *Server) serveRead(w http.ResponseWriter, r *http.Request, kind routeKin
 		s.serveFile(w, rc, rd.BackupContent, arg)
 	case routeExportContent:
 		s.serveFile(w, rc, rd.ExportContent, arg)
+	case routeZapReport:
+		s.serveFile(w, rc, rd.ZapReport, arg)
 	case routeNone, routeInfo, routeRuns, routeRun, routeEvents, routeAudit, routeCommand:
 		// not a state route
 	}

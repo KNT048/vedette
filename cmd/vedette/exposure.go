@@ -53,6 +53,9 @@ func exposureService(d deps) *exposure.Service {
 		}
 		cfg.Gateway = g
 	}
+	if d.HostSocket != "" { // D-591: the domain fence's token comes from vedette-host, which holds the key; no host, no fence (nil)
+		cfg.DomainFence = hostDomainFence{host: hostclient.New(d.HostSocket)}
+	}
 	if d.Bus != nil { // a nil *events.Bus inside the interface would not compare equal to nil
 		cfg.Publisher = d.Bus
 	}

@@ -100,3 +100,6 @@
 - **Đoán loại chỉ cho trang Devices (rà #714 M3)**: `DevicesPage`/`DetailPage` (handler HTTP) tính `guess` và hỏi gateway của hộp (cache 1 phút, cả lỗi); `Devices`/`Device`/`Detail` mà module khác đọc (response trong giao dịch ghi, scan, reports, honeypot, MCP) không bao giờ tính hay hỏi host.
 - **Migration 0006 gỡ loại của sản phẩm không thiết bị khai trước #722** (W9-1, D-515 (4)): chỉ hàng đúng dấu của đường khai cũ (INV-29); trên hộp, "Microsoft Office (no device)" thôi hiện Computer sau lần cập nhật. Không phát `inventory.asset.updated`: người đọc lấy loại hiện tại từ inventory lúc cần, không module nào giữ bản sao (`resp_events.device_kind` của response là ảnh chụp lúc sự kiện, không đổi). Dòng CSV không tên, không IP có cột loại pc/server/web cũng mất loại (không phân biệt được); người đặt lại trên trang thiết bị.
 - **Migration 0004 đặt lại `first_scan_at`** của thiết bị chưa rõ loại, không mong manh, phát hiện được, không "never": mỗi thiết bị đó được thêm một lần quét nhẹ có tiêu đề/chứng chỉ (`gentle_titles` của sensor-active).
+
+## Modifying: `DevicesRunning` → `DeviceMatch.Display` (KF-3)
+- **feeds** (`MatchedAsset.display`, trang CVE "Devices that run it" khi thiết bị không có tên máy, `cmd/vedette` `feedsInventory.MatchProducts`): tên phần mềm đã khớp. `DeviceRefs` giữ nghĩa cũ (dòng đầu theo tên, hoặc loại) cho người gọi khác.

@@ -8,8 +8,10 @@ import (
 	"net/netip"
 	"slices"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/knt048/vedette/content/nucleipack"
+	"github.com/knt048/vedette/core/sensorlink"
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/modules/exposure"
 	"github.com/knt048/vedette/modules/scan"
@@ -82,6 +84,7 @@ type templateRun struct {
 	tmpls      []pack.Template
 	full       bool
 	disruptive bool
+	domain     *exposure.DomainScope // D-591: a full run on an address of a verified domain's name (domain_ip); nil otherwise
 }
 
 func (a exposureTemplateScan) ScanTemplates(ctx context.Context, t exposure.ScanTarget, ip netip.Addr, jobs []exposure.TemplateJob) (exposure.TemplateScan, error) {
@@ -94,6 +97,9 @@ func (a exposureTemplateScan) ScanTemplates(ctx context.Context, t exposure.Scan
 	ix, err := a.pack()
 	if err != nil {
 		return exposure.TemplateScan{}, err
+	}
+	if t.Domain != nil && !t.Mode.Full { // D-591: an address that is not the box's gets the deep templates only, as a domain_ip job
+		return exposure.TemplateScan{}, errNotFull
 	}
 	if t.Mode.Full { // FULL-4 (D-527): the deep scan of a target whose testing terms were accepted
 		return a.scanFull(ctx, t, ip, ix, jobs)
@@ -196,7 +202,10 @@ func (a exposureTemplateScan) runOne(ctx context.Context, actor string, ip netip
 // send is runOne with the parsed lines of the run too (a full run reads the matcher names of the technologies templates, D-527).
 // silent are the templates nuclei printed nothing for (not run, review r1 M1).
 func (a exposureTemplateScan) send(ctx context.Context, actor string, ip netip.Addr, ix *pack.Index, r templateRun) (res []exposure.TemplateResult, got nucleiout.Outcome, silent []string, err error) {
-	ok, err := a.gate(ctx, actor, ip)
+	ok := true
+	if r.domain == nil { // D-591: a domain_ip run is not the box's own IP; exposure's deepGate checked it, and the worker's fence does
+		ok, err = a.gate(ctx, actor, ip)
+	}
 	switch {
 	case ctx.Err() != nil:
 		return nil, nucleiout.Outcome{}, nil, ctx.Err()
@@ -204,20 +213,49 @@ func (a exposureTemplateScan) send(ctx context.Context, actor string, ip netip.A
 		return nil, nucleiout.Outcome{}, nil, fmt.Errorf("vedette: checking that %s may still be scanned: %w", ip, err)
 	case !ok:
 		return nil, nucleiout.Outcome{}, nil, &exposure.Unavailable{Reason: fmt.Sprintf(templatesNotOwn, ip)}
+	case r.domain != nil && !r.full:
+		return nil, nucleiout.Outcome{}, nil, errNotFull
 	}
 	rate, depth, what := nucleiargv.OwnIPRate, "", "own IP"
 	if r.full { // FULL-4 (D-527)
 		rate, depth, what = nucleiargv.FullRate, nucleiargv.DepthFull, "own IP, deep scan, testing terms accepted"
+		if r.domain != nil {
+			// review r1 L4: short, so the template's own request (the probe itself) is not what scan_probe.request's 300 cut off
+			what = "domain_ip " + r.domain.Domain + " via " + finalName(r.domain) + ", deep scan, testing terms accepted"
+		}
 		if r.disruptive {
 			what += ", disruptive checks"
 		}
+	}
+	request := func(tp pack.Template) string {
+		return fmt.Sprintf("nuclei %s to %s (%s, at most %d requests a second): %s", tp.ID, r.target.Input(), what, rate, tp.Request)
+	}
+	if r.domain != nil { // review r2 L-5: the template's request is kept whole; only the domain part shrinks to fit the row
+		request = func(tp pack.Template) string {
+			line := func(d, f string) string {
+				return fmt.Sprintf("nuclei %s to %s (domain_ip %s via %s%s, at most %d requests a second): %s", tp.ID, r.target.Input(), d, f,
+					strings.TrimPrefix(what, "domain_ip "+r.domain.Domain+" via "+finalName(r.domain)), rate, tp.Request)
+			}
+			d, f := r.domain.Domain, finalName(r.domain)
+			over := utf8.RuneCountInString(line(d, f)) - probeRequestMax
+			if over <= 0 {
+				return line(d, f)
+			}
+			keep := max(len(d)+len(f)-over-2, 2)
+			return line(keepEnd(d, keep/2), keepEnd(f, keep-keep/2))
+		}
+	}
+	scope, dom := nucleiargv.ScopeOwnIP, (*sensorlink.DomainScope)(nil)
+	if r.domain != nil {
+		sc := scopeOf(r.domain)
+		scope, dom = sensorlink.ScopeDomainIP, &sc
 	}
 	rows := make([]scan.ExternalProbe, len(r.tmpls))
 	ids := make([]string, len(r.tmpls))
 	for i, tp := range r.tmpls {
 		ids[i] = tp.ID
 		rows[i] = scan.ExternalProbe{ID: store.NewID("tp"), IP: ip.String(), Label: fmt.Sprintf("%s:%d", ip, r.port), Template: tp.ID,
-			Request: fmt.Sprintf("nuclei %s to %s (%s, at most %d requests a second): %s", tp.ID, r.target.Input(), what, rate, tp.Request)}
+			Request: request(tp)}
 	}
 	if err := a.probes(ctx, rows); err != nil {
 		if ctx.Err() != nil {
@@ -227,17 +265,20 @@ func (a exposureTemplateScan) send(ctx context.Context, actor string, ip netip.A
 		return nil, nucleiout.Outcome{}, nil, &exposure.Unavailable{Reason: templatesNoLog}
 	}
 	got, err = a.run(ctx, sensoractive.NucleiRequest{PackVersion: ix.Version, PackSHA256: ix.SHA256, Templates: ids,
-		Targets: []nucleiargv.Target{r.target}, Rate: rate, MaxHostErrors: templatesHostErrors, Scope: nucleiargv.ScopeOwnIP,
-		Depth: depth, Disruptive: r.full && r.disruptive})
-	if err != nil {
-		if errors.Is(err, sensoractive.ErrWorkerRefused) { // the worker refused the job (its own-IP fence among others): nothing was sent
-			for i := range rows {
-				rows[i].Result = scan.ProbeRefused
-			}
-			if perr := a.probes(context.WithoutCancel(ctx), rows); perr != nil {
-				a.log.WarnContext(ctx, "exposure: completing the probe log of the safe templates failed", "ip", ip.String(), "error", perr)
-			}
+		Targets: []nucleiargv.Target{r.target}, Rate: rate, MaxHostErrors: templatesHostErrors, Scope: scope,
+		Depth: depth, Disruptive: r.full && r.disruptive, Domain: dom})
+	if err != nil && ctx.Err() == nil && refusedBeforeSending(err) { // kf-scan item 5: nothing was sent; the rows say refused
+		for i := range rows {
+			rows[i].Result = scan.ProbeRefused
 		}
+		if perr := a.probes(context.WithoutCancel(ctx), rows); perr != nil {
+			a.log.WarnContext(ctx, "exposure: completing the probe log of the safe templates failed", "ip", ip.String(), "error", perr)
+		}
+	}
+	if un, ok := domainErr(err, r.domain, ip.String()); ok && ctx.Err() == nil {
+		return nil, nucleiout.Outcome{}, nil, un
+	}
+	if err != nil {
 		return nil, nucleiout.Outcome{}, nil, templatesErr(ctx, ip, err)
 	}
 	res = outcomes(r, got)
@@ -273,6 +314,17 @@ func (a exposureTemplateScan) send(ctx context.Context, actor string, ip netip.A
 		a.log.WarnContext(ctx, "exposure: completing the probe log of the safe templates failed", "ip", ip.String(), "error", err)
 	}
 	return res, got, silent, nil
+}
+
+// refusedBeforeSending says the job never reached the target: the scan worker refused it (its own-IP fence, the domain fence before
+// nuclei started, an invalid job), or no worker that runs domain_ip jobs was there. A domain fence that stopped nuclei mid-run is
+// not one: requests went out.
+func refusedBeforeSending(err error) bool {
+	var dr *sensoractive.DomainRefusedError
+	if errors.As(err, &dr) {
+		return !dr.MidRun
+	}
+	return errors.Is(err, sensoractive.ErrWorkerRefused) || errors.Is(err, sensoractive.ErrDomainUnsupported)
 }
 
 // outcomes reads a run's parsed lines (nucleiout already kept only the job's templates and target, fail closed) into one result per

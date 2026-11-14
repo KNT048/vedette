@@ -67,7 +67,9 @@ function GreenboneBody({ g }: { g: Greenbone }) {
             { label: t('greenbone.memory'), value: gb(p.memory_bytes) ?? t('common:unknown') },
             { label: t('greenbone.disk'), value: gb(p.disk_free_bytes) ?? t('common:unknown') },
             // D-564 G6: the weekly feed update, its last outcome and when the next one is due
-            ...(on || f.last_at ? [{ label: t('greenbone.feedLast'), value: f.last_at ? `${dateTimeText(f.last_at)}. ${f.note ?? ''}` : t('greenbone.feedNever') }] : []),
+            // N45-4: a ready scanner has its feed: before the first weekly update, say the first full load is done (never "not yet")
+            ...(on || f.last_at ? [{ label: t('greenbone.feedLast'), value: f.last_at ? `${dateTimeText(f.last_at)}. ${f.note ?? ''}` : g.state === 'ready'
+              ? (g.changed_at ? t('greenbone.feedFirstDoneAt', { time: dateTimeText(g.changed_at) }) : t('greenbone.feedFirstDone')) : t('greenbone.feedNever') }] : []),
             ...(f.next_at ? [{ label: t('greenbone.feedNext'), value: dateTimeText(f.next_at) }] : []),
           ]} />
           {!on ? <p className="text-[13px]">{t('greenbone.needs')}</p> : null}

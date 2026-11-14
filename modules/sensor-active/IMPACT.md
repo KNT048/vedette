@@ -8,7 +8,9 @@
 - **scan** (`modules/scan/identify.go` câu `busy`, `web/src/features/scan/mocks.ts`): Scan now một thiết bị trong lúc quét sâu chạy (tới một giờ) báo `busy` với câu nói rõ điều đó.
 - `sa_probe.shape` CHECK (migration 0006): thêm mẫu mới = migration mới dựng lại `sa_probe`.
 
-## Modifying: `sensoractive.Service` — `DiscoverRanges(ctx)`, `ScanDevice(ctx, assetID, reason)`, `Tick`, `Enqueue`, `SettingsChanged`
+## Modifying: job `domain_ip` (`ScanDomainIP`, `DomainIP`, `DomainProber`, `ProbeDomain`, `ErrDomainUnsupported`, `DomainRefusedError`, `worker/domain.go`; INV-20, D-591)
+- **core/sensorlink** (bản 5: `ActiveHeartbeat.DomainIP`, `ScopeDomainIP`, `DomainScope`, `Job.Scope`/`Job.Domain`, `NucleiJob.Domain`, mã kết quả của rào), **core/domainfence** (gói lá dùng chung với vedette-host), **cmd/vedette-sensor** (`-fence-key`, mặc định `/var/lib/vedette-fence/fence.key`; thiếu = không `domain_ip`), **host/ops** (`scanUnitText` gắn bản chép khoá chỉ đọc; đổi đường dẫn phải đổi cả hai), **cmd/vedette** (`exposureservices.go` `scanDomain`, `exposuretemplates.go` `send`, `exposurefence.go` `domainErr`: đổi mã lỗi phải đổi câu ở đó).
+(ctx)`, `ScanDevice(ctx, assetID, reason)`, `Tick`, `Enqueue`, `SettingsChanged`
 - (L8, D-178) `recordSweep` dùng `capture.FloodBudget` của `modules/sensor-passive/capture` (gói lá của module khác, như `scan/nucleiargv`/`nucleiout`; nó kéo theo `content/oui` và `core/sensorlink`) với số riêng 1.000/phút, 1.000/giờ (`NewFloodBudgetLimits`), tính theo MAC chưa có trong `Inventory.KnownMACs`. Đổi hằng ở capture không đổi số của quét dò, nhưng đổi cách `Decide`/`Commit` là đổi cả hai nơi. Cổng `Inventory` có thêm `KnownMACs`. `ponytail: bộ đếm trong bộ nhớ, khởi động lại là về 0; nâng cấp = lưu trong sa_*.`
 - **core/jobs** (`window-tick` mỗi phút, `prune-probes` mỗi ngày: `cmd/vedette/sensoractive.go`), **inventory** (không gọi trực tiếp: sự kiện `inventory.asset.discovered` và `inventory.settings.changed` đi qua `core/events`, đăng ký ở `cmd/vedette/sensoractive.go`). Đổi điều kiện từ chối hoặc cửa sổ = đổi số gói thực sự rời hộp: sửa CONTRACT + test INV-1…5 (`TestContract_INV*`, `TestWindow`).
 

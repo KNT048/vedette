@@ -409,8 +409,11 @@ func (s *Service) autoResolve(ctx context.Context, tx *sql.Tx, assetID string, p
 			return closed, err
 		}
 		detail := r.CVE + ": " + ReasonNotAffectedVersion
-		if retired {
+		switch {
+		case retired:
 			detail += " (D-506: Multiple Products, NVD names none of the device's software, entry over a year old)"
+		case p.why != "": // the reason code is the one the CHECK allows; the detail says no version was compared (review r1 #6)
+			detail += " (D-547: the device or the software names another platform than the one the CVE affects; no version was compared)"
 		}
 		if err := s.cfg.Audit.Append(ctx, tx, audit.Entry{User: SystemUser, Action: "findings.auto_resolved", Target: r.ID, Detail: detail}); err != nil {
 			return closed, err

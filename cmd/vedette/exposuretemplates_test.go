@@ -344,3 +344,22 @@ func TestExposureTemplatesNothingSentWithoutTheProbeLog(t *testing.T) {
 		t.Fatalf("%v, %d runs", err, len(f.reqs))
 	}
 }
+
+// kf-scan item 5 (with #789 review r2 L-6): the rows of a job that never reached the target say refused: the worker's own-IP or
+// domain fence before nuclei started, an invalid job, no worker for domain_ip; a domain fence that stopped nuclei mid-run does not.
+func TestRefusedBeforeSending(t *testing.T) {
+	t.Parallel()
+	for err, want := range map[error]bool{
+		fmt.Errorf("%w (not_own_ip): %w", sensoractive.ErrWorkerRefused, sensoractive.ErrNotOwnIP): true,
+		fmt.Errorf("%w (invalid_job)", sensoractive.ErrWorkerRefused):                              true,
+		sensoractive.ErrDomainUnsupported:                                                          true,
+		&sensoractive.DomainRefusedError{Reason: "not_owned"}:                                      true,
+		&sensoractive.DomainRefusedError{Reason: "name_moved", MidRun: true}:                       false,
+		sensoractive.ErrNucleiBusy:                                                                 false,
+		errors.New("nuclei exited 1"):                                                              false,
+	} {
+		if got := refusedBeforeSending(err); got != want {
+			t.Errorf("%v: %v, want %v", err, got, want)
+		}
+	}
+}

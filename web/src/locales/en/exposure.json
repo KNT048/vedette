@@ -586,6 +586,8 @@
     "disk": "Free disk space",
     "feedLast": "Last feed update",
     "feedNever": "Not yet: the first one is a week after it is turned on",
+    "feedFirstDone": "First full feed load done; the weekly update has not run yet",
+    "feedFirstDoneAt": "First full feed load done (OpenVAS turned on {{time}}); the weekly update has not run yet",
     "feedNext": "Next feed update",
     "needs": "Needs about 50 GB of disk and about 2 hours to load the OpenVAS feed the first time. The box must have at least 6 GB of memory (under 8 GB, also 2 GB of swap) and 60 GB free.",
     "swapNote": "The first feed load uses swap on a box under 8 GB (on a 7 GB box it used about 2 GB of swap).",

@@ -8,7 +8,9 @@ import (
 	"slices"
 	"strings"
 	"time"
+	"unicode/utf8"
 
+	"github.com/knt048/vedette/core/sensorlink"
 	"github.com/knt048/vedette/modules/scan/commonports"
 	"github.com/knt048/vedette/modules/sensor-active/nmapargv"
 )
@@ -150,6 +152,43 @@ var externalPorts = commonports.Numbers()
 // than the need left → ErrNoTime; the probe row; then the job. A nil own refuses (fail closed). The stop of the module (Stop) or
 // of ctx ends it with ErrStopped.
 func (s *Service) ScanExternal(ctx context.Context, ip netip.Addr, kind nmapargv.Kind, own OwnEgress) (External, error) {
+	return s.scanExternal(ctx, ip, kind, own, nil)
+}
+
+// DomainIP is a domain_ip run of ScanDomainIP (D-591): the fence fields the worker checks and the CNAME chain core saw for the name
+// (for the probe log row; "" when core did not look it up).
+type DomainIP struct {
+	Scope sensorlink.DomainScope
+	Chain string
+}
+
+// DomainProber is implemented by a Prober that can send a domain_ip nmap job (*Dispatcher). A Prober without it never runs one.
+type DomainProber interface {
+	ProbeDomain(ctx context.Context, argv []string, scope sensorlink.DomainScope) (Output, error)
+}
+
+// ScanDomainIP is ScanExternal of a full shape on a public address that is not the box's own egress, reached because a name under a
+// verified domain resolves to it (FULL-5 slice 2, D-591, plan 2026-11-14 §5): a domain_ip job. Core's half of the fence is exposure's
+// deepGate (just before the step) and gate's DeepGate (the terms, right before the job leaves, like a full run of the box's own IP);
+// own-egress is not asked, the worker's domain fence is: its key, the TXT record, the name's address now, again every 3 minutes while
+// nmap runs. The probe row names the domain, the name and its CNAME chain. A worker that does not say domain_ip gets nothing
+// (ErrDomainUnsupported); a refusal of the worker's fence is a *DomainRefusedError.
+func (s *Service) ScanDomainIP(ctx context.Context, ip netip.Addr, kind nmapargv.Kind, d DomainIP, gate DeepGate) (External, error) {
+	if !kind.IsFull() {
+		return External{}, fmt.Errorf("sensoractive: a domain_ip run is a full shape, not %s", kind.Name())
+	}
+	if gate == nil {
+		return External{}, ErrNotDeep
+	}
+	return s.scanExternal(ctx, ip, kind, domainGate{gate}, &d)
+}
+
+// domainGate is the OwnEgress of a domain_ip run: never asked (probeExternal skips it), its DeepGate is the caller's.
+type domainGate struct{ DeepGate }
+
+func (domainGate) OwnEgress(context.Context, netip.Addr) (bool, error) { return false, nil }
+
+func (s *Service) scanExternal(ctx context.Context, ip netip.Addr, kind nmapargv.Kind, own OwnEgress, dom *DomainIP) (External, error) {
 	if !kind.IsExternal() {
 		return External{}, fmt.Errorf("sensoractive: %s is not an external shape", kind.Name())
 	}
@@ -187,7 +226,7 @@ func (s *Service) ScanExternal(ctx context.Context, ip netip.Addr, kind nmapargv
 	if err != nil {
 		return External{}, err
 	}
-	res, err := s.probeExternal(jctx, id, ip, kind, own)
+	res, err := s.probeExternal(jctx, id, ip, kind, own, dom)
 	switch {
 	case err == nil:
 		s.finishJob(ctx, id, StatusDone, 1, 0, "")
@@ -199,18 +238,27 @@ func (s *Service) ScanExternal(ctx context.Context, ip netip.Addr, kind nmapargv
 	return res, err
 }
 
-func (s *Service) probeExternal(ctx context.Context, jobID string, ip netip.Addr, kind nmapargv.Kind, own OwnEgress) (External, error) {
-	ok, err := own.OwnEgress(ctx, ip) // exposure's gate result is minutes old by now (exposure INV-13, INV-19)
-	switch {
-	case ctx.Err() != nil:
-		return External{}, ErrStopped
-	case err != nil:
-		return External{}, fmt.Errorf("sensoractive: checking that %s is the box's own public IP: %w", ip, err)
-	case !ok:
-		s.log.WarnContext(ctx, "sensoractive: external scan refused, the address is not the box's own public IP now; no packet sent", "ip", ip.String())
-		return External{}, ErrNotOwnIP
+func (s *Service) probeExternal(ctx context.Context, jobID string, ip netip.Addr, kind nmapargv.Kind, own OwnEgress, dom *DomainIP) (External, error) {
+	var note probeNote
+	if dom == nil {
+		ok, err := own.OwnEgress(ctx, ip) // exposure's gate result is minutes old by now (exposure INV-13, INV-19)
+		switch {
+		case ctx.Err() != nil:
+			return External{}, ErrStopped
+		case err != nil:
+			return External{}, fmt.Errorf("sensoractive: checking that %s is the box's own public IP: %w", ip, err)
+		case !ok:
+			s.log.WarnContext(ctx, "sensoractive: external scan refused, the address is not the box's own public IP now; no packet sent", "ip", ip.String())
+			return External{}, ErrNotOwnIP
+		}
+	} else {
+		if _, ok := s.prober.(DomainProber); !ok {
+			return External{}, ErrDomainUnsupported
+		}
+		note = probeNote{d: dom}
 	}
 	if kind.IsFull() {
+		var err error
 		if kind, err = s.deepNow(ctx, ip, kind, own); err != nil {
 			return External{}, err
 		}
@@ -225,17 +273,32 @@ func (s *Service) probeExternal(ctx context.Context, jobID string, ip netip.Addr
 	if err != nil {
 		return External{}, fmt.Errorf("sensoractive: %w", err)
 	}
-	probeID, err := s.insertProbe(ctx, jobID, kind, rate, targets)
+	probeID, err := s.insertProbe(ctx, jobID, kind, rate, targets, note)
 	if err != nil {
 		return External{}, err
 	}
 	if ctx.Err() != nil {
-		s.finishProbe(ctx, probeID, stoppedText)
+		s.finishProbe(ctx, probeID, note.with(stoppedText))
 		return External{}, ErrStopped
 	}
 	rctx, cancel := context.WithTimeout(ctx, min(left(ctx, run), run))
 	defer cancel()
-	out, runErr := s.prober.Probe(rctx, args)
+	var out Output
+	var runErr error
+	if dom != nil {
+		out, runErr = s.prober.(DomainProber).ProbeDomain(rctx, args, dom.Scope) //nolint:forcetypeassert // checked above
+	} else {
+		out, runErr = s.prober.Probe(rctx, args)
+	}
+	var refused *DomainRefusedError
+	if errors.As(runErr, &refused) {
+		result := note.with("refused by the scan container's domain fence (" + refused.Reason + "), nothing sent")
+		if refused.MidRun {
+			result = note.with("stopped by the scan container's domain fence (" + refused.Reason + "), results discarded")
+		}
+		s.finishProbe(ctx, probeID, result)
+		return External{}, runErr
+	}
 	hosts, result, err := runOutcome(ctx, rctx, out, runErr)
 	var ext External
 	if err == nil {
@@ -254,7 +317,7 @@ func (s *Service) probeExternal(ctx context.Context, jobID string, ip netip.Addr
 			}
 		}
 	}
-	s.finishProbe(ctx, probeID, result)
+	s.finishProbe(ctx, probeID, note.with(result))
 	if errors.Is(err, errDeadline) {
 		err = ErrStopped
 	}
@@ -339,4 +402,50 @@ func (s *Service) deepNow(ctx context.Context, ip netip.Addr, asked nmapargv.Kin
 		return now, nil
 	}
 	return asked, nil // never more than asked
+}
+
+// maxProbeResult is sa_probe.result's CHECK (length(result) <= 200, migration 0006).
+const maxProbeResult = 200
+
+// probeNote is the front of a domain_ip probe row's result (D-591, review r1 M4): why the address was chosen, with the CNAME chain of
+// the name as core saw it. The zero value (no domain) adds nothing.
+type probeNote struct{ d *DomainIP }
+
+// with is the row's result: the note, then result, always within maxProbeResult (review r2 H3: a long name or CDN CNAME must never fail
+// the insert or the update). The result is kept whole; the note shrinks first to "domain_ip <domain> -> <final name>: ", then each of
+// the two names keeps its end (the registrable part of a name is at its end).
+func (n probeNote) with(result string) string {
+	result = clipRunes(result, maxProbeResult)
+	if n.d == nil {
+		return result
+	}
+	d := n.d.Scope
+	chain := n.d.Chain
+	if chain == "" {
+		chain = d.Name
+	}
+	room := maxProbeResult - utf8.RuneCountInString(result)
+	full := "domain_ip " + d.Domain + ", name " + d.Name + " (CNAME chain: " + chain + "): "
+	if utf8.RuneCountInString(full) <= room {
+		return full + result
+	}
+	final := chain
+	if k := strings.LastIndex(chain, " -> "); k >= 0 {
+		final = chain[k+4:]
+	}
+	const frame = len("domain_ip  -> : ")
+	each := max((room-frame)/2, 0)
+	return clipRunes("domain_ip "+keepEnd(d.Domain, each)+" -> "+keepEnd(final, each)+": ", max(room, 0)) + result
+}
+
+// keepEnd is s, or its last n runes after "…" when it is longer.
+func keepEnd(s string, n int) string {
+	r := []rune(s)
+	if len(r) <= n {
+		return s
+	}
+	if n <= 1 {
+		return string(r[len(r)-max(n, 0):])
+	}
+	return "…" + string(r[len(r)-n+1:])
 }

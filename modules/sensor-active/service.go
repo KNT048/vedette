@@ -403,7 +403,7 @@ func (s *Service) probe(ctx context.Context, jobID string, kind nmapargv.Kind, r
 		return nil, ErrStopped
 	}
 	s.setDeadline(s.clock().Add(timeout))
-	probeID, err := s.insertProbe(ctx, jobID, kind, rate, targets)
+	probeID, err := s.insertProbe(ctx, jobID, kind, rate, targets, probeNote{})
 	if err != nil {
 		return nil, err
 	}
@@ -561,7 +561,7 @@ func compactTargets(ts []netip.Addr) string {
 	return strings.Join(parts, ",")
 }
 
-func (s *Service) insertProbe(ctx context.Context, jobID string, kind nmapargv.Kind, rate int, targets []netip.Addr) (int64, error) {
+func (s *Service) insertProbe(ctx context.Context, jobID string, kind nmapargv.Kind, rate int, targets []netip.Addr, note probeNote) (int64, error) {
 	if kind.IsGentle() {
 		rate = 1
 	}
@@ -571,8 +571,8 @@ func (s *Service) insertProbe(ctx context.Context, jobID string, kind nmapargv.K
 	}
 	var id int64
 	err = s.db.Write(ctx, func(tx *sql.Tx) error {
-		res, err := tx.ExecContext(ctx, `INSERT INTO sa_probe (time, job_id, shape, rate, hosts, flags, targets, result) VALUES (?, ?, ?, ?, ?, ?, ?, 'started')`,
-			s.now(), jobID, kind.Name(), rate, len(targets), strings.Join(flags, " "), compactTargets(targets))
+		res, err := tx.ExecContext(ctx, `INSERT INTO sa_probe (time, job_id, shape, rate, hosts, flags, targets, result) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+			s.now(), jobID, kind.Name(), rate, len(targets), strings.Join(flags, " "), compactTargets(targets), note.with("started"))
 		if err != nil {
 			return err
 		}
@@ -588,6 +588,7 @@ func (s *Service) insertProbe(ctx context.Context, jobID string, kind nmapargv.K
 func (s *Service) finishProbe(ctx context.Context, id int64, result string) {
 	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), finishTimeout)
 	defer cancel()
+	result = clipRunes(result, maxProbeResult) // review r2 H3: a result never fails its own CHECK and leaves the row "started"
 	err := s.db.Write(ctx, func(tx *sql.Tx) error {
 		_, err := tx.ExecContext(ctx, `UPDATE sa_probe SET result = ? WHERE id = ?`, result, id)
 		return err

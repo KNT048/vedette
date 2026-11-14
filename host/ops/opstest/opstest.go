@@ -11,6 +11,7 @@
 package opstest
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -530,6 +531,9 @@ func (m *Machine) Deps(now func() time.Time) ops.Deps {
 		// The waits between two looks at a container take no time; they are still counted, so the
 		// 120 s of the health wait are 60 looks.
 		Sleep: func(ctx context.Context, _ time.Duration) bool { return ctx.Err() == nil },
+		// A fixed fence key (D-591): with none the host makes its own and chowns the scan container's copy to SensorUID, which a
+		// test cannot do. The key's creation and the copy are tested apart, with their own deps (host/ops/fence_test.go).
+		FenceKey: bytes.Repeat([]byte{7}, 32),
 	}
 }
 

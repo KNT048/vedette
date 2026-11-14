@@ -1459,7 +1459,7 @@ do_uninstall() {
 		rm -f "$STATE/runtime-saved" "$STATE/ip_forward.orig" "$STATE/ip6_forward.orig" "$STATE/nft.before"
 		say "kept: /var/lib/vedette*, /etc/vedette and the users. Running install.sh again (this release or a newer one) brings Vedette back with them."
 	else
-		rm -rf /var/lib/vedette /var/lib/vedette-host /var/lib/vedette-honeypot /var/lib/vedette-creds /etc/vedette /var/log/vedette-host /run/vedette
+		rm -rf /var/lib/vedette /var/lib/vedette-host /var/lib/vedette-honeypot /var/lib/vedette-creds /var/lib/vedette-fence /etc/vedette /var/log/vedette-host /run/vedette
 		# a kept podman's containers with --userns=auto take their ids from the containers: range (review LOW)
 		if [ -z "$KEEP_PODMAN" ]; then
 			remove_subid /etc/subuid subuid

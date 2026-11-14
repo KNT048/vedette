@@ -39,6 +39,7 @@ var legacyTemplates = map[string][]*template.Template{
 	},
 	api.ServiceScan: {
 		mustTemplate("scan-1", scanUnitTextBeforeD458), // before D-458 (2026-11-12): Podman's default AppArmor profile
+		mustTemplate("scan-2", scanUnitTextBeforeD591), // D-458 (2026-11-12): no read-only mount of the domain fence key (D-591)
 	},
 }
 
@@ -463,4 +464,36 @@ Exec=-listen :8443 -sensor-listen :8444 -sensor-creds /var/lib/vedette-creds -sy
 [Service]
 Restart=always
 TimeoutStartSec=300
+`
+
+// scanUnitTextBeforeD591 is the scan unit from D-458 until D-591 (2026-11-14): no mount of the domain fence key's copy.
+const scanUnitTextBeforeD591 = `[Unit]
+Description=Vedette scan (active scanning)
+After=vedette-core.service
+Wants=vedette-core.service
+
+[Container]
+ContainerName=vedette-scan
+Image={{.ID}}
+Pull=never
+Network=host
+User={{.SensorUID}}:{{.SensorGID}}
+DropCapability=ALL
+AddCapability=NET_RAW
+NoNewPrivileges=true
+ContainersConfModule=` + AppArmorConfModule + `
+RunInit=true
+ReadOnly=true
+Tmpfs=/tmp
+Volume=vedette-creds-active.volume:/var/lib/vedette-creds:ro
+LogDriver=journald
+PodmanArgs=--memory=1g --memory-swap=1g --cpus=2 --pids-limit=512 --cpu-shares=128
+HealthCmd=["/vedette-sensor","healthcheck"]
+HealthInterval=30s
+HealthStartPeriod=30s
+HealthRetries=3
+Exec=active --core https://127.0.0.1:8444 --creds /var/lib/vedette-creds/sensor.pem
+
+[Service]
+Restart=always
 `

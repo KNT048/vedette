@@ -653,8 +653,8 @@ func TestContract_INV25_StateMachine(t *testing.T) {
 		t.Fatalf("ready = %+v", v)
 	}
 	h.gvm.with(func(g *fakeGVM) { g.authFail = true })
-	if v := e.gbState(); v.State != GBError || str(v.Reason) != gbAuthFailed {
-		t.Fatalf("login refused = %+v", v)
+	if v := e.gbState(); v.State != GBLoading || str(v.Reason) != gbLoginPending { // N42-4: an old volume's password, until the host sets it
+		t.Fatalf("login refused soon after Up = %+v", v)
 	}
 	h.with(func(h *fakeGB) { h.dialErr = errors.New("no socket") })
 	if v := e.gbState(); v.State != GBStarting { // right after Up the socket may be missing a while
@@ -663,6 +663,11 @@ func TestContract_INV25_StateMachine(t *testing.T) {
 	e.advance(GreenboneStartGrace)
 	if v := e.gbState(); v.State != GBError || str(v.Reason) != gbNotAnswering {
 		t.Fatalf("socket missing late = %+v", v)
+	}
+	h.with(func(h *fakeGB) { h.dialErr = nil })
+	e.advance(GreenboneLoadGrace)
+	if v := e.gbState(); v.State != GBError || str(v.Reason) != gbAuthFailed { // still refused hours after Up: say what to do
+		t.Fatalf("login refused late = %+v", v)
 	}
 	v, err = e.svc.SetGreenbone(e.ctx(), "admin@acme.example", false)
 	if err != nil || v.State != GBOff || h.downs != 1 {

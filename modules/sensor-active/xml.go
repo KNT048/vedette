@@ -317,6 +317,13 @@ func attrs(el xml.StartElement) map[string]string {
 	return m
 }
 
+// unreadAttr names the long attributes nmap prints that the parser never reads, so they are exempt from the 4 KB cap of an attribute
+// (N42-3, D-590): nmap echoes its whole command line in <nmaprun args> (the --script list of the full shapes alone is about 4.8 KB,
+// 6.2 KB disruptive) and the port list of -p in <scaninfo services>. Refusing them refused every deep scan of the public IP.
+func unreadAttr(elem, attr string) bool {
+	return elem == "nmaprun" && attr == "args" || elem == "scaninfo" && attr == "services"
+}
+
 func clamp(n, lo, hi int) int { return max(lo, min(hi, n)) }
 
 func num(s string, hi int) int {
@@ -386,8 +393,9 @@ func parseNmapXML(data []byte) ([]host, error) {
 			}
 			for _, a := range t.Attr {
 				// A script's printed output (a certificate with many names, a long page title) may be longer than any other
-				// attribute; it is bounded apart below, so a long one never refuses the whole run (D-511).
-				if limit := 4096; len(a.Value) > limit && (t.Name.Local != "script" || a.Name.Local != "output") {
+				// attribute; it is bounded apart below, so a long one never refuses the whole run (D-511). Attributes the parser
+				// never reads are not capped one by one either (unreadAttr; the whole document is bounded by maxOutput).
+				if limit := 4096; len(a.Value) > limit && (t.Name.Local != "script" || a.Name.Local != "output") && !unreadAttr(t.Name.Local, a.Name.Local) {
 					return nil, fmt.Errorf("%w: attribute too long", errXMLInvalid)
 				}
 			}

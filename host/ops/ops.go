@@ -231,7 +231,10 @@ type Ops struct {
 	gbMu     sync.Mutex
 	gbCancel func()
 	gbGen    uint64 // bumped by every greenbone.down: an up or feed update that waited from before it gives up (guarded by gbMu)
-	gbExec   zapExecFn
+	// gbResyncStop ends the background re-sync of the GMP login an up started (gbResync; guarded by gbMu): greenbone.down and the next
+	// up call it.
+	gbResyncStop context.CancelFunc
+	gbExec       zapExecFn
 	// gbOnQueue, internal tests only, is called by an up or feed update once it has its generation, before it waits for the slot.
 	gbOnQueue func()
 }

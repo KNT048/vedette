@@ -1,9 +1,12 @@
 package sensoractive
 
 import (
+	"bytes"
+	"encoding/xml"
 	"maps"
 	"net/netip"
 	"os"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -76,29 +79,68 @@ func TestParseRefusesBadOutput(t *testing.T) {
 	manyHosts := `<nmaprun>` + strings.Repeat(`<host><status state="up"/><address addr="10.0.0.1" addrtype="ipv4"/></host>`, maxXMLHosts+1) + `</nmaprun>`
 	manyPorts := `<nmaprun><host><status state="up"/><address addr="10.0.0.1" addrtype="ipv4"/><ports>` + strings.Repeat(`<port protocol="tcp" portid="1"><state state="open"/></port>`, maxPortsPerHost+1) + `</ports></host></nmaprun>`
 	bad := map[string]string{
-		"empty":                "",
-		"not xml":              "hello",
-		"wrong root":           `<html></html>`,
-		"cut off":              `<nmaprun><host><status state="up"/>`,
-		"cut off in a tag":     `<nmaprun><host><status state="up`,
-		"mismatched tags":      `<nmaprun><host></nmaprun></host>`,
-		"entity definition":    `<!DOCTYPE nmaprun [<!ENTITY a "bbbbbbbbbbbbbbbbbb">]><nmaprun>&a;</nmaprun>`,
-		"other doctype":        `<!DOCTYPE foo SYSTEM "http://example.invalid/x.dtd"><nmaprun></nmaprun>`,
-		"unknown entity":       `<nmaprun>&xxe;</nmaprun>`,
-		"other charset":        `<?xml version="1.0" encoding="ISO-8859-1"?><nmaprun></nmaprun>`,
-		"other processing":     `<?php echo 1 ?><nmaprun></nmaprun>`,
-		"content after end":    `<nmaprun></nmaprun><nmaprun></nmaprun>`,
-		"too deep":             `<nmaprun>` + deep + `</nmaprun>`,
-		"too many attributes":  manyAttrs,
-		"too many hosts":       manyHosts,
-		"too many ports":       manyPorts,
-		"attribute too long":   `<nmaprun x="` + strings.Repeat("a", 5000) + `"></nmaprun>`,
-		"output over the cap":  `<nmaprun>` + strings.Repeat(" ", maxOutput) + `</nmaprun>`,
-		"bad UTF-8 in a value": "<nmaprun x=\"\xff\xfe\"></nmaprun>",
+		"empty":               "",
+		"not xml":             "hello",
+		"wrong root":          `<html></html>`,
+		"cut off":             `<nmaprun><host><status state="up"/>`,
+		"cut off in a tag":    `<nmaprun><host><status state="up`,
+		"mismatched tags":     `<nmaprun><host></nmaprun></host>`,
+		"entity definition":   `<!DOCTYPE nmaprun [<!ENTITY a "bbbbbbbbbbbbbbbbbb">]><nmaprun>&a;</nmaprun>`,
+		"other doctype":       `<!DOCTYPE foo SYSTEM "http://example.invalid/x.dtd"><nmaprun></nmaprun>`,
+		"unknown entity":      `<nmaprun>&xxe;</nmaprun>`,
+		"other charset":       `<?xml version="1.0" encoding="ISO-8859-1"?><nmaprun></nmaprun>`,
+		"other processing":    `<?php echo 1 ?><nmaprun></nmaprun>`,
+		"content after end":   `<nmaprun></nmaprun><nmaprun></nmaprun>`,
+		"too deep":            `<nmaprun>` + deep + `</nmaprun>`,
+		"too many attributes": manyAttrs,
+		"too many hosts":      manyHosts,
+		"too many ports":      manyPorts,
+		"attribute too long":  `<nmaprun x="` + strings.Repeat("a", 5000) + `"></nmaprun>`,
+		// N42-3: only the attributes the parser never reads are exempt; a long one it reads still refuses the run.
+		"read attribute too long": `<nmaprun args="nmap"><host><status state="up"/><address addr="10.0.0.1" addrtype="ipv4"/><ports><port protocol="tcp" portid="80"><state state="open"/><service name="http" product="` + strings.Repeat("p", 5000) + `"/></port></ports></host></nmaprun>`,
+		"args of another element": `<nmaprun><host args="` + strings.Repeat("a", 5000) + `"></host></nmaprun>`,
+		"output over the cap":     `<nmaprun>` + strings.Repeat(" ", maxOutput) + `</nmaprun>`,
+		"bad UTF-8 in a value":    "<nmaprun x=\"\xff\xfe\"></nmaprun>",
 	}
 	for name, doc := range bad {
 		if hosts, err := parseNmapXML([]byte(doc)); err == nil {
 			t.Errorf("%s: accepted, %d hosts", name, len(hosts))
+		}
+	}
+}
+
+// N42-3 (D-590): nmap echoes its whole argv in <nmaprun args>, and the --script list of the full shapes is longer than the 4 KB cap of
+// an attribute; the run of the deep scan must still be read (it was refused as "attribute too long", so nothing was identified).
+func TestParseAcceptsTheLongArgvOfTheFullShapes(t *testing.T) {
+	t.Parallel()
+	boxIP := netip.MustParseAddr("8.8.8.8") // stands for the box's own verified public IP
+	ports := make([]string, 1500)
+	for i := range ports {
+		ports[i] = strconv.Itoa(i + 1)
+	}
+	for _, kind := range []nmapargv.Kind{nmapargv.ExternalFull, nmapargv.ExternalDisruptive} {
+		argv, err := nmapargv.Build(kind, nmapargv.FullRate, []netip.Addr{boxIP})
+		if err != nil {
+			t.Fatal(err)
+		}
+		var args bytes.Buffer
+		if err := xml.EscapeText(&args, []byte("/usr/bin/nmap "+strings.Join(argv, " "))); err != nil {
+			t.Fatal(err)
+		}
+		if args.Len() <= 4096 {
+			t.Fatalf("%s: the argv is %d bytes; the test needs one over the 4 KB cap", kind.Name(), args.Len())
+		}
+		doc := `<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE nmaprun><nmaprun scanner="nmap" args="` + args.String() + `" start="1" version="7.95" xmloutputversion="1.05">` +
+			`<scaninfo type="syn" protocol="tcp" numservices="1500" services="` + strings.Join(ports, ",") + `"/>` +
+			`<host><status state="up"/><address addr="8.8.8.8" addrtype="ipv4"/><ports>` +
+			`<port protocol="tcp" portid="443"><state state="open"/><service name="http" product="nginx" version="1.24.0" tunnel="ssl"/></port>` +
+			`</ports></host></nmaprun>`
+		hosts, err := parseNmapXML([]byte(doc))
+		if err != nil {
+			t.Fatalf("%s: %v", kind.Name(), err)
+		}
+		if len(hosts) != 1 || hosts[0].addr != boxIP || len(hosts[0].ports) != 1 || hosts[0].ports[0].number != 443 || hosts[0].ports[0].product != "nginx" {
+			t.Fatalf("%s: %+v", kind.Name(), hosts)
 		}
 	}
 }

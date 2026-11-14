@@ -6,7 +6,7 @@ package api
 // Names of the commands.
 const (
 	// CmdGreenboneUp makes sure the compose provider is installed and the podman API socket runs, starts the project (the first time it
-	// pulls about 9 GB of images and the feed), sets the GMP login, and checks that gvmd, ospd-openvas, pg-gvm and redis run.
+	// pulls about 9 GB of images and the feed) with the GMP login for gvmd, and checks that gvmd, ospd-openvas, pg-gvm and redis run.
 	CmdGreenboneUp = "greenbone.up"
 	// CmdGreenboneDown stops the project and keeps its volumes; it first cancels an up or a feed update that runs.
 	CmdGreenboneDown = "greenbone.down"
@@ -35,8 +35,9 @@ const (
 )
 
 // GreenboneUpArgs are the args of greenbone.up. Password is the GMP password core generated and keeps in core/secrets (48 lower-case
-// hex characters); the host sets it on gvmd at every up (a wiped volume gets it back) and never writes it anywhere. The server's audit
-// line redacts it by its key and records only a digest of the args.
+// hex characters); the host hands it to gvmd at every up as a file only root and gvmd read, so gvmd creates its admin user with it,
+// and sets it again in the background on a volume that keeps another one (host-api §6.16, D-590). The server's audit line redacts it
+// by its key and records only a digest of the args.
 type GreenboneUpArgs struct {
 	Password string `json:"password"`
 }

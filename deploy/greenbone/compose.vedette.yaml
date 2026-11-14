@@ -21,8 +21,22 @@
 #    No service that stays depends on one of them (the test checks it). The profile "disabled" is never activated.
 # 3. Every service that runs carries the label io.vedette.started-by=vedette-host, so `podman ps --filter label=...` shows what
 #    Vedette started. The label never makes a container Vedette's to remove: uninstall leaves the whole project alone (D-529).
+# 4. gvmd's admin user is created with Vedette's GMP login (N42-4, D-590). vedette-host writes core's GMP password to
+#    /var/lib/vedette-host/greenbone/gvmd-admin-password (the directory root's 0700, the file uid 1001 0400) before every start; it
+#    is the file secret vedette-gmp-password, which docker-compose v2 bind-mounts read-only at /run/secrets/vedette-gmp-password
+#    (no swarm; its uid/gid/mode keys are not used, the file's own owner and mode apply). gvmd's command reads it into PASSWORD and
+#    runs the image's own CMD, start-gvmd (as uid gvmd: the image's entrypoint runs it through gosu), which creates the user with
+#    `gvmd --create-user=$USER --password=$PASSWORD` before it starts the daemon, so the login is right from the first start however
+#    long gvmd then loads its feed. A missing or empty file ends the container before start-gvmd: gvmd never makes its default
+#    admin/admin login. Nothing is printed. ($$ is compose's escape of $.)
 services:
   gvmd:
+    command:
+      - /bin/sh
+      - -c
+      - 'PASSWORD="$$(cat /run/secrets/vedette-gmp-password)" && [ -n "$$PASSWORD" ] && USER=admin && export USER PASSWORD && exec /usr/local/bin/start-gvmd'
+    secrets:
+      - vedette-gmp-password
     volumes:
       - type: bind
         source: /run/vedette-greenbone/gvmd
@@ -87,3 +101,7 @@ services:
   ospd-openvas:
     labels:
       io.vedette.started-by: vedette-host
+
+secrets:
+  vedette-gmp-password:
+    file: /var/lib/vedette-host/greenbone/gvmd-admin-password

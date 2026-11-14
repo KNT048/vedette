@@ -40,6 +40,7 @@ export const Finding = z.object({
 export const KevInfo = z.object({
   name: z.string(), vendor: z.string(), product: z.string(), display: z.string(), required_action: z.string(), links: z.array(z.string()),
   date_added: z.string(), due_date: z.string().nullable(), ransomware: z.boolean(), epss: z.number().nullable(), has_template: z.boolean(),
+  source: z.enum(['cisa-kev', 'vulncheck-kev']).optional().describe('Which list the entry is on (D-557): texts and the source badge name it; an entry of VulnCheck KEV is never called CISA\'s'),
 })
 export const FindingAsset = z.object({
   id: z.string(), name: z.string().describe('The name the Devices page shows: hostname, else vendor and model, else the IP, else the software; never the internal id (D-484)'),

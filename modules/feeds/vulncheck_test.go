@@ -1,6 +1,7 @@
 package feeds
 
 import (
+	"database/sql"
 	"fmt"
 	"net/http"
 	"slices"
@@ -36,7 +37,7 @@ func TestParseVulnCheckPage(t *testing.T) {
 		`{"cve":["CVE-2026-1004"],"vendorProject":"Acme","product":"P","date_added":"yesterday"}`,
 		`{"cve":["CVE-2026-1005"],"vendorProject":7,"product":"P"}`,
 		`{"cve":["CVE-2026-1006"],"vendorProject":"Acme\u0000x","product":"P","date_added":"2026-10-30T00:00:00Z"}`,
-	)), vcNow)
+	)), vcNow, nil)
 	if err != nil || res.TotalPages != 3 || res.FirstCVE != "CVE-2026-1001" || len(res.Vulns) != 1 || res.Accepted != 3 || res.Rejected != 4 {
 		t.Fatalf("%+v %v", res, err)
 	}
@@ -49,7 +50,7 @@ func TestParseVulnCheckPage(t *testing.T) {
 		"html": `<html>sign in</html>`, "no data": `{"_meta":{}}`, "data not a list": `{"data":{"x":1}}`,
 		"too large": `{"data":[` + strings.Repeat(" ", MaxBodyBytes) + `]}`,
 	} {
-		if _, err := ParseVulnCheckPage([]byte(body), vcNow); err == nil {
+		if _, err := ParseVulnCheckPage([]byte(body), vcNow, nil); err == nil {
 			t.Errorf("%s: accepted", name)
 		}
 	}
@@ -58,7 +59,7 @@ func TestParseVulnCheckPage(t *testing.T) {
 	for i := range many {
 		many[i] = vcEntryJSON(fmt.Sprintf("CVE-2026-%05d", 2000+i), "Acme", "P", "2026-10-30", "")
 	}
-	if res, err := ParseVulnCheckPage([]byte(vcPage(1, many...)), vcNow); err != nil || len(res.Vulns) != vulnCheckPage*2 || !res.Truncated {
+	if res, err := ParseVulnCheckPage([]byte(vcPage(1, many...)), vcNow, nil); err != nil || len(res.Vulns) != vulnCheckPage*2 || !res.Truncated {
 		t.Errorf("oversize: %d %v %v", len(res.Vulns), res.Truncated, err)
 	}
 }
@@ -82,8 +83,11 @@ func TestVulnCheckPageURL(t *testing.T) {
 func TestContract_VulnCheckKEV_BYOK(t *testing.T) {
 	t.Parallel()
 	e, o := pullEnv(t)
-	e.only() // every feed off; VulnCheck KEV stays off until a key is saved
-	e.mirror("vulncheck-kev", o.url("/vc"))
+	e.only()                                // every feed off; VulnCheck KEV stays off until a key is saved
+	e.setURL("vulncheck-kev", o.url("/vc")) // no mirror through the API (L3): the test points the address itself
+	if c, b := e.put("vulncheck-kev", `{"url":"https://example.net/vc"}`); c != 400 || code(b) != "invalid_url" {
+		t.Fatalf("an address for the key to follow: %d %v", c, b)
+	}
 	const key = "vckey-ABCDEF123456"
 	applyV(t, e.db, epoch0, "cisa-kev", []Vuln{vuln("CVE-2026-1002", "Acme", "Router", "2026-11-01")}, false)
 	o.serve("/vc", func(w http.ResponseWriter, r *http.Request) {
@@ -198,5 +202,108 @@ func TestContract_VulnCheckKEV_BYOK(t *testing.T) {
 	}
 	if n := count(t, e.db, `SELECT count(*) FROM core_secret WHERE purpose = 'feeds_source.secret'`); n != 0 {
 		t.Errorf("%d secrets left", n)
+	}
+
+	// saving a key again is a first fill again: quiet, however many entries come back (review L2)
+	before := len(e.pub.named(EventNewKEV))
+	e.setNow(e.clock().Add(time.Hour))
+	o.serve("/vc", func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(vcPage(1, vcEntryJSON("CVE-2026-1001", "Acme", "Gateway", "2026-10-30", ""))))
+	})
+	if c, _ := e.put("vulncheck-kev", `{"api_key":"`+key+`"}`); c != 200 {
+		t.Fatal(c)
+	}
+	if c, _ := e.fetch("vulncheck-kev"); c != 200 || len(e.pub.named(EventNewKEV)) != before || len(e.pub.named(EventSyncBaseline)) != 2 {
+		t.Errorf("a key saved again alerted: new_kev %d -> %d, baselines %d", before, len(e.pub.named(EventNewKEV)), len(e.pub.named(EventSyncBaseline)))
+	}
+}
+
+func (e *env) setURL(id, url string) {
+	e.t.Helper()
+	write(e.t, e.db, func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(e.t.Context(), `UPDATE feeds_source SET url = ? WHERE id = ?`, url, id)
+		return err
+	})
+}
+
+// Review M1: a list that is not provably complete fails the pull and the rows loaded before stay.
+func TestVulnCheckPull_FailsClosedWhenTheListIsNotComplete(t *testing.T) {
+	t.Parallel()
+	for name, serve := range map[string]func(page string) string{
+		"no page count": func(string) string {
+			return `{"data":[` + vcEntryJSON("CVE-2026-1001", "Acme", "Gateway", "2026-10-30", "") + `]}`
+		},
+		"too many pages": func(string) string {
+			return vcPage(61, vcEntryJSON("CVE-2026-1001", "Acme", "Gateway", "2026-10-30", ""))
+		},
+		"page ignored": func(string) string {
+			return vcPage(3, vcEntryJSON("CVE-2026-1001", "Acme", "Gateway", "2026-10-30", ""))
+		},
+		"an empty page": func(p string) string {
+			if p == "2" {
+				return vcPage(3)
+			}
+			return vcPage(3, vcEntryJSON("CVE-2026-100"+p, "Acme", "Gateway", "2026-10-30", ""))
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			e, o := pullEnv(t)
+			e.only()
+			e.setURL("vulncheck-kev", o.url("/vc"))
+			if c, b := e.put("vulncheck-kev", `{"api_key":"vckey-ABCDEF123456"}`); c != 200 {
+				t.Fatalf("%d %v", c, b)
+			}
+			applyV(t, e.db, epoch0, "vulncheck-kev", []Vuln{vuln("CVE-2026-1099", "Acme", "Old", "2026-10-01")}, false)
+			o.serve("/vc", func(w http.ResponseWriter, r *http.Request) { _, _ = w.Write([]byte(serve(r.URL.Query().Get("page")))) })
+			e.fetch("vulncheck-kev")
+			f := e.feed("vulncheck-kev")
+			if f.Status != "error" || f.Error == nil || !strings.Contains(*f.Error, "could not be read completely") {
+				t.Fatalf("feed = %+v", f)
+			}
+			if n := count(t, e.db, `SELECT count(*) FROM feeds_vuln WHERE source_id = 'vulncheck-kev' AND cve = 'CVE-2026-1099'`); n != 1 {
+				t.Fatal("the rows loaded before were deleted")
+			}
+		})
+	}
+}
+
+// Review M2, L1, L2, L4: a held entry stays past 180 days while VulnCheck lists it; VulnCheck takes a custom feed's CVE but
+// never CISA's; CISA takes VulnCheck's over (announced as KEV); an entry with several CVEs gives each its row; a CVE
+// that is new after every row went is news, not a baseline.
+func TestVulnCheckEntries_OwnershipAndWindow(t *testing.T) {
+	t.Parallel()
+	old := vcEntryJSON("CVE-2025-2001", "Acme", "Gateway", "2025-01-30", "")
+	res, err := ParseVulnCheckPage([]byte(vcPage(1, old)), vcNow, nil)
+	if err != nil || len(res.Vulns) != 0 {
+		t.Fatalf("old, not held: %v %v", res.Vulns, err)
+	}
+	if res, err = ParseVulnCheckPage([]byte(vcPage(1, old)), vcNow, map[string]bool{"CVE-2025-2001": true}); err != nil || len(res.Vulns) != 1 {
+		t.Fatalf("old, held: %v %v", res.Vulns, err)
+	}
+	multi := strings.Replace(vcEntryJSON("CVE-2026-3001", "Acme", "Gateway", "2026-10-30", ""), `["CVE-2026-3001"]`, `["CVE-2026-3001","cve-2026-3002","junk","CVE-2026-3001"]`, 1)
+	if res, err = ParseVulnCheckPage([]byte(vcPage(1, multi)), vcNow, nil); err != nil || len(res.Vulns) != 2 || res.Vulns[1].CVE != "CVE-2026-3002" || res.Accepted != 1 {
+		t.Fatalf("several CVEs: %+v %v", res, err)
+	}
+
+	e := newEnv(t)
+	applyV(t, e.db, epoch0, "ipsum", nil, false) // keeps the helper honest: the source row exists
+	_ = e
+	db := e.db
+	// another feed's CVE is taken over by VulnCheck, a CISA one is not
+	applyV(t, db, epoch0, "nuclei-templates", []Vuln{vuln("CVE-2026-4001", "Acme", "A", "2026-11-01")}, false)
+	applyV(t, db, epoch0, "cisa-kev", []Vuln{vuln("CVE-2026-4002", "Acme", "B", "2026-11-01")}, false)
+	fresh, _ := applyV(t, db, epoch0, "vulncheck-kev", []Vuln{vuln("CVE-2026-4001", "Acme", "A", "2026-11-01"), vuln("CVE-2026-4002", "Acme", "B", "2026-11-01")}, false)
+	owner := func(c string) string {
+		var s string
+		_ = db.Reader().QueryRowContext(t.Context(), `SELECT source_id FROM feeds_vuln WHERE cve = ?`, c).Scan(&s)
+		return s
+	}
+	if owner("CVE-2026-4001") != "vulncheck-kev" || owner("CVE-2026-4002") != "cisa-kev" || len(fresh) != 1 {
+		t.Fatalf("owners %s %s, fresh %d", owner("CVE-2026-4001"), owner("CVE-2026-4002"), len(fresh))
+	}
+	// CISA takes VulnCheck's row over: its first sighting as KEV
+	if fresh, _ = applyV(t, db, epoch0, "cisa-kev", []Vuln{vuln("CVE-2026-4001", "Acme", "A", "2026-11-02")}, false); len(fresh) != 1 || owner("CVE-2026-4001") != "cisa-kev" {
+		t.Fatalf("CISA take-over: %v %s", fresh, owner("CVE-2026-4001"))
 	}
 }

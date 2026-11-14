@@ -19,6 +19,7 @@ export const Vuln = z.object({
   epss: z.number().min(0).max(1).nullable(),
   epss_7d_ago: z.number().min(0).max(1).nullable(),
   has_template: z.boolean(),
+  source: z.string().optional().describe('Which list the entry is on: "cisa-kev", "vulncheck-kev" (VulnCheck KEV, D-557) or the id of a custom feed; texts name it, an entry of VulnCheck is never called CISA\'s'),
 })
 
 export const YouHave = z.enum(['yes', 'maybe', 'no'])

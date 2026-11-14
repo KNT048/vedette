@@ -542,6 +542,9 @@ func (s *Service) pullOne(ctx context.Context, id, actor string) (sourceRow, int
 						return fmt.Errorf("feeds: count KEV rows: %w", err)
 					}
 					baseline = have == 0
+					if src.ID == vulnCheckFeedID { // first fill = the first good pull since the key was saved, not "no rows" (they can all be CISA's now)
+						baseline = cur.LastSuccess == nil
+					}
 				}
 				if fresh, updated, err = applyVulns(ctx, tx, p.out.Finished, src.ID, p.vulns, p.replaceVulns); err != nil {
 					return err

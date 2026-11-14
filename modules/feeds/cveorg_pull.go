@@ -246,8 +246,20 @@ func applyCVEOrg(ctx context.Context, tx *sql.Tx, got map[string]CVEOrgResult, c
 	if _, err := tx.ExecContext(ctx, `DELETE FROM feeds_cveorg_checked WHERE cve NOT IN (SELECT cve FROM feeds_vuln WHERE source_id IN ('cisa-kev', 'vulncheck-kev'))`); err != nil {
 		return nil, false, 0, fmt.Errorf("feeds: CVE.org: %w", err)
 	}
+	if err := pruneOrphanRanges(ctx, tx); err != nil {
+		return nil, false, 0, err
+	}
 	if err := tx.QueryRowContext(ctx, `SELECT count(*) FROM feeds_affected_cve WHERE source <> 'nvd'`).Scan(&total); err != nil {
 		return nil, false, 0, fmt.Errorf("feeds: CVE.org: %w", err)
 	}
 	return changed, first && len(changed) > 0, total, nil
+}
+
+// pruneOrphanRanges deletes the CVE.org ranges of CVEs no exploited-list source lists any more (a VulnCheck entry that
+// went), so they are not counted or matched; NVD's rows are left alone.
+func pruneOrphanRanges(ctx context.Context, tx *sql.Tx) error {
+	if _, err := tx.ExecContext(ctx, `DELETE FROM feeds_affected_cve WHERE source <> 'nvd' AND cve NOT IN (SELECT cve FROM feeds_vuln WHERE source_id IN ('cisa-kev', 'vulncheck-kev'))`); err != nil {
+		return fmt.Errorf("feeds: prune CVE.org ranges: %w", err)
+	}
+	return nil
 }

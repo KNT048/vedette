@@ -562,8 +562,9 @@ date_added, due_date, ransomware, has_template, source_id, updated_at) VALUES (?
 			fresh = append(fresh, row)
 			continue
 		}
-		if old.SourceID != source && source != "cisa-kev" {
-			continue // another feed owns this CVE
+		// another feed owns this CVE; the CISA list takes over any, VulnCheck KEV any but CISA's (D-557)
+		if old.SourceID != source && source != "cisa-kev" && (source != vulnCheckFeedID || old.SourceID == "cisa-kev") {
+			continue
 		}
 		next := v
 		if next.DateAdded == "" {

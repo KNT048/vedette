@@ -50,12 +50,13 @@ type vulnDTO struct {
 	EPSS7dAgo      *float64 `json:"epss_7d_ago"`
 	HasTemplate    bool     `json:"has_template"`
 	Display        string   `json:"display"`
+	Source         string   `json:"source"` // "cisa-kev", "vulncheck-kev" or the id of a custom feed (D-557)
 }
 
 func toVulnDTO(v VulnRow) vulnDTO {
 	d := vulnDTO{CVE: v.CVE, Vendor: v.Vendor, Product: v.Product, Name: v.Name, Description: v.Description, RequiredAction: v.RequiredAction,
 		Links: v.Links, DateAdded: v.DateAdded, Ransomware: v.Ransomware, EPSS: v.EPSS, EPSS7dAgo: v.EPSS7dAgo, HasTemplate: v.HasTemplate,
-		Display: DisplayOf(v.Vendor, v.Product)}
+		Display: DisplayOf(v.Vendor, v.Product), Source: v.SourceID}
 	if v.DueDate != "" {
 		due := v.DueDate
 		d.DueDate = &due

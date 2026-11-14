@@ -18,11 +18,12 @@ import (
 // entries CISA does not list (no cisa_date_added) and that VulnCheck added in the last vulnCheckWindow become exploited
 // entries of source "vulncheck-kev"; CISA wins every CVE it lists. The data stays on the box.
 const (
-	vulnCheckFeedID  = "vulncheck-kev"
-	vulnCheckWindow  = 180 * 24 * time.Hour
-	vulnCheckPage    = 100
-	vulnCheckMaxPage = 60 // 6,000 entries; the list has about 4,500
-	vulnCheckAction  = "Reported as exploited in the wild by VulnCheck KEV (not on the CISA list yet)."
+	vulnCheckFeedID   = "vulncheck-kev"
+	vulnCheckWindow   = 180 * 24 * time.Hour
+	vulnCheckPage     = 100
+	vulnCheckMaxPage  = 60 // 6,000 entries; the list has about 4,500; a list that says it has more fails the pull (the box keeps its rows)
+	vulnCheckDeadline = 20 * time.Minute
+	vulnCheckAction   = "Reported as exploited in the wild by VulnCheck KEV (not on the CISA list yet)."
 )
 
 // vulnCheckPause is the wait between two pages; vulnCheckRetryWaits the waits before the next try of a page the source
@@ -69,18 +70,23 @@ type vcEntry struct {
 	Reported          []vcExploit     `json:"vulncheck_reported_exploitation"`
 }
 
-func vcCVE(raw json.RawMessage) (string, bool) {
-	var one string
-	if json.Unmarshal(raw, &one) == nil {
-		c := strings.ToUpper(jsTrim(one))
-		return c, cveRE.MatchString(c)
-	}
+// vcCVEs is the valid CVE IDs of an entry (an array; a bare string is accepted), each once, at most maxLinks: an entry that
+// covers several CVEs gives each its own row.
+func vcCVEs(raw json.RawMessage) []string {
 	var many []string
-	if json.Unmarshal(raw, &many) != nil || len(many) == 0 {
-		return "", false
+	if one := ""; json.Unmarshal(raw, &one) == nil {
+		many = []string{one}
+	} else if json.Unmarshal(raw, &many) != nil {
+		return nil
 	}
-	c := strings.ToUpper(jsTrim(many[0])) // the first CVE names the entry; a CVE of its own gets its own entry
-	return c, cveRE.MatchString(c)
+	var out []string
+	for _, c := range many {
+		c = strings.ToUpper(jsTrim(c))
+		if cveRE.MatchString(c) && !containsStr(out, c) && len(out) < maxLinks {
+			out = append(out, c)
+		}
+	}
+	return out
 }
 
 // vcDay turns VulnCheck's timestamp ("2024-05-01T00:00:00.000Z") into its day, fail-closed.
@@ -95,8 +101,9 @@ func vcDay(s string) (string, bool) {
 
 // ParseVulnCheckPage reads one page of the index answer ({"_meta":{...},"data":[...]}), fail-closed per entry (INV-3):
 // a bad entry is rejected and counted, the rest are kept. A body that is not that envelope fails the page. now fixes
-// the window of "recent".
-func ParseVulnCheckPage(data []byte, now time.Time) (VulnCheckPageResult, error) {
+// the window of "recent", which only keeps a CVE the box does not hold yet: an entry already held stays while VulnCheck
+// lists it and CISA does not (held: the CVEs of the box's vulncheck-kev rows).
+func ParseVulnCheckPage(data []byte, now time.Time, held map[string]bool) (VulnCheckPageResult, error) {
 	res := VulnCheckPageResult{Vulns: []Vuln{}}
 	if len(data) > MaxBodyBytes {
 		return res, fail(ErrTooLarge, "The VulnCheck answer is larger than %d MB; Vedette would skip it.", MaxBodyBytes/1_000_000)
@@ -124,14 +131,15 @@ func ParseVulnCheckPage(data []byte, now time.Time) (VulnCheckPageResult, error)
 			tl.reject(i+1, "entry has a field of the wrong type")
 			continue
 		}
-		cve, ok := vcCVE(e.CVE)
-		if !ok {
+		cves := vcCVEs(e.CVE)
+		if len(cves) == 0 {
 			tl.reject(i+1, "cve: not a CVE ID")
 			continue
 		}
 		if i == 0 {
-			res.FirstCVE = cve
+			res.FirstCVE = cves[0]
 		}
+		cve := cves[0]
 		v := Vuln{CVE: cve, Vendor: jsTrim(e.VendorProject), Product: jsTrim(e.Product), Links: []string{}}
 		if v.Vendor == "" || v.Product == "" {
 			tl.reject(i+1, "vendorProject/product: missing")
@@ -179,10 +187,17 @@ func ParseVulnCheckPage(data []byte, now time.Time) (VulnCheckPageResult, error)
 		}
 		v.Ransomware = e.Ransomware == "Known"
 		tl.Accepted++
-		if jsTrim(e.CISADateAdded) != "" || added < cutoff {
-			continue // CISA lists it (CISA's entry wins), or it is old news
+		if jsTrim(e.CISADateAdded) != "" {
+			continue // CISA lists it: CISA's entry wins
 		}
-		res.Vulns = append(res.Vulns, v)
+		for _, c := range cves {
+			if added < cutoff && !held[c] {
+				continue // old news, and not one the box already uses
+			}
+			w := v
+			w.CVE = c
+			res.Vulns = append(res.Vulns, w)
+		}
 	}
 	res.Stats = tl.stats()
 	return res, nil
@@ -224,16 +239,28 @@ func (s *Service) buildVulnCheck(ctx context.Context, src sourceRow, p pullPlan)
 	if auth.Type != AuthBearer || !auth.Secret.IsSet() {
 		return p, fail(ErrInvalidAuth, "Add your VulnCheck API key to turn this feed on.")
 	}
+	ctx, cancel := context.WithTimeout(ctx, vulnCheckDeadline)
+	defer cancel()
+	held, err := s.st.vulnCheckHeld(ctx)
+	if err != nil {
+		return p, err
+	}
 	now := s.now()
 	var (
 		vulns       []Vuln
 		firstOfPrev string
 		bytes       int
+		total       int
 		tl          = newTally()
 		seen        = map[string]bool{}
 		reasons     []Reason
 	)
-	for page := 1; page <= vulnCheckMaxPage; page++ {
+	// Fail closed (review M1): the pull replaces the rows of this feed with what it read, so anything short of every page the
+	// source says it has fails the pull and keeps the rows loaded before.
+	incomplete := func(why string) error {
+		return fail(ErrBadSample, "VulnCheck's list could not be read completely (%s). Vedette keeps the list it had and tries again later.", why)
+	}
+	for page := 1; ; page++ {
 		if page > 1 {
 			if err := s.sleep(ctx, vulnCheckPause); err != nil {
 				return p, err
@@ -248,12 +275,22 @@ func (s *Service) buildVulnCheck(ctx context.Context, src sourceRow, p pullPlan)
 			return p, vulnCheckError(err)
 		}
 		bytes += len(resp.Body)
-		res, err := ParseVulnCheckPage(resp.Body, now)
+		res, err := ParseVulnCheckPage(resp.Body, now, held)
 		if err != nil {
 			return p, err
 		}
-		if page > 1 && res.FirstCVE != "" && res.FirstCVE == firstOfPrev { // "page" ignored: the same page again
-			break
+		switch {
+		case page == 1 && (res.TotalPages < 1 || res.TotalPages > vulnCheckMaxPage):
+			return p, incomplete("it did not say a usable number of pages")
+		case res.Truncated:
+			return p, incomplete("a page held more entries than a page can")
+		case res.Accepted+res.Rejected == 0:
+			return p, incomplete("a page was empty")
+		case page > 1 && res.FirstCVE == firstOfPrev: // "page" ignored: the same page again
+			return p, incomplete("the same page came back twice")
+		}
+		if page == 1 {
+			total = res.TotalPages
 		}
 		firstOfPrev = res.FirstCVE
 		tl.Accepted += res.Accepted
@@ -266,7 +303,7 @@ func (s *Service) buildVulnCheck(ctx context.Context, src sourceRow, p pullPlan)
 				vulns = append(vulns, v)
 			}
 		}
-		if res.Accepted+res.Rejected == 0 || page >= res.TotalPages {
+		if page >= total {
 			break
 		}
 	}
@@ -312,4 +349,10 @@ func vulnCheckError(err error) error {
 		return &Error{Err: err, Detail: "VulnCheck did not accept the API key. Check the key in Settings, Feeds, VulnCheck KEV and save it again."}
 	}
 	return err
+}
+
+// vulnCheckHeld is the CVEs of the vulncheck-kev rows the box holds: they stay while VulnCheck lists them and CISA does not,
+// whatever their age (review M2).
+func (s *Store) vulnCheckHeld(ctx context.Context) (map[string]bool, error) {
+	return stringSet(ctx, s.db.Reader(), `SELECT cve FROM feeds_vuln WHERE source_id = 'vulncheck-kev'`)
 }

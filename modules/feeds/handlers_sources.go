@@ -75,6 +75,9 @@ func (h *FeedHandlers) FeedsPutFeedsSourcesID(ctx context.Context, req *oas.Feed
 			if err := CheckDest(v, h.s.boxAddrs()); err != nil {
 				return apiError(err)
 			}
+			if isBYOK(cur.ID) && v != *cur.DefaultURL { // VulnCheck has no mirror: the key must not follow a typo to another host
+				return apierr.New(http.StatusBadRequest, "invalid_url", "This feed has no mirror: its address cannot be changed.")
+			}
 			if cur.ID == "first-epss" && strings.ContainsAny(v, "?#") { // EPSSBatchURLs adds the query itself
 				return apierr.New(http.StatusBadRequest, "invalid_url", "The EPSS address must not carry a query string.")
 			}
@@ -112,6 +115,9 @@ func (h *FeedHandlers) FeedsPutFeedsSourcesID(ctx context.Context, req *oas.Feed
 		}
 		if !enabled && isBYOK(cur.ID) {
 			if err := purgeLoaded(ctx, tx, cur.ID); err != nil { // the data of a BYOK feed is the customer's licence: off means gone
+				return err
+			}
+			if err := pruneOrphanRanges(ctx, tx); err != nil {
 				return err
 			}
 			if _, err := tx.ExecContext(ctx, `UPDATE feeds_source SET last_fetch = NULL, last_success = NULL, records = NULL, status = 'never', error = NULL, etag = NULL, last_modified = NULL WHERE id = ?`, cur.ID); err != nil {

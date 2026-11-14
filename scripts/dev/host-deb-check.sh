@@ -160,6 +160,8 @@ EOT
 	want "honeypot containers.conf module 644 root:root (#486)" '^/usr/lib/vedette/honeypot-containers.conf f 644 root:root '
 	want "AppArmor containers.conf module 644 root:root (D-458)" '^/usr/lib/vedette/apparmor-containers.conf f 644 root:root '
 	want "AppArmor profile 644 root:root (D-458)" '^/etc/apparmor.d/vedette-container f 644 root:root '
+	want "OpenVAS compose file 644 root:root (D-529)" '^/usr/lib/vedette/greenbone/compose.yaml f 644 root:root '
+	want "OpenVAS compose override 644 root:root (D-529)" '^/usr/lib/vedette/greenbone/compose.vedette.yaml f 644 root:root '
 	# /usr/share/doc/vedette-host/{NOTICE,third-party-licenses} are not checked here: the container images exclude /usr/share/doc (dpkg path-exclude); deploy/deb/deb_test.go checks them in the package
 	want "/etc/vedette 755 root:root" '^/etc/vedette d 755 root:root '
 	want "/etc/containers/systemd 755 root:root" '^/etc/containers/systemd d 755 root:root '

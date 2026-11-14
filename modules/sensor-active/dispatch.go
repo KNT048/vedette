@@ -540,6 +540,9 @@ func (d *Dispatcher) pollLocked(running []string) (rep sensorlink.JobsReply, rea
 		if n := s.pending.spec.Nuclei; n != nil && n.Scope != "" && !d.nuclei.OwnIP {
 			continue // the latest heartbeat says this worker runs no own_ip job (older than D-520, or a downgrade since RunNuclei checked): wait
 		}
+		if n := s.pending.spec.Nuclei; n != nil && n.Depth != "" && !d.nuclei.Full {
+			continue // FULL-4 (D-527): the same for a job of depth full and nuclei.full
+		}
 		if k, _ := nmapargv.KindOf(s.pending.spec.Shape); s == d.nmapSlot && k.IsFull() && !d.nmap.Full {
 			continue // the latest heartbeat says this worker runs no full shape (older than D-526, or a downgrade since Probe checked): wait
 		}

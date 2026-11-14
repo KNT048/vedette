@@ -1092,6 +1092,15 @@ remove_zap_fence() {
 	fi
 }
 
+# remove_podman_socket: podman's API socket, which vedette-host enables for OpenVAS's provider (D-529), disabled again only when
+# vedette-host's marker says it was vedette-host that enabled it (an administrator's own enable stays theirs). OpenVAS's containers,
+# which stay (D-529), keep running without it; only managing them through podman's API needs it again
+remove_podman_socket() {
+	[ -e "$HOST_STATE/greenbone-podman-socket.enabled" ] || return 0
+	systemctl disable --now podman.socket >/dev/null 2>&1 || warn "could not disable podman.socket, which Vedette enabled for OpenVAS (systemctl disable --now podman.socket)"
+	rm -f "$HOST_STATE/greenbone-podman-socket.enabled"
+}
+
 # remove_subid <file> <state name>: the line the package added, and the file if the package made it; never the administrator's own line
 remove_subid() {
 	[ -e "$1" ] && [ -e "$STATE/$2-added" ] || return 0
@@ -1347,6 +1356,7 @@ do_uninstall() {
 		[ -n "$KEEP_DATA" ] || say "and DELETE the database and the master key in /var/lib/vedette (no way back), /etc/vedette and the users vedette and vedette-sensor"
 		say "podman, the packages it runs with and /var/lib/containers stay when podman holds anything that is not Vedette's (containers, pods,"
 		say "networks, volumes, images)${KEEP_DATA:+ and always with --keep-data}; only Vedette's own containers, images, volumes and network are removed from it"
+		say "OpenVAS, if it was ever enabled, stays as it is: Greenbone's own containers, images and feed volumes are not Vedette's (D-529)"
 		die "run again with --yes to do it"
 	fi
 	if [ -d "$STATE" ]; then TMP=$(mktemp -d "$STATE/tmp.XXXXXX"); else TMP=$(mktemp -d /var/tmp/vedette-install.XXXXXX); fi
@@ -1356,6 +1366,10 @@ do_uninstall() {
 	for u in vedette-honeypot vedette-scan vedette-sensor vedette-core vedette-host "$REGISTRY_UNIT" vedette-int-network vedette-creds-passive-volume vedette-creds-active-volume vedette-hp-log-volume; do
 		systemctl stop "$u.service" >/dev/null 2>&1 || true
 	done
+	# OpenVAS (D-529): vedette-host runs Greenbone's own project under Greenbone's own name. It is not Vedette's, and nothing here
+	# touches it, its containers, volumes or images, the provider package or the socket folder (TestInstallSh_UninstallNeverNamesOpenVAS);
+	# its containers are someone else's to podman_stays, so podman stays with them (W4-1). vedette-greenbone below is a container name
+	# Vedette never made (no unit, D-123 (2)), kept so an old box is cleaned.
 	if have podman; then
 		for c in vedette-honeypot vedette-scan vedette-sensor vedette-core vedette-greenbone; do
 			pm rm -f -t 5 "$c" >/dev/null || true
@@ -1378,6 +1392,7 @@ do_uninstall() {
 	fi
 	# the egress fence of a passive web scan the host did not get to clean up (zap.baseline, D-521), after its container
 	remove_zap_fence
+	remove_podman_socket
 	if have podman; then
 		for v in vedette-creds-passive vedette-creds-active vedette-hp-log; do
 			remove_ours volume "$v"
@@ -1471,7 +1486,8 @@ do_uninstall() {
 	if [ -n "$KEEP_PODMAN" ] && [ -n "$PODMAN_OURS" ] && { installed_pkg podman || have podman; }; then
 		say "kept podman, the packages it runs with and /var/lib/containers: $KEEP_PODMAN"
 		[ -z "$KEPT_MANUAL" ] || say "  marked$KEPT_MANUAL as installed by hand (apt-mark manual), so apt autoremove keeps them"
-		[ -n "$KEEP_DATA" ] || say "  to remove podman too, once nothing else needs it: podman system reset, then apt-get purge podman, then apt-get autoremove"
+		# never suggest wiping podman's storage: it may hold OpenVAS's feed and database volumes, which stay (D-529, review r1 L5)
+		[ -n "$KEEP_DATA" ] || say "  to remove podman too, first remove what still uses it yourself (podman ps -a, podman volume ls, podman images; OpenVAS's feed and database are volumes), then apt-get purge podman, then apt-get autoremove"
 	fi
 	say "Vedette is removed."
 }

@@ -59,6 +59,22 @@ func distroOf(in swInfo) (string, string) {
 	return "", ""
 }
 
+// DeviceDistro is "ubuntu" or "debian" when the distribution feeds can say something about this device: its OS is that
+// distribution and an agent read at least one deb package from it (what distroVerdict needs); "" otherwise. The feeds module
+// pulls a distribution's files only while some device needs them (LEAN, D-570).
+func DeviceDistro(a Asset) string {
+	if os, _ := osIdentity(a.OS); os.vendor != "canonical" && os.vendor != "debian" {
+		return ""
+	}
+	for _, s := range a.Software {
+		if s.Packaged && s.Source == "agent" && s.PkgVersion != "" && s.PkgSource != "" {
+			d, _ := distroOf(newSWInfo(s, a.OS))
+			return d
+		}
+	}
+	return ""
+}
+
 // securitySource is the source package under which the distribution's security data lists a device's source package.
 // Kernel images are built by a signing source package whose binaries carry the kernel's own version, while Ubuntu's and
 // Debian's data list the kernel's source: Ubuntu linux-signed → linux, linux-signed-hwe-7.0 → linux-hwe-7.0; Debian

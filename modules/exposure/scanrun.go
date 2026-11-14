@@ -327,7 +327,10 @@ func (s *Service) ModuleSwitched(enabled bool) {
 	s.runMu.Unlock()
 	if !enabled {
 		s.cancelRun("the box (the Exposure module was switched off)")
+		s.gbModuleOff(s.bg) // FULL-2 (Trưởng), for Mlee: Greenbone's containers stop with the module (D-529)
+		return
 	}
+	s.GreenboneAtStart(s.bg) // FULL-2 (Trưởng), for Mlee: and start again with it when it is enabled
 }
 
 // closeWait bounds Close: a runner that ignores its context must not hold the shutdown until its own 5-minute cap.

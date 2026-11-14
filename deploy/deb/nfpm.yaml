@@ -80,6 +80,20 @@ contents:
       mode: 0644
       owner: root
       group: root
+  # OpenVAS (Greenbone Community Edition, D-529): Greenbone's official compose file pinned by digest, and Vedette's override. vedette-host
+  # runs them with podman compose only once an administrator enables OpenVAS; constant, not for an administrator to edit
+  - src: deploy/greenbone/compose.yaml
+    dst: /usr/lib/vedette/greenbone/compose.yaml
+    file_info:
+      mode: 0644
+      owner: root
+      group: root
+  - src: deploy/greenbone/compose.vedette.yaml
+    dst: /usr/lib/vedette/greenbone/compose.vedette.yaml
+    file_info:
+      mode: 0644
+      owner: root
+      group: root
   - src: LICENSE
     dst: /usr/share/doc/vedette-host/copyright
     file_info:

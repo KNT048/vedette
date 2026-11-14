@@ -21,6 +21,7 @@
 - `host/config`: thêm khoá tuỳ chọn `core_cgroup`; `golang.org/x/sys` thành phụ thuộc trực tiếp (Linux).
 - `cmd/vedette-host`: cờ `-config -socket -state-dir -audit-log -version`.
 - D-521 (`zap.baseline`, INV-31): `host/api/zap.go` (`CmdZapBaseline`, `ZapBaselineArgs`, `ZapBaselineResult`, các mã `zap_*`, `target_not_owned`, `ownership_unchecked`, `MaxZapReport`); `host/ops/zap.go` (lệnh không lấy khoá ghi, `Readers.ZapReport`, binary `nft` với ba argv cố định, các dạng podman của ZAP trong `validatePodman`, `Deps.ZapEgress`/`ZapTXT`/`ZapUID`, dọn ở `Start`); `host/server` `Readers.ZapReport` + đường `GET /v1/zap/{id}/content`; `host/client` `ZapBaseline` (theo run tới hết, đọc lại mỗi 2 s) và `DownloadZapReport`; `core/egressip` thành phụ thuộc của `vedette-host`.
+- D-529 (OpenVAS, INV-32): `host/api/greenbone.go` (ba lệnh, `GreenboneUpArgs`, mã `greenbone_*`, đường socket); `host/ops/greenbone.go` (argv cố định và validator của podman/systemctl/apt-get, thư mục socket, đặt mật khẩu GMP); mẫu unit `core` mount `/run/vedette-greenbone` chỉ đọc (mẫu cũ `core-5` trong `quadlet_legacy.go`, chuyển ở lần khởi động host sau, có hiệu lực ở lần khởi động lại `core` sau); gói `.deb` thêm `/usr/lib/vedette/greenbone/compose.yaml` và `compose.vedette.yaml`; `host/client` thêm `Greenbone`.
 - D-525 (`zap.baseline` cấu hình, INV-31): `host/ops/zap.go` (`--autooff` và `--workdir /home/zap` trong argv cố định; thư mục làm việc không tạo được → `zap_failed`, mã 3 nói rõ ba khả năng). Exposure không đổi: báo cáo JSON cùng mẫu `traditional-json` ở cả hai runner.
 
 ## Modifying: `Client.Run(ctx, command, args, requestID, actor) (api.Run, error)` (phía `core`) — 6 nhóm người gọi
@@ -29,6 +30,7 @@
 - **core/containers** (cập nhật phần mềm Vedette: `container.pull`, `container.rollback`, A/B): đổi → bản cập nhật có thể không hoàn tác được.
 - **core/backup** (`backup.create`) và **core/data** (xuất/xoá).
 - **inventory** (danh sách gói cho "This box").
+- **exposure / OpenVAS** (`cmd/vedette/exposuregreenbone.go`, `exposure.GreenboneHost`, D-529, INV-32): `greenbone.up/down/sync_feed` qua `Client.Greenbone`; đổi mã (`greenbone_failed`, `greenbone_no_provider`, `greenbone_cancelled`) hay thông điệp → câu trạng thái OpenVAS trên trang Exposure đổi; đổi `api.GreenboneSocket`/`GreenboneRunDir` phải đổi cùng mẫu unit `core` (thêm mẫu cũ vào `quadlet_legacy.go`) và `deploy/greenbone/compose.vedette.yaml`.
 - **exposure** (`cmd/vedette/exposureweb.go`, `exposure.WebScanner`, D-521): `zap.baseline` và `GET /v1/zap/{id}/content`; đổi mã lỗi → câu "Not checked" của trang Exposure sai; đổi argv hay rào mạng → xem lại D-562 (chỉ thụ động) và PRIVACY luồng 9.
 - Người gọi phải dùng `X-Request-Id` ổn định cho mỗi ý định (thử lại cùng id, không id mới) và nhớ nhịp 60 request/phút (dùng SSE, không hỏi từng giây).
 

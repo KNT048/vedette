@@ -118,6 +118,9 @@ type Service struct {
 
 	afterChunk func(chunk int) // tests: runs after each chunk of an indicator list has committed
 
+	idleMu     sync.Mutex
+	distroIdle map[string]bool // D-570: the distribution feeds the last check found no device for
+
 	nvdMu sync.Mutex
 	nvd   *nvdRun // the NVD pull running now, or paused to go on later (W3-1); nil when none
 

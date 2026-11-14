@@ -210,6 +210,16 @@ func TestInstallSh_UninstallKeepsAPodmanThatHoldsOthers(t *testing.T) {
 			wantKeep:  "kept? 21 containers, 1 network, 1 volume and 1 image that are not Vedette's use it (greenbone-a, greenbone-b, greenbone-c, greenbone-d, greenbone-e, and 19 more)",
 			wantInUse: true,
 		},
+		// D-529: OpenVAS as vedette-host runs it (docker-compose's names, the project's volumes, Greenbone's images) is not Vedette's
+		"OpenVAS of greenbone.up": {
+			lists: map[string]string{
+				"ctr": "vedette-core\ngreenbone-community-edition-gvmd-1\ngreenbone-community-edition-pg-gvm-1\n", "pod": "",
+				"net": "podman\nvedette-int\ngreenbone-community-edition_default\n", "vol": "vedette-hp-log\ngreenbone-community-edition_vt_data_vol\n",
+				"img": "a1 ghcr.io/knt048/vedette-core\ne5 registry.community.greenbone.net/community/gvmd\n",
+			},
+			wantKeep:  "kept? 2 containers, 1 network, 1 volume and 1 image that are not Vedette's use it (greenbone-community-edition-gvmd-1",
+			wantInUse: true,
+		},
 		"one stopped container": {lists: with("ctr", "mydb\n"), wantKeep: "1 container that is not Vedette's uses it (mydb)", wantInUse: true},
 		"a pod":                 {lists: with("pod", "web\n"), wantKeep: "1 pod that is not Vedette's uses it (web)", wantInUse: true},
 		"only an image":         {lists: with("img", "f6 docker.io/library/nginx\n"), wantKeep: "1 image that is not Vedette's uses it (docker.io/library/nginx)"},
@@ -451,8 +461,8 @@ func TestInstallSh_UninstallNeverForcesOutSomeoneElsesContainer(t *testing.T) {
 	if i < 0 || j < i {
 		t.Fatalf("do_uninstall has no removal of the network and volumes before podman_stays:\n%s", body)
 	}
-	out, err := runInstallShFns(t, dir, []string{"FAKE=" + dir, "TMP=" + t.TempDir(), "ZAP_IMAGE=" + ops.ZapImage},
-		[]string{"remove_ours", "rmi_ours", "others_use", "remove_images", "pm", "remove_zap", "remove_zap_fence"}, body[i:j])
+	out, err := runInstallShFns(t, dir, []string{"FAKE=" + dir, "TMP=" + t.TempDir(), "ZAP_IMAGE=" + ops.ZapImage, "HOST_STATE=" + t.TempDir()},
+		[]string{"remove_ours", "rmi_ours", "others_use", "remove_images", "pm", "remove_zap", "remove_zap_fence", "remove_podman_socket"}, body[i:j])
 	if err != nil {
 		t.Fatalf("removal: %v\n%s", err, out)
 	}

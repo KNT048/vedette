@@ -337,7 +337,7 @@ EOT
 	[ -z "$(x 'nft list tables')" ] || { x 'nft list ruleset' >&2; fail "nft tables were left behind by the uninstall"; }
 	ok "no nft table is left behind by the uninstall (looked at with nft after it)"
 	# put the box back the way it was, by the names that were not there before, then it must equal the first snapshot; the podman the
-	# uninstall kept goes as the summary tells the administrator (podman system reset, then apt), and so do the folders the uninstall
+	# uninstall kept goes (a lab box holds nothing else, so the reset is safe here; the summary no longer suggests it, D-529), and so do the folders the uninstall
 	# removes when it purges podman itself (install.sh, D-463)
 	x 'podman system reset -f >/dev/null 2>&1' || fail "cannot reset the podman the uninstall kept"
 	# shellcheck disable=SC2046 # package names, one word each

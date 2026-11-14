@@ -75,6 +75,36 @@ func (a feedsInventory) Settle(ctx context.Context, tx *sql.Tx, committed bool) 
 	a.inv.Settle(ctx, tx, committed)
 }
 
+// Distros implements feeds.DistroLister (D-570): the distributions of the devices whose deb packages an agent read, as
+// findings decides it (findings.DeviceDistro), so a distribution feed is pulled only while a device needs it.
+func (a feedsInventory) Distros(ctx context.Context) (map[string]bool, error) {
+	ids, err := a.inv.AssetIDs(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := map[string]bool{}
+	for _, id := range ids {
+		d, ok, err := a.inv.MatchInput(ctx, id)
+		if err != nil {
+			return nil, err
+		}
+		if !ok {
+			continue
+		}
+		fa := findings.Asset{OS: d.OS, Software: make([]findings.Software, len(d.Software))}
+		for i, sw := range d.Software {
+			fa.Software[i] = findings.Software{Source: sw.Source, Packaged: sw.Packaged, PkgVersion: sw.PkgVersion, PkgSource: sw.PkgSource}
+		}
+		if dist := findings.DeviceDistro(fa); dist != "" {
+			out[dist] = true
+			if len(out) == 2 { // both distributions found: nothing more to learn
+				break
+			}
+		}
+	}
+	return out, nil
+}
+
 // ---- feeds -> inventory (inventory.KEV) ----
 
 // feedsKEV implements inventory.KEV from the CISA rows of the feeds service. Until the first pull (the table is
@@ -639,6 +669,16 @@ func (p privacyFacts) ConnectionsConfigured(ctx context.Context) bool {
 	}
 	on, err := p.conns.HasEnabled(ctx)
 	return err != nil || on
+}
+
+// GreenboneEnabled: flow 16 (OpenVAS's images and feed, D-563, D-529) is on while an administrator has OpenVAS enabled on this box,
+// whether the module is on or not (turning the module off stops the containers, D-529; the badge then errs on the side of "on"). It reads the exposure service that
+// carries cfg.Greenbone, so the badge and the containers cannot disagree (review r2); without vedette-host nothing can be enabled.
+func (p privacyFacts) GreenboneEnabled(ctx context.Context) bool {
+	if p.d == nil || p.d.DB == nil {
+		return false
+	}
+	return exposureService(*p.d).GreenboneEnabled(ctx)
 }
 
 // WazuhConnected: flow 14 is on while agent-intake has a Wazuh server saved (D-309); the caller checks that the module is on. A store

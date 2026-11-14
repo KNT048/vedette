@@ -494,7 +494,7 @@ func (s *Service) pullOne(ctx context.Context, id, actor string) (sourceRow, int
 	if errors.Is(perr, errNVDPaused) { // W3-1: the pages so far are kept and the pull goes on later; nothing is written
 		return s.live(src), 0, nil, nil
 	}
-	if errors.Is(perr, errDistroWaits) { // D-516: no CISA list yet, so nothing to keep; the feed stays due and pulls after it
+	if errors.Is(perr, errDistroWaits) || errors.Is(perr, errDistroNoDevice) { // D-516: no CISA list yet; D-570: no device needs it. Nothing to keep; the feed stays due
 		return s.live(src), 0, nil, nil
 	}
 	if perr != nil {

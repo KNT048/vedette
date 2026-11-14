@@ -70,7 +70,11 @@ func exposureService(d deps) *exposure.Service {
 	cfg.Services = exposureServicesFor(d, gate, modeNow)
 	// INV-23 (D-561, D-520): the exploited CVEs matched on a port are checked with their safe nuclei templates by the scan container,
 	// scope own_ip, each template in the scan module's probe log first. Named by the same commitment sentence (K-4).
-	cfg.Templates, cfg.Probes = exposureTemplatesFor(d, gate), exposureProbeLog{d: d}
+	// FULL-4 (D-527): a target whose testing terms are accepted gets the deep templates; ModeNow is read again right before each run.
+	mode := func(ctx context.Context, actor, id string) (exposure.ScanMode, error) {
+		return exposureService(d).ModeNow(ctx, actor, id)
+	}
+	cfg.Templates, cfg.Probes = exposureTemplatesFor(d, gate, mode), exposureProbeLog{d: d}
 	clock := d.Clock
 	if clock == nil {
 		clock = time.Now
@@ -81,6 +85,9 @@ func exposureService(d deps) *exposure.Service {
 	}
 	cfg.Matcher = m
 	cfg.Web = exposureWebFor(d) // INV-24, D-521: ZAP's passive baseline through vedette-host's zap.baseline
+	// INV-25, D-529 (FULL-2): OpenVAS (Greenbone CE) through vedette-host's greenbone.* commands, off until an administrator enables it.
+	// DataDir is the disk preflight's filesystem. privacyFacts.GreenboneEnabled (flow 16) reads this same service (review r2).
+	cfg.Greenbone, cfg.DataDir = exposureGreenboneFor(d), d.DataDir
 	if exposureTestConfig != nil {
 		exposureTestConfig(&cfg)
 	}
@@ -97,6 +104,15 @@ func exposureService(d deps) *exposure.Service {
 		})
 	}
 	return svc
+}
+
+// exposureAtStart starts OpenVAS again when an administrator had it enabled and the module is on (review r1 L4, D-529): without it
+// the first scan after a restart or an update of the box finds it "still starting" and skips it. The module switch does the same
+// (exposure's ModuleSwitched).
+func exposureAtStart(ctx context.Context, d deps) {
+	if d.Reg == nil || d.Reg.Enabled(exposure.ModuleID) {
+		exposureService(d).GreenboneAtStart(ctx)
+	}
 }
 
 // exposureJobs is the Jobs func of the exposure entry in wiredModules.

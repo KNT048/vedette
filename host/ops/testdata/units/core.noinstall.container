@@ -19,6 +19,7 @@ Volume=/var/lib/vedette:/var/lib/vedette
 Volume=/var/lib/vedette-honeypot/config:/var/lib/vedette/honeypot/config
 Volume=vedette-hp-log.volume:/var/lib/vedette/honeypot/log:ro,noexec
 Volume=/run/vedette:/run/vedette
+Volume=/run/vedette-greenbone:/run/vedette-greenbone:ro
 Volume=vedette-creds-passive.volume:/var/lib/vedette-creds/passive
 Volume=vedette-creds-active.volume:/var/lib/vedette-creds/active
 ReadOnly=true

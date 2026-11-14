@@ -37,7 +37,7 @@ type fenceCheckHost interface {
 
 // CheckDomainIP implements exposure.GreenboneFence (D-591): vedette-host checks the domain fence itself (its key, the TXT record, the
 // name's address now) right before the task starts and every 3 minutes while it runs. A nil error is a yes.
-func (g exposureGreenbone) CheckDomainIP(ctx context.Context, scope exposure.DomainScope, ip netip.Addr) error {
+func (g exposureGreenbone) CheckDomainIP(ctx context.Context, scope exposure.DomainScope, ip netip.Addr, c exposure.FenceCheck) error {
 	if g.fence == nil {
 		return errors.New("openvas: no host to check the domain fence")
 	}
@@ -45,7 +45,8 @@ func (g exposureGreenbone) CheckDomainIP(ctx context.Context, scope exposure.Dom
 	if err != nil {
 		return err
 	}
-	_, err = g.fence.ExposureFenceCheck(ctx, api.ExposureFenceCheckArgs{Domain: scope.Domain, Name: scope.Name, IP: ip.String(), Token: scope.Token}, id, gbActor)
+	_, err = g.fence.ExposureFenceCheck(ctx, api.ExposureFenceCheckArgs{Domain: scope.Domain, Name: scope.Name, IP: ip.String(), Token: scope.Token,
+		Disruptive: c.Disruptive, Recheck: c.Recheck}, id, gbActor) // review r1 M3 (the CNAME rule) and M2 (a re-check asks DNS again)
 	return err
 }
 

@@ -37,6 +37,11 @@ var (
 	ErrUnreachable    = apiErr(502, "unreachable", "%s", msgOffline)
 	ErrDisagree       = apiErr(502, "unreachable", "%s", msgDisagree)
 	ErrNotImplemented = apiErr(501, "not_implemented", "This part of the box is not built yet.")
+	// ErrFenceDown (D-591, review r1 M1): on a box with vedette-host, a new domain's box-bound token comes from the host; no answer, no
+	// domain (a random token would leave it without the deep scan of its addresses).
+	ErrFenceDown = apiErr(502, "unreachable", "The domain was not added: the Vedette host did not answer when asked for the domain's verification token. Try again in a minute.")
+	// ErrFenceFull (D-591, review r1 H1): the host has issued fence tokens for its limit of domains.
+	ErrFenceFull = apiErr(400, "too_many", "The domain was not added: this box's host has already issued verification tokens for its limit of 20 domains.")
 )
 
 // The answers of a scan that the runner did not do (INV-12, D-229). Nothing is stored for them.

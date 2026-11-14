@@ -116,7 +116,7 @@ func TestDomainTemplatesGoOutAsADomainIPJob(t *testing.T) {
 			t.Fatal("a domain_ip run asked the box's own-IP gate")
 		}
 	}
-	if len(rows) == 0 || !strings.Contains(rows[0], "domain_ip acme.example, name www.acme.example (CNAME chain www.acme.example -> acme.edge.example.net)") {
+	if len(rows) == 0 || !strings.Contains(rows[0], "domain_ip acme.example via acme.edge.example.net, deep scan") {
 		t.Fatalf("probe rows %q", rows)
 	}
 	// Without accepted terms: no template at all.
@@ -126,17 +126,15 @@ func TestDomainTemplatesGoOutAsADomainIPJob(t *testing.T) {
 	}
 }
 
-// zap.baseline of a domain's page carries the box-bound token from the host; a domain verified before the fence, whose TXT record
-// lacks it, gets a line that names the TXT value to add.
-func TestDomainWebUsesTheBoxBoundToken(t *testing.T) {
+// Review r1 H2: zap.baseline of a domain's page carries the domain's stored token, as before D-591 (the host accepts a domain verified
+// before the fence for the passive scan); core asks the host for no token per page (review r1 L5).
+func TestDomainWebSendsTheStoredToken(t *testing.T) {
 	t.Parallel()
-	box := strings.Repeat("cd", 8)
 	h := &fakeZapHost{run: zapRun(t, api.StatusRefused, api.CodeTargetNotOwned, nil)}
-	w := exposureWebScan{host: h, token: func(context.Context, string) (string, error) { return "0123456789abcdef", nil },
-		fence: func(context.Context, string) (string, error) { return box, nil }}
+	w := exposureWebScan{host: h, token: func(context.Context, string) (string, error) { return "0123456789abcdef", nil }}
 	_, err := w.Baseline(t.Context(), webDomTarget, webDomPage)
 	var un *exposure.Unavailable
-	if h.got.TXTToken != box || !errors.As(err, &un) || !strings.Contains(un.Reason, "vedette-verify="+box) {
+	if h.got.TXTToken != "0123456789abcdef" || !errors.As(err, &un) || !strings.Contains(un.Reason, "no longer has its vedette-verify TXT record") {
 		t.Fatalf("token %q, %v", h.got.TXTToken, err)
 	}
 }
@@ -151,11 +149,11 @@ func (f *fakeFenceHost) ExposureFenceCheck(_ context.Context, a api.ExposureFenc
 func TestOpenVASAsksTheHostsFence(t *testing.T) {
 	t.Parallel()
 	h := &fakeFenceHost{}
-	err := exposureGreenbone{fence: h}.CheckDomainIP(t.Context(), *testScope, ownPublicIP)
-	if err == nil || h.got != (api.ExposureFenceCheckArgs{Domain: "acme.example", Name: "www.acme.example", IP: "8.8.8.8", Token: testScope.Token}) {
+	err := exposureGreenbone{fence: h}.CheckDomainIP(t.Context(), *testScope, ownPublicIP, exposure.FenceCheck{Disruptive: true, Recheck: true})
+	if err == nil || h.got != (api.ExposureFenceCheckArgs{Domain: "acme.example", Name: "www.acme.example", IP: "8.8.8.8", Token: testScope.Token, Disruptive: true, Recheck: true}) {
 		t.Fatalf("%+v %v", h.got, err)
 	}
-	if (exposureGreenbone{}).CheckDomainIP(t.Context(), *testScope, ownPublicIP) == nil {
+	if (exposureGreenbone{}).CheckDomainIP(t.Context(), *testScope, ownPublicIP, exposure.FenceCheck{}) == nil {
 		t.Fatal("no host, and the fence said yes")
 	}
 }

@@ -4,10 +4,12 @@ import (
 	"context"
 	"errors"
 	"io/fs"
+	"maps"
 	"net"
 	"net/netip"
 	"os"
 	"path/filepath"
+	"strconv"
 	"time"
 
 	"github.com/knt048/vedette/core/domainfence"
@@ -17,16 +19,27 @@ import (
 
 // The domain fence (FULL-5 slice 2, D-591, host-api §6.17, plan 2026-11-14 §5). vedette-host makes the box's fence key at its start when
 // it is missing: <state>/fence.key, 32 random bytes, 0600, owned by the host's owner (root). Core never holds it: core asks
-// exposure.token for a verified domain's box-bound token, and every executor checks a domain_ip job against the key itself. The scan
-// container gets its own read-only copy: fenceScanDir/fence.key, owned by the sensor user (0400 in a 0500 directory), mounted at the
-// same path by the scan unit only (scanUnitText); core's unit never mounts it nor the host's state directory. zap.baseline (kind
-// domain) and exposure.fence_check (OpenVAS) check the fence here.
+// exposure.token for a verified domain's box-bound token, and every executor checks a domain_ip job against the key itself.
+//
+// The host also keeps its own list of the domains it issued a token for (review r1 H1): <state>/fence-domains, root 0600, at most
+// fenceMaxDomains; each new domain is an audit line of the host (fence_domain_added) that core cannot suppress, a domain beyond the
+// cap is refused (fence_domains_full), and every executor refuses a domain that is not on the list. That bounds what a compromised
+// core can do with the fence: it can still ask for tokens of domains of its own, up to the cap, each one audited.
+//
+// The scan container gets read-only copies of the key and the list in fenceScanDir (the directory 0500, the files 0400, owned by the
+// sensor user), mounted at the same path by the scan unit only (scanUnitText); core's unit never mounts them nor the host's state
+// directory. The directory is made even when the key is not usable (review r1 L1): the scan unit's mount needs it, and a worker
+// without a key simply runs no domain_ip job. zap.baseline (kind domain, box-bound token) and exposure.fence_check (OpenVAS, asked by
+// core: advisory, D-591 (3)) check the fence here.
 
 const (
-	fenceKeyName = "fence.key"
-	// fenceScanDir holds the scan container's copy of the key; the scan unit mounts it read-only at the same path.
-	fenceScanDir = "/var/lib/vedette-fence"
-	fenceTimeout = 2 * time.Minute // exposure.fence_check: three lookups of at most 10 s each, with room
+	fenceKeyName     = "fence.key"
+	fenceListName    = "fence-domains" // in the state directory
+	fenceScanList    = "domains"       // in fenceScanDir, what the worker reads (cmd/vedette-sensor loadFence)
+	fenceMaxDomains  = 20              // the plan names no domain cap (§4 caps are per run): the director's 20
+	fenceScanDir     = "/var/lib/vedette-fence"
+	fenceTimeout     = 2 * time.Minute // exposure.fence_check: three lookups of at most 10 s each, with room
+	auditDomainAdded = "fence_domain_added"
 )
 
 // fenceResolver is the system resolver as the fence asks it, through the seams the zap tests already answer for (ZapTXT, ZapLookupIP)
@@ -47,9 +60,22 @@ func (r fenceResolver) LookupCNAME(ctx context.Context, name string) (string, er
 	return net.DefaultResolver.LookupCNAME(ctx, name)
 }
 
-// initFence loads or makes the key and the scan container's copy. A failure leaves o.fence nil (exposure.token and the domain checks
-// then refuse fence_unavailable) and is logged; nothing else of the host depends on it.
+// initFence loads or makes the key, loads the domain list and writes the scan container's copies. A failure leaves o.fence nil
+// (exposure.token and the domain checks then refuse fence_unavailable) and is logged; nothing else of the host depends on it.
 func (o *Ops) initFence() {
+	scan := o.cfg.SensorUID > 0 && o.d.FenceKey == nil
+	if scan { // review r1 L1: the scan unit mounts the directory, so it exists whatever happens to the key
+		if err := o.fenceScanDir(0o700); err != nil {
+			o.log.Error("the scan container's domain fence directory could not be made", "error", err.Error())
+			scan = false
+		} else {
+			defer func() { // read-only for its owner once the copies are written (a worker without them runs no domain_ip job)
+				if err := o.fenceScanDir(0o500); err != nil {
+					o.log.Error("the scan container's domain fence directory could not be closed", "error", err.Error())
+				}
+			}()
+		}
+	}
 	key := o.d.FenceKey
 	if key == nil {
 		var err error
@@ -58,15 +84,24 @@ func (o *Ops) initFence() {
 			return
 		}
 	}
-	f, err := domainfence.New(key, fenceResolver{o}, o.d.Now)
+	list, err := o.loadFenceList()
+	if err != nil {
+		o.log.Error("the domain fence list is not usable: domain_ip scans are refused", "error", err.Error())
+		return
+	}
+	o.fenceList = list
+	f, err := domainfence.New(key, fenceResolver{o}, o.fenceListed, o.d.Now)
 	if err != nil {
 		o.log.Error("the domain fence cannot start: domain_ip scans are refused", "error", err.Error())
 		return
 	}
 	o.fence = f
-	if o.cfg.SensorUID > 0 && o.d.FenceKey == nil {
-		if err := o.fenceScanCopy(key); err != nil {
+	if scan {
+		if err := o.fenceScanCopy(fenceKeyName, key); err != nil {
 			o.log.Error("the scan container's copy of the domain fence key could not be written: its domain_ip jobs are refused", "error", err.Error())
+		}
+		if err := o.fenceScanCopy(fenceScanList, domainfence.ListText(list)); err != nil {
+			o.log.Error("the scan container's copy of the domain fence list could not be written: its domain_ip jobs are refused", "error", err.Error())
 		}
 	}
 }
@@ -84,29 +119,106 @@ func (o *Ops) fenceKey() ([]byte, error) {
 	return key, err
 }
 
-// fenceScanCopy writes the key for the scan container: fenceScanDir (0500) and its fence.key (0400), both owned by the sensor user,
-// rewritten only when the bytes differ.
-func (o *Ops) fenceScanCopy(key []byte) error {
+// loadFenceList reads <state>/fence-domains (missing: an empty list).
+func (o *Ops) loadFenceList() (map[string]bool, error) {
+	p := o.stateFile(fenceListName)
+	fi, err := os.Lstat(p)
+	if errors.Is(err, fs.ErrNotExist) {
+		return map[string]bool{}, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	if !fi.Mode().IsRegular() {
+		return nil, errors.New("ops: the domain fence list is not a regular file")
+	}
+	b, err := os.ReadFile(p) //nolint:gosec // the host's own state file, Lstat-ed as a regular file above
+	if err != nil {
+		return nil, err
+	}
+	return domainfence.ParseList(b)
+}
+
+func (o *Ops) fenceListed(domain string) bool {
+	o.fenceMu.Lock()
+	defer o.fenceMu.Unlock()
+	return o.fenceList[domain]
+}
+
+// fenceScanDir makes fenceScanDir, owned by the sensor user, with mode (0700 while the host writes the copies, then 0500).
+func (o *Ops) fenceScanDir(mode os.FileMode) error {
 	dir := o.path(fenceScanDir)
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return err
 	}
-	p := filepath.Join(dir, fenceKeyName)
-	if have, err := domainfence.LoadKey(p); err != nil || string(have) != string(key) {
-		if err := writeFileAtomic(p, key, 0o400); err != nil {
+	fi, err := os.Lstat(dir)
+	if err != nil {
+		return err
+	}
+	if !fi.IsDir() {
+		return errors.New("ops: " + dir + " is not a directory")
+	}
+	if err := os.Lchown(dir, o.cfg.SensorUID, o.cfg.SensorGID); err != nil {
+		return err
+	}
+	return os.Chmod(dir, mode)
+}
+
+// fenceScanCopy writes one file for the scan container in fenceScanDir: 0400, owned by the sensor user, rewritten only when the
+// bytes differ (root writes through the directory's 0500).
+func (o *Ops) fenceScanCopy(name string, data []byte) error {
+	p := filepath.Join(o.path(fenceScanDir), name)
+	if have, err := os.ReadFile(p); err != nil || string(have) != string(data) { //nolint:gosec // a fixed path under fenceScanDir
+		if err := writeFileAtomic(p, data, 0o400); err != nil {
 			return err
 		}
 	}
-	for _, x := range []struct {
-		path string
-		mode os.FileMode
-	}{{p, 0o400}, {dir, 0o500}} {
-		if err := os.Lchown(x.path, o.cfg.SensorUID, o.cfg.SensorGID); err != nil {
-			return err
+	if err := os.Lchown(p, o.cfg.SensorUID, o.cfg.SensorGID); err != nil {
+		return err
+	}
+	return os.Chmod(p, 0o400)
+}
+
+// issueToken is exposure.token's work: a domain already on the list gets its token; a new one is added (at most fenceMaxDomains),
+// written to the state file and the scan container's copy, and audited, before its token is given.
+func (o *Ops) issueToken(domain string) (string, error) {
+	o.fenceMu.Lock()
+	defer o.fenceMu.Unlock()
+	if o.fenceList[domain] {
+		return o.fence.Token(domain), nil
+	}
+	if len(o.fenceList) >= fenceMaxDomains {
+		return "", refuse409(api.CodeFenceDomainsFull, "The host has already issued domain fence tokens for its limit of "+strconv.Itoa(fenceMaxDomains)+" domains, so "+domain+" gets none.")
+	}
+	next := maps.Clone(o.fenceList)
+	next[domain] = true
+	if err := writeFileAtomic(o.stateFile(fenceListName), domainfence.ListText(next), 0o600); err != nil {
+		return "", fail(api.CodeFenceUnavailable, "The host could not record the domain in its fence list.")
+	}
+	if err := o.noteErr(api.CmdExposureToken, auditDomainAdded, map[string]any{"domain": domain, "domains": len(next)}); err != nil {
+		_ = writeFileAtomic(o.stateFile(fenceListName), domainfence.ListText(o.fenceList), 0o600) // not audited: not added
+		return "", fail(api.CodeFenceUnavailable, "The host could not audit the new domain, so it issued no token.")
+	}
+	o.fenceList = next
+	if o.cfg.SensorUID > 0 && o.d.FenceKey == nil {
+		if err := o.fenceScanCopy(fenceScanList, domainfence.ListText(next)); err != nil {
+			o.log.Error("the scan container's copy of the domain fence list could not be written", "error", err.Error())
 		}
-		if err := os.Chmod(x.path, x.mode); err != nil {
-			return err
-		}
+	}
+	return o.fence.Token(domain), nil
+}
+
+// noteErr is note that says whether the audit line was written (no notifier, as in a test without a server, counts as written: nothing
+// is listening, as for note).
+func (o *Ops) noteErr(command, code string, detail map[string]any) error {
+	o.mu.Lock()
+	n, nw := o.notifier, o.noteOnly
+	o.mu.Unlock()
+	switch {
+	case n != nil:
+		return n.Note(command, code, detail)
+	case nw != nil:
+		return nw.Note(command, code, detail)
 	}
 	return nil
 }
@@ -116,7 +228,7 @@ func (o *Ops) fenceScanCopy(key []byte) error {
 func fenceRefusal(o domainfence.Outcome, what string) error {
 	switch o.Reason {
 	case domainfence.TokenForeign:
-		return refuse412(api.CodeTokenForeign, "The token is not this box's token for the domain (it was made before the box's domain fence, or by another box), so "+what+" was not started. Verify the domain again and add the TXT value it shows.")
+		return refuse412(api.CodeTokenForeign, "The token is not one this box's host issued for the domain (made before the box's domain fence, by another box, or for a domain not on the host's list), so "+what+" was not started.")
 	case domainfence.NotOwned:
 		return refuse412(api.CodeTargetNotOwned, "The domain no longer has its vedette-verify TXT record with this box's token, so "+what+" was not started.")
 	case domainfence.NameMoved:
@@ -154,7 +266,11 @@ func (o *Ops) exposureToken(a api.ExposureTokenArgs) (any, error) {
 	if o.fence == nil {
 		return nil, fail(api.CodeFenceUnavailable, "The host has no usable domain fence key; its log says why.")
 	}
-	return api.ExposureTokenResult{Token: o.fence.Token(a.Domain)}, nil
+	tok, err := o.issueToken(a.Domain)
+	if err != nil {
+		return nil, err
+	}
+	return api.ExposureTokenResult{Token: tok}, nil
 }
 
 // fenceJob validates exposure.fence_check's args at the edge.
@@ -191,7 +307,7 @@ func (o *Ops) fenceCheck(ctx context.Context, logf func(string), a api.ExposureF
 	if o.fence == nil {
 		return nil, fail(api.CodeFenceUnavailable, "The host has no usable domain fence key; its log says why.")
 	}
-	res := o.fence.Check(ctx, j, true)
+	res := o.fence.Check(ctx, j, !a.Recheck) // review r1 M2: a re-check while the task runs always asks DNS again
 	logf("domain fence of " + j.Name + " (" + j.Domain + ") at " + j.IP.String() + ", CNAME chain " + res.ChainText() + ": " + orYes(res.Reason))
 	if res.Reason != "" {
 		return nil, fenceRefusal(res, "OpenVAS")

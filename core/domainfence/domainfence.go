@@ -137,16 +137,19 @@ type cacheEntry struct {
 
 // Fence checks domain_ip jobs. Create it with New.
 type Fence struct {
-	key []byte
-	r   Resolver
-	now func() time.Time
+	key    []byte
+	r      Resolver
+	now    func() time.Time
+	listed func(domain string) bool
 
 	mu    sync.Mutex
 	cache map[cacheKey]cacheEntry
 }
 
-// New builds a Fence over key (KeySize bytes) and r. now nil means time.Now.
-func New(key []byte, r Resolver, now func() time.Time) (*Fence, error) {
+// New builds a Fence over key (KeySize bytes) and r. listed says whether vedette-host has issued a token for a domain (its own list,
+// review r1 H1): a domain off the list is refused like a foreign token, and nil refuses every domain (fail closed). now nil means
+// time.Now.
+func New(key []byte, r Resolver, listed func(domain string) bool, now func() time.Time) (*Fence, error) {
 	if len(key) != KeySize {
 		return nil, fmt.Errorf("domainfence: the key must be %d bytes, got %d", KeySize, len(key))
 	}
@@ -156,7 +159,7 @@ func New(key []byte, r Resolver, now func() time.Time) (*Fence, error) {
 	if now == nil {
 		now = time.Now
 	}
-	return &Fence{key: slices.Clone(key), r: r, now: now, cache: map[cacheKey]cacheEntry{}}, nil
+	return &Fence{key: slices.Clone(key), r: r, now: now, listed: listed, cache: map[cacheKey]cacheEntry{}}, nil
 }
 
 // Token is Token with the fence's key.
@@ -172,6 +175,9 @@ func (f *Fence) Check(ctx context.Context, j Job, cached bool) Outcome {
 	}
 	if !hmac.Equal([]byte(j.Token), []byte(f.Token(j.Domain))) {
 		return Outcome{Reason: TokenForeign, Detail: "the token is not this box's token for " + j.Domain}
+	}
+	if f.listed == nil || !f.listed(j.Domain) { // review r1 H1: only a domain vedette-host has issued a token for (capped, audited)
+		return Outcome{Reason: TokenForeign, Detail: "vedette-host has not issued a token for " + j.Domain}
 	}
 	k := cacheKey{j.Domain, j.Name, j.IP}
 	if cached {
@@ -282,6 +288,57 @@ func LoadKey(path string) ([]byte, error) {
 		return nil, fmt.Errorf("domainfence: the key %s is not %d bytes", path, KeySize)
 	}
 	return b, nil
+}
+
+// MaxListSize bounds the domain list file the executors read (MaxDomains lines of at most 253 bytes, with room).
+const MaxListSize = 64 << 10
+
+// ParseList reads a domain list: one domain of the grammar per line, nothing else. A line that is not one fails the whole list.
+func ParseList(b []byte) (map[string]bool, error) {
+	if len(b) > MaxListSize {
+		return nil, errors.New("domainfence: the domain list is too large")
+	}
+	out := map[string]bool{}
+	for _, l := range strings.Split(strings.TrimSuffix(string(b), "\n"), "\n") {
+		if l == "" && len(b) == 0 {
+			break
+		}
+		if !ValidDomain(l) {
+			return nil, fmt.Errorf("domainfence: the domain list holds %.60q, not a domain name", l)
+		}
+		out[l] = true
+	}
+	return out, nil
+}
+
+// ListText is the file form of a domain list: sorted, one per line.
+func ListText(domains map[string]bool) []byte {
+	l := make([]string, 0, len(domains))
+	for d := range domains {
+		l = append(l, d)
+	}
+	slices.Sort(l)
+	if len(l) == 0 {
+		return nil
+	}
+	return []byte(strings.Join(l, "\n") + "\n")
+}
+
+// FileList is a listed func over a list file (the scan container's read-only copy): the file is read again at every check, so a
+// domain the host adds counts at once; a file that is missing, not a regular file or not a list lists nothing (fail closed).
+func FileList(path string) func(domain string) bool {
+	return func(domain string) bool {
+		fi, err := os.Lstat(path)
+		if err != nil || !fi.Mode().IsRegular() || fi.Size() > MaxListSize {
+			return false
+		}
+		b, err := os.ReadFile(path) //nolint:gosec // the process's own configured path, Lstat-ed as a regular file above
+		if err != nil {
+			return false
+		}
+		l, err := ParseList(b)
+		return err == nil && l[domain]
+	}
 }
 
 // NewKey is KeySize random bytes.

@@ -335,6 +335,10 @@ func newZapWorld(t *testing.T, d Deps) *zapWorld {
 	}
 	if d.FenceKey == nil {
 		d.FenceKey = zapTestKey
+		// the host issued example.com's token (review r1 H1: the fence takes only a listed domain)
+		if err := os.WriteFile(filepath.Join(state, fenceListName), []byte("example.com\n"), 0o600); err != nil {
+			t.Fatal(err)
+		}
 	}
 	if d.FenceCNAME == nil { // no CNAME: the name is its own canonical name
 		d.FenceCNAME = func(_ context.Context, name string) (string, error) { return name + ".", nil }

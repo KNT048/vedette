@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/netip"
 	"net/url"
 	"os"
@@ -471,7 +472,7 @@ func (o *Ops) zapBaseline(ctx context.Context, logf func(string), p zapPage) (an
 	if ref := o.zapImageReady(ctx); ref != nil {
 		return nil, ref
 	}
-	if err := o.zapOwned(ctx, p); err != nil {
+	if err := o.zapOwned(ctx, logf, p); err != nil {
 		return nil, err
 	}
 	if err := o.zapClearStale(ctx); err != nil {
@@ -595,7 +596,7 @@ func (o *Ops) zapPull() {
 }
 
 // zapOwned is the host's own re-check of ownership, right before the run.
-func (o *Ops) zapOwned(ctx context.Context, p zapPage) error {
+func (o *Ops) zapOwned(ctx context.Context, logf func(string), p zapPage) error {
 	cctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 	if p.kind == api.ZapKindIP {
@@ -608,19 +609,20 @@ func (o *Ops) zapOwned(ctx context.Context, p zapPage) error {
 		}
 		return nil
 	}
-	// The domain fence (D-591, plan 2026-11-14 §5): the token must be this box's for the domain (core's word for it is not taken: a TXT
-	// value is public), the domain's TXT record must carry it, and the page's name must resolve to the address ZAP is pinned to now (a
-	// moved record or a CDN's rotating subset stops this page only: zap_name_moved). DNS failing is ownership_unchecked.
-	if o.fence == nil {
-		return fail(api.CodeFenceUnavailable, "The host has no usable domain fence key, so the pages of "+p.domain+" were not scanned; its log says why.")
+	// D-591: a page of a domain whose token is the box-bound one (a domain added since the fence) goes through the domain fence: the
+	// host's list, the TXT record, the name's address. A domain verified before it keeps its own token for this passive scan, exactly as
+	// before D-591 (review r1 H2: the plan keeps today's scope on the old token; only the new domain_ip jobs need the box-bound one).
+	if o.fence == nil || p.token != o.fence.Token(p.domain) {
+		logf("legacy_token: " + p.domain + "'s token is not the box-bound one; checked as before D-591 (TXT record and the name's address)")
+		return o.zapOwnedLegacy(cctx, p)
 	}
 	res := o.fence.Check(cctx, domainfence.Job{Domain: p.domain, Name: p.host, IP: p.ip, Token: p.token}, true)
-	o.log.InfoContext(ctx, "zap.baseline: domain fence", "domain", p.domain, "name", p.host, "ip", p.ip.String(), "cname_chain", res.ChainText(), "reason", orYes(res.Reason))
+	logf("domain fence of " + p.host + " (" + p.domain + ") at " + p.ip.String() + ", CNAME chain " + res.ChainText() + ": " + orYes(res.Reason))
 	switch res.Reason {
 	case "":
 		return nil
-	case domainfence.TokenForeign, domainfence.InvalidJob: // zapArgs checked everything else: only the token can fail the grammar
-		return refuse412(api.CodeTokenForeign, "The token of "+p.domain+" is not this box's (it was made before the box's domain fence), so its pages were not scanned. Verify the domain again and add the TXT value it shows.")
+	case domainfence.TokenForeign, domainfence.InvalidJob:
+		return refuse412(api.CodeTokenForeign, "The host has not issued the token of "+p.domain+", so its pages were not scanned.")
 	case domainfence.NotOwned:
 		return refuse412(api.CodeTargetNotOwned, p.domain+" no longer has its vedette-verify TXT record, so its pages were not scanned.")
 	case domainfence.NameMoved:
@@ -629,6 +631,34 @@ func (o *Ops) zapOwned(ctx context.Context, p zapPage) error {
 		return fail(api.CodeOwnershipUnchecked, "A DNS lookup of "+p.domain+" or "+p.host+" failed, so the host could not check them and nothing was sent.")
 	}
 	return refuse412(api.CodeTargetNotOwned, "The domain fence refused "+p.host+" ("+res.Reason+"), so this page was not scanned.")
+}
+
+// zapOwnedLegacy is the check of a domain page before D-591, unchanged: the domain still has its TXT record vedette-verify=<token>
+// AND the page's name resolves (A records, system resolver) to the IP ZAP is pinned to. Core's word for the address is not enough
+// (review M1): a name that now answers with other addresses stops this page only (zap_name_moved).
+func (o *Ops) zapOwnedLegacy(ctx context.Context, p zapPage) error {
+	vals, err := o.zapTXT(ctx, p.domain)
+	if err != nil && !dnsNotFound(err) {
+		return fail(api.CodeOwnershipUnchecked, "The DNS lookup of "+p.domain+" failed, so its TXT record could not be checked and nothing was sent.")
+	}
+	if !slices.ContainsFunc(vals, func(v string) bool { return strings.TrimSpace(v) == "vedette-verify="+p.token }) { // exposure's txtRecord
+		return refuse412(api.CodeTargetNotOwned, p.domain+" no longer has its vedette-verify TXT record, so its pages were not scanned.")
+	}
+	addrs, err := o.zapLookupIP(ctx, p.host)
+	if err != nil && !dnsNotFound(err) {
+		return fail(api.CodeOwnershipUnchecked, "The DNS lookup of "+p.host+" failed, so the host could not check that it points at "+p.ip.String()+", and nothing was sent.")
+	}
+	if !slices.ContainsFunc(addrs, func(a netip.Addr) bool { return a.Unmap() == p.ip }) {
+		return refuse412(api.CodeZapNameMoved, p.host+" no longer points at "+p.ip.String()+", so this page was not scanned.")
+	}
+	return nil
+}
+
+// dnsNotFound is the resolver's "no such name / no such record": an answer, not a failure.
+func dnsNotFound(err error) bool {
+	var de *net.DNSError
+	var nf interface{ NotFound() bool }
+	return errors.As(err, &de) && de.IsNotFound || errors.As(err, &nf) && nf.NotFound()
 }
 
 func (o *Ops) zapLookupIP(ctx context.Context, name string) ([]netip.Addr, error) {

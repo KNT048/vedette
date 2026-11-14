@@ -97,7 +97,7 @@ func job() Job {
 
 func newFence(t *testing.T, r Resolver, now func() time.Time) *Fence {
 	t.Helper()
-	f, err := New(key1, r, now)
+	f, err := New(key1, r, func(d string) bool { return d == "acme.example" }, now)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -127,6 +127,11 @@ func TestCheckRefusals(t *testing.T) {
 		{"another box's token", func(j *Job, d *fakeDNS) {
 			j.Token = Token(key2, "acme.example")
 			d.txt["acme.example"] = []string{"vedette-verify=" + j.Token} // the domain really carries it: still not this box's
+		}, TokenForeign},
+		{"a domain the host never issued a token for", func(j *Job, d *fakeDNS) {
+			j.Domain, j.Name, j.Token = "other.example", "www.other.example", Token(key1, "other.example")
+			d.txt["other.example"] = []string{"vedette-verify=" + j.Token}
+			d.a["www.other.example"] = []netip.Addr{ip}
 		}, TokenForeign},
 		{"TXT gone", func(_ *Job, d *fakeDNS) { delete(d.txt, "acme.example") }, NotOwned},
 		{"TXT holds another value", func(_ *Job, d *fakeDNS) { d.txt["acme.example"] = []string{"vedette-verify=0000"} }, NotOwned},
@@ -237,7 +242,7 @@ func TestLoadKey(t *testing.T) {
 	if _, err := LoadKey(short); err == nil {
 		t.Fatal("a short key was accepted")
 	}
-	if _, err := New([]byte("abc"), world(), nil); err == nil {
+	if _, err := New([]byte("abc"), world(), nil, nil); err == nil {
 		t.Fatal("New accepted a short key")
 	}
 	if _, err := LoadKey(filepath.Join(dir, "missing")); !errors.Is(err, errNotExist()) {
@@ -272,3 +277,29 @@ func TestIsALeaf(t *testing.T) {
 func writeFile(p string, b []byte) error { return os.WriteFile(p, b, 0o600) }
 
 func errNotExist() error { return fs.ErrNotExist }
+
+func TestDomainList(t *testing.T) {
+	t.Parallel()
+	l, err := ParseList(ListText(map[string]bool{"b.example": true, "a.example": true}))
+	if err != nil || len(l) != 2 || !l["a.example"] {
+		t.Fatalf("%v %v", l, err)
+	}
+	if l, err := ParseList(nil); err != nil || len(l) != 0 {
+		t.Fatalf("empty: %v %v", l, err)
+	}
+	if _, err := ParseList([]byte("a.example\nrm -rf /\n")); err == nil {
+		t.Fatal("a line that is not a domain was accepted")
+	}
+	p := filepath.Join(t.TempDir(), "domains")
+	listed := FileList(p)
+	if listed("a.example") {
+		t.Fatal("a missing list listed a domain")
+	}
+	_ = writeFile(p, []byte("a.example\n"))
+	if !listed("a.example") || listed("b.example") {
+		t.Fatal("the file list does not say what the file holds")
+	}
+	if f, _ := New(key1, world(), nil, nil); f.Check(t.Context(), job(), false).Reason != TokenForeign {
+		t.Fatal("a fence without a list let a domain through")
+	}
+}

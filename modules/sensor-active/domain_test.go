@@ -42,7 +42,7 @@ func domainEnv(t *testing.T, txt string) *env {
 	e := newEnv(t, fakeOpts{always: fx})
 	d := sa.NewDispatcher(sa.DispatcherOptions{Tick: 20 * time.Millisecond})
 	link := linktest.New(t, activeBackend{d})
-	fence, err := domainfence.New(testFenceKey, zoneDNS{txt: txt}, nil)
+	fence, err := domainfence.New(testFenceKey, zoneDNS{txt: txt}, func(d string) bool { return d == "acme.example" }, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -139,5 +139,32 @@ func TestDomainJobsNeedAWorkerWithTheKey(t *testing.T) {
 	}
 	if rep, _ := d.Jobs(t.Context(), 10*time.Millisecond, nil); len(rep.Jobs) != 0 {
 		t.Fatalf("a job went out: %+v", rep.Jobs)
+	}
+}
+
+// Review r1 H3: a 253-character name with a long CDN CNAME never fails the probe row's insert or update and never leaves it
+// "started": the result is kept whole, the note keeps the domain and the end of the final name.
+func TestDomainProbeRowFitsWithALongNameAndCNAME(t *testing.T) {
+	t.Parallel()
+	name := "acme.example"
+	for len(name) < 253 {
+		l := min(63, 253-len(name)-1)
+		if l < 1 {
+			break
+		}
+		name = strings.Repeat("n", l) + "." + name
+	}
+	cname := strings.Repeat("e", 60) + "." + strings.Repeat("d", 60) + ".edgekey-staging.example.net"
+	if len(name) != 253 {
+		t.Fatalf("name of %d characters", len(name))
+	}
+	e := domainEnv(t, "vedette-verify="+domainfence.Token(testFenceKey, "acme.example"))
+	run := sa.DomainIP{Scope: sensorlink.DomainScope{Domain: "acme.example", Name: name, Token: domainfence.Token(testFenceKey, "acme.example")}, Chain: name + " -> " + cname}
+	if _, err := e.svc.ScanDomainIP(e.ctx(), boxIP, nmapargv.ExternalFull, run, &deepFence{now: nmapargv.ExternalFull}); err != nil {
+		t.Fatal(err)
+	}
+	s := e.str(`SELECT result FROM sa_probe`)
+	if !strings.HasSuffix(s, ": ok: 3 open ports, 5 script results") || !strings.HasPrefix(s, "domain_ip acme.example -> ") || !strings.Contains(s, "edgekey-staging.example.net") || len([]rune(s)) > 200 {
+		t.Fatalf("probe row (%d) = %s", len([]rune(s)), s)
 	}
 }

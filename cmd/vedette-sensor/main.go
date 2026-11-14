@@ -147,7 +147,8 @@ func loadFence(path string, logger *slog.Logger) *domainfence.Fence {
 		}
 		return nil
 	}
-	f, err := domainfence.New(key, net.DefaultResolver, nil)
+	// review r1 H1: the host's list of the domains it issued a token for, a read-only copy next to the key, read at every check
+	f, err := domainfence.New(key, net.DefaultResolver, domainfence.FileList(filepath.Join(filepath.Dir(path), "domains")), nil)
 	if err != nil {
 		logger.Error("the domain fence cannot start: this worker runs no domain_ip job", "error", err.Error())
 		return nil

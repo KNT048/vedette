@@ -22,6 +22,8 @@ const (
 	CodeNameMoved = "name_moved"
 	// CodeCNAMEOutside: a disruptive scan of a name whose CNAME leaves the domain.
 	CodeCNAMEOutside = "cname_outside"
+	// CodeFenceDomainsFull: exposure.token for a new domain while the host's list holds its cap of domains (review r1 H1).
+	CodeFenceDomainsFull = "fence_domains_full"
 	// CodeFenceUnavailable: the host has no usable fence key (it could not make or read <state>/fence.key).
 	CodeFenceUnavailable = "fence_unavailable"
 )
@@ -43,6 +45,8 @@ type ExposureFenceCheckArgs struct {
 	IP         string `json:"ip"`
 	Token      string `json:"token"`
 	Disruptive bool   `json:"disruptive,omitempty"`
+	// Recheck: the check of a task that runs (every 3 minutes): the host asks DNS again instead of answering from its 5-minute cache.
+	Recheck bool `json:"recheck,omitempty"`
 }
 
 // ExposureFenceCheckResult is the result of a check that said yes: the CNAME chain of the name ("a -> b"), for the probe log.

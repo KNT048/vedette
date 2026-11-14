@@ -23,8 +23,6 @@ import (
 type exposureWebScan struct {
 	host  zapHost                                                    // nil: no vedette-host on this install
 	token func(ctx context.Context, targetID string) (string, error) // the TXT token of a domain target
-	// fence is the domain's box-bound token (exposure.token, D-591): the host's own fence takes no other token for kind domain.
-	fence func(ctx context.Context, domain string) (string, error)
 }
 
 // zapHost is what the scan needs of the host client (*hostclient.Client).
@@ -47,8 +45,6 @@ const (
 	webFence      = "the box could not set up the network fence that keeps ZAP to this one address and port, so ZAP was not started. The box log has the reason."
 	webOldHost    = "the box's host helper (vedette-host) is older than this version of Vedette. Update the box, then scan again."
 	// D-591: the domain fence of the host takes only the token bound to this box.
-	webNoToken  = "the Vedette host did not give this domain's fence token (it may be older than this version of Vedette, or its fence key is not usable), so nothing was sent. Update the box; its log says why." //nolint:gosec // a sentence for the page, not a credential
-	webNewTXT   = "%s was verified before this box's domain fence: its pages are scanned once the domain also has the TXT record vedette-verify=%s (add it and keep the current one), so nothing was sent."
 	webForeign  = "the Vedette host did not recognise this box's token for the domain, so nothing was sent. Update the box."
 	webNoFenceK = "the Vedette host has no usable domain fence key, so nothing was sent. Its log says why."
 )
@@ -60,7 +56,6 @@ func (w exposureWebScan) Baseline(ctx context.Context, t exposure.ScanTarget, pa
 		return exposure.WebScan{}, &exposure.Unavailable{Reason: webNoHost}
 	}
 	args := api.ZapBaselineArgs{URL: page.URL, Host: page.Host, IP: page.IP.String(), Port: page.Port}
-	oldToken := false // the domain's stored TXT value is not the box-bound one (verified before D-591)
 	switch t.Kind {
 	case exposure.KindIP:
 		args.Kind = api.ZapKindIP
@@ -68,19 +63,6 @@ func (w exposureWebScan) Baseline(ctx context.Context, t exposure.ScanTarget, pa
 		tok, err := w.token(ctx, t.ID)
 		if err != nil {
 			return exposure.WebScan{}, fmt.Errorf("exposure web scan: reading the token of %s: %w", t.Value, err)
-		}
-		if w.fence != nil { // D-591: the box-bound token, which the host derives from its own key
-			box, err := w.fence(ctx, t.Value)
-			if err != nil {
-				if ctx.Err() != nil {
-					return exposure.WebScan{}, ctx.Err()
-				}
-				return exposure.WebScan{}, &exposure.Unavailable{Reason: webNoToken}
-			}
-			if box != tok {
-				oldToken = true
-			}
-			tok = box
 		}
 		args.Kind, args.Domain, args.TXTToken = api.ZapKindDomain, t.Value, tok
 	default:
@@ -112,9 +94,6 @@ func (w exposureWebScan) Baseline(ctx context.Context, t exposure.ScanTarget, pa
 		}
 		if code == api.CodeZapNameMoved { // this page only: exposure goes on with the next page
 			return exposure.WebScan{}, &exposure.PageSkipped{Reason: fmt.Sprintf(webNameMoved, page.Host, page.IP)}
-		}
-		if code == api.CodeTargetNotOwned && oldToken { // D-591: verified before the fence: say which TXT value the box needs now
-			return exposure.WebScan{}, &exposure.Unavailable{Reason: fmt.Sprintf(webNewTXT, t.Value, args.TXTToken)}
 		}
 		if why := webReason(code, t, page); why != "" {
 			return exposure.WebScan{}, &exposure.Unavailable{Reason: why}
@@ -180,7 +159,6 @@ func exposureWebFor(d deps) exposureWebScan {
 	if d.HostSocket != "" {
 		c := hostclient.New(d.HostSocket)
 		w.host = c
-		w.fence = hostDomainFence{host: c}.Token
 	}
 	return w
 }

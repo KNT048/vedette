@@ -67,7 +67,7 @@ func (z *fakeZone) set(f func(*fakeZone)) { z.mu.Lock(); f(z); z.mu.Unlock() }
 
 func withFence(t *testing.T, z *fakeZone) func(*worker.Config) {
 	t.Helper()
-	f, err := domainfence.New(fenceKey, z, nil)
+	f, err := domainfence.New(fenceKey, z, func(d string) bool { return d == "acme.example" }, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -208,6 +208,26 @@ func TestDomainNucleiJobIsFullOnly(t *testing.T) {
 	j.Nuclei.Scope, j.Nuclei.Domain = sensorlink.ScopeDomainIP, domainScope(fenceKey)
 	r.core.push(j)
 	if got := r.core.next(t); got.res.Status != "refused" || got.res.Reason != "invalid_job" || r.nu.Argv() != "" {
+		t.Fatalf("result = %+v", got.res)
+	}
+}
+
+// Review r1 L6: a domain_ip nuclei job is re-checked while it runs like a deep nmap: the TXT record removed meanwhile stops it at the
+// next re-check and its output is dropped.
+func TestDomainNucleiJobStopsWhenTheTXTGoesMidRun(t *testing.T) {
+	t.Parallel()
+	z := newZone()
+	ticks := make(chan time.Time)
+	r := startNuclei(t, sleeper, withFence(t, z), func(c *worker.Config) { c.EgressTicks = ticks })
+	editIndex(t, r.pack.Index, func(m map[string]any) { m["sets"] = []string{"deep"}; delete(m, "own_ip"); delete(m, "cve") })
+	j := r.fullJob(false)
+	j.Nuclei.Targets[0].Host = domainAddr
+	j.Nuclei.Scope, j.Nuclei.Domain = sensorlink.ScopeDomainIP, domainScope(fenceKey)
+	r.core.push(j)
+	waitFor(t, "nuclei to start", func() bool { return r.nu.Argv() != "" })
+	z.set(func(z *fakeZone) { z.txt = nil })
+	ticks <- time.Time{}
+	if got := r.core.next(t); got.res.Status != "stopped" || got.res.Reason != domainfence.NotOwned || got.res.JSONLB64 != "" {
 		t.Fatalf("result = %+v", got.res)
 	}
 }

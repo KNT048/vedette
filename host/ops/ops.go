@@ -242,6 +242,9 @@ type Ops struct {
 	gbExec       zapExecFn
 	// fence is the domain fence over the box's fence key (fence.go, D-591); nil when the key is not usable.
 	fence *domainfence.Fence
+	// fenceMu guards fenceList, the domains the host issued a fence token for (review r1 H1).
+	fenceMu   sync.Mutex
+	fenceList map[string]bool
 	// gbOnQueue, internal tests only, is called by an up or feed update once it has its generation, before it waits for the slot.
 	gbOnQueue func()
 }

@@ -16,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/knt048/vedette/core/domainfence"
 	"github.com/knt048/vedette/core/exec"
 	"github.com/knt048/vedette/core/sensorlink"
 	"github.com/knt048/vedette/modules/scan/nucleiargv"
@@ -285,12 +286,46 @@ func (w *Worker) executeNuclei(ctx, jctx context.Context, cur *activeJob) *senso
 		w.log.WarnContext(ctx, "sensor_active_exec_failed", "id", cur.job.ID, "error", err)
 		return &sensorlink.JobResult{Status: "failed", Reason: "exec_failed", ExitCode: -1}
 	}
+	if cur.job.Nuclei.Scope == sensorlink.ScopeDomainIP { // review r1 L6: re-checked like a deep nmap while it runs
+		lost, res := w.runWatched(ctx, jctx, rctx, cur, argv)
+		if lost != "" {
+			return &sensorlink.JobResult{Status: "stopped", Reason: lost, ExitCode: -1} // nuclei had run: its output is dropped
+		}
+		return res
+	}
 	out, err := w.runner.Run(rctx, nucleiBin, argv, nil)
 	res = w.finish(ctx, jctx, rctx, cur, out, err, "nuclei_missing", (*sensorlink.JobResult).SetJSONL)
 	if res.Status == "done" {
 		res.HostErrors = hostErrors(out.Stderr, cur.job.Nuclei)
 	}
 	return res
+}
+
+// runWatched runs a domain_ip nuclei job while the domain fence is asked again every domainfence.Recheck (the ticks of EgressTicks in
+// tests): the first answer that is not a yes kills nuclei and its output is dropped (lost is the fence's reason); otherwise res is the
+// job's result as for any nuclei job.
+func (w *Worker) runWatched(ctx, jctx, rctx context.Context, cur *activeJob, argv []string) (lost string, res *sensorlink.JobResult) {
+	ticks := w.egressTicks
+	if ticks == nil {
+		tk := time.NewTicker(domainfence.Recheck)
+		defer tk.Stop()
+		ticks = tk.C
+	}
+	nctx, kill := context.WithCancel(rctx)
+	defer kill()
+	ch := make(chan string, 1)
+	dj := w.domainJob(cur.job)
+	go func() { ch <- w.watchDomain(nctx, dj, ticks, kill) }()
+	out, err := w.runner.Run(nctx, nucleiBin, argv, nil)
+	kill()
+	if reason := <-ch; reason != "" && context.Cause(jctx) == nil {
+		return reason, nil
+	}
+	res = w.finish(ctx, jctx, rctx, cur, out, err, "nuclei_missing", (*sensorlink.JobResult).SetJSONL)
+	if res.Status == "done" {
+		res.HostErrors = hostErrors(out.Stderr, cur.job.Nuclei)
+	}
+	return "", res
 }
 
 // hostErrors is what the result says about targets that stopped answering (INV-6, D-165): the timeouts per target that

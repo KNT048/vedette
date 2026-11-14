@@ -220,7 +220,8 @@ func (a exposureTemplateScan) send(ctx context.Context, actor string, ip netip.A
 	if r.full { // FULL-4 (D-527)
 		rate, depth, what = nucleiargv.FullRate, nucleiargv.DepthFull, "own IP, deep scan, testing terms accepted"
 		if r.domain != nil {
-			what = "domain_ip " + r.domain.Domain + ", name " + r.domain.Name + " (CNAME chain " + chainText(r.domain) + "), deep scan, testing terms accepted"
+			// review r1 L4: short, so the template's own request (the probe itself) is not what scan_probe.request's 300 cut off
+			what = "domain_ip " + r.domain.Domain + " via " + finalName(r.domain) + ", deep scan, testing terms accepted"
 		}
 		if r.disruptive {
 			what += ", disruptive checks"

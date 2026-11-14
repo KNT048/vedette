@@ -7,7 +7,9 @@ import (
 	"net/netip"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/knt048/vedette/core/domainfence"
@@ -44,18 +46,121 @@ func TestFenceKeyIsMadeOnceAndKept(t *testing.T) {
 	}
 }
 
-func TestExposureTokenGivesTheBoxBoundToken(t *testing.T) {
+// noteRec records the host's audit notes (the bootstrap's AuditTo seam); fail makes every note fail.
+type noteRec struct {
+	codes []string
+	fail  bool
+}
+
+func (n *noteRec) Note(_, code string, detail map[string]any) error {
+	if n.fail {
+		return errors.New("disk full")
+	}
+	n.codes = append(n.codes, code+" "+detail["domain"].(string)) //nolint:forcetypeassert // the fence's own detail
+	return nil
+}
+
+// Review r1 H1: the host issues a token only for a domain on its own list: a new domain is added (state file 0600, audited), the same
+// domain again gets the same token without a second line, the cap refuses the next new one, and an audit that cannot be written adds
+// nothing.
+func TestExposureTokenIsListedCappedAndAudited(t *testing.T) {
 	t.Parallel()
 	w := newZapWorld(t, Deps{})
+	rec := &noteRec{}
+	w.o.noteOnly = rec
 	if _, err := w.o.exposureToken(api.ExposureTokenArgs{Domain: "Acme.example;reboot"}); err == nil {
 		t.Fatal("a bad domain was accepted")
 	}
 	got, err := w.o.exposureToken(api.ExposureTokenArgs{Domain: "example.com"})
-	if err != nil {
+	if res, ok := got.(api.ExposureTokenResult); err != nil || !ok || res.Token != zapTestTok || len(rec.codes) != 0 {
+		t.Fatalf("a listed domain: %+v %v, notes %q", got, err, rec.codes)
+	}
+	for i := range fenceMaxDomains - 1 {
+		d := "d" + strings.Repeat("x", i) + ".example"
+		got, err := w.o.exposureToken(api.ExposureTokenArgs{Domain: d})
+		if res, ok := got.(api.ExposureTokenResult); err != nil || !ok || res.Token != domainfence.Token(zapTestKey, d) {
+			t.Fatalf("%s: %+v %v", d, got, err)
+		}
+	}
+	again, _ := w.o.exposureToken(api.ExposureTokenArgs{Domain: "dx.example"})
+	if again.(api.ExposureTokenResult).Token != domainfence.Token(zapTestKey, "dx.example") || len(rec.codes) != fenceMaxDomains-1 { //nolint:forcetypeassert // checked by the loop
+		t.Fatalf("a domain asked again: %+v, notes %d", again, len(rec.codes))
+	}
+	if rec.codes[0] != auditDomainAdded+" d.example" {
+		t.Fatalf("notes %q", rec.codes)
+	}
+	if _, err := w.o.exposureToken(api.ExposureTokenArgs{Domain: "one-too-many.example"}); fenceCode(err) != api.CodeFenceDomainsFull {
+		t.Fatalf("over the cap: %v", err)
+	}
+	fi, err := os.Lstat(filepath.Join(w.state, fenceListName))
+	l, _ := w.o.loadFenceList()
+	if err != nil || fi.Mode().Perm() != 0o600 || len(l) != fenceMaxDomains || l["one-too-many.example"] {
+		t.Fatalf("list file %v %v, %d domains", fi, err, len(l))
+	}
+	w2 := newZapWorld(t, Deps{})
+	w2.o.noteOnly = &noteRec{fail: true}
+	if _, err := w2.o.exposureToken(api.ExposureTokenArgs{Domain: "new.example"}); err == nil || w2.o.fenceListed("new.example") {
+		t.Fatalf("an unaudited domain was added: %v", err)
+	}
+}
+
+// Review r1 H1: a domain the host never issued a token for is refused by the fence even when its DNS carries this box's token.
+func TestFenceRefusesADomainOffTheList(t *testing.T) {
+	t.Parallel()
+	tok := domainfence.Token(zapTestKey, "attacker.example")
+	w := newZapWorld(t, Deps{ZapTXT: func(context.Context, string) ([]string, error) { return []string{"vedette-verify=" + tok}, nil }})
+	_, err := w.o.fenceCheck(t.Context(), nolog, api.ExposureFenceCheckArgs{Domain: "attacker.example", Name: "www.attacker.example", IP: zapTestIP, Token: tok})
+	if fenceCode(err) != api.CodeTokenForeign {
+		t.Fatalf("%v", err)
+	}
+}
+
+// Review r1 M2: the re-check of a running task asks DNS again: the TXT record removed after a yes is seen at once, while the check
+// before the task may answer from the 5-minute cache.
+func TestFenceRecheckNeverUsesTheCache(t *testing.T) {
+	t.Parallel()
+	var mu sync.Mutex
+	txt := []string{"vedette-verify=" + zapTestTok}
+	w := newZapWorld(t, Deps{ZapTXT: func(context.Context, string) ([]string, error) { mu.Lock(); defer mu.Unlock(); return txt, nil }})
+	a := api.ExposureFenceCheckArgs{Domain: "example.com", Name: "www.example.com", IP: zapTestIP, Token: zapTestTok}
+	if _, err := w.o.fenceCheck(t.Context(), nolog, a); err != nil {
 		t.Fatal(err)
 	}
-	if res, ok := got.(api.ExposureTokenResult); !ok || res.Token != zapTestTok {
-		t.Fatalf("token %+v, want %s", got, zapTestTok)
+	mu.Lock()
+	txt = nil
+	mu.Unlock()
+	if _, err := w.o.fenceCheck(t.Context(), nolog, a); err != nil {
+		t.Fatalf("the start check within 5 minutes: %v (the cache answers it)", err)
+	}
+	a.Recheck = true
+	if _, err := w.o.fenceCheck(t.Context(), nolog, a); fenceCode(err) != api.CodeTargetNotOwned {
+		t.Fatalf("the re-check: %v", err)
+	}
+}
+
+// Review r1 H2: zap.baseline of a domain verified before D-591 (its own random token, not the box-bound one) runs exactly as before:
+// the TXT record carries that token and the name points at the address; without the record it is refused as before.
+func TestZapBaselineKeepsAnOldDomainsToken(t *testing.T) {
+	t.Parallel()
+	const old = "00112233aabbccdd"
+	var mu sync.Mutex
+	txt := []string{"vedette-verify=" + old}
+	w := newZapWorld(t, Deps{ZapTXT: func(context.Context, string) ([]string, error) { mu.Lock(); defer mu.Unlock(); return txt, nil }})
+	p := zapDomainPage(t)
+	p.token = old
+	var log []string
+	if _, err := w.o.zapBaseline(t.Context(), func(l string) { log = append(log, l) }, p); err != nil {
+		t.Fatalf("an old domain's passive scan: %v", err)
+	}
+	if !strings.HasPrefix(log[0], "legacy_token: ") {
+		t.Fatalf("run log %q", log)
+	}
+	mu.Lock()
+	txt = nil
+	mu.Unlock()
+	w2 := newZapWorld(t, Deps{ZapTXT: func(context.Context, string) ([]string, error) { return nil, nil }})
+	if _, err := w2.o.zapBaseline(t.Context(), nolog, p); fenceCode(err) != api.CodeTargetNotOwned {
+		t.Fatalf("an old domain without its record: %v", err)
 	}
 }
 
@@ -100,33 +205,97 @@ func TestExposureFenceCheck(t *testing.T) {
 	}
 }
 
-// zap.baseline of a domain's page checks the box-bound token: a page whose domain carries another box's (public) token is refused.
-func TestZapBaselineRefusesAForeignToken(t *testing.T) {
+// Core never reads the fence key (review r1 L2): every unit the host can write (each service's current template and every earlier one,
+// rendered with real ids) is read Volume= line by Volume= line: only the scan unit mounts fenceScanDir, read-only, and no unit mounts
+// the host's state directory, fenceScanDir or a directory above either. ZAP's container mounts only its own work folder.
+func TestCoreNeverMountsTheFenceKey(t *testing.T) {
 	t.Parallel()
-	other := domainfence.Token([]byte(strings.Repeat("o", domainfence.KeySize)), "example.com")
-	w := newZapWorld(t, Deps{ZapTXT: func(context.Context, string) ([]string, error) { return []string{"vedette-verify=" + other}, nil }})
-	p := zapDomainPage(t)
-	p.token = other
-	_, err := w.o.zapBaseline(t.Context(), nolog, p)
-	if code := fenceCode(err); code != api.CodeTokenForeign {
-		t.Fatalf("%v", err)
+	const stateDir = "/var/lib/vedette-host"
+	above := func(src, p string) bool { return src == p || strings.HasPrefix(p, strings.TrimSuffix(src, "/")+"/") }
+	check := func(svc, name string, text []byte) {
+		for _, l := range strings.Split(string(text), "\n") {
+			v, ok := strings.CutPrefix(l, "Volume=")
+			if !ok {
+				continue
+			}
+			src := strings.Split(v, ":")[0]
+			if src == fenceScanDir && svc == api.ServiceScan && v == fenceScanDir+":"+fenceScanDir+":ro" {
+				continue
+			}
+			if above(src, stateDir) || above(src, fenceScanDir) {
+				t.Errorf("%s unit %s mounts %q, which holds the fence key", svc, name, v)
+			}
+		}
 	}
-	if calls := w.Calls(); len(calls) != 1 {
-		t.Fatalf("calls after the refusal: %q", calls)
+	n := 0
+	for svc, u := range services {
+		text, err := u.render(u.tmpl, goldFill(true))
+		if err != nil {
+			t.Fatal(err)
+		}
+		check(svc, "current", text)
+		if svc == api.ServiceScan && !strings.Contains(string(text), "\nVolume="+fenceScanDir+":"+fenceScanDir+":ro\n") {
+			t.Error("the scan unit does not mount the key's copy read-only")
+		}
+		for i, tmpl := range legacyTemplates[svc] {
+			old, err := u.render(tmpl, goldFill(true))
+			if err != nil {
+				t.Fatal(err)
+			}
+			check(svc, "legacy "+strconv.Itoa(i+1), old)
+			n++
+		}
+	}
+	if n == 0 {
+		t.Fatal("no earlier template was checked")
+	}
+	wrk := filepath.Join(stateDir, "zap", "wrk")
+	for _, a := range zapRunArgv("https://www.example.com/", "", wrk) {
+		if strings.HasPrefix(a, "/") && (above(strings.Split(a, ":")[0], stateDir) || strings.Contains(a, fenceScanDir) || strings.Contains(a, fenceKeyName)) {
+			t.Errorf("ZAP's container mounts %q", a)
+		}
 	}
 }
 
-// Core never reads the fence key: core's unit mounts neither the scan container's copy nor the host's state directory, and the scan
-// unit mounts the copy read-only.
-func TestCoreNeverMountsTheFenceKey(t *testing.T) {
+// Review r1 L3: the scan container's copies: the directory 0500, the key and the list 0400, owned by the sensor user, the key equal to
+// the host's own; a second start leaves the copies alone (same files).
+func TestFenceScanCopy(t *testing.T) {
 	t.Parallel()
-	for _, text := range []string{coreUnitText, sensorUnitText, honeypotUnitText} {
-		if strings.Contains(text, fenceScanDir) || strings.Contains(text, "/var/lib/vedette-host") {
-			t.Fatalf("a unit other than scan mounts the fence key:\n%s", text)
-		}
+	root := t.TempDir()
+	state := filepath.Join(root, "state")
+	if err := os.Mkdir(state, 0o700); err != nil {
+		t.Fatal(err)
 	}
-	if !strings.Contains(scanUnitText, "\nVolume="+fenceScanDir+":"+fenceScanDir+":ro\n") {
-		t.Fatal("the scan unit does not mount the key's copy read-only")
+	cfg := Config{StateDir: state, CoreUnit: "vedette-core.service", OwnerUID: os.Getuid(), SensorUID: os.Getuid(), SensorGID: os.Getgid(), Logger: slog.New(slog.DiscardHandler)}
+	o1, err := NewWithDeps(cfg, Deps{Root: root})
+	if err != nil {
+		t.Fatal(err)
+	}
+	o1.Close()
+	dir := filepath.Join(root, fenceScanDir)
+	key := filepath.Join(dir, fenceKeyName)
+	t.Cleanup(func() { _ = os.Chmod(dir, 0o700) }) //nolint:gosec // a directory: the 0500 one, so the test's TempDir can be removed
+	stat := func(p string) os.FileInfo {
+		fi, err := os.Lstat(p)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return fi
+	}
+	master, _ := os.ReadFile(filepath.Join(state, fenceKeyName)) //nolint:gosec // a test path
+	copyKey, _ := os.ReadFile(key)                               //nolint:gosec // a test path
+	if stat(dir).Mode().Perm() != 0o500 || stat(key).Mode().Perm() != 0o400 || stat(filepath.Join(dir, fenceScanList)).Mode().Perm() != 0o400 ||
+		string(copyKey) != string(master) || len(master) != domainfence.KeySize {
+		t.Fatalf("dir %v key %v", stat(dir).Mode(), stat(key).Mode())
+	}
+	before := stat(key)
+	o2, err := NewWithDeps(cfg, Deps{Root: root})
+	if err != nil {
+		t.Fatal(err)
+	}
+	o2.Close()
+	if !os.SameFile(before, stat(key)) || stat(dir).Mode().Perm() != 0o500 {
+		t.Fatal("a second start rewrote the scan container's copy")
 	}
 }
 

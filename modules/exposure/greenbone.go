@@ -684,7 +684,14 @@ func (s *Service) greenboneStep(ctx context.Context, st ScanTarget) (gbOutcome, 
 // the box's, the domain's TXT carries it, and scope.Name resolves to ip now. A nil error means the host allows that one scan. Without
 // it OpenVAS never scans such an address.
 type GreenboneFence interface {
-	CheckDomainIP(ctx context.Context, scope DomainScope, ip netip.Addr) error
+	CheckDomainIP(ctx context.Context, scope DomainScope, ip netip.Addr, c FenceCheck) error
+}
+
+// FenceCheck is how GreenboneFence checks (D-591): Disruptive asks the CNAME rule too (a name whose CNAME leaves the domain is refused,
+// review r1 M3); Recheck is the check of a task that runs, which the host answers from DNS, never from its cache (review r1 M2).
+type FenceCheck struct {
+	Disruptive bool
+	Recheck    bool
 }
 
 // The lines of OpenVAS on a domain's address that is not the box's (D-571).
@@ -707,7 +714,7 @@ func domainNote(st ScanTarget) string {
 	if chain == "" {
 		chain = st.Domain.Name + " (CNAME not known)"
 	}
-	return " Address of " + st.Domain.Domain + " through the domain fence, name " + st.Domain.Name + ", CNAME chain " + chain + "."
+	return "Address of " + st.Domain.Domain + " (domain fence), name " + st.Domain.Name + ", CNAME chain " + chain + ". " // first: the note is clipped at its end (review r1 L4)
 }
 
 // greenboneAt is greenboneStep on one address: an IP target's own, or an address a domain's deep scan reached (D-571), whose ScanTarget
@@ -739,7 +746,7 @@ func (s *Service) greenboneAt(ctx context.Context, st ScanTarget, ip netip.Addr)
 		if !ok {
 			return line(notGBNoFence, "not done: no domain fence for OpenVAS")
 		}
-		if err := f.CheckDomainIP(ctx, *st.Domain, ip); err != nil {
+		if err := f.CheckDomainIP(ctx, *st.Domain, ip, FenceCheck{Disruptive: st.Mode.Disruptive}); err != nil {
 			if ctx.Err() != nil {
 				return gbOutcome{}, ctx.Err()
 			}
@@ -896,7 +903,7 @@ func (s *Service) runGreenbone(ctx context.Context, st ScanTarget, ip netip.Addr
 		return nil, 0, problems, err
 	}
 	if err := plog.RecordGreenboneProbe(ctx, GreenboneProbe{ID: store.NewID("pb"), IP: ip.String(), PortList: GreenbonePortList,
-		Config: lv.name + " (" + lv.text + ")", Note: gbNote + domainNote(st)}); err != nil { // LEGAL §3: logged before the task starts
+		Config: lv.name + " (" + lv.text + ")", Note: domainNote(st) + gbNote}); err != nil { // LEGAL §3: logged before the task starts
 		if ctx.Err() != nil {
 			return nil, 0, problems, ctx.Err()
 		}
@@ -915,7 +922,7 @@ func (s *Service) runGreenbone(ctx context.Context, st ScanTarget, ip netip.Addr
 		// while the task runs; the first answer that is not a yes stops the task (gbCleanup) and discards what it found.
 		if f, ok := s.cfg.Greenbone.(GreenboneFence); ok && st.Domain != nil && s.clock().Sub(checked) >= gbFenceRecheck {
 			checked = s.clock()
-			if err := f.CheckDomainIP(ctx, *st.Domain, ip); err != nil {
+			if err := f.CheckDomainIP(ctx, *st.Domain, ip, FenceCheck{Disruptive: st.Mode.Disruptive, Recheck: true}); err != nil {
 				if ctx.Err() != nil {
 					return nil, 0, problems, ctx.Err()
 				}

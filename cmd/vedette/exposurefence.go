@@ -4,9 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/knt048/vedette/core/domainfence"
 	"github.com/knt048/vedette/core/sensorlink"
+	"github.com/knt048/vedette/host/api"
+	hostclient "github.com/knt048/vedette/host/client"
 	"github.com/knt048/vedette/modules/exposure"
 	sensoractive "github.com/knt048/vedette/modules/sensor-active"
 )
@@ -29,7 +32,12 @@ func (f hostDomainFence) Token(ctx context.Context, domain string) (string, erro
 	if err != nil {
 		return "", err
 	}
-	return f.host.ExposureToken(ctx, domain, id, "exposure")
+	tok, err := f.host.ExposureToken(ctx, domain, id, "exposure")
+	var fe *hostclient.FenceError
+	if errors.As(err, &fe) && fe.Code == api.CodeFenceDomainsFull { // review r1 H1: the host's cap, said as such
+		return "", exposure.ErrFenceFull
+	}
+	return tok, err
 }
 
 // scopeOf is the wire form of exposure's domain scope.
@@ -43,6 +51,14 @@ func chainText(d *exposure.DomainScope) string {
 		return d.Name + " (CNAME not known)"
 	}
 	return d.Chain
+}
+
+// finalName is the end of the scope's CNAME chain (the name itself without a CNAME, or when the chain is not known).
+func finalName(d *exposure.DomainScope) string {
+	if k := strings.LastIndex(d.Chain, " -> "); k >= 0 {
+		return d.Chain[k+4:]
+	}
+	return d.Name
 }
 
 // The reasons exposure shows when the scan container's domain fence refused or stopped a step (after "… did not run: ").

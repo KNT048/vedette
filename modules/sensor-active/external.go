@@ -8,6 +8,7 @@ import (
 	"slices"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/knt048/vedette/core/sensorlink"
 	"github.com/knt048/vedette/modules/scan/commonports"
@@ -238,7 +239,7 @@ func (s *Service) scanExternal(ctx context.Context, ip netip.Addr, kind nmapargv
 }
 
 func (s *Service) probeExternal(ctx context.Context, jobID string, ip netip.Addr, kind nmapargv.Kind, own OwnEgress, dom *DomainIP) (External, error) {
-	note := ""
+	var note probeNote
 	if dom == nil {
 		ok, err := own.OwnEgress(ctx, ip) // exposure's gate result is minutes old by now (exposure INV-13, INV-19)
 		switch {
@@ -254,7 +255,7 @@ func (s *Service) probeExternal(ctx context.Context, jobID string, ip netip.Addr
 		if _, ok := s.prober.(DomainProber); !ok {
 			return External{}, ErrDomainUnsupported
 		}
-		note = domainNote(*dom)
+		note = probeNote{d: dom}
 	}
 	if kind.IsFull() {
 		var err error
@@ -277,7 +278,7 @@ func (s *Service) probeExternal(ctx context.Context, jobID string, ip netip.Addr
 		return External{}, err
 	}
 	if ctx.Err() != nil {
-		s.finishProbe(ctx, probeID, note+stoppedText)
+		s.finishProbe(ctx, probeID, note.with(stoppedText))
 		return External{}, ErrStopped
 	}
 	rctx, cancel := context.WithTimeout(ctx, min(left(ctx, run), run))
@@ -291,9 +292,9 @@ func (s *Service) probeExternal(ctx context.Context, jobID string, ip netip.Addr
 	}
 	var refused *DomainRefusedError
 	if errors.As(runErr, &refused) {
-		result := note + "refused by the scan container's domain fence (" + refused.Reason + "), nothing sent"
+		result := note.with("refused by the scan container's domain fence (" + refused.Reason + "), nothing sent")
 		if refused.MidRun {
-			result = note + "stopped by the scan container's domain fence (" + refused.Reason + "), results discarded"
+			result = note.with("stopped by the scan container's domain fence (" + refused.Reason + "), results discarded")
 		}
 		s.finishProbe(ctx, probeID, result)
 		return External{}, runErr
@@ -316,7 +317,7 @@ func (s *Service) probeExternal(ctx context.Context, jobID string, ip netip.Addr
 			}
 		}
 	}
-	s.finishProbe(ctx, probeID, note+result)
+	s.finishProbe(ctx, probeID, note.with(result))
 	if errors.Is(err, errDeadline) {
 		err = ErrStopped
 	}
@@ -403,12 +404,48 @@ func (s *Service) deepNow(ctx context.Context, ip netip.Addr, asked nmapargv.Kin
 	return asked, nil // never more than asked
 }
 
-// domainNote is the front of a domain_ip probe row's result (D-591, review r1 M4): why the address was chosen, with the CNAME chain of
-// the name as core saw it.
-func domainNote(d DomainIP) string {
-	chain := d.Chain
-	if chain == "" {
-		chain = d.Scope.Name
+// maxProbeResult is sa_probe.result's CHECK (length(result) <= 200, migration 0006).
+const maxProbeResult = 200
+
+// probeNote is the front of a domain_ip probe row's result (D-591, review r1 M4): why the address was chosen, with the CNAME chain of
+// the name as core saw it. The zero value (no domain) adds nothing.
+type probeNote struct{ d *DomainIP }
+
+// with is the row's result: the note, then result, always within maxProbeResult (review r2 H3: a long name or CDN CNAME must never fail
+// the insert or the update). The result is kept whole; the note shrinks first to "domain_ip <domain> -> <final name>: ", then each of
+// the two names keeps its end (the registrable part of a name is at its end).
+func (n probeNote) with(result string) string {
+	result = clipRunes(result, maxProbeResult)
+	if n.d == nil {
+		return result
 	}
-	return "domain_ip " + d.Scope.Domain + ", name " + d.Scope.Name + " (CNAME chain: " + chain + "): "
+	d := n.d.Scope
+	chain := n.d.Chain
+	if chain == "" {
+		chain = d.Name
+	}
+	room := maxProbeResult - utf8.RuneCountInString(result)
+	full := "domain_ip " + d.Domain + ", name " + d.Name + " (CNAME chain: " + chain + "): "
+	if utf8.RuneCountInString(full) <= room {
+		return full + result
+	}
+	final := chain
+	if k := strings.LastIndex(chain, " -> "); k >= 0 {
+		final = chain[k+4:]
+	}
+	const frame = len("domain_ip  -> : ")
+	each := max((room-frame)/2, 0)
+	return clipRunes("domain_ip "+keepEnd(d.Domain, each)+" -> "+keepEnd(final, each)+": ", max(room, 0)) + result
+}
+
+// keepEnd is s, or its last n runes after "…" when it is longer.
+func keepEnd(s string, n int) string {
+	r := []rune(s)
+	if len(r) <= n {
+		return s
+	}
+	if n <= 1 {
+		return string(r[len(r)-max(n, 0):])
+	}
+	return "…" + string(r[len(r)-n+1:])
 }

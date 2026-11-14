@@ -75,6 +75,7 @@ var exportPolicy = map[string]tablePolicy{
 	"exp_target":             {export: "id kind value method verified_at commitment_by commitment_at commitment_version commitment_sentence commitment_user_id commitment_method created_at last_scan_at", json: "last_check", skip: "token"},
 	"feeds_affected":         {export: "cve cpe start_incl start_excl end_incl end_excl"}, // D-500: public NVD data
 	"feeds_affected_cve":     {export: "cve updated_at"},
+	"feeds_distro_fix":       {export: "source_id distro release package cve status fixed_version pro"}, // D-516: public Ubuntu/Debian data
 	"feeds_fetch_log":        {export: "id source_id started_at finished_at status records_accepted records_rejected error bytes etag last_modified", json: "reject_reasons"},
 	"feeds_ioc":              {export: "id type value first_seen last_seen"},
 	"feeds_ioc_source":       {export: "ioc_id source_id last_seen confidence seen"},
@@ -94,7 +95,7 @@ var exportPolicy = map[string]tablePolicy{
 	"inv_observation":        {export: "id asset_id field value source confidence seen_at evidence"},
 	"inv_service":            {export: "id asset_id port proto name product version detail source confidence seen_at"},
 	"inv_setting":            {export: "key updated_at updated_by", json: "value"},
-	"inv_software":           {export: "id asset_id display vendor product version cpe source confidence seen_at packaged"},
+	"inv_software":           {export: "id asset_id display vendor product version cpe source confidence seen_at packaged pkg_version pkg_source"},
 	"inv_source":             {export: "source first_seen"},
 	"inv_software_kev":       {export: "software_id kev_key"},
 	"mit_ai_output":          {export: "finding_id skill model profile created_at activity_id", json: "payload"},

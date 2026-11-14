@@ -441,6 +441,8 @@
     "title": "Exploited vulnerabilities",
     "description": "Vedette identifies the service and version on each open port of this box's own public IP (nmap -sV) and compares them with the exploited lists (CISA KEV, and VulnCheck KEV if you turned it on) and its NVD version ranges. Only exploited vulnerabilities are compared, so an empty list does not prove a service is safe.",
     "caption": "Exploited vulnerabilities that match the services on this IP",
+    "descriptionDomain": "Service identification (nmap -sV) runs on the box's own public IP only, so for a domain these are the versions ZAP read on its web pages (a JavaScript library, a Server or X-Powered-By header), compared with the exploited lists and their NVD version ranges. Only exploited vulnerabilities are compared, so an empty list does not prove a page is safe.",
+    "captionDomain": "Exploited vulnerabilities that match the versions ZAP read on this domain's pages",
     "servicesCaption": "Services identified on the open ports (nmap -sV)",
     "noneIdentifiedTitle": "No service was identified",
     "notIdentifiedTitle": "Services were not identified",
@@ -461,6 +463,7 @@
       "version": "Version in range",
       "product": "Product only",
       "template": "Confirmed by template {{id}}",
+      "js_library": "JavaScript library version, seen by ZAP",
       "backport": "Version in range, but {{distro}} may have backported the fix",
       "greenbone": "Scanner: Greenbone, QoD {{qod}}"
     },
@@ -504,8 +507,13 @@
   },
   "web": {
     "title": "Web findings (passive)",
-    "description": "ZAP looked at the pages without sending forms; these are things it noticed. They are hints from reading the pages and the server's answers, not known exploited vulnerabilities, so they are not counted with the exploited CVEs above.",
+    "description": "ZAP looked at the pages without sending forms; these are things it noticed. They are hints from reading the pages and the server's answers, not known exploited vulnerabilities. When ZAP reads a version that has an exploited CVE (a JavaScript library, a Server or X-Powered-By header), that CVE is listed with the exploited CVEs.",
     "caption": "What ZAP noticed on the web pages",
+    "group": {
+      "fix": { "title": "Fix this", "description": "Things to change: a vulnerable JavaScript library, a server that gives away its version, an error page that shows internals, a password sent without encryption.", "caption": "Web findings to fix" },
+      "hardening": { "title": "Hardening", "description": "Settings that make the site harder to attack: missing security headers, cookie flags, cross-site settings. Each row keeps ZAP's own risk.", "caption": "Web hardening suggestions" }
+    },
+    "software": "{{product}} {{version}}",
     "noneTitle": "ZAP noticed nothing on the pages it looked at",
     "noneBody": "That does not prove the pages are safe: ZAP only reads what the server sends, and sends no forms.",
     "notScannedTitle": "No page was scanned",

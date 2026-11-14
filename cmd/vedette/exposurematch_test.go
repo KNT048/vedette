@@ -10,6 +10,7 @@ import (
 	"time"
 
 	catalogdata "github.com/knt048/vedette/content/catalog"
+	zapdata "github.com/knt048/vedette/content/zap"
 	"github.com/knt048/vedette/core/audit"
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/modules/exposure"
@@ -231,5 +232,27 @@ func TestNmapAliases_DataIsValid(t *testing.T) {
 	}
 	if len(nmapAliases) != len(rows)-1 {
 		t.Errorf("loaded %d of %d rows", len(nmapAliases), len(rows)-1)
+	}
+}
+
+// D-565: Exploited answers only the CVE ids the list carries, with CISA's name and date; a version ZAP read in a Server header,
+// written as the CPE content/zap/header-cpe.json gives nmap's name for it, goes through the same aliases (nginx reaches F5).
+func TestExposureMatcher_ZAPVersions(t *testing.T) {
+	t.Parallel()
+	vulns := exposureGolden(t)
+	m := exposureMatcher{vulns: func(context.Context) ([]findings.Vuln, error) { return vulns, nil }, now: func() time.Time { return time.Date(2026, 11, 13, 0, 0, 0, 0, time.UTC) }}
+	got, err := m.Exploited(t.Context(), []string{"CVE-2021-41773", "CVE-2000-0001"})
+	e, ok := got["CVE-2021-41773"]
+	if err != nil || len(got) != 1 || !ok || e.Name != "Apache HTTP Server Path Traversal Vulnerability" || e.DateAdded == nil || *e.DateAdded != "2021-11-03" {
+		t.Fatalf("%+v %v", got, err)
+	}
+	var cpes map[string]string
+	if err := json.Unmarshal(zapdata.HeaderCPE, &cpes); err != nil {
+		t.Fatal(err)
+	}
+	row := exposure.ServiceRow{IP: "203.0.113.10", Port: 443, Name: "http", Product: "nginx", Version: "1.20.0", CPE: "cpe:/" + cpes["nginx"] + ":1.20.0"}
+	res, err := m.Match(t.Context(), []exposure.ServiceRow{row})
+	if err != nil || len(res.Vulns) != 1 || res.Vulns[0].CVE != "CVE-2099-0001" || res.Vulns[0].Basis != "version" {
+		t.Fatalf("%+v %v", res, err)
 	}
 }

@@ -1,0 +1,12 @@
+{
+ "_about": "D-565: the product a Server or X-Powered-By header names (lower case, the part before '/') to the CPE part:vendor:product nmap -sV prints for the same software, so a version ZAP read in a header goes through the same comparison with exploited CVEs as nmap's (cmd/vedette exposurematch.go, with the aliases of content/catalog/nmap-cpe.json). Read by modules/exposure; checked by content/zap TestHeaderCPE_IsValid.",
+ "apache": "a:apache:http_server",
+ "nginx": "a:igor_sysoev:nginx",
+ "microsoft-iis": "a:microsoft:internet_information_services",
+ "php": "a:php:php",
+ "openssl": "a:openssl:openssl",
+ "lighttpd": "a:lighttpd:lighttpd",
+ "jetty": "a:eclipse:jetty",
+ "litespeed": "a:litespeedtech:litespeed_web_server",
+ "openresty": "a:openresty:openresty"
+}

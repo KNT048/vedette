@@ -177,13 +177,29 @@ function webPages(c: Content, ip: boolean): string[] {
   }
   return pages.slice(0, 4)
 }
+// The alerts Vedette's rule list keeps (D-565, content/zap/vedette-baseline.conf): "fix" first, then "hardening"; IGNORE rules (Modern Web
+// Application, Timestamp Disclosure…) never reach the page. An IP's first page also loads an old jQuery that Retire.js flags.
+const JS_ALERT: Omit<WebFinding, 'site' | 'urls' | 'count'> = { plugin_id: '10003', name: 'Vulnerable JS Library', risk: 'medium', confidence: 'medium', cwe: 1395, description: 'The identified library appears to be vulnerable.', solution: 'Upgrade to the latest version of the affected library.', group: 'fix', software: [{ product: 'jquery', version: '3.4.1', cves: ['CVE-2020-11022', 'CVE-2020-11023'], distro: '' }] }
 const WEB_ALERTS: Omit<WebFinding, 'site' | 'urls' | 'count'>[] = [
-  { plugin_id: '10038', name: 'Content Security Policy (CSP) Header Not Set', risk: 'medium', confidence: 'high', cwe: 693, description: 'Content Security Policy (CSP) is an added layer of security that helps to detect and mitigate certain types of attacks.', solution: 'Ensure that your web server, application server, load balancer, etc. is configured to set the Content-Security-Policy header.' },
-  { plugin_id: '10036', name: 'Server Leaks Version Information via "Server" HTTP Response Header Field', risk: 'low', confidence: 'high', cwe: 200, description: 'The web/application server is leaking version information via the "Server" HTTP response header.', solution: 'Ensure that your web server, application server, load balancer, etc. is configured to suppress the "Server" header or provide generic details.' },
-  { plugin_id: '10109', name: 'Modern Web Application', risk: 'info', confidence: 'medium', cwe: 0, description: 'The application appears to be a modern web application.', solution: 'This is an informational alert and no action is necessary.' },
+  { plugin_id: '10036', name: 'Server Leaks Version Information via "Server" HTTP Response Header Field', risk: 'low', confidence: 'high', cwe: 200, description: 'The web/application server is leaking version information via the "Server" HTTP response header.', solution: 'Ensure that your web server, application server, load balancer, etc. is configured to suppress the "Server" header or provide generic details.', group: 'fix', software: [] },
+  { plugin_id: '10038', name: 'Content Security Policy (CSP) Header Not Set', risk: 'medium', confidence: 'high', cwe: 693, description: 'Content Security Policy (CSP) is an added layer of security that helps to detect and mitigate certain types of attacks.', solution: 'Ensure that your web server, application server, load balancer, etc. is configured to set the Content-Security-Policy header.', group: 'hardening', software: [] },
+  { plugin_id: '10021', name: 'X-Content-Type-Options Header Missing', risk: 'low', confidence: 'medium', cwe: 693, description: 'The Anti-MIME-Sniffing header X-Content-Type-Options was not set to nosniff.', solution: "Ensure that the application/web server sets the Content-Type header appropriately, and that it sets the X-Content-Type-Options header to 'nosniff' for all web pages.", group: 'hardening', software: [] },
 ]
 function webFindings(c: Content, ip: boolean): WebFinding[] {
-  return webPages(c, ip).flatMap((site, i) => WEB_ALERTS.slice(0, i === 0 ? 3 : 2).map((a, j) => ({ ...a, site, count: 5 + j, urls: [site, `${site}login`, `${site}static/app.js`] })))
+  return webPages(c, ip).flatMap((site, i) => [...(ip && i === 0 ? [JS_ALERT] : []), ...WEB_ALERTS.slice(i === 0 ? 0 : 1)].map((a, j) => ({ ...a, site, count: 5 + j, urls: [site, `${site}login`, `${site}static/app.js`] })))
+}
+
+// The mock's lookup of the CVEs Retire.js names (D-565): the real KEV entry of jQuery's XSS (CISA added it on 2025-01-23).
+const JS_KEV: Record<string, string> = { 'CVE-2020-11023': 'JQuery Cross-Site Scripting (XSS) Vulnerability' }
+function jsVulns(web: WebFinding[]): VulnRow[] {
+  return web.filter((w) => w.plugin_id === '10003').flatMap((w) => {
+    const u = new URL(w.site)
+    const port = Number(u.port) || (u.protocol === 'https:' ? 443 : 80)
+    return w.software.flatMap((sw) => sw.cves.filter((cve) => JS_KEV[cve]).map((cve): VulnRow => ({
+      ip: u.hostname, port, cve, name: JS_KEV[cve]!, basis: 'js_library', date_added: '2025-01-23', ransomware: false, backport: '', template: '', template_result: '',
+      summary: `A page on port ${port} loads the JavaScript library ${sw.product} ${sw.version} (seen by ZAP). Retire.js lists ${cve} for that version and CISA lists it as exploited. A library version alone does not show that the site uses the affected function; the risk is to visitors' browsers, not the server. Update the library.`,
+    })))
+  })
 }
 
 /** The mock's Greenbone on the box's own IP (INV-25): what an outside look without logging in typically reports there. */
@@ -220,7 +236,10 @@ export function makeSnapshot(id: string, at: string, c: Content, extraIp?: strin
   const pages = webPages(c, extraIp !== undefined)
   const l = lines(c, at, extraIp !== undefined, m)
   if (pages.length > 0) l.checks.push({ kind: 'web', at, text: `Passive web scan (ZAP baseline: spider and passive rules, no form sent) of ${plural(pages.length, 'page')}: ${pages.join(', ')}. ${plural(web_findings.length, 'alert')}.` })
-  return withGreenbone({ id, date: dateOf(at), scanned_at: at, hosts: c.hosts, ports: c.ports, admin_panels: c.admin_panels, certs: c.certs, services, templates: [], web_findings, greenbone: [], ...l, vulns: m.vulns, version_gaps: m.version_gaps, counts: countsOf(c, extraIp) }, c, at, extraIp)
+  const js = jsVulns(web_findings)
+  const jsLibs = web_findings.filter((w) => w.plugin_id === '10003').reduce((n, w) => n + w.software.length, 0)
+  if (jsLibs > 0) l.checks.push({ kind: 'cve', at, text: `Versions ZAP read on the web pages compared with today's CISA list of exploited vulnerabilities (${jsLibs} from JavaScript libraries, 0 from Server or X-Powered-By headers): ${plural(js.length, 'exploited CVE')} matched.` })
+  return withGreenbone({ id, date: dateOf(at), scanned_at: at, hosts: c.hosts, ports: c.ports, admin_panels: c.admin_panels, certs: c.certs, services, templates: [], web_findings, greenbone: [], ...l, vulns: [...m.vulns, ...js], version_gaps: m.version_gaps, counts: countsOf(c, extraIp) }, c, at, extraIp)
 }
 
 const plusDays = (iso: string, d: number) => new Date(Date.parse(iso) + d * 864e5).toISOString()

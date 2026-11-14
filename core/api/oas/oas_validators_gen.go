@@ -24957,6 +24957,8 @@ func (s ExposureGetExposureTargetsIDSnapshotsDateOKVulnsItemBasis) Validate() er
 		return nil
 	case "greenbone":
 		return nil
+	case "js_library":
+		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
@@ -25037,6 +25039,17 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItem) Validate() 
 		})
 	}
 	if err := func() error {
+		if err := s.Group.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "group",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := s.Risk.Validate(); err != nil {
 			return err
 		}
@@ -25044,6 +25057,34 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItem) Validate() 
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "risk",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if s.Software == nil {
+			return errors.New("nil is invalid value")
+		}
+		var failures []validate.FieldError
+		for i, elem := range s.Software {
+			if err := func() error {
+				if err := elem.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "software",
 			Error: err,
 		})
 	}
@@ -25079,6 +25120,17 @@ func (s ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemConfidence) Va
 	}
 }
 
+func (s ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemGroup) Validate() error {
+	switch s {
+	case "fix":
+		return nil
+	case "hardening":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
 func (s ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemRisk) Validate() error {
 	switch s {
 	case "high":
@@ -25092,6 +25144,29 @@ func (s ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemRisk) Validate
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
+}
+
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKWebFindingsItemSoftwareItem) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if s.Cves == nil {
+			return errors.New("nil is invalid value")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "cves",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
 }
 
 func (s *ExposureGetExposureTargetsIDSnapshotsOK) Validate() error {

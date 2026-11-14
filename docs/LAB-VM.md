@@ -68,9 +68,15 @@ sudo scripts/dev/lab-vm.sh lan-down          # after stop
 - The NIC is virtual.
 - The NIC carries the host's default route or a global address. Passthru takes every frame of the NIC.
 
-**`--bridge`** (`sudo scripts/dev/lab-vm.sh lan-up enp2s0 --bridge`) is for a wired NIC the host itself uses (Mlee's box: enp2s0
+With a lan NIC the VM is a box on the LAN: the lan NIC has the default route (metric 100) and the LAN subnet, and passt gives
+the first NIC a subnet of its own, 10.0.2.15/24 with gateway 10.0.2.2 (metric 300), which carries only SSH from the host. Without
+it passt would hand the VM the host's address on the same subnet, and Vedette in the VM would scan and report itself as the host.
+
+**`--bridge`** (`sudo scripts/dev/lab-vm.sh lan-up enp2s0 --bridge <vm>`) is for a wired NIC the host itself uses (Mlee's box: enp2s0
 carries the host's address and default route). It makes the macvtap in bridge mode: the host keeps its link, address and routes,
-and the VM gets its own MAC on the same wire. Nothing on the host's network config changes (no netplan, no route, no address).
+and the VM gets its own MAC on the same wire. A bridge-mode macvtap only receives frames sent to its own MAC, so `lan-up` gives
+the link the lan MAC of the VM named (without it the router's DHCP offers never reach the guest); `start --lan` refuses a bridge
+link made for another VM. Nothing on the host's network config changes (no netplan, no route, no address).
 A macvtap limit: the host and the VM cannot reach each other over it; the VM reaches the LAN (the N100, the router) and the host
 still reaches the VM over passt (127.0.0.1:<port>). The Wi-Fi, carrier and physical-NIC refusals apply to both modes.
 
@@ -105,3 +111,13 @@ These checks run on the **default passt network** (no cable):
 - Live nuclei recordings against a target inside the VM (`feat-sensor-nuclei.md`).
 
 Not covered here: arm64 needs a real arm64 box (`feat-multiarch-images.md`), and Ubuntu 26.04 runs on Mlee's box (D-198).
+
+## A persistent test box
+
+A lab VM can serve as a customer test box next to the N100 (kien 2026-11-14: Mlee's box runs a Debian 13 one; which box, its
+address and its keys are in the lead's box notes, not here). Size it for OpenVAS with `LAB_DISK_SIZE` at `create` and
+`LAB_CPUS`/`LAB_MEM_MB` at `start` (defaults 20G, 2, 2560), for example `LAB_DISK_SIZE=150G` and `LAB_CPUS=3 LAB_MEM_MB=7680`.
+Two system units bring it back after a host reboot: a root oneshot that runs `lan-up <nic> --bridge <vm>` (with
+`SUDO_USER=<user>`; ExecStop `lan-down`), and a oneshot with `RemainAfterExit=yes` as that user, after it, that runs
+`start <vm> --lan` (ExecStop `stop <vm>`, TimeoutStartSec 900). Inside the VM: a swap file, the deploy keys in root's
+`authorized_keys`, and `/etc/cloud/cloud-init.disabled` once it is set up, so a reboot keeps the hostname and keys.

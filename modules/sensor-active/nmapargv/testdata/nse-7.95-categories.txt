@@ -1,0 +1,775 @@
+Nmap version 7.95 ( https://nmap.org )
+== (default or safe or vuln) and not (dos or brute or external or broadcast)
+acarsd-info: safe discovery
+address-info: default safe
+afp-ls: discovery safe
+afp-path-vuln: exploit intrusive vuln
+afp-serverinfo: default discovery safe
+afp-showmount: discovery safe
+ajp-auth: default auth safe
+ajp-headers: discovery safe
+ajp-methods: default safe
+ajp-request: discovery safe
+allseeingeye-info: discovery safe version
+amqp-info: default discovery safe version
+auth-owners: default safe
+auth-spoof: malware safe
+backorifice-info: default discovery safe
+banner: discovery safe
+bitcoin-getaddr: discovery safe
+bitcoin-info: discovery safe
+bitcoinrpc-info: default discovery safe
+bittorrent-discovery: discovery safe
+bjnp-discover: safe discovery
+cassandra-info: default discovery safe
+cics-info: discovery safe
+citrix-enum-apps-xml: discovery safe
+citrix-enum-apps: discovery safe
+citrix-enum-servers-xml: discovery safe
+citrix-enum-servers: discovery safe
+clamav-exec: exploit vuln
+clock-skew: default safe
+coap-resources: safe discovery
+couchdb-databases: discovery safe
+couchdb-stats: discovery safe
+creds-summary: auth default safe
+cups-info: safe discovery
+cups-queue-info: safe discovery
+daap-get-library: discovery safe
+daytime: discovery safe
+db2-das-info: safe discovery version
+dhcp-discover: discovery safe
+dicom-ping: discovery default safe auth
+dict-info: discovery safe
+distcc-cve2004-2687: exploit intrusive vuln
+dns-client-subnet-scan: discovery safe
+dns-nsid: discovery default safe
+dns-recursion: default safe
+dns-service-discovery: default discovery safe
+dns-srv-enum: discovery safe
+dns-update: vuln intrusive
+drda-info: safe discovery version
+duplicates: safe
+epmd-info: default discovery safe
+eppc-enum-processes: discovery safe
+fcrdns: discovery safe
+finger: default discovery safe
+firewalk: safe discovery
+firewall-bypass: vuln intrusive
+flume-master-info: default discovery safe
+freelancer-info: default discovery safe version
+ftp-anon: default auth safe
+ftp-bounce: default safe
+ftp-libopie: vuln intrusive
+ftp-proftpd-backdoor: exploit intrusive malware vuln
+ftp-syst: default discovery safe
+ftp-vsftpd-backdoor: exploit intrusive malware vuln
+ftp-vuln-cve2010-4221: intrusive vuln
+ganglia-info: default discovery safe
+giop-info: default discovery safe
+gkrellm-info: discovery safe
+gopher-ls: default discovery safe
+gpsd-info: discovery safe
+hadoop-datanode-info: default discovery safe
+hadoop-jobtracker-info: default discovery safe
+hadoop-namenode-info: default discovery safe
+hadoop-secondary-namenode-info: default discovery safe
+hadoop-tasktracker-info: default discovery safe
+hbase-master-info: default discovery safe
+hbase-region-info: default discovery safe
+hddtemp-info: default discovery safe
+hnap-info: safe discovery default version
+http-adobe-coldfusion-apsa1301: exploit vuln
+http-affiliate-id: safe discovery
+http-apache-negotiation: safe discovery
+http-apache-server-status: discovery safe
+http-aspnet-debug: vuln discovery
+http-auth-finder: discovery safe
+http-auth: default auth safe
+http-avaya-ipoffice-users: exploit vuln
+http-awstatstotals-exec: vuln intrusive exploit
+http-axis2-dir-traversal: vuln intrusive exploit
+http-backup-finder: discovery safe
+http-bigip-cookie: discovery safe
+http-cakephp-version: discovery safe
+http-cisco-anyconnect: default discovery safe
+http-comments-displayer: discovery safe
+http-cookie-flags: default safe vuln
+http-cors: default discovery safe
+http-csrf: intrusive exploit vuln
+http-date: discovery safe
+http-dlink-backdoor: exploit vuln
+http-dombased-xss: intrusive exploit vuln
+http-enum: discovery intrusive vuln
+http-favicon: default discovery safe
+http-fetch: safe
+http-fileupload-exploiter: intrusive exploit vuln
+http-frontpage-login: vuln safe
+http-generator: default discovery safe
+http-git: default safe vuln
+http-gitweb-projects-enum: discovery safe
+http-grep: discovery safe
+http-headers: discovery safe
+http-hp-ilo-info: safe discovery
+http-huawei-hg5xx-vuln: exploit vuln
+http-iis-webdav-vuln: vuln intrusive
+http-internal-ip-disclosure: vuln discovery safe
+http-jsonp-detection: safe vuln discovery
+http-litespeed-sourcecode-download: vuln intrusive exploit
+http-ls: default discovery safe
+http-majordomo2-dir-traversal: intrusive vuln exploit
+http-malware-host: malware safe
+http-mcmp: safe discovery
+http-method-tamper: auth vuln
+http-methods: default safe
+http-mobileversion-checker: discovery safe
+http-ntlm-info: default discovery safe
+http-passwd: intrusive vuln
+http-php-version: discovery safe
+http-phpmyadmin-dir-traversal: vuln exploit
+http-phpself-xss: fuzzer intrusive vuln
+http-qnap-nas-info: safe discovery
+http-referer-checker: discovery safe
+http-referer-checker: default discovery safe
+http-sap-netweaver-leak: safe discovery
+http-security-headers: discovery safe
+http-shellshock: exploit vuln intrusive
+http-slowloris-check: vuln safe
+http-sql-injection: intrusive vuln
+http-stored-xss: intrusive exploit vuln
+http-svn-enum: default discovery safe
+http-svn-info: default discovery safe
+http-title: default discovery safe
+http-tplink-dir-traversal: vuln exploit
+http-trace: vuln discovery safe
+http-traceroute: discovery safe
+http-trane-info: discovery version safe
+http-useragent-tester: discovery safe
+http-vlcstreamer-ls: discovery safe
+http-vmware-path-vuln: vuln safe
+http-vuln-cve2006-3392: exploit vuln intrusive
+http-vuln-cve2009-3960: exploit intrusive vuln
+http-vuln-cve2010-0738: safe auth vuln
+http-vuln-cve2010-2861: intrusive vuln
+http-vuln-cve2011-3192: vuln safe
+http-vuln-cve2011-3368: intrusive vuln
+http-vuln-cve2012-1823: exploit vuln intrusive
+http-vuln-cve2013-0156: exploit vuln
+http-vuln-cve2013-6786: exploit vuln
+http-vuln-cve2013-7091: exploit vuln intrusive
+http-vuln-cve2014-2126: vuln safe
+http-vuln-cve2014-2127: vuln safe
+http-vuln-cve2014-2128: vuln safe
+http-vuln-cve2014-2129: vuln safe
+http-vuln-cve2014-3704: vuln intrusive exploit
+http-vuln-cve2014-8877: vuln intrusive exploit
+http-vuln-cve2015-1427: vuln intrusive
+http-vuln-cve2015-1635: vuln safe
+http-vuln-cve2017-1001000: vuln safe
+http-vuln-cve2017-5638: vuln
+http-vuln-cve2017-5689: vuln auth exploit
+http-vuln-cve2017-8917: vuln intrusive
+http-vuln-misfortune-cookie: vuln intrusive
+http-vuln-wnr1000-creds: exploit vuln intrusive
+http-webdav-scan: safe discovery default
+http-wordpress-users: auth intrusive vuln
+icap-info: safe discovery
+ike-version: default discovery safe version
+imap-capabilities: default safe
+imap-ntlm-info: default discovery safe
+ip-forwarding: safe discovery
+ip-geolocation-map-kml: safe
+ip-https-discover: discovery safe default
+ipidseq: safe discovery
+ipmi-cipher-zero: vuln safe
+ipmi-version: discovery safe
+ipv6-node-info: default discovery safe
+irc-botnet-channels: discovery vuln safe
+irc-info: default discovery safe
+irc-unrealircd-backdoor: exploit intrusive malware vuln
+iscsi-info: default safe discovery
+isns-info: safe discovery
+jdwp-info: default safe discovery
+knx-gateway-info: default discovery safe
+ldap-novell-getpass: discovery safe
+ldap-rootdse: discovery safe
+ldap-search: discovery safe
+lexmark-config: discovery safe
+maxdb-info: default version safe
+mcafee-epo-agent: version safe
+membase-http-info: discovery safe
+memcached-info: discovery safe
+metasploit-info: intrusive safe
+mongodb-databases: default discovery safe
+mongodb-info: default discovery safe
+mqtt-subscribe: safe discovery version
+ms-sql-config: discovery safe
+ms-sql-dac: discovery safe
+ms-sql-dump-hashes: auth discovery safe
+ms-sql-hasdbaccess: auth discovery safe
+ms-sql-info: default discovery safe
+ms-sql-ntlm-info: default discovery safe
+ms-sql-query: discovery safe
+ms-sql-tables: discovery safe
+msrpc-enum: safe discovery
+multicast-profinet-discovery: discovery info safe
+mysql-audit: discovery safe
+mysql-dump-hashes: auth discovery safe
+mysql-info: default discovery safe
+mysql-query: auth discovery safe
+mysql-vuln-cve2012-2122: discovery intrusive vuln
+nat-pmp-info: default discovery safe
+nat-pmp-mapport: discovery safe
+nbns-interfaces: default discovery safe
+nbstat: default discovery safe
+ncp-enum-users: auth safe
+ncp-serverinfo: default discovery safe
+ndmp-fs-info: discovery safe
+netbus-auth-bypass: auth safe vuln
+netbus-info: default discovery safe
+nfs-ls: discovery safe
+nfs-showmount: discovery safe
+nfs-statfs: discovery safe
+nntp-ntlm-info: default discovery safe
+ntp-info: default discovery safe
+omp2-enum-targets: discovery safe
+openflow-info: default safe
+openlookup-info: default discovery safe version
+openwebnet-discovery: discovery safe
+oracle-tns-version: version safe
+p2p-conficker: default safe
+path-mtu: safe discovery
+pop3-capabilities: default discovery safe
+pop3-ntlm-info: default discovery safe
+port-states: safe
+puppet-naivesigning: intrusive vuln
+qconn-exec: intrusive exploit vuln
+qscan: safe discovery
+quake1-info: default discovery safe version
+quake3-info: default discovery safe version
+quake3-master-getservers: default discovery safe
+rdp-enum-encryption: safe discovery
+rdp-ntlm-info: default discovery safe
+rdp-vuln-ms12-020: intrusive vuln
+realvnc-auth-bypass: auth safe vuln
+redis-info: discovery safe
+resolveall: safe discovery
+reverse-index: safe
+rfc868-time: discovery safe version
+riak-http-info: discovery safe
+rmi-dumpregistry: default discovery safe
+rmi-vuln-classloader: intrusive vuln
+rpcap-info: discovery safe
+rpcinfo: discovery default safe version
+rsa-vuln-roca: vuln safe
+rsync-list-modules: discovery safe
+rtsp-methods: default safe
+rusers: discovery safe
+samba-vuln-cve-2012-1182: vuln intrusive
+servicetags: default discovery safe
+sip-methods: default safe discovery
+smb-double-pulsar-backdoor: vuln safe malware
+smb-enum-services: discovery intrusive safe
+smb-ls: discovery safe
+smb-mbenum: discovery safe
+smb-os-discovery: default discovery safe
+smb-protocols: safe discovery
+smb-security-mode: default discovery safe
+smb-vuln-cve-2017-7494: vuln intrusive
+smb-vuln-ms10-061: vuln intrusive
+smb-vuln-ms17-010: vuln safe
+smb-vuln-webexec: intrusive vuln
+smb2-capabilities: safe discovery
+smb2-security-mode: safe discovery default
+smb2-time: discovery safe default
+smb2-vuln-uptime: vuln safe
+smtp-commands: default discovery safe
+smtp-ntlm-info: default discovery safe
+smtp-strangeport: malware safe
+smtp-vuln-cve2010-4344: exploit intrusive vuln
+smtp-vuln-cve2011-1720: intrusive vuln
+smtp-vuln-cve2011-1764: intrusive vuln
+snmp-hh3c-logins: default discovery safe
+snmp-info: default version safe
+snmp-interfaces: default discovery safe
+snmp-netstat: default discovery safe
+snmp-processes: default discovery safe
+snmp-sysdescr: default discovery safe
+snmp-win32-services: default discovery safe
+snmp-win32-shares: default discovery safe
+snmp-win32-software: default discovery safe
+snmp-win32-users: default auth safe
+socks-auth-info: discovery safe default
+ssh-hostkey: safe default discovery
+ssh2-enum-algos: safe discovery
+sshv1: default safe
+ssl-ccs-injection: vuln safe
+ssl-cert-intaddr: vuln discovery safe
+ssl-cert: default safe discovery
+ssl-date: discovery safe default
+ssl-dh-params: vuln safe
+ssl-heartbleed: vuln safe
+ssl-known-key: safe discovery vuln default
+ssl-poodle: vuln safe
+sslv2-drown: intrusive vuln
+sslv2: default safe
+sstp-discover: discovery default safe
+stun-info: discovery safe
+supermicro-ipmi-conf: exploit vuln
+targets-traceroute: safe discovery
+targets-xml: safe
+telnet-encryption: safe discovery
+telnet-ntlm-info: default discovery safe
+tftp-version: default safe version
+tls-alpn: discovery safe default
+tls-nextprotoneg: discovery safe default
+tls-ticketbleed: vuln safe
+tn3270-screen: safe discovery
+ubiquiti-discovery: default discovery version safe
+unittest: safe
+unusual-port: safe
+upnp-info: default discovery safe
+uptime-agent-info: safe default
+url-snarf: safe
+ventrilo-info: default discovery safe version
+versant-info: discovery safe
+vmware-version: discovery safe version
+vnc-info: default discovery safe
+voldemort-info: discovery safe
+vuze-dht-info: discovery safe
+wdb-version: default safe version discovery vuln
+weblogic-t3-info: default safe discovery version
+wsdd-discover: safe discovery default
+x11-access: default safe auth
+xdmcp-discover: safe discovery
+xmlrpc-methods: default safe discovery
+xmpp-info: default safe discovery version
+== (default or safe or vuln or dos or brute) and not (external or broadcast)
+acarsd-info: safe discovery
+address-info: default safe
+afp-brute: intrusive brute
+afp-ls: discovery safe
+afp-path-vuln: exploit intrusive vuln
+afp-serverinfo: default discovery safe
+afp-showmount: discovery safe
+ajp-auth: default auth safe
+ajp-brute: intrusive brute
+ajp-headers: discovery safe
+ajp-methods: default safe
+ajp-request: discovery safe
+allseeingeye-info: discovery safe version
+amqp-info: default discovery safe version
+auth-owners: default safe
+auth-spoof: malware safe
+backorifice-brute: intrusive brute
+backorifice-info: default discovery safe
+banner: discovery safe
+bitcoin-getaddr: discovery safe
+bitcoin-info: discovery safe
+bitcoinrpc-info: default discovery safe
+bittorrent-discovery: discovery safe
+bjnp-discover: safe discovery
+cassandra-brute: intrusive brute
+cassandra-info: default discovery safe
+cics-enum: intrusive brute
+cics-info: discovery safe
+cics-user-brute: intrusive brute
+cics-user-enum: intrusive brute
+citrix-brute-xml: intrusive brute
+citrix-enum-apps-xml: discovery safe
+citrix-enum-apps: discovery safe
+citrix-enum-servers-xml: discovery safe
+citrix-enum-servers: discovery safe
+clamav-exec: exploit vuln
+clock-skew: default safe
+coap-resources: safe discovery
+couchdb-databases: discovery safe
+couchdb-stats: discovery safe
+creds-summary: auth default safe
+cups-info: safe discovery
+cups-queue-info: safe discovery
+cvs-brute-repository: intrusive brute
+cvs-brute: intrusive brute
+daap-get-library: discovery safe
+daytime: discovery safe
+db2-das-info: safe discovery version
+deluge-rpc-brute: intrusive brute
+dhcp-discover: discovery safe
+dicom-brute: auth brute
+dicom-ping: discovery default safe auth
+dict-info: discovery safe
+distcc-cve2004-2687: exploit intrusive vuln
+dns-client-subnet-scan: discovery safe
+dns-nsid: discovery default safe
+dns-recursion: default safe
+dns-service-discovery: default discovery safe
+dns-srv-enum: discovery safe
+dns-update: vuln intrusive
+domcon-brute: intrusive brute
+dpap-brute: intrusive brute
+drda-brute: intrusive brute
+drda-info: safe discovery version
+duplicates: safe
+epmd-info: default discovery safe
+eppc-enum-processes: discovery safe
+fcrdns: discovery safe
+finger: default discovery safe
+firewalk: safe discovery
+firewall-bypass: vuln intrusive
+flume-master-info: default discovery safe
+freelancer-info: default discovery safe version
+ftp-anon: default auth safe
+ftp-bounce: default safe
+ftp-brute: intrusive brute
+ftp-libopie: vuln intrusive
+ftp-proftpd-backdoor: exploit intrusive malware vuln
+ftp-syst: default discovery safe
+ftp-vsftpd-backdoor: exploit intrusive malware vuln
+ftp-vuln-cve2010-4221: intrusive vuln
+ganglia-info: default discovery safe
+giop-info: default discovery safe
+gkrellm-info: discovery safe
+gopher-ls: default discovery safe
+gpsd-info: discovery safe
+hadoop-datanode-info: default discovery safe
+hadoop-jobtracker-info: default discovery safe
+hadoop-namenode-info: default discovery safe
+hadoop-secondary-namenode-info: default discovery safe
+hadoop-tasktracker-info: default discovery safe
+hbase-master-info: default discovery safe
+hbase-region-info: default discovery safe
+hddtemp-info: default discovery safe
+hnap-info: safe discovery default version
+http-adobe-coldfusion-apsa1301: exploit vuln
+http-affiliate-id: safe discovery
+http-apache-negotiation: safe discovery
+http-apache-server-status: discovery safe
+http-aspnet-debug: vuln discovery
+http-auth-finder: discovery safe
+http-auth: default auth safe
+http-avaya-ipoffice-users: exploit vuln
+http-awstatstotals-exec: vuln intrusive exploit
+http-axis2-dir-traversal: vuln intrusive exploit
+http-backup-finder: discovery safe
+http-bigip-cookie: discovery safe
+http-brute: intrusive brute
+http-cakephp-version: discovery safe
+http-cisco-anyconnect: default discovery safe
+http-comments-displayer: discovery safe
+http-cookie-flags: default safe vuln
+http-cors: default discovery safe
+http-csrf: intrusive exploit vuln
+http-date: discovery safe
+http-dlink-backdoor: exploit vuln
+http-dombased-xss: intrusive exploit vuln
+http-enum: discovery intrusive vuln
+http-favicon: default discovery safe
+http-fetch: safe
+http-fileupload-exploiter: intrusive exploit vuln
+http-form-brute: intrusive brute
+http-frontpage-login: vuln safe
+http-generator: default discovery safe
+http-git: default safe vuln
+http-gitweb-projects-enum: discovery safe
+http-grep: discovery safe
+http-headers: discovery safe
+http-hp-ilo-info: safe discovery
+http-huawei-hg5xx-vuln: exploit vuln
+http-iis-short-name-brute: intrusive brute
+http-iis-webdav-vuln: vuln intrusive
+http-internal-ip-disclosure: vuln discovery safe
+http-joomla-brute: intrusive brute
+http-jsonp-detection: safe vuln discovery
+http-litespeed-sourcecode-download: vuln intrusive exploit
+http-ls: default discovery safe
+http-majordomo2-dir-traversal: intrusive vuln exploit
+http-malware-host: malware safe
+http-mcmp: safe discovery
+http-method-tamper: auth vuln
+http-methods: default safe
+http-mobileversion-checker: discovery safe
+http-ntlm-info: default discovery safe
+http-passwd: intrusive vuln
+http-php-version: discovery safe
+http-phpmyadmin-dir-traversal: vuln exploit
+http-phpself-xss: fuzzer intrusive vuln
+http-qnap-nas-info: safe discovery
+http-referer-checker: discovery safe
+http-referer-checker: default discovery safe
+http-sap-netweaver-leak: safe discovery
+http-security-headers: discovery safe
+http-shellshock: exploit vuln intrusive
+http-slowloris-check: vuln safe
+http-slowloris: dos intrusive
+http-sql-injection: intrusive vuln
+http-stored-xss: intrusive exploit vuln
+http-svn-enum: default discovery safe
+http-svn-info: default discovery safe
+http-title: default discovery safe
+http-tplink-dir-traversal: vuln exploit
+http-trace: vuln discovery safe
+http-traceroute: discovery safe
+http-trane-info: discovery version safe
+http-useragent-tester: discovery safe
+http-vlcstreamer-ls: discovery safe
+http-vmware-path-vuln: vuln safe
+http-vuln-cve2006-3392: exploit vuln intrusive
+http-vuln-cve2009-3960: exploit intrusive vuln
+http-vuln-cve2010-0738: safe auth vuln
+http-vuln-cve2010-2861: intrusive vuln
+http-vuln-cve2011-3192: vuln safe
+http-vuln-cve2011-3368: intrusive vuln
+http-vuln-cve2012-1823: exploit vuln intrusive
+http-vuln-cve2013-0156: exploit vuln
+http-vuln-cve2013-6786: exploit vuln
+http-vuln-cve2013-7091: exploit vuln intrusive
+http-vuln-cve2014-2126: vuln safe
+http-vuln-cve2014-2127: vuln safe
+http-vuln-cve2014-2128: vuln safe
+http-vuln-cve2014-2129: vuln safe
+http-vuln-cve2014-3704: vuln intrusive exploit
+http-vuln-cve2014-8877: vuln intrusive exploit
+http-vuln-cve2015-1427: vuln intrusive
+http-vuln-cve2015-1635: vuln safe
+http-vuln-cve2017-1001000: vuln safe
+http-vuln-cve2017-5638: vuln
+http-vuln-cve2017-5689: vuln auth exploit
+http-vuln-cve2017-8917: vuln intrusive
+http-vuln-misfortune-cookie: vuln intrusive
+http-vuln-wnr1000-creds: exploit vuln intrusive
+http-webdav-scan: safe discovery default
+http-wordpress-brute: intrusive brute
+http-wordpress-users: auth intrusive vuln
+iax2-brute: intrusive brute
+icap-info: safe discovery
+ike-version: default discovery safe version
+imap-brute: brute intrusive
+imap-capabilities: default safe
+imap-ntlm-info: default discovery safe
+impress-remote-discover: intrusive brute
+informix-brute: intrusive brute
+ip-forwarding: safe discovery
+ip-geolocation-map-kml: safe
+ip-https-discover: discovery safe default
+ipidseq: safe discovery
+ipmi-brute: intrusive brute
+ipmi-cipher-zero: vuln safe
+ipmi-version: discovery safe
+ipv6-node-info: default discovery safe
+ipv6-ra-flood: dos intrusive
+irc-botnet-channels: discovery vuln safe
+irc-brute: brute intrusive
+irc-info: default discovery safe
+irc-sasl-brute: brute intrusive
+irc-unrealircd-backdoor: exploit intrusive malware vuln
+iscsi-brute: intrusive brute
+iscsi-info: default safe discovery
+isns-info: safe discovery
+jdwp-info: default safe discovery
+knx-gateway-info: default discovery safe
+ldap-brute: intrusive brute
+ldap-novell-getpass: discovery safe
+ldap-rootdse: discovery safe
+ldap-search: discovery safe
+lexmark-config: discovery safe
+lu-enum: intrusive brute
+maxdb-info: default version safe
+mcafee-epo-agent: version safe
+membase-brute: intrusive brute
+membase-http-info: discovery safe
+memcached-info: discovery safe
+metasploit-info: intrusive safe
+metasploit-msgrpc-brute: intrusive brute
+metasploit-xmlrpc-brute: intrusive brute
+mikrotik-routeros-brute: intrusive brute
+mmouse-brute: intrusive brute
+mongodb-brute: intrusive brute
+mongodb-databases: default discovery safe
+mongodb-info: default discovery safe
+mqtt-subscribe: safe discovery version
+ms-sql-brute: brute intrusive
+ms-sql-config: discovery safe
+ms-sql-dac: discovery safe
+ms-sql-dump-hashes: auth discovery safe
+ms-sql-hasdbaccess: auth discovery safe
+ms-sql-info: default discovery safe
+ms-sql-ntlm-info: default discovery safe
+ms-sql-query: discovery safe
+ms-sql-tables: discovery safe
+msrpc-enum: safe discovery
+multicast-profinet-discovery: discovery info safe
+mysql-audit: discovery safe
+mysql-brute: intrusive brute
+mysql-dump-hashes: auth discovery safe
+mysql-enum: intrusive brute
+mysql-info: default discovery safe
+mysql-query: auth discovery safe
+mysql-vuln-cve2012-2122: discovery intrusive vuln
+nat-pmp-info: default discovery safe
+nat-pmp-mapport: discovery safe
+nbns-interfaces: default discovery safe
+nbstat: default discovery safe
+ncp-enum-users: auth safe
+ncp-serverinfo: default discovery safe
+ndmp-fs-info: discovery safe
+nessus-brute: intrusive brute
+nessus-xmlrpc-brute: intrusive brute
+netbus-auth-bypass: auth safe vuln
+netbus-brute: brute intrusive
+netbus-info: default discovery safe
+nexpose-brute: intrusive brute
+nfs-ls: discovery safe
+nfs-showmount: discovery safe
+nfs-statfs: discovery safe
+nje-node-brute: intrusive brute
+nje-pass-brute: intrusive brute
+nntp-ntlm-info: default discovery safe
+nping-brute: brute intrusive
+ntp-info: default discovery safe
+omp2-brute: brute intrusive
+omp2-enum-targets: discovery safe
+openflow-info: default safe
+openlookup-info: default discovery safe version
+openvas-otp-brute: intrusive brute
+openwebnet-discovery: discovery safe
+oracle-brute-stealth: intrusive brute
+oracle-brute: intrusive brute
+oracle-sid-brute: intrusive brute
+oracle-tns-version: version safe
+p2p-conficker: default safe
+path-mtu: safe discovery
+pcanywhere-brute: intrusive brute
+pgsql-brute: intrusive brute
+pop3-brute: intrusive brute
+pop3-capabilities: default discovery safe
+pop3-ntlm-info: default discovery safe
+port-states: safe
+puppet-naivesigning: intrusive vuln
+qconn-exec: intrusive exploit vuln
+qscan: safe discovery
+quake1-info: default discovery safe version
+quake3-info: default discovery safe version
+quake3-master-getservers: default discovery safe
+rdp-enum-encryption: safe discovery
+rdp-ntlm-info: default discovery safe
+rdp-vuln-ms12-020: intrusive vuln
+realvnc-auth-bypass: auth safe vuln
+redis-brute: intrusive brute
+redis-info: discovery safe
+resolveall: safe discovery
+reverse-index: safe
+rexec-brute: brute intrusive
+rfc868-time: discovery safe version
+riak-http-info: discovery safe
+rlogin-brute: brute intrusive
+rmi-dumpregistry: default discovery safe
+rmi-vuln-classloader: intrusive vuln
+rpcap-brute: intrusive brute
+rpcap-info: discovery safe
+rpcinfo: discovery default safe version
+rsa-vuln-roca: vuln safe
+rsync-brute: brute intrusive
+rsync-list-modules: discovery safe
+rtsp-methods: default safe
+rtsp-url-brute: brute intrusive
+rusers: discovery safe
+samba-vuln-cve-2012-1182: vuln intrusive
+servicetags: default discovery safe
+sip-brute: intrusive brute
+sip-methods: default safe discovery
+smb-brute: intrusive brute
+smb-double-pulsar-backdoor: vuln safe malware
+smb-enum-services: discovery intrusive safe
+smb-flood: intrusive dos
+smb-ls: discovery safe
+smb-mbenum: discovery safe
+smb-os-discovery: default discovery safe
+smb-protocols: safe discovery
+smb-security-mode: default discovery safe
+smb-vuln-conficker: intrusive exploit dos vuln
+smb-vuln-cve-2017-7494: vuln intrusive
+smb-vuln-cve2009-3103: intrusive exploit dos vuln
+smb-vuln-ms06-025: intrusive exploit dos vuln
+smb-vuln-ms07-029: intrusive exploit dos vuln
+smb-vuln-ms08-067: intrusive exploit dos vuln
+smb-vuln-ms10-054: vuln intrusive dos
+smb-vuln-ms10-061: vuln intrusive
+smb-vuln-ms17-010: vuln safe
+smb-vuln-regsvc-dos: intrusive exploit dos vuln
+smb-vuln-webexec: intrusive vuln
+smb2-capabilities: safe discovery
+smb2-security-mode: safe discovery default
+smb2-time: discovery safe default
+smb2-vuln-uptime: vuln safe
+smtp-brute: brute intrusive
+smtp-commands: default discovery safe
+smtp-ntlm-info: default discovery safe
+smtp-strangeport: malware safe
+smtp-vuln-cve2010-4344: exploit intrusive vuln
+smtp-vuln-cve2011-1720: intrusive vuln
+smtp-vuln-cve2011-1764: intrusive vuln
+snmp-brute: intrusive brute
+snmp-hh3c-logins: default discovery safe
+snmp-info: default version safe
+snmp-interfaces: default discovery safe
+snmp-netstat: default discovery safe
+snmp-processes: default discovery safe
+snmp-sysdescr: default discovery safe
+snmp-win32-services: default discovery safe
+snmp-win32-shares: default discovery safe
+snmp-win32-software: default discovery safe
+snmp-win32-users: default auth safe
+socks-auth-info: discovery safe default
+socks-brute: brute intrusive
+ssh-brute: brute intrusive
+ssh-hostkey: safe default discovery
+ssh2-enum-algos: safe discovery
+sshv1: default safe
+ssl-ccs-injection: vuln safe
+ssl-cert-intaddr: vuln discovery safe
+ssl-cert: default safe discovery
+ssl-date: discovery safe default
+ssl-dh-params: vuln safe
+ssl-heartbleed: vuln safe
+ssl-known-key: safe discovery vuln default
+ssl-poodle: vuln safe
+sslv2-drown: intrusive vuln
+sslv2: default safe
+sstp-discover: discovery default safe
+stun-info: discovery safe
+supermicro-ipmi-conf: exploit vuln
+svn-brute: intrusive brute
+targets-traceroute: safe discovery
+targets-xml: safe
+telnet-brute: brute intrusive
+telnet-encryption: safe discovery
+telnet-ntlm-info: default discovery safe
+tftp-version: default safe version
+tls-alpn: discovery safe default
+tls-nextprotoneg: discovery safe default
+tls-ticketbleed: vuln safe
+tn3270-screen: safe discovery
+tso-enum: intrusive brute
+ubiquiti-discovery: default discovery version safe
+unittest: safe
+unusual-port: safe
+upnp-info: default discovery safe
+uptime-agent-info: safe default
+url-snarf: safe
+ventrilo-info: default discovery safe version
+versant-info: discovery safe
+vmauthd-brute: brute intrusive
+vmware-version: discovery safe version
+vnc-brute: intrusive brute
+vnc-info: default discovery safe
+voldemort-info: discovery safe
+vtam-enum: intrusive brute
+vuze-dht-info: discovery safe
+wdb-version: default safe version discovery vuln
+weblogic-t3-info: default safe discovery version
+wsdd-discover: safe discovery default
+x11-access: default safe auth
+xdmcp-discover: safe discovery
+xmlrpc-methods: default safe discovery
+xmpp-brute: brute intrusive
+xmpp-info: default safe discovery version

@@ -240,9 +240,10 @@ func setCommitment(ctx context.Context, tx *sql.Tx, id, by string, at time.Time,
 // ---- snapshots ----
 
 // snapshotDocs encodes the JSON columns of a snapshot, in the order of the INSERT of upsertSnapshot.
-func snapshotDocs(c Content, counts Counts) ([10]string, error) {
-	var docs [10]string
-	for i, v := range []any{nz(c.Hosts), nz(c.Ports), nz(c.AdminPanels), nz(c.Certs), counts, storedServices(c), nz(c.Checks), nz(c.NotChecked), nz(c.WebFindings), nz(c.Greenbone)} {
+func snapshotDocs(c Content, counts Counts) ([11]string, error) {
+	var docs [11]string
+	for i, v := range []any{nz(c.Hosts), nz(c.Ports), nz(c.AdminPanels), nz(c.Certs), counts, storedServices(c), nz(c.Checks), nz(c.NotChecked), nz(c.WebFindings), nz(c.Greenbone),
+		nz(c.Scripts)} { // FULL-4 (Trưởng), for Mlee: scripts (D-526)
 		b, err := json.Marshal(v)
 		if err != nil {
 			return docs, fmt.Errorf("encoding snapshot: %w", err)
@@ -290,9 +291,9 @@ func upsertSnapshot(ctx context.Context, tx *sql.Tx, targetID string, snap Snaps
 	if _, err := tx.ExecContext(ctx, `DELETE FROM exp_snapshot WHERE target_id = ? AND date = ?`, targetID, snap.Date); err != nil {
 		return fmt.Errorf("replacing snapshot: %w", err)
 	}
-	_, err = tx.ExecContext(ctx, `INSERT INTO exp_snapshot (id, target_id, date, scanned_at, hosts, ports, admin_panels, certs, counts, services, checks, not_checked, web_findings, greenbone)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		snap.ID, targetID, snap.Date, snap.ScannedAt, d[0], d[1], d[2], d[3], d[4], d[5], d[6], d[7], d[8], d[9])
+	_, err = tx.ExecContext(ctx, `INSERT INTO exp_snapshot (id, target_id, date, scanned_at, hosts, ports, admin_panels, certs, counts, services, checks, not_checked, web_findings, greenbone, scripts)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		snap.ID, targetID, snap.Date, snap.ScannedAt, d[0], d[1], d[2], d[3], d[4], d[5], d[6], d[7], d[8], d[9], d[10])
 	if err != nil {
 		return fmt.Errorf("inserting snapshot: %w", err)
 	}
@@ -326,10 +327,10 @@ func listSnapshotMetas(ctx context.Context, q querier, targetID string) ([]Snaps
 // loadSnapshot returns the snapshot of one day, or ok=false when there is none.
 func loadSnapshot(ctx context.Context, q querier, targetID, date string) (Snapshot, bool, error) {
 	var s Snapshot
-	var hosts, ports, admin, certs, counts, services, checks, notChecked, web, gb string
+	var hosts, ports, admin, certs, counts, services, checks, notChecked, web, gb, scripts string
 	var stored []storedService
-	err := q.QueryRowContext(ctx, `SELECT id, date, scanned_at, hosts, ports, admin_panels, certs, counts, services, checks, not_checked, web_findings, greenbone FROM exp_snapshot WHERE target_id = ? AND date = ?`, targetID, date).
-		Scan(&s.ID, &s.Date, &s.ScannedAt, &hosts, &ports, &admin, &certs, &counts, &services, &checks, &notChecked, &web, &gb)
+	err := q.QueryRowContext(ctx, `SELECT id, date, scanned_at, hosts, ports, admin_panels, certs, counts, services, checks, not_checked, web_findings, greenbone, scripts FROM exp_snapshot WHERE target_id = ? AND date = ?`, targetID, date).
+		Scan(&s.ID, &s.Date, &s.ScannedAt, &hosts, &ports, &admin, &certs, &counts, &services, &checks, &notChecked, &web, &gb, &scripts) // FULL-4 (Trưởng), for Mlee: scripts
 	if errors.Is(err, sql.ErrNoRows) {
 		return Snapshot{}, false, nil
 	}
@@ -340,7 +341,7 @@ func loadSnapshot(ctx context.Context, q querier, targetID, date string) (Snapsh
 		doc string
 		to  any
 	}{{hosts, &s.Hosts}, {ports, &s.Ports}, {admin, &s.AdminPanels}, {certs, &s.Certs}, {counts, &s.Counts},
-		{services, &stored}, {checks, &s.Checks}, {notChecked, &s.NotChecked}, {web, &s.WebFindings}, {gb, &s.Greenbone}} {
+		{services, &stored}, {checks, &s.Checks}, {notChecked, &s.NotChecked}, {web, &s.WebFindings}, {gb, &s.Greenbone}, {scripts, &s.Scripts}} {
 		if err := json.Unmarshal([]byte(d.doc), d.to); err != nil {
 			return Snapshot{}, false, fmt.Errorf("snapshot %s: %w", s.ID, err)
 		}
@@ -351,7 +352,8 @@ func loadSnapshot(ctx context.Context, q querier, targetID, date string) (Snapsh
 		s.Templates = append(s.Templates, x.Templates...)
 	}
 	s.Content = Content{Hosts: nz(s.Hosts), Ports: nz(s.Ports), AdminPanels: nz(s.AdminPanels), Certs: nz(s.Certs),
-		Services: s.Services, Templates: s.Templates, Checks: nz(s.Checks), NotChecked: nz(s.NotChecked), WebFindings: nz(s.WebFindings), Greenbone: nz(s.Greenbone)}
+		Services: s.Services, Templates: s.Templates, Checks: nz(s.Checks), NotChecked: nz(s.NotChecked), WebFindings: nz(s.WebFindings), Greenbone: nz(s.Greenbone),
+		Scripts: nz(s.Scripts)}
 	return s, true, nil
 }
 

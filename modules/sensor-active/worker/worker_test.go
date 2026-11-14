@@ -18,6 +18,7 @@ import (
 	"github.com/knt048/vedette/core/exec/exectest"
 	"github.com/knt048/vedette/core/sensorlink"
 	"github.com/knt048/vedette/core/sensorlink/linktest"
+	"github.com/knt048/vedette/modules/sensor-active/nmapargv"
 	"github.com/knt048/vedette/modules/sensor-active/worker"
 )
 
@@ -236,14 +237,20 @@ func (f *fakeNmap) alive(pid int) bool {
 // writeNmap makes the script. body runs for a scan (not for --version); it may use $DIR.
 func writeNmap(t *testing.T, body string) *fakeNmap {
 	t.Helper()
+	return writeNmapVersion(t, "7.94SVN", body)
+}
+
+// writeNmapVersion is writeNmap whose --version reports version (the full shapes need nmapargv.ReviewedNmapVersion).
+func writeNmapVersion(t *testing.T, version, body string) *fakeNmap {
+	t.Helper()
 	dir := t.TempDir()
 	script := fmt.Sprintf(`#!/bin/sh
 DIR=%q
-if [ "$1" = "--version" ]; then echo "Nmap version 7.94SVN ( https://nmap.org )"; exit 0; fi
+if [ "$1" = "--version" ]; then echo "Nmap version %s ( https://nmap.org )"; exit 0; fi
 printf '%%s\n' "$@" >> "$DIR/argv.log"
 echo $$ > "$DIR/nmap.pid"
 %s
-`, dir, body)
+`, dir, version, body)
 	path := filepath.Join(dir, "nmap")
 	exectest.WriteScript(t, path, script)
 	f := &fakeNmap{path: path, dir: dir}
@@ -564,7 +571,7 @@ func TestHeartbeatReportsNmap(t *testing.T) {
 	r := start(t, writeNmap(t, printXML))
 	select {
 	case hb := <-r.core.beats:
-		if hb.Version != "1.0.0" || !hb.Nmap.Present || hb.Nmap.Version != "7.94SVN" {
+		if hb.Version != "1.0.0" || !hb.Nmap.Present || hb.Nmap.Version != "7.94SVN" || hb.Nmap.Full { // review r2 LOW-3: not the reviewed nmap
 			t.Fatalf("heartbeat = %+v", hb)
 		}
 	case <-time.After(10 * time.Second):
@@ -575,6 +582,21 @@ func TestHeartbeatReportsNmap(t *testing.T) {
 	case <-r.core.beats:
 	case <-time.After(10 * time.Second):
 		t.Fatal("no second heartbeat")
+	}
+}
+
+// Review r2 LOW-3: the full shapes are advertised only by a worker whose nmap is exactly the version the script lists were
+// reviewed against.
+func TestHeartbeatSaysFullOnlyWithTheReviewedNmap(t *testing.T) {
+	t.Parallel()
+	r := start(t, writeNmapVersion(t, nmapargv.ReviewedNmapVersion, printXML))
+	select {
+	case hb := <-r.core.beats:
+		if !hb.Nmap.Present || hb.Nmap.Version != nmapargv.ReviewedNmapVersion || !hb.Nmap.Full {
+			t.Fatalf("heartbeat = %+v", hb)
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("no heartbeat")
 	}
 }
 

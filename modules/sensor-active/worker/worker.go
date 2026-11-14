@@ -90,6 +90,9 @@ type Config struct {
 	// Egress is the public-IP check of the own-IP fence of the external shape (D-514): *egressip.Prober in production, a fake in
 	// tests. nil: every external job is refused (not_own_ip).
 	Egress EgressProber
+	// EgressTicks, when set, drives the re-check of a running full job instead of a ticker of EgressRecheck (tests send one tick
+	// at a time).
+	EgressTicks <-chan time.Time
 
 	Now       func() time.Time // the clock of the lease
 	Sleep     func(ctx context.Context, d time.Duration) error
@@ -114,10 +117,11 @@ type Worker struct {
 	heartbeat time.Duration
 	tick      time.Duration
 
-	egress   EgressProber
-	egressMu sync.Mutex // one fence check at a time; guards the two fields below
-	egressIP netip.Addr // the address the latest yes was for
-	egressAt time.Time  // when
+	egress      EgressProber
+	egressTicks <-chan time.Time // the re-check of a running full job; nil: every EgressRecheck
+	egressMu    sync.Mutex       // one fence check at a time; guards the two fields below
+	egressIP    netip.Addr       // the address the latest yes was for
+	egressAt    time.Time        // when
 
 	mu     sync.Mutex
 	lastOK time.Time            // the latest successful poll
@@ -147,7 +151,7 @@ func New(c Config) (*Worker, error) {
 	if c.Link == nil {
 		return nil, errors.New("worker: a Link is required")
 	}
-	w := &Worker{link: c.Link, nmapPath: c.NmapPath, snmpDial: c.SNMPDial, snmpWait: cmp.Or(c.SNMPTimeout, SNMPTimeout), version: c.Version, log: c.Log, now: c.Now, sleep: c.Sleep, wait: c.Wait, heartbeat: c.Heartbeat, tick: c.Tick, egress: c.Egress}
+	w := &Worker{link: c.Link, nmapPath: c.NmapPath, snmpDial: c.SNMPDial, snmpWait: cmp.Or(c.SNMPTimeout, SNMPTimeout), version: c.Version, log: c.Log, now: c.Now, sleep: c.Sleep, wait: c.Wait, heartbeat: c.Heartbeat, tick: c.Tick, egress: c.Egress, egressTicks: c.EgressTicks}
 	if w.log == nil {
 		w.log = slog.New(slog.DiscardHandler)
 	}
@@ -416,7 +420,14 @@ func (w *Worker) execute(ctx, jctx context.Context, cur *activeJob) *sensorlink.
 	}
 	rctx, cancel := context.WithTimeout(jctx, time.Duration(cur.job.TimeoutS)*time.Second)
 	defer cancel()
-	if cur.job.Shape == nmapargv.External.Name() { // argvOf proved it has one public target
+	kind, _ := nmapargv.KindOf(cur.job.Shape)
+	if kind.IsFull() { // review r2 LOW-3: the script lists were reviewed against one nmap version; another one runs no full job
+		if _, ver := w.nmapVersion(rctx); ver != nmapargv.ReviewedNmapVersion {
+			w.log.ErrorContext(ctx, "sensor_active_job_refused", "id", cur.job.ID, "error", "nmap "+ver+" is not the reviewed version "+nmapargv.ReviewedNmapVersion)
+			return &sensorlink.JobResult{Status: "refused", Reason: "invalid_job", ExitCode: -1}
+		}
+	}
+	if kind.IsExternal() { // argvOf proved it has one public target (external, external_full, external_disruptive)
 		if ok, reason := w.ownIP(rctx, netip.MustParseAddr(cur.job.Targets[0])); !ok {
 			if context.Cause(jctx) != nil {
 				return stopped()
@@ -425,7 +436,29 @@ func (w *Worker) execute(ctx, jctx context.Context, cur *activeJob) *sensorlink.
 			return &sensorlink.JobResult{Status: "refused", Reason: reason, ExitCode: -1}
 		}
 	}
-	out, err := w.runner.Run(rctx, "nmap", argv, nil)
+	if !kind.IsFull() {
+		out, err := w.runner.Run(rctx, "nmap", argv, nil)
+		return w.finish(ctx, jctx, rctx, cur, out, err, "nmap_missing", (*sensorlink.JobResult).SetXML)
+	}
+	// A full job runs up to an hour: the fence is asked again every EgressRecheck while nmap runs (D-526, review r1 H1). The first
+	// answer that is not a yes kills nmap, and the whole result is dropped: the job is "stopped" with the fence's reason (at the
+	// start it is "refused": nothing ran).
+	ticks := w.egressTicks
+	if ticks == nil {
+		tk := time.NewTicker(EgressRecheck)
+		defer tk.Stop()
+		ticks = tk.C
+	}
+	nctx, kill := context.WithCancel(rctx)
+	defer kill()
+	lost := make(chan string, 1)
+	go func() { lost <- w.watchEgress(nctx, netip.MustParseAddr(cur.job.Targets[0]), ticks, kill) }()
+	out, err := w.runner.Run(nctx, "nmap", argv, nil)
+	kill()
+	if reason := <-lost; reason != "" && context.Cause(jctx) == nil {
+		w.log.WarnContext(ctx, "sensor_active_external_job_stopped", "id", cur.job.ID, "reason", reason)
+		return &sensorlink.JobResult{Status: "stopped", Reason: reason, ExitCode: -1} // stopped, not refused: nmap had run (review r2 LOW-5)
+	}
 	return w.finish(ctx, jctx, rctx, cur, out, err, "nmap_missing", (*sensorlink.JobResult).SetXML)
 }
 
@@ -501,8 +534,9 @@ func (w *Worker) post(ctx context.Context, id string, res *sensorlink.JobResult)
 }
 
 // argvOf is the job grammar of the table in sensor-protocol.md 6.4, checked here again and not trusted from core: a known
-// shape, a rate of 1..1000 (a gentle job carries 1, an external one nmapargv.ExternalRate), 1..64 canonical unique private IPv4
-// targets (the external shape: exactly one public one; nmapargv.Build and Validate refuse anything else), a timeout of 1..7200
+// shape, a rate of 1..1000 (a gentle job carries 1, an external one nmapargv.ExternalRate, a full one nmapargv.FullRate), 1..64
+// canonical unique private IPv4 targets (the three external shapes: exactly one public one; nmapargv.Build and Validate refuse
+// anything else), a timeout of 1..7200
 // seconds. The argv is built here from
 // those fields; no argv comes over the wire (D-111 (3)).
 func argvOf(j sensorlink.Job) ([]string, error) {
@@ -543,8 +577,11 @@ func (w *Worker) heartbeats(ctx context.Context) {
 
 func (w *Worker) beat(ctx context.Context) {
 	present, ver := w.nmapVersion(ctx)
-	// SNMP is in this binary (gosnmp, D-512): a worker of protocol 5 always runs snmp jobs.
-	hb := &sensorlink.ActiveHeartbeat{Version: w.version, Nmap: sensorlink.HeartbeatNmap{Present: present, Version: ver}, Nuclei: w.nucleiStatus(ctx), SNMP: true}
+	// SNMP is in this binary (gosnmp, D-512): a worker of protocol 5 always runs snmp jobs. So are the full nmap shapes (D-526):
+	// their grammar is nmapargv's, and the own-IP fence covers them like the external shape; they are advertised only with the
+	// nmap version their script lists were reviewed against (review r2 LOW-3).
+	full := present && ver == nmapargv.ReviewedNmapVersion
+	hb := &sensorlink.ActiveHeartbeat{Version: w.version, Nmap: sensorlink.HeartbeatNmap{Present: present, Version: ver, Full: full}, Nuclei: w.nucleiStatus(ctx), SNMP: true}
 	inst, err := w.link.ActiveHeartbeat(ctx, hb)
 	if err != nil {
 		if ctx.Err() == nil {

@@ -76,7 +76,8 @@ func (e *stoppedBy) Error() string { return "stopped by " + e.by }
 // begin registers a run and starts it in the background, or refuses (INV-1, INV-18): the gate's reason, no runner (501), another
 // run (409 busy), the same target within ScanEvery (429). The run's context comes from the Service, not from the request, so the
 // scan goes on after the 202 has been sent; it ends when its last step returns (each step has its own cap: 5 minutes for the runner,
-// service identification and the templates, 8 minutes a page for ZAP, 90 minutes for the optional Greenbone step), or on StopScan.
+// service identification and the templates, 8 minutes a page for ZAP, 90 minutes for the optional Greenbone step; FULL-4 (Trưởng),
+// for Mlee: 70 minutes for the service step of a deep scan, FullServicesTimeout, D-526), or on StopScan. No cap covers the whole run.
 func (s *Service) begin(ctx context.Context, user string, t Target, reason BlockedReason) (*scanRun, error) {
 	if reason != "" {
 		return nil, s.refusal(t, reason, s.clock())

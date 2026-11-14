@@ -378,6 +378,8 @@ describe('core: khung Cài đặt và vai', () => {
     const nav = await screen.findByRole('navigation', { name: 'Settings sections' })
     expect(await within(nav).findByRole('link', { name: 'My account' })).toHaveAttribute('aria-current', 'page')
     expect(await screen.findByRole('heading', { name: 'Change password' })).toBeInTheDocument()
+    // D-519: the old #two-step anchor opens the Sign-in tab
+    expect(screen.getByRole('tab', { name: 'Sign-in and two-step' })).toHaveAttribute('aria-selected', 'true')
   })
 
   it('lưu cài đặt chung và ghi nhật ký', async () => {
@@ -838,7 +840,7 @@ describe('core: đăng nhập SSO (S-CORE-3, D-194..D-196)', () => {
   async function start(): Promise<string> {
     const r = await fetch(`${location.origin}/api/v1/auth/oidc/start`, { method: 'POST' })
     const b = (await r.json()) as { authorize_url: string; binding: string }
-    saveSsoFlow({ binding: b.binding, next: '/account' })
+    saveSsoFlow({ binding: b.binding, next: '/account?tab=sign-in' })
     const url = new URL(b.authorize_url)
     return url.pathname + url.search
   }
@@ -1329,7 +1331,7 @@ describe('core: MCP (S-MCP-1)', () => {
 describe('core: tài khoản', () => {
   it('đổi mật khẩu: sai mật khẩu cũ, rồi thành công', async () => {
     const u = user()
-    renderApp('/account')
+    renderApp('/settings/account?tab=sign-in')
     await u.type(await screen.findByLabelText('Current password'), 'sai-roi')
     await u.type(screen.getByLabelText('New password'), 'mat-khau-moi-rat-dai')
     await u.type(screen.getByLabelText('Repeat new password'), 'mat-khau-moi-rat-dai')
@@ -1344,7 +1346,7 @@ describe('core: tài khoản', () => {
 
   it('bật 2FA bằng mã TOTP thật, sai mã bị từ chối, rồi tắt bằng mật khẩu', async () => {
     const u = user()
-    renderApp('/account')
+    renderApp('/settings/account?tab=sign-in')
     const start = await screen.findByRole('button', { name: 'Set up authenticator app' })
     // D-76: the current password comes first; without it neither method can be started
     expect(start).toBeDisabled()
@@ -1390,7 +1392,7 @@ describe('core: tài khoản', () => {
 
   it('kết thúc phiên khác, a11y sạch', async () => {
     const u = user()
-    renderApp('/account', { role: 'viewer' })
+    renderApp('/settings/account?tab=sessions', { role: 'viewer' })
     await u.click(await screen.findByRole('button', { name: 'End session Firefox on Windows at 192.168.10.61' }))
     expect(await screen.findByText('Session ended.')).toBeInTheDocument()
     await expectNoA11yViolations()
@@ -1398,9 +1400,10 @@ describe('core: tài khoản', () => {
 
   it('walk 2026-11-12: short device label with the raw text as tooltip; a guessable new password is refused under New password (D-389)', async () => {
     const u = user()
-    renderApp('/account')
+    renderApp('/settings/account?tab=sessions')
     const label = await screen.findByText('Firefox on Windows')
     expect(label).toHaveAttribute('title', expect.stringMatching(/^Mozilla\/5\.0 \(Windows NT 10\.0/))
+    await u.click(screen.getByRole('tab', { name: 'Sign-in and two-step' })) // D-519
     await u.type(screen.getByLabelText('Current password'), 'vedette-demo')
     await u.type(screen.getByLabelText('New password'), 'password1234')
     await u.type(screen.getByLabelText('Repeat new password'), 'password1234')
@@ -1412,10 +1415,10 @@ describe('core: tài khoản', () => {
 
   it('two-step on: an administrator sees the box-console reset with their email, another user is told to ask an administrator (D-389)', async () => {
     usersStore.update((l) => l.map((x) => (x.id === 'u-admin' || x.id === 'u-op' ? { ...x, twofa: true, twofa_method: 'app' } : x)))
-    const { unmount } = renderApp('/account')
+    const { unmount } = renderApp('/settings/account?tab=sign-in')
     expect(await screen.findByText("docker exec vedette-core /vedette reset-admin 'admin@acme.example'")).toBeInTheDocument()
     unmount()
-    renderApp('/account', { role: 'operator' })
+    renderApp('/settings/account?tab=sign-in', { role: 'operator' })
     expect(await screen.findByText(/Ask an administrator to turn two-step sign-in off for you/)).toBeInTheDocument()
     expect(screen.queryByText(/reset-admin/)).not.toBeInTheDocument()
   })
@@ -1448,7 +1451,7 @@ describe('core: turning two-step on needs the current password (D-76)', () => {
 describe('core: two-step sign-in, email code method (D-35)', () => {
   it('account: both methods are offered; email is enabled when the email channel is on', async () => {
     const u = user()
-    renderApp('/account')
+    renderApp('/settings/account?tab=sign-in')
     expect(await screen.findByRole('button', { name: 'Set up authenticator app' })).toBeDisabled() // until the password is typed (D-76)
     await u.type(screen.getByLabelText('Your current password'), 'vedette-demo')
     expect(screen.getByRole('button', { name: 'Set up authenticator app' })).toBeEnabled()
@@ -1460,7 +1463,7 @@ describe('core: two-step sign-in, email code method (D-35)', () => {
   it('account: email option is disabled with the reason when the channel is removed; admins get a link, others are told to ask', async () => {
     sessionStore.set({ userId: 'u-admin' })
     expect((await call('/notify/channels/email', 'DELETE')).status).toBe(204)
-    const { unmount } = renderApp('/account')
+    const { unmount } = renderApp('/settings/account?tab=sign-in')
     const btn = await screen.findByRole('button', { name: 'Set up email code' })
     expect(btn).toBeDisabled()
     await user().type(screen.getByLabelText('Your current password'), 'vedette-demo')
@@ -1470,21 +1473,21 @@ describe('core: two-step sign-in, email code method (D-35)', () => {
     expect((await startEmail()).status).toBe(409)
     expect(screen.getByRole('button', { name: 'Set up authenticator app' })).toBeEnabled()
     unmount()
-    renderApp('/account', { role: 'viewer' })
+    renderApp('/settings/account?tab=sign-in', { role: 'viewer' })
     expect(await screen.findByText(/Ask an administrator to set up the email channel\./)).toBeInTheDocument()
     expect(screen.queryByRole('link', { name: 'Open alert channels' })).not.toBeInTheDocument()
   })
 
   it('account: Notifications module off is a separate reason', async () => {
     setModule('notify', false)
-    renderApp('/account')
+    renderApp('/settings/account?tab=sign-in')
     expect(await screen.findByRole('button', { name: 'Set up email code' })).toBeDisabled()
     expect(screen.getByText('Email codes need the Notifications module, which is off.')).toBeInTheDocument()
   })
 
   it('setup: code goes to the masked sign-in email, wrong tries are counted, 5 wrong cancel the code, the right code turns it on', async () => {
     const u = user()
-    renderApp('/account')
+    renderApp('/settings/account?tab=sign-in')
     await u.type(await screen.findByLabelText('Your current password'), 'vedette-demo')
     await u.click(await screen.findByRole('button', { name: 'Set up email code' }))
     expect(await screen.findByText(/We sent a 6-digit code to a•••@acme\.example/)).toBeInTheDocument()
@@ -1674,7 +1677,7 @@ describe('core: two-step sign-in, email code method (D-35)', () => {
   it('turning two-step off (with the password) works for the email method too', async () => {
     const u = user()
     setUser('u-admin', { twofa: true, twofa_method: 'email' })
-    renderApp('/account')
+    renderApp('/settings/account?tab=sign-in')
     expect(await screen.findByText(/Vedette emails to a•••@acme\.example/)).toBeInTheDocument()
     await u.click(screen.getByRole('button', { name: 'Turn off two-step sign-in' }))
     await u.type(screen.getByLabelText('Current password', { selector: '#twofa-off-pw' }), 'vedette-demo')
@@ -2069,7 +2072,7 @@ describe('core: operating system of the box (S-CORE-7, D-53)', () => {
 describe('core: two-step setup form matrix (docs/QA.md §2)', () => {
   it('app and email each show only their own setup steps, and Cancel returns to the choice from either', async () => {
     const u = user()
-    renderApp('/account')
+    renderApp('/settings/account?tab=sign-in')
     const APP = 'Set up authenticator app', EMAIL = 'Set up email code'
     const QR = 'QR code for your authenticator app', RESEND = /^Send a new code/
     await u.type(await screen.findByLabelText('Your current password'), 'vedette-demo')

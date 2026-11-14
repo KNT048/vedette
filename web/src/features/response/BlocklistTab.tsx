@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { RefreshCw } from 'lucide-react'
 import { CodeBlock } from '@/components/common/CodeBlock'
-import { Panel, Section } from '@/components/common/PageHeader'
+import { Notice, Panel, Section } from '@/components/common/PageHeader'
 import { ErrorState, Loading } from '@/components/common/States'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog'
@@ -66,10 +66,7 @@ export function BlocklistTab() {
             </details>
           ))}
         </div>
-        <div className="mt-4 grid gap-1 rounded-md border border-dashed border-rule px-4 py-3 text-sm">
-          <p className="font-medium">{t('blocklist.pushTitle')}</p>
-          <p className="text-muted">{t('blocklist.pushBody')}</p>
-        </div>
+        <Notice tone="accent" className="mb-0 mt-4" title={t('blocklist.pushTitle')}>{t('blocklist.pushBody')}</Notice>
       </Section>
       <Dialog open={ask} onOpenChange={setAsk}>
         <DialogContent title={t('blocklist.regenerateTitle')} description={t('blocklist.regenerateBody')}>

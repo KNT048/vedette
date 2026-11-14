@@ -254,7 +254,7 @@ test.describe('sign-in and two-step', () => {
   test('two-step turns on to the standard, signs in with a code, turns off', async ({ page }) => {
     test.setTimeout(120_000)
     await startSample(page)
-    await page.goto('/account')
+    await page.goto('/settings/account?tab=sign-in')
     // D-76: turning two-step on needs the current password, as turning it off does
     await page.getByLabel('Your current password').fill('wrong')
     await page.getByRole('button', { name: 'Set up authenticator app' }).click()
@@ -299,7 +299,7 @@ test.describe('sign-in and two-step', () => {
     await page.getByLabel('6-digit code').fill(totp(key).replace(/(\d{3})(\d{3})/, '$1 $2'))
     await page.getByRole('button', { name: 'Sign in' }).click()
     await expect(page).toHaveURL(/\/$/)
-    await page.goto('/account')
+    await page.goto('/settings/account?tab=sign-in')
     await page.getByRole('button', { name: 'Turn off two-step sign-in' }).click()
     await page.getByRole('dialog').getByLabel('Current password').fill('wrong')
     await page.getByRole('button', { name: 'Turn off', exact: true }).click()

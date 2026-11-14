@@ -3,7 +3,7 @@ import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Printer, Send, Sparkles, X } from 'lucide-react'
-import { Panel, Section } from '@/components/common/PageHeader'
+import { Notice, Panel, Section } from '@/components/common/PageHeader'
 import { DataTable } from '@/components/common/DataTable'
 import { EmptyState, QueryState } from '@/components/common/States'
 import { Chip } from '@/components/common/StatusChip'
@@ -160,7 +160,7 @@ function ScheduleForm({ s, noChannel }: { s: Schedule; noChannel: boolean }) {
         ) : <p className="text-sm text-muted">{t('weekly.schedule.noRecipients')}</p>}
       </div>
       {enabled && noChannel ? (
-        <p role="alert" className="rounded-md border border-warn/50 bg-warn-soft px-3 py-2 text-[13px]">{t('weekly.schedule.noChannel')} <Link to="/settings/channels" className="text-accent underline-offset-4 hover:underline">{t('weekly.schedule.setupChannel')}</Link></p>
+        <Notice tone="warn" role="alert" className="mb-0" title={<>{t('weekly.schedule.noChannel')} <Link to="/settings/channels" className="text-accent underline-offset-4 hover:underline">{t('weekly.schedule.setupChannel')}</Link></>} />
       ) : null}
       <p className="text-[13px] text-muted">{s.next_run && s.enabled && !noChannel ? t('weekly.schedule.next', { time: fmtDateTime(s.next_run) }) : t('weekly.schedule.off')} {t('weekly.schedule.channel')}</p>
       <ActionError error={savedErr ? null : save.error} />

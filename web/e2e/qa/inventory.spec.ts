@@ -416,7 +416,7 @@ test.describe('Admin: scan scope, sensor, agents', () => {
   // The sample box already listens on a SPAN card (eth1): with SPAN hidden for v1 (D-403) it still shows that state, read-only.
   test('the sensor on this box: shows the SPAN status it already has and links to Settings → Box network; no multi-site controls', async ({ page }) => {
     const errors = collectErrors(page)
-    await page.goto('/devices/setup')
+    await page.goto('/devices/setup?tab=sensor')
     await expect(page.getByRole('heading', { name: 'Sensor on this box' })).toBeVisible()
     await expect(page.getByRole('button', { name: /another site/ })).toHaveCount(0)
     await expect(page.getByText(/enrol|enroll/i)).toHaveCount(0)
@@ -506,7 +506,7 @@ test.describe('Admin: scan scope, sensor, agents', () => {
 
   test('Wazuh: read-only user steps, test connection errors, connect, sample sync, disconnect; nothing installed on agents', async ({ page }) => {
     await enableModule(page, 'agent-intake')
-    await page.goto('/devices/setup')
+    await page.goto('/devices/setup?tab=agents')
     await expect(page.getByText(/Nothing is installed on your agent machines/).first()).toBeVisible()
     await page.getByRole('button', { name: 'Connect Wazuh' }).click()
     const dlg = page.getByRole('dialog')
@@ -554,7 +554,9 @@ test.describe('Clean install: first-time user', () => {
     await page.goto('/devices/setup')
     const rows = page.getByRole('list', { name: 'Ranges added' }).getByRole('listitem')
     await expect(rows).toHaveText([/^192\.168\.18\.0\/24/])
+    await page.getByRole('tab', { name: 'Sensor', exact: true }).click() // D-519: the sensor has its own tab
     await expect(page.getByRole('table', { name: 'Sensors on this box' }).getByRole('row')).toHaveCount(2)
+    await page.getByRole('tab', { name: 'Scope', exact: true }).click()
     await expect(page.locator('main')).not.toContainText('SRV-AD')
     await shot(page, 'inventory', 'clean-setup')
     await expectEnglishOnly(page, 'clean setup')

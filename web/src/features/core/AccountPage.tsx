@@ -8,6 +8,7 @@ import { ApproverIdentities } from '@/features/response/ApproverIdentities'
 import { toast } from 'sonner'
 import { PageHeader, Section, KeyValue } from '@/components/common/PageHeader'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
+import { OldHashToTab, PageTabs } from '@/components/common/PageFrame'
 import { CodeBlock } from '@/components/common/CodeBlock'
 import { Chip } from '@/components/common/StatusChip'
 import { QueryState } from '@/components/common/States'
@@ -258,6 +259,9 @@ function Sessions({ a }: { a: Account }) {
   )
 }
 
+// Anchors before D-519 (`/account#two-step` from the two-step prompt, `#approver-identities` from the chat link page) open their tab.
+const OLD_HASH: Record<string, string> = { 'two-step': 'sign-in', 'approver-identities': 'approvers' }
+
 export default function AccountPage() {
   const { t } = useTranslation('core')
   const q = useAccount()
@@ -267,7 +271,17 @@ export default function AccountPage() {
   return (
     <>
       <PageHeader title={q.data ? t('account.title', { name: q.data.user.name }) : t('account.titleLoading')} meta={t('account.meta')} stories={['S-CORE-3']} />
-      <QueryState query={q}>{(a) => <><Profile a={a} />{a.user.sso ? <SsoNote /> : <><Password /><TwoFactor a={a} /></>}<Sessions a={a} />{approver ? <ApproverIdentities /> : null}</>}</QueryState>
+      <OldHashToTab map={OLD_HASH} />
+      {/* D-519: Profile, how I sign in, where I am signed in, and (approvers) my approval channels are separate areas, as GitHub's
+          Public profile / Password and authentication / Sessions pages are; a tab the person cannot use is left out. */}
+      <QueryState query={q}>{(a) => (
+        <PageTabs label={t('account.tabs.label')} tabs={[
+          { id: 'profile', label: t('account.tabs.profile'), panel: <Profile a={a} /> },
+          { id: 'sign-in', label: t('account.tabs.signIn'), panel: a.user.sso ? <SsoNote /> : <><Password /><TwoFactor a={a} /></> },
+          { id: 'sessions', label: t('account.tabs.sessions'), panel: <Sessions a={a} /> },
+          ...(approver ? [{ id: 'approvers', label: t('account.tabs.approvers'), panel: <ApproverIdentities /> }] : []),
+        ]} />
+      )}</QueryState>
     </>
   )
 }

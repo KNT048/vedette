@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Pencil, Plus, X } from 'lucide-react'
-import { Section, Panel } from '@/components/common/PageHeader'
+import { Notice, Section, Panel } from '@/components/common/PageHeader'
 import { ModuleOff, RequireModule } from '@/components/common/States'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -201,7 +201,7 @@ export function NetworkForm({ settings }: { settings: InventorySettings }) {
         </Panel>
       </Section>
 
-      {error ? <p role="alert" className="mb-4 max-w-2xl rounded-md border border-danger/40 bg-danger-soft px-3 py-2 text-sm text-danger">{error}</p> : null}
+      {error ? <Notice tone="danger" role="alert" className="mb-4 max-w-2xl" title={error} /> : null}
       {/* Cam kết nằm ngay trên nút Lưu: chỉ phải tick lại khi tập dải mạng đổi; đổi cài đặt khác thì giữ xác nhận cũ. */}
       <div id="scope" className="mb-10 grid max-w-3xl gap-3 rounded-md border border-rule bg-surface p-4">
         <div className="flex items-start gap-2">

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, screen, waitFor, within } from '@testing-library/react'
+import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { renderApp, expectNoA11yViolations } from '@/test/render'
 import { eachOption } from '@/test/formMatrix'
@@ -27,7 +27,13 @@ const code = (r: { json: Record<string, any> | null }) => r.json?.error.code // 
 const get = async () => (await call('GET', '')).json!
 const spanBody = async (patch: object = {}) => ({ ...(await get()).span, ...patch })
 const goodStatic = { mode: 'static', address: '192.168.10.200', prefix: 24, gateway: '192.168.10.1', dns: ['192.168.10.1'] }
-const open = async () => { renderApp('/settings/network'); await screen.findByRole('heading', { level: 1, name: 'Box network' }, T); await screen.findByRole('table', { name: 'Network interfaces of the box' }, T) }
+// D-519: the page has tabs Interfaces (default), Management address, Box address, Time.
+const open = async (tab?: 'management' | 'box-address' | 'time') => {
+  renderApp(`/settings/network${tab ? `?tab=${tab}` : ''}`)
+  await screen.findByRole('heading', { level: 1, name: 'Box network' }, T)
+  if (tab) await screen.findByRole('tabpanel', undefined, T)
+  else await screen.findByRole('table', { name: 'Network interfaces of the box' }, T)
+}
 const spanSection = () => document.getElementById('span')!
 
 describe('box network: the API (S-CORE-8, D-56)', () => {
@@ -202,8 +208,21 @@ describe('box network: the page', () => {
     const decoys = screen.getByRole('list', { name: 'Trap IPs' })
     expect(within(decoys).getAllByRole('listitem')).toHaveLength(3)
     expect(screen.getByRole('link', { name: 'Change them in Internal traps' })).toHaveAttribute('href', '/honeypot')
-    expect(screen.getByText(/The operating system keeps its own time sources, so time requests still reach public servers/)).toBeInTheDocument()
     await expectNoA11yViolations()
+    await user().click(screen.getByRole('tab', { name: 'Time' }))
+    expect(screen.getByText(/The operating system keeps its own time sources, so time requests still reach public servers/)).toBeInTheDocument()
+  })
+
+  it('D-519: one tab per area; the old #box-address and #ntp links open their tab', async () => {
+    await open()
+    expect(within(screen.getByRole('tablist', { name: 'Parts of Box network' })).getAllByRole('tab').map((x) => x.textContent?.trim())).toEqual(['Interfaces', 'Management address', 'Box address', 'Time'])
+    cleanup()
+    renderApp('/settings/network#box-address')
+    expect(await screen.findByRole('tab', { name: 'Box address', selected: true }, T)).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 2, name: 'Box address' }, T)).toBeInTheDocument()
+    cleanup()
+    renderApp('/settings/network#ntp')
+    expect(await screen.findByRole('tab', { name: 'Time', selected: true }, T)).toBeInTheDocument()
   })
 
   it('is in the settings menu for everyone; a viewer sees everything read-only', async () => {
@@ -212,11 +231,16 @@ describe('box network: the page', () => {
     expect(screen.getByRole('link', { name: 'Box network' })).toBeInTheDocument()
     expect(screen.getByText(/You can view this section but not change it/)).toBeInTheDocument()
     expect(screen.getByRole('combobox', { name: 'Role of eth1' })).toBeDisabled()
-    for (const l of ['How to get its address'.replace('How to get its address', 'How the box gets its address'), 'Capture port', 'Time source']) expect(screen.getByLabelText(l)).toBeDisabled()
+    expect(screen.getByLabelText('Capture port')).toBeDisabled()
     expect(screen.getByRole('switch', { name: 'Capture mirrored traffic' })).toBeDisabled()
-    expect(screen.getByRole('button', { name: 'Save management settings' })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Save SPAN settings' })).toBeDisabled()
     await expectNoA11yViolations()
+    const u = user()
+    await u.click(screen.getByRole('tab', { name: 'Management address' }))
+    expect(screen.getByLabelText('How the box gets its address')).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Save management settings' })).toBeDisabled()
+    await u.click(screen.getByRole('tab', { name: 'Time' }))
+    expect(screen.getByLabelText('Time source')).toBeDisabled()
   })
 
   describe('form matrix: interface role selector', () => {
@@ -240,7 +264,7 @@ describe('box network: the page', () => {
   describe('form matrix: management DHCP or static', () => {
     it('static shows address, prefix, gateway and DNS; DHCP shows none of them; nothing leaks across', async () => {
       const u = user()
-      await open()
+      await open('management')
       const form = document.getElementById('management')!
       const fields = ['IP address', 'Prefix length', 'Gateway', 'DNS servers']
       expect(within(form).getByLabelText('IP address')).toHaveValue('192.168.10.250')
@@ -366,7 +390,7 @@ describe('box network: the page', () => {
 
   it('persona: "change the management IP": confirm step, countdown, confirm from the new address', async () => {
     const u = user()
-    await open()
+    await open('management')
     const form = within(document.getElementById('management')!)
     fireEvent.change(form.getByLabelText('IP address'), { target: { value: '192.168.10.200' } })
     await u.click(form.getByRole('button', { name: 'Save management settings' }))
@@ -393,7 +417,7 @@ describe('box network: the page', () => {
     const u = user()
     asAdmin()
     await call('PUT', '/management', { ...goodStatic, confirm: true })
-    await open()
+    await open('management')
     await u.click(await screen.findByRole('button', { name: 'Cancel and go back now' }, T))
     expect(await screen.findByText('The box went back to the old settings.', undefined, T)).toBeInTheDocument() // issue #243
     await waitFor(() => expect(document.getElementById('management-title')).toBeInTheDocument(), T)
@@ -402,7 +426,7 @@ describe('box network: the page', () => {
 
   it('NTP form: the default pool hides the server field, your own servers show it', async () => {
     const u = user()
-    await open()
+    await open('time')
     const sec = within(document.getElementById('ntp')!)
     const mode = sec.getByLabelText('Time source')
     await eachOption([
@@ -475,7 +499,7 @@ describe('box network: what the host can refuse (D-99, D-100, D-101)', () => {
 
   it('persona: "I switch to DHCP": the dialog sends me to the DHCP server, not to an address made up here', async () => {
     const u = user()
-    await open()
+    await open('management')
     const form = within(document.getElementById('management')!)
     await u.selectOptions(form.getByLabelText('How the box gets its address'), 'dhcp')
     await u.click(form.getByRole('button', { name: 'Save management settings' }))
@@ -486,7 +510,7 @@ describe('box network: what the host can refuse (D-99, D-100, D-101)', () => {
   })
 
   it('says next to the save button that a restart before the confirmation brings the old address back', async () => {
-    await open()
+    await open('management')
     expect(within(document.getElementById('management')!).getByText('If the box restarts before you confirm, it comes back on the old address.')).toBeInTheDocument()
   })
 

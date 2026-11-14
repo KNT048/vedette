@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { PageHeader, Panel } from '@/components/common/PageHeader'
+import { Notice, PageHeader, Panel } from '@/components/common/PageHeader'
 import { ErrorState, Loading } from '@/components/common/States'
 import { Chip } from '@/components/common/StatusChip'
 import { Button } from '@/components/ui/button'
@@ -32,10 +32,10 @@ export function EnableDialog({ open, onOpenChange }: { open: boolean; onOpenChan
   return (
     <Dialog open={open} onOpenChange={(v) => { onOpenChange(v); if (!v) { setPhrase(''); setError(undefined) } }}>
       <DialogContent title={t('enable.title')} description={t('enable.description')}>
-        <p className="rounded-md border border-danger/50 bg-danger-soft px-3 py-2 text-sm font-medium">{t('risk.statement')}</p>
+        <Notice tone="danger" className="mb-0" title={t('risk.statement')} />
         <div className="grid gap-1 text-sm">
           <p className="flex flex-wrap items-center gap-2">{t('enable.twofa')} <Chip tone={twofa ? 'ok' : 'danger'}>{twofa ? t('enable.twofaOn') : t('enable.twofaOff')}</Chip></p>
-          {!twofa ? <p className="text-[13px]"><Link to="/account" className="text-accent underline underline-offset-4" onClick={() => onOpenChange(false)}>{t('enable.toAccount')}</Link></p> : null}
+          {!twofa ? <p className="text-[13px]"><Link to="/settings/account?tab=sign-in" className="text-accent underline underline-offset-4" onClick={() => onOpenChange(false)}>{t('enable.toAccount')}</Link></p> : null}
         </div>
         <Field htmlFor="risk-phrase" label={t('enable.phraseLabel', { phrase: RISK_PHRASE })} error={error}>
           <Input id="risk-phrase" value={phrase} autoComplete="off" spellCheck={false} onChange={(e) => { setPhrase(e.target.value); setError(undefined) }} aria-invalid={!!error} aria-describedby={error ? 'risk-phrase-error' : undefined} />
@@ -131,7 +131,7 @@ function Form({ s }: { s: SettingsView }) {
         </div>
         <ul className="ml-5 list-disc text-[13px] text-muted">{[1, 2, 3, 4, 5, 6].map((n) => <li key={n}>{t(`aiGates.fixed.${n}`)}</li>)}</ul>
       </fieldset>
-      {error ? <p role="alert" className="rounded-md border border-danger/40 bg-danger-soft px-3 py-2 text-sm">{error}</p> : null}
+      {error ? <Notice tone="danger" role="alert" className="mb-0" title={error} /> : null}
       <div><Button type="submit" variant="primary" disabled={save.isPending}>{t('common:save')}</Button></div>
     </form>
   )
@@ -152,7 +152,7 @@ export default function ResponseSettings({ embedded = false }: { embedded?: bool
       {embedded ? <p className="mb-4 max-w-3xl text-[13px] text-muted">{t('settings.description')}</p> : <PageHeader title={t('settings.title')} meta={t('settings.description')} stories={['S-RESP-2', 'S-RESP-4']} />}
       <section>
         <div className="grid grid-cols-[minmax(0,1fr)] gap-4">
-          <p className="rounded-md border border-danger/50 bg-danger-soft px-4 py-3 text-sm font-medium">{t('risk.statement')}</p>
+          <Notice tone="danger" className="mb-0" title={t('risk.statement')} />
           <Panel className="flex flex-wrap items-center justify-between gap-3 p-4">
             <div className="flex items-center gap-3">
               <Switch id="resp-exec" checked={s.execution} disabled={set.isPending}
@@ -163,10 +163,10 @@ export default function ResponseSettings({ embedded = false }: { embedded?: bool
             {s.execution ? <EmergencyStop /> : null}
           </Panel>
           {s.breaker_tripped_at || s.stopped_at ? (
-            <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-danger/50 bg-danger-soft px-4 py-3 text-sm">
-              <span><span className="font-medium">{t('safety.tripped')}</span> {s.stopped_at ? t('safety.stoppedBody', { time: fmtDateTime(s.stopped_at) }) : t('safety.trippedBody', { max: s.breaker_max_per_hour, time: fmtDateTime(s.breaker_tripped_at), who: s.breaker_notified.join(', ') })}</span>
-              <Button disabled={reset.isPending} onClick={() => reset.mutate(undefined, { onSuccess: () => toast.success(t('safety.resumed')), onError: (e) => toast.error(errText(e)) })}>{t('safety.resume')}</Button>
-            </div>
+            <Notice tone="danger" role="alert" className="mb-0" title={t('safety.tripped')}
+              actions={<Button disabled={reset.isPending} onClick={() => reset.mutate(undefined, { onSuccess: () => toast.success(t('safety.resumed')), onError: (e) => toast.error(errText(e)) })}>{t('safety.resume')}</Button>}>
+              {s.stopped_at ? t('safety.stoppedBody', { time: fmtDateTime(s.stopped_at) }) : t('safety.trippedBody', { max: s.breaker_max_per_hour, time: fmtDateTime(s.breaker_tripped_at), who: s.breaker_notified.join(', ') })}
+            </Notice>
           ) : null}
           <Form key={JSON.stringify([s.max_per_hour, s.expiry_min, s.approval_channels, s.channels.map((c) => [c.type, c.ready]), s.breaker_max_per_hour, s.multi_target_max, s.maintenance, s.ai])} s={s} />
           {embedded ? null : <><NeverTouch /><CatalogEditor /></>}

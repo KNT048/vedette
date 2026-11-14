@@ -3,7 +3,7 @@ import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { AiBlock } from '@/components/common/AiBlock'
-import { KeyValue, Panel } from '@/components/common/PageHeader'
+import { Notice, KeyValue, Panel } from '@/components/common/PageHeader'
 import { Chip } from '@/components/common/StatusChip'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -35,7 +35,7 @@ function RejectDialog({ a, onClose }: { a: ActionRequest; onClose: () => void })
             </Select>
           </Field>
         ) : null}
-        {error ? <p role="alert" className="rounded-md border border-danger/40 bg-danger-soft px-3 py-2 text-sm">{error}</p> : null}
+        {error ? <Notice tone="danger" role="alert" className="mb-0" title={error} /> : null}
         <DialogFooter>
           <Button onClick={onClose}>{t('common:cancel')}</Button>
           <Button variant="danger" disabled={reject.isPending} onClick={() => reject.mutate({ id: a.id, reason, remember }, { onSuccess: () => { toast.success(t('action.rejectedToast')); onClose() }, onError: (e) => setError(errText(e)) })}>{t('action.reject')}</Button>

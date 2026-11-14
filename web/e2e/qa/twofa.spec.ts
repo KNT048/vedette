@@ -25,7 +25,7 @@ const post = (page: Page, path: string, body: object = {}, method = 'POST') =>
 
 /** The email channel as an administrator would save it (Settings, Alert channels). */
 async function addEmailChannel(page: Page) {
-  await page.goto('/account') // a fresh page load, so the mock API controls fetch
+  await page.goto('/settings/account?tab=sign-in') // a fresh page load, so the mock API controls fetch
   await expect(page.getByRole('heading', { name: 'Two-step sign-in' })).toBeVisible()
   const r = await post(page, '/notify/channels/email', { enabled: true, min_severity: 'high', secret: 'smtp-secret-123', fields: { host: 'smtp.testco.example', port: '587', security: 'starttls', username: 'alerts@testco.example', from: 'alerts@testco.example', to: 'it@testco.example' } }, 'PUT')
   expect(r.status).toBe(200)
@@ -69,7 +69,7 @@ test('authenticator app: QR and manual key, turn on, sign out, sign in with the 
   test.setTimeout(120_000)
   const errors = collectErrors(page)
   await finishClean(page)
-  await page.goto('/account')
+  await page.goto('/settings/account?tab=sign-in')
   await expect(page.getByRole('heading', { name: 'Two-step sign-in' })).toBeVisible()
   await shot(page, 'twofa', 'account-choose-light')
   // D-76: the current password comes first; the buttons stay disabled without it
@@ -121,7 +121,7 @@ test('email code: disabled on a clean install, then set up, sign in with the pre
   test.setTimeout(150_000)
   const errors = collectErrors(page)
   await finishClean(page)
-  await page.goto('/account')
+  await page.goto('/settings/account?tab=sign-in')
   // clean install: no email channel yet
   const setupEmail = page.getByRole('button', { name: 'Set up email code' })
   await expect(setupEmail).toBeDisabled()

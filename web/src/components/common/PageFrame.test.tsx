@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { createMemoryRouter, RouterProvider, useLocation } from 'react-router'
 import { describe, expect, it, vi } from 'vitest'
 import { expectNoA11yViolations } from '@/test/render'
-import { KpiStrip, PageTabs, type PageTab } from './PageFrame'
+import { KpiStrip, OldHashToTab, PageTabs, type PageTab } from './PageFrame'
 
 const TABS: PageTab[] = [
   { id: 'one', label: 'First', panel: <p>first panel</p> },
@@ -13,7 +13,7 @@ const TABS: PageTab[] = [
 
 function Where() {
   const l = useLocation()
-  return <output data-testid="where">{l.pathname + l.search}</output>
+  return <output data-testid="where">{l.pathname + l.search + l.hash}</output>
 }
 
 function show(url: string, tabs = TABS) {
@@ -86,6 +86,28 @@ describe('PageTabs (D-464)', () => {
   it('has no axe violations', async () => {
     show('/page?tab=two')
     await expectNoA11yViolations()
+  })
+})
+
+describe('OldHashToTab (D-519)', () => {
+  function open(url: string) {
+    render(<RouterProvider router={createMemoryRouter([
+      { path: '/page', element: <><OldHashToTab map={{ agents: 'agents', ranges: 'scope' }} /><PageTabs label="Parts" tabs={[{ id: 'scope', label: 'Scope', panel: <p>scope panel</p> }, { id: 'agents', label: 'Agents', panel: <p>agents panel</p> }]} /><Where /></> },
+    ], { initialEntries: [url] })} />)
+  }
+
+  it('an old #section link opens its tab through ?tab=, keeps the other parameters and drops the hash', async () => {
+    open('/page?run=r-1#agents')
+    await waitFor(() => expect(screen.getByTestId('where')).toHaveTextContent(/^\/page\?run=r-1&tab=agents$/))
+    expect(screen.getByRole('tab', { name: 'Agents' })).toHaveAttribute('aria-selected', 'true')
+  })
+
+  it('leaves any other hash alone (the skip link\'s #main) and a hash that is an inherited object key', async () => {
+    open('/page?tab=agents#main')
+    expect(screen.getByTestId('where')).toHaveTextContent(/^\/page\?tab=agents#main$/)
+    expect(screen.getByRole('tab', { name: 'Agents' })).toHaveAttribute('aria-selected', 'true')
+    open('/page#constructor')
+    expect(screen.getAllByTestId('where')[1]).toHaveTextContent(/^\/page#constructor$/)
   })
 })
 

@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { CalendarClock, Power, RefreshCw, ShieldCheck } from 'lucide-react'
+import { Notice } from '@/components/common/PageHeader'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { Chip } from '@/components/common/StatusChip'
 import { QueryState } from '@/components/common/States'
@@ -256,11 +257,10 @@ function Body({ s }: { s: CheckedOs }) {
           {run ? <RunPanel run={run} /> : null}
 
           {s.release_upgrade ? (
-            <div className="rounded-md border border-dashed border-warn bg-warn-soft/60 p-4">
-              <h3 className="text-sm font-semibold">{t('updates.os.upgrade.title', { to: s.release_upgrade.to })}</h3>
-              <p className="mt-1 max-w-3xl text-[13px]">{t('updates.os.upgrade.warn')}</p>
-              <ol className="mt-2 grid max-w-3xl list-decimal gap-1 pl-5 text-sm">{s.release_upgrade.steps.map((st) => <li key={st} className="[overflow-wrap:anywhere]">{st}</li>)}</ol>
-            </div>
+            <Notice tone="warn" className="mb-0" title={t('updates.os.upgrade.title', { to: s.release_upgrade.to })}>
+              <p>{t('updates.os.upgrade.warn')}</p>
+              <ol className="mt-2 grid list-decimal gap-1 pl-5 text-ink">{s.release_upgrade.steps.map((st) => <li key={st} className="[overflow-wrap:anywhere]">{st}</li>)}</ol>
+            </Notice>
           ) : null}
         </div>
       </section>

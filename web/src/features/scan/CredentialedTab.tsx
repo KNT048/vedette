@@ -3,7 +3,7 @@ import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Upload } from 'lucide-react'
-import { Section, Panel } from '@/components/common/PageHeader'
+import { Notice, Section, Panel } from '@/components/common/PageHeader'
 import { CodeBlock } from '@/components/common/CodeBlock'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { EmptyState, QueryState, RequireModule } from '@/components/common/States'
@@ -90,7 +90,7 @@ function AddForm({ options }: { options: ScanTarget[] }) {
         <Button size="sm" disabled={!can} onClick={() => file.current?.click()}><Upload />{t('cred.pickFile')}</Button>
         {fileName ? <span className="text-[13px] text-muted">{t('cred.fileChosen', { name: fileName })}</span> : null}
       </div>
-      {error ? <p role="alert" className="rounded-md border border-danger/40 bg-danger-soft px-3 py-2 text-sm text-danger">{error}</p> : null}
+      {error ? <Notice tone="danger" role="alert" className="mb-0" title={error} /> : null}
       <div className="flex flex-wrap items-center gap-3">
         <Button type="submit" variant="primary" disabled={!can || add.isPending}>{t('cred.save')}</Button>
         {!can ? <span className="text-[13px] text-muted">{t('common:needRole', { role: t('common:role.admin') })}</span> : null}

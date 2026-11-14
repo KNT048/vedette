@@ -140,7 +140,7 @@ test('A-C, E: admin sets up SSO, a person signs in, admin sees them, admin turns
   await expect(page.getByRole('heading', { name: 'SSO sign-in (OIDC)' })).toHaveCount(0)
   await look(page, info, 'b3-operator-no-users-settings')
 
-  await page.goto('/account')
+  await page.goto('/settings/account?tab=sign-in')
   await expect(page.getByRole('heading', { name: 'Password and two-step sign-in' })).toBeVisible()
   await expect(page.getByText(/You sign in through your company account \(SSO\)/)).toBeVisible()
   await expect(page.getByText(/not in Vedette/)).toBeVisible()

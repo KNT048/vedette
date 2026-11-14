@@ -67,7 +67,7 @@ describe('Box address: the form (D-465)', () => {
   it('shows the default, refuses a URL under the field, saves, and says how links start', async () => {
     asAdmin()
     const u = userEvent.setup()
-    renderApp('/settings/network')
+    renderApp('/settings/network?tab=box-address')
     await screen.findByRole('heading', { name: 'Box address' }, T)
     const s = within(section())
     const input = s.getByLabelText('Host name or IP address')
@@ -95,7 +95,7 @@ describe('Box address: the form (D-465)', () => {
     asAdmin()
     await call('PUT', '/core/network/box-address', { address: 'old.office.lan' })
     const u = userEvent.setup()
-    renderApp('/settings/network')
+    renderApp('/settings/network?tab=box-address')
     await screen.findByRole('heading', { name: 'Box address' }, T)
     const input = within(section()).getByLabelText('Host name or IP address')
     await waitFor(() => expect(input).toHaveValue('old.office.lan'), T)
@@ -115,7 +115,7 @@ describe('Box address: the form (D-465)', () => {
   })
 
   it('is read only for a viewer', async () => {
-    renderApp('/settings/network', { role: 'viewer' })
+    renderApp('/settings/network?tab=box-address', { role: 'viewer' })
     await screen.findByRole('heading', { name: 'Box address' }, T)
     expect(within(section()).getByLabelText('Host name or IP address')).toBeDisabled()
     expect(within(section()).getByRole('button', { name: 'Save' })).toBeDisabled()
@@ -126,12 +126,12 @@ describe('Box address on the agent setup (review M2)', () => {
   it('says which address the install commands use, where to change it, and that it is not the one the page was opened at', async () => {
     modulesStore.update((l) => l.map((m) => (m.id === 'agent-intake' ? { ...m, enabled: true } : m)))
     const u = userEvent.setup()
-    renderApp('/devices/setup')
+    renderApp('/devices/setup?tab=agents')
     const show = await screen.findAllByRole('button', { name: /^Show setup for / }, T)
     await u.click(show[0]!)
     const dlg = await screen.findByRole('dialog', undefined, T)
     expect(within(dlg).getByText('Install commands use https://192.168.10.250:8443.')).toBeInTheDocument()
-    expect(within(dlg).getByRole('link', { name: 'Change it in Settings → Box network' })).toHaveAttribute('href', '/settings/network#box-address')
+    expect(within(dlg).getByRole('link', { name: 'Change it in Settings → Box network' })).toHaveAttribute('href', '/settings/network?tab=box-address')
     expect(within(dlg).getByText(`You opened Vedette at ${location.hostname}, but agents will use 192.168.10.250.`)).toBeInTheDocument()
   })
 })

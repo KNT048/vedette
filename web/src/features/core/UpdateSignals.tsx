@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
+import { Notice } from '@/components/common/PageHeader'
 import { fmtDate } from '@/lib/format'
 import { BUNDLE_IN_UI } from '@/lib/bundle'
 import { useUpdatesBanner } from './api'
@@ -21,10 +22,9 @@ export function RevokedBanner() {
   const r = data!.running_revoked!
   return (
     <div className="mx-auto w-full max-w-[1280px] px-4 pt-6 sm:px-6 lg:px-10 lg:pt-8">
-      <div role="alert" className="rounded-md border border-danger/40 bg-danger-soft px-4 py-3 text-sm">
-        <p className="font-medium text-danger">{t('updates.revoked.title', { version: r.version })}</p>
-        <p className="mt-1">{t('updates.revoked.body', { reason: reasonOf(r.reason) })} <Link className="text-accent underline-offset-4 hover:underline" to="/settings/updates">{t('updates.revoked.open')}</Link></p>
-      </div>
+      <Notice tone="danger" role="alert" className="mb-0" title={t('updates.revoked.title', { version: r.version })}>
+        {t('updates.revoked.body', { reason: reasonOf(r.reason) })} <Link className="text-accent underline-offset-4 hover:underline" to="/settings/updates">{t('updates.revoked.open')}</Link>
+      </Notice>
     </div>
   )
 }
@@ -45,20 +45,15 @@ export function RunningVersion({ onNavigate }: { onNavigate?: () => void }) {
 export function UpdateNotices({ s, bundle = BUNDLE_IN_UI }: { s: UpdatesState; bundle?: boolean }) {
   const { t } = useTranslation('core')
   const quiet = s.running_revoked && !warns(s) ? s.running_revoked : null
-  const box = 'mb-6 rounded-md border border-warn/50 bg-warn-soft/60 px-4 py-3 text-sm'
   return (
     <>
       {quiet ? (
-        <div role="status" className={box}>
-          <p className="font-medium">{t('updates.revoked.quietTitle', { version: quiet.version })}</p>
-          <p className="mt-1">{t('updates.revoked.quietBody', { reason: reasonOf(quiet.reason) })}</p>
-        </div>
+        <Notice tone="warn" role="status" className="mb-6" title={t('updates.revoked.quietTitle', { version: quiet.version })}>{t('updates.revoked.quietBody', { reason: reasonOf(quiet.reason) })}</Notice>
       ) : null}
       {s.stale_since ? (
-        <div role="status" className={box}>
-          <p className="font-medium">{t('updates.stale.title')}</p>
-          <p className="mt-1">{t('updates.stale.body', { date: fmtDate(s.stale_since) })} {s.check_enabled ? t('updates.stale.checkOn') : bundle ? t('updates.stale.checkOff') : t('updates.stale.checkOffNoBundle')}</p>
-        </div>
+        <Notice tone="warn" role="status" className="mb-6" title={t('updates.stale.title')}>
+          {t('updates.stale.body', { date: fmtDate(s.stale_since) })} {s.check_enabled ? t('updates.stale.checkOn') : bundle ? t('updates.stale.checkOff') : t('updates.stale.checkOffNoBundle')}
+        </Notice>
       ) : null}
     </>
   )

@@ -2,7 +2,7 @@ import { useParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { useState } from 'react'
 import { AiBlock } from '@/components/common/AiBlock'
-import { Panel } from '@/components/common/PageHeader'
+import { Notice, Panel } from '@/components/common/PageHeader'
 import { ErrorState, Loading } from '@/components/common/States'
 import { Button } from '@/components/ui/button'
 import { fmtDateTime } from '@/lib/format'
@@ -30,14 +30,14 @@ export default function ApprovePage() {
           <ul className="grid gap-3">{q.data.items.map((i) => <li key={i.title} className="grid gap-2 rounded-md border border-rule bg-paper p-3"><p className="flex flex-wrap items-center gap-2 text-sm font-medium">{i.title} <RiskChip risk={i.risk} /></p><ChangeView change={i.change} /></li>)}</ul>
           {q.data.requires_approvals && q.data.requires_approvals > 1 ? <p className="text-[13px]">{t('approve.twoNeeded', { n: q.data.approved_so_far ?? 0, of: q.data.requires_approvals })}</p> : null}
           <p className="text-[13px] text-muted">{t('approve.until', { time: fmtDateTime(q.data.expires_at) })} {t('approve.once')}</p>
-          {error ? <p role="alert" className="rounded-md border border-danger/40 bg-danger-soft px-3 py-2 text-sm">{error}</p> : null}
+          {error ? <Notice tone="danger" role="alert" className="mb-0" title={error} /> : null}
           <div className="flex flex-wrap gap-2">
             <Button variant="primary" disabled={decide.isPending} onClick={() => go('approve')}>{t('action.approve')}</Button>
             <Button disabled={decide.isPending} onClick={() => go('reject')}>{t('action.reject')}</Button>
           </div>
         </Panel>
       ) : (
-        <p role="alert" className="rounded-md border border-dashed border-rule bg-surface px-4 py-3 text-sm">{t(`approve.state.${q.data.state}`, { status: q.data.status ? t(`status.${q.data.status}`).toLowerCase() : '' })}</p>
+        <Notice tone="off" role="alert" className="mb-0" title={t(`approve.state.${q.data.state}`, { status: q.data.status ? t(`status.${q.data.status}`).toLowerCase() : '' })} />
       )}
     </main>
   )

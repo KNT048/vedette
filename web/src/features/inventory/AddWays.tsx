@@ -29,7 +29,7 @@ export function AddWays({ canOp, canAdmin, needRole, onAdd, onImport }: { canOp:
   const setup = (to: string, label: string) => (canAdmin
     ? <Link to={to} className={cn(buttonVariants({ variant: 'secondary', size: 'sm' }))}>{label}</Link>
     : <p className="text-[13px] text-muted">{t('ways.adminOnly')}</p>)
-  const agent = (label: string) => (agentsOn === false ? <p className="text-[13px] text-muted">{t('ways.agentsOff')}</p> : setup('/devices/setup#agents', label))
+  const agent = (label: string) => (agentsOn === false ? <p className="text-[13px] text-muted">{t('ways.agentsOff')}</p> : setup('/devices/setup?tab=agents', label))
   return (
     <section aria-label={t('tabs.add')} className="grid gap-3">
       <p className="max-w-3xl text-[13px] text-muted">{t('ways.intro')}</p>

@@ -1,4 +1,5 @@
-import type { ReactNode } from 'react'
+import type { ReactNode, Ref } from 'react'
+import { cn } from '@/lib/utils'
 import { StoryTag } from './StoryTag'
 
 /** Dòng đầu mỗi trang trả lời câu hỏi của persona (FRONTEND §3 "thứ bậc thông tin").
@@ -44,11 +45,12 @@ const NOTICE = {
 
 /** Khung báo một trạng thái của trang (D-543, một kiểu cho cả ứng dụng): tiêu đề, một đoạn giải thích, nút hành động bên phải (xuống dòng trên điện thoại).
  *  `tone` mang nghĩa cố định của FRONTEND §3: danger = hỏng/khẩn, warn = cần người xem, accent = thông tin của sản phẩm, off = tắt/không có. */
-export function Notice({ tone, title, children, actions, role, className = '', ...rest }: {
-  tone: keyof typeof NOTICE; title: ReactNode; children?: ReactNode; actions?: ReactNode; role?: 'alert' | 'status'; className?: string; 'data-testid'?: string
+/*  `className` thắng lớp mặc định (cn), ví dụ `mb-0` cho lỗi nằm trong một form có `gap`. */
+export function Notice({ tone, title, children, actions, role, className, ref, id, ...rest }: {
+  tone: keyof typeof NOTICE; title: ReactNode; children?: ReactNode; actions?: ReactNode; role?: 'alert' | 'status' | 'note'; className?: string; 'data-testid'?: string; ref?: Ref<HTMLDivElement>; id?: string
 }) {
   return (
-    <div role={role} data-testid={rest['data-testid']} className={`mb-5 grid gap-3 rounded-md border px-4 py-3 text-sm md:grid-cols-[minmax(0,1fr)_auto] md:items-center ${NOTICE[tone]} ${className}`}>
+    <div ref={ref} id={id} role={role} data-testid={rest['data-testid']} className={cn('mb-5 grid gap-3 rounded-md border px-4 py-3 text-sm md:grid-cols-[minmax(0,1fr)_auto] md:items-center', NOTICE[tone], className)}>
       <div className="grid min-w-0 gap-1">
         <p className={tone === 'danger' ? 'font-medium text-danger' : 'font-medium'}>{title}</p>
         {children ? <div className="max-w-3xl text-muted">{children}</div> : null}

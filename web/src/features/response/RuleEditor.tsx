@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { ArrowDown, ArrowUp, FlaskConical, Plus, Trash2 } from 'lucide-react'
-import { Panel } from '@/components/common/PageHeader'
+import { Notice, Panel } from '@/components/common/PageHeader'
 import { Chip } from '@/components/common/StatusChip'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog'
@@ -120,7 +120,7 @@ export function RuleDialog({ rule, onClose }: { rule: Rule | null; onClose: () =
   const [tried, setTried] = useState(false) // after the first Save or Simulate the form is checked as it changes
   const [result, setResult] = useState<Simulation | null>(null)
   const [custom, setCustom] = useState(false)
-  const alertRef = useRef<HTMLParagraphElement>(null)
+  const alertRef = useRef<HTMLDivElement>(null)
   // S-CORE-9 G5, D-390: a trigger that needs a module this install cannot run is not offered; a rule that already uses it keeps it, marked
   const noHoneypot = useModuleAvailable('honeypot') === false
   const triggers = (trigQ.data?.items ?? []).filter((x) => !(noHoneypot && x.id === 'honeypot' && rule?.trigger !== 'honeypot')), cat = catQ.data
@@ -229,7 +229,7 @@ export function RuleDialog({ rule, onClose }: { rule: Rule | null; onClose: () =
 
             <section className="grid gap-3" aria-label={t('editor.then')}>
               <h3 className="text-sm font-semibold">{t('editor.then')}</h3>
-              <p role="note" className="rounded-md border border-warn/60 bg-warn-soft/60 px-3 py-2 text-[13px]">{t('editor.attacker')}</p>
+              <Notice tone="warn" role="note" className="mb-0" title={t('editor.attacker')} />
               <ol className="grid gap-3">
                 {actions.map((a, i) => <ActionRow key={`${a.action_id}-${i}`} a={a} i={i} n={actions.length} cat={cat} trig={trig} errs={errs}
                   onChange={(x) => set({ actions: r.actions.map((y, j) => (j === i ? x : y)) })} onMove={(d) => { const l = [...r.actions]; const [m] = l.splice(i, 1); l.splice(i + d, 0, m!); set({ actions: l }) }} onRemove={() => set({ actions: r.actions.filter((_, j) => j !== i) })} />)}
@@ -250,13 +250,13 @@ export function RuleDialog({ rule, onClose }: { rule: Rule | null; onClose: () =
                   <label htmlFor="rule-pre" className="grid text-sm"><span className="font-medium">{t('editor.pre')}</span><span className="text-[13px] text-muted">{t('editor.preHint')}</span></label>
                 </div>
                 {!admin ? <p className="text-[13px] text-muted">{t('editor.preAdmin')}</p> : !eligible && !r.pre_approved ? <p className="text-[13px] text-muted">{t('editor.preNotEligible')}</p> : null}
-                {r.pre_approved ? <p role="alert" className="rounded-md border border-danger/50 bg-danger-soft px-3 py-2 text-sm font-medium">{t('editor.preWarning')}</p> : null}
+                {r.pre_approved ? <Notice tone="danger" role="alert" className="mb-0" title={t('editor.preWarning')} /> : null}
                 {why ? <p role="alert" className="text-[13px] text-danger">{t('editor.preBad')}</p> : null}
               </Panel>
             </section>
 
             {result ? <SimResult s={result} /> : null}
-            {error ? <p ref={alertRef} role="alert" className="rounded-md border border-danger/40 bg-danger-soft px-3 py-2 text-sm">{error}</p> : null}
+            {error ? <Notice tone="danger" role="alert" ref={alertRef} className="mb-0" title={error} /> : null}
             <DialogFooter>
               <Button type="button" disabled={sim.isPending || !r.actions.length} onClick={() => { if (checked()) sim.mutate(input(), { onSuccess: setResult, onError: refused }) }}><FlaskConical className="size-4" aria-hidden />{t('editor.simulate')}</Button>
               <Button type="button" onClick={onClose}>{t('common:cancel')}</Button>

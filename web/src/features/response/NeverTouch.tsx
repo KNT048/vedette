@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Plus, Trash2 } from 'lucide-react'
-import { Panel } from '@/components/common/PageHeader'
+import { Notice, Panel } from '@/components/common/PageHeader'
 import { ErrorState, Loading } from '@/components/common/States'
 import { Button } from '@/components/ui/button'
 import { Field, Input } from '@/components/ui/input'
@@ -27,7 +27,7 @@ export function NeverTouch() {
   return (
     <div className="grid gap-3">
       <div><h3 className="text-sm font-medium">{t('allow.title')}</h3><p className="text-[13px] text-muted">{t('allow.description')}</p></div>
-      {!items.length ? <p className="rounded-md border border-dashed border-warn/60 bg-surface px-4 py-3 text-sm">{t('allow.empty')}</p> : null}
+      {!items.length ? <Notice tone="warn" className="mb-0" title={t('allow.empty')} /> : null}
       <Panel>
         <ul className="divide-y divide-rule">
           {items.map((e, i) => (

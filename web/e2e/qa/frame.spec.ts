@@ -16,6 +16,10 @@ const PAGES = [
   { path: '/honeypot', second: 'Services', id: 'services', other: 'Tokens' },
   { path: '/incidents', second: 'Resolved', id: 'resolved', other: 'Open' },
   { path: '/devices/a-nas02', second: 'Software', id: 'software', other: 'Observations' },
+  // D-519: long Settings sections and the setup page split into tabs
+  { path: '/settings/network', second: 'Box address', id: 'box-address', other: 'Time' },
+  { path: '/settings/account', second: 'Sessions', id: 'sessions', other: 'Profile' },
+  { path: '/devices/setup', second: 'Agents', id: 'agents', other: 'Scope' },
 ] as const
 
 const device = (page: Page) => ((page.viewportSize()?.width ?? 1366) < 600 ? 'phone' : 'desktop')
@@ -64,6 +68,54 @@ test.describe('page frame (S-UI-1)', () => {
     await expect(page).toHaveURL(/\/response\?tab=requests$/)
     await expect(page.getByRole('tab', { name: /^Requests/ })).toHaveAttribute('aria-selected', 'true')
   })
+
+  test('old #section links of the D-519 pages open their tab through ?tab= and keep other parameters', async ({ page }) => {
+    await page.goto('/devices/setup?from=ways#agents')
+    await expect(page).toHaveURL(/\/devices\/setup\?from=ways&tab=agents$/)
+    await expect(page.getByRole('tab', { name: 'Agents', exact: true })).toHaveAttribute('aria-selected', 'true')
+    await page.goto('/devices/setup#snmp')
+    await expect(page.getByRole('tab', { name: 'SNMP', exact: true })).toHaveAttribute('aria-selected', 'true')
+    await page.goto('/settings/network#box-address')
+    await expect(page).toHaveURL(/\/settings\/network\?tab=box-address$/)
+    await page.goto('/account#two-step') // the two-step prompt's old link, through the /account redirect
+    await expect(page).toHaveURL(/\/settings\/account\?tab=sign-in$/)
+    await expect(page.getByRole('tab', { name: 'Sign-in and two-step' })).toHaveAttribute('aria-selected', 'true')
+  })
+
+  // UI-4: on a page longer than the window the menu column keeps its background and rule all the way down (full-page captures included).
+  for (const theme of ['light', 'dark'] as const) {
+    for (const path of ['/devices/a-nas02', '/settings/data']) {
+      test(`the left menu column covers the whole page height on ${path} (${theme})`, async ({ page }) => {
+        await page.evaluate((v) => localStorage.setItem('vedette-theme', v), theme)
+        if (device(page) === 'phone') {
+          // a phone has no side column: the menu is a drawer the height of the screen
+          await page.goto(path)
+          await page.getByRole('button', { name: 'Open menu' }).click()
+          const d = await page.getByRole('dialog').evaluate((el) => ({ h: el.getBoundingClientRect().height, view: innerHeight, bg: getComputedStyle(el).backgroundColor }))
+          expect(d.h).toBeGreaterThanOrEqual(d.view - 1)
+          expect(d.bg).not.toBe('rgba(0, 0, 0, 0)')
+          return
+        }
+        await page.goto(path)
+        await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+        // the grid cell that holds the menu (found from the menu, so the check does not depend on how the column is built)
+        const col = await page.getByRole('navigation', { name: 'Main navigation' }).evaluate((nav) => {
+          let el = nav as HTMLElement
+          while (el.parentElement && getComputedStyle(el.parentElement).display !== 'grid') el = el.parentElement
+          // at scroll 0, as a full-page capture (the QA shots, print) renders it: a sticky box one screen high ends there
+          window.scrollTo(0, 0)
+          const r = el.getBoundingClientRect()
+          const painted = [el, ...el.querySelectorAll<HTMLElement>('*')].find((x) => getComputedStyle(x).backgroundColor !== 'rgba(0, 0, 0, 0)' && x.getBoundingClientRect().width >= r.width - 1)
+          const p = painted?.getBoundingClientRect()
+          return { page: document.documentElement.scrollHeight, view: innerHeight, paintedBottom: p ? p.bottom + scrollY : 0, bg: painted ? getComputedStyle(painted).backgroundColor : '', body: getComputedStyle(document.body).backgroundColor }
+        })
+        expect(col.page, `${path} must be longer than the window for this check`).toBeGreaterThan(col.view + 200)
+        expect(col.paintedBottom, 'menu background reaches the end of the page').toBeGreaterThanOrEqual(col.page - 1)
+        expect(col.bg, 'menu background differs from the page background').not.toBe(col.body)
+        await shot(page, 'frame', `sidebar-${path.slice(1).replaceAll('/', '-')}-${theme}-${device(page)}`)
+      })
+    }
+  }
 
   for (const theme of ['light', 'dark'] as const) {
     test(`keyboard focus ring sits inside the tab, so the scrolling row does not clip it (${theme})`, async ({ page }) => {

@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Download, RefreshCw, Upload } from 'lucide-react'
 import { Link } from 'react-router'
-import { PageHeader, Section } from '@/components/common/PageHeader'
+import { Notice, PageHeader, Section } from '@/components/common/PageHeader'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { Chip } from '@/components/common/StatusChip'
 import { QueryState } from '@/components/common/States'
@@ -187,10 +187,7 @@ const Body = memo(function Body({ s, reconnecting = false }: { s: UpdatesState; 
       {s.run ? <RunPanel run={s.run} name={comp(s.run.component)} reconnecting={reconnecting} after={after} /> : null}
       <UpdateNotices s={s} />
       {affected.length ? (
-        <div role="alert" className="mb-6 rounded-md border border-danger/40 bg-danger-soft px-4 py-3 text-sm">
-          <p className="font-medium text-danger">{t('updates.advisoryBanner', { count: affected.length })}</p>
-          <p className="mt-1">{t('updates.advisoryFix', { id: affected[0]?.id, version: affected[0]?.fixed_in })}</p>
-        </div>
+        <Notice tone="danger" role="alert" className="mb-6" title={t('updates.advisoryBanner', { count: affected.length })}>{t('updates.advisoryFix', { id: affected[0]?.id, version: affected[0]?.fixed_in })}</Notice>
       ) : null}
 
       <Section title={t('updates.settings')} actions={<Button onClick={() => void check()} disabled={operator.disabled || m.check.isPending} title={operator.title}><RefreshCw />{t('updates.check')}</Button>}>
@@ -270,11 +267,10 @@ const Body = memo(function Body({ s, reconnecting = false }: { s: UpdatesState; 
       <Dialog open={!!rollback} onOpenChange={(o) => !o && setRollback(null)}>
         <DialogContent title={t('updates.rollbackAsk.title', { name: rollback ? comp(rollback.id) : '' })} description={rollback ? t('updates.rollbackAsk.body', { from: rollback.version, to: rollback.previous ?? '' }) : undefined}>
           {rollback?.rollback_restores_data ? (
-            <div className="grid gap-2 rounded-md border border-danger/40 bg-danger-soft px-3 py-2 text-sm">
-              <p className="font-medium text-danger">{t('updates.rollbackAsk.dataLoss')}</p>
+            <Notice tone="danger" className="mb-0" title={t('updates.rollbackAsk.dataLoss')}>
               <p>{t('updates.rollbackAsk.dataLossWhy')}</p>
-              <label className="flex items-start gap-2"><Checkbox checked={dataLossOk} onCheckedChange={(v) => setDataLossOk(v === true)} className="mt-0.5" />{t('updates.rollbackAsk.dataLossOk')}</label>
-            </div>
+              <label className="mt-2 flex items-start gap-2 text-ink"><Checkbox checked={dataLossOk} onCheckedChange={(v) => setDataLossOk(v === true)} className="mt-0.5" />{t('updates.rollbackAsk.dataLossOk')}</label>
+            </Notice>
           ) : null}
           <p className="text-sm text-muted">{t('updates.rollbackAsk.manual')}</p>
           <DialogFooter><Button onClick={() => setRollback(null)}>{t('common:cancel')}</Button><Button variant="danger" disabled={m.rollback.isPending || (running && rollback?.id === 'software') || (!!rollback?.rollback_restores_data && !dataLossOk)} onClick={() => rollback && void doRollback(rollback)}>{t('updates.rollbackAsk.confirm')}</Button></DialogFooter>

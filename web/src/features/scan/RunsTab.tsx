@@ -3,7 +3,7 @@ import { Link, useSearchParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Check, Circle, OctagonX, Play } from 'lucide-react'
-import { Section, Panel } from '@/components/common/PageHeader'
+import { Notice, Section, Panel } from '@/components/common/PageHeader'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { useRowSelection } from '@/components/common/Selection'
 import { EmptyState, QueryState } from '@/components/common/States'
@@ -25,7 +25,7 @@ function Progress({ run }: { run: ScanRun }) {
   const stopping = run.status === 'stopping'
   const pct = run.total ? Math.round((run.done / run.total) * 100) : 0
   return (
-    <section aria-labelledby="progress-title" className="mb-8 rounded-md border border-accent/40 bg-accent-soft/50 p-4">
+    <section aria-labelledby="progress-title" className="mb-8 rounded-md border border-accent/40 bg-accent-soft p-4">
       <h2 id="progress-title" className="text-base font-semibold">{stopping ? t('progress.stopping') : t('progress.running', { done: run.done, total: run.total })}</h2>
       <div role="progressbar" aria-label={t('progress.bar')} aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct} className="my-3 h-2 overflow-hidden rounded-full bg-surface">
         <div className="h-full bg-accent transition-[width]" style={{ width: `${pct}%` }} />
@@ -55,10 +55,9 @@ function Setup({ cfg, internal }: { cfg: ScanConfigResponse; internal: ScanTarge
     { key: 'devices', ok: devOk, title: t('start.stepDevices'), help: internal.length ? t('start.stepDevicesNoneOk') : t('start.stepDevicesNone'), to: '/devices', cta: t('start.openDevices') },
   ]
   return (
-    <section aria-labelledby="setup-title" className="rounded-md border border-dashed border-warn bg-warn-soft/60 p-4">
-      <h3 id="setup-title" className="text-sm font-semibold">{t('start.setupTitle')}</h3>
-      <p className="mt-1 max-w-3xl text-sm">{t('start.setupIntro')}</p>
-      <ol className="mt-3 grid gap-3">
+    <Notice tone="warn" className="mb-0" title={t('start.setupTitle')}>
+      <p>{t('start.setupIntro')}</p>
+      <ol className="mt-3 grid gap-3 text-ink">
         {steps.map((s, i) => (
           <li key={s.key} className="flex items-start gap-3 text-sm">
             {s.ok ? <Check className="mt-0.5 size-4 shrink-0 text-ok" aria-hidden /> : <Circle className="mt-0.5 size-4 shrink-0 text-muted" aria-hidden />}
@@ -74,7 +73,7 @@ function Setup({ cfg, internal }: { cfg: ScanConfigResponse; internal: ScanTarge
           </li>
         ))}
       </ol>
-    </section>
+    </Notice>
   )
 }
 
@@ -173,7 +172,7 @@ function ResultDialog({ run, onClose, opener }: { run: ScanRun | null; onClose: 
     <Dialog open={!!run} onOpenChange={(o) => { if (!o) onClose() }}>
       {shown ? (
         <DialogContent wide title={t('res.title', { time: fmtDateTime(shown.started_at) })} description={t('res.description', { done: shown.done, total: shown.total })} onCloseAutoFocus={(e) => { e.preventDefault(); opener.current?.focus() }}>
-          {shown.stop_reason ? <p role="note" className="rounded-md border border-dashed border-warn bg-warn-soft/60 px-3 py-2 text-sm">{shown.stop_reason}</p> : null}
+          {shown.stop_reason ? <Notice tone="warn" role="note" className="mb-0" title={shown.stop_reason} /> : null}
           <Identification rows={shown.identification} />
           <DataTable caption={t('res.caption')} data={shown.results} columns={columns} pageSize={20} empty={t('res.empty')} />
         </DialogContent>

@@ -56,7 +56,7 @@ export default function ChatLinkPage() {
               <div><Button variant="primary" disabled={confirm.isPending} onClick={() => confirm.mutate(undefined, { onSuccess: setDone })}>{t('chatLink.confirm')}</Button></div>
             </>
           )}
-        <p className="text-[13px]"><Link className="underline" to="/account#approver-identities">{t('chatLink.toAccount')}</Link></p>
+        <p className="text-[13px]"><Link className="underline" to="/settings/account?tab=approvers">{t('chatLink.toAccount')}</Link></p>
       </div>
     </div>
   )

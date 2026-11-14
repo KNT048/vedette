@@ -3,7 +3,7 @@ import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { FileText, Printer, Sparkles } from 'lucide-react'
-import { Panel, Section } from '@/components/common/PageHeader'
+import { Notice, Panel, Section } from '@/components/common/PageHeader'
 import { EmptyState, QueryState } from '@/components/common/States'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -25,10 +25,7 @@ export default function PdplTab() {
   const pdpl = usePdpl()
   return (
     <>
-      <div role="note" className="mb-6 rounded-md border border-warn/50 bg-warn-soft px-4 py-3">
-        <p className="font-semibold">{t('doc.pdpl.disclaimerTitle')}</p>
-        <p className="text-sm">{t('doc.pdpl.disclaimerBody')}</p>
-      </div>
+      <Notice tone="warn" role="note" className="mb-6" title={t('doc.pdpl.disclaimerTitle')}>{t('doc.pdpl.disclaimerBody')}</Notice>
       <QueryState query={pdpl}>{(s) => <><OrgSection s={s} /><ReportSection s={s} /></>}</QueryState>
     </>
   )

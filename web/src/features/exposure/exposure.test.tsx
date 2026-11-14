@@ -1133,7 +1133,8 @@ describe('exposure: services and exploited vulnerabilities of the box IP (S-EXP-
     )
     renderApp('/exposure/xt-2')
     const section = await screen.findByRole('region', { name: 'Exploited vulnerabilities' })
-    expect(await within(section).findByText('No service was identified')).toBeInTheDocument()
+    expect(await within(section).findByText('Services were not identified')).toBeInTheDocument() // D-522: never "No service was identified" here
+    expect(within(section).queryByText('No service was identified')).toBeNull()
     expect(within(section).getByText('Service identification (nmap -sV) is not set up on this box yet.')).toBeInTheDocument()
     expect(within(section).queryByRole('table')).toBeNull()
     expect(within(screen.getByRole('list', { name: 'Not checked' })).getByText('Service identification (nmap -sV) is not set up on this box yet.')).toBeInTheDocument()

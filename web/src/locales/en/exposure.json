@@ -443,6 +443,7 @@
     "caption": "Exploited vulnerabilities that match the services on this IP",
     "servicesCaption": "Services identified on the open ports (nmap -sV)",
     "noneIdentifiedTitle": "No service was identified",
+    "notIdentifiedTitle": "Services were not identified",
     "noneIdentifiedBody": "Service identification found no service on the open ports of this IP.",
     "noneTitle": "No exploited vulnerability matches the identified services",
     "noneBody": "The services and versions below were compared with the exploited lists (CISA KEV, and VulnCheck KEV if you turned it on). Vulnerabilities that are not known to be exploited are not compared.",

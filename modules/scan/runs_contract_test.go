@@ -466,3 +466,21 @@ func TestSuspectedNoteSaysWhatWasUsed(t *testing.T) {
 		}
 	}
 }
+
+// D-522 (N1): nmap's tunnel="ssl" reaches the inventory as "ssl/http", so an HTTPS admin page on 4443 is sent to nuclei as
+// https://ip:4443 (with -nh nuclei speaks only the scheme it is given); a port another source calls plain "http" is still spoken
+// to over TLS only, and plain HTTP stays http.
+func TestEndpointsTakeTLSFromTheServiceName(t *testing.T) {
+	t.Parallel()
+	d := Device{IP: "192.168.18.20", Services: []OpenPort{
+		{Port: 4443, Name: "ssl/http"}, {Port: 4443, Name: "http"}, {Port: 8080, Name: "http"}, {Port: 5986, Name: "winrm-https"}, {Port: 22, Name: "ssh"},
+	}}
+	var got []string
+	for _, tg := range endpoints(d) {
+		got = append(got, tg.Input())
+	}
+	want := []string{"https://192.168.18.20:4443", "http://192.168.18.20:8080", "https://192.168.18.20:5986", "192.168.18.20:22"}
+	if !slices.Equal(got, want) {
+		t.Fatalf("targets = %q, want %q", got, want)
+	}
+}

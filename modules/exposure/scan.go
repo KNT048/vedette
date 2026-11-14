@@ -497,7 +497,17 @@ func carryNotSeen(c Content, prev Snapshot, how map[string]scope) Content {
 	// N44-5 review r1 M2: a scan that says it did not probe every TCP port (not deep, the terms withdrawn or asked again, a deep nmap
 	// that did not finish) did not check a port outside the runner's fixed list, so such a port an earlier deep scan found is kept as
 	// it was, never "missed" or closed.
+	// Review r2 N1: per address: one whose deep nmap finished this run (DeepScanned) was probed on every port, whatever another
+	// address of the domain did.
 	partial := slices.ContainsFunc(c.NotChecked, func(n NotCheckedRow) bool { return n.Kind == "ports" })
+	deepNow := map[string]bool{}
+	for _, h := range c.Hosts {
+		for _, a := range h.IPs {
+			if a.Deep == DeepScanned {
+				deepNow[ipKey(a.IP)] = true
+			}
+		}
+	}
 	for _, p := range prev.Ports {
 		k := key{ipKey(p.IP), p.Port}
 		if have[k] || len(c.Ports) >= maxContentRows {
@@ -513,7 +523,7 @@ func carryNotSeen(c Content, prev Snapshot, how map[string]scope) Content {
 				sc = scopeChecked
 			}
 		}
-		if sc == scopeChecked && partial && !slices.Contains(commonports.Numbers(), p.Port) {
+		if sc == scopeChecked && partial && !deepNow[k.ip] && !slices.Contains(commonports.Numbers(), p.Port) {
 			sc = scopeKept
 		}
 		switch sc {

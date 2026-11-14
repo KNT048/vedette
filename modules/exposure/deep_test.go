@@ -71,6 +71,7 @@ type deepSeams struct {
 	onService func(ctx context.Context) error // runs inside ScanServices when set
 	svcErr    error                           // ScanServices answers it when set (after recording the call)
 	extra     []ServiceRow                    // more services ScanServices answers, for their own address
+	errFor    map[string]error                // ScanServices answers it for that address when set
 }
 
 func (f *deepSeams) ScanServices(ctx context.Context, t ScanTarget, ip netip.Addr) (ServiceScan, error) {
@@ -80,6 +81,9 @@ func (f *deepSeams) ScanServices(ctx context.Context, t ScanTarget, ip netip.Add
 	}
 	f.services = append(f.services, deepCall{ip.String(), t})
 	hook, svcErr, extra := f.onService, f.svcErr, f.extra
+	if e := f.errFor[ip.String()]; e != nil {
+		svcErr = e
+	}
 	f.mu.Unlock()
 	if hook != nil {
 		if err := hook(ctx); err != nil {
@@ -697,5 +701,50 @@ func TestContract_INV28_Deep_CNAMELookupFailsClosed(t *testing.T) {
 	}
 	if !hasLine(s, ipB+" (api.acme.example, www.acme.example): the box could not confirm right before the scan that its name stays inside this domain (CNAME lookup)") {
 		t.Fatalf("not checked %q", notChecked(s))
+	}
+}
+
+// review r2 N1: the "did not probe every port" keep-rule is per address. ipC's deep nmap does not finish (its "ports" Not checked
+// line), so its port 10022, found by an earlier deep scan, is kept unchecked; ipB's deep nmap finished, so its closed 10022 is missed
+// by one scan and closed by the next, as INV-22 says.
+func TestContract_INV28_Deep_KeepRuleIsPerAddress(t *testing.T) {
+	t.Parallel()
+	d := newDeepEnv(t)
+	d.svc.cfg.DomainFence = &fakeFence{}
+	d.acceptTerms(d.dom.ID, false)
+	d.seams.extra = []ServiceRow{{IP: ipB, Port: 10022, Name: "ssh", Product: "OpenSSH"}, {IP: ipC, Port: 10022, Name: "ssh", Product: "OpenSSH"}}
+	s := d.scan()
+	port := func(s Snapshot, ip string) (PortRow, bool) {
+		i := slices.IndexFunc(s.Ports, func(p PortRow) bool { return p.IP == ip && p.Port == 10022 })
+		if i < 0 {
+			return PortRow{}, false
+		}
+		return s.Ports[i], true
+	}
+	if _, ok := port(s, ipB); !ok {
+		t.Fatalf("first scan ports %+v", s.Ports)
+	}
+	if _, ok := port(s, ipC); !ok {
+		t.Fatalf("first scan ports %+v", s.Ports)
+	}
+	d.seams.mu.Lock()
+	d.seams.extra = nil // ipB closed 10022
+	d.seams.errFor = map[string]error{ipC: ErrServicesTimedOut}
+	d.seams.mu.Unlock()
+	d.advance(ScanEvery + time.Minute)
+	s = d.scan()
+	if b, ok := port(s, ipB); !ok || b.Misses != 1 || b.Unchecked {
+		t.Fatalf("ipB after one miss: %+v %v", b, ok)
+	}
+	if c, ok := port(s, ipC); !ok || c.Misses != 0 || !c.Unchecked {
+		t.Fatalf("ipC (nmap did not finish): %+v %v", c, ok)
+	}
+	d.advance(ScanEvery + time.Minute)
+	s = d.scan()
+	if b, ok := port(s, ipB); ok {
+		t.Fatalf("ipB's closed port is still listed: %+v", b)
+	}
+	if c, ok := port(s, ipC); !ok || !c.Unchecked {
+		t.Fatalf("ipC: %+v %v", c, ok)
 	}
 }

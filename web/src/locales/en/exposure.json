@@ -32,7 +32,7 @@
     "notSeen": "Missed by the last scan",
     "notSeenNote": "Last seen {{date}}. Missed by the last scan ({{at}}). Vedette says it is closed only after a second scan also misses it; use Scan now to check again. Until then it counts as open.",
     "notChecked": "Not checked since {{date}}",
-    "notCheckedNote": "The last scan did not check this address, so the port is kept as it was on {{date}}. It counts as open until a scan that checks the address says otherwise.",
+    "notCheckedNote": "The last scan did not check this port, so it is kept as it was on {{date}}. It counts as open until a scan that checks it says otherwise.",
     "details": "Scan details",
     "purpose": "Is that on purpose?",
     "purposePlain": "Is that on purpose? If not, close it on your router or firewall.",

@@ -20,13 +20,15 @@
 - `core/exec`: thêm `Binary.Env` (KEY=value bổ sung sau `PATH`/`LANG`; chỉ khoá `DEBIAN_FRONTEND` và `HOME` (đường dẫn tuyệt đối, sạch, khác `/`; cho nuclei trong `scan`, D-133) được phép; `Binary.MaxStderr` tuỳ chọn cho stderr một trần riêng không đặt `Truncated`; không thừa hưởng môi trường cha).
 - `host/config`: thêm khoá tuỳ chọn `core_cgroup`; `golang.org/x/sys` thành phụ thuộc trực tiếp (Linux).
 - `cmd/vedette-host`: cờ `-config -socket -state-dir -audit-log -version`.
+- D-521 (`zap.baseline`, INV-31): `host/api/zap.go` (`CmdZapBaseline`, `ZapBaselineArgs`, `ZapBaselineResult`, các mã `zap_*`, `target_not_owned`, `ownership_unchecked`, `MaxZapReport`); `host/ops/zap.go` (lệnh không lấy khoá ghi, `Readers.ZapReport`, binary `nft` với ba argv cố định, các dạng podman của ZAP trong `validatePodman`, `Deps.ZapEgress`/`ZapTXT`/`ZapUID`, dọn ở `Start`); `host/server` `Readers.ZapReport` + đường `GET /v1/zap/{id}/content`; `host/client` `ZapBaseline` (theo run tới hết, đọc lại mỗi 2 s) và `DownloadZapReport`; `core/egressip` thành phụ thuộc của `vedette-host`.
 
-## Modifying: `Client.Run(ctx, command, args, requestID, actor) (api.Run, error)` (phía `core`) — 5 nhóm người gọi
+## Modifying: `Client.Run(ctx, command, args, requestID, actor) (api.Run, error)` (phía `core`) — 6 nhóm người gọi
 - **core/updates** (`/core/updates/os*`): đổi tên lệnh hoặc `OsRunResult` → màn hình Updates, trạng thái `busy`, tiến trình trực tiếp (`lines`) vỡ.
 - **core/network** (Box network, D-56, S-CORE-8; handler `core.NetworkHandlers`, `modules/core/CONTRACT.md` INV-25): card quản trị/SPAN/IP phụ/NTP.
 - **core/containers** (cập nhật phần mềm Vedette: `container.pull`, `container.rollback`, A/B): đổi → bản cập nhật có thể không hoàn tác được.
 - **core/backup** (`backup.create`) và **core/data** (xuất/xoá).
 - **inventory** (danh sách gói cho "This box").
+- **exposure** (`cmd/vedette/exposureweb.go`, `exposure.WebScanner`, D-521): `zap.baseline` và `GET /v1/zap/{id}/content`; đổi mã lỗi → câu "Not checked" của trang Exposure sai; đổi argv hay rào mạng → xem lại D-562 (chỉ thụ động) và PRIVACY luồng 9.
 - Người gọi phải dùng `X-Request-Id` ổn định cho mỗi ý định (thử lại cùng id, không id mới) và nhớ nhịp 60 request/phút (dùng SSE, không hỏi từng giây).
 
 ## Modifying: bảng lệnh (`ops.Commands()`, thêm/bớt lệnh) hoặc kiểu tham số

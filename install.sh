@@ -50,6 +50,9 @@ MIRROR_FILE=/etc/containers/registries.conf.d/vedette-test-mirror.conf
 REGISTRY_UNIT=vedette-testregistry
 REGISTRY_ADDR=127.0.0.1:5077
 CLOUD_FILE=/etc/cloud/cloud.cfg.d/99-vedette-network.cfg
+# the ZAP image vedette-host pulls when a box first runs a passive web scan (zap.baseline, D-521): ZAP_IMAGE of deploy/containers/pins.env
+# without its tag (TestZapPinsAgree); --uninstall removes it by this digest and nothing else of ghcr.io/zaproxy
+ZAP_IMAGE=ghcr.io/zaproxy/zaproxy@sha256:9624669db72f54d86c4b46a7064518bd9bf79d8c61a4c31befa9923489f328af
 # iptables: netavark 1.4 (Ubuntu 24.04) programs the firewall through it and fails with "No such file" without it (found by install-check)
 # conntrack: vedette-host deletes the stale UDP conntrack entries of the published syslog port after core restarts (D-268)
 PACKAGES="ca-certificates curl podman chrony netplan.io nftables iptables iproute2 procps unattended-upgrades passwd conntrack"
@@ -1029,6 +1032,15 @@ remove_images() {
 			warn "image $id is Vedette's but also has a name that is not Vedette's: left in place (podman images | grep $id)"
 		fi
 	done
+	# the ZAP image of the passive web scan (D-521), by its pinned digest only: a zaproxy image of any other digest, or ours that someone
+	# also tagged (podman pulls ours by digest, with no tag), is the administrator's
+	zap=$(pm image inspect --format '{{.Id}} {{len .RepoTags}}' "$ZAP_IMAGE") || zap=
+	[ -z "${ZAP_STUCK:-}" ] || zap= # Vedette's ZAP container could not be removed: its image stays (remove_zap said so)
+	case $zap in
+	"") ;;
+	*" 0") rmi_ours "${zap% 0}" ;;
+	*) warn "the ZAP image $ZAP_IMAGE also has a tag that is not Vedette's: left in place (see the image list for zaproxy)" ;;
+	esac
 	pm images -a --filter dangling=true --filter label=io.vedette.build=scan --format '{{.ID}}' | sort -u | while read -r id; do
 		rmi_ours "$id"
 	done
@@ -1038,6 +1050,46 @@ remove_images() {
 		title=$(pm image inspect --format '{{index .Labels "org.opencontainers.image.title"}}' "$id") || continue
 		case "$title" in vedette-*) rmi_ours "$id" ;; esac
 	done
+}
+
+# remove_zap: the container and the network of the passive web scan (zap.baseline, D-521), only when they carry the label vedette-host
+# gives them (io.vedette.owner=vedette-host); a container or network of that name without it is someone else's and stays (podman_others
+# then counts it)
+remove_zap() {
+	ZAP_STUCK=
+	if [ "$(pm container inspect --format '{{index .Config.Labels "io.vedette.owner"}}' vedette-zap)" = vedette-host ]; then
+		if ! pm rm -f -t 5 vedette-zap >/dev/null; then
+			ZAP_STUCK=1
+			warn "Vedette's ZAP container vedette-zap could not be removed: it, its network vedette-zap, the ZAP image, the nft table inet vedette_zap and podman stay. Run podman rm -f vedette-zap, then --uninstall again"
+		fi
+	elif pm container exists vedette-zap; then
+		warn "the container vedette-zap is not Vedette's (no label io.vedette.owner=vedette-host): left in place"
+	fi
+	if [ -n "$ZAP_STUCK" ]; then
+		:
+	elif [ "$(pm network inspect --format '{{index .Labels "io.vedette.owner"}}' vedette-zap)" = vedette-host ]; then
+		remove_ours network vedette-zap
+	elif pm network exists vedette-zap; then
+		warn "the network vedette-zap is not Vedette's (no label io.vedette.owner=vedette-host): left in place"
+	fi
+}
+
+# remove_zap_fence: the nft table of the passive web scan (zap.baseline, D-521), only when podman says plainly that there is no
+# container vedette-zap (exit 1 of "container exists") and has not been found hung: a ZAP that may still run keeps its fence (any other
+# answer, or no answer). Without podman there is no container. The table matches only the bridge vedette-zap0, so keeping it costs
+# nothing.
+remove_zap_fence() {
+	have nft || return 0
+	zap_rc=1
+	if have podman; then
+		zap_rc=0
+		pm container exists vedette-zap >/dev/null || zap_rc=$?
+	fi
+	if [ "$zap_rc" -eq 1 ] && [ ! -e "$TMP/podman.hung" ]; then
+		nft delete table inet vedette_zap >/dev/null 2>&1 || true
+	elif nft list table inet vedette_zap >/dev/null 2>&1; then
+		warn "kept the nft table inet vedette_zap: podman did not confirm that the container vedette-zap is gone (nft delete table inet vedette_zap once it is)"
+	fi
 }
 
 # remove_subid <file> <state name>: the line the package added, and the file if the package made it; never the administrator's own line
@@ -1104,7 +1156,7 @@ restore_runtime() {
 }
 
 # podman_others: what the rootful podman of this box holds that is not Vedette's, read after Vedette's own containers, volumes, network
-# and images are removed: containers (stopped ones and buildah's too), pods, networks other than podman's default and vedette-int,
+# and images are removed: containers (stopped ones and buildah's too), pods, networks other than podman's default and vedette-int (a vedette-zap still there after remove_zap is not Vedette's),
 # volumes, and images with a name, one per image ID (a nameless layer is no one's to keep; podman's own localhost/podman-pause is not
 # counted). One "<kind> <name>" line each in OTHERS, in that order, the name cut to printable characters and 64 bytes (podman's output
 # is not trusted). Every answer is kept in memory, never in a file, so a full disk cannot make it read as "nothing" (D-508 review M2).
@@ -1174,6 +1226,8 @@ podman_stays() {
 	elif [ -n "$OTHERS" ]; then
 		if printf '%s\n' "$OTHERS" | grep -qE '^(container|pod) '; then PODMAN_IN_USE=1; fi
 		KEEP_PODMAN=$(others_text)
+		# Vedette's own ZAP container that podman could not remove is counted with the others (podman must stay for it), but it is ours
+		if [ -n "${ZAP_STUCK:-}" ] && [ "$OTHERS" = "container vedette-zap" ]; then KEEP_PODMAN="Vedette's ZAP container vedette-zap could not be removed (podman rm -f vedette-zap, then --uninstall again)"; fi
 	fi
 }
 
@@ -1320,6 +1374,11 @@ do_uninstall() {
 	remove_forward_rules
 	if have podman; then
 		remove_ours network vedette-int
+		remove_zap
+	fi
+	# the egress fence of a passive web scan the host did not get to clean up (zap.baseline, D-521), after its container
+	remove_zap_fence
+	if have podman; then
 		for v in vedette-creds-passive vedette-creds-active vedette-hp-log; do
 			remove_ours volume "$v"
 		done

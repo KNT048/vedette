@@ -436,3 +436,19 @@ func TestContract_INV24_PlainTextAndWebServices(t *testing.T) {
 		}
 	}
 }
+
+// INV-24, D-521: a page the scanner skipped for a reason of its own (its name now points elsewhere) gets its own line, and the next
+// pages still run; nothing is counted as "not scanned".
+func TestContract_INV24_ASkippedPageDoesNotStopTheOthers(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	w := &fakeWeb{report: cleanReport, errAt: map[int]error{0: &PageSkipped{Reason: "moved"}}}
+	e.wire(w)
+	e.svc.cfg.Services = &fakeServices{scan: ServiceScan{Services: webServices()}}
+	s := e.scanIP(Content{})
+	n := notChecked(s)
+	if len(w.asked) < 2 || !slices.Contains(n, w.asked[0]+": passive web scan (ZAP) did not run: moved") ||
+		slices.ContainsFunc(n, func(x string) bool { return strings.Contains(x, "not scanned") }) || !slices.Contains(checkKinds(s), "web") {
+		t.Fatalf("asked %q, not checked %q", w.asked, n)
+	}
+}

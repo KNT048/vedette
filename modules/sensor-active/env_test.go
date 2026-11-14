@@ -1,6 +1,7 @@
 package sensoractive_test
 
 import (
+	"cmp"
 	"context"
 	"database/sql"
 	"fmt"
@@ -233,7 +234,8 @@ type sink struct {
 	fail error
 }
 
-// AddServices merges like the inventory: a new port is added, a listed one keeps what it had.
+// AddServices merges like the inventory: a new port is added, a listed one keeps what it had unless the item names a product
+// (inventory INV-23, D-592 review r2 M2: then name, product, version and confidence are updated).
 func (s *sink) AddServices(_ context.Context, h observe.AssetHint, src observe.Source, items []observe.Service) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -246,8 +248,13 @@ func (s *sink) AddServices(_ context.Context, h observe.AssetHint, src observe.S
 	s.adds++
 	k := h.IP.String()
 	for _, it := range items {
-		if !slices.ContainsFunc(s.svc[k], func(x observe.Service) bool { return x.Port == it.Port && x.Proto == it.Proto }) {
+		i := slices.IndexFunc(s.svc[k], func(x observe.Service) bool { return x.Port == it.Port && x.Proto == it.Proto })
+		switch {
+		case i < 0:
 			s.svc[k] = append(s.svc[k], it)
+		case it.Product != "":
+			old := s.svc[k][i]
+			s.svc[k][i] = observe.Service{Port: it.Port, Proto: it.Proto, Name: it.Name, Product: it.Product, Version: it.Version, Detail: cmp.Or(it.Detail, old.Detail), Confidence: it.Confidence}
 		}
 	}
 	return nil

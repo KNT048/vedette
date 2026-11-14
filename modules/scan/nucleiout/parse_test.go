@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"os"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"unicode/utf8"
@@ -140,7 +141,7 @@ const ok = `{"template-id":"CVE-2022-27593","host":"http://192.168.10.21:5000","
 func TestParse_RefusesTheWholeOutput(t *testing.T) {
 	t.Parallel()
 	const h = `"host":"http://192.168.10.21:5000"`
-	cases := map[string]string{ //nolint:gosec // G101: not credentials; the user-info form is an attack the parser must refuse
+	cases := map[string]string{
 		"not JSON":                ok + "\n{",
 		"array":                   ok + "\n[]",
 		"string":                  ok + "\n\"x\"",
@@ -187,7 +188,7 @@ func TestRead_SkipsALineForAnotherTarget(t *testing.T) {
 	if res[1].Target != "192.168.10.21:443" || !res[1].Matched || res[2].Target != "192.168.10.21:22" {
 		t.Fatalf("the job's targets in another spelling: %+v", res)
 	}
-	if n := skip.Note(); n != " [not counted: 4 nuclei line(s) whose answers named another address or none readable, 3 said matched; first: CVE-2022-27593 on 192.168.10.99:5000]" {
+	if n := skip.Note(); n != " [not counted: 4 nuclei line(s) that could not be a result of this check (another address, an unreadable target, no match status, or a match with an error), 3 said matched; first: CVE-2022-27593 on 192.168.10.99:5000]" {
 		t.Fatalf("note %q", n)
 	}
 	if !slices.Equal(skip.Templates, []string{"CVE-2022-27593", "CVE-2024-3400"}) {
@@ -195,6 +196,17 @@ func TestRead_SkipsALineForAnotherTarget(t *testing.T) {
 	}
 	if (Skipped{}).Note() != "" {
 		t.Fatal("a note with nothing skipped")
+	}
+	// review r2 L5: templates past the cap are counted, not named
+	var many21 []string
+	tpls := []string{}
+	for i := range MaxSkippedTemplates + 2 {
+		id := "T-" + strconv.Itoa(i)
+		tpls = append(tpls, id)
+		many21 = append(many21, `{"template-id":"`+id+`","host":"fw.lan","port":"443","matcher-status":false}`)
+	}
+	if _, sk, err := Read([]byte(strings.Join(many21, "\n")), tpls, targets); err != nil || len(sk.Templates) != MaxSkippedTemplates || sk.MoreTemplates != 2 || len(sk.MatchedTemplates) != 0 {
+		t.Fatalf("over the cap: %+v %v", sk, err)
 	}
 	// skipped lines still count toward the line limit
 	many := bytes.Repeat([]byte(lines[1]+"\n"), MaxLines+1)
@@ -222,6 +234,10 @@ func TestRead_SkipsLinesThatCannotBeAResult(t *testing.T) {
 	res, skip, err := Read([]byte(strings.Join(lines, "\n")), templates, targets)
 	if err != nil || len(res) != 1 || skip.Lines != 8 || skip.Matched != 3 || skip.Host != "(unreadable)" || skip.Port != "" || skip.Template != "CVE-2022-27593" {
 		t.Fatalf("res %+v skip %+v err %v", res, skip, err)
+	}
+	// review r2 M3: the templates of skipped lines that said matched are named, so they never read "no match reported"
+	if !slices.Equal(skip.MatchedTemplates, []string{"CVE-2022-27593", "CVE-2024-3400"}) {
+		t.Fatalf("matched templates %q", skip.MatchedTemplates)
 	}
 	for name, in := range map[string]string{
 		"broken JSON":          ok + "\n{",

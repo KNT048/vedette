@@ -1060,6 +1060,9 @@ func (s *Service) scanDevice(ctx context.Context, assetID, reason string, all bo
 	} else {
 		hosts, recKind, err = s.probeDevice(jctx, id, kind, rate, asset.IP)
 	}
+	if err != nil {
+		err = stopped(err) // a cancel (a person's scan, a change of the device or the settings) is a stop, never a failure (review r2 L1)
+	}
 	s.setAsset("") // nmap is done: a change of the device now has nothing to stop
 	if err == nil {
 		// nmap finished: the gentle scan happened, whatever becomes of recording its results (D-45, L2)
@@ -1103,29 +1106,46 @@ func (s *Service) recordDevice(ctx context.Context, assetID string, ip netip.Add
 		return nil
 	}
 	full := kind == nmapargv.Normal || kind == nmapargv.Versions
-	if full {
-		if err := s.sw.ReplaceSoftware(ctx, observe.AssetHint{IP: ip}, observe.Nmap, softwareOf(h)); err != nil {
+	hint := observe.AssetHint{IP: ip}
+	switch {
+	case full: // both read nmap's top 1000 and nmapargv.ExtraPorts with -sV (probeDevice)
+		sw := softwareOf(h)
+		carried, err := s.keepNormal(ctx, assetID, servicesOf(h), sw)
+		if err != nil {
+			return err
+		}
+		// the products the last weekly follow-up read stay in the software list while its carry is fresh (D-592, review r2 M2)
+		if err := s.sw.ReplaceSoftware(ctx, hint, observe.Nmap, append(sw, carried...)); err != nil {
 			return fmt.Errorf("sensoractive: recording software: %w", err)
+		}
+	case kind == nmapargv.AllPorts:
+		// the weekly run adds its follow-up's products to the device's software: the last normal scan's list (its OS guess
+		// untouched) plus them, never a replacement by them alone (review r1 M3, r2 M2)
+		sw, err := s.keepAllPorts(ctx, assetID, h)
+		if err != nil {
+			return err
+		}
+		if sw != nil {
+			if err := s.sw.ReplaceSoftware(ctx, hint, observe.Nmap, sw); err != nil {
+				return fmt.Errorf("sensoractive: recording software: %w", err)
+			}
 		}
 	}
 	if s.svc != nil {
 		list := servicesOf(h)
-		write := s.svc.AddServices
-		switch {
-		case full: // both read nmap's top 1000 and nmapargv.ExtraPorts with -sV (probeDevice)
-			write = s.svc.ReplaceServices
-			if err := s.keepNormalPorts(ctx, assetID, list); err != nil {
-				return err
+		if kind.IsGentle() { // no -sV: a gentle look says nothing about products, so it never updates one (D-350 (5), inventory INV-23)
+			for i := range list {
+				list[i].Product, list[i].Version = "", ""
 			}
+		}
+		write := s.svc.AddServices // a port the weekly follow-up read gets its product and version updated (inventory INV-23)
+		if full {
+			write = s.svc.ReplaceServices
 			// the open ports the last weekly scan of every port found outside that list stay until the next weekly scan, or 14
 			// days after it at most (D-592, review r1 M4)
 			list = withExtra(list, s.allPortsExtra(ctx, assetID))
-		case kind == nmapargv.AllPorts: // every open port (the follow-up's services on the ones it read): added, and kept for the normal scans
-			if err := s.keepAllPortsExtra(ctx, assetID, list); err != nil {
-				return err
-			}
 		}
-		if err := write(ctx, observe.AssetHint{IP: ip}, observe.Nmap, list); err != nil {
+		if err := write(ctx, hint, observe.Nmap, list); err != nil {
 			return fmt.Errorf("sensoractive: recording services: %w", err)
 		}
 	}

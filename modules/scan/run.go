@@ -690,11 +690,21 @@ func (s *Service) scanDevice(ctx context.Context, runID string, d Device, st Set
 		return append(rows, RunRow{TargetID: d.ID, Label: d.Label, IP: d.IP, Result: "no_response", Note: noteNoRespGoOn}), ""
 	}
 	byTemplate := map[string]string{}
+	inconclusive := func(id string) bool { return slices.Contains(out.Skipped.MatchedTemplates, id) }
 	for _, c := range checks {
 		row := s.conclude(ctx, d, c, res, job.Targets)
+		// review r2 M3: a line that said matched but could not be tied to the device's targets (an unreadable target, a match
+		// with an error, another address) never reads "no match reported": no finding, and a note to check by hand, on the device
+		// (every target of the job is the device's)
+		if row.Result != "matched" && slices.ContainsFunc(c.tpls, func(t pack.Template) bool { return inconclusive(t.ID) }) {
+			row.Result, row.Note = "no_response", c.finding.CVE+": "+nucleiout.InconclusiveNote+"."
+		}
 		rows = append(rows, row)
 		for _, t := range c.tpls {
 			byTemplate[t.ID] = templateResult(t.ID, res)
+			if byTemplate[t.ID] != "matched" && inconclusive(t.ID) {
+				byTemplate[t.ID] = "no_response"
+			}
 		}
 	}
 	s.closeProbes(ctx, probes, func(tpl string) string { return byTemplate[tpl] })

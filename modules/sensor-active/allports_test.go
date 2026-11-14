@@ -3,10 +3,12 @@ package sensoractive_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/netip"
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -32,7 +34,7 @@ func sweptToday(e *env) {
 	e.t.Helper()
 	if err := e.db.Write(e.ctx(), func(tx dbTx) error {
 		ts := e.clock().UTC().Format("2006-01-02T15:04:05.000Z")
-		_, err := tx.ExecContext(e.ctx(), `INSERT INTO sa_job (id, kind, started_at, finished_at, status) VALUES ('saj_today', 'sweep', ?, ?, 'done')`, ts, ts)
+		_, err := tx.ExecContext(e.ctx(), `INSERT INTO sa_job (id, kind, started_at, finished_at, status) VALUES (?, 'sweep', ?, ?, 'done')`, "saj_"+ts, ts, ts)
 		return err
 	}); err != nil {
 		e.t.Fatal(err)
@@ -107,12 +109,12 @@ func TestAllPortsOncePerWeekAndNeverForAFragileDevice(t *testing.T) {
 // addresses, review r1 L1), declared by hand and out of scope get none either.
 func TestAllPortsNeedsRoomRateAndAKnownSafeDevice(t *testing.T) {
 	t.Parallel()
-	late := allPortsEnv(t, func(e *env) { e.base = local(9, 4, 0) }) // one hour before the window closes
+	late := allPortsEnv(t, func(e *env) { e.base = local(9, 3, 15) }) // 105 minutes left: not the 90 + 30 a run and its follow-up need (review r2 L2)
 	if err := late.svc.Tick(late.ctx()); err != nil {
 		t.Fatal(err)
 	}
 	if got := allPortsCalls(late); len(got) != 0 {
-		t.Fatalf("started with an hour of window left: %q", got)
+		t.Fatalf("started with 105 minutes of window left: %q", got)
 	}
 	slow := allPortsEnv(t)
 	slow.inv.mu.Lock()
@@ -184,8 +186,10 @@ func TestAllPortsAddsPortsKeepsSoftwareAndTheNextWeekReplacesTheCarry(t *testing
 	e.sink.mu.Lock()
 	after := e.sink.sw["192.168.10.20"]
 	e.sink.mu.Unlock()
-	if !slices.EqualFunc(after, sw, func(a, b observe.Software) bool { return a.Display == b.Display && a.Guess == b.Guess }) {
-		t.Fatalf("the weekly scan changed the software: %+v, was %+v", after, sw)
+	// review r2 M2: the follow-up's product on 40000 is added; the normal scan's rows, the OS guess among them, stay
+	if len(after) != len(sw)+1 || !slices.EqualFunc(after[:len(sw)], sw, func(a, b observe.Software) bool { return a.Display == b.Display && a.Guess == b.Guess }) ||
+		after[len(sw)].Display != "Acme admin 1.0" {
+		t.Fatalf("the weekly scan's software: %+v, was %+v", after, sw)
 	}
 	e.nm = normal
 	e.build()
@@ -206,6 +210,52 @@ func TestAllPortsAddsPortsKeepsSoftwareAndTheNextWeekReplacesTheCarry(t *testing
 	}
 	if got := e.webPorts(); !slices.Equal(got, []int{22, 80, 8080}) {
 		t.Fatalf("after the next weekly run without 40000 and a normal scan: %v", got)
+	}
+}
+
+// Review r2 M2/L6: a product found only on a non-standard port reaches the device's software list (the matcher's input), and a
+// version that changes between two weekly runs replaces the old one in the software and the services; the OS guess stays.
+func TestAllPortsVersionChangeReachesSoftwareAndServices(t *testing.T) {
+	t.Parallel()
+	e := allPortsEnv(t)
+	weekly := e.nm
+	e.nm = writeFakeNmap(t, fakeOpts{})
+	e.build()
+	if err := e.svc.ScanDevice(e.ctx(), "a-web", "discovered"); err != nil {
+		t.Fatal(err)
+	}
+	e.nm = weekly
+	e.build()
+	if err := e.svc.Tick(e.ctx()); err != nil {
+		t.Fatal(err)
+	}
+	e.base = e.base.Add(7*24*time.Hour + time.Minute)
+	e.nm = writeFakeNmap(t, fakeOpts{always: absFixture(t, "allports2.xml")}) // 40000 now answers 2.0
+	e.build()
+	if err := e.db.Write(e.ctx(), func(tx dbTx) error { // the sweep of this window is done too
+		ts := e.clock().UTC().Format("2006-01-02T15:04:05.000Z")
+		_, err := tx.ExecContext(e.ctx(), `INSERT INTO sa_job (id, kind, started_at, finished_at, status) VALUES ('saj_week2', 'sweep', ?, ?, 'done')`, ts, ts)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.svc.Tick(e.ctx()); err != nil {
+		t.Fatal(err)
+	}
+	e.sink.mu.Lock()
+	defer e.sink.mu.Unlock()
+	var displays []string
+	guess := false
+	for _, sw := range e.sink.sw["192.168.10.20"] {
+		displays = append(displays, sw.Display)
+		guess = guess || sw.Guess
+	}
+	if !slices.Contains(displays, "Acme admin 2.0") || slices.Contains(displays, "Acme admin 1.0") || !guess {
+		t.Fatalf("software after the second weekly run: %q (OS guess kept: %v)", displays, guess)
+	}
+	i := slices.IndexFunc(e.sink.svc["192.168.10.20"], func(s observe.Service) bool { return s.Port == 40000 })
+	if i < 0 || e.sink.svc["192.168.10.20"][i].Version != "2.0" {
+		t.Fatalf("services: %+v", e.sink.svc["192.168.10.20"])
 	}
 }
 
@@ -408,5 +458,199 @@ func TestExtraRunFailureKeepsTheTop1000Result(t *testing.T) {
 	}
 	if got := e.str(`SELECT group_concat(substr(result, 1, 6), ',') FROM sa_probe`); got != "ok: 1 ,failed" {
 		t.Fatalf("probe results %q", got)
+	}
+}
+
+// openPortsXML is an nmap XML of 192.168.10.20 with n open TCP ports (from 30001 up), the shape of a SYN proxy or a tarpit.
+func openPortsXML(n int) []byte {
+	var b strings.Builder
+	b.WriteString(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE nmaprun>
+<nmaprun scanner="nmap" args="nmap" start="1762650000" version="7.95" xmloutputversion="1.05">
+<host starttime="1762650001" endtime="1762650030"><status state="up" reason="syn-ack" reason_ttl="64"/>
+<address addr="192.168.10.20" addrtype="ipv4"/>
+<ports>
+`)
+	for i := range n {
+		fmt.Fprintf(&b, `<port protocol="tcp" portid="%d"><state state="open" reason="syn-ack" reason_ttl="64"/><service name="unknown" method="table" conf="3"/></port>`+"\n", 30001+i)
+	}
+	b.WriteString(`</ports>
+</host>
+<runstats><finished time="1762650031" elapsed="30.00" exit="success"/><hosts up="1" down="0" total="1"/></runstats>
+</nmaprun>
+`)
+	return []byte(b.String())
+}
+
+// Review r2 M1/L6: a device that answers the weekly discovery on more than 40 ports, or on so many that the output is refused (more
+// than 1,500 ports listed), counts as done for the week: "answers on every port", no follow-up, no port added; the next window does
+// not run -p- on it again.
+func TestAllPortsDeviceThatAnswersEverywhereIsDoneForTheWeek(t *testing.T) {
+	t.Parallel()
+	for name, n := range map[string]int{"41 open ports": 41, "2000 open ports": 2000} {
+		e := allPortsEnv(t)
+		var calls []string
+		var mu sync.Mutex
+		xml := openPortsXML(n)
+		e.withProber(probeFunc(func(_ context.Context, argv []string) (sa.Output, error) {
+			mu.Lock()
+			calls = append(calls, strings.Join(argv, " "))
+			mu.Unlock()
+			return sa.Output{XML: xml}, nil
+		}))
+		if err := e.svc.Tick(e.ctx()); err != nil {
+			t.Fatal(err)
+		}
+		if got := e.str(`SELECT coalesce(outcome, '') FROM sa_all_ports WHERE asset_id = 'a-web'`); got != "answers_everywhere" {
+			t.Fatalf("%s: outcome %q", name, got)
+		}
+		if len(e.webPorts()) != 0 || len(calls) != 1 || !strings.Contains(calls[0], "-p-") {
+			t.Fatalf("%s: ports %v, runs %q", name, e.webPorts(), calls)
+		}
+		e.base = e.base.Add(24 * time.Hour) // the next window
+		sweptToday(e)
+		if err := e.svc.Tick(e.ctx()); err != nil {
+			t.Fatal(err)
+		}
+		if len(calls) != 1 {
+			t.Fatalf("%s: the next window ran again: %q", name, calls)
+		}
+	}
+}
+
+// Review r2 M1: any other failure is tried once more in the next window (not again in this one), then waits for the next week.
+func TestAllPortsFailureRetriesOnceThenWaitsAWeek(t *testing.T) {
+	t.Parallel()
+	e := allPortsEnv(t)
+	var runs int
+	var mu sync.Mutex
+	e.withProber(probeFunc(func(_ context.Context, argv []string) (sa.Output, error) {
+		if slices.Contains(argv, "-p-") {
+			mu.Lock()
+			runs++
+			mu.Unlock()
+		}
+		return sa.Output{}, sa.ErrWorkerLost
+	}))
+	tick := func(day int) {
+		t.Helper()
+		e.base = local(9+day, 2, 0)
+		if err := e.db.Write(e.ctx(), func(tx dbTx) error {
+			ts := e.clock().UTC().Format("2006-01-02T15:04:05.000Z")
+			_, err := tx.ExecContext(e.ctx(), `INSERT INTO sa_job (id, kind, started_at, finished_at, status) VALUES (?, 'sweep', ?, ?, 'done')`, fmt.Sprintf("saj_d%d", day), ts, ts)
+			return err
+		}); err != nil && day > 0 {
+			t.Fatal(err)
+		}
+		for range 2 { // two ticks in the window: the second never retries
+			if err := e.svc.Tick(e.ctx()); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	want := map[int]int{0: 1, 1: 2, 2: 2, 6: 2, 8: 3} // day -> weekly runs so far
+	for _, day := range []int{0, 1, 2, 6, 8} {
+		tick(day)
+		mu.Lock()
+		n := runs
+		mu.Unlock()
+		if n != want[day] {
+			t.Fatalf("day %d: %d weekly runs, want %d (outcome %q)", day, n, want[day], e.str(`SELECT coalesce(outcome, '') FROM sa_all_ports WHERE asset_id = 'a-web'`))
+		}
+	}
+}
+
+// Review r2 L1: a Scan now that lands while the follow-up -sV runs stops the weekly run: nothing of it is recorded, the device stays
+// due.
+func TestAllPortsStoppedDuringTheFollowUpRecordsNothing(t *testing.T) {
+	t.Parallel()
+	e := allPortsEnv(t)
+	all, dev := fixtureXML(t, "allports.xml"), fixtureXML(t, "device.xml")
+	started := make(chan struct{})
+	var once sync.Once
+	e.withProber(probeFunc(func(ctx context.Context, argv []string) (sa.Output, error) {
+		switch {
+		case slices.Contains(argv, "-p-"):
+			return sa.Output{XML: all}, nil
+		case slices.Contains(argv, "40000"): // the follow-up
+			once.Do(func() { close(started) })
+			<-ctx.Done()
+			return sa.Output{}, ctx.Err()
+		}
+		return sa.Output{XML: dev}, nil
+	}))
+	tick := runTick(e)
+	waitClosed(t, started, "the follow-up")
+	if got, err := e.svc.IdentifyDevice(e.ctx(), "a-web"); err != nil || got.Why == sa.WhyBusy {
+		t.Fatalf("identification = %+v, %v", got, err)
+	}
+	if err := <-tick; err != nil {
+		t.Fatal(err)
+	}
+	if slices.Contains(e.webPorts(), 40000) || e.count(`SELECT count(*) FROM sa_all_ports WHERE asset_id = 'a-web' AND (last_at IS NOT NULL OR extra_at IS NOT NULL)`) != 0 {
+		t.Fatalf("the stopped weekly run was recorded: ports %v", e.webPorts())
+	}
+}
+
+// Review r2 L3: with more open ports to read than one follow-up takes, the ports never read go first the next week, then the ones
+// read longest ago.
+func TestAllPortsFollowUpRotates(t *testing.T) {
+	t.Parallel()
+	e := allPortsEnv(t)
+	xml := openPortsXML(25) // 30001..30025, none in the extra list
+	var follow []string
+	var mu sync.Mutex
+	e.withProber(probeFunc(func(_ context.Context, argv []string) (sa.Output, error) {
+		if i := slices.Index(argv, "-p"); i >= 0 {
+			mu.Lock()
+			follow = append(follow, argv[i+1])
+			mu.Unlock()
+		}
+		return sa.Output{XML: xml}, nil
+	}))
+	if err := e.svc.Tick(e.ctx()); err != nil {
+		t.Fatal(err)
+	}
+	e.base = e.base.Add(7*24*time.Hour + time.Minute)
+	sweptToday(e)
+	e.inv.mu.Lock()
+	e.inv.addrs = map[netip.Addr]string{netip.MustParseAddr("192.168.10.20"): "a-web"} // the queued normal scan aside: weekly only
+	e.inv.mu.Unlock()
+	if err := e.db.Write(e.ctx(), func(tx dbTx) error { _, err := tx.ExecContext(e.ctx(), `DELETE FROM sa_queue`); return err }); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.svc.Tick(e.ctx()); err != nil {
+		t.Fatal(err)
+	}
+	ports := func(lo, hi int) string {
+		var p []string
+		for n := lo; n <= hi; n++ {
+			p = append(p, strconv.Itoa(n))
+		}
+		return strings.Join(p, ",")
+	}
+	want := []string{ports(30001, 30020), ports(30001, 30015) + "," + ports(30021, 30025)}
+	if !slices.Equal(follow, want) {
+		t.Fatalf("follow-ups %q, want %q", follow, want)
+	}
+}
+
+// Review r2 L4: the weekly round removes the row of a device the inventory no longer has, never of one that only lost its address.
+func TestAllPortsCleanupKeepsADeviceWithoutAnAddress(t *testing.T) {
+	t.Parallel()
+	e := allPortsEnv(t)
+	if err := e.svc.Tick(e.ctx()); err != nil {
+		t.Fatal(err)
+	}
+	e.inv.mu.Lock()
+	e.inv.addrs = map[netip.Addr]string{} // a-web has no address now; a-printer is gone from the inventory
+	delete(e.inv.assets, "a-printer")
+	e.inv.mu.Unlock()
+	e.base = e.base.Add(time.Minute)
+	if err := e.svc.Tick(e.ctx()); err != nil {
+		t.Fatal(err)
+	}
+	if got := e.str(`SELECT group_concat(asset_id, ',') FROM sa_all_ports`); got != "a-web" {
+		t.Fatalf("rows %q, want only a-web's", got)
 	}
 }

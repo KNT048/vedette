@@ -377,8 +377,32 @@ func TestForeignTargetLineIsSkippedAndTheRunKept(t *testing.T) {
 	}
 	ps, err := r.svc.Probes(r.ctx())
 	if err != nil || len(ps) != 1 || ps[0].Result != "matched" ||
-		!strings.HasPrefix(ps[0].Request, "GET /photo") || !strings.HasSuffix(ps[0].Request, " [not counted: 1 nuclei line(s) whose answers named another address or none readable, 1 said matched; first: CVE-2022-27593 on 192.168.10.99:11443]") {
+		!strings.HasPrefix(ps[0].Request, "GET /photo") || !strings.HasSuffix(ps[0].Request, " [not counted: 1 nuclei line(s) that could not be a result of this check (another address, an unreadable target, no match status, or a match with an error), 1 said matched; first: CVE-2022-27593 on 192.168.10.99:11443]") {
 		t.Fatalf("%+v %v", ps, err)
+	}
+}
+
+// Review r2 M3: a line that said matched but cannot be tied to the device (a match with an error on its own target, an unreadable
+// target) is skipped, yet the CVE never reads "no match reported": no_response with a note to check by hand, and no finding.
+func TestSkippedMatchIsInconclusiveNeverNoMatch(t *testing.T) {
+	t.Parallel()
+	for name, line := range map[string]string{
+		"a match with an error":     `{"template-id":"CVE-2022-27593","host":"http://192.168.10.21:5000","matcher-status":true,"error":"sibling request failed"}`,
+		"an unreadable target":      `{"template-id":"CVE-2022-27593","host":"nas.lan","port":"5000","matcher-status":true}`,
+		"the target in a bad shape": `{"template-id":"CVE-2022-27593","host":"http://192.168.10.21:5000","port":"8080","matcher-status":true}`,
+	} {
+		r := newRunEnv(t)
+		r.eng.reply = func(nucleiargv.Job) (Output, error) { return Output{JSONL: []byte(line + "\n")}, nil }
+		v := r.start("a-nas02")
+		r.wait()
+		got := r.run(v.ID)
+		row := rowOf(got, "a-nas02", "no_response")
+		if row == nil || row.Note != "CVE-2022-27593: nuclei reported a match it could not tie to this address; check by hand." || rowOf(got, "a-nas02", "not_matched") != nil || len(r.findings.confirms) != 0 {
+			t.Fatalf("%s: rows %+v, confirms %v", name, got.Results, r.findings.confirms)
+		}
+		if ps, err := r.svc.Probes(r.ctx()); err != nil || len(ps) != 1 || ps[0].Result != "no_response" {
+			t.Fatalf("%s: probes %+v %v", name, ps, err)
+		}
 	}
 }
 

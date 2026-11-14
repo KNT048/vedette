@@ -215,7 +215,7 @@ func TestExposureTemplatesSkippedLinesAreNoted(t *testing.T) {
 		t.Fatalf("%+v %v %q", got, err, f.events)
 	}
 	if f.done[1].Result != "not_matched" || !strings.HasPrefix(f.done[1].Request, "nuclei CVE-2019-19781") ||
-		!strings.Contains(f.done[1].Request, "[not counted: 2 nuclei line(s) whose answers named another address") || strings.Contains(f.done[0].Request, "not counted") {
+		!strings.Contains(f.done[1].Request, "[not counted: 2 nuclei line(s) that could not be a result of this check") || strings.Contains(f.done[0].Request, "not counted") {
 		t.Fatalf("rows %+v", f.done)
 	}
 }
@@ -342,6 +342,27 @@ func TestExposureTemplatesNothingSentWithoutTheProbeLog(t *testing.T) {
 	var un *exposure.Unavailable
 	if !errors.As(err, &un) || un.Reason != templatesNoLog || len(f.reqs) != 0 {
 		t.Fatalf("%v, %d runs", err, len(f.reqs))
+	}
+}
+
+// Review r2 M3/L5: a template a skipped line said matched is inconclusive (error, no finding, "check by hand" on its probe row), never
+// "no match reported"; when more templates had skipped lines than Skipped names, a template without a result says it may be over
+// the cap.
+func TestExposureTemplatesSkippedMatchIsInconclusive(t *testing.T) {
+	t.Parallel()
+	f := &templatesFake{gateOK: true, answer: func(sensoractive.NucleiRequest) nucleiout.Outcome {
+		return nucleiout.Outcome{Skipped: nucleiout.Skipped{Lines: 30, Matched: 1, MatchedTemplates: []string{"CVE-2018-13379"}, Templates: []string{"CVE-2018-13379"},
+			MoreTemplates: 1, Template: "CVE-2018-13379", Host: "(unreadable)"}}
+	}}
+	got, err := f.scanner().ScanTemplates(t.Context(), exposure.ScanTarget{User: "u"}, ownPublicIP, []exposure.TemplateJob{ownJob("CVE-2018-13379", "CVE-2019-19781")})
+	if err != nil || len(got.Results) != 1 || got.Results[0].Outcome != exposure.OutcomeError || len(f.done) != 2 {
+		t.Fatalf("%+v %v %q", got, err, f.events)
+	}
+	if f.done[0].Result != "" || !strings.Contains(f.done[0].Request, "[nuclei reported a match it could not tie to this address; check by hand]") {
+		t.Fatalf("row %+v", f.done[0])
+	}
+	if f.done[1].Result != scan.ProbeNotRun || !strings.Contains(f.done[1].Request, "not run (over the cap of 20 templates per run)") {
+		t.Fatalf("row %+v", f.done[1])
 	}
 }
 

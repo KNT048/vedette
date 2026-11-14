@@ -79,6 +79,9 @@ const (
 	AllPortsMaxRate     = 100
 	AllPortsMinRate     = 50 // below it the scan does not fit AllPortsHostTimeout safely: the weekly run is not made (Health says why)
 	AllPortsHostTimeout = 90 * time.Minute
+	// AllPortsWindowRoom is the window a weekly run needs left to start (review r2 L2): the discovery's host timeout and the
+	// follow-up's (the normal shapes' 30 minutes).
+	AllPortsWindowRoom  = AllPortsHostTimeout + 30*time.Minute
 	allPortsHostTimeout = "90m"
 	allPortsRetries     = "1"
 )

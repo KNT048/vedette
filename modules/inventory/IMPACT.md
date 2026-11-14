@@ -103,3 +103,6 @@
 
 ## Modifying: `DevicesRunning` → `DeviceMatch.Display` (KF-3)
 - **feeds** (`MatchedAsset.display`, trang CVE "Devices that run it" khi thiết bị không có tên máy, `cmd/vedette` `feedsInventory.MatchProducts`): tên phần mềm đã khớp. `DeviceRefs` giữ nghĩa cũ (dòng đầu theo tên, hoặc loại) cho người gọi khác.
+
+## Modifying: `AddServices` (D-592 review r2 M2)
+- A partial look that names a product updates that port's name, product, version and confidence: **sensor-active** sends the -sV follow-up of the weekly scan of every port through it. A gentle look names no product and changes only `seen_at` and `detail`. Making AddServices overwrite on an empty product would wipe what a normal scan read.

@@ -71,17 +71,26 @@ type line struct {
 	MatcherName   string `json:"matcher-name"`
 }
 
-// Skipped says what Read left out (N45-1, review r1 M6/M7): Lines lines of the job's templates whose JSON is valid but that cannot be
-// a result of the job: about a host:port the job did not name, a target that cannot be read, no matcher-status, a match with an
-// error. Matched counts the ones that said matched (never a result: the log and the probe row say so). Templates are the first
-// MaxSkippedTemplates distinct templates of those lines; Template, Host and Port are the first line's (Host is "(unreadable)" when
-// its target could not be read; each checked and clipped, safe to log and store).
+// Skipped says what Read left out (N45-1, review r1 M6/M7, r2 M3/L5): Lines lines of the job's templates whose JSON is valid but
+// that cannot be a result of the job: about a host:port the job did not name, a target that cannot be read, no matcher-status, a
+// match with an error. Matched counts the ones that said matched; MatchedTemplates are their templates (every one, all of the
+// job's): such a template never reads "no match reported", its result is inconclusive (InconclusiveNote). Templates are the first
+// MaxSkippedTemplates distinct templates of the skipped lines and MoreTemplates how many more there were; Template, Host and Port
+// are the first line's (Host is "(unreadable)" when its target could not be read; each checked and clipped, safe to log and store).
 type Skipped struct {
-	Lines, Matched int
-	Templates      []string
-	Template, Host string
-	Port           string
+	Lines, Matched   int
+	MatchedTemplates []string
+	Templates        []string
+	MoreTemplates    int
+	Template, Host   string
+	Port             string
 }
+
+// InconclusiveNote is the note of a template a skipped line said matched (review r2 M3): no finding, never "no match".
+const InconclusiveNote = "nuclei reported a match it could not tie to this address; check by hand"
+
+// OverCapNote is the note of a template without a result when more templates had skipped lines than Skipped names (review r2 L5).
+const OverCapNote = " [not run (over the cap of 20 templates per run)]"
 
 // MaxSkippedHost caps the host of a skipped line as it is logged and stored; MaxSkippedTemplates the templates Skipped names.
 const (
@@ -102,7 +111,7 @@ func (s Skipped) Note() string {
 	if s.Matched > 0 {
 		m = fmt.Sprintf(", %d said matched", s.Matched)
 	}
-	return fmt.Sprintf(" [not counted: %d nuclei line(s) whose answers named another address or none readable%s; first: %s on %s:%s]", s.Lines, m, s.Template, s.Host, s.Port)
+	return fmt.Sprintf(" [not counted: %d nuclei line(s) that could not be a result of this check (another address, an unreadable target, no match status, or a match with an error)%s; first: %s on %s:%s]", s.Lines, m, s.Template, s.Host, s.Port)
 }
 
 // AppendNote puts note after request within limit characters: the note is cut, never the request (review r1 L7).
@@ -136,6 +145,7 @@ func Read(out []byte, templates, targets []string) ([]Result, Skipped, error) {
 	}
 	limit := max(MaxLines, LinesPerTemplate*len(templates)) // a full run of 200 templates (D-527): 8000
 	var res []Result
+	over := map[string]bool{} // templates of skipped lines past MaxSkippedTemplates
 	for i, raw := range bytes.Split(out, []byte("\n")) {
 		raw = bytes.TrimSpace(raw)
 		if len(raw) == 0 {
@@ -155,9 +165,17 @@ func Read(out []byte, templates, targets []string) ([]Result, Skipped, error) {
 			skip.Lines++
 			if r.Matched {
 				skip.Matched++
+				if !slices.Contains(skip.MatchedTemplates, r.Template) {
+					skip.MatchedTemplates = append(skip.MatchedTemplates, r.Template) // one of the job's: bounded by it
+				}
 			}
-			if len(skip.Templates) < MaxSkippedTemplates && !slices.Contains(skip.Templates, r.Template) {
+			switch {
+			case slices.Contains(skip.Templates, r.Template):
+			case len(skip.Templates) < MaxSkippedTemplates:
 				skip.Templates = append(skip.Templates, r.Template)
+			case !over[r.Template]:
+				over[r.Template] = true
+				skip.MoreTemplates++
 			}
 			continue
 		}

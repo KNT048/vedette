@@ -286,6 +286,9 @@ func (a exposureTemplateScan) send(ctx context.Context, actor string, ip netip.A
 		a.log.WarnContext(ctx, "exposure: nuclei printed lines that cannot be a result of the job; skipped, the run is kept", "ip", ip.String(), "port", r.port,
 			"lines", sk.Lines, "matched", sk.Matched, "template", sk.Template, "host", sk.Host, "skipped_port", sk.Port)
 		for i := range rows {
+			if slices.Contains(sk.MatchedTemplates, rows[i].Template) { // review r2 M3: first, so the cut never drops it
+				rows[i].Request = nucleiout.AppendNote(rows[i].Request, " ["+nucleiout.InconclusiveNote+"]", probeRequestMax)
+			}
 			if slices.Contains(sk.Templates, rows[i].Template) { // after the request, cut to the row (review r1 L7)
 				rows[i].Request = nucleiout.AppendNote(rows[i].Request, sk.Note(), probeRequestMax)
 			}
@@ -307,6 +310,9 @@ func (a exposureTemplateScan) send(ctx context.Context, actor string, ip netip.A
 		if !ran {
 			silent = append(silent, rows[i].Template)
 			rows[i].Result = scan.ProbeNotRun
+			if got.Skipped.MoreTemplates > 0 { // review r2 L5: it may be one of the templates past the cap Skipped names
+				rows[i].Request = nucleiout.AppendNote(rows[i].Request, nucleiout.OverCapNote, probeRequestMax)
+			}
 		}
 	}
 	if len(silent) > 0 {
@@ -348,6 +354,10 @@ func outcomes(r templateRun, o nucleiout.Outcome) []exposure.TemplateResult {
 		case matched:
 			outcome = exposure.OutcomeMatched
 		case failed || !seen && unreachable:
+			outcome = exposure.OutcomeError
+		case slices.Contains(o.Skipped.MatchedTemplates, tp.ID):
+			// review r2 M3: a line said matched but could not be tied to this address: inconclusive, never "no match reported",
+			// never a finding; the probe row says to check by hand
 			outcome = exposure.OutcomeError
 		case !seen && slices.Contains(o.Skipped.Templates, tp.ID):
 			// review r1 M7: nuclei ran it (it printed lines), but every line named another address or none readable: "no match

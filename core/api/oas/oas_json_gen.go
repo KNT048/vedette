@@ -290127,6 +290127,10 @@ func (s *ScanGetScansProbesOKItemsItemResult) Decode(d *jx.Decoder) error {
 		*s = ScanGetScansProbesOKItemsItemResultBanner
 	case ScanGetScansProbesOKItemsItemResultStopped:
 		*s = ScanGetScansProbesOKItemsItemResultStopped
+	case ScanGetScansProbesOKItemsItemResultNotRun:
+		*s = ScanGetScansProbesOKItemsItemResultNotRun
+	case ScanGetScansProbesOKItemsItemResultRefused:
+		*s = ScanGetScansProbesOKItemsItemResultRefused
 	default:
 		*s = ScanGetScansProbesOKItemsItemResult(v)
 	}

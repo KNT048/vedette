@@ -42,6 +42,8 @@ func TestExternalTemplateProbeResult(t *testing.T) {
 		{ID: "tp-1", IP: "203.0.114.7", Label: "203.0.114.7:18443", Template: "CVE-2021-41773", Request: "GET /icons/.%2e/ (nuclei)", Result: "matched"},
 		{ID: "tp-2", IP: "203.0.114.7", Label: "203.0.114.7:18443", Template: "CVE-2021-42013", Request: "GET /icons/ (nuclei)", Result: "not_matched"},
 		{ID: "tp-3", IP: "203.0.114.7", Label: "203.0.114.7:18443", Template: "CVE-2024-1", Request: "GET / (nuclei)", Result: "stopped"},
+		{ID: "tp-4", IP: "203.0.114.7", Label: "203.0.114.7:18443", Template: "CVE-2024-2", Request: "GET / (nuclei)", Result: ProbeNotRun},
+		{ID: "tp-5", IP: "203.0.114.7", Label: "203.0.114.7:18443", Template: "CVE-2024-3", Request: "GET / (nuclei)", Result: ProbeRefused},
 	}
 	if err := e.svc.RecordExternalProbes(e.ctx(), ps); err != nil {
 		t.Fatal(err)
@@ -51,7 +53,8 @@ func TestExternalTemplateProbeResult(t *testing.T) {
 	for _, r := range l {
 		got[r.Template] = r.Result
 	}
-	if err != nil || got["CVE-2021-41773"] != "matched" || got["CVE-2021-42013"] != "not_matched" || got["CVE-2024-1"] != "no_response" {
+	if err != nil || got["CVE-2021-41773"] != "matched" || got["CVE-2021-42013"] != "not_matched" || got["CVE-2024-1"] != "no_response" ||
+		got["CVE-2024-2"] != "not_run" || got["CVE-2024-3"] != "refused" {
 		t.Fatalf("%v %v", got, err)
 	}
 }

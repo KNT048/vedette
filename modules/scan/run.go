@@ -641,6 +641,7 @@ func (s *Service) scanDevice(ctx context.Context, runID string, d Device, st Set
 	}
 	out, err := s.runJob(ctx, Job{Job: job, IDs: ids, PackVersion: s.cfg.Pack.Version, PackSHA256: s.cfg.Pack.SHA256})
 	res := out.Results
+	s.noteSkipped(ctx, runID, d, probes, out.Skipped)
 	if ctx.Err() != nil { // Stop now while this device was being scanned
 		s.closeProbes(ctx, probes, func(string) string { return "stopped" })
 		return append(rows, RunRow{TargetID: d.ID, Label: d.Label, IP: d.IP, Result: "skipped", Note: noteStoppedMid}), "stopped"
@@ -689,11 +690,21 @@ func (s *Service) scanDevice(ctx context.Context, runID string, d Device, st Set
 		return append(rows, RunRow{TargetID: d.ID, Label: d.Label, IP: d.IP, Result: "no_response", Note: noteNoRespGoOn}), ""
 	}
 	byTemplate := map[string]string{}
+	inconclusive := func(id string) bool { return slices.Contains(out.Skipped.MatchedTemplates, id) }
 	for _, c := range checks {
 		row := s.conclude(ctx, d, c, res, job.Targets)
+		// review r2 M3: a line that said matched but could not be tied to the device's targets (an unreadable target, a match
+		// with an error, another address) never reads "no match reported": no finding, and a note to check by hand, on the device
+		// (every target of the job is the device's)
+		if row.Result != "matched" && slices.ContainsFunc(c.tpls, func(t pack.Template) bool { return inconclusive(t.ID) }) {
+			row.Result, row.Note = "no_response", c.finding.CVE+": "+nucleiout.InconclusiveNote+"."
+		}
 		rows = append(rows, row)
 		for _, t := range c.tpls {
 			byTemplate[t.ID] = templateResult(t.ID, res)
+			if byTemplate[t.ID] != "matched" && inconclusive(t.ID) {
+				byTemplate[t.ID] = "no_response"
+			}
 		}
 	}
 	s.closeProbes(ctx, probes, func(tpl string) string { return byTemplate[tpl] })
@@ -873,6 +884,33 @@ func (s *Service) writeProbes(ctx context.Context, runID string, d Device, check
 		return nil
 	})
 	return out, err
+}
+
+// noteSkipped writes what nucleiout skipped (lines that cannot be a result of the job, N45-1: the run is kept) to the core log
+// and after the request text of the probe rows of the templates those lines were of (cut to the row, never the request: review
+// r1 L7), so the probe log says it.
+func (s *Service) noteSkipped(ctx context.Context, runID string, d Device, rows []probeRow, sk nucleiout.Skipped) {
+	if sk.Lines == 0 {
+		return
+	}
+	s.cfg.Log.WarnContext(ctx, "scan: nuclei printed lines that cannot be a result of the job; skipped, the run is kept", "asset", d.ID, "run", runID,
+		"lines", sk.Lines, "matched", sk.Matched, "template", sk.Template, "host", sk.Host, "port", sk.Port)
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), finishTimeout)
+	defer cancel()
+	err := s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
+		for _, r := range rows {
+			if !slices.Contains(sk.Templates, r.template) {
+				continue
+			}
+			if _, err := tx.ExecContext(ctx, `UPDATE scan_probe SET request = request || substr(?, 1, max(0, 300 - length(request))) WHERE id = ?`, sk.Note(), r.id); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		s.cfg.Log.ErrorContext(ctx, "scan: noting skipped lines in the probe log failed", "error", err)
+	}
 }
 
 // closeProbes fills in the results; it runs even when the run was stopped (INV-7).

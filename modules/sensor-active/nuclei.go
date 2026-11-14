@@ -205,7 +205,7 @@ func (d *Dispatcher) RunNuclei(ctx context.Context, r NucleiRequest) (nucleiout.
 	if err != nil {
 		return nucleiout.Outcome{}, err
 	}
-	res, err := nucleiout.Parse(out, r.Templates, hostPort)
+	res, skip, err := nucleiout.Read(out, r.Templates, hostPort)
 	if err != nil {
 		d.log.WarnContext(ctx, "sensor_active_nuclei_output_rejected", "error", err) // the text is built from nuclei's bytes: the log gets the parser's own words only
 		return nucleiout.Outcome{}, fmt.Errorf("%w: %w", ErrResultRejected, err)
@@ -215,7 +215,10 @@ func (d *Dispatcher) RunNuclei(ctx context.Context, r NucleiRequest) (nucleiout.
 		d.log.WarnContext(ctx, "sensor_active_nuclei_host_errors_rejected", "error", err)
 		return nucleiout.Outcome{}, fmt.Errorf("%w: %w", ErrResultRejected, err)
 	}
-	return nucleiout.Outcome{Results: res, HostErrors: he}, nil
+	if skip.Lines > 0 { // N45-1: kept, not a reason to drop the run; the caller notes it on the probe row
+		d.log.WarnContext(ctx, "sensor_active_nuclei_lines_skipped", "lines", skip.Lines, "template", skip.Template, "host", skip.Host, "port", skip.Port)
+	}
+	return nucleiout.Outcome{Results: res, HostErrors: he, Skipped: skip}, nil
 }
 
 // hostErrorsOf checks the worker's host errors against the request (the wire shape was checked by sensorlink): every target

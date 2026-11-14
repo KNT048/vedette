@@ -9,6 +9,8 @@ import (
 	"net"
 	"net/netip"
 	"os"
+	"slices"
+	"time"
 
 	"github.com/knt048/vedette/host/api"
 	hostclient "github.com/knt048/vedette/host/client"
@@ -97,6 +99,9 @@ func (g exposureGreenbone) run(ctx context.Context, command string, args any) er
 		return ctx.Err()
 	case errors.As(err, &he) && he.Code == api.CodeUnknownCommand:
 		return &exposure.Unavailable{Reason: gbOldHost}
+	case errors.As(err, &he) && slices.Contains([]string{api.CodeRateLimited, api.CodeBusy, api.CodeShuttingDown, api.CodeHostRestarted}, he.Code):
+		// refused for now (kf-scan item 6: 429 at a box restart): exposure sends an Up again after a wait
+		return &exposure.HostBusy{Reason: he.Code, RetryAfter: time.Duration(he.RetryAfterS) * time.Second}
 	default:
 		return fmt.Errorf("openvas: %s: %w", command, err)
 	}

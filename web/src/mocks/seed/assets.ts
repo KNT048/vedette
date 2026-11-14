@@ -52,7 +52,7 @@ export function seedAssets(): Asset[] {
       software: [sw('s-nas01', 'Synology NAS (DSM)', 'Synology', 'DiskStation Manager', '7.2', ['synology|diskstation manager', 'synology|dsm'], 'nmap', 0.5)], services: [svc(5000, 'http', 'passive', 0.7, 'Synology DSM'), svc(5001, 'https', 'passive', 0.7)] }),
     a({ id: 'a-nas02', ip: '192.168.10.21', kind: 'nas', hostname: 'NAS-PHOTOS', mac: '24:5e:be:aa:21:21', vendor: o('QNAP', 'passive', 0.95), model: o('TS-453D', 'passive', 0.8), os: o('QTS 5.0.1', 'nmap', 0.6), fragile: true,
       software: [sw('s-nas02', 'QNAP NAS (QTS)', 'QNAP', 'QTS', '5.0.1', ['qnap|qts'], 'nmap', 0.6), sw('s-nas02-ps', 'QNAP Photo Station', 'QNAP', 'Photo Station', '6.0.20', ['qnap|photo station'], 'scan', 0.95)],
-      services: [svc(8080, 'http', 'nmap', 0.9, 'QNAP QTS'), svc(443, 'https', 'nmap', 0.9), svc(80, 'http', 'nmap', 0.8, 'Photo Station')] }),
+      services: [svc(8080, 'http', 'nmap', 0.9, 'QNAP QTS', '5.1.0'), svc(443, 'https', 'nmap', 0.9), svc(80, 'http', 'nmap', 0.8, 'Photo Station')] }),
     ...pcs,
     a({ id: 'a-prn01', ip: '192.168.10.201', kind: 'printer', hostname: 'HP-M404', vendor: o('HP', 'passive', 0.9), model: o('LaserJet Pro M404dn', 'snmp', 0.9), fragile: true, services: [svc(9100, 'jetdirect', 'passive', 0.7)] }),
     a({ id: 'a-prn02', ip: '192.168.10.202', kind: 'printer', hostname: 'CANON-LBP', vendor: o('Canon', 'passive', 0.9), model: o('LBP6030', 'passive', 0.6), fragile: true }),

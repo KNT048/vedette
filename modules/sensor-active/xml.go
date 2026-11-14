@@ -52,7 +52,10 @@ const (
 var (
 	errXMLTooBig  = errors.New("nmap output is larger than the limit")
 	errXMLInvalid = errors.New("nmap output is not valid")
-	macRE         = regexp.MustCompile(`^[0-9A-Fa-f]{2}(:[0-9A-Fa-f]{2}){5}$`)
+	// errTooManyPorts is the errXMLInvalid of a host with more than maxPortsPerHost ports listed: on the weekly scan of every
+	// port that is a device answering on every port (review r2 M1)
+	errTooManyPorts = fmt.Errorf("%w: too many ports", errXMLInvalid)
+	macRE           = regexp.MustCompile(`^[0-9A-Fa-f]{2}(:[0-9A-Fa-f]{2}){5}$`)
 )
 
 // host is one live host of an nmap run.
@@ -64,6 +67,8 @@ type host struct {
 	ports    []portInfo // open ports only
 	matches  []osMatch
 	timedOut bool // nmap gave up on the host (--host-timeout): it printed no port table, so ports says nothing
+	// read are the ports the PortVersions follow-up of a weekly scan read with -sV (D-592), set by probeAllPorts; nil otherwise
+	read []int
 	// closed and filtered count the ports nmap found in those states (listed ports and <extraports>): with no open port they
 	// say whether the device refused the probes (closed) or something dropped them (filtered), D-501.
 	closed, filtered int
@@ -471,7 +476,7 @@ func parseNmapXML(data []byte) ([]host, error) {
 					break
 				}
 				if len(cur.ports) >= maxPortsPerHost {
-					return nil, fmt.Errorf("%w: too many ports", errXMLInvalid)
+					return nil, errTooManyPorts
 				}
 				port, portOK = &portInfo{number: num(a["portid"], 65535), proto: text(a["protocol"])}, false
 			case "nmaprun/host/ports/extraports":

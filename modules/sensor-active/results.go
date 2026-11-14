@@ -432,9 +432,12 @@ func servicesOf(h host) []observe.Service {
 // scan has nothing to compare with the KEV list. IdentifyDevice also passes the inventory's refusal reasons (box, declared_by_hand,
 // no_ip, out_of_scope, scope_not_confirmed, regular_scan_never, scanning_off) and its own WhyBusy and WhyUnavailable.
 const (
-	WhyHostDown    = "host_down"         // no answer at all: off, asleep, gone, or a firewall drops even the ARP/ping
-	WhyNoOpenPorts = "no_open_ports"     // answered, but every port tried was closed
-	WhyFiltered    = "filtered"          // answered, but the probes were dropped (every port filtered)
+	WhyHostDown    = "host_down"     // no answer at all: off, asleep, gone, or a firewall drops even the ARP/ping
+	WhyNoOpenPorts = "no_open_ports" // answered, but every port tried was closed
+	// WhyFiltered: answered, but no port it was asked about did (every port "filtered": no response, or an ICMP error). nmap cannot
+	// tell a firewall that drops from a device or link that rate-limits or loses the probes, so the customer reads "scan incomplete
+	// (the device or a firewall dropped or slowed the probes)", never "filtered" as what the device does (kf-scan item 3).
+	WhyFiltered    = "filtered"
 	WhyNoVersion   = "no_version"        // open ports, but no service named its product and version, and no usable OS guess
 	WhyOSGuess     = "os_unconfirmed"    // only nmap's OS guess: recorded and shown, never matched until a person adds it
 	WhyOSUnsure    = "os_low_confidence" // as no_version, and nmap's OS guess was below minOSAccuracy

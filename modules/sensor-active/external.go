@@ -46,6 +46,9 @@ var (
 	// ErrFullUnsupported (D-526): the worker's latest heartbeat does not say it runs the full shapes (an older worker, while an
 	// update runs). Nothing was sent.
 	ErrFullUnsupported = errors.New("sensoractive: the scan container's worker is older and runs no deep nmap scan")
+	// ErrPortsUnsupported: the worker is older than D-592 and takes no port list, so the -sV follow-up of the weekly scan of every
+	// port is not sent (its open ports are recorded without versions).
+	ErrPortsUnsupported = errors.New("sensoractive: the scan container's worker is older and runs no port_versions job")
 	// ErrStoppedMidRun (review r1 H1, r2 LOW-5): the worker's re-check during a full run found the address no longer the box's own
 	// (also ErrNotOwnIP) or could not check it (also ErrEgressUnverified), killed nmap and discarded its output. Unlike a refusal
 	// at the start, nmap had already probed the address.

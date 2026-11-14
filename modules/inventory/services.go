@@ -88,8 +88,9 @@ func (s *Service) ReplaceServices(ctx context.Context, hint observe.AssetHint, s
 }
 
 // AddServices implements observe.ServiceSink for a partial look (INV-23, PRE-2b; D-350 (5)): a port not listed yet is added, a
-// port already listed by that source only gets its seen_at moved (its name, product, version and confidence stay: they came
-// from a fuller scan), and no row is removed. Everything else is as ReplaceServices.
+// port already listed by that source gets its seen_at moved, and its name, product, version and confidence only when the item
+// names a product (a -sV read of that port, D-592 review r2 M2; a gentle look names none, so what a fuller scan said stays); no row
+// is removed. Everything else is as ReplaceServices.
 func (s *Service) AddServices(ctx context.Context, hint observe.AssetHint, source observe.Source, items []observe.Service) error {
 	return s.services(ctx, hint, source, items, false)
 }
@@ -125,7 +126,13 @@ const (
 	upsertService = `INSERT INTO inv_service (id, asset_id, port, proto, name, product, version, detail, source, confidence, seen_at)
 			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (asset_id, port, proto, source) DO UPDATE SET `
 	replaceSet = `name = excluded.name, product = excluded.product, version = excluded.version, detail = excluded.detail, confidence = excluded.confidence, seen_at = excluded.seen_at`
-	addSet     = `seen_at = excluded.seen_at, detail = coalesce(excluded.detail, detail)` // a gentle look with titles adds what a port said (D-511)
+	// a gentle look with titles adds what a port said (D-511); a partial look that read a product (the -sV follow-up of the weekly scan
+	// of every port, D-592 review r2 M2) updates the name, product, version and confidence of that port; one that did not (a gentle
+	// scan) keeps them
+	addSet = `seen_at = excluded.seen_at, detail = coalesce(excluded.detail, detail), product = coalesce(excluded.product, product),
+		version = CASE WHEN excluded.product IS NULL THEN version ELSE excluded.version END,
+		name = CASE WHEN excluded.product IS NULL THEN name ELSE excluded.name END,
+		confidence = CASE WHEN excluded.product IS NULL THEN confidence ELSE excluded.confidence END`
 )
 
 func replaceServicesTx(ctx context.Context, tx *sql.Tx, assetID string, items []observe.Service, source, seenAt string, replace bool) error {

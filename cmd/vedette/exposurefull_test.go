@@ -9,6 +9,7 @@ import (
 
 	"github.com/knt048/vedette/content/nucleipack"
 	"github.com/knt048/vedette/modules/exposure"
+	"github.com/knt048/vedette/modules/scan"
 	"github.com/knt048/vedette/modules/scan/nucleiargv"
 	"github.com/knt048/vedette/modules/scan/nucleiout"
 	"github.com/knt048/vedette/modules/scan/pack"
@@ -242,7 +243,7 @@ func TestExposureFullSilentTemplatesAreNotRun(t *testing.T) {
 		n += len(r.Templates)
 	}
 	want := fmt.Sprintf(notRunFull, 18443, n, n)
-	if err != nil || n == 0 || !slices.Contains(got.NotChecked, want) || len(f.done) == 0 || f.done[0].Result != "" || !strings.HasPrefix(f.done[0].Request, notRunRequest) {
+	if err != nil || n == 0 || !slices.Contains(got.NotChecked, want) || len(f.done) == 0 || f.done[0].Result != scan.ProbeNotRun {
 		t.Fatalf("err %v, notes %q, want %q, last rows %+v", err, got.NotChecked, want, f.done)
 	}
 }

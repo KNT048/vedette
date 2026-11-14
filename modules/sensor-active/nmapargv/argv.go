@@ -1,5 +1,5 @@
-// Package nmapargv builds and checks the only eight nmap command lines Vedette ever runs (D-84 (7), D-113, D-501, D-511, D-514,
-// D-526).
+// Package nmapargv builds and checks the only eleven nmap command lines Vedette ever runs (D-84 (7), D-113, D-501, D-511, D-514,
+// D-526, D-592).
 // It is a leaf: standard library only (plus core/localnet and core/egressip for which addresses are local or public, D-461,
 // D-514, and modules/scan/commonports for the external shape's ports, all standard library only), no database and
 // no core/exec, because the sensor binary links it and
@@ -20,10 +20,10 @@ import (
 	"github.com/knt048/vedette/modules/scan/commonports"
 )
 
-// Kind says which of the eight nmap command lines is built (D-84 (7), D-501, D-511, D-514, D-526).
+// Kind says which of the eleven nmap command lines is built (D-84 (7), D-501, D-511, D-514, D-526, D-592).
 type Kind int
 
-// The eight kinds, one per command shape.
+// The eleven kinds, one per command shape.
 const (
 	Sweep    Kind = iota // host discovery: -sn
 	Normal               // service and OS identification
@@ -46,10 +46,45 @@ const (
 	// ExternalDisruptive is ExternalFull with the "dos" and "brute" scripts too (DisruptiveScripts): only with the terms' extra
 	// tick, off by default.
 	ExternalDisruptive
+	// AllPorts is the weekly scan of every TCP port of one LAN device that is not fragile (D-592, review r1 H2): port discovery only
+	// (-sS -p-, no -sV, no script, no -O), at most AllPortsMaxRate packets a second, --max-retries 1, bounded by AllPortsHostTimeout.
+	// The open ports it finds that the normal scan does not cover get one PortVersions run. Local targets only, like every LAN shape.
+	AllPorts
+	// Extra follows every normal or versions scan of a LAN device (D-592): -sS -sV and the four scripts over ExtraPorts (the surface
+	// list and the reviewed admin ports, ports.go), at the same rate, so a service moved off its usual port is identified too. The
+	// device's result is the two runs together.
+	Extra
+	// PortVersions is the follow-up of an AllPorts run (D-592, review r1 H2): -sS -sV and the four scripts on 1..MaxPortVersions
+	// ports the weekly run found open that the normal scan does not cover, at the normal LAN rate. It is the only shape whose -p
+	// list varies: the job carries the ports (sensor protocol, nmap jobs, "ports").
+	PortVersions
 )
 
 // kinds is every Kind, in the order Validate and KindOf try them.
-var kinds = []Kind{Sweep, Normal, Gentle, Versions, GentleTitles, External, ExternalFull, ExternalDisruptive}
+var kinds = []Kind{Sweep, Normal, Gentle, Versions, GentleTitles, External, ExternalFull, ExternalDisruptive, AllPorts, Extra}
+
+// MaxPortVersions is the most ports one PortVersions run reads (D-592): -sV and the scripts time themselves (--max-rate does not
+// bound them), so the weekly follow-up stays as small as a normal scan of a device with a few services.
+const MaxPortVersions = 20
+
+// The weekly scan of every port of a LAN device (D-592). 65535 SYNs, half-open (-sS: no connection is completed); a port that
+// answers (open, or closed with an RST: the usual case on a LAN host) costs one probe, a port a host firewall drops costs two
+// (--max-retries 1), so at AllPortsMaxRate one run sends at most 131,070 probes: 11 minutes when the device answers, at most 22
+// when it drops everything. No -sV and no script (review r1 H2: those time themselves and open full connections; a device that
+// answers on every port would get them on thousands); the PortVersions follow-up reads at most MaxPortVersions ports.
+// 100 SYNs of 60 bytes a second are 48 kbit/s on the LAN. AllPortsHostTimeout leaves room for a slower rate (the settings' rate
+// when lower, down to AllPortsMinRate: 44 minutes for a device that drops everything); a run it cuts prints no port table and
+// changes nothing (INV-8).
+const (
+	AllPortsMaxRate     = 100
+	AllPortsMinRate     = 50 // below it the scan does not fit AllPortsHostTimeout safely: the weekly run is not made (Health says why)
+	AllPortsHostTimeout = 90 * time.Minute
+	// AllPortsWindowRoom is the window a weekly run needs left to start (review r2 L2): the discovery's host timeout and the
+	// follow-up's (the normal shapes' 30 minutes).
+	AllPortsWindowRoom  = AllPortsHostTimeout + 30*time.Minute
+	allPortsHostTimeout = "90m"
+	allPortsRetries     = "1"
+)
 
 // ExternalRate is the fixed --max-rate of the external shape (packets a second): 98 ports with 2 retries are a few hundred SYNs,
 // a few seconds at this rate, gentle on the customer's own router (plan exposure-real-vulns §3).
@@ -217,11 +252,18 @@ func (k Kind) Name() string {
 		return "external_full"
 	case ExternalDisruptive:
 		return "external_disruptive"
+	case AllPorts:
+		return "all_ports"
+	case Extra:
+		return "extra_ports"
+	case PortVersions:
+		return "port_versions"
 	}
 	return ""
 }
 
-// Flags is the whole flag part of the command line of a kind: the only eight shapes nmap is ever run with. The external shape takes
+// Flags is the whole flag part of the command line of a kind: the fixed shapes nmap is ever run with (port_versions, whose -p list
+// varies, is FlagsFor's). The external shape takes
 // only ExternalRate, the full ones only FullRate (any other rate is an error, so a job can never carry a faster one).
 // -sV makes nmap run the scripts of its "version" category, -O has its own timing; the only other scripts are the fixed
 // Scripts list of the normal and versions shapes (D-504) and the two fixed category expressions of the full shapes, which
@@ -247,6 +289,15 @@ func Flags(kind Kind, rate int) ([]string, error) {
 		return []string{flagPrivileged, "-sS", flagNoDNS, flagTiming, flagMaxRetries, "1", flagMaxRate, "1", flagHostTimeout, gentleHostTimeout, flagTopPorts, "100"}, nil
 	case Versions:
 		return []string{flagPrivileged, "-sS", "-sV", flagScript, Scripts, flagNoDNS, flagMaxRate, r, flagMaxRetries, lanMaxRetries, flagTopPorts, "1000", flagHostTimeout, normalHostTimeout}, nil
+	case Extra:
+		return []string{flagPrivileged, "-sS", "-sV", flagScript, Scripts, flagNoDNS, flagMaxRate, r, flagMaxRetries, lanMaxRetries, "-p", ExtraPorts, flagHostTimeout, normalHostTimeout}, nil
+	case AllPorts:
+		if rate > AllPortsMaxRate {
+			return nil, fmt.Errorf("nmapargv: the all_ports shape runs at most %d packets/s, not %d", AllPortsMaxRate, rate)
+		}
+		return []string{flagPrivileged, "-sS", flagNoDNS, flagMaxRate, r, flagMaxRetries, allPortsRetries, "-p-", flagHostTimeout, allPortsHostTimeout}, nil
+	case PortVersions:
+		return nil, errors.New("nmapargv: the port_versions shape needs its ports (FlagsFor)")
 	case GentleTitles:
 		return []string{flagPrivileged, "-sS", flagScript, TitleScripts, flagScriptTimeout, titleScriptTimeout, flagNoDNS, flagTiming, flagMaxRetries, "1", flagMaxRate, "1", flagHostTimeout, gentleHostTimeout, flagTopPorts, "100"}, nil
 	case External:
@@ -307,6 +358,108 @@ func targetRule(kind Kind, n int) (ok func(netip.Addr) bool, err error) {
 	return validTarget, nil
 }
 
+// FlagsFor is Flags with the ports of a PortVersions run (1..MaxPortVersions distinct ports, ascending); every other kind takes
+// none.
+func FlagsFor(kind Kind, rate int, ports []int) ([]string, error) {
+	if kind != PortVersions {
+		if len(ports) != 0 {
+			return nil, fmt.Errorf("nmapargv: the %s shape takes no port list", kind.Name())
+		}
+		return Flags(kind, rate)
+	}
+	if rate < 1 || rate > 1000 {
+		return nil, fmt.Errorf("nmapargv: rate %d is outside 1..1000", rate)
+	}
+	if len(ports) == 0 || len(ports) > MaxPortVersions {
+		return nil, fmt.Errorf("nmapargv: a port_versions run reads 1 to %d ports, got %d", MaxPortVersions, len(ports))
+	}
+	list := make([]string, len(ports))
+	for i, p := range ports {
+		if p < 1 || p > 65535 || (i > 0 && p <= ports[i-1]) {
+			return nil, errors.New("nmapargv: the ports of a port_versions run must be ascending, distinct, 1..65535")
+		}
+		list[i] = strconv.Itoa(p)
+	}
+	return []string{flagPrivileged, "-sS", "-sV", flagScript, Scripts, flagNoDNS, flagMaxRate, strconv.Itoa(rate), flagMaxRetries, lanMaxRetries,
+		"-p", strings.Join(list, ","), flagHostTimeout, normalHostTimeout}, nil
+}
+
+// BuildFor is Build with the ports of a PortVersions run (one target).
+func BuildFor(kind Kind, rate int, ports []int, targets []netip.Addr) ([]string, error) {
+	if kind == PortVersions && len(targets) != 1 {
+		return nil, fmt.Errorf("nmapargv: a port_versions run takes exactly one target, got %d", len(targets))
+	}
+	valid, err := targetRule(kind, len(targets))
+	if err != nil {
+		return nil, err
+	}
+	args, err := FlagsFor(kind, rate, ports)
+	if err != nil {
+		return nil, err
+	}
+	args = append(args, flagXML, "-")
+	for _, t := range targets {
+		if !valid(t) {
+			return nil, fmt.Errorf("nmapargv: target %q is not allowed in the %s shape", t, kind.Name())
+		}
+		args = append(args, t.String())
+	}
+	return args, nil
+}
+
+// portsOf reads the -p list of flags that may be a PortVersions line: plain decimal ports separated by commas; nil otherwise.
+func portsOf(flags []string) []int {
+	i := slices.Index(flags, "-p")
+	if i < 0 || i+1 >= len(flags) || len(flags[i+1]) > 6*MaxPortVersions {
+		return nil
+	}
+	var out []int
+	for _, f := range strings.Split(flags[i+1], ",") {
+		n, ok := atoi5(f)
+		if !ok {
+			return nil
+		}
+		out = append(out, n)
+	}
+	return out
+}
+
+// atoi5 accepts a port written as plain decimal digits, no sign, no leading zero.
+func atoi5(s string) (int, bool) {
+	if s == "" || len(s) > 5 || (len(s) > 1 && s[0] == '0') {
+		return 0, false
+	}
+	for _, c := range []byte(s) {
+		if c < '0' || c > '9' {
+			return 0, false
+		}
+	}
+	n, err := strconv.Atoi(s)
+	return n, err == nil
+}
+
+// shapeOf is the kind, rate and ports of the flag part of an argv: one of the fixed shapes, or a PortVersions line whose flags are
+// exactly FlagsFor of its own rate and ports.
+func shapeOf(flags []string) (Kind, int, []int, bool) {
+	rate := 1
+	if j := slices.Index(flags, flagMaxRate); j >= 0 && j+1 < len(flags) {
+		if n, ok := atoi(flags[j+1]); ok {
+			rate = n
+		}
+	}
+	for _, k := range kinds {
+		if want, err := Flags(k, rate); err == nil && slices.Equal(flags, want) {
+			return k, rate, nil, true
+		}
+	}
+	if ports := portsOf(flags); ports != nil {
+		if want, err := FlagsFor(PortVersions, rate, ports); err == nil && slices.Equal(flags, want) {
+			return PortVersions, rate, ports, true
+		}
+	}
+	return 0, 0, nil, false
+}
+
 // Build builds an nmap command line only from private IPv4 addresses (the external shape: one public one), an integer rate and
 // the fixed flags above (INV-4, FORBID-3). The shape is: the flags of the kind, -oX -, then the targets.
 func Build(kind Kind, rate int, targets []netip.Addr) ([]string, error) {
@@ -329,10 +482,12 @@ func Build(kind Kind, rate int, targets []netip.Addr) ([]string, error) {
 }
 
 // Validate is the Validate func of the nmap Binary: it re-checks the whole argv before the process
-// starts, independently of how Build made it (SYS-2). It accepts exactly the eight shapes of Flags
-// (sweep, normal, gentle, versions, gentle_titles, external, external_full, external_disruptive), where only the rate of sweep,
-// normal and versions varies, then "-oX -", then 1 to MaxBatch canonical, unique, private IPv4 addresses (the three external
-// shapes: exactly one canonical public IPv4 address).
+// starts, independently of how Build made it (SYS-2). It accepts exactly the eleven shapes of FlagsFor
+// (sweep, normal, gentle, versions, gentle_titles, external, external_full, external_disruptive, all_ports, extra_ports,
+// port_versions), where only the rate of sweep, normal, versions, all_ports (at most AllPortsMaxRate), extra_ports and
+// port_versions varies, and the -p list of port_versions (1..MaxPortVersions ascending ports), then "-oX -", then 1 to MaxBatch
+// canonical, unique, private IPv4 addresses (port_versions: exactly one; the three external shapes: exactly one canonical public
+// IPv4 address).
 // Everything else is rejected.
 func Validate(args []string) error {
 	i := slices.Index(args, flagXML)
@@ -340,21 +495,15 @@ func Validate(args []string) error {
 		return errors.New("argv must contain -oX -")
 	}
 	flags := args[:i]
-	rate := 1
-	if j := slices.Index(flags, flagMaxRate); j >= 0 && j+1 < len(flags) {
-		if n, ok := atoi(flags[j+1]); ok {
-			rate = n
-		}
-	}
-	k := slices.IndexFunc(kinds, func(k Kind) bool {
-		want, err := Flags(k, rate)
-		return err == nil && slices.Equal(flags, want)
-	})
-	if k < 0 {
-		return fmt.Errorf("flags %q are not one of the eight allowed command shapes", flags)
+	kind, _, _, ok := shapeOf(flags)
+	if !ok {
+		return fmt.Errorf("flags %q are not one of the eleven allowed command shapes", flags)
 	}
 	targets := args[i+2:]
-	valid, err := targetRule(kinds[k], len(targets))
+	if kind == PortVersions && len(targets) != 1 {
+		return fmt.Errorf("the port_versions shape takes exactly one target, got %d", len(targets))
+	}
+	valid, err := targetRule(kind, len(targets))
 	if err != nil {
 		return err
 	}
@@ -362,7 +511,7 @@ func Validate(args []string) error {
 	for _, t := range targets {
 		a, err := netip.ParseAddr(t)
 		if err != nil || !valid(a) || a.String() != t || uniq[t] {
-			return fmt.Errorf("target %q is not a canonical, unique address the %s shape allows", t, kinds[k].Name())
+			return fmt.Errorf("target %q is not a canonical, unique address the %s shape allows", t, kind.Name())
 		}
 		uniq[t] = true
 	}
@@ -371,6 +520,9 @@ func Validate(args []string) error {
 
 // KindOf is the Kind whose Name is shape: the shape field of a job on the sensor link.
 func KindOf(shape string) (Kind, bool) {
+	if shape == PortVersions.Name() {
+		return PortVersions, true
+	}
 	for _, k := range kinds {
 		if k.Name() == shape {
 			return k, true
@@ -383,25 +535,23 @@ func KindOf(shape string) (Kind, bool) {
 // targets it was built from (the rate of a gentle line is its fixed 1). It lets the dispatcher turn the argv core
 // has already checked into a job that carries no argv (D-111 (3)).
 func Parse(args []string) (Kind, int, []netip.Addr, error) {
+	k, rate, _, targets, err := ParseFor(args)
+	return k, rate, targets, err
+}
+
+// ParseFor is Parse with the ports of a PortVersions line (nil for every other shape).
+func ParseFor(args []string) (Kind, int, []int, []netip.Addr, error) {
 	if err := Validate(args); err != nil {
-		return 0, 0, nil, err
+		return 0, 0, nil, nil, err
 	}
 	i := slices.Index(args, flagXML)
-	flags := args[:i]
-	rate := 1
-	if j := slices.Index(flags, flagMaxRate); j >= 0 && j+1 < len(flags) {
-		if n, ok := atoi(flags[j+1]); ok {
-			rate = n
-		}
+	k, rate, ports, ok := shapeOf(args[:i])
+	if !ok {
+		return 0, 0, nil, nil, errors.New("nmapargv: argv matches no shape") // unreachable after Validate
 	}
 	targets := make([]netip.Addr, 0, len(args)-i-2)
 	for _, t := range args[i+2:] {
 		targets = append(targets, netip.MustParseAddr(t)) // Validate proved each is canonical
 	}
-	for _, k := range kinds {
-		if want, err := Flags(k, rate); err == nil && slices.Equal(flags, want) {
-			return k, rate, targets, nil
-		}
-	}
-	return 0, 0, nil, errors.New("nmapargv: argv matches no shape") // unreachable after Validate
+	return k, rate, ports, targets, nil
 }

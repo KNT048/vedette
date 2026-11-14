@@ -18,6 +18,7 @@ import (
 	"github.com/knt048/vedette/core/observe"
 	"github.com/knt048/vedette/modules/inventory"
 	sensoractive "github.com/knt048/vedette/modules/sensor-active"
+	"github.com/knt048/vedette/modules/sensor-active/nmapargv"
 )
 
 // These tests never run a real nmap or touch a network: nmap is a script in t.TempDir() that records its argv and
@@ -165,7 +166,9 @@ func TestSensorActiveScansADiscoveredDevice(t *testing.T) {
 	}
 	calls := nm.calls(t)
 	want := []string{"--privileged", "-sS", "-sV", "-O", "--script", "rdp-ntlm-info,http-ntlm-info,http-title,ssl-cert", "-n", "--max-rate", "100", "--max-retries", "3", "--top-ports", "1000", "--host-timeout", "30m", "-oX", "-", "192.168.10.20"}
-	if got := scanTargets(calls, "192.168.10.20"); len(got) != 1 || !slices.Equal(got[0], want) {
+	// the queue's normal scan and its extra ports, then (D-592) the device's first weekly scan of every port in the same window
+	if got := scanTargets(calls, "192.168.10.20"); len(got) != 3 || !slices.Equal(got[0], want) || !slices.Contains(got[1], nmapargv.ExtraPorts) ||
+		!slices.Contains(got[2], "-p-") || slices.Contains(got[2], "-O") {
 		t.Fatalf("device scans = %q\nwant %q", got, want)
 	}
 	for _, c := range calls { // the sweep never includes the excluded address
@@ -273,8 +276,8 @@ func TestSensorActiveFragileDevicePolicy(t *testing.T) {
 	if err := svc.ScanDevice(t.Context(), id, "allowed"); err != nil {
 		t.Fatalf("regular_scan allow: %v", err)
 	}
-	if got := scanTargets(nm.calls(t), "192.168.10.30"); len(got) != 2 || !slices.Contains(got[1], "-O") {
-		t.Fatalf("scans = %q, want the second to be a normal one", got)
+	if got := scanTargets(nm.calls(t), "192.168.10.30"); len(got) != 3 || !slices.Contains(got[1], "-O") || !slices.Contains(got[2], nmapargv.ExtraPorts) {
+		t.Fatalf("scans = %q, want the second to be a normal one, then its extra ports (D-592)", got)
 	}
 }
 
@@ -432,8 +435,8 @@ func TestSensorActiveFirstScanOfAnUnclassifiedDeviceIsGentle(t *testing.T) {
 	if err := svc.ScanDevice(t.Context(), id, "classified"); err != nil {
 		t.Fatalf("classified as server: %v", err)
 	}
-	if got := scanTargets(nm.calls(t), "192.168.10.2"); len(got) != 2 || !slices.Contains(got[1], "-O") {
-		t.Fatalf("scans = %q, want the second to be a normal one", got)
+	if got := scanTargets(nm.calls(t), "192.168.10.2"); len(got) != 3 || !slices.Contains(got[1], "-O") || !slices.Contains(got[2], nmapargv.ExtraPorts) {
+		t.Fatalf("scans = %q, want the second to be a normal one, then its extra ports (D-592)", got)
 	}
 }
 

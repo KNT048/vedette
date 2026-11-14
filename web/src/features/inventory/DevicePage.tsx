@@ -134,7 +134,8 @@ function Services({ list, fragile }: { list: Service[]; fragile: boolean }) {
   const columns: ColumnDef<Service>[] = [
     { id: 'port', header: t('services.port'), accessorFn: (s) => s.port, cell: ({ row }) => <span className="whitespace-nowrap">{row.original.port}/{row.original.proto}</span> },
     { id: 'name', header: t('services.name'), accessorFn: (s) => s.name },
-    { id: 'product', header: t('services.product'), accessorFn: (s) => [s.product, s.version].filter(Boolean).join(' '), cell: ({ getValue }) => (getValue() as string) || <span className="text-muted">–</span> },
+    { id: 'product', header: t('services.product'), accessorFn: (s) => s.product ?? '', cell: ({ getValue }) => (getValue() as string) || <span className="text-muted">–</span> },
+    { id: 'version', header: t('services.version'), accessorFn: (s) => s.version ?? '', cell: ({ getValue }) => (getValue() as string) || <span className="text-muted">–</span> },
     { id: 'detail', header: t('services.detail'), accessorFn: (s) => s.detail ?? '', cell: ({ getValue }) => <span className="text-[13px] [overflow-wrap:anywhere]">{(getValue() as string) || <span className="text-muted">–</span>}</span> },
     { id: 'source', header: t('obs.source'), accessorFn: (s) => s.confidence, cell: ({ row }) => <SourceBadge source={row.original.source} confidence={row.original.confidence} /> },
   ]

@@ -51,7 +51,7 @@ export const IdentReason = z.enum(['host_down', 'no_open_ports', 'filtered', 'no
 export const RunIdentRow = z.object({
   target_id: z.string(), label: z.string(), ip: z.string(),
   found: z.array(z.string()).max(20).describe('What the identification recorded, in words: "Operating system: …", "Type: …", "Software: …"'),
-  reason: IdentReason.nullable().describe('null: software with a version was recorded and compared with the KEV list. Otherwise why nothing was: host_down (no answer), no_open_ports (all closed), filtered (probes dropped), no_version (services gave no product or version), os_unconfirmed (only an OS guess: shown, never matched until a person adds the OS with its version), os_no_patch_level (the device named its Windows release and build in its NTLM answer, not its monthly update level: shown, never matched until a person adds it with its full version, D-504), os_low_confidence (OS guess under 85%), scope_not_confirmed, box (the box or a decoy), regular_scan_never, gentle_only (fragile: gentle scan only), timed_out, busy (discovery was running nmap), unavailable (nmap not available or Active discovery off), declared_by_hand, scanning_off, not_approved, out_of_scope, no_ip, not_scanned (D-501)'),
+  reason: IdentReason.nullable().describe('null: software with a version was recorded and compared with the KEV list. Otherwise why nothing was: host_down (no answer), no_open_ports (all closed), filtered (scan incomplete: the device answered but no port it was asked about did; the device or a firewall dropped or slowed the probes; never shown as a fact that it filters), no_version (services gave no product or version), os_unconfirmed (only an OS guess: shown, never matched until a person adds the OS with its version), os_no_patch_level (the device named its Windows release and build in its NTLM answer, not its monthly update level: shown, never matched until a person adds it with its full version, D-504), os_low_confidence (OS guess under 85%), scope_not_confirmed, box (the box or a decoy), regular_scan_never, gentle_only (fragile: gentle scan only), timed_out (scan incomplete: nmap gave up on the host), busy (discovery was running nmap), unavailable (nmap not available or Active discovery off), declared_by_hand, scanning_off, not_approved, out_of_scope, no_ip, not_scanned (D-501)'),
   note: z.string().describe("The box's sentence for the reason, shown as is"),
 })
 export const ScanRun = z.object({
@@ -63,7 +63,7 @@ export const ScanRun = z.object({
 })
 export const ProbeEntry = z.object({
   id: z.string(), ts: iso, run_id: z.string().nullable(), ip: z.string(), label: z.string(), template: z.string(), request: z.string(),
-  result: z.enum(['matched', 'not_matched', 'no_response', 'banner', 'stopped']).describe('stopped: the request was on its way when the scan was stopped'),
+  result: z.enum(['matched', 'not_matched', 'no_response', 'banner', 'stopped', 'not_run', 'refused']).describe('stopped: the request was on its way when the scan was stopped; not_run: handed to nuclei, which printed nothing for it, so it did not run; refused: the scan worker refused the job (its own-IP check), nothing was sent'),
 })
 export const RescanEvent = z.object({
   id: z.string(), ts: iso, cve: z.string(), product: z.string(), devices: z.array(z.string()), latency_min: z.number().nullable(), run_id: z.string().nullable(),

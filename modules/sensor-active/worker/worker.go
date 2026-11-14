@@ -575,7 +575,10 @@ func argvOf(j sensorlink.Job) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	argv, err := nmapargv.Build(kind, j.Rate, targets)
+	if len(j.Ports) > 0 && kind != nmapargv.PortVersions {
+		return nil, fmt.Errorf("a %s job carries no ports", j.Shape)
+	}
+	argv, err := nmapargv.BuildFor(kind, j.Rate, j.Ports, targets) // port_versions: its 1..20 ports (D-592)
 	if err != nil {
 		return nil, err
 	}
@@ -602,7 +605,7 @@ func (w *Worker) beat(ctx context.Context) {
 	// their grammar is nmapargv's, and the own-IP fence covers them like the external shape; they are advertised only with the
 	// nmap version their script lists were reviewed against (review r2 LOW-3).
 	full := present && ver == nmapargv.ReviewedNmapVersion
-	hb := &sensorlink.ActiveHeartbeat{Version: w.version, Nmap: sensorlink.HeartbeatNmap{Present: present, Version: ver, Full: full}, Nuclei: w.nucleiStatus(ctx), SNMP: true, DomainIP: w.fence != nil}
+	hb := &sensorlink.ActiveHeartbeat{Version: w.version, Nmap: sensorlink.HeartbeatNmap{Present: present, Version: ver, Full: full, Ports: true}, Nuclei: w.nucleiStatus(ctx), SNMP: true, DomainIP: w.fence != nil}
 	inst, err := w.link.ActiveHeartbeat(ctx, hb)
 	if err != nil {
 		if ctx.Err() == nil {

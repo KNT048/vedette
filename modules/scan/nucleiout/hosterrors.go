@@ -28,10 +28,12 @@ type HostError struct {
 	Unreachable bool   // Errors reached the job's max host errors: nuclei itself stops sending to such a target (-mhe)
 }
 
-// Outcome is what a nuclei run gave core: the lines of stdout and the host errors of the worker.
+// Outcome is what a nuclei run gave core: the lines of stdout, the host errors of the worker, and the lines Read skipped
+// (about an address the job did not name, N45-1).
 type Outcome struct {
 	Results    []Result
 	HostErrors []HostError
+	Skipped    Skipped
 }
 
 type errLine struct {

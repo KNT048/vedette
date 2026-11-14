@@ -422,6 +422,13 @@ func TestRefusesWhatTheGrammarForbids(t *testing.T) {
 		"not canonical":    job(id1, "010.0.0.1"),
 		"ipv6":             job(id1, "fd00::1"),
 		"a flag":           job(id1, "-sC"),
+		// D-592: only a port_versions job carries ports, 1..20 ascending, one target
+		"ports on a normal job":      {ID: id1, Shape: "normal", Rate: 10, Targets: []string{"10.0.0.1"}, TimeoutS: 60, Ports: []int{22}},
+		"port_versions no ports":     {ID: id1, Shape: "port_versions", Rate: 10, Targets: []string{"10.0.0.1"}, TimeoutS: 60},
+		"port_versions unsorted":     {ID: id1, Shape: "port_versions", Rate: 10, Targets: []string{"10.0.0.1"}, TimeoutS: 60, Ports: []int{80, 22}},
+		"port_versions two targets":  {ID: id1, Shape: "port_versions", Rate: 10, Targets: []string{"10.0.0.1", "10.0.0.2"}, TimeoutS: 60, Ports: []int{22}},
+		"port_versions 21 ports":     {ID: id1, Shape: "port_versions", Rate: 10, Targets: []string{"10.0.0.1"}, TimeoutS: 60, Ports: []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21}},
+		"port_versions a public one": {ID: id1, Shape: "port_versions", Rate: 10, Targets: []string{"8.8.8.8"}, TimeoutS: 60, Ports: []int{22}},
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
@@ -437,6 +444,23 @@ func TestRefusesWhatTheGrammarForbids(t *testing.T) {
 			}
 		})
 	}
+}
+
+// D-592: a port_versions job runs -sV and the four scripts on just its ports.
+func TestRunsAPortVersionsJob(t *testing.T) {
+	t.Parallel()
+	nm := writeNmap(t, printXML)
+	r := start(t, nm)
+	r.core.push(sensorlink.Job{ID: id1, Shape: "port_versions", Rate: 50, Targets: []string{"192.168.10.20"}, TimeoutS: 60, Ports: []int{22222, 40000}})
+	got := r.core.next(t)
+	if got.res.Status != "done" {
+		t.Fatalf("result = %+v", got.res)
+	}
+	want := "--privileged\n-sS\n-sV\n--script\nrdp-ntlm-info,http-ntlm-info,http-title,ssl-cert\n-n\n--max-rate\n50\n--max-retries\n3\n-p\n22222,40000\n--host-timeout\n30m\n-oX\n-\n192.168.10.20\n"
+	if nm.argvLog() != want {
+		t.Fatalf("argv:\n%s\nwant:\n%s", nm.argvLog(), want)
+	}
+	waitFor(t, "running to clear", func() bool { return r.core.runningNow() == "" })
 }
 
 // A job that arrives while another runs is refused as busy, and the first one is not disturbed.

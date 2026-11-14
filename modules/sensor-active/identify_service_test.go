@@ -34,10 +34,11 @@ func TestIdentifyDevice_UnknownDeviceOutsideTheWindow(t *testing.T) {
 		t.Fatalf("identification = %+v, want the server's software", got)
 	}
 	calls := e.nm.calls(t)
-	if len(calls) != 1 || !slices.Contains(calls[0], "-sV") || slices.Contains(calls[0], "-O") || calls[0][slices.Index(calls[0], "--max-rate")+1] != "25" {
-		t.Fatalf("nmap argv = %v, want one versions scan (no -O) at 25 packets/s", calls)
+	if len(calls) != 2 || !slices.Contains(calls[0], "-sV") || slices.Contains(calls[0], "-O") || calls[0][slices.Index(calls[0], "--max-rate")+1] != "25" ||
+		slices.Contains(calls[1], "-O") || calls[1][slices.Index(calls[1], "--max-rate")+1] != "25" {
+		t.Fatalf("nmap argv = %v, want one versions scan (no -O) at 25 packets/s, then its extra ports at the same rate (D-592)", calls)
 	}
-	if shape := e.str(`SELECT shape FROM sa_probe`); shape != "versions" {
+	if shape := e.str(`SELECT group_concat(shape, ',') FROM sa_probe`); shape != "versions,extra_ports" {
 		t.Fatalf("probe shape %q", shape)
 	}
 	e.sink.mu.Lock()
@@ -46,8 +47,8 @@ func TestIdentifyDevice_UnknownDeviceOutsideTheWindow(t *testing.T) {
 	if len(sw) == 0 || sw[0].CPE != "cpe:/a:openbsd:openssh:8.9p1" {
 		t.Fatalf("software = %+v, want the OpenSSH row with its CPE", sw)
 	}
-	if n := e.count(`SELECT count(*) FROM sa_probe`); n != 1 {
-		t.Fatalf("%d probe rows, want 1", n)
+	if n := e.count(`SELECT count(*) FROM sa_probe`); n != 2 {
+		t.Fatalf("%d probe rows, want 2 (the versions scan and its extra ports)", n)
 	}
 	if r := e.str(`SELECT reason FROM sa_job`); r != "scan_now" {
 		t.Fatalf("job reason %q", r)
@@ -92,14 +93,14 @@ func TestFirstPassOfANewBoxRunsOutsideTheWindow(t *testing.T) {
 	for _, c := range e.nm.calls(t) {
 		kinds = append(kinds, c[1])
 	}
-	if !slices.Equal(kinds, []string{"-sn", "-sS"}) {
-		t.Fatalf("first pass runs = %v, want the sweep then the queued device", kinds)
+	if !slices.Equal(kinds, []string{"-sn", "-sS", "-sS"}) {
+		t.Fatalf("first pass runs = %v, want the sweep then the queued device (top 1000 and the extra ports, D-592)", kinds)
 	}
 	if err := e.svc.Tick(e.ctx()); err != nil {
 		t.Fatal(err)
 	}
-	if n := len(e.nm.calls(t)); n != 2 {
-		t.Fatalf("%d runs after a second Tick outside the window, want still 2", n)
+	if n := len(e.nm.calls(t)); n != 3 {
+		t.Fatalf("%d runs after a second Tick outside the window, want still 3", n)
 	}
 	// Outside the first pass the window is shut again: a device scan asked now waits for it.
 	if err := e.svc.ScanDevice(e.ctx(), "a-web", "x"); err == nil {

@@ -43,7 +43,9 @@ func (h *FeedHandlers) FeedsPutFeedsSourcesID(ctx context.Context, req *oas.Feed
 		return nil, err
 	}
 	var row sourceRow
+	var rematch []string // D-516, review M1: the CVEs a distribution feed turned on or off decides
 	err = h.s.DB.Write(ctx, func(tx *sql.Tx) error {
+		rematch = nil
 		cur, err := sourceTx(ctx, tx, params.ID)
 		if errors.Is(err, ErrNotFound) {
 			return noSuchFeed()
@@ -84,6 +86,11 @@ func (h *FeedHandlers) FeedsPutFeedsSourcesID(ctx context.Context, req *oas.Feed
 		if err := updateSettings(ctx, tx, cur.ID, enabled, hours, url, url != cur.URL); err != nil {
 			return err
 		}
+		if enabled != cur.Enabled && distroFeeds[cur.ID] {
+			if rematch, err = distroCVEs(ctx, tx, cur.ID); err != nil {
+				return err
+			}
+		}
 		if err := h.s.Audit.Append(ctx, tx, audit.Entry{User: p.Email, Action: "feeds.update", Target: cur.Name, Detail: strings.Join(parts, ", ")}); err != nil {
 			return err
 		}
@@ -95,6 +102,9 @@ func (h *FeedHandlers) FeedsPutFeedsSourcesID(ctx context.Context, req *oas.Feed
 	}
 	if row.ID == nvdFeedID && !row.Enabled {
 		h.s.dropNVDRun()
+	}
+	if len(rematch) > 0 { // findings follow the switch now: off goes back to NVD's ranges, on uses the rows again
+		h.s.publish(ctx, EventRangesUpdated, RangesUpdatedEvent{CVEs: rematch})
 	}
 	return convert[oas.FeedsPutFeedsSourcesIDOK](toFeedDTO(row))
 }

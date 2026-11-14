@@ -2,6 +2,7 @@ package findings
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
@@ -73,6 +74,31 @@ func securitySource(distro, src string) string {
 	return "linux" + rest
 }
 
+// The distribution's word is about the distribution's own package (review H2 of #732). A package from a PPA or a vendor's
+// repository can share the source name and compare higher ("2.4.62-1+ubuntu24.04.1+deb.sury.org+1" against Ubuntu's fix
+// "2.4.58-1ubuntu8.8") while being another build, so the word applies only to a revision the distribution itself builds,
+// and anything else is left to NVD:
+//   - Ubuntu: a revision with Ubuntu's own mark ("3ubuntu13.14", "0ubuntu0.24.04.1", "1ubuntu0.1~22.04.1", "2build1",
+//     "+esm6"), or a plain Debian revision ("43.43" of a kernel, "2" of a package Ubuntu took from Debian unchanged) for a fix;
+//   - Debian: a plain revision, optionally a stable update ("+deb12u3", "~deb12u1") and a binNMU ("+b1").
+//
+// A PPA (~ppa, ondrej's +deb.sury.org), a backport (~bpo12+1), a vendor suffix (~noble, ~ubuntu.24.04, ~bookworm) or a
+// native version with no revision does not match. "Not affected" has no version to compare, so on Ubuntu it needs
+// Ubuntu's own mark (a plain revision may be a vendor's own .deb).
+var (
+	ubuntuOwnRE = regexp.MustCompile(`^[0-9][0-9.]*((build|ubuntu)[0-9][0-9.]*)+(\+esm[0-9]+)?(~[0-9][0-9.]*)*$`)
+	debianOwnRE = regexp.MustCompile(`^[0-9][0-9.]*([+~]deb[0-9]+u[0-9]+)?(\+b[0-9]+)?$`)
+)
+
+// ownBuild says whether the installed revision is the distribution's own build; strict is the rule for "not affected".
+func ownBuild(distro, version string, strict bool) bool {
+	rev := debver.Revision(version)
+	if distro == "debian" {
+		return debianOwnRE.MatchString(rev)
+	}
+	return ubuntuOwnRE.MatchString(rev) || !strict && debianOwnRE.MatchString(rev) && !strings.Contains(rev, "deb")
+}
+
 // distroVerdict reads v.Distro for the software row; ok is false when the distribution has no word on it.
 func distroVerdict(in swInfo, v Vuln) (distroAnswer, bool) {
 	if in.pkgVer == "" || in.pkgSrc == "" || len(v.Distro) == 0 {
@@ -102,6 +128,10 @@ func distroVerdict(in swInfo, v Vuln) (distroAnswer, bool) {
 	a := distroAnswer{pkg: pkg, name: distroName(in), release: rel}
 	switch {
 	case fix != nil:
+		// only the backport case: the same epoch and upstream release, a revision the distribution builds (review H2)
+		if !debver.SameUpstream(in.pkgVer, fix.Fixed) || !ownBuild(d, in.pkgVer, false) {
+			return distroAnswer{}, false
+		}
 		c, err := debver.Compare(in.pkgVer, fix.Fixed)
 		if err != nil {
 			return distroAnswer{}, false // a version Vedette cannot compare: NVD decides
@@ -111,6 +141,9 @@ func distroVerdict(in swInfo, v Vuln) (distroAnswer, bool) {
 			a.kind = distroFixedHere
 		}
 	case notAffected:
+		if !ownBuild(d, in.pkgVer, true) {
+			return distroAnswer{}, false
+		}
 		a.kind = distroNotAffected
 	default:
 		return distroAnswer{}, false

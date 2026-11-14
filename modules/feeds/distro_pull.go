@@ -69,6 +69,27 @@ func (s *Service) buildDistro(ctx context.Context, src sourceRow, p pullPlan, de
 	return p, nil
 }
 
+// distroFeeds are the feeds whose rows DistroFixes reads.
+var distroFeeds = map[string]bool{ubuntuOSVFeedID: true, ubuntuVEXFeedID: true, debianTrackerFeedID: true}
+
+// distroCVEs lists the CVEs a distribution feed has rows for, sorted.
+func distroCVEs(ctx context.Context, tx *sql.Tx, sourceID string) ([]string, error) {
+	rows, err := tx.QueryContext(ctx, `SELECT DISTINCT cve FROM feeds_distro_fix WHERE source_id = ? ORDER BY cve`, sourceID)
+	if err != nil {
+		return nil, fmt.Errorf("feeds: distro: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	var out []string
+	for rows.Next() {
+		var c string
+		if err := rows.Scan(&c); err != nil {
+			return nil, fmt.Errorf("feeds: distro: %w", err)
+		}
+		out = append(out, c)
+	}
+	return out, rows.Err()
+}
+
 type distroKey struct{ distro, release, pkg, cve string }
 
 type distroVal struct {

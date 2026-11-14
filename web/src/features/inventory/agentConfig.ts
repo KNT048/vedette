@@ -4,7 +4,8 @@
 // - osquery TLS: cờ config_plugin/logger_plugin=tls, enroll_secret_path, tls_server_certs, tls_hostname (kèm cổng, không https://), enroll/config/logger_tls_endpoint, host_identifier.
 //   https://osquery.readthedocs.io/en/stable/deployment/remote/
 // - osquery lịch truy vấn: JSON "schedule" (query, interval giây, snapshot, platform). https://osquery.readthedocs.io/en/stable/deployment/configuration/
-// - osquery bảng: os_version, deb_packages, rpm_packages, programs, system_info, interface_details, interface_addresses. https://osquery.io/schema/
+// - osquery bảng: os_version, deb_packages, rpm_packages, programs, system_info, interface_details, interface_addresses, kernel_info (D-516: cột
+//   `version` là kernel đang chạy, "7.0.0-43-generic", gắn vào mỗi dòng deb_packages để dòng Kernel lấy đúng ảnh kernel đang chạy). https://osquery.io/schema/
 //   (D-169 (7): `interfaces` cho hộp biết MAC/IP của máy để khớp thiết bị; bỏ cpu_brand, physical_memory, patches vì kho không có trường nào cho chúng.)
 // - osquery cài: gói chính thức do CHÍNH HỘP phục vụ (D-404: hộp là nguồn duy nhất, không pkg.osquery.io, không Chocolatey), kiểm SHA-256 bằng giá trị trên
 //   trang đã đăng nhập rồi mới cài: `dpkg -i` / `rpm -Uvh` (https://osquery.readthedocs.io/en/stable/installation/install-linux/); MSI cài vào
@@ -29,7 +30,7 @@ export const OSQUERY_SCHEDULE = JSON.stringify({
     os_version: { query: 'SELECT name, version, major, minor, patch, build, platform, arch FROM os_version;', interval: 3600, snapshot: true },
     system_info: { query: 'SELECT hostname, hardware_vendor, hardware_model FROM system_info;', interval: 86400, snapshot: true },
     interfaces: { query: "SELECT d.mac, a.address FROM interface_details d JOIN interface_addresses a USING (interface) WHERE a.address NOT LIKE '%:%' AND a.address NOT LIKE '127.%' AND a.address NOT LIKE '169.254.%' AND d.mac != '00:00:00:00:00:00';", interval: 3600, snapshot: true },
-    deb_packages: { query: 'SELECT name, version, arch, source FROM deb_packages;', interval: 3600, snapshot: true, platform: 'linux' },
+    deb_packages: { query: 'SELECT name, version, arch, source, (SELECT version FROM kernel_info) AS kernel FROM deb_packages;', interval: 3600, snapshot: true, platform: 'linux' },
     rpm_packages: { query: 'SELECT name, version, release, arch, epoch FROM rpm_packages;', interval: 3600, snapshot: true, platform: 'linux' },
     programs: { query: 'SELECT name, version, publisher, install_date FROM programs;', interval: 3600, snapshot: true, platform: 'windows' },
   },

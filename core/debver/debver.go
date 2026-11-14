@@ -165,3 +165,21 @@ func sign(n int) int {
 	}
 	return 0
 }
+
+// SameUpstream reports whether a and b have the same epoch and upstream version (exactly as written; "1.01" and "1.1" are
+// not the same here) and so differ at most in the Debian revision: the backport case, a distribution fixing its own
+// package without moving to another upstream release. Either version not well formed is false.
+func SameUpstream(a, b string) bool {
+	va, err1 := parse(a)
+	vb, err2 := parse(b)
+	return err1 == nil && err2 == nil && va.epoch == vb.epoch && va.upstream == vb.upstream
+}
+
+// Revision is the Debian revision of v ("3ubuntu13.14" of "1:9.6p1-3ubuntu13.14"), "" when v has none or is not well formed.
+func Revision(v string) string {
+	p, err := parse(v)
+	if err != nil {
+		return ""
+	}
+	return p.revision
+}

@@ -226,27 +226,69 @@ func TestMapDebPackagesKeepsFullVersionAndSource(t *testing.T) {
 	}
 }
 
-// D-516: a machine keeps its previous kernel installed as a boot fallback and boots the newest, so the Kernel row takes the
-// HIGHEST kernel image version (the dev box: 7.0.0-30 and the running 7.0.0-43); the metapackage linux-image-generic (source
-// linux-meta) never gives the row its version or source, whatever the order of the list.
-func TestMapDebPackagesKernelKeepsTheNewestImage(t *testing.T) {
+// D-516, review H1 of #732: the Kernel row takes the version of the kernel that RUNS (the "kernel" column of the deb rows,
+// osquery kernel_info.version): running 7.0.0-43 with 7.0.0-30 installed gives 43, running 30 with 43 installed (not
+// rebooted yet) gives 30, and an unknown or unlisted running kernel gives the lowest installed image, as every package. The
+// metapackage linux-image-generic (source linux-meta) never gives the row its version, whatever the order.
+func TestMapPackagesKernelFollowsTheRunningKernel(t *testing.T) {
 	t.Parallel()
-	list := []DebPackage{
-		{Name: "linux-image-7.0.0-30-generic", Version: "7.0.0-30.30", Source: "linux-signed"},
-		{Name: "linux-image-7.0.0-43-generic", Version: "7.0.0-43.43", Source: "linux-signed"},
-		{Name: "linux-image-generic", Version: "7.0.0-43.44", Source: "linux-meta"},
-	}
-	for _, order := range [][]int{{0, 1, 2}, {2, 1, 0}, {1, 0, 2}} {
-		var pkgs []DebPackage
+	list := func(running string, order ...int) []row {
+		all := []row{
+			{"name": "linux-image-7.0.0-30-generic", "version": "7.0.0-30.30", "source": "linux-signed"},
+			{"name": "linux-image-7.0.0-43-generic", "version": "7.0.0-43.43", "source": "linux-signed"},
+			{"name": "linux-image-generic", "version": "7.0.0-43.44", "source": "linux-meta"},
+		}
+		var out []row
 		for _, i := range order {
-			pkgs = append(pkgs, list[i])
+			r := all[i]
+			r["kernel"] = running
+			out = append(out, r)
 		}
-		items, _ := MapDebPackages(pkgs)
-		if len(items) != 1 || items[0].Product != "Kernel" || items[0].Version != "7.0.0" || items[0].PkgVersion != "7.0.0-43.43" || items[0].PkgSource != "linux-signed" {
-			t.Fatalf("order %v: %+v", order, items)
+		return out
+	}
+	for _, c := range []struct {
+		running, want string
+	}{
+		{"7.0.0-43-generic", "7.0.0-43.43"},
+		{"7.0.0-30-generic", "7.0.0-30.30"},
+		{"", "7.0.0-30.30"},                    // not known (an old report, the box's own list): the lowest
+		{"7.0.0-50-generic", "7.0.0-30.30"},    // a kernel no installed image is: the lowest
+		{"7.0.0-43-generic; x", "7.0.0-30.30"}, // not a kernel release: unknown
+	} {
+		for _, order := range [][]int{{0, 1, 2}, {2, 1, 0}, {1, 2, 0}} {
+			items, _ := mapPackages(map[string][]row{"deb_packages": list(c.running, order...)}, 10)
+			if len(items) != 1 || items[0].Product != "Kernel" || items[0].PkgVersion != c.want || items[0].PkgSource != "linux-signed" {
+				t.Fatalf("running %q, order %v: %+v, want %s", c.running, order, items, c.want)
+			}
 		}
 	}
-	if items, _ := MapDebPackages(list[2:]); len(items) != 1 || items[0].PkgVersion != "" || items[0].PkgSource != "" {
+	if items, _ := mapPackages(map[string][]row{"deb_packages": list("7.0.0-43-generic", 2)}, 10); len(items) != 1 || items[0].PkgVersion != "" {
 		t.Fatalf("a metapackage alone gave the kernel a version: %+v", items)
+	}
+	// Wazuh: the running kernel is the third field of the agent's uname
+	var a wzAgent
+	a.OS.Uname = "Linux |byn |7.0.0-43-generic |#43-Ubuntu SMP PREEMPT_DYNAMIC |x86_64"
+	if k := wazuhKernel(a); k != "7.0.0-43-generic" {
+		t.Fatalf("wazuhKernel = %q", k)
+	}
+	if rows := wazuhSnaps([]wzPackage{{Name: "linux-image-7.0.0-43-generic", Version: "7.0.0-43.43", Format: "deb", Source: "linux-signed"}}, "7.0.0-43-generic"); rows["deb_packages"][0]["kernel"] != "7.0.0-43-generic" {
+		t.Fatalf("wazuh rows %+v", rows)
+	}
+}
+
+// Review L1 of #732: a binary built from another source release (its Source names another epoch or upstream) gives no full
+// version; a binNMU of the same release and the signed kernels keep it.
+func TestMapPackagesSourceOfAnotherRelease(t *testing.T) {
+	t.Parallel()
+	items, _ := mapPackages(map[string][]row{"deb_packages": {
+		{"name": "openssh-server", "version": "1:9.6p1-3ubuntu13.5", "source": "openssh (1:9.7p1-1)"},
+		{"name": "sudo", "version": "1.9.15p5-3ubuntu5+b1", "source": "sudo (1.9.15p5-3ubuntu5)"},
+		{"name": "linux-image-6.1.0-18-amd64", "version": "6.1.76-1", "source": "linux-signed-amd64 (6.1.76+1)"},
+	}}, 10)
+	want := map[string]string{"OpenSSH": "", "Sudo": "1.9.15p5-3ubuntu5+b1", "Kernel": "6.1.76-1"}
+	for _, it := range items {
+		if it.PkgVersion != want[it.Product] {
+			t.Errorf("%s: %q, want %q", it.Product, it.PkgVersion, want[it.Product])
+		}
 	}
 }

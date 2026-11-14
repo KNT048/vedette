@@ -44,6 +44,9 @@ const (
 	distroMaxUnpacked = 128 << 30
 	// distroMaxEntry bounds one CVE file of an archive (the largest VEX file was 17.4 MB on 2026-11-14).
 	distroMaxEntry = 64 << 20
+	// distroMaxDict bounds the LZMA2 dictionary an archive asks for (review L2 of #732): the decoder allocates it, and core runs
+	// with a 2 GB memory limit. Canonical's archives are one block with a 64 MiB dictionary (xz --list, 2026-11-14).
+	distroMaxDict = 64 << 20
 	// distroMaxRowsPerCVE fails a hostile CVE entry closed (the Linux kernel CVEs have a few hundred source packages).
 	distroMaxRowsPerCVE = 20_000
 )
@@ -91,14 +94,132 @@ func errNotDistroFile(what string) error {
 	return fail(ErrBadSample, "The answer is not %s.", what)
 }
 
+// errUnpackedTooLarge is an archive that unpacks past distroMaxUnpacked: its own sentinel, so the fetcher does not report it as
+// a body over the wire cap (review L3 of #732).
+var errUnpackedTooLarge = errors.New("feeds: the archive unpacks past the cap")
+
+// bodyErr remembers the first error the body itself gave (a cut connection, a deadline, the wire cap), so a parser that fails
+// because of it returns that error, not "the answer is not …" (review L3 of #732).
+type bodyErr struct {
+	r   io.Reader
+	err error
+}
+
+func (b *bodyErr) Read(p []byte) (int, error) {
+	n, err := b.r.Read(p)
+	if err != nil && !errors.Is(err, io.EOF) && b.err == nil {
+		b.err = err
+	}
+	return n, err
+}
+
+// or is the body's own error when it gave one, else err.
+func (b *bodyErr) or(err error) error {
+	if b.err != nil {
+		return b.err
+	}
+	return err
+}
+
+// unpackCap fails with errUnpackedTooLarge once more than left bytes were unpacked.
+type unpackCap struct {
+	r    io.Reader
+	left int64
+}
+
+func (u *unpackCap) Read(p []byte) (int, error) {
+	if u.left <= 0 {
+		return 0, errUnpackedTooLarge
+	}
+	if int64(len(p)) > u.left {
+		p = p[:u.left]
+	}
+	n, err := u.r.Read(p)
+	u.left -= int64(n)
+	return n, err
+}
+
+// xzFirstDict reads the LZMA2 dictionary size the first block of an xz stream asks for (the xz file format 1.1.0, sections
+// 2.1.1 and 3.1, and the LZMA2 property byte). ok is false when the header cannot be read; a stream with no block asks for 0.
+// ponytail: the first block only; Canonical's archives are one block, and a later block's header is read by the library.
+func xzFirstDict(b []byte) (dict int64, ok bool) {
+	if len(b) < 13 || string(b[:6]) != "\xfd7zXZ\x00" {
+		return 0, false
+	}
+	if b[12] == 0 { // the index: no block at all
+		return 0, true
+	}
+	size := (int(b[12]) + 1) * 4
+	if len(b) < 12+size {
+		return 0, false
+	}
+	h := b[12 : 12+size]
+	flags := h[1]
+	i := 2
+	varint := func() (int, bool) { // header fields are small: more than four bytes (2^28) is not a header Vedette reads
+		v := 0
+		for shift := 0; i < len(h) && shift < 28; shift += 7 {
+			c := h[i]
+			i++
+			v |= int(c&0x7f) << shift
+			if c&0x80 == 0 {
+				return v, true
+			}
+		}
+		return 0, false
+	}
+	for _, bit := range []byte{0x40, 0x80} { // compressed and uncompressed sizes, when present
+		if flags&bit != 0 {
+			if _, ok := varint(); !ok {
+				return 0, false
+			}
+		}
+	}
+	for range int(flags&0x03) + 1 {
+		id, ok1 := varint()
+		n, ok2 := varint()
+		if !ok1 || !ok2 || i+n > len(h) {
+			return 0, false
+		}
+		if id == 0x21 { // LZMA2: one property byte
+			p := h[i]
+			switch {
+			case n != 1 || p > 40:
+				return 0, false
+			case p == 40:
+				return 0xFFFFFFFF, true
+			}
+			return int64(2|p&1) << (p/2 + 11), true
+		}
+		i += n
+	}
+	return 0, false // no LZMA2 filter
+}
+
 // eachTarEntry unpacks an xz tar archive and calls fn for the regular files whose name matches re with a CVE of want
 // (submatch 1), with the CVE and the file (at most distroMaxEntry bytes; a bigger one is rejected with its CVE).
 func eachTarEntry(r io.Reader, re *regexp.Regexp, want map[string]bool, tl *tally, fn func(cve string, body io.Reader) error) error {
-	zr, err := xz.NewReader(bufio.NewReaderSize(r, 1<<20))
-	if err != nil {
-		return errNotDistroFile("an xz archive")
+	body := &bodyErr{r: r}
+	br := bufio.NewReaderSize(body, 1<<20)
+	head, _ := br.Peek(12 + 1024) // the stream header and the first block header (at most 1 024 bytes)
+	dict, ok := xzFirstDict(head)
+	switch {
+	case !ok:
+		return body.or(errNotDistroFile("an xz archive"))
+	case dict > distroMaxDict:
+		return fail(ErrBadSample, "The archive asks for a %d MiB dictionary; Vedette unpacks at most %d MiB.", dict>>20, distroMaxDict>>20)
 	}
-	unpacked := newCapReader(zr, distroMaxUnpacked)
+	zr, err := xz.ReaderConfig{SingleStream: true}.NewReader(br)
+	if err != nil {
+		return body.or(errNotDistroFile("an xz archive"))
+	}
+	unpacked := &unpackCap{r: zr, left: distroMaxUnpacked}
+	failed := func(err error, what string) error {
+		if errors.Is(err, errUnpackedTooLarge) {
+			return fail(errUnpackedTooLarge, "The archive unpacks to more than %d GiB; Vedette would skip it.", distroMaxUnpacked>>30)
+		}
+		return body.or(errNotDistroFile(what))
+	}
 	tr := tar.NewReader(unpacked)
 	for row := 1; ; row++ {
 		h, err := tr.Next()
@@ -106,15 +227,12 @@ func eachTarEntry(r io.Reader, re *regexp.Regexp, want map[string]bool, tl *tall
 			// tar stops at its end marker, or at any header boundary; reading the xz stream to its end checks its index
 			// and footer, so an archive cut short is an error, never a smaller list
 			if _, err := io.Copy(io.Discard, unpacked); err != nil {
-				return errNotDistroFile("a complete xz archive")
+				return failed(err, "a complete xz archive")
 			}
-			return nil
+			return body.or(nil)
 		}
 		if err != nil {
-			if errors.Is(err, ErrTooLarge) {
-				return fail(ErrTooLarge, "The archive unpacks to more than %d GiB; Vedette would skip it.", distroMaxUnpacked>>30)
-			}
-			return errNotDistroFile("a complete tar archive")
+			return failed(err, "a complete tar archive")
 		}
 		if h.Typeflag != tar.TypeReg {
 			continue
@@ -129,6 +247,9 @@ func eachTarEntry(r io.Reader, re *regexp.Regexp, want map[string]bool, tl *tall
 		}
 		if err := fn(m[1], io.LimitReader(tr, distroMaxEntry)); err != nil {
 			return err
+		}
+		if body.err != nil { // the file above was cut by the connection, not bad data: the whole pull fails
+			return body.err
 		}
 	}
 }
@@ -295,7 +416,8 @@ func sourcePurl(id string) (name, codename string, ok, bad bool) {
 	}
 	path, query, _ := strings.Cut(rest, "?")
 	name, _, _ = strings.Cut(path, "@")
-	if !debPackageRE.MatchString(name) {
+	name, err := url.PathUnescape(name) // a purl percent-encodes its name (review L4 of #732)
+	if err != nil || !debPackageRE.MatchString(name) {
 		return "", "", false, true
 	}
 	q, err := url.ParseQuery(query)
@@ -321,9 +443,18 @@ type debianEntry struct {
 // fixed_version, or not affected when that version is "0". sid has no release number and is skipped; a codename this
 // Vedette does not know is rejected with its name. A bad package name or version rejects that package's CVE entry.
 func ParseDebianTracker(r io.Reader, want map[string]bool) (DistroResult, error) {
+	body := &bodyErr{r: r}
+	res, err := parseDebian(json.NewDecoder(bufio.NewReaderSize(body, 1<<20)), want)
+	if err != nil {
+		return DistroResult{}, body.or(err)
+	}
+	return res, nil
+}
+
+// parseDebian is ParseDebianTracker on the decoder of the body.
+func parseDebian(dec *json.Decoder, want map[string]bool) (DistroResult, error) {
 	tl := newTally()
 	var out []DistroFix
-	dec := json.NewDecoder(bufio.NewReaderSize(r, 1<<20))
 	if !jsonDelim(dec, '{') {
 		return DistroResult{}, errNotDistroFile("the Debian Security Tracker JSON")
 	}

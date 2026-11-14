@@ -4,9 +4,11 @@ import (
 	"archive/tar"
 	"bytes"
 	"errors"
+	"io"
 	"slices"
 	"strings"
 	"testing"
+	"testing/iotest"
 
 	"github.com/ulikunitz/xz"
 
@@ -209,12 +211,24 @@ func TestDistroPull(t *testing.T) {
 	if len(got) != 2 || got[1].First || !slices.Equal(got[1].CVEs, []string{"CVE-2026-10001"}) {
 		t.Fatalf("events %+v", got)
 	}
-	// turned off: findings no longer uses its rows (they stay)
+	// turned off: findings no longer uses its rows (they stay) and the devices of its CVEs are matched again (review M1)
 	if c, b := e.put(debianTrackerFeedID, `{"enabled":false}`); c != 200 {
 		t.Fatalf("%d %v", c, b)
 	}
 	if fixes, _ := e.svc.st.DistroFixes(t.Context()); len(fixes) != 0 || rowsOf(t, e.db, "feeds_distro_fix") != 2 {
 		t.Fatalf("a feed that is off is used: %+v", fixes)
+	}
+	if len(got) != 3 || got[2].First || !slices.Equal(got[2].CVEs, []string{"CVE-2026-10001"}) {
+		t.Fatalf("turning the feed off told findings %+v", got)
+	}
+	if c, _ := e.put(debianTrackerFeedID, `{"interval_hours":12}`); c != 200 || len(got) != 3 {
+		t.Fatalf("a schedule change matched again: %d %+v", c, got)
+	}
+	if c, _ := e.put(debianTrackerFeedID, `{"enabled":true}`); c != 200 || len(got) != 4 {
+		t.Fatalf("turning the feed on did not match again: %d %+v", c, got)
+	}
+	if fixes, _ := e.svc.st.DistroFixes(t.Context()); len(fixes["CVE-2026-10001"]) != 2 {
+		t.Fatalf("turned on again: %+v", fixes)
 	}
 }
 
@@ -278,5 +292,66 @@ func checkDistroRows(t *testing.T, res DistroResult) {
 			(r.Status == DistroFixed) == (r.Fixed == "") || (r.Status != DistroFixed && r.Status != DistroNotAffected) {
 			t.Fatalf("row %+v", r)
 		}
+	}
+}
+
+// Review L2 of #732: the LZMA2 dictionary an archive asks for is read before unpacking; above 64 MiB it is refused.
+func TestDistroXZDictionaryCap(t *testing.T) {
+	t.Parallel()
+	a := xzTar(t, [2]string{"osv/cve/2026/UBUNTU-CVE-2026-10001.json", osvSudo})
+	if d, ok := xzFirstDict(a); !ok || d != 1<<16 {
+		t.Fatalf("dictionary of the fixture: %d %v", d, ok)
+	}
+	i := bytes.Index(a[12:12+(int(a[12])+1)*4], []byte{0x21, 0x01}) // LZMA2, one property byte
+	if i < 0 {
+		t.Fatal("no LZMA2 filter in the block header")
+	}
+	big := bytes.Clone(a)
+	big[12+i+2] = 30 // 128 MiB
+	if _, err := ParseUbuntuOSV(bytes.NewReader(big), wantKEV); !errors.Is(err, ErrBadSample) || !strings.Contains(err.Error(), "128 MiB") {
+		t.Fatalf("a 128 MiB dictionary: %v", err)
+	}
+	canonical := bytes.Clone(a)
+	canonical[12+i+2] = 28 // 64 MiB, what Canonical's archives use
+	if d, ok := xzFirstDict(canonical); !ok || d != 64<<20 {
+		t.Fatalf("64 MiB: %d %v", d, ok)
+	}
+	for _, b := range [][]byte{nil, []byte("PK\x03\x04"), a[:13]} {
+		if _, ok := xzFirstDict(b); ok {
+			t.Errorf("xzFirstDict(%q) read a header", b)
+		}
+	}
+}
+
+// Review L3 of #732: an error of the body itself (a cut connection, the wire cap) is the error of the pull, not "the answer
+// is not an archive"; the unpack cap has its own error, never the wire cap's.
+func TestDistroParsersPassBodyErrorsThrough(t *testing.T) {
+	t.Parallel()
+	cut := errors.New("connection reset by peer")
+	a := xzTar(t, [2]string{"osv/cve/2026/UBUNTU-CVE-2026-10001.json", osvSudo + strings.Repeat(" ", 1<<16)})
+	failing := func(b []byte) io.Reader { return io.MultiReader(bytes.NewReader(b), iotest.ErrReader(cut)) }
+	if _, err := ParseUbuntuOSV(failing(a[:len(a)/2]), wantKEV); !errors.Is(err, cut) {
+		t.Errorf("xz cut by the connection: %v", err)
+	}
+	if _, err := ParseDebianTracker(failing([]byte(debianJSON[:300])), wantKEV); !errors.Is(err, cut) {
+		t.Errorf("JSON cut by the connection: %v", err)
+	}
+	if _, err := ParseDebianTracker(iotest.ErrReader(ErrTooLarge), wantKEV); !errors.Is(err, ErrTooLarge) {
+		t.Errorf("the wire cap: %v", err)
+	}
+	u := &unpackCap{r: strings.NewReader("0123456789"), left: 4}
+	if b, err := io.ReadAll(u); string(b) != "0123" || !errors.Is(err, errUnpackedTooLarge) || errors.Is(err, ErrTooLarge) {
+		t.Errorf("unpack cap: %q %v", b, err)
+	}
+}
+
+// Review L4 of #732: a purl percent-encodes its package name.
+func TestSourcePurlUnescapesTheName(t *testing.T) {
+	t.Parallel()
+	if name, code, ok, bad := sourcePurl("pkg:deb/ubuntu/libsigc%2B%2B-2.0@2.12.1-2?arch=source&distro=noble"); name != "libsigc++-2.0" || code != "noble" || !ok || bad {
+		t.Fatalf("%q %q %v %v", name, code, ok, bad)
+	}
+	if _, _, _, bad := sourcePurl("pkg:deb/ubuntu/a%2Fb@1?arch=source&distro=noble"); !bad {
+		t.Fatal("a name with a slash after unescaping is accepted")
 	}
 }

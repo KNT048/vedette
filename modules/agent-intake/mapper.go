@@ -89,13 +89,17 @@ func debUpstream(v string) string {
 //
 // A deb row also carries its full Debian version and source package (D-516). Binaries of one source that map to the same
 // product and upstream version are one row; when they differ in the full version (openssh-client upgraded,
-// openssh-server not) the row keeps the lowest, so a binary that was not updated keeps its finding. Kernel images are the
-// exception: Ubuntu and Debian keep the previous kernel installed as a boot fallback after an update, and the machine boots
-// the newest one, so the Kernel row keeps the HIGHEST version of the kernel images (linux-image-7.0.0-43-generic over
-// -30-generic); a metapackage (linux-image-generic, source linux-meta) never gives the row its version or source.
+// openssh-server not) the row keeps the lowest, so a binary that was not updated keeps its finding. Kernel images: a machine
+// keeps older kernels installed and runs one of them, so when the rows say which kernel runs (the "kernel" column: osquery
+// kernel_info.version, Wazuh's uname, "7.0.0-43-generic") and an installed image is that kernel (linux-image-7.0.0-43-generic),
+// only that image gives the Kernel row its version (review H1 of #732: the newest installed one may not run yet). Otherwise
+// the lowest, as for every package. A metapackage (linux-image-generic, source linux-meta) never gives the row its version.
+// A row whose Source names another epoch or upstream version than the binary's ("foo (2:1.0-1)" for "1:3.0-1", a package
+// built from another source release) gives no full version either, so NVD decides it (review L1); the signed kernel
+// sources (linux-signed*) are the exception, their binaries carry the kernel's own version.
 func mapPackages(snaps map[string][]row, limit int) (items []observe.Software, dropped int) {
 	seen := map[string]int{} // key -> index in items
-	add := func(display, vendor, product, version string, mapped, packaged bool, pkgVersion, pkgSource string, kernel bool) {
+	add := func(display, vendor, product, version string, mapped, packaged bool, pkgVersion, pkgSource string) {
 		if !debver.Valid(pkgVersion) || pkgSource == "" {
 			pkgVersion, pkgSource = "", ""
 		}
@@ -110,7 +114,7 @@ func mapPackages(snaps map[string][]row, limit int) (items []observe.Software, d
 				return
 			}
 			c, err := debver.Compare(pkgVersion, items[i].PkgVersion) // an empty stored version is ErrInvalid: the new one is taken
-			if err != nil || kernel && c > 0 || !kernel && c < 0 {
+			if err != nil || c < 0 {
 				items[i].PkgVersion, items[i].PkgSource = pkgVersion, pkgSource
 			}
 			return
@@ -123,6 +127,7 @@ func mapPackages(snaps map[string][]row, limit int) (items []observe.Software, d
 		}
 		items = append(items, s)
 	}
+	running := runningImages(snaps["deb_packages"])
 	for _, r := range snaps["deb_packages"] {
 		name := r["name"]
 		p, ok := pkgmap.Linux.lookup(strings.ToLower(name))
@@ -131,23 +136,28 @@ func mapPackages(snaps map[string][]row, limit int) (items []observe.Software, d
 		}
 		version := debUpstream(r["version"])
 		src := strings.ToLower(cmp.Or(sourceName(r["source"]), name)) // dpkg leaves Source out when it equals the package name
-		full, kernel := r["version"], kernelImageRE.MatchString(name)
-		if strings.HasPrefix(strings.ToLower(name), "linux-image-") && !kernel {
-			full, src = "", "" // a kernel metapackage: it names no kernel the machine runs
+		full := r["version"]
+		switch lname := strings.ToLower(name); {
+		case strings.HasPrefix(lname, "linux-image-") && !kernelImageRE.MatchString(lname):
+			full = "" // a kernel metapackage: it names no kernel the machine runs
+		case kernelImageRE.MatchString(lname) && running != nil && !running[lname]:
+			full = "" // an installed kernel that does not run (the running one is listed)
+		case !strings.HasPrefix(src, "linux-signed") && !sameSourceRelease(r["source"], full):
+			full = "" // built from another source release: NVD decides (review L1)
 		}
 		if ok {
-			add(p.Product, p.Vendor, p.Product, version, true, true, full, src, kernel)
+			add(p.Product, p.Vendor, p.Product, version, true, true, full, src)
 		} else {
-			add(name, name, name, version, false, true, full, src, kernel)
+			add(name, name, name, version, false, true, full, src)
 		}
 	}
 	for _, r := range snaps["rpm_packages"] {
 		name := r["name"]
 		p, ok := pkgmap.Linux.lookup(strings.ToLower(name))
 		if ok {
-			add(p.Product, p.Vendor, p.Product, r["version"], true, true, "", "", false)
+			add(p.Product, p.Vendor, p.Product, r["version"], true, true, "", "")
 		} else {
-			add(name, name, name, r["version"], false, true, "", "", false)
+			add(name, name, name, r["version"], false, true, "", "")
 		}
 	}
 	for _, r := range snaps["programs"] {
@@ -155,11 +165,11 @@ func mapPackages(snaps map[string][]row, limit int) (items []observe.Software, d
 		p, ok := pkgmap.Windows.lookup(strings.ToLower(name))
 		switch {
 		case ok:
-			add(name, p.Vendor, p.Product, r["version"], true, false, "", "", false)
+			add(name, p.Vendor, p.Product, r["version"], true, false, "", "")
 		case r["publisher"] != "":
-			add(name, r["publisher"], name, r["version"], false, false, "", "", false)
+			add(name, r["publisher"], name, r["version"], false, false, "", "")
 		default:
-			add(name, name, name, r["version"], false, false, "", "", false)
+			add(name, name, name, r["version"], false, false, "", "")
 		}
 	}
 	return items, dropped
@@ -169,8 +179,47 @@ func mapPackages(snaps map[string][]row, limit int) (items []observe.Software, d
 // linux-image-6.1.0-18-amd64 (a release number after the prefix; linux-image-generic and linux-image-amd64 are metapackages).
 var kernelImageRE = regexp.MustCompile(`^linux-image-(unsigned-)?[0-9]`)
 
-// DebPackage is one installed Debian package: name, full Debian version and source package ("" when it has none).
-type DebPackage struct{ Name, Version, Source string }
+// kernelReleaseRE is a running kernel release as uname -r gives it ("7.0.0-43-generic", "6.1.0-18-amd64").
+var kernelReleaseRE = regexp.MustCompile(`^[0-9][a-z0-9.+_-]{0,99}$`)
+
+// runningImages is the set of kernel image package names of the running kernel ("linux-image-7.0.0-43-generic" and its
+// -unsigned- twin) when the rows say which kernel runs (column "kernel") and one of them is installed; nil when not known,
+// and the Kernel row then takes the lowest installed image, as every package does.
+func runningImages(rows []row) map[string]bool {
+	var rel string
+	for _, r := range rows {
+		if k := strings.ToLower(r["kernel"]); k != "" {
+			rel = k
+			break
+		}
+	}
+	if !kernelReleaseRE.MatchString(rel) {
+		return nil
+	}
+	set := map[string]bool{"linux-image-" + rel: true, "linux-image-unsigned-" + rel: true}
+	for _, r := range rows {
+		if set[strings.ToLower(r["name"])] {
+			return set
+		}
+	}
+	return nil
+}
+
+// sameSourceRelease reports whether a deb row's Source column, "name" or "name (version)", is the release the binary was
+// built from: no version given (dpkg leaves it out when it equals the binary's), or one with the same epoch and upstream
+// (a binNMU "1.2-3+b1" of source "1.2-3" is the same release).
+func sameSourceRelease(source, binary string) bool {
+	_, rest, found := strings.Cut(source, " (")
+	if !found {
+		return true
+	}
+	return debver.SameUpstream(strings.TrimSuffix(rest, ")"), binary)
+}
+
+// DebPackage is one installed Debian package: name, full Debian version and source package ("" when it has none). Kernel is the
+// running kernel release ("7.0.0-43-generic", the same on every package; "" when not known), so the Kernel row takes the
+// running kernel's image (D-516).
+type DebPackage struct{ Name, Version, Source, Kernel string }
 
 // MapDebPackages turns a dpkg list into software the way an osquery deb_packages snapshot is turned (same table, same upstream
 // version, same limits), so the box's own list (vedette-host, D-470) and an osquery agent on the same machine give the same rows.
@@ -180,7 +229,7 @@ type DebPackage struct{ Name, Version, Source string }
 func MapDebPackages(pkgs []DebPackage) (items []observe.Software, dropped int) {
 	rows := make([]row, 0, len(pkgs))
 	for _, p := range pkgs {
-		rows = append(rows, row{"name": p.Name, "version": p.Version, "source": p.Source})
+		rows = append(rows, row{"name": p.Name, "version": p.Version, "source": p.Source, "kernel": p.Kernel})
 	}
 	return mapPackages(map[string][]row{"deb_packages": rows}, len(rows))
 }

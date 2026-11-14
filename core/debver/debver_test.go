@@ -84,3 +84,24 @@ func FuzzCompare(f *testing.F) {
 		}
 	})
 }
+
+func TestSameUpstreamAndRevision(t *testing.T) {
+	for _, c := range []struct {
+		a, b string
+		same bool
+	}{
+		{"1:9.6p1-3ubuntu13.14", "1:9.6p1-3ubuntu13.5", true},
+		{"7.0.0-43.43", "7.0.0-31.31", true},
+		{"2.4.62-1+ubuntu24.04.1+deb.sury.org+1", "2.4.58-1ubuntu8.8", false}, // another upstream release (a PPA)
+		{"9.6p1-3ubuntu13.14", "1:9.6p1-3ubuntu13.5", false},                  // the epoch counts
+		{"1.01-1", "1.1-1", false},
+		{"bad", "1.0-1", false},
+	} {
+		if got := SameUpstream(c.a, c.b); got != c.same {
+			t.Errorf("SameUpstream(%q, %q) = %v", c.a, c.b, got)
+		}
+	}
+	if Revision("1:9.6p1-3ubuntu13.14") != "3ubuntu13.14" || Revision("2.38") != "" || Revision("x") != "" {
+		t.Error("Revision")
+	}
+}

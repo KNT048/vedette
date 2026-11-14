@@ -74,10 +74,10 @@ func TestDistroFixReachesFindings(t *testing.T) {
 }
 
 // D-516, the dev box's kernel: Ubuntu lists its kernel CVEs under source package linux (the images come from linux-signed,
-// same version). With 7.0.0-30 alone, the CVE fixed in 7.0.0-31.31 is a finding that names the fix and the one fixed in
-// 7.0.0-22.22 is not; after 7.0.0-43 is installed (the old kernel stays as a boot fallback) both are closed, because the
-// Kernel row takes the newest image.
-func TestDistroKernelFollowsTheNewestImage(t *testing.T) {
+// same version). With 7.0.0-30 running, the CVE fixed in 7.0.0-31.31 is a finding that names the fix and the one fixed in
+// 7.0.0-22.22 is not; once 7.0.0-43 is installed but before the reboot it stays (review H1 of #732); after the reboot to
+// 7.0.0-43 it closes. The old kernel stays installed throughout.
+func TestDistroKernelFollowsTheRunningKernel(t *testing.T) {
 	t.Parallel()
 	s := newStack(t)
 	ctx := t.Context()
@@ -96,8 +96,11 @@ func TestDistroKernelFollowsTheNewestImage(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	install := func(pkgs ...agentintake.DebPackage) {
+	install := func(running string, pkgs ...agentintake.DebPackage) {
 		t.Helper()
+		for i := range pkgs {
+			pkgs[i].Kernel = running
+		}
 		sw, _ := agentintake.MapDebPackages(pkgs)
 		items := make([]inventory.SoftwareItem, len(sw))
 		for i, x := range sw {
@@ -124,8 +127,9 @@ func TestDistroKernelFollowsTheNewestImage(t *testing.T) {
 		return out
 	}
 	old := agentintake.DebPackage{Name: "linux-image-7.0.0-30-generic", Version: "7.0.0-30.30", Source: "linux-signed"}
-	meta := agentintake.DebPackage{Name: "linux-image-generic", Version: "7.0.0-30.30", Source: "linux-meta"}
-	install(old, meta)
+	updated := agentintake.DebPackage{Name: "linux-image-7.0.0-43-generic", Version: "7.0.0-43.43", Source: "linux-signed"}
+	meta := agentintake.DebPackage{Name: "linux-image-generic", Version: "7.0.0-43.43", Source: "linux-meta"}
+	install("7.0.0-30-generic", old, meta)
 	got := status()
 	if f, ok := got["CVE-2026-53266"]; !ok || f.Status != findings.StatusSuspected || !strings.Contains(f.Evidence.Summary, "Ubuntu fixed CVE-2026-53266 in linux 7.0.0-31.31") {
 		t.Fatalf("7.0.0-30 below the fix: %+v", got)
@@ -133,9 +137,12 @@ func TestDistroKernelFollowsTheNewestImage(t *testing.T) {
 	if _, ok := got["CVE-2026-46300"]; ok {
 		t.Fatalf("7.0.0-30 is past the fix of CVE-2026-46300, yet it is a finding: %+v", got["CVE-2026-46300"])
 	}
-	meta.Version = "7.0.0-43.43"
-	install(old, agentintake.DebPackage{Name: "linux-image-7.0.0-43-generic", Version: "7.0.0-43.43", Source: "linux-signed"}, meta)
+	install("7.0.0-30-generic", old, updated, meta) // installed, not rebooted
+	if f := status()["CVE-2026-53266"]; f.Status != findings.StatusSuspected {
+		t.Fatalf("the new kernel is installed but does not run yet, and the finding closed: %+v", f)
+	}
+	install("7.0.0-43-generic", old, updated, meta) // rebooted
 	if f := status()["CVE-2026-53266"]; f.Status != findings.StatusNotRelevant || !strings.Contains(f.ResolutionNote, "fixed CVE-2026-53266 in linux 7.0.0-31.31, and this device has 7.0.0-43.43") {
-		t.Fatalf("after the 7.0.0-43 kernel: %+v", f)
+		t.Fatalf("after the reboot to 7.0.0-43: %+v", f)
 	}
 }

@@ -150,9 +150,13 @@ func (b boxPackages) Packages(ctx context.Context) ([]inventory.SoftwareItem, er
 	if err != nil {
 		return nil, err
 	}
+	kernel := "" // the box's running kernel (D-516): the Kernel row takes its image; unknown keeps the lowest installed one
+	if info, err := b.c.Info(ctx); err == nil {
+		kernel = info.OS.Kernel
+	}
 	pkgs := make([]agentintake.DebPackage, len(st.Packages))
 	for i, p := range st.Packages {
-		pkgs[i] = agentintake.DebPackage{Name: p.Name, Version: p.Version, Source: p.Source}
+		pkgs[i] = agentintake.DebPackage{Name: p.Name, Version: p.Version, Source: p.Source, Kernel: kernel}
 	}
 	sw, dropped := agentintake.MapDebPackages(pkgs)
 	if len(sw) == 0 { // the host never sends an empty list; an empty result must not empty the box's software

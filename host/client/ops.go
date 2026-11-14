@@ -221,3 +221,25 @@ func (c *Client) BackupPurge(ctx context.Context, requestID, actor string) (dele
 	res, err := ResultOf[api.BackupPurgeResult](run)
 	return res.Deleted, runID, err
 }
+
+// ZapBaseline runs zap.baseline (D-521) and follows the run until it ends (a scan takes minutes: the run is read again every two
+// seconds), then returns it as it ended: succeeded with an api.ZapBaselineResult, or refused or failed with its code. ctx bounds the
+// wait; the run itself stops at the host's own limit.
+func (c *Client) ZapBaseline(ctx context.Context, args api.ZapBaselineArgs, requestID, actor string) (api.Run, error) {
+	run, err := c.Run(ctx, api.CmdZapBaseline, args, requestID, actor)
+	for err == nil && !run.Status.Terminal() {
+		select {
+		case <-ctx.Done():
+			return run, ctx.Err()
+		case <-time.After(2 * time.Second):
+		}
+		run, err = c.GetRun(ctx, run.RunID)
+	}
+	return run, err
+}
+
+// DownloadZapReport opens GET /v1/zap/{id}/content, the report of the last zap.baseline (at most api.MaxZapReport bytes, as the host
+// says; the caller bounds its read too). The caller closes the body.
+func (c *Client) DownloadZapReport(ctx context.Context, reportID string) (io.ReadCloser, int64, error) {
+	return c.download(ctx, "/v1/zap/"+url.PathEscape(reportID)+"/content")
+}

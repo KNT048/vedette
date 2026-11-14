@@ -52,7 +52,7 @@ var (
 func TestPinsAreExact(t *testing.T) {
 	t.Parallel()
 	p := pins(t)
-	for _, k := range []string{"DEBIAN_IMAGE", "GOLANG_IMAGE", "DISTROLESS_IMAGE"} {
+	for _, k := range []string{"DEBIAN_IMAGE", "GOLANG_IMAGE", "DISTROLESS_IMAGE", "ZAP_IMAGE"} {
 		if !digestRef.MatchString(p[k]) {
 			t.Errorf("%s=%q must be repo[:tag]@sha256:<64 hex>", k, p[k])
 		}

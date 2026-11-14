@@ -417,6 +417,7 @@ const fakePodmanUsers = `echo "$*" >>"$FAKE/calls"
 case "$1 $2" in
 "ps -a") f=$(printf '%s' "$4" | tr '=/' '__'); cat "$FAKE/users.$f" 2>/dev/null; exit 0 ;;
 "network exists" | "volume exists") exit 0 ;;
+"container exists") exit 1 ;; # no ZAP container (D-521)
 "images --format") cat "$FAKE/images" ;;
 "images -a") ;;
 esac
@@ -442,14 +443,16 @@ func TestInstallSh_UninstallNeverForcesOutSomeoneElsesContainer(t *testing.T) {
 		}
 	}
 	fakeProgram(t, dir, "podman", fakePodmanUsers)
+	fakeProgram(t, dir, "nft", `echo "nft $*" >>"$FAKE/calls"
+`) // the ZAP fence of D-521 (never the real nft)
 	body := installShFunc(t, "do_uninstall")
 	i := strings.Index(body, "\tif have podman; then\n\t\tremove_ours network vedette-int\n")
 	j := strings.Index(body, "\tpodman_stays\n")
 	if i < 0 || j < i {
 		t.Fatalf("do_uninstall has no removal of the network and volumes before podman_stays:\n%s", body)
 	}
-	out, err := runInstallShFns(t, dir, []string{"FAKE=" + dir, "TMP=" + t.TempDir()},
-		[]string{"remove_ours", "rmi_ours", "others_use", "remove_images", "pm"}, body[i:j])
+	out, err := runInstallShFns(t, dir, []string{"FAKE=" + dir, "TMP=" + t.TempDir(), "ZAP_IMAGE=" + ops.ZapImage},
+		[]string{"remove_ours", "rmi_ours", "others_use", "remove_images", "pm", "remove_zap", "remove_zap_fence"}, body[i:j])
 	if err != nil {
 		t.Fatalf("removal: %v\n%s", err, out)
 	}
@@ -598,11 +601,12 @@ func TestInstallSh_UninstallKnowsVedettesPodmanNames(t *testing.T) {
 "volume ls") cat "$FAKE/vol" ;;
 "images --format") cat "$FAKE/img" ;;
 "images -a") ;;
+"image inspect") [ "$5" = "$ZAP_IMAGE" ] && echo "zapimg 0" ;;
 rmi*) echo "$*" >>"$FAKE/calls" ;;
 esac
 exit 0
 `)
-	out, err := runInstallShFns(t, dir, []string{"FAKE=" + dir, "TMP=" + t.TempDir(), "OTHERS=", "LC_ALL=C"},
+	out, err := runInstallShFns(t, dir, []string{"FAKE=" + dir, "TMP=" + t.TempDir(), "OTHERS=", "LC_ALL=C", "ZAP_IMAGE=" + ops.ZapImage},
 		[]string{"pm", "podman_others", "others_use", "rmi_ours", "remove_images"},
 		`podman_others
 printf 'others=[%s]\n' "$OTHERS"
@@ -621,6 +625,9 @@ remove_images
 			t.Errorf("remove_images leaves %s:\n%s", n, calls)
 		}
 	}
+	if !strings.Contains(string(calls), "rmi -f zapimg\n") {
+		t.Errorf("remove_images leaves the ZAP image (D-521):\n%s", calls)
+	}
 	body := installShFunc(t, "do_uninstall")
 	for _, c := range ctrs {
 		if !regexp.MustCompile(`\n\t\tfor c in ([^\n]* )?` + regexp.QuoteMeta(c) + `[ ;]`).MatchString(body) {
@@ -636,5 +643,108 @@ remove_images
 		if !strings.Contains(body, "remove_ours network "+n+"\n") {
 			t.Errorf("do_uninstall does not remove the network %s", n)
 		}
+	}
+	if !strings.Contains(body, "\t\tremove_zap\n") { // the container and network of zap.baseline, by their label (D-521)
+		t.Error("do_uninstall does not call remove_zap")
+	}
+}
+
+// D-521 (review L3, L11): --uninstall removes the container and the network vedette-zap only when they carry the label vedette-host
+// gives them; one of that name without it is someone else's and stays, with a warning.
+func TestInstallSh_RemoveZapOnlyTakesWhatCarriesTheLabel(t *testing.T) {
+	for name, tc := range map[string]struct {
+		label string
+		want  string
+	}{
+		"ours":    {"vedette-host", "rm -f -t 5 " + ops.ZapContainer + "\nnetwork rm " + ops.ZapNetwork + "\n"},
+		"foreign": {"", ""},
+	} {
+		dir := t.TempDir()
+		fakeProgram(t, dir, "podman", `case "$1 $2" in
+"container inspect"|"network inspect") [ -n "$LABEL" ] && echo "$LABEL" ;;
+"container exists"|"network exists") exit 0 ;;
+"ps -a") ;;
+rm*|"network rm") echo "$*" >>"$FAKE/calls" ;;
+*) exit 1 ;;
+esac
+exit 0
+`)
+		out, err := runInstallShFns(t, dir, []string{"FAKE=" + dir, "TMP=" + t.TempDir(), "LABEL=" + tc.label},
+			[]string{"pm", "others_use", "remove_ours", "remove_zap"}, "remove_zap")
+		if err != nil {
+			t.Fatalf("%s: %v\n%s", name, err, out)
+		}
+		calls, _ := os.ReadFile(filepath.Join(dir, "calls")) //nolint:gosec // G304: a file of the test's own temp dir
+		if string(calls) != tc.want {
+			t.Errorf("%s: calls %q, want %q", name, calls, tc.want)
+		}
+		if tc.label == "" && strings.Count(out, "is not Vedette's") != 2 {
+			t.Errorf("%s: no warning for the container and the network:\n%s", name, out)
+		}
+	}
+}
+
+// Review 2 N1: --uninstall deletes the nft table of the passive web scan only when podman says plainly that the container is gone
+// (exit 1 of "container exists") and was not found hung; any other answer keeps the fence, with a warning.
+func TestInstallSh_TheZapFenceGoesOnlyWhenPodmanSaysTheContainerIsGone(t *testing.T) {
+	for name, tc := range map[string]struct {
+		rc     string
+		hung   bool
+		delete bool
+	}{
+		"gone":         {"1", false, true},
+		"still there":  {"0", false, false},
+		"podman error": {"125", false, false},
+		"podman hung":  {"1", true, false},
+	} {
+		dir, tmp := t.TempDir(), t.TempDir()
+		fakeProgram(t, dir, "podman", `[ "$1 $2" = "container exists" ] && exit "$RC"; exit 1
+`)
+		fakeProgram(t, dir, "nft", `echo "$*" >>"$FAKE/nft"; exit 0
+`)
+		if tc.hung {
+			if err := os.WriteFile(filepath.Join(tmp, "podman.hung"), nil, 0o600); err != nil {
+				t.Fatal(err)
+			}
+		}
+		out, err := runInstallShFns(t, dir, []string{"FAKE=" + dir, "TMP=" + tmp, "RC=" + tc.rc}, []string{"pm", "remove_zap_fence"}, "remove_zap_fence")
+		if err != nil {
+			t.Fatalf("%s: %v\n%s", name, err, out)
+		}
+		calls, _ := os.ReadFile(filepath.Join(dir, "nft")) //nolint:gosec // G304: a file of the test's own temp dir
+		deleted := strings.Contains(string(calls), "delete table inet vedette_zap")
+		if deleted != tc.delete {
+			t.Errorf("%s: nft calls %q, delete wanted: %v", name, calls, tc.delete)
+		}
+		if !tc.delete && !strings.Contains(out, "kept the nft table inet vedette_zap") {
+			t.Errorf("%s: no warning:\n%s", name, out)
+		}
+	}
+}
+
+// Review 2 L2: Vedette's own ZAP container that podman cannot remove is named as Vedette's, and its network is not then reported as
+// used by "a container that is not Vedette's".
+func TestInstallSh_RemoveZapSaysWhenItsOwnContainerIsStuck(t *testing.T) {
+	dir := t.TempDir()
+	fakeProgram(t, dir, "podman", `case "$1 $2" in
+"container inspect"|"network inspect") echo vedette-host ;;
+"ps -a") ;;
+rm*) exit 125 ;;
+"network rm") echo "$*" >>"$FAKE/calls" ;;
+*) exit 0 ;;
+esac
+exit 0
+`)
+	out, err := runInstallShFns(t, dir, []string{"FAKE=" + dir, "TMP=" + t.TempDir()}, []string{"pm", "others_use", "remove_ours", "remove_zap"},
+		`remove_zap
+echo "stuck=[$ZAP_STUCK]"`)
+	if err != nil {
+		t.Fatalf("%v\n%s", err, out)
+	}
+	if !strings.Contains(out, "Vedette's ZAP container vedette-zap could not be removed") || !strings.Contains(out, "stuck=[1]") || strings.Contains(out, "not Vedette's") {
+		t.Fatalf("%s", out)
+	}
+	if calls, _ := os.ReadFile(filepath.Join(dir, "calls")); len(calls) != 0 { //nolint:gosec // G304: a file of the test's own temp dir
+		t.Fatalf("the network was removed under a container that still runs: %q", calls)
 	}
 }

@@ -28,16 +28,24 @@ import (
 // WebScanner runs ZAP's baseline scan against one page and returns its JSON report (zap-baseline.py -J, at most MaxWebReport bytes).
 // The scan calls it only for a web port of a target that passed the gate of that run (INV-1, INV-13), and only after the page is in the
 // probe log (WebProbeLog). The page names the exact address exposure approved: an IP target's own IP, or the IP the domain's name
-// pointed at when the surface scan checked it. The adapter must pin ZAP to it and never resolve the name again: --add-host
+// pointed at when the surface scan checked it. The adapter must pin ZAP to it and never let ZAP resolve the name: --add-host
 // Host:IP, a network that allows egress only to IP:Port (no DNS, so a redirect to another host or port fails at the network layer and
 // is not followed), a non-public IP refused (it checks again itself), and, on every call, the host's own re-check that IP is the box's
-// own egress (IP target) or that the domain's TXT token is still there. ZAP runs with -silent (no unsolicited requests, no add-on
+// own egress (IP target), or that the domain's TXT token is still there and the name still points at IP (domain; the host resolves it
+// only to check, D-521). ZAP runs with -silent (no unsolicited requests, no add-on
 // update), never -a (active scan) and never -u. zap-baseline.py exits 0, 1 (a FAIL rule matched) or 2 (a WARN rule matched) with a
 // report on success: all three are success when the report is there; 3 or no report is an error. The report is untrusted. A step that
-// could not run for a reason the page may show (not set up, busy, the image is not pulled) returns *Unavailable.
+// could not run for a reason the page may show (not set up, busy, the image is not pulled) returns *Unavailable; a reason that holds
+// for this page only (its name now points elsewhere) returns *PageSkipped, and the other pages still run.
 type WebScanner interface {
 	Baseline(ctx context.Context, t ScanTarget, page WebPage) (WebScan, error)
 }
+
+// PageSkipped is a page the WebScanner did not scan for a reason of this page alone (D-521: its name no longer points at the address
+// exposure approved); the scan says why on that page's line and goes on with the next page.
+type PageSkipped struct{ Reason string }
+
+func (e *PageSkipped) Error() string { return e.Reason }
 
 // WebPage is one page to scan: URL (http or https, host Host, path /), the address IP and TCP port Port ZAP is pinned to.
 type WebPage struct {
@@ -47,9 +55,10 @@ type WebPage struct {
 	Port int
 }
 
-// WebProbe is the probe log row of a page ZAP is about to be started on (LEGAL §3). A spider finds its URLs while it runs, so a page
-// is logged before it starts, with the scope ZAP is pinned to (one address and port); the adapter appends what the spider fetched
-// afterwards.
+// WebProbe is the probe log row of a page ZAP is about to be started on (LEGAL §3). A spider finds its URLs while it runs, so the
+// probe-log unit of a ZAP run is the page with its scope, written before it starts: one address and port, the URL, the tool and its
+// options, the time (D-562 as amended by D-521). The spider's own requests stay inside that scope because the host's network fence
+// allows nothing else; they are not logged one by one.
 type WebProbe struct {
 	ID   string
 	IP   string
@@ -472,12 +481,16 @@ func (s *Service) webPassive(ctx context.Context, st ScanTarget, c Content) (Con
 			continue
 		}
 		var un *Unavailable
+		var skip *PageSkipped
 		switch {
 		case ctx.Err() != nil: // the run was stopped: nothing is stored
 			return c, err
 		case errors.As(err, &un):
 			c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "web", Text: clipText("Passive web scan (ZAP) did not run: "+un.Reason, maxLineText)})
 			left += len(pages) - i - 1 // the same reason holds for the pages not tried: one line, and the pages already scanned stay recorded
+		case errors.As(err, &skip): // this page only: the next pages still run
+			c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "web", Text: clipText(page.URL+": passive web scan (ZAP) did not run: "+skip.Reason, maxLineText)})
+			continue
 		case slow:
 			c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "web", Text: clipText(page.URL+": "+notWebSlow, maxLineText)})
 			continue

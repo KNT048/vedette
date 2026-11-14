@@ -55,7 +55,7 @@ var identNote = map[string]string{
 	"os_low_confidence":   "No service gave its product or version, and the operating system guess was less than 85% sure, so it was not recorded. Add the operating system and its version on the device page.",
 	"gentle_only":         "Fragile device: only a gentle port scan ran, without version or operating system detection, so no software was recorded. Add its software on the device page, or allow regular scans for it there.",
 	"timed_out":           "The identification scan ran out of time before it finished, so nothing new was recorded. Scan it again later.",
-	"busy":                "Device discovery was scanning at that moment, so this device was not identified in this scan. Scan it again in a few minutes.",
+	"busy":                "Another network scan was running at that moment (device discovery, or a scan of your public IP under Exposure; a deep one takes up to an hour), so this device was not identified in this scan. Scan it again once it has finished.",
 	"unavailable":         "The network scanner (nmap in the scan container, Active discovery) is not available, so this device was not identified. Check the box's services and that Active discovery is on, then scan again.",
 	"declared_by_hand":    "Added by hand: Vedette does not port-scan it. The software you entered is what was checked.",
 	"scanning_off":        "Active scanning is off under Devices, Scope and sensors, so this device was not identified. Only what was already known was checked.",

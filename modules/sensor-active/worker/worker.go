@@ -416,7 +416,7 @@ func (w *Worker) execute(ctx, jctx context.Context, cur *activeJob) *sensorlink.
 	}
 	rctx, cancel := context.WithTimeout(jctx, time.Duration(cur.job.TimeoutS)*time.Second)
 	defer cancel()
-	if cur.job.Shape == nmapargv.External.Name() { // argvOf proved it has one public target
+	if kind, _ := nmapargv.KindOf(cur.job.Shape); kind.IsExternal() { // argvOf proved it has one public target (external, external_full, external_disruptive)
 		if ok, reason := w.ownIP(rctx, netip.MustParseAddr(cur.job.Targets[0])); !ok {
 			if context.Cause(jctx) != nil {
 				return stopped()
@@ -501,8 +501,9 @@ func (w *Worker) post(ctx context.Context, id string, res *sensorlink.JobResult)
 }
 
 // argvOf is the job grammar of the table in sensor-protocol.md 6.4, checked here again and not trusted from core: a known
-// shape, a rate of 1..1000 (a gentle job carries 1, an external one nmapargv.ExternalRate), 1..64 canonical unique private IPv4
-// targets (the external shape: exactly one public one; nmapargv.Build and Validate refuse anything else), a timeout of 1..7200
+// shape, a rate of 1..1000 (a gentle job carries 1, an external one nmapargv.ExternalRate, a full one nmapargv.FullRate), 1..64
+// canonical unique private IPv4 targets (the three external shapes: exactly one public one; nmapargv.Build and Validate refuse
+// anything else), a timeout of 1..7200
 // seconds. The argv is built here from
 // those fields; no argv comes over the wire (D-111 (3)).
 func argvOf(j sensorlink.Job) ([]string, error) {
@@ -543,8 +544,9 @@ func (w *Worker) heartbeats(ctx context.Context) {
 
 func (w *Worker) beat(ctx context.Context) {
 	present, ver := w.nmapVersion(ctx)
-	// SNMP is in this binary (gosnmp, D-512): a worker of protocol 5 always runs snmp jobs.
-	hb := &sensorlink.ActiveHeartbeat{Version: w.version, Nmap: sensorlink.HeartbeatNmap{Present: present, Version: ver}, Nuclei: w.nucleiStatus(ctx), SNMP: true}
+	// SNMP is in this binary (gosnmp, D-512): a worker of protocol 5 always runs snmp jobs. So are the full nmap shapes (D-526):
+	// their grammar is nmapargv's, and the own-IP fence covers them like the external shape.
+	hb := &sensorlink.ActiveHeartbeat{Version: w.version, Nmap: sensorlink.HeartbeatNmap{Present: present, Version: ver, Full: true}, Nuclei: w.nucleiStatus(ctx), SNMP: true}
 	inst, err := w.link.ActiveHeartbeat(ctx, hb)
 	if err != nil {
 		if ctx.Err() == nil {

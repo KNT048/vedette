@@ -1,4 +1,5 @@
-// Package nmapargv builds and checks the only six nmap command lines Vedette ever runs (D-84 (7), D-113, D-501, D-511, D-514).
+// Package nmapargv builds and checks the only eight nmap command lines Vedette ever runs (D-84 (7), D-113, D-501, D-511, D-514,
+// D-526).
 // It is a leaf: standard library only (plus core/localnet and core/egressip for which addresses are local or public, D-461,
 // D-514, and modules/scan/commonports for the external shape's ports, all standard library only), no database and
 // no core/exec, because the sensor binary links it and
@@ -12,16 +13,17 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/knt048/vedette/core/egressip"
 	"github.com/knt048/vedette/core/localnet"
 	"github.com/knt048/vedette/modules/scan/commonports"
 )
 
-// Kind says which of the six nmap command lines is built (D-84 (7), D-501, D-511, D-514).
+// Kind says which of the eight nmap command lines is built (D-84 (7), D-501, D-511, D-514, D-526).
 type Kind int
 
-// The six kinds, one per command shape.
+// The eight kinds, one per command shape.
 const (
 	Sweep    Kind = iota // host discovery: -sn
 	Normal               // service and OS identification
@@ -36,10 +38,18 @@ const (
 	// is the only shape whose target is public, and it takes exactly one; every other shape takes local addresses only. Whether
 	// the address is the box's own is not grammar: core checks it before it hands the job out, the worker again before nmap.
 	External
+	// ExternalFull is the deep scan of the box's own verified public IP once an administrator accepted the target's testing terms
+	// (FULL-4, D-526, exposure FULL-1): every TCP port (-p-), -sV, and nmap's "default", "safe" and "vuln" scripts without the
+	// "dos", "brute", "external" and "broadcast" ones (FullScripts), at FullRate, bounded by FullHostTimeout. Same target rule
+	// and the same two own-IP fences as External.
+	ExternalFull
+	// ExternalDisruptive is ExternalFull with the "dos" and "brute" scripts too (DisruptiveScripts): only with the terms' extra
+	// tick, off by default.
+	ExternalDisruptive
 )
 
 // kinds is every Kind, in the order Validate and KindOf try them.
-var kinds = []Kind{Sweep, Normal, Gentle, Versions, GentleTitles, External}
+var kinds = []Kind{Sweep, Normal, Gentle, Versions, GentleTitles, External, ExternalFull, ExternalDisruptive}
 
 // ExternalRate is the fixed --max-rate of the external shape (packets a second): 98 ports with 2 retries are a few hundred SYNs,
 // a few seconds at this rate, gentle on the customer's own router (plan exposure-real-vulns §3).
@@ -78,6 +88,61 @@ const lanMaxRetries = "3"
 // externalHostTimeout bounds -sV on the one host, inside exposure's 5-minute step (ServicesTimeout there) with room for the
 // wait for the nmap slot and the own-IP checks.
 const externalHostTimeout = "3m"
+
+// The two full shapes (FULL-4, D-526), tuned from nmap's reference guide:
+// https://nmap.org/book/man-performance.html (--max-rate "only affect[s] port scans and host discovery"; version detection and
+// scripts time themselves; "A host that times out is skipped. No port table, OS detection, or version detection results are
+// printed for that host"; the default allows ten retransmissions, -T5 two), https://nmap.org/book/man-nse.html and
+// https://nmap.org/book/nse-usage.html#nse-categories (categories, boolean expressions), https://nmap.org/book/man-port-specification.html
+// (-p- is every port from 1 through 65535).
+//
+// The arithmetic of the port scan: 65535 SYNs. A port that answers (open with a SYN/ACK, closed with an RST) costs one probe;
+// a port the customer's router drops (filtered, the usual case behind a home router) costs the probe plus at most fullRetries
+// retransmissions, so at most 3 × 65535 = 196,605 probes, 655 s (11 min) at FullRate; nmap "usually only does one
+// retransmission" on a link without loss, 131,070 probes, 437 s (7.3 min). At ExternalRate (100/s) the worst case would be
+// 33 minutes for the port scan alone. Then -sV on the open ports (at most commonports.MaxBelievableOpen are believed) and the
+// scripts, which nmap runs in parallel, each capped by fullScriptTimeout. FullHostTimeout leaves room for both: an address nmap
+// gives up on prints no port table at all (ErrHostTimedOut in sensor-active), so the bound is generous rather than tight.
+// What the N100 must measure (D-526): the wall time of a full run on kien's own IP (port scan, -sV and scripts apart: the probe
+// row's start and end, nmap's own <finished elapsed>), whether the router stays usable during it, and how many scripts printed.
+const (
+	// FullRate is the fixed --max-rate of the full shapes (packets a second): three times ExternalRate, so the worst case of the
+	// port scan is 11 minutes; 300 SYNs of 60 bytes a second are 144 kbit/s, nothing for the link, and the router drops most of
+	// them in its firewall.
+	FullRate = 300
+	// FullHostTimeout bounds one full run: port scan (at most 11 min), -sV and the scripts. exposure's step bound of a deep scan
+	// (FullServicesTimeout there) is this plus the waits around it; cmd/vedette holds the two together in a test.
+	FullHostTimeout = 60 * time.Minute
+	fullHostTimeout = "60m"
+	// fullRetries is -T5's --max-retries (nmap's default is 10): the path from the box to its own public IP is the LAN and the
+	// router, where probes are rarely lost; it caps the cost of the dropped ports above.
+	fullRetries = "2"
+	// fullScriptTimeout caps each script (-T5 uses 10m, its most aggressive bound): a slow vuln check still finishes, a script
+	// that hangs on a service cannot eat the host's hour, and a brute-force script of the disruptive shape stops after 5 minutes
+	// (unpwdb's own time limit is 10 minutes at the default timing).
+	fullScriptTimeout = "5m"
+	// FullScripts is the --script expression of ExternalFull: what the terms describe, without denial of service and password
+	// guessing (the extra tick). "external" scripts send data to third parties (whois, geolocation, vulners.com…), a new data flow
+	// leaving the box (rules/legal.md, PRIVACY); "broadcast" scripts send on the box's own LAN, not to the target. No --script-args.
+	FullScripts = "(default or safe or vuln) and not (dos or brute or external or broadcast)"
+	// DisruptiveScripts is the --script expression of ExternalDisruptive: the denial-of-service and brute-force scripts too.
+	DisruptiveScripts = "(default or safe or vuln or dos or brute) and not (external or broadcast)"
+)
+
+// IsExternal reports whether the shape is one of the three whose single target is the box's own public IP (External,
+// ExternalFull, ExternalDisruptive): the own-IP fences apply to all three.
+func (k Kind) IsExternal() bool { return k == External || k.IsFull() }
+
+// IsFull reports whether the shape is one of the two deep scans of an accepted target (D-526).
+func (k Kind) IsFull() bool { return k == ExternalFull || k == ExternalDisruptive }
+
+// ExternalRateOf is the one rate an external shape runs at: FullRate for the full shapes, ExternalRate for External.
+func ExternalRateOf(k Kind) int {
+	if k.IsFull() {
+		return FullRate
+	}
+	return ExternalRate
+}
 
 // IsGentle reports whether the shape is one of the gentle scans (Gentle, GentleTitles): rate 1, top 100 ports, no -sV or -O, so it
 // never says anything about software and only adds ports (D-45, D-350 (5)).
@@ -140,14 +205,20 @@ func (k Kind) Name() string {
 		return "gentle_titles"
 	case External:
 		return "external"
+	case ExternalFull:
+		return "external_full"
+	case ExternalDisruptive:
+		return "external_disruptive"
 	}
 	return ""
 }
 
-// Flags is the whole flag part of the command line of a kind: the only six shapes nmap is ever run with. The external shape takes
-// only ExternalRate (any other rate is an error, so a job can never carry a faster one).
+// Flags is the whole flag part of the command line of a kind: the only eight shapes nmap is ever run with. The external shape takes
+// only ExternalRate, the full ones only FullRate (any other rate is an error, so a job can never carry a faster one).
 // -sV makes nmap run the scripts of its "version" category, -O has its own timing; the only other scripts are the fixed
-// Scripts list of the normal and versions shapes (D-504); no category, no -A and no -sC exists (FORBID-3, FORBID-6). The gentle
+// Scripts list of the normal and versions shapes (D-504) and the two fixed category expressions of the full shapes, which
+// only ever name the box's own public IP after its testing terms were accepted (D-526); no other category, no -A, no -sC and no
+// --script-args exists (FORBID-3, FORBID-6). The gentle
 // shape has neither -sV, -O nor a script: on a fragile device even the version scripts are too much (PLC protocol probes). The
 // versions shape is the normal one without -O: OS detection sends malformed probes that are the riskiest part for an OT stack,
 // and a device of unknown kind may be one (D-501). D-523 tuned the shapes to nmap's own guidance: the sweep's discovery probes
@@ -176,6 +247,17 @@ func Flags(kind Kind, rate int) ([]string, error) {
 		}
 		// -Pn: the box's own address need not answer a ping (routers drop it); it is up by definition.
 		return []string{flagPrivileged, "-sS", "-sV", "-Pn", flagNoDNS, flagMaxRate, r, flagMaxRetries, "2", flagHostTimeout, externalHostTimeout, "-p", ExternalPorts}, nil
+	case ExternalFull, ExternalDisruptive:
+		if rate != FullRate {
+			return nil, fmt.Errorf("nmapargv: the %s shape runs at %d packets/s, not %d", kind.Name(), FullRate, rate)
+		}
+		scripts := FullScripts
+		if kind == ExternalDisruptive {
+			scripts = DisruptiveScripts
+		}
+		// The only category expressions any shape names (FORBID-3, D-526); one argv element each, never through a shell.
+		return []string{flagPrivileged, "-sS", "-sV", "-Pn", flagNoDNS, "-p-", flagScript, scripts, flagScriptTimeout, fullScriptTimeout,
+			flagMaxRate, r, flagMaxRetries, fullRetries, flagHostTimeout, fullHostTimeout}, nil
 	}
 	return nil, errors.New("nmapargv: unknown scan kind")
 }
@@ -203,11 +285,11 @@ func validTarget(a netip.Addr) bool { return a.IsValid() && a.Zone() == "" && lo
 // link-local, documentation, multicast or reserved), written as plain IPv4 (D-514).
 func validExternal(a netip.Addr) bool { return a.Is4() && a.Zone() == "" && egressip.IsPublicIPv4(a) }
 
-// targetRule checks the targets of a kind: one public address for the external shape, 1..MaxBatch local ones for the others.
+// targetRule checks the targets of a kind: one public address for the external shapes, 1..MaxBatch local ones for the others.
 func targetRule(kind Kind, n int) (ok func(netip.Addr) bool, err error) {
-	if kind == External {
+	if kind.IsExternal() {
 		if n != 1 {
-			return nil, fmt.Errorf("nmapargv: the external shape takes exactly one target, got %d", n)
+			return nil, fmt.Errorf("nmapargv: the %s shape takes exactly one target, got %d", kind.Name(), n)
 		}
 		return validExternal, nil
 	}
@@ -239,9 +321,10 @@ func Build(kind Kind, rate int, targets []netip.Addr) ([]string, error) {
 }
 
 // Validate is the Validate func of the nmap Binary: it re-checks the whole argv before the process
-// starts, independently of how Build made it (SYS-2). It accepts exactly the six shapes of Flags
-// (sweep, normal, gentle, versions, gentle_titles, external), where only the rate of sweep, normal and versions varies, then
-// "-oX -", then 1 to MaxBatch canonical, unique, private IPv4 addresses (external: exactly one canonical public IPv4 address).
+// starts, independently of how Build made it (SYS-2). It accepts exactly the eight shapes of Flags
+// (sweep, normal, gentle, versions, gentle_titles, external, external_full, external_disruptive), where only the rate of sweep,
+// normal and versions varies, then "-oX -", then 1 to MaxBatch canonical, unique, private IPv4 addresses (the three external
+// shapes: exactly one canonical public IPv4 address).
 // Everything else is rejected.
 func Validate(args []string) error {
 	i := slices.Index(args, flagXML)
@@ -260,7 +343,7 @@ func Validate(args []string) error {
 		return err == nil && slices.Equal(flags, want)
 	})
 	if k < 0 {
-		return fmt.Errorf("flags %q are not one of the six allowed command shapes", flags)
+		return fmt.Errorf("flags %q are not one of the eight allowed command shapes", flags)
 	}
 	targets := args[i+2:]
 	valid, err := targetRule(kinds[k], len(targets))

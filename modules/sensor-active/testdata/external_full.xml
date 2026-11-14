@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE nmaprun>
+<?xml-stylesheet href="file:///usr/share/nmap/nmap.xsl" type="text/xsl"?>
+<!-- hand-written fixture shaped after the nmap DTD (the external_full shape, D-526): <script> under a port and under <hostscript>,
+     the text output in the output attribute and the structured output as <table>/<elem> (https://nmap.org/book/nse-api.html), the
+     vulns library's text as nsedoc prints smb-vuln-ms17-010. No live network was scanned. 8.8.8.8 stands for the box's own public IP. -->
+<nmaprun scanner="nmap" args="nmap --privileged -sS -sV -Pn -n -p- --script &quot;(default or safe or vuln) and not (dos or brute or external or broadcast)&quot; --script-timeout 5m --max-rate 300 --max-retries 2 --host-timeout 60m -oX - 8.8.8.8" start="1762650000" version="7.95" xmloutputversion="1.05">
+<scaninfo type="syn" protocol="tcp" numservices="65535" services="1-65535"/>
+<host starttime="1762650001" endtime="1762650900"><status state="up" reason="user-set" reason_ttl="0"/>
+<address addr="8.8.8.8" addrtype="ipv4"/>
+<hostnames/>
+<ports>
+<extraports state="filtered" count="65531"><extrareasons reason="no-responses" count="65531"/></extraports>
+<port protocol="tcp" portid="21"><state state="closed" reason="reset" reason_ttl="52"/><service name="ftp" method="table" conf="3"/><script id="ftp-anon" output="Anonymous FTP login allowed (FTP code 230)"/></port>
+<port protocol="tcp" portid="22"><state state="open" reason="syn-ack" reason_ttl="52"/><service name="ssh" product="OpenSSH" version="9.2p1 Debian 2+deb12u3" extrainfo="protocol 2.0" method="probed" conf="10"><cpe>cpe:/a:openbsd:openssh:9.2p1</cpe></service><script id="Bad Id" output="dropped"/></port>
+<port protocol="tcp" portid="443"><state state="open" reason="syn-ack" reason_ttl="52"/><service name="http" product="nginx" tunnel="ssl" method="probed" conf="10"><cpe>cpe:/a:igor_sysoev:nginx</cpe></service>
+<script id="http-title" output="Site title: Box&#x202E; admin&#9;page"><elem key="title">Box admin page</elem></script>
+<script id="ssl-heartbleed" output="&#xa;  VULNERABLE:&#xa;  The Heartbleed Bug is a serious vulnerability in the popular OpenSSL cryptographic software library.&#xa;    State: NOT VULNERABLE&#xa;    IDs:  CVE:CVE-2014-0160"/>
+<script id="http-vuln-cve2011-3192" output="&#xa;  VULNERABLE:&#xa;  Apache byterange filter DoS&#xa;    State: LIKELY VULNERABLE&#xa;    IDs:  BID:49303  CVE:CVE-2011-3192"/>
+</port>
+<port protocol="tcp" portid="49152"><state state="open" reason="syn-ack" reason_ttl="52"/><service name="http" product="Jetty" version="9.4.z-SNAPSHOT" method="probed" conf="10"><cpe>cpe:/a:eclipse:jetty:9.4.z-snapshot</cpe></service>
+<script id="http-vuln-cve2017-5638"><table key="CVE-2017-5638"><elem key="title">Apache Struts Remote Code Execution Vulnerability</elem><elem key="state">VULNERABLE</elem><table key="ids"><elem>CVE:CVE-2017-5638</elem></table><table key="dates"><table key="disclosure"><elem key="year">2017</elem><elem key="month">03</elem><elem key="day">07</elem></table></table></table></script>
+</port>
+</ports>
+<hostscript><script id="smb-vuln-ms17-010" output="&#xa;  VULNERABLE:&#xa;  Remote Code Execution vulnerability in Microsoft SMBv1 servers (ms17-010)&#xa;    State: VULNERABLE&#xa;    IDs:  CVE:CVE-2017-0143&#xa;    Risk factor: HIGH&#xa;      A critical remote code execution vulnerability exists in Microsoft SMBv1&#xa;       servers (ms17-010).&#xa;&#xa;    Disclosure date: 2017-03-14&#xa;    References:&#xa;      https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2017-0143&#xa;      https://technet.microsoft.com/en-us/library/security/ms17-010.aspx"><table key="CVE-2017-0143"><elem key="title">Remote Code Execution vulnerability in Microsoft SMBv1 servers (ms17-010)</elem><elem key="state">VULNERABLE</elem></table></script></hostscript>
+<times srtt="9000" rttvar="3000" to="100000"/>
+</host>
+<runstats><finished time="1762650901" timestr="Sun Nov  9 00:15:01 2026" elapsed="901.00" summary="Nmap done" exit="success"/><hosts up="1" down="0" total="1"/></runstats>
+</nmaprun>

@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/netip"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"unicode"
@@ -17,7 +18,9 @@ import (
 // Limits of the nmap XML parser (INV-7, SYS-6): the output is data from the network, so any structure
 // beyond these fails the whole batch rather than being cut to fit.
 const (
-	maxXMLDepth     = 12
+	// maxXMLDepth: nmap's own elements nest 7 deep (nmaprun/host/os/osmatch/osclass/cpe); a script's structured output adds a
+	// table per level under <script> (the vulns library: script/table/table/table/elem is 9 under a port, D-526).
+	maxXMLDepth     = 16
 	maxXMLAttrs     = 24
 	maxXMLTokens    = 400_000
 	maxXMLHosts     = 256
@@ -28,6 +31,17 @@ const (
 	maxCPELen       = 300
 	maxElemLen      = 256      // longest <elem> text of an NTLM script that is read; a longer one is dropped
 	maxScriptOutput = 64 << 10 // longest output attribute of a <script> that is read (ssl-cert prints the whole certificate, D-511); a longer one is ignored
+	// The NSE results of a full external run (D-526). maxScriptsPerHost: about 30 scripts of default, safe and vuln answer on a
+	// web port, and at most commonports.MaxBelievableOpen ports are believed, so 40 × 30 = 1200 is the most a real host prints;
+	// the cap is the LAN shapes' own worst case (their 4 fixed scripts on each of maxPortsPerHost ports), so it never refuses a
+	// LAN run that passed before; more fails the run like too many ports (the whole XML is bounded by MaxOutput anyway).
+	// maxScriptText: a script's text is kept up to 2000 runes: the whole output of a
+	// vulns-library finding (smb-vuln-ms17-010 prints about 700 characters with its references) and of the usual discovery
+	// scripts fits; the long dumps (a certificate in PEM, every comment of a page) are cut, never dropped. maxScriptCVEs: a
+	// vulns-library script names one or a few CVEs; 20 bounds a script that prints a list.
+	maxScriptsPerHost = 4 * maxPortsPerHost
+	maxScriptText     = 2000
+	maxScriptCVEs     = 20
 )
 
 var (
@@ -48,7 +62,66 @@ type host struct {
 	// closed and filtered count the ports nmap found in those states (listed ports and <extraports>): with no open port they
 	// say whether the device refused the probes (closed) or something dropped them (filtered), D-501.
 	closed, filtered int
-	ntlm             ntlmInfo // what the device said about itself in an NTLM challenge (D-504); zero when no script answered
+	ntlm             ntlmInfo    // what the device said about itself in an NTLM challenge (D-504); zero when no script answered
+	scripts          []nseScript // every NSE script result of an open port or of the host (<hostscript>), read for the full shapes (D-526)
+}
+
+// nseScript is one NSE script result (D-526): the script's id, its text output (scriptText), the CVE ids it names and whether it
+// says VULNERABLE in the vulns library's format. Port is 0 for a host script.
+type nseScript struct {
+	port       int
+	id         string
+	output     string
+	cves       []string
+	vulnerable bool
+}
+
+var (
+	scriptIDRE = regexp.MustCompile(`^[a-z0-9][a-z0-9_.-]{0,63}$`) // nmap's script names: "smb-vuln-ms17-010", "http-title"
+	cveRE      = regexp.MustCompile(`CVE-[0-9]{4}-[0-9]{4,7}`)
+)
+
+// scriptText is a script's output as kept: valid UTF-8, line breaks kept (the vulns library prints one field a line), tabs and
+// carriage returns as spaces, every other unprintable rune (control, format, bidi, line and paragraph separators, INV-7)
+// removed, trimmed and cut to maxScriptText runes.
+func scriptText(s string) string {
+	s = strings.ReplaceAll(strings.ToValidUTF8(s, ""), "\r\n", "\n")
+	s = strings.Map(func(r rune) rune {
+		switch {
+		case r == '\n':
+			return r
+		case r == '\t' || r == '\r':
+			return ' '
+		case unprintable(r):
+			return -1
+		}
+		return r
+	}, s)
+	return clipRunes(strings.TrimSpace(s), maxScriptText)
+}
+
+// note reads one piece of a script's printed or structured output: the CVE ids it names (unique, at most maxScriptCVEs) and,
+// when it is a state, whether it says VULNERABLE. The vulns library (https://nmap.org/nsedoc/lib/vulns.html) prints a finding as
+// "State: VULNERABLE", "VULNERABLE (Exploitable)" or "VULNERABLE (DoS)"; "LIKELY VULNERABLE" and "NOT VULNERABLE" are not.
+func (sc *nseScript) note(s string, state bool) {
+	for _, c := range cveRE.FindAllString(s, -1) {
+		if len(sc.cves) < maxScriptCVEs && !slices.Contains(sc.cves, c) {
+			sc.cves = append(sc.cves, c)
+		}
+	}
+	if state && strings.HasPrefix(strings.TrimSpace(s), "VULNERABLE") {
+		sc.vulnerable = true
+	}
+}
+
+// noteOutput reads the text output of a script: its CVE ids and its "State:" lines.
+func (sc *nseScript) noteOutput(out string) {
+	sc.note(out, false)
+	for line := range strings.Lines(out) {
+		if v, ok := strings.CutPrefix(strings.TrimSpace(line), "State:"); ok {
+			sc.note(v, true)
+		}
+	}
 }
 
 // ntlmInfo is the part of an NTLM CHALLENGE that nmap's rdp-ntlm-info or http-ntlm-info printed (nmapargv.Scripts, D-504): the
@@ -258,6 +331,10 @@ func parseNmapXML(data []byte) ([]host, error) {
 		title   bool   // inside the <script> of http-title (D-511)
 		elemKey string // key of the <elem> being read; "" when none
 		elemBuf strings.Builder
+		scr     *nseScript // the <script> being read, of an open port or of the host (D-526); nil outside one
+		scrElem bool       // inside an <elem> of scr, at any depth of its tables
+		scrKey  string
+		scrBuf  strings.Builder
 	)
 	for tokens := 0; ; tokens++ {
 		if tokens > maxXMLTokens {
@@ -298,7 +375,22 @@ func parseNmapXML(data []byte) ([]host, error) {
 			if t.Name.Local == "script" && len(a["output"]) > maxScriptOutput {
 				delete(a, "output") // only that script's output is ignored; its port and the run are kept (#714 round 2, L3)
 			}
-			switch strings.Join(path, "/") {
+			p := strings.Join(path, "/")
+			switch {
+			case cur != nil && (p == "nmaprun/host/ports/port/script" && port != nil || p == "nmaprun/host/hostscript/script"):
+				if len(cur.scripts) >= maxScriptsPerHost {
+					return nil, fmt.Errorf("%w: too many script results", errXMLInvalid)
+				}
+				scr = &nseScript{id: a["id"], output: scriptText(a["output"])}
+				if port != nil {
+					scr.port = port.number
+				}
+				scr.noteOutput(a["output"])
+			case scr != nil && t.Name.Local == "elem":
+				scrElem, scrKey = true, a["key"]
+				scrBuf.Reset()
+			}
+			switch p {
 			case "nmaprun/host":
 				if len(hosts) >= maxXMLHosts {
 					return nil, fmt.Errorf("%w: too many hosts", errXMLInvalid)
@@ -390,8 +482,26 @@ func parseNmapXML(data []byte) ([]host, error) {
 			if elemKey != "" && elemBuf.Len() <= maxElemLen {
 				elemBuf.Write(t)
 			}
+			if scrElem && scrBuf.Len() <= maxElemLen {
+				scrBuf.Write(t)
+			}
 		case xml.EndElement:
-			switch strings.Join(path, "/") {
+			p := strings.Join(path, "/")
+			switch {
+			case scrElem && t.Name.Local == "elem":
+				if scrBuf.Len() <= maxElemLen { // a longer value is not read (its text is in the output anyway)
+					scr.note(scrBuf.String(), scrKey == "state")
+				}
+				scrElem = false
+			case scr != nil && (p == "nmaprun/host/ports/port/script" || p == "nmaprun/host/hostscript/script"):
+				// A port script counts only on an open port (the state comes before the scripts in nmap's XML); a script whose id is
+				// not of nmap's form is dropped.
+				if cur != nil && (p == "nmaprun/host/hostscript/script" || portOK) && scriptIDRE.MatchString(scr.id) {
+					cur.scripts = append(cur.scripts, *scr)
+				}
+				scr, scrElem = nil, false
+			}
+			switch p {
 			case "nmaprun":
 				closed = true
 			case "nmaprun/host":

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/netip"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -107,6 +108,53 @@ func TestExternalJobRefusedWhenTheAddressIsNotTheBoxs(t *testing.T) {
 				t.Fatalf("%d rounds, want %d", eg.count(), worker.EgressRounds)
 			}
 		})
+	}
+}
+
+// D-526: the two full shapes run behind the same own-IP fence as the external one, with the argv nmapargv builds; another address
+// is refused before nmap, and a full job at another rate or on a LAN address is invalid_job before the fence is asked.
+func TestFullJobsRunOnlyOnTheBoxsOwnIP(t *testing.T) {
+	t.Parallel()
+	for _, kind := range []nmapargv.Kind{nmapargv.ExternalFull, nmapargv.ExternalDisruptive} {
+		job := func(target string, rate int) sensorlink.Job {
+			return sensorlink.Job{ID: id1, Kind: sensorlink.KindNmap, Shape: kind.Name(), Rate: rate, Targets: []string{target}, TimeoutS: 60}
+		}
+		want, err := nmapargv.Build(kind, nmapargv.FullRate, []netip.Addr{netip.MustParseAddr("8.8.8.8")})
+		if err != nil {
+			t.Fatal(err)
+		}
+		for name, c := range map[string]struct {
+			job    sensorlink.Job
+			answer string
+			status string
+			reason string
+			rounds int
+		}{
+			"the box's own IP":    {job("8.8.8.8", nmapargv.FullRate), "8.8.8.8", "done", "", 1},
+			"another address":     {job("8.8.8.8", nmapargv.FullRate), "1.1.1.1", "refused", "not_own_ip", worker.EgressRounds},
+			"another rate":        {job("8.8.8.8", nmapargv.ExternalRate), "8.8.8.8", "refused", "invalid_job", 0},
+			"a LAN address":       {job("192.168.10.20", nmapargv.FullRate), "192.168.10.20", "refused", "invalid_job", 0},
+			"two public adresses": {sensorlink.Job{ID: id1, Shape: kind.Name(), Rate: nmapargv.FullRate, Targets: []string{"8.8.8.8", "1.1.1.1"}, TimeoutS: 60}, "8.8.8.8", "refused", "invalid_job", 0},
+		} {
+			t.Run(kind.Name()+"/"+name, func(t *testing.T) {
+				t.Parallel()
+				nm := writeNmap(t, printXML)
+				eg := &fakeEgress{answers: []string{c.answer}}
+				r := start(t, nm, func(cfg *worker.Config) { cfg.Egress = eg })
+				r.core.push(c.job)
+				got := r.core.next(t)
+				if got.res.Status != c.status || got.res.Reason != c.reason || eg.count() != c.rounds {
+					t.Fatalf("result = %+v after %d rounds", got.res, eg.count())
+				}
+				ran := strings.Join(append(slices.Clone(want), ""), "\n")
+				if c.status != "done" {
+					ran = ""
+				}
+				if nm.argvLog() != ran {
+					t.Fatalf("argv:\n%s\nwant:\n%s", nm.argvLog(), ran)
+				}
+			})
+		}
 	}
 }
 

@@ -13,6 +13,8 @@ import (
 	"testing/synctest"
 	"time"
 	"unicode/utf8"
+
+	"github.com/knt048/vedette/modules/sensor-active/nmapargv"
 )
 
 var ownIP = netip.MustParseAddr("8.8.8.8")
@@ -24,7 +26,107 @@ func readExternal(data []byte) (External, error) {
 	if err != nil {
 		return External{}, err
 	}
-	return externalOf(all, ownIP)
+	return externalOf(all, ownIP, nmapargv.External)
+}
+
+// readFull is readExternal for a full shape (D-526): every TCP port and the script results.
+func readFull(data []byte) (External, error) {
+	all, err := parseNmapXML(data)
+	if err != nil {
+		return External{}, err
+	}
+	return externalOf(all, ownIP, nmapargv.ExternalFull)
+}
+
+// D-526: a full run read from a fixture written by hand after nmap's documented XML (nmap.dtd; the vulns library's output of
+// smb-vuln-ms17-010 as nsedoc prints it; structured output per https://nmap.org/book/nse-api.html): a high port is a service, the
+// script results of open ports and of the host are kept with their CVE ids and whether they say VULNERABLE ("LIKELY VULNERABLE"
+// and "NOT VULNERABLE" do not), a script of a closed port is not, text is cleaned and cut, a bad script id is dropped. The same
+// XML read as the External shape fails closed on the high port.
+func TestFullRunReadsPortsAndScripts(t *testing.T) {
+	t.Parallel()
+	data := fixture(t, "external_full.xml")
+	got, err := readFull(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Ports != 65535 || len(got.Services) != 3 || got.Services[2].Port != 49152 || got.Services[2].Product != "Jetty" {
+		t.Fatalf("services: %d ports %+v", got.Ports, got.Services)
+	}
+	byID := map[string]ExternalScript{}
+	for _, s := range got.Scripts {
+		byID[s.ID] = s
+	}
+	if len(got.Scripts) != 5 || len(byID) != 5 {
+		t.Fatalf("scripts: %+v", got.Scripts)
+	}
+	ms := byID["smb-vuln-ms17-010"]
+	if ms.Port != 0 || !ms.Vulnerable || !slices.Equal(ms.CVEs, []string{"CVE-2017-0143"}) || !strings.Contains(ms.Output, "\n    State: VULNERABLE\n") {
+		t.Fatalf("host script: %+v", ms)
+	}
+	if s := byID["http-vuln-cve2017-5638"]; s.Port != 49152 || !s.Vulnerable || !slices.Equal(s.CVEs, []string{"CVE-2017-5638"}) {
+		t.Fatalf("structured state: %+v", s)
+	}
+	if s := byID["ssl-heartbleed"]; s.Vulnerable || !slices.Equal(s.CVEs, []string{"CVE-2014-0160"}) {
+		t.Fatalf("NOT VULNERABLE: %+v", s)
+	}
+	if s := byID["http-vuln-cve2011-3192"]; s.Vulnerable || s.Port != 443 {
+		t.Fatalf("LIKELY VULNERABLE: %+v", s)
+	}
+	if s := byID["http-title"]; s.Port != 443 || s.Output != "Site title: Box admin page" || s.Vulnerable || len(s.CVEs) != 0 { // a tab and a bidi override in the fixture
+		t.Fatalf("plain script: %+v", s)
+	}
+	for _, s := range got.Scripts {
+		if s.ID == "ftp-anon" || s.ID == "Bad Id" {
+			t.Fatalf("kept %q", s.ID)
+		}
+	}
+	if _, err := readExternal(data); !errors.Is(err, errXMLInvalid) {
+		t.Fatalf("the External shape believed port 49152: %v", err)
+	}
+	ext, err := readExternal(fixture(t, "external.xml"))
+	if err != nil || ext.Scripts != nil {
+		t.Fatalf("the External shape keeps no scripts: %+v %v", ext.Scripts, err)
+	}
+}
+
+// INV-7 for scripts (D-526): more script results on one host than maxScriptsPerHost fail the whole run, as too many ports do; a
+// port 0 fails a full run; a script output over maxScriptOutput is not read (its port and the run are kept); a long output is cut
+// to maxScriptText runes with only printable runes and line breaks left, and names at most maxScriptCVEs CVEs.
+func TestFullRunScriptLimits(t *testing.T) {
+	t.Parallel()
+	base := string(fixture(t, "external.xml"))
+	var long strings.Builder
+	for i := range 300 {
+		fmt.Fprintf(&long, "&#xa;&#x7f;&#x85;[31m&#x200B;CVE-2021-%05d &#x2028;comment", 10000+i) // DEL, NEL (C1), a zero-width space, a line separator
+	}
+	cut := strings.Replace(base, `<service name="tcpwrapped" method="probed" conf="8"/></port>`,
+		`<service name="tcpwrapped" method="probed" conf="8"/><script id="http-comments-displayer" output="`+long.String()+`"/></port>`, 1)
+	got, err := readFull([]byte(cut))
+	if err != nil || len(got.Scripts) != 1 {
+		t.Fatalf("long output: %+v %v", got.Scripts, err)
+	}
+	s := got.Scripts[0]
+	if utf8.RuneCountInString(s.Output) != maxScriptText || strings.ContainsFunc(s.Output, func(r rune) bool { return r != '\n' && unprintable(r) }) ||
+		len(s.CVEs) != maxScriptCVEs || s.CVEs[0] != "CVE-2021-10000" || s.Port != 10443 {
+		t.Fatalf("long output: %d runes, CVEs %v", utf8.RuneCountInString(s.Output), s.CVEs)
+	}
+	script := `<script id="http-date" output="Fri, 13 Nov 2026 10:00:00 GMT"/>`
+	many := strings.Replace(base, `<service name="tcpwrapped" method="probed" conf="8"/></port>`,
+		`<service name="tcpwrapped" method="probed" conf="8"/>`+strings.Repeat(script, maxScriptsPerHost+1)+`</port>`, 1)
+	if _, err := readFull([]byte(many)); !errors.Is(err, errXMLInvalid) {
+		t.Fatalf("too many scripts: %v", err)
+	}
+	zero := strings.Replace(base, `portid="10443"`, `portid="0"`, 1)
+	if _, err := readFull([]byte(zero)); !errors.Is(err, errXMLInvalid) {
+		t.Fatalf("port 0: %v", err)
+	}
+	big := strings.Replace(base, `<service name="tcpwrapped" method="probed" conf="8"/></port>`,
+		`<service name="tcpwrapped" method="probed" conf="8"/><script id="banner" output="`+strings.Repeat("CVE-2020-1234 ", maxScriptOutput/14+1)+`"/></port>`, 1)
+	got, err = readFull([]byte(big))
+	if err != nil || len(got.Services) != 4 || len(got.Scripts) != 1 || got.Scripts[0].Output != "" || len(got.Scripts[0].CVEs) != 0 {
+		t.Fatalf("an output over the limit: %+v %v", got.Scripts, err)
+	}
 }
 
 // D-514: what -sV read on each open port of the box's own IP: the application CPE only, the extra info, a service with no
@@ -80,7 +182,7 @@ func TestExternalOutputFailsClosed(t *testing.T) {
 	base := string(fixture(t, "external.xml"))
 	host := base[strings.Index(base, "<host ") : strings.Index(base, "</host>")+len("</host>")]
 	port := `<port protocol="tcp" portid="22"><state state="open" reason="syn-ack" reason_ttl="52"/><service name="ssh" method="table" conf="3"/></port>`
-	deep := strings.Repeat("<a>", 12) + strings.Repeat("</a>", 12)
+	deep := strings.Repeat("<a>", maxXMLDepth) + strings.Repeat("</a>", maxXMLDepth)
 	for name, c := range map[string]struct {
 		data []byte
 		want error
@@ -160,7 +262,7 @@ func TestStopDuringTheSlotWaitIsHonoured(t *testing.T) {
 		s := &Service{log: slog.New(slog.DiscardHandler), clock: time.Now}
 		s.runMu.Lock() // another nmap run holds the slot
 		ext, ident := make(chan error, 1), make(chan error, 1)
-		go func() { _, err := s.ScanExternal(t.Context(), ownIP, yesFence{}); ext <- err }()
+		go func() { _, err := s.ScanExternal(t.Context(), ownIP, nmapargv.External, yesFence{}); ext <- err }()
 		go func() { _, err := s.IdentifyDevice(t.Context(), "a-web"); ident <- err }()
 		synctest.Wait() // both wait for the slot
 		s.Stop()
@@ -181,8 +283,17 @@ func TestExternalSkippedWhenTooLittleTimeIsLeft(t *testing.T) {
 		s := &Service{log: slog.New(slog.DiscardHandler), clock: time.Now}
 		ctx, cancel := context.WithTimeout(t.Context(), externalNeed+coreFenceTime-time.Second)
 		defer cancel()
-		if _, err := s.ScanExternal(ctx, ownIP, yesFence{}); !errors.Is(err, ErrNoTime) {
+		if _, err := s.ScanExternal(ctx, ownIP, nmapargv.External, yesFence{}); !errors.Is(err, ErrNoTime) {
 			t.Fatalf("err = %v, want ErrNoTime", err)
+		}
+		// D-526: a full run needs its hour: what was enough for External is not enough for it
+		full, cancel := context.WithTimeout(t.Context(), fullNeed+coreFenceTime-time.Second)
+		defer cancel()
+		if _, err := s.ScanExternal(full, ownIP, nmapargv.ExternalFull, yesFence{}); !errors.Is(err, ErrNoTime) {
+			t.Fatalf("full: err = %v, want ErrNoTime", err)
+		}
+		if _, err := s.ScanExternal(full, ownIP, nmapargv.Normal, yesFence{}); err == nil {
+			t.Fatal("a LAN shape ran as an external one")
 		}
 	})
 }

@@ -102,6 +102,11 @@ var (
 	// D-514: the ports written out here are those of modules/scan/commonports (TestExternalPortsAreTheSurfaceList).
 	externalPorts = "21,22,23,25,53,80,81,88,102,110,111,135,139,143,179,389,443,445,465,502,515,554,587,631,636,873,993,995,1080,1194,1433,1521,1723,1883,2049,2082,2083,2086,2087,2222,2375,2376,2379,3000,3128,3306,3389,4443,4899,5000,5001,5060,5061,5432,5601,5672,5900,5901,5938,5984,5985,5986,6379,6443,7001,7002,7547,8000,8006,8008,8009,8080,8081,8088,8089,8090,8123,8291,8443,8728,8729,8834,8880,8883,8888,9000,9042,9090,9100,9200,9443,10000,10250,10443,11211,27017,34567,37777"
 	shapeExternal = []string{"--privileged", "-sS", "-sV", "-Pn", "-n", "--max-rate", "100", "--max-retries", "2", "--host-timeout", "3m", "-p", externalPorts, "-oX", "-", "8.8.8.8"}
+	// D-526: the two full shapes of a target whose testing terms are accepted.
+	shapeFull = []string{"--privileged", "-sS", "-sV", "-Pn", "-n", "-p-", "--script", "(default or safe or vuln) and not (dos or brute or external or broadcast)",
+		"--script-timeout", "5m", "--max-rate", "300", "--max-retries", "2", "--host-timeout", "60m", "-oX", "-", "8.8.8.8"}
+	shapeDisruptive = []string{"--privileged", "-sS", "-sV", "-Pn", "-n", "-p-", "--script", "(default or safe or vuln or dos or brute) and not (external or broadcast)",
+		"--script-timeout", "5m", "--max-rate", "300", "--max-retries", "2", "--host-timeout", "60m", "-oX", "-", "8.8.8.8"}
 )
 
 // INV-4, SYS-2: the validator accepts exactly three command shapes, with only the rate (of sweep and normal)
@@ -192,7 +197,7 @@ func TestValidate(t *testing.T) {
 			t.Errorf("%s: accepted %q", name, argv)
 		}
 	}
-	for name, argv := range map[string][]string{"sweep": shapeSweep, "normal": shapeNormal, "gentle": shapeGentle, "versions": shapeVersions, "gentle_titles": shapeTitles, "external": shapeExternal, "two targets": with(shapeSweep, "192.168.10.2")} {
+	for name, argv := range map[string][]string{"sweep": shapeSweep, "normal": shapeNormal, "gentle": shapeGentle, "versions": shapeVersions, "gentle_titles": shapeTitles, "external": shapeExternal, "external_full": shapeFull, "external_disruptive": shapeDisruptive, "two targets": with(shapeSweep, "192.168.10.2")} {
 		if err := Validate(argv); err != nil {
 			t.Errorf("%s: a good argv is rejected: %v", name, err)
 		}
@@ -246,8 +251,9 @@ func shapeOracle(flags []string) bool {
 		slices.Equal(flags, shapeTitles[:slices.Index(shapeTitles, "-oX")]) || externalOracle(flags)
 }
 
+// externalOracle: the flags are one of the three shapes whose target is public (external, external_full, external_disruptive).
 func externalOracle(flags []string) bool {
-	return slices.Equal(flags, shapeExternal[:slices.Index(shapeExternal, "-oX")])
+	return slices.ContainsFunc([][]string{shapeExternal, shapeFull, shapeDisruptive}, func(s []string) bool { return slices.Equal(flags, s[:slices.Index(s, "-oX")]) })
 }
 
 // public is the oracle's own idea of a public IPv4 address: dotted decimal without leading zeros, outside 0/8, 10/8, 100.64/10,
@@ -281,7 +287,7 @@ func public(s string) bool {
 
 func FuzzValidate(f *testing.F) {
 	for _, s := range [][]string{
-		shapeSweep, shapeNormal, shapeGentle, shapeVersions, shapeTitles, shapeExternal,
+		shapeSweep, shapeNormal, shapeGentle, shapeVersions, shapeTitles, shapeExternal, shapeFull, shapeDisruptive,
 		append(slices.Clone(shapeExternal[:len(shapeExternal)-1]), "192.168.1.1"),
 		append(slices.Clone(shapeExternal), "1.1.1.1"),
 		{"--privileged", "-sn", "-PE", "-PP", "-PS21,22,23,80,135,139,443,445,554,3389,8000,8080,9100", "-PA80,443", "-n", "--max-rate", "1000", "-oX", "-", "10.0.0.1", "10.0.0.2"},
@@ -326,9 +332,9 @@ func TestParseInvertsBuild(t *testing.T) {
 		kind Kind
 		rate int
 		want int
-	}{{Sweep, 50, 50}, {Normal, 1000, 1000}, {Gentle, 500, 1}, {GentleTitles, 500, 1}, {External, ExternalRate, ExternalRate}} {
+	}{{Sweep, 50, 50}, {Normal, 1000, 1000}, {Gentle, 500, 1}, {GentleTitles, 500, 1}, {External, ExternalRate, ExternalRate}, {ExternalFull, FullRate, FullRate}, {ExternalDisruptive, FullRate, FullRate}} {
 		ts := ts
-		if c.kind == External {
+		if c.kind.IsExternal() {
 			ts = addrs(t, "8.8.8.8")
 		}
 		argv, err := Build(c.kind, c.rate, ts)
@@ -356,7 +362,7 @@ func TestParseInvertsBuild(t *testing.T) {
 // that nothing is lost or invented on the way (L8).
 func FuzzParseBuild(f *testing.F) {
 	for _, s := range [][]string{
-		shapeSweep, shapeNormal, shapeGentle, shapeVersions, shapeTitles, shapeExternal,
+		shapeSweep, shapeNormal, shapeGentle, shapeVersions, shapeTitles, shapeExternal, shapeFull, shapeDisruptive,
 		{"--privileged", "-sn", "-PE", "-PP", "-PS21,22,23,80,135,139,443,445,554,3389,8000,8080,9100", "-PA80,443", "-n", "--max-rate", "1000", "-oX", "-", "10.0.0.1", "10.0.0.2"},
 		{"--privileged", "-sn", "-PE", "-PP", "-PS21,22,23,80,135,139,443,445,554,3389,8000,8080,9100", "-PA80,443", "-n", "--max-rate", "1", "-oX", "-", "172.16.0.1"},
 	} {
@@ -447,6 +453,62 @@ func TestExternalPortsAreTheSurfaceList(t *testing.T) {
 	}
 }
 
+// D-526: the two full shapes are built, validated and parsed back exactly as written above, with one public target at FullRate;
+// anything else in their place is refused: a LAN target, two targets, another rate, the other shape's script expression or a
+// mix of the two, a script argument, a port list instead of -p-.
+func TestFullShapes(t *testing.T) {
+	t.Parallel()
+	for _, c := range []struct {
+		kind  Kind
+		shape []string
+	}{{ExternalFull, shapeFull}, {ExternalDisruptive, shapeDisruptive}} {
+		got, err := Build(c.kind, FullRate, addrs(t, "8.8.8.8"))
+		if err != nil || !slices.Equal(got, c.shape) {
+			t.Fatalf("%s: argv = %q %v\nwant   %q", c.kind.Name(), got, err, c.shape)
+		}
+		if k, r, ts, err := Parse(got); err != nil || k != c.kind || r != FullRate || len(ts) != 1 || ts[0].String() != "8.8.8.8" {
+			t.Fatalf("%s: Parse = %v %d %v %v", c.kind.Name(), k, r, ts, err)
+		}
+		if k, ok := KindOf(c.kind.Name()); !ok || k != c.kind || !k.IsFull() || !k.IsExternal() || ExternalRateOf(k) != FullRate {
+			t.Fatalf("KindOf(%q) = %v %v", c.kind.Name(), k, ok)
+		}
+		for name, b := range map[string]struct {
+			rate    int
+			targets []netip.Addr
+		}{"a LAN target": {FullRate, addrs(t, "192.168.1.1")}, "two targets": {FullRate, addrs(t, "8.8.8.8", "1.1.1.1")}, "another rate": {ExternalRate, addrs(t, "8.8.8.8")}} {
+			if _, err := Build(c.kind, b.rate, b.targets); err == nil {
+				t.Errorf("%s: Build accepted %s", c.kind.Name(), name)
+			}
+		}
+		set := func(i int, v string) []string { a := slices.Clone(c.shape); a[i] = v; return a }
+		at := func(flag string) int { return slices.Index(c.shape, flag) + 1 }
+		for name, argv := range map[string][]string{
+			"a LAN target":       set(len(c.shape)-1, "192.168.10.1"),
+			"two targets":        append(slices.Clone(c.shape), "1.1.1.1"),
+			"another rate":       set(at("--max-rate"), "1000"),
+			"a mixed expression": set(at("--script"), "(default or safe or vuln or dos) and not (brute or external or broadcast)"),
+			"external scripts":   set(at("--script"), "(default or safe or vuln or external) and not (dos or brute or broadcast)"),
+			"a script name":      set(at("--script"), "vulners"),
+			"with --script-args": append(append(slices.Clone(c.shape[:at("--script")+1]), "--script-args", "vulns.showall"), c.shape[at("--script")+1:]...),
+			"a port list":        set(slices.Index(c.shape, "-p-"), "-p1-1024"),
+			"a longer timeout":   set(at("--host-timeout"), "120m"),
+		} {
+			if err := Validate(argv); err == nil {
+				t.Errorf("%s: Validate accepted %s: %q", c.kind.Name(), name, argv)
+			}
+		}
+	}
+	// Each shape's expression in the other's flags is the other shape, never a third one: swapping them changes the kind.
+	swapped := slices.Clone(shapeFull)
+	swapped[slices.Index(swapped, "--script")+1] = DisruptiveScripts
+	if k, _, _, err := Parse(swapped); err != nil || k != ExternalDisruptive {
+		t.Fatalf("swapped expression = %v %v", k, err)
+	}
+	if External.IsFull() || !External.IsExternal() || Normal.IsExternal() || ExternalRateOf(External) != ExternalRate {
+		t.Fatal("IsFull/IsExternal")
+	}
+}
+
 // D-523: the sweep sends 17 probes a round to an address behind a router: ICMP echo and timestamp, 13 SYNs, 2 ACKs.
 func TestSweepProbes(t *testing.T) {
 	t.Parallel()
@@ -467,7 +529,8 @@ func TestSweepProbes(t *testing.T) {
 
 // N7, D-523: no shape ever turns on what nmap's guides keep off fragile devices and printers: --allports (version detection then
 // probes TCP 9100 too, where some printers print what they are sent), -A or -sC (the "default" script category), a script
-// category or wildcard, or a script argument. Every --script value is a fixed list of the scripts named in this package.
+// category or wildcard, or a script argument. Every --script value is a fixed list of the scripts named in this package, except
+// the two full shapes of the box's own public IP (D-526), whose value is exactly their fixed category expression, written out here.
 func TestNoShapeWidensScripts(t *testing.T) {
 	t.Parallel()
 	named := regexp.MustCompile(`^[a-z0-9]+(-[a-z0-9]+)*$`)
@@ -475,10 +538,14 @@ func TestNoShapeWidensScripts(t *testing.T) {
 	for _, n := range strings.Split(Scripts+","+TitleScripts, ",") {
 		allowed[n] = true
 	}
+	expr := map[Kind]string{
+		ExternalFull:       "(default or safe or vuln) and not (dos or brute or external or broadcast)",
+		ExternalDisruptive: "(default or safe or vuln or dos or brute) and not (external or broadcast)",
+	}
 	for _, k := range kinds {
 		rate := 50
-		if k == External {
-			rate = ExternalRate
+		if k.IsExternal() {
+			rate = ExternalRateOf(k)
 		}
 		f, err := Flags(k, rate)
 		if err != nil {
@@ -489,6 +556,10 @@ func TestNoShapeWidensScripts(t *testing.T) {
 			case a == "--allports", a == "-A", a == "-sC", a == "--script-args", a == "--script-args-file", a == "--script-updatedb",
 				strings.HasPrefix(a, "--script="), strings.HasPrefix(a, "--version-all"), strings.HasPrefix(a, "--version-intensity"):
 				t.Errorf("%s has %q", k.Name(), a)
+			case a == "--script" && k.IsFull():
+				if f[i+1] != expr[k] {
+					t.Errorf("%s: --script %q is not its fixed expression", k.Name(), f[i+1])
+				}
 			case a == "--script":
 				for _, n := range strings.Split(f[i+1], ",") {
 					if !named.MatchString(n) || !allowed[n] || slices.Contains([]string{"default", "safe", "discovery", "version", "vuln", "intrusive", "all"}, n) {

@@ -6,8 +6,8 @@ import (
 	"time"
 )
 
-// The own-IP fence of the external shape (D-514, plan exposure-real-vulns §1.3). The external shape is the only one whose target
-// is public; the grammar alone would let a core that was taken over port-scan anyone from the customer's IP. So the worker checks
+// The own-IP fence of the external shapes (D-514, plan exposure-real-vulns §1.3; the two full shapes of D-526 too). They are the
+// only ones whose target is public; the grammar alone would let a core that was taken over port-scan anyone from the customer's IP. So the worker checks
 // by itself, right before nmap, that the box leaves the Internet through that address: the same three public services and the
 // same two-of-three rule as exposure (core/egressip), up to EgressRounds rounds so every address of a load-balanced uplink can
 // show, ending at the first round that names it. A round that fails or names another address is not a yes; no yes is a refusal,

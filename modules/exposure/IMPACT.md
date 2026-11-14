@@ -1,5 +1,10 @@
 # Exposure — Change Impact Map
 
+## Modifying: bước dịch vụ của lượt quét sâu (`FullServicesTimeout`, `FullHostLimit`, `ServiceScan.Scripts`, `ScriptRow`, `exp_snapshot.scripts`) (FULL-4 (Trưởng), for Mlee: D-526)
+- **cmd/vedette** `exposureservices.go` đọc `ScanTarget.Mode` để chọn mẫu nmap và hạn, gọi `ModeNow` ngay trước job (`DeepGate` của sensor-active), đổ `External.Scripts` vào `ScriptRow`. `TestExposureServiceShapeFollowsTheMode` giữ `FullHostLimit` = `nmapargv.FullHostTimeout` và `FullServicesTimeout` ≥ nó + chờ khe + hai rào: đổi một số thì đổi cả ba.
+- **modules/core** `export_policy.go`: cột `scripts` là JSON của `exp_snapshot`.
+- Trang (việc của Mlee): `Content.Scripts` có `json:"-"`; để hiện thì thêm vào `api/openapi.json` + `contract.ts` rồi đổi tag thành `"scripts"` (bộ giải mã ogen từ chối trường lạ, `into`).
+
 ## Modifying: `exposure.Service.CheckScannable(ctx, actor, targetID) (bool, BlockedReason, error)`
 - **scan** (gọi ngay trước mỗi lần quét mục tiêu ngoài, truyền người hoặc module gọi làm `actor`). Đây là rào chắn SYS-7 phía Internet: nới điều kiện phải sửa CONTRACT + test INV-1 và INV-13 của cả `exposure` và `scan`. Với IP, lời gọi có thể chạy một lượt dò đầy đủ ra Internet (5 vòng, tối đa một lần mỗi 5 phút, PRIVACY luồng 9): `scan` phải chịu được độ trễ vài giây và `BlockedNotCurrent` (`ip_not_current`, quét tạm dừng, IP vẫn trong danh sách).
 

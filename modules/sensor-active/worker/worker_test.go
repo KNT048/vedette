@@ -564,7 +564,7 @@ func TestHeartbeatReportsNmap(t *testing.T) {
 	r := start(t, writeNmap(t, printXML))
 	select {
 	case hb := <-r.core.beats:
-		if hb.Version != "1.0.0" || !hb.Nmap.Present || hb.Nmap.Version != "7.94SVN" {
+		if hb.Version != "1.0.0" || !hb.Nmap.Present || hb.Nmap.Version != "7.94SVN" || !hb.Nmap.Full { // D-526: it runs the full shapes
 			t.Fatalf("heartbeat = %+v", hb)
 		}
 	case <-time.After(10 * time.Second):

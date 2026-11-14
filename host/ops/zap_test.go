@@ -100,7 +100,7 @@ func TestZapRunArgvIsFixedAndValidated(t *testing.T) {
 	}
 	got := p.runArgv(wrk)
 	want := strings.Fields("--module /usr/lib/vedette/apparmor-containers.conf run --rm --pull=never --name vedette-zap --label io.vedette.owner=vedette-host --network vedette-zap --dns none" +
-		" --add-host www.example.com:" + zapTestIP + " --cap-drop ALL --security-opt no-new-privileges --read-only --tmpfs /home/zap:rw,size=256m,mode=0700,uid=1000,gid=1000" +
+		" --add-host www.example.com:" + zapTestIP + " --cap-drop ALL --security-opt no-new-privileges --read-only --tmpfs /home/zap:rw,size=256m,mode=1777" +
 		" --volume /var/lib/vedette-host/zap/wrk:/zap/wrk:rw,nosuid,nodev,noexec --user 1000:1000 --memory=1g --memory-swap=1g --pids-limit=256 --no-healthcheck" +
 		" --workdir /home/zap " + zapImage +
 		" zap-baseline.py --autooff -t https://www.example.com/ -m 1 -T 5 -J out.json -z")

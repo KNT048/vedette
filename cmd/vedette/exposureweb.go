@@ -85,9 +85,9 @@ func (w exposureWebScan) Baseline(ctx context.Context, t exposure.ScanTarget, pa
 		return exposure.WebScan{}, err
 	}
 	if run.Status != api.StatusSucceeded {
-		code := "command_failed"
+		code, msg := "command_failed", ""
 		if run.Error != nil {
-			code = run.Error.Code
+			code, msg = run.Error.Code, run.Error.Message // the host's own fixed text (exit code and what it means), for the box log
 		}
 		if code == api.CodeZapNameMoved { // this page only: exposure goes on with the next page
 			return exposure.WebScan{}, &exposure.PageSkipped{Reason: fmt.Sprintf(webNameMoved, page.Host, page.IP)}
@@ -95,7 +95,7 @@ func (w exposureWebScan) Baseline(ctx context.Context, t exposure.ScanTarget, pa
 		if why := webReason(code, t, page); why != "" {
 			return exposure.WebScan{}, &exposure.Unavailable{Reason: why}
 		}
-		return exposure.WebScan{}, fmt.Errorf("exposure web scan: zap.baseline %s: %s", run.Status, code)
+		return exposure.WebScan{}, fmt.Errorf("exposure web scan: zap.baseline %s: %s: %s", run.Status, code, msg)
 	}
 	res, err := hostclient.ResultOf[api.ZapBaselineResult](run)
 	if err != nil {

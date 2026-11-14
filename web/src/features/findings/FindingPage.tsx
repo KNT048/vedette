@@ -1,9 +1,9 @@
-import { useRef, useState, type RefObject } from 'react'
+import { useRef, useState, type ReactNode, type RefObject } from 'react'
 import { Link, useParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { ArrowLeft, ScanSearch } from 'lucide-react'
-import { PageHeader, Section, KeyValue, Panel } from '@/components/common/PageHeader'
+import { PageHeader, Section, KeyValue, Panel, Notice } from '@/components/common/PageHeader'
 import { QueryState, RequireModule, SampleDataNote } from '@/components/common/States'
 import { Chip } from '@/components/common/StatusChip'
 import { SourceBadge } from '@/components/common/SourceBadge'
@@ -171,6 +171,21 @@ function Aside({ f }: { f: FindingDetail }) {
   )
 }
 
+/** S-MIT-1 (W12-1): a closed finding opens with why it was closed (GitHub's dismissed-alert banner, Snyk's ignore reason): who or what closed it, when, the reason, and the one action that undoes it. */
+function ClosedNotice({ f, reopen }: { f: FindingDetail; reopen: ReactNode }) {
+  const { t } = useTranslation('findings')
+  const system = f.resolved_by === 'system'
+  const who = system ? t('closed.vedette') : f.resolved_by
+  const when = f.resolved_at ? fmtDate(f.resolved_at) : ''
+  const key = f.status === 'risk_accepted' ? 'risk_accepted' : system && f.status === 'not_relevant' ? 'systemNotRelevant' : f.status
+  return (
+    <Notice tone={f.status === 'risk_accepted' ? 'accent' : 'off'} role="status" data-testid="closed-notice" actions={reopen}
+      title={t(`closed.${key}`, { date: fmtDate(f.accepted_until), who: who ? t('closed.by', { who }) : '', when: when ? t('closed.on', { when }) : '' })}>
+      {f.resolution_note ? <p className="[overflow-wrap:anywhere]">{f.resolution_note}</p> : null}
+    </Notice>
+  )
+}
+
 function Detail({ f }: { f: FindingDetail }) {
   const { t } = useTranslation('findings')
   const can = useCan('operator')
@@ -179,6 +194,19 @@ function Detail({ f }: { f: FindingDetail }) {
   const opener = useRef<HTMLButtonElement>(null)
   const name = deviceName(f.asset, t('removedDevice'))
   const needRole = can ? undefined : t('common:needRole', { role: t('common:role.operator') })
+  const reopenButton = (
+    <Button disabled={!can || set.isPending} title={needRole} onClick={() => set.mutate({ action: 'reopen', note: '' }, { onSuccess: () => toast.success(t('status.reopened')), onError: (e) => toast.error(errMsg(e)) })}>{t('status.reopen')}</Button>
+  )
+  const open_ = isOpen(f.status)
+  const body = (
+    <>
+      <Evidence f={f} />
+      <Section id="mitigation" title={t('rec.title')} description={t('rec.description')} stories={['S-MIT-1']}>
+        <RequireModule module="mitigation">{f.pack ? <PackView finding={f} /> : <NoPack finding={f} />}</RequireModule>
+      </Section>
+      <Compromise f={f} />
+    </>
+  )
   return (
     <>
       <PageHeader
@@ -200,21 +228,19 @@ function Detail({ f }: { f: FindingDetail }) {
           <>
             <SampleDataNote />
             <IUpdatedFinding f={f} />
-            {isOpen(f.status) ? (
-              <Button ref={opener} variant="primary" disabled={!can} title={needRole} onClick={() => setOpen(true)}>{t('status.mark')}</Button>
-            ) : (
-              <Button disabled={!can || set.isPending} title={needRole} onClick={() => set.mutate({ action: 'reopen', note: '' }, { onSuccess: () => toast.success(t('status.reopened')), onError: (e) => toast.error(errMsg(e)) })}>{t('status.reopen')}</Button>
-            )}
+            {open_ ? <Button ref={opener} variant="primary" disabled={!can} title={needRole} onClick={() => setOpen(true)}>{t('status.mark')}</Button> : null}
           </>
         }
       />
+      {open_ ? null : <ClosedNotice f={f} reopen={reopenButton} />}
       <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_320px]">
         <div>
-          <Evidence f={f} />
-          <Section id="mitigation" title={t('rec.title')} description={t('rec.description')} stories={['S-MIT-1']}>
-            <RequireModule module="mitigation">{f.pack ? <PackView finding={f} /> : <NoPack finding={f} />}</RequireModule>
-          </Section>
-          <Compromise f={f} />
+          {open_ ? body : (
+            <details className="group" data-testid="before-closed">
+              <summary className="mb-3 w-fit cursor-pointer text-base font-semibold">{t('closed.before')}</summary>
+              {body}
+            </details>
+          )}
           <Slot name="finding.panels" props={{ findingId: f.id }} />
           <Section id="explain" title={t('explain.title')} description={t('explain.description')} stories={['S-AI-2']}>
             <AskAi finding={f} skill="explain" result={f.ai.explain} label={t('explain.button')} />

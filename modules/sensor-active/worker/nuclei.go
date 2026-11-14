@@ -141,9 +141,12 @@ func (w *Worker) nucleiArgv(j sensorlink.Job) ([]string, *sensorlink.JobResult, 
 		if err != nil {
 			return nil, refusal("pack_invalid"), err
 		}
+		if err := pack.NoChangeText(body); err != nil { // D-528: no write, upload or other host, in every job (the builder kept only files that pass)
+			return nil, refusal("invalid_job"), fmt.Errorf("template %.100q may change the target or reach another host: %w", t.ID, err)
+		}
 		switch {
-		case full: // the last fence of D-527: no write method and no out-of-band interaction, read from the file itself
-			if err := pack.FullText(body); err != nil {
+		case full: // the last fence of D-527: no out-of-band interaction, read from the file itself
+			if err := pack.FullText(body, t.Tech()); err != nil {
 				return nil, refusal("invalid_job"), fmt.Errorf("template %.100q may not run at full depth: %w", t.ID, err)
 			}
 		case nj.Scope == nucleiargv.ScopeOwnIP: // the last fence: the worker reads the file itself (D-520)

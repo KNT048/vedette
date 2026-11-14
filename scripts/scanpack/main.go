@@ -8,8 +8,9 @@
 // interactsh, a top-level key other than id, info, variables, http, tcp, ssl (headless, code, javascript, file, dns, whois,
 // websocket, flow, self-contained and everything a later nuclei adds), not exactly one CVE, an id nuclei would take for a flag, or no
 // printable request line for the probe log. Next to that KEV set, D-527 adds the deep and disruptive sets that a full job (testing
-// terms accepted) runs: see fullSet. Each index entry names its sets. The product never runs this: it ships the result. Network, for
-// a maintainer only: github.com and codeload.github.com, 60 s limit.
+// terms accepted) runs: see fullSet. Each index entry names its sets. Every set, KEV included, leaves out anything of the
+// state-change, destination and third-party rule of D-528 (nochange.go). The product never runs this: it ships the result. Network,
+// for a maintainer only: github.com and codeload.github.com, 60 s limit.
 package main
 
 import (
@@ -351,6 +352,9 @@ func qualify(rel string, body []byte) (pack.Template, string) {
 		}
 		return zero, kr
 	}
+	if why, _ := changeReason(id, doc, body, tags); why != "" { // D-528, every set: no state change, no other destination, no third party
+		return zero, why
+	}
 	if kr != "" { // outside the KEV set the cve may be empty or the first of several
 		cve = firstCVE(info)
 	}
@@ -414,11 +418,19 @@ var fullKeys = []string{"fuzzing", "race", "race_count", "pipeline", "threads"}
 // maxPayloadValues bounds the requests a payload list may make: the product of the lengths of a block's inline lists.
 const maxPayloadValues = 64
 
+var (
+	// credKeyRE is a payload name that holds user names or passwords: the template tries to log in with them (review FULL-4b r1 M2).
+	credKeyRE = regexp.MustCompile(`(?i)pass|pwd|user|login|cred`)
+	// credTags mark a template that logs in with known credentials.
+	credTags = []string{"hardcoded-credentials", "default-credentials", "default-credential", "weak-credentials"}
+)
+
 // fullSet is the D-527 rule: the set of a template at full depth (SetDeep or SetDisruptive) with "", or "" with the reason it is
-// left out. Always out: a folder of no full set ("dir"), the tags intrusive, fuzz and oast and any mention of interactsh (an
-// out-of-band server is a third party), fuzzing, race, pipeline and thread keys, a payload read from a file (it is not in the pack)
-// or a list of more than maxPayloadValues requests, and a request method pack.FullMethodOK refuses (PUT, DELETE, PATCH…). Disruptive:
-// a default-login folder or a tag of nucleiargv.DisruptiveTags (dos, brute-force, default-login, authenticated).
+// left out. Always out: a folder of no full set ("dir"), the tags intrusive, fuzz and oast and any use of an out-of-band server (a
+// third party), a file pack.FullText refuses (the worker's own check), fuzzing, race, pipeline and thread keys, a payload read from a
+// file (it is not in the pack) or a list of more than maxPayloadValues requests, and a request method pack.MethodOK refuses; the
+// D-528 rule (changeReason) applies after. Disruptive: a default-login folder, a tag of nucleiargv.DisruptiveTags (dos, brute-force,
+// default-login, authenticated) or credTags, or payloads named like user names or passwords (credKeyRE).
 func fullSet(rel string, doc map[string]any, body []byte, tags []string) (string, string) {
 	disruptive := under(rel, disruptiveDirs)
 	if !disruptive && (!under(rel, deepDirs) || under(rel, notDeepDirs)) {
@@ -430,9 +442,10 @@ func fullSet(rel string, doc map[string]any, body []byte, tags []string) (string
 	if pack.NeedsOAST(body) { // a matcher that only names interactsh (tech-detect) is no use of it
 		return "", "interactsh"
 	}
-	if pack.FullText(body) != nil {
-		return "", "method"
+	if pack.FullText(body, strings.HasPrefix(rel, "http/technologies/")) != nil { // the worker's own check must pass (D-527, D-528)
+		return "", "full text"
 	}
+	creds := slices.ContainsFunc(tags, func(t string) bool { return slices.Contains(credTags, t) })
 	for _, key := range []string{"http", "tcp", "ssl"} {
 		blocks, _ := doc[key].([]any)
 		for _, b := range blocks {
@@ -445,23 +458,28 @@ func fullSet(rel string, doc map[string]any, body []byte, tags []string) (string
 			}
 			if meth, has := m["method"]; has {
 				ms, _ := meth.(string)
-				if !pack.FullMethodOK(strings.ToUpper(ms)) {
+				if !pack.MethodOK(strings.ToUpper(ms)) {
 					return "", "method"
 				}
 			}
 			raws, _ := m["raw"].([]any)
 			for _, r := range raws {
 				rs, _ := r.(string)
-				if f := strings.Fields(firstLine(rs)); len(f) == 0 || !pack.FullMethodOK(f[0]) {
+				if f := strings.Fields(firstLine(rs)); len(f) == 0 || !pack.MethodOK(f[0]) {
 					return "", "method"
 				}
 			}
-			if p, has := m["payloads"]; has && !payloadsInline(p) {
-				return "", "payloads"
+			if p, has := m["payloads"]; has {
+				if !payloadsInline(p) {
+					return "", "payloads"
+				}
+				for k := range p.(map[string]any) { // review FULL-4b r1 M2: a list of user names or passwords is a login attempt
+					creds = creds || credKeyRE.MatchString(k)
+				}
 			}
 		}
 	}
-	if disruptive || slices.ContainsFunc(tags, func(t string) bool { return slices.Contains(nucleiargv.DisruptiveTags(), t) }) {
+	if disruptive || creds || slices.ContainsFunc(tags, func(t string) bool { return slices.Contains(nucleiargv.DisruptiveTags(), t) }) {
 		return pack.SetDisruptive, ""
 	}
 	return pack.SetDeep, ""

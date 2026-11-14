@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"errors"
 	"slices"
 	"strings"
 	"testing"
@@ -135,22 +134,23 @@ func boolInt(b bool) int {
 	return 0
 }
 
-// The terms withdrawn before the first run: nothing is logged or sent, and exposure gets the reason. Withdrawn between two runs: the
-// runs before are kept and the page says why the rest was not sent.
+// The terms withdrawn before the first run: nothing deep is logged or sent; the read-only KEV checks of a target without terms run
+// instead (review r1 L3), and a line says so. Withdrawn between two runs: the runs before are kept and the page says why the rest
+// was not sent.
 func TestExposureFullModeNowNotFullSendsNothing(t *testing.T) {
 	t.Parallel()
 	f := &templatesFake{gateOK: true, answer: func(sensoractive.NucleiRequest) nucleiout.Outcome { return nucleiout.Outcome{} }}
 	a := f.scanner()
 	a.mode = (&modes{list: []exposure.ScanMode{{}}}).now
-	_, err := a.ScanTemplates(t.Context(), fullTarget(false), ownPublicIP, []exposure.TemplateJob{fullJobOf()})
-	var un *exposure.Unavailable
-	if !errors.As(err, &un) || un.Reason != templatesNotFull || len(f.events) != 0 {
-		t.Fatalf("err %v, events %q", err, f.events)
+	got, err := a.ScanTemplates(t.Context(), fullTarget(false), ownPublicIP, []exposure.TemplateJob{fullJobOf("CVE-2018-13379")})
+	if err != nil || len(f.reqs) != 1 || f.reqs[0].Depth != "" || f.reqs[0].Rate != nucleiargv.OwnIPRate || !slices.Equal(f.reqs[0].Templates, []string{"CVE-2018-13379"}) ||
+		len(got.NotChecked) == 0 || !strings.Contains(got.NotChecked[0], templatesNotFull) {
+		t.Fatalf("err %v, requests %+v, notes %q", err, f.reqs, got.NotChecked)
 	}
 	f2 := &templatesFake{gateOK: true, answer: func(sensoractive.NucleiRequest) nucleiout.Outcome { return nucleiout.Outcome{} }}
 	a = f2.scanner()
 	a.mode = (&modes{list: []exposure.ScanMode{{Full: true}, {Full: true}, {}}}).now
-	got, err := a.ScanTemplates(t.Context(), fullTarget(false), ownPublicIP, []exposure.TemplateJob{fullJobOf()})
+	got, err = a.ScanTemplates(t.Context(), fullTarget(false), ownPublicIP, []exposure.TemplateJob{fullJobOf()})
 	if err != nil || len(f2.reqs) != 1 || len(got.Sent) != len(f2.reqs[0].Templates) || len(got.NotChecked) != 1 || !strings.Contains(got.NotChecked[0], templatesNotFull) {
 		t.Fatalf("got %+v, %d runs, %v", got.NotChecked, len(f2.reqs), err)
 	}

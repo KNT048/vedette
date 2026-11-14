@@ -224,7 +224,10 @@ func (s *Service) runTemplates(ctx context.Context, st ScanTarget, ip netip.Addr
 	if st.Mode.Full { // FULL-4 (Trưởng), for Mlee: every identified port, CVE-matched or not (D-527)
 		jobs, skipped = buildFullJobs(ip, c.Services, m.Vulns)
 	}
-	if skipped > 0 {
+	switch {
+	case skipped > 0 && st.Mode.Full: // FULL-4 (Trưởng), for Mlee: buildFullJobs counts ports (review r1 L4)
+		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "templates", Text: fmt.Sprintf("Deep templates: %s not scanned, over the limit of %d jobs a scan.", map[bool]string{true: "1 port was", false: fmt.Sprintf("%d ports were", skipped)}[skipped == 1], maxTemplateJobs)})
+	case skipped > 0:
 		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "templates", Text: fmt.Sprintf("Safe templates for exploited vulnerabilities: %s were not run, over the limit of %d jobs a scan.", plural(skipped, "exploited CVE"), maxTemplateJobs)})
 	}
 	if len(jobs) == 0 {
@@ -356,8 +359,10 @@ func buildFullJobs(ip netip.Addr, services []ServiceRow, vulns []VulnRow) (jobs 
 		sort.Strings(cves)
 		for i := 0; i == 0 || i < len(cves); i += TemplatesPerJob {
 			chunk := cves[min(i, len(cves)):min(i+TemplatesPerJob, len(cves))]
-			if len(jobs) >= maxTemplateJobs {
-				skipped += max(len(chunk), 1)
+			if len(jobs) >= maxTemplateJobs { // skipped counts ports here (review r1 L4)
+				if i == 0 {
+					skipped++
+				}
 				continue
 			}
 			jobs = append(jobs, TemplateJob{Port: svc.Port, Scheme: schemeOf(svc), Host: ip.String(), CVEs: chunk, Scope: ScopeOwnIP, RPS: FullTemplateRPS,

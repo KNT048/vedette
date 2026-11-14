@@ -82,6 +82,8 @@ func (a exposureTemplateScan) scanFull(ctx context.Context, t exposure.ScanTarge
 		}
 		var un *exposure.Unavailable
 		switch {
+		case len(out.Sent) == 0 && errors.Is(err, errNotFull) && ctx.Err() == nil: // review r1 L3: withdrawn before anything deep went out
+			return a.baselineInstead(ctx, t, ip, ix, jobs)
 		case len(out.Sent) == 0 || errors.Is(ctx.Err(), context.Canceled): // nothing sent yet, or the scan was stopped: exposure says why
 			return exposure.TemplateScan{}, err
 		case ctx.Err() != nil: // the step's bound ran out: keep what earlier runs found
@@ -98,6 +100,25 @@ func (a exposureTemplateScan) scanFull(ctx context.Context, t exposure.ScanTarge
 		}
 		return out, nil // the ports after it are not sent (the page says so)
 	}
+	return out, nil
+}
+
+// baselineInstead is the scan of a target whose terms were withdrawn before the first deep run: the read-only KEV checks of a target
+// without terms (D-520), as the next scan would run them, with a line saying no deep template was sent. The ModeNow of the next runs
+// is not needed: the baseline is what every verified target gets, and scanBaseline still runs the gate before each run.
+func (a exposureTemplateScan) baselineInstead(ctx context.Context, t exposure.ScanTarget, ip netip.Addr, ix *pack.Index, jobs []exposure.TemplateJob) (exposure.TemplateScan, error) {
+	var base []exposure.TemplateJob
+	for _, j := range jobs {
+		if j.Depth == exposure.DepthFull && len(j.CVEs) > 0 {
+			j.Depth, j.RPS, j.Service, j.Product, j.CPE = "", exposure.TemplateRPS, "", "", ""
+			base = append(base, j)
+		}
+	}
+	out, err := a.scanBaseline(ctx, t, ip, ix, base)
+	if err != nil {
+		return out, err
+	}
+	out.NotChecked = append([]string{"Deep templates did not run: " + templatesNotFull + " The safe checks for exploited vulnerabilities ran instead."}, out.NotChecked...)
 	return out, nil
 }
 

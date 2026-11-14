@@ -453,13 +453,6 @@ func (ix *Index) Has(id string) bool {
 	return ok
 }
 
-// fullMethods are the request methods a template of the deep or disruptive set may send (D-527): reading, and POST (the testing
-// terms allow active requests and forms). PUT, DELETE, PATCH and the WebDAV writes are never sent; any other method neither.
-var fullMethods = []string{"GET", "HEAD", "POST", "OPTIONS", "PROPFIND", "TRACE"}
-
-// FullMethodOK says whether a template of the deep or disruptive set may send method (upper case).
-func FullMethodOK(method string) bool { return slices.Contains(fullMethods, method) }
-
 // oastRE is a template's use of an out-of-band server: nuclei's interactsh variables and parts, or a public interactsh or oast host
 // the target would be made to reach. The word alone ("Interactsh Server" as a matcher of tech-detect) is not a use.
 var oastRE = regexp.MustCompile(`(?i)\{\{\s*(interactsh|oast)|interactsh[-_](url|protocol|request|response|ip)|interactsh\.(com|me|sh)|oast\.(me|fun|live|online|site|pro|sh|com)|interact\.sh|burpcollaborator\.`)
@@ -467,20 +460,16 @@ var oastRE = regexp.MustCompile(`(?i)\{\{\s*(interactsh|oast)|interactsh[-_](url
 // NeedsOAST says whether a template uses an out-of-band server (a third party: a data flow leaving the box), D-527.
 func NeedsOAST(body []byte) bool { return oastRE.Match(body) }
 
-// FullText is the worker's own check of a template file before a full job (D-527), behind the index's sets and the file's hash:
-// no raw request line or method: key of a method FullMethodOK refuses, and no out-of-band interaction (interactsh, oast). Like
-// OwnIPText it reads the text without a YAML parser (the sensor binary links none).
-func FullText(body []byte) error {
-	if NeedsOAST(body) {
+// oobServerRE is a matcher looking for an interactsh server's own page: outside the technologies templates, a template that matches
+// it makes the target fetch one (review FULL-4b r1 M3, CVE-2021-22054 hides the URL in base64).
+var oobServerRE = regexp.MustCompile(`(?i)interactsh server`)
+
+// FullText is the worker's own check of a template file before a full job (D-527), behind the index's sets and the file's hash and
+// NoChangeText (D-528, every job): no out-of-band interaction (interactsh, oast), and outside the technologies templates (tech) no
+// match on an interactsh server's page. Like OwnIPText it reads the text without a YAML parser (the sensor binary links none).
+func FullText(body []byte, tech bool) error {
+	if NeedsOAST(body) || !tech && oobServerRE.Match(body) {
 		return errors.New("it needs out-of-band interaction")
 	}
-	for _, l := range strings.Split(string(body), "\n") {
-		if m := rawLineRE.FindStringSubmatch(l); m != nil && !FullMethodOK(m[1]) {
-			return fmt.Errorf("a %s request", m[1])
-		}
-		if m := methodRE.FindStringSubmatch(l); m != nil && m[1] != "" && !FullMethodOK(strings.ToUpper(m[1])) {
-			return fmt.Errorf("method %q", m[1])
-		}
-	}
-	return nil
+	return NoChangeText(body)
 }

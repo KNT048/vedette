@@ -1,6 +1,6 @@
 {
-  "version": "2026.11.3",
-  "sha256": "4f16bebe1bd5aa49d6842f44ebe85cecd0571f80a3a6ae3436ffcf64841fda6d",
+  "version": "2026.11.4",
+  "sha256": "08bacfb56bc358c9eb15ab19c95cb1dae2714dcb5344c767e2cba1a00c1b531d",
   "templates": [
     {
       "id": "CNVD-2017-03561",
@@ -588,24 +588,6 @@
         "deep"
       ],
       "name": "E-Cology V9 - SQL Injection",
-      "severity": "high"
-    },
-    {
-      "id": "CNVD-2023-96945",
-      "path": "http/cnvd/2023/CNVD-2023-96945.yaml",
-      "sha256": "bb24d3552230205199f040ad5dbd7c7d407146d838392fc56cc63d6eb004c6ee",
-      "tags": [
-        "cnvd",
-        "cnvd2023",
-        "file-upload",
-        "mcvie",
-        "vuln"
-      ],
-      "request": "GET {{BaseURL}}/Content/Plugins/uploader/FileChoose.html",
-      "sets": [
-        "deep"
-      ],
-      "name": "McVie Safety Digital Management Platform - Arbitrary File Upload",
       "severity": "high"
     },
     {
@@ -4604,7 +4586,7 @@
       ],
       "request": "GET {{BaseURL}}/cgi-bin/nobody/VerifyCode.cgi?account={{base64(username + ':' + password)}}\u0026login=quick",
       "sets": [
-        "deep"
+        "disruptive"
       ],
       "name": "AVTECH DVR - Login Verification Code Bypass",
       "severity": "low"
@@ -5810,24 +5792,6 @@
       "severity": "critical"
     },
     {
-      "id": "CVE-2015-2863",
-      "cve": "CVE-2015-2863",
-      "path": "http/cves/2015/CVE-2015-2863.yaml",
-      "sha256": "cc5544e2192e61e836ca87d6d21e264032b7f5dffe30d3fc36ab2d9efe874a02",
-      "tags": [
-        "cve2015",
-        "cve",
-        "redirect",
-        "kaseya",
-        "vkev",
-        "vuln"
-      ],
-      "request": "GET {{BaseURL}}/inc/supportLoad.asp?urlToLoad=http://oast.me",
-      "sets": [
-        "kev"
-      ]
-    },
-    {
       "id": "CVE-2015-2996",
       "cve": "CVE-2015-2996",
       "path": "http/cves/2015/CVE-2015-2996.yaml",
@@ -6474,30 +6438,6 @@
       ],
       "name": "Adobe AEM Dispatcher \u003c4.15 - Rules Bypass",
       "severity": "high"
-    },
-    {
-      "id": "CVE-2016-10033",
-      "cve": "CVE-2016-10033",
-      "path": "http/cves/2016/CVE-2016-10033.yaml",
-      "sha256": "2f9790d20bebf450b3035d054bd5396d1a6bc2395f68b7d89416d314d3566f5a",
-      "tags": [
-        "cve",
-        "cve2016",
-        "seclists",
-        "rce",
-        "edb",
-        "wordpress",
-        "kev",
-        "vkev",
-        "vuln"
-      ],
-      "request": "GET /?author=1 HTTP/1.1",
-      "sets": [
-        "kev",
-        "deep"
-      ],
-      "name": "WordPress PHPMailer \u003c 5.2.18 - Remote Code Execution",
-      "severity": "critical"
     },
     {
       "id": "CVE-2016-10134",
@@ -7304,26 +7244,6 @@
       "severity": "high"
     },
     {
-      "id": "CVE-2017-12794",
-      "cve": "CVE-2017-12794",
-      "path": "http/cves/2017/CVE-2017-12794.yaml",
-      "sha256": "80b6f3294acd755fb74dbc13990ed3caf215754fdc9f9e7aee3cbeec2341dbe2",
-      "tags": [
-        "cve2017",
-        "cve",
-        "xss",
-        "django",
-        "djangoproject",
-        "vuln"
-      ],
-      "request": "GET {{BaseURL}}/create_user/?username=%3Cscript%3Ealert(document.domain)%3C%2Fscript%3E",
-      "sets": [
-        "deep"
-      ],
-      "name": "Django Debug Page - Cross-Site Scripting",
-      "severity": "medium"
-    },
-    {
       "id": "CVE-2017-14186",
       "cve": "CVE-2017-14186",
       "path": "http/cves/2017/CVE-2017-14186.yaml",
@@ -7600,28 +7520,6 @@
         "deep"
       ],
       "name": "Nextjs \u003c2.4.1 - Local File Inclusion",
-      "severity": "high"
-    },
-    {
-      "id": "CVE-2017-16894",
-      "cve": "CVE-2017-16894",
-      "path": "http/cves/2017/CVE-2017-16894.yaml",
-      "sha256": "e88dbdb259c2de1f2f6b85a48643639a2dea9e84a51f0aca489ec7403e795706",
-      "tags": [
-        "cve",
-        "cve2017",
-        "laravel",
-        "exposure",
-        "packetstorm",
-        "vkev",
-        "vuln"
-      ],
-      "request": "GET {{BaseURL}}/.env",
-      "sets": [
-        "kev",
-        "deep"
-      ],
-      "name": "Laravel \u003c5.5.21 - Information Disclosure",
       "severity": "high"
     },
     {
@@ -9186,26 +9084,6 @@
       "severity": "critical"
     },
     {
-      "id": "CVE-2018-1000856",
-      "cve": "CVE-2018-1000856",
-      "path": "http/cves/2018/CVE-2018-1000856.yaml",
-      "sha256": "8d72c8187e589acce450f145aa2c5ad94992fa875b00edeeb712601cbfa0ae61",
-      "tags": [
-        "cve2018",
-        "cve",
-        "domainmod",
-        "xss",
-        "authenticated",
-        "vuln"
-      ],
-      "request": "POST / HTTP/1.1",
-      "sets": [
-        "disruptive"
-      ],
-      "name": "DomainMOD 4.11.01 - Cross-Site Scripting",
-      "severity": "medium"
-    },
-    {
       "id": "CVE-2018-1000861",
       "cve": "CVE-2018-1000861",
       "path": "http/cves/2018/CVE-2018-1000861.yaml",
@@ -9614,28 +9492,6 @@
         "deep"
       ],
       "name": "Splunk \u003c=7.0.1 - Information Disclosure",
-      "severity": "medium"
-    },
-    {
-      "id": "CVE-2018-11473",
-      "cve": "CVE-2018-11473",
-      "path": "http/cves/2018/CVE-2018-11473.yaml",
-      "sha256": "4d65a2120e460323927bf24c0a0f006b75b1bb71d99b38f1da579bd0f2538a8d",
-      "tags": [
-        "cve",
-        "cve2018",
-        "xss",
-        "mostra",
-        "mostracms",
-        "cms",
-        "monstra",
-        "vuln"
-      ],
-      "request": "GET /users/registration HTTP/1.1",
-      "sets": [
-        "deep"
-      ],
-      "name": "Monstra CMS 3.0.4 - Cross-Site Scripting",
       "severity": "medium"
     },
     {
@@ -10211,28 +10067,6 @@
       "severity": "high"
     },
     {
-      "id": "CVE-2018-14933",
-      "cve": "CVE-2018-14933",
-      "path": "http/cves/2018/CVE-2018-14933.yaml",
-      "sha256": "1381e293a2617ea3fd4de3111af04c7b0d99c9fd64831c9535531200426f1875",
-      "tags": [
-        "cve",
-        "cve2018",
-        "nuuo",
-        "rce",
-        "kev",
-        "vkev",
-        "vuln"
-      ],
-      "request": "GET {{BaseURL}}/upgrade_handle.php?cmd=writeuploaddir\u0026uploaddir=%27;id;%27",
-      "sets": [
-        "kev",
-        "deep"
-      ],
-      "name": "NUUO NVRmini - Remote Command Execution",
-      "severity": "critical"
-    },
-    {
       "id": "CVE-2018-15138",
       "cve": "CVE-2018-15138",
       "path": "http/cves/2018/CVE-2018-15138.yaml",
@@ -10365,26 +10199,6 @@
         "deep"
       ],
       "name": "WirelessHART Fieldgate SWG70 3.0 - Local File Inclusion",
-      "severity": "medium"
-    },
-    {
-      "id": "CVE-2018-16133",
-      "cve": "CVE-2018-16133",
-      "path": "http/cves/2018/CVE-2018-16133.yaml",
-      "sha256": "90e7c6b73addd0bfc976bb1d3f8a9bae1121f8cf274778961349e5ce49aa794b",
-      "tags": [
-        "cve2018",
-        "cve",
-        "lfi",
-        "packetstorm",
-        "cybrotech",
-        "vuln"
-      ],
-      "request": "GET \\..\\..\\..\\..\\Windows\\win.ini HTTP/1.1",
-      "sets": [
-        "deep"
-      ],
-      "name": "Cybrotech CyBroHttpServer 1.0.3 - Local File Inclusion",
       "severity": "medium"
     },
     {
@@ -10707,29 +10521,6 @@
       "severity": "critical"
     },
     {
-      "id": "CVE-2018-17207",
-      "cve": "CVE-2018-17207",
-      "path": "http/cves/2018/CVE-2018-17207.yaml",
-      "sha256": "388254e0d750267331e69f7865b9555def64e9f42dbfab26b0d3b89955c64992",
-      "tags": [
-        "cve",
-        "cve2018",
-        "wordpress",
-        "duplicator",
-        "rce",
-        "vkev",
-        "passive",
-        "vuln"
-      ],
-      "request": "POST /installer-backup.php HTTP/1.1",
-      "sets": [
-        "kev",
-        "deep"
-      ],
-      "name": "WordPress Duplicator Plugin \u003c 1.2.42 - Arbitrary Code Execution",
-      "severity": "critical"
-    },
-    {
       "id": "CVE-2018-17246",
       "cve": "CVE-2018-17246",
       "path": "http/cves/2018/CVE-2018-17246.yaml",
@@ -11021,70 +10812,6 @@
       "severity": "critical"
     },
     {
-      "id": "CVE-2018-19136",
-      "cve": "CVE-2018-19136",
-      "path": "http/cves/2018/CVE-2018-19136.yaml",
-      "sha256": "6ce7a93cb53fd5e9d4c55a2f03709d5f11b79d763a7ba0de19efd27f332c569a",
-      "tags": [
-        "cve2018",
-        "cve",
-        "edb",
-        "domainmod",
-        "xss",
-        "authenticated",
-        "vuln"
-      ],
-      "request": "POST / HTTP/1.1",
-      "sets": [
-        "disruptive"
-      ],
-      "name": "DomainMOD 4.11.01 - Cross-Site Scripting",
-      "severity": "medium"
-    },
-    {
-      "id": "CVE-2018-19137",
-      "cve": "CVE-2018-19137",
-      "path": "http/cves/2018/CVE-2018-19137.yaml",
-      "sha256": "75ed412183a8437c16cfb7e134a5050f5de7379b70289b58f7e61d80c5f73976",
-      "tags": [
-        "cve",
-        "cve2018",
-        "domainmod",
-        "xss",
-        "authenticated",
-        "vuln"
-      ],
-      "request": "POST / HTTP/1.1",
-      "sets": [
-        "disruptive"
-      ],
-      "name": "DomainMOD 4.11.01 - Cross-Site Scripting",
-      "severity": "medium"
-    },
-    {
-      "id": "CVE-2018-19207",
-      "cve": "CVE-2018-19207",
-      "path": "http/cves/2018/CVE-2018-19207.yaml",
-      "sha256": "2bef75aaa5c666daaba6fcd6cf30818efa0e54a0666d38a2262cdcfa6e72dcdc",
-      "tags": [
-        "cve",
-        "cve2018",
-        "wordpress",
-        "wp-plugin",
-        "wp-gdpr-compliance",
-        "rce",
-        "vkev",
-        "vuln"
-      ],
-      "request": "GET {{BaseURL}}/",
-      "sets": [
-        "kev",
-        "deep"
-      ],
-      "name": "WP GDPR Compliance \u003c 1.4.3 - Unauthenticated Call Any Action or Update Any Option",
-      "severity": "critical"
-    },
-    {
       "id": "CVE-2018-19287",
       "cve": "CVE-2018-19287",
       "path": "http/cves/2018/CVE-2018-19287.yaml",
@@ -11174,28 +10901,6 @@
       "severity": "medium"
     },
     {
-      "id": "CVE-2018-19410",
-      "cve": "CVE-2018-19410",
-      "path": "http/cves/2018/CVE-2018-19410.yaml",
-      "sha256": "1115b1f5fe2b6153b31e8b38e2c5421352fd001ecc969bb715a0c93251fa9516",
-      "tags": [
-        "cve",
-        "cve2018",
-        "prtg",
-        "lfi",
-        "kev",
-        "vkev",
-        "vuln"
-      ],
-      "request": "POST /public/login.htm?file=/api/addusers.htm HTTP/1.1",
-      "sets": [
-        "kev",
-        "deep"
-      ],
-      "name": "PRTG Network Monitor - Local File Inclusion",
-      "severity": "critical"
-    },
-    {
       "id": "CVE-2018-19439",
       "cve": "CVE-2018-19439",
       "path": "http/cves/2018/CVE-2018-19439.yaml",
@@ -11238,69 +10943,6 @@
       "severity": "high"
     },
     {
-      "id": "CVE-2018-19749",
-      "cve": "CVE-2018-19749",
-      "path": "http/cves/2018/CVE-2018-19749.yaml",
-      "sha256": "0bc0aa58b2974c223f97eb8faeaab3dff1956ac718eee3b07af8edd84b00965a",
-      "tags": [
-        "cve2018",
-        "cve",
-        "domainmod",
-        "xss",
-        "authenticated",
-        "edb",
-        "vuln"
-      ],
-      "request": "POST / HTTP/1.1",
-      "sets": [
-        "disruptive"
-      ],
-      "name": "DomainMOD 4.11.01 - Cross-Site Scripting",
-      "severity": "medium"
-    },
-    {
-      "id": "CVE-2018-19751",
-      "cve": "CVE-2018-19751",
-      "path": "http/cves/2018/CVE-2018-19751.yaml",
-      "sha256": "47592ad277286f942f115b338025cbf4472e46fa3c0381ff05d5fbce5a48377d",
-      "tags": [
-        "cve",
-        "cve2018",
-        "domainmod",
-        "xss",
-        "authenticated",
-        "edb",
-        "vuln"
-      ],
-      "request": "POST / HTTP/1.1",
-      "sets": [
-        "disruptive"
-      ],
-      "name": "DomainMOD 4.11.01 - Cross-Site Scripting",
-      "severity": "medium"
-    },
-    {
-      "id": "CVE-2018-19752",
-      "cve": "CVE-2018-19752",
-      "path": "http/cves/2018/CVE-2018-19752.yaml",
-      "sha256": "896e63a31cad04ddda464163ee67232f41754e2a9ee690479d69acf47f81fe8b",
-      "tags": [
-        "cve2018",
-        "cve",
-        "domainmod",
-        "xss",
-        "authenticated",
-        "edb",
-        "vuln"
-      ],
-      "request": "POST / HTTP/1.1",
-      "sets": [
-        "disruptive"
-      ],
-      "name": "DomainMOD 4.11.01 - Cross-Site Scripting",
-      "severity": "medium"
-    },
-    {
       "id": "CVE-2018-19753",
       "cve": "CVE-2018-19753",
       "path": "http/cves/2018/CVE-2018-19753.yaml",
@@ -11340,132 +10982,6 @@
         "deep"
       ],
       "name": "Adiscon LogAnalyzer \u003c4.1.7 - Cross-Site Scripting",
-      "severity": "medium"
-    },
-    {
-      "id": "CVE-2018-19892",
-      "cve": "CVE-2018-19892",
-      "path": "http/cves/2018/CVE-2018-19892.yaml",
-      "sha256": "43462efdd876a5909f06a19ecce33067aa423de11dfa6031ec5dc1f5f68b4478",
-      "tags": [
-        "cve2018",
-        "cve",
-        "domainmod",
-        "xss",
-        "authenticated",
-        "edb",
-        "vuln"
-      ],
-      "request": "POST / HTTP/1.1",
-      "sets": [
-        "disruptive"
-      ],
-      "name": "DomainMOD 4.11.01 - Cross-Site Scripting",
-      "severity": "medium"
-    },
-    {
-      "id": "CVE-2018-19914",
-      "cve": "CVE-2018-19914",
-      "path": "http/cves/2018/CVE-2018-19914.yaml",
-      "sha256": "f6f464fae1d69623738abfa8dd6fe40819e4ea2c5c38e8dd0d39d8cf1527332f",
-      "tags": [
-        "cve2018",
-        "cve",
-        "domainmod",
-        "xss",
-        "authenticated",
-        "edb",
-        "vuln"
-      ],
-      "request": "POST / HTTP/1.1",
-      "sets": [
-        "disruptive"
-      ],
-      "name": "DomainMOD 4.11.01 - Cross-Site Scripting",
-      "severity": "medium"
-    },
-    {
-      "id": "CVE-2018-19915",
-      "cve": "CVE-2018-19915",
-      "path": "http/cves/2018/CVE-2018-19915.yaml",
-      "sha256": "883e13d38d66543a7ef01abe2d8eb22383427719bf5d2dbfb1ae391bcae36fb5",
-      "tags": [
-        "cve",
-        "cve2018",
-        "domainmod",
-        "xss",
-        "authenticated",
-        "edb",
-        "vuln"
-      ],
-      "request": "POST / HTTP/1.1",
-      "sets": [
-        "disruptive"
-      ],
-      "name": "DomainMOD \u003c=4.11.01 - Cross-Site Scripting",
-      "severity": "medium"
-    },
-    {
-      "id": "CVE-2018-20009",
-      "cve": "CVE-2018-20009",
-      "path": "http/cves/2018/CVE-2018-20009.yaml",
-      "sha256": "74946c71a70032c0964ef2b23d830e43e4ecf97b139faa4ccc8556a8a96ba1a4",
-      "tags": [
-        "cve",
-        "cve2018",
-        "domainmod",
-        "xss",
-        "authenticated",
-        "edb",
-        "vuln"
-      ],
-      "request": "POST / HTTP/1.1",
-      "sets": [
-        "disruptive"
-      ],
-      "name": "DomainMOD 4.11.01 - Cross-Site Scripting",
-      "severity": "medium"
-    },
-    {
-      "id": "CVE-2018-20010",
-      "cve": "CVE-2018-20010",
-      "path": "http/cves/2018/CVE-2018-20010.yaml",
-      "sha256": "a41647b20e12fa55e2d9711dd47c0bbf93dc777702e6196c5766eb13e70b2ece",
-      "tags": [
-        "cve",
-        "cve2018",
-        "domainmod",
-        "xss",
-        "authenticated",
-        "edb",
-        "vuln"
-      ],
-      "request": "POST / HTTP/1.1",
-      "sets": [
-        "disruptive"
-      ],
-      "name": "DomainMOD 4.11.01 - Cross-Site Scripting",
-      "severity": "medium"
-    },
-    {
-      "id": "CVE-2018-20011",
-      "cve": "CVE-2018-20011",
-      "path": "http/cves/2018/CVE-2018-20011.yaml",
-      "sha256": "d3a654b08929f00dda1a81f8773c93af95baf9e6ef0edfd30d6b12bec4cb6d3e",
-      "tags": [
-        "cve2018",
-        "cve",
-        "domainmod",
-        "xss",
-        "authenticated",
-        "edb",
-        "vuln"
-      ],
-      "request": "POST / HTTP/1.1",
-      "sets": [
-        "disruptive"
-      ],
-      "name": "DomainMOD 4.11.01 - Cross-Site Scripting",
       "severity": "medium"
     },
     {
@@ -11598,28 +11114,6 @@
         "deep"
       ],
       "name": "WordPress Payeezy Pay \u003c=2.97 - Local File Inclusion",
-      "severity": "critical"
-    },
-    {
-      "id": "CVE-2018-25114",
-      "cve": "CVE-2018-25114",
-      "path": "http/cves/2018/CVE-2018-25114.yaml",
-      "sha256": "e5d20e67d387ff308c28a137ff1d87ae1a12d73bd4cd81c8f37affc401b0316c",
-      "tags": [
-        "cve",
-        "cve2018",
-        "rce",
-        "oscommerce",
-        "edb",
-        "vuln",
-        "vkev"
-      ],
-      "request": "POST /install/install.php?step=4 HTTP/1.1",
-      "sets": [
-        "kev",
-        "deep"
-      ],
-      "name": "osCommerce 2.3.4.1 - Remote Code Execution",
       "severity": "critical"
     },
     {
@@ -12161,48 +11655,6 @@
       "severity": "medium"
     },
     {
-      "id": "CVE-2018-8024",
-      "cve": "CVE-2018-8024",
-      "path": "http/cves/2018/CVE-2018-8024.yaml",
-      "sha256": "40fcecf52c1494109452bc38455f81d9d95d99979e5f718c542ed9b3537e1e6c",
-      "tags": [
-        "cve",
-        "cve2018",
-        "spark",
-        "xss",
-        "ui",
-        "vuln"
-      ],
-      "request": "GET {{BaseURL}}/jobs/?\"'\u003e\u003cscript\u003ealert(document.domain)\u003c/script\u003e",
-      "sets": [
-        "deep"
-      ],
-      "name": "Apache Spark UI - Cross-Site Scripting",
-      "severity": "medium"
-    },
-    {
-      "id": "CVE-2018-8033",
-      "cve": "CVE-2018-8033",
-      "path": "http/cves/2018/CVE-2018-8033.yaml",
-      "sha256": "d5d8e744f93f0991a463e24339a40823ab09301df8418944e18a0d9a39675fba",
-      "tags": [
-        "cve",
-        "cve2018",
-        "apache",
-        "ofbiz",
-        "xxe",
-        "vuln",
-        "vkev"
-      ],
-      "request": "POST /webtools/control/httpService HTTP/1.1",
-      "sets": [
-        "kev",
-        "deep"
-      ],
-      "name": "Apache OFBiz - XML External Entity Injection",
-      "severity": "high"
-    },
-    {
       "id": "CVE-2018-8715",
       "cve": "CVE-2018-8715",
       "path": "http/cves/2018/CVE-2018-8715.yaml",
@@ -12532,25 +11984,6 @@
       ],
       "name": "Apache HTTP Server \u003c=2.4.39 - HTML Injection/Partial Cross-Site Scripting",
       "severity": "medium"
-    },
-    {
-      "id": "CVE-2019-10098",
-      "cve": "CVE-2019-10098",
-      "path": "http/cves/2019/CVE-2019-10098.yaml",
-      "sha256": "7a1d647334fc4de201cb80049db1a8a2a66b416bb3a1a5570745caf9d8968df0",
-      "tags": [
-        "cve",
-        "cve2019",
-        "redirect",
-        "apache",
-        "server",
-        "vkev",
-        "vuln"
-      ],
-      "request": "GET {{BaseURL}}/http%3A%2F%2Fwww.interact.sh",
-      "sets": [
-        "kev"
-      ]
     },
     {
       "id": "CVE-2019-1010287",
@@ -13447,31 +12880,10 @@
       ],
       "request": "POST /session_login.cgi HTTP/1.1",
       "sets": [
-        "deep"
+        "disruptive"
       ],
       "name": "Webmin \u003c 1.920 - Authenticated Remote Code Execution",
       "severity": "high"
-    },
-    {
-      "id": "CVE-2019-15811",
-      "cve": "CVE-2019-15811",
-      "path": "http/cves/2019/CVE-2019-15811.yaml",
-      "sha256": "786bd333d38f1cf3a8c55fabc6a3e1d7021163798011df5d0e9da8c6d3ae52f9",
-      "tags": [
-        "cve",
-        "cve2019",
-        "domainmod",
-        "xss",
-        "authenticated",
-        "edb",
-        "vuln"
-      ],
-      "request": "POST / HTTP/1.1",
-      "sets": [
-        "disruptive"
-      ],
-      "name": "DomainMOD \u003c=4.13.0 - Cross-Site Scripting",
-      "severity": "medium"
     },
     {
       "id": "CVE-2019-15829",
@@ -14592,31 +14004,6 @@
         "deep"
       ],
       "name": "Oracle WebLogic Server Administration Console - Remote Code Execution",
-      "severity": "critical"
-    },
-    {
-      "id": "CVE-2019-3396",
-      "cve": "CVE-2019-3396",
-      "path": "http/cves/2019/CVE-2019-3396.yaml",
-      "sha256": "ecd84d12e46ebb70413e7621575a5553faa963dc0e57ffe4335996b6c67d47d2",
-      "tags": [
-        "cve",
-        "cve2019",
-        "atlassian",
-        "confluence",
-        "lfi",
-        "rce",
-        "kev",
-        "packetstorm",
-        "vkev",
-        "vuln"
-      ],
-      "request": "POST /rest/tinymce/1/macro/preview HTTP/1.1",
-      "sets": [
-        "kev",
-        "deep"
-      ],
-      "name": "Atlassian Confluence Server - Path Traversal",
       "severity": "critical"
     },
     {
@@ -15881,31 +15268,6 @@
       "severity": "critical"
     },
     {
-      "id": "CVE-2020-11515",
-      "cve": "CVE-2020-11515",
-      "path": "http/cves/2020/CVE-2020-11515.yaml",
-      "sha256": "fa58c4f459ca841edfc74d136ab01206e39bbbebaf59a27e7dd0b0fdf5318717",
-      "tags": [
-        "cve",
-        "cve2020",
-        "wordpress",
-        "wordfence",
-        "redirect",
-        "seo-by-rank-math",
-        "wp-plugin",
-        "wp",
-        "vkev",
-        "vuln"
-      ],
-      "request": "POST /wp-json/rankmath/v1/updateRedirection HTTP/1.1",
-      "sets": [
-        "kev",
-        "deep"
-      ],
-      "name": "Rank Math SEO \u003c= 1.0.40.2 - Redirect Creation via Unprotected REST API Endpoint",
-      "severity": "medium"
-    },
-    {
       "id": "CVE-2020-11530",
       "cve": "CVE-2020-11530",
       "path": "http/cves/2020/CVE-2020-11530.yaml",
@@ -16392,31 +15754,6 @@
       "severity": "critical"
     },
     {
-      "id": "CVE-2020-12832",
-      "cve": "CVE-2020-12832",
-      "path": "http/cves/2020/CVE-2020-12832.yaml",
-      "sha256": "a215c88e51db9effeacb6695eda8453a5826c7c49c305c58aac1bb94cb9f17db",
-      "tags": [
-        "cve",
-        "cve2020",
-        "wp",
-        "wordpress",
-        "wp-plugin",
-        "traversal",
-        "simple-file-list",
-        "lfi",
-        "vkev",
-        "vuln"
-      ],
-      "request": "GET /?rest_route=/wp/v2/pages\u0026per_page=100 HTTP/1.1",
-      "sets": [
-        "kev",
-        "deep"
-      ],
-      "name": "WordPress Simple File List - Path Traversal",
-      "severity": "critical"
-    },
-    {
       "id": "CVE-2020-13158",
       "cve": "CVE-2020-13158",
       "path": "http/cves/2020/CVE-2020-13158.yaml",
@@ -16440,29 +15777,6 @@
       "severity": "high"
     },
     {
-      "id": "CVE-2020-13167",
-      "cve": "CVE-2020-13167",
-      "path": "http/cves/2020/CVE-2020-13167.yaml",
-      "sha256": "989949d07e34cb6da513eeb888d0136ade95320604afe85ac41d4f9d98f89595",
-      "tags": [
-        "cve2020",
-        "cve",
-        "netsweeper",
-        "rce",
-        "python",
-        "webadmin",
-        "vkev",
-        "vuln"
-      ],
-      "request": "GET {{BaseURL}}/webadmin/tools/unixlogin.php?login=admin\u0026password=g%27%2C%27%27%29%3Bimport%20os%3Bos.system%28%27{{url_encode(hex_encode(cmd))}}%27.decode%28%27hex%27%29%29%23\u0026timeout=5",
-      "sets": [
-        "kev",
-        "deep"
-      ],
-      "name": "Netsweeper \u003c=6.4.3 - Python Code Injection",
-      "severity": "critical"
-    },
-    {
       "id": "CVE-2020-13258",
       "cve": "CVE-2020-13258",
       "path": "http/cves/2020/CVE-2020-13258.yaml",
@@ -16480,27 +15794,6 @@
       ],
       "name": "Contentful \u003c=2020-05-21 - Cross-Site Scripting",
       "severity": "medium"
-    },
-    {
-      "id": "CVE-2020-13379",
-      "cve": "CVE-2020-13379",
-      "path": "http/cves/2020/CVE-2020-13379.yaml",
-      "sha256": "db7868840e646de6f7dc7b28e5224755a7b16357892be8d2b08dac3363e50040",
-      "tags": [
-        "cve2020",
-        "cve",
-        "grafana",
-        "ssrf",
-        "vkev",
-        "vuln"
-      ],
-      "request": "GET {{BaseURL}}/avatar/1%3fd%3dhttp%3A%252F%252Fimgur.com%252F..%25252F1.1.1.1",
-      "sets": [
-        "kev",
-        "deep"
-      ],
-      "name": "Grafana 3.0.1-7.0.1 - Server-Side Request Forgery",
-      "severity": "high"
     },
     {
       "id": "CVE-2020-13405",
@@ -16887,25 +16180,6 @@
       "severity": "low"
     },
     {
-      "id": "CVE-2020-15129",
-      "cve": "CVE-2020-15129",
-      "path": "http/cves/2020/CVE-2020-15129.yaml",
-      "sha256": "90a2058cb47d5fa4a0e82c2be470dd0b1e989e48e284c84d8daf943a98bc8dad",
-      "tags": [
-        "cve",
-        "cve2020",
-        "traefik",
-        "redirect",
-        "vuln"
-      ],
-      "request": "GET {{BaseURL}}",
-      "sets": [
-        "deep"
-      ],
-      "name": "Traefik - Open Redirect",
-      "severity": "medium"
-    },
-    {
       "id": "CVE-2020-15148",
       "cve": "CVE-2020-15148",
       "path": "http/cves/2020/CVE-2020-15148.yaml",
@@ -16944,29 +16218,6 @@
         "deep"
       ],
       "name": "Nette Framework - Remote Code Execution",
-      "severity": "critical"
-    },
-    {
-      "id": "CVE-2020-15415",
-      "cve": "CVE-2020-15415",
-      "path": "http/cves/2020/CVE-2020-15415.yaml",
-      "sha256": "8def83323cd902e7d8d39020fe9fd8e836b0d413aa5cd79100555bb934dcfbaa",
-      "tags": [
-        "cve",
-        "cve2020",
-        "draytek",
-        "rce",
-        "router",
-        "kev",
-        "vkev",
-        "vuln"
-      ],
-      "request": "POST /cgi-bin/mainfunction.cgi/cvmcfgupload?1=2 HTTP/1.1",
-      "sets": [
-        "kev",
-        "deep"
-      ],
-      "name": "DrayTek Vigor - Command Injection",
       "severity": "critical"
     },
     {
@@ -17225,7 +16476,7 @@
       ],
       "request": "GET /fuel/login/ HTTP/1.1",
       "sets": [
-        "deep"
+        "disruptive"
       ],
       "name": "Fuel CMS 1.4.7 - SQL Injection",
       "severity": "critical"
@@ -17639,26 +16890,6 @@
       "severity": "critical"
     },
     {
-      "id": "CVE-2020-20988",
-      "cve": "CVE-2020-20988",
-      "path": "http/cves/2020/CVE-2020-20988.yaml",
-      "sha256": "d298189293506491da2d18e692aea1dce68c834e4fbc7b7fa21d29749f220dd8",
-      "tags": [
-        "cve2020",
-        "cve",
-        "domainmod",
-        "xss",
-        "authenticated",
-        "vuln"
-      ],
-      "request": "POST / HTTP/1.1",
-      "sets": [
-        "disruptive"
-      ],
-      "name": "DomainMOD 4.13.0 - Cross-Site Scripting",
-      "severity": "medium"
-    },
-    {
       "id": "CVE-2020-2103",
       "cve": "CVE-2020-2103",
       "path": "http/cves/2020/CVE-2020-2103.yaml",
@@ -18027,7 +17258,7 @@
       ],
       "request": "POST /auth/session HTTP/1.1",
       "sets": [
-        "deep"
+        "disruptive"
       ],
       "name": "Pritunl VPN Server 1.29.2145.25 - Username Enumeration",
       "severity": "medium"
@@ -18187,24 +17418,6 @@
       "severity": "medium"
     },
     {
-      "id": "CVE-2020-26836",
-      "cve": "CVE-2020-26836",
-      "path": "http/cves/2020/CVE-2020-26836.yaml",
-      "sha256": "da5830c23847d590d24e7b6b0d8664bee704948cbdb739e373ea696f2dc7d8b5",
-      "tags": [
-        "cve",
-        "cve2020",
-        "redirect",
-        "sap",
-        "vuln",
-        "vkev"
-      ],
-      "request": "GET {{BaseURL}}/sap/public/bc/icf/logoff?redirecturl=https://interact.sh",
-      "sets": [
-        "kev"
-      ]
-    },
-    {
       "id": "CVE-2020-26876",
       "cve": "CVE-2020-26876",
       "path": "http/cves/2020/CVE-2020-26876.yaml",
@@ -18228,31 +17441,6 @@
       ],
       "name": "WordPress WP Courses Plugin Information Disclosure",
       "severity": "high"
-    },
-    {
-      "id": "CVE-2020-26879",
-      "cve": "CVE-2020-26879",
-      "path": "http/cves/2020/CVE-2020-26879.yaml",
-      "sha256": "5b0d5b7a444fe645292df05de80610c5ed11ad82388ca4c99faa9dd288f2b717",
-      "tags": [
-        "cve",
-        "cve2020",
-        "ruckus",
-        "vriot",
-        "iot",
-        "api",
-        "backdoor",
-        "auth-bypass",
-        "vkev",
-        "vuln"
-      ],
-      "request": "POST /service/v1/createUser HTTP/1.1",
-      "sets": [
-        "kev",
-        "deep"
-      ],
-      "name": "Ruckus vRioT IoT Controller - Authentication Bypass",
-      "severity": "critical"
     },
     {
       "id": "CVE-2020-27191",
@@ -18490,25 +17678,6 @@
       "severity": "medium"
     },
     {
-      "id": "CVE-2020-28208",
-      "cve": "CVE-2020-28208",
-      "path": "http/cves/2020/CVE-2020-28208.yaml",
-      "sha256": "a0947431f8b7d022b7a5de9e1a925a925e4b2cb449d2a9622bc31834b52fb20e",
-      "tags": [
-        "cve",
-        "cve2020",
-        "packetstorm",
-        "rocketchat",
-        "vuln"
-      ],
-      "request": "POST /api/v1/method.callAnon/sendForgotPasswordEmail HTTP/1.1",
-      "sets": [
-        "deep"
-      ],
-      "name": "Rocket.Chat \u003c3.9.1 - Information Disclosure",
-      "severity": "medium"
-    },
-    {
       "id": "CVE-2020-29047",
       "cve": "CVE-2020-29047",
       "path": "http/cves/2020/CVE-2020-29047.yaml",
@@ -18706,27 +17875,6 @@
       ],
       "name": "Cisco Adaptive Security Appliance (ASA)/Firepower Threat Defense (FTD) - Local File Inclusion",
       "severity": "high"
-    },
-    {
-      "id": "CVE-2020-35131",
-      "cve": "CVE-2020-35131",
-      "path": "http/cves/2020/CVE-2020-35131.yaml",
-      "sha256": "323083b8c851899840cc974cda6ab076aa75506b735231324fdb75cbfc22a654",
-      "tags": [
-        "cve",
-        "cve2020",
-        "rce",
-        "cockpit",
-        "vkev",
-        "vuln"
-      ],
-      "request": "POST /auth/check HTTP/1.1",
-      "sets": [
-        "kev",
-        "deep"
-      ],
-      "name": "Cockpit CMS 0.6.1 - Remote Code Execution",
-      "severity": "critical"
     },
     {
       "id": "CVE-2020-35234",
@@ -18944,50 +18092,6 @@
       "severity": "critical"
     },
     {
-      "id": "CVE-2020-35847",
-      "cve": "CVE-2020-35847",
-      "path": "http/cves/2020/CVE-2020-35847.yaml",
-      "sha256": "fc465edd5f8a678207b2372309cc364658360be425bcd5f78c890d2984cde96c",
-      "tags": [
-        "cve",
-        "cve2020",
-        "nosqli",
-        "sqli",
-        "cockpit",
-        "injection",
-        "agentejo",
-        "vuln"
-      ],
-      "request": "POST /auth/requestreset HTTP/1.1",
-      "sets": [
-        "deep"
-      ],
-      "name": "Agentejo Cockpit \u003c0.11.2 - NoSQL Injection",
-      "severity": "critical"
-    },
-    {
-      "id": "CVE-2020-35848",
-      "cve": "CVE-2020-35848",
-      "path": "http/cves/2020/CVE-2020-35848.yaml",
-      "sha256": "4f8ea7c3f73c7b4130523b0529492b80fc63b7531773e7657bd6b5c7abaa6b39",
-      "tags": [
-        "cve",
-        "cve2020",
-        "nosqli",
-        "sqli",
-        "cockpit",
-        "injection",
-        "agentejo",
-        "vuln"
-      ],
-      "request": "POST {{BaseURL}}/auth/newpassword",
-      "sets": [
-        "deep"
-      ],
-      "name": "Agentejo Cockpit \u003c0.12.0 - NoSQL Injection",
-      "severity": "critical"
-    },
-    {
       "id": "CVE-2020-35984",
       "cve": "CVE-2020-35984",
       "path": "http/cves/2020/CVE-2020-35984.yaml",
@@ -19113,29 +18217,6 @@
       ],
       "name": "Jira Server and Data Center - Information Disclosure",
       "severity": "medium"
-    },
-    {
-      "id": "CVE-2020-36333",
-      "cve": "CVE-2020-36333",
-      "path": "http/cves/2020/CVE-2020-36333.yaml",
-      "sha256": "97dce4c49e9b4b0d1d581174d4286b8a07cd007d87c3e5ed04ca0ce12a6009df",
-      "tags": [
-        "cve",
-        "cve2020",
-        "wp",
-        "wordpress",
-        "wp-plugin",
-        "themegrill",
-        "vkev",
-        "vuln"
-      ],
-      "request": "GET /wp-admin/admin-post.php?do_reset_wordpress=1 HTTP/1.1",
-      "sets": [
-        "kev",
-        "deep"
-      ],
-      "name": "ThemeGrill Demo Importer \u003c 1.6.2 - Database Reset",
-      "severity": "critical"
     },
     {
       "id": "CVE-2020-36705",
@@ -19459,30 +18540,6 @@
         "deep"
       ],
       "name": "UnRaid \u003c=6.80 - Remote Code Execution",
-      "severity": "critical"
-    },
-    {
-      "id": "CVE-2020-5902",
-      "cve": "CVE-2020-5902",
-      "path": "http/cves/2020/CVE-2020-5902.yaml",
-      "sha256": "b62bbefe7aca3090833701352d7295e21e498370fcf4e7f70917c99a3323077b",
-      "tags": [
-        "cve",
-        "cve2020",
-        "bigip",
-        "rce",
-        "kev",
-        "packetstorm",
-        "f5",
-        "vkev",
-        "vuln"
-      ],
-      "request": "GET {{BaseURL}}/tmui/login.jsp/..;/tmui/locallb/workspace/fileRead.jsp?fileName=/etc/passwd",
-      "sets": [
-        "kev",
-        "deep"
-      ],
-      "name": "F5 BIG-IP TMUI - Remote Code Execution",
       "severity": "critical"
     },
     {
@@ -20030,28 +19087,6 @@
         "deep"
       ],
       "name": "EyesOfNetwork - Hardcoded API Key \u0026 SQL Injection",
-      "severity": "critical"
-    },
-    {
-      "id": "CVE-2020-8657",
-      "cve": "CVE-2020-8657",
-      "path": "http/cves/2020/CVE-2020-8657.yaml",
-      "sha256": "7263ea4318c7dd875cb6ff2fed59c128a5b980775d486ef0ca86af8d5d41b7f9",
-      "tags": [
-        "cve",
-        "cve2020",
-        "eyesofnetwork",
-        "hardcoded-key",
-        "kev",
-        "vkev",
-        "vuln"
-      ],
-      "request": "POST /eonapi/createEonUser?username=admin\u0026apiKey={{ sha256(md5(key + userid) + Host) }} HTTP/1.1",
-      "sets": [
-        "kev",
-        "deep"
-      ],
-      "name": "EyesOfNetwork - Hardcoded API Key",
       "severity": "critical"
     },
     {
@@ -20794,27 +19829,6 @@
       "severity": "high"
     },
     {
-      "id": "CVE-2021-21389",
-      "cve": "CVE-2021-21389",
-      "path": "http/cves/2021/CVE-2021-21389.yaml",
-      "sha256": "6ca178d437f0f336c1fbab17374637097278bf61362461e4641af00e851bddd2",
-      "tags": [
-        "cve2021",
-        "cve",
-        "wordpress",
-        "wp-plugin",
-        "rce",
-        "wp",
-        "buddypress",
-        "vkev",
-        "vuln"
-      ],
-      "request": "POST /wp-json/buddypress/v1/signup HTTP/1.1",
-      "sets": [
-        "kev"
-      ]
-    },
-    {
       "id": "CVE-2021-21402",
       "cve": "CVE-2021-21402",
       "path": "http/cves/2021/CVE-2021-21402.yaml",
@@ -21096,28 +20110,6 @@
       "severity": "critical"
     },
     {
-      "id": "CVE-2021-22054",
-      "cve": "CVE-2021-22054",
-      "path": "http/cves/2021/CVE-2021-22054.yaml",
-      "sha256": "9f3c7905a161d6e5567f574a0f3d52cefb7a2f3a3d3373756bf11e2a45c5c100",
-      "tags": [
-        "cve2021",
-        "cve",
-        "vmware",
-        "workspace",
-        "ssrf",
-        "vkev",
-        "vuln",
-        "kev"
-      ],
-      "request": "GET {{BaseURL}}/Catalog/BlobHandler.ashx?Url=YQB3AGUAdgAyADoAawB2ADAAOgB4AGwAawBiAEoAbwB5AGMAVwB0AFEAMwB6ADMAbABLADoARQBKAGYAYgBHAE4ATgBDADUARQBBAG0AZQBZAE4AUwBiAFoAVgBZAHYAZwBEAHYAdQBKAFgATQArAFUATQB",
-      "sets": [
-        "deep"
-      ],
-      "name": "VMWare Workspace ONE UEM - Server-Side Request Forgery",
-      "severity": "high"
-    },
-    {
       "id": "CVE-2021-22122",
       "cve": "CVE-2021-22122",
       "path": "http/cves/2021/CVE-2021-22122.yaml",
@@ -21223,28 +20215,6 @@
       ],
       "name": "EVlink City \u003c R8 V3.4.0.1 - Authentication Bypass",
       "severity": "critical"
-    },
-    {
-      "id": "CVE-2021-22873",
-      "cve": "CVE-2021-22873",
-      "path": "http/cves/2021/CVE-2021-22873.yaml",
-      "sha256": "5a842c1baf42f4d0fe01b37ab6ba7030c8cc9d1890c76227488a27243555be53",
-      "tags": [
-        "cve2021",
-        "cve",
-        "hackerone",
-        "seclists",
-        "packetstorm",
-        "redirect",
-        "revive",
-        "revive-adserver",
-        "vkev",
-        "vuln"
-      ],
-      "request": "GET {{BaseURL}}/ads/www/delivery/lg.php?dest=http://interact.sh",
-      "sets": [
-        "kev"
-      ]
     },
     {
       "id": "CVE-2021-22911",
@@ -21410,31 +20380,6 @@
       ],
       "name": "WordPress JH 404 Logger \u003c=1.1 - Cross-Site Scripting",
       "severity": "medium"
-    },
-    {
-      "id": "CVE-2021-24212",
-      "cve": "CVE-2021-24212",
-      "path": "http/cves/2021/CVE-2021-24212.yaml",
-      "sha256": "a48406051b0725a3e6f182a3846fb6675d8af7324086fe678e528a2e191b29e4",
-      "tags": [
-        "cve",
-        "cve2021",
-        "wp",
-        "wordpress",
-        "wp-plugin",
-        "file-upload",
-        "rce",
-        "woocommerce-help-scout",
-        "vkev",
-        "vuln"
-      ],
-      "request": "POST /wp-admin/admin-ajax.php?action=wc_help_scout_upload_attachments HTTP/1.1",
-      "sets": [
-        "kev",
-        "deep"
-      ],
-      "name": "WooCommerce Help Scout - Arbitrary File Upload",
-      "severity": "critical"
     },
     {
       "id": "CVE-2021-24215",
@@ -24065,27 +23010,6 @@
       "severity": "critical"
     },
     {
-      "id": "CVE-2021-28918",
-      "cve": "CVE-2021-28918",
-      "path": "http/cves/2021/CVE-2021-28918.yaml",
-      "sha256": "87d13386c776fef68a73d09f617dea277956c2014c4007eb2dd7971182143571",
-      "tags": [
-        "cve2021",
-        "cve",
-        "npm",
-        "netmask",
-        "ssrf",
-        "lfi",
-        "vuln"
-      ],
-      "request": "GET {{BaseURL}}/?url=http://0177.0.0.1/server-status",
-      "sets": [
-        "deep"
-      ],
-      "name": "Netmask NPM Package - Server-Side Request Forgery",
-      "severity": "critical"
-    },
-    {
       "id": "CVE-2021-28937",
       "cve": "CVE-2021-28937",
       "path": "http/cves/2021/CVE-2021-28937.yaml",
@@ -24145,26 +23069,6 @@
       ],
       "name": "LDAP Injection In OpenAM",
       "severity": "high"
-    },
-    {
-      "id": "CVE-2021-29203",
-      "cve": "CVE-2021-29203",
-      "path": "http/cves/2021/CVE-2021-29203.yaml",
-      "sha256": "d2585b4bc40d131f142bcf0fbeaf0bca2d83c691a0aedcec3c1aa238cee51649",
-      "tags": [
-        "cve2021",
-        "cve",
-        "hpe",
-        "bypass",
-        "tenable",
-        "hp",
-        "vkev",
-        "vuln"
-      ],
-      "request": "PATCH /redfish/v1/SessionService/ResetPassword/1/ HTTP/1.1",
-      "sets": [
-        "kev"
-      ]
     },
     {
       "id": "CVE-2021-29441",
@@ -24517,30 +23421,6 @@
       ],
       "name": "CHIYU TCP/IP Converter - Carriage Return Line Feed Injection",
       "severity": "medium"
-    },
-    {
-      "id": "CVE-2021-3129",
-      "cve": "CVE-2021-3129",
-      "path": "http/cves/2021/CVE-2021-3129.yaml",
-      "sha256": "61e16cbc3718cb36c005965786f57b35f976d9e1bb7a51c285bd0ad74b36d7de",
-      "tags": [
-        "cve2021",
-        "cve",
-        "laravel",
-        "rce",
-        "vulhub",
-        "kev",
-        "facade",
-        "vkev",
-        "vuln"
-      ],
-      "request": "POST /_ignition/execute-solution HTTP/1.1",
-      "sets": [
-        "kev",
-        "deep"
-      ],
-      "name": "Laravel with Ignition \u003c= v8.4.2 Debug Mode - Remote Code Execution",
-      "severity": "critical"
     },
     {
       "id": "CVE-2021-3152",
@@ -25469,24 +24349,6 @@
       "severity": "medium"
     },
     {
-      "id": "CVE-2021-36580",
-      "cve": "CVE-2021-36580",
-      "path": "http/cves/2021/CVE-2021-36580.yaml",
-      "sha256": "9bfe80d7d5bb0633dcfcd155cdd063aeb643c3ebbfe449d0d2783d7341716c50",
-      "tags": [
-        "cve2021",
-        "cve",
-        "icewarp",
-        "redirect",
-        "vuln",
-        "vkev"
-      ],
-      "request": "GET {{BaseURL}}/webmail/basic/?referer=https://interact.sh\u0026_c=auth\u0026ctz=120\u0026signup_password=\u0026_a%5bsignup%5d=1",
-      "sets": [
-        "kev"
-      ]
-    },
-    {
       "id": "CVE-2021-36748",
       "cve": "CVE-2021-36748",
       "path": "http/cves/2021/CVE-2021-36748.yaml",
@@ -26202,32 +25064,6 @@
       "severity": "medium"
     },
     {
-      "id": "CVE-2021-39341",
-      "cve": "CVE-2021-39341",
-      "path": "http/cves/2021/CVE-2021-39341.yaml",
-      "sha256": "46070a997f5777e6622585655a2cec5fe447a9f575117784d3b680b3bf843710",
-      "tags": [
-        "cve",
-        "cve221",
-        "wordpress",
-        "wp-plugin",
-        "optinmonster",
-        "rest-api",
-        "disclosure",
-        "unauth",
-        "exposure",
-        "vkev",
-        "vuln"
-      ],
-      "request": "OPTIONS /wp-json/omapp/v1/support HTTP/1.1",
-      "sets": [
-        "kev",
-        "deep"
-      ],
-      "name": "OptinMonster Plugin \u003c 2.6.5 - Unprotected REST-API",
-      "severity": "high"
-    },
-    {
       "id": "CVE-2021-39350",
       "cve": "CVE-2021-39350",
       "path": "http/cves/2021/CVE-2021-39350.yaml",
@@ -26567,25 +25403,6 @@
       "severity": "critical"
     },
     {
-      "id": "CVE-2021-40968",
-      "cve": "CVE-2021-40968",
-      "path": "http/cves/2021/CVE-2021-40968.yaml",
-      "sha256": "61ffd983df7f33ace96aeea3e2029c083bba9437ec1de4f120048e7aea9ec521",
-      "tags": [
-        "cve2021",
-        "cve",
-        "xss",
-        "spotweb",
-        "vuln"
-      ],
-      "request": "POST /install.php?page=4 HTTP/1.1",
-      "sets": [
-        "deep"
-      ],
-      "name": "Spotweb \u003c= 1.5.1 - Cross Site Scripting",
-      "severity": "medium"
-    },
-    {
       "id": "CVE-2021-40969",
       "cve": "CVE-2021-40969",
       "path": "http/cves/2021/CVE-2021-40969.yaml",
@@ -26617,25 +25434,6 @@
         "vuln"
       ],
       "request": "POST /install.php?page=1 HTTP/1.1",
-      "sets": [
-        "deep"
-      ],
-      "name": "Spotweb \u003c= 1.5.1 - Cross Site Scripting",
-      "severity": "medium"
-    },
-    {
-      "id": "CVE-2021-40971",
-      "cve": "CVE-2021-40971",
-      "path": "http/cves/2021/CVE-2021-40971.yaml",
-      "sha256": "729fc130ba62f14c9efacbdc2d8781c92226cbcf2271bf1a40cb7a405e4df4cf",
-      "tags": [
-        "cve2021",
-        "cve",
-        "xss",
-        "spotweb",
-        "vuln"
-      ],
-      "request": "POST /install.php?page=4 HTTP/1.1",
       "sets": [
         "deep"
       ],
@@ -27009,7 +25807,7 @@
       ],
       "request": "POST /index.php HTTP/1.1",
       "sets": [
-        "deep"
+        "disruptive"
       ],
       "name": "openSIS Student Information System 8.0 SQL Injection",
       "severity": "high"
@@ -27176,29 +25974,6 @@
       "severity": "medium"
     },
     {
-      "id": "CVE-2021-42258",
-      "cve": "CVE-2021-42258",
-      "path": "http/cves/2021/CVE-2021-42258.yaml",
-      "sha256": "e4d28173c5aaa159a91471a27e094531fb7a3744426332f32d98b33cf3a5e37c",
-      "tags": [
-        "cve2021",
-        "cve",
-        "sqli",
-        "billquick",
-        "kev",
-        "bqe",
-        "vkev",
-        "vuln"
-      ],
-      "request": "GET / HTTP/1.1",
-      "sets": [
-        "kev",
-        "deep"
-      ],
-      "name": "BillQuick Web Suite SQL Injection",
-      "severity": "critical"
-    },
-    {
       "id": "CVE-2021-42551",
       "cve": "CVE-2021-42551",
       "path": "http/cves/2021/CVE-2021-42551.yaml",
@@ -27357,27 +26132,6 @@
       ],
       "name": "TOTOLINK EX1200T 4.1.2cu.5215 - Authentication Bypass",
       "severity": "critical"
-    },
-    {
-      "id": "CVE-2021-43062",
-      "cve": "CVE-2021-43062",
-      "path": "http/cves/2021/CVE-2021-43062.yaml",
-      "sha256": "faa487adb4c7c7141c2eff739a6d2477fe71b77eac83d5a3454226c690a2c13d",
-      "tags": [
-        "cve",
-        "cve2021",
-        "fortimail",
-        "xss",
-        "fortinet",
-        "edb",
-        "vuln"
-      ],
-      "request": "GET {{BaseURL}}/fmlurlsvc/?=\u0026url=https%3A%2F%2Fgoogle.com\u003cSvg%2Fonload%3Dalert(document.domain)\u003e",
-      "sets": [
-        "deep"
-      ],
-      "name": "Fortinet FortiMail 7.0.1 - Cross-Site Scripting",
-      "severity": "medium"
     },
     {
       "id": "CVE-2021-43287",
@@ -27583,31 +26337,6 @@
       ],
       "name": "Gradio \u003c 2.5.0 - Arbitrary File Read",
       "severity": "high"
-    },
-    {
-      "id": "CVE-2021-44077",
-      "cve": "CVE-2021-44077",
-      "path": "http/cves/2021/CVE-2021-44077.yaml",
-      "sha256": "618ca4af7331c74dd9e0921b7446008c5d37ebed29f040ed7371fe6ec7363eb2",
-      "tags": [
-        "cve2021",
-        "cve",
-        "rce",
-        "kev",
-        "msf",
-        "zoho",
-        "manageengine",
-        "zohocorp",
-        "vkev",
-        "vuln"
-      ],
-      "request": "GET {{BaseURL}}/RestAPI/ImportTechnicians",
-      "sets": [
-        "kev",
-        "deep"
-      ],
-      "name": "Zoho ManageEngine ServiceDesk Plus - Remote Code Execution",
-      "severity": "critical"
     },
     {
       "id": "CVE-2021-44138",
@@ -28085,25 +26814,6 @@
       ],
       "name": "AntD Admin - Sensitive Information Disclosure",
       "severity": "high"
-    },
-    {
-      "id": "CVE-2021-46379",
-      "cve": "CVE-2021-46379",
-      "path": "http/cves/2021/CVE-2021-46379.yaml",
-      "sha256": "a06bbf3b7ffd01e0dd8d91f7065f82ec437e1a204e8ccfbf2430786392004e3d",
-      "tags": [
-        "cve",
-        "cve2021",
-        "redirect",
-        "dlink",
-        "router",
-        "vkev",
-        "vuln"
-      ],
-      "request": "GET {{BaseURL}}/boafrm/formWlanRedirect?redirect-url=http://interact.sh\u0026wlan_id=1",
-      "sets": [
-        "kev"
-      ]
     },
     {
       "id": "CVE-2021-46381",
@@ -28891,31 +27601,6 @@
       "severity": "medium"
     },
     {
-      "id": "CVE-2022-0441",
-      "cve": "CVE-2022-0441",
-      "path": "http/cves/2022/CVE-2022-0441.yaml",
-      "sha256": "ddf3ec9e836b2b5f93a7bba4da957947642c0a2f1feaa7ed59b49b0a61e50b23",
-      "tags": [
-        "cve2022",
-        "cve",
-        "wordpress",
-        "wp-plugin",
-        "wpscan",
-        "wp",
-        "unauth",
-        "stylemixthemes",
-        "vkev",
-        "vuln"
-      ],
-      "request": "GET / HTTP/1.1",
-      "sets": [
-        "kev",
-        "deep"
-      ],
-      "name": "MasterStudy LMS \u003c2.7.6 - Improper Access Control",
-      "severity": "critical"
-    },
-    {
       "id": "CVE-2022-0482",
       "cve": "CVE-2022-0482",
       "path": "http/cves/2022/CVE-2022-0482.yaml",
@@ -29645,30 +28330,6 @@
       "severity": "critical"
     },
     {
-      "id": "CVE-2022-0826",
-      "cve": "CVE-2022-0826",
-      "path": "http/cves/2022/CVE-2022-0826.yaml",
-      "sha256": "cad0fb6884a76f5b8f899b0cb6906a8e8138c6eea74cb9fbf259e7ba283e0707",
-      "tags": [
-        "time-based-sqli",
-        "cve",
-        "cve2022",
-        "wp-plugin",
-        "wpscan",
-        "wordpress",
-        "wp",
-        "sqli",
-        "wp-video-gallery-free",
-        "unauth",
-        "vkev",
-        "vuln"
-      ],
-      "request": "POST /wp-admin/admin-ajax.php HTTP/1.1",
-      "sets": [
-        "kev"
-      ]
-    },
-    {
       "id": "CVE-2022-0827",
       "cve": "CVE-2022-0827",
       "path": "http/cves/2022/CVE-2022-0827.yaml",
@@ -29949,30 +28610,6 @@
       "severity": "critical"
     },
     {
-      "id": "CVE-2022-0952",
-      "cve": "CVE-2022-0952",
-      "path": "http/cves/2022/CVE-2022-0952.yaml",
-      "sha256": "9e748e84354d1110cfb907d9e54147d17bae8aa9e93b81e86a9c17154cfa15d3",
-      "tags": [
-        "cve",
-        "cve2022",
-        "wp",
-        "wp-plugin",
-        "sitemap",
-        "wpscan",
-        "wordpress",
-        "vkev",
-        "vuln"
-      ],
-      "request": "POST /wp-json/click5_sitemap/API/update_html_option_AJAX HTTP/1.1",
-      "sets": [
-        "kev",
-        "deep"
-      ],
-      "name": "WordPress Sitemap by click5 \u003c1.0.36 - Missing Authorization",
-      "severity": "high"
-    },
-    {
       "id": "CVE-2022-0954",
       "cve": "CVE-2022-0954",
       "path": "http/cves/2022/CVE-2022-0954.yaml",
@@ -29990,28 +28627,6 @@
         "deep"
       ],
       "name": "Microweber \u003c1.2.11 - Stored Cross-Site Scripting",
-      "severity": "medium"
-    },
-    {
-      "id": "CVE-2022-0968",
-      "cve": "CVE-2022-0968",
-      "path": "http/cves/2022/CVE-2022-0968.yaml",
-      "sha256": "8ca74bd9afcfc04c4fdcf4d92f96d5512de658c49535bedecbeac3f0fa8ca5b4",
-      "tags": [
-        "cve",
-        "cve2022",
-        "overflow",
-        "microweber",
-        "cms",
-        "huntr",
-        "dos",
-        "vuln"
-      ],
-      "request": "POST /api/user_login HTTP/1.1",
-      "sets": [
-        "disruptive"
-      ],
-      "name": "Microweber \u003c1.2.12 - Integer Overflow",
       "severity": "medium"
     },
     {
@@ -30063,31 +28678,6 @@
         "deep"
       ],
       "name": "WordPress Personal Dictionary \u003c1.3.4 - Blind SQL Injection",
-      "severity": "critical"
-    },
-    {
-      "id": "CVE-2022-1020",
-      "cve": "CVE-2022-1020",
-      "path": "http/cves/2022/CVE-2022-1020.yaml",
-      "sha256": "11b563d0af3c6459a37638f9e50c3ba161fdf8cd77c4be6f7592488a277d29f3",
-      "tags": [
-        "cve",
-        "cve2022",
-        "wpscan",
-        "wp",
-        "wp-plugin",
-        "wordpress",
-        "unauth",
-        "codeastrology",
-        "vkev",
-        "vuln"
-      ],
-      "request": "POST /wp-admin/admin-ajax.php?action=wpt_admin_update_notice_option HTTP/1.1",
-      "sets": [
-        "kev",
-        "deep"
-      ],
-      "name": "WordPress WooCommerce \u003c3.1.2 - Arbitrary Function Call",
       "severity": "critical"
     },
     {
@@ -30471,30 +29061,6 @@
       "severity": "medium"
     },
     {
-      "id": "CVE-2022-1597",
-      "cve": "CVE-2022-1597",
-      "path": "http/cves/2022/CVE-2022-1597.yaml",
-      "sha256": "90d77ffc69262dd5900bc8a1d08a75f7f0ed18e1e2c7a1b142e6e6b436be3b94",
-      "tags": [
-        "cve",
-        "cve2022",
-        "wpscan",
-        "xss",
-        "wordpress",
-        "wp-plugin",
-        "wp",
-        "wpqa",
-        "2code",
-        "vuln"
-      ],
-      "request": "POST /wp-admin/admin-ajax.php HTTP/1.1",
-      "sets": [
-        "deep"
-      ],
-      "name": "WordPress WPQA \u003c5.4 - Cross-Site Scripting",
-      "severity": "medium"
-    },
-    {
       "id": "CVE-2022-1598",
       "cve": "CVE-2022-1598",
       "path": "http/cves/2022/CVE-2022-1598.yaml",
@@ -30635,33 +29201,6 @@
         "deep"
       ],
       "name": "Terraboard \u003c2.2.0 - SQL Injection",
-      "severity": "high"
-    },
-    {
-      "id": "CVE-2022-1903",
-      "cve": "CVE-2022-1903",
-      "path": "http/cves/2022/CVE-2022-1903.yaml",
-      "sha256": "5740c89d205001243c5610ffffe4a8470298471e5fc5eb8bfa637ab91d530747",
-      "tags": [
-        "cve",
-        "cve2022",
-        "account-takeover",
-        "wpscan",
-        "wordpress",
-        "wp-plugin",
-        "wp",
-        "armember-membership",
-        "unauthenticated",
-        "armemberplugin",
-        "vkev",
-        "vuln"
-      ],
-      "request": "POST /wp-admin/admin-ajax.php HTTP/1.1",
-      "sets": [
-        "kev",
-        "deep"
-      ],
-      "name": "ARMember \u003c 3.4.8 - Unauthenticated Admin Account Takeover",
       "severity": "high"
     },
     {
@@ -32008,28 +30547,6 @@
       "severity": "high"
     },
     {
-      "id": "CVE-2022-25061",
-      "cve": "CVE-2022-25061",
-      "path": "http/cves/2022/CVE-2022-25061.yaml",
-      "sha256": "3794223f61fa7112c08c7a820b8abef7a3bf16430e3deaeefbb6d609562c3475",
-      "tags": [
-        "cve",
-        "cve2022",
-        "tplink",
-        "router",
-        "rce",
-        "iot",
-        "authenticated",
-        "vuln"
-      ],
-      "request": "POST /cgi?2 HTTP/1.1",
-      "sets": [
-        "disruptive"
-      ],
-      "name": "TP-Link TL-WR840N - Command Injection",
-      "severity": "critical"
-    },
-    {
       "id": "CVE-2022-25125",
       "cve": "CVE-2022-25125",
       "path": "http/cves/2022/CVE-2022-25125.yaml",
@@ -32202,28 +30719,6 @@
       ],
       "name": "Alt-n/MDaemon Security Gateway \u003c=8.5.0 - XML Injection",
       "severity": "medium"
-    },
-    {
-      "id": "CVE-2022-25369",
-      "cve": "CVE-2022-25369",
-      "path": "http/cves/2022/CVE-2022-25369.yaml",
-      "sha256": "d9cfdac5ad0f394eac8319150eca08b494fa03cb32d02406bf61ceede754edc3",
-      "tags": [
-        "cve2022",
-        "cve",
-        "dynamicweb",
-        "rce",
-        "unauth",
-        "vkev",
-        "vuln"
-      ],
-      "request": "GET {{BaseURL}}/Admin/Access/Setup/Default.aspx?Action=createadministrator\u0026adminusername={{rand_base(6)}}\u0026adminpassword={{rand_base(6)}}\u0026adminemail=test@test.com\u0026adminname=test",
-      "sets": [
-        "kev",
-        "deep"
-      ],
-      "name": "Dynamicweb 9.5.0 - 9.12.7 Unauthenticated Admin User Creation",
-      "severity": "critical"
     },
     {
       "id": "CVE-2022-2544",
@@ -32683,26 +31178,6 @@
         "deep"
       ],
       "name": "Open Automation Software OAS Platform V16.00.0121 - Missing Authentication",
-      "severity": "critical"
-    },
-    {
-      "id": "CVE-2022-26960",
-      "cve": "CVE-2022-26960",
-      "path": "http/cves/2022/CVE-2022-26960.yaml",
-      "sha256": "cea5f57ab3622bb952c5df3ee2cbd0d9b5c5c89900675e3648b5cfeaa6edd4b6",
-      "tags": [
-        "cve2022",
-        "cve",
-        "lfi",
-        "elfinder",
-        "std42",
-        "vuln"
-      ],
-      "request": "GET /elfinder/php/connector.minimal.php?cmd=file\u0026target=l1_\u003c@base64\u003e/var/www/html/elfinder/files//..//..//..//..//..//../etc/passwd\u003c@/base64\u003e\u0026download=1 HTTP/1.1",
-      "sets": [
-        "deep"
-      ],
-      "name": "elFinder \u003c=2.1.60 - Local File Inclusion",
       "severity": "critical"
     },
     {
@@ -33373,26 +31848,6 @@
       ],
       "name": "Complete Online Job Search System 1.0 - Cross-Site Scripting",
       "severity": "high"
-    },
-    {
-      "id": "CVE-2022-29349",
-      "cve": "CVE-2022-29349",
-      "path": "http/cves/2022/CVE-2022-29349.yaml",
-      "sha256": "0de33f69c7f3c39d67f7b06f267d11a5da0c4d8d04a743c55338bfcfe7f15083",
-      "tags": [
-        "cve",
-        "cve2022",
-        "kkfileview",
-        "xss",
-        "keking",
-        "vuln"
-      ],
-      "request": "GET {{BaseURL}}/onlinePreview?url=aHR0cDovL3d3dy54eHguY29tL3h4eC50eHQiPjxpbWcgc3JjPTExMSBvbmVycm9yPWFsZXJ0KDEpPjEyMw%3D%3D",
-      "sets": [
-        "deep"
-      ],
-      "name": "kkFileView 4.0.0 - Cross-Site Scripting",
-      "severity": "medium"
     },
     {
       "id": "CVE-2022-29383",
@@ -35744,28 +34199,6 @@
       "severity": "high"
     },
     {
-      "id": "CVE-2022-38840",
-      "cve": "CVE-2022-38840",
-      "path": "http/cves/2022/CVE-2022-38840.yaml",
-      "sha256": "c17d701dbb19e18a3a5b3e84f1322a338649e3a30cc942c9f87df0dbfbefc52c",
-      "tags": [
-        "cve",
-        "cve2022",
-        "guralp",
-        "man-eam-0003",
-        "xxe",
-        "vkev",
-        "vuln"
-      ],
-      "request": "POST /cgi-bin/xmlstatus.cgi HTTP/1.1",
-      "sets": [
-        "kev",
-        "deep"
-      ],
-      "name": "G??ralp MAN-EAM-0003 3.2.4 - XML External Entity (XXE)",
-      "severity": "high"
-    },
-    {
       "id": "CVE-2022-38870",
       "cve": "CVE-2022-38870",
       "path": "http/cves/2022/CVE-2022-38870.yaml",
@@ -36231,26 +34664,6 @@
       "severity": "medium"
     },
     {
-      "id": "CVE-2022-40879",
-      "cve": "CVE-2022-40879",
-      "path": "http/cves/2022/CVE-2022-40879.yaml",
-      "sha256": "237c8ad133d5181f9eefa603dfe0f844fa53a9d810dc4b703d22d05b47f5d809",
-      "tags": [
-        "cve",
-        "cve2022",
-        "kkfileview",
-        "xss",
-        "keking",
-        "vuln"
-      ],
-      "request": "GET {{BaseURL}}/onlinePreview?url=aHR0cHM6Ly93d3cuZ29vZ2xlLjxpbWcgc3JjPTEgb25lcnJvcj1hbGVydChkb2N1bWVudC5kb21haW4pPj1QUQ==",
-      "sets": [
-        "deep"
-      ],
-      "name": "kkFileView 4.1.0 - Cross-Site Scripting",
-      "severity": "medium"
-    },
-    {
       "id": "CVE-2022-40881",
       "cve": "CVE-2022-40881",
       "path": "http/cves/2022/CVE-2022-40881.yaml",
@@ -36297,29 +34710,6 @@
         "deep"
       ],
       "name": "WordPress IWS Geo Form Fields \u003c=1.0 - SQL Injection",
-      "severity": "critical"
-    },
-    {
-      "id": "CVE-2022-41352",
-      "cve": "CVE-2022-41352",
-      "path": "http/cves/2022/CVE-2022-41352.yaml",
-      "sha256": "98ff5b923eefc20c5744ad5d8cb4053115c4c632dce3c55b78ad6e0644bc9359",
-      "tags": [
-        "cve",
-        "cve2022",
-        "zimbra",
-        "kev",
-        "file-upload",
-        "passive",
-        "vkev",
-        "vuln"
-      ],
-      "request": "GET {{BaseURL}}/js/zimbraMail/share/model/ZmSettings.js",
-      "sets": [
-        "kev",
-        "deep"
-      ],
-      "name": "Zimbra Collaboration - Unrestricted File Upload",
       "severity": "critical"
     },
     {
@@ -37231,27 +35621,6 @@
       "severity": "medium"
     },
     {
-      "id": "CVE-2022-45038",
-      "cve": "CVE-2022-45038",
-      "path": "http/cves/2022/CVE-2022-45038.yaml",
-      "sha256": "904ad163483675fadfba46344e88510eac731eadc3f127ef201b2c245b4fd282",
-      "tags": [
-        "cve2022",
-        "cve",
-        "xss",
-        "wbce",
-        "cms",
-        "authenticated",
-        "vuln"
-      ],
-      "request": "GET /admin/login/index.php HTTP/1.1",
-      "sets": [
-        "disruptive"
-      ],
-      "name": "WBCE CMS v1.5.4 - Cross Site Scripting (Stored)",
-      "severity": "medium"
-    },
-    {
       "id": "CVE-2022-45269",
       "cve": "CVE-2022-45269",
       "path": "http/cves/2022/CVE-2022-45269.yaml",
@@ -38096,28 +36465,6 @@
       "severity": "medium"
     },
     {
-      "id": "CVE-2023-0552",
-      "cve": "CVE-2023-0552",
-      "path": "http/cves/2023/CVE-2023-0552.yaml",
-      "sha256": "8d204fef29ed3ced7f63cd30c6453a0caecf437032f656d21711aaf1febba6af",
-      "tags": [
-        "cve2023",
-        "cve",
-        "redirect",
-        "pie",
-        "pie-register",
-        "wpscan",
-        "genetechsolutions",
-        "wordpress",
-        "vkev",
-        "vuln"
-      ],
-      "request": "GET {{BaseURL}}/wp-admin?piereg_logout_url=true\u0026redirect_to=https://oast.me",
-      "sets": [
-        "kev"
-      ]
-    },
-    {
       "id": "CVE-2023-0562",
       "cve": "CVE-2023-0562",
       "path": "http/cves/2023/CVE-2023-0562.yaml",
@@ -38510,31 +36857,6 @@
       "severity": "medium"
     },
     {
-      "id": "CVE-2023-1389",
-      "cve": "CVE-2023-1389",
-      "path": "http/cves/2023/CVE-2023-1389.yaml",
-      "sha256": "f7a2dd25faa825e7eb6495c2c6a3dc9dfa6f93a9b6bde95bcb23f301c3e760bf",
-      "tags": [
-        "cve",
-        "cve2023",
-        "tp-link",
-        "archer",
-        "ax21",
-        "rce",
-        "router",
-        "kev",
-        "vkev",
-        "vuln"
-      ],
-      "request": "POST /cgi-bin/luci/;stok=/locale?form=country HTTP/1.1",
-      "sets": [
-        "kev",
-        "deep"
-      ],
-      "name": "TP-Link Archer AX21 (AX1800) - Unauthenticated Command Injection",
-      "severity": "critical"
-    },
-    {
       "id": "CVE-2023-1408",
       "cve": "CVE-2023-1408",
       "path": "http/cves/2023/CVE-2023-1408.yaml",
@@ -38578,28 +36900,6 @@
       ],
       "name": "Jeecg-boot 3.5.0 qurestSql - SQL Injection",
       "severity": "critical"
-    },
-    {
-      "id": "CVE-2023-1496",
-      "cve": "CVE-2023-1496",
-      "path": "http/cves/2023/CVE-2023-1496.yaml",
-      "sha256": "416bf7badeece458311ccfedfab9782f9e1a1c78a8eab8babec8783f7e0bfb77",
-      "tags": [
-        "cve",
-        "cve2023",
-        "huntr",
-        "imgproxy",
-        "xss",
-        "svg",
-        "evilmartians",
-        "vuln"
-      ],
-      "request": "GET {{BaseURL}}/unsafe/plain/https://raw.githubusercontent.com/projectdiscovery/nuclei-templates/refs/heads/main/helpers/payloads/retool-xss.svg",
-      "sets": [
-        "deep"
-      ],
-      "name": "Imgproxy \u003c 3.14.0 - Cross-site Scripting (XSS)",
-      "severity": "medium"
     },
     {
       "id": "CVE-2023-1546",
@@ -39814,28 +38114,6 @@
         "deep"
       ],
       "name": "Jorani 1.0.0 - Remote Code Execution",
-      "severity": "critical"
-    },
-    {
-      "id": "CVE-2023-26802",
-      "cve": "CVE-2023-26802",
-      "path": "http/cves/2023/CVE-2023-26802.yaml",
-      "sha256": "3af71c5271fd809f2190e9911d90e298d29d5e73214e6f618d1d1ad71953be9b",
-      "tags": [
-        "cve",
-        "cve2023",
-        "rce",
-        "unauth",
-        "netlog",
-        "vkev",
-        "vuln"
-      ],
-      "request": "GET /cgi-bin/network_config/nsg_masq.cgi?user_name=admin\u0026session_id=../\u0026lang=zh_CN.UTF-8\u0026act=2\u0026proto=;ls\u003e/usr/local/lyx/lyxcenter/web/{{file_name}}; HTTP/1.1",
-      "sets": [
-        "kev",
-        "deep"
-      ],
-      "name": "DCBI-Netlog-LAB v1.0 - Command Injection",
       "severity": "critical"
     },
     {
@@ -41068,28 +39346,6 @@
       "severity": "high"
     },
     {
-      "id": "CVE-2023-33629",
-      "cve": "CVE-2023-33629",
-      "path": "http/cves/2023/CVE-2023-33629.yaml",
-      "sha256": "3d38568e36873ef623b8c4d9dc88cbb5a48392aa4954f8d0a25b6fff08fd5658",
-      "tags": [
-        "cve2023",
-        "cve",
-        "router",
-        "rce",
-        "h3c",
-        "vkev",
-        "vuln"
-      ],
-      "request": "POST /goform/aspForm HTTP/1.1",
-      "sets": [
-        "kev",
-        "deep"
-      ],
-      "name": "H3C Magic R300-2100M - Remote Code Execution",
-      "severity": "high"
-    },
-    {
       "id": "CVE-2023-33960",
       "cve": "CVE-2023-33960",
       "path": "http/cves/2023/CVE-2023-33960.yaml",
@@ -42251,7 +40507,7 @@
       ],
       "request": "GET /b_download/index.html HTTP/1.1",
       "sets": [
-        "deep"
+        "disruptive"
       ],
       "name": "Fujitsu IP Series - Hardcoded Credentials",
       "severity": "high"
@@ -42292,27 +40548,6 @@
         "vuln"
       ],
       "request": "GET {{BaseURL}}/friends/ajax_invitej7hrg%22%3e%3cimg%20src%3da%20onerror%3dalert(document.domain)%3ef26v4?mode=model",
-      "sets": [
-        "deep"
-      ],
-      "name": "MooDating 1.2 - Cross-Site Scripting",
-      "severity": "medium"
-    },
-    {
-      "id": "CVE-2023-3846",
-      "cve": "CVE-2023-3846",
-      "path": "http/cves/2023/CVE-2023-3846.yaml",
-      "sha256": "7a0cac60a6f92575a245c4350c17ba420690adf7e8b82265f1246ffde5ebc61d",
-      "tags": [
-        "cve2023",
-        "cve",
-        "packetstorm",
-        "xss",
-        "moodating",
-        "moosocial",
-        "vuln"
-      ],
-      "request": "GET {{BaseURL}}/pagesi3efi%22%3e%3cimg%20src%3da%20onerror%3dalert(document.domain)%3ebdk84/no-permission-role?access_token\u0026=redirect_url=aHR0cHM6Ly9kZW1vLm1vb2RhdGluZ3NjcmlwdC5jb20vbWVldF9tZS9pbmRleC",
       "sets": [
         "deep"
       ],
@@ -42505,7 +40740,7 @@
       ],
       "request": "GET /login/ HTTP/1.1",
       "sets": [
-        "deep"
+        "disruptive"
       ],
       "name": "ZKTeco BioTime \u003c= 9.0.1 - Privilege Escalation",
       "severity": "high"
@@ -44025,26 +42260,6 @@
       "severity": "medium"
     },
     {
-      "id": "CVE-2023-45826",
-      "cve": "CVE-2023-45826",
-      "path": "http/cves/2023/CVE-2023-45826.yaml",
-      "sha256": "ebd4b40f7fed73f9ff730462a3a532b50ea16d3709f44bfabce287d3333bd056",
-      "tags": [
-        "cve",
-        "cve2023",
-        "leantime",
-        "authenticated",
-        "sqli",
-        "vuln"
-      ],
-      "request": "POST /auth/login HTTP/1.1",
-      "sets": [
-        "disruptive"
-      ],
-      "name": "Leantime \u003c 2.4 - Authenticated SQL Injection",
-      "severity": "medium"
-    },
-    {
       "id": "CVE-2023-45852",
       "cve": "CVE-2023-45852",
       "path": "http/cves/2023/CVE-2023-45852.yaml",
@@ -45193,30 +43408,6 @@
       "severity": "high"
     },
     {
-      "id": "CVE-2023-6549",
-      "cve": "CVE-2023-6549",
-      "path": "http/cves/2023/CVE-2023-6549.yaml",
-      "sha256": "6b67f5b2599d6588affe8e42a44b23cf59ad0d0e5a5704772346366571ecb39c",
-      "tags": [
-        "cve",
-        "cve2023",
-        "citrix",
-        "netscaller",
-        "gateway",
-        "oob",
-        "kev",
-        "vkev",
-        "vuln"
-      ],
-      "request": "GET /nf/auth/startwebview.do HTTP/1.1",
-      "sets": [
-        "kev",
-        "deep"
-      ],
-      "name": "Citrix Netscaler ADC \u0026 Gateway - Out-Of-Bounds Memory Read",
-      "severity": "critical"
-    },
-    {
       "id": "CVE-2023-6567",
       "cve": "CVE-2023-6567",
       "path": "http/cves/2023/CVE-2023-6567.yaml",
@@ -45785,48 +43976,6 @@
         "deep"
       ],
       "name": "WordPress Ultimate Member 2.1.3 - 2.8.2 ??? SQL Injection",
-      "severity": "critical"
-    },
-    {
-      "id": "CVE-2024-10914",
-      "cve": "CVE-2024-10914",
-      "path": "http/cves/2024/CVE-2024-10914.yaml",
-      "sha256": "fd4b8cbf1118317c77f93e8591dc4ea0fb0d078f997a9fa88284ed6968e8d63d",
-      "tags": [
-        "cve",
-        "cve2024",
-        "dlink",
-        "sharecenter",
-        "rce",
-        "vkev",
-        "vuln"
-      ],
-      "request": "GET /cgi-bin/account_mgr.cgi?cmd=cgi_user_add\u0026name=%27;{{command}};%27 HTTP/1.1",
-      "sets": [
-        "deep"
-      ],
-      "name": "D-Link NAS - Command Injection via Name Parameter",
-      "severity": "critical"
-    },
-    {
-      "id": "CVE-2024-10915",
-      "cve": "CVE-2024-10915",
-      "path": "http/cves/2024/CVE-2024-10915.yaml",
-      "sha256": "17992584a42d4987b8d4f2495cd575e10d8463b20f6bded8cdbca5fb76c24838",
-      "tags": [
-        "cve",
-        "cve2024",
-        "dlink",
-        "sharecenter",
-        "rce",
-        "vuln",
-        "vkev"
-      ],
-      "request": "GET /cgi-bin/account_mgr.cgi?cmd=cgi_user_add\u0026group=%27;{{command}};%27 HTTP/1.1",
-      "sets": [
-        "deep"
-      ],
-      "name": "D-Link NAS - Command Injection via Group Parameter",
       "severity": "critical"
     },
     {
@@ -46593,26 +44742,6 @@
       "severity": "medium"
     },
     {
-      "id": "CVE-2024-21650",
-      "cve": "CVE-2024-21650",
-      "path": "http/cves/2024/CVE-2024-21650.yaml",
-      "sha256": "50950a80546697254caffdebcc3401ccca4acd241b2bc8f1ebe7fb91a76fdf21",
-      "tags": [
-        "cve",
-        "cve2024",
-        "xwiki",
-        "rce",
-        "vkev",
-        "vuln"
-      ],
-      "request": "GET {{path}}/bin/register/XWiki/XWikiRegister?xredirect=%2Fbin%2Fregister%2FXWiki%2FXWikiRegister%3Fxredirect%3D%252Fbin%252Fregister%252FXWiki%252FXWikiRegister%253Fxredirect%253D%25252Fxwiki%25252Fb",
-      "sets": [
-        "deep"
-      ],
-      "name": "XWiki \u003c 4.10.20 - Remote code execution",
-      "severity": "critical"
-    },
-    {
       "id": "CVE-2024-22207",
       "cve": "CVE-2024-22207",
       "path": "http/cves/2024/CVE-2024-22207.yaml",
@@ -47143,49 +45272,6 @@
       "severity": "critical"
     },
     {
-      "id": "CVE-2024-2862",
-      "cve": "CVE-2024-2862",
-      "path": "http/cves/2024/CVE-2024-2862.yaml",
-      "sha256": "95b7e9d7f9add7e606b72c9c9154f8f02b99b48db5f3867f6416a34abbbceae8",
-      "tags": [
-        "cve",
-        "cve2024",
-        "lg",
-        "password",
-        "reset",
-        "vkev",
-        "vuln"
-      ],
-      "request": "PUT /api/changePw HTTP/1.1",
-      "sets": [
-        "kev"
-      ]
-    },
-    {
-      "id": "CVE-2024-2863",
-      "cve": "CVE-2024-2863",
-      "path": "http/cves/2024/CVE-2024-2863.yaml",
-      "sha256": "b33f44df63134b4695ae9e3c7bc0b61d01e363ba5b54fe82efe770dcba3a65bd",
-      "tags": [
-        "cve",
-        "cve2024",
-        "lg",
-        "lfi",
-        "file-upload",
-        "thumbnail",
-        "traversal",
-        "vkev",
-        "vuln"
-      ],
-      "request": "POST /api/thumbnail HTTP/1.1",
-      "sets": [
-        "kev",
-        "deep"
-      ],
-      "name": "LG LED Assistant - Thumbnail Path Traversal File Upload",
-      "severity": "high"
-    },
-    {
       "id": "CVE-2024-28734",
       "path": "http/cves/2024/CVE-2024-28734.yaml",
       "sha256": "8c055ff5b4f14efad2be62a29d1a5dce41c6785977aee0b27a74f77fad4d60ea",
@@ -47297,25 +45383,6 @@
       ],
       "name": "SolarWinds Serv-U - Directory Traversal",
       "severity": "high"
-    },
-    {
-      "id": "CVE-2024-29029",
-      "path": "http/cves/2024/CVE-2024-29029.yaml",
-      "sha256": "c5be40a630ecde88e2a7493094a92e85e2f3e5e2c3dc8299bfe49e0fda051e6a",
-      "tags": [
-        "cve",
-        "cve2024",
-        "xss",
-        "memos",
-        "vkev",
-        "vuln"
-      ],
-      "request": "GET {{BaseURL}}/o/get/image?url=https://raw.githubusercontent.com/projectdiscovery/nuclei-templates/refs/heads/main/helpers/payloads/retool-xss.svg",
-      "sets": [
-        "deep"
-      ],
-      "name": "Memos 0.13.2 - Cross-Site Scripting \u0026 SSRF",
-      "severity": "medium"
     },
     {
       "id": "CVE-2024-29059",
@@ -48161,7 +46228,7 @@
       ],
       "request": "GET /wp-json/masteriyo/v1/course-progress?user_id={{user}} HTTP/1.1",
       "sets": [
-        "deep"
+        "disruptive"
       ],
       "name": "Masteriyo LMS \u003c= 1.7.3 - Insecure Direct Object Reference",
       "severity": "medium"
@@ -48184,25 +46251,6 @@
       ],
       "name": "Changedetection.io \u003c=v0.45.21 - Cross-Site Scripting",
       "severity": "medium"
-    },
-    {
-      "id": "CVE-2024-34257",
-      "path": "http/cves/2024/CVE-2024-34257.yaml",
-      "sha256": "5f786fc9fe7e1f73947af4286db7e3a41be10f5b42a97da1d10f147b4b4ffac3",
-      "tags": [
-        "cve",
-        "cve2024",
-        "rce",
-        "unauth",
-        "vkev",
-        "vuln"
-      ],
-      "request": "POST /cgi-bin/cstecgi.cgi HTTP/1.1",
-      "sets": [
-        "deep"
-      ],
-      "name": "TOTOLINK EX1800T TOTOLINK EX1800T - Command Injection",
-      "severity": "high"
     },
     {
       "id": "CVE-2024-3469",
@@ -48814,26 +46862,6 @@
       "severity": "high"
     },
     {
-      "id": "CVE-2024-39907",
-      "cve": "CVE-2024-39907",
-      "path": "http/cves/2024/CVE-2024-39907.yaml",
-      "sha256": "b40ace60925ee78b4a4932a99e35083fef5c9237858489b6fdcca3cfbe87f3dc",
-      "tags": [
-        "cve",
-        "cve2024",
-        "sqli",
-        "1panel",
-        "authenticated",
-        "vuln"
-      ],
-      "request": "POST /api/v1/auth/login HTTP/1.1",
-      "sets": [
-        "disruptive"
-      ],
-      "name": "1Panel SQL Injection - Authenticated",
-      "severity": "critical"
-    },
-    {
       "id": "CVE-2024-40711",
       "cve": "CVE-2024-40711",
       "path": "http/cves/2024/CVE-2024-40711.yaml",
@@ -49012,28 +47040,6 @@
       "severity": "medium"
     },
     {
-      "id": "CVE-2024-4358",
-      "path": "http/cves/2024/CVE-2024-4358.yaml",
-      "sha256": "01140dd332804a2bc23f205dc08a43d3f6a84e3b2b758b640e3673ec921097f6",
-      "tags": [
-        "cve",
-        "cve2024",
-        "telerik",
-        "progress",
-        "auth-bypass",
-        "instrusive",
-        "kev",
-        "vkev",
-        "vuln"
-      ],
-      "request": "POST /Startup/Register HTTP/1.1",
-      "sets": [
-        "deep"
-      ],
-      "name": "Progress Telerik Report Server - Authentication Bypass",
-      "severity": "critical"
-    },
-    {
       "id": "CVE-2024-4434",
       "cve": "CVE-2024-4434",
       "path": "http/cves/2024/CVE-2024-4434.yaml",
@@ -49058,28 +47064,6 @@
       "severity": "critical"
     },
     {
-      "id": "CVE-2024-4439",
-      "cve": "CVE-2024-4439",
-      "path": "http/cves/2024/CVE-2024-4439.yaml",
-      "sha256": "20f01ff0ebb8145b654f9b24ef7e4fcb9b53a590f1a7747251b70ee79513cdd2",
-      "tags": [
-        "wpscan",
-        "xss",
-        "wp",
-        "wordpress",
-        "footnote",
-        "sxss",
-        "post",
-        "vuln"
-      ],
-      "request": "POST /wp-login.php HTTP/1.1",
-      "sets": [
-        "deep"
-      ],
-      "name": "WordPress Core \u003c6.5.2 - Cross-Site Scripting",
-      "severity": "high"
-    },
-    {
       "id": "CVE-2024-4443",
       "cve": "CVE-2024-4443",
       "path": "http/cves/2024/CVE-2024-4443.yaml",
@@ -49102,51 +47086,6 @@
       ],
       "name": "Business Directory Plugin \u003c= 6.4.2 - SQL Injection",
       "severity": "critical"
-    },
-    {
-      "id": "CVE-2024-44762",
-      "cve": "CVE-2024-44762",
-      "path": "http/cves/2024/CVE-2024-44762.yaml",
-      "sha256": "e0c743d3d89716b82abda866917889972eb962f689b7ebce22ab7f68653e9e02",
-      "tags": [
-        "cve",
-        "cve2024",
-        "usermin",
-        "webmin",
-        "exposure",
-        "usernames",
-        "vuln"
-      ],
-      "request": "POST /password_change.cgi HTTP/1.1",
-      "sets": [
-        "deep"
-      ],
-      "name": "Usermin 2.100 - Username Enumeration",
-      "severity": "medium"
-    },
-    {
-      "id": "CVE-2024-45195",
-      "cve": "CVE-2024-45195",
-      "path": "http/cves/2024/CVE-2024-45195.yaml",
-      "sha256": "58fb7a86fb66ad331551e17a5d8cb888c244250bddd7e9c84ede3ae5085224d9",
-      "tags": [
-        "cve",
-        "cve2024",
-        "apache",
-        "ofbiz",
-        "rce",
-        "instrusive",
-        "kev",
-        "vkev",
-        "vuln"
-      ],
-      "request": "POST /webtools/control/forgotPassword/xmldsdump HTTP/1.1",
-      "sets": [
-        "kev",
-        "deep"
-      ],
-      "name": "Apache OFBiz - Remote Code Execution",
-      "severity": "high"
     },
     {
       "id": "CVE-2024-45216",
@@ -49562,48 +47501,6 @@
       "severity": "high"
     },
     {
-      "id": "CVE-2024-50334",
-      "cve": "CVE-2024-50334",
-      "path": "http/cves/2024/CVE-2024-50334.yaml",
-      "sha256": "301ca83532f0c8a7f950487bfaa00723faf335e8994689b30a30d2bf7bc4e9e4",
-      "tags": [
-        "cve",
-        "cve2024",
-        "scoold",
-        "info-leak",
-        "erudika",
-        "auth-bypass",
-        "vkev",
-        "vuln"
-      ],
-      "request": "PUT /api;/config HTTP/1.1",
-      "sets": [
-        "kev"
-      ]
-    },
-    {
-      "id": "CVE-2024-50477",
-      "cve": "CVE-2024-50477",
-      "path": "http/cves/2024/CVE-2024-50477.yaml",
-      "sha256": "dddf14c335736d186771413e9fa5385a5697104a18e1b672571b60bab10f3a4c",
-      "tags": [
-        "cve",
-        "cve2024",
-        "wordpress",
-        "auth-bypass",
-        "account-takeover",
-        "wp-plugin",
-        "stacks",
-        "vuln"
-      ],
-      "request": "GET /wp-content/plugins/stacks-mobile-app-builder/readme.txt HTTP/1.1",
-      "sets": [
-        "deep"
-      ],
-      "name": "WordPress Stacks Mobile App Builder \u003c=5.2.3 - Authentication Bypass",
-      "severity": "critical"
-    },
-    {
       "id": "CVE-2024-50498",
       "cve": "CVE-2024-50498",
       "path": "http/cves/2024/CVE-2024-50498.yaml",
@@ -49714,26 +47611,6 @@
       "severity": "critical"
     },
     {
-      "id": "CVE-2024-51739",
-      "cve": "CVE-2024-51739",
-      "path": "http/cves/2024/CVE-2024-51739.yaml",
-      "sha256": "a2c306c5a7b0ef841ca717c767917ff613ca479b4f5d52e295b34cc29bc1bcdd",
-      "tags": [
-        "cve",
-        "cve2024",
-        "itop",
-        "enum",
-        "unauth",
-        "vuln"
-      ],
-      "request": "GET {{BaseURL}}/webservices/rest.php?loginop=do_reset_pwd\u0026auth_user=doesnotexist",
-      "sets": [
-        "deep"
-      ],
-      "name": "iTop - User Enumeration via REST Endpoint",
-      "severity": "medium"
-    },
-    {
       "id": "CVE-2024-5217",
       "path": "http/cves/2024/CVE-2024-5217.yaml",
       "sha256": "fdfb4f6044814a93b9a70cd38b3fcec16ddd5e2dd48d84d8573e74a4bc915042",
@@ -49795,30 +47672,6 @@
         "deep"
       ],
       "name": "My Geo Posts Free \u003c= 1.2 - PHP Object Injection",
-      "severity": "critical"
-    },
-    {
-      "id": "CVE-2024-5276",
-      "cve": "CVE-2024-5276",
-      "path": "http/cves/2024/CVE-2024-5276.yaml",
-      "sha256": "32f807058aaf81801e4f30a6cd9758ec43b3fad2ce7a38ea6d7389058428d870",
-      "tags": [
-        "cve",
-        "cve2024",
-        "sqli",
-        "auth-bypass",
-        "fortra",
-        "filecatalyst",
-        "instrusive",
-        "vkev",
-        "vuln"
-      ],
-      "request": "GET /{{ctxpath}}/ HTTP/1.1",
-      "sets": [
-        "kev",
-        "deep"
-      ],
-      "name": "Fortra FileCatalyst Workflow \u003c= v5.1.6 - SQL Injection",
       "severity": "critical"
     },
     {
@@ -50393,26 +48246,6 @@
       "severity": "critical"
     },
     {
-      "id": "CVE-2024-57514",
-      "cve": "CVE-2024-57514",
-      "path": "http/cves/2024/CVE-2024-57514.yaml",
-      "sha256": "48682305ddf7dc1c834797812e4b84c388b678b0bb4a86a3aba43ff1ab6b4a41",
-      "tags": [
-        "cve",
-        "cve2024",
-        "tplink",
-        "router",
-        "xss",
-        "vuln"
-      ],
-      "request": "GET {{BaseURL}}/\u003cstyle%20onload=alert`document.domain`;\u003e../..%2f",
-      "sets": [
-        "deep"
-      ],
-      "name": "TP-Link Archer A20 v3 Router - Cross-site Scripting",
-      "severity": "medium"
-    },
-    {
       "id": "CVE-2024-57726",
       "cve": "CVE-2024-57726",
       "path": "http/cves/2024/CVE-2024-57726.yaml",
@@ -50642,28 +48475,6 @@
       "severity": "critical"
     },
     {
-      "id": "CVE-2024-6396",
-      "cve": "CVE-2024-6396",
-      "path": "http/cves/2024/CVE-2024-6396.yaml",
-      "sha256": "125926689d20b84e61ced84fe072dd1a783fd1500ce345ef860cc3ba7e773507",
-      "tags": [
-        "cve",
-        "cve2024",
-        "aim",
-        "aimhubio",
-        "file-write",
-        "vkev",
-        "vuln"
-      ],
-      "request": "POST /tracking/client_1/get-resource HTTP/1.1",
-      "sets": [
-        "kev",
-        "deep"
-      ],
-      "name": "Aimhubio Aim Server 3.19.3 - Arbitrary File Overwrite",
-      "severity": "critical"
-    },
-    {
       "id": "CVE-2024-6555",
       "cve": "CVE-2024-6555",
       "path": "http/cves/2024/CVE-2024-6555.yaml",
@@ -50723,27 +48534,6 @@
       ],
       "name": "Netgear-WN604 downloadFile.php - Information Disclosure",
       "severity": "medium"
-    },
-    {
-      "id": "CVE-2024-6690",
-      "cve": "CVE-2024-6690",
-      "path": "http/cves/2024/CVE-2024-6690.yaml",
-      "sha256": "f05b44fef1736ccbfd6c2b159c8b8fdc6479bdce4bb4ac9b82b548fe8523c0f3",
-      "tags": [
-        "cve",
-        "cve2024",
-        "wordpress",
-        "wp-plugin",
-        "redirect",
-        "wccp-pro",
-        "unauth",
-        "vkev",
-        "vuln"
-      ],
-      "request": "GET {{BaseURL}}/wp-content/plugins/wccp-pro/no-js.php?referrer=https://oast.pro",
-      "sets": [
-        "kev"
-      ]
     },
     {
       "id": "CVE-2024-6781",
@@ -53266,25 +51056,6 @@
       "severity": "medium"
     },
     {
-      "id": "CVE-2025-32355",
-      "path": "http/cves/2025/CVE-2025-32355.yaml",
-      "sha256": "56b2ffc421a1b48fc1829f692df05c3642c86643f1c88d89ec36271330a6a97a",
-      "tags": [
-        "cve",
-        "cve2025",
-        "rocket",
-        "trufusion",
-        "ssrf",
-        "vkev"
-      ],
-      "request": "GET http://127.0.0.1:8080/axis2/services/listServices HTTP/1.1",
-      "sets": [
-        "deep"
-      ],
-      "name": "Rocket TRUfusion Enterprise - Server Side Request Forgery",
-      "severity": "high"
-    },
-    {
       "id": "CVE-2025-32395",
       "cve": "CVE-2025-32395",
       "path": "http/cves/2025/CVE-2025-32395.yaml",
@@ -53753,7 +51524,7 @@
       ],
       "request": "POST /sitecore/api/ssc/auth/login HTTP/1.1",
       "sets": [
-        "deep"
+        "disruptive"
       ],
       "name": "Sitecore Experience Manager (XM) and Experience Platform (XP) - Hardcoded Credentials",
       "severity": "high"
@@ -54206,26 +51977,6 @@
       "severity": "high"
     },
     {
-      "id": "CVE-2025-47539",
-      "cve": "CVE-2025-47539",
-      "path": "http/cves/2025/CVE-2025-47539.yaml",
-      "sha256": "76ef7d4210635f3cc33fe7835a0c9f07aabdd0569bb5c402a02b962e147ef5e0",
-      "tags": [
-        "cve",
-        "cve2025",
-        "wordpress",
-        "wp",
-        "wp-plugin",
-        "eventin",
-        "vkev",
-        "vuln"
-      ],
-      "request": "POST /wp-json/eventin/v2/speakers/import?_locale=user HTTP/1.1",
-      "sets": [
-        "kev"
-      ]
-    },
-    {
       "id": "CVE-2025-47812",
       "cve": "CVE-2025-47812",
       "path": "http/cves/2025/CVE-2025-47812.yaml",
@@ -54340,26 +52091,6 @@
       ],
       "name": "MyStyle Custom Product Designer \u003c= 3.21.1 - SQL Injection",
       "severity": "critical"
-    },
-    {
-      "id": "CVE-2025-48954",
-      "cve": "CVE-2025-48954",
-      "path": "http/cves/2025/CVE-2025-48954.yaml",
-      "sha256": "8083eb7de482c719e99ac33a1d0446df7993bec48bfa9f1941d33c4d2464b8ed",
-      "tags": [
-        "cve",
-        "cve2025",
-        "discourse",
-        "xss",
-        "oauth",
-        "vuln"
-      ],
-      "request": "GET {{BaseURL}}/auth/failure?provider={{redirect_payload}}",
-      "sets": [
-        "deep"
-      ],
-      "name": "Discourse OAuth Social Login - Cross-site Scripting",
-      "severity": "high"
     },
     {
       "id": "CVE-2025-49002",
@@ -54924,29 +52655,6 @@
       "severity": "high"
     },
     {
-      "id": "CVE-2025-58179",
-      "cve": "CVE-2025-58179",
-      "path": "http/cves/2025/CVE-2025-58179.yaml",
-      "sha256": "3e379dc6877fcef69633572d41941bbc40365d70975eb607e134e034afd83f83",
-      "tags": [
-        "cve",
-        "cve2025",
-        "ssrf",
-        "xss",
-        "astro",
-        "cloudflare",
-        "vuln",
-        "vkev"
-      ],
-      "request": "GET {{BaseURL}}/_image?href=https://raw.githubusercontent.com/projectdiscovery/nuclei-templates/refs/heads/main/helpers/payloads/retool-xss.svg\u0026f=svg",
-      "sets": [
-        "kev",
-        "deep"
-      ],
-      "name": "Astro Cloudflare Adapter - Server Side Request Forgery",
-      "severity": "high"
-    },
-    {
       "id": "CVE-2025-58226",
       "path": "http/cves/2025/CVE-2025-58226.yaml",
       "sha256": "67a0ce1e47737bcb7de4acfd3c0a06778b56d2667a943b1a10b7671435107baa",
@@ -55255,25 +52963,6 @@
       "severity": "medium"
     },
     {
-      "id": "CVE-2025-62168",
-      "cve": "CVE-2025-62168",
-      "path": "http/cves/2025/CVE-2025-62168.yaml",
-      "sha256": "ca6ae3b88692bb04e85d9e811193a3320fe7c00d42156e5566546fbb14e7b390",
-      "tags": [
-        "cve",
-        "cve2025",
-        "info-disclosure",
-        "squid",
-        "proxy"
-      ],
-      "request": "GET http://{{invalid_host}}/ HTTP/1.1",
-      "sets": [
-        "deep"
-      ],
-      "name": "Squid Proxy - HTTP Authentication Credentials Disclosure",
-      "severity": "critical"
-    },
-    {
       "id": "CVE-2025-62522",
       "path": "http/cves/2025/CVE-2025-62522.yaml",
       "sha256": "9dca88fb41d729c092e8918742d563cb8ca15dfb141086bd841ccec4005f52d4",
@@ -55516,7 +53205,7 @@
       ],
       "request": "GET /api/project HTTP/1.1",
       "sets": [
-        "deep"
+        "disruptive"
       ],
       "name": "FUXA \u003c= 1.2.7 - Hardcoded JWT Secret Authentication Bypass",
       "severity": "critical"
@@ -55949,27 +53638,6 @@
       "severity": "medium"
     },
     {
-      "id": "CVE-2026-11387",
-      "cve": "CVE-2026-11387",
-      "path": "http/cves/2026/CVE-2026-11387.yaml",
-      "sha256": "ca40c8195dedccf4f856ecdedbb515363c715e92fdaf608144901bf8a020a153",
-      "tags": [
-        "cve",
-        "cve2026",
-        "wordpress",
-        "wp-plugin",
-        "sms-alert",
-        "auth-bypass",
-        "account-takeover"
-      ],
-      "request": "POST /wp-login.php?action=lostpassword HTTP/1.1",
-      "sets": [
-        "deep"
-      ],
-      "name": "SMS Alert ??? SMS \u0026 OTP for WooCommerce - Privilege Escalation",
-      "severity": "critical"
-    },
-    {
       "id": "CVE-2026-11801",
       "cve": "CVE-2026-11801",
       "path": "http/cves/2026/CVE-2026-11801.yaml",
@@ -56013,27 +53681,6 @@
       ],
       "name": "Django RasterField - SQL Injection",
       "severity": "high"
-    },
-    {
-      "id": "CVE-2026-1277",
-      "cve": "CVE-2026-1277",
-      "path": "http/cves/2026/CVE-2026-1277.yaml",
-      "sha256": "2e9579e47e526af693a2a81783896f1986c7db3a06ea0a8bb72373fddd22682f",
-      "tags": [
-        "cve",
-        "cve2026",
-        "wordpress",
-        "wp",
-        "wp-plugin",
-        "redirect",
-        "url-shortify",
-        "unauth",
-        "vkev"
-      ],
-      "request": "GET {{BaseURL}}/wp-admin/admin-ajax.php?action=heartbeat\u0026kc_us_dismiss_admin_notice=1\u0026option_name=bfcm_2025_offer\u0026redirect_to=https://interact.sh",
-      "sets": [
-        "kev"
-      ]
     },
     {
       "id": "CVE-2026-1281",
@@ -56726,30 +54373,6 @@
       "severity": "high"
     },
     {
-      "id": "CVE-2026-25895",
-      "cve": "CVE-2026-25895",
-      "path": "http/cves/2026/CVE-2026-25895.yaml",
-      "sha256": "2ccf1ac69b59032642434655586d9a19ceb357fa69bf0ec8a01931931713d538",
-      "tags": [
-        "cve",
-        "cve2026",
-        "fuxa",
-        "scada",
-        "path-traversal",
-        "file-upload",
-        "rce",
-        "unauth",
-        "vkev"
-      ],
-      "request": "POST /api/upload HTTP/1.1",
-      "sets": [
-        "kev",
-        "deep"
-      ],
-      "name": "FUXA \u003c= 1.2.9 - Unauthenticated Path Traversal to Arbitrary File Write",
-      "severity": "critical"
-    },
-    {
       "id": "CVE-2026-2614",
       "cve": "CVE-2026-2614",
       "path": "http/cves/2026/CVE-2026-2614.yaml",
@@ -57155,28 +54778,6 @@
       "severity": "high"
     },
     {
-      "id": "CVE-2026-30849",
-      "cve": "CVE-2026-30849",
-      "path": "http/cves/2026/CVE-2026-30849.yaml",
-      "sha256": "90be39ca8dc7736f6c8f9478712496f73cce84b8201b60f3369fe8f8d96eea8d",
-      "tags": [
-        "cve",
-        "cve2026",
-        "mantisbt",
-        "soap",
-        "auth-bypass",
-        "type-confusion",
-        "mysql",
-        "unauth"
-      ],
-      "request": "POST /api/soap/mantisconnect.php HTTP/1.1",
-      "sets": [
-        "deep"
-      ],
-      "name": "MantisBT \u003c 2.28.1 - SOAP API Authentication Bypass",
-      "severity": "critical"
-    },
-    {
       "id": "CVE-2026-30928",
       "cve": "CVE-2026-30928",
       "path": "http/cves/2026/CVE-2026-30928.yaml",
@@ -57540,44 +55141,6 @@
       ],
       "name": "Gravity SMTP WordPress Plugin - Sensitive Information Exposure",
       "severity": "high"
-    },
-    {
-      "id": "CVE-2026-40281",
-      "cve": "CVE-2026-40281",
-      "path": "http/cves/2026/CVE-2026-40281.yaml",
-      "sha256": "d68fc6c5d7de2f90f62adf6ea717f02ea82140ef1bf3c7fe9b1a77ed0c5aca74",
-      "tags": [
-        "cve",
-        "cve2026",
-        "gotenberg",
-        "exiftool",
-        "rce",
-        "unauth"
-      ],
-      "request": "POST /forms/pdfengines/metadata/write HTTP/1.1",
-      "sets": [
-        "deep"
-      ],
-      "name": "Gotenberg \u003c= 8.30.1 - Remote Code Execution",
-      "severity": "critical"
-    },
-    {
-      "id": "CVE-2026-40878",
-      "cve": "CVE-2026-40878",
-      "path": "http/cves/2026/CVE-2026-40878.yaml",
-      "sha256": "1165e909939f794a1445af8f23256db3cf2dffd7b255b18e27e29237a685299c",
-      "tags": [
-        "cve",
-        "cve2026",
-        "mailcow",
-        "link-injection"
-      ],
-      "request": "GET {{BaseURL}}/?session_expired=true\u0026redirect=http://evil.com",
-      "sets": [
-        "deep"
-      ],
-      "name": "Mailcow \u003c 2026-03b - Href Link Injection",
-      "severity": "low"
     },
     {
       "id": "CVE-2026-41432",
@@ -58044,26 +55607,6 @@
       "severity": "high"
     },
     {
-      "id": "CVE-2026-54617",
-      "cve": "CVE-2026-54617",
-      "path": "http/cves/2026/CVE-2026-54617.yaml",
-      "sha256": "0ad71420f53a14dac7127762f15abbbf3e9bf6ad455c687db681f5e1831cf973",
-      "tags": [
-        "cve",
-        "cve2026",
-        "gravitlauncher",
-        "launchserver",
-        "path-traversal",
-        "unauth"
-      ],
-      "request": "GET ../../.keys/ecdsa_id HTTP/1.1",
-      "sets": [
-        "deep"
-      ],
-      "name": "GravitLauncher LaunchServer \u003c=5.7.11 - Unauthenticated Path Traversal to Arbitrary File Read",
-      "severity": "critical"
-    },
-    {
       "id": "CVE-2026-54836",
       "cve": "CVE-2026-54836",
       "path": "http/cves/2026/CVE-2026-54836.yaml",
@@ -58101,25 +55644,6 @@
       ],
       "name": "Etherpad 2.1.0 \u003c= 3.0.0 - Cross-Site Scripting",
       "severity": "medium"
-    },
-    {
-      "id": "CVE-2026-55229",
-      "cve": "CVE-2026-55229",
-      "path": "http/cves/2026/CVE-2026-55229.yaml",
-      "sha256": "a57188ab8ca605bf8ba4e10e076595777f956c527a05b669bb850714b958155a",
-      "tags": [
-        "cve",
-        "cve2026",
-        "gotenberg",
-        "ssrf",
-        "lfi"
-      ],
-      "request": "POST /forms/libreoffice/convert HTTP/1.1",
-      "sets": [
-        "deep"
-      ],
-      "name": "Gotenberg \u003c 8.34.0 - Local File Disclosure",
-      "severity": "high"
     },
     {
       "id": "CVE-2026-55549",
@@ -60858,22 +58382,6 @@
         "disruptive"
       ],
       "name": "IBM MQSeries Web Console Default Login",
-      "severity": "high"
-    },
-    {
-      "id": "ibm-security-verify-default-login",
-      "path": "http/default-logins/ibm/ibm-security-verify-default-login.yaml",
-      "sha256": "efc9a739a003565a8bd1d2c7b5953ed1fc8d18412cd537ef8aa3b42ec9510ed9",
-      "tags": [
-        "ibm",
-        "default-login",
-        "vuln"
-      ],
-      "request": "GET / HTTP/1.1",
-      "sets": [
-        "disruptive"
-      ],
-      "name": "IBM Security Verify Access - Default Login",
       "severity": "high"
     },
     {
@@ -64521,23 +62029,6 @@
       "severity": "info"
     },
     {
-      "id": "apache-mesos-panel",
-      "path": "http/exposed-panels/apache/apache-mesos-panel.yaml",
-      "sha256": "6dd01ef60897f836a836c6d3ad1168288324c9fa31f7afdbf6671c15aede989a",
-      "tags": [
-        "panel",
-        "apache",
-        "mesos",
-        "discovery"
-      ],
-      "request": "GET {{BaseURL}}",
-      "sets": [
-        "deep"
-      ],
-      "name": "Apache Mesos - Panel Detect",
-      "severity": "info"
-    },
-    {
       "id": "apache-mod-cluster-exposure",
       "path": "http/exposed-panels/apache/apache-mod-cluster-exposure.yaml",
       "sha256": "59fb137111e2212bf64e87f2f1b6c9bcceca96cda4520c54e857cfa9e68764e5",
@@ -66538,27 +64029,6 @@
       "generic": true
     },
     {
-      "id": "ares-rat-c2",
-      "path": "http/exposed-panels/c2/ares-rat-c2.yaml",
-      "sha256": "c56f473350e024f2be5d89c0b1e809150e68f05233f9a215f6caf81e2db3a548",
-      "tags": [
-        "c2",
-        "ir",
-        "osint",
-        "ares",
-        "panel",
-        "rat",
-        "vuln"
-      ],
-      "request": "GET {{BaseURL}}/login",
-      "sets": [
-        "deep"
-      ],
-      "name": "Area Rat C2 - Detect",
-      "severity": "info",
-      "generic": true
-    },
-    {
       "id": "bofamet-stealer-panel",
       "path": "http/exposed-panels/c2/bofamet-stealer-panel.yaml",
       "sha256": "e02e225e08ed9375565bb586756849515d7a09b808efd1c2510c2b73a2c78e8c",
@@ -66599,45 +64069,6 @@
       "generic": true
     },
     {
-      "id": "caldera-c2",
-      "path": "http/exposed-panels/c2/caldera-c2.yaml",
-      "sha256": "5e7cca6ea5ca93485557d21e3729b3aed7509f9b7dc31d22974d9c0aa2e82203",
-      "tags": [
-        "c2",
-        "ir",
-        "osint",
-        "caldera",
-        "panel",
-        "vuln"
-      ],
-      "request": "GET {{BaseURL}}",
-      "sets": [
-        "deep"
-      ],
-      "name": "Caldera C2 - Detect",
-      "severity": "info"
-    },
-    {
-      "id": "covenant-c2",
-      "path": "http/exposed-panels/c2/covenant-c2.yaml",
-      "sha256": "eff3a6e200bb0adcef642938f789c2e6b6298e2214f225c3101d2433d78bf6d9",
-      "tags": [
-        "c2",
-        "ir",
-        "osint",
-        "covenant",
-        "panel",
-        "vuln"
-      ],
-      "request": "GET {{BaseURL}}/covenantuser/login",
-      "sets": [
-        "deep"
-      ],
-      "name": "Covenant C2 - Detect",
-      "severity": "info",
-      "generic": true
-    },
-    {
       "id": "cyber-stealer-panel",
       "path": "http/exposed-panels/c2/cyber-stealer-panel.yaml",
       "sha256": "e52d819326c99987cf537de4f196f5f0d1a351c91717e7f7a6d54187d57795f1",
@@ -66658,46 +64089,6 @@
       "generic": true
     },
     {
-      "id": "deimos-c2",
-      "path": "http/exposed-panels/c2/deimos-c2.yaml",
-      "sha256": "0a1ad5de3bcb17a5cbb19b5a2ac60490c27d9f3056029a9f7a8fbfebc30dbfa5",
-      "tags": [
-        "c2",
-        "ir",
-        "osint",
-        "deimosc2",
-        "panel",
-        "vuln"
-      ],
-      "request": "GET {{BaseURL}}/login",
-      "sets": [
-        "deep"
-      ],
-      "name": "Deimos C2 - Detect",
-      "severity": "info",
-      "generic": true
-    },
-    {
-      "id": "empire-c2",
-      "path": "http/exposed-panels/c2/empire-c2.yaml",
-      "sha256": "edf394be2fc0b8fbe60c38b84704987a1a704166e822554459375c7afc473bf3",
-      "tags": [
-        "c2",
-        "ir",
-        "osint",
-        "empire",
-        "panel",
-        "vuln"
-      ],
-      "request": "GET {{BaseURL}}",
-      "sets": [
-        "deep"
-      ],
-      "name": "Empire C2 - Detect",
-      "severity": "info",
-      "generic": true
-    },
-    {
       "id": "evilginx",
       "path": "http/exposed-panels/c2/evilginx.yaml",
       "sha256": "d36c0c88dacae5ec1e33b2c364eb709e3869ba2fb9f2020d169a50bdf07568cf",
@@ -66714,26 +64105,6 @@
         "deep"
       ],
       "name": "EvilGinx - Detect",
-      "severity": "info",
-      "generic": true
-    },
-    {
-      "id": "hack5-cloud-c2",
-      "path": "http/exposed-panels/c2/hack5-cloud-c2.yaml",
-      "sha256": "fef5420c477f293d16e2cd6d9ccc575e23aa777cbfb3e3963ad6c4555b7f52b2",
-      "tags": [
-        "c2",
-        "ir",
-        "osint",
-        "hack5c2",
-        "panel",
-        "vuln"
-      ],
-      "request": "GET {{BaseURL}}",
-      "sets": [
-        "deep"
-      ],
-      "name": "Hack5 Cloud C2 - Detect",
       "severity": "info",
       "generic": true
     },
@@ -66798,26 +64169,6 @@
       "generic": true
     },
     {
-      "id": "mythic-c2",
-      "path": "http/exposed-panels/c2/mythic-c2.yaml",
-      "sha256": "d0bfbd7c53d669c5733ee8bc08a1fb312e01b68f631a32259d85ad2e26f284f3",
-      "tags": [
-        "c2",
-        "ir",
-        "osint",
-        "mythic",
-        "panel",
-        "vuln"
-      ],
-      "request": "GET {{BaseURL}}/new/login",
-      "sets": [
-        "deep"
-      ],
-      "name": "Mythic C2 - Detect",
-      "severity": "info",
-      "generic": true
-    },
-    {
       "id": "nh-c2",
       "path": "http/exposed-panels/c2/nh-c2.yaml",
       "sha256": "65ffcdec11e1e796a17dee87a2d295ca7ede37e4c168c589d21344ed8ebfd5a2",
@@ -66857,26 +64208,6 @@
       "generic": true
     },
     {
-      "id": "pupyc2",
-      "path": "http/exposed-panels/c2/pupyc2.yaml",
-      "sha256": "109c087e8d6ab8ad2223e385ea4d5bb692cc98f943a641c2b8d703208453fa68",
-      "tags": [
-        "c2",
-        "ir",
-        "osint",
-        "pupyc2",
-        "panel",
-        "vuln"
-      ],
-      "request": "GET {{BaseURL}}",
-      "sets": [
-        "deep"
-      ],
-      "name": "PupyC2 - Detect",
-      "severity": "info",
-      "generic": true
-    },
-    {
       "id": "rhadamanthys-stealer-panel",
       "path": "http/exposed-panels/c2/rhadamanthys-stealer-panel.yaml",
       "sha256": "f0bf20b663fbba04b8d416f0b7d29ab90000fa307cc6858c88096fcd652180f8",
@@ -66892,26 +64223,6 @@
         "deep"
       ],
       "name": "Rhadamanthys Stealer C2 Panel - Detect",
-      "severity": "info",
-      "generic": true
-    },
-    {
-      "id": "supershell-c2",
-      "path": "http/exposed-panels/c2/supershell-c2.yaml",
-      "sha256": "3eb9a51b249d2f82f828834b2ba3b50123839c6ac2b7025a1d5caafa50097e83",
-      "tags": [
-        "c2",
-        "ir",
-        "osint",
-        "supershell",
-        "panel",
-        "vuln"
-      ],
-      "request": "GET {{BaseURL}}",
-      "sets": [
-        "deep"
-      ],
-      "name": "Supershell C2 - Detect",
       "severity": "info",
       "generic": true
     },
@@ -74119,24 +71430,6 @@
       "generic": true
     },
     {
-      "id": "hpe-autopass-panel",
-      "path": "http/exposed-panels/hpe-autopass-panel.yaml",
-      "sha256": "9804a3939e5a8e451e75ebf8d19b7cfdc914293d3eacc04e2045527d9e6e2ff5",
-      "tags": [
-        "panel",
-        "exposure",
-        "misconfig",
-        "hpe",
-        "autopass"
-      ],
-      "request": "GET {{BaseURL}}/autopass",
-      "sets": [
-        "deep"
-      ],
-      "name": "HPE AutoPass License Server - Panel Detection",
-      "severity": "info"
-    },
-    {
       "id": "hpe-officeconnect-panel",
       "path": "http/exposed-panels/hpe-officeconnect-panel.yaml",
       "sha256": "84a154a52a31b9d538a17ce1122435e0031759296c9714254060cb4c1d976e86",
@@ -79533,22 +76826,6 @@
       "generic": true
     },
     {
-      "id": "novnc-login-panel",
-      "path": "http/exposed-panels/novnc-login-panel.yaml",
-      "sha256": "0732080e85576689f909f6487dd8a46a9de7a56a602bd515531adf70e6ef1d67",
-      "tags": [
-        "panel",
-        "novnc",
-        "discovery"
-      ],
-      "request": "GET {{BaseURL}}/vnc.html",
-      "sets": [
-        "deep"
-      ],
-      "name": "noVNC Login Panel - Detect",
-      "severity": "info"
-    },
-    {
       "id": "nozomi-panel",
       "path": "http/exposed-panels/nozomi-panel.yaml",
       "sha256": "5cf8948ee9d52afbce9b532fe6897a7a022be75be5dad07773ca4911e535f976",
@@ -80516,26 +77793,6 @@
       "name": "OpenSearch Dashboard Panel - Detect",
       "severity": "info",
       "generic": true
-    },
-    {
-      "id": "openshift-oauth-proxy-panel",
-      "path": "http/exposed-panels/openshift-oauth-proxy-panel.yaml",
-      "sha256": "28eaaf9ef44010133b1a8abb5ebb4e30a444143037e96a9316ba8a18f9cb96eb",
-      "tags": [
-        "openshift",
-        "redhat",
-        "detect",
-        "oauth",
-        "proxy",
-        "login",
-        "discovery"
-      ],
-      "request": "GET {{BaseURL}}",
-      "sets": [
-        "deep"
-      ],
-      "name": "OpenShift OAuth Proxy - Panel Detect",
-      "severity": "info"
     },
     {
       "id": "opensign-panel",
@@ -92449,24 +89706,6 @@
       "generic": true
     },
     {
-      "id": "azure-domain-tenant",
-      "path": "http/exposures/configs/azure-domain-tenant.yaml",
-      "sha256": "55340c75ba9bc9125cc11877c8045298242cf917edf39a9a7f98ad5c90bf3c8a",
-      "tags": [
-        "azure",
-        "microsoft",
-        "cloud",
-        "exposure",
-        "vuln"
-      ],
-      "request": "GET /{{Host}}/v2.0/.well-known/openid-configuration HTTP/1.1",
-      "sets": [
-        "deep"
-      ],
-      "name": "Microsoft Azure Domain Tenant ID - Detect",
-      "severity": "info"
-    },
-    {
       "id": "azure-functions-hostjson-exposure",
       "path": "http/exposures/configs/azure-functions-hostjson-exposure.yaml",
       "sha256": "807f4ae47ea4a0c0042efda0c04c89277db42c42f2d1cf6944aaabba2a0a07bd",
@@ -96263,7 +93502,8 @@
         "deep"
       ],
       "name": "Bitbucket OAuth Credentials Exposure",
-      "severity": "high"
+      "severity": "high",
+      "generic": true
     },
     {
       "id": "bitbucket-pipelines",
@@ -97327,24 +94567,6 @@
       "generic": true
     },
     {
-      "id": "kcfinder-exposure",
-      "path": "http/exposures/files/kcfinder-exposure.yaml",
-      "sha256": "376ab8f6c55ec94c319f875bec9248cbf9962762c673761167b07e935fff99ae",
-      "tags": [
-        "exposure",
-        "kcfinder",
-        "file-upload",
-        "vuln"
-      ],
-      "request": "GET {{BaseURL}}",
-      "sets": [
-        "deep"
-      ],
-      "name": "KCFinder - Exposure",
-      "severity": "high",
-      "generic": true
-    },
-    {
       "id": "keycloak-json",
       "path": "http/exposures/files/keycloak-json.yaml",
       "sha256": "0a1c510ddbee518c032cf222e41d7da5d48d2bc8b9683ff8592eba6346d216ca",
@@ -97612,7 +94834,8 @@
         "deep"
       ],
       "name": "Oauth Credentials Json",
-      "severity": "low"
+      "severity": "low",
+      "generic": true
     },
     {
       "id": "openstack-user-secrets",
@@ -101826,7 +99049,8 @@
         "deep"
       ],
       "name": "GitHub OAuth Access Token",
-      "severity": "info"
+      "severity": "info",
+      "generic": true
     },
     {
       "id": "github-refresh",
@@ -101988,23 +99212,6 @@
       ],
       "name": "Google Client ID",
       "severity": "info"
-    },
-    {
-      "id": "google-gemini-key-exposure",
-      "path": "http/exposures/tokens/google/google-gemini-key-exposure.yaml",
-      "sha256": "bae850c37d74c3fdbf100abe72f891c37bbe68198670ca979626b80705e9a6f1",
-      "tags": [
-        "exposure",
-        "google",
-        "apikey",
-        "gemini"
-      ],
-      "request": "GET {{BaseURL}}",
-      "sets": [
-        "deep"
-      ],
-      "name": "Google Gemini API Key - Exposure",
-      "severity": "high"
     },
     {
       "id": "google-oauth-prefixed",
@@ -103337,7 +100544,8 @@
         "deep"
       ],
       "name": "Square OAuth Secret",
-      "severity": "info"
+      "severity": "info",
+      "generic": true
     },
     {
       "id": "squarespace-access-token",
@@ -105064,24 +102272,6 @@
       "generic": true
     },
     {
-      "id": "cloudflare-transform-via-url-injection",
-      "path": "http/miscellaneous/cloudflare-rocketloader-htmli.yaml",
-      "sha256": "406b3be229abecdd0042f0e2f0a9cf3c91de46aee89c0bbbb10f5fb27ac42bb8",
-      "tags": [
-        "misconfig",
-        "cloudflare",
-        "htmli",
-        "miscellaneous",
-        "vuln"
-      ],
-      "request": "GET {{BaseURL}}/cdn-cgi/image/width=1000,format=auto/https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/cloudflare.svg",
-      "sets": [
-        "deep"
-      ],
-      "name": "Cloudflare Transform via URL - Image Injection",
-      "severity": "unknown"
-    },
-    {
       "id": "credit-card-number-detect",
       "path": "http/miscellaneous/credit-card-number-detect.yaml",
       "sha256": "7c63d7a8ce0c4cad7cf2593bc5bff4b9b0a2240093ecfb44f580ae7c85954ede",
@@ -105101,27 +102291,6 @@
       "name": "Credit and Debit Card Number - Detection",
       "severity": "medium",
       "generic": true
-    },
-    {
-      "id": "crypto-address-detect",
-      "path": "http/miscellaneous/crypto-address-detect.yaml",
-      "sha256": "aa424f54f31b6f342d8540bc5601269af4946d7800bdef5281b806d691ed99d1",
-      "tags": [
-        "crypto",
-        "bitcoin",
-        "monero",
-        "ethereum",
-        "xrp",
-        "ripple",
-        "osint",
-        "discovery"
-      ],
-      "request": "GET {{BaseURL}}",
-      "sets": [
-        "deep"
-      ],
-      "name": "Exposed Cryptocurrency Wallet Address",
-      "severity": "info"
     },
     {
       "id": "crypto-mining-malware",
@@ -105218,25 +102387,6 @@
       "generic": true
     },
     {
-      "id": "discord-invite-detect",
-      "path": "http/miscellaneous/discord-invite-detect.yaml",
-      "sha256": "74a30ef9254e20d5017b71e630eaea369018546f1eba03014811a441c3de8e6c",
-      "tags": [
-        "discord",
-        "info",
-        "osint",
-        "misc",
-        "vuln"
-      ],
-      "request": "GET {{BaseURL}}",
-      "sets": [
-        "deep"
-      ],
-      "name": "Discord Invites for Users, Bots \u0026 Servers - Detect",
-      "severity": "info",
-      "generic": true
-    },
-    {
       "id": "dnt-policy-detect",
       "path": "http/miscellaneous/dnt-policy-detect.yaml",
       "sha256": "11ab21354283ec62192daf16a257335237da2b267e675105c25881713751eee0",
@@ -105274,26 +102424,6 @@
       "name": "Email Extractor",
       "severity": "info",
       "generic": true
-    },
-    {
-      "id": "exposed-file-upload-form",
-      "path": "http/miscellaneous/exposed-file-upload-form.yaml",
-      "sha256": "ca22b706fa098c1a51894adbcd08341005e5e503fec0f0c7af2f6acb17c125ed",
-      "tags": [
-        "miscellaneous",
-        "exposure",
-        "upload",
-        "form",
-        "misc",
-        "generic",
-        "vuln"
-      ],
-      "request": "GET {{BaseURL}}",
-      "sets": [
-        "deep"
-      ],
-      "name": "Exposed File Upload Form",
-      "severity": "info"
     },
     {
       "id": "firebase-database-extractor",
@@ -105436,28 +102566,6 @@
       ],
       "name": "Joomla! Manifest File - Disclosure",
       "severity": "medium"
-    },
-    {
-      "id": "keybase-domain-owwnership-verification",
-      "path": "http/miscellaneous/keybase-domain-owwnership-verification.yaml",
-      "sha256": "77d9f3ca91c0515deabb2862bf2f2f95442472f65ce5b01ec85505f86cc66134",
-      "tags": [
-        "keybase",
-        "identity",
-        "well-known",
-        "pgp",
-        "discovery",
-        "osint",
-        "misc",
-        "vuln"
-      ],
-      "request": "GET {{BaseURL}}/.well-known/keybase.txt",
-      "sets": [
-        "deep"
-      ],
-      "name": "Keybase Domain Ownership Verification",
-      "severity": "info",
-      "generic": true
     },
     {
       "id": "maxforwards-headers-detect",
@@ -105615,24 +102723,6 @@
       "generic": true
     },
     {
-      "id": "onion-website-supported",
-      "path": "http/miscellaneous/onion-website-supported.yaml",
-      "sha256": "2513550dc658a00da9578dcd007136df5cefe7b5aadf3126113c45c05731efc6",
-      "tags": [
-        "misc",
-        "osint",
-        "tor",
-        "onion",
-        "discovery"
-      ],
-      "request": "GET {{BaseURL}}",
-      "sets": [
-        "deep"
-      ],
-      "name": "Onion Website Supported via Onion-Location Header",
-      "severity": "info"
-    },
-    {
       "id": "options-method",
       "path": "http/miscellaneous/options-method.yaml",
       "sha256": "a17b32688da3592ff7c5262f8ef9ae3d92f56ac9c4628f2f14e166a703b6195a",
@@ -105668,26 +102758,6 @@
         "deep"
       ],
       "name": "Well-Known PKI Validation Directory",
-      "severity": "info",
-      "generic": true
-    },
-    {
-      "id": "rdap-whois",
-      "path": "http/miscellaneous/rdap-whois.yaml",
-      "sha256": "4de86b09539928d3fe61c6a9df33185d8485fc35a6e46bf57eaa8e848b1d541d",
-      "tags": [
-        "miscellaneous",
-        "whois",
-        "rdap",
-        "osint",
-        "misc",
-        "vuln"
-      ],
-      "request": "GET https://www.rdap.net/domain/{{Host}}",
-      "sets": [
-        "deep"
-      ],
-      "name": "RDAP WHOIS",
       "severity": "info",
       "generic": true
     },
@@ -105799,26 +102869,6 @@
       ],
       "name": "SPNEGO - Detect",
       "severity": "info"
-    },
-    {
-      "id": "torrent-magnet-detect",
-      "path": "http/miscellaneous/torrent-website-detect.yaml",
-      "sha256": "c7ff0b45b7aba1d932a89b5cea3f7e9e6df688503e36b494a1a11653e851c015",
-      "tags": [
-        "torrent",
-        "website",
-        "detect",
-        "piracy",
-        "osint",
-        "vuln"
-      ],
-      "request": "GET {{BaseURL}}",
-      "sets": [
-        "deep"
-      ],
-      "name": "Torrent Magnet - Detect",
-      "severity": "info",
-      "generic": true
     },
     {
       "id": "trust-center-detect",
@@ -106503,23 +103553,6 @@
       "severity": "medium"
     },
     {
-      "id": "aem-querybuilder-json-servlet",
-      "path": "http/misconfiguration/aem/aem-querybuilder-json-servlet.yaml",
-      "sha256": "9bdf9e9b5b698340946373d07e6d4c908e9964b0910b0152aed0c4dd89267761",
-      "tags": [
-        "aem",
-        "adobe",
-        "misconfig",
-        "vuln"
-      ],
-      "request": "GET {{BaseURL}}/bin/querybuilder.json",
-      "sets": [
-        "deep"
-      ],
-      "name": "AEM QueryBuilder Json Servlet",
-      "severity": "info"
-    },
-    {
       "id": "aem-secrets",
       "path": "http/misconfiguration/aem/aem-secrets.yaml",
       "sha256": "f47b2f9d06f9e87f14eda2ee6eaf4865f5ecd2113c65c8755dd4d1342324d66a",
@@ -106554,23 +103587,6 @@
       ],
       "name": "Adobe AEM Security Users Exposure",
       "severity": "medium"
-    },
-    {
-      "id": "aem-setpreferences-xss",
-      "path": "http/misconfiguration/aem/aem-setpreferences-xss.yaml",
-      "sha256": "e136c1904e8ad62c94e4f4323a5f224b401e5aa035e9793cff4542a340ebd6c2",
-      "tags": [
-        "aem",
-        "xss",
-        "misconfig",
-        "vuln"
-      ],
-      "request": "GET {{BaseURL}}/crx/de/setPreferences.jsp;%0A.html?language=en\u0026keymap=\u003csvg/onload=confirm(document.domain);\u003e//a",
-      "sets": [
-        "deep"
-      ],
-      "name": "Adobe Experience Manager - Cross-Site Scripting",
-      "severity": "high"
     },
     {
       "id": "aem-sling-userinfo",
@@ -107076,26 +104092,6 @@
       ],
       "name": "Kafka Manager Panel - Unauthorized Access",
       "severity": "low"
-    },
-    {
-      "id": "apachespark-ui-exposed",
-      "path": "http/misconfiguration/apachespark-ui-exposed.yaml",
-      "sha256": "b6892a20a0c7f61950726d8356ef61c1e304d8ea28d2cb966fa3c5ac880ea91d",
-      "tags": [
-        "spark",
-        "pyspark",
-        "ui",
-        "exposed",
-        "panel",
-        "apache",
-        "vuln"
-      ],
-      "request": "GET {{BaseURL}}/jobs/",
-      "sets": [
-        "deep"
-      ],
-      "name": "Apache Spark Application UI - Exposed",
-      "severity": "medium"
     },
     {
       "id": "apcu-service",
@@ -108494,25 +105490,6 @@
       "generic": true
     },
     {
-      "id": "dragonfly-public-signup",
-      "path": "http/misconfiguration/dragonfly-public-signup.yaml",
-      "sha256": "6d16beea4350abcbe02e6328a3f935b02ee1732ae785f65118749f2eb3ad74f7",
-      "tags": [
-        "dragonfly",
-        "misconfig",
-        "register",
-        "signup",
-        "vuln"
-      ],
-      "request": "POST /api/v1/users/signup HTTP/1.1",
-      "sets": [
-        "deep"
-      ],
-      "name": "DragonFly Public - Signup Enabled",
-      "severity": "high",
-      "generic": true
-    },
-    {
       "id": "druid-monitor",
       "path": "http/misconfiguration/druid-monitor.yaml",
       "sha256": "6df8d75b4cd2244b3c0321cd908c193b97fbe69f5bdd398d0ac0df59f98dd9db",
@@ -108886,24 +105863,6 @@
       "name": "Expect-CT Header - Misconfigured",
       "severity": "info",
       "generic": true
-    },
-    {
-      "id": "exposed-docker-api",
-      "path": "http/misconfiguration/exposed-docker-api.yaml",
-      "sha256": "2c99151d99c1d2d2ac0bac1984a3bc6f99b22ae2ec7728930ffe273c9f13e695",
-      "tags": [
-        "docker",
-        "unauth",
-        "devops",
-        "misconfig",
-        "vuln"
-      ],
-      "request": "GET http://{{Hostname}}/version",
-      "sets": [
-        "deep"
-      ],
-      "name": "Exposed Docker API",
-      "severity": "info"
     },
     {
       "id": "exposed-jquery-file-upload",
@@ -110117,23 +107076,6 @@
       "name": "ImageResizer Debug - Information Exposure",
       "severity": "low",
       "generic": true
-    },
-    {
-      "id": "imgproxy-unauth",
-      "path": "http/misconfiguration/imgproxy-unauth.yaml",
-      "sha256": "86dffb37d5d7a3be3c6be091aff26f795d2d84bd66c9412c0ba38a4bf14dc90f",
-      "tags": [
-        "imgproxy",
-        "unauth",
-        "misconfig",
-        "vuln"
-      ],
-      "request": "GET {{BaseURL}}/_/resize:fill:10:10:0/gravity:sm/plain/{{img_url}}",
-      "sets": [
-        "deep"
-      ],
-      "name": "Imgproxy Unauthorized Access",
-      "severity": "low"
     },
     {
       "id": "info-cgi-env-leak",
@@ -115211,25 +112153,6 @@
       "name": "MemTracker - Exposure",
       "severity": "high",
       "generic": true
-    },
-    {
-      "id": "anonymous-distribution-point-sccm",
-      "path": "http/misconfiguration/microsoft/anonymous-distribution-point-sccm.yaml",
-      "sha256": "711c565793af3702f5864e933ac8c52a75514112c1255d2a6af545b699a9a8fe",
-      "tags": [
-        "misconfig",
-        "microsoft",
-        "sccm",
-        "anonymous",
-        "distribution-point",
-        "vuln"
-      ],
-      "request": "GET {{BaseURL}}/SMS_DP_SMSPKG$/Datalib",
-      "sets": [
-        "deep"
-      ],
-      "name": "Microsoft SCCM - Anonymous Distribution Point Access",
-      "severity": "medium"
     },
     {
       "id": "aspnetcore-dev-env",
@@ -131640,24 +128563,6 @@
       "severity": "info"
     },
     {
-      "id": "milvus-detect",
-      "path": "http/technologies/milvus-detect.yaml",
-      "sha256": "ea1284342d2ed919c1338f6e6c469f0d63204ff5b8a930ca79abfb05e53e24c8",
-      "tags": [
-        "tech",
-        "vector-database",
-        "milvus",
-        "detect",
-        "discovery"
-      ],
-      "request": "GET {{BaseURL}}",
-      "sets": [
-        "deep"
-      ],
-      "name": "Milvus - Detect",
-      "severity": "info"
-    },
-    {
       "id": "mindsdb-detect",
       "path": "http/technologies/mindsdb-detect.yaml",
       "sha256": "497d0d80f84c492ac3554f55b16b0680160485d5f7948e9b2db4af26aa511f69",
@@ -132442,22 +129347,6 @@
         "deep"
       ],
       "name": "nymea - Detect",
-      "severity": "info"
-    },
-    {
-      "id": "oauth2-detect",
-      "path": "http/technologies/oauth2-detect.yaml",
-      "sha256": "f09b9c04518723aece8101383d95da00a80aff5de1be164377f252039a61276d",
-      "tags": [
-        "tech",
-        "oauth",
-        "discovery"
-      ],
-      "request": "POST {{BaseURL}}/oauth/token",
-      "sets": [
-        "deep"
-      ],
-      "name": "OAuth 2.0 Authorization Server Detection Template",
       "severity": "info"
     },
     {
@@ -135988,21 +132877,6 @@
       "severity": "info"
     },
     {
-      "id": "tech-detect",
-      "path": "http/technologies/tech-detect.yaml",
-      "sha256": "981080e049c7a1c9e418048e41ef7d7089d9f4f1b1c9d3d8094136349c087a95",
-      "tags": [
-        "tech",
-        "discovery"
-      ],
-      "request": "GET {{BaseURL}}",
-      "sets": [
-        "deep"
-      ],
-      "name": "Wappalyzer Technology Detection",
-      "severity": "info"
-    },
-    {
       "id": "technitium-dns-server-detect",
       "path": "http/technologies/technitium-dns-server-detect.yaml",
       "sha256": "23552bf1196a5c08dc82cdf43671d6b229c4ccf278596c3168e45df61745565f",
@@ -136654,23 +133528,6 @@
         "deep"
       ],
       "name": "Versa Analytics Server Detection",
-      "severity": "info"
-    },
-    {
-      "id": "versa-director-api",
-      "path": "http/technologies/versa/versa-director-api.yaml",
-      "sha256": "b3687b96cc9cc853ca24d9e4289f722a80731e360772eab8df7099592c9ceeb7",
-      "tags": [
-        "api",
-        "versa",
-        "tech",
-        "discovery"
-      ],
-      "request": "GET {{BaseURL}}:9182",
-      "sets": [
-        "deep"
-      ],
-      "name": "Versa Director API Endpoint Detection",
       "severity": "info"
     },
     {
@@ -137879,24 +134736,6 @@
       "severity": "low"
     },
     {
-      "id": "amazon-ec2-ssrf",
-      "path": "http/vulnerabilities/amazon/amazon-ec2-ssrf.yaml",
-      "sha256": "fe8f48372c3182010eb049d857c10af95aee640c06616aded7d66c9361eb12fe",
-      "tags": [
-        "aws",
-        "ec2",
-        "ssrf",
-        "amazon",
-        "vuln"
-      ],
-      "request": "GET {{BaseURL}}/latest/meta-data/identity-credentials/ec2/security-credentials/ec2-instance HTTP/1.1",
-      "sets": [
-        "deep"
-      ],
-      "name": "Amazon EC2 - Server-side request forgery (SSRF)",
-      "severity": "critical"
-    },
-    {
       "id": "apache-nifi-rce",
       "path": "http/vulnerabilities/apache/apache-nifi-rce.yaml",
       "sha256": "1b8a91d9f0bdff6b5a60a22612e3809144922abf217764868e4ef49bbcfff62c",
@@ -138808,23 +135647,6 @@
       "severity": "low"
     },
     {
-      "id": "cors-misconfig",
-      "path": "http/vulnerabilities/generic/cors-misconfig.yaml",
-      "sha256": "d66bde195f5e6918aafdf2ae0474a9752963df2fd2e3fe440679d2d6687bdd2f",
-      "tags": [
-        "cors",
-        "generic",
-        "misconfig",
-        "vuln"
-      ],
-      "request": "GET  HTTP/1.1",
-      "sets": [
-        "deep"
-      ],
-      "name": "CORS Misconfiguration",
-      "severity": "info"
-    },
-    {
       "id": "crlf-injection-generic",
       "path": "http/vulnerabilities/generic/crlf-injection-generic.yaml",
       "sha256": "f8bbe9b143b88a513baeb12b3c8306700055aed6c7fd9851174b7b335bc954b4",
@@ -138992,22 +135814,6 @@
       "severity": "low"
     },
     {
-      "id": "gestsup-account-takeover",
-      "path": "http/vulnerabilities/gestsup-account-takeover.yaml",
-      "sha256": "de2ad348a00bf5e823c42af3611291123213c11ed813a0359ef222af8f618567",
-      "tags": [
-        "account-takeover",
-        "gestsup",
-        "vuln"
-      ],
-      "request": "POST /ajax/ticket_user_db.php HTTP/1.1",
-      "sets": [
-        "deep"
-      ],
-      "name": "GestSup - Account Takeover",
-      "severity": "critical"
-    },
-    {
       "id": "gitea-rce",
       "path": "http/vulnerabilities/gitea/gitea-rce.yaml",
       "sha256": "9d48a58efc859db31215b28c7a00418c8de70920a896698f159f952ccce283ea",
@@ -139147,41 +135953,6 @@
       "severity": "high"
     },
     {
-      "id": "hjsoft-hcm-sqli",
-      "path": "http/vulnerabilities/hjsoft/hjsoft-hcm-sqli.yaml",
-      "sha256": "904d3f4bfb55d9735f296fbbf6053e2dca61d2934bf410eff4e12be2b4ad2510",
-      "tags": [
-        "sqli",
-        "hjsoft",
-        "management-system",
-        "vuln"
-      ],
-      "request": "GET /w_selfservice/oauthservlet/%2e./.%2e/servlet/sduty/getSdutyTree?param=child\u0026target=1\u0026codesetid=1\u0026codeitemid=1%27+UNION+ALL+SELECT+NULL%2CCHAR%28113%29%2BCHAR%28120%29%2BCHAR%28106%29%2BCHAR%28112",
-      "sets": [
-        "deep"
-      ],
-      "name": "Hongjing HCM - Sql Injection",
-      "severity": "high"
-    },
-    {
-      "id": "hjsoft-hcm-tb-sqli",
-      "path": "http/vulnerabilities/hjsoft/hjsoft-hcm-tb-sqli.yaml",
-      "sha256": "bf6bc249bd5120e96c623a0f97cdecaa201c1990bd60012518ea730f30b307a3",
-      "tags": [
-        "time-based-sqli",
-        "sqli",
-        "hjsoft",
-        "management-system",
-        "vuln"
-      ],
-      "request": "GET /w_selfservice/oauthservlet/%2e./.%2e/gz/LoadOtherTreeServlet?modelflag=4\u0026budget_id=1%29%3BWAITFOR+DELAY+%270%3A0%3A6%27--\u0026flag=1 HTTP/1.1",
-      "sets": [
-        "deep"
-      ],
-      "name": "Hongjing HCM - Time-Based Sql Injection",
-      "severity": "high"
-    },
-    {
       "id": "httpbin-xss",
       "path": "http/vulnerabilities/httpbin/httpbin-xss.yaml",
       "sha256": "037812d505dbd195770606edaf22bde01ba47702af8d4e3f096e47d119b0f340",
@@ -139263,24 +136034,6 @@
         "deep"
       ],
       "name": "IBM Eclipse Help System - Cross-Site Scripting",
-      "severity": "high"
-    },
-    {
-      "id": "idocview-2word-fileupload",
-      "path": "http/vulnerabilities/idoc/idocview-2word-fileupload.yaml",
-      "sha256": "8713e7cc3d583317f2c294f1a633d9c1ed04eff7a9df6aedafd8739f624393aa",
-      "tags": [
-        "idoc",
-        "rce",
-        "instrusive",
-        "file-upload",
-        "vuln"
-      ],
-      "request": "GET {{BaseURL}}/html/2word?url={{file}}",
-      "sets": [
-        "deep"
-      ],
-      "name": "IDoc View /html/2word - Arbitrary File Upload",
       "severity": "high"
     },
     {
@@ -139463,24 +136216,6 @@
       ],
       "name": "Jinhe OA_C6_UploadFileDownLoadnew - Arbitrary File Read",
       "severity": "high"
-    },
-    {
-      "id": "jira-servicedesk-signup",
-      "path": "http/vulnerabilities/jira/jira-servicedesk-signup.yaml",
-      "sha256": "df558beef90cac182a4db43e3efb795c84444e1ab86c9f0917290a4744aaf8f5",
-      "tags": [
-        "atlassian",
-        "servicedesk",
-        "jira",
-        "confluence",
-        "vuln"
-      ],
-      "request": "GET /servicedesk/customer/user/signup HTTP/1.1",
-      "sets": [
-        "deep"
-      ],
-      "name": "Atlassian Jira Service Desk Signup",
-      "severity": "medium"
     },
     {
       "id": "jira-unauthenticated-adminprojects",
@@ -139746,23 +136481,6 @@
       "severity": "high"
     },
     {
-      "id": "joomla-easyshop-lfi",
-      "path": "http/vulnerabilities/joomla/joomla-easyshop-lfi.yaml",
-      "sha256": "3d7276d2569b0536074479a598293fa8e0f311c8eb2780d35a7744957a7e71d3",
-      "tags": [
-        "cnvd",
-        "cnvd2023",
-        "file-upload",
-        "vuln"
-      ],
-      "request": "GET {{BaseURL}}/index.php?option=com_easyshop\u0026task=ajax.loadImage\u0026file=Li4vLi4vY29uZmlndXJhdGlvbi5waHA=",
-      "sets": [
-        "deep"
-      ],
-      "name": "Joomla! Component Easy Shop 1.2.3 - Local File Inclusion",
-      "severity": "high"
-    },
-    {
       "id": "joomla-iproperty-xss",
       "path": "http/vulnerabilities/joomla/joomla-iproperty-real-estate-xss.yaml",
       "sha256": "b590a155161aa12ffbc688840b23a4331d0e2e89d4a417f5f9cdad371043e752",
@@ -139884,26 +136602,6 @@
       ],
       "name": "Joomla Solidres 2.13.3 - Cross-Site Scripting",
       "severity": "medium"
-    },
-    {
-      "id": "rusty-joomla",
-      "path": "http/vulnerabilities/joomla/rusty-joomla.yaml",
-      "sha256": "b8e66715a1f4eee27338540a44474de2311a9d238db1a777f8c8b7e892323362",
-      "tags": [
-        "joomla",
-        "rce",
-        "unauth",
-        "php",
-        "cms",
-        "objectinjection",
-        "vuln"
-      ],
-      "request": "GET / HTTP/1.1",
-      "sets": [
-        "deep"
-      ],
-      "name": "Joomla! CMS \u003c=3.4.6 - Remote Code Execution",
-      "severity": "critical"
     },
     {
       "id": "jorani-benjamin-xss",
@@ -140862,22 +137560,6 @@
       "severity": "critical"
     },
     {
-      "id": "chamilo-lms-sqli",
-      "path": "http/vulnerabilities/other/chamilo-lms-sqli.yaml",
-      "sha256": "3bcd4365ced660f9e577513ee99cc42cf38e79943d3018db91287eb2f78cfd00",
-      "tags": [
-        "chamilo",
-        "sqli",
-        "vuln"
-      ],
-      "request": "POST /main/inc/ajax/extra_field.ajax.php?a=search_options_from_tags HTTP/1.1",
-      "sets": [
-        "deep"
-      ],
-      "name": "Chamilo 1.11.14 - SQL Injection",
-      "severity": "critical"
-    },
-    {
       "id": "chamilo-lms-xss",
       "path": "http/vulnerabilities/other/chamilo-lms-xss.yaml",
       "sha256": "0319989be2cd16bd935b9696ca14d12dc25d00a701a8a0603e587b86fbe2091c",
@@ -141046,23 +137728,6 @@
       "severity": "high"
     },
     {
-      "id": "cpas-managment-lfi",
-      "path": "http/vulnerabilities/other/cpas-managment-lfi.yaml",
-      "sha256": "5c10c017014da54f1b4306385079ff21acda16b6d1844af1945dbc5fdde2edb9",
-      "tags": [
-        "cpas",
-        "cms",
-        "lfi",
-        "vuln"
-      ],
-      "request": "GET {{BaseURL}}/cpasm4/plugInManController/downPlugs?fileId=../../../../etc/passwd\u0026fileName",
-      "sets": [
-        "deep"
-      ],
-      "name": "CPAS Management System - Arbitrary File Read",
-      "severity": "high"
-    },
-    {
       "id": "crawlab-lfi",
       "path": "http/vulnerabilities/other/crawlab-lfi.yaml",
       "sha256": "8da976719d4319c9c3a514ed10520205d79196fb919f5f04bb21e3a0f5c3c6c9",
@@ -141162,22 +137827,6 @@
       ],
       "name": "Dicoogle PACS 2.5.0 - Local File Inclusion",
       "severity": "high"
-    },
-    {
-      "id": "digital-ocean-ssrf",
-      "path": "http/vulnerabilities/other/digital-ocean-ssrf.yaml",
-      "sha256": "3339fba79ee6cc6e83c52bcf98626044e1dee0ceafc9f5fa839d6e8b3dff77e8",
-      "tags": [
-        "digitalocean",
-        "ssrf",
-        "vuln"
-      ],
-      "request": "GET {{BaseURL}}/metadata/v1.json HTTP/1.1",
-      "sets": [
-        "deep"
-      ],
-      "name": "Digital Ocean - Server-side request forgery (SSRF)",
-      "severity": "critical"
     },
     {
       "id": "digitalrebar-traversal",
@@ -141823,24 +138472,6 @@
       "severity": "medium"
     },
     {
-      "id": "h3c-cnsss-arbitrary-file-upload",
-      "path": "http/vulnerabilities/other/h3c-cnsss-arbitrary-file-upload.yaml",
-      "sha256": "74b4e67960990be14389b2b352a0dc680783f8c00e58d94c2d19342035288ce0",
-      "tags": [
-        "h3c",
-        "lfi",
-        "instrusive",
-        "file-upload",
-        "vuln"
-      ],
-      "request": "POST /imc/primepush/%2e%2e/flexFileUpload HTTP/1.1",
-      "sets": [
-        "deep"
-      ],
-      "name": "H3C CNSSS - Arbitrary File Upload",
-      "severity": "critical"
-    },
-    {
       "id": "h3c-imc-rce",
       "path": "http/vulnerabilities/other/h3c-imc-rce.yaml",
       "sha256": "338d45996d603e94a00f3c861271e2c0d6520155ad2f9f99d2eea3a0a947d203",
@@ -141990,23 +138621,6 @@
       ],
       "name": "Hongfan OA ioFileExport.aspx - Arbitrary File Read",
       "severity": "medium"
-    },
-    {
-      "id": "hongfan-ioffice-rce",
-      "path": "http/vulnerabilities/other/hongfan-ioffice-rce.yaml",
-      "sha256": "ebfe8e9aad2c9d2c0505f36bf119f3af9129759212b5f93d2c0845fbb7727bf0",
-      "tags": [
-        "hongfan",
-        "oa",
-        "sqli",
-        "vuln"
-      ],
-      "request": "POST /ioffice/prg/set/wss/ioAssistance.asmx HTTP/1.1",
-      "sets": [
-        "deep"
-      ],
-      "name": "Hongfan OA ioAssistance.asmx - Remote Code Execution",
-      "severity": "high"
     },
     {
       "id": "hongfan-ioffice-sqli",
@@ -142625,22 +139239,6 @@
         "deep"
       ],
       "name": "MetInfo \u003c=6.1.0 - Local File Inclusion",
-      "severity": "high"
-    },
-    {
-      "id": "microstrategy-ssrf",
-      "path": "http/vulnerabilities/other/microstrategy-ssrf.yaml",
-      "sha256": "0bcc1e0df323b7749469790aeaf909e3429de5cc90490f073e08a03e8c0b393f",
-      "tags": [
-        "microstrategy",
-        "ssrf",
-        "vuln"
-      ],
-      "request": "GET {{BaseURL}}/servlet/taskProc?taskId=shortURL\u0026taskEnv=xml\u0026taskContentType=xml\u0026srcURL=https://google.com",
-      "sets": [
-        "deep"
-      ],
-      "name": "MicroStrategy tinyurl - Server-Side Request Forgery (Blind)",
       "severity": "high"
     },
     {
@@ -145059,22 +141657,6 @@
       "severity": "high"
     },
     {
-      "id": "retool-svg-xss",
-      "path": "http/vulnerabilities/retool/retool-svg-xss.yaml",
-      "sha256": "aae1661299cf528555abef3294f6a524f1f3f3c2e7d87bfd2ff47969b775f32c",
-      "tags": [
-        "retool",
-        "xss",
-        "vuln"
-      ],
-      "request": "GET /api/imageProxy?url=https://raw.githubusercontent.com/projectdiscovery/nuclei-templates/refs/heads/main/helpers/payloads/retool-xss.svg HTTP/1.1",
-      "sets": [
-        "deep"
-      ],
-      "name": "Retool \u003c 3.88 - SVG Cross-Site Scripting",
-      "severity": "high"
-    },
-    {
       "id": "rocketchat-unauth-access",
       "path": "http/vulnerabilities/rocketchat/unauth-message-read.yaml",
       "sha256": "dc5fb573cd1706e63bf01bac598ad45a4f2f97a6686798c589bbb8f23b4c10c2",
@@ -145771,23 +142353,6 @@
       "severity": "critical"
     },
     {
-      "id": "thinkphp6-arbitrary-write",
-      "path": "http/vulnerabilities/thinkphp/thinkphp6-arbitrary-write.yaml",
-      "sha256": "aa62d9ff0d65984576c1bde2bef4cbc219dcbfcd9e12180ccaf0fbdc8cf7b661",
-      "tags": [
-        "thinkphp",
-        "file-upload",
-        "rce",
-        "vuln"
-      ],
-      "request": "GET / HTTP/1.1",
-      "sets": [
-        "deep"
-      ],
-      "name": "ThinkPHP 6.0.0~6.0.1 - Arbitrary File Write",
-      "severity": "critical"
-    },
-    {
       "id": "tongda-contact-list-exposure",
       "path": "http/vulnerabilities/tongda/tongda-contact-list-exposure.yaml",
       "sha256": "bc18efb44482ad14af16ff3d7c5f5629bed46862d6ff2c8e45af755310153775",
@@ -146019,22 +142584,6 @@
       "severity": "critical"
     },
     {
-      "id": "unifi-nfc-credentials",
-      "path": "http/vulnerabilities/unifi/unifi-nfc-credentials.yaml",
-      "sha256": "227126dd5e8454f92f0866496e38372aabb92b0261acce9dbe4ac85d8dd9bb30",
-      "tags": [
-        "unifi",
-        "unauth",
-        "vuln"
-      ],
-      "request": "GET /api/v1/user_assets/touch_pass/keys HTTP/1.1",
-      "sets": [
-        "deep"
-      ],
-      "name": "UniFi - NFC Credentials",
-      "severity": "high"
-    },
-    {
       "id": "arcade-php-sqli",
       "path": "http/vulnerabilities/vbulletin/arcade-php-sqli.yaml",
       "sha256": "7bebccb42c9f7df97e52184d6389896381b89b246da5bc8572e5b6a5f0488a16",
@@ -146219,24 +142768,6 @@
       ],
       "name": "Wanhu OA DownloadServlet - Remote File Disclosure",
       "severity": "high"
-    },
-    {
-      "id": "wanhuoa-smartupload-file-upload",
-      "path": "http/vulnerabilities/wanhu/wanhuoa-smartupload-file-upload.yaml",
-      "sha256": "d264678d57e619570971b522e42131be243e45b48e3fccaff1fe22cacf81812f",
-      "tags": [
-        "wanhu",
-        "oa",
-        "smartupload",
-        "file-upload",
-        "vuln"
-      ],
-      "request": "GET {{BaseURL}}/defaultroot/extension/smartUpload.jsp?path=information\u0026fileName=infoPicName\u0026saveName=infoPicSaveName\u0026tableName=infoPicTable\u0026fileMaxSize=0\u0026fileMaxNum=0\u0026fileType=gif,jpg,bmp,jsp,png\u0026file",
-      "sets": [
-        "deep"
-      ],
-      "name": "Wanhu OA smartUpload.jsp - Arbitrary File Upload",
-      "severity": "critical"
     },
     {
       "id": "ecology-jqueryfiletree-traversal",
@@ -146481,24 +143012,6 @@
       ],
       "name": "Weaver E-cology getEmDsList Sensitive Information Disclosure",
       "severity": "high"
-    },
-    {
-      "id": "weaver-group-xml-sqli",
-      "path": "http/vulnerabilities/weaver/weaver-group-xml-sqli.yaml",
-      "sha256": "b624798d0c279f6a99f0d951d7b4b1b2f1bb3366253fecb9e809b457f1b6c7a0",
-      "tags": [
-        "weaver",
-        "e-office",
-        "oa",
-        "sqli",
-        "vuln"
-      ],
-      "request": "GET /inc/group_user_list/group_xml.php?par={{base64(payload)}} HTTP/1.1",
-      "sets": [
-        "deep"
-      ],
-      "name": "OA E-Office group_xml.php - SQL Injection",
-      "severity": "critical"
     },
     {
       "id": "weaver-login-sessionkey",
@@ -147458,26 +143971,6 @@
       "severity": "medium"
     },
     {
-      "id": "newsletter-open-redirect",
-      "path": "http/vulnerabilities/wordpress/newsletter-open-redirect.yaml",
-      "sha256": "50798cd4a6974e07adc848afb2355df8a14780c61fd04c828193fcb64afa2a5a",
-      "tags": [
-        "redirect",
-        "wp-plugin",
-        "newsletter",
-        "wp",
-        "wpscan",
-        "wordpress",
-        "vuln"
-      ],
-      "request": "GET {{BaseURL}}/?wp_nlm=confirmation\u0026appurl=aHR0cDovL2ludGVyYWN0LnNo",
-      "sets": [
-        "deep"
-      ],
-      "name": "WordPress Newsletter Manager \u003c 1.5 - Unauthenticated Open Redirect",
-      "severity": "medium"
-    },
-    {
       "id": "notificationx-sqli",
       "path": "http/vulnerabilities/wordpress/notificationx-sqli.yaml",
       "sha256": "a8d2ad90b0ce0454023918ce2cd1273d91c9a4c79327e259e203dbfdabf1a16b",
@@ -147657,42 +144150,6 @@
         "deep"
       ],
       "name": "Wordpress W3C Total Cache \u003c= 0.9.4 - Server Side Request Forgery (SSRF)",
-      "severity": "medium"
-    },
-    {
-      "id": "watu-xss",
-      "path": "http/vulnerabilities/wordpress/watu-xss.yaml",
-      "sha256": "24351781905866d412d42bc4faeacde744101a1129bfa3315d42bcf6e4a2a6b1",
-      "tags": [
-        "watu",
-        "quiz",
-        "authenticated",
-        "wpscan",
-        "xss",
-        "vuln"
-      ],
-      "request": "POST /wp-login.php HTTP/1.1",
-      "sets": [
-        "disruptive"
-      ],
-      "name": "Watu Quiz \u003c 3.1.2.6 - Cross Site Scripting",
-      "severity": "medium"
-    },
-    {
-      "id": "weekender-newspaper-open-redirect",
-      "path": "http/vulnerabilities/wordpress/weekender-newspaper-open-redirect.yaml",
-      "sha256": "9bdc4b3f988e543ce904260f81eb2393cf4e50bb1c121fe76339cf915d7ca366",
-      "tags": [
-        "wordpress",
-        "wp-plugin",
-        "redirect",
-        "vuln"
-      ],
-      "request": "GET {{BaseURL}}/wp-content/themes/weekender/friend.php?id=aHR0cHM6Ly9pbnRlcmFjdC5zaA==",
-      "sets": [
-        "deep"
-      ],
-      "name": "WordPress Weekender Newspaper 9.0 - Open Redirect",
       "severity": "medium"
     },
     {
@@ -148476,26 +144933,6 @@
       ],
       "name": "WordPress user registration enabled",
       "severity": "info"
-    },
-    {
-      "id": "wp-footnote-xss",
-      "path": "http/vulnerabilities/wordpress/wp-footnote-xss.yaml",
-      "sha256": "f27f35d0bca5841693959a781b70ed7366b9adc7044c30570edd1a72998c6c91",
-      "tags": [
-        "wpscan",
-        "xss",
-        "wp",
-        "wordpress",
-        "footnote",
-        "authenticated",
-        "vuln"
-      ],
-      "request": "POST /wp-login.php HTTP/1.1",
-      "sets": [
-        "disruptive"
-      ],
-      "name": "WordPress 6.3-6.3.1 Footnotes Block - Cross-Site Scripting",
-      "severity": "medium"
     },
     {
       "id": "wp-full-path-disclosure",
@@ -150136,29 +146573,6 @@
       "severity": "medium"
     },
     {
-      "id": "CVE-2011-2523",
-      "cve": "CVE-2011-2523",
-      "path": "network/cves/2011/CVE-2011-2523.yaml",
-      "sha256": "301c380f3fde6fc3b116a7ef48cdfd66ef1f49bb5eaac5ffe18c28e57a5aebd2",
-      "tags": [
-        "packetstorm",
-        "cve2011",
-        "network",
-        "cve",
-        "vsftpd",
-        "ftp",
-        "backdoor",
-        "tcp",
-        "vuln"
-      ],
-      "request": "TCP {{Hostname}}:21 USER letmein:)",
-      "sets": [
-        "deep"
-      ],
-      "name": "VSFTPD 2.3.4 - Backdoor Command Execution",
-      "severity": "critical"
-    },
-    {
       "id": "CVE-2011-3171",
       "cve": "CVE-2011-3171",
       "path": "network/cves/2011/CVE-2011-3171.yaml",
@@ -150321,31 +146735,6 @@
       "severity": "critical"
     },
     {
-      "id": "CVE-2017-3881",
-      "cve": "CVE-2017-3881",
-      "path": "network/cves/2017/CVE-2017-3881.yaml",
-      "sha256": "422692592390f7b77711e042fd4c9d647d506d638f7185354966d0d40e90edec",
-      "tags": [
-        "cve2017",
-        "network",
-        "cve",
-        "cisco",
-        "rce",
-        "kev",
-        "msf",
-        "tcp",
-        "vkev",
-        "vuln"
-      ],
-      "request": "TCP {{Hostname}}:\u003cnil\u003e {{hex_decode('fffa240003')}}CISCO_KITS{{hex_decode('01')}}2:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA{",
-      "sets": [
-        "kev",
-        "deep"
-      ],
-      "name": "Cisco IOS 12.2(55)SE11 - Remote Code Execution",
-      "severity": "critical"
-    },
-    {
       "id": "CVE-2018-2628",
       "cve": "CVE-2018-2628",
       "path": "network/cves/2018/CVE-2018-2628.yaml",
@@ -150368,31 +146757,6 @@
         "deep"
       ],
       "name": "Oracle WebLogic Server Deserialization - Remote Code Execution",
-      "severity": "critical"
-    },
-    {
-      "id": "CVE-2018-2893",
-      "cve": "CVE-2018-2893",
-      "path": "network/cves/2018/CVE-2018-2893.yaml",
-      "sha256": "3e313fae6a0cf0932466935699a669f54084f0b5cd17fc0ca5f29a7d6fd62105",
-      "tags": [
-        "cve",
-        "cve2018",
-        "weblogic",
-        "network",
-        "deserialization",
-        "rce",
-        "oracle",
-        "tcp",
-        "vkev",
-        "vuln"
-      ],
-      "request": "TCP {{Hostname}}:\u003cnil\u003e t3 12.2.1",
-      "sets": [
-        "kev",
-        "deep"
-      ],
-      "name": "Oracle WebLogic Server - Remote Code Execution",
       "severity": "critical"
     },
     {
@@ -150459,33 +146823,6 @@
         "deep"
       ],
       "name": "Microsoft SMBv3 - Remote Code Execution",
-      "severity": "critical"
-    },
-    {
-      "id": "CVE-2020-1938",
-      "cve": "CVE-2020-1938",
-      "path": "network/cves/2020/CVE-2020-1938.yaml",
-      "sha256": "9bd99bef781d9e8ebf934183d913ac0a82cc752fa6224d32d1880253f56ed389",
-      "tags": [
-        "cve",
-        "cve2020",
-        "kev",
-        "tenable",
-        "apache",
-        "lfi",
-        "network",
-        "tomcat",
-        "ajp",
-        "tcp",
-        "vkev",
-        "vuln"
-      ],
-      "request": "TCP {{Hostname}}:\u003cnil\u003e {{hex_decode('1234020e02020008485454502f312e310000132f6578616d706c65732f78787878782e6a73700000093132372e302e302e3100ffff00093132372e302e302e31000050000009a006000a6b6565702d616c6",
-      "sets": [
-        "kev",
-        "deep"
-      ],
-      "name": "Ghostcat - Apache Tomcat - AJP File Read/Inclusion Vulnerability",
       "severity": "critical"
     },
     {
@@ -150598,28 +146935,6 @@
       "severity": "high"
     },
     {
-      "id": "CVE-2021-44521",
-      "cve": "CVE-2021-44521",
-      "path": "network/cves/2021/CVE-2021-44521.yaml",
-      "sha256": "d3ef7df8813f4869bdc5280bf41c528a34f954326ed949927cbd3029807eaf10",
-      "tags": [
-        "cve",
-        "cve2021",
-        "network",
-        "rce",
-        "apache",
-        "cassandra",
-        "tcp",
-        "vuln"
-      ],
-      "request": "TCP {{Hostname}}:\u003cnil\u003e 050000000500000000",
-      "sets": [
-        "deep"
-      ],
-      "name": "Apache Cassandra Load UDF RCE",
-      "severity": "critical"
-    },
-    {
       "id": "CVE-2022-0543",
       "cve": "CVE-2022-0543",
       "path": "network/cves/2022/CVE-2022-0543.yaml",
@@ -150642,32 +146957,6 @@
         "deep"
       ],
       "name": "Redis Sandbox Escape - Remote Code Execution",
-      "severity": "critical"
-    },
-    {
-      "id": "CVE-2022-24706",
-      "cve": "CVE-2022-24706",
-      "path": "network/cves/2022/CVE-2022-24706.yaml",
-      "sha256": "7739fb0c8caf7ec2874ac6b07fdc51f5852676c29b2eb854579d88a1c2617cfe",
-      "tags": [
-        "cve2022",
-        "network",
-        "cve",
-        "couch",
-        "rce",
-        "kev",
-        "couchdb",
-        "apache",
-        "tcp",
-        "vkev",
-        "vuln"
-      ],
-      "request": "TCP {{Hostname}}:\u003cnil\u003e {{name_msg}}",
-      "sets": [
-        "kev",
-        "deep"
-      ],
-      "name": "CouchDB Erlang Distribution - Remote Command Execution",
       "severity": "critical"
     },
     {
@@ -153445,24 +149734,6 @@
       "severity": "info"
     },
     {
-      "id": "perforce-detection",
-      "path": "network/detection/perforce-detect.yaml",
-      "sha256": "61605ffe578db5d90bf08d4d836a6f5d0b53d18f581255e41e2bf2b116745b4d",
-      "tags": [
-        "perforce",
-        "helixcore",
-        "scm",
-        "detect",
-        "p4d"
-      ],
-      "request": "TCP {{Host}}:{{Port}}:\u003cnil\u003e efef000000636d7066696c65000000000000616c7453796e63000000000000636c69656e7400020000003937006170690005000000393939393900656e61626c6553747265616d73000000000000656e61626c654772",
-      "sets": [
-        "deep"
-      ],
-      "name": "Perforce Server - Detection",
-      "severity": "info"
-    },
-    {
       "id": "pgsql-detect",
       "path": "network/detection/pgsql-detect.yaml",
       "sha256": "f9cf34f2d26e197d372d5cef23678a7e1f70c3f9723747d81aa8a9ccdd2a964d",
@@ -154148,7 +150419,7 @@
       ],
       "request": "TCP {{Hostname}}:25,2525,465,587 VRFY {{useraccounts}}",
       "sets": [
-        "deep"
+        "disruptive"
       ],
       "name": "SMTP User Enumeration",
       "severity": "medium"
@@ -154653,24 +150924,6 @@
         "deep"
       ],
       "name": "Fortinet FortiGate Certificate - Detect",
-      "severity": "info"
-    },
-    {
-      "id": "fortimanager-certificate",
-      "path": "ssl/fortinet/fortimanager-certificate.yaml",
-      "sha256": "e1de1c1369101d7149a09023afd8d95c15805503b4087997c04f3dbff0f3803d",
-      "tags": [
-        "ssl",
-        "tls",
-        "fortinet",
-        "fortimanager",
-        "discovery"
-      ],
-      "request": "SSL {{Host}}:{{Port}}",
-      "sets": [
-        "deep"
-      ],
-      "name": "Fortinet FortiManager Certificate - Detect",
       "severity": "info"
     },
     {

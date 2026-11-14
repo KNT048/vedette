@@ -115,8 +115,12 @@ func itoa(i int) string {
 func TestFullText(t *testing.T) {
 	t.Parallel()
 	ok := "id: x\nhttp:\n  - raw:\n      - |\n        POST /login HTTP/1.1\n        Host: {{Hostname}}\n\n        a=b\n  - method: GET\n    path:\n      - \"{{BaseURL}}/\"\n"
-	if err := FullText([]byte(ok)); err != nil {
+	if err := FullText([]byte(ok), false); err != nil {
 		t.Fatalf("a POST check refused: %v", err)
+	}
+	server := ok + "    matchers:\n      - type: word\n        words:\n          - \"Interactsh Server\"\n"
+	if err := FullText([]byte(server), true); err != nil {
+		t.Fatalf("a technologies template that recognises an interactsh server refused: %v", err)
 	}
 	for name, body := range map[string]string{
 		"a PUT raw":       strings.Replace(ok, "POST /login", "PUT /login", 1),
@@ -124,8 +128,10 @@ func TestFullText(t *testing.T) {
 		"a patch method":  strings.Replace(ok, "method: GET", "method: patch", 1),
 		"a MKCOL raw":     strings.Replace(ok, "POST /login", "MKCOL /x", 1),
 		"interactsh":      strings.Replace(ok, "a=b", "u={{interactsh-url}}", 1),
+		"an @Host":        strings.Replace(ok, "      - |\n", "      - |\n        @Host: https://login.microsoftonline.com:443\n", 1),
+		"a server match":  server, // review M3: outside the technologies templates it means the target fetched one
 	} {
-		if FullText([]byte(body)) == nil {
+		if FullText([]byte(body), false) == nil {
 			t.Errorf("%s: accepted", name)
 		}
 	}

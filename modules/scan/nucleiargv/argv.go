@@ -92,7 +92,7 @@ const DepthFull = "full"
 const (
 	FullRate         = 20
 	FullConcurrency  = 10
-	MaxFullTemplates = 200 // per run: 200 ids of at most 100 bytes keep the jobs reply under sensorlink's 64 KiB, and -ms lines under nucleiout.MaxLines
+	MaxFullTemplates = 200 // per run: 200 ids of at most 100 bytes keep the jobs reply under sensorlink's 64 KiB, and its lines under the limit of nucleiout.LinesPerTemplate
 )
 
 // disruptiveTags are the tags of the disruptive checks (D-527): only a full job with the extra tick of the terms runs them.

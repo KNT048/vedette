@@ -94,6 +94,11 @@ func (a exposureTemplateScan) ScanTemplates(ctx context.Context, t exposure.Scan
 	if t.Mode.Full { // FULL-4 (D-527): the deep scan of a target whose testing terms were accepted
 		return a.scanFull(ctx, t, ip, ix, jobs)
 	}
+	return a.scanBaseline(ctx, t, ip, ix, jobs)
+}
+
+// scanBaseline runs the read-only KEV templates of the jobs (D-520), the scan of a target without accepted testing terms.
+func (a exposureTemplateScan) scanBaseline(ctx context.Context, t exposure.ScanTarget, ip netip.Addr, ix *pack.Index, jobs []exposure.TemplateJob) (exposure.TemplateScan, error) {
 	runs, notes := templateRuns(ix, ip, jobs)
 	out := exposure.TemplateScan{NotChecked: notes}
 	for i, r := range runs {

@@ -27,10 +27,17 @@ import (
 
 // Limits (sensor protocol §9, D-125 (1)); the output cap is nucleiargv.MaxOutput.
 const (
-	MaxLines    = 1024 // 32 templates x 16 targets is 512 lines with -ms; twice that is suspicious
-	MaxRequest  = 2048 // bytes of request kept as evidence (S-SCAN-3)
-	MaxResponse = 4096 // bytes of response kept as evidence
-	MaxError    = 256  // bytes of nuclei's error text
+	MaxLines = 1024 // 32 templates x 16 targets is 512 lines with -ms; twice that is suspicious
+	// LinesPerTemplate sizes the line limit of a run with many templates (D-527: a full run, up to 200 templates on one target):
+	// MaxLines or this many lines a template, whichever is more. The assumption, from nuclei v3.11.1's -ms (one failure line per
+	// template and target that matched nothing) and its JSONL writer (one line per matcher name, and per request of a template with
+	// several, that matched): a template prints one line when nothing matched and one per match otherwise; tech-detect prints one per
+	// product it recognised (tens), a payload template at most 64. 200 templates x 40 is 8000; the 4 MiB output cap (about 500 bytes
+	// the shortest line with -or -ot) would stop a run near there anyway. Lab check deferred (.ai/deferred/feat-full-4-nuclei.md).
+	LinesPerTemplate = 40
+	MaxRequest       = 2048 // bytes of request kept as evidence (S-SCAN-3)
+	MaxResponse      = 4096 // bytes of response kept as evidence
+	MaxError         = 256  // bytes of nuclei's error text
 )
 
 // cutMark ends a text that was cut at its cap.
@@ -70,14 +77,15 @@ func Parse(out []byte, templates, targets []string) ([]Result, error) {
 	if len(out) > nucleiargv.MaxOutput {
 		return nil, fmt.Errorf("nucleiout: output of %d bytes is over the %d cap", len(out), nucleiargv.MaxOutput)
 	}
+	limit := max(MaxLines, LinesPerTemplate*len(templates)) // a full run of 200 templates (D-527): 8000
 	var res []Result
 	for i, raw := range bytes.Split(out, []byte("\n")) {
 		raw = bytes.TrimSpace(raw)
 		if len(raw) == 0 {
 			continue
 		}
-		if len(res) == MaxLines {
-			return nil, fmt.Errorf("nucleiout: more than %d lines", MaxLines)
+		if len(res) == limit {
+			return nil, fmt.Errorf("nucleiout: more than %d lines", limit)
 		}
 		r, err := parseLine(raw, templates, targets)
 		if err != nil {

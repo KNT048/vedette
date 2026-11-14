@@ -54,6 +54,7 @@ const (
 	EventAssetDiscovered = "inventory.asset.discovered"
 	EventAssetUpdated    = "inventory.asset.updated"
 	EventAssetDeleted    = "inventory.asset.deleted"
+	EventAssetMerged     = "inventory.asset.merged"
 	EventSoftwareChanged = "inventory.software.changed"
 	EventMatchChanged    = "inventory.match.changed"
 	EventSettingsChanged = "inventory.settings.changed"
@@ -67,6 +68,14 @@ type AssetEvent struct {
 	// Match is set when what the findings matcher reads of the device besides its software changed (D-510): the folded OS,
 	// the model, or the OS the device states itself (MatchDevice.StatedOS). Only observations set it.
 	Match bool `json:"match,omitempty"`
+}
+
+// MergeEvent is the data of inventory.asset.merged (D-515): device From was the same device as Into and is gone; what other modules
+// keep about From belongs to Into now. It goes out before the inventory.asset.deleted of From.
+type MergeEvent struct {
+	From  string `json:"from"`
+	Into  string `json:"into"`
+	Actor string `json:"actor"`
 }
 
 // MatchEvent is the data of inventory.match.changed: the asset now matches an exploited CVE by product.

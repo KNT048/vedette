@@ -701,6 +701,43 @@ func (s *Service) OnAssetDeleted(ctx context.Context, assetID string) (int, erro
 	return s.deleteAsset(ctx, assetID)
 }
 
+// OnAssetMerged handles inventory.asset.merged (D-515): device from was the same device as into, so its findings become into's,
+// with their status, history, mitigation log and AI results (those key on the finding id). For a CVE both devices hold, the
+// finding a person decided (resolved_by set and not SystemUser) stays and the other goes; when neither or both were decided, into's
+// stays. Version-needed items move too. It runs before into is matched again, which then finds the moved findings and creates and
+// announces nothing new. It returns how many findings moved.
+func (s *Service) OnAssetMerged(ctx context.Context, from, into string) (int, error) {
+	ctx, cancel := eventContext(ctx)
+	defer cancel()
+	var n int64
+	err := s.write(ctx, func(tx *sql.Tx, _ time.Time, _ func(string, any)) error {
+		person := `resolved_by IS NOT NULL AND resolved_by <> '` + SystemUser + `'`
+		for _, q := range []string{
+			`DELETE FROM fnd_finding WHERE asset_id = ?2 AND NOT (` + person + `) AND cve IN (SELECT cve FROM fnd_finding WHERE asset_id = ?1 AND ` + person + `)`,
+			`UPDATE fnd_finding SET asset_id = ?2 WHERE asset_id = ?1 AND cve NOT IN (SELECT cve FROM fnd_finding WHERE asset_id = ?2)`,
+		} {
+			res, err := tx.ExecContext(ctx, q, from, into)
+			if err != nil {
+				return fmt.Errorf("findings: moving the findings of a merged device: %w", err)
+			}
+			if n, err = res.RowsAffected(); err != nil {
+				return fmt.Errorf("findings: moving the findings of a merged device: %w", err)
+			}
+		}
+		for _, q := range []string{
+			`DELETE FROM fnd_finding WHERE asset_id = ?1`,
+			`UPDATE OR IGNORE fnd_version_needed SET asset_id = ?2 WHERE asset_id = ?1`,
+			`DELETE FROM fnd_version_needed WHERE asset_id = ?1`,
+		} {
+			if _, err := tx.ExecContext(ctx, q, from, into); err != nil {
+				return fmt.Errorf("findings: moving the findings of a merged device: %w", err)
+			}
+		}
+		return nil
+	})
+	return int(n), err
+}
+
 // deleteAsset removes the findings of a device under the caller's context (Reconcile keeps its own cancellation).
 func (s *Service) deleteAsset(ctx context.Context, assetID string) (int, error) {
 	var n int64

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"net/netip"
 	"slices"
 	"testing"
 	"time"
@@ -10,6 +11,7 @@ import (
 	"github.com/knt048/vedette/core/events"
 	"github.com/knt048/vedette/core/observe"
 	"github.com/knt048/vedette/core/store"
+	"github.com/knt048/vedette/modules/findings"
 	"github.com/knt048/vedette/modules/inventory"
 )
 
@@ -114,5 +116,75 @@ func TestWiringLLDPJunosSwitchFindingsOff(t *testing.T) {
 	}
 	if n := s.count(`SELECT count(*) FROM fnd_finding`); n != 0 {
 		t.Fatalf("findings off: %d findings", n)
+	}
+}
+
+// W1-37, D-515, review H2 of #722: the N100 switch. Its LLDP row holds the Junos findings (one marked a false positive by a person);
+// when it joins the .47 device, the findings move with their status and nothing is created or announced again.
+func TestWiringJoinedSwitchKeepsItsFindings(t *testing.T) {
+	t.Parallel()
+	s := newStack(t)
+	ctx := t.Context()
+	now := time.Now().UTC()
+	cves := []string{"CVE-2023-36844", "CVE-2023-36845", "CVE-2023-36847", "CVE-2023-36851", "CVE-2024-21591"}
+	for _, cve := range cves {
+		if err := s.d.DB.Write(ctx, func(tx *sql.Tx) error {
+			ts := store.FormatTS(now)
+			if _, err := tx.ExecContext(ctx, `INSERT INTO feeds_vuln (cve, vendor, product, product_key, name, date_added, ransomware, source_id, updated_at)
+				VALUES (?, 'Juniper', 'Junos OS', 'juniper|junos os', 'Juniper Junos OS EX Series Vulnerability', '2023-11-13', 0, 'cisa-kev', ?)`, cve, ts); err != nil {
+				return err
+			}
+			if _, err := tx.ExecContext(ctx, `INSERT INTO feeds_affected_cve (cve, updated_at) VALUES (?, ?)`, cve, ts); err != nil {
+				return err
+			}
+			_, err := tx.ExecContext(ctx, `INSERT INTO feeds_affected (cve, cpe, start_incl, start_excl, end_incl, end_excl)
+				VALUES (?, 'cpe:2.3:o:juniper:junos:*:*:*:*:*:*:*:*', '', '', '', '20.4')`, cve)
+			return err
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	const base, mgmt, ip = "3c:8a:b0:9c:85:80", "3c:8a:b0:9c:85:ff", "192.168.18.47"
+	lldp := func() {
+		t.Helper()
+		var batch []observe.Observation
+		for f, v := range map[observe.Field]string{observe.MAC: base, observe.Vendor: "Juniper Networks", observe.Kind: "switch", observe.Model: "EX4200-48T", observe.OS: "JUNOS 15.1R7.9"} {
+			batch = append(batch, observe.Observation{AssetHint: observe.AssetHint{MAC: base}, Field: f, Value: v, Source: observe.Passive, Confidence: 0.5, SeenAt: time.Now().UTC()})
+		}
+		if err := s.d.Inventory.Record(ctx, batch); err != nil {
+			t.Fatal(err)
+		}
+	}
+	lldp()
+	recs, err := s.d.Findings.List(ctx, "")
+	if err != nil || len(recs) != len(cves) {
+		t.Fatalf("findings of the LLDP row: %d (%v)", len(recs), err)
+	}
+	fp := recs[0]
+	if _, err := s.d.Findings.SetStatus(ctx, fp.ID, findings.ActionFalsePositive, "J-Web is off on this switch", "kien"); err != nil {
+		t.Fatal(err)
+	}
+	h := observe.AssetHint{MAC: mgmt, IP: netip.MustParseAddr(ip)}
+	if err := s.d.Inventory.Record(ctx, []observe.Observation{{AssetHint: h, Field: observe.MAC, Value: mgmt, Source: observe.Passive, Confidence: 0.9}}); err != nil {
+		t.Fatal(err)
+	}
+	created := 0
+	s.d.Bus.Subscribe(findings.EventCreated, func(context.Context, events.Event) error { created++; return nil })
+	lldp()
+	if n := s.count(`SELECT count(*) FROM inv_asset WHERE is_box = 0`); n != 1 {
+		t.Fatalf("%d devices, want one switch", n)
+	}
+	var ipID string
+	if err := s.d.DB.Reader().QueryRowContext(ctx, `SELECT id FROM inv_asset WHERE ip = ?`, ip).Scan(&ipID); err != nil {
+		t.Fatal(err)
+	}
+	if n := s.count(`SELECT count(*) FROM fnd_finding WHERE asset_id = '` + ipID + `'`); n != len(cves) {
+		t.Errorf("%d findings on the kept device, want %d", n, len(cves))
+	}
+	if r, err := s.d.Findings.Get(ctx, fp.ID); err != nil || r.Status != findings.StatusFalsePositive || r.AssetID != ipID {
+		t.Errorf("the person's false positive: %+v %v", r, err)
+	}
+	if created != 0 {
+		t.Errorf("%d findings created again", created)
 	}
 }

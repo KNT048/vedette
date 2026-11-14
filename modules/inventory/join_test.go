@@ -2,6 +2,7 @@ package inventory_test
 
 import (
 	"net/netip"
+	"slices"
 	"testing"
 	"time"
 
@@ -47,7 +48,8 @@ func (e *env) devices() int { return e.count(`SELECT count(*) FROM inv_asset WHE
 
 // W1-37, D-515 (c): the exact N100 values. A switch first seen by LLDP (no IP, base MAC :80, approved by a person) and then by ARP
 // and nmap at .47 (MAC :ff) is one device after the next LLDP frame: the IP device's id, address and MAC, the model and OS from
-// LLDP, the person's approval; one audit row, the LLDP row announced deleted. Later frames find the same device.
+// LLDP; one audit row; the LLDP row announced merged, then deleted. Later frames find the same device. The approval of the LLDP row
+// does not move (review H1 of #722): a person approves the joined device.
 func TestContract_D515_ASwitchSeenByLLDPAndByItsAddressIsOneDevice(t *testing.T) {
 	e := newEnv(t)
 	e.record(lldp(jnprBase, "")...)
@@ -71,11 +73,18 @@ func TestContract_D515_ASwitchSeenByLLDPAndByItsAddressIsOneDevice(t *testing.T)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if d.IP != jnprIP || d.MAC == nil || *d.MAC != jnprMgmt || d.Model == nil || d.Model.Value != "EX4200-48T" || d.OS == nil || d.OS.Value != "JUNOS 15.1R7.9" || d.Kind != "switch" || !d.Approved {
+	if d.IP != jnprIP || d.MAC == nil || *d.MAC != jnprMgmt || d.Model == nil || d.Model.Value != "EX4200-48T" || d.OS == nil || d.OS.Value != "JUNOS 15.1R7.9" || d.Kind != "switch" || d.Approved || d.ApprovedAt != nil {
 		t.Errorf("joined device: ip %s mac %v model %v os %v kind %s approved %v", d.IP, d.MAC, d.Model, d.OS, d.Kind, d.Approved)
 	}
 	if !has(e.auditActions(), "inventory.merge") {
 		t.Errorf("no inventory.merge audit row: %v", e.auditActions())
+	}
+	if m := e.ev.named(inventory.EventAssetMerged); len(m) != 1 || m[0].Data.(inventory.MergeEvent) != (inventory.MergeEvent{From: lldpID, Into: ipID, Actor: "system"}) {
+		t.Errorf("merged events %+v", m)
+	}
+	if i, j := slices.IndexFunc(e.ev.events, func(ev inventory.Event) bool { return ev.Name == inventory.EventAssetMerged }),
+		slices.IndexFunc(e.ev.events, func(ev inventory.Event) bool { return ev.Name == inventory.EventAssetDeleted }); i < 0 || j < i {
+		t.Errorf("merged must go out before deleted: %d, %d", i, j)
 	}
 	del := e.ev.named(inventory.EventAssetDeleted)
 	if len(del) != 1 || del[0].Data.(inventory.AssetEvent).AssetID != lldpID {
@@ -123,40 +132,82 @@ func TestContract_D515_TheSameNameJoins(t *testing.T) {
 	}
 }
 
-// D-515 negatives: another maker, both with addresses, a MAC outside the block, a name on another maker's device,
-// a name two devices share, and a device that is no network gear stay apart.
+// D-515 negatives (and review M1, LOW of #722): rows that are not one switch stay apart.
 func TestContract_D515_DifferentDevicesStayApart(t *testing.T) {
+	stated := func(mac, ip string, f observe.Field, v string) []observe.Observation {
+		return []observe.Observation{{AssetHint: observe.AssetHint{MAC: mac, IP: netip.MustParseAddr(ip)}, Field: f, Value: v, Source: observe.SNMP, Confidence: 0.9}}
+	}
 	for name, c := range map[string]struct {
 		ipMAC, ipName string
+		extra         []observe.Observation // after the IP device
+		setup         func(e *env)          // then, before the frame that decides
 		frame         []observe.Observation
-		extra         []observe.Observation
 	}{
 		"another maker":            {ipMAC: "00:11:22:9c:85:ff", frame: lldp(jnprBase, "")},
 		"outside the block":        {ipMAC: "3c:8a:b0:9c:85:80", frame: lldp("3c:8a:b0:9c:85:00", "")},
 		"below the base":           {ipMAC: "3c:8a:b0:9c:85:10", frame: lldp(jnprBase, "")},
-		"a name on another maker":  {ipMAC: "00:11:22:00:00:01", ipName: "sw", frame: lldp(jnprBase, "sw")},
+		"two in one block":         {ipMAC: "3c:8a:b0:9c:85:90", extra: seenAt("3c:8a:b0:9c:85:a0", "192.168.18.49", ""), frame: lldp(jnprBase, "")},
 		"both have addresses":      {ipMAC: jnprMgmt, frame: seenAt(jnprBase, "192.168.18.48", "")},
-		"a name two devices share": {ipMAC: "3c:8a:b0:00:00:01", ipName: "sw", frame: lldp(jnprBase, "sw"), extra: seenAt("3c:8a:b0:00:00:02", "192.168.18.49", "sw")},
-		"not network gear": {ipMAC: jnprMgmt, frame: []observe.Observation{
-			{AssetHint: observe.AssetHint{MAC: jnprBase}, Field: observe.Hostname, Value: "laptop", Source: observe.Passive, Confidence: 0.5},
+		"a random MAC":             {ipMAC: "3e:8a:b0:9c:85:ff", frame: lldp("3e:8a:b0:9c:85:80", "")},
+		"not network gear":         {ipMAC: jnprMgmt, frame: []observe.Observation{{AssetHint: observe.AssetHint{MAC: jnprBase}, Field: observe.Hostname, Value: "laptop", Source: observe.Passive, Confidence: 0.5}}},
+		"names differ":             {ipMAC: jnprMgmt, ipName: "sw-b", frame: lldp(jnprBase, "sw-a")},
+		"models differ":            {ipMAC: jnprMgmt, extra: stated(jnprMgmt, jnprIP, observe.Model, "EX2300-24T"), frame: lldp(jnprBase, "")},
+		"OSes differ":              {ipMAC: jnprMgmt, extra: stated(jnprMgmt, jnprIP, observe.OS, "JUNOS 18.2R3.4"), frame: lldp(jnprBase, "")},
+		"a name on another maker":  {ipMAC: "00:11:22:9c:00:01", ipName: "sw-core", frame: lldp(jnprBase, "sw-core")},
+		"a name on a far MAC":      {ipMAC: "3c:8a:b0:11:00:01", ipName: "sw-core", frame: lldp(jnprBase, "sw-core")},
+		"a default name":           {ipMAC: "3c:8a:b0:9c:00:10", ipName: "Amnesiac", frame: lldp(jnprBase, "Amnesiac")},
+		"a name two devices share": {ipMAC: "3c:8a:b0:9c:00:01", ipName: "sw-core", extra: seenAt("3c:8a:b0:9c:00:02", "192.168.18.49", "sw-core"), frame: lldp(jnprBase, "sw-core")},
+		"another chassis":          {ipMAC: jnprMgmt, extra: lldp("3c:8a:b0:9c:85:81", ""), frame: lldp(jnprBase, "")},
+		"a declared row": {ipMAC: jnprMgmt, frame: lldp(jnprBase, ""), setup: func(e *env) {
+			e.exec(`UPDATE inv_asset SET origin = 'manual' WHERE mac = ?`, jnprBase)
 		}},
-		"a random MAC": {ipMAC: "3e:8a:b0:9c:85:ff", frame: lldp("3e:8a:b0:9c:85:80", "")},
+		"the box": {ipMAC: jnprMgmt, frame: lldp(jnprBase, ""), setup: func(e *env) {
+			e.exec(`UPDATE inv_asset SET is_box = 1 WHERE ip = ?`, jnprIP)
+		}},
 	} {
 		t.Run(name, func(t *testing.T) {
 			e := newEnv(t)
+			e.record(c.frame...) // the frame first: a device with an address joining nothing by itself, the next frame decides
 			e.record(seenAt(c.ipMAC, jnprIP, c.ipName)...)
 			if c.extra != nil {
 				e.record(c.extra...)
 			}
-			want := e.devices() + 1
+			if c.setup != nil {
+				c.setup(e)
+			}
+			want := e.count(`SELECT count(*) FROM inv_asset`)
 			e.record(c.frame...)
-			e.record(c.frame...)
-			if n := e.devices(); n != want {
+			if n := e.count(`SELECT count(*) FROM inv_asset`); n != want {
 				t.Errorf("%d devices, want %d", n, want)
 			}
-			if has(e.auditActions(), "inventory.merge") {
-				t.Error("an inventory.merge audit row")
+			if has(e.auditActions(), "inventory.merge") != (name == "another chassis") { // there :81 joined first, then :80 must not
+				t.Errorf("inventory.merge audit rows: %v", e.auditActions())
 			}
 		})
+	}
+}
+
+// Review M1 of #722: a scan's fingerprint is a guess, not what the switch states: nmap calling .47 "JUNOS 12" (the walk) does not keep
+// the LLDP row apart.
+func TestContract_D515_AScanGuessDoesNotKeepThemApart(t *testing.T) {
+	e := newEnv(t)
+	e.record(seenAt(jnprMgmt, jnprIP, "")...)
+	e.record(observe.Observation{AssetHint: observe.AssetHint{MAC: jnprMgmt, IP: netip.MustParseAddr(jnprIP)}, Field: observe.OS, Value: "Juniper JUNOS 12.3", Source: observe.Nmap, Confidence: 0.9})
+	e.record(lldp(jnprBase, "")...)
+	if n := e.devices(); n != 1 {
+		t.Errorf("%d devices, want one", n)
+	}
+}
+
+// Review LOW of #722: an observation keeps its evidence when it moves.
+func TestContract_D515_AMovedObservationKeepsItsEvidence(t *testing.T) {
+	e := newEnv(t)
+	e.record(lldp(jnprBase, "")...)
+	e.exec(`INSERT INTO inv_observation (id, asset_id, field, value, source, confidence, seen_at, evidence) SELECT 'o-test', id, 'vendor', 'Juniper', 'passive', 0.1, last_seen, 'sysObjectID' FROM inv_asset WHERE mac = ?`, jnprBase)
+	e.record(seenAt(jnprMgmt, jnprIP, "")...)
+	ipID := e.idByMAC(jnprMgmt)
+	e.record(lldp(jnprBase, "")...)
+	if n := e.count(`SELECT count(*) FROM inv_observation WHERE asset_id = ? AND evidence = 'sysObjectID'`, ipID); n != 1 {
+		t.Errorf("%d moved observations with their evidence, want 1", n)
 	}
 }

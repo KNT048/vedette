@@ -47,3 +47,21 @@ func TestContract_D515_AProductWithNoDeviceHasNoDeviceType(t *testing.T) {
 		}
 	}
 }
+
+// Review M2 of #722: a type a person writes in a CSV is kept even on a product with no device; only the catalog's own suggestion
+// is left out.
+func TestContract_D515_ACSVTypeIsKept(t *testing.T) {
+	t.Parallel()
+	for csv, want := range map[string]string{
+		"product,type\nExchange Server,server\n": "server",
+		"product\nExchange Server\n":             "unknown",
+	} {
+		e := newEnv(t)
+		if r := e.importCSV(csv); r.Created != 1 {
+			t.Fatalf("%q: import %+v", csv, r)
+		}
+		if n := e.count(`SELECT count(*) FROM inv_asset WHERE origin = 'manual' AND ip IS NULL AND kind = ?`, want); n != 1 {
+			t.Errorf("%q: no product row of type %s", csv, want)
+		}
+	}
+}

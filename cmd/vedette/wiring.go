@@ -435,6 +435,14 @@ func subscribe(d deps) {
 			return err
 		}))
 	}
+	d.Bus.Subscribe(inventory.EventAssetMerged, on("findings", func(ctx context.Context, data any) error {
+		ev, ok := data.(inventory.MergeEvent)
+		if !ok {
+			return fmt.Errorf("unexpected payload %T", data)
+		}
+		_, err := d.Findings.OnAssetMerged(ctx, ev.From, ev.Into)
+		return err
+	}))
 	d.Bus.Subscribe(inventory.EventAssetDeleted, on("findings", func(ctx context.Context, data any) error {
 		ev, ok := data.(inventory.AssetEvent)
 		if !ok {

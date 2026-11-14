@@ -186,6 +186,8 @@ func TestContract_INV17_OlderCommitmentIsAskedAgainOnce(t *testing.T) {
 		}
 		_, err := e.svc.ScanNow(e.ctx(), adminOn, d.ID, "2026-11-13") // the page of the old sentence
 		wantAPI(t, err, 409, "notice_changed")
+		_, err = e.svc.ScanNow(e.ctx(), adminOn, d.ID, "") // a page loaded before the upgrade sends no version
+		wantAPI(t, err, 409, "notice_changed")
 		if run.calls != 0 || e.target(d.ID).Commitment.By != "first@acme.example" {
 			t.Fatalf("%s: scanned or rewritten before the administrator confirmed", name)
 		}
@@ -193,6 +195,9 @@ func TestContract_INV17_OlderCommitmentIsAskedAgainOnce(t *testing.T) {
 			t.Fatalf("%s: %v", name, err)
 		}
 		got := e.target(d.ID)
+		if got.Commitment.Sentence == nil || *got.Commitment.Sentence != d.CommitmentNotice.Text {
+			t.Fatalf("%s: stored sentence %v is not the one offered %q", name, got.Commitment.Sentence, d.CommitmentNotice.Text)
+		}
 		if c := got.Commitment; c.By != adminOn.Email || c.Version == nil || *c.Version != NoticeVersion || got.CommitmentNotice != nil || !got.Scannable || run.calls != 1 {
 			t.Fatalf("%s: after re-confirm %+v notice %+v calls %d", name, c, got.CommitmentNotice, run.calls)
 		}
@@ -206,7 +211,7 @@ func TestContract_INV17_OlderCommitmentIsAskedAgainOnce(t *testing.T) {
 		if ver == nil {
 			old = "recorded before versions"
 		}
-		if !strings.Contains(detail, "re-confirmed under the new sentence (replaces notice "+old+")") || !strings.Contains(detail, NoticeVersion) {
+		if !strings.Contains(detail, "re-confirmed under the new sentence (replaces notice "+old+", confirmed by first@acme.example at ") || !strings.Contains(detail, NoticeVersion) {
 			t.Fatalf("%s: audit detail %q", name, detail)
 		}
 		// asked once: the same version is never rewritten, and a schedule scans again

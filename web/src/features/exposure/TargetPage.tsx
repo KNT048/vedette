@@ -5,7 +5,6 @@ import { toast } from 'sonner'
 import { ArrowLeft, Play, Trash2 } from 'lucide-react'
 import { PageHeader, Section } from '@/components/common/PageHeader'
 import { QueryState, RequireModule } from '@/components/common/States'
-import { Chip } from '@/components/common/StatusChip'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog'
 import { dateTimeText } from './dates'
@@ -13,11 +12,12 @@ import { useCan } from '@/lib/session'
 import { useDeleteTarget, useScan, useScanRun, useTarget } from './api'
 import { ScanProgress } from './ScanProgress'
 import { CommitmentPanel } from './CommitmentPanel'
-import { OwnerChip } from './OwnerChip'
+import { CommitChip, OwnerChip } from './OwnerChip'
 import { RemoveDialog } from './RemoveDialog'
 import { ResultsPanel } from './ResultsPanel'
 import { VerifyPanel } from './VerifyPanel'
 import type { Target } from './types'
+import { blockedKey } from './types'
 
 const errMsg = (e: unknown) => (e instanceof Error ? e.message : String(e))
 
@@ -43,10 +43,10 @@ function TargetView({ target }: { target: Target }) {
   const notice = target.blocked_reason === 'no_commitment' && admin ? target.commitment_notice : null
   // The page cannot tell an SSO sign-in (the identity provider owns MFA) from no two-step, so the server decides and the refusal is shown here with the way out.
   const needTwoStep = !!notice && scan.isError && (scan.error as { code?: string }).code === 'twofa_required'
-  const blocked = notice ? null : target.blocked_reason ? t(`blocked.reasonLong.${target.blocked_reason}`, { value: target.value }) : null
+  const blocked = notice ? null : target.blocked_reason ? t(`blocked.reasonLong.${blockedKey(target)}`, { value: target.value }) : null
   const roleReason = !operator ? t('common:needRole', { role: t('common:role.operator') }) : null
   const c = target.latest
-  const title = target.blocked_reason && !notice ? t(`target.title.${target.blocked_reason}`, { value: target.value })
+  const title = target.blocked_reason && !notice ? t(`target.title.${blockedKey(target)}`, { value: target.value })
     : c ? (target.kind === 'domain' ? t('target.title.result', { value: target.value, subs: c.subdomains, admin: c.admin_panels }) : t('target.title.resultIp', { value: target.value, ports: c.ports, admin: c.admin_panels }))
     : t('target.title.ready', { value: target.value })
 
@@ -58,7 +58,7 @@ function TargetView({ target }: { target: Target }) {
   return (
     <>
       <PageHeader title={title} stories={['S-EXP-1']}
-        meta={<span className="flex flex-wrap items-center gap-2"><OwnerChip target={target} />{target.commitment ? <Chip tone="ok">{t('status.commitYes')}</Chip> : <Chip tone="off">{t('status.commitNo')}</Chip>}{target.last_scan_at ? t('target.lastScan', { time: dateTimeText(target.last_scan_at) }) : t('targets.neverScanned')}</span>}
+        meta={<span className="flex flex-wrap items-center gap-2"><OwnerChip target={target} /><CommitChip target={target} />{target.last_scan_at ? t('target.lastScan', { time: dateTimeText(target.last_scan_at) }) : t('targets.neverScanned')}</span>}
         actions={<>
           <Button variant="primary" onClick={run} disabled={!!blocked || !operator || scan.isPending || running} title={blocked ?? roleReason ?? undefined} aria-describedby={blocked ? 'scan-reason' : notice ? 'scan-notice' : undefined}>
             <Play />{scan.isPending || running ? t('scan.running') : t('scan.button')}

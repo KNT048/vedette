@@ -470,11 +470,12 @@ export const handlers = [
       if (me?.role !== 'admin') return fail(400, 'commitment_required', `${t.value} has not been confirmed yet. An administrator must run the first scan: it records that your company owns ${t.value} and that the scan is authorized.`)
       if (!me.twofa && !me.sso) return fail(403, 'twofa_required', 'Turn on two-step sign-in for your account first (My account), then run the first scan again. The first scan records your confirmation that your company owns the target and that you are authorized to scan it.')
       const sent = await body<{ notice_version?: string }>(request)
+      if (!sent.notice_version && v.commitment) return fail(409, 'notice_changed', 'The confirmation text changed since this page loaded. Read it again, then press Scan now again.')
       if (!sent.notice_version) return fail(400, 'commitment_required', `The first scan of ${t.value} records a confirmation, so the request must carry notice_version of the sentence shown next to Scan now.`)
       if (sent.notice_version !== NOTICE_VERSION) return fail(409, 'notice_changed', 'The confirmation text changed since this page loaded. Read it again, then press Scan now again.')
       const sentence = NOTICE_TEMPLATE.replace('{value}', t.value)
       commitments.update((m) => ({ ...m, [t.id]: { by: me.email, at: nowIso(), version: NOTICE_VERSION, sentence } }))
-      audit('exposure.commitment', t.value, `${v.commitment ? `re-confirmed under the new sentence (replaces notice ${v.commitment.version ?? 'recorded before versions'})` : 'confirmed by the first Scan now'} (notice ${NOTICE_VERSION}): ${sentence}`)
+      audit('exposure.commitment', t.value, `${v.commitment ? `re-confirmed under the new sentence (replaces notice ${v.commitment.version ?? 'recorded before versions'}, confirmed by ${v.commitment.by} at ${v.commitment.at})` : 'confirmed by the first Scan now'} (notice ${NOTICE_VERSION}): ${sentence}`)
     }
     // An IP is scanned only while the box still goes out through it (a fresh full check just before the scan sees it). Not seen, or no answer = paused, fail closed; the IP stays in the list.
     if (t.kind === 'ip') {

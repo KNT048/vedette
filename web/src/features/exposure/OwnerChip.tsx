@@ -10,3 +10,10 @@ export function OwnerChip({ target }: { target: Target }) {
   if (target.validity === 'expiring' && target.expires_at) return <Chip tone="warn">{t('status.expiresIn', { count: Math.max(0, Math.ceil((Date.parse(target.expires_at) - Date.now()) / 864e5)) })}</Chip>
   return <Chip tone="ok">{t('status.verified')}</Chip>
 }
+
+/** Commitment in one chip: confirmed under the current sentence, asked again (an older sentence, D-559), or not yet. */
+export function CommitChip({ target }: { target: Target }) {
+  const { t } = useTranslation('exposure')
+  if (target.commitment && target.commitment_notice) return <Chip tone="warn">{t('status.commitAgain')}</Chip>
+  return target.commitment ? <Chip tone="ok">{t('status.commitYes')}</Chip> : <Chip tone="off">{t('status.commitNo')}</Chip>
+}

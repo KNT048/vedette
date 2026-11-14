@@ -80,6 +80,8 @@ func (s *Service) confirmByScan(ctx context.Context, who Actor, t Target, versio
 		return errNeedTwoStep()
 	}
 	switch {
+	case version == "" && t.Commitment != nil: // a page loaded before the sentence changed sends none: it is stale, not a missing first scan
+		return errNoticeChanged()
 	case version == "":
 		return errNoticeMissing(t.Value)
 	case version != NoticeVersion:
@@ -112,7 +114,7 @@ func (s *Service) commit(ctx context.Context, who Actor, method, id string, n No
 			if t.Commitment.Version != nil {
 				old = *t.Commitment.Version
 			}
-			what = "re-confirmed under the new sentence (replaces notice " + old + ")"
+			what = "re-confirmed under the new sentence (replaces notice " + old + ", confirmed by " + t.Commitment.By + " at " + t.Commitment.At + ")"
 		}
 		if err := setCommitment(ctx, tx, id, who.Email, now, n, who.ID, method); err != nil {
 			return err

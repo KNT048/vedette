@@ -818,6 +818,17 @@ describe("exposure: an administrator's first Scan now is the confirmation (D-473
     expect(auditStore.get().filter((a) => a.action === 'exposure.commitment' && a.target === 'api.acme.example')).toHaveLength(1)
   })
 
+  it('the list and an operator read an older commitment honestly: needs confirming again, not "Commitment confirmed"', async () => {
+    withTwoStep(true)
+    renderApp('/exposure/xt-6', { role: 'operator' })
+    expect(await screen.findByText(/the confirmation text changed\. An administrator confirms 203\.0\.113\.11 once with the next Scan now/)).toBeInTheDocument()
+    expect(screen.getByText('Needs confirming again')).toBeInTheDocument()
+    expect(screen.queryByText('Commitment confirmed')).not.toBeInTheDocument()
+    expect(screen.queryByText(/must run the first scan/)).not.toBeInTheDocument()
+    expect((await call('POST', '/exposure/targets/xt-6/scan', undefined, 'operator')).json.error.message).toMatch(/confirmation text changed/)
+    expect((await call('POST', '/exposure/targets/xt-6/scan', {})).json.error.code).toBe('notice_changed')
+  })
+
   it('xt-6 is blocked with the new sentence and the changed line; an operator is refused; the administrator re-confirms once', async () => {
     withTwoStep(true)
     const before = (await call('GET', '/exposure/targets/xt-6')).json

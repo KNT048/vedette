@@ -13,11 +13,12 @@ import { Field, Input } from '@/components/ui/input'
 import { fmtRelative } from '@/lib/format'
 import { useCan } from '@/lib/session'
 import { BoxIpPanel } from './BoxIpPanel'
-import { OwnerChip } from './OwnerChip'
+import { CommitChip, OwnerChip } from './OwnerChip'
 import { ScanProgress } from './ScanProgress'
 import { useAddTarget, useTargets } from './api'
 import { portLabel, riskOf } from './services'
 import type { Gateway, PortRow, Target } from './types'
+import { blockedKey } from './types'
 
 export default function ExposurePage() {
   const { t } = useTranslation('exposure')
@@ -113,10 +114,10 @@ function TargetsTable({ items }: { items: Target[] }) {
       <span className="grid"><Link className="font-medium text-accent underline-offset-4 hover:underline" to={`/exposure/${row.original.id}`}>{row.original.value}</Link><span className="text-[12px] text-muted">{t(`kind.${row.original.kind}`)}</span></span>
     ) },
     { id: 'owner', header: t('targets.col.owner'), accessorFn: (r) => r.status, cell: ({ row }) => <OwnerChip target={row.original} /> },
-    { id: 'commit', header: t('targets.col.commit'), accessorFn: (r) => (r.commitment ? 1 : 0), cell: ({ row }) => (row.original.commitment ? <Chip tone="ok">{t('status.commitYes')}</Chip> : <Chip tone="off">{t('status.commitNo')}</Chip>) },
+    { id: 'commit', header: t('targets.col.commit'), accessorFn: (r) => (r.commitment ? 1 : 0), cell: ({ row }) => <CommitChip target={row.original} /> },
     { id: 'scan', header: t('targets.col.scan'), accessorFn: (r) => r.last_scan_at ?? '', cell: ({ row }) => {
       const r = row.original
-      return r.blocked_reason ? <span className="text-[13px] text-warn">{t(`blocked.${r.blocked_reason}`)}</span> : <span className="grid"><span>{r.last_scan_at ? fmtRelative(r.last_scan_at) : t('targets.neverScanned')}</span><span className="text-[12px] text-muted">{t('targets.ready')}</span></span>
+      return r.blocked_reason ? <span className="text-[13px] text-warn">{t(`blocked.${blockedKey(r)}`)}</span> : <span className="grid"><span>{r.last_scan_at ? fmtRelative(r.last_scan_at) : t('targets.neverScanned')}</span><span className="text-[12px] text-muted">{t('targets.ready')}</span></span>
     } },
     { id: 'latest', header: t('targets.col.latest'), enableSorting: false, cell: ({ row }) => {
       const c = row.original.latest
@@ -129,9 +130,9 @@ function TargetsTable({ items }: { items: Target[] }) {
         <Link className="break-all font-medium text-accent underline-offset-4 hover:underline" to={`/exposure/${r.id}`}>{r.value}</Link>
         <div className="flex flex-wrap items-center gap-2">
           <OwnerChip target={r} />
-          {r.commitment ? <Chip tone="ok">{t('status.commitYes')}</Chip> : <Chip tone="off">{t('status.commitNo')}</Chip>}
+          <CommitChip target={r} />
         </div>
-        <p className="text-[13px] text-muted">{r.blocked_reason ? t(`blocked.${r.blocked_reason}`) : r.last_scan_at ? fmtRelative(r.last_scan_at) : t('targets.neverScanned')}</p>
+        <p className="text-[13px] text-muted">{r.blocked_reason ? t(`blocked.${blockedKey(r)}`) : r.last_scan_at ? fmtRelative(r.last_scan_at) : t('targets.neverScanned')}</p>
         {r.latest ? <p className="text-[13px]">{t('targets.latest', { admin: r.latest.admin_panels, ports: r.latest.ports, certs: r.latest.certs_expiring })}</p> : null}
       </div>
     )}

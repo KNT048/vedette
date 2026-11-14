@@ -1305,13 +1305,16 @@ func (UnimplementedHandler) ExposurePostExposureTargets(ctx context.Context, req
 // on the account (403 twofa_required otherwise) and `notice_version` of the sentence shown next to the
 // button (400 commitment_required when left out, 409 notice_changed when it is not the current one);
 // the commitment is then recorded with who, when and that exact sentence, and the scan goes on. A
-// target that already has a commitment records nothing again. After those checks the Vulnerability
-// scans module does the scan (D-229, D-57 (7)): ports are scanned only on the box's own verified
-// public IPs; a domain's names from certificate transparency are listed and get one GET of / by name
-// on ports 80 and 443. 409 module_off while that module is off; 409 busy while another scan runs on
-// the box; 429 rate_limited within 10 minutes of the target's last scan. Failures that come while the
-// scan runs (400 too_many when the domain has more than 300 names in the logs; 502 unreachable when
-// the certificate-transparency search (crt.sh) does not answer or the scan does not finish within 5
+// target whose commitment is of the current sentence records nothing again; one of an older sentence
+// (D-559) is asked again once: it counts as missing (operators get 400 commitment_required "the
+// confirmation text changed"), a request without notice_version gets 409 notice_changed, and the
+// administrator's press replaces it. After those checks the Vulnerability scans module does the scan
+// (D-229, D-57 (7)): ports are scanned only on the box's own verified public IPs; a domain's names
+// from certificate transparency are listed and get one GET of / by name on ports 80 and 443. 409
+// module_off while that module is off; 409 busy while another scan runs on the box; 429 rate_limited
+// within 10 minutes of the target's last scan. Failures that come while the scan runs (400 too_many
+// when the domain has more than 300 names in the logs; 502 unreachable when the
+// certificate-transparency search (crt.sh) does not answer or the scan does not finish within 5
 // minutes; module_off when the module is switched off meanwhile) end the run as status failed with
 // that code and text, and nothing is saved. Every attempt is audited.
 //

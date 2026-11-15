@@ -23,6 +23,7 @@ type goldenFile struct {
 		Ransomware bool    `json:"ransomware"`
 		EPSS       float64 `json:"epss"`
 		DateAdded  string  `json:"date_added"`
+		Published  string  `json:"published"` // NVD's published day (D-616); absent in the older fixtures
 		Affected   []struct {
 			CPE       string `json:"cpe"`
 			StartIncl string `json:"start_incl"`
@@ -52,6 +53,7 @@ func loadGolden(t *testing.T, path string) []Vuln {
 	for _, v := range g.Vulns {
 		x := Vuln{CVE: v.CVE, Vendor: v.Vendor, Product: v.Product, Name: v.Name, Ransomware: v.Ransomware, EPSS: v.EPSS}
 		x.DateAdded, _ = time.Parse(time.DateOnly, v.DateAdded)
+		x.Published, _ = time.Parse(time.DateOnly, v.Published)
 		for _, a := range v.Affected {
 			x.Affected = append(x.Affected, Affected{CPE: a.CPE, Range: VersionRange{StartIncl: a.StartIncl, StartExcl: a.StartExcl, EndIncl: a.EndIncl, EndExcl: a.EndExcl}})
 		}

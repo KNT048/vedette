@@ -335,6 +335,7 @@ func MatchAsset(a Asset, vulns []Vuln, have map[string]bool, now time.Time) Matc
 		infos[i].platformOS = platformOS(s, a)
 		if d, ok := winDevice(infos[i]); ok {
 			infos[i].winNamed = winNamed(vulns, d.rel.Product) // D-546, review H2
+			infos[i].winBuild = winBuildMonth(vulns, d)        // D-618
 		}
 	}
 	for _, v := range vulns {
@@ -640,6 +641,9 @@ type swInfo struct {
 	pkgVer, pkgSrc string
 	// winNamed: the software is a Windows release row and NVD names its release in some entry of the list (D-546).
 	winNamed bool
+	// winBuild: the month of the monthly update a Windows release row's build carries, read from the list's fix builds (D-618,
+	// winBuildMonth); zero when not known or not computed (FixedInFor, the plan pass), and then the month rule never closes.
+	winBuild winBuild
 	// osName is the device's operating system as inventory folds it ("Microsoft Windows 10 Enterprise LTSC 2019 10.0.17763.6532"):
 	// a Windows LTSC/LTSB edition is still serviced when its release has ended (D-546).
 	osName string

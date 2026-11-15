@@ -20225,6 +20225,148 @@ func (s *Server) handleFeedsGetFeedsCveIDRequest(args [1]string, argsEscaped boo
 	}
 }
 
+// handleFeedsGetFeedsCveIDTierRequest handles feeds_get_feeds_cve_id_tier operation.
+//
+// A CVE that is on no exploited list: EPSS, NVD dates and severity from the tier data (404 not_in_data
+// when neither feed holds it).
+//
+// GET /feeds/cve/{id}/tier
+func (s *Server) handleFeedsGetFeedsCveIDTierRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: FeedsGetFeedsCveIDTierOperation,
+			ID:   "feeds_get_feeds_cve_id_tier",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securitySession(ctx, FeedsGetFeedsCveIDTierOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Session",
+					Err:              err,
+				}
+				if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
+					defer recordError("Security:Session", err)
+				}
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
+				defer recordError("Security", err)
+			}
+			return
+		}
+	}
+	params, err := decodeFeedsGetFeedsCveIDTierParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response *FeedsGetFeedsCveIDTierOK
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    FeedsGetFeedsCveIDTierOperation,
+			OperationSummary: "A CVE that is on no exploited list: EPSS, NVD dates and severity from the tier data (404 not_in_data when neither feed holds it)",
+			OperationID:      "feeds_get_feeds_cve_id_tier",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "id",
+					In:   "path",
+				}: params.ID,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = FeedsGetFeedsCveIDTierParams
+			Response = *FeedsGetFeedsCveIDTierOK
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackFeedsGetFeedsCveIDTierParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.FeedsGetFeedsCveIDTier(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.FeedsGetFeedsCveIDTier(ctx, params)
+	}
+	if err != nil {
+		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
+			if err := encodeErrorResponse(errRes, w); err != nil {
+				defer recordError("Internal", err)
+			}
+			return
+		}
+		if errors.Is(err, ht.ErrNotImplemented) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+		if err := encodeErrorResponse(s.h.NewError(ctx, err), w); err != nil {
+			defer recordError("Internal", err)
+		}
+		return
+	}
+
+	if err := encodeFeedsGetFeedsCveIDTierResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleFeedsGetFeedsHotRequest handles feeds_get_feeds_hot operation.
 //
 // Newly exploited vulnerabilities, grouped by product, with "Do you have it?".
@@ -22051,6 +22193,152 @@ func (s *Server) handleFindingsGetFindingsIDRequest(args [1]string, argsEscaped 
 	}
 
 	if err := encodeFindingsGetFindingsIDResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleFindingsGetFindingsPlanRequest handles findings_get_findings_plan operation.
+//
+// Updates to plan: one item per update on one device that fixes CVEs likely to be exploited (EPSS 10 %
+// or more) or published in the last 12 months, version-confirmed only; never findings, never alerts.
+//
+// GET /findings/plan
+func (s *Server) handleFindingsGetFindingsPlanRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: FindingsGetFindingsPlanOperation,
+			ID:   "findings_get_findings_plan",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securitySession(ctx, FindingsGetFindingsPlanOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Session",
+					Err:              err,
+				}
+				if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
+					defer recordError("Security:Session", err)
+				}
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
+				defer recordError("Security", err)
+			}
+			return
+		}
+	}
+	params, err := decodeFindingsGetFindingsPlanParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response *FindingsGetFindingsPlanOK
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    FindingsGetFindingsPlanOperation,
+			OperationSummary: "Updates to plan: one item per update on one device that fixes CVEs likely to be exploited (EPSS 10 % or more) or published in the last 12 months, version-confirmed only; never findings, never alerts",
+			OperationID:      "findings_get_findings_plan",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "tier",
+					In:   "query",
+				}: params.Tier,
+				{
+					Name: "asset",
+					In:   "query",
+				}: params.Asset,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = FindingsGetFindingsPlanParams
+			Response = *FindingsGetFindingsPlanOK
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackFindingsGetFindingsPlanParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.FindingsGetFindingsPlan(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.FindingsGetFindingsPlan(ctx, params)
+	}
+	if err != nil {
+		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
+			if err := encodeErrorResponse(errRes, w); err != nil {
+				defer recordError("Internal", err)
+			}
+			return
+		}
+		if errors.Is(err, ht.ErrNotImplemented) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+		if err := encodeErrorResponse(s.h.NewError(ctx, err), w); err != nil {
+			defer recordError("Internal", err)
+		}
+		return
+	}
+
+	if err := encodeFindingsGetFindingsPlanResponse(response, w); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)

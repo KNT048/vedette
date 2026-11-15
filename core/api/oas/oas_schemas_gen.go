@@ -53877,10 +53877,14 @@ type FeedsGetFeedsCveIDOK struct {
 	Name    string                            `json:"name"`
 	// D-549: devices that run the product but that the platform rules of the findings prove are not
 	// affected; left out of matched.
-	NotAffected    OptInt `json:"not_affected"`
-	Product        string `json:"product"`
-	Ransomware     bool   `json:"ransomware"`
-	RequiredAction string `json:"required_action"`
+	NotAffected OptInt `json:"not_affected"`
+	Product     string `json:"product"`
+	// D-615: the day NVD published the CVE (never CISA's date_added); null when NVD has not answered for
+	// it. Older than 12 months: a device that matches by the product name only (no version compared) is
+	// not a finding (D-616), so matched may list devices that are not findings.
+	Published      NilString `json:"published"`
+	Ransomware     bool      `json:"ransomware"`
+	RequiredAction string    `json:"required_action"`
 	// Which list the entry is on: "cisa-kev", "vulncheck-kev" (VulnCheck KEV, D-557) or the id of a custom
 	// feed; texts name it, an entry of VulnCheck is never called CISA's.
 	Source OptString `json:"source"`
@@ -53950,6 +53954,11 @@ func (s *FeedsGetFeedsCveIDOK) GetNotAffected() OptInt {
 // GetProduct returns the value of Product.
 func (s *FeedsGetFeedsCveIDOK) GetProduct() string {
 	return s.Product
+}
+
+// GetPublished returns the value of Published.
+func (s *FeedsGetFeedsCveIDOK) GetPublished() NilString {
+	return s.Published
 }
 
 // GetRansomware returns the value of Ransomware.
@@ -54035,6 +54044,11 @@ func (s *FeedsGetFeedsCveIDOK) SetNotAffected(val OptInt) {
 // SetProduct sets the value of Product.
 func (s *FeedsGetFeedsCveIDOK) SetProduct(val string) {
 	s.Product = val
+}
+
+// SetPublished sets the value of Published.
+func (s *FeedsGetFeedsCveIDOK) SetPublished(val NilString) {
+	s.Published = val
 }
 
 // SetRansomware sets the value of Ransomware.
@@ -54157,6 +54171,253 @@ func (s *FeedsGetFeedsCveIDOKMatchedItemHow) UnmarshalText(data []byte) error {
 		return nil
 	case FeedsGetFeedsCveIDOKMatchedItemHowNo:
 		*s = FeedsGetFeedsCveIDOKMatchedItemHowNo
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FeedsGetFeedsCveIDTierOK struct {
+	Cve  string     `json:"cve"`
+	Epss NilFloat64 `json:"epss"`
+	// The day of the EPSS score.
+	EpssDate     NilString `json:"epss_date"`
+	LastModified NilString `json:"last_modified"`
+	// NVD's vulnStatus ("Analyzed", "Awaiting Analysis", "Deferred"…).
+	NvdStatus  NilString  `json:"nvd_status"`
+	Percentile NilFloat64 `json:"percentile"`
+	// Vendor and product of NVD's affected entries, at most 10.
+	Products []string `json:"products"`
+	// NVD `published`; null when nvd-recent does not hold it (older than 12 months, or the feed is off).
+	Published NilString `json:"published"`
+	// NVD gives affected versions, so a device's exact version can be compared.
+	Ranges bool       `json:"ranges"`
+	Score  NilFloat64 `json:"score"`
+	// NVD's CVSS severity.
+	Severity NilFeedsGetFeedsCveIDTierOKSeverity `json:"severity"`
+	// Likely = EPSS 10 % or more and published in the last 12 months; recent = published in the last 12
+	// months; null = older, or no published date in the data (only a scan engine that finds it lists it,
+	// D-615).
+	Tier NilFeedsGetFeedsCveIDTierOKTier `json:"tier"`
+}
+
+// GetCve returns the value of Cve.
+func (s *FeedsGetFeedsCveIDTierOK) GetCve() string {
+	return s.Cve
+}
+
+// GetEpss returns the value of Epss.
+func (s *FeedsGetFeedsCveIDTierOK) GetEpss() NilFloat64 {
+	return s.Epss
+}
+
+// GetEpssDate returns the value of EpssDate.
+func (s *FeedsGetFeedsCveIDTierOK) GetEpssDate() NilString {
+	return s.EpssDate
+}
+
+// GetLastModified returns the value of LastModified.
+func (s *FeedsGetFeedsCveIDTierOK) GetLastModified() NilString {
+	return s.LastModified
+}
+
+// GetNvdStatus returns the value of NvdStatus.
+func (s *FeedsGetFeedsCveIDTierOK) GetNvdStatus() NilString {
+	return s.NvdStatus
+}
+
+// GetPercentile returns the value of Percentile.
+func (s *FeedsGetFeedsCveIDTierOK) GetPercentile() NilFloat64 {
+	return s.Percentile
+}
+
+// GetProducts returns the value of Products.
+func (s *FeedsGetFeedsCveIDTierOK) GetProducts() []string {
+	return s.Products
+}
+
+// GetPublished returns the value of Published.
+func (s *FeedsGetFeedsCveIDTierOK) GetPublished() NilString {
+	return s.Published
+}
+
+// GetRanges returns the value of Ranges.
+func (s *FeedsGetFeedsCveIDTierOK) GetRanges() bool {
+	return s.Ranges
+}
+
+// GetScore returns the value of Score.
+func (s *FeedsGetFeedsCveIDTierOK) GetScore() NilFloat64 {
+	return s.Score
+}
+
+// GetSeverity returns the value of Severity.
+func (s *FeedsGetFeedsCveIDTierOK) GetSeverity() NilFeedsGetFeedsCveIDTierOKSeverity {
+	return s.Severity
+}
+
+// GetTier returns the value of Tier.
+func (s *FeedsGetFeedsCveIDTierOK) GetTier() NilFeedsGetFeedsCveIDTierOKTier {
+	return s.Tier
+}
+
+// SetCve sets the value of Cve.
+func (s *FeedsGetFeedsCveIDTierOK) SetCve(val string) {
+	s.Cve = val
+}
+
+// SetEpss sets the value of Epss.
+func (s *FeedsGetFeedsCveIDTierOK) SetEpss(val NilFloat64) {
+	s.Epss = val
+}
+
+// SetEpssDate sets the value of EpssDate.
+func (s *FeedsGetFeedsCveIDTierOK) SetEpssDate(val NilString) {
+	s.EpssDate = val
+}
+
+// SetLastModified sets the value of LastModified.
+func (s *FeedsGetFeedsCveIDTierOK) SetLastModified(val NilString) {
+	s.LastModified = val
+}
+
+// SetNvdStatus sets the value of NvdStatus.
+func (s *FeedsGetFeedsCveIDTierOK) SetNvdStatus(val NilString) {
+	s.NvdStatus = val
+}
+
+// SetPercentile sets the value of Percentile.
+func (s *FeedsGetFeedsCveIDTierOK) SetPercentile(val NilFloat64) {
+	s.Percentile = val
+}
+
+// SetProducts sets the value of Products.
+func (s *FeedsGetFeedsCveIDTierOK) SetProducts(val []string) {
+	s.Products = val
+}
+
+// SetPublished sets the value of Published.
+func (s *FeedsGetFeedsCveIDTierOK) SetPublished(val NilString) {
+	s.Published = val
+}
+
+// SetRanges sets the value of Ranges.
+func (s *FeedsGetFeedsCveIDTierOK) SetRanges(val bool) {
+	s.Ranges = val
+}
+
+// SetScore sets the value of Score.
+func (s *FeedsGetFeedsCveIDTierOK) SetScore(val NilFloat64) {
+	s.Score = val
+}
+
+// SetSeverity sets the value of Severity.
+func (s *FeedsGetFeedsCveIDTierOK) SetSeverity(val NilFeedsGetFeedsCveIDTierOKSeverity) {
+	s.Severity = val
+}
+
+// SetTier sets the value of Tier.
+func (s *FeedsGetFeedsCveIDTierOK) SetTier(val NilFeedsGetFeedsCveIDTierOKTier) {
+	s.Tier = val
+}
+
+type FeedsGetFeedsCveIDTierOKSeverity string
+
+const (
+	FeedsGetFeedsCveIDTierOKSeverityCritical FeedsGetFeedsCveIDTierOKSeverity = "critical"
+	FeedsGetFeedsCveIDTierOKSeverityHigh     FeedsGetFeedsCveIDTierOKSeverity = "high"
+	FeedsGetFeedsCveIDTierOKSeverityMedium   FeedsGetFeedsCveIDTierOKSeverity = "medium"
+	FeedsGetFeedsCveIDTierOKSeverityLow      FeedsGetFeedsCveIDTierOKSeverity = "low"
+	FeedsGetFeedsCveIDTierOKSeverityNone     FeedsGetFeedsCveIDTierOKSeverity = "none"
+)
+
+// AllValues returns all FeedsGetFeedsCveIDTierOKSeverity values.
+func (FeedsGetFeedsCveIDTierOKSeverity) AllValues() []FeedsGetFeedsCveIDTierOKSeverity {
+	return []FeedsGetFeedsCveIDTierOKSeverity{
+		FeedsGetFeedsCveIDTierOKSeverityCritical,
+		FeedsGetFeedsCveIDTierOKSeverityHigh,
+		FeedsGetFeedsCveIDTierOKSeverityMedium,
+		FeedsGetFeedsCveIDTierOKSeverityLow,
+		FeedsGetFeedsCveIDTierOKSeverityNone,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FeedsGetFeedsCveIDTierOKSeverity) MarshalText() ([]byte, error) {
+	switch s {
+	case FeedsGetFeedsCveIDTierOKSeverityCritical:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDTierOKSeverityHigh:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDTierOKSeverityMedium:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDTierOKSeverityLow:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDTierOKSeverityNone:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FeedsGetFeedsCveIDTierOKSeverity) UnmarshalText(data []byte) error {
+	switch FeedsGetFeedsCveIDTierOKSeverity(data) {
+	case FeedsGetFeedsCveIDTierOKSeverityCritical:
+		*s = FeedsGetFeedsCveIDTierOKSeverityCritical
+		return nil
+	case FeedsGetFeedsCveIDTierOKSeverityHigh:
+		*s = FeedsGetFeedsCveIDTierOKSeverityHigh
+		return nil
+	case FeedsGetFeedsCveIDTierOKSeverityMedium:
+		*s = FeedsGetFeedsCveIDTierOKSeverityMedium
+		return nil
+	case FeedsGetFeedsCveIDTierOKSeverityLow:
+		*s = FeedsGetFeedsCveIDTierOKSeverityLow
+		return nil
+	case FeedsGetFeedsCveIDTierOKSeverityNone:
+		*s = FeedsGetFeedsCveIDTierOKSeverityNone
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FeedsGetFeedsCveIDTierOKTier string
+
+const (
+	FeedsGetFeedsCveIDTierOKTierLikely FeedsGetFeedsCveIDTierOKTier = "likely"
+	FeedsGetFeedsCveIDTierOKTierRecent FeedsGetFeedsCveIDTierOKTier = "recent"
+)
+
+// AllValues returns all FeedsGetFeedsCveIDTierOKTier values.
+func (FeedsGetFeedsCveIDTierOKTier) AllValues() []FeedsGetFeedsCveIDTierOKTier {
+	return []FeedsGetFeedsCveIDTierOKTier{
+		FeedsGetFeedsCveIDTierOKTierLikely,
+		FeedsGetFeedsCveIDTierOKTierRecent,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FeedsGetFeedsCveIDTierOKTier) MarshalText() ([]byte, error) {
+	switch s {
+	case FeedsGetFeedsCveIDTierOKTierLikely:
+		return []byte(s), nil
+	case FeedsGetFeedsCveIDTierOKTierRecent:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FeedsGetFeedsCveIDTierOKTier) UnmarshalText(data []byte) error {
+	switch FeedsGetFeedsCveIDTierOKTier(data) {
+	case FeedsGetFeedsCveIDTierOKTierLikely:
+		*s = FeedsGetFeedsCveIDTierOKTierLikely
+		return nil
+	case FeedsGetFeedsCveIDTierOKTierRecent:
+		*s = FeedsGetFeedsCveIDTierOKTierRecent
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -62971,16 +63232,20 @@ func (s *FindingsGetFindingsIDOKHistoryItem) SetUser(val string) {
 }
 
 type FindingsGetFindingsIDOKKev struct {
-	DateAdded      string     `json:"date_added"`
-	Display        string     `json:"display"`
-	DueDate        NilString  `json:"due_date"`
-	Epss           NilFloat64 `json:"epss"`
-	HasTemplate    bool       `json:"has_template"`
-	Links          []string   `json:"links"`
-	Name           string     `json:"name"`
-	Product        string     `json:"product"`
-	Ransomware     bool       `json:"ransomware"`
-	RequiredAction string     `json:"required_action"`
+	DateAdded   string     `json:"date_added"`
+	Display     string     `json:"display"`
+	DueDate     NilString  `json:"due_date"`
+	Epss        NilFloat64 `json:"epss"`
+	HasTemplate bool       `json:"has_template"`
+	Links       []string   `json:"links"`
+	Name        string     `json:"name"`
+	Product     string     `json:"product"`
+	// D-615: the day the CVE was published (NVD `published`), never the day CISA added it; null when NVD
+	// has not answered for it (then it counts as recent: an older CVE is not a finding on a product-only
+	// match (D-616), and a missing date never closes a finding).
+	Published      NilDate `json:"published"`
+	Ransomware     bool    `json:"ransomware"`
+	RequiredAction string  `json:"required_action"`
 	// Which list the entry is on (D-557): texts and the source badge name it; an entry of VulnCheck KEV is
 	// never called CISA's.
 	Source OptFindingsGetFindingsIDOKKevSource `json:"source"`
@@ -63025,6 +63290,11 @@ func (s *FindingsGetFindingsIDOKKev) GetName() string {
 // GetProduct returns the value of Product.
 func (s *FindingsGetFindingsIDOKKev) GetProduct() string {
 	return s.Product
+}
+
+// GetPublished returns the value of Published.
+func (s *FindingsGetFindingsIDOKKev) GetPublished() NilDate {
+	return s.Published
 }
 
 // GetRansomware returns the value of Ransomware.
@@ -63085,6 +63355,11 @@ func (s *FindingsGetFindingsIDOKKev) SetName(val string) {
 // SetProduct sets the value of Product.
 func (s *FindingsGetFindingsIDOKKev) SetProduct(val string) {
 	s.Product = val
+}
+
+// SetPublished sets the value of Published.
+func (s *FindingsGetFindingsIDOKKev) SetPublished(val NilDate) {
+	s.Published = val
 }
 
 // SetRansomware sets the value of Ransomware.
@@ -65214,16 +65489,20 @@ func (s *FindingsGetFindingsOKItemsItemHistoryItem) SetUser(val string) {
 }
 
 type FindingsGetFindingsOKItemsItemKev struct {
-	DateAdded      string     `json:"date_added"`
-	Display        string     `json:"display"`
-	DueDate        NilString  `json:"due_date"`
-	Epss           NilFloat64 `json:"epss"`
-	HasTemplate    bool       `json:"has_template"`
-	Links          []string   `json:"links"`
-	Name           string     `json:"name"`
-	Product        string     `json:"product"`
-	Ransomware     bool       `json:"ransomware"`
-	RequiredAction string     `json:"required_action"`
+	DateAdded   string     `json:"date_added"`
+	Display     string     `json:"display"`
+	DueDate     NilString  `json:"due_date"`
+	Epss        NilFloat64 `json:"epss"`
+	HasTemplate bool       `json:"has_template"`
+	Links       []string   `json:"links"`
+	Name        string     `json:"name"`
+	Product     string     `json:"product"`
+	// D-615: the day the CVE was published (NVD `published`), never the day CISA added it; null when NVD
+	// has not answered for it (then it counts as recent: an older CVE is not a finding on a product-only
+	// match (D-616), and a missing date never closes a finding).
+	Published      NilDate `json:"published"`
+	Ransomware     bool    `json:"ransomware"`
+	RequiredAction string  `json:"required_action"`
 	// Which list the entry is on (D-557): texts and the source badge name it; an entry of VulnCheck KEV is
 	// never called CISA's.
 	Source OptFindingsGetFindingsOKItemsItemKevSource `json:"source"`
@@ -65268,6 +65547,11 @@ func (s *FindingsGetFindingsOKItemsItemKev) GetName() string {
 // GetProduct returns the value of Product.
 func (s *FindingsGetFindingsOKItemsItemKev) GetProduct() string {
 	return s.Product
+}
+
+// GetPublished returns the value of Published.
+func (s *FindingsGetFindingsOKItemsItemKev) GetPublished() NilDate {
+	return s.Published
 }
 
 // GetRansomware returns the value of Ransomware.
@@ -65328,6 +65612,11 @@ func (s *FindingsGetFindingsOKItemsItemKev) SetName(val string) {
 // SetProduct sets the value of Product.
 func (s *FindingsGetFindingsOKItemsItemKev) SetProduct(val string) {
 	s.Product = val
+}
+
+// SetPublished sets the value of Published.
+func (s *FindingsGetFindingsOKItemsItemKev) SetPublished(val NilDate) {
+	s.Published = val
 }
 
 // SetRansomware sets the value of Ransomware.
@@ -66321,6 +66610,742 @@ func (s *FindingsGetFindingsOKVersionNeededItemAssetKind) UnmarshalText(data []b
 		return nil
 	case FindingsGetFindingsOKVersionNeededItemAssetKindUnknown:
 		*s = FindingsGetFindingsOKVersionNeededItemAssetKindUnknown
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FindingsGetFindingsPlanOK struct {
+	// False = this box holds the data but does not compare tier 2 and 3 CVEs with devices yet (D-616: the
+	// matcher of slice 3); the page says so instead of "no update to plan".
+	Compared bool `json:"compared"`
+	// Devices with at least one version Vedette can compare.
+	ComparedDevices int                                  `json:"compared_devices"`
+	Data            FindingsGetFindingsPlanOKData        `json:"data"`
+	Items           []FindingsGetFindingsPlanOKItemsItem `json:"items"`
+	// D-615: CVEs published more than 12 months ago listed because a scan engine found them.
+	OldEvidence int `json:"old_evidence"`
+	// Devices with no version Vedette can read: not checked.
+	UncheckedDevices int `json:"unchecked_devices"`
+}
+
+// GetCompared returns the value of Compared.
+func (s *FindingsGetFindingsPlanOK) GetCompared() bool {
+	return s.Compared
+}
+
+// GetComparedDevices returns the value of ComparedDevices.
+func (s *FindingsGetFindingsPlanOK) GetComparedDevices() int {
+	return s.ComparedDevices
+}
+
+// GetData returns the value of Data.
+func (s *FindingsGetFindingsPlanOK) GetData() FindingsGetFindingsPlanOKData {
+	return s.Data
+}
+
+// GetItems returns the value of Items.
+func (s *FindingsGetFindingsPlanOK) GetItems() []FindingsGetFindingsPlanOKItemsItem {
+	return s.Items
+}
+
+// GetOldEvidence returns the value of OldEvidence.
+func (s *FindingsGetFindingsPlanOK) GetOldEvidence() int {
+	return s.OldEvidence
+}
+
+// GetUncheckedDevices returns the value of UncheckedDevices.
+func (s *FindingsGetFindingsPlanOK) GetUncheckedDevices() int {
+	return s.UncheckedDevices
+}
+
+// SetCompared sets the value of Compared.
+func (s *FindingsGetFindingsPlanOK) SetCompared(val bool) {
+	s.Compared = val
+}
+
+// SetComparedDevices sets the value of ComparedDevices.
+func (s *FindingsGetFindingsPlanOK) SetComparedDevices(val int) {
+	s.ComparedDevices = val
+}
+
+// SetData sets the value of Data.
+func (s *FindingsGetFindingsPlanOK) SetData(val FindingsGetFindingsPlanOKData) {
+	s.Data = val
+}
+
+// SetItems sets the value of Items.
+func (s *FindingsGetFindingsPlanOK) SetItems(val []FindingsGetFindingsPlanOKItemsItem) {
+	s.Items = val
+}
+
+// SetOldEvidence sets the value of OldEvidence.
+func (s *FindingsGetFindingsPlanOK) SetOldEvidence(val int) {
+	s.OldEvidence = val
+}
+
+// SetUncheckedDevices sets the value of UncheckedDevices.
+func (s *FindingsGetFindingsPlanOK) SetUncheckedDevices(val int) {
+	s.UncheckedDevices = val
+}
+
+type FindingsGetFindingsPlanOKData struct {
+	// Feed epss-all (tier 2).
+	Epss FindingsGetFindingsPlanOKDataEpss `json:"epss"`
+	// The day of the EPSS scores.
+	EpssDate NilDate `json:"epss_date"`
+	// Feed nvd-recent (tier 3, and the published dates of tier 2).
+	Recent FindingsGetFindingsPlanOKDataRecent `json:"recent"`
+	// CVEs published on or after this day are in the data (12 months back).
+	RecentSince NilDate `json:"recent_since"`
+}
+
+// GetEpss returns the value of Epss.
+func (s *FindingsGetFindingsPlanOKData) GetEpss() FindingsGetFindingsPlanOKDataEpss {
+	return s.Epss
+}
+
+// GetEpssDate returns the value of EpssDate.
+func (s *FindingsGetFindingsPlanOKData) GetEpssDate() NilDate {
+	return s.EpssDate
+}
+
+// GetRecent returns the value of Recent.
+func (s *FindingsGetFindingsPlanOKData) GetRecent() FindingsGetFindingsPlanOKDataRecent {
+	return s.Recent
+}
+
+// GetRecentSince returns the value of RecentSince.
+func (s *FindingsGetFindingsPlanOKData) GetRecentSince() NilDate {
+	return s.RecentSince
+}
+
+// SetEpss sets the value of Epss.
+func (s *FindingsGetFindingsPlanOKData) SetEpss(val FindingsGetFindingsPlanOKDataEpss) {
+	s.Epss = val
+}
+
+// SetEpssDate sets the value of EpssDate.
+func (s *FindingsGetFindingsPlanOKData) SetEpssDate(val NilDate) {
+	s.EpssDate = val
+}
+
+// SetRecent sets the value of Recent.
+func (s *FindingsGetFindingsPlanOKData) SetRecent(val FindingsGetFindingsPlanOKDataRecent) {
+	s.Recent = val
+}
+
+// SetRecentSince sets the value of RecentSince.
+func (s *FindingsGetFindingsPlanOKData) SetRecentSince(val NilDate) {
+	s.RecentSince = val
+}
+
+// Feed epss-all (tier 2).
+type FindingsGetFindingsPlanOKDataEpss string
+
+const (
+	FindingsGetFindingsPlanOKDataEpssModuleOff FindingsGetFindingsPlanOKDataEpss = "module_off"
+	FindingsGetFindingsPlanOKDataEpssOff       FindingsGetFindingsPlanOKDataEpss = "off"
+	FindingsGetFindingsPlanOKDataEpssLoading   FindingsGetFindingsPlanOKDataEpss = "loading"
+	FindingsGetFindingsPlanOKDataEpssReady     FindingsGetFindingsPlanOKDataEpss = "ready"
+)
+
+// AllValues returns all FindingsGetFindingsPlanOKDataEpss values.
+func (FindingsGetFindingsPlanOKDataEpss) AllValues() []FindingsGetFindingsPlanOKDataEpss {
+	return []FindingsGetFindingsPlanOKDataEpss{
+		FindingsGetFindingsPlanOKDataEpssModuleOff,
+		FindingsGetFindingsPlanOKDataEpssOff,
+		FindingsGetFindingsPlanOKDataEpssLoading,
+		FindingsGetFindingsPlanOKDataEpssReady,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsPlanOKDataEpss) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsPlanOKDataEpssModuleOff:
+		return []byte(s), nil
+	case FindingsGetFindingsPlanOKDataEpssOff:
+		return []byte(s), nil
+	case FindingsGetFindingsPlanOKDataEpssLoading:
+		return []byte(s), nil
+	case FindingsGetFindingsPlanOKDataEpssReady:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsPlanOKDataEpss) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsPlanOKDataEpss(data) {
+	case FindingsGetFindingsPlanOKDataEpssModuleOff:
+		*s = FindingsGetFindingsPlanOKDataEpssModuleOff
+		return nil
+	case FindingsGetFindingsPlanOKDataEpssOff:
+		*s = FindingsGetFindingsPlanOKDataEpssOff
+		return nil
+	case FindingsGetFindingsPlanOKDataEpssLoading:
+		*s = FindingsGetFindingsPlanOKDataEpssLoading
+		return nil
+	case FindingsGetFindingsPlanOKDataEpssReady:
+		*s = FindingsGetFindingsPlanOKDataEpssReady
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Feed nvd-recent (tier 3, and the published dates of tier 2).
+type FindingsGetFindingsPlanOKDataRecent string
+
+const (
+	FindingsGetFindingsPlanOKDataRecentModuleOff FindingsGetFindingsPlanOKDataRecent = "module_off"
+	FindingsGetFindingsPlanOKDataRecentOff       FindingsGetFindingsPlanOKDataRecent = "off"
+	FindingsGetFindingsPlanOKDataRecentLoading   FindingsGetFindingsPlanOKDataRecent = "loading"
+	FindingsGetFindingsPlanOKDataRecentReady     FindingsGetFindingsPlanOKDataRecent = "ready"
+)
+
+// AllValues returns all FindingsGetFindingsPlanOKDataRecent values.
+func (FindingsGetFindingsPlanOKDataRecent) AllValues() []FindingsGetFindingsPlanOKDataRecent {
+	return []FindingsGetFindingsPlanOKDataRecent{
+		FindingsGetFindingsPlanOKDataRecentModuleOff,
+		FindingsGetFindingsPlanOKDataRecentOff,
+		FindingsGetFindingsPlanOKDataRecentLoading,
+		FindingsGetFindingsPlanOKDataRecentReady,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsPlanOKDataRecent) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsPlanOKDataRecentModuleOff:
+		return []byte(s), nil
+	case FindingsGetFindingsPlanOKDataRecentOff:
+		return []byte(s), nil
+	case FindingsGetFindingsPlanOKDataRecentLoading:
+		return []byte(s), nil
+	case FindingsGetFindingsPlanOKDataRecentReady:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsPlanOKDataRecent) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsPlanOKDataRecent(data) {
+	case FindingsGetFindingsPlanOKDataRecentModuleOff:
+		*s = FindingsGetFindingsPlanOKDataRecentModuleOff
+		return nil
+	case FindingsGetFindingsPlanOKDataRecentOff:
+		*s = FindingsGetFindingsPlanOKDataRecentOff
+		return nil
+	case FindingsGetFindingsPlanOKDataRecentLoading:
+		*s = FindingsGetFindingsPlanOKDataRecentLoading
+		return nil
+	case FindingsGetFindingsPlanOKDataRecentReady:
+		*s = FindingsGetFindingsPlanOKDataRecentReady
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FindingsGetFindingsPlanOKItemsItem struct {
+	Asset FindingsGetFindingsPlanOKItemsItemAsset `json:"asset"`
+	// Likely first, then by EPSS, then newest.
+	Cves []FindingsGetFindingsPlanOKItemsItemCvesItem `json:"cves"`
+	// Fixed: the version that fixes every CVE of the item; windows: the build of the cumulative update;
+	// distro: empty.
+	Fixed string `json:"fixed"`
+	// "/", as RowFix.group (D-545).
+	Group string `json:"group"`
+	// Fixed = upgrade the software to `fixed`; distro = install the distribution's security updates for
+	// the package; windows = the monthly cumulative update with build `fixed` or later.
+	Kind   FindingsGetFindingsPlanOKItemsItemKind `json:"kind"`
+	Likely int                                    `json:"likely"`
+	Recent int                                    `json:"recent"`
+	// Display name of the software row.
+	Software string `json:"software"`
+	// The installed version.
+	Version string `json:"version"`
+}
+
+// GetAsset returns the value of Asset.
+func (s *FindingsGetFindingsPlanOKItemsItem) GetAsset() FindingsGetFindingsPlanOKItemsItemAsset {
+	return s.Asset
+}
+
+// GetCves returns the value of Cves.
+func (s *FindingsGetFindingsPlanOKItemsItem) GetCves() []FindingsGetFindingsPlanOKItemsItemCvesItem {
+	return s.Cves
+}
+
+// GetFixed returns the value of Fixed.
+func (s *FindingsGetFindingsPlanOKItemsItem) GetFixed() string {
+	return s.Fixed
+}
+
+// GetGroup returns the value of Group.
+func (s *FindingsGetFindingsPlanOKItemsItem) GetGroup() string {
+	return s.Group
+}
+
+// GetKind returns the value of Kind.
+func (s *FindingsGetFindingsPlanOKItemsItem) GetKind() FindingsGetFindingsPlanOKItemsItemKind {
+	return s.Kind
+}
+
+// GetLikely returns the value of Likely.
+func (s *FindingsGetFindingsPlanOKItemsItem) GetLikely() int {
+	return s.Likely
+}
+
+// GetRecent returns the value of Recent.
+func (s *FindingsGetFindingsPlanOKItemsItem) GetRecent() int {
+	return s.Recent
+}
+
+// GetSoftware returns the value of Software.
+func (s *FindingsGetFindingsPlanOKItemsItem) GetSoftware() string {
+	return s.Software
+}
+
+// GetVersion returns the value of Version.
+func (s *FindingsGetFindingsPlanOKItemsItem) GetVersion() string {
+	return s.Version
+}
+
+// SetAsset sets the value of Asset.
+func (s *FindingsGetFindingsPlanOKItemsItem) SetAsset(val FindingsGetFindingsPlanOKItemsItemAsset) {
+	s.Asset = val
+}
+
+// SetCves sets the value of Cves.
+func (s *FindingsGetFindingsPlanOKItemsItem) SetCves(val []FindingsGetFindingsPlanOKItemsItemCvesItem) {
+	s.Cves = val
+}
+
+// SetFixed sets the value of Fixed.
+func (s *FindingsGetFindingsPlanOKItemsItem) SetFixed(val string) {
+	s.Fixed = val
+}
+
+// SetGroup sets the value of Group.
+func (s *FindingsGetFindingsPlanOKItemsItem) SetGroup(val string) {
+	s.Group = val
+}
+
+// SetKind sets the value of Kind.
+func (s *FindingsGetFindingsPlanOKItemsItem) SetKind(val FindingsGetFindingsPlanOKItemsItemKind) {
+	s.Kind = val
+}
+
+// SetLikely sets the value of Likely.
+func (s *FindingsGetFindingsPlanOKItemsItem) SetLikely(val int) {
+	s.Likely = val
+}
+
+// SetRecent sets the value of Recent.
+func (s *FindingsGetFindingsPlanOKItemsItem) SetRecent(val int) {
+	s.Recent = val
+}
+
+// SetSoftware sets the value of Software.
+func (s *FindingsGetFindingsPlanOKItemsItem) SetSoftware(val string) {
+	s.Software = val
+}
+
+// SetVersion sets the value of Version.
+func (s *FindingsGetFindingsPlanOKItemsItem) SetVersion(val string) {
+	s.Version = val
+}
+
+type FindingsGetFindingsPlanOKItemsItemAsset struct {
+	ID string `json:"id"`
+	// The name the Devices page shows, never the internal id (D-484).
+	Name string `json:"name"`
+}
+
+// GetID returns the value of ID.
+func (s *FindingsGetFindingsPlanOKItemsItemAsset) GetID() string {
+	return s.ID
+}
+
+// GetName returns the value of Name.
+func (s *FindingsGetFindingsPlanOKItemsItemAsset) GetName() string {
+	return s.Name
+}
+
+// SetID sets the value of ID.
+func (s *FindingsGetFindingsPlanOKItemsItemAsset) SetID(val string) {
+	s.ID = val
+}
+
+// SetName sets the value of Name.
+func (s *FindingsGetFindingsPlanOKItemsItemAsset) SetName(val string) {
+	s.Name = val
+}
+
+type FindingsGetFindingsPlanOKItemsItemCvesItem struct {
+	// D-615 evidence: scan = a scan engine (nuclei, OpenVAS, ZAP) found it on the device; agent = the
+	// device's agent reports a build or package inside the affected range; distro = Ubuntu's or Debian's
+	// own data says the installed package is affected; version = an exact version compared with the CVE's
+	// ranges. Never a product-only match.
+	Basis      FindingsGetFindingsPlanOKItemsItemCvesItemBasis `json:"basis"`
+	Cve        string                                          `json:"cve"`
+	Epss       NilFloat64                                      `json:"epss"`
+	Percentile NilFloat64                                      `json:"percentile"`
+	// NVD `published`; older than 12 months only with basis scan (D-615).
+	Published time.Time `json:"published"`
+	// NVD's CVSS base score.
+	Score NilFloat64 `json:"score"`
+	// NVD's CVSS severity; null when NVD has not scored it yet.
+	Severity NilFindingsGetFindingsPlanOKItemsItemCvesItemSeverity `json:"severity"`
+	// Likely = EPSS 10 % or more; recent = published in the last 12 months (D-613); a CVE on an exploited
+	// list is a finding, never here.
+	Tier FindingsGetFindingsPlanOKItemsItemCvesItemTier `json:"tier"`
+}
+
+// GetBasis returns the value of Basis.
+func (s *FindingsGetFindingsPlanOKItemsItemCvesItem) GetBasis() FindingsGetFindingsPlanOKItemsItemCvesItemBasis {
+	return s.Basis
+}
+
+// GetCve returns the value of Cve.
+func (s *FindingsGetFindingsPlanOKItemsItemCvesItem) GetCve() string {
+	return s.Cve
+}
+
+// GetEpss returns the value of Epss.
+func (s *FindingsGetFindingsPlanOKItemsItemCvesItem) GetEpss() NilFloat64 {
+	return s.Epss
+}
+
+// GetPercentile returns the value of Percentile.
+func (s *FindingsGetFindingsPlanOKItemsItemCvesItem) GetPercentile() NilFloat64 {
+	return s.Percentile
+}
+
+// GetPublished returns the value of Published.
+func (s *FindingsGetFindingsPlanOKItemsItemCvesItem) GetPublished() time.Time {
+	return s.Published
+}
+
+// GetScore returns the value of Score.
+func (s *FindingsGetFindingsPlanOKItemsItemCvesItem) GetScore() NilFloat64 {
+	return s.Score
+}
+
+// GetSeverity returns the value of Severity.
+func (s *FindingsGetFindingsPlanOKItemsItemCvesItem) GetSeverity() NilFindingsGetFindingsPlanOKItemsItemCvesItemSeverity {
+	return s.Severity
+}
+
+// GetTier returns the value of Tier.
+func (s *FindingsGetFindingsPlanOKItemsItemCvesItem) GetTier() FindingsGetFindingsPlanOKItemsItemCvesItemTier {
+	return s.Tier
+}
+
+// SetBasis sets the value of Basis.
+func (s *FindingsGetFindingsPlanOKItemsItemCvesItem) SetBasis(val FindingsGetFindingsPlanOKItemsItemCvesItemBasis) {
+	s.Basis = val
+}
+
+// SetCve sets the value of Cve.
+func (s *FindingsGetFindingsPlanOKItemsItemCvesItem) SetCve(val string) {
+	s.Cve = val
+}
+
+// SetEpss sets the value of Epss.
+func (s *FindingsGetFindingsPlanOKItemsItemCvesItem) SetEpss(val NilFloat64) {
+	s.Epss = val
+}
+
+// SetPercentile sets the value of Percentile.
+func (s *FindingsGetFindingsPlanOKItemsItemCvesItem) SetPercentile(val NilFloat64) {
+	s.Percentile = val
+}
+
+// SetPublished sets the value of Published.
+func (s *FindingsGetFindingsPlanOKItemsItemCvesItem) SetPublished(val time.Time) {
+	s.Published = val
+}
+
+// SetScore sets the value of Score.
+func (s *FindingsGetFindingsPlanOKItemsItemCvesItem) SetScore(val NilFloat64) {
+	s.Score = val
+}
+
+// SetSeverity sets the value of Severity.
+func (s *FindingsGetFindingsPlanOKItemsItemCvesItem) SetSeverity(val NilFindingsGetFindingsPlanOKItemsItemCvesItemSeverity) {
+	s.Severity = val
+}
+
+// SetTier sets the value of Tier.
+func (s *FindingsGetFindingsPlanOKItemsItemCvesItem) SetTier(val FindingsGetFindingsPlanOKItemsItemCvesItemTier) {
+	s.Tier = val
+}
+
+// D-615 evidence: scan = a scan engine (nuclei, OpenVAS, ZAP) found it on the device; agent = the
+// device's agent reports a build or package inside the affected range; distro = Ubuntu's or Debian's
+// own data says the installed package is affected; version = an exact version compared with the CVE's
+// ranges. Never a product-only match.
+type FindingsGetFindingsPlanOKItemsItemCvesItemBasis string
+
+const (
+	FindingsGetFindingsPlanOKItemsItemCvesItemBasisScan    FindingsGetFindingsPlanOKItemsItemCvesItemBasis = "scan"
+	FindingsGetFindingsPlanOKItemsItemCvesItemBasisAgent   FindingsGetFindingsPlanOKItemsItemCvesItemBasis = "agent"
+	FindingsGetFindingsPlanOKItemsItemCvesItemBasisDistro  FindingsGetFindingsPlanOKItemsItemCvesItemBasis = "distro"
+	FindingsGetFindingsPlanOKItemsItemCvesItemBasisVersion FindingsGetFindingsPlanOKItemsItemCvesItemBasis = "version"
+)
+
+// AllValues returns all FindingsGetFindingsPlanOKItemsItemCvesItemBasis values.
+func (FindingsGetFindingsPlanOKItemsItemCvesItemBasis) AllValues() []FindingsGetFindingsPlanOKItemsItemCvesItemBasis {
+	return []FindingsGetFindingsPlanOKItemsItemCvesItemBasis{
+		FindingsGetFindingsPlanOKItemsItemCvesItemBasisScan,
+		FindingsGetFindingsPlanOKItemsItemCvesItemBasisAgent,
+		FindingsGetFindingsPlanOKItemsItemCvesItemBasisDistro,
+		FindingsGetFindingsPlanOKItemsItemCvesItemBasisVersion,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsPlanOKItemsItemCvesItemBasis) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsPlanOKItemsItemCvesItemBasisScan:
+		return []byte(s), nil
+	case FindingsGetFindingsPlanOKItemsItemCvesItemBasisAgent:
+		return []byte(s), nil
+	case FindingsGetFindingsPlanOKItemsItemCvesItemBasisDistro:
+		return []byte(s), nil
+	case FindingsGetFindingsPlanOKItemsItemCvesItemBasisVersion:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsPlanOKItemsItemCvesItemBasis) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsPlanOKItemsItemCvesItemBasis(data) {
+	case FindingsGetFindingsPlanOKItemsItemCvesItemBasisScan:
+		*s = FindingsGetFindingsPlanOKItemsItemCvesItemBasisScan
+		return nil
+	case FindingsGetFindingsPlanOKItemsItemCvesItemBasisAgent:
+		*s = FindingsGetFindingsPlanOKItemsItemCvesItemBasisAgent
+		return nil
+	case FindingsGetFindingsPlanOKItemsItemCvesItemBasisDistro:
+		*s = FindingsGetFindingsPlanOKItemsItemCvesItemBasisDistro
+		return nil
+	case FindingsGetFindingsPlanOKItemsItemCvesItemBasisVersion:
+		*s = FindingsGetFindingsPlanOKItemsItemCvesItemBasisVersion
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FindingsGetFindingsPlanOKItemsItemCvesItemSeverity string
+
+const (
+	FindingsGetFindingsPlanOKItemsItemCvesItemSeverityCritical FindingsGetFindingsPlanOKItemsItemCvesItemSeverity = "critical"
+	FindingsGetFindingsPlanOKItemsItemCvesItemSeverityHigh     FindingsGetFindingsPlanOKItemsItemCvesItemSeverity = "high"
+	FindingsGetFindingsPlanOKItemsItemCvesItemSeverityMedium   FindingsGetFindingsPlanOKItemsItemCvesItemSeverity = "medium"
+	FindingsGetFindingsPlanOKItemsItemCvesItemSeverityLow      FindingsGetFindingsPlanOKItemsItemCvesItemSeverity = "low"
+	FindingsGetFindingsPlanOKItemsItemCvesItemSeverityNone     FindingsGetFindingsPlanOKItemsItemCvesItemSeverity = "none"
+)
+
+// AllValues returns all FindingsGetFindingsPlanOKItemsItemCvesItemSeverity values.
+func (FindingsGetFindingsPlanOKItemsItemCvesItemSeverity) AllValues() []FindingsGetFindingsPlanOKItemsItemCvesItemSeverity {
+	return []FindingsGetFindingsPlanOKItemsItemCvesItemSeverity{
+		FindingsGetFindingsPlanOKItemsItemCvesItemSeverityCritical,
+		FindingsGetFindingsPlanOKItemsItemCvesItemSeverityHigh,
+		FindingsGetFindingsPlanOKItemsItemCvesItemSeverityMedium,
+		FindingsGetFindingsPlanOKItemsItemCvesItemSeverityLow,
+		FindingsGetFindingsPlanOKItemsItemCvesItemSeverityNone,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsPlanOKItemsItemCvesItemSeverity) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsPlanOKItemsItemCvesItemSeverityCritical:
+		return []byte(s), nil
+	case FindingsGetFindingsPlanOKItemsItemCvesItemSeverityHigh:
+		return []byte(s), nil
+	case FindingsGetFindingsPlanOKItemsItemCvesItemSeverityMedium:
+		return []byte(s), nil
+	case FindingsGetFindingsPlanOKItemsItemCvesItemSeverityLow:
+		return []byte(s), nil
+	case FindingsGetFindingsPlanOKItemsItemCvesItemSeverityNone:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsPlanOKItemsItemCvesItemSeverity) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsPlanOKItemsItemCvesItemSeverity(data) {
+	case FindingsGetFindingsPlanOKItemsItemCvesItemSeverityCritical:
+		*s = FindingsGetFindingsPlanOKItemsItemCvesItemSeverityCritical
+		return nil
+	case FindingsGetFindingsPlanOKItemsItemCvesItemSeverityHigh:
+		*s = FindingsGetFindingsPlanOKItemsItemCvesItemSeverityHigh
+		return nil
+	case FindingsGetFindingsPlanOKItemsItemCvesItemSeverityMedium:
+		*s = FindingsGetFindingsPlanOKItemsItemCvesItemSeverityMedium
+		return nil
+	case FindingsGetFindingsPlanOKItemsItemCvesItemSeverityLow:
+		*s = FindingsGetFindingsPlanOKItemsItemCvesItemSeverityLow
+		return nil
+	case FindingsGetFindingsPlanOKItemsItemCvesItemSeverityNone:
+		*s = FindingsGetFindingsPlanOKItemsItemCvesItemSeverityNone
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Likely = EPSS 10 % or more; recent = published in the last 12 months (D-613); a CVE on an exploited
+// list is a finding, never here.
+type FindingsGetFindingsPlanOKItemsItemCvesItemTier string
+
+const (
+	FindingsGetFindingsPlanOKItemsItemCvesItemTierLikely FindingsGetFindingsPlanOKItemsItemCvesItemTier = "likely"
+	FindingsGetFindingsPlanOKItemsItemCvesItemTierRecent FindingsGetFindingsPlanOKItemsItemCvesItemTier = "recent"
+)
+
+// AllValues returns all FindingsGetFindingsPlanOKItemsItemCvesItemTier values.
+func (FindingsGetFindingsPlanOKItemsItemCvesItemTier) AllValues() []FindingsGetFindingsPlanOKItemsItemCvesItemTier {
+	return []FindingsGetFindingsPlanOKItemsItemCvesItemTier{
+		FindingsGetFindingsPlanOKItemsItemCvesItemTierLikely,
+		FindingsGetFindingsPlanOKItemsItemCvesItemTierRecent,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsPlanOKItemsItemCvesItemTier) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsPlanOKItemsItemCvesItemTierLikely:
+		return []byte(s), nil
+	case FindingsGetFindingsPlanOKItemsItemCvesItemTierRecent:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsPlanOKItemsItemCvesItemTier) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsPlanOKItemsItemCvesItemTier(data) {
+	case FindingsGetFindingsPlanOKItemsItemCvesItemTierLikely:
+		*s = FindingsGetFindingsPlanOKItemsItemCvesItemTierLikely
+		return nil
+	case FindingsGetFindingsPlanOKItemsItemCvesItemTierRecent:
+		*s = FindingsGetFindingsPlanOKItemsItemCvesItemTierRecent
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Fixed = upgrade the software to `fixed`; distro = install the distribution's security updates for
+// the package; windows = the monthly cumulative update with build `fixed` or later.
+type FindingsGetFindingsPlanOKItemsItemKind string
+
+const (
+	FindingsGetFindingsPlanOKItemsItemKindFixed   FindingsGetFindingsPlanOKItemsItemKind = "fixed"
+	FindingsGetFindingsPlanOKItemsItemKindDistro  FindingsGetFindingsPlanOKItemsItemKind = "distro"
+	FindingsGetFindingsPlanOKItemsItemKindWindows FindingsGetFindingsPlanOKItemsItemKind = "windows"
+)
+
+// AllValues returns all FindingsGetFindingsPlanOKItemsItemKind values.
+func (FindingsGetFindingsPlanOKItemsItemKind) AllValues() []FindingsGetFindingsPlanOKItemsItemKind {
+	return []FindingsGetFindingsPlanOKItemsItemKind{
+		FindingsGetFindingsPlanOKItemsItemKindFixed,
+		FindingsGetFindingsPlanOKItemsItemKindDistro,
+		FindingsGetFindingsPlanOKItemsItemKindWindows,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsPlanOKItemsItemKind) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsPlanOKItemsItemKindFixed:
+		return []byte(s), nil
+	case FindingsGetFindingsPlanOKItemsItemKindDistro:
+		return []byte(s), nil
+	case FindingsGetFindingsPlanOKItemsItemKindWindows:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsPlanOKItemsItemKind) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsPlanOKItemsItemKind(data) {
+	case FindingsGetFindingsPlanOKItemsItemKindFixed:
+		*s = FindingsGetFindingsPlanOKItemsItemKindFixed
+		return nil
+	case FindingsGetFindingsPlanOKItemsItemKindDistro:
+		*s = FindingsGetFindingsPlanOKItemsItemKindDistro
+		return nil
+	case FindingsGetFindingsPlanOKItemsItemKindWindows:
+		*s = FindingsGetFindingsPlanOKItemsItemKindWindows
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Default all.
+type FindingsGetFindingsPlanTier string
+
+const (
+	FindingsGetFindingsPlanTierLikely FindingsGetFindingsPlanTier = "likely"
+	FindingsGetFindingsPlanTierRecent FindingsGetFindingsPlanTier = "recent"
+	FindingsGetFindingsPlanTierAll    FindingsGetFindingsPlanTier = "all"
+)
+
+// AllValues returns all FindingsGetFindingsPlanTier values.
+func (FindingsGetFindingsPlanTier) AllValues() []FindingsGetFindingsPlanTier {
+	return []FindingsGetFindingsPlanTier{
+		FindingsGetFindingsPlanTierLikely,
+		FindingsGetFindingsPlanTierRecent,
+		FindingsGetFindingsPlanTierAll,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsPlanTier) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsPlanTierLikely:
+		return []byte(s), nil
+	case FindingsGetFindingsPlanTierRecent:
+		return []byte(s), nil
+	case FindingsGetFindingsPlanTierAll:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsPlanTier) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsPlanTier(data) {
+	case FindingsGetFindingsPlanTierLikely:
+		*s = FindingsGetFindingsPlanTierLikely
+		return nil
+	case FindingsGetFindingsPlanTierRecent:
+		*s = FindingsGetFindingsPlanTierRecent
+		return nil
+	case FindingsGetFindingsPlanTierAll:
+		*s = FindingsGetFindingsPlanTierAll
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -68557,16 +69582,20 @@ func (s *FindingsPostFindingsIDAiOKHistoryItem) SetUser(val string) {
 }
 
 type FindingsPostFindingsIDAiOKKev struct {
-	DateAdded      string     `json:"date_added"`
-	Display        string     `json:"display"`
-	DueDate        NilString  `json:"due_date"`
-	Epss           NilFloat64 `json:"epss"`
-	HasTemplate    bool       `json:"has_template"`
-	Links          []string   `json:"links"`
-	Name           string     `json:"name"`
-	Product        string     `json:"product"`
-	Ransomware     bool       `json:"ransomware"`
-	RequiredAction string     `json:"required_action"`
+	DateAdded   string     `json:"date_added"`
+	Display     string     `json:"display"`
+	DueDate     NilString  `json:"due_date"`
+	Epss        NilFloat64 `json:"epss"`
+	HasTemplate bool       `json:"has_template"`
+	Links       []string   `json:"links"`
+	Name        string     `json:"name"`
+	Product     string     `json:"product"`
+	// D-615: the day the CVE was published (NVD `published`), never the day CISA added it; null when NVD
+	// has not answered for it (then it counts as recent: an older CVE is not a finding on a product-only
+	// match (D-616), and a missing date never closes a finding).
+	Published      NilDate `json:"published"`
+	Ransomware     bool    `json:"ransomware"`
+	RequiredAction string  `json:"required_action"`
 	// Which list the entry is on (D-557): texts and the source badge name it; an entry of VulnCheck KEV is
 	// never called CISA's.
 	Source OptFindingsPostFindingsIDAiOKKevSource `json:"source"`
@@ -68611,6 +69640,11 @@ func (s *FindingsPostFindingsIDAiOKKev) GetName() string {
 // GetProduct returns the value of Product.
 func (s *FindingsPostFindingsIDAiOKKev) GetProduct() string {
 	return s.Product
+}
+
+// GetPublished returns the value of Published.
+func (s *FindingsPostFindingsIDAiOKKev) GetPublished() NilDate {
+	return s.Published
 }
 
 // GetRansomware returns the value of Ransomware.
@@ -68671,6 +69705,11 @@ func (s *FindingsPostFindingsIDAiOKKev) SetName(val string) {
 // SetProduct sets the value of Product.
 func (s *FindingsPostFindingsIDAiOKKev) SetProduct(val string) {
 	s.Product = val
+}
+
+// SetPublished sets the value of Published.
+func (s *FindingsPostFindingsIDAiOKKev) SetPublished(val NilDate) {
+	s.Published = val
 }
 
 // SetRansomware sets the value of Ransomware.
@@ -71784,16 +72823,20 @@ func (s *FindingsPostFindingsIDAppliedOKHistoryItem) SetUser(val string) {
 }
 
 type FindingsPostFindingsIDAppliedOKKev struct {
-	DateAdded      string     `json:"date_added"`
-	Display        string     `json:"display"`
-	DueDate        NilString  `json:"due_date"`
-	Epss           NilFloat64 `json:"epss"`
-	HasTemplate    bool       `json:"has_template"`
-	Links          []string   `json:"links"`
-	Name           string     `json:"name"`
-	Product        string     `json:"product"`
-	Ransomware     bool       `json:"ransomware"`
-	RequiredAction string     `json:"required_action"`
+	DateAdded   string     `json:"date_added"`
+	Display     string     `json:"display"`
+	DueDate     NilString  `json:"due_date"`
+	Epss        NilFloat64 `json:"epss"`
+	HasTemplate bool       `json:"has_template"`
+	Links       []string   `json:"links"`
+	Name        string     `json:"name"`
+	Product     string     `json:"product"`
+	// D-615: the day the CVE was published (NVD `published`), never the day CISA added it; null when NVD
+	// has not answered for it (then it counts as recent: an older CVE is not a finding on a product-only
+	// match (D-616), and a missing date never closes a finding).
+	Published      NilDate `json:"published"`
+	Ransomware     bool    `json:"ransomware"`
+	RequiredAction string  `json:"required_action"`
 	// Which list the entry is on (D-557): texts and the source badge name it; an entry of VulnCheck KEV is
 	// never called CISA's.
 	Source OptFindingsPostFindingsIDAppliedOKKevSource `json:"source"`
@@ -71838,6 +72881,11 @@ func (s *FindingsPostFindingsIDAppliedOKKev) GetName() string {
 // GetProduct returns the value of Product.
 func (s *FindingsPostFindingsIDAppliedOKKev) GetProduct() string {
 	return s.Product
+}
+
+// GetPublished returns the value of Published.
+func (s *FindingsPostFindingsIDAppliedOKKev) GetPublished() NilDate {
+	return s.Published
 }
 
 // GetRansomware returns the value of Ransomware.
@@ -71898,6 +72946,11 @@ func (s *FindingsPostFindingsIDAppliedOKKev) SetName(val string) {
 // SetProduct sets the value of Product.
 func (s *FindingsPostFindingsIDAppliedOKKev) SetProduct(val string) {
 	s.Product = val
+}
+
+// SetPublished sets the value of Published.
+func (s *FindingsPostFindingsIDAppliedOKKev) SetPublished(val NilDate) {
+	s.Published = val
 }
 
 // SetRansomware sets the value of Ransomware.
@@ -75032,16 +76085,20 @@ func (s *FindingsPostFindingsIDStatusOKHistoryItem) SetUser(val string) {
 }
 
 type FindingsPostFindingsIDStatusOKKev struct {
-	DateAdded      string     `json:"date_added"`
-	Display        string     `json:"display"`
-	DueDate        NilString  `json:"due_date"`
-	Epss           NilFloat64 `json:"epss"`
-	HasTemplate    bool       `json:"has_template"`
-	Links          []string   `json:"links"`
-	Name           string     `json:"name"`
-	Product        string     `json:"product"`
-	Ransomware     bool       `json:"ransomware"`
-	RequiredAction string     `json:"required_action"`
+	DateAdded   string     `json:"date_added"`
+	Display     string     `json:"display"`
+	DueDate     NilString  `json:"due_date"`
+	Epss        NilFloat64 `json:"epss"`
+	HasTemplate bool       `json:"has_template"`
+	Links       []string   `json:"links"`
+	Name        string     `json:"name"`
+	Product     string     `json:"product"`
+	// D-615: the day the CVE was published (NVD `published`), never the day CISA added it; null when NVD
+	// has not answered for it (then it counts as recent: an older CVE is not a finding on a product-only
+	// match (D-616), and a missing date never closes a finding).
+	Published      NilDate `json:"published"`
+	Ransomware     bool    `json:"ransomware"`
+	RequiredAction string  `json:"required_action"`
 	// Which list the entry is on (D-557): texts and the source badge name it; an entry of VulnCheck KEV is
 	// never called CISA's.
 	Source OptFindingsPostFindingsIDStatusOKKevSource `json:"source"`
@@ -75086,6 +76143,11 @@ func (s *FindingsPostFindingsIDStatusOKKev) GetName() string {
 // GetProduct returns the value of Product.
 func (s *FindingsPostFindingsIDStatusOKKev) GetProduct() string {
 	return s.Product
+}
+
+// GetPublished returns the value of Published.
+func (s *FindingsPostFindingsIDStatusOKKev) GetPublished() NilDate {
+	return s.Published
 }
 
 // GetRansomware returns the value of Ransomware.
@@ -75146,6 +76208,11 @@ func (s *FindingsPostFindingsIDStatusOKKev) SetName(val string) {
 // SetProduct sets the value of Product.
 func (s *FindingsPostFindingsIDStatusOKKev) SetProduct(val string) {
 	s.Product = val
+}
+
+// SetPublished sets the value of Published.
+func (s *FindingsPostFindingsIDStatusOKKev) SetPublished(val NilDate) {
+	s.Published = val
 }
 
 // SetRansomware sets the value of Ransomware.
@@ -109509,6 +110576,96 @@ func (o NilExposurePutExposureTargetsIDTermsOKValidity) Or(d ExposurePutExposure
 	return d
 }
 
+// NewNilFeedsGetFeedsCveIDTierOKSeverity returns new NilFeedsGetFeedsCveIDTierOKSeverity with value set to v.
+func NewNilFeedsGetFeedsCveIDTierOKSeverity(v FeedsGetFeedsCveIDTierOKSeverity) NilFeedsGetFeedsCveIDTierOKSeverity {
+	return NilFeedsGetFeedsCveIDTierOKSeverity{
+		Value: v,
+	}
+}
+
+// NilFeedsGetFeedsCveIDTierOKSeverity is nullable FeedsGetFeedsCveIDTierOKSeverity.
+type NilFeedsGetFeedsCveIDTierOKSeverity struct {
+	Value FeedsGetFeedsCveIDTierOKSeverity
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFeedsGetFeedsCveIDTierOKSeverity) SetTo(v FeedsGetFeedsCveIDTierOKSeverity) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFeedsGetFeedsCveIDTierOKSeverity) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFeedsGetFeedsCveIDTierOKSeverity) SetToNull() {
+	o.Null = true
+	var v FeedsGetFeedsCveIDTierOKSeverity
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFeedsGetFeedsCveIDTierOKSeverity) Get() (v FeedsGetFeedsCveIDTierOKSeverity, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFeedsGetFeedsCveIDTierOKSeverity) Or(d FeedsGetFeedsCveIDTierOKSeverity) FeedsGetFeedsCveIDTierOKSeverity {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFeedsGetFeedsCveIDTierOKTier returns new NilFeedsGetFeedsCveIDTierOKTier with value set to v.
+func NewNilFeedsGetFeedsCveIDTierOKTier(v FeedsGetFeedsCveIDTierOKTier) NilFeedsGetFeedsCveIDTierOKTier {
+	return NilFeedsGetFeedsCveIDTierOKTier{
+		Value: v,
+	}
+}
+
+// NilFeedsGetFeedsCveIDTierOKTier is nullable FeedsGetFeedsCveIDTierOKTier.
+type NilFeedsGetFeedsCveIDTierOKTier struct {
+	Value FeedsGetFeedsCveIDTierOKTier
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFeedsGetFeedsCveIDTierOKTier) SetTo(v FeedsGetFeedsCveIDTierOKTier) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFeedsGetFeedsCveIDTierOKTier) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFeedsGetFeedsCveIDTierOKTier) SetToNull() {
+	o.Null = true
+	var v FeedsGetFeedsCveIDTierOKTier
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFeedsGetFeedsCveIDTierOKTier) Get() (v FeedsGetFeedsCveIDTierOKTier, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFeedsGetFeedsCveIDTierOKTier) Or(d FeedsGetFeedsCveIDTierOKTier) FeedsGetFeedsCveIDTierOKTier {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilFeedsGetFeedsHotOKLatest returns new NilFeedsGetFeedsHotOKLatest with value set to v.
 func NewNilFeedsGetFeedsHotOKLatest(v FeedsGetFeedsHotOKLatest) NilFeedsGetFeedsHotOKLatest {
 	return NilFeedsGetFeedsHotOKLatest{
@@ -110493,6 +111650,51 @@ func (o NilFindingsGetFindingsOKVersionNeededItemAsset) Get() (v FindingsGetFind
 
 // Or returns value if set, or given parameter if does not.
 func (o NilFindingsGetFindingsOKVersionNeededItemAsset) Or(d FindingsGetFindingsOKVersionNeededItemAsset) FindingsGetFindingsOKVersionNeededItemAsset {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFindingsGetFindingsPlanOKItemsItemCvesItemSeverity returns new NilFindingsGetFindingsPlanOKItemsItemCvesItemSeverity with value set to v.
+func NewNilFindingsGetFindingsPlanOKItemsItemCvesItemSeverity(v FindingsGetFindingsPlanOKItemsItemCvesItemSeverity) NilFindingsGetFindingsPlanOKItemsItemCvesItemSeverity {
+	return NilFindingsGetFindingsPlanOKItemsItemCvesItemSeverity{
+		Value: v,
+	}
+}
+
+// NilFindingsGetFindingsPlanOKItemsItemCvesItemSeverity is nullable FindingsGetFindingsPlanOKItemsItemCvesItemSeverity.
+type NilFindingsGetFindingsPlanOKItemsItemCvesItemSeverity struct {
+	Value FindingsGetFindingsPlanOKItemsItemCvesItemSeverity
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsGetFindingsPlanOKItemsItemCvesItemSeverity) SetTo(v FindingsGetFindingsPlanOKItemsItemCvesItemSeverity) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsGetFindingsPlanOKItemsItemCvesItemSeverity) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsGetFindingsPlanOKItemsItemCvesItemSeverity) SetToNull() {
+	o.Null = true
+	var v FindingsGetFindingsPlanOKItemsItemCvesItemSeverity
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsGetFindingsPlanOKItemsItemCvesItemSeverity) Get() (v FindingsGetFindingsPlanOKItemsItemCvesItemSeverity, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsGetFindingsPlanOKItemsItemCvesItemSeverity) Or(d FindingsGetFindingsPlanOKItemsItemCvesItemSeverity) FindingsGetFindingsPlanOKItemsItemCvesItemSeverity {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -126191,6 +127393,52 @@ func (o OptFindingsGetFindingsOKItemsItemKevSource) Get() (v FindingsGetFindings
 
 // Or returns value if set, or given parameter if does not.
 func (o OptFindingsGetFindingsOKItemsItemKevSource) Or(d FindingsGetFindingsOKItemsItemKevSource) FindingsGetFindingsOKItemsItemKevSource {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptFindingsGetFindingsPlanTier returns new OptFindingsGetFindingsPlanTier with value set to v.
+func NewOptFindingsGetFindingsPlanTier(v FindingsGetFindingsPlanTier) OptFindingsGetFindingsPlanTier {
+	return OptFindingsGetFindingsPlanTier{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptFindingsGetFindingsPlanTier is optional FindingsGetFindingsPlanTier.
+type OptFindingsGetFindingsPlanTier struct {
+	Value FindingsGetFindingsPlanTier
+	Set   bool
+}
+
+// IsSet returns true if OptFindingsGetFindingsPlanTier was set.
+func (o OptFindingsGetFindingsPlanTier) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptFindingsGetFindingsPlanTier) Reset() {
+	var v FindingsGetFindingsPlanTier
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptFindingsGetFindingsPlanTier) SetTo(v FindingsGetFindingsPlanTier) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptFindingsGetFindingsPlanTier) Get() (v FindingsGetFindingsPlanTier, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptFindingsGetFindingsPlanTier) Or(d FindingsGetFindingsPlanTier) FindingsGetFindingsPlanTier {
 	if v, ok := o.Get(); ok {
 		return v
 	}

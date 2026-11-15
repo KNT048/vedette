@@ -54,6 +54,22 @@ export const MatchedAsset = z.object({ id: z.string(), hostname: z.string().null
 export const CveDetail = Vuln.extend({
   display: z.string(), matched: z.array(MatchedAsset).nullable(),
   not_affected: z.number().int().min(0).optional().describe('D-549: devices that run the product but that the platform rules of the findings prove are not affected; left out of matched'),
+  published: isoDate.nullable().describe('D-615: the day NVD published the CVE (never CISA\'s date_added); null when NVD has not answered for it. Older than 12 months: a device that matches by the product name only (no version compared) is not a finding (D-616), so matched may list devices that are not findings'),
+})
+// D-613, D-615 (S-TIER-1): a CVE that is on no exploited list, from the tier data (feeds epss-all and nvd-recent).
+export const TierCve = z.object({
+  cve: cveId,
+  tier: z.enum(['likely', 'recent']).nullable().describe('likely = EPSS 10 % or more and published in the last 12 months; recent = published in the last 12 months; null = older, or no published date in the data (only a scan engine that finds it lists it, D-615)'),
+  published: isoDate.nullable().describe('NVD `published`; null when nvd-recent does not hold it (older than 12 months, or the feed is off)'),
+  last_modified: isoDate.nullable(),
+  nvd_status: z.string().nullable().describe('NVD\'s vulnStatus ("Analyzed", "Awaiting Analysis", "Deferred"…)'),
+  severity: z.enum(['critical', 'high', 'medium', 'low', 'none']).nullable().describe('NVD\'s CVSS severity'),
+  score: z.number().min(0).max(10).nullable(),
+  epss: z.number().min(0).max(1).nullable(),
+  percentile: z.number().min(0).max(1).nullable(),
+  epss_date: isoDate.nullable().describe('The day of the EPSS score'),
+  products: z.array(z.string()).max(10).describe('Vendor and product of NVD\'s affected entries, at most 10'),
+  ranges: z.boolean().describe('NVD gives affected versions, so a device\'s exact version can be compared'),
 })
 export const IocHit = z.object({
   value: z.string(), type: z.enum(['ip', 'domain']), category: z.string(), sources: z.array(z.string()), score: z.number().min(0).max(1),
@@ -154,6 +170,8 @@ export const endpoints = defineEndpoints([
     params: z.object({ id: z.string() }), body: z.object({ answer: z.enum(['have', 'not_relevant']) }), response: WeeklyResponse },
   { method: 'get', path: '/feeds/cve/{id}', summary: 'Details of an exploited CVE and your matching devices', stories: ['S-FEED-1', 'S-FEED-3'], role: 'viewer',
     params: z.object({ id: cveId }), response: CveDetail, example: { params: { id: 'CVE-2022-27593' } } },
+  { method: 'get', path: '/feeds/cve/{id}/tier', summary: 'A CVE that is on no exploited list: EPSS, NVD dates and severity from the tier data (404 not_in_data when neither feed holds it)', stories: ['S-TIER-1'], role: 'viewer',
+    params: z.object({ id: cveId }), response: TierCve, example: { params: { id: 'CVE-2026-31001' } } },
   { method: 'get', path: '/feeds/search', summary: 'Search CVEs, products, IPs or domains in the data on the box', stories: ['S-FEED-3'], role: 'viewer',
     query: z.object({ q: z.string().min(1).max(200) }), response: SearchResult, example: { query: { q: '185.220.101.47' } } },
   { method: 'get', path: '/feeds/sources', summary: 'Built-in and custom feeds with schedule, last fetch, record count and errors', stories: ['S-FEED-4'], role: 'viewer', response: FeedList },

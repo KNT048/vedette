@@ -123,7 +123,7 @@ func (s *Service) findingEvent(ctx context.Context, data any, statusChange bool)
 			n.ID += "-reopened-" + n.At.UTC().Format("20060102") // one notice per UTC day: a version that flaps between scans does not send one each time
 			n.Change = "reopened, it matches again"
 			n.Title = "Vedette reopened " + about(cve, f) + ": it matches again"
-			n.What = "Vedette had closed this finding as not affected, and the device matches the entry again. " + f.What
+			n.What = "Vedette had closed this finding by itself, and the device matches the entry again. " + f.What
 		})
 	}
 	if statusChange && e.Reason == "acceptance_expired" { // a risk a person accepted until a day is open again (D-498, INV-21)

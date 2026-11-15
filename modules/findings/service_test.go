@@ -58,6 +58,7 @@ func (f *fakeInv) AssetIDs(context.Context) ([]string, error) {
 type fakeFeeds struct {
 	kev   map[string]KevInfo
 	vulns []Vuln
+	tier  TierStatus
 }
 
 func (f *fakeFeeds) KevInfo(_ context.Context, cves []string) (map[string]KevInfo, error) {
@@ -71,6 +72,8 @@ func (f *fakeFeeds) KevInfo(_ context.Context, cves []string) (map[string]KevInf
 }
 
 func (f *fakeFeeds) Vulns(context.Context) ([]Vuln, error) { return f.vulns, nil }
+
+func (f *fakeFeeds) TierStatus(context.Context) (TierStatus, error) { return f.tier, nil }
 
 type published struct {
 	Name    string

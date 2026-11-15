@@ -45,6 +45,7 @@ export const KevInfo = z.object({
   name: z.string(), vendor: z.string(), product: z.string(), display: z.string(), required_action: z.string(), links: z.array(z.string()),
   date_added: z.string(), due_date: z.string().nullable(), ransomware: z.boolean(), epss: z.number().nullable(), has_template: z.boolean(),
   source: z.enum(['cisa-kev', 'vulncheck-kev']).optional().describe('Which list the entry is on (D-557): texts and the source badge name it; an entry of VulnCheck KEV is never called CISA\'s'),
+  published: z.iso.date().nullable().describe('D-615: the day the CVE was published (NVD `published`), never the day CISA added it; null when NVD has not answered for it (then it counts as recent: an older CVE is not a finding on a product-only match (D-616), and a missing date never closes a finding)'),
 })
 export const FindingAsset = z.object({
   id: z.string(), name: z.string().describe('The name the Devices page shows: hostname, else vendor and model, else the IP, else the software; never the internal id (D-484)'),
@@ -125,6 +126,48 @@ export const VersionNeeded = z.object({
 }).describe('D-500: a software on the exploited list without a usable version is ONE item, not one finding per CVE')
 export const FindingList = z.object({ items: z.array(FindingRow), version_needed: z.array(VersionNeeded) })
 
+// ---------- Updates to plan: CVE tiers 2 and 3 (S-TIER-1, S-TIER-2; D-613, D-615, D-616). Not findings: no status, no
+// alert, no mitigation pack; one item per update on one device, each CVE one click away.
+/** FIRST's EPSS probability from which a CVE is "likely to be exploited" (tier 2, D-613); feeds.EPSSLikely on the box. */
+export const EPSS_LIKELY = 0.1
+export const PlanTier = z.enum(['likely', 'recent'])
+export const PlanFilter = z.enum(['likely', 'recent', 'all'])
+export const PlanCve = z.object({
+  cve: z.string().regex(/^CVE-\d{4}-\d{4,}$/),
+  tier: PlanTier.describe('likely = EPSS 10 % or more; recent = published in the last 12 months (D-613); a CVE on an exploited list is a finding, never here'),
+  basis: z.enum(['scan', 'agent', 'distro', 'version']).describe('D-615 evidence: scan = a scan engine (nuclei, OpenVAS, ZAP) found it on the device; agent = the device\'s agent reports a build or package inside the affected range; distro = Ubuntu\'s or Debian\'s own data says the installed package is affected; version = an exact version compared with the CVE\'s ranges. Never a product-only match'),
+  severity: z.enum(['critical', 'high', 'medium', 'low', 'none']).nullable().describe('NVD\'s CVSS severity; null when NVD has not scored it yet'),
+  score: z.number().min(0).max(10).nullable().describe('NVD\'s CVSS base score'),
+  published: z.iso.date().describe('NVD `published`; older than 12 months only with basis scan (D-615)'),
+  epss: z.number().min(0).max(1).nullable(),
+  percentile: z.number().min(0).max(1).nullable(),
+})
+export const PlanItem = z.object({
+  group: z.string().describe('"<device id>/<software id>", as RowFix.group (D-545)'),
+  asset: z.object({ id: z.string(), name: z.string().describe('The name the Devices page shows, never the internal id (D-484)') }),
+  software: z.string().describe('Display name of the software row'),
+  version: z.string().describe('The installed version'),
+  fixed: z.string().describe('fixed: the version that fixes every CVE of the item; windows: the build of the cumulative update; distro: empty'),
+  kind: z.enum(['fixed', 'distro', 'windows']).describe('fixed = upgrade the software to `fixed`; distro = install the distribution\'s security updates for the package; windows = the monthly cumulative update with build `fixed` or later'),
+  cves: z.array(PlanCve).min(1).describe('Likely first, then by EPSS, then newest'),
+  likely: z.number().int().min(0),
+  recent: z.number().int().min(0),
+})
+export const PlanFeed = z.enum(['module_off', 'off', 'loading', 'ready']).describe('module_off = the feeds module is off (SYS-5: its data is not read); off = an admin has not turned the feed on; loading = on, first fill not finished; ready = loaded')
+export const Plan = z.object({
+  items: z.array(PlanItem),
+  compared: z.boolean().describe('false = this box holds the data but does not compare tier 2 and 3 CVEs with devices yet (D-616: the matcher of slice 3); the page says so instead of "no update to plan"'),
+  compared_devices: z.number().int().min(0).describe('Devices with at least one version Vedette can compare'),
+  unchecked_devices: z.number().int().min(0).describe('Devices with no version Vedette can read: not checked'),
+  old_evidence: z.number().int().min(0).describe('D-615: CVEs published more than 12 months ago listed because a scan engine found them'),
+  data: z.object({
+    epss: PlanFeed.describe('Feed epss-all (tier 2)'),
+    recent: PlanFeed.describe('Feed nvd-recent (tier 3, and the published dates of tier 2)'),
+    epss_date: z.iso.date().nullable().describe('The day of the EPSS scores'),
+    recent_since: z.iso.date().nullable().describe('CVEs published on or after this day are in the data (12 months back)'),
+  }),
+})
+
 const idParams = z.object({ id: findingId })
 
 export const endpoints = defineEndpoints([
@@ -141,4 +184,6 @@ export const endpoints = defineEndpoints([
     params: idParams, body: z.object({ item: ApplyItem }), response: FindingDetail },
   { method: 'post', path: '/findings/{id}/ai', summary: 'Explain or draft a recommendation with the customer AI key (BYOK); fails if AI is off', stories: ['S-AI-2', 'S-MIT-1'], role: 'operator',
     params: idParams, body: z.object({ skill: z.enum(['explain', 'mitigation-config']) }), response: FindingDetail },
+  { method: 'get', path: '/findings/plan', summary: 'Updates to plan: one item per update on one device that fixes CVEs likely to be exploited (EPSS 10 % or more) or published in the last 12 months, version-confirmed only; never findings, never alerts', stories: ['S-TIER-1', 'S-TIER-2'], role: 'viewer',
+    query: z.object({ tier: PlanFilter.optional().describe('Default all'), asset: z.string().max(64).optional().describe('One device') }), response: Plan },
 ])

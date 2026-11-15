@@ -6,9 +6,10 @@
 import kev from './fixtures/kev.json'
 import { newId, nowIso } from './db'
 import { assetsStore, findingsStore } from './stores'
+import { kevAged } from './tiers'
 import type { Asset, Finding } from '@/lib/types'
 
-interface Kev { cve: string; vendor: string; product: string; ransomware: boolean; epss: number }
+interface Kev { cve: string; vendor: string; product: string; ransomware: boolean; epss: number; has_template: boolean; date_added: string }
 const vulns = (kev as { vulns: Kev[] }).vulns
 
 type Sw = Asset['software'][number]
@@ -31,6 +32,7 @@ export function matchAssetToKev(assetId: string): number {
   const fresh: Finding[] = []
   for (const v of vulns) {
     if (have.has(v.cve)) continue
+    if (kevAged(v.cve, v.date_added) && !v.has_template) continue // D-615, D-616: an older KEV CVE is not a finding on a product-only match (the mock has no ranges)
     const multi = /^multiple products$/i.test(v.product)
     const s = a.software.find((x) => usableVersion(x.version) && keyed(x, v))
     if (!s) continue

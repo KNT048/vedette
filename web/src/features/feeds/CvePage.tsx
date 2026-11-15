@@ -7,14 +7,29 @@ import { Chip } from '@/components/common/StatusChip'
 import { Slot } from '@/components/common/Slot'
 import { fmtPercent } from '@/lib/format'
 import { fmtDay } from './dates'
-import { CVE_ID, useCve } from './api'
+import { CVE_ID, useCve, useTierCve } from './api'
+import { ApiError } from '@/lib/api'
+import { TierCvePage } from './TierCvePage'
 import { YouHaveCell } from './YouHaveCell'
+
+const yearAgo = () => new Date(Date.now() - 365 * 86_400_000).toISOString().slice(0, 10)
 
 export default function CvePage() {
   const { t } = useTranslation('feeds')
   const { id: raw = '' } = useParams()
   const id = raw.trim().toUpperCase() // the API only knows CVE ids in capitals; the mock used to forgive a lower-case address
   const cve = useCve(id)
+  // D-613 (S-TIER-1): a CVE on no exploited list answers from the tier data instead of a dead end
+  const notInKev = cve.error instanceof ApiError && cve.error.code === 'not_in_kev'
+  const tier = useTierCve(id, notInKev)
+  if (notInKev && !(tier.error instanceof ApiError && tier.error.code === 'not_in_data')) {
+    return (
+      <>
+        <Link to="/" className="mb-3 inline-flex items-center gap-1 text-[13px] text-muted hover:text-ink"><ArrowLeft className="size-3.5" />{t('cve.back')}</Link>
+        <QueryState query={tier}>{(v) => <TierCvePage v={v} />}</QueryState>
+      </>
+    )
+  }
   return (
     <>
       <Link to="/" className="mb-3 inline-flex items-center gap-1 text-[13px] text-muted hover:text-ink"><ArrowLeft className="size-3.5" />{t('cve.back')}</Link>
@@ -31,6 +46,7 @@ export default function CvePage() {
                     <KeyValue items={[
                       { label: t('cve.name'), value: v.name },
                       { label: t('cve.product'), value: `${v.vendor} ${v.product}` },
+                      { label: t('cve.published'), value: v.published ? fmtDay(v.published) : <span className="text-muted">{t('cve.publishedUnknown')}</span> },
                       { label: t('cve.kevDate'), value: fmtDay(v.date_added) },
                       { label: t('cve.dueDate'), value: v.due_date ? <>{fmtDay(v.due_date)} <span className="text-[12px] text-muted">{t('cve.dueHint')}</span></> : '–' },
                       { label: t('cve.epss'), value: <>{fmtPercent(v.epss)} <span className="text-[12px] text-muted">{t('cve.epssHint')}</span></> },
@@ -50,7 +66,8 @@ export default function CvePage() {
                 <Slot name="cve.panels" props={{ cve: v.cve }} />
               </div>
               <aside aria-label={t('cve.matched')}>
-                <Section title={t('cve.matched')} stories={['S-FEED-1']}>
+                <Section title={t('cve.matched')} stories={['S-FEED-1', 'S-TIER-4']}>
+                  {v.published && v.published < yearAgo() ? <p className="mb-3 rounded-md border border-rule bg-off-soft px-3 py-2 text-[13px]">{t('cve.oldNote', { date: fmtDay(v.published) })}</p> : null}
                   {v.matched === null ? <ModuleOff module="inventory" /> : v.matched.length === 0 && v.not_affected ? (
                     <p className="text-sm text-muted">{t('cve.notAffected', { count: v.not_affected })}</p>
                   ) : v.matched.length === 0 ? (

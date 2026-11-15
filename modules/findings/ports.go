@@ -1,6 +1,9 @@
 package findings
 
-import "context"
+import (
+	"context"
+	"time"
+)
 
 // Event names published by this module (CONTRACT, Events).
 const (
@@ -97,6 +100,15 @@ type KevInfo struct {
 	EPSS           *float64 `json:"epss"`
 	HasTemplate    bool     `json:"has_template"`
 	Source         string   `json:"source"` // "cisa-kev" or "vulncheck-kev": which list the entry is on, so every text names it (D-557)
+	// Published is the day NVD published the CVE ("2017-03-14", D-615), never CISA's date_added; nil when NVD has not answered.
+	Published *string `json:"published"`
+}
+
+// TierStatus is what the tier feeds of feeds hold (D-613, D-616): "off", "loading" or "ready" for epss-all and nvd-recent,
+// the day of the EPSS scores and the first published day nvd-recent covers (zero unless ready).
+type TierStatus struct {
+	EPSS, Recent          string
+	EPSSDate, RecentSince time.Time
 }
 
 // Feeds is what findings reads from the feeds module (WP-20; not built yet). findings never reads
@@ -106,4 +118,6 @@ type Feeds interface {
 	KevInfo(ctx context.Context, cves []string) (map[string]KevInfo, error)
 	// Vulns returns the exploited-vulnerability list with the NVD affected ranges, for matching.
 	Vulns(ctx context.Context) ([]Vuln, error)
+	// TierStatus says what the tier feeds hold, for GET /findings/plan (D-613, D-616).
+	TierStatus(ctx context.Context) (TierStatus, error)
 }

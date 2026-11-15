@@ -5,12 +5,14 @@ import kev from '@/mocks/fixtures/kev.json'
 import { API, audit, body, fail, guard, IPV4_RE } from '@/mocks/http'
 import { assetsStore, isOn } from '@/mocks/stores'
 import { collection, newId, nowIso } from '@/mocks/db'
+import { epssDate, kevPublished, tierFact, tierOf, tierState, withinYear } from '@/mocks/tiers'
 import type { Asset, AssetKind } from '@/lib/types'
 import { actsAs } from '@/lib/deviceTypes'
 import { feedOn, kevStatus, sourceHandlers } from './sourcesMock'
 import { FEED_DOMAIN_RE } from './parsers'
 import { displayOf, keyOf, kindOf } from './slug'
-import type { CveDetail, FeedStatus, HotRow, IocHit, MatchedAsset, SearchResult, Vuln, WeeklyItem, YouHave } from './types'
+import type { CveDetail, FeedStatus, HotRow, IocHit, MatchedAsset, SearchResult, TierCve, Vuln, WeeklyItem, YouHave } from './types'
+
 
 const data = kev as { generated_at: string; kev_catalog_version: string; sources: FeedStatus['sources']; vulns: Vuln[] }
 const ref = new Date(data.generated_at).getTime()
@@ -149,7 +151,24 @@ export const handlers = [
     const denied = guard('viewer'); if (denied) return denied
     const v = data.vulns.find((x) => x.cve === String(params.id).toUpperCase())
     if (!v) return fail(404, 'not_in_kev', 'This CVE is not on the exploited list (CISA KEV) in the current data.')
-    return HttpResponse.json({ ...v, display: displayOf(v.vendor, v.product), matched: isOn('inventory') ? matchAssets(v.vendor, v.product) : null } satisfies CveDetail)
+    return HttpResponse.json({ ...v, display: displayOf(v.vendor, v.product), matched: isOn('inventory') ? matchAssets(v.vendor, v.product) : null, published: kevPublished(v.cve) } satisfies CveDetail)
+  }),
+
+  // D-613, D-615 (S-TIER-1): a CVE on no exploited list, from the tier data (epss-all, nvd-recent).
+  http.get(`${API}/feeds/cve/:id/tier`, ({ params }) => {
+    const denied = guard('viewer'); if (denied) return denied
+    const id = String(params.id).toUpperCase()
+    const f = tierFact(id)
+    const st = tierState.get()
+    const recent = st.recent === 'ready' && f && withinYear(f) ? f : null
+    const epss = st.epss === 'ready' && f ? f : null
+    if (!recent && !epss) return fail(404, 'not_in_data', 'This CVE is not on an exploited list, and the EPSS and NVD data on this box do not hold it.')
+    const r: TierCve = {
+      cve: id, tier: recent ? tierOf(recent) : null, published: recent?.published ?? null, last_modified: recent?.last_modified ?? null, nvd_status: recent?.nvd_status ?? null,
+      severity: recent?.severity ?? null, score: recent?.score ?? null, epss: epss?.epss ?? null, percentile: epss?.percentile ?? null, epss_date: epss ? epssDate() : null,
+      products: recent?.products ?? [], ranges: recent?.ranges ?? false,
+    }
+    return HttpResponse.json(r)
   }),
 
   http.get(`${API}/feeds/search`, ({ request }) => {

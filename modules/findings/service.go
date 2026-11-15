@@ -142,8 +142,9 @@ type UpsertResult struct {
 	// Regraded counts the product findings graded higher before D-500 that took the product severity (W3-3).
 	Regraded int
 	// Closed counts the findings Vedette closed because the version is proved outside every range (D-530), Retired the
-	// old product findings of settled "Multiple Products" entries NVD's list leaves out (D-506).
-	Closed, Retired int
+	// old product findings of settled "Multiple Products" entries NVD's list leaves out (D-506), Aged the findings of KEV
+	// CVEs published over 12 months ago that rest on no confirmed evidence (D-615).
+	Closed, Retired, Aged int
 }
 
 // OnMatchChanged handles inventory.match.changed: it reads the device and the exploited list and
@@ -272,6 +273,9 @@ func (s *Service) upsert(ctx context.Context, a Asset, vulns []Vuln, need []Vers
 		if res.Retired, err = s.autoResolve(ctx, tx, a.ID, m.Retired, true, now, emit); err != nil {
 			return err
 		}
+		if res.Aged, err = s.closeAged(ctx, tx, a.ID, m.Aged, now, emit); err != nil {
+			return err
+		}
 		n, err := s.noteNoLongerMatching(ctx, tx, a.ID, vulns, m, now)
 		if err != nil {
 			return err
@@ -291,6 +295,9 @@ func (s *Service) upsert(ctx context.Context, a Asset, vulns []Vuln, need []Vers
 	if res.Retired > 0 {
 		s.cfg.Log.InfoContext(ctx, "findings: closed (D-506): Multiple Products entries over a year old whose NVD list names none of the device's software",
 			"asset", a.ID, "count", res.Retired)
+	}
+	if res.Aged > 0 {
+		s.cfg.Log.InfoContext(ctx, "findings: closed (D-615): KEV CVEs published over 12 months ago matched by product only", "asset", a.ID, "count", res.Aged)
 	}
 	return res, nil
 }
@@ -344,9 +351,12 @@ func haveScope(a Asset, vulns []Vuln, m MatchResult, since map[string]Have, have
 		}
 		return out
 	}
-	out := MatchResult{New: keep(m.New), Existing: keep(m.Existing), NeedVersion: m.NeedVersion, NotAffected: m.NotAffected, Unlisted: m.Unlisted, Retired: m.Retired}
+	out := MatchResult{New: keep(m.New), Existing: keep(m.Existing), NeedVersion: m.NeedVersion, NotAffected: m.NotAffected, Unlisted: m.Unlisted, Retired: m.Retired, Aged: m.Aged}
 	taken := map[string]bool{}
 	for _, x := range append(append([]Match{}, out.New...), out.Existing...) {
+		taken[x.CVE] = true
+	}
+	for _, x := range m.Aged { // D-615: the age rule dropped it on another row of the same product; not re-added here (review r1 #5 of #803)
 		taken[x.CVE] = true
 	}
 	name := clean(a.Name)
@@ -424,6 +434,49 @@ func (s *Service) autoResolve(ctx context.Context, tx *sql.Tx, assetID string, p
 	return closed, nil
 }
 
+// closeAged closes the open findings the age rule drops (D-615, D-616, S-TIER-4, MatchResult.Aged): a KEV CVE published over
+// 12 months ago that the matcher matches by product only (no version compared). Like D-506's retired ones,
+// status not_relevant by the system user with the reason not_affected_version (the only one the CHECK of
+// fnd_finding.resolution_reason allows; D-505), the note saying why (AgedNote), a history row, audit findings.auto_resolved
+// and a status_changed event (notify sends nothing for it). Never a finding a scan confirmed (basis scan), a closed one, or
+// one a person reopened at any time: a person who reopened it decided. ReopenOnMatch reopens it on confirmed evidence.
+func (s *Service) closeAged(ctx context.Context, tx *sql.Tx, assetID string, aged []Match, now time.Time, emit func(string, any)) (int, error) {
+	closed := 0
+	for _, p := range aged {
+		r, err := loadByPair(ctx, tx, assetID, p.CVE)
+		if errors.Is(err, ErrNotFound) {
+			continue
+		}
+		if err != nil {
+			return closed, err
+		}
+		// product findings only (review r1 #2 of #803): a version or agent finding whose match fell back to product-only (NVD's
+		// ranges gone in one pull, a version that became unreadable) stays for the next match, never flip-flops; a person's reopen stands
+		if r.Basis != BasisProduct || r.Evidence != nil && r.Evidence.Agent || slices.ContainsFunc(r.History, func(h HistoryEntry) bool { return h.User != SystemUser && h.Action == "reopened" }) {
+			continue
+		}
+		was := r.Status
+		f, h, ok := r.AutoResolve(p.Evidence.Summary, now)
+		if !ok {
+			continue
+		}
+		r.Finding = f
+		if err := updateRecord(ctx, tx, r); err != nil {
+			return closed, err
+		}
+		if err := insertHistory(ctx, tx, r.ID, h); err != nil {
+			return closed, err
+		}
+		if err := s.cfg.Audit.Append(ctx, tx, audit.Entry{User: SystemUser, Action: "findings.auto_resolved", Target: r.ID,
+			Detail: r.CVE + ": " + ReasonNotAffectedVersion + " (D-615: published over 12 months ago, product match only, no version compared)"}); err != nil {
+			return closed, err
+		}
+		emit(EventStatusChanged, StatusChangedEvent{FindingID: r.ID, From: was, To: r.Status, Reason: ReasonNotAffectedVersion})
+		closed++
+	}
+	return closed, nil
+}
+
 // noteNoLongerMatching records, once, that a suspected finding (basis version or product) is no longer produced by the
 // matcher although its CVE is in the list that was matched: the device's software changed, or CISA changed the vendor or
 // product of the entry (D-439). Nothing closes (FORBID-2): a person reads the history row and closes it. A CVE that is not
@@ -467,9 +520,12 @@ func (s *Service) noteNoLongerMatching(ctx context.Context, tx *sql.Tx, assetID 
 			awaiting[c] = n.Software
 		}
 	}
-	unlisted := make(map[string]string, len(m.Unlisted)) // CVE -> why NVD's list does not name the software (D-505)
+	unlisted := make(map[string]string, len(m.Unlisted)+len(m.Aged)) // CVE -> why NVD's list does not name the software (D-505), or the age rule's sentence (D-615)
 	for _, x := range m.Unlisted {
 		unlisted[x.CVE] = x.Evidence.Summary
+	}
+	for _, x := range m.Aged { // a finding the age rule did not close (a person reopened it, a version or agent finding) says why it stays
+		unlisted[x.CVE] = fmt.Sprintf("%s was published more than 12 months ago and Vedette now matches it by the product name only, so it would not list it on a device today. This finding stays open (you reopened it, or it was matched by version before); close it yourself if it does not apply.", x.CVE)
 	}
 	for _, cve := range open {
 		if !listed[cve] || matched[cve] {

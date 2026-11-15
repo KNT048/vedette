@@ -81,7 +81,7 @@ func nvdOrigin(o *origin, n int, endExcl string) {
 		}
 		var recs []string
 		for i := start; i < min(start+NVDPageSize, total); i++ {
-			recs = append(recs, fmt.Sprintf(`{"cve":{"id":"CVE-2024-%04d","configurations":[{"nodes":[{"cpeMatch":[{"vulnerable":true,"criteria":"cpe:2.3:a:acme:box:*:*:*:*:*:*:*:*","versionEndExcluding":%q}]}]}]}}`, i, endExcl))
+			recs = append(recs, fmt.Sprintf(`{"cve":{"id":"CVE-2024-%04d","published":"2024-01-15T10:00:00.000","configurations":[{"nodes":[{"cpeMatch":[{"vulnerable":true,"criteria":"cpe:2.3:a:acme:box:*:*:*:*:*:*:*:*","versionEndExcluding":%q}]}]}]}}`, i, endExcl))
 		}
 		_, _ = fmt.Fprintf(w, `{"totalResults":%d,"vulnerabilities":[%s]}`, total, strings.Join(recs, ","))
 	})

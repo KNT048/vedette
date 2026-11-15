@@ -122,6 +122,14 @@ func (m exposureMatcher) Match(ctx context.Context, svcs []exposure.ServiceRow) 
 			s := where[x.SoftwareID]
 			out.RuledOut = append(out.RuledOut, exposure.RuledOutRow{IP: s.IP, Port: s.Port, CVE: x.CVE, Reason: x.Evidence.Summary})
 		}
+		for _, x := range res.Aged { // D-615, D-616: an exploited CVE published over 12 months ago needs a version compared or a scan hit
+			s, v := where[x.SoftwareID], byCVE[x.CVE]
+			if v == nil {
+				continue
+			}
+			out.RuledOut = append(out.RuledOut, exposure.RuledOutRow{IP: s.IP, Port: s.Port, CVE: x.CVE,
+				Reason: fmt.Sprintf("Published on %s, more than 12 months ago, and only the product name matches: the banner gives no version Vedette can compare. For an old CVE Vedette needs a version or a hit of this page's scans.", findings.FmtDay(v.Published))})
+		}
 		for _, n := range res.NeedVersion {
 			s := where[n.SoftwareID]
 			out.Gaps = append(out.Gaps, exposure.GapRow{IP: s.IP, Port: s.Port, Software: n.Software, CVEs: n.CVEs})

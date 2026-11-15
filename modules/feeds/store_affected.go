@@ -197,9 +197,10 @@ func (s *Store) KevAffected(ctx context.Context) (map[string][]AffectedRow, erro
 func (s *Store) MatchStamp(ctx context.Context) (string, error) {
 	var stamp sql.NullString
 	err := s.db.Reader().QueryRowContext(ctx, `SELECT (SELECT group_concat(id || '=' || COALESCE(last_fetch, '') || '/' || rev, ',') FROM
-(SELECT id, last_fetch, rev FROM feeds_source WHERE id IN ('cisa-kev', 'cve-org', 'debian-tracker', 'first-epss', 'nvd-kev', 'ubuntu-osv', 'ubuntu-vex', 'vulncheck-kev') ORDER BY id))
+(SELECT id, last_fetch, rev FROM feeds_source WHERE id IN ('cisa-kev', 'cve-org', 'debian-tracker', 'first-epss', 'nuclei-templates', 'nvd-kev', 'ubuntu-osv', 'ubuntu-vex', 'vulncheck-kev') ORDER BY id))
 || ';' || (SELECT count(*) || '/' || COALESCE(max(updated_at), '') FROM feeds_vuln WHERE source_id IN ('cisa-kev', 'vulncheck-kev'))
-|| ';' || (SELECT count(*) || '/' || COALESCE(max(updated_at), '') FROM feeds_affected_cve)`).Scan(&stamp)
+|| ';' || (SELECT count(*) || '/' || COALESCE(max(updated_at), '') FROM feeds_affected_cve)
+|| ';' || (SELECT count(*) FROM feeds_published)`).Scan(&stamp)
 	if err != nil {
 		return "", fmt.Errorf("feeds: match stamp: %w", err)
 	}

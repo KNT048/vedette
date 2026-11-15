@@ -4208,6 +4208,91 @@ func decodeFeedsGetFeedsCveIDParams(args [1]string, argsEscaped bool, r *http.Re
 	return params, nil
 }
 
+// FeedsGetFeedsCveIDTierParams is parameters of feeds_get_feeds_cve_id_tier operation.
+type FeedsGetFeedsCveIDTierParams struct {
+	ID string
+}
+
+func unpackFeedsGetFeedsCveIDTierParams(packed middleware.Parameters) (params FeedsGetFeedsCveIDTierParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "id",
+			In:   "path",
+		}
+		params.ID = packed[key].(string)
+	}
+	return params
+}
+
+func decodeFeedsGetFeedsCveIDTierParams(args [1]string, argsEscaped bool, r *http.Request) (params FeedsGetFeedsCveIDTierParams, _ error) {
+	// Decode path: id.
+	if err := func() error {
+		param := args[0]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[0])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "id",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.ID = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:     0,
+					MinLengthSet:  false,
+					MaxLength:     0,
+					MaxLengthSet:  false,
+					Email:         false,
+					Hostname:      false,
+					Regex:         regexMap["^CVE-\\d{4}-\\d{4,}$"],
+					MinNumeric:    0,
+					MinNumericSet: false,
+					MaxNumeric:    0,
+					MaxNumericSet: false,
+				}).Validate(string(params.ID)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "id",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
 // FeedsGetFeedsHotParams is parameters of feeds_get_feeds_hot operation.
 type FeedsGetFeedsHotParams struct {
 	Window FeedsGetFeedsHotWindow
@@ -4753,6 +4838,163 @@ func decodeFindingsGetFindingsIDParams(args [1]string, argsEscaped bool, r *http
 		return params, &ogenerrors.DecodeParamError{
 			Name: "id",
 			In:   "path",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
+// FindingsGetFindingsPlanParams is parameters of findings_get_findings_plan operation.
+type FindingsGetFindingsPlanParams struct {
+	Tier  OptFindingsGetFindingsPlanTier `json:",omitempty,omitzero"`
+	Asset OptString                      `json:",omitempty,omitzero"`
+}
+
+func unpackFindingsGetFindingsPlanParams(packed middleware.Parameters) (params FindingsGetFindingsPlanParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "tier",
+			In:   "query",
+		}
+		if v, ok := packed[key]; ok {
+			params.Tier = v.(OptFindingsGetFindingsPlanTier)
+		}
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "asset",
+			In:   "query",
+		}
+		if v, ok := packed[key]; ok {
+			params.Asset = v.(OptString)
+		}
+	}
+	return params
+}
+
+func decodeFindingsGetFindingsPlanParams(args [0]string, argsEscaped bool, r *http.Request) (params FindingsGetFindingsPlanParams, _ error) {
+	q := uri.NewQueryDecoder(r.URL.Query())
+	// Decode query: tier.
+	if err := func() error {
+		cfg := uri.QueryParameterDecodingConfig{
+			Name:    "tier",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.HasParam(cfg); err == nil {
+			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotTierVal FindingsGetFindingsPlanTier
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToString(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotTierVal = FindingsGetFindingsPlanTier(c)
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.Tier.SetTo(paramsDotTierVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+			if err := func() error {
+				if value, ok := params.Tier.Get(); ok {
+					if err := func() error {
+						if err := value.Validate(); err != nil {
+							return err
+						}
+						return nil
+					}(); err != nil {
+						return err
+					}
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "tier",
+			In:   "query",
+			Err:  err,
+		}
+	}
+	// Decode query: asset.
+	if err := func() error {
+		cfg := uri.QueryParameterDecodingConfig{
+			Name:    "asset",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.HasParam(cfg); err == nil {
+			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotAssetVal string
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToString(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotAssetVal = c
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.Asset.SetTo(paramsDotAssetVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+			if err := func() error {
+				if value, ok := params.Asset.Get(); ok {
+					if err := func() error {
+						if err := (validate.String{
+							MinLength:     0,
+							MinLengthSet:  false,
+							MaxLength:     64,
+							MaxLengthSet:  true,
+							Email:         false,
+							Hostname:      false,
+							Regex:         nil,
+							MinNumeric:    0,
+							MinNumericSet: false,
+							MaxNumeric:    0,
+							MaxNumericSet: false,
+						}).Validate(string(value)); err != nil {
+							return errors.Wrap(err, "string")
+						}
+						return nil
+					}(); err != nil {
+						return err
+					}
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "asset",
+			In:   "query",
 			Err:  err,
 		}
 	}

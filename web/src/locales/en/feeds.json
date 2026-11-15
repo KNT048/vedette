@@ -119,7 +119,10 @@
     "notAnId": "“{{id}}” is not a CVE ID",
     "notAnIdBody": "CVE IDs look like CVE-2021-44228: the letters CVE, a year, and a number.",
     "notAffected_one": "1 device runs this product but is not affected: Vedette checked its platform (see its findings).",
-    "notAffected_other": "{{count}} devices run this product but are not affected: Vedette checked their platform (see their findings)."
+    "notAffected_other": "{{count}} devices run this product but are not affected: Vedette checked their platform (see their findings).",
+    "published": "Published",
+    "publishedUnknown": "Not known yet (NVD has not answered for it)",
+    "oldNote": "Published {{date}}, more than 12 months ago. For an old CVE that also joined the exploited list more than 12 months ago, Vedette makes a finding only when it can compare a version (or a scan that reads the version finds it): a device that matches by the product name alone is listed below but is not a finding. To check such a device, add its version, install the agent on it or scan it."
   },
   "settings": {
     "nav": "Feeds",
@@ -332,5 +335,36 @@
     "rejectLine": "Line {{n}}:",
     "rejectRow": "Record {{n}}:",
     "showSample": "Show the sample used"
+  },
+  "tierCve": {
+    "tier": {
+      "likely": "Likely to be exploited",
+      "recent": "Recent",
+      "old": "Older than 12 months"
+    },
+    "notExploited": "Not on an exploited list",
+    "intro": "This CVE is on no exploited list (CISA KEV, or VulnCheck KEV when it is on). Vedette lists the devices it confirmed under Updates to plan, grouped by the update that fixes it; it is never a finding and never alerts.",
+    "introOld": "This CVE is on no exploited list and was published more than 12 months ago, or this box has no NVD record of it. Vedette lists such a CVE on a device only when a scan engine finds it there.",
+    "products": "Products (NVD)",
+    "productsNone": "NVD names none yet",
+    "publishedNone": "Not in the NVD data of the last 12 months",
+    "severity": "Severity (CVSS)",
+    "sev": {
+      "critical": "Critical",
+      "high": "High",
+      "medium": "Medium",
+      "low": "Low",
+      "none": "None"
+    },
+    "notScored": "Not scored by NVD yet",
+    "epssNone": "No EPSS score in the data",
+    "epssHint": "(EPSS, next 30 days; scores of {{date}})",
+    "status": "NVD status",
+    "changed": "(changed {{date}})",
+    "ranges": "Affected versions",
+    "rangesYes": "NVD lists them, so Vedette can compare a device's exact version",
+    "rangesNo": "NVD has not listed them yet, so Vedette cannot compare a version (it never lists a CVE by the product name alone)",
+    "noDevice": "No device of yours is listed for it: Vedette found no confirmed version inside its affected versions.",
+    "toPlan": "See every update to plan"
   }
 }

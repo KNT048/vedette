@@ -309,3 +309,38 @@ func TestExposureMatcher_ZAPVersions(t *testing.T) {
 		t.Fatalf("%+v %v", res, err)
 	}
 }
+
+// D-615, D-616: on a public IP, an exploited CVE published more than 12 months ago stays listed when the banner's version is
+// compared (Exim 4.89 inside CVE-2019-10149's range, published 2019); with only the product name matching (no NVD data to
+// compare) it comes back as ruled out with the reason, never silently dropped. A recent one keeps today's rule.
+func TestExposureMatcher_D616_OldKEVOnlyProductOnlyIsRuledOut(t *testing.T) {
+	t.Parallel()
+	now := time.Date(2026, 11, 15, 0, 0, 0, 0, time.UTC)
+	vulns := exposureGolden(t)
+	for i := range vulns {
+		vulns[i].Published, vulns[i].DateAdded = time.Date(2019, 6, 5, 0, 0, 0, 0, time.UTC), time.Date(2021, 11, 3, 0, 0, 0, 0, time.UTC)
+	}
+	m := exposureMatcher{vulns: func(context.Context) ([]findings.Vuln, error) { return vulns, nil }, now: func() time.Time { return now }}
+	exim := []exposure.ServiceRow{{IP: "203.0.113.10", Port: 25, Name: "smtp", Product: "Exim smtpd", Version: "4.89", Extra: "Debian", CPE: "cpe:/a:exim:exim:4.89"}}
+	got, err := m.Match(t.Context(), exim)
+	if err != nil || len(got.Vulns) != 1 || got.Vulns[0].CVE != "CVE-2019-10149" || got.Vulns[0].Basis != "version" || len(got.RuledOut) != 0 {
+		t.Fatalf("old CVE, banner version compared: %+v %v", got, err)
+	}
+	productOnly := func(pub time.Time) []findings.Vuln {
+		return []findings.Vuln{{CVE: "CVE-2021-41773", Vendor: "Apache", Product: "HTTP Server", Published: pub, DateAdded: pub}} // no NVD data: product only
+	}
+	m.vulns = func(context.Context) ([]findings.Vuln, error) {
+		return productOnly(time.Date(2021, 10, 5, 0, 0, 0, 0, time.UTC)), nil
+	}
+	m.catalog = func(context.Context) func(string) []string {
+		return func(string) []string { return []string{"apache|http server"} }
+	}
+	got, err = m.Match(t.Context(), exposureFixtureServices[2:])
+	if err != nil || len(got.Vulns) != 0 || len(got.RuledOut) != 1 || got.RuledOut[0].CVE != "CVE-2021-41773" || !strings.Contains(got.RuledOut[0].Reason, "only the product name matches") {
+		t.Fatalf("old CVE, product only: %+v %v", got, err)
+	}
+	m.vulns = func(context.Context) ([]findings.Vuln, error) { return productOnly(now.AddDate(0, -2, 0)), nil }
+	if got, err = m.Match(t.Context(), exposureFixtureServices[2:]); err != nil || len(got.Vulns) != 1 || got.Vulns[0].Basis != "product" || len(got.RuledOut) != 0 {
+		t.Fatalf("recent CVE, product only: %+v %v", got, err)
+	}
+}

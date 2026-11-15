@@ -16,6 +16,9 @@ import (
 // MitigationModule is the id of the module whose Guidance fills the "What to do" fields.
 const MitigationModule = "mitigation"
 
+// FeedsModule is the id of the module that holds the tier data of GET /findings/plan.
+const FeedsModule = "feeds"
+
 // FindingHandlers implements the findings operations: GET /findings, GET /findings/{id}, POST /findings/{id}/status
 // and the bulk POST /findings/status. Embed it in the composite handler. POST /findings/{id}/applied|ai belong
 // to mitigation (core/server/modules.go).
@@ -310,4 +313,36 @@ func (h *FindingHandlers) FindingsPostFindingsStatus(ctx context.Context, req *o
 // while it is on; without one the "What to do" fields of a finding are null or empty (POST-3).
 type Guidance interface {
 	Guidance(ctx context.Context, r Row) (Guide, error)
+}
+
+// FindingsGetFindingsPlan implements findings_get_findings_plan (S-TIER-1, S-TIER-2; D-613, D-615, D-616): "Updates to
+// plan". This version holds the tier data (feeds epss-all and nvd-recent) but does not compare it with devices yet, so it
+// answers compared=false with no item and the state of each feed, and the page says so; the matcher is slice 3. The tier and
+// asset filters apply to items, of which there are none yet.
+func (h *FindingHandlers) FindingsGetFindingsPlan(ctx context.Context, _ oas.FindingsGetFindingsPlanParams) (*oas.FindingsGetFindingsPlanOK, error) {
+	st := TierStatus{EPSS: "module_off", Recent: "module_off"}
+	if h.gate == nil || h.gate.Enabled(FeedsModule) { // the feeds module off: its data is not read, the page says the module is off (modules.md)
+		var err error
+		if st, err = h.feed.TierStatus(ctx); err != nil {
+			return nil, fmt.Errorf("findings: reading the tier data: %w", err)
+		}
+	}
+	day := func(t time.Time) *string {
+		if t.IsZero() {
+			return nil
+		}
+		d := t.UTC().Format(time.DateOnly)
+		return &d
+	}
+	state := func(s string) string {
+		switch s {
+		case "ready", "loading", "module_off":
+			return s
+		}
+		return "off"
+	}
+	return Into[oas.FindingsGetFindingsPlanOK](map[string]any{
+		"items": []any{}, "compared": false, "compared_devices": 0, "unchecked_devices": 0, "old_evidence": 0,
+		"data": map[string]any{"epss": state(st.EPSS), "recent": state(st.Recent), "epss_date": day(st.EPSSDate), "recent_since": day(st.RecentSince)},
+	})
 }

@@ -2,7 +2,7 @@
 // "Update Windows Server 2025" recommendation, Tenable's one plugin per cumulative update).
 import { useTranslation } from 'react-i18next'
 import { isOpen, riskRank } from './basis'
-import type { FindingRow, RowFix } from './types'
+import type { FindingRow, PlanItem, RowFix } from './types'
 
 export interface FixGroup { key: string; fix: RowFix; members: [FindingRow, ...FindingRow[]] }
 
@@ -33,5 +33,16 @@ export function useFixAction() {
       case 'esu': return t('fix.windowsEsu', v)
     }
     return t(f.windows ? 'fix.windowsFixed' : 'fix.fixed', v)
+  }
+}
+
+/** Updates to plan (D-613): what to install for one item, as a sentence. */
+export function usePlanAction() {
+  const { t } = useTranslation('findings')
+  return (i: PlanItem) => {
+    const v = { software: i.software, version: i.version, fixed: i.kind === 'windows' ? build(i.fixed) : i.fixed }
+    if (i.kind === 'distro') return t('plan.action.distro', v)
+    if (i.kind === 'windows') return t('plan.action.windows', v)
+    return t('plan.action.fixed', v)
   }
 }

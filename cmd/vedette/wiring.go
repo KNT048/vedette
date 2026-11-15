@@ -239,6 +239,10 @@ func (a findingsFeeds) KevInfo(ctx context.Context, cves []string) (map[string]f
 	if err != nil {
 		return nil, err
 	}
+	pub, err := a.st.PublishedOf(ctx, cves) // D-615: only the CVEs asked for (review r1 #12 of #803)
+	if err != nil {
+		return nil, err
+	}
 	out := make(map[string]findings.KevInfo, len(rows))
 	for _, v := range rows {
 		var due *string
@@ -247,8 +251,22 @@ func (a findingsFeeds) KevInfo(ctx context.Context, cves []string) (map[string]f
 		}
 		out[v.CVE] = findings.KevInfo{Name: v.Name, Vendor: v.Vendor, Product: v.Product, Display: feeds.DisplayOf(v.Vendor, v.Product),
 			RequiredAction: v.RequiredAction, Links: v.Links, DateAdded: v.DateAdded, DueDate: due, Ransomware: v.Ransomware, EPSS: v.EPSS, HasTemplate: v.HasTemplate, Source: v.SourceID}
+		if d, ok := pub[v.CVE]; ok {
+			k := out[v.CVE]
+			k.Published = &d
+			out[v.CVE] = k
+		}
 	}
 	return out, nil
+}
+
+// TierStatus is feeds' state of the tier feeds (D-613, D-616) for GET /findings/plan.
+func (a findingsFeeds) TierStatus(ctx context.Context) (findings.TierStatus, error) {
+	st, err := a.st.TierStatus(ctx, time.Now())
+	if err != nil {
+		return findings.TierStatus{}, err
+	}
+	return findings.TierStatus{EPSS: string(st.EPSS), Recent: string(st.Recent), EPSSDate: st.EPSSDate, RecentSince: st.RecentSince}, nil
 }
 
 // Vulns returns the CISA list for matching, each CVE with the NVD affected versions feeds pulled (nvd-kev, D-500), or
@@ -294,9 +312,13 @@ func (a findingsFeeds) readVulns(ctx context.Context) ([]findings.Vuln, error) {
 	if err != nil {
 		return nil, err
 	}
+	published, err := a.st.KevPublished(ctx) // D-615: an old KEV CVE is a finding only on confirmed evidence
+	if err != nil {
+		return nil, err
+	}
 	out := make([]findings.Vuln, len(rows))
 	for i, v := range rows {
-		out[i] = findings.Vuln{CVE: v.CVE, Vendor: v.Vendor, Product: v.Product, Name: v.Name, Ransomware: v.Ransomware, Source: v.SourceID}
+		out[i] = findings.Vuln{CVE: v.CVE, Vendor: v.Vendor, Product: v.Product, Name: v.Name, Ransomware: v.Ransomware, Source: v.SourceID, HasTemplate: v.HasTemplate}
 		out[i].RangesFrom = rangesFrom(fromCVEOrg[v.CVE])
 		for _, r := range affected[v.CVE] {
 			out[i].Affected = append(out[i].Affected, findings.Affected{CPE: r.CPE,
@@ -311,6 +333,7 @@ func (a findingsFeeds) readVulns(ctx context.Context) ([]findings.Vuln, error) {
 		if v.EPSS != nil {
 			out[i].EPSS = *v.EPSS
 		}
+		out[i].Published = published[v.CVE] // zero when NVD has not answered: counts as recent
 	}
 	return out, nil
 }

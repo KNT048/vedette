@@ -1,9 +1,18 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
-import type { ApplyItem, BulkAction, FindingDetail, FindingRow, StatusAction, VersionNeeded } from './types'
+import type { ApplyItem, BulkAction, FindingDetail, FindingRow, Plan, PlanFilter, StatusAction, VersionNeeded } from './types'
 
 export const useFindings = (asset?: string) =>
   useQuery({ queryKey: ['findings', 'list', asset ?? null], queryFn: () => api.get<{ items: FindingRow[]; version_needed: VersionNeeded[] }>(asset ? `/findings?asset=${encodeURIComponent(asset)}` : '/findings') })
+
+/** Updates to plan (D-613): tier 2 and 3 CVEs grouped by update; all devices or one. */
+export const usePlan = (tier: PlanFilter = 'all', asset?: string) => {
+  const q = new URLSearchParams()
+  if (tier !== 'all') q.set('tier', tier)
+  if (asset) q.set('asset', asset)
+  const qs = q.toString()
+  return useQuery({ queryKey: ['findings', 'plan', tier, asset ?? null], queryFn: () => api.get<Plan>(`/findings/plan${qs ? `?${qs}` : ''}`) })
+}
 
 export const useFinding = (id: string) =>
   useQuery({ queryKey: ['findings', 'detail', id], queryFn: () => api.get<FindingDetail>(`/findings/${encodeURIComponent(id)}`), retry: false })

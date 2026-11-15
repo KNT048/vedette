@@ -81,6 +81,23 @@ func TestMatchAsset_D618_NeverGuesses(t *testing.T) {
 	if res := MatchAsset(winlab01(), undated, map[string]bool{"CVE-2024-38106": true}, winDay("2026-11-15")); len(res.NotAffected) != 0 {
 		t.Errorf("a month without its published day closed %s: %q", res.NotAffected[0].CVE, res.NotAffected[0].Evidence.Summary)
 	}
+	// review r2 #5: the August and September 2024 entries without their day put 26100.1742 in the placeholder month: never shown as the
+	// build's month; CVE-2024-43572 says the month is not known and still names its fix
+	undated = slices.Clone(vulns)
+	for i := range undated {
+		if strings.HasPrefix(undated[i].CVE, "CVE-2024-38") || undated[i].CVE == "CVE-2024-43461" {
+			undated[i].Published = time.Time{}
+		}
+	}
+	res := MatchAsset(winlab01(), undated, map[string]bool{"CVE-2024-43572": true, "CVE-2024-38106": true}, winDay("2026-11-15"))
+	if len(res.NotAffected) != 0 {
+		t.Errorf("placeholder month closed %s: %q", res.NotAffected[0].CVE, res.NotAffected[0].Evidence.Summary)
+	}
+	for _, m := range res.Existing {
+		if m.CVE == "CVE-2024-43572" && (!strings.Contains(m.Evidence.Summary, "Vedette cannot tell which month's update it carries") || !strings.Contains(m.Evidence.Summary, "fixed in build 26100.2033") || strings.Contains(m.Evidence.Summary, "January 1")) {
+			t.Errorf("CVE-2024-43572 with the month unknown: %q", m.Evidence.Summary)
+		}
+	}
 	// CVE-2013-3900 with an old list naming only Windows 7 (D-610 winRevised): the month rule does not close it either
 	old := nvdRaw("CVE-2013-3900", "2022-01-10", "cpe:2.3:o:microsoft:windows_7:-:sp1:*:*:*:*:*:*")
 	old.Published = winDay("2013-12-10")
@@ -196,4 +213,40 @@ func TestMatchAsset_D618_Margins(t *testing.T) {
 	if w, m := oneMatch(t, srv, nov, true, months...); w != "existing" {
 		t.Errorf("equal bars: %s %q", w, m.Evidence.Summary)
 	}
+	// review r2 #1 and #2: after Microsoft numbered Server 2025 apart from 24H2, a 24H2 fix build says nothing against the server's
+	// revision, and when it is above 24H2's builds of the device's months the fix came later. Server 2025 at 26100.32313 (February 2026;
+	// NVD's real January and February 2026 rows of CVE-2026-20805 and CVE-2026-21510, 24H2's February build 26100.7781); entries fixed in
+	// March 2026 (24H2 26100.8037), one published before its fix in February, one in January
+	srv = winPC(26100, true, "32313", "x64")
+	jan := dated("CVE-2026-20805", "2026-01-13", "2026-01-13", nvdRow{"windows_11_24h2", "*", "*", "10.0.26100.7623"}, nvdRow{"windows_server_2025", "*", "*", "10.0.26100.7623"})
+	feb := dated("CVE-2026-21510", "2026-02-10", "2026-02-10", nvdRow{"windows_11_24h2", "*", "x64", "10.0.26100.7781"}, nvdRow{"windows_server_2025", "*", "*", "10.0.26100.32313"})
+	for _, v := range []Vuln{
+		dated("CVE-2026-90050", "2026-02-10", "2026-02-20", nvdRow{"windows_11_24h2", "*", "*", "10.0.26100.8037"}),
+		dated("CVE-2026-90051", "2026-01-13", "2026-01-20", nvdRow{"windows_11_24h2", "*", "*", "10.0.26100.8037"}),
+	} {
+		if w, m := oneMatch(t, srv, v, true, jan, feb); w != "existing" {
+			t.Errorf("%s, 24H2 fixed in March, on February's server build: %s %q", v.CVE, w, m.Evidence.Summary)
+		}
+	}
+	// a row of another Microsoft product (Office) next to the Windows rows keeps the entry open: Windows' update does not service it
+	office := dated("CVE-2019-90052", "2019-01-08", "2022-03-03", nvdRow{"windows_7", "-", "*", ""})
+	office.Affected = append(office.Affected, Affected{CPE: "cpe:2.3:a:microsoft:office:2016:*:*:*:*:*:*:*"})
+	if w, m := oneMatch(t, winlab01(), office, true, vulns...); w != "existing" {
+		t.Errorf("Office row: %s %q", w, m.Evidence.Summary)
+	}
+}
+
+// Review r2 #3 of #806: the month rule also runs when the device's own rows cannot tell (most closes outside Server 2025). Windows Server
+// 2019 at 17763.6414 (October 2024, the fixture's own Server 2019 fix builds): NVD's real rows of CVE-2023-21823 (February 2023) give
+// windows_server_2019 with no fix build and Windows 10 1809 < 17763.4010; it closes. With an own row that ends above the build it is the
+// device's own range that decides: affected.
+func TestMatchAsset_D618_OwnRowsWithoutAFixBuild(t *testing.T) {
+	vulns := loadGolden(t, "testdata/kev-nvd-winlab01-n55.json")
+	srv := winPC(17763, true, "6414", "x64")
+	v := dated("CVE-2023-21823", "2023-02-14", "2023-02-14", nvdRow{"windows_server_2019", "-", "*", ""}, nvdRow{"windows_10_1809", "*", "*", "10.0.17763.4010"})
+	w, m := oneMatch(t, srv, v, true, vulns...)
+	wantMatch(t, "own row without a fix build", w, m, "notaffected", "", "", "build 17763.6414 of Windows Server 2019 carries Microsoft's monthly update of October 2024")
+	v.Affected[0] = Affected{CPE: "cpe:2.3:o:microsoft:windows_server_2019:*:*:*:*:*:*:*:*", Range: VersionRange{EndExcl: "10.0.17763.9999"}}
+	w, m = oneMatch(t, srv, v, true, vulns...)
+	wantMatch(t, "own row above the build", w, m, "existing", BasisVersion, SeverityHigh)
 }

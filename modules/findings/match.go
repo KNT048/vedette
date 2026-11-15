@@ -341,8 +341,8 @@ func MatchAsset(a Asset, vulns []Vuln, have map[string]bool, now time.Time) Matc
 		infos[i] = newSWInfo(s, a.OS)
 		infos[i].platformOS = platformOS(s, a)
 		if d, ok := winDevice(infos[i]); ok {
-			infos[i].winNamed = winNamed(vulns, d.rel.Product) // D-546, review H2
-			infos[i].winBuild = winBuildMonth(winList, d)      // D-618: from the whole list, never a part of it
+			infos[i].winNamed = winNamed(winList, d.rel.Product) // D-546, review H2; the whole list, so both Reconcile writes agree
+			infos[i].winBuild = winBuildMonth(winList, d)        // D-618: from the whole list, never a part of it
 		}
 	}
 	for _, v := range vulns {

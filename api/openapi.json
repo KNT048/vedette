@@ -36149,7 +36149,7 @@
                           },
                           "fixed": {
                             "type": "string",
-                            "description": "fixed: the version that fixes every CVE of the item; windows, esu: the build of the cumulative update; distro: empty"
+                            "description": "fixed: the version that fixes every CVE of the item; windows, esu: the build of the cumulative update; distro: the distribution's package version that fixes every CVE of the item on the device's release (D-622)"
                           },
                           "kind": {
                             "type": "string",
@@ -36159,7 +36159,11 @@
                               "windows",
                               "esu"
                             ],
-                            "description": "fixed = upgrade the software to `fixed`; distro = install the distribution's security updates for the package; windows = the monthly cumulative update with build `fixed` or later; esu = the same on a Windows release past its end of support: the update comes only with Extended Security Updates (D-617)"
+                            "description": "fixed = upgrade the software to `fixed`; distro = upgrade the Ubuntu or Debian source package `software` from `version` to `fixed` or later (the distribution's security update, D-622); windows = the monthly cumulative update with build `fixed` or later; esu = the same on a Windows release past its end of support: the update comes only with Extended Security Updates (D-617)"
+                          },
+                          "pro": {
+                            "type": "boolean",
+                            "description": "distro only: `fixed` is in Ubuntu Pro (ESM) only; false otherwise"
                           },
                           "cves": {
                             "minItems": 1,
@@ -36263,7 +36267,7 @@
                               ],
                               "additionalProperties": false
                             },
-                            "description": "Likely first, then by EPSS, then newest"
+                            "description": "Likely first, by EPSS; then the recent ones by CVSS score, then EPSS; then newest (D-623)"
                           },
                           "likely": {
                             "type": "integer",
@@ -36283,6 +36287,7 @@
                           "version",
                           "fixed",
                           "kind",
+                          "pro",
                           "cves",
                           "likely",
                           "recent"

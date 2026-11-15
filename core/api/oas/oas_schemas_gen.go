@@ -66855,20 +66855,23 @@ func (s *FindingsGetFindingsPlanOKDataRecent) UnmarshalText(data []byte) error {
 
 type FindingsGetFindingsPlanOKItemsItem struct {
 	Asset FindingsGetFindingsPlanOKItemsItemAsset `json:"asset"`
-	// Likely first, then by EPSS, then newest.
+	// Likely first, by EPSS; then the recent ones by CVSS score, then EPSS; then newest (D-623).
 	Cves []FindingsGetFindingsPlanOKItemsItemCvesItem `json:"cves"`
 	// Fixed: the version that fixes every CVE of the item; windows, esu: the build of the cumulative
-	// update; distro: empty.
+	// update; distro: the distribution's package version that fixes every CVE of the item on the device's
+	// release (D-622).
 	Fixed string `json:"fixed"`
 	// "/", as RowFix.group (D-545).
 	Group string `json:"group"`
-	// Fixed = upgrade the software to `fixed`; distro = install the distribution's security updates for
-	// the package; windows = the monthly cumulative update with build `fixed` or later; esu = the same on
-	// a Windows release past its end of support: the update comes only with Extended Security Updates
-	// (D-617).
+	// Fixed = upgrade the software to `fixed`; distro = upgrade the Ubuntu or Debian source package
+	// `software` from `version` to `fixed` or later (the distribution's security update, D-622); windows =
+	// the monthly cumulative update with build `fixed` or later; esu = the same on a Windows release past
+	// its end of support: the update comes only with Extended Security Updates (D-617).
 	Kind   FindingsGetFindingsPlanOKItemsItemKind `json:"kind"`
 	Likely int                                    `json:"likely"`
-	Recent int                                    `json:"recent"`
+	// Distro only: `fixed` is in Ubuntu Pro (ESM) only; false otherwise.
+	Pro    bool `json:"pro"`
+	Recent int  `json:"recent"`
 	// Display name of the software row.
 	Software string `json:"software"`
 	// The installed version.
@@ -66903,6 +66906,11 @@ func (s *FindingsGetFindingsPlanOKItemsItem) GetKind() FindingsGetFindingsPlanOK
 // GetLikely returns the value of Likely.
 func (s *FindingsGetFindingsPlanOKItemsItem) GetLikely() int {
 	return s.Likely
+}
+
+// GetPro returns the value of Pro.
+func (s *FindingsGetFindingsPlanOKItemsItem) GetPro() bool {
+	return s.Pro
 }
 
 // GetRecent returns the value of Recent.
@@ -66948,6 +66956,11 @@ func (s *FindingsGetFindingsPlanOKItemsItem) SetKind(val FindingsGetFindingsPlan
 // SetLikely sets the value of Likely.
 func (s *FindingsGetFindingsPlanOKItemsItem) SetLikely(val int) {
 	s.Likely = val
+}
+
+// SetPro sets the value of Pro.
+func (s *FindingsGetFindingsPlanOKItemsItem) SetPro(val bool) {
+	s.Pro = val
 }
 
 // SetRecent sets the value of Recent.
@@ -67255,10 +67268,10 @@ func (s *FindingsGetFindingsPlanOKItemsItemCvesItemTier) UnmarshalText(data []by
 	}
 }
 
-// Fixed = upgrade the software to `fixed`; distro = install the distribution's security updates for
-// the package; windows = the monthly cumulative update with build `fixed` or later; esu = the same on
-// a Windows release past its end of support: the update comes only with Extended Security Updates
-// (D-617).
+// Fixed = upgrade the software to `fixed`; distro = upgrade the Ubuntu or Debian source package
+// `software` from `version` to `fixed` or later (the distribution's security update, D-622); windows =
+// the monthly cumulative update with build `fixed` or later; esu = the same on a Windows release past
+// its end of support: the update comes only with Extended Security Updates (D-617).
 type FindingsGetFindingsPlanOKItemsItemKind string
 
 const (

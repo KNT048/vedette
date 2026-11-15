@@ -6,12 +6,12 @@ export const useFindings = (asset?: string) =>
   useQuery({ queryKey: ['findings', 'list', asset ?? null], queryFn: () => api.get<{ items: FindingRow[]; version_needed: VersionNeeded[] }>(asset ? `/findings?asset=${encodeURIComponent(asset)}` : '/findings') })
 
 /** Updates to plan (D-613): tier 2 and 3 CVEs grouped by update; all devices or one. */
-export const usePlan = (tier: PlanFilter = 'all', asset?: string) => {
+export const usePlan = (tier: PlanFilter = 'all', asset?: string, enabled = true) => {
   const q = new URLSearchParams()
   if (tier !== 'all') q.set('tier', tier)
   if (asset) q.set('asset', asset)
   const qs = q.toString()
-  return useQuery({ queryKey: ['findings', 'plan', tier, asset ?? null], queryFn: () => api.get<Plan>(`/findings/plan${qs ? `?${qs}` : ''}`) })
+  return useQuery({ queryKey: ['findings', 'plan', tier, asset ?? null], queryFn: () => api.get<Plan>(`/findings/plan${qs ? `?${qs}` : ''}`), enabled })
 }
 
 export const useFinding = (id: string) =>

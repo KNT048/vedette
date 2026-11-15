@@ -118,6 +118,14 @@
 - **exposure** (`cmd/vedette/exposurematch.go`): `MatchResult.Aged` (chỉ khớp theo sản phẩm của CVE KEV cũ) thành dòng `RuledOut` có lý do; khớp theo phiên bản banner vẫn là dòng CVE (`TestExposureMatcher_D616_OldKEVOnlyProductOnlyIsRuledOut`).
 - **GUI**: `web/src/features/findings/{Plan.tsx,PlanPage.tsx,fix.ts,DevicePanel.tsx,FindingsPage.tsx}` (trang `/plan`, mục "Updates to plan" của trang thiết bị, dòng liên kết trên Findings), mock `web/src/mocks/tiers.ts`; trang CVE tầng (`features/feeds/TierCvePage.tsx`) đọc `/findings/plan` để liệt kê thiết bị. Route `/findings/plan` phải đứng trước `/findings/:id` trong mock; `core/server/modules_test.go` `contractRoutes` và `api/route-modules.json` liệt kê nó.
 
+## Modifying: gói Ubuntu/Debian trên "Updates to plan" (`DevicePackages`, `distroTierItems`, `Feeds.TierDistro`, `PlanItem.Pro`) và thứ tự CVE (D-622, D-623)
+
+- **feeds**: `DevicePackages` quyết tập gói mà `ubuntu-osv`/`debian-tracker` giữ hàng tầng (qua `cmd/vedette` `feedsInventory.Distros`); đổi luật dòng deb, `securitySource` hay luật kernel đang chạy (`distroRows`) ⇒ feeds giữ gói khác và kéo lại (`distro_packages`). `DeviceDistro` nay đọc từ `DevicePackages` (cùng luật D-570).
+- **cmd/vedette** `findingsFeeds.TierDistro` (đọc `Store.TierDistroRecords`, rỗng khi module feeds tắt); mọi `Feeds` giả trong test (findings `fakeFeeds`, mitigation `fakeFeeds`) có thêm hàm.
+- **Contract**: `PlanItem.pro` (bắt buộc), mô tả `fixed`/`kind`/`cves` (`web/src/features/findings/contract.ts`, `api/openapi.json`, `core/api/oas`); mock `web/src/features/findings/mocks.ts`, `web/src/mocks/tiers.ts`.
+- **GUI**: `fix.ts` (`plan.action.distroFixed|distroPro`), `Plan.tsx` (50 CVE / 50 mục đầu + "Show all"), `PlanPage.tsx` (mặc định Likely khi có mục likely; bộ lọc chọn giữ trên địa chỉ); `plan.test.tsx`.
+- **KEV không đổi**: `matchOne`/`distroVerdict` của finding không đụng; tầng không bao giờ cảnh báo, không vào Home/báo cáo/số finding.
+
 ## Modifying: bộ khớp tầng 2–3 và job `plan` (INV-20, D-617)
 - **`findings.Feeds`** thêm `TierVulns(ctx, keep)` và `TierStamp(ctx)` (rà r1 #7 của #804: chỉ dữ liệu tầng, cộng công tắc module feeds): mọi cài đặt giả phải có (`service_test.go`, `modules/mitigation/mitigation_test.go`); `cmd/vedette` `findingsFeeds` cài (feeds `Store.TierRecords`, `Store.MatchStamp`; `on` = module feeds bật, `clock` = `d.Clock`).
 - **`findings.Jobs`** trả hai job (`reconcile`, `plan`): `reconcile_test.go`, `cmd/vedette/findings_reconcile_test.go`, `cmd/vedette/distro_test.go` (dùng `[0]` = reconcile).

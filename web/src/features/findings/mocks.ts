@@ -68,12 +68,16 @@ function plan(tier: string, asset: string | null): Plan {
         cves.push({ cve: f.cve, tier: t, basis: c.basis, severity: f.severity, score: f.score, published: f.published, epss: f.epss, percentile: f.percentile })
       }
       if (cves.length === 0) continue
-      cves.sort((x, y) => (x.tier === y.tier ? 0 : x.tier === 'likely' ? -1 : 1) || (y.epss ?? 0) - (x.epss ?? 0) || y.published.localeCompare(x.published))
-      items.push({ group: `${a.id}/${p.software_id}`, asset: { id: a.id, name: nameOf(a) }, software: p.software, version: p.version, fixed: p.fixed, kind: p.kind,
+      // D-623: likely first by EPSS, then the recent ones by CVSS score, then EPSS, then newest (findings' sortPlanCVEs)
+      cves.sort((x, y) => (x.tier === y.tier ? 0 : x.tier === 'likely' ? -1 : 1)
+        || (x.tier === 'likely' ? (y.epss ?? -1) - (x.epss ?? -1) || (y.score ?? -1) - (x.score ?? -1) : (y.score ?? -1) - (x.score ?? -1) || (y.epss ?? -1) - (x.epss ?? -1))
+        || y.published.localeCompare(x.published))
+      items.push({ group: `${a.id}/${p.software_id}`, asset: { id: a.id, name: nameOf(a) }, software: p.software, version: p.version, fixed: p.fixed, kind: p.kind, pro: p.pro ?? false,
         cves, likely: cves.filter((c) => c.tier === 'likely').length, recent: cves.filter((c) => c.tier === 'recent').length })
     }
   }
-  items.sort((x, y) => y.likely - x.likely || (y.cves[0]?.epss ?? 0) - (x.cves[0]?.epss ?? 0) || y.cves.length - x.cves.length)
+  const top = (i: PlanItem) => Math.max(-1, ...i.cves.map((c) => c.epss ?? -1))
+  items.sort((x, y) => y.likely - x.likely || top(y) - top(x) || y.cves.length - x.cves.length)
   return { items, compared: st.compared, compared_devices: readable.length, unchecked_devices: assets.length - readable.length, old_evidence: old,
     data: { epss: st.epss, recent: st.recent, epss_date: st.epss === 'ready' ? epssDate() : null, recent_since: st.recent === 'ready' ? recentSince() : null } }
 }

@@ -426,7 +426,7 @@ func (h *FindingHandlers) FindingsGetFindingsPlan(ctx context.Context, params oa
 			}
 		}
 		items = append(items, map[string]any{"group": k.it.Group, "asset": map[string]any{"id": a.ID, "name": a.Name}, "software": k.it.Software,
-			"version": k.it.Version, "fixed": k.it.Fixed, "kind": k.it.Kind, "cves": k.cves, "likely": likely, "recent": len(k.cves) - likely})
+			"version": k.it.Version, "fixed": k.it.Fixed, "kind": k.it.Kind, "pro": k.it.Pro, "cves": k.cves, "likely": likely, "recent": len(k.cves) - likely})
 	}
 	return Into[oas.FindingsGetFindingsPlanOK](map[string]any{
 		"items": items, "compared": view.Ran, "compared_devices": view.Compared, "unchecked_devices": view.Unchecked, "old_evidence": old,

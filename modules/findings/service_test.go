@@ -66,7 +66,10 @@ type fakeFeeds struct {
 	vulns []Vuln
 	tier  TierStatus
 	tiers []TierVuln // TierVulns keeps those whose entries the scope keeps
-	stamp string
+	// distro: TierDistro keeps the rows of the packages asked for; covered: the releases it says the feeds hold rows for
+	distro  []TierVuln
+	covered map[string]bool
+	stamp   string
 }
 
 func (f *fakeFeeds) KevInfo(_ context.Context, cves []string) (map[string]KevInfo, error) {
@@ -101,6 +104,27 @@ func (f *fakeFeeds) TierVulns(_ context.Context, keep func(string) bool) ([]Tier
 }
 
 func (f *fakeFeeds) TierStamp(context.Context) (string, error) { return f.stamp, nil }
+
+func (f *fakeFeeds) TierDistro(_ context.Context, pkgs []DistroPackage) ([]TierVuln, map[string]bool, error) {
+	asked := map[DistroPackage]bool{}
+	for _, p := range pkgs {
+		asked[p] = true
+	}
+	var out []TierVuln
+	for _, t := range f.distro {
+		var kept []DistroFix
+		for _, d := range t.Distro {
+			if asked[DistroPackage{Distro: d.Distro, Release: d.Release, Package: d.Package}] {
+				kept = append(kept, d)
+			}
+		}
+		if len(kept) > 0 {
+			t.Distro = kept
+			out = append(out, t)
+		}
+	}
+	return out, f.covered, nil
+}
 
 type published struct {
 	Name    string

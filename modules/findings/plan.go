@@ -5,6 +5,8 @@ import (
 	"slices"
 	"strings"
 	"time"
+
+	"github.com/knt048/vedette/core/debver"
 )
 
 // "Updates to plan" (S-TIER-1, S-TIER-2; D-613, D-615, D-616, D-617): CVEs on no exploited list, published in the last 12 months,
@@ -20,6 +22,8 @@ type TierVuln struct {
 	Score            *float64
 	EPSS, Percentile *float64 // nil when epss-all is not ready or has no score for the CVE
 	Affected         []Affected
+	// Distro is, for Feeds.TierDistro, the distributions' fixed rows of the packages asked for (D-622); nil otherwise.
+	Distro []DistroFix
 	// Platforms is, per entry of Affected, the operating systems NVD says it affects only when running on ("microsoft:windows"); nil
 	// or empty for none; ["?"] when the record was stored before Vedette kept that (not known: the entry never counts). D-617.
 	Platforms [][]string
@@ -29,7 +33,7 @@ type TierVuln struct {
 type PlanCVE struct {
 	CVE        string   `json:"cve"`
 	Tier       string   `json:"tier"`
-	Basis      string   `json:"basis"` // agent or version in this version (D-617): scan and distro have no source yet
+	Basis      string   `json:"basis"` // agent, version or distro (D-617, D-622): scan has no source yet
 	Severity   *string  `json:"severity"`
 	Score      *float64 `json:"score"`
 	Published  string   `json:"published"`
@@ -44,7 +48,8 @@ type PlanItem struct {
 	Software string    `json:"software"`
 	Version  string    `json:"version"`
 	Fixed    string    `json:"fixed"`
-	Kind     string    `json:"kind"` // fixed, windows, esu (distro has no source yet, D-617)
+	Kind     string    `json:"kind"` // fixed, windows, esu, distro (D-617, D-622)
+	Pro      bool      `json:"pro"`  // distro: the fixed version is in Ubuntu Pro (ESM) only
 	CVEs     []PlanCVE `json:"cves"`
 }
 
@@ -52,7 +57,11 @@ type PlanItem struct {
 const (
 	planAgent   = "agent"
 	planVersion = "version"
+	planDistro  = "distro"
 )
+
+// DistroPackage is a source package of one release as the distributions' security data names it, for Feeds.TierDistro (D-622).
+type DistroPackage struct{ Distro, Release, Package string }
 
 // tierSource says whether a row's version may confirm a tier CVE (D-613 (2), D-617): the device's agent, a person, the device's own
 // SNMP answer, or the network OS the device states (deviceSoftware's OS row). Never a version read from a banner (nmap, the scan, the
@@ -65,9 +74,10 @@ func tierSource(s Software) bool {
 	return strings.HasPrefix(s.ID, "os:")
 }
 
-// tierInfo is the swInfo of a row the plan compares, false when it compares none: a source tierSource refuses, no readable version, or
-// a distribution's package (an agent's deb/rpm row, or a version with a distribution's mark): the distributions backport fixes, so
-// NVD's upstream ranges would put a patched package inside, and their own data has no word on tier CVEs in this version (D-617).
+// tierInfo is the swInfo of a row the plan compares with NVD's ranges, false when it compares none: a source tierSource refuses, no
+// readable version, or a distribution's package (an agent's deb/rpm row, or a version with a distribution's mark): the distributions
+// backport fixes, so NVD's upstream ranges would put a patched package inside (D-617). An agent's deb row on Ubuntu or Debian is
+// compared with the distribution's own data instead (distroTierItems, D-622).
 func tierInfo(a Asset, s Software) (swInfo, bool) {
 	if !tierSource(s) {
 		return swInfo{}, false
@@ -179,6 +189,25 @@ type tierIndex struct {
 	byKey  map[string][]int
 	byName map[string]int  // CVE -> index
 	named  map[string]bool // Windows release -> NVD names it in some entry of the pass (winNamed, computed once)
+	// The distributions' fixed rows of the tier CVEs for the devices' packages (D-622, withDistro): dtier by CVE, its indexes by
+	// "distro/release/package", and the releases ("ubuntu/24.04") the feeds hold rows for.
+	dtier   []TierVuln
+	dby     map[string][]int
+	covered map[string]bool
+}
+
+// withDistro adds the distributions' fixed rows (Feeds.TierDistro) to the index.
+func (x *tierIndex) withDistro(dv []TierVuln, covered map[string]bool) *tierIndex {
+	x.dtier, x.dby, x.covered = dv, map[string][]int{}, covered
+	for i, t := range dv {
+		for _, f := range t.Distro {
+			k := f.Distro + "/" + f.Release + "/" + f.Package
+			if l := x.dby[k]; len(l) == 0 || l[len(l)-1] != i {
+				x.dby[k] = append(l, i)
+			}
+		}
+	}
+	return x
 }
 
 func newTierIndex(tv []TierVuln) *tierIndex {
@@ -300,8 +329,8 @@ func onPlatform(v Vuln, t TierVuln, in swInfo, win bool) (Vuln, bool) {
 // that fixes them (D-545 GroupFix, Ranged only). Windows release rows read NVD's entries by their monthly update (D-546, D-610).
 // Platform-limited CVEs count only when the row names a platform they affect (D-547, and NVD's own "running on" conditions,
 // onPlatform). A CVE two rows of the device match at the same version is listed once, under the agent's row first (review r1 #10 of
-// #804). compared says
-// the device has a row the plan compares. Nothing is a guess: an Unknown, a product-only match or a range with no end gives no item.
+// #804). Ubuntu and Debian packages go by the distribution's data (distroTierItems, D-622). compared says the device has a row the
+// plan compares. Nothing is a guess: an Unknown, a product-only match or a range with no end gives no item.
 func matchTiers(a Asset, x *tierIndex, kev map[string]bool, now time.Time) (items []PlanItem, compared bool) {
 	cut := now.Add(-AgeLimit)
 	sws := slices.Clone(deviceSoftware(a))
@@ -351,7 +380,96 @@ func matchTiers(a Asset, x *tierIndex, kev map[string]bool, now time.Time) (item
 		}
 		items = append(items, its...)
 	}
+	its, dc := distroTierItems(a, x, kev, cut)
+	return append(items, its...), compared || dc
+}
+
+// distroTierItems is the plan of a device's Ubuntu or Debian packages (D-622): an agent's deb row (full version and source package)
+// on a device whose OS names the release is compared with the distribution's own first fixed version for that release and source
+// package (D-516 semantics: the feeds keep only fixed rows of tier CVEs; a public fix over one only Ubuntu Pro has). Below it, and
+// the installed revision is the distribution's own build (ownBuild: never a PPA or a vendor's .deb), the CVE is listed with basis
+// distro. A CVE the distribution's data does not name for that release and package is left out (drop when unsure). One item per
+// source package (and per Pro-only fixes), naming the highest fixed version: a distribution's updates within a release are
+// cumulative, so that one version fixes every CVE of the item (D-545's one update that fixes them all). A kernel's packages count
+// only for the running kernel (distroRows). compared says the device has such a row of a release the feeds stored tier rows for.
+func distroTierItems(a Asset, x *tierIndex, kev map[string]bool, cut time.Time) (items []PlanItem, compared bool) {
+	if len(x.dtier) == 0 && len(x.covered) == 0 {
+		return nil, false
+	}
+	type key struct {
+		pkg string
+		pro bool
+	}
+	var order []key
+	got := map[key]*PlanItem{}
+	seen := map[key]map[string]bool{}
+	d, rel, rows := distroRows(a)
+	if len(rows) == 0 || !x.covered[d+"/"+rel] {
+		return nil, false
+	}
+	for _, r := range rows {
+		s, in, pkg := r.s, r.in, r.pkg
+		compared = true
+		if !ownBuild(d, pkg, in.pkgVer, false) {
+			continue
+		}
+		for _, i := range x.dby[d+"/"+rel+"/"+pkg] {
+			t := x.dtier[i]
+			if kev[t.CVE] || t.Published.Before(cut) || !ValidCVE(t.CVE) {
+				continue
+			}
+			fix := distroFixOf(t.Distro, d, rel, pkg)
+			if fix == nil {
+				continue
+			}
+			if c, err := debver.Compare(in.pkgVer, fix.Fixed); err != nil || c >= 0 {
+				continue // fixed here, or a version Vedette cannot compare: nothing to plan
+			}
+			k := key{pkg, fix.Pro}
+			it := got[k]
+			if it == nil {
+				group := a.ID + "/" + s.ID
+				if fix.Pro {
+					group += "/pro"
+				}
+				it = &PlanItem{Group: group, AssetID: a.ID, Software: clean(pkg), Version: in.pkgVer, Fixed: fix.Fixed, Kind: "distro", Pro: fix.Pro}
+				got[k], seen[k] = it, map[string]bool{}
+				order = append(order, k)
+			}
+			if c, err := debver.Compare(in.pkgVer, it.Version); err == nil && c < 0 { // two installs of one source: the oldest
+				it.Version = in.pkgVer
+			}
+			if c, err := debver.Compare(fix.Fixed, it.Fixed); err == nil && c > 0 {
+				it.Fixed = fix.Fixed
+			}
+			if !seen[k][t.CVE] {
+				seen[k][t.CVE] = true
+				it.CVEs = append(it.CVEs, planCVE(t, planDistro))
+			}
+		}
+	}
+	for _, k := range order {
+		it := got[k]
+		it.Version, it.Fixed = clean(it.Version), clean(it.Fixed)
+		sortPlanCVEs(it.CVEs)
+		items = append(items, *it)
+	}
 	return items, compared
+}
+
+// distroFixOf is the fixed row of the release and source package among a CVE's rows, a public fix over one only Ubuntu Pro has.
+func distroFixOf(rows []DistroFix, distro, release, pkg string) *DistroFix {
+	var fix *DistroFix
+	for i := range rows {
+		f := &rows[i]
+		if f.Distro != distro || f.Release != release || f.Package != pkg || f.Status != "fixed" || f.Fixed == "" {
+			continue
+		}
+		if fix == nil || fix.Pro && !f.Pro {
+			fix = f
+		}
+	}
+	return fix
 }
 
 func boolInt(b bool) int {
@@ -424,7 +542,8 @@ func tierItems(a Asset, s Software, in swInfo, win bool, x *tierIndex, vulns []V
 	return out
 }
 
-// namesFix says the group names an update a person can install (D-545 RowFix kinds; distro has no source here).
+// namesFix says the group names an update a person can install (D-545 RowFix kinds; a distribution's package is planned by
+// distroTierItems, D-622).
 func namesFix(g *GroupFix) bool {
 	switch g.Kind {
 	case "fixed", "esu", "feature_update":
@@ -442,9 +561,11 @@ func planCVE(t TierVuln, basis string) PlanCVE {
 	return c
 }
 
-// sortPlanCVEs orders an item's CVEs as the contract says: likely first, then by EPSS, then newest.
+// sortPlanCVEs orders an item's CVEs as the contract says (D-623): likely first, by EPSS; then the recent ones by CVSS score (the
+// severity a customer reads; their EPSS is under 10 % and close together), then EPSS; then newest. A list of thousands (the
+// cumulative update of a Windows release) opens on what matters.
 func sortPlanCVEs(cs []PlanCVE) {
-	ep := func(p *float64) float64 {
+	num := func(p *float64) float64 {
 		if p == nil {
 			return -1
 		}
@@ -457,7 +578,10 @@ func sortPlanCVEs(cs []PlanCVE) {
 			}
 			return 1
 		}
-		return cmp.Or(cmp.Compare(ep(b.EPSS), ep(a.EPSS)), strings.Compare(b.Published, a.Published), strings.Compare(a.CVE, b.CVE))
+		if a.Tier == "likely" {
+			return cmp.Or(cmp.Compare(num(b.EPSS), num(a.EPSS)), cmp.Compare(num(b.Score), num(a.Score)), strings.Compare(b.Published, a.Published), strings.Compare(a.CVE, b.CVE))
+		}
+		return cmp.Or(cmp.Compare(num(b.Score), num(a.Score)), cmp.Compare(num(b.EPSS), num(a.EPSS)), strings.Compare(b.Published, a.Published), strings.Compare(a.CVE, b.CVE))
 	})
 }
 
@@ -472,11 +596,14 @@ func sortPlanItems(items []PlanItem) {
 		}
 		return n
 	}
-	top := func(i PlanItem) float64 {
-		if len(i.CVEs) == 0 || i.CVEs[0].EPSS == nil {
-			return -1
+	top := func(i PlanItem) float64 { // the highest EPSS (the first CVE is the highest only among likely ones, sortPlanCVEs)
+		m := -1.0
+		for _, c := range i.CVEs {
+			if c.EPSS != nil && *c.EPSS > m {
+				m = *c.EPSS
+			}
 		}
-		return *i.CVEs[0].EPSS
+		return m
 	}
 	slices.SortStableFunc(items, func(a, b PlanItem) int {
 		return cmp.Or(cmp.Compare(likely(b), likely(a)), cmp.Compare(top(b), top(a)), cmp.Compare(len(b.CVEs), len(a.CVEs)), strings.Compare(a.Group, b.Group))

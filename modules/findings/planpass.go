@@ -157,14 +157,32 @@ func (s *Service) RefreshPlan(ctx context.Context) error {
 			return fmt.Errorf("findings: plan: reading the tier data: %w", err)
 		}
 	}
-	x := newTierIndex(tv)
+	var pkgs []DistroPackage // D-622: the Ubuntu and Debian packages, compared with the distribution's own data
+	for _, a := range assets {
+		d, rel, ps := DevicePackages(a)
+		for _, p := range ps {
+			pkgs = append(pkgs, DistroPackage{Distro: d, Release: rel, Package: p})
+		}
+	}
+	var dv []TierVuln
+	var covered map[string]bool
+	if len(pkgs) > 0 {
+		if dv, covered, err = s.cfg.Feeds.TierDistro(ctx, pkgs); err != nil {
+			return fmt.Errorf("findings: plan: reading the distributions' tier data: %w", err)
+		}
+	}
+	x := newTierIndex(tv).withDistro(dv, covered)
 	now := s.now()
 	got := make(map[string]planDevice, len(assets))
 	items := 0
+	kinds := map[string]int{}
 	for _, a := range assets {
 		its, compared := matchTiers(a, x, kev, now)
 		got[a.ID] = planDevice{items: its, compared: compared}
 		items += len(its)
+		for _, it := range its {
+			kinds[it.Kind]++
+		}
 	}
 	s.plan.mu.Lock()
 	for id := range s.plan.dropped { // deleted while this run read it
@@ -189,6 +207,14 @@ func (s *Service) RefreshPlan(ctx context.Context) error {
 	}
 	s.plan.mu.Unlock()
 	retry = unread
-	s.cfg.Log.InfoContext(ctx, "findings: plan pass done", "full", full, "devices", len(assets), "tier_cves_read", len(tv), "items", items, "took", s.now().Sub(start))
+	compared := 0
+	for _, d := range got {
+		if d.compared {
+			compared++
+		}
+	}
+	s.cfg.Log.InfoContext(ctx, "findings: plan pass done", "full", full, "devices", len(assets), "compared", compared, "tier_cves_read", len(tv),
+		"distro_packages", len(pkgs), "distro_cves_read", len(dv), "items", items, "items_fixed", kinds["fixed"], "items_windows", kinds["windows"],
+		"items_esu", kinds["esu"], "items_distro", kinds["distro"], "took", s.now().Sub(start))
 	return errors.Join(failed...)
 }

@@ -4,8 +4,10 @@ import (
 	"archive/tar"
 	"bytes"
 	"context"
+	"database/sql"
 	"errors"
 	"io"
+	"maps"
 	"slices"
 	"strings"
 	"testing"
@@ -15,6 +17,7 @@ import (
 	"github.com/ulikunitz/xz"
 
 	"github.com/knt048/vedette/core/events"
+	"github.com/knt048/vedette/core/store"
 )
 
 // Every fixture here is written for these tests (D-516): Canonical's data is CC BY-SA 4.0 and the Debian tracker states
@@ -50,7 +53,7 @@ func xzTar(t testing.TB, files ...[2]string) []byte {
 	return buf.Bytes()
 }
 
-var wantKEV = map[string]bool{"CVE-2026-10001": true, "CVE-2026-10002": true, "CVE-2026-10003": true}
+var wantKEV = DistroWant{KEV: map[string]bool{"CVE-2026-10001": true, "CVE-2026-10002": true, "CVE-2026-10003": true}}
 
 const osvSudo = `{"id":"UBUNTU-CVE-2026-10001","affected":[
  {"package":{"ecosystem":"Ubuntu:24.04:LTS","name":"sudo"},"ranges":[{"type":"ECOSYSTEM","events":[{"introduced":"0"},{"fixed":"1.9.15p5-3ubuntu5.24.04.1"}]}]},
@@ -237,12 +240,17 @@ func TestDistroPull(t *testing.T) {
 // distroInv is an inventory that answers only Distros (D-570).
 type distroInv struct {
 	Inventory
-	got   map[string]bool
+	got   map[string]map[string]bool
 	err   error
 	asked int
 }
 
-func (d *distroInv) Distros(context.Context) (map[string]bool, error) { d.asked++; return d.got, d.err }
+func (d *distroInv) Distros(context.Context) (map[string]map[string]bool, error) {
+	d.asked++
+	return d.got, d.err
+}
+
+var _ DistroLister = (*distroInv)(nil)
 
 // D-570 (LEAN): a distribution feed fills once whatever the inventory says (review H1: the first device of that distribution is
 // judged on its rows), then is fetched only while a device needs it. Otherwise nothing is fetched or recorded, the rows stay,
@@ -254,12 +262,12 @@ func TestDistroPullOnlyWhileADeviceNeedsIt(t *testing.T) {
 	e.mirror(debianTrackerFeedID, o.url("/tracker.json"))
 	o.body("/tracker.json", `"v1"`, debianJSON)
 	e.loadKEV()
-	inv := &distroInv{got: map[string]bool{DistroUbuntu: true}}
+	inv := &distroInv{got: map[string]map[string]bool{DistroUbuntu: {"sudo": true}}}
 	e.svc.Inventory = inv
 	if err := e.svc.RunPull(t.Context()); err != nil {
 		t.Fatal(err)
 	}
-	if f := e.svc.live(t.Context(), e.feed(debianTrackerFeedID)); o.count("/tracker.json") != 1 || inv.asked != 0 || f.Status != "ok" || rowsOf(t, e.db, "feeds_distro_fix") != 2 {
+	if f := e.svc.live(t.Context(), e.feed(debianTrackerFeedID)); o.count("/tracker.json") != 1 || inv.asked != 1 || f.Status != "ok" || rowsOf(t, e.db, "feeds_distro_fix") != 2 { // asked for the packages (D-622), not to skip it
 		t.Fatalf("first fill: %d requests, asked %d, feed %+v", o.count("/tracker.json"), inv.asked, f)
 	}
 	const note = "Not updated: no Debian device now. Vedette updates it on the next check after an agent reports the packages of a Debian device."
@@ -270,13 +278,13 @@ func TestDistroPullOnlyWhileADeviceNeedsIt(t *testing.T) {
 		}
 	}
 	f := e.svc.live(t.Context(), e.feed(debianTrackerFeedID))
-	if o.count("/tracker.json") != 1 || inv.asked != 2 || f.Status != "ok" || f.Error == nil || *f.Error != note || rowsOf(t, e.db, "feeds_distro_fix") != 2 {
+	if o.count("/tracker.json") != 1 || inv.asked != 3 || f.Status != "ok" || f.Error == nil || *f.Error != note || rowsOf(t, e.db, "feeds_distro_fix") != 2 {
 		t.Fatalf("no Debian device: %d requests, asked %d, feed %+v", o.count("/tracker.json"), inv.asked, f)
 	}
 	if err := e.svc.Fetch(t.Context(), debianTrackerFeedID); err != nil || o.count("/tracker.json") != 1 {
 		t.Fatalf("Fetch now without a Debian device: %v, %d requests", err, o.count("/tracker.json"))
 	}
-	inv.got = map[string]bool{DistroUbuntu: true, DistroDebian: true}
+	inv.got = map[string]map[string]bool{DistroUbuntu: {"sudo": true}, DistroDebian: {"sudo": true}}
 	if err := e.svc.RunPull(t.Context()); err != nil {
 		t.Fatal(err)
 	}
@@ -345,7 +353,7 @@ func FuzzParseUbuntuEntry(f *testing.F) {
 func checkDistroRows(t *testing.T, res DistroResult) {
 	t.Helper()
 	for _, r := range res.Rows {
-		if !wantKEV[r.CVE] || (r.Distro != DistroUbuntu && r.Distro != DistroDebian) || !debPackageRE.MatchString(r.Package) ||
+		if !wantKEV.KEV[r.CVE] || (r.Distro != DistroUbuntu && r.Distro != DistroDebian) || !debPackageRE.MatchString(r.Package) ||
 			r.Release == "" || len(r.Release) > 8 || strings.Trim(r.Release, "0123456789.") != "" ||
 			(r.Status == DistroFixed) == (r.Fixed == "") || (r.Status != DistroFixed && r.Status != DistroNotAffected) {
 			t.Fatalf("row %+v", r)
@@ -411,5 +419,125 @@ func TestSourcePurlUnescapesTheName(t *testing.T) {
 	}
 	if _, _, _, bad := sourcePurl("pkg:deb/ubuntu/a%2Fb@1?arch=source&distro=noble"); !bad {
 		t.Fatal("a name with a slash after unescaping is accepted")
+	}
+}
+
+// debianTierJSON adds tier CVEs (seedTierData: CVE-2026-0001 likely, CVE-2026-0002 recent; CVE-2020-0003 has only an EPSS score) to
+// the KEV entry of debianJSON.
+const debianTierJSON = `{
+ "sudo": {"CVE-2026-10001": {"releases": {"bookworm": {"status": "resolved", "fixed_version": "0"}, "trixie": {"status": "resolved", "fixed_version": "1.9.16p2-3"}}},
+  "CVE-2026-0001": {"releases": {"bookworm": {"status": "resolved", "fixed_version": "1.9.13p3-1+deb12u5"}, "trixie": {"status": "resolved", "fixed_version": "0"}}}},
+ "glibc": {"CVE-2026-0002": {"releases": {"bookworm": {"status": "resolved", "fixed_version": "2.36-9+deb12u10"}}}},
+ "openssl": {"CVE-2026-0002": {"releases": {"bookworm": {"status": "resolved", "fixed_version": "3.0.15-1~deb12u1"}}}},
+ "curl": {"CVE-2020-0003": {"releases": {"bookworm": {"status": "resolved", "fixed_version": "7.88.1-10+deb12u9"}}}}
+}`
+
+// D-622: a distribution pull also keeps the fixed rows of the tier CVEs (nvd-recent's 12 months) for the source packages the devices
+// run, and only those (not a package no device runs, not "not affected", not a CVE outside the 12 months); the KEV matcher and the
+// rematch events (pull and switch) see only the CISA list's rows, as before; the plan reads the tier rows with the CVE's day and EPSS;
+// the packages the rows were kept for are stored, so a device's new package (never a removal) pulls the whole file again (no 304) at
+// the next check at least 6 hours after the last good pull, and a failing feed keeps its back-off.
+func TestDistroPullKeepsTierRowsOfTheDevicesPackages(t *testing.T) {
+	t.Parallel()
+	e, o := pullEnv(t)
+	e.only(debianTrackerFeedID, recentFeedID, epssAllFeedID)
+	e.mirror(debianTrackerFeedID, o.url("/tracker.json"))
+	var got []RangesUpdatedEvent
+	e.svc.Events = publishFunc(func(ev events.Event) {
+		if r, ok := ev.Data.(RangesUpdatedEvent); ok {
+			got = append(got, r)
+		}
+	})
+	o.body("/tracker.json", `"v1"`, debianTierJSON)
+	e.loadKEV()
+	now := e.clock()
+	seedTierData(t, e, now)
+	inv := &distroInv{got: map[string]map[string]bool{DistroDebian: {"sudo": true, "openssl": true}}}
+	e.svc.Inventory = inv
+	stamp, _ := e.svc.st.TierStamp(t.Context())
+	if err := e.svc.Fetch(t.Context(), debianTrackerFeedID); err != nil {
+		t.Fatal(err)
+	}
+	if n := rowsOf(t, e.db, "feeds_distro_fix"); n != 4 { // KEV: 2; sudo and openssl of the tier CVEs: 2
+		t.Fatalf("%d rows", n)
+	}
+	fixes, err := e.svc.st.DistroFixes(t.Context())
+	if err != nil || len(fixes) != 1 || len(fixes["CVE-2026-10001"]) != 2 {
+		t.Fatalf("the KEV matcher reads %+v %v", fixes, err)
+	}
+	if len(got) != 1 || !got[0].First || !slices.Equal(got[0].CVEs, []string{"CVE-2026-10001"}) {
+		t.Fatalf("events %+v", got)
+	}
+	if s, _ := e.svc.st.TierStamp(t.Context()); s == stamp {
+		t.Fatal("the tier stamp did not move with the distribution pull")
+	}
+	recs, covered, err := e.svc.st.TierDistroRecords(t.Context(), now, []DistroPackage{{DistroDebian, "12", "sudo"}, {DistroDebian, "12", "openssl"}, {DistroDebian, "11", "sudo"}})
+	if err != nil || len(recs) != 2 || !maps.Equal(covered, map[string]bool{"debian/12": true}) {
+		t.Fatalf("%+v %v %v", recs, covered, err)
+	}
+	if r := recs[0]; r.CVE != "CVE-2026-0001" || r.Tier != "likely" || r.EPSS == nil || len(r.Distro) != 1 ||
+		r.Distro[0] != (DistroFix{Distro: DistroDebian, Release: "12", Package: "sudo", CVE: "CVE-2026-0001", Status: DistroFixed, Fixed: "1.9.13p3-1+deb12u5"}) {
+		t.Fatalf("first %+v", r)
+	}
+	if r := recs[1]; r.CVE != "CVE-2026-0002" || r.Tier != "recent" || len(r.Distro) != 1 || r.Distro[0].Package != "openssl" {
+		t.Fatalf("second %+v", r)
+	}
+	// the switch of the feed tells findings about the CISA list's CVEs only (review r1 #4c of #808); tier rows reach the plan by TierStamp
+	if c, _ := e.put(debianTrackerFeedID, `{"enabled":false}`); c != 200 || len(got) != 2 || !slices.Equal(got[1].CVEs, []string{"CVE-2026-10001"}) {
+		t.Fatalf("switch off: %d %+v", c, got)
+	}
+	if c, _ := e.put(debianTrackerFeedID, `{"enabled":true}`); c != 200 || len(got) != 3 || !slices.Equal(got[2].CVEs, []string{"CVE-2026-10001"}) {
+		t.Fatalf("switch on: %d %+v", c, got)
+	}
+	// nvd-recent and epss-all are not due, so RunPull below pulls only the distribution feed
+	write(t, e.db, func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(t.Context(), `UPDATE feeds_recent_cursor SET url = (SELECT url FROM feeds_source WHERE id = ?)`, recentFeedID)
+		if err == nil {
+			_, err = tx.ExecContext(t.Context(), `UPDATE feeds_source SET last_success = ?, status = 'ok' WHERE id = ?`, store.FormatTS(now), recentFeedID)
+		}
+		return err
+	})
+	e.setNow(now.Add(7 * time.Hour))
+	// the same packages, or fewer (a removal): not behind, and a pull stays conditional (304 keeps the rows)
+	if e.svc.distroBehind(t.Context(), e.feed(debianTrackerFeedID)) {
+		t.Fatal("behind with the same packages")
+	}
+	delete(inv.got[DistroDebian], "openssl")
+	if err := e.svc.Fetch(t.Context(), debianTrackerFeedID); err != nil || o.count("/tracker.json") != 2 || rowsOf(t, e.db, "feeds_distro_fix") != 4 {
+		t.Fatalf("pull after a removal: %v, %d requests, %d rows", err, o.count("/tracker.json"), rowsOf(t, e.db, "feeds_distro_fix"))
+	}
+	// a device now runs curl: within 6 hours of the last good pull it waits (the floor), after that RunPull pulls it without validators
+	inv.got[DistroDebian]["curl"] = true
+	if e.svc.distroBehind(t.Context(), e.feed(debianTrackerFeedID)) {
+		t.Fatal("behind within 6 hours of the last pull")
+	}
+	if e.svc.distroBehind(t.Context(), e.feed(ubuntuVEXFeedID)) {
+		t.Fatal("ubuntu-vex keeps no tier row: never behind")
+	}
+	e.setNow(now.Add(14 * time.Hour))
+	// a failing feed keeps its back-off: behind, but RunPull does not pull it (review r1 #4b of #808)
+	write(t, e.db, func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(t.Context(), `UPDATE feeds_source SET failures = 1, last_fetch = ? WHERE id = ?`, store.FormatTS(e.clock()), debianTrackerFeedID)
+		return err
+	})
+	if err := e.svc.RunPull(t.Context()); err != nil || o.count("/tracker.json") != 2 {
+		t.Fatalf("failing feed: %v, %d requests", err, o.count("/tracker.json"))
+	}
+	write(t, e.db, func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(t.Context(), `UPDATE feeds_source SET failures = 0 WHERE id = ?`, debianTrackerFeedID)
+		return err
+	})
+	if !e.svc.distroBehind(t.Context(), e.feed(debianTrackerFeedID)) {
+		t.Fatal("not behind after a new package")
+	}
+	if err := e.svc.RunPull(t.Context()); err != nil || o.count("/tracker.json") != 3 {
+		t.Fatalf("behind: %v, %d requests", err, o.count("/tracker.json"))
+	}
+	hits := o.all()
+	if last := hits[len(hits)-1]; last.header.Get("If-None-Match") != "" || e.svc.distroBehind(t.Context(), e.feed(debianTrackerFeedID)) {
+		t.Fatalf("the pull after a new package: %v", last.header)
+	}
+	if kept, _ := e.svc.st.distroKept(t.Context(), debianTrackerFeedID); !slices.Equal(kept, []string{"curl", "sudo"}) {
+		t.Fatalf("kept %v", kept)
 	}
 }

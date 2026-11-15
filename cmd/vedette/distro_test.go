@@ -2,7 +2,7 @@ package main
 
 import (
 	"database/sql"
-	"maps"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -151,13 +151,14 @@ func TestDistroKernelFollowsTheRunningKernel(t *testing.T) {
 
 var _ feeds.DistroLister = feedsInventory{} // D-570: a drifted signature would silently pull every feed again (review M1)
 
-// D-570: the adapter tells feeds which distributions need their files: a device of that OS with a deb package an agent read.
+// D-570: the adapter tells feeds which distributions need their files: a device of that OS with a deb package an agent read, with
+// its source packages as the security data names them (D-622: the tier rows are kept for those only).
 func TestFeedsInventoryDistros(t *testing.T) {
 	t.Parallel()
 	s := newStack(t)
 	ctx := t.Context()
 	inv := feedsInventory{s.d.Inventory}
-	distros := func() map[string]bool {
+	distros := func() map[string]map[string]bool {
 		t.Helper()
 		got, err := inv.Distros(ctx)
 		if err != nil {
@@ -179,13 +180,13 @@ func TestFeedsInventoryDistros(t *testing.T) {
 	if err := s.d.Inventory.UpsertSoftware(ctx, id, []inventory.SoftwareItem{pkg}, "agent"); err != nil {
 		t.Fatal(err)
 	}
-	if got := distros(); !maps.Equal(got, map[string]bool{"ubuntu": true}) {
+	if got := distros(); !reflect.DeepEqual(got, map[string]map[string]bool{"ubuntu": {"openssh": true}}) {
 		t.Fatalf("an agent's deb package on Ubuntu: %v", got)
 	}
 	if _, err := s.d.Inventory.EnsureBox(ctx, inventory.BoxInfo{Hostname: "web-01", OS: "Debian GNU/Linux 12 (bookworm)"}); err != nil {
 		t.Fatal(err)
 	}
-	if got := distros(); !maps.Equal(got, map[string]bool{"debian": true}) {
+	if got := distros(); !reflect.DeepEqual(got, map[string]map[string]bool{"debian": {"openssh": true}}) {
 		t.Fatalf("the same box on Debian: %v", got)
 	}
 }

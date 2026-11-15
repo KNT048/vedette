@@ -1,10 +1,12 @@
 // Updates to plan (S-TIER-1, S-TIER-2; D-613, D-615, D-616): CVEs on no exploited list, grouped by the update that fixes them
 // on one device, as top tools group by fix in a view of their own (Microsoft Defender Vulnerability Management's security
 // recommendations, Tenable's remediations). Not findings: no status, no alert, no mitigation pack; every CVE one click away.
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router'
 import { Trans, useTranslation } from 'react-i18next'
 import { Notice } from '@/components/common/PageHeader'
 import { Chip } from '@/components/common/StatusChip'
+import { Button } from '@/components/ui/button'
 import { fmtPercent } from '@/lib/format'
 import { fmtDay } from '@/features/feeds/dates'
 import { usePlanAction } from './fix'
@@ -31,9 +33,18 @@ function yearAgo() {
   return new Date(Date.now() - 365 * 86_400_000).toISOString().slice(0, 10)
 }
 
+/** How many CVEs of an item, and how many items, show before "Show all" (D-623): an item can fix thousands (a Windows cumulative
+ *  update fixed 2,786 on the N100), and the server already sorts them likely first, then by severity. */
+export const PLAN_FIRST = 50
+
 function CveList({ item }: { item: PlanItem }) {
   const { t } = useTranslation('findings')
   const old = yearAgo()
+  const [all, setAll] = useState(false)
+  const cves = all ? item.cves : item.cves.slice(0, PLAN_FIRST)
+  const body = useRef<HTMLTableSectionElement>(null)
+  // review r1 #6 of #808: the button goes away, so focus moves to the first CVE it revealed, not back to the top of the page
+  useEffect(() => { if (all) body.current?.querySelectorAll('a')[PLAN_FIRST]?.focus() }, [all])
   return (
     <div className="mt-2 overflow-x-auto rounded-md border border-rule bg-surface">
       <table className="w-full min-w-[640px] text-sm">
@@ -48,8 +59,8 @@ function CveList({ item }: { item: PlanItem }) {
             <th scope="col" className="px-3 py-2 font-medium">{t('plan.cve.evidence')}</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-rule">
-          {item.cves.map((c) => (
+        <tbody ref={body} className="divide-y divide-rule">
+          {cves.map((c) => (
             <tr key={c.cve}>
               <th scope="row" className="px-3 py-2 text-left font-medium">
                 <Link to={`/cve/${c.cve}`} className="whitespace-nowrap text-accent underline-offset-4 hover:underline">{c.cve}</Link>
@@ -66,6 +77,12 @@ function CveList({ item }: { item: PlanItem }) {
           ))}
         </tbody>
       </table>
+      {cves.length < item.cves.length ? (
+        <div className="flex flex-wrap items-center gap-3 border-t border-rule px-3 py-2">
+          <p className="text-[13px] text-muted">{t('plan.firstCves', { shown: cves.length, count: item.cves.length })}</p>
+          <Button variant="secondary" size="sm" onClick={() => setAll(true)}>{t('plan.showAllCves', { count: item.cves.length })}</Button>
+        </div>
+      ) : null}
       <Legend item={item} />
     </div>
   )
@@ -88,18 +105,27 @@ function Legend({ item }: { item: PlanItem }) {
 }
 
 /** The items as one list: the device (on the page, not on a device's own page), the action, the count, the CVEs inside a disclosure. */
-export function PlanItems({ items, showDevice }: { items: PlanItem[]; showDevice: boolean }) {
+export function PlanItems({ items, showDevice, likelyOnly = false }: { items: PlanItem[]; showDevice: boolean; likelyOnly?: boolean }) {
   const { t } = useTranslation('findings')
   const action = usePlanAction()
+  const [all, setAll] = useState(false)
+  const shown = all ? items : items.slice(0, PLAN_FIRST)
+  const list = useRef<HTMLUListElement>(null)
+  useEffect(() => { if (all) list.current?.children[PLAN_FIRST]?.querySelector<HTMLElement>('a, summary')?.focus() }, [all])
   return (
-    <ul aria-label={t('plan.listLabel')} className="grid min-w-0 divide-y divide-rule rounded-md border border-rule bg-surface">
-      {items.map((i) => (
+    <>
+    <ul ref={list} aria-label={t('plan.listLabel')} className="grid min-w-0 divide-y divide-rule rounded-md border border-rule bg-surface">
+      {shown.map((i) => (
         <li key={i.group} className="grid min-w-0 gap-1 px-4 py-3">
           <p className="text-sm">
             {showDevice ? <><Link to={`/devices/${i.asset.id}`} className="font-medium text-accent underline-offset-4 hover:underline">{i.asset.name}</Link>{': '}</> : null}
             <span className="font-medium">{action(i)}</span>{': '}
-            {t('plan.fixes', { count: i.cves.length })}
-            {i.likely > 0 ? <> <span className="text-warn">{t('plan.fixesLikely', { count: i.likely })}</span></> : null}
+            {likelyOnly ? <span className="text-warn">{t('plan.fixesOnlyLikely', { count: i.cves.length })}</span> : (
+              <>
+                {t('plan.fixes', { count: i.cves.length })}
+                {i.likely > 0 ? <> <span className="text-warn">{t('plan.fixesLikely', { count: i.likely })}</span></> : null}
+              </>
+            )}
           </p>
           <details className="min-w-0">
             <summary className="w-fit cursor-pointer text-[13px] text-accent underline-offset-4 hover:underline">{t('plan.show', { count: i.cves.length })}</summary>
@@ -108,6 +134,10 @@ export function PlanItems({ items, showDevice }: { items: PlanItem[]; showDevice
         </li>
       ))}
     </ul>
+    {shown.length < items.length ? (
+      <Button variant="secondary" size="sm" className="mt-3" onClick={() => setAll(true)}>{t('plan.showAllItems', { count: items.length })}</Button>
+    ) : null}
+    </>
   )
 }
 

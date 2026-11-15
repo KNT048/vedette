@@ -1,4 +1,4 @@
-// Updates to plan (S-TIER-1, S-TIER-2; D-613, D-615, D-616): route /plan, Monitor group after Findings, module findings.
+// Updates to plan (S-TIER-1, S-TIER-2; D-613, D-615, D-616, D-623): route /plan, Monitor group after Findings, module findings.
 import { Link, useSearchParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { Notice, PageHeader } from '@/components/common/PageHeader'
@@ -14,10 +14,14 @@ const FILTERS: PlanFilter[] = ['likely', 'recent', 'all']
 function Page() {
   const { t } = useTranslation('findings')
   const [params, setParams] = useSearchParams()
-  const tier: PlanFilter = FILTERS.find((f) => f === params.get('tier')) ?? 'all'
+  const asked = FILTERS.find((f) => f === params.get('tier'))
+  // D-623: until a person picks a filter, the page opens on "Likely to be exploited" whenever some update fixes such a CVE: it asks
+  // for that tier first and for "All" only when it is empty (review r1 #5 of #808: never the heaviest answer just to choose)
+  const likely = usePlan('likely', undefined, !asked)
+  const tier: PlanFilter = asked ?? (likely.data && likely.data.items.length === 0 ? 'all' : 'likely')
   const q = usePlan(tier)
   const p = q.data
-  const setTier = (v: PlanFilter) => { if (v === 'all') params.delete('tier'); else params.set('tier', v); setParams(params, { replace: true }) }
+  const setTier = (v: PlanFilter) => { params.set('tier', v); setParams(params, { replace: true }) }
   const dataLine = p && (p.data.epss_date || p.data.recent_since) ? [
     p.data.epss_date ? t('plan.dataEpss', { date: fmtDay(p.data.epss_date) }) : null,
     p.data.recent_since ? t('plan.dataRecent', { date: fmtDay(p.data.recent_since) }) : null,
@@ -40,7 +44,7 @@ function Page() {
           <>
             <PlanDataState plan={d} />
             {d.compared && d.old_evidence > 0 ? <p className="mb-3 text-[13px] text-muted">{t('plan.oldEvidence', { count: d.old_evidence })}</p> : null}
-            {d.compared && d.items.length > 0 ? <PlanItems items={d.items} showDevice /> : null}
+            {d.compared && d.items.length > 0 ? <PlanItems items={d.items} showDevice likelyOnly={tier === 'likely'} /> : null}
             {d.compared && d.items.length === 0 && (d.data.epss === 'ready' || d.data.recent === 'ready') && d.data.epss !== 'module_off' ? (
               <EmptyState title={tier === 'all' ? t('plan.empty') : t(`plan.emptyFilter.${tier}`)}>
                 {t('plan.emptyBody', { compared: d.compared_devices, count: d.unchecked_devices })}{' '}

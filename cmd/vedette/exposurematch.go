@@ -122,6 +122,14 @@ func (m exposureMatcher) Match(ctx context.Context, svcs []exposure.ServiceRow) 
 			s := where[x.SoftwareID]
 			out.RuledOut = append(out.RuledOut, exposure.RuledOutRow{IP: s.IP, Port: s.Port, CVE: x.CVE, Reason: x.Evidence.Summary})
 		}
+		for _, x := range res.Aged { // D-615: an exploited CVE published over 12 months ago counts only on confirmed evidence
+			s, v := where[x.SoftwareID], byCVE[x.CVE]
+			if v == nil {
+				continue
+			}
+			out.RuledOut = append(out.RuledOut, exposure.RuledOutRow{IP: s.IP, Port: s.Port, CVE: x.CVE,
+				Reason: fmt.Sprintf("Published on %s, more than 12 months ago: for an old CVE Vedette counts only a scan engine's confirmation (the scans of this page), not a version read from the banner.", findings.FmtDay(v.Published))})
+		}
 		for _, n := range res.NeedVersion {
 			s := where[n.SoftwareID]
 			out.Gaps = append(out.Gaps, exposure.GapRow{IP: s.IP, Port: s.Port, Software: n.Software, CVEs: n.CVEs})

@@ -8,6 +8,6 @@ permissions: []
 ports: []
 container: core
 tables_prefix: fnd_
-stories: [S-MIT-1, S-INV-2, S-SCAN-3, S-ALERT-1]   # S-MIT-1: danh sách + vòng đời; phần "What to do" thuộc mitigation
+stories: [S-MIT-1, S-INV-2, S-SCAN-3, S-ALERT-1, S-TIER-1, S-TIER-2, S-TIER-4]   # S-MIT-1: danh sách + vòng đời; phần "What to do" thuộc mitigation
 decisions: [D-3, D-52, D-57]
 milestone: M2

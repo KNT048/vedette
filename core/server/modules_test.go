@@ -180,6 +180,7 @@ var contractRoutes = map[string][]string{
 	"feeds": {
 		"DELETE /feeds/custom/{id}",
 		"GET /feeds/cve/{id}",
+		"GET /feeds/cve/{id}/tier",
 		"GET /feeds/hot",
 		"GET /feeds/search",
 		"GET /feeds/sources",
@@ -195,6 +196,7 @@ var contractRoutes = map[string][]string{
 	"findings": {
 		"GET /findings",
 		"GET /findings/{id}",
+		"GET /findings/plan",
 		"POST /findings/status",
 		"POST /findings/{id}/status",
 	},

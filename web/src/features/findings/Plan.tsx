@@ -75,16 +75,16 @@ export function PlanItems({ items, showDevice }: { items: PlanItem[]; showDevice
   const { t } = useTranslation('findings')
   const action = usePlanAction()
   return (
-    <ul aria-label={t('plan.listLabel')} className="grid divide-y divide-rule rounded-md border border-rule bg-surface">
+    <ul aria-label={t('plan.listLabel')} className="grid min-w-0 divide-y divide-rule rounded-md border border-rule bg-surface">
       {items.map((i) => (
-        <li key={i.group} className="grid gap-1 px-4 py-3">
+        <li key={i.group} className="grid min-w-0 gap-1 px-4 py-3">
           <p className="text-sm">
             {showDevice ? <><Link to={`/devices/${i.asset.id}`} className="font-medium text-accent underline-offset-4 hover:underline">{i.asset.name}</Link>{': '}</> : null}
             <span className="font-medium">{action(i)}</span>{': '}
             {t('plan.fixes', { count: i.cves.length })}
             {i.likely > 0 ? <> <span className="text-warn">{t('plan.fixesLikely', { count: i.likely })}</span></> : null}
           </p>
-          <details>
+          <details className="min-w-0">
             <summary className="w-fit cursor-pointer text-[13px] text-accent underline-offset-4 hover:underline">{t('plan.show', { count: i.cves.length })}</summary>
             <CveList item={i} />
           </details>

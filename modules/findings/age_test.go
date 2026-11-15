@@ -53,7 +53,7 @@ func TestMatchAsset_D615_OldKEVNeedsConfirmedEvidence(t *testing.T) {
 			}
 		})
 	}
-	// a device that has the finding: the unconfirmed old match is in Aged with the sentence that closes it
+	// the unconfirmed old match is in Aged with the sentence that closes a finding of it
 	res := MatchAsset(nas("6.1.1"), ranged(old), map[string]bool{"CVE-2022-27593": true}, t0)
 	if len(res.Existing) != 0 || len(res.Aged) != 1 || !strings.HasPrefix(res.Aged[0].Evidence.Summary, AgedNote+": CVE-2022-27593 was published on 9 Nov 2024") {
 		t.Fatalf("existing %+v, aged %+v", res.Existing, res.Aged)

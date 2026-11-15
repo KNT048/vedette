@@ -432,8 +432,8 @@
     "unchecked_other": "{{count}} devices are not checked",
     "uncheckedBody": "Vedette cannot read a version on them, so it cannot compare them with these CVEs. Installing the agent, or a scan, gives their versions.",
     "feed": {
-      "epss": "EPSS, every CVE",
-      "recent": "NVD, CVEs of the last 12 months"
+      "epss": "“EPSS, every CVE”",
+      "recent": "“NVD, CVEs of the last 12 months”"
     },
     "and": " and ",
     "state": {

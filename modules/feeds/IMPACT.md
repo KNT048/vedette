@@ -137,3 +137,10 @@
 - **PRIVACY.md** luồng 1 + Settings → Privacy (`locales/en/core.json` `privacy.flow.1`), `THIRD_PARTY_NOTICES.md` (hàng FIRST EPSS, NVD), `sourcesMock.ts` + `conformance.test.ts` (danh sách feed có sẵn), `sources_test.go` (host `epss.empiricalsecurity.com`, 16 feed).
 - **TERMS.md** (D-613, D-615): đoạn mô tả ba tầng và luật tuổi vào ở slice 2 cùng hành vi (slice 1 không đổi TERMS.md).
 - **Mặc định tắt** (`Source.Off`, D-614): slice 2 bỏ `Off` và phải bật hai feed trên hộp đã seed (hàng có sẵn giữ `enabled = 0`), như D-485 đổi lịch CISA.
+
+## Modifying: ngày công bố KEV và dữ liệu tầng cho trang (D-615, D-616, INV-25)
+- **findings** (qua `cmd/vedette/wiring.go` `findingsFeeds`): `Store.KevPublished` → `Vuln.Published` (luật tuổi D-615: KEV công bố hơn 12 tháng chỉ thành finding khi có bằng chứng xác nhận; finding mở chỉ theo sản phẩm/banner đóng) và `KevInfo.published`; `Store.TierStatus` → `findings.Feeds.TierStatus` cho `GET /findings/plan`. Đổi ý nghĩa ngày (ví dụ dùng `dateAdded`) là đổi finding của mọi hộp; thiếu ngày luôn phải nghĩa là "gần đây".
+- **nvd-kev**: bảng `feeds_published` trống ⇒ lần kéo kế là đầy đủ (`buildNVD`); một câu trả lời NVD không có `published` làm lần kéo kế lại đầy đủ (NVD luôn có trường này). Test fixture NVD phải mang `published` để kiểm lượt kéo cập nhật.
+- **exposure** (`cmd/vedette/exposurematch.go`): CVE KEV cũ khớp theo banner thành dòng "ruled out" kèm lý do thay vì dòng CVE.
+- **core export** (`export_policy.go`): `feeds_published` được xuất.
+- **SPA**: `CveDetail.published`, `TierCve` (`web/src/features/feeds/contract.ts`, `CvePage.tsx`, `TierCvePage.tsx`, mock `web/src/mocks/tiers.ts`).

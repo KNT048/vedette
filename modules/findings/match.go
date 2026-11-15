@@ -205,10 +205,11 @@ type MatchResult struct {
 	// the reason ("… affects only …; the software reports 9.6p1 Ubuntu 3ubuntu13.20."), for a page that lists none of them, such as
 	// exposure's. A device that has the finding also gets it in NotAffected, with the sentence that closes it.
 	OtherPlatform []Match
-	// Aged lists the CVEs the device has a finding for that the age rule drops (D-615, S-TIER-4): the KEV CVE was published more
-	// than AgeLimit ago and the match is not confirmed (basis product, or a version that is not the device's agent's: a
-	// banner, a scan's guess, a person's entry). No finding is made for such a match on a device without one; the service
-	// closes an open suspected one with Evidence.Summary (AgedNote first) as its note. A later confirmed match reopens it.
+	// Aged lists, whatever the device already has, the matches the age rule drops (D-615, S-TIER-4): the KEV CVE was published
+	// more than AgeLimit ago and the match is not confirmed (basis product, or a version that is not the device's agent's: a
+	// banner, a scan's guess, a person's entry). No finding is made for it; the service closes an open suspected finding of
+	// that pair with Evidence.Summary (AgedNote first) as its note, and a later confirmed match reopens it. Exposure lists
+	// them as ruled out, with the reason.
 	Aged []Match
 }
 
@@ -392,11 +393,9 @@ func MatchAsset(a Asset, vulns []Vuln, have map[string]bool, now time.Time) Matc
 			continue
 		}
 		if aged(v, now) && !confirmedMatch(*best) { // D-615: an old KEV CVE only on confirmed evidence
-			if have[v.CVE] {
-				r := *best
-				r.Evidence.Summary = agedSummary(v, r)
-				res.Aged = append(res.Aged, r)
-			}
+			r := *best
+			r.Evidence.Summary = agedSummary(v, r)
+			res.Aged = append(res.Aged, r)
 			continue
 		}
 		if have[v.CVE] {

@@ -384,6 +384,8 @@
     "fixes_other": "fixes {{count}} CVEs",
     "fixesLikely_one": "({{count}} likely to be exploited)",
     "fixesLikely_other": "({{count}} likely to be exploited)",
+    "fixesOnlyLikely_one": "fixes {{count}} CVE likely to be exploited (All lists every CVE it fixes)",
+    "fixesOnlyLikely_other": "fixes {{count}} CVEs likely to be exploited (All lists every CVE it fixes)",
     "show_one": "Show the {{count}} CVE",
     "show_other": "Show the {{count}} CVEs",
     "showAllCves": "Show all {{count}} CVEs",

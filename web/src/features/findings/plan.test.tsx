@@ -12,6 +12,7 @@ describe('Updates to plan (S-TIER-1, S-TIER-2)', () => {
     // D-623: with no filter picked, the page opens on "Likely to be exploited" when some update fixes such a CVE
     expect(await screen.findByRole('heading', { level: 1, name: '3 updates to plan' })).toBeInTheDocument()
     expect(screen.getByText(/FIRST estimates at least a 1 in 10 chance they are exploited/)).toBeInTheDocument()
+    expect(screen.getByText('fixes 2 CVEs likely to be exploited (All lists every CVE it fixes)')).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'All' }))
     expect(await screen.findByRole('heading', { level: 1, name: '4 updates to plan' })).toBeInTheDocument()
     const list = screen.getByRole('list', { name: 'Updates to plan' })

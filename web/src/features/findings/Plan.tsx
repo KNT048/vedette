@@ -102,7 +102,7 @@ function Legend({ item }: { item: PlanItem }) {
 }
 
 /** The items as one list: the device (on the page, not on a device's own page), the action, the count, the CVEs inside a disclosure. */
-export function PlanItems({ items, showDevice }: { items: PlanItem[]; showDevice: boolean }) {
+export function PlanItems({ items, showDevice, likelyOnly = false }: { items: PlanItem[]; showDevice: boolean; likelyOnly?: boolean }) {
   const { t } = useTranslation('findings')
   const action = usePlanAction()
   const [all, setAll] = useState(false)
@@ -115,8 +115,12 @@ export function PlanItems({ items, showDevice }: { items: PlanItem[]; showDevice
           <p className="text-sm">
             {showDevice ? <><Link to={`/devices/${i.asset.id}`} className="font-medium text-accent underline-offset-4 hover:underline">{i.asset.name}</Link>{': '}</> : null}
             <span className="font-medium">{action(i)}</span>{': '}
-            {t('plan.fixes', { count: i.cves.length })}
-            {i.likely > 0 ? <> <span className="text-warn">{t('plan.fixesLikely', { count: i.likely })}</span></> : null}
+            {likelyOnly ? <span className="text-warn">{t('plan.fixesOnlyLikely', { count: i.cves.length })}</span> : (
+              <>
+                {t('plan.fixes', { count: i.cves.length })}
+                {i.likely > 0 ? <> <span className="text-warn">{t('plan.fixesLikely', { count: i.likely })}</span></> : null}
+              </>
+            )}
           </p>
           <details className="min-w-0">
             <summary className="w-fit cursor-pointer text-[13px] text-accent underline-offset-4 hover:underline">{t('plan.show', { count: i.cves.length })}</summary>

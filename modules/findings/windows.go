@@ -193,6 +193,9 @@ func windowsDecide(in swInfo, v Vuln, named bool, now time.Time) (winVerdict, bo
 	undecidable, allWindows := false, true
 	newest := 0 // the highest build of the other releases the entry lists
 	var others []string
+	unknownWin := false // a Windows row of a release the table does not know, or a family row
+	var pinned []string // rows of another product at one stated version, no range ("interix 2.2"): D-610 only
+	looseOther := false // rows of another product at any version or in a range
 	for _, af := range v.Affected {
 		c, err := ParseCPE(af.CPE)
 		if err != nil || c.Part.Kind == NA {
@@ -204,10 +207,15 @@ func windowsDecide(in swInfo, v Vuln, named bool, now time.Time) (winVerdict, bo
 		case !isWin:
 			allWindows = false
 			_, okV := c.Vendor.Literal()
-			_, okP := c.Product.Literal()
+			p, okP := c.Product.Literal()
 			undecidable = undecidable || !okV || !okP // ANY vendor or product: it may be this device
+			if ver, okVer := c.Version.Literal(); okV && okP && c.Version.Kind == Value && okVer && af.Range.IsZero() {
+				pinned = appendOnce(pinned, strings.ReplaceAll(p, "_", " ")+" "+ver)
+			} else {
+				looseOther = true
+			}
 		case l.build == 0 && !l.old:
-			allWindows = false
+			allWindows, unknownWin = false, true
 			undecidable = undecidable || l.mayBe(d)
 		case l.old:
 			others = appendOnce(others, l.product)
@@ -235,6 +243,20 @@ func windowsDecide(in swInfo, v Vuln, named bool, now time.Time) (winVerdict, bo
 		}
 		return w, true
 	}
+	// D-610 (N52-1): a flaw whose CVE id is from before Windows 10 came out (2015), listed by NVD only for releases before Windows 10, is
+	// not one of any 10.0 build, preview or not: Windows 10 and every later release shipped after the CVE existed, and Microsoft's
+	// advisory, which NVD's list follows, named no 10.0 release for it (an advisory published later would have named one it affects).
+	// It needs no release date or GA revision (the 140 XP-era entries a Server 2025 VM had open: CVE-2002-0367, CVE-2008-4250). Rows of
+	// another product at one stated version of that time (CVE-2004-0210: Interix 2.2, a subsystem of Windows 2000) do not name this release
+	// either; another product at any version, a family row or a release the table does not know keep it "not checked".
+	if y := cveYear(v.CVE); named && newest == 0 && len(others) > 0 && !undecidable && !unknownWin && !looseOther && y > 0 && y < winTenYear {
+		also := ""
+		if len(pinned) > 0 {
+			also = fmt.Sprintf(" and %s", orList(pinned))
+		}
+		return winVerdict{t: No, proof: proofRelease, note: fmt.Sprintf("Not affected: NVD lists %s only for Windows releases before Windows 10 (%s)%s. The CVE dates from %d, before Windows 10 came out, and no Windows 10 or later release is listed for it, so this device's %s is not affected. Vedette closed this by itself and reopens it if a later match says the device is affected.",
+			v.CVE, winNames(others), also, y, d.rel.Display)}, true
+	}
 	switch {
 	case !allWindows || undecidable || newest == d.rel.Build:
 		return winVerdict{t: Unknown}, true // as before D-546: not checked
@@ -244,16 +266,6 @@ func windowsDecide(in swInfo, v Vuln, named bool, now time.Time) (winVerdict, bo
 	case !named:
 		return winVerdict{t: Unknown, note: fmt.Sprintf("NVD lists %s only for Windows releases older than %s (%s), and has not named %s in any entry yet, so its data cannot tell: compare with Microsoft's advisory.",
 			v.CVE, d.rel.Display, winNames(others), d.rel.Display)}, true
-	}
-	// D-610 (N52-1): a flaw whose CVE id is from before Windows 10 came out (2015), listed by NVD only for releases before Windows 10, is
-	// not one of any 10.0 build, preview or not: Windows 10 and every later release shipped after the CVE existed, and Microsoft's
-	// advisory, which NVD's list follows, named no 10.0 release for it (an advisory published later would have named one it affects).
-	// It needs no release date or GA revision (the 140 XP-era entries a Server 2025 VM had open: CVE-2002-0367, CVE-2008-4250).
-	if newest == 0 && len(others) > 0 {
-		if y := cveYear(v.CVE); y > 0 && y < winTenYear {
-			return winVerdict{t: No, proof: proofRelease, note: fmt.Sprintf("Not affected: NVD lists %s only for Windows releases before Windows 10 (%s). The CVE dates from %d, before Windows 10 came out, and no Windows 10 or later release is listed for it, so this device's %s is not affected. Vedette closed this by itself and reopens it if a later match says the device is affected.",
-				v.CVE, winNames(others), y, d.rel.Display)}, true
-		}
 	}
 	// Every release the entry lists is older than the device's. Both proofs are about the public release: a preview or OEM build below
 	// its first public revision (24H2 shipped on Copilot+ PCs as 26100.712 months before its 26100.1742) is neither "out after the

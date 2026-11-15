@@ -41,7 +41,7 @@ export function usePlanAction() {
   const { t } = useTranslation('findings')
   return (i: PlanItem) => {
     const v = { software: i.software, version: i.version, fixed: i.kind === 'windows' || i.kind === 'esu' ? build(i.fixed) : i.fixed }
-    if (i.kind === 'distro') return t('plan.action.distro', v)
+    if (i.kind === 'distro') return t(!i.fixed ? 'plan.action.distro' : i.pro ? 'plan.action.distroPro' : 'plan.action.distroFixed', v) // D-622
     if (i.kind === 'windows') return t('plan.action.windows', v)
     if (i.kind === 'esu') return t('fix.windowsEsu', v) // review r1 #5 of #804: never a plain "install the latest cumulative update"
     return t('plan.action.fixed', v)

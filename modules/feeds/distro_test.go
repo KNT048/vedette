@@ -50,7 +50,7 @@ func xzTar(t testing.TB, files ...[2]string) []byte {
 	return buf.Bytes()
 }
 
-var wantKEV = map[string]bool{"CVE-2026-10001": true, "CVE-2026-10002": true, "CVE-2026-10003": true}
+var wantKEV = DistroWant{KEV: map[string]bool{"CVE-2026-10001": true, "CVE-2026-10002": true, "CVE-2026-10003": true}}
 
 const osvSudo = `{"id":"UBUNTU-CVE-2026-10001","affected":[
  {"package":{"ecosystem":"Ubuntu:24.04:LTS","name":"sudo"},"ranges":[{"type":"ECOSYSTEM","events":[{"introduced":"0"},{"fixed":"1.9.15p5-3ubuntu5.24.04.1"}]}]},
@@ -237,12 +237,17 @@ func TestDistroPull(t *testing.T) {
 // distroInv is an inventory that answers only Distros (D-570).
 type distroInv struct {
 	Inventory
-	got   map[string]bool
+	got   map[string]map[string]bool
 	err   error
 	asked int
 }
 
-func (d *distroInv) Distros(context.Context) (map[string]bool, error) { d.asked++; return d.got, d.err }
+func (d *distroInv) Distros(context.Context) (map[string]map[string]bool, error) {
+	d.asked++
+	return d.got, d.err
+}
+
+var _ DistroLister = (*distroInv)(nil)
 
 // D-570 (LEAN): a distribution feed fills once whatever the inventory says (review H1: the first device of that distribution is
 // judged on its rows), then is fetched only while a device needs it. Otherwise nothing is fetched or recorded, the rows stay,
@@ -254,12 +259,12 @@ func TestDistroPullOnlyWhileADeviceNeedsIt(t *testing.T) {
 	e.mirror(debianTrackerFeedID, o.url("/tracker.json"))
 	o.body("/tracker.json", `"v1"`, debianJSON)
 	e.loadKEV()
-	inv := &distroInv{got: map[string]bool{DistroUbuntu: true}}
+	inv := &distroInv{got: map[string]map[string]bool{DistroUbuntu: {"sudo": true}}}
 	e.svc.Inventory = inv
 	if err := e.svc.RunPull(t.Context()); err != nil {
 		t.Fatal(err)
 	}
-	if f := e.svc.live(t.Context(), e.feed(debianTrackerFeedID)); o.count("/tracker.json") != 1 || inv.asked != 0 || f.Status != "ok" || rowsOf(t, e.db, "feeds_distro_fix") != 2 {
+	if f := e.svc.live(t.Context(), e.feed(debianTrackerFeedID)); o.count("/tracker.json") != 1 || inv.asked != 1 || f.Status != "ok" || rowsOf(t, e.db, "feeds_distro_fix") != 2 { // asked for the packages (D-622), not to skip it
 		t.Fatalf("first fill: %d requests, asked %d, feed %+v", o.count("/tracker.json"), inv.asked, f)
 	}
 	const note = "Not updated: no Debian device now. Vedette updates it on the next check after an agent reports the packages of a Debian device."
@@ -270,13 +275,13 @@ func TestDistroPullOnlyWhileADeviceNeedsIt(t *testing.T) {
 		}
 	}
 	f := e.svc.live(t.Context(), e.feed(debianTrackerFeedID))
-	if o.count("/tracker.json") != 1 || inv.asked != 2 || f.Status != "ok" || f.Error == nil || *f.Error != note || rowsOf(t, e.db, "feeds_distro_fix") != 2 {
+	if o.count("/tracker.json") != 1 || inv.asked != 3 || f.Status != "ok" || f.Error == nil || *f.Error != note || rowsOf(t, e.db, "feeds_distro_fix") != 2 {
 		t.Fatalf("no Debian device: %d requests, asked %d, feed %+v", o.count("/tracker.json"), inv.asked, f)
 	}
 	if err := e.svc.Fetch(t.Context(), debianTrackerFeedID); err != nil || o.count("/tracker.json") != 1 {
 		t.Fatalf("Fetch now without a Debian device: %v, %d requests", err, o.count("/tracker.json"))
 	}
-	inv.got = map[string]bool{DistroUbuntu: true, DistroDebian: true}
+	inv.got = map[string]map[string]bool{DistroUbuntu: {"sudo": true}, DistroDebian: {"sudo": true}}
 	if err := e.svc.RunPull(t.Context()); err != nil {
 		t.Fatal(err)
 	}
@@ -345,7 +350,7 @@ func FuzzParseUbuntuEntry(f *testing.F) {
 func checkDistroRows(t *testing.T, res DistroResult) {
 	t.Helper()
 	for _, r := range res.Rows {
-		if !wantKEV[r.CVE] || (r.Distro != DistroUbuntu && r.Distro != DistroDebian) || !debPackageRE.MatchString(r.Package) ||
+		if !wantKEV.KEV[r.CVE] || (r.Distro != DistroUbuntu && r.Distro != DistroDebian) || !debPackageRE.MatchString(r.Package) ||
 			r.Release == "" || len(r.Release) > 8 || strings.Trim(r.Release, "0123456789.") != "" ||
 			(r.Status == DistroFixed) == (r.Fixed == "") || (r.Status != DistroFixed && r.Status != DistroNotAffected) {
 			t.Fatalf("row %+v", r)

@@ -47,11 +47,12 @@ type Inventory interface {
 	AddManualDevice(ctx context.Context, tx *sql.Tx, actor string, d ManualDevice) (deviceID string, err error)
 }
 
-// DistroLister is an optional extension of Inventory (D-570): the distributions ("ubuntu", "debian") of the devices the
-// distribution feeds can answer for (an Ubuntu or Debian device with deb packages an agent read). Without it, or with the
-// inventory module off, feeds pulls every enabled distribution feed as before.
+// DistroLister is an optional extension of Inventory (D-570, D-622): the distributions ("ubuntu", "debian") of the devices the
+// distribution feeds can answer for (an Ubuntu or Debian device with deb packages an agent read), each with the source packages of
+// those devices as the security data names them (findings.DevicePackages): the tier rows are kept for them only. Without it, or
+// with the inventory module off, feeds pulls every enabled distribution feed as before and keeps no tier row.
 type DistroLister interface {
-	Distros(ctx context.Context) (map[string]bool, error)
+	Distros(ctx context.Context) (map[string]map[string]bool, error)
 }
 
 // PlatformChecker is an optional extension of Inventory (D-549, KF-CVEPAGE): among ids, the devices that the findings matcher's platform

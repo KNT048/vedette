@@ -3,6 +3,7 @@ package findings
 import (
 	"fmt"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 
@@ -63,16 +64,41 @@ func distroOf(in swInfo) (string, string) {
 // distribution and an agent read at least one deb package from it (what distroVerdict needs); "" otherwise. The feeds module
 // pulls a distribution's files only while some device needs them (LEAN, D-570).
 func DeviceDistro(a Asset) string {
+	d, _, _ := DevicePackages(a)
+	return d
+}
+
+// DevicePackages is DeviceDistro with the release ("24.04", "12") and the source packages of the device's agent deb rows as the
+// distributions' security data names them (securitySource: "linux" for linux-signed), sorted, each once (D-622: the distribution
+// feeds keep the tier CVEs' fixed rows for these packages only). "" and nil when DeviceDistro is "".
+func DevicePackages(a Asset) (distro, release string, pkgs []string) {
 	if os, _ := osIdentity(a.OS); os.vendor != "canonical" && os.vendor != "debian" {
-		return ""
+		return "", "", nil
 	}
 	for _, s := range a.Software {
-		if s.Packaged && s.Source == "agent" && s.PkgVersion != "" && s.PkgSource != "" {
-			d, _ := distroOf(newSWInfo(s, a.OS))
-			return d
+		in, d, rel, ok := distroRow(a, s)
+		if !ok {
+			continue
+		}
+		distro = d
+		if rel != "" {
+			release = rel
+			pkgs = append(pkgs, securitySource(d, in.pkgSrc))
 		}
 	}
-	return ""
+	slices.Sort(pkgs)
+	return distro, release, slices.Compact(pkgs)
+}
+
+// distroRow is the swInfo of a row the distribution's word may decide (an agent's deb row with its full version and source
+// package), with the device's distribution and release (release "" when the OS names none).
+func distroRow(a Asset, s Software) (swInfo, string, string, bool) {
+	if !s.Packaged || s.Source != "agent" || s.PkgVersion == "" || s.PkgSource == "" {
+		return swInfo{}, "", "", false
+	}
+	in := newSWInfo(s, a.OS)
+	d, rel := distroOf(in)
+	return in, d, rel, d != ""
 }
 
 // securitySource is the source package under which the distribution's security data lists a device's source package.

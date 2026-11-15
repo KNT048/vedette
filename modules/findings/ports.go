@@ -124,7 +124,11 @@ type Feeds interface {
 	// affected entries name a CPE keep accepts, each with those entries only (D-617). None while nvd-recent is not ready or the feeds
 	// module is off; no EPSS while epss-all is not ready.
 	TierVulns(ctx context.Context, keep func(cpe string) bool) ([]TierVuln, error)
-	// TierStamp changes whenever what TierVulns returns may have changed: a pull or switch of epss-all, nvd-recent or nvd-kev, or the
-	// feeds module turned on or off (feeds' Store.TierStamp plus the module switch, cmd/vedette).
+	// TierDistro returns the tier CVEs (as TierVulns: published in the last 12 months, EPSS) for which a distribution feed that is on
+	// has a fixed row of one of pkgs, each with those rows in Distro and no Affected, and the releases ("ubuntu/24.04") among pkgs'
+	// that the distribution feeds hold rows for (D-622). Nothing while nvd-recent is not ready or the feeds module is off.
+	TierDistro(ctx context.Context, pkgs []DistroPackage) (vulns []TierVuln, covered map[string]bool, err error)
+	// TierStamp changes whenever what TierVulns or TierDistro returns may have changed: a pull or switch of epss-all, nvd-recent,
+	// nvd-kev, ubuntu-osv or debian-tracker, or the feeds module turned on or off (feeds' Store.TierStamp plus the module switch, cmd/vedette).
 	TierStamp(ctx context.Context) (string, error)
 }

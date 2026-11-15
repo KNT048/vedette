@@ -11,6 +11,7 @@ export interface TierFact {
 export type PlanBasis = 'scan' | 'agent' | 'distro' | 'version'
 export interface PlanSeed {
   asset_id: string; software_id: string; software: string; version: string; fixed: string; kind: 'fixed' | 'distro' | 'windows' | 'esu'
+  pro?: boolean
   cves: { cve: string; basis: PlanBasis }[]
 }
 export type FeedReady = 'module_off' | 'off' | 'loading' | 'ready'
@@ -40,6 +41,8 @@ export const tierFacts: TierFact[] = [
   fact('CVE-2026-33100', 60, 'high', 7.5, 0.011, ['OpenSSL OpenSSL']),
   fact('CVE-2026-33101', 160, 'low', 3.7, 0.003, ['OpenSSL OpenSSL']),
   fact('CVE-2026-34500', 30, null, null, 0.021, ['Synology DiskStation Manager'], true, 'Awaiting Analysis'),
+  // the long tail of a cumulative update (D-623: an item opens on its first 50, likely first, then by severity)
+  ...Array.from({ length: 60 }, (_, i) => fact(`CVE-2026-${32100 + i}`, 30 + i * 4, (['high', 'medium', 'low'] as const)[i % 3], [7.2, 5.4, 3.1][i % 3], 0.001 + (i % 7) / 1000, ['Microsoft Windows Server 2022'])),
   // older than 12 months: listed only because a scan engine found it (D-615 (4))
   fact('CVE-2024-28870', 520, 'critical', 9.1, 0.416, ['Synology DiskStation Manager']),
   // in the data but on no device: its CVE page still answers (S-TIER-1)
@@ -48,10 +51,10 @@ export const tierFacts: TierFact[] = [
 
 const seed: PlanSeed[] = [
   { asset_id: 'a-srvacc', software_id: 's-srvacc', software: 'Windows Server 2022', version: '10.0.20348.2700', fixed: '10.0.20348.4405', kind: 'windows',
-    cves: ['CVE-2026-32010', 'CVE-2026-32011', 'CVE-2026-32012', 'CVE-2026-32013', 'CVE-2026-32014'].map((cve) => ({ cve, basis: 'agent' as const })) },
+    cves: ['CVE-2026-32010', 'CVE-2026-32011', 'CVE-2026-32012', 'CVE-2026-32013', 'CVE-2026-32014', ...Array.from({ length: 60 }, (_, i) => `CVE-2026-${32100 + i}`)].map((cve) => ({ cve, basis: 'agent' as const })) },
   { asset_id: 'a-web01', software_id: 's-web01-nginx', software: 'nginx', version: '1.18.0', fixed: '1.28.1', kind: 'fixed',
     cves: ['CVE-2026-31001', 'CVE-2026-31002', 'CVE-2026-31003'].map((cve) => ({ cve, basis: 'version' as const })) },
-  { asset_id: 'a-web01', software_id: 's-web01-openssl', software: 'OpenSSL', version: '3.0.2-0ubuntu1.18', fixed: '', kind: 'distro',
+  { asset_id: 'a-web01', software_id: 's-web01-openssl', software: 'openssl', version: '3.0.2-0ubuntu1.18', fixed: '3.0.2-0ubuntu1.20', kind: 'distro',
     cves: ['CVE-2026-33100', 'CVE-2026-33101'].map((cve) => ({ cve, basis: 'distro' as const })) },
   { asset_id: 'a-nas01', software_id: 's-nas01', software: 'Synology NAS (DSM)', version: '7.2', fixed: '7.2.2-72806', kind: 'fixed',
     cves: [{ cve: 'CVE-2026-34500', basis: 'version' }, { cve: 'CVE-2024-28870', basis: 'scan' }] },

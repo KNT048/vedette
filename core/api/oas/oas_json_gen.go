@@ -130654,6 +130654,10 @@ func (s *FindingsGetFindingsPlanOKItemsItem) encodeFields(e *jx.Encoder) {
 		e.Int(s.Likely)
 	}
 	{
+		e.FieldStart("pro")
+		e.Bool(s.Pro)
+	}
+	{
 		e.FieldStart("recent")
 		e.Int(s.Recent)
 	}
@@ -130667,16 +130671,17 @@ func (s *FindingsGetFindingsPlanOKItemsItem) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfFindingsGetFindingsPlanOKItemsItem = [9]string{
+var jsonFieldsNameOfFindingsGetFindingsPlanOKItemsItem = [10]string{
 	0: "asset",
 	1: "cves",
 	2: "fixed",
 	3: "group",
 	4: "kind",
 	5: "likely",
-	6: "recent",
-	7: "software",
-	8: "version",
+	6: "pro",
+	7: "recent",
+	8: "software",
+	9: "version",
 }
 
 // Decode decodes FindingsGetFindingsPlanOKItemsItem from json.
@@ -130762,8 +130767,20 @@ func (s *FindingsGetFindingsPlanOKItemsItem) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"likely\"")
 			}
-		case "recent":
+		case "pro":
 			requiredBitSet[0] |= 1 << 6
+			if err := func() error {
+				v, err := d.Bool()
+				s.Pro = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"pro\"")
+			}
+		case "recent":
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := d.Int()
 				s.Recent = int(v)
@@ -130775,7 +130792,7 @@ func (s *FindingsGetFindingsPlanOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"recent\"")
 			}
 		case "software":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				v, err := d.Str()
 				s.Software = string(v)
@@ -130787,7 +130804,7 @@ func (s *FindingsGetFindingsPlanOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"software\"")
 			}
 		case "version":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.Version = string(v)
@@ -130809,7 +130826,7 @@ func (s *FindingsGetFindingsPlanOKItemsItem) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00000001,
+		0b00000011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.

@@ -147,9 +147,10 @@ export const PlanItem = z.object({
   asset: z.object({ id: z.string(), name: z.string().describe('The name the Devices page shows, never the internal id (D-484)') }),
   software: z.string().describe('Display name of the software row'),
   version: z.string().describe('The installed version'),
-  fixed: z.string().describe('fixed: the version that fixes every CVE of the item; windows, esu: the build of the cumulative update; distro: empty'),
-  kind: z.enum(['fixed', 'distro', 'windows', 'esu']).describe('fixed = upgrade the software to `fixed`; distro = install the distribution\'s security updates for the package; windows = the monthly cumulative update with build `fixed` or later; esu = the same on a Windows release past its end of support: the update comes only with Extended Security Updates (D-617)'),
-  cves: z.array(PlanCve).min(1).describe('Likely first, then by EPSS, then newest'),
+  fixed: z.string().describe('fixed: the version that fixes every CVE of the item; windows, esu: the build of the cumulative update; distro: the distribution\'s package version that fixes every CVE of the item on the device\'s release (D-622)'),
+  kind: z.enum(['fixed', 'distro', 'windows', 'esu']).describe('fixed = upgrade the software to `fixed`; distro = upgrade the Ubuntu or Debian source package `software` from `version` to `fixed` or later (the distribution\'s security update, D-622); windows = the monthly cumulative update with build `fixed` or later; esu = the same on a Windows release past its end of support: the update comes only with Extended Security Updates (D-617)'),
+  pro: z.boolean().describe('distro only: `fixed` is in Ubuntu Pro (ESM) only; false otherwise'),
+  cves: z.array(PlanCve).min(1).describe('Likely first, by EPSS; then the recent ones by CVSS score, then EPSS; then newest (D-623)'),
   likely: z.number().int().min(0),
   recent: z.number().int().min(0),
 })

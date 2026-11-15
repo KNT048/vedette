@@ -1,4 +1,4 @@
-// Updates to plan (S-TIER-1, S-TIER-2; D-613, D-615, D-616): route /plan, Monitor group after Findings, module findings.
+// Updates to plan (S-TIER-1, S-TIER-2; D-613, D-615, D-616, D-623): route /plan, Monitor group after Findings, module findings.
 import { Link, useSearchParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { Notice, PageHeader } from '@/components/common/PageHeader'
@@ -14,10 +14,13 @@ const FILTERS: PlanFilter[] = ['likely', 'recent', 'all']
 function Page() {
   const { t } = useTranslation('findings')
   const [params, setParams] = useSearchParams()
-  const tier: PlanFilter = FILTERS.find((f) => f === params.get('tier')) ?? 'all'
+  const asked = FILTERS.find((f) => f === params.get('tier'))
+  const every = usePlan('all')
+  // D-623: until a person picks a filter, the page opens on "Likely to be exploited" whenever some update fixes such a CVE
+  const tier: PlanFilter = asked ?? (every.data?.items.some((i) => i.likely > 0) ? 'likely' : 'all')
   const q = usePlan(tier)
   const p = q.data
-  const setTier = (v: PlanFilter) => { if (v === 'all') params.delete('tier'); else params.set('tier', v); setParams(params, { replace: true }) }
+  const setTier = (v: PlanFilter) => { params.set('tier', v); setParams(params, { replace: true }) }
   const dataLine = p && (p.data.epss_date || p.data.recent_since) ? [
     p.data.epss_date ? t('plan.dataEpss', { date: fmtDay(p.data.epss_date) }) : null,
     p.data.recent_since ? t('plan.dataRecent', { date: fmtDay(p.data.recent_since) }) : null,

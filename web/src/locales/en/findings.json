@@ -357,7 +357,7 @@
     "title": "Updates to plan",
     "titleCount_one": "1 update to plan",
     "titleCount_other": "{{count}} updates to plan",
-    "intro": "Updates that fix CVEs published in the last 12 months that affect the version a device runs and are not on an exploited list yet, marking those likely to be exploited soon (EPSS 10% or more). Vedette lists only CVEs it confirmed on the device (the version your agent reports, a version you entered or the device states), never a version guessed from the network, and never alerts on them. Exploited CVEs are findings:",
+    "intro": "Updates that fix CVEs published in the last 12 months that affect the version a device runs and are not on an exploited list yet, marking those likely to be exploited soon (EPSS 10% or more). Vedette lists only CVEs it confirmed on the device (the version your agent reports, a version you entered or the device states, or for an Ubuntu or Debian package the distribution's own fixed version), never a version guessed from the network, and never alerts on them. Exploited CVEs are findings:",
     "toFindings": "see Findings.",
     "dataEpss": "EPSS scores of {{date}}",
     "dataRecent": "CVEs published since {{date}}",
@@ -376,6 +376,8 @@
     "action": {
       "fixed": "Upgrade {{software}} from {{version}} to {{fixed}} or later",
       "distro": "Install the distribution's security updates for {{software}} ({{version}})",
+      "distroFixed": "Upgrade the {{software}} package from {{version}} to {{fixed}} or later",
+      "distroPro": "Upgrade the {{software}} package from {{version}} to {{fixed}} or later (Ubuntu Pro)",
       "windows": "Install the latest cumulative update for {{software}} (build {{fixed}} or later)"
     },
     "fixes_one": "fixes {{count}} CVE",
@@ -384,6 +386,9 @@
     "fixesLikely_other": "({{count}} likely to be exploited)",
     "show_one": "Show the {{count}} CVE",
     "show_other": "Show the {{count}} CVEs",
+    "showAllCves": "Show all {{count}} CVEs",
+    "firstCves": "The {{shown}} that matter most of {{count}}: likely to be exploited first, then by severity.",
+    "showAllItems": "Show all {{count}} updates",
     "cve": {
       "caption": "CVEs that the update of {{software}} fixes on {{device}}",
       "cve": "CVE",
@@ -430,7 +435,7 @@
     "emptyDevices": "See the devices",
     "unchecked_one": "1 device is not checked",
     "unchecked_other": "{{count}} devices are not checked",
-    "uncheckedBody": "Vedette has no version on them it can compare with these CVEs: no version at all, only a version guessed from what a service announces on the network, or only packages of Ubuntu or Debian, whose fixes the distributions backport (Vedette compares those in a later update). For the others, installing the agent or entering the version gives a version it can compare.",
+    "uncheckedBody": "Vedette has no version on them it can compare with these CVEs: no version at all, only a version guessed from what a service announces on the network, or only Ubuntu or Debian packages of a release whose security data is not loaded yet (the feeds \"Ubuntu fixed versions\" and \"Debian security tracker\" load it within minutes of the agent's first report). For the others, installing the agent or entering the version gives a version it can compare.",
     "feed": {
       "epss": "“EPSS, every CVE”",
       "recent": "“NVD, CVEs of the last 12 months”"

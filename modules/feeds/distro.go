@@ -17,7 +17,8 @@ import (
 
 // Distribution backport data (D-516). Ubuntu and Debian fix their packages without changing the upstream version, so a
 // patched OpenSSH stays inside NVD's affected range. Three built-in feeds say, for the CVEs of the CISA list, which source
-// package of which release is fixed in which distribution version, or not affected:
+// package of which release is fixed in which distribution version, or not affected; ubuntu-osv and debian-tracker also keep
+// the fixed versions of the tier CVEs for the packages the devices run (D-622, DistroWant), for findings' "Updates to plan":
 //   - ubuntu-osv: Canonical's osv-all.tar.xz, every Ubuntu release in one file; a "fixed" event is the first fixed version.
 //   - ubuntu-vex: Canonical's vex-all.tar.xz; only its not_affected statements are kept (its "fixed" statements name the
 //     archive's current version, not the first fixed one, so they would keep a patched device suspected).
@@ -60,6 +61,24 @@ type DistroFix struct {
 	Status  string // DistroFixed or DistroNotAffected
 	Fixed   string // the first fixed version (DistroFixed), "" otherwise
 	Pro     bool   // the fix is in Ubuntu Pro (ESM) only
+}
+
+// DistroWant says which rows a pull keeps (D-516, D-622): every row of a CVE of the CISA list, as before; of a tier CVE
+// (nvd-recent's last 12 months, D-613) only the "fixed" rows of a source package some device runs, since the plan lists only
+// packages below their fix and the parse of every package of every tier CVE held 434,162 rows (418k of them kernel flavours
+// no device runs) and 366 MB of peak RSS for Ubuntu's file on 2026-11-15 (KEV only: 2,131 rows, 159 MB).
+type DistroWant struct {
+	KEV      map[string]bool // CVEs whose every row is kept
+	Tier     map[string]bool // CVEs whose fixed rows of Packages are kept
+	Packages map[string]bool // source packages as the security data names them (findings.DevicePackages)
+}
+
+// CVE says whether some row of the CVE may be kept: its entry is read.
+func (w DistroWant) CVE(c string) bool { return w.KEV[c] || w.Tier[c] }
+
+// Row says whether the row of the CVE for the source package with this status is kept.
+func (w DistroWant) Row(cve, pkg, status string) bool {
+	return w.KEV[cve] || status == DistroFixed && w.Tier[cve] && w.Packages[pkg]
 }
 
 // DistroResult is one parsed pull.
@@ -196,9 +215,9 @@ func xzFirstDict(b []byte) (dict int64, ok bool) {
 	return 0, false // no LZMA2 filter
 }
 
-// eachTarEntry unpacks an xz tar archive and calls fn for the regular files whose name matches re with a CVE of want
+// eachTarEntry unpacks an xz tar archive and calls fn for the regular files whose name matches re with a CVE want accepts
 // (submatch 1), with the CVE and the file (at most distroMaxEntry bytes; a bigger one is rejected with its CVE).
-func eachTarEntry(r io.Reader, re *regexp.Regexp, want map[string]bool, tl *tally, fn func(cve string, body io.Reader) error) error {
+func eachTarEntry(r io.Reader, re *regexp.Regexp, want func(string) bool, tl *tally, fn func(cve string, body io.Reader) error) error {
 	body := &bodyErr{r: r}
 	br := bufio.NewReaderSize(body, 1<<20)
 	head, _ := br.Peek(12 + 1024) // the stream header and the first block header (at most 1 024 bytes)
@@ -238,7 +257,7 @@ func eachTarEntry(r io.Reader, re *regexp.Regexp, want map[string]bool, tl *tall
 			continue
 		}
 		m := re.FindStringSubmatch(h.Name)
-		if m == nil || !want[m[1]] {
+		if m == nil || !want(m[1]) {
 			continue
 		}
 		if h.Size > distroMaxEntry {
@@ -269,15 +288,15 @@ type osvRecord struct {
 	} `json:"affected"`
 }
 
-// ParseUbuntuOSV reads Canonical's osv-all.tar.xz and keeps, for the CVEs in want, the first fixed version of each
-// source package of each Ubuntu release. A fix of a release only Ubuntu Pro has is kept with Pro set unless the
+// ParseUbuntuOSV reads Canonical's osv-all.tar.xz and keeps, for the CVEs in want (DistroWant.Row), the first fixed version
+// of each source package of each Ubuntu release. A fix of a release only Ubuntu Pro has is kept with Pro set unless the
 // release also has a public fix; of several fixed versions the highest is kept. A CVE file with a bad package name,
 // version or too many rows is rejected whole (fail closed: findings never decide on half an entry).
-func ParseUbuntuOSV(r io.Reader, want map[string]bool) (DistroResult, error) {
+func ParseUbuntuOSV(r io.Reader, want DistroWant) (DistroResult, error) {
 	tl := newTally()
 	var out []DistroFix
 	row := 0
-	err := eachTarEntry(r, osvEntryRE, want, tl, func(cve string, body io.Reader) error {
+	err := eachTarEntry(r, osvEntryRE, want.CVE, tl, func(cve string, body io.Reader) error {
 		row++
 		var rec osvRecord
 		if err := json.NewDecoder(body).Decode(&rec); err != nil {
@@ -304,6 +323,9 @@ func ParseUbuntuOSV(r io.Reader, want map[string]bool) (DistroResult, error) {
 					if !debver.Valid(e.Fixed) {
 						tl.reject(row, "%s: version %s is not a Debian version", cve, quoteVal(e.Fixed))
 						return nil
+					}
+					if !want.Row(cve, a.Package.Name, DistroFixed) {
+						continue
 					}
 					k := key{m[2], a.Package.Name}
 					f := DistroFix{Distro: DistroUbuntu, Release: m[2], Package: a.Package.Name, CVE: cve, Status: DistroFixed, Fixed: e.Fixed, Pro: pro}
@@ -353,11 +375,11 @@ type vexDoc struct {
 // source product ("pkg:deb/ubuntu/<source>@<version>?arch=source&distro=<codename>") of a plain release. Products of a
 // pocket (esm-infra/focal, fips/jammy) and binary products are left out. A codename this Vedette does not know is
 // rejected with its name; a malformed product rejects the CVE file whole.
-func ParseUbuntuVEX(r io.Reader, want map[string]bool) (DistroResult, error) {
+func ParseUbuntuVEX(r io.Reader, want DistroWant) (DistroResult, error) {
 	tl := newTally()
 	var out []DistroFix
 	row := 0
-	err := eachTarEntry(r, vexEntryRE, want, tl, func(cve string, body io.Reader) error {
+	err := eachTarEntry(r, vexEntryRE, want.CVE, tl, func(cve string, body io.Reader) error {
 		row++
 		var doc vexDoc
 		if err := json.NewDecoder(body).Decode(&doc); err != nil {
@@ -385,7 +407,9 @@ func ParseUbuntuVEX(r io.Reader, want map[string]bool) (DistroResult, error) {
 					unknown = codename
 					continue
 				}
-				got[key{rel, name}] = true
+				if want.Row(cve, name, DistroNotAffected) {
+					got[key{rel, name}] = true
+				}
 			}
 		}
 		if unknown != "" {
@@ -442,7 +466,7 @@ type debianEntry struct {
 // fixed_version}}}}}) as a stream and keeps, for the CVEs in want, each release's "resolved" status: fixed in its
 // fixed_version, or not affected when that version is "0". sid has no release number and is skipped; a codename this
 // Vedette does not know is rejected with its name. A bad package name or version rejects that package's CVE entry.
-func ParseDebianTracker(r io.Reader, want map[string]bool) (DistroResult, error) {
+func ParseDebianTracker(r io.Reader, want DistroWant) (DistroResult, error) {
 	body := &bodyErr{r: r}
 	res, err := parseDebian(json.NewDecoder(bufio.NewReaderSize(body, 1<<20)), want)
 	if err != nil {
@@ -452,7 +476,7 @@ func ParseDebianTracker(r io.Reader, want map[string]bool) (DistroResult, error)
 }
 
 // parseDebian is ParseDebianTracker on the decoder of the body.
-func parseDebian(dec *json.Decoder, want map[string]bool) (DistroResult, error) {
+func parseDebian(dec *json.Decoder, want DistroWant) (DistroResult, error) {
 	tl := newTally()
 	var out []DistroFix
 	if !jsonDelim(dec, '{') {
@@ -469,7 +493,7 @@ func parseDebian(dec *json.Decoder, want map[string]bool) (DistroResult, error) 
 			if !ok {
 				return DistroResult{}, errNotDistroFile("the Debian Security Tracker JSON")
 			}
-			if !want[cve] {
+			if !want.CVE(cve) {
 				var skip json.RawMessage
 				if err := dec.Decode(&skip); err != nil {
 					return DistroResult{}, errNotDistroFile("the Debian Security Tracker JSON")
@@ -504,7 +528,9 @@ func parseDebian(dec *json.Decoder, want map[string]bool) (DistroResult, error) 
 					tl.reject(row, "%s: version %s is not a Debian version", cve, quoteVal(rel.FixedVersion))
 					bad = true
 				}
-				rows = append(rows, f)
+				if want.Row(cve, pkg, f.Status) {
+					rows = append(rows, f)
+				}
 			}
 			if bad {
 				continue

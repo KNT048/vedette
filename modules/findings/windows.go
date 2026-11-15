@@ -29,7 +29,9 @@ import (
 //     older than one the entry lists stays "not checked", with a sentence: Microsoft lists only the releases it still services, so
 //     an unlisted older release may be affected and get no fix (review H1);
 //   - a target the device's rows do not list (an arm64 PC, rows for x64 only) proves nothing (review L1); a device whose target is
-//     not known is affected when it is inside every target's range, outside when outside every one (review M1).
+//     not known is affected when it is inside every target's range, outside when outside every one (review M1);
+//   - when the rows above say Unknown or are not there, a flaw of Windows Microsoft published in or before the month of the update the
+//     build carries, read from the list's own fix builds, is ruled out (D-618, winBuildMonth and winMonthRule below).
 //
 // Nothing here closes on a guess: every No is a proof (proofRange or proofRelease), and everything else is a finding.
 
@@ -287,6 +289,11 @@ func windowsDecide(in swInfo, v Vuln, named bool, now time.Time) (winVerdict, bo
 		if w.t == No && undecidable {
 			w.t, w.proof = Unknown, proofNone // another row may be this release and cannot be read
 		}
+		if w.t == Unknown { // D-618: the release's own rows cannot tell, its build's month can (never over a Yes or a No)
+			if m, ok := winMonthRule(d, in.winBuild, v, now); ok {
+				return m, true
+			}
+		}
 		return w, true
 	}
 	// review r1 #2 of #801: a CVE whose fix Microsoft extended to later releases after NVD's list named only older ones is never ruled
@@ -294,6 +301,12 @@ func windowsDecide(in swInfo, v Vuln, named bool, now time.Time) (winVerdict, bo
 	if winRevised[v.CVE] && len(others) > 0 {
 		return winVerdict{t: Unknown, note: fmt.Sprintf("NVD lists %s for %s, but Microsoft later extended this flaw's fix to newer Windows releases (an update setting you may have to turn on): compare %s with Microsoft's advisory.",
 			v.CVE, winNames(others), d.rel.Display)}, true
+	}
+	// D-618 (WIN-NOISE-2): Microsoft fixed the flaw in or before the month of the update this build carries. It comes before the D-610
+	// and D-546 (d) proofs, which hold without the build's month (a preview build, a release NVD gives no fix builds for), and names
+	// the build and the month.
+	if m, ok := winMonthRule(d, in.winBuild, v, now); ok {
+		return m, true
 	}
 	// D-610 (N52-1): a flaw whose CVE id is from before Windows 10 came out (2015), listed by NVD only for releases before Windows 10, is
 	// taken as not one of any 10.0 build, preview or not: Windows 10 and every later release shipped after the CVE existed, and Microsoft's
@@ -311,6 +324,9 @@ func windowsDecide(in swInfo, v Vuln, named bool, now time.Time) (winVerdict, bo
 		}
 		return winVerdict{t: No, proof: proofRelease, note: fmt.Sprintf("Not affected: NVD lists %s only for Windows releases before Windows 10 (%s)%s. The CVE dates from %d, before Windows 10 came out, and no Windows 10 or later release is listed for it, so this device's %s is not affected. Vedette closed this by itself and reopens it if a later match says the device is affected.",
 			v.CVE, winNames(others), also, y, d.rel.Display)}, true
+	}
+	if note := winLaterNote(d, in.winBuild, v); note != "" { // D-618: fixed after the build's month, in an update NVD names
+		return winVerdict{t: Unknown, note: note}, true
 	}
 	switch {
 	case !allWindows || undecidable || newest == d.rel.Build:
@@ -590,6 +606,295 @@ func windowsGroupFix(in swInfo, vulns []Vuln) *GroupFix {
 		fixed = branch
 	}
 	return &GroupFix{Kind: kind, Version: clean(in.ver), Fixed: clean(fixed), Closed: closed, Ranged: maps.Clone(closed)}
+}
+
+// D-618 (WIN-NOISE-2, customer walk 3 n55): Windows updates are cumulative. Each month Microsoft ships one update per release line, and
+// NVD's ranges of the flaws it fixes end at that update's build ("windows_11_24h2 < 10.0.26100.2033" for the CVEs Microsoft published on
+// 8 October 2024). So the list itself says which month's update a build carries, and a flaw of Windows Microsoft fixed in or before that
+// month is fixed in the build, whatever releases NVD's entry names.
+
+// monthKey is a calendar month, year*12 + month-1 (UTC).
+type monthKey int
+
+func monthKeyOf(t time.Time) monthKey {
+	t = t.UTC()
+	return monthKey(t.Year()*12 + int(t.Month()) - 1)
+}
+
+func (m monthKey) String() string {
+	return time.Month(int(m)%12+1).String() + " " + strconv.Itoa(int(m)/12)
+}
+
+// winBuild is the month of the update a Windows release row's build carries (winBuildMonth).
+type winBuild struct {
+	month monthKey // the newest monthly update the build carries; 0: not known
+	// otherAt is the build of the other kind on the same build (Windows 11 24H2 for Server 2025) that the device's month corresponds
+	// to after Microsoft numbered the two apart: the highest of the lowest fix builds NVD gives that release per month, months up to the
+	// device's (the lowest, so a CVE fixed by a later update does not raise it). A row of the other kind ending above it is a fix after
+	// the device's month (review r2 #2 of #806). 0: not known.
+	otherAt int
+}
+
+// winUndated is the month a fix build of a CVE without its published day counts in (year 1, the earliest of all): it may stop the walk,
+// never be the build's month (review r2 #5 of #806).
+var winUndated = monthKeyOf(time.Time{})
+
+// otherUntil is the first month a row of the other kind on the device's build no longer counts (winKinship): the month the device's
+// release came out (core/winrel GA), a fact of the release and not of the entries a match is given (review r1 #1 of #806).
+func (d winDev) otherUntil() monthKey { return monthKeyOf(d.rel.GA) }
+
+// winOSComponents are Microsoft products NVD names apart from Windows that ship inside Windows and take its monthly update: for the month
+// rule their row is a row of Windows. SMBv1 (server_message_block 1.0, CVE-2017-0143 to 0148): MS17-010 was a Windows security update
+// (https://learn.microsoft.com/en-us/security-updates/securitybulletins/2017/ms17-010).
+var winOSComponents = map[string]bool{"server_message_block": true}
+
+// winKinship says how row l relates to the device's numbering of update revisions. same: the device's release or a client sibling on
+// its line (the same revision every month, D-546). other: the release of the other kind on the same build (Windows 11 24H2 for Windows
+// Server 2025, Windows 10 1809 for Server 2019): the same monthly update and revision while they are serviced together, but Microsoft
+// may number them apart later (Server 2025 went from 26100.7462 in December 2025 to 26100.32230 in January 2026, D-610 (4), while
+// NVD's 24H2 ranges went on at 26100.7781 in February 2026), so a row of the other kind counts only for months before the device's
+// release came out (otherUntil: Server 2025's November 2024).
+func winKinship(l winListed, d winDev) (same, other bool) {
+	if l.build == 0 || l.old {
+		return false, false
+	}
+	if l.server == d.rel.Server {
+		return l.build == d.rel.Build || !l.server && d.sameLine(l.build), false
+	}
+	return false, l.build == d.rel.Build
+}
+
+// winFixRev is the update revision of the fix a row names: its range ends before a build of the device's numbering ("< 10.0.26100.2033":
+// a build on the device's line, or exactly the device's build for a row of the other kind), nothing else is pinned and a start bound is
+// of the same build. false otherwise.
+func winFixRev(c CPE, r VersionRange, d winDev, other bool) (int, bool) {
+	for _, a := range []Attr{c.Version, c.Update, c.Edition, c.Language, c.SWEdition, c.TargetSW, c.Other} {
+		if a.Kind != Any {
+			return 0, false
+		}
+	}
+	m := winBoundRE.FindStringSubmatch(r.EndExcl)
+	if m == nil || r.EndIncl != "" {
+		return 0, false
+	}
+	build, _ := strconv.Atoi(m[1])
+	if other && build != d.rel.Build || !other && !d.sameLine(build) {
+		return 0, false
+	}
+	for _, s := range []string{r.StartIncl, r.StartExcl} {
+		if sm := winBoundRE.FindStringSubmatch(s); s != "" && (sm == nil || sm[1] != m[1]) {
+			return 0, false
+		}
+	}
+	rev, _ := strconv.Atoi(m[2])
+	return rev, rev > 0
+}
+
+// winBuildMonth reads from the list which month's update the device's build carries (D-618). Each row of the device's numbering whose
+// range ends at a fix build gives a pair: the month NVD published the CVE (Microsoft publishes a Windows CVE on the Patch Tuesday of its
+// fix) and that build. A month's bar is its highest fix build, so a CVE published before its fix (CVE-2023-36884: July 2023, fixed in
+// August's 10.0.19044.3324) raises it and an out-of-band build below the month's update does not lower it. Walking the months in order,
+// the build carries every month up to the first whose bar is above it, and the month moves forward only when the bar does (review r1 #3
+// of #806: a month whose bar is not above the last one taken may be a range copied from the month before, or a late CVE). Not known
+// (zero): no fix build in the device's own release (a release NVD gives none for), or the build below the first month's bar. A fix build
+// on a CVE whose published day is not known counts in the earliest month of all (year 1), never skipped: above the device's build it
+// stops the walk at once (the month is not known), at or below it only raises the bar later months must pass (review r1 #2 of #806). vulns must be the whole stored list (MatchAsset
+// reads Asset.winList when the match gets a part of it): a part may miss the month that stops the walk.
+func winBuildMonth(vulns []Vuln, d winDev) winBuild {
+	own, other, otherLow := map[monthKey]int{}, map[monthKey]int{}, map[monthKey]int{}
+	for _, v := range vulns {
+		for _, af := range v.Affected {
+			if af.parsed == nil && !strings.Contains(af.CPE, ":microsoft:windows") {
+				continue // not a Windows row: no parse (review r2 #4 of #806: 6x faster on the whole list)
+			}
+			c, err := af.cpe()
+			if err != nil {
+				continue
+			}
+			l, ok := winListedOf(c)
+			if !ok {
+				continue
+			}
+			same, oth := winKinship(l, d)
+			if !same && !oth {
+				continue
+			}
+			rev, ok := winFixRev(c, af.Range, d, oth)
+			if !ok {
+				continue
+			}
+			bars, m := own, monthKeyOf(v.Published) // no published day: the earliest month of all (year 1), never skipped
+			if oth {
+				bars = other
+				if low, ok := otherLow[m]; !ok || rev < low {
+					otherLow[m] = rev
+				}
+			}
+			bars[m] = max(bars[m], rev)
+		}
+	}
+	if len(own) == 0 {
+		return winBuild{} // NVD gives no fix build of the device's own release or line
+	}
+	for m, rev := range other {
+		if m < d.otherUntil() {
+			own[m] = max(own[m], rev)
+		}
+	}
+	var b winBuild
+	hi := 0 // the highest bar taken
+	for _, m := range slices.Sorted(maps.Keys(own)) {
+		if own[m] > d.rev {
+			break
+		}
+		if own[m] > hi {
+			hi = own[m]
+			if m != winUndated {
+				b.month = m
+			}
+		}
+	}
+	if b.month == 0 {
+		return winBuild{}
+	}
+	for m, low := range otherLow {
+		if m <= b.month && m != winUndated {
+			b.otherAt = max(b.otherAt, low)
+		}
+	}
+	return b
+}
+
+// winMonthRule rules entry v out when Microsoft fixed it in or before the month of the update the device's build carries (D-618). It
+// holds for a flaw of Windows itself: NVD's entry has a Windows row (any release, a family row) or a row of a component that takes
+// Windows' monthly update (winOSComponents), and no row of another Microsoft product (.NET, Office, App Installer, Edge, Exchange, SQL
+// Server: updated apart from Windows) or of any vendor or product; another vendor's product (a Siemens scanner built on Windows, Go's
+// x509 package in CVE-2020-0601) is not this machine and says nothing about it. Never a CVE Microsoft extended later (winRevised: an
+// opt-in fix), nor while a row of the device's numbering ends above its build or cannot be read; a family row of every Windows release
+// (windows:*, windows_nt at any version but NT 4.0 and older) keeps it open as D-610 does, and a row of a release Vedette does not know
+// or of another family (windows_10:*, windows_11:*) whose range ends at the device's build or line above its revision too (review r1 #4
+// of #806). The CVE's month is the day NVD published it. When the CVE gives a fix build in the device's numbering, that build is below
+// the device's and its month may be the build's own (its month's bar counts it). Otherwise the CVE must be from an earlier month (a flaw
+// published before its fix, as CVE-2023-36884 on 11 July 2023, fixed on 8 August, is a month ahead at most) and CISA (or VulnCheck) must
+// have listed it at least winListedMargin ago (D-610: a listing is when Microsoft and NVD revisit an old CVE).
+func winMonthRule(d winDev, b winBuild, v Vuln, now time.Time) (winVerdict, bool) {
+	if b.month == 0 || v.Published.IsZero() || winRevised[v.CVE] {
+		return winVerdict{}, false
+	}
+	cm := monthKeyOf(v.Published)
+	windows, lineFix := false, false
+	for _, af := range v.Affected {
+		c, err := af.cpe()
+		if err != nil || c.Part.Kind == NA {
+			return winVerdict{}, false
+		}
+		l, isWin := winListedOf(c)
+		if !isWin {
+			vn, okV := c.Vendor.Literal()
+			p, okP := c.Product.Literal()
+			switch {
+			case !okV || !okP:
+				return winVerdict{}, false // any vendor or product: it may be this machine
+			case norm(vn) != "microsoft":
+				continue // another vendor's product: not this machine
+			case !winOSComponents[p]:
+				return winVerdict{}, false // a Microsoft product Windows' monthly update does not service
+			}
+			windows = true
+			continue
+		}
+		windows = true
+		if l.family == "windows" || l.build == 0 && !l.old && winEndsAbove(af.Range, d) {
+			return winVerdict{}, false
+		}
+		same, oth := winKinship(l, d)
+		if oth && cm >= d.otherUntil() { // numbered apart from the device's: its fix build tells only against the other kind's own builds
+			if rev, ok := winFixRev(c, af.Range, d, true); ok && rev > b.otherAt {
+				return winVerdict{}, false // the stored data says the fix came after the device's month (review r2 #2 of #806)
+			}
+			continue
+		}
+		if !same && !oth {
+			continue // another numbering: only the month tells
+		}
+		if tgt, lit := c.TargetHW.Literal(); same && c.TargetHW.Kind == Value && lit && d.target != "" && tgt != d.target {
+			continue // another target (winRows)
+		}
+		if af.Range.IsZero() && c.Version.Kind != Value {
+			continue // every version or "-": NVD recorded no fix build (review r1 LOW-1)
+		}
+		rev, ok := winFixRev(c, af.Range, d, oth)
+		if !ok || d.rev < rev {
+			return winVerdict{}, false
+		}
+		lineFix = true
+	}
+	listed := !v.DateAdded.IsZero() && !now.IsZero() && !v.DateAdded.Add(winListedMargin).After(now)
+	if !windows || cm > b.month || !lineFix && (cm == b.month || !listed) {
+		return winVerdict{}, false
+	}
+	return winVerdict{t: No, proof: proofRelease, note: fmt.Sprintf("Not affected: build %d.%s of %s carries Microsoft's monthly update of %s (the newest month whose fixes NVD lists at or below this build), and Microsoft published %s on %s, in or before that month. Windows updates are cumulative, so this build has the fix. Vedette closed this by itself and reopens it if a later match says the device is affected.",
+		d.rel.Build, d.ubr, d.rel.Display, b.month, v.CVE, FmtDay(v.Published))}, true
+}
+
+// winEndsAbove says whether a range's end is at the device's build or line and not below its revision, or there without a revision
+// (a row Vedette cannot place in a release: it may be the device's, review r1 #4 of #806).
+func winEndsAbove(r VersionRange, d winDev) bool {
+	for i, e := range []string{r.EndExcl, r.EndIncl} {
+		m := winBoundRE.FindStringSubmatch(e)
+		if m == nil {
+			if strings.HasPrefix(e, fmt.Sprintf("10.0.%d", d.rel.Build)) {
+				return true // the device's build without a revision
+			}
+			continue
+		}
+		b, _ := strconv.Atoi(m[1])
+		rev, _ := strconv.Atoi(m[2])
+		if (b == d.rel.Build || !d.rel.Server && d.sameLine(b)) && (rev > d.rev || i == 1 && rev == d.rev) {
+			return true
+		}
+	}
+	return false
+}
+
+// winLaterNote is the evidence of an entry Microsoft fixed after the month of the device's build when NVD gives the fix build only for the
+// release of the other kind on the same build while both took one monthly update (CVE-2024-43572 on a Windows Server 2025 at 26100.1742:
+// Windows 11 24H2 fixed in 26100.2033, October 2024): the update that fixes it, by month and build (D-618), and the month the build carries,
+// or that it is not known. "" otherwise.
+func winLaterNote(d winDev, b winBuild, v Vuln) string {
+	if v.Published.IsZero() {
+		return ""
+	}
+	cm := monthKeyOf(v.Published)
+	if b.month != 0 && cm <= b.month || cm >= d.otherUntil() {
+		return ""
+	}
+	fix, name := 0, ""
+	for _, af := range v.Affected {
+		c, err := af.cpe()
+		if err != nil {
+			continue
+		}
+		l, ok := winListedOf(c)
+		if !ok {
+			continue
+		}
+		if _, oth := winKinship(l, d); !oth {
+			continue
+		}
+		if rev, ok := winFixRev(c, af.Range, d, true); ok && rev > d.rev && rev > fix {
+			fix, name = rev, winNames([]string{l.product})
+		}
+	}
+	if fix == 0 {
+		return ""
+	}
+	carries := fmt.Sprintf("which carries the updates up to %s only", b.month)
+	if b.month == 0 { // review r2 #5 of #806: never a placeholder month
+		carries = "below that build (Vedette cannot tell which month's update it carries)"
+	}
+	return fmt.Sprintf("Microsoft fixed %s in its %s update: NVD lists it for %s, fixed in build %d.%d, and %s took the same monthly update then. The agent reports build %d.%s, %s, so this device does not have the fix: install the current cumulative update for %s.",
+		v.CVE, cm, name, d.rel.Build, fix, d.rel.Display, d.rel.Build, d.ubr, carries, d.rel.Display)
 }
 
 // winNames names releases for a sentence: "windows 10 1809, windows 11 23h2 and 2 more".

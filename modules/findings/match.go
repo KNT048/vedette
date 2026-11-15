@@ -79,6 +79,9 @@ type Asset struct {
 	// (D-549, review r1 #3: only it may make a Junos statement count for scan-seen rows).
 	SNMPOS   string
 	Software []Software
+	// winList is the whole stored exploited list a Windows release row's build month is read from (D-618, review r1 #1 of #806) when
+	// the match gets only a part of it (Reconcile's backlog and recent writes); nil: the match's own list.
+	winList []Vuln
 }
 
 // Affected is one NVD cpeMatch entry (vulnerable=true) of a CVE.
@@ -329,12 +332,17 @@ func MatchAsset(a Asset, vulns []Vuln, have map[string]bool, now time.Time) Matc
 	seen := make(map[string]bool, len(vulns))
 	need := map[string]int{} // software id -> index in res.NeedVersion
 	sws := deviceSoftware(a) // its rows, and the network OS it states with its version (D-510)
+	winList := a.winList
+	if winList == nil {
+		winList = vulns
+	}
 	infos := make([]swInfo, len(sws))
 	for i, s := range sws {
 		infos[i] = newSWInfo(s, a.OS)
 		infos[i].platformOS = platformOS(s, a)
 		if d, ok := winDevice(infos[i]); ok {
-			infos[i].winNamed = winNamed(vulns, d.rel.Product) // D-546, review H2
+			infos[i].winNamed = winNamed(winList, d.rel.Product) // D-546, review H2; the whole list, so both Reconcile writes agree
+			infos[i].winBuild = winBuildMonth(winList, d)        // D-618: from the whole list, never a part of it
 		}
 	}
 	for _, v := range vulns {
@@ -640,6 +648,9 @@ type swInfo struct {
 	pkgVer, pkgSrc string
 	// winNamed: the software is a Windows release row and NVD names its release in some entry of the list (D-546).
 	winNamed bool
+	// winBuild: the month of the monthly update a Windows release row's build carries, read from the list's fix builds (D-618,
+	// winBuildMonth); zero when not known or not computed (FixedInFor, the plan pass), and then the month rule never closes.
+	winBuild winBuild
 	// osName is the device's operating system as inventory folds it ("Microsoft Windows 10 Enterprise LTSC 2019 10.0.17763.6532"):
 	// a Windows LTSC/LTSB edition is still serviced when its release has ended (D-546).
 	osName string

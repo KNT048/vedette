@@ -9,6 +9,10 @@ import { modulesStore } from '@/mocks/stores'
 describe('Updates to plan (S-TIER-1, S-TIER-2)', () => {
   it('one item per update on one device, the CVEs with tier, published day and evidence; the filter narrows; no a11y violation', async () => {
     renderApp('/plan')
+    // D-623: with no filter picked, the page opens on "Likely to be exploited" when some update fixes such a CVE
+    expect(await screen.findByRole('heading', { level: 1, name: '3 updates to plan' })).toBeInTheDocument()
+    expect(screen.getByText(/FIRST estimates at least a 1 in 10 chance they are exploited/)).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'All' }))
     expect(await screen.findByRole('heading', { level: 1, name: '4 updates to plan' })).toBeInTheDocument()
     const list = screen.getByRole('list', { name: 'Updates to plan' })
     expect(within(list).getByText(/Install the latest cumulative update for Windows Server 2022 \(build 20348\.4405 or later\)/)).toBeInTheDocument()
@@ -27,6 +31,22 @@ describe('Updates to plan (S-TIER-1, S-TIER-2)', () => {
     await expectNoA11yViolations()
     await userEvent.click(screen.getByRole('button', { name: 'Recent' }))
     await waitFor(() => expect(screen.queryByText(/Upgrade Synology NAS/)?.closest('li')?.textContent).toMatch(/fixes 1 CVE(?!s)/))
+  })
+
+  it('a long list opens on its first 50 CVEs, likely first then by severity, with "Show all"; a distribution package names its fixed version (D-622, D-623)', async () => {
+    renderApp('/plan?tier=all')
+    const list = await screen.findByRole('list', { name: 'Updates to plan' })
+    expect(within(list).getByText('Upgrade the openssl package from 3.0.2-0ubuntu1.18 to 3.0.2-0ubuntu1.20 or later')).toBeInTheDocument()
+    const win = within(list).getAllByRole('listitem').find((li) => li.textContent?.includes('Windows Server 2022'))!
+    await userEvent.click(within(win).getByText('Show the 65 CVEs'))
+    const rows = () => within(within(win).getByRole('table')).getAllByRole('row').length - 1
+    expect(rows()).toBe(50)
+    const [, first] = within(within(win).getByRole('table')).getAllByRole('row')
+    expect(within(first!).getByText('Likely to be exploited')).toBeInTheDocument()
+    expect(within(win).getByText('The 50 that matter most of 65: likely to be exploited first, then by severity.')).toBeInTheDocument()
+    await userEvent.click(within(win).getByRole('button', { name: 'Show all 65 CVEs' }))
+    expect(rows()).toBe(65)
+    expect(within(win).queryByRole('button', { name: 'Show all 65 CVEs' })).not.toBeInTheDocument()
   })
 
   it('not compared yet comes first: no invitation to turn the feeds on, no device section (review r1 #4 of #803)', async () => {

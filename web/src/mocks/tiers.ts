@@ -42,7 +42,10 @@ export const tierFacts: TierFact[] = [
   fact('CVE-2026-33101', 160, 'low', 3.7, 0.003, ['OpenSSL OpenSSL']),
   fact('CVE-2026-34500', 30, null, null, 0.021, ['Synology DiskStation Manager'], true, 'Awaiting Analysis'),
   // the long tail of a cumulative update (D-623: an item opens on its first 50, likely first, then by severity)
-  ...Array.from({ length: 60 }, (_, i) => fact(`CVE-2026-${32100 + i}`, 30 + i * 4, (['high', 'medium', 'low'] as const)[i % 3], [7.2, 5.4, 3.1][i % 3], 0.001 + (i % 7) / 1000, ['Microsoft Windows Server 2022'])),
+  ...Array.from({ length: 60 }, (_, i) => {
+    const [severity, score] = ([['high', 7.2], ['medium', 5.4], ['low', 3.1]] as const)[i % 3] ?? ['low', 3.1]
+    return fact(`CVE-2026-${32100 + i}`, 30 + i * 4, severity, score, 0.001 + (i % 7) / 1000, ['Microsoft Windows Server 2022'])
+  }),
   // older than 12 months: listed only because a scan engine found it (D-615 (4))
   fact('CVE-2024-28870', 520, 'critical', 9.1, 0.416, ['Synology DiskStation Manager']),
   // in the data but on no device: its CVE page still answers (S-TIER-1)

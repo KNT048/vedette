@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"maps"
+	"runtime"
 	"slices"
 	"time"
 )
@@ -187,7 +188,9 @@ func (s *Service) buildDistro(ctx context.Context, src sourceRow, p pullPlan, de
 	p.out = outcome{OK: true, ETag: resp.ETag, LastModif: resp.LastModified}
 	p.out.fill(res.Stats, len(res.Rows))
 	p.distro, p.hasDistro, p.distroKEV, p.distroPrint = res.Rows, true, want.KEV, print
-	s.Log.InfoContext(ctx, "feeds: distribution pull parsed", "feed", src.ID, "rows", len(res.Rows), "tier_cves", len(want.Tier), "packages", len(want.Packages))
+	var ms runtime.MemStats // D-622: the heap with the parsed rows still held, for the director's measure on the N100 (once a day a feed)
+	runtime.ReadMemStats(&ms)
+	s.Log.InfoContext(ctx, "feeds: distribution pull parsed", "feed", src.ID, "rows", len(res.Rows), "tier_cves", len(want.Tier), "packages", len(want.Packages), "heap_mb", ms.HeapInuse>>20)
 	return p, nil
 }
 

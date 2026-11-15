@@ -80,10 +80,17 @@ func (s *Service) enrolHostname(ctx context.Context, n nodeRow, hint observe.Ass
 	if name == "" || hasAnswer(n.reported, "system_info") || hasAnswer(n.reported, "hostname") || len(in.snaps["system_info"]) > 0 {
 		return false, nil
 	}
-	if err := s.record(ctx, []observe.Observation{{AssetHint: hint, Field: observe.Hostname, Value: name, Source: observe.Agent, Confidence: enrolHostConfidence}}); err != nil {
-		return false, err
+	// One observation, so the answer says whether the inventory took it: the "hostname" mark is set only then (review r1 #4 of #801), and a
+	// name it refused (another device's, a bad value) is tried again at the next request instead of never.
+	err = s.cfg.Sink.Record(ctx, []observe.Observation{{AssetHint: hint, Field: observe.Hostname, Value: name, Source: observe.Agent, Confidence: enrolHostConfidence}})
+	switch {
+	case err == nil:
+		return true, nil
+	case transient(err):
+		return false, fmt.Errorf("agentintake: enrolment host name: %w", err)
 	}
-	return true, nil
+	s.cfg.Log.InfoContext(ctx, "agent-intake: the inventory refused the enrolment host name", "node", n.id, "error", err.Error())
+	return false, nil
 }
 
 // machineNameRE is the product's name rule (rules/security.md); uuidRE a host_identifier of --host_identifier=uuid, which names no machine.

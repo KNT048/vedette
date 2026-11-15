@@ -463,6 +463,11 @@ describe('findings: customer walk 1 (D-484)', () => {
     const chip = within(within(table).getByRole('row', { name: /CVE-2026-119977/ })).getByText('High, unverified')
     expect(chip).toHaveAttribute('title', expect.stringContaining("The device's agent reports the installed version"))
     expect(chip.getAttribute('title')).not.toMatch(/Add the version/)
+    // the mock's "How to check it yourself" agrees with mitigation genericRecheck (review r1 #6 of #801)
+    sessionStore.set({ userId: 'u-admin' })
+    const d = await (await fetch(`${location.origin}/api/v1/findings/${id}`)).json() as { recheck: { steps: string[] } }
+    expect(d.recheck.steps[0]).toMatch(/^Nothing to look up on .+: its agent reports the installed version of /)
+    expect(d.recheck.steps.join(' ')).not.toMatch(/About screen/)
   })
 
   it('W1-12: select all shown, one action and one note, one history and audit row per finding', async () => {

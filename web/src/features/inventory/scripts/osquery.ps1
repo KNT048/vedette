@@ -212,7 +212,10 @@ try {
   $want = ((Get-Content (Join-Path $Tmp 'SHA256SUMS')) | Where-Object { $_ -match [regex]::Escape($File) + '$' } | Select-Object -First 1) -split '\s+' | Select-Object -First 1
   $got = (Get-FileHash (Join-Path $Tmp $File) -Algorithm SHA256).Hash
   if (-not $want -or $got -ne $want.ToUpper()) { throw "Checksum of $File does not match. Nothing was installed." }
-  Start-Process msiexec -ArgumentList '/i', (Join-Path $Tmp $File), '/qn', '/norestart' -Wait
+  $msi = Start-Process msiexec -ArgumentList '/i', (Join-Path $Tmp $File), '/qn', '/norestart' -Wait -PassThru
+  # 0 = installed, 3010 = installed, a restart finishes it. Anything else (1603 failed, 1618 another installation is running) stops here,
+  # before the CA file, the flags or the service are touched (#801 review r1 #5).
+  if ($msi.ExitCode -ne 0 -and $msi.ExitCode -ne 3010) { throw "The osquery installer (msiexec) failed with exit code $($msi.ExitCode). Nothing was changed; run this command again (1618: wait for the other installation to finish)." }
   # Only now, with the package verified and installed: a failed run (another box unreachable, a refused certificate) leaves the CA file of a
   # working enrolment alone, which the running osqueryd pins (#798 review minor 2).
   New-Item -ItemType Directory -Force -Path $Dir | Out-Null

@@ -233,7 +233,7 @@ func TestInstall_WindowsPinsTheBoxCAWithoutCurl(t *testing.T) {
 	// #798 review minors 2-4: Constrained Language Mode is named before Add-Type; vedette-ca.pem (what a running osqueryd pins) is written only
 	// after the package verified and installed, so a failed run never breaks a working enrolment; a refusal says which check refused.
 	for _, step := range []string{"if ($Uninstall) {", "LanguageMode -ne 'FullLanguage'", "Add-Type", "[VedetteBox]::Pin(", "Get-FromBox 'SHA256SUMS'", "Get-FromBox $File", "Get-FileHash",
-		"Start-Process msiexec -ArgumentList '/i'", "$CaPem | Set-Content -Path $Ca -Encoding ascii", "--tls_server_certs=$Ca"} {
+		"Start-Process msiexec -ArgumentList '/i'", "-Wait -PassThru", "if ($msi.ExitCode -ne 0 -and $msi.ExitCode -ne 3010) { throw", "$CaPem | Set-Content -Path $Ca -Encoding ascii", "--tls_server_certs=$Ca"} {
 		i := strings.Index(ps1[at:], step)
 		if i < 0 {
 			t.Fatalf("the Windows script: %q is missing or comes before %q", step, prev)

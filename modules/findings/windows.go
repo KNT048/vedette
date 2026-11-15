@@ -89,11 +89,41 @@ func windowsProduct(c CPE) (string, bool) {
 // winOld are the Windows releases before 10 (6.x and older): NVD names them without build ranges, and every 10.0 build is newer. D-610
 // (N52-1): with NT 4.0, the 9x line and NVD's older name of Server 2003 too, so an entry naming only such releases (CVE-2002-0367:
 // windows_2000, windows_nt) is read as "only older releases" by the D-546 (d) proof instead of "not checked".
+// windows_nt is old only at an NT version before 10 (winOldNT); "windows_nt:*" or "windows_nt:-" names every NT release, Windows 10, 11
+// and Server 2025 (NT 10.0) among them, so it is a family row (review r1 #1 of #801).
 var winOld = map[string]bool{
 	"windows_2000": true, "windows_xp": true, "windows_vista": true, "windows_7": true, "windows_8": true, "windows_8.1": true,
 	"windows_rt": true, "windows_rt_8.1": true, "windows_server_2003": true, "windows_server_2008": true, "windows_server_2012": true,
-	"windows_nt": true, "windows_95": true, "windows_98": true, "windows_98se": true, "windows_me": true, "windows_2003_server": true,
+	"windows_95": true, "windows_98": true, "windows_98se": true, "windows_me": true, "windows_2003_server": true,
 }
+
+// winOldNT are the Windows NT versions before Windows 2000 as NVD writes them (windows_nt:4.0).
+var winOldNT = map[string]bool{"3.1": true, "3.5": true, "3.51": true, "4.0": true}
+
+// winOldNames are the display names of the winOld releases, for a sentence.
+var winOldNames = map[string]string{
+	"windows_2000": "Windows 2000", "windows_xp": "Windows XP", "windows_vista": "Windows Vista", "windows_7": "Windows 7", "windows_8": "Windows 8",
+	"windows_8.1": "Windows 8.1", "windows_rt": "Windows RT", "windows_rt_8.1": "Windows RT 8.1", "windows_server_2003": "Windows Server 2003",
+	"windows_server_2008": "Windows Server 2008", "windows_server_2012": "Windows Server 2012", "windows_95": "Windows 95", "windows_98": "Windows 98",
+	"windows_98se": "Windows 98 SE", "windows_me": "Windows Me", "windows_2003_server": "Windows Server 2003", "windows_nt": "Windows NT 4.0 or older",
+}
+
+// winRevised are the CVEs whose fix Microsoft later extended to Windows 10 and later releases, after NVD's list named only older ones:
+// no "only older releases are listed" proof ever closes them, whatever NVD's list says at the time (review r1 #2 of #801). CVE-2013-3900
+// (WinVerifyTrust padding, an opt-in fix, EnableCertPaddingCheck): Microsoft's revised advisory and the CVE.org record name Windows 10,
+// 11, Server 2016 to 2025 (https://msrc.microsoft.com/update-guide/vulnerability/CVE-2013-3900). Upkeep: .ai/deferred/fix-windows-noise.md.
+var winRevised = map[string]bool{"CVE-2013-3900": true}
+
+// winGoneProducts are Microsoft products of an old Windows that no Windows 10 or later release ships or can install: a row of one at a
+// stated version does not keep a pre-2015 entry "not checked" (D-610 (b)); the value is its name for a sentence. Interix (Subsystem for
+// UNIX-based Applications) is "no longer available" from Windows 8.1 and Server 2012 R2
+// (https://learn.microsoft.com/en-us/archive/technet-wiki/10224.posix-and-unix-support-in-windows; CVE-2004-0210). A product still shipped,
+// Internet Explorer 11 among them, does keep it.
+var winGoneProducts = map[string]string{"interix": "Interix"}
+
+// winListedMargin: D-610 (b) waits this long after CISA (or VulnCheck) listed the flaw: a listing of an old CVE is when Microsoft and NVD
+// revisit it, so a list naming only old releases may still grow (review r1 #2 of #801).
+const winListedMargin = 90 * 24 * time.Hour
 
 // winFamilyVersions are the releases of the family forms NVD used before it named each release ("windows_10:1607"; "-" is the
 // first release, 1507 for Windows 10 and 21H2 for Windows 11): the version → build, client.
@@ -126,6 +156,14 @@ func winListedOf(c CPE) (winListed, bool) {
 	}
 	if winOld[p] {
 		l.old, l.server = true, strings.Contains(p, "server")
+		return l, true
+	}
+	if p == "windows_nt" {
+		if v, lit := c.Version.Literal(); lit && c.Version.Kind == Value && winOldNT[v] {
+			l.old = true
+			return l, true
+		}
+		l.family = "windows" // every NT release, NT 10.0 among them (review r1 #1)
 		return l, true
 	}
 	if vers, ok := winFamilyVersions[p]; ok || p == "windows" {
@@ -209,8 +247,8 @@ func windowsDecide(in swInfo, v Vuln, named bool, now time.Time) (winVerdict, bo
 			_, okV := c.Vendor.Literal()
 			p, okP := c.Product.Literal()
 			undecidable = undecidable || !okV || !okP // ANY vendor or product: it may be this device
-			if ver, okVer := c.Version.Literal(); okV && okP && c.Version.Kind == Value && okVer && af.Range.IsZero() {
-				pinned = appendOnce(pinned, strings.ReplaceAll(p, "_", " ")+" "+ver)
+			if ver, okVer := c.Version.Literal(); okV && okP && winGoneProducts[p] != "" && c.Version.Kind == Value && okVer && af.Range.IsZero() {
+				pinned = appendOnce(pinned, winGoneProducts[p]+" "+clean(ver))
 			} else {
 				looseOther = true
 			}
@@ -243,13 +281,22 @@ func windowsDecide(in swInfo, v Vuln, named bool, now time.Time) (winVerdict, bo
 		}
 		return w, true
 	}
+	// review r1 #2 of #801: a CVE whose fix Microsoft extended to later releases after NVD's list named only older ones is never ruled
+	// out by "only older releases are listed", whatever that list says at the time.
+	if winRevised[v.CVE] && len(others) > 0 {
+		return winVerdict{t: Unknown, note: fmt.Sprintf("NVD lists %s for %s, but Microsoft later extended this flaw's fix to newer Windows releases (an update setting you may have to turn on): compare %s with Microsoft's advisory.",
+			v.CVE, winNames(others), d.rel.Display)}, true
+	}
 	// D-610 (N52-1): a flaw whose CVE id is from before Windows 10 came out (2015), listed by NVD only for releases before Windows 10, is
-	// not one of any 10.0 build, preview or not: Windows 10 and every later release shipped after the CVE existed, and Microsoft's
-	// advisory, which NVD's list follows, named no 10.0 release for it (an advisory published later would have named one it affects).
-	// It needs no release date or GA revision (the 140 XP-era entries a Server 2025 VM had open: CVE-2002-0367, CVE-2008-4250). Rows of
-	// another product at one stated version of that time (CVE-2004-0210: Interix 2.2, a subsystem of Windows 2000) do not name this release
-	// either; another product at any version, a family row or a release the table does not know keep it "not checked".
-	if y := cveYear(v.CVE); named && newest == 0 && len(others) > 0 && !undecidable && !unknownWin && !looseOther && y > 0 && y < winTenYear {
+	// taken as not one of any 10.0 build, preview or not: Windows 10 and every later release shipped after the CVE existed, and Microsoft's
+	// advisory, which NVD's list follows, named no 10.0 release for it. That holds only while the list is not being revisited: not within
+	// winListedMargin of CISA's (or VulnCheck's) listing, when Microsoft and NVD look at an old CVE again, and never for a CVE Microsoft
+	// is known to have extended to 10.0 (winRevised, CVE-2013-3900); NVD's later changes reach the box with the daily nvd-kev update and
+	// reopen the finding (D-530). Rows of a Microsoft product no 10.0 release has, at one stated version (winGoneProducts: CVE-2004-0210's
+	// Interix 2.2), do not name this release either; any other product, a family row (windows_nt at any version) or a release the table
+	// does not know keep it "not checked".
+	listedLongAgo := !v.DateAdded.IsZero() && !now.IsZero() && !v.DateAdded.Add(winListedMargin).After(now)
+	if y := cveYear(v.CVE); named && listedLongAgo && newest == 0 && len(others) > 0 && !undecidable && !unknownWin && !looseOther && y > 0 && y < winTenYear {
 		also := ""
 		if len(pinned) > 0 {
 			also = fmt.Sprintf(" and %s", orList(pinned))
@@ -282,7 +329,10 @@ func windowsDecide(in swInfo, v Vuln, named bool, now time.Time) (winVerdict, bo
 	// D-610: NVD's list has also stood a year when the CVE itself is two calendar years old or more: Microsoft, its own CNA, gives a
 	// Windows CVE its id in the year it publishes the advisory NVD's list follows, so a CVE-2018 entry CISA lists in 2026 has had NVD's
 	// list since 2018 (CISA's listing date says nothing about it).
-	old := cveYear(v.CVE) > 0 && !now.IsZero() && cveYear(v.CVE)+2 <= now.Year()
+	// The CVE must also predate the device's release (review r1 #3 of #801): a CVE-2024 entry fixed in a late-2024 update whose list names
+	// Server 2022 and not Server 2025 says nothing about a Server 2025 on its GA build.
+	// And not within winListedMargin of CISA's listing, when Microsoft and NVD revisit an old CVE (review r1 #2).
+	old := cveYear(v.CVE) > 0 && listedLongAgo && cveYear(v.CVE)+2 <= now.Year() && cveYear(v.CVE) < d.rel.GA.Year()
 	if shipped || settled(v, now) || old {
 		why := fmt.Sprintf("%s came out on %s, after %s listed the flaw (%s), so it carries the fix", d.rel.Display, d.rel.GA.Format("2 Jan 2006"), v.listName(), v.DateAdded.Format("2 Jan 2006"))
 		switch {
@@ -294,6 +344,10 @@ func windowsDecide(in swInfo, v Vuln, named bool, now time.Time) (winVerdict, bo
 		}
 		return winVerdict{t: No, proof: proofRelease, note: fmt.Sprintf("Not affected: NVD lists %s only for Windows releases older than this device's %s (%s), and %s. Vedette closed this by itself and reopens it if a later match says the device is affected.",
 			v.CVE, d.rel.Display, winNames(others), why)}, true
+	}
+	if y := cveYear(v.CVE); y > 0 && !listedLongAgo && y+2 <= now.Year() && y < d.rel.GA.Year() {
+		return winVerdict{t: Unknown, note: fmt.Sprintf("NVD lists %s only for Windows releases older than %s (%s), but %s listed this old flaw less than 90 days ago, when Microsoft and NVD may still add releases to it: compare with Microsoft's advisory.",
+			v.CVE, d.rel.Display, winNames(others), v.listName())}, true
 	}
 	return winVerdict{t: Unknown, note: fmt.Sprintf("NVD lists %s only for Windows releases older than %s (%s). A later release usually carries the fix, but NVD's list for this entry is less than a year old: compare with Microsoft's advisory.",
 		v.CVE, d.rel.Display, winNames(others))}, true
@@ -531,6 +585,8 @@ func winNames(products []string) string {
 	for _, p := range products {
 		if r, ok := winrel.ByProduct(p); ok {
 			names = append(names, r.Display)
+		} else if n, ok := winOldNames[p]; ok {
+			names = append(names, n)
 		} else {
 			names = append(names, strings.ReplaceAll(p, "_", " "))
 		}

@@ -249,6 +249,7 @@ func (f Finding) ApplyMatch(m Match) Finding {
 		// Review r1 #12: the agent's row is gone (or no longer decides it): drop "Detected by the agent" and take the sentence of
 		// what matches now; the basis never goes down.
 		ev := m.Evidence
+		ev.AgentRow = ev.AgentRow && f.Basis == BasisProduct // D-612: it says what a product-only finding is; a version finding stays one (review r1 #10 of #801)
 		f.Evidence = &ev
 	}
 	switch {

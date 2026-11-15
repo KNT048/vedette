@@ -1,8 +1,13 @@
 package agentintake_test
 
 import (
+	"context"
+	"errors"
 	"testing"
 	"time"
+
+	"github.com/knt048/vedette/core/observe"
+	agentintake "github.com/knt048/vedette/modules/agent-intake"
 )
 
 // W-2 (D-548, TUNE-5b walk): a machine whose system_info answer has not reached the inventory is named by the host name osquery gave at
@@ -81,5 +86,40 @@ func TestContract_D548_EnrolmentNameFromTheHostIdentifier(t *testing.T) {
 		if got != tc.want {
 			t.Errorf("host_identifier %q: device host name %q, want %q", tc.id, got, tc.want)
 		}
+	}
+}
+
+// refuseHostname is the inventory refusing the first enrolment host name it is sent (as it refuses a value it cannot take).
+type refuseHostname struct {
+	observe.Sink
+	refused int
+}
+
+func (r *refuseHostname) Record(ctx context.Context, obs []observe.Observation) error {
+	if r.refused == 0 && len(obs) == 1 && obs[0].Field == observe.Hostname {
+		r.refused++
+		return &observe.ErrRejected{Index: 0, Err: errors.New("refused")}
+	}
+	return r.Sink.Record(ctx, obs)
+}
+
+// Review r1 #4 of #801: the "hostname" mark is set only when the inventory took the name; a refused one is tried again at the next request.
+func TestContract_D548_EnrolmentHostNameMarkedOnlyWhenTaken(t *testing.T) {
+	var ref *refuseHostname
+	w := newWorld(t, func(c *agentintake.Config) { ref = &refuseHostname{Sink: c.Sink}; c.Sink = ref })
+	_, secret := w.token("lab", 7)
+	key := w.enroll(secret, "WIN-LAB", peerA)
+	osRow := snap("os_version", map[string]string{"name": "Microsoft Windows Server 2025", "version": "10.0.26100", "build": "26100", "platform": "windows"})
+	w.post("/intake/osquery/log", peerA, logBody(key, snap("interfaces", ifaceRow(macA, peerA)), osRow))
+	marked := func() int {
+		return w.count(`SELECT count(*) FROM intake_osquery_nodes WHERE ',' || reported || ',' LIKE '%,hostname,%'`)
+	}
+	if ref.refused != 1 || marked() != 0 {
+		t.Fatalf("refused %d, marked %d", ref.refused, marked())
+	}
+	w.clock.Advance(time.Minute)
+	w.post("/intake/osquery/log", peerA, logBody(key, snap("interfaces", ifaceRow(macA, peerA)), osRow))
+	if d, ok := w.device(peerA); !ok || d.Hostname == nil || *d.Hostname != "WIN-LAB" || marked() != 1 {
+		t.Fatalf("second request: marked %d, %+v", marked(), d.AssetCore)
 	}
 }

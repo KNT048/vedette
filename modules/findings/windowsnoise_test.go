@@ -33,13 +33,13 @@ var (
 func TestMatchAsset_D610_XPEraEntriesDoNotApply(t *testing.T) {
 	srv := winPC(26100, true, "1742", "x64")
 	w, m := oneMatch(t, srv, cve0367, true, cve62215)
-	wantMatch(t, "CVE-2002-0367 open", w, m, "notaffected", "", "", "only for Windows releases before Windows 10 (windows 2000, windows nt)", "dates from 2002", "Windows Server 2025 is not affected")
+	wantMatch(t, "CVE-2002-0367 open", w, m, "notaffected", "", "", "only for Windows releases before Windows 10 (Windows 2000, Windows NT 4.0 or older)", "dates from 2002", "Windows Server 2025 is not affected")
 	if w, _ := oneMatch(t, srv, cve0367, false, cve62215); w != "none" {
 		t.Errorf("CVE-2002-0367 on a fresh device: %s", w)
 	}
 	// CVE-2004-0210 (POSIX subsystem): NVD also lists Interix 2.2, another product at one version of that time
 	w, m = oneMatch(t, srv, cve0210, true, cve62215)
-	wantMatch(t, "CVE-2004-0210", w, m, "notaffected", "", "", "(windows 2000, windows nt) and interix 2.2", "dates from 2004")
+	wantMatch(t, "CVE-2004-0210", w, m, "notaffected", "", "", "(Windows 2000, Windows NT 4.0 or older) and Interix 2.2", "dates from 2004")
 	w, m = oneMatch(t, srv, cve4250, true, cve62215)
 	wantMatch(t, "CVE-2008-4250 (KEV 2026)", w, m, "notaffected", "", "", "dates from 2008")
 	// CVE-2019-0708 (BlueKeep) names only older releases and has stood in KEV since 2021: D-546 (d) at Server 2025's GA build.
@@ -48,7 +48,7 @@ func TestMatchAsset_D610_XPEraEntriesDoNotApply(t *testing.T) {
 	w, m = oneMatch(t, srv, blue, true, cve62215)
 	wantMatch(t, "CVE-2019-0708", w, m, "notaffected", "", "", "only for Windows releases older than this device's Windows Server 2025")
 	// a 2018 CVE CISA listed only this year, NVD naming only Windows 7: its list has stood since 2018 (the CVE's year, D-610)
-	w, m = oneMatch(t, srv, nvdRaw("CVE-2018-3333", "2026-10-01", "cpe:2.3:o:microsoft:windows_7:-:sp1:*:*:*:*:*:*", "cpe:2.3:o:microsoft:windows_server_2016:-:*:*:*:*:*:*:*"), true, cve62215)
+	w, m = oneMatch(t, srv, nvdRaw("CVE-2018-3333", "2026-06-01", "cpe:2.3:o:microsoft:windows_7:-:sp1:*:*:*:*:*:*", "cpe:2.3:o:microsoft:windows_server_2016:-:*:*:*:*:*:*:*"), true, cve62215)
 	wantMatch(t, "2018 CVE listed this year", w, m, "notaffected", "", "", "the CVE dates from 2018, so NVD's list has stood for over a year")
 }
 
@@ -95,5 +95,65 @@ func TestMatchAsset_N52_AgentRowProductMatch(t *testing.T) {
 		if !strings.Contains(res.New[0].Evidence.Summary, "lists no affected versions") {
 			t.Errorf("%s: %q", tc.source, res.New[0].Evidence.Summary)
 		}
+	}
+}
+
+// Review r1 of #801: what D-610 must never close.
+func TestMatchAsset_D610_ReviewR1NeverCloses(t *testing.T) {
+	srv := winPC(26100, true, "1742", "x64")
+	pc24 := winPC(26100, false, "1742", "x64")
+	stays := func(name string, a Asset, v Vuln) {
+		t.Helper()
+		if w, m := oneMatch(t, a, v, true, cve62215); w != "existing" || m.Basis != BasisProduct {
+			t.Errorf("%s: %s %s %q", name, w, m.Basis, m.Evidence.Summary)
+		}
+	}
+	// #1: windows_nt at any version, or "-", is every NT release, NT 10.0 among them
+	stays("windows_nt:*", srv, nvdRaw("CVE-2004-3333", "2022-03-03", "cpe:2.3:o:microsoft:windows_2000:-:*:*:*:*:*:*:*", "cpe:2.3:o:microsoft:windows_nt:*:*:*:*:*:*:*:*"))
+	stays("windows_nt:-", srv, nvdRaw("CVE-2004-3334", "2022-03-03", "cpe:2.3:o:microsoft:windows_nt:-:*:*:*:*:*:*:*"))
+	// #2: CVE-2013-3900 (KEV since 2022, fix opt-in), which Microsoft extended to Windows 10 and later: with NVD's rows of 2026-10-07 (they
+	// name 24H2 and Server 2025 with no range) and with an older list naming only releases before Windows 10 or only up to 23H2/2022
+	var now3900 []string
+	for _, p := range []string{"windows_10_1507:-", "windows_10_1809:-", "windows_10_22h2:-", "windows_11_23h2:-", "windows_11_24h2:-", "windows_7:-:sp1",
+		"windows_8.1:-", "windows_server_2008:r2:sp1", "windows_server_2012:r2", "windows_server_2016:-", "windows_server_2019:-", "windows_server_2022:-",
+		"windows_server_2022_23h2:-", "windows_server_2025:-"} {
+		parts := strings.SplitN(p, ":", 3)
+		upd := "*"
+		if len(parts) == 3 {
+			upd = parts[2]
+		}
+		now3900 = append(now3900, "cpe:2.3:o:microsoft:"+parts[0]+":"+parts[1]+":"+upd+":*:*:*:*:*:*")
+	}
+	cve3900 := nvdRaw("CVE-2013-3900", "2022-01-10", now3900...)
+	stays("CVE-2013-3900 now, Server 2025", srv, cve3900)
+	stays("CVE-2013-3900 now, 24H2", pc24, cve3900)
+	stays("CVE-2013-3900 old list", srv, nvdRaw("CVE-2013-3900", "2022-01-10", "cpe:2.3:o:microsoft:windows_7:-:sp1:*:*:*:*:*:*", "cpe:2.3:o:microsoft:windows_server_2008:r2:sp1:*:*:*:*:*:*"))
+	stays("CVE-2013-3900 list up to 2022", srv, nvdRaw("CVE-2013-3900", "2022-01-10", "cpe:2.3:o:microsoft:windows_7:-:sp1:*:*:*:*:*:*", "cpe:2.3:o:microsoft:windows_server_2022:-:*:*:*:*:*:*:*"))
+	// #2: a pre-2015 entry CISA listed within 90 days: Microsoft and NVD may still be revisiting it
+	stays("listed last month", srv, nvdRaw("CVE-2009-4444", "2026-10-20", "cpe:2.3:o:microsoft:windows_xp:-:sp3:*:*:*:*:*:*"))
+	if _, m := oneMatch(t, srv, nvdRaw("CVE-2018-4444", "2026-10-20", "cpe:2.3:o:microsoft:windows_7:-:sp1:*:*:*:*:*:*"), true, cve62215); !strings.Contains(m.Evidence.Summary, "less than 90 days ago") {
+		t.Errorf("recent listing of an old CVE: %q", m.Evidence.Summary)
+	}
+	// #8: a pre-2015 entry that also lists 24H2 (Server 2025's build) stays; a still-shipping product at one version (IE 11) keeps it
+	stays("also 24H2", srv, nvdRaw("CVE-2014-5555", "2022-03-03", "cpe:2.3:o:microsoft:windows_7:-:sp1:*:*:*:*:*:*", "cpe:2.3:o:microsoft:windows_11_24h2:-:*:*:*:*:*:*"))
+	stays("IE 11 row", srv, nvdRaw("CVE-2014-6666", "2022-03-03", "cpe:2.3:o:microsoft:windows_7:-:sp1:*:*:*:*:*:*", "cpe:2.3:a:microsoft:internet_explorer:11:*:*:*:*:*:*:*"))
+	// #3: a CVE of the year the release came out, fixed in a late update, whose list names older releases only, listed by CISA in 2026
+	late := nvdRaw("CVE-2024-7777", "2026-03-01", "cpe:2.3:o:microsoft:windows_server_2022:*:*:*:*:*:*:*:*", "cpe:2.3:o:microsoft:windows_11_23h2:*:*:*:*:*:*:*:*")
+	late.Affected[0].Range = VersionRange{EndExcl: "10.0.20348.2849"}
+	late.Affected[1].Range = VersionRange{EndExcl: "10.0.22631.4460"}
+	stays("CVE-2024 on Server 2025 GA", srv, late)
+	// #8: the CVE-year proof on a build below the release's first public one (a 24H2 Copilot+ PC on 26100.712)
+	if w, m := oneMatch(t, winPC(26100, false, "712", "arm64"), nvdRaw("CVE-2018-8888", "2026-10-01", "cpe:2.3:o:microsoft:windows_10_1809:-:*:*:*:*:*:*:*"), true, cve62215); w != "existing" || !strings.Contains(m.Evidence.Summary, "first public one") {
+		t.Errorf("below the first public build: %s %q", w, m.Evidence.Summary)
+	}
+}
+
+// Review r1 #10 of #801: a version finding the agent detected that now matches only by product takes the new sentence but stays a version
+// finding, so it does not carry agent_row (that flag describes a product-only finding).
+func TestApplyMatch_D612_AgentRowOnlyOnProductFindings(t *testing.T) {
+	f := Finding{Status: StatusSuspected, Basis: BasisVersion, Severity: SeverityHigh, Evidence: &Evidence{Summary: "The agent reports …", Agent: true}}
+	got := f.ApplyMatch(Match{Basis: BasisProduct, Severity: SeverityMedium, Evidence: Evidence{Summary: "cannot compare", AgentRow: true}})
+	if got.Basis != BasisVersion || got.Evidence == nil || got.Evidence.Agent || got.Evidence.AgentRow || got.Evidence.Summary != "cannot compare" {
+		t.Fatalf("%+v %+v", got, got.Evidence)
 	}
 }

@@ -227,10 +227,24 @@ func aged(v Vuln, now time.Time) bool {
 }
 
 // confirmedMatch reports whether a matcher's match rests on confirmed evidence (D-615): the version the device's own agent
-// reports (its build, or its package, the distribution's verdict included: D-548, D-516). A scan's confirmation comes from
-// ConfirmFromScan, never from the matcher.
-func confirmedMatch(m Match) bool {
-	return m.Basis == BasisScan || m.Basis == BasisVersion && m.Evidence.Agent
+// reports (its build, or its package, the distribution's verdict included: D-548, D-516), or, D-616, the version the device
+// states in answer to Vedette's own SNMP read of its address (a row of source snmp, or the stated network OS row when
+// Asset.SNMPOS states it: the device's own word to an authenticated query, never an LLDP frame or a banner). A scan's
+// confirmation comes from ConfirmFromScan, never from the matcher.
+func confirmedMatch(a Asset, sws []Software, m Match) bool {
+	if m.Basis == BasisScan || m.Basis == BasisVersion && m.Evidence.Agent {
+		return true
+	}
+	if m.Basis != BasisVersion {
+		return false
+	}
+	for _, s := range sws {
+		if s.ID != m.SoftwareID {
+			continue
+		}
+		return s.Source == "snmp" || s.ID == osSoftwareID(a.ID) && a.SNMPOS != "" && strings.TrimSpace(a.SNMPOS) == strings.TrimSpace(a.StatedOS)
+	}
+	return false
 }
 
 // agedSummary is the note of a finding the age rule closes.
@@ -392,7 +406,7 @@ func MatchAsset(a Asset, vulns []Vuln, have map[string]bool, now time.Time) Matc
 			}
 			continue
 		}
-		if aged(v, now) && !confirmedMatch(*best) { // D-615: an old KEV CVE only on confirmed evidence
+		if aged(v, now) && !confirmedMatch(a, sws, *best) { // D-615: an old KEV CVE only on confirmed evidence
 			r := *best
 			r.Evidence.Summary = agedSummary(v, r)
 			res.Aged = append(res.Aged, r)

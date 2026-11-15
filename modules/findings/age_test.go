@@ -1,6 +1,9 @@
 package findings
 
 import (
+	"encoding/json"
+	"os"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -19,25 +22,27 @@ func TestMatchAsset_D615_OldKEVNeedsConfirmedEvidence(t *testing.T) {
 	}
 	productOnly := func(pub time.Time) []Vuln { v := qnapVuln(); v.Published = pub; return []Vuln{v} }
 	agent := func(ver string) Asset { a := nas(ver); a.Software[0].Source = "agent"; return a }
+	snmpRow := func(ver string) Asset { a := nas(ver); a.Software[0].Source = "snmp"; return a }
 	for name, tc := range map[string]struct {
 		a       Asset
 		vulns   []Vuln
 		want    Basis // "" = no finding
 		agentEv bool
 	}{
-		"old, banner version inside":   {nas("6.1.1"), ranged(old), "", false},
-		"old, product only":            {nas("6.1.1"), productOnly(old), "", false},
-		"old, agent version inside":    {agent("6.1.1"), ranged(old), BasisVersion, true},
-		"recent, banner version":       {nas("6.1.1"), ranged(recent), BasisVersion, false},
-		"recent, product only":         {nas("6.1.1"), productOnly(recent), BasisProduct, false},
-		"unknown day, banner version":  {nas("6.1.1"), ranged(time.Time{}), BasisVersion, false},
-		"unknown day, product only":    {nas("6.1.1"), productOnly(time.Time{}), BasisProduct, false},
-		"just inside 12 months":        {nas("6.1.1"), ranged(t0.Add(-AgeLimit + time.Hour)), BasisVersion, false},
-		"just over 12 months":          {nas("6.1.1"), ranged(t0.Add(-AgeLimit - time.Hour)), "", false},
-		"old, banner version outside":  {nas("6.2.0"), ranged(old), "", false},
-		"old, agent version outside":   {agent("6.2.0"), ranged(old), "", false},
-		"old, banner, existing pair":   {nas("6.1.1"), ranged(old), "", false},
-		"recent, agent version inside": {agent("6.1.1"), ranged(recent), BasisVersion, true},
+		"old, banner version inside":       {nas("6.1.1"), ranged(old), "", false},
+		"old, product only":                {nas("6.1.1"), productOnly(old), "", false},
+		"old, agent version inside":        {agent("6.1.1"), ranged(old), BasisVersion, true},
+		"recent, banner version":           {nas("6.1.1"), ranged(recent), BasisVersion, false},
+		"recent, product only":             {nas("6.1.1"), productOnly(recent), BasisProduct, false},
+		"unknown day, banner version":      {nas("6.1.1"), ranged(time.Time{}), BasisVersion, false},
+		"unknown day, product only":        {nas("6.1.1"), productOnly(time.Time{}), BasisProduct, false},
+		"just inside 12 months":            {nas("6.1.1"), ranged(t0.Add(-AgeLimit + time.Hour)), BasisVersion, false},
+		"just over 12 months":              {nas("6.1.1"), ranged(t0.Add(-AgeLimit - time.Hour)), "", false},
+		"old, banner version outside":      {nas("6.2.0"), ranged(old), "", false},
+		"old, agent version outside":       {agent("6.2.0"), ranged(old), "", false},
+		"old, banner, existing pair":       {nas("6.1.1"), ranged(old), "", false},
+		"recent, agent version inside":     {agent("6.1.1"), ranged(recent), BasisVersion, true},
+		"old, SNMP version inside (D-616)": {snmpRow("6.1.1"), ranged(old), BasisVersion, false},
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
@@ -176,4 +181,97 @@ func TestPlan_HonestStateBeforeTheMatcher(t *testing.T) {
 	if c, _ = e.call("GET", "/findings/plan?tier=bogus", "viewer", ""); c != 400 {
 		t.Fatalf("bad tier: %d", c)
 	}
+}
+
+// D-615 measured on the real fixtures: the KEV entries and NVD ranges of the golden set, the N23 Juniper set and the N22
+// Office set, with each CVE's real published day (testdata/kev-published.json), on the devices the golden tests use. Each
+// device starts with the flood the old matcher left (a finding for every KEV CVE of its products) and is matched again:
+// the counts are the open findings the age rule closes, by basis. A patched Ubuntu server whose versions come from its
+// agent loses nothing to the rule.
+func TestGolden_D615_WhatTheAgeRuleCloses(t *testing.T) {
+	t.Parallel()
+	b, err := os.ReadFile("testdata/kev-published.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var pf struct {
+		Published map[string]string `json:"published"`
+	}
+	if err := json.Unmarshal(b, &pf); err != nil {
+		t.Fatal(err)
+	}
+	dated := func(vs []Vuln) []Vuln {
+		for i := range vs {
+			if d, err := time.Parse(time.DateOnly, pf.Published[vs[i].CVE]); err == nil {
+				vs[i].Published = d
+			}
+		}
+		return vs
+	}
+	golden := dated(goldenVulns(t))
+	junos := dated(loadGolden(t, "testdata/kev-nvd-junos-n23.json"))
+	ex4200SNMP := walk1EX4200()
+	ex4200SNMP.SNMPOS = ex4200SNMP.StatedOS
+	devices := []struct {
+		name  string
+		a     Asset
+		vulns []Vuln
+	}{
+		{"iPhone 16.0.3 (typed)", Asset{ID: "a", Name: "phone", Software: []Software{iPhone(golden, "16.0.3")}}, golden},
+		{"FortiGate 7.2.5 (banner)", Asset{ID: "a", Name: "fw", Software: []Software{fortiGate(golden, "7.2.5")}}, golden},
+		{"FortiGate 6.2.0 (banner)", Asset{ID: "a", Name: "fw", Software: []Software{fortiGate(golden, "6.2.0")}}, golden},
+		{"Office 2016 (typed)", Asset{ID: "a", Name: "pc", Software: []Software{office(golden, "2016")}}, golden},
+		{"NetScaler 13.1-49.13 (banner)", Asset{ID: "a", Name: "adc", Software: []Software{netScaler(golden, "13.1-49.13")}}, golden},
+		{"EX4200 JUNOS 15.1R7.9 (LLDP)", walk1EX4200(), junos},
+		{"EX4200 JUNOS 15.1R7.9 (SNMP)", ex4200SNMP, junos},
+		{"Ubuntu 26.04.1 server (agent)", Asset{ID: "a", Name: "byn", OS: "Ubuntu 26.04.1 LTS", AgentOS: "Ubuntu 26.04.1 LTS", Software: ubuntuServer()}, golden},
+	}
+	var totP, totV, totKept, totOpen int
+	for _, d := range devices {
+		flood := map[string]bool{}
+		for _, v := range d.vulns {
+			for _, sw := range deviceSoftware(d.a) {
+				if keyedTo(sw, v) {
+					flood[v.CVE] = true
+				}
+			}
+		}
+		undated := slices.Clone(d.vulns)
+		for i := range undated {
+			undated[i].Published = time.Time{}
+		}
+		before := MatchAsset(d.a, undated, flood, t0) // the matcher without the age rule (no published day)
+		after := MatchAsset(d.a, d.vulns, flood, t0)
+		var p, v int
+		for _, x := range after.Aged {
+			if !flood[x.CVE] {
+				continue
+			}
+			if x.Basis == BasisProduct {
+				p++
+			} else {
+				v++
+			}
+		}
+		t.Logf("%-32s open before %3d (product %3d), closed by the age rule: product %3d, version %3d; kept %3d",
+			d.name, len(before.Existing), countBasis(before.Existing, BasisProduct), p, v, len(after.Existing))
+		if len(before.Existing) != len(after.Existing)+p+v {
+			t.Errorf("%s: %d before, %d kept + %d closed", d.name, len(before.Existing), len(after.Existing), p+v)
+		}
+		totP, totV, totKept, totOpen = totP+p, totV+v, totKept+len(after.Existing), totOpen+len(before.Existing)
+	}
+	t.Logf("all devices: %d open findings before; the age rule closes %d product-only and %d banner/typed-version ones; %d stay", totOpen, totP, totV, totKept)
+	if totOpen != 107 || totP != 12 || totV != 68 || totKept != 27 { // pinned: a change of the rule or the data shows here
+		t.Errorf("before %d, closed product %d, version %d, kept %d; want 107, 12, 68, 27", totOpen, totP, totV, totKept)
+	}
+}
+
+func countBasis(ms []Match, b Basis) int {
+	n := 0
+	for _, m := range ms {
+		if m.Basis == b {
+			n++
+		}
+	}
+	return n
 }

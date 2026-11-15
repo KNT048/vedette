@@ -5,10 +5,11 @@ import { API, audit, body, currentUser, fail, guard } from '@/mocks/http'
 import { collection, nowIso } from '@/mocks/db'
 import { aiAvailable, aiCandidates, assetsStore, findingsStore, recordAiRun, type AiJob } from '@/mocks/stores'
 import { versionNeeded } from '@/mocks/match'
+import { epssDate, planSeed, recentSince, tierFact, tierOf, tierState, withinYear } from '@/mocks/tiers'
 import type { Asset, Finding } from '@/lib/types'
 import { untilOk } from './accept'
 import { compromise, packs } from './packs'
-import type { AiResult, ApplyItem, FindingAsset, FindingDetail, FindingRow, FirewallGuide, KevInfo, MitigationPack, RowFix, StatusAction } from './types'
+import type { AiResult, ApplyItem, FindingAsset, FindingDetail, FindingRow, FirewallGuide, KevInfo, MitigationPack, Plan, PlanCve, PlanItem, RowFix, StatusAction } from './types'
 import { fmtDate } from '@/lib/format'
 import { displayName } from '@/features/inventory/nameOf'
 
@@ -38,7 +39,45 @@ function kevInfo(cve: string): KevInfo | null {
   const v = vulns.find((x) => x.cve === cve)
   if (!v) return null
   const display = DISPLAY[`${v.vendor}|${v.product}`.toLowerCase()] ?? `${v.vendor} ${v.product}`
-  return { name: v.name, vendor: v.vendor, product: v.product, display, required_action: v.required_action, links: v.links, date_added: v.date_added, due_date: v.due_date, ransomware: v.ransomware, epss: v.epss, has_template: v.has_template }
+  return { name: v.name, vendor: v.vendor, product: v.product, display, required_action: v.required_action, links: v.links, date_added: v.date_added, due_date: v.due_date, ransomware: v.ransomware, epss: v.epss, has_template: v.has_template,
+    published: published(v.cve) }
+}
+
+/** D-615: NVD's published date of a KEV CVE. The sample fixture has none, so a few known ones stand in; null = not answered (counts as recent). */
+const PUBLISHED: Record<string, string> = { 'CVE-2015-5477': '2015-07-29', 'CVE-2024-27834': '2024-05-14', 'CVE-2025-61624': '2025-10-02' }
+const published = (cve: string) => PUBLISHED[cve] ?? (/^CVE-2026-/.test(cve) ? '2026-06-01' : null)
+
+/** GET /findings/plan (D-613, D-615): the sample items, filtered by tier and device; a CVE older than 12 months only with basis scan. */
+function plan(tier: string, asset: string | null): Plan {
+  const st = tierState.get()
+  const ready = st.epss === 'ready' || st.recent === 'ready'
+  const assets = assetsStore.get()
+  const readable = assets.filter((a) => a.software.some((s) => !!s.version))
+  const items: PlanItem[] = []
+  let old = 0
+  if (ready && st.compared) {
+    for (const p of planSeed.get()) {
+      const a = assets.find((x) => x.id === p.asset_id)
+      if (!a || (asset && a.id !== asset)) continue
+      const cves: PlanCve[] = []
+      for (const c of p.cves) {
+        const f = tierFact(c.cve)
+        if (!f || (!withinYear(f) && c.basis !== 'scan')) continue // D-615: older only when a scan engine found it
+        const t = tierOf(f)
+        if (t === 'likely' ? st.epss !== 'ready' : st.recent !== 'ready') continue
+        if (tier !== 'all' && t !== tier) continue
+        if (!withinYear(f)) old++
+        cves.push({ cve: f.cve, tier: t, basis: c.basis, severity: f.severity, score: f.score, published: f.published, epss: f.epss, percentile: f.percentile })
+      }
+      if (cves.length === 0) continue
+      cves.sort((x, y) => (x.tier === y.tier ? 0 : x.tier === 'likely' ? -1 : 1) || (y.epss ?? 0) - (x.epss ?? 0) || y.published.localeCompare(x.published))
+      items.push({ group: `${a.id}/${p.software_id}`, asset: { id: a.id, name: nameOf(a) }, software: p.software, version: p.version, fixed: p.fixed, kind: p.kind,
+        cves, likely: cves.filter((c) => c.tier === 'likely').length, recent: cves.filter((c) => c.tier === 'recent').length })
+    }
+  }
+  items.sort((x, y) => y.likely - x.likely || (y.cves[0]?.epss ?? 0) - (x.cves[0]?.epss ?? 0) || y.cves.length - x.cves.length)
+  return { items, compared: st.compared, compared_devices: readable.length, unchecked_devices: assets.length - readable.length, old_evidence: old,
+    data: { epss: st.epss, recent: st.recent, epss_date: st.epss === 'ready' ? epssDate() : null, recent_since: st.recent === 'ready' ? recentSince() : null } }
 }
 
 /** Tên như trang Devices (D-484, D-471 `displayName`): tên máy, sản phẩm khai tay ("… (no device)" khi không có IP), hãng + model, IP, rồi phần mềm; không bao giờ là id. */
@@ -194,6 +233,15 @@ export const handlers = [
       asset: assetView(a), asset_id: a.id, software_id: s.id, software: s.display, version: s.version || null, cves,
     }))
     return HttpResponse.json({ items: list.map(row), version_needed })
+  }),
+
+  // Before /findings/:id: "plan" is not a finding id.
+  http.get(`${API}/findings/plan`, ({ request }) => {
+    const denied = guard('viewer'); if (denied) return denied
+    const q = new URL(request.url).searchParams
+    const tier = q.get('tier') ?? 'all'
+    if (!['likely', 'recent', 'all'].includes(tier)) return fail(400, 'invalid', 'tier must be likely, recent or all.')
+    return HttpResponse.json(plan(tier, q.get('asset')))
   }),
 
   http.get(`${API}/findings/:id`, ({ params }) => {

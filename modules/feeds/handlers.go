@@ -415,11 +415,16 @@ func (h *FeedHandlers) FeedsGetFeedsCveID(ctx context.Context, params oas.FeedsG
 		return nil, apierr.New(http.StatusNotFound, "not_in_kev", "This CVE is not on the exploited list (CISA KEV) in the current data.")
 	}
 	match, on := h.s.matchOf(ctx, []Product{{v.Vendor, v.Product}})
+	pub, err := h.s.st.publishedOf(ctx, v.CVE)
+	if err != nil {
+		return nil, err
+	}
 	out := struct {
 		vulnDTO
 		Matched     *[]MatchedAsset `json:"matched"`
 		NotAffected int             `json:"not_affected"`
-	}{vulnDTO: toVulnDTO(v)}
+		Published   *string         `json:"published"` // D-615
+	}{vulnDTO: toVulnDTO(v), Published: pub}
 	if on {
 		all := match[v.Key()]
 		m := h.s.withoutNotAffected(ctx, v, all)
@@ -429,6 +434,34 @@ func (h *FeedHandlers) FeedsGetFeedsCveID(ctx context.Context, params oas.FeedsG
 		out.Matched, out.NotAffected = &m, len(all)-len(m)
 	}
 	return convert[oas.FeedsGetFeedsCveIDOK](out)
+}
+
+// FeedsGetFeedsCveIDTier implements GET /feeds/cve/{id}/tier (D-613, D-615, S-TIER-1): a CVE on no exploited list, from the
+// tier data of the feeds that are on (epss-all, nvd-recent); 404 not_in_data when neither holds it.
+func (h *FeedHandlers) FeedsGetFeedsCveIDTier(ctx context.Context, params oas.FeedsGetFeedsCveIDTierParams) (*oas.FeedsGetFeedsCveIDTierOK, error) {
+	t, found, err := h.s.st.TierCVEOf(ctx, strings.ToUpper(params.ID), h.s.now())
+	if err != nil {
+		return nil, err
+	}
+	if !found {
+		return nil, apierr.New(http.StatusNotFound, "not_in_data", "This CVE is not on an exploited list, and the EPSS and NVD data on this box do not hold it.")
+	}
+	day := func(p *time.Time) *string {
+		if p == nil {
+			return nil
+		}
+		d := p.UTC().Format(time.DateOnly)
+		return &d
+	}
+	var tier *string
+	if t.Tier != "" {
+		tier = &t.Tier
+	}
+	return convert[oas.FeedsGetFeedsCveIDTierOK](map[string]any{
+		"cve": t.CVE, "tier": tier, "published": day(t.Published), "last_modified": day(t.LastModified), "nvd_status": t.NVDStatus,
+		"severity": t.Severity, "score": t.Score, "epss": t.EPSS, "percentile": t.Percentile, "epss_date": day(t.EPSSDate),
+		"products": t.Products, "ranges": t.Ranges,
+	})
 }
 
 var cveQueryRE = regexp.MustCompile(`(?i)^cve-\d{4}-\d{4,}$`)

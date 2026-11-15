@@ -9,6 +9,7 @@ export type FeedStatus = z.infer<typeof C.FeedStatus>
 export type WeeklyItem = z.infer<typeof C.WeeklyItem>
 export type MatchedAsset = z.infer<typeof C.MatchedAsset>
 export type CveDetail = z.infer<typeof C.CveDetail>
+export type TierCve = z.infer<typeof C.TierCve>
 export type IocHit = z.infer<typeof C.IocHit>
 export type SearchResult = z.infer<typeof C.SearchResult>
 export type HotResponse = z.infer<typeof C.HotResponse>

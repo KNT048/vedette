@@ -107,6 +107,7 @@ type pullPlan struct {
 
 	affected     map[string][]AffectedRow // nvd-kev (D-500)
 	affectedFull bool                     // a full pull: CVEs not in affected are dropped
+	published    map[string]string        // nvd-kev: the day NVD published each CVE (D-615)
 	hasAffected  bool
 
 	cveOrg        map[string]CVEOrgResult // cve-org (D-556): the CVEs whose record gave ranges
@@ -592,6 +593,9 @@ func (s *Service) pullOne(ctx context.Context, id, actor string) (sourceRow, int
 				rangesFirst = before == 0
 				var total int
 				if rangesChanged, total, err = applyAffected(ctx, tx, p.affected, p.affectedFull, p.out.Finished); err != nil {
+					return err
+				}
+				if err = applyPublished(ctx, tx, p.published); err != nil {
 					return err
 				}
 				p.out.Records = total // the CVEs the box has versions for, not only those this (incremental) pull got

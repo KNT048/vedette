@@ -40,12 +40,13 @@ var errNVDPaused = errors.New("feeds: the NVD pull is paused and goes on later")
 // nvdRun is one pull of the NVD affected versions, kept between ticks while it is not finished. Only the pulling
 // goroutine (it holds the feed lock) touches the pages; the progress fields are read by the handlers under nvdMu.
 type nvdRun struct {
-	url      string
-	full     bool
-	from, to time.Time
-	affected map[string][]AffectedRow
-	st       Stats
-	bytes    int
+	url       string
+	full      bool
+	from, to  time.Time
+	affected  map[string][]AffectedRow
+	published map[string]string // D-615: CVE -> the day NVD published it
+	st        Stats
+	bytes     int
 
 	start, total, pages int       // records and pages done; total is NVD's count (0 until the first page)
 	running             bool      // a pull is working on it now
@@ -292,11 +293,17 @@ func (s *Service) buildNVD(ctx context.Context, src sourceRow, p pullPlan) (pull
 		if err != nil {
 			return p, err
 		}
+		pub, err := s.st.publishedCount(ctx)
+		if err != nil {
+			return p, err
+		}
 		var from, to time.Time
-		if have > 0 && src.Status == "ok" && src.LastSuccess != nil && now.Sub(*src.LastSuccess) < nvdIncrementalDays*24*time.Hour {
+		// pub == 0: no published date yet (a box from before D-615): one full pull gives every KEV CVE its date, which an
+		// update (lastMod window) would give only to the CVEs NVD changed since
+		if have > 0 && pub > 0 && src.Status == "ok" && src.LastSuccess != nil && now.Sub(*src.LastSuccess) < nvdIncrementalDays*24*time.Hour {
 			from, to = src.LastSuccess.Add(-24*time.Hour), now
 		}
-		run = &nvdRun{url: src.URL, full: from.IsZero(), from: from, to: to, affected: map[string][]AffectedRow{}, updated: now}
+		run = &nvdRun{url: src.URL, full: from.IsZero(), from: from, to: to, affected: map[string][]AffectedRow{}, published: map[string]string{}, updated: now}
 	}
 	s.nvdMu.Lock()
 	run.running, run.busy, s.nvd = true, "", run
@@ -344,7 +351,7 @@ func (s *Service) buildNVD(ctx context.Context, src sourceRow, p pullPlan) (pull
 	}
 
 	p.out = outcome{OK: true, Bytes: run.bytes}
-	p.hasAffected, p.affectedFull, p.affected = true, run.full, run.affected
+	p.hasAffected, p.affectedFull, p.affected, p.published = true, run.full, run.affected, run.published
 	st := run.st
 	if len(st.Reasons) > 3 {
 		st.Reasons = st.Reasons[:3]
@@ -389,6 +396,7 @@ func (s *Service) nvdPages(ctx context.Context, run *nvdRun) error {
 			run.st.Reasons = append(run.st.Reasons, d.Reasons...)
 		}
 		maps.Copy(run.affected, d.Affected)
+		maps.Copy(run.published, d.Published)
 		s.nvdMu.Lock()
 		run.start += d.Returned
 		run.total = d.Total

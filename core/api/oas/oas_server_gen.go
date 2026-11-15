@@ -1051,6 +1051,13 @@ type Handler interface {
 	//
 	// GET /feeds/cve/{id}
 	FeedsGetFeedsCveID(ctx context.Context, params FeedsGetFeedsCveIDParams) (*FeedsGetFeedsCveIDOK, error)
+	// FeedsGetFeedsCveIDTier implements feeds_get_feeds_cve_id_tier operation.
+	//
+	// A CVE that is on no exploited list: EPSS, NVD dates and severity from the tier data (404 not_in_data
+	// when neither feed holds it).
+	//
+	// GET /feeds/cve/{id}/tier
+	FeedsGetFeedsCveIDTier(ctx context.Context, params FeedsGetFeedsCveIDTierParams) (*FeedsGetFeedsCveIDTierOK, error)
 	// FeedsGetFeedsHot implements feeds_get_feeds_hot operation.
 	//
 	// Newly exploited vulnerabilities, grouped by product, with "Do you have it?".
@@ -1130,6 +1137,13 @@ type Handler interface {
 	//
 	// GET /findings/{id}
 	FindingsGetFindingsID(ctx context.Context, params FindingsGetFindingsIDParams) (*FindingsGetFindingsIDOK, error)
+	// FindingsGetFindingsPlan implements findings_get_findings_plan operation.
+	//
+	// Updates to plan: one item per update on one device that fixes CVEs likely to be exploited (EPSS 10 %
+	// or more) or published in the last 12 months, version-confirmed only; never findings, never alerts.
+	//
+	// GET /findings/plan
+	FindingsGetFindingsPlan(ctx context.Context, params FindingsGetFindingsPlanParams) (*FindingsGetFindingsPlanOK, error)
 	// FindingsPostFindingsIDAi implements findings_post_findings_id_ai operation.
 	//
 	// Explain or draft a recommendation with the customer AI key (BYOK); fails if AI is off.

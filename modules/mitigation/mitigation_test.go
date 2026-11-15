@@ -68,6 +68,10 @@ func (fakeFeeds) KevInfo(_ context.Context, cves []string) (map[string]findings.
 
 func (fakeFeeds) Vulns(context.Context) ([]findings.Vuln, error) { return nil, nil }
 
+func (fakeFeeds) TierStatus(context.Context) (findings.TierStatus, error) {
+	return findings.TierStatus{}, nil
+}
+
 type fakeVendors map[string]bool
 
 func (v fakeVendors) HasFirewallVendor(_ context.Context, vendor string) (bool, error) {

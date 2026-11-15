@@ -1506,6 +1506,16 @@ func (UnimplementedHandler) FeedsGetFeedsCveID(ctx context.Context, params Feeds
 	return r, ht.ErrNotImplemented
 }
 
+// FeedsGetFeedsCveIDTier implements feeds_get_feeds_cve_id_tier operation.
+//
+// A CVE that is on no exploited list: EPSS, NVD dates and severity from the tier data (404 not_in_data
+// when neither feed holds it).
+//
+// GET /feeds/cve/{id}/tier
+func (UnimplementedHandler) FeedsGetFeedsCveIDTier(ctx context.Context, params FeedsGetFeedsCveIDTierParams) (r *FeedsGetFeedsCveIDTierOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // FeedsGetFeedsHot implements feeds_get_feeds_hot operation.
 //
 // Newly exploited vulnerabilities, grouped by product, with "Do you have it?".
@@ -1621,6 +1631,16 @@ func (UnimplementedHandler) FindingsGetFindings(ctx context.Context, params Find
 //
 // GET /findings/{id}
 func (UnimplementedHandler) FindingsGetFindingsID(ctx context.Context, params FindingsGetFindingsIDParams) (r *FindingsGetFindingsIDOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// FindingsGetFindingsPlan implements findings_get_findings_plan operation.
+//
+// Updates to plan: one item per update on one device that fixes CVEs likely to be exploited (EPSS 10 %
+// or more) or published in the last 12 months, version-confirmed only; never findings, never alerts.
+//
+// GET /findings/plan
+func (UnimplementedHandler) FindingsGetFindingsPlan(ctx context.Context, params FindingsGetFindingsPlanParams) (r *FindingsGetFindingsPlanOK, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

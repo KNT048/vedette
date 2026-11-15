@@ -155,9 +155,12 @@ func (f Finding) ReopenOnMatch(now time.Time) (Finding, HistoryEntry, bool) {
 	if !f.AutoResolved() {
 		return f, HistoryEntry{}, false
 	}
+	note := "The device matches this entry again, so Vedette reopened it (it had closed it as not affected)."
+	if strings.HasPrefix(f.ResolutionNote, AgedNote) { // D-615: closed for its age, and confirmed evidence came
+		note = "A scan, the device's agent or its distribution now confirms this CVE, so Vedette reopened it (it had closed it as older than 12 months without confirmed evidence)."
+	}
 	f.Status, f.ResolvedBy, f.ResolvedAt, f.ResolutionNote, f.ResolutionReason = StatusSuspected, "", time.Time{}, "", ""
-	return f, HistoryEntry{TS: now, User: SystemUser, Action: "matches_again",
-		Note: "The device matches this entry again, so Vedette reopened it (it had closed it as not affected)."}, true
+	return f, HistoryEntry{TS: now, User: SystemUser, Action: "matches_again", Note: note}, true
 }
 
 // clipRunes cuts s to at most n UTF-16 units (jsLen), on a character boundary.

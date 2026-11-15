@@ -23,3 +23,8 @@ export type FindingDetail = z.infer<typeof C.FindingDetail>
 export type StatusAction = z.infer<typeof C.StatusAction>
 export type BulkAction = z.infer<typeof C.BulkAction>
 export type ApplyItem = z.infer<typeof C.ApplyItem>
+/** Updates to plan (D-613, D-615): tier 2 and 3 CVEs grouped by the update that fixes them. */
+export type Plan = z.infer<typeof C.Plan>
+export type PlanItem = z.infer<typeof C.PlanItem>
+export type PlanCve = z.infer<typeof C.PlanCve>
+export type PlanFilter = z.infer<typeof C.PlanFilter>

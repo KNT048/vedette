@@ -28146,6 +28146,18 @@
                       "type": "integer",
                       "minimum": 0,
                       "maximum": 9007199254740991
+                    },
+                    "published": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "D-615: the day NVD published the CVE (never CISA's date_added); null when NVD has not answered for it. Older than 12 months: a device becomes a finding only on confirmed evidence (a scan, the agent, the distribution), so matched lists devices that run the product without being findings"
                     }
                   },
                   "required": [
@@ -28163,7 +28175,198 @@
                     "epss_7d_ago",
                     "has_template",
                     "display",
-                    "matched"
+                    "matched",
+                    "published"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/feeds/cve/{id}/tier": {
+      "get": {
+        "operationId": "feeds_get_feeds_cve_id_tier",
+        "summary": "A CVE that is on no exploited list: EPSS, NVD dates and severity from the tier data (404 not_in_data when neither feed holds it)",
+        "tags": [
+          "feeds"
+        ],
+        "x-stories": [
+          "S-TIER-1"
+        ],
+        "x-min-role": "viewer",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^CVE-\\d{4}-\\d{4,}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "cve": {
+                      "type": "string",
+                      "pattern": "^CVE-\\d{4}-\\d{4,}$"
+                    },
+                    "tier": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "likely",
+                            "recent"
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "likely = EPSS 10 % or more and published in the last 12 months; recent = published in the last 12 months; null = older, or no published date in the data (only a scan engine that finds it lists it, D-615)"
+                    },
+                    "published": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "NVD `published`; null when nvd-recent does not hold it (older than 12 months, or the feed is off)"
+                    },
+                    "last_modified": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "nvd_status": {
+                      "description": "NVD's vulnStatus (\"Analyzed\", \"Awaiting Analysis\", \"Deferred\"…)",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "severity": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "critical",
+                            "high",
+                            "medium",
+                            "low",
+                            "none"
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "NVD's CVSS severity"
+                    },
+                    "score": {
+                      "anyOf": [
+                        {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 10
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "epss": {
+                      "anyOf": [
+                        {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 1
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "percentile": {
+                      "anyOf": [
+                        {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 1
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "epss_date": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "The day of the EPSS score"
+                    },
+                    "products": {
+                      "maxItems": 10,
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "Vendor and product of NVD's affected entries, at most 10"
+                    },
+                    "ranges": {
+                      "type": "boolean",
+                      "description": "NVD gives affected versions, so a device's exact version can be compared"
+                    }
+                  },
+                  "required": [
+                    "cve",
+                    "tier",
+                    "published",
+                    "last_modified",
+                    "nvd_status",
+                    "severity",
+                    "score",
+                    "epss",
+                    "percentile",
+                    "epss_date",
+                    "products",
+                    "ranges"
                   ],
                   "additionalProperties": false
                 }
@@ -30539,6 +30742,19 @@
                                       "cisa-kev",
                                       "vulncheck-kev"
                                     ]
+                                  },
+                                  "published": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string",
+                                        "format": "date",
+                                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ],
+                                    "description": "D-615: the day the CVE was published (NVD `published`), never the day CISA added it; null when NVD has not answered for it (then it counts as recent: an older CVE needs confirmed evidence, a missing date never closes a finding)"
                                   }
                                 },
                                 "required": [
@@ -30552,7 +30768,8 @@
                                   "due_date",
                                   "ransomware",
                                   "epss",
-                                  "has_template"
+                                  "has_template",
+                                  "published"
                                 ],
                                 "additionalProperties": false
                               },
@@ -31233,6 +31450,19 @@
                                 "cisa-kev",
                                 "vulncheck-kev"
                               ]
+                            },
+                            "published": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "format": "date",
+                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "description": "D-615: the day the CVE was published (NVD `published`), never the day CISA added it; null when NVD has not answered for it (then it counts as recent: an older CVE needs confirmed evidence, a missing date never closes a finding)"
                             }
                           },
                           "required": [
@@ -31246,7 +31476,8 @@
                             "due_date",
                             "ransomware",
                             "epss",
-                            "has_template"
+                            "has_template",
+                            "published"
                           ],
                           "additionalProperties": false
                         },
@@ -32471,6 +32702,19 @@
                                 "cisa-kev",
                                 "vulncheck-kev"
                               ]
+                            },
+                            "published": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "format": "date",
+                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "description": "D-615: the day the CVE was published (NVD `published`), never the day CISA added it; null when NVD has not answered for it (then it counts as recent: an older CVE needs confirmed evidence, a missing date never closes a finding)"
                             }
                           },
                           "required": [
@@ -32484,7 +32728,8 @@
                             "due_date",
                             "ransomware",
                             "epss",
-                            "has_template"
+                            "has_template",
+                            "published"
                           ],
                           "additionalProperties": false
                         },
@@ -33711,6 +33956,19 @@
                                 "cisa-kev",
                                 "vulncheck-kev"
                               ]
+                            },
+                            "published": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "format": "date",
+                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "description": "D-615: the day the CVE was published (NVD `published`), never the day CISA added it; null when NVD has not answered for it (then it counts as recent: an older CVE needs confirmed evidence, a missing date never closes a finding)"
                             }
                           },
                           "required": [
@@ -33724,7 +33982,8 @@
                             "due_date",
                             "ransomware",
                             "epss",
-                            "has_template"
+                            "has_template",
+                            "published"
                           ],
                           "additionalProperties": false
                         },
@@ -34963,6 +35222,19 @@
                                 "cisa-kev",
                                 "vulncheck-kev"
                               ]
+                            },
+                            "published": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "format": "date",
+                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "description": "D-615: the day the CVE was published (NVD `published`), never the day CISA added it; null when NVD has not answered for it (then it counts as recent: an older CVE needs confirmed evidence, a missing date never closes a finding)"
                             }
                           },
                           "required": [
@@ -34976,7 +35248,8 @@
                             "due_date",
                             "ransomware",
                             "epss",
-                            "has_template"
+                            "has_template",
+                            "published"
                           ],
                           "additionalProperties": false
                         },
@@ -35775,6 +36048,333 @@
                     "ai",
                     "ai_available",
                     "applied"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/findings/plan": {
+      "get": {
+        "operationId": "findings_get_findings_plan",
+        "summary": "Updates to plan: one item per update on one device that fixes CVEs likely to be exploited (EPSS 10 % or more) or published in the last 12 months, version-confirmed only; never findings, never alerts",
+        "tags": [
+          "findings"
+        ],
+        "x-stories": [
+          "S-TIER-1",
+          "S-TIER-2"
+        ],
+        "x-min-role": "viewer",
+        "parameters": [
+          {
+            "name": "tier",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "description": "Default all",
+              "type": "string",
+              "enum": [
+                "likely",
+                "recent",
+                "all"
+              ]
+            }
+          },
+          {
+            "name": "asset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "description": "One device",
+              "type": "string",
+              "maxLength": 64
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "group": {
+                            "type": "string",
+                            "description": "\"<device id>/<software id>\", as RowFix.group (D-545)"
+                          },
+                          "asset": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string",
+                                "description": "The name the Devices page shows, never the internal id (D-484)"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "name"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "software": {
+                            "type": "string",
+                            "description": "Display name of the software row"
+                          },
+                          "version": {
+                            "type": "string",
+                            "description": "The installed version"
+                          },
+                          "fixed": {
+                            "type": "string",
+                            "description": "fixed: the version that fixes every CVE of the item; windows: the build of the cumulative update; distro: empty"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "fixed",
+                              "distro",
+                              "windows"
+                            ],
+                            "description": "fixed = upgrade the software to `fixed`; distro = install the distribution's security updates for the package; windows = the monthly cumulative update with build `fixed` or later"
+                          },
+                          "cves": {
+                            "minItems": 1,
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "cve": {
+                                  "type": "string",
+                                  "pattern": "^CVE-\\d{4}-\\d{4,}$"
+                                },
+                                "tier": {
+                                  "type": "string",
+                                  "enum": [
+                                    "likely",
+                                    "recent"
+                                  ],
+                                  "description": "likely = EPSS 10 % or more; recent = published in the last 12 months (D-613); a CVE on an exploited list is a finding, never here"
+                                },
+                                "basis": {
+                                  "type": "string",
+                                  "enum": [
+                                    "scan",
+                                    "agent",
+                                    "distro",
+                                    "version"
+                                  ],
+                                  "description": "D-615 evidence: scan = a scan engine (nuclei, OpenVAS, ZAP) found it on the device; agent = the device's agent reports a build or package inside the affected range; distro = Ubuntu's or Debian's own data says the installed package is affected; version = an exact version compared with the CVE's ranges. Never a product-only match"
+                                },
+                                "severity": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                      "enum": [
+                                        "critical",
+                                        "high",
+                                        "medium",
+                                        "low",
+                                        "none"
+                                      ]
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ],
+                                  "description": "NVD's CVSS severity; null when NVD has not scored it yet"
+                                },
+                                "score": {
+                                  "anyOf": [
+                                    {
+                                      "type": "number",
+                                      "minimum": 0,
+                                      "maximum": 10
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ],
+                                  "description": "NVD's CVSS base score"
+                                },
+                                "published": {
+                                  "type": "string",
+                                  "format": "date",
+                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+                                  "description": "NVD `published`; older than 12 months only with basis scan (D-615)"
+                                },
+                                "epss": {
+                                  "anyOf": [
+                                    {
+                                      "type": "number",
+                                      "minimum": 0,
+                                      "maximum": 1
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "percentile": {
+                                  "anyOf": [
+                                    {
+                                      "type": "number",
+                                      "minimum": 0,
+                                      "maximum": 1
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "cve",
+                                "tier",
+                                "basis",
+                                "severity",
+                                "score",
+                                "published",
+                                "epss",
+                                "percentile"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "description": "Likely first, then by EPSS, then newest"
+                          },
+                          "likely": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "recent": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          }
+                        },
+                        "required": [
+                          "group",
+                          "asset",
+                          "software",
+                          "version",
+                          "fixed",
+                          "kind",
+                          "cves",
+                          "likely",
+                          "recent"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "compared": {
+                      "type": "boolean",
+                      "description": "false = this box holds the data but does not compare tier 2 and 3 CVEs with devices yet (D-616: the matcher of slice 3); the page says so instead of \"no update to plan\""
+                    },
+                    "compared_devices": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991,
+                      "description": "Devices with at least one version Vedette can compare"
+                    },
+                    "unchecked_devices": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991,
+                      "description": "Devices with no version Vedette can read: not checked"
+                    },
+                    "old_evidence": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991,
+                      "description": "D-615: CVEs published more than 12 months ago listed because a scan engine found them"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "epss": {
+                          "type": "string",
+                          "enum": [
+                            "off",
+                            "loading",
+                            "ready"
+                          ],
+                          "description": "Feed epss-all (tier 2)"
+                        },
+                        "recent": {
+                          "type": "string",
+                          "enum": [
+                            "off",
+                            "loading",
+                            "ready"
+                          ],
+                          "description": "Feed nvd-recent (tier 3, and the published dates of tier 2)"
+                        },
+                        "epss_date": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "format": "date",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "The day of the EPSS scores"
+                        },
+                        "recent_since": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "format": "date",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "CVEs published on or after this day are in the data (12 months back)"
+                        }
+                      },
+                      "required": [
+                        "epss",
+                        "recent",
+                        "epss_date",
+                        "recent_since"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "compared",
+                    "compared_devices",
+                    "unchecked_devices",
+                    "old_evidence",
+                    "data"
                   ],
                   "additionalProperties": false
                 }

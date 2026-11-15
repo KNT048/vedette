@@ -45,6 +45,8 @@ type NVDPage struct {
 	Total    int                      // totalResults
 	Returned int                      // records in this answer
 	Affected map[string][]AffectedRow // CVE -> vulnerable entries; a CVE with none is present with an empty list
+	// Published is the day NVD published each accepted CVE ("2017-03-14", D-615); a record without a readable date is absent.
+	Published map[string]string
 	Stats
 }
 
@@ -70,6 +72,7 @@ type nvdAnswer struct {
 	Vulnerabilities []struct {
 		CVE struct {
 			ID             string `json:"id"`
+			Published      string `json:"published"`
 			Configurations []struct {
 				Nodes []struct {
 					Negate   bool `json:"negate"`
@@ -100,7 +103,7 @@ func ParseNVD(data []byte) (NVDPage, error) {
 	if err := dec.Decode(&a); err != nil || a.TotalResults == nil {
 		return NVDPage{}, fail(ErrBadSample, "The NVD answer is not the CVE API 2.0 format.")
 	}
-	out := NVDPage{Total: *a.TotalResults, Returned: len(a.Vulnerabilities), Affected: map[string][]AffectedRow{}}
+	out := NVDPage{Total: *a.TotalResults, Returned: len(a.Vulnerabilities), Affected: map[string][]AffectedRow{}, Published: map[string]string{}}
 	tl := newTally()
 	for i, v := range a.Vulnerabilities {
 		row := i + 1
@@ -137,9 +140,24 @@ func ParseNVD(data []byte) (NVDPage, error) {
 		}
 		tl.Accepted++
 		out.Affected[id] = rows
+		if d, ok := publishedDay(v.CVE.Published); ok {
+			out.Published[id] = d
+		}
 	}
 	out.Stats = tl.stats()
 	return out, nil
+}
+
+// publishedDay is the day of NVD's `published` ("2017-03-17T00:59:00.000" -> "2017-03-17"); ok is false for anything that does
+// not start with a real date, so a hostile value never reaches the table.
+func publishedDay(s string) (string, bool) {
+	if len(s) < 10 {
+		return "", false
+	}
+	if _, err := time.Parse(time.DateOnly, s[:10]); err != nil {
+		return "", false
+	}
+	return s[:10], true
 }
 
 func badAffected(r AffectedRow) string {

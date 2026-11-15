@@ -96,6 +96,8 @@ type Vuln struct {
 	Ransomware bool
 	EPSS       float64   // 0 when unknown
 	DateAdded  time.Time // when CISA added the entry to KEV; zero when unknown (Reconcile treats that as backlog)
+	// Published is the day NVD published the CVE (D-615); zero when unknown, which counts as recent (never old).
+	Published  time.Time
 	Affected   []Affected
 	Source     string // "" or "cisa-kev": the CISA list; "vulncheck-kev": VulnCheck KEV (D-557); names the list in evidence texts
 	RangesFrom string // where Affected comes from: "" NVD, RangesCVEOrg or RangesCVEOrgPartial the CNA's CVE.org record (D-556)
@@ -203,6 +205,41 @@ type MatchResult struct {
 	// the reason ("… affects only …; the software reports 9.6p1 Ubuntu 3ubuntu13.20."), for a page that lists none of them, such as
 	// exposure's. A device that has the finding also gets it in NotAffected, with the sentence that closes it.
 	OtherPlatform []Match
+	// Aged lists the CVEs the device has a finding for that the age rule drops (D-615, S-TIER-4): the KEV CVE was published more
+	// than AgeLimit ago and the match is not confirmed (basis product, or a version that is not the device's agent's: a
+	// banner, a scan's guess, a person's entry). No finding is made for such a match on a device without one; the service
+	// closes an open suspected one with Evidence.Summary (AgedNote first) as its note. A later confirmed match reopens it.
+	Aged []Match
+}
+
+// AgeLimit is the age from which a KEV CVE becomes a finding only on confirmed evidence (D-615): published before now minus
+// 365 days, judged at each match, so a CVE ages out by itself.
+const AgeLimit = 365 * 24 * time.Hour
+
+// AgedNote starts the note of a finding the age rule closed (D-615, S-TIER-4); ReopenOnMatch recognises it.
+const AgedNote = "Older than 12 months and not confirmed by a scan, the agent or the distribution"
+
+// aged reports whether v was published more than AgeLimit before now; an unknown day is never aged (D-615: a missing date
+// never closes a finding).
+func aged(v Vuln, now time.Time) bool {
+	return !v.Published.IsZero() && v.Published.Before(now.Add(-AgeLimit))
+}
+
+// confirmedMatch reports whether a matcher's match rests on confirmed evidence (D-615): the version the device's own agent
+// reports (its build, or its package, the distribution's verdict included: D-548, D-516). A scan's confirmation comes from
+// ConfirmFromScan, never from the matcher.
+func confirmedMatch(m Match) bool {
+	return m.Basis == BasisScan || m.Basis == BasisVersion && m.Evidence.Agent
+}
+
+// agedSummary is the note of a finding the age rule closes.
+func agedSummary(v Vuln, m Match) string {
+	how := "by the product name only"
+	if m.Basis == BasisVersion {
+		how = "by a version read from a banner, a scan's guess or typed in, not one the device's agent reports"
+	}
+	return fmt.Sprintf("%s: %s was published on %s, more than 12 months ago, and Vedette matched it %s. Vedette reopens this finding if a scan, the device's agent or its distribution confirms it.",
+		AgedNote, v.CVE, FmtDay(v.Published), how)
 }
 
 // SettledKEV is how long a "Multiple Products" entry must have been in KEV before NVD's product list for it is taken as
@@ -319,6 +356,9 @@ func MatchAsset(a Asset, vulns []Vuln, have map[string]bool, now time.Time) Matc
 				}
 			case outNeedVersion:
 				unproved = true
+				if aged(v, now) { // D-615: a version typed in would not be confirmed evidence for an old CVE, so it is not asked for
+					break
+				}
 				i, ok := need[s.ID]
 				if !ok {
 					i = len(res.NeedVersion)
@@ -348,6 +388,14 @@ func MatchAsset(a Asset, vulns []Vuln, have map[string]bool, now time.Time) Matc
 						v.listName(), v.CVE, clean(v.Vendor), nvdProducts(v.Vendor, v.Affected), orList(unnamed), v.listName())
 					res.Retired = append(res.Retired, r)
 				}
+			}
+			continue
+		}
+		if aged(v, now) && !confirmedMatch(*best) { // D-615: an old KEV CVE only on confirmed evidence
+			if have[v.CVE] {
+				r := *best
+				r.Evidence.Summary = agedSummary(v, r)
+				res.Aged = append(res.Aged, r)
 			}
 			continue
 		}

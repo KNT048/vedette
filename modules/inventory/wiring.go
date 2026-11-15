@@ -106,7 +106,10 @@ type MatchDevice struct {
 	AgentOS string
 	// SNMPOS is the newest OS the device stated to Vedette's own SNMP read of its address (source snmp), "" when none (D-549, review r1
 	// #3: unlike LLDP, which any host can send with another device's MAC).
-	SNMPOS   string
+	SNMPOS string
+	// MAC is the device's MAC when it has an IP (the MAC it answers with at that address), "" otherwise: findings reads its OUI before an
+	// LLDP statement of Junos counts for the device's scan-seen rows (D-620).
+	MAC      string
 	Software []MatchSoftware
 }
 
@@ -118,11 +121,11 @@ func (s *Service) MatchInput(ctx context.Context, id string) (d MatchDevice, ok 
 		return MatchDevice{}, false, err
 	}
 	d = MatchDevice{ID: id, Name: deviceName(ctx, q, id), Software: []MatchSoftware{}}
-	var osName, model sql.NullString
-	if err := q.QueryRowContext(ctx, `SELECT os, model FROM inv_asset WHERE id = ?`, id).Scan(&osName, &model); err != nil && !errors.Is(err, sql.ErrNoRows) {
+	var osName, model, mac sql.NullString
+	if err := q.QueryRowContext(ctx, `SELECT os, model, CASE WHEN ip IS NOT NULL THEN mac END FROM inv_asset WHERE id = ?`, id).Scan(&osName, &model, &mac); err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return MatchDevice{}, false, fmt.Errorf("inventory: read device OS: %w", err)
 	}
-	d.OS, d.Model = osName.String, model.String
+	d.OS, d.Model, d.MAC = osName.String, model.String, mac.String
 	if d.StatedOS, err = statedOS(ctx, q, id); err != nil {
 		return MatchDevice{}, false, err
 	}
@@ -183,10 +186,10 @@ func osFrom(ctx context.Context, q querier, id, source string) (string, error) {
 }
 
 // matchView is what the findings matcher reads of a device besides its software (D-510): folded OS, model, stated OS, the agent's and
-// SNMP's OS.
+// SNMP's OS, and the MAC at its address (D-620).
 func matchView(ctx context.Context, q querier, id string) (string, error) {
-	var osName, model sql.NullString
-	if err := q.QueryRowContext(ctx, `SELECT os, model FROM inv_asset WHERE id = ?`, id).Scan(&osName, &model); err != nil && !errors.Is(err, sql.ErrNoRows) {
+	var osName, model, mac sql.NullString
+	if err := q.QueryRowContext(ctx, `SELECT os, model, CASE WHEN ip IS NOT NULL THEN mac END FROM inv_asset WHERE id = ?`, id).Scan(&osName, &model, &mac); err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return "", fmt.Errorf("inventory: read device OS: %w", err)
 	}
 	stated, err := statedOS(ctx, q, id)
@@ -198,7 +201,7 @@ func matchView(ctx context.Context, q querier, id string) (string, error) {
 		return "", err
 	}
 	snmp, err := osFrom(ctx, q, id, "snmp")
-	return osName.String + "\x00" + model.String + "\x00" + stated + "\x00" + agent + "\x00" + snmp, err
+	return osName.String + "\x00" + model.String + "\x00" + stated + "\x00" + agent + "\x00" + snmp + "\x00" + mac.String, err
 }
 
 // HasDevice reports whether the inventory has a device of one of these kinds whose vendor (the device's own

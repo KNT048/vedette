@@ -20,7 +20,7 @@ func winlab01() Asset {
 // WIN-NOISE-2 (D-618): WINLAB01 had 17 open "suspected, Vedette cannot compare version" findings. With NVD's real rows (testdata,
 // as the feeds module stores them), the 11 that Microsoft fixed in or before September 2024 close as not affected, naming the build and
 // the month; CVE-2024-43572 and CVE-2024-43573 (October 2024) stay and name the update that fixes them; CVE-2015-1671 (.NET, Lync,
-// Silverlight), CVE-2021-43890 (App Installer) and the two Edge (EdgeHTML) entries on the Edge row stay.
+// Silverlight) and CVE-2021-43890 (App Installer) stay. The two Edge Legacy (EdgeHTML) entries on the Chromium Edge row close by D-619.
 func TestMatchAsset_D618_WinLab01(t *testing.T) {
 	vulns := loadGolden(t, "testdata/kev-nvd-winlab01-n55.json")
 	have := map[string]bool{}
@@ -31,6 +31,9 @@ func TestMatchAsset_D618_WinLab01(t *testing.T) {
 	var closed []string
 	for _, m := range res.NotAffected {
 		closed = append(closed, m.CVE)
+		if strings.HasPrefix(m.CVE, "CVE-2016-720") { // D-619, TestMatchAsset_D619_EdgeLegacy
+			continue
+		}
 		for _, s := range []string{"build 26100.1742 of Windows Server 2025", "monthly update of September 2024", "Windows updates are cumulative"} {
 			if !strings.Contains(m.Evidence.Summary, s) {
 				t.Errorf("%s: %q does not say %q", m.CVE, m.Evidence.Summary, s)
@@ -38,7 +41,7 @@ func TestMatchAsset_D618_WinLab01(t *testing.T) {
 		}
 	}
 	slices.Sort(closed)
-	want := []string{"CVE-2017-0143", "CVE-2017-0146", "CVE-2020-0601", "CVE-2021-40449", "CVE-2024-38014", "CVE-2024-38106", "CVE-2024-38107",
+	want := []string{"CVE-2016-7200", "CVE-2016-7201", "CVE-2017-0143", "CVE-2017-0146", "CVE-2020-0601", "CVE-2021-40449", "CVE-2024-38014", "CVE-2024-38106", "CVE-2024-38107",
 		"CVE-2024-38178", "CVE-2024-38193", "CVE-2024-38217", "CVE-2024-43461"}
 	if !slices.Equal(closed, want) {
 		t.Fatalf("closed %d %v, want %d %v", len(closed), closed, len(want), want)
@@ -57,13 +60,13 @@ func TestMatchAsset_D618_WinLab01(t *testing.T) {
 			}
 		}
 	}
-	for _, c := range []string{"CVE-2015-1671", "CVE-2021-43890", "CVE-2016-7200", "CVE-2016-7201"} {
+	for _, c := range []string{"CVE-2015-1671", "CVE-2021-43890"} {
 		if _, ok := stay[c]; !ok {
 			t.Errorf("%s does not stay open", c)
 		}
 	}
-	if len(stay) != 6 {
-		t.Errorf("%d stay open, want 6: %v", len(stay), stay)
+	if len(stay) != 4 {
+		t.Errorf("%d stay open, want 4: %v", len(stay), stay)
 	}
 }
 

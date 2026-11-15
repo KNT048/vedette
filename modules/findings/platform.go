@@ -3,12 +3,14 @@ package findings
 import (
 	"encoding/json"
 	"fmt"
+	"net"
 	"regexp"
 	"slices"
 	"strings"
 	"time"
 
 	catalogdata "github.com/knt048/vedette/content/catalog"
+	"github.com/knt048/vedette/content/oui"
 )
 
 // Platform limits (D-547, KF-4, KF-5). Some exploited CVEs affect a product only on some platforms: CVE-2026-123158 is
@@ -82,17 +84,46 @@ var networkOS = []string{"junos"}
 // junosEvolved matches Junos OS Evolved in a system description ("JUNOS 21.4R1.12-EVO", "Junos OS Evolved").
 var junosEvolved = regexp.MustCompile(`(?i)-evo\b|\bevolved\b`)
 
-// networkStated is the OS the device states for every row of it (D-549): only an SNMP answer read at the device's own address
-// (Asset.SNMPOS; an LLDP frame can be forged with the device's MAC, review r1 #3), naming a networkOS platform, not Junos Evolved, on a
-// device no agent reports another OS for. "" otherwise.
+// networkStated is the OS the device states for every row of it (D-549, D-620): a networkOS platform, not Junos Evolved, on a device no
+// agent reports another OS for, stated either
+//   - in the device's answer to Vedette's own SNMP read of its address (Asset.SNMPOS), or
+//   - when there is no SNMP answer, in an LLDP frame (StatedOS, source passive: LLDP's system description is the only passive source
+//     of a Junos OS), on a device whose own MAC at its address is one IEEE assigned to Juniper Networks (juniperMAC). An LLDP frame alone
+//     can be forged with another device's MAC (review r1 #3 of #800); the forged claim then sits on a device whose network card
+//     Juniper did not make, and is not read. A device with a Juniper card is Juniper gear, which runs no container behind its
+//     management address (N47-1: the EX4200 switch .47, stated over LLDP "JUNOS 15.1R7.9", MAC 3c:8a:b0:…).
+//
+// An SNMP answer naming another OS wins over any LLDP frame. "" otherwise.
 func networkStated(a Asset) string {
-	if a.SNMPOS == "" || a.AgentOS != "" || junosEvolved.MatchString(a.SNMPOS) {
+	if a.AgentOS != "" {
 		return ""
 	}
-	if slices.ContainsFunc(platformsIn(a.SNMPOS), func(id string) bool { return slices.Contains(networkOS, id) }) {
-		return a.SNMPOS
+	states := func(os string) bool {
+		return os != "" && !junosEvolved.MatchString(os) &&
+			slices.ContainsFunc(platformsIn(os), func(id string) bool { return slices.Contains(networkOS, id) })
+	}
+	switch {
+	case a.SNMPOS != "":
+		if states(a.SNMPOS) {
+			return a.SNMPOS
+		}
+	case states(a.StatedOS) && juniperMAC(a.MAC):
+		return a.StatedOS
 	}
 	return ""
+}
+
+// juniperOUI is how the IEEE table (content/oui) names Juniper Networks; "Juniper Systems" is another company.
+const juniperOUI = "Juniper Networks"
+
+// juniperMAC says whether mac (inventory's "3c:8a:b0:9c:85:ff") has an OUI IEEE assigned to Juniper Networks.
+func juniperMAC(mac string) bool {
+	hw, err := net.ParseMAC(mac)
+	if err != nil || len(hw) != 6 {
+		return false
+	}
+	v, ok := oui.Lookup([6]byte(hw))
+	return ok && v == juniperOUI
 }
 
 func platformName(id string) string {
@@ -139,8 +170,9 @@ func platformsIn(text string) []string {
 // a fingerprint or DHCP guess (review r2 of #790); an SNMP row takes only the OS the device states to Vedette's SNMP read of its address (Asset.SNMPOS).
 // A row a scan saw on a port, a row a person typed and a row of unknown source say nothing about it: a Ubuntu host may run or forward
 // the service from an Alpine container (CVE-2026-123158's references are Docker sshd images), so only the row's own text decides
-// there (review r1 #1, #2). Exception (D-549, N47-1): on network gear that states over SNMP an OS of networkOS (a Junos switch,
-// networkStated), that statement counts for every row, since such gear runs no container behind its own address.
+// there (review r1 #1, #2). Exception (D-549, D-620, N47-1): on network gear that states an OS of networkOS over SNMP, or over LLDP on a
+// Juniper network card (a Junos switch, networkStated), that statement counts for every row, since such gear runs no container behind
+// its own address.
 func platformOS(s Software, a Asset) string {
 	switch s.Source {
 	case "agent":

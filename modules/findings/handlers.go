@@ -124,18 +124,37 @@ func (h *FindingHandlers) Detail(ctx context.Context, rec Record) (Detail, error
 	}
 	d.Normalize()
 	d.addAppliedToHistory()
-	d.FixedIn = h.fixedIn(ctx, rec)
+	// The device with its software: both reads below only inform the page, so a failed one leaves what the page always had.
+	if a, ok, err := h.inv.MatchInput(ctx, rec.AssetID); err == nil && ok {
+		if d.Asset != nil && d.Kev != nil {
+			if sw := matchedOn(a, *d.Kev); sw != "" {
+				aa := *d.Asset
+				aa.Display = sw
+				d.Asset = &aa
+			}
+		}
+		d.FixedIn = h.fixedIn(ctx, rec, a)
+	}
 	return d, nil
 }
 
-// fixedIn is the release that fixes the finding on its device, from NVD's ranges (D-488). It only informs the page, so
-// a failed read gives nil, the text the page always had, and never an error. Closed findings have nothing to upgrade.
-func (h *FindingHandlers) fixedIn(ctx context.Context, rec Record) *FixedIn {
-	if !rec.Status.Open() {
-		return nil
+// matchedOn names the device's software row the finding's KEV entry is keyed to, as the matcher reads the device (its rows and the network
+// OS it states, deviceSoftware): the Device panel of the finding names it (N53-1, D-619), not the device's first software by name, which
+// showed "Microsoft Edge" for a Windows CVE. "" when no row is keyed to the entry (the panel then keeps inventory's display).
+func matchedOn(a Asset, k KevInfo) string {
+	v := Vuln{Vendor: k.Vendor, Product: k.Product}
+	for _, s := range deviceSoftware(a) {
+		if keyedTo(s, v) {
+			return clean(s.Display)
+		}
 	}
-	a, ok, err := h.inv.MatchInput(ctx, rec.AssetID)
-	if err != nil || !ok {
+	return ""
+}
+
+// fixedIn is the release that fixes the finding on its device a, from NVD's ranges (D-488). It only informs the page, so
+// a failed read gives nil, the text the page always had, and never an error. Closed findings have nothing to upgrade.
+func (h *FindingHandlers) fixedIn(ctx context.Context, rec Record, a Asset) *FixedIn {
+	if !rec.Status.Open() {
 		return nil
 	}
 	vulns, err := h.feed.Vulns(ctx)

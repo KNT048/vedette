@@ -179,7 +179,7 @@ func TestContract_D615_AgedFindingClosesAndReopens(t *testing.T) {
 	}
 }
 
-// D-616: GET /findings/plan (S-TIER-1, S-TIER-2) answers before the tier matcher exists: no item, compared false, and the
+// D-616, D-617: GET /findings/plan (S-TIER-1, S-TIER-2) answers before the plan job's first run: no item, compared false, and the
 // state of each tier feed, so the page says what is missing instead of "no update to plan"; "plan" is never a finding id.
 func TestPlan_HonestStateBeforeTheMatcher(t *testing.T) {
 	t.Parallel()

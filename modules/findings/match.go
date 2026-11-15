@@ -348,6 +348,10 @@ func MatchAsset(a Asset, vulns []Vuln, have map[string]bool, now time.Time) Matc
 			infos[i].winBuild = winBuildMonth(winList, d)        // D-618: from the whole list, never a part of it
 		}
 	}
+	host := edgeHostOf(a, infos) // D-619, review r1 #1 of #807: whether Edge Legacy may still be on the device's Windows
+	for i := range infos {
+		infos[i].edgeHost = host
+	}
 	for _, v := range vulns {
 		if !ValidCVE(v.CVE) || seen[v.CVE] {
 			continue
@@ -658,6 +662,8 @@ type swInfo struct {
 	// winBuild: the month of the monthly update a Windows release row's build carries, read from the list's fix builds (D-618,
 	// winBuildMonth); zero when not known or not computed (FixedInFor, the plan pass), and then the month rule never closes.
 	winBuild winBuild
+	// edgeHost: what the device's own Windows says about Edge Legacy still being on it (D-619, edgeHostOf); the same for every row.
+	edgeHost edgeHost
 	// osName is the device's operating system as inventory folds it ("Microsoft Windows 10 Enterprise LTSC 2019 10.0.17763.6532"):
 	// a Windows LTSC/LTSB edition is still serviced when its release has ended (D-546).
 	osName string

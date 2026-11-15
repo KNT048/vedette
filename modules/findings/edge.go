@@ -18,7 +18,12 @@ import (
 //   - NVD lists the CVE for microsoft:edge, and every Microsoft Edge entry of the list is Edge Legacy: no version, or a version or
 //     range end before 79 (an edge_chromium entry, a "*" with no range, or a bound Vedette cannot read keeps the finding);
 //   - the CVE came out before Chromium Edge did: NVD published it before 15 January 2020 (or, when the day is unknown, its id is from
-//     2018 or earlier), so its list cannot be lagging behind a Chromium Edge fix.
+//     2018 or earlier), so its list cannot be lagging behind a Chromium Edge fix;
+//   - Edge Legacy is not left unpatched beside it (review r1 #1 of #807): Microsoft removed Edge Legacy only with April 2021's update
+//     and only from Windows 10 1803 and later, so an older Windows 10 keeps it next to Chromium Edge. The device runs a system that never
+//     shipped it (Windows Server, Windows 11, another OS: edgeHost.other), or every Windows 10 client release row of it carries a monthly
+//     update of a month after the one NVD published the CVE in (Edge Legacy was fixed by Windows' own cumulative update, D-618's
+//     build month). A Windows 10 client whose month is not known, or a device whose system is not known, keeps the finding.
 // Anything else keeps the finding as before: hiding a real exploited CVE is the worse mistake.
 
 // chromiumEdgeGA is the day Microsoft released the Chromium-based Edge (version 79) to everyone.
@@ -71,8 +76,74 @@ func edgeLegacyOnly(s Software, in swInfo, v Vuln) (why string, out bool) {
 	if legacy == 0 {
 		return "", false
 	}
-	return fmt.Sprintf("NVD lists %s only for Microsoft Edge Legacy, the EdgeHTML browser built into Windows 10 (NVD microsoft:edge, versions before 79), and the CVE was published before Microsoft released the Chromium-based Edge in January 2020; this device's %s %s is the Chromium-based Edge, which does not contain that code.",
-		v.CVE, clean(s.Display), clean(in.ver)), true
+	h := in.edgeHost
+	after := ""
+	switch {
+	case len(h.win10) > 0:
+		if v.Published.IsZero() {
+			return "", false // no month to compare the Windows 10 build with
+		}
+		for _, w := range h.win10 {
+			if w.month == 0 || w.month <= monthKeyOf(v.Published) {
+				return "", false
+			}
+		}
+		after = fmt.Sprintf(" Its %s build carries Microsoft's monthly update of %s, after the CVE, which fixed Edge Legacy on Windows 10.", h.win10[0].display, h.win10[0].month)
+	case !h.other:
+		return "", false // the device's system is not known: Edge Legacy may still be on it
+	}
+	return fmt.Sprintf("NVD lists %s only for Microsoft Edge Legacy, the EdgeHTML browser built into Windows 10 (NVD microsoft:edge, versions before 79), and the CVE was published before Microsoft released the Chromium-based Edge in January 2020; this device's %s %s is the Chromium-based Edge, which does not contain that code.%s",
+		v.CVE, clean(s.Display), clean(in.ver), after), true
+}
+
+// edgeHost is what the device's own system says about Edge Legacy (D-619): other when it runs one that never shipped it (a Windows
+// Server or Windows 11 release row, or an OS name of Windows 11, Windows Server, macOS, Linux, a phone or Junos, with no Windows 10
+// client); win10 the Windows 10 client release rows with the monthly update each carries (month 0: not known), or one entry of unknown
+// month when only the OS name says Windows 10.
+type edgeHost struct {
+	other bool
+	win10 []edgeWin10
+}
+
+type edgeWin10 struct {
+	display string
+	month   monthKey
+}
+
+// win11First is the first Windows 11 build; every Windows client release below it is Windows 10.
+const win11First = 22000
+
+var (
+	win10OS        = regexp.MustCompile(`(?i)\bwindows 10\b`)
+	noEdgeLegacyOS = regexp.MustCompile(`(?i)\bwindows 11\b|\bwindows server\b|\bmac ?os\b|\bos x\b|\blinux\b|\bubuntu\b|\bdebian\b|\bandroid\b|\bios\b|\bipados\b|\bjunos\b`)
+)
+
+func edgeHostOf(a Asset, infos []swInfo) edgeHost {
+	var h edgeHost
+	for _, in := range infos {
+		d, ok := winDevice(in)
+		switch {
+		case !ok:
+		case !d.rel.Server && d.rel.Build < win11First:
+			h.win10 = append(h.win10, edgeWin10{display: d.rel.Display, month: in.winBuild.month})
+		default:
+			h.other = true
+		}
+	}
+	os := a.AgentOS
+	if os == "" {
+		os = a.OS
+	}
+	switch {
+	case len(h.win10) > 0:
+		h.other = false
+	case h.other:
+	case win10OS.MatchString(os) && !noEdgeLegacyOS.MatchString(os):
+		h.win10 = []edgeWin10{{display: "Windows 10"}}
+	case noEdgeLegacyOS.MatchString(os):
+		h.other = true
+	}
+	return h
 }
 
 // edgeLegacyEntry says whether one microsoft:edge entry is Edge Legacy for sure: version NA ("-"), a literal version before 79, or a

@@ -16,7 +16,7 @@ import { fmtDate, fmtDateTime, fmtRelative } from '@/lib/format'
 import { useCan } from '@/lib/session'
 import { AcceptUntil, FindingStatusChip } from './AcceptRisk'
 import { untilOk } from './accept'
-import { useBulkStatus, useFindings } from './api'
+import { useBulkStatus, useFindings, usePlan } from './api'
 import { basisKey, deviceName, hasIp, isOpen, riskRank, unverified } from './basis'
 import { MAX_BULK } from './contract'
 import { errMsg } from './errors'
@@ -264,6 +264,7 @@ function List() {
         actions={<SampleDataNote />}
       />
       {kpis.length ? <KpiStrip label={t('kpi.label')} items={kpis} /> : null}
+      <PlanLine />
       <PageTabs label={t('tabs.label')} tabs={[
         { id: 'open', label: t('tabs.open'), panel: panel('open'), badge: { count: confirmed, label: t('tabs.openBadge') } },
         { id: 'accepted', label: t('tabs.accepted'), panel: panel('accepted') },
@@ -272,6 +273,14 @@ function List() {
       <BulkDialog ids={shown} open={bulkOpen} onOpenChange={setBulkOpen} opener={opener} onDone={() => setSelected(new Set())} />
     </>
   )
+}
+
+/** D-613 (S-TIER-1): one line to Updates to plan when updates there fix CVEs not exploited yet; those are never findings. */
+function PlanLine() {
+  const { t } = useTranslation('findings')
+  const n = usePlan().data
+  if (!n?.compared || n.items.length === 0) return null
+  return <p className="mb-4 text-sm"><Link to="/plan" className="text-accent underline underline-offset-4">{t('plan.line', { count: n.items.length })}</Link></p>
 }
 
 /** D-500 (S-INV-2): a software on the exploited list without a usable version is ONE line here, not one finding per CVE. */

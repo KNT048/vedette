@@ -1,6 +1,7 @@
 {
   "nav": {
-    "findings": "Findings"
+    "findings": "Findings",
+    "plan": "Updates to plan"
   },
   "titleLoading": "Findings",
   "titleNone": "No unresolved findings",
@@ -351,5 +352,108 @@
     "listLabel": "Updates that fix several findings",
     "distroPro": "Install {{distro}}'s security updates for {{software}} (some of the fixes need Ubuntu Pro)",
     "allGrouped": "Every unresolved finding in this list is in an update above."
+  },
+  "plan": {
+    "title": "Updates to plan",
+    "titleCount_one": "1 update to plan",
+    "titleCount_other": "{{count}} updates to plan",
+    "intro": "Updates that fix CVEs on your devices that are not on an exploited list yet: likely to be exploited soon (EPSS 10% or more), or published in the last 12 months. Vedette lists only CVEs it confirmed on the device (the version your agent reports, your distribution's own data, an exact version, or a scan), and never alerts on them. Exploited CVEs are findings:",
+    "toFindings": "see Findings.",
+    "dataEpss": "EPSS scores of {{date}}",
+    "dataRecent": "CVEs published since {{date}}",
+    "filterLabel": "Which CVEs",
+    "filter": {
+      "likely": "Likely to be exploited",
+      "recent": "Recent",
+      "all": "All"
+    },
+    "filterHint": {
+      "likely": "CVEs with an EPSS score of 10% or more: FIRST estimates at least a 1 in 10 chance they are exploited in the next 30 days.",
+      "recent": "CVEs published in the last 12 months with an EPSS score under 10%. A CVE older than 12 months leaves this list by itself.",
+      "all": "Every update that fixes a CVE likely to be exploited or published in the last 12 months."
+    },
+    "listLabel": "Updates to plan",
+    "action": {
+      "fixed": "Upgrade {{software}} from {{version}} to {{fixed}} or later",
+      "distro": "Install the distribution's security updates for {{software}} ({{version}})",
+      "windows": "Install the latest cumulative update for {{software}} (build {{fixed}} or later)"
+    },
+    "fixes_one": "fixes {{count}} CVE",
+    "fixes_other": "fixes {{count}} CVEs",
+    "fixesLikely_one": "({{count}} likely to be exploited)",
+    "fixesLikely_other": "({{count}} likely to be exploited)",
+    "show_one": "Show the {{count}} CVE",
+    "show_other": "Show the {{count}} CVEs",
+    "cve": {
+      "caption": "CVEs that the update of {{software}} fixes on {{device}}",
+      "cve": "CVE",
+      "tier": "Tier",
+      "severity": "Severity (CVSS)",
+      "published": "Published",
+      "epss": "EPSS",
+      "evidence": "How Vedette knows",
+      "notScored": "Not scored by NVD yet",
+      "old": "Over 12 months ago"
+    },
+    "sev": {
+      "critical": "Critical",
+      "high": "High",
+      "medium": "Medium",
+      "low": "Low",
+      "none": "None"
+    },
+    "tier": {
+      "likely": "Likely to be exploited",
+      "likelyHint": "EPSS 10% or more: FIRST estimates at least a 1 in 10 chance of exploitation in the next 30 days",
+      "recent": "Recent",
+      "recentHint": "Published in the last 12 months, EPSS under 10%"
+    },
+    "evidence": {
+      "scan": "Found by a scan",
+      "scanHint": "A scan engine (nuclei, OpenVAS or ZAP) found it on the device",
+      "agent": "Reported by the agent",
+      "agentHint": "The device's agent reports a build or package inside the affected versions",
+      "distro": "Distribution says affected",
+      "distroHint": "Ubuntu's or Debian's own security data says the installed package is affected",
+      "version": "Version matches",
+      "versionHint": "The device's exact version is inside the versions NVD lists for this CVE"
+    },
+    "oldEvidence_one": "1 CVE published more than 12 months ago is listed because a scan found it on the device.",
+    "oldEvidence_other": "{{count}} CVEs published more than 12 months ago are listed because a scan found them on the device.",
+    "empty": "No update to plan",
+    "emptyFilter": {
+      "likely": "No update fixes a CVE likely to be exploited",
+      "recent": "No update fixes a recent CVE"
+    },
+    "emptyBody_one": "Vedette compared {{compared}} devices whose versions it can read; 1 device has no version Vedette can read and is not checked. An empty list is not proof that nothing is vulnerable: public data has gaps.",
+    "emptyBody_other": "Vedette compared {{compared}} devices whose versions it can read; {{count}} devices have no version Vedette can read and are not checked. An empty list is not proof that nothing is vulnerable: public data has gaps.",
+    "emptyDevices": "See the devices",
+    "unchecked_one": "1 device is not checked",
+    "unchecked_other": "{{count}} devices are not checked",
+    "uncheckedBody": "Vedette cannot read a version on them, so it cannot compare them with these CVEs. Installing the agent, or a scan, gives their versions.",
+    "feed": {
+      "epss": "EPSS, every CVE",
+      "recent": "NVD, CVEs of the last 12 months"
+    },
+    "and": " and ",
+    "state": {
+      "offTitle": "Turn on the CVE data to see updates to plan",
+      "offBody": "This page needs two feeds that are off: \"EPSS, every CVE\" (FIRST's score of every CVE, one file a day) and \"NVD, CVEs of the last 12 months\" (the NVD records of recent CVEs). An administrator turns them on in Settings, Feeds. Exploited CVEs do not need them: they are in Findings.",
+      "offShort": "The CVE data for this section is off. <a>Turn it on in Settings, Feeds.</a>",
+      "openFeeds": "Open Settings, Feeds",
+      "partialTitle": "Part of the CVE data is missing",
+      "someOff": "{{feeds}} is off, so the CVEs it brings are not listed.",
+      "loading": "{{feeds}} is still loading (the first load of the NVD records takes about half an hour); the list fills when it is done.",
+      "notComparedTitle": "Vedette has the CVE data but does not compare it yet",
+      "notCompared": "This version of Vedette holds the EPSS scores and the recent NVD records, but does not compare them with your devices yet: that comes with a later update. Exploited CVEs are compared and listed in Findings."
+    },
+    "line_one": "1 update to plan fixes CVEs not exploited yet",
+    "line_other": "{{count}} updates to plan fix CVEs not exploited yet",
+    "device": {
+      "title": "Updates to plan",
+      "description": "Updates that fix CVEs on this device that are not exploited yet (likely to be exploited, or published in the last 12 months). They never alert.",
+      "none": "No update to plan for this device.",
+      "all": "See every update to plan"
+    }
   }
 }

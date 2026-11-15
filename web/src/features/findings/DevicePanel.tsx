@@ -5,7 +5,7 @@ import { ModuleOff, QueryState } from '@/components/common/States'
 import { fmtRelative } from '@/lib/format'
 import { useModuleEnabled } from '@/lib/modules'
 import { FindingStatusChip } from './AcceptRisk'
-import { useFindings } from './api'
+import { useFindings, usePlan } from './api'
 import type { SoftwareView } from '@/features/inventory/types'
 import type { FindingRow } from './types'
 import { isOpen, riskRank } from './basis'
@@ -14,6 +14,7 @@ import { IUpdated } from './Updated'
 import { useDeviceSoftware } from './rematch'
 import { FixGroupList } from './FixGroups'
 import { fixGroups } from './fix'
+import { PlanDataState, PlanItems } from './Plan'
 
 /** Slot device.panels (trang chi tiết thiết bị của module inventory): phát hiện của đúng thiết bị này. */
 export function DevicePanel(props: Record<string, unknown>) {
@@ -24,6 +25,7 @@ export function DevicePanel(props: Record<string, unknown>) {
   const sw = useDeviceSoftware(assetId)
   if (on === false) return <Section title={t('device.title')}><ModuleOff module="findings" /></Section>
   return (
+    <>
     <Section id="device-findings" title={t('device.title')} description={t('device.description')} stories={['S-MIT-1']}>
       <QueryState query={q}>
         {(d) => d.items.length === 0 ? (
@@ -52,6 +54,28 @@ export function DevicePanel(props: Record<string, unknown>) {
           </div>
           )
         })()}
+      </QueryState>
+    </Section>
+    <DevicePlan assetId={assetId} />
+    </>
+  )
+}
+
+/** D-613 (S-TIER-1): the updates to plan of this device, below its findings; never findings, never alerts. */
+function DevicePlan({ assetId }: { assetId: string }) {
+  const { t } = useTranslation('findings')
+  const q = usePlan('all', assetId)
+  return (
+    <Section id="device-plan" title={t('plan.device.title')} description={t('plan.device.description')} stories={['S-TIER-1', 'S-TIER-2']}>
+      <QueryState query={q}>
+        {(d) => (
+          <div className="grid gap-2">
+            <PlanDataState plan={d} compact />
+            {d.compared && d.items.length > 0 ? <PlanItems items={d.items} showDevice={false} /> : null}
+            {d.compared && d.items.length === 0 && (d.data.epss === 'ready' || d.data.recent === 'ready') ? <p className="text-sm text-muted">{t('plan.device.none')}</p> : null}
+            <Link to="/plan" className="w-fit text-[13px] text-accent underline underline-offset-4">{t('plan.device.all')}</Link>
+          </div>
+        )}
       </QueryState>
     </Section>
   )

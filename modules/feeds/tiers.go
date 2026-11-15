@@ -222,7 +222,7 @@ func (s *Store) recentProducts(ctx context.Context, cve string) ([]string, bool,
 	if err := rows.Err(); err != nil {
 		return nil, false, fmt.Errorf("feeds: tier products: %w", err)
 	}
-	out := slices.Sorted(maps.Keys(seen))
+	out := append([]string{}, slices.Sorted(maps.Keys(seen))...) // never nil: products is an array in the answer
 	if len(out) > 10 {
 		out = out[:10]
 	}

@@ -1,0 +1,14 @@
+{
+  "_rule": "Only change passes/evidence after a customer walk on a real box. Never edit or remove a journey's steps; scope changes need kien and SHIP.md.",
+  "boxes": ["n100-ubuntu", "debian13"],
+  "journeys": [
+    {"id": "J1", "title": "Clean install from a signed release, sign in, turn on two-step", "steps": ["install.sh from a signed release on a clean box", "first-run setup and admin sign-in", "turn on two-step and sign in again"], "passes": {"n100-ubuntu": false, "debian13": false}, "evidence": ""},
+    {"id": "J2", "title": "Scan the LAN, see devices with vendor and version", "steps": ["plug the box into the LAN", "within 1 hour Devices lists the LAN", "firewall, router, printer, servers show vendor and, where exposed, version"], "passes": {"n100-ubuntu": false, "debian13": false}, "evidence": ""},
+    {"id": "J3", "title": "A new KEV matching a device raises a finding and an alert within 1 hour", "steps": ["a KEV entry matches a device", "a finding appears", "the alert reaches Email or Telegram within 1 hour"], "passes": {"n100-ubuntu": false, "debian13": false}, "evidence": ""},
+    {"id": "J4", "title": "Open a finding: patch guidance and firewall mitigation config", "steps": ["open the finding", "see the fixed version and link", "see a ready mitigation config for the firewall in use", "see how to check whether it was already exploited"], "passes": {"n100-ubuntu": false, "debian13": false}, "evidence": ""},
+    {"id": "J5", "title": "Plan page says what to update", "steps": ["open Updates to plan", "each item names the update, the device and the CVEs it fixes", "likely-exploited first"], "passes": {"n100-ubuntu": false, "debian13": false}, "evidence": ""},
+    {"id": "J6", "title": "Public IP: exposed ports and service versions", "steps": ["the box finds its public IP", "Exposure shows open ports", "each port shows the service and version"], "passes": {"n100-ubuntu": false, "debian13": false}, "evidence": ""},
+    {"id": "J7", "title": "Update to a new release; back up and restore", "steps": ["update from the previous signed release", "take a backup", "restore it on a clean box"], "passes": {"n100-ubuntu": false, "debian13": false}, "evidence": ""}
+  ],
+  "release_gate": {"release_job": false, "vuln_scan_green": false, "no_open_security_high": false}
+}

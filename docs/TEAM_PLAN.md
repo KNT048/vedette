@@ -1,5 +1,7 @@
 # Kế hoạch làm việc nhóm — M2 (backend)
 
+> **Từ 2026-11-15 (D-624, D-625):** việc đang làm là ship v1 theo `SHIP.md`; việc cần làm nằm trong GitHub issue nhãn `v1`/`post-v1`. File này chỉ còn giá trị lịch sử.
+
 Lập 2026-11-09. Nhóm: **Kiên** (`@kiennt048`, người duy trì) và **Emily / Mlee** (`@kiennt049`). Mỗi người điều phối nhiều phiên AI (Claude Code), mỗi phiên dùng subagent. Mục tiêu: ship nhanh nhất mà không giẫm chân nhau.
 
 ## 1. Nguyên tắc chia việc

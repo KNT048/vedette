@@ -1,3 +1,14 @@
+---
+paths:
+  - "go.mod"
+  - "tools/go.mod"
+  - "web/package.json"
+  - "THIRD_PARTY_NOTICES.md"
+  - "PRIVACY.md"
+  - "deploy/**"
+  - "**/Containerfile*"
+---
+
 # Pháp lý minh bạch (kien, 2026-11-06, D-17)
 
 - Thêm dependency, công cụ ngoài, nguồn dữ liệu → cập nhật `THIRD_PARTY_NOTICES.md` cùng commit, ghi giấy phép và cách dùng (nhúng / tiến trình riêng / dữ liệu). GPL/AGPL không nhúng.

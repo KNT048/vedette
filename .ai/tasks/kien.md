@@ -1,5 +1,7 @@
 # Việc của Kiên — đọc cùng docs/TEAM_PLAN.md và `.ai/tasks/current.md`
 
+> **Từ 2026-11-15 (D-624, D-625):** việc đang làm là ship v1 theo `SHIP.md`; việc cần làm nằm trong GitHub issue nhãn `v1`/`post-v1`. File này chỉ còn giá trị lịch sử.
+
 > **Từ 2026-11-11 (D-190):** phía Kiên chạy hai nơi.
 > - **AI-Supervisor trên máy Mac:** điều phối cả ba phía. Mỗi lát việc của Mac chạy thành một session phụ của Claude Desktop. Trạng thái nằm ở `vedette-wt/LEAD-STATE.md` và `vedette-wt/sessions/*.md` trên máy Mac.
 > - **AI-Trưởng trên box Ubuntu** (`byn`, tmux `claude`). Trạng thái nằm ở `~/vedette-wt/LEAD-STATE.md` trên box.

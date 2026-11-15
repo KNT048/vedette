@@ -1,5 +1,7 @@
 # Lộ trình — xác minh concept → GUI → module
 
+> **Từ 2026-11-15 (D-624, D-625):** việc đang làm là ship v1 theo `SHIP.md`; việc cần làm nằm trong GitHub issue nhãn `v1`/`post-v1`. File này chỉ còn giá trị lịch sử.
+
 Ràng buộc (kien, 2026-11-06): ship nhanh nhưng đúng concept; SMB/Mid/Enterprise dùng được sớm; **GUI tốt rồi mới làm backend** để không chệch hướng; không tưởng tượng tính năng. Thời lượng là ước lượng cho 1–2 người + AI; đo lại sau mỗi mốc.
 
 | Mốc | Thời lượng | Giao gì | "Xong" khi | Không làm |

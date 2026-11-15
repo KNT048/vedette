@@ -46,8 +46,9 @@ type Have struct {
 // Service owns fnd_finding and fnd_finding_history. Every mutation runs in one transaction with its
 // history rows and its core_audit row (SYS-3); events go out after the commit.
 type Service struct {
-	cfg ServiceConfig
-	now func() time.Time
+	cfg  ServiceConfig
+	now  func() time.Time
+	plan planState // "Updates to plan" (D-617): in memory, see planpass.go
 }
 
 // NewService returns the service. DB, Audit, Inventory, Feeds and Log are required.
@@ -152,6 +153,7 @@ type UpsertResult struct {
 func (s *Service) OnMatchChanged(ctx context.Context, assetID string) (UpsertResult, error) {
 	ctx, cancel := eventContext(ctx)
 	defer cancel()
+	s.markPlan(assetID) // its "Updates to plan" too, at the next plan run (D-617)
 	a, ok, err := s.cfg.Inventory.MatchInput(ctx, assetID)
 	if err != nil {
 		return UpsertResult{}, fmt.Errorf("findings: reading the device to match: %w", err)
@@ -452,7 +454,8 @@ func (s *Service) closeAged(ctx context.Context, tx *sql.Tx, assetID string, age
 		}
 		// product findings only (review r1 #2 of #803): a version or agent finding whose match fell back to product-only (NVD's
 		// ranges gone in one pull, a version that became unreadable) stays for the next match, never flip-flops; a person's reopen stands
-		if r.Basis != BasisProduct || r.Evidence != nil && r.Evidence.Agent || slices.ContainsFunc(r.History, func(h HistoryEntry) bool { return h.User != SystemUser && h.Action == "reopened" }) {
+		// nor one on a row the device's agent reported (AgentRow, D-612: agent evidence; N100 n54)
+		if r.Basis != BasisProduct || r.Evidence != nil && (r.Evidence.Agent || r.Evidence.AgentRow) || slices.ContainsFunc(r.History, func(h HistoryEntry) bool { return h.User != SystemUser && h.Action == "reopened" }) {
 			continue
 		}
 		was := r.Status
@@ -760,6 +763,7 @@ func applyStatus(ctx context.Context, log *audit.Log, tx *sql.Tx, id string, act
 func (s *Service) OnAssetDeleted(ctx context.Context, assetID string) (int, error) {
 	ctx, cancel := eventContext(ctx)
 	defer cancel()
+	s.dropPlan(assetID)
 	return s.deleteAsset(ctx, assetID)
 }
 
@@ -773,6 +777,8 @@ func (s *Service) OnAssetDeleted(ctx context.Context, assetID string) (int, erro
 func (s *Service) OnAssetMerged(ctx context.Context, from, into string) (int, error) {
 	ctx, cancel := eventContext(ctx)
 	defer cancel()
+	s.dropPlan(from)
+	s.markPlan(into)
 	var n int64
 	err := s.write(ctx, func(tx *sql.Tx, _ time.Time, _ func(string, any)) error {
 		type pair struct{ cve, fromID, intoID string }

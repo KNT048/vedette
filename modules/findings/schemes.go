@@ -128,7 +128,7 @@ func osRulesOut(v Vuln, in swInfo) bool {
 	}
 	own := false
 	for _, af := range v.Affected {
-		c, err := ParseCPE(af.CPE)
+		c, err := af.cpe()
 		if err != nil || c.Part.Kind != Value || c.Part.Value != "o" {
 			return false
 		}

@@ -60,3 +60,43 @@ func execSQL(t *testing.T, db *store.DB, q string) {
 	t.Helper()
 	write(t, db, func(tx *sql.Tx) error { _, err := tx.ExecContext(t.Context(), q); return err })
 }
+
+// Migration 0012 (D-617) on a box that ran 0001..0011: a tier feed slice 1 seeded off and nobody edited (rev 0) is turned on; one an
+// admin turned off (rev counts the edit) stays off. The published days stored before are NVD's.
+func TestMigration0012TierFeedsOnUnlessAnAdminTurnedThemOff(t *testing.T) {
+	t.Parallel()
+	before := fstest.MapFS{}
+	entries, err := fs.ReadDir(Migrations, ".")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, e := range entries {
+		if e.Name() >= "0012" {
+			continue
+		}
+		b, err := fs.ReadFile(Migrations, e.Name())
+		if err != nil {
+			t.Fatal(err)
+		}
+		before[e.Name()] = &fstest.MapFile{Data: b}
+	}
+	db := storetest.Migrated(t, storetest.Migration{Module: "core", FS: core.Migrations}, storetest.Migration{Module: "feeds", FS: before})
+	s := &Store{db: db}
+	if err := s.SeedBuiltins(t.Context(), epoch0); err != nil {
+		t.Fatal(err)
+	}
+	execSQL(t, db, `UPDATE feeds_source SET enabled = 0 WHERE id = 'epss-all'`)                            // as slice 1 seeded it
+	execSQL(t, db, `UPDATE feeds_source SET enabled = 0, rev = 2 WHERE id = 'nvd-recent'`)                 // an admin turned it on, then off
+	execSQL(t, db, `INSERT INTO feeds_published (cve, published) VALUES ('CVE-2024-21762', '2024-02-09')`) // nvd-kev's
+	if err := store.Migrate(t.Context(), db, "feeds", Migrations); err != nil {
+		t.Fatal(err)
+	}
+	for id, want := range map[string]bool{"epss-all": true, "nvd-recent": false} {
+		if r, err := s.source(t.Context(), id); err != nil || r.Enabled != want {
+			t.Errorf("%s: enabled %v, want %v (%v)", id, r.Enabled, want, err)
+		}
+	}
+	if n, err := s.publishedCount(t.Context()); err != nil || n != 1 {
+		t.Errorf("NVD's days: %d %v", n, err)
+	}
+}

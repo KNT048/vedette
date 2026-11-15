@@ -122,11 +122,15 @@ type Service struct {
 	distroIdle map[string]bool // D-570: the distribution feeds the last check found no device for
 
 	nvdMu  sync.Mutex
-	nvd    *nvdRun // the NVD pull running now, or paused to go on later (W3-1); nil when none
-	recent string  // the progress line of an unfinished nvd-recent pull (D-614), "" when none
+	nvd    *nvdRun         // the NVD pull running now, or paused to go on later (W3-1); nil when none
+	recent *recentProgress // where an unfinished nvd-recent pull stands, for its progress line (D-614); nil when none
+	// recentAt is when a paused nvd-recent pull goes on: the retry time NVD's busy answer set (review r2 #6 of #802); zero when it goes
+	// on at the next check.
+	recentAt time.Time
 
-	nvdGateMu sync.Mutex
-	nvdNext   time.Time // the earliest time the next NVD request of a feed may start (nvdSlot, review r1 #5)
+	nvdGateMu   sync.Mutex
+	nvdNext     time.Time // the earliest time the next NVD request of a feed may start (nvdSlot, review r1 #5)
+	nvdBookedAt time.Time // the clock reading the last slot was booked at: a later reading before it is a clock stepped back
 
 	wait func(ctx context.Context, d time.Duration) error // tests: replaces the real waits of the NVD pull
 }

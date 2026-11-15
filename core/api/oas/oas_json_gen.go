@@ -131323,6 +131323,8 @@ func (s *FindingsGetFindingsPlanOKItemsItemKind) Decode(d *jx.Decoder) error {
 		*s = FindingsGetFindingsPlanOKItemsItemKindDistro
 	case FindingsGetFindingsPlanOKItemsItemKindWindows:
 		*s = FindingsGetFindingsPlanOKItemsItemKindWindows
+	case FindingsGetFindingsPlanOKItemsItemKindEsu:
+		*s = FindingsGetFindingsPlanOKItemsItemKindEsu
 	default:
 		*s = FindingsGetFindingsPlanOKItemsItemKind(v)
 	}

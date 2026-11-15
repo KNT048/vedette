@@ -68,7 +68,7 @@ func (s *Service) buildCVEOrg(ctx context.Context, src sourceRow, p pullPlan) (p
 	if err != nil {
 		return p, err
 	}
-	got, checked, unread, counts := map[string]CVEOrgResult{}, []string{}, []string{}, map[string]int{}
+	got, checked, unread, counts, days := map[string]CVEOrgResult{}, []string{}, []string{}, map[string]int{}, map[string]string{}
 	tl, bytes := newTally(), 0
 	var stopped error
 loop:
@@ -115,6 +115,9 @@ loop:
 		checked = append(checked, k.CVE)
 		tl.Accepted++
 		counts[res.Outcome]++
+		if res.Published != "" {
+			days[k.CVE] = res.Published
+		}
 		if res.Outcome == CVEOrgRanges {
 			got[k.CVE] = res
 		}
@@ -126,7 +129,7 @@ loop:
 		return p, stopped
 	}
 	p.out = outcome{OK: true, Bytes: bytes}
-	p.cveOrg, p.cveOrgChecked, p.cveOrgUnread, p.hasCVEOrg = got, checked, unread, true
+	p.cveOrg, p.cveOrgChecked, p.cveOrgUnread, p.cveOrgDays, p.hasCVEOrg = got, checked, unread, days, true
 	st := tl.stats()
 	p.out.Accepted, p.out.Rejected, p.out.Reasons = st.Accepted, st.Rejected, st.Reasons
 	if n := len(checked) + len(unread); n > 0 {

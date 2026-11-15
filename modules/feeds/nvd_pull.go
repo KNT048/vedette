@@ -98,7 +98,10 @@ func (s *Service) live(r sourceRow) sourceRow {
 	}
 	if r.ID == recentFeedID { // D-614: how far the paged pull of the last 12 months got
 		s.nvdMu.Lock()
-		text := s.recent
+		text := ""
+		if p := s.recent; p != nil { // the busy reason and retry time read now, not copied when the page started (review r2 #5 of #802)
+			text = recentText(p.cur, p.stored, p.paused, p.run.busy, p.run.retryAt, s.now())
+		}
 		s.nvdMu.Unlock()
 		switch {
 		case text == "" || !r.Enabled:
@@ -219,23 +222,26 @@ func (s *Service) sleep(ctx context.Context, d time.Duration) error {
 
 // nvdSlot waits for this feed's turn to ask NVD: every NVD request of nvd-kev and nvd-recent goes through it, at least
 // nvdPause apart, so the two feeds together stay within NVD's 5 requests in 30 s without a key (review r1 #5; a "Fetch
-// now" of one while the job pulls the other). Each caller books the next slot before it waits.
+// now" of one while the job pulls the other). Each caller books the next slot before it waits. A clock read earlier than the one
+// the last slot was booked at means the clock was stepped back: the wait starts again from now instead of lasting as long as the
+// step (review r2 #7 of #802).
 func (s *Service) nvdSlot(ctx context.Context) error {
 	s.nvdGateMu.Lock()
 	now := s.now()
 	at := s.nvdNext
-	if at.Before(now) {
+	if at.Before(now) || now.Before(s.nvdBookedAt) {
 		at = now
 	}
-	s.nvdNext = at.Add(nvdPause)
+	s.nvdNext, s.nvdBookedAt = at.Add(nvdPause), now
 	s.nvdGateMu.Unlock()
 	return s.sleep(ctx, at.Sub(now))
 }
 
 // nvdPage fetches one page, trying again after nvdRetryWaits (or NVD's Retry-After when longer) while NVD is busy or
 // slow. A wait that would not end before the pull's deadline is not started: the pull pauses and goes on later.
-// maxBytes caps the answer (0: MaxBodyBytes); nvd-recent's pages of 1,000 records need more (D-614).
-func (s *Service) nvdPage(ctx context.Context, run *nvdRun, u string, maxBytes int64) (*Response, error) {
+// maxBytes caps the answer (0: MaxBodyBytes); nvd-recent's pages of 1,000 records need more (D-614). start is the record
+// number the page starts at, for the log (review r2 #12 of #802).
+func (s *Service) nvdPage(ctx context.Context, run *nvdRun, u string, start int, maxBytes int64) (*Response, error) {
 	for try := 0; ; try++ {
 		if err := s.nvdSlot(ctx); err != nil {
 			return nil, err
@@ -266,7 +272,7 @@ func (s *Service) nvdPage(ctx context.Context, run *nvdRun, u string, maxBytes i
 		if dl, ok := ctx.Deadline(); ok && time.Until(dl) < wait {
 			return nil, err // the pull's budget ends first: pause here, go on after the wait
 		}
-		s.Log.InfoContext(ctx, "NVD is busy; trying the page again", "page", run.pages+1, "wait", wait, "error", err)
+		s.Log.InfoContext(ctx, "NVD is busy; trying the page again", "start_index", start, "wait", wait, "error", err)
 		if err := s.sleep(ctx, wait); err != nil {
 			return nil, err
 		}
@@ -378,7 +384,7 @@ func (s *Service) nvdPages(ctx context.Context, run *nvdRun) error {
 		if err != nil {
 			return err
 		}
-		resp, err := s.nvdPage(ctx, run, u, 0)
+		resp, err := s.nvdPage(ctx, run, u, run.start, 0)
 		if err != nil {
 			return err
 		}

@@ -72,6 +72,12 @@ func (fakeFeeds) TierStatus(context.Context) (findings.TierStatus, error) {
 	return findings.TierStatus{}, nil
 }
 
+func (fakeFeeds) TierVulns(context.Context, func(string) bool) ([]findings.TierVuln, error) {
+	return nil, nil
+}
+
+func (fakeFeeds) TierStamp(context.Context) (string, error) { return "", nil }
+
 type fakeVendors map[string]bool
 
 func (v fakeVendors) HasFirewallVendor(_ context.Context, vendor string) (bool, error) {

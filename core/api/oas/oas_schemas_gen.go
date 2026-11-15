@@ -66617,8 +66617,8 @@ func (s *FindingsGetFindingsOKVersionNeededItemAssetKind) UnmarshalText(data []b
 }
 
 type FindingsGetFindingsPlanOK struct {
-	// False = this box holds the data but does not compare tier 2 and 3 CVEs with devices yet (D-616: the
-	// matcher of slice 3); the page says so instead of "no update to plan".
+	// False = no comparison of tier 2 and 3 CVEs with the devices has run since the box started (D-617:
+	// the plan job runs within minutes); the page says so instead of "no update to plan".
 	Compared bool `json:"compared"`
 	// Devices with at least one version Vedette can compare.
 	ComparedDevices int                                  `json:"compared_devices"`
@@ -66857,13 +66857,15 @@ type FindingsGetFindingsPlanOKItemsItem struct {
 	Asset FindingsGetFindingsPlanOKItemsItemAsset `json:"asset"`
 	// Likely first, then by EPSS, then newest.
 	Cves []FindingsGetFindingsPlanOKItemsItemCvesItem `json:"cves"`
-	// Fixed: the version that fixes every CVE of the item; windows: the build of the cumulative update;
-	// distro: empty.
+	// Fixed: the version that fixes every CVE of the item; windows, esu: the build of the cumulative
+	// update; distro: empty.
 	Fixed string `json:"fixed"`
 	// "/", as RowFix.group (D-545).
 	Group string `json:"group"`
 	// Fixed = upgrade the software to `fixed`; distro = install the distribution's security updates for
-	// the package; windows = the monthly cumulative update with build `fixed` or later.
+	// the package; windows = the monthly cumulative update with build `fixed` or later; esu = the same on
+	// a Windows release past its end of support: the update comes only with Extended Security Updates
+	// (D-617).
 	Kind   FindingsGetFindingsPlanOKItemsItemKind `json:"kind"`
 	Likely int                                    `json:"likely"`
 	Recent int                                    `json:"recent"`
@@ -67254,13 +67256,16 @@ func (s *FindingsGetFindingsPlanOKItemsItemCvesItemTier) UnmarshalText(data []by
 }
 
 // Fixed = upgrade the software to `fixed`; distro = install the distribution's security updates for
-// the package; windows = the monthly cumulative update with build `fixed` or later.
+// the package; windows = the monthly cumulative update with build `fixed` or later; esu = the same on
+// a Windows release past its end of support: the update comes only with Extended Security Updates
+// (D-617).
 type FindingsGetFindingsPlanOKItemsItemKind string
 
 const (
 	FindingsGetFindingsPlanOKItemsItemKindFixed   FindingsGetFindingsPlanOKItemsItemKind = "fixed"
 	FindingsGetFindingsPlanOKItemsItemKindDistro  FindingsGetFindingsPlanOKItemsItemKind = "distro"
 	FindingsGetFindingsPlanOKItemsItemKindWindows FindingsGetFindingsPlanOKItemsItemKind = "windows"
+	FindingsGetFindingsPlanOKItemsItemKindEsu     FindingsGetFindingsPlanOKItemsItemKind = "esu"
 )
 
 // AllValues returns all FindingsGetFindingsPlanOKItemsItemKind values.
@@ -67269,6 +67274,7 @@ func (FindingsGetFindingsPlanOKItemsItemKind) AllValues() []FindingsGetFindingsP
 		FindingsGetFindingsPlanOKItemsItemKindFixed,
 		FindingsGetFindingsPlanOKItemsItemKindDistro,
 		FindingsGetFindingsPlanOKItemsItemKindWindows,
+		FindingsGetFindingsPlanOKItemsItemKindEsu,
 	}
 }
 
@@ -67280,6 +67286,8 @@ func (s FindingsGetFindingsPlanOKItemsItemKind) MarshalText() ([]byte, error) {
 	case FindingsGetFindingsPlanOKItemsItemKindDistro:
 		return []byte(s), nil
 	case FindingsGetFindingsPlanOKItemsItemKindWindows:
+		return []byte(s), nil
+	case FindingsGetFindingsPlanOKItemsItemKindEsu:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -67297,6 +67305,9 @@ func (s *FindingsGetFindingsPlanOKItemsItemKind) UnmarshalText(data []byte) erro
 		return nil
 	case FindingsGetFindingsPlanOKItemsItemKindWindows:
 		*s = FindingsGetFindingsPlanOKItemsItemKindWindows
+		return nil
+	case FindingsGetFindingsPlanOKItemsItemKindEsu:
+		*s = FindingsGetFindingsPlanOKItemsItemKindEsu
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)

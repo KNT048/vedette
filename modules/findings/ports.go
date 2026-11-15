@@ -120,4 +120,11 @@ type Feeds interface {
 	Vulns(ctx context.Context) ([]Vuln, error)
 	// TierStatus says what the tier feeds hold, for GET /findings/plan (D-613, D-616).
 	TierStatus(ctx context.Context) (TierStatus, error)
+	// TierVulns returns the CVEs of the tier data (nvd-recent, with the EPSS of epss-all) published in the last 12 months whose NVD
+	// affected entries name a CPE keep accepts, each with those entries only (D-617). None while nvd-recent is not ready or the feeds
+	// module is off; no EPSS while epss-all is not ready.
+	TierVulns(ctx context.Context, keep func(cpe string) bool) ([]TierVuln, error)
+	// TierStamp changes whenever what TierVulns returns may have changed: a pull or switch of epss-all, nvd-recent or nvd-kev, or the
+	// feeds module turned on or off (feeds' Store.TierStamp plus the module switch, cmd/vedette).
+	TierStamp(ctx context.Context) (string, error)
 }

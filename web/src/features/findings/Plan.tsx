@@ -66,7 +66,24 @@ function CveList({ item }: { item: PlanItem }) {
           ))}
         </tbody>
       </table>
+      <Legend item={item} />
     </div>
+  )
+}
+
+/** What the chips of this list mean, as text (review r1 #15 of #803: a `title` alone is out of reach of keyboard and touch). */
+function Legend({ item }: { item: PlanItem }) {
+  const { t } = useTranslation('findings')
+  const tiers = [...new Set(item.cves.map((c) => c.tier))]
+  const bases = [...new Set(item.cves.map((c) => c.basis))]
+  const row = (key: string, term: string, hint: string) => (
+    <div key={key}><dt className="inline font-medium">{term}</dt><dd className="inline">{': '}{hint}</dd></div>
+  )
+  return (
+    <dl className="grid gap-1 border-t border-rule px-3 py-2 text-[12px] text-muted">
+      {tiers.map((x) => row(`tier-${x}`, t(`plan.tier.${x}`), t(`plan.tier.${x}Hint`)))}
+      {bases.map((x) => row(`basis-${x}`, t(`plan.evidence.${x}`), t(`plan.evidence.${x}Hint`)))}
+    </dl>
   )
 }
 

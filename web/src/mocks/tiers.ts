@@ -10,7 +10,7 @@ export interface TierFact {
 }
 export type PlanBasis = 'scan' | 'agent' | 'distro' | 'version'
 export interface PlanSeed {
-  asset_id: string; software_id: string; software: string; version: string; fixed: string; kind: 'fixed' | 'distro' | 'windows'
+  asset_id: string; software_id: string; software: string; version: string; fixed: string; kind: 'fixed' | 'distro' | 'windows' | 'esu'
   cves: { cve: string; basis: PlanBasis }[]
 }
 export type FeedReady = 'module_off' | 'off' | 'loading' | 'ready'

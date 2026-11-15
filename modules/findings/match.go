@@ -85,6 +85,16 @@ type Asset struct {
 type Affected struct {
 	CPE   string // CPE 2.3 criteria; a malformed one is ignored
 	Range VersionRange
+	// parsed is CPE already parsed (the plan's index sets it once, review r1 #7 of #804); nil: parse when read.
+	parsed *CPE
+}
+
+// cpe is the entry's parsed CPE.
+func (af Affected) cpe() (CPE, error) {
+	if af.parsed != nil {
+		return *af.parsed, nil
+	}
+	return ParseCPE(af.CPE)
 }
 
 // Vuln is a KEV entry with the optional NVD affected configurations.
@@ -237,9 +247,12 @@ func aged(v Vuln, now time.Time) bool {
 // 2026-11-15): it compared a version (whoever gave it: the agent, the distribution, SNMP or LLDP, a person, a service's
 // banner), a scan engine hit it, or NVD lists every version of the product as affected (no version could change it). Only
 // a product-only match whose version would decide it is dropped: the noise of XP-era rows on Server 2025, while
-// CVE-2018-13379 on an unpatched FortiGate stays. Labels are unchanged (a banner or a typed version stays suspected).
+// CVE-2018-13379 on an unpatched FortiGate stays. Labels are unchanged (a banner or a typed version stays suspected). A product
+// match on a row the device's own agent reported (Evidence.AgentRow, D-612) stands too: the agent gave the installed version and only
+// Vedette could not compare it, which is agent evidence, not a guess (N100 n54: an unpatched Windows Server 2025 build 26100.1742 had
+// CVE-2024-43572 and CVE-2024-43573 closed for their age).
 func confirmedMatch(m Match) bool {
-	return m.Basis != BasisProduct || m.every
+	return m.Basis != BasisProduct || m.every || m.Evidence.AgentRow
 }
 
 // agedSummary is the note of a finding the age rule closes.
@@ -357,8 +370,9 @@ func MatchAsset(a Asset, vulns []Vuln, have map[string]bool, now time.Time) Matc
 					}
 				}
 			case outMatch:
-				// on a tie, a match NVD says covers every version wins: it keeps an old CVE (review r2 #5 of #803)
-				if best == nil || rank(m.Basis) > rank(best.Basis) || rank(m.Basis) == rank(best.Basis) && m.every && !best.every {
+				// on a tie, a confirmed match wins (NVD says every version, or the agent's row, D-612): it keeps an old CVE whatever
+				// the order of the rows (review r2 #5 of #803; review r2 #1 of #804: an nmap row sorted before the agent's)
+				if best == nil || rank(m.Basis) > rank(best.Basis) || rank(m.Basis) == rank(best.Basis) && confirmedMatch(m) && !confirmedMatch(*best) {
 					best = &m
 				}
 			case outNeedVersion:
@@ -433,7 +447,7 @@ func nvdProducts(vendor string, afs []Affected) string {
 	var names, own []string
 	seen := map[string]bool{}
 	for _, af := range afs {
-		c, err := ParseCPE(af.CPE)
+		c, err := af.cpe()
 		if err != nil {
 			continue
 		}
@@ -663,7 +677,7 @@ func newSWInfo(s Software, osName string) swInfo {
 // listsOthersOnly reports whether every NVD entry of v is readable and names another product than the software (D-505).
 func listsOthersOnly(in swInfo, v Vuln) bool {
 	for _, af := range v.Affected {
-		c, err := ParseCPE(af.CPE)
+		c, err := af.cpe()
 		if err != nil {
 			return false
 		}
@@ -699,7 +713,7 @@ func decide(in swInfo, v Vuln, multi bool) (t Tri, within VersionRange, every bo
 	junosSeen := false // a Junos NVD row decided (junosEval): its exact rows say what a missing update means (D-510)
 	var jl junosList
 	for _, af := range v.Affected {
-		c, err := ParseCPE(af.CPE)
+		c, err := af.cpe()
 		if err != nil || c.Part.Kind == NA {
 			undecidable = true // cannot tell which product this entry is about
 			continue

@@ -127,7 +127,7 @@ type fixedParts struct {
 func fixedPartsOf(in swInfo, v Vuln, key []identity) fixedParts {
 	var ents []fixedEntry // every entry that applies to the software, whatever its range
 	for _, af := range v.Affected {
-		c, err := ParseCPE(af.CPE)
+		c, err := af.cpe()
 		if err != nil || c.Part.Kind == NA {
 			continue
 		}

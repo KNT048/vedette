@@ -24,6 +24,8 @@ type fakeInv struct {
 	assets map[string]AssetView
 	match  map[string]Asset
 	idsErr error
+	// onMatch runs (without the lock) when MatchInput reads a device: a test can change the world while a pass reads it.
+	onMatch func(id string)
 }
 
 func (f *fakeInv) Assets(_ context.Context, ids []string) (map[string]AssetView, error) {
@@ -40,8 +42,12 @@ func (f *fakeInv) Assets(_ context.Context, ids []string) (map[string]AssetView,
 
 func (f *fakeInv) MatchInput(_ context.Context, id string) (Asset, bool, error) {
 	f.mu.Lock()
-	defer f.mu.Unlock()
 	a, ok := f.match[id]
+	hook := f.onMatch
+	f.mu.Unlock()
+	if hook != nil {
+		hook(id)
+	}
 	return a, ok, nil
 }
 
@@ -59,6 +65,8 @@ type fakeFeeds struct {
 	kev   map[string]KevInfo
 	vulns []Vuln
 	tier  TierStatus
+	tiers []TierVuln // TierVulns keeps those whose entries the scope keeps
+	stamp string
 }
 
 func (f *fakeFeeds) KevInfo(_ context.Context, cves []string) (map[string]KevInfo, error) {
@@ -74,6 +82,25 @@ func (f *fakeFeeds) KevInfo(_ context.Context, cves []string) (map[string]KevInf
 func (f *fakeFeeds) Vulns(context.Context) ([]Vuln, error) { return f.vulns, nil }
 
 func (f *fakeFeeds) TierStatus(context.Context) (TierStatus, error) { return f.tier, nil }
+
+func (f *fakeFeeds) TierVulns(_ context.Context, keep func(string) bool) ([]TierVuln, error) {
+	var out []TierVuln
+	for _, t := range f.tiers {
+		var kept []Affected
+		for _, af := range t.Affected {
+			if keep(af.CPE) {
+				kept = append(kept, af)
+			}
+		}
+		if len(kept) > 0 {
+			t.Affected = kept
+			out = append(out, t)
+		}
+	}
+	return out, nil
+}
+
+func (f *fakeFeeds) TierStamp(context.Context) (string, error) { return f.stamp, nil }
 
 type published struct {
 	Name    string

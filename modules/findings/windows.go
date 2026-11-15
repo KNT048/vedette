@@ -236,7 +236,7 @@ func windowsDecide(in swInfo, v Vuln, named bool, now time.Time) (winVerdict, bo
 	looseOther := false // rows of another product at any version or in a range
 	listedYear := 0     // the latest year one of the listed other releases came out (winOldYear for the ones before Windows 10)
 	for _, af := range v.Affected {
-		c, err := ParseCPE(af.CPE)
+		c, err := af.cpe()
 		if err != nil || c.Part.Kind == NA {
 			undecidable, allWindows = true, false
 			continue

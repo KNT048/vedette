@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -54,6 +55,10 @@ type RecentCVE struct {
 	Severity                string   // CVSS base severity of the newest CVSS version NVD gives (NVD's own first), "" when none
 	Score                   *float64 // its base score
 	Affected                []AffectedRow
+	// Platforms is, per entry of Affected, the operating systems ("microsoft:windows", vendor and product of the CPE) of NVD's "running
+	// on" condition of its configuration (an AND of the vulnerable entries with non-vulnerable operating-system entries); nil for an
+	// entry without one (D-617, review r1 #6 of #804).
+	Platforms [][]string
 }
 
 // RecentPage is one parsed answer.
@@ -88,34 +93,39 @@ type cvssEntry struct {
 	} `json:"cvssData"`
 }
 
+// recentAnswer is one NVD answer; each record is decoded on its own (recentRecord), so one record of the wrong shape is rejected
+// alone instead of failing the whole page (review r2 #9 of #802).
 type recentAnswer struct {
-	TotalResults    *int `json:"totalResults"`
-	Vulnerabilities []struct {
-		CVE struct {
-			ID           string `json:"id"`
-			Published    string `json:"published"`
-			LastModified string `json:"lastModified"`
-			VulnStatus   string `json:"vulnStatus"`
-			Metrics      struct {
-				V40 []cvssEntry `json:"cvssMetricV40"`
-				V31 []cvssEntry `json:"cvssMetricV31"`
-				V30 []cvssEntry `json:"cvssMetricV30"`
-			} `json:"metrics"`
-			Configurations []struct {
-				Nodes []struct {
-					Negate   bool `json:"negate"`
-					CPEMatch []struct {
-						Vulnerable bool   `json:"vulnerable"`
-						Criteria   string `json:"criteria"`
-						StartIncl  string `json:"versionStartIncluding"`
-						StartExcl  string `json:"versionStartExcluding"`
-						EndIncl    string `json:"versionEndIncluding"`
-						EndExcl    string `json:"versionEndExcluding"`
-					} `json:"cpeMatch"`
-				} `json:"nodes"`
-			} `json:"configurations"`
-		} `json:"cve"`
-	} `json:"vulnerabilities"`
+	TotalResults    *int              `json:"totalResults"`
+	Vulnerabilities []json.RawMessage `json:"vulnerabilities"`
+}
+
+type recentRecord struct {
+	CVE struct {
+		ID           string `json:"id"`
+		Published    string `json:"published"`
+		LastModified string `json:"lastModified"`
+		VulnStatus   string `json:"vulnStatus"`
+		Metrics      struct {
+			V40 []cvssEntry `json:"cvssMetricV40"`
+			V31 []cvssEntry `json:"cvssMetricV31"`
+			V30 []cvssEntry `json:"cvssMetricV30"`
+		} `json:"metrics"`
+		Configurations []struct {
+			Operator string `json:"operator"`
+			Nodes    []struct {
+				Negate   bool `json:"negate"`
+				CPEMatch []struct {
+					Vulnerable bool   `json:"vulnerable"`
+					Criteria   string `json:"criteria"`
+					StartIncl  string `json:"versionStartIncluding"`
+					StartExcl  string `json:"versionStartExcluding"`
+					EndIncl    string `json:"versionEndIncluding"`
+					EndExcl    string `json:"versionEndExcluding"`
+				} `json:"cpeMatch"`
+			} `json:"nodes"`
+		} `json:"configurations"`
+	} `json:"cve"`
 }
 
 var cvssSeverities = map[string]bool{"CRITICAL": true, "HIGH": true, "MEDIUM": true, "LOW": true, "NONE": true}
@@ -159,8 +169,13 @@ func ParseNVDRecent(data []byte) (RecentPage, error) {
 	}
 	out := RecentPage{Total: *a.TotalResults, Returned: len(a.Vulnerabilities), Records: make([]RecentCVE, 0, len(a.Vulnerabilities))}
 	tl := newTally()
-	for i, v := range a.Vulnerabilities {
+	for i, raw := range a.Vulnerabilities {
 		row := i + 1
+		var v recentRecord
+		if err := json.Unmarshal(raw, &v); err != nil {
+			tl.reject(row, "the record is not an NVD CVE record")
+			continue
+		}
 		id := strings.ToUpper(strings.TrimSpace(v.CVE.ID))
 		pub, okP := nvdTime(v.CVE.Published)
 		mod, okM := nvdTime(v.CVE.LastModified)
@@ -181,6 +196,16 @@ func ParseNVDRecent(data []byte) (RecentPage, error) {
 		bad := ""
 	entries:
 		for _, c := range v.CVE.Configurations {
+			var plats []string // the "running on" operating systems of an AND configuration
+			if strings.EqualFold(c.Operator, "AND") {
+				for _, n := range c.Nodes {
+					for _, m := range n.CPEMatch {
+						if p, ok := platformOf(m.Criteria); ok && !m.Vulnerable && !n.Negate && !slices.Contains(plats, p) && len(plats) < recentMaxPlatforms {
+							plats = append(plats, p)
+						}
+					}
+				}
+			}
 			for _, n := range c.Nodes {
 				if n.Negate {
 					continue
@@ -197,6 +222,7 @@ func ParseNVDRecent(data []byte) (RecentPage, error) {
 						break entries
 					}
 					rec.Affected = append(rec.Affected, r)
+					rec.Platforms = append(rec.Platforms, plats)
 				}
 			}
 		}
@@ -209,6 +235,23 @@ func ParseNVDRecent(data []byte) (RecentPage, error) {
 	}
 	out.Stats = tl.stats()
 	return out, nil
+}
+
+// recentMaxPlatforms caps the operating systems kept for one configuration's condition.
+const recentMaxPlatforms = 20
+
+// platformOf is "vendor:product" of an operating-system CPE ("cpe:2.3:o:microsoft:windows:-:…" gives "microsoft:windows"); false for
+// another part or a name that is not plain printable text.
+func platformOf(cpe string) (string, bool) {
+	rest, ok := strings.CutPrefix(cpe, "cpe:2.3:o:")
+	if !ok || len(cpe) > 500 {
+		return "", false
+	}
+	parts := strings.SplitN(rest, ":", 3)
+	if len(parts) < 3 || parts[0] == "" || parts[1] == "" || parts[0] == "*" || !printableASCII(parts[0]+parts[1]) {
+		return "", false
+	}
+	return parts[0] + ":" + parts[1], true
 }
 
 // Cursor modes of feeds_recent_cursor.
@@ -316,7 +359,7 @@ ON CONFLICT(cve) DO UPDATE SET published = excluded.published, last_modified = e
 		return err
 	}
 	defer func() { _ = wipe.Close() }()
-	ins, err := tx.PrepareContext(ctx, `INSERT INTO feeds_recent_affected (cve, cpe, start_incl, start_excl, end_incl, end_excl) VALUES (?, ?, ?, ?, ?, ?)`)
+	ins, err := tx.PrepareContext(ctx, `INSERT INTO feeds_recent_affected (cve, cpe, start_incl, start_excl, end_incl, end_excl, platforms) VALUES (?, ?, ?, ?, ?, ?, ?)`)
 	if err != nil {
 		return err
 	}
@@ -338,8 +381,16 @@ ON CONFLICT(cve) DO UPDATE SET published = excluded.published, last_modified = e
 		if _, err := wipe.ExecContext(ctx, r.CVE); err != nil {
 			return err
 		}
-		for _, a := range r.Affected {
-			if _, err := ins.ExecContext(ctx, r.CVE, a.CPE, a.StartIncl, a.StartExcl, a.EndIncl, a.EndExcl); err != nil {
+		for j, a := range r.Affected {
+			plats := []string{}
+			if j < len(r.Platforms) && r.Platforms[j] != nil {
+				plats = r.Platforms[j]
+			}
+			pj, err := json.Marshal(plats)
+			if err != nil {
+				return err
+			}
+			if _, err := ins.ExecContext(ctx, r.CVE, a.CPE, a.StartIncl, a.StartExcl, a.EndIncl, a.EndExcl, string(pj)); err != nil {
 				return err
 			}
 		}
@@ -371,10 +422,27 @@ func recentText(c recentCursor, stored int, paused bool, busy string, retryAt, n
 	return t
 }
 
-func (s *Service) setRecentText(t string) {
+// recentProgress is where an unfinished nvd-recent pull stands; live() writes its line from it, with run's busy reason and retry
+// time as they are at that moment (nvdPage sets them under nvdMu).
+type recentProgress struct {
+	cur    recentCursor
+	stored int
+	paused bool
+	run    *nvdRun
+}
+
+// setRecent records the pull's progress (nil: no pull unfinished) and when a paused pull goes on (zero: at the next check).
+func (s *Service) setRecent(p *recentProgress, resumeAt time.Time) {
 	s.nvdMu.Lock()
 	defer s.nvdMu.Unlock()
-	s.recent = t
+	s.recent, s.recentAt = p, resumeAt
+}
+
+// recentResumeAt is when a paused nvd-recent pull goes on; zero when nothing holds it back.
+func (s *Service) recentResumeAt() time.Time {
+	s.nvdMu.Lock()
+	defer s.nvdMu.Unlock()
+	return s.recentAt
 }
 
 func (s *Store) recentCount(ctx context.Context) (all, ranged int, err error) {
@@ -404,21 +472,24 @@ func (s *Service) buildRecent(ctx context.Context, src sourceRow, p pullPlan) (p
 	run := &nvdRun{} // nvdPage's busy reason and retry time, shown in the progress line (s.recent)
 	pages, bytesRead, stored := 0, 0, have
 	var st Stats
-	text := func(paused bool) string {
-		s.nvdMu.Lock()
-		busy, at := run.busy, run.retryAt
-		s.nvdMu.Unlock()
-		return recentText(cur, stored, paused, busy, at, s.now())
+	progress := func(paused bool) *recentProgress {
+		return &recentProgress{cur: cur, stored: stored, paused: paused, run: run}
 	}
 	stop := func(why error) (pullPlan, error) {
 		if pages == 0 && !errors.Is(why, errNVDPaused) { // a failure: the feed shows its error, not a progress line (review r1 #4)
-			s.setRecentText("")
+			s.setRecent(nil, time.Time{})
 			if nvdRetryable(why) && ctx.Err() == nil {
 				return p, &Error{Err: why, Detail: nvdBusy(why) + ", after every try. Vedette tries again later; the CVEs stored so far are kept."}
 			}
 			return p, why
 		}
-		s.setRecentText(text(true))
+		s.nvdMu.Lock()
+		resume := time.Time{}
+		if run.busy != "" && run.retryAt.After(s.now()) {
+			resume = run.retryAt
+		}
+		s.nvdMu.Unlock()
+		s.setRecent(progress(true), resume)
 		s.Log.InfoContext(ctx, "the NVD pull of recent CVEs paused; it goes on later", "pages", pages, "error", why)
 		return p, errNVDPaused
 	}
@@ -430,7 +501,7 @@ func (s *Service) buildRecent(ctx context.Context, src sourceRow, p pullPlan) (p
 		if at, paused := s.nvdResumeAt(); paused && s.now().Before(at) { // nvd-kev waits out NVD: so does this feed
 			return stop(errNVDPaused)
 		}
-		s.setRecentText(text(false))
+		s.setRecent(progress(false), time.Time{})
 		var d RecentPage
 		var body int
 		for _, size := range []int{RecentPageSize, recentSmallPage} { // a page too large or unreadable is asked again smaller (review r1 #6)
@@ -439,7 +510,10 @@ func (s *Service) buildRecent(ctx context.Context, src sourceRow, p pullPlan) (p
 				return p, err
 			}
 			var resp *Response
-			if resp, err = s.nvdPage(ctx, run, u, recentMaxBytes); err == nil {
+			if resp, err = s.nvdPage(ctx, run, u, cur.NextIndex, recentMaxBytes); err == nil {
+				s.nvdMu.Lock()
+				run.busy, run.retryAt = "", time.Time{} // NVD answered: the line stops saying it was busy (review r2 #5 of #802)
+				s.nvdMu.Unlock()
 				body = len(resp.Body)
 				d, err = ParseNVDRecent(resp.Body)
 			}
@@ -504,7 +578,7 @@ func (s *Service) buildRecent(ctx context.Context, src sourceRow, p pullPlan) (p
 			return p, err
 		}
 		if stale {
-			s.setRecentText("")
+			s.setRecent(nil, time.Time{})
 			return p, ErrFeedDisabled // pullOne finds the row changed and writes nothing
 		}
 		pages++
@@ -522,7 +596,7 @@ func (s *Service) buildRecent(ctx context.Context, src sourceRow, p pullPlan) (p
 			return p, err
 		}
 	}
-	s.setRecentText("")
+	s.setRecent(nil, time.Time{})
 	all, ranged, err := s.st.recentCount(ctx)
 	if err != nil {
 		return p, err

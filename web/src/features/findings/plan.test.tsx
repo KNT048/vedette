@@ -1,4 +1,4 @@
-// Updates to plan (S-TIER-1, S-TIER-2; D-613, D-615, D-616) and the CVE page of a CVE on no exploited list.
+// Updates to plan (S-TIER-1, S-TIER-2; D-613, D-615, D-616, D-617) and the CVE page of a CVE on no exploited list.
 import { describe, expect, it } from 'vitest'
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -20,6 +20,10 @@ describe('Updates to plan (S-TIER-1, S-TIER-2)', () => {
     expect(within(table).getByRole('link', { name: 'CVE-2024-28870' })).toHaveAttribute('href', '/cve/CVE-2024-28870')
     expect(within(table).getByText('Found by a scan')).toBeInTheDocument()
     expect(within(table).getByText('Over 12 months ago')).toBeInTheDocument()
+    // review r1 #15 of #803: what each chip means is text under the list, not only a title
+    const hint = within(nas).getByText(/A scan engine \(nuclei, OpenVAS or ZAP\) found it on the device/)
+    expect(hint).toBeVisible()
+    expect(within(hint.closest('dl')!).getByText(/The exact version you entered, or the device states/)).toBeVisible()
     await expectNoA11yViolations()
     await userEvent.click(screen.getByRole('button', { name: 'Recent' }))
     await waitFor(() => expect(screen.queryByText(/Upgrade Synology NAS/)?.closest('li')?.textContent).toMatch(/fixes 1 CVE(?!s)/))

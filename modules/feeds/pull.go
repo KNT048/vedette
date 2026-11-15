@@ -59,6 +59,9 @@ func (s *Service) RunPull(ctx context.Context) error {
 		if at, paused := s.nvdResumeAt(); paused && r.ID == nvdFeedID {
 			due = !now.Before(at) // a paused NVD pull goes on when it said it would (W3-1)
 		}
+		if r.ID == recentFeedID && now.Before(s.recentResumeAt()) {
+			due = false // nvd-recent waits out NVD's busy answer as its progress line says (review r2 #6 of #802)
+		}
 		if !r.Enabled || !due || s.busy(r.ID) { // busy: a "Fetch now" is pulling it; never a second pull
 			continue
 		}
@@ -113,6 +116,7 @@ type pullPlan struct {
 	cveOrg        map[string]CVEOrgResult // cve-org (D-556): the CVEs whose record gave ranges
 	cveOrgChecked []string                // every CVE whose record was read
 	cveOrgUnread  []string                // CVEs whose record could not be read this time: stamped, stored ranges kept
+	cveOrgDays    map[string]string       // the day each record read says the CVE was published (D-615 (2), D-617)
 	hasCVEOrg     bool
 
 	iocs    []iocInput
@@ -604,6 +608,9 @@ func (s *Service) pullOne(ctx context.Context, id, actor string) (sourceRow, int
 				// alerts, by its own new_kev event, published before this one and matched against these ranges
 				var total int
 				if rangesChanged, rangesFirst, total, err = applyCVEOrg(ctx, tx, p.cveOrg, p.cveOrgChecked, p.cveOrgUnread, p.out.Finished); err != nil {
+					return err
+				}
+				if err = applyCVEOrgPublished(ctx, tx, p.cveOrgDays); err != nil {
 					return err
 				}
 				p.out.Records = total

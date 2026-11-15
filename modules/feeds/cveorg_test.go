@@ -332,3 +332,43 @@ func TestCVEOrgPull_OneBadFileDoesNotStopIt(t *testing.T) {
 		t.Fatalf("an unreadable answer dropped the stored ranges: %v", src)
 	}
 }
+
+// D-615 (2), D-617: the CVE.org record's datePublished is the published day of an exploited CVE NVD gives none for; NVD's day replaces
+// it, CVE.org never replaces NVD's, and only NVD's days count when nvd-kev decides whether a full pull must fill the table.
+func TestCVEOrgPublishedDay(t *testing.T) {
+	t.Parallel()
+	e, _, _ := cveOrgEnv(t)
+	if err := e.svc.Fetch(t.Context(), "cve-org"); err != nil {
+		t.Fatal(err)
+	}
+	day := func(cve string) string {
+		pub, err := e.svc.st.KevPublished(t.Context())
+		if err != nil {
+			t.Fatal(err)
+		}
+		if d, ok := pub[cve]; ok {
+			return d.Format(time.DateOnly)
+		}
+		return ""
+	}
+	if day("CVE-2024-3400") != "2024-04-12" || day("CVE-2026-0001") != "" { // the second record gives no datePublished
+		t.Fatalf("CVE.org days: %q %q", day("CVE-2024-3400"), day("CVE-2026-0001"))
+	}
+	if n, err := e.svc.st.publishedCount(t.Context()); err != nil || n != 0 {
+		t.Fatalf("CVE.org's day counted as NVD's: %d %v", n, err)
+	}
+	write(t, e.db, func(tx *sql.Tx) error {
+		return applyPublished(t.Context(), tx, map[string]string{"CVE-2024-3400": "2024-04-11"})
+	})
+	write(t, e.db, func(tx *sql.Tx) error {
+		return applyCVEOrgPublished(t.Context(), tx, map[string]string{"CVE-2024-3400": "2024-04-12"})
+	})
+	if n, _ := e.svc.st.publishedCount(t.Context()); day("CVE-2024-3400") != "2024-04-11" || n != 1 {
+		t.Fatalf("NVD's day did not win: %q, %d", day("CVE-2024-3400"), n)
+	}
+	for ts, want := range map[string]string{"2024-04-12T07:20:00.707Z": "2024-04-12", "2024-04-12": "2024-04-12", "2024-13-01T00:00:00Z": "", "x'; DROP": "", "2024-04-12 07:20": ""} {
+		if got := cveDay(ts); got != want {
+			t.Errorf("cveDay(%q) = %q, want %q", ts, got, want)
+		}
+	}
+}

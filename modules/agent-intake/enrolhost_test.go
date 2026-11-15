@@ -8,6 +8,7 @@ import (
 
 	"github.com/knt048/vedette/core/observe"
 	agentintake "github.com/knt048/vedette/modules/agent-intake"
+	"github.com/knt048/vedette/modules/inventory"
 )
 
 // W-2 (D-548, TUNE-5b walk): a machine whose system_info answer has not reached the inventory is named by the host name osquery gave at
@@ -40,25 +41,34 @@ func TestContract_D548_EnrolmentHostNameOncePerNodeAtAnyAge(t *testing.T) {
 	if d, ok := w.device(peerA); !ok || d.Hostname == nil || *d.Hostname != "WIN-LAB" {
 		t.Fatalf("after the first hour: %+v", d.AssetCore)
 	}
-	seen := func() int {
-		return w.count(`SELECT count(*) FROM inv_observation WHERE field = 'hostname' AND value = 'WIN-LAB'`)
+	// The device's host name observations, read through the inventory service (inventory INV-2: no other package reads inv_* tables).
+	names := func() []inventory.ObservationRow {
+		t.Helper()
+		d, ok := w.device(peerA)
+		if !ok {
+			t.Fatal("no device")
+		}
+		det, err := w.inv.Detail(t.Context(), d.ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var out []inventory.ObservationRow
+		for _, o := range det.Observations {
+			if o.Field == "hostname" {
+				out = append(out, o)
+			}
+		}
+		return out
 	}
 	before := w.count(`SELECT count(*) FROM intake_osquery_nodes WHERE ',' || reported || ',' LIKE '%,hostname,%'`)
-	if before != 1 || seen() != 1 {
-		t.Fatalf("hostname answer recorded %d, observations %d", before, seen())
-	}
-	var at1 string
-	if err := w.db.Reader().QueryRowContext(t.Context(), `SELECT seen_at FROM inv_observation WHERE field = 'hostname'`).Scan(&at1); err != nil {
-		t.Fatal(err)
+	first := names()
+	if before != 1 || len(first) != 1 || first[0].Value != "WIN-LAB" {
+		t.Fatalf("hostname answer recorded %d, observations %+v", before, first)
 	}
 	w.clock.Advance(time.Hour)
 	w.post("/intake/osquery/log", peerA, logBody(key, snap("interfaces", ifaceRow(macA, peerA)), osRow))
-	var at2 string
-	if err := w.db.Reader().QueryRowContext(t.Context(), `SELECT seen_at FROM inv_observation WHERE field = 'hostname'`).Scan(&at2); err != nil {
-		t.Fatal(err)
-	}
-	if at2 != at1 {
-		t.Fatalf("the enrolment's name was written again: seen_at %s -> %s", at1, at2)
+	if again := names(); len(again) != 1 || again[0].SeenAt != first[0].SeenAt {
+		t.Fatalf("the enrolment's name was written again: %+v -> %+v", first, again)
 	}
 	w.post("/intake/osquery/log", peerA, logBody(key, snap("system_info", map[string]string{"hostname": "win-lab-2", "hardware_vendor": "QEMU", "hardware_model": "Standard PC"})))
 	if d, _ := w.device(peerA); d.Hostname == nil || *d.Hostname != "win-lab-2" {

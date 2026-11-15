@@ -151,3 +151,7 @@
 - **`feeds_published.source`**: export policy `modules/core/export_policy.go`; `publishedCount` chỉ đếm `nvd`.
 - **Migration 0013** (`feeds_recent_affected.platforms`, xoá `feeds_recent_cursor`): hộp nâng cấp nạp lại 12 tháng NVD một lần; export policy liệt kê cột mới (bảng vẫn không xuất). `Store.TierStamp` cho findings.
 - **nvd-recent**: `Service.recent` là `*recentProgress` (dòng tiến độ viết lúc `live`), `recentAt` chặn `RunPull`; `nvdPage` nhận `start` (log); `nvdSlot` giữ `nvdBookedAt`.
+
+## Modifying: lịch và dòng feed của `nvd-recent` khi dữ liệu chưa đầy đủ (fix/n55-feeds, N55-1, N55-2)
+- `RunPull` đọc `feeds_recent_cursor` mỗi lần kiểm khi `nvd-recent` bật (một hàng); con trỏ chưa `done` cho địa chỉ của feed ⇒ đến hạn ngay (chỉ back-off sau lỗi giữ lại). Mọi lần xoá con trỏ sau này (migration, sửa tay) nạp lại ở lần kiểm kế, không cần migration đổi lịch.
+- `Service.live` nhận `ctx` (đọc con trỏ và số CVE của `nvd-recent` khi không có lượt nào đang chạy, cả khi trạng thái là lỗi); người gọi: `GET /feeds/sources`, `POST /feeds/sources/{id}/fetch`, `pull`. Không đổi API hay GUI: dòng tiến độ đi trong `error` như lượt nạp đầu.

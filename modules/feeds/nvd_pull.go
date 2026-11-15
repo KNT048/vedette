@@ -86,7 +86,9 @@ func (s *Service) nvdResumeAt() (time.Time, bool) {
 // live is the feed row as the GUI shows it: while the NVD versions load (or wait to go on), the row says how far
 // the pull got and why it waits, instead of the last error or "not fetched yet" alone (W3-1). A feed that never
 // finished a pull stays "never": its versions are not loaded yet. A distribution feed no device needs says so (D-570).
-func (s *Service) live(r sourceRow) sourceRow {
+// nvd-recent between pulls of an unfinished fill (after a restart, or a migration that reset its cursor) says where the
+// next pull goes on, read from its cursor (N55-1), as /findings/plan says it is loading.
+func (s *Service) live(ctx context.Context, r sourceRow) sourceRow {
 	if distroFeeds[r.ID] && r.Enabled {
 		if note := s.distroNote(r.ID); note != "" { // D-570: the rows of an earlier pull stay; a real error keeps its text, then says why it waits
 			if r.Status == "error" && r.Error != nil {
@@ -99,10 +101,14 @@ func (s *Service) live(r sourceRow) sourceRow {
 	if r.ID == recentFeedID { // D-614: how far the paged pull of the last 12 months got
 		s.nvdMu.Lock()
 		text := ""
-		if p := s.recent; p != nil { // the busy reason and retry time read now, not copied when the page started (review r2 #5 of #802)
+		p := s.recent
+		if p != nil { // the busy reason and retry time read now, not copied when the page started (review r2 #5 of #802)
 			text = recentText(p.cur, p.stored, p.paused, p.run.busy, p.run.retryAt, s.now())
 		}
 		s.nvdMu.Unlock()
+		if p == nil && r.Enabled { // after a restart too, an old failure shows with how far the data got (review 1 #3 of #805);
+			text = s.recentIdleText(ctx, r.URL, r.Failures == 0) // during a back-off the line promises no 5-minute check
+		}
 		switch {
 		case text == "" || !r.Enabled:
 		case r.Status == "error" && r.Error != nil: // the last failure stays visible, with how far the pull got since (review r1 #4)

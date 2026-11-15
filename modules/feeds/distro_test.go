@@ -259,7 +259,7 @@ func TestDistroPullOnlyWhileADeviceNeedsIt(t *testing.T) {
 	if err := e.svc.RunPull(t.Context()); err != nil {
 		t.Fatal(err)
 	}
-	if f := e.svc.live(e.feed(debianTrackerFeedID)); o.count("/tracker.json") != 1 || inv.asked != 0 || f.Status != "ok" || rowsOf(t, e.db, "feeds_distro_fix") != 2 {
+	if f := e.svc.live(t.Context(), e.feed(debianTrackerFeedID)); o.count("/tracker.json") != 1 || inv.asked != 0 || f.Status != "ok" || rowsOf(t, e.db, "feeds_distro_fix") != 2 {
 		t.Fatalf("first fill: %d requests, asked %d, feed %+v", o.count("/tracker.json"), inv.asked, f)
 	}
 	const note = "Not updated: no Debian device now. Vedette updates it on the next check after an agent reports the packages of a Debian device."
@@ -269,7 +269,7 @@ func TestDistroPullOnlyWhileADeviceNeedsIt(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	f := e.svc.live(e.feed(debianTrackerFeedID))
+	f := e.svc.live(t.Context(), e.feed(debianTrackerFeedID))
 	if o.count("/tracker.json") != 1 || inv.asked != 2 || f.Status != "ok" || f.Error == nil || *f.Error != note || rowsOf(t, e.db, "feeds_distro_fix") != 2 {
 		t.Fatalf("no Debian device: %d requests, asked %d, feed %+v", o.count("/tracker.json"), inv.asked, f)
 	}
@@ -280,7 +280,7 @@ func TestDistroPullOnlyWhileADeviceNeedsIt(t *testing.T) {
 	if err := e.svc.RunPull(t.Context()); err != nil {
 		t.Fatal(err)
 	}
-	if f := e.svc.live(e.feed(debianTrackerFeedID)); o.count("/tracker.json") != 2 || f.Status != "ok" || f.Error != nil && *f.Error == note {
+	if f := e.svc.live(t.Context(), e.feed(debianTrackerFeedID)); o.count("/tracker.json") != 2 || f.Status != "ok" || f.Error != nil && *f.Error == note {
 		t.Fatalf("a Debian device appeared: %d requests, feed %+v", o.count("/tracker.json"), f)
 	}
 	// the inventory cannot be read: pull as before

@@ -59,10 +59,9 @@ func (s *Service) RunPull(ctx context.Context) error {
 		due := r.state().Due(now, r.IntervalHours)
 		if r.ID == recentFeedID && r.Enabled { // N55-2: a fill the cursor says is unfinished (a migration reset it) goes on now, not a day after the last success
 			cur, err := s.st.recentCursor(ctx)
-			if err != nil {
-				return err
-			}
-			if !recentComplete(cur, r.URL) {
+			if err != nil { // the plain schedule this tick, as the re-read above falls back (review 1 #4 of #805)
+				s.Log.ErrorContext(ctx, "reading where the NVD pull of recent CVEs stands failed", "error", err)
+			} else if !recentComplete(cur, r.URL) {
 				st := r.state()
 				st.LastSuccess = time.Time{} // only the back-off after failures holds it back
 				due = st.Due(now, r.IntervalHours)

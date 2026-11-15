@@ -106,8 +106,8 @@ func (s *Service) live(ctx context.Context, r sourceRow) sourceRow {
 			text = recentText(p.cur, p.stored, p.paused, p.run.busy, p.run.retryAt, s.now())
 		}
 		s.nvdMu.Unlock()
-		if p == nil && r.Enabled && r.Status != "error" { // a failure shows its own error, as when a pull got no page (review r1 #4)
-			text = s.recentIdleText(ctx, r.URL)
+		if p == nil && r.Enabled { // after a restart too, an old failure shows with how far the data got (review 1 #3 of #805);
+			text = s.recentIdleText(ctx, r.URL, r.Failures == 0) // during a back-off the line promises no 5-minute check
 		}
 		switch {
 		case text == "" || !r.Enabled:

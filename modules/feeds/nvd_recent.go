@@ -311,8 +311,9 @@ func recentComplete(cur *recentCursor, url string) bool {
 }
 
 // recentIdleText is the progress line of nvd-recent while no pull is running and the data is not complete (N55-1): where the
-// next pull goes on, from the cursor; "" when the data is complete or cannot be read.
-func (s *Service) recentIdleText(ctx context.Context, url string) string {
+// next pull goes on, from the cursor; "" when the data is complete or cannot be read. next: the line says the next 5-minute
+// check goes on (false during the back-off after a failure).
+func (s *Service) recentIdleText(ctx context.Context, url string, next bool) string {
 	cur, err := s.st.recentCursor(ctx)
 	if err != nil || recentComplete(cur, url) {
 		return ""
@@ -322,7 +323,7 @@ func (s *Service) recentIdleText(ctx context.Context, url string) string {
 		return ""
 	}
 	now := s.now()
-	return recentText(recentStart(cur, url, have, now), have, true, "", time.Time{}, now)
+	return recentText(recentStart(cur, url, have, now), have, next, "", time.Time{}, now)
 }
 
 // recentStart decides what a pull of nvd-recent does (review r1 #1, #2), whatever the feed's last status was:

@@ -224,10 +224,13 @@ const AgeLimit = 365 * 24 * time.Hour
 // AgedNote starts the note of a finding the age rule closed (D-615, D-616, S-TIER-4); ReopenOnMatch recognises it.
 const AgedNote = "Older than 12 months and matched by the product name only"
 
-// aged reports whether v was published more than AgeLimit before now; an unknown day is never aged (D-615: a missing date
-// never closes a finding).
+// aged reports whether v is older than AgeLimit (D-615, D-616 after review r2 of #803): its age runs from the LATER of the
+// day NVD published it and the day the exploited list added it (DateAdded: CISA's, or VulnCheck's for an entry only it lists),
+// so KEV news is never hidden (CVE-2008-4250 added in 2026 is recent). An unknown day of either kind is never aged: a missing
+// date never closes a finding.
 func aged(v Vuln, now time.Time) bool {
-	return !v.Published.IsZero() && v.Published.Before(now.Add(-AgeLimit))
+	cut := now.Add(-AgeLimit)
+	return !v.Published.IsZero() && v.Published.Before(cut) && !v.DateAdded.IsZero() && v.DateAdded.Before(cut)
 }
 
 // confirmedMatch reports whether a matcher's match on an old KEV CVE stands (D-615 as amended by D-616, supervisor
@@ -241,8 +244,8 @@ func confirmedMatch(m Match) bool {
 
 // agedSummary is the note of a finding the age rule closes.
 func agedSummary(v Vuln) string {
-	return fmt.Sprintf("%s: %s was published on %s, more than 12 months ago, and Vedette could not compare a version (it matched the product name only). Vedette reopens this finding when it can compare the version (from the agent, the device or one you enter) or a scan finds it.",
-		AgedNote, v.CVE, FmtDay(v.Published))
+	return fmt.Sprintf("%s: %s was published on %s and added to %s's list on %s, both more than 12 months ago, and Vedette could not compare a version (it matched the product name only). Vedette reopens this finding when it can compare the version (from the agent, the device or one you enter) or a scan that reads the version finds it.",
+		AgedNote, v.CVE, FmtDay(v.Published), v.listName(), FmtDay(v.DateAdded))
 }
 
 // SettledKEV is how long a "Multiple Products" entry must have been in KEV before NVD's product list for it is taken as
@@ -354,7 +357,8 @@ func MatchAsset(a Asset, vulns []Vuln, have map[string]bool, now time.Time) Matc
 					}
 				}
 			case outMatch:
-				if best == nil || rank(m.Basis) > rank(best.Basis) {
+				// on a tie, a match NVD says covers every version wins: it keeps an old CVE (review r2 #5 of #803)
+				if best == nil || rank(m.Basis) > rank(best.Basis) || rank(m.Basis) == rank(best.Basis) && m.every && !best.every {
 					best = &m
 				}
 			case outNeedVersion:

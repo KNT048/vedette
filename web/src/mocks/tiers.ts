@@ -70,5 +70,6 @@ export const recentSince = () => day(YEAR_DAYS)
  *  the findings and feeds mocks and the mock matcher (match.ts), which drops product-only matches of older ones like the box (D-616). */
 const KEV_PUBLISHED: Record<string, string> = { 'CVE-2015-5477': '2015-07-29', 'CVE-2024-27834': '2024-05-14', 'CVE-2025-61624': '2025-10-02' }
 export const kevPublished = (cve: string): string | null => KEV_PUBLISHED[cve] ?? (/^CVE-2026-/.test(cve) ? '2026-06-01' : null)
-/** D-615, D-616: older than 12 months (an unknown day is never old). */
-export const kevAged = (cve: string) => { const d = kevPublished(cve); return d !== null && d < day(YEAR_DAYS) }
+/** D-615, D-616: older than 12 months from the LATER of the published day and the day the list added it (KEV news is never
+ *  hidden; an unknown day is never old). */
+export const kevAged = (cve: string, dateAdded: string | null) => { const d = kevPublished(cve); return d !== null && !!dateAdded && d < day(YEAR_DAYS) && dateAdded < day(YEAR_DAYS) }

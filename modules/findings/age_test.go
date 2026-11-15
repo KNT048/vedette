@@ -17,10 +17,10 @@ func TestMatchAsset_D615_OldKEVDropsOnlyProductOnly(t *testing.T) {
 	old, recent := t0.AddDate(-2, 0, 0), t0.AddDate(0, -1, 0)
 	ranged := func(pub time.Time) []Vuln {
 		v := qnapVuln(Affected{CPE: qnapCPE, Range: VersionRange{EndExcl: "6.1.2"}})
-		v.Published = pub
+		v.Published, v.DateAdded = pub, pub
 		return []Vuln{v}
 	}
-	productOnly := func(pub time.Time) []Vuln { v := qnapVuln(); v.Published = pub; return []Vuln{v} }
+	productOnly := func(pub time.Time) []Vuln { v := qnapVuln(); v.Published, v.DateAdded = pub, pub; return []Vuln{v} }
 	agent := func(ver string) Asset { a := nas(ver); a.Software[0].Source = "agent"; return a }
 	for name, tc := range map[string]struct {
 		a       Asset
@@ -40,7 +40,14 @@ func TestMatchAsset_D615_OldKEVDropsOnlyProductOnly(t *testing.T) {
 		// review r1 #1 of #803: a safe scan template checks it, so the finding stays for the scan to confirm or clear it
 		"old, product only, scan template": {nas("6.1.1"), func() []Vuln { v := productOnly(old); v[0].HasTemplate = true; return v }(), BasisProduct, false},
 		// review r1 #3: NVD lists every version as affected, so no version could change it: it stays
-		"old, every version, no version given": {nas(""), func() []Vuln { v := qnapVuln(Affected{CPE: qnapCPE}); v.Published = old; return []Vuln{v} }(), BasisProduct, false},
+		"old, every version, no version given": {nas(""), func() []Vuln {
+			v := qnapVuln(Affected{CPE: qnapCPE})
+			v.Published, v.DateAdded = old, old
+			return []Vuln{v}
+		}(), BasisProduct, false},
+		// review r2 R of #803: KEV news is never hidden: an old CVE CISA added today is recent
+		"old published, added today, product only": {nas("6.1.1"), func() []Vuln { v := productOnly(old); v[0].DateAdded = t0; return v }(), BasisProduct, false},
+		"old published, unknown date added":        {nas("6.1.1"), func() []Vuln { v := productOnly(old); v[0].DateAdded = time.Time{}; return v }(), BasisProduct, false},
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
@@ -58,7 +65,7 @@ func TestMatchAsset_D615_OldKEVDropsOnlyProductOnly(t *testing.T) {
 	}
 	// the product-only old match is in Aged with the sentence that closes a finding of it
 	res := MatchAsset(nas("6.1.1"), productOnly(old), map[string]bool{"CVE-2022-27593": true}, t0)
-	if len(res.Existing) != 0 || len(res.Aged) != 1 || !strings.HasPrefix(res.Aged[0].Evidence.Summary, AgedNote+": CVE-2022-27593 was published on 9 Nov 2024") {
+	if len(res.Existing) != 0 || len(res.Aged) != 1 || !strings.HasPrefix(res.Aged[0].Evidence.Summary, AgedNote+": CVE-2022-27593 was published on 9 Nov 2024 and added to CISA's list on 9 Nov 2024") {
 		t.Fatalf("existing %+v, aged %+v", res.Existing, res.Aged)
 	}
 	// a version would decide an old CVE too, so the "add the version" item still counts it
@@ -78,7 +85,7 @@ func TestContract_D615_AgedFindingClosesAndReopens(t *testing.T) {
 		t.Helper()
 		e.advance(time.Minute)
 		x := v
-		x.Published = pub
+		x.Published, x.DateAdded = pub, pub
 		if _, err := e.svc.UpsertFromMatch(t.Context(), a, []Vuln{x}); err != nil {
 			t.Fatal(err)
 		}
@@ -126,7 +133,7 @@ func TestContract_D615_AgedFindingClosesAndReopens(t *testing.T) {
 		t.Fatal(err)
 	}
 	gone := qnapVuln()
-	gone.Published = t0.AddDate(-3, 0, 0)
+	gone.Published, gone.DateAdded = t0.AddDate(-3, 0, 0), t0.AddDate(-3, 0, 0)
 	if _, err := w.svc.UpsertFromMatch(t.Context(), nas("6.1.1"), []Vuln{gone}); err != nil {
 		t.Fatal(err)
 	}
@@ -143,7 +150,7 @@ func TestContract_D615_AgedFindingClosesAndReopens(t *testing.T) {
 		t.Fatal(err)
 	}
 	old := v
-	old.Published = t0.AddDate(-3, 0, 0)
+	old.Published, old.DateAdded = t0.AddDate(-3, 0, 0), t0.AddDate(-3, 0, 0)
 	if _, err := s.svc.UpsertFromMatch(t.Context(), nas("6.1.1"), []Vuln{old}); err != nil {
 		t.Fatal(err)
 	}
@@ -292,4 +299,40 @@ func countBasis(ms []Match, b Basis) int {
 		}
 	}
 	return n
+}
+
+// Review r2 #4 of #803 (round-1 #7): the hourly reconcile closes what the age rule drops and counts it, so a pull that only
+// filled the published days (no ranges changed, no rematch event) still closes within the hour.
+func TestReconcile_D615_CountsAgedClosures(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	id := e.seed() // a product finding: the sample entry has no NVD ranges
+	e.feeds.vulns[0].Published, e.feeds.vulns[0].DateAdded = t0.AddDate(-4, 0, 0), t0.AddDate(-4, 0, 0)
+	res, err := e.svc.Reconcile(t.Context())
+	if err != nil || res.Aged != 1 {
+		t.Fatalf("reconcile %+v %v", res, err)
+	}
+	if r, _ := e.svc.Get(t.Context(), id); r.Status != StatusNotRelevant {
+		t.Fatalf("status %s", r.Status)
+	}
+}
+
+// Review r1 #5 / r2 #4 of #803: "I have this" never re-adds, from a version-less row, a CVE the age rule dropped on another row
+// of the same product (it would be created, with an alert, and closed in the same write).
+func TestHaveScope_D615_DoesNotReaddAgedCVE(t *testing.T) {
+	t.Parallel()
+	a := Asset{ID: "a-declared", Name: "QNAP", Software: []Software{
+		{ID: "s-1", Display: "Photo Station", Vendor: "QNAP", Product: "Photo Station", Version: "6.1.1", KevKeys: []string{"qnap|photo station"}},
+		{ID: "s-2", Display: "Photo Station", Vendor: "QNAP", Product: "Photo Station", KevKeys: []string{"qnap|photo station"}},
+	}}
+	v := qnapVuln()
+	v.DateAdded = t0
+	m := MatchResult{
+		Aged:        []Match{{CVE: v.CVE, SoftwareID: "s-1", Basis: BasisProduct}},
+		NeedVersion: []VersionNeeded{{SoftwareID: "s-2", Software: "Photo Station", CVEs: []string{v.CVE}}},
+	}
+	got := haveScope(a, []Vuln{v}, m, map[string]Have{a.ID: {Key: "qnap|photo station", Since: t0.AddDate(0, 0, -7)}}, nil, t0)
+	if len(got.New) != 0 || len(got.Existing) != 0 || len(got.Aged) != 1 {
+		t.Fatalf("new %+v, existing %+v, aged %+v", got.New, got.Existing, got.Aged)
+	}
 }

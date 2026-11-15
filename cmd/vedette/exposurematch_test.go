@@ -318,7 +318,7 @@ func TestExposureMatcher_D616_OldKEVOnlyProductOnlyIsRuledOut(t *testing.T) {
 	now := time.Date(2026, 11, 15, 0, 0, 0, 0, time.UTC)
 	vulns := exposureGolden(t)
 	for i := range vulns {
-		vulns[i].Published = time.Date(2019, 6, 5, 0, 0, 0, 0, time.UTC)
+		vulns[i].Published, vulns[i].DateAdded = time.Date(2019, 6, 5, 0, 0, 0, 0, time.UTC), time.Date(2021, 11, 3, 0, 0, 0, 0, time.UTC)
 	}
 	m := exposureMatcher{vulns: func(context.Context) ([]findings.Vuln, error) { return vulns, nil }, now: func() time.Time { return now }}
 	exim := []exposure.ServiceRow{{IP: "203.0.113.10", Port: 25, Name: "smtp", Product: "Exim smtpd", Version: "4.89", Extra: "Debian", CPE: "cpe:/a:exim:exim:4.89"}}
@@ -327,7 +327,7 @@ func TestExposureMatcher_D616_OldKEVOnlyProductOnlyIsRuledOut(t *testing.T) {
 		t.Fatalf("old CVE, banner version compared: %+v %v", got, err)
 	}
 	productOnly := func(pub time.Time) []findings.Vuln {
-		return []findings.Vuln{{CVE: "CVE-2021-41773", Vendor: "Apache", Product: "HTTP Server", Published: pub}} // no NVD data: product only
+		return []findings.Vuln{{CVE: "CVE-2021-41773", Vendor: "Apache", Product: "HTTP Server", Published: pub, DateAdded: pub}} // no NVD data: product only
 	}
 	m.vulns = func(context.Context) ([]findings.Vuln, error) {
 		return productOnly(time.Date(2021, 10, 5, 0, 0, 0, 0, time.UTC)), nil

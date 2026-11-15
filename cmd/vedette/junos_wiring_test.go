@@ -242,3 +242,40 @@ func TestWiringAFailedMoveKeepsTheFindings(t *testing.T) {
 		t.Errorf("%d findings left on the merged row, want %d for reconcile", n, len(cves))
 	}
 }
+
+// Review r2 #4 of #803: the findings adapter hands the feeds' template flag and NVD's published day to the matcher; the age
+// rule never drops a pair whose CVE a safe template checks (D-616), and dates the CVE from them.
+func TestWiringVulnsCarryTemplateAndPublished(t *testing.T) {
+	t.Parallel()
+	s := newStack(t)
+	ctx := t.Context()
+	if err := s.d.DB.Write(ctx, func(tx *sql.Tx) error {
+		ts := store.FormatTS(time.Now().UTC())
+		if _, err := tx.ExecContext(ctx, `INSERT INTO feeds_vuln (cve, vendor, product, product_key, name, date_added, ransomware, has_template, source_id, updated_at)
+			VALUES ('CVE-2017-0144', 'Microsoft', 'SMBv1', 'microsoft|smbv1', 'EternalBlue', '2022-02-10', 1, 1, 'cisa-kev', ?), ('CVE-2018-13379', 'Fortinet', 'FortiOS', 'fortinet|fortios', 'SSL VPN', '2021-11-03', 0, 0, 'cisa-kev', ?)`, ts, ts); err != nil {
+			return err
+		}
+		_, err := tx.ExecContext(ctx, `INSERT INTO feeds_published (cve, published) VALUES ('CVE-2017-0144', '2017-03-17')`)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	fs, err := feedsService(*s.d)
+	if err != nil {
+		t.Fatal(err)
+	}
+	vulns, err := findingsFeeds{st: fs.Store()}.Vulns(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := map[string]findings.Vuln{}
+	for _, v := range vulns {
+		got[v.CVE] = v
+	}
+	if v := got["CVE-2017-0144"]; !v.HasTemplate || v.Published.Format(time.DateOnly) != "2017-03-17" || v.DateAdded.Format(time.DateOnly) != "2022-02-10" {
+		t.Fatalf("EternalBlue: %+v", v)
+	}
+	if v := got["CVE-2018-13379"]; v.HasTemplate || !v.Published.IsZero() {
+		t.Fatalf("no template, no published day: %+v", v)
+	}
+}

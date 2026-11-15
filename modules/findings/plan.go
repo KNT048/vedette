@@ -299,7 +299,8 @@ func onPlatform(v Vuln, t TierVuln, in swInfo, win bool) (Vuln, bool) {
 // AgeLimit) whose NVD range a compared row's version is proved inside, with a range that ends (a fix exists), grouped by the update
 // that fixes them (D-545 GroupFix, Ranged only). Windows release rows read NVD's entries by their monthly update (D-546, D-610).
 // Platform-limited CVEs count only when the row names a platform they affect (D-547, and NVD's own "running on" conditions,
-// onPlatform). A CVE two rows of the device match is listed once, under the agent's row first (review r1 #10 of #804). compared says
+// onPlatform). A CVE two rows of the device match at the same version is listed once, under the agent's row first (review r1 #10 of
+// #804). compared says
 // the device has a row the plan compares. Nothing is a guess: an Unknown, a product-only match or a range with no end gives no item.
 func matchTiers(a Asset, x *tierIndex, kev map[string]bool, now time.Time) (items []PlanItem, compared bool) {
 	cut := now.Add(-AgeLimit)
@@ -321,7 +322,7 @@ func matchTiers(a Asset, x *tierIndex, kev map[string]bool, now time.Time) (item
 		var mine []Vuln
 		for _, i := range x.candidates(in, win) {
 			v := x.vulns[i]
-			if listed[v.CVE] || kev[v.CVE] || v.Published.Before(cut) || !ValidCVE(v.CVE) || !platformSettled(in, v.CVE) {
+			if listed[v.CVE+"|"+clean(in.ver)] || kev[v.CVE] || v.Published.Before(cut) || !ValidCVE(v.CVE) || !platformSettled(in, v.CVE) {
 				continue
 			}
 			if why, out := platformRuledOut(in, v.CVE); out || why != "" {
@@ -343,9 +344,9 @@ func matchTiers(a Asset, x *tierIndex, kev map[string]bool, now time.Time) (item
 			mine = append(mine, v)
 		}
 		its := tierItems(a, s, in, win, x, mine)
-		for _, it := range its {
+		for _, it := range its { // the same install seen twice (the agent's and a typed row) folds; two installs at two versions do not (review r2 #2 of #804)
 			for _, c := range it.CVEs {
-				listed[c.CVE] = true
+				listed[c.CVE+"|"+clean(in.ver)] = true
 			}
 		}
 		items = append(items, its...)

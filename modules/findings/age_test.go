@@ -382,3 +382,33 @@ func TestContract_D615_AgentRowNeverAges(t *testing.T) {
 		t.Fatalf("not reopened: %+v, history %+v", r.Finding, r.History)
 	}
 }
+
+// Review r2 #1 of #804: the agent's row keeps an old KEV CVE whatever the order of the device's rows: an nmap row of the same product
+// that sorts first and cannot be compared either must not win the tie and send the pair to Aged. And a finding stored with the agent
+// row's evidence is never closed for its age when only the banner row matches later (the closeAged guard).
+func TestContract_D615_AgentRowWinsTheTieInBothOrders(t *testing.T) {
+	t.Parallel()
+	agent := Software{ID: "s-agent", Display: "Microsoft Exchange Server 2019", Vendor: "Microsoft", Product: "Exchange Server", Version: "15.2.1118.7",
+		KevKeys: []string{"microsoft|exchange server"}, Source: "agent"}
+	banner := Software{ID: "s-nmap", Display: "Exchange", Vendor: "Microsoft", Product: "Exchange Server", Version: "15.2", KevKeys: []string{"microsoft|exchange server"}, Source: "nmap"}
+	v := Vuln{CVE: "CVE-2021-26855", Vendor: "Microsoft", Product: "Exchange Server", Published: t0.AddDate(-5, 0, 0), DateAdded: t0.AddDate(-5, 0, 0)} // no comparable range
+	for name, rows := range map[string][]Software{"agent first": {agent, banner}, "banner first": {banner, agent}} {
+		m := MatchAsset(Asset{ID: "a-1", Name: "mail01", AgentOS: "Microsoft Windows Server 2019", Software: rows}, []Vuln{v}, nil, t0)
+		if len(m.Aged) != 0 || len(m.New) != 1 || !m.New[0].Evidence.AgentRow || m.New[0].SoftwareID != "s-agent" {
+			t.Errorf("%s: %+v", name, m)
+		}
+	}
+	e := newEnv(t)
+	dev := Asset{ID: "a-1", Name: "mail01", AgentOS: "Microsoft Windows Server 2019", Software: []Software{banner, agent}}
+	if _, err := e.svc.UpsertFromMatch(t.Context(), dev, []Vuln{v}); err != nil {
+		t.Fatal(err)
+	}
+	dev.Software = []Software{banner} // the agent stops reporting the row; only the banner, product-only, matches now
+	e.advance(time.Minute)
+	if _, err := e.svc.UpsertFromMatch(t.Context(), dev, []Vuln{v}); err != nil {
+		t.Fatal(err)
+	}
+	if r, _ := loadByPair(t.Context(), e.db.Reader(), "a-1", v.CVE); r.Status != StatusSuspected || r.Evidence == nil || !r.Evidence.AgentRow {
+		t.Fatalf("an agent-evidence finding closed for its age: %+v", r.Finding)
+	}
+}

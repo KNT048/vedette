@@ -370,8 +370,9 @@ func MatchAsset(a Asset, vulns []Vuln, have map[string]bool, now time.Time) Matc
 					}
 				}
 			case outMatch:
-				// on a tie, a match NVD says covers every version wins: it keeps an old CVE (review r2 #5 of #803)
-				if best == nil || rank(m.Basis) > rank(best.Basis) || rank(m.Basis) == rank(best.Basis) && m.every && !best.every {
+				// on a tie, a confirmed match wins (NVD says every version, or the agent's row, D-612): it keeps an old CVE whatever
+				// the order of the rows (review r2 #5 of #803; review r2 #1 of #804: an nmap row sorted before the agent's)
+				if best == nil || rank(m.Basis) > rank(best.Basis) || rank(m.Basis) == rank(best.Basis) && confirmedMatch(m) && !confirmedMatch(*best) {
 					best = &m
 				}
 			case outNeedVersion:

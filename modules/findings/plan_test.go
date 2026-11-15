@@ -429,3 +429,22 @@ func TestPlan_AgeAtRequestStampGapAndDelete(t *testing.T) {
 		t.Fatalf("a deleted device was written back: %+v", v)
 	}
 }
+
+// Review r2 #2 of #804: two installs of one product at two versions (side-by-side runtimes) each get their item; only the same install
+// seen twice folds.
+func TestPlan_TwoInstallsKeepTheirItems(t *testing.T) {
+	t.Parallel()
+	newer := nginxRow("1.24.0", "agent")
+	newer.ID = "s-ng-124"
+	v := tierV("CVE-2026-47001", "recent", 30, 0.01, Affected{CPE: "cpe:2.3:a:f5:nginx:*:*:*:*:*:*:*:*", Range: VersionRange{StartIncl: "1.18.0", EndExcl: "1.18.5"}},
+		Affected{CPE: "cpe:2.3:a:f5:nginx:*:*:*:*:*:*:*:*", Range: VersionRange{StartIncl: "1.24.0", EndExcl: "1.24.3"}})
+	items, _ := planOf(Asset{ID: "a-web", Software: []Software{nginxRow("1.18.0", "agent"), newer}}, []TierVuln{v}, nil)
+	fixes := []string{}
+	for _, it := range items {
+		fixes = append(fixes, it.Version+">"+it.Fixed)
+	}
+	slices.Sort(fixes)
+	if !slices.Equal(fixes, []string{"1.18.0>1.18.5", "1.24.0>1.24.3"}) {
+		t.Fatalf("items %v", fixes)
+	}
+}

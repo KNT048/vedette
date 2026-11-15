@@ -2,10 +2,14 @@ package feeds
 
 import (
 	"database/sql"
+	"fmt"
 	"net/http"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/knt048/vedette/core/store/storetest"
+	"github.com/knt048/vedette/modules/core"
 )
 
 // D-615: nvd-kev keeps the day NVD published each CVE from the same answer as the ranges; a value that is not a date is dropped.
@@ -179,5 +183,64 @@ func TestTierRecords(t *testing.T) {
 	}
 	if after, _ := e.svc.st.MatchStamp(t.Context()); after == before {
 		t.Fatal("the match stamp did not move with nvd-recent")
+	}
+}
+
+// Measured for the PR (D-617): the tier read of one plan pass on data sized like the N100 (104,448 CVEs of nvd-recent, two NVD entries
+// each over 5,000 or 50,000 products, every CVE with an EPSS score) when the 21 devices run 840 of those products. Run:
+// go test ./modules/feeds -run '^$' -bench TierRecords -benchmem
+func BenchmarkTierRecords(b *testing.B) {
+	for _, products := range []int{5_000, 50_000} {
+		b.Run(fmt.Sprintf("products_%d", products), func(b *testing.B) { benchTierRecords(b, products) })
+	}
+}
+
+func benchTierRecords(b *testing.B, products int) {
+	db := storetest.Migrated(b, storetest.Migration{Module: "core", FS: core.Migrations}, storetest.Migration{Module: "feeds", FS: Migrations})
+	s := &Store{db: db}
+	now := time.Date(2026, 11, 15, 0, 0, 0, 0, time.UTC)
+	if err := s.SeedBuiltins(b.Context(), now); err != nil {
+		b.Fatal(err)
+	}
+	const cves = 104_448
+	ts := func(d time.Time) string { return d.UTC().Format("2006-01-02T15:04:05.000Z") }
+	err := db.Write(b.Context(), func(tx *sql.Tx) error {
+		for i := range cves {
+			cve := fmt.Sprintf("CVE-2026-%06d", i)
+			p := i % products
+			pub := ts(now.AddDate(0, 0, -(i % 360)))
+			if _, err := tx.ExecContext(b.Context(), `INSERT INTO feeds_recent_cve (cve, published, last_modified, status, severity, score) VALUES (?, ?, ?, 'Analyzed', 'HIGH', 7.5)`, cve, pub, pub); err != nil {
+				return err
+			}
+			for _, q := range []int{p, p + 1} {
+				if _, err := tx.ExecContext(b.Context(), `INSERT INTO feeds_recent_affected (cve, cpe, start_incl, start_excl, end_incl, end_excl) VALUES (?, ?, '', '', '', '2.0')`,
+					cve, fmt.Sprintf("cpe:2.3:a:vendor%d:product%d:*:*:*:*:*:*:*:*", q, q)); err != nil {
+					return err
+				}
+			}
+			if _, err := tx.ExecContext(b.Context(), `INSERT INTO feeds_epss (cve, epss, percentile, gen) VALUES (?, ?, 0.5, 1)`, cve, float64(i%100)/100); err != nil {
+				return err
+			}
+		}
+		if _, err := tx.ExecContext(b.Context(), `INSERT INTO feeds_recent_cursor (id, url, mode, win_from, win_to, until, next_index, total) VALUES (1, 'https://x.test/nvd', 'done', ?, ?, ?, 0, 0)`, ts(now), ts(now), ts(now)); err != nil {
+			return err
+		}
+		_, err := tx.ExecContext(b.Context(), `UPDATE feeds_source SET enabled = 1, last_success = ?, status = 'ok' WHERE id IN ('epss-all', 'nvd-recent')`, ts(now))
+		return err
+	})
+	if err != nil {
+		b.Fatal(err)
+	}
+	keep := func(cpe string) bool { // 840 products: vendor0..vendor839
+		var n int
+		_, err := fmt.Sscanf(cpe, "cpe:2.3:a:vendor%d:", &n)
+		return err == nil && n < 840
+	}
+	b.ReportAllocs()
+	for b.Loop() {
+		got, err := s.TierRecords(b.Context(), now, keep)
+		if err != nil || len(got) == 0 {
+			b.Fatal(len(got), err)
+		}
 	}
 }

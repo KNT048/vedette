@@ -84,11 +84,26 @@ func tierKey(cpe string) string {
 	if !ok {
 		return ""
 	}
-	parts := strings.SplitN(rest, ":", 4) // part, vendor, product, the rest
-	if len(parts) < 3 {
+	_, rest, ok = strings.Cut(rest, ":") // the part
+	if !ok {
 		return ""
 	}
-	return norm(parts[1]) + "|" + norm(parts[2])
+	v, rest, ok := strings.Cut(rest, ":")
+	if !ok {
+		return ""
+	}
+	p, _, _ := strings.Cut(rest, ":")
+	return normed(v) + "|" + normed(p)
+}
+
+// normed is norm without a copy for a name that is already only [a-z0-9] (most of NVD's): Keep runs on every distinct CPE of a pass.
+func normed(s string) string {
+	for i := 0; i < len(s); i++ {
+		if c := s[i]; (c < 'a' || c > 'z') && (c < '0' || c > '9') {
+			return norm(s)
+		}
+	}
+	return s
 }
 
 // isWindowsKey says whether a key is a Microsoft Windows release (windows_11_23h2): a Windows row is read with every one of them (D-546).

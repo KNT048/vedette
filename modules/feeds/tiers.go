@@ -3,6 +3,7 @@ package feeds
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"maps"
@@ -17,12 +18,12 @@ import (
 // hold, for the "Updates to plan" page and the CVE page of a CVE on no exploited list.
 
 // applyPublished stores the days NVD published the CVEs of one nvd-kev pull (D-615). Rows are only added or corrected: a
-// CVE an update did not return keeps its day.
+// CVE an update did not return keeps its day. NVD's day replaces a day CVE.org gave (D-617).
 func applyPublished(ctx context.Context, tx *sql.Tx, got map[string]string) error {
 	if len(got) == 0 {
 		return nil
 	}
-	st, err := tx.PrepareContext(ctx, `INSERT INTO feeds_published (cve, published) VALUES (?, ?) ON CONFLICT(cve) DO UPDATE SET published = excluded.published`)
+	st, err := tx.PrepareContext(ctx, `INSERT INTO feeds_published (cve, published, source) VALUES (?, ?, 'nvd') ON CONFLICT(cve) DO UPDATE SET published = excluded.published, source = 'nvd'`)
 	if err != nil {
 		return fmt.Errorf("feeds: published: %w", err)
 	}
@@ -35,16 +36,27 @@ func applyPublished(ctx context.Context, tx *sql.Tx, got map[string]string) erro
 	return nil
 }
 
-// publishedCount is how many CVEs have NVD's published day; 0 makes the next nvd-kev pull a full one.
+// applyCVEOrgPublished stores the days CVE.org's records give for exploited CVEs NVD has given none for (D-615 (2), D-617): a row
+// NVD wrote is never replaced, and a day CVE.org gave once stays (a CVE's published day does not change).
+func applyCVEOrgPublished(ctx context.Context, tx *sql.Tx, got map[string]string) error {
+	for _, cve := range slices.Sorted(maps.Keys(got)) {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO feeds_published (cve, published, source) VALUES (?, ?, 'cve.org') ON CONFLICT(cve) DO NOTHING`, cve, got[cve]); err != nil {
+			return fmt.Errorf("feeds: published %s: %w", cve, err)
+		}
+	}
+	return nil
+}
+
+// publishedCount is how many CVEs have NVD's published day (CVE.org's do not count, D-617); 0 makes the next nvd-kev pull a full one.
 func (s *Store) publishedCount(ctx context.Context) (int, error) {
 	var n int
-	if err := s.db.Reader().QueryRowContext(ctx, `SELECT count(*) FROM feeds_published`).Scan(&n); err != nil {
+	if err := s.db.Reader().QueryRowContext(ctx, `SELECT count(*) FROM feeds_published WHERE source = 'nvd'`).Scan(&n); err != nil {
 		return 0, fmt.Errorf("feeds: count published: %w", err)
 	}
 	return n, nil
 }
 
-// KevPublished returns the day NVD published each CVE it answered for (D-615). A CVE that is absent has no known day:
+// KevPublished returns the day NVD published each CVE it answered for, else the day its CVE.org record gives (D-615, D-617). A CVE that is absent has no known day:
 // findings then treats it as recent and never closes a finding on it for its age.
 func (s *Store) KevPublished(ctx context.Context) (map[string]time.Time, error) {
 	rows, err := s.db.Reader().QueryContext(ctx, `SELECT cve, published FROM feeds_published`)
@@ -258,7 +270,7 @@ type TierRecord struct {
 	Affected         []AffectedRow
 }
 
-// tierChunk is how many CPEs one read of TierRecords asks for (SQLite allows 32,766 parameters).
+// tierChunk is how many CPEs one read of TierRecords asks for.
 const tierChunk = 500
 
 // TierRecords reads the CVEs of nvd-recent published since now minus 365 days whose NVD affected entries name a CPE keep accepts,
@@ -275,7 +287,7 @@ func (s *Store) TierRecords(ctx context.Context, now time.Time, keep func(cpe st
 	if err != nil {
 		return nil, fmt.Errorf("feeds: tier products: %w", err)
 	}
-	var want []any
+	var want []string
 	for rows.Next() {
 		var cpe string
 		if err := rows.Scan(&cpe); err != nil {
@@ -298,12 +310,14 @@ func (s *Store) TierRecords(ctx context.Context, now time.Time, keep func(cpe st
 	var out []TierRecord
 	for len(want) > 0 {
 		n := min(len(want), tierChunk)
-		part := want[:n]
+		part, err := json.Marshal(want[:n]) // one parameter: the CPEs as a JSON array (json_each), no SQL built from strings
+		if err != nil {
+			return nil, fmt.Errorf("feeds: tier records: %w", err)
+		}
 		want = want[n:]
-		q := `SELECT a.cve, a.cpe, a.start_incl, a.start_excl, a.end_incl, a.end_excl, r.published, r.severity, r.score, e.epss, e.percentile
+		rs, err := db.QueryContext(ctx, `SELECT a.cve, a.cpe, a.start_incl, a.start_excl, a.end_incl, a.end_excl, r.published, r.severity, r.score, e.epss, e.percentile
 FROM feeds_recent_affected a JOIN feeds_recent_cve r ON r.cve = a.cve LEFT JOIN feeds_epss e ON e.cve = a.cve
-WHERE a.cpe IN (?` + strings.Repeat(", ?", n-1) + `) AND r.published >= ? ORDER BY a.cve`
-		rs, err := db.QueryContext(ctx, q, append(part, cutoff)...)
+WHERE a.cpe IN (SELECT value FROM json_each(?)) AND r.published >= ? ORDER BY a.cve`, string(part), cutoff)
 		if err != nil {
 			return nil, fmt.Errorf("feeds: tier records: %w", err)
 		}

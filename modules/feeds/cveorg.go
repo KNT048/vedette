@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // CVE.org affected versions (D-556). NVD lags: an exploited CVE CISA adds today often has no NVD configuration for days,
@@ -57,6 +58,10 @@ type CVEOrgResult struct {
 	// "affected" with nothing unaffected), so a version outside every row is not affected. Without it the list may skip
 	// branches the CNA did not assess: findings may raise a match on its rows but never close one by them (D-556 (4)).
 	Complete bool
+	// Published is the day the record says the CVE was published (cveMetadata.datePublished, "2024-02-09"), "" when it gives none or
+	// one that is not a date; findings' age rule reads it for a KEV CVE NVD gives no day for (D-615 (2), D-617). Set for every
+	// outcome but rejected.
+	Published string
 }
 
 // cveOrgSkipVendors are the vendors whose NVD rows findings reads with a comparator of their own: CNA versions written
@@ -69,8 +74,9 @@ type cveRecord struct {
 	DataType    string `json:"dataType"`
 	DataVersion string `json:"dataVersion"`
 	Meta        struct {
-		ID    string `json:"cveId"`
-		State string `json:"state"`
+		ID        string `json:"cveId"`
+		State     string `json:"state"`
+		Published string `json:"datePublished"`
 	} `json:"cveMetadata"`
 	Containers struct {
 		CNA struct {
@@ -134,14 +140,33 @@ func ParseCVERecord(data []byte, cve, kevVendor, kevProduct string) (CVEOrgResul
 	default:
 		return CVEOrgResult{}, fail(ErrBadSample, "The CVE.org record of %s has an unknown state.", cve)
 	}
+	res := parseCVEAffected(r, kevVendor, kevProduct)
+	res.Published = cveDay(r.Meta.Published)
+	return res, nil
+}
+
+// cveDay is the day of a CVE JSON 5 timestamp ("2024-02-09T00:15:08.123Z", or a day alone), "" when it is not one.
+func cveDay(ts string) string {
+	if len(ts) < 10 {
+		return ""
+	}
+	d, err := time.Parse(time.DateOnly, ts[:10])
+	if err != nil || d.Year() < 1999 || len(ts) > 10 && ts[10] != 'T' {
+		return ""
+	}
+	return ts[:10]
+}
+
+// parseCVEAffected converts the CNA's affected versions of a published record (ParseCVERecord).
+func parseCVEAffected(r cveRecord, kevVendor, kevProduct string) CVEOrgResult {
 	aff := r.Containers.CNA.Affected
 	if len(aff) > cveOrgMaxProducts {
-		return CVEOrgResult{Outcome: CVEOrgUnusable}, nil
+		return CVEOrgResult{Outcome: CVEOrgUnusable}
 	}
 	vk, pk := cnaVendorKey(kevVendor), cnaProductKey(kevProduct, kevVendor)
 	cpeVendor, cpeProduct := normKey(kevVendor), normKey(kevProduct)
 	if vk == "" || pk == "" || cpeProduct == "multipleproducts" {
-		return CVEOrgResult{Outcome: CVEOrgNoMatch}, nil
+		return CVEOrgResult{Outcome: CVEOrgNoMatch}
 	}
 	matched, complete := false, true
 	var rows []AffectedRow
@@ -151,11 +176,11 @@ func ParseCVERecord(data []byte, cve, kevVendor, kevProduct string) (CVEOrgResul
 		}
 		matched = true
 		if cveOrgSkipVendors[vk] {
-			return CVEOrgResult{Outcome: CVEOrgUnusable}, nil
+			return CVEOrgResult{Outcome: CVEOrgUnusable}
 		}
 		got, all, ok := cnaRows(a, cpeVendor, cpeProduct)
 		if !ok {
-			return CVEOrgResult{Outcome: CVEOrgUnusable}, nil
+			return CVEOrgResult{Outcome: CVEOrgUnusable}
 		}
 		complete = complete && all
 		for _, g := range got {
@@ -166,11 +191,11 @@ func ParseCVERecord(data []byte, cve, kevVendor, kevProduct string) (CVEOrgResul
 	}
 	switch {
 	case !matched:
-		return CVEOrgResult{Outcome: CVEOrgNoMatch}, nil
+		return CVEOrgResult{Outcome: CVEOrgNoMatch}
 	case len(rows) == 0:
-		return CVEOrgResult{Outcome: CVEOrgNoVersions}, nil
+		return CVEOrgResult{Outcome: CVEOrgNoVersions}
 	}
-	return CVEOrgResult{Outcome: CVEOrgRanges, Rows: rows, Complete: complete}, nil
+	return CVEOrgResult{Outcome: CVEOrgRanges, Rows: rows, Complete: complete}
 }
 
 // cnaSpan is one affected range of a CNA product, as read ("" = no bound).

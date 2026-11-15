@@ -39,6 +39,12 @@ func TestParseNVDRecent(t *testing.T) {
 	if b.Severity != "HIGH" || *b.Score != 7.5 || len(b.Affected) != 1 || b.Affected[0].EndExcl != "2.0" {
 		t.Fatalf("NVD's own score before the CNA's: %+v", b)
 	}
+	// review r2 #9 of #802: one record of the wrong JSON type is rejected alone, the page is kept
+	d, err = ParseNVDRecent([]byte(`{"totalResults":2,"vulnerabilities":[{"cve":{"id":42}},` + body[strings.Index(body, `{"cve":{"id":"CVE-2026-0002"`):strings.Index(body, `,
+{"cve":{"id":"CVE-2026-0003"`)] + `]}`))
+	if err != nil || d.Returned != 2 || d.Accepted != 1 || d.Rejected != 1 || len(d.Records) != 1 || d.Records[0].CVE != "CVE-2026-0002" {
+		t.Fatalf("one bad record: %+v %v", d, err)
+	}
 	for name, in := range map[string]string{"html": "<html>", "no total": `{"vulnerabilities":[]}`} {
 		if _, err := ParseNVDRecent([]byte(in)); err == nil {
 			t.Errorf("%s: parsed", name)
@@ -57,6 +63,7 @@ type recentNVD struct {
 	hook   func()
 	asked  []string // "<pub|mod> <from> <start>"
 	extra  []string // records added to every update answer (raw JSON)
+	retry  string   // Retry-After sent with a codes answer, "" for none
 }
 
 func (n *recentNVD) serve(o *origin) {
@@ -82,12 +89,15 @@ func (n *recentNVD) serve(o *origin) {
 		n.sizes = append(n.sizes, size)
 		hook := n.hook
 		total := n.perWin(from, byPub)
-		extra := n.extra
+		extra, retry := n.extra, n.retry
 		n.mu.Unlock()
 		if hook != nil {
 			hook()
 		}
 		if code != 0 {
+			if retry != "" {
+				w.Header().Set("Retry-After", retry)
+			}
 			w.WriteHeader(code)
 			return
 		}
@@ -519,10 +529,10 @@ func TestRecentPull_UpdateOverCapFills(t *testing.T) {
 func TestRecentLive_ErrorAndProgress(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
-	e.svc.setRecentText("Loading the CVEs of the last 12 months from NVD: 1,000 stored so far.")
+	e.svc.setRecent(&recentProgress{cur: recentCursor{Mode: modeFill, From: time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC)}, stored: 1000, run: &nvdRun{}}, time.Time{})
 	msg := "NVD was busy (HTTP 503), after every try."
 	r := e.svc.live(sourceRow{ID: recentFeedID, Enabled: true, Status: "error", Error: &msg})
-	if r.Status != "error" || r.Error == nil || *r.Error != msg+" Loading the CVEs of the last 12 months from NVD: 1,000 stored so far." {
+	if r.Status != "error" || r.Error == nil || *r.Error != msg+" Loading the CVEs of the last 12 months from NVD: 1,000 stored so far, published up to 1 Mar 2026." {
 		t.Fatalf("%+v %v", r, *r.Error)
 	}
 	r = e.svc.live(sourceRow{ID: recentFeedID, Enabled: true, Status: "never"})
@@ -544,5 +554,59 @@ func TestRecentPull_PagesGoThroughTheNVDGate(t *testing.T) {
 	}
 	if got := e.waited(); !slices.Equal(got, []time.Duration{6 * time.Second, 12 * time.Second, 18 * time.Second}) || len(n.requests()) != 4 {
 		t.Fatalf("waits %v for %v", got, n.requests())
+	}
+}
+
+// Review r2 #5, #6 of #802: a fill paused by NVD's busy answer says why and when it goes on, read at the time the row is shown, and
+// the 5-minute check does not ask NVD again before that time.
+func TestRecentPull_WaitsOutNVDsRetryTime(t *testing.T) {
+	t.Parallel()
+	e, n := recentEnv(t)
+	n.perWin = func(time.Time, bool) int { return 2 }
+	n.codes["2026-03-05T12:00:00.000Z/0"] = http.StatusServiceUnavailable
+	n.retry = "900" // NVD: come back in 15 minutes
+	if err := e.svc.RunPull(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if live := e.svc.live(e.feed(recentFeedID)); live.Error == nil || !strings.Contains(*live.Error, "NVD was busy (HTTP 503). Vedette tries again in") {
+		t.Fatalf("progress %v", *live.Error)
+	}
+	n.mu.Lock()
+	n.codes, n.asked = map[string]int{}, nil
+	n.mu.Unlock()
+	if err := e.svc.RunPull(t.Context()); err != nil || len(n.requests()) != 0 {
+		t.Fatalf("asked NVD before its retry time: %v %v", n.requests(), err)
+	}
+	e.setNow(e.clock().Add(10 * time.Minute))
+	if err := e.svc.RunPull(t.Context()); err != nil || len(n.requests()) != 0 {
+		t.Fatalf("asked NVD 10 minutes into its 15: %v %v", n.requests(), err)
+	}
+	e.setNow(e.clock().Add(6 * time.Minute))
+	if err := e.svc.RunPull(t.Context()); err != nil || len(n.requests()) == 0 {
+		t.Fatalf("did not go on after the retry time: %v %v", n.requests(), err)
+	}
+	if live := e.svc.live(e.feed(recentFeedID)); live.Error != nil && strings.Contains(*live.Error, "busy") {
+		t.Fatalf("still says busy after NVD answered: %v", *live.Error)
+	}
+}
+
+// Review r2 #7 of #802: a clock stepped back does not make the next NVD request wait as long as the step. Not parallel: it sets
+// nvdPause.
+func TestNVDSlot_ClockSteppedBack(t *testing.T) {
+	pause := nvdPause
+	t.Cleanup(func() { nvdPause = pause })
+	nvdPause = 6 * time.Second
+	e := newEnv(t)
+	if err := e.svc.nvdSlot(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	e.setNow(e.clock().Add(-time.Hour))
+	if err := e.svc.nvdSlot(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	for _, w := range e.waited() {
+		if w > nvdPause {
+			t.Fatalf("waited %v after the clock went back an hour", w)
+		}
 	}
 }

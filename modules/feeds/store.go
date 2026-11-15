@@ -200,7 +200,7 @@ func (s *Store) SeedBuiltins(ctx context.Context, now time.Time) error {
 VALUES (?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT(id) DO UPDATE SET name = excluded.name, kind = excluded.kind, format = excluded.format, license = excluded.license,
   url = CASE WHEN url = default_url THEN excluded.url ELSE url END, default_url = excluded.default_url`,
-				b.ID, b.Name, string(b.Kind), string(b.Format), b.URL, b.URL, boolInt(!b.BYOK && !b.Off), b.IntervalHours, b.License, store.FormatTS(now))
+				b.ID, b.Name, string(b.Kind), string(b.Format), b.URL, b.URL, boolInt(!b.BYOK), b.IntervalHours, b.License, store.FormatTS(now))
 			if err != nil {
 				return fmt.Errorf("feeds: seed %s: %w", b.ID, err)
 			}

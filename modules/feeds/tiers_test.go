@@ -3,6 +3,7 @@ package feeds
 import (
 	"database/sql"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 )
@@ -53,15 +54,24 @@ func TestNVDPull_PublishedAndOneFullPullForOldBoxes(t *testing.T) {
 	}
 }
 
-// D-613, D-616: the tier feeds' state, and one CVE from them: off until turned on, loading until filled, then likely
-// (EPSS ≥ 0.1, published in the last 12 months), recent, or no tier when older; 404 not_in_data when neither holds it.
+// D-613, D-616, D-617: the tier feeds' state, and one CVE from them: on by default and loading until filled, off when an admin turns
+// them off, then likely (EPSS ≥ 0.1, published in the last 12 months), recent, or no tier when older; 404 not_in_data when neither
+// holds it.
 func TestTierStatusAndTierCVE(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	now := e.clock()
 	st, err := e.svc.st.TierStatus(t.Context(), now)
-	if err != nil || st.EPSS != TierOff || st.Recent != TierOff {
-		t.Fatalf("seeded off: %+v %v", st, err)
+	if err != nil || st.EPSS != TierLoading || st.Recent != TierLoading {
+		t.Fatalf("seeded on (D-617), empty: %+v %v", st, err)
+	}
+	for _, id := range []string{epssAllFeedID, recentFeedID} {
+		if c, b := e.put(id, `{"enabled":false}`); c != 200 {
+			t.Fatalf("%s: %d %v", id, c, b)
+		}
+	}
+	if st, _ = e.svc.st.TierStatus(t.Context(), now); st.EPSS != TierOff || st.Recent != TierOff {
+		t.Fatalf("turned off: %+v", st)
 	}
 	if c, b := e.get("/feeds/cve/CVE-2026-0001/tier"); c != http.StatusNotFound || code(b) != "not_in_data" {
 		t.Fatalf("feeds off: %d %v", c, b)
@@ -71,11 +81,34 @@ func TestTierStatusAndTierCVE(t *testing.T) {
 			t.Fatalf("%s: %d %v", id, c, b)
 		}
 	}
-	if st, _ = e.svc.st.TierStatus(t.Context(), now); st.EPSS != TierLoading || st.Recent != TierLoading {
-		t.Fatalf("on, empty: %+v", st)
+	seedTierData(t, e, now)
+	if st, _ = e.svc.st.TierStatus(t.Context(), now); st.EPSS != TierReady || st.Recent != TierReady || st.EPSSDate.IsZero() || st.RecentSince.IsZero() {
+		t.Fatalf("filled: %+v", st)
 	}
+	c, b := e.get("/feeds/cve/CVE-2026-0001/tier")
+	if c != 200 || b["tier"] != "likely" || b["severity"] != "high" || b["ranges"] != true || b["published"] == nil {
+		t.Fatalf("likely: %d %v", c, b)
+	}
+	if p, _ := b["products"].([]any); len(p) != 1 || p[0] != "f5 nginx" {
+		t.Fatalf("products %v", b["products"])
+	}
+	if c, b = e.get("/feeds/cve/CVE-2026-0002/tier"); c != 200 || b["tier"] != "recent" || b["severity"] != nil || b["ranges"] != false {
+		t.Fatalf("recent: %d %v", c, b)
+	}
+	if c, b = e.get("/feeds/cve/CVE-2020-0003/tier"); c != 200 || b["tier"] != nil || b["published"] != nil || b["epss"] != 0.5 { // EPSS only: older, no tier
+		t.Fatalf("old: %d %v", c, b)
+	}
+	if c, b = e.get("/feeds/cve/CVE-2026-9999/tier"); c != http.StatusNotFound || code(b) != "not_in_data" {
+		t.Fatalf("absent: %d %v", c, b)
+	}
+}
+
+// seedTierData writes a small filled state of epss-all and nvd-recent: CVE-2026-0001 (likely, nginx < 1.28.1), CVE-2026-0002 (recent, no
+// entry), CVE-2020-0003 (EPSS only).
+func seedTierData(t *testing.T, e *env, now time.Time) {
+	t.Helper()
 	ts := func(d time.Time) string { return d.UTC().Format("2006-01-02T15:04:05.000Z") }
-	err = e.db.Write(t.Context(), func(tx *sql.Tx) error {
+	err := e.db.Write(t.Context(), func(tx *sql.Tx) error {
 		for _, q := range []struct {
 			sql  string
 			args []any
@@ -96,23 +129,55 @@ func TestTierStatusAndTierCVE(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if st, _ = e.svc.st.TierStatus(t.Context(), now); st.EPSS != TierReady || st.Recent != TierReady || st.EPSSDate.IsZero() || st.RecentSince.IsZero() {
-		t.Fatalf("filled: %+v", st)
+}
+
+// D-617: the plan reads only the NVD entries of the products the devices run, with the CVE's day, severity and EPSS; nothing while
+// nvd-recent is not ready, no EPSS (and no tier 2) while epss-all is not. The match stamp moves when either tier feed pulls.
+func TestTierRecords(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	now := e.clock()
+	nginx := func(cpe string) bool { return strings.Contains(cpe, ":f5:nginx:") }
+	if got, err := e.svc.st.TierRecords(t.Context(), now, nginx); err != nil || got != nil {
+		t.Fatalf("not ready: %+v %v", got, err)
 	}
-	c, b := e.get("/feeds/cve/CVE-2026-0001/tier")
-	if c != 200 || b["tier"] != "likely" || b["severity"] != "high" || b["ranges"] != true || b["published"] == nil {
-		t.Fatalf("likely: %d %v", c, b)
+	seedTierData(t, e, now)
+	got, err := e.svc.st.TierRecords(t.Context(), now, nginx)
+	if err != nil || len(got) != 1 {
+		t.Fatalf("%+v %v", got, err)
 	}
-	if p, _ := b["products"].([]any); len(p) != 1 || p[0] != "f5 nginx" {
-		t.Fatalf("products %v", b["products"])
+	r := got[0]
+	if r.CVE != "CVE-2026-0001" || r.Tier != "likely" || r.Severity != "HIGH" || r.Score == nil || *r.Score != 7.5 || r.EPSS == nil || *r.EPSS != 0.34 ||
+		len(r.Affected) != 1 || r.Affected[0].EndExcl != "1.28.1" || !r.Published.Equal(now.AddDate(0, -2, 0).UTC().Truncate(time.Millisecond)) {
+		t.Fatalf("record %+v", r)
 	}
-	if c, b = e.get("/feeds/cve/CVE-2026-0002/tier"); c != 200 || b["tier"] != "recent" || b["severity"] != nil || b["ranges"] != false {
-		t.Fatalf("recent: %d %v", c, b)
+	if got, _ = e.svc.st.TierRecords(t.Context(), now, func(string) bool { return false }); len(got) != 0 {
+		t.Fatalf("nothing kept: %+v", got)
 	}
-	if c, b = e.get("/feeds/cve/CVE-2020-0003/tier"); c != 200 || b["tier"] != nil || b["published"] != nil || b["epss"] != 0.5 { // EPSS only: older, no tier
-		t.Fatalf("old: %d %v", c, b)
+	if got, _ = e.svc.st.TierRecords(t.Context(), now.AddDate(0, 11, 0), nginx); len(got) != 0 {
+		t.Fatalf("published more than 12 months before now: %+v", got)
 	}
-	if c, b = e.get("/feeds/cve/CVE-2026-9999/tier"); c != http.StatusNotFound || code(b) != "not_in_data" {
-		t.Fatalf("absent: %d %v", c, b)
+	before, err := e.svc.st.MatchStamp(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c, b := e.put(epssAllFeedID, `{"enabled":false}`); c != 200 {
+		t.Fatalf("%d %v", c, b)
+	}
+	if got, _ = e.svc.st.TierRecords(t.Context(), now, nginx); len(got) != 1 || got[0].EPSS != nil || got[0].Tier != "recent" {
+		t.Fatalf("epss-all off: %+v", got)
+	}
+	if after, _ := e.svc.st.MatchStamp(t.Context()); after == before {
+		t.Fatal("the match stamp did not move with epss-all")
+	}
+	before, _ = e.svc.st.MatchStamp(t.Context())
+	if err := e.db.Write(t.Context(), func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(t.Context(), `UPDATE feeds_source SET last_fetch = ? WHERE id = ?`, "2026-11-10T00:00:00.000Z", recentFeedID)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if after, _ := e.svc.st.MatchStamp(t.Context()); after == before {
+		t.Fatal("the match stamp did not move with nvd-recent")
 	}
 }

@@ -15,12 +15,14 @@ func tierV(cve, tier string, daysAgo int, epss float64, aff ...Affected) TierVul
 	return v
 }
 
-func nginxUpTo(end string) Affected {
-	return Affected{CPE: "cpe:2.3:a:f5:nginx:*:*:*:*:*:*:*:*", Range: VersionRange{EndExcl: end}}
+// nginxBelow126 is NVD's entry "nginx before 1.26.0".
+func nginxBelow126() Affected {
+	return Affected{CPE: "cpe:2.3:a:f5:nginx:*:*:*:*:*:*:*:*", Range: VersionRange{EndExcl: "1.26.0"}}
 }
 
-func nginxRow(id, version, source string) Software {
-	return Software{ID: id, Display: "nginx", Vendor: "F5", Product: "nginx", Version: version, CPE: "cpe:2.3:a:f5:nginx:" + version + ":*:*:*:*:*:*:*", Source: source}
+// nginxRow is the device's nginx row s-ng.
+func nginxRow(version, source string) Software {
+	return Software{ID: "s-ng", Display: "nginx", Vendor: "F5", Product: "nginx", Version: version, CPE: "cpe:2.3:a:f5:nginx:" + version + ":*:*:*:*:*:*:*", Source: source}
 }
 
 func planOf(a Asset, tv []TierVuln, kev map[string]bool) ([]PlanItem, bool) {
@@ -41,16 +43,16 @@ func cvesOf(it PlanItem) []string {
 func TestPlan_VersionConfirmedOnly(t *testing.T) {
 	t.Parallel()
 	tv := []TierVuln{
-		tierV("CVE-2026-41001", "recent", 30, 0.01, nginxUpTo("1.26.0")),
-		tierV("CVE-2026-41002", "likely", 60, 0.34, nginxUpTo("1.26.0")),
+		tierV("CVE-2026-41001", "recent", 30, 0.01, nginxBelow126()),
+		tierV("CVE-2026-41002", "likely", 60, 0.34, nginxBelow126()),
 		tierV("CVE-2026-41003", "recent", 30, 0.01, Affected{CPE: "cpe:2.3:a:f5:nginx:*:*:*:*:*:*:*:*"}),                                                            // every version, no range: product-only
 		tierV("CVE-2026-41004", "recent", 30, 0.01, Affected{CPE: "cpe:2.3:a:f5:nginx:*:*:*:*:*:*:*:*", Range: VersionRange{StartIncl: "2.0.0", EndExcl: "2.1.0"}}), // outside
-		tierV("CVE-2026-41005", "likely", 30, 0.5, nginxUpTo("1.26.0")),                                                                                             // on an exploited list: a finding, never here
-		tierV("CVE-2025-41006", "likely", 400, 0.5, nginxUpTo("1.26.0")),                                                                                            // older than 12 months, no scan
+		tierV("CVE-2026-41005", "likely", 30, 0.5, nginxBelow126()),                                                                                                 // on an exploited list: a finding, never here
+		tierV("CVE-2025-41006", "likely", 400, 0.5, nginxBelow126()),                                                                                                // older than 12 months, no scan
 		tierV("CVE-2026-41007", "recent", 30, -1, Affected{CPE: "cpe:2.3:a:f5:nginx:*:*:*:*:*:*:*:*", Range: VersionRange{StartIncl: "1.0.0"}}),                     // no end: no fix to plan
 	}
 	kev := map[string]bool{"CVE-2026-41005": true}
-	a := Asset{ID: "a-web", Name: "web01", OS: "Ubuntu 24.04 LTS", Software: []Software{nginxRow("s-ng", "1.18.0", "agent")}}
+	a := Asset{ID: "a-web", Name: "web01", OS: "Ubuntu 24.04 LTS", Software: []Software{nginxRow("1.18.0", "agent")}}
 	items, compared := planOf(a, tv, kev)
 	if !compared || len(items) != 1 {
 		t.Fatalf("compared %v, items %+v", compared, items)
@@ -66,20 +68,20 @@ func TestPlan_VersionConfirmedOnly(t *testing.T) {
 		t.Fatalf("cve %+v", c)
 	}
 	// A version a person typed is exact too (basis version); a banner (nmap), the scan's guess and a row of unknown origin are not.
-	a.Software = []Software{nginxRow("s-ng", "1.18.0", "manual")}
+	a.Software = []Software{nginxRow("1.18.0", "manual")}
 	if items, _ = planOf(a, tv, kev); len(items) != 1 || items[0].CVEs[0].Basis != "version" {
 		t.Fatalf("manual: %+v", items)
 	}
 	for _, src := range []string{"nmap", "scan", "passive", ""} {
-		a.Software = []Software{nginxRow("s-ng", "1.18.0", src)}
+		a.Software = []Software{nginxRow("1.18.0", src)}
 		if items, compared = planOf(a, tv, kev); len(items) != 0 || compared {
 			t.Fatalf("source %q: compared %v, %+v", src, compared, items)
 		}
 	}
 	// A distribution's package: its fixes are backported, NVD's upstream range would put a patched build inside (D-617).
-	pkg := nginxRow("s-ng", "1.18.0", "agent")
+	pkg := nginxRow("1.18.0", "agent")
 	pkg.Packaged, pkg.PkgVersion, pkg.PkgSource = true, "1.18.0-6ubuntu14.6", "nginx"
-	marked := nginxRow("s-ng", "1.18.0-6ubuntu14.6", "manual")
+	marked := nginxRow("1.18.0-6ubuntu14.6", "manual")
 	for _, s := range []Software{pkg, marked} {
 		a.Software = []Software{s}
 		if items, _ = planOf(a, tv, kev); len(items) != 0 {
@@ -96,7 +98,7 @@ func TestPlan_SplitsByFixWhenNoReleaseFixesAll(t *testing.T) {
 		tierV("CVE-2026-42001", "recent", 30, 0.01, Affected{CPE: "cpe:2.3:a:f5:nginx:*:*:*:*:*:*:*:*", Range: VersionRange{StartIncl: "1.0.0", EndExcl: "1.20.0"}}),
 		tierV("CVE-2026-42002", "recent", 30, 0.01, Affected{CPE: "cpe:2.3:a:f5:nginx:*:*:*:*:*:*:*:*", Range: VersionRange{StartIncl: "1.18.0", EndIncl: "1.30.0"}}),
 	}
-	items, _ := planOf(Asset{ID: "a-web", Software: []Software{nginxRow("s-ng", "1.18.0", "agent")}}, tv, nil)
+	items, _ := planOf(Asset{ID: "a-web", Software: []Software{nginxRow("1.18.0", "agent")}}, tv, nil)
 	if len(items) != 1 || items[0].Fixed != "1.20.0" || items[0].Group != "a-web/s-ng/fixed/1.20.0" || !slices.Equal(cvesOf(items[0]), []string{"CVE-2026-42001/recent/agent"}) {
 		t.Fatalf("items %+v", items)
 	}
@@ -128,7 +130,7 @@ func TestPlan_WindowsByMonthlyUpdate(t *testing.T) {
 // Windows row; never the product of a banner row.
 func TestPlan_TierScopeKeepsOnlyTheDevicesProducts(t *testing.T) {
 	t.Parallel()
-	sc := NewTierScope([]Asset{{ID: "a", Software: []Software{nginxRow("s-ng", "1.18.0", "agent"),
+	sc := NewTierScope([]Asset{{ID: "a", Software: []Software{nginxRow("1.18.0", "agent"),
 		{ID: "s-ssh", Display: "OpenSSH", Vendor: "OpenBSD", Product: "OpenSSH", Version: "8.0", Source: "nmap"}}}})
 	for cpe, want := range map[string]bool{
 		"cpe:2.3:a:f5:nginx:*:*:*:*:*:*:*:*":                      true,
@@ -152,8 +154,8 @@ func TestPlan_JobAndEndpoint(t *testing.T) {
 	t.Parallel()
 	e := newHTTPEnv(t)
 	e.inv.assets["a-web"] = AssetView{ID: "a-web", Hostname: ptr("web01"), IP: "192.168.10.30", Kind: "server", Name: "web01"}
-	e.inv.match["a-web"] = Asset{ID: "a-web", Name: "web01", Software: []Software{nginxRow("s-ng", "1.18.0", "agent")}}
-	e.feeds.tiers = []TierVuln{tierV("CVE-2026-41001", "recent", 30, 0.01, nginxUpTo("1.26.0")), tierV("CVE-2026-41002", "likely", 60, 0.34, nginxUpTo("1.26.0"))}
+	e.inv.match["a-web"] = Asset{ID: "a-web", Name: "web01", Software: []Software{nginxRow("1.18.0", "agent")}}
+	e.feeds.tiers = []TierVuln{tierV("CVE-2026-41001", "recent", 30, 0.01, nginxBelow126()), tierV("CVE-2026-41002", "likely", 60, 0.34, nginxBelow126())}
 	e.feeds.tier = TierStatus{EPSS: "ready", Recent: "ready", EPSSDate: t0, RecentSince: t0.AddDate(0, 0, -365)}
 	e.feeds.stamp = "s1"
 	if _, b := e.call("GET", "/findings/plan", "viewer", ""); b["compared"] != false {
@@ -178,7 +180,7 @@ func TestPlan_JobAndEndpoint(t *testing.T) {
 		t.Fatalf("other device: %v", b)
 	}
 	// The device is upgraded: the next run compares it again (no stamp change, so not a full pass).
-	e.inv.match["a-web"] = Asset{ID: "a-web", Name: "web01", Software: []Software{nginxRow("s-ng", "1.26.0", "agent")}}
+	e.inv.match["a-web"] = Asset{ID: "a-web", Name: "web01", Software: []Software{nginxRow("1.26.0", "agent")}}
 	if err := e.svc.RefreshPlan(t.Context()); err != nil {
 		t.Fatal(err)
 	}
@@ -195,7 +197,7 @@ func TestPlan_JobAndEndpoint(t *testing.T) {
 		t.Fatalf("after the upgrade: %+v", v)
 	}
 	// A new pull (stamp) compares everything again; the feeds module off shows no item.
-	e.inv.match["a-web"] = Asset{ID: "a-web", Name: "web01", Software: []Software{nginxRow("s-ng", "1.18.0", "agent")}}
+	e.inv.match["a-web"] = Asset{ID: "a-web", Name: "web01", Software: []Software{nginxRow("1.18.0", "agent")}}
 	e.feeds.stamp = "s2"
 	if err := e.svc.RefreshPlan(t.Context()); err != nil {
 		t.Fatal(err)

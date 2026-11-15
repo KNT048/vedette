@@ -22,10 +22,22 @@ const run = (d: string) => spawnSync(process.execPath, [script, d], { encoding: 
 afterEach(() => { while (dirs.length) rmSync(dirs.pop()!, { recursive: true, force: true }) })
 
 describe('check-release', () => {
+  // A release build has zod's core in one chunk with z.config({ jitless: true }) (D-621, vite.config.ts group "zod"), as rolldown minifies it.
+  const zodChunk = 'var g=globalThis.__zod_globalConfig??(globalThis.__zod_globalConfig={});Object.assign(g,{jitless:!0});'
   it('passes a clean dist', () => {
-    const r = run(fixture({ 'assets/app.js': 'console.log(1)', 'favicon.svg': '<svg/>' }))
+    const r = run(fixture({ 'assets/app.js': 'console.log(1)', 'assets/zod-x.js': zodChunk, 'favicon.svg': '<svg/>' }))
     expect(r.status).toBe(0)
-    expect(r.stdout).toContain('3 files checked')
+    expect(r.stdout).toContain('4 files checked')
+  })
+  it('fails and names the chunk with zod\'s core but without the jitless config (D-621, issue #201)', () => {
+    const r = run(fixture({ 'assets/app.js': 'r({jitless:!0})', 'assets/contract-x.js': 'var g=globalThis.__zod_globalConfig??(globalThis.__zod_globalConfig={});' }))
+    expect(r.status).toBe(1)
+    expect(r.stderr).toContain('contract-x.js')
+  })
+  it('fails when no chunk holds zod\'s core (the check could not run)', () => {
+    const r = run(fixture({ 'assets/app.js': 'console.log(1)' }))
+    expect(r.status).toBe(1)
+    expect(r.stderr).toContain('__zod_globalConfig')
   })
   it('fails and names a chunk containing [MSW]', () => {
     const r = run(fixture({ 'assets/state-x.js': 'console.error(`[MSW] boom`)' }))

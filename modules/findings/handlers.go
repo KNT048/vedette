@@ -124,30 +124,61 @@ func (h *FindingHandlers) Detail(ctx context.Context, rec Record) (Detail, error
 	}
 	d.Normalize()
 	d.addAppliedToHistory()
-	d.FixedIn = h.fixedIn(ctx, rec)
+	// The device with its software: both reads below only inform the page, so a failed one leaves what the page always had.
+	a, ok, err := h.inv.MatchInput(ctx, rec.AssetID)
+	if err != nil || !ok {
+		return d, nil
+	}
+	multi := d.Kev != nil && isMultiProduct(d.Kev.Product)
+	var v *Vuln // the stored entry, read only when a part of the page needs it (an open finding's fix, a Multiple Products label)
+	if rec.Status.Open() || multi {
+		if vulns, err := h.feed.Vulns(ctx); err == nil {
+			for i := range vulns {
+				if vulns[i].CVE == rec.CVE {
+					v = &vulns[i]
+					break
+				}
+			}
+		}
+	}
+	if d.Asset != nil && d.Kev != nil {
+		if sw := matchedOn(a, *d.Kev, v); sw != "" {
+			aa := *d.Asset
+			aa.Display = sw
+			d.Asset = &aa
+		}
+	}
+	if rec.Status.Open() && v != nil {
+		d.FixedIn = FixedInFor(a, *v) // the release that fixes it on this device, from NVD's ranges (D-488); closed: nothing to upgrade
+	}
 	return d, nil
 }
 
-// fixedIn is the release that fixes the finding on its device, from NVD's ranges (D-488). It only informs the page, so
-// a failed read gives nil, the text the page always had, and never an error. Closed findings have nothing to upgrade.
-func (h *FindingHandlers) fixedIn(ctx context.Context, rec Record) *FixedIn {
-	if !rec.Status.Open() {
-		return nil
+// matchedOn names the device's software row the finding's KEV entry is keyed to, as the matcher reads the device (its rows and the network
+// OS it states, deviceSoftware): the Device panel of the finding names it (N53-1, D-619), not the device's first software by name, which
+// showed "Microsoft Edge" for a Windows CVE. A "Multiple Products" entry is keyed to every row of its vendor, so there it is the row the
+// matcher matches through NVD's list (review r1 #2 of #807: MatchAsset on that entry alone, v the stored entry). "" when no row is keyed
+// to the entry, or for Multiple Products when the entry is not read or the matcher matches none (the panel then keeps inventory's display).
+func matchedOn(a Asset, k KevInfo, v *Vuln) string {
+	if isMultiProduct(k.Product) {
+		if v == nil {
+			return ""
+		}
+		r := MatchAsset(a, []Vuln{*v}, map[string]bool{v.CVE: true}, time.Now())
+		for _, m := range slices.Concat(r.New, r.Existing) {
+			if m.CVE == v.CVE && m.SoftwareDisplay != "" {
+				return m.SoftwareDisplay
+			}
+		}
+		return ""
 	}
-	a, ok, err := h.inv.MatchInput(ctx, rec.AssetID)
-	if err != nil || !ok {
-		return nil
-	}
-	vulns, err := h.feed.Vulns(ctx)
-	if err != nil {
-		return nil
-	}
-	for _, v := range vulns {
-		if v.CVE == rec.CVE {
-			return FixedInFor(a, v)
+	key := Vuln{Vendor: k.Vendor, Product: k.Product}
+	for _, s := range deviceSoftware(a) {
+		if keyedTo(s, key) {
+			return clean(s.Display)
 		}
 	}
-	return nil
+	return ""
 }
 
 // addFixes sets Row.Fix on the open findings of the list (D-545): per device, the update that fixes its open findings of one software

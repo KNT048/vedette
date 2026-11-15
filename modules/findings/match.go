@@ -77,7 +77,10 @@ type Asset struct {
 	// SNMPOS is the OS the device states in answer to Vedette's own SNMP read of its address (source snmp), "" when none: unlike an
 	// LLDP frame, which any host on the wire can send with another device's MAC, it is the device answering at its own address
 	// (D-549, review r1 #3: only it may make a Junos statement count for scan-seen rows).
-	SNMPOS   string
+	SNMPOS string
+	// MAC is the device's MAC at its own address (inventory's current MAC of a device with an IP), "" when none: with an OUI of Juniper
+	// Networks it lets an LLDP statement of Junos count for the device's scan-seen rows (D-620, networkStated).
+	MAC      string
 	Software []Software
 	// winList is the whole stored exploited list a Windows release row's build month is read from (D-618, review r1 #1 of #806) when
 	// the match gets only a part of it (Reconcile's backlog and recent writes); nil: the match's own list.
@@ -345,6 +348,10 @@ func MatchAsset(a Asset, vulns []Vuln, have map[string]bool, now time.Time) Matc
 			infos[i].winBuild = winBuildMonth(winList, d)        // D-618: from the whole list, never a part of it
 		}
 	}
+	host := edgeHostOf(a, infos) // D-619, review r1 #1 of #807: whether Edge Legacy may still be on the device's Windows
+	for i := range infos {
+		infos[i].edgeHost = host
+	}
 	for _, v := range vulns {
 		if !ValidCVE(v.CVE) || seen[v.CVE] {
 			continue
@@ -522,6 +529,10 @@ func matchOne(a Asset, s Software, in swInfo, v Vuln, now time.Time) (Match, out
 		note := "Not affected: " + why + " Vedette closed this by itself and reopens it if a later match says the device is affected."
 		return Match{CVE: v.CVE, SoftwareID: s.ID, SoftwareDisplay: clean(s.Display), Evidence: Evidence{Summary: note, CheckedAt: now}, why: why}, outNotAffected
 	}
+	if why, out := edgeLegacyOnly(s, in, v); out { // D-619: an Edge Legacy (EdgeHTML) CVE on the Chromium-based Edge
+		note := "Not affected: " + why + " Vedette closed this by itself and reopens it if a later match says the device is affected."
+		return Match{CVE: v.CVE, SoftwareID: s.ID, SoftwareDisplay: clean(s.Display), Evidence: Evidence{Summary: note, CheckedAt: now}}, outNotAffected
+	}
 	multi := isMultiProduct(v.Product)
 	w, isWin := windowsDecide(in, v, in.winNamed, now) // D-546: a Windows release row by its monthly update
 	tri, within, every, proof := w.t, w.within, false, w.proof
@@ -651,6 +662,8 @@ type swInfo struct {
 	// winBuild: the month of the monthly update a Windows release row's build carries, read from the list's fix builds (D-618,
 	// winBuildMonth); zero when not known or not computed (FixedInFor, the plan pass), and then the month rule never closes.
 	winBuild winBuild
+	// edgeHost: what the device's own Windows says about Edge Legacy still being on it (D-619, edgeHostOf); the same for every row.
+	edgeHost edgeHost
 	// osName is the device's operating system as inventory folds it ("Microsoft Windows 10 Enterprise LTSC 2019 10.0.17763.6532"):
 	// a Windows LTSC/LTSB edition is still serviced when its release has ended (D-546).
 	osName string

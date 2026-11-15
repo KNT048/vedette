@@ -686,3 +686,47 @@ func TestSettleSendsTheEventsOfEveryCallInTheTransaction(t *testing.T) {
 		t.Fatalf("events: %v", e.ev.events)
 	}
 }
+
+// D-620: MatchDevice.MAC is the MAC a device answers with at its address (findings reads its OUI before an LLDP statement of Junos counts);
+// a device known only by MAC (an LLDP frame, no address) gives none.
+func TestMatchInputMACAtAnAddress(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	at := time.Date(2026, 11, 15, 8, 0, 0, 0, time.UTC)
+	ip := netip.MustParseAddr("192.168.30.47")
+	sw := observe.AssetHint{IP: ip, MAC: "3c:8a:b0:9c:85:ff"}
+	lldp := observe.AssetHint{MAC: "0c:05:35:00:00:01"} // no address
+	for i, o := range []observe.Observation{
+		{AssetHint: sw, Field: observe.MAC, Value: sw.MAC, Source: observe.Passive, Confidence: 0.9},
+		{AssetHint: lldp, Field: observe.MAC, Value: lldp.MAC, Source: observe.Passive, Confidence: 0.9},
+		{AssetHint: lldp, Field: observe.OS, Value: "JUNOS 15.1R7.9", Source: observe.Passive, Confidence: 0.5},
+	} {
+		o.SeenAt = at.Add(time.Duration(i) * time.Minute)
+		if err := e.svc.Record(e.ctx(), []observe.Observation{o}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	addrs, err := e.svc.AddressMap(e.ctx())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if d, ok, err := e.svc.MatchInput(e.ctx(), addrs[ip.String()]); err != nil || !ok || d.MAC != "3c:8a:b0:9c:85:ff" {
+		t.Fatalf("device at an address: %+v %v %v", d, ok, err)
+	}
+	ids, err := e.svc.AssetIDs(e.ctx())
+	if err != nil {
+		t.Fatal(err)
+	}
+	var n int
+	for _, id := range ids {
+		if d, ok, err := e.svc.MatchInput(e.ctx(), id); err == nil && ok && d.StatedOS == "JUNOS 15.1R7.9" {
+			n++
+			if d.MAC != "" {
+				t.Errorf("a device without an address: MAC %q", d.MAC)
+			}
+		}
+	}
+	if n != 1 {
+		t.Fatalf("LLDP-only device: %d found", n)
+	}
+}

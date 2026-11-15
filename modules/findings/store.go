@@ -35,21 +35,22 @@ type evidenceDoc struct {
 	Request   string    `json:"request,omitempty"`
 	Response  string    `json:"response,omitempty"`
 	CheckedAt time.Time `json:"checked_at"`
-	Agent     bool      `json:"agent,omitempty"` // D-548: the version compared is the one the device's agent reports
+	Agent     bool      `json:"agent,omitempty"`     // D-548: the version compared is the one the device's agent reports
+	AgentRow  bool      `json:"agent_row,omitempty"` // N52-2: a product-only match on a row the agent reported with its version
 }
 
 func newEvidenceDoc(e *Evidence) *evidenceDoc {
 	if e == nil {
 		return nil
 	}
-	return &evidenceDoc{Summary: e.Summary, Template: e.Template, Request: e.Request, Response: e.Response, CheckedAt: e.CheckedAt.UTC(), Agent: e.Agent}
+	return &evidenceDoc{Summary: e.Summary, Template: e.Template, Request: e.Request, Response: e.Response, CheckedAt: e.CheckedAt.UTC(), Agent: e.Agent, AgentRow: e.AgentRow}
 }
 
 func (d *evidenceDoc) evidence() *Evidence {
 	if d == nil {
 		return nil
 	}
-	return &Evidence{Summary: d.Summary, Template: d.Template, Request: d.Request, Response: d.Response, CheckedAt: d.CheckedAt, Agent: d.Agent}
+	return &Evidence{Summary: d.Summary, Template: d.Template, Request: d.Request, Response: d.Response, CheckedAt: d.CheckedAt, Agent: d.Agent, AgentRow: d.AgentRow}
 }
 
 const findingColumns = `id, asset_id, cve, status, severity, confidence, basis, evidence, first_seen, last_seen, resolved_by, resolved_at, resolution_note, resolution_reason, accepted_until`

@@ -239,7 +239,8 @@
   "risk": {
     "unverifiedChip": "{{severity}}, unverified",
     "unverifiedHint": "Unverified: product match only. Vedette knows the product but not its version, so this may not apply to you. Add the version on the device page, or run a scan, to check.",
-    "unverifiedLine": "Unverified: product match only. The severity applies only if the version on this device is affected."
+    "unverifiedLine": "Unverified: product match only. The severity applies only if the version on this device is affected.",
+    "unverifiedAgentHint": "Unverified: product match only. The device's agent reports the installed version, but Vedette cannot compare it with the versions NVD lists for this CVE, so this may not apply to you. Compare it with the vendor advisory."
   },
   "bulk": {
     "region": "Selected findings",

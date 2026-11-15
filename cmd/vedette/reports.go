@@ -103,7 +103,8 @@ func (a reportsFindings) All(ctx context.Context) ([]reports.Finding, error) {
 	source := a.vulnCheckCVEs(ctx, recs)
 	out := make([]reports.Finding, len(recs))
 	for i, r := range recs {
-		out[i] = reports.Finding{Source: source[r.CVE], ID: r.ID, AssetID: r.AssetID, CVE: r.CVE, Status: string(r.Status), Severity: string(r.Severity), FirstSeen: r.FirstSeen, ResolvedAt: r.ResolvedAt, ResolvedBy: r.ResolvedBy, AcceptedUntil: r.AcceptedUntil}
+		out[i] = reports.Finding{Source: source[r.CVE], ID: r.ID, AssetID: r.AssetID, CVE: r.CVE, Status: string(r.Status), Severity: string(r.Severity), FirstSeen: r.FirstSeen, ResolvedAt: r.ResolvedAt, ResolvedBy: r.ResolvedBy, AcceptedUntil: r.AcceptedUntil,
+			Agent: r.Evidence != nil && r.Evidence.Agent}
 	}
 	return out, nil
 }

@@ -30,6 +30,7 @@ export const Finding = z.object({
   evidence: z.object({
     summary: z.string(), template: z.string().optional(), request: z.string().optional(), response: z.string().optional(), checked_at: iso,
     agent: z.boolean().optional().describe('D-548: the version compared is the one the device\'s own agent (osquery, Wazuh) reports installed: a detection, shown as "Detected by the agent", with nothing for the person to look up'),
+    agent_row: z.boolean().optional().describe('N52-2: a product-only match on a software row the device\'s own agent reported with its installed version: Vedette could not compare that version with NVD\'s data, so the page does not ask to add the version'),
   }).nullable(),
   first_seen: iso,
   last_seen: iso,

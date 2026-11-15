@@ -123939,6 +123939,12 @@ func (s *FindingsGetFindingsIDOKEvidence) encodeFields(e *jx.Encoder) {
 		}
 	}
 	{
+		if s.AgentRow.Set {
+			e.FieldStart("agent_row")
+			s.AgentRow.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("checked_at")
 		json.EncodeDateTime(e, s.CheckedAt)
 	}
@@ -123966,13 +123972,14 @@ func (s *FindingsGetFindingsIDOKEvidence) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfFindingsGetFindingsIDOKEvidence = [6]string{
+var jsonFieldsNameOfFindingsGetFindingsIDOKEvidence = [7]string{
 	0: "agent",
-	1: "checked_at",
-	2: "request",
-	3: "response",
-	4: "summary",
-	5: "template",
+	1: "agent_row",
+	2: "checked_at",
+	3: "request",
+	4: "response",
+	5: "summary",
+	6: "template",
 }
 
 // Decode decodes FindingsGetFindingsIDOKEvidence from json.
@@ -123994,8 +124001,18 @@ func (s *FindingsGetFindingsIDOKEvidence) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"agent\"")
 			}
+		case "agent_row":
+			if err := func() error {
+				s.AgentRow.Reset()
+				if err := s.AgentRow.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"agent_row\"")
+			}
 		case "checked_at":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.CheckedAt = v
@@ -124027,7 +124044,7 @@ func (s *FindingsGetFindingsIDOKEvidence) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"response\"")
 			}
 		case "summary":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.Summary = string(v)
@@ -124058,7 +124075,7 @@ func (s *FindingsGetFindingsIDOKEvidence) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00010010,
+		0b00100100,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -128192,6 +128209,12 @@ func (s *FindingsGetFindingsOKItemsItemEvidence) encodeFields(e *jx.Encoder) {
 		}
 	}
 	{
+		if s.AgentRow.Set {
+			e.FieldStart("agent_row")
+			s.AgentRow.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("checked_at")
 		json.EncodeDateTime(e, s.CheckedAt)
 	}
@@ -128219,13 +128242,14 @@ func (s *FindingsGetFindingsOKItemsItemEvidence) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfFindingsGetFindingsOKItemsItemEvidence = [6]string{
+var jsonFieldsNameOfFindingsGetFindingsOKItemsItemEvidence = [7]string{
 	0: "agent",
-	1: "checked_at",
-	2: "request",
-	3: "response",
-	4: "summary",
-	5: "template",
+	1: "agent_row",
+	2: "checked_at",
+	3: "request",
+	4: "response",
+	5: "summary",
+	6: "template",
 }
 
 // Decode decodes FindingsGetFindingsOKItemsItemEvidence from json.
@@ -128247,8 +128271,18 @@ func (s *FindingsGetFindingsOKItemsItemEvidence) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"agent\"")
 			}
+		case "agent_row":
+			if err := func() error {
+				s.AgentRow.Reset()
+				if err := s.AgentRow.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"agent_row\"")
+			}
 		case "checked_at":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.CheckedAt = v
@@ -128280,7 +128314,7 @@ func (s *FindingsGetFindingsOKItemsItemEvidence) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"response\"")
 			}
 		case "summary":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.Summary = string(v)
@@ -128311,7 +128345,7 @@ func (s *FindingsGetFindingsOKItemsItemEvidence) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00010010,
+		0b00100100,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -132540,6 +132574,12 @@ func (s *FindingsPostFindingsIDAiOKEvidence) encodeFields(e *jx.Encoder) {
 		}
 	}
 	{
+		if s.AgentRow.Set {
+			e.FieldStart("agent_row")
+			s.AgentRow.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("checked_at")
 		json.EncodeDateTime(e, s.CheckedAt)
 	}
@@ -132567,13 +132607,14 @@ func (s *FindingsPostFindingsIDAiOKEvidence) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfFindingsPostFindingsIDAiOKEvidence = [6]string{
+var jsonFieldsNameOfFindingsPostFindingsIDAiOKEvidence = [7]string{
 	0: "agent",
-	1: "checked_at",
-	2: "request",
-	3: "response",
-	4: "summary",
-	5: "template",
+	1: "agent_row",
+	2: "checked_at",
+	3: "request",
+	4: "response",
+	5: "summary",
+	6: "template",
 }
 
 // Decode decodes FindingsPostFindingsIDAiOKEvidence from json.
@@ -132595,8 +132636,18 @@ func (s *FindingsPostFindingsIDAiOKEvidence) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"agent\"")
 			}
+		case "agent_row":
+			if err := func() error {
+				s.AgentRow.Reset()
+				if err := s.AgentRow.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"agent_row\"")
+			}
 		case "checked_at":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.CheckedAt = v
@@ -132628,7 +132679,7 @@ func (s *FindingsPostFindingsIDAiOKEvidence) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"response\"")
 			}
 		case "summary":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.Summary = string(v)
@@ -132659,7 +132710,7 @@ func (s *FindingsPostFindingsIDAiOKEvidence) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00010010,
+		0b00100100,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -138751,6 +138802,12 @@ func (s *FindingsPostFindingsIDAppliedOKEvidence) encodeFields(e *jx.Encoder) {
 		}
 	}
 	{
+		if s.AgentRow.Set {
+			e.FieldStart("agent_row")
+			s.AgentRow.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("checked_at")
 		json.EncodeDateTime(e, s.CheckedAt)
 	}
@@ -138778,13 +138835,14 @@ func (s *FindingsPostFindingsIDAppliedOKEvidence) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfFindingsPostFindingsIDAppliedOKEvidence = [6]string{
+var jsonFieldsNameOfFindingsPostFindingsIDAppliedOKEvidence = [7]string{
 	0: "agent",
-	1: "checked_at",
-	2: "request",
-	3: "response",
-	4: "summary",
-	5: "template",
+	1: "agent_row",
+	2: "checked_at",
+	3: "request",
+	4: "response",
+	5: "summary",
+	6: "template",
 }
 
 // Decode decodes FindingsPostFindingsIDAppliedOKEvidence from json.
@@ -138806,8 +138864,18 @@ func (s *FindingsPostFindingsIDAppliedOKEvidence) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"agent\"")
 			}
+		case "agent_row":
+			if err := func() error {
+				s.AgentRow.Reset()
+				if err := s.AgentRow.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"agent_row\"")
+			}
 		case "checked_at":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.CheckedAt = v
@@ -138839,7 +138907,7 @@ func (s *FindingsPostFindingsIDAppliedOKEvidence) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"response\"")
 			}
 		case "summary":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.Summary = string(v)
@@ -138870,7 +138938,7 @@ func (s *FindingsPostFindingsIDAppliedOKEvidence) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00010010,
+		0b00100100,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -144968,6 +145036,12 @@ func (s *FindingsPostFindingsIDStatusOKEvidence) encodeFields(e *jx.Encoder) {
 		}
 	}
 	{
+		if s.AgentRow.Set {
+			e.FieldStart("agent_row")
+			s.AgentRow.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("checked_at")
 		json.EncodeDateTime(e, s.CheckedAt)
 	}
@@ -144995,13 +145069,14 @@ func (s *FindingsPostFindingsIDStatusOKEvidence) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfFindingsPostFindingsIDStatusOKEvidence = [6]string{
+var jsonFieldsNameOfFindingsPostFindingsIDStatusOKEvidence = [7]string{
 	0: "agent",
-	1: "checked_at",
-	2: "request",
-	3: "response",
-	4: "summary",
-	5: "template",
+	1: "agent_row",
+	2: "checked_at",
+	3: "request",
+	4: "response",
+	5: "summary",
+	6: "template",
 }
 
 // Decode decodes FindingsPostFindingsIDStatusOKEvidence from json.
@@ -145023,8 +145098,18 @@ func (s *FindingsPostFindingsIDStatusOKEvidence) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"agent\"")
 			}
+		case "agent_row":
+			if err := func() error {
+				s.AgentRow.Reset()
+				if err := s.AgentRow.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"agent_row\"")
+			}
 		case "checked_at":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.CheckedAt = v
@@ -145056,7 +145141,7 @@ func (s *FindingsPostFindingsIDStatusOKEvidence) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"response\"")
 			}
 		case "summary":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.Summary = string(v)
@@ -145087,7 +145172,7 @@ func (s *FindingsPostFindingsIDStatusOKEvidence) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00010010,
+		0b00100100,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -215737,6 +215822,12 @@ func (s *ReportsGetReportsPdplOKReportRisksItem) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *ReportsGetReportsPdplOKReportRisksItem) encodeFields(e *jx.Encoder) {
 	{
+		if s.Agent.Set {
+			e.FieldStart("agent")
+			s.Agent.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("asset_id")
 		e.Str(s.AssetID)
 	}
@@ -215776,16 +215867,17 @@ func (s *ReportsGetReportsPdplOKReportRisksItem) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfReportsGetReportsPdplOKReportRisksItem = [9]string{
-	0: "asset_id",
-	1: "by",
-	2: "cve",
-	3: "device",
-	4: "id",
-	5: "product",
-	6: "severity",
-	7: "since",
-	8: "status",
+var jsonFieldsNameOfReportsGetReportsPdplOKReportRisksItem = [10]string{
+	0: "agent",
+	1: "asset_id",
+	2: "by",
+	3: "cve",
+	4: "device",
+	5: "id",
+	6: "product",
+	7: "severity",
+	8: "since",
+	9: "status",
 }
 
 // Decode decodes ReportsGetReportsPdplOKReportRisksItem from json.
@@ -215797,8 +215889,18 @@ func (s *ReportsGetReportsPdplOKReportRisksItem) Decode(d *jx.Decoder) error {
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
+		case "agent":
+			if err := func() error {
+				s.Agent.Reset()
+				if err := s.Agent.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"agent\"")
+			}
 		case "asset_id":
-			requiredBitSet[0] |= 1 << 0
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.AssetID = string(v)
@@ -215820,7 +215922,7 @@ func (s *ReportsGetReportsPdplOKReportRisksItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"by\"")
 			}
 		case "cve":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.Cve = string(v)
@@ -215832,7 +215934,7 @@ func (s *ReportsGetReportsPdplOKReportRisksItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"cve\"")
 			}
 		case "device":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.Device = string(v)
@@ -215844,7 +215946,7 @@ func (s *ReportsGetReportsPdplOKReportRisksItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"device\"")
 			}
 		case "id":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.ID = string(v)
@@ -215856,7 +215958,7 @@ func (s *ReportsGetReportsPdplOKReportRisksItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"id\"")
 			}
 		case "product":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				v, err := d.Str()
 				s.Product = string(v)
@@ -215868,7 +215970,7 @@ func (s *ReportsGetReportsPdplOKReportRisksItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"product\"")
 			}
 		case "severity":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				if err := s.Severity.Decode(d); err != nil {
 					return err
@@ -215878,7 +215980,7 @@ func (s *ReportsGetReportsPdplOKReportRisksItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"severity\"")
 			}
 		case "since":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.Since = v
@@ -215890,7 +215992,7 @@ func (s *ReportsGetReportsPdplOKReportRisksItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"since\"")
 			}
 		case "status":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				if err := s.Status.Decode(d); err != nil {
 					return err
@@ -215909,8 +216011,8 @@ func (s *ReportsGetReportsPdplOKReportRisksItem) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
-		0b11111101,
-		0b00000001,
+		0b11111010,
+		0b00000011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -218569,6 +218671,12 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportNewFindingsItem) Encode(e *jx.E
 // encodeFields encodes fields.
 func (s *ReportsGetReportsWeeklyHistoryIDOKReportNewFindingsItem) encodeFields(e *jx.Encoder) {
 	{
+		if s.Agent.Set {
+			e.FieldStart("agent")
+			s.Agent.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("asset_id")
 		e.Str(s.AssetID)
 	}
@@ -218608,16 +218716,17 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportNewFindingsItem) encodeFields(e
 	}
 }
 
-var jsonFieldsNameOfReportsGetReportsWeeklyHistoryIDOKReportNewFindingsItem = [9]string{
-	0: "asset_id",
-	1: "by",
-	2: "cve",
-	3: "device",
-	4: "id",
-	5: "product",
-	6: "severity",
-	7: "since",
-	8: "status",
+var jsonFieldsNameOfReportsGetReportsWeeklyHistoryIDOKReportNewFindingsItem = [10]string{
+	0: "agent",
+	1: "asset_id",
+	2: "by",
+	3: "cve",
+	4: "device",
+	5: "id",
+	6: "product",
+	7: "severity",
+	8: "since",
+	9: "status",
 }
 
 // Decode decodes ReportsGetReportsWeeklyHistoryIDOKReportNewFindingsItem from json.
@@ -218629,8 +218738,18 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportNewFindingsItem) Decode(d *jx.D
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
+		case "agent":
+			if err := func() error {
+				s.Agent.Reset()
+				if err := s.Agent.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"agent\"")
+			}
 		case "asset_id":
-			requiredBitSet[0] |= 1 << 0
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.AssetID = string(v)
@@ -218652,7 +218771,7 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportNewFindingsItem) Decode(d *jx.D
 				return errors.Wrap(err, "decode field \"by\"")
 			}
 		case "cve":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.Cve = string(v)
@@ -218664,7 +218783,7 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportNewFindingsItem) Decode(d *jx.D
 				return errors.Wrap(err, "decode field \"cve\"")
 			}
 		case "device":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.Device = string(v)
@@ -218676,7 +218795,7 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportNewFindingsItem) Decode(d *jx.D
 				return errors.Wrap(err, "decode field \"device\"")
 			}
 		case "id":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.ID = string(v)
@@ -218688,7 +218807,7 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportNewFindingsItem) Decode(d *jx.D
 				return errors.Wrap(err, "decode field \"id\"")
 			}
 		case "product":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				v, err := d.Str()
 				s.Product = string(v)
@@ -218700,7 +218819,7 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportNewFindingsItem) Decode(d *jx.D
 				return errors.Wrap(err, "decode field \"product\"")
 			}
 		case "severity":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				if err := s.Severity.Decode(d); err != nil {
 					return err
@@ -218710,7 +218829,7 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportNewFindingsItem) Decode(d *jx.D
 				return errors.Wrap(err, "decode field \"severity\"")
 			}
 		case "since":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.Since = v
@@ -218722,7 +218841,7 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportNewFindingsItem) Decode(d *jx.D
 				return errors.Wrap(err, "decode field \"since\"")
 			}
 		case "status":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				if err := s.Status.Decode(d); err != nil {
 					return err
@@ -218741,8 +218860,8 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportNewFindingsItem) Decode(d *jx.D
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
-		0b11111101,
-		0b00000001,
+		0b11111010,
+		0b00000011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -218894,6 +219013,12 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportOpenItem) Encode(e *jx.Encoder)
 // encodeFields encodes fields.
 func (s *ReportsGetReportsWeeklyHistoryIDOKReportOpenItem) encodeFields(e *jx.Encoder) {
 	{
+		if s.Agent.Set {
+			e.FieldStart("agent")
+			s.Agent.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("asset_id")
 		e.Str(s.AssetID)
 	}
@@ -218933,16 +219058,17 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportOpenItem) encodeFields(e *jx.En
 	}
 }
 
-var jsonFieldsNameOfReportsGetReportsWeeklyHistoryIDOKReportOpenItem = [9]string{
-	0: "asset_id",
-	1: "by",
-	2: "cve",
-	3: "device",
-	4: "id",
-	5: "product",
-	6: "severity",
-	7: "since",
-	8: "status",
+var jsonFieldsNameOfReportsGetReportsWeeklyHistoryIDOKReportOpenItem = [10]string{
+	0: "agent",
+	1: "asset_id",
+	2: "by",
+	3: "cve",
+	4: "device",
+	5: "id",
+	6: "product",
+	7: "severity",
+	8: "since",
+	9: "status",
 }
 
 // Decode decodes ReportsGetReportsWeeklyHistoryIDOKReportOpenItem from json.
@@ -218954,8 +219080,18 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportOpenItem) Decode(d *jx.Decoder)
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
+		case "agent":
+			if err := func() error {
+				s.Agent.Reset()
+				if err := s.Agent.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"agent\"")
+			}
 		case "asset_id":
-			requiredBitSet[0] |= 1 << 0
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.AssetID = string(v)
@@ -218977,7 +219113,7 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportOpenItem) Decode(d *jx.Decoder)
 				return errors.Wrap(err, "decode field \"by\"")
 			}
 		case "cve":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.Cve = string(v)
@@ -218989,7 +219125,7 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportOpenItem) Decode(d *jx.Decoder)
 				return errors.Wrap(err, "decode field \"cve\"")
 			}
 		case "device":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.Device = string(v)
@@ -219001,7 +219137,7 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportOpenItem) Decode(d *jx.Decoder)
 				return errors.Wrap(err, "decode field \"device\"")
 			}
 		case "id":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.ID = string(v)
@@ -219013,7 +219149,7 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportOpenItem) Decode(d *jx.Decoder)
 				return errors.Wrap(err, "decode field \"id\"")
 			}
 		case "product":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				v, err := d.Str()
 				s.Product = string(v)
@@ -219025,7 +219161,7 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportOpenItem) Decode(d *jx.Decoder)
 				return errors.Wrap(err, "decode field \"product\"")
 			}
 		case "severity":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				if err := s.Severity.Decode(d); err != nil {
 					return err
@@ -219035,7 +219171,7 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportOpenItem) Decode(d *jx.Decoder)
 				return errors.Wrap(err, "decode field \"severity\"")
 			}
 		case "since":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.Since = v
@@ -219047,7 +219183,7 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportOpenItem) Decode(d *jx.Decoder)
 				return errors.Wrap(err, "decode field \"since\"")
 			}
 		case "status":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				if err := s.Status.Decode(d); err != nil {
 					return err
@@ -219066,8 +219202,8 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportOpenItem) Decode(d *jx.Decoder)
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
-		0b11111101,
-		0b00000001,
+		0b11111010,
+		0b00000011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -219332,6 +219468,12 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportResolvedItem) Encode(e *jx.Enco
 // encodeFields encodes fields.
 func (s *ReportsGetReportsWeeklyHistoryIDOKReportResolvedItem) encodeFields(e *jx.Encoder) {
 	{
+		if s.Agent.Set {
+			e.FieldStart("agent")
+			s.Agent.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("asset_id")
 		e.Str(s.AssetID)
 	}
@@ -219371,16 +219513,17 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportResolvedItem) encodeFields(e *j
 	}
 }
 
-var jsonFieldsNameOfReportsGetReportsWeeklyHistoryIDOKReportResolvedItem = [9]string{
-	0: "asset_id",
-	1: "by",
-	2: "cve",
-	3: "device",
-	4: "id",
-	5: "product",
-	6: "severity",
-	7: "since",
-	8: "status",
+var jsonFieldsNameOfReportsGetReportsWeeklyHistoryIDOKReportResolvedItem = [10]string{
+	0: "agent",
+	1: "asset_id",
+	2: "by",
+	3: "cve",
+	4: "device",
+	5: "id",
+	6: "product",
+	7: "severity",
+	8: "since",
+	9: "status",
 }
 
 // Decode decodes ReportsGetReportsWeeklyHistoryIDOKReportResolvedItem from json.
@@ -219392,8 +219535,18 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportResolvedItem) Decode(d *jx.Deco
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
+		case "agent":
+			if err := func() error {
+				s.Agent.Reset()
+				if err := s.Agent.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"agent\"")
+			}
 		case "asset_id":
-			requiredBitSet[0] |= 1 << 0
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.AssetID = string(v)
@@ -219415,7 +219568,7 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportResolvedItem) Decode(d *jx.Deco
 				return errors.Wrap(err, "decode field \"by\"")
 			}
 		case "cve":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.Cve = string(v)
@@ -219427,7 +219580,7 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportResolvedItem) Decode(d *jx.Deco
 				return errors.Wrap(err, "decode field \"cve\"")
 			}
 		case "device":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.Device = string(v)
@@ -219439,7 +219592,7 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportResolvedItem) Decode(d *jx.Deco
 				return errors.Wrap(err, "decode field \"device\"")
 			}
 		case "id":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.ID = string(v)
@@ -219451,7 +219604,7 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportResolvedItem) Decode(d *jx.Deco
 				return errors.Wrap(err, "decode field \"id\"")
 			}
 		case "product":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				v, err := d.Str()
 				s.Product = string(v)
@@ -219463,7 +219616,7 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportResolvedItem) Decode(d *jx.Deco
 				return errors.Wrap(err, "decode field \"product\"")
 			}
 		case "severity":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				if err := s.Severity.Decode(d); err != nil {
 					return err
@@ -219473,7 +219626,7 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportResolvedItem) Decode(d *jx.Deco
 				return errors.Wrap(err, "decode field \"severity\"")
 			}
 		case "since":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.Since = v
@@ -219485,7 +219638,7 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportResolvedItem) Decode(d *jx.Deco
 				return errors.Wrap(err, "decode field \"since\"")
 			}
 		case "status":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				if err := s.Status.Decode(d); err != nil {
 					return err
@@ -219504,8 +219657,8 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportResolvedItem) Decode(d *jx.Deco
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
-		0b11111101,
-		0b00000001,
+		0b11111010,
+		0b00000011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -222786,6 +222939,12 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportNewFindingsItem) Encode(e *jx.Enc
 // encodeFields encodes fields.
 func (s *ReportsGetReportsWeeklyPreviewOKReportNewFindingsItem) encodeFields(e *jx.Encoder) {
 	{
+		if s.Agent.Set {
+			e.FieldStart("agent")
+			s.Agent.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("asset_id")
 		e.Str(s.AssetID)
 	}
@@ -222825,16 +222984,17 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportNewFindingsItem) encodeFields(e *
 	}
 }
 
-var jsonFieldsNameOfReportsGetReportsWeeklyPreviewOKReportNewFindingsItem = [9]string{
-	0: "asset_id",
-	1: "by",
-	2: "cve",
-	3: "device",
-	4: "id",
-	5: "product",
-	6: "severity",
-	7: "since",
-	8: "status",
+var jsonFieldsNameOfReportsGetReportsWeeklyPreviewOKReportNewFindingsItem = [10]string{
+	0: "agent",
+	1: "asset_id",
+	2: "by",
+	3: "cve",
+	4: "device",
+	5: "id",
+	6: "product",
+	7: "severity",
+	8: "since",
+	9: "status",
 }
 
 // Decode decodes ReportsGetReportsWeeklyPreviewOKReportNewFindingsItem from json.
@@ -222846,8 +223006,18 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportNewFindingsItem) Decode(d *jx.Dec
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
+		case "agent":
+			if err := func() error {
+				s.Agent.Reset()
+				if err := s.Agent.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"agent\"")
+			}
 		case "asset_id":
-			requiredBitSet[0] |= 1 << 0
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.AssetID = string(v)
@@ -222869,7 +223039,7 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportNewFindingsItem) Decode(d *jx.Dec
 				return errors.Wrap(err, "decode field \"by\"")
 			}
 		case "cve":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.Cve = string(v)
@@ -222881,7 +223051,7 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportNewFindingsItem) Decode(d *jx.Dec
 				return errors.Wrap(err, "decode field \"cve\"")
 			}
 		case "device":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.Device = string(v)
@@ -222893,7 +223063,7 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportNewFindingsItem) Decode(d *jx.Dec
 				return errors.Wrap(err, "decode field \"device\"")
 			}
 		case "id":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.ID = string(v)
@@ -222905,7 +223075,7 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportNewFindingsItem) Decode(d *jx.Dec
 				return errors.Wrap(err, "decode field \"id\"")
 			}
 		case "product":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				v, err := d.Str()
 				s.Product = string(v)
@@ -222917,7 +223087,7 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportNewFindingsItem) Decode(d *jx.Dec
 				return errors.Wrap(err, "decode field \"product\"")
 			}
 		case "severity":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				if err := s.Severity.Decode(d); err != nil {
 					return err
@@ -222927,7 +223097,7 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportNewFindingsItem) Decode(d *jx.Dec
 				return errors.Wrap(err, "decode field \"severity\"")
 			}
 		case "since":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.Since = v
@@ -222939,7 +223109,7 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportNewFindingsItem) Decode(d *jx.Dec
 				return errors.Wrap(err, "decode field \"since\"")
 			}
 		case "status":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				if err := s.Status.Decode(d); err != nil {
 					return err
@@ -222958,8 +223128,8 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportNewFindingsItem) Decode(d *jx.Dec
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
-		0b11111101,
-		0b00000001,
+		0b11111010,
+		0b00000011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -223111,6 +223281,12 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportOpenItem) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *ReportsGetReportsWeeklyPreviewOKReportOpenItem) encodeFields(e *jx.Encoder) {
 	{
+		if s.Agent.Set {
+			e.FieldStart("agent")
+			s.Agent.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("asset_id")
 		e.Str(s.AssetID)
 	}
@@ -223150,16 +223326,17 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportOpenItem) encodeFields(e *jx.Enco
 	}
 }
 
-var jsonFieldsNameOfReportsGetReportsWeeklyPreviewOKReportOpenItem = [9]string{
-	0: "asset_id",
-	1: "by",
-	2: "cve",
-	3: "device",
-	4: "id",
-	5: "product",
-	6: "severity",
-	7: "since",
-	8: "status",
+var jsonFieldsNameOfReportsGetReportsWeeklyPreviewOKReportOpenItem = [10]string{
+	0: "agent",
+	1: "asset_id",
+	2: "by",
+	3: "cve",
+	4: "device",
+	5: "id",
+	6: "product",
+	7: "severity",
+	8: "since",
+	9: "status",
 }
 
 // Decode decodes ReportsGetReportsWeeklyPreviewOKReportOpenItem from json.
@@ -223171,8 +223348,18 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportOpenItem) Decode(d *jx.Decoder) e
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
+		case "agent":
+			if err := func() error {
+				s.Agent.Reset()
+				if err := s.Agent.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"agent\"")
+			}
 		case "asset_id":
-			requiredBitSet[0] |= 1 << 0
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.AssetID = string(v)
@@ -223194,7 +223381,7 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportOpenItem) Decode(d *jx.Decoder) e
 				return errors.Wrap(err, "decode field \"by\"")
 			}
 		case "cve":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.Cve = string(v)
@@ -223206,7 +223393,7 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportOpenItem) Decode(d *jx.Decoder) e
 				return errors.Wrap(err, "decode field \"cve\"")
 			}
 		case "device":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.Device = string(v)
@@ -223218,7 +223405,7 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportOpenItem) Decode(d *jx.Decoder) e
 				return errors.Wrap(err, "decode field \"device\"")
 			}
 		case "id":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.ID = string(v)
@@ -223230,7 +223417,7 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportOpenItem) Decode(d *jx.Decoder) e
 				return errors.Wrap(err, "decode field \"id\"")
 			}
 		case "product":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				v, err := d.Str()
 				s.Product = string(v)
@@ -223242,7 +223429,7 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportOpenItem) Decode(d *jx.Decoder) e
 				return errors.Wrap(err, "decode field \"product\"")
 			}
 		case "severity":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				if err := s.Severity.Decode(d); err != nil {
 					return err
@@ -223252,7 +223439,7 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportOpenItem) Decode(d *jx.Decoder) e
 				return errors.Wrap(err, "decode field \"severity\"")
 			}
 		case "since":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.Since = v
@@ -223264,7 +223451,7 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportOpenItem) Decode(d *jx.Decoder) e
 				return errors.Wrap(err, "decode field \"since\"")
 			}
 		case "status":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				if err := s.Status.Decode(d); err != nil {
 					return err
@@ -223283,8 +223470,8 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportOpenItem) Decode(d *jx.Decoder) e
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
-		0b11111101,
-		0b00000001,
+		0b11111010,
+		0b00000011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -223549,6 +223736,12 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportResolvedItem) Encode(e *jx.Encode
 // encodeFields encodes fields.
 func (s *ReportsGetReportsWeeklyPreviewOKReportResolvedItem) encodeFields(e *jx.Encoder) {
 	{
+		if s.Agent.Set {
+			e.FieldStart("agent")
+			s.Agent.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("asset_id")
 		e.Str(s.AssetID)
 	}
@@ -223588,16 +223781,17 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportResolvedItem) encodeFields(e *jx.
 	}
 }
 
-var jsonFieldsNameOfReportsGetReportsWeeklyPreviewOKReportResolvedItem = [9]string{
-	0: "asset_id",
-	1: "by",
-	2: "cve",
-	3: "device",
-	4: "id",
-	5: "product",
-	6: "severity",
-	7: "since",
-	8: "status",
+var jsonFieldsNameOfReportsGetReportsWeeklyPreviewOKReportResolvedItem = [10]string{
+	0: "agent",
+	1: "asset_id",
+	2: "by",
+	3: "cve",
+	4: "device",
+	5: "id",
+	6: "product",
+	7: "severity",
+	8: "since",
+	9: "status",
 }
 
 // Decode decodes ReportsGetReportsWeeklyPreviewOKReportResolvedItem from json.
@@ -223609,8 +223803,18 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportResolvedItem) Decode(d *jx.Decode
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
+		case "agent":
+			if err := func() error {
+				s.Agent.Reset()
+				if err := s.Agent.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"agent\"")
+			}
 		case "asset_id":
-			requiredBitSet[0] |= 1 << 0
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.AssetID = string(v)
@@ -223632,7 +223836,7 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportResolvedItem) Decode(d *jx.Decode
 				return errors.Wrap(err, "decode field \"by\"")
 			}
 		case "cve":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.Cve = string(v)
@@ -223644,7 +223848,7 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportResolvedItem) Decode(d *jx.Decode
 				return errors.Wrap(err, "decode field \"cve\"")
 			}
 		case "device":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.Device = string(v)
@@ -223656,7 +223860,7 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportResolvedItem) Decode(d *jx.Decode
 				return errors.Wrap(err, "decode field \"device\"")
 			}
 		case "id":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.ID = string(v)
@@ -223668,7 +223872,7 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportResolvedItem) Decode(d *jx.Decode
 				return errors.Wrap(err, "decode field \"id\"")
 			}
 		case "product":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				v, err := d.Str()
 				s.Product = string(v)
@@ -223680,7 +223884,7 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportResolvedItem) Decode(d *jx.Decode
 				return errors.Wrap(err, "decode field \"product\"")
 			}
 		case "severity":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				if err := s.Severity.Decode(d); err != nil {
 					return err
@@ -223690,7 +223894,7 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportResolvedItem) Decode(d *jx.Decode
 				return errors.Wrap(err, "decode field \"severity\"")
 			}
 		case "since":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.Since = v
@@ -223702,7 +223906,7 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportResolvedItem) Decode(d *jx.Decode
 				return errors.Wrap(err, "decode field \"since\"")
 			}
 		case "status":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				if err := s.Status.Decode(d); err != nil {
 					return err
@@ -223721,8 +223925,8 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportResolvedItem) Decode(d *jx.Decode
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
-		0b11111101,
-		0b00000001,
+		0b11111010,
+		0b00000011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -226831,6 +227035,12 @@ func (s *ReportsPostReportsPdplGenerateOKRisksItem) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *ReportsPostReportsPdplGenerateOKRisksItem) encodeFields(e *jx.Encoder) {
 	{
+		if s.Agent.Set {
+			e.FieldStart("agent")
+			s.Agent.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("asset_id")
 		e.Str(s.AssetID)
 	}
@@ -226870,16 +227080,17 @@ func (s *ReportsPostReportsPdplGenerateOKRisksItem) encodeFields(e *jx.Encoder) 
 	}
 }
 
-var jsonFieldsNameOfReportsPostReportsPdplGenerateOKRisksItem = [9]string{
-	0: "asset_id",
-	1: "by",
-	2: "cve",
-	3: "device",
-	4: "id",
-	5: "product",
-	6: "severity",
-	7: "since",
-	8: "status",
+var jsonFieldsNameOfReportsPostReportsPdplGenerateOKRisksItem = [10]string{
+	0: "agent",
+	1: "asset_id",
+	2: "by",
+	3: "cve",
+	4: "device",
+	5: "id",
+	6: "product",
+	7: "severity",
+	8: "since",
+	9: "status",
 }
 
 // Decode decodes ReportsPostReportsPdplGenerateOKRisksItem from json.
@@ -226891,8 +227102,18 @@ func (s *ReportsPostReportsPdplGenerateOKRisksItem) Decode(d *jx.Decoder) error 
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
+		case "agent":
+			if err := func() error {
+				s.Agent.Reset()
+				if err := s.Agent.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"agent\"")
+			}
 		case "asset_id":
-			requiredBitSet[0] |= 1 << 0
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.AssetID = string(v)
@@ -226914,7 +227135,7 @@ func (s *ReportsPostReportsPdplGenerateOKRisksItem) Decode(d *jx.Decoder) error 
 				return errors.Wrap(err, "decode field \"by\"")
 			}
 		case "cve":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.Cve = string(v)
@@ -226926,7 +227147,7 @@ func (s *ReportsPostReportsPdplGenerateOKRisksItem) Decode(d *jx.Decoder) error 
 				return errors.Wrap(err, "decode field \"cve\"")
 			}
 		case "device":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.Device = string(v)
@@ -226938,7 +227159,7 @@ func (s *ReportsPostReportsPdplGenerateOKRisksItem) Decode(d *jx.Decoder) error 
 				return errors.Wrap(err, "decode field \"device\"")
 			}
 		case "id":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.ID = string(v)
@@ -226950,7 +227171,7 @@ func (s *ReportsPostReportsPdplGenerateOKRisksItem) Decode(d *jx.Decoder) error 
 				return errors.Wrap(err, "decode field \"id\"")
 			}
 		case "product":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				v, err := d.Str()
 				s.Product = string(v)
@@ -226962,7 +227183,7 @@ func (s *ReportsPostReportsPdplGenerateOKRisksItem) Decode(d *jx.Decoder) error 
 				return errors.Wrap(err, "decode field \"product\"")
 			}
 		case "severity":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				if err := s.Severity.Decode(d); err != nil {
 					return err
@@ -226972,7 +227193,7 @@ func (s *ReportsPostReportsPdplGenerateOKRisksItem) Decode(d *jx.Decoder) error 
 				return errors.Wrap(err, "decode field \"severity\"")
 			}
 		case "since":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.Since = v
@@ -226984,7 +227205,7 @@ func (s *ReportsPostReportsPdplGenerateOKRisksItem) Decode(d *jx.Decoder) error 
 				return errors.Wrap(err, "decode field \"since\"")
 			}
 		case "status":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				if err := s.Status.Decode(d); err != nil {
 					return err
@@ -227003,8 +227224,8 @@ func (s *ReportsPostReportsPdplGenerateOKRisksItem) Decode(d *jx.Decoder) error 
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
-		0b11111101,
-		0b00000001,
+		0b11111010,
+		0b00000011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.

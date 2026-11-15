@@ -180,6 +180,10 @@ func genericRecheck(r findings.Row) findings.Recheck {
 		return findings.Recheck{Steps: steps}
 	}
 	last := "This CVE has no safe scan template yet, so Vedette can only conclude from the version. Check by hand as above."
+	first := fmt.Sprintf("Check which version of %s %s runs (in its settings, its admin page or its About screen).", software, device)
+	if r.Evidence != nil && r.Evidence.AgentRow { // N52-2: the agent reported the installed version; it is the comparison that failed
+		first = fmt.Sprintf("Nothing to look up on %s: its agent reports the installed version of %s (Evidence above), but Vedette cannot compare it with the versions NVD lists for this CVE.", device, software)
+	}
 	switch {
 	case hasTemplate && reachable:
 		last = `This CVE has a safe scan template: click "Rescan this device" to confirm.`
@@ -187,7 +191,7 @@ func genericRecheck(r findings.Row) findings.Recheck {
 		last = "This CVE has a safe scan template, but this device has no IP address in your inventory, so it cannot be scanned. Add its IP on the device page to scan it, or check by hand as above."
 	}
 	return findings.Recheck{Steps: []string{
-		fmt.Sprintf("Check which version of %s %s runs (in its settings, its admin page or its About screen).", software, device),
+		first,
 		"Compare it with the fixed version in the vendor advisory (link in the source section). An older version means the flaw is still there.",
 		last,
 	}}

@@ -86,10 +86,13 @@ func windowsProduct(c CPE) (string, bool) {
 	return cp, true
 }
 
-// winOld are the Windows releases before 10 (6.x and older): NVD names them without build ranges, and every 10.0 build is newer.
+// winOld are the Windows releases before 10 (6.x and older): NVD names them without build ranges, and every 10.0 build is newer. D-610
+// (N52-1): with NT 4.0, the 9x line and NVD's older name of Server 2003 too, so an entry naming only such releases (CVE-2002-0367:
+// windows_2000, windows_nt) is read as "only older releases" by the D-546 (d) proof instead of "not checked".
 var winOld = map[string]bool{
 	"windows_2000": true, "windows_xp": true, "windows_vista": true, "windows_7": true, "windows_8": true, "windows_8.1": true,
 	"windows_rt": true, "windows_rt_8.1": true, "windows_server_2003": true, "windows_server_2008": true, "windows_server_2012": true,
+	"windows_nt": true, "windows_95": true, "windows_98": true, "windows_98se": true, "windows_me": true, "windows_2003_server": true,
 }
 
 // winFamilyVersions are the releases of the family forms NVD used before it named each release ("windows_10:1607"; "-" is the
@@ -242,6 +245,16 @@ func windowsDecide(in swInfo, v Vuln, named bool, now time.Time) (winVerdict, bo
 		return winVerdict{t: Unknown, note: fmt.Sprintf("NVD lists %s only for Windows releases older than %s (%s), and has not named %s in any entry yet, so its data cannot tell: compare with Microsoft's advisory.",
 			v.CVE, d.rel.Display, winNames(others), d.rel.Display)}, true
 	}
+	// D-610 (N52-1): a flaw whose CVE id is from before Windows 10 came out (2015), listed by NVD only for releases before Windows 10, is
+	// not one of any 10.0 build, preview or not: Windows 10 and every later release shipped after the CVE existed, and Microsoft's
+	// advisory, which NVD's list follows, named no 10.0 release for it (an advisory published later would have named one it affects).
+	// It needs no release date or GA revision (the 140 XP-era entries a Server 2025 VM had open: CVE-2002-0367, CVE-2008-4250).
+	if newest == 0 && len(others) > 0 {
+		if y := cveYear(v.CVE); y > 0 && y < winTenYear {
+			return winVerdict{t: No, proof: proofRelease, note: fmt.Sprintf("Not affected: NVD lists %s only for Windows releases before Windows 10 (%s). The CVE dates from %d, before Windows 10 came out, and no Windows 10 or later release is listed for it, so this device's %s is not affected. Vedette closed this by itself and reopens it if a later match says the device is affected.",
+				v.CVE, winNames(others), y, d.rel.Display)}, true
+		}
+	}
 	// Every release the entry lists is older than the device's. Both proofs are about the public release: a preview or OEM build below
 	// its first public revision (24H2 shipped on Copilot+ PCs as 26100.712 months before its 26100.1742) is neither "out after the
 	// fix" nor a release NVD's list was about, so it proves nothing (review r1 M1). The release date proves only with that revision known.
@@ -254,16 +267,36 @@ func windowsDecide(in swInfo, v Vuln, named bool, now time.Time) (winVerdict, bo
 			v.CVE, d.rel.Display, winNames(others), d.rel.Display, d.rel.Build, d.rel.GARev)}, true
 	}
 	shipped := v.Source != SourceVulnCheck && !v.DateAdded.IsZero() && !v.DateAdded.Add(winShipMargin).After(d.rel.GA)
-	if shipped || settled(v, now) {
+	// D-610: NVD's list has also stood a year when the CVE itself is two calendar years old or more: Microsoft, its own CNA, gives a
+	// Windows CVE its id in the year it publishes the advisory NVD's list follows, so a CVE-2018 entry CISA lists in 2026 has had NVD's
+	// list since 2018 (CISA's listing date says nothing about it).
+	old := cveYear(v.CVE) > 0 && !now.IsZero() && cveYear(v.CVE)+2 <= now.Year()
+	if shipped || settled(v, now) || old {
 		why := fmt.Sprintf("%s came out on %s, after %s listed the flaw (%s), so it carries the fix", d.rel.Display, d.rel.GA.Format("2 Jan 2006"), v.listName(), v.DateAdded.Format("2 Jan 2006"))
-		if !shipped {
+		switch {
+		case shipped:
+		case settled(v, now):
 			why = fmt.Sprintf("NVD's list has stood for over a year since %s listed it", v.listName())
+		default:
+			why = fmt.Sprintf("the CVE dates from %d, so NVD's list has stood for over a year", cveYear(v.CVE))
 		}
 		return winVerdict{t: No, proof: proofRelease, note: fmt.Sprintf("Not affected: NVD lists %s only for Windows releases older than this device's %s (%s), and %s. Vedette closed this by itself and reopens it if a later match says the device is affected.",
 			v.CVE, d.rel.Display, winNames(others), why)}, true
 	}
 	return winVerdict{t: Unknown, note: fmt.Sprintf("NVD lists %s only for Windows releases older than %s (%s). A later release usually carries the fix, but NVD's list for this entry is less than a year old: compare with Microsoft's advisory.",
 		v.CVE, d.rel.Display, winNames(others))}, true
+}
+
+// winTenYear is the year Windows 10, the first 10.0 release, came out (29 July 2015, core/winrel).
+const winTenYear = 2015
+
+// cveYear is the year of a CVE id ("CVE-2008-4250" → 2008); 0 when it is not one.
+func cveYear(cve string) int {
+	if !ValidCVE(cve) {
+		return 0
+	}
+	y, _ := strconv.Atoi(cve[4:8])
+	return y
 }
 
 // winShipMargin: a release that came out this long after CISA listed a flaw carries its fix. CISA lists a flaw when there is a

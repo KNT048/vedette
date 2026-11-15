@@ -29,15 +29,20 @@ const ANCHOR_TAB: Record<string, string> = { 'step-verify': 'ownership', 'step-c
 
 const errMsg = (e: unknown) => (e instanceof Error ? e.message : String(e))
 
+// N49-1 (modules.md): the module's API is read only while the module is on.
 export default function TargetPage() {
+  return <RequireModule module="exposure"><TargetLoader /></RequireModule>
+}
+
+function TargetLoader() {
   const { t } = useTranslation('exposure')
   const { id = '' } = useParams()
   const q = useTarget(id)
   return (
-    <RequireModule module="exposure">
+    <>
       <Link to="/exposure" className="mb-3 inline-flex items-center gap-1 text-[13px] text-muted hover:text-ink"><ArrowLeft className="size-3.5" />{t('target.back')}</Link>
       <QueryState query={q}>{(tg) => <TargetView target={tg} />}</QueryState>
-    </RequireModule>
+    </>
   )
 }
 

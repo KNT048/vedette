@@ -78,7 +78,7 @@ var releases = []Release{
 	{19042, "windows_server_20h2", "Windows Server 20H2", true, 19042, day("2020-10-20"), 0, 0, true, false},
 	{20348, "windows_server_2022", "Windows Server 2022", true, 20348, day("2021-08-18"), 169, 0, false, false},
 	{25398, "windows_server_2022_23h2", "Windows Server 2022 23H2", true, 25398, day("2023-10-24"), 0, 0, true, false},
-	{26100, "windows_server_2025", "Windows Server 2025", true, 26100, day("2024-11-01"), 2314, 0, false, false},
+	{26100, "windows_server_2025", "Windows Server 2025", true, 26100, day("2024-11-01"), 1742, 0, false, false}, // GA media 26100.1742 (Microsoft's table, "2024-10 A"; D-610)
 }
 
 // ByBuild is the client (server false) or server release of a build; false when the table has none.

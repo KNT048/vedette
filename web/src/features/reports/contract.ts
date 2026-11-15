@@ -9,6 +9,7 @@ export const FindingRow = z.object({
   status: z.enum(['confirmed', 'suspected', 'mitigated', 'patched', 'false_positive', 'not_relevant', 'risk_accepted']),
   severity: z.enum(['critical', 'high', 'medium', 'low', 'info']), since: iso,
   by: z.string().optional().describe('Who closed it (rows of what was done)'),
+  agent: z.boolean().optional().describe("The version compared is the one the device's own agent reports (findings evidence.agent, D-548): the status reads \"Detected by the agent\", not \"Suspected\"; absent in reports sent before it"),
 })
 export const TopRisk = z.object({
   product: z.string().describe('The product as Findings names it'), device: z.string().describe('The device, or the first names and how many more'),

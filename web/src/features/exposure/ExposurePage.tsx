@@ -28,7 +28,12 @@ import { blockedKey } from './types'
 // Old #anchor → tab (before the tabs these were stacked blocks of one page).
 const ANCHOR_TAB: Record<string, string> = { targets: 'targets', 'box-ip': 'targets', 'box-ignored': 'targets', open: 'open', 'outside-list': 'outside' }
 
+// N49-1 (modules.md): the module's API is read only while the module is on; off, the page says so and calls nothing.
 export default function ExposurePage() {
+  return <RequireModule module="exposure"><ExposureView /></RequireModule>
+}
+
+function ExposureView() {
   const { t } = useTranslation('exposure')
   const q = useTargets()
   // Đọc rõ các trường query ở đây để react-query theo dõi đúng khi chuyển sang lỗi.
@@ -51,7 +56,7 @@ export default function ExposurePage() {
     : pending > 0 ? t('title.cleanPartial', { count: pending })
     : t('title.clean')
   return (
-    <RequireModule module="exposure">
+    <>
       <PageHeader title={title} stories={['S-EXP-1']} actions={<AddTarget />}
         meta={<span className="flex flex-wrap items-center gap-2"><SampleDataNote />{certs > 0 ? `${t('meta.certs', { count: certs })} ` : null}{t('meta.rule')}</span>} />
       <ScanProgress />
@@ -84,7 +89,7 @@ export default function ExposurePage() {
           )
         }}
       </QueryState>
-    </RequireModule>
+    </>
   )
 }
 

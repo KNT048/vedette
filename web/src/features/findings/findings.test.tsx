@@ -455,6 +455,16 @@ describe('findings: customer walk 1 (D-484)', () => {
     await waitFor(() => expect(within(screen.getByRole('table')).getAllByRole('row')).toHaveLength(2))
   })
 
+  it('N52-2: a product-only match on a row the agent reported with its version does not say the version is missing', async () => {
+    const id = findingsStore.get().find((f) => f.cve === 'CVE-2026-119977')!.id
+    findingsStore.update((l) => l.map((f) => (f.id === id ? { ...f, evidence: { summary: 's', checked_at: f.first_seen, agent_row: true } } : f)))
+    renderApp('/findings')
+    const table = await screen.findByRole('table', { name: 'Findings list' })
+    const chip = within(within(table).getByRole('row', { name: /CVE-2026-119977/ })).getByText('High, unverified')
+    expect(chip).toHaveAttribute('title', expect.stringContaining("The device's agent reports the installed version"))
+    expect(chip.getAttribute('title')).not.toMatch(/Add the version/)
+  })
+
   it('W1-12: select all shown, one action and one note, one history and audit row per finding', async () => {
     renderApp('/findings')
     await screen.findByRole('table', { name: 'Findings list' })

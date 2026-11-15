@@ -30,7 +30,7 @@ const hostOf = (serverUrl: string) => serverUrl.replace(/^https:\/\//, '')
 export const OSQUERY_SCHEDULE = JSON.stringify({
   schedule: {
     os_version: { query: 'SELECT name, version, major, minor, patch, build, platform, arch FROM os_version;', interval: 3600, snapshot: true },
-    system_info: { query: 'SELECT hostname, hardware_vendor, hardware_model FROM system_info;', interval: 86400, snapshot: true },
+    system_info: { query: 'SELECT hostname, hardware_vendor, hardware_model FROM system_info;', interval: 3600, snapshot: true },
     interfaces: { query: "SELECT d.mac, a.address FROM interface_details d JOIN interface_addresses a USING (interface) WHERE a.address NOT LIKE '%:%' AND a.address NOT LIKE '127.%' AND a.address NOT LIKE '169.254.%' AND d.mac != '00:00:00:00:00:00';", interval: 3600, snapshot: true },
     deb_packages: { query: 'SELECT name, version, arch, source FROM deb_packages;', interval: 3600, snapshot: true, platform: 'linux' },
     rpm_packages: { query: 'SELECT name, version, release, arch, epoch FROM rpm_packages;', interval: 3600, snapshot: true, platform: 'linux' },

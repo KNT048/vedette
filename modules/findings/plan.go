@@ -390,8 +390,8 @@ func matchTiers(a Asset, x *tierIndex, kev map[string]bool, now time.Time) (item
 // the installed revision is the distribution's own build (ownBuild: never a PPA or a vendor's .deb), the CVE is listed with basis
 // distro. A CVE the distribution's data does not name for that release and package is left out (drop when unsure). One item per
 // source package (and per Pro-only fixes), naming the highest fixed version: a distribution's updates within a release are
-// cumulative, so that one version fixes every CVE of the item (D-545's one update that fixes them all). compared says the device has
-// such a row of a release the feeds hold rows for.
+// cumulative, so that one version fixes every CVE of the item (D-545's one update that fixes them all). A kernel's packages count
+// only for the running kernel (distroRows). compared says the device has such a row of a release the feeds stored tier rows for.
 func distroTierItems(a Asset, x *tierIndex, kev map[string]bool, cut time.Time) (items []PlanItem, compared bool) {
 	if len(x.dtier) == 0 && len(x.covered) == 0 {
 		return nil, false
@@ -403,13 +403,13 @@ func distroTierItems(a Asset, x *tierIndex, kev map[string]bool, cut time.Time) 
 	var order []key
 	got := map[key]*PlanItem{}
 	seen := map[key]map[string]bool{}
-	for _, s := range a.Software {
-		in, d, rel, ok := distroRow(a, s)
-		if !ok || rel == "" || !x.covered[d+"/"+rel] {
-			continue
-		}
+	d, rel, rows := distroRows(a)
+	if len(rows) == 0 || !x.covered[d+"/"+rel] {
+		return nil, false
+	}
+	for _, r := range rows {
+		s, in, pkg := r.s, r.in, r.pkg
 		compared = true
-		pkg := securitySource(d, in.pkgSrc)
 		if !ownBuild(d, pkg, in.pkgVer, false) {
 			continue
 		}

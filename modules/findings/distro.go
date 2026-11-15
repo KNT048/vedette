@@ -70,35 +70,72 @@ func DeviceDistro(a Asset) string {
 
 // DevicePackages is DeviceDistro with the release ("24.04", "12") and the source packages of the device's agent deb rows as the
 // distributions' security data names them (securitySource: "linux" for linux-signed), sorted, each once (D-622: the distribution
-// feeds keep the tier CVEs' fixed rows for these packages only). "" and nil when DeviceDistro is "".
+// feeds keep the tier CVEs' fixed rows for these packages only). A kernel's packages count only for the running kernel
+// (distroRows). "" and nil when DeviceDistro is "".
 func DevicePackages(a Asset) (distro, release string, pkgs []string) {
-	if os, _ := osIdentity(a.OS); os.vendor != "canonical" && os.vendor != "debian" {
-		return "", "", nil
-	}
-	for _, s := range a.Software {
-		in, d, rel, ok := distroRow(a, s)
-		if !ok {
-			continue
-		}
-		distro = d
-		if rel != "" {
-			release = rel
-			pkgs = append(pkgs, securitySource(d, in.pkgSrc))
-		}
+	distro, release, rows := distroRows(a)
+	for _, r := range rows {
+		pkgs = append(pkgs, r.pkg)
 	}
 	slices.Sort(pkgs)
 	return distro, release, slices.Compact(pkgs)
 }
 
-// distroRow is the swInfo of a row the distribution's word may decide (an agent's deb row with its full version and source
-// package), with the device's distribution and release (release "" when the OS names none).
-func distroRow(a Asset, s Software) (swInfo, string, string, bool) {
-	if !s.Packaged || s.Source != "agent" || s.PkgVersion == "" || s.PkgSource == "" {
-		return swInfo{}, "", "", false
+// distroPkgRow is a row the distribution's word may decide on the plan: its swInfo and source package as the security data names it.
+type distroPkgRow struct {
+	s   Software
+	in  swInfo
+	pkg string
+}
+
+// distroRows are the device's agent deb rows (full Debian version and source package) the plan compares with the distribution's
+// data, with the device's distribution and release (release "" when the OS names none; then no row). Packages of a kernel source
+// count only when they are the running kernel's (review r1 #1 of #808): apt keeps the previous kernel's linux-modules-*,
+// linux-headers-* and linux-tools-* installed, intake blanks only the image of a kernel that does not run, and those rows would
+// plan "Upgrade linux" on a box that already runs the fix. The running kernel is the Kernel row intake built from the running
+// image (its source and version); a device without one compares no kernel package (drop when unsure).
+func distroRows(a Asset) (distro, release string, rows []distroPkgRow) {
+	if os, _ := osIdentity(a.OS); os.vendor != "canonical" && os.vendor != "debian" {
+		return "", "", nil
 	}
-	in := newSWInfo(s, a.OS)
-	d, rel := distroOf(in)
-	return in, d, rel, d != ""
+	var ksrc, kver string
+	var all []distroPkgRow
+	for _, s := range a.Software {
+		if !s.Packaged || s.Source != "agent" || s.PkgVersion == "" || s.PkgSource == "" {
+			continue
+		}
+		in := newSWInfo(s, a.OS)
+		d, rel := distroOf(in)
+		if d == "" {
+			continue
+		}
+		distro = d
+		if rel == "" {
+			continue
+		}
+		release = rel
+		r := distroPkgRow{s: s, in: in, pkg: securitySource(d, in.pkgSrc)}
+		if norm(s.Vendor) == "linux" && norm(s.Product) == "kernel" {
+			ksrc, kver = r.pkg, in.pkgVer
+		}
+		all = append(all, r)
+	}
+	for _, r := range all {
+		if kernelSource(r.pkg) && (r.pkg != ksrc || r.in.pkgVer != kver) {
+			continue
+		}
+		rows = append(rows, r)
+	}
+	return distro, release, rows
+}
+
+// notKernel are the linux-* source packages that build no kernel, kernel modules, headers or tools.
+var notKernel = map[string]bool{"linux-firmware": true, "linux-atm": true, "linux-base": true, "linux-sound-base": true}
+
+// kernelSource says whether a source package (as the security data names it) builds a Linux kernel or its modules, headers and
+// tools: "linux", "linux-hwe-6.8", "linux-aws", "linux-meta", "linux-restricted-modules".
+func kernelSource(pkg string) bool {
+	return pkg == "linux" || strings.HasPrefix(pkg, "linux-") && !notKernel[pkg]
 }
 
 // securitySource is the source package under which the distribution's security data lists a device's source package.

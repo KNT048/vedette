@@ -3,6 +3,7 @@ package feeds
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
@@ -73,8 +74,8 @@ func (s *Service) RunPull(ctx context.Context) error {
 		if r.ID == recentFeedID && now.Before(s.recentResumeAt()) {
 			due = false // nvd-recent waits out NVD's busy answer as its progress line says (review r2 #6 of #802)
 		}
-		if !due && r.Enabled && distroFeeds[r.ID] && r.LastSuccess != nil && r.Failures == 0 && !s.busy(r.ID) && s.distroBehind(ctx, r) {
-			due = true // D-622: a device runs a package its tier rows were not kept for; a failing feed keeps its back-off
+		if !due && r.Enabled && distroFeeds[r.ID] && r.Failures == 0 && !s.busy(r.ID) && s.distroBehind(ctx, r) {
+			due = true // D-622: a device runs a package its tier rows were not kept for (6 h floor); a failing feed keeps its back-off
 		}
 		if !r.Enabled || !due || s.busy(r.ID) { // busy: a "Fetch now" is pulling it; never a second pull
 			continue
@@ -136,10 +137,10 @@ type pullPlan struct {
 	iocs    []iocInput
 	hasIOCs bool
 
-	distro      []DistroFix     // ubuntu-osv, ubuntu-vex, debian-tracker (D-516): the feed's rows, replaced whole
-	distroKEV   map[string]bool // the CISA list's CVEs: only their changed rows are news for findings (D-622)
-	distroPrint string          // distroPrint of the packages the tier rows were kept for
-	hasDistro   bool
+	distro     []DistroFix     // ubuntu-osv, ubuntu-vex, debian-tracker (D-516): the feed's rows, replaced whole
+	distroKEV  map[string]bool // the CISA list's CVEs: only their changed rows are news for findings (D-622)
+	distroKeep []string        // the packages the tier rows were kept for (distroKeep); nil: no tier row
+	hasDistro  bool
 
 	epssAll    []EPSSAllScore // epss-all (D-614): every CVE's score, written in chunks (applyEPSSAll)
 	hasEPSSAll bool
@@ -636,11 +637,15 @@ func (s *Service) pullOne(ctx context.Context, id, actor string) (sourceRow, int
 				}
 				// a tier CVE's rows change only "Updates to plan", which TierStamp reaches (D-622): findings rematches as before
 				rangesChanged = slices.DeleteFunc(rangesChanged, func(c string) bool { return !p.distroKEV[c] })
-				var fp any // the packages the rows were kept for, with the rows (distroBehind)
-				if p.distroPrint != "" {
-					fp = p.distroPrint
+				var kept any // the packages the rows were kept for, with the rows (distroBehind, covered of TierDistroRecords)
+				if p.distroKeep != nil {
+					b, err := json.Marshal(p.distroKeep)
+					if err != nil {
+						return fmt.Errorf("feeds: distro packages: %w", err)
+					}
+					kept = string(b)
 				}
-				if _, err = tx.ExecContext(ctx, `UPDATE feeds_source SET distro_print = ? WHERE id = ?`, fp, src.ID); err != nil {
+				if _, err = tx.ExecContext(ctx, `UPDATE feeds_source SET distro_packages = ? WHERE id = ?`, kept, src.ID); err != nil {
 					return fmt.Errorf("feeds: distro print: %w", err)
 				}
 			}

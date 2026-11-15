@@ -429,8 +429,8 @@ type DistroPackage struct{ Distro, Release, Package string }
 
 // TierDistroRecords reads, for "Updates to plan" (D-622), the CVEs of nvd-recent published since now minus 365 days for which a
 // distribution feed that is on has a fixed row of one of pkgs, each with those rows only (Distro; no NVD entries), and with EPSS
-// while epss-all is ready. covered holds the releases ("ubuntu/24.04") among pkgs' that the feeds that are on hold some fixed row
-// for: a device of a release with none is not compared. Nothing while nvd-recent is not ready. CVEs of the CISA list are in the
+// while epss-all is ready. covered holds the releases ("ubuntu/24.04") among pkgs' for which a feed that is on stored fixed rows
+// in a pull made with the tier want-set (distro_packages set): a device of another release is not compared (loading or failing). Nothing while nvd-recent is not ready. CVEs of the CISA list are in the
 // answer too: findings drops them (they are findings).
 func (s *Store) TierDistroRecords(ctx context.Context, now time.Time, pkgs []DistroPackage) (recs []TierRecord, covered map[string]bool, err error) {
 	covered = map[string]bool{}
@@ -449,8 +449,10 @@ func (s *Store) TierDistroRecords(ctx context.Context, now time.Time, pkgs []Dis
 	at := map[string]int{}
 	for _, rel := range slices.SortedFunc(maps.Keys(byRel), func(a, b [2]string) int { return strings.Compare(a[0]+"/"+a[1], b[0]+"/"+b[1]) }) {
 		var has bool
+		// covered only once a pull made with the tier want-set stored rows for the release (distro_packages set, review r1 #3 of
+		// #808): the CISA list's rows alone would show its devices compared with nothing to plan while the feed loads or fails
 		if err := db.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM feeds_distro_fix d JOIN feeds_source s ON s.id = d.source_id
-WHERE s.enabled = 1 AND d.distro = ? AND d.release = ? AND d.status = 'fixed')`, rel[0], rel[1]).Scan(&has); err != nil {
+WHERE s.enabled = 1 AND s.distro_packages IS NOT NULL AND d.distro = ? AND d.release = ? AND d.status = 'fixed')`, rel[0], rel[1]).Scan(&has); err != nil {
 			return nil, nil, fmt.Errorf("feeds: tier distro: %w", err)
 		}
 		if !has {

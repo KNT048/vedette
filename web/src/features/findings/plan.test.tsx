@@ -47,6 +47,9 @@ describe('Updates to plan (S-TIER-1, S-TIER-2)', () => {
     expect(within(win).getByText('The 50 that matter most of 65: likely to be exploited first, then by severity.')).toBeInTheDocument()
     await userEvent.click(within(win).getByRole('button', { name: 'Show all 65 CVEs' }))
     expect(rows()).toBe(65)
+    // review r1 #6 of #808: focus lands on the first CVE the button revealed
+    const [, ...cveRows] = within(within(win).getByRole('table')).getAllByRole('row')
+    expect(within(cveRows[50]!).getByRole('link')).toHaveFocus()
     expect(within(win).queryByRole('button', { name: 'Show all 65 CVEs' })).not.toBeInTheDocument()
   })
 

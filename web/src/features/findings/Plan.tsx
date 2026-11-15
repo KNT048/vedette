@@ -1,7 +1,7 @@
 // Updates to plan (S-TIER-1, S-TIER-2; D-613, D-615, D-616): CVEs on no exploited list, grouped by the update that fixes them
 // on one device, as top tools group by fix in a view of their own (Microsoft Defender Vulnerability Management's security
 // recommendations, Tenable's remediations). Not findings: no status, no alert, no mitigation pack; every CVE one click away.
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router'
 import { Trans, useTranslation } from 'react-i18next'
 import { Notice } from '@/components/common/PageHeader'
@@ -42,6 +42,9 @@ function CveList({ item }: { item: PlanItem }) {
   const old = yearAgo()
   const [all, setAll] = useState(false)
   const cves = all ? item.cves : item.cves.slice(0, PLAN_FIRST)
+  const body = useRef<HTMLTableSectionElement>(null)
+  // review r1 #6 of #808: the button goes away, so focus moves to the first CVE it revealed, not back to the top of the page
+  useEffect(() => { if (all) body.current?.querySelectorAll('a')[PLAN_FIRST]?.focus() }, [all])
   return (
     <div className="mt-2 overflow-x-auto rounded-md border border-rule bg-surface">
       <table className="w-full min-w-[640px] text-sm">
@@ -56,7 +59,7 @@ function CveList({ item }: { item: PlanItem }) {
             <th scope="col" className="px-3 py-2 font-medium">{t('plan.cve.evidence')}</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-rule">
+        <tbody ref={body} className="divide-y divide-rule">
           {cves.map((c) => (
             <tr key={c.cve}>
               <th scope="row" className="px-3 py-2 text-left font-medium">
@@ -107,9 +110,11 @@ export function PlanItems({ items, showDevice, likelyOnly = false }: { items: Pl
   const action = usePlanAction()
   const [all, setAll] = useState(false)
   const shown = all ? items : items.slice(0, PLAN_FIRST)
+  const list = useRef<HTMLUListElement>(null)
+  useEffect(() => { if (all) list.current?.children[PLAN_FIRST]?.querySelector<HTMLElement>('a, summary')?.focus() }, [all])
   return (
     <>
-    <ul aria-label={t('plan.listLabel')} className="grid min-w-0 divide-y divide-rule rounded-md border border-rule bg-surface">
+    <ul ref={list} aria-label={t('plan.listLabel')} className="grid min-w-0 divide-y divide-rule rounded-md border border-rule bg-surface">
       {shown.map((i) => (
         <li key={i.group} className="grid min-w-0 gap-1 px-4 py-3">
           <p className="text-sm">

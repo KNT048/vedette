@@ -15,9 +15,10 @@ function Page() {
   const { t } = useTranslation('findings')
   const [params, setParams] = useSearchParams()
   const asked = FILTERS.find((f) => f === params.get('tier'))
-  const every = usePlan('all')
-  // D-623: until a person picks a filter, the page opens on "Likely to be exploited" whenever some update fixes such a CVE
-  const tier: PlanFilter = asked ?? (every.data?.items.some((i) => i.likely > 0) ? 'likely' : 'all')
+  // D-623: until a person picks a filter, the page opens on "Likely to be exploited" whenever some update fixes such a CVE: it asks
+  // for that tier first and for "All" only when it is empty (review r1 #5 of #808: never the heaviest answer just to choose)
+  const likely = usePlan('likely', undefined, !asked)
+  const tier: PlanFilter = asked ?? (likely.data && likely.data.items.length === 0 ? 'all' : 'likely')
   const q = usePlan(tier)
   const p = q.data
   const setTier = (v: PlanFilter) => { params.set('tier', v); setParams(params, { replace: true }) }

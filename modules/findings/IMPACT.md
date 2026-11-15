@@ -120,7 +120,7 @@
 
 ## Modifying: gói Ubuntu/Debian trên "Updates to plan" (`DevicePackages`, `distroTierItems`, `Feeds.TierDistro`, `PlanItem.Pro`) và thứ tự CVE (D-622, D-623)
 
-- **feeds**: `DevicePackages` quyết tập gói mà `ubuntu-osv`/`debian-tracker` giữ hàng tầng (qua `cmd/vedette` `feedsInventory.Distros`); đổi luật dòng deb hay `securitySource` ⇒ feeds giữ gói khác và kéo lại (`distro_print`). `DeviceDistro` nay đọc từ `DevicePackages` (cùng luật D-570).
+- **feeds**: `DevicePackages` quyết tập gói mà `ubuntu-osv`/`debian-tracker` giữ hàng tầng (qua `cmd/vedette` `feedsInventory.Distros`); đổi luật dòng deb, `securitySource` hay luật kernel đang chạy (`distroRows`) ⇒ feeds giữ gói khác và kéo lại (`distro_packages`). `DeviceDistro` nay đọc từ `DevicePackages` (cùng luật D-570).
 - **cmd/vedette** `findingsFeeds.TierDistro` (đọc `Store.TierDistroRecords`, rỗng khi module feeds tắt); mọi `Feeds` giả trong test (findings `fakeFeeds`, mitigation `fakeFeeds`) có thêm hàm.
 - **Contract**: `PlanItem.pro` (bắt buộc), mô tả `fixed`/`kind`/`cves` (`web/src/features/findings/contract.ts`, `api/openapi.json`, `core/api/oas`); mock `web/src/features/findings/mocks.ts`, `web/src/mocks/tiers.ts`.
 - **GUI**: `fix.ts` (`plan.action.distroFixed|distroPro`), `Plan.tsx` (50 CVE / 50 mục đầu + "Show all"), `PlanPage.tsx` (mặc định Likely khi có mục likely; bộ lọc chọn giữ trên địa chỉ); `plan.test.tsx`.

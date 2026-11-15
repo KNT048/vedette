@@ -2,13 +2,11 @@ package feeds
 
 import (
 	"context"
-	"crypto/sha256"
 	"database/sql"
-	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
-	"maps"
 	"runtime"
 	"slices"
 	"time"
@@ -60,24 +58,32 @@ func (s *Service) setDistroIdle(id string, idle bool) {
 	s.distroIdle[id] = idle
 }
 
-// distroPrint is the fingerprint of the packages a pull keeps tier rows for (D-622): "" for none.
-func distroPrint(pkgs map[string]bool) string {
-	if len(pkgs) == 0 {
-		return ""
+// distroBehindFloor is the shortest time between a feed's last good pull and a pull for a new package (D-622, review r1 #2 of
+// #808): a churny fleet, or an agent that reports a different made-up source name each time, costs at most four whole-file
+// downloads a day per feed, and a device's new package waits at most this long instead of the feed's daily interval.
+const distroBehindFloor = 6 * time.Hour
+
+// distroKeep is the sorted list of the packages a pull keeps tier rows for (D-622): only names a Debian source package can have
+// (the inventory's names come from agents: untrusted); nil for none.
+func distroKeep(pkgs map[string]bool) []string {
+	var out []string
+	for p := range pkgs {
+		if debPackageRE.MatchString(p) {
+			out = append(out, p)
+		}
 	}
-	h := sha256.New()
-	for _, p := range slices.Sorted(maps.Keys(pkgs)) {
-		_, _ = io.WriteString(h, p+"\n")
-	}
-	return hex.EncodeToString(h.Sum(nil))
+	slices.Sort(out)
+	return out
 }
 
 // distroBehind says whether a device runs a package the stored tier rows of feed id were not kept for (D-622: a new device, a
-// new package, the first check after the upgrade that added tier rows): RunPull then pulls the feed now, not a day after its
-// last pull. Never for ubuntu-vex (no tier rows), nor while nvd-recent has no tier CVE; a read error says no (the daily pull
-// stays). ponytail: asks the inventory on each check for each such feed; upgrade: an inventory event when a package appears.
+// new package, the first check after the upgrade that added tier rows) and the last good pull is distroBehindFloor old: RunPull
+// then pulls the feed now, not a day after its last pull. A package that left (a removal, a deleted device) never counts: the
+// stored rows are a superset. Never for ubuntu-vex (no tier rows), nor while nvd-recent has no tier CVE; a read error says no
+// (the daily pull stays). ponytail: asks the inventory on each check for each such feed; upgrade: an inventory event when a
+// package appears.
 func (s *Service) distroBehind(ctx context.Context, src sourceRow) bool {
-	if src.ID == ubuntuVEXFeedID {
+	if src.ID == ubuntuVEXFeedID || src.LastSuccess == nil || s.now().Sub(*src.LastSuccess) < distroBehindFloor {
 		return false
 	}
 	need, pkgs := s.distroNeeds(ctx, src.ID)
@@ -88,17 +94,35 @@ func (s *Service) distroBehind(ctx context.Context, src sourceRow) bool {
 	if err != nil || !has {
 		return false
 	}
-	kept, err := s.st.distroPrintOf(ctx, src.ID)
-	return err == nil && kept != distroPrint(pkgs)
+	kept, err := s.st.distroKept(ctx, src.ID)
+	return err == nil && !covers(kept, distroKeep(pkgs))
 }
 
-// distroPrintOf is the fingerprint of the packages feed id's stored tier rows were kept for, "" for none.
-func (s *Store) distroPrintOf(ctx context.Context, id string) (string, error) {
-	var p string
-	if err := s.db.Reader().QueryRowContext(ctx, `SELECT COALESCE(distro_print, '') FROM feeds_source WHERE id = ?`, id).Scan(&p); err != nil {
-		return "", fmt.Errorf("feeds: distro print: %w", err)
+// covers says whether every name of want is in kept (both sorted).
+func covers(kept, want []string) bool {
+	for _, p := range want {
+		if _, ok := slices.BinarySearch(kept, p); !ok {
+			return false
+		}
 	}
-	return p, nil
+	return true
+}
+
+// distroKept is the sorted list of packages feed id's stored tier rows were kept for, nil for none (no pull with tier rows yet).
+func (s *Store) distroKept(ctx context.Context, id string) ([]string, error) {
+	var raw sql.NullString
+	if err := s.db.Reader().QueryRowContext(ctx, `SELECT distro_packages FROM feeds_source WHERE id = ?`, id).Scan(&raw); err != nil {
+		return nil, fmt.Errorf("feeds: distro packages: %w", err)
+	}
+	if !raw.Valid {
+		return nil, nil
+	}
+	var out []string
+	if err := json.Unmarshal([]byte(raw.String), &out); err != nil {
+		return nil, nil // the CHECK keeps this from happening; unreadable = none kept, the next pull rewrites it
+	}
+	slices.Sort(out)
+	return out, nil
 }
 
 // distroNote is the Feeds page line of a distribution feed no device needs; "" when it is pulled.
@@ -126,7 +150,7 @@ var distroParsers = map[Decoder]func(io.Reader, DistroWant) (DistroResult, error
 // fixed rows of the tier CVEs for the source packages the devices run (D-622, DistroWant: "Updates to plan"). A pull that
 // keeps no row fails, so the stored rows are never replaced with nothing. A file that did not change (304) keeps the rows: a
 // CVE CISA added since gets its rows when the file changes, at most a day later. The validators are sent only when the stored
-// rows were kept for the same packages (distro_print): a device's new package needs the whole file once.
+// rows were kept for every package needed now (distro_packages): a device's new package needs the whole file once.
 func (s *Service) buildDistro(ctx context.Context, src sourceRow, p pullPlan, dec Decoder) (pullPlan, error) {
 	cves, err := s.st.kevCVEs(ctx)
 	if err != nil {
@@ -154,11 +178,15 @@ func (s *Service) buildDistro(ctx context.Context, src sourceRow, p pullPlan, de
 		}
 		want.Packages = pkgs
 	}
-	fp := ""
+	var keep []string // the packages the tier rows are kept for, stored with them
 	if len(want.Tier) > 0 {
-		fp = distroPrint(want.Packages)
+		keep = distroKeep(want.Packages)
+		want.Packages = make(map[string]bool, len(keep))
+		for _, k := range keep {
+			want.Packages[k] = true
+		}
 	}
-	kept, err := s.st.distroPrintOf(ctx, src.ID)
+	kept, err := s.st.distroKept(ctx, src.ID)
 	if err != nil {
 		return p, err
 	}
@@ -169,7 +197,8 @@ func (s *Service) buildDistro(ctx context.Context, src sourceRow, p pullPlan, de
 		res, err = parse(r, want)
 		return err
 	}}
-	if src.Status == "ok" && kept == fp {
+	// a 304 keeps the stored rows: only when they were kept for every package needed now (a removed package needs nothing)
+	if src.Status == "ok" && (len(keep) == 0 || kept != nil && covers(kept, keep)) {
 		req.ETag, req.LastModified = orEmpty(src.ETag), orEmpty(src.LastModified)
 	}
 	ctx, cancel := context.WithTimeout(ctx, distroFetchTimeout)
@@ -187,7 +216,7 @@ func (s *Service) buildDistro(ctx context.Context, src sourceRow, p pullPlan, de
 	}
 	p.out = outcome{OK: true, ETag: resp.ETag, LastModif: resp.LastModified}
 	p.out.fill(res.Stats, len(res.Rows))
-	p.distro, p.hasDistro, p.distroKEV, p.distroPrint = res.Rows, true, want.KEV, fp
+	p.distro, p.hasDistro, p.distroKEV, p.distroKeep = res.Rows, true, want.KEV, keep
 	var ms runtime.MemStats // D-622: the heap with the parsed rows still held, for the director's measure on the N100 (once a day a feed)
 	runtime.ReadMemStats(&ms)
 	s.Log.InfoContext(ctx, "feeds: distribution pull parsed", "feed", src.ID, "rows", len(res.Rows), "tier_cves", len(want.Tier), "packages", len(want.Packages), "heap_mb", ms.HeapInuse>>20)

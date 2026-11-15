@@ -437,7 +437,7 @@
     "emptyDevices": "See the devices",
     "unchecked_one": "1 device is not checked",
     "unchecked_other": "{{count}} devices are not checked",
-    "uncheckedBody": "Vedette has no version on them it can compare with these CVEs: no version at all, only a version guessed from what a service announces on the network, or only Ubuntu or Debian packages of a release whose security data is not loaded yet (the feeds \"Ubuntu fixed versions\" and \"Debian security tracker\" load it within minutes of the agent's first report). For the others, installing the agent or entering the version gives a version it can compare.",
+    "uncheckedBody": "Vedette has no version on them it can compare with these CVEs: no version at all, only a version guessed from what a service announces on the network, or only Ubuntu or Debian packages of a release whose security data is still loading or failing to load (Settings, Feeds: \"Ubuntu fixed versions\" and \"Debian security tracker\", which load it within minutes of the agent's first report). For the others, installing the agent or entering the version gives a version it can compare.",
     "feed": {
       "epss": "“EPSS, every CVE”",
       "recent": "“NVD, CVEs of the last 12 months”"

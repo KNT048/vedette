@@ -10,6 +10,13 @@ func debRow(id, display, src, ver string) Software {
 	return Software{ID: id, Display: display, Version: ver, Source: "agent", Packaged: true, PkgVersion: ver, PkgSource: src}
 }
 
+// kernelRow is the Kernel row intake builds from the running kernel image (vendor Linux, product Kernel).
+func kernelRow(id, src, ver string) Software {
+	s := debRow(id, "Kernel", src, ver)
+	s.Vendor, s.Product = "Linux", "Kernel"
+	return s
+}
+
 // distroV is a tier CVE with the distributions' fixed rows (Feeds.TierDistro).
 func distroV(cve, tier string, daysAgo int, epss float64, rows ...DistroFix) TierVuln {
 	v := tierV(cve, tier, daysAgo, epss)
@@ -30,8 +37,8 @@ func TestPlan_DistroPackages(t *testing.T) {
 	a := Asset{ID: "a-u", Name: "web-u", OS: "Ubuntu 24.04 LTS", Software: []Software{
 		debRow("s1", "libssl3", "openssl", "3.0.13-0ubuntu3.4"),
 		debRow("s2", "openssl", "openssl", "3.0.13-0ubuntu3.4"),
-		debRow("s3", "linux-image-6.8.0-45-generic", "linux-signed", "6.8.0-45.45"),
-		debRow("s4", "nginx", "nginx", "1.24.0-2+ubuntu24.04.1+deb.sury.org+1"),
+		kernelRow("s3", "linux-signed", "6.8.0-45.45"),
+		debRow("s4", "nginx", "nginx", "1.24.0-2ubuntu7.1~ppa1"), // a PPA build below Ubuntu's fix: not Ubuntu's word (review r1 #4a of #808)
 		debRow("s5", "sudo", "sudo", "1.9.15p5-3ubuntu5.24.04.1"),
 		debRow("s6", "zlib1g", "zlib", "1:1.3.dfsg-3.1ubuntu2.1"),
 	}}
@@ -122,5 +129,40 @@ func TestPlan_CVEOrderLikelyThenSeverity(t *testing.T) {
 	}
 	if want := []string{"CVE-2026-4", "CVE-2026-3", "CVE-2026-2", "CVE-2026-6", "CVE-2026-1", "CVE-2026-5"}; !slices.Equal(got, want) {
 		t.Fatalf("order %v, want %v", got, want)
+	}
+}
+
+// Review r1 #1 of #808: apt keeps the previous kernel's modules, headers and tools installed; only the running kernel's packages (the
+// Kernel row's source and version) count, so a box that runs the fix gets no "Upgrade the linux package" item, and a box without a
+// Kernel row compares no kernel package. A linux-* source that is no kernel (linux-firmware) is compared as any package.
+func TestPlan_DistroKernelOnlyTheRunningOne(t *testing.T) {
+	t.Parallel()
+	dv := []TierVuln{
+		distroV("CVE-2026-51001", "recent", 30, 0.01, noble("linux", "6.8.0-50.51", false)),
+		distroV("CVE-2026-51002", "recent", 30, 0.01, noble("linux-firmware", "20240318.git3b128b60-0ubuntu2.5", false)),
+	}
+	x := newTierIndex(nil).withDistro(dv, map[string]bool{"ubuntu/24.04": true})
+	a := Asset{ID: "a-k", OS: "Ubuntu 24.04 LTS", Software: []Software{
+		kernelRow("s1", "linux-signed", "6.8.0-50.51"),
+		debRow("s2", "linux-modules-6.8.0-45-generic", "linux", "6.8.0-45.45"),
+		debRow("s3", "linux-headers-6.8.0-45", "linux", "6.8.0-45.45"),
+		debRow("s4", "linux-firmware", "linux-firmware", "20240318.git3b128b60-0ubuntu2.3"),
+	}}
+	items, compared := matchTiers(a, x, nil, t0)
+	if !compared || len(items) != 1 || items[0].Software != "linux-firmware" {
+		t.Fatalf("running the fixed kernel: compared %v, %+v", compared, items)
+	}
+	if _, _, pkgs := DevicePackages(a); !slices.Equal(pkgs, []string{"linux", "linux-firmware"}) {
+		t.Fatalf("packages %v", pkgs)
+	}
+	// running the old kernel: its image and modules of that version count, once, at that version
+	a.Software[0] = kernelRow("s1", "linux-signed", "6.8.0-45.45")
+	if items, _ = matchTiers(a, x, nil, t0); len(items) != 2 || items[0].Software != "linux" || items[0].Version != "6.8.0-45.45" || len(items[0].CVEs) != 1 {
+		t.Fatalf("running the old kernel: %+v", items)
+	}
+	// no Kernel row: no kernel package is compared
+	a.Software = a.Software[1:]
+	if items, _ = matchTiers(a, x, nil, t0); len(items) != 1 || items[0].Software != "linux-firmware" {
+		t.Fatalf("no Kernel row: %+v", items)
 	}
 }

@@ -219,7 +219,7 @@ func TestInstall_WindowsPinsTheBoxCAWithoutCurl(t *testing.T) {
 		"r.ServerCertificateValidationCallback = Check;",                // per request
 		"chain.ChainPolicy.RevocationMode = X509RevocationMode.NoCheck", // only for this chain
 		"chain.ChainPolicy.ExtraStore.AddRange(pins);",
-		"if ((s.Status & ~waived) != 0) { return false; }",
+		"if ((s.Status & ~waived) != 0) { return Refuse(",
 		"if (Same(e.Certificate.RawData, p.RawData)) { return true; }",
 		"(errors & SslPolicyErrors.RemoteCertificateNameMismatch) != 0 && !IpInSan(leaf, host)",
 		"ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;",
@@ -230,15 +230,29 @@ func TestInstall_WindowsPinsTheBoxCAWithoutCurl(t *testing.T) {
 		}
 	}
 	at, prev := 0, ""
-	for _, step := range []string{"if ($Uninstall) {", "[VedetteBox]::Pin(", "Get-FromBox 'SHA256SUMS'", "Get-FromBox $File", "Get-FileHash", "Start-Process msiexec -ArgumentList '/i'"} {
+	// #798 review minors 2-4: Constrained Language Mode is named before Add-Type; vedette-ca.pem (what a running osqueryd pins) is written only
+	// after the package verified and installed, so a failed run never breaks a working enrolment; a refusal says which check refused.
+	for _, step := range []string{"if ($Uninstall) {", "LanguageMode -ne 'FullLanguage'", "Add-Type", "[VedetteBox]::Pin(", "Get-FromBox 'SHA256SUMS'", "Get-FromBox $File", "Get-FileHash",
+		"Start-Process msiexec -ArgumentList '/i'", "-Wait -PassThru", "if ($msi.ExitCode -ne 0 -and $msi.ExitCode -ne 3010) { throw", "$CaPem | Set-Content -Path $Ca -Encoding ascii", "--tls_server_certs=$Ca"} {
 		i := strings.Index(ps1[at:], step)
 		if i < 0 {
 			t.Fatalf("the Windows script: %q is missing or comes before %q", step, prev)
 		}
 		at, prev = at+i+len(step), step
 	}
-	if !strings.Contains(ps1, "catch { throw \"Could not download $Name from $Box (") {
-		t.Error("a failed download must stop the Windows script with the reason, before anything is installed")
+	if !strings.Contains(ps1, "throw \"Could not download $Name from $Box ($why). Nothing was installed.\"") || !strings.Contains(ps1, "the box's certificate was refused: $([VedetteBox]::Refusal)") {
+		t.Error("a failed download must stop the Windows script with the reason (the pinned check's own when it refused), before anything is installed")
+	}
+	if n := strings.Count(ps1, "$CaPem | Set-Content"); n != 1 {
+		t.Errorf("the Windows script writes vedette-ca.pem %d times, want once (after the install)", n)
+	}
+	_, check, _ := strings.Cut(ps1, "static bool Check(")
+	check, _, _ = strings.Cut(check, "static bool Same(")
+	if strings.Contains(check, "return false;") || strings.Count(check, "return Refuse(") != 5 {
+		t.Error("every refusal of the pinned check must record why (Refuse), none a bare return false")
+	}
+	if !strings.Contains(ps1, "Advanced: manual setup") {
+		t.Error("Constrained Language Mode must point to the manual setup")
 	}
 }
 

@@ -132,10 +132,18 @@ describe('exposure: list (S-EXP-1)', () => {
     expect(screen.queryByTestId('gateway-note')).toBeNull()
   })
 
-  it('module off says where to turn it on', async () => {
+  it('module off says where to turn it on and calls none of its API (N49-1, modules.md)', async () => {
+    const calls: string[] = []
+    const seen = ({ request }: { request: Request }) => { if (new URL(request.url).pathname.startsWith('/api/v1/exposure/')) calls.push(request.url) }
+    server.events.on('request:start', seen)
     modulesStore.update((l) => l.map((m) => (m.id === 'exposure' ? { ...m, enabled: false } : m)))
-    renderApp('/exposure?tab=open')
+    const list = renderApp('/exposure?tab=open')
     expect(await screen.findByText('External exposure module is off')).toBeInTheDocument()
+    list.unmount()
+    renderApp('/exposure/xt-1')
+    expect(await screen.findByText('External exposure module is off')).toBeInTheDocument()
+    server.events.removeListener('request:start', seen)
+    expect(calls).toEqual([])
   })
 
   it('registers the sidebar entry in the right group', () => {

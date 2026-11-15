@@ -33,9 +33,10 @@ export function AcceptUntil({ id, value, onChange, error }: { id: string; value:
  * device's own agent reports is "Detected by the agent" (D-548, like Tenable's and Qualys's agents and Defender Vulnerability Management),
  * not "Suspected"; "Confirmed" stays what a safe scan template saw.
  */
-export function FindingStatusChip({ f }: { f: { status: FindingRow['status']; accepted_until?: string | null; evidence?: { agent?: boolean } | null } }) {
+export function FindingStatusChip({ f }: { f: { status: FindingRow['status']; accepted_until?: string | null; evidence?: { agent?: boolean } | null; agent?: boolean } }) {
   const { t } = useTranslation('findings')
-  if (f.status === 'suspected' && f.evidence?.agent) return <Chip tone="warn" title={t('agentChipHint')}>{t('agentChip')}</Chip>
+  // D-548: a finding carries it in its evidence, a report row (weekly, PDPL) as agent.
+  if (f.status === 'suspected' && (f.evidence?.agent || f.agent)) return <Chip tone="warn" title={t('agentChipHint')}>{t('agentChip')}</Chip>
   if (f.status !== 'risk_accepted') return <StatusChip status={f.status} />
   return <Chip tone="off" title={f.accepted_until ? t('accept.chipUntil', { date: fmtDate(f.accepted_until) }) : undefined}>{t('accept.chip')}</Chip>
 }

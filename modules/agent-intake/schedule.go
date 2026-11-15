@@ -18,7 +18,9 @@ type scheduleQuery struct {
 
 var schedule = []scheduleQuery{
 	{name: "os_version", query: "SELECT name, version, major, minor, patch, build, platform, arch FROM os_version;", interval: 3600},
-	{name: "system_info", query: "SELECT hostname, hardware_vendor, hardware_model FROM system_info;", interval: 86400},
+	// Hourly, not daily (N52 W-2): osquery runs a query when the Unix time is a multiple of its splayed interval, so a daily one first runs up
+	// to ~26 hours after the first hour, and a renamed machine kept its old name a day. One row; Fleet asks its host vitals hourly too.
+	{name: "system_info", query: "SELECT hostname, hardware_vendor, hardware_model FROM system_info;", interval: 3600},
 	{name: "interfaces", query: "SELECT d.mac, a.address FROM interface_details d JOIN interface_addresses a USING (interface) WHERE a.address NOT LIKE '%:%' AND a.address NOT LIKE '127.%' AND a.address NOT LIKE '169.254.%' AND d.mac != '00:00:00:00:00:00';", interval: 3600},
 	{name: "deb_packages", query: "SELECT name, version, arch, source FROM deb_packages;", interval: 3600, platform: "linux"},
 	{name: "rpm_packages", query: "SELECT name, version, release, arch, epoch FROM rpm_packages;", interval: 3600, platform: "linux"},

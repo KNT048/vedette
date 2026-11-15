@@ -1,12 +1,11 @@
 # Vedette osquery installer for Windows Server. Served by your Vedette box: @@BOX@@
 # Run in PowerShell as Administrator (Windows PowerShell 5.1 or later). Safe to run again. Remove everything with: -Uninstall
 # What it does, in order:
-#   1. writes the Vedette box CA certificate (embedded below) to C:\Program Files\osquery\vedette-ca.pem
-#   2. downloads osquery @@VERSION@@ (MSI) and SHA256SUMS from the box (the box mirrors the official osquery release),
+#   1. downloads osquery @@VERSION@@ (MSI) and SHA256SUMS from the box (the box mirrors the official osquery release),
 #      checks the SHA-256 of the MSI, installs it silently with msiexec /qn
-#   3. writes the enroll secret and osquery.flags, sets the osqueryd service to Automatic and starts it; with a token this machine does
+#   2. writes the Vedette box CA certificate (embedded below) to C:\Program Files\osquery\vedette-ca.pem, the enroll secret and osquery.flags, sets the osqueryd service to Automatic and starts it; with a token this machine does
 #      not hold yet, it first removes osquery's database (osquery.db: the old node key and unsent results) so that it enrols under the new token
-#   4. waits until this machine has enrolled (not for its first report, due within a few minutes) and exits 0
+#   3. waits until this machine has enrolled (not for its first report, due within a few minutes) and exits 0
 # Every request to the box checks that its certificate chains to the CA embedded below. Nothing is added to the Windows certificate
 # store, and no other server is trusted.
 param([string]$Token = '', [switch]$Uninstall)
@@ -34,6 +33,11 @@ if ($Uninstall) {
 }
 
 if (-not $Token) { throw 'Missing -Token. Copy the install command from Vedette, Devices, Scope and sensors.' }
+# The certificate check below is C# code (Add-Type). A WDAC or AppLocker policy that puts PowerShell in Constrained Language Mode blocks it;
+# say so plainly instead of PowerShell's language-mode error (#798 review minor 3).
+if ($ExecutionContext.SessionState.LanguageMode -ne 'FullLanguage') {
+  throw "PowerShell runs in $($ExecutionContext.SessionState.LanguageMode) mode on this machine (a WDAC or AppLocker policy), which blocks the check of the box's certificate this script needs. Nothing was installed. Use 'Advanced: manual setup' in Vedette (Devices, Scope and sensors, Agents) instead."
+}
 
 # HTTPS to the box with .NET, not curl.exe (D-596): curl.exe's Schannel asks for the revocation status of the box CA, which has none, and
 # with a CA file it does not match an IP address in the certificate, so it cannot reach a box at its default (IPv4) address. The check
@@ -54,6 +58,11 @@ using System.Text.RegularExpressions;
 public static class VedetteBox {
   static X509Certificate2Collection pins = new X509Certificate2Collection();
   static string host = "";
+  // Why the last check refused the box's certificate ("" = it did not), for the error message: Windows' own message is the same for every
+  // reason (#798 review minor 4).
+  public static string Refusal = "";
+
+  static bool Refuse(string why) { Refusal = why; return false; }
 
   public static void Pin(string pem, string boxHost) {
     pins.Clear();
@@ -66,9 +75,9 @@ public static class VedetteBox {
   }
 
   static bool Check(object sender, X509Certificate cert, X509Chain sent, SslPolicyErrors errors) {
-    if (cert == null || pins.Count == 0 || (errors & SslPolicyErrors.RemoteCertificateNotAvailable) != 0) { return false; }
+    if (cert == null || pins.Count == 0 || (errors & SslPolicyErrors.RemoteCertificateNotAvailable) != 0) { return Refuse("the server sent no certificate"); }
     X509Certificate2 leaf = new X509Certificate2(cert);
-    if ((errors & SslPolicyErrors.RemoteCertificateNameMismatch) != 0 && !IpInSan(leaf, host)) { return false; }
+    if ((errors & SslPolicyErrors.RemoteCertificateNameMismatch) != 0 && !IpInSan(leaf, host)) { return Refuse("its certificate is not for the address " + host); }
     X509Chain chain = new X509Chain(false);
     try {
       chain.ChainPolicy.RevocationMode = X509RevocationMode.NoCheck; // the box CA has no CRL or OCSP; the pin below replaces the store
@@ -76,20 +85,26 @@ public static class VedetteBox {
       chain.ChainPolicy.ApplicationPolicy.Add(new Oid("1.3.6.1.5.5.7.3.1")); // serverAuth
       chain.ChainPolicy.ExtraStore.AddRange(pins);
       if (sent != null) { foreach (X509ChainElement e in sent.ChainElements) { chain.ChainPolicy.ExtraStore.Add(e.Certificate); } }
-      if (!chain.Build(leaf)) { return false; }
+      if (!chain.Build(leaf)) { return Refuse("its certificate chain is not valid (" + Flags(chain) + ")"); }
       // AllowUnknownCertificateAuthority only waives "not in the Windows store"; anything else (a bad signature, an expired certificate,
       // usage) refuses. NotTimeNested is ignored as Windows itself does: each certificate's own dates are still checked (NotTimeValid).
       X509ChainStatusFlags waived = X509ChainStatusFlags.UntrustedRoot | X509ChainStatusFlags.PartialChain | X509ChainStatusFlags.NotTimeNested;
       foreach (X509ChainStatus s in chain.ChainStatus) {
-        if ((s.Status & ~waived) != 0) { return false; }
+        if ((s.Status & ~waived) != 0) { return Refuse("its certificate chain is not valid (" + Flags(chain) + ")"); }
       }
       foreach (X509ChainElement e in chain.ChainElements) {
         foreach (X509Certificate2 p in pins) {
           if (Same(e.Certificate.RawData, p.RawData)) { return true; }
         }
       }
-      return false;
+      return Refuse("its certificate is not signed by the box CA embedded in this script");
     } finally { chain.Reset(); }
+  }
+
+  static string Flags(X509Chain chain) {
+    StringBuilder b = new StringBuilder();
+    foreach (X509ChainStatus s in chain.ChainStatus) { if (b.Length > 0) { b.Append(", "); } b.Append(s.Status.ToString()); }
+    return b.Length > 0 ? b.ToString() : "no status";
   }
 
   static bool Same(byte[] a, byte[] b) {
@@ -152,6 +167,7 @@ public static class VedetteBox {
   }
 
   public static void Download(string url, string path) {
+    Refusal = "";
     using (HttpWebResponse res = (HttpWebResponse)Open(url, "GET").GetResponse()) {
       if (res.StatusCode != HttpStatusCode.OK) { throw new WebException("The box answered " + (int)res.StatusCode + " for " + url); }
       using (Stream body = res.GetResponseStream()) {
@@ -177,7 +193,11 @@ public static class VedetteBox {
 [VedetteBox]::Pin($CaPem, ([Uri]$Box).Host)
 function Get-FromBox([string]$Name, [string]$To) {
   try { [VedetteBox]::Download("$Box/api/v1/install/osquery/$Name", $To) }
-  catch { throw "Could not download $Name from $Box ($($_.Exception.GetBaseException().Message)). Nothing was installed." }
+  catch {
+    # The pinned check's own reason comes first: Windows says only that the certificate is invalid, whatever the reason.
+    $why = if ([VedetteBox]::Refusal) { "the box's certificate was refused: $([VedetteBox]::Refusal)" } else { $_.Exception.GetBaseException().Message }
+    throw "Could not download $Name from $Box ($why). Nothing was installed."
+  }
 }
 
 # The name this machine enrols under is chosen here (--host_identifier=specified), so the status check below asks for exactly that name.
@@ -186,16 +206,20 @@ if (-not $hostId) { throw "Cannot read this machine's host name." }
 $Tmp = Join-Path $env:TEMP ('vedette-osquery-' + [guid]::NewGuid())
 New-Item -ItemType Directory -Path $Tmp | Out-Null
 try {
-  New-Item -ItemType Directory -Force -Path $Dir | Out-Null
-  $CaPem | Set-Content -Path $Ca -Encoding ascii
-
   $File = "osquery-$Version.msi"
   Get-FromBox 'SHA256SUMS' (Join-Path $Tmp 'SHA256SUMS')
   Get-FromBox $File (Join-Path $Tmp $File)
   $want = ((Get-Content (Join-Path $Tmp 'SHA256SUMS')) | Where-Object { $_ -match [regex]::Escape($File) + '$' } | Select-Object -First 1) -split '\s+' | Select-Object -First 1
   $got = (Get-FileHash (Join-Path $Tmp $File) -Algorithm SHA256).Hash
   if (-not $want -or $got -ne $want.ToUpper()) { throw "Checksum of $File does not match. Nothing was installed." }
-  Start-Process msiexec -ArgumentList '/i', (Join-Path $Tmp $File), '/qn', '/norestart' -Wait
+  $msi = Start-Process msiexec -ArgumentList '/i', (Join-Path $Tmp $File), '/qn', '/norestart' -Wait -PassThru
+  # 0 = installed, 3010 = installed, a restart finishes it. Anything else (1603 failed, 1618 another installation is running) stops here,
+  # before the CA file, the flags or the service are touched (#801 review r1 #5).
+  if ($msi.ExitCode -ne 0 -and $msi.ExitCode -ne 3010) { throw "The osquery installer (msiexec) failed with exit code $($msi.ExitCode). Nothing was changed; run this command again (1618: wait for the other installation to finish)." }
+  # Only now, with the package verified and installed: a failed run (another box unreachable, a refused certificate) leaves the CA file of a
+  # working enrolment alone, which the running osqueryd pins (#798 review minor 2).
+  New-Item -ItemType Directory -Force -Path $Dir | Out-Null
+  $CaPem | Set-Content -Path $Ca -Encoding ascii
 
   # osqueryd keeps the node key of its enrolment in its database and does not enrol again while the box accepts that key. Unless this
   # machine already holds this very token (a repair keeps its key), its database is removed so that it enrols under this token (D-411).

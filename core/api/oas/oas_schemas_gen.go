@@ -62421,7 +62421,11 @@ func (s *FindingsGetFindingsIDOKCompromiseIndicatorsItemKind) UnmarshalText(data
 type FindingsGetFindingsIDOKEvidence struct {
 	// D-548: the version compared is the one the device's own agent (osquery, Wazuh) reports installed: a
 	// detection, shown as "Detected by the agent", with nothing for the person to look up.
-	Agent     OptBool   `json:"agent"`
+	Agent OptBool `json:"agent"`
+	// N52-2: a product-only match on a software row the device's own agent reported with its installed
+	// version: Vedette could not compare that version with NVD's data, so the page does not ask to add the
+	// version.
+	AgentRow  OptBool   `json:"agent_row"`
 	CheckedAt time.Time `json:"checked_at"`
 	Request   OptString `json:"request"`
 	Response  OptString `json:"response"`
@@ -62432,6 +62436,11 @@ type FindingsGetFindingsIDOKEvidence struct {
 // GetAgent returns the value of Agent.
 func (s *FindingsGetFindingsIDOKEvidence) GetAgent() OptBool {
 	return s.Agent
+}
+
+// GetAgentRow returns the value of AgentRow.
+func (s *FindingsGetFindingsIDOKEvidence) GetAgentRow() OptBool {
+	return s.AgentRow
 }
 
 // GetCheckedAt returns the value of CheckedAt.
@@ -62462,6 +62471,11 @@ func (s *FindingsGetFindingsIDOKEvidence) GetTemplate() OptString {
 // SetAgent sets the value of Agent.
 func (s *FindingsGetFindingsIDOKEvidence) SetAgent(val OptBool) {
 	s.Agent = val
+}
+
+// SetAgentRow sets the value of AgentRow.
+func (s *FindingsGetFindingsIDOKEvidence) SetAgentRow(val OptBool) {
+	s.AgentRow = val
 }
 
 // SetCheckedAt sets the value of CheckedAt.
@@ -64907,7 +64921,11 @@ func (s *FindingsGetFindingsOKItemsItemBasis) UnmarshalText(data []byte) error {
 type FindingsGetFindingsOKItemsItemEvidence struct {
 	// D-548: the version compared is the one the device's own agent (osquery, Wazuh) reports installed: a
 	// detection, shown as "Detected by the agent", with nothing for the person to look up.
-	Agent     OptBool   `json:"agent"`
+	Agent OptBool `json:"agent"`
+	// N52-2: a product-only match on a software row the device's own agent reported with its installed
+	// version: Vedette could not compare that version with NVD's data, so the page does not ask to add the
+	// version.
+	AgentRow  OptBool   `json:"agent_row"`
 	CheckedAt time.Time `json:"checked_at"`
 	Request   OptString `json:"request"`
 	Response  OptString `json:"response"`
@@ -64918,6 +64936,11 @@ type FindingsGetFindingsOKItemsItemEvidence struct {
 // GetAgent returns the value of Agent.
 func (s *FindingsGetFindingsOKItemsItemEvidence) GetAgent() OptBool {
 	return s.Agent
+}
+
+// GetAgentRow returns the value of AgentRow.
+func (s *FindingsGetFindingsOKItemsItemEvidence) GetAgentRow() OptBool {
+	return s.AgentRow
 }
 
 // GetCheckedAt returns the value of CheckedAt.
@@ -64948,6 +64971,11 @@ func (s *FindingsGetFindingsOKItemsItemEvidence) GetTemplate() OptString {
 // SetAgent sets the value of Agent.
 func (s *FindingsGetFindingsOKItemsItemEvidence) SetAgent(val OptBool) {
 	s.Agent = val
+}
+
+// SetAgentRow sets the value of AgentRow.
+func (s *FindingsGetFindingsOKItemsItemEvidence) SetAgentRow(val OptBool) {
+	s.AgentRow = val
 }
 
 // SetCheckedAt sets the value of CheckedAt.
@@ -67979,7 +68007,11 @@ func (s *FindingsPostFindingsIDAiOKCompromiseIndicatorsItemKind) UnmarshalText(d
 type FindingsPostFindingsIDAiOKEvidence struct {
 	// D-548: the version compared is the one the device's own agent (osquery, Wazuh) reports installed: a
 	// detection, shown as "Detected by the agent", with nothing for the person to look up.
-	Agent     OptBool   `json:"agent"`
+	Agent OptBool `json:"agent"`
+	// N52-2: a product-only match on a software row the device's own agent reported with its installed
+	// version: Vedette could not compare that version with NVD's data, so the page does not ask to add the
+	// version.
+	AgentRow  OptBool   `json:"agent_row"`
 	CheckedAt time.Time `json:"checked_at"`
 	Request   OptString `json:"request"`
 	Response  OptString `json:"response"`
@@ -67990,6 +68022,11 @@ type FindingsPostFindingsIDAiOKEvidence struct {
 // GetAgent returns the value of Agent.
 func (s *FindingsPostFindingsIDAiOKEvidence) GetAgent() OptBool {
 	return s.Agent
+}
+
+// GetAgentRow returns the value of AgentRow.
+func (s *FindingsPostFindingsIDAiOKEvidence) GetAgentRow() OptBool {
+	return s.AgentRow
 }
 
 // GetCheckedAt returns the value of CheckedAt.
@@ -68020,6 +68057,11 @@ func (s *FindingsPostFindingsIDAiOKEvidence) GetTemplate() OptString {
 // SetAgent sets the value of Agent.
 func (s *FindingsPostFindingsIDAiOKEvidence) SetAgent(val OptBool) {
 	s.Agent = val
+}
+
+// SetAgentRow sets the value of AgentRow.
+func (s *FindingsPostFindingsIDAiOKEvidence) SetAgentRow(val OptBool) {
+	s.AgentRow = val
 }
 
 // SetCheckedAt sets the value of CheckedAt.
@@ -71192,7 +71234,11 @@ func (s *FindingsPostFindingsIDAppliedOKCompromiseIndicatorsItemKind) UnmarshalT
 type FindingsPostFindingsIDAppliedOKEvidence struct {
 	// D-548: the version compared is the one the device's own agent (osquery, Wazuh) reports installed: a
 	// detection, shown as "Detected by the agent", with nothing for the person to look up.
-	Agent     OptBool   `json:"agent"`
+	Agent OptBool `json:"agent"`
+	// N52-2: a product-only match on a software row the device's own agent reported with its installed
+	// version: Vedette could not compare that version with NVD's data, so the page does not ask to add the
+	// version.
+	AgentRow  OptBool   `json:"agent_row"`
 	CheckedAt time.Time `json:"checked_at"`
 	Request   OptString `json:"request"`
 	Response  OptString `json:"response"`
@@ -71203,6 +71249,11 @@ type FindingsPostFindingsIDAppliedOKEvidence struct {
 // GetAgent returns the value of Agent.
 func (s *FindingsPostFindingsIDAppliedOKEvidence) GetAgent() OptBool {
 	return s.Agent
+}
+
+// GetAgentRow returns the value of AgentRow.
+func (s *FindingsPostFindingsIDAppliedOKEvidence) GetAgentRow() OptBool {
+	return s.AgentRow
 }
 
 // GetCheckedAt returns the value of CheckedAt.
@@ -71233,6 +71284,11 @@ func (s *FindingsPostFindingsIDAppliedOKEvidence) GetTemplate() OptString {
 // SetAgent sets the value of Agent.
 func (s *FindingsPostFindingsIDAppliedOKEvidence) SetAgent(val OptBool) {
 	s.Agent = val
+}
+
+// SetAgentRow sets the value of AgentRow.
+func (s *FindingsPostFindingsIDAppliedOKEvidence) SetAgentRow(val OptBool) {
+	s.AgentRow = val
 }
 
 // SetCheckedAt sets the value of CheckedAt.
@@ -74426,7 +74482,11 @@ func (s *FindingsPostFindingsIDStatusOKCompromiseIndicatorsItemKind) UnmarshalTe
 type FindingsPostFindingsIDStatusOKEvidence struct {
 	// D-548: the version compared is the one the device's own agent (osquery, Wazuh) reports installed: a
 	// detection, shown as "Detected by the agent", with nothing for the person to look up.
-	Agent     OptBool   `json:"agent"`
+	Agent OptBool `json:"agent"`
+	// N52-2: a product-only match on a software row the device's own agent reported with its installed
+	// version: Vedette could not compare that version with NVD's data, so the page does not ask to add the
+	// version.
+	AgentRow  OptBool   `json:"agent_row"`
 	CheckedAt time.Time `json:"checked_at"`
 	Request   OptString `json:"request"`
 	Response  OptString `json:"response"`
@@ -74437,6 +74497,11 @@ type FindingsPostFindingsIDStatusOKEvidence struct {
 // GetAgent returns the value of Agent.
 func (s *FindingsPostFindingsIDStatusOKEvidence) GetAgent() OptBool {
 	return s.Agent
+}
+
+// GetAgentRow returns the value of AgentRow.
+func (s *FindingsPostFindingsIDStatusOKEvidence) GetAgentRow() OptBool {
+	return s.AgentRow
 }
 
 // GetCheckedAt returns the value of CheckedAt.
@@ -74467,6 +74532,11 @@ func (s *FindingsPostFindingsIDStatusOKEvidence) GetTemplate() OptString {
 // SetAgent sets the value of Agent.
 func (s *FindingsPostFindingsIDStatusOKEvidence) SetAgent(val OptBool) {
 	s.Agent = val
+}
+
+// SetAgentRow sets the value of AgentRow.
+func (s *FindingsPostFindingsIDStatusOKEvidence) SetAgentRow(val OptBool) {
+	s.AgentRow = val
 }
 
 // SetCheckedAt sets the value of CheckedAt.
@@ -129804,7 +129874,10 @@ func (s *ReportsGetReportsPdplOKReportOrgSize) UnmarshalText(data []byte) error 
 }
 
 type ReportsGetReportsPdplOKReportRisksItem struct {
-	AssetID string `json:"asset_id"`
+	// The version compared is the one the device's own agent reports (findings evidence.agent, D-548): the
+	// status reads "Detected by the agent", not "Suspected"; absent in reports sent before it.
+	Agent   OptBool `json:"agent"`
+	AssetID string  `json:"asset_id"`
 	// Who closed it (rows of what was done).
 	By       OptString                                      `json:"by"`
 	Cve      string                                         `json:"cve"`
@@ -129814,6 +129887,11 @@ type ReportsGetReportsPdplOKReportRisksItem struct {
 	Severity ReportsGetReportsPdplOKReportRisksItemSeverity `json:"severity"`
 	Since    time.Time                                      `json:"since"`
 	Status   ReportsGetReportsPdplOKReportRisksItemStatus   `json:"status"`
+}
+
+// GetAgent returns the value of Agent.
+func (s *ReportsGetReportsPdplOKReportRisksItem) GetAgent() OptBool {
+	return s.Agent
 }
 
 // GetAssetID returns the value of AssetID.
@@ -129859,6 +129937,11 @@ func (s *ReportsGetReportsPdplOKReportRisksItem) GetSince() time.Time {
 // GetStatus returns the value of Status.
 func (s *ReportsGetReportsPdplOKReportRisksItem) GetStatus() ReportsGetReportsPdplOKReportRisksItemStatus {
 	return s.Status
+}
+
+// SetAgent sets the value of Agent.
+func (s *ReportsGetReportsPdplOKReportRisksItem) SetAgent(val OptBool) {
+	s.Agent = val
 }
 
 // SetAssetID sets the value of AssetID.
@@ -131121,7 +131204,10 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportHappenedTopItemSeverity) Unmars
 }
 
 type ReportsGetReportsWeeklyHistoryIDOKReportNewFindingsItem struct {
-	AssetID string `json:"asset_id"`
+	// The version compared is the one the device's own agent reports (findings evidence.agent, D-548): the
+	// status reads "Detected by the agent", not "Suspected"; absent in reports sent before it.
+	Agent   OptBool `json:"agent"`
+	AssetID string  `json:"asset_id"`
 	// Who closed it (rows of what was done).
 	By       OptString                                                       `json:"by"`
 	Cve      string                                                          `json:"cve"`
@@ -131131,6 +131217,11 @@ type ReportsGetReportsWeeklyHistoryIDOKReportNewFindingsItem struct {
 	Severity ReportsGetReportsWeeklyHistoryIDOKReportNewFindingsItemSeverity `json:"severity"`
 	Since    time.Time                                                       `json:"since"`
 	Status   ReportsGetReportsWeeklyHistoryIDOKReportNewFindingsItemStatus   `json:"status"`
+}
+
+// GetAgent returns the value of Agent.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportNewFindingsItem) GetAgent() OptBool {
+	return s.Agent
 }
 
 // GetAssetID returns the value of AssetID.
@@ -131176,6 +131267,11 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportNewFindingsItem) GetSince() tim
 // GetStatus returns the value of Status.
 func (s *ReportsGetReportsWeeklyHistoryIDOKReportNewFindingsItem) GetStatus() ReportsGetReportsWeeklyHistoryIDOKReportNewFindingsItemStatus {
 	return s.Status
+}
+
+// SetAgent sets the value of Agent.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportNewFindingsItem) SetAgent(val OptBool) {
+	s.Agent = val
 }
 
 // SetAssetID sets the value of AssetID.
@@ -131362,7 +131458,10 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportNewFindingsItemStatus) Unmarsha
 }
 
 type ReportsGetReportsWeeklyHistoryIDOKReportOpenItem struct {
-	AssetID string `json:"asset_id"`
+	// The version compared is the one the device's own agent reports (findings evidence.agent, D-548): the
+	// status reads "Detected by the agent", not "Suspected"; absent in reports sent before it.
+	Agent   OptBool `json:"agent"`
+	AssetID string  `json:"asset_id"`
 	// Who closed it (rows of what was done).
 	By       OptString                                                `json:"by"`
 	Cve      string                                                   `json:"cve"`
@@ -131372,6 +131471,11 @@ type ReportsGetReportsWeeklyHistoryIDOKReportOpenItem struct {
 	Severity ReportsGetReportsWeeklyHistoryIDOKReportOpenItemSeverity `json:"severity"`
 	Since    time.Time                                                `json:"since"`
 	Status   ReportsGetReportsWeeklyHistoryIDOKReportOpenItemStatus   `json:"status"`
+}
+
+// GetAgent returns the value of Agent.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportOpenItem) GetAgent() OptBool {
+	return s.Agent
 }
 
 // GetAssetID returns the value of AssetID.
@@ -131417,6 +131521,11 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportOpenItem) GetSince() time.Time 
 // GetStatus returns the value of Status.
 func (s *ReportsGetReportsWeeklyHistoryIDOKReportOpenItem) GetStatus() ReportsGetReportsWeeklyHistoryIDOKReportOpenItemStatus {
 	return s.Status
+}
+
+// SetAgent sets the value of Agent.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportOpenItem) SetAgent(val OptBool) {
+	s.Agent = val
 }
 
 // SetAssetID sets the value of AssetID.
@@ -131628,7 +131737,10 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportPeriod) SetTo(val time.Time) {
 }
 
 type ReportsGetReportsWeeklyHistoryIDOKReportResolvedItem struct {
-	AssetID string `json:"asset_id"`
+	// The version compared is the one the device's own agent reports (findings evidence.agent, D-548): the
+	// status reads "Detected by the agent", not "Suspected"; absent in reports sent before it.
+	Agent   OptBool `json:"agent"`
+	AssetID string  `json:"asset_id"`
 	// Who closed it (rows of what was done).
 	By       OptString                                                    `json:"by"`
 	Cve      string                                                       `json:"cve"`
@@ -131638,6 +131750,11 @@ type ReportsGetReportsWeeklyHistoryIDOKReportResolvedItem struct {
 	Severity ReportsGetReportsWeeklyHistoryIDOKReportResolvedItemSeverity `json:"severity"`
 	Since    time.Time                                                    `json:"since"`
 	Status   ReportsGetReportsWeeklyHistoryIDOKReportResolvedItemStatus   `json:"status"`
+}
+
+// GetAgent returns the value of Agent.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportResolvedItem) GetAgent() OptBool {
+	return s.Agent
 }
 
 // GetAssetID returns the value of AssetID.
@@ -131683,6 +131800,11 @@ func (s *ReportsGetReportsWeeklyHistoryIDOKReportResolvedItem) GetSince() time.T
 // GetStatus returns the value of Status.
 func (s *ReportsGetReportsWeeklyHistoryIDOKReportResolvedItem) GetStatus() ReportsGetReportsWeeklyHistoryIDOKReportResolvedItemStatus {
 	return s.Status
+}
+
+// SetAgent sets the value of Agent.
+func (s *ReportsGetReportsWeeklyHistoryIDOKReportResolvedItem) SetAgent(val OptBool) {
+	s.Agent = val
 }
 
 // SetAssetID sets the value of AssetID.
@@ -133337,7 +133459,10 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportHappenedTopItemSeverity) Unmarsha
 }
 
 type ReportsGetReportsWeeklyPreviewOKReportNewFindingsItem struct {
-	AssetID string `json:"asset_id"`
+	// The version compared is the one the device's own agent reports (findings evidence.agent, D-548): the
+	// status reads "Detected by the agent", not "Suspected"; absent in reports sent before it.
+	Agent   OptBool `json:"agent"`
+	AssetID string  `json:"asset_id"`
 	// Who closed it (rows of what was done).
 	By       OptString                                                     `json:"by"`
 	Cve      string                                                        `json:"cve"`
@@ -133347,6 +133472,11 @@ type ReportsGetReportsWeeklyPreviewOKReportNewFindingsItem struct {
 	Severity ReportsGetReportsWeeklyPreviewOKReportNewFindingsItemSeverity `json:"severity"`
 	Since    time.Time                                                     `json:"since"`
 	Status   ReportsGetReportsWeeklyPreviewOKReportNewFindingsItemStatus   `json:"status"`
+}
+
+// GetAgent returns the value of Agent.
+func (s *ReportsGetReportsWeeklyPreviewOKReportNewFindingsItem) GetAgent() OptBool {
+	return s.Agent
 }
 
 // GetAssetID returns the value of AssetID.
@@ -133392,6 +133522,11 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportNewFindingsItem) GetSince() time.
 // GetStatus returns the value of Status.
 func (s *ReportsGetReportsWeeklyPreviewOKReportNewFindingsItem) GetStatus() ReportsGetReportsWeeklyPreviewOKReportNewFindingsItemStatus {
 	return s.Status
+}
+
+// SetAgent sets the value of Agent.
+func (s *ReportsGetReportsWeeklyPreviewOKReportNewFindingsItem) SetAgent(val OptBool) {
+	s.Agent = val
 }
 
 // SetAssetID sets the value of AssetID.
@@ -133578,7 +133713,10 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportNewFindingsItemStatus) UnmarshalT
 }
 
 type ReportsGetReportsWeeklyPreviewOKReportOpenItem struct {
-	AssetID string `json:"asset_id"`
+	// The version compared is the one the device's own agent reports (findings evidence.agent, D-548): the
+	// status reads "Detected by the agent", not "Suspected"; absent in reports sent before it.
+	Agent   OptBool `json:"agent"`
+	AssetID string  `json:"asset_id"`
 	// Who closed it (rows of what was done).
 	By       OptString                                              `json:"by"`
 	Cve      string                                                 `json:"cve"`
@@ -133588,6 +133726,11 @@ type ReportsGetReportsWeeklyPreviewOKReportOpenItem struct {
 	Severity ReportsGetReportsWeeklyPreviewOKReportOpenItemSeverity `json:"severity"`
 	Since    time.Time                                              `json:"since"`
 	Status   ReportsGetReportsWeeklyPreviewOKReportOpenItemStatus   `json:"status"`
+}
+
+// GetAgent returns the value of Agent.
+func (s *ReportsGetReportsWeeklyPreviewOKReportOpenItem) GetAgent() OptBool {
+	return s.Agent
 }
 
 // GetAssetID returns the value of AssetID.
@@ -133633,6 +133776,11 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportOpenItem) GetSince() time.Time {
 // GetStatus returns the value of Status.
 func (s *ReportsGetReportsWeeklyPreviewOKReportOpenItem) GetStatus() ReportsGetReportsWeeklyPreviewOKReportOpenItemStatus {
 	return s.Status
+}
+
+// SetAgent sets the value of Agent.
+func (s *ReportsGetReportsWeeklyPreviewOKReportOpenItem) SetAgent(val OptBool) {
+	s.Agent = val
 }
 
 // SetAssetID sets the value of AssetID.
@@ -133844,7 +133992,10 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportPeriod) SetTo(val time.Time) {
 }
 
 type ReportsGetReportsWeeklyPreviewOKReportResolvedItem struct {
-	AssetID string `json:"asset_id"`
+	// The version compared is the one the device's own agent reports (findings evidence.agent, D-548): the
+	// status reads "Detected by the agent", not "Suspected"; absent in reports sent before it.
+	Agent   OptBool `json:"agent"`
+	AssetID string  `json:"asset_id"`
 	// Who closed it (rows of what was done).
 	By       OptString                                                  `json:"by"`
 	Cve      string                                                     `json:"cve"`
@@ -133854,6 +134005,11 @@ type ReportsGetReportsWeeklyPreviewOKReportResolvedItem struct {
 	Severity ReportsGetReportsWeeklyPreviewOKReportResolvedItemSeverity `json:"severity"`
 	Since    time.Time                                                  `json:"since"`
 	Status   ReportsGetReportsWeeklyPreviewOKReportResolvedItemStatus   `json:"status"`
+}
+
+// GetAgent returns the value of Agent.
+func (s *ReportsGetReportsWeeklyPreviewOKReportResolvedItem) GetAgent() OptBool {
+	return s.Agent
 }
 
 // GetAssetID returns the value of AssetID.
@@ -133899,6 +134055,11 @@ func (s *ReportsGetReportsWeeklyPreviewOKReportResolvedItem) GetSince() time.Tim
 // GetStatus returns the value of Status.
 func (s *ReportsGetReportsWeeklyPreviewOKReportResolvedItem) GetStatus() ReportsGetReportsWeeklyPreviewOKReportResolvedItemStatus {
 	return s.Status
+}
+
+// SetAgent sets the value of Agent.
+func (s *ReportsGetReportsWeeklyPreviewOKReportResolvedItem) SetAgent(val OptBool) {
+	s.Agent = val
 }
 
 // SetAssetID sets the value of AssetID.
@@ -135550,7 +135711,10 @@ func (s *ReportsPostReportsPdplGenerateOKOrgSize) UnmarshalText(data []byte) err
 }
 
 type ReportsPostReportsPdplGenerateOKRisksItem struct {
-	AssetID string `json:"asset_id"`
+	// The version compared is the one the device's own agent reports (findings evidence.agent, D-548): the
+	// status reads "Detected by the agent", not "Suspected"; absent in reports sent before it.
+	Agent   OptBool `json:"agent"`
+	AssetID string  `json:"asset_id"`
 	// Who closed it (rows of what was done).
 	By       OptString                                         `json:"by"`
 	Cve      string                                            `json:"cve"`
@@ -135560,6 +135724,11 @@ type ReportsPostReportsPdplGenerateOKRisksItem struct {
 	Severity ReportsPostReportsPdplGenerateOKRisksItemSeverity `json:"severity"`
 	Since    time.Time                                         `json:"since"`
 	Status   ReportsPostReportsPdplGenerateOKRisksItemStatus   `json:"status"`
+}
+
+// GetAgent returns the value of Agent.
+func (s *ReportsPostReportsPdplGenerateOKRisksItem) GetAgent() OptBool {
+	return s.Agent
 }
 
 // GetAssetID returns the value of AssetID.
@@ -135605,6 +135774,11 @@ func (s *ReportsPostReportsPdplGenerateOKRisksItem) GetSince() time.Time {
 // GetStatus returns the value of Status.
 func (s *ReportsPostReportsPdplGenerateOKRisksItem) GetStatus() ReportsPostReportsPdplGenerateOKRisksItemStatus {
 	return s.Status
+}
+
+// SetAgent sets the value of Agent.
+func (s *ReportsPostReportsPdplGenerateOKRisksItem) SetAgent(val OptBool) {
+	s.Agent = val
 }
 
 // SetAssetID sets the value of AssetID.

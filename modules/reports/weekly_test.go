@@ -210,3 +210,18 @@ func TestWeeklyAcceptedCountsWhatTheRowsShow(t *testing.T) {
 		t.Fatalf("counts = %+v", c)
 	}
 }
+
+// D-548 (deferred from #800): an open finding the device's agent detected says so in the weekly and PDPL tables, not "Suspected".
+func TestWeeklyOpenRowSaysTheAgentDetectedIt(t *testing.T) {
+	t.Parallel()
+	in := sampleInput()
+	in.findings[1].Agent = true // f2, suspected
+	r := buildWeekly(in)
+	if len(r.Open) != 2 || r.Open[1].ID != "f2" || !r.Open[1].Agent || r.Open[0].Agent {
+		t.Fatalf("open = %+v", r.Open)
+	}
+	p := buildPdpl(pdplInput{devices: in.devices, findings: in.findings, kev: in.kev, now: in.now})
+	if len(p.Risks) != 2 || !p.Risks[1].Agent {
+		t.Fatalf("PDPL risks = %+v", p.Risks)
+	}
+}

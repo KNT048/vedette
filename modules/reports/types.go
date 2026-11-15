@@ -16,7 +16,8 @@ type FindingRow struct {
 	Status   string `json:"status"`
 	Severity string `json:"severity"`
 	Since    string `json:"since"`
-	By       string `json:"by,omitempty"` // who closed it, on the rows of what was done
+	By       string `json:"by,omitempty"`    // who closed it, on the rows of what was done
+	Agent    bool   `json:"agent,omitempty"` // the device's own agent reported the version compared (D-548): "Detected by the agent", not "Suspected"
 
 	noDevice bool // the device is a product added by hand with no device (Device.NoDevice)
 }

@@ -159,6 +159,9 @@ type Evidence struct {
 	// the box's package list), not a banner, a scan's guess or a person's entry (D-548). The page then says "Detected by the
 	// agent" and does not ask the person to look the version up.
 	Agent bool
+	// AgentRow: a product-only match (basis product) on a row the device's own agent reported (N52-2): the agent gave the installed
+	// version and Vedette could not compare it with NVD's data, so the page does not say the version is missing or ask to add it.
+	AgentRow bool
 }
 
 // Match is a finding the matcher would create (status is always suspected).
@@ -516,6 +519,7 @@ func matchOne(a Asset, s Software, in swInfo, v Vuln, now time.Time) (Match, out
 		m.Evidence.Summary = fmt.Sprintf("%s runs %s. Vedette cannot compare version %s with the versions %s lists as affected by %s; compare it with the vendor advisory.", name, sw, clean(in.ver), v.rangesBy(false), v.CVE)
 	}
 	m.Evidence.Summary += platformCondition(v.CVE) // D-547, KF-5: the platform is not known (or is one it affects)
+	m.Evidence.AgentRow = m.Basis == BasisProduct && s.Source == "agent" && in.given
 	m.Evidence.CheckedAt = now
 	return m, outMatch
 }

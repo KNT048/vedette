@@ -29,3 +29,25 @@ func TestGenericRecheck_D548_AgentVersionIsNotAskedFor(t *testing.T) {
 		t.Fatalf("scan: %s", got)
 	}
 }
+
+// N52-2: a product-only match on a row the agent reported with its version does not ask to look the version up either: the agent gave it,
+// and the comparison with NVD's data is what failed. A product match on a typed row keeps "Check which version".
+func TestGenericRecheck_N52_AgentRowProductMatchDoesNotAskForTheVersion(t *testing.T) {
+	row := func(agentRow bool) findings.Row {
+		var r findings.Row
+		doc := `{"basis":"product","evidence":{"summary":"s","checked_at":"2026-11-15T00:00:00Z","agent_row":` + map[bool]string{true: "true", false: "false"}[agentRow] + `},
+			"asset":{"id":"a","name":"byn","hostname":"byn","ip":"192.168.18.181","kind":"server","display":"OpenSSL"},
+			"kev":{"display":"OpenSSL","vendor":"OpenSSL","product":"OpenSSL","has_template":false}}`
+		if err := json.Unmarshal([]byte(doc), &r); err != nil {
+			t.Fatal(err)
+		}
+		return r
+	}
+	got := strings.Join(genericRecheck(row(true)).Steps, " ")
+	if strings.Contains(got, "About screen") || !strings.Contains(got, "Nothing to look up on byn: its agent reports the installed version of OpenSSL") {
+		t.Fatalf("agent row: %s", got)
+	}
+	if got := strings.Join(genericRecheck(row(false)).Steps, " "); !strings.Contains(got, "About screen") {
+		t.Fatalf("typed row: %s", got)
+	}
+}

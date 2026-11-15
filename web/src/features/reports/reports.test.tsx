@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { renderApp, expectNoA11yViolations } from '@/test/render'
 import { server } from '@/test/server'
-import { aiAssignStore, assetsStore, aiConfigStore, aiRunsStore, auditStore, modulesStore, sessionStore } from '@/mocks/stores'
+import { aiAssignStore, assetsStore, aiConfigStore, aiRunsStore, auditStore, findingsStore, modulesStore, sessionStore } from '@/mocks/stores'
 import { regimeOf } from './pdpl'
 import { buildWeekly } from './weekly'
 
@@ -45,6 +45,18 @@ describe('reports: weekly report (S-REP-1)', () => {
     expect(within(risks).getAllByRole('listitem').length).toBeGreaterThan(0)
     expect(within(risks).getAllByRole('listitem').length).toBeLessThanOrEqual(3)
     expect(within(doc).getByRole('region', { name: 'Appendix: every finding of the week' })).toBeInTheDocument()
+  })
+
+  it('D-548: an open finding the agent detected reads "Detected by the agent" in the report, not "Suspected" (#800 deferred)', async () => {
+    const pick = findingsStore.get().find((f) => f.status === 'suspected' && !f.resolved_at)
+    if (!pick) throw new Error('the sample data needs a suspected finding')
+    findingsStore.update((l) => l.map((f) => (f.id === pick.id ? { ...f, evidence: { summary: 'The agent reports it.', checked_at: f.first_seen, agent: true } } : f)))
+    renderApp('/reports')
+    const doc = await screen.findByRole('article', { name: 'Weekly security report' })
+    const row = within(within(doc).getByRole('table', { name: 'What is new' })).getByRole('row', { name: new RegExp(pick.cve) }) // new this week
+    expect(within(row).getByText('Detected by the agent')).toBeInTheDocument()
+    expect(within(row).queryByText('Suspected')).toBeNull()
+    expect(within(doc).getAllByText('Detected by the agent')).toHaveLength(1)
   })
 
   it('D-490: the box wrote what to do (fixed version) and what happened; the page shows those sentences and no "not included" note', async () => {

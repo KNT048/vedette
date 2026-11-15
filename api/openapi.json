@@ -30258,6 +30258,10 @@
                                   "agent": {
                                     "description": "D-548: the version compared is the one the device's own agent (osquery, Wazuh) reports installed: a detection, shown as \"Detected by the agent\", with nothing for the person to look up",
                                     "type": "boolean"
+                                  },
+                                  "agent_row": {
+                                    "description": "N52-2: a product-only match on a software row the device's own agent reported with its installed version: Vedette could not compare that version with NVD's data, so the page does not ask to add the version",
+                                    "type": "boolean"
                                   }
                                 },
                                 "required": [
@@ -30947,6 +30951,10 @@
                             },
                             "agent": {
                               "description": "D-548: the version compared is the one the device's own agent (osquery, Wazuh) reports installed: a detection, shown as \"Detected by the agent\", with nothing for the person to look up",
+                              "type": "boolean"
+                            },
+                            "agent_row": {
+                              "description": "N52-2: a product-only match on a software row the device's own agent reported with its installed version: Vedette could not compare that version with NVD's data, so the page does not ask to add the version",
                               "type": "boolean"
                             }
                           },
@@ -32181,6 +32189,10 @@
                             },
                             "agent": {
                               "description": "D-548: the version compared is the one the device's own agent (osquery, Wazuh) reports installed: a detection, shown as \"Detected by the agent\", with nothing for the person to look up",
+                              "type": "boolean"
+                            },
+                            "agent_row": {
+                              "description": "N52-2: a product-only match on a software row the device's own agent reported with its installed version: Vedette could not compare that version with NVD's data, so the page does not ask to add the version",
                               "type": "boolean"
                             }
                           },
@@ -33417,6 +33429,10 @@
                             },
                             "agent": {
                               "description": "D-548: the version compared is the one the device's own agent (osquery, Wazuh) reports installed: a detection, shown as \"Detected by the agent\", with nothing for the person to look up",
+                              "type": "boolean"
+                            },
+                            "agent_row": {
+                              "description": "N52-2: a product-only match on a software row the device's own agent reported with its installed version: Vedette could not compare that version with NVD's data, so the page does not ask to add the version",
                               "type": "boolean"
                             }
                           },
@@ -34665,6 +34681,10 @@
                             },
                             "agent": {
                               "description": "D-548: the version compared is the one the device's own agent (osquery, Wazuh) reports installed: a detection, shown as \"Detected by the agent\", with nothing for the person to look up",
+                              "type": "boolean"
+                            },
+                            "agent_row": {
+                              "description": "N52-2: a product-only match on a software row the device's own agent reported with its installed version: Vedette could not compare that version with NVD's data, so the page does not ask to add the version",
                               "type": "boolean"
                             }
                           },
@@ -50851,6 +50871,10 @@
                                   "by": {
                                     "description": "Who closed it (rows of what was done)",
                                     "type": "string"
+                                  },
+                                  "agent": {
+                                    "description": "The version compared is the one the device's own agent reports (findings evidence.agent, D-548): the status reads \"Detected by the agent\", not \"Suspected\"; absent in reports sent before it",
+                                    "type": "boolean"
                                   }
                                 },
                                 "required": [
@@ -51422,6 +51446,10 @@
                           "by": {
                             "description": "Who closed it (rows of what was done)",
                             "type": "string"
+                          },
+                          "agent": {
+                            "description": "The version compared is the one the device's own agent reports (findings evidence.agent, D-548): the status reads \"Detected by the agent\", not \"Suspected\"; absent in reports sent before it",
+                            "type": "boolean"
                           }
                         },
                         "required": [
@@ -52440,6 +52468,10 @@
                               "by": {
                                 "description": "Who closed it (rows of what was done)",
                                 "type": "string"
+                              },
+                              "agent": {
+                                "description": "The version compared is the one the device's own agent reports (findings evidence.agent, D-548): the status reads \"Detected by the agent\", not \"Suspected\"; absent in reports sent before it",
+                                "type": "boolean"
                               }
                             },
                             "required": [
@@ -52505,6 +52537,10 @@
                               "by": {
                                 "description": "Who closed it (rows of what was done)",
                                 "type": "string"
+                              },
+                              "agent": {
+                                "description": "The version compared is the one the device's own agent reports (findings evidence.agent, D-548): the status reads \"Detected by the agent\", not \"Suspected\"; absent in reports sent before it",
+                                "type": "boolean"
                               }
                             },
                             "required": [
@@ -52570,6 +52606,10 @@
                               "by": {
                                 "description": "Who closed it (rows of what was done)",
                                 "type": "string"
+                              },
+                              "agent": {
+                                "description": "The version compared is the one the device's own agent reports (findings evidence.agent, D-548): the status reads \"Detected by the agent\", not \"Suspected\"; absent in reports sent before it",
+                                "type": "boolean"
                               }
                             },
                             "required": [
@@ -53147,6 +53187,10 @@
                               "by": {
                                 "description": "Who closed it (rows of what was done)",
                                 "type": "string"
+                              },
+                              "agent": {
+                                "description": "The version compared is the one the device's own agent reports (findings evidence.agent, D-548): the status reads \"Detected by the agent\", not \"Suspected\"; absent in reports sent before it",
+                                "type": "boolean"
                               }
                             },
                             "required": [
@@ -53212,6 +53256,10 @@
                               "by": {
                                 "description": "Who closed it (rows of what was done)",
                                 "type": "string"
+                              },
+                              "agent": {
+                                "description": "The version compared is the one the device's own agent reports (findings evidence.agent, D-548): the status reads \"Detected by the agent\", not \"Suspected\"; absent in reports sent before it",
+                                "type": "boolean"
                               }
                             },
                             "required": [
@@ -53277,6 +53325,10 @@
                               "by": {
                                 "description": "Who closed it (rows of what was done)",
                                 "type": "string"
+                              },
+                              "agent": {
+                                "description": "The version compared is the one the device's own agent reports (findings evidence.agent, D-548): the status reads \"Detected by the agent\", not \"Suspected\"; absent in reports sent before it",
+                                "type": "boolean"
                               }
                             },
                             "required": [

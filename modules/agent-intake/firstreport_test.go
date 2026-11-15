@@ -66,9 +66,9 @@ func TestContract_D503_FirstReportIsAskedEveryMinute(t *testing.T) {
 		snap("system_info", map[string]string{"hostname": "byn", "hardware_vendor": "Dell Inc.", "hardware_model": "Vostro 3669"}),
 		snap("deb_packages", debRow("openssh-server", "1:9.6p1-3ubuntu13.5")), snap("rpm_packages")))
 	wantIntervals(t, "first report complete", w.intervals(key),
-		map[string]float64{"os_version": 3600, "interfaces": 3600, "system_info": 86400, "deb_packages": 3600, "rpm_packages": 3600, "programs": 3600})
-	if n := w.count(`SELECT count(*) FROM intake_osquery_nodes WHERE reported = 'os_version,system_info,interfaces,packages'`); n != 1 {
-		t.Fatalf("reported list not canonical: %d", n)
+		map[string]float64{"os_version": 3600, "interfaces": 3600, "system_info": 3600, "deb_packages": 3600, "rpm_packages": 3600, "programs": 3600})
+	if n := w.count(`SELECT count(*) FROM intake_osquery_nodes WHERE reported = 'os_version,system_info,interfaces,packages,hostname'`); n != 1 {
+		t.Fatalf("reported list not canonical: %d", n) // hostname: the enrolment name went in with the os row, before system_info (N52 W-2)
 	}
 
 	// A node that never matches its address (NAT) asks every minute for its first hour only.
@@ -77,7 +77,7 @@ func TestContract_D503_FirstReportIsAskedEveryMinute(t *testing.T) {
 	wantIntervals(t, "unmatched", w.intervals(nat), all)
 	w.clock.Advance(61 * time.Minute)
 	wantIntervals(t, "unmatched after an hour", w.intervals(nat),
-		map[string]float64{"os_version": 3600, "interfaces": 3600, "system_info": 86400, "deb_packages": 3600})
+		map[string]float64{"os_version": 3600, "interfaces": 3600, "system_info": 3600, "deb_packages": 3600})
 }
 
 // D-503 (W2-1, W2-12): the agent claims the row the passive sensor made for the same machine (one device), types it from its OS with

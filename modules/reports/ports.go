@@ -39,6 +39,7 @@ type Finding struct {
 	ResolvedBy       string    // who closed it ("" = open)
 	Source           string    // the exploited list of the CVE ("vulncheck-kev" names VulnCheck KEV among the report's sources); "" = CISA or unknown
 	AcceptedUntil    time.Time // risk_accepted: the last day of the acceptance (D-498); zero otherwise
+	Agent            bool      // the version compared is the one the device's own agent reports (findings evidence.agent, D-548)
 }
 
 // Findings lists every finding.

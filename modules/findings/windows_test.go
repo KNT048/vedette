@@ -200,7 +200,7 @@ func TestMatchAsset_D546_NewerThanEveryListedRelease(t *testing.T) {
 	w, m = oneMatch(t, pc, cve36884, true)
 	wantMatch(t, "release NVD never named", w, m, "existing", BasisProduct, SeverityMedium, "has not named Windows 11 24H2")
 	recent := cve36884
-	recent.CVE, recent.DateAdded = "CVE-2023-36424", winDay("2026-04-13") // an old flaw CISA listed this year
+	recent.CVE, recent.DateAdded = "CVE-2025-36424", winDay("2026-04-13") // last year's flaw CISA listed this year (a CVE two years old or more is settled by its year, D-610)
 	w, m = oneMatch(t, pc, recent, true, cve62215)
 	wantMatch(t, "listed this year", w, m, "existing", BasisProduct, SeverityMedium, "less than a year old")
 	old := recent
@@ -209,7 +209,7 @@ func TestMatchAsset_D546_NewerThanEveryListedRelease(t *testing.T) {
 	wantMatch(t, "settled", w, m, "notaffected", "", "", "over a year")
 	// VulnCheck lists flaws without waiting for a fix: its date proves nothing about the release
 	vc := cve36884
-	vc.Source, vc.DateAdded = SourceVulnCheck, winDay("2026-03-01")
+	vc.CVE, vc.Source, vc.DateAdded = "CVE-2025-36884", SourceVulnCheck, winDay("2026-03-01")
 	w, m = oneMatch(t, pc, vc, true, cve62215)
 	wantMatch(t, "VulnCheck, recent", w, m, "existing", BasisProduct, SeverityMedium)
 	// one row the table does not know: as before, not checked

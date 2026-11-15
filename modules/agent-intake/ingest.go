@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"net/netip"
+	"regexp"
 	"slices"
 	"strings"
 	"time"
@@ -56,24 +57,63 @@ func (s *Service) Log(ctx context.Context, src netip.Addr, in logIn) error {
 	if err != nil {
 		return err
 	}
-	if err := s.enrolHostname(ctx, n, hint, in); err != nil {
+	named, err := s.enrolHostname(ctx, n, hint, in)
+	if err != nil {
 		return err
+	}
+	if named {
+		taken = append(taken, "hostname")
 	}
 	return s.firstReport(ctx, n, hint, mac, taken)
 }
 
-// enrolHostname gives the device the host name osquery sent at enrolment (host_details.system_info.hostname) while its system_info
-// answer has not reached the inventory (W-2, D-548): without it a machine whose system_info is late or never taken is named after its
-// network card's maker ("QEMU virtual NIC") though its agent told its name. It goes in at the agent's rank, below the system_info
-// answer (0.9 < softwareConfidence), so that answer replaces it once it comes; a repeat only moves seen_at (inventory INV-1). Only in
-// the first-report window (review r1 #8): the observation stays after it, and a later rename comes with system_info, not from the
-// enrolment's old name.
-func (s *Service) enrolHostname(ctx context.Context, n nodeRow, hint observe.AssetHint, in logIn) error {
-	if n.hostname == "" || !fits(n.hostname) || hasAnswer(n.reported, "system_info") || len(in.snaps["system_info"]) > 0 ||
-		s.now().Sub(n.enrolledAt) >= firstReportWindow {
-		return nil
+// enrolHostname gives the device the host name the node enrolled with while its system_info answer has not reached the inventory (W-2,
+// D-548): without it a machine whose system_info is late or never taken is named after its network card's maker ("QEMU virtual NIC")
+// though its agent told its name. The name is osquery's host_details.system_info.hostname at enrolment, else the host_identifier when it
+// is shaped like a host name (the install scripts enrol under the machine's host name; never a UUID). It goes in at the agent's rank,
+// below the system_info answer (0.9 < softwareConfidence), so that answer replaces it once it comes. Once per node, at any age (N52 W-2:
+// a machine enrolled before this rule, or whose first hour passed without system_info, is named too): the first report's "hostname"
+// answer records that it was written, so a node whose system_info never comes is not written to at every request (review r1 #8); a later
+// rename comes with system_info (hourly), not from the enrolment's old name. named says whether this request settled it (written, or
+// refused under every name the node has).
+func (s *Service) enrolHostname(ctx context.Context, n nodeRow, hint observe.AssetHint, in logIn) (named bool, err error) {
+	names := enrolNames(n)
+	if len(names) == 0 || hasAnswer(n.reported, "system_info") || hasAnswer(n.reported, "hostname") || len(in.snaps["system_info"]) > 0 {
+		return false, nil
 	}
-	return s.record(ctx, []observe.Observation{{AssetHint: hint, Field: observe.Hostname, Value: n.hostname, Source: observe.Agent, Confidence: enrolHostConfidence}})
+	// One observation at a time, so the answer says whether the inventory took it (review r1 #4 of #801): a name it refused goes on to the
+	// next candidate (the host_identifier, review r2 #3). A transient error is tried again at the next request. When every candidate is
+	// refused the "hostname" mark is set all the same, so a name the inventory will never take is not sent (and logged) at every request.
+	for _, name := range names {
+		err = s.cfg.Sink.Record(ctx, []observe.Observation{{AssetHint: hint, Field: observe.Hostname, Value: name, Source: observe.Agent, Confidence: enrolHostConfidence}})
+		switch {
+		case err == nil:
+			return true, nil
+		case transient(err):
+			return false, fmt.Errorf("agentintake: enrolment host name: %w", err)
+		}
+	}
+	s.cfg.Log.InfoContext(ctx, "agent-intake: the inventory refused the enrolment host name; the device keeps its name until system_info comes", "node", n.id, "error", err.Error())
+	return true, nil
+}
+
+// machineNameRE is the product's name rule (rules/security.md); uuidRE a host_identifier of --host_identifier=uuid, which names no machine.
+var (
+	machineNameRE = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$`)
+	uuidRE        = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
+)
+
+// enrolNames are the host names the node enrolled with, in order: osquery's own (host_details) when it is clean text the inventory takes
+// (the same rule, cleanValue), then its host_identifier when shaped like a host name and not the same.
+func enrolNames(n nodeRow) []string {
+	var out []string
+	if h, ok := cleanValue(n.hostname, maxName); ok && fits(h) {
+		out = append(out, h)
+	}
+	if machineNameRE.MatchString(n.hostID) && !uuidRE.MatchString(n.hostID) && !slices.Contains(out, n.hostID) {
+		out = append(out, n.hostID)
+	}
+	return out
 }
 
 // enrolHostConfidence is the rank of the enrolment's host name among the agent's observations: below system_info's.
@@ -151,7 +191,8 @@ func withKernel(snaps map[string][]row, kernel string) map[string][]row {
 }
 
 // answers is the fixed order of the first report's answers (schedule.go firstReport), so the stored list is canonical.
-var answers = []string{"os_version", "system_info", "interfaces", "packages", "os_revision"}
+// "hostname" is not a query's: it records that the enrolment's host name was given to the device once (enrolHostname).
+var answers = []string{"os_version", "system_info", "interfaces", "packages", "os_revision", "hostname"}
 
 // firstReport records which answers of the first report the inventory took from this node (the config stops asking for them every
 // minute), and approves the device in the name of the token's maker once per node, as soon as the inventory has it (D-503). mac is the
@@ -165,7 +206,7 @@ func (s *Service) firstReport(ctx context.Context, n nodeRow, hint observe.Asset
 	}
 	reported := strings.Join(list, ",")
 	approved := false
-	if !n.approved && len(taken) > 0 {
+	if !n.approved && slices.ContainsFunc(taken, func(a string) bool { return a != "hostname" }) { // the enrolment's name is no report
 		var err error
 		if approved, err = s.approve(ctx, n.id, hint, mac, "", false); err != nil {
 			return err

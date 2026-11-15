@@ -1,2 +1,0 @@
-- [x] 2026-11-09 — API_CONVENTIONS §3.3 thêm mã `ip_not_current` (409, `POST /exposure/targets/{id}/scan`) — vì sao để sau: tệp dùng chung (D-65), kien ghi — ở đâu: docs/API_CONVENTIONS.md §3.3 — Done (#116)
-- [x] 2026-11-09 — DATA_MODEL §4.5: thêm `exp_ignored` (value PK, ignored_by, ignored_at), `exp_setting` (một dòng: auto, interval_min, last_run_at/ok/message, last_deep_at); `exp_attempt` chỉ có `ts` (id tự tăng) — vì sao để sau: tệp dùng chung (D-65), kien ghi — ở đâu: docs/DATA_MODEL.md — Done (#94)

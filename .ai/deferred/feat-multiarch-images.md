@@ -1,1 +1,0 @@
-- [ ] 2026-11-11 — `CONTAINER=docker make images` (buildx, OCI archive under `dist/images/`) is written but was not run on this machine (podman only); run it once on a machine with docker buildx before the release job (WP-08k) relies on it.

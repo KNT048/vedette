@@ -4,6 +4,8 @@
 
 <!-- One or two sentences. The "why" matters more than the "what". -->
 
+- v1: <!-- the journey (J1–J7) or release gate this unblocks, with its `v1` issue (SHIP.md), or "post-v1" -->
+
 ## Trace
 
 - Story ID(s): <!-- e.g. S-FEED-1 (docs/USER_STORIES.md). Docs/infra-only: write "none" and give the decision. -->
@@ -24,7 +26,7 @@
 ## Local checks
 
 <!-- Commit SHA checked, then the build and lint commands run and their tail (D-413). -->
-- [ ] Deferred work recorded in `.ai/deferred/<session>.md` (or: none).
+- [ ] Work left for later filed as a GitHub issue labelled `v1` or `post-v1` (or: none).
 - [ ] Build output cleaned (`make clean`); no `bin/`, `web/dist/`, or reports committed.
 - [ ] Nothing new in logs or UI exposes secrets; external input validated at the boundary.
 

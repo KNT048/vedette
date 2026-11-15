@@ -1,54 +1,40 @@
-# Vedette — hướng dẫn cho AI làm việc trong repo này
+# Vedette
 
-Phần mềm mã nguồn mở, miễn phí: cảnh báo lỗ hổng **đang bị khai thác thật** khớp với tài sản khách có, kiểm kê, scan, gói giảm thiểu, honeypot, log, trợ lý AI BYOK. **Không inline, không chặn traffic.** Chi tiết: `docs/PRODUCT.md`. Chủ dự án: kien (dự án cá nhân, không thuộc công ty nào — D-27). AI code, người giám sát.
+Phần mềm mã nguồn mở, miễn phí: cảnh báo lỗ hổng **đang bị khai thác thật** khớp với tài sản khách có, kèm cách xử lý. Không inline, không chặn traffic. Dự án cá nhân của kien (D-27); AI code, kien giám sát. Sản phẩm: `docs/PRODUCT.md`.
 
-## Trạng thái hiện tại — đo, đừng đọc từ đây
-
-Khởi tạo 2026-11-06. Có SPA `web/` chạy trên mock API (D-22); chưa có backend. Mốc đang làm: `docs/ROADMAP.md` và `.ai/tasks/current.md`. Đừng ghi số liệu/phiên bản vào file này; chúng lỗi thời trong vài ngày.
-
-## Quy tắc cứng (mỗi cái có file riêng trong `.claude/rules/`)
-
-1. **GUI trước, backend sau** (kien, 2026-11-06). Thứ tự: xác minh concept → GUI hoàn chỉnh chạy trên mock API → rồi mới module backend. Không viết backend cho màn hình chưa được duyệt. → `rules/gui-first.md`
-2. **Không tưởng tượng tính năng.** Mọi tính năng, màn hình, nút bấm phải truy về một story có ID trong `docs/USER_STORIES.md`. Story chưa `[đạt]` thì xây tối thiểu hoặc chưa xây. → `rules/no-imagined-features.md`
-3. **Module bật/tắt riêng biệt.** Mỗi module có `MANIFEST.yaml`, `CONTRACT.md`, `IMPACT.md`; tắt = không route, không job, dữ liệu giữ nguyên. → `rules/modules.md`, `docs/MODULES.md`
-4. **Mọi thứ ship như code.** Máy mới dựng từ repo này phải đạt cùng trạng thái: phụ thuộc cài bởi code, ghim phiên bản, idempotent, xác minh bằng hiệu ứng chứ không bằng exit code. → `rules/ships-as-code.md`
-5. **Dọn build output cùng lượt build.** → `rules/build-artifacts.md`
-6. **Việc để sau ghi vào file ngay lượt đó.** `.ai/deferred/<session>.md`. → `rules/deferred-work.md`
-7. **Hợp đồng module.** Đọc `CONTRACT.md` + `IMPACT.md` trước khi sửa module; sửa xong cập nhật cả hai + test. → `rules/contracts.md`
-8. **Bảo mật sản phẩm.** Không gọi shell bằng chuỗi lệnh, không eval; input validate ở biên; secret mã hoá, không log; feed/log/web là dữ liệu không tin cậy. → `rules/security.md`
-9. **An toàn agent.** Mọi Bash có timeout; subagent không chạy full suite, không SSH, không deploy. → `rules/agent-safety.md`
-10. **Ponytail — viết đúng cái cần.** Không abstraction không ai hỏi; xếp dưới mọi rule khác. → `rules/ponytail.md`
-11. **Pháp lý minh bạch.** Dependency/feed mới → `THIRD_PARTY_NOTICES.md`; luồng dữ liệu ra mới → `PRIVACY.md` + UI, cùng commit. → `rules/legal.md`
-12. **AI không tạo git tag.** kien tag tay. Nhánh `feat/…`, `fix/…`, `docs/…`; không push `main`.
-13. **Build + lint trên máy, CI là cổng (D-413).** Repo `KNT048/vedette` public, CI miễn phí (D-63). Worktree riêng; trước khi push: `git merge origin/main`, rồi chỉ build + lint (gofmt/tsc) gói đã đổi; sau khi push không đuổi `main`. CI của PR test gói đổi + gói import chúng; `main` và hằng ngày chạy bộ đầy đủ. Test chập chờn không kiểm kết quả khách thấy → xoá. Supervisor merge PR xanh bằng `gh pr merge --squash` (không merge queue); `main` đỏ → revert/sửa ngay. "Xong" = hành trình khách chạy được trên hộp thật (`docs/QA.md` §5). Linux/macOS; Windows dùng WSL2. Tối đa 2 việc nặng song song. → `rules/local-checks.md`
-14. **Phân vân → tham khảo top-tier rồi tự quyết.** Xem sản phẩm hàng đầu cùng loại làm thế nào, tự cân nhắc, ghi D-xx kèm nguồn; chỉ hỏi kien khi rất đặc biệt (tiền, pháp lý, đổi hướng sản phẩm, không hoàn tác). → `rules/decide-like-top-tier.md`
+## Đang làm: ship v1 — đọc `SHIP.md` trước mọi việc
+- v1 = 7 hành trình khách J1–J7 đạt trên hộp thật; trạng thái ở `docs/v1-journeys.json`. Phạm vi đóng băng (D-624).
+- Việc v1: GitHub issue nhãn `v1`. Ý mới, việc để sau: issue nhãn `post-v1`. Không ghi việc ở nơi khác; không tạo file trong `.ai/deferred/` (D-625).
+- Mỗi PR nêu nó gỡ chặn Jn hay cổng phát hành nào. Việc không thuộc v1 thì không làm trước khi tag v1.
 
 ## Lệnh
+- `make dev` (giao diện + dữ liệu mẫu, http://localhost:5173), `make dev-api` (backend thật).
+- Trước khi push: `git merge origin/main` rồi `make check-fast` **một lần**; CI là cổng, không ngồi chờ, không chạy lặp test.
+- `make generate` sau khi sửa `api/openapi.json`, truy vấn sqlc hoặc migration. `api/openapi.json` sinh từ `web/src/features/*/contract.ts` (`pnpm --dir web openapi`). Không sửa tay `core/api/oas/`, `core/api/routes/routes_gen.go`, `core/store/coredb/`.
+- Một test Go: `go test ./modules/<m>/... -run '^TestX$'`. Một test web: `pnpm --dir web vitest run <file>`.
+- Công cụ Go: `go tool -modfile=tools/go.mod …`. Node ghim qua `devEngines.runtime` trong `web/package.json`.
+- Build xong thì `make clean` (không để `bin/`, `web/dist/`).
 
-`make dev` (giao diện + dữ liệu mẫu, http://localhost:5173) · `make check` (cổng PR, chỉ phần đã đổi) · `make verify` (FE: tsc + lint + vitest + kiểm lệch `api/openapi.json` + build; Go: build + vet + test -race + contract + golangci-lint + govulncheck; rồi dọn) · `make verify-web` / `make verify-go` · `make e2e` (Playwright) · `make e2e-real` (backend thật + GUI release, `web/e2e-real/`; nặng, ngoài CI và check; D-170) · `make fixtures` (KEV/EPSS thật) · `make clean`. Node ghim bằng `devEngines.runtime` trong `web/package.json` (pnpm tự tải). Go ghim trong `go.mod`, công cụ Go trong `tools/go.mod` (`go tool -modfile=tools/go.mod …`). Quy ước FE: `docs/plans/2026-11-06-fe-spec.md`.
+## Git
+Worktree riêng mỗi việc; nhánh `feat/…`, `fix/…`, `docs/…`. Không push `main`, không force-push, không tạo tag (kien hoặc supervisor tag v1 sau khi báo kien). Merge qua merge queue khi CI xanh: `gh pr merge <n> --squash`. Lượt queue đỏ: báo supervisor.
 
-## Tooling
+## Luật không có ngoại lệ
+- **Bảo mật:** tiến trình ngoài chỉ qua `core/exec` (allowlist binary + argv), không shell string, không eval; validate ở biên; secret qua `core/secrets`, không log. → `.claude/rules/security.md`
+- **Pháp lý:** dependency hoặc nguồn dữ liệu mới → `THIRD_PARTY_NOTICES.md` cùng commit, không GPL/AGPL nhúng; luồng dữ liệu rời hộp mới → `PRIVACY.md` + màn hình Quyền riêng tư cùng commit. → `.claude/rules/legal.md`
+- **Ships as code:** máy mới dựng từ repo đạt cùng trạng thái; phụ thuộc cài bởi `install.sh`/package, ghim phiên bản, xác minh bằng hiệu ứng.
+- **Module:** đọc `CONTRACT.md` + `IMPACT.md` trước khi sửa module. → `.claude/rules/modules.md` (tự nạp khi chạm `modules/`)
+- **Agent:** mọi Bash có timeout; subagent không chạy full suite, không SSH, không deploy; tối đa 2 việc nặng cùng lúc trên một máy; chỉ dừng PID của chính mình.
 
-- **Plugin** tắt mặc định toàn cục; bật theo giai đoạn trong `.claude/settings.local.json`: FE → `frontend-design`, `typesafe`; xem `docs/FRONTEND.md` §5.
-- **MCP**: `.mcp.json.example` → `.mcp.json` (token của riêng bạn). `context7` cho docs thư viện (không đoán API), `sequential-thinking` cho thao tác nhiều bước, `github`.
-- **`skills/` trong repo là skill của SẢN PHẨM** (AI assistant dùng lúc chạy), không phải skill cho Claude Code. Không tạo skill Claude Code trong repo (bài học: description là trigger, dễ bắn nhầm).
+## Cách quyết định
+- Phân vân: xem sản phẩm hàng đầu cùng loại làm thế nào rồi tự quyết. Chỉ hỏi kien khi tốn tiền, pháp lý, dữ liệu mới rời hộp, đổi phạm vi v1 hoặc không hoàn tác được.
+- File `docs/decisions/D-nnn.md` (một hàng bảng, kèm nguồn) chỉ cho: phạm vi sản phẩm, pháp lý, dữ liệu rời hộp, mô hình bảo mật, việc không hoàn tác được. Lựa chọn khác ghi trong mô tả PR.
+- Màn hình hoặc hành vi mới phải truy về một story trong `docs/USER_STORIES.md`; thiếu thì thêm tiêu chí vào story sẵn có. Không thêm tuỳ chọn "để sau này cần".
+- Viết đúng cái cần: không interface cho một implementation, không layer cho một caller.
+
+## Kiểm tra
+- Xong = chạy được như khách. Thay đổi giao diện: kiểm theo `docs/QA.md`. Hành trình v1: kiểm trên hộp thật, ghi chứng cứ vào `docs/v1-journeys.json`.
+- Review: một lượt độc lập, đối chiếu brief/spec, bỏ qua style. Lượt hai chỉ khi lượt một có High hoặc PR chạm KEV matching, auth, secret, parser dữ liệu không tin cậy.
+- Test kiểm tính đúng, không đo tốc độ máy: chờ theo trạng thái hoặc `testing/synctest`, không `time.Sleep`. Test chập chờn vào `scripts/ci/skip-tests.txt` kèm issue.
 
 ## Khi kien nói "doc"
-
-Làm theo `docs/END_OF_SESSION.md`. Đọc file, không làm từ trí nhớ.
-
-## Đọc gì
-
-| Cần | Đọc |
-|---|---|
-| Sản phẩm làm gì, cho ai | `docs/PRODUCT.md` |
-| Người dùng cụ thể làm gì | `docs/USER_STORIES.md` |
-| Module nào, bật tắt sao | `docs/MODULES.md` |
-| Kỹ thuật | `docs/ARCHITECTURE.md`, `docs/DATA_PIPELINE.md`, `docs/AI_ASSISTANT.md`, `docs/UPDATES.md` |
-| Làm gì tiếp | `docs/TEAM_PLAN.md` (chia việc Kiên/Emily), `.ai/tasks/kien.md`, `.ai/tasks/emily.md`, `docs/ROADMAP.md` |
-| Pháp lý, dữ liệu rời máy | `docs/LEGAL.md`, `PRIVACY.md`, `THIRD_PARTY_NOTICES.md` |
-| Vì sao quyết định thế | `docs/DECISIONS.md` + `docs/decisions/` (chưa gộp) |
-| Đã làm gì | `docs/project-map/completion-log.md` |
-| Bài học | `docs/project-map/lessons.md` |
-| Kiểm giao diện (bắt buộc) | `docs/QA.md` |
-| Khảo sát gốc | `docs/research/` |
+Chạy skill `/end-of-session`.

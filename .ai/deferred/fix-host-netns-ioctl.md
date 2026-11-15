@@ -1,2 +1,0 @@
-# fix/host-netns-ioctl (#349) — deferred
-- [ ] The honeypot path after the namespace check (configureHP sysctls + nft load, egressDropLoaded/hasEgressDrop on real `nft list ruleset`, failClosed listNS/dropOrphans, decoy links in vedette-hp) has never run on a real host; only fakes covered it. Proven by WP-08h step (d): honeypot + decoy re-run on 192.168.18.141 after the artifacts are rebuilt (install-test session).

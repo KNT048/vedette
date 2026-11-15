@@ -1,5 +1,0 @@
-# Việc để sau — lát `core` của màn hình Box network (nhánh feat/core-network, S-CORE-8, INV-25, D-118)
-
-- [ ] 2026-11-10 — Kiểm lab trên hộp thật (Ubuntu 24.04/26.04, Debian 13): Box network từ GUI qua `core` đến `vedette-host` thật, kể cả reboot trong cửa sổ xác nhận và `PUT /core/network/span` đặt cổng cho sensor — vì sao để sau: cần VM của kien — ở đâu: D-107 (6), .ai/deferred/feat-host-net-containers.md "Kiểm lab"
-- [x] 2026-11-10 — Done (D-139, branch fix/tls-box-address): Chứng chỉ tự ký không có IP mới trong SAN sau khi đổi địa chỉ (trình duyệt vốn đã cảnh báo với chứng chỉ tự ký; bản có chứng chỉ riêng của chủ hộp cần SAN đúng): cân nhắc làm mới chứng chỉ tự ký khi địa chỉ của hộp đổi (`selfSignedRenewer` đã có `hosts`) — vì sao để sau: chạm TLS và PRIVACY/pháp lý của chứng chỉ, cần quyết định riêng — ở đâu: cmd/vedette/tls.go, D-118 (9)
-- [ ] 2026-11-10 — Kiểm lab trên hộp thật: trong cửa sổ xác nhận `net.apply`, host báo những địa chỉ nào của card quản trị (cả cũ lẫn mới hay chỉ mới), và chứng chỉ tự ký theo kịp (D-139 (2)) — vì sao để sau: cần VM của kien — ở đâu: cmd/vedette/tls.go `hostMgmtIPv4s`

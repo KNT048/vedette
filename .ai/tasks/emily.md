@@ -1,5 +1,7 @@
 # Việc của Emily (Mlee) — đọc cùng docs/TEAM_PLAN.md
 
+> **Từ 2026-11-15 (D-624, D-625):** việc đang làm là ship v1 theo `SHIP.md`; việc cần làm nằm trong GitHub issue nhãn `v1`/`post-v1`. File này chỉ còn giá trị lịch sử.
+
 Cập nhật: 2026-11-11, handoff cuối của phiên AI lead của Emily. Repo: **`KNT048/vedette`** (public, D-63). Module Go: `github.com/knt048/vedette`.
 Emily sở hữu (TEAM_PLAN §2) các module: feeds, findings (D-57 (6)), mitigation, notify, exposure, scan, scan-credentialed, logs, agent-intake, ai, reports, mcp-server, auth-oidc.
 

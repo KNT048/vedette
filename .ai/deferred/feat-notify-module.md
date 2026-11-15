@@ -1,5 +1,0 @@
-- [x] Subscribe `response.approval.requested` (call SendApprovalRequest): replaced by a direct call, response sends through the Notifier port wired to notify.SendApprovalRequest — Done (#128, D-124)
-- [x] Unwired in cmd/vedette: `Tokens` (response module's token record) — Done (#128)
-- [x] Unwired in cmd/vedette: `Config.BoxAddrs` (host LAN IP, WP-08, see the packaging line below) — Moved → #62
-- [x] Producers of events notify subscribes to: honeypot publishes `honeypot.hit.created` — Done (#72)
-- [x] Packaging (owner:kien, podman): when the box runs in a podman network that is not the host network, the box's own addresses (webhook guard, Config.BoxAddrs) read from the interfaces are the container's; they must also include the host LAN IP, or a webhook could point at the host. Pass the host addresses through Config.BoxAddrs from the packaging config. — Moved → #62

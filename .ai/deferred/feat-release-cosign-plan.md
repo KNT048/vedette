@@ -1,5 +1,0 @@
-# Deferred: feat/release-cosign-plan (WP-08k part C, D-457)
-
-- [x] 2026-11-13 — first real run of the printed `cosign attest` lines against ghcr.io (kien, step 7): done for v0.1.0-beta.1 (4 sign + 8 attest). cosign v2.6.5 did NOT find podman's ghcr login while a `~/.docker/config.json` existed; kien used `DOCKER_CONFIG` → podman's `auth.json`, now `scripts/release/cosign-auth.sh` (fix/release-followups PR)
-- [ ] 2026-11-13 — a re-run of the `cosign attest` lines with `--replace` on ghcr leaves one CycloneDX attestation per platform digest, not two (not measured: the beta.1 run did not repeat) — why later: needs a real release re-run with the key (kien) — where: `scripts/release/cosignplan.go` (AttestArgv), docs/RELEASE_KEYS.md
-- [x] 2026-11-13 — Mac part B (`release-gates`): `scripts/dev/supply-chain.sh` removes `dist/sbom` AND `dist/vuln` at the start of either mode, so `make vuln-scan RELEASE=1` after `make sbom RELEASE=1` deletes the SBOMs — already fixed on main (each mode removes only its own output, `out=$sbom|$vuln`); checked in fix/release-followups

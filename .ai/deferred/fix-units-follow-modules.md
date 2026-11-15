@@ -1,2 +1,0 @@
-- [x] (Done: docs/runbook-units) 2026-11-11 — RUNBOOK §6, §8.1, §10 (and the M3 workaround) must say sensor/scan follow their module once this merges — owner AI-Trưởng — vì sao để sau: this branch predates the RUNBOOK merge and main is never merged just to catch up — ở đâu: docs/RUNBOOK.md §6, §8.1, §10
-- [ ] 2026-11-11 — L8: run `make host-deb-check` once (new step "an upgrade restarts a running vedette-host") or say in the PR that it ran — owner AI-Trưởng (lead) — vì sao để sau: needs root and podman, agents may not run it — ở đâu: scripts/dev/host-deb-check.sh

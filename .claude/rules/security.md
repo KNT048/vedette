@@ -1,3 +1,11 @@
+---
+paths:
+  - "**/*.go"
+  - "web/src/**"
+  - "deploy/**"
+  - "install.sh"
+---
+
 # Bảo mật của chính sản phẩm
 
 - Tiến trình ngoài: chỉ `core/exec` với allowlist binary + argv; không gọi shell bằng chuỗi lệnh, không eval.

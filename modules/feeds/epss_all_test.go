@@ -156,6 +156,14 @@ func TestEPSSAll_ChunksAndCaps(t *testing.T) {
 	if err := e.db.Reader().QueryRowContext(t.Context(), `SELECT count(*), count(DISTINCT gen) FROM feeds_epss`).Scan(&n, &gens); err != nil || n != 2 || gens != 1 {
 		t.Fatalf("%d rows in %d gens (%v)", n, gens, err)
 	}
+	floor := epssFloor
+	t.Cleanup(func() { epssFloor = floor })
+	epssFloor = 1 // a file of at least epssFloor scores is never short, whatever the yardstick
+	o.body("/epss.csv.gz", `"d3"`, gz(t, "cve,epss,percentile\nCVE-1999-0001,0.5,0.97\n"))
+	e.setNow(e.clock().Add(25 * 3600e9))
+	if err := e.svc.Fetch(t.Context(), epssAllFeedID); err != nil || e.feed(epssAllFeedID).Status != "ok" {
+		t.Fatalf("floor: %v %+v", err, e.feed(epssAllFeedID))
+	}
 	epssAllMaxRows = 2
 	if _, err := ParseEPSSCSV(strings.NewReader(epssFile)); err == nil || !strings.Contains(err.Error(), "more than 2 rows") {
 		t.Fatalf("row cap: %v", err)
@@ -163,5 +171,47 @@ func TestEPSSAll_ChunksAndCaps(t *testing.T) {
 	epssAllMaxRows, epssAllMaxUnpacked = rows, 100
 	if _, err := ParseEPSSCSV(strings.NewReader(gz(t, epssFile+strings.Repeat("CVE-2025-0005,0.1,0.5\n", 20)))); err == nil || !errors.Is(err, ErrTooLarge) {
 		t.Fatalf("unpack cap: %v", err)
+	}
+}
+
+// Review r2 #4: turning the feed off and on again, or a new address, drops the yardstick: the next file is taken as it is.
+func TestEPSSAllPull_BaselineResets(t *testing.T) {
+	t.Parallel()
+	e, o := pullEnv(t)
+	e.only(epssAllFeedID)
+	e.mirror(epssAllFeedID, o.url("/epss.csv.gz"))
+	o.body("/epss.csv.gz", `"d1"`, gz(t, epssFile))
+	if err := e.svc.Fetch(t.Context(), epssAllFeedID); err != nil {
+		t.Fatal(err)
+	}
+	short := gz(t, "cve,epss,percentile\nCVE-1999-0001,0.5,0.97\n")
+	o.body("/epss.csv.gz", `"d2"`, short)
+	e.setNow(e.clock().Add(25 * 3600e9))
+	if err := e.svc.Fetch(t.Context(), epssAllFeedID); err != nil {
+		t.Fatal(err)
+	}
+	if e.feed(epssAllFeedID).Status != "error" {
+		t.Fatal("short file taken")
+	}
+	e.put(epssAllFeedID, `{"enabled":false}`)
+	e.put(epssAllFeedID, `{"enabled":true}`)
+	if err := e.svc.Fetch(t.Context(), epssAllFeedID); err != nil {
+		t.Fatal(err)
+	}
+	if f := e.feed(epssAllFeedID); f.Status != "ok" || rowsOf(t, e.db, "feeds_epss") != 1 {
+		t.Fatalf("after off and on: %+v, %d scores", f, rowsOf(t, e.db, "feeds_epss"))
+	}
+	o.body("/other.csv.gz", `"o1"`, gz(t, epssFile))
+	e.mirror(epssAllFeedID, o.url("/other.csv.gz"))
+	if err := e.svc.Fetch(t.Context(), epssAllFeedID); err != nil {
+		t.Fatal(err)
+	}
+	o.body("/epss.csv.gz", `"d3"`, short)
+	e.mirror(epssAllFeedID, o.url("/epss.csv.gz"))
+	if err := e.svc.Fetch(t.Context(), epssAllFeedID); err != nil {
+		t.Fatal(err)
+	}
+	if f := e.feed(epssAllFeedID); f.Status != "ok" {
+		t.Fatalf("after an address change the next file is taken: %+v", f)
 	}
 }

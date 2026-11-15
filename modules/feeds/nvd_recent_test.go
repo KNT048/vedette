@@ -1,6 +1,7 @@
 package feeds
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"slices"
@@ -50,7 +51,9 @@ func TestParseNVDRecent(t *testing.T) {
 type recentNVD struct {
 	mu     sync.Mutex
 	perWin func(from time.Time, byPub bool) int
-	codes  map[string]int // "<from>/<start>" answered with this status
+	codes  map[string]int  // "<from>/<start>" answered with this status
+	broken map[string]bool // "<from>/<start>/<resultsPerPage>" answered with a page that is not JSON
+	sizes  []int           // resultsPerPage of each request
 	hook   func()
 	asked  []string // "<pub|mod> <from> <start>"
 	extra  []string // records added to every update answer (raw JSON)
@@ -66,6 +69,7 @@ func (n *recentNVD) serve(o *origin) {
 		}
 		from, _ := time.Parse("2006-01-02T15:04:05.000Z", fromS)
 		start, _ := strconv.Atoi(q.Get("startIndex"))
+		size, _ := strconv.Atoi(q.Get("resultsPerPage"))
 		key := fmt.Sprintf("%s/%d", fromS, start)
 		n.mu.Lock()
 		kind := "mod"
@@ -74,6 +78,8 @@ func (n *recentNVD) serve(o *origin) {
 		}
 		n.asked = append(n.asked, fmt.Sprintf("%s %s %d", kind, from.Format("2006-01-02"), start))
 		code := n.codes[key]
+		broken := n.broken[fmt.Sprintf("%s/%d", key, size)]
+		n.sizes = append(n.sizes, size)
 		hook := n.hook
 		total := n.perWin(from, byPub)
 		extra := n.extra
@@ -85,8 +91,12 @@ func (n *recentNVD) serve(o *origin) {
 			w.WriteHeader(code)
 			return
 		}
+		if broken {
+			_, _ = fmt.Fprint(w, `{"totalResults":1,"vulnerabilities":[{"cve":`)
+			return
+		}
 		var recs []string
-		for i := start; i < min(start+RecentPageSize, total); i++ {
+		for i := start; i < min(start+size, total); i++ {
 			pub := from.Add(time.Hour).Format("2006-01-02T15:04:05.000")
 			recs = append(recs, fmt.Sprintf(`{"cve":{"id":"CVE-%s-%s%04d","published":%q,"lastModified":%q,"vulnStatus":"Analyzed",
 "configurations":[{"nodes":[{"cpeMatch":[{"vulnerable":true,"criteria":"cpe:2.3:a:acme:box:*:*:*:*:*:*:*:*","versionEndExcluding":"2.0"}]}]}]}}`, from.Format("2006"), from.Format("0102"), i, pub, pub))
@@ -116,7 +126,7 @@ func recentEnv(t *testing.T) (*env, *recentNVD) {
 	e, o := pullEnv(t)
 	e.only(recentFeedID)
 	e.mirror(recentFeedID, o.url("/nvd"))
-	n := &recentNVD{codes: map[string]int{}}
+	n := &recentNVD{codes: map[string]int{}, broken: map[string]bool{}}
 	n.serve(o)
 	return e, n
 }
@@ -239,7 +249,7 @@ func recentCVEs(t *testing.T, e *env) []string {
 func (n *recentNVD) reset() {
 	n.mu.Lock()
 	defer n.mu.Unlock()
-	n.asked, n.codes, n.hook = nil, map[string]int{}, nil
+	n.asked, n.codes, n.hook, n.sizes = nil, map[string]int{}, nil, nil
 }
 
 // Review r1 #1, #4: an update NVD refuses on its first page is a failure the feed line shows as it is (not a progress
@@ -326,7 +336,14 @@ func TestRecentStart(t *testing.T) {
 	if c := recentStart(done, u, 10, now); c.Mode != modeUpdate || !c.From.Equal(now.AddDate(0, 0, -3)) {
 		t.Fatalf("after done %+v", c)
 	}
+	staleFill := &recentCursor{URL: u, Mode: modeFill, From: now.AddDate(0, 0, -300), To: now.AddDate(0, 0, -200), Until: now.AddDate(0, 0, -61), NextIndex: 5}
+	freshFill := *staleFill
+	freshFill.Until = now.AddDate(0, 0, -59)
+	if c := recentStart(&freshFill, u, 10, now); c.NextIndex != 5 {
+		t.Fatalf("an unfinished fill younger than 60 days goes on: %+v", c)
+	}
 	for name, c := range map[string]recentCursor{
+		"stale fill":  recentStart(staleFill, u, 10, now),
 		"no data":     recentStart(done, u, 0, now),
 		"new address": recentStart(done, "https://mirror.example/x", 10, now),
 		"long gap":    recentStart(&recentCursor{URL: u, Mode: modeDone, Until: now.AddDate(0, 0, -120)}, u, 10, now),
@@ -378,5 +395,154 @@ func TestRecentPull_TurnedOffMidFill(t *testing.T) {
 	}
 	if f := e.feed(recentFeedID); f.Enabled || f.Status == "ok" {
 		t.Fatalf("feed %+v", f)
+	}
+}
+
+// Review r2 #1: every NVD request of the two NVD feeds books a slot nvdPause after the previous one, whoever asks; a
+// cancelled caller returns. Not parallel: it sets nvdPause (0 in the other tests).
+func TestNVDSlot_SpacesRequestsOfBothFeeds(t *testing.T) {
+	pause := nvdPause
+	t.Cleanup(func() { nvdPause = pause })
+	nvdPause = 6 * time.Second
+	e := newEnv(t)
+	var wg sync.WaitGroup
+	for range 2 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if err := e.svc.nvdSlot(t.Context()); err != nil {
+				t.Error(err)
+			}
+		}()
+	}
+	wg.Wait()
+	if got := e.waited(); !slices.Equal(got, []time.Duration{6 * time.Second}) {
+		t.Fatalf("waits %v: the second caller must wait nvdPause", got)
+	}
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	if err := e.svc.nvdSlot(ctx); err == nil {
+		t.Fatal("a cancelled caller got a slot")
+	}
+}
+
+// Review r2 #1: while nvd-kev waits out NVD (a Retry-After still in the future), nvd-recent asks nothing.
+func TestRecentPull_WaitsWhileNVDKevWaitsOutNVD(t *testing.T) {
+	t.Parallel()
+	e, n := recentEnv(t)
+	n.perWin = func(time.Time, bool) int { return 1 }
+	e.svc.nvdMu.Lock()
+	e.svc.nvd = &nvdRun{url: "x", retryAt: e.clock().Add(10 * time.Minute)}
+	e.svc.nvdMu.Unlock()
+	if err := e.svc.Fetch(t.Context(), recentFeedID); err != nil {
+		t.Fatal(err)
+	}
+	if len(n.requests()) != 0 || e.feed(recentFeedID).Status != "never" {
+		t.Fatalf("requests %v, feed %+v", n.requests(), e.feed(recentFeedID))
+	}
+}
+
+// Review r1 #6, r2 #1: a page of 1,000 that cannot be read is asked again with 250 records, and the next page starts
+// after the records that came back.
+func TestRecentPull_RetriesASmallerPage(t *testing.T) {
+	t.Parallel()
+	e, n := recentEnv(t)
+	first := e.clock().AddDate(0, 0, -recentDays)
+	n.perWin = func(from time.Time, _ bool) int {
+		if from.Equal(first) {
+			return 300
+		}
+		return 0
+	}
+	n.broken[first.Format("2006-01-02T15:04:05.000Z")+"/0/1000"] = true
+	if err := e.svc.Fetch(t.Context(), recentFeedID); err != nil {
+		t.Fatal(err)
+	}
+	if got := n.requests()[:3]; !slices.Equal(got, []string{"pub 2025-11-05 0", "pub 2025-11-05 0", "pub 2025-11-05 250"}) {
+		t.Fatalf("requests %v", got)
+	}
+	n.mu.Lock()
+	sizes := slices.Clone(n.sizes[:3])
+	n.mu.Unlock()
+	if !slices.Equal(sizes, []int{1000, 250, 1000}) {
+		t.Fatalf("page sizes %v", sizes)
+	}
+	if f := e.feed(recentFeedID); f.Status != "ok" || *f.Records != 300 {
+		t.Fatalf("feed %+v", f)
+	}
+}
+
+// Review r1 #6, r2 #1: a fill window NVD says has more than recentMaxTotal records is refused (a broken answer).
+func TestRecentPull_RefusesAnOverlargeWindow(t *testing.T) {
+	t.Parallel()
+	e, n := recentEnv(t)
+	n.perWin = func(time.Time, bool) int { return recentMaxTotal + 1 }
+	if err := e.svc.Fetch(t.Context(), recentFeedID); err != nil {
+		t.Fatal(err)
+	}
+	f := e.feed(recentFeedID)
+	if f.Status != "error" || f.Error == nil || !strings.Contains(*f.Error, "more than Vedette expects") || len(n.requests()) != 1 {
+		t.Fatalf("feed %+v %v, requests %v", f, f.Error, n.requests())
+	}
+}
+
+// Review r2 #2: an update NVD says changed more than recentMaxTotal records turns into a fill in the same pull.
+func TestRecentPull_UpdateOverCapFills(t *testing.T) {
+	t.Parallel()
+	e, n := recentEnv(t)
+	n.perWin = func(_ time.Time, byPub bool) int {
+		if byPub {
+			return 1
+		}
+		return recentMaxTotal + 1
+	}
+	if err := e.svc.Fetch(t.Context(), recentFeedID); err != nil {
+		t.Fatal(err)
+	}
+	first := e.clock()
+	n.reset()
+	e.setNow(first.Add(24 * time.Hour))
+	if err := e.svc.Fetch(t.Context(), recentFeedID); err != nil {
+		t.Fatal(err)
+	}
+	got := n.requests()
+	if len(got) != 5 || got[0] != "mod "+first.Add(-24*time.Hour).Format("2006-01-02")+" 0" || !strings.HasPrefix(got[1], "pub 2025-11-06") {
+		t.Fatalf("requests %v", got)
+	}
+	if f := e.feed(recentFeedID); f.Status != "ok" {
+		t.Fatalf("feed %+v", f)
+	}
+}
+
+// Review r1 #4, r2 #1: a feed whose last pull failed and that is now part-way through shows both the error and how far
+// it got, and keeps its error status.
+func TestRecentLive_ErrorAndProgress(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	e.svc.setRecentText("Loading the CVEs of the last 12 months from NVD: 1,000 stored so far.")
+	msg := "NVD was busy (HTTP 503), after every try."
+	r := e.svc.live(sourceRow{ID: recentFeedID, Enabled: true, Status: "error", Error: &msg})
+	if r.Status != "error" || r.Error == nil || *r.Error != msg+" Loading the CVEs of the last 12 months from NVD: 1,000 stored so far." {
+		t.Fatalf("%+v %v", r, *r.Error)
+	}
+	r = e.svc.live(sourceRow{ID: recentFeedID, Enabled: true, Status: "never"})
+	if r.Status != "never" || r.Error == nil || !strings.HasPrefix(*r.Error, "Loading") {
+		t.Fatalf("%+v", r)
+	}
+}
+
+// Review r2 #1: nvd-recent's pages go through the shared NVD gate (each request waits for its slot). Not parallel: it
+// sets nvdPause. The test clock stands still, so the booked slots add up.
+func TestRecentPull_PagesGoThroughTheNVDGate(t *testing.T) {
+	pause := nvdPause
+	t.Cleanup(func() { nvdPause = pause })
+	nvdPause = 6 * time.Second
+	e, n := recentEnv(t)
+	n.perWin = func(time.Time, bool) int { return 1 }
+	if err := e.svc.Fetch(t.Context(), recentFeedID); err != nil {
+		t.Fatal(err)
+	}
+	if got := e.waited(); !slices.Equal(got, []time.Duration{6 * time.Second, 12 * time.Second, 18 * time.Second}) || len(n.requests()) != 4 {
+		t.Fatalf("waits %v for %v", got, n.requests())
 	}
 }

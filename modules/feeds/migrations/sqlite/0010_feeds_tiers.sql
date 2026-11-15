@@ -14,6 +14,13 @@ CREATE TABLE feeds_epss (
     percentile REAL    NOT NULL CHECK (percentile BETWEEN 0 AND 1),
     gen        INTEGER NOT NULL
 ) WITHOUT ROWID;
+-- feeds_epss_baseline: how many scores the last good pull of epss-all stored from which address (one row at most), the
+-- yardstick a new file is held to (review r2 #4); turning the feed back on or changing its address drops it.
+CREATE TABLE feeds_epss_baseline (
+    id    INTEGER NOT NULL PRIMARY KEY CHECK (id = 1),
+    url   TEXT    NOT NULL CHECK (length(url) <= 2048),
+    count INTEGER NOT NULL CHECK (count >= 0)
+);
 CREATE TABLE feeds_recent_cve (
     cve           TEXT NOT NULL PRIMARY KEY CHECK (cve GLOB 'CVE-[0-9][0-9][0-9][0-9]-[0-9][0-9][0-9][0-9]*' AND length(cve) <= 32),
     published     TEXT NOT NULL CHECK (published GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),

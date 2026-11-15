@@ -115,6 +115,11 @@ func (h *FeedHandlers) FeedsPutFeedsSourcesID(ctx context.Context, req *oas.Feed
 		if err := updateSettings(ctx, tx, cur.ID, enabled, hours, url, url != cur.URL); err != nil {
 			return err
 		}
+		if cur.ID == epssAllFeedID && (url != cur.URL || enabled && !cur.Enabled) { // review r2 #4: a new start takes the next file as it is
+			if _, err := tx.ExecContext(ctx, `DELETE FROM feeds_epss_baseline`); err != nil {
+				return fmt.Errorf("feeds: reset epss baseline: %w", err)
+			}
+		}
 		if !enabled && isBYOK(cur.ID) {
 			if err := purgeLoaded(ctx, tx, cur.ID); err != nil { // the data of a BYOK feed is the customer's licence: off means gone
 				return err

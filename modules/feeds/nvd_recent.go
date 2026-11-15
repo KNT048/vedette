@@ -40,8 +40,10 @@ const (
 	// recentResumeStale: an update window that ended longer ago than this is asked again up to now (as nvd-kev's
 	// nvdIncrementalStale), and a pull finished that late catches up at once.
 	recentResumeStale = 12 * time.Hour
-	// recentMaxSpan: the longest change window asked for (NVD allows 120 days); a longer gap fills again.
-	recentMaxSpan = 110 * 24 * time.Hour
+	// recentMaxSpan: the longest change window asked for; a longer gap fills again. NVD allows 120 days, but at ~1,700
+	// changes a day an update over ~60 days asks for more records than a refill of 12 months (~105,000), and an
+	// unfinished fill older than this starts over rather than finishing windows that have aged (review r2 #2, #3).
+	recentMaxSpan = 60 * 24 * time.Hour
 )
 
 // RecentCVE is one NVD record as tier 3 keeps it.
@@ -152,7 +154,7 @@ func ParseNVDRecent(data []byte) (RecentPage, error) {
 		return RecentPage{}, fail(ErrTooLarge, "The NVD answer is larger than %d MB; Vedette would skip it.", recentMaxBytes/1_000_000)
 	}
 	var a recentAnswer
-	if err := json.NewDecoder(bytes.NewReader(data)).Decode(&a); err != nil || a.TotalResults == nil {
+	if err := json.NewDecoder(bytes.NewReader(data)).Decode(&a); err != nil || a.TotalResults == nil || *a.TotalResults < 0 {
 		return RecentPage{}, fail(ErrBadSample, "The NVD answer is not the CVE API 2.0 format.")
 	}
 	out := RecentPage{Total: *a.TotalResults, Returned: len(a.Vulnerabilities), Records: make([]RecentCVE, 0, len(a.Vulnerabilities))}
@@ -273,6 +275,9 @@ func recentStart(cur *recentCursor, url string, have int, now time.Time) recentC
 	}
 	switch cur.Mode {
 	case modeFill:
+		if now.Sub(cur.Until) > recentMaxSpan {
+			return fill()
+		}
 		return *cur
 	case modeUpdate:
 		c := *cur
@@ -445,8 +450,16 @@ func (s *Service) buildRecent(ctx context.Context, src sourceRow, p pullPlan) (p
 				break
 			}
 		}
+		if d.Total > recentMaxTotal && !cur.fill() { // NVD changed more than a refill would ask: fill instead (review r2 #2)
+			s.Log.InfoContext(ctx, "NVD changed too many records for an update; filling the 12 months again", "changed", d.Total)
+			cur = recentStart(nil, src.URL, 0, now)
+			continue
+		}
 		if d.Total > recentMaxTotal {
 			return stop(fail(ErrBadSample, "NVD answered %s records for one window, more than Vedette expects (%s); it kept the CVEs it had.", grouped(d.Total), grouped(recentMaxTotal)))
+		}
+		if d.Returned > RecentPageSize { // review r2 #10: more records than asked for is not NVD's answer
+			return stop(fail(ErrBadSample, "NVD answered %d records for a page of %d; Vedette kept the CVEs it had.", d.Returned, RecentPageSize))
 		}
 		if d.Returned == 0 && cur.NextIndex < d.Total {
 			return stop(fail(ErrBadSample, "NVD answered an empty page at record %d of %d; Vedette kept the CVEs it had.", cur.NextIndex, d.Total))
@@ -459,7 +472,8 @@ func (s *Service) buildRecent(ctx context.Context, src sourceRow, p pullPlan) (p
 			switch {
 			case next.fill() && next.To.Before(next.Until):
 				next.From, next.To, next.NextIndex, next.Total = next.To, minTime(next.To.Add(recentWindow), next.Until), 0, 0
-			case now.Sub(next.Until) > recentResumeStale: // a fill or update resumed late: catch up with NVD's changes since
+			case now.Sub(next.Until) > recentResumeStale && now.Sub(next.Until.Add(-24*time.Hour)) <= recentMaxSpan:
+				// a fill or update resumed late: catch up with NVD's changes since (a longer gap: done, and the next pull fills)
 				next = recentCursor{URL: src.URL, Mode: modeUpdate, From: next.Until.Add(-24 * time.Hour), To: now, Until: now}
 			default:
 				done = true

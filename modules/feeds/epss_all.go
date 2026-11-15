@@ -37,7 +37,23 @@ var (
 	epssAllMaxRows           = 1_000_000
 	// epssChunkRows rows per transaction, so the writer is never held for long (as applyIOCs does).
 	epssChunkRows = 20_000
+	// epssFloor: a file with at least this many scores is never refused as short (the real file has about 406,000).
+	epssFloor = 200_000
 )
+
+// epssBaseline is the count of the last good pull of epss-all from url; 0 when there is none (first pull, another
+// address, or the feed was turned back on).
+func (s *Store) epssBaseline(ctx context.Context, url string) (int, error) {
+	var n int
+	err := s.db.Reader().QueryRowContext(ctx, `SELECT count FROM feeds_epss_baseline WHERE id = 1 AND url = ?`, url).Scan(&n)
+	if errors.Is(err, sql.ErrNoRows) {
+		return 0, nil
+	}
+	if err != nil {
+		return 0, fmt.Errorf("feeds: epss baseline: %w", err)
+	}
+	return n, nil
+}
 
 // EPSSAllScore is one row of the daily file.
 type EPSSAllScore struct {
@@ -203,13 +219,15 @@ func (s *Service) buildEPSSAll(ctx context.Context, src sourceRow, p pullPlan) (
 	if err := accepted(res.Stats); err != nil {
 		return p, err
 	}
-	// A short file that parses (a proxy's page of a few rows, a cut mirror) must not replace every score (review r1 #7).
-	var have int
-	if err := s.DB.Reader().QueryRowContext(ctx, `SELECT count(*) FROM feeds_epss`).Scan(&have); err != nil {
-		return p, fmt.Errorf("feeds: count epss: %w", err)
+	// A short file that parses (a proxy's page of a few rows, a cut mirror) must not replace every score (review r1 #7). The
+	// yardstick is what the last good pull from this same address stored (review r2 #4), and a file is refused only below
+	// half of it and below epssFloor, so one oversized file stored once never blocks the real one for good.
+	base, err := s.st.epssBaseline(ctx, src.URL)
+	if err != nil {
+		return p, err
 	}
-	if 2*len(res.Scores) < have {
-		return p, fail(ErrBadSample, "The EPSS file has %s scores, fewer than half of the %s on the box; Vedette kept the scores it had.", grouped(len(res.Scores)), grouped(have))
+	if n := len(res.Scores); base > 0 && 2*n < base && n < epssFloor {
+		return p, fail(ErrBadSample, "The EPSS file has %s scores, fewer than half of the %s of the last good file; Vedette kept the scores it had. To take this file anyway, turn the feed off and on again.", grouped(n), grouped(base))
 	}
 	p.out = outcome{OK: true, Bytes: read, ETag: resp.ETag, LastModif: resp.LastModified}
 	p.out.fill(res.Stats, len(res.Scores))
@@ -278,6 +296,9 @@ ON CONFLICT(cve) DO UPDATE SET epss = excluded.epss, percentile = excluded.perce
 		}
 		if _, err := tx.ExecContext(ctx, `DELETE FROM feeds_epss WHERE gen <> ?`, gen); err != nil {
 			return fmt.Errorf("feeds: drop old epss: %w", err)
+		}
+		if _, err := tx.ExecContext(ctx, `INSERT INTO feeds_epss_baseline (id, url, count) VALUES (1, ?, ?) ON CONFLICT(id) DO UPDATE SET url = excluded.url, count = excluded.count`, src.URL, len(scores)); err != nil {
+			return fmt.Errorf("feeds: epss baseline: %w", err)
 		}
 		return finish(tx)
 	})

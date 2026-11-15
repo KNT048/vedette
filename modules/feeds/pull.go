@@ -119,6 +119,9 @@ type pullPlan struct {
 
 	distro    []DistroFix // ubuntu-osv, ubuntu-vex, debian-tracker (D-516): the feed's rows, replaced whole
 	hasDistro bool
+
+	epssAll    []EPSSAllScore // epss-all (D-614): every CVE's score, written in chunks (applyEPSSAll)
+	hasEPSSAll bool
 }
 
 func (s *Service) get(ctx context.Context, req Request) (*Response, error) {
@@ -256,6 +259,10 @@ func (s *Service) build(ctx context.Context, src sourceRow) (pullPlan, error) {
 		return s.buildVulnCheck(ctx, src, p)
 	case DecoderUbuntuOSV, DecoderUbuntuVEX, DecoderDebianTracker:
 		return s.buildDistro(ctx, src, p, dec)
+	case DecoderEPSSAll:
+		return s.buildEPSSAll(ctx, src, p)
+	case DecoderNVDRecent:
+		return s.buildRecent(ctx, src, p)
 	}
 	auth, err := s.authFor(ctx, src)
 	if err != nil {
@@ -530,6 +537,11 @@ func (s *Service) pullOne(ctx context.Context, id, actor string) (sourceRow, int
 		if p.hasIOCs { // a long list: chunks, not one transaction that holds the writer (applyIOCs)
 			var err error
 			added, removed, stale, err = applyIOCs(ctx, s.DB, p.out.Finished, src, p.iocs, s.afterChunk, func(tx *sql.Tx, _, _ int) error { return finish(tx, p.out) })
+			return err
+		}
+		if p.hasEPSSAll { // 400,000 rows: chunks too (applyEPSSAll)
+			var err error
+			stale, err = applyEPSSAll(ctx, s.DB, src, p.epssAll, func(tx *sql.Tx) error { return finish(tx, p.out) })
 			return err
 		}
 		return s.DB.Write(ctx, func(tx *sql.Tx) error {

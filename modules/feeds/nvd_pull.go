@@ -95,6 +95,18 @@ func (s *Service) live(r sourceRow) sourceRow {
 		}
 		return r
 	}
+	if r.ID == recentFeedID { // D-614: how far the paged pull of the last 12 months got
+		s.nvdMu.Lock()
+		text := s.recent
+		s.nvdMu.Unlock()
+		if text != "" && r.Enabled {
+			r.Error = &text
+			if r.Records == nil {
+				r.Status = "never"
+			}
+		}
+		return r
+	}
 	if r.ID != nvdFeedID {
 		return r
 	}
@@ -201,10 +213,11 @@ func (s *Service) sleep(ctx context.Context, d time.Duration) error {
 
 // nvdPage fetches one page, trying again after nvdRetryWaits (or NVD's Retry-After when longer) while NVD is busy or
 // slow. A wait that would not end before the pull's deadline is not started: the pull pauses and goes on later.
-func (s *Service) nvdPage(ctx context.Context, run *nvdRun, u string) (*Response, error) {
+// maxBytes caps the answer (0: MaxBodyBytes); nvd-recent's pages of 1,000 records need more (D-614).
+func (s *Service) nvdPage(ctx context.Context, run *nvdRun, u string, maxBytes int64) (*Response, error) {
 	for try := 0; ; try++ {
 		rctx, cancel := context.WithTimeout(ctx, nvdPageTimeout)
-		resp, err := s.Fetcher.Fetch(rctx, Request{URL: u, HeaderTimeout: nvdHeaderTimeout})
+		resp, err := s.Fetcher.Fetch(rctx, Request{URL: u, HeaderTimeout: nvdHeaderTimeout, MaxBytes: maxBytes})
 		cancel()
 		if err == nil {
 			return resp, nil
@@ -335,7 +348,7 @@ func (s *Service) nvdPages(ctx context.Context, run *nvdRun) error {
 		if err != nil {
 			return err
 		}
-		resp, err := s.nvdPage(ctx, run, u)
+		resp, err := s.nvdPage(ctx, run, u, 0)
 		if err != nil {
 			return err
 		}

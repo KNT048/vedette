@@ -9,6 +9,8 @@ import (
 	"slices"
 	"strings"
 	"time"
+
+	"github.com/knt048/vedette/core/store"
 )
 
 // D-615: the day NVD published each KEV CVE (feeds_published), and D-613/D-616: what the tier feeds epss-all and nvd-recent
@@ -242,4 +244,110 @@ func (s *Store) recentProducts(ctx context.Context, cve string) ([]string, bool,
 		out = out[:10]
 	}
 	return out, listed, nil
+}
+
+// TierRecord is one CVE of the tier data as findings' plan reads it (D-617): NVD's record of the last 12 months with the affected
+// entries the caller kept, and its EPSS score.
+type TierRecord struct {
+	CVE              string
+	Tier             string // "likely" (EPSS ≥ EPSSLikely) or "recent"
+	Published        time.Time
+	Severity         string   // NVD's CVSS severity ("HIGH"), "" when none
+	Score            *float64 // its base score
+	EPSS, Percentile *float64 // nil when epss-all is not ready or has no score for the CVE
+	Affected         []AffectedRow
+}
+
+// tierChunk is how many CPEs one read of TierRecords asks for (SQLite allows 32,766 parameters).
+const tierChunk = 500
+
+// TierRecords reads the CVEs of nvd-recent published since now minus 365 days whose NVD affected entries name a CPE keep accepts,
+// each with those entries only (D-617): the distinct CPEs are read from the index first (tens of thousands of short strings), then
+// only the rows of the kept ones, so a pass holds the CVEs of the products the devices run, never the whole year. Nothing while
+// nvd-recent is not ready (its first fill unfinished, or off); EPSS only while epss-all is ready.
+func (s *Store) TierRecords(ctx context.Context, now time.Time, keep func(cpe string) bool) ([]TierRecord, error) {
+	st, err := s.TierStatus(ctx, now)
+	if err != nil || st.Recent != TierReady {
+		return nil, err
+	}
+	db := s.db.Reader()
+	rows, err := db.QueryContext(ctx, `SELECT DISTINCT cpe FROM feeds_recent_affected`)
+	if err != nil {
+		return nil, fmt.Errorf("feeds: tier products: %w", err)
+	}
+	var want []any
+	for rows.Next() {
+		var cpe string
+		if err := rows.Scan(&cpe); err != nil {
+			_ = rows.Close()
+			return nil, fmt.Errorf("feeds: tier products: %w", err)
+		}
+		if keep(cpe) {
+			want = append(want, cpe)
+		}
+	}
+	if err := rows.Close(); err != nil {
+		return nil, fmt.Errorf("feeds: tier products: %w", err)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("feeds: tier products: %w", err)
+	}
+	cutoff := store.FormatTS(now.AddDate(0, 0, -recentDays))
+	epssOn := st.EPSS == TierReady
+	at := map[string]int{}
+	var out []TierRecord
+	for len(want) > 0 {
+		n := min(len(want), tierChunk)
+		part := want[:n]
+		want = want[n:]
+		q := `SELECT a.cve, a.cpe, a.start_incl, a.start_excl, a.end_incl, a.end_excl, r.published, r.severity, r.score, e.epss, e.percentile
+FROM feeds_recent_affected a JOIN feeds_recent_cve r ON r.cve = a.cve LEFT JOIN feeds_epss e ON e.cve = a.cve
+WHERE a.cpe IN (?` + strings.Repeat(", ?", n-1) + `) AND r.published >= ? ORDER BY a.cve`
+		rs, err := db.QueryContext(ctx, q, append(part, cutoff)...)
+		if err != nil {
+			return nil, fmt.Errorf("feeds: tier records: %w", err)
+		}
+		for rs.Next() {
+			var (
+				cve, pub string
+				af       AffectedRow
+				sev      sql.NullString
+				score    sql.NullFloat64
+				ep, pc   sql.NullFloat64
+			)
+			if err := rs.Scan(&cve, &af.CPE, &af.StartIncl, &af.StartExcl, &af.EndIncl, &af.EndExcl, &pub, &sev, &score, &ep, &pc); err != nil {
+				_ = rs.Close()
+				return nil, fmt.Errorf("feeds: tier records: %w", err)
+			}
+			i, ok := at[cve]
+			if !ok {
+				p, err := parseTS(pub)
+				if err != nil {
+					continue // the CHECK keeps this from happening; never a guessed day
+				}
+				r := TierRecord{CVE: cve, Tier: "recent", Published: p, Severity: sev.String}
+				if score.Valid {
+					r.Score = &score.Float64
+				}
+				if epssOn && ep.Valid && pc.Valid {
+					e, q := ep.Float64, pc.Float64
+					r.EPSS, r.Percentile = &e, &q
+					if e >= EPSSLikely {
+						r.Tier = "likely"
+					}
+				}
+				i = len(out)
+				at[cve] = i
+				out = append(out, r)
+			}
+			out[i].Affected = append(out[i].Affected, af)
+		}
+		if err := rs.Close(); err != nil {
+			return nil, fmt.Errorf("feeds: tier records: %w", err)
+		}
+		if err := rs.Err(); err != nil {
+			return nil, fmt.Errorf("feeds: tier records: %w", err)
+		}
+	}
+	return out, nil
 }

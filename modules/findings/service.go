@@ -46,8 +46,9 @@ type Have struct {
 // Service owns fnd_finding and fnd_finding_history. Every mutation runs in one transaction with its
 // history rows and its core_audit row (SYS-3); events go out after the commit.
 type Service struct {
-	cfg ServiceConfig
-	now func() time.Time
+	cfg  ServiceConfig
+	now  func() time.Time
+	plan planState // "Updates to plan" (D-617): in memory, see planpass.go
 }
 
 // NewService returns the service. DB, Audit, Inventory, Feeds and Log are required.
@@ -152,6 +153,7 @@ type UpsertResult struct {
 func (s *Service) OnMatchChanged(ctx context.Context, assetID string) (UpsertResult, error) {
 	ctx, cancel := eventContext(ctx)
 	defer cancel()
+	s.markPlan(assetID) // its "Updates to plan" too, at the next plan run (D-617)
 	a, ok, err := s.cfg.Inventory.MatchInput(ctx, assetID)
 	if err != nil {
 		return UpsertResult{}, fmt.Errorf("findings: reading the device to match: %w", err)
@@ -760,6 +762,7 @@ func applyStatus(ctx context.Context, log *audit.Log, tx *sql.Tx, id string, act
 func (s *Service) OnAssetDeleted(ctx context.Context, assetID string) (int, error) {
 	ctx, cancel := eventContext(ctx)
 	defer cancel()
+	s.dropPlan(assetID)
 	return s.deleteAsset(ctx, assetID)
 }
 
@@ -773,6 +776,8 @@ func (s *Service) OnAssetDeleted(ctx context.Context, assetID string) (int, erro
 func (s *Service) OnAssetMerged(ctx context.Context, from, into string) (int, error) {
 	ctx, cancel := eventContext(ctx)
 	defer cancel()
+	s.dropPlan(from)
+	s.markPlan(into)
 	var n int64
 	err := s.write(ctx, func(tx *sql.Tx, _ time.Time, _ func(string, any)) error {
 		type pair struct{ cve, fromID, intoID string }

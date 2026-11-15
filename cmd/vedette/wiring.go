@@ -223,7 +223,9 @@ func (a findingsInventory) MatchInput(ctx context.Context, assetID string) (find
 
 type findingsFeeds struct {
 	st    *feeds.Store
-	cache *vulnCache // nil: read the list every time
+	cache *vulnCache       // nil: read the list every time
+	on    func() bool      // whether the feeds module is on (TierVulns reads nothing while it is off); nil: on
+	clock func() time.Time // nil: time.Now
 }
 
 // vulnCache keeps the last list for matching with the feeds stamp it was read under (review H3: a rematch of every
@@ -267,6 +269,33 @@ func (a findingsFeeds) TierStatus(ctx context.Context) (findings.TierStatus, err
 		return findings.TierStatus{}, err
 	}
 	return findings.TierStatus{EPSS: string(st.EPSS), Recent: string(st.Recent), EPSSDate: st.EPSSDate, RecentSince: st.RecentSince}, nil
+}
+
+// MatchStamp is feeds' stamp of the data findings matches (Store.MatchStamp): the plan job compares again when it changes (D-617).
+func (a findingsFeeds) MatchStamp(ctx context.Context) (string, error) { return a.st.MatchStamp(ctx) }
+
+// TierVulns is feeds' tier data for "Updates to plan" (D-617): nothing while the feeds module is off (modules.md: its data is not read).
+func (a findingsFeeds) TierVulns(ctx context.Context, keep func(cpe string) bool) ([]findings.TierVuln, error) {
+	if a.on != nil && !a.on() {
+		return nil, nil
+	}
+	now := time.Now()
+	if a.clock != nil {
+		now = a.clock()
+	}
+	recs, err := a.st.TierRecords(ctx, now, keep)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]findings.TierVuln, len(recs))
+	for i, r := range recs {
+		out[i] = findings.TierVuln{CVE: r.CVE, Tier: r.Tier, Published: r.Published, Severity: strings.ToLower(r.Severity), Score: r.Score, EPSS: r.EPSS, Percentile: r.Percentile,
+			Affected: make([]findings.Affected, len(r.Affected))}
+		for j, af := range r.Affected {
+			out[i].Affected[j] = findings.Affected{CPE: af.CPE, Range: findings.VersionRange{StartIncl: af.StartIncl, StartExcl: af.StartExcl, EndIncl: af.EndIncl, EndExcl: af.EndExcl}}
+		}
+	}
+	return out, nil
 }
 
 // Vulns returns the CISA list for matching, each CVE with the NVD affected versions feeds pulled (nvd-kev, D-500), or
@@ -449,7 +478,10 @@ func buildServices(ctx context.Context, d *deps) error {
 		return fmt.Errorf("feeds: %w", err)
 	}
 	inv := findingsInventory{d.Inventory}
-	feed := findingsFeeds{st: fs.Store(), cache: &vulnCache{}}
+	feed := findingsFeeds{st: fs.Store(), cache: &vulnCache{}, clock: d.Clock}
+	if d.Reg != nil {
+		feed.on = func() bool { return d.Reg.Enabled("feeds") }
+	}
 	// Backlog: findings the reconcile job creates for old KEV entries are D-78 backlog, silent for notify (findings does not import notify).
 	cfg := findings.ServiceConfig{DB: d.DB, Audit: d.Audit, Inventory: inv, Feeds: feed, Log: d.Log, Clock: d.Clock, Backlog: notify.WithBaseline,
 		HaveSince: findingsHave(fs.Store()), // "I have this" on Home scopes the one device it declared (D-484)

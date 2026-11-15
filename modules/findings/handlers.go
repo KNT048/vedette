@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -315,13 +316,14 @@ type Guidance interface {
 	Guidance(ctx context.Context, r Row) (Guide, error)
 }
 
-// FindingsGetFindingsPlan implements findings_get_findings_plan (S-TIER-1, S-TIER-2; D-613, D-615, D-616): "Updates to
-// plan". This version holds the tier data (feeds epss-all and nvd-recent) but does not compare it with devices yet, so it
-// answers compared=false with no item and the state of each feed, and the page says so; the matcher is slice 3. The tier and
-// asset filters apply to items, of which there are none yet.
-func (h *FindingHandlers) FindingsGetFindingsPlan(ctx context.Context, _ oas.FindingsGetFindingsPlanParams) (*oas.FindingsGetFindingsPlanOK, error) {
+// FindingsGetFindingsPlan implements findings_get_findings_plan (S-TIER-1, S-TIER-2; D-613, D-615, D-616, D-617): "Updates to
+// plan", the last comparison of the plan job (Service.Plan), filtered by tier and device. compared is false until the job's first run
+// since the start; the counts of devices are of every device, whatever the filter. The feeds module off: no item and no feed data is
+// read (modules.md), the page says the module is off.
+func (h *FindingHandlers) FindingsGetFindingsPlan(ctx context.Context, params oas.FindingsGetFindingsPlanParams) (*oas.FindingsGetFindingsPlanOK, error) {
 	st := TierStatus{EPSS: "module_off", Recent: "module_off"}
-	if h.gate == nil || h.gate.Enabled(FeedsModule) { // the feeds module off: its data is not read, the page says the module is off (modules.md)
+	feedsOn := h.gate == nil || h.gate.Enabled(FeedsModule)
+	if feedsOn {
 		var err error
 		if st, err = h.feed.TierStatus(ctx); err != nil {
 			return nil, fmt.Errorf("findings: reading the tier data: %w", err)
@@ -341,8 +343,57 @@ func (h *FindingHandlers) FindingsGetFindingsPlan(ctx context.Context, _ oas.Fin
 		}
 		return "off"
 	}
+	view := h.svc.Plan()
+	tier := string(params.Tier.Or(oas.FindingsGetFindingsPlanTierAll))
+	asset := params.Asset.Or("")
+	cut := h.svc.now().Add(-AgeLimit).UTC().Format(time.DateOnly)
+	items, ids, old := []any{}, []string{}, 0
+	type shown struct {
+		it   PlanItem
+		cves []PlanCVE
+	}
+	var keep []shown
+	for _, it := range view.Items {
+		if !feedsOn || asset != "" && it.AssetID != asset {
+			continue
+		}
+		var cves []PlanCVE
+		for _, c := range it.CVEs {
+			if tier == "all" || c.Tier == tier {
+				cves = append(cves, c)
+			}
+		}
+		if len(cves) == 0 {
+			continue
+		}
+		keep = append(keep, shown{it, cves})
+		if !slices.Contains(ids, it.AssetID) {
+			ids = append(ids, it.AssetID)
+		}
+	}
+	names, err := h.inv.Assets(ctx, ids)
+	if err != nil {
+		return nil, fmt.Errorf("findings: reading the devices of the plan: %w", err)
+	}
+	for _, k := range keep {
+		a, ok := names[k.it.AssetID]
+		if !ok {
+			continue // deleted since the last pass
+		}
+		likely := 0
+		for _, c := range k.cves {
+			if c.Tier == "likely" {
+				likely++
+			}
+			if c.Published < cut {
+				old++
+			}
+		}
+		items = append(items, map[string]any{"group": k.it.Group, "asset": map[string]any{"id": a.ID, "name": a.Name}, "software": k.it.Software,
+			"version": k.it.Version, "fixed": k.it.Fixed, "kind": k.it.Kind, "cves": k.cves, "likely": likely, "recent": len(k.cves) - likely})
+	}
 	return Into[oas.FindingsGetFindingsPlanOK](map[string]any{
-		"items": []any{}, "compared": false, "compared_devices": 0, "unchecked_devices": 0, "old_evidence": 0,
+		"items": items, "compared": view.Ran, "compared_devices": view.Compared, "unchecked_devices": view.Unchecked, "old_evidence": old,
 		"data": map[string]any{"epss": state(st.EPSS), "recent": state(st.Recent), "epss_date": day(st.EPSSDate), "recent_since": day(st.RecentSince)},
 	})
 }

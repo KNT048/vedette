@@ -16,7 +16,10 @@ interface Def { id: string; name: string; kind: FeedKind; format: FeedFormat; ur
 const DEFS: Def[] = [
   { id: 'cisa-kev', name: 'CISA KEV', kind: 'vulnerabilities', format: 'json', url: 'https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json', license: 'CC0', records: (kev as { vulns: unknown[] }).vulns.length },
   { id: 'first-epss', name: 'FIRST EPSS', kind: 'vulnerabilities', format: 'json', url: 'https://api.first.org/data/v1/epss', license: 'Attribution: EPSS by FIRST', records: 262140 },
+  // D-614: the data of CVE tiers 2 and 3 (D-613): every CVE's EPSS score, and NVD's records of the CVEs of the last 12 months
+  { id: 'epss-all', name: 'EPSS, every CVE', kind: 'vulnerabilities', format: 'csv', url: 'https://epss.empiricalsecurity.com/epss_scores-current.csv.gz', license: 'Attribution: EPSS by FIRST', records: 406543 },
   { id: 'nvd-kev', name: 'NVD affected versions', kind: 'vulnerabilities', format: 'json', url: 'https://services.nvd.nist.gov/rest/json/cves/2.0', license: 'Public domain. This product uses the NVD API but is not endorsed or certified by the NVD.', records: 1779 },
+  { id: 'nvd-recent', name: 'NVD, CVEs of the last 12 months', kind: 'vulnerabilities', format: 'json', url: 'https://services.nvd.nist.gov/rest/json/cves/2.0', license: 'Public domain. This product uses the NVD API but is not endorsed or certified by the NVD.', records: 104135 },
   { id: 'cve-org', name: 'CVE.org affected versions', kind: 'vulnerabilities', format: 'json', url: 'https://raw.githubusercontent.com/CVEProject/cvelistV5/main/cves', license: 'CVE Program Terms of Use. CVE records © The MITRE Corporation.', records: 41 },
   { id: 'vulncheck-kev', name: 'VulnCheck KEV', kind: 'vulnerabilities', format: 'json', url: 'https://api.vulncheck.com/v3/index/vulncheck-kev', license: 'VulnCheck Known Exploited Vulnerabilities (VulnCheck KEV), used with your own free VulnCheck Community key. Data stays on this box.', records: 37 },
   // D-516: Ubuntu and Debian say which package version fixes a CVE (backports); each file covers every release
@@ -36,14 +39,16 @@ interface Config { builtin: Record<string, BuiltinState>; custom: Feed[] }
 
 // The built-in feed that needs the customer's own API key: off until one is saved (D-557).
 const BYOK = 'vulncheck-kev'
+/** D-614: seeded off until slice 2 of the CVE tiers reads their data; an admin can turn them on. */
+const OFF = new Set(['epss-all', 'nvd-recent'])
 const ago = (h: number) => new Date(Date.now() - h * 36e5).toISOString()
 /** D-570 (LEAN): the mock inventory has Ubuntu devices and no Debian one, so the Debian tracker, filled once 9 days ago, is not
  * updated and says why. A clean box has never filled it, so it is fetched like any other feed. */
 const IDLE = 'debian-tracker'
 const NO_DEBIAN = 'Not updated: no Debian device now. Vedette updates it on the next check after an agent reports the packages of a Debian device.'
 const seedBuiltin = (clean: boolean): Record<string, BuiltinState> => Object.fromEntries(DEFS.map((d, i) => [d.id, {
-  enabled: d.id !== BYOK, interval_hours: d.kind === 'ioc' || d.id === BYOK ? 6 : d.id === 'cisa-kev' || d.id === 'cve-org' ? 1 : 24, url: d.url,
-  ...(clean || d.id === BYOK
+  enabled: d.id !== BYOK && !OFF.has(d.id), interval_hours: d.kind === 'ioc' || d.id === BYOK ? 6 : d.id === 'cisa-kev' || d.id === 'cve-org' ? 1 : 24, url: d.url,
+  ...(clean || d.id === BYOK || OFF.has(d.id)
     ? { last_fetch: null, records: null, status: 'never' as const, error: null }
     : { last_fetch: ago(d.id === IDLE ? 9 * 24 : 1 + i * 0.7), records: d.records, status: 'ok' as const, error: d.id === IDLE ? NO_DEBIAN : null }),
 }]))

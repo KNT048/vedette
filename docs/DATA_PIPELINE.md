@@ -46,10 +46,12 @@ Giới hạn free đo 2026-11-06: GitHub Actions không giới hạn cho repo pu
 | cisagov/vulnrichment | git | giờ | CC0 | SSVC, CWE, CPE bổ sung |
 | CVE.org cvelistV5 | git pull | giờ | public | bản ghi nhanh nhất, `affected[]` |
 | FIRST EPSS | CSV ngày | ngày | ghi nguồn | epss, Δ7 ngày |
+| **FIRST EPSS, mọi CVE (đang dùng, feed `epss-all`, D-614)** | tệp CSV gzip hằng ngày `epss.empiricalsecurity.com`, một GET có điều kiện (~2,8 MB, 406.543 CVE ngày 2026-11-14) | ngày | ghi nguồn | điểm + phân vị mọi CVE → tầng 2 (EPSS ≥ 0.1, D-613) |
 | nuclei-templates | git log | giờ | MIT | template mới = có check; subset `kev,vkev` vào content pack |
 | GHSA, OSV | git/API | giờ | CC-BY / Apache | PURL cho gói |
 | NVD 2.0 | API key | 2 giờ | free | CPE/CVSS bổ sung (chậm) |
 | **NVD 2.0 `?hasKev` (đang dùng, feed `nvd-kev`, D-500)** | API không key, 100 CVE/request, 6 s/request; lần đầu đủ (~18 request, ~19 MB), sau đó `lastModStartDate` | ngày (và ngay sau CVE KEV mới) | public domain + câu NVD yêu cầu | mục CPE `vulnerable` + khoảng phiên bản của mọi CVE trong KEV → findings so phiên bản |
+| **NVD 2.0 CVE 12 tháng (đang dùng, feed `nvd-recent`, D-614)** | API không key, 1.000 CVE/request, 6 s/request; lần đầu theo cửa sổ `pubStartDate` 120 ngày (~105 request, ~60 MB, ~25 phút, chia nhiều lượt kéo có con trỏ), sau đó `lastModStartDate` (~2 request/ngày) | ngày | public domain + câu NVD yêu cầu | ngày, trạng thái, mức CVSS, mục CPE `vulnerable` của mọi CVE công bố trong 12 tháng → tầng 3 (D-613) |
 | PSIRT: MSRC CSAF, Cisco openVuln, Fortinet RSS, Synology RSS, PAN CSAF, QNAP/Ivanti RSS | poll | giờ | free | "exploited in the wild" sớm hơn KEV |
 | NCSC VN (alert.khonggianmang.vn), chongluadao | HTML, **cần IP VN** | tuần/ngày | — | ngữ cảnh VN |
 | VulnCheck KEV Community | API key của **dự án** | giờ | ⚠ redistribution chưa xác nhận → tạm để hộp tự kéo bằng key khách | sớm hơn CISA, canary, PoC |

@@ -153,7 +153,7 @@ export const PlanItem = z.object({
   likely: z.number().int().min(0),
   recent: z.number().int().min(0),
 })
-export const PlanFeed = z.enum(['off', 'loading', 'ready']).describe('off = an admin has not turned the feed on; loading = on, first fill not finished; ready = loaded')
+export const PlanFeed = z.enum(['module_off', 'off', 'loading', 'ready']).describe('module_off = the feeds module is off (SYS-5: its data is not read); off = an admin has not turned the feed on; loading = on, first fill not finished; ready = loaded')
 export const Plan = z.object({
   items: z.array(PlanItem),
   compared: z.boolean().describe('false = this box holds the data but does not compare tier 2 and 3 CVEs with devices yet (D-616: the matcher of slice 3); the page says so instead of "no update to plan"'),

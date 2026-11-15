@@ -94,10 +94,23 @@ export function PlanItems({ items, showDevice }: { items: PlanItem[]; showDevice
   )
 }
 
-/** Which feeds are missing and why, or that this version does not compare yet; null when the data is there and compared (D-613 states). */
+/** Why the list is empty or partial (D-613 states, review r1 #4 of #803): first that this version does not compare yet (then nothing
+ *  invites anyone to turn feeds on: they would load ~105,000 NVD records for nothing), else the feeds module off, a feed off or still
+ *  loading. null when the data is there and compared. */
 export function PlanDataState({ plan, compact = false }: { plan: Plan; compact?: boolean }) {
   const { t } = useTranslation('findings')
+  if (!plan.compared) {
+    return compact ? <p className="text-sm text-muted">{t('plan.state.notCompared')}</p> : (
+      <Notice tone="accent" title={t('plan.state.notComparedTitle')}><p>{t('plan.state.notCompared')}</p></Notice>
+    )
+  }
   const { epss, recent } = plan.data
+  if (epss === 'module_off' || recent === 'module_off') {
+    const link = <Link to="/settings/modules" className="text-sm text-accent underline underline-offset-4">{t('plan.state.openModules')}</Link>
+    return compact ? <p className="text-sm text-muted">{t('plan.state.moduleOff')} {link}</p> : (
+      <Notice tone="off" title={t('plan.state.moduleOffTitle')} actions={link}><p>{t('plan.state.moduleOff')}</p></Notice>
+    )
+  }
   const name = (f: 'epss' | 'recent') => t(`plan.feed.${f}`)
   const off = (['epss', 'recent'] as const).filter((f) => plan.data[f] === 'off')
   const loading = (['epss', 'recent'] as const).filter((f) => plan.data[f] === 'loading')
@@ -112,22 +125,10 @@ export function PlanDataState({ plan, compact = false }: { plan: Plan; compact?:
   const parts: string[] = []
   if (off.length) parts.push(t('plan.state.someOff', { feeds: off.map(name).join(t('plan.and')) }))
   if (loading.length) parts.push(t('plan.state.loading', { feeds: loading.map(name).join(t('plan.and')) }))
-  const missing = parts.length ? (
-    compact ? <p className="text-sm text-muted">{parts.join(' ')} <Link to="/settings/feeds" className="text-accent underline underline-offset-4">{t('plan.state.openFeeds')}</Link></p> : (
-      <Notice tone="off" title={t('plan.state.partialTitle')} actions={<Link to="/settings/feeds" className="text-sm text-accent underline underline-offset-4">{t('plan.state.openFeeds')}</Link>}>
-        <p>{parts.join(' ')}</p>
-      </Notice>
-    )
-  ) : null
-  if (!plan.compared && (epss === 'ready' || recent === 'ready')) {
-    return (
-      <>
-        {missing}
-        {compact ? <p className="text-sm text-muted">{t('plan.state.notCompared')}</p> : (
-          <Notice tone="accent" title={t('plan.state.notComparedTitle')}><p>{t('plan.state.notCompared')}</p></Notice>
-        )}
-      </>
-    )
-  }
-  return missing
+  if (!parts.length) return null
+  return compact ? <p className="text-sm text-muted">{parts.join(' ')} <Link to="/settings/feeds" className="text-accent underline underline-offset-4">{t('plan.state.openFeeds')}</Link></p> : (
+    <Notice tone="off" title={t('plan.state.partialTitle')} actions={<Link to="/settings/feeds" className="text-sm text-accent underline underline-offset-4">{t('plan.state.openFeeds')}</Link>}>
+      <p>{parts.join(' ')}</p>
+    </Notice>
+  )
 }

@@ -63,6 +63,21 @@ func (s *Store) KevPublished(ctx context.Context) (map[string]time.Time, error) 
 	return out, rows.Err()
 }
 
+// PublishedOf returns the day NVD published each of these CVEs ("2017-03-14", D-615); a CVE NVD has not answered for is absent.
+func (s *Store) PublishedOf(ctx context.Context, cves []string) (map[string]string, error) {
+	out := make(map[string]string, len(cves))
+	for _, c := range cves {
+		d, err := s.publishedOf(ctx, c)
+		if err != nil {
+			return nil, err
+		}
+		if d != nil {
+			out[c] = *d
+		}
+	}
+	return out, nil
+}
+
 // publishedOf is the day NVD published one CVE ("2017-03-14"), nil when it has not answered for it.
 func (s *Store) publishedOf(ctx context.Context, cve string) (*string, error) {
 	var d string

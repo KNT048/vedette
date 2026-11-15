@@ -65,6 +65,7 @@ export function DevicePanel(props: Record<string, unknown>) {
 function DevicePlan({ assetId }: { assetId: string }) {
   const { t } = useTranslation('findings')
   const q = usePlan('all', assetId)
+  if (!q.data?.compared) return null // review r1 #4 of #803: nothing to show on every device page until this version compares
   return (
     <Section id="device-plan" title={t('plan.device.title')} description={t('plan.device.description')} stories={['S-TIER-1', 'S-TIER-2']}>
       <QueryState query={q}>

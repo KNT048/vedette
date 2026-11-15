@@ -13,7 +13,7 @@ export interface PlanSeed {
   asset_id: string; software_id: string; software: string; version: string; fixed: string; kind: 'fixed' | 'distro' | 'windows'
   cves: { cve: string; basis: PlanBasis }[]
 }
-export type FeedReady = 'off' | 'loading' | 'ready'
+export type FeedReady = 'module_off' | 'off' | 'loading' | 'ready'
 /** What the box would say about its tier feeds; tests and the sample switch set it (`compared` false = slice 2's box, D-616). */
 export interface TierState { epss: FeedReady; recent: FeedReady; compared: boolean }
 
@@ -65,3 +65,10 @@ export const tierOf = (f: TierFact): 'likely' | 'recent' => (f.epss ?? 0) >= EPS
 export const withinYear = (f: TierFact) => f.published >= day(YEAR_DAYS)
 export const epssDate = () => day(1)
 export const recentSince = () => day(YEAR_DAYS)
+
+/** D-615: NVD's published day of a few sample KEV CVEs (the KEV fixture has none); null = not answered, counts as recent. One table for
+ *  the findings and feeds mocks and the mock matcher (match.ts), which drops product-only matches of older ones like the box (D-616). */
+const KEV_PUBLISHED: Record<string, string> = { 'CVE-2015-5477': '2015-07-29', 'CVE-2024-27834': '2024-05-14', 'CVE-2025-61624': '2025-10-02' }
+export const kevPublished = (cve: string): string | null => KEV_PUBLISHED[cve] ?? (/^CVE-2026-/.test(cve) ? '2026-06-01' : null)
+/** D-615, D-616: older than 12 months (an unknown day is never old). */
+export const kevAged = (cve: string) => { const d = kevPublished(cve); return d !== null && d < day(YEAR_DAYS) }

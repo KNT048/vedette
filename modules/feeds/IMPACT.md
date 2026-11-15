@@ -140,7 +140,7 @@
 
 ## Modifying: ngày công bố KEV và dữ liệu tầng cho trang (D-615, D-616, INV-25)
 - **findings** (qua `cmd/vedette/wiring.go` `findingsFeeds`): `Store.KevPublished` → `Vuln.Published` (luật tuổi D-615/D-616: KEV công bố hơn 12 tháng không thành finding khi chỉ khớp tên sản phẩm; finding mở loại đó đóng) và `KevInfo.published`; `Store.TierStatus` → `findings.Feeds.TierStatus` cho `GET /findings/plan`. Đổi ý nghĩa ngày (ví dụ dùng `dateAdded`) là đổi finding của mọi hộp; thiếu ngày luôn phải nghĩa là "gần đây".
-- **nvd-kev**: bảng `feeds_published` trống ⇒ lần kéo kế là đầy đủ (`buildNVD`); một câu trả lời NVD không có `published` làm lần kéo kế lại đầy đủ (NVD luôn có trường này). Test fixture NVD phải mang `published` để kiểm lượt kéo cập nhật.
+- **nvd-kev**: bảng `feeds_published` trống (và đã có khoảng) ⇒ lần kéo kế là kéo đầy đủ (`buildNVD`; ~18 trang). Giới hạn (review r1 #8 của #803): trong lúc NVD trả 503 lượt kéo đầy đủ tạm dừng và đi tiếp ở lượt sau (chỉ trong bộ nhớ: khởi động lại thì bắt đầu lại), và trong lúc đó không có lượt cập nhật, nên khoảng của mục KEV mới chờ tới khi lượt đầy đủ xong (như lần nạp đầu tiên của nvd-kev); một câu trả lời NVD không có `published` đọc được để bảng trống và mọi lượt kéo sau lại đầy đủ (NVD luôn có trường này). Test fixture NVD phải mang `published` để kiểm lượt kéo cập nhật. Đo lượt kéo một lần này trên N100 (deferred).
 - **exposure** (`cmd/vedette/exposurematch.go`): CVE KEV cũ chỉ khớp tên sản phẩm thành dòng "ruled out" kèm lý do thay vì dòng CVE.
 - **core export** (`export_policy.go`): `feeds_published` được xuất.
 - **SPA**: `CveDetail.published`, `TierCve` (`web/src/features/feeds/contract.ts`, `CvePage.tsx`, `TierCvePage.tsx`, mock `web/src/mocks/tiers.ts`).

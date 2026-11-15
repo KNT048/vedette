@@ -36649,6 +36649,8 @@ func (s *FindingsGetFindingsPlanOKData) Validate() error {
 
 func (s FindingsGetFindingsPlanOKDataEpss) Validate() error {
 	switch s {
+	case "module_off":
+		return nil
 	case "off":
 		return nil
 	case "loading":
@@ -36662,6 +36664,8 @@ func (s FindingsGetFindingsPlanOKDataEpss) Validate() error {
 
 func (s FindingsGetFindingsPlanOKDataRecent) Validate() error {
 	switch s {
+	case "module_off":
+		return nil
 	case "off":
 		return nil
 	case "loading":

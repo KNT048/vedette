@@ -97,10 +97,13 @@ type Vuln struct {
 	EPSS       float64   // 0 when unknown
 	DateAdded  time.Time // when CISA added the entry to KEV; zero when unknown (Reconcile treats that as backlog)
 	// Published is the day NVD published the CVE (D-615); zero when unknown, which counts as recent (never old).
-	Published  time.Time
-	Affected   []Affected
-	Source     string // "" or "cisa-kev": the CISA list; "vulncheck-kev": VulnCheck KEV (D-557); names the list in evidence texts
-	RangesFrom string // where Affected comes from: "" NVD, RangesCVEOrg or RangesCVEOrgPartial the CNA's CVE.org record (D-556)
+	Published time.Time
+	// HasTemplate: a safe scan template checks the CVE (nuclei). The age rule never drops such a pair (review r1 #1 of #803): the
+	// scan engines plan their checks from the device's findings, so the finding must stay for a scan to confirm or clear it.
+	HasTemplate bool
+	Affected    []Affected
+	Source      string // "" or "cisa-kev": the CISA list; "vulncheck-kev": VulnCheck KEV (D-557); names the list in evidence texts
+	RangesFrom  string // where Affected comes from: "" NVD, RangesCVEOrg or RangesCVEOrgPartial the CNA's CVE.org record (D-556)
 	// Distro is what Ubuntu and Debian say about the CVE in their own packages (D-516): per release and source package,
 	// fixed in a version or not affected. Empty when the distribution feeds are off or have no word on it.
 	Distro []DistroFix
@@ -176,6 +179,7 @@ type Match struct {
 	Severity        Severity
 	Evidence        Evidence
 	why             string // D-547: the platform sentence of a match ruled out by the platform (MatchResult.OtherPlatform)
+	every           bool   // NVD lists every version of the product as affected: the version cannot change it (review r1 #3 of #803)
 }
 
 // MatchResult separates what is new from what the asset already has, so the
@@ -228,11 +232,11 @@ func aged(v Vuln, now time.Time) bool {
 
 // confirmedMatch reports whether a matcher's match on an old KEV CVE stands (D-615 as amended by D-616, supervisor
 // 2026-11-15): it compared a version (whoever gave it: the agent, the distribution, SNMP or LLDP, a person, a service's
-// banner) or a scan engine hit it. Only a product-only match (no version compared) is dropped: that is the noise of
-// XP-era rows on Server 2025, while CVE-2018-13379 on an unpatched FortiGate stays. Labels are unchanged (a banner or a typed
-// version stays suspected).
+// banner), a scan engine hit it, or NVD lists every version of the product as affected (no version could change it). Only
+// a product-only match whose version would decide it is dropped: the noise of XP-era rows on Server 2025, while
+// CVE-2018-13379 on an unpatched FortiGate stays. Labels are unchanged (a banner or a typed version stays suspected).
 func confirmedMatch(m Match) bool {
-	return m.Basis != BasisProduct
+	return m.Basis != BasisProduct || m.every
 }
 
 // agedSummary is the note of a finding the age rule closes.
@@ -387,7 +391,7 @@ func MatchAsset(a Asset, vulns []Vuln, have map[string]bool, now time.Time) Matc
 			}
 			continue
 		}
-		if aged(v, now) && !confirmedMatch(*best) { // D-615, D-616: an old KEV CVE only with a version compared or a scan hit
+		if aged(v, now) && !confirmedMatch(*best) && !v.HasTemplate { // D-615, D-616: an old KEV CVE only with a version compared or a scan hit; a scannable one stays for the scan
 			r := *best
 			r.Evidence.Summary = agedSummary(v)
 			res.Aged = append(res.Aged, r)
@@ -549,6 +553,7 @@ func matchOne(a Asset, s Software, in swInfo, v Vuln, now time.Time) (Match, out
 			m.Evidence.Summary = agentSummary(name, s, in, v, within, w, isWin)
 		}
 	case every && !in.given:
+		m.every = true
 		m.Evidence.Summary = fmt.Sprintf("%s runs %s. %s lists every version of it as affected by %s; no scan has confirmed it yet, so this is only suspected.", name, sw, v.rangesBy(true), v.CVE)
 	case multi:
 		m.Confidence = ConfVendorOnly

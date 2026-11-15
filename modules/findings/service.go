@@ -356,6 +356,9 @@ func haveScope(a Asset, vulns []Vuln, m MatchResult, since map[string]Have, have
 	for _, x := range append(append([]Match{}, out.New...), out.Existing...) {
 		taken[x.CVE] = true
 	}
+	for _, x := range m.Aged { // D-615: the age rule dropped it on another row of the same product; not re-added here (review r1 #5 of #803)
+		taken[x.CVE] = true
+	}
 	name := clean(a.Name)
 	for _, n := range m.NeedVersion {
 		for _, cve := range n.CVEs {
@@ -447,7 +450,9 @@ func (s *Service) closeAged(ctx context.Context, tx *sql.Tx, assetID string, age
 		if err != nil {
 			return closed, err
 		}
-		if r.Basis == BasisScan || slices.ContainsFunc(r.History, func(h HistoryEntry) bool { return h.User != SystemUser && h.Action == "reopened" }) {
+		// product findings only (review r1 #2 of #803): a version or agent finding whose match fell back to product-only (NVD's
+		// ranges gone in one pull, a version that became unreadable) stays for the next match, never flip-flops; a person's reopen stands
+		if r.Basis != BasisProduct || r.Evidence != nil && r.Evidence.Agent || slices.ContainsFunc(r.History, func(h HistoryEntry) bool { return h.User != SystemUser && h.Action == "reopened" }) {
 			continue
 		}
 		was := r.Status
@@ -519,8 +524,8 @@ func (s *Service) noteNoLongerMatching(ctx context.Context, tx *sql.Tx, assetID 
 	for _, x := range m.Unlisted {
 		unlisted[x.CVE] = x.Evidence.Summary
 	}
-	for _, x := range m.Aged { // a finding a person reopened stays open; its history says why the matcher no longer lists it
-		unlisted[x.CVE] = x.Evidence.Summary
+	for _, x := range m.Aged { // a finding the age rule did not close (a person reopened it, a version or agent finding) says why it stays
+		unlisted[x.CVE] = fmt.Sprintf("%s was published more than 12 months ago and Vedette now matches it by the product name only, so it would not list it on a device today. This finding stays open (you reopened it, or it was matched by version before); close it yourself if it does not apply.", x.CVE)
 	}
 	for _, cve := range open {
 		if !listed[cve] || matched[cve] {

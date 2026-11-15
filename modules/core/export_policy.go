@@ -84,7 +84,7 @@ var exportPolicy = map[string]tablePolicy{
 	"feeds_recent_affected":  {skipAll: true, skip: "cve cpe start_incl start_excl end_incl end_excl"},    // D-614: public NVD data of 100,000 CVEs, pulled again
 	"feeds_recent_cursor":    {skipAll: true, skip: "id url mode win_from win_to until next_index total"}, // D-614: where an unfinished pull goes on
 	"feeds_recent_cve":       {skipAll: true, skip: "cve published last_modified status severity score"},  // D-614: public NVD data, pulled again
-	"feeds_published":        {export: "cve published"},                                                   // D-615: public NVD data, the day each KEV CVE was published
+	"feeds_published":        {skipAll: true, skip: "cve published"},                                      // D-615: public NVD data, pulled again (one full nvd-kev pull refills it)
 	"feeds_fetch_log":        {export: "id source_id started_at finished_at status records_accepted records_rejected error bytes etag last_modified", json: "reject_reasons"},
 	"feeds_ioc":              {export: "id type value first_seen last_seen"},
 	"feeds_ioc_source":       {export: "ioc_id source_id last_seen confidence seen"},

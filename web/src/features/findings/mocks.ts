@@ -3,9 +3,9 @@ import { http, HttpResponse } from 'msw'
 import kev from '@/mocks/fixtures/kev.json'
 import { API, audit, body, currentUser, fail, guard } from '@/mocks/http'
 import { collection, nowIso } from '@/mocks/db'
-import { aiAvailable, aiCandidates, assetsStore, findingsStore, recordAiRun, type AiJob } from '@/mocks/stores'
+import { aiAvailable, aiCandidates, assetsStore, findingsStore, isOn, recordAiRun, type AiJob } from '@/mocks/stores'
 import { versionNeeded } from '@/mocks/match'
-import { epssDate, planSeed, recentSince, tierFact, tierOf, tierState, withinYear } from '@/mocks/tiers'
+import { epssDate, kevPublished as published, planSeed, recentSince, tierFact, tierOf, tierState, withinYear } from '@/mocks/tiers'
 import type { Asset, Finding } from '@/lib/types'
 import { untilOk } from './accept'
 import { compromise, packs } from './packs'
@@ -43,13 +43,11 @@ function kevInfo(cve: string): KevInfo | null {
     published: published(v.cve) }
 }
 
-/** D-615: NVD's published date of a KEV CVE. The sample fixture has none, so a few known ones stand in; null = not answered (counts as recent). */
-const PUBLISHED: Record<string, string> = { 'CVE-2015-5477': '2015-07-29', 'CVE-2024-27834': '2024-05-14', 'CVE-2025-61624': '2025-10-02' }
-const published = (cve: string) => PUBLISHED[cve] ?? (/^CVE-2026-/.test(cve) ? '2026-06-01' : null)
 
 /** GET /findings/plan (D-613, D-615): the sample items, filtered by tier and device; a CVE older than 12 months only with basis scan. */
 function plan(tier: string, asset: string | null): Plan {
-  const st = tierState.get()
+  const feedsOn = isOn('feeds')
+  const st = feedsOn ? tierState.get() : { ...tierState.get(), epss: 'module_off' as const, recent: 'module_off' as const }
   const ready = st.epss === 'ready' || st.recent === 'ready'
   const assets = assetsStore.get()
   const readable = assets.filter((a) => a.software.some((s) => !!s.version))

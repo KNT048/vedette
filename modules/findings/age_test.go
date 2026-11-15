@@ -37,6 +37,10 @@ func TestMatchAsset_D615_OldKEVDropsOnlyProductOnly(t *testing.T) {
 		"unknown day, product only":      {nas("6.1.1"), productOnly(time.Time{}), BasisProduct, false},
 		"product only, just inside year": {nas("6.1.1"), productOnly(t0.Add(-AgeLimit + time.Hour)), BasisProduct, false},
 		"product only, just over a year": {nas("6.1.1"), productOnly(t0.Add(-AgeLimit - time.Hour)), "", false},
+		// review r1 #1 of #803: a safe scan template checks it, so the finding stays for the scan to confirm or clear it
+		"old, product only, scan template": {nas("6.1.1"), func() []Vuln { v := productOnly(old); v[0].HasTemplate = true; return v }(), BasisProduct, false},
+		// review r1 #3: NVD lists every version as affected, so no version could change it: it stays
+		"old, every version, no version given": {nas(""), func() []Vuln { v := qnapVuln(Affected{CPE: qnapCPE}); v.Published = old; return []Vuln{v} }(), BasisProduct, false},
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
@@ -114,6 +118,22 @@ func TestContract_D615_AgedFindingClosesAndReopens(t *testing.T) {
 	}
 
 	v = qnapVuln()
+
+	// review r1 #2 of #803: a version finding whose match falls back to product-only (NVD's ranges gone in one pull) is not closed
+	w := newEnv(t)
+	inRange := qnapVuln(Affected{CPE: qnapCPE, Range: VersionRange{EndExcl: "6.1.2"}})
+	if _, err := w.svc.UpsertFromMatch(t.Context(), nas("6.1.1"), []Vuln{inRange}); err != nil {
+		t.Fatal(err)
+	}
+	gone := qnapVuln()
+	gone.Published = t0.AddDate(-3, 0, 0)
+	if _, err := w.svc.UpsertFromMatch(t.Context(), nas("6.1.1"), []Vuln{gone}); err != nil {
+		t.Fatal(err)
+	}
+	if r, _ := loadByPair(t.Context(), w.db.Reader(), "a-1", "CVE-2022-27593"); r.Status != StatusSuspected || r.Basis != BasisVersion {
+		t.Fatalf("version finding closed for its age: %+v", r.Finding)
+	}
+
 	// a scan-confirmed finding stays open whatever its age
 	s := newEnv(t)
 	if _, err := s.svc.UpsertFromMatch(t.Context(), nas("6.1.1"), []Vuln{v}); err != nil {
@@ -147,7 +167,7 @@ func TestContract_D615_AgedFindingClosesAndReopens(t *testing.T) {
 		t.Fatal(err)
 	}
 	pr, _ = loadByPair(t.Context(), p.db.Reader(), "a-1", "CVE-2022-27593")
-	if pr.Status != StatusSuspected || !strings.HasPrefix(pr.History[len(pr.History)-1].Note, AgedNote) {
+	if last := pr.History[len(pr.History)-1]; pr.Status != StatusSuspected || last.Action != "no_longer_matches" || !strings.Contains(last.Note, "This finding stays open") {
 		t.Fatalf("person's reopen not kept: %+v, history %+v", pr.Finding, pr.History)
 	}
 }
@@ -168,6 +188,11 @@ func TestPlan_HonestStateBeforeTheMatcher(t *testing.T) {
 	c, b = e.call("GET", "/findings/plan?tier=likely&asset=a-1", "viewer", "")
 	if d := b["data"].(map[string]any); c != 200 || d["epss"] != "ready" || d["recent"] != "loading" || d["epss_date"] != "2026-11-09" || d["recent_since"] != nil {
 		t.Fatalf("%d %v", c, b)
+	}
+	e.gate.Set("feeds", false) // modules.md: the data is missing because the module is off, and its tables are not read
+	c, b = e.call("GET", "/findings/plan", "viewer", "")
+	if d := b["data"].(map[string]any); c != 200 || d["epss"] != "module_off" || d["recent"] != "module_off" || d["epss_date"] != nil {
+		t.Fatalf("feeds module off: %d %v", c, b)
 	}
 	if c, _ = e.call("GET", "/findings/plan?tier=bogus", "viewer", ""); c != 400 {
 		t.Fatalf("bad tier: %d", c)

@@ -16,6 +16,9 @@ import (
 // MitigationModule is the id of the module whose Guidance fills the "What to do" fields.
 const MitigationModule = "mitigation"
 
+// FeedsModule is the id of the module that holds the tier data of GET /findings/plan.
+const FeedsModule = "feeds"
+
 // FindingHandlers implements the findings operations: GET /findings, GET /findings/{id}, POST /findings/{id}/status
 // and the bulk POST /findings/status. Embed it in the composite handler. POST /findings/{id}/applied|ai belong
 // to mitigation (core/server/modules.go).
@@ -317,9 +320,12 @@ type Guidance interface {
 // answers compared=false with no item and the state of each feed, and the page says so; the matcher is slice 3. The tier and
 // asset filters apply to items, of which there are none yet.
 func (h *FindingHandlers) FindingsGetFindingsPlan(ctx context.Context, _ oas.FindingsGetFindingsPlanParams) (*oas.FindingsGetFindingsPlanOK, error) {
-	st, err := h.feed.TierStatus(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("findings: reading the tier data: %w", err)
+	st := TierStatus{EPSS: "module_off", Recent: "module_off"}
+	if h.gate == nil || h.gate.Enabled(FeedsModule) { // the feeds module off: its data is not read, the page says the module is off (modules.md)
+		var err error
+		if st, err = h.feed.TierStatus(ctx); err != nil {
+			return nil, fmt.Errorf("findings: reading the tier data: %w", err)
+		}
 	}
 	day := func(t time.Time) *string {
 		if t.IsZero() {
@@ -329,7 +335,8 @@ func (h *FindingHandlers) FindingsGetFindingsPlan(ctx context.Context, _ oas.Fin
 		return &d
 	}
 	state := func(s string) string {
-		if s == "ready" || s == "loading" {
+		switch s {
+		case "ready", "loading", "module_off":
 			return s
 		}
 		return "off"

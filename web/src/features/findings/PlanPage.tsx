@@ -41,7 +41,7 @@ function Page() {
             <PlanDataState plan={d} />
             {d.compared && d.old_evidence > 0 ? <p className="mb-3 text-[13px] text-muted">{t('plan.oldEvidence', { count: d.old_evidence })}</p> : null}
             {d.compared && d.items.length > 0 ? <PlanItems items={d.items} showDevice /> : null}
-            {d.compared && d.items.length === 0 && (d.data.epss === 'ready' || d.data.recent === 'ready') ? (
+            {d.compared && d.items.length === 0 && (d.data.epss === 'ready' || d.data.recent === 'ready') && d.data.epss !== 'module_off' ? (
               <EmptyState title={tier === 'all' ? t('plan.empty') : t(`plan.emptyFilter.${tier}`)}>
                 {t('plan.emptyBody', { compared: d.compared_devices, count: d.unchecked_devices })}{' '}
                 {d.unchecked_devices > 0 ? <Link to="/devices" className="text-accent underline underline-offset-4">{t('plan.emptyDevices')}</Link> : null}

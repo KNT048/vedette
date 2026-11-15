@@ -239,7 +239,7 @@ func (a findingsFeeds) KevInfo(ctx context.Context, cves []string) (map[string]f
 	if err != nil {
 		return nil, err
 	}
-	pub, err := a.st.KevPublished(ctx) // D-615; one small table
+	pub, err := a.st.PublishedOf(ctx, cves) // D-615: only the CVEs asked for (review r1 #12 of #803)
 	if err != nil {
 		return nil, err
 	}
@@ -251,9 +251,8 @@ func (a findingsFeeds) KevInfo(ctx context.Context, cves []string) (map[string]f
 		}
 		out[v.CVE] = findings.KevInfo{Name: v.Name, Vendor: v.Vendor, Product: v.Product, Display: feeds.DisplayOf(v.Vendor, v.Product),
 			RequiredAction: v.RequiredAction, Links: v.Links, DateAdded: v.DateAdded, DueDate: due, Ransomware: v.Ransomware, EPSS: v.EPSS, HasTemplate: v.HasTemplate, Source: v.SourceID}
-		if t, ok := pub[v.CVE]; ok {
+		if d, ok := pub[v.CVE]; ok {
 			k := out[v.CVE]
-			d := t.Format(time.DateOnly)
 			k.Published = &d
 			out[v.CVE] = k
 		}
@@ -319,7 +318,7 @@ func (a findingsFeeds) readVulns(ctx context.Context) ([]findings.Vuln, error) {
 	}
 	out := make([]findings.Vuln, len(rows))
 	for i, v := range rows {
-		out[i] = findings.Vuln{CVE: v.CVE, Vendor: v.Vendor, Product: v.Product, Name: v.Name, Ransomware: v.Ransomware, Source: v.SourceID}
+		out[i] = findings.Vuln{CVE: v.CVE, Vendor: v.Vendor, Product: v.Product, Name: v.Name, Ransomware: v.Ransomware, Source: v.SourceID, HasTemplate: v.HasTemplate}
 		out[i].RangesFrom = rangesFrom(fromCVEOrg[v.CVE])
 		for _, r := range affected[v.CVE] {
 			out[i].Affected = append(out[i].Affected, findings.Affected{CPE: r.CPE,

@@ -130544,6 +130544,8 @@ func (s *FindingsGetFindingsPlanOKDataEpss) Decode(d *jx.Decoder) error {
 	}
 	// Try to use constant string.
 	switch FindingsGetFindingsPlanOKDataEpss(v) {
+	case FindingsGetFindingsPlanOKDataEpssModuleOff:
+		*s = FindingsGetFindingsPlanOKDataEpssModuleOff
 	case FindingsGetFindingsPlanOKDataEpssOff:
 		*s = FindingsGetFindingsPlanOKDataEpssOff
 	case FindingsGetFindingsPlanOKDataEpssLoading:
@@ -130586,6 +130588,8 @@ func (s *FindingsGetFindingsPlanOKDataRecent) Decode(d *jx.Decoder) error {
 	}
 	// Try to use constant string.
 	switch FindingsGetFindingsPlanOKDataRecent(v) {
+	case FindingsGetFindingsPlanOKDataRecentModuleOff:
+		*s = FindingsGetFindingsPlanOKDataRecentModuleOff
 	case FindingsGetFindingsPlanOKDataRecentOff:
 		*s = FindingsGetFindingsPlanOKDataRecentOff
 	case FindingsGetFindingsPlanOKDataRecentLoading:

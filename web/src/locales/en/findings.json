@@ -444,8 +444,11 @@
       "partialTitle": "Part of the CVE data is missing",
       "someOff": "{{feeds}} is off, so the CVEs it brings are not listed.",
       "loading": "{{feeds}} is still loading (the first load of the NVD records takes about half an hour); the list fills when it is done.",
-      "notComparedTitle": "Vedette has the CVE data but does not compare it yet",
-      "notCompared": "This version of Vedette holds the EPSS scores and the recent NVD records, but does not compare them with your devices yet: that comes with a later update. Exploited CVEs are compared and listed in Findings."
+      "notComparedTitle": "Not compared yet",
+      "notCompared": "This version of Vedette does not compare CVEs that are not exploited yet with your devices: that comes with a later update, and this list fills then. Exploited CVEs are compared and listed in Findings.",
+      "moduleOffTitle": "The feeds module is off",
+      "moduleOff": "The CVE data of this list comes from the feeds module, which is off, so nothing is listed.",
+      "openModules": "Open Settings, Modules"
     },
     "line_one": "1 update to plan fixes CVEs not exploited yet",
     "line_other": "{{count}} updates to plan fix CVEs not exploited yet",

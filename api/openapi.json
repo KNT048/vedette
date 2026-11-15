@@ -36317,6 +36317,7 @@
                         "epss": {
                           "type": "string",
                           "enum": [
+                            "module_off",
                             "off",
                             "loading",
                             "ready"
@@ -36326,6 +36327,7 @@
                         "recent": {
                           "type": "string",
                           "enum": [
+                            "module_off",
                             "off",
                             "loading",
                             "ready"

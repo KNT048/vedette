@@ -66745,14 +66745,16 @@ func (s *FindingsGetFindingsPlanOKData) SetRecentSince(val NilDate) {
 type FindingsGetFindingsPlanOKDataEpss string
 
 const (
-	FindingsGetFindingsPlanOKDataEpssOff     FindingsGetFindingsPlanOKDataEpss = "off"
-	FindingsGetFindingsPlanOKDataEpssLoading FindingsGetFindingsPlanOKDataEpss = "loading"
-	FindingsGetFindingsPlanOKDataEpssReady   FindingsGetFindingsPlanOKDataEpss = "ready"
+	FindingsGetFindingsPlanOKDataEpssModuleOff FindingsGetFindingsPlanOKDataEpss = "module_off"
+	FindingsGetFindingsPlanOKDataEpssOff       FindingsGetFindingsPlanOKDataEpss = "off"
+	FindingsGetFindingsPlanOKDataEpssLoading   FindingsGetFindingsPlanOKDataEpss = "loading"
+	FindingsGetFindingsPlanOKDataEpssReady     FindingsGetFindingsPlanOKDataEpss = "ready"
 )
 
 // AllValues returns all FindingsGetFindingsPlanOKDataEpss values.
 func (FindingsGetFindingsPlanOKDataEpss) AllValues() []FindingsGetFindingsPlanOKDataEpss {
 	return []FindingsGetFindingsPlanOKDataEpss{
+		FindingsGetFindingsPlanOKDataEpssModuleOff,
 		FindingsGetFindingsPlanOKDataEpssOff,
 		FindingsGetFindingsPlanOKDataEpssLoading,
 		FindingsGetFindingsPlanOKDataEpssReady,
@@ -66762,6 +66764,8 @@ func (FindingsGetFindingsPlanOKDataEpss) AllValues() []FindingsGetFindingsPlanOK
 // MarshalText implements encoding.TextMarshaler.
 func (s FindingsGetFindingsPlanOKDataEpss) MarshalText() ([]byte, error) {
 	switch s {
+	case FindingsGetFindingsPlanOKDataEpssModuleOff:
+		return []byte(s), nil
 	case FindingsGetFindingsPlanOKDataEpssOff:
 		return []byte(s), nil
 	case FindingsGetFindingsPlanOKDataEpssLoading:
@@ -66776,6 +66780,9 @@ func (s FindingsGetFindingsPlanOKDataEpss) MarshalText() ([]byte, error) {
 // UnmarshalText implements encoding.TextUnmarshaler.
 func (s *FindingsGetFindingsPlanOKDataEpss) UnmarshalText(data []byte) error {
 	switch FindingsGetFindingsPlanOKDataEpss(data) {
+	case FindingsGetFindingsPlanOKDataEpssModuleOff:
+		*s = FindingsGetFindingsPlanOKDataEpssModuleOff
+		return nil
 	case FindingsGetFindingsPlanOKDataEpssOff:
 		*s = FindingsGetFindingsPlanOKDataEpssOff
 		return nil
@@ -66794,14 +66801,16 @@ func (s *FindingsGetFindingsPlanOKDataEpss) UnmarshalText(data []byte) error {
 type FindingsGetFindingsPlanOKDataRecent string
 
 const (
-	FindingsGetFindingsPlanOKDataRecentOff     FindingsGetFindingsPlanOKDataRecent = "off"
-	FindingsGetFindingsPlanOKDataRecentLoading FindingsGetFindingsPlanOKDataRecent = "loading"
-	FindingsGetFindingsPlanOKDataRecentReady   FindingsGetFindingsPlanOKDataRecent = "ready"
+	FindingsGetFindingsPlanOKDataRecentModuleOff FindingsGetFindingsPlanOKDataRecent = "module_off"
+	FindingsGetFindingsPlanOKDataRecentOff       FindingsGetFindingsPlanOKDataRecent = "off"
+	FindingsGetFindingsPlanOKDataRecentLoading   FindingsGetFindingsPlanOKDataRecent = "loading"
+	FindingsGetFindingsPlanOKDataRecentReady     FindingsGetFindingsPlanOKDataRecent = "ready"
 )
 
 // AllValues returns all FindingsGetFindingsPlanOKDataRecent values.
 func (FindingsGetFindingsPlanOKDataRecent) AllValues() []FindingsGetFindingsPlanOKDataRecent {
 	return []FindingsGetFindingsPlanOKDataRecent{
+		FindingsGetFindingsPlanOKDataRecentModuleOff,
 		FindingsGetFindingsPlanOKDataRecentOff,
 		FindingsGetFindingsPlanOKDataRecentLoading,
 		FindingsGetFindingsPlanOKDataRecentReady,
@@ -66811,6 +66820,8 @@ func (FindingsGetFindingsPlanOKDataRecent) AllValues() []FindingsGetFindingsPlan
 // MarshalText implements encoding.TextMarshaler.
 func (s FindingsGetFindingsPlanOKDataRecent) MarshalText() ([]byte, error) {
 	switch s {
+	case FindingsGetFindingsPlanOKDataRecentModuleOff:
+		return []byte(s), nil
 	case FindingsGetFindingsPlanOKDataRecentOff:
 		return []byte(s), nil
 	case FindingsGetFindingsPlanOKDataRecentLoading:
@@ -66825,6 +66836,9 @@ func (s FindingsGetFindingsPlanOKDataRecent) MarshalText() ([]byte, error) {
 // UnmarshalText implements encoding.TextUnmarshaler.
 func (s *FindingsGetFindingsPlanOKDataRecent) UnmarshalText(data []byte) error {
 	switch FindingsGetFindingsPlanOKDataRecent(data) {
+	case FindingsGetFindingsPlanOKDataRecentModuleOff:
+		*s = FindingsGetFindingsPlanOKDataRecentModuleOff
+		return nil
 	case FindingsGetFindingsPlanOKDataRecentOff:
 		*s = FindingsGetFindingsPlanOKDataRecentOff
 		return nil

@@ -224,6 +224,17 @@ func (s *Store) TierCVEOf(ctx context.Context, cve string, now time.Time) (TierC
 			}
 		}
 	}
+	if out.Published == nil { // not in nvd-recent (older, or the feed not ready): the day nvd-kev or CVE.org gave (feeds_published, D-617)
+		d, err := s.publishedOf(ctx, cve)
+		if err != nil {
+			return TierCVE{}, false, err
+		}
+		if d != nil {
+			if t, err := time.Parse(time.DateOnly, *d); err == nil {
+				out.Published = &t
+			}
+		}
+	}
 	return out, found, nil
 }
 

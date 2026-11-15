@@ -102,6 +102,11 @@ func TestTierStatusAndTierCVE(t *testing.T) {
 	if c, b = e.get("/feeds/cve/CVE-2020-0003/tier"); c != 200 || b["tier"] != nil || b["published"] != nil || b["epss"] != 0.5 { // EPSS only: older, no tier
 		t.Fatalf("old: %d %v", c, b)
 	}
+	// N100 n54: a CVE nvd-recent does not hold still shows the day feeds_published has (nvd-kev or CVE.org), with no tier
+	write(t, e.db, func(tx *sql.Tx) error { return applyPublished(t.Context(), tx, map[string]string{"CVE-2020-0003": "2020-03-10"}) })
+	if c, b = e.get("/feeds/cve/CVE-2020-0003/tier"); c != 200 || b["tier"] != nil || b["published"] == nil || !strings.HasPrefix(b["published"].(string), "2020-03-10") {
+		t.Fatalf("published from feeds_published: %d %v", c, b)
+	}
 	if c, b = e.get("/feeds/cve/CVE-2026-9999/tier"); c != http.StatusNotFound || code(b) != "not_in_data" {
 		t.Fatalf("absent: %d %v", c, b)
 	}

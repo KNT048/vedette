@@ -89,37 +89,56 @@ func TestContract_D548_EnrolmentNameFromTheHostIdentifier(t *testing.T) {
 	}
 }
 
-// refuseHostname is the inventory refusing the first enrolment host name it is sent (as it refuses a value it cannot take).
+// refuseHostname is the inventory refusing the enrolment host names it is sent (as it refuses a value it cannot take): the first `limit`
+// of them, or every one when limit is 0.
 type refuseHostname struct {
 	observe.Sink
-	refused int
+	limit, refused int
 }
 
 func (r *refuseHostname) Record(ctx context.Context, obs []observe.Observation) error {
-	if r.refused == 0 && len(obs) == 1 && obs[0].Field == observe.Hostname {
+	if len(obs) == 1 && obs[0].Field == observe.Hostname && (r.limit == 0 || r.refused < r.limit) {
 		r.refused++
 		return &observe.ErrRejected{Index: 0, Err: errors.New("refused")}
 	}
 	return r.Sink.Record(ctx, obs)
 }
 
-// Review r1 #4 of #801: the "hostname" mark is set only when the inventory took the name; a refused one is tried again at the next request.
-func TestContract_D548_EnrolmentHostNameMarkedOnlyWhenTaken(t *testing.T) {
-	var ref *refuseHostname
-	w := newWorld(t, func(c *agentintake.Config) { ref = &refuseHostname{Sink: c.Sink}; c.Sink = ref })
-	_, secret := w.token("lab", 7)
-	key := w.enroll(secret, "WIN-LAB", peerA)
+// Review r1 #4 and r2 #3 of #801: a refused enrolment name goes on to the host_identifier in the same request; when every name is refused
+// the mark is set all the same, so nothing is sent again at each request.
+func TestContract_D548_EnrolmentHostNameRefusedFallsBack(t *testing.T) {
+	enrol := func(w *world, secret string) string {
+		body := enrollBody(secret, "WIN-ID")
+		body["host_details"].(map[string]any)["system_info"] = map[string]any{"hostname": "WIN-LAB"}
+		r := w.post("/intake/osquery/enroll", peerA, body)
+		k, _ := r.body["node_key"].(string)
+		return k
+	}
 	osRow := snap("os_version", map[string]string{"name": "Microsoft Windows Server 2025", "version": "10.0.26100", "build": "26100", "platform": "windows"})
-	w.post("/intake/osquery/log", peerA, logBody(key, snap("interfaces", ifaceRow(macA, peerA)), osRow))
-	marked := func() int {
+	marked := func(w *world) int {
 		return w.count(`SELECT count(*) FROM intake_osquery_nodes WHERE ',' || reported || ',' LIKE '%,hostname,%'`)
 	}
-	if ref.refused != 1 || marked() != 0 {
-		t.Fatalf("refused %d, marked %d", ref.refused, marked())
-	}
-	w.clock.Advance(time.Minute)
+
+	var ref *refuseHostname
+	w := newWorld(t, func(c *agentintake.Config) { ref = &refuseHostname{Sink: c.Sink, limit: 1}; c.Sink = ref })
+	_, secret := w.token("lab", 7)
+	key := enrol(w, secret)
 	w.post("/intake/osquery/log", peerA, logBody(key, snap("interfaces", ifaceRow(macA, peerA)), osRow))
-	if d, ok := w.device(peerA); !ok || d.Hostname == nil || *d.Hostname != "WIN-LAB" || marked() != 1 {
-		t.Fatalf("second request: marked %d, %+v", marked(), d.AssetCore)
+	if d, ok := w.device(peerA); ref.refused != 1 || !ok || d.Hostname == nil || *d.Hostname != "WIN-ID" || marked(w) != 1 {
+		t.Fatalf("refused %d, marked %d, %+v", ref.refused, marked(w), d.AssetCore)
+	}
+
+	all := &refuseHostname{}
+	w2 := newWorld(t, func(c *agentintake.Config) { all.Sink = c.Sink; c.Sink = all })
+	_, secret2 := w2.token("lab", 7)
+	key2 := enrol(w2, secret2)
+	w2.post("/intake/osquery/log", peerA, logBody(key2, snap("interfaces", ifaceRow(macA, peerA)), osRow))
+	if all.refused != 2 || marked(w2) != 1 {
+		t.Fatalf("every name refused: refused %d, marked %d", all.refused, marked(w2))
+	}
+	w2.clock.Advance(time.Minute)
+	w2.post("/intake/osquery/log", peerA, logBody(key2, snap("interfaces", ifaceRow(macA, peerA)), osRow))
+	if all.refused != 2 {
+		t.Fatalf("names sent again after every one was refused: %d", all.refused)
 	}
 }

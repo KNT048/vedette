@@ -3,6 +3,7 @@ package findings
 import (
 	"strings"
 	"testing"
+	"time"
 )
 
 // nvdRaw is a KEV "Microsoft | Windows" entry with NVD's rows as NVD writes them (no ranges).
@@ -155,5 +156,32 @@ func TestApplyMatch_D612_AgentRowOnlyOnProductFindings(t *testing.T) {
 	got := f.ApplyMatch(Match{Basis: BasisProduct, Severity: SeverityMedium, Evidence: Evidence{Summary: "cannot compare", AgentRow: true}})
 	if got.Basis != BasisVersion || got.Evidence == nil || got.Evidence.Agent || got.Evidence.AgentRow || got.Evidence.Summary != "cannot compare" {
 		t.Fatalf("%+v %+v", got, got.Evidence)
+	}
+}
+
+// Review r2 of #801: the CVE-year proof needs every listed release to be out by the CVE's year (a CVE-2010 list naming Server 2022 grew
+// later); the Interix exception is Microsoft's application only; a missing, future or VulnCheck-recent listing date closes nothing.
+func TestMatchAsset_D610_ReviewR2NeverCloses(t *testing.T) {
+	srv := winPC(26100, true, "1742", "x64")
+	stays := func(name string, v Vuln) {
+		t.Helper()
+		if w, m := oneMatch(t, srv, v, true, cve62215); w != "existing" || m.Basis != BasisProduct {
+			t.Errorf("%s: %s %s %q", name, w, m.Basis, m.Evidence.Summary)
+		}
+	}
+	stays("CVE-2010 listing Server 2022", nvdRaw("CVE-2010-9999", "2026-05-01", "cpe:2.3:o:microsoft:windows_7:-:*:*:*:*:*:*:*", "cpe:2.3:o:microsoft:windows_server_2022:-:*:*:*:*:*:*:*"))
+	stays("another vendor's interix", nvdRaw("CVE-2004-7777", "2022-03-03", "cpe:2.3:o:microsoft:windows_2000:-:*:*:*:*:*:*:*", "cpe:2.3:a:acme:interix:2.2:*:*:*:*:*:*:*"))
+	stays("interix as an OS row", nvdRaw("CVE-2004-7778", "2022-03-03", "cpe:2.3:o:microsoft:windows_2000:-:*:*:*:*:*:*:*", "cpe:2.3:o:microsoft:interix:2.2:*:*:*:*:*:*:*"))
+	zero := nvdRaw("CVE-2008-7779", "2022-03-03", "cpe:2.3:o:microsoft:windows_xp:-:*:*:*:*:*:*:*")
+	zero.DateAdded = time.Time{}
+	stays("no listing date", zero)
+	stays("listing date in the future", nvdRaw("CVE-2008-7780", "2027-01-01", "cpe:2.3:o:microsoft:windows_xp:-:*:*:*:*:*:*:*"))
+	vc := nvdRaw("CVE-2008-7781", "2026-10-01", "cpe:2.3:o:microsoft:windows_xp:-:*:*:*:*:*:*:*")
+	vc.Source = SourceVulnCheck
+	stays("VulnCheck-only, listed last month", vc)
+	vcOld := nvdRaw("CVE-2018-7782", "2026-03-01", "cpe:2.3:o:microsoft:windows_7:-:sp1:*:*:*:*:*:*")
+	vcOld.Source = SourceVulnCheck // its date is VulnCheck's; the CVE-year proof holds from it as from CISA's
+	if w, _ := oneMatch(t, srv, vcOld, true, cve62215); w != "notaffected" {
+		t.Errorf("VulnCheck-only, listed 8 months ago: %s", w)
 	}
 }

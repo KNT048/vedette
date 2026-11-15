@@ -234,6 +234,7 @@ func windowsDecide(in swInfo, v Vuln, named bool, now time.Time) (winVerdict, bo
 	unknownWin := false // a Windows row of a release the table does not know, or a family row
 	var pinned []string // rows of another product at one stated version, no range ("interix 2.2"): D-610 only
 	looseOther := false // rows of another product at any version or in a range
+	listedYear := 0     // the latest year one of the listed other releases came out (winOldYear for the ones before Windows 10)
 	for _, af := range v.Affected {
 		c, err := ParseCPE(af.CPE)
 		if err != nil || c.Part.Kind == NA {
@@ -244,10 +245,11 @@ func windowsDecide(in swInfo, v Vuln, named bool, now time.Time) (winVerdict, bo
 		switch {
 		case !isWin:
 			allWindows = false
-			_, okV := c.Vendor.Literal()
+			vn, okV := c.Vendor.Literal()
 			p, okP := c.Product.Literal()
-			undecidable = undecidable || !okV || !okP // ANY vendor or product: it may be this device
-			if ver, okVer := c.Version.Literal(); okV && okP && winGoneProducts[p] != "" && c.Version.Kind == Value && okVer && af.Range.IsZero() {
+			undecidable = undecidable || !okV || !okP                                           // ANY vendor or product: it may be this device
+			ms := okV && norm(vn) == "microsoft" && c.Part.Kind == Value && c.Part.Value == "a" // review r2 #4: Microsoft's own application
+			if ver, okVer := c.Version.Literal(); ms && okP && winGoneProducts[p] != "" && c.Version.Kind == Value && okVer && af.Range.IsZero() {
 				pinned = appendOnce(pinned, winGoneProducts[p]+" "+clean(ver))
 			} else {
 				looseOther = true
@@ -257,6 +259,7 @@ func windowsDecide(in swInfo, v Vuln, named bool, now time.Time) (winVerdict, bo
 			undecidable = undecidable || l.mayBe(d)
 		case l.old:
 			others = appendOnce(others, l.product)
+			listedYear = max(listedYear, winOldYear)
 		case l.server == d.rel.Server && l.build == d.rel.Build:
 			own = append(own, fixedEntry{c, af.Range})
 		case l.server == d.rel.Server && !l.server && d.sameLine(l.build):
@@ -267,6 +270,11 @@ func windowsDecide(in swInfo, v Vuln, named bool, now time.Time) (winVerdict, bo
 		default:
 			newest = max(newest, l.build)
 			others = appendOnce(others, l.product)
+			if r, ok := winrel.ByBuild(l.build, l.server); ok {
+				listedYear = max(listedYear, r.GA.Year())
+			} else {
+				listedYear = 9999 // not known: the CVE-year proof does not hold
+			}
 		}
 	}
 	rows, via := own, ""
@@ -332,7 +340,9 @@ func windowsDecide(in swInfo, v Vuln, named bool, now time.Time) (winVerdict, bo
 	// The CVE must also predate the device's release (review r1 #3 of #801): a CVE-2024 entry fixed in a late-2024 update whose list names
 	// Server 2022 and not Server 2025 says nothing about a Server 2025 on its GA build.
 	// And not within winListedMargin of CISA's listing, when Microsoft and NVD revisit an old CVE (review r1 #2).
-	old := cveYear(v.CVE) > 0 && listedLongAgo && cveYear(v.CVE)+2 <= now.Year() && cveYear(v.CVE) < d.rel.GA.Year()
+	// And every release the list names came out in or before the CVE's year (review r2 #1 of #801): a list naming a later release
+	// (CVE-2010 with windows_server_2022) was written or grown after the CVE's year, so its age is not the CVE's.
+	old := cveYear(v.CVE) > 0 && listedLongAgo && cveYear(v.CVE)+2 <= now.Year() && cveYear(v.CVE) < d.rel.GA.Year() && listedYear > 0 && listedYear <= cveYear(v.CVE)
 	if shipped || settled(v, now) || old {
 		why := fmt.Sprintf("%s came out on %s, after %s listed the flaw (%s), so it carries the fix", d.rel.Display, d.rel.GA.Format("2 Jan 2006"), v.listName(), v.DateAdded.Format("2 Jan 2006"))
 		switch {
@@ -352,6 +362,9 @@ func windowsDecide(in swInfo, v Vuln, named bool, now time.Time) (winVerdict, bo
 	return winVerdict{t: Unknown, note: fmt.Sprintf("NVD lists %s only for Windows releases older than %s (%s). A later release usually carries the fix, but NVD's list for this entry is less than a year old: compare with Microsoft's advisory.",
 		v.CVE, d.rel.Display, winNames(others))}, true
 }
+
+// winOldYear is the latest year a release before Windows 10 came out (Windows 8.1 and Server 2012 R2, October 2013).
+const winOldYear = 2013
 
 // winTenYear is the year Windows 10, the first 10.0 release, came out (29 July 2015, core/winrel).
 const winTenYear = 2015

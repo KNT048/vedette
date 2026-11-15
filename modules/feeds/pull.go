@@ -636,11 +636,11 @@ func (s *Service) pullOne(ctx context.Context, id, actor string) (sourceRow, int
 				}
 				// a tier CVE's rows change only "Updates to plan", which TierStamp reaches (D-622): findings rematches as before
 				rangesChanged = slices.DeleteFunc(rangesChanged, func(c string) bool { return !p.distroKEV[c] })
-				var print any // the packages the rows were kept for, with the rows (distroBehind)
+				var fp any // the packages the rows were kept for, with the rows (distroBehind)
 				if p.distroPrint != "" {
-					print = p.distroPrint
+					fp = p.distroPrint
 				}
-				if _, err = tx.ExecContext(ctx, `UPDATE feeds_source SET distro_print = ? WHERE id = ?`, print, src.ID); err != nil {
+				if _, err = tx.ExecContext(ctx, `UPDATE feeds_source SET distro_print = ? WHERE id = ?`, fp, src.ID); err != nil {
 					return fmt.Errorf("feeds: distro print: %w", err)
 				}
 			}

@@ -154,9 +154,9 @@ func (s *Service) buildDistro(ctx context.Context, src sourceRow, p pullPlan, de
 		}
 		want.Packages = pkgs
 	}
-	print := ""
+	fp := ""
 	if len(want.Tier) > 0 {
-		print = distroPrint(want.Packages)
+		fp = distroPrint(want.Packages)
 	}
 	kept, err := s.st.distroPrintOf(ctx, src.ID)
 	if err != nil {
@@ -169,7 +169,7 @@ func (s *Service) buildDistro(ctx context.Context, src sourceRow, p pullPlan, de
 		res, err = parse(r, want)
 		return err
 	}}
-	if src.Status == "ok" && kept == print {
+	if src.Status == "ok" && kept == fp {
 		req.ETag, req.LastModified = orEmpty(src.ETag), orEmpty(src.LastModified)
 	}
 	ctx, cancel := context.WithTimeout(ctx, distroFetchTimeout)
@@ -187,7 +187,7 @@ func (s *Service) buildDistro(ctx context.Context, src sourceRow, p pullPlan, de
 	}
 	p.out = outcome{OK: true, ETag: resp.ETag, LastModif: resp.LastModified}
 	p.out.fill(res.Stats, len(res.Rows))
-	p.distro, p.hasDistro, p.distroKEV, p.distroPrint = res.Rows, true, want.KEV, print
+	p.distro, p.hasDistro, p.distroKEV, p.distroPrint = res.Rows, true, want.KEV, fp
 	var ms runtime.MemStats // D-622: the heap with the parsed rows still held, for the director's measure on the N100 (once a day a feed)
 	runtime.ReadMemStats(&ms)
 	s.Log.InfoContext(ctx, "feeds: distribution pull parsed", "feed", src.ID, "rows", len(res.Rows), "tier_cves", len(want.Tier), "packages", len(want.Packages), "heap_mb", ms.HeapInuse>>20)

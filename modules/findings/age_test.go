@@ -1,6 +1,7 @@
 package findings
 
 import (
+	"database/sql"
 	"encoding/json"
 	"os"
 	"slices"
@@ -334,5 +335,50 @@ func TestHaveScope_D615_DoesNotReaddAgedCVE(t *testing.T) {
 	got := haveScope(a, []Vuln{v}, m, map[string]Have{a.ID: {Key: "qnap|photo station", Since: t0.AddDate(0, 0, -7)}}, nil, t0)
 	if len(got.New) != 0 || len(got.Existing) != 0 || len(got.Aged) != 1 {
 		t.Fatalf("new %+v, existing %+v, aged %+v", got.New, got.Existing, got.Aged)
+	}
+}
+
+// N100 n54 (D-615, D-616 as told to kien: old KEV drops only product-only matches WITHOUT agent evidence): a product match on a row
+// the device's agent reported (Evidence.AgentRow, D-612: the agent gave the installed version, Vedette could not compare it) is never
+// dropped or closed for its age; a finding the age rule closed before this fix reopens at the next match, with the neutral note.
+func TestContract_D615_AgentRowNeverAges(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	srv := Asset{ID: "a-1", Name: "WINLAB01", OS: "Microsoft Windows Server 2025 Datacenter", AgentOS: "Microsoft Windows Server 2025 Datacenter",
+		Software: []Software{{ID: "s-win", Display: "Windows Server 2025", Vendor: "Microsoft", Product: "Windows", Version: "10.0.26100.1742",
+			CPE: "cpe:2.3:o:microsoft:windows_server_2025:10.0.26100.1742:*:*:*:*:*:x64:*", KevKeys: []string{"microsoft|windows"}, Source: "agent"}}}
+	v := Vuln{CVE: "CVE-2024-43573", Vendor: "Microsoft", Product: "Windows", Published: t0.AddDate(-2, 0, 0), DateAdded: t0.AddDate(-2, 0, 0)} // no version Vedette can compare
+	m := MatchAsset(srv, []Vuln{v}, nil, t0)
+	if len(m.Aged) != 0 || len(m.New) != 1 || m.New[0].Basis != BasisProduct || !m.New[0].Evidence.AgentRow {
+		t.Fatalf("an agent row aged out: %+v", m)
+	}
+	if _, err := e.svc.UpsertFromMatch(t.Context(), srv, []Vuln{v}); err != nil {
+		t.Fatal(err)
+	}
+	r, err := loadByPair(t.Context(), e.db.Reader(), "a-1", v.CVE)
+	if err != nil || r.Status != StatusSuspected {
+		t.Fatalf("not open past 12 months: %+v %v", r.Finding, err)
+	}
+	// what the bug left on the box: the same finding closed for its age
+	f, h, ok := r.AutoResolve(agedSummary(v), t0)
+	if !ok {
+		t.Fatal("could not close")
+	}
+	r.Finding = f
+	if err := e.db.Write(t.Context(), func(tx *sql.Tx) error {
+		if err := updateRecord(t.Context(), tx, r); err != nil {
+			return err
+		}
+		return insertHistory(t.Context(), tx, r.ID, h)
+	}); err != nil {
+		t.Fatal(err)
+	}
+	e.advance(time.Minute)
+	if _, err := e.svc.UpsertFromMatch(t.Context(), srv, []Vuln{v}); err != nil {
+		t.Fatal(err)
+	}
+	r, _ = loadByPair(t.Context(), e.db.Reader(), "a-1", v.CVE)
+	if last := r.History[len(r.History)-1]; r.Status != StatusSuspected || last.Action != "matches_again" {
+		t.Fatalf("not reopened: %+v, history %+v", r.Finding, r.History)
 	}
 }

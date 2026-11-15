@@ -247,9 +247,12 @@ func aged(v Vuln, now time.Time) bool {
 // 2026-11-15): it compared a version (whoever gave it: the agent, the distribution, SNMP or LLDP, a person, a service's
 // banner), a scan engine hit it, or NVD lists every version of the product as affected (no version could change it). Only
 // a product-only match whose version would decide it is dropped: the noise of XP-era rows on Server 2025, while
-// CVE-2018-13379 on an unpatched FortiGate stays. Labels are unchanged (a banner or a typed version stays suspected).
+// CVE-2018-13379 on an unpatched FortiGate stays. Labels are unchanged (a banner or a typed version stays suspected). A product
+// match on a row the device's own agent reported (Evidence.AgentRow, D-612) stands too: the agent gave the installed version and only
+// Vedette could not compare it, which is agent evidence, not a guess (N100 n54: an unpatched Windows Server 2025 build 26100.1742 had
+// CVE-2024-43572 and CVE-2024-43573 closed for their age).
 func confirmedMatch(m Match) bool {
-	return m.Basis != BasisProduct || m.every
+	return m.Basis != BasisProduct || m.every || m.Evidence.AgentRow
 }
 
 // agedSummary is the note of a finding the age rule closes.

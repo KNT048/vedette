@@ -37,7 +37,8 @@ func (s *Service) Jobs() []jobs.Job {
 }
 
 // RunPull is one tick of the pull job: every enabled feed that is due (INV-8, INV-9: State.Due with the feed's
-// interval and its back-off after errors) is pulled in turn, vulnerabilities first. A failed pull is recorded on
+// interval and its back-off after errors; nvd-recent with an unfinished pull only its back-off, INV-24) is pulled in turn,
+// vulnerabilities first. A failed pull is recorded on
 // the feed and never fails the job; only a cancelled context or a database failure does.
 func (s *Service) RunPull(ctx context.Context) error {
 	now := s.now()
@@ -56,6 +57,17 @@ func (s *Service) RunPull(ctx context.Context) error {
 			}
 		}
 		due := r.state().Due(now, r.IntervalHours)
+		if r.ID == recentFeedID && r.Enabled { // N55-2: a fill the cursor says is unfinished (a migration reset it) goes on now, not a day after the last success
+			cur, err := s.st.recentCursor(ctx)
+			if err != nil {
+				return err
+			}
+			if !recentComplete(cur, r.URL) {
+				st := r.state()
+				st.LastSuccess = time.Time{} // only the back-off after failures holds it back
+				due = st.Due(now, r.IntervalHours)
+			}
+		}
 		if at, paused := s.nvdResumeAt(); paused && r.ID == nvdFeedID {
 			due = !now.Before(at) // a paused NVD pull goes on when it said it would (W3-1)
 		}
@@ -480,7 +492,7 @@ func (s *Service) pullOne(ctx context.Context, id, actor string) (sourceRow, int
 	}
 	if joined { // another pull of this feed ran while this one waited: its result is the answer, not a second pull (W3-1)
 		row, err := s.st.source(ctx, id)
-		return s.live(row), 0, nil, err
+		return s.live(ctx, row), 0, nil, err
 	}
 	defer release()
 	src, err := s.st.source(ctx, id)
@@ -504,10 +516,10 @@ func (s *Service) pullOne(ctx context.Context, id, actor string) (sourceRow, int
 		return src, 0, nil, nil
 	}
 	if errors.Is(perr, errNVDPaused) { // W3-1: the pages so far are kept and the pull goes on later; nothing is written
-		return s.live(src), 0, nil, nil
+		return s.live(ctx, src), 0, nil, nil
 	}
 	if errors.Is(perr, errDistroWaits) || errors.Is(perr, errDistroNoDevice) { // D-516: no CISA list yet; D-570: no device needs it. Nothing to keep; the feed stays due
-		return s.live(src), 0, nil, nil
+		return s.live(ctx, src), 0, nil, nil
 	}
 	if perr != nil {
 		s.Log.WarnContext(ctx, "feed pull failed", "feed", src.ID, "name", src.Name, "error", perr) // the name too: an admin knows the feed by it (D-420 (2))

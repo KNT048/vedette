@@ -2,6 +2,7 @@ package feeds
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"net/http"
 	"slices"
@@ -185,7 +186,7 @@ func TestRecentPull_PausesAndGoesOn(t *testing.T) {
 	if f.Status != "never" || rowsOf(t, e.db, "feeds_recent_cve") != 2 || rowsOf(t, e.db, "feeds_recent_cursor") != 1 {
 		t.Fatalf("paused: %+v, %d CVEs", f, rowsOf(t, e.db, "feeds_recent_cve"))
 	}
-	if live := e.svc.live(f); live.Error == nil || !strings.Contains(*live.Error, "Loading the CVEs of the last 12 months from NVD: 2 stored so far") {
+	if live := e.svc.live(t.Context(), f); live.Error == nil || !strings.Contains(*live.Error, "Loading the CVEs of the last 12 months from NVD: 2 stored so far") {
 		t.Fatalf("progress %v", live.Error)
 	}
 	n.mu.Lock()
@@ -285,7 +286,7 @@ func TestRecentPull_FailedUpdateIsNotARefill(t *testing.T) {
 	if err := e.svc.Fetch(t.Context(), recentFeedID); err != nil {
 		t.Fatal(err)
 	}
-	f := e.svc.live(e.feed(recentFeedID))
+	f := e.svc.live(t.Context(), e.feed(recentFeedID))
 	if f.Status != "error" || f.Error == nil || !strings.Contains(*f.Error, "HTTP 403") || strings.Contains(*f.Error, "Loading") {
 		t.Fatalf("failed update: %+v %v", f, *f.Error)
 	}
@@ -531,11 +532,11 @@ func TestRecentLive_ErrorAndProgress(t *testing.T) {
 	e := newEnv(t)
 	e.svc.setRecent(&recentProgress{cur: recentCursor{Mode: modeFill, From: time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC)}, stored: 1000, run: &nvdRun{}}, time.Time{})
 	msg := "NVD was busy (HTTP 503), after every try."
-	r := e.svc.live(sourceRow{ID: recentFeedID, Enabled: true, Status: "error", Error: &msg})
+	r := e.svc.live(t.Context(), sourceRow{ID: recentFeedID, Enabled: true, Status: "error", Error: &msg})
 	if r.Status != "error" || r.Error == nil || *r.Error != msg+" Loading the CVEs of the last 12 months from NVD: 1,000 stored so far, published up to 1 Mar 2026." {
 		t.Fatalf("%+v %v", r, *r.Error)
 	}
-	r = e.svc.live(sourceRow{ID: recentFeedID, Enabled: true, Status: "never"})
+	r = e.svc.live(t.Context(), sourceRow{ID: recentFeedID, Enabled: true, Status: "never"})
 	if r.Status != "never" || r.Error == nil || !strings.HasPrefix(*r.Error, "Loading") {
 		t.Fatalf("%+v", r)
 	}
@@ -568,7 +569,7 @@ func TestRecentPull_WaitsOutNVDsRetryTime(t *testing.T) {
 	if err := e.svc.RunPull(t.Context()); err != nil {
 		t.Fatal(err)
 	}
-	if live := e.svc.live(e.feed(recentFeedID)); live.Error == nil || !strings.Contains(*live.Error, "NVD was busy (HTTP 503). Vedette tries again in") {
+	if live := e.svc.live(t.Context(), e.feed(recentFeedID)); live.Error == nil || !strings.Contains(*live.Error, "NVD was busy (HTTP 503). Vedette tries again in") {
 		t.Fatalf("progress %v", *live.Error)
 	}
 	n.mu.Lock()
@@ -585,7 +586,7 @@ func TestRecentPull_WaitsOutNVDsRetryTime(t *testing.T) {
 	if err := e.svc.RunPull(t.Context()); err != nil || len(n.requests()) == 0 {
 		t.Fatalf("did not go on after the retry time: %v %v", n.requests(), err)
 	}
-	if live := e.svc.live(e.feed(recentFeedID)); live.Error != nil && strings.Contains(*live.Error, "busy") {
+	if live := e.svc.live(t.Context(), e.feed(recentFeedID)); live.Error != nil && strings.Contains(*live.Error, "busy") {
 		t.Fatalf("still says busy after NVD answered: %v", *live.Error)
 	}
 }
@@ -608,5 +609,58 @@ func TestNVDSlot_ClockSteppedBack(t *testing.T) {
 		if w > nvdPause {
 			t.Fatalf("waited %v after the clock went back an hour", w)
 		}
+	}
+}
+
+// N55-2, N55-1 (n55 on the N100): a cursor reset (migration 0013) after a recent good pull is a fill the feed still owes: the
+// 5-minute check pulls it at once (only the back-off after a failure holds it back), and meanwhile the feed row says where it
+// goes on instead of its old "OK". With a done cursor the same check asks nothing.
+func TestRecentPull_CursorResetIsDueAtTheNextCheck(t *testing.T) {
+	t.Parallel()
+	e, n := recentEnv(t)
+	n.perWin = func(time.Time, bool) int { return 1 }
+	if err := e.svc.Fetch(t.Context(), recentFeedID); err != nil {
+		t.Fatal(err)
+	}
+	first := e.clock()
+	n.reset()
+	e.setNow(first.Add(PullEvery))
+	if err := e.svc.RunPull(t.Context()); err != nil || len(n.requests()) != 0 {
+		t.Fatalf("a done cursor and a good pull 5 minutes ago: asked %v, %v", n.requests(), err)
+	}
+	if f := e.svc.live(t.Context(), e.feed(recentFeedID)); f.Status != "ok" || f.Error == nil || strings.Contains(*f.Error, "Loading") {
+		t.Fatalf("complete: %+v", f)
+	}
+
+	if err := e.db.Write(t.Context(), func(tx *sql.Tx) error { // what migration 0013 did
+		_, err := tx.ExecContext(t.Context(), `DELETE FROM feeds_recent_cursor`)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	f := e.svc.live(t.Context(), e.feed(recentFeedID))
+	want := "Loading the CVEs of the last 12 months from NVD: 4 stored so far, published up to " + e.clock().AddDate(0, 0, -recentDays).Format("2 Jan 2006") + ". Vedette goes on at the next check (every 5 minutes)."
+	if f.Status != "ok" || f.Error == nil || *f.Error != want {
+		t.Fatalf("row after the reset: %+v %v", f, f.Error)
+	}
+
+	n.mu.Lock() // the refill's first page fails: the back-off holds the next check
+	n.codes[e.clock().AddDate(0, 0, -recentDays).Format("2006-01-02T15:04:05.000Z")+"/0"] = http.StatusForbidden
+	n.mu.Unlock()
+	if err := e.svc.RunPull(t.Context()); err != nil || len(n.requests()) != 1 {
+		t.Fatalf("the reset cursor is due at once: asked %v, %v", n.requests(), err)
+	}
+	failed := e.clock()
+	n.reset()
+	e.setNow(failed.Add(BackoffBase - time.Minute))
+	if err := e.svc.RunPull(t.Context()); err != nil || len(n.requests()) != 0 {
+		t.Fatalf("within the back-off: asked %v, %v", n.requests(), err)
+	}
+	e.setNow(failed.Add(BackoffBase))
+	if err := e.svc.RunPull(t.Context()); err != nil || len(n.requests()) != 4 {
+		t.Fatalf("after the back-off the refill runs: asked %v, %v", n.requests(), err)
+	}
+	if c, err := e.svc.st.recentCursor(t.Context()); err != nil || c == nil || c.Mode != modeDone {
+		t.Fatalf("cursor after the refill: %+v %v", c, err)
 	}
 }

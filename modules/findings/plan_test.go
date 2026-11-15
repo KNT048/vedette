@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"slices"
 	"testing"
+	"time"
 )
 
 // Tier data of the plan tests: t0 is 2026-11-09.
@@ -220,7 +221,7 @@ func TestPlan_JobAndEndpoint(t *testing.T) {
 
 // Measured for the PR (D-617): a pass over tier data sized like the N100 (104,448 CVEs, about 2 NVD entries each, 21 devices with
 // about 40 compared rows each) once feeds kept only the devices' products, and the index and match without that filter (the worst
-// case: every CVE in memory). Run: go test ./modules/findings -run '^$' -bench Plan -benchmem
+// case: every CVE in memory), and a Windows device. Run: go test ./modules/findings -run '^$' -bench Plan -benchmem
 func BenchmarkPlanPass(b *testing.B) {
 	const cves = 104_448
 	products := 5_000
@@ -263,6 +264,44 @@ func BenchmarkPlanPass(b *testing.B) {
 		}
 	}
 	b.Run("scope_filter_and_match", func(b *testing.B) { run(b, tv) })
+	// Review r1 #7 of #804: one Windows Server 2022 release row against 1,200 Windows CVEs of NVD's real shape (12 releases × 4 targets =
+	// 48 entries each), the costliest device of a pass.
+	b.Run("windows_device", func(b *testing.B) {
+		rels := []struct {
+			p     string
+			build int
+		}{{"windows_10_1809", 17763}, {"windows_10_21h2", 19044}, {"windows_10_22h2", 19045}, {"windows_11_22h2", 22621}, {"windows_11_23h2", 22631},
+			{"windows_11_24h2", 26100}, {"windows_11_25h2", 26200}, {"windows_server_2016", 14393}, {"windows_server_2019", 17763},
+			{"windows_server_2022", 20348}, {"windows_server_2022_23h2", 25398}, {"windows_server_2025", 26100}}
+		win := make([]TierVuln, 1200)
+		for i := range win {
+			var aff []Affected
+			for _, r := range rels {
+				for _, tg := range []string{"x64", "x86", "arm64", "*"} {
+					aff = append(aff, Affected{CPE: fmt.Sprintf("cpe:2.3:o:microsoft:%s:*:*:*:*:*:*:%s:*", r.p, tg),
+						Range: VersionRange{StartIncl: fmt.Sprintf("10.0.%d.0", r.build), EndExcl: fmt.Sprintf("10.0.%d.%d", r.build, 2000+i)}})
+				}
+			}
+			win[i] = tierV(fmt.Sprintf("CVE-2026-%05d", 60000+i), "recent", i%360, 0.01, aff...)
+		}
+		dev := Asset{ID: "a-srv", OS: "Microsoft Windows Server 2022 Standard", Software: []Software{{ID: "s-win", Display: "Windows Server 2022", Vendor: "Microsoft", Product: "Windows",
+			Version: "10.0.20348.2700", CPE: "cpe:2.3:o:microsoft:windows_server_2022:10.0.20348.2700:*:*:*:*:*:x64:*", Source: "agent", KevKeys: []string{"microsoft|windows"}}}}
+		b.Run("index", func(b *testing.B) { // once per pass, whatever the number of devices
+			b.ReportAllocs()
+			for b.Loop() {
+				newTierIndex(win)
+			}
+		})
+		b.Run("match", func(b *testing.B) { // per Windows device
+			x := newTierIndex(win)
+			b.ReportAllocs()
+			for b.Loop() {
+				if items, _ := matchTiers(dev, x, nil, t0); len(items) != 1 {
+					b.Fatal(len(items))
+				}
+			}
+		})
+	})
 	b.Run("index_all_and_match", func(b *testing.B) {
 		b.ReportAllocs()
 		for b.Loop() {
@@ -272,4 +311,121 @@ func BenchmarkPlanPass(b *testing.B) {
 			}
 		}
 	})
+}
+
+// Review r1 #5 of #804: on a Windows release past its end of support (Windows 10 22H2: every fix after 19045.6456 is an Extended
+// Security Update) the item says ESU, never a plain "install the latest cumulative update".
+func TestPlan_WindowsESU(t *testing.T) {
+	t.Parallel()
+	w10 := Affected{CPE: "cpe:2.3:o:microsoft:windows_10_22h2:*:*:*:*:*:*:x64:*", Range: VersionRange{StartIncl: "10.0.19045.0", EndExcl: "10.0.19045.6900"}}
+	a := Asset{ID: "a-pc", Name: "pc1", OS: "Microsoft Windows 10 Pro", Software: []Software{{ID: "s-win", Display: "Windows 10 22H2", Vendor: "Microsoft", Product: "Windows",
+		Version: "10.0.19045.6456", CPE: "cpe:2.3:o:microsoft:windows_10_22h2:10.0.19045.6456:*:*:*:*:*:x64:*", Source: "agent", KevKeys: []string{"microsoft|windows"}}}}
+	items, _ := planOf(a, []TierVuln{tierV("CVE-2026-44001", "recent", 20, 0.02, w10)}, nil)
+	if len(items) != 1 || items[0].Kind != "esu" || items[0].Fixed != "10.0.19045.6900" {
+		t.Fatalf("items %+v", items)
+	}
+}
+
+// Review r1 #6 of #804: an NVD entry "running on" operating systems counts only when the device's OS is known and is one of them;
+// an entry stored before Vedette kept the condition ("?") never counts.
+func TestPlan_PlatformConditionNeedsAKnownOS(t *testing.T) {
+	t.Parallel()
+	v := tierV("CVE-2026-45001", "recent", 20, 0.02, nginxBelow126())
+	v.Platforms = [][]string{{"microsoft:windows"}}
+	dev := func(agentOS, source string) Asset {
+		return Asset{ID: "a-web", AgentOS: agentOS, Software: []Software{nginxRow("1.18.0", source)}}
+	}
+	for _, c := range []struct {
+		name string
+		a    Asset
+		want int
+	}{
+		{"agent on Windows", dev("Microsoft Windows Server 2022 Standard", "agent"), 1},
+		{"agent on Ubuntu", dev("Ubuntu 24.04.1 LTS", "agent"), 0},
+		{"agent, OS not reported", dev("", "agent"), 0},
+		{"typed version, OS not known", dev("Microsoft Windows Server 2022", "manual"), 0},
+	} {
+		if items, _ := planOf(c.a, []TierVuln{v}, nil); len(items) != c.want {
+			t.Errorf("%s: %d items, want %d", c.name, len(items), c.want)
+		}
+	}
+	unknown := v
+	unknown.Platforms = [][]string{{"?"}}
+	if items, _ := planOf(dev("Microsoft Windows Server 2022", "agent"), []TierVuln{unknown}, nil); len(items) != 0 {
+		t.Fatalf("condition not known: %+v", items)
+	}
+	none := v
+	none.Platforms = [][]string{{}}
+	if items, _ := planOf(dev("", "agent"), []TierVuln{none}, nil); len(items) != 1 {
+		t.Fatalf("no condition: %+v", items)
+	}
+}
+
+// Review r1 #10 of #804: two rows of one product on a device (the agent's and a typed one) list each CVE once, under the agent's row.
+func TestPlan_OneCVEOncePerDevice(t *testing.T) {
+	t.Parallel()
+	typed := nginxRow("1.18.0", "manual")
+	typed.ID = "s-typed"
+	a := Asset{ID: "a-web", Software: []Software{typed, nginxRow("1.18.0", "agent")}}
+	items, _ := planOf(a, []TierVuln{tierV("CVE-2026-41001", "recent", 30, 0.01, nginxBelow126())}, nil)
+	if len(items) != 1 || items[0].Group != "a-web/s-ng" || items[0].CVEs[0].Basis != "agent" {
+		t.Fatalf("items %+v", items)
+	}
+}
+
+// Review r1 #2, #3, #4 of #804: a CVE that crossed the 12-month line after the pass is not listed and not counted as scan evidence; the
+// tier stamp moving (the feeds module turned back on) or a long gap of the job forces a full pass; a device deleted while a pass reads
+// it is not written back.
+func TestPlan_AgeAtRequestStampGapAndDelete(t *testing.T) {
+	t.Parallel()
+	e := newHTTPEnv(t)
+	e.inv.assets["a-web"] = AssetView{ID: "a-web", Name: "web01"}
+	e.inv.match["a-web"] = Asset{ID: "a-web", Name: "web01", Software: []Software{nginxRow("1.18.0", "agent")}}
+	e.feeds.tiers = []TierVuln{tierV("CVE-2025-46001", "recent", 364, 0.01, nginxBelow126())}
+	e.feeds.stamp = "s1"
+	if err := e.svc.RefreshPlan(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if v := e.svc.Plan(); len(v.Items) != 1 {
+		t.Fatalf("pass: %+v", v)
+	}
+	e.advance(2 * 24 * time.Hour) // the CVE is now 366 days old; no pass ran since
+	if _, b := e.call("GET", "/findings/plan", "viewer", ""); len(b["items"].([]any)) != 0 || b["old_evidence"] != float64(0) {
+		t.Fatalf("after the 12 months: %v", b)
+	}
+	if err := e.svc.RefreshPlan(t.Context()); err != nil { // an hour since the last full pass: a full one
+		t.Fatal(err)
+	}
+	// the job did not run for longer than two periods (the findings module was off), within the hour: the next run compares everything
+	e.advance(11 * time.Minute)
+	e.feeds.tiers = []TierVuln{tierV("CVE-2026-46002", "recent", 10, 0.01, nginxBelow126())}
+	if err := e.svc.RefreshPlan(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if v := e.svc.Plan(); len(v.Items) != 1 || v.Items[0].CVEs[0].CVE != "CVE-2026-46002" {
+		t.Fatalf("after a gap: %+v", v)
+	}
+	// the stamp moves (feeds module back on): a full pass at once, within the hour and the period
+	e.feeds.tiers = []TierVuln{tierV("CVE-2026-46003", "recent", 10, 0.01, nginxBelow126())}
+	e.advance(time.Minute)
+	e.feeds.stamp = "feeds-off"
+	if err := e.svc.RefreshPlan(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if v := e.svc.Plan(); len(v.Items) != 1 || v.Items[0].CVEs[0].CVE != "CVE-2026-46003" {
+		t.Fatalf("after the stamp moved: %+v", v)
+	}
+	// deleted while the next full pass reads it
+	e.feeds.stamp = "s2"
+	e.inv.onMatch = func(id string) {
+		if _, err := e.svc.OnAssetDeleted(t.Context(), id); err != nil {
+			t.Error(err)
+		}
+	}
+	if err := e.svc.RefreshPlan(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if v := e.svc.Plan(); len(v.Items) != 0 || v.Compared+v.Unchecked != 0 {
+		t.Fatalf("a deleted device was written back: %+v", v)
+	}
 }

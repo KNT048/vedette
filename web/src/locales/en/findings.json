@@ -357,7 +357,7 @@
     "title": "Updates to plan",
     "titleCount_one": "1 update to plan",
     "titleCount_other": "{{count}} updates to plan",
-    "intro": "Updates that fix CVEs on your devices that are not on an exploited list yet: likely to be exploited soon (EPSS 10% or more), or published in the last 12 months. Vedette lists only CVEs it confirmed on the device (the version your agent reports, a version you entered or the device states, or a scan), never a version guessed from the network, and never alerts on them. Exploited CVEs are findings:",
+    "intro": "Updates that fix CVEs on your devices that are not on an exploited list yet: likely to be exploited soon (EPSS 10% or more), or published in the last 12 months. Vedette lists only CVEs it confirmed on the device (the version your agent reports, a version you entered or the device states), never a version guessed from the network, and never alerts on them. Exploited CVEs are findings:",
     "toFindings": "see Findings.",
     "dataEpss": "EPSS scores of {{date}}",
     "dataRecent": "CVEs published since {{date}}",
@@ -430,7 +430,7 @@
     "emptyDevices": "See the devices",
     "unchecked_one": "1 device is not checked",
     "unchecked_other": "{{count}} devices are not checked",
-    "uncheckedBody": "Vedette has no version on them it can compare with these CVEs: no version at all, only a version guessed from what a service announces on the network, or only packages of Ubuntu or Debian, whose fixes the distributions backport (Vedette does not compare those with these CVEs yet). Installing the agent, or entering the version, gives a version it can compare.",
+    "uncheckedBody": "Vedette has no version on them it can compare with these CVEs: no version at all, only a version guessed from what a service announces on the network, or only packages of Ubuntu or Debian, whose fixes the distributions backport (Vedette compares those in a later update). For the others, installing the agent or entering the version gives a version it can compare.",
     "feed": {
       "epss": "“EPSS, every CVE”",
       "recent": "“NVD, CVEs of the last 12 months”"

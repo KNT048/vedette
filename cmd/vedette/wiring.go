@@ -271,8 +271,14 @@ func (a findingsFeeds) TierStatus(ctx context.Context) (findings.TierStatus, err
 	return findings.TierStatus{EPSS: string(st.EPSS), Recent: string(st.Recent), EPSSDate: st.EPSSDate, RecentSince: st.RecentSince}, nil
 }
 
-// MatchStamp is feeds' stamp of the data findings matches (Store.MatchStamp): the plan job compares again when it changes (D-617).
-func (a findingsFeeds) MatchStamp(ctx context.Context) (string, error) { return a.st.MatchStamp(ctx) }
+// TierStamp is feeds' stamp of the tier data (Store.TierStamp) with the feeds module's switch: the plan job compares every device again
+// when it changes (D-617, review r1 #3 and #7 of #804).
+func (a findingsFeeds) TierStamp(ctx context.Context) (string, error) {
+	if a.on != nil && !a.on() {
+		return "feeds-off", nil
+	}
+	return a.st.TierStamp(ctx)
+}
 
 // TierVulns is feeds' tier data for "Updates to plan" (D-617): nothing while the feeds module is off (modules.md: its data is not read).
 func (a findingsFeeds) TierVulns(ctx context.Context, keep func(cpe string) bool) ([]findings.TierVuln, error) {
@@ -290,7 +296,7 @@ func (a findingsFeeds) TierVulns(ctx context.Context, keep func(cpe string) bool
 	out := make([]findings.TierVuln, len(recs))
 	for i, r := range recs {
 		out[i] = findings.TierVuln{CVE: r.CVE, Tier: r.Tier, Published: r.Published, Severity: strings.ToLower(r.Severity), Score: r.Score, EPSS: r.EPSS, Percentile: r.Percentile,
-			Affected: make([]findings.Affected, len(r.Affected))}
+			Affected: make([]findings.Affected, len(r.Affected)), Platforms: r.Platforms}
 		for j, af := range r.Affected {
 			out[i].Affected[j] = findings.Affected{CPE: af.CPE, Range: findings.VersionRange{StartIncl: af.StartIncl, StartExcl: af.StartExcl, EndIncl: af.EndIncl, EndExcl: af.EndExcl}}
 		}
@@ -568,6 +574,19 @@ func subscribe(d deps) {
 				return nil // the device was deleted after the event went out
 			}
 			return err
+		}))
+	}
+	// D-617 (review r1 #1 of #804): "Updates to plan" compares a device again on any change of its software (a version upgrade, a new
+	// product without an exploited-list key, a removed row: inventory.match.changed covers only exploited-list keys) and on any
+	// discovered or updated device (its agent's OS decides platform-limited CVEs). Only a mark: the plan job does the work.
+	for _, name := range []string{inventory.EventSoftwareChanged, inventory.EventAssetDiscovered, inventory.EventAssetUpdated} {
+		d.Bus.Subscribe(name, on("findings", func(_ context.Context, data any) error {
+			ev, ok := data.(inventory.AssetEvent)
+			if !ok {
+				return fmt.Errorf("unexpected payload %T", data)
+			}
+			d.Findings.MarkPlan(ev.AssetID)
+			return nil
 		}))
 	}
 	// D-515 (review L5 of #722): a merged device's findings that could not move are not deleted by its asset.deleted, which follows

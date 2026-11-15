@@ -76,7 +76,7 @@ func (fakeFeeds) TierVulns(context.Context, func(string) bool) ([]findings.TierV
 	return nil, nil
 }
 
-func (fakeFeeds) MatchStamp(context.Context) (string, error) { return "", nil }
+func (fakeFeeds) TierStamp(context.Context) (string, error) { return "", nil }
 
 type fakeVendors map[string]bool
 

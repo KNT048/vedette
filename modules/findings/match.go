@@ -85,6 +85,16 @@ type Asset struct {
 type Affected struct {
 	CPE   string // CPE 2.3 criteria; a malformed one is ignored
 	Range VersionRange
+	// parsed is CPE already parsed (the plan's index sets it once, review r1 #7 of #804); nil: parse when read.
+	parsed *CPE
+}
+
+// cpe is the entry's parsed CPE.
+func (af Affected) cpe() (CPE, error) {
+	if af.parsed != nil {
+		return *af.parsed, nil
+	}
+	return ParseCPE(af.CPE)
 }
 
 // Vuln is a KEV entry with the optional NVD affected configurations.
@@ -433,7 +443,7 @@ func nvdProducts(vendor string, afs []Affected) string {
 	var names, own []string
 	seen := map[string]bool{}
 	for _, af := range afs {
-		c, err := ParseCPE(af.CPE)
+		c, err := af.cpe()
 		if err != nil {
 			continue
 		}
@@ -663,7 +673,7 @@ func newSWInfo(s Software, osName string) swInfo {
 // listsOthersOnly reports whether every NVD entry of v is readable and names another product than the software (D-505).
 func listsOthersOnly(in swInfo, v Vuln) bool {
 	for _, af := range v.Affected {
-		c, err := ParseCPE(af.CPE)
+		c, err := af.cpe()
 		if err != nil {
 			return false
 		}
@@ -699,7 +709,7 @@ func decide(in swInfo, v Vuln, multi bool) (t Tri, within VersionRange, every bo
 	junosSeen := false // a Junos NVD row decided (junosEval): its exact rows say what a missing update means (D-510)
 	var jl junosList
 	for _, af := range v.Affected {
-		c, err := ParseCPE(af.CPE)
+		c, err := af.cpe()
 		if err != nil || c.Part.Kind == NA {
 			undecidable = true // cannot tell which product this entry is about
 			continue

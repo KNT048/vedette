@@ -359,6 +359,11 @@ func (h *FindingHandlers) FindingsGetFindingsPlan(ctx context.Context, params oa
 		}
 		var cves []PlanCVE
 		for _, c := range it.CVEs {
+			// a CVE that crossed the 12-month line since the pass is not listed (review r1 #2 of #804): only a scan may list an older
+			// one, and no scan basis exists yet (D-617 (2))
+			if c.Published < cut && c.Basis != "scan" {
+				continue
+			}
 			if tier == "all" || c.Tier == tier {
 				cves = append(cves, c)
 			}
@@ -385,7 +390,7 @@ func (h *FindingHandlers) FindingsGetFindingsPlan(ctx context.Context, params oa
 			if c.Tier == "likely" {
 				likely++
 			}
-			if c.Published < cut {
+			if c.Published < cut && c.Basis == "scan" {
 				old++
 			}
 		}

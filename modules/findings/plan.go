@@ -20,6 +20,9 @@ type TierVuln struct {
 	Score            *float64
 	EPSS, Percentile *float64 // nil when epss-all is not ready or has no score for the CVE
 	Affected         []Affected
+	// Platforms is, per entry of Affected, the operating systems NVD says it affects only when running on ("microsoft:windows"); nil
+	// or empty for none; ["?"] when the record was stored before Vedette kept that (not known: the entry never counts). D-617.
+	Platforms [][]string
 }
 
 // PlanCVE is one CVE of a plan item (contract PlanCve).
@@ -41,7 +44,7 @@ type PlanItem struct {
 	Software string    `json:"software"`
 	Version  string    `json:"version"`
 	Fixed    string    `json:"fixed"`
-	Kind     string    `json:"kind"` // fixed, windows (distro has no source yet, D-617)
+	Kind     string    `json:"kind"` // fixed, windows, esu (distro has no source yet, D-617)
 	CVEs     []PlanCVE `json:"cves"`
 }
 
@@ -167,27 +170,45 @@ func (t *TierScope) Keep(cpe string) bool {
 	return false
 }
 
-// tierIndex finds the tier CVEs of a product without reading them all for each row.
+// tierIndex finds the tier CVEs of a product without reading them all for each row. Every entry's CPE is parsed once here (review r1
+// #7 of #804: windowsDecide, winRows and the grouping read the same Windows entries again for each row and each CVE).
 type tierIndex struct {
-	vulns  []Vuln     // as the matcher reads them (Affected, Published; no KEV fields)
+	vulns  []Vuln     // as the matcher reads them (Affected with their parsed CPE, Published; no KEV fields)
 	tier   []TierVuln // the same order
+	cond   []bool     // the CVE has an entry with a platform condition (TierVuln.Platforms)
 	byKey  map[string][]int
-	byName map[string]int // CVE -> index
+	byName map[string]int  // CVE -> index
+	named  map[string]bool // Windows release -> NVD names it in some entry of the pass (winNamed, computed once)
 }
 
 func newTierIndex(tv []TierVuln) *tierIndex {
-	x := &tierIndex{vulns: make([]Vuln, len(tv)), tier: tv, byKey: map[string][]int{}, byName: make(map[string]int, len(tv))}
+	x := &tierIndex{vulns: make([]Vuln, len(tv)), tier: tv, cond: make([]bool, len(tv)), byKey: map[string][]int{}, byName: make(map[string]int, len(tv)), named: map[string]bool{}}
 	for i, t := range tv {
-		x.vulns[i] = Vuln{CVE: t.CVE, Published: t.Published, Affected: t.Affected}
-		x.byName[t.CVE] = i
-		for _, af := range t.Affected {
+		aff := make([]Affected, len(t.Affected))
+		for j, af := range t.Affected {
+			if c, err := ParseCPE(af.CPE); err == nil {
+				af.parsed = &c
+			}
+			aff[j] = af
 			k := tierKey(af.CPE)
 			if l := x.byKey[k]; k != "" && (len(l) == 0 || l[len(l)-1] != i) {
 				x.byKey[k] = append(l, i)
 			}
+			x.cond[i] = x.cond[i] || j < len(t.Platforms) && len(t.Platforms[j]) > 0
 		}
+		x.vulns[i] = Vuln{CVE: t.CVE, Published: t.Published, Affected: aff}
+		x.byName[t.CVE] = i
 	}
 	return x
+}
+
+func (x *tierIndex) winNamed(product string) bool {
+	n, ok := x.named[product]
+	if !ok {
+		n = winNamed(x.vulns, product)
+		x.named[product] = n
+	}
+	return n
 }
 
 // candidates are the indexes of the CVEs whose entries name the row's product, in data order, each once.
@@ -222,14 +243,72 @@ func (x *tierIndex) candidates(in swInfo, win bool) []int {
 	return out
 }
 
+// platformIDs are the platform ids (platformWords) an NVD "running on" operating-system CPE ("microsoft:windows",
+// "linux:linux_kernel") stands for; none for a platform Vedette does not recognise (or "?": NVD's condition is not known), which no
+// device evidence can then satisfy (D-617, review r1 #6 of #804: drop when unsure).
+func platformIDs(vendorProduct string) []string {
+	v, p, _ := strings.Cut(vendorProduct, ":")
+	switch v, p = norm(v), norm(p); {
+	case v == "microsoft" && strings.HasPrefix(p, "windows"):
+		return []string{"windows"}
+	case v == "apple" && (strings.HasPrefix(p, "macos") || strings.HasPrefix(p, "macosx")):
+		return []string{"macos"}
+	case v == "linux" && p == "linuxkernel":
+		return []string{"alpine", "ubuntu", "debian", "rhel", "suse"}
+	case v == "canonical" && p == "ubuntulinux":
+		return []string{"ubuntu"}
+	case v == "debian" && p == "debianlinux":
+		return []string{"debian"}
+	case v == "redhat" || v == "fedoraproject" || v == "centos" || v == "rockylinux" || v == "almalinux":
+		return []string{"rhel"}
+	case v == "suse" || v == "opensuse":
+		return []string{"suse"}
+	case v == "alpinelinux":
+		return []string{"alpine"}
+	case v == "freebsd" || v == "openbsd" || v == "netbsd":
+		return []string{"bsd"}
+	case v == "juniper" && strings.HasPrefix(p, "junos"):
+		return []string{"junos"}
+	}
+	return nil
+}
+
+// onPlatform keeps the entries of a tier CVE whose platform condition the row's evidence satisfies (D-617, review r1 #6 of #804): an
+// entry NVD lists "running on" some operating systems counts only when the device's OS is known (evidenceOf: the agent's OS, the
+// device's SNMP statement, the software's own text; a Windows release row is Windows) and is one of them. Entries without a condition
+// stay. ok is false when no entry is left.
+func onPlatform(v Vuln, t TierVuln, in swInfo, win bool) (Vuln, bool) {
+	ids := evidenceOf(in).ids
+	if win {
+		ids = append(ids, "windows")
+	}
+	var keep []Affected
+	for j, af := range v.Affected {
+		if j < len(t.Platforms) && len(t.Platforms[j]) > 0 && !slices.ContainsFunc(t.Platforms[j], func(p string) bool {
+			return slices.ContainsFunc(platformIDs(p), func(id string) bool { return slices.Contains(ids, id) })
+		}) {
+			continue
+		}
+		keep = append(keep, af)
+	}
+	v.Affected = keep
+	return v, len(keep) > 0
+}
+
 // matchTiers is the plan of one device (D-613, D-615, D-617): every tier CVE (not on an exploited list, published since now minus
 // AgeLimit) whose NVD range a compared row's version is proved inside, with a range that ends (a fix exists), grouped by the update
 // that fixes them (D-545 GroupFix, Ranged only). Windows release rows read NVD's entries by their monthly update (D-546, D-610).
-// Platform-limited CVEs count only when the row names a platform they affect (D-547). compared says the device has a row the plan
-// compares. Nothing is a guess: an Unknown, a product-only match or a range with no end gives no item.
+// Platform-limited CVEs count only when the row names a platform they affect (D-547, and NVD's own "running on" conditions,
+// onPlatform). A CVE two rows of the device match is listed once, under the agent's row first (review r1 #10 of #804). compared says
+// the device has a row the plan compares. Nothing is a guess: an Unknown, a product-only match or a range with no end gives no item.
 func matchTiers(a Asset, x *tierIndex, kev map[string]bool, now time.Time) (items []PlanItem, compared bool) {
 	cut := now.Add(-AgeLimit)
-	for _, s := range deviceSoftware(a) {
+	sws := slices.Clone(deviceSoftware(a))
+	slices.SortStableFunc(sws, func(p, q Software) int {
+		return cmp.Compare(boolInt(q.Source == "agent"), boolInt(p.Source == "agent"))
+	})
+	listed := map[string]bool{}
+	for _, s := range sws {
 		in, ok := tierInfo(a, s)
 		if !ok {
 			continue
@@ -237,16 +316,21 @@ func matchTiers(a Asset, x *tierIndex, kev map[string]bool, now time.Time) (item
 		compared = true
 		d, win := winDevice(in)
 		if win {
-			in.winNamed = winNamed(x.vulns, d.rel.Product) // D-546, review H2: every Windows entry of the pass is in x
+			in.winNamed = x.winNamed(d.rel.Product) // D-546, review H2: every Windows entry of the pass is in x
 		}
-		var mine []int
+		var mine []Vuln
 		for _, i := range x.candidates(in, win) {
 			v := x.vulns[i]
-			if kev[v.CVE] || v.Published.Before(cut) || !ValidCVE(v.CVE) || !platformSettled(in, v.CVE) {
+			if listed[v.CVE] || kev[v.CVE] || v.Published.Before(cut) || !ValidCVE(v.CVE) || !platformSettled(in, v.CVE) {
 				continue
 			}
 			if why, out := platformRuledOut(in, v.CVE); out || why != "" {
 				continue
+			}
+			if x.cond[i] {
+				if v, ok = onPlatform(v, x.tier[i], in, win); !ok {
+					continue
+				}
 			}
 			if win {
 				w, ok := windowsDecide(in, v, in.winNamed, now)
@@ -256,23 +340,32 @@ func matchTiers(a Asset, x *tierIndex, kev map[string]bool, now time.Time) (item
 			} else if t, within, _, _ := decide(in, v, false); t != Yes || within.EndExcl == "" && within.EndIncl == "" {
 				continue
 			}
-			mine = append(mine, i)
+			mine = append(mine, v)
 		}
-		items = append(items, tierItems(a, s, in, win, x, mine)...)
+		its := tierItems(a, s, in, win, x, mine)
+		for _, it := range its {
+			for _, c := range it.CVEs {
+				listed[c.CVE] = true
+			}
+		}
+		items = append(items, its...)
 	}
 	return items, compared
+}
+
+func boolInt(b bool) int {
+	if b {
+		return 1
+	}
+	return 0
 }
 
 // tierItems groups the matched CVEs of one row by the update that fixes them: one item when one release fixes them all, else one
 // item per release that fixes some (each CVE once, by its own nearest fix); a CVE no release is named for is left out (no update to
 // plan for it).
-func tierItems(a Asset, s Software, in swInfo, win bool, x *tierIndex, mine []int) []PlanItem {
-	if len(mine) == 0 {
+func tierItems(a Asset, s Software, in swInfo, win bool, x *tierIndex, vulns []Vuln) []PlanItem {
+	if len(vulns) == 0 {
 		return nil
-	}
-	vulns := make([]Vuln, len(mine))
-	for j, i := range mine {
-		vulns[j] = x.vulns[i]
 	}
 	group := func(vs []Vuln) *GroupFix {
 		if win {
@@ -282,8 +375,11 @@ func tierItems(a Asset, s Software, in swInfo, win bool, x *tierIndex, mine []in
 	}
 	base := a.ID + "/" + s.ID
 	item := func(g *GroupFix, suffix string) PlanItem {
-		kind := "fixed"
-		if win && g.Kind != "feature_update" {
+		kind := "fixed" // a Windows feature update: move to the release g.Fixed names
+		switch {
+		case win && g.Kind == "esu": // the release is out of support: the fix comes only with Extended Security Updates (review r1 #5 of #804)
+			kind = "esu"
+		case win && g.Kind != "feature_update":
 			kind = "windows"
 		}
 		it := PlanItem{Group: base + suffix, AssetID: a.ID, Software: clean(s.Display), Version: clean(in.ver), Fixed: g.Fixed, Kind: kind}

@@ -36149,16 +36149,17 @@
                           },
                           "fixed": {
                             "type": "string",
-                            "description": "fixed: the version that fixes every CVE of the item; windows: the build of the cumulative update; distro: empty"
+                            "description": "fixed: the version that fixes every CVE of the item; windows, esu: the build of the cumulative update; distro: empty"
                           },
                           "kind": {
                             "type": "string",
                             "enum": [
                               "fixed",
                               "distro",
-                              "windows"
+                              "windows",
+                              "esu"
                             ],
-                            "description": "fixed = upgrade the software to `fixed`; distro = install the distribution's security updates for the package; windows = the monthly cumulative update with build `fixed` or later"
+                            "description": "fixed = upgrade the software to `fixed`; distro = install the distribution's security updates for the package; windows = the monthly cumulative update with build `fixed` or later; esu = the same on a Windows release past its end of support: the update comes only with Extended Security Updates (D-617)"
                           },
                           "cves": {
                             "minItems": 1,
@@ -36291,7 +36292,7 @@
                     },
                     "compared": {
                       "type": "boolean",
-                      "description": "false = this box holds the data but does not compare tier 2 and 3 CVEs with devices yet (D-616: the matcher of slice 3); the page says so instead of \"no update to plan\""
+                      "description": "false = no comparison of tier 2 and 3 CVEs with the devices has run since the box started (D-617: the plan job runs within minutes); the page says so instead of \"no update to plan\""
                     },
                     "compared_devices": {
                       "type": "integer",

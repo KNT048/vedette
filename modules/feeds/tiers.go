@@ -279,6 +279,9 @@ type TierRecord struct {
 	Score            *float64 // its base score
 	EPSS, Percentile *float64 // nil when epss-all is not ready or has no score for the CVE
 	Affected         []AffectedRow
+	// Platforms is, per entry, NVD's "running on" operating systems ("microsoft:windows"); empty for none; ["?"] for an entry stored
+	// before Vedette kept them (migration 0013 refills nvd-recent, so it shows only on a box mid-refill). D-617.
+	Platforms [][]string
 }
 
 // tierChunk is how many CPEs one read of TierRecords asks for.
@@ -326,7 +329,7 @@ func (s *Store) TierRecords(ctx context.Context, now time.Time, keep func(cpe st
 			return nil, fmt.Errorf("feeds: tier records: %w", err)
 		}
 		want = want[n:]
-		rs, err := db.QueryContext(ctx, `SELECT a.cve, a.cpe, a.start_incl, a.start_excl, a.end_incl, a.end_excl, r.published, r.severity, r.score, e.epss, e.percentile
+		rs, err := db.QueryContext(ctx, `SELECT a.cve, a.cpe, a.start_incl, a.start_excl, a.end_incl, a.end_excl, a.platforms, r.published, r.severity, r.score, e.epss, e.percentile
 FROM feeds_recent_affected a JOIN feeds_recent_cve r ON r.cve = a.cve LEFT JOIN feeds_epss e ON e.cve = a.cve
 WHERE a.cpe IN (SELECT value FROM json_each(?)) AND r.published >= ? ORDER BY a.cve`, string(part), cutoff)
 		if err != nil {
@@ -339,8 +342,9 @@ WHERE a.cpe IN (SELECT value FROM json_each(?)) AND r.published >= ? ORDER BY a.
 				sev      sql.NullString
 				score    sql.NullFloat64
 				ep, pc   sql.NullFloat64
+				pl       sql.NullString
 			)
-			if err := rs.Scan(&cve, &af.CPE, &af.StartIncl, &af.StartExcl, &af.EndIncl, &af.EndExcl, &pub, &sev, &score, &ep, &pc); err != nil {
+			if err := rs.Scan(&cve, &af.CPE, &af.StartIncl, &af.StartExcl, &af.EndIncl, &af.EndExcl, &pl, &pub, &sev, &score, &ep, &pc); err != nil {
 				_ = rs.Close()
 				return nil, fmt.Errorf("feeds: tier records: %w", err)
 			}
@@ -365,7 +369,12 @@ WHERE a.cpe IN (SELECT value FROM json_each(?)) AND r.published >= ? ORDER BY a.
 				at[cve] = i
 				out = append(out, r)
 			}
+			plats := []string{"?"} // stored before the column: not known
+			if pl.Valid && json.Unmarshal([]byte(pl.String), &plats) != nil {
+				plats = []string{"?"}
+			}
 			out[i].Affected = append(out[i].Affected, af)
+			out[i].Platforms = append(out[i].Platforms, plats)
 		}
 		if err := rs.Close(); err != nil {
 			return nil, fmt.Errorf("feeds: tier records: %w", err)

@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -54,6 +55,10 @@ type RecentCVE struct {
 	Severity                string   // CVSS base severity of the newest CVSS version NVD gives (NVD's own first), "" when none
 	Score                   *float64 // its base score
 	Affected                []AffectedRow
+	// Platforms is, per entry of Affected, the operating systems ("microsoft:windows", vendor and product of the CPE) of NVD's "running
+	// on" condition of its configuration (an AND of the vulnerable entries with non-vulnerable operating-system entries); nil for an
+	// entry without one (D-617, review r1 #6 of #804).
+	Platforms [][]string
 }
 
 // RecentPage is one parsed answer.
@@ -107,7 +112,8 @@ type recentRecord struct {
 			V30 []cvssEntry `json:"cvssMetricV30"`
 		} `json:"metrics"`
 		Configurations []struct {
-			Nodes []struct {
+			Operator string `json:"operator"`
+			Nodes    []struct {
 				Negate   bool `json:"negate"`
 				CPEMatch []struct {
 					Vulnerable bool   `json:"vulnerable"`
@@ -190,6 +196,16 @@ func ParseNVDRecent(data []byte) (RecentPage, error) {
 		bad := ""
 	entries:
 		for _, c := range v.CVE.Configurations {
+			var plats []string // the "running on" operating systems of an AND configuration
+			if strings.EqualFold(c.Operator, "AND") {
+				for _, n := range c.Nodes {
+					for _, m := range n.CPEMatch {
+						if p, ok := platformOf(m.Criteria); ok && !m.Vulnerable && !n.Negate && !slices.Contains(plats, p) && len(plats) < recentMaxPlatforms {
+							plats = append(plats, p)
+						}
+					}
+				}
+			}
 			for _, n := range c.Nodes {
 				if n.Negate {
 					continue
@@ -206,6 +222,7 @@ func ParseNVDRecent(data []byte) (RecentPage, error) {
 						break entries
 					}
 					rec.Affected = append(rec.Affected, r)
+					rec.Platforms = append(rec.Platforms, plats)
 				}
 			}
 		}
@@ -218,6 +235,23 @@ func ParseNVDRecent(data []byte) (RecentPage, error) {
 	}
 	out.Stats = tl.stats()
 	return out, nil
+}
+
+// recentMaxPlatforms caps the operating systems kept for one configuration's condition.
+const recentMaxPlatforms = 20
+
+// platformOf is "vendor:product" of an operating-system CPE ("cpe:2.3:o:microsoft:windows:-:…" gives "microsoft:windows"); false for
+// another part or a name that is not plain printable text.
+func platformOf(cpe string) (string, bool) {
+	rest, ok := strings.CutPrefix(cpe, "cpe:2.3:o:")
+	if !ok || len(cpe) > 500 {
+		return "", false
+	}
+	parts := strings.SplitN(rest, ":", 3)
+	if len(parts) < 3 || parts[0] == "" || parts[1] == "" || parts[0] == "*" || !printableASCII(parts[0]+parts[1]) {
+		return "", false
+	}
+	return parts[0] + ":" + parts[1], true
 }
 
 // Cursor modes of feeds_recent_cursor.
@@ -325,7 +359,7 @@ ON CONFLICT(cve) DO UPDATE SET published = excluded.published, last_modified = e
 		return err
 	}
 	defer func() { _ = wipe.Close() }()
-	ins, err := tx.PrepareContext(ctx, `INSERT INTO feeds_recent_affected (cve, cpe, start_incl, start_excl, end_incl, end_excl) VALUES (?, ?, ?, ?, ?, ?)`)
+	ins, err := tx.PrepareContext(ctx, `INSERT INTO feeds_recent_affected (cve, cpe, start_incl, start_excl, end_incl, end_excl, platforms) VALUES (?, ?, ?, ?, ?, ?, ?)`)
 	if err != nil {
 		return err
 	}
@@ -347,8 +381,16 @@ ON CONFLICT(cve) DO UPDATE SET published = excluded.published, last_modified = e
 		if _, err := wipe.ExecContext(ctx, r.CVE); err != nil {
 			return err
 		}
-		for _, a := range r.Affected {
-			if _, err := ins.ExecContext(ctx, r.CVE, a.CPE, a.StartIncl, a.StartExcl, a.EndIncl, a.EndExcl); err != nil {
+		for j, a := range r.Affected {
+			plats := []string{}
+			if j < len(r.Platforms) && r.Platforms[j] != nil {
+				plats = r.Platforms[j]
+			}
+			pj, err := json.Marshal(plats)
+			if err != nil {
+				return err
+			}
+			if _, err := ins.ExecContext(ctx, r.CVE, a.CPE, a.StartIncl, a.StartExcl, a.EndIncl, a.EndExcl, string(pj)); err != nil {
 				return err
 			}
 		}

@@ -147,8 +147,8 @@ export const PlanItem = z.object({
   asset: z.object({ id: z.string(), name: z.string().describe('The name the Devices page shows, never the internal id (D-484)') }),
   software: z.string().describe('Display name of the software row'),
   version: z.string().describe('The installed version'),
-  fixed: z.string().describe('fixed: the version that fixes every CVE of the item; windows: the build of the cumulative update; distro: empty'),
-  kind: z.enum(['fixed', 'distro', 'windows']).describe('fixed = upgrade the software to `fixed`; distro = install the distribution\'s security updates for the package; windows = the monthly cumulative update with build `fixed` or later'),
+  fixed: z.string().describe('fixed: the version that fixes every CVE of the item; windows, esu: the build of the cumulative update; distro: empty'),
+  kind: z.enum(['fixed', 'distro', 'windows', 'esu']).describe('fixed = upgrade the software to `fixed`; distro = install the distribution\'s security updates for the package; windows = the monthly cumulative update with build `fixed` or later; esu = the same on a Windows release past its end of support: the update comes only with Extended Security Updates (D-617)'),
   cves: z.array(PlanCve).min(1).describe('Likely first, then by EPSS, then newest'),
   likely: z.number().int().min(0),
   recent: z.number().int().min(0),
@@ -156,7 +156,7 @@ export const PlanItem = z.object({
 export const PlanFeed = z.enum(['module_off', 'off', 'loading', 'ready']).describe('module_off = the feeds module is off (SYS-5: its data is not read); off = an admin has not turned the feed on; loading = on, first fill not finished; ready = loaded')
 export const Plan = z.object({
   items: z.array(PlanItem),
-  compared: z.boolean().describe('false = this box holds the data but does not compare tier 2 and 3 CVEs with devices yet (D-616: the matcher of slice 3); the page says so instead of "no update to plan"'),
+  compared: z.boolean().describe('false = no comparison of tier 2 and 3 CVEs with the devices has run since the box started (D-617: the plan job runs within minutes); the page says so instead of "no update to plan"'),
   compared_devices: z.number().int().min(0).describe('Devices with at least one version Vedette can compare'),
   unchecked_devices: z.number().int().min(0).describe('Devices with no version Vedette can read: not checked'),
   old_evidence: z.number().int().min(0).describe('D-615: CVEs published more than 12 months ago listed because a scan engine found them'),

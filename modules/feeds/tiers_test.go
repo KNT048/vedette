@@ -3,11 +3,15 @@ package feeds
 import (
 	"database/sql"
 	"fmt"
+	"io/fs"
 	"net/http"
+	"slices"
 	"strings"
 	"testing"
+	"testing/fstest"
 	"time"
 
+	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/core/store/storetest"
 	"github.com/knt048/vedette/modules/core"
 )
@@ -249,5 +253,94 @@ func benchTierRecords(b *testing.B, products int) {
 		if err != nil || len(got) == 0 {
 			b.Fatal(len(got), err)
 		}
+	}
+}
+
+// Review r1 #6 of #804: NVD's "running on" condition is kept per entry and read back; an entry stored before the column is "?" (not
+// known). Review r1 #12: a CVE whose kept CPEs fall in two reads of tierChunk is one record with every entry.
+func TestTierRecords_PlatformsAndChunks(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	now := e.clock()
+	seedTierData(t, e, now)
+	d, err := ParseNVDRecent([]byte(`{"totalResults":1,"vulnerabilities":[{"cve":{"id":"CVE-2026-0007","published":"` + now.AddDate(0, -1, 0).UTC().Format("2006-01-02T15:04:05.000") +
+		`","lastModified":"2026-08-03T00:00:00.000","vulnStatus":"Analyzed","configurations":[
+{"operator":"AND","nodes":[{"operator":"OR","cpeMatch":[{"vulnerable":true,"criteria":"cpe:2.3:a:f5:nginx:*:*:*:*:*:*:*:*","versionEndExcluding":"1.30.0"}]},
+ {"operator":"OR","cpeMatch":[{"vulnerable":false,"criteria":"cpe:2.3:o:microsoft:windows:-:*:*:*:*:*:*:*"},{"vulnerable":false,"criteria":"cpe:2.3:h:acme:box:-:*:*:*:*:*:*:*"}]}]},
+{"nodes":[{"operator":"OR","cpeMatch":[{"vulnerable":true,"criteria":"cpe:2.3:a:f5:nginx_plus:*:*:*:*:*:*:*:*","versionEndExcluding":"9.0"}]}]}]}}]}`))
+	if err != nil || len(d.Records) != 1 || len(d.Records[0].Platforms) != 2 || !slices.Equal(d.Records[0].Platforms[0], []string{"microsoft:windows"}) || d.Records[0].Platforms[1] != nil {
+		t.Fatalf("parse: %+v %v", d, err)
+	}
+	write(t, e.db, func(tx *sql.Tx) error { return storeRecentPage(t.Context(), tx, d.Records, now.AddDate(0, 0, -365)) })
+	got, err := e.svc.st.TierRecords(t.Context(), now, func(cpe string) bool { return strings.Contains(cpe, ":f5:") })
+	if err != nil {
+		t.Fatal(err)
+	}
+	by := map[string]TierRecord{}
+	for _, r := range got {
+		by[r.CVE] = r
+	}
+	if r := by["CVE-2026-0007"]; len(r.Platforms) != 2 || !slices.ContainsFunc(r.Platforms, func(p []string) bool { return slices.Equal(p, []string{"microsoft:windows"}) }) ||
+		!slices.ContainsFunc(r.Platforms, func(p []string) bool { return len(p) == 0 }) {
+		t.Fatalf("stored condition: %+v", r.Platforms)
+	}
+	if r := by["CVE-2026-0001"]; len(r.Platforms) != 1 || !slices.Equal(r.Platforms[0], []string{"?"}) { // seeded without the column
+		t.Fatalf("not known: %+v", r.Platforms)
+	}
+	// 501 kept CPEs of one CVE: two reads, one record
+	write(t, e.db, func(tx *sql.Tx) error {
+		for i := range tierChunk + 1 {
+			if _, err := tx.ExecContext(t.Context(), `INSERT INTO feeds_recent_affected (cve, cpe, start_incl, start_excl, end_incl, end_excl, platforms) VALUES ('CVE-2026-0002', ?, '', '', '', '2.0', '[]')`,
+				fmt.Sprintf("cpe:2.3:a:many:product%d:*:*:*:*:*:*:*:*", i)); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	got, err = e.svc.st.TierRecords(t.Context(), now, func(cpe string) bool { return strings.Contains(cpe, ":many:") })
+	if err != nil || len(got) != 1 || len(got[0].Affected) != tierChunk+1 || len(got[0].Platforms) != tierChunk+1 {
+		t.Fatalf("across chunks: %d records, %v", len(got), err)
+	}
+}
+
+// Migration 0013 (review r1 #6 of #804) on a box with nvd-recent loaded: the rows' condition is not known (NULL) and the cursor goes,
+// so the next pull loads the 12 months again and the feed says it is loading meanwhile.
+func TestMigration0013RefillsNVDRecent(t *testing.T) {
+	t.Parallel()
+	before := fstest.MapFS{}
+	entries, err := fs.ReadDir(Migrations, ".")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, en := range entries {
+		if en.Name() >= "0013" {
+			continue
+		}
+		b, err := fs.ReadFile(Migrations, en.Name())
+		if err != nil {
+			t.Fatal(err)
+		}
+		before[en.Name()] = &fstest.MapFile{Data: b}
+	}
+	db := storetest.Migrated(t, storetest.Migration{Module: "core", FS: core.Migrations}, storetest.Migration{Module: "feeds", FS: before})
+	s := &Store{db: db}
+	now := time.Date(2026, 11, 15, 0, 0, 0, 0, time.UTC)
+	if err := s.SeedBuiltins(t.Context(), now); err != nil {
+		t.Fatal(err)
+	}
+	execSQL(t, db, `INSERT INTO feeds_recent_cve (cve, published, last_modified, status) VALUES ('CVE-2026-0001', '2026-10-01T00:00:00.000Z', '2026-10-01T00:00:00.000Z', 'Analyzed')`)
+	execSQL(t, db, `INSERT INTO feeds_recent_affected (cve, cpe, start_incl, start_excl, end_incl, end_excl) VALUES ('CVE-2026-0001', 'cpe:2.3:a:f5:nginx:*:*:*:*:*:*:*:*', '', '', '', '2.0')`)
+	execSQL(t, db, `INSERT INTO feeds_recent_cursor (id, url, mode, win_from, win_to, until, next_index, total) VALUES (1, 'https://x.test/nvd', 'done', '2026-11-14T00:00:00.000Z', '2026-11-14T00:00:00.000Z', '2026-11-14T00:00:00.000Z', 0, 0)`)
+	if st, _ := s.TierStatus(t.Context(), now); st.Recent != TierReady {
+		t.Fatalf("before: %+v", st)
+	}
+	if err := store.Migrate(t.Context(), db, "feeds", Migrations); err != nil {
+		t.Fatal(err)
+	}
+	if st, _ := s.TierStatus(t.Context(), now); st.Recent != TierLoading {
+		t.Fatalf("after 0013 the feed must load again: %+v", st)
+	}
+	if c, err := s.recentCursor(t.Context()); err != nil || c != nil {
+		t.Fatalf("cursor %+v %v", c, err)
 	}
 }

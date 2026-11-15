@@ -207,6 +207,19 @@ func (s *Store) MatchStamp(ctx context.Context) (string, error) {
 	return stamp.String, nil
 }
 
+// TierStamp changes whenever what TierRecords returns may have changed (D-617): the last pull time and rev (turned on or off) of
+// epss-all, nvd-recent and nvd-kev. The hourly exploited-list pulls are not in it: findings' hourly full pass takes their new CVEs out of
+// the plan (review r1 #7 of #804).
+func (s *Store) TierStamp(ctx context.Context) (string, error) {
+	var stamp sql.NullString
+	err := s.db.Reader().QueryRowContext(ctx, `SELECT group_concat(id || '=' || COALESCE(last_fetch, '') || '/' || rev || '/' || enabled, ',') FROM
+(SELECT id, last_fetch, rev, enabled FROM feeds_source WHERE id IN ('epss-all', 'nvd-kev', 'nvd-recent') ORDER BY id)`).Scan(&stamp)
+	if err != nil {
+		return "", fmt.Errorf("feeds: tier stamp: %w", err)
+	}
+	return stamp.String, nil
+}
+
 // affectedCount is how many CVEs have NVD's answer.
 func (s *Store) affectedCount(ctx context.Context) (int, error) {
 	var n int

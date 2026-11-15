@@ -24,6 +24,8 @@ type fakeInv struct {
 	assets map[string]AssetView
 	match  map[string]Asset
 	idsErr error
+	// onMatch runs (without the lock) when MatchInput reads a device: a test can change the world while a pass reads it.
+	onMatch func(id string)
 }
 
 func (f *fakeInv) Assets(_ context.Context, ids []string) (map[string]AssetView, error) {
@@ -40,8 +42,12 @@ func (f *fakeInv) Assets(_ context.Context, ids []string) (map[string]AssetView,
 
 func (f *fakeInv) MatchInput(_ context.Context, id string) (Asset, bool, error) {
 	f.mu.Lock()
-	defer f.mu.Unlock()
 	a, ok := f.match[id]
+	hook := f.onMatch
+	f.mu.Unlock()
+	if hook != nil {
+		hook(id)
+	}
 	return a, ok, nil
 }
 
@@ -94,7 +100,7 @@ func (f *fakeFeeds) TierVulns(_ context.Context, keep func(string) bool) ([]Tier
 	return out, nil
 }
 
-func (f *fakeFeeds) MatchStamp(context.Context) (string, error) { return f.stamp, nil }
+func (f *fakeFeeds) TierStamp(context.Context) (string, error) { return f.stamp, nil }
 
 type published struct {
 	Name    string

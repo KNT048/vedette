@@ -12,7 +12,9 @@ import (
 
 // PlanEvery is the pause between two runs of the plan job (D-617): a run does a full pass when the feeds' match stamp changed (a pull
 // of epss-all, nvd-recent or an exploited list), on its first run and at least every ReconcileEvery, else it compares again only the
-// devices whose software changed since (OnMatchChanged), else nothing. A device change reaches the page within PlanEvery.
+// devices marked since (MarkPlan: every software change, a device discovered or updated, a match event), else nothing. A device
+// change reaches the page within PlanEvery. The stamp is the tier data's (Feeds.TierStamp: epss-all, nvd-recent, nvd-kev, the feeds
+// module switch), not the hourly exploited-list pulls, whose new CVEs the hourly full pass takes out (review r1 #7 of #804).
 const PlanEvery = 5 * time.Minute
 
 // planState is the last comparison of the tier data with the devices, in memory: nothing of it is stored (the page reads it, nothing
@@ -20,10 +22,12 @@ const PlanEvery = 5 * time.Minute
 type planState struct {
 	mu      sync.RWMutex
 	ran     bool      // a full pass finished since the start
-	stamp   string    // the feeds' match stamp it read
+	stamp   string    // the tier data's stamp it read
 	fullAt  time.Time // when the last full pass finished
+	lastRun time.Time // when the job last ran: a longer gap (the findings module was off) makes the next run a full pass
 	devices map[string]planDevice
 	dirty   map[string]bool // devices to compare again at the next run
+	dropped map[string]bool // devices deleted since the run started: never written back by it (review r1 #4 of #804)
 }
 
 type planDevice struct {
@@ -56,6 +60,11 @@ func (s *Service) Plan() PlanView {
 	return v
 }
 
+// MarkPlan asks the next plan run to compare the device again (D-617): cmd/vedette calls it on inventory.software.changed and on a
+// device discovered or updated, so a version upgrade or a new product reaches "Updates to plan" within PlanEvery (review r1 #1 of
+// #804: inventory.match.changed fires only for exploited-list keys).
+func (s *Service) MarkPlan(assetID string) { s.markPlan(assetID) }
+
 // markPlan asks the next plan run to compare these devices again.
 func (s *Service) markPlan(ids ...string) {
 	s.plan.mu.Lock()
@@ -74,6 +83,10 @@ func (s *Service) dropPlan(id string) {
 	defer s.plan.mu.Unlock()
 	delete(s.plan.devices, id)
 	delete(s.plan.dirty, id)
+	if s.plan.dropped == nil {
+		s.plan.dropped = map[string]bool{}
+	}
+	s.plan.dropped[id] = true
 }
 
 // RefreshPlan is the plan job (PlanEvery). It reads the devices (Inventory), the exploited list (Feeds.Vulns: a CVE on it is a finding,
@@ -81,15 +94,15 @@ func (s *Service) dropPlan(id string) {
 // memory. Nothing is written: no finding, no event, no alert (S-TIER-2). While the exploited list is not loaded it compares nothing (a
 // KEV CVE would show as tier 2). A device that cannot be read is left as it was and compared again at the next run.
 func (s *Service) RefreshPlan(ctx context.Context) error {
-	stamp, err := s.cfg.Feeds.MatchStamp(ctx)
+	stamp, err := s.cfg.Feeds.TierStamp(ctx)
 	if err != nil {
-		return fmt.Errorf("findings: plan: reading the feeds' stamp: %w", err)
+		return fmt.Errorf("findings: plan: reading the tier data's stamp: %w", err)
 	}
 	start := s.now()
 	s.plan.mu.Lock()
-	full := !s.plan.ran || s.plan.stamp != stamp || start.Sub(s.plan.fullAt) >= ReconcileEvery
+	full := !s.plan.ran || s.plan.stamp != stamp || start.Sub(s.plan.fullAt) >= ReconcileEvery || start.Sub(s.plan.lastRun) > 2*PlanEvery
 	dirty := s.plan.dirty
-	s.plan.dirty = nil
+	s.plan.dirty, s.plan.dropped, s.plan.lastRun = nil, nil, start
 	s.plan.mu.Unlock()
 	if !full && len(dirty) == 0 {
 		return nil
@@ -154,6 +167,10 @@ func (s *Service) RefreshPlan(ctx context.Context) error {
 		items += len(its)
 	}
 	s.plan.mu.Lock()
+	for id := range s.plan.dropped { // deleted while this run read it
+		delete(got, id)
+		delete(unread, id)
+	}
 	if full {
 		for id, d := range s.plan.devices { // a device that could not be read keeps what it had
 			if unread[id] {

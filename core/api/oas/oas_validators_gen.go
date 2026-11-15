@@ -36988,6 +36988,8 @@ func (s FindingsGetFindingsPlanOKItemsItemKind) Validate() error {
 		return nil
 	case "windows":
 		return nil
+	case "esu":
+		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}

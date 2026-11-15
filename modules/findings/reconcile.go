@@ -309,7 +309,8 @@ func (s *Service) splitByNews(vulns []Vuln) (backlog, recent []Vuln) {
 // per software for the whole exploited list (D-500), and each write replaces them (W6-1).
 func (s *Service) upsertSplit(ctx context.Context, a Asset, backlog, recent []Vuln) (UpsertResult, error) {
 	var sum UpsertResult
-	need := MatchAsset(a, slices.Concat(backlog, recent), nil, s.now()).NeedVersion // which findings exist does not change them
+	a.winList = slices.Concat(backlog, recent)                 // D-618: a Windows build's month is read from the whole list in both writes
+	need := MatchAsset(a, a.winList, nil, s.now()).NeedVersion // which findings exist does not change them
 	if need == nil {
 		need = []VersionNeeded{} // not nil: the device has no item, so a write must clear the ones it had
 	}

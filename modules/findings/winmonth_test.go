@@ -103,3 +103,97 @@ func TestMatchAsset_D618_NeverGuesses(t *testing.T) {
 	w, m := oneMatch(t, srv, old, true, jan, feb, mar, apr)
 	wantMatch(t, "December 2025 on February's server build", w, m, "notaffected", "", "", "monthly update of February 2026")
 }
+
+// dated is an NVD Windows entry with its published day (synthetic unless the comment names the CVE).
+func dated(cve, published, added string, rows ...nvdRow) Vuln {
+	v := nvdWindows(cve, added, rows...)
+	v.Published = winDay(published)
+	return v
+}
+
+// noRange keeps the D-546 (d) proofs out of a case: a 24H2 row without a fix build is a release of the device's build, so the older
+// flow says "not checked" and only the month rule could close it.
+var noRange = nvdRow{"windows_11_24h2", "-", "*", ""}
+
+// Review r1 #1 of #806 (reproduced): the build's month must not depend on which entries one match gets. Reconcile's recent write got
+// only this week's entries; the earliest Server 2025 row there (October 2026) moved the cut-off for 24H2 rows, a March 2026 24H2-only
+// fix counted for the server's February 2026 build 26100.32313, and the March entry closed. The cut-off is Server 2025's release month.
+func TestMatchAsset_D618_PartOfTheListNeverMovesTheMonth(t *testing.T) {
+	srv := winPC(26100, true, "32313", "x64")
+	a := dated("CVE-2026-90010", "2026-10-13", "2026-11-12", nvdRow{"windows_server_2025", "*", "*", "10.0.26100.33650"}, nvdRow{"windows_11_24h2", "*", "*", "10.0.26100.9711"})
+	b := dated("CVE-2026-90011", "2026-03-10", "2026-11-12", nvdRow{"windows_11_24h2", "*", "*", "10.0.26100.8037"})
+	if w, m := oneMatch(t, srv, b, true, a); w != "existing" {
+		t.Errorf("March 2026 24H2-only entry on February's server build: %s %q", w, m.Evidence.Summary)
+	}
+}
+
+// Reconcile's two writes (backlog, this week's entries) read the build's month from the whole list: a September 2024 entry fixed only by
+// a later build (26100.2100, above the device's 26100.2000) stops the walk at August, so an October 2024 entry stays open on the recent
+// write too, where that September entry is not.
+func TestReconcile_D618_BuildMonthFromTheWholeList(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	*e.clock = time.Date(2026, 11, 15, 12, 0, 0, 0, time.UTC)
+	week := "2026-11-12"
+	e.feeds.vulns = []Vuln{
+		dated("CVE-2024-90020", "2024-08-13", "2024-08-13", nvdRow{"windows_11_24h2", "*", "*", "10.0.26100.1457"}),
+		dated("CVE-2024-90021", "2024-09-10", "2024-09-10", nvdRow{"windows_11_24h2", "*", "*", "10.0.26100.2100"}), // fixed by a later build
+		dated("CVE-2024-90022", "2024-11-12", week, nvdRow{"windows_server_2025", "*", "*", "10.0.26100.2314"}),
+		dated("CVE-2024-90023", "2024-10-08", week, nvdRow{"windows_11_24h2", "*", "*", "10.0.26100.1900"}),
+	}
+	dev := winPC(26100, true, "2000", "x64")
+	e.inv.match = map[string]Asset{dev.ID: dev}
+	e.inv.assets = map[string]AssetView{dev.ID: {ID: dev.ID, IP: "—", Kind: "server", Display: dev.Name}}
+	if _, err := e.svc.UpsertFromMatch(t.Context(), dev, e.feeds.vulns); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.reconciler(&markPub{}, e.inv).Reconcile(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if r, err := loadByPair(t.Context(), e.db.Reader(), dev.ID, "CVE-2024-90023"); err != nil || r.Status != StatusSuspected {
+		t.Fatalf("October 2024 entry on a build from August: %+v %v", r.Finding, err)
+	}
+}
+
+// Review r1 #2 and #3 of #806: each margin of the month rule holds a case of its own.
+func TestMatchAsset_D618_Margins(t *testing.T) {
+	vulns := loadGolden(t, "testdata/kev-nvd-winlab01-n55.json")
+	srv := winlab01() // build 26100.1742: September 2024
+	server2022 := func(end string) nvdRow { return nvdRow{"windows_server_2022", "*", "*", end} }
+	for _, tc := range []struct {
+		name string
+		v    Vuln
+	}{
+		// published in the build's own month with no fix build of its numbering: it may be a flaw published before its fix
+		{"same month, no fix build", dated("CVE-2024-90030", "2024-09-10", "2024-09-10", noRange, server2022("10.0.20348.2700"))},
+		// an earlier month, but CISA listed it less than 90 days ago (D-610: Microsoft and NVD revisit a listed CVE)
+		{"listed under 90 days ago", dated("CVE-2024-90031", "2024-08-13", "2026-10-01", noRange, server2022("10.0.20348.2655"))},
+		// review r1 #4: a family row of every Windows release keeps an entry open (D-610), and so does a range of a release Vedette does not
+		// know that ends above the device's build
+		{"windows:* row", dated("CVE-2019-90032", "2019-01-08", "2022-03-03", nvdRow{"windows_7", "-", "*", ""}, nvdRow{"windows", "*", "*", ""})},
+		{"windows_nt row", dated("CVE-2019-90033", "2019-01-08", "2022-03-03", nvdRow{"windows_7", "-", "*", ""}, nvdRow{"windows_nt", "-", "*", ""})},
+		{"unknown release above the build", dated("CVE-2019-90034", "2019-01-08", "2022-03-03", nvdRow{"windows_7", "-", "*", ""}, nvdRow{"windows_server_2025_azure", "*", "*", "10.0.26100.9999"})},
+	} {
+		if w, m := oneMatch(t, srv, tc.v, true, vulns...); w != "existing" {
+			t.Errorf("%s: %s %q", tc.name, w, m.Evidence.Summary)
+		}
+	}
+	// an own-numbering fix build on a CVE without its published day: the walk would miss that month, so the month is not known. Here an
+	// October 2024 entry fixed by December's build (26100.2605) has no day; without it the walk would reach November on 26100.2314
+	srv = winPC(26100, true, "2314", "x64")
+	undated := nvdWindows("CVE-2024-90035", "2024-10-08", nvdRow{"windows_11_24h2", "*", "*", "10.0.26100.2605"})
+	oct := dated("CVE-2024-90036", "2024-10-08", "2024-10-08", noRange, server2022("10.0.20348.2762"))
+	if w, m := oneMatch(t, srv, oct, true, append(slices.Clone(vulns), undated)...); w != "existing" {
+		t.Errorf("undated fix build: %s %q", w, m.Evidence.Summary)
+	}
+	// review r1 #3: two months with the same bar (NVD's November and December 2025 both end at 26100.7392): the month stays at the first
+	srv = winPC(26100, true, "7392", "x64")
+	own := func(cve, day, end string) Vuln {
+		return dated(cve, day, day, nvdRow{"windows_server_2025", "*", "*", end})
+	}
+	months := []Vuln{own("CVE-2025-90037", "2025-10-14", "10.0.26100.6899"), own("CVE-2025-90038", "2025-11-11", "10.0.26100.7392"), own("CVE-2025-90039", "2025-12-09", "10.0.26100.7392")}
+	nov := dated("CVE-2025-90040", "2025-11-11", "2025-11-11", noRange, server2022("10.0.20348.4405"))
+	if w, m := oneMatch(t, srv, nov, true, months...); w != "existing" {
+		t.Errorf("equal bars: %s %q", w, m.Evidence.Summary)
+	}
+}
